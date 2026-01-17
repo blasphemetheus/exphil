@@ -11,47 +11,43 @@
 #   --max-files N     - Max replay files to use (default: all)
 #   --checkpoint PATH - Save checkpoint to path
 #   --player PORT     - Player port to learn from (1-4, default: 1)
+#   --wandb           - Enable Wandb logging (requires WANDB_API_KEY env)
+#   --wandb-project   - Wandb project name (default: exphil)
+#   --wandb-name      - Wandb run name (default: auto-generated)
 
 require Logger
 
 alias ExPhil.Data.Peppi
 alias ExPhil.Training.{Data, Imitation}
 alias ExPhil.Embeddings
+alias ExPhil.Integrations.Wandb
 
 # Parse command line arguments
 args = System.argv()
 
+# Helper to get argument value
+get_arg = fn flag, default ->
+  case Enum.find_index(args, &(&1 == flag)) do
+    nil -> default
+    idx -> Enum.at(args, idx + 1) || default
+  end
+end
+
+has_flag = fn flag -> Enum.member?(args, flag) end
+
 opts = [
-  replays: Enum.find_value(args, "/home/dori/git/melee/replays", fn
-    "--replays" <> _ -> nil
-    arg ->
-      idx = Enum.find_index(args, &(&1 == "--replays"))
-      if idx, do: Enum.at(args, idx + 1), else: nil
-  end) || "/home/dori/git/melee/replays",
-  epochs: String.to_integer(Enum.find_value(args, "10", fn
-    arg ->
-      idx = Enum.find_index(args, &(&1 == "--epochs"))
-      if idx, do: Enum.at(args, idx + 1), else: nil
-  end) || "10"),
-  batch_size: String.to_integer(Enum.find_value(args, "64", fn
-    arg ->
-      idx = Enum.find_index(args, &(&1 == "--batch-size"))
-      if idx, do: Enum.at(args, idx + 1), else: nil
-  end) || "64"),
+  replays: get_arg.("--replays", "/home/dori/git/melee/replays"),
+  epochs: String.to_integer(get_arg.("--epochs", "10")),
+  batch_size: String.to_integer(get_arg.("--batch-size", "64")),
   max_files: case Enum.find_index(args, &(&1 == "--max-files")) do
     nil -> nil
     idx -> String.to_integer(Enum.at(args, idx + 1))
   end,
-  checkpoint: Enum.find_value(args, "checkpoints/imitation_latest.axon", fn
-    arg ->
-      idx = Enum.find_index(args, &(&1 == "--checkpoint"))
-      if idx, do: Enum.at(args, idx + 1), else: nil
-  end) || "checkpoints/imitation_latest.axon",
-  player_port: String.to_integer(Enum.find_value(args, "1", fn
-    arg ->
-      idx = Enum.find_index(args, &(&1 == "--player"))
-      if idx, do: Enum.at(args, idx + 1), else: nil
-  end) || "1")
+  checkpoint: get_arg.("--checkpoint", "checkpoints/imitation_latest.axon"),
+  player_port: String.to_integer(get_arg.("--player", "1")),
+  wandb: has_flag.("--wandb"),
+  wandb_project: get_arg.("--wandb-project", "exphil"),
+  wandb_name: get_arg.("--wandb-name", nil)
 ]
 
 IO.puts("""
@@ -67,8 +63,37 @@ Configuration:
   Max Files:   #{opts[:max_files] || "all"}
   Player Port: #{opts[:player_port]}
   Checkpoint:  #{opts[:checkpoint]}
+  Wandb:       #{if opts[:wandb], do: "enabled", else: "disabled"}
 
 """)
+
+# Initialize Wandb if enabled
+if opts[:wandb] do
+  wandb_opts = [
+    project: opts[:wandb_project],
+    config: %{
+      epochs: opts[:epochs],
+      batch_size: opts[:batch_size],
+      max_files: opts[:max_files],
+      player_port: opts[:player_port],
+      hidden_sizes: [64, 64],
+      learning_rate: 1.0e-4
+    }
+  ]
+
+  wandb_opts = if opts[:wandb_name] do
+    Keyword.put(wandb_opts, :name, opts[:wandb_name])
+  else
+    wandb_opts
+  end
+
+  case Wandb.start_run(wandb_opts) do
+    {:ok, run_id} ->
+      IO.puts("Wandb run started: #{run_id}")
+    {:error, reason} ->
+      IO.puts("Warning: Wandb failed to start: #{inspect(reason)}")
+  end
+end
 
 # Step 1: Find and parse replays
 IO.puts("Step 1: Parsing replays...")
@@ -140,7 +165,7 @@ IO.puts("  Embedding size: #{embed_size}")
 
 trainer = Imitation.new(
   embed_size: embed_size,
-  hidden_sizes: [512, 512],
+  hidden_sizes: [64, 64],  # Smaller for faster CPU training
   learning_rate: 1.0e-4,
   batch_size: opts[:batch_size]
 )
@@ -230,3 +255,9 @@ Next steps:
   3. Run against CPU: mix run scripts/eval.exs
 
 """)
+
+# Finish Wandb run if active
+if Wandb.active?() do
+  Wandb.finish_run()
+  IO.puts("Wandb run finished.")
+end

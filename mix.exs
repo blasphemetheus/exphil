@@ -49,8 +49,9 @@ defmodule ExPhil.MixProject do
       {:telemetry, "~> 1.2"},
       {:telemetry_metrics, "~> 1.0"},
 
-      # JSON
+      # JSON & HTTP
       {:jason, "~> 1.4"},
+      {:req, "~> 0.5"},
 
       # Dev & Test
       {:kino, "~> 0.14", only: :dev},
