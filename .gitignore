@@ -46,3 +46,4 @@ Thumbs.db
 # Replay files (too large for git)
 /replays/
 *.slp
+cover/
