@@ -192,6 +192,7 @@ defmodule ExPhil.Networks.Policy do
     head_dim = Keyword.get(opts, :head_dim, 64)
     lstm_layers = Keyword.get(opts, :num_layers, 1)
     dropout = Keyword.get(opts, :dropout, @default_dropout)
+    window_size = Keyword.get(opts, :window_size, 60)
 
     Attention.build_hybrid(
       embed_size: embed_size,
@@ -199,7 +200,8 @@ defmodule ExPhil.Networks.Policy do
       lstm_layers: lstm_layers,
       num_heads: num_heads,
       head_dim: head_dim,
-      dropout: dropout
+      dropout: dropout,
+      window_size: window_size  # For concrete seq_len (efficient JIT)
     )
   end
 
@@ -207,6 +209,7 @@ defmodule ExPhil.Networks.Policy do
     hidden_size = Keyword.get(opts, :hidden_size, 256)
     num_layers = Keyword.get(opts, :num_layers, 2)
     dropout = Keyword.get(opts, :dropout, @default_dropout)
+    window_size = Keyword.get(opts, :window_size, 60)
 
     Recurrent.build(
       embed_size: embed_size,
@@ -214,7 +217,8 @@ defmodule ExPhil.Networks.Policy do
       num_layers: num_layers,
       cell_type: :lstm,
       dropout: dropout,
-      return_sequences: false
+      return_sequences: false,
+      window_size: window_size  # For concrete seq_len (efficient JIT)
     )
   end
 

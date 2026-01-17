@@ -102,9 +102,13 @@ defmodule ExPhil.Networks.Recurrent do
     cell_type = Keyword.get(opts, :cell_type, @default_cell_type)
     dropout = Keyword.get(opts, :dropout, @default_dropout)
     return_sequences = Keyword.get(opts, :return_sequences, false)
+    # Use concrete seq_len for efficient JIT compilation (same fix as attention)
+    window_size = Keyword.get(opts, :window_size, 60)
+    seq_len = Keyword.get(opts, :seq_len, window_size)
+    input_seq_dim = if seq_len, do: seq_len, else: nil
 
-    # Input: [batch, seq_len, embed_size]
-    input = Axon.input("state_sequence", shape: {nil, nil, embed_size})
+    # Input: [batch, seq_len, embed_size] - use concrete seq_len when available
+    input = Axon.input("state_sequence", shape: {nil, input_seq_dim, embed_size})
 
     build_backbone(input,
       hidden_size: hidden_size,

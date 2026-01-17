@@ -95,7 +95,7 @@ Configuration:
   Replays:     #{opts[:replays]}
   Epochs:      #{opts[:epochs]}
   Batch Size:  #{opts[:batch_size]}
-  Hidden:      #{inspect(opts[:hidden_sizes])}
+  Hidden:      #{inspect(opts[:hidden_sizes], charlists: :as_lists)}
   Max Files:   #{opts[:max_files] || "all"}
   Player Port: #{opts[:player_port]}
   Checkpoint:  #{opts[:checkpoint]}
