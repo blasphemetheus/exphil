@@ -7,6 +7,7 @@ ExPhil is an Elixir-based successor to slippi-ai, designed to create high-ELO pl
 2. **Mr. Game & Watch** - No L-cancel, random hammer, unique shield
 3. **Link** - Projectiles, tether recovery, bomb tech
 4. **Ganondorf** - Slow but powerful, requires precise spacing/timing
+5. **Zelda** - Transform mechanic, Din's Fire zoning, Lightning Kick spacing
 
 ## Project Structure
 
