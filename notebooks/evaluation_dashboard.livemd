@@ -1,0 +1,394 @@
+# ExPhil Evaluation Dashboard
+
+```elixir
+# Setup - Run this first to load dependencies
+Mix.install([
+  {:exphil, path: Path.expand(".."), env: :dev},
+  {:kino, "~> 0.14"},
+  {:kino_vega_lite, "~> 0.1"}
+])
+
+alias ExPhil.{Agents, Embeddings, Training}
+alias ExPhil.Training.{Imitation, Data}
+alias ExPhil.Bridge.{GameState, Player, ControllerState}
+alias ExPhil.Data.Peppi
+alias VegaLite, as: Vl
+```
+
+## Load Trained Policy
+
+```elixir
+# Select a policy file to analyze
+policy_path = Kino.Input.text("Policy Path",
+  default: "checkpoints/imitation_latest_policy.bin")
+|> Kino.render()
+
+:ok
+```
+
+```elixir
+# Load the policy
+policy_file = Kino.Input.read(policy_path)
+
+case Training.load_policy(policy_file) do
+  {:ok, policy} ->
+    IO.puts("Policy loaded successfully!")
+    IO.puts("Temporal: #{policy.config.temporal}")
+    IO.puts("Backbone: #{policy.config.backbone}")
+    IO.puts("Embed size: #{policy.config.embed_size}")
+    IO.puts("Hidden sizes: #{inspect(policy.config.hidden_sizes)}")
+
+    # Store in process dictionary for later cells
+    Process.put(:loaded_policy, policy)
+    :ok
+
+  {:error, reason} ->
+    IO.puts("Failed to load policy: #{inspect(reason)}")
+    :error
+end
+```
+
+## Model Architecture
+
+```elixir
+policy = Process.get(:loaded_policy)
+
+if policy do
+  # Count parameters
+  param_count = policy.params.data
+  |> Enum.flat_map(fn {_layer, params} ->
+    Enum.map(params, fn {_name, tensor} ->
+      Nx.size(tensor)
+    end)
+  end)
+  |> Enum.sum()
+
+  # Layer breakdown
+  layer_info = policy.params.data
+  |> Enum.map(fn {layer, params} ->
+    layer_size = Enum.map(params, fn {name, tensor} ->
+      {name, Nx.shape(tensor), Nx.size(tensor)}
+    end)
+    {layer, layer_size}
+  end)
+  |> Enum.sort()
+
+  Kino.Markdown.new("""
+  ### Model Summary
+
+  | Property | Value |
+  |----------|-------|
+  | Total Parameters | #{Number.delimit(param_count)} |
+  | Temporal | #{policy.config.temporal} |
+  | Backbone | #{policy.config.backbone} |
+  | Embed Size | #{policy.config.embed_size} |
+  | Hidden Sizes | #{inspect(policy.config.hidden_sizes)} |
+
+  ### Layer Breakdown
+
+  #{Enum.map(layer_info, fn {layer, params} ->
+    param_str = Enum.map(params, fn {name, shape, size} ->
+      "  - #{name}: #{inspect(shape)} (#{Number.delimit(size)})"
+    end) |> Enum.join("\n")
+    "**#{layer}**\n#{param_str}"
+  end) |> Enum.join("\n\n")}
+  """)
+else
+  Kino.Markdown.new("No policy loaded. Run the cell above first.")
+end
+```
+
+## Action Distribution Analysis
+
+Analyze button press rates and stick positions from replay data.
+
+```elixir
+# Parse replays for analysis
+replay_dir = Kino.Input.text("Replay Directory",
+  default: "/home/dori/git/melee/replays")
+|> Kino.render()
+
+max_files = Kino.Input.number("Max Files", default: 10)
+|> Kino.render()
+
+:ok
+```
+
+```elixir
+replay_path = Kino.Input.read(replay_dir)
+max = Kino.Input.read(max_files)
+
+replay_files = Path.wildcard(Path.join(replay_path, "**/*.slp"))
+|> Enum.take(max)
+
+IO.puts("Found #{length(replay_files)} replay files")
+
+# Parse and collect frames
+all_frames = replay_files
+|> Enum.flat_map(fn path ->
+  case Peppi.parse(path) do
+    {:ok, replay} ->
+      Peppi.to_training_frames(replay)
+    {:error, _} ->
+      []
+  end
+end)
+
+IO.puts("Parsed #{length(all_frames)} training frames")
+Process.put(:training_frames, all_frames)
+:ok
+```
+
+```elixir
+frames = Process.get(:training_frames, [])
+
+if length(frames) > 0 do
+  # Calculate button press rates
+  button_counts = frames
+  |> Enum.reduce(%{a: 0, b: 0, x: 0, y: 0, z: 0, l: 0, r: 0, d_up: 0}, fn frame, acc ->
+    buttons = frame.action.buttons
+    Map.merge(acc, buttons, fn _k, v1, v2 ->
+      v1 + if(v2, do: 1, else: 0)
+    end)
+  end)
+
+  total = length(frames)
+  button_rates = Map.new(button_counts, fn {k, v} -> {k, v / total * 100} end)
+
+  # Create chart data
+  chart_data = Enum.map(button_rates, fn {button, rate} ->
+    %{button: to_string(button), rate: rate}
+  end)
+
+  Vl.new(width: 400, height: 200, title: "Button Press Rates")
+  |> Vl.data_from_values(chart_data)
+  |> Vl.mark(:bar)
+  |> Vl.encode_field(:x, "button", type: :nominal, sort: "-y", title: "Button")
+  |> Vl.encode_field(:y, "rate", type: :quantitative, title: "Press Rate (%)")
+  |> Vl.encode_field(:color, "button", type: :nominal, legend: nil)
+else
+  Kino.Markdown.new("No frames loaded. Run the replay parsing cell first.")
+end
+```
+
+```elixir
+# Stick position distribution
+frames = Process.get(:training_frames, [])
+
+if length(frames) > 0 do
+  # Sample stick positions
+  sample_size = min(5000, length(frames))
+  sampled = Enum.take_random(frames, sample_size)
+
+  stick_data = Enum.map(sampled, fn frame ->
+    %{
+      main_x: frame.action.main_x,
+      main_y: frame.action.main_y,
+      c_x: frame.action.c_x,
+      c_y: frame.action.c_y
+    }
+  end)
+
+  # Main stick scatter
+  main_stick_chart = Vl.new(width: 300, height: 300, title: "Main Stick Positions")
+  |> Vl.data_from_values(stick_data)
+  |> Vl.mark(:circle, opacity: 0.3, size: 5)
+  |> Vl.encode_field(:x, "main_x", type: :quantitative, scale: [domain: [0, 16]])
+  |> Vl.encode_field(:y, "main_y", type: :quantitative, scale: [domain: [0, 16]])
+
+  # C stick scatter
+  c_stick_chart = Vl.new(width: 300, height: 300, title: "C-Stick Positions")
+  |> Vl.data_from_values(stick_data)
+  |> Vl.mark(:circle, opacity: 0.3, size: 5)
+  |> Vl.encode_field(:x, "c_x", type: :quantitative, scale: [domain: [0, 16]])
+  |> Vl.encode_field(:y, "c_y", type: :quantitative, scale: [domain: [0, 16]])
+
+  Vl.concat([main_stick_chart, c_stick_chart], :horizontal)
+else
+  Kino.Markdown.new("No frames loaded.")
+end
+```
+
+## Live Inference Testing
+
+Test the model on sample game states.
+
+```elixir
+policy = Process.get(:loaded_policy)
+
+if policy do
+  # Create sample game state
+  game_state = %GameState{
+    frame: 0,
+    stage: 2,  # Final Destination
+    players: %{
+      1 => %Player{
+        x: 0.0, y: 0.0, percent: 0.0, stock: 4, facing: 1,
+        character: 9, action: 14, action_frame: 0, invulnerable: false,
+        jumps_left: 2, on_ground: true, shield_strength: 60.0
+      },
+      2 => %Player{
+        x: 20.0, y: 0.0, percent: 50.0, stock: 4, facing: -1,
+        character: 9, action: 14, action_frame: 0, invulnerable: false,
+        jumps_left: 2, on_ground: true, shield_strength: 60.0
+      }
+    }
+  }
+
+  # Start agent and get action
+  {:ok, agent} = Agents.Agent.start_link(policy: policy)
+
+  # Run multiple samples to see distribution
+  samples = for _ <- 1..100 do
+    {:ok, action} = Agents.Agent.get_action(agent, game_state, player_port: 1)
+    action
+  end
+
+  GenServer.stop(agent)
+
+  # Analyze sampled actions
+  button_counts = samples
+  |> Enum.reduce(%{a: 0, b: 0, x: 0, y: 0, z: 0, l: 0, r: 0, d_up: 0}, fn action, acc ->
+    Map.merge(acc, action.buttons, fn _k, v1, v2 ->
+      v1 + if(v2, do: 1, else: 0)
+    end)
+  end)
+
+  main_x_counts = samples |> Enum.map(& &1.main_x) |> Enum.frequencies()
+  main_y_counts = samples |> Enum.map(& &1.main_y) |> Enum.frequencies()
+
+  Kino.Markdown.new("""
+  ### Sampled Actions (100 samples from same state)
+
+  **Button Press Counts:**
+  #{Enum.map(button_counts, fn {k, v} -> "- #{k}: #{v}" end) |> Enum.join("\n")}
+
+  **Main Stick X Distribution:**
+  #{main_x_counts |> Enum.sort() |> Enum.map(fn {pos, count} -> "#{pos}: #{count}" end) |> Enum.join(", ")}
+
+  **Main Stick Y Distribution:**
+  #{main_y_counts |> Enum.sort() |> Enum.map(fn {pos, count} -> "#{pos}: #{count}" end) |> Enum.join(", ")}
+  """)
+else
+  Kino.Markdown.new("No policy loaded.")
+end
+```
+
+## Deterministic vs Stochastic Comparison
+
+```elixir
+policy = Process.get(:loaded_policy)
+
+if policy do
+  game_state = %GameState{
+    frame: 0,
+    stage: 2,
+    players: %{
+      1 => %Player{
+        x: -30.0, y: 0.0, percent: 80.0, stock: 3, facing: 1,
+        character: 9, action: 14, action_frame: 0, invulnerable: false,
+        jumps_left: 1, on_ground: true, shield_strength: 40.0
+      },
+      2 => %Player{
+        x: 10.0, y: 0.0, percent: 20.0, stock: 4, facing: -1,
+        character: 9, action: 304, action_frame: 5, invulnerable: false,
+        jumps_left: 2, on_ground: true, shield_strength: 60.0
+      }
+    }
+  }
+
+  # Deterministic agent
+  {:ok, det_agent} = Agents.Agent.start_link(policy: policy, deterministic: true)
+  {:ok, det_action} = Agents.Agent.get_action(det_agent, game_state, player_port: 1)
+  GenServer.stop(det_agent)
+
+  # Stochastic agent (10 samples)
+  {:ok, stoch_agent} = Agents.Agent.start_link(policy: policy, deterministic: false)
+  stoch_actions = for _ <- 1..10 do
+    {:ok, action} = Agents.Agent.get_action(stoch_agent, game_state, player_port: 1)
+    action
+  end
+  GenServer.stop(stoch_agent)
+
+  Kino.Markdown.new("""
+  ### Scenario: Player at 80% vs opponent attacking
+
+  **Deterministic Action:**
+  - Buttons: #{inspect(det_action.buttons)}
+  - Main: (#{det_action.main_x}, #{det_action.main_y})
+  - C-Stick: (#{det_action.c_x}, #{det_action.c_y})
+
+  **Stochastic Actions (10 samples):**
+  #{Enum.with_index(stoch_actions) |> Enum.map(fn {action, i} ->
+    buttons_active = action.buttons |> Enum.filter(fn {_, v} -> v end) |> Enum.map(fn {k, _} -> k end)
+    "#{i+1}. buttons=#{inspect(buttons_active)} main=(#{action.main_x},#{action.main_y})"
+  end) |> Enum.join("\n")}
+  """)
+else
+  Kino.Markdown.new("No policy loaded.")
+end
+```
+
+## Replay Comparison
+
+Compare model actions to human actions on replay frames.
+
+```elixir
+frames = Process.get(:training_frames, [])
+policy = Process.get(:loaded_policy)
+
+if length(frames) > 0 and policy do
+  {:ok, agent} = Agents.Agent.start_link(policy: policy, deterministic: true)
+
+  # Sample some frames and compare
+  sample_frames = Enum.take_random(frames, 20)
+
+  comparisons = Enum.map(sample_frames, fn frame ->
+    # Build game state from frame
+    game_state = %GameState{
+      frame: 0,
+      stage: 2,
+      players: %{
+        1 => frame.player,
+        2 => frame.opponent
+      }
+    }
+
+    {:ok, model_action} = Agents.Agent.get_action(agent, game_state, player_port: 1)
+    human_action = frame.action
+
+    # Compare buttons
+    button_match = Enum.count([:a, :b, :x, :y, :z, :l, :r], fn btn ->
+      Map.get(model_action.buttons, btn, false) == Map.get(human_action.buttons, btn, false)
+    end)
+
+    # Compare sticks (within 2 positions)
+    main_x_close = abs(model_action.main_x - human_action.main_x) <= 2
+    main_y_close = abs(model_action.main_y - human_action.main_y) <= 2
+
+    %{
+      button_accuracy: button_match / 7 * 100,
+      stick_match: main_x_close and main_y_close
+    }
+  end)
+
+  GenServer.stop(agent)
+
+  avg_button_acc = Enum.map(comparisons, & &1.button_accuracy) |> Enum.sum() |> Kernel./(length(comparisons))
+  stick_match_rate = Enum.count(comparisons, & &1.stick_match) / length(comparisons) * 100
+
+  Kino.Markdown.new("""
+  ### Model vs Human Comparison (20 random frames)
+
+  | Metric | Value |
+  |--------|-------|
+  | Average Button Accuracy | #{Float.round(avg_button_acc, 1)}% |
+  | Stick Position Match Rate | #{Float.round(stick_match_rate, 1)}% |
+
+  *Button accuracy = fraction of 7 buttons matching*
+  *Stick match = within 2 positions on both axes*
+  """)
+else
+  Kino.Markdown.new("Need both frames and policy loaded.")
+end
+```
