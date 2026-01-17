@@ -14,6 +14,12 @@
 #   --wandb           - Enable Wandb logging (requires WANDB_API_KEY env)
 #   --wandb-project   - Wandb project name (default: exphil)
 #   --wandb-name      - Wandb run name (default: auto-generated)
+#
+# Temporal Training Options:
+#   --temporal        - Enable temporal/sequence training with attention
+#   --backbone TYPE   - Backbone: sliding_window, hybrid, lstm, mlp (default: sliding_window)
+#   --window-size N   - Frames in attention window (default: 60)
+#   --stride N        - Stride for sequence sampling (default: 1)
 
 require Logger
 
@@ -47,8 +53,24 @@ opts = [
   player_port: String.to_integer(get_arg.("--player", "1")),
   wandb: has_flag.("--wandb"),
   wandb_project: get_arg.("--wandb-project", "exphil"),
-  wandb_name: get_arg.("--wandb-name", nil)
+  wandb_name: get_arg.("--wandb-name", nil),
+  # Temporal options
+  temporal: has_flag.("--temporal"),
+  backbone: String.to_atom(get_arg.("--backbone", "sliding_window")),
+  window_size: String.to_integer(get_arg.("--window-size", "60")),
+  stride: String.to_integer(get_arg.("--stride", "1"))
 ]
+
+temporal_info = if opts[:temporal] do
+  """
+    Temporal:    enabled
+    Backbone:    #{opts[:backbone]}
+    Window:      #{opts[:window_size]} frames
+    Stride:      #{opts[:stride]}
+  """
+else
+  "  Temporal:    disabled (single-frame MLP)\n"
+end
 
 IO.puts("""
 
@@ -64,7 +86,7 @@ Configuration:
   Player Port: #{opts[:player_port]}
   Checkpoint:  #{opts[:checkpoint]}
   Wandb:       #{if opts[:wandb], do: "enabled", else: "disabled"}
-
+#{temporal_info}
 """)
 
 # Initialize Wandb if enabled
@@ -144,10 +166,21 @@ end
 IO.puts("\nStep 2: Creating dataset...")
 
 dataset = Data.from_frames(all_frames)
-{train_dataset, val_dataset} = Data.split(dataset, ratio: 0.9)
 
-IO.puts("  Training frames: #{train_dataset.size}")
-IO.puts("  Validation frames: #{val_dataset.size}")
+# Convert to sequences for temporal training
+{train_dataset, val_dataset} = if opts[:temporal] do
+  IO.puts("  Converting to sequences (window=#{opts[:window_size]}, stride=#{opts[:stride]})...")
+  seq_dataset = Data.to_sequences(dataset,
+    window_size: opts[:window_size],
+    stride: opts[:stride]
+  )
+  Data.split(seq_dataset, ratio: 0.9)
+else
+  Data.split(dataset, ratio: 0.9)
+end
+
+IO.puts("  Training #{if opts[:temporal], do: "sequences", else: "frames"}: #{train_dataset.size}")
+IO.puts("  Validation #{if opts[:temporal], do: "sequences", else: "frames"}: #{val_dataset.size}")
 
 # Show some statistics
 stats = Data.stats(train_dataset)
@@ -163,14 +196,28 @@ IO.puts("\nStep 3: Initializing model...")
 embed_size = Embeddings.embedding_size()
 IO.puts("  Embedding size: #{embed_size}")
 
-trainer = Imitation.new(
+trainer_opts = [
   embed_size: embed_size,
   hidden_sizes: [64, 64],  # Smaller for faster CPU training
   learning_rate: 1.0e-4,
-  batch_size: opts[:batch_size]
-)
+  batch_size: opts[:batch_size],
+  # Temporal options
+  temporal: opts[:temporal],
+  backbone: opts[:backbone],
+  window_size: opts[:window_size],
+  num_heads: 2,      # Smaller for CPU training
+  head_dim: 32,      # Smaller for CPU training
+  num_layers: 1      # Fewer layers for CPU training
+]
 
-IO.puts("  Model initialized with #{opts[:batch_size]} batch size")
+trainer = Imitation.new(trainer_opts)
+
+if opts[:temporal] do
+  IO.puts("  Temporal model initialized (#{opts[:backbone]} backbone)")
+else
+  IO.puts("  MLP model initialized")
+end
+IO.puts("  Batch size: #{opts[:batch_size]}")
 
 # Step 4: Training loop
 IO.puts("\nStep 4: Training for #{opts[:epochs]} epochs...")
@@ -182,11 +229,20 @@ final_trainer = Enum.reduce(1..opts[:epochs], trainer, fn epoch, current_trainer
   epoch_start = System.monotonic_time(:second)
 
   # Create batched dataset for this epoch
-  batches = Data.batched(train_dataset,
-    batch_size: opts[:batch_size],
-    shuffle: true,
-    drop_last: true
-  )
+  # Use appropriate batching function based on temporal mode
+  batches = if opts[:temporal] do
+    Data.batched_sequences(train_dataset,
+      batch_size: opts[:batch_size],
+      shuffle: true,
+      drop_last: true
+    )
+  else
+    Data.batched(train_dataset,
+      batch_size: opts[:batch_size],
+      shuffle: true,
+      drop_last: true
+    )
+  end
   |> Enum.to_list()
 
   num_batches = length(batches)
@@ -208,8 +264,12 @@ final_trainer = Enum.reduce(1..opts[:epochs], trainer, fn epoch, current_trainer
   epoch_time = System.monotonic_time(:second) - epoch_start
   avg_loss = Enum.sum(epoch_losses) / length(epoch_losses)
 
-  # Validation
-  val_batches = Data.batched(val_dataset, batch_size: opts[:batch_size], shuffle: false)
+  # Validation - use appropriate batching for temporal mode
+  val_batches = if opts[:temporal] do
+    Data.batched_sequences(val_dataset, batch_size: opts[:batch_size], shuffle: false)
+  else
+    Data.batched(val_dataset, batch_size: opts[:batch_size], shuffle: false)
+  end
   val_metrics = Imitation.evaluate(updated_trainer, val_batches)
 
   IO.puts("\r  Epoch #{epoch}/#{opts[:epochs]}: train_loss=#{Float.round(avg_loss, 4)} val_loss=#{Float.round(val_metrics.loss, 4)} (#{epoch_time}s)")

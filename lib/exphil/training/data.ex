@@ -443,6 +443,152 @@ defmodule ExPhil.Training.Data do
   end
 
   # ============================================================================
+  # Temporal/Sequence Data
+  # ============================================================================
+
+  @doc """
+  Convert dataset to sequences for temporal training.
+
+  Creates overlapping windows of consecutive frames. Each sequence contains
+  `window_size` frames, and the action is from the last frame.
+
+  ## Options
+    - `:window_size` - Number of frames per sequence (default: 60)
+    - `:stride` - Step between sequences (default: 1)
+
+  ## Returns
+    New dataset where each "frame" is actually a sequence.
+  """
+  @spec to_sequences(t(), keyword()) :: t()
+  def to_sequences(dataset, opts \\ []) do
+    window_size = Keyword.get(opts, :window_size, 60)
+    stride = Keyword.get(opts, :stride, 1)
+
+    # Need at least window_size frames
+    if dataset.size < window_size do
+      Logger.warning("Dataset size #{dataset.size} < window_size #{window_size}, returning empty")
+      %{dataset | frames: [], size: 0}
+    else
+      # Create sequences
+      sequences = create_sequences(dataset.frames, window_size, stride)
+
+      %{dataset |
+        frames: sequences,
+        size: length(sequences),
+        metadata: Map.merge(dataset.metadata, %{
+          temporal: true,
+          window_size: window_size,
+          stride: stride,
+          original_size: dataset.size
+        })
+      }
+    end
+  end
+
+  defp create_sequences(frames, window_size, stride) do
+    frames_array = :array.from_list(frames)
+    max_start = :array.size(frames_array) - window_size
+
+    0..max_start//stride
+    |> Enum.map(fn start_idx ->
+      # Get window of frames
+      window_frames = for i <- start_idx..(start_idx + window_size - 1) do
+        :array.get(i, frames_array)
+      end
+
+      # The action comes from the last frame
+      last_frame = List.last(window_frames)
+
+      %{
+        sequence: window_frames,
+        game_state: last_frame.game_state,  # Keep for compatibility
+        controller: Map.get(last_frame, :controller),
+        action: get_action(last_frame)
+      }
+    end)
+  end
+
+  @doc """
+  Create batched iterator for sequence data (temporal training).
+
+  Similar to `batched/2` but handles sequences properly.
+
+  ## Options
+    - `:batch_size` - Batch size (default: 64)
+    - `:shuffle` - Whether to shuffle (default: true)
+    - `:drop_last` - Drop incomplete final batch (default: false)
+
+  ## Returns
+    Stream of batches containing:
+    - `states`: Tensor [batch_size, seq_len, embed_size]
+    - `actions`: Map of action tensors
+  """
+  @spec batched_sequences(t(), keyword()) :: Enumerable.t()
+  def batched_sequences(dataset, opts \\ []) do
+    batch_size = Keyword.get(opts, :batch_size, 64)
+    shuffle = Keyword.get(opts, :shuffle, true)
+    drop_last = Keyword.get(opts, :drop_last, false)
+    seed = Keyword.get(opts, :seed, System.system_time())
+
+    # Prepare indices
+    indices = 0..(dataset.size - 1) |> Enum.to_list()
+
+    indices = if shuffle do
+      :rand.seed(:exsss, {seed, seed, seed})
+      Enum.shuffle(indices)
+    else
+      indices
+    end
+
+    # Create batch stream
+    indices
+    |> Enum.chunk_every(batch_size)
+    |> maybe_drop_last(drop_last, batch_size)
+    |> Stream.map(fn batch_indices ->
+      create_sequence_batch(dataset, batch_indices)
+    end)
+  end
+
+  defp create_sequence_batch(dataset, indices) do
+    # Collect sequence data
+    sequence_data = Enum.map(indices, fn idx ->
+      frame = Enum.at(dataset.frames, idx)
+      {frame.sequence, frame.action}
+    end)
+
+    {sequences, actions} = Enum.unzip(sequence_data)
+
+    # Embed each sequence: [batch, seq_len, embed_size]
+    states = embed_sequences(sequences, dataset.embed_config)
+
+    # Convert actions to tensors
+    action_tensors = actions_to_tensors(actions)
+
+    %{
+      states: states,
+      actions: action_tensors
+    }
+  end
+
+  defp embed_sequences(sequences, embed_config) do
+    # sequences is [[frame, ...], [frame, ...], ...]
+    # Each frame has .game_state
+
+    batch_embeddings = Enum.map(sequences, fn seq_frames ->
+      # Embed each frame in the sequence
+      frame_embeddings = Enum.map(seq_frames, fn frame ->
+        Embeddings.embed(frame.game_state, nil, embed_config: embed_config)
+      end)
+
+      # Stack into [seq_len, embed_size]
+      Nx.stack(frame_embeddings)
+    end)
+
+    # Stack into [batch, seq_len, embed_size]
+    Nx.stack(batch_embeddings)
+  end
+
+  # ============================================================================
   # Statistics
   # ============================================================================
 

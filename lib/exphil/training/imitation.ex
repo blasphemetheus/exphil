@@ -82,7 +82,15 @@ defmodule ExPhil.Training.Imitation do
     log_interval: 100,
     checkpoint_interval: 1000,
     axis_buckets: 16,
-    shoulder_buckets: 4
+    shoulder_buckets: 4,
+    # Temporal training options
+    temporal: false,              # Enable temporal/sequence training
+    backbone: :sliding_window,    # :sliding_window, :hybrid, :lstm, :mlp
+    window_size: 60,              # Frames in attention window
+    num_heads: 4,                 # Attention heads
+    head_dim: 64,                 # Dimension per head
+    hidden_size: 256,             # LSTM/hybrid hidden size
+    num_layers: 2                 # Attention/recurrent layers
   }
 
   @doc """
@@ -91,10 +99,13 @@ defmodule ExPhil.Training.Imitation do
   ## Options
     - `:embed_size` - Size of state embedding (required, or provide :embed_config)
     - `:embed_config` - Embedding configuration (alternative to embed_size)
-    - `:hidden_sizes` - Policy network hidden layer sizes
+    - `:hidden_sizes` - Policy network hidden layer sizes (for MLP backbone)
     - `:learning_rate` - Initial learning rate
     - `:batch_size` - Training batch size
     - `:max_grad_norm` - Gradient clipping threshold
+    - `:temporal` - Enable temporal/sequence training (default: false)
+    - `:backbone` - Temporal backbone type: :sliding_window, :hybrid, :lstm, :mlp
+    - `:window_size` - Attention window size for temporal (default: 60)
     - Other options merged into config
   """
   @spec new(keyword()) :: t()
@@ -110,18 +121,41 @@ defmodule ExPhil.Training.Imitation do
     config = @default_config
     |> Map.merge(Map.new(Keyword.take(opts, Map.keys(@default_config))))
 
-    # Build policy model
-    policy_model = Policy.build(
-      embed_size: embed_size,
-      hidden_sizes: Keyword.get(opts, :hidden_sizes, [512, 512]),
-      axis_buckets: config.axis_buckets,
-      shoulder_buckets: config.shoulder_buckets
-    )
+    # Build policy model - temporal or regular
+    policy_model = if config.temporal do
+      Policy.build_temporal(
+        embed_size: embed_size,
+        backbone: config.backbone,
+        window_size: config.window_size,
+        num_heads: config.num_heads,
+        head_dim: config.head_dim,
+        hidden_size: config.hidden_size,
+        num_layers: config.num_layers,
+        hidden_sizes: Keyword.get(opts, :hidden_sizes, [512, 512]),
+        axis_buckets: config.axis_buckets,
+        shoulder_buckets: config.shoulder_buckets
+      )
+    else
+      Policy.build(
+        embed_size: embed_size,
+        hidden_sizes: Keyword.get(opts, :hidden_sizes, [512, 512]),
+        axis_buckets: config.axis_buckets,
+        shoulder_buckets: config.shoulder_buckets
+      )
+    end
 
     # Initialize parameters using newer Axon API
     # Use mode: :train to ensure all parameters (including dropout state) are initialized
     {init_fn, _predict_fn} = Axon.build(policy_model, mode: :train)
-    policy_params = init_fn.(Nx.template({1, embed_size}, :f32), Axon.ModelState.empty())
+
+    # Input shape depends on temporal mode
+    input_shape = if config.temporal do
+      {1, config.window_size, embed_size}
+    else
+      {1, embed_size}
+    end
+
+    policy_params = init_fn.(Nx.template(input_shape, :f32), Axon.ModelState.empty())
 
     # Create optimizer with gradient clipping
     {optimizer_init, optimizer_update} = create_optimizer(config)
