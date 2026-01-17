@@ -96,7 +96,7 @@ Neural network architecture in Nx/Axon
 #### 2.1 State Embeddings (Port from slippi-ai/embed.py)
 - [x] Player embedding: position, action, damage, character, etc.
 - [x] Stage embedding: ID, platform positions
-- [ ] Item embedding (for Link bombs, etc.)
+- [x] Item embedding (Link bombs, Peach turnips, Mr. Saturn, Bob-ombs)
 - [x] One-hot and continuous embedding primitives
 
 #### 2.2 Controller Embeddings
@@ -106,12 +106,14 @@ Neural network architecture in Nx/Axon
 
 #### 2.3 Network Architecture
 - [x] Implement MLP backbone
-- [ ] Implement LSTM/GRU recurrent layers
-- [ ] **NEW**: Add Transformer-like temporal attention layer
-  - Self-attention over recent frames
-  - More efficient than pure LSTM for capturing dependencies
+- [x] Implement LSTM/GRU recurrent layers (`ExPhil.Networks.Recurrent`)
+- [x] Transformer-like temporal attention (`ExPhil.Networks.Attention`)
+  - Sliding window attention (O(K²) efficient)
+  - Hybrid LSTM + attention architecture
+  - Sinusoidal positional encoding
 - [x] Policy head with controller output
 - [x] Value head for RL
+- [x] Temporal policy (`Policy.build_temporal/1`) integrating attention
 
 ### Phase 3: Training Infrastructure (Weeks 7-10)
 Imitation learning and RL training loops
@@ -119,7 +121,7 @@ Imitation learning and RL training loops
 #### 3.1 Imitation Learning
 - [x] Behavioral cloning loss (cross-entropy on actions)
 - [ ] Value function bootstrapping
-- [ ] Unroll-based training (handle frame delays)
+- [x] Temporal/sequence training with attention backbones
 - [x] Wandb integration for metrics logging
 - [x] Checkpointing and model saving
 
@@ -157,6 +159,11 @@ Tailored embeddings and rewards per character
 - [ ] Spacing-focused reward shaping
 - [ ] Combo optimization (stomp chains)
 - [ ] Edge guarding emphasis
+
+#### 4.5 Zelda
+- [ ] Transform state machine (Zelda ↔ Sheik)
+- [ ] Din's Fire zoning and tracking
+- [ ] Lightning Kick sweetspot spacing rewards
 
 ### Phase 5: Evaluation & Deployment (Weeks 15-18)
 Testing, optimization, and Slippi integration
@@ -306,14 +313,17 @@ mix exphil.train --mode rl --checkpoint ./checkpoints/latest.axon
 ### Current Status (January 2025)
 
 **Completed modules:**
-- `ExPhil.Networks.Policy` - 6-head autoregressive policy (buttons, sticks, shoulder)
+- `ExPhil.Networks.Policy` - 6-head autoregressive policy + temporal variants
 - `ExPhil.Networks.Value` - Value function with GAE computation
 - `ExPhil.Networks.ActorCritic` - Combined actor-critic with PPO loss
+- `ExPhil.Networks.Recurrent` - LSTM/GRU layers for temporal processing
+- `ExPhil.Networks.Attention` - Sliding window & hybrid attention mechanisms
 - `ExPhil.Embeddings.Primitives` - One-hot, float, bool embedding utilities
 - `ExPhil.Embeddings.Player` - Player state embedding (446 dims base)
 - `ExPhil.Embeddings.Game` - Full game state embedding (~1991 dims)
 - `ExPhil.Embeddings.Controller` - Controller action embedding
-- `ExPhil.Training.Imitation` - Behavioral cloning trainer
+- `ExPhil.Training.Imitation` - Behavioral cloning trainer (single-frame + temporal)
+- `ExPhil.Training.Data` - Dataset batching with sequence support
 - `ExPhil.Training.PPO` - PPO trainer with clipped objective
 - `ExPhil.Rewards` - Reward computation (damage, KO, combo, recovery)
 - `ExPhil.Data.ReplayParser` - Slippi replay parsing via py-slippi
@@ -326,7 +336,7 @@ mix exphil.train --mode rl --checkpoint ./checkpoints/latest.axon
 - `ExPhil.Telemetry` - Telemetry events and metrics collector
 - `ExPhil.Integrations.Wandb` - Weights & Biases experiment tracking
 
-**Test coverage:** 492 tests passing
+**Test coverage:** 551 tests passing
 
 ### Technical Gotchas
 
@@ -432,16 +442,35 @@ defp deep_backend_copy(other), do: other
 ### Running Training
 
 ```bash
-# Imitation learning from replays
+# Single-frame imitation learning (baseline)
 mix run scripts/train_from_replays.exs --epochs 10 --max-files 100
 
-# With specific options
+# Temporal training with sliding window attention
+mix run scripts/train_from_replays.exs --temporal --backbone sliding_window \
+  --window-size 60 --epochs 10
+
+# Temporal training with hybrid LSTM + attention
+mix run scripts/train_from_replays.exs --temporal --backbone hybrid
+
+# Temporal training with LSTM only
+mix run scripts/train_from_replays.exs --temporal --backbone lstm
+
+# With all options
 mix run scripts/train_from_replays.exs \
   --replays /path/to/replays \
   --epochs 5 \
   --batch-size 64 \
-  --player-port 1
+  --player-port 1 \
+  --temporal \
+  --backbone sliding_window \
+  --window-size 60 \
+  --stride 1
 ```
+
+**Temporal training tradeoffs:**
+- Slower per-epoch (sequences are larger than single frames)
+- Better at learning temporal patterns (combos, reactions, habits)
+- Recommended after establishing baseline with single-frame training
 
 ### Test Commands
 
