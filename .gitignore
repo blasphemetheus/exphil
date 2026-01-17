@@ -1,0 +1,38 @@
+# Build artifacts
+/_build/
+/deps/
+/*.ez
+
+# Generated files
+erl_crash.dump
+*.beam
+
+# Mix artifacts
+/.fetch
+/mix.lock
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+venv/
+.venv/
+*.egg-info/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Livebook
+.livebook/
+
+# EXLA cache (large compiled files)
+/priv/cache/
