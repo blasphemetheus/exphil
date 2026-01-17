@@ -331,12 +331,12 @@ mix exphil.train --mode rl --checkpoint ./checkpoints/latest.axon
 - `ExPhil.Bridge.*` - Game state structs (GameState, Player, ControllerState, etc.)
 - `ExPhil.Bridge.Supervisor` - DynamicSupervisor for MeleePort bridge processes
 - `ExPhil.Agents.Supervisor` - DynamicSupervisor for inference agents
-- `ExPhil.Agents.Agent` - GenServer holding trained policy for inference
+- `ExPhil.Agents.Agent` - GenServer holding trained policy for inference (single-frame + temporal)
 - `ExPhil.Agents` - High-level facade for agent management
 - `ExPhil.Telemetry` - Telemetry events and metrics collector
 - `ExPhil.Integrations.Wandb` - Weights & Biases experiment tracking
 
-**Test coverage:** 551 tests passing
+**Test coverage:** 580 tests passing
 
 ### Technical Gotchas
 
@@ -422,6 +422,100 @@ end
 defp deep_backend_copy(other), do: other
 ```
 
+#### 9. EXLA tensor serialization in checkpoints
+EXLA tensors contain device buffer references that are process/session-specific.
+When serializing checkpoints with `:erlang.term_to_binary/1`, these buffers become
+invalid after the training process ends.
+
+**Fix:** Always convert tensors to `Nx.BinaryBackend` before saving:
+```elixir
+def save_checkpoint(trainer, path) do
+  checkpoint = %{
+    policy_params: to_binary_backend(trainer.policy_params),
+    optimizer_state: to_binary_backend(trainer.optimizer_state),
+    # ... other fields
+  }
+  File.write(path, :erlang.term_to_binary(checkpoint))
+end
+
+defp to_binary_backend(%Nx.Tensor{} = t), do: Nx.backend_copy(t, Nx.BinaryBackend)
+defp to_binary_backend(%Axon.ModelState{data: data, state: state} = ms) do
+  %{ms | data: to_binary_backend(data), state: to_binary_backend(state)}
+end
+defp to_binary_backend(map) when is_map(map) and not is_struct(map) do
+  Map.new(map, fn {k, v} -> {k, to_binary_backend(v)} end)
+end
+defp to_binary_backend(other), do: other
+```
+
+**Symptoms of stale EXLA buffers:**
+- `ArgumentError: unable to get buffer. It may belong to another node`
+- `ArgumentError: decode failed, none of the variant types could be decoded`
+
+#### 10. Policy architecture mismatch on load
+When loading a policy, the model architecture must match exactly. If training used
+`hidden_sizes: [64, 64]` but loading uses default `[512, 512]`, you get shape errors.
+
+**Fix:** Always save and restore `hidden_sizes`, `embed_size`, `dropout` in policy config:
+```elixir
+# In export_policy
+config = %{
+  embed_size: trainer.config[:embed_size],
+  hidden_sizes: trainer.config[:hidden_sizes],
+  dropout: trainer.config[:dropout],
+  # ... other config
+}
+```
+
+### Performance Tips
+
+#### CPU Training Optimization
+
+**XLA Multi-threading (2-3x speedup):**
+```bash
+XLA_FLAGS="--xla_cpu_multi_thread_eigen=true" mix run scripts/train_from_replays.exs
+```
+
+**Batch size tuning:**
+- Larger batches (128, 256) reduce per-batch overhead
+- Monitor RAM usage: `free -h` during training
+- If swap usage increases, reduce batch size
+
+**System tuning (optional):**
+```bash
+# Lower swappiness if swap thrashing occurs
+sudo sysctl vm.swappiness=10
+
+# Check process priority (nice value)
+ps -o nice,pid,comm -p <PID>
+
+# Increase priority (requires sudo for negative values)
+sudo renice -n -5 -p <PID>
+```
+
+#### Training Time Expectations
+
+| Dataset Size | Epochs | Estimated Time (CPU) |
+|--------------|--------|---------------------|
+| 1 file (~14K frames) | 1 | ~5-6 minutes |
+| 10 files (~140K frames) | 1 | ~15-20 minutes |
+| 100 files (~1.4M frames) | 10 | ~3-4 hours |
+
+*First epoch includes ~5 min JIT compilation overhead*
+
+#### GPU Support
+
+Currently using CPU with XLA optimizations. For NVIDIA GPU:
+```elixir
+# config/config.exs
+config :exla, :clients,
+  cuda: [platform: :cuda, memory_fraction: 0.8],
+  default: [platform: :host]
+config :exla, default_client: :cuda
+```
+
+Intel Iris Xe / AMD integrated GPUs have limited EXLA support.
+
 ### Architecture Decisions
 
 #### Embedding Structure
@@ -471,6 +565,39 @@ mix run scripts/train_from_replays.exs \
 - Slower per-epoch (sequences are larger than single frames)
 - Better at learning temporal patterns (combos, reactions, habits)
 - Recommended after establishing baseline with single-frame training
+
+### Temporal Inference in Agents
+
+Agents automatically detect temporal policies and handle frame buffering:
+
+```elixir
+# Load a temporal policy - agent auto-detects temporal config
+{:ok, agent} = ExPhil.Agents.start_with_policy(:my_agent, "checkpoints/temporal_policy.bin")
+
+# Check temporal config
+config = ExPhil.Agents.Agent.get_config(agent)
+# => %{temporal: true, backbone: :sliding_window, window_size: 60, buffer_size: 0, ...}
+
+# Each get_action call adds to the frame buffer
+{:ok, action} = ExPhil.Agents.get_action(:my_agent, game_state)
+
+# Reset buffer when starting a new game
+ExPhil.Agents.Agent.reset_buffer(agent)
+```
+
+**How temporal inference works:**
+1. Each `get_action` call embeds the game state and adds it to a rolling buffer
+2. If buffer has fewer than `window_size` frames, pad with first frame (warmup)
+3. Build sequence tensor `[1, window_size, embed_size]`
+4. Feed to temporal policy network
+5. Sample action from output logits
+
+**Policy export includes temporal metadata:**
+```elixir
+# When exporting, temporal config is preserved
+Imitation.export_policy(trainer, "policy.bin")
+# Saved config includes: temporal, backbone, window_size, num_heads, head_dim, etc.
+```
 
 ### Test Commands
 
