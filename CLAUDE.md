@@ -568,6 +568,7 @@ end)
 #### CPU Training Optimization
 
 **XLA Multi-threading (2-3x speedup):**
+Auto-enabled in `train_from_replays.exs`. Can also be set manually:
 ```bash
 XLA_FLAGS="--xla_cpu_multi_thread_eigen=true" mix run scripts/train_from_replays.exs
 ```
@@ -678,12 +679,31 @@ mix run scripts/train_from_replays.exs \
   --backbone sliding_window \
   --window-size 60 \
   --stride 1
+
+# Faster training with truncated BPTT (2-3x speedup)
+mix run scripts/train_from_replays.exs --temporal --backbone lstm \
+  --window-size 60 --truncate-bptt 20
 ```
 
 **Temporal training tradeoffs:**
 - Slower per-epoch (sequences are larger than single frames)
 - Better at learning temporal patterns (combos, reactions, habits)
 - Recommended after establishing baseline with single-frame training
+
+**Truncated BPTT (`--truncate-bptt N`):**
+Limits how far gradients flow back through time during backpropagation.
+- `nil` (default): Full BPTT - all 60 frames get gradients
+- `20`: Only last 20 frames get gradients (early frames forward-pass only)
+- `10`: Maximum speed, may lose long-range temporal patterns
+
+| Setting | Speed | Accuracy | Use Case |
+|---------|-------|----------|----------|
+| Full BPTT | 1x | Best | Final training, complex combos |
+| `--truncate-bptt 30` | ~1.5x | Good | Balanced training |
+| `--truncate-bptt 20` | ~2x | Moderate | Fast iteration, prototyping |
+| `--truncate-bptt 10` | ~3x | Lower | Quick experiments |
+
+Recommended: Start with `window_size/3` (e.g., 20 for window=60)
 
 ### PPO Fine-tuning
 
