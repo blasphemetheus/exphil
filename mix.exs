@@ -39,9 +39,11 @@ defmodule ExPhil.MixProject do
       # Data Processing
       {:explorer, "~> 0.9"},
 
-      # Python Interop (choose one)
+      # Rust NIFs (for Peppi replay parsing)
+      {:rustler, "~> 0.35"},
+
+      # Python Interop (optional, for melee_bridge)
       {:pythonx, "~> 0.3", optional: true},
-      # {:erlport, "~> 0.11", optional: true},
 
       # Telemetry & Metrics
       {:telemetry, "~> 1.2"},

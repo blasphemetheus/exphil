@@ -36,3 +36,13 @@ Thumbs.db
 
 # EXLA cache (large compiled files)
 /priv/cache/
+
+# Rust build artifacts
+/native/*/target/
+
+# Compiled NIFs (rebuilt from source)
+/priv/native/
+
+# Replay files (too large for git)
+/replays/
+*.slp

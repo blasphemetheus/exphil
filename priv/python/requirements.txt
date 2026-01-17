@@ -4,5 +4,5 @@
 # Melee library for game interaction
 melee>=0.40.0
 
-# For replay parsing (optional, can use peppi instead)
-# py-slippi>=1.6.0
+# Replay parsing
+py-slippi>=1.6.0

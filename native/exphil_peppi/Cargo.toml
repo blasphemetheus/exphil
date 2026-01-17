@@ -1,0 +1,25 @@
+[package]
+name = "exphil_peppi"
+version = "0.1.0"
+edition = "2021"
+authors = ["ExPhil Team"]
+description = "Rust NIF for parsing Slippi replays using Peppi"
+
+[lib]
+name = "exphil_peppi"
+path = "src/lib.rs"
+crate-type = ["cdylib"]
+
+[dependencies]
+# Rustler for NIF bindings
+rustler = "0.35"
+
+# Peppi for Slippi replay parsing
+peppi = "2.1"
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Error handling
+thiserror = "1"
