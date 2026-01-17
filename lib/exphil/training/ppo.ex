@@ -137,9 +137,10 @@ defmodule ExPhil.Training.PPO do
       path -> load_pretrained(initial_params, path)
     end
 
-    # Create optimizer
+    # Create optimizer - initialize with just the parameter data (not full ModelState)
     {optimizer_init, optimizer_update} = create_optimizer(config)
-    optimizer_state = optimizer_init.(params)
+    params_data = get_params_data(params)
+    optimizer_state = optimizer_init.(params_data)
 
     %__MODULE__{
       model: model,
@@ -216,6 +217,9 @@ defmodule ExPhil.Training.PPO do
 
   defp get_params_data(%Axon.ModelState{data: data}), do: data
   defp get_params_data(params) when is_map(params), do: params
+
+  defp put_params_data(%Axon.ModelState{} = state, data), do: %{state | data: data}
+  defp put_params_data(_original, data), do: data
 
   @doc """
   Create optimizer with learning rate schedule.
@@ -347,7 +351,11 @@ defmodule ExPhil.Training.PPO do
     {_init_fn, predict_fn} = Axon.build(trainer.model)
     config = trainer.config
 
+    # Extract params data from ModelState for gradient computation
+    params_data = get_params_data(trainer.params)
+
     # Loss function that returns only the scalar loss (for gradient computation)
+    # Axon predict_fn accepts plain params map directly
     loss_fn = fn params ->
       %{policy: policy_logits, value: values} = predict_fn.(params, states)
 
@@ -378,8 +386,8 @@ defmodule ExPhil.Training.PPO do
       |> Nx.subtract(Nx.multiply(config.entropy_coef, entropy))
     end
 
-    # Compute gradients
-    {loss, grads} = Nx.Defn.value_and_grad(loss_fn).(trainer.params)
+    # Compute gradients on params data
+    {loss, grads} = Nx.Defn.value_and_grad(loss_fn).(params_data)
 
     # Compute metrics in a separate forward pass (no gradients needed)
     %{policy: policy_logits, value: values} = predict_fn.(trainer.params, states)
@@ -394,10 +402,13 @@ defmodule ExPhil.Training.PPO do
     {updates, new_optimizer_state} = trainer.optimizer.(
       grads,
       trainer.optimizer_state,
-      trainer.params
+      params_data
     )
 
-    new_params = Polaris.Updates.apply_updates(trainer.params, updates)
+    # Use jit wrapper to avoid Nx.LazyContainer nil issue with defn default params
+    apply_updates_fn = Nx.Defn.jit(&Polaris.Updates.apply_updates/2)
+    new_params_data = apply_updates_fn.(params_data, updates)
+    new_params = put_params_data(trainer.params, new_params_data)
 
     new_trainer = %{trainer |
       params: new_params,
@@ -488,15 +499,15 @@ defmodule ExPhil.Training.PPO do
           [action | actions_acc],
           [reward | rewards_acc],
           [done | dones_acc],
-          [Nx.to_number(value) | values_acc],
-          [Nx.to_number(log_prob) | log_probs_acc],
+          [value |> Nx.squeeze() |> Nx.to_number() | values_acc],
+          [log_prob |> Nx.squeeze() |> Nx.to_number() | log_probs_acc],
           next_state
         }
       end)
 
-    # Stack into tensors
+    # Stack into tensors (squeeze batch dimension from each state)
     %{
-      states: Nx.stack(Enum.reverse(states)),
+      states: states |> Enum.reverse() |> Enum.map(&Nx.squeeze/1) |> Nx.stack(),
       actions: stack_actions(Enum.reverse(actions)),
       rewards: Nx.tensor(Enum.reverse(rewards), type: :f32),
       dones: Nx.tensor(Enum.reverse(dones), type: :f32),
@@ -611,7 +622,7 @@ defmodule ExPhil.Training.PPO do
     case File.read(path) do
       {:ok, binary} ->
         checkpoint = :erlang.binary_to_term(binary)
-        pretrained_params = checkpoint.policy_params || checkpoint.params
+        pretrained_params = Map.get(checkpoint, :policy_params) || Map.get(checkpoint, :params)
 
         # Merge pretrained params into current params
         new_params = merge_params(trainer.params, pretrained_params)

@@ -119,14 +119,17 @@ defmodule ExPhil.Training.Imitation do
     )
 
     # Initialize parameters using newer Axon API
-    {init_fn, _predict_fn} = Axon.build(policy_model)
+    # Use mode: :train to ensure all parameters (including dropout state) are initialized
+    {init_fn, _predict_fn} = Axon.build(policy_model, mode: :train)
     policy_params = init_fn.(Nx.template({1, embed_size}, :f32), Axon.ModelState.empty())
 
     # Create optimizer with gradient clipping
     {optimizer_init, optimizer_update} = create_optimizer(config)
 
-    # Initialize optimizer state
-    optimizer_state = optimizer_init.(policy_params)
+    # Initialize optimizer state with just the parameter data (not full ModelState)
+    # This ensures consistency when calling optimizer during training
+    params_data = get_params_data(policy_params)
+    optimizer_state = optimizer_init.(params_data)
 
     %__MODULE__{
       policy_model: policy_model,
@@ -218,32 +221,66 @@ defmodule ExPhil.Training.Imitation do
 
   @doc """
   Perform a single training step.
+
+  Uses Nx.Defn.value_and_grad for proper gradient computation with Axon models.
   """
   @spec train_step(t(), map(), function()) :: {t(), map()}
-  def train_step(trainer, batch, loss_fn) do
+  def train_step(trainer, batch, _loss_fn) do
     %{states: states, actions: actions} = batch
 
-    # Extract params data from ModelState if needed
-    params_data = get_params_data(trainer.policy_params)
+    # Transfer ALL tensors to default backend to avoid EXLA/Defn.Expr mismatch
+    # This is necessary because Nx.Defn.value_and_grad traces with Expr tensors,
+    # which cannot mix with concrete EXLA tensors captured in closures
+    states = Nx.backend_copy(states)
+    actions = Map.new(actions, fn {k, v} -> {k, Nx.backend_copy(v)} end)
 
-    # Compute gradients using value_and_grad
-    grad_fn = fn params ->
-      # Reconstruct ModelState for forward pass
-      full_params = put_params_data(trainer.policy_params, params)
-      loss_fn.(full_params, states, actions)
+    # Build model components for gradient computation
+    # Using mode: :inference for simpler gradient computation
+    # (dropout is disabled, but gradients still flow correctly)
+    {_init_fn, predict_fn} = Axon.build(trainer.policy_model, mode: :inference)
+
+    # Copy model parameters to avoid EXLA/Expr mismatch in closures
+    # The original params are stored in trainer and will be used to restore structure
+    model_state = deep_backend_copy(trainer.policy_params)
+
+    # Build a loss function that takes ModelState as argument
+    loss_fn = fn params ->
+      # Forward pass through the model
+      # In inference mode, predict_fn returns the tuple directly
+      {buttons, main_x, main_y, c_x, c_y, shoulder} = predict_fn.(params, states)
+
+      logits = %{
+        buttons: buttons,
+        main_x: main_x,
+        main_y: main_y,
+        c_x: c_x,
+        c_y: c_y,
+        shoulder: shoulder
+      }
+
+      # Compute imitation loss
+      Policy.imitation_loss(logits, actions)
     end
 
-    {loss, grads} = Nx.Defn.value_and_grad(grad_fn).(params_data)
+    # Compute loss and gradients using Nx.Defn.value_and_grad
+    # ModelState implements Nx.Container so this works correctly
+    {loss, grads} = Nx.Defn.value_and_grad(loss_fn).(model_state)
 
-    # Update parameters using Polaris
+    # Extract data for optimizer (grads has same structure as ModelState)
+    grads_data = get_params_data(grads)
+    params_data = get_params_data(model_state)
+
+    # Update parameters using the optimizer
     {updates, new_optimizer_state} = trainer.optimizer.(
-      grads,
+      grads_data,
       trainer.optimizer_state,
       params_data
     )
 
-    new_params_data = Polaris.Updates.apply_updates(params_data, updates)
-    new_params = put_params_data(trainer.policy_params, new_params_data)
+    # Use jit wrapper to avoid Nx.LazyContainer nil issue with defn default params
+    apply_updates_fn = Nx.Defn.jit(&Polaris.Updates.apply_updates/2)
+    new_params_data = apply_updates_fn.(params_data, updates)
+    new_params = put_params_data(model_state, new_params_data)
 
     # Update metrics
     loss_val = Nx.to_number(loss)
@@ -453,4 +490,19 @@ defmodule ExPhil.Training.Imitation do
 
   defp put_params_data(%Axon.ModelState{} = state, data), do: %{state | data: data}
   defp put_params_data(_original, data), do: data
+
+  # Deep copy all tensors in a nested map/ModelState to avoid EXLA/Expr mismatch
+  # NOTE: Clause order matters! Nx.Tensor and Axon.ModelState are structs (i.e. maps),
+  # so they must be pattern-matched BEFORE the generic is_map guard clause.
+  defp deep_backend_copy(%Nx.Tensor{} = tensor), do: Nx.backend_copy(tensor)
+
+  defp deep_backend_copy(%Axon.ModelState{data: data} = state) do
+    %{state | data: deep_backend_copy(data)}
+  end
+
+  defp deep_backend_copy(map) when is_map(map) and not is_struct(map) do
+    Map.new(map, fn {k, v} -> {k, deep_backend_copy(v)} end)
+  end
+
+  defp deep_backend_copy(other), do: other
 end
