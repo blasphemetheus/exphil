@@ -58,11 +58,16 @@ defmodule ExPhil.Networks.Policy do
   require Axon
 
   alias ExPhil.Embeddings.Controller, as: ControllerEmbed
+  alias ExPhil.Networks.Attention
+  alias ExPhil.Networks.Recurrent
 
   # Default architecture hyperparameters
   @default_hidden_sizes [512, 512]
   @default_activation :relu
   @default_dropout 0.1
+
+  # Backbone types
+  @type backbone_type :: :mlp | :sliding_window | :hybrid | :lstm
 
   # Controller output sizes
   @num_buttons 8
@@ -100,6 +105,136 @@ defmodule ExPhil.Networks.Policy do
 
     # Build autoregressive controller head
     build_controller_head(backbone, axis_buckets, shoulder_buckets)
+  end
+
+  @doc """
+  Build a temporal policy network that processes frame sequences.
+
+  This version uses attention or recurrent backbones to capture temporal
+  patterns in gameplay - essential for understanding combos, reactions,
+  and opponent habits.
+
+  ## Options
+    - `:embed_size` - Size of per-frame embedding (required)
+    - `:backbone` - Backbone type: :sliding_window, :hybrid, :lstm (default: :sliding_window)
+    - `:window_size` - Attention window size for sliding_window (default: 60)
+    - `:num_heads` - Number of attention heads (default: 4)
+    - `:head_dim` - Dimension per attention head (default: 64)
+    - `:hidden_size` - Hidden size for LSTM/hybrid (default: 256)
+    - `:num_layers` - Number of attention/recurrent layers (default: 2)
+    - `:dropout` - Dropout rate (default: 0.1)
+    - `:axis_buckets` - Stick discretization (default: 16)
+    - `:shoulder_buckets` - Trigger discretization (default: 4)
+
+  ## Input Shape
+    `[batch, seq_len, embed_size]` - Sequence of embedded game states
+
+  ## Output
+    Map of logits for each controller component (same as `build/1`)
+  """
+  @spec build_temporal(keyword()) :: Axon.t()
+  def build_temporal(opts \\ []) do
+    embed_size = Keyword.fetch!(opts, :embed_size)
+    backbone_type = Keyword.get(opts, :backbone, :sliding_window)
+    axis_buckets = Keyword.get(opts, :axis_buckets, @axis_buckets)
+    shoulder_buckets = Keyword.get(opts, :shoulder_buckets, @shoulder_buckets)
+
+    # Build temporal backbone based on type
+    backbone = build_temporal_backbone(embed_size, backbone_type, opts)
+
+    # Build controller head on top
+    build_controller_head(backbone, axis_buckets, shoulder_buckets)
+  end
+
+  @doc """
+  Build a temporal backbone that processes frame sequences.
+
+  Returns an Axon layer that outputs [batch, hidden_dim] from sequence input.
+  """
+  @spec build_temporal_backbone(non_neg_integer(), backbone_type(), keyword()) :: Axon.t()
+  def build_temporal_backbone(embed_size, backbone_type, opts \\ []) do
+    case backbone_type do
+      :sliding_window ->
+        build_sliding_window_backbone(embed_size, opts)
+
+      :hybrid ->
+        build_hybrid_backbone(embed_size, opts)
+
+      :lstm ->
+        build_lstm_backbone(embed_size, opts)
+
+      :mlp ->
+        # For MLP, expect single frame input, add sequence handling
+        build_mlp_temporal_backbone(embed_size, opts)
+    end
+  end
+
+  defp build_sliding_window_backbone(embed_size, opts) do
+    window_size = Keyword.get(opts, :window_size, 60)
+    num_heads = Keyword.get(opts, :num_heads, 4)
+    head_dim = Keyword.get(opts, :head_dim, 64)
+    num_layers = Keyword.get(opts, :num_layers, 2)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+
+    Attention.build_sliding_window(
+      embed_size: embed_size,
+      window_size: window_size,
+      num_heads: num_heads,
+      head_dim: head_dim,
+      num_layers: num_layers,
+      dropout: dropout
+    )
+  end
+
+  defp build_hybrid_backbone(embed_size, opts) do
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    num_heads = Keyword.get(opts, :num_heads, 4)
+    head_dim = Keyword.get(opts, :head_dim, 64)
+    lstm_layers = Keyword.get(opts, :num_layers, 1)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+
+    Attention.build_hybrid(
+      embed_size: embed_size,
+      lstm_hidden: hidden_size,
+      lstm_layers: lstm_layers,
+      num_heads: num_heads,
+      head_dim: head_dim,
+      dropout: dropout
+    )
+  end
+
+  defp build_lstm_backbone(embed_size, opts) do
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    num_layers = Keyword.get(opts, :num_layers, 2)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+
+    Recurrent.build(
+      embed_size: embed_size,
+      hidden_size: hidden_size,
+      num_layers: num_layers,
+      cell_type: :lstm,
+      dropout: dropout,
+      return_sequences: false
+    )
+  end
+
+  defp build_mlp_temporal_backbone(embed_size, opts) do
+    hidden_sizes = Keyword.get(opts, :hidden_sizes, @default_hidden_sizes)
+    activation = Keyword.get(opts, :activation, @default_activation)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+
+    # Input: sequence [batch, seq_len, embed_size]
+    input = Axon.input("state_sequence", shape: {nil, nil, embed_size})
+
+    # Take last frame: [batch, embed_size]
+    last_frame = Axon.nx(input, fn tensor ->
+      seq_len = Nx.axis_size(tensor, 1)
+      Nx.slice_along_axis(tensor, seq_len - 1, 1, axis: 1)
+      |> Nx.squeeze(axes: [1])
+    end, name: "last_frame")
+
+    # Apply MLP backbone
+    build_backbone(last_frame, hidden_sizes, activation, dropout)
   end
 
   @doc """
@@ -510,5 +645,49 @@ defmodule ExPhil.Networks.Policy do
   def total_action_dims(opts \\ []) do
     sizes = output_sizes(opts)
     sizes.buttons + sizes.main_x + sizes.main_y + sizes.c_x + sizes.c_y + sizes.shoulder
+  end
+
+  @doc """
+  Get the output size of a temporal backbone.
+
+  Useful for connecting to other networks (value function, etc).
+  """
+  @spec temporal_backbone_output_size(backbone_type(), keyword()) :: non_neg_integer()
+  def temporal_backbone_output_size(backbone_type, opts \\ []) do
+    case backbone_type do
+      :sliding_window ->
+        num_heads = Keyword.get(opts, :num_heads, 4)
+        head_dim = Keyword.get(opts, :head_dim, 64)
+        num_heads * head_dim
+
+      :hybrid ->
+        num_heads = Keyword.get(opts, :num_heads, 4)
+        head_dim = Keyword.get(opts, :head_dim, 64)
+        num_heads * head_dim
+
+      :lstm ->
+        Keyword.get(opts, :hidden_size, 256)
+
+      :mlp ->
+        hidden_sizes = Keyword.get(opts, :hidden_sizes, @default_hidden_sizes)
+        List.last(hidden_sizes)
+    end
+  end
+
+  @doc """
+  Get recommended defaults for Melee temporal policy.
+
+  60fps gameplay with 1-second attention window.
+  """
+  @spec melee_temporal_defaults() :: keyword()
+  def melee_temporal_defaults do
+    [
+      backbone: :sliding_window,
+      window_size: 60,
+      num_heads: 4,
+      head_dim: 64,
+      num_layers: 2,
+      dropout: 0.1
+    ]
   end
 end

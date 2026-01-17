@@ -444,6 +444,118 @@ defmodule ExPhil.Networks.PolicyTest do
   # ============================================================================
   # Integration Tests
   # ============================================================================
+  # Temporal Policy Tests
+  # ============================================================================
+
+  describe "build_temporal/1" do
+    @seq_len 10
+
+    test "builds sliding window temporal policy" do
+      model = Policy.build_temporal(embed_size: @embed_size, backbone: :sliding_window)
+
+      assert %Axon{} = model
+    end
+
+    test "builds hybrid LSTM + attention temporal policy" do
+      model = Policy.build_temporal(embed_size: @embed_size, backbone: :hybrid)
+
+      assert %Axon{} = model
+    end
+
+    test "builds LSTM temporal policy" do
+      model = Policy.build_temporal(embed_size: @embed_size, backbone: :lstm)
+
+      assert %Axon{} = model
+    end
+
+    test "builds MLP temporal policy (uses last frame)" do
+      model = Policy.build_temporal(embed_size: @embed_size, backbone: :mlp)
+
+      assert %Axon{} = model
+    end
+
+    test "sliding window model produces correct output shapes" do
+      model = Policy.build_temporal(
+        embed_size: @embed_size,
+        backbone: :sliding_window,
+        num_heads: 2,
+        head_dim: 16
+      )
+
+      {init_fn, predict_fn} = Axon.build(model)
+      params = init_fn.(
+        Nx.template({@batch_size, @seq_len, @embed_size}, :f32),
+        Axon.ModelState.empty()
+      )
+
+      input = Nx.broadcast(0.5, {@batch_size, @seq_len, @embed_size})
+      {buttons, main_x, main_y, c_x, c_y, shoulder} = predict_fn.(params, input)
+
+      assert Nx.shape(buttons) == {@batch_size, 8}
+      assert Nx.shape(main_x) == {@batch_size, 17}
+      assert Nx.shape(main_y) == {@batch_size, 17}
+      assert Nx.shape(c_x) == {@batch_size, 17}
+      assert Nx.shape(c_y) == {@batch_size, 17}
+      assert Nx.shape(shoulder) == {@batch_size, 5}
+    end
+
+    test "hybrid model produces correct output shapes" do
+      model = Policy.build_temporal(
+        embed_size: @embed_size,
+        backbone: :hybrid,
+        hidden_size: 64,
+        num_heads: 2,
+        head_dim: 16
+      )
+
+      {init_fn, predict_fn} = Axon.build(model)
+      params = init_fn.(
+        Nx.template({@batch_size, @seq_len, @embed_size}, :f32),
+        Axon.ModelState.empty()
+      )
+
+      input = Nx.broadcast(0.5, {@batch_size, @seq_len, @embed_size})
+      {buttons, main_x, main_y, c_x, c_y, shoulder} = predict_fn.(params, input)
+
+      assert Nx.shape(buttons) == {@batch_size, 8}
+      assert Nx.shape(main_x) == {@batch_size, 17}
+      assert Nx.shape(shoulder) == {@batch_size, 5}
+    end
+  end
+
+  describe "temporal_backbone_output_size/2" do
+    test "returns correct size for sliding_window" do
+      assert Policy.temporal_backbone_output_size(:sliding_window, num_heads: 4, head_dim: 64) == 256
+      assert Policy.temporal_backbone_output_size(:sliding_window, num_heads: 8, head_dim: 32) == 256
+    end
+
+    test "returns correct size for hybrid" do
+      assert Policy.temporal_backbone_output_size(:hybrid, num_heads: 4, head_dim: 64) == 256
+    end
+
+    test "returns correct size for lstm" do
+      assert Policy.temporal_backbone_output_size(:lstm, hidden_size: 128) == 128
+      assert Policy.temporal_backbone_output_size(:lstm) == 256  # default
+    end
+
+    test "returns correct size for mlp" do
+      assert Policy.temporal_backbone_output_size(:mlp, hidden_sizes: [256, 128]) == 128
+      assert Policy.temporal_backbone_output_size(:mlp) == 512  # default [512, 512]
+    end
+  end
+
+  describe "melee_temporal_defaults/0" do
+    test "returns expected defaults" do
+      defaults = Policy.melee_temporal_defaults()
+
+      assert defaults[:backbone] == :sliding_window
+      assert defaults[:window_size] == 60
+      assert defaults[:num_heads] == 4
+      assert defaults[:head_dim] == 64
+    end
+  end
+
+  # ============================================================================
 
   describe "full pipeline" do
     test "can build, initialize, forward pass, and compute loss" do
