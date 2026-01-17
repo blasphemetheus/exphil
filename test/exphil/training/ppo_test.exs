@@ -103,6 +103,29 @@ defmodule ExPhil.Training.PPOTest do
         File.rm(path)
       end
     end
+
+    @tag :slow
+    test "exports temporal config for inference" do
+      trainer = PPO.new(embed_size: 64, hidden_sizes: [32])
+      path = Path.join(System.tmp_dir!(), "ppo_temporal_policy_#{:rand.uniform(10_000)}.axon")
+
+      try do
+        :ok = PPO.export_policy(trainer, path)
+
+        {:ok, binary} = File.read(path)
+        export = :erlang.binary_to_term(binary)
+
+        # Verify temporal config is included with defaults
+        assert export.config.embed_size == 64
+        assert export.config.temporal == false
+        assert export.config.backbone == :sliding_window
+        assert export.config.window_size == 60
+        assert export.config.num_heads == 4
+        assert export.config.head_dim == 64
+      after
+        File.rm(path)
+      end
+    end
   end
 
   describe "metrics_summary/1" do

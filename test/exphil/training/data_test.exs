@@ -525,4 +525,249 @@ defmodule ExPhil.Training.DataTest do
       assert val.size == 100
     end
   end
+
+  # ============================================================================
+  # Temporal/Sequence Data Tests
+  # ============================================================================
+
+  describe "to_sequences/2" do
+    test "creates sequences from frames with default options" do
+      frames = mock_frames(100)
+      dataset = Data.from_frames(frames)
+
+      # Default: window_size=60, stride=1
+      seq_dataset = Data.to_sequences(dataset)
+
+      # With 100 frames, window 60, stride 1: 100 - 60 + 1 = 41 sequences
+      assert seq_dataset.size == 41
+    end
+
+    test "each sequence has correct structure" do
+      frames = mock_frames(70)
+      dataset = Data.from_frames(frames)
+
+      seq_dataset = Data.to_sequences(dataset, window_size: 10, stride: 5)
+
+      # Check first sequence
+      [first_seq | _] = seq_dataset.frames
+
+      assert Map.has_key?(first_seq, :sequence)
+      assert Map.has_key?(first_seq, :game_state)
+      assert Map.has_key?(first_seq, :controller)
+      assert Map.has_key?(first_seq, :action)
+
+      # Sequence should contain the window of frames
+      assert length(first_seq.sequence) == 10
+
+      # Action should be from the last frame in the sequence
+      assert is_map(first_seq.action)
+      assert Map.has_key?(first_seq.action, :buttons)
+    end
+
+    test "respects custom window_size" do
+      frames = mock_frames(50)
+      dataset = Data.from_frames(frames)
+
+      seq_dataset = Data.to_sequences(dataset, window_size: 20)
+
+      # 50 - 20 + 1 = 31 sequences (stride 1 default)
+      assert seq_dataset.size == 31
+
+      # Each sequence should have 20 frames
+      [first_seq | _] = seq_dataset.frames
+      assert length(first_seq.sequence) == 20
+    end
+
+    test "respects stride parameter" do
+      frames = mock_frames(100)
+      dataset = Data.from_frames(frames)
+
+      # window=10, stride=10 -> non-overlapping windows
+      seq_dataset = Data.to_sequences(dataset, window_size: 10, stride: 10)
+
+      # (100 - 10) / 10 + 1 = 10 sequences
+      # More precisely: indices 0, 10, 20, ..., 90 = 10 sequences
+      assert seq_dataset.size == 10
+    end
+
+    test "updates metadata with temporal info" do
+      frames = mock_frames(100)
+      dataset = Data.from_frames(frames, metadata: %{source: "test"})
+
+      seq_dataset = Data.to_sequences(dataset, window_size: 30, stride: 5)
+
+      assert seq_dataset.metadata.temporal == true
+      assert seq_dataset.metadata.window_size == 30
+      assert seq_dataset.metadata.stride == 5
+      assert seq_dataset.metadata.original_size == 100
+      # Original metadata should be preserved
+      assert seq_dataset.metadata.source == "test"
+    end
+
+    test "returns empty dataset when frames < window_size" do
+      frames = mock_frames(10)
+      dataset = Data.from_frames(frames)
+
+      seq_dataset = Data.to_sequences(dataset, window_size: 60)
+
+      assert seq_dataset.size == 0
+      assert seq_dataset.frames == []
+    end
+
+    test "handles exact window_size match" do
+      frames = mock_frames(60)
+      dataset = Data.from_frames(frames)
+
+      seq_dataset = Data.to_sequences(dataset, window_size: 60)
+
+      # Exactly one sequence possible
+      assert seq_dataset.size == 1
+    end
+
+    test "sequences contain consecutive frames" do
+      frames = mock_frames(20)
+      dataset = Data.from_frames(frames)
+
+      seq_dataset = Data.to_sequences(dataset, window_size: 5, stride: 1)
+
+      # First sequence should have frames 0-4
+      first_seq = hd(seq_dataset.frames)
+      first_seq_frames = Enum.map(first_seq.sequence, & &1.game_state.frame)
+      assert first_seq_frames == [0, 1, 2, 3, 4]
+
+      # Second sequence should have frames 1-5
+      second_seq = Enum.at(seq_dataset.frames, 1)
+      second_seq_frames = Enum.map(second_seq.sequence, & &1.game_state.frame)
+      assert second_seq_frames == [1, 2, 3, 4, 5]
+    end
+
+    test "preserves embed_config from original dataset" do
+      frames = mock_frames(100)
+      dataset = Data.from_frames(frames)
+
+      seq_dataset = Data.to_sequences(dataset)
+
+      assert seq_dataset.embed_config == dataset.embed_config
+    end
+  end
+
+  describe "batched_sequences/2" do
+    test "creates batched stream from sequence dataset" do
+      frames = mock_frames(100)
+      dataset = Data.from_frames(frames)
+      seq_dataset = Data.to_sequences(dataset, window_size: 10, stride: 5)
+
+      batches = Data.batched_sequences(seq_dataset, batch_size: 4, shuffle: false)
+      batch_list = Enum.to_list(batches)
+
+      # Should have multiple batches
+      assert length(batch_list) > 0
+    end
+
+    test "each batch has correct structure" do
+      frames = mock_frames(100)
+      dataset = Data.from_frames(frames)
+      seq_dataset = Data.to_sequences(dataset, window_size: 10, stride: 5)
+
+      [batch | _] = Data.batched_sequences(seq_dataset, batch_size: 4, shuffle: false)
+                    |> Enum.take(1)
+
+      assert Map.has_key?(batch, :states)
+      assert Map.has_key?(batch, :actions)
+
+      # States should be a 3D tensor [batch, seq_len, embed_size]
+      assert is_struct(batch.states, Nx.Tensor)
+      {batch_dim, seq_dim, _embed_dim} = Nx.shape(batch.states)
+      assert batch_dim == 4
+      assert seq_dim == 10
+
+      # Actions should have expected keys
+      assert Map.has_key?(batch.actions, :buttons)
+      assert Map.has_key?(batch.actions, :main_x)
+    end
+
+    test "drop_last removes incomplete final batch" do
+      frames = mock_frames(50)
+      dataset = Data.from_frames(frames)
+      seq_dataset = Data.to_sequences(dataset, window_size: 10, stride: 5)
+
+      # seq_dataset.size = (50 - 10) / 5 + 1 = 9 sequences
+      # With batch_size=4: 9 / 4 = 2 full + 1 partial
+
+      with_partial = Data.batched_sequences(seq_dataset, batch_size: 4, drop_last: false, shuffle: false)
+      without_partial = Data.batched_sequences(seq_dataset, batch_size: 4, drop_last: true, shuffle: false)
+
+      assert length(Enum.to_list(with_partial)) == 3   # 4 + 4 + 1
+      assert length(Enum.to_list(without_partial)) == 2 # 4 + 4 (1 dropped)
+    end
+
+    test "shuffle produces different orderings" do
+      frames = mock_frames(200)
+      dataset = Data.from_frames(frames)
+      seq_dataset = Data.to_sequences(dataset, window_size: 10, stride: 2)
+
+      batches1 = Data.batched_sequences(seq_dataset, batch_size: 8, shuffle: true, seed: 111)
+      batches2 = Data.batched_sequences(seq_dataset, batch_size: 8, shuffle: true, seed: 999)
+
+      list1 = Enum.to_list(batches1)
+      list2 = Enum.to_list(batches2)
+
+      # Different seeds should produce different orderings
+      states1 = Nx.to_list(hd(list1).states)
+      states2 = Nx.to_list(hd(list2).states)
+
+      refute states1 == states2
+    end
+
+    test "no shuffle produces deterministic ordering" do
+      frames = mock_frames(100)
+      dataset = Data.from_frames(frames)
+      seq_dataset = Data.to_sequences(dataset, window_size: 10, stride: 3)
+
+      batches1 = Data.batched_sequences(seq_dataset, batch_size: 5, shuffle: false)
+      batches2 = Data.batched_sequences(seq_dataset, batch_size: 5, shuffle: false)
+
+      [batch1 | _] = Enum.to_list(batches1)
+      [batch2 | _] = Enum.to_list(batches2)
+
+      # Same ordering without shuffle
+      assert Nx.to_list(batch1.states) == Nx.to_list(batch2.states)
+    end
+
+    test "handles small sequence dataset" do
+      frames = mock_frames(15)
+      dataset = Data.from_frames(frames)
+      seq_dataset = Data.to_sequences(dataset, window_size: 10, stride: 2)
+
+      # Only 3 sequences: indices 0, 2, 4
+      assert seq_dataset.size == 3
+
+      batches = Data.batched_sequences(seq_dataset, batch_size: 10, shuffle: false)
+      batch_list = Enum.to_list(batches)
+
+      assert length(batch_list) == 1
+      [batch] = batch_list
+      {batch_dim, _seq_dim, _embed_dim} = Nx.shape(batch.states)
+      assert batch_dim == 3
+    end
+
+    test "action tensors have correct shapes" do
+      frames = mock_frames(100)
+      dataset = Data.from_frames(frames)
+      seq_dataset = Data.to_sequences(dataset, window_size: 10)
+
+      [batch | _] = Data.batched_sequences(seq_dataset, batch_size: 8, shuffle: false)
+                    |> Enum.take(1)
+
+      # Button tensor should be [batch, 8]
+      assert Nx.shape(batch.actions.buttons) == {8, 8}
+
+      # Axis tensors should be [batch]
+      assert Nx.shape(batch.actions.main_x) == {8}
+      assert Nx.shape(batch.actions.main_y) == {8}
+      assert Nx.shape(batch.actions.c_x) == {8}
+      assert Nx.shape(batch.actions.c_y) == {8}
+      assert Nx.shape(batch.actions.shoulder) == {8}
+    end
+  end
 end

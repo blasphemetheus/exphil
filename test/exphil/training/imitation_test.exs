@@ -220,6 +220,62 @@ defmodule ExPhil.Training.ImitationTest do
         File.rm(path)
       end
     end
+
+    @tag :slow
+    test "exports temporal config for inference" do
+      trainer = Imitation.new(
+        embed_size: 64,
+        hidden_sizes: [32],
+        temporal: true,
+        backbone: :sliding_window,
+        window_size: 30,
+        num_heads: 2,
+        head_dim: 16
+      )
+      path = Path.join(System.tmp_dir!(), "test_temporal_policy_#{:rand.uniform(10_000)}.axon")
+
+      try do
+        :ok = Imitation.export_policy(trainer, path)
+
+        {:ok, binary} = File.read(path)
+        export = :erlang.binary_to_term(binary)
+
+        # Verify temporal config is included
+        assert export.config.embed_size == 64
+        assert export.config.temporal == true
+        assert export.config.backbone == :sliding_window
+        assert export.config.window_size == 30
+        assert export.config.num_heads == 2
+        assert export.config.head_dim == 16
+        assert export.config.hidden_size == 256  # default
+        assert export.config.num_layers == 2     # default
+        assert export.config.axis_buckets == 16
+        assert export.config.shoulder_buckets == 4
+      after
+        File.rm(path)
+      end
+    end
+
+    @tag :slow
+    test "exports non-temporal config with defaults" do
+      trainer = Imitation.new(embed_size: 64, hidden_sizes: [32])
+      path = Path.join(System.tmp_dir!(), "test_nontemporal_policy_#{:rand.uniform(10_000)}.axon")
+
+      try do
+        :ok = Imitation.export_policy(trainer, path)
+
+        {:ok, binary} = File.read(path)
+        export = :erlang.binary_to_term(binary)
+
+        # Non-temporal should have temporal: false
+        assert export.config.temporal == false
+        # backbone defaults to :sliding_window in @default_config
+        assert export.config.backbone == :sliding_window
+        assert export.config.embed_size == 64
+      after
+        File.rm(path)
+      end
+    end
   end
 
   describe "train/3" do
@@ -278,6 +334,165 @@ defmodule ExPhil.Training.ImitationTest do
       assert %ControllerState{} = cs
       assert is_map(cs.main_stick)
       assert is_boolean(cs.button_a)
+    end
+  end
+
+  # ============================================================================
+  # Regression Tests
+  # ============================================================================
+  # Tests for bugs discovered during development
+
+  describe "checkpoint serialization regression" do
+    @tag :slow
+    test "save_checkpoint converts tensors to BinaryBackend" do
+      # Regression: EXLA tensors with device buffers become invalid after
+      # the training process ends. Checkpoints must use BinaryBackend.
+      trainer = Imitation.new(embed_size: 64, hidden_sizes: [32])
+      path = Path.join(System.tmp_dir!(), "regression_checkpoint_#{:rand.uniform(10_000)}.axon")
+
+      try do
+        :ok = Imitation.save_checkpoint(trainer, path)
+
+        # Load and verify tensors are readable (not stale EXLA buffers)
+        {:ok, binary} = File.read(path)
+        checkpoint = :erlang.binary_to_term(binary)
+
+        # Verify we can actually read tensor data
+        kernel = get_in(checkpoint.policy_params.data, ["backbone_dense_0", "kernel"])
+        assert %Nx.Tensor{} = kernel
+
+        # This would fail with stale EXLA buffers:
+        # "unable to get buffer. It may belong to another node"
+        values = Nx.to_flat_list(kernel)
+        assert is_list(values)
+        assert length(values) > 0
+      after
+        File.rm(path)
+      end
+    end
+
+    @tag :slow
+    test "export_policy produces loadable tensors in fresh process context" do
+      # Regression: Exported policies must be loadable in a different process
+      trainer = Imitation.new(embed_size: 64, hidden_sizes: [32])
+      path = Path.join(System.tmp_dir!(), "regression_policy_#{:rand.uniform(10_000)}.bin")
+
+      try do
+        :ok = Imitation.export_policy(trainer, path)
+
+        # Load the policy
+        {:ok, policy} = ExPhil.Training.load_policy(path)
+
+        # Verify all tensors are readable
+        kernel = get_in(policy.params.data, ["backbone_dense_0", "kernel"])
+        values = Nx.to_flat_list(kernel)
+        assert is_list(values)
+      after
+        File.rm(path)
+      end
+    end
+  end
+
+  describe "export_policy config completeness regression" do
+    @tag :slow
+    test "exported config includes hidden_sizes" do
+      # Regression: Missing hidden_sizes caused architecture mismatch
+      # when loading policy - model built with default [512,512] but
+      # trained with [32] would fail with shape mismatch
+      trainer = Imitation.new(embed_size: 64, hidden_sizes: [128, 64])
+      path = Path.join(System.tmp_dir!(), "regression_config_#{:rand.uniform(10_000)}.bin")
+
+      try do
+        :ok = Imitation.export_policy(trainer, path)
+        {:ok, policy} = ExPhil.Training.load_policy(path)
+
+        # Config must include hidden_sizes to reconstruct architecture
+        assert policy.config.hidden_sizes == [128, 64]
+      after
+        File.rm(path)
+      end
+    end
+
+    @tag :slow
+    test "exported config includes dropout rate" do
+      # Regression: Missing dropout caused layer count mismatch
+      trainer = Imitation.new(embed_size: 64, hidden_sizes: [32], dropout: 0.2)
+      path = Path.join(System.tmp_dir!(), "regression_dropout_#{:rand.uniform(10_000)}.bin")
+
+      try do
+        :ok = Imitation.export_policy(trainer, path)
+        {:ok, policy} = ExPhil.Training.load_policy(path)
+
+        # Config must include dropout for model reconstruction
+        assert policy.config.dropout == 0.2
+      after
+        File.rm(path)
+      end
+    end
+
+    @tag :slow
+    test "exported config includes embed_size" do
+      # Regression: Missing embed_size caused input dimension mismatch
+      trainer = Imitation.new(embed_size: 128, hidden_sizes: [32])
+      path = Path.join(System.tmp_dir!(), "regression_embed_#{:rand.uniform(10_000)}.bin")
+
+      try do
+        :ok = Imitation.export_policy(trainer, path)
+        {:ok, policy} = ExPhil.Training.load_policy(path)
+
+        assert policy.config.embed_size == 128
+      after
+        File.rm(path)
+      end
+    end
+  end
+
+  describe "agent policy loading regression" do
+    @tag :slow
+    test "agent can load and use exported policy with custom architecture" do
+      # Regression: Agent failed to load policies with non-default hidden_sizes
+      # because it used default [512,512] instead of config values
+      #
+      # Note: embed_size MUST match what Game.embed() produces (~1991 dims)
+      # because the agent's embed_game_state uses the real embedding, not the test config
+      embed_size = ExPhil.Embeddings.embedding_size()
+      trainer = Imitation.new(embed_size: embed_size, hidden_sizes: [32, 32])
+      path = Path.join(System.tmp_dir!(), "regression_agent_#{:rand.uniform(10_000)}.bin")
+
+      try do
+        :ok = Imitation.export_policy(trainer, path)
+
+        # Agent should be able to load and use the policy
+        {:ok, agent} = ExPhil.Agents.Agent.start_link(policy_path: path)
+
+        # Create a mock game state
+        game_state = %ExPhil.Bridge.GameState{
+          frame: 0,
+          stage: 2,
+          players: %{
+            1 => %ExPhil.Bridge.Player{
+              x: 0.0, y: 0.0, percent: 0.0, stock: 4, facing: 1,
+              character: 9, action: 14, action_frame: 0, invulnerable: false,
+              jumps_left: 2, on_ground: true, shield_strength: 60.0
+            },
+            2 => %ExPhil.Bridge.Player{
+              x: 10.0, y: 0.0, percent: 0.0, stock: 4, facing: -1,
+              character: 9, action: 14, action_frame: 0, invulnerable: false,
+              jumps_left: 2, on_ground: true, shield_strength: 60.0
+            }
+          }
+        }
+
+        # This would fail with architecture mismatch before the fix
+        result = ExPhil.Agents.Agent.get_action(agent, game_state, player_port: 1)
+        assert {:ok, action} = result
+        assert is_map(action)
+        assert Map.has_key?(action, :buttons)
+
+        GenServer.stop(agent)
+      after
+        File.rm(path)
+      end
     end
   end
 end
