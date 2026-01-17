@@ -5,11 +5,18 @@
 #   mix run scripts/train_from_replays.exs [options]
 #
 # Performance Tips:
-#   XLA_FLAGS="--xla_cpu_multi_thread_eigen=true" mix run scripts/train_from_replays.exs
-#   - Enables multi-threaded CPU operations (can be 2-3x faster)
+#   - XLA multi-threading is enabled by default (2-3x faster on multi-core CPUs)
 #   - Larger batch sizes (128, 256) reduce per-batch overhead if RAM allows
 #
 # Options:
+
+# Enable XLA multi-threading for CPU training (2-3x speedup on multi-core)
+# This must be set BEFORE any EXLA/XLA operations are performed
+xla_flags = System.get_env("XLA_FLAGS", "")
+unless String.contains?(xla_flags, "xla_cpu_multi_thread_eigen") do
+  new_flags = "#{xla_flags} --xla_cpu_multi_thread_eigen=true" |> String.trim()
+  System.put_env("XLA_FLAGS", new_flags)
+end
 #   --replays PATH    - Path to replay directory (default: ../replays)
 #   --epochs N        - Number of training epochs (default: 10)
 #   --batch-size N    - Batch size (default: 64)
@@ -25,6 +32,7 @@
 #   --backbone TYPE   - Backbone: sliding_window, hybrid, lstm, mlp (default: sliding_window)
 #   --window-size N   - Frames in attention window (default: 60)
 #   --stride N        - Stride for sequence sampling (default: 1)
+#   --truncate-bptt N - Truncate backprop through time to last N steps (default: full)
 
 require Logger
 
@@ -71,15 +79,25 @@ opts = [
   temporal: has_flag.("--temporal"),
   backbone: String.to_atom(get_arg.("--backbone", "sliding_window")),
   window_size: String.to_integer(get_arg.("--window-size", "60")),
-  stride: String.to_integer(get_arg.("--stride", "1"))
+  stride: String.to_integer(get_arg.("--stride", "1")),
+  truncate_bptt: case Enum.find_index(args, &(&1 == "--truncate-bptt")) do
+    nil -> nil  # Full BPTT
+    idx -> String.to_integer(Enum.at(args, idx + 1))
+  end
 ]
 
 temporal_info = if opts[:temporal] do
+  bptt_info = if opts[:truncate_bptt] do
+    "truncated to last #{opts[:truncate_bptt]} steps"
+  else
+    "full"
+  end
   """
     Temporal:    enabled
     Backbone:    #{opts[:backbone]}
     Window:      #{opts[:window_size]} frames
     Stride:      #{opts[:stride]}
+    BPTT:        #{bptt_info}
   """
 else
   "  Temporal:    disabled (single-frame MLP)\n"
@@ -226,7 +244,8 @@ trainer_opts = [
   window_size: opts[:window_size],
   num_heads: 2,      # Smaller for CPU training
   head_dim: 32,      # Smaller for CPU training
-  num_layers: 1      # Fewer layers for CPU training
+  num_layers: 1,     # Fewer layers for CPU training
+  truncate_bptt: opts[:truncate_bptt]
 ]
 
 trainer = Imitation.new(trainer_opts)

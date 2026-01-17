@@ -98,7 +98,8 @@ defmodule ExPhil.Training.Imitation do
     num_heads: 4,                 # Attention heads
     head_dim: 64,                 # Dimension per head
     hidden_size: 256,             # LSTM/hybrid hidden size
-    num_layers: 2                 # Attention/recurrent layers
+    num_layers: 2,                # Attention/recurrent layers
+    truncate_bptt: nil            # nil = full BPTT, integer = truncate to last N steps
   }
 
   @doc """
@@ -143,7 +144,8 @@ defmodule ExPhil.Training.Imitation do
         hidden_sizes: config.hidden_sizes,
         dropout: config.dropout,
         axis_buckets: config.axis_buckets,
-        shoulder_buckets: config.shoulder_buckets
+        shoulder_buckets: config.shoulder_buckets,
+        truncate_bptt: config.truncate_bptt
       )
     else
       Policy.build(

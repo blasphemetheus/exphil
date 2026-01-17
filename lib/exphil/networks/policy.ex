@@ -210,6 +210,7 @@ defmodule ExPhil.Networks.Policy do
     num_layers = Keyword.get(opts, :num_layers, 2)
     dropout = Keyword.get(opts, :dropout, @default_dropout)
     window_size = Keyword.get(opts, :window_size, 60)
+    truncate_bptt = Keyword.get(opts, :truncate_bptt, nil)
 
     Recurrent.build(
       embed_size: embed_size,
@@ -218,7 +219,8 @@ defmodule ExPhil.Networks.Policy do
       cell_type: :lstm,
       dropout: dropout,
       return_sequences: false,
-      window_size: window_size  # For concrete seq_len (efficient JIT)
+      window_size: window_size,  # For concrete seq_len (efficient JIT)
+      truncate_bptt: truncate_bptt  # Optional: limit gradient flow for faster training
     )
   end
 
