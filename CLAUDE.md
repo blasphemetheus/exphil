@@ -341,16 +341,23 @@ mix exphil.train --mode rl --checkpoint ./checkpoints/latest.axon
 
 ### Next Steps (Priority Order)
 
-#### Immediate (Ready Now)
-1. **Temporal training baseline** - Train with `--temporal --backbone sliding_window`
-   - Compare loss curves and action quality vs single-frame MLP
-   - Expected: better combo recognition, reaction timing
+#### Recently Completed
+- [x] **Temporal training infrastructure** - LSTM/attention backbones working
+- [x] **Batch Nx embedding optimization** - 20x faster preprocessing
+- [x] **Truncated BPTT option** - `--truncate-bptt N` for 2-3x faster training
+- [x] **XLA multi-threading** - Auto-enabled for CPU training
+- [x] **O(1) batch lookup** - `:array` instead of `Enum.at`
 
-2. **Larger dataset training** - Train on full replay collection
-   - Use `--max-files 100` or more with multiple epochs
+#### Immediate (Ready Now)
+1. **Evaluate temporal model** - Run the trained LSTM policy through evaluation
+   - Use `notebooks/evaluation_dashboard.livemd` to visualize predictions
+   - Compare action distribution to replay ground truth
+
+2. **Larger dataset training** - Scale up with more replays
+   - `--max-files 50 --epochs 5 --truncate-bptt 20` for faster iteration
    - Monitor with Wandb: `--wandb --wandb-project exphil`
 
-3. **PPO fine-tuning in mock mode** - Test the PPO training loop
+3. **PPO fine-tuning in mock mode** - Test the RL training loop
    - `mix run scripts/train_ppo.exs --mock --pretrained checkpoints/imitation_latest_policy.bin`
    - Verify gradient flow and loss computation
 
@@ -358,6 +365,7 @@ mix exphil.train --mode rl --checkpoint ./checkpoints/latest.axon
 4. **Dolphin integration testing** - Connect MeleePort to real Dolphin
    - Install Slippi Dolphin, configure paths
    - Test `scripts/play_dolphin.exs` against CPU
+   - This is the first step to seeing the bot actually play!
 
 5. **Frame delay training** - Add delay simulation to imitation learning
    - Critical for realistic Slippi online play (18+ frames)
