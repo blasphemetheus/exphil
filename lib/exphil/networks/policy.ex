@@ -475,7 +475,8 @@ defmodule ExPhil.Networks.Policy do
 
   defp squeeze_if_batched(tensor) do
     case Nx.shape(tensor) do
-      {1} -> tensor
+      {} -> tensor  # Already scalar
+      {1} -> Nx.squeeze(tensor)  # Shape {1} -> scalar
       {1, _} -> Nx.squeeze(tensor, axes: [0])
       {_, _} -> Nx.slice(tensor, [0, 0], [1, Nx.axis_size(tensor, 1)]) |> Nx.squeeze(axes: [0])
       _ -> tensor
