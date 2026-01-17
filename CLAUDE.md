@@ -72,60 +72,60 @@ exphil/
 Core infrastructure and Python bridge
 
 #### 1.1 Project Setup
-- [ ] Initialize Mix project with proper deps (Nx, Axon, EXLA)
-- [ ] Configure GPU support (CUDA/ROCm via EXLA)
-- [ ] Set up Pythonx or Erlang Port for libmelee communication
-- [ ] Create basic OTP supervision tree
+- [x] Initialize Mix project with proper deps (Nx, Axon, EXLA)
+- [x] Configure EXLA backend (CPU w/ XLA optimizations, ~2000x faster)
+- [x] Set up Pythonx or Erlang Port for libmelee communication
+- [x] Create basic OTP supervision tree
 
 #### 1.2 Data Pipeline
-- [ ] Port Peppi replay parser bindings (or use Pythonx)
-- [ ] Implement game state type structs (mirror slippi-ai's types.py)
-- [ ] Create training data format (efficient tensor storage)
-- [ ] Build dataset streaming for large replay collections
+- [x] Port Peppi replay parser bindings (or use Pythonx)
+- [x] Implement game state type structs (mirror slippi-ai's types.py)
+- [x] Create training data format (efficient tensor storage)
+- [x] Build dataset streaming for large replay collections
 
 #### 1.3 Python Bridge
-- [ ] Implement libmelee wrapper in Python
-- [ ] Create Elixir Port for bidirectional communication
-- [ ] Handle game state serialization/deserialization
+- [x] Implement libmelee wrapper in Python
+- [x] Create Elixir Port for bidirectional communication
+- [x] Handle game state serialization/deserialization
 - [ ] Test with Dolphin + Slippi
 
 ### Phase 2: Embeddings & Networks (Weeks 4-6)
 Neural network architecture in Nx/Axon
 
 #### 2.1 State Embeddings (Port from slippi-ai/embed.py)
-- [ ] Player embedding: position, action, damage, character, etc.
-- [ ] Stage embedding: ID, platform positions
+- [x] Player embedding: position, action, damage, character, etc.
+- [x] Stage embedding: ID, platform positions
 - [ ] Item embedding (for Link bombs, etc.)
-- [ ] One-hot and continuous embedding primitives
+- [x] One-hot and continuous embedding primitives
 
 #### 2.2 Controller Embeddings
-- [ ] Button embedding (8 legal buttons as Bernoulli)
-- [ ] Stick embedding (discretized axis positions)
-- [ ] Autoregressive structure for sampling
+- [x] Button embedding (8 legal buttons as Bernoulli)
+- [x] Stick embedding (discretized axis positions)
+- [x] Autoregressive structure for sampling
 
 #### 2.3 Network Architecture
-- [ ] Implement MLP backbone
+- [x] Implement MLP backbone
 - [ ] Implement LSTM/GRU recurrent layers
 - [ ] **NEW**: Add Transformer-like temporal attention layer
   - Self-attention over recent frames
   - More efficient than pure LSTM for capturing dependencies
-- [ ] Policy head with controller output
-- [ ] Value head for RL
+- [x] Policy head with controller output
+- [x] Value head for RL
 
 ### Phase 3: Training Infrastructure (Weeks 7-10)
 Imitation learning and RL training loops
 
 #### 3.1 Imitation Learning
-- [ ] Behavioral cloning loss (cross-entropy on actions)
+- [x] Behavioral cloning loss (cross-entropy on actions)
 - [ ] Value function bootstrapping
 - [ ] Unroll-based training (handle frame delays)
-- [ ] Wandb integration for metrics logging
-- [ ] Checkpointing and model saving
+- [x] Wandb integration for metrics logging
+- [x] Checkpointing and model saving
 
 #### 3.2 Reinforcement Learning
-- [ ] PPO implementation in Axon
+- [x] PPO implementation in Axon
 - [ ] V-trace for off-policy correction
-- [ ] Reward computation (KO diff, damage ratio)
+- [x] Reward computation (KO diff, damage ratio)
 - [ ] Teacher KL regularization (stay close to imitation policy)
 - [ ] Self-play infrastructure
 
@@ -299,6 +299,164 @@ mix exphil.train --mode rl --checkpoint ./checkpoints/latest.axon
 4. **Inference Latency Target**:
    - Need < 2ms for smooth 60 FPS play
    - May need INT8 quantization or model distillation
+
+## Implementation Notes
+
+### Current Status (January 2025)
+
+**Completed modules:**
+- `ExPhil.Networks.Policy` - 6-head autoregressive policy (buttons, sticks, shoulder)
+- `ExPhil.Networks.Value` - Value function with GAE computation
+- `ExPhil.Networks.ActorCritic` - Combined actor-critic with PPO loss
+- `ExPhil.Embeddings.Primitives` - One-hot, float, bool embedding utilities
+- `ExPhil.Embeddings.Player` - Player state embedding (446 dims base)
+- `ExPhil.Embeddings.Game` - Full game state embedding (~1991 dims)
+- `ExPhil.Embeddings.Controller` - Controller action embedding
+- `ExPhil.Training.Imitation` - Behavioral cloning trainer
+- `ExPhil.Training.PPO` - PPO trainer with clipped objective
+- `ExPhil.Rewards` - Reward computation (damage, KO, combo, recovery)
+- `ExPhil.Data.ReplayParser` - Slippi replay parsing via py-slippi
+- `ExPhil.Data.Dataset` - Dataset management and batching
+- `ExPhil.Bridge.*` - Game state structs (GameState, Player, ControllerState, etc.)
+- `ExPhil.Bridge.Supervisor` - DynamicSupervisor for MeleePort bridge processes
+- `ExPhil.Agents.Supervisor` - DynamicSupervisor for inference agents
+- `ExPhil.Agents.Agent` - GenServer holding trained policy for inference
+- `ExPhil.Agents` - High-level facade for agent management
+- `ExPhil.Telemetry` - Telemetry events and metrics collector
+- `ExPhil.Integrations.Wandb` - Weights & Biases experiment tracking
+
+**Test coverage:** 492 tests passing
+
+### Technical Gotchas
+
+#### 1. Polaris.Updates.apply_updates nil issue
+`Polaris.Updates.apply_updates/2` is a `defn` with a default nil parameter (`state \\ nil`).
+In Nx 0.10.0, calling it directly fails during lazy container traversal.
+
+**Fix:** Wrap with `Nx.Defn.jit/1`:
+```elixir
+apply_updates_fn = Nx.Defn.jit(&Polaris.Updates.apply_updates/2)
+new_params = apply_updates_fn.(params, updates)
+```
+
+#### 2. Axon training vs inference mode
+- `mode: :train` returns `%{prediction: ..., state: ...}` for stateful layers (dropout)
+- `mode: :inference` returns predictions directly
+- For gradient computation, use `mode: :inference` to avoid pattern matching complexity
+
+#### 3. Nx.to_number with {1} shaped tensors
+`Nx.to_number/1` only works on scalar tensors (shape `{}`). When `Nx.slice` returns
+a single element, it has shape `{1}` which must be squeezed first:
+```elixir
+tensor |> Nx.squeeze() |> Nx.to_number()
+```
+
+#### 4. Axon.ModelState deprecation
+Pass full `%Axon.ModelState{}` to predict functions, not just the `.data` map:
+```elixir
+# Good
+predict_fn.(model_state, input)
+
+# Deprecated (triggers warning)
+predict_fn.(model_state.data, input)
+```
+
+#### 5. JIT compilation time
+First batch takes 2-5 minutes on CPU for large models (1991 input dims).
+This is normal - subsequent batches are fast after compilation.
+
+#### 6. EXLA Backend Configuration
+EXLA provides ~2000x speedup over Nx.BinaryBackend. Configured in `config/config.exs`:
+```elixir
+config :nx, default_backend: EXLA.Backend
+config :exla, default_client: :host  # CPU with XLA optimizations
+```
+
+For CUDA GPU support (if available):
+```elixir
+config :exla, :clients,
+  cuda: [platform: :cuda, memory_fraction: 0.8],
+  default: [platform: :host]
+config :exla, default_client: :cuda
+```
+
+#### 7. EXLA/Defn.Expr tensor mismatch in closures
+When using `Nx.Defn.value_and_grad` with closures that capture tensors, you get:
+```
+cannot invoke Nx function because it relies on two incompatible tensor implementations: EXLA.Backend and Nx.Defn.Expr
+```
+
+**Fix:** Copy ALL captured tensors before using them in gradient computation:
+```elixir
+# Copy batch data
+states = Nx.backend_copy(states)
+actions = Map.new(actions, fn {k, v} -> {k, Nx.backend_copy(v)} end)
+
+# Also copy model parameters to avoid closure capture issues
+model_state = deep_backend_copy(trainer.policy_params)
+```
+
+#### 8. Elixir struct pattern matching order
+Structs are maps, so `is_map(%Nx.Tensor{})` returns `true`. When using guards with
+struct patterns, the struct clause MUST come before the `is_map` guard:
+```elixir
+# CORRECT order - struct patterns first
+defp deep_backend_copy(%Nx.Tensor{} = tensor), do: Nx.backend_copy(tensor)
+defp deep_backend_copy(%Axon.ModelState{data: data} = state) do
+  %{state | data: deep_backend_copy(data)}
+end
+defp deep_backend_copy(map) when is_map(map) and not is_struct(map) do
+  Map.new(map, fn {k, v} -> {k, deep_backend_copy(v)} end)
+end
+defp deep_backend_copy(other), do: other
+```
+
+### Architecture Decisions
+
+#### Embedding Structure
+- **Player embedding:** 446 dimensions (position, action one-hot, character, stocks, etc.)
+- **Game embedding:** ~1991 dimensions (2 players + stage + optional projectiles + name ID)
+- **Controller embedding:** 8 buttons + 4 stick axes + 1 shoulder = 13 dimensions
+
+#### Policy Network
+- MLP backbone with configurable hidden sizes (default: [512, 512])
+- 6 output heads: buttons (8 Bernoulli), main_x/y, c_x/y (17-way categorical each), shoulder (5-way)
+- Autoregressive sampling during inference
+
+#### Training
+- AdamW optimizer with weight decay
+- Imitation learning first, then PPO fine-tuning
+- Gradient clipping for stability
+
+### Running Training
+
+```bash
+# Imitation learning from replays
+mix run scripts/train_from_replays.exs --epochs 10 --max-files 100
+
+# With specific options
+mix run scripts/train_from_replays.exs \
+  --replays /path/to/replays \
+  --epochs 5 \
+  --batch-size 64 \
+  --player-port 1
+```
+
+### Test Commands
+
+```bash
+# Run all tests
+mix test
+
+# Run with coverage
+mix test --cover
+
+# Run specific test file
+mix test test/exphil/training/imitation_test.exs
+
+# Run slow tests (tagged @tag :slow)
+mix test --include slow
+```
 
 ## References
 
