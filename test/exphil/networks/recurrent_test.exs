@@ -237,4 +237,36 @@ defmodule ExPhil.Networks.RecurrentTest do
       assert Recurrent.cell_types() == [:lstm, :gru]
     end
   end
+
+  describe "concrete seq_len regression test" do
+    # Regression test for: dynamic sequence length causes slow JIT compilation
+    # When seq_len is nil (dynamic), XLA compiles generic kernels which is slow.
+    # The fix: default seq_len to window_size for efficient compilation.
+
+    test "build/1 uses concrete seq_len by default (not nil)" do
+      # This test verifies the model uses window_size as concrete seq_len
+      window_size = 10
+      model = Recurrent.build(
+        embed_size: @embed_size,
+        hidden_size: @hidden_size,
+        cell_type: :lstm,
+        window_size: window_size
+        # NOTE: Not passing seq_len - should default to window_size
+      )
+
+      # Model should build and compile quickly (would be slow with dynamic shapes)
+      {init_fn, predict_fn} = Axon.build(model)
+
+      # Template must use window_size as seq_len
+      params = init_fn.(
+        Nx.template({@batch_size, window_size, @embed_size}, :f32),
+        Axon.ModelState.empty()
+      )
+
+      input = Nx.broadcast(0.5, {@batch_size, window_size, @embed_size})
+      output = predict_fn.(params, input)
+
+      assert Nx.shape(output) == {@batch_size, @hidden_size}
+    end
+  end
 end

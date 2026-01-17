@@ -47,10 +47,11 @@ defmodule ExPhil.Training.Data do
   require Logger
 
   defstruct [
-    :frames,        # List of frame data
-    :metadata,      # Dataset metadata
-    :embed_config,  # Embedding configuration
-    :size           # Number of frames
+    :frames,              # List of frame data
+    :metadata,            # Dataset metadata
+    :embed_config,        # Embedding configuration
+    :size,                # Number of frames
+    :embedded_sequences   # Pre-computed embeddings (optional, for temporal training)
   ]
 
   @type frame :: %{
@@ -509,6 +510,60 @@ defmodule ExPhil.Training.Data do
   end
 
   @doc """
+  Pre-compute embeddings for all sequences in the dataset.
+
+  This significantly speeds up temporal training by embedding frames once
+  instead of on every batch. Call this after `to_sequences/2` and before training.
+
+  ## Example
+
+      dataset
+      |> Data.to_sequences(window_size: 30)
+      |> Data.precompute_embeddings()
+
+  ## Options
+    - `:show_progress` - Show embedding progress (default: true)
+  """
+  @spec precompute_embeddings(t(), keyword()) :: t()
+  def precompute_embeddings(dataset, opts \\ []) do
+    show_progress = Keyword.get(opts, :show_progress, true)
+
+    if show_progress do
+      IO.puts("  Pre-computing embeddings for #{dataset.size} sequences...")
+    end
+
+    embed_config = dataset.embed_config
+
+    # Embed all sequences with progress reporting
+    total = dataset.size
+    chunk_size = max(1, div(total, 10))
+
+    embedded = dataset.frames
+    |> Enum.with_index()
+    |> Enum.map(fn {frame, idx} ->
+      # Show progress every 10%
+      if show_progress and rem(idx, chunk_size) == 0 and idx > 0 do
+        pct = round(idx / total * 100)
+        IO.puts("  Embedding: #{pct}% (#{idx}/#{total})")
+      end
+
+      # Embed all frames in the sequence
+      embeddings = Enum.map(frame.sequence, fn seq_frame ->
+        Embeddings.embed(seq_frame.game_state, nil, embed_config: embed_config)
+      end)
+
+      # Stack into [seq_len, embed_size]
+      Nx.stack(embeddings)
+    end)
+
+    if show_progress do
+      IO.puts("  Embedding: 100% (#{total}/#{total}) - done!")
+    end
+
+    %{dataset | embedded_sequences: embedded}
+  end
+
+  @doc """
   Create batched iterator for sequence data (temporal training).
 
   Similar to `batched/2` but handles sequences properly.
@@ -550,7 +605,42 @@ defmodule ExPhil.Training.Data do
   end
 
   defp create_sequence_batch(dataset, indices) do
-    # Collect sequence data
+    # Check if we have pre-computed embeddings
+    has_precomputed = dataset.embedded_sequences != nil
+
+    if has_precomputed do
+      # Fast path: use pre-computed embeddings
+      create_sequence_batch_precomputed(dataset, indices)
+    else
+      # Slow path: embed on-the-fly (fallback for compatibility)
+      create_sequence_batch_live(dataset, indices)
+    end
+  end
+
+  defp create_sequence_batch_precomputed(dataset, indices) do
+    # Collect pre-computed embeddings and actions
+    batch_data = Enum.map(indices, fn idx ->
+      frame = Enum.at(dataset.frames, idx)
+      embedding = Enum.at(dataset.embedded_sequences, idx)
+      {embedding, frame.action}
+    end)
+
+    {embeddings, actions} = Enum.unzip(batch_data)
+
+    # Stack embeddings: [batch, seq_len, embed_size]
+    states = Nx.stack(embeddings)
+
+    # Convert actions to tensors
+    action_tensors = actions_to_tensors(actions)
+
+    %{
+      states: states,
+      actions: action_tensors
+    }
+  end
+
+  defp create_sequence_batch_live(dataset, indices) do
+    # Original slow path: embed on-the-fly
     sequence_data = Enum.map(indices, fn idx ->
       frame = Enum.at(dataset.frames, idx)
       {frame.sequence, frame.action}

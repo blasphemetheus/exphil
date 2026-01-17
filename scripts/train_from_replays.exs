@@ -188,6 +188,11 @@ dataset = Data.from_frames(all_frames)
     window_size: opts[:window_size],
     stride: opts[:stride]
   )
+
+  # Pre-compute embeddings to avoid slow per-batch embedding
+  # This embeds all frames ONCE instead of on every batch
+  seq_dataset = Data.precompute_embeddings(seq_dataset)
+
   Data.split(seq_dataset, ratio: 0.9)
 else
   Data.split(dataset, ratio: 0.9)
