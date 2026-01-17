@@ -11,6 +11,7 @@ defmodule ExPhil.Bridge.GameState do
     menu_state: integer(),
     players: %{integer() => ExPhil.Bridge.Player.t()},
     projectiles: [ExPhil.Bridge.Projectile.t()],
+    items: [ExPhil.Bridge.Item.t()],
     distance: float()
   }
 
@@ -20,6 +21,7 @@ defmodule ExPhil.Bridge.GameState do
     :menu_state,
     :players,
     :projectiles,
+    :items,
     :distance
   ]
 
@@ -245,6 +247,132 @@ defmodule ExPhil.Bridge.Projectile do
   }
 
   defstruct [:owner, :x, :y, :type, :subtype, :speed_x, :speed_y]
+end
+
+defmodule ExPhil.Bridge.Item do
+  @moduledoc """
+  Represents an item in the game (bombs, capsules, barrels, etc.).
+
+  Items differ from projectiles:
+  - Items can be held, thrown, or on the ground
+  - Items have a spawn timer and lifetime
+  - Items can damage their owner (e.g., Link's bombs)
+
+  ## Item Types (common ones for target characters)
+
+  Link-specific:
+  - Bomb: Can be pulled, held, thrown, and deals self-damage
+
+  Common items:
+  - Capsule, Barrel, Crate: Container items
+  - Beam Sword, Bat, Fan: Melee weapons
+  - Ray Gun, Super Scope: Projectile weapons
+  """
+
+  @type t :: %__MODULE__{
+    x: float(),
+    y: float(),
+    type: integer(),
+    facing: integer(),
+    owner: integer() | nil,
+    held_by: integer() | nil,
+    spawn_id: integer(),
+    timer: integer()
+  }
+
+  defstruct [
+    :x,
+    :y,
+    :type,
+    :facing,
+    :owner,
+    :held_by,
+    :spawn_id,
+    :timer
+  ]
+
+  # Common item type constants (from libmelee)
+  @item_types %{
+    # Explosives/Bombs
+    link_bomb: 0x2C,         # Link's bomb
+    young_link_bomb: 0x2D,   # Young Link's bomb
+    bob_omb: 0x13,           # Bob-omb
+
+    # Character-specific thrown items
+    peach_turnip: 0x32,      # Peach's turnip (50)
+    mr_saturn: 0x15,         # Mr. Saturn (21)
+
+    # Melee weapons
+    beam_sword: 0x04,        # Beam Sword
+    home_run_bat: 0x05,      # Home Run Bat
+    fan: 0x06,               # Fan
+
+    # Ranged weapons
+    ray_gun: 0x08,           # Ray Gun
+    super_scope: 0x09,       # Super Scope
+
+    # Containers
+    capsule: 0x00,           # Capsule
+    crate: 0x01,             # Crate
+    barrel: 0x02             # Barrel
+  }
+
+  @doc """
+  Check if item is a bomb (Link/Young Link).
+  """
+  def bomb?(%__MODULE__{type: type}) do
+    type in [@item_types.link_bomb, @item_types.young_link_bomb, @item_types.bob_omb]
+  end
+  def bomb?(_), do: false
+
+  @doc """
+  Check if item is a Peach turnip.
+  """
+  def turnip?(%__MODULE__{type: type}), do: type == @item_types.peach_turnip
+  def turnip?(_), do: false
+
+  @doc """
+  Check if item is Mr. Saturn.
+  """
+  def mr_saturn?(%__MODULE__{type: type}), do: type == @item_types.mr_saturn
+  def mr_saturn?(_), do: false
+
+  @doc """
+  Check if item is currently held by a player.
+  """
+  def held?(%__MODULE__{held_by: held_by}) when is_integer(held_by) and held_by > 0, do: true
+  def held?(_), do: false
+
+  @doc """
+  Check if item belongs to given player.
+  """
+  def owned_by?(%__MODULE__{owner: owner}, player_port) when is_integer(player_port) do
+    owner == player_port
+  end
+  def owned_by?(_, _), do: false
+
+  @doc """
+  Get normalized item type for embedding.
+
+  Returns a simplified category:
+  - 0: None/unknown
+  - 1: Bomb (Link, Young Link, Bob-omb)
+  - 2: Melee weapon (Beam Sword, Bat, Fan)
+  - 3: Ranged weapon (Ray Gun, Super Scope)
+  - 4: Container (Capsule, Crate, Barrel)
+  - 5: Thrown/Character-specific (Peach turnip, Mr. Saturn, etc.)
+  """
+  def item_category(%__MODULE__{type: type}) do
+    cond do
+      type in [@item_types.link_bomb, @item_types.young_link_bomb, @item_types.bob_omb] -> 1
+      type in [@item_types.beam_sword, @item_types.home_run_bat, @item_types.fan] -> 2
+      type in [@item_types.ray_gun, @item_types.super_scope] -> 3
+      type in [@item_types.capsule, @item_types.crate, @item_types.barrel] -> 4
+      type in [@item_types.peach_turnip, @item_types.mr_saturn] -> 5
+      true -> 5  # Unknown items fall into "other/thrown" category
+    end
+  end
+  def item_category(_), do: 0
 end
 
 defmodule ExPhil.Bridge.ControllerInput do

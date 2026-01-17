@@ -26,7 +26,7 @@ defmodule ExPhil.Embeddings.Game do
   alias ExPhil.Embeddings.Primitives
   alias ExPhil.Embeddings.Player, as: PlayerEmbed
   alias ExPhil.Embeddings.Controller, as: ControllerEmbed
-  alias ExPhil.Bridge.{GameState, Projectile, ControllerState}
+  alias ExPhil.Bridge.{GameState, Projectile, Item, ControllerState}
 
   # ============================================================================
   # Configuration
@@ -93,7 +93,14 @@ defmodule ExPhil.Embeddings.Game do
       0
     end
 
-    players_size + stage_size + prev_action_size + name_size + projectile_size
+    # Items (Link bombs, etc.)
+    item_size = if config.with_items do
+      config.max_items * item_embedding_size()
+    else
+      0
+    end
+
+    players_size + stage_size + prev_action_size + name_size + projectile_size + item_size
   end
 
   defp projectile_embedding_size do
@@ -102,6 +109,15 @@ defmodule ExPhil.Embeddings.Game do
     2 +  # x, y
     1 +  # type (simplified)
     2    # speed_x, speed_y
+  end
+
+  defp item_embedding_size do
+    1 +  # exists
+    2 +  # x, y position
+    6 +  # category one-hot (6 categories: none, bomb, melee, ranged, container, other)
+    1 +  # is_held (boolean)
+    1 +  # held_by_self (boolean - important for Link self-damage)
+    1    # timer (normalized)
   end
 
   # ============================================================================
@@ -146,6 +162,13 @@ defmodule ExPhil.Embeddings.Game do
     # Optional: projectiles
     embeddings = if config.with_projectiles do
       [embed_projectiles(game_state.projectiles, config) | embeddings]
+    else
+      embeddings
+    end
+
+    # Optional: items (Link bombs, etc.)
+    embeddings = if config.with_items do
+      [embed_items(game_state.items, own_port, config) | embeddings]
     else
       embeddings
     end
@@ -216,6 +239,55 @@ defmodule ExPhil.Embeddings.Game do
       Primitives.speed_embed(proj.speed_y)
     ])
   end
+
+  # ============================================================================
+  # Item Embedding (Link bombs, etc.)
+  # ============================================================================
+
+  defp embed_items(nil, _own_port, config) do
+    Nx.broadcast(0.0, {config.max_items * item_embedding_size()})
+  end
+
+  defp embed_items(items, own_port, config) when is_list(items) do
+    # Pad or truncate to max_items
+    items = Enum.take(items, config.max_items)
+    num_existing = length(items)
+    padding_count = config.max_items - num_existing
+
+    embedded = Enum.map(items, &embed_single_item(&1, own_port))
+
+    padding = if padding_count > 0 do
+      [Nx.broadcast(0.0, {padding_count * item_embedding_size()})]
+    else
+      []
+    end
+
+    Nx.concatenate(embedded ++ padding)
+  end
+
+  defp embed_single_item(%Item{} = item, own_port) do
+    category = Item.item_category(item)
+    is_held = Item.held?(item)
+    held_by_self = is_held and item.held_by == own_port
+
+    Nx.concatenate([
+      Primitives.bool_embed(true),  # exists
+      Primitives.xy_embed(item.x),
+      Primitives.xy_embed(item.y),
+      Primitives.one_hot(category, size: 6, clamp: true),  # category
+      Primitives.bool_embed(is_held),
+      Primitives.bool_embed(held_by_self),
+      Primitives.float_embed(normalize_timer(item.timer))  # normalized timer
+    ])
+  end
+
+  # Normalize item timer to [0, 1] range
+  # Link's bomb timer is typically 0-180 frames (3 seconds)
+  defp normalize_timer(nil), do: 0.0
+  defp normalize_timer(timer) when is_integer(timer) do
+    min(1.0, timer / 180.0)
+  end
+  defp normalize_timer(_), do: 0.0
 
   # ============================================================================
   # Batch Embedding (for training)
