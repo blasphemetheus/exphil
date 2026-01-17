@@ -385,6 +385,57 @@ mix exphil.train --mode rl --checkpoint ./checkpoints/latest.axon
     - Currently Dockerfile includes full Rust toolchain (~500MB) as workaround
     - See: https://hexdocs.pm/rustler_precompiled/precompilation_guide.html
 
+### Dolphin Integration Setup
+
+To run the trained agent against Dolphin:
+
+#### Prerequisites
+1. **Slippi Dolphin** - Download from https://slippi.gg/downloads
+   - AppImage location (after Slippi Launcher install): `~/.config/Slippi Launcher/netplay/Slippi_Online-x86_64.AppImage`
+
+2. **Melee ISO** - NTSC 1.02 (Rev 2) required
+   - Configure in Slippi Launcher settings
+
+3. **Python 3.12** with venv (pyenet requires <3.13)
+   ```bash
+   # Install Python 3.12 via asdf
+   asdf install python 3.12.12
+   asdf local python 3.12.12
+
+   # Create and activate venv
+   python3 -m venv .venv
+   source .venv/bin/activate
+
+   # Install dependencies (enet system library required for pyenet)
+   sudo pacman -S enet  # Arch/Manjaro
+   pip install -r priv/python/requirements.txt
+   ```
+
+4. **System library**: `enet` (for pyenet networking)
+   - Arch/Manjaro: `sudo pacman -S enet`
+   - Ubuntu/Debian: `sudo apt install libenet-dev`
+
+#### Running the Agent
+```bash
+# Activate venv first
+source .venv/bin/activate
+
+# Run against Dolphin
+mix run scripts/play_dolphin.exs \
+  --policy checkpoints/imitation_latest_policy.bin \
+  --dolphin ~/.config/Slippi\ Launcher/netplay \
+  --iso ~/path/to/melee.iso \
+  --character mewtwo \
+  --stage final_destination
+```
+
+#### Wayland Notes (Hyprland, Sway, etc.)
+Slippi Dolphin may need environment flags:
+```bash
+# Run Slippi Launcher with Wayland support
+./Slippi-Launcher.AppImage --ozone-platform=wayland
+```
+
 ### Technical Gotchas
 
 #### 1. Polaris.Updates.apply_updates nil issue
