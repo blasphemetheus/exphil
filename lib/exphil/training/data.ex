@@ -533,27 +533,29 @@ defmodule ExPhil.Training.Data do
     end
 
     embed_config = dataset.embed_config
-
-    # Embed all sequences with progress reporting
     total = dataset.size
-    chunk_size = max(1, div(total, 10))
+
+    # Process in chunks to show progress and manage memory
+    chunk_size = min(500, max(1, div(total, 10)))
 
     embedded = dataset.frames
+    |> Enum.chunk_every(chunk_size)
     |> Enum.with_index()
-    |> Enum.map(fn {frame, idx} ->
-      # Show progress every 10%
-      if show_progress and rem(idx, chunk_size) == 0 and idx > 0 do
-        pct = round(idx / total * 100)
-        IO.puts("  Embedding: #{pct}% (#{idx}/#{total})")
+    |> Enum.flat_map(fn {chunk, chunk_idx} ->
+      # Show progress
+      if show_progress do
+        processed = min((chunk_idx + 1) * chunk_size, total)
+        pct = round(processed / total * 100)
+        IO.puts("  Embedding: #{pct}% (#{processed}/#{total})")
       end
 
-      # Embed all frames in the sequence
-      embeddings = Enum.map(frame.sequence, fn seq_frame ->
-        Embeddings.embed(seq_frame.game_state, nil, embed_config: embed_config)
+      # Batch embed each sequence in this chunk
+      # For each sequence, we batch all frames together
+      Enum.map(chunk, fn frame ->
+        game_states = Enum.map(frame.sequence, & &1.game_state)
+        # Use batch embedding: all frames at once
+        Embeddings.Game.embed_states_fast(game_states, 1, config: embed_config)
       end)
-
-      # Stack into [seq_len, embed_size]
-      Nx.stack(embeddings)
     end)
 
     if show_progress do
@@ -585,6 +587,14 @@ defmodule ExPhil.Training.Data do
     drop_last = Keyword.get(opts, :drop_last, false)
     seed = Keyword.get(opts, :seed, System.system_time())
 
+    # Convert lists to arrays for O(1) index access (vs O(n) for lists)
+    frames_array = :array.from_list(dataset.frames)
+    embeddings_array = if dataset.embedded_sequences do
+      :array.from_list(dataset.embedded_sequences)
+    else
+      nil
+    end
+
     # Prepare indices
     indices = 0..(dataset.size - 1) |> Enum.to_list()
 
@@ -595,15 +605,63 @@ defmodule ExPhil.Training.Data do
       indices
     end
 
-    # Create batch stream
+    # Create batch stream with array-backed lookup
     indices
     |> Enum.chunk_every(batch_size)
     |> maybe_drop_last(drop_last, batch_size)
     |> Stream.map(fn batch_indices ->
-      create_sequence_batch(dataset, batch_indices)
+      create_sequence_batch_fast(frames_array, embeddings_array, batch_indices)
     end)
   end
 
+  # Fast batch creation using arrays for O(1) lookup
+  defp create_sequence_batch_fast(frames_array, embeddings_array, indices) when embeddings_array != nil do
+    # Fast path: use pre-computed embeddings with O(1) array access
+    batch_data = Enum.map(indices, fn idx ->
+      frame = :array.get(idx, frames_array)
+      embedding = :array.get(idx, embeddings_array)
+      {embedding, frame.action}
+    end)
+
+    {embeddings, actions} = Enum.unzip(batch_data)
+
+    # Stack embeddings: [batch, seq_len, embed_size]
+    states = Nx.stack(embeddings)
+
+    # Convert actions to tensors
+    action_tensors = actions_to_tensors(actions)
+
+    %{
+      states: states,
+      actions: action_tensors
+    }
+  end
+
+  defp create_sequence_batch_fast(frames_array, nil, indices) do
+    # Slow path: no pre-computed embeddings, embed on-the-fly
+    sequence_data = Enum.map(indices, fn idx ->
+      frame = :array.get(idx, frames_array)
+      {frame.sequence, frame.action}
+    end)
+
+    {sequences, actions} = Enum.unzip(sequence_data)
+
+    # Embed sequences
+    embedded = Enum.map(sequences, fn seq ->
+      game_states = Enum.map(seq, & &1.game_state)
+      Embeddings.Game.embed_states_fast(game_states, 1)
+    end)
+
+    states = Nx.stack(embedded)
+    action_tensors = actions_to_tensors(actions)
+
+    %{
+      states: states,
+      actions: action_tensors
+    }
+  end
+
+  # Legacy functions for backwards compatibility
   defp create_sequence_batch(dataset, indices) do
     # Check if we have pre-computed embeddings
     has_precomputed = dataset.embedded_sequences != nil

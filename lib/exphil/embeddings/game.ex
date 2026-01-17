@@ -177,6 +177,56 @@ defmodule ExPhil.Embeddings.Game do
   end
 
   @doc """
+  Batch embed multiple game states at once - MUCH faster than calling embed/4 in a loop.
+
+  This is the key optimization for temporal training. Instead of:
+  - 415K calls to embed() with 20+ Nx ops each = 8M+ Nx operations
+
+  We do:
+  - 1 batch extraction + ~20 batch Nx ops = ~20 operations
+
+  ## Returns
+    Tensor of shape [batch_size, embedding_size]
+  """
+  @spec embed_states_fast([GameState.t()], integer(), keyword()) :: Nx.Tensor.t()
+  def embed_states_fast(game_states, own_port \\ 1, opts \\ []) when is_list(game_states) do
+    if Enum.empty?(game_states) do
+      Nx.broadcast(0.0, {0, embedding_size(opts)})
+    else
+      config = Keyword.get(opts, :config, default_config())
+      name_id = Keyword.get(opts, :name_id, 0)
+
+      # Extract own players and opponent players
+      {own_players, opponent_players} = game_states
+      |> Enum.map(fn gs -> get_players_ego(gs, own_port) end)
+      |> Enum.unzip()
+
+      # Extract stages
+      stages = Enum.map(game_states, fn gs -> gs.stage || 0 end)
+
+      # Batch embed players
+      own_emb = PlayerEmbed.embed_batch(own_players, config.player)
+      opp_emb = PlayerEmbed.embed_batch(opponent_players, config.player)
+
+      # Batch embed stages
+      stage_emb = Primitives.batch_one_hot(Nx.tensor(stages, type: :s32), size: 64, clamp: true)
+
+      # Batch embed name_id (same for all in batch)
+      batch_size = length(game_states)
+      name_ids = List.duplicate(name_id, batch_size)
+      name_emb = Primitives.batch_one_hot(Nx.tensor(name_ids, type: :s32), size: config.num_player_names, clamp: true)
+
+      # Previous action (zeros since we don't have it in temporal sequences)
+      # continuous_embedding_size = 8 + 2 + 2 + 1 = 13
+      prev_action_emb = Nx.broadcast(0.0, {batch_size, ControllerEmbed.continuous_embedding_size()})
+
+      # Concatenate all: [batch, total_embed_size]
+      # Order must match Game.embed: players, stage, prev_action, name_id
+      Nx.concatenate([own_emb, opp_emb, stage_emb, prev_action_emb, name_emb], axis: 1)
+    end
+  end
+
+  @doc """
   Embed just the state portion (no previous action).
 
   Useful for value function that doesn't need action conditioning.

@@ -131,6 +131,153 @@ defmodule ExPhil.Embeddings.Player do
   end
 
   @doc """
+  Batch embed multiple players at once - MUCH faster than calling embed/2 in a loop.
+
+  This extracts all values first (Elixir work), then does all Nx operations
+  in batch, reducing overhead from O(N * ops) to O(ops).
+
+  ## Returns
+    Tensor of shape [batch_size, embedding_size]
+  """
+  @spec embed_batch([PlayerState.t() | nil], config()) :: Nx.Tensor.t()
+  def embed_batch(players, config \\ default_config()) when is_list(players) do
+    # Handle empty list
+    if Enum.empty?(players) do
+      Nx.broadcast(0.0, {0, embedding_size(config)})
+    else
+      embed_batch_base(players, config)
+    end
+  end
+
+  defp embed_batch_base(players, config) do
+    # Extract all values into lists (pure Elixir - fast)
+    percents = Enum.map(players, fn p -> (p && p.percent) || 0.0 end)
+    facings = Enum.map(players, fn p -> (p && p.facing) || false end)
+    xs = Enum.map(players, fn p -> (p && p.x) || 0.0 end)
+    ys = Enum.map(players, fn p -> (p && p.y) || 0.0 end)
+    actions = Enum.map(players, fn p -> (p && p.action) || 0 end)
+    characters = Enum.map(players, fn p -> (p && p.character) || 0 end)
+    invulnerables = Enum.map(players, fn p -> (p && p.invulnerable) || false end)
+    jumps = Enum.map(players, fn p -> (p && p.jumps_left) || 0 end)
+    shields = Enum.map(players, fn p -> (p && p.shield_strength) || 0.0 end)
+    on_grounds = Enum.map(players, fn p -> (p && p.on_ground) || false end)
+
+    # Batch Nx operations (few calls instead of N)
+    percent_emb = Primitives.batch_float_embed(percents, scale: 0.01, lower: 0.0, upper: 5.0)
+    facing_emb = Primitives.batch_bool_embed(facings, on: 1.0, off: -1.0)
+    x_emb = Primitives.batch_float_embed(xs, scale: config.xy_scale)
+    y_emb = Primitives.batch_float_embed(ys, scale: config.xy_scale)
+    action_emb = Primitives.batch_one_hot(Nx.tensor(actions, type: :s32), size: 399, clamp: true)
+    char_emb = Primitives.batch_one_hot(Nx.tensor(characters, type: :s32), size: 33, clamp: true)
+    invuln_emb = Primitives.batch_bool_embed(invulnerables)
+    jumps_emb = Primitives.batch_one_hot(Nx.tensor(jumps, type: :s32), size: 7, clamp: true)
+    shield_emb = Primitives.batch_float_embed(shields, scale: 0.01, lower: 0.0, upper: 1.0)
+    ground_emb = Primitives.batch_bool_embed(on_grounds)
+
+    # Base embeddings
+    base_embs = [
+      percent_emb,   # [batch, 1]
+      facing_emb,    # [batch, 1]
+      x_emb,         # [batch, 1]
+      y_emb,         # [batch, 1]
+      action_emb,    # [batch, 399]
+      char_emb,      # [batch, 33]
+      invuln_emb,    # [batch, 1]
+      jumps_emb,     # [batch, 7]
+      shield_emb,    # [batch, 1]
+      ground_emb     # [batch, 1]
+    ]
+
+    # Add speeds if configured
+    embs_with_speeds = if config.with_speeds do
+      speed_air_x = Enum.map(players, fn p -> (p && p.speed_air_x_self) || 0.0 end)
+      speed_ground_x = Enum.map(players, fn p -> (p && p.speed_ground_x_self) || 0.0 end)
+      speed_y = Enum.map(players, fn p -> (p && p.speed_y_self) || 0.0 end)
+      speed_x_attack = Enum.map(players, fn p -> (p && p.speed_x_attack) || 0.0 end)
+      speed_y_attack = Enum.map(players, fn p -> (p && p.speed_y_attack) || 0.0 end)
+
+      speed_embs = [
+        Primitives.batch_float_embed(speed_air_x, scale: 0.5),
+        Primitives.batch_float_embed(speed_ground_x, scale: 0.5),
+        Primitives.batch_float_embed(speed_y, scale: 0.5),
+        Primitives.batch_float_embed(speed_x_attack, scale: 0.5),
+        Primitives.batch_float_embed(speed_y_attack, scale: 0.5)
+      ]
+
+      base_embs ++ speed_embs
+    else
+      base_embs
+    end
+
+    # Add Nana (Ice Climbers partner) if configured
+    all_embs = if config.with_nana do
+      batch_size = length(players)
+      nana_embs = embed_batch_nana(players, config, batch_size)
+      embs_with_speeds ++ [nana_embs]
+    else
+      embs_with_speeds
+    end
+
+    # Concatenate all embeddings: [batch, total_embed_size]
+    Nx.concatenate(all_embs, axis: 1)
+  end
+
+  # Batch embed Nana for all players
+  # Returns tensor of shape [batch_size, base_embedding_size + 1]
+  defp embed_batch_nana(players, config, batch_size) do
+    # Extract Nana structs (nil if no Nana)
+    nanas = Enum.map(players, fn p -> p && p.nana end)
+
+    # Check if any Nana exists
+    has_any_nana = Enum.any?(nanas, & &1)
+
+    if not has_any_nana do
+      # No Nanas at all - return zeros
+      Nx.broadcast(0.0, {batch_size, base_embedding_size() + 1})
+    else
+      # Extract Nana values (defaulting to 0/false for nil Nanas)
+      nana_percents = Enum.map(nanas, fn n -> (n && n.percent) || 0.0 end)
+      nana_facings = Enum.map(nanas, fn n -> (n && n.facing) || false end)
+      nana_xs = Enum.map(nanas, fn n -> (n && n.x) || 0.0 end)
+      nana_ys = Enum.map(nanas, fn n -> (n && n.y) || 0.0 end)
+      nana_actions = Enum.map(nanas, fn n -> (n && n.action) || 0 end)
+      nana_exists = Enum.map(nanas, fn n -> n != nil end)
+
+      # Batch embed Nana values
+      nana_percent_emb = Primitives.batch_float_embed(nana_percents, scale: 0.01, lower: 0.0, upper: 5.0)
+      nana_facing_emb = Primitives.batch_bool_embed(nana_facings, on: 1.0, off: -1.0)
+      nana_x_emb = Primitives.batch_float_embed(nana_xs, scale: config.xy_scale)
+      nana_y_emb = Primitives.batch_float_embed(nana_ys, scale: config.xy_scale)
+      nana_action_emb = Primitives.batch_one_hot(Nx.tensor(nana_actions, type: :s32), size: 399, clamp: true)
+
+      # Nana uses character 0 (same as Popo), no jumps/shield/invuln/on_ground data
+      nana_char_emb = Primitives.batch_one_hot(Nx.tensor(List.duplicate(0, batch_size), type: :s32), size: 33, clamp: true)
+      nana_invuln_emb = Nx.broadcast(0.0, {batch_size, 1})
+      nana_jumps_emb = Primitives.batch_one_hot(Nx.tensor(List.duplicate(0, batch_size), type: :s32), size: 7, clamp: true)
+      nana_shield_emb = Nx.broadcast(0.0, {batch_size, 1})
+      nana_ground_emb = Nx.broadcast(0.0, {batch_size, 1})
+
+      # Exists flag
+      nana_exists_emb = Primitives.batch_bool_embed(nana_exists)
+
+      # Concatenate Nana embeddings
+      Nx.concatenate([
+        nana_percent_emb,    # [batch, 1]
+        nana_facing_emb,     # [batch, 1]
+        nana_x_emb,          # [batch, 1]
+        nana_y_emb,          # [batch, 1]
+        nana_action_emb,     # [batch, 399]
+        nana_char_emb,       # [batch, 33]
+        nana_invuln_emb,     # [batch, 1]
+        nana_jumps_emb,      # [batch, 7]
+        nana_shield_emb,     # [batch, 1]
+        nana_ground_emb,     # [batch, 1]
+        nana_exists_emb      # [batch, 1]
+      ], axis: 1)
+    end
+  end
+
+  @doc """
   Embed the base player features (no speeds, no nana).
   """
   @spec embed_base(PlayerState.t(), config()) :: Nx.Tensor.t()

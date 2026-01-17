@@ -56,7 +56,10 @@ defmodule ExPhil.Training.Imitation do
     :embed_config,
     :config,
     :step,
-    :metrics
+    :metrics,
+    # Cached functions for performance (built once, reused every step)
+    :predict_fn,
+    :apply_updates_fn
   ]
 
   @type t :: %__MODULE__{
@@ -67,7 +70,9 @@ defmodule ExPhil.Training.Imitation do
     embed_config: map(),
     config: map(),
     step: non_neg_integer(),
-    metrics: map()
+    metrics: map(),
+    predict_fn: function() | nil,
+    apply_updates_fn: function() | nil
   }
 
   # Default training configuration
@@ -171,6 +176,11 @@ defmodule ExPhil.Training.Imitation do
     params_data = get_params_data(policy_params)
     optimizer_state = optimizer_init.(params_data)
 
+    # Pre-build cached functions for performance
+    # These are reused every training step instead of being rebuilt
+    {_init_fn, predict_fn} = Axon.build(policy_model, mode: :inference)
+    apply_updates_fn = Nx.Defn.jit(&Polaris.Updates.apply_updates/2)
+
     %__MODULE__{
       policy_model: policy_model,
       policy_params: policy_params,
@@ -184,7 +194,9 @@ defmodule ExPhil.Training.Imitation do
         button_loss: [],
         stick_loss: [],
         learning_rate: []
-      }
+      },
+      predict_fn: predict_fn,
+      apply_updates_fn: apply_updates_fn
     }
   end
 
@@ -274,10 +286,8 @@ defmodule ExPhil.Training.Imitation do
     states = Nx.backend_copy(states)
     actions = Map.new(actions, fn {k, v} -> {k, Nx.backend_copy(v)} end)
 
-    # Build model components for gradient computation
-    # Using mode: :inference for simpler gradient computation
-    # (dropout is disabled, but gradients still flow correctly)
-    {_init_fn, predict_fn} = Axon.build(trainer.policy_model, mode: :inference)
+    # Use cached predict_fn (built once in new/1, reused every step)
+    predict_fn = trainer.predict_fn
 
     # Copy model parameters to avoid EXLA/Expr mismatch in closures
     # The original params are stored in trainer and will be used to restore structure
@@ -317,9 +327,8 @@ defmodule ExPhil.Training.Imitation do
       params_data
     )
 
-    # Use jit wrapper to avoid Nx.LazyContainer nil issue with defn default params
-    apply_updates_fn = Nx.Defn.jit(&Polaris.Updates.apply_updates/2)
-    new_params_data = apply_updates_fn.(params_data, updates)
+    # Use cached apply_updates_fn (built once in new/1, reused every step)
+    new_params_data = trainer.apply_updates_fn.(params_data, updates)
     new_params = put_params_data(model_state, new_params_data)
 
     # Update metrics

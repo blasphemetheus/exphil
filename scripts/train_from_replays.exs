@@ -290,8 +290,8 @@ final_trainer = Enum.reduce(1..opts[:epochs], trainer, fn epoch, current_trainer
 
   {updated_trainer, epoch_losses, _} = Enum.reduce(Enum.with_index(batches), {current_trainer, [], jit_indicator_shown}, fn {batch, batch_idx}, {t, losses, jit_shown} ->
     batch_start = System.monotonic_time(:millisecond)
-    {_predict_fn, loss_fn} = Imitation.build_loss_fn(t.policy_model)
-    {new_trainer, metrics} = Imitation.train_step(t, batch, loss_fn)
+    # Note: loss_fn is ignored by train_step (it uses cached predict_fn internally)
+    {new_trainer, metrics} = Imitation.train_step(t, batch, nil)
     batch_time = System.monotonic_time(:millisecond) - batch_start
 
     # Show JIT completion message after first batch
@@ -307,7 +307,9 @@ final_trainer = Enum.reduce(1..opts[:epochs], trainer, fn epoch, current_trainer
     if rem(batch_idx + 1, max(1, div(num_batches, 10))) == 0 do
       pct = round((batch_idx + 1) / num_batches * 100)
       elapsed_sec = Float.round(batch_time / 1000, 1)
-      IO.write("\r  Epoch #{epoch}: #{pct}% (loss: #{Float.round(metrics.loss, 4)}, #{elapsed_sec}s/batch)")
+      IO.puts("  Epoch #{epoch}: #{pct}% (batch #{batch_idx + 1}/#{num_batches}, loss: #{Float.round(metrics.loss, 4)}, #{elapsed_sec}s/batch)")
+      # Force flush to ensure progress shows in logs immediately
+      :ok = IO.binwrite(:stdio, "")
     end
 
     {new_trainer, [metrics.loss | losses], new_jit_shown}

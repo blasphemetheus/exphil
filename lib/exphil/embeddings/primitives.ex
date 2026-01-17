@@ -170,6 +170,30 @@ defmodule ExPhil.Embeddings.Primitives do
   end
 
   @doc """
+  Batch float embedding - takes a list of values, returns [batch, 1] tensor.
+
+  ## Examples
+
+      iex> batch_float_embed([50.0, 100.0, 150.0], scale: 0.01)
+      #Nx.Tensor<f32[3, 1]>
+
+  """
+  @spec batch_float_embed([number()], keyword()) :: Nx.Tensor.t()
+  def batch_float_embed(values, opts \\ []) when is_list(values) do
+    scale = Keyword.get(opts, :scale, 1.0)
+    bias = Keyword.get(opts, :bias, 0.0)
+    lower = Keyword.get(opts, :lower, -10.0)
+    upper = Keyword.get(opts, :upper, 10.0)
+
+    values
+    |> Nx.tensor(type: :f32)
+    |> Nx.add(bias)
+    |> Nx.multiply(scale)
+    |> Nx.clip(lower, upper)
+    |> Nx.reshape({:auto, 1})
+  end
+
+  @doc """
   Embed X/Y position with standard scaling.
   Default scale of 0.05 maps typical stage positions to [-5, 5] range.
   """
@@ -230,6 +254,30 @@ defmodule ExPhil.Embeddings.Primitives do
     end
 
     Nx.tensor(value, type: :f32) |> ensure_trailing_dim()
+  end
+
+  @doc """
+  Batch bool embedding - takes a list of booleans, returns [batch, 1] tensor.
+
+  ## Examples
+
+      iex> batch_bool_embed([true, false, true])
+      #Nx.Tensor<f32[3, 1]>  # [[1.0], [0.0], [1.0]]
+
+  """
+  @spec batch_bool_embed([boolean() | number()], keyword()) :: Nx.Tensor.t()
+  def batch_bool_embed(values, opts \\ []) when is_list(values) do
+    on = Keyword.get(opts, :on, 1.0)
+    off = Keyword.get(opts, :off, 0.0)
+
+    values
+    |> Enum.map(fn
+      true -> on
+      false -> off
+      v when is_number(v) -> if v != 0, do: on, else: off
+    end)
+    |> Nx.tensor(type: :f32)
+    |> Nx.reshape({:auto, 1})
   end
 
   @doc """
