@@ -85,10 +85,12 @@ defmodule ExPhil.AgentsTest do
 
   describe "stop/1" do
     test "stops a running agent" do
-      {:ok, _pid} = Agents.start_empty(:stop_test)
-      assert {:ok, _} = Agents.get(:stop_test)
+      {:ok, pid} = Agents.start_empty(:stop_test)
+      assert {:ok, ^pid} = Agents.get(:stop_test)
 
       assert :ok = Agents.stop(:stop_test)
+      # Small wait for Registry to clean up after process termination
+      Process.sleep(10)
       assert {:error, :not_found} = Agents.get(:stop_test)
     end
 
