@@ -594,6 +594,21 @@ sudo renice -n -5 -p <PID>
 
 *First epoch includes ~5 min JIT compilation overhead*
 
+#### Temporal Training Overhead
+
+Temporal training (`--temporal`) has additional embedding overhead:
+- Each sequence of `window_size` frames must be embedded
+- Pre-computed embeddings happen during Step 2 (visible progress)
+- Embedding time scales with: `sequences × window_size × embed_time`
+
+Example for 1 replay file (~14K frames, window=30):
+- Sequences created: ~13,848
+- Total embeddings: ~415,000 (sequences × window)
+- Embedding time: ~20-30 minutes on CPU
+
+The `Data.precompute_embeddings/2` function does this once during dataset
+creation rather than per-batch, preventing silent hangs during training.
+
 #### GPU Support
 
 Currently using CPU with XLA optimizations. For NVIDIA GPU:
