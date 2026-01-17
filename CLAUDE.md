@@ -371,6 +371,11 @@ mix exphil.train --mode rl --checkpoint ./checkpoints/latest.axon
 7. **Character-specific rewards** - Mewtwo, G&W, Link specialization
 8. **Distributed training** - Multi-GPU with EXLA
 9. **Model quantization** - INT8 for <2ms inference
+10. **Docker: Precompiled Rustler NIF** - Avoid runtime NIF compilation
+    - Configure Rustler with `skip_compilation?: true` or `force_build: false` in prod
+    - Or use Rustler precompilation to download prebuilt binaries
+    - Currently Dockerfile includes full Rust toolchain (~500MB) as workaround
+    - See: https://hexdocs.pm/rustler_precompiled/precompilation_guide.html
 
 ### Technical Gotchas
 
@@ -596,18 +601,26 @@ sudo renice -n -5 -p <PID>
 
 #### Temporal Training Overhead
 
-Temporal training (`--temporal`) has additional embedding overhead:
-- Each sequence of `window_size` frames must be embedded
-- Pre-computed embeddings happen during Step 2 (visible progress)
-- Embedding time scales with: `sequences × window_size × embed_time`
+Temporal training (`--temporal`) has embedding preprocessing that scales with dataset size:
+- Each sequence of `window_size` frames must be embedded once during Step 2
+- Pre-computed embeddings use batch Nx operations for speed
+- Progress is visible: "Embedding: X% (Y/Z)"
 
-Example for 1 replay file (~14K frames, window=30):
-- Sequences created: ~13,848
-- Total embeddings: ~415,000 (sequences × window)
-- Embedding time: ~20-30 minutes on CPU
+**Performance after optimization (batch Nx embedding):**
+| Dataset | Sequences | Old Time | New Time |
+|---------|-----------|----------|----------|
+| 1 file (~14K frames, window=60) | ~13,818 | ~20 min | ~1 min |
+| 10 files (~140K frames) | ~138K | ~3.5 hrs | ~10 min |
 
-The `Data.precompute_embeddings/2` function does this once during dataset
-creation rather than per-batch, preventing silent hangs during training.
+**Key optimizations applied:**
+1. `embed_states_fast/3` - Batch embed all frames in a sequence at once
+2. `Player.embed_batch/2` - Vectorized player embedding with Nana support
+3. `batch_float_embed/2`, `batch_bool_embed/2` - Primitives for list→tensor conversion
+4. `:array.get` instead of `Enum.at` - O(1) vs O(n) index lookup in batch creation
+5. Cached `predict_fn` and `apply_updates_fn` in trainer - built once, reused every step
+
+The `Data.precompute_embeddings/2` function does embedding once during dataset
+creation, and `batched_sequences/2` uses O(1) array lookup for fast batch assembly.
 
 #### GPU Support
 
