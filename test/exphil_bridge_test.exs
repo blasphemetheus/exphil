@@ -127,11 +127,12 @@ defmodule ExPhil.BridgeTest do
       assert input.main_stick == %{x: 0.0, y: 1.0}
     end
 
-    test "combine/1 merges multiple inputs" do
+    test "combine/1 merges multiple inputs (later override earlier)" do
+      # Put main_stick last so it overrides the neutral sticks from button inputs
       inputs = [
-        ControllerInput.main_stick(1.0, 0.5),
         ControllerInput.button(:a),
-        ControllerInput.button(:b)
+        ControllerInput.button(:b),
+        ControllerInput.main_stick(1.0, 0.5)
       ]
 
       combined = ControllerInput.combine(inputs)
