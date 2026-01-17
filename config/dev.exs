@@ -2,8 +2,9 @@ import Config
 
 # Development configuration
 
-# Use binary backend for faster iteration (no GPU)
-config :nx, default_backend: Nx.BinaryBackend
+# Use EXLA for accelerated training (CPU with XLA optimizations)
+# Falls back gracefully if EXLA isn't available
+config :nx, default_backend: EXLA.Backend
 
 # Logging
 config :logger, level: :debug

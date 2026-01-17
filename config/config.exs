@@ -1,10 +1,10 @@
 import Config
 
-# Configure Nx backend (defaults to binary, use EXLA for GPU)
-config :nx, default_backend: Nx.BinaryBackend
+# Configure Nx backend - use EXLA for multi-core CPU acceleration
+config :nx, default_backend: EXLA.Backend
 
-# For GPU training, uncomment and configure:
-# config :nx, default_backend: EXLA.Backend
+# Use host (CPU) backend with XLA optimization (uses all cores)
+config :exla, default_client: :host
 
 # EXLA configuration for CUDA
 # config :exla, :clients,
