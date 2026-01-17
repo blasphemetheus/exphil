@@ -5,10 +5,11 @@
 ExPhil is an Elixir-based AI that learns to play Super Smash Bros. Melee by watching human replay files. It uses **imitation learning** (also called behavioral cloning) to copy how humans play, then can be improved with **reinforcement learning** (PPO) to develop its own strategies.
 
 This notebook lets you:
-- **Inspect trained models** - See the neural network architecture and parameters
-- **Analyze training data** - Visualize button press rates and stick positions from replays
-- **Test inference** - Run the model on game states and see what actions it chooses
-- **Compare to humans** - Measure how closely the model matches human play
+
+* **Inspect trained models** - See the neural network architecture and parameters
+* **Analyze training data** - Visualize button press rates and stick positions from replays
+* **Test inference** - Run the model on game states and see what actions it chooses
+* **Compare to humans** - Measure how closely the model matches human play
 
 ---
 
@@ -37,9 +38,10 @@ IO.puts("Setup complete!")
 ## 1. Load a Trained Policy
 
 A **policy** is a neural network that takes a game state as input and outputs controller actions. The policy file (`.bin`) contains:
-- **Model weights** - The learned parameters of the neural network
-- **Architecture config** - How the network is structured (layer sizes, etc.)
-- **Training config** - Settings used during training (temporal mode, backbone type)
+
+* **Model weights** - The learned parameters of the neural network
+* **Architecture config** - How the network is structured (layer sizes, etc.)
+* **Training config** - Settings used during training (temporal mode, backbone type)
 
 ```elixir
 policy_path = Kino.Input.text("Policy Path",
@@ -83,8 +85,9 @@ end
 ## 2. Model Architecture
 
 Neural networks are made of **layers**. Each layer has **weights** (learned parameters) that transform the input. Here we show:
-- **Total parameters** - How many numbers the model learned (more = more capacity but slower)
-- **Layer breakdown** - Each layer's shape and size
+
+* **Total parameters** - How many numbers the model learned (more = more capacity but slower)
+* **Layer breakdown** - Each layer's shape and size
 
 ```elixir
 policy = Process.get(:loaded_policy)
@@ -158,14 +161,16 @@ end
 ## 3. Training Data Analysis
 
 Before we can understand the model, we need to understand the **training data**. Melee replays (`.slp` files) contain frame-by-frame recordings of:
-- Player positions, damage, stocks
-- Controller inputs (buttons, sticks)
-- Game state (stage, items, etc.)
+
+* Player positions, damage, stocks
+* Controller inputs (buttons, sticks)
+* Game state (stage, items, etc.)
 
 ### What to look for:
-- **Button rates** show which buttons humans press most often
-- **Stick distributions** show common movement patterns
-- A well-trained model should roughly match these distributions
+
+* **Button rates** show which buttons humans press most often
+* **Stick distributions** show common movement patterns
+* A well-trained model should roughly match these distributions
 
 ```elixir
 replay_dir = Kino.Input.text("Replay Directory",
@@ -221,12 +226,13 @@ end
 ### Button Press Rates
 
 Each bar shows what percentage of frames had that button pressed. In Melee:
-- **A** = Normal attacks (jab, tilts, aerials)
-- **B** = Special moves (character-specific)
-- **X/Y** = Jump
-- **Z** = Grab / aerial attack
-- **L/R** = Shield, wavedash, L-cancel
-- **D-pad** = Taunt (rarely used competitively)
+
+* **A** = Normal attacks (jab, tilts, aerials)
+* **B** = Special moves (character-specific)
+* **X/Y** = Jump
+* **Z** = Grab / aerial attack
+* **L/R** = Shield, wavedash, L-cancel
+* **D-pad** = Taunt (rarely used competitively)
 
 ```elixir
 frames = Process.get(:training_frames, [])
@@ -268,18 +274,21 @@ end
 ### Stick Position Distributions
 
 The GameCube controller has two analog sticks:
-- **Main Stick** (left) - Movement, attacks direction
-- **C-Stick** (right) - Smash attacks, aerial direction
+
+* **Main Stick** (left) - Movement, attacks direction
+* **C-Stick** (right) - Smash attacks, aerial direction
 
 Positions are discretized to 0-16:
-- **0** = Full left/down
-- **8** = Neutral (center)
-- **16** = Full right/up
+
+* **0** = Full left/down
+* **8** = Neutral (center)
+* **16** = Full right/up
 
 Competitive players often use:
-- Cardinal directions (0, 8, 16) for precise inputs
-- Slight angles for DI (directional influence)
-- Neutral position when not moving
+
+* Cardinal directions (0, 8, 16) for precise inputs
+* Slight angles for DI (directional influence)
+* Neutral position when not moving
 
 ```elixir
 frames = Process.get(:training_frames, [])
@@ -337,10 +346,11 @@ end
 Now let's see what the model actually outputs! We create a **synthetic game state** and ask the model what action it would take.
 
 ### Understanding the outputs:
-- **Buttons** - Which buttons the model wants to press (sampled from probabilities)
-- **Main Stick** - Movement direction (0-16 discretized)
-- **C-Stick** - Smash/aerial direction
-- **Shoulder** - L/R trigger pressure (for shields, wavedash)
+
+* **Buttons** - Which buttons the model wants to press (sampled from probabilities)
+* **Main Stick** - Movement direction (0-16 discretized)
+* **C-Stick** - Smash/aerial direction
+* **Shoulder** - L/R trigger pressure (for shields, wavedash)
 
 Since the policy is **stochastic** (probabilistic), running it multiple times on the same state gives different actions. This is intentional - it prevents the AI from being predictable.
 
@@ -456,8 +466,9 @@ end
 ## 5. Deterministic vs Stochastic Mode
 
 The model can run in two modes:
-- **Stochastic** (default) - Samples actions from probability distributions. More varied, less predictable.
-- **Deterministic** - Always picks the highest-probability action. Consistent but exploitable.
+
+* **Stochastic** (default) - Samples actions from probability distributions. More varied, less predictable.
+* **Deterministic** - Always picks the highest-probability action. Consistent but exploitable.
 
 Let's compare them on a more interesting scenario: **Player at high percent vs attacking opponent**
 
@@ -573,12 +584,14 @@ end
 The ultimate test: **How well does the model match human play?**
 
 We take random frames from the replays and compare:
+
 1. What the **human** actually did
 2. What the **model** would do in the same situation
 
 ### Metrics:
-- **Button Accuracy** - % of buttons that match (all 7 buttons)
-- **Stick Match** - Whether stick position is within 2 units (allowing for small variations)
+
+* **Button Accuracy** - % of buttons that match (all 7 buttons)
+* **Stick Match** - Whether stick position is within 2 units (allowing for small variations)
 
 Note: 100% accuracy isn't the goal! Humans vary their play, and there are often multiple good options.
 
@@ -700,21 +713,25 @@ end
 After analyzing your model, you might want to:
 
 1. **Train longer** - More epochs or more replay data
+
    ```bash
    mix run scripts/train_from_replays.exs --epochs 10 --max-files 100
    ```
 
 2. **Try temporal training** - Uses past frames for context
+
    ```bash
    mix run scripts/train_from_replays.exs --temporal --backbone sliding_window
    ```
 
 3. **Fine-tune with PPO** - Improve beyond imitation
+
    ```bash
    mix run scripts/train_ppo.exs --pretrained checkpoints/imitation_latest_policy.bin --mock
    ```
 
 4. **Test in Dolphin** - Play against the AI
+
    ```bash
    mix run scripts/play_dolphin.exs --policy checkpoints/imitation_latest_policy.bin
    ```

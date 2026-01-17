@@ -12,7 +12,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 NOTEBOOK="$PROJECT_DIR/notebooks/evaluation_dashboard.livemd"
 PORT="${LIVEBOOK_PORT:-8080}"
-TOKEN="exphil-dev-token"
+# Disable token authentication for local dev
+export LIVEBOOK_TOKEN_ENABLED=false
 
 # Find livebook executable
 LIVEBOOK="${HOME}/.asdf/installs/elixir/1.18.4-otp-28/.mix/escripts/livebook"
