@@ -127,6 +127,7 @@ Imitation learning and RL training loops
 
 #### 3.2 Reinforcement Learning
 - [x] PPO implementation in Axon
+- [x] PPO training script (`scripts/train_ppo.exs`)
 - [ ] V-trace for off-policy correction
 - [x] Reward computation (KO diff, damage ratio)
 - [ ] Teacher KL regularization (stay close to imitation policy)
@@ -337,6 +338,39 @@ mix exphil.train --mode rl --checkpoint ./checkpoints/latest.axon
 - `ExPhil.Integrations.Wandb` - Weights & Biases experiment tracking
 
 **Test coverage:** 580 tests passing
+
+### Next Steps (Priority Order)
+
+#### Immediate (Ready Now)
+1. **Temporal training baseline** - Train with `--temporal --backbone sliding_window`
+   - Compare loss curves and action quality vs single-frame MLP
+   - Expected: better combo recognition, reaction timing
+
+2. **Larger dataset training** - Train on full replay collection
+   - Use `--max-files 100` or more with multiple epochs
+   - Monitor with Wandb: `--wandb --wandb-project exphil`
+
+3. **PPO fine-tuning in mock mode** - Test the PPO training loop
+   - `mix run scripts/train_ppo.exs --mock --pretrained checkpoints/imitation_latest_policy.bin`
+   - Verify gradient flow and loss computation
+
+#### Short-term (Requires Setup)
+4. **Dolphin integration testing** - Connect MeleePort to real Dolphin
+   - Install Slippi Dolphin, configure paths
+   - Test `scripts/play_dolphin.exs` against CPU
+
+5. **Frame delay training** - Add delay simulation to imitation learning
+   - Critical for realistic Slippi online play (18+ frames)
+   - Modify embedding to include past N frames
+
+6. **Self-play infrastructure** - Train agent vs agent
+   - Use BEAM concurrency for parallel games
+   - Prevents overfitting to human replay patterns
+
+#### Medium-term
+7. **Character-specific rewards** - Mewtwo, G&W, Link specialization
+8. **Distributed training** - Multi-GPU with EXLA
+9. **Model quantization** - INT8 for <2ms inference
 
 ### Technical Gotchas
 
@@ -565,6 +599,40 @@ mix run scripts/train_from_replays.exs \
 - Slower per-epoch (sequences are larger than single frames)
 - Better at learning temporal patterns (combos, reactions, habits)
 - Recommended after establishing baseline with single-frame training
+
+### PPO Fine-tuning
+
+```bash
+# Test PPO loop with mock environment (no Dolphin needed)
+mix run scripts/train_ppo.exs --mock \
+  --pretrained checkpoints/imitation_latest_policy.bin \
+  --timesteps 10000
+
+# Full PPO training with Dolphin
+mix run scripts/train_ppo.exs \
+  --pretrained checkpoints/imitation_latest_policy.bin \
+  --dolphin /path/to/slippi \
+  --iso /path/to/melee.iso \
+  --character mewtwo \
+  --opponent cpu3 \
+  --timesteps 100000
+```
+
+### Playing and Evaluation
+
+```bash
+# Evaluate model on replay frames
+mix run scripts/eval_model.exs --policy checkpoints/imitation_latest_policy.bin
+
+# Play against CPU in Dolphin
+mix run scripts/play_dolphin.exs \
+  --policy checkpoints/imitation_latest_policy.bin \
+  --dolphin /path/to/slippi \
+  --iso /path/to/melee.iso
+
+# Interactive analysis with Livebook
+livebook server notebooks/evaluation_dashboard.livemd
+```
 
 ### Temporal Inference in Agents
 
