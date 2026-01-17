@@ -6,7 +6,7 @@ defmodule ExPhil.TrainingTest do
   alias ExPhil.Bridge.{GameState, Player, ControllerState}
 
   # Helper to create mock game state
-  defp mock_game_state(opts \\ []) do
+  defp mock_game_state(opts) do
     player = %Player{
       x: Keyword.get(opts, :x, 0.0),
       y: Keyword.get(opts, :y, 0.0),
@@ -62,7 +62,7 @@ defmodule ExPhil.TrainingTest do
     }
   end
 
-  defp mock_controller_state(opts \\ []) do
+  defp mock_controller_state(opts) do
     %ControllerState{
       main_stick: %{
         x: Keyword.get(opts, :main_x, 0.5),
@@ -245,7 +245,7 @@ defmodule ExPhil.TrainingTest do
       {states, _key} = Nx.Random.uniform(key, shape: {4, 512})
 
       # Forward pass
-      {buttons, main_x, main_y, c_x, c_y, shoulder} = predict_fn.(trainer.policy_params, states)
+      {buttons, main_x, _main_y, _c_x, _c_y, shoulder} = predict_fn.(trainer.policy_params, states)
 
       assert Nx.shape(buttons) == {4, 8}
       # axis_buckets + 1 because we discretize [0, 1] into bucket indices
@@ -403,7 +403,7 @@ defmodule ExPhil.TrainingTest do
       assert dataset.size == 50
     end
 
-    test "export_policy/2 and load_policy/1 round-trip" do
+    test "export_policy/2 and load_policy/1 round-trip for Imitation" do
       trainer = Imitation.new(embed_size: 256)
 
       # Export
@@ -419,6 +419,209 @@ defmodule ExPhil.TrainingTest do
       assert {:ok, loaded} = Training.load_policy(path)
       assert Map.has_key?(loaded, :params)
       assert Map.has_key?(loaded, :config)
+    end
+
+    test "export_policy/2 and load_policy/1 round-trip for PPO" do
+      trainer = PPO.new(embed_size: 256, hidden_sizes: [64])
+
+      path = Path.join(System.tmp_dir!(), "test_ppo_policy_#{:rand.uniform(10_000)}.bin")
+
+      on_exit(fn ->
+        File.rm(path)
+      end)
+
+      assert :ok = Training.export_policy(trainer, path)
+
+      {:ok, loaded} = Training.load_policy(path)
+      assert Map.has_key?(loaded, :params)
+    end
+
+    test "load_policy/1 returns error for missing file" do
+      result = Training.load_policy("/nonexistent/path.bin")
+      assert {:error, _} = result
+    end
+
+    test "get_action/3 dispatches to Imitation trainer" do
+      trainer = Imitation.new(embed_size: 256, hidden_sizes: [64])
+      state = Nx.broadcast(0.5, {1, 256})
+
+      action = Training.get_action(trainer, state)
+
+      assert is_map(action)
+      assert Map.has_key?(action, :main_x)
+      assert Map.has_key?(action, :buttons)
+    end
+
+    test "get_action/3 dispatches to PPO trainer" do
+      trainer = PPO.new(embed_size: 256, hidden_sizes: [64])
+      state = Nx.broadcast(0.5, {1, 256})
+
+      action = Training.get_action(trainer, state)
+
+      assert is_map(action)
+      assert Map.has_key?(action, :main_x)
+      assert Map.has_key?(action, :value)
+    end
+
+    test "get_controller_action/3 dispatches to Imitation trainer" do
+      trainer = Imitation.new(embed_size: 256, hidden_sizes: [64])
+      state = Nx.broadcast(0.5, {1, 256})
+
+      cs = Training.get_controller_action(trainer, state)
+
+      assert %ControllerState{} = cs
+      assert is_map(cs.main_stick)
+    end
+
+    test "get_controller_action/3 dispatches to PPO trainer" do
+      trainer = PPO.new(embed_size: 256, hidden_sizes: [64])
+      state = Nx.broadcast(0.5, {1, 256})
+
+      cs = Training.get_controller_action(trainer, state)
+
+      assert %ControllerState{} = cs
+      assert is_map(cs.main_stick)
+    end
+
+    test "metrics_summary/1 dispatches to Imitation trainer" do
+      trainer = Imitation.new(embed_size: 256)
+
+      summary = Training.metrics_summary(trainer)
+
+      assert summary.step == 0
+      assert Map.has_key?(summary, :avg_loss)
+    end
+
+    test "metrics_summary/1 dispatches to PPO trainer" do
+      trainer = PPO.new(embed_size: 256)
+
+      summary = Training.metrics_summary(trainer)
+
+      assert summary.step == 0
+      assert summary.timesteps == 0
+    end
+  end
+
+  describe "train_imitation/2" do
+    @tag :slow
+    test "trains imitation policy on dataset" do
+      frames = mock_frames(100)
+      dataset = Data.from_frames(frames)
+
+      {:ok, trainer} = Training.train_imitation(dataset,
+        epochs: 1,
+        batch_size: 32,
+        hidden_sizes: [32],
+        validation_split: 0.1
+      )
+
+      assert %Imitation{} = trainer
+      assert trainer.step > 0
+    end
+
+    @tag timeout: 120_000
+    @tag :slow
+    test "runs callbacks during training" do
+      # Use minimal data - just testing callback is called
+      frames = mock_frames(20)
+      dataset = Data.from_frames(frames)
+
+      test_pid = self()
+      callback = fn metrics ->
+        send(test_pid, {:callback, metrics})
+      end
+
+      {:ok, _trainer} = Training.train_imitation(dataset,
+        epochs: 1,
+        batch_size: 8,
+        hidden_sizes: [16],
+        callbacks: [callback],
+        validation_split: 0
+      )
+
+      # Should have received at least one callback
+      assert_received {:callback, metrics}
+      assert Map.has_key?(metrics, :step)
+    end
+
+    @tag :slow
+    test "handles zero validation split" do
+      frames = mock_frames(50)
+      dataset = Data.from_frames(frames)
+
+      {:ok, trainer} = Training.train_imitation(dataset,
+        epochs: 1,
+        batch_size: 16,
+        hidden_sizes: [32],
+        validation_split: 0
+      )
+
+      assert %Imitation{} = trainer
+    end
+
+    @tag :slow
+    test "saves checkpoints when checkpoint_dir provided" do
+      frames = mock_frames(100)
+      dataset = Data.from_frames(frames)
+      checkpoint_dir = Path.join(System.tmp_dir!(), "checkpoints_#{:rand.uniform(10_000)}")
+      File.mkdir_p!(checkpoint_dir)
+
+      try do
+        {:ok, _trainer} = Training.train_imitation(dataset,
+          epochs: 1,
+          batch_size: 32,
+          hidden_sizes: [32],
+          checkpoint_dir: checkpoint_dir,
+          checkpoint_interval: 1,
+          validation_split: 0
+        )
+
+        # Should have saved final checkpoint
+        final_path = Path.join(checkpoint_dir, "imitation_final.ckpt")
+        assert File.exists?(final_path)
+      after
+        File.rm_rf(checkpoint_dir)
+      end
+    end
+  end
+
+  describe "resume_imitation/3" do
+    @tag :slow
+    test "resumes training from checkpoint" do
+      frames = mock_frames(50)
+      dataset = Data.from_frames(frames)
+      checkpoint_path = Path.join(System.tmp_dir!(), "resume_test_#{:rand.uniform(10_000)}.ckpt")
+
+      try do
+        {:ok, trainer1} = Training.train_imitation(dataset,
+          epochs: 1,
+          batch_size: 16,
+          hidden_sizes: [32],
+          validation_split: 0
+        )
+
+        :ok = Imitation.save_checkpoint(trainer1, checkpoint_path)
+
+        {:ok, trainer2} = Training.resume_imitation(checkpoint_path, dataset,
+          epochs: 1,
+          batch_size: 16,
+          hidden_sizes: [32]
+        )
+
+        assert %Imitation{} = trainer2
+        assert trainer2.step >= trainer1.step
+      after
+        File.rm(checkpoint_path)
+      end
+    end
+
+    test "returns error for missing checkpoint" do
+      frames = mock_frames(50)
+      dataset = Data.from_frames(frames)
+
+      result = Training.resume_imitation("/nonexistent.ckpt", dataset, hidden_sizes: [32])
+
+      assert {:error, _} = result
     end
   end
 end

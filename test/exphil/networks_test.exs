@@ -29,7 +29,7 @@ defmodule ExPhil.NetworksTest do
       model = Policy.build(embed_size: @embed_size)
       {init_fn, predict_fn} = Axon.build(model)
 
-      params = init_fn.(Nx.template({@batch_size, @embed_size}, :f32), %{})
+      params = init_fn.(Nx.template({@batch_size, @embed_size}, :f32), Axon.ModelState.empty())
       state = random_tensor({@batch_size, @embed_size})
 
       {buttons, main_x, main_y, c_x, c_y, shoulder} = predict_fn.(params, state)
@@ -47,7 +47,7 @@ defmodule ExPhil.NetworksTest do
       model = Policy.build(embed_size: @embed_size, axis_buckets: 8)
       {init_fn, predict_fn} = Axon.build(model)
 
-      params = init_fn.(Nx.template({1, @embed_size}, :f32), %{})
+      params = init_fn.(Nx.template({1, @embed_size}, :f32), Axon.ModelState.empty())
       state = random_tensor({1, @embed_size})
 
       {_buttons, main_x, _main_y, _c_x, _c_y, _shoulder} = predict_fn.(params, state)
@@ -179,7 +179,7 @@ defmodule ExPhil.NetworksTest do
       model = Value.build(embed_size: @embed_size)
       {init_fn, predict_fn} = Axon.build(model)
 
-      params = init_fn.(Nx.template({@batch_size, @embed_size}, :f32), %{})
+      params = init_fn.(Nx.template({@batch_size, @embed_size}, :f32), Axon.ModelState.empty())
       state = random_tensor({@batch_size, @embed_size})
 
       values = predict_fn.(params, state)
@@ -270,13 +270,13 @@ defmodule ExPhil.NetworksTest do
       model = ActorCritic.build_combined(embed_size: @embed_size)
       {init_fn, predict_fn} = Axon.build(model)
 
-      params = init_fn.(Nx.template({@batch_size, @embed_size}, :f32), %{})
+      params = init_fn.(Nx.template({@batch_size, @embed_size}, :f32), Axon.ModelState.empty())
       state = random_tensor({@batch_size, @embed_size})
 
       %{policy: policy_logits, value: values} = predict_fn.(params, state)
 
       # Policy outputs tuple
-      {buttons, main_x, main_y, c_x, c_y, shoulder} = policy_logits
+      {buttons, main_x, _main_y, _c_x, _c_y, _shoulder} = policy_logits
       assert Nx.shape(buttons) == {@batch_size, 8}
       assert Nx.shape(main_x) == {@batch_size, 17}
 
@@ -375,6 +375,146 @@ defmodule ExPhil.NetworksTest do
 
       # 8 buttons + 17*4 sticks + 5 shoulder = 81
       assert dims == 8 + 17 + 17 + 17 + 17 + 5
+    end
+  end
+
+  describe "Networks.build_policy/1" do
+    test "delegates to Policy.build/1" do
+      model = Networks.build_policy(embed_size: @embed_size)
+
+      assert %Axon{} = model
+    end
+  end
+
+  describe "Networks.build_value/1" do
+    test "delegates to Value.build/1" do
+      model = Networks.build_value(embed_size: @embed_size)
+
+      assert %Axon{} = model
+    end
+  end
+
+  describe "Networks.sample/4" do
+    test "samples actions from policy" do
+      model = Policy.build(embed_size: @embed_size)
+      {init_fn, predict_fn} = Axon.build(model)
+
+      params = init_fn.(Nx.template({1, @embed_size}, :f32), Axon.ModelState.empty())
+      state = random_tensor({1, @embed_size})
+
+      samples = Networks.sample(params, predict_fn, state)
+
+      assert Map.has_key?(samples, :buttons)
+      assert Map.has_key?(samples, :main_x)
+      assert Map.has_key?(samples, :main_y)
+      assert Map.has_key?(samples, :c_x)
+      assert Map.has_key?(samples, :c_y)
+      assert Map.has_key?(samples, :shoulder)
+    end
+
+    test "supports deterministic mode" do
+      model = Policy.build(embed_size: @embed_size)
+      {init_fn, predict_fn} = Axon.build(model)
+
+      params = init_fn.(Nx.template({1, @embed_size}, :f32), Axon.ModelState.empty())
+      state = random_tensor({1, @embed_size})
+
+      samples1 = Networks.sample(params, predict_fn, state, deterministic: true)
+      samples2 = Networks.sample(params, predict_fn, state, deterministic: true)
+
+      assert Nx.to_number(Nx.squeeze(samples1.main_x)) == Nx.to_number(Nx.squeeze(samples2.main_x))
+    end
+  end
+
+  describe "Networks.to_controller_state/2" do
+    test "converts samples to ControllerState" do
+      samples = %{
+        buttons: Nx.tensor([1, 0, 1, 0, 0, 0, 0, 0]),
+        main_x: Nx.tensor(8),
+        main_y: Nx.tensor(8),
+        c_x: Nx.tensor(8),
+        c_y: Nx.tensor(8),
+        shoulder: Nx.tensor(0)
+      }
+
+      cs = Networks.to_controller_state(samples)
+
+      assert %ExPhil.Bridge.ControllerState{} = cs
+      assert cs.button_a == true
+      assert cs.button_x == true
+      assert cs.button_b == false
+    end
+  end
+
+  describe "Networks.create_optimizer/1" do
+    test "creates optimizer with default options" do
+      optimizer = Networks.create_optimizer()
+
+      assert is_tuple(optimizer)
+    end
+
+    test "accepts custom learning rate" do
+      optimizer = Networks.create_optimizer(learning_rate: 1.0e-3)
+
+      assert is_tuple(optimizer)
+    end
+  end
+
+  describe "Networks.compute_gae/5" do
+    test "delegates to Value.compute_gae/5" do
+      rewards = Nx.tensor([1.0, 1.0, 1.0])
+      values = Nx.tensor([0.5, 0.5, 0.5, 0.5])
+      dones = Nx.tensor([0.0, 0.0, 1.0])
+
+      {advantages, returns} = Networks.compute_gae(rewards, values, dones)
+
+      assert Nx.shape(advantages) == {3}
+      assert Nx.shape(returns) == {3}
+    end
+  end
+
+  describe "Networks.default_config/0" do
+    test "delegates to ActorCritic.default_config/0" do
+      config = Networks.default_config()
+
+      assert config.gamma == 0.99
+      assert config.clip_range == 0.2
+    end
+  end
+
+  describe "Networks.output_sizes/1" do
+    test "delegates to Policy.output_sizes/1" do
+      sizes = Networks.output_sizes()
+
+      assert sizes.buttons == 8
+      assert sizes.main_x == 17
+    end
+  end
+
+  describe "Networks.imitation_loss/2" do
+    test "delegates to Policy.imitation_loss/2" do
+      logits = %{
+        buttons: random_tensor({2, 8}),
+        main_x: random_tensor({2, 17}),
+        main_y: random_tensor({2, 17}),
+        c_x: random_tensor({2, 17}),
+        c_y: random_tensor({2, 17}),
+        shoulder: random_tensor({2, 5})
+      }
+
+      targets = %{
+        buttons: Nx.tensor([[1, 0, 0, 0, 0, 0, 0, 0], [0, 1, 0, 0, 0, 0, 0, 0]]),
+        main_x: Nx.tensor([8, 8]),
+        main_y: Nx.tensor([8, 8]),
+        c_x: Nx.tensor([8, 8]),
+        c_y: Nx.tensor([8, 8]),
+        shoulder: Nx.tensor([0, 0])
+      }
+
+      loss = Networks.imitation_loss(logits, targets)
+
+      assert Nx.shape(loss) == {}
+      assert Nx.to_number(loss) > 0
     end
   end
 end
