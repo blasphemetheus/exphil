@@ -227,6 +227,7 @@ defmodule ExPhil.Networks.Attention do
   ## Options
     - `:window_size` - Attention window size (default: 60)
     - `:hidden_dim` - Hidden dimension (default: 256)
+    - `:mask` - Pre-computed attention mask (recommended for efficient compilation)
     - `:name` - Layer name prefix
   """
   @spec sliding_window_attention(Axon.t(), keyword()) :: Axon.t()
@@ -234,6 +235,7 @@ defmodule ExPhil.Networks.Attention do
     window_size = Keyword.get(opts, :window_size, @default_window_size)
     num_heads = Keyword.get(opts, :num_heads, @default_num_heads)
     head_dim = Keyword.get(opts, :head_dim, @default_head_dim)
+    precomputed_mask = Keyword.get(opts, :mask, nil)
     name = Keyword.get(opts, :name, "window_attn")
 
     hidden_dim = num_heads * head_dim
@@ -241,7 +243,8 @@ defmodule ExPhil.Networks.Attention do
     # Project to Q, K, V in single dense layer
     qkv = Axon.dense(input, hidden_dim * 3, name: "#{name}_qkv")
 
-    # Apply windowed attention
+    # Apply windowed attention with pre-computed mask (captured from outer scope)
+    # This avoids dynamic mask creation inside Axon.nx which causes XLA issues
     Axon.nx(qkv, fn qkv_tensor ->
       {_batch, seq_len, _} = Nx.shape(qkv_tensor)
 
@@ -250,8 +253,12 @@ defmodule ExPhil.Networks.Attention do
       key = Nx.slice_along_axis(qkv_tensor, hidden_dim, hidden_dim, axis: 2)
       value = Nx.slice_along_axis(qkv_tensor, hidden_dim * 2, hidden_dim, axis: 2)
 
-      # Create window mask
-      mask = window_mask(seq_len, window_size)
+      # Use pre-computed mask if available, otherwise compute (slow path)
+      mask = if precomputed_mask != nil do
+        precomputed_mask
+      else
+        window_mask(seq_len, window_size)
+      end
 
       scaled_dot_product_attention(query, key, value, mask: mask)
     end, name: "#{name}_compute")
@@ -335,8 +342,22 @@ defmodule ExPhil.Networks.Attention do
 
     hidden_dim = num_heads * head_dim
 
+    # Sequence length configuration:
+    # - :seq_len option: Explicit sequence length for the input
+    # - Defaults to window_size for training efficiency (concrete shape = fast JIT)
+    # - Set to nil for dynamic sequence length (slower JIT, more flexible)
+    seq_len = Keyword.get(opts, :seq_len, window_size)
+
+    # Pre-compute attention mask if seq_len is concrete
+    # This avoids creating masks inside Axon.nx which causes XLA compilation issues
+    {precomputed_mask, input_seq_dim} = if seq_len do
+      {window_mask(seq_len, window_size), seq_len}
+    else
+      {nil, nil}  # Dynamic - mask computed at runtime (slow path)
+    end
+
     # Input: [batch, seq_len, embed_size]
-    input = Axon.input("state_sequence", shape: {nil, nil, embed_size})
+    input = Axon.input("state_sequence", shape: {nil, input_seq_dim, embed_size})
 
     # Project to hidden dimension
     x = Axon.dense(input, hidden_dim, name: "input_proj")
@@ -346,11 +367,12 @@ defmodule ExPhil.Networks.Attention do
 
     # Stack of attention + FFN layers
     x = Enum.reduce(1..num_layers, x, fn layer_idx, acc ->
-      # Sliding window attention
+      # Sliding window attention with pre-computed mask for efficient compilation
       attended = sliding_window_attention(acc,
         window_size: window_size,
         num_heads: num_heads,
         head_dim: head_dim,
+        mask: precomputed_mask,
         name: "layer_#{layer_idx}_attn"
       )
 
@@ -371,9 +393,14 @@ defmodule ExPhil.Networks.Attention do
     end)
 
     # Take last position output: [batch, seq, hidden] -> [batch, hidden]
+    # Use concrete seq_len if available for efficient compilation
     Axon.nx(x, fn tensor ->
-      seq_len = Nx.axis_size(tensor, 1)
-      Nx.slice_along_axis(tensor, seq_len - 1, 1, axis: 1)
+      last_idx = if seq_len do
+        seq_len - 1
+      else
+        Nx.axis_size(tensor, 1) - 1
+      end
+      Nx.slice_along_axis(tensor, last_idx, 1, axis: 1)
       |> Nx.squeeze(axes: [1])
     end, name: "last_position")
   end
@@ -411,11 +438,16 @@ defmodule ExPhil.Networks.Attention do
     num_heads = Keyword.get(opts, :num_heads, @default_num_heads)
     head_dim = Keyword.get(opts, :head_dim, @default_head_dim)
     dropout = Keyword.get(opts, :dropout, @default_dropout)
+    window_size = Keyword.get(opts, :window_size, @default_window_size)
 
     hidden_dim = num_heads * head_dim
 
+    # Sequence length configuration (same as build_sliding_window)
+    seq_len = Keyword.get(opts, :seq_len, window_size)
+    input_seq_dim = if seq_len, do: seq_len, else: nil
+
     # Input: [batch, seq_len, embed_size]
-    input = Axon.input("state_sequence", shape: {nil, nil, embed_size})
+    input = Axon.input("state_sequence", shape: {nil, input_seq_dim, embed_size})
 
     # LSTM backbone (returns all timesteps)
     lstm_output = Recurrent.build_backbone(input,
@@ -442,10 +474,14 @@ defmodule ExPhil.Networks.Attention do
     x = Axon.add(x, attended, name: "attn_residual")
     x = Axon.layer_norm(x, name: "attn_norm")
 
-    # Take last position
+    # Take last position - use concrete seq_len if available
     Axon.nx(x, fn tensor ->
-      seq_len = Nx.axis_size(tensor, 1)
-      Nx.slice_along_axis(tensor, seq_len - 1, 1, axis: 1)
+      last_idx = if seq_len do
+        seq_len - 1
+      else
+        Nx.axis_size(tensor, 1) - 1
+      end
+      Nx.slice_along_axis(tensor, last_idx, 1, axis: 1)
       |> Nx.squeeze(axes: [1])
     end, name: "hybrid_last")
   end

@@ -74,6 +74,7 @@ defmodule ExPhil.Networks.AttentionTest do
       model = Attention.build_sliding_window(
         embed_size: @embed_size,
         window_size: 5,
+        seq_len: @seq_len,  # Use test's seq_len (differs from window_size)
         num_heads: @num_heads,
         head_dim: @head_dim,
         num_layers: 1
@@ -97,6 +98,7 @@ defmodule ExPhil.Networks.AttentionTest do
       model = Attention.build_sliding_window(
         embed_size: @embed_size,
         window_size: 5,
+        seq_len: @seq_len,  # Use test's seq_len (differs from window_size)
         num_heads: @num_heads,
         head_dim: @head_dim,
         num_layers: 3
@@ -122,7 +124,8 @@ defmodule ExPhil.Networks.AttentionTest do
         lstm_hidden: 32,
         lstm_layers: 1,
         num_heads: @num_heads,
-        head_dim: @head_dim
+        head_dim: @head_dim,
+        seq_len: @seq_len  # Use test's seq_len
       )
 
       {init_fn, predict_fn} = Axon.build(model)
@@ -146,7 +149,8 @@ defmodule ExPhil.Networks.AttentionTest do
         lstm_hidden: 32,
         num_heads: @num_heads,
         head_dim: @head_dim,
-        mlp_sizes: [64, 32]
+        mlp_sizes: [64, 32],
+        seq_len: @seq_len  # Use test's seq_len
       )
 
       {init_fn, predict_fn} = Axon.build(model)
@@ -199,6 +203,70 @@ defmodule ExPhil.Networks.AttentionTest do
       assert defaults[:window_size] == 60  # 1 second
       assert defaults[:num_heads] == 4
       assert defaults[:head_dim] == 64
+    end
+  end
+
+  describe "concrete seq_len regression test" do
+    # Regression test for: dynamic sequence length causes infinite JIT compilation
+    # When seq_len is nil (dynamic), XLA tries to compile kernels for arbitrary
+    # sequence lengths which can take 30+ minutes or never complete.
+    # The fix: default seq_len to window_size for efficient compilation.
+
+    test "build_sliding_window defaults seq_len to window_size (not nil)" do
+      # This test verifies the fix is in place:
+      # - Model should compile quickly with concrete seq_len
+      # - Input shape should match window_size, not be dynamic
+
+      window_size = 5
+      model = Attention.build_sliding_window(
+        embed_size: @embed_size,
+        window_size: window_size,
+        num_heads: @num_heads,
+        head_dim: @head_dim
+        # NOTE: Not passing seq_len - should default to window_size
+      )
+
+      # Model should build and compile within reasonable time (would hang with dynamic)
+      {init_fn, predict_fn} = Axon.build(model)
+
+      # Template must use window_size as seq_len (the default)
+      params = init_fn.(
+        Nx.template({@batch_size, window_size, @embed_size}, :f32),
+        Axon.ModelState.empty()
+      )
+
+      # Should execute without issue
+      input = Nx.broadcast(0.5, {@batch_size, window_size, @embed_size})
+      output = predict_fn.(params, input)
+
+      assert Nx.shape(output) == {@batch_size, @num_heads * @head_dim}
+    end
+
+    test "build_sliding_window with explicit seq_len works" do
+      # When seq_len differs from window_size (e.g., for variable-length inference),
+      # it should still work but requires explicit seq_len parameter
+
+      window_size = 5
+      seq_len = 10  # Different from window_size
+
+      model = Attention.build_sliding_window(
+        embed_size: @embed_size,
+        window_size: window_size,
+        seq_len: seq_len,  # Explicit seq_len
+        num_heads: @num_heads,
+        head_dim: @head_dim
+      )
+
+      {init_fn, predict_fn} = Axon.build(model)
+      params = init_fn.(
+        Nx.template({@batch_size, seq_len, @embed_size}, :f32),
+        Axon.ModelState.empty()
+      )
+
+      input = Nx.broadcast(0.5, {@batch_size, seq_len, @embed_size})
+      output = predict_fn.(params, input)
+
+      assert Nx.shape(output) == {@batch_size, @num_heads * @head_dim}
     end
   end
 end

@@ -501,6 +501,36 @@ config = %{
 }
 ```
 
+#### 11. Dynamic sequence length in attention models causes infinite JIT compilation
+When building attention models with `shape: {nil, nil, embed_size}` (dynamic batch AND
+sequence length), XLA tries to compile kernels that handle arbitrary sequence lengths.
+This can take 30+ minutes or never complete.
+
+**Symptoms:**
+- Training process stuck at "Step 4: Training..." with high CPU, no progress
+- JIT compilation takes >10 minutes for attention models
+
+**Fix:** Use concrete sequence length (`:seq_len` option) in attention model builders:
+```elixir
+# GOOD - concrete seq_len (fast JIT, ~2-3 minutes)
+Attention.build_sliding_window(
+  embed_size: 1991,
+  window_size: 30,
+  seq_len: 30  # Defaults to window_size, which is correct for training
+)
+
+# BAD - dynamic seq_len (can hang indefinitely)
+Attention.build_sliding_window(
+  embed_size: 1991,
+  window_size: 30,
+  seq_len: nil  # Forces dynamic shape - avoid for training
+)
+```
+
+The attention modules now default `seq_len` to `window_size` for training efficiency.
+For inference with variable-length sequences, pass `seq_len: nil` explicitly and
+expect longer JIT compilation on first run.
+
 ### Performance Tips
 
 #### CPU Training Optimization

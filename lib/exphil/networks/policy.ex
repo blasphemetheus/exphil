@@ -222,14 +222,24 @@ defmodule ExPhil.Networks.Policy do
     hidden_sizes = Keyword.get(opts, :hidden_sizes, @default_hidden_sizes)
     activation = Keyword.get(opts, :activation, @default_activation)
     dropout = Keyword.get(opts, :dropout, @default_dropout)
+    window_size = Keyword.get(opts, :window_size, 60)
+
+    # Sequence length configuration (same as attention models)
+    seq_len = Keyword.get(opts, :seq_len, window_size)
+    input_seq_dim = if seq_len, do: seq_len, else: nil
 
     # Input: sequence [batch, seq_len, embed_size]
-    input = Axon.input("state_sequence", shape: {nil, nil, embed_size})
+    input = Axon.input("state_sequence", shape: {nil, input_seq_dim, embed_size})
 
     # Take last frame: [batch, embed_size]
+    # Use concrete index when available for efficient compilation
     last_frame = Axon.nx(input, fn tensor ->
-      seq_len = Nx.axis_size(tensor, 1)
-      Nx.slice_along_axis(tensor, seq_len - 1, 1, axis: 1)
+      last_idx = if seq_len do
+        seq_len - 1
+      else
+        Nx.axis_size(tensor, 1) - 1
+      end
+      Nx.slice_along_axis(tensor, last_idx, 1, axis: 1)
       |> Nx.squeeze(axes: [1])
     end, name: "last_frame")
 

@@ -478,6 +478,7 @@ defmodule ExPhil.Networks.PolicyTest do
       model = Policy.build_temporal(
         embed_size: @embed_size,
         backbone: :sliding_window,
+        window_size: @seq_len,  # Match the test input seq_len
         num_heads: 2,
         head_dim: 16
       )
