@@ -350,8 +350,11 @@ defmodule ExPhil.Networks.Attention do
 
     # Pre-compute attention mask if seq_len is concrete
     # This avoids creating masks inside Axon.nx which causes XLA compilation issues
+    # IMPORTANT: Convert mask to BinaryBackend to avoid EXLA/Defn.Expr mismatch
+    # when the mask is captured in Axon.nx closures during JIT compilation
     {precomputed_mask, input_seq_dim} = if seq_len do
-      {window_mask(seq_len, window_size), seq_len}
+      mask = window_mask(seq_len, window_size) |> Nx.backend_copy(Nx.BinaryBackend)
+      {mask, seq_len}
     else
       {nil, nil}  # Dynamic - mask computed at runtime (slow path)
     end

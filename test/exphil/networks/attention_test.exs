@@ -268,5 +268,40 @@ defmodule ExPhil.Networks.AttentionTest do
 
       assert Nx.shape(output) == {@batch_size, @num_heads * @head_dim}
     end
+
+    test "precomputed mask uses BinaryBackend to avoid EXLA/Defn.Expr mismatch" do
+      # Regression test: When precomputed mask is captured in Axon.nx closure,
+      # it must be in BinaryBackend to avoid "incompatible tensor implementations"
+      # error during JIT compilation.
+      #
+      # This test runs with EXLA as default backend (via config), which would
+      # cause the mask to be EXLA tensor if not explicitly converted. The test
+      # verifies that the model compiles and runs without EXLA/Defn.Expr errors.
+
+      window_size = 5
+      model = Attention.build_sliding_window(
+        embed_size: @embed_size,
+        window_size: window_size,
+        num_heads: @num_heads,
+        head_dim: @head_dim
+        # Using default seq_len (= window_size) which triggers precomputed mask
+      )
+
+      # This should NOT raise:
+      # "cannot invoke Nx function because it relies on two incompatible tensor
+      # implementations: EXLA.Backend and Nx.Defn.Expr"
+      {init_fn, predict_fn} = Axon.build(model)
+
+      params = init_fn.(
+        Nx.template({@batch_size, window_size, @embed_size}, :f32),
+        Axon.ModelState.empty()
+      )
+
+      input = Nx.broadcast(0.5, {@batch_size, window_size, @embed_size})
+      output = predict_fn.(params, input)
+
+      # If we get here, the mask was correctly in BinaryBackend
+      assert Nx.shape(output) == {@batch_size, @num_heads * @head_dim}
+    end
   end
 end

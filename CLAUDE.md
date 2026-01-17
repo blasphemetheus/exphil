@@ -531,6 +531,33 @@ The attention modules now default `seq_len` to `window_size` for training effici
 For inference with variable-length sequences, pass `seq_len: nil` explicitly and
 expect longer JIT compilation on first run.
 
+#### 12. Pre-computed tensors in Axon.nx closures need BinaryBackend
+When pre-computing tensors (like attention masks) that are captured in `Axon.nx`
+closures, they must be in `Nx.BinaryBackend` to avoid EXLA/Defn.Expr mismatch.
+
+**Symptom:**
+```
+cannot invoke Nx function because it relies on two incompatible tensor
+implementations: EXLA.Backend and Nx.Defn.Expr
+```
+
+**Fix:** Convert pre-computed tensors to BinaryBackend before capture:
+```elixir
+# GOOD - explicit BinaryBackend
+mask = window_mask(seq_len, window_size) |> Nx.backend_copy(Nx.BinaryBackend)
+Axon.nx(input, fn tensor ->
+  # mask is now safely inlined into the defn expression
+  scaled_dot_product_attention(query, key, value, mask: mask)
+end)
+
+# BAD - EXLA tensor captured in closure
+mask = window_mask(seq_len, window_size)  # Uses default EXLA backend
+Axon.nx(input, fn tensor ->
+  # CRASH: mask is EXLA but tensor is Defn.Expr during tracing
+  scaled_dot_product_attention(query, key, value, mask: mask)
+end)
+```
+
 ### Performance Tips
 
 #### CPU Training Optimization
