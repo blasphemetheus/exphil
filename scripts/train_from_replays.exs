@@ -4,6 +4,11 @@
 # Usage:
 #   mix run scripts/train_from_replays.exs [options]
 #
+# Performance Tips:
+#   XLA_FLAGS="--xla_cpu_multi_thread_eigen=true" mix run scripts/train_from_replays.exs
+#   - Enables multi-threaded CPU operations (can be 2-3x faster)
+#   - Larger batch sizes (128, 256) reduce per-batch overhead if RAM allows
+#
 # Options:
 #   --replays PATH    - Path to replay directory (default: ../replays)
 #   --epochs N        - Number of training epochs (default: 10)
@@ -218,6 +223,19 @@ else
   IO.puts("  MLP model initialized")
 end
 IO.puts("  Batch size: #{opts[:batch_size]}")
+
+# Time estimation
+# Based on empirical measurements: ~0.1s per batch after JIT, 3-5min for JIT compilation
+batches_per_epoch = div(train_dataset.size, opts[:batch_size])
+jit_overhead_sec = 300  # ~5 minutes for first JIT compilation
+seconds_per_batch = if opts[:temporal], do: 0.5, else: 0.1  # Temporal is slower
+estimated_train_sec = (batches_per_epoch * opts[:epochs] * seconds_per_batch) + jit_overhead_sec
+estimated_minutes = div(trunc(estimated_train_sec), 60)
+estimated_remaining = rem(trunc(estimated_train_sec), 60)
+
+IO.puts("")
+IO.puts("  ⏱  Estimated training time: ~#{estimated_minutes}m #{estimated_remaining}s")
+IO.puts("      (#{batches_per_epoch} batches/epoch × #{opts[:epochs]} epochs + JIT compilation)")
 
 # Step 4: Training loop
 IO.puts("\nStep 4: Training for #{opts[:epochs]} epochs...")
