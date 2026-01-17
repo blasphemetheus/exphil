@@ -38,7 +38,7 @@ defmodule ExPhil.Networks do
 
       # Initialize and run
       {init_fn, predict_fn} = Axon.build(model)
-      params = init_fn.(Nx.template({1, embed_size}, :f32), %{})
+      params = init_fn.(Nx.template({1, embed_size}, :f32), Axon.ModelState.empty())
       output = predict_fn.(params, embedded_state)
 
   """

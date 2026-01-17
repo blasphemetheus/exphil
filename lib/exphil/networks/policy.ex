@@ -45,7 +45,7 @@ defmodule ExPhil.Networks.Policy do
 
       # Initialize parameters
       {init_fn, predict_fn} = Axon.build(model)
-      params = init_fn.(Nx.template({1, 1024}, :f32), %{})
+      params = init_fn.(Nx.template({1, 1024}, :f32), Axon.ModelState.empty())
 
       # Forward pass (training)
       logits = predict_fn.(params, embedded_state)
@@ -107,9 +107,11 @@ defmodule ExPhil.Networks.Policy do
   """
   @spec build_backbone(Axon.t(), list(), atom(), float()) :: Axon.t()
   def build_backbone(input, hidden_sizes, activation, dropout) do
-    Enum.reduce(hidden_sizes, input, fn size, acc ->
+    hidden_sizes
+    |> Enum.with_index()
+    |> Enum.reduce(input, fn {size, idx}, acc ->
       acc
-      |> Axon.dense(size, name: "backbone_dense_#{size}")
+      |> Axon.dense(size, name: "backbone_dense_#{idx}")
       |> Axon.activation(activation)
       |> Axon.dropout(rate: dropout)
     end)

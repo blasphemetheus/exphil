@@ -34,7 +34,7 @@ defmodule ExPhil.Networks.Value do
 
       # Forward pass
       {init_fn, predict_fn} = Axon.build(model)
-      params = init_fn.(Nx.template({1, 1024}, :f32), %{})
+      params = init_fn.(Nx.template({1, 1024}, :f32), Axon.ModelState.empty())
       values = predict_fn.(params, embedded_state)
 
   """
