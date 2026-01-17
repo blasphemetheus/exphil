@@ -46,10 +46,18 @@ end
 
 has_flag = fn flag -> Enum.member?(args, flag) end
 
+parse_hidden_sizes = fn str ->
+  str
+  |> String.split(",")
+  |> Enum.map(&String.trim/1)
+  |> Enum.map(&String.to_integer/1)
+end
+
 opts = [
   replays: get_arg.("--replays", "/home/dori/git/melee/replays"),
   epochs: String.to_integer(get_arg.("--epochs", "10")),
   batch_size: String.to_integer(get_arg.("--batch-size", "64")),
+  hidden_sizes: parse_hidden_sizes.(get_arg.("--hidden-sizes", "64,64")),
   max_files: case Enum.find_index(args, &(&1 == "--max-files")) do
     nil -> nil
     idx -> String.to_integer(Enum.at(args, idx + 1))
@@ -87,6 +95,7 @@ Configuration:
   Replays:     #{opts[:replays]}
   Epochs:      #{opts[:epochs]}
   Batch Size:  #{opts[:batch_size]}
+  Hidden:      #{inspect(opts[:hidden_sizes])}
   Max Files:   #{opts[:max_files] || "all"}
   Player Port: #{opts[:player_port]}
   Checkpoint:  #{opts[:checkpoint]}
@@ -203,7 +212,7 @@ IO.puts("  Embedding size: #{embed_size}")
 
 trainer_opts = [
   embed_size: embed_size,
-  hidden_sizes: [64, 64],  # Smaller for faster CPU training
+  hidden_sizes: opts[:hidden_sizes],
   learning_rate: 1.0e-4,
   batch_size: opts[:batch_size],
   # Temporal options
@@ -265,18 +274,38 @@ final_trainer = Enum.reduce(1..opts[:epochs], trainer, fn epoch, current_trainer
 
   num_batches = length(batches)
 
-  # Train epoch
-  {updated_trainer, epoch_losses} = Enum.reduce(Enum.with_index(batches), {current_trainer, []}, fn {batch, batch_idx}, {t, losses} ->
+  # Train epoch with JIT compilation indicator
+  jit_indicator_shown = if epoch == 1 do
+    IO.puts("  ⏳ JIT compiling model (first batch)... this may take 2-5 minutes")
+    IO.puts("     (subsequent batches will be fast)")
+    true
+  else
+    false
+  end
+
+  {updated_trainer, epoch_losses, _} = Enum.reduce(Enum.with_index(batches), {current_trainer, [], jit_indicator_shown}, fn {batch, batch_idx}, {t, losses, jit_shown} ->
+    batch_start = System.monotonic_time(:millisecond)
     {_predict_fn, loss_fn} = Imitation.build_loss_fn(t.policy_model)
     {new_trainer, metrics} = Imitation.train_step(t, batch, loss_fn)
+    batch_time = System.monotonic_time(:millisecond) - batch_start
+
+    # Show JIT completion message after first batch
+    new_jit_shown = if jit_shown and batch_idx == 0 do
+      IO.puts("\n  ✓ JIT compilation complete (took #{Float.round(batch_time / 1000, 1)}s)")
+      IO.puts("    Now training...")
+      false
+    else
+      jit_shown
+    end
 
     # Progress indicator every 10%
     if rem(batch_idx + 1, max(1, div(num_batches, 10))) == 0 do
       pct = round((batch_idx + 1) / num_batches * 100)
-      IO.write("\r  Epoch #{epoch}: #{pct}% (loss: #{Float.round(metrics.loss, 4)})")
+      elapsed_sec = Float.round(batch_time / 1000, 1)
+      IO.write("\r  Epoch #{epoch}: #{pct}% (loss: #{Float.round(metrics.loss, 4)}, #{elapsed_sec}s/batch)")
     end
 
-    {new_trainer, [metrics.loss | losses]}
+    {new_trainer, [metrics.loss | losses], new_jit_shown}
   end)
 
   epoch_time = System.monotonic_time(:second) - epoch_start
