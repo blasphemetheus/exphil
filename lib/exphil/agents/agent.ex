@@ -52,7 +52,11 @@ defmodule ExPhil.Agents.Agent do
     :frame_delay,
     :frame_buffer,
     :deterministic,
-    :temperature
+    :temperature,
+    # Temporal inference config
+    :temporal,
+    :backbone,
+    :window_size
   ]
 
   @type t :: %__MODULE__{}
@@ -131,6 +135,14 @@ defmodule ExPhil.Agents.Agent do
     GenServer.call(agent, {:configure, opts})
   end
 
+  @doc """
+  Reset the frame buffer. Call this when starting a new game.
+  """
+  @spec reset_buffer(GenServer.server()) :: :ok
+  def reset_buffer(agent) do
+    GenServer.call(agent, :reset_buffer)
+  end
+
   # ============================================================================
   # GenServer Callbacks
   # ============================================================================
@@ -146,7 +158,11 @@ defmodule ExPhil.Agents.Agent do
       frame_delay: frame_delay,
       frame_buffer: :queue.new(),
       deterministic: deterministic,
-      temperature: temperature
+      temperature: temperature,
+      # Temporal config - will be set when policy is loaded
+      temporal: false,
+      backbone: :mlp,
+      window_size: 60
     }
 
     # Load policy if provided
@@ -176,18 +192,23 @@ defmodule ExPhil.Agents.Agent do
 
   @impl true
   def handle_call({:get_action, game_state, opts}, _from, state) do
-    result = compute_action(state, game_state, opts)
-    {:reply, result, state}
+    case compute_action(state, game_state, opts) do
+      {:ok, action, new_state} ->
+        {:reply, {:ok, action}, new_state}
+
+      {:error, _} = error ->
+        {:reply, error, state}
+    end
   end
 
   @impl true
   def handle_call({:get_controller, game_state, opts}, _from, state) do
     case compute_action(state, game_state, opts) do
-      {:ok, action} ->
+      {:ok, action, new_state} ->
         controller = action_to_controller(action, state)
-        {:reply, {:ok, controller}, state}
+        {:reply, {:ok, controller}, new_state}
 
-      error ->
+      {:error, _} = error ->
         {:reply, error, state}
     end
   end
@@ -211,9 +232,20 @@ defmodule ExPhil.Agents.Agent do
       frame_delay: state.frame_delay,
       deterministic: state.deterministic,
       temperature: state.temperature,
-      has_policy: state.policy_params != nil
+      has_policy: state.policy_params != nil,
+      # Temporal config
+      temporal: state.temporal,
+      backbone: state.backbone,
+      window_size: state.window_size,
+      buffer_size: :queue.len(state.frame_buffer)
     }
     {:reply, config, state}
+  end
+
+  @impl true
+  def handle_call(:reset_buffer, _from, state) do
+    new_state = %{state | frame_buffer: :queue.new()}
+    {:reply, :ok, new_state}
   end
 
   @impl true
@@ -240,22 +272,12 @@ defmodule ExPhil.Agents.Agent do
       player_port = Keyword.get(opts, :player_port, 1)
       embedded = embed_game_state(game_state, player_port, state.embed_config)
 
-      # Add batch dimension
-      embedded_batch = Nx.reshape(embedded, {1, Nx.size(embedded)})
-
-      # Get action from policy
-      deterministic = Keyword.get(opts, :deterministic, state.deterministic)
-      temperature = Keyword.get(opts, :temperature, state.temperature)
-
-      action = Networks.sample(
-        state.policy_params,
-        state.predict_fn,
-        embedded_batch,
-        deterministic: deterministic,
-        temperature: temperature
-      )
-
-      {:ok, action}
+      # Route to temporal or single-frame inference
+      if state.temporal do
+        compute_temporal_action(state, embedded, opts)
+      else
+        compute_single_frame_action(state, embedded, opts)
+      end
     rescue
       e ->
         Logger.error("[Agent] Error computing action: #{inspect(e)}")
@@ -263,8 +285,112 @@ defmodule ExPhil.Agents.Agent do
     end
   end
 
-  defp embed_game_state(game_state, player_port, embed_config) do
-    Embeddings.Game.embed(game_state, player_port, embed_config)
+  # Single-frame inference (original behavior)
+  defp compute_single_frame_action(state, embedded, opts) do
+    # Add batch dimension [1, embed_size]
+    embedded_batch = Nx.reshape(embedded, {1, Nx.size(embedded)})
+
+    deterministic = Keyword.get(opts, :deterministic, state.deterministic)
+    temperature = Keyword.get(opts, :temperature, state.temperature)
+
+    action = Networks.Policy.sample(
+      state.policy_params,
+      state.predict_fn,
+      embedded_batch,
+      deterministic: deterministic,
+      temperature: temperature
+    )
+
+    {:ok, action, state}
+  end
+
+  # Temporal inference with frame buffering
+  defp compute_temporal_action(state, embedded, opts) do
+    # Add new frame to buffer
+    buffer = :queue.in(embedded, state.frame_buffer)
+
+    # Trim buffer if it exceeds window size
+    {buffer, _dropped} = trim_buffer(buffer, state.window_size)
+
+    # Get number of frames we have
+    buffer_len = :queue.len(buffer)
+
+    # Build sequence tensor
+    sequence = if buffer_len < state.window_size do
+      # Pad with first frame until we have enough
+      # This allows inference to start immediately (warmup period)
+      pad_sequence(buffer, state.window_size)
+    else
+      # Full window available
+      buffer_to_tensor(buffer)
+    end
+
+    # Reshape to [1, window_size, embed_size]
+    embed_size = Nx.size(embedded)
+    sequence_batch = Nx.reshape(sequence, {1, state.window_size, embed_size})
+
+    deterministic = Keyword.get(opts, :deterministic, state.deterministic)
+    temperature = Keyword.get(opts, :temperature, state.temperature)
+
+    action = Networks.Policy.sample(
+      state.policy_params,
+      state.predict_fn,
+      sequence_batch,
+      deterministic: deterministic,
+      temperature: temperature
+    )
+
+    # Update state with new buffer
+    new_state = %{state | frame_buffer: buffer}
+
+    {:ok, action, new_state}
+  end
+
+  # Trim buffer to max size, dropping oldest frames
+  defp trim_buffer(buffer, max_size) do
+    len = :queue.len(buffer)
+    if len > max_size do
+      # Drop oldest frames
+      to_drop = len - max_size
+      {_dropped, trimmed} = Enum.reduce(1..to_drop, {[], buffer}, fn _, {dropped, buf} ->
+        {{:value, frame}, new_buf} = :queue.out(buf)
+        {[frame | dropped], new_buf}
+      end)
+      {trimmed, to_drop}
+    else
+      {buffer, 0}
+    end
+  end
+
+  # Convert buffer queue to stacked tensor [seq_len, embed_size]
+  defp buffer_to_tensor(buffer) do
+    buffer
+    |> :queue.to_list()
+    |> Nx.stack()
+  end
+
+  # Pad sequence by repeating first frame
+  defp pad_sequence(buffer, target_size) do
+    frames = :queue.to_list(buffer)
+    current_len = length(frames)
+
+    if current_len == 0 do
+      # No frames yet - this shouldn't happen but handle gracefully
+      raise "Cannot pad empty buffer"
+    end
+
+    # Repeat first frame to pad the beginning
+    first_frame = hd(frames)
+    padding_count = target_size - current_len
+    padded_frames = List.duplicate(first_frame, padding_count) ++ frames
+
+    Nx.stack(padded_frames)
+  end
+
+  defp embed_game_state(game_state, player_port, _embed_config) do
+    # Use default Game config for embedding
+    # The embed_config we store is just for axis_buckets/shoulder_buckets, not the full Game struct
+    Embeddings.Game.embed(game_state, nil, player_port)
   end
 
   defp action_to_controller(action, state) do
@@ -279,18 +405,64 @@ defmodule ExPhil.Agents.Agent do
   end
 
   defp load_policy_internal(state, %{params: params, config: config} = _policy) do
-    # Build prediction function
+    # Extract config
     embed_config = Map.get(config, :embed_config, %{})
     embed_size = Map.get(config, :embed_size) || Map.get(embed_config, :embed_size, 1991)
     axis_buckets = Map.get(config, :axis_buckets, 16)
+    shoulder_buckets = Map.get(config, :shoulder_buckets, 4)
 
-    model = Networks.build_policy(embed_size: embed_size, axis_buckets: axis_buckets)
+    # Temporal config
+    temporal = Map.get(config, :temporal, false)
+    backbone = Map.get(config, :backbone, :mlp)
+    window_size = Map.get(config, :window_size, 60)
+
+    # MLP backbone config
+    hidden_sizes = Map.get(config, :hidden_sizes, [512, 512])
+    dropout = Map.get(config, :dropout, 0.1)
+
+    # Build appropriate model based on temporal flag
+    # Note: dropout is included to match training architecture, but Axon
+    # disables dropout during inference mode by default
+    model = if temporal do
+      Logger.info("[Agent] Loading temporal policy (backbone: #{backbone}, window: #{window_size})")
+      Networks.Policy.build_temporal(
+        embed_size: embed_size,
+        backbone: backbone,
+        window_size: window_size,
+        num_heads: Map.get(config, :num_heads, 4),
+        head_dim: Map.get(config, :head_dim, 64),
+        hidden_size: Map.get(config, :hidden_size, 256),
+        num_layers: Map.get(config, :num_layers, 2),
+        dropout: dropout,
+        axis_buckets: axis_buckets,
+        shoulder_buckets: shoulder_buckets
+      )
+    else
+      Networks.Policy.build(
+        embed_size: embed_size,
+        hidden_sizes: hidden_sizes,
+        dropout: dropout,
+        axis_buckets: axis_buckets,
+        shoulder_buckets: shoulder_buckets
+      )
+    end
+
     {_init_fn, predict_fn} = Axon.build(model)
 
     new_state = %{state |
       policy_params: params,
       predict_fn: predict_fn,
-      embed_config: Map.merge(%{embed_size: embed_size, axis_buckets: axis_buckets}, embed_config)
+      embed_config: Map.merge(%{
+        embed_size: embed_size,
+        axis_buckets: axis_buckets,
+        shoulder_buckets: shoulder_buckets
+      }, embed_config),
+      # Set temporal config
+      temporal: temporal,
+      backbone: backbone,
+      window_size: window_size,
+      # Reset frame buffer when loading new policy
+      frame_buffer: :queue.new()
     }
 
     {:ok, new_state}

@@ -83,6 +83,9 @@ defmodule ExPhil.Training.Imitation do
     checkpoint_interval: 1000,
     axis_buckets: 16,
     shoulder_buckets: 4,
+    # MLP architecture
+    hidden_sizes: [512, 512],     # MLP hidden layer sizes
+    dropout: 0.1,                 # Dropout rate
     # Temporal training options
     temporal: false,              # Enable temporal/sequence training
     backbone: :sliding_window,    # :sliding_window, :hybrid, :lstm, :mlp
@@ -117,9 +120,10 @@ defmodule ExPhil.Training.Imitation do
 
     embed_size = Keyword.get(opts, :embed_size, Embeddings.embedding_size(embed_config))
 
-    # Build config
+    # Build config - include embed_size for export
     config = @default_config
     |> Map.merge(Map.new(Keyword.take(opts, Map.keys(@default_config))))
+    |> Map.put(:embed_size, embed_size)
 
     # Build policy model - temporal or regular
     policy_model = if config.temporal do
@@ -131,14 +135,16 @@ defmodule ExPhil.Training.Imitation do
         head_dim: config.head_dim,
         hidden_size: config.hidden_size,
         num_layers: config.num_layers,
-        hidden_sizes: Keyword.get(opts, :hidden_sizes, [512, 512]),
+        hidden_sizes: config.hidden_sizes,
+        dropout: config.dropout,
         axis_buckets: config.axis_buckets,
         shoulder_buckets: config.shoulder_buckets
       )
     else
       Policy.build(
         embed_size: embed_size,
-        hidden_sizes: Keyword.get(opts, :hidden_sizes, [512, 512]),
+        hidden_sizes: config.hidden_sizes,
+        dropout: config.dropout,
         axis_buckets: config.axis_buckets,
         shoulder_buckets: config.shoulder_buckets
       )
@@ -389,12 +395,16 @@ defmodule ExPhil.Training.Imitation do
 
   @doc """
   Save a training checkpoint.
+
+  Tensors are converted to BinaryBackend before saving to ensure
+  they can be loaded in a different process/session.
   """
   @spec save_checkpoint(t(), Path.t()) :: :ok | {:error, term()}
   def save_checkpoint(trainer, path) do
+    # Convert all tensors to BinaryBackend for serialization
     checkpoint = %{
-      policy_params: trainer.policy_params,
-      optimizer_state: trainer.optimizer_state,
+      policy_params: to_binary_backend(trainer.policy_params),
+      optimizer_state: to_binary_backend(trainer.optimizer_state),
       config: trainer.config,
       step: trainer.step,
       metrics: trainer.metrics
@@ -411,6 +421,32 @@ defmodule ExPhil.Training.Imitation do
         error
     end
   end
+
+  # Recursively convert all tensors to BinaryBackend for serialization
+  defp to_binary_backend(%Nx.Tensor{} = tensor) do
+    Nx.backend_copy(tensor, Nx.BinaryBackend)
+  end
+
+  defp to_binary_backend(%Axon.ModelState{data: data, state: state} = ms) do
+    %{ms | data: to_binary_backend(data), state: to_binary_backend(state)}
+  end
+
+  defp to_binary_backend(map) when is_map(map) and not is_struct(map) do
+    Map.new(map, fn {k, v} -> {k, to_binary_backend(v)} end)
+  end
+
+  defp to_binary_backend(list) when is_list(list) do
+    Enum.map(list, &to_binary_backend/1)
+  end
+
+  defp to_binary_backend(tuple) when is_tuple(tuple) do
+    tuple
+    |> Tuple.to_list()
+    |> Enum.map(&to_binary_backend/1)
+    |> List.to_tuple()
+  end
+
+  defp to_binary_backend(other), do: other
 
   @doc """
   Load a training checkpoint.
@@ -438,17 +474,38 @@ defmodule ExPhil.Training.Imitation do
 
   @doc """
   Export just the policy parameters for inference.
+
+  Includes full temporal config so agents can properly reconstruct
+  the model architecture and handle sequence input.
   """
   @spec export_policy(t(), Path.t()) :: :ok | {:error, term()}
   def export_policy(trainer, path) do
     dir = Path.dirname(path)
     File.mkdir_p!(dir)
 
+    # Extract embed_size from config or compute from embed_config
+    embed_size = trainer.config[:embed_size] ||
+      (trainer.embed_config && Embeddings.embedding_size(trainer.embed_config))
+
     export = %{
-      params: trainer.policy_params,
+      # Convert params to BinaryBackend for serialization
+      params: to_binary_backend(trainer.policy_params),
       config: %{
+        # Discretization
         axis_buckets: trainer.config.axis_buckets,
-        shoulder_buckets: trainer.config.shoulder_buckets
+        shoulder_buckets: trainer.config.shoulder_buckets,
+        # MLP architecture
+        embed_size: embed_size,
+        hidden_sizes: trainer.config[:hidden_sizes] || [512, 512],
+        dropout: trainer.config[:dropout] || 0.1,
+        # Temporal config
+        temporal: trainer.config[:temporal] || false,
+        backbone: trainer.config[:backbone] || :mlp,
+        window_size: trainer.config[:window_size] || 60,
+        num_heads: trainer.config[:num_heads] || 4,
+        head_dim: trainer.config[:head_dim] || 64,
+        hidden_size: trainer.config[:hidden_size] || 256,
+        num_layers: trainer.config[:num_layers] || 2
       }
     }
 
