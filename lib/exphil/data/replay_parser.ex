@@ -28,7 +28,7 @@ defmodule ExPhil.Data.ReplayParser do
 
   """
 
-  alias ExPhil.Bridge.{GameState, Player, ControllerState, Projectile}
+  alias ExPhil.Bridge.{GameState, Player, ControllerState}
 
   require Logger
 

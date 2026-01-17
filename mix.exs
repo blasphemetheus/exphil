@@ -54,7 +54,9 @@ defmodule ExPhil.MixProject do
 
       # Dev & Test
       {:kino, "~> 0.14", only: :dev},
-      {:ex_doc, "~> 0.34", only: :dev, runtime: false}
+      {:ex_doc, "~> 0.34", only: :dev, runtime: false},
+      {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
+      {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false}
     ]
   end
 

@@ -171,13 +171,13 @@ defmodule ExPhil.Embeddings do
     if player do
       features = Nx.concatenate([
         # Is currently teleporting (action state check)
-        is_teleporting(player),
+        teleporting?(player),
 
         # Shadow Ball charge approximation (from action frame)
         shadow_ball_charge(player),
 
         # Confusion active (side-B)
-        is_confusion_active(player)
+        confusion_active?(player)
       ])
 
       Nx.concatenate([base, features])
@@ -187,7 +187,7 @@ defmodule ExPhil.Embeddings do
     end
   end
 
-  defp is_teleporting(player) do
+  defp teleporting?(player) do
     # Mewtwo teleport action states (approximate)
     teleport_actions = [353, 354, 355, 356]
     is_teleport = player.action in teleport_actions
@@ -205,7 +205,7 @@ defmodule ExPhil.Embeddings do
     end
   end
 
-  defp is_confusion_active(player) do
+  defp confusion_active?(player) do
     confusion_action = 351
     Primitives.bool_embed(player.action == confusion_action)
   end
@@ -241,7 +241,7 @@ defmodule ExPhil.Embeddings do
 
       features = Nx.concatenate([
         # Has bomb in hand (would need action state check)
-        is_holding_bomb(player),
+        holding_bomb?(player),
 
         # Number of active arrows/boomerangs
         Primitives.float_embed(own_projectiles, scale: 0.5)
@@ -253,7 +253,7 @@ defmodule ExPhil.Embeddings do
     end
   end
 
-  defp is_holding_bomb(player) do
+  defp holding_bomb?(player) do
     # Link bomb-related action states (approximate)
     bomb_actions = [300..310] |> Enum.to_list()
     Primitives.bool_embed(player.action in bomb_actions)

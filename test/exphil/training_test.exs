@@ -374,7 +374,7 @@ defmodule ExPhil.TrainingTest do
 
       trainer = %{trainer |
         step: 1000,
-        timesteps: 10000,
+        timesteps: 10_000,
         metrics: %{
           losses: [0.5, 0.4, 0.45],
           policy_losses: [0.1, 0.2, 0.15],
@@ -388,7 +388,7 @@ defmodule ExPhil.TrainingTest do
       summary = PPO.metrics_summary(trainer)
 
       assert summary.step == 1000
-      assert summary.timesteps == 10000
+      assert summary.timesteps == 10_000
       assert_in_delta summary.recent_loss, 0.45, 0.001
       assert_in_delta summary.recent_entropy, 0.277, 0.001
     end
@@ -407,7 +407,7 @@ defmodule ExPhil.TrainingTest do
       trainer = Imitation.new(embed_size: 256)
 
       # Export
-      path = Path.join(System.tmp_dir!(), "test_policy_#{:rand.uniform(10000)}.bin")
+      path = Path.join(System.tmp_dir!(), "test_policy_#{:rand.uniform(10_000)}.bin")
 
       on_exit(fn ->
         File.rm(path)

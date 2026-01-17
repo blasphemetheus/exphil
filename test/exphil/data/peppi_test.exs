@@ -34,7 +34,7 @@ defmodule ExPhil.Data.PeppiTest do
         end
 
         # Check frame data
-        if length(replay.frames) > 0 do
+        if replay.frames != [] do
           [frame | _] = replay.frames
           assert %Peppi.GameFrame{} = frame
           assert is_integer(frame.frame_number)
@@ -74,7 +74,7 @@ defmodule ExPhil.Data.PeppiTest do
     test "handles non-existent files gracefully" do
       results = Peppi.parse_many(["nonexistent1.slp", "nonexistent2.slp"])
       assert length(results) == 2
-      assert Enum.all?(results, fn {:error, _} -> true; _ -> false end)
+      assert Enum.all?(results, &match?({:error, _}, &1))
     end
   end
 

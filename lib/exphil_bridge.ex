@@ -130,7 +130,7 @@ defmodule ExPhil.Bridge do
     run_game_loop(bridge, callback, 0, max_frames)
   end
 
-  defp run_game_loop(bridge, callback, frame, max_frames) when frame >= max_frames do
+  defp run_game_loop(_bridge, _callback, frame, max_frames) when frame >= max_frames do
     {:ok, :max_frames_reached}
   end
 

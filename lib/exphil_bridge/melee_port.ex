@@ -34,7 +34,6 @@ defmodule ExPhil.Bridge.MeleePort do
   use GenServer
   require Logger
 
-  @python_script "priv/python/melee_bridge.py"
   @default_timeout 30_000
 
   # ============================================================================

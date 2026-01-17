@@ -182,7 +182,7 @@ defmodule ExPhil.Data.Peppi do
 
     Enum.map(replay.frames, fn frame ->
       player = Map.get(frame.players, player_port)
-      opponent = Map.get(frame.players, opponent_port)
+      _opponent = Map.get(frame.players, opponent_port)
 
       %{
         game_state: build_game_state(frame, player_port, opponent_port, replay.metadata),
