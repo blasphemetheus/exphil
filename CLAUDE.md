@@ -798,6 +798,24 @@ mix run scripts/play_dolphin.exs \
 livebook server notebooks/evaluation_dashboard.livemd
 ```
 
+#### Evaluation Dashboard Livebook
+
+The `notebooks/evaluation_dashboard.livemd` provides interactive model analysis:
+
+1. **Load Policy** - Point to any `.bin` policy file and see its config
+2. **View Architecture** - See layer sizes and total parameter count
+3. **Test Inference** - Run the model on sample game states
+4. **Compare to Replays** - Measure prediction accuracy vs human play
+5. **Visualize Actions** - Charts showing button press rates and stick positions
+
+**To use:**
+```bash
+# Start Livebook server (runs on http://localhost:8080)
+livebook server notebooks/evaluation_dashboard.livemd --port 8080
+```
+
+Then open browser to the URL shown and run cells interactively.
+
 ### Temporal Inference in Agents
 
 Agents automatically detect temporal policies and handle frame buffering:

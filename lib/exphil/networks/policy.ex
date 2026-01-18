@@ -67,7 +67,7 @@ defmodule ExPhil.Networks.Policy do
   @default_dropout 0.1
 
   # Backbone types
-  @type backbone_type :: :mlp | :sliding_window | :hybrid | :lstm
+  @type backbone_type :: :mlp | :sliding_window | :hybrid | :lstm | :gru
 
   # Controller output sizes
   @num_buttons 8
@@ -163,6 +163,9 @@ defmodule ExPhil.Networks.Policy do
       :lstm ->
         build_lstm_backbone(embed_size, opts)
 
+      :gru ->
+        build_gru_backbone(embed_size, opts)
+
       :mlp ->
         # For MLP, expect single frame input, add sequence handling
         build_mlp_temporal_backbone(embed_size, opts)
@@ -221,6 +224,25 @@ defmodule ExPhil.Networks.Policy do
       return_sequences: false,
       window_size: window_size,  # For concrete seq_len (efficient JIT)
       truncate_bptt: truncate_bptt  # Optional: limit gradient flow for faster training
+    )
+  end
+
+  defp build_gru_backbone(embed_size, opts) do
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    num_layers = Keyword.get(opts, :num_layers, 2)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+    window_size = Keyword.get(opts, :window_size, 60)
+    truncate_bptt = Keyword.get(opts, :truncate_bptt, nil)
+
+    Recurrent.build(
+      embed_size: embed_size,
+      hidden_size: hidden_size,
+      num_layers: num_layers,
+      cell_type: :gru,
+      dropout: dropout,
+      return_sequences: false,
+      window_size: window_size,
+      truncate_bptt: truncate_bptt
     )
   end
 
