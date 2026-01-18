@@ -431,8 +431,25 @@ config :exla, default_client: :cuda
 mix run scripts/train_from_replays.exs \
   --temporal --backbone mamba \
   --hidden 256 --window-size 60 \
-  --epochs 5
+  --state-size 16 --expand-factor 2 --conv-size 4 \
+  --num-layers 2 --epochs 5
 ```
+
+**Memory-optimized Mamba training (for constrained systems):**
+```bash
+mix run scripts/train_from_replays.exs \
+  --temporal --backbone mamba \
+  --hidden 128 --window-size 30 \
+  --state-size 16 --expand-factor 2 --conv-size 4 \
+  --num-layers 2 --epochs 3 --max-files 5 --batch-size 32
+```
+
+**Memory usage trade-offs:**
+| Config | Embedding | Training | Notes |
+|--------|-----------|----------|-------|
+| Full (hidden=256, window=60, files=10) | ~10GB | ~12GB | Best accuracy |
+| Medium (hidden=128, window=30, files=5) | ~5GB | ~9GB | Good balance |
+| Minimal (hidden=64, window=20, files=3) | ~3GB | ~5GB | Fast iteration |
 
 **Benchmark (ExPhil production dimensions):**
 | Architecture | Inference | 60 FPS Ready |
@@ -447,10 +464,11 @@ mix run scripts/train_from_replays.exs \
 - [x] NumPy export workaround for Python-side ONNX conversion
 - Expected: 2-4x speedup with ~1% accuracy loss
 
-**Current Status:** `axon_onnx` compiles with GitHub workaround but has runtime incompatibilities:
-- API mismatch with Axon 0.8+ (shapes vs tensors)
-- Multi-output models not supported (Policy's 6-head structure fails)
-- LSTM/GRU layers not supported
+**Current Status:** Using local `blasphemetheus/axon_onnx` fork (`runtime-fixes` branch) at `../deps/axon_onnx`:
+- [x] sequence_last layer support
+- [x] LSTM/GRU serialization
+- [x] Multi-output model support (Policy's 6-head structure)
+- API mismatch with Axon 0.8+ partially resolved
 
 **Recommended path:** Use NumPy export + Python ONNX conversion (see `scripts/export_numpy.exs`)
 
