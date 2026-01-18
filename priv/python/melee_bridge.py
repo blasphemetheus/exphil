@@ -23,11 +23,14 @@ import logging
 from dataclasses import dataclass, asdict
 from typing import Optional, Dict, Any
 
-# Configure logging to stderr (stdout is for protocol)
+# Configure logging to stderr AND file (stdout is for protocol)
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,
     format='[melee_bridge] %(levelname)s: %(message)s',
-    stream=sys.stderr
+    handlers=[
+        logging.StreamHandler(sys.stderr),
+        logging.FileHandler('/tmp/melee_bridge.log', mode='w'),
+    ]
 )
 logger = logging.getLogger(__name__)
 
@@ -49,13 +52,13 @@ def serialize_player(player: melee.PlayerState) -> Dict[str, Any]:
         return None
 
     return {
-        "character": player.character.value if player.character else None,
+        "character": player.character.value if hasattr(player.character, 'value') else player.character,
         "x": float(player.position.x) if player.position else 0.0,
         "y": float(player.position.y) if player.position else 0.0,
         "percent": float(player.percent),
         "stock": player.stock,
-        "facing": player.facing.value if player.facing else 1,
-        "action": player.action.value if player.action else 0,
+        "facing": player.facing.value if hasattr(player.facing, 'value') else (1 if player.facing else -1),
+        "action": player.action.value if hasattr(player.action, 'value') else (player.action or 0),
         "action_frame": player.action_frame,
         "invulnerable": player.invulnerable,
         "invulnerability_left": player.invulnerability_left,
@@ -85,8 +88,8 @@ def serialize_nana(nana) -> Optional[Dict[str, Any]]:
         "y": float(nana.position.y) if nana.position else 0.0,
         "percent": float(nana.percent),
         "stock": nana.stock,
-        "action": nana.action.value if nana.action else 0,
-        "facing": nana.facing.value if nana.facing else 1,
+        "action": nana.action.value if hasattr(nana.action, 'value') else (nana.action or 0),
+        "facing": nana.facing.value if hasattr(nana.facing, 'value') else (1 if nana.facing else -1),
     }
 
 
@@ -116,7 +119,7 @@ def serialize_projectile(proj) -> Dict[str, Any]:
         "owner": proj.owner,
         "x": float(proj.position.x) if proj.position else 0.0,
         "y": float(proj.position.y) if proj.position else 0.0,
-        "type": proj.type.value if proj.type else 0,
+        "type": proj.type.value if hasattr(proj.type, 'value') else (proj.type or 0),
         "subtype": proj.subtype,
         "speed_x": float(proj.speed.x) if proj.speed else 0.0,
         "speed_y": float(proj.speed.y) if proj.speed else 0.0,
@@ -133,8 +136,8 @@ def serialize_game_state(gs: melee.GameState) -> Dict[str, Any]:
 
     return {
         "frame": gs.frame,
-        "stage": gs.stage.value if gs.stage else 0,
-        "menu_state": gs.menu_state.value if gs.menu_state else 0,
+        "stage": gs.stage.value if hasattr(gs.stage, 'value') else (gs.stage or 0),
+        "menu_state": gs.menu_state.value if hasattr(gs.menu_state, 'value') else (gs.menu_state or 0),
         "players": players,
         "projectiles": projectiles,
         "distance": float(gs.distance) if gs.distance else 0.0,
@@ -225,11 +228,10 @@ class MeleeBridge:
         try:
             logger.info(f"Initializing console at {dolphin_path}")
 
+            # Minimal config - don't pass our logger, libmelee expects its own interface
             self.console = melee.Console(
                 path=dolphin_path,
-                online_delay=online_delay,
-                blocking_input=blocking_input,
-                setup_gecko_codes=True,
+                fullscreen=False,
             )
 
             self.controller = melee.Controller(
@@ -242,11 +244,27 @@ class MeleeBridge:
 
             # Run dolphin
             logger.info(f"Starting Dolphin with ISO: {iso_path}")
+            logger.info(f"Console slippi_port: {self.console.slippi_port}")
+            logger.info(f"Console slippi_address: {self.console.slippi_address}")
             self.console.run(iso_path=iso_path)
+            logger.info("Dolphin process started")
+
+            # Give Dolphin time to initialize before connecting
+            import time
+            sys.stderr.write("[melee_bridge] Waiting 3 seconds...\n")
+            sys.stderr.flush()
+            time.sleep(3)
+            sys.stderr.write("[melee_bridge] Wait complete, now connecting...\n")
+            sys.stderr.flush()
 
             # Connect to console
-            logger.info("Connecting to console...")
-            if not self.console.connect():
+            sys.stderr.write("[melee_bridge] Calling console.connect()...\n")
+            sys.stderr.flush()
+            connected = self.console.connect()
+            sys.stderr.write(f"[melee_bridge] connect() returned: {connected}\n")
+            sys.stderr.flush()
+            logger.info(f"Connect returned: {connected}")
+            if not connected:
                 return {"error": "Failed to connect to console"}
 
             logger.info("Connected to console")
@@ -273,10 +291,21 @@ class MeleeBridge:
             gamestate = self.console.step()
 
             if gamestate is None:
-                return {"error": "Console returned None (timeout or disconnected)"}
+                # This can happen during menu transitions - try to recover
+                logger.warning("console.step() returned None, attempting recovery...")
+                import time
+                time.sleep(0.1)
+                gamestate = self.console.step()
+                if gamestate is None:
+                    return {"error": "Console returned None (timeout or disconnected)"}
 
             # Handle menu navigation if requested
             is_menu = gamestate.menu_state not in [melee.Menu.IN_GAME, melee.Menu.SUDDEN_DEATH]
+
+            # Log state periodically (every 60 frames = 1 second)
+            if gamestate.frame % 60 == 0 or is_menu:
+                menu_name = gamestate.menu_state.name if hasattr(gamestate.menu_state, 'name') else str(gamestate.menu_state)
+                logger.info(f"Frame {gamestate.frame}: menu_state={menu_name}, is_menu={is_menu}")
 
             if is_menu and auto_menu and self.menu_helper:
                 # Get character from config
@@ -292,11 +321,12 @@ class MeleeBridge:
                 elif isinstance(stage, str):
                     stage = melee.Stage[stage.upper()]
 
-                self.menu_helper.menu_helper_simple(
+                # Note: menu_helper_simple is effectively static (no self param)
+                melee.MenuHelper.menu_helper_simple(
                     gamestate,
                     self.controller,
-                    character_selected=character,
-                    stage_selected=stage,
+                    character,
+                    stage,
                     autostart=True,
                     swag=False,
                 )
@@ -341,8 +371,28 @@ class MeleeBridge:
 # Main Protocol Loop
 # ============================================================================
 
+def make_json_serializable(obj):
+    """Recursively convert numpy types to Python native types."""
+    import numpy as np
+    if isinstance(obj, dict):
+        return {k: make_json_serializable(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [make_json_serializable(v) for v in obj]
+    elif isinstance(obj, (np.integer, np.int32, np.int64)):
+        return int(obj)
+    elif isinstance(obj, (np.floating, np.float32, np.float64)):
+        return float(obj)
+    elif isinstance(obj, np.bool_):
+        return bool(obj)
+    elif isinstance(obj, np.ndarray):
+        return obj.tolist()
+    else:
+        return obj
+
+
 def send_response(response: Dict[str, Any]):
     """Send a JSON response to stdout (Elixir)."""
+    response = make_json_serializable(response)
     json_str = json.dumps(response, separators=(',', ':'))
     print(json_str, flush=True)
 

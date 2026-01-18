@@ -42,7 +42,8 @@ opts = [
   character: String.to_atom(get_arg.("--character", "mewtwo")),
   stage: String.to_atom(get_arg.("--stage", "final_destination")),
   frame_delay: String.to_integer(get_arg.("--frame-delay", "0")),
-  deterministic: has_flag.("--deterministic")
+  deterministic: has_flag.("--deterministic"),
+  no_auto_menu: has_flag.("--no-auto-menu")
 ]
 
 # Validate required args
@@ -165,8 +166,11 @@ Press Ctrl+C to stop.
 """)
 
 defmodule GameLoop do
-  def run(agent, bridge, player_port, stats \\ %{frames: 0, errors: 0}) do
-    case MeleePort.step(bridge) do
+  def run(agent, bridge, player_port, opts \\ []) do
+    stats = Keyword.get(opts, :stats, %{frames: 0, errors: 0})
+    auto_menu = not Keyword.get(opts, :no_auto_menu, false)
+
+    case MeleePort.step(bridge, auto_menu: auto_menu) do
       {:ok, game_state} ->
         # In game - run agent inference
         case Agent.get_controller(agent, game_state, player_port: player_port) do
@@ -181,17 +185,17 @@ defmodule GameLoop do
               IO.puts("[Frame #{new_stats.frames}] Errors: #{new_stats.errors}")
             end
 
-            run(agent, bridge, player_port, new_stats)
+            run(agent, bridge, player_port, Keyword.put(opts, :stats, new_stats))
 
           {:error, reason} ->
             Logger.warning("Agent error: #{inspect(reason)}")
             new_stats = %{stats | frames: stats.frames + 1, errors: stats.errors + 1}
-            run(agent, bridge, player_port, new_stats)
+            run(agent, bridge, player_port, Keyword.put(opts, :stats, new_stats))
         end
 
       {:menu, _game_state} ->
-        # In menu - let auto_menu handle it
-        run(agent, bridge, player_port, stats)
+        # In menu - let auto_menu handle it (or manual if --no-auto-menu)
+        run(agent, bridge, player_port, opts)
 
       {:error, reason} ->
         IO.puts("\nGame ended or error: #{inspect(reason)}")
@@ -221,7 +225,7 @@ end
 
 # Run the game loop
 try do
-  GameLoop.run(agent, bridge, opts[:port])
+  GameLoop.run(agent, bridge, opts[:port], no_auto_menu: opts[:no_auto_menu])
 rescue
   e in RuntimeError ->
     IO.puts("\nError: #{Exception.message(e)}")
@@ -232,7 +236,11 @@ end
 
 # Cleanup
 IO.puts("\nCleaning up...")
-MeleePort.stop(bridge)
+try do
+  MeleePort.stop(bridge)
+catch
+  :exit, _ -> IO.puts("  (cleanup timed out, Dolphin may still be running)")
+end
 GenServer.stop(agent)
 
 IO.puts("""

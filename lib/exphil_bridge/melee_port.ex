@@ -123,7 +123,8 @@ defmodule ExPhil.Bridge.MeleePort do
         :binary,
         :exit_status,
         :use_stdio,
-        :stderr_to_stdout,
+        # Don't merge stderr - keep JSON responses clean on stdout
+        # Logs go to stderr and we'll ignore them (they go to /tmp/melee_bridge.log)
         {:args, ["-u", script_path]},
         {:cd, File.cwd!()}
       ]
@@ -255,18 +256,12 @@ defmodule ExPhil.Bridge.MeleePort do
   defp parse_buffer(buffer) do
     case String.split(buffer, "\n", parts: 2) do
       [line, remaining] when line != "" ->
-        # Check if it's a log line (starts with [melee_bridge])
-        if String.starts_with?(line, "[melee_bridge]") do
-          Logger.debug("[Python] #{line}")
-          parse_buffer(remaining)
-        else
-          case Jason.decode(line) do
-            {:ok, response} -> {:ok, response, remaining}
-            {:error, _} ->
-              # Might be partial JSON or log output
-              Logger.debug("[Python output] #{line}")
-              parse_buffer(remaining)
-          end
+        case Jason.decode(line) do
+          {:ok, response} -> {:ok, response, remaining}
+          {:error, _} ->
+            # Skip non-JSON lines (shouldn't happen now that stderr is separate)
+            Logger.debug("[Python output] #{line}")
+            parse_buffer(remaining)
         end
 
       _ ->
