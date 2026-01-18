@@ -39,8 +39,8 @@ defmodule ExPhil.MixProject do
       # Data Processing
       {:explorer, "~> 0.9"},
 
-      # Model Export (using GitHub version - Hex 0.4.0 incompatible with Nx 0.10+)
-      {:axon_onnx, github: "mortont/axon_onnx"},
+      # Model Export (local fork with Axon 0.8+ fixes)
+      {:axon_onnx, path: "../deps/axon_onnx"},
 
       # Rust NIFs (for Peppi replay parsing)
       {:rustler, "~> 0.35"},
