@@ -351,8 +351,87 @@ mix exphil.train --mode rl --checkpoint ./checkpoints/latest.axon
 - [x] **Truncated BPTT option** - `--truncate-bptt N` for 2-3x faster training
 - [x] **XLA multi-threading** - Auto-enabled for CPU training
 - [x] **O(1) batch lookup** - `:array` instead of `Enum.at`
+- [x] **Async game runner** - Decouple frame reading from slow LSTM inference
+- [x] **Dolphin integration** - Full gameplay loop working with auto-restart
 
-#### Immediate (Ready Now)
+#### Immediate: Inference Optimization
+
+Current bottleneck: LSTM inference ~500ms on CPU (need <16ms for 60fps).
+
+**1. Architecture Simplification** (Quick wins, low effort)
+| Change | Expected Speedup | Status |
+|--------|------------------|--------|
+| Reduce hidden size (256→64) | 4-16x | [ ] TODO |
+| Reduce window size (60→20) | ~3x | [ ] TODO |
+| Use GRU instead of LSTM | 1.3x | [ ] TODO |
+| Single layer vs stacked | 2x | [ ] TODO |
+
+```bash
+# Train smaller LSTM
+mix run scripts/train_from_replays.exs \
+  --temporal --backbone lstm \
+  --hidden 64 --window-size 20 \
+  --epochs 5 --max-files 20
+```
+
+**2. Knowledge Distillation** (Best accuracy/speed tradeoff)
+- [ ] Generate soft labels from trained LSTM on all replay frames
+- [ ] Train small MLP student to match LSTM probability distributions
+- [ ] Expected: MLP with LSTM-like behavior, <5ms inference
+
+```elixir
+# Distillation training (to implement)
+mix run scripts/train_distillation.exs \
+  --teacher checkpoints/lstm_policy.bin \
+  --student-hidden 64,64 \
+  --temperature 2.0 \
+  --epochs 10
+```
+
+**3. BF16 Training** (2x speedup, minimal accuracy loss)
+- [ ] Configure EXLA to use BF16 precision
+- [ ] Retrain model from scratch in BF16
+- [ ] Verify accuracy is maintained
+
+```elixir
+# In config/config.exs
+config :exla, :default_defn_options, [compiler: EXLA, default_type: {:bf, 16}]
+```
+
+**4. GPU Acceleration** (10-100x speedup)
+- [ ] Install CUDA toolkit and cuDNN
+- [ ] Configure EXLA with CUDA backend
+- [ ] Expected: LSTM inference <10ms on GPU
+
+```elixir
+# In config/config.exs
+config :exla, :clients,
+  cuda: [platform: :cuda, memory_fraction: 0.8],
+  default: [platform: :host]
+config :exla, default_client: :cuda
+```
+
+**5. Mamba/SSM Architecture** (Research, high effort)
+- [ ] Implement Mamba layer in Axon (no existing implementation)
+- [ ] 5x faster inference than Transformers
+- [ ] Linear scaling with sequence length
+- Reference: https://arxiv.org/abs/2312.00752
+
+**6. ONNX Export + Quantized Runtime** (Production deployment)
+- [ ] Export Axon model to ONNX format
+- [ ] Use ONNX Runtime with INT8 quantization
+- [ ] Expected: 2-4x speedup with ~1% accuracy loss
+
+#### Priority Order for Optimization
+
+1. **Train smaller LSTM** (hidden=64, window=20) - 1 hour
+2. **Knowledge distillation to MLP** - 2-3 hours
+3. **GPU acceleration** (if NVIDIA GPU available) - 1 hour setup
+4. **BF16 training** - 1 hour
+5. **Mamba implementation** - Research project (days/weeks)
+
+#### Evaluation & Fine-tuning
+
 1. **Evaluate temporal model** - Run the trained LSTM policy through evaluation
    - Use `notebooks/evaluation_dashboard.livemd` to visualize predictions
    - Compare action distribution to replay ground truth
@@ -365,25 +444,19 @@ mix exphil.train --mode rl --checkpoint ./checkpoints/latest.axon
    - `mix run scripts/train_ppo.exs --mock --pretrained checkpoints/imitation_latest_policy.bin`
    - Verify gradient flow and loss computation
 
-#### Short-term (Requires Setup)
-4. **Dolphin integration testing** - Connect MeleePort to real Dolphin
-   - Install Slippi Dolphin, configure paths
-   - Test `scripts/play_dolphin.exs` against CPU
-   - This is the first step to seeing the bot actually play!
+#### Other Next Steps
 
-5. **Frame delay training** - Add delay simulation to imitation learning
+4. **Frame delay training** - Add delay simulation to imitation learning
    - Critical for realistic Slippi online play (18+ frames)
    - Modify embedding to include past N frames
 
-6. **Self-play infrastructure** - Train agent vs agent
+5. **Self-play infrastructure** - Train agent vs agent
    - Use BEAM concurrency for parallel games
    - Prevents overfitting to human replay patterns
 
-#### Medium-term
-7. **Character-specific rewards** - Mewtwo, G&W, Link specialization
-8. **Distributed training** - Multi-GPU with EXLA
-9. **Model quantization** - INT8 for <2ms inference
-10. **Docker: Precompiled Rustler NIF** - Avoid runtime NIF compilation
+6. **Character-specific rewards** - Mewtwo, G&W, Link specialization
+
+7. **Docker: Precompiled Rustler NIF** - Avoid runtime NIF compilation
     - Configure Rustler with `skip_compilation?: true` or `force_build: false` in prod
     - Or use Rustler precompilation to download prebuilt binaries
     - Currently Dockerfile includes full Rust toolchain (~500MB) as workaround
