@@ -519,7 +519,11 @@ defmodule ExPhil.Training.Imitation do
         num_heads: trainer.config[:num_heads] || 4,
         head_dim: trainer.config[:head_dim] || 64,
         hidden_size: trainer.config[:hidden_size] || 256,
-        num_layers: trainer.config[:num_layers] || 2
+        num_layers: trainer.config[:num_layers] || 2,
+        # Mamba-specific config
+        state_size: trainer.config[:state_size] || 16,
+        expand_factor: trainer.config[:expand_factor] || 2,
+        conv_size: trainer.config[:conv_size] || 4
       }
     }
 

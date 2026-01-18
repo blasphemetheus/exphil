@@ -1,18 +1,17 @@
 #!/usr/bin/env elixir
 # Export trained policy to ONNX format
 #
-# CURRENT STATUS: axon_onnx has runtime incompatibilities with Axon 0.8+
-# - Compiles with GitHub workaround, but API has changed (shapes vs tensors)
-# - Multi-output models (like Policy's 6-head structure) not supported
-# - LSTM/GRU layers not supported
-# See: https://elixirforum.com/t/error-using-axononnx-v0-4-0-undefined-function-transform-2/63326
+# CURRENT STATUS: Using local axon_onnx fork with full support for:
+# - Axon 0.8+ API compatibility
+# - LSTM/GRU layer serialization
+# - sequence_last layer for extracting final timestep
+# - Multi-output models via container ops
+# - Dense layers on 3D input (RNN sequence output)
 #
-# RECOMMENDED: Export via Python using ONNX directly:
-#   1. Save model weights as NumPy: mix run scripts/export_numpy.exs
-#   2. Build ONNX model in Python with same architecture
-#   3. Quantize with: python priv/python/quantize_onnx.py
+# Fork: https://github.com/blasphemetheus/axon_onnx (runtime-fixes branch)
+# PR: https://github.com/elixir-nx/axon_onnx/pull/61
 #
-# Usage (may fail with complex models):
+# Usage:
 #   mix run scripts/export_onnx.exs [options]
 #
 # Options:
@@ -154,7 +153,11 @@ IO.puts("Step 1: Loading policy...")
             hidden_sizes: config[:hidden_sizes] || [512, 512],
             dropout: config[:dropout] || 0.1,
             axis_buckets: config[:axis_buckets] || 16,
-            shoulder_buckets: config[:shoulder_buckets] || 4
+            shoulder_buckets: config[:shoulder_buckets] || 4,
+            # Mamba-specific
+            state_size: config[:state_size] || 16,
+            expand_factor: config[:expand_factor] || 2,
+            conv_size: config[:conv_size] || 4
           )
         else
           Policy.build(
@@ -198,7 +201,11 @@ IO.puts("Step 1: Loading policy...")
             hidden_sizes: config[:hidden_sizes] || [512, 512],
             dropout: config[:dropout] || 0.1,
             axis_buckets: config[:axis_buckets] || 16,
-            shoulder_buckets: config[:shoulder_buckets] || 4
+            shoulder_buckets: config[:shoulder_buckets] || 4,
+            # Mamba-specific
+            state_size: config[:state_size] || 16,
+            expand_factor: config[:expand_factor] || 2,
+            conv_size: config[:conv_size] || 4
           )
         else
           Policy.build(
@@ -254,18 +261,21 @@ if output_dir != "" and output_dir != "." do
 end
 
 try do
-  # AxonOnnx.export takes model, params, and template
-  {:ok, onnx_binary} = AxonOnnx.export(model, params_data, input_template)
+  # AxonOnnx.dump returns iodata: dump(model, template, params)
+  iodata = AxonOnnx.dump(model, input_template, params)
+  onnx_binary = IO.iodata_to_binary(iodata)
 
   File.write!(output_path, onnx_binary)
 
   file_size = File.stat!(output_path).size
-  size_mb = Float.round(file_size / 1_048_576, 2)
+  size_kb = Float.round(file_size / 1024, 2)
 
-  IO.puts("  ✓ Exported successfully (#{size_mb} MB)")
+  IO.puts("  ✓ Exported successfully (#{size_kb} KB)")
 rescue
   e ->
     IO.puts("  ✗ Export failed: #{Exception.message(e)}")
+    IO.puts("\n  Stack trace:")
+    IO.puts(Exception.format(:error, e, __STACKTRACE__))
     IO.puts("\n  Note: AxonOnnx may not support all layer types.")
     IO.puts("  Multi-output models and some attention patterns may need custom handling.")
     System.halt(1)
