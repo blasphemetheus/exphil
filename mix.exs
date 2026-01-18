@@ -39,8 +39,9 @@ defmodule ExPhil.MixProject do
       # Data Processing
       {:explorer, "~> 0.9"},
 
-      # Model Export (local fork with Axon 0.8+ fixes)
-      {:axon_onnx, path: "../deps/axon_onnx"},
+      # Model Export (blasphemetheus fork with Axon 0.8+ fixes)
+      # Use override to allow local development with path-based dep
+      {:axon_onnx, github: "blasphemetheus/axon_onnx", branch: "runtime-fixes", override: true},
 
       # Rust NIFs (for Peppi replay parsing)
       {:rustler, "~> 0.35"},
