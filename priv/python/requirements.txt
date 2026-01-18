@@ -6,3 +6,8 @@ melee>=0.40.0
 
 # Replay parsing
 py-slippi>=1.6.0
+
+# ONNX model export and quantization
+onnx>=1.14.0
+onnxruntime>=1.16.0
+numpy>=1.24.0

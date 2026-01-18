@@ -39,6 +39,10 @@ defmodule ExPhil.MixProject do
       # Data Processing
       {:explorer, "~> 0.9"},
 
+      # Model Export (currently incompatible with Nx 0.10 - see axon_onnx issue)
+      # Uncomment when axon_onnx is updated for Nx 0.10+
+      # {:axon_onnx, "~> 0.4"},
+
       # Rust NIFs (for Peppi replay parsing)
       {:rustler, "~> 0.35"},
 

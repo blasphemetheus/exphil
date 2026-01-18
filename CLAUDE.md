@@ -52,7 +52,8 @@ exphil/
 ├── priv/
 │   └── python/
 │       ├── melee_bridge.py         # Python-side libmelee wrapper
-│       └── replay_converter.py     # Convert .slp to training format
+│       ├── replay_converter.py     # Convert .slp to training format
+│       └── quantize_onnx.py        # INT8 quantization for ONNX models
 ├── test/
 ├── config/
 │   ├── config.exs
@@ -63,7 +64,9 @@ exphil/
 │   ├── train_ppo.exs               # PPO fine-tuning script
 │   ├── play_dolphin.exs            # Sync gameplay (fast MLP)
 │   ├── play_dolphin_async.exs      # Async gameplay (slow LSTM)
-│   └── eval_model.exs              # Model evaluation
+│   ├── eval_model.exs              # Model evaluation
+│   ├── export_onnx.exs             # Export to ONNX (needs axon_onnx)
+│   └── export_numpy.exs            # Export weights to NumPy format
 ├── docs/
 │   └── ARCHITECTURE.md
 ├── notebooks/                      # Livebook notebooks for analysis
@@ -420,18 +423,106 @@ config :exla, default_client: :cuda
 - [ ] Linear scaling with sequence length
 - Reference: https://arxiv.org/abs/2312.00752
 
-**6. ONNX Export + Quantized Runtime** (Production deployment)
-- [ ] Export Axon model to ONNX format
-- [ ] Use ONNX Runtime with INT8 quantization
-- [ ] Expected: 2-4x speedup with ~1% accuracy loss
+**6. ONNX Export + INT8 Quantization** (Production deployment) - PARTIAL
+- [x] INT8 quantization script via ONNX Runtime
+- [ ] Direct ONNX export via `axon_onnx` (blocked: incompatible with Nx 0.10+)
+- [x] NumPy export workaround for Python-side ONNX conversion
+- Expected: 2-4x speedup with ~1% accuracy loss
+
+**Current Status:** `axon_onnx` doesn't compile with Nx 0.10+ due to removed `transform/2` function.
+See: https://elixirforum.com/t/error-using-axononnx-v0-4-0-undefined-function-transform-2/63326
+
+**Workaround - Export via NumPy:**
+```bash
+# Export weights to NumPy format
+mix run scripts/export_numpy.exs --policy checkpoints/imitation_latest_policy.bin --output exports/
+
+# Build ONNX model in Python (using exported weights)
+python priv/python/build_onnx_from_numpy.py exports/
+```
+
+**When axon_onnx is updated (step-by-step):**
+
+1. **Check for update** - Watch for new release or merged PR:
+   - Repo: https://github.com/elixir-nx/axon_onnx
+   - Issue: https://elixirforum.com/t/error-using-axononnx-v0-4-0-undefined-function-transform-2/63326
+
+2. **Enable the dependency** in `mix.exs`:
+   ```elixir
+   # Uncomment this line:
+   {:axon_onnx, "~> 0.5"},  # or whatever version fixes Nx 0.10+
+   ```
+
+3. **Install and compile:**
+   ```bash
+   mix deps.get
+   mix compile
+   ```
+
+4. **Export to ONNX:**
+   ```bash
+   # From checkpoint
+   mix run scripts/export_onnx.exs --checkpoint checkpoints/imitation_latest.axon --output policy.onnx
+
+   # From exported policy
+   mix run scripts/export_onnx.exs --policy checkpoints/imitation_latest_policy.bin --output policy.onnx
+   ```
+
+5. **Verify the ONNX model:**
+   ```bash
+   python -c "import onnxruntime as ort; sess = ort.InferenceSession('policy.onnx'); print('OK:', [i.name for i in sess.get_inputs()])"
+   ```
+
+6. **Quantize to INT8** (2-4x faster inference):
+   ```bash
+   # Dynamic quantization (no calibration needed, fast)
+   python priv/python/quantize_onnx.py policy.onnx policy_int8.onnx
+
+   # Static quantization (more accurate, requires calibration data)
+   python priv/python/quantize_onnx.py policy.onnx policy_int8.onnx --static --calibration-data calibration.npz
+   ```
+
+7. **Benchmark quantized model:**
+   ```bash
+   python -c "
+   import onnxruntime as ort
+   import numpy as np
+   import time
+
+   sess = ort.InferenceSession('policy_int8.onnx')
+   inp = sess.get_inputs()[0]
+   shape = [1 if d is None else d for d in inp.shape]
+   x = np.random.randn(*shape).astype(np.float32)
+
+   # Warmup + benchmark
+   for _ in range(10): sess.run(None, {inp.name: x})
+   start = time.time()
+   for _ in range(100): sess.run(None, {inp.name: x})
+   print(f'Average: {(time.time() - start) * 10:.2f} ms/inference')
+   "
+   ```
+
+8. **Update CLAUDE.md** - Mark ONNX export as complete:
+   - Change `- [ ] Direct ONNX export` to `- [x] Direct ONNX export`
+   - Remove "PARTIAL" from section header
+
+**For Elixir inference with ONNX**, add `ortex` dependency:
+```elixir
+{:ortex, "~> 0.1"}
+```
+```elixir
+{:ok, model} = Ortex.load("policy_int8.onnx")
+output = Ortex.run(model, input_tensor)
+```
 
 #### Priority Order for Optimization
 
 1. **Train smaller LSTM** (hidden=64, window=20) - 1 hour
 2. **Knowledge distillation to MLP** - 2-3 hours
-3. **GPU acceleration** (if NVIDIA GPU available) - 1 hour setup
-4. **BF16 training** - 1 hour
-5. **Mamba implementation** - Research project (days/weeks)
+3. **ONNX + INT8 quantization** - Available now
+4. **GPU acceleration** (if NVIDIA GPU available) - 1 hour setup
+5. **BF16 training** - Available now (default)
+6. **Mamba implementation** - Research project (days/weeks)
 
 #### Evaluation & Fine-tuning
 
@@ -447,19 +538,28 @@ config :exla, default_client: :cuda
    - `mix run scripts/train_ppo.exs --mock --pretrained checkpoints/imitation_latest_policy.bin`
    - Verify gradient flow and loss computation
 
+#### Open Source Contributions
+
+4. **Fix axon_onnx for Nx 0.10+** - Unblock direct ONNX export
+   - Issue: `transform/2` function was removed in Nx 0.7+
+   - Repo: https://github.com/elixir-nx/axon_onnx
+   - Fix: Replace `Nx.Defn.transform/2` calls with equivalent Nx 0.10 API
+   - Forum thread: https://elixirforum.com/t/error-using-axononnx-v0-4-0-undefined-function-transform-2/63326
+   - Submit PR to elixir-nx/axon_onnx
+
 #### Other Next Steps
 
-4. **Frame delay training** - Add delay simulation to imitation learning
+5. **Frame delay training** - Add delay simulation to imitation learning
    - Critical for realistic Slippi online play (18+ frames)
    - Modify embedding to include past N frames
 
-5. **Self-play infrastructure** - Train agent vs agent
+6. **Self-play infrastructure** - Train agent vs agent
    - Use BEAM concurrency for parallel games
    - Prevents overfitting to human replay patterns
 
-6. **Character-specific rewards** - Mewtwo, G&W, Link specialization
+7. **Character-specific rewards** - Mewtwo, G&W, Link specialization
 
-7. **Docker: Precompiled Rustler NIF** - Avoid runtime NIF compilation
+8. **Docker: Precompiled Rustler NIF** - Avoid runtime NIF compilation
     - Configure Rustler with `skip_compilation?: true` or `force_build: false` in prod
     - Or use Rustler precompilation to download prebuilt binaries
     - Currently Dockerfile includes full Rust toolchain (~500MB) as workaround
