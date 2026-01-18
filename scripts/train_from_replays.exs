@@ -33,6 +33,12 @@ end
 #   --window-size N   - Frames in attention window (default: 60)
 #   --stride N        - Stride for sequence sampling (default: 1)
 #   --truncate-bptt N - Truncate backprop through time to last N steps (default: full)
+#   --num-layers N    - Number of backbone layers (default: 2)
+#
+# Mamba-specific Options (when --backbone mamba):
+#   --state-size N    - State dimension for SSM (default: 16)
+#   --expand-factor N - Expansion factor for inner dimension (default: 2)
+#   --conv-size N     - Causal conv kernel size (default: 4)
 #
 # Precision Options:
 #   --precision TYPE  - Tensor precision: bf16 (default) or f32
@@ -84,6 +90,11 @@ opts = [
   backbone: String.to_atom(get_arg.("--backbone", "sliding_window")),
   window_size: String.to_integer(get_arg.("--window-size", "60")),
   stride: String.to_integer(get_arg.("--stride", "1")),
+  num_layers: String.to_integer(get_arg.("--num-layers", "2")),
+  # Mamba-specific options
+  state_size: String.to_integer(get_arg.("--state-size", "16")),
+  expand_factor: String.to_integer(get_arg.("--expand-factor", "2")),
+  conv_size: String.to_integer(get_arg.("--conv-size", "4")),
   truncate_bptt: case Enum.find_index(args, &(&1 == "--truncate-bptt")) do
     nil -> nil  # Full BPTT
     idx -> String.to_integer(Enum.at(args, idx + 1))
@@ -102,13 +113,14 @@ temporal_info = if opts[:temporal] do
   else
     "full"
   end
-  """
-    Temporal:    enabled
-    Backbone:    #{opts[:backbone]}
-    Window:      #{opts[:window_size]} frames
-    Stride:      #{opts[:stride]}
-    BPTT:        #{bptt_info}
-  """
+
+  backbone_extra = if opts[:backbone] == :mamba do
+    "  SSM State:   #{opts[:state_size]}\n  Expand:      #{opts[:expand_factor]}x\n  Conv Size:   #{opts[:conv_size]}\n"
+  else
+    ""
+  end
+
+  "  Temporal:    enabled\n  Backbone:    #{opts[:backbone]}\n  Layers:      #{opts[:num_layers]}\n  Window:      #{opts[:window_size]} frames\n  Stride:      #{opts[:stride]}\n  BPTT:        #{bptt_info}\n#{backbone_extra}"
 else
   "  Temporal:    disabled (single-frame MLP)\n"
 end
@@ -246,9 +258,17 @@ IO.puts("\nStep 3: Initializing model...")
 embed_size = Embeddings.embedding_size()
 IO.puts("  Embedding size: #{embed_size}")
 
+# For Mamba, use first hidden_size value as hidden_size (single int)
+# For other backbones, use hidden_sizes list
+hidden_size = case opts[:hidden_sizes] do
+  [h | _] -> h
+  _ -> 256
+end
+
 trainer_opts = [
   embed_size: embed_size,
   hidden_sizes: opts[:hidden_sizes],
+  hidden_size: hidden_size,
   learning_rate: 1.0e-4,
   batch_size: opts[:batch_size],
   precision: opts[:precision],
@@ -258,8 +278,12 @@ trainer_opts = [
   window_size: opts[:window_size],
   num_heads: 2,      # Smaller for CPU training
   head_dim: 32,      # Smaller for CPU training
-  num_layers: 1,     # Fewer layers for CPU training
-  truncate_bptt: opts[:truncate_bptt]
+  num_layers: opts[:num_layers],
+  truncate_bptt: opts[:truncate_bptt],
+  # Mamba-specific options
+  state_size: opts[:state_size],
+  expand_factor: opts[:expand_factor],
+  conv_size: opts[:conv_size]
 ]
 
 trainer = Imitation.new(trainer_opts)
