@@ -506,6 +506,58 @@ print(f'Average: {(time.time() - start) * 10:.2f} ms/inference')
 output = Ortex.run(model, input_tensor)
 ```
 
+**Complete ONNX Deployment Workflow (Mamba model):**
+
+After training a Mamba model, follow these steps to get sub-millisecond inference:
+
+```bash
+# Step 1: Training produces checkpoint and policy files
+ls checkpoints/
+# imitation_latest.axon (full checkpoint)
+# imitation_latest_policy.bin (exported policy)
+
+# Step 2: Export to NumPy format (workaround for axon_onnx issues)
+mix run scripts/export_numpy.exs \
+  --policy checkpoints/imitation_latest_policy.bin \
+  --output weights.npz
+
+# Step 3: Rebuild model in Python and export to ONNX
+# (See priv/python/convert_to_onnx.py for reference implementation)
+python priv/python/convert_to_onnx.py \
+  --weights weights.npz \
+  --config checkpoints/imitation_latest_policy.bin \
+  --output policy.onnx
+
+# Step 4: Quantize to INT8 for maximum speed
+python priv/python/quantize_onnx.py policy.onnx policy_int8.onnx
+
+# Step 5: Benchmark to verify performance
+python -c "
+import onnxruntime as ort
+import numpy as np
+import time
+
+sess = ort.InferenceSession('policy_int8.onnx')
+inp = sess.get_inputs()[0]
+x = np.random.randn(1, 60, 1991).astype(np.float32)  # Mamba: [batch, seq, embed]
+
+for _ in range(10): sess.run(None, {inp.name: x})
+start = time.time()
+for _ in range(100): sess.run(None, {inp.name: x})
+print(f'ONNX INT8 inference: {(time.time() - start) * 10:.2f} ms')
+"
+
+# Expected: ~0.5ms per inference (200x faster than Axon LSTM)
+```
+
+**When to use ONNX vs Axon:**
+| Use Case | Recommendation |
+|----------|----------------|
+| Training | Axon (native Elixir, easy debugging) |
+| Prototyping | Axon Mamba (8.93ms, good enough) |
+| Production gameplay | ONNX INT8 (0.55ms, maximum performance) |
+| Integration with Python/Rust | ONNX (cross-platform) |
+
 #### Priority Order for Optimization
 
 1. **Mamba backbone** - Available now, 24.75x faster than LSTM, <16ms inference
