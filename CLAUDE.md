@@ -379,19 +379,45 @@ mix run scripts/train_from_replays.exs \
   --epochs 5 --max-files 20
 ```
 
-**2. Knowledge Distillation** (Best accuracy/speed tradeoff)
-- [ ] Generate soft labels from trained LSTM on all replay frames
-- [ ] Train small MLP student to match LSTM probability distributions
-- [ ] Expected: MLP with LSTM-like behavior, <5ms inference
+**2. Knowledge Distillation** (Best accuracy/speed tradeoff) - IMPLEMENTED
+- [x] Generate soft labels from trained teacher model
+- [x] Train small MLP student to match teacher distributions
+- [x] Expected: MLP with LSTM-like behavior, <5ms inference
 
-```elixir
-# Distillation training (to implement)
-mix run scripts/train_distillation.exs \
-  --teacher checkpoints/lstm_policy.bin \
-  --student-hidden 64,64 \
+**Step 1: Generate soft labels from teacher model:**
+```bash
+mix run scripts/generate_soft_labels.exs \
+  --teacher checkpoints/mamba_policy.bin \
+  --replays replays \
+  --output soft_labels.bin \
   --temperature 2.0 \
-  --epochs 10
+  --max-files 50
 ```
+
+**Step 2: Train distilled MLP student:**
+```bash
+mix run scripts/train_distillation.exs \
+  --soft-labels soft_labels.bin \
+  --hidden 64,64 \
+  --epochs 10 \
+  --alpha 0.7 \
+  --output distilled_policy.bin
+```
+
+**Distillation options:**
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--hidden` | 64,64 | Student MLP hidden sizes |
+| `--temperature` | 2.0 | Soft label temperature (higher = softer) |
+| `--alpha` | 0.7 | Weight for soft vs hard labels |
+| `--epochs` | 10 | Training epochs |
+
+**Expected results by hidden size:**
+| Hidden | Parameters | Inference | Accuracy |
+|--------|------------|-----------|----------|
+| 32,32 | ~70K | ~1ms | Good |
+| 64,64 | ~270K | ~2ms | Better |
+| 128,64 | ~400K | ~3ms | Best |
 
 **3. BF16 Training** (2x speedup, minimal accuracy loss) - IMPLEMENTED
 - [x] Add `--precision` option to training script (default: bf16)
