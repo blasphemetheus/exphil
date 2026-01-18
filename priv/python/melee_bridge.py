@@ -208,6 +208,8 @@ class MeleeBridge:
         self.menu_helper: Optional[melee.MenuHelper] = None
         self.running = False
         self.config = {}
+        self._postgame_reported = False  # Track if we've reported postgame to Elixir
+        self._last_in_game = False  # Track if we were in game last frame
 
     def init(self, config: Dict[str, Any]) -> Dict[str, Any]:
         """Initialize the console and controller."""
@@ -295,19 +297,49 @@ class MeleeBridge:
                 logger.warning("console.step() returned None, attempting recovery...")
                 import time
                 time.sleep(0.1)
-                gamestate = self.console.step()
+                try:
+                    gamestate = self.console.step()
+                except BrokenPipeError:
+                    logger.info("Dolphin disconnected (BrokenPipeError during recovery)")
+                    self.running = False
+                    return {"error": "game_ended", "reason": "dolphin_disconnected"}
                 if gamestate is None:
                     return {"error": "Console returned None (timeout or disconnected)"}
 
             # Handle menu navigation if requested
-            is_menu = gamestate.menu_state not in [melee.Menu.IN_GAME, melee.Menu.SUDDEN_DEATH]
+            is_in_game = gamestate.menu_state in [melee.Menu.IN_GAME, melee.Menu.SUDDEN_DEATH]
+            is_menu = not is_in_game
+
+            # Detect game-ending states
+            is_postgame = gamestate.menu_state == melee.Menu.POSTGAME_SCORES
+
+            # Track game state transitions
+            if is_in_game and not self._last_in_game:
+                # Just entered game - reset postgame flag
+                self._postgame_reported = False
+            self._last_in_game = is_in_game
 
             # Log state periodically (every 60 frames = 1 second)
-            if gamestate.frame % 60 == 0 or is_menu:
+            if gamestate.frame % 60 == 0:
                 menu_name = gamestate.menu_state.name if hasattr(gamestate.menu_state, 'name') else str(gamestate.menu_state)
-                logger.info(f"Frame {gamestate.frame}: menu_state={menu_name}, is_menu={is_menu}")
+                # Log player stocks for debugging
+                p1 = gamestate.players.get(1)
+                p2 = gamestate.players.get(2)
+                p1_info = f"P1:{p1.percent:.0f}%/{p1.stock}stk" if p1 else "P1:?"
+                p2_info = f"P2:{p2.percent:.0f}%/{p2.stock}stk" if p2 else "P2:?"
+                logger.info(f"Frame {gamestate.frame}: {menu_name} | {p1_info} {p2_info}")
 
-            if is_menu and auto_menu and self.menu_helper:
+            # Log game end detection (only on first postgame frame)
+            if is_postgame and not self._postgame_reported:
+                logger.info(f"Game ended - transitioning to {gamestate.menu_state.name if hasattr(gamestate.menu_state, 'name') else gamestate.menu_state}")
+
+            # Skip menu navigation on first postgame frame to let Elixir handle it
+            # On subsequent frames, allow navigation (for restart mode)
+            skip_menu_nav = is_postgame and not self._postgame_reported
+            if is_postgame:
+                self._postgame_reported = True  # Mark as reported after this frame
+
+            if is_menu and auto_menu and self.menu_helper and not skip_menu_nav:
                 # Get character from config
                 character = self.config.get("character", melee.Character.FOX)
                 if isinstance(character, int):
@@ -334,9 +366,14 @@ class MeleeBridge:
             return {
                 "ok": True,
                 "is_menu": is_menu,
+                "is_postgame": is_postgame,
                 "game_state": serialize_game_state(gamestate),
             }
 
+        except BrokenPipeError:
+            logger.info("Dolphin disconnected (BrokenPipeError)")
+            self.running = False
+            return {"error": "game_ended", "reason": "dolphin_disconnected"}
         except Exception as e:
             logger.exception("Error during step")
             return {"error": str(e)}
@@ -349,22 +386,41 @@ class MeleeBridge:
         try:
             apply_controller_input(self.controller, input_data)
             return {"ok": True}
+        except BrokenPipeError:
+            logger.info("Dolphin disconnected while sending controller input")
+            self.running = False
+            return {"error": "game_ended", "reason": "dolphin_disconnected"}
         except Exception as e:
             logger.exception("Error sending controller input")
             return {"error": str(e)}
 
     def stop(self) -> Dict[str, Any]:
         """Stop the console and clean up."""
-        try:
-            if self.controller:
+        self.running = False
+        errors = []
+
+        # Controller disconnect - may fail if pipe already broken
+        if self.controller:
+            try:
                 self.controller.disconnect()
-            if self.console:
+            except BrokenPipeError:
+                logger.debug("Controller pipe already closed")
+            except Exception as e:
+                errors.append(f"controller: {e}")
+
+        # Console stop - may fail if already stopped
+        if self.console:
+            try:
                 self.console.stop()
-            self.running = False
-            return {"ok": True}
-        except Exception as e:
-            logger.exception("Error stopping")
-            return {"error": str(e)}
+            except BrokenPipeError:
+                logger.debug("Console pipe already closed")
+            except Exception as e:
+                errors.append(f"console: {e}")
+
+        if errors:
+            logger.warning(f"Cleanup warnings: {errors}")
+
+        return {"ok": True}
 
 
 # ============================================================================

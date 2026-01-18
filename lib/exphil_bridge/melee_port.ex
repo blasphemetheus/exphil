@@ -288,11 +288,23 @@ defmodule ExPhil.Bridge.MeleePort do
 
   defp format_reply(:step, %{"ok" => true} = response) do
     game_state = parse_game_state(response["game_state"])
-    if response["is_menu"] do
-      {:menu, game_state}
-    else
-      {:ok, game_state}
+    cond do
+      response["is_postgame"] ->
+        {:postgame, game_state}
+      response["is_menu"] ->
+        {:menu, game_state}
+      true ->
+        {:ok, game_state}
     end
+  end
+
+  # Handle graceful game end (Dolphin disconnected)
+  defp format_reply(:step, %{"error" => "game_ended", "reason" => reason}) do
+    {:game_ended, reason}
+  end
+
+  defp format_reply(:send_controller, %{"error" => "game_ended", "reason" => reason}) do
+    {:game_ended, reason}
   end
 
   defp format_reply(:send_controller, %{"ok" => true}), do: :ok
