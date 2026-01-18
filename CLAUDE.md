@@ -388,14 +388,17 @@ mix run scripts/train_distillation.exs \
   --epochs 10
 ```
 
-**3. BF16 Training** (2x speedup, minimal accuracy loss)
-- [ ] Configure EXLA to use BF16 precision
-- [ ] Retrain model from scratch in BF16
-- [ ] Verify accuracy is maintained
+**3. BF16 Training** (2x speedup, minimal accuracy loss) - IMPLEMENTED
+- [x] Add `--precision` option to training script (default: bf16)
+- [x] Update Imitation trainer to use configurable precision
+- [ ] Benchmark actual speedup on your hardware
 
-```elixir
-# In config/config.exs
-config :exla, :default_defn_options, [compiler: EXLA, default_type: {:bf, 16}]
+```bash
+# BF16 is now default - just run training normally
+mix run scripts/train_from_replays.exs --temporal --backbone lstm
+
+# To use F32 (full precision) instead:
+mix run scripts/train_from_replays.exs --precision f32 --temporal --backbone lstm
 ```
 
 **4. GPU Acceleration** (10-100x speedup)

@@ -33,6 +33,10 @@ end
 #   --window-size N   - Frames in attention window (default: 60)
 #   --stride N        - Stride for sequence sampling (default: 1)
 #   --truncate-bptt N - Truncate backprop through time to last N steps (default: full)
+#
+# Precision Options:
+#   --precision TYPE  - Tensor precision: bf16 (default) or f32
+#                       BF16 gives ~2x speedup with minimal accuracy loss
 
 require Logger
 
@@ -83,6 +87,12 @@ opts = [
   truncate_bptt: case Enum.find_index(args, &(&1 == "--truncate-bptt")) do
     nil -> nil  # Full BPTT
     idx -> String.to_integer(Enum.at(args, idx + 1))
+  end,
+  # Precision option (bf16 default for ~2x speedup)
+  precision: case get_arg.("--precision", "bf16") do
+    "f32" -> :f32
+    "bf16" -> :bf16
+    other -> raise "Unknown precision: #{other}. Use 'bf16' or 'f32'"
   end
 ]
 
@@ -103,6 +113,8 @@ else
   "  Temporal:    disabled (single-frame MLP)\n"
 end
 
+precision_str = if opts[:precision] == :bf16, do: "bf16 (faster)", else: "f32 (full precision)"
+
 IO.puts("""
 
 ╔════════════════════════════════════════════════════════════════╗
@@ -118,6 +130,7 @@ Configuration:
   Player Port: #{opts[:player_port]}
   Checkpoint:  #{opts[:checkpoint]}
   Wandb:       #{if opts[:wandb], do: "enabled", else: "disabled"}
+  Precision:   #{precision_str}
 #{temporal_info}
 """)
 
@@ -238,6 +251,7 @@ trainer_opts = [
   hidden_sizes: opts[:hidden_sizes],
   learning_rate: 1.0e-4,
   batch_size: opts[:batch_size],
+  precision: opts[:precision],
   # Temporal options
   temporal: opts[:temporal],
   backbone: opts[:backbone],

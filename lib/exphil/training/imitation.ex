@@ -91,6 +91,8 @@ defmodule ExPhil.Training.Imitation do
     # MLP architecture
     hidden_sizes: [512, 512],     # MLP hidden layer sizes
     dropout: 0.1,                 # Dropout rate
+    # Precision (bf16 = ~2x faster, minimal accuracy loss)
+    precision: :bf16,
     # Temporal training options
     temporal: false,              # Enable temporal/sequence training
     backbone: :sliding_window,    # :sliding_window, :hybrid, :lstm, :mlp
@@ -112,6 +114,7 @@ defmodule ExPhil.Training.Imitation do
     - `:learning_rate` - Initial learning rate
     - `:batch_size` - Training batch size
     - `:max_grad_norm` - Gradient clipping threshold
+    - `:precision` - Tensor precision: :bf16 (default, ~2x faster) or :f32
     - `:temporal` - Enable temporal/sequence training (default: false)
     - `:backbone` - Temporal backbone type: :sliding_window, :hybrid, :lstm, :mlp
     - `:window_size` - Attention window size for temporal (default: 60)
@@ -168,7 +171,7 @@ defmodule ExPhil.Training.Imitation do
       {1, embed_size}
     end
 
-    policy_params = init_fn.(Nx.template(input_shape, :f32), Axon.ModelState.empty())
+    policy_params = init_fn.(Nx.template(input_shape, config.precision), Axon.ModelState.empty())
 
     # Create optimizer with gradient clipping
     {optimizer_init, optimizer_update} = create_optimizer(config)
