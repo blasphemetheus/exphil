@@ -1,18 +1,18 @@
 #!/usr/bin/env elixir
 # Export trained policy to ONNX format
 #
-# CURRENT STATUS: axon_onnx is incompatible with Nx 0.10+
+# CURRENT STATUS: axon_onnx has runtime incompatibilities with Axon 0.8+
+# - Compiles with GitHub workaround, but API has changed (shapes vs tensors)
+# - Multi-output models (like Policy's 6-head structure) not supported
+# - LSTM/GRU layers not supported
 # See: https://elixirforum.com/t/error-using-axononnx-v0-4-0-undefined-function-transform-2/63326
 #
-# When axon_onnx is updated, uncomment {:axon_onnx, "~> 0.4"} in mix.exs
-# and this script will work.
-#
-# ALTERNATIVE: Export via Python using ONNX directly:
+# RECOMMENDED: Export via Python using ONNX directly:
 #   1. Save model weights as NumPy: mix run scripts/export_numpy.exs
 #   2. Build ONNX model in Python with same architecture
 #   3. Quantize with: python priv/python/quantize_onnx.py
 #
-# Usage (when axon_onnx is available):
+# Usage (may fail with complex models):
 #   mix run scripts/export_onnx.exs [options]
 #
 # Options:

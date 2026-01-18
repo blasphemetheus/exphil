@@ -113,18 +113,21 @@ IO.puts("  Output: #{output_dir}/")
 IO.puts("\nStep 3: Exporting weights...")
 
 # Flatten nested params into a list of {path, tensor} pairs
-flatten_params = fn params, prefix ->
-  Enum.flat_map(params, fn {key, value} ->
-    path = if prefix == "", do: to_string(key), else: "#{prefix}.#{key}"
-    case value do
-      %Nx.Tensor{} = tensor -> [{path, tensor}]
-      map when is_map(map) -> flatten_params.(map, path)
-      _ -> []
-    end
-  end)
+# Use Y-combinator pattern for recursive anonymous function
+flatten_params = fn flatten_params ->
+  fn params, prefix ->
+    Enum.flat_map(params, fn {key, value} ->
+      path = if prefix == "", do: to_string(key), else: "#{prefix}.#{key}"
+      case value do
+        %Nx.Tensor{} = tensor -> [{path, tensor}]
+        map when is_map(map) -> flatten_params.(flatten_params).(map, path)
+        _ -> []
+      end
+    end)
+  end
 end
 
-flat_params = flatten_params.(params_data, "")
+flat_params = flatten_params.(flatten_params).(params_data, "")
 
 IO.puts("  Found #{length(flat_params)} weight tensors")
 
@@ -145,7 +148,7 @@ Enum.each(flat_params, fn {path, tensor} ->
   binary_path = Path.join(output_dir, "#{filename}.bin")
   File.write!(binary_path, binary)
 
-  IO.puts("    #{path}: #{inspect(shape)} (#{type})")
+  IO.puts("    #{path}: #{inspect(shape)} (#{inspect(type)})")
 end)
 
 # Step 4: Save metadata as JSON
@@ -157,7 +160,7 @@ metadata = %{
     %{
       name: path,
       shape: Nx.shape(tensor) |> Tuple.to_list(),
-      dtype: to_string(Nx.type(tensor)),
+      dtype: inspect(Nx.type(tensor)),
       file: "#{String.replace(path, ".", "_")}.bin"
     }
   end)

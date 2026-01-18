@@ -425,86 +425,59 @@ config :exla, default_client: :cuda
 
 **6. ONNX Export + INT8 Quantization** (Production deployment) - PARTIAL
 - [x] INT8 quantization script via ONNX Runtime
-- [ ] Direct ONNX export via `axon_onnx` (blocked: incompatible with Nx 0.10+)
+- [ ] Direct ONNX export via `axon_onnx` (compiles but has runtime API issues)
 - [x] NumPy export workaround for Python-side ONNX conversion
 - Expected: 2-4x speedup with ~1% accuracy loss
 
-**Current Status:** `axon_onnx` doesn't compile with Nx 0.10+ due to removed `transform/2` function.
-See: https://elixirforum.com/t/error-using-axononnx-v0-4-0-undefined-function-transform-2/63326
+**Current Status:** `axon_onnx` compiles with GitHub workaround but has runtime incompatibilities:
+- API mismatch with Axon 0.8+ (shapes vs tensors)
+- Multi-output models not supported (Policy's 6-head structure fails)
+- LSTM/GRU layers not supported
 
-**Workaround - Export via NumPy:**
+**Recommended path:** Use NumPy export + Python ONNX conversion (see `scripts/export_numpy.exs`)
+
+**Export to ONNX:**
 ```bash
-# Export weights to NumPy format
-mix run scripts/export_numpy.exs --policy checkpoints/imitation_latest_policy.bin --output exports/
+# From checkpoint
+mix run scripts/export_onnx.exs --checkpoint checkpoints/imitation_latest.axon --output policy.onnx
 
-# Build ONNX model in Python (using exported weights)
-python priv/python/build_onnx_from_numpy.py exports/
+# From exported policy
+mix run scripts/export_onnx.exs --policy checkpoints/imitation_latest_policy.bin --output policy.onnx
 ```
 
-**When axon_onnx is updated (step-by-step):**
+**Verify the ONNX model:**
+```bash
+python -c "import onnxruntime as ort; sess = ort.InferenceSession('policy.onnx'); print('OK:', [i.name for i in sess.get_inputs()])"
+```
 
-1. **Check for update** - Watch for new release or merged PR:
-   - Repo: https://github.com/elixir-nx/axon_onnx
-   - Issue: https://elixirforum.com/t/error-using-axononnx-v0-4-0-undefined-function-transform-2/63326
+**Quantize to INT8** (2-4x faster inference):
+```bash
+# Dynamic quantization (no calibration needed, fast)
+python priv/python/quantize_onnx.py policy.onnx policy_int8.onnx
 
-2. **Enable the dependency** in `mix.exs`:
-   ```elixir
-   # Uncomment this line:
-   {:axon_onnx, "~> 0.5"},  # or whatever version fixes Nx 0.10+
-   ```
+# Static quantization (more accurate, requires calibration data)
+python priv/python/quantize_onnx.py policy.onnx policy_int8.onnx --static --calibration-data calibration.npz
+```
 
-3. **Install and compile:**
-   ```bash
-   mix deps.get
-   mix compile
-   ```
+**Benchmark quantized model:**
+```bash
+python -c "
+import onnxruntime as ort
+import numpy as np
+import time
 
-4. **Export to ONNX:**
-   ```bash
-   # From checkpoint
-   mix run scripts/export_onnx.exs --checkpoint checkpoints/imitation_latest.axon --output policy.onnx
+sess = ort.InferenceSession('policy_int8.onnx')
+inp = sess.get_inputs()[0]
+shape = [1 if d is None else d for d in inp.shape]
+x = np.random.randn(*shape).astype(np.float32)
 
-   # From exported policy
-   mix run scripts/export_onnx.exs --policy checkpoints/imitation_latest_policy.bin --output policy.onnx
-   ```
-
-5. **Verify the ONNX model:**
-   ```bash
-   python -c "import onnxruntime as ort; sess = ort.InferenceSession('policy.onnx'); print('OK:', [i.name for i in sess.get_inputs()])"
-   ```
-
-6. **Quantize to INT8** (2-4x faster inference):
-   ```bash
-   # Dynamic quantization (no calibration needed, fast)
-   python priv/python/quantize_onnx.py policy.onnx policy_int8.onnx
-
-   # Static quantization (more accurate, requires calibration data)
-   python priv/python/quantize_onnx.py policy.onnx policy_int8.onnx --static --calibration-data calibration.npz
-   ```
-
-7. **Benchmark quantized model:**
-   ```bash
-   python -c "
-   import onnxruntime as ort
-   import numpy as np
-   import time
-
-   sess = ort.InferenceSession('policy_int8.onnx')
-   inp = sess.get_inputs()[0]
-   shape = [1 if d is None else d for d in inp.shape]
-   x = np.random.randn(*shape).astype(np.float32)
-
-   # Warmup + benchmark
-   for _ in range(10): sess.run(None, {inp.name: x})
-   start = time.time()
-   for _ in range(100): sess.run(None, {inp.name: x})
-   print(f'Average: {(time.time() - start) * 10:.2f} ms/inference')
-   "
-   ```
-
-8. **Update CLAUDE.md** - Mark ONNX export as complete:
-   - Change `- [ ] Direct ONNX export` to `- [x] Direct ONNX export`
-   - Remove "PARTIAL" from section header
+# Warmup + benchmark
+for _ in range(10): sess.run(None, {inp.name: x})
+start = time.time()
+for _ in range(100): sess.run(None, {inp.name: x})
+print(f'Average: {(time.time() - start) * 10:.2f} ms/inference')
+"
+```
 
 **For Elixir inference with ONNX**, add `ortex` dependency:
 ```elixir
@@ -540,12 +513,15 @@ output = Ortex.run(model, input_tensor)
 
 #### Open Source Contributions
 
-4. **Fix axon_onnx for Nx 0.10+** - Unblock direct ONNX export
-   - Issue: `transform/2` function was removed in Nx 0.7+
-   - Repo: https://github.com/elixir-nx/axon_onnx
-   - Fix: Replace `Nx.Defn.transform/2` calls with equivalent Nx 0.10 API
+4. **Fix axon_onnx for Nx 0.10+** - PR SUBMITTED (partial fix)
+   - PR: https://github.com/mortont/axon_onnx/compare/master...blasphemetheus:axon_onnx:support-nx-0.10
+   - Issue: Version constraints in mix.exs were too restrictive (`~> 0.5`)
+   - Fix: Widen version constraints (nx, axon, exla, req)
+   - **Note:** PR enables compilation, but runtime API issues remain:
+     - Axon 0.8+ changed APIs (shapes vs tensors)
+     - Multi-output models and LSTM layers not supported
+   - **Workaround active:** ExPhil uses `{:axon_onnx, github: "mortont/axon_onnx"}`
    - Forum thread: https://elixirforum.com/t/error-using-axononnx-v0-4-0-undefined-function-transform-2/63326
-   - Submit PR to elixir-nx/axon_onnx
 
 #### Other Next Steps
 
