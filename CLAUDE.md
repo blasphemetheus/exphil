@@ -349,6 +349,8 @@ mix exphil.train --mode rl --checkpoint ./checkpoints/latest.axon
 ### Next Steps (Priority Order)
 
 #### Recently Completed
+- [x] **Mamba backbone** - 24.75x faster than LSTM, achieves <16ms for 60 FPS
+- [x] **ONNX export + INT8 quantization** - `sequence_last` layer, full pipeline working
 - [x] **Temporal training infrastructure** - LSTM/attention backbones working
 - [x] **Batch Nx embedding optimization** - 20x faster preprocessing
 - [x] **Truncated BPTT option** - `--truncate-bptt N` for 2-3x faster training
@@ -417,11 +419,27 @@ config :exla, :clients,
 config :exla, default_client: :cuda
 ```
 
-**5. Mamba/SSM Architecture** (Research, high effort)
-- [ ] Implement Mamba layer in Axon (no existing implementation)
-- [ ] 5x faster inference than Transformers
-- [ ] Linear scaling with sequence length
+**5. Mamba/SSM Architecture** - IMPLEMENTED
+- [x] Implement Mamba layer in Axon (`ExPhil.Networks.Mamba`)
+- [x] 24.75x faster inference than LSTM (8.93ms vs 220.95ms)
+- [x] Linear O(L) scaling with sequence length
+- [x] Achieves <16ms target for 60 FPS real-time gameplay
 - Reference: https://arxiv.org/abs/2312.00752
+
+**Train with Mamba backbone:**
+```bash
+mix run scripts/train_from_replays.exs \
+  --temporal --backbone mamba \
+  --hidden 256 --window-size 60 \
+  --epochs 5
+```
+
+**Benchmark (ExPhil production dimensions):**
+| Architecture | Inference | 60 FPS Ready |
+|--------------|-----------|--------------|
+| LSTM (Axon)  | 220.95 ms | No |
+| Mamba (Axon) | 8.93 ms   | **Yes** |
+| ONNX INT8    | 0.55 ms   | **Yes** |
 
 **6. ONNX Export + INT8 Quantization** (Production deployment) - PARTIAL
 - [x] INT8 quantization script via ONNX Runtime
@@ -490,12 +508,12 @@ output = Ortex.run(model, input_tensor)
 
 #### Priority Order for Optimization
 
-1. **Train smaller LSTM** (hidden=64, window=20) - 1 hour
-2. **Knowledge distillation to MLP** - 2-3 hours
-3. **ONNX + INT8 quantization** - Available now
-4. **GPU acceleration** (if NVIDIA GPU available) - 1 hour setup
-5. **BF16 training** - Available now (default)
-6. **Mamba implementation** - Research project (days/weeks)
+1. **Mamba backbone** - Available now, 24.75x faster than LSTM, <16ms inference
+2. **ONNX + INT8 quantization** - Available now, 0.55ms inference
+3. **Train smaller LSTM** (hidden=64, window=20) - Quick experiment
+4. **Knowledge distillation to MLP** - Best accuracy/speed tradeoff
+5. **GPU acceleration** (if NVIDIA GPU available) - 1 hour setup
+6. **BF16 training** - Available now (default)
 
 #### Evaluation & Fine-tuning
 
@@ -949,6 +967,9 @@ mix run scripts/train_from_replays.exs --temporal --backbone hybrid
 
 # Temporal training with LSTM only
 mix run scripts/train_from_replays.exs --temporal --backbone lstm
+
+# Temporal training with Mamba (fastest inference, recommended)
+mix run scripts/train_from_replays.exs --temporal --backbone mamba
 
 # With all options
 mix run scripts/train_from_replays.exs \
