@@ -183,9 +183,9 @@ Testing, optimization, and Slippi integration
 - [ ] Matchup-specific metrics
 
 #### 5.2 Slippi Online Integration
-- [ ] Handle 18+ frame delay properly
+- [x] Handle 18+ frame delay properly (via `--frame-delay` training option)
 - [ ] Buffer donation support
-- [ ] Stable netplay performance (< 2ms inference)
+- [x] Stable netplay performance (< 2ms inference via Mamba or ONNX INT8)
 
 #### 5.3 Optimization
 - [ ] Inference optimization for real-time play
@@ -639,9 +639,41 @@ print(f'ONNX INT8 inference: {(time.time() - start) * 10:.2f} ms')
 
 #### Other Next Steps
 
-5. **Frame delay training** - Add delay simulation to imitation learning
-   - Critical for realistic Slippi online play (18+ frames)
-   - Modify embedding to include past N frames
+5. **Frame delay training** - IMPLEMENTED
+   Simulates Slippi online conditions where there's 18+ frame delay between
+   observing game state and your input taking effect.
+
+   **How it works:**
+   - Normal training: (state_t, action_t) pairs
+   - With delay N: (state_{t-N}, action_t) pairs
+   - Teaches the model to act on "stale" information, just like online play
+
+   **Training with frame delay:**
+   ```bash
+   # Simulate 18-frame online delay (Slippi standard)
+   mix run scripts/train_from_replays.exs \
+     --temporal --backbone mamba \
+     --frame-delay 18 \
+     --epochs 5
+
+   # Higher delay for worse connections
+   mix run scripts/train_from_replays.exs \
+     --temporal --backbone mamba \
+     --frame-delay 24 \
+     --epochs 5
+   ```
+
+   **Recommended workflow:**
+   1. First train with `--frame-delay 0` to learn basic gameplay
+   2. Fine-tune with `--frame-delay 18` for online adaptation
+   3. At inference, use matching `--frame-delay 18` in play scripts
+
+   **Frame delay values:**
+   | Connection | Delay | Notes |
+   |------------|-------|-------|
+   | LAN/Local | 0-4 | Near-instant |
+   | Good online | 12-18 | Standard Slippi |
+   | Poor online | 24-36 | High latency |
 
 6. **Self-play infrastructure** - Train agent vs agent
    - Use BEAM concurrency for parallel games

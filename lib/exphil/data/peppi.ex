@@ -169,18 +169,46 @@ defmodule ExPhil.Data.Peppi do
 
   Returns frames in the format expected by `ExPhil.Training.Data.from_frames/2`.
 
+  ## Options
+    - `:player_port` - Port of the player to train (default: 1)
+    - `:opponent_port` - Port of the opponent (default: 2)
+    - `:frame_delay` - Simulated online delay in frames (default: 0)
+
+  ## Frame Delay
+
+  When `frame_delay: N` is set, each training pair uses:
+  - Game state from frame (t - N) (what the agent "sees")
+  - Controller action from frame t (what action was actually taken)
+
+  This simulates Slippi online conditions where there's 18+ frame delay
+  between observing the game state and your input taking effect.
+
   ## Examples
 
+      # Normal training (no delay)
       {:ok, replay} = Peppi.parse("game.slp", player_port: 1)
       frames = Peppi.to_training_frames(replay, player_port: 1)
-      dataset = ExPhil.Training.Data.from_frames(frames)
+
+      # Simulated 18-frame online delay
+      frames = Peppi.to_training_frames(replay, player_port: 1, frame_delay: 18)
 
   """
   @spec to_training_frames(ParsedReplay.t(), keyword()) :: [map()]
   def to_training_frames(%ParsedReplay{} = replay, opts \\ []) do
     player_port = Keyword.get(opts, :player_port, 1)
     opponent_port = Keyword.get(opts, :opponent_port, 2)
+    frame_delay = Keyword.get(opts, :frame_delay, 0)
 
+    if frame_delay == 0 do
+      # No delay - standard training
+      extract_frames_no_delay(replay, player_port, opponent_port)
+    else
+      # With delay - pair old states with current actions
+      extract_frames_with_delay(replay, player_port, opponent_port, frame_delay)
+    end
+  end
+
+  defp extract_frames_no_delay(replay, player_port, opponent_port) do
     Enum.map(replay.frames, fn frame ->
       player = Map.get(frame.players, player_port)
       _opponent = Map.get(frame.players, opponent_port)
@@ -191,6 +219,42 @@ defmodule ExPhil.Data.Peppi do
       }
     end)
     |> Enum.filter(fn f -> f.game_state != nil and f.controller != nil end)
+  end
+
+  defp extract_frames_with_delay(replay, player_port, opponent_port, delay) do
+    frames = replay.frames
+    num_frames = length(frames)
+
+    if num_frames <= delay do
+      # Not enough frames for this delay
+      []
+    else
+      # Convert to array for O(1) lookups
+      frame_array = :array.from_list(frames)
+
+      # For each frame t >= delay, pair state_{t-delay} with action_t
+      delay..(num_frames - 1)
+      |> Enum.map(fn t ->
+        # Delayed game state (what agent "sees")
+        delayed_frame = :array.get(t - delay, frame_array)
+        delayed_state = build_game_state(delayed_frame, player_port, opponent_port, replay.metadata)
+
+        # Current action (what was actually done)
+        current_frame = :array.get(t, frame_array)
+        current_player = Map.get(current_frame.players, player_port)
+        current_action = build_controller_state(current_player)
+
+        %{
+          game_state: delayed_state,
+          controller: current_action,
+          # Include delay metadata for debugging/analysis
+          frame_delay: delay,
+          observed_frame: t - delay,
+          action_frame: t
+        }
+      end)
+      |> Enum.filter(fn f -> f.game_state != nil and f.controller != nil end)
+    end
   end
 
   # ============================================================================

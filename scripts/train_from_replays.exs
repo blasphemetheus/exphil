@@ -104,7 +104,9 @@ opts = [
     "f32" -> :f32
     "bf16" -> :bf16
     other -> raise "Unknown precision: #{other}. Use 'bf16' or 'f32'"
-  end
+  end,
+  # Frame delay for online simulation (Slippi online has 18+ frame delay)
+  frame_delay: String.to_integer(get_arg.("--frame-delay", "0"))
 ]
 
 temporal_info = if opts[:temporal] do
@@ -143,6 +145,7 @@ Configuration:
   Checkpoint:  #{opts[:checkpoint]}
   Wandb:       #{if opts[:wandb], do: "enabled", else: "disabled"}
   Precision:   #{precision_str}
+  Frame Delay: #{if opts[:frame_delay] > 0, do: "#{opts[:frame_delay]} frames (online simulation)", else: "0 (instant feedback)"}
 #{temporal_info}
 """)
 
@@ -189,7 +192,10 @@ IO.puts("  Found #{length(replay_files)} replay files")
     fn path ->
       case Peppi.parse(path, player_port: opts[:player_port]) do
         {:ok, replay} ->
-          frames = Peppi.to_training_frames(replay, player_port: opts[:player_port])
+          frames = Peppi.to_training_frames(replay,
+            player_port: opts[:player_port],
+            frame_delay: opts[:frame_delay]
+          )
           {path, length(frames), frames}
         {:error, reason} ->
           IO.puts("  ⚠ Failed to parse #{Path.basename(path)}: #{reason}")
