@@ -32,8 +32,10 @@ exphil/
 │   │   │   ├── vtrace.ex           # V-trace for off-policy correction
 │   │   │   └── distributed.ex      # Multi-GPU/node training
 │   │   ├── agents/                 # Agent implementations
-│   │   │   ├── basic.ex            # Single-step agent
-│   │   │   └── delayed.ex          # Agent with frame delay handling
+│   │   │   ├── agent.ex            # GenServer holding trained policy
+│   │   │   └── supervisor.ex       # DynamicSupervisor for agents
+│   │   ├── bridge/                 # Game communication
+│   │   │   ├── async_runner.ex     # Async frame reader + inference
 │   │   ├── rewards/                # Reward computation
 │   │   │   ├── standard.ex         # KO/damage differential
 │   │   │   └── shaped.ex           # Shaped rewards (approach, combo)
@@ -57,9 +59,11 @@ exphil/
 │   ├── dev.exs
 │   └── prod.exs
 ├── scripts/
-│   ├── train_imitation.exs         # Imitation learning script
-│   ├── train_rl.exs                # RL fine-tuning script
-│   └── eval.exs                    # Evaluation script
+│   ├── train_from_replays.exs      # Imitation learning script
+│   ├── train_ppo.exs               # PPO fine-tuning script
+│   ├── play_dolphin.exs            # Sync gameplay (fast MLP)
+│   ├── play_dolphin_async.exs      # Async gameplay (slow LSTM)
+│   └── eval_model.exs              # Model evaluation
 ├── docs/
 │   └── ARCHITECTURE.md
 ├── notebooks/                      # Livebook notebooks for analysis
@@ -88,7 +92,7 @@ Core infrastructure and Python bridge
 - [x] Implement libmelee wrapper in Python
 - [x] Create Elixir Port for bidirectional communication
 - [x] Handle game state serialization/deserialization
-- [ ] Test with Dolphin + Slippi
+- [x] Test with Dolphin + Slippi (async runner working!)
 
 ### Phase 2: Embeddings & Networks (Weeks 4-6)
 Neural network architecture in Nx/Axon
@@ -416,18 +420,84 @@ To run the trained agent against Dolphin:
    - Ubuntu/Debian: `sudo apt install libenet-dev`
 
 #### Running the Agent
+
+Two scripts are available for running trained agents:
+
+**Async Runner (Recommended for LSTM/temporal models):**
 ```bash
-# Activate venv first
 source .venv/bin/activate
 
-# Run against Dolphin
-mix run scripts/play_dolphin.exs \
-  --policy checkpoints/imitation_latest_policy.bin \
+# Async version - separates frame reading from inference
+# Best for slow models (LSTM ~500ms inference) - game runs at 60fps
+mix run scripts/play_dolphin_async.exs \
+  --policy checkpoints/lstm_policy.bin \
   --dolphin ~/.config/Slippi\ Launcher/netplay \
   --iso ~/path/to/melee.iso \
   --character mewtwo \
-  --stage final_destination
+  --stage final_destination \
+  --on-game-end restart  # or 'stop' to exit after one game
 ```
+
+**Sync Runner (For fast MLP models):**
+```bash
+source .venv/bin/activate
+
+# Sync version - inference on every frame
+# Best for fast models (<16ms inference)
+mix run scripts/play_dolphin.exs \
+  --policy checkpoints/mlp_policy.bin \
+  --dolphin ~/.config/Slippi\ Launcher/netplay \
+  --iso ~/path/to/melee.iso \
+  --character mewtwo \
+  --action-repeat 3  # Only compute new action every N frames
+```
+
+**Common Options:**
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--policy PATH` | required | Path to exported policy file |
+| `--dolphin PATH` | required | Path to Slippi/Dolphin folder |
+| `--iso PATH` | required | Path to Melee 1.02 ISO |
+| `--port N` | 1 | Agent controller port |
+| `--opponent-port N` | 2 | Human/opponent controller port |
+| `--character NAME` | mewtwo | Agent character |
+| `--stage NAME` | final_destination | Stage |
+| `--frame-delay N` | 0 | Simulated online delay |
+| `--deterministic` | false | Use argmax instead of sampling |
+
+**Async-only Options:**
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--on-game-end MODE` | restart | `restart` = auto-start next game, `stop` = exit after one game |
+
+**Sync-only Options:**
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--action-repeat N` | 1 | Cache action and reuse for N frames (reduces inference calls) |
+
+#### Async Architecture
+
+The async runner (`AsyncRunner`) uses Elixir's concurrency to decouple slow inference from fast frame reading:
+
+```
+┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
+│   FrameLoop     │────▶│   SharedState    │◀────│   Inference     │
+│   (fast, 60fps) │     │   (ETS table)    │     │   (slow, async) │
+└─────────────────┘     └──────────────────┘     └─────────────────┘
+```
+
+- **FrameLoop**: Reads frames at 60fps, sends last known action
+- **InferenceLoop**: Runs model async (~2/s for LSTM), updates action when ready
+- **ETS table**: Lock-free shared state between processes
+
+This allows the game to run smoothly even with 500ms LSTM inference times.
+
+#### JIT Warmup
+
+Both scripts include JIT warmup during Step 4, which pre-compiles the model before gameplay:
+- Runs dummy inference with zero-filled tensors
+- Avoids compilation stutter on first game frame
+- Takes ~10s for MLP, ~60s for LSTM on first run
 
 #### Wayland Notes (Hyprland, Sway, etc.)
 Slippi Dolphin may need environment flags:
@@ -788,11 +858,19 @@ mix run scripts/train_ppo.exs \
 # Evaluate model on replay frames
 mix run scripts/eval_model.exs --policy checkpoints/imitation_latest_policy.bin
 
-# Play against CPU in Dolphin
-mix run scripts/play_dolphin.exs \
-  --policy checkpoints/imitation_latest_policy.bin \
+# Play against human in Dolphin (async - best for LSTM)
+mix run scripts/play_dolphin_async.exs \
+  --policy checkpoints/lstm_policy.bin \
   --dolphin /path/to/slippi \
-  --iso /path/to/melee.iso
+  --iso /path/to/melee.iso \
+  --on-game-end restart
+
+# Play against human in Dolphin (sync - best for fast MLP)
+mix run scripts/play_dolphin.exs \
+  --policy checkpoints/mlp_policy.bin \
+  --dolphin /path/to/slippi \
+  --iso /path/to/melee.iso \
+  --action-repeat 3
 
 # Interactive analysis with Livebook
 livebook server notebooks/evaluation_dashboard.livemd
