@@ -59,6 +59,7 @@ defmodule ExPhil.Networks.Policy do
 
   alias ExPhil.Embeddings.Controller, as: ControllerEmbed
   alias ExPhil.Networks.Attention
+  alias ExPhil.Networks.Mamba
   alias ExPhil.Networks.Recurrent
 
   # Default architecture hyperparameters
@@ -67,7 +68,7 @@ defmodule ExPhil.Networks.Policy do
   @default_dropout 0.1
 
   # Backbone types
-  @type backbone_type :: :mlp | :sliding_window | :hybrid | :lstm | :gru
+  @type backbone_type :: :mlp | :sliding_window | :hybrid | :lstm | :gru | :mamba
 
   # Controller output sizes
   @num_buttons 8
@@ -166,6 +167,9 @@ defmodule ExPhil.Networks.Policy do
       :gru ->
         build_gru_backbone(embed_size, opts)
 
+      :mamba ->
+        build_mamba_backbone(embed_size, opts)
+
       :mlp ->
         # For MLP, expect single frame input, add sequence handling
         build_mlp_temporal_backbone(embed_size, opts)
@@ -243,6 +247,27 @@ defmodule ExPhil.Networks.Policy do
       return_sequences: false,
       window_size: window_size,
       truncate_bptt: truncate_bptt
+    )
+  end
+
+  defp build_mamba_backbone(embed_size, opts) do
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    state_size = Keyword.get(opts, :state_size, 16)
+    expand_factor = Keyword.get(opts, :expand_factor, 2)
+    conv_size = Keyword.get(opts, :conv_size, 4)
+    num_layers = Keyword.get(opts, :num_layers, 2)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+    window_size = Keyword.get(opts, :window_size, 60)
+
+    Mamba.build(
+      embed_size: embed_size,
+      hidden_size: hidden_size,
+      state_size: state_size,
+      expand_factor: expand_factor,
+      conv_size: conv_size,
+      num_layers: num_layers,
+      dropout: dropout,
+      window_size: window_size
     )
   end
 
@@ -704,6 +729,12 @@ defmodule ExPhil.Networks.Policy do
         num_heads * head_dim
 
       :lstm ->
+        Keyword.get(opts, :hidden_size, 256)
+
+      :gru ->
+        Keyword.get(opts, :hidden_size, 256)
+
+      :mamba ->
         Keyword.get(opts, :hidden_size, 256)
 
       :mlp ->

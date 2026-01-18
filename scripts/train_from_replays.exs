@@ -29,7 +29,7 @@ end
 #
 # Temporal Training Options:
 #   --temporal        - Enable temporal/sequence training with attention
-#   --backbone TYPE   - Backbone: sliding_window, hybrid, lstm, gru, mlp (default: sliding_window)
+#   --backbone TYPE   - Backbone: sliding_window, hybrid, lstm, gru, mamba, mlp (default: sliding_window)
 #   --window-size N   - Frames in attention window (default: 60)
 #   --stride N        - Stride for sequence sampling (default: 1)
 #   --truncate-bptt N - Truncate backprop through time to last N steps (default: full)
