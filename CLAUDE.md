@@ -464,7 +464,7 @@ mix run scripts/train_from_replays.exs \
 - [x] NumPy export workaround for Python-side ONNX conversion
 - Expected: 2-4x speedup with ~1% accuracy loss
 
-**Current Status:** Using local `blasphemetheus/axon_onnx` fork (`runtime-fixes` branch) at `../deps/axon_onnx`:
+**Current Status:** Using `blasphemetheus/axon_onnx` fork (`runtime-fixes` branch) via GitHub:
 - [x] sequence_last layer support
 - [x] LSTM/GRU serialization
 - [x] Multi-output model support (Policy's 6-head structure)
