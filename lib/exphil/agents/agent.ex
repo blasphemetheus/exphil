@@ -56,7 +56,13 @@ defmodule ExPhil.Agents.Agent do
     # Temporal inference config
     :temporal,
     :backbone,
-    :window_size
+    :window_size,
+    # JIT warmup tracking
+    :warmed_up,
+    # Action repeat (skip inference N-1 frames)
+    :action_repeat,
+    :frames_since_inference,
+    :last_action
   ]
 
   @type t :: %__MODULE__{}
@@ -143,6 +149,25 @@ defmodule ExPhil.Agents.Agent do
     GenServer.call(agent, :reset_buffer)
   end
 
+  @doc """
+  Warmup JIT compilation by running a dummy inference.
+
+  Call this during menu navigation so the first real game frame
+  gets fast inference. Returns the warmup time in milliseconds.
+  """
+  @spec warmup(GenServer.server()) :: {:ok, non_neg_integer()} | {:error, term()}
+  def warmup(agent) do
+    GenServer.call(agent, :warmup, 120_000)  # 2 minute timeout for JIT
+  end
+
+  @doc """
+  Check if the agent has been warmed up (JIT compiled).
+  """
+  @spec warmed_up?(GenServer.server()) :: boolean()
+  def warmed_up?(agent) do
+    GenServer.call(agent, :warmed_up?)
+  end
+
   # ============================================================================
   # GenServer Callbacks
   # ============================================================================
@@ -152,6 +177,7 @@ defmodule ExPhil.Agents.Agent do
     frame_delay = Keyword.get(opts, :frame_delay, 0)
     deterministic = Keyword.get(opts, :deterministic, false)
     temperature = Keyword.get(opts, :temperature, 1.0)
+    action_repeat = Keyword.get(opts, :action_repeat, 1)
 
     state = %__MODULE__{
       name: Keyword.get(opts, :name),
@@ -162,7 +188,13 @@ defmodule ExPhil.Agents.Agent do
       # Temporal config - will be set when policy is loaded
       temporal: false,
       backbone: :mlp,
-      window_size: 60
+      window_size: 60,
+      # JIT warmup
+      warmed_up: false,
+      # Action repeat
+      action_repeat: action_repeat,
+      frames_since_inference: 0,
+      last_action: nil
     }
 
     # Load policy if provided
@@ -244,8 +276,46 @@ defmodule ExPhil.Agents.Agent do
 
   @impl true
   def handle_call(:reset_buffer, _from, state) do
-    new_state = %{state | frame_buffer: :queue.new()}
+    new_state = %{state | frame_buffer: :queue.new(), last_action: nil, frames_since_inference: 0}
     {:reply, :ok, new_state}
+  end
+
+  @impl true
+  def handle_call(:warmup, _from, state) do
+    if state.policy_params == nil do
+      {:reply, {:error, :no_policy_loaded}, state}
+    else
+      Logger.info("[Agent] Starting JIT warmup...")
+      start_time = System.monotonic_time(:millisecond)
+
+      # Create a dummy game state for warmup
+      dummy_state = create_dummy_game_state()
+      dummy_embedded = embed_game_state(dummy_state, 1, state.embed_config)
+
+      # Run inference to trigger JIT compilation
+      if state.temporal do
+        # For temporal models, we need a full window of dummy embeddings
+        dummy_sequence = List.duplicate(dummy_embedded, state.window_size)
+        |> Nx.stack()
+        |> Nx.new_axis(0)  # Add batch dimension
+
+        _output = state.predict_fn.(state.policy_params, dummy_sequence)
+      else
+        # For MLP, just single frame
+        input = Nx.reshape(dummy_embedded, {1, :auto})
+        _output = state.predict_fn.(state.policy_params, input)
+      end
+
+      elapsed = System.monotonic_time(:millisecond) - start_time
+      Logger.info("[Agent] JIT warmup complete (#{elapsed}ms)")
+
+      {:reply, {:ok, elapsed}, %{state | warmed_up: true}}
+    end
+  end
+
+  @impl true
+  def handle_call(:warmed_up?, _from, state) do
+    {:reply, state.warmed_up, state}
   end
 
   @impl true
@@ -267,17 +337,39 @@ defmodule ExPhil.Agents.Agent do
   end
 
   defp compute_action(state, game_state, opts) do
+    # Action repeat: return cached action if we haven't hit the repeat interval
+    if state.action_repeat > 1 and state.last_action != nil and
+       state.frames_since_inference < state.action_repeat do
+      # Return cached action, increment counter
+      new_state = %{state | frames_since_inference: state.frames_since_inference + 1}
+      {:ok, state.last_action, new_state}
+    else
+      # Time to run actual inference
+      do_compute_action(state, game_state, opts)
+    end
+  end
+
+  defp do_compute_action(state, game_state, opts) do
     try do
       # Embed game state
       player_port = Keyword.get(opts, :player_port, 1)
       embedded = embed_game_state(game_state, player_port, state.embed_config)
 
       # Route to temporal or single-frame inference
-      if state.temporal do
+      {action, new_state} = if state.temporal do
         compute_temporal_action(state, embedded, opts)
       else
         compute_single_frame_action(state, embedded, opts)
       end
+
+      # Cache action for action repeat
+      new_state = %{new_state |
+        last_action: action,
+        frames_since_inference: 1,
+        warmed_up: true  # Mark as warmed up after first successful inference
+      }
+
+      {:ok, action, new_state}
     rescue
       e ->
         Logger.error("[Agent] Error computing action: #{inspect(e)}")
@@ -301,7 +393,7 @@ defmodule ExPhil.Agents.Agent do
       temperature: temperature
     )
 
-    {:ok, action, state}
+    {action, state}
   end
 
   # Temporal inference with frame buffering
@@ -343,7 +435,7 @@ defmodule ExPhil.Agents.Agent do
     # Update state with new buffer
     new_state = %{state | frame_buffer: buffer}
 
-    {:ok, action, new_state}
+    {action, new_state}
   end
 
   # Trim buffer to max size, dropping oldest frames
@@ -478,5 +570,42 @@ defmodule ExPhil.Agents.Agent do
     else
       state
     end
+  end
+
+  # Create a dummy game state for JIT warmup
+  defp create_dummy_game_state do
+    alias ExPhil.Bridge.{GameState, Player}
+
+    dummy_player = %Player{
+      character: 25,  # Mewtwo
+      x: 0.0,
+      y: 0.0,
+      percent: 0.0,
+      stock: 4,
+      facing: 1,
+      action: 0,
+      action_frame: 0,
+      invulnerable: false,
+      jumps_left: 2,
+      on_ground: true,
+      shield_strength: 60.0,
+      hitstun_frames_left: 0,
+      speed_air_x_self: 0.0,
+      speed_ground_x_self: 0.0,
+      speed_y_self: 0.0,
+      speed_x_attack: 0.0,
+      speed_y_attack: 0.0,
+      nana: nil,
+      controller_state: nil
+    }
+
+    %GameState{
+      frame: 0,
+      stage: 32,  # Final Destination
+      menu_state: 2,  # In-game
+      players: %{1 => dummy_player, 2 => dummy_player},
+      projectiles: [],
+      distance: 50.0
+    }
   end
 end
