@@ -336,8 +336,15 @@ final_trainer = Enum.reduce(1..opts[:epochs], trainer, fn epoch, current_trainer
 
   num_batches = length(batches)
 
+  # Epoch start message
+  if epoch > 1 do
+    IO.puts("\n  ─── Epoch #{epoch}/#{opts[:epochs]} ───")
+    IO.puts("  Starting #{num_batches} batches...")
+  end
+
   # Train epoch with JIT compilation indicator
   jit_indicator_shown = if epoch == 1 do
+    IO.puts("  ─── Epoch 1/#{opts[:epochs]} ───")
     IO.puts("  ⏳ JIT compiling model (first batch)... this may take 2-5 minutes")
     IO.puts("     (subsequent batches will be fast)")
     true
@@ -345,28 +352,47 @@ final_trainer = Enum.reduce(1..opts[:epochs], trainer, fn epoch, current_trainer
     false
   end
 
+  # Track timing for ETA calculation
+  epoch_batch_start = System.monotonic_time(:millisecond)
+
   {updated_trainer, epoch_losses, _} = Enum.reduce(Enum.with_index(batches), {current_trainer, [], jit_indicator_shown}, fn {batch, batch_idx}, {t, losses, jit_shown} ->
     batch_start = System.monotonic_time(:millisecond)
     # Note: loss_fn is ignored by train_step (it uses cached predict_fn internally)
     {new_trainer, metrics} = Imitation.train_step(t, batch, nil)
-    batch_time = System.monotonic_time(:millisecond) - batch_start
+    batch_time_ms = System.monotonic_time(:millisecond) - batch_start
 
     # Show JIT completion message after first batch
     new_jit_shown = if jit_shown and batch_idx == 0 do
-      IO.puts("\n  ✓ JIT compilation complete (took #{Float.round(batch_time / 1000, 1)}s)")
-      IO.puts("    Now training...")
-      false
+      IO.puts("\n  ✓ JIT compilation complete (took #{Float.round(batch_time_ms / 1000, 1)}s)")
+      IO.puts("    Training started - progress updates every 5%\n")
+      true  # Keep as true, we'll handle first progress differently
     else
       jit_shown
     end
 
-    # Progress indicator every 10%
-    if rem(batch_idx + 1, max(1, div(num_batches, 10))) == 0 do
+    # Progress indicator every 5% (more frequent for better feedback)
+    progress_interval = max(1, div(num_batches, 20))
+    show_progress = rem(batch_idx + 1, progress_interval) == 0 or batch_idx == 0
+
+    if show_progress and batch_idx > 0 do
       pct = round((batch_idx + 1) / num_batches * 100)
-      elapsed_sec = Float.round(batch_time / 1000, 1)
-      IO.puts("  Epoch #{epoch}: #{pct}% (batch #{batch_idx + 1}/#{num_batches}, loss: #{Float.round(metrics.loss, 4)}, #{elapsed_sec}s/batch)")
-      # Force flush to ensure progress shows in logs immediately
-      :ok = IO.binwrite(:stdio, "")
+      elapsed_total_ms = System.monotonic_time(:millisecond) - epoch_batch_start
+      avg_batch_ms = elapsed_total_ms / (batch_idx + 1)
+      remaining_batches = num_batches - (batch_idx + 1)
+      eta_sec = round(remaining_batches * avg_batch_ms / 1000)
+      eta_min = div(eta_sec, 60)
+      eta_sec_rem = rem(eta_sec, 60)
+
+      # Format: Epoch 1: ████████░░ 40% | batch 642/1606 | loss: 0.1234 | 0.5s/batch | ETA: 8m 12s
+      bar_width = 10
+      filled = round(pct / 100 * bar_width)
+      bar = String.duplicate("█", filled) <> String.duplicate("░", bar_width - filled)
+
+      progress_line = "  Epoch #{epoch}: #{bar} #{pct}% | batch #{batch_idx + 1}/#{num_batches} | loss: #{Float.round(metrics.loss, 4)} | #{Float.round(avg_batch_ms / 1000, 2)}s/batch | ETA: #{eta_min}m #{eta_sec_rem}s"
+      IO.puts(progress_line)
+
+      # Force flush
+      Process.sleep(1)
     end
 
     {new_trainer, [metrics.loss | losses], new_jit_shown}
@@ -383,14 +409,19 @@ final_trainer = Enum.reduce(1..opts[:epochs], trainer, fn epoch, current_trainer
   end
   val_metrics = Imitation.evaluate(updated_trainer, val_batches)
 
-  IO.puts("\r  Epoch #{epoch}/#{opts[:epochs]}: train_loss=#{Float.round(avg_loss, 4)} val_loss=#{Float.round(val_metrics.loss, 4)} (#{epoch_time}s)")
+  IO.puts("")
+  IO.puts("  ✓ Epoch #{epoch} complete: train_loss=#{Float.round(avg_loss, 4)} val_loss=#{Float.round(val_metrics.loss, 4)} (#{epoch_time}s)")
 
   updated_trainer
 end)
 
 total_time = System.monotonic_time(:second) - start_time
+total_min = div(total_time, 60)
+total_sec = rem(total_time, 60)
+IO.puts("")
 IO.puts("─" |> String.duplicate(60))
-IO.puts("Training complete in #{total_time}s")
+IO.puts("✓ Training complete in #{total_min}m #{total_sec}s")
+IO.puts("─" |> String.duplicate(60))
 
 # Step 5: Save checkpoint
 IO.puts("\nStep 5: Saving checkpoint...")
