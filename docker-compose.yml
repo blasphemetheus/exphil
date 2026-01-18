@@ -1,0 +1,85 @@
+# ExPhil Docker Compose Configuration
+# Usage:
+#   docker-compose build                    # Build the image
+#   docker-compose run train-gpu            # Run GPU training
+#   docker-compose run train-gpu-temporal   # Run with temporal backbone
+
+services:
+  # GPU training with default settings
+  train-gpu:
+    build:
+      context: .
+      dockerfile: Dockerfile.gpu
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    volumes:
+      - ./replays:/app/replays:ro
+      - ./checkpoints:/app/checkpoints:rw
+    environment:
+      - MIX_ENV=prod
+      - CUDA_VISIBLE_DEVICES=0
+      - WANDB_API_KEY=${WANDB_API_KEY:-}
+    command: >
+      mix run scripts/train_from_replays.exs
+      --epochs 10
+      --batch-size 128
+      --replays /app/replays
+      --checkpoint /app/checkpoints/model.axon
+
+  # GPU training with temporal/attention backbone
+  train-gpu-temporal:
+    build:
+      context: .
+      dockerfile: Dockerfile.gpu
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    volumes:
+      - ./replays:/app/replays:ro
+      - ./checkpoints:/app/checkpoints:rw
+    environment:
+      - MIX_ENV=prod
+      - CUDA_VISIBLE_DEVICES=0
+      - WANDB_API_KEY=${WANDB_API_KEY:-}
+    command: >
+      mix run scripts/train_from_replays.exs
+      --temporal
+      --backbone sliding_window
+      --window-size 60
+      --epochs 10
+      --batch-size 64
+      --replays /app/replays
+      --checkpoint /app/checkpoints/temporal_model.axon
+
+  # Interactive shell for debugging
+  shell:
+    build:
+      context: .
+      dockerfile: Dockerfile.gpu
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    volumes:
+      - ./replays:/app/replays:ro
+      - ./checkpoints:/app/checkpoints:rw
+      - ./lib:/app/lib:ro
+      - ./scripts:/app/scripts:ro
+    environment:
+      - MIX_ENV=prod
+      - CUDA_VISIBLE_DEVICES=0
+    stdin_open: true
+    tty: true
+    command: iex -S mix

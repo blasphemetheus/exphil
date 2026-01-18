@@ -1,0 +1,47 @@
+# Build artifacts
+_build/
+deps/
+.elixir_ls/
+cover/
+
+# Checkpoints and data (mounted at runtime)
+checkpoints/
+replays/
+*.axon
+*.bin
+
+# Development files
+.git/
+.gitignore
+*.md
+CLAUDE.md
+docs/
+notebooks/
+
+# Crash dumps
+erl_crash.dump
+*.dump
+
+# Test and dev
+test/
+.credo.exs
+.formatter.exs
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Rust build artifacts (rebuilt in container)
+native/*/target/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# OS files
+.DS_Store
+Thumbs.db

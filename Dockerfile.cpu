@@ -1,0 +1,95 @@
+# ExPhil CPU Training Dockerfile
+# For local testing without GPU
+
+FROM ubuntu:22.04 AS builder
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV LANG=C.UTF-8
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential gcc g++ make autoconf libtool git curl ca-certificates unzip \
+    libblas-dev liblapack-dev libopenblas-dev \
+    python3.11 python3.11-dev python3.11-venv python3-pip \
+    libncurses5-dev libssl-dev libwxgtk3.0-gtk3-dev libsctp-dev libodbc1 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Rust
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+ENV PATH="/root/.cargo/bin:${PATH}"
+
+# Install asdf
+ENV ASDF_DIR="/root/.asdf"
+RUN git clone https://github.com/asdf-vm/asdf.git $ASDF_DIR --branch v0.14.0
+ENV PATH="${ASDF_DIR}/bin:${ASDF_DIR}/shims:${PATH}"
+
+# Install Erlang and Elixir
+RUN asdf plugin add erlang && asdf plugin add elixir
+RUN asdf install erlang 27.0 && asdf global erlang 27.0
+RUN asdf install elixir 1.17.3-otp-27 && asdf global elixir 1.17.3-otp-27
+
+# Set up Python
+RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1 \
+    && python3 -m pip install --upgrade pip
+
+WORKDIR /app
+
+# Copy and build deps
+COPY mix.exs mix.lock ./
+COPY config ./config
+COPY native ./native
+COPY priv/python/requirements.txt ./priv/python/
+
+ENV MIX_ENV=prod
+ENV XLA_TARGET=cpu
+ENV EXLA_TARGET=host
+ENV HEX_HTTP_CONCURRENCY=1
+ENV HEX_HTTP_TIMEOUT=120
+
+RUN mix local.hex --force && mix local.rebar --force
+RUN mix deps.get --only prod || mix deps.get --only prod
+RUN python3 -m pip install --no-cache-dir -r priv/python/requirements.txt
+RUN mix deps.compile
+
+COPY lib ./lib
+COPY scripts ./scripts
+COPY priv ./priv
+
+RUN mix compile
+
+# Runtime stage
+FROM ubuntu:22.04 AS runtime
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV LANG=C.UTF-8
+ENV MIX_ENV=prod
+ENV EXLA_TARGET=host
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libncurses6 libssl3 libstdc++6 libsctp1 \
+    libopenblas0 liblapack3 \
+    python3.11 python3-pip \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1
+
+ENV ASDF_DIR="/root/.asdf"
+COPY --from=builder /root/.asdf /root/.asdf
+ENV PATH="${ASDF_DIR}/bin:${ASDF_DIR}/shims:${PATH}"
+RUN asdf global erlang 27.0 && asdf global elixir 1.17.3-otp-27
+
+COPY --from=builder /usr/local/lib/python3.11/dist-packages /usr/local/lib/python3.11/dist-packages
+
+WORKDIR /app
+COPY --from=builder /app/_build /app/_build
+COPY --from=builder /app/deps /app/deps
+COPY --from=builder /app/config /app/config
+COPY --from=builder /app/lib /app/lib
+COPY --from=builder /app/scripts /app/scripts
+COPY --from=builder /app/priv /app/priv
+COPY --from=builder /app/mix.exs /app/mix.lock /app/
+
+RUN mix local.hex --force && mix local.rebar --force
+RUN mkdir -p /app/replays /app/checkpoints
+
+CMD ["mix", "run", "scripts/train_from_replays.exs", "--help"]

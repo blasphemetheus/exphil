@@ -141,6 +141,10 @@ bridge_config = %{
 }
 
 case MeleePort.init_console(bridge, bridge_config, 60_000) do
+  {:ok, info} ->
+    IO.puts("  ✓ Dolphin initialized and connected!")
+    IO.puts("    Controller on port: #{info.controller_port}")
+
   :ok ->
     IO.puts("  ✓ Dolphin initialized and connected!")
 

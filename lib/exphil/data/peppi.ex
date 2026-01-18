@@ -38,7 +38,8 @@ defmodule ExPhil.Data.Peppi do
 
   use Rustler,
     otp_app: :exphil,
-    crate: "exphil_peppi"
+    crate: "exphil_peppi",
+    skip_compilation?: Mix.env() == :prod
 
   # ============================================================================
   # NIF Struct Definitions

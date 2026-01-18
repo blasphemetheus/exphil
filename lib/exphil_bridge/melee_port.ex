@@ -111,10 +111,11 @@ defmodule ExPhil.Bridge.MeleePort do
 
   @impl true
   def init(opts) do
-    python_path = Keyword.get(opts, :python_path, "python3")
+    python_path = Keyword.get(opts, :python_path, find_python())
     script_path = Keyword.get(opts, :script_path, default_script_path())
 
     Logger.info("[MeleePort] Starting Python bridge: #{script_path}")
+    Logger.info("[MeleePort] Using Python: #{python_path}")
 
     port = Port.open(
       {:spawn_executable, python_path},
@@ -226,6 +227,24 @@ defmodule ExPhil.Bridge.MeleePort do
   rescue
     # Fallback for development
     _ -> Path.join([File.cwd!(), "priv", "python", "melee_bridge.py"])
+  end
+
+  defp find_python do
+    # Check for project venv first (has libmelee installed)
+    venv_python = Path.join([File.cwd!(), ".venv", "bin", "python3"])
+
+    cond do
+      File.exists?(venv_python) ->
+        venv_python
+
+      # Check EXPHIL_PYTHON env var
+      System.get_env("EXPHIL_PYTHON") ->
+        System.get_env("EXPHIL_PYTHON")
+
+      # Fall back to system python3
+      true ->
+        "python3"
+    end
   end
 
   defp send_request(port, request) do
