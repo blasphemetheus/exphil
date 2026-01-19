@@ -174,7 +174,7 @@ mix run scripts/play_dolphin_async.exs --policy checkpoints/model_policy.bin
 The single most valuable contribution right now is **replay files** for the target characters. Even a few games help expand the training distribution.
 
 ### Code Contributions
-PRs welcome! See the [issues](https://github.com/[your-repo]/exphil/issues) for current priorities.
+PRs welcome! See the [issues](https://github.com/blasphemetheus/exphil/issues) for current priorities.
 
 ### Research Collaboration
 If you're working on fighting game AI, game-playing agents, or imitation learning, let's talk!
