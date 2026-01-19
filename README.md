@@ -16,14 +16,14 @@ ExPhil is building competitive AI agents for Melee's lower-tier characters using
 | **Ganondorf** | Punish optimization, spacing, stomp setups |
 | **Link** | Projectile zoning, bomb recovery, zair |
 | **Zelda** | Transform decisions, lightning kick spacing |
-| **Game & Watch** | Bucket, fair/dair L-cancels, hammer RNG |
+| **Game & Watch** | Bucket, only fair/dair L-cancels, hammer RNG |
 
 ### How to Donate Replays
 
 1. **Find your replays**: `~/.slippi/replays/` (Linux/Mac) or `%APPDATA%\Slippi\replays\` (Windows)
 2. **Filter for your character**: We only need games where you played one of the characters above
 3. **Any skill level helps**, but ranked/tournament games are especially valuable
-4. **Send them**: [Contact info / Discord / Upload link]
+4. **Send them**: dleie on discord (spikenard)
 
 > 💡 **Why low-tier replays matter**: Top-tier characters have thousands of hours of pro gameplay to learn from. Mewtwo mains? Not so much. Your games—even if you're not a top player—contain crucial character-specific knowledge that doesn't exist elsewhere.
 
@@ -188,5 +188,5 @@ MIT License - see [LICENSE](LICENSE) for details.
 ---
 
 <p align="center">
-  <i>Making low-tiers viable, one neural network at a time.</i>
+  <i>Why doesn't slippi-ai have mewtwo?.</i>
 </p>
