@@ -100,9 +100,22 @@ With a $0.10/hr CPU instance, processing 5 archives costs ~$0.30.
 
 ## Troubleshooting
 
-### "Quota exceeded" on Google Drive
-- Try again later, or use `gdown --fuzzy` flag
-- Split downloads across time
+### "Quota exceeded" / "Too many users" on Google Drive
+
+gdown often fails on popular files. **Use rclone instead** - see [RCLONE_GDRIVE.md](RCLONE_GDRIVE.md) for full setup.
+
+Quick version:
+```bash
+# Install rclone
+curl https://rclone.org/install.sh | bash
+
+# Configure with your own Google API credentials (bypasses rate limits)
+rclone config
+
+# Open each file link in your browser first (adds to "Shared with me")
+# Then download:
+rclone copy --progress --drive-shared-with-me "gdrive:" /workspace/downloads/ --include "*.7z"
+```
 
 ### Out of disk space
 - Use `--cleanup` flag to delete archives after extraction
