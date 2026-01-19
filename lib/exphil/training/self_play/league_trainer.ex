@@ -280,15 +280,15 @@ defmodule ExPhil.Training.SelfPlay.LeagueTrainer do
       ppo_trainer = Map.get(trainer.ppo_trainers, agent_id)
       rollout = collect_rollout(ppo_trainer, agent, opponent, trainer.config)
 
-      # Update PPO
-      {:ok, updated_ppo, metrics} = PPO.update(ppo_trainer, rollout)
+      # Update PPO (returns {trainer, metrics} tuple)
+      {updated_ppo, metrics} = PPO.update(ppo_trainer, rollout)
 
       # Update Elo based on results
       updated_agent = update_agent_elo(agent, rollout)
 
       {agent_id, updated_ppo, updated_agent, metrics}
     end)
-    |> Enum.reduce({%{}, %{}}, fn {id, ppo, agent, metrics}, {ppo_acc, metrics_acc} ->
+    |> Enum.reduce({%{}, %{}}, fn {id, ppo, _agent, metrics}, {ppo_acc, metrics_acc} ->
       {
         Map.put(ppo_acc, id, ppo),
         Map.put(metrics_acc, id, metrics)
@@ -353,7 +353,7 @@ defmodule ExPhil.Training.SelfPlay.LeagueTrainer do
         prioritized_sample(eligible, agent, trainer)
       else
         # Uniform sampling
-        {opponent_id, opponent} = Enum.random(eligible)
+        {opponent_id, _opponent} = Enum.random(eligible)
         ppo = Map.get(trainer.ppo_trainers, opponent_id)
         {:league, %{type: :league, params: ppo.params, id: opponent_id}}
       end

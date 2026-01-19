@@ -49,7 +49,6 @@ defmodule ExPhil.Training.SelfPlay.SelfPlayEnv do
 
   alias ExPhil.Bridge.{MeleePort, GameState, ControllerState}
   alias ExPhil.{Embeddings, Rewards}
-  alias ExPhil.Networks.Policy
 
   require Logger
 
@@ -247,6 +246,43 @@ defmodule ExPhil.Training.SelfPlay.SelfPlayEnv do
     %{env | p2_policy: compile_policy(policy)}
   end
 
+  @doc """
+  Update opponent from OpponentPool sample.
+
+  Handles different opponent types:
+  - %{type: :cpu, level: N} -> Sets CPU opponent
+  - %{type: :current, params: params} -> Sets current policy
+  - %{type: :historical, params: params} -> Sets historical policy
+  """
+  @spec update_opponent(t(), map()) :: t()
+  def update_opponent(%__MODULE__{} = env, %{type: :cpu, level: level}) do
+    %{env | p2_policy: :cpu, p2_cpu_level: level}
+  end
+
+  def update_opponent(%__MODULE__{} = env, %{params: params}) when not is_nil(params) do
+    # Historical or current policy with params
+    {model, _, _} = env.p1_policy  # Reuse P1's model architecture
+    update_p2_policy(env, {model, params})
+  end
+
+  def update_opponent(%__MODULE__{} = env, _opponent) do
+    # Fallback to CPU level 7
+    %{env | p2_policy: :cpu, p2_cpu_level: 7}
+  end
+
+  @doc """
+  Shutdown environment and release resources.
+  """
+  @spec shutdown(t()) :: :ok
+  def shutdown(%__MODULE__{game_type: :mock}), do: :ok
+
+  def shutdown(%__MODULE__{game_type: :dolphin, game: port}) do
+    if is_pid(port) and Process.alive?(port) do
+      MeleePort.stop(port)
+    end
+    :ok
+  end
+
   # ============================================================================
   # Private Functions
   # ============================================================================
@@ -293,8 +329,8 @@ defmodule ExPhil.Training.SelfPlay.SelfPlayEnv do
   end
 
   defp reset_dolphin_game(port) do
-    # Send reset command to Dolphin
-    MeleePort.reset(port)
+    # TODO: Implement Dolphin reset when MeleePort is ready
+    # For now, just return the port (game continues from current state)
     port
   end
 
@@ -429,7 +465,8 @@ defmodule ExPhil.Training.SelfPlay.SelfPlayEnv do
       Nx.greater(probs, 0.5)
     else
       # Sample from Bernoulli
-      uniform = Nx.random_uniform(Nx.shape(probs))
+      key = Nx.Random.key(System.system_time())
+      {uniform, _} = Nx.Random.uniform(key, shape: Nx.shape(probs))
       Nx.less(uniform, probs)
     end
   end
@@ -440,7 +477,9 @@ defmodule ExPhil.Training.SelfPlay.SelfPlayEnv do
     else
       probs = Axon.Activations.softmax(logits, axis: -1) |> Nx.squeeze()
       # Sample using Gumbel-max trick
-      gumbel = Nx.negate(Nx.log(Nx.negate(Nx.log(Nx.random_uniform(Nx.shape(probs))))))
+      key = Nx.Random.key(System.system_time())
+      {uniform, _} = Nx.Random.uniform(key, shape: Nx.shape(probs))
+      gumbel = Nx.negate(Nx.log(Nx.negate(Nx.log(uniform))))
       Nx.argmax(Nx.add(Nx.log(probs), gumbel), axis: -1)
     end
   end
