@@ -185,6 +185,204 @@ defmodule ExPhil.Training.Config do
     """
   end
 
+  # ============================================================================
+  # Validation
+  # ============================================================================
+
+  @valid_backbones [:lstm, :gru, :mamba, :sliding_window, :hybrid]
+
+  @doc """
+  Validate training options and return errors/warnings.
+
+  Returns `{:ok, opts}` if valid, or `{:error, errors}` if invalid.
+  Warnings are logged but don't cause validation to fail.
+
+  ## Examples
+
+      iex> Config.validate(epochs: 10, batch_size: 64)
+      {:ok, [epochs: 10, batch_size: 64]}
+
+      iex> Config.validate(epochs: -1)
+      {:error, ["epochs must be positive, got: -1"]}
+
+  """
+  def validate(opts) do
+    errors = collect_errors(opts)
+    warnings = collect_warnings(opts)
+
+    # Log warnings
+    Enum.each(warnings, &IO.warn/1)
+
+    case errors do
+      [] -> {:ok, opts}
+      _ -> {:error, errors}
+    end
+  end
+
+  @doc """
+  Validate training options, raising on errors.
+
+  Returns opts if valid, raises `ArgumentError` if invalid.
+  Warnings are logged but don't cause validation to fail.
+
+  ## Examples
+
+      iex> Config.validate!(epochs: 10, batch_size: 64)
+      [epochs: 10, batch_size: 64]
+
+      iex> Config.validate!(epochs: -1)
+      ** (ArgumentError) Invalid training configuration...
+
+  """
+  def validate!(opts) do
+    case validate(opts) do
+      {:ok, opts} -> opts
+      {:error, errors} ->
+        raise ArgumentError, """
+        Invalid training configuration:
+
+        #{Enum.map_join(errors, "\n", &("  - " <> &1))}
+
+        Use --help or see docs/TRAINING_FEATURES.md for valid options.
+        """
+    end
+  end
+
+  defp collect_errors(opts) do
+    []
+    |> validate_positive(opts, :epochs)
+    |> validate_positive(opts, :batch_size)
+    |> validate_positive_or_nil(opts, :max_files)
+    |> validate_positive(opts, :window_size)
+    |> validate_positive(opts, :stride)
+    |> validate_positive(opts, :num_layers)
+    |> validate_positive(opts, :state_size)
+    |> validate_positive(opts, :expand_factor)
+    |> validate_positive(opts, :conv_size)
+    |> validate_non_negative(opts, :frame_delay)
+    |> validate_hidden_sizes(opts)
+    |> validate_temporal_backbone(opts)
+    |> validate_precision(opts)
+    |> validate_replays_dir(opts)
+  end
+
+  defp collect_warnings(opts) do
+    []
+    |> warn_large_window_size(opts)
+    |> warn_large_batch_size(opts)
+    |> warn_many_epochs_without_wandb(opts)
+    |> warn_temporal_without_window(opts)
+  end
+
+  # Error validators
+  defp validate_positive(errors, opts, key) do
+    value = opts[key]
+    if is_integer(value) and value <= 0 do
+      ["#{key} must be positive, got: #{value}" | errors]
+    else
+      errors
+    end
+  end
+
+  defp validate_positive_or_nil(errors, opts, key) do
+    value = opts[key]
+    if value != nil and (not is_integer(value) or value <= 0) do
+      ["#{key} must be a positive integer or nil, got: #{inspect(value)}" | errors]
+    else
+      errors
+    end
+  end
+
+  defp validate_non_negative(errors, opts, key) do
+    value = opts[key]
+    if is_integer(value) and value < 0 do
+      ["#{key} must be non-negative, got: #{value}" | errors]
+    else
+      errors
+    end
+  end
+
+  defp validate_hidden_sizes(errors, opts) do
+    case opts[:hidden_sizes] do
+      nil -> errors
+      sizes when is_list(sizes) ->
+        if Enum.all?(sizes, &(is_integer(&1) and &1 > 0)) do
+          errors
+        else
+          ["hidden_sizes must be a list of positive integers, got: #{inspect(sizes)}" | errors]
+        end
+      other ->
+        ["hidden_sizes must be a list, got: #{inspect(other)}" | errors]
+    end
+  end
+
+  defp validate_temporal_backbone(errors, opts) do
+    if opts[:temporal] do
+      backbone = opts[:backbone]
+      if backbone not in @valid_backbones do
+        ["temporal training requires backbone in #{inspect(@valid_backbones)}, got: #{inspect(backbone)}" | errors]
+      else
+        errors
+      end
+    else
+      errors
+    end
+  end
+
+  defp validate_precision(errors, opts) do
+    case opts[:precision] do
+      p when p in [:bf16, :f32] -> errors
+      nil -> errors
+      other -> ["precision must be :bf16 or :f32, got: #{inspect(other)}" | errors]
+    end
+  end
+
+  defp validate_replays_dir(errors, opts) do
+    dir = opts[:replays]
+    if dir && not File.dir?(dir) do
+      ["replays directory does not exist: #{dir}" | errors]
+    else
+      errors
+    end
+  end
+
+  # Warning collectors
+  defp warn_large_window_size(warnings, opts) do
+    if opts[:window_size] && opts[:window_size] > 120 do
+      ["window_size #{opts[:window_size]} > 120 may cause memory issues" | warnings]
+    else
+      warnings
+    end
+  end
+
+  defp warn_large_batch_size(warnings, opts) do
+    if opts[:batch_size] && opts[:batch_size] > 256 do
+      ["batch_size #{opts[:batch_size]} > 256 may cause memory issues on CPU" | warnings]
+    else
+      warnings
+    end
+  end
+
+  defp warn_many_epochs_without_wandb(warnings, opts) do
+    epochs = opts[:epochs] || 0
+    wandb = opts[:wandb] || false
+    if epochs >= 20 and not wandb do
+      ["training #{epochs} epochs without --wandb; consider enabling for metrics tracking" | warnings]
+    else
+      warnings
+    end
+  end
+
+  defp warn_temporal_without_window(warnings, opts) do
+    temporal = opts[:temporal] || false
+    window_size = opts[:window_size] || 60
+    if temporal and window_size < 30 do
+      ["temporal training with window_size < 30 may miss important temporal patterns" | warnings]
+    else
+      warnings
+    end
+  end
+
   @doc """
   Apply a preset to options, allowing CLI args to override preset values.
 

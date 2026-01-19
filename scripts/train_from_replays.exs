@@ -75,9 +75,11 @@ alias ExPhil.Embeddings
 alias ExPhil.Integrations.Wandb
 
 # Parse command line arguments using Config module
+# Validation runs after parsing to catch errors early (before expensive setup)
 opts = System.argv()
        |> Config.parse_args()
        |> Config.ensure_checkpoint_name()
+       |> Config.validate!()
 
 # Ensure checkpoints directory exists
 File.mkdir_p!("checkpoints")

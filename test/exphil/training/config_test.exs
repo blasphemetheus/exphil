@@ -809,4 +809,244 @@ defmodule ExPhil.Training.ConfigTest do
       [id | acc]
     end
   end
+
+  # ============================================================================
+  # Validation Tests
+  # ============================================================================
+
+  describe "validate/1" do
+    test "returns {:ok, opts} for valid configuration" do
+      opts = [epochs: 10, batch_size: 64, hidden_sizes: [64, 64]]
+      assert {:ok, ^opts} = Config.validate(opts)
+    end
+
+    test "returns {:ok, opts} for default configuration" do
+      opts = Config.defaults()
+      assert {:ok, _} = Config.validate(opts)
+    end
+
+    test "returns {:ok, opts} for all presets" do
+      for preset <- Config.available_presets() do
+        opts = Config.preset(preset)
+        assert {:ok, _} = Config.validate(opts), "preset #{preset} should be valid"
+      end
+    end
+
+    test "returns error for negative epochs" do
+      opts = [epochs: -1, batch_size: 64]
+      assert {:error, errors} = Config.validate(opts)
+      assert Enum.any?(errors, &String.contains?(&1, "epochs"))
+    end
+
+    test "returns error for zero epochs" do
+      opts = [epochs: 0, batch_size: 64]
+      assert {:error, errors} = Config.validate(opts)
+      assert Enum.any?(errors, &String.contains?(&1, "epochs"))
+    end
+
+    test "returns error for negative batch_size" do
+      opts = [epochs: 10, batch_size: -32]
+      assert {:error, errors} = Config.validate(opts)
+      assert Enum.any?(errors, &String.contains?(&1, "batch_size"))
+    end
+
+    test "returns error for zero batch_size" do
+      opts = [epochs: 10, batch_size: 0]
+      assert {:error, errors} = Config.validate(opts)
+      assert Enum.any?(errors, &String.contains?(&1, "batch_size"))
+    end
+
+    test "returns error for invalid max_files" do
+      opts = [epochs: 10, batch_size: 64, max_files: -5]
+      assert {:error, errors} = Config.validate(opts)
+      assert Enum.any?(errors, &String.contains?(&1, "max_files"))
+    end
+
+    test "allows nil max_files" do
+      opts = [epochs: 10, batch_size: 64, max_files: nil]
+      assert {:ok, _} = Config.validate(opts)
+    end
+
+    test "returns error for negative window_size" do
+      opts = [epochs: 10, batch_size: 64, window_size: -60]
+      assert {:error, errors} = Config.validate(opts)
+      assert Enum.any?(errors, &String.contains?(&1, "window_size"))
+    end
+
+    test "returns error for negative frame_delay" do
+      opts = [epochs: 10, batch_size: 64, frame_delay: -1]
+      assert {:error, errors} = Config.validate(opts)
+      assert Enum.any?(errors, &String.contains?(&1, "frame_delay"))
+    end
+
+    test "allows zero frame_delay" do
+      opts = [epochs: 10, batch_size: 64, frame_delay: 0]
+      assert {:ok, _} = Config.validate(opts)
+    end
+
+    test "returns error for invalid hidden_sizes type" do
+      opts = [epochs: 10, batch_size: 64, hidden_sizes: "64,64"]
+      assert {:error, errors} = Config.validate(opts)
+      assert Enum.any?(errors, &String.contains?(&1, "hidden_sizes"))
+    end
+
+    test "returns error for hidden_sizes with negative values" do
+      opts = [epochs: 10, batch_size: 64, hidden_sizes: [64, -32]]
+      assert {:error, errors} = Config.validate(opts)
+      assert Enum.any?(errors, &String.contains?(&1, "hidden_sizes"))
+    end
+
+    test "returns error for hidden_sizes with zero values" do
+      opts = [epochs: 10, batch_size: 64, hidden_sizes: [64, 0]]
+      assert {:error, errors} = Config.validate(opts)
+      assert Enum.any?(errors, &String.contains?(&1, "hidden_sizes"))
+    end
+
+    test "allows nil hidden_sizes" do
+      opts = [epochs: 10, batch_size: 64, hidden_sizes: nil]
+      assert {:ok, _} = Config.validate(opts)
+    end
+
+    test "returns error for invalid backbone with temporal" do
+      opts = [epochs: 10, batch_size: 64, temporal: true, backbone: :invalid_backbone]
+      assert {:error, errors} = Config.validate(opts)
+      assert Enum.any?(errors, &String.contains?(&1, "backbone"))
+    end
+
+    test "allows any backbone without temporal" do
+      # Without temporal: true, backbone isn't validated
+      opts = [epochs: 10, batch_size: 64, temporal: false, backbone: :whatever]
+      assert {:ok, _} = Config.validate(opts)
+    end
+
+    test "accepts all valid temporal backbones" do
+      for backbone <- [:lstm, :gru, :mamba, :sliding_window, :hybrid] do
+        opts = [epochs: 10, batch_size: 64, temporal: true, backbone: backbone]
+        assert {:ok, _} = Config.validate(opts), "backbone #{backbone} should be valid"
+      end
+    end
+
+    test "returns error for invalid precision" do
+      opts = [epochs: 10, batch_size: 64, precision: :f16]
+      assert {:error, errors} = Config.validate(opts)
+      assert Enum.any?(errors, &String.contains?(&1, "precision"))
+    end
+
+    test "accepts valid precision values" do
+      for precision <- [:bf16, :f32] do
+        opts = [epochs: 10, batch_size: 64, precision: precision]
+        assert {:ok, _} = Config.validate(opts)
+      end
+    end
+
+    test "returns error for non-existent replays directory" do
+      opts = [epochs: 10, batch_size: 64, replays: "/nonexistent/path/12345"]
+      assert {:error, errors} = Config.validate(opts)
+      assert Enum.any?(errors, &String.contains?(&1, "replays"))
+    end
+
+    test "allows nil replays directory" do
+      opts = [epochs: 10, batch_size: 64, replays: nil]
+      assert {:ok, _} = Config.validate(opts)
+    end
+
+    test "collects multiple errors" do
+      opts = [epochs: -1, batch_size: -32, hidden_sizes: "bad"]
+      assert {:error, errors} = Config.validate(opts)
+      assert length(errors) >= 3
+    end
+  end
+
+  describe "validate!/1" do
+    test "returns opts for valid configuration" do
+      opts = [epochs: 10, batch_size: 64]
+      assert Config.validate!(opts) == opts
+    end
+
+    test "raises ArgumentError for invalid configuration" do
+      opts = [epochs: -1, batch_size: 64]
+      assert_raise ArgumentError, ~r/Invalid training configuration/, fn ->
+        Config.validate!(opts)
+      end
+    end
+
+    test "error message includes all errors" do
+      opts = [epochs: -1, batch_size: -32]
+      error = catch_error(Config.validate!(opts))
+      assert error.message =~ "epochs"
+      assert error.message =~ "batch_size"
+    end
+  end
+
+  describe "validation warnings" do
+    import ExUnit.CaptureIO
+
+    test "warns for large window_size" do
+      opts = [epochs: 10, batch_size: 64, window_size: 150]
+      output = capture_io(:stderr, fn ->
+        Config.validate(opts)
+      end)
+      assert output =~ "window_size"
+      assert output =~ "memory"
+    end
+
+    test "warns for large batch_size" do
+      opts = [epochs: 10, batch_size: 512]
+      output = capture_io(:stderr, fn ->
+        Config.validate(opts)
+      end)
+      assert output =~ "batch_size"
+      assert output =~ "memory"
+    end
+
+    test "warns for many epochs without wandb" do
+      opts = [epochs: 25, batch_size: 64, wandb: false]
+      output = capture_io(:stderr, fn ->
+        Config.validate(opts)
+      end)
+      assert output =~ "wandb"
+    end
+
+    test "no warning for many epochs with wandb" do
+      opts = [epochs: 25, batch_size: 64, wandb: true]
+      output = capture_io(:stderr, fn ->
+        Config.validate(opts)
+      end)
+      refute output =~ "wandb"
+    end
+
+    test "warns for small window_size with temporal" do
+      opts = [epochs: 10, batch_size: 64, temporal: true, backbone: :lstm, window_size: 20]
+      output = capture_io(:stderr, fn ->
+        Config.validate(opts)
+      end)
+      assert output =~ "temporal"
+      assert output =~ "window_size"
+    end
+
+    test "warnings don't cause validation to fail" do
+      # Large window (warning) but otherwise valid
+      opts = [epochs: 10, batch_size: 64, window_size: 150]
+      capture_io(:stderr, fn ->
+        assert {:ok, _} = Config.validate(opts)
+      end)
+    end
+  end
+
+  describe "validate/1 integration with parse_args" do
+    test "parsed args from preset are valid" do
+      opts = Config.parse_args(["--preset", "full"])
+      assert {:ok, _} = Config.validate(opts)
+    end
+
+    test "parsed args with CLI overrides are valid" do
+      opts = Config.parse_args(["--preset", "quick", "--epochs", "5", "--batch-size", "128"])
+      assert {:ok, _} = Config.validate(opts)
+    end
+
+    test "parsed temporal args are valid" do
+      opts = Config.parse_args(["--temporal", "--backbone", "mamba", "--window-size", "60"])
+      assert {:ok, _} = Config.validate(opts)
+    end
+  end
 end
