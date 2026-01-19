@@ -1,0 +1,18 @@
+# Lightweight container for replay filtering (no ML dependencies)
+FROM ubuntu:22.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3.11 \
+    python3-pip \
+    p7zip-full \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN pip3 install --no-cache-dir gdown py-slippi
+
+WORKDIR /app
+COPY scripts/cloud_filter_replays.py /app/
+
+# Default: show help
+CMD ["python3", "/app/cloud_filter_replays.py", "--help"]
