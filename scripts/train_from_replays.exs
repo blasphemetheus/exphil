@@ -60,6 +60,11 @@ end
 # Precision Options:
 #   --precision TYPE  - Tensor precision: bf16 (default) or f32
 #                       BF16 gives ~2x speedup with minimal accuracy loss
+#
+# Early Stopping Options:
+#   --early-stopping  - Enable early stopping when validation loss stops improving
+#   --patience N      - Stop after N epochs without improvement (default: 5)
+#   --min-delta X     - Minimum improvement to count as progress (default: 0.01)
 
 # Simple unbuffered output - all output goes to stderr which is always line-buffered
 # This means `mix run script.exs` just works without any redirection tricks
@@ -70,7 +75,7 @@ end
 require Logger
 
 alias ExPhil.Data.Peppi
-alias ExPhil.Training.{Config, Data, Imitation}
+alias ExPhil.Training.{Config, Data, EarlyStopping, Imitation}
 alias ExPhil.Embeddings
 alias ExPhil.Integrations.Wandb
 
@@ -301,108 +306,140 @@ Output.puts("  ⏱  Estimated training time: ~#{estimated_minutes}m #{estimated_
 Output.puts("      (#{batches_per_epoch} batches/epoch × #{opts[:epochs]} epochs + JIT compilation)")
 
 # Step 4: Training loop
-Output.puts("\nStep 4: Training for #{opts[:epochs]} epochs...")
+early_stopping_msg = if opts[:early_stopping] do
+  " (early stopping: patience=#{opts[:patience]}, min_delta=#{opts[:min_delta]})"
+else
+  ""
+end
+Output.puts("\nStep 4: Training for #{opts[:epochs]} epochs#{early_stopping_msg}...")
 Output.puts("─" |> String.duplicate(60))
 
 start_time = System.monotonic_time(:second)
 
-final_trainer = Enum.reduce(1..opts[:epochs], trainer, fn epoch, current_trainer ->
-  epoch_start = System.monotonic_time(:second)
+# Initialize early stopping state if enabled
+early_stopping_state = if opts[:early_stopping] do
+  EarlyStopping.init(patience: opts[:patience], min_delta: opts[:min_delta])
+else
+  nil
+end
 
-  # Create batched dataset for this epoch
-  # Use appropriate batching function based on temporal mode
-  batches = if opts[:temporal] do
-    Data.batched_sequences(train_dataset,
-      batch_size: opts[:batch_size],
-      shuffle: true,
-      drop_last: true
-    )
-  else
-    Data.batched(train_dataset,
-      batch_size: opts[:batch_size],
-      shuffle: true,
-      drop_last: true
-    )
-  end
-  |> Enum.to_list()
+# Training loop with early stopping support
+# Returns {trainer, epochs_completed, stopped_early, early_stopping_state}
+initial_state = {trainer, 0, false, early_stopping_state}
 
-  num_batches = length(batches)
+{final_trainer, epochs_completed, stopped_early, _es_state} =
+  Enum.reduce_while(1..opts[:epochs], initial_state, fn epoch, {current_trainer, _, _, es_state} ->
+    epoch_start = System.monotonic_time(:second)
 
-  # Epoch start message
-  if epoch > 1 do
-    Output.puts("\n  ─── Epoch #{epoch}/#{opts[:epochs]} ───")
-    Output.puts("  Starting #{num_batches} batches...")
-  end
-
-  # Train epoch with JIT compilation indicator
-  jit_indicator_shown = if epoch == 1 do
-    Output.puts("  ─── Epoch 1/#{opts[:epochs]} ───")
-    Output.puts("  ⏳ JIT compiling model (first batch)... this may take 2-5 minutes")
-    Output.puts("     (subsequent batches will be fast)")
-    true
-  else
-    false
-  end
-
-  # Track timing for ETA calculation
-  epoch_batch_start = System.monotonic_time(:millisecond)
-
-  {updated_trainer, epoch_losses, _} = Enum.reduce(Enum.with_index(batches), {current_trainer, [], jit_indicator_shown}, fn {batch, batch_idx}, {t, losses, jit_shown} ->
-    batch_start = System.monotonic_time(:millisecond)
-    # Note: loss_fn is ignored by train_step (it uses cached predict_fn internally)
-    {new_trainer, metrics} = Imitation.train_step(t, batch, nil)
-    batch_time_ms = System.monotonic_time(:millisecond) - batch_start
-
-    # Show JIT completion message after first batch
-    new_jit_shown = if jit_shown and batch_idx == 0 do
-      Output.puts("\n  ✓ JIT compilation complete (took #{Float.round(batch_time_ms / 1000, 1)}s)")
-      Output.puts("    Training started - progress updates every 5%\n")
-      true  # Keep as true, we'll handle first progress differently
+    # Create batched dataset for this epoch
+    # Use appropriate batching function based on temporal mode
+    batches = if opts[:temporal] do
+      Data.batched_sequences(train_dataset,
+        batch_size: opts[:batch_size],
+        shuffle: true,
+        drop_last: true
+      )
     else
-      jit_shown
+      Data.batched(train_dataset,
+        batch_size: opts[:batch_size],
+        shuffle: true,
+        drop_last: true
+      )
+    end
+    |> Enum.to_list()
+
+    num_batches = length(batches)
+
+    # Epoch start message
+    if epoch > 1 do
+      Output.puts("\n  ─── Epoch #{epoch}/#{opts[:epochs]} ───")
+      Output.puts("  Starting #{num_batches} batches...")
     end
 
-    # Progress indicator: every 2% OR at least every 50 batches (frequent updates)
-    progress_interval = max(1, min(50, div(num_batches, 50)))
-    show_progress = (rem(batch_idx + 1, progress_interval) == 0) and batch_idx > 0
-
-    if show_progress do
-      pct = round((batch_idx + 1) / num_batches * 100)
-      elapsed_total_ms = System.monotonic_time(:millisecond) - epoch_batch_start
-      avg_batch_ms = elapsed_total_ms / (batch_idx + 1)
-      remaining_batches = num_batches - (batch_idx + 1)
-      eta_sec = round(remaining_batches * avg_batch_ms / 1000)
-      eta_min = div(eta_sec, 60)
-      eta_sec_rem = rem(eta_sec, 60)
-
-      # Format: Epoch 1: ████████░░ 40% | batch 642/1606 | loss: 0.1234 | 0.5s/batch | ETA: 8m 12s
-      bar_width = 10
-      filled = round(pct / 100 * bar_width)
-      bar = String.duplicate("█", filled) <> String.duplicate("░", bar_width - filled)
-
-      progress_line = "  Epoch #{epoch}: #{bar} #{pct}% | batch #{batch_idx + 1}/#{num_batches} | loss: #{Float.round(metrics.loss, 4)} | #{Float.round(avg_batch_ms / 1000, 2)}s/batch | ETA: #{eta_min}m #{eta_sec_rem}s"
-      Output.puts(progress_line)
+    # Train epoch with JIT compilation indicator
+    jit_indicator_shown = if epoch == 1 do
+      Output.puts("  ─── Epoch 1/#{opts[:epochs]} ───")
+      Output.puts("  ⏳ JIT compiling model (first batch)... this may take 2-5 minutes")
+      Output.puts("     (subsequent batches will be fast)")
+      true
+    else
+      false
     end
 
-    {new_trainer, [metrics.loss | losses], new_jit_shown}
+    # Track timing for ETA calculation
+    epoch_batch_start = System.monotonic_time(:millisecond)
+
+    {updated_trainer, epoch_losses, _} = Enum.reduce(Enum.with_index(batches), {current_trainer, [], jit_indicator_shown}, fn {batch, batch_idx}, {t, losses, jit_shown} ->
+      batch_start = System.monotonic_time(:millisecond)
+      # Note: loss_fn is ignored by train_step (it uses cached predict_fn internally)
+      {new_trainer, metrics} = Imitation.train_step(t, batch, nil)
+      batch_time_ms = System.monotonic_time(:millisecond) - batch_start
+
+      # Show JIT completion message after first batch
+      new_jit_shown = if jit_shown and batch_idx == 0 do
+        Output.puts("\n  ✓ JIT compilation complete (took #{Float.round(batch_time_ms / 1000, 1)}s)")
+        Output.puts("    Training started - progress updates every 5%\n")
+        true  # Keep as true, we'll handle first progress differently
+      else
+        jit_shown
+      end
+
+      # Progress indicator: every 2% OR at least every 50 batches (frequent updates)
+      progress_interval = max(1, min(50, div(num_batches, 50)))
+      show_progress = (rem(batch_idx + 1, progress_interval) == 0) and batch_idx > 0
+
+      if show_progress do
+        pct = round((batch_idx + 1) / num_batches * 100)
+        elapsed_total_ms = System.monotonic_time(:millisecond) - epoch_batch_start
+        avg_batch_ms = elapsed_total_ms / (batch_idx + 1)
+        remaining_batches = num_batches - (batch_idx + 1)
+        eta_sec = round(remaining_batches * avg_batch_ms / 1000)
+        eta_min = div(eta_sec, 60)
+        eta_sec_rem = rem(eta_sec, 60)
+
+        # Format: Epoch 1: ████████░░ 40% | batch 642/1606 | loss: 0.1234 | 0.5s/batch | ETA: 8m 12s
+        bar_width = 10
+        filled = round(pct / 100 * bar_width)
+        bar = String.duplicate("█", filled) <> String.duplicate("░", bar_width - filled)
+
+        progress_line = "  Epoch #{epoch}: #{bar} #{pct}% | batch #{batch_idx + 1}/#{num_batches} | loss: #{Float.round(metrics.loss, 4)} | #{Float.round(avg_batch_ms / 1000, 2)}s/batch | ETA: #{eta_min}m #{eta_sec_rem}s"
+        Output.puts(progress_line)
+      end
+
+      {new_trainer, [metrics.loss | losses], new_jit_shown}
+    end)
+
+    epoch_time = System.monotonic_time(:second) - epoch_start
+    avg_loss = Enum.sum(epoch_losses) / length(epoch_losses)
+
+    # Validation - use appropriate batching for temporal mode
+    val_batches = if opts[:temporal] do
+      Data.batched_sequences(val_dataset, batch_size: opts[:batch_size], shuffle: false)
+    else
+      Data.batched(val_dataset, batch_size: opts[:batch_size], shuffle: false)
+    end
+    val_metrics = Imitation.evaluate(updated_trainer, val_batches)
+
+    # Check early stopping
+    {new_es_state, es_decision, es_message} = if es_state do
+      {new_state, decision} = EarlyStopping.check(es_state, val_metrics.loss)
+      {new_state, decision, " | #{EarlyStopping.status_message(new_state)}"}
+    else
+      {nil, :continue, ""}
+    end
+
+    Output.puts("")
+    Output.puts("  ✓ Epoch #{epoch} complete: train_loss=#{Float.round(avg_loss, 4)} val_loss=#{Float.round(val_metrics.loss, 4)} (#{epoch_time}s)#{es_message}")
+
+    # Decide whether to continue or stop
+    case es_decision do
+      :stop ->
+        Output.puts("\n  ⚠ Early stopping triggered - no improvement for #{opts[:patience]} epochs")
+        {:halt, {updated_trainer, epoch, true, new_es_state}}
+      :continue ->
+        {:cont, {updated_trainer, epoch, false, new_es_state}}
+    end
   end)
-
-  epoch_time = System.monotonic_time(:second) - epoch_start
-  avg_loss = Enum.sum(epoch_losses) / length(epoch_losses)
-
-  # Validation - use appropriate batching for temporal mode
-  val_batches = if opts[:temporal] do
-    Data.batched_sequences(val_dataset, batch_size: opts[:batch_size], shuffle: false)
-  else
-    Data.batched(val_dataset, batch_size: opts[:batch_size], shuffle: false)
-  end
-  val_metrics = Imitation.evaluate(updated_trainer, val_batches)
-
-  Output.puts("")
-  Output.puts("  ✓ Epoch #{epoch} complete: train_loss=#{Float.round(avg_loss, 4)} val_loss=#{Float.round(val_metrics.loss, 4)} (#{epoch_time}s)")
-
-  updated_trainer
-end)
 
 total_time = System.monotonic_time(:second) - start_time
 total_min = div(total_time, 60)
@@ -433,7 +470,9 @@ training_results = %{
   training_frames: train_dataset.size,
   validation_frames: val_dataset.size,
   total_time_seconds: total_time,
-  final_training_loss: Float.round(Enum.sum(Enum.take(final_trainer.metrics.loss, 10)) / 10, 4)
+  final_training_loss: Float.round(Enum.sum(Enum.take(final_trainer.metrics.loss, 10)) / 10, 4),
+  epochs_completed: epochs_completed,
+  stopped_early: stopped_early
 }
 training_config = Config.build_config_json(opts, training_results)
 
@@ -443,6 +482,7 @@ case File.write(config_path, Jason.encode!(training_config, pretty: true)) do
 end
 
 # Summary
+early_stop_note = if stopped_early, do: " (stopped early)", else: ""
 Output.puts("""
 
 ╔════════════════════════════════════════════════════════════════╗
@@ -452,7 +492,7 @@ Output.puts("""
 Summary:
   Replays parsed: #{length(replay_files)}
   Training frames: #{train_dataset.size}
-  Epochs completed: #{opts[:epochs]}
+  Epochs completed: #{epochs_completed}/#{opts[:epochs]}#{early_stop_note}
   Final training loss: #{Float.round(Enum.sum(Enum.take(final_trainer.metrics.loss, 10)) / 10, 4)}
   Checkpoint: #{opts[:checkpoint]}
 

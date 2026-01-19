@@ -1049,4 +1049,113 @@ defmodule ExPhil.Training.ConfigTest do
       assert {:ok, _} = Config.validate(opts)
     end
   end
+
+  # ============================================================================
+  # Early Stopping CLI Tests
+  # ============================================================================
+
+  describe "parse_args/1 with early stopping" do
+    test "parses --early-stopping flag" do
+      opts = Config.parse_args(["--early-stopping"])
+      assert opts[:early_stopping] == true
+    end
+
+    test "early_stopping defaults to false" do
+      opts = Config.parse_args([])
+      assert opts[:early_stopping] == false
+    end
+
+    test "parses --patience" do
+      opts = Config.parse_args(["--patience", "10"])
+      assert opts[:patience] == 10
+    end
+
+    test "patience defaults to 5" do
+      opts = Config.parse_args([])
+      assert opts[:patience] == 5
+    end
+
+    test "parses --min-delta" do
+      opts = Config.parse_args(["--min-delta", "0.05"])
+      assert opts[:min_delta] == 0.05
+    end
+
+    test "min_delta defaults to 0.01" do
+      opts = Config.parse_args([])
+      assert opts[:min_delta] == 0.01
+    end
+
+    test "parses all early stopping options together" do
+      opts = Config.parse_args(["--early-stopping", "--patience", "3", "--min-delta", "0.001"])
+      assert opts[:early_stopping] == true
+      assert opts[:patience] == 3
+      assert opts[:min_delta] == 0.001
+    end
+  end
+
+  describe "validate/1 with early stopping" do
+    test "accepts valid early stopping config" do
+      opts = [epochs: 10, batch_size: 64, early_stopping: true, patience: 5, min_delta: 0.01]
+      assert {:ok, _} = Config.validate(opts)
+    end
+
+    test "returns error for negative patience" do
+      opts = [epochs: 10, batch_size: 64, patience: -1]
+      assert {:error, errors} = Config.validate(opts)
+      assert Enum.any?(errors, &String.contains?(&1, "patience"))
+    end
+
+    test "returns error for zero patience" do
+      opts = [epochs: 10, batch_size: 64, patience: 0]
+      assert {:error, errors} = Config.validate(opts)
+      assert Enum.any?(errors, &String.contains?(&1, "patience"))
+    end
+
+    test "returns error for negative min_delta" do
+      opts = [epochs: 10, batch_size: 64, min_delta: -0.01]
+      assert {:error, errors} = Config.validate(opts)
+      assert Enum.any?(errors, &String.contains?(&1, "min_delta"))
+    end
+
+    test "returns error for zero min_delta" do
+      opts = [epochs: 10, batch_size: 64, min_delta: 0.0]
+      assert {:error, errors} = Config.validate(opts)
+      assert Enum.any?(errors, &String.contains?(&1, "min_delta"))
+    end
+  end
+
+  describe "build_config_json/2 with early stopping" do
+    test "includes early stopping fields" do
+      opts = [
+        epochs: 10,
+        batch_size: 64,
+        early_stopping: true,
+        patience: 5,
+        min_delta: 0.01,
+        replays: "/path/to/replays",
+        temporal: false,
+        backbone: :mlp,
+        hidden_sizes: [64, 64],
+        window_size: 60,
+        stride: 1,
+        num_layers: 2,
+        state_size: 16,
+        expand_factor: 2,
+        conv_size: 4,
+        truncate_bptt: nil,
+        precision: :bf16,
+        frame_delay: 0,
+        checkpoint: "test.axon"
+      ]
+      results = %{epochs_completed: 7, stopped_early: true}
+
+      json = Config.build_config_json(opts, results)
+
+      assert json[:early_stopping] == true
+      assert json[:patience] == 5
+      assert json[:min_delta] == 0.01
+      assert json[:epochs_completed] == 7
+      assert json[:stopped_early] == true
+    end
+  end
 end

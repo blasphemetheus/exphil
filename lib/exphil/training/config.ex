@@ -46,7 +46,11 @@ defmodule ExPhil.Training.Config do
       precision: :bf16,
       frame_delay: 0,
       preset: nil,
-      character: nil
+      character: nil,
+      # Early stopping
+      early_stopping: false,
+      patience: 5,
+      min_delta: 0.01
     ]
   end
 
@@ -264,6 +268,8 @@ defmodule ExPhil.Training.Config do
     |> validate_temporal_backbone(opts)
     |> validate_precision(opts)
     |> validate_replays_dir(opts)
+    |> validate_positive(opts, :patience)
+    |> validate_positive_float(opts, :min_delta)
   end
 
   defp collect_warnings(opts) do
@@ -299,6 +305,16 @@ defmodule ExPhil.Training.Config do
       ["#{key} must be non-negative, got: #{value}" | errors]
     else
       errors
+    end
+  end
+
+  defp validate_positive_float(errors, opts, key) do
+    value = opts[key]
+    cond do
+      is_nil(value) -> errors
+      is_number(value) and value > 0 -> errors
+      is_number(value) -> ["#{key} must be positive, got: #{value}" | errors]
+      true -> ["#{key} must be a positive number, got: #{inspect(value)}" | errors]
     end
   end
 
@@ -500,6 +516,9 @@ defmodule ExPhil.Training.Config do
     |> parse_optional_int_arg(args, "--truncate-bptt", :truncate_bptt)
     |> parse_precision_arg(args)
     |> parse_int_arg(args, "--frame-delay", :frame_delay)
+    |> parse_flag(args, "--early-stopping", :early_stopping)
+    |> parse_int_arg(args, "--patience", :patience)
+    |> parse_float_arg(args, "--min-delta", :min_delta)
   end
 
   defp has_flag_value?(args, flag) do
@@ -590,11 +609,18 @@ defmodule ExPhil.Training.Config do
       precision: to_string(opts[:precision]),
       frame_delay: opts[:frame_delay],
 
+      # Early stopping
+      early_stopping: opts[:early_stopping],
+      patience: opts[:patience],
+      min_delta: opts[:min_delta],
+
       # Results (if provided)
       training_frames: results[:training_frames],
       validation_frames: results[:validation_frames],
       total_time_seconds: results[:total_time_seconds],
       final_training_loss: results[:final_training_loss],
+      epochs_completed: results[:epochs_completed],
+      stopped_early: results[:stopped_early],
       checkpoint_path: opts[:checkpoint],
       policy_path: derive_policy_path(opts[:checkpoint])
     }
@@ -680,6 +706,13 @@ defmodule ExPhil.Training.Config do
     case get_arg_value(args, flag) do
       nil -> opts
       value -> Keyword.put(opts, key, String.to_integer(value))
+    end
+  end
+
+  defp parse_float_arg(opts, args, flag, key) do
+    case get_arg_value(args, flag) do
+      nil -> opts
+      value -> Keyword.put(opts, key, String.to_float(value))
     end
   end
 
