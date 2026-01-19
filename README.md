@@ -127,7 +127,7 @@ Key lessons applied:
 
 ```bash
 # Clone and setup
-git clone https://github.com/[your-repo]/exphil.git
+git clone https://github.com/blasphemetheus/exphil.git
 cd exphil
 mix deps.get
 
