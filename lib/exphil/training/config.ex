@@ -12,7 +12,11 @@ defmodule ExPhil.Training.Config do
   @default_replays_dir "/home/dori/git/melee/replays"
   @default_hidden_sizes [64, 64]
 
-  @valid_presets [:quick, :standard, :full, :full_cpu, :mewtwo, :ganondorf, :link, :gameandwatch, :zelda]
+  @valid_presets [
+    :quick, :standard, :full, :full_cpu,
+    :gpu_quick, :gpu_standard, :production,
+    :mewtwo, :ganondorf, :link, :gameandwatch, :zelda
+  ]
 
   @doc """
   List of available preset names.
@@ -45,6 +49,11 @@ defmodule ExPhil.Training.Config do
       truncate_bptt: nil,
       precision: :bf16,
       frame_delay: 0,
+      # Frame delay augmentation for online robustness
+      # Enable with --frame-delay-augment or --online-robust
+      frame_delay_augment: false,
+      frame_delay_min: 0,      # Local play - no delay
+      frame_delay_max: 18,     # Online play - typical Slippi delay
       preset: nil,
       character: nil,
       # Early stopping
@@ -59,6 +68,11 @@ defmodule ExPhil.Training.Config do
       lr_schedule: :constant,
       warmup_steps: 0,
       decay_steps: nil,
+      # Cosine restarts (SGDR)
+      restart_period: 1000,     # Initial period before first restart (T_0)
+      restart_mult: 2,          # Multiply period by this after each restart (T_mult)
+      # Gradient clipping
+      max_grad_norm: 1.0,       # Clip gradients by global norm (0 = disabled)
       # Resumption
       resume: nil,
       # Model naming
@@ -66,7 +80,21 @@ defmodule ExPhil.Training.Config do
       # Gradient accumulation
       accumulation_steps: 1,
       # Validation split
-      val_split: 0.0
+      val_split: 0.0,
+      # Data augmentation
+      augment: false,
+      mirror_prob: 0.5,
+      noise_prob: 0.3,
+      noise_scale: 0.01,
+      # Label smoothing
+      label_smoothing: 0.0,  # 0.0 = no smoothing, 0.1 = typical value
+      # Registry
+      no_register: false,
+      # Checkpoint pruning
+      keep_best: nil,  # nil = no pruning, N = keep best N epoch checkpoints
+      # Model EMA
+      ema: false,
+      ema_decay: 0.999
     ]
   end
 
@@ -79,112 +107,313 @@ defmodule ExPhil.Training.Config do
 
   ## Available Presets
 
-  ### Speed Presets
-  - `:quick` - Fast iteration (1 epoch, 5 files, small MLP)
-  - `:standard` - Balanced training (10 epochs, 50 files, medium MLP)
-  - `:full` - Maximum quality (50 epochs, all files, Mamba temporal)
-  - `:full_cpu` - Full training optimized for CPU (no temporal)
+  ### CPU Presets (No GPU Required)
+  - `:quick` - Fast iteration for testing (1 epoch, 5 files, small MLP)
+  - `:standard` - Balanced CPU training (10 epochs, 50 files, augmentation)
+  - `:full_cpu` - Maximum CPU quality (20 epochs, 100 files, all regularization)
 
-  ### Character Presets
-  - `:mewtwo` - Optimized for Mewtwo (longer sequences for teleport recovery)
-  - `:ganondorf` - Optimized for Ganondorf (spacing-focused)
-  - `:link` - Optimized for Link (projectile tracking)
-  - `:gameandwatch` - Optimized for Mr. Game & Watch (shorter sequences)
-  - `:zelda` - Optimized for Zelda (transform mechanics)
+  ### GPU Presets (Requires CUDA/ROCm)
+  - `:gpu_quick` - Fast GPU test (3 epochs, 20 files, larger batches)
+  - `:gpu_standard` - Standard GPU training (15 epochs, Mamba, all features)
+  - `:full` - High quality GPU (50 epochs, Mamba, temporal, full regularization)
+  - `:production` - Maximum quality (100 epochs, Mamba, all optimizations, EMA)
+
+  ### Character Presets (Built on :production)
+  - `:mewtwo` - Longer context (90 frames) for teleport recovery tracking
+  - `:ganondorf` - Standard context (60 frames) for spacing-focused play
+  - `:link` - Extended context (75 frames) for projectile tracking
+  - `:gameandwatch` - Shorter context (45 frames) since no L-cancel
+  - `:zelda` - Standard context (60 frames) for transform mechanics
+
+  ## Best Practices Applied
+
+  | Feature | quick | standard | full | production |
+  |---------|-------|----------|------|------------|
+  | Augmentation | ✗ | ✓ | ✓ | ✓ |
+  | Label Smoothing | ✗ | 0.05 | 0.1 | 0.1 |
+  | EMA | ✗ | ✗ | ✓ | ✓ |
+  | LR Schedule | constant | cosine | cosine | cosine_restarts |
+  | Val Split | ✗ | 0.1 | 0.1 | 0.15 |
+  | Early Stopping | ✗ | ✓ | ✓ | ✓ |
 
   ## Examples
 
       iex> Config.preset(:quick)
       [epochs: 1, max_files: 5, hidden_sizes: [32, 32], ...]
 
+      iex> Config.preset(:production)
+      [epochs: 100, hidden_sizes: [256, 256], ema: true, lr_schedule: :cosine_restarts, ...]
+
       iex> Config.preset(:mewtwo)
-      [character: :mewtwo, epochs: 50, hidden_sizes: [256, 256], window_size: 90, ...]
+      [character: :mewtwo, epochs: 100, window_size: 90, ...]
 
   """
+  # ============================================================================
+  # CPU Presets (No GPU Required)
+  # ============================================================================
+
   def preset(:quick) do
+    # Fast iteration for testing code changes
+    # Use: mix run scripts/train_from_replays.exs --preset quick
     [
       epochs: 1,
       max_files: 5,
-      batch_size: 64,
+      batch_size: 32,
       hidden_sizes: [32, 32],
       temporal: false,
+      # No regularization - just testing
       preset: :quick
     ]
   end
 
   def preset(:standard) do
+    # Balanced CPU training with proper regularization
+    # Use: mix run scripts/train_from_replays.exs --preset standard
     [
       epochs: 10,
       max_files: 50,
       batch_size: 64,
       hidden_sizes: [64, 64],
       temporal: false,
+      # Regularization
+      augment: true,
+      mirror_prob: 0.5,
+      noise_prob: 0.2,
+      noise_scale: 0.01,
+      label_smoothing: 0.05,
+      # Validation & early stopping
+      val_split: 0.1,
+      early_stopping: true,
+      patience: 5,
+      # LR schedule
+      lr_schedule: :cosine,
+      learning_rate: 3.0e-4,
+      save_best: true,
       preset: :standard
     ]
   end
 
+  def preset(:full_cpu) do
+    # Maximum quality on CPU (no temporal/Mamba for speed)
+    # Use: mix run scripts/train_from_replays.exs --preset full_cpu
+    [
+      epochs: 30,
+      max_files: 200,
+      batch_size: 64,
+      hidden_sizes: [128, 128],
+      temporal: false,
+      # Full regularization
+      augment: true,
+      mirror_prob: 0.5,
+      noise_prob: 0.3,
+      noise_scale: 0.01,
+      label_smoothing: 0.1,
+      # Validation & early stopping
+      val_split: 0.1,
+      early_stopping: true,
+      patience: 7,
+      min_delta: 0.005,
+      # LR schedule with warmup
+      lr_schedule: :cosine,
+      learning_rate: 1.0e-4,
+      warmup_steps: 500,
+      # EMA for better generalization
+      ema: true,
+      ema_decay: 0.999,
+      save_best: true,
+      keep_best: 3,
+      preset: :full_cpu
+    ]
+  end
+
+  # ============================================================================
+  # GPU Presets (Requires CUDA/ROCm)
+  # ============================================================================
+
+  def preset(:gpu_quick) do
+    # Fast GPU test - verify everything works
+    # Use: mix run scripts/train_from_replays.exs --preset gpu_quick
+    [
+      epochs: 3,
+      max_files: 20,
+      batch_size: 128,
+      hidden_sizes: [64, 64],
+      temporal: true,
+      backbone: :mamba,
+      window_size: 30,
+      num_layers: 1,
+      # Light regularization
+      augment: true,
+      val_split: 0.1,
+      preset: :gpu_quick
+    ]
+  end
+
+  def preset(:gpu_standard) do
+    # Standard GPU training with all features
+    # Use: mix run scripts/train_from_replays.exs --preset gpu_standard
+    [
+      epochs: 20,
+      max_files: 100,
+      batch_size: 128,
+      hidden_sizes: [128, 128],
+      temporal: true,
+      backbone: :mamba,
+      window_size: 60,
+      num_layers: 2,
+      # Full regularization
+      augment: true,
+      mirror_prob: 0.5,
+      noise_prob: 0.3,
+      noise_scale: 0.01,
+      label_smoothing: 0.1,
+      # Validation & early stopping
+      val_split: 0.1,
+      early_stopping: true,
+      patience: 5,
+      # LR schedule
+      lr_schedule: :cosine,
+      learning_rate: 1.0e-4,
+      warmup_steps: 500,
+      # EMA
+      ema: true,
+      ema_decay: 0.999,
+      save_best: true,
+      keep_best: 5,
+      preset: :gpu_standard
+    ]
+  end
+
   def preset(:full) do
+    # High quality GPU training
+    # Use: mix run scripts/train_from_replays.exs --preset full
     [
       epochs: 50,
       max_files: nil,
-      batch_size: 128,
+      batch_size: 256,
       hidden_sizes: [256, 256],
       temporal: true,
       backbone: :mamba,
       window_size: 60,
       num_layers: 2,
+      # Full regularization
+      augment: true,
+      mirror_prob: 0.5,
+      noise_prob: 0.3,
+      noise_scale: 0.01,
+      label_smoothing: 0.1,
+      # Validation & early stopping
+      val_split: 0.1,
+      early_stopping: true,
+      patience: 7,
+      min_delta: 0.005,
+      # LR schedule with warmup
+      lr_schedule: :cosine,
+      learning_rate: 1.0e-4,
+      warmup_steps: 1000,
+      # EMA for better test-time performance
+      ema: true,
+      ema_decay: 0.999,
+      # Gradient accumulation for larger effective batch
+      accumulation_steps: 2,  # effective batch = 512
+      save_best: true,
+      keep_best: 5,
       preset: :full
     ]
   end
 
-  def preset(:full_cpu) do
+  def preset(:production) do
+    # Maximum quality for deployment
+    # Use: mix run scripts/train_from_replays.exs --preset production
     [
-      epochs: 20,
-      max_files: 100,
-      batch_size: 64,
-      hidden_sizes: [128, 128],
-      temporal: false,
-      preset: :full_cpu
+      epochs: 100,
+      max_files: nil,
+      batch_size: 256,
+      hidden_sizes: [256, 256],
+      temporal: true,
+      backbone: :mamba,
+      window_size: 60,
+      num_layers: 3,
+      state_size: 32,
+      expand_factor: 2,
+      # Full regularization
+      augment: true,
+      mirror_prob: 0.5,
+      noise_prob: 0.3,
+      noise_scale: 0.01,
+      label_smoothing: 0.1,
+      # Larger validation for reliable metrics
+      val_split: 0.15,
+      early_stopping: true,
+      patience: 10,
+      min_delta: 0.001,
+      # Cosine restarts - helps escape local minima
+      lr_schedule: :cosine_restarts,
+      learning_rate: 1.0e-4,
+      warmup_steps: 2000,
+      restart_period: 5000,
+      restart_mult: 2,
+      # EMA with slower decay for more stability
+      ema: true,
+      ema_decay: 0.9995,
+      # Gradient accumulation
+      accumulation_steps: 4,  # effective batch = 1024
+      save_best: true,
+      keep_best: 10,
+      preset: :production
     ]
   end
 
-  # Character-specific presets (built on :full)
+  # ============================================================================
+  # Character-Specific Presets (Built on :production)
+  # ============================================================================
+
   def preset(:mewtwo) do
-    Keyword.merge(preset(:full), [
+    # Mewtwo: Long context for teleport recovery timing
+    # Teleport takes ~40 frames, need to track full recovery sequences
+    Keyword.merge(preset(:production), [
       character: :mewtwo,
-      window_size: 90,  # Longer sequences for teleport recovery tracking
+      window_size: 90,
       preset: :mewtwo
     ])
   end
 
   def preset(:ganondorf) do
-    Keyword.merge(preset(:full), [
+    # Ganondorf: Standard context, spacing-focused
+    # Slower character benefits from prediction over reaction
+    Keyword.merge(preset(:production), [
       character: :ganondorf,
-      window_size: 60,  # Standard - spacing-focused
+      window_size: 60,
       preset: :ganondorf
     ])
   end
 
   def preset(:link) do
-    Keyword.merge(preset(:full), [
+    # Link: Extended context for projectile tracking
+    # Boomerang return timing, bomb trajectories
+    Keyword.merge(preset(:production), [
       character: :link,
-      window_size: 75,  # Longer for projectile tracking
+      window_size: 75,
       preset: :link
     ])
   end
 
   def preset(:gameandwatch) do
-    Keyword.merge(preset(:full), [
+    # Game & Watch: Shorter context for unique timing
+    # Only fair/dair have L-cancel, bucket/hammer RNG
+    Keyword.merge(preset(:production), [
       character: :gameandwatch,
-      window_size: 45,  # Shorter - no L-cancel simplifies timing
+      window_size: 45,
       preset: :gameandwatch
     ])
   end
 
   def preset(:zelda) do
-    Keyword.merge(preset(:full), [
+    # Zelda: Standard context for transform mechanics
+    # Focus on spacing with kicks, transform rarely needed in training
+    Keyword.merge(preset(:production), [
       character: :zelda,
-      window_size: 60,  # Standard - transform tracking handled separately
+      window_size: 60,
       preset: :zelda
     ])
   end
@@ -198,10 +427,18 @@ defmodule ExPhil.Training.Config do
     Unknown preset: #{inspect(invalid)}
 
     Available presets:
-      Speed:     quick, standard, full, full_cpu
+      CPU:       quick, standard, full_cpu
+      GPU:       gpu_quick, gpu_standard, full, production
       Character: mewtwo, ganondorf, link, gameandwatch, zelda
 
-    Usage: mix run scripts/train_from_replays.exs --preset quick
+    Recommended progression:
+      1. Test code changes:  --preset quick
+      2. Validate on GPU:    --preset gpu_quick
+      3. Standard training:  --preset gpu_standard (or standard for CPU)
+      4. Full quality:       --preset full
+      5. Production deploy:  --preset production (or character preset)
+
+    Usage: mix run scripts/train_from_replays.exs --preset gpu_standard
     """
   end
 
@@ -280,6 +517,9 @@ defmodule ExPhil.Training.Config do
     |> validate_positive(opts, :expand_factor)
     |> validate_positive(opts, :conv_size)
     |> validate_non_negative(opts, :frame_delay)
+    |> validate_non_negative(opts, :frame_delay_min)
+    |> validate_non_negative(opts, :frame_delay_max)
+    |> validate_frame_delay_range(opts)
     |> validate_hidden_sizes(opts)
     |> validate_temporal_backbone(opts)
     |> validate_precision(opts)
@@ -289,9 +529,18 @@ defmodule ExPhil.Training.Config do
     |> validate_positive_float(opts, :learning_rate)
     |> validate_lr_schedule(opts)
     |> validate_non_negative(opts, :warmup_steps)
+    |> validate_positive(opts, :restart_period)
+    |> validate_restart_mult(opts)
+    |> validate_non_negative_float(opts, :max_grad_norm)
     |> validate_resume_checkpoint(opts)
     |> validate_positive(opts, :accumulation_steps)
     |> validate_val_split(opts)
+    |> validate_probability(opts, :mirror_prob)
+    |> validate_probability(opts, :noise_prob)
+    |> validate_positive_float(opts, :noise_scale)
+    |> validate_label_smoothing(opts)
+    |> validate_positive_or_nil(opts, :keep_best)
+    |> validate_ema_decay(opts)
   end
 
   defp collect_warnings(opts) do
@@ -340,6 +589,16 @@ defmodule ExPhil.Training.Config do
     end
   end
 
+  defp validate_non_negative_float(errors, opts, key) do
+    value = opts[key]
+    cond do
+      is_nil(value) -> errors
+      is_number(value) and value >= 0 -> errors
+      is_number(value) -> ["#{key} must be non-negative, got: #{value}" | errors]
+      true -> ["#{key} must be a non-negative number, got: #{inspect(value)}" | errors]
+    end
+  end
+
   defp validate_hidden_sizes(errors, opts) do
     case opts[:hidden_sizes] do
       nil -> errors
@@ -351,6 +610,20 @@ defmodule ExPhil.Training.Config do
         end
       other ->
         ["hidden_sizes must be a list, got: #{inspect(other)}" | errors]
+    end
+  end
+
+  defp validate_frame_delay_range(errors, opts) do
+    min_delay = opts[:frame_delay_min] || 0
+    max_delay = opts[:frame_delay_max] || 18
+
+    cond do
+      min_delay > max_delay ->
+        ["frame_delay_min (#{min_delay}) cannot be greater than frame_delay_max (#{max_delay})" | errors]
+      max_delay > 60 ->
+        ["frame_delay_max > 60 is unusually high (online play is typically 18 frames)" | errors]
+      true ->
+        errors
     end
   end
 
@@ -384,7 +657,7 @@ defmodule ExPhil.Training.Config do
     end
   end
 
-  @valid_lr_schedules [:constant, :cosine, :exponential, :linear]
+  @valid_lr_schedules [:constant, :cosine, :cosine_restarts, :exponential, :linear]
 
   defp validate_lr_schedule(errors, opts) do
     schedule = opts[:lr_schedule]
@@ -410,6 +683,46 @@ defmodule ExPhil.Training.Config do
       is_nil(val_split) -> errors
       not is_number(val_split) -> ["val_split must be a number, got: #{inspect(val_split)}" | errors]
       val_split < 0.0 or val_split >= 1.0 -> ["val_split must be in [0.0, 1.0), got: #{val_split}" | errors]
+      true -> errors
+    end
+  end
+
+  defp validate_probability(errors, opts, key) do
+    value = opts[key]
+    cond do
+      is_nil(value) -> errors
+      not is_number(value) -> ["#{key} must be a number, got: #{inspect(value)}" | errors]
+      value < 0.0 or value > 1.0 -> ["#{key} must be in [0.0, 1.0], got: #{value}" | errors]
+      true -> errors
+    end
+  end
+
+  defp validate_label_smoothing(errors, opts) do
+    value = opts[:label_smoothing]
+    cond do
+      is_nil(value) -> errors
+      not is_number(value) -> ["label_smoothing must be a number, got: #{inspect(value)}" | errors]
+      value < 0.0 or value >= 1.0 -> ["label_smoothing must be in [0.0, 1.0), got: #{value}" | errors]
+      true -> errors
+    end
+  end
+
+  defp validate_ema_decay(errors, opts) do
+    value = opts[:ema_decay]
+    cond do
+      is_nil(value) -> errors
+      not is_number(value) -> ["ema_decay must be a number, got: #{inspect(value)}" | errors]
+      value <= 0.0 or value >= 1.0 -> ["ema_decay must be in (0.0, 1.0), got: #{value}" | errors]
+      true -> errors
+    end
+  end
+
+  defp validate_restart_mult(errors, opts) do
+    value = opts[:restart_mult]
+    cond do
+      is_nil(value) -> errors
+      not is_number(value) -> ["restart_mult must be a number, got: #{inspect(value)}" | errors]
+      value < 1.0 -> ["restart_mult must be >= 1.0, got: #{value}" | errors]
       true -> errors
     end
   end
@@ -568,6 +881,10 @@ defmodule ExPhil.Training.Config do
     |> parse_optional_int_arg(args, "--truncate-bptt", :truncate_bptt)
     |> parse_precision_arg(args)
     |> parse_int_arg(args, "--frame-delay", :frame_delay)
+    |> parse_flag(args, "--frame-delay-augment", :frame_delay_augment)
+    |> parse_int_arg(args, "--frame-delay-min", :frame_delay_min)
+    |> parse_int_arg(args, "--frame-delay-max", :frame_delay_max)
+    |> parse_online_robust_flag(args)
     |> parse_flag(args, "--early-stopping", :early_stopping)
     |> parse_int_arg(args, "--patience", :patience)
     |> parse_float_arg(args, "--min-delta", :min_delta)
@@ -577,10 +894,22 @@ defmodule ExPhil.Training.Config do
     |> parse_atom_arg(args, "--lr-schedule", :lr_schedule)
     |> parse_optional_int_arg(args, "--warmup-steps", :warmup_steps)
     |> parse_optional_int_arg(args, "--decay-steps", :decay_steps)
+    |> parse_int_arg(args, "--restart-period", :restart_period)
+    |> parse_float_arg(args, "--restart-mult", :restart_mult)
+    |> parse_float_arg(args, "--max-grad-norm", :max_grad_norm)
     |> parse_string_arg(args, "--resume", :resume)
     |> parse_string_arg(args, "--name", :name)
     |> parse_int_arg(args, "--accumulation-steps", :accumulation_steps)
     |> parse_float_arg(args, "--val-split", :val_split)
+    |> parse_flag(args, "--augment", :augment)
+    |> parse_float_arg(args, "--mirror-prob", :mirror_prob)
+    |> parse_float_arg(args, "--noise-prob", :noise_prob)
+    |> parse_float_arg(args, "--noise-scale", :noise_scale)
+    |> parse_float_arg(args, "--label-smoothing", :label_smoothing)
+    |> parse_flag(args, "--no-register", :no_register)
+    |> parse_optional_int_arg(args, "--keep-best", :keep_best)
+    |> parse_flag(args, "--ema", :ema)
+    |> parse_float_arg(args, "--ema-decay", :ema_decay)
   end
 
   defp has_flag_value?(args, flag) do
@@ -861,6 +1190,19 @@ defmodule ExPhil.Training.Config do
       "f32" -> Keyword.put(opts, :precision, :f32)
       "bf16" -> Keyword.put(opts, :precision, :bf16)
       other -> raise "Unknown precision: #{other}. Use 'bf16' or 'f32'"
+    end
+  end
+
+  # --online-robust is a convenience flag that enables frame delay augmentation
+  # with sensible defaults for training models that work well on Slippi online
+  defp parse_online_robust_flag(opts, args) do
+    if has_flag?(args, "--online-robust") do
+      opts
+      |> Keyword.put(:frame_delay_augment, true)
+      # Use defaults: 0-18 frame range (local to online play)
+      # Can be overridden with explicit --frame-delay-min/max
+    else
+      opts
     end
   end
 end

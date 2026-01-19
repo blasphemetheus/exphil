@@ -554,11 +554,14 @@ defmodule ExPhil.Training.ConfigTest do
     test "full_cpu preset returns CPU-optimized full config" do
       opts = Config.preset(:full_cpu)
 
-      assert opts[:epochs] == 20
-      assert opts[:max_files] == 100
+      assert opts[:epochs] == 30
+      assert opts[:max_files] == 200
       assert opts[:hidden_sizes] == [128, 128]
       assert opts[:temporal] == false
       assert opts[:preset] == :full_cpu
+      # Should include best practices
+      assert opts[:ema] == true
+      assert opts[:augment] == true
     end
 
     test "mewtwo preset includes character and longer window" do
@@ -613,14 +616,17 @@ defmodule ExPhil.Training.ConfigTest do
       end
     end
 
-    test "character presets inherit from full" do
-      full = Config.preset(:full)
+    test "character presets inherit from production" do
+      production = Config.preset(:production)
       mewtwo = Config.preset(:mewtwo)
 
       # Should have same temporal and backbone
-      assert mewtwo[:temporal] == full[:temporal]
-      assert mewtwo[:backbone] == full[:backbone]
-      assert mewtwo[:epochs] == full[:epochs]
+      assert mewtwo[:temporal] == production[:temporal]
+      assert mewtwo[:backbone] == production[:backbone]
+      assert mewtwo[:epochs] == production[:epochs]
+      # Should have EMA and other production features
+      assert mewtwo[:ema] == production[:ema]
+      assert mewtwo[:lr_schedule] == production[:lr_schedule]
     end
   end
 
@@ -1475,6 +1481,58 @@ defmodule ExPhil.Training.ConfigTest do
       opts = [epochs: 10, batch_size: 64, val_split: -0.1]
       {:error, errors} = Config.validate(opts)
       assert Enum.any?(errors, &String.contains?(&1, "val_split must be in"))
+    end
+  end
+
+  describe "parse_args/1 with label_smoothing" do
+    test "defaults label_smoothing to 0.0" do
+      opts = Config.parse_args([])
+      assert opts[:label_smoothing] == 0.0
+    end
+
+    test "parses --label-smoothing" do
+      opts = Config.parse_args(["--label-smoothing", "0.1"])
+      assert opts[:label_smoothing] == 0.1
+    end
+
+    test "parses --label-smoothing with small value" do
+      opts = Config.parse_args(["--label-smoothing", "0.05"])
+      assert opts[:label_smoothing] == 0.05
+    end
+  end
+
+  describe "validate/1 with label_smoothing" do
+    test "accepts label_smoothing of 0.0 (no smoothing)" do
+      opts = [epochs: 10, batch_size: 64, label_smoothing: 0.0]
+      assert {:ok, ^opts} = Config.validate(opts)
+    end
+
+    test "accepts label_smoothing in valid range" do
+      opts = [epochs: 10, batch_size: 64, label_smoothing: 0.1]
+      assert {:ok, ^opts} = Config.validate(opts)
+    end
+
+    test "accepts label_smoothing close to 1.0 but not equal" do
+      opts = [epochs: 10, batch_size: 64, label_smoothing: 0.99]
+      assert {:ok, ^opts} = Config.validate(opts)
+    end
+
+    test "returns error for label_smoothing of 1.0" do
+      opts = [epochs: 10, batch_size: 64, label_smoothing: 1.0]
+      {:error, errors} = Config.validate(opts)
+      assert Enum.any?(errors, &String.contains?(&1, "label_smoothing must be in"))
+    end
+
+    test "returns error for label_smoothing greater than 1.0" do
+      opts = [epochs: 10, batch_size: 64, label_smoothing: 1.5]
+      {:error, errors} = Config.validate(opts)
+      assert Enum.any?(errors, &String.contains?(&1, "label_smoothing must be in"))
+    end
+
+    test "returns error for negative label_smoothing" do
+      opts = [epochs: 10, batch_size: 64, label_smoothing: -0.1]
+      {:error, errors} = Config.validate(opts)
+      assert Enum.any?(errors, &String.contains?(&1, "label_smoothing must be in"))
     end
   end
 end
