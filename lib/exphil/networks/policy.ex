@@ -559,17 +559,34 @@ defmodule ExPhil.Networks.Policy do
   """
   @spec imitation_loss(map(), map()) :: Nx.Tensor.t()
   def imitation_loss(logits, targets) do
-    # Button loss (binary cross-entropy)
-    button_loss = binary_cross_entropy(logits.buttons, targets.buttons)
+    imitation_loss(logits, targets, label_smoothing: 0.0)
+  end
 
-    # Stick losses (categorical cross-entropy)
-    main_x_loss = categorical_cross_entropy(logits.main_x, targets.main_x)
-    main_y_loss = categorical_cross_entropy(logits.main_y, targets.main_y)
-    c_x_loss = categorical_cross_entropy(logits.c_x, targets.c_x)
-    c_y_loss = categorical_cross_entropy(logits.c_y, targets.c_y)
+  @doc """
+  Compute imitation loss with optional label smoothing.
+
+  Label smoothing prevents overconfidence by replacing hard targets with soft targets:
+  - For categorical targets: target class gets (1-ε), others get ε/(num_classes-1)
+  - For binary targets: target gets (1-ε), non-target gets ε
+
+  ## Options
+    - `:label_smoothing` - Smoothing factor ε (default: 0.0, typical: 0.1)
+  """
+  @spec imitation_loss(map(), map(), keyword()) :: Nx.Tensor.t()
+  def imitation_loss(logits, targets, opts) do
+    label_smoothing = Keyword.get(opts, :label_smoothing, 0.0)
+
+    # Button loss (binary cross-entropy with optional label smoothing)
+    button_loss = binary_cross_entropy(logits.buttons, targets.buttons, label_smoothing)
+
+    # Stick losses (categorical cross-entropy with optional label smoothing)
+    main_x_loss = categorical_cross_entropy(logits.main_x, targets.main_x, label_smoothing)
+    main_y_loss = categorical_cross_entropy(logits.main_y, targets.main_y, label_smoothing)
+    c_x_loss = categorical_cross_entropy(logits.c_x, targets.c_x, label_smoothing)
+    c_y_loss = categorical_cross_entropy(logits.c_y, targets.c_y, label_smoothing)
 
     # Shoulder loss
-    shoulder_loss = categorical_cross_entropy(logits.shoulder, targets.shoulder)
+    shoulder_loss = categorical_cross_entropy(logits.shoulder, targets.shoulder, label_smoothing)
 
     # Combine losses
     Nx.add(button_loss,
@@ -580,26 +597,59 @@ defmodule ExPhil.Networks.Policy do
   end
 
   @doc """
-  Binary cross-entropy loss for buttons.
+  Binary cross-entropy loss for buttons with optional label smoothing.
+
+  With label smoothing ε > 0:
+  - Target 1 becomes (1-ε)
+  - Target 0 becomes ε
+
+  This prevents the model from becoming overconfident on button predictions.
   """
   @spec binary_cross_entropy(Nx.Tensor.t(), Nx.Tensor.t()) :: Nx.Tensor.t()
   def binary_cross_entropy(logits, targets) do
+    binary_cross_entropy(logits, targets, 0.0)
+  end
+
+  @spec binary_cross_entropy(Nx.Tensor.t(), Nx.Tensor.t(), float()) :: Nx.Tensor.t()
+  def binary_cross_entropy(logits, targets, label_smoothing) do
+    # Apply label smoothing to targets
+    # Smoothed targets: t_smooth = t * (1 - ε) + (1 - t) * ε = t * (1 - 2ε) + ε
+    smoothed_targets = if label_smoothing > 0.0 do
+      Nx.add(
+        Nx.multiply(targets, 1.0 - 2.0 * label_smoothing),
+        label_smoothing
+      )
+    else
+      targets
+    end
+
     # Numerically stable BCE
     # loss = max(logits, 0) - logits * targets + log(1 + exp(-abs(logits)))
     max_val = Nx.max(logits, 0)
     abs_logits = Nx.abs(logits)
 
-    loss = Nx.subtract(max_val, Nx.multiply(logits, targets))
+    loss = Nx.subtract(max_val, Nx.multiply(logits, smoothed_targets))
     loss = Nx.add(loss, Nx.log(Nx.add(1, Nx.exp(Nx.negate(abs_logits)))))
 
     Nx.mean(loss)
   end
 
   @doc """
-  Categorical cross-entropy loss for discretized sticks/shoulder.
+  Categorical cross-entropy loss for discretized sticks/shoulder with optional label smoothing.
+
+  With label smoothing ε > 0:
+  - Target class gets probability (1-ε)
+  - Other classes share ε equally: ε/(num_classes-1)
+
+  This encourages the model to be less overconfident on stick/shoulder predictions.
   """
   @spec categorical_cross_entropy(Nx.Tensor.t(), Nx.Tensor.t()) :: Nx.Tensor.t()
   def categorical_cross_entropy(logits, targets) do
+    categorical_cross_entropy(logits, targets, 0.0)
+  end
+
+  @spec categorical_cross_entropy(Nx.Tensor.t(), Nx.Tensor.t(), float()) :: Nx.Tensor.t()
+  def categorical_cross_entropy(logits, targets, label_smoothing) do
     # targets are indices, logits are [batch, num_classes]
     # Use log_softmax for numerical stability
     log_probs = log_softmax(logits)
@@ -609,14 +659,32 @@ defmodule ExPhil.Networks.Policy do
     batch_size = Nx.axis_size(logits, 0)
     num_classes = Nx.axis_size(logits, 1)
 
-    # Create one-hot targets and multiply with log_probs
+    # Create one-hot targets
     targets_one_hot = Nx.equal(
       Nx.iota({batch_size, num_classes}, axis: 1),
       Nx.reshape(targets, {batch_size, 1})
     )
 
-    # Negative log likelihood
-    nll = Nx.negate(Nx.sum(Nx.multiply(log_probs, targets_one_hot), axes: [1]))
+    # Apply label smoothing if enabled
+    # Smoothed one-hot: (1-ε) for target class, ε/(n-1) for others
+    smoothed_targets = if label_smoothing > 0.0 do
+      # off_value = ε / (n-1)
+      # on_value = 1 - ε
+      off_value = label_smoothing / (num_classes - 1)
+      on_value = 1.0 - label_smoothing
+
+      # Start with uniform ε/(n-1), then add (1-ε - ε/(n-1)) to target class
+      # = off_value + targets_one_hot * (on_value - off_value)
+      Nx.add(
+        off_value,
+        Nx.multiply(targets_one_hot, on_value - off_value)
+      )
+    else
+      targets_one_hot
+    end
+
+    # Cross-entropy with soft targets: -sum(p * log_q)
+    nll = Nx.negate(Nx.sum(Nx.multiply(log_probs, smoothed_targets), axes: [1]))
     Nx.mean(nll)
   end
 
