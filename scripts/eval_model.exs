@@ -1,228 +1,391 @@
 #!/usr/bin/env elixir
-# Model evaluation script: Test a trained policy
+# Model Evaluation Script: Evaluate trained models on test replays
 #
 # Usage:
-#   mix run scripts/eval_model.exs [options]
+#   mix run scripts/eval_model.exs --checkpoint checkpoints/model.axon
+#   mix run scripts/eval_model.exs --policy checkpoints/model_policy.bin --replays ~/replays
+#   mix run scripts/eval_model.exs --compare model1.axon model2.axon --replays ~/replays
 #
 # Options:
-#   --policy PATH     - Path to exported policy file (required)
-#   --replays PATH    - Path to replay directory for test data
-#   --max-files N     - Max replay files to use (default: 10)
-#   --player PORT     - Player port (1-4, default: 1)
-#   --deterministic   - Use deterministic action selection
-#   --benchmark       - Run inference speed benchmark
+#   --checkpoint PATH   - Full checkpoint (.axon) for evaluation
+#   --policy PATH       - Exported policy (.bin) for evaluation
+#   --replays PATH      - Path to test replays (default: ../replays)
+#   --max-files N       - Maximum replay files to use (default: 20)
+#   --batch-size N      - Evaluation batch size (default: 64)
+#   --player PORT       - Player port to evaluate (1-4, default: 1)
+#   --character NAME    - Filter replays by character (optional)
+#   --compare P1 P2 ... - Compare multiple checkpoints/policies
+#   --detailed          - Show detailed per-component metrics
+#   --output PATH       - Save results to JSON file
+#
+# Metrics Computed:
+#   - Average loss (cross-entropy)
+#   - Per-component accuracy (buttons, main_x, main_y, c_x, c_y, shoulder)
+#   - Top-3 accuracy for stick axes
+#   - Overall weighted accuracy
 
 require Logger
 
+defmodule Output do
+  def puts(line), do: IO.puts(:stderr, line)
+end
+
 alias ExPhil.Data.Peppi
-alias ExPhil.Training.Data
-alias ExPhil.Agents.Agent
+alias ExPhil.Training.{Config, Data, Imitation}
+alias ExPhil.Networks.Policy
 alias ExPhil.Embeddings
 
 # Parse command line arguments
 args = System.argv()
 
-get_arg = fn flag, default ->
-  case Enum.find_index(args, &(&1 == flag)) do
-    nil -> default
-    idx -> Enum.at(args, idx + 1) || default
-  end
-end
+{opts, positional, _} = OptionParser.parse(args,
+  strict: [
+    checkpoint: :string,
+    policy: :string,
+    replays: :string,
+    max_files: :integer,
+    batch_size: :integer,
+    player: :integer,
+    character: :string,
+    compare: :boolean,
+    detailed: :boolean,
+    output: :string,
+    help: :boolean
+  ],
+  aliases: [
+    c: :checkpoint,
+    p: :policy,
+    r: :replays,
+    m: :max_files,
+    b: :batch_size,
+    h: :help
+  ]
+)
 
-has_flag = fn flag -> Enum.member?(args, flag) end
-
-opts = [
-  policy: get_arg.("--policy", nil),
-  replays: get_arg.("--replays", "/home/dori/git/melee/replays"),
-  max_files: String.to_integer(get_arg.("--max-files", "10")),
-  player_port: String.to_integer(get_arg.("--player", "1")),
-  deterministic: has_flag.("--deterministic"),
-  benchmark: has_flag.("--benchmark")
-]
-
-if opts[:policy] == nil do
-  IO.puts("""
-  Error: --policy PATH is required
+if opts[:help] do
+  Output.puts("""
+  Model Evaluation Script
 
   Usage:
-    mix run scripts/eval_model.exs --policy checkpoints/policy.bin [options]
+    mix run scripts/eval_model.exs --checkpoint checkpoints/model.axon
+    mix run scripts/eval_model.exs --policy checkpoints/model_policy.bin
+    mix run scripts/eval_model.exs --compare model1.axon model2.axon
 
   Options:
-    --replays PATH    - Replay directory for test frames
-    --max-files N     - Max files (default: 10)
-    --deterministic   - Deterministic action selection
-    --benchmark       - Run speed benchmark
+    --checkpoint, -c PATH   Full checkpoint (.axon) to evaluate
+    --policy, -p PATH       Exported policy (.bin) to evaluate
+    --replays, -r PATH      Path to test replays (default: ../replays)
+    --max-files, -m N       Max replay files (default: 20)
+    --batch-size, -b N      Batch size (default: 64)
+    --player PORT           Player port (1-4, default: 1)
+    --character NAME        Filter by character
+    --compare               Compare multiple models (pass paths as positional args)
+    --detailed              Show per-component metrics
+    --output PATH           Save results to JSON
+
+  Examples:
+    # Evaluate a single model
+    mix run scripts/eval_model.exs -c checkpoints/mamba_model.axon
+
+    # Evaluate with specific replays and detailed output
+    mix run scripts/eval_model.exs -p model_policy.bin -r ~/test_replays --detailed
+
+    # Compare two models
+    mix run scripts/eval_model.exs --compare model_v1.axon model_v2.axon
   """)
-  System.halt(1)
+  System.halt(0)
 end
 
-IO.puts("""
+# Defaults
+defaults = %{
+  replays: System.get_env("REPLAYS_PATH") || Path.expand("../replays"),
+  max_files: 20,
+  batch_size: 64,
+  player: 1,
+  detailed: false
+}
 
-╔════════════════════════════════════════════════════════════════╗
-║                    ExPhil Model Evaluation                     ║
-╚════════════════════════════════════════════════════════════════╝
+opts = Map.merge(defaults, Map.new(opts))
 
-Configuration:
-  Policy:       #{opts[:policy]}
-  Replays:      #{opts[:replays]}
-  Max Files:    #{opts[:max_files]}
-  Player Port:  #{opts[:player_port]}
-  Deterministic: #{opts[:deterministic]}
-  Benchmark:    #{opts[:benchmark]}
-
-""")
-
-# Step 1: Load policy
-IO.puts("Step 1: Loading policy...")
-
-case ExPhil.Training.load_policy(opts[:policy]) do
-  {:ok, policy} ->
-    config = policy.config
-    IO.puts("  ✓ Policy loaded")
-    IO.puts("    Temporal: #{config[:temporal] || false}")
-    if config[:temporal] do
-      IO.puts("    Backbone: #{config[:backbone]}")
-      IO.puts("    Window:   #{config[:window_size]} frames")
-    end
-    IO.puts("    Embed size: #{config[:embed_size]}")
-
-  {:error, reason} ->
-    IO.puts("  ✗ Failed to load policy: #{inspect(reason)}")
+# Determine evaluation mode
+model_paths = cond do
+  opts[:compare] and length(positional) >= 2 ->
+    positional
+  opts[:checkpoint] ->
+    [opts[:checkpoint]]
+  opts[:policy] ->
+    [opts[:policy]]
+  length(positional) >= 1 ->
+    positional
+  true ->
+    Output.puts("Error: Must provide --checkpoint, --policy, or paths to compare")
     System.halt(1)
 end
 
-# Step 2: Start agent
-IO.puts("\nStep 2: Starting agent...")
+Output.puts("""
 
-{:ok, agent} = Agent.start_link(
-  policy_path: opts[:policy],
-  deterministic: opts[:deterministic]
-)
+========================================================================
+                     ExPhil Model Evaluation
+========================================================================
+""")
 
-agent_config = Agent.get_config(agent)
-IO.puts("  ✓ Agent started")
-IO.puts("    Temporal: #{agent_config.temporal}")
-IO.puts("    Window:   #{agent_config.window_size}")
+# Step 1: Load test replays
+Output.puts("Step 1: Loading test replays...")
+replay_dir = opts[:replays]
 
-# Step 3: Load test frames
-IO.puts("\nStep 3: Loading test frames...")
-
-replay_files = Path.wildcard(Path.join(opts[:replays], "**/*.slp"))
-|> Enum.take(opts[:max_files])
-
-IO.puts("  Found #{length(replay_files)} replay files")
-
-test_frames = replay_files
-|> Enum.flat_map(fn path ->
-  case Peppi.parse(path, player_port: opts[:player_port]) do
-    {:ok, replay} ->
-      Peppi.to_training_frames(replay, player_port: opts[:player_port])
-    {:error, _} ->
-      []
-  end
-end)
-|> Enum.take(1000)  # Limit to 1000 frames for eval
-
-IO.puts("  Loaded #{length(test_frames)} test frames")
-
-if length(test_frames) == 0 do
-  IO.puts("\n❌ No test frames found. Check replay path and player port.")
+unless File.dir?(replay_dir) do
+  Output.puts("Error: Replay directory not found: #{replay_dir}")
   System.halt(1)
 end
 
-# Step 4: Run inference
-IO.puts("\nStep 4: Running inference...")
+replay_files = Path.wildcard(Path.join(replay_dir, "**/*.slp"))
+  |> Enum.take(opts[:max_files])
 
-# Test on sample frames
-sample_frames = Enum.take(test_frames, 10)
-
-IO.puts("\n  Sample actions:")
-
-# Helper to convert button tensor to human-readable format
-button_names = [:a, :b, :x, :y, :z, :l, :r, :d_up]
-format_buttons = fn buttons ->
-  cond do
-    is_struct(buttons, Nx.Tensor) ->
-      # Convert tensor to list of active button names
-      buttons
-      |> Nx.to_flat_list()
-      |> Enum.with_index()
-      |> Enum.filter(fn {val, _idx} -> val == 1 or val == true end)
-      |> Enum.map(fn {_val, idx} -> Enum.at(button_names, idx) end)
-      |> Enum.join(", ")
-
-    is_map(buttons) ->
-      # Already a map, filter active buttons
-      buttons
-      |> Enum.filter(fn {_k, v} -> v end)
-      |> Enum.map(fn {k, _} -> k end)
-      |> Enum.join(", ")
-
-    true ->
-      inspect(buttons)
-  end
+if Enum.empty?(replay_files) do
+  Output.puts("Error: No .slp files found in #{replay_dir}")
+  System.halt(1)
 end
 
-for {frame, idx} <- Enum.with_index(sample_frames) do
-  case Agent.get_action(agent, frame.game_state, player_port: opts[:player_port]) do
-    {:ok, action} ->
-      buttons_str = format_buttons.(action.buttons)
-      buttons_str = if buttons_str == "", do: "none", else: buttons_str
+Output.puts("  Found #{length(replay_files)} replay files")
 
-      # Handle tensor or integer for stick values
-      main_x = if is_struct(action.main_x, Nx.Tensor), do: Nx.to_number(Nx.squeeze(action.main_x)), else: action.main_x
-      main_y = if is_struct(action.main_y, Nx.Tensor), do: Nx.to_number(Nx.squeeze(action.main_y)), else: action.main_y
-
-      IO.puts("    Frame #{idx}: buttons=[#{buttons_str}] stick=(#{main_x}, #{main_y})")
-
-    {:error, reason} ->
-      IO.puts("    Frame #{idx}: ERROR - #{inspect(reason)}")
-  end
+# Parse replays
+Output.puts("\nStep 2: Parsing replays...")
+parse_opts = [
+  player_port: opts[:player],
+  include_speeds: true
+]
+parse_opts = if opts[:character] do
+  Keyword.put(parse_opts, :filter_character, opts[:character])
+else
+  parse_opts
 end
 
-# Step 5: Benchmark (optional)
-if opts[:benchmark] do
-  IO.puts("\nStep 5: Running inference benchmark...")
+{:ok, frames} = Peppi.parse_replays(replay_files, parse_opts)
 
-  # Warmup
-  IO.puts("  Warming up (100 frames)...")
-  for frame <- Enum.take(test_frames, 100) do
-    Agent.get_action(agent, frame.game_state, player_port: opts[:player_port])
+if Enum.empty?(frames) do
+  Output.puts("Error: No frames extracted from replays")
+  System.halt(1)
+end
+
+Output.puts("  Extracted #{length(frames)} frames")
+
+# Get embedding config
+embed_config = Embeddings.config(with_speeds: true)
+embed_size = Embeddings.embedding_size(embed_config)
+
+# Create dataset
+Output.puts("\nStep 3: Creating evaluation dataset...")
+dataset = Data.from_frames(frames,
+  embed_config: embed_config,
+  temporal: false
+)
+
+Output.puts("  Dataset size: #{dataset.size} frames")
+
+# Batch the dataset
+batches = Data.batched(dataset,
+  batch_size: opts[:batch_size],
+  shuffle: false,
+  drop_last: false
+)
+|> Enum.to_list()
+
+num_batches = length(batches)
+Output.puts("  Created #{num_batches} evaluation batches")
+
+# Helper functions for metrics
+compute_accuracy = fn logits, targets, _num_classes ->
+  predictions = Nx.argmax(logits, axis: -1)
+  correct = Nx.equal(predictions, targets)
+  Nx.mean(correct) |> Nx.to_number()
+end
+
+compute_top_k_accuracy = fn logits, targets, k ->
+  {_, top_k_indices} = Nx.top_k(logits, k: k)
+  expanded_targets = Nx.reshape(targets, {:auto, 1})
+  matches = Nx.equal(top_k_indices, expanded_targets)
+  any_match = Nx.any(matches, axes: [-1])
+  Nx.mean(any_match) |> Nx.to_number()
+end
+
+compute_button_accuracy = fn logits, targets ->
+  probs = Nx.sigmoid(logits)
+  predictions = Nx.greater(probs, 0.5)
+  correct = Nx.equal(predictions, targets)
+  Nx.mean(correct) |> Nx.to_number()
+end
+
+# Evaluate a single model
+evaluate_model = fn model_path ->
+  Output.puts("\n" <> String.duplicate("-", 60))
+  Output.puts("Evaluating: #{Path.basename(model_path)}")
+  Output.puts(String.duplicate("-", 60))
+
+  is_policy_file = String.ends_with?(model_path, ".bin")
+
+  # Load model
+  {params, config} = if is_policy_file do
+    {:ok, binary} = File.read(model_path)
+    export = :erlang.binary_to_term(binary)
+    {export.params, export.config}
+  else
+    {:ok, binary} = File.read(model_path)
+    checkpoint = :erlang.binary_to_term(binary)
+    {checkpoint.policy_params, checkpoint.config}
   end
 
-  # Reset buffer for temporal models
-  Agent.reset_buffer(agent)
+  # Build policy model
+  model_embed_size = config[:embed_size] || embed_size
+  hidden_sizes = config[:hidden_sizes] || [512, 512]
 
-  # Benchmark
-  bench_frames = Enum.take(test_frames, 500)
-  IO.puts("  Benchmarking #{length(bench_frames)} frames...")
+  policy_model = Policy.build(
+    embed_size: model_embed_size,
+    hidden_sizes: hidden_sizes,
+    axis_buckets: config[:axis_buckets] || 16,
+    shoulder_buckets: config[:shoulder_buckets] || 4
+  )
 
-  {time_us, _} = :timer.tc(fn ->
-    for frame <- bench_frames do
-      Agent.get_action(agent, frame.game_state, player_port: opts[:player_port])
+  {_init_fn, predict_fn} = Axon.build(policy_model)
+
+  # Evaluate
+  axis_buckets = config[:axis_buckets] || 16
+  shoulder_buckets = config[:shoulder_buckets] || 4
+  label_smoothing = config[:label_smoothing] || 0.0
+
+  {total_loss, total_batches, component_metrics} = Enum.reduce(batches, {0.0, 0, %{}}, fn batch, {acc_loss, acc_count, acc_metrics} ->
+    %{states: states, actions: actions} = batch
+
+    states = Nx.backend_copy(states)
+    actions = Map.new(actions, fn {k, v} -> {k, Nx.backend_copy(v)} end)
+
+    {buttons, main_x, main_y, c_x, c_y, shoulder} = predict_fn.(params, states)
+
+    logits = %{
+      buttons: buttons,
+      main_x: main_x,
+      main_y: main_y,
+      c_x: c_x,
+      c_y: c_y,
+      shoulder: shoulder
+    }
+
+    loss = Policy.imitation_loss(logits, actions, label_smoothing: label_smoothing)
+    loss_val = Nx.to_number(loss)
+
+    batch_metrics = %{
+      button_acc: compute_button_accuracy.(buttons, actions.buttons),
+      main_x_acc: compute_accuracy.(main_x, actions.main_x, axis_buckets + 1),
+      main_y_acc: compute_accuracy.(main_y, actions.main_y, axis_buckets + 1),
+      c_x_acc: compute_accuracy.(c_x, actions.c_x, axis_buckets + 1),
+      c_y_acc: compute_accuracy.(c_y, actions.c_y, axis_buckets + 1),
+      shoulder_acc: compute_accuracy.(shoulder, actions.shoulder, shoulder_buckets + 1),
+      main_x_top3: compute_top_k_accuracy.(main_x, actions.main_x, 3),
+      main_y_top3: compute_top_k_accuracy.(main_y, actions.main_y, 3)
+    }
+
+    new_metrics = if map_size(acc_metrics) == 0 do
+      batch_metrics
+    else
+      Map.merge(acc_metrics, batch_metrics, fn _k, v1, v2 -> v1 + v2 end)
     end
+
+    {acc_loss + loss_val, acc_count + 1, new_metrics}
   end)
 
-  total_ms = time_us / 1000
-  per_frame_ms = total_ms / length(bench_frames)
-  fps = 1000 / per_frame_ms
+  # Compute averages
+  avg_loss = total_loss / total_batches
+  avg_metrics = Map.new(component_metrics, fn {k, v} -> {k, v / total_batches} end)
 
-  IO.puts("""
+  # Display results
+  Output.puts("")
+  Output.puts("  Loss (cross-entropy): #{Float.round(avg_loss, 4)}")
+  Output.puts("")
+  Output.puts("  Component Accuracy:")
+  Output.puts("    Buttons:      #{Float.round(avg_metrics.button_acc * 100, 1)}%")
+  Output.puts("    Main Stick X: #{Float.round(avg_metrics.main_x_acc * 100, 1)}% (top-3: #{Float.round(avg_metrics.main_x_top3 * 100, 1)}%)")
+  Output.puts("    Main Stick Y: #{Float.round(avg_metrics.main_y_acc * 100, 1)}% (top-3: #{Float.round(avg_metrics.main_y_top3 * 100, 1)}%)")
+  Output.puts("    C-Stick X:    #{Float.round(avg_metrics.c_x_acc * 100, 1)}%")
+  Output.puts("    C-Stick Y:    #{Float.round(avg_metrics.c_y_acc * 100, 1)}%")
+  Output.puts("    Shoulder:     #{Float.round(avg_metrics.shoulder_acc * 100, 1)}%")
 
-  Benchmark Results:
-    Total time:    #{Float.round(total_ms, 1)} ms
-    Per frame:     #{Float.round(per_frame_ms, 3)} ms
-    Throughput:    #{Float.round(fps, 1)} FPS
-    60 FPS target: #{if per_frame_ms < 16.67, do: "✓ PASS", else: "✗ FAIL (need < 16.67ms)"}
-  """)
+  # Overall weighted accuracy
+  overall_acc = (
+    avg_metrics.button_acc * 0.3 +
+    avg_metrics.main_x_acc * 0.2 +
+    avg_metrics.main_y_acc * 0.2 +
+    avg_metrics.c_x_acc * 0.1 +
+    avg_metrics.c_y_acc * 0.1 +
+    avg_metrics.shoulder_acc * 0.1
+  )
+  Output.puts("")
+  Output.puts("  Overall Weighted Accuracy: #{Float.round(overall_acc * 100, 1)}%")
+
+  %{
+    path: model_path,
+    loss: avg_loss,
+    metrics: avg_metrics,
+    overall_acc: overall_acc
+  }
 end
 
-# Cleanup
-GenServer.stop(agent)
+# Evaluate all models
+Output.puts("\nStep 4: Evaluating models...")
+results = Enum.map(model_paths, evaluate_model)
 
-IO.puts("""
+# Show comparison if multiple models
+if length(results) > 1 do
+  Output.puts("""
 
-╔════════════════════════════════════════════════════════════════╗
-║                     Evaluation Complete!                       ║
-╚════════════════════════════════════════════════════════════════╝
+========================================================================
+                        Model Comparison
+========================================================================
+""")
+
+  sorted = Enum.sort_by(results, & &1.loss)
+
+  Output.puts("Ranked by Loss (lower is better):")
+  Output.puts("")
+
+  Enum.with_index(sorted, 1)
+  |> Enum.each(fn {result, rank} ->
+    name = Path.basename(result.path)
+    loss_str = Float.round(result.loss, 4) |> to_string()
+    acc_str = Float.round(result.overall_acc * 100, 1) |> to_string()
+    Output.puts("  #{rank}. #{name}")
+    Output.puts("     Loss: #{loss_str} | Accuracy: #{acc_str}%")
+  end)
+
+  best = hd(sorted)
+  Output.puts("")
+  Output.puts("Best Model: #{Path.basename(best.path)}")
+end
+
+# Save to JSON if requested
+if opts[:output] do
+  json_results = Enum.map(results, fn r ->
+    %{
+      path: r.path,
+      loss: Float.round(r.loss, 6),
+      overall_accuracy: Float.round(r.overall_acc, 4),
+      component_accuracy: Map.new(r.metrics, fn {k, v} -> {k, Float.round(v, 4)} end)
+    }
+  end)
+
+  case File.write(opts[:output], Jason.encode!(json_results, pretty: true)) do
+    :ok -> Output.puts("\nResults saved to #{opts[:output]}")
+    {:error, reason} -> Output.puts("\nFailed to save results: #{inspect(reason)}")
+  end
+end
+
+Output.puts("""
+
+========================================================================
+                       Evaluation Complete
+========================================================================
+
+Next steps:
+  1. Test in-game: mix run scripts/play_dolphin_async.exs --policy <path>
+  2. Continue training: mix run scripts/train_from_replays.exs --resume <checkpoint>
+  3. Compare more models: mix run scripts/eval_model.exs --compare <paths...>
+
 """)

@@ -34,6 +34,9 @@ ExPhil is an Elixir-based successor to slippi-ai, creating high-ELO playable bot
 - Label smoothing for better generalization
 - Model registry with JSON tracking and lineage
 - Checkpoint pruning (keep best N)
+- Frame delay augmentation for online play (`--online-robust`)
+- Training presets (quick, standard, production, character-specific)
+- Model evaluation script (`scripts/eval_model.exs`)
 
 ## Immediate Priorities
 
@@ -73,6 +76,9 @@ mix run scripts/train_from_replays.exs --temporal --backbone mamba --epochs 5
 # Using presets
 mix run scripts/train_from_replays.exs --preset quick     # Fast iteration
 mix run scripts/train_from_replays.exs --preset full      # Maximum quality
+
+# Evaluate a trained model
+mix run scripts/eval_model.exs --checkpoint checkpoints/model.axon
 
 # Play against Dolphin
 source .venv/bin/activate
