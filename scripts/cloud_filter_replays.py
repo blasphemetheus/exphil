@@ -5,12 +5,15 @@ Cloud Replay Filter - Download and filter low-tier replays from Google Drive arc
 Designed for RunPod or similar cloud instances with ample disk space.
 
 Usage:
-    # Single archive
+    # Process already-downloaded 7z files
+    python cloud_filter_replays.py --local /workspace/downloads --output /workspace/lowtier
+
+    # Single archive from URL
     python cloud_filter_replays.py --url "https://drive.google.com/..." --output /workspace/lowtier
-    
+
     # Multiple archives from file
     python cloud_filter_replays.py --urls-file links.txt --output /workspace/lowtier
-    
+
     # With cleanup (delete archives after processing)
     python cloud_filter_replays.py --urls-file links.txt --output /workspace/lowtier --cleanup
 
@@ -188,43 +191,75 @@ def filter_replays(extract_dir, output_dir, num_workers=8):
     
     return counts
 
+def process_local_archive(archive_path, output_dir, cleanup=False):
+    """Extract, filter, and optionally cleanup a local archive."""
+    print(f"\n{'='*60}")
+    print(f"Processing: {os.path.basename(archive_path)}")
+    print(f"{'='*60}")
+
+    archive_size = os.path.getsize(archive_path) / (1024**3)
+    print(f"Archive size: {archive_size:.1f} GB")
+
+    # Extract to temp location next to archive
+    extract_dir = os.path.join(os.path.dirname(archive_path), "extracted")
+    os.makedirs(extract_dir, exist_ok=True)
+
+    if not extract_archive(archive_path, extract_dir):
+        print(f"ERROR: Failed to extract {archive_path}")
+        return {}
+
+    # Delete archive to free space (we have the extracted files)
+    if cleanup:
+        print(f"Removing archive to free space...")
+        os.remove(archive_path)
+
+    # Filter replays
+    counts = filter_replays(extract_dir, output_dir)
+
+    # Cleanup extracted files
+    print(f"Cleaning up extracted files...")
+    shutil.rmtree(extract_dir, ignore_errors=True)
+
+    return counts
+
+
 def process_archive(url, download_dir, output_dir, cleanup=False):
     """Download, extract, filter, and optionally cleanup a single archive."""
     print(f"\n{'='*60}")
     print(f"Processing: {url[:80]}...")
     print(f"{'='*60}")
-    
+
     # Download
     archive_path = download_from_gdrive(url, download_dir)
     if not archive_path:
         print(f"ERROR: Failed to download {url}")
         return {}
-    
+
     archive_size = os.path.getsize(archive_path) / (1024**3)
     print(f"Downloaded: {archive_path} ({archive_size:.1f} GB)")
-    
+
     # Extract to temp location
     extract_dir = os.path.join(download_dir, "extracted")
     os.makedirs(extract_dir, exist_ok=True)
-    
+
     if not extract_archive(archive_path, extract_dir):
         print(f"ERROR: Failed to extract {archive_path}")
         if cleanup:
             os.remove(archive_path)
         return {}
-    
+
     # Delete archive to free space (we have the extracted files)
     if cleanup:
         print(f"Removing archive to free space...")
         os.remove(archive_path)
-    
+
     # Filter replays
     counts = filter_replays(extract_dir, output_dir)
-    
+
     # Cleanup extracted files
     print(f"Cleaning up extracted files...")
     shutil.rmtree(extract_dir, ignore_errors=True)
-    
+
     return counts
 
 def main():
@@ -233,18 +268,22 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
+    # Process local 7z files (already downloaded)
+    python cloud_filter_replays.py --local /workspace/downloads --output ./lowtier
+
     # Single URL
     python cloud_filter_replays.py --url "https://drive.google.com/file/d/ABC123/view" --output ./lowtier
-    
+
     # Multiple URLs from file (one per line)
     python cloud_filter_replays.py --urls-file links.txt --output ./lowtier --cleanup
-    
+
     # On RunPod with workspace volume
     python cloud_filter_replays.py --urls-file /workspace/links.txt --output /workspace/lowtier --cleanup
 
 Target characters: mewtwo, ganondorf, link, zelda, game_and_watch
         """
     )
+    parser.add_argument("--local", help="Directory containing already-downloaded 7z files")
     parser.add_argument("--url", help="Single Google Drive URL")
     parser.add_argument("--urls-file", help="File containing URLs (one per line)")
     parser.add_argument("--output", required=True, help="Output directory for filtered replays")
@@ -252,53 +291,84 @@ Target characters: mewtwo, ganondorf, link, zelda, game_and_watch
     parser.add_argument("--cleanup", action="store_true", help="Delete archives after processing")
     parser.add_argument("--workers", type=int, default=8, help="Parallel workers for filtering")
     args = parser.parse_args()
-    
-    if not args.url and not args.urls_file:
-        parser.error("Must provide --url or --urls-file")
-    
+
+    if not args.url and not args.urls_file and not args.local:
+        parser.error("Must provide --local, --url, or --urls-file")
+
     # Install dependencies
     install_dependencies()
-    
-    # Collect URLs
-    urls = []
-    if args.url:
-        urls.append(args.url)
-    if args.urls_file:
-        with open(args.urls_file) as f:
-            urls.extend(line.strip() for line in f if line.strip() and not line.startswith("#"))
-    
-    print(f"URLs to process: {len(urls)}")
-    print(f"Output directory: {args.output}")
-    print(f"Download directory: {args.download_dir}")
-    print(f"Cleanup after processing: {args.cleanup}")
-    print(f"Target characters: {', '.join(set(TARGET_CHARACTERS.values()))}")
-    
-    # Create directories
+
+    # Create output directory
     os.makedirs(args.output, exist_ok=True)
-    os.makedirs(args.download_dir, exist_ok=True)
-    
-    # Check disk space
-    total, used, free = shutil.disk_usage(args.download_dir)
-    print(f"\nDisk space: {free/1024**3:.1f} GB free of {total/1024**3:.1f} GB")
-    
-    if free < 100 * 1024**3:  # Less than 100GB
-        print("WARNING: Less than 100GB free. Consider using --cleanup flag.")
-    
-    # Process each archive
+
     total_counts = {}
-    
-    for i, url in enumerate(urls, 1):
-        print(f"\n[{i}/{len(urls)}] Processing archive...")
-        counts = process_archive(url, args.download_dir, args.output, args.cleanup)
-        
-        for char, count in counts.items():
-            total_counts[char] = total_counts.get(char, 0) + count
-        
-        # Show running totals
-        if total_counts:
-            print(f"\nRunning totals:")
-            for char, count in sorted(total_counts.items()):
-                print(f"  {char}: {count}")
+
+    # Handle local archives
+    if args.local:
+        local_dir = Path(args.local)
+        archives = list(local_dir.glob("*.7z"))
+        if not archives:
+            print(f"No .7z files found in {args.local}")
+            return
+
+        print(f"Local archives to process: {len(archives)}")
+        print(f"Output directory: {args.output}")
+        print(f"Cleanup after processing: {args.cleanup}")
+        print(f"Target characters: {', '.join(set(TARGET_CHARACTERS.values()))}")
+
+        # Check disk space
+        total, used, free = shutil.disk_usage(args.local)
+        print(f"\nDisk space: {free/1024**3:.1f} GB free of {total/1024**3:.1f} GB")
+
+        for i, archive in enumerate(sorted(archives), 1):
+            print(f"\n[{i}/{len(archives)}] Processing archive...")
+            counts = process_local_archive(str(archive), args.output, args.cleanup)
+
+            for char, count in counts.items():
+                total_counts[char] = total_counts.get(char, 0) + count
+
+            if total_counts:
+                print(f"\nRunning totals:")
+                for char, count in sorted(total_counts.items()):
+                    print(f"  {char}: {count}")
+    else:
+        # Collect URLs
+        urls = []
+        if args.url:
+            urls.append(args.url)
+        if args.urls_file:
+            with open(args.urls_file) as f:
+                urls.extend(line.strip() for line in f if line.strip() and not line.startswith("#"))
+
+        print(f"URLs to process: {len(urls)}")
+        print(f"Output directory: {args.output}")
+        print(f"Download directory: {args.download_dir}")
+        print(f"Cleanup after processing: {args.cleanup}")
+        print(f"Target characters: {', '.join(set(TARGET_CHARACTERS.values()))}")
+
+        # Create directories
+        os.makedirs(args.download_dir, exist_ok=True)
+
+        # Check disk space
+        total, used, free = shutil.disk_usage(args.download_dir)
+        print(f"\nDisk space: {free/1024**3:.1f} GB free of {total/1024**3:.1f} GB")
+
+        if free < 100 * 1024**3:  # Less than 100GB
+            print("WARNING: Less than 100GB free. Consider using --cleanup flag.")
+
+        # Process each archive
+        for i, url in enumerate(urls, 1):
+            print(f"\n[{i}/{len(urls)}] Processing archive...")
+            counts = process_archive(url, args.download_dir, args.output, args.cleanup)
+
+            for char, count in counts.items():
+                total_counts[char] = total_counts.get(char, 0) + count
+
+            # Show running totals
+            if total_counts:
+                print(f"\nRunning totals:")
+                for char, count in sorted(total_counts.items()):
+                    print(f"  {char}: {count}")
     
     # Final summary
     print(f"\n{'='*60}")
