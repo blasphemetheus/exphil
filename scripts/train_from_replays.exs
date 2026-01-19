@@ -85,6 +85,28 @@ end
 # Validation Split:
 #   --val-split X     - Fraction of data for validation, 0.0-1.0 (default: 0.0 = no split)
 #                       Example: --val-split 0.1 = 10% validation, 90% training
+#
+# Data Augmentation:
+#   --augment         - Enable data augmentation (mirror + noise)
+#   --mirror-prob X   - Probability of horizontal flip (default: 0.5)
+#   --noise-prob X    - Probability of noise injection (default: 0.3)
+#   --noise-scale X   - Scale of Gaussian noise (default: 0.01)
+#
+# Label Smoothing:
+#   --label-smoothing X - Smoothing factor for targets (default: 0.0, typical: 0.1)
+#                         Reduces overconfidence by softening hard labels
+#
+# Model Registry:
+#   --no-register       - Skip registering model in registry (for test runs)
+#
+# Checkpoint Pruning:
+#   --keep-best N       - Keep only the best N epoch checkpoints (by val/train loss)
+#                         Requires --save-every to have any effect
+#
+# Model EMA (Exponential Moving Average):
+#   --ema               - Enable EMA weight tracking (often better generalization)
+#   --ema-decay X       - EMA decay rate (default: 0.999, range: 0-1)
+#                         Higher = slower updates, smoother weights
 
 # Simple unbuffered output - all output goes to stderr which is always line-buffered
 # This means `mix run script.exs` just works without any redirection tricks
@@ -92,10 +114,32 @@ defmodule Output do
   def puts(line), do: IO.puts(:stderr, line)
 end
 
+# Build auto-tags based on training configuration
+build_model_tags = fn opts ->
+  tags = []
+
+  # Backbone tag
+  tags = if opts[:backbone], do: [to_string(opts[:backbone]) | tags], else: tags
+
+  # Temporal tag
+  tags = if opts[:temporal], do: ["temporal" | tags], else: tags
+
+  # Augmentation tag
+  tags = if opts[:augment], do: ["augmented" | tags], else: tags
+
+  # Preset tag
+  tags = if opts[:preset], do: ["preset:#{opts[:preset]}" | tags], else: tags
+
+  # Label smoothing tag
+  tags = if opts[:label_smoothing] && opts[:label_smoothing] > 0, do: ["smoothed" | tags], else: tags
+
+  Enum.reverse(tags)
+end
+
 require Logger
 
 alias ExPhil.Data.Peppi
-alias ExPhil.Training.{Config, Data, EarlyStopping, Imitation}
+alias ExPhil.Training.{Augmentation, CheckpointPruning, Config, Data, EarlyStopping, EMA, Imitation, Registry}
 alias ExPhil.Embeddings
 alias ExPhil.Integrations.Wandb
 
@@ -162,6 +206,7 @@ Configuration:
   Wandb:       #{if opts[:wandb], do: "enabled", else: "disabled"}
   Precision:   #{precision_str}
   Frame Delay: #{if opts[:frame_delay] > 0, do: "#{opts[:frame_delay]} frames (online simulation)", else: "0 (instant feedback)"}
+  Augment:     #{if opts[:augment], do: "enabled (mirror=#{opts[:mirror_prob]}, noise=#{opts[:noise_prob]})", else: "disabled"}
 #{temporal_info}
 """)
 
@@ -323,7 +368,9 @@ trainer_opts = [
   expand_factor: opts[:expand_factor],
   conv_size: opts[:conv_size],
   # Gradient accumulation
-  accumulation_steps: opts[:accumulation_steps]
+  accumulation_steps: opts[:accumulation_steps],
+  # Label smoothing
+  label_smoothing: opts[:label_smoothing]
 ]
 
 # Create trainer (or load from checkpoint for resumption)
@@ -370,6 +417,19 @@ Output.puts("  ⏱  Estimated training time: ~#{estimated_minutes}m #{estimated_
 Output.puts("      (#{batches_per_epoch} batches/epoch × #{opts[:epochs]} epochs + JIT compilation)")
 
 # Step 4: Training loop
+# Create augmentation function if enabled
+augment_fn = if opts[:augment] do
+  fn frame ->
+    Augmentation.augment(frame,
+      mirror_prob: opts[:mirror_prob],
+      noise_prob: opts[:noise_prob],
+      noise_scale: opts[:noise_scale]
+    )
+  end
+else
+  nil
+end
+
 early_stopping_msg = if opts[:early_stopping] do
   " (early stopping: patience=#{opts[:patience]}, min_delta=#{opts[:min_delta]})"
 else
@@ -387,16 +447,33 @@ else
   nil
 end
 
-# Training loop with early stopping and best model tracking
-# Returns {trainer, epochs_completed, stopped_early, early_stopping_state, best_val_loss}
-initial_state = {trainer, 0, false, early_stopping_state, nil}
+# Initialize checkpoint pruner if configured
+pruner = if opts[:keep_best] && opts[:save_every] do
+  CheckpointPruning.new(keep_best: opts[:keep_best], metric: :loss)
+else
+  nil
+end
 
-{final_trainer, epochs_completed, stopped_early, _es_state, _best_val} =
-  Enum.reduce_while(1..opts[:epochs], initial_state, fn epoch, {current_trainer, _, _, es_state, best_val_loss} ->
+# Initialize EMA if configured
+ema = if opts[:ema] do
+  Output.puts("  EMA enabled (decay=#{opts[:ema_decay]})")
+  EMA.new(trainer.params, decay: opts[:ema_decay])
+else
+  nil
+end
+
+# Training loop with early stopping and best model tracking
+# Returns {trainer, epochs_completed, stopped_early, early_stopping_state, best_val_loss, pruner, ema}
+initial_state = {trainer, 0, false, early_stopping_state, nil, pruner, ema}
+
+{final_trainer, epochs_completed, stopped_early, _es_state, _best_val, _final_pruner, final_ema} =
+  Enum.reduce_while(1..opts[:epochs], initial_state, fn epoch, {current_trainer, _, _, es_state, best_val_loss, current_pruner, current_ema} ->
     epoch_start = System.monotonic_time(:second)
 
     # Create batched dataset for this epoch
     # Use appropriate batching function based on temporal mode
+    # Note: augmentation is only applied to non-temporal (single-frame) batches
+    # Temporal batches use pre-computed embeddings, so augmentation happens at sequence creation
     batches = if opts[:temporal] do
       Data.batched_sequences(train_dataset,
         batch_size: opts[:batch_size],
@@ -407,7 +484,8 @@ initial_state = {trainer, 0, false, early_stopping_state, nil}
       Data.batched(train_dataset,
         batch_size: opts[:batch_size],
         shuffle: true,
-        drop_last: true
+        drop_last: true,
+        augment_fn: augment_fn
       )
     end
     |> Enum.to_list()
@@ -525,22 +603,51 @@ initial_state = {trainer, 0, false, early_stopping_state, nil}
       end
     end
 
-    # Save periodic checkpoint if configured
-    if opts[:save_every] && rem(epoch, opts[:save_every]) == 0 do
+    # Save periodic checkpoint if configured and track for pruning
+    updated_pruner = if opts[:save_every] && rem(epoch, opts[:save_every]) == 0 do
       epoch_checkpoint = String.replace(opts[:checkpoint], ".axon", "_epoch#{epoch}.axon")
       case Imitation.save_checkpoint(updated_trainer, epoch_checkpoint) do
-        :ok -> Output.puts("    📁 Epoch #{epoch} checkpoint saved")
-        {:error, _} -> :ok
+        :ok ->
+          Output.puts("    📁 Epoch #{epoch} checkpoint saved")
+
+          # Track and prune if pruner is configured
+          if current_pruner do
+            new_pruner = CheckpointPruning.track(current_pruner, epoch_checkpoint, val_loss, epoch: epoch)
+
+            if CheckpointPruning.needs_pruning?(new_pruner) do
+              {pruned_state, deleted} = CheckpointPruning.prune(new_pruner)
+              if length(deleted) > 0 do
+                Output.puts("    🗑️  Pruned #{length(deleted)} checkpoint(s)")
+              end
+              pruned_state
+            else
+              new_pruner
+            end
+          else
+            current_pruner
+          end
+
+        {:error, _} ->
+          current_pruner
       end
+    else
+      current_pruner
+    end
+
+    # Update EMA weights if enabled
+    updated_ema = if current_ema do
+      EMA.update(current_ema, updated_trainer.params)
+    else
+      nil
     end
 
     # Decide whether to continue or stop
     case es_decision do
       :stop ->
         Output.puts("\n  ⚠ Early stopping triggered - no improvement for #{opts[:patience]} epochs")
-        {:halt, {updated_trainer, epoch, true, new_es_state, new_best_val_loss}}
+        {:halt, {updated_trainer, epoch, true, new_es_state, new_best_val_loss, updated_pruner, updated_ema}}
       :continue ->
-        {:cont, {updated_trainer, epoch, false, new_es_state, new_best_val_loss}}
+        {:cont, {updated_trainer, epoch, false, new_es_state, new_best_val_loss, updated_pruner, updated_ema}}
     end
   end)
 
@@ -566,6 +673,24 @@ case Imitation.export_policy(final_trainer, policy_path) do
   {:error, reason} -> Output.puts("  ✗ Failed: #{inspect(reason)}")
 end
 
+# Save EMA weights if enabled
+if final_ema do
+  ema_path = String.replace(opts[:checkpoint], ".axon", "_ema.bin")
+  ema_binary = EMA.serialize(final_ema)
+  case File.write(ema_path, ema_binary) do
+    :ok -> Output.puts("  ✓ EMA weights saved to #{ema_path}")
+    {:error, reason} -> Output.puts("  ✗ EMA save failed: #{inspect(reason)}")
+  end
+
+  # Also export EMA as inference policy (often better than raw weights)
+  ema_policy_path = String.replace(opts[:checkpoint], ".axon", "_ema_policy.bin")
+  ema_trainer = %{final_trainer | params: EMA.get_params(final_ema)}
+  case Imitation.export_policy(ema_trainer, ema_policy_path) do
+    :ok -> Output.puts("  ✓ EMA policy exported to #{ema_policy_path}")
+    {:error, reason} -> Output.puts("  ✗ EMA policy export failed: #{inspect(reason)}")
+  end
+end
+
 # Save training config as JSON (for reproducibility)
 config_path = Config.derive_config_path(opts[:checkpoint])
 training_results = %{
@@ -582,6 +707,48 @@ training_config = Config.build_config_json(opts, training_results)
 case File.write(config_path, Jason.encode!(training_config, pretty: true)) do
   :ok -> Output.puts("  ✓ Config saved to #{config_path}")
   {:error, reason} -> Output.puts("  ✗ Config save failed: #{inspect(reason)}")
+end
+
+# Step 6: Register model in registry
+unless opts[:no_register] do
+  Output.puts("\nStep 6: Registering model...")
+
+  # Determine parent model if resuming from checkpoint
+  parent_id = if opts[:resume] do
+    case Registry.list() do
+      {:ok, models} ->
+        Enum.find_value(models, fn m ->
+          if m.checkpoint_path == opts[:resume], do: m.id
+        end)
+      _ -> nil
+    end
+  else
+    nil
+  end
+
+  registry_entry = %{
+    checkpoint_path: opts[:checkpoint],
+    policy_path: policy_path,
+    config_path: config_path,
+    training_config: opts,
+    metrics: %{
+      final_loss: Float.round(Enum.sum(Enum.take(final_trainer.metrics.loss, 10)) / 10, 4),
+      epochs_completed: epochs_completed,
+      training_frames: train_dataset.size,
+      validation_frames: val_dataset.size,
+      stopped_early: stopped_early,
+      total_time_seconds: total_time
+    },
+    tags: build_model_tags.(opts),
+    parent_id: parent_id
+  }
+
+  case Registry.register(registry_entry) do
+    {:ok, entry} ->
+      Output.puts("  ✓ Registered as '#{entry.name}' (#{entry.id})")
+    {:error, reason} ->
+      Output.puts("  ✗ Registry failed: #{inspect(reason)}")
+  end
 end
 
 # Summary
