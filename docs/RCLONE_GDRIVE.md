@@ -75,34 +75,41 @@ Browser opens → authorize with Google → copy the token back to cloud instanc
 
 ## Downloading Files
 
-### Add Files to "Shared with me"
+### Step 1: Add Files to "Shared with me"
 
-For public Google Drive links, **open each link in your browser first**. This adds them to your "Shared with me".
+For public Google Drive links, **open each link in your browser first**. This adds them to your "Shared with me" which rclone can access.
 
-Example link:
-```
-https://drive.google.com/file/d/1pFjgh1dapX34s0T-Q1TC7JUO-qjYbQZf/view
-```
+**Slippi Ranked Replay Archives:**
+1. https://drive.google.com/file/d/1pFjgh1dapX34s0T-Q1TC7JUO-qjYbQZf/view (ranked-anonymized-1)
+2. https://drive.google.com/file/d/1jEIzvhpV3778J2s2-Np9vCVqSLf9lZnk/view (ranked-anonymized-2)
+3. https://drive.google.com/file/d/1glzlkAPxHC58oXZljJXQV8dsTBKmlhkE/view (ranked-anonymized-3)
+4. https://drive.google.com/file/d/1qdIZUW4Er_Vu6rD3-VUvyak3lKa1KxVk/view (ranked-anonymized-4)
+5. https://drive.google.com/file/d/1Hqmj6C8g1BzuRAIqOrQcMDL0MX4GtffE/view (ranked-anonymized-5)
+6. https://drive.google.com/file/d/1g8yZ-Q4ldyhDEmXLSPBoWxywJRMRVGc3/view (ranked-anonymized-6)
 
-### List Available Files
+Open each link in your browser, then proceed to download.
+
+### Step 2: List Available Files
 
 ```bash
 rclone lsf --drive-shared-with-me gdrive:
 ```
 
-### Download Single File
+This shows all files now in your "Shared with me".
 
-```bash
-rclone copy --progress --drive-shared-with-me "gdrive:filename.7z" /workspace/downloads/
-```
-
-### Download All 7z Files
+### Step 3: Download All 7z Files
 
 ```bash
 rclone copy --progress --drive-shared-with-me "gdrive:" /workspace/downloads/ --include "*.7z"
 ```
 
-### Download Specific File by Pattern
+### Alternative: Download Single File
+
+```bash
+rclone copy --progress --drive-shared-with-me "gdrive:ranked-anonymized-1-116248.7z" /workspace/downloads/
+```
+
+### Alternative: Download by Pattern
 
 ```bash
 rclone copy --progress --drive-shared-with-me "gdrive:" /workspace/downloads/ --include "ranked-anonymized-*"
