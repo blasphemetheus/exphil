@@ -58,7 +58,9 @@ defmodule ExPhil.Training.Config do
       learning_rate: 1.0e-4,
       lr_schedule: :constant,
       warmup_steps: 0,
-      decay_steps: nil
+      decay_steps: nil,
+      # Resumption
+      resume: nil
     ]
   end
 
@@ -281,6 +283,7 @@ defmodule ExPhil.Training.Config do
     |> validate_positive_float(opts, :learning_rate)
     |> validate_lr_schedule(opts)
     |> validate_non_negative(opts, :warmup_steps)
+    |> validate_resume_checkpoint(opts)
   end
 
   defp collect_warnings(opts) do
@@ -379,6 +382,15 @@ defmodule ExPhil.Training.Config do
     schedule = opts[:lr_schedule]
     if schedule && schedule not in @valid_lr_schedules do
       ["lr_schedule must be one of #{inspect(@valid_lr_schedules)}, got: #{inspect(schedule)}" | errors]
+    else
+      errors
+    end
+  end
+
+  defp validate_resume_checkpoint(errors, opts) do
+    resume_path = opts[:resume]
+    if resume_path && not File.exists?(resume_path) do
+      ["resume checkpoint does not exist: #{resume_path}" | errors]
     else
       errors
     end
@@ -547,6 +559,7 @@ defmodule ExPhil.Training.Config do
     |> parse_atom_arg(args, "--lr-schedule", :lr_schedule)
     |> parse_optional_int_arg(args, "--warmup-steps", :warmup_steps)
     |> parse_optional_int_arg(args, "--decay-steps", :decay_steps)
+    |> parse_string_arg(args, "--resume", :resume)
   end
 
   defp has_flag_value?(args, flag) do

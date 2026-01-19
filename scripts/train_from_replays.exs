@@ -65,6 +65,17 @@ end
 #   --early-stopping  - Enable early stopping when validation loss stops improving
 #   --patience N      - Stop after N epochs without improvement (default: 5)
 #   --min-delta X     - Minimum improvement to count as progress (default: 0.01)
+#
+# Checkpointing Options:
+#   --save-best       - Save best model when validation loss improves (default: on)
+#   --save-every N    - Save checkpoint every N epochs (in addition to final)
+#   --resume PATH     - Resume training from a checkpoint
+#
+# Learning Rate Options:
+#   --lr X            - Base learning rate (default: 1e-4)
+#   --lr-schedule TYPE - Schedule: constant, cosine, exponential, linear (default: constant)
+#   --warmup-steps N  - Linear warmup from 0 to base LR (default: 0)
+#   --decay-steps N   - Steps for decay schedules (default: 10000)
 
 # Simple unbuffered output - all output goes to stderr which is always line-buffered
 # This means `mix run script.exs` just works without any redirection tricks
@@ -266,7 +277,10 @@ trainer_opts = [
   embed_size: embed_size,
   hidden_sizes: opts[:hidden_sizes],
   hidden_size: hidden_size,
-  learning_rate: 1.0e-4,
+  learning_rate: opts[:learning_rate],
+  lr_schedule: opts[:lr_schedule],
+  warmup_steps: opts[:warmup_steps],
+  decay_steps: opts[:decay_steps],
   batch_size: opts[:batch_size],
   precision: opts[:precision],
   # Temporal options
@@ -283,7 +297,21 @@ trainer_opts = [
   conv_size: opts[:conv_size]
 ]
 
-trainer = Imitation.new(trainer_opts)
+# Create trainer (or load from checkpoint for resumption)
+{trainer, resumed_step} = if opts[:resume] do
+  Output.puts("  Resuming from checkpoint: #{opts[:resume]}")
+  base_trainer = Imitation.new(trainer_opts)
+  case Imitation.load_checkpoint(base_trainer, opts[:resume]) do
+    {:ok, loaded_trainer} ->
+      Output.puts("  ✓ Loaded checkpoint at step #{loaded_trainer.step}")
+      {loaded_trainer, loaded_trainer.step}
+    {:error, reason} ->
+      Output.puts("  ✗ Failed to load checkpoint: #{inspect(reason)}")
+      System.halt(1)
+  end
+else
+  {Imitation.new(trainer_opts), 0}
+end
 
 if opts[:temporal] do
   Output.puts("  Temporal model initialized (#{opts[:backbone]} backbone)")
@@ -291,6 +319,9 @@ else
   Output.puts("  MLP model initialized")
 end
 Output.puts("  Batch size: #{opts[:batch_size]}")
+if resumed_step > 0 do
+  Output.puts("  Resumed at step: #{resumed_step}")
+end
 
 # Time estimation
 # Based on empirical measurements: ~0.1s per batch after JIT, 3-5min for JIT compilation
@@ -323,12 +354,12 @@ else
   nil
 end
 
-# Training loop with early stopping support
-# Returns {trainer, epochs_completed, stopped_early, early_stopping_state}
-initial_state = {trainer, 0, false, early_stopping_state}
+# Training loop with early stopping and best model tracking
+# Returns {trainer, epochs_completed, stopped_early, early_stopping_state, best_val_loss}
+initial_state = {trainer, 0, false, early_stopping_state, nil}
 
-{final_trainer, epochs_completed, stopped_early, _es_state} =
-  Enum.reduce_while(1..opts[:epochs], initial_state, fn epoch, {current_trainer, _, _, es_state} ->
+{final_trainer, epochs_completed, stopped_early, _es_state, _best_val} =
+  Enum.reduce_while(1..opts[:epochs], initial_state, fn epoch, {current_trainer, _, _, es_state, best_val_loss} ->
     epoch_start = System.monotonic_time(:second)
 
     # Create batched dataset for this epoch
@@ -431,13 +462,41 @@ initial_state = {trainer, 0, false, early_stopping_state}
     Output.puts("")
     Output.puts("  ✓ Epoch #{epoch} complete: train_loss=#{Float.round(avg_loss, 4)} val_loss=#{Float.round(val_metrics.loss, 4)} (#{epoch_time}s)#{es_message}")
 
+    # Save best model if this is the best validation loss so far
+    is_new_best = best_val_loss == nil or val_metrics.loss < best_val_loss
+    new_best_val_loss = if is_new_best, do: val_metrics.loss, else: best_val_loss
+
+    if opts[:save_best] and is_new_best do
+      best_checkpoint_path = Config.derive_best_checkpoint_path(opts[:checkpoint])
+      best_policy_path = Config.derive_best_policy_path(opts[:checkpoint])
+
+      case Imitation.save_checkpoint(updated_trainer, best_checkpoint_path) do
+        :ok ->
+          case Imitation.export_policy(updated_trainer, best_policy_path) do
+            :ok -> Output.puts("    ★ New best model saved (val_loss=#{Float.round(val_metrics.loss, 4)})")
+            {:error, _} -> Output.puts("    ★ Best checkpoint saved, policy export failed")
+          end
+        {:error, reason} ->
+          Output.puts("    ⚠ Failed to save best model: #{inspect(reason)}")
+      end
+    end
+
+    # Save periodic checkpoint if configured
+    if opts[:save_every] && rem(epoch, opts[:save_every]) == 0 do
+      epoch_checkpoint = String.replace(opts[:checkpoint], ".axon", "_epoch#{epoch}.axon")
+      case Imitation.save_checkpoint(updated_trainer, epoch_checkpoint) do
+        :ok -> Output.puts("    📁 Epoch #{epoch} checkpoint saved")
+        {:error, _} -> :ok
+      end
+    end
+
     # Decide whether to continue or stop
     case es_decision do
       :stop ->
         Output.puts("\n  ⚠ Early stopping triggered - no improvement for #{opts[:patience]} epochs")
-        {:halt, {updated_trainer, epoch, true, new_es_state}}
+        {:halt, {updated_trainer, epoch, true, new_es_state, new_best_val_loss}}
       :continue ->
-        {:cont, {updated_trainer, epoch, false, new_es_state}}
+        {:cont, {updated_trainer, epoch, false, new_es_state, new_best_val_loss}}
     end
   end)
 
@@ -483,6 +542,13 @@ end
 
 # Summary
 early_stop_note = if stopped_early, do: " (stopped early)", else: ""
+best_model_note = if opts[:save_best] do
+  best_policy = Config.derive_best_policy_path(opts[:checkpoint])
+  "  Best model: #{best_policy}\n"
+else
+  ""
+end
+
 Output.puts("""
 
 ╔════════════════════════════════════════════════════════════════╗
@@ -495,7 +561,7 @@ Summary:
   Epochs completed: #{epochs_completed}/#{opts[:epochs]}#{early_stop_note}
   Final training loss: #{Float.round(Enum.sum(Enum.take(final_trainer.metrics.loss, 10)) / 10, 4)}
   Checkpoint: #{opts[:checkpoint]}
-
+#{best_model_note}
 Next steps:
   1. Test the model: mix run scripts/test_model.exs --checkpoint #{opts[:checkpoint]}
   2. Continue training: mix run scripts/train_from_replays.exs --checkpoint #{opts[:checkpoint]}

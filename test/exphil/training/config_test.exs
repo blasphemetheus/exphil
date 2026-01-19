@@ -1334,4 +1334,45 @@ defmodule ExPhil.Training.ConfigTest do
       assert Enum.any?(errors, &String.contains?(&1, "warmup_steps"))
     end
   end
+
+  # ============================================================================
+  # Training Resumption CLI Tests
+  # ============================================================================
+
+  describe "parse_args/1 with resume" do
+    test "resume defaults to nil" do
+      opts = Config.parse_args([])
+      assert opts[:resume] == nil
+    end
+
+    test "parses --resume" do
+      opts = Config.parse_args(["--resume", "/path/to/checkpoint.axon"])
+      assert opts[:resume] == "/path/to/checkpoint.axon"
+    end
+  end
+
+  describe "validate/1 with resume" do
+    test "accepts nil resume" do
+      opts = [epochs: 10, batch_size: 64, resume: nil]
+      assert {:ok, ^opts} = Config.validate(opts)
+    end
+
+    test "returns error for non-existent resume checkpoint" do
+      opts = [epochs: 10, batch_size: 64, resume: "/nonexistent/path.axon"]
+      {:error, errors} = Config.validate(opts)
+      assert Enum.any?(errors, &String.contains?(&1, "resume checkpoint does not exist"))
+    end
+
+    test "accepts existing resume checkpoint" do
+      # Create a temporary file to simulate an existing checkpoint
+      path = Path.join(System.tmp_dir!(), "test_resume_#{:rand.uniform(10000)}.axon")
+      File.write!(path, "test")
+      try do
+        opts = [epochs: 10, batch_size: 64, resume: path]
+        assert {:ok, ^opts} = Config.validate(opts)
+      after
+        File.rm(path)
+      end
+    end
+  end
 end
