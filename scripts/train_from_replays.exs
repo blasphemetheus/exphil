@@ -3,6 +3,23 @@
 #
 # Usage:
 #   mix run scripts/train_from_replays.exs [options]
+#   mix run scripts/train_from_replays.exs --preset quick
+#   mix run scripts/train_from_replays.exs --preset mewtwo --epochs 10
+#
+# Presets (recommended for quick start):
+#   --preset quick      - Fast iteration (1 epoch, 5 files, small MLP)
+#   --preset standard   - Balanced training (10 epochs, 50 files)
+#   --preset full       - Maximum quality (50 epochs, all files, Mamba)
+#   --preset full_cpu   - Full training optimized for CPU (no temporal)
+#
+# Character Presets (includes temporal + character-tuned window sizes):
+#   --preset mewtwo     - Mewtwo (window=90 for teleport recovery)
+#   --preset ganondorf  - Ganondorf (window=60, spacing-focused)
+#   --preset link       - Link (window=75 for projectile tracking)
+#   --preset gameandwatch - Mr. Game & Watch (window=45, no L-cancel)
+#   --preset zelda      - Zelda (window=60, transform tracking)
+#
+# Note: CLI arguments override preset values (e.g., --preset quick --epochs 3)
 #
 # Performance Tips:
 #   - XLA multi-threading is enabled by default (2-3x faster on multi-core CPUs)
@@ -44,70 +61,26 @@ end
 #   --precision TYPE  - Tensor precision: bf16 (default) or f32
 #                       BF16 gives ~2x speedup with minimal accuracy loss
 
+# Simple unbuffered output - all output goes to stderr which is always line-buffered
+# This means `mix run script.exs` just works without any redirection tricks
+defmodule Output do
+  def puts(line), do: IO.puts(:stderr, line)
+end
+
 require Logger
 
 alias ExPhil.Data.Peppi
-alias ExPhil.Training.{Data, Imitation}
+alias ExPhil.Training.{Config, Data, Imitation}
 alias ExPhil.Embeddings
 alias ExPhil.Integrations.Wandb
 
-# Parse command line arguments
-args = System.argv()
+# Parse command line arguments using Config module
+opts = System.argv()
+       |> Config.parse_args()
+       |> Config.ensure_checkpoint_name()
 
-# Helper to get argument value
-get_arg = fn flag, default ->
-  case Enum.find_index(args, &(&1 == flag)) do
-    nil -> default
-    idx -> Enum.at(args, idx + 1) || default
-  end
-end
-
-has_flag = fn flag -> Enum.member?(args, flag) end
-
-parse_hidden_sizes = fn str ->
-  str
-  |> String.split(",")
-  |> Enum.map(&String.trim/1)
-  |> Enum.map(&String.to_integer/1)
-end
-
-opts = [
-  replays: get_arg.("--replays", "/home/dori/git/melee/replays"),
-  epochs: String.to_integer(get_arg.("--epochs", "10")),
-  batch_size: String.to_integer(get_arg.("--batch-size", "64")),
-  hidden_sizes: parse_hidden_sizes.(get_arg.("--hidden-sizes", "64,64")),
-  max_files: case Enum.find_index(args, &(&1 == "--max-files")) do
-    nil -> nil
-    idx -> String.to_integer(Enum.at(args, idx + 1))
-  end,
-  checkpoint: get_arg.("--checkpoint", "checkpoints/imitation_latest.axon"),
-  player_port: String.to_integer(get_arg.("--player", "1")),
-  wandb: has_flag.("--wandb"),
-  wandb_project: get_arg.("--wandb-project", "exphil"),
-  wandb_name: get_arg.("--wandb-name", nil),
-  # Temporal options
-  temporal: has_flag.("--temporal"),
-  backbone: String.to_atom(get_arg.("--backbone", "sliding_window")),
-  window_size: String.to_integer(get_arg.("--window-size", "60")),
-  stride: String.to_integer(get_arg.("--stride", "1")),
-  num_layers: String.to_integer(get_arg.("--num-layers", "2")),
-  # Mamba-specific options
-  state_size: String.to_integer(get_arg.("--state-size", "16")),
-  expand_factor: String.to_integer(get_arg.("--expand-factor", "2")),
-  conv_size: String.to_integer(get_arg.("--conv-size", "4")),
-  truncate_bptt: case Enum.find_index(args, &(&1 == "--truncate-bptt")) do
-    nil -> nil  # Full BPTT
-    idx -> String.to_integer(Enum.at(args, idx + 1))
-  end,
-  # Precision option (bf16 default for ~2x speedup)
-  precision: case get_arg.("--precision", "bf16") do
-    "f32" -> :f32
-    "bf16" -> :bf16
-    other -> raise "Unknown precision: #{other}. Use 'bf16' or 'f32'"
-  end,
-  # Frame delay for online simulation (Slippi online has 18+ frame delay)
-  frame_delay: String.to_integer(get_arg.("--frame-delay", "0"))
-]
+# Ensure checkpoints directory exists
+File.mkdir_p!("checkpoints")
 
 temporal_info = if opts[:temporal] do
   bptt_info = if opts[:truncate_bptt] do
@@ -129,14 +102,25 @@ end
 
 precision_str = if opts[:precision] == :bf16, do: "bf16 (faster)", else: "f32 (full precision)"
 
-IO.puts("""
+preset_str = case opts[:preset] do
+  nil -> "none (custom)"
+  preset -> "#{preset}"
+end
+
+character_str = case opts[:character] do
+  nil -> ""
+  char -> "  Character:   #{char}\n"
+end
+
+Output.puts("""
 
 ╔════════════════════════════════════════════════════════════════╗
 ║              ExPhil Imitation Learning Training                ║
 ╚════════════════════════════════════════════════════════════════╝
 
 Configuration:
-  Replays:     #{opts[:replays]}
+  Preset:      #{preset_str}
+#{character_str}  Replays:     #{opts[:replays]}
   Epochs:      #{opts[:epochs]}
   Batch Size:  #{opts[:batch_size]}
   Hidden:      #{inspect(opts[:hidden_sizes], charlists: :as_lists)}
@@ -171,19 +155,19 @@ if opts[:wandb] do
 
   case Wandb.start_run(wandb_opts) do
     {:ok, run_id} ->
-      IO.puts("Wandb run started: #{run_id}")
+      Output.puts("Wandb run started: #{run_id}")
     {:error, reason} ->
-      IO.puts("Warning: Wandb failed to start: #{inspect(reason)}")
+      Output.puts("Warning: Wandb failed to start: #{inspect(reason)}")
   end
 end
 
 # Step 1: Find and parse replays
-IO.puts("Step 1: Parsing replays...")
+Output.puts("Step 1: Parsing replays...")
 
 replay_files = Path.wildcard(Path.join(opts[:replays], "**/*.slp"))
 replay_files = if opts[:max_files], do: Enum.take(replay_files, opts[:max_files]), else: replay_files
 
-IO.puts("  Found #{length(replay_files)} replay files")
+Output.puts("  Found #{length(replay_files)} replay files")
 
 # Parse replays in parallel and collect training frames
 {parse_time, all_frames} = :timer.tc(fn ->
@@ -198,7 +182,7 @@ IO.puts("  Found #{length(replay_files)} replay files")
           )
           {path, length(frames), frames}
         {:error, reason} ->
-          IO.puts("  ⚠ Failed to parse #{Path.basename(path)}: #{reason}")
+          Output.puts("  ⚠ Failed to parse #{Path.basename(path)}: #{reason}")
           {path, 0, []}
       end
     end,
@@ -212,27 +196,27 @@ IO.puts("  Found #{length(replay_files)} replay files")
       acc
   end)
   |> then(fn {files, frames, frame_lists} ->
-    IO.puts("  Parsed #{files} files, #{frames} total frames")
+    Output.puts("  Parsed #{files} files, #{frames} total frames")
     List.flatten(frame_lists)
   end)
 end)
 
-IO.puts("  Parse time: #{Float.round(parse_time / 1_000_000, 2)}s")
-IO.puts("  Total training frames: #{length(all_frames)}")
+Output.puts("  Parse time: #{Float.round(parse_time / 1_000_000, 2)}s")
+Output.puts("  Total training frames: #{length(all_frames)}")
 
 if length(all_frames) == 0 do
-  IO.puts("\n❌ No training frames found. Check replay files and player port.")
+  Output.puts("\n❌ No training frames found. Check replay files and player port.")
   System.halt(1)
 end
 
 # Step 2: Create dataset
-IO.puts("\nStep 2: Creating dataset...")
+Output.puts("\nStep 2: Creating dataset...")
 
 dataset = Data.from_frames(all_frames)
 
 # Convert to sequences for temporal training
 {train_dataset, val_dataset} = if opts[:temporal] do
-  IO.puts("  Converting to sequences (window=#{opts[:window_size]}, stride=#{opts[:stride]})...")
+  Output.puts("  Converting to sequences (window=#{opts[:window_size]}, stride=#{opts[:stride]})...")
   seq_dataset = Data.to_sequences(dataset,
     window_size: opts[:window_size],
     stride: opts[:stride]
@@ -247,22 +231,22 @@ else
   Data.split(dataset, ratio: 0.9)
 end
 
-IO.puts("  Training #{if opts[:temporal], do: "sequences", else: "frames"}: #{train_dataset.size}")
-IO.puts("  Validation #{if opts[:temporal], do: "sequences", else: "frames"}: #{val_dataset.size}")
+Output.puts("  Training #{if opts[:temporal], do: "sequences", else: "frames"}: #{train_dataset.size}")
+Output.puts("  Validation #{if opts[:temporal], do: "sequences", else: "frames"}: #{val_dataset.size}")
 
 # Show some statistics
 stats = Data.stats(train_dataset)
-IO.puts("\n  Button press rates:")
+Output.puts("\n  Button press rates:")
 for {button, rate} <- Enum.sort(stats.button_rates) do
   bar = String.duplicate("█", round(rate * 50))
-  IO.puts("    #{button |> to_string() |> String.pad_trailing(6)}: #{bar} #{Float.round(rate * 100, 1)}%")
+  Output.puts("    #{button |> to_string() |> String.pad_trailing(6)}: #{bar} #{Float.round(rate * 100, 1)}%")
 end
 
 # Step 3: Initialize trainer
-IO.puts("\nStep 3: Initializing model...")
+Output.puts("\nStep 3: Initializing model...")
 
 embed_size = Embeddings.embedding_size()
-IO.puts("  Embedding size: #{embed_size}")
+Output.puts("  Embedding size: #{embed_size}")
 
 # For Mamba, use first hidden_size value as hidden_size (single int)
 # For other backbones, use hidden_sizes list
@@ -295,11 +279,11 @@ trainer_opts = [
 trainer = Imitation.new(trainer_opts)
 
 if opts[:temporal] do
-  IO.puts("  Temporal model initialized (#{opts[:backbone]} backbone)")
+  Output.puts("  Temporal model initialized (#{opts[:backbone]} backbone)")
 else
-  IO.puts("  MLP model initialized")
+  Output.puts("  MLP model initialized")
 end
-IO.puts("  Batch size: #{opts[:batch_size]}")
+Output.puts("  Batch size: #{opts[:batch_size]}")
 
 # Time estimation
 # Based on empirical measurements: ~0.1s per batch after JIT, 3-5min for JIT compilation
@@ -310,13 +294,13 @@ estimated_train_sec = (batches_per_epoch * opts[:epochs] * seconds_per_batch) + 
 estimated_minutes = div(trunc(estimated_train_sec), 60)
 estimated_remaining = rem(trunc(estimated_train_sec), 60)
 
-IO.puts("")
-IO.puts("  ⏱  Estimated training time: ~#{estimated_minutes}m #{estimated_remaining}s")
-IO.puts("      (#{batches_per_epoch} batches/epoch × #{opts[:epochs]} epochs + JIT compilation)")
+Output.puts("")
+Output.puts("  ⏱  Estimated training time: ~#{estimated_minutes}m #{estimated_remaining}s")
+Output.puts("      (#{batches_per_epoch} batches/epoch × #{opts[:epochs]} epochs + JIT compilation)")
 
 # Step 4: Training loop
-IO.puts("\nStep 4: Training for #{opts[:epochs]} epochs...")
-IO.puts("─" |> String.duplicate(60))
+Output.puts("\nStep 4: Training for #{opts[:epochs]} epochs...")
+Output.puts("─" |> String.duplicate(60))
 
 start_time = System.monotonic_time(:second)
 
@@ -344,15 +328,15 @@ final_trainer = Enum.reduce(1..opts[:epochs], trainer, fn epoch, current_trainer
 
   # Epoch start message
   if epoch > 1 do
-    IO.puts("\n  ─── Epoch #{epoch}/#{opts[:epochs]} ───")
-    IO.puts("  Starting #{num_batches} batches...")
+    Output.puts("\n  ─── Epoch #{epoch}/#{opts[:epochs]} ───")
+    Output.puts("  Starting #{num_batches} batches...")
   end
 
   # Train epoch with JIT compilation indicator
   jit_indicator_shown = if epoch == 1 do
-    IO.puts("  ─── Epoch 1/#{opts[:epochs]} ───")
-    IO.puts("  ⏳ JIT compiling model (first batch)... this may take 2-5 minutes")
-    IO.puts("     (subsequent batches will be fast)")
+    Output.puts("  ─── Epoch 1/#{opts[:epochs]} ───")
+    Output.puts("  ⏳ JIT compiling model (first batch)... this may take 2-5 minutes")
+    Output.puts("     (subsequent batches will be fast)")
     true
   else
     false
@@ -369,18 +353,18 @@ final_trainer = Enum.reduce(1..opts[:epochs], trainer, fn epoch, current_trainer
 
     # Show JIT completion message after first batch
     new_jit_shown = if jit_shown and batch_idx == 0 do
-      IO.puts("\n  ✓ JIT compilation complete (took #{Float.round(batch_time_ms / 1000, 1)}s)")
-      IO.puts("    Training started - progress updates every 5%\n")
+      Output.puts("\n  ✓ JIT compilation complete (took #{Float.round(batch_time_ms / 1000, 1)}s)")
+      Output.puts("    Training started - progress updates every 5%\n")
       true  # Keep as true, we'll handle first progress differently
     else
       jit_shown
     end
 
-    # Progress indicator every 5% (more frequent for better feedback)
-    progress_interval = max(1, div(num_batches, 20))
-    show_progress = rem(batch_idx + 1, progress_interval) == 0 or batch_idx == 0
+    # Progress indicator: every 2% OR at least every 50 batches (frequent updates)
+    progress_interval = max(1, min(50, div(num_batches, 50)))
+    show_progress = (rem(batch_idx + 1, progress_interval) == 0) and batch_idx > 0
 
-    if show_progress and batch_idx > 0 do
+    if show_progress do
       pct = round((batch_idx + 1) / num_batches * 100)
       elapsed_total_ms = System.monotonic_time(:millisecond) - epoch_batch_start
       avg_batch_ms = elapsed_total_ms / (batch_idx + 1)
@@ -395,10 +379,7 @@ final_trainer = Enum.reduce(1..opts[:epochs], trainer, fn epoch, current_trainer
       bar = String.duplicate("█", filled) <> String.duplicate("░", bar_width - filled)
 
       progress_line = "  Epoch #{epoch}: #{bar} #{pct}% | batch #{batch_idx + 1}/#{num_batches} | loss: #{Float.round(metrics.loss, 4)} | #{Float.round(avg_batch_ms / 1000, 2)}s/batch | ETA: #{eta_min}m #{eta_sec_rem}s"
-      IO.puts(progress_line)
-
-      # Force flush
-      Process.sleep(1)
+      Output.puts(progress_line)
     end
 
     {new_trainer, [metrics.loss | losses], new_jit_shown}
@@ -415,8 +396,8 @@ final_trainer = Enum.reduce(1..opts[:epochs], trainer, fn epoch, current_trainer
   end
   val_metrics = Imitation.evaluate(updated_trainer, val_batches)
 
-  IO.puts("")
-  IO.puts("  ✓ Epoch #{epoch} complete: train_loss=#{Float.round(avg_loss, 4)} val_loss=#{Float.round(val_metrics.loss, 4)} (#{epoch_time}s)")
+  Output.puts("")
+  Output.puts("  ✓ Epoch #{epoch} complete: train_loss=#{Float.round(avg_loss, 4)} val_loss=#{Float.round(val_metrics.loss, 4)} (#{epoch_time}s)")
 
   updated_trainer
 end)
@@ -424,27 +405,43 @@ end)
 total_time = System.monotonic_time(:second) - start_time
 total_min = div(total_time, 60)
 total_sec = rem(total_time, 60)
-IO.puts("")
-IO.puts("─" |> String.duplicate(60))
-IO.puts("✓ Training complete in #{total_min}m #{total_sec}s")
-IO.puts("─" |> String.duplicate(60))
+Output.puts("")
+Output.puts("─" |> String.duplicate(60))
+Output.puts("✓ Training complete in #{total_min}m #{total_sec}s")
+Output.puts("─" |> String.duplicate(60))
 
 # Step 5: Save checkpoint
-IO.puts("\nStep 5: Saving checkpoint...")
+Output.puts("\nStep 5: Saving checkpoint...")
 case Imitation.save_checkpoint(final_trainer, opts[:checkpoint]) do
-  :ok -> IO.puts("  ✓ Saved to #{opts[:checkpoint]}")
-  {:error, reason} -> IO.puts("  ✗ Failed: #{inspect(reason)}")
+  :ok -> Output.puts("  ✓ Saved to #{opts[:checkpoint]}")
+  {:error, reason} -> Output.puts("  ✗ Failed: #{inspect(reason)}")
 end
 
 # Also export policy for inference
 policy_path = String.replace(opts[:checkpoint], ".axon", "_policy.bin")
 case Imitation.export_policy(final_trainer, policy_path) do
-  :ok -> IO.puts("  ✓ Policy exported to #{policy_path}")
-  {:error, reason} -> IO.puts("  ✗ Failed: #{inspect(reason)}")
+  :ok -> Output.puts("  ✓ Policy exported to #{policy_path}")
+  {:error, reason} -> Output.puts("  ✗ Failed: #{inspect(reason)}")
+end
+
+# Save training config as JSON (for reproducibility)
+config_path = Config.derive_config_path(opts[:checkpoint])
+training_results = %{
+  embed_size: embed_size,
+  training_frames: train_dataset.size,
+  validation_frames: val_dataset.size,
+  total_time_seconds: total_time,
+  final_training_loss: Float.round(Enum.sum(Enum.take(final_trainer.metrics.loss, 10)) / 10, 4)
+}
+training_config = Config.build_config_json(opts, training_results)
+
+case File.write(config_path, Jason.encode!(training_config, pretty: true)) do
+  :ok -> Output.puts("  ✓ Config saved to #{config_path}")
+  {:error, reason} -> Output.puts("  ✗ Config save failed: #{inspect(reason)}")
 end
 
 # Summary
-IO.puts("""
+Output.puts("""
 
 ╔════════════════════════════════════════════════════════════════╗
 ║                      Training Complete!                        ║
@@ -467,5 +464,5 @@ Next steps:
 # Finish Wandb run if active
 if Wandb.active?() do
   Wandb.finish_run()
-  IO.puts("Wandb run finished.")
+  Output.puts("Wandb run finished.")
 end
