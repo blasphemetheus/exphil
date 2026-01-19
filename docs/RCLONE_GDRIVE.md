@@ -1,0 +1,175 @@
+# Downloading from Google Drive with rclone
+
+Guide for downloading large files from Google Drive on RunPod or other cloud instances, bypassing rate limits.
+
+## Why rclone?
+
+- **gdown** gets rate-limited on popular files ("Too many users have viewed or downloaded this file")
+- **rclone** with your own Google API credentials bypasses shared quota limits
+- Works reliably for 50GB+ files
+
+## Setup
+
+### 1. Create Google Cloud Project & Credentials
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+2. Create a new project (or use existing)
+3. Enable Google Drive API:
+   - APIs & Services → Library
+   - Search "Google Drive API" → Enable
+4. Create OAuth credentials:
+   - APIs & Services → Credentials
+   - Create Credentials → OAuth client ID
+   - Application type: **Desktop app**
+   - Copy the **Client ID** and **Client Secret**
+
+### 2. Install rclone on Cloud Instance
+
+```bash
+curl https://rclone.org/install.sh | bash
+```
+
+### 3. Configure rclone
+
+```bash
+rclone config
+```
+
+Follow prompts:
+1. `n` - new remote
+2. Name: `gdrive`
+3. Storage: `drive` (Google Drive)
+4. **client_id**: Paste your Client ID
+5. **client_secret**: Paste your Client Secret
+6. Scope: `1` (full access)
+7. Root folder ID: (leave blank)
+8. Service account: (leave blank)
+9. Advanced config: `n`
+10. Auto config: `n` (remote machine)
+
+You'll get a command like:
+```
+rclone authorize "drive" "eyJjbGllbnRf..."
+```
+
+### 4. Authorize on Local Machine
+
+Run the authorize command on your **local machine** (with browser):
+
+```bash
+# Install rclone locally if needed
+# Manjaro: sudo pacman -S rclone
+# Ubuntu: sudo apt install rclone
+# Mac: brew install rclone
+
+rclone authorize "drive" "eyJjbGllbnRf..."
+```
+
+Browser opens → authorize with Google → copy the token back to cloud instance.
+
+### 5. Finish Config
+
+- Shared Drive: `n`
+- Keep remote: `y`
+- Quit: `q`
+
+## Downloading Files
+
+### Add Files to "Shared with me"
+
+For public Google Drive links, **open each link in your browser first**. This adds them to your "Shared with me".
+
+Example link:
+```
+https://drive.google.com/file/d/1pFjgh1dapX34s0T-Q1TC7JUO-qjYbQZf/view
+```
+
+### List Available Files
+
+```bash
+rclone lsf --drive-shared-with-me gdrive:
+```
+
+### Download Single File
+
+```bash
+rclone copy --progress --drive-shared-with-me "gdrive:filename.7z" /workspace/downloads/
+```
+
+### Download All 7z Files
+
+```bash
+rclone copy --progress --drive-shared-with-me "gdrive:" /workspace/downloads/ --include "*.7z"
+```
+
+### Download Specific File by Pattern
+
+```bash
+rclone copy --progress --drive-shared-with-me "gdrive:" /workspace/downloads/ --include "ranked-anonymized-*"
+```
+
+## Processing After Download
+
+Once files are downloaded, run the filter script:
+
+```bash
+cd /workspace
+
+# Extract and filter for low-tier characters
+python3 cloud_filter_replays.py \
+  --urls-file links.txt \
+  --output /workspace/lowtier \
+  --download-dir /workspace/downloads \
+  --cleanup
+```
+
+Or manually extract and filter:
+
+```bash
+# Extract
+7z x /workspace/downloads/ranked-1.7z -o/workspace/extracted
+
+# Filter (using the script's filter function)
+python3 << 'PYEOF'
+import sys
+sys.path.insert(0, '/workspace')
+from cloud_filter_replays import filter_replays
+filter_replays('/workspace/extracted', '/workspace/lowtier', num_workers=8)
+PYEOF
+
+# Cleanup
+rm -rf /workspace/extracted
+```
+
+## Troubleshooting
+
+### "Too many users have viewed or downloaded this file"
+- Use your own Google API Client ID (see setup above)
+- Or wait 24 hours for rate limit reset
+
+### "directory not found" errors
+- Don't use `--drive-root-folder-id` with file IDs
+- Open the link in browser first to add to "Shared with me"
+- Use `--drive-shared-with-me` flag
+
+### Slow downloads
+- Google Drive can throttle; speeds vary
+- Large files (50GB+) may take 30-60 min
+
+### Auth token expired
+```bash
+rclone config reconnect gdrive:
+```
+
+## Quick Reference
+
+```bash
+# List shared files
+rclone lsf --drive-shared-with-me gdrive:
+
+# Download all 7z files
+rclone copy --progress --drive-shared-with-me "gdrive:" ./downloads/ --include "*.7z"
+
+# Check download progress in another terminal
+watch -n 5 'ls -lh /workspace/downloads/'
+```

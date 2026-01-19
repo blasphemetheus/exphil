@@ -61,6 +61,7 @@ Detailed guides in `docs/`:
 | [RESEARCH.md](docs/RESEARCH.md) | Prior art, papers, lessons learned, research roadmap |
 | [docker-workflow.md](docs/docker-workflow.md) | Docker build, push, cloud GPU deployment |
 | [RUNPOD_FILTER.md](docs/RUNPOD_FILTER.md) | Filter low-tier replays from large archives on RunPod |
+| [RCLONE_GDRIVE.md](docs/RCLONE_GDRIVE.md) | Download large files from Google Drive with rclone |
 
 ## Quick Start
 
