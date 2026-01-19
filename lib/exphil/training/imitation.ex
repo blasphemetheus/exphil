@@ -107,7 +107,9 @@ defmodule ExPhil.Training.Imitation do
     expand_factor: 2,             # Mamba expansion factor
     conv_size: 4,                 # Mamba conv kernel size
     # Gradient accumulation
-    accumulation_steps: 1         # 1 = no accumulation, N = effective batch = batch_size * N
+    accumulation_steps: 1,        # 1 = no accumulation, N = effective batch = batch_size * N
+    # Label smoothing
+    label_smoothing: 0.0          # 0.0 = no smoothing, 0.1 = typical value
   }
 
   @doc """
@@ -225,31 +227,44 @@ defmodule ExPhil.Training.Imitation do
   @spec create_optimizer(map()) :: {function(), function()}
   def create_optimizer(config) do
     lr_schedule = build_lr_schedule(config)
+    max_grad_norm = config[:max_grad_norm] || 1.0
 
-    Polaris.Optimizers.adamw(
+    # Compose: gradient clipping -> AdamW
+    adamw = Polaris.Optimizers.adamw(
       learning_rate: lr_schedule,
       b1: 0.9,
       b2: 0.999,
       eps: 1.0e-8,
       decay: config.weight_decay
     )
+
+    if max_grad_norm > 0 do
+      clip = Polaris.Updates.clip_by_global_norm(max_norm: max_grad_norm)
+      Polaris.Updates.compose(clip, adamw)
+    else
+      adamw
+    end
   end
 
   # Build the learning rate schedule based on config
   # Polaris schedules are defn functions that can't be composed directly,
   # so we only use them when there's no warmup. With warmup, we create
   # custom schedule functions.
+  # Cosine restarts always uses custom schedule since Polaris doesn't support it.
   defp build_lr_schedule(config) do
     base_lr = config.learning_rate
     schedule_type = config[:lr_schedule] || :constant
     warmup_steps = config[:warmup_steps] || 0
     decay_steps = config[:decay_steps]
+    restart_period = config[:restart_period] || 1000
+    restart_mult = config[:restart_mult] || 2
 
-    if warmup_steps > 0 do
-      # Use custom schedule with warmup
-      build_custom_schedule(base_lr, schedule_type, warmup_steps, decay_steps)
+    # Cosine restarts needs custom implementation regardless of warmup
+    if warmup_steps > 0 or schedule_type == :cosine_restarts do
+      # Use custom schedule with warmup and/or restarts
+      build_custom_schedule(base_lr, schedule_type, warmup_steps, decay_steps, restart_period, restart_mult)
     else
-      # Use Polaris schedules directly (no warmup)
+      # Use Polaris schedules directly (no warmup, no restarts)
       build_polaris_schedule(base_lr, schedule_type, decay_steps)
     end
   end
@@ -280,20 +295,23 @@ defmodule ExPhil.Training.Imitation do
 
   # Build a custom schedule function that implements warmup + decay
   # This is needed because Polaris schedules can't be composed
-  defp build_custom_schedule(base_lr, schedule_type, warmup_steps, decay_steps) do
+  defp build_custom_schedule(base_lr, schedule_type, warmup_steps, decay_steps, restart_period, restart_mult) do
     # Pre-convert to tensors with Nx.BinaryBackend to avoid EXLA closure issues
     base_lr_t = Nx.tensor(base_lr, type: :f32, backend: Nx.BinaryBackend)
     warmup_steps_t = Nx.tensor(warmup_steps, type: :f32, backend: Nx.BinaryBackend)
     decay_steps_t = Nx.tensor(decay_steps || 10_000, type: :f32, backend: Nx.BinaryBackend)
     zero_t = Nx.tensor(0.0, type: :f32, backend: Nx.BinaryBackend)
     one_t = Nx.tensor(1.0, type: :f32, backend: Nx.BinaryBackend)
+    two_t = Nx.tensor(2.0, type: :f32, backend: Nx.BinaryBackend)
     pi_t = Nx.tensor(:math.pi(), type: :f32, backend: Nx.BinaryBackend)
+    restart_period_t = Nx.tensor(restart_period, type: :f32, backend: Nx.BinaryBackend)
+    restart_mult_t = Nx.tensor(restart_mult, type: :f32, backend: Nx.BinaryBackend)
 
     fn step ->
       step_f = Nx.as_type(step, :f32)
 
       # Warmup phase: linear ramp from 0 to base_lr
-      warmup_progress = Nx.divide(step_f, warmup_steps_t)
+      warmup_progress = Nx.divide(step_f, Nx.max(warmup_steps_t, one_t))
       warmup_lr = Nx.multiply(warmup_progress, base_lr_t)
 
       # Post-warmup step (offset by warmup_steps)
@@ -310,9 +328,23 @@ defmodule ExPhil.Training.Imitation do
           clamped_progress = Nx.min(progress, one_t)
           cosine_factor = Nx.divide(
             Nx.add(one_t, Nx.cos(Nx.multiply(pi_t, clamped_progress))),
-            Nx.tensor(2.0, type: :f32, backend: Nx.BinaryBackend)
+            two_t
           )
           Nx.multiply(base_lr_t, cosine_factor)
+
+        :cosine_restarts ->
+          # Cosine Annealing with Warm Restarts (SGDR)
+          # Periods: T_0, T_0*T_mult, T_0*T_mult^2, ...
+          # lr = 0.5 * lr_max * (1 + cos(pi * T_cur / T_i))
+          #
+          # To find current period and position within it:
+          # - If T_mult == 1: period_idx = floor(step / T_0), T_cur = step % T_0
+          # - If T_mult > 1: sum of geometric series = T_0 * (T_mult^n - 1) / (T_mult - 1)
+          #   Solve for n: n = log(step * (T_mult - 1) / T_0 + 1) / log(T_mult)
+          compute_cosine_restarts_lr(
+            post_warmup_step, base_lr_t, restart_period_t, restart_mult_t,
+            pi_t, one_t, two_t, zero_t
+          )
 
         :exponential ->
           # Exponential decay: lr * rate^(step / transition_steps)
@@ -329,12 +361,70 @@ defmodule ExPhil.Training.Imitation do
       end
 
       # Select warmup or decay based on current step
-      Nx.select(
-        Nx.less(step_f, warmup_steps_t),
-        warmup_lr,
-        decay_lr
-      )
+      in_warmup = Nx.greater(warmup_steps_t, zero_t) |> Nx.logical_and(Nx.less(step_f, warmup_steps_t))
+      Nx.select(in_warmup, warmup_lr, decay_lr)
     end
+  end
+
+  # Compute learning rate for cosine annealing with warm restarts
+  # Uses the SGDR algorithm where periods grow geometrically
+  defp compute_cosine_restarts_lr(step, base_lr, t0, t_mult, pi, one, two, _zero) do
+    # For T_mult == 1: simple periodic restarts
+    # For T_mult > 1: geometric growth of periods
+    #
+    # When T_mult == 1:
+    #   period_idx = floor(step / T_0)
+    #   T_cur = step - period_idx * T_0
+    #   T_i = T_0
+    #
+    # When T_mult > 1:
+    #   Total steps through n full periods = T_0 * (T_mult^n - 1) / (T_mult - 1)
+    #   Solve: step = T_0 * (T_mult^n - 1) / (T_mult - 1)
+    #   n = log(step * (T_mult - 1) / T_0 + 1) / log(T_mult)
+
+    # Handle T_mult == 1 vs T_mult > 1
+    mult_is_one = Nx.less_equal(Nx.abs(Nx.subtract(t_mult, one)), Nx.tensor(1.0e-6, type: :f32, backend: Nx.BinaryBackend))
+
+    # Case 1: T_mult == 1 (fixed period)
+    period_idx_fixed = Nx.floor(Nx.divide(step, t0))
+    t_cur_fixed = Nx.subtract(step, Nx.multiply(period_idx_fixed, t0))
+    t_i_fixed = t0
+
+    # Case 2: T_mult > 1 (growing periods)
+    # n = floor(log(step * (t_mult - 1) / t0 + 1) / log(t_mult))
+    # Guard against division by zero when t_mult = 1 (even though we won't use this branch)
+    eps = Nx.tensor(1.0e-6, type: :f32, backend: Nx.BinaryBackend)
+    mult_minus_one = Nx.max(Nx.subtract(t_mult, one), eps)
+    ratio = Nx.add(Nx.divide(Nx.multiply(step, mult_minus_one), t0), one)
+    # Clamp ratio to >= 1 to avoid log(0)
+    ratio_clamped = Nx.max(ratio, one)
+    # Guard against log(1) = 0 in denominator
+    log_t_mult = Nx.max(Nx.log(t_mult), eps)
+    n_continuous = Nx.divide(Nx.log(ratio_clamped), log_t_mult)
+    period_idx_grow = Nx.floor(n_continuous)
+
+    # Total steps through period_idx complete periods
+    # sum = T_0 * (T_mult^n - 1) / (T_mult - 1)
+    completed_steps = Nx.divide(
+      Nx.multiply(t0, Nx.subtract(Nx.pow(t_mult, period_idx_grow), one)),
+      mult_minus_one
+    )
+    t_cur_grow = Nx.subtract(step, completed_steps)
+    t_i_grow = Nx.multiply(t0, Nx.pow(t_mult, period_idx_grow))
+
+    # Select based on t_mult
+    t_cur = Nx.select(mult_is_one, t_cur_fixed, t_cur_grow)
+    t_i = Nx.select(mult_is_one, t_i_fixed, t_i_grow)
+
+    # Cosine annealing within current period
+    # lr = 0.5 * lr_max * (1 + cos(pi * T_cur / T_i))
+    progress = Nx.divide(t_cur, Nx.max(t_i, one))
+    clamped_progress = Nx.min(progress, one)
+    cosine_factor = Nx.divide(
+      Nx.add(one, Nx.cos(Nx.multiply(pi, clamped_progress))),
+      two
+    )
+    Nx.multiply(base_lr, cosine_factor)
   end
 
   @doc """
@@ -482,6 +572,7 @@ defmodule ExPhil.Training.Imitation do
 
     predict_fn = trainer.predict_fn
     model_state = deep_backend_copy(trainer.policy_params)
+    label_smoothing = trainer.config[:label_smoothing] || 0.0
 
     loss_fn = fn params ->
       {buttons, main_x, main_y, c_x, c_y, shoulder} = predict_fn.(params, states)
@@ -489,7 +580,7 @@ defmodule ExPhil.Training.Imitation do
         buttons: buttons, main_x: main_x, main_y: main_y,
         c_x: c_x, c_y: c_y, shoulder: shoulder
       }
-      Policy.imitation_loss(logits, actions)
+      Policy.imitation_loss(logits, actions, label_smoothing: label_smoothing)
     end
 
     {loss, grads} = Nx.Defn.value_and_grad(loss_fn).(model_state)
@@ -568,6 +659,7 @@ defmodule ExPhil.Training.Imitation do
     # Copy model parameters to avoid EXLA/Expr mismatch in closures
     # The original params are stored in trainer and will be used to restore structure
     model_state = deep_backend_copy(trainer.policy_params)
+    label_smoothing = trainer.config[:label_smoothing] || 0.0
 
     # Build a loss function that takes ModelState as argument
     loss_fn = fn params ->
@@ -584,8 +676,8 @@ defmodule ExPhil.Training.Imitation do
         shoulder: shoulder
       }
 
-      # Compute imitation loss
-      Policy.imitation_loss(logits, actions)
+      # Compute imitation loss with optional label smoothing
+      Policy.imitation_loss(logits, actions, label_smoothing: label_smoothing)
     end
 
     # Compute loss and gradients using Nx.Defn.value_and_grad
@@ -628,9 +720,13 @@ defmodule ExPhil.Training.Imitation do
 
   @doc """
   Build the loss function for training.
+
+  ## Options
+    - `:label_smoothing` - Label smoothing factor (default: 0.0)
   """
-  @spec build_loss_fn(Axon.t()) :: {function(), function()}
-  def build_loss_fn(policy_model) do
+  @spec build_loss_fn(Axon.t(), keyword()) :: {function(), function()}
+  def build_loss_fn(policy_model, opts \\ []) do
+    label_smoothing = Keyword.get(opts, :label_smoothing, 0.0)
     {_init_fn, predict_fn} = Axon.build(policy_model)
 
     loss_fn = fn params, states, actions ->
@@ -646,8 +742,8 @@ defmodule ExPhil.Training.Imitation do
         shoulder: shoulder
       }
 
-      # Compute loss
-      Policy.imitation_loss(logits, actions)
+      # Compute loss with optional label smoothing
+      Policy.imitation_loss(logits, actions, label_smoothing: label_smoothing)
     end
 
     {predict_fn, loss_fn}
@@ -658,7 +754,9 @@ defmodule ExPhil.Training.Imitation do
   """
   @spec evaluate(t(), Enumerable.t()) :: map()
   def evaluate(trainer, dataset) do
-    {_predict_fn, loss_fn} = build_loss_fn(trainer.policy_model)
+    # Use same label smoothing as training for consistent loss comparison
+    label_smoothing = trainer.config[:label_smoothing] || 0.0
+    {_predict_fn, loss_fn} = build_loss_fn(trainer.policy_model, label_smoothing: label_smoothing)
 
     {total_loss, count} = Enum.reduce(dataset, {0.0, 0}, fn batch, {acc_loss, acc_count} ->
       %{states: states, actions: actions} = batch
