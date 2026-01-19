@@ -175,14 +175,19 @@ def extract_specific_files(archive_path, files, output_dir):
         for filepath in files:
             f.write(f"{filepath}\n")
 
+    # 7z uses -i@listfile syntax for include list
     result = subprocess.run(
-        ["7z", "x", "-y", f"-o{output_dir}", archive_path, f"@{list_file}"],
+        ["7z", "x", "-y", f"-o{output_dir}", archive_path, f"-i@{list_file}"],
         capture_output=True,
         text=True
     )
 
     # Cleanup list file
-    os.remove(list_file)
+    if os.path.exists(list_file):
+        os.remove(list_file)
+
+    if result.returncode != 0:
+        print(f"7z error: {result.stderr}")
 
     return result.returncode == 0
 
@@ -220,30 +225,37 @@ def process_archive_streaming(archive_path, output_dir, batch_size=200, cleanup=
         batch_end = min(batch_start + batch_size, total_files)
         batch_files = all_files[batch_start:batch_end]
 
+        print(f"  Batch {batch_num + 1}/{num_batches}: Extracting {len(batch_files)} files...", flush=True)
+
         # Clean extract dir
         if os.path.exists(extract_dir):
             shutil.rmtree(extract_dir)
         os.makedirs(extract_dir, exist_ok=True)
 
         # Extract batch
+        extract_start = time.time()
         if not extract_specific_files(archive_path, batch_files, extract_dir):
-            print(f"Warning: Failed to extract batch {batch_num + 1}")
+            print(f"  Warning: Failed to extract batch {batch_num + 1}")
             continue
+        extract_time = time.time() - extract_start
+        print(f"  Batch {batch_num + 1}/{num_batches}: Extracted in {extract_time:.1f}s, filtering...", flush=True)
 
         # Process extracted files
+        batch_kept = 0
         for slp_file in Path(extract_dir).rglob("*.slp"):
             result = process_replay(slp_file, output_dir)
             if result:
                 counts[result] = counts.get(result, 0) + 1
                 kept += 1
+                batch_kept += 1
             processed += 1
 
         # Progress
         elapsed = time.time() - start
         rate = processed / elapsed if elapsed > 0 else 0
         eta = (total_files - processed) / rate if rate > 0 else 0
-        print(f"  Batch {batch_num + 1}/{num_batches} | {processed}/{total_files} ({100*processed/total_files:.1f}%) | "
-              f"kept: {kept} | {rate:.0f} files/s | ETA: {eta:.0f}s")
+        print(f"  Batch {batch_num + 1}/{num_batches}: Done | {processed}/{total_files} ({100*processed/total_files:.1f}%) | "
+              f"batch kept: {batch_kept} | total kept: {kept} | {rate:.0f} files/s | ETA: {eta:.0f}s", flush=True)
 
     # Final cleanup
     if os.path.exists(extract_dir):
