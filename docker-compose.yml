@@ -1,12 +1,19 @@
 # ExPhil Docker Compose Configuration
 # Usage:
-#   docker-compose build                    # Build the image
-#   docker-compose run train-gpu            # Run GPU training
-#   docker-compose run train-gpu-temporal   # Run with temporal backbone
+#   docker-compose build                      # Build the image
+#   docker-compose run train-production       # Production preset (best quality)
+#   docker-compose run train-standard         # Standard preset (balanced)
+#   docker-compose run train-mewtwo           # Mewtwo specialist
+#   docker-compose run shell                  # Interactive Elixir shell
 
 services:
-  # GPU training with default settings
-  train-gpu:
+  # =============================================================================
+  # GPU Training with Presets
+  # =============================================================================
+
+  # Production preset - maximum quality training
+  # ~50 epochs, Mamba backbone, all features enabled
+  train-production:
     build:
       context: .
       dockerfile: Dockerfile.gpu
@@ -26,13 +33,13 @@ services:
       - WANDB_API_KEY=${WANDB_API_KEY:-}
     command: >
       mix run scripts/train_from_replays.exs
-      --epochs 10
-      --batch-size 128
+      --preset production
       --replays /app/replays
-      --checkpoint /app/checkpoints/model.axon
+      --checkpoint /app/checkpoints
 
-  # GPU training with temporal/attention backbone
-  train-gpu-temporal:
+  # Production with online robustness (for Slippi netplay)
+  # Adds frame delay augmentation (0-18 frames)
+  train-production-online:
     build:
       context: .
       dockerfile: Dockerfile.gpu
@@ -52,15 +59,234 @@ services:
       - WANDB_API_KEY=${WANDB_API_KEY:-}
     command: >
       mix run scripts/train_from_replays.exs
-      --temporal
-      --backbone sliding_window
-      --window-size 60
-      --epochs 10
-      --batch-size 64
+      --preset production
+      --online-robust
       --replays /app/replays
-      --checkpoint /app/checkpoints/temporal_model.axon
+      --checkpoint /app/checkpoints
 
-  # Interactive shell for debugging
+  # GPU standard preset - good balance of speed and quality
+  # ~20 epochs, all augmentation features
+  train-standard:
+    build:
+      context: .
+      dockerfile: Dockerfile.gpu
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    volumes:
+      - ./replays:/app/replays:ro
+      - ./checkpoints:/app/checkpoints:rw
+    environment:
+      - MIX_ENV=prod
+      - CUDA_VISIBLE_DEVICES=0
+    command: >
+      mix run scripts/train_from_replays.exs
+      --preset gpu_standard
+      --replays /app/replays
+      --checkpoint /app/checkpoints
+
+  # GPU quick - fast validation that GPU training works
+  # ~3 epochs, 20 files
+  train-quick:
+    build:
+      context: .
+      dockerfile: Dockerfile.gpu
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    volumes:
+      - ./replays:/app/replays:ro
+      - ./checkpoints:/app/checkpoints:rw
+    environment:
+      - MIX_ENV=prod
+      - CUDA_VISIBLE_DEVICES=0
+    command: >
+      mix run scripts/train_from_replays.exs
+      --preset gpu_quick
+      --replays /app/replays
+      --checkpoint /app/checkpoints
+
+  # =============================================================================
+  # Character-Specific Training
+  # =============================================================================
+
+  # Mewtwo specialist - 90-frame window for teleport recovery
+  train-mewtwo:
+    build:
+      context: .
+      dockerfile: Dockerfile.gpu
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    volumes:
+      - ./replays:/app/replays:ro
+      - ./checkpoints:/app/checkpoints:rw
+    environment:
+      - MIX_ENV=prod
+      - CUDA_VISIBLE_DEVICES=0
+    command: >
+      mix run scripts/train_from_replays.exs
+      --preset mewtwo
+      --character MEWTWO
+      --online-robust
+      --replays /app/replays
+      --checkpoint /app/checkpoints
+
+  # Ganondorf specialist - 60-frame window for spacing
+  train-ganondorf:
+    build:
+      context: .
+      dockerfile: Dockerfile.gpu
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    volumes:
+      - ./replays:/app/replays:ro
+      - ./checkpoints:/app/checkpoints:rw
+    environment:
+      - MIX_ENV=prod
+      - CUDA_VISIBLE_DEVICES=0
+    command: >
+      mix run scripts/train_from_replays.exs
+      --preset ganondorf
+      --character GANONDORF
+      --online-robust
+      --replays /app/replays
+      --checkpoint /app/checkpoints
+
+  # Link specialist - 75-frame window for projectiles
+  train-link:
+    build:
+      context: .
+      dockerfile: Dockerfile.gpu
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    volumes:
+      - ./replays:/app/replays:ro
+      - ./checkpoints:/app/checkpoints:rw
+    environment:
+      - MIX_ENV=prod
+      - CUDA_VISIBLE_DEVICES=0
+    command: >
+      mix run scripts/train_from_replays.exs
+      --preset link
+      --character LINK
+      --online-robust
+      --replays /app/replays
+      --checkpoint /app/checkpoints
+
+  # Game & Watch specialist - 45-frame window (L-cancels: fair, dair)
+  train-gameandwatch:
+    build:
+      context: .
+      dockerfile: Dockerfile.gpu
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    volumes:
+      - ./replays:/app/replays:ro
+      - ./checkpoints:/app/checkpoints:rw
+    environment:
+      - MIX_ENV=prod
+      - CUDA_VISIBLE_DEVICES=0
+    command: >
+      mix run scripts/train_from_replays.exs
+      --preset gameandwatch
+      --character GAME_AND_WATCH
+      --online-robust
+      --replays /app/replays
+      --checkpoint /app/checkpoints
+
+  # Zelda specialist - 60-frame window for transform
+  train-zelda:
+    build:
+      context: .
+      dockerfile: Dockerfile.gpu
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    volumes:
+      - ./replays:/app/replays:ro
+      - ./checkpoints:/app/checkpoints:rw
+    environment:
+      - MIX_ENV=prod
+      - CUDA_VISIBLE_DEVICES=0
+    command: >
+      mix run scripts/train_from_replays.exs
+      --preset zelda
+      --character ZELDA
+      --online-robust
+      --replays /app/replays
+      --checkpoint /app/checkpoints
+
+  # =============================================================================
+  # Utilities
+  # =============================================================================
+
+  # Replay scanner - analyze character distribution in replay collection
+  scan-replays:
+    build:
+      context: .
+      dockerfile: Dockerfile.gpu
+    volumes:
+      - ./replays:/app/replays:ro
+    environment:
+      - MIX_ENV=prod
+    command: >
+      mix run scripts/scan_replays.exs
+      --replays /app/replays
+
+  # Learning rate finder
+  find-lr:
+    build:
+      context: .
+      dockerfile: Dockerfile.gpu
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    volumes:
+      - ./replays:/app/replays:ro
+    environment:
+      - MIX_ENV=prod
+      - CUDA_VISIBLE_DEVICES=0
+    command: >
+      mix run scripts/find_lr.exs
+      --replays /app/replays
+
+  # Interactive Elixir shell for debugging
   shell:
     build:
       context: .
@@ -83,3 +309,23 @@ services:
     stdin_open: true
     tty: true
     command: iex -S mix
+
+  # =============================================================================
+  # CPU Testing (Local development without GPU)
+  # =============================================================================
+
+  # CPU quick test
+  train-cpu-quick:
+    build:
+      context: .
+      dockerfile: Dockerfile.cpu
+    volumes:
+      - ./replays:/app/replays:ro
+      - ./checkpoints:/app/checkpoints:rw
+    environment:
+      - MIX_ENV=prod
+    command: >
+      mix run scripts/train_from_replays.exs
+      --preset quick
+      --replays /app/replays
+      --checkpoint /app/checkpoints

@@ -310,7 +310,81 @@ Training 235 replays, 10 epochs on RTX 4090:
 └───────────────────────────────────────────────────────────────┘
 ```
 
-## Training Commands
+## Training Presets
+
+Presets configure all training options with research-backed defaults. Use presets instead of manually specifying options.
+
+### Preset Selection Guide
+
+| Scenario | Preset | Time on RTX 4090 | Notes |
+|----------|--------|------------------|-------|
+| Quick GPU validation | `gpu_quick` | ~5 min | 3 epochs, 20 files |
+| Standard training | `gpu_standard` | ~30 min | 20 epochs, all augmentation |
+| Production quality | `production` | ~2-3 hours | 100 epochs, Mamba, EMA, SGDR |
+| Production + online play | `production --online-robust` | ~2-3 hours | + frame delay augmentation |
+| Mewtwo specialist | `mewtwo` | ~2-3 hours | 90-frame window |
+| Ganondorf specialist | `ganondorf` | ~2-3 hours | 60-frame window |
+| Link specialist | `link` | ~2-3 hours | 75-frame window |
+| G&W specialist | `gameandwatch` | ~2-3 hours | 45-frame window |
+| Zelda specialist | `zelda` | ~2-3 hours | 60-frame window |
+
+### Using Presets
+
+```bash
+# Production training (recommended)
+mix run scripts/train_from_replays.exs \
+  --preset production \
+  --replays /workspace/replays \
+  --checkpoint /workspace/checkpoints
+
+# Production for online play (Slippi netplay)
+mix run scripts/train_from_replays.exs \
+  --preset production \
+  --online-robust \
+  --replays /workspace/replays \
+  --checkpoint /workspace/checkpoints
+
+# Character-specific training
+mix run scripts/train_from_replays.exs \
+  --preset mewtwo \
+  --character MEWTWO \
+  --online-robust \
+  --replays /workspace/replays \
+  --checkpoint /workspace/checkpoints
+```
+
+### What `--online-robust` Does
+
+Enables frame delay augmentation (0-18 frame random delays per sample) so the model learns to handle Slippi online latency. Without this flag, models work well locally but may struggle with online play.
+
+### Docker Compose Shortcuts
+
+```bash
+# Build once
+docker-compose build
+
+# Run with presets
+docker-compose run train-production        # Production quality
+docker-compose run train-production-online # Production + online robust
+docker-compose run train-standard          # Balanced speed/quality
+docker-compose run train-quick             # Quick GPU test
+
+# Character specialists
+docker-compose run train-mewtwo
+docker-compose run train-ganondorf
+docker-compose run train-link
+docker-compose run train-gameandwatch
+docker-compose run train-zelda
+
+# Utilities
+docker-compose run scan-replays            # Analyze replay collection
+docker-compose run find-lr                 # Find optimal learning rate
+docker-compose run shell                   # Interactive Elixir shell
+```
+
+## Manual Training Commands
+
+For custom configurations beyond presets:
 
 ```bash
 # Basic training (single-frame MLP)
@@ -400,13 +474,27 @@ rsync -avz --progress -e "ssh -p PORT" \
 # Check GPU
 nvidia-smi
 
-# Run training
+# Quick GPU validation (~5 min)
 cd /app
 mix run scripts/train_from_replays.exs \
-  --epochs 10 \
-  --batch-size 128 \
+  --preset gpu_quick \
   --replays /workspace/replays \
-  --checkpoint /workspace/checkpoints/model.axon
+  --checkpoint /workspace/checkpoints
+
+# Production training (~2-3 hours)
+mix run scripts/train_from_replays.exs \
+  --preset production \
+  --online-robust \
+  --replays /workspace/replays \
+  --checkpoint /workspace/checkpoints
+
+# Character specialist (e.g., Mewtwo)
+mix run scripts/train_from_replays.exs \
+  --preset mewtwo \
+  --character MEWTWO \
+  --online-robust \
+  --replays /workspace/replays \
+  --checkpoint /workspace/checkpoints
 
 # Long runs with tmux
 tmux new -s training
