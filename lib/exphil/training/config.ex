@@ -50,7 +50,15 @@ defmodule ExPhil.Training.Config do
       # Early stopping
       early_stopping: false,
       patience: 5,
-      min_delta: 0.01
+      min_delta: 0.01,
+      # Checkpointing
+      save_best: true,
+      save_every: nil,
+      # Learning rate
+      learning_rate: 1.0e-4,
+      lr_schedule: :constant,
+      warmup_steps: 0,
+      decay_steps: nil
     ]
   end
 
@@ -270,6 +278,9 @@ defmodule ExPhil.Training.Config do
     |> validate_replays_dir(opts)
     |> validate_positive(opts, :patience)
     |> validate_positive_float(opts, :min_delta)
+    |> validate_positive_float(opts, :learning_rate)
+    |> validate_lr_schedule(opts)
+    |> validate_non_negative(opts, :warmup_steps)
   end
 
   defp collect_warnings(opts) do
@@ -357,6 +368,17 @@ defmodule ExPhil.Training.Config do
     dir = opts[:replays]
     if dir && not File.dir?(dir) do
       ["replays directory does not exist: #{dir}" | errors]
+    else
+      errors
+    end
+  end
+
+  @valid_lr_schedules [:constant, :cosine, :exponential, :linear]
+
+  defp validate_lr_schedule(errors, opts) do
+    schedule = opts[:lr_schedule]
+    if schedule && schedule not in @valid_lr_schedules do
+      ["lr_schedule must be one of #{inspect(@valid_lr_schedules)}, got: #{inspect(schedule)}" | errors]
     else
       errors
     end
@@ -519,6 +541,12 @@ defmodule ExPhil.Training.Config do
     |> parse_flag(args, "--early-stopping", :early_stopping)
     |> parse_int_arg(args, "--patience", :patience)
     |> parse_float_arg(args, "--min-delta", :min_delta)
+    |> parse_flag(args, "--save-best", :save_best)
+    |> parse_optional_int_arg(args, "--save-every", :save_every)
+    |> parse_float_arg(args, "--lr", :learning_rate)
+    |> parse_atom_arg(args, "--lr-schedule", :lr_schedule)
+    |> parse_optional_int_arg(args, "--warmup-steps", :warmup_steps)
+    |> parse_optional_int_arg(args, "--decay-steps", :decay_steps)
   end
 
   defp has_flag_value?(args, flag) do
@@ -652,6 +680,34 @@ defmodule ExPhil.Training.Config do
   def derive_config_path(nil), do: nil
   def derive_config_path(checkpoint_path) do
     String.replace(checkpoint_path, ".axon", "_config.json")
+  end
+
+  @doc """
+  Derive the best checkpoint path from a checkpoint path.
+
+  ## Examples
+
+      iex> Config.derive_best_checkpoint_path("checkpoints/mlp_20260119.axon")
+      "checkpoints/mlp_20260119_best.axon"
+
+  """
+  def derive_best_checkpoint_path(nil), do: nil
+  def derive_best_checkpoint_path(checkpoint_path) do
+    String.replace(checkpoint_path, ".axon", "_best.axon")
+  end
+
+  @doc """
+  Derive the best policy path from a checkpoint path.
+
+  ## Examples
+
+      iex> Config.derive_best_policy_path("checkpoints/mlp_20260119.axon")
+      "checkpoints/mlp_20260119_best_policy.bin"
+
+  """
+  def derive_best_policy_path(nil), do: nil
+  def derive_best_policy_path(checkpoint_path) do
+    String.replace(checkpoint_path, ".axon", "_best_policy.bin")
   end
 
   @doc """

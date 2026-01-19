@@ -1158,4 +1158,180 @@ defmodule ExPhil.Training.ConfigTest do
       assert json[:stopped_early] == true
     end
   end
+
+  # ============================================================================
+  # Checkpointing CLI Tests
+  # ============================================================================
+
+  describe "parse_args/1 with checkpointing" do
+    test "save_best defaults to true" do
+      opts = Config.parse_args([])
+      assert opts[:save_best] == true
+    end
+
+    test "parses --save-best flag" do
+      opts = Config.parse_args(["--save-best"])
+      assert opts[:save_best] == true
+    end
+
+    test "save_every defaults to nil" do
+      opts = Config.parse_args([])
+      assert opts[:save_every] == nil
+    end
+
+    test "parses --save-every" do
+      opts = Config.parse_args(["--save-every", "5"])
+      assert opts[:save_every] == 5
+    end
+  end
+
+  describe "derive_best_checkpoint_path/1" do
+    test "derives best checkpoint path" do
+      assert Config.derive_best_checkpoint_path("checkpoints/mlp_20260119.axon") ==
+        "checkpoints/mlp_20260119_best.axon"
+    end
+
+    test "handles nested paths" do
+      assert Config.derive_best_checkpoint_path("checkpoints/mewtwo/mamba_20260119.axon") ==
+        "checkpoints/mewtwo/mamba_20260119_best.axon"
+    end
+
+    test "returns nil for nil" do
+      assert Config.derive_best_checkpoint_path(nil) == nil
+    end
+  end
+
+  describe "derive_best_policy_path/1" do
+    test "derives best policy path" do
+      assert Config.derive_best_policy_path("checkpoints/mlp_20260119.axon") ==
+        "checkpoints/mlp_20260119_best_policy.bin"
+    end
+
+    test "handles nested paths" do
+      assert Config.derive_best_policy_path("checkpoints/mewtwo/mamba_20260119.axon") ==
+        "checkpoints/mewtwo/mamba_20260119_best_policy.bin"
+    end
+
+    test "returns nil for nil" do
+      assert Config.derive_best_policy_path(nil) == nil
+    end
+  end
+
+  # ============================================================================
+  # Learning Rate Scheduling CLI Tests
+  # ============================================================================
+
+  describe "parse_args/1 with learning rate scheduling" do
+    test "learning_rate defaults to 1.0e-4" do
+      opts = Config.parse_args([])
+      assert opts[:learning_rate] == 1.0e-4
+    end
+
+    test "parses --lr" do
+      opts = Config.parse_args(["--lr", "0.001"])
+      assert opts[:learning_rate] == 0.001
+    end
+
+    test "parses --lr with scientific notation" do
+      opts = Config.parse_args(["--lr", "5.0e-5"])
+      assert opts[:learning_rate] == 5.0e-5
+    end
+
+    test "lr_schedule defaults to :constant" do
+      opts = Config.parse_args([])
+      assert opts[:lr_schedule] == :constant
+    end
+
+    test "parses --lr-schedule constant" do
+      opts = Config.parse_args(["--lr-schedule", "constant"])
+      assert opts[:lr_schedule] == :constant
+    end
+
+    test "parses --lr-schedule cosine" do
+      opts = Config.parse_args(["--lr-schedule", "cosine"])
+      assert opts[:lr_schedule] == :cosine
+    end
+
+    test "parses --lr-schedule exponential" do
+      opts = Config.parse_args(["--lr-schedule", "exponential"])
+      assert opts[:lr_schedule] == :exponential
+    end
+
+    test "parses --lr-schedule linear" do
+      opts = Config.parse_args(["--lr-schedule", "linear"])
+      assert opts[:lr_schedule] == :linear
+    end
+
+    test "warmup_steps defaults to 0" do
+      opts = Config.parse_args([])
+      assert opts[:warmup_steps] == 0
+    end
+
+    test "parses --warmup-steps" do
+      opts = Config.parse_args(["--warmup-steps", "1000"])
+      assert opts[:warmup_steps] == 1000
+    end
+
+    test "decay_steps defaults to nil" do
+      opts = Config.parse_args([])
+      assert opts[:decay_steps] == nil
+    end
+
+    test "parses --decay-steps" do
+      opts = Config.parse_args(["--decay-steps", "10000"])
+      assert opts[:decay_steps] == 10000
+    end
+
+    test "parses full learning rate config" do
+      opts = Config.parse_args([
+        "--lr", "0.0005",
+        "--lr-schedule", "cosine",
+        "--warmup-steps", "500",
+        "--decay-steps", "5000"
+      ])
+
+      assert opts[:learning_rate] == 0.0005
+      assert opts[:lr_schedule] == :cosine
+      assert opts[:warmup_steps] == 500
+      assert opts[:decay_steps] == 5000
+    end
+  end
+
+  describe "validate/1 with learning rate options" do
+    test "accepts valid learning rate config" do
+      opts = [
+        epochs: 10,
+        batch_size: 64,
+        learning_rate: 0.001,
+        lr_schedule: :cosine,
+        warmup_steps: 100
+      ]
+
+      assert {:ok, ^opts} = Config.validate(opts)
+    end
+
+    test "returns error for invalid lr_schedule" do
+      opts = [epochs: 10, batch_size: 64, lr_schedule: :invalid]
+      {:error, errors} = Config.validate(opts)
+      assert Enum.any?(errors, &String.contains?(&1, "lr_schedule"))
+    end
+
+    test "returns error for negative learning_rate" do
+      opts = [epochs: 10, batch_size: 64, learning_rate: -0.001]
+      {:error, errors} = Config.validate(opts)
+      assert Enum.any?(errors, &String.contains?(&1, "learning_rate"))
+    end
+
+    test "returns error for zero learning_rate" do
+      opts = [epochs: 10, batch_size: 64, learning_rate: 0.0]
+      {:error, errors} = Config.validate(opts)
+      assert Enum.any?(errors, &String.contains?(&1, "learning_rate"))
+    end
+
+    test "returns error for negative warmup_steps" do
+      opts = [epochs: 10, batch_size: 64, warmup_steps: -100]
+      {:error, errors} = Config.validate(opts)
+      assert Enum.any?(errors, &String.contains?(&1, "warmup_steps"))
+    end
+  end
 end

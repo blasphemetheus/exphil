@@ -208,19 +208,127 @@ defmodule ExPhil.Training.Imitation do
   @doc """
   Create optimizer with learning rate schedule and gradient clipping.
 
+  Supports multiple learning rate schedules:
+  - `:constant` - Fixed learning rate (default)
+  - `:cosine` - Cosine decay from initial LR to 0
+  - `:exponential` - Exponential decay by factor of 0.95 per epoch
+  - `:linear` - Linear decay to 0 over decay_steps
+
   Returns `{init_fn, update_fn}` tuple.
   """
   @spec create_optimizer(map()) :: {function(), function()}
   def create_optimizer(config) do
-    # Use AdamW optimizer with constant learning rate
-    # (Polaris schedules are applied differently in newer versions)
+    lr_schedule = build_lr_schedule(config)
+
     Polaris.Optimizers.adamw(
-      learning_rate: config.learning_rate,
+      learning_rate: lr_schedule,
       b1: 0.9,
       b2: 0.999,
       eps: 1.0e-8,
       decay: config.weight_decay
     )
+  end
+
+  # Build the learning rate schedule based on config
+  # Polaris schedules are defn functions that can't be composed directly,
+  # so we only use them when there's no warmup. With warmup, we create
+  # custom schedule functions.
+  defp build_lr_schedule(config) do
+    base_lr = config.learning_rate
+    schedule_type = config[:lr_schedule] || :constant
+    warmup_steps = config[:warmup_steps] || 0
+    decay_steps = config[:decay_steps]
+
+    if warmup_steps > 0 do
+      # Use custom schedule with warmup
+      build_custom_schedule(base_lr, schedule_type, warmup_steps, decay_steps)
+    else
+      # Use Polaris schedules directly (no warmup)
+      build_polaris_schedule(base_lr, schedule_type, decay_steps)
+    end
+  end
+
+  # Use Polaris built-in schedules when there's no warmup
+  defp build_polaris_schedule(base_lr, schedule_type, decay_steps) do
+    case schedule_type do
+      :constant ->
+        Polaris.Schedules.constant(init_value: base_lr)
+
+      :cosine ->
+        steps = decay_steps || 10_000
+        Polaris.Schedules.cosine_decay(init_value: base_lr, decay_steps: steps)
+
+      :exponential ->
+        transition_steps = decay_steps || 1000
+        Polaris.Schedules.exponential_decay(
+          init_value: base_lr,
+          rate: 0.95,
+          transition_steps: transition_steps
+        )
+
+      :linear ->
+        steps = decay_steps || 10_000
+        Polaris.Schedules.linear_decay(init_value: base_lr, decay_steps: steps)
+    end
+  end
+
+  # Build a custom schedule function that implements warmup + decay
+  # This is needed because Polaris schedules can't be composed
+  defp build_custom_schedule(base_lr, schedule_type, warmup_steps, decay_steps) do
+    # Pre-convert to tensors with Nx.BinaryBackend to avoid EXLA closure issues
+    base_lr_t = Nx.tensor(base_lr, type: :f32, backend: Nx.BinaryBackend)
+    warmup_steps_t = Nx.tensor(warmup_steps, type: :f32, backend: Nx.BinaryBackend)
+    decay_steps_t = Nx.tensor(decay_steps || 10_000, type: :f32, backend: Nx.BinaryBackend)
+    zero_t = Nx.tensor(0.0, type: :f32, backend: Nx.BinaryBackend)
+    one_t = Nx.tensor(1.0, type: :f32, backend: Nx.BinaryBackend)
+    pi_t = Nx.tensor(:math.pi(), type: :f32, backend: Nx.BinaryBackend)
+
+    fn step ->
+      step_f = Nx.as_type(step, :f32)
+
+      # Warmup phase: linear ramp from 0 to base_lr
+      warmup_progress = Nx.divide(step_f, warmup_steps_t)
+      warmup_lr = Nx.multiply(warmup_progress, base_lr_t)
+
+      # Post-warmup step (offset by warmup_steps)
+      post_warmup_step = Nx.max(Nx.subtract(step_f, warmup_steps_t), zero_t)
+
+      # Decay phase based on schedule type
+      decay_lr = case schedule_type do
+        :constant ->
+          base_lr_t
+
+        :cosine ->
+          # Cosine decay: lr * (1 + cos(pi * step / decay_steps)) / 2
+          progress = Nx.divide(post_warmup_step, decay_steps_t)
+          clamped_progress = Nx.min(progress, one_t)
+          cosine_factor = Nx.divide(
+            Nx.add(one_t, Nx.cos(Nx.multiply(pi_t, clamped_progress))),
+            Nx.tensor(2.0, type: :f32, backend: Nx.BinaryBackend)
+          )
+          Nx.multiply(base_lr_t, cosine_factor)
+
+        :exponential ->
+          # Exponential decay: lr * rate^(step / transition_steps)
+          rate_t = Nx.tensor(0.95, type: :f32, backend: Nx.BinaryBackend)
+          exponent = Nx.divide(post_warmup_step, decay_steps_t)
+          decay_factor = Nx.pow(rate_t, exponent)
+          Nx.multiply(base_lr_t, decay_factor)
+
+        :linear ->
+          # Linear decay: lr * max(0, 1 - step / decay_steps)
+          progress = Nx.divide(post_warmup_step, decay_steps_t)
+          decay_factor = Nx.max(Nx.subtract(one_t, progress), zero_t)
+          Nx.multiply(base_lr_t, decay_factor)
+      end
+
+      # Select warmup or decay based on current step
+      Nx.select(
+        Nx.less(step_f, warmup_steps_t),
+        warmup_lr,
+        decay_lr
+      )
+    end
   end
 
   @doc """
