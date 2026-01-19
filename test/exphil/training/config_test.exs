@@ -1386,4 +1386,95 @@ defmodule ExPhil.Training.ConfigTest do
       end
     end
   end
+
+  # ============================================================================
+  # Gradient Accumulation Tests
+  # ============================================================================
+
+  describe "parse_args/1 with accumulation" do
+    test "defaults accumulation_steps to 1" do
+      opts = Config.parse_args([])
+      assert opts[:accumulation_steps] == 1
+    end
+
+    test "parses --accumulation-steps" do
+      opts = Config.parse_args(["--accumulation-steps", "4"])
+      assert opts[:accumulation_steps] == 4
+    end
+  end
+
+  describe "validate/1 with accumulation" do
+    test "accepts accumulation_steps of 1" do
+      opts = [epochs: 10, batch_size: 64, accumulation_steps: 1]
+      assert {:ok, ^opts} = Config.validate(opts)
+    end
+
+    test "accepts accumulation_steps greater than 1" do
+      opts = [epochs: 10, batch_size: 64, accumulation_steps: 4]
+      assert {:ok, ^opts} = Config.validate(opts)
+    end
+
+    test "returns error for accumulation_steps of 0" do
+      opts = [epochs: 10, batch_size: 64, accumulation_steps: 0]
+      {:error, errors} = Config.validate(opts)
+      assert Enum.any?(errors, &String.contains?(&1, "accumulation_steps must be positive"))
+    end
+
+    test "returns error for negative accumulation_steps" do
+      opts = [epochs: 10, batch_size: 64, accumulation_steps: -1]
+      {:error, errors} = Config.validate(opts)
+      assert Enum.any?(errors, &String.contains?(&1, "accumulation_steps must be positive"))
+    end
+  end
+
+  # ============================================================================
+  # Validation Split Tests
+  # ============================================================================
+
+  describe "parse_args/1 with val_split" do
+    test "defaults val_split to 0.0" do
+      opts = Config.parse_args([])
+      assert opts[:val_split] == 0.0
+    end
+
+    test "parses --val-split" do
+      opts = Config.parse_args(["--val-split", "0.1"])
+      assert opts[:val_split] == 0.1
+    end
+  end
+
+  describe "validate/1 with val_split" do
+    test "accepts val_split of 0.0 (no validation)" do
+      opts = [epochs: 10, batch_size: 64, val_split: 0.0]
+      assert {:ok, ^opts} = Config.validate(opts)
+    end
+
+    test "accepts val_split in valid range" do
+      opts = [epochs: 10, batch_size: 64, val_split: 0.2]
+      assert {:ok, ^opts} = Config.validate(opts)
+    end
+
+    test "accepts val_split close to 1.0 but not equal" do
+      opts = [epochs: 10, batch_size: 64, val_split: 0.99]
+      assert {:ok, ^opts} = Config.validate(opts)
+    end
+
+    test "returns error for val_split of 1.0" do
+      opts = [epochs: 10, batch_size: 64, val_split: 1.0]
+      {:error, errors} = Config.validate(opts)
+      assert Enum.any?(errors, &String.contains?(&1, "val_split must be in"))
+    end
+
+    test "returns error for val_split greater than 1.0" do
+      opts = [epochs: 10, batch_size: 64, val_split: 1.5]
+      {:error, errors} = Config.validate(opts)
+      assert Enum.any?(errors, &String.contains?(&1, "val_split must be in"))
+    end
+
+    test "returns error for negative val_split" do
+      opts = [epochs: 10, batch_size: 64, val_split: -0.1]
+      {:error, errors} = Config.validate(opts)
+      assert Enum.any?(errors, &String.contains?(&1, "val_split must be in"))
+    end
+  end
 end

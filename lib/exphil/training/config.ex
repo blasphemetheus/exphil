@@ -62,7 +62,11 @@ defmodule ExPhil.Training.Config do
       # Resumption
       resume: nil,
       # Model naming
-      name: nil
+      name: nil,
+      # Gradient accumulation
+      accumulation_steps: 1,
+      # Validation split
+      val_split: 0.0
     ]
   end
 
@@ -286,6 +290,8 @@ defmodule ExPhil.Training.Config do
     |> validate_lr_schedule(opts)
     |> validate_non_negative(opts, :warmup_steps)
     |> validate_resume_checkpoint(opts)
+    |> validate_positive(opts, :accumulation_steps)
+    |> validate_val_split(opts)
   end
 
   defp collect_warnings(opts) do
@@ -395,6 +401,16 @@ defmodule ExPhil.Training.Config do
       ["resume checkpoint does not exist: #{resume_path}" | errors]
     else
       errors
+    end
+  end
+
+  defp validate_val_split(errors, opts) do
+    val_split = opts[:val_split]
+    cond do
+      is_nil(val_split) -> errors
+      not is_number(val_split) -> ["val_split must be a number, got: #{inspect(val_split)}" | errors]
+      val_split < 0.0 or val_split >= 1.0 -> ["val_split must be in [0.0, 1.0), got: #{val_split}" | errors]
+      true -> errors
     end
   end
 
@@ -563,6 +579,8 @@ defmodule ExPhil.Training.Config do
     |> parse_optional_int_arg(args, "--decay-steps", :decay_steps)
     |> parse_string_arg(args, "--resume", :resume)
     |> parse_string_arg(args, "--name", :name)
+    |> parse_int_arg(args, "--accumulation-steps", :accumulation_steps)
+    |> parse_float_arg(args, "--val-split", :val_split)
   end
 
   defp has_flag_value?(args, flag) do

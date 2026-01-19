@@ -358,6 +358,42 @@ mix exphil.train --mode rl --checkpoint ./checkpoints/latest.axon
 - [x] **O(1) batch lookup** - `:array` instead of `Enum.at`
 - [x] **Async game runner** - Decouple frame reading from slow LSTM inference
 - [x] **Dolphin integration** - Full gameplay loop working with auto-restart
+- [x] **Early stopping** - `--early-stopping --patience N --min-delta X`
+- [x] **Best model checkpointing** - `--save-best` saves when val_loss improves
+- [x] **Learning rate scheduling** - `--lr-schedule cosine/linear/exponential --warmup-steps N`
+- [x] **Training resumption** - `--resume PATH` to continue from checkpoint
+- [x] **Memorable model naming** - Docker-style names like "wavedashing_falcon"
+
+#### Training Infrastructure Improvements
+
+| Feature | Status | Description |
+|---------|--------|-------------|
+| Gradient accumulation | ✅ Done | `--accumulation-steps N` for larger effective batches |
+| Validation split | ✅ Done | `--val-split X` for proper train/val metrics |
+| Data augmentation | 📋 Planned | Mirror states (flip X coords), noise injection |
+| Gradient clipping | ✅ Done | `max_grad_norm: 1.0` in default config |
+| Label smoothing | 📋 Planned | Reduce overconfidence, improve generalization |
+| Model EMA | 📋 Planned | Exponential moving average for smoother models |
+| Cosine annealing w/ restarts | 📋 Planned | Cyclic LR for escaping local minima |
+| Learning rate finder | 📋 Planned | Auto-find optimal LR range |
+
+**Gradient Accumulation Usage:**
+```bash
+# Effective batch size = batch_size * accumulation_steps
+# Example: 32 * 4 = 128 effective batch size
+mix run scripts/train_from_replays.exs \
+  --batch-size 32 --accumulation-steps 4 \
+  --epochs 10
+```
+
+**Validation Split Usage:**
+```bash
+# 10% validation, 90% training
+mix run scripts/train_from_replays.exs --val-split 0.1 --epochs 10
+
+# No validation (use all data for training)
+mix run scripts/train_from_replays.exs --val-split 0.0 --epochs 10
+```
 
 #### Immediate: Inference Optimization
 
@@ -988,6 +1024,30 @@ Axon.nx(input, fn tensor ->
   # CRASH: mask is EXLA but tensor is Defn.Expr during tracing
   scaled_dot_product_attention(query, key, value, mask: mask)
 end)
+```
+
+#### 13. Mix stale builds - edits not taking effect
+Mix uses file timestamps to decide what to recompile. Sometimes edits don't trigger
+recompilation (editor buffering, clock drift, etc.), causing old bytecode to run.
+
+**Symptoms:**
+- "I fixed the warning but it still appears"
+- Code changes have no effect
+- Training runs old version of the code
+
+**Fix:** Before important runs, force full recompilation:
+```bash
+# Option 1: Force recompile (faster)
+mix compile --force
+
+# Option 2: Clean build (slower but guaranteed clean)
+rm -rf _build && mix compile
+```
+
+**Prevention:** Add to your training workflow:
+```bash
+# Recommended: Always compile before training
+mix compile --force && mix run scripts/train_from_replays.exs --epochs 10
 ```
 
 ### Performance Tips

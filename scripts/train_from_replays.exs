@@ -76,6 +76,15 @@ end
 #   --lr-schedule TYPE - Schedule: constant, cosine, exponential, linear (default: constant)
 #   --warmup-steps N  - Linear warmup from 0 to base LR (default: 0)
 #   --decay-steps N   - Steps for decay schedules (default: 10000)
+#
+# Gradient Accumulation:
+#   --accumulation-steps N - Accumulate gradients over N batches before update (default: 1)
+#                            Effective batch size = batch_size * accumulation_steps
+#                            Example: --batch-size 32 --accumulation-steps 4 = 128 effective
+#
+# Validation Split:
+#   --val-split X     - Fraction of data for validation, 0.0-1.0 (default: 0.0 = no split)
+#                       Example: --val-split 0.1 = 10% validation, 90% training
 
 # Simple unbuffered output - all output goes to stderr which is always line-buffered
 # This means `mix run script.exs` just works without any redirection tricks
@@ -238,7 +247,7 @@ Output.puts("\nStep 2: Creating dataset...")
 dataset = Data.from_frames(all_frames)
 
 # Convert to sequences for temporal training
-{train_dataset, val_dataset} = if opts[:temporal] do
+base_dataset = if opts[:temporal] do
   Output.puts("  Converting to sequences (window=#{opts[:window_size]}, stride=#{opts[:stride]})...")
   seq_dataset = Data.to_sequences(dataset,
     window_size: opts[:window_size],
@@ -247,15 +256,28 @@ dataset = Data.from_frames(all_frames)
 
   # Pre-compute embeddings to avoid slow per-batch embedding
   # This embeds all frames ONCE instead of on every batch
-  seq_dataset = Data.precompute_embeddings(seq_dataset)
-
-  Data.split(seq_dataset, ratio: 0.9)
+  Data.precompute_embeddings(seq_dataset)
 else
-  Data.split(dataset, ratio: 0.9)
+  dataset
 end
 
-Output.puts("  Training #{if opts[:temporal], do: "sequences", else: "frames"}: #{train_dataset.size}")
-Output.puts("  Validation #{if opts[:temporal], do: "sequences", else: "frames"}: #{val_dataset.size}")
+# Split into train/val based on val_split option
+# val_split = 0.0 means no validation set, val_split = 0.1 means 10% validation
+{train_dataset, val_dataset} = if opts[:val_split] > 0.0 do
+  train_ratio = 1.0 - opts[:val_split]
+  Data.split(base_dataset, ratio: train_ratio)
+else
+  # No validation split - use all data for training, create empty val dataset
+  {base_dataset, Data.empty(base_dataset)}
+end
+
+data_type = if opts[:temporal], do: "sequences", else: "frames"
+Output.puts("  Training #{data_type}: #{train_dataset.size}")
+if val_dataset.size > 0 do
+  Output.puts("  Validation #{data_type}: #{val_dataset.size} (#{Float.round(opts[:val_split] * 100, 1)}%)")
+else
+  Output.puts("  Validation: disabled (--val-split 0.0)")
+end
 
 # Show some statistics
 stats = Data.stats(train_dataset)
@@ -299,7 +321,9 @@ trainer_opts = [
   # Mamba-specific options
   state_size: opts[:state_size],
   expand_factor: opts[:expand_factor],
-  conv_size: opts[:conv_size]
+  conv_size: opts[:conv_size],
+  # Gradient accumulation
+  accumulation_steps: opts[:accumulation_steps]
 ]
 
 # Create trainer (or load from checkpoint for resumption)
@@ -324,6 +348,10 @@ else
   Output.puts("  MLP model initialized")
 end
 Output.puts("  Batch size: #{opts[:batch_size]}")
+if opts[:accumulation_steps] > 1 do
+  effective_batch = opts[:batch_size] * opts[:accumulation_steps]
+  Output.puts("  Gradient accumulation: #{opts[:accumulation_steps]}x (effective batch: #{effective_batch})")
+end
 if resumed_step > 0 do
   Output.puts("  Resumed at step: #{resumed_step}")
 end
@@ -448,37 +476,48 @@ initial_state = {trainer, 0, false, early_stopping_state, nil}
     epoch_time = System.monotonic_time(:second) - epoch_start
     avg_loss = Enum.sum(epoch_losses) / length(epoch_losses)
 
-    # Validation - use appropriate batching for temporal mode
-    val_batches = if opts[:temporal] do
-      Data.batched_sequences(val_dataset, batch_size: opts[:batch_size], shuffle: false)
+    # Validation - only if we have validation data
+    {val_loss, val_metrics} = if val_dataset.size > 0 do
+      val_batches = if opts[:temporal] do
+        Data.batched_sequences(val_dataset, batch_size: opts[:batch_size], shuffle: false)
+      else
+        Data.batched(val_dataset, batch_size: opts[:batch_size], shuffle: false)
+      end
+      metrics = Imitation.evaluate(updated_trainer, val_batches)
+      {metrics.loss, metrics}
     else
-      Data.batched(val_dataset, batch_size: opts[:batch_size], shuffle: false)
+      # No validation set - use training loss as proxy
+      {avg_loss, %{loss: avg_loss}}
     end
-    val_metrics = Imitation.evaluate(updated_trainer, val_batches)
 
-    # Check early stopping
+    # Check early stopping (uses val_loss or train_loss if no validation)
     {new_es_state, es_decision, es_message} = if es_state do
-      {new_state, decision} = EarlyStopping.check(es_state, val_metrics.loss)
+      {new_state, decision} = EarlyStopping.check(es_state, val_loss)
       {new_state, decision, " | #{EarlyStopping.status_message(new_state)}"}
     else
       {nil, :continue, ""}
     end
 
     Output.puts("")
-    Output.puts("  ✓ Epoch #{epoch} complete: train_loss=#{Float.round(avg_loss, 4)} val_loss=#{Float.round(val_metrics.loss, 4)} (#{epoch_time}s)#{es_message}")
+    if val_dataset.size > 0 do
+      Output.puts("  ✓ Epoch #{epoch} complete: train_loss=#{Float.round(avg_loss, 4)} val_loss=#{Float.round(val_loss, 4)} (#{epoch_time}s)#{es_message}")
+    else
+      Output.puts("  ✓ Epoch #{epoch} complete: train_loss=#{Float.round(avg_loss, 4)} (#{epoch_time}s)#{es_message}")
+    end
 
-    # Save best model if this is the best validation loss so far
-    is_new_best = best_val_loss == nil or val_metrics.loss < best_val_loss
-    new_best_val_loss = if is_new_best, do: val_metrics.loss, else: best_val_loss
+    # Save best model if this is the best loss so far (val_loss if available, else train_loss)
+    is_new_best = best_val_loss == nil or val_loss < best_val_loss
+    new_best_val_loss = if is_new_best, do: val_loss, else: best_val_loss
 
     if opts[:save_best] and is_new_best do
       best_checkpoint_path = Config.derive_best_checkpoint_path(opts[:checkpoint])
       best_policy_path = Config.derive_best_policy_path(opts[:checkpoint])
 
+      loss_type = if val_dataset.size > 0, do: "val_loss", else: "train_loss"
       case Imitation.save_checkpoint(updated_trainer, best_checkpoint_path) do
         :ok ->
           case Imitation.export_policy(updated_trainer, best_policy_path) do
-            :ok -> Output.puts("    ★ New best model saved (val_loss=#{Float.round(val_metrics.loss, 4)})")
+            :ok -> Output.puts("    ★ New best model saved (#{loss_type}=#{Float.round(val_loss, 4)})")
             {:error, _} -> Output.puts("    ★ Best checkpoint saved, policy export failed")
           end
         {:error, reason} ->

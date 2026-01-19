@@ -105,7 +105,9 @@ defmodule ExPhil.Training.Imitation do
     # Mamba-specific options
     state_size: 16,               # Mamba SSM state dimension
     expand_factor: 2,             # Mamba expansion factor
-    conv_size: 4                  # Mamba conv kernel size
+    conv_size: 4,                 # Mamba conv kernel size
+    # Gradient accumulation
+    accumulation_steps: 1         # 1 = no accumulation, N = effective batch = batch_size * N
   }
 
   @doc """
@@ -367,9 +369,25 @@ defmodule ExPhil.Training.Imitation do
 
   @doc """
   Train for a single epoch.
+
+  Supports gradient accumulation via config.accumulation_steps.
+  With accumulation_steps=N, gradients are averaged over N mini-batches
+  before applying updates, effectively training with batch_size*N.
   """
   @spec train_epoch(t(), Enumerable.t(), non_neg_integer(), function()) :: t()
   def train_epoch(trainer, dataset, epoch, callback) do
+    accumulation_steps = trainer.config[:accumulation_steps] || 1
+
+    if accumulation_steps == 1 do
+      # Fast path: no accumulation, original behavior
+      train_epoch_no_accumulation(trainer, dataset, epoch, callback)
+    else
+      # Gradient accumulation path
+      train_epoch_with_accumulation(trainer, dataset, epoch, callback, accumulation_steps)
+    end
+  end
+
+  defp train_epoch_no_accumulation(trainer, dataset, epoch, callback) do
     {_predict_fn, loss_fn} = build_loss_fn(trainer.policy_model)
 
     Enum.reduce(dataset, trainer, fn batch, acc ->
@@ -387,6 +405,147 @@ defmodule ExPhil.Training.Imitation do
       new_trainer
     end)
   end
+
+  defp train_epoch_with_accumulation(trainer, dataset, epoch, callback, accumulation_steps) do
+    # Track accumulated gradients and losses
+    init_accum = %{
+      trainer: trainer,
+      grads: nil,
+      losses: [],
+      count: 0
+    }
+
+    final_accum = Enum.reduce(dataset, init_accum, fn batch, accum ->
+      # Compute gradients without applying updates
+      {grads, loss} = compute_gradients(accum.trainer, batch)
+
+      # Accumulate gradients (sum them)
+      new_grads = if accum.grads == nil do
+        grads
+      else
+        add_gradients(accum.grads, grads)
+      end
+
+      new_accum = %{accum |
+        grads: new_grads,
+        losses: [loss | accum.losses],
+        count: accum.count + 1
+      }
+
+      # Check if we should apply update
+      if new_accum.count >= accumulation_steps do
+        # Average gradients and apply update
+        avg_grads = scale_gradients(new_accum.grads, 1.0 / accumulation_steps)
+        avg_loss = Enum.sum(new_accum.losses) / accumulation_steps
+
+        new_trainer = apply_gradients(new_accum.trainer, avg_grads)
+
+        # Call callback
+        metrics = %{loss: avg_loss, step: new_trainer.step}
+        full_metrics = Map.merge(metrics, %{epoch: epoch, step: new_trainer.step})
+        callback.(full_metrics)
+
+        # Log periodically
+        if rem(new_trainer.step, new_trainer.config.log_interval) == 0 do
+          Logger.info("Step #{new_trainer.step}: loss=#{Float.round(avg_loss, 4)} (accum=#{accumulation_steps})")
+        end
+
+        # Reset accumulation state
+        %{trainer: new_trainer, grads: nil, losses: [], count: 0}
+      else
+        new_accum
+      end
+    end)
+
+    # Handle remaining batches if dataset size isn't divisible by accumulation_steps
+    if final_accum.count > 0 and final_accum.grads != nil do
+      avg_grads = scale_gradients(final_accum.grads, 1.0 / final_accum.count)
+      avg_loss = Enum.sum(final_accum.losses) / final_accum.count
+
+      new_trainer = apply_gradients(final_accum.trainer, avg_grads)
+
+      # Log final partial accumulation
+      Logger.info("Step #{new_trainer.step}: loss=#{Float.round(avg_loss, 4)} (partial accum=#{final_accum.count})")
+
+      new_trainer
+    else
+      final_accum.trainer
+    end
+  end
+
+  # Compute gradients for a batch without applying updates
+  defp compute_gradients(trainer, batch) do
+    %{states: states, actions: actions} = batch
+
+    states = Nx.backend_copy(states)
+    actions = Map.new(actions, fn {k, v} -> {k, Nx.backend_copy(v)} end)
+
+    predict_fn = trainer.predict_fn
+    model_state = deep_backend_copy(trainer.policy_params)
+
+    loss_fn = fn params ->
+      {buttons, main_x, main_y, c_x, c_y, shoulder} = predict_fn.(params, states)
+      logits = %{
+        buttons: buttons, main_x: main_x, main_y: main_y,
+        c_x: c_x, c_y: c_y, shoulder: shoulder
+      }
+      Policy.imitation_loss(logits, actions)
+    end
+
+    {loss, grads} = Nx.Defn.value_and_grad(loss_fn).(model_state)
+    grads_data = get_params_data(grads)
+    loss_val = Nx.to_number(loss)
+
+    {grads_data, loss_val}
+  end
+
+  # Add two gradient maps element-wise
+  defp add_gradients(grads1, grads2) do
+    deep_map2(grads1, grads2, fn t1, t2 -> Nx.add(t1, t2) end)
+  end
+
+  # Scale gradients by a factor
+  defp scale_gradients(grads, factor) do
+    factor_t = Nx.tensor(factor, type: :f32)
+    deep_map(grads, fn t -> Nx.multiply(t, factor_t) end)
+  end
+
+  # Apply averaged gradients to update parameters
+  defp apply_gradients(trainer, grads) do
+    params_data = get_params_data(trainer.policy_params)
+
+    {updates, new_optimizer_state} = trainer.optimizer.(
+      grads,
+      trainer.optimizer_state,
+      params_data
+    )
+
+    new_params_data = trainer.apply_updates_fn.(params_data, updates)
+    new_params = put_params_data(trainer.policy_params, new_params_data)
+
+    %{trainer |
+      policy_params: new_params,
+      optimizer_state: new_optimizer_state,
+      step: trainer.step + 1
+    }
+  end
+
+  # Deep map over nested gradient structures
+  defp deep_map(%Nx.Tensor{} = t, fun), do: fun.(t)
+  defp deep_map(map, fun) when is_map(map) and not is_struct(map) do
+    Map.new(map, fn {k, v} -> {k, deep_map(v, fun)} end)
+  end
+  defp deep_map(other, _fun), do: other
+
+  # Deep map2 over two nested gradient structures
+  defp deep_map2(%Nx.Tensor{} = t1, %Nx.Tensor{} = t2, fun), do: fun.(t1, t2)
+  defp deep_map2(map1, map2, fun) when is_map(map1) and is_map(map2) and not is_struct(map1) do
+    Map.new(map1, fn {k, v1} ->
+      v2 = Map.fetch!(map2, k)
+      {k, deep_map2(v1, v2, fun)}
+    end)
+  end
+  defp deep_map2(other, _other2, _fun), do: other
 
   @doc """
   Perform a single training step.

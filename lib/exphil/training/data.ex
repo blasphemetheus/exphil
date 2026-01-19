@@ -412,6 +412,21 @@ defmodule ExPhil.Training.Data do
   end
 
   @doc """
+  Create an empty dataset with the same configuration as the given dataset.
+
+  Useful when validation split is disabled (val_split = 0.0) but code
+  still expects a validation dataset struct.
+  """
+  @spec empty(t()) :: t()
+  def empty(dataset) do
+    %{dataset |
+      frames: [],
+      size: 0,
+      embedded_sequences: if(dataset.embedded_sequences, do: :array.new(), else: nil)
+    }
+  end
+
+  @doc """
   Concatenate multiple datasets.
   """
   @spec concat([t()]) :: t()
