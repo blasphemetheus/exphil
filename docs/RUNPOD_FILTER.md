@@ -4,7 +4,7 @@ Quick guide to extract low-tier character replays from large 7z archives using R
 
 ## Why RunPod?
 
-- **Disk space**: Get 100GB+ container disk
+- **Disk space**: Network volumes with hundreds of GB
 - **Bandwidth**: Fast downloads from Google Drive
 - **CPU**: Multi-core parallel processing
 - **No GPU needed**: This is I/O bound, use cheapest instance
@@ -15,8 +15,8 @@ Quick guide to extract low-tier character replays from large 7z archives using R
 
 - **Template**: Ubuntu 22.04 (or any Linux)
 - **GPU**: None needed (CPU only) - use cheapest option
-- **Container Disk**: 200GB+ (need space for archives + extraction)
-- **Volume**: 50GB at `/workspace` (to persist results)
+- **Container Disk**: 5GB is fine (tools only, data goes to volume)
+- **Volume**: 200GB+ at `/workspace` (persists across restarts)
 
 ### 2. Connect and Setup
 
@@ -125,11 +125,55 @@ rclone copy --progress --drive-shared-with-me "gdrive:" /workspace/downloads/ --
 - Google Drive can throttle; downloads vary from 10-100 MB/s
 - Large files (100GB+) may take 20-60 min to download
 
+## Resuming After Pod Restart
+
+Container filesystems are ephemeral - you lose installed tools but `/workspace` persists.
+
+### Quick Resume Checklist
+
+```bash
+# 1. Install tools
+apt-get update && apt-get install -y p7zip-full python3-pip
+pip3 install --upgrade pip setuptools wheel
+pip3 install gdown py-slippi
+curl https://rclone.org/install.sh | bash
+
+# 2. Setup directories and get filter script
+mkdir -p /workspace/tmp /workspace/downloads /workspace/lowtier
+curl -o /workspace/cloud_filter_replays.py https://raw.githubusercontent.com/blasphemetheus/exphil/main/scripts/cloud_filter_replays.py
+
+# 3. Reconfigure rclone (need your Google API credentials)
+rclone config
+# n → gdrive → drive → [client_id] → [client_secret] → 1 → blank → blank → n → n
+# Run authorize command on local machine, paste token back
+# n → y → q
+
+# 4. Check what's already downloaded
+ls -lh /workspace/downloads/
+
+# 5. Resume downloads (skips completed files)
+TMPDIR=/workspace/tmp rclone copy --progress --drive-shared-with-me "gdrive:" /workspace/downloads/ --include "*.7z"
+
+# 6. After downloads complete, run filter
+python3 /workspace/cloud_filter_replays.py \
+  --download-dir /workspace/downloads \
+  --output /workspace/lowtier \
+  --cleanup
+```
+
+### Your Google API Credentials
+
+Store these somewhere safe - you'll need them after each restart:
+- **Client ID**: (from Google Cloud Console)
+- **Client Secret**: (from Google Cloud Console)
+
+See [RCLONE_GDRIVE.md](RCLONE_GDRIVE.md) for full setup instructions.
+
 ## Target Characters
 
 The script filters for these characters:
 - Mewtwo
-- Ganondorf  
+- Ganondorf
 - Link
 - Zelda
 - Mr. Game & Watch

@@ -168,15 +168,56 @@ rm -rf /workspace/extracted
 rclone config reconnect gdrive:
 ```
 
+## RunPod-Specific Notes
+
+### After Pod Restart
+
+RunPod container filesystems are **ephemeral** - rclone and configs are lost on restart. Your `/workspace` volume persists. When resuming:
+
+```bash
+# 1. Reinstall rclone
+curl https://rclone.org/install.sh | bash
+
+# 2. Create directories on persistent storage
+mkdir -p /workspace/tmp /workspace/downloads
+
+# 3. Reconfigure rclone
+rclone config
+# Follow prompts: n → gdrive → drive → paste client_id → paste client_secret → 1 → blank → blank → n → n
+# Copy the authorize command, run on local machine, paste token back
+# Then: n → y → q
+```
+
+### Avoiding "No Space Left" Errors
+
+RunPod containers have small root disks (5GB). Rclone uses temp files that can fill this up.
+
+**Solution 1: Redirect temp files to volume**
+```bash
+TMPDIR=/workspace/tmp rclone copy --progress --drive-shared-with-me "gdrive:" /workspace/downloads/ --include "*.7z"
+```
+
+**Solution 2: Disable multi-threading (no temp files)**
+```bash
+rclone copy --progress --multi-thread-streams 0 --drive-shared-with-me "gdrive:" /workspace/downloads/ --include "*.7z"
+```
+
+### Resuming Interrupted Downloads
+
+Rclone automatically resumes partial downloads. Just run the same command again - it will skip completed files and resume partials.
+
 ## Quick Reference
 
 ```bash
 # List shared files
 rclone lsf --drive-shared-with-me gdrive:
 
-# Download all 7z files
-rclone copy --progress --drive-shared-with-me "gdrive:" ./downloads/ --include "*.7z"
+# Download all 7z files (with temp fix for RunPod)
+TMPDIR=/workspace/tmp rclone copy --progress --drive-shared-with-me "gdrive:" /workspace/downloads/ --include "*.7z"
 
 # Check download progress in another terminal
 watch -n 5 'ls -lh /workspace/downloads/'
+
+# Check disk space
+df -h /workspace
 ```
