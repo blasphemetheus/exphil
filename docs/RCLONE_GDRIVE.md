@@ -23,6 +23,13 @@ Guide for downloading large files from Google Drive on RunPod or other cloud ins
    - Application type: **Desktop app**
    - Copy the **Client ID** and **Client Secret**
 
+5. **Configure OAuth consent screen** (required for authorization):
+   - APIs & Services → OAuth consent screen (or "Google Auth Platform" → "Branding")
+   - User type: **External**
+   - Fill in app name (e.g., "rclone"), support email
+   - Under **Audience** → **Test users**: Add your Google email address
+   - This step is often missed and causes "invalid_client" errors
+
 ### Finding Your Credentials Later
 
 If you already created credentials and need to find them:
@@ -130,35 +137,32 @@ rclone copy --progress --drive-shared-with-me "gdrive:" /workspace/downloads/ --
 Once files are downloaded, run the filter script:
 
 ```bash
-cd /workspace
-
-# Extract and filter for low-tier characters
-python3 cloud_filter_replays.py \
-  --urls-file links.txt \
+# Filter with streaming mode (recommended - uses minimal disk space)
+python3 /workspace/cloud_filter_replays.py \
+  --local /workspace/downloads \
   --output /workspace/lowtier \
-  --download-dir /workspace/downloads \
+  --streaming \
   --cleanup
 ```
 
-Or manually extract and filter:
+**Streaming mode** extracts files in batches of 200 to avoid filling disk. Essential when archive extraction would exceed available space.
+
+For faster processing (if you have enough disk space for full extraction):
 
 ```bash
-# Extract
-7z x /workspace/downloads/ranked-1.7z -o/workspace/extracted
-
-# Filter (using the script's filter function)
-python3 << 'PYEOF'
-import sys
-sys.path.insert(0, '/workspace')
-from cloud_filter_replays import filter_replays
-filter_replays('/workspace/extracted', '/workspace/lowtier', num_workers=8)
-PYEOF
-
-# Cleanup
-rm -rf /workspace/extracted
+python3 /workspace/cloud_filter_replays.py \
+  --local /workspace/downloads \
+  --output /workspace/lowtier \
+  --cleanup
 ```
 
 ## Troubleshooting
+
+### "invalid_client" / "Unauthorized" error
+- Configure OAuth consent screen (see step 5 in setup)
+- Add your email as a **test user** under Audience → Test users
+- If still failing, delete the OAuth client and create a new one
+- Copy the client secret immediately when created (only shown once)
 
 ### "Too many users have viewed or downloaded this file"
 - Use your own Google API Client ID (see setup above)

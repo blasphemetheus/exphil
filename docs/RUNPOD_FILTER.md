@@ -48,18 +48,23 @@ EOF
 ### 4. Run the Filter
 
 ```bash
-# Process all archives, cleanup after each to save space
+# Process downloaded archives with streaming mode (saves disk space)
 python3 cloud_filter_replays.py \
-  --urls-file /workspace/links.txt \
+  --local /workspace/downloads \
   --output /workspace/lowtier \
+  --streaming \
   --cleanup
 
 # Or run in tmux so it survives disconnects
 tmux new -s filter
-python3 cloud_filter_replays.py --urls-file /workspace/links.txt --output /workspace/lowtier --cleanup
+python3 cloud_filter_replays.py --local /workspace/downloads --output /workspace/lowtier --streaming --cleanup
 # Ctrl+B, D to detach
 # tmux attach -t filter to reattach
 ```
+
+**Note**: Some RunPod images have multiple Python versions. If you get import errors, try `python3.13` instead of `python3`.
+
+**Streaming mode** (`--streaming`): Extracts files in batches of 200 to minimize disk usage. Slower but essential when extracted archive size would exceed available space.
 
 ### 5. Download Results
 
@@ -91,12 +96,18 @@ rsync -avz --progress -e "ssh -p PORT" \
 
 ## Cost Estimate
 
+**Full extraction mode** (faster, needs more disk space):
 | Archive Size | Extract Time | Filter Time | Total |
 |--------------|--------------|-------------|-------|
 | 70GB (100K files) | ~10 min | ~15 min | ~25 min |
-| 100GB (150K files) | ~15 min | ~20 min | ~35 min |
 
-With a $0.10/hr CPU instance, processing 5 archives costs ~$0.30.
+**Streaming mode** (slower, minimal disk usage):
+| Archive Size | Files | Time | Rate |
+|--------------|-------|------|------|
+| 66GB (7K files) | 7,303 | ~60 min | ~2 files/s |
+| 70GB (100K files) | 100,000 | ~14 hrs | ~2 files/s |
+
+With a $0.03/hr CPU instance, processing one 7K-file archive in streaming mode costs ~$0.03.
 
 ## Troubleshooting
 
@@ -118,8 +129,9 @@ rclone copy --progress --drive-shared-with-me "gdrive:" /workspace/downloads/ --
 ```
 
 ### Out of disk space
-- Use `--cleanup` flag to delete archives after extraction
-- Check space: `df -h`
+- Use `--streaming` flag to extract in batches (200 files at a time)
+- Use `--cleanup` flag to delete archives after processing
+- Check space: `df -h /workspace`
 
 ### Slow downloads
 - Google Drive can throttle; downloads vary from 10-100 MB/s
@@ -154,10 +166,11 @@ ls -lh /workspace/downloads/
 # 5. Resume downloads (skips completed files)
 TMPDIR=/workspace/tmp rclone copy --progress --drive-shared-with-me "gdrive:" /workspace/downloads/ --include "*.7z"
 
-# 6. After downloads complete, run filter
+# 6. After downloads complete, run filter (use streaming mode)
 python3 /workspace/cloud_filter_replays.py \
-  --download-dir /workspace/downloads \
+  --local /workspace/downloads \
   --output /workspace/lowtier \
+  --streaming \
   --cleanup
 ```
 
