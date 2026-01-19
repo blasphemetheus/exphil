@@ -20,21 +20,28 @@ ExPhil is an Elixir-based successor to slippi-ai, creating high-ELO playable bot
 
 ## Current Status
 
-**Test coverage:** 580 tests passing
+**Test coverage:** 900+ tests passing
 
 **Completed:**
 - Imitation learning (single-frame + temporal)
 - All backbones: MLP, LSTM, GRU, Mamba, attention
 - PPO trainer with clipped objective
 - Dolphin integration (sync + async runners)
-- Training features: early stopping, LR scheduling, gradient accumulation, validation split, checkpointing, memorable model names
+- Training features: early stopping, LR scheduling, gradient accumulation, validation split, checkpointing
+- Model EMA, cosine annealing with warm restarts, gradient clipping
+- Learning rate finder (`scripts/find_lr.exs`)
+- Data augmentation (mirror states, noise injection)
+- Label smoothing for better generalization
+- Model registry with JSON tracking and lineage
+- Checkpoint pruning (keep best N)
 
 ## Immediate Priorities
 
-1. **Self-play infrastructure** - Train agent vs agent using BEAM concurrency
-2. **Character-specific rewards** - Mewtwo, G&W, Link specialization
-3. **Data augmentation** - Mirror states, noise injection
-4. **Model registry** - Track trained models with lineage
+Based on research from slippi-ai, Project Nabla, and related papers (see [RESEARCH.md](docs/RESEARCH.md)):
+
+1. **Self-play infrastructure** - BEAM concurrency + population-based training (avoid policy collapse)
+2. **Frame delay augmentation** - Train with 0-18 frame delays for robust play
+3. **Character-specific rewards** - Mewtwo recovery, Ganon spacing, etc.
 
 ## Documentation
 
@@ -48,6 +55,8 @@ Detailed guides in `docs/`:
 | [DOLPHIN.md](docs/DOLPHIN.md) | Dolphin setup, running agents |
 | [GOTCHAS.md](docs/GOTCHAS.md) | Technical pitfalls and fixes |
 | [TRAINING_FEATURES.md](docs/TRAINING_FEATURES.md) | Feature roadmap, presets |
+| [RESEARCH.md](docs/RESEARCH.md) | Prior art, papers, lessons learned, research roadmap |
+| [docker-workflow.md](docs/docker-workflow.md) | Docker build, push, cloud GPU deployment |
 
 ## Quick Start
 
@@ -99,8 +108,34 @@ See [docs/GOTCHAS.md](docs/GOTCHAS.md) for detailed fixes. Most common issues:
 3. **Closure tensor mismatch** - `Nx.backend_copy` captured tensors in `value_and_grad`
 4. **Mix stale builds** - Run `mix compile --force` before training
 
+## Development Practices
+
+**Debugging tests:**
+- Never use `| tail` when investigating failures - it hides error details
+- Use `mix test --failed` to rerun only failing tests
+- For targeted debugging: `mix test path/to/test.exs:LINE_NUMBER`
+
+**When something unexpected happens:**
+- Document the finding in GOTCHAS.md or relevant docs
+- If it's a pattern that could recur, add it to this file
+- Update test coverage to prevent regression
+
+**Code organization:**
+- Struct field names: check `lib/exphil_bridge/types.ex` for canonical names
+- JSON serialization: atoms become strings after round-trip
+- File.stat mtime returns tuple `{{y,m,d},{h,m,s}}`, not NaiveDateTime
+
 ## References
 
-- [slippi-ai](https://github.com/vladfi1/slippi-ai) - Primary reference
-- [libmelee](https://github.com/altf4/libmelee) - Game interface
-- [Nx](https://github.com/elixir-nx/nx) / [Axon](https://github.com/elixir-nx/axon) - ML framework
+**Melee AI Projects:**
+- [slippi-ai](https://github.com/vladfi1/slippi-ai) - Primary reference (BC + RL)
+- [Phillip](https://github.com/vladfi1/phillip) - Original pure RL approach
+- [libmelee](https://github.com/altf4/libmelee) - Python game state API
+- [SmashBot](https://github.com/altf4/SmashBot) - Rule-based baseline
+
+**Key Papers:**
+- [Beating the World's Best at SSBM](https://arxiv.org/abs/1702.06230) - Phillip paper
+- [Mamba: Linear-Time Sequence Modeling](https://arxiv.org/abs/2312.00752) - Our backbone
+
+**ML Framework:**
+- [Nx](https://github.com/elixir-nx/nx) / [Axon](https://github.com/elixir-nx/axon) - Elixir ML

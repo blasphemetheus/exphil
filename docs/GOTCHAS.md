@@ -17,6 +17,7 @@ Hard-won knowledge from debugging ExPhil. Each section documents a specific issu
 11. [Dynamic sequence length causes infinite JIT](#11-dynamic-sequence-length-causes-infinite-jit)
 12. [Pre-computed tensors in Axon.nx closures](#12-pre-computed-tensors-in-axonnx-closures)
 13. [Mix stale builds](#13-mix-stale-builds)
+14. [BinaryBackend timeouts in tests](#14-binarybackend-timeouts-in-tests)
 
 ---
 
@@ -268,3 +269,42 @@ rm -rf _build && mix compile
 # Recommended: Always compile before training
 mix compile --force && mix run scripts/train_from_replays.exs --epochs 10
 ```
+
+---
+
+## 14. BinaryBackend timeouts in tests
+
+**Symptom:** Test times out after 60000ms with stack trace showing `Nx.BinaryBackend.bin_dot`
+
+```
+** (ExUnit.TimeoutError) test timed out after 60000ms
+stacktrace:
+  (nx 0.10.0) lib/nx/binary_backend.ex:551: anonymous fn/5 in Nx.BinaryBackend.bin_dot/5
+```
+
+**Cause:** Tests using BinaryBackend (the pure Elixir backend) for matrix operations are extremely slow compared to EXLA. Large model tests can easily exceed the 60s default timeout.
+
+**Fix options:**
+
+1. Add timeout tag to slow tests:
+```elixir
+@tag timeout: 120_000  # 2 minutes
+test "builds large model" do
+  # ...
+end
+```
+
+2. Run with `--trace` (sets infinite timeout):
+```bash
+mix test test/slow_test.exs --trace
+```
+
+3. Use EXLA in tests when available:
+```elixir
+setup do
+  Nx.default_backend(EXLA.Backend)
+  :ok
+end
+```
+
+**Note:** These timeouts are flaky - they depend on system load. The test itself is correct; it just needs more time on BinaryBackend.
