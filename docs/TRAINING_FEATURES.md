@@ -1,119 +1,155 @@
 # Training Features Design
 
-This document outlines planned and speculative features for the ExPhil training system.
+This document outlines planned and implemented features for the ExPhil training system.
 
-## Current State
+## Implemented Features ✅
 
-### Model Naming (Implemented)
+### Model Naming with Memorable Names
 ```
-checkpoints/{backbone}_{YYYYMMDD_HHMMSS}.axon
-checkpoints/{backbone}_{YYYYMMDD_HHMMSS}_policy.bin
-checkpoints/{backbone}_{YYYYMMDD_HHMMSS}_config.json
+checkpoints/{backbone}_{memorable_name}_{YYYYMMDD_HHMMSS}.axon
+checkpoints/{backbone}_{memorable_name}_{YYYYMMDD_HHMMSS}_policy.bin
+checkpoints/{backbone}_{memorable_name}_{YYYYMMDD_HHMMSS}_config.json
 ```
 
-Example: `mamba_20260119_123456.axon`
+Example: `mamba_wavedashing_falcon_20260119_123456.axon`
 
-### Config JSON (Implemented)
-Saves all training parameters alongside the model for reproducibility.
+Memorable names combine adjectives with nouns from three categories:
+- General (50%): brave, cosmic, swift + falcon, phoenix, dragon
+- Melee tech (30%): wavedashing, multishining + tipper, sweetspot, shine
+- Hardware/mods (20%): notched, phob, rollbacked + goomwave, rectangle, slippi
 
----
+### Training Presets ✅
 
-## Proposed Features
-
-### 1. Training Presets
-
-Add `--preset` flag to quickly configure common training scenarios.
-
+**CPU Presets (No GPU Required):**
 ```bash
-# Quick iteration (testing changes)
-mix run scripts/train_from_replays.exs --preset quick
-
-# Standard training (balanced)
-mix run scripts/train_from_replays.exs --preset standard
-
-# Full training (maximum quality)
-mix run scripts/train_from_replays.exs --preset full
-
-# Character-optimized
-mix run scripts/train_from_replays.exs --preset mewtwo
+--preset quick      # 1 epoch, 5 files - code testing
+--preset standard   # 10 epochs, 50 files - balanced w/ augmentation
+--preset full_cpu   # 30 epochs, 200 files - max CPU quality w/ EMA
 ```
 
-#### Preset Definitions
-
-| Preset | Epochs | Max Files | Hidden | Temporal | Backbone | Window |
-|--------|--------|-----------|--------|----------|----------|--------|
-| `quick` | 1 | 5 | 32,32 | no | - | - |
-| `standard` | 10 | 50 | 64,64 | no | - | - |
-| `full` | 50 | all | 256,256 | yes | mamba | 60 |
-| `full-cpu` | 20 | 100 | 128,128 | no | - | - |
-
-#### Character Presets
-
-| Character | Notes | Window | Special |
-|-----------|-------|--------|---------|
-| `mewtwo` | Complex recovery | 90 | teleport tracking |
-| `ganondorf` | Spacing-focused | 60 | - |
-| `link` | Projectiles | 75 | item tracking |
-| `gameandwatch` | No L-cancel | 45 | hammer RNG |
-| `zelda` | Transform | 60 | dual-character |
-
-#### Implementation
-
-```elixir
-defmodule ExPhil.Training.Config do
-  def preset(:quick) do
-    [epochs: 1, max_files: 5, hidden_sizes: [32, 32], temporal: false]
-  end
-
-  def preset(:standard) do
-    [epochs: 10, max_files: 50, hidden_sizes: [64, 64], temporal: false]
-  end
-
-  def preset(:full) do
-    [epochs: 50, max_files: nil, hidden_sizes: [256, 256],
-     temporal: true, backbone: :mamba, window_size: 60]
-  end
-
-  def preset(:mewtwo) do
-    preset(:full) |> Keyword.merge([character: :mewtwo, window_size: 90])
-  end
-end
+**GPU Presets (Requires CUDA/ROCm):**
+```bash
+--preset gpu_quick     # 3 epochs, 20 files - GPU validation
+--preset gpu_standard  # 20 epochs, Mamba - standard w/ all features
+--preset full          # 50 epochs, Mamba - high quality
+--preset production    # 100 epochs, Mamba - max quality w/ cosine_restarts
 ```
+
+**Character Presets (Built on production):**
+```bash
+--preset mewtwo       # 90-frame window for teleport recovery
+--preset ganondorf    # 60-frame window for spacing
+--preset link         # 75-frame window for projectiles
+--preset gameandwatch # 45-frame window (no L-cancel)
+--preset zelda        # 60-frame window for transform
+```
+
+**Preset Feature Matrix:**
+
+| Feature | quick | standard | full | production |
+|---------|-------|----------|------|------------|
+| Augmentation | - | ✓ | ✓ | ✓ |
+| Label Smoothing | - | 0.05 | 0.1 | 0.1 |
+| EMA | - | - | ✓ | ✓ |
+| LR Schedule | constant | cosine | cosine | cosine_restarts |
+| Val Split | - | 0.1 | 0.1 | 0.15 |
+| Early Stopping | - | ✓ | ✓ | ✓ |
+| Warmup Steps | - | - | 1000 | 2000 |
+| Grad Accum | - | - | 2 | 4 |
+
+### Config Validation ✅
+Full validation with helpful error messages and warnings.
+
+### Early Stopping ✅
+```bash
+--early-stopping --patience 5 --min-delta 0.01
+```
+
+### Training Resumption ✅
+```bash
+--resume checkpoints/model.axon
+```
+Saves and restores: model weights, optimizer state, step counter, config.
+
+### Best Model Checkpointing ✅
+```bash
+--save-best  # Saves when val_loss improves
+```
+
+### Learning Rate Scheduling ✅
+```bash
+--lr 1e-4 --lr-schedule cosine --warmup-steps 1000 --decay-steps 10000
+```
+Schedules: constant, cosine, cosine_restarts, exponential, linear
+
+### Cosine Annealing with Warm Restarts ✅
+```bash
+--lr-schedule cosine_restarts --restart-period 1000 --restart-mult 2
+```
+SGDR (Stochastic Gradient Descent with Warm Restarts):
+- LR decays following cosine curve, then "restarts" to max
+- Periods grow geometrically: T_0, T_0*T_mult, T_0*T_mult^2, ...
+- Helps escape local minima by periodically increasing learning rate
+
+### Gradient Clipping ✅
+```bash
+--max-grad-norm 1.0  # Clip by global norm (default: 1.0, 0 = disabled)
+```
+Prevents gradient explosion during training:
+- Clips gradients by global L2 norm before optimizer update
+- Essential for stable training with large learning rates
+- Default 1.0 is good for most cases, reduce to 0.5 for instability
+
+### Gradient Accumulation ✅
+```bash
+--batch-size 32 --accumulation-steps 4  # Effective batch = 128
+```
+
+### Validation Split ✅
+```bash
+--val-split 0.1  # 10% validation, 90% training
+--val-split 0.0  # No validation (default)
+```
+
+### Model EMA ✅
+```bash
+--ema --ema-decay 0.999
+```
+Exponential Moving Average (EMA) of model weights:
+- Maintains shadow weights: `ema = decay * ema + (1 - decay) * current`
+- EMA weights often generalize better than raw training weights
+- Typical decay values: 0.999 (standard), 0.9999 (slower), 0.99 (faster)
+- Saves EMA weights alongside model checkpoint for inference
+
+### Learning Rate Finder ✅
+```bash
+mix run scripts/find_lr.exs --replays /path/to/replays
+mix run scripts/find_lr.exs --min-lr 1e-8 --max-lr 10 --num-steps 200
+```
+Automatically discover optimal learning rate:
+- Exponentially increases LR over ~100 steps while tracking loss
+- Suggests LR where loss is decreasing fastest
+- Saves hours of manual hyperparameter tuning
+
+### Replay Scanner ✅
+```bash
+mix run scripts/scan_replays.exs --replays /path/to/replays
+mix run scripts/scan_replays.exs --replays /path/to/replays --max-files 1000
+```
+Analyze your replay collection:
+- Shows games per character
+- Identifies low-tier character availability
+- Recommends best character preset based on your data
+- Reports data sufficiency for training
 
 ---
 
-### 2. Enhanced Model Naming
+## Proposed Features (Optional)
 
-#### Option A: Include Character
-```
-checkpoints/{character}_{backbone}_{timestamp}.axon
-```
-Example: `mewtwo_mamba_20260119_123456.axon`
+### 1. Directory Structure by Character
 
-#### Option B: Include Key Hyperparameters
-```
-checkpoints/{backbone}_h{hidden}_w{window}_{timestamp}.axon
-```
-Example: `mamba_h256_w60_20260119_123456.axon`
+Organize checkpoints by character for cleaner management:
 
-#### Option C: Include Performance
-```
-checkpoints/{backbone}_{timestamp}_loss{val_loss}.axon
-```
-Example: `mamba_20260119_123456_loss4.05.axon`
-
-#### Option D: Semantic Versioning (Manual)
-```
-checkpoints/{character}_{backbone}_v{major}.{minor}.axon
-```
-Example: `mewtwo_mamba_v1.2.axon`
-
-#### Recommended: Hybrid Approach
-```
-checkpoints/{character}/{backbone}_{timestamp}.axon
-```
-
-With directory structure:
 ```
 checkpoints/
 ├── mewtwo/
@@ -127,238 +163,112 @@ checkpoints/
 
 ---
 
-### 3. Model Registry
+### 2. Frame Delay Augmentation ✅
 
-Central JSON file tracking all trained models.
+Train with variable frame delays for models that work well both locally and online.
 
-#### Registry Structure
-
-```json
-{
-  "models": {
-    "mamba_20260119_123456": {
-      "id": "mamba_20260119_123456",
-      "path": "checkpoints/mamba_20260119_123456.axon",
-      "policy_path": "checkpoints/mamba_20260119_123456_policy.bin",
-      "config_path": "checkpoints/mamba_20260119_123456_config.json",
-      "created_at": "2026-01-19T12:34:56Z",
-      "character": null,
-      "backbone": "mamba",
-      "temporal": true,
-      "hidden_sizes": [256, 256],
-      "window_size": 60,
-      "epochs": 10,
-      "training_frames": 100000,
-      "val_loss": 4.05,
-      "parent_model": null,
-      "tags": ["production"]
-    }
-  },
-  "leaderboard": {
-    "best_overall": "mamba_20260119_123456",
-    "best_by_backbone": {
-      "mamba": "mamba_20260119_123456",
-      "lstm": "lstm_20260118_111111",
-      "mlp": "mlp_20260117_222222"
-    },
-    "best_by_character": {
-      "mewtwo": "mewtwo_mamba_20260119_123456"
-    }
-  }
-}
-```
-
-#### Registry Commands
-
+**Quick usage (recommended):**
 ```bash
-# List all models
-mix run scripts/model_registry.exs list
-
-# List by backbone
-mix run scripts/model_registry.exs list --backbone mamba
-
-# Show leaderboard
-mix run scripts/model_registry.exs leaderboard
-
-# Tag a model
-mix run scripts/model_registry.exs tag mamba_20260119_123456 production
-
-# Show model details
-mix run scripts/model_registry.exs show mamba_20260119_123456
-
-# Show lineage
-mix run scripts/model_registry.exs lineage mamba_20260119_123456
+# Add --online-robust to any preset for Slippi online compatibility
+mix run scripts/train_from_replays.exs --preset production --online-robust
 ```
 
----
-
-### 4. Model Lineage Tracking
-
-Track fine-tuning chains to understand model evolution.
-
-```
-base_mlp (10 epochs on 1000 replays)
-    └── fine_tune_1 (5 epochs on 500 replays, PPO)
-        └── fine_tune_2 (3 epochs self-play)
-            └── production_v1 (tagged)
-```
-
-#### Implementation
-
-Add to config JSON:
-```json
-{
-  "parent_model": "base_mlp_20260118_000000",
-  "training_type": "fine_tune",  // "imitation", "ppo", "self_play"
-  "inherited_epochs": 10,
-  "total_epochs": 15
-}
-```
-
-#### Commands
-
-```bash
-# Continue training from checkpoint
-mix run scripts/train_from_replays.exs \
-  --from-checkpoint checkpoints/base_mlp.axon \
-  --epochs 5
-
-# Track in registry
-# Automatically sets parent_model in config
-```
-
----
-
-### 5. Checkpoint Pruning
-
-Automatically manage disk space by keeping only best/recent models.
-
-#### Pruning Strategies
-
-| Strategy | Description |
-|----------|-------------|
-| `keep-best-n` | Keep top N by validation loss |
-| `keep-recent-n` | Keep N most recent |
-| `keep-tagged` | Only keep tagged models |
-| `archive` | Move old models to archive folder |
-
-#### Implementation
-
-```bash
-# Keep only 10 best models
-mix run scripts/prune_checkpoints.exs --keep-best 10
-
-# Archive models older than 7 days
-mix run scripts/prune_checkpoints.exs --archive-older-than 7d
-
-# Dry run (show what would be deleted)
-mix run scripts/prune_checkpoints.exs --keep-best 5 --dry-run
-```
-
----
-
-### 6. Validation & Sanity Checks
-
-Add validation to Config module.
-
-```elixir
-def validate!(opts) do
-  cond do
-    opts[:epochs] <= 0 ->
-      raise "epochs must be positive"
-    opts[:batch_size] <= 0 ->
-      raise "batch_size must be positive"
-    opts[:window_size] > 120 ->
-      IO.warn("window_size > 120 may cause memory issues")
-    opts[:temporal] and opts[:backbone] not in [:lstm, :gru, :mamba, :sliding_window, :hybrid] ->
-      raise "invalid backbone for temporal training"
-    true ->
-      :ok
-  end
-  opts
-end
-```
-
----
-
-### 7. Training Resumption
-
-Save optimizer state for exact training resumption.
-
-```elixir
-# Current: saves model weights only
-Imitation.save_checkpoint(trainer, path)
-
-# Proposed: save full training state
-Imitation.save_training_state(trainer, path)
-# Saves:
-# - model weights
-# - optimizer state (momentum, Adam moments)
-# - epoch number
-# - batch index
-# - learning rate schedule position
-# - RNG state for reproducibility
-```
-
-#### Usage
-
-```bash
-# Training gets interrupted at epoch 7/10
-mix run scripts/train_from_replays.exs --epochs 10 ...
-
-# Resume exactly where we left off
-mix run scripts/train_from_replays.exs --resume checkpoints/mamba_incomplete.state
-```
-
----
-
-### 8. Early Stopping
-
-Stop training when validation loss stops improving.
-
+**Manual configuration:**
 ```bash
 mix run scripts/train_from_replays.exs \
-  --epochs 100 \
-  --early-stopping \
-  --patience 5 \
-  --min-delta 0.01
+  --preset production \
+  --frame-delay-augment \
+  --frame-delay-min 0 \
+  --frame-delay-max 18
 ```
 
-| Option | Description |
-|--------|-------------|
-| `--early-stopping` | Enable early stopping |
-| `--patience N` | Stop after N epochs without improvement |
-| `--min-delta X` | Minimum improvement to count as progress |
+**When to use:**
+| Scenario | Recommended Setting |
+|----------|---------------------|
+| Local play only | No delay (default) |
+| Online play only | `--frame-delay 18` (fixed) |
+| Both local & online | `--online-robust` (variable 0-18) |
+
+**How it works:**
+- Each training sample randomly uses a delay between min and max
+- State from frame `t-delay` is paired with action from frame `t`
+- Model learns to both react (low delay) and predict (high delay)
+
+See [RESEARCH.md](RESEARCH.md) for the research background.
 
 ---
 
-## Priority Order
+## Priority Order (Remaining)
 
-1. **Training Presets** - Quick win, high value for iteration speed
-2. **Validation** - Catch errors early
-3. **Model Registry** - Better organization as model count grows
-4. **Enhanced Naming** - Easier to identify models
-5. **Lineage Tracking** - Important for fine-tuning workflows
-6. **Early Stopping** - Save time on long training runs
-7. **Training Resumption** - Important for GPU jobs that might be interrupted
-8. **Checkpoint Pruning** - Disk management
+Based on research from [slippi-ai](https://github.com/vladfi1/slippi-ai), [Project Nabla](https://bycn.github.io/2022/08/19/project-nabla-writeup.html), and related papers. See [RESEARCH.md](RESEARCH.md) for full details.
+
+### High Priority (Enables RL Stage)
+1. **Self-Play Infrastructure** - BEAM concurrency for parallel games
+2. **Population-Based Training** - Avoid policy collapse (critical lesson from Nabla)
+3. **Historical Sampling** - Play against old checkpoints for diversity
+
+### Medium Priority (Quality Improvements)
+4. ~~**Frame Delay Augmentation**~~ ✅ - `--online-robust` or `--frame-delay-augment`
+5. **K-means Stick Discretization** - Research shows 21 clusters outperforms uniform grid
+6. **PPO Integration** - Clipped objective, proven in fighting games
+
+### Lower Priority (Specialization)
+7. **Character-Specific Rewards** - Mewtwo recovery, Ganon spacing, etc.
+8. **Curriculum Learning** - Easy opponents → hard opponents
 
 ---
 
 ## Implementation Roadmap
 
-### Phase 1: Core Improvements
-- [ ] Training presets (`--preset quick|standard|full`)
-- [ ] Validation in Config module
-- [ ] Character flag (`--character mewtwo`)
+### Phase 1: Core Improvements ✅ DONE
+- [x] Training presets (`--preset quick|standard|full`)
+- [x] Validation in Config module
+- [x] Character flag (`--character mewtwo`)
+- [x] Early stopping (`--early-stopping`)
+- [x] Training resumption (`--resume`)
+- [x] Best model checkpointing (`--save-best`)
+- [x] LR scheduling (`--lr-schedule`)
+- [x] Memorable model naming
+- [x] Gradient accumulation (`--accumulation-steps`)
+- [x] Validation split (`--val-split`)
 
-### Phase 2: Organization
-- [ ] Model registry JSON
-- [ ] Registry CLI commands
-- [ ] Directory structure by character
+### Phase 2: Organization ✅ DONE
+- [x] Model registry JSON
+- [x] Registry CLI commands (`scripts/registry.exs`)
+- [x] Checkpoint pruning (`--keep-best N`)
+- [ ] Directory structure by character (optional)
 
-### Phase 3: Advanced
-- [ ] Lineage tracking
-- [ ] Early stopping
-- [ ] Training resumption
-- [ ] Checkpoint pruning
+### Phase 3: Advanced Training ✅ DONE
+- [x] Data augmentation (`--augment`, mirror states + noise)
+- [x] Label smoothing (`--label-smoothing`)
+- [x] Model EMA (`--ema`, `--ema-decay`)
+- [x] Lineage tracking (via registry parent_id)
+- [x] Cosine annealing with warm restarts (`--lr-schedule cosine_restarts`)
+- [x] Learning rate finder (`scripts/find_lr.exs`)
+- [x] Frame delay augmentation (`--online-robust`, `--frame-delay-augment`)
+
+### Phase 4: Self-Play & RL
+See [RESEARCH.md](RESEARCH.md) for detailed background on these features.
+
+**Infrastructure:**
+- [ ] Self-play infrastructure (BEAM concurrency)
+- [ ] Historical sampling (play against old checkpoints)
+- [ ] Population-based training (multiple agents)
+- [ ] League system (main agents + exploiters)
+
+**RL Training:**
+- [ ] PPO integration with self-play
+- [ ] Character-specific reward shaping
+- [ ] Curriculum learning (easy → hard opponents)
+
+**Research-Backed Experiments:**
+- [x] Frame delay augmentation (0-18 frames variable delay) ✅
+- [ ] K-means stick discretization (vs uniform grid)
+- [ ] Mamba vs Transformer comparison
+- [ ] DAgger for distributional shift
+
+### Phase 5: Character Specialization
+- [ ] Mewtwo specialist (90+ frame context, recovery focus)
+- [ ] Ganondorf specialist (spacing, punish optimization)
+- [ ] Link specialist (projectile tracking)
+- [ ] Multi-character model (single model, character conditioning)
