@@ -173,6 +173,16 @@ mix run scripts/play_dolphin_async.exs --policy checkpoints/model_policy.bin
 ### Replay Donations
 The single most valuable contribution right now is **replay files** for the target characters. Even a few games help expand the training distribution.
 
+### Processing Large Replay Archives
+Have access to large Slippi replay archives? We have tools to filter them for low-tier characters:
+
+```bash
+# Filter replays from Google Drive archives on RunPod
+python3 cloud_filter_replays.py --urls-file links.txt --output /workspace/lowtier --cleanup
+```
+
+See [RUNPOD_FILTER.md](docs/RUNPOD_FILTER.md) for the full guide on processing 100GB+ archives in the cloud.
+
 ### Code Contributions
 PRs welcome! See the [issues](https://github.com/blasphemetheus/exphil/issues) for current priorities.
 

@@ -60,6 +60,7 @@ Detailed guides in `docs/`:
 | [TRAINING_FEATURES.md](docs/TRAINING_FEATURES.md) | Feature roadmap, presets |
 | [RESEARCH.md](docs/RESEARCH.md) | Prior art, papers, lessons learned, research roadmap |
 | [docker-workflow.md](docs/docker-workflow.md) | Docker build, push, cloud GPU deployment |
+| [RUNPOD_FILTER.md](docs/RUNPOD_FILTER.md) | Filter low-tier replays from large archives on RunPod |
 
 ## Quick Start
 
