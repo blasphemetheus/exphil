@@ -129,21 +129,27 @@ defmodule ExPhil.Training.ConfigTest do
       opts = [checkpoint: nil, temporal: false, backbone: :sliding_window]
       result = Config.ensure_checkpoint_name(opts)
 
-      assert result[:checkpoint] =~ ~r/checkpoints\/mlp_\d{8}_\d{6}\.axon/
+      # Format: checkpoints/mlp_memorablename_timestamp.axon
+      assert result[:checkpoint] =~ ~r/checkpoints\/mlp_[a-z_]+_\d{8}_\d{6}\.axon/
+      assert is_binary(result[:name])
     end
 
     test "generates timestamped name with backbone for temporal" do
       opts = [checkpoint: nil, temporal: true, backbone: :mamba]
       result = Config.ensure_checkpoint_name(opts)
 
-      assert result[:checkpoint] =~ ~r/checkpoints\/mamba_\d{8}_\d{6}\.axon/
+      # Format: checkpoints/mamba_memorablename_timestamp.axon
+      assert result[:checkpoint] =~ ~r/checkpoints\/mamba_[a-z_]+_\d{8}_\d{6}\.axon/
+      assert is_binary(result[:name])
     end
 
     test "generates timestamped name with lstm backbone" do
       opts = [checkpoint: nil, temporal: true, backbone: :lstm]
       result = Config.ensure_checkpoint_name(opts)
 
-      assert result[:checkpoint] =~ ~r/checkpoints\/lstm_\d{8}_\d{6}\.axon/
+      # Format: checkpoints/lstm_memorablename_timestamp.axon
+      assert result[:checkpoint] =~ ~r/checkpoints\/lstm_[a-z_]+_\d{8}_\d{6}\.axon/
+      assert is_binary(result[:name])
     end
 
     test "preserves explicit checkpoint name" do
@@ -424,7 +430,10 @@ defmodule ExPhil.Training.ConfigTest do
         opts = [checkpoint: nil, temporal: true, backbone: backbone]
         result = Config.ensure_checkpoint_name(opts)
 
-        assert result[:checkpoint] =~ ~r/checkpoints\/#{backbone}_\d{8}_\d{6}\.axon/
+        # Format: checkpoints/backbone_memorablename_timestamp.axon
+        assert result[:checkpoint] =~ ~r/checkpoints\/#{backbone}_[a-z_]+_\d{8}_\d{6}\.axon/
+        # Should also set the :name option
+        assert is_binary(result[:name])
       end
     end
 
@@ -432,7 +441,9 @@ defmodule ExPhil.Training.ConfigTest do
       opts = [checkpoint: nil, temporal: false, backbone: :mamba]
       result = Config.ensure_checkpoint_name(opts)
 
-      assert result[:checkpoint] =~ ~r/checkpoints\/mlp_\d{8}_\d{6}\.axon/
+      # Format: checkpoints/mlp_memorablename_timestamp.axon
+      assert result[:checkpoint] =~ ~r/checkpoints\/mlp_[a-z_]+_\d{8}_\d{6}\.axon/
+      assert is_binary(result[:name])
     end
   end
 

@@ -130,11 +130,16 @@ character_str = case opts[:character] do
   char -> "  Character:   #{char}\n"
 end
 
+# Extract model name from checkpoint path for display
+model_name = opts[:name] || Path.basename(opts[:checkpoint], ".axon")
+
 Output.puts("""
 
 ╔════════════════════════════════════════════════════════════════╗
 ║              ExPhil Imitation Learning Training                ║
 ╚════════════════════════════════════════════════════════════════╝
+
+  Model Name:  #{model_name}
 
 Configuration:
   Preset:      #{preset_str}

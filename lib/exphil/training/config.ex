@@ -60,7 +60,9 @@ defmodule ExPhil.Training.Config do
       warmup_steps: 0,
       decay_steps: nil,
       # Resumption
-      resume: nil
+      resume: nil,
+      # Model naming
+      name: nil
     ]
   end
 
@@ -560,6 +562,7 @@ defmodule ExPhil.Training.Config do
     |> parse_optional_int_arg(args, "--warmup-steps", :warmup_steps)
     |> parse_optional_int_arg(args, "--decay-steps", :decay_steps)
     |> parse_string_arg(args, "--resume", :resume)
+    |> parse_string_arg(args, "--name", :name)
   end
 
   defp has_flag_value?(args, flag) do
@@ -570,15 +573,29 @@ defmodule ExPhil.Training.Config do
   end
 
   @doc """
-  Generate a timestamped checkpoint name if not already specified.
+  Generate a checkpoint name with memorable naming if not already specified.
+
+  Format: `checkpoints/{character_}{backbone}_{name}_{timestamp}.axon`
+
+  The name can be:
+  - Explicitly set with `--name wavedashing_falcon`
+  - Auto-generated if not specified (e.g., "tactical_marth")
 
   ## Examples
 
-      iex> opts = [checkpoint: nil, temporal: false]
+      iex> opts = [checkpoint: nil, temporal: false, character: nil, name: nil]
       iex> Config.ensure_checkpoint_name(opts) |> Keyword.get(:checkpoint)
-      "checkpoints/mlp_20260119_123456.axon"  # with current timestamp
+      "checkpoints/mlp_cosmic_falcon_20260119_123456.axon"
 
-      iex> opts = [checkpoint: "my_model.axon", temporal: false]
+      iex> opts = [checkpoint: nil, temporal: true, backbone: :mamba, character: :mewtwo, name: nil]
+      iex> Config.ensure_checkpoint_name(opts) |> Keyword.get(:checkpoint)
+      "checkpoints/mewtwo_mamba_brave_phoenix_20260119_123456.axon"
+
+      iex> opts = [checkpoint: nil, temporal: false, name: "my_custom_name"]
+      iex> Config.ensure_checkpoint_name(opts) |> Keyword.get(:checkpoint)
+      "checkpoints/mlp_my_custom_name_20260119_123456.axon"
+
+      iex> opts = [checkpoint: "my_model.axon"]
       iex> Config.ensure_checkpoint_name(opts) |> Keyword.get(:checkpoint)
       "my_model.axon"
 
@@ -587,10 +604,23 @@ defmodule ExPhil.Training.Config do
     if opts[:checkpoint] do
       opts
     else
+      alias ExPhil.Training.Naming
+
       timestamp = generate_timestamp()
       backbone = if opts[:temporal], do: opts[:backbone], else: :mlp
-      checkpoint_name = "checkpoints/#{backbone}_#{timestamp}.axon"
-      Keyword.put(opts, :checkpoint, checkpoint_name)
+      name = opts[:name] || Naming.generate()
+      character = opts[:character]
+
+      checkpoint_name = if character do
+        "checkpoints/#{character}_#{backbone}_#{name}_#{timestamp}.axon"
+      else
+        "checkpoints/#{backbone}_#{name}_#{timestamp}.axon"
+      end
+
+      # Store the generated name in opts for display
+      opts
+      |> Keyword.put(:checkpoint, checkpoint_name)
+      |> Keyword.put(:name, name)
     end
   end
 
