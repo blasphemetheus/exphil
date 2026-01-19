@@ -23,6 +23,16 @@ Guide for downloading large files from Google Drive on RunPod or other cloud ins
    - Application type: **Desktop app**
    - Copy the **Client ID** and **Client Secret**
 
+### Finding Your Credentials Later
+
+If you already created credentials and need to find them:
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+2. **APIs & Services** → **Credentials**
+3. Under "OAuth 2.0 Client IDs", click on your client name
+4. Both **Client ID** and **Client Secret** are shown on that page
+5. Or click the download icon (⬇) to get a JSON file with both values
+
 ### 2. Install rclone on Cloud Instance
 
 ```bash
