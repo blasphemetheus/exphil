@@ -201,8 +201,17 @@ defmodule ExPhil.Training.Data do
     - `:batch_size` - Batch size (default: 64)
     - `:shuffle` - Whether to shuffle (default: true)
     - `:drop_last` - Drop incomplete final batch (default: false)
-    - `:frame_delay` - Frames between state and action (default: 0)
+    - `:frame_delay` - Fixed frames between state and action (default: 0)
+    - `:frame_delay_augment` - Enable variable frame delay (default: false)
+    - `:frame_delay_min` - Minimum delay when augmenting (default: 0)
+    - `:frame_delay_max` - Maximum delay when augmenting (default: 18)
     - `:seed` - Random seed for shuffling
+
+  ## Frame Delay Augmentation
+
+  When `frame_delay_augment: true`, each sample randomly uses a delay
+  between `frame_delay_min` and `frame_delay_max`. This trains models
+  to be robust to both local play (0 delay) and online play (18+ delay).
 
   ## Returns
     Stream of batches, each containing:
@@ -215,10 +224,17 @@ defmodule ExPhil.Training.Data do
     shuffle = Keyword.get(opts, :shuffle, true)
     drop_last = Keyword.get(opts, :drop_last, false)
     frame_delay = Keyword.get(opts, :frame_delay, 0)
+    frame_delay_augment = Keyword.get(opts, :frame_delay_augment, false)
+    frame_delay_min = Keyword.get(opts, :frame_delay_min, 0)
+    frame_delay_max = Keyword.get(opts, :frame_delay_max, 18)
     seed = Keyword.get(opts, :seed, System.system_time())
+    augment_fn = Keyword.get(opts, :augment_fn, nil)
 
-    # Prepare indices
-    indices = 0..(dataset.size - 1 - frame_delay) |> Enum.to_list()
+    # Determine max delay for index bounds
+    max_delay = if frame_delay_augment, do: frame_delay_max, else: frame_delay
+
+    # Prepare indices (leave room for max possible delay)
+    indices = 0..(dataset.size - 1 - max_delay) |> Enum.to_list()
 
     indices = if shuffle do
       :rand.seed(:exsss, {seed, seed, seed})
@@ -227,12 +243,20 @@ defmodule ExPhil.Training.Data do
       indices
     end
 
+    # Build delay config
+    delay_config = %{
+      augment: frame_delay_augment,
+      fixed: frame_delay,
+      min: frame_delay_min,
+      max: frame_delay_max
+    }
+
     # Create batch stream
     indices
     |> Enum.chunk_every(batch_size)
     |> maybe_drop_last(drop_last, batch_size)
     |> Stream.map(fn batch_indices ->
-      create_batch(dataset, batch_indices, frame_delay)
+      create_batch(dataset, batch_indices, delay_config, augment_fn)
     end)
   end
 
@@ -241,11 +265,26 @@ defmodule ExPhil.Training.Data do
     Enum.filter(chunks, &(length(&1) == batch_size))
   end
 
-  defp create_batch(dataset, indices, frame_delay) do
+  defp create_batch(dataset, indices, delay_config, augment_fn) do
     # Collect frames
     frame_data = Enum.map(indices, fn idx ->
+      # Determine frame delay for this sample
+      frame_delay = get_frame_delay(delay_config)
+
       state_frame = Enum.at(dataset.frames, idx)
       action_frame = Enum.at(dataset.frames, idx + frame_delay)
+
+      # Apply augmentation if provided
+      {state_frame, action_frame} = if augment_fn do
+        augmented = augment_fn.(%{
+          game_state: state_frame.game_state,
+          controller: action_frame[:controller] || action_frame[:action]
+        })
+        {%{state_frame | game_state: augmented.game_state},
+         Map.put(action_frame, :controller, augmented[:controller])}
+      else
+        {state_frame, action_frame}
+      end
 
       {state_frame.game_state, get_action(action_frame)}
     end)
@@ -270,6 +309,17 @@ defmodule ExPhil.Training.Data do
       true -> neutral_action()
     end
   end
+
+  # Get frame delay for this sample - either fixed or random based on config
+  defp get_frame_delay(%{augment: true, min: min_delay, max: max_delay}) do
+    # Random delay uniformly distributed between min and max
+    min_delay + :rand.uniform(max_delay - min_delay + 1) - 1
+  end
+  defp get_frame_delay(%{augment: false, fixed: fixed_delay}) do
+    fixed_delay
+  end
+  # Handle legacy integer delay (backward compatibility)
+  defp get_frame_delay(delay) when is_integer(delay), do: delay
 
   defp embed_states(game_states, embed_config) do
     embeddings = Enum.map(game_states, fn gs ->
