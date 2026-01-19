@@ -101,7 +101,11 @@ defmodule ExPhil.Training.Imitation do
     head_dim: 64,                 # Dimension per head
     hidden_size: 256,             # LSTM/hybrid hidden size
     num_layers: 2,                # Attention/recurrent layers
-    truncate_bptt: nil            # nil = full BPTT, integer = truncate to last N steps
+    truncate_bptt: nil,           # nil = full BPTT, integer = truncate to last N steps
+    # Mamba-specific options
+    state_size: 16,               # Mamba SSM state dimension
+    expand_factor: 2,             # Mamba expansion factor
+    conv_size: 4                  # Mamba conv kernel size
   }
 
   @doc """
@@ -582,6 +586,7 @@ defmodule ExPhil.Training.Imitation do
         new_trainer = %{trainer |
           policy_params: checkpoint.policy_params,
           optimizer_state: checkpoint.optimizer_state,
+          config: checkpoint.config,
           step: checkpoint.step,
           metrics: checkpoint.metrics
         }

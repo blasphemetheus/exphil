@@ -252,7 +252,21 @@ defmodule ExPhil.Training.MambaIntegrationTest do
         :ok = Imitation.save_checkpoint(trainer1, checkpoint_path)
         assert File.exists?(checkpoint_path)
 
-        {:ok, trainer2} = Imitation.load_checkpoint(checkpoint_path)
+        # Create a base trainer with same architecture to load into
+        base_trainer = Imitation.new(
+          embed_size: @embed_size,
+          hidden_sizes: [@hidden_size],
+          temporal: true,
+          backbone: :mamba,
+          window_size: @window_size,
+          hidden_size: @hidden_size,
+          state_size: @state_size,
+          expand_factor: 2,
+          conv_size: 4,
+          num_layers: 2
+        )
+
+        {:ok, trainer2} = Imitation.load_checkpoint(base_trainer, checkpoint_path)
 
         # Verify Mamba-specific config is preserved
         assert trainer2.config[:backbone] == :mamba
