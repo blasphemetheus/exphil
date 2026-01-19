@@ -8,6 +8,9 @@ Usage:
     # Process already-downloaded 7z files
     python cloud_filter_replays.py --local /workspace/downloads --output /workspace/lowtier
 
+    # Streaming mode - extract in batches to save disk space
+    python cloud_filter_replays.py --local /workspace/downloads --output /workspace/lowtier --streaming
+
     # Single archive from URL
     python cloud_filter_replays.py --url "https://drive.google.com/..." --output /workspace/lowtier
 
@@ -121,17 +124,136 @@ def extract_archive(archive_path, output_dir):
     """Extract entire 7z archive."""
     print(f"Extracting: {archive_path}")
     start = time.time()
-    
+
     result = subprocess.run(
         ["7z", "x", "-y", f"-o{output_dir}", archive_path],
         capture_output=True,
         text=True
     )
-    
+
     elapsed = time.time() - start
     print(f"Extraction complete in {elapsed:.1f}s")
-    
+
     return result.returncode == 0
+
+
+def list_archive_files(archive_path):
+    """List all .slp files in a 7z archive."""
+    result = subprocess.run(
+        ["7z", "l", "-ba", archive_path],
+        capture_output=True,
+        text=True
+    )
+
+    if result.returncode != 0:
+        return []
+
+    files = []
+    for line in result.stdout.strip().split('\n'):
+        if not line.strip():
+            continue
+        # 7z -ba output format: "attr size compressed date time name"
+        # The filename is the last part after the datetime
+        parts = line.split()
+        if len(parts) >= 6:
+            # Reconstruct filename (may contain spaces)
+            filename = ' '.join(parts[5:])
+            if filename.lower().endswith('.slp'):
+                files.append(filename)
+
+    return files
+
+
+def extract_specific_files(archive_path, files, output_dir):
+    """Extract specific files from a 7z archive."""
+    if not files:
+        return True
+
+    # Create a temporary file list for 7z
+    list_file = os.path.join(output_dir, "_filelist.txt")
+    with open(list_file, 'w') as f:
+        for filepath in files:
+            f.write(f"{filepath}\n")
+
+    result = subprocess.run(
+        ["7z", "x", "-y", f"-o{output_dir}", archive_path, f"@{list_file}"],
+        capture_output=True,
+        text=True
+    )
+
+    # Cleanup list file
+    os.remove(list_file)
+
+    return result.returncode == 0
+
+
+def process_archive_streaming(archive_path, output_dir, batch_size=200, cleanup=False):
+    """Process archive in streaming mode - extract and filter in batches."""
+    print(f"\n{'='*60}")
+    print(f"Processing (streaming): {os.path.basename(archive_path)}")
+    print(f"{'='*60}")
+
+    archive_size = os.path.getsize(archive_path) / (1024**3)
+    print(f"Archive size: {archive_size:.1f} GB")
+    print(f"Batch size: {batch_size} files")
+
+    # List all .slp files in archive
+    print("Listing archive contents...")
+    all_files = list_archive_files(archive_path)
+    total_files = len(all_files)
+    print(f"Found {total_files} .slp files in archive")
+
+    if total_files == 0:
+        return {}
+
+    # Process in batches
+    counts = {}
+    processed = 0
+    kept = 0
+    start = time.time()
+
+    extract_dir = os.path.join(os.path.dirname(archive_path), "extracted_batch")
+
+    num_batches = (total_files + batch_size - 1) // batch_size
+    for batch_num in range(num_batches):
+        batch_start = batch_num * batch_size
+        batch_end = min(batch_start + batch_size, total_files)
+        batch_files = all_files[batch_start:batch_end]
+
+        # Clean extract dir
+        if os.path.exists(extract_dir):
+            shutil.rmtree(extract_dir)
+        os.makedirs(extract_dir, exist_ok=True)
+
+        # Extract batch
+        if not extract_specific_files(archive_path, batch_files, extract_dir):
+            print(f"Warning: Failed to extract batch {batch_num + 1}")
+            continue
+
+        # Process extracted files
+        for slp_file in Path(extract_dir).rglob("*.slp"):
+            result = process_replay(slp_file, output_dir)
+            if result:
+                counts[result] = counts.get(result, 0) + 1
+                kept += 1
+            processed += 1
+
+        # Progress
+        elapsed = time.time() - start
+        rate = processed / elapsed if elapsed > 0 else 0
+        eta = (total_files - processed) / rate if rate > 0 else 0
+        print(f"  Batch {batch_num + 1}/{num_batches} | {processed}/{total_files} ({100*processed/total_files:.1f}%) | "
+              f"kept: {kept} | {rate:.0f} files/s | ETA: {eta:.0f}s")
+
+    # Final cleanup
+    if os.path.exists(extract_dir):
+        shutil.rmtree(extract_dir)
+
+    if cleanup:
+        print(f"Removing archive...")
+        os.remove(archive_path)
+
+    return counts
 
 def process_replay(filepath, output_base):
     """Check single replay and move if it has target characters."""
@@ -271,14 +393,17 @@ Examples:
     # Process local 7z files (already downloaded)
     python cloud_filter_replays.py --local /workspace/downloads --output ./lowtier
 
+    # Streaming mode - extract in batches (uses less disk space)
+    python cloud_filter_replays.py --local /workspace/downloads --output ./lowtier --streaming
+
+    # Streaming with custom batch size
+    python cloud_filter_replays.py --local /workspace/downloads --output ./lowtier --streaming --batch-size 500
+
     # Single URL
     python cloud_filter_replays.py --url "https://drive.google.com/file/d/ABC123/view" --output ./lowtier
 
     # Multiple URLs from file (one per line)
     python cloud_filter_replays.py --urls-file links.txt --output ./lowtier --cleanup
-
-    # On RunPod with workspace volume
-    python cloud_filter_replays.py --urls-file /workspace/links.txt --output /workspace/lowtier --cleanup
 
 Target characters: mewtwo, ganondorf, link, zelda, game_and_watch
         """
@@ -290,6 +415,8 @@ Target characters: mewtwo, ganondorf, link, zelda, game_and_watch
     parser.add_argument("--download-dir", default="/tmp/replay_downloads", help="Temp dir for downloads")
     parser.add_argument("--cleanup", action="store_true", help="Delete archives after processing")
     parser.add_argument("--workers", type=int, default=8, help="Parallel workers for filtering")
+    parser.add_argument("--streaming", action="store_true", help="Extract in batches to save disk space (slower but uses less space)")
+    parser.add_argument("--batch-size", type=int, default=200, help="Files per batch in streaming mode (default: 200)")
     args = parser.parse_args()
 
     if not args.url and not args.urls_file and not args.local:
@@ -314,6 +441,9 @@ Target characters: mewtwo, ganondorf, link, zelda, game_and_watch
         print(f"Local archives to process: {len(archives)}")
         print(f"Output directory: {args.output}")
         print(f"Cleanup after processing: {args.cleanup}")
+        print(f"Streaming mode: {args.streaming}")
+        if args.streaming:
+            print(f"Batch size: {args.batch_size}")
         print(f"Target characters: {', '.join(set(TARGET_CHARACTERS.values()))}")
 
         # Check disk space
@@ -322,7 +452,10 @@ Target characters: mewtwo, ganondorf, link, zelda, game_and_watch
 
         for i, archive in enumerate(sorted(archives), 1):
             print(f"\n[{i}/{len(archives)}] Processing archive...")
-            counts = process_local_archive(str(archive), args.output, args.cleanup)
+            if args.streaming:
+                counts = process_archive_streaming(str(archive), args.output, args.batch_size, args.cleanup)
+            else:
+                counts = process_local_archive(str(archive), args.output, args.cleanup)
 
             for char, count in counts.items():
                 total_counts[char] = total_counts.get(char, 0) + count
