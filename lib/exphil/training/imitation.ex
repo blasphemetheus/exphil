@@ -269,27 +269,53 @@ defmodule ExPhil.Training.Imitation do
     end
   end
 
-  # Use Polaris built-in schedules when there's no warmup
+  # Use simple schedule functions (Polaris.Schedules has compatibility issues with Nx 0.10)
   defp build_polaris_schedule(base_lr, schedule_type, decay_steps) do
+    # Pre-convert to tensors with BinaryBackend to avoid EXLA closure issues
+    base_lr_t = Nx.tensor(base_lr, type: :f32, backend: Nx.BinaryBackend)
+
     case schedule_type do
       :constant ->
-        Polaris.Schedules.constant(init_value: base_lr)
+        fn _step -> base_lr_t end
 
       :cosine ->
         steps = decay_steps || 10_000
-        Polaris.Schedules.cosine_decay(init_value: base_lr, decay_steps: steps)
+        steps_t = Nx.tensor(steps, type: :f32, backend: Nx.BinaryBackend)
+        pi_t = Nx.tensor(:math.pi(), type: :f32, backend: Nx.BinaryBackend)
+        half_t = Nx.tensor(0.5, type: :f32, backend: Nx.BinaryBackend)
+        one_t = Nx.tensor(1.0, type: :f32, backend: Nx.BinaryBackend)
+
+        fn step ->
+          step_f = Nx.as_type(step, :f32)
+          progress = Nx.min(Nx.divide(step_f, steps_t), one_t)
+          cosine_decay = Nx.multiply(half_t, Nx.add(one_t, Nx.cos(Nx.multiply(pi_t, progress))))
+          Nx.multiply(base_lr_t, cosine_decay)
+        end
 
       :exponential ->
         transition_steps = decay_steps || 1000
-        Polaris.Schedules.exponential_decay(
-          init_value: base_lr,
-          rate: 0.95,
-          transition_steps: transition_steps
-        )
+        transition_t = Nx.tensor(transition_steps, type: :f32, backend: Nx.BinaryBackend)
+        rate_t = Nx.tensor(0.95, type: :f32, backend: Nx.BinaryBackend)
+
+        fn step ->
+          step_f = Nx.as_type(step, :f32)
+          num_decays = Nx.floor(Nx.divide(step_f, transition_t))
+          decay_factor = Nx.pow(rate_t, num_decays)
+          Nx.multiply(base_lr_t, decay_factor)
+        end
 
       :linear ->
         steps = decay_steps || 10_000
-        Polaris.Schedules.linear_decay(init_value: base_lr, decay_steps: steps)
+        steps_t = Nx.tensor(steps, type: :f32, backend: Nx.BinaryBackend)
+        one_t = Nx.tensor(1.0, type: :f32, backend: Nx.BinaryBackend)
+        zero_t = Nx.tensor(0.0, type: :f32, backend: Nx.BinaryBackend)
+
+        fn step ->
+          step_f = Nx.as_type(step, :f32)
+          progress = Nx.min(Nx.divide(step_f, steps_t), one_t)
+          decay_factor = Nx.subtract(one_t, progress)
+          Nx.max(Nx.multiply(base_lr_t, decay_factor), zero_t)
+        end
     end
   end
 
