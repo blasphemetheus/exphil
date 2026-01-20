@@ -111,7 +111,15 @@ end
 # Simple unbuffered output - all output goes to stderr which is always line-buffered
 # This means `mix run script.exs` just works without any redirection tricks
 defmodule Output do
-  def puts(line), do: IO.puts(:stderr, line)
+  @moduledoc "Training output with timestamps"
+
+  def puts(line) do
+    timestamp = DateTime.utc_now() |> Calendar.strftime("%H:%M:%S")
+    IO.puts(:stderr, "[#{timestamp}] #{line}")
+  end
+
+  # For lines that shouldn't have timestamps (like progress bars, dividers)
+  def puts_raw(line), do: IO.puts(:stderr, line)
 end
 
 # Build auto-tags based on training configuration
@@ -436,7 +444,7 @@ else
   ""
 end
 Output.puts("\nStep 4: Training for #{opts[:epochs]} epochs#{early_stopping_msg}...")
-Output.puts("─" |> String.duplicate(60))
+Output.puts_raw("─" |> String.duplicate(60))
 
 start_time = System.monotonic_time(:second)
 
@@ -655,9 +663,9 @@ total_time = System.monotonic_time(:second) - start_time
 total_min = div(total_time, 60)
 total_sec = rem(total_time, 60)
 Output.puts("")
-Output.puts("─" |> String.duplicate(60))
+Output.puts_raw("─" |> String.duplicate(60))
 Output.puts("✓ Training complete in #{total_min}m #{total_sec}s")
-Output.puts("─" |> String.duplicate(60))
+Output.puts_raw("─" |> String.duplicate(60))
 
 # Step 5: Save checkpoint
 Output.puts("\nStep 5: Saving checkpoint...")
