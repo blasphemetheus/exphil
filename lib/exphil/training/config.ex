@@ -9,7 +9,9 @@ defmodule ExPhil.Training.Config do
   - Training config JSON structure
   """
 
-  @default_replays_dir "/home/dori/git/melee/replays"
+  # Default replays directory - relative path for portability
+  # Can be overridden with --replays or --replay-dir
+  @default_replays_dir "./replays"
   @default_hidden_sizes [64, 64]
 
   @valid_presets [
@@ -810,6 +812,7 @@ defmodule ExPhil.Training.Config do
     |> maybe_add_override(args, "--num-layers", :num_layers, &String.to_integer/1)
     |> maybe_add_override(args, "--frame-delay", :frame_delay, &String.to_integer/1)
     |> maybe_add_override(args, "--replays", :replays, & &1)
+    |> maybe_add_override(args, "--replay-dir", :replays, & &1)
     |> maybe_add_override(args, "--checkpoint", :checkpoint, & &1)
     |> maybe_add_flag_override(args, "--temporal", :temporal)
     |> maybe_add_flag_override(args, "--wandb", :wandb)
@@ -861,6 +864,7 @@ defmodule ExPhil.Training.Config do
   defp parse_args_standard(args) do
     defaults()
     |> parse_string_arg(args, "--replays", :replays)
+    |> parse_string_arg(args, "--replay-dir", :replays)
     |> parse_int_arg(args, "--epochs", :epochs)
     |> parse_int_arg(args, "--batch-size", :batch_size)
     |> parse_hidden_sizes_arg(args)

@@ -1,10 +1,13 @@
 # ExPhil GPU Training Dockerfile
 # Multi-stage build for cloud GPU training (RunPod, Lambda Labs, etc.)
+#
+# Supports: RTX 4090 (Ada Lovelace), RTX 5090 (Blackwell), and other CUDA 12+ GPUs
+# CUDA 12.6+ required for Blackwell architecture (Compute Capability 12.0)
 
 # =============================================================================
 # Stage 1: Build environment
 # =============================================================================
-FROM nvidia/cuda:12.2.0-devel-ubuntu22.04 AS builder
+FROM nvidia/cuda:12.6.3-devel-ubuntu22.04 AS builder
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV LANG=C.UTF-8
@@ -95,13 +98,16 @@ RUN mix compile
 # =============================================================================
 # Stage 2: Runtime environment
 # =============================================================================
-FROM nvidia/cuda:12.2.0-runtime-ubuntu22.04 AS runtime
+# Use devel image (not runtime) to include ptxas/nvlink for JIT compilation
+# Required for newer GPUs like RTX 5090 (Blackwell) where XLA needs runtime PTX compilation
+FROM nvidia/cuda:12.6.3-devel-ubuntu22.04 AS runtime
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV LANG=C.UTF-8
 ENV MIX_ENV=prod
 
-# Install runtime dependencies only
+# Install runtime dependencies
+# Note: NCCL and cuDNN are already included in CUDA 12.6 devel images
 RUN apt-get update && apt-get install -y --no-install-recommends \
     # Runtime libs
     libncurses6 \
@@ -116,6 +122,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-pip \
     # Git needed for mix deps with git SCM
     git \
+    # Utilities for file transfer
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Set up Python
@@ -156,5 +164,5 @@ ENV XLA_TARGET=cuda12
 ENV EXLA_TARGET=cuda
 ENV CUDA_VISIBLE_DEVICES=0
 
-# Default command: show help
-CMD ["mix", "run", "scripts/train_from_replays.exs", "--help"]
+# Keep container running for interactive use
+CMD ["sleep", "infinity"]
