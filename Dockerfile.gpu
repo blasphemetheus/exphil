@@ -4,7 +4,7 @@
 # =============================================================================
 # Stage 1: Build environment
 # =============================================================================
-FROM nvidia/cuda:11.8.0-devel-ubuntu22.04 AS builder
+FROM nvidia/cuda:12.2.0-devel-ubuntu22.04 AS builder
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV LANG=C.UTF-8
@@ -71,13 +71,17 @@ ENV MIX_ENV=prod
 ENV HEX_HTTP_CONCURRENCY=1
 ENV HEX_HTTP_TIMEOUT=120
 
+# Set EXLA to compile for CUDA 12 during build
+ENV XLA_TARGET=cuda12
+ENV EXLA_TARGET=cuda
+
 RUN mix local.hex --force && mix local.rebar --force
 RUN mix deps.get --only prod || mix deps.get --only prod
 
 # Install Python dependencies
 RUN python3 -m pip install --no-cache-dir -r priv/python/requirements.txt
 
-# Compile Rust NIF and Elixir dependencies
+# Compile Rust NIF and Elixir dependencies (EXLA will download CUDA-enabled XLA)
 RUN mix deps.compile
 
 # Copy application code
@@ -91,7 +95,7 @@ RUN mix compile
 # =============================================================================
 # Stage 2: Runtime environment
 # =============================================================================
-FROM nvidia/cuda:11.8.0-runtime-ubuntu22.04 AS runtime
+FROM nvidia/cuda:12.2.0-runtime-ubuntu22.04 AS runtime
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV LANG=C.UTF-8
@@ -110,8 +114,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # Python runtime
     python3.11 \
     python3-pip \
-    # cuDNN for deep learning
-    libcudnn8 \
+    # Git needed for mix deps with git SCM
+    git \
     && rm -rf /var/lib/apt/lists/*
 
 # Set up Python
@@ -147,8 +151,8 @@ RUN mix local.hex --force && mix local.rebar --force
 # Create directories for data
 RUN mkdir -p /app/replays /app/checkpoints
 
-# Environment variables for EXLA/CUDA
-ENV XLA_TARGET=cuda118
+# Environment variables for EXLA/CUDA 12
+ENV XLA_TARGET=cuda12
 ENV EXLA_TARGET=cuda
 ENV CUDA_VISIBLE_DEVICES=0
 
