@@ -555,7 +555,7 @@ initial_state = {trainer, 0, false, early_stopping_state, nil, pruner, ema}
     avg_loss = Enum.sum(epoch_losses) / length(epoch_losses)
 
     # Validation - only if we have validation data
-    {val_loss, val_metrics} = if val_dataset.size > 0 do
+    {val_loss, _val_metrics} = if val_dataset.size > 0 do
       val_batches = if opts[:temporal] do
         Data.batched_sequences(val_dataset, batch_size: opts[:batch_size], shuffle: false)
       else
