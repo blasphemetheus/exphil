@@ -10,11 +10,14 @@ Ideas for improving training speed, effectiveness, and developer experience. Pri
 - **Benefit:** ~1.5x speedup, better gradient estimates
 - **Implementation:** Already supported via `--batch-size`, just increase in GPU presets
 
-### Fused Optimizer
-- **Current:** Standard Polaris Adam
-- **Proposed:** Use fused Adam variant
-- **Benefit:** ~1.1x speedup from reduced kernel launches
-- **Implementation:** Check Polaris docs for fused variants
+### Optimizer Selection ✅
+- **Status:** IMPLEMENTED (2025-01-20)
+- **Usage:** `--optimizer adamw` (or adam, lamb, radam, sgd, rmsprop)
+- **Note:** XLA automatically fuses operations, so there's no separate "fused" variant
+- **Recommendations:**
+  - `adamw` (default) - Decoupled weight decay, good general choice
+  - `lamb` - Good for large batch training
+  - `radam` - More stable early training
 
 ### GPU Memory Tracking
 - **Current:** No visibility into VRAM usage
@@ -115,11 +118,11 @@ Ideas for improving training speed, effectiveness, and developer experience. Pri
   end
   ```
 
-### Layer Normalization
-- **Current:** No normalization in MLP
-- **Proposed:** Add LayerNorm before each dense layer
+### Layer Normalization ✅
+- **Status:** IMPLEMENTED (2025-01-20)
+- **Usage:** `--layer-norm` flag (or `layer_norm: true` in config)
 - **Benefit:** More stable training, especially with larger LR
-- **Implementation:** Already in Axon: `Axon.layer_norm()`
+- **Implementation:** Adds `Axon.layer_norm()` after each dense layer in backbone
 
 ### Dropout Scheduling
 - **Current:** Fixed dropout rate
@@ -131,15 +134,41 @@ Ideas for improving training speed, effectiveness, and developer experience. Pri
   # Requires dynamic dropout in model (tricky with Axon's static graph)
   ```
 
+## For GPU Testing & Experimentation
+
+### Architecture Benchmark Script (NEW)
+- **Script:** `scripts/benchmark_architectures.exs`
+- **Usage:** `mix run scripts/benchmark_architectures.exs --replay-dir /path --epochs 3`
+- **Output:** Comparison table + HTML report with loss curves
+- **Benefit:** Quickly test which architecture works best on your data
+
+### Per-Action Accuracy Metrics (NEW)
+- **Module:** `ExPhil.Training.Metrics`
+- **What it shows:**
+  - Per-button accuracy (A, B, X, Y, Z, L, R, Start)
+  - Per-stick MSE (main_x, main_y, c_x, c_y)
+  - Rare action recall (Z, L, R - important for tech skill)
+- **Why:** Loss alone hides whether rare actions are learned
+
+### Hyperparameter Sweep (TODO)
+- Run multiple configs automatically
+- Track results in JSON/CSV
+- Generate comparison report
+- **Implementation:** Similar to benchmark script but varies hyperparams
+
+### Action Distribution Analysis (TODO)
+- Visualize predicted vs actual action distributions
+- Confusion matrix for buttons
+- Stick position heatmaps
+- **Why:** Understand systematic prediction errors
+
 ## Nice to Have (Lower Priority)
 
-### Config Diff Display
-- Show what settings differ from defaults at training start
-- Helps catch config mistakes
-
-### Batch Progress Bar
-- Show progress within each epoch, not just epoch-level
-- Useful for large datasets where epochs take 10+ minutes
+### Batch Progress Bar ✅
+- **Status:** IMPLEMENTED (2025-01-20)
+- Shows live updating progress within each epoch
+- Format: `Epoch 1: ████████████░░░░░░░░  60% | 642/1606 | loss: 0.1234 | 0.5s/it | ETA: 8m 12s`
+- Updates in-place using carriage return for cleaner output
 
 ### Checkpoint Compression
 - Compress checkpoint files with `:zlib`
@@ -182,3 +211,13 @@ Based on impact/effort ratio:
 - [x] Model EMA
 - [x] Checkpoint pruning
 - [x] Frame delay augmentation
+- [x] Precompute embeddings for MLP training (2025-01-20)
+- [x] GPU memory tracking via nvidia-smi (2025-01-20)
+- [x] Config diff display at training start (2025-01-20)
+- [x] Training loss plot with VegaLite (2025-01-20)
+- [x] Auto-resume from incomplete training (2025-01-20)
+- [x] Architecture test presets (gpu_mlp_quick, gpu_lstm_quick, etc.) (2025-01-20)
+- [x] Data prefetching for GPU training (2025-01-20)
+- [x] Layer normalization option for MLP backbone (2025-01-20)
+- [x] Optimizer selection (adam, adamw, lamb, radam, sgd, rmsprop) (2025-01-20)
+- [x] Live batch progress bar within epochs (2025-01-20)

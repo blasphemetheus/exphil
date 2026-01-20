@@ -97,12 +97,13 @@ defmodule ExPhil.Networks.Policy do
     dropout = Keyword.get(opts, :dropout, @default_dropout)
     axis_buckets = Keyword.get(opts, :axis_buckets, @axis_buckets)
     shoulder_buckets = Keyword.get(opts, :shoulder_buckets, @shoulder_buckets)
+    layer_norm = Keyword.get(opts, :layer_norm, false)
 
     # Input layer
     input = Axon.input("state", shape: {nil, embed_size})
 
     # Build backbone
-    backbone = build_backbone(input, hidden_sizes, activation, dropout)
+    backbone = build_backbone(input, hidden_sizes, activation, dropout, layer_norm: layer_norm)
 
     # Build autoregressive controller head
     build_controller_head(backbone, axis_buckets, shoulder_buckets)
@@ -276,6 +277,7 @@ defmodule ExPhil.Networks.Policy do
     activation = Keyword.get(opts, :activation, @default_activation)
     dropout = Keyword.get(opts, :dropout, @default_dropout)
     window_size = Keyword.get(opts, :window_size, 60)
+    layer_norm = Keyword.get(opts, :layer_norm, false)
 
     # Sequence length configuration (same as attention models)
     seq_len = Keyword.get(opts, :seq_len, window_size)
@@ -297,19 +299,33 @@ defmodule ExPhil.Networks.Policy do
     end, name: "last_frame")
 
     # Apply MLP backbone
-    build_backbone(last_frame, hidden_sizes, activation, dropout)
+    build_backbone(last_frame, hidden_sizes, activation, dropout, layer_norm: layer_norm)
   end
 
   @doc """
   Build just the backbone network (useful for sharing with value network).
+
+  ## Options
+    - `:layer_norm` - If true, applies layer normalization after each dense layer (default: false)
   """
-  @spec build_backbone(Axon.t(), list(), atom(), float()) :: Axon.t()
-  def build_backbone(input, hidden_sizes, activation, dropout) do
+  @spec build_backbone(Axon.t(), list(), atom(), float(), keyword()) :: Axon.t()
+  def build_backbone(input, hidden_sizes, activation, dropout, opts \\ []) do
+    layer_norm = Keyword.get(opts, :layer_norm, false)
+
     hidden_sizes
     |> Enum.with_index()
     |> Enum.reduce(input, fn {size, idx}, acc ->
-      acc
+      layer = acc
       |> Axon.dense(size, name: "backbone_dense_#{idx}")
+
+      # Optional layer normalization (post-dense, pre-activation)
+      layer = if layer_norm do
+        Axon.layer_norm(layer, name: "backbone_ln_#{idx}")
+      else
+        layer
+      end
+
+      layer
       |> Axon.activation(activation)
       |> Axon.dropout(rate: dropout)
     end)
@@ -385,6 +401,7 @@ defmodule ExPhil.Networks.Policy do
     dropout = Keyword.get(opts, :dropout, @default_dropout)
     axis_buckets = Keyword.get(opts, :axis_buckets, @axis_buckets)
     shoulder_buckets = Keyword.get(opts, :shoulder_buckets, @shoulder_buckets)
+    layer_norm = Keyword.get(opts, :layer_norm, false)
 
     axis_size = axis_buckets + 1
     shoulder_size = shoulder_buckets + 1
@@ -400,7 +417,7 @@ defmodule ExPhil.Networks.Policy do
     prev_c_y = Axon.input("prev_c_y", shape: {nil, axis_size})
 
     # Backbone
-    backbone = build_backbone(state_input, hidden_sizes, activation, dropout)
+    backbone = build_backbone(state_input, hidden_sizes, activation, dropout, layer_norm: layer_norm)
 
     # Buttons head (no conditioning, first in sequence)
     buttons = backbone

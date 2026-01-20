@@ -9,7 +9,7 @@ defmodule ExPhil.Data.PeppiTest do
       assert message =~ "Failed to open file"
     end
 
-    @tag :external_replay
+    @tag :external
     test "parses a valid .slp file" do
       # Skip if no replay file is available
       replay_path = System.get_env("TEST_REPLAY_PATH")

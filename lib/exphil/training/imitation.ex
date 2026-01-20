@@ -106,10 +106,14 @@ defmodule ExPhil.Training.Imitation do
     state_size: 16,               # Mamba SSM state dimension
     expand_factor: 2,             # Mamba expansion factor
     conv_size: 4,                 # Mamba conv kernel size
+    # Layer normalization for MLP backbone
+    layer_norm: false,            # Add layer norm after each dense layer
     # Gradient accumulation
     accumulation_steps: 1,        # 1 = no accumulation, N = effective batch = batch_size * N
     # Label smoothing
-    label_smoothing: 0.0          # 0.0 = no smoothing, 0.1 = typical value
+    label_smoothing: 0.0,         # 0.0 = no smoothing, 0.1 = typical value
+    # Optimizer selection
+    optimizer: :adamw             # :adam, :adamw, :lamb, :radam, :sgd, :rmsprop
   }
 
   @doc """
@@ -156,7 +160,8 @@ defmodule ExPhil.Training.Imitation do
         dropout: config.dropout,
         axis_buckets: config.axis_buckets,
         shoulder_buckets: config.shoulder_buckets,
-        truncate_bptt: config.truncate_bptt
+        truncate_bptt: config.truncate_bptt,
+        layer_norm: config.layer_norm
       )
     else
       Policy.build(
@@ -164,7 +169,8 @@ defmodule ExPhil.Training.Imitation do
         hidden_sizes: config.hidden_sizes,
         dropout: config.dropout,
         axis_buckets: config.axis_buckets,
-        shoulder_buckets: config.shoulder_buckets
+        shoulder_buckets: config.shoulder_buckets,
+        layer_norm: config.layer_norm
       )
     end
 
@@ -216,6 +222,14 @@ defmodule ExPhil.Training.Imitation do
   @doc """
   Create optimizer with learning rate schedule and gradient clipping.
 
+  Supports multiple optimizers:
+  - `:adam` - Standard Adam optimizer
+  - `:adamw` - AdamW (decoupled weight decay, default)
+  - `:lamb` - LAMB (good for large batch training)
+  - `:radam` - Rectified Adam (more stable early training)
+  - `:sgd` - Stochastic gradient descent with momentum
+  - `:rmsprop` - RMSprop optimizer
+
   Supports multiple learning rate schedules:
   - `:constant` - Fixed learning rate (default)
   - `:cosine` - Cosine decay from initial LR to 0
@@ -228,22 +242,71 @@ defmodule ExPhil.Training.Imitation do
   def create_optimizer(config) do
     lr_schedule = build_lr_schedule(config)
     max_grad_norm = config[:max_grad_norm] || 1.0
+    optimizer_type = config[:optimizer] || :adamw
 
-    # Compose: gradient clipping -> AdamW
-    adamw = Polaris.Optimizers.adamw(
+    # Build the base optimizer
+    base_optimizer = build_base_optimizer(optimizer_type, lr_schedule, config)
+
+    # Optionally compose with gradient clipping
+    if max_grad_norm > 0 do
+      clip = Polaris.Updates.clip_by_global_norm(max_norm: max_grad_norm)
+      Polaris.Updates.compose(clip, base_optimizer)
+    else
+      base_optimizer
+    end
+  end
+
+  defp build_base_optimizer(:adam, lr_schedule, _config) do
+    Polaris.Optimizers.adam(
+      learning_rate: lr_schedule,
+      b1: 0.9,
+      b2: 0.999,
+      eps: 1.0e-8
+    )
+  end
+
+  defp build_base_optimizer(:adamw, lr_schedule, config) do
+    Polaris.Optimizers.adamw(
       learning_rate: lr_schedule,
       b1: 0.9,
       b2: 0.999,
       eps: 1.0e-8,
       decay: config.weight_decay
     )
+  end
 
-    if max_grad_norm > 0 do
-      clip = Polaris.Updates.clip_by_global_norm(max_norm: max_grad_norm)
-      Polaris.Updates.compose(clip, adamw)
-    else
-      adamw
-    end
+  defp build_base_optimizer(:lamb, lr_schedule, config) do
+    Polaris.Optimizers.lamb(
+      learning_rate: lr_schedule,
+      b1: 0.9,
+      b2: 0.999,
+      eps: 1.0e-6,
+      decay: config.weight_decay
+    )
+  end
+
+  defp build_base_optimizer(:radam, lr_schedule, _config) do
+    Polaris.Optimizers.radam(
+      learning_rate: lr_schedule,
+      b1: 0.9,
+      b2: 0.999,
+      eps: 1.0e-8
+    )
+  end
+
+  defp build_base_optimizer(:sgd, lr_schedule, _config) do
+    Polaris.Optimizers.sgd(
+      learning_rate: lr_schedule,
+      momentum: 0.9
+    )
+  end
+
+  defp build_base_optimizer(:rmsprop, lr_schedule, _config) do
+    Polaris.Optimizers.rmsprop(
+      learning_rate: lr_schedule,
+      centered: false,
+      momentum: 0.0
+    )
   end
 
   # Build the learning rate schedule based on config

@@ -51,7 +51,8 @@ defmodule ExPhil.Training.Data do
     :metadata,            # Dataset metadata
     :embed_config,        # Embedding configuration
     :size,                # Number of frames
-    :embedded_sequences   # Pre-computed embeddings (optional, for temporal training)
+    :embedded_sequences,  # Pre-computed embeddings (optional, for temporal training)
+    :embedded_frames      # Pre-computed single-frame embeddings (optional, for MLP training)
   ]
 
   @type frame :: %{
@@ -266,6 +267,46 @@ defmodule ExPhil.Training.Data do
   end
 
   defp create_batch(dataset, indices, delay_config, augment_fn) do
+    # Check if we have precomputed embeddings (and no augmentation that modifies states)
+    use_precomputed = dataset.embedded_frames != nil and augment_fn == nil
+
+    if use_precomputed do
+      create_batch_precomputed(dataset, indices, delay_config)
+    else
+      create_batch_standard(dataset, indices, delay_config, augment_fn)
+    end
+  end
+
+  # Fast path: use precomputed embeddings
+  defp create_batch_precomputed(dataset, indices, delay_config) do
+    # Collect precomputed embeddings and actions
+    {embeddings, actions} = indices
+    |> Enum.map(fn idx ->
+      frame_delay = get_frame_delay(delay_config)
+      action_frame = Enum.at(dataset.frames, idx + frame_delay)
+
+      # Get precomputed embedding for state frame
+      embedding = :array.get(idx, dataset.embedded_frames)
+      action = get_action(action_frame)
+
+      {embedding, action}
+    end)
+    |> Enum.unzip()
+
+    # Stack precomputed embeddings
+    states = Nx.stack(embeddings)
+
+    # Convert actions to tensors
+    action_tensors = actions_to_tensors(actions)
+
+    %{
+      states: states,
+      actions: action_tensors
+    }
+  end
+
+  # Standard path: embed on the fly (used when augmentation is enabled)
+  defp create_batch_standard(dataset, indices, delay_config, augment_fn) do
     # Collect frames
     frame_data = Enum.map(indices, fn idx ->
       # Determine frame delay for this sample
@@ -629,6 +670,71 @@ defmodule ExPhil.Training.Data do
 
     %{dataset | embedded_sequences: embedded}
   end
+
+  @doc """
+  Pre-compute embeddings for all frames in the dataset (single-frame MLP training).
+
+  This significantly speeds up MLP training by embedding frames once
+  instead of on every batch. Call this before training.
+
+  ## Example
+
+      dataset
+      |> Data.precompute_frame_embeddings()
+
+  ## Options
+    - `:show_progress` - Show embedding progress (default: true)
+    - `:batch_size` - Embedding batch size for GPU efficiency (default: 1000)
+  """
+  @spec precompute_frame_embeddings(t(), keyword()) :: t()
+  def precompute_frame_embeddings(dataset, opts \\ []) do
+    show_progress = Keyword.get(opts, :show_progress, true)
+    batch_size = Keyword.get(opts, :batch_size, 1000)
+
+    if show_progress do
+      IO.puts("  Pre-computing embeddings for #{dataset.size} frames...")
+    end
+
+    embed_config = dataset.embed_config
+    total = dataset.size
+
+    # Process in batches for GPU efficiency and memory management
+    embedded = dataset.frames
+    |> Enum.chunk_every(batch_size)
+    |> Enum.with_index()
+    |> Enum.flat_map(fn {chunk, chunk_idx} ->
+      # Show progress
+      if show_progress do
+        processed = min((chunk_idx + 1) * batch_size, total)
+        pct = round(processed / total * 100)
+        IO.write("\r  Embedding: #{pct}% (#{processed}/#{total})    ")
+      end
+
+      # Batch embed all frames in this chunk
+      game_states = Enum.map(chunk, & &1.game_state)
+      batch_embedded = Embeddings.Game.embed_states_fast(game_states, 1, config: embed_config)
+
+      # Convert to list of individual embeddings
+      batch_embedded
+      |> Nx.to_batched(1)
+      |> Enum.map(&Nx.squeeze(&1, axes: [0]))
+    end)
+
+    if show_progress do
+      IO.puts("\r  Embedding: 100% (#{total}/#{total}) - done!    ")
+    end
+
+    # Convert to array for O(1) access during batching
+    embedded_array = :array.from_list(embedded)
+
+    %{dataset | embedded_frames: embedded_array}
+  end
+
+  @doc """
+  Check if dataset has precomputed frame embeddings.
+  """
+  def has_precomputed_embeddings?(%__MODULE__{embedded_frames: nil}), do: false
+  def has_precomputed_embeddings?(%__MODULE__{embedded_frames: _}), do: true
 
   @doc """
   Create batched iterator for sequence data (temporal training).

@@ -14,7 +14,20 @@ defmodule ExPhil.MixProject do
       # Docs
       name: "ExPhil",
       description: "Elixir-based Melee AI for lower-tier characters",
-      source_url: "https://github.com/yourusername/exphil"
+      source_url: "https://github.com/yourusername/exphil",
+
+      # Test coverage
+      test_coverage: [tool: ExCoveralls],
+      preferred_cli_env: [
+        coveralls: :test,
+        "coveralls.detail": :test,
+        "coveralls.html": :test,
+        "coveralls.json": :test,
+        "test.all": :test,
+        "test.slow": :test,
+        "test.fast": :test,
+        "test.coverage": :test
+      ]
     ]
   end
 
@@ -57,11 +70,17 @@ defmodule ExPhil.MixProject do
       {:jason, "~> 1.4"},
       {:req, "~> 0.5"},
 
+      # Visualization (for training plots)
+      {:vega_lite, "~> 0.1"},
+
       # Dev & Test
       {:kino, "~> 0.14", only: :dev},
       {:ex_doc, "~> 0.34", only: :dev, runtime: false},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
-      {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false}
+      {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
+      {:excoveralls, "~> 0.18", only: :test},
+      {:mox, "~> 1.1", only: :test},
+      {:stream_data, "~> 1.1", only: [:dev, :test]}
     ]
   end
 
@@ -70,7 +89,15 @@ defmodule ExPhil.MixProject do
       setup: ["deps.get", "cmd --cd priv/python pip install -r requirements.txt"],
       "exphil.train": ["run scripts/train.exs"],
       "exphil.eval": ["run scripts/eval.exs"],
-      "exphil.parse_replays": ["run scripts/parse_replays.exs"]
+      "exphil.parse_replays": ["run scripts/parse_replays.exs"],
+
+      # Test aliases for running different test categories
+      # See docs/TESTING.md for full documentation
+      "test.fast": ["test"],  # Default: fast unit tests only
+      "test.slow": ["test", "--include", "slow"],
+      "test.all": ["test", "--include", "slow", "--include", "integration", "--include", "external"],
+      "test.integration": ["test", "--only", "integration"],
+      "test.coverage": ["coveralls.html"]
     ]
   end
 end

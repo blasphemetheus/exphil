@@ -39,6 +39,7 @@ defmodule ExPhil.Networks.PolicyTest do
       assert %Axon{} = model
     end
 
+    @tag :slow
     test "model can be initialized" do
       model = Policy.build(embed_size: @embed_size)
       {init_fn, _predict_fn} = Axon.build(model)
@@ -48,6 +49,7 @@ defmodule ExPhil.Networks.PolicyTest do
       assert %Axon.ModelState{} = params
     end
 
+    @tag :slow
     test "model forward pass produces correct output shapes" do
       model = Policy.build(embed_size: @embed_size, axis_buckets: 16, shoulder_buckets: 4)
       {init_fn, predict_fn} = Axon.build(model)

@@ -147,7 +147,7 @@ end
 require Logger
 
 alias ExPhil.Data.Peppi
-alias ExPhil.Training.{Augmentation, CheckpointPruning, Config, Data, EarlyStopping, EMA, Imitation, Registry}
+alias ExPhil.Training.{Augmentation, CheckpointPruning, Config, Data, EarlyStopping, EMA, GPUUtils, Imitation, Plots, Prefetcher, Recovery, Registry}
 alias ExPhil.Embeddings
 alias ExPhil.Integrations.Wandb
 
@@ -160,6 +160,37 @@ opts = System.argv()
 
 # Ensure checkpoints directory exists
 File.mkdir_p!("checkpoints")
+
+# Check for incomplete training run and offer to resume
+opts = case Recovery.check_incomplete(opts[:checkpoint]) do
+  {:incomplete, state} ->
+    Output.puts("")
+    Output.puts("⚠️  " <> Recovery.format_incomplete_info(state))
+    Output.puts("")
+
+    resume_checkpoint = Recovery.get_resume_checkpoint(opts[:checkpoint])
+
+    if resume_checkpoint do
+      Output.puts("  Found checkpoint: #{resume_checkpoint}")
+      Output.puts("  Resume training? [Y/n] ")
+
+      case IO.gets("") |> String.trim() |> String.downcase() do
+        response when response in ["", "y", "yes"] ->
+          Output.puts("  → Resuming from #{resume_checkpoint}")
+          # Update opts to resume from the checkpoint
+          Keyword.put(opts, :resume, resume_checkpoint)
+        _ ->
+          Output.puts("  → Starting fresh (marker will be overwritten)")
+          opts
+      end
+    else
+      Output.puts("  No checkpoint found to resume from. Starting fresh.")
+      opts
+    end
+
+  :ok ->
+    opts
+end
 
 temporal_info = if opts[:temporal] do
   bptt_info = if opts[:truncate_bptt] do
@@ -194,6 +225,16 @@ end
 # Extract model name from checkpoint path for display
 model_name = opts[:name] || Path.basename(opts[:checkpoint], ".axon")
 
+# Get GPU info for display
+gpu_info = case GPUUtils.device_name() do
+  {:ok, name} ->
+    case GPUUtils.get_memory_info() do
+      {:ok, %{total_mb: total}} -> "#{name} (#{GPUUtils.format_mb(total)})"
+      _ -> name
+    end
+  {:error, _} -> "N/A (CPU mode)"
+end
+
 Output.puts("""
 
 ╔════════════════════════════════════════════════════════════════╗
@@ -215,8 +256,19 @@ Configuration:
   Precision:   #{precision_str}
   Frame Delay: #{if opts[:frame_delay] > 0, do: "#{opts[:frame_delay]} frames (online simulation)", else: "0 (instant feedback)"}
   Augment:     #{if opts[:augment], do: "enabled (mirror=#{opts[:mirror_prob]}, noise=#{opts[:noise_prob]})", else: "disabled"}
+  Prefetch:    #{if opts[:prefetch], do: "enabled (buffer=#{opts[:prefetch_buffer]})", else: "disabled"}
+  GPU:         #{gpu_info}
 #{temporal_info}
 """)
+
+# Show config diff from defaults (helps catch config mistakes)
+case Config.format_diff(opts) do
+  nil -> :ok
+  diff ->
+    Output.puts("Settings changed from defaults:")
+    Output.puts_raw(diff)
+    Output.puts("")
+end
 
 # Initialize Wandb if enabled
 if opts[:wandb] do
@@ -299,7 +351,7 @@ Output.puts("\nStep 2: Creating dataset...")
 
 dataset = Data.from_frames(all_frames)
 
-# Convert to sequences for temporal training
+# Convert to sequences for temporal training, or precompute embeddings for MLP
 base_dataset = if opts[:temporal] do
   Output.puts("  Converting to sequences (window=#{opts[:window_size]}, stride=#{opts[:stride]})...")
   seq_dataset = Data.to_sequences(dataset,
@@ -311,7 +363,13 @@ base_dataset = if opts[:temporal] do
   # This embeds all frames ONCE instead of on every batch
   Data.precompute_embeddings(seq_dataset)
 else
-  dataset
+  # For MLP training, optionally precompute frame embeddings
+  if opts[:precompute] do
+    Output.puts("  Pre-computing embeddings (2-3x speedup)...")
+    Data.precompute_frame_embeddings(dataset)
+  else
+    dataset
+  end
 end
 
 # Split into train/val based on val_split option
@@ -378,7 +436,11 @@ trainer_opts = [
   # Gradient accumulation
   accumulation_steps: opts[:accumulation_steps],
   # Label smoothing
-  label_smoothing: opts[:label_smoothing]
+  label_smoothing: opts[:label_smoothing],
+  # Layer normalization for MLP backbone
+  layer_norm: opts[:layer_norm],
+  # Optimizer selection
+  optimizer: opts[:optimizer]
 ]
 
 # Create trainer (or load from checkpoint for resumption)
@@ -446,6 +508,9 @@ end
 Output.puts("\nStep 4: Training for #{opts[:epochs]} epochs#{early_stopping_msg}...")
 Output.puts_raw("─" |> String.duplicate(60))
 
+# Create incomplete marker for crash recovery
+Recovery.mark_started(opts[:checkpoint], opts)
+
 start_time = System.monotonic_time(:second)
 
 # Initialize early stopping state if enabled
@@ -471,18 +536,19 @@ else
 end
 
 # Training loop with early stopping and best model tracking
-# Returns {trainer, epochs_completed, stopped_early, early_stopping_state, best_val_loss, pruner, ema}
-initial_state = {trainer, 0, false, early_stopping_state, nil, pruner, ema}
+# Returns {trainer, epochs_completed, stopped_early, early_stopping_state, best_val_loss, pruner, ema, history}
+initial_state = {trainer, 0, false, early_stopping_state, nil, pruner, ema, []}
 
-{final_trainer, epochs_completed, stopped_early, _es_state, _best_val, _final_pruner, final_ema} =
-  Enum.reduce_while(1..opts[:epochs], initial_state, fn epoch, {current_trainer, _, _, es_state, best_val_loss, current_pruner, current_ema} ->
+{final_trainer, epochs_completed, stopped_early, _es_state, _best_val, _final_pruner, final_ema, training_history} =
+  Enum.reduce_while(1..opts[:epochs], initial_state, fn epoch, {current_trainer, _, _, es_state, best_val_loss, current_pruner, current_ema, history} ->
     epoch_start = System.monotonic_time(:second)
 
     # Create batched dataset for this epoch
     # Use appropriate batching function based on temporal mode
     # Note: augmentation is only applied to non-temporal (single-frame) batches
     # Temporal batches use pre-computed embeddings, so augmentation happens at sequence creation
-    batches = if opts[:temporal] do
+    # Create batch stream
+    batch_stream = if opts[:temporal] do
       Data.batched_sequences(train_dataset,
         batch_size: opts[:batch_size],
         shuffle: true,
@@ -496,19 +562,24 @@ initial_state = {trainer, 0, false, early_stopping_state, nil, pruner, ema}
         augment_fn: augment_fn
       )
     end
-    |> Enum.to_list()
 
+    # Materialize batches (prefetching happens at batch creation level in Data module)
+    batches = Enum.to_list(batch_stream)
     num_batches = length(batches)
 
-    # Epoch start message
+    # Epoch start message with GPU memory status
+    gpu_status = GPUUtils.memory_status_string()
+
     if epoch > 1 do
       Output.puts("\n  ─── Epoch #{epoch}/#{opts[:epochs]} ───")
+      Output.puts("  #{gpu_status}")
       Output.puts("  Starting #{num_batches} batches...")
     end
 
     # Train epoch with JIT compilation indicator
     jit_indicator_shown = if epoch == 1 do
       Output.puts("  ─── Epoch 1/#{opts[:epochs]} ───")
+      Output.puts("  #{gpu_status}")
       Output.puts("  ⏳ JIT compiling model (first batch)... this may take 2-5 minutes")
       Output.puts("     (subsequent batches will be fast)")
       true
@@ -519,7 +590,8 @@ initial_state = {trainer, 0, false, early_stopping_state, nil, pruner, ema}
     # Track timing for ETA calculation
     epoch_batch_start = System.monotonic_time(:millisecond)
 
-    {updated_trainer, epoch_losses, _} = Enum.reduce(Enum.with_index(batches), {current_trainer, [], jit_indicator_shown}, fn {batch, batch_idx}, {t, losses, jit_shown} ->
+    # Define batch processing function (shared by prefetch and non-prefetch paths)
+    process_batch = fn batch, batch_idx, {t, losses, jit_shown} ->
       batch_start = System.monotonic_time(:millisecond)
       # Note: loss_fn is ignored by train_step (it uses cached predict_fn internally)
       {new_trainer, metrics} = Imitation.train_step(t, batch, nil)
@@ -528,36 +600,52 @@ initial_state = {trainer, 0, false, early_stopping_state, nil, pruner, ema}
       # Show JIT completion message after first batch
       new_jit_shown = if jit_shown and batch_idx == 0 do
         Output.puts("\n  ✓ JIT compilation complete (took #{Float.round(batch_time_ms / 1000, 1)}s)")
-        Output.puts("    Training started - progress updates every 5%\n")
-        true  # Keep as true, we'll handle first progress differently
+        true
       else
         jit_shown
       end
 
-      # Progress indicator: every 2% OR at least every 50 batches (frequent updates)
-      progress_interval = max(1, min(50, div(num_batches, 50)))
-      show_progress = (rem(batch_idx + 1, progress_interval) == 0) and batch_idx > 0
+      # Live progress bar - updates in place using carriage return
+      # Update every batch for smooth progress (terminal handles the refresh)
+      pct = round((batch_idx + 1) / num_batches * 100)
+      elapsed_total_ms = System.monotonic_time(:millisecond) - epoch_batch_start
+      avg_batch_ms = elapsed_total_ms / (batch_idx + 1)
+      remaining_batches = num_batches - (batch_idx + 1)
+      eta_sec = round(remaining_batches * avg_batch_ms / 1000)
+      eta_min = div(eta_sec, 60)
+      eta_sec_rem = rem(eta_sec, 60)
 
-      if show_progress do
-        pct = round((batch_idx + 1) / num_batches * 100)
-        elapsed_total_ms = System.monotonic_time(:millisecond) - epoch_batch_start
-        avg_batch_ms = elapsed_total_ms / (batch_idx + 1)
-        remaining_batches = num_batches - (batch_idx + 1)
-        eta_sec = round(remaining_batches * avg_batch_ms / 1000)
-        eta_min = div(eta_sec, 60)
-        eta_sec_rem = rem(eta_sec, 60)
+      # Format: Epoch 1: ████████░░ 40% | 642/1606 | loss: 0.1234 | 0.5s/it | ETA: 8m 12s
+      bar_width = 20
+      filled = round(pct / 100 * bar_width)
+      bar = String.duplicate("█", filled) <> String.duplicate("░", bar_width - filled)
 
-        # Format: Epoch 1: ████████░░ 40% | batch 642/1606 | loss: 0.1234 | 0.5s/batch | ETA: 8m 12s
-        bar_width = 10
-        filled = round(pct / 100 * bar_width)
-        bar = String.duplicate("█", filled) <> String.duplicate("░", bar_width - filled)
+      # Pad percentage to fixed width for stable display
+      pct_str = pct |> Integer.to_string() |> String.pad_leading(3)
 
-        progress_line = "  Epoch #{epoch}: #{bar} #{pct}% | batch #{batch_idx + 1}/#{num_batches} | loss: #{Float.round(metrics.loss, 4)} | #{Float.round(avg_batch_ms / 1000, 2)}s/batch | ETA: #{eta_min}m #{eta_sec_rem}s"
-        Output.puts(progress_line)
+      progress_line = "  Epoch #{epoch}: #{bar} #{pct_str}% | #{batch_idx + 1}/#{num_batches} | loss: #{Float.round(metrics.loss, 4)} | #{Float.round(avg_batch_ms / 1000, 2)}s/it | ETA: #{eta_min}m #{eta_sec_rem}s"
+
+      # Use carriage return to overwrite line (no newline until epoch complete)
+      # Write directly to stderr to bypass Output module's timestamp
+      IO.write(:stderr, "\r#{progress_line}")
+
+      # Print newline at end of epoch
+      if batch_idx + 1 == num_batches do
+        IO.write(:stderr, "\n")
       end
 
       {new_trainer, [metrics.loss | losses], new_jit_shown}
-    end)
+    end
+
+    # Use prefetcher if enabled (loads next batch while GPU trains on current)
+    {updated_trainer, epoch_losses, _} = if opts[:prefetch] do
+      Prefetcher.reduce_indexed(batches, {current_trainer, [], jit_indicator_shown}, process_batch)
+    else
+      # Standard sequential processing
+      Enum.reduce(Enum.with_index(batches), {current_trainer, [], jit_indicator_shown}, fn {batch, batch_idx}, acc ->
+        process_batch.(batch, batch_idx, acc)
+      end)
+    end
 
     epoch_time = System.monotonic_time(:second) - epoch_start
     avg_loss = Enum.sum(epoch_losses) / length(epoch_losses)
@@ -584,12 +672,24 @@ initial_state = {trainer, 0, false, early_stopping_state, nil, pruner, ema}
       {nil, :continue, ""}
     end
 
+    # Track epoch metrics for loss plot
+    epoch_entry = %{
+      epoch: epoch,
+      train_loss: avg_loss,
+      val_loss: if(val_dataset.size > 0, do: val_loss, else: nil),
+      time_seconds: epoch_time
+    }
+    updated_history = [epoch_entry | history]
+
     Output.puts("")
     if val_dataset.size > 0 do
       Output.puts("  ✓ Epoch #{epoch} complete: train_loss=#{Float.round(avg_loss, 4)} val_loss=#{Float.round(val_loss, 4)} (#{epoch_time}s)#{es_message}")
     else
       Output.puts("  ✓ Epoch #{epoch} complete: train_loss=#{Float.round(avg_loss, 4)} (#{epoch_time}s)#{es_message}")
     end
+
+    # Update incomplete marker for crash recovery
+    Recovery.mark_epoch_complete(opts[:checkpoint], epoch, val_loss)
 
     # Save best model if this is the best loss so far (val_loss if available, else train_loss)
     is_new_best = best_val_loss == nil or val_loss < best_val_loss
@@ -653,9 +753,9 @@ initial_state = {trainer, 0, false, early_stopping_state, nil, pruner, ema}
     case es_decision do
       :stop ->
         Output.puts("\n  ⚠ Early stopping triggered - no improvement for #{opts[:patience]} epochs")
-        {:halt, {updated_trainer, epoch, true, new_es_state, new_best_val_loss, updated_pruner, updated_ema}}
+        {:halt, {updated_trainer, epoch, true, new_es_state, new_best_val_loss, updated_pruner, updated_ema, updated_history}}
       :continue ->
-        {:cont, {updated_trainer, epoch, false, new_es_state, new_best_val_loss, updated_pruner, updated_ema}}
+        {:cont, {updated_trainer, epoch, false, new_es_state, new_best_val_loss, updated_pruner, updated_ema, updated_history}}
     end
   end)
 
@@ -715,6 +815,29 @@ training_config = Config.build_config_json(opts, training_results)
 case File.write(config_path, Jason.encode!(training_config, pretty: true)) do
   :ok -> Output.puts("  ✓ Config saved to #{config_path}")
   {:error, reason} -> Output.puts("  ✗ Config save failed: #{inspect(reason)}")
+end
+
+# Generate training loss plot
+if length(training_history) > 0 do
+  # History is in reverse order (most recent first)
+  plot_history = Enum.reverse(training_history)
+  plot_path = String.replace(opts[:checkpoint], ".axon", "_loss.html")
+
+  try do
+    Plots.save_report!(plot_history, plot_path,
+      title: "Training Report: #{model_name}",
+      metadata: [
+        preset: opts[:preset] || "custom",
+        epochs: epochs_completed,
+        batch_size: opts[:batch_size],
+        temporal: opts[:temporal],
+        backbone: opts[:backbone]
+      ]
+    )
+    Output.puts("  ✓ Loss plot saved to #{plot_path}")
+  rescue
+    e -> Output.puts("  ⚠ Loss plot generation failed: #{inspect(e)}")
+  end
 end
 
 # Step 6: Register model in registry
@@ -793,3 +916,6 @@ if Wandb.active?() do
   Wandb.finish_run()
   Output.puts("Wandb run finished.")
 end
+
+# Remove incomplete marker - training completed successfully
+Recovery.mark_complete(opts[:checkpoint])

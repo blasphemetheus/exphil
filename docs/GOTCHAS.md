@@ -19,6 +19,8 @@ Hard-won knowledge from debugging ExPhil. Each section documents a specific issu
 13. [Mix stale builds](#13-mix-stale-builds)
 14. [BinaryBackend timeouts in tests](#14-binarybackend-timeouts-in-tests)
 15. [RTX 5090 (Blackwell) not supported by EXLA](#15-rtx-5090-blackwell-not-supported-by-exla)
+16. [Noisy XLA/CUDA output during training](#16-noisy-xlacuda-output-during-training)
+17. [Polaris.Schedules incompatibility with Nx 0.10](#17-polarisschedules-incompatibility-with-nx-010)
 
 ---
 
@@ -355,3 +357,94 @@ RuntimeError: No PTX compilation provider is available. Neither ptxas/nvlink nor
 | RTX 5090 | $0.70 | ❌ Not supported |
 
 The RTX 4090 is actually better value for ExPhil's model size (24GB VRAM is plenty).
+
+---
+
+## 16. Noisy XLA/CUDA output during training
+
+Training produces lots of informational messages from XLA, CUDA, and cuDNN that clutter output.
+
+**Symptoms:**
+```
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1768939388.742377 se_gpu_pjrt_client.cc:1101] Using BFC allocator.
+All configs were filtered out because none of them sufficiently match the hints...
+ptxas warning : Registers are spilled to local memory in function 'gemm_fusion_dot_3'...
+XLA service 0x797951898c70 initialized for platform CUDA...
+```
+
+**These are harmless:**
+- **absl::InitializeLog warning**: Google logging library init message
+- **BFC allocator**: XLA memory allocator initialization (normal)
+- **"configs filtered out"**: EXLA autotuning falling back to full search (normal)
+- **ptxas register spill**: GPU compiler couldn't fit all vars in registers (minor perf impact)
+- **XLA service initialized**: Confirmation that GPU is working
+
+**Suppression options:**
+
+1. **XLA/TensorFlow C++ logs** (`I0000`, `WARNING: All log messages before absl`):
+   ```bash
+   # Suppress all TF/XLA C++ logs (0=all, 1=info, 2=warning, 3=error)
+   TF_CPP_MIN_LOG_LEVEL=3 mix run scripts/train_from_replays.exs
+   ```
+
+2. **Elixir Logger info messages** (`[info] XLA service initialized`):
+   ```elixir
+   # In config/runtime.exs or at script start:
+   Logger.configure(level: :warning)
+   ```
+   Or via environment:
+   ```bash
+   ELIXIR_LOG_LEVEL=warning mix run scripts/train_from_replays.exs
+   ```
+
+3. **Combined suppression (recommended for clean output):**
+   ```bash
+   TF_CPP_MIN_LOG_LEVEL=2 mix run scripts/train_from_replays.exs 2>&1 | \
+     grep -v "ptxas warning\|configs were filtered\|BFC allocator\|XLA backend"
+   ```
+
+4. **Add to your shell profile for permanent suppression:**
+   ```bash
+   # In ~/.bashrc or ~/.zshrc
+   export TF_CPP_MIN_LOG_LEVEL=2
+   ```
+
+5. **Docker/RunPod - add to run command:**
+   ```bash
+   docker run -e TF_CPP_MIN_LOG_LEVEL=2 ...
+   ```
+
+**What each level suppresses:**
+| TF_CPP_MIN_LOG_LEVEL | Suppresses |
+|---------------------|------------|
+| 0 | Nothing (default) |
+| 1 | INFO messages |
+| 2 | INFO + WARNING |
+| 3 | INFO + WARNING + ERROR |
+
+**Note:** Level 2 is usually best - keeps errors visible while hiding noise.
+
+**Why these appear:** XLA (the compiler backend EXLA uses) comes from TensorFlow/JAX and uses Google's logging infrastructure. These are initialization confirmations, not problems.
+
+**Best practice:** The messages don't affect training. Use `TF_CPP_MIN_LOG_LEVEL=2` for cleaner output while keeping actual errors visible.
+
+---
+
+## 17. Polaris.Schedules incompatibility with Nx 0.10
+
+Polaris 0.1.0's schedule functions don't work with Nx 0.10 when `warmup_steps` is 0.
+
+**Symptoms:**
+```elixir
+** (FunctionClauseError) no function clause matching in Nx.apply_vectorized/2
+    The following arguments were given to Nx.apply_vectorized/2:
+        # 1
+        [init_value: 0.0001]
+```
+
+**Root cause:** Polaris schedules return a keyword list `[init_value: lr]` instead of a proper schedule function when certain parameters are 0.
+
+**Fix in ExPhil:** We replaced Polaris.Schedules with direct Nx implementations in `lib/exphil/training/imitation.ex`. The default `warmup_steps` is set to 1 (not 0) to avoid triggering the bug.
+
+**If you see this error:** Ensure you're using the latest code with `--warmup-steps 1` or rebuild the Docker image.

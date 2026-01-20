@@ -16,7 +16,8 @@ defmodule ExPhil.Training.Config do
 
   @valid_presets [
     :quick, :standard, :full, :full_cpu,
-    :gpu_quick, :gpu_standard, :production,
+    :gpu_quick, :gpu_mlp_quick, :gpu_lstm_quick, :gpu_gru_quick, :gpu_attention_quick,
+    :gpu_standard, :production,
     :mewtwo, :ganondorf, :link, :gameandwatch, :zelda
   ]
 
@@ -68,7 +69,7 @@ defmodule ExPhil.Training.Config do
       # Learning rate
       learning_rate: 1.0e-4,
       lr_schedule: :constant,
-      warmup_steps: 0,
+      warmup_steps: 1,  # 1 instead of 0 to avoid Polaris/Nx 0.10 compatibility bug
       decay_steps: nil,
       # Cosine restarts (SGDR)
       restart_period: 1000,     # Initial period before first restart (T_0)
@@ -96,7 +97,16 @@ defmodule ExPhil.Training.Config do
       keep_best: nil,  # nil = no pruning, N = keep best N epoch checkpoints
       # Model EMA
       ema: false,
-      ema_decay: 0.999
+      ema_decay: 0.999,
+      # Embedding precomputation (2-3x speedup for MLP training)
+      precompute: false,
+      # Data prefetching (load next batch while GPU trains)
+      prefetch: true,
+      prefetch_buffer: 2,  # Number of batches to prefetch
+      # Layer normalization for MLP backbone
+      layer_norm: false,
+      # Optimizer selection
+      optimizer: :adam  # :adam, :adamw, :lamb, :radam
     ]
   end
 
@@ -115,8 +125,12 @@ defmodule ExPhil.Training.Config do
   - `:full_cpu` - Maximum CPU quality (20 epochs, 100 files, all regularization)
 
   ### GPU Presets (Requires CUDA/ROCm)
-  - `:gpu_quick` - Fast GPU test (3 epochs, 20 files, larger batches)
-  - `:gpu_standard` - Standard GPU training (15 epochs, Mamba, all features)
+  - `:gpu_quick` - Fast GPU test (3 epochs, 20 files, Mamba temporal)
+  - `:gpu_mlp_quick` - Fastest GPU test (5 epochs, 50 files, MLP + precompute, 2-3x faster)
+  - `:gpu_lstm_quick` - LSTM backbone test (3 epochs, 30 files)
+  - `:gpu_gru_quick` - GRU backbone test (3 epochs, 30 files)
+  - `:gpu_attention_quick` - Attention backbone test (3 epochs, 30 files)
+  - `:gpu_standard` - Standard GPU training (20 epochs, Mamba, all features)
   - `:full` - High quality GPU (50 epochs, Mamba, temporal, full regularization)
   - `:production` - Maximum quality (100 epochs, Mamba, all optimizations, EMA)
 
@@ -191,6 +205,8 @@ defmodule ExPhil.Training.Config do
       lr_schedule: :cosine,
       learning_rate: 3.0e-4,
       save_best: true,
+      # Precompute embeddings for 2-3x speedup (MLP only)
+      precompute: true,
       preset: :standard
     ]
   end
@@ -224,6 +240,8 @@ defmodule ExPhil.Training.Config do
       ema_decay: 0.999,
       save_best: true,
       keep_best: 3,
+      # Precompute embeddings for 2-3x speedup (MLP only)
+      precompute: true,
       preset: :full_cpu
     ]
   end
@@ -248,6 +266,85 @@ defmodule ExPhil.Training.Config do
       augment: true,
       val_split: 0.1,
       preset: :gpu_quick
+    ]
+  end
+
+  def preset(:gpu_mlp_quick) do
+    # Fast GPU test with MLP + precomputed embeddings (fastest iteration)
+    # Use: mix run scripts/train_from_replays.exs --preset gpu_mlp_quick
+    # ~2-3x faster than temporal training, good for rapid iteration
+    [
+      epochs: 5,
+      max_files: 50,
+      batch_size: 256,
+      hidden_sizes: [128, 128],
+      temporal: false,
+      # Precompute embeddings for maximum speed
+      precompute: true,
+      # Light regularization
+      augment: true,
+      mirror_prob: 0.5,
+      val_split: 0.1,
+      # LR schedule
+      lr_schedule: :cosine,
+      learning_rate: 3.0e-4,
+      warmup_steps: 100,
+      preset: :gpu_mlp_quick
+    ]
+  end
+
+  def preset(:gpu_lstm_quick) do
+    # GPU test with LSTM backbone
+    # Use: mix run scripts/train_from_replays.exs --preset gpu_lstm_quick
+    [
+      epochs: 3,
+      max_files: 30,
+      batch_size: 128,
+      hidden_sizes: [64, 64],
+      temporal: true,
+      backbone: :lstm,
+      window_size: 30,
+      num_layers: 1,
+      augment: true,
+      val_split: 0.1,
+      preset: :gpu_lstm_quick
+    ]
+  end
+
+  def preset(:gpu_gru_quick) do
+    # GPU test with GRU backbone
+    # Use: mix run scripts/train_from_replays.exs --preset gpu_gru_quick
+    [
+      epochs: 3,
+      max_files: 30,
+      batch_size: 128,
+      hidden_sizes: [64, 64],
+      temporal: true,
+      backbone: :gru,
+      window_size: 30,
+      num_layers: 1,
+      augment: true,
+      val_split: 0.1,
+      preset: :gpu_gru_quick
+    ]
+  end
+
+  def preset(:gpu_attention_quick) do
+    # GPU test with attention backbone
+    # Use: mix run scripts/train_from_replays.exs --preset gpu_attention_quick
+    [
+      epochs: 3,
+      max_files: 30,
+      batch_size: 128,
+      hidden_sizes: [64, 64],
+      temporal: true,
+      backbone: :attention,
+      window_size: 30,
+      num_layers: 1,
+      num_heads: 4,
+      augment: true,
+      val_split: 0.1,
+      preset: :gpu_attention_quick
     ]
   end
 
@@ -445,10 +542,84 @@ defmodule ExPhil.Training.Config do
   end
 
   # ============================================================================
+  # Config Diff Display
+  # ============================================================================
+
+  @doc """
+  Get a list of options that differ from defaults.
+
+  Useful for displaying at training start to verify configuration.
+  Returns a list of `{key, current_value, default_value}` tuples.
+
+  ## Options
+
+  - `:skip` - List of keys to skip (default: [:replays, :checkpoint, :name, :wandb_name])
+  - `:include_nil` - Include keys where current is nil but default is not (default: false)
+
+  ## Examples
+
+      iex> Config.diff_from_defaults(epochs: 20, batch_size: 64)
+      [{:epochs, 20, 10}]
+
+      iex> Config.diff_from_defaults(defaults())
+      []
+  """
+  @spec diff_from_defaults(keyword(), keyword()) :: [{atom(), any(), any()}]
+  def diff_from_defaults(opts, diff_opts \\ []) do
+    defaults = defaults()
+    skip_keys = Keyword.get(diff_opts, :skip, [:replays, :checkpoint, :name, :wandb_name, :wandb_project])
+    include_nil = Keyword.get(diff_opts, :include_nil, false)
+
+    opts
+    |> Enum.filter(fn {key, value} ->
+      key not in skip_keys and
+      Keyword.has_key?(defaults, key) and
+      value != Keyword.get(defaults, key) and
+      (include_nil or value != nil)
+    end)
+    |> Enum.map(fn {key, value} ->
+      {key, value, Keyword.get(defaults, key)}
+    end)
+    |> Enum.sort_by(fn {key, _, _} -> key end)
+  end
+
+  @doc """
+  Format config diff as a human-readable string.
+
+  Returns a string showing changed settings, or nil if no changes.
+
+  ## Examples
+
+      iex> Config.format_diff(epochs: 20, batch_size: 128)
+      "  epochs: 20 (default: 10)\\n  batch_size: 128 (default: 64)"
+  """
+  @spec format_diff(keyword()) :: String.t() | nil
+  def format_diff(opts) do
+    diff = diff_from_defaults(opts)
+
+    if Enum.empty?(diff) do
+      nil
+    else
+      diff
+      |> Enum.map(fn {key, current, default} ->
+        "  #{key}: #{format_value(current)} (default: #{format_value(default)})"
+      end)
+      |> Enum.join("\n")
+    end
+  end
+
+  defp format_value(value) when is_list(value), do: inspect(value, charlists: :as_lists)
+  defp format_value(value) when is_atom(value), do: ":#{value}"
+  defp format_value(value) when is_float(value), do: :io_lib.format("~.1e", [value]) |> IO.iodata_to_binary()
+  defp format_value(nil), do: "nil"
+  defp format_value(value), do: "#{value}"
+
+  # ============================================================================
   # Validation
   # ============================================================================
 
-  @valid_backbones [:lstm, :gru, :mamba, :sliding_window, :hybrid]
+  @valid_backbones [:lstm, :gru, :mamba, :attention, :sliding_window, :hybrid]
+  @valid_optimizers [:adam, :adamw, :lamb, :radam, :sgd, :rmsprop]
 
   @doc """
   Validate training options and return errors/warnings.
@@ -525,6 +696,7 @@ defmodule ExPhil.Training.Config do
     |> validate_hidden_sizes(opts)
     |> validate_temporal_backbone(opts)
     |> validate_precision(opts)
+    |> validate_optimizer(opts)
     |> validate_replays_dir(opts)
     |> validate_positive(opts, :patience)
     |> validate_positive_float(opts, :min_delta)
@@ -647,6 +819,14 @@ defmodule ExPhil.Training.Config do
       p when p in [:bf16, :f32] -> errors
       nil -> errors
       other -> ["precision must be :bf16 or :f32, got: #{inspect(other)}" | errors]
+    end
+  end
+
+  defp validate_optimizer(errors, opts) do
+    case opts[:optimizer] do
+      o when o in @valid_optimizers -> errors
+      nil -> errors
+      other -> ["optimizer must be one of #{inspect(@valid_optimizers)}, got: #{inspect(other)}" | errors]
     end
   end
 
@@ -914,6 +1094,21 @@ defmodule ExPhil.Training.Config do
     |> parse_optional_int_arg(args, "--keep-best", :keep_best)
     |> parse_flag(args, "--ema", :ema)
     |> parse_float_arg(args, "--ema-decay", :ema_decay)
+    |> parse_flag(args, "--precompute", :precompute)
+    |> parse_flag(args, "--prefetch", :prefetch)
+    |> parse_flag(args, "--no-prefetch", :no_prefetch)
+    |> then(fn opts ->
+      # --no-prefetch disables prefetching
+      if opts[:no_prefetch], do: Keyword.put(opts, :prefetch, false), else: opts
+    end)
+    |> parse_int_arg(args, "--prefetch-buffer", :prefetch_buffer)
+    |> parse_flag(args, "--layer-norm", :layer_norm)
+    |> parse_flag(args, "--no-layer-norm", :no_layer_norm)
+    |> then(fn opts ->
+      # --no-layer-norm disables layer normalization
+      if opts[:no_layer_norm], do: Keyword.put(opts, :layer_norm, false), else: opts
+    end)
+    |> parse_atom_arg(args, "--optimizer", :optimizer)
   end
 
   defp has_flag_value?(args, flag) do

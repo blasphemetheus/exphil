@@ -240,6 +240,7 @@ defmodule ExPhil.Networks.MambaTest do
       assert Keyword.get(defaults, :window_size) == 60
     end
 
+    @tag :slow
     test "builds a valid model with defaults" do
       defaults = Mamba.melee_defaults()
 

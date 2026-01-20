@@ -213,6 +213,7 @@ defmodule ExPhil.TrainingTest do
   end
 
   describe "Imitation module" do
+    @tag :slow
     test "new/1 creates trainer with default config" do
       trainer = Imitation.new(embed_size: 512)
 
@@ -221,6 +222,7 @@ defmodule ExPhil.TrainingTest do
       assert trainer.config.learning_rate == 1.0e-4
     end
 
+    @tag :slow
     test "new/1 accepts custom config" do
       trainer = Imitation.new(
         embed_size: 1024,
@@ -233,6 +235,7 @@ defmodule ExPhil.TrainingTest do
       assert trainer.config.learning_rate == 3.0e-4
     end
 
+    @tag :slow
     test "train_step/3 builds loss function" do
       # Note: Full gradient computation requires Axon.Loop for proper
       # ModelState handling in newer Axon versions. This test verifies
@@ -267,6 +270,7 @@ defmodule ExPhil.TrainingTest do
       assert Nx.shape(loss) == {}  # Scalar
     end
 
+    @tag :slow
     test "metrics_summary/1 computes summary" do
       trainer = Imitation.new(embed_size: 512)
 
@@ -289,6 +293,7 @@ defmodule ExPhil.TrainingTest do
       assert summary.max_loss == 0.5
     end
 
+    @tag :slow
     test "get_action/3 returns action samples" do
       trainer = Imitation.new(embed_size: 512)
 
@@ -303,6 +308,7 @@ defmodule ExPhil.TrainingTest do
       assert Map.has_key?(action, :shoulder)
     end
 
+    @tag :slow
     test "get_controller_action/3 returns ControllerState" do
       trainer = Imitation.new(embed_size: 512)
 
@@ -319,6 +325,7 @@ defmodule ExPhil.TrainingTest do
   end
 
   describe "PPO module" do
+    @tag :slow
     test "new/1 creates trainer with default config" do
       trainer = PPO.new(embed_size: 512)
 
@@ -327,6 +334,7 @@ defmodule ExPhil.TrainingTest do
       assert trainer.config.clip_range == 0.2
     end
 
+    @tag :slow
     test "new/1 accepts custom config" do
       trainer = PPO.new(
         embed_size: 1024,
@@ -340,6 +348,7 @@ defmodule ExPhil.TrainingTest do
       assert trainer.config.entropy_coef == 0.05
     end
 
+    @tag :slow
     test "get_action/3 returns action samples" do
       trainer = PPO.new(embed_size: 512)
 
@@ -358,6 +367,7 @@ defmodule ExPhil.TrainingTest do
       assert Map.has_key?(result, :value)
     end
 
+    @tag :slow
     test "get_value/2 returns value estimate" do
       trainer = PPO.new(embed_size: 512)
 
@@ -369,6 +379,7 @@ defmodule ExPhil.TrainingTest do
       assert is_float(value)
     end
 
+    @tag :slow
     test "metrics_summary/1 computes summary" do
       trainer = PPO.new(embed_size: 512)
 
@@ -403,6 +414,7 @@ defmodule ExPhil.TrainingTest do
       assert dataset.size == 50
     end
 
+    @tag :slow
     test "export_policy/2 and load_policy/1 round-trip for Imitation" do
       trainer = Imitation.new(embed_size: 256)
 
@@ -421,6 +433,7 @@ defmodule ExPhil.TrainingTest do
       assert Map.has_key?(loaded, :config)
     end
 
+    @tag :slow
     test "export_policy/2 and load_policy/1 round-trip for PPO" do
       trainer = PPO.new(embed_size: 256, hidden_sizes: [64])
 
@@ -441,6 +454,7 @@ defmodule ExPhil.TrainingTest do
       assert {:error, _} = result
     end
 
+    @tag :slow
     test "get_action/3 dispatches to Imitation trainer" do
       trainer = Imitation.new(embed_size: 256, hidden_sizes: [64])
       state = Nx.broadcast(0.5, {1, 256})
@@ -452,6 +466,7 @@ defmodule ExPhil.TrainingTest do
       assert Map.has_key?(action, :buttons)
     end
 
+    @tag :slow
     test "get_action/3 dispatches to PPO trainer" do
       trainer = PPO.new(embed_size: 256, hidden_sizes: [64])
       state = Nx.broadcast(0.5, {1, 256})
@@ -463,6 +478,7 @@ defmodule ExPhil.TrainingTest do
       assert Map.has_key?(action, :value)
     end
 
+    @tag :slow
     test "get_controller_action/3 dispatches to Imitation trainer" do
       trainer = Imitation.new(embed_size: 256, hidden_sizes: [64])
       state = Nx.broadcast(0.5, {1, 256})
@@ -473,6 +489,7 @@ defmodule ExPhil.TrainingTest do
       assert is_map(cs.main_stick)
     end
 
+    @tag :slow
     test "get_controller_action/3 dispatches to PPO trainer" do
       trainer = PPO.new(embed_size: 256, hidden_sizes: [64])
       state = Nx.broadcast(0.5, {1, 256})
@@ -483,6 +500,7 @@ defmodule ExPhil.TrainingTest do
       assert is_map(cs.main_stick)
     end
 
+    @tag :slow
     test "metrics_summary/1 dispatches to Imitation trainer" do
       trainer = Imitation.new(embed_size: 256)
 
@@ -492,6 +510,7 @@ defmodule ExPhil.TrainingTest do
       assert Map.has_key?(summary, :avg_loss)
     end
 
+    @tag :slow
     test "metrics_summary/1 dispatches to PPO trainer" do
       trainer = PPO.new(embed_size: 256)
 

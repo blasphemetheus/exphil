@@ -25,6 +25,7 @@ defmodule ExPhil.NetworksTest do
       assert %Axon{} = model
     end
 
+    @tag :slow
     test "model outputs tuple of 6 components" do
       model = Policy.build(embed_size: @embed_size)
       {init_fn, predict_fn} = Axon.build(model)
@@ -43,6 +44,7 @@ defmodule ExPhil.NetworksTest do
       assert Nx.shape(shoulder) == {@batch_size, 5}
     end
 
+    @tag :slow
     test "respects custom axis_buckets" do
       model = Policy.build(embed_size: @embed_size, axis_buckets: 8)
       {init_fn, predict_fn} = Axon.build(model)
@@ -54,6 +56,26 @@ defmodule ExPhil.NetworksTest do
 
       # 8 buckets + 1 = 9 output classes
       assert Nx.shape(main_x) == {1, 9}
+    end
+
+    @tag :slow
+    test "supports layer normalization" do
+      # Build model without layer norm
+      model_no_ln = Policy.build(embed_size: @embed_size, hidden_sizes: [64, 64], layer_norm: false)
+      {init_fn_no_ln, _} = Axon.build(model_no_ln)
+      params_no_ln = init_fn_no_ln.(Nx.template({1, @embed_size}, :f32), Axon.ModelState.empty())
+
+      # Build model with layer norm
+      model_with_ln = Policy.build(embed_size: @embed_size, hidden_sizes: [64, 64], layer_norm: true)
+      {init_fn_with_ln, _} = Axon.build(model_with_ln)
+      params_with_ln = init_fn_with_ln.(Nx.template({1, @embed_size}, :f32), Axon.ModelState.empty())
+
+      # Layer norm model should have additional parameters (gamma, beta per layer)
+      # backbone_ln_0 and backbone_ln_1 should exist in layer norm model's data
+      assert Map.has_key?(params_with_ln.data, "backbone_ln_0")
+      assert Map.has_key?(params_with_ln.data, "backbone_ln_1")
+      refute Map.has_key?(params_no_ln.data, "backbone_ln_0")
+      refute Map.has_key?(params_no_ln.data, "backbone_ln_1")
     end
   end
 
@@ -175,6 +197,7 @@ defmodule ExPhil.NetworksTest do
       assert %Axon{} = model
     end
 
+    @tag :slow
     test "model outputs scalar values" do
       model = Value.build(embed_size: @embed_size)
       {init_fn, predict_fn} = Axon.build(model)
@@ -395,6 +418,7 @@ defmodule ExPhil.NetworksTest do
   end
 
   describe "Networks.sample/4" do
+    @tag :slow
     test "samples actions from policy" do
       model = Policy.build(embed_size: @embed_size)
       {init_fn, predict_fn} = Axon.build(model)
@@ -412,6 +436,7 @@ defmodule ExPhil.NetworksTest do
       assert Map.has_key?(samples, :shoulder)
     end
 
+    @tag :slow
     test "supports deterministic mode" do
       model = Policy.build(embed_size: @embed_size)
       {init_fn, predict_fn} = Axon.build(model)

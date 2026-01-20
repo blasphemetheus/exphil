@@ -838,7 +838,12 @@ defmodule ExPhil.Training.ConfigTest do
     end
 
     test "returns {:ok, opts} for default configuration" do
-      opts = Config.defaults()
+      # Override replays to a valid temp directory since defaults use ./replays
+      tmp_dir = System.tmp_dir!() |> Path.join("defaults_test_#{:erlang.unique_integer([:positive])}")
+      File.mkdir_p!(tmp_dir)
+      on_exit(fn -> File.rm_rf!(tmp_dir) end)
+
+      opts = Config.defaults() |> Keyword.put(:replays, tmp_dir)
       assert {:ok, _} = Config.validate(opts)
     end
 
@@ -1051,18 +1056,26 @@ defmodule ExPhil.Training.ConfigTest do
   end
 
   describe "validate/1 integration with parse_args" do
-    test "parsed args from preset are valid" do
-      opts = Config.parse_args(["--preset", "full"])
+    setup do
+      # Create a temp directory for replays to satisfy validation
+      tmp_dir = System.tmp_dir!() |> Path.join("config_test_#{:erlang.unique_integer([:positive])}")
+      File.mkdir_p!(tmp_dir)
+      on_exit(fn -> File.rm_rf!(tmp_dir) end)
+      %{tmp_dir: tmp_dir}
+    end
+
+    test "parsed args from preset are valid", %{tmp_dir: tmp_dir} do
+      opts = Config.parse_args(["--preset", "full", "--replays", tmp_dir])
       assert {:ok, _} = Config.validate(opts)
     end
 
-    test "parsed args with CLI overrides are valid" do
-      opts = Config.parse_args(["--preset", "quick", "--epochs", "5", "--batch-size", "128"])
+    test "parsed args with CLI overrides are valid", %{tmp_dir: tmp_dir} do
+      opts = Config.parse_args(["--preset", "quick", "--epochs", "5", "--batch-size", "128", "--replays", tmp_dir])
       assert {:ok, _} = Config.validate(opts)
     end
 
-    test "parsed temporal args are valid" do
-      opts = Config.parse_args(["--temporal", "--backbone", "mamba", "--window-size", "60"])
+    test "parsed temporal args are valid", %{tmp_dir: tmp_dir} do
+      opts = Config.parse_args(["--temporal", "--backbone", "mamba", "--window-size", "60", "--replays", tmp_dir])
       assert {:ok, _} = Config.validate(opts)
     end
   end
@@ -1279,9 +1292,9 @@ defmodule ExPhil.Training.ConfigTest do
       assert opts[:lr_schedule] == :linear
     end
 
-    test "warmup_steps defaults to 0" do
+    test "warmup_steps defaults to 1 (Polaris bug workaround)" do
       opts = Config.parse_args([])
-      assert opts[:warmup_steps] == 0
+      assert opts[:warmup_steps] == 1
     end
 
     test "parses --warmup-steps" do

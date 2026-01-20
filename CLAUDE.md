@@ -63,6 +63,7 @@ Detailed guides in `docs/`:
 | [RUNPOD_FILTER.md](docs/RUNPOD_FILTER.md) | Filter low-tier replays from large archives on RunPod |
 | [RCLONE_GDRIVE.md](docs/RCLONE_GDRIVE.md) | Download large files from Google Drive with rclone |
 | [TRAINING_IMPROVEMENTS.md](docs/TRAINING_IMPROVEMENTS.md) | Future optimization ideas and roadmap |
+| [TESTING.md](docs/TESTING.md) | Test harness, tags, factories, coverage |
 
 ## Quick Start
 
