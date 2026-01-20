@@ -6,8 +6,10 @@ Quick reference for building, testing, and deploying ExPhil Docker images.
 
 | Image | Purpose | Base |
 |-------|---------|------|
-| `exphil:gpu` | Cloud GPU training | `nvidia/cuda:11.8.0` |
+| `exphil:gpu` | Cloud GPU training | `nvidia/cuda:12.6.3-devel` |
 | `exphil:cpu` | Local testing | `ubuntu:22.04` |
+
+**Note:** CUDA 12.6+ required for RTX 5090 (Blackwell architecture). RTX 4090 and older also work.
 
 ## Building
 
@@ -100,10 +102,11 @@ docker pull bradleyfargo/exphil:gpu
 |-----|------|------|----------------|
 | RTX 3090 | $0.22 | 24GB | Budget option, good for testing |
 | RTX 4090 | $0.44 | 24GB | **Best value** - fast, affordable |
+| RTX 5090 | ~$0.70 | 32GB | Blackwell arch, requires CUDA 12.6+ |
 | A100 PCIe | $1.64 | 40GB | Overkill for your model size |
 | H100 | $3.89 | 80GB | Way overkill |
 
-**Recommendation:** Start with **RTX 4090** ($0.44/hr). Your model is small enough that 24GB VRAM is plenty.
+**Recommendation:** Start with **RTX 4090** ($0.44/hr). Your model is small enough that 24GB VRAM is plenty. RTX 5090 works but requires CUDA 12.6+ base image.
 
 #### Pod Configuration
 
@@ -141,15 +144,39 @@ nvidia-smi
 
 #### Upload Replays
 
-From your **local machine**:
+**Option 1: Direct TCP (if available)**
+
+From your **local machine**, using SSH over exposed TCP:
 
 ```bash
-# Replace IP and PORT with your pod's SSH details
+# Replace IP and PORT with your pod's SSH details (from Connect → SSH over exposed TCP)
 rsync -avz --progress \
   -e "ssh -p PORT" \
   ~/git/melee/replays/ \
   root@IP:/workspace/replays/
 ```
+
+**Option 2: Via file sharing service (if rsync/scp fail)**
+
+RunPod's SSH proxy doesn't support rsync/scp subsystems. Use a file sharing service:
+
+```bash
+# Local: create archive and upload
+cd ~/git/melee/replays
+tar czf replays.tar.gz mewtwo/
+curl -F "file=@replays.tar.gz" https://0x0.st
+# Returns URL like https://0x0.st/Hxyz.tar.gz
+
+# On pod: download and extract
+cd /workspace
+curl -L https://0x0.st/Hxyz.tar.gz -o replays.tar.gz
+tar xzf replays.tar.gz
+rm replays.tar.gz
+```
+
+**Option 3: Via Jupyter Lab**
+
+If port 8888 is exposed and Jupyter is running, use the web file browser to upload files directly.
 
 #### Run Training
 
@@ -433,6 +460,22 @@ Note: This won't fully work because the NIF is compiled for CUDA. Use `exphil:cp
 
 ### Rustler tries to recompile NIF
 The `skip_compilation?: Mix.env() == :prod` setting in `lib/exphil/data/peppi.ex` prevents this. If you see cargo errors, ensure you're running in prod mode (`MIX_ENV=prod`).
+
+### RTX 5090 (Blackwell) ptxas errors
+```
+RuntimeError: No PTX compilation provider is available
+ptxas does not support CC 12.0
+```
+RTX 5090 uses Compute Capability 12.0 (Blackwell architecture). Requires:
+1. CUDA 12.6.3+ base image (not 12.2)
+2. Use `devel` image (not `runtime`) to include `ptxas` for JIT compilation
+3. The current `Dockerfile.gpu` already handles this
+
+### curl/wget not found on pod
+The GPU image includes `curl`. If missing, install it:
+```bash
+apt-get update && apt-get install -y curl
+```
 
 ## Environment Variables
 
