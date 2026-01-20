@@ -441,6 +441,7 @@ Target characters: mewtwo, ganondorf, link, zelda, game_and_watch
     os.makedirs(args.output, exist_ok=True)
 
     total_counts = {}
+    archives_processed = 0
 
     # Handle local archives
     if args.local:
@@ -469,6 +470,7 @@ Target characters: mewtwo, ganondorf, link, zelda, game_and_watch
             else:
                 counts = process_local_archive(str(archive), args.output, args.cleanup)
 
+            archives_processed += 1
             for char, count in counts.items():
                 total_counts[char] = total_counts.get(char, 0) + count
 
@@ -506,6 +508,7 @@ Target characters: mewtwo, ganondorf, link, zelda, game_and_watch
             print(f"\n[{i}/{len(urls)}] Processing archive...")
             counts = process_archive(url, args.download_dir, args.output, args.cleanup)
 
+            archives_processed += 1
             for char, count in counts.items():
                 total_counts[char] = total_counts.get(char, 0) + count
 
@@ -519,7 +522,7 @@ Target characters: mewtwo, ganondorf, link, zelda, game_and_watch
     print(f"\n{'='*60}")
     print("COMPLETE!")
     print(f"{'='*60}")
-    print(f"Archives processed: {len(urls)}")
+    print(f"Archives processed: {archives_processed}")
     print(f"Total replays kept: {sum(total_counts.values())}")
     print(f"\nBy character:")
     for char, count in sorted(total_counts.items()):
