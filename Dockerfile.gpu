@@ -107,7 +107,7 @@ ENV LANG=C.UTF-8
 ENV MIX_ENV=prod
 
 # Install runtime dependencies
-# Note: NCCL and cuDNN are already included in CUDA 12.6 devel images
+# Note: NCCL is included in devel images, but cuDNN must be installed separately
 RUN apt-get update && apt-get install -y --no-install-recommends \
     # Runtime libs
     libncurses6 \
@@ -124,6 +124,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     # Utilities for file transfer
     curl \
+    # cuDNN 9 for deep learning (required by EXLA)
+    libcudnn9-cuda-12 \
     && rm -rf /var/lib/apt/lists/*
 
 # Set up Python
