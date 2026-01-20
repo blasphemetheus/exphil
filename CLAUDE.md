@@ -62,7 +62,8 @@ Detailed guides in `docs/`:
 | [docker-workflow.md](docs/docker-workflow.md) | Docker build, push, cloud GPU deployment |
 | [RUNPOD_FILTER.md](docs/RUNPOD_FILTER.md) | Filter low-tier replays from large archives on RunPod |
 | [RCLONE_GDRIVE.md](docs/RCLONE_GDRIVE.md) | Download large files from Google Drive with rclone |
-| [TRAINING_IMPROVEMENTS.md](docs/TRAINING_IMPROVEMENTS.md) | Future optimization ideas and roadmap |
+| [TRAINING_IMPROVEMENTS.md](docs/TRAINING_IMPROVEMENTS.md) | Training-specific optimizations |
+| [PROJECT_ROADMAP.md](docs/PROJECT_ROADMAP.md) | Comprehensive project improvement roadmap |
 | [TESTING.md](docs/TESTING.md) | Test harness, tags, factories, coverage |
 
 ## Quick Start
