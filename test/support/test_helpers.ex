@@ -240,4 +240,93 @@ defmodule ExPhil.Test.Helpers do
     end)
     |> Enum.sum()
   end
+
+  # ============================================================================
+  # Flaky Test Helpers
+  # ============================================================================
+
+  @doc """
+  Retry a test function multiple times until it succeeds.
+
+  Use this for tests that are known to be flaky due to timing,
+  network conditions, or other non-deterministic factors.
+
+  ## Options
+
+    - `:retries` - Number of retry attempts (default: 3)
+    - `:delay` - Delay in ms between retries (default: 100)
+    - `:log` - Whether to log retry attempts (default: false)
+
+  ## Example
+
+      test "flaky network operation" do
+        retry(retries: 3, delay: 200) do
+          result = NetworkClient.fetch()
+          assert result.status == 200
+        end
+      end
+
+  ## Best Practices
+
+  1. Investigate the root cause first - retries are a workaround
+  2. Tag flaky tests with `@tag :flaky` for tracking
+  3. Keep retry counts low (2-3 max)
+  4. Consider if the test can be made deterministic instead
+  """
+  defmacro retry(opts \\ [], do: block) do
+    quote do
+      retries = Keyword.get(unquote(opts), :retries, 3)
+      delay = Keyword.get(unquote(opts), :delay, 100)
+      log? = Keyword.get(unquote(opts), :log, false)
+
+      ExPhil.Test.Helpers.do_retry(retries, delay, log?, fn ->
+        unquote(block)
+      end)
+    end
+  end
+
+  @doc false
+  def do_retry(retries, delay, log?, fun, attempt \\ 1) do
+    try do
+      fun.()
+    rescue
+      e in [ExUnit.AssertionError] ->
+        if attempt < retries do
+          if log? do
+            IO.puts("[Flaky retry] Attempt #{attempt}/#{retries} failed: #{Exception.message(e)}")
+          end
+          Process.sleep(delay)
+          do_retry(retries, delay, log?, fun, attempt + 1)
+        else
+          reraise e, __STACKTRACE__
+        end
+    end
+  end
+
+  @doc """
+  Run a function and return whether it succeeded (for conditional logic).
+
+  ## Example
+
+      if eventually_succeeds?(fn -> check_resource_available() end, retries: 5) do
+        # proceed with test
+      else
+        # skip or handle gracefully
+      end
+  """
+  def eventually_succeeds?(fun, opts \\ []) do
+    retries = Keyword.get(opts, :retries, 3)
+    delay = Keyword.get(opts, :delay, 100)
+
+    Enum.reduce_while(1..retries, false, fn attempt, _acc ->
+      try do
+        fun.()
+        {:halt, true}
+      rescue
+        _ ->
+          if attempt < retries, do: Process.sleep(delay)
+          {:cont, false}
+      end
+    end)
+  end
 end

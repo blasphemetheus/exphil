@@ -26,7 +26,8 @@ defmodule ExPhil.MixProject do
         "test.all": :test,
         "test.slow": :test,
         "test.fast": :test,
-        "test.coverage": :test
+        "test.coverage": :test,
+        muzak: :test
       ]
     ]
   end
@@ -80,7 +81,8 @@ defmodule ExPhil.MixProject do
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
       {:excoveralls, "~> 0.18", only: :test},
       {:mox, "~> 1.1", only: :test},
-      {:stream_data, "~> 1.1", only: [:dev, :test]}
+      {:stream_data, "~> 1.1", only: [:dev, :test]},
+      {:muzak, "~> 1.1", only: :test}
     ]
   end
 
@@ -97,7 +99,11 @@ defmodule ExPhil.MixProject do
       "test.slow": ["test", "--include", "slow"],
       "test.all": ["test", "--include", "slow", "--include", "integration", "--include", "external"],
       "test.integration": ["test", "--only", "integration"],
-      "test.coverage": ["coveralls.html"]
+      "test.coverage": ["coveralls.html"],
+
+      # Mutation testing
+      "test.mutate": ["muzak"],
+      "test.mutate.quick": ["muzak", "--profile", "quick"]
     ]
   end
 end

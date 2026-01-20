@@ -47,9 +47,13 @@ defmodule ExPhil.Training.EarlyStopping do
 
   ## Examples
 
-      iex> state = EarlyStopping.init(patience: 3, min_delta: 0.005)
+      iex> state = ExPhil.Training.EarlyStopping.init(patience: 3, min_delta: 0.005)
       iex> state.patience
       3
+      iex> state.min_delta
+      0.005
+      iex> state.best_loss
+      nil
 
   """
   @spec init(keyword()) :: t()
@@ -71,10 +75,17 @@ defmodule ExPhil.Training.EarlyStopping do
 
   ## Examples
 
+      iex> alias ExPhil.Training.EarlyStopping
       iex> state = EarlyStopping.init(patience: 2)
-      iex> {state, :continue} = EarlyStopping.check(state, 1.0)  # epoch 1, new best
-      iex> {state, :continue} = EarlyStopping.check(state, 1.1)  # epoch 2, no improvement
-      iex> {state, :stop} = EarlyStopping.check(state, 1.2)      # epoch 3, patience exhausted
+      iex> {state, result1} = EarlyStopping.check(state, 1.0)  # epoch 1, new best
+      iex> result1
+      :continue
+      iex> {state, result2} = EarlyStopping.check(state, 1.1)  # epoch 2, no improvement
+      iex> result2
+      :continue
+      iex> {_state, result3} = EarlyStopping.check(state, 1.2)  # epoch 3, patience exhausted
+      iex> result3
+      :stop
 
   """
   @spec check(t(), float()) :: {t(), :continue | :stop}
@@ -122,6 +133,7 @@ defmodule ExPhil.Training.EarlyStopping do
 
   ## Examples
 
+      iex> alias ExPhil.Training.EarlyStopping
       iex> state = EarlyStopping.init(patience: 5)
       iex> {state, _} = EarlyStopping.check(state, 1.0)
       iex> EarlyStopping.summary(state)
@@ -145,6 +157,7 @@ defmodule ExPhil.Training.EarlyStopping do
 
   ## Examples
 
+      iex> alias ExPhil.Training.EarlyStopping
       iex> state = EarlyStopping.init()
       iex> {state, _} = EarlyStopping.check(state, 1.0)
       iex> EarlyStopping.is_best?(state, 0.9)
@@ -162,9 +175,16 @@ defmodule ExPhil.Training.EarlyStopping do
 
   ## Examples
 
-      iex> state = %EarlyStopping{best_loss: 1.0, epochs_without_improvement: 2, patience: 5}
+      iex> alias ExPhil.Training.EarlyStopping
+      iex> state = EarlyStopping.init(patience: 5)
       iex> EarlyStopping.status_message(state)
-      "best=1.0, no improvement for 2/5 epochs"
+      "initializing..."
+      iex> {state, _} = EarlyStopping.check(state, 1.0)
+      iex> EarlyStopping.status_message(state)
+      "new best loss: 1.0"
+      iex> {state, _} = EarlyStopping.check(state, 1.1)
+      iex> EarlyStopping.status_message(state)
+      "best=1.0, no improvement for 1/5 epochs"
 
   """
   @spec status_message(t()) :: String.t()

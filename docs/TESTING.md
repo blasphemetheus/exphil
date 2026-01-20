@@ -504,7 +504,166 @@ end
 - [x] Add mix aliases for common test commands
 - [x] Mox for mock-based testing
 - [x] Property-based testing with StreamData
+- [x] Profile and tag slow tests for faster feedback
 
 ### Planned
 - [ ] Create test fixtures for replay files
 - [ ] CI configuration examples
+- [ ] Mutation testing with Muzak
+- [ ] Doctest coverage for public APIs
+- [ ] Flaky test retry mechanism
+- [ ] Snapshot testing for embeddings
+
+## Mutation Testing
+
+Mutation testing verifies test quality by introducing small changes (mutations) to
+your code and checking if tests catch them. If a mutation survives (tests still pass),
+it indicates a gap in test coverage.
+
+### Setup (Planned)
+
+```elixir
+# In mix.exs deps
+{:muzak, "~> 1.1", only: :test}
+```
+
+### Running Mutation Tests
+
+```bash
+# Run mutation testing on a specific module
+mix muzak --only ExPhil.Embeddings.Player
+
+# Run with coverage threshold
+mix muzak --min-coverage 80
+```
+
+### Interpreting Results
+
+- **Killed mutations**: Tests caught the change (good)
+- **Survived mutations**: Tests missed the change (needs improvement)
+- **Equivalent mutations**: Change doesn't affect behavior (ignore)
+
+## Doctest Coverage
+
+Doctests serve dual purposes: documentation examples and executable tests.
+
+### Writing Doctests
+
+```elixir
+defmodule ExPhil.Example do
+  @moduledoc "Example module with doctests"
+
+  @doc """
+  Normalizes a value to the range [0, 1].
+
+  ## Examples
+
+      iex> ExPhil.Example.normalize(5, 0, 10)
+      0.5
+
+      iex> ExPhil.Example.normalize(0, 0, 100)
+      0.0
+
+      iex> ExPhil.Example.normalize(100, 0, 100)
+      1.0
+  """
+  def normalize(value, min, max) do
+    (value - min) / (max - min)
+  end
+end
+```
+
+### Running Doctests
+
+```bash
+# Doctests run automatically with mix test
+mix test
+
+# Run only doctests
+mix test --only doctest
+```
+
+## Flaky Test Handling
+
+Flaky tests (tests that sometimes pass, sometimes fail) undermine CI reliability.
+
+### Using the Retry Helper
+
+The `ExPhil.Test.Helpers` module provides a `retry` macro for handling flaky tests:
+
+```elixir
+defmodule MyTest do
+  use ExUnit.Case, async: true
+  import ExPhil.Test.Helpers
+
+  @tag :flaky
+  test "network operation that occasionally times out" do
+    retry retries: 3, delay: 200 do
+      result = NetworkClient.fetch()
+      assert result.status == 200
+    end
+  end
+end
+```
+
+### Options
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `:retries` | 3 | Number of retry attempts |
+| `:delay` | 100 | Delay in ms between retries |
+| `:log` | false | Log retry attempts for debugging |
+
+### Checking Success
+
+Use `eventually_succeeds?/2` for conditional test logic:
+
+```elixir
+test "resource-dependent operation" do
+  if eventually_succeeds?(fn -> check_resource_available() end, retries: 5) do
+    # proceed with test
+    result = use_resource()
+    assert result == :ok
+  else
+    # skip gracefully or use alternative
+    IO.puts("Resource unavailable, skipping")
+  end
+end
+```
+
+### Finding Flaky Tests
+
+ExUnit 1.17+ includes `--repeat-until-failure` to help identify flaky tests:
+
+```bash
+# Run a test 100 times until it fails
+mix test test/my_test.exs:42 --repeat-until-failure 100
+
+# Reproduce a failure with the same seed
+mix test test/my_test.exs:42 --seed 123456
+```
+
+### Best Practices
+
+1. **Investigate root cause first** - Don't just add retries
+2. **Tag flaky tests explicitly** - `@tag :flaky` for tracking
+3. **Set reasonable retry limits** - Usually 2-3 retries max
+4. **Log retry attempts** - For debugging persistent issues
+5. **Fix or remove** - Flaky tests should be temporary
+
+## Test File Naming Conventions
+
+Consistent naming helps locate tests quickly:
+
+| Module | Test File |
+|--------|-----------|
+| `ExPhil.Training.Config` | `test/exphil/training/config_test.exs` |
+| `ExPhil.Networks.Policy` | `test/exphil/networks/policy_test.exs` |
+| `ExPhil.Bridge.GameState` | `test/exphil/bridge/game_state_test.exs` |
+
+### Rules
+
+1. Test file mirrors module path: `lib/exphil/foo/bar.ex` → `test/exphil/foo/bar_test.exs`
+2. Always use `_test.exs` suffix
+3. Integration tests go in `test/integration/`
+4. Property tests use `_property_test.exs` suffix

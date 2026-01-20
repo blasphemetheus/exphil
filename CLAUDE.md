@@ -120,6 +120,11 @@ See [docs/GOTCHAS.md](docs/GOTCHAS.md) for detailed fixes. Most common issues:
 
 ## Development Practices
 
+**File operations:**
+- Use the Write tool for creating new files, not Bash with cat/heredoc
+- Use the Edit tool for modifying existing files
+- Use Read before Write to ensure you have current content
+
 **Debugging tests:**
 - Never use `| tail` when investigating failures - it hides error details
 - Use `mix test --failed` to rerun only failing tests
