@@ -18,6 +18,7 @@ Hard-won knowledge from debugging ExPhil. Each section documents a specific issu
 12. [Pre-computed tensors in Axon.nx closures](#12-pre-computed-tensors-in-axonnx-closures)
 13. [Mix stale builds](#13-mix-stale-builds)
 14. [BinaryBackend timeouts in tests](#14-binarybackend-timeouts-in-tests)
+15. [RTX 5090 (Blackwell) not supported by EXLA](#15-rtx-5090-blackwell-not-supported-by-exla)
 
 ---
 
@@ -308,3 +309,49 @@ end
 ```
 
 **Note:** These timeouts are flaky - they depend on system load. The test itself is correct; it just needs more time on BinaryBackend.
+
+---
+
+## 15. RTX 5090 (Blackwell) not supported by EXLA
+
+**As of January 2025**, the RTX 5090 (Blackwell architecture, Compute Capability 12.0) is not supported by EXLA/XLA.
+
+**Symptoms:**
+```
+RuntimeError: /usr/local/cuda/bin/ptxas ptxas too old. Falling back to the driver to compile.
+
+Falling back to the CUDA driver for PTX compilation; ptxas does not support CC 12.0
+```
+
+Or:
+```
+RuntimeError: No PTX compilation provider is available. Neither ptxas/nvlink nor nvjtlink is available.
+```
+
+**Root cause:** The RTX 5090 shipped January 2025 with a new Compute Capability (12.0). NVIDIA's CUDA toolkit versions lag behind new GPU architectures:
+- CUDA 12.2: Does not support CC 12.0
+- CUDA 12.6: Partial support, ptxas cannot compile for CC 12.0
+- The XLA flag `--xla_gpu_unsafe_fallback_to_driver_on_ptxas_not_found` does not help because EXLA throws the error before the fallback takes effect
+
+**What we tried that didn't work:**
+1. Upgrading to CUDA 12.6.3 base image
+2. Using `devel` image (includes ptxas) instead of `runtime`
+3. XLA flags: `XLA_FLAGS="--xla_gpu_unsafe_fallback_to_driver_on_ptxas_not_found"`
+
+**Solution:** Use RTX 4090 or older GPUs that are fully supported:
+- RTX 4090 (Ada Lovelace, CC 8.9) - **Recommended**, works perfectly with CUDA 12.6
+- RTX 3090 (Ampere, CC 8.6) - Budget option, fully supported
+- A100/H100 - Overkill for small models but fully supported
+
+**Future:** Blackwell support will likely come with:
+- CUDA 13.x release (expected mid-2025)
+- Updated EXLA precompiled binaries
+- XLA updates for CC 12.0 PTX generation
+
+**Cost comparison (RunPod):**
+| GPU | $/hr | Status |
+|-----|------|--------|
+| RTX 4090 | $0.34 | ✅ Works |
+| RTX 5090 | $0.70 | ❌ Not supported |
+
+The RTX 4090 is actually better value for ExPhil's model size (24GB VRAM is plenty).
