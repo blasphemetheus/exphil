@@ -1,4 +1,9 @@
 {
+  "_metadata": {
+    "backend": "BinaryBackend (CPU)",
+    "last_full_update": "2026-01-20",
+    "notes": "Initial baselines from CPU run. Mamba benchmarks excluded (timeout on CPU). Update with GPU baselines after EXLA/CUDA testing."
+  },
   "embed_game_state": {
     "max": 0.427,
     "mean": 0.28967999999999994,

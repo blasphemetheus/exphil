@@ -733,6 +733,47 @@ end
 
 Baselines are stored in `test/fixtures/benchmark_baselines.json` and tracked in git.
 
+### Expected GPU vs CPU Performance
+
+Benchmark times vary significantly between CPU (BinaryBackend) and GPU (EXLA with CUDA).
+The table below shows expected ranges - use these to verify your setup is performing correctly.
+
+| Benchmark | CPU (BinaryBackend) | GPU (EXLA/CUDA) | Notes |
+|-----------|---------------------|-----------------|-------|
+| `policy_single_frame` | ~250ms | ~5ms | 50x speedup |
+| `policy_batch_32` | ~250ms | ~8ms | GPU batch efficiency |
+| `mamba_temporal` | timeout (>120s) | ~15ms | CPU can't run Mamba |
+| `embed_player` | ~0.3ms | ~0.1ms | Small tensor, less GPU benefit |
+| `embed_game_state` | ~0.3ms | ~0.1ms | Small tensor, less GPU benefit |
+
+**Important Notes:**
+- Mamba benchmarks are tagged `:gpu` and excluded from CPU test runs
+- First GPU run includes JIT compilation overhead - use warmup iterations
+- ONNX INT8 quantized models achieve ~0.55ms inference regardless of GPU
+
+### Updating Benchmark Baselines
+
+When running benchmarks on a new GPU setup or after intentional performance changes:
+
+```bash
+# Run benchmarks and update baselines
+mix test.benchmark.update
+
+# After GPU testing, commit the updated baselines
+git add test/fixtures/benchmark_baselines.json
+git commit -m "Update benchmark baselines from GPU run"
+```
+
+**When to update baselines:**
+- After switching to a new GPU
+- After optimizing inference code
+- After changing batch sizes or model architecture
+- When setting up a new CI GPU runner
+
+**When NOT to update:**
+- If benchmarks fail unexpectedly (investigate first)
+- If regression tolerance is exceeded without code changes
+
 ## Snapshot Testing
 
 Snapshot tests verify that embeddings produce consistent outputs over time.
