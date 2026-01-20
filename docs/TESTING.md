@@ -505,14 +505,25 @@ end
 - [x] Mox for mock-based testing
 - [x] Property-based testing with StreamData
 - [x] Profile and tag slow tests for faster feedback
+- [x] Mutation testing with Muzak
+- [x] Doctest coverage for EarlyStopping
+- [x] Flaky test retry mechanism
 
-### Planned
-- [ ] Create test fixtures for replay files
-- [ ] CI configuration examples
-- [ ] Mutation testing with Muzak
-- [ ] Doctest coverage for public APIs
-- [ ] Flaky test retry mechanism
-- [ ] Snapshot testing for embeddings
+### High Priority
+- [x] Test fixtures for replay files - Small deterministic fixtures for integration tests
+- [x] Snapshot testing for embeddings - Save/compare expected tensor outputs
+- [x] Benchmark tests - Track inference performance over time
+- [ ] CI configuration - GitHub Actions for fast/slow/GPU test splits
+
+### Medium Priority
+- [ ] Contract tests for Bridge - Verify Elixir-Python interface contracts
+- [ ] More doctest coverage - Training.Data, Embeddings.Primitives, utilities
+- [ ] Test coverage gates - Fail CI if coverage drops below threshold
+
+### Lower Priority
+- [ ] Visual regression tests - For training plots/reports
+- [ ] Load testing - Agent GenServer under heavy message volume
+- [ ] Chaos testing - Network failures, resource exhaustion
 
 ## Mutation Testing
 
@@ -520,22 +531,28 @@ Mutation testing verifies test quality by introducing small changes (mutations) 
 your code and checking if tests catch them. If a mutation survives (tests still pass),
 it indicates a gap in test coverage.
 
-### Setup (Planned)
-
-```elixir
-# In mix.exs deps
-{:muzak, "~> 1.1", only: :test}
-```
-
 ### Running Mutation Tests
 
 ```bash
+# Run with default profile (core modules)
+mix test.mutate
+
+# Quick profile (single module)
+mix test.mutate.quick
+
 # Run mutation testing on a specific module
 mix muzak --only ExPhil.Embeddings.Player
 
 # Run with coverage threshold
 mix muzak --min-coverage 80
 ```
+
+### Configuration
+
+Profiles are defined in `.muzak.exs`:
+- `default` - Core modules (embeddings, training config/targets)
+- `ci` - More thorough for CI (all embeddings and training)
+- `quick` - Single module for rapid iteration
 
 ### Interpreting Results
 
@@ -667,3 +684,128 @@ Consistent naming helps locate tests quickly:
 2. Always use `_test.exs` suffix
 3. Integration tests go in `test/integration/`
 4. Property tests use `_property_test.exs` suffix
+
+## Benchmark Tests
+
+Benchmark tests detect performance regressions by comparing against stored baselines.
+
+### Running Benchmarks
+
+```bash
+# Run benchmark tests
+mix test.benchmark
+
+# Update baselines when changes are intentional
+mix test.benchmark.update
+# Or: BENCHMARK_UPDATE=1 mix test --only benchmark
+```
+
+### Writing Benchmark Tests
+
+```elixir
+defmodule MyBenchmarkTest do
+  use ExUnit.Case
+  import ExPhil.Test.Helpers
+
+  @moduletag :benchmark
+
+  test "embedding performance" do
+    {:ok, stats} = benchmark name: "embed_player", iterations: 50, warmup: 10 do
+      Player.embed(player)
+    end
+
+    # Assert reasonable performance
+    assert stats.mean < 5, "Embedding too slow: #{stats.mean}ms"
+  end
+end
+```
+
+### Options
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `:name` | required | Unique name for baseline tracking |
+| `:iterations` | 10 | Number of measured iterations |
+| `:warmup` | 3 | Number of warmup iterations |
+| `:tolerance` | 0.20 | Allowed regression (20% by default) |
+
+### Baselines
+
+Baselines are stored in `test/fixtures/benchmark_baselines.json` and tracked in git.
+
+## Snapshot Testing
+
+Snapshot tests verify that embeddings produce consistent outputs over time.
+
+### Running Snapshot Tests
+
+```bash
+# Run snapshot tests
+mix test.snapshot
+
+# Update snapshots when changes are intentional
+mix test.snapshot.update
+# Or: SNAPSHOT_UPDATE=1 mix test --only snapshot
+```
+
+### Writing Snapshot Tests
+
+```elixir
+defmodule MySnapshotTest do
+  use ExUnit.Case
+  import ExPhil.Test.Helpers
+
+  @moduletag :snapshot
+
+  test "player embedding output" do
+    player = build_player(character: 10, x: 0.0)
+    embedding = Player.embed(player)
+
+    assert_snapshot("player_neutral", embedding)
+  end
+end
+```
+
+### How It Works
+
+1. First run creates snapshot files in `test/fixtures/embedding_snapshots/`
+2. Subsequent runs compare output against saved snapshots
+3. If output differs beyond tolerance (atol=1e-5), test fails
+4. Use `SNAPSHOT_UPDATE=1` when changes are intentional
+
+## Replay Fixtures
+
+The `ExPhil.Test.ReplayFixtures` module provides realistic game scenario data.
+
+### Available Fixtures
+
+```elixir
+import ExPhil.Test.ReplayFixtures
+
+# Neutral game scenarios
+game_state = neutral_game_fixture(:mewtwo_vs_fox)
+game_state = neutral_game_fixture(:marth_vs_sheik)
+game_state = neutral_game_fixture(:low_tier)
+
+# Edge guard scenarios
+game_state = edge_guard_fixture(:fox_recovering_low)
+game_state = edge_guard_fixture(:mewtwo_offstage)
+
+# Combo sequences (list of {game_state, controller} tuples)
+frames = combo_sequence_fixture(:fox_upthrow_upair)
+```
+
+### Converting to Peppi Format
+
+```elixir
+# For testing code that expects Peppi.ParsedReplay
+game_states = [state1, state2, state3]
+parsed_replay = to_parsed_replay(game_states, stage: 32)
+```
+
+### Why Fixtures Instead of Real Replays
+
+- **Deterministic**: Same output every time
+- **Small**: No large binary files in repo
+- **Fast**: No file I/O or parsing
+- **Targeted**: Test specific scenarios

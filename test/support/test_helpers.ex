@@ -329,4 +329,131 @@ defmodule ExPhil.Test.Helpers do
       end
     end)
   end
+
+  # ============================================================================
+  # Benchmark Helpers
+  # ============================================================================
+
+  @benchmark_baseline_path "test/fixtures/benchmark_baselines.json"
+
+  @doc """
+  Run a benchmark and compare against stored baseline.
+
+  ## Options
+
+    - `:name` - Benchmark name for tracking (required)
+    - `:warmup` - Number of warmup iterations (default: 3)
+    - `:iterations` - Number of measured iterations (default: 10)
+    - `:tolerance` - Allowed percentage regression (default: 0.20 = 20%)
+
+  ## Example
+
+      benchmark(name: "policy_inference", warmup: 5, iterations: 20) do
+        predict_fn.(params, input)
+      end
+
+  Returns `{:ok, %{mean: ms, median: ms, min: ms, max: ms}}` or raises on regression.
+  """
+  defmacro benchmark(opts, do: block) do
+    quote do
+      name = Keyword.fetch!(unquote(opts), :name)
+      warmup = Keyword.get(unquote(opts), :warmup, 3)
+      iterations = Keyword.get(unquote(opts), :iterations, 10)
+      tolerance = Keyword.get(unquote(opts), :tolerance, 0.20)
+
+      ExPhil.Test.Helpers.run_benchmark(name, warmup, iterations, tolerance, fn ->
+        unquote(block)
+      end)
+    end
+  end
+
+  @doc false
+  def run_benchmark(name, warmup, iterations, tolerance, fun) do
+    # Warmup
+    for _ <- 1..warmup, do: fun.()
+
+    # Measure
+    times = for _ <- 1..iterations do
+      {time_us, _result} = :timer.tc(fun)
+      time_us / 1000  # Convert to ms
+    end
+
+    stats = %{
+      mean: Enum.sum(times) / length(times),
+      median: median(times),
+      min: Enum.min(times),
+      max: Enum.max(times),
+      stddev: stddev(times)
+    }
+
+    # Check against baseline
+    baselines = load_baselines()
+    baseline = Map.get(baselines, name)
+
+    if baseline do
+      regression = (stats.mean - baseline["mean"]) / baseline["mean"]
+
+      if regression > tolerance do
+        flunk("""
+        Performance regression detected for '#{name}'!
+
+        Baseline: #{Float.round(baseline["mean"], 2)}ms (±#{Float.round(baseline["stddev"], 2)}ms)
+        Current:  #{Float.round(stats.mean, 2)}ms (±#{Float.round(stats.stddev, 2)}ms)
+        Regression: #{Float.round(regression * 100, 1)}% (tolerance: #{Float.round(tolerance * 100, 1)}%)
+
+        Run with BENCHMARK_UPDATE=1 to update baselines if this is expected.
+        """)
+      end
+    end
+
+    # Update baseline if requested
+    if System.get_env("BENCHMARK_UPDATE") do
+      update_baseline(name, stats)
+    end
+
+    {:ok, stats}
+  end
+
+  defp median(list) do
+    sorted = Enum.sort(list)
+    len = length(sorted)
+    mid = div(len, 2)
+
+    if rem(len, 2) == 0 do
+      (Enum.at(sorted, mid - 1) + Enum.at(sorted, mid)) / 2
+    else
+      Enum.at(sorted, mid)
+    end
+  end
+
+  defp stddev(list) do
+    mean = Enum.sum(list) / length(list)
+    variance = Enum.sum(Enum.map(list, fn x -> (x - mean) * (x - mean) end)) / length(list)
+    :math.sqrt(variance)
+  end
+
+  defp load_baselines do
+    case File.read(@benchmark_baseline_path) do
+      {:ok, content} -> Jason.decode!(content)
+      {:error, _} -> %{}
+    end
+  end
+
+  defp update_baseline(name, stats) do
+    baselines = load_baselines()
+
+    updated = Map.put(baselines, name, %{
+      "mean" => stats.mean,
+      "median" => stats.median,
+      "min" => stats.min,
+      "max" => stats.max,
+      "stddev" => stats.stddev,
+      "updated_at" => DateTime.utc_now() |> DateTime.to_iso8601()
+    })
+
+    File.mkdir_p!(Path.dirname(@benchmark_baseline_path))
+    File.write!(@benchmark_baseline_path, Jason.encode!(updated, pretty: true))
+
+    IO.puts("[Benchmark] Updated baseline for '#{name}': #{Float.round(stats.mean, 2)}ms")
+  end
 end

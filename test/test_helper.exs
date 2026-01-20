@@ -5,23 +5,26 @@
 #   :integration - Tests with external dependencies (excluded by default)
 #   :gpu         - Tests requiring GPU/CUDA
 #   :external    - Tests needing external files (replays, models)
+#   :benchmark   - Performance regression tests (excluded by default)
 #
 # Examples:
 #   mix test                           # Fast tests only (default)
 #   mix test --include slow            # Include slow tests
 #   mix test --only integration        # Only integration tests
+#   mix test --only benchmark          # Only benchmark tests
 #   mix test --include slow --include integration  # Everything
 #
 # Quick aliases (defined in mix.exs):
 #   mix test.fast      # Same as: mix test
 #   mix test.slow      # Same as: mix test --include slow
 #   mix test.all       # Same as: mix test --include slow --include integration
+#   mix test.benchmark # Same as: mix test --only benchmark
 #   mix test.coverage  # With coverage report
 
 # Build base configuration
 base_config = [
-  # Exclude slow and integration tests by default for fast feedback
-  exclude: [:slow, :integration, :external, :gpu],
+  # Exclude slow, integration, benchmark, and snapshot tests by default for fast feedback
+  exclude: [:slow, :integration, :external, :gpu, :benchmark, :snapshot],
 
   # Timeout for individual tests (2 minutes default, can override with @tag timeout: N)
   timeout: 120_000,

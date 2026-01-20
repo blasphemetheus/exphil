@@ -101,6 +101,14 @@ defmodule ExPhil.MixProject do
       "test.integration": ["test", "--only", "integration"],
       "test.coverage": ["coveralls.html"],
 
+      # Benchmark tests
+      "test.benchmark": ["test", "--only", "benchmark"],
+      "test.benchmark.update": ["cmd", "BENCHMARK_UPDATE=1 mix test --only benchmark"],
+
+      # Snapshot tests
+      "test.snapshot": ["test", "--only", "snapshot"],
+      "test.snapshot.update": ["cmd", "SNAPSHOT_UPDATE=1 mix test --only snapshot"],
+
       # Mutation testing
       "test.mutate": ["muzak"],
       "test.mutate.quick": ["muzak", "--profile", "quick"]
