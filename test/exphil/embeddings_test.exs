@@ -264,7 +264,15 @@ defmodule ExPhil.EmbeddingsTest do
 
   describe "PlayerEmbed.embedding_size/1" do
     test "calculates base size correctly" do
-      config = %ExPhil.Embeddings.Player{with_speeds: false, with_nana: false}
+      # Disable all optional features to test pure base size
+      config = %ExPhil.Embeddings.Player{
+        with_speeds: false,
+        with_nana: false,
+        with_frame_info: false,
+        with_stock: false,
+        with_ledge_distance: false,
+        jumps_normalized: false  # Use classic 7-dim jumps
+      }
       size = PlayerEmbed.embedding_size(config)
 
       # 1 (percent) + 1 (facing) + 1 (x) + 1 (y) + 399 (action) + 33 (char) +
@@ -274,6 +282,29 @@ defmodule ExPhil.EmbeddingsTest do
         Primitives.embedding_size(:action) +
         Primitives.embedding_size(:character) +
         1 + Primitives.embedding_size(:jumps_left) + 1 + 1
+
+      assert size == expected
+    end
+
+    test "calculates base size with normalized jumps" do
+      # Disable optional features except jumps_normalized
+      config = %ExPhil.Embeddings.Player{
+        with_speeds: false,
+        with_nana: false,
+        with_frame_info: false,
+        with_stock: false,
+        with_ledge_distance: false,
+        jumps_normalized: true  # 1-dim instead of 7-dim
+      }
+      size = PlayerEmbed.embedding_size(config)
+
+      # 1 (percent) + 1 (facing) + 1 (x) + 1 (y) + 399 (action) + 33 (char) +
+      # 1 (invuln) + 1 (jumps normalized) + 1 (shield) + 1 (ground) = 440
+      expected =
+        1 + 1 + 1 + 1 +
+        Primitives.embedding_size(:action) +
+        Primitives.embedding_size(:character) +
+        1 + 1 + 1 + 1  # jumps is now 1 dim
 
       assert size == expected
     end
@@ -288,14 +319,40 @@ defmodule ExPhil.EmbeddingsTest do
       assert speed_size == base_size + 5
     end
 
-    test "adds nana dimensions when enabled" do
+    test "adds nana dimensions when enabled (compact mode)" do
+      # Compact nana mode is the default - adds 39 dims (preserves IC tech)
       base_config = %ExPhil.Embeddings.Player{with_speeds: false, with_nana: false}
-      nana_config = %ExPhil.Embeddings.Player{with_speeds: false, with_nana: true}
+      nana_config = %ExPhil.Embeddings.Player{with_speeds: false, with_nana: true, nana_mode: :compact}
 
       base_size = PlayerEmbed.embedding_size(base_config)
       nana_size = PlayerEmbed.embedding_size(nana_config)
 
-      # Nana adds base + 1 (exists flag)
+      # Compact nana adds 39 dims (not full base + 1)
+      assert nana_size == base_size + 39
+    end
+
+    test "adds nana dimensions when enabled (full mode)" do
+      # Full nana mode adds complete player embedding
+      base_config = %ExPhil.Embeddings.Player{
+        with_speeds: false,
+        with_nana: false,
+        with_frame_info: false,
+        with_stock: false,
+        with_ledge_distance: false
+      }
+      nana_config = %ExPhil.Embeddings.Player{
+        with_speeds: false,
+        with_nana: true,
+        nana_mode: :full,
+        with_frame_info: false,
+        with_stock: false,
+        with_ledge_distance: false
+      }
+
+      base_size = PlayerEmbed.embedding_size(base_config)
+      nana_size = PlayerEmbed.embedding_size(nana_config)
+
+      # Full nana adds base + 1 (exists flag)
       assert nana_size == 2 * base_size + 1
     end
   end
@@ -351,7 +408,7 @@ defmodule ExPhil.EmbeddingsTest do
       assert Enum.all?(values, &(&1 == 0.0))
     end
 
-    test "embeds nana with exists=true" do
+    test "embeds nana with exists=true (compact mode)" do
       nana = %Nana{
         percent: 25.0,
         facing: true,
@@ -361,12 +418,12 @@ defmodule ExPhil.EmbeddingsTest do
         stock: 3
       }
 
-      config = PlayerEmbed.default_config()
+      config = PlayerEmbed.default_config()  # Uses compact mode by default
       result = PlayerEmbed.embed_nana(nana, config)
 
       values = Nx.to_flat_list(result)
-      # Last value should be 1.0 (exists)
-      assert List.last(values) == 1.0
+      # In compact mode, first value should be 1.0 (exists)
+      assert List.first(values) == 1.0
     end
   end
 
@@ -384,7 +441,16 @@ defmodule ExPhil.EmbeddingsTest do
       prev_action_size = ControllerEmbed.continuous_embedding_size()
       name_size = config.num_player_names
 
-      expected = 2 * player_size + stage_size + prev_action_size + name_size
+      # Projectiles (5 slots × 7 dims each by default)
+      projectile_size = if config.with_projectiles, do: config.max_projectiles * 7, else: 0
+
+      # Spatial features
+      distance_size = if config.with_distance, do: 1, else: 0
+      relative_pos_size = if config.with_relative_pos, do: 2, else: 0
+      frame_count_size = if config.with_frame_count, do: 1, else: 0
+
+      expected = 2 * player_size + stage_size + prev_action_size + name_size +
+                 projectile_size + distance_size + relative_pos_size + frame_count_size
 
       assert size == expected
     end

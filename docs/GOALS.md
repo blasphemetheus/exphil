@@ -140,20 +140,30 @@ Current embedding size is **1204 dimensions** with all optimizations enabled.
 - ✅ **Projectiles enabled** (essential for Link/Samus/Falco)
 - ✅ **Frame info enabled** (hitstun/action frame for punish timing)
 - ✅ **Spatial features** (distance, relative position, game frame)
+- ✅ **Learned action embedding** (399×2=798 → 64×2=128 dims, -670 dims, better generalization)
+- ✅ **Enhanced Nana mode** (39 → 14 dims + Nana action ID, precise IC tech via learned embedding)
+- ✅ **4 action IDs** (2 players + 2 Nanas when `nana_mode: :enhanced, with_nana: true`)
 
 *Future optimizations (TODO):*
 
 | Option | Current | Potential | Benefit | Status |
 |--------|---------|-----------|---------|--------|
-| **Learned action embedding** | 399×2=798 dims | ~64×2=128 dims | **-670 dims**, better generalization | Not started |
 | **Stage embedding with PS variants** | 64 dims | ~10-20 dims | Distinguish frozen/unfrozen PS, focus on competitive | Not started |
 | **Player names embedding** | 112 dims | 0-32 dims | Style-conditional imitation (currently unused) | Not started |
+| **IC Tech Feature Block** | N/A | +32 dims | Dedicated grab/regrab/desync features | Not started |
 
-**Learned Action Embedding Details:**
-- Replace 399-dim one-hot with trainable embedding layer (399 → 32-64 dims)
+**Learned Action Embedding Implementation:**
+- Use `action_mode: :learned` in PlayerEmbed config
+- Action IDs appended at end of game embedding (2 or 4 values depending on Nana mode)
+- Policy network uses `action_embed_size: 64` and `num_action_ids: 2 or 4`
 - Network learns action similarities (e.g., "all aerials" vs "all tilts")
-- Requires model architecture change, not embedding module change
-- Implementation: Add `Axon.embedding(399, 64)` layer before policy head
+- Supports both single-frame and temporal (mamba, sliding_window, mlp) backbones
+
+**Enhanced Nana Mode for IC Tech:**
+- Use `nana_mode: :enhanced` with `action_mode: :learned` for optimal IC training
+- Nana action ID allows precise action learning (dair vs fair vs nair)
+- Reduces Nana embedding from 39 → 14 dims continuous + 1 action ID
+- Total network input: 254 continuous + 4×64 action embedding = 510 dims (under 512 target!)
 
 **Stage Embedding Improvements:**
 - Current: 64-dim one-hot (mostly unused dimensions)

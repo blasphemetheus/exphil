@@ -139,6 +139,97 @@ defmodule ExPhil.Embeddings.GameTest do
 
       assert size10 == size5 + (5 * 7)
     end
+
+    test "size includes action IDs when using learned actions" do
+      player_config = %PlayerEmbed{action_mode: :learned}
+      config = %GameEmbed{player: player_config}
+
+      size = GameEmbed.embedding_size(config)
+
+      # Should include 2 action IDs (own + opponent)
+      assert size > 0
+      # Size should be continuous_embedding_size + num_action_ids
+      continuous_size = GameEmbed.continuous_embedding_size(config)
+      num_ids = GameEmbed.num_action_ids(config)
+      assert num_ids == 2
+      assert size == continuous_size + num_ids
+    end
+  end
+
+  describe "num_action_ids/1" do
+    test "returns 0 for default config (one-hot actions)" do
+      config = GameEmbed.default_config()
+      assert GameEmbed.num_action_ids(config) == 0
+    end
+
+    test "returns 2 when using learned player actions" do
+      player_config = %PlayerEmbed{action_mode: :learned}
+      config = %GameEmbed{player: player_config}
+      assert GameEmbed.num_action_ids(config) == 2
+    end
+
+    test "returns 4 when using learned actions + enhanced Nana" do
+      player_config = %PlayerEmbed{action_mode: :learned, nana_mode: :enhanced, with_nana: true}
+      config = %GameEmbed{player: player_config}
+      assert GameEmbed.num_action_ids(config) == 4
+    end
+
+    test "returns 2 when using enhanced Nana without learned actions" do
+      # Enhanced Nana only adds IDs when with_nana is true
+      player_config = %PlayerEmbed{action_mode: :one_hot, nana_mode: :enhanced, with_nana: true}
+      config = %GameEmbed{player: player_config}
+      # Only Nana IDs, no player action IDs
+      assert GameEmbed.num_action_ids(config) == 2
+    end
+  end
+
+  describe "continuous_embedding_size/1" do
+    test "equals total size when using one-hot actions" do
+      config = GameEmbed.default_config()  # Uses one-hot by default
+      total_size = GameEmbed.embedding_size(config)
+      continuous_size = GameEmbed.continuous_embedding_size(config)
+
+      assert continuous_size == total_size
+    end
+
+    test "is smaller than total when using learned actions" do
+      player_config = %PlayerEmbed{action_mode: :learned}
+      config = %GameEmbed{player: player_config}
+
+      total_size = GameEmbed.embedding_size(config)
+      continuous_size = GameEmbed.continuous_embedding_size(config)
+      num_ids = GameEmbed.num_action_ids(config)
+
+      assert num_ids == 2
+      assert continuous_size == total_size - num_ids
+    end
+
+    test "accounts for 4 action IDs with enhanced Nana" do
+      player_config = %PlayerEmbed{action_mode: :learned, nana_mode: :enhanced, with_nana: true}
+      config = %GameEmbed{player: player_config}
+
+      total_size = GameEmbed.embedding_size(config)
+      continuous_size = GameEmbed.continuous_embedding_size(config)
+      num_ids = GameEmbed.num_action_ids(config)
+
+      assert num_ids == 4
+      assert continuous_size == total_size - num_ids
+    end
+  end
+
+  describe "uses_learned_actions?/1" do
+    test "returns false for default config (one-hot)" do
+      config = GameEmbed.default_config()
+
+      refute GameEmbed.uses_learned_actions?(config)
+    end
+
+    test "returns true when player action_mode is :learned" do
+      player_config = %PlayerEmbed{action_mode: :learned}
+      config = %GameEmbed{player: player_config}
+
+      assert GameEmbed.uses_learned_actions?(config)
+    end
   end
 
   # ============================================================================
@@ -200,6 +291,28 @@ defmodule ExPhil.Embeddings.GameTest do
       result = GameEmbed.embed(game_state, nil, 1, config: config)
 
       assert Nx.shape(result) == {GameEmbed.embedding_size(config)}
+    end
+
+    test "appends action IDs at end when using learned actions" do
+      player1 = mock_player(action: 50)  # Action ID 50
+      player2 = mock_player(action: 100)  # Action ID 100
+      game_state = mock_game_state(player1: player1, player2: player2)
+      player_config = %PlayerEmbed{action_mode: :learned, with_nana: false, with_speeds: false}
+      # Use a small but valid num_player_names (can't be 0)
+      config = %GameEmbed{player: player_config, with_projectiles: false, num_player_names: 2}
+
+      result = GameEmbed.embed(game_state, nil, 1, config: config)
+      total_size = GameEmbed.embedding_size(config)
+
+      assert Nx.shape(result) == {total_size}
+
+      # Last 2 values should be action IDs (own=50, opponent=100)
+      last_two = Nx.slice(result, [total_size - 2], [2])
+      [own_action, opp_action] = Nx.to_list(last_two)
+
+      # Action IDs are cast to f32 in the tensor
+      assert trunc(own_action) == 50
+      assert trunc(opp_action) == 100
     end
   end
 

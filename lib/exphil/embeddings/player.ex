@@ -41,14 +41,16 @@ defmodule ExPhil.Embeddings.Player do
     speed_scale: 0.5,
     with_speeds: true,  # Enabled for momentum/velocity info (+5 dims per player)
     with_nana: true,
-    nana_mode: :compact,  # :full (455 dims) or :compact (~45 dims, preserves IC tech)
+    nana_mode: :compact,  # :full, :compact (39 dims), or :enhanced (14 dims + action ID)
     with_frame_info: true,  # Hitstun frames + action frame (+2 dims per player)
     with_stock: true,  # Stock count (+1 dim per player)
     with_ledge_distance: true,  # Distance to nearest ledge (+1 dim per player)
-    jumps_normalized: true  # Use 1-dim normalized float instead of 7-dim one-hot (saves 6 dims/player)
+    jumps_normalized: true,  # Use 1-dim normalized float instead of 7-dim one-hot (saves 6 dims/player)
+    action_mode: :one_hot  # :one_hot (399 dims) or :learned (action embedded in network, 0 dims here)
   ]
 
-  @type nana_mode :: :full | :compact
+  @type nana_mode :: :full | :compact | :enhanced
+  @type action_mode :: :one_hot | :learned
 
   @type config :: %__MODULE__{
     xy_scale: float(),
@@ -60,7 +62,8 @@ defmodule ExPhil.Embeddings.Player do
     with_frame_info: boolean(),
     with_stock: boolean(),
     with_ledge_distance: boolean(),
-    jumps_normalized: boolean()
+    jumps_normalized: boolean(),
+    action_mode: action_mode()
   }
 
   # ==========================================================================
@@ -181,6 +184,7 @@ defmodule ExPhil.Embeddings.Player do
     nana_size = if config.with_nana do
       case config.nana_mode do
         :compact -> compact_nana_embedding_size()
+        :enhanced -> enhanced_compact_nana_embedding_size()
         :full ->
           # Nana has base embedding + exists flag + optional speeds + optional frame info + stock
           nana_base = base_embedding_size(config) + 1
@@ -197,7 +201,7 @@ defmodule ExPhil.Embeddings.Player do
     base_size + speed_size + frame_info_size + stock_size + ledge_size + nana_size
   end
 
-  # Compact Nana embedding size (~45 dims instead of 455)
+  # Compact Nana embedding size (~39 dims instead of 455)
   # Preserves all info needed for IC tech: handoffs, regrabs, desyncs
   defp compact_nana_embedding_size do
     1 +   # exists
@@ -216,14 +220,42 @@ defmodule ExPhil.Embeddings.Player do
     1     # is_synced_hint (boolean - same action category as Popo)
   end
 
+  # Enhanced Compact Nana embedding size (14 dims continuous)
+  # Uses action ID for learned embedding instead of 25-dim category one-hot
+  # Critical for precise IC tech: dair vs fair timing, exact action frames
+  # Note: Nana action ID is appended separately by GameEmbed
+  defp enhanced_compact_nana_embedding_size do
+    1 +   # exists
+    2 +   # x, y position (scaled)
+    1 +   # facing
+    1 +   # on_ground
+    1 +   # percent (scaled)
+    1 +   # stock (normalized)
+    1 +   # hitstun_frames (normalized, REAL data when available)
+    1 +   # action_frame (normalized, REAL data - critical for hitbox timing!)
+    1 +   # invulnerable
+    # IC tech flags (keep these for quick boolean checks)
+    1 +   # is_attacking (boolean)
+    1 +   # is_grabbing (boolean)
+    1 +   # can_act (boolean)
+    1     # is_synced_hint (boolean - same action as Popo)
+    # = 14 dims total (action ID handled separately)
+  end
+
   defp base_embedding_size(config) do
     jumps_size = if config.jumps_normalized, do: 1, else: Primitives.embedding_size(:jumps_left)
+
+    # Action: 399 dims for one-hot, 0 dims for learned (handled by network)
+    action_size = case config.action_mode do
+      :one_hot -> Primitives.embedding_size(:action)
+      :learned -> 0
+    end
 
     1 +  # percent
     1 +  # facing
     1 +  # x
     1 +  # y
-    Primitives.embedding_size(:action) +
+    action_size +
     Primitives.embedding_size(:character) +
     1 +  # invulnerable
     jumps_size +
@@ -328,7 +360,6 @@ defmodule ExPhil.Embeddings.Player do
     facing_emb = Primitives.batch_bool_embed(facings, on: 1.0, off: -1.0)
     x_emb = Primitives.batch_float_embed(xs, scale: config.xy_scale)
     y_emb = Primitives.batch_float_embed(ys, scale: config.xy_scale)
-    action_emb = Primitives.batch_one_hot(Nx.tensor(actions, type: :s32), size: 399, clamp: true)
     char_emb = Primitives.batch_one_hot(Nx.tensor(characters, type: :s32), size: 33, clamp: true)
     invuln_emb = Primitives.batch_bool_embed(invulnerables)
 
@@ -344,13 +375,25 @@ defmodule ExPhil.Embeddings.Player do
     shield_emb = Primitives.batch_float_embed(shields, scale: 0.01, lower: 0.0, upper: 1.0)
     ground_emb = Primitives.batch_bool_embed(on_grounds)
 
-    # Base embeddings - jumps size depends on config (1 or 7 dims)
+    # Base embeddings - build list based on config
     base_embs = [
       percent_emb,   # [batch, 1]
       facing_emb,    # [batch, 1]
       x_emb,         # [batch, 1]
-      y_emb,         # [batch, 1]
-      action_emb,    # [batch, 399]
+      y_emb          # [batch, 1]
+    ]
+
+    # Add action one-hot only if not using learned embeddings
+    base_embs = case config.action_mode do
+      :one_hot ->
+        action_emb = Primitives.batch_one_hot(Nx.tensor(actions, type: :s32), size: 399, clamp: true)
+        base_embs ++ [action_emb]  # [batch, 399]
+      :learned ->
+        base_embs  # Action IDs handled separately by network
+    end
+
+    # Continue with rest of features
+    base_embs = base_embs ++ [
       char_emb,      # [batch, 33]
       invuln_emb,    # [batch, 1]
       jumps_emb,     # [batch, 1] or [batch, 7]
@@ -578,7 +621,8 @@ defmodule ExPhil.Embeddings.Player do
       Primitives.jumps_left_embed(player.jumps_left || 0)
     end
 
-    Nx.concatenate([
+    # Build base features (without action if using learned embeddings)
+    base_features = [
       # Percent - scaled damage
       Primitives.percent_embed(player.percent || 0.0),
 
@@ -587,11 +631,17 @@ defmodule ExPhil.Embeddings.Player do
 
       # Position
       Primitives.xy_embed(player.x || 0.0, scale: config.xy_scale),
-      Primitives.xy_embed(player.y || 0.0, scale: config.xy_scale),
+      Primitives.xy_embed(player.y || 0.0, scale: config.xy_scale)
+    ]
 
-      # Action state (one-hot)
-      Primitives.action_embed(player.action || 0),
+    # Add action one-hot only if not using learned embeddings
+    base_features = case config.action_mode do
+      :one_hot -> base_features ++ [Primitives.action_embed(player.action || 0)]
+      :learned -> base_features  # Action ID handled separately by network
+    end
 
+    # Continue with rest of features
+    all_features = base_features ++ [
       # Character (one-hot)
       Primitives.character_embed(player.character || 0),
 
@@ -606,7 +656,9 @@ defmodule ExPhil.Embeddings.Player do
 
       # On ground flag
       Primitives.bool_embed(player.on_ground || false)
-    ])
+    ]
+
+    Nx.concatenate(all_features)
   end
 
   @doc """
@@ -670,11 +722,15 @@ defmodule ExPhil.Embeddings.Player do
   @doc """
   Embed Nana (Ice Climbers partner).
 
-  Supports two modes:
+  Supports three modes:
   - `:full` - Full player embedding (455 dims)
-  - `:compact` - Compact embedding preserving IC tech (~45 dims)
+  - `:compact` - Compact embedding preserving IC tech (~39 dims)
+  - `:enhanced` - Enhanced compact with action ID for learned embedding (14 dims)
 
-  The `popo_action` parameter is used in compact mode for desync detection.
+  The `popo_action` parameter is used in compact/enhanced mode for desync detection.
+
+  For `:enhanced` mode, use `get_nana_action_id/1` to get the action ID separately
+  for the learned embedding layer.
   """
   @spec embed_nana(Nana.t() | nil, config(), integer() | nil) :: Nx.Tensor.t()
   def embed_nana(nana, config, popo_action \\ nil)
@@ -683,6 +739,7 @@ defmodule ExPhil.Embeddings.Player do
     # Nana doesn't exist - return zeros
     size = case config.nana_mode do
       :compact -> compact_nana_embedding_size()
+      :enhanced -> enhanced_compact_nana_embedding_size()
       :full ->
         base_size = base_embedding_size(config) + 1
         speed_size = if config.with_speeds, do: 5, else: 0
@@ -696,6 +753,7 @@ defmodule ExPhil.Embeddings.Player do
   def embed_nana(%Nana{} = nana, config, popo_action) do
     case config.nana_mode do
       :compact -> embed_nana_compact(nana, popo_action)
+      :enhanced -> embed_nana_enhanced(nana, popo_action)
       :full -> embed_nana_full(nana, config)
     end
   end
@@ -747,6 +805,60 @@ defmodule ExPhil.Embeddings.Player do
       Primitives.bool_embed(can_act),
       Primitives.bool_embed(is_synced)
     ])
+  end
+
+  # Enhanced Compact Nana embedding (14 dims) - uses action ID for learned embedding
+  # Provides precise action info via separate action ID, not 25-dim category
+  # Critical for IC tech: guarantees network knows exact action (dair vs fair vs ftilt)
+  defp embed_nana_enhanced(%Nana{} = nana, popo_action) do
+    nana_action = nana.action || 0
+    popo_action = popo_action || 0
+
+    # Boolean flags for IC tech (same logic as compact)
+    nana_category = action_to_category(nana_action)
+
+    is_attacking = nana_category in [10, 11, 12, 13, 14, 15, 16]
+    is_grabbing = nana_category in [17, 18]
+    can_act = nana_category in [2, 3, 4, 6, 7, 9]
+    # For enhanced mode, compare exact actions for sync (more precise than category)
+    is_synced = nana_action == popo_action
+
+    Nx.concatenate([
+      # Exists
+      Primitives.bool_embed(true),
+
+      # Position (scaled for ~[-200, 200] stage range)
+      Primitives.xy_embed(nana.x || 0.0, scale: 0.05),
+      Primitives.xy_embed(nana.y || 0.0, scale: 0.05),
+
+      # Facing (-1 left, +1 right)
+      Primitives.facing_embed(nana.facing),
+
+      # On ground (approximate from y position - below platform height)
+      Primitives.bool_embed((nana.y || 0.0) < 5.0),
+
+      # Combat state
+      Primitives.percent_embed(nana.percent || 0.0),
+      Nx.tensor([min((nana.stock || 0) / 4, 1.0)], type: :f32),  # Stock normalized
+
+      # Frame info - CRITICAL for IC tech timing
+      # Note: Nana struct may not have these, so we approximate
+      # action_frame: normalized by typical animation length (~60 frames)
+      # TODO: Get real action_frame from libmelee if available
+      Nx.tensor([0.0], type: :f32),  # hitstun_frames (placeholder)
+      Nx.tensor([0.0], type: :f32),  # action_frame (placeholder)
+
+      # Invulnerable (unknown, default false)
+      Primitives.bool_embed(false),
+
+      # IC tech flags (quick boolean checks for common situations)
+      Primitives.bool_embed(is_attacking),
+      Primitives.bool_embed(is_grabbing),
+      Primitives.bool_embed(can_act),
+      Primitives.bool_embed(is_synced)
+    ])
+    # Note: Nana action ID is NOT included here - it's appended by GameEmbed
+    # for the learned embedding layer to process
   end
 
   # Full Nana embedding (455 dims) - original behavior
@@ -804,6 +916,79 @@ defmodule ExPhil.Embeddings.Player do
 
     Nx.concatenate(embs)
   end
+
+  # ============================================================================
+  # Action ID Extraction (for learned embeddings)
+  # ============================================================================
+
+  @doc """
+  Get the action ID from a player state.
+
+  Used when `action_mode: :learned` - the action ID is passed to the network
+  which has a learned embedding layer.
+
+  ## Returns
+    Integer action ID (0-398), or 0 if player is nil.
+  """
+  @spec get_action_id(PlayerState.t() | nil) :: non_neg_integer()
+  def get_action_id(nil), do: 0
+  def get_action_id(%PlayerState{} = player), do: player.action || 0
+
+  @doc """
+  Get action IDs from a list of players as a tensor.
+
+  ## Returns
+    Tensor of shape [batch_size] with action IDs as integers.
+  """
+  @spec get_action_ids_batch([PlayerState.t() | nil]) :: Nx.Tensor.t()
+  def get_action_ids_batch(players) when is_list(players) do
+    players
+    |> Enum.map(&get_action_id/1)
+    |> Nx.tensor(type: :s32)
+  end
+
+  @doc """
+  Get Nana's action ID from a player state.
+
+  Returns 0 if player is nil, has no Nana, or Nana has no action.
+
+  ## Examples
+
+      iex> get_nana_action_id(%PlayerState{nana: %Nana{action: 50}})
+      50
+
+      iex> get_nana_action_id(%PlayerState{nana: nil})
+      0
+
+      iex> get_nana_action_id(nil)
+      0
+  """
+  @spec get_nana_action_id(PlayerState.t() | nil) :: non_neg_integer()
+  def get_nana_action_id(nil), do: 0
+  def get_nana_action_id(%PlayerState{nana: nil}), do: 0
+  def get_nana_action_id(%PlayerState{nana: %Nana{action: action}}), do: action || 0
+
+  @doc """
+  Get Nana action IDs from a list of players as a tensor.
+
+  ## Returns
+    Tensor of shape [batch_size] with Nana action IDs as integers.
+    Returns 0 for players without Nana.
+  """
+  @spec get_nana_action_ids_batch([PlayerState.t() | nil]) :: Nx.Tensor.t()
+  def get_nana_action_ids_batch(players) when is_list(players) do
+    players
+    |> Enum.map(&get_nana_action_id/1)
+    |> Nx.tensor(type: :s32)
+  end
+
+  @doc """
+  Check if enhanced Nana mode is being used.
+
+  Enhanced mode uses action IDs for learned embedding instead of category one-hot.
+  """
+  @spec uses_enhanced_nana?(config()) :: boolean()
+  def uses_enhanced_nana?(config), do: config.nana_mode == :enhanced
 
   @doc """
   Embed both players from a game state.

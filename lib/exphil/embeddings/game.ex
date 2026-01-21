@@ -62,6 +62,52 @@ defmodule ExPhil.Embeddings.Game do
     with_frame_count: boolean()
   }
 
+  @doc """
+  Number of action IDs appended when using learned embeddings.
+
+  - 2 IDs when using learned player actions only (own + opponent)
+  - 4 IDs when also using enhanced Nana mode (own + opponent + own_nana + opponent_nana)
+  """
+  @spec num_action_ids(config()) :: non_neg_integer()
+  def num_action_ids(config \\ default_config()) do
+    base_ids = if config.player.action_mode == :learned, do: 2, else: 0
+    nana_ids = if config.player.nana_mode == :enhanced and config.player.with_nana, do: 2, else: 0
+    base_ids + nana_ids
+  end
+
+  @doc """
+  Get the size of the continuous features (everything except action IDs).
+
+  When using learned embeddings, the network needs to know where to split:
+  - continuous_features = input[:, :-n]
+  - action_ids = input[:, -n:]
+
+  where n = num_action_ids(config)
+
+  This function returns the size of continuous_features.
+  """
+  @spec continuous_embedding_size(config()) :: non_neg_integer()
+  def continuous_embedding_size(config \\ default_config()) do
+    total = embedding_size(config)
+    total - num_action_ids(config)
+  end
+
+  @doc """
+  Check if the config uses learned action embeddings.
+  """
+  @spec uses_learned_actions?(config()) :: boolean()
+  def uses_learned_actions?(config) do
+    config.player.action_mode == :learned
+  end
+
+  @doc """
+  Check if the config uses enhanced Nana mode with learned embeddings.
+  """
+  @spec uses_enhanced_nana?(config()) :: boolean()
+  def uses_enhanced_nana?(config) do
+    config.player.nana_mode == :enhanced and config.player.with_nana
+  end
+
   @spec default_config() :: config()
   def default_config do
     %__MODULE__{
@@ -112,9 +158,13 @@ defmodule ExPhil.Embeddings.Game do
     relative_pos_size = if config.with_relative_pos, do: 2, else: 0
     frame_count_size = if config.with_frame_count, do: 1, else: 0
 
+    # Action IDs appended at end when using learned embeddings
+    # Includes: player actions (2) + Nana actions if enhanced mode (2)
+    action_ids_size = num_action_ids(config)
+
     players_size + stage_size + prev_action_size + name_size +
       projectile_size + item_size +
-      distance_size + relative_pos_size + frame_count_size
+      distance_size + relative_pos_size + frame_count_size + action_ids_size
   end
 
   defp projectile_embedding_size do
@@ -208,6 +258,28 @@ defmodule ExPhil.Embeddings.Game do
       embeddings
     end
 
+    # Append player action IDs at end when using learned embeddings
+    # The network extracts these, embeds them, and concatenates with the rest
+    embeddings = if config.player.action_mode == :learned do
+      own_action = PlayerEmbed.get_action_id(own)
+      opp_action = PlayerEmbed.get_action_id(opponent)
+      action_ids = Nx.tensor([own_action, opp_action], type: :f32)
+      [action_ids | embeddings]
+    else
+      embeddings
+    end
+
+    # Append Nana action IDs when using enhanced Nana mode
+    # Order: [player_own, player_opp, nana_own, nana_opp]
+    embeddings = if config.player.nana_mode == :enhanced and config.player.with_nana do
+      own_nana_action = PlayerEmbed.get_nana_action_id(own)
+      opp_nana_action = PlayerEmbed.get_nana_action_id(opponent)
+      nana_action_ids = Nx.tensor([own_nana_action, opp_nana_action], type: :f32)
+      [nana_action_ids | embeddings]
+    else
+      embeddings
+    end
+
     Nx.concatenate(Enum.reverse(embeddings))
   end
 
@@ -295,12 +367,42 @@ defmodule ExPhil.Embeddings.Game do
       end
 
       # Add frame count if configured
-      all_embs = if config.with_frame_count do
+      embs_with_frame = if config.with_frame_count do
         frames = Enum.map(game_states, fn gs -> (gs.frame || 0) / 28800.0 end)
         frame_emb = Primitives.batch_float_embed(frames, scale: 1.0, lower: 0.0, upper: 1.0)
         embs_with_rel_pos ++ [frame_emb]
       else
         embs_with_rel_pos
+      end
+
+      # Append player action IDs at end when using learned embeddings
+      # Shape: [batch, 2] with own_action and opponent_action as floats
+      embs_with_actions = if config.player.action_mode == :learned do
+        own_actions = Enum.map(own_players, &PlayerEmbed.get_action_id/1)
+        opp_actions = Enum.map(opponent_players, &PlayerEmbed.get_action_id/1)
+        # Stack as [batch, 2] tensor
+        action_ids = Nx.stack([
+          Nx.tensor(own_actions, type: :f32),
+          Nx.tensor(opp_actions, type: :f32)
+        ], axis: 1)
+        embs_with_frame ++ [action_ids]
+      else
+        embs_with_frame
+      end
+
+      # Append Nana action IDs when using enhanced Nana mode
+      # Order: [player_own, player_opp, nana_own, nana_opp]
+      all_embs = if config.player.nana_mode == :enhanced and config.player.with_nana do
+        own_nana_actions = Enum.map(own_players, &PlayerEmbed.get_nana_action_id/1)
+        opp_nana_actions = Enum.map(opponent_players, &PlayerEmbed.get_nana_action_id/1)
+        # Stack as [batch, 2] tensor
+        nana_action_ids = Nx.stack([
+          Nx.tensor(own_nana_actions, type: :f32),
+          Nx.tensor(opp_nana_actions, type: :f32)
+        ], axis: 1)
+        embs_with_actions ++ [nana_action_ids]
+      else
+        embs_with_actions
       end
 
       # Concatenate all: [batch, total_embed_size]

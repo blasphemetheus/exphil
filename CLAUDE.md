@@ -6,11 +6,18 @@ ExPhil is an Elixir-based successor to slippi-ai, creating high-ELO playable bot
 
 **Embedding dimensions:**
 - Player: 488 dims (base 440 + speeds 5 + frame_info 2 + stock 1 + ledge_dist 1 + compact Nana 39)
+- Player (learned actions): 91 dims (base 41 + speeds 5 + frame_info 2 + stock 1 + ledge_dist 1 + compact Nana 39 + action IDs in network)
 - Game: 1204 dims (2 players + stage + spatial features + projectiles)
-- Compact Nana: 39 dims (preserves IC tech: handoffs, regrabs, desyncs)
-- Full Nana mode: 449 dims (use `nana_mode: :full` for complete action state)
+- Game (learned actions): 408 dims + 2 action IDs (use `action_mode: :learned` for trainable action embedding)
+- **512-dim target**: 254 continuous + 4 action IDs × 64 embedding (use `action_mode: :learned, nana_mode: :enhanced`)
+- Nana modes:
+  - `:compact` (default): 39 dims (preserves IC tech: handoffs, regrabs, desyncs)
+  - `:enhanced`: 14 dims + Nana action ID (most efficient for learned embeddings, precise IC tech)
+  - `:full`: 449 dims (complete action state, use `nana_mode: :full`)
 - Jumps: Normalized (1 dim) by default; use `jumps_normalized: false` for 7-dim one-hot
 - Controller: 13 dims (8 buttons + 4 sticks + 1 shoulder)
+- Action modes: `:one_hot` (399 dims, default) or `:learned` (64-dim trainable embedding, saves ~670 dims)
+- Action IDs: 2 (players only) or 4 (players + Nana with `nana_mode: :enhanced`)
 
 **Policy network:** 6-head autoregressive (buttons, main_x/y, c_x/y, shoulder)
 

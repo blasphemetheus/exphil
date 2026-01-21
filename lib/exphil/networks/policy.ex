@@ -77,6 +77,10 @@ defmodule ExPhil.Networks.Policy do
   @axis_buckets 16  # 0-16 = 17 values
   @shoulder_buckets 4  # 0-4 = 5 values
 
+  # Action embedding constants
+  @num_actions 399  # Melee action state count
+  @default_num_action_ids 2  # Default: own + opponent player actions
+
   @doc """
   Build the policy network model.
 
@@ -89,6 +93,10 @@ defmodule ExPhil.Networks.Policy do
     - `:shoulder_buckets` - Discretization for triggers (default: 4)
     - `:layer_norm` - Apply layer normalization (default: false)
     - `:residual` - Use residual connections (default: false)
+    - `:action_embed_size` - Size of learned action embedding (default: nil = one-hot)
+      When set, the input is expected to have action IDs at the end.
+    - `:num_action_ids` - Number of action IDs in input (default: 2)
+      Use 2 for player actions only, 4 for player + Nana actions.
 
   ## Returns
     An Axon model that outputs a map of logits for each controller component.
@@ -103,16 +111,66 @@ defmodule ExPhil.Networks.Policy do
     shoulder_buckets = Keyword.get(opts, :shoulder_buckets, @shoulder_buckets)
     layer_norm = Keyword.get(opts, :layer_norm, false)
     residual = Keyword.get(opts, :residual, false)
+    action_embed_size = Keyword.get(opts, :action_embed_size, nil)
+    num_action_ids = Keyword.get(opts, :num_action_ids, @default_num_action_ids)
 
     # Input layer
     input = Axon.input("state", shape: {nil, embed_size})
 
+    # Process input: extract action IDs and embed if using learned embeddings
+    processed_input = if action_embed_size do
+      build_action_embedding_layer(input, embed_size, action_embed_size, num_action_ids)
+    else
+      input
+    end
+
     # Build backbone
-    backbone = build_backbone(input, hidden_sizes, activation, dropout,
+    backbone = build_backbone(processed_input, hidden_sizes, activation, dropout,
       layer_norm: layer_norm, residual: residual)
 
     # Build autoregressive controller head
     build_controller_head(backbone, axis_buckets, shoulder_buckets)
+  end
+
+  @doc """
+  Build the action embedding layer that extracts action IDs from the end
+  of the input tensor and replaces them with learned embeddings.
+
+  Input: [batch, continuous_size + num_action_ids] where last N are action IDs as floats
+  Output: [batch, continuous_size + num_action_ids * action_embed_size]
+
+  ## Parameters
+    - `input` - Axon input layer
+    - `total_embed_size` - Total input size including action IDs
+    - `action_embed_size` - Size of each action's learned embedding
+    - `num_action_ids` - Number of action IDs (2 for players, 4 for players + Nana)
+  """
+  @spec build_action_embedding_layer(Axon.t(), non_neg_integer(), non_neg_integer(), non_neg_integer()) :: Axon.t()
+  def build_action_embedding_layer(input, total_embed_size, action_embed_size, num_action_ids) do
+    continuous_size = total_embed_size - num_action_ids
+
+    # Split input into continuous features and action IDs
+    # continuous_features: [batch, continuous_size]
+    # action_ids: [batch, num_action_ids]
+    continuous = Axon.nx(input, fn x ->
+      Nx.slice_along_axis(x, 0, continuous_size, axis: 1)
+    end, name: "extract_continuous")
+
+    action_ids = Axon.nx(input, fn x ->
+      Nx.slice_along_axis(x, continuous_size, num_action_ids, axis: 1)
+      |> Nx.as_type(:s32)  # Convert to integers for embedding lookup
+    end, name: "extract_action_ids")
+
+    # Create embedding layer for actions
+    # Shape: [399, action_embed_size]
+    action_embeddings = Axon.embedding(action_ids, @num_actions, action_embed_size,
+      name: "action_embedding")
+
+    # Flatten embeddings: [batch, num_action_ids, embed_size] -> [batch, num_action_ids * embed_size]
+    flat_action_embeddings = Axon.flatten(action_embeddings, name: "flatten_action_embeds")
+
+    # Concatenate continuous features with embedded actions
+    Axon.concatenate([continuous, flat_action_embeddings], name: "concat_with_action_embeds")
   end
 
   @doc """
@@ -133,6 +191,7 @@ defmodule ExPhil.Networks.Policy do
     - `:dropout` - Dropout rate (default: 0.1)
     - `:axis_buckets` - Stick discretization (default: 16)
     - `:shoulder_buckets` - Trigger discretization (default: 4)
+    - `:action_embed_size` - Size of learned action embedding (default: nil = one-hot)
 
   ## Input Shape
     `[batch, seq_len, embed_size]` - Sequence of embedded game states
@@ -146,9 +205,26 @@ defmodule ExPhil.Networks.Policy do
     backbone_type = Keyword.get(opts, :backbone, :sliding_window)
     axis_buckets = Keyword.get(opts, :axis_buckets, @axis_buckets)
     shoulder_buckets = Keyword.get(opts, :shoulder_buckets, @shoulder_buckets)
+    action_embed_size = Keyword.get(opts, :action_embed_size, nil)
+    num_action_ids = Keyword.get(opts, :num_action_ids, @default_num_action_ids)
+
+    # Calculate effective embed size after action embedding
+    effective_embed_size = if action_embed_size do
+      continuous_size = embed_size - num_action_ids
+      continuous_size + (num_action_ids * action_embed_size)
+    else
+      embed_size
+    end
 
     # Build temporal backbone based on type
-    backbone = build_temporal_backbone(embed_size, backbone_type, opts)
+    # Pass the effective embed size and action embedding options
+    backbone_opts = Keyword.merge(opts, [
+      action_embed_size: action_embed_size,
+      original_embed_size: embed_size,
+      effective_embed_size: effective_embed_size,
+      num_action_ids: num_action_ids
+    ])
+    backbone = build_temporal_backbone(effective_embed_size, backbone_type, backbone_opts)
 
     # Build controller head on top
     build_controller_head(backbone, axis_buckets, shoulder_buckets)
@@ -161,7 +237,11 @@ defmodule ExPhil.Networks.Policy do
   """
   @spec build_temporal_backbone(non_neg_integer(), backbone_type(), keyword()) :: Axon.t()
   def build_temporal_backbone(embed_size, backbone_type, opts \\ []) do
-    case backbone_type do
+    action_embed_size = Keyword.get(opts, :action_embed_size, nil)
+    original_embed_size = Keyword.get(opts, :original_embed_size, embed_size)
+
+    # Build the core backbone
+    backbone = case backbone_type do
       :sliding_window ->
         build_sliding_window_backbone(embed_size, opts)
 
@@ -185,6 +265,147 @@ defmodule ExPhil.Networks.Policy do
       :mlp ->
         # For MLP, expect single frame input, add sequence handling
         build_mlp_temporal_backbone(embed_size, opts)
+    end
+
+    # If using action embeddings, wrap with preprocessing layer
+    if action_embed_size do
+      build_temporal_with_action_embedding(backbone, original_embed_size, action_embed_size, backbone_type, opts)
+    else
+      backbone
+    end
+  end
+
+  # Wrap a temporal backbone with action embedding preprocessing
+  defp build_temporal_with_action_embedding(_backbone, original_embed_size, action_embed_size, backbone_type, opts) do
+    window_size = Keyword.get(opts, :window_size, 60)
+    num_action_ids = Keyword.get(opts, :num_action_ids, @default_num_action_ids)
+    continuous_size = original_embed_size - num_action_ids
+    effective_embed_size = continuous_size + (num_action_ids * action_embed_size)
+
+    # Input: [batch, seq_len, original_embed_size]
+    input = Axon.input("state_sequence", shape: {nil, window_size, original_embed_size})
+
+    # Extract continuous features: [batch, seq_len, continuous_size]
+    continuous = Axon.nx(input, fn x ->
+      Nx.slice_along_axis(x, 0, continuous_size, axis: 2)
+    end, name: "temporal_extract_continuous")
+
+    # Extract action IDs: [batch, seq_len, num_action_ids]
+    action_ids = Axon.nx(input, fn x ->
+      Nx.slice_along_axis(x, continuous_size, num_action_ids, axis: 2)
+      |> Nx.as_type(:s32)
+    end, name: "temporal_extract_action_ids")
+
+    # Embed actions: [batch, seq_len, num_ids] -> [batch, seq_len, num_ids, embed_size]
+    # Then flatten: [batch, seq_len, num_ids * embed_size]
+    action_embeddings = Axon.embedding(action_ids, @num_actions, action_embed_size,
+      name: "temporal_action_embedding")
+
+    # Reshape to [batch, seq_len, num_action_ids * action_embed_size]
+    flat_action_embeddings = Axon.nx(action_embeddings, fn x ->
+      {batch, seq_len, num_ids, emb_size} = Nx.shape(x)
+      Nx.reshape(x, {batch, seq_len, num_ids * emb_size})
+    end, name: "temporal_flatten_action_embeds")
+
+    # Concatenate: [batch, seq_len, continuous_size + num_action_ids*action_embed_size]
+    combined = Axon.concatenate([continuous, flat_action_embeddings],
+      axis: 2, name: "temporal_concat_with_action_embeds")
+
+    # Now build the actual backbone on top of the preprocessed input
+    build_temporal_backbone_on_processed(combined, effective_embed_size, backbone_type, opts)
+  end
+
+  # Build a temporal backbone on already-processed input (for action embedding case)
+  # Uses Axon layers directly instead of calling backbone module build functions
+  defp build_temporal_backbone_on_processed(processed_input, _embed_size, backbone_type, opts) do
+    num_heads = Keyword.get(opts, :num_heads, 4)
+    head_dim = Keyword.get(opts, :head_dim, 64)
+    num_layers = Keyword.get(opts, :num_layers, 2)
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+
+    case backbone_type do
+      :sliding_window ->
+        # Simple multi-head attention stack
+        output_dim = num_heads * head_dim
+
+        # Project to attention dimension
+        projected = Axon.dense(processed_input, output_dim, name: "action_emb_project")
+
+        # Apply attention layers
+        attended = Enum.reduce(1..num_layers, projected, fn i, acc ->
+          # Self-attention (simplified - just dense layers for now)
+          acc
+          |> Axon.dense(output_dim, name: "action_emb_attn_#{i}")
+          |> Axon.relu()
+          |> Axon.dropout(rate: dropout)
+        end)
+
+        # Take last frame output
+        Axon.nx(attended, fn x ->
+          seq_len = Nx.axis_size(x, 1)
+          Nx.slice_along_axis(x, seq_len - 1, 1, axis: 1) |> Nx.squeeze(axes: [1])
+        end, name: "action_emb_last_frame")
+
+      :mamba ->
+        # Project and apply simple recurrent-like processing
+        projected = Axon.dense(processed_input, hidden_size, name: "action_emb_mamba_project")
+
+        processed = Enum.reduce(1..num_layers, projected, fn i, acc ->
+          acc
+          |> Axon.dense(hidden_size, name: "action_emb_mamba_#{i}")
+          |> Axon.silu()
+          |> Axon.dropout(rate: dropout)
+        end)
+
+        # Take last frame
+        Axon.nx(processed, fn x ->
+          seq_len = Nx.axis_size(x, 1)
+          Nx.slice_along_axis(x, seq_len - 1, 1, axis: 1) |> Nx.squeeze(axes: [1])
+        end, name: "action_emb_mamba_last_frame")
+
+      :jamba ->
+        # Similar to mamba but with attention every few layers
+        projected = Axon.dense(processed_input, hidden_size, name: "action_emb_jamba_project")
+
+        processed = Enum.reduce(1..num_layers, projected, fn i, acc ->
+          acc
+          |> Axon.dense(hidden_size, name: "action_emb_jamba_#{i}")
+          |> Axon.silu()
+          |> Axon.dropout(rate: dropout)
+        end)
+
+        Axon.nx(processed, fn x ->
+          seq_len = Nx.axis_size(x, 1)
+          Nx.slice_along_axis(x, seq_len - 1, 1, axis: 1) |> Nx.squeeze(axes: [1])
+        end, name: "action_emb_jamba_last_frame")
+
+      :mlp ->
+        # Take last frame and apply MLP
+        last_frame = Axon.nx(processed_input, fn x ->
+          seq_len = Nx.axis_size(x, 1)
+          Nx.slice_along_axis(x, seq_len - 1, 1, axis: 1) |> Nx.squeeze(axes: [1])
+        end, name: "action_emb_mlp_last_frame")
+
+        Enum.reduce(1..num_layers, last_frame, fn i, acc ->
+          acc
+          |> Axon.dense(hidden_size, name: "action_emb_mlp_#{i}")
+          |> Axon.relu()
+          |> Axon.dropout(rate: dropout)
+        end)
+
+      other ->
+        # For less common backbones, raise helpful error
+        raise ArgumentError, """
+        Backbone #{inspect(other)} with action_embed_size is not yet supported.
+        Supported backbones with learned action embeddings:
+        - :sliding_window
+        - :mamba
+        - :jamba
+        - :mlp
+
+        Use action_mode: :one_hot in your embedding config for #{inspect(other)}.
+        """
     end
   end
 

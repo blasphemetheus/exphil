@@ -67,6 +67,70 @@ defmodule ExPhil.Networks.PolicyTest do
       assert Nx.shape(c_y) == {@batch_size, 17}
       assert Nx.shape(shoulder) == {@batch_size, 5}
     end
+
+    test "builds model with action embedding layer" do
+      # embed_size = continuous_size + 2 action IDs
+      model = Policy.build(embed_size: @embed_size, action_embed_size: 32)
+
+      assert %Axon{} = model
+    end
+
+    @tag :slow
+    test "model with action embedding produces correct output shapes" do
+      # Total embed_size includes 2 action IDs at the end
+      continuous_size = 64
+      total_embed_size = continuous_size + 2  # 66
+
+      model = Policy.build(
+        embed_size: total_embed_size,
+        action_embed_size: 32,
+        axis_buckets: 16,
+        shoulder_buckets: 4
+      )
+
+      {init_fn, predict_fn} = Axon.build(model)
+      params = init_fn.(Nx.template({1, total_embed_size}, :f32), Axon.ModelState.empty())
+
+      # Create input with action IDs at the end (values 0-398 are valid)
+      continuous_input = Nx.broadcast(0.5, {@batch_size, continuous_size})
+      action_ids = Nx.tensor([[50, 100], [60, 110], [70, 120], [80, 130]])  # Example action IDs
+      input = Nx.concatenate([continuous_input, action_ids], axis: 1)
+
+      {buttons, main_x, main_y, c_x, c_y, shoulder} = predict_fn.(params, input)
+
+      # Should still produce correct output shapes
+      assert Nx.shape(buttons) == {@batch_size, 8}
+      assert Nx.shape(main_x) == {@batch_size, 17}
+      assert Nx.shape(main_y) == {@batch_size, 17}
+      assert Nx.shape(c_x) == {@batch_size, 17}
+      assert Nx.shape(c_y) == {@batch_size, 17}
+      assert Nx.shape(shoulder) == {@batch_size, 5}
+    end
+  end
+
+  describe "build_action_embedding_layer/4" do
+    test "builds action embedding layer with 2 action IDs" do
+      total_embed_size = 66  # 64 continuous + 2 action IDs
+      action_embed_size = 32
+      num_action_ids = 2
+      input = Axon.input("state", shape: {nil, total_embed_size})
+
+      layer = Policy.build_action_embedding_layer(input, total_embed_size, action_embed_size, num_action_ids)
+
+      assert %Axon{} = layer
+    end
+
+    test "builds action embedding layer with 4 action IDs (enhanced Nana)" do
+      # Enhanced Nana mode: 2 player actions + 2 Nana actions
+      total_embed_size = 68  # 64 continuous + 4 action IDs
+      action_embed_size = 32
+      num_action_ids = 4
+      input = Axon.input("state", shape: {nil, total_embed_size})
+
+      layer = Policy.build_action_embedding_layer(input, total_embed_size, action_embed_size, num_action_ids)
+
+      assert %Axon{} = layer
+    end
   end
 
   describe "build_backbone/4" do
@@ -704,6 +768,68 @@ defmodule ExPhil.Networks.PolicyTest do
 
       assert Nx.shape(buttons) == {@batch_size, 8}
       assert Nx.shape(main_x) == {@batch_size, 17}
+      assert Nx.shape(shoulder) == {@batch_size, 5}
+    end
+
+    test "builds temporal model with action embedding (mamba backbone)" do
+      # Total embed_size includes 2 action IDs at the end
+      continuous_size = 64
+      total_embed_size = continuous_size + 2
+
+      model = Policy.build_temporal(
+        embed_size: total_embed_size,
+        backbone: :mamba,
+        action_embed_size: 32
+      )
+
+      assert %Axon{} = model
+    end
+
+    test "builds temporal model with action embedding (mlp backbone)" do
+      continuous_size = 64
+      total_embed_size = continuous_size + 2
+
+      model = Policy.build_temporal(
+        embed_size: total_embed_size,
+        backbone: :mlp,
+        action_embed_size: 32
+      )
+
+      assert %Axon{} = model
+    end
+
+    @tag :slow
+    test "temporal mamba with action embedding produces correct output shapes" do
+      continuous_size = 64
+      total_embed_size = continuous_size + 2
+      seq_len = 10
+
+      model = Policy.build_temporal(
+        embed_size: total_embed_size,
+        backbone: :mamba,
+        action_embed_size: 32,
+        hidden_size: 64
+      )
+
+      {init_fn, predict_fn} = Axon.build(model)
+      params = init_fn.(
+        Nx.template({@batch_size, seq_len, total_embed_size}, :f32),
+        Axon.ModelState.empty()
+      )
+
+      # Create input with action IDs at the end of each frame
+      continuous_input = Nx.broadcast(0.5, {@batch_size, seq_len, continuous_size})
+      # Action IDs per frame - shape {batch, seq_len, 2}
+      action_ids = Nx.broadcast(50.0, {@batch_size, seq_len, 2})
+      input = Nx.concatenate([continuous_input, action_ids], axis: 2)
+
+      {buttons, main_x, main_y, c_x, c_y, shoulder} = predict_fn.(params, input)
+
+      assert Nx.shape(buttons) == {@batch_size, 8}
+      assert Nx.shape(main_x) == {@batch_size, 17}
+      assert Nx.shape(main_y) == {@batch_size, 17}
+      assert Nx.shape(c_x) == {@batch_size, 17}
+      assert Nx.shape(c_y) == {@batch_size, 17}
       assert Nx.shape(shoulder) == {@batch_size, 5}
     end
   end

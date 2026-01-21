@@ -201,6 +201,16 @@ batches = Data.batched(dataset,
 num_batches = length(batches)
 Output.puts("  Created #{num_batches} evaluation batches")
 
+# Sample batches for faster evaluation (max 100 batches = 6400 frames)
+max_eval_batches = 100
+batches = if num_batches > max_eval_batches do
+  Output.puts("  Sampling #{max_eval_batches} batches for evaluation (use --batch-size to adjust)")
+  Enum.take_random(batches, max_eval_batches)
+else
+  batches
+end
+num_batches = length(batches)
+
 # Helper functions for metrics
 compute_accuracy = fn logits, targets, _num_classes ->
   predictions = Nx.argmax(logits, axis: -1)
@@ -272,9 +282,7 @@ evaluate_model = fn model_path ->
     end
     %{states: states, actions: actions} = batch
 
-    states = Nx.backend_copy(states)
-    actions = Map.new(actions, fn {k, v} -> {k, Nx.backend_copy(v)} end)
-
+    # Run inference (no backend_copy needed - tensors are already on correct backend)
     {buttons, main_x, main_y, c_x, c_y, shoulder} = predict_fn.(params, states)
 
     logits = %{

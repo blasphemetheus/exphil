@@ -226,6 +226,77 @@ defmodule ExPhil.Embeddings.PlayerTest do
       assert_in_delta facing_right, 1.0, 0.001
       assert_in_delta facing_left, -1.0, 0.001
     end
+
+    test "creates base embedding without action one-hot (learned action mode)" do
+      player = mock_player()
+      config = %PlayerEmbed{action_mode: :learned, jumps_normalized: true}
+
+      result = PlayerEmbed.embed_base(player, config)
+
+      # Base size with action_mode: :learned:
+      # 1 + 1 + 1 + 1 + 0 + 33 + 1 + 1 + 1 + 1 = 41
+      # (action is 0 dims instead of 399)
+      expected_size = 1 + 1 + 1 + 1 + 0 + 33 + 1 + 1 + 1 + 1
+      assert Nx.shape(result) == {expected_size}
+    end
+
+    test "creates base embedding without action one-hot and with one-hot jumps" do
+      player = mock_player()
+      config = %PlayerEmbed{action_mode: :learned, jumps_normalized: false}
+
+      result = PlayerEmbed.embed_base(player, config)
+
+      # Base size with action_mode: :learned and jumps_normalized: false:
+      # 1 + 1 + 1 + 1 + 0 + 33 + 1 + 7 + 1 + 1 = 47
+      expected_size = 1 + 1 + 1 + 1 + 0 + 33 + 1 + 7 + 1 + 1
+      assert Nx.shape(result) == {expected_size}
+    end
+  end
+
+  describe "get_action_id/1" do
+    test "returns action from player state" do
+      player = mock_player(action: 50)
+
+      assert PlayerEmbed.get_action_id(player) == 50
+    end
+
+    test "returns 0 for nil player" do
+      assert PlayerEmbed.get_action_id(nil) == 0
+    end
+
+    test "returns 0 for nil action" do
+      player = %PlayerState{action: nil}
+
+      assert PlayerEmbed.get_action_id(player) == 0
+    end
+  end
+
+  describe "get_action_ids_batch/1" do
+    test "returns tensor of action IDs" do
+      players = [
+        mock_player(action: 10),
+        mock_player(action: 20),
+        mock_player(action: 30)
+      ]
+
+      result = PlayerEmbed.get_action_ids_batch(players)
+
+      assert Nx.shape(result) == {3}
+      assert Nx.to_list(result) == [10, 20, 30]
+    end
+
+    test "handles nil players in batch" do
+      players = [
+        mock_player(action: 10),
+        nil,
+        mock_player(action: 30)
+      ]
+
+      result = PlayerEmbed.get_action_ids_batch(players)
+
+      assert Nx.shape(result) == {3}
+      assert Nx.to_list(result) == [10, 0, 30]
+    end
   end
 
   describe "embed_speeds/2" do
@@ -329,6 +400,97 @@ defmodule ExPhil.Embeddings.PlayerTest do
       # Should be different (nana's percent is embedded)
       diff = Nx.sum(Nx.abs(Nx.subtract(result1, result2)))
       assert Nx.to_number(diff) > 0
+    end
+
+    # Enhanced mode tests
+    test "returns zeros with exists=0 for nil nana (enhanced mode)" do
+      config = %PlayerEmbed{nana_mode: :enhanced}
+
+      result = PlayerEmbed.embed_nana(nil, config, nil)
+
+      # Enhanced Nana size: 14 dims (no action ID in embedding - handled by GameEmbed)
+      expected_size = 14
+      assert Nx.shape(result) == {expected_size}
+
+      # All should be zeros
+      assert Nx.to_number(Nx.sum(result)) == 0.0
+    end
+
+    test "embeds nana with exists=1 (enhanced mode)" do
+      nana = mock_nana()
+      config = %PlayerEmbed{nana_mode: :enhanced}
+
+      result = PlayerEmbed.embed_nana(nana, config, nil)
+
+      # Enhanced mode has 14 dims
+      expected_size = 14
+      assert Nx.shape(result) == {expected_size}
+
+      # First element is exists flag, should be 1.0
+      exists_flag = Nx.to_number(Nx.squeeze(Nx.slice(result, [0], [1])))
+      assert exists_flag == 1.0
+    end
+
+    test "enhanced mode has boolean flags for attacking/grabbing/can_act" do
+      # Test with actions in correct categories
+      # Action categories from action_to_category:
+      # - 10-16: Attack categories (ground attacks, air attacks, specials) = 0x43-0xBB
+      # - 17-18: Grab/throw categories = 0xBC-0xD3
+      # - 2: Idle = 0x0E-0x14
+      nana_attacking = mock_nana(action: 0x50)  # Ground attack category 11
+      nana_grabbing = mock_nana(action: 0xC0)   # Grab category 17
+      nana_idle = mock_nana(action: 0x10)       # Idle category 2
+      config = %PlayerEmbed{nana_mode: :enhanced}
+
+      result_attacking = PlayerEmbed.embed_nana(nana_attacking, config, nil)
+      result_grabbing = PlayerEmbed.embed_nana(nana_grabbing, config, nil)
+      result_idle = PlayerEmbed.embed_nana(nana_idle, config, nil)
+
+      # All should be 14 dims
+      assert Nx.shape(result_attacking) == {14}
+      assert Nx.shape(result_grabbing) == {14}
+      assert Nx.shape(result_idle) == {14}
+
+      # The embeddings should differ based on action state
+      # is_attacking at index 9, is_grabbing at index 10, can_act at index 11
+      diff_atk_idle = Nx.sum(Nx.abs(Nx.subtract(result_attacking, result_idle)))
+      diff_grab_idle = Nx.sum(Nx.abs(Nx.subtract(result_grabbing, result_idle)))
+
+      assert Nx.to_number(diff_atk_idle) > 0
+      assert Nx.to_number(diff_grab_idle) > 0
+    end
+  end
+
+  describe "get_nana_action_id/1" do
+    test "returns 0 for nil player" do
+      assert PlayerEmbed.get_nana_action_id(nil) == 0
+    end
+
+    test "returns 0 for player with no nana" do
+      player = mock_player()
+      player_no_nana = %{player | nana: nil}
+      assert PlayerEmbed.get_nana_action_id(player_no_nana) == 0
+    end
+
+    test "returns nana action for player with nana" do
+      nana = mock_nana(action: 123)
+      player = %{mock_player() | nana: nana}
+      assert PlayerEmbed.get_nana_action_id(player) == 123
+    end
+  end
+
+  describe "get_nana_action_ids_batch/1" do
+    test "returns tensor of nana action IDs" do
+      nana1 = mock_nana(action: 100)
+      nana2 = mock_nana(action: 200)
+      player1 = %{mock_player() | nana: nana1}
+      player2 = %{mock_player() | nana: nana2}
+      player3 = %{mock_player() | nana: nil}
+
+      result = PlayerEmbed.get_nana_action_ids_batch([player1, player2, player3, nil])
+
+      assert Nx.shape(result) == {4}
+      assert Nx.to_flat_list(result) == [100, 200, 0, 0]
     end
   end
 
