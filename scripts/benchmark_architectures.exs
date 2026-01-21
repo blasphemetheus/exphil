@@ -139,11 +139,8 @@ results = Enum.map(architectures, fn {arch_id, arch_name, arch_opts} ->
     checkpoint: "checkpoints/benchmark_#{arch_id}.axon"
   ], arch_opts)
 
-  # Build embed config
-  embed_config = Embeddings.create_config(
-    character: :mewtwo,
-    player_port: opts[:player_port] || 1
-  )
+  # Build embed config (use default)
+  embed_config = Embeddings.config()
 
   # Prepare dataset based on architecture
   prepared_train = if opts[:temporal] do
@@ -169,7 +166,7 @@ results = Enum.map(architectures, fn {arch_id, arch_name, arch_opts} ->
   end
 
   # Create trainer
-  {:ok, trainer} = Imitation.new(
+  trainer = Imitation.new(
     hidden_sizes: opts[:hidden_sizes],
     embed_config: embed_config,
     temporal: opts[:temporal],
