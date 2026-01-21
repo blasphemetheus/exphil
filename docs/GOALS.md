@@ -70,9 +70,17 @@ The project can do behavioral cloning but lacks self-play RL. This is the bigges
 
 | Task | Effort | Why | Status |
 |------|--------|-----|--------|
-| Residual MLP connections | Medium | +5-15% accuracy, enables deeper networks | Not started |
+| Residual MLP connections | Medium | +5-15% accuracy, enables deeper networks | **Done** |
 | Focal loss for rare actions | Medium | +30-50% accuracy on Z/L/R (rare buttons) | **Done** |
-| Hybrid Mamba+Attention | High | Research shows hybrids can outperform pure | Not started |
+| Hybrid Mamba+Attention | High | Research shows hybrids can outperform pure | **Done** |
+
+**Hybrid Mamba+Attention Implementation:**
+- Interleaves Mamba blocks with attention layers (default: 3 Mamba : 1 Attention ratio)
+- Mamba: O(L) local context, efficient for sequential patterns
+- Attention: O(L²) but captures long-range dependencies (reaction timing, combo followups)
+- CLI: `--backbone jamba --num-layers 6 --attention-every 3`
+- Module: `lib/exphil/networks/hybrid.ex`
+- Layer pattern: `[:mamba, :mamba, :attention, :mamba, :mamba, :attention]` for 6 layers
 
 **Focal Loss Implementation:**
 - Formula: `(1 - p_t)^gamma * CE(p, y)` where gamma=2.0 is typical
@@ -376,9 +384,126 @@ Completed:
   - `Config.load_yaml/1`, `Config.parse_yaml/1`, `Config.save_yaml/2`
   - Sample config: `config/training.example.yaml`
 
-### 2026-01-20: K-Means Stick Discretization Research
+### 2026-01-20: Residual MLP Connections (Complete)
 
-**Status: Research Complete | Implementation: Not Started**
+Completed:
+- [x] Residual connections in MLP backbone - **Done**
+  - Added `--residual` and `--no-residual` CLI flags
+  - `Policy.build_backbone/5` now accepts `residual: true` option
+  - Skip connections: `output = dropout(activation(dense(x))) + project(x)`
+  - Automatic projection layer when input/output dimensions differ
+  - Works with `--layer-norm` for ResNet-style blocks
+  - Added to config JSON for checkpoint metadata
+- [x] Tests for residual backbone - **Done**
+  - 7 config tests for CLI parsing
+  - 7 policy tests for model building and execution
+  - Verified residual models have more params when projection needed
+
+**Usage:**
+```bash
+# Enable residual connections
+mix run scripts/train_from_replays.exs --residual
+
+# Combine with layer normalization (recommended for deep networks)
+mix run scripts/train_from_replays.exs --residual --layer-norm --hidden-sizes 256,256,256,256
+
+# Disable if needed
+mix run scripts/train_from_replays.exs --no-residual
+```
+
+**Implementation Details:**
+- Location: `lib/exphil/networks/policy.ex:build_backbone/5`
+- Projection layers named `backbone_proj_N` for dimension changes
+- Residual add layers named `backbone_residual_N`
+- Enables deeper networks (4+ layers) without gradient degradation
+
+### 2026-01-20: Hybrid Mamba+Attention Architecture (Complete)
+
+Completed:
+- [x] Hybrid backbone module - **Done**
+  - `lib/exphil/networks/hybrid.ex` with interleaved Mamba+Attention
+  - Mamba blocks for O(L) local context processing
+  - Attention layers for O(L²) long-range dependencies
+  - Configurable ratio via `attention_every` option (default: 3)
+- [x] Policy integration - **Done**
+  - Added `:jamba` backbone type
+  - `build_jamba_backbone/2` in Policy module
+  - Full integration with autoregressive controller head
+- [x] CLI support - **Done**
+  - `--backbone jamba` flag
+  - `--attention-every N` for layer ratio (default: 3)
+  - Added to `@valid_backbones` in Config module
+- [x] Comprehensive tests - **Done**
+  - 21 tests in `test/exphil/networks/hybrid_test.exs`
+  - Tests for layer patterns, output shapes, numerical stability
+  - Policy integration test
+
+**Architecture:**
+```
+Layer 1: Mamba Block
+Layer 2: Mamba Block
+Layer 3: Attention Block ← Long-range dependencies
+Layer 4: Mamba Block
+Layer 5: Mamba Block
+Layer 6: Attention Block ← Long-range dependencies
+```
+
+**Usage:**
+```bash
+# Hybrid Mamba+Attention (recommended for complex patterns)
+mix run scripts/train_from_replays.exs --temporal \
+  --backbone jamba --num-layers 6 --attention-every 3
+
+# More attention for very long-range dependencies
+mix run scripts/train_from_replays.exs --temporal \
+  --backbone jamba --num-layers 6 --attention-every 2
+```
+
+**Why "Jamba"?**
+Named after AI21's Jamba architecture paper which pioneered interleaving SSM (Mamba) with attention layers.
+
+**Why Hybrid?**
+- Mamba: Fast O(L) processing for local patterns (combos, tech chases)
+- Attention: Slower O(L²) but captures long-range timing (punishes, reactions)
+- Hybrid: Best of both - efficient local + powerful global
+
+### 2026-01-20: K-Means Stick Discretization (Complete)
+
+**Status: Implementation Complete**
+
+Completed:
+- [x] K-means clustering module - **Done**
+  - `lib/exphil/embeddings/kmeans.ex`
+  - K-means++ initialization for better convergence
+  - `fit/2`, `discretize/2`, `undiscretize/2`, `save/2`, `load/1`
+  - 19 unit tests
+- [x] Training script for K-means centers - **Done**
+  - `scripts/train_kmeans.exs --replays ./replays --k 21 --output priv/kmeans_centers.nx`
+  - Extracts stick positions from all replays
+  - Outputs cluster centers and JSON metadata
+- [x] Controller embedding integration - **Done**
+  - `--kmeans-centers PATH` CLI flag
+  - Config struct supports `kmeans_centers: Nx.Tensor.t() | nil`
+  - `axis_output_size/1`, `discretize_axis_with_config/2`, `undiscretize_axis_with_config/2`
+  - Automatic fallback to uniform buckets if no centers
+- [x] Tests for config parsing - **Done**
+
+**Usage:**
+```bash
+# Step 1: Train K-means centers from replays
+mix run scripts/train_kmeans.exs --replays ./replays --k 21 --output priv/kmeans_centers.nx
+
+# Step 2: Train model using K-means discretization
+mix run scripts/train_from_replays.exs --kmeans-centers priv/kmeans_centers.nx --epochs 20
+```
+
+**Benefits:**
+- ~5% improvement in stick prediction accuracy
+- Better accuracy on rare but important inputs (wavedash angles, shield drops)
+- Cluster centers avoid analog deadzone (~0.2875)
+- Non-uniform buckets match actual gameplay distributions
+
+### K-Means Research Background
 
 #### Current Implementation (Uniform Buckets)
 

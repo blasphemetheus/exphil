@@ -27,6 +27,7 @@ defmodule ExPhil.Embeddings.Controller do
 
   # Uses Nx with module prefix
   alias ExPhil.Embeddings.Primitives
+  alias ExPhil.Embeddings.KMeans
   alias ExPhil.Bridge.ControllerState
 
   # Default discretization
@@ -38,24 +39,58 @@ defmodule ExPhil.Embeddings.Controller do
 
   @doc """
   Configuration for controller embedding.
+
+  ## Options
+    - `:axis_buckets` - Number of buckets for stick axes (default: 16, gives 17 values)
+    - `:shoulder_buckets` - Number of buckets for triggers (default: 4, gives 5 values)
+    - `:kmeans_centers` - Optional Nx.Tensor of K-means cluster centers for stick discretization.
+                         If provided, uses K-means instead of uniform buckets.
   """
   defstruct [
     axis_buckets: @default_axis_buckets,
-    shoulder_buckets: @default_shoulder_buckets
+    shoulder_buckets: @default_shoulder_buckets,
+    kmeans_centers: nil  # Optional: Nx.Tensor of cluster centers
   ]
 
   @type config :: %__MODULE__{
     axis_buckets: non_neg_integer(),
-    shoulder_buckets: non_neg_integer()
+    shoulder_buckets: non_neg_integer(),
+    kmeans_centers: Nx.Tensor.t() | nil
   }
 
   @spec default_config() :: config()
   def default_config, do: %__MODULE__{}
 
   @doc """
+  Create a config with K-means centers loaded from a file.
+  """
+  @spec kmeans_config(String.t(), keyword()) :: config()
+  def kmeans_config(centers_path, opts \\ []) do
+    centers = case KMeans.load(centers_path) do
+      {:ok, c} -> c
+      {:error, _} -> nil
+    end
+
+    %__MODULE__{
+      axis_buckets: Keyword.get(opts, :axis_buckets, @default_axis_buckets),
+      shoulder_buckets: Keyword.get(opts, :shoulder_buckets, @default_shoulder_buckets),
+      kmeans_centers: centers
+    }
+  end
+
+  @doc """
+  Check if a config uses K-means discretization.
+  """
+  @spec uses_kmeans?(config()) :: boolean()
+  def uses_kmeans?(%__MODULE__{kmeans_centers: nil}), do: false
+  def uses_kmeans?(%__MODULE__{kmeans_centers: _}), do: true
+
+  @doc """
   Calculate the embedding size for a given configuration.
 
   Default: 8 buttons + 2*axis_buckets (main) + 2*axis_buckets (c) + shoulder_buckets
+
+  When using K-means, axis size is determined by the number of clusters.
   """
   @spec embedding_size(config()) :: non_neg_integer()
   def embedding_size(config \\ default_config()) do
@@ -63,13 +98,27 @@ defmodule ExPhil.Embeddings.Controller do
     buttons_size = length(@legal_buttons)
 
     # Sticks: one-hot per axis
-    main_size = 2 * (config.axis_buckets + 1)  # +1 for one-hot
-    c_size = 2 * (config.axis_buckets + 1)
+    axis_size = axis_output_size(config)
+    main_size = 2 * axis_size
+    c_size = 2 * axis_size
 
-    # Shoulder: one-hot
+    # Shoulder: one-hot (always uses uniform buckets)
     shoulder_size = config.shoulder_buckets + 1
 
     buttons_size + main_size + c_size + shoulder_size
+  end
+
+  @doc """
+  Get the output size for a single axis (number of discrete values).
+
+  Uses K-means cluster count if available, otherwise axis_buckets + 1.
+  """
+  @spec axis_output_size(config()) :: non_neg_integer()
+  def axis_output_size(%__MODULE__{kmeans_centers: nil, axis_buckets: buckets}) do
+    buckets + 1
+  end
+  def axis_output_size(%__MODULE__{kmeans_centers: centers}) do
+    KMeans.k(centers)
   end
 
   @doc """
@@ -151,30 +200,34 @@ defmodule ExPhil.Embeddings.Controller do
   end
 
   def embed_discrete(%ControllerState{} = cs, config) do
+    axis_size = axis_output_size(config)
     Nx.concatenate([
       embed_buttons_continuous(cs),  # Buttons stay as 0/1
-      embed_stick_discrete(cs.main_stick, config.axis_buckets),
-      embed_stick_discrete(cs.c_stick, config.axis_buckets),
+      embed_stick_discrete(cs.main_stick, config, axis_size),
+      embed_stick_discrete(cs.c_stick, config, axis_size),
       embed_shoulder_discrete(cs.l_shoulder, config.shoulder_buckets)
     ])
   end
 
-  defp embed_stick_discrete(%{x: x, y: y}, buckets) do
-    x_bucket = discretize_axis(x, buckets)
-    y_bucket = discretize_axis(y, buckets)
+  defp embed_stick_discrete(%{x: x, y: y}, config, axis_size) do
+    x_bucket = discretize_axis_with_config(x, config)
+    y_bucket = discretize_axis_with_config(y, config)
 
     Nx.concatenate([
-      Primitives.one_hot(x_bucket, size: buckets + 1),
-      Primitives.one_hot(y_bucket, size: buckets + 1)
+      Primitives.one_hot(x_bucket, size: axis_size),
+      Primitives.one_hot(y_bucket, size: axis_size)
     ])
   end
 
-  defp embed_stick_discrete(nil, buckets) do
+  defp embed_stick_discrete(nil, config, axis_size) do
     # Neutral stick (center)
-    center = div(buckets, 2)
+    center = case config.kmeans_centers do
+      nil -> div(config.axis_buckets, 2)
+      centers -> KMeans.discretize(0.5, centers)
+    end
     Nx.concatenate([
-      Primitives.one_hot(center, size: buckets + 1),
-      Primitives.one_hot(center, size: buckets + 1)
+      Primitives.one_hot(center, size: axis_size),
+      Primitives.one_hot(center, size: axis_size)
     ])
   end
 
@@ -188,7 +241,19 @@ defmodule ExPhil.Embeddings.Controller do
   end
 
   @doc """
-  Discretize a continuous axis value [0, 1] to a bucket index.
+  Discretize using the config (K-means or uniform buckets).
+  """
+  @spec discretize_axis_with_config(float(), config()) :: non_neg_integer()
+  def discretize_axis_with_config(value, %__MODULE__{kmeans_centers: nil, axis_buckets: buckets}) do
+    discretize_axis(value, buckets)
+  end
+  def discretize_axis_with_config(value, %__MODULE__{kmeans_centers: centers}) when is_number(value) do
+    KMeans.discretize(value, centers)
+  end
+  def discretize_axis_with_config(_, _), do: 0
+
+  @doc """
+  Discretize a continuous axis value [0, 1] to a bucket index (uniform buckets).
   """
   @spec discretize_axis(float(), non_neg_integer()) :: non_neg_integer()
   def discretize_axis(value, buckets) when is_number(value) do
@@ -201,7 +266,18 @@ defmodule ExPhil.Embeddings.Controller do
   def discretize_axis(_, _), do: 0
 
   @doc """
-  Convert a bucket index back to continuous value.
+  Undiscretize using the config (K-means or uniform buckets).
+  """
+  @spec undiscretize_axis_with_config(non_neg_integer(), config()) :: float()
+  def undiscretize_axis_with_config(index, %__MODULE__{kmeans_centers: nil, axis_buckets: buckets}) do
+    undiscretize_axis(index, buckets)
+  end
+  def undiscretize_axis_with_config(index, %__MODULE__{kmeans_centers: centers}) do
+    KMeans.undiscretize(index, centers)
+  end
+
+  @doc """
+  Convert a bucket index back to continuous value (uniform buckets).
   """
   @spec undiscretize_axis(non_neg_integer(), non_neg_integer()) :: float()
   def undiscretize_axis(bucket, buckets) do
@@ -217,7 +293,7 @@ defmodule ExPhil.Embeddings.Controller do
   @spec component_indices(config()) :: map()
   def component_indices(config \\ default_config()) do
     buttons_size = 8
-    axis_size = config.axis_buckets + 1
+    axis_size = axis_output_size(config)
     shoulder_size = config.shoulder_buckets + 1
 
     %{
@@ -235,17 +311,19 @@ defmodule ExPhil.Embeddings.Controller do
 
   Takes the raw network outputs (logits or samples) and converts
   them back to a ControllerState that can be sent to the game.
+
+  Uses K-means undiscretization if config has kmeans_centers.
   """
   @spec decode(map(), config()) :: ControllerState.t()
   def decode(samples, config \\ default_config()) do
     %ControllerState{
       main_stick: %{
-        x: undiscretize_axis(samples.main_x, config.axis_buckets),
-        y: undiscretize_axis(samples.main_y, config.axis_buckets)
+        x: undiscretize_axis_with_config(samples.main_x, config),
+        y: undiscretize_axis_with_config(samples.main_y, config)
       },
       c_stick: %{
-        x: undiscretize_axis(samples.c_x, config.axis_buckets),
-        y: undiscretize_axis(samples.c_y, config.axis_buckets)
+        x: undiscretize_axis_with_config(samples.c_x, config),
+        y: undiscretize_axis_with_config(samples.c_y, config)
       },
       l_shoulder: undiscretize_axis(samples.shoulder, config.shoulder_buckets),
       r_shoulder: 0.0,

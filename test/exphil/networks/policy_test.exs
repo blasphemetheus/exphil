@@ -93,6 +93,93 @@ defmodule ExPhil.Networks.PolicyTest do
         assert %Axon{} = backbone
       end
     end
+
+    test "builds backbone with layer_norm option" do
+      input = Axon.input("state", shape: {nil, @embed_size})
+      backbone = Policy.build_backbone(input, [64, 64], :relu, 0.1, layer_norm: true)
+
+      assert %Axon{} = backbone
+    end
+
+    test "builds backbone with residual connections" do
+      input = Axon.input("state", shape: {nil, @embed_size})
+      backbone = Policy.build_backbone(input, [64, 64], :relu, 0.1, residual: true)
+
+      assert %Axon{} = backbone
+    end
+
+    test "builds backbone with residual and layer_norm" do
+      input = Axon.input("state", shape: {nil, @embed_size})
+      backbone = Policy.build_backbone(input, [64, 64], :relu, 0.1,
+        residual: true, layer_norm: true)
+
+      assert %Axon{} = backbone
+    end
+
+    test "residual backbone handles dimension changes with projection" do
+      # Different hidden sizes require projection layers
+      input = Axon.input("state", shape: {nil, @embed_size})
+      backbone = Policy.build_backbone(input, [256, 128, 64], :relu, 0.1, residual: true)
+
+      assert %Axon{} = backbone
+    end
+  end
+
+  describe "build/1 with residual" do
+    test "builds model with residual option" do
+      model = Policy.build(embed_size: @embed_size, residual: true)
+
+      assert %Axon{} = model
+    end
+
+    @tag :slow
+    test "residual model can be initialized and run forward pass" do
+      model = Policy.build(embed_size: @embed_size, hidden_sizes: [64, 64], residual: true)
+      {init_fn, predict_fn} = Axon.build(model)
+
+      params = init_fn.(Nx.template({1, @embed_size}, :f32), Axon.ModelState.empty())
+      input = Nx.Random.uniform(Nx.Random.key(42), shape: {@batch_size, @embed_size}) |> elem(0)
+
+      {buttons, main_x, main_y, c_x, c_y, shoulder} = predict_fn.(params, input)
+
+      # Verify output shapes are correct
+      assert Nx.shape(buttons) == {@batch_size, 8}
+      assert Nx.shape(main_x) == {@batch_size, 17}
+      assert Nx.shape(main_y) == {@batch_size, 17}
+      assert Nx.shape(c_x) == {@batch_size, 17}
+      assert Nx.shape(c_y) == {@batch_size, 17}
+      assert Nx.shape(shoulder) == {@batch_size, 5}
+    end
+
+    @tag :slow
+    test "residual model has more parameters than non-residual when projection needed" do
+      # With varying hidden sizes, residual needs projection layers
+      non_residual = Policy.build(embed_size: @embed_size, hidden_sizes: [256, 128], residual: false)
+      residual = Policy.build(embed_size: @embed_size, hidden_sizes: [256, 128], residual: true)
+
+      {init_fn_nr, _} = Axon.build(non_residual)
+      {init_fn_r, _} = Axon.build(residual)
+
+      params_nr = init_fn_nr.(Nx.template({1, @embed_size}, :f32), Axon.ModelState.empty())
+      params_r = init_fn_r.(Nx.template({1, @embed_size}, :f32), Axon.ModelState.empty())
+
+      # Count parameters
+      count_params = fn model_state ->
+        model_state.data
+        |> Enum.reduce(0, fn {_layer, layer_params}, acc ->
+          layer_count = Enum.reduce(layer_params, 0, fn {_name, tensor}, acc2 ->
+            acc2 + Nx.size(tensor)
+          end)
+          acc + layer_count
+        end)
+      end
+
+      nr_count = count_params.(params_nr)
+      r_count = count_params.(params_r)
+
+      # Residual with projection should have more params
+      assert r_count > nr_count
+    end
   end
 
   describe "build_controller_head/3" do
@@ -553,8 +640,8 @@ defmodule ExPhil.Networks.PolicyTest do
       assert %Axon{} = model
     end
 
-    test "builds hybrid LSTM + attention temporal policy" do
-      model = Policy.build_temporal(embed_size: @embed_size, backbone: :hybrid)
+    test "builds LSTM + attention hybrid temporal policy" do
+      model = Policy.build_temporal(embed_size: @embed_size, backbone: :lstm_hybrid)
 
       assert %Axon{} = model
     end
@@ -597,10 +684,10 @@ defmodule ExPhil.Networks.PolicyTest do
       assert Nx.shape(shoulder) == {@batch_size, 5}
     end
 
-    test "hybrid model produces correct output shapes" do
+    test "lstm_hybrid model produces correct output shapes" do
       model = Policy.build_temporal(
         embed_size: @embed_size,
-        backbone: :hybrid,
+        backbone: :lstm_hybrid,
         hidden_size: 64,
         num_heads: 2,
         head_dim: 16
@@ -627,8 +714,8 @@ defmodule ExPhil.Networks.PolicyTest do
       assert Policy.temporal_backbone_output_size(:sliding_window, num_heads: 8, head_dim: 32) == 256
     end
 
-    test "returns correct size for hybrid" do
-      assert Policy.temporal_backbone_output_size(:hybrid, num_heads: 4, head_dim: 64) == 256
+    test "returns correct size for lstm_hybrid" do
+      assert Policy.temporal_backbone_output_size(:lstm_hybrid, num_heads: 4, head_dim: 64) == 256
     end
 
     test "returns correct size for lstm" do

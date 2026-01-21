@@ -38,9 +38,10 @@ defmodule ExPhil.Training.Config do
     "--label-smoothing", "--focal-loss", "--focal-gamma", "--no-register",
     "--keep-best", "--ema", "--ema-decay", "--precompute", "--no-precompute",
     "--prefetch", "--no-prefetch", "--gradient-checkpoint", "--checkpoint-every",
-    "--prefetch-buffer", "--layer-norm", "--no-layer-norm", "--optimizer", "--preset",
-    "--dry-run", "--character", "--characters", "--stage", "--stages",
-    "--config"  # YAML config file path
+    "--prefetch-buffer", "--layer-norm", "--no-layer-norm", "--residual", "--no-residual",
+    "--optimizer", "--preset", "--dry-run", "--character", "--characters", "--stage", "--stages",
+    "--config",  # YAML config file path
+    "--kmeans-centers"  # K-means cluster centers file for stick discretization
   ]
 
   @doc """
@@ -135,6 +136,8 @@ defmodule ExPhil.Training.Config do
       prefetch_buffer: 2,  # Number of batches to prefetch
       # Layer normalization for MLP backbone
       layer_norm: false,
+      # Residual connections for MLP backbone (enables deeper networks, +5-15% accuracy)
+      residual: false,
       # Optimizer selection
       optimizer: :adam,  # :adam, :adamw, :lamb, :radam
       # Gradient checkpointing (memory vs compute trade-off)
@@ -144,7 +147,9 @@ defmodule ExPhil.Training.Config do
       dry_run: false,
       # Replay filtering
       characters: [],  # Filter replays by character (e.g., [:mewtwo, :fox])
-      stages: []       # Filter replays by stage (e.g., [:battlefield, :fd])
+      stages: [],      # Filter replays by stage (e.g., [:battlefield, :fd])
+      # K-means stick discretization
+      kmeans_centers: nil  # Path to K-means cluster centers file (.nx)
     ]
   end
 
@@ -904,7 +909,7 @@ defmodule ExPhil.Training.Config do
   # Validation
   # ============================================================================
 
-  @valid_backbones [:lstm, :gru, :mamba, :attention, :sliding_window, :hybrid]
+  @valid_backbones [:lstm, :gru, :mamba, :attention, :sliding_window, :lstm_hybrid, :jamba]
   @valid_optimizers [:adam, :adamw, :lamb, :radam, :sgd, :rmsprop]
 
   @doc """
@@ -1431,12 +1436,19 @@ defmodule ExPhil.Training.Config do
       # --no-layer-norm disables layer normalization
       if opts[:no_layer_norm], do: Keyword.put(opts, :layer_norm, false), else: opts
     end)
+    |> parse_flag(args, "--residual", :residual)
+    |> parse_flag(args, "--no-residual", :no_residual)
+    |> then(fn opts ->
+      # --no-residual disables residual connections
+      if opts[:no_residual], do: Keyword.put(opts, :residual, false), else: opts
+    end)
     |> parse_atom_arg(args, "--optimizer", :optimizer)
     |> parse_flag(args, "--dry-run", :dry_run)
     |> parse_atom_list_arg(args, "--character", :characters)
     |> parse_atom_list_arg(args, "--characters", :characters)
     |> parse_atom_list_arg(args, "--stage", :stages)
     |> parse_atom_list_arg(args, "--stages", :stages)
+    |> parse_string_arg(args, "--kmeans-centers", :kmeans_centers)
   end
 
   # Parse comma-separated list of atoms (e.g., "mewtwo,fox,falco" -> [:mewtwo, :fox, :falco])
@@ -1552,6 +1564,9 @@ defmodule ExPhil.Training.Config do
       backbone: if(opts[:temporal], do: to_string(opts[:backbone]), else: "mlp"),
       hidden_sizes: opts[:hidden_sizes],
       embed_size: results[:embed_size],
+      layer_norm: opts[:layer_norm],
+      residual: opts[:residual],
+      kmeans_centers: opts[:kmeans_centers],
 
       # Temporal options
       window_size: opts[:window_size],

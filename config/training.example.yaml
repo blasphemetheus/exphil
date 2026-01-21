@@ -24,6 +24,10 @@ backbone: mamba
 window_size: 60
 num_layers: 2
 
+# MLP backbone options (for non-temporal or --backbone mlp)
+# layer_norm: true     # Layer normalization after each dense layer
+# residual: true       # Residual connections for deeper networks
+
 # Precision (bf16 for speed, f32 for accuracy)
 precision: bf16
 

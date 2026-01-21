@@ -118,6 +118,52 @@ defmodule ExPhil.Training.ConfigTest do
       opts = Config.parse_args([])
       assert opts[:truncate_bptt] == nil
     end
+
+    test "parses --layer-norm flag" do
+      opts = Config.parse_args(["--layer-norm"])
+      assert opts[:layer_norm] == true
+    end
+
+    test "parses --no-layer-norm flag" do
+      opts = Config.parse_args(["--layer-norm", "--no-layer-norm"])
+      assert opts[:layer_norm] == false
+    end
+
+    test "layer_norm defaults to false" do
+      opts = Config.parse_args([])
+      assert opts[:layer_norm] == false
+    end
+
+    test "parses --residual flag" do
+      opts = Config.parse_args(["--residual"])
+      assert opts[:residual] == true
+    end
+
+    test "parses --no-residual flag" do
+      opts = Config.parse_args(["--residual", "--no-residual"])
+      assert opts[:residual] == false
+    end
+
+    test "residual defaults to false" do
+      opts = Config.parse_args([])
+      assert opts[:residual] == false
+    end
+
+    test "parses --residual with --layer-norm together" do
+      opts = Config.parse_args(["--residual", "--layer-norm"])
+      assert opts[:residual] == true
+      assert opts[:layer_norm] == true
+    end
+
+    test "parses --kmeans-centers" do
+      opts = Config.parse_args(["--kmeans-centers", "priv/kmeans_centers.nx"])
+      assert opts[:kmeans_centers] == "priv/kmeans_centers.nx"
+    end
+
+    test "kmeans_centers defaults to nil" do
+      opts = Config.parse_args([])
+      assert opts[:kmeans_centers] == nil
+    end
   end
 
   # ============================================================================
@@ -426,7 +472,7 @@ defmodule ExPhil.Training.ConfigTest do
     end
 
     test "handles all temporal backbones in naming" do
-      for backbone <- [:lstm, :gru, :mamba, :sliding_window, :hybrid] do
+      for backbone <- [:lstm, :gru, :mamba, :sliding_window, :lstm_hybrid, :jamba] do
         opts = [checkpoint: nil, temporal: true, backbone: backbone]
         result = Config.ensure_checkpoint_name(opts)
 
@@ -942,7 +988,7 @@ defmodule ExPhil.Training.ConfigTest do
     end
 
     test "accepts all valid temporal backbones" do
-      for backbone <- [:lstm, :gru, :mamba, :sliding_window, :hybrid] do
+      for backbone <- [:lstm, :gru, :mamba, :sliding_window, :lstm_hybrid, :jamba] do
         opts = [epochs: 10, batch_size: 64, temporal: true, backbone: backbone]
         assert {:ok, _} = Config.validate(opts), "backbone #{backbone} should be valid"
       end
