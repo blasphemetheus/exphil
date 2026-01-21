@@ -89,12 +89,13 @@ continue_on_error = "--continue-on-error" in args
 
 # Architectures to benchmark
 all_architectures = [
-  {:mlp, "MLP (baseline)", [temporal: false, hidden_sizes: [128, 128], precompute: true]},
-  {:mamba, "Mamba SSM", [temporal: true, backbone: :mamba, window_size: 30, num_layers: 2]},
-  {:jamba, "Jamba (Mamba+Attn)", [temporal: true, backbone: :jamba, window_size: 30, num_layers: 3, attention_every: 3]},
-  {:lstm, "LSTM", [temporal: true, backbone: :lstm, window_size: 30, num_layers: 1]},
-  {:gru, "GRU", [temporal: true, backbone: :gru, window_size: 30, num_layers: 1]},
-  {:attention, "Attention", [temporal: true, backbone: :attention, window_size: 30, num_layers: 1, num_heads: 4]}
+  # Hidden sizes use 256 (multiple of GPU warp size 32) for better utilization
+  {:mlp, "MLP (baseline)", [temporal: false, hidden_sizes: [256, 256], precompute: true]},
+  {:mamba, "Mamba SSM", [temporal: true, backbone: :mamba, window_size: 30, num_layers: 2, hidden_sizes: [256, 256]]},
+  {:jamba, "Jamba (Mamba+Attn)", [temporal: true, backbone: :jamba, window_size: 30, num_layers: 3, attention_every: 3, hidden_sizes: [256, 256]]},
+  {:lstm, "LSTM", [temporal: true, backbone: :lstm, window_size: 30, num_layers: 1, hidden_sizes: [256, 256]]},
+  {:gru, "GRU", [temporal: true, backbone: :gru, window_size: 30, num_layers: 1, hidden_sizes: [256, 256]]},
+  {:attention, "Attention", [temporal: true, backbone: :attention, window_size: 30, num_layers: 1, num_heads: 4, hidden_sizes: [256, 256]]}
 ]
 
 # Apply filters
@@ -174,11 +175,11 @@ results = architectures
 
   # Wrap entire architecture benchmark in try/rescue
   try do
-    # Merge with base options
+    # Merge with base options (hidden_sizes specified per-architecture for GPU optimization)
     opts = Keyword.merge([
       epochs: epochs,
       batch_size: batch_size,
-      hidden_sizes: [128, 128],
+      hidden_sizes: [256, 256],  # Default, but each arch overrides
       learning_rate: 1.0e-4,
       warmup_steps: 10,
       val_split: 0.0,  # We handle split ourselves
