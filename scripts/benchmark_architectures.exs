@@ -101,7 +101,7 @@ all_frames = replay_files
 |> Enum.flat_map(fn {path, idx} ->
   if rem(idx, 10) == 0, do: Output.puts("  Parsing #{idx}/#{length(replay_files)}...")
   case Peppi.parse(path) do
-    {:ok, replay} -> replay.frames
+    {:ok, replay} -> Peppi.to_training_frames(replay)
     {:error, _} -> []
   end
 end)
