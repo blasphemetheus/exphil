@@ -152,8 +152,12 @@ alias ExPhil.Embeddings
 alias ExPhil.Integrations.Wandb
 
 # Parse command line arguments using Config module
-# Validation runs after parsing to catch errors early (before expensive setup)
-opts = System.argv()
+# First validate that all flags are recognized (catches typos early)
+# Then validation runs after parsing to catch value errors (before expensive setup)
+args = System.argv()
+Config.validate_args!(args)
+
+opts = args
        |> Config.parse_args()
        |> Config.ensure_checkpoint_name()
        |> Config.validate!()
@@ -308,7 +312,17 @@ replay_files = if opts[:max_files], do: Enum.take(replay_files, opts[:max_files]
 Output.puts("  Found #{length(replay_files)} replay files")
 
 # Parse replays in parallel and collect training frames
-{parse_time, all_frames} = :timer.tc(fn ->
+# Error handling options
+skip_errors = Keyword.get(opts, :skip_errors, true)
+show_errors = Keyword.get(opts, :show_errors, true)
+error_log = Keyword.get(opts, :error_log)
+
+# Initialize error log file if specified
+if error_log do
+  File.write!(error_log, "# ExPhil Replay Parsing Errors\n# #{DateTime.utc_now()}\n\n")
+end
+
+{parse_time, {all_frames, errors}} = :timer.tc(fn ->
   replay_files
   |> Task.async_stream(
     fn path ->
@@ -318,29 +332,76 @@ Output.puts("  Found #{length(replay_files)} replay files")
             player_port: opts[:player_port],
             frame_delay: opts[:frame_delay]
           )
-          {path, length(frames), frames}
+          {:ok, path, length(frames), frames}
         {:error, reason} ->
-          Output.puts("  ⚠ Failed to parse #{Path.basename(path)}: #{reason}")
-          {path, 0, []}
+          {:error, path, reason}
       end
     end,
     max_concurrency: System.schedulers_online(),
     timeout: :infinity
   )
-  |> Enum.reduce({0, 0, []}, fn
-    {:ok, {_path, frame_count, frames}}, {total_files, total_frames, all_frames} ->
-      {total_files + 1, total_frames + frame_count, [frames | all_frames]}
-    {:exit, _reason}, acc ->
-      acc
+  |> Enum.reduce({0, 0, [], []}, fn
+    {:ok, {:ok, _path, frame_count, frames}}, {total_files, total_frames, all_frames, errors} ->
+      {total_files + 1, total_frames + frame_count, [frames | all_frames], errors}
+
+    {:ok, {:error, path, reason}}, {total_files, total_frames, all_frames, errors} ->
+      error = %{path: path, reason: reason}
+
+      # Show error if enabled
+      if show_errors do
+        Output.puts("  ⚠ Failed: #{Path.basename(path)}")
+        Output.puts("    Reason: #{inspect(reason)}")
+      end
+
+      # Log error to file if specified
+      if error_log do
+        File.write!(error_log, "#{path}\n  #{inspect(reason)}\n\n", [:append])
+      end
+
+      # Fail fast if not skipping errors
+      unless skip_errors do
+        Output.puts("\n❌ Stopping due to error (use --skip-errors to continue)")
+        Output.puts("  File: #{path}")
+        Output.puts("  Reason: #{inspect(reason)}")
+        System.halt(1)
+      end
+
+      {total_files, total_frames, all_frames, [error | errors]}
+
+    {:exit, reason}, {total_files, total_frames, all_frames, errors} ->
+      # Task crashed - treat as error
+      error = %{path: "unknown", reason: {:exit, reason}}
+      {total_files, total_frames, all_frames, [error | errors]}
   end)
-  |> then(fn {files, frames, frame_lists} ->
+  |> then(fn {files, frames, frame_lists, errors} ->
     Output.puts("  Parsed #{files} files, #{frames} total frames")
-    List.flatten(frame_lists)
+    if length(errors) > 0 do
+      Output.puts("  ⚠ #{length(errors)} files failed to parse")
+    end
+    {List.flatten(frame_lists), Enum.reverse(errors)}
   end)
 end)
 
 Output.puts("  Parse time: #{Float.round(parse_time / 1_000_000, 2)}s")
 Output.puts("  Total training frames: #{length(all_frames)}")
+
+# Show error summary if there were failures
+if length(errors) > 0 do
+  Output.puts("\n  Error Summary (#{length(errors)} failed files):")
+  if show_errors do
+    errors
+    |> Enum.take(10)  # Show first 10
+    |> Enum.each(fn %{path: path, reason: reason} ->
+      Output.puts("    - #{Path.basename(path)}: #{inspect(reason)}")
+    end)
+    if length(errors) > 10 do
+      Output.puts("    ... and #{length(errors) - 10} more")
+    end
+  end
+  if error_log do
+    Output.puts("  Full error log: #{error_log}")
+  end
+end
 
 if length(all_frames) == 0 do
   Output.puts("\n❌ No training frames found. Check replay files and player port.")

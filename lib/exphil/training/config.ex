@@ -21,6 +21,26 @@ defmodule ExPhil.Training.Config do
     :mewtwo, :ganondorf, :link, :gameandwatch, :zelda
   ]
 
+  # All valid CLI flags for argument validation
+  # This list is used to detect typos and suggest corrections
+  @valid_flags [
+    "--replays", "--replay-dir", "--epochs", "--batch-size", "--hidden-sizes",
+    "--max-files", "--skip-errors", "--fail-fast", "--show-errors", "--hide-errors",
+    "--error-log", "--checkpoint", "--player", "--wandb", "--wandb-project",
+    "--wandb-name", "--temporal", "--backbone", "--window-size", "--stride",
+    "--num-layers", "--state-size", "--expand-factor", "--conv-size",
+    "--truncate-bptt", "--precision", "--frame-delay", "--frame-delay-augment",
+    "--frame-delay-min", "--frame-delay-max", "--online-robust", "--early-stopping",
+    "--patience", "--min-delta", "--save-best", "--save-every", "--lr",
+    "--lr-schedule", "--warmup-steps", "--decay-steps", "--restart-period",
+    "--restart-mult", "--max-grad-norm", "--resume", "--name", "--accumulation-steps",
+    "--val-split", "--augment", "--mirror-prob", "--noise-prob", "--noise-scale",
+    "--label-smoothing", "--focal-loss", "--focal-gamma", "--no-register",
+    "--keep-best", "--ema", "--ema-decay", "--precompute", "--no-precompute",
+    "--prefetch", "--no-prefetch", "--gradient-checkpoint", "--checkpoint-every",
+    "--prefetch-buffer", "--layer-norm", "--no-layer-norm", "--optimizer", "--preset"
+  ]
+
   @doc """
   List of available preset names.
   """
@@ -36,6 +56,10 @@ defmodule ExPhil.Training.Config do
       batch_size: 64,
       hidden_sizes: @default_hidden_sizes,
       max_files: nil,
+      # Error handling for bad replay files
+      skip_errors: true,   # Continue past bad files (default: true for convenience)
+      show_errors: true,   # Show individual file errors (default: true)
+      error_log: nil,      # Optional file path to log errors
       checkpoint: nil,
       player_port: 1,
       wandb: false,
@@ -1056,6 +1080,19 @@ defmodule ExPhil.Training.Config do
     |> parse_int_arg(args, "--batch-size", :batch_size)
     |> parse_hidden_sizes_arg(args)
     |> parse_optional_int_arg(args, "--max-files", :max_files)
+    |> parse_flag(args, "--skip-errors", :skip_errors)
+    |> parse_flag(args, "--fail-fast", :fail_fast)
+    |> parse_flag(args, "--show-errors", :show_errors)
+    |> parse_flag(args, "--hide-errors", :hide_errors)
+    |> parse_string_arg(args, "--error-log", :error_log)
+    |> then(fn opts ->
+      # --fail-fast is opposite of skip-errors
+      if opts[:fail_fast], do: Keyword.put(opts, :skip_errors, false), else: opts
+    end)
+    |> then(fn opts ->
+      # --hide-errors disables show_errors
+      if opts[:hide_errors], do: Keyword.put(opts, :show_errors, false), else: opts
+    end)
     |> parse_string_arg(args, "--checkpoint", :checkpoint)
     |> parse_int_arg(args, "--player", :player_port)
     |> parse_flag(args, "--wandb", :wandb)
@@ -1419,5 +1456,122 @@ defmodule ExPhil.Training.Config do
     else
       opts
     end
+  end
+
+  @doc """
+  List of valid CLI flags.
+  """
+  def valid_flags, do: @valid_flags
+
+  @doc """
+  Validate command-line arguments for unrecognized flags.
+
+  Returns `{:ok, []}` if all flags are valid, or `{:ok, warnings}` with a list
+  of warning messages for unrecognized flags with suggestions.
+
+  ## Examples
+
+      iex> Config.validate_args(["--epochs", "10", "--batch-size", "32"])
+      {:ok, []}
+
+      iex> Config.validate_args(["--ephocs", "10"])
+      {:ok, ["Unknown flag '--ephocs'. Did you mean '--epochs'?"]}
+
+  """
+  @spec validate_args(list(String.t())) :: {:ok, list(String.t())}
+  def validate_args(args) when is_list(args) do
+    # Extract all flags (args starting with --)
+    input_flags = args
+    |> Enum.filter(&String.starts_with?(&1, "--"))
+    |> Enum.uniq()
+
+    # Find unrecognized flags
+    unrecognized = input_flags -- @valid_flags
+
+    warnings = Enum.map(unrecognized, fn flag ->
+      case suggest_flag(flag) do
+        nil -> "Unknown flag '#{flag}'. Run with --help to see available options."
+        suggestion -> "Unknown flag '#{flag}'. Did you mean '#{suggestion}'?"
+      end
+    end)
+
+    {:ok, warnings}
+  end
+
+  @doc """
+  Validate args and print warnings if any.
+
+  This is a convenience function that calls validate_args/1 and prints
+  any warnings to stderr, returning {:ok, opts} or {:error, reason}.
+
+  ## Examples
+
+      iex> Config.validate_args!(["--epochs", "10"])
+      :ok
+
+      iex> Config.validate_args!(["--ephocs", "10"])
+      # Prints: "⚠️  Unknown flag '--ephocs'. Did you mean '--epochs'?"
+      :ok
+
+  """
+  @spec validate_args!(list(String.t())) :: :ok
+  def validate_args!(args) do
+    {:ok, warnings} = validate_args(args)
+
+    if warnings != [] do
+      IO.puts(:stderr, "")
+      Enum.each(warnings, fn warning ->
+        IO.puts(:stderr, "⚠️  #{warning}")
+      end)
+      IO.puts(:stderr, "")
+    end
+
+    :ok
+  end
+
+  # Suggest a valid flag for a typo using Levenshtein distance
+  # Returns nil if no close match found (distance > 3)
+  defp suggest_flag(typo) do
+    @valid_flags
+    |> Enum.map(fn flag -> {flag, levenshtein_distance(typo, flag)} end)
+    |> Enum.min_by(fn {_flag, distance} -> distance end)
+    |> case do
+      {flag, distance} when distance <= 3 -> flag
+      _ -> nil
+    end
+  end
+
+  # Calculate Levenshtein distance between two strings
+  # This is the minimum number of single-character edits (insertions,
+  # deletions, substitutions) needed to transform one string into another
+  defp levenshtein_distance(s1, s2) do
+    s1_chars = String.graphemes(s1)
+    s2_chars = String.graphemes(s2)
+    s2_len = length(s2_chars)
+
+    # Use dynamic programming with a 2-row approach for memory efficiency
+    # Initialize first row: distances from empty string to s2 prefixes
+    initial_row = Enum.to_list(0..s2_len)
+
+    # Process each character of s1
+    {final_row, _} = Enum.reduce(Enum.with_index(s1_chars), {initial_row, 0}, fn {c1, i}, {prev_row, _} ->
+      # Start new row with distance from s1 prefix to empty string
+      first = i + 1
+
+      # Process each character of s2
+      {new_row_reversed, _} = Enum.reduce(Enum.with_index(s2_chars), {[first], first}, fn {c2, j}, {row_acc, diagonal} ->
+        above = Enum.at(prev_row, j + 1)
+        left = hd(row_acc)
+
+        cost = if c1 == c2, do: 0, else: 1
+        min_val = min(min(above + 1, left + 1), diagonal + cost)
+
+        {[min_val | row_acc], above}
+      end)
+
+      {Enum.reverse(new_row_reversed), i + 1}
+    end)
+
+    List.last(final_row)
   end
 end

@@ -84,14 +84,25 @@ The project can do behavioral cloning but lacks self-play RL. This is the bigges
 
 ### 4. Robustness & UX
 
-**Impact: Medium | Status: Gaps in error handling**
+**Impact: Medium | Status: Improved**
 
 | Task | Effort | Why | Status |
 |------|--------|-----|--------|
+| **Error handling improvements** | Low | Bad replays fail silently | **Done** |
+| **CLI argument validation** | Low | Invalid args silently use defaults | **Done** |
 | Architecture mismatch detection | Low | Cryptic errors when loading wrong model | Not started |
-| CLI argument validation | Low | Invalid args silently use defaults | Not started |
 | Training state recovery | Medium | Resume loses optimizer state | Not started |
 | Checkpoint streaming | Medium | Save doesn't block training | Not started |
+
+**Error Handling Implementation:**
+- CLI flags: `--skip-errors` (default), `--fail-fast`, `--show-errors`, `--hide-errors`, `--error-log`
+- Error collection with summaries at end of processing
+- Optional error logging to file for debugging
+
+**CLI Validation Implementation:**
+- Levenshtein distance-based typo detection
+- Suggests corrections for typos within distance 3 (e.g., `--ephocs` → `--epochs`)
+- Warns about unrecognized flags before parsing
 
 ---
 
@@ -193,6 +204,20 @@ Completed:
   - 2-3x speedup for MLP training by embedding once instead of per-batch
   - Auto-bypasses when augmentation is enabled (which modifies states)
   - Added `--no-precompute` flag for explicit override
+
+### 2026-01-20: Robustness & UX Improvements (Complete)
+
+Completed:
+- [x] Error handling for bad replays - **Done**
+  - Added `--skip-errors` (default), `--fail-fast`, `--show-errors`, `--hide-errors`
+  - Added `--error-log FILE` to log errors to a file
+  - Error collection with summary at end of processing
+- [x] CLI argument validation with typo suggestions - **Done**
+  - Levenshtein distance algorithm for fuzzy matching
+  - Suggests corrections for typos within distance 3
+  - Example: `--ephocs` → "Did you mean '--epochs'?"
+  - Warns about completely unrecognized flags
+  - 12 new tests for validation behavior
 
 ---
 

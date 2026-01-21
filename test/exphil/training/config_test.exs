@@ -1548,4 +1548,78 @@ defmodule ExPhil.Training.ConfigTest do
       assert Enum.any?(errors, &String.contains?(&1, "label_smoothing must be in"))
     end
   end
+
+  describe "validate_args/1 CLI argument validation" do
+    test "returns empty warnings for valid args" do
+      assert {:ok, []} = Config.validate_args(["--epochs", "10", "--batch-size", "32"])
+    end
+
+    test "returns empty warnings for valid flags without values" do
+      assert {:ok, []} = Config.validate_args(["--wandb", "--temporal", "--focal-loss"])
+    end
+
+    test "suggests correction for typo --ephocs -> --epochs" do
+      {:ok, warnings} = Config.validate_args(["--ephocs", "10"])
+      assert length(warnings) == 1
+      assert hd(warnings) =~ "Unknown flag '--ephocs'"
+      assert hd(warnings) =~ "--epochs"
+    end
+
+    test "suggests correction for typo --batchsize -> --batch-size" do
+      {:ok, warnings} = Config.validate_args(["--batchsize", "32"])
+      assert length(warnings) == 1
+      assert hd(warnings) =~ "--batch-size"
+    end
+
+    test "suggests correction for typo --temporel -> --temporal" do
+      {:ok, warnings} = Config.validate_args(["--temporel"])
+      assert length(warnings) == 1
+      assert hd(warnings) =~ "--temporal"
+    end
+
+    test "suggests correction for typo --wanb -> --wandb" do
+      {:ok, warnings} = Config.validate_args(["--wanb"])
+      assert length(warnings) == 1
+      assert hd(warnings) =~ "--wandb"
+    end
+
+    test "suggests correction for typo --focalloss -> --focal-loss" do
+      {:ok, warnings} = Config.validate_args(["--focalloss"])
+      assert length(warnings) == 1
+      assert hd(warnings) =~ "--focal-loss"
+    end
+
+    test "returns generic message for completely unrecognized flag" do
+      {:ok, warnings} = Config.validate_args(["--xyzabc123"])
+      assert length(warnings) == 1
+      assert hd(warnings) =~ "Unknown flag '--xyzabc123'"
+      assert hd(warnings) =~ "--help"
+      refute hd(warnings) =~ "Did you mean"
+    end
+
+    test "detects multiple typos" do
+      {:ok, warnings} = Config.validate_args(["--ephocs", "10", "--batchsize", "32"])
+      assert length(warnings) == 2
+    end
+
+    test "ignores non-flag arguments" do
+      # Values like "10" and "32" should not trigger warnings
+      assert {:ok, []} = Config.validate_args(["--epochs", "10", "replay.slp"])
+    end
+
+    test "deduplicates repeated invalid flags" do
+      {:ok, warnings} = Config.validate_args(["--ephocs", "10", "--ephocs", "20"])
+      # Should only warn once, not twice
+      assert length(warnings) == 1
+    end
+
+    test "valid_flags/0 returns all known flags" do
+      flags = Config.valid_flags()
+      assert "--epochs" in flags
+      assert "--batch-size" in flags
+      assert "--temporal" in flags
+      assert "--focal-loss" in flags
+      assert "--preset" in flags
+    end
+  end
 end
