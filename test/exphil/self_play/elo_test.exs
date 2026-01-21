@@ -3,101 +3,122 @@ defmodule ExPhil.SelfPlay.EloTest do
 
   alias ExPhil.SelfPlay.Elo
 
-  @moduletag :self_play
-
   describe "expected_score/2" do
-    test "returns 0.5 for equal ratings" do
-      assert_in_delta Elo.expected_score(1500, 1500), 0.5, 0.001
+    test "equal ratings give 0.5 expected score" do
+      assert Elo.expected_score(1500, 1500) == 0.5
     end
 
-    test "returns higher score for higher-rated player" do
+    test "higher rated player has higher expected score" do
+      higher = Elo.expected_score(1600, 1400)
+      lower = Elo.expected_score(1400, 1600)
+
+      assert higher > 0.5
+      assert lower < 0.5
+      assert_in_delta higher + lower, 1.0, 0.001
+    end
+
+    test "400 point advantage gives ~0.91 expected score" do
+      score = Elo.expected_score(1600, 1200)
+      assert_in_delta score, 0.91, 0.01
+    end
+
+    test "200 point advantage gives ~0.76 expected score" do
       score = Elo.expected_score(1600, 1400)
-      assert score > 0.5
       assert_in_delta score, 0.76, 0.01
-    end
-
-    test "returns lower score for lower-rated player" do
-      score = Elo.expected_score(1400, 1600)
-      assert score < 0.5
-      assert_in_delta score, 0.24, 0.01
-    end
-
-    test "scores sum to 1" do
-      a = Elo.expected_score(1500, 1600)
-      b = Elo.expected_score(1600, 1500)
-      assert_in_delta a + b, 1.0, 0.001
     end
   end
 
   describe "update/4" do
-    test "winner gains, loser loses for equal ratings" do
+    test "winner gains rating, loser loses rating" do
       {new_a, new_b} = Elo.update(1500, 1500, :win)
 
       assert new_a > 1500
       assert new_b < 1500
     end
 
-    test "rating changes are symmetric for equal initial ratings" do
-      {new_a, new_b} = Elo.update(1500, 1500, :win)
+    test "higher rated player gains less for beating lower rated" do
+      {gain_favored, _} = Elo.update(1600, 1400, :win)
+      {gain_underdog, _} = Elo.update(1400, 1600, :win)
 
-      gain = new_a - 1500
-      loss = 1500 - new_b
-      assert_in_delta gain, loss, 0.001
+      favored_gain = gain_favored - 1600
+      underdog_gain = gain_underdog - 1400
+
+      assert underdog_gain > favored_gain
     end
 
-    test "upset (lower rated wins) causes larger change" do
-      # Lower rated player wins
-      {new_low, _new_high} = Elo.update(1400, 1600, :win)
+    test "draw moves ratings toward each other" do
+      {new_a, new_b} = Elo.update(1600, 1400, :draw)
 
-      # Standard case (higher rated wins)
-      {new_high2, _new_low2} = Elo.update(1600, 1400, :win)
-
-      # Upset should cause larger rating change
-      upset_gain = new_low - 1400
-      normal_gain = new_high2 - 1600
-
-      assert upset_gain > normal_gain
+      # Higher rated loses points, lower rated gains
+      assert new_a < 1600
+      assert new_b > 1400
     end
 
-    test "draw causes minimal change for equal ratings" do
-      {new_a, new_b} = Elo.update(1500, 1500, :draw)
+    test "loss for higher rated causes larger rating drop" do
+      {new_a, new_b} = Elo.update(1600, 1400, :loss)
 
-      assert_in_delta new_a, 1500, 0.1
-      assert_in_delta new_b, 1500, 0.1
+      # Higher rated loses more when upset
+      assert new_a < 1600
+      assert new_b > 1400
+
+      _drop = 1600 - new_a
+      gain = new_b - 1400
+
+      # Upset win is more valuable
+      assert gain > 16  # More than default K/2
     end
 
-    test "respects custom k_factor" do
-      {new_a_k16, _} = Elo.update(1500, 1500, :win, k_factor: 16)
-      {new_a_k32, _} = Elo.update(1500, 1500, :win, k_factor: 32)
+    test "custom K-factor affects rating change" do
+      {new_a_32, _} = Elo.update(1500, 1500, :win, k_factor: 32)
+      {new_a_16, _} = Elo.update(1500, 1500, :win, k_factor: 16)
 
-      change_k16 = new_a_k16 - 1500
-      change_k32 = new_a_k32 - 1500
+      change_32 = new_a_32 - 1500
+      change_16 = new_a_16 - 1500
 
-      assert_in_delta change_k32, change_k16 * 2, 0.001
+      assert_in_delta change_32, change_16 * 2, 0.001
     end
 
-    test "supports different k_factors per player" do
+    test "different K-factors for each player" do
       {new_a, new_b} = Elo.update(1500, 1500, :win, k_factor_a: 40, k_factor_b: 16)
 
       change_a = new_a - 1500
       change_b = 1500 - new_b
 
-      # A should change more than B
+      # A gains more with higher K-factor
       assert change_a > change_b
+    end
+
+    test "rating changes sum to zero (zero-sum)" do
+      {new_a, new_b} = Elo.update(1500, 1600, :win, k_factor: 32)
+
+      change_a = new_a - 1500
+      change_b = new_b - 1600
+
+      assert_in_delta change_a + change_b, 0, 0.001
     end
   end
 
   describe "update_single/4" do
-    test "calculates single player update" do
-      new_rating = Elo.update_single(1500, 1500, :win)
-      assert new_rating > 1500
+    test "matches update/4 for player A" do
+      {expected_a, _} = Elo.update(1500, 1600, :win)
+      actual_a = Elo.update_single(1500, 1600, :win)
+
+      assert_in_delta expected_a, actual_a, 0.001
     end
 
-    test "matches update/4 for player A" do
-      {from_update, _} = Elo.update(1500, 1600, :win)
-      from_single = Elo.update_single(1500, 1600, :win)
+    test "works for losses" do
+      result = Elo.update_single(1500, 1400, :loss)
+      assert result < 1500
+    end
 
-      assert_in_delta from_update, from_single, 0.001
+    test "works for draws" do
+      # Against lower rated, draw loses points
+      result = Elo.update_single(1600, 1400, :draw)
+      assert result < 1600
+
+      # Against higher rated, draw gains points
+      result2 = Elo.update_single(1400, 1600, :draw)
+      assert result2 > 1400
     end
   end
 
@@ -127,54 +148,64 @@ defmodule ExPhil.SelfPlay.EloTest do
   end
 
   describe "default_k_factor/0" do
-    test "returns default k_factor" do
+    test "returns default K-factor" do
       assert Elo.default_k_factor() == 32
     end
   end
 
   describe "rating_difference_for_probability/1" do
-    test "returns 0 for 50% probability" do
+    test "0.5 probability means 0 rating difference" do
       diff = Elo.rating_difference_for_probability(0.5)
       assert_in_delta diff, 0, 0.001
     end
 
-    test "returns positive for > 50% probability" do
-      diff = Elo.rating_difference_for_probability(0.75)
+    test "higher probability means positive difference (player is stronger)" do
+      diff = Elo.rating_difference_for_probability(0.76)
       assert diff > 0
+      assert_in_delta diff, 200, 5
     end
 
-    test "returns negative for < 50% probability" do
-      diff = Elo.rating_difference_for_probability(0.25)
+    test "lower probability means negative difference (player is weaker)" do
+      diff = Elo.rating_difference_for_probability(0.24)
       assert diff < 0
+      assert_in_delta diff, -200, 5
     end
 
     test "is inverse of expected_score" do
-      # If rating diff is 200, expected score should be...
-      expected = Elo.expected_score(1700, 1500)
+      rating_a = 1600
+      rating_b = 1400
+      prob = Elo.expected_score(rating_a, rating_b)
+      diff = Elo.rating_difference_for_probability(prob)
 
-      # Inverse should give us back ~200
-      diff = Elo.rating_difference_for_probability(expected)
-      assert_in_delta diff, 200, 1
+      assert_in_delta diff, rating_a - rating_b, 0.1
     end
   end
 
   describe "games_to_reach/4" do
-    test "returns 0 if already at or above target" do
+    test "returns 0 if already at target" do
+      assert Elo.games_to_reach(1500, 1400, 1400, 0.6) == 0
       assert Elo.games_to_reach(1500, 1500, 1400, 0.6) == 0
-      assert Elo.games_to_reach(1600, 1500, 1400, 0.6) == 0
     end
 
-    test "returns positive for reachable target" do
-      games = Elo.games_to_reach(1000, 1100, 1000, 0.6)
+    test "estimates games needed to climb with high win rate" do
+      # With 80% win rate against lower-rated opponents, climbing is fast
+      games = Elo.games_to_reach(1000, 1100, 900, 0.8)
+
       assert games > 0
+      assert games < 50  # Should be achievable with 80% win rate against weaker
     end
 
-    test "more games needed for higher target" do
-      # Use higher win rate to ensure both complete within iteration cap
-      games_low = Elo.games_to_reach(1000, 1050, 1000, 0.7)
-      games_high = Elo.games_to_reach(1000, 1100, 1000, 0.7)
+    test "more games needed with lower win rate" do
+      games_80 = Elo.games_to_reach(1000, 1100, 900, 0.8)
+      games_70 = Elo.games_to_reach(1000, 1100, 900, 0.7)
 
-      assert games_high > games_low
+      assert games_70 > games_80
+    end
+
+    test "caps at 10001 to prevent infinite loop" do
+      # 50% win rate against same rating = no progress
+      games = Elo.games_to_reach(1000, 2000, 1000, 0.5)
+      assert games == 10001
     end
   end
 end
