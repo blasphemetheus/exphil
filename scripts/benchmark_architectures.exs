@@ -63,40 +63,41 @@ Output.config([
   {"GPU", GPUUtils.memory_status_string()}
 ])
 
-# Load replays once
+# Step 1: Load replays
 Output.step(1, 3, "Loading replays")
 replay_files = Path.wildcard("#{replay_dir}/**/*.slp") |> Enum.take(max_files)
-Output.puts("  Found #{length(replay_files)} replay files")
+Output.puts("Found #{length(replay_files)} replay files")
 
 if length(replay_files) == 0 do
   Output.error("No replay files found in #{replay_dir}")
   System.halt(1)
 end
 
-# Parse all replays
+# Step 2: Parse all replays
 Output.step(2, 3, "Parsing replays")
+total_files = length(replay_files)
+
 all_frames = replay_files
 |> Enum.with_index(1)
 |> Enum.flat_map(fn {path, idx} ->
-  if rem(idx, 10) == 0, do: Output.puts("  Parsing #{idx}/#{length(replay_files)}...")
+  Output.progress_bar(idx, total_files, label: "Parsing")
   case Peppi.parse(path) do
     {:ok, replay} -> Peppi.to_training_frames(replay)
     {:error, _} -> []
   end
 end)
+Output.progress_done()
 
-Output.puts("  Total frames: #{length(all_frames)}")
-
-# Create base dataset (used for size reporting)
-_dataset = Data.from_frames(all_frames)
+Output.puts("Total frames: #{length(all_frames)}")
 
 # Split train/val
 {train_frames, val_frames} = Enum.split(all_frames, trunc(length(all_frames) * 0.9))
 train_dataset = Data.from_frames(train_frames)
 val_dataset = Data.from_frames(val_frames)
 
-Output.puts("  Train: #{train_dataset.size} frames, Val: #{val_dataset.size} frames")
+Output.puts("Train: #{train_dataset.size} frames, Val: #{val_dataset.size} frames")
 
+# Step 3: Run benchmarks
 Output.step(3, 3, "Running benchmarks")
 Output.divider()
 
@@ -104,9 +105,8 @@ num_archs = length(architectures)
 results = architectures
 |> Enum.with_index(1)
 |> Enum.map(fn {{arch_id, arch_name, arch_opts}, arch_idx} ->
-  Output.puts("")
-  Output.puts("▶ [#{arch_idx}/#{num_archs}] #{arch_name}", :cyan)
-  Output.puts("  #{GPUUtils.memory_status_string()}")
+  Output.section("[#{arch_idx}/#{num_archs}] #{arch_name}")
+  Output.puts("#{GPUUtils.memory_status_string()}")
 
   # Merge with base options
   opts = Keyword.merge([
@@ -123,100 +123,98 @@ results = architectures
   embed_config = Embeddings.config()
 
   # Prepare dataset based on architecture
-  IO.write(:stderr, "  Preparing train data...")
-  prepared_train = if opts[:temporal] do
-    seq_ds = Data.to_sequences(train_dataset,
-      window_size: opts[:window_size] || 30,
-      stride: opts[:stride] || 1)
-    Data.precompute_embeddings(seq_ds)
-  else
-    if opts[:precompute] do
-      Data.precompute_frame_embeddings(train_dataset)
+  prepared_train = Output.timed "Preparing train data" do
+    if opts[:temporal] do
+      seq_ds = Data.to_sequences(train_dataset,
+        window_size: opts[:window_size] || 30,
+        stride: opts[:stride] || 1)
+      Data.precompute_embeddings(seq_ds, show_progress: false)
     else
-      train_dataset
+      if opts[:precompute] do
+        Data.precompute_frame_embeddings(train_dataset, show_progress: false)
+      else
+        train_dataset
+      end
     end
   end
-  IO.puts(:stderr, " done!")
 
-  IO.write(:stderr, "  Preparing val data...")
-  prepared_val = if opts[:temporal] do
-    seq_ds = Data.to_sequences(val_dataset,
-      window_size: opts[:window_size] || 30,
-      stride: opts[:stride] || 1)
-    Data.precompute_embeddings(seq_ds)
-  else
-    val_dataset
+  prepared_val = Output.timed "Preparing val data" do
+    if opts[:temporal] do
+      seq_ds = Data.to_sequences(val_dataset,
+        window_size: opts[:window_size] || 30,
+        stride: opts[:stride] || 1)
+      Data.precompute_embeddings(seq_ds, show_progress: false)
+    else
+      val_dataset
+    end
   end
-  IO.puts(:stderr, " done!")
 
   # Create trainer
-  IO.write(:stderr, "  Creating trainer...")
-  trainer = Imitation.new(
-    hidden_sizes: opts[:hidden_sizes],
-    embed_config: embed_config,
-    temporal: opts[:temporal],
-    backbone: opts[:backbone],
-    window_size: opts[:window_size],
-    num_layers: opts[:num_layers],
-    num_heads: opts[:num_heads],
-    attention_every: opts[:attention_every]
-  )
-  IO.puts(:stderr, " done!")
+  trainer = Output.timed "Creating model" do
+    Imitation.new(
+      hidden_sizes: opts[:hidden_sizes],
+      embed_config: embed_config,
+      temporal: opts[:temporal],
+      backbone: opts[:backbone],
+      window_size: opts[:window_size],
+      num_layers: opts[:num_layers],
+      num_heads: opts[:num_heads],
+      attention_every: opts[:attention_every]
+    )
+  end
 
-  IO.puts(:stderr, "  Starting training (first batch may take time for JIT compilation)...")
+  # Pre-create batches ONCE (not per epoch) for efficiency
+  train_batches = Output.timed "Creating batches" do
+    if opts[:temporal] do
+      Data.batched_sequences(prepared_train, batch_size: opts[:batch_size], shuffle: false)
+    else
+      Data.batched_frames(prepared_train, batch_size: opts[:batch_size], shuffle: false)
+    end |> Enum.to_list()
+  end
+  Output.puts("#{length(train_batches)} train batches")
+
+  # Pre-create validation batches too
+  val_batches = if opts[:temporal] do
+    Data.batched_sequences(prepared_val, batch_size: opts[:batch_size], shuffle: false) |> Enum.to_list()
+  else
+    Data.batched_frames(prepared_val, batch_size: opts[:batch_size], shuffle: false) |> Enum.to_list()
+  end
+
+  Output.warning("First batch triggers JIT compilation (may take 2-5 min)")
 
   # Training loop with timing
   start_time = System.monotonic_time(:millisecond)
-
   num_epochs = opts[:epochs]
+  num_batches = length(train_batches)
+
   {_final_trainer, epoch_metrics} = Enum.reduce(1..num_epochs, {trainer, []}, fn epoch, {t, metrics} ->
     epoch_start = System.monotonic_time(:millisecond)
 
-    # Create batches
-    batches = if opts[:temporal] do
-      Data.batched_sequences(prepared_train, batch_size: opts[:batch_size], shuffle: true) |> Enum.to_list()
-    else
-      Data.batched_frames(prepared_train, batch_size: opts[:batch_size], shuffle: true) |> Enum.to_list()
-    end
-
-    num_batches = length(batches)
-    IO.write(:stderr, "    Epoch #{epoch}/#{num_epochs}: training ")
+    # Shuffle batch order per epoch (not recreate batches)
+    batches = Enum.shuffle(train_batches)
 
     # Train epoch with progress
     {updated_t, losses} = batches
     |> Enum.with_index(1)
     |> Enum.reduce({t, []}, fn {batch, batch_idx}, {tr, ls} ->
-      # Progress dot every 10 batches
-      if rem(batch_idx, max(div(num_batches, 10), 1)) == 0 do
-        IO.write(:stderr, ".")
-      end
+      # Update progress bar
+      Output.progress_bar(batch_idx, num_batches, label: "Epoch #{epoch}/#{num_epochs}")
       {new_tr, m} = Imitation.train_step(tr, batch, nil)
       {new_tr, [m.loss | ls]}
     end)
+    Output.progress_done()
 
     epoch_time = System.monotonic_time(:millisecond) - epoch_start
     avg_loss = Enum.sum(losses) / length(losses)
     batches_per_sec = length(batches) / (epoch_time / 1000)
 
-    IO.write(:stderr, " validating ")
-
     # Validation
-    val_batches = if opts[:temporal] do
-      Data.batched_sequences(prepared_val, batch_size: opts[:batch_size], shuffle: false) |> Enum.to_list()
-    else
-      Data.batched_frames(prepared_val, batch_size: opts[:batch_size], shuffle: false) |> Enum.to_list()
-    end
-
-    val_losses = val_batches
-    |> Enum.with_index(1)
-    |> Enum.map(fn {batch, idx} ->
-      if rem(idx, max(div(length(val_batches), 5), 1)) == 0, do: IO.write(:stderr, ".")
+    val_losses = Enum.map(val_batches, fn batch ->
       Imitation.evaluate(updated_t, batch).loss
     end)
     val_loss = if length(val_losses) > 0, do: Enum.sum(val_losses) / length(val_losses), else: avg_loss
 
-    IO.puts(:stderr, " done!")
-    Output.puts("      loss=#{Float.round(avg_loss, 4)} val=#{Float.round(val_loss, 4)} (#{Float.round(batches_per_sec, 1)} batch/s, #{Float.round(epoch_time/1000, 1)}s)")
+    Output.puts("  Epoch #{epoch}: loss=#{Float.round(avg_loss, 4)} val=#{Float.round(val_loss, 4)} (#{Float.round(batches_per_sec, 1)} batch/s)")
 
     epoch_entry = %{
       epoch: epoch,
@@ -237,7 +235,7 @@ results = architectures
   final_val = List.last(epoch_metrics).val_loss
   avg_speed = Enum.sum(Enum.map(epoch_metrics, & &1.batches_per_sec)) / length(epoch_metrics)
 
-  Output.puts("  ✓ Complete: final_val=#{Float.round(final_val, 4)}, speed=#{Float.round(avg_speed, 1)} batch/s, time=#{Float.round(total_time/1000, 1)}s")
+  Output.success("Complete: val=#{Float.round(final_val, 4)}, speed=#{Float.round(avg_speed, 1)} batch/s, time=#{Float.round(total_time/1000, 1)}s")
 
   %{
     id: arch_id,
@@ -251,19 +249,16 @@ results = architectures
   }
 end)
 
-Output.puts_raw("\n" <> String.duplicate("─", 60))
+Output.divider()
 
 # Sort by validation loss
 sorted_results = Enum.sort_by(results, & &1.final_val_loss)
 
 # Print comparison table
-Output.puts("\n╔════════════════════════════════════════════════════════════════╗")
-Output.puts("║                    Benchmark Results                           ║")
-Output.puts("╚════════════════════════════════════════════════════════════════╝\n")
-
+Output.section("Benchmark Results")
 Output.puts("Ranked by validation loss (lower is better):\n")
 Output.puts("  Rank | Architecture    | Val Loss | Train Loss | Speed (b/s) | Time")
-Output.puts("  ─────┼─────────────────┼──────────┼────────────┼─────────────┼──────")
+Output.puts("  -----+-----------------+----------+------------+-------------+------")
 
 sorted_results
 |> Enum.with_index(1)
@@ -278,7 +273,8 @@ end)
 
 # Best architecture
 best = List.first(sorted_results)
-Output.puts("\n★ Best architecture: #{best.name} (val_loss=#{Float.round(best.final_val_loss, 4)})")
+Output.puts("")
+Output.success("Best architecture: #{best.name} (val_loss=#{Float.round(best.final_val_loss, 4)})")
 
 # Save results
 results_path = "checkpoints/benchmark_results.json"
@@ -298,7 +294,7 @@ json_results = %{
 }
 
 File.write!(results_path, Jason.encode!(json_results, pretty: true))
-Output.puts("\n✓ Results saved to #{results_path}")
+Output.puts("Results saved to #{results_path}")
 
 # Generate comparison plot
 report_path = "checkpoints/benchmark_report.html"
@@ -360,7 +356,7 @@ html = """
     end) |> Enum.join("\n")}
   </table>
 
-  <p class="winner">★ Best: #{best.name}</p>
+  <p class="winner">Best: #{best.name}</p>
 
   <h2>Loss Curves</h2>
   <div id="plot"></div>
@@ -371,6 +367,7 @@ html = """
 """
 
 File.write!(report_path, html)
-Output.puts("✓ Report saved to #{report_path}")
+Output.success("Report saved to #{report_path}")
 
-Output.puts("\nDone! Open #{report_path} in a browser to see the comparison.")
+Output.puts("")
+Output.puts("Open #{report_path} in a browser to see the comparison.")

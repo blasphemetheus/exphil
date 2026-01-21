@@ -635,7 +635,7 @@ defmodule ExPhil.Training.Data do
     show_progress = Keyword.get(opts, :show_progress, true)
 
     if show_progress do
-      IO.puts("  Pre-computing embeddings for #{dataset.size} sequences...")
+      IO.puts(:stderr, "  Pre-computing embeddings for #{dataset.size} sequences...")
     end
 
     embed_config = dataset.embed_config
@@ -652,7 +652,7 @@ defmodule ExPhil.Training.Data do
       if show_progress do
         processed = min((chunk_idx + 1) * chunk_size, total)
         pct = round(processed / total * 100)
-        IO.puts("  Embedding: #{pct}% (#{processed}/#{total})")
+        IO.write(:stderr, "\r  Embedding: #{pct}% (#{processed}/#{total})    ")
       end
 
       # Batch embed each sequence in this chunk
@@ -665,7 +665,7 @@ defmodule ExPhil.Training.Data do
     end)
 
     if show_progress do
-      IO.puts("  Embedding: 100% (#{total}/#{total}) - done!")
+      IO.puts(:stderr, "\r  Embedding: 100% (#{total}/#{total}) - done!    ")
     end
 
     %{dataset | embedded_sequences: embedded}
@@ -692,7 +692,7 @@ defmodule ExPhil.Training.Data do
     batch_size = Keyword.get(opts, :batch_size, 1000)
 
     if show_progress do
-      IO.puts("  Pre-computing embeddings for #{dataset.size} frames...")
+      IO.puts(:stderr, "  Pre-computing embeddings for #{dataset.size} frames...")
     end
 
     embed_config = dataset.embed_config
@@ -707,7 +707,7 @@ defmodule ExPhil.Training.Data do
       if show_progress do
         processed = min((chunk_idx + 1) * batch_size, total)
         pct = round(processed / total * 100)
-        IO.write("\r  Embedding: #{pct}% (#{processed}/#{total})    ")
+        IO.write(:stderr, "\r  Embedding: #{pct}% (#{processed}/#{total})    ")
       end
 
       # Batch embed all frames in this chunk
@@ -721,7 +721,7 @@ defmodule ExPhil.Training.Data do
     end)
 
     if show_progress do
-      IO.puts("\r  Embedding: 100% (#{total}/#{total}) - done!    ")
+      IO.puts(:stderr, "\r  Embedding: 100% (#{total}/#{total}) - done!    ")
     end
 
     # Convert to array for O(1) access during batching
