@@ -21,21 +21,12 @@ defmodule Output do
 end
 
 alias ExPhil.Data.Peppi
-alias ExPhil.Training.{Config, Data, GPUUtils, Imitation, Plots}
+alias ExPhil.Training.{Data, GPUUtils, Imitation}
 alias ExPhil.Embeddings
 
 # Parse args
 args = System.argv()
 
-replay_dir = Enum.find_value(args, "./replays", fn
-  "--replay-dir" -> nil
-  "--replays" -> nil
-  arg ->
-    idx = Enum.find_index(args, &(&1 == "--replay-dir" || &1 == "--replays"))
-    if idx && Enum.at(args, idx + 1) == arg, do: arg, else: nil
-end)
-
-# Find replay-dir value properly
 replay_dir = case Enum.find_index(args, &(&1 in ["--replay-dir", "--replays"])) do
   nil -> "./replays"
   idx -> Enum.at(args, idx + 1) || "./replays"
@@ -108,8 +99,8 @@ end)
 
 Output.puts("  Total frames: #{length(all_frames)}")
 
-# Create base dataset
-dataset = Data.from_frames(all_frames)
+# Create base dataset (used for size reporting)
+_dataset = Data.from_frames(all_frames)
 
 # Split train/val
 {train_frames, val_frames} = Enum.split(all_frames, trunc(length(all_frames) * 0.9))
@@ -117,9 +108,6 @@ train_dataset = Data.from_frames(train_frames)
 val_dataset = Data.from_frames(val_frames)
 
 Output.puts("  Train: #{train_dataset.size} frames, Val: #{val_dataset.size} frames")
-
-# Benchmark results
-results = []
 
 Output.puts("\nStep 3: Running benchmarks...")
 Output.puts_raw("─" |> String.duplicate(60))
@@ -180,7 +168,7 @@ results = Enum.map(architectures, fn {arch_id, arch_name, arch_opts} ->
   # Training loop with timing
   start_time = System.monotonic_time(:millisecond)
 
-  {final_trainer, epoch_metrics} = Enum.reduce(1..opts[:epochs], {trainer, []}, fn epoch, {t, metrics} ->
+  {_final_trainer, epoch_metrics} = Enum.reduce(1..opts[:epochs], {trainer, []}, fn epoch, {t, metrics} ->
     epoch_start = System.monotonic_time(:millisecond)
 
     # Create batches
@@ -314,8 +302,8 @@ comparison_plot = VegaLite.new(width: 700, height: 400, title: "Architecture Com
 |> VegaLite.encode_field(:y, "loss", type: :quantitative, title: "Validation Loss", scale: [zero: false])
 |> VegaLite.encode_field(:color, "architecture", type: :nominal, title: "Architecture")
 
-# Save report
-spec = VegaLite.Export.to_json(comparison_plot)
+# Save report (use to_spec + Jason instead of deprecated Export.to_json)
+spec = comparison_plot |> VegaLite.to_spec() |> Jason.encode!()
 
 html = """
 <!DOCTYPE html>
