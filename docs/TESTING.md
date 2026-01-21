@@ -740,11 +740,11 @@ The table below shows expected ranges - use these to verify your setup is perfor
 
 | Benchmark | CPU (BinaryBackend) | GPU (EXLA/CUDA) | Notes |
 |-----------|---------------------|-----------------|-------|
-| `policy_single_frame` | ~250ms | ~5ms | 50x speedup |
-| `policy_batch_32` | ~250ms | ~8ms | GPU batch efficiency |
-| `mamba_temporal` | timeout (>120s) | ~15ms | CPU can't run Mamba |
-| `embed_player` | ~0.3ms | ~0.1ms | Small tensor, less GPU benefit |
-| `embed_game_state` | ~0.3ms | ~0.1ms | Small tensor, less GPU benefit |
+| `policy_single_frame` | ~250ms | ~1.6ms | **156x speedup** |
+| `policy_batch_32` | ~250ms | ~1.9ms | **131x speedup** |
+| `mamba_temporal` | timeout (>120s) | ~40ms | CPU can't run Mamba |
+| `embed_player` | ~0.2ms | ~1.9ms | GPU overhead > CPU compute |
+| `embed_game_state` | ~0.3ms | ~4.5ms | GPU overhead > CPU compute |
 
 **Important Notes:**
 - Mamba benchmarks are tagged `:gpu` and excluded from CPU test runs
