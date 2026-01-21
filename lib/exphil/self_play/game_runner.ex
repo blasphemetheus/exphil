@@ -286,7 +286,7 @@ defmodule ExPhil.SelfPlay.GameRunner do
         %{state | p2_policy_id: policy_id, p2_policy: policy}
     end
 
-    Logger.debug("[GameRunner #{state.game_id}] Swapped #{port} to #{policy_id}")
+    Logger.debug("[GameRunner #{state.game_id}] Swapped #{port} to #{inspect(policy_id)}")
     {:reply, :ok, new_state}
   end
 
@@ -485,6 +485,9 @@ defmodule ExPhil.SelfPlay.GameRunner do
   end
 
   defp load_policy(_state, :cpu), do: :cpu
+
+  # Handle {:cpu, level} tuples from PopulationManager
+  defp load_policy(_state, {:cpu, _level}), do: :cpu
 
   defp load_policy(state, policy_id) when is_atom(policy_id) or is_binary(policy_id) do
     if state.population_manager do

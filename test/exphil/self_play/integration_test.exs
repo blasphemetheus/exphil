@@ -132,9 +132,10 @@ defmodule ExPhil.SelfPlay.IntegrationTest do
       # Start games
       Supervisor.start_games(2, game_type: :mock)
 
-      # Collect experience
+      # Collect experience (collect_steps collects N steps from EACH game)
+      # With 2 games and 50 steps each, we get 100 total
       experiences = Supervisor.collect_steps(50)
-      assert length(experiences) == 50
+      assert length(experiences) == 100
 
       # Snapshot current policy
       Supervisor.snapshot_policy()
@@ -226,20 +227,77 @@ defmodule ExPhil.SelfPlay.IntegrationTest do
 
   # Helper functions
 
+  # Game embedding is ~1991 dims (2 players @ 446 each + stage + projectiles)
+  @game_embed_size 1991
+  @hidden_size 64
+
+  # Policy output sizes match the autoregressive controller head
+  @num_buttons 8
+  @axis_size 17      # 0-16 = 17 values
+  @shoulder_size 5   # 0-4 = 5 values
+
   defp mock_model do
-    Axon.input("input", shape: {nil, 100})
-    |> Axon.dense(64)
-    |> Axon.dense(1)
+    # Build a minimal model with correct input/output dimensions
+    # Input: game embedding [batch, 1991]
+    # Output: {policy_logits, value} where policy_logits is tuple of 6 heads
+    input = Axon.input("state", shape: {nil, @game_embed_size})
+
+    # Simple backbone
+    backbone = input
+    |> Axon.dense(@hidden_size, name: "backbone_dense")
+    |> Axon.relu()
+
+    # Policy heads (independent in mock - real model is autoregressive)
+    buttons = Axon.dense(backbone, @num_buttons, name: "buttons_logits")
+    main_x = Axon.dense(backbone, @axis_size, name: "main_x_logits")
+    main_y = Axon.dense(backbone, @axis_size, name: "main_y_logits")
+    c_x = Axon.dense(backbone, @axis_size, name: "c_x_logits")
+    c_y = Axon.dense(backbone, @axis_size, name: "c_y_logits")
+    shoulder = Axon.dense(backbone, @shoulder_size, name: "shoulder_logits")
+
+    # Value head
+    value = Axon.dense(backbone, 1, name: "value_head")
+
+    # Combine into expected output format
+    Axon.container({
+      {buttons, main_x, main_y, c_x, c_y, shoulder},
+      value
+    })
   end
 
   defp mock_params do
+    # Initialize with small random-ish values
     %{
-      "dense_0" => %{
-        "kernel" => Nx.broadcast(0.1, {100, 64}),
-        "bias" => Nx.broadcast(0.0, {64})
+      "backbone_dense" => %{
+        "kernel" => Nx.broadcast(0.01, {@game_embed_size, @hidden_size}),
+        "bias" => Nx.broadcast(0.0, {@hidden_size})
       },
-      "dense_1" => %{
-        "kernel" => Nx.broadcast(0.1, {64, 1}),
+      "buttons_logits" => %{
+        "kernel" => Nx.broadcast(0.01, {@hidden_size, @num_buttons}),
+        "bias" => Nx.broadcast(0.0, {@num_buttons})
+      },
+      "main_x_logits" => %{
+        "kernel" => Nx.broadcast(0.01, {@hidden_size, @axis_size}),
+        "bias" => Nx.broadcast(0.0, {@axis_size})
+      },
+      "main_y_logits" => %{
+        "kernel" => Nx.broadcast(0.01, {@hidden_size, @axis_size}),
+        "bias" => Nx.broadcast(0.0, {@axis_size})
+      },
+      "c_x_logits" => %{
+        "kernel" => Nx.broadcast(0.01, {@hidden_size, @axis_size}),
+        "bias" => Nx.broadcast(0.0, {@axis_size})
+      },
+      "c_y_logits" => %{
+        "kernel" => Nx.broadcast(0.01, {@hidden_size, @axis_size}),
+        "bias" => Nx.broadcast(0.0, {@axis_size})
+      },
+      "shoulder_logits" => %{
+        "kernel" => Nx.broadcast(0.01, {@hidden_size, @shoulder_size}),
+        "bias" => Nx.broadcast(0.0, {@shoulder_size})
+      },
+      "value_head" => %{
+        "kernel" => Nx.broadcast(0.01, {@hidden_size, 1}),
         "bias" => Nx.broadcast(0.0, {1})
       }
     }
@@ -247,7 +305,7 @@ defmodule ExPhil.SelfPlay.IntegrationTest do
 
   defp mock_experience do
     %{
-      state: Nx.tensor(Enum.map(1..100, fn _ -> :rand.uniform() end)),
+      state: Nx.tensor(Enum.map(1..@game_embed_size, fn _ -> :rand.uniform() end)),
       action: %{
         buttons: Nx.tensor([0, 0, 0, 0, 0, 0, 0, 0]),
         main_x: Nx.tensor(8),
