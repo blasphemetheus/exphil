@@ -39,7 +39,8 @@ defmodule ExPhil.Data.Peppi do
   use Rustler,
     otp_app: :exphil,
     crate: "exphil_peppi",
-    skip_compilation?: Mix.env() == :prod
+    # Skip compilation in prod OR when cargo isn't available (e.g., Docker runtime)
+    skip_compilation?: Mix.env() == :prod or System.find_executable("cargo") == nil
 
   # ============================================================================
   # NIF Struct Definitions
