@@ -564,18 +564,23 @@ cd /app
 # Verify compilation (should complete with no errors)
 mix compile --warnings-as-errors
 
+# Fetch test dependencies and compile test helpers (first time only)
+MIX_ENV=test mix deps.get
+
 # Quick test run (10 tests, ~30 seconds)
-mix test --max-cases 10 --exclude slow --exclude integration
+MIX_ENV=test mix test --max-cases 10 --exclude slow --exclude integration
 ```
+
+**Note:** The Docker image is built with `MIX_ENV=prod` which doesn't include test helpers in `test/support/`. You must use `MIX_ENV=test` for all `mix test` commands.
 
 ### 4. Full Test Suite (Optional)
 
 ```bash
 # Run all tests except slow/integration (~1-2 min)
-mix test --exclude slow --exclude integration
+MIX_ENV=test mix test --exclude slow --exclude integration
 
 # Run self-play tests specifically (90 tests)
-mix test test/exphil/self_play/ --exclude integration
+MIX_ENV=test mix test test/exphil/self_play/ --exclude integration
 ```
 
 ### 5. GPU Architecture Benchmark
@@ -613,6 +618,7 @@ mix test test/exphil/self_play/ --exclude integration
 | Pod doesn't pull new image | Stop fully, then start (not just restart) |
 | Compilation errors | Check `git status` locally, ensure all changes committed |
 | Test failures | Run locally first with `mix test` before deploying |
+| `ExPhil.Test.Helpers` not found | Use `MIX_ENV=test mix deps.get` then `MIX_ENV=test mix test` |
 | OOM during benchmark | Reduce `--batch-size` (try 256 or 128) |
 | EXLA not using GPU | Verify `EXLA_TARGET=cuda` is set |
 
