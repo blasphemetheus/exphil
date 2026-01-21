@@ -22,8 +22,7 @@ notebooks/
 erl_crash.dump
 *.dump
 
-# Test and dev
-test/
+# Dev config (tests are included for GPU benchmarks)
 .credo.exs
 .formatter.exs
 
