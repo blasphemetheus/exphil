@@ -119,57 +119,53 @@ mix run scripts/train_self_play.exs \
 - CLI: `--focal-loss --focal-gamma 2.0`
 - Works with label smoothing: `--focal-loss --label-smoothing 0.1`
 
-**Embedding Dimension Optimization (Consideration):**
+**Embedding Dimension Optimization:**
 
-Current embedding size is **1991 dimensions**, which causes XLA autotuning warnings and register spilling during CUDA compilation. Padding to **2048** (power of 2) would improve GPU kernel efficiency.
+Current embedding size is **1204 dimensions** with all optimizations enabled.
 
-*Current breakdown (1991 total):*
+*Current breakdown (1204 total):*
 | Component | Dimensions | Notes |
 |-----------|------------|-------|
-| Player 1 | 893 | Position, action, damage, stocks, character, etc. |
-| Player 2 | 893 | Same as Player 1 |
+| Player 1 | 488 | Base 440 + speeds 5 + frame_info 2 + stock 1 + ledge_dist 1 + compact Nana 39 |
+| Player 2 | 488 | Same as Player 1 |
 | Stage | 64 | One-hot encoded (64 stages) |
-| Prev action | 13 | Continuous controller state |
-| Player names | 128 | One-hot for human player identification |
-| **Projectiles** | 0 (disabled) | 5 slots × 7 dims = 35 if enabled |
-| **Items** | 0 (disabled) | 5 slots × 11 dims = 55 if enabled |
+| Player names | 112 | One-hot for human player identification (unused) |
+| Spatial features | 4 | Distance 1 + relative_pos 2 + frame_count 1 |
+| Projectiles | 35 | 5 slots × 7 dims |
+| Controller | 13 | 8 buttons + 4 sticks + 1 shoulder |
 
-*Options to reach 2048 (need +57 dimensions):*
+*Completed optimizations:*
+- ✅ **Compact Nana** (455 → 39 dims, preserves IC tech)
+- ✅ **Normalized jumps** (7 → 1 dim, preserves ordinal info)
+- ✅ **Projectiles enabled** (essential for Link/Samus/Falco)
+- ✅ **Frame info enabled** (hitstun/action frame for punish timing)
+- ✅ **Spatial features** (distance, relative position, game frame)
 
-| Option | Dims Added | Benefit for Melee | Tradeoff |
-|--------|------------|-------------------|----------|
-| **Enable projectiles** | +35 | **High** - Critical for Link, Samus, Falco, Young Link | More parsing complexity |
-| **Enable items** | +55 | Medium - Link bombs, Peach turnips | Rarely used competitively |
-| Zero padding | +57 | None (pure GPU optimization) | Wasted parameters |
-| Frame timing features | +10-20 | Medium - Hitstun frames remaining, IASA | Requires libmelee data |
-| Momentum/velocity | +8 | Medium - Predict movement continuation | Already partially captured |
-| Platform state | +12 | Low-Medium - FoD/Randall positions | Stage-specific |
-| Matchup embedding | +26 | Medium - Character pair one-hot | Could help generalization |
+*Future optimizations (TODO):*
 
-*Recommendation:*
-1. **Enable projectiles (+35)** - Essential for Link/Samus/Falco matchups, gets us to 2026
-2. **Add zero padding (+22)** - Reach exactly 2048
+| Option | Current | Potential | Benefit | Status |
+|--------|---------|-----------|---------|--------|
+| **Learned action embedding** | 399×2=798 dims | ~64×2=128 dims | **-670 dims**, better generalization | Not started |
+| **Stage embedding with PS variants** | 64 dims | ~10-20 dims | Distinguish frozen/unfrozen PS, focus on competitive | Not started |
+| **Player names embedding** | 112 dims | 0-32 dims | Style-conditional imitation (currently unused) | Not started |
 
-*Alternative (more useful features):*
-1. Enable projectiles (+35) → 2026
-2. Add hitstun/IASA frames (+4) → 2030
-3. Add platform positions (+12) → 2042
-4. Zero padding (+6) → 2048
+**Learned Action Embedding Details:**
+- Replace 399-dim one-hot with trainable embedding layer (399 → 32-64 dims)
+- Network learns action similarities (e.g., "all aerials" vs "all tilts")
+- Requires model architecture change, not embedding module change
+- Implementation: Add `Axon.embedding(399, 64)` layer before policy head
 
-*Implementation:*
-```elixir
-# In lib/exphil/embeddings.ex config
-def config(opts \\ []) do
-  %{
-    with_projectiles: Keyword.get(opts, :with_projectiles, true),  # Enable
-    with_items: Keyword.get(opts, :with_items, false),
-    pad_to: Keyword.get(opts, :pad_to, 2048),  # New option
-    # ...
-  }
-end
-```
+**Stage Embedding Improvements:**
+- Current: 64-dim one-hot (mostly unused dimensions)
+- Competitive stages: BF=31, FD=2, DL=28, YS=8, FoD=3, PS=18
+- Pokemon Stadium has transformations (fire/grass/rock/water)
+- Proposed: 6-dim competitive one-hot + 4-dim PS transformation + 1-dim "other stage" flag
 
-*Status:* Not started - benchmark first to quantify GPU speedup from aligned dimensions.
+**Player Names Feature:**
+- Currently 112 dims allocated but unused (num_player_names=112)
+- Purpose: Style-conditional imitation (learn "play like Mango" vs "play like Armada")
+- Requires: Player identification during replay parsing
+- Option to reduce to learned embedding once implemented
 
 ---
 

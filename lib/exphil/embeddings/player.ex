@@ -44,7 +44,8 @@ defmodule ExPhil.Embeddings.Player do
     nana_mode: :compact,  # :full (455 dims) or :compact (~45 dims, preserves IC tech)
     with_frame_info: true,  # Hitstun frames + action frame (+2 dims per player)
     with_stock: true,  # Stock count (+1 dim per player)
-    with_ledge_distance: true  # Distance to nearest ledge (+1 dim per player)
+    with_ledge_distance: true,  # Distance to nearest ledge (+1 dim per player)
+    jumps_normalized: true  # Use 1-dim normalized float instead of 7-dim one-hot (saves 6 dims/player)
   ]
 
   @type nana_mode :: :full | :compact
@@ -58,7 +59,8 @@ defmodule ExPhil.Embeddings.Player do
     nana_mode: nana_mode(),
     with_frame_info: boolean(),
     with_stock: boolean(),
-    with_ledge_distance: boolean()
+    with_ledge_distance: boolean(),
+    jumps_normalized: boolean()
   }
 
   # ==========================================================================
@@ -163,7 +165,7 @@ defmodule ExPhil.Embeddings.Player do
   """
   @spec embedding_size(config()) :: non_neg_integer()
   def embedding_size(config \\ default_config()) do
-    base_size = base_embedding_size()
+    base_size = base_embedding_size(config)
 
     speed_size = if config.with_speeds, do: 5, else: 0
 
@@ -181,7 +183,7 @@ defmodule ExPhil.Embeddings.Player do
         :compact -> compact_nana_embedding_size()
         :full ->
           # Nana has base embedding + exists flag + optional speeds + optional frame info + stock
-          nana_base = base_embedding_size() + 1
+          nana_base = base_embedding_size(config) + 1
           nana_speeds = if config.with_speeds, do: 5, else: 0
           nana_frames = if config.with_frame_info, do: 2, else: 0
           nana_stock = if config.with_stock, do: 1, else: 0
@@ -214,7 +216,9 @@ defmodule ExPhil.Embeddings.Player do
     1     # is_synced_hint (boolean - same action category as Popo)
   end
 
-  defp base_embedding_size do
+  defp base_embedding_size(config) do
+    jumps_size = if config.jumps_normalized, do: 1, else: Primitives.embedding_size(:jumps_left)
+
     1 +  # percent
     1 +  # facing
     1 +  # x
@@ -222,7 +226,7 @@ defmodule ExPhil.Embeddings.Player do
     Primitives.embedding_size(:action) +
     Primitives.embedding_size(:character) +
     1 +  # invulnerable
-    Primitives.embedding_size(:jumps_left) +
+    jumps_size +
     1 +  # shield
     1    # on_ground
   end
@@ -327,11 +331,20 @@ defmodule ExPhil.Embeddings.Player do
     action_emb = Primitives.batch_one_hot(Nx.tensor(actions, type: :s32), size: 399, clamp: true)
     char_emb = Primitives.batch_one_hot(Nx.tensor(characters, type: :s32), size: 33, clamp: true)
     invuln_emb = Primitives.batch_bool_embed(invulnerables)
-    jumps_emb = Primitives.batch_one_hot(Nx.tensor(jumps, type: :s32), size: 7, clamp: true)
+
+    # Jumps: normalized (1-dim) or one-hot (7-dim) based on config
+    jumps_emb = if config.jumps_normalized do
+      # Normalized: jumps/6 in [0, 1] range
+      Primitives.batch_float_embed(Enum.map(jumps, &(min(&1 / 6, 1.0))), scale: 1.0, lower: 0.0, upper: 1.0)
+    else
+      # One-hot: 7 dimensions
+      Primitives.batch_one_hot(Nx.tensor(jumps, type: :s32), size: 7, clamp: true)
+    end
+
     shield_emb = Primitives.batch_float_embed(shields, scale: 0.01, lower: 0.0, upper: 1.0)
     ground_emb = Primitives.batch_bool_embed(on_grounds)
 
-    # Base embeddings
+    # Base embeddings - jumps size depends on config (1 or 7 dims)
     base_embs = [
       percent_emb,   # [batch, 1]
       facing_emb,    # [batch, 1]
@@ -340,7 +353,7 @@ defmodule ExPhil.Embeddings.Player do
       action_emb,    # [batch, 399]
       char_emb,      # [batch, 33]
       invuln_emb,    # [batch, 1]
-      jumps_emb,     # [batch, 7]
+      jumps_emb,     # [batch, 1] or [batch, 7]
       shield_emb,    # [batch, 1]
       ground_emb     # [batch, 1]
     ]
@@ -486,7 +499,7 @@ defmodule ExPhil.Embeddings.Player do
     has_any_nana = Enum.any?(nanas, & &1)
 
     # Calculate full Nana embedding size
-    nana_base_size = base_embedding_size() + 1
+    nana_base_size = base_embedding_size(config) + 1
     nana_speeds_size = if config.with_speeds, do: 5, else: 0
     nana_frames_size = if config.with_frame_info, do: 2, else: 0
     nana_stock_size = if config.with_stock, do: 1, else: 0
@@ -513,7 +526,12 @@ defmodule ExPhil.Embeddings.Player do
       # Nana uses character 0, no jumps/shield/invuln/on_ground data
       nana_char_emb = Primitives.batch_one_hot(Nx.tensor(List.duplicate(0, batch_size), type: :s32), size: 33, clamp: true)
       nana_invuln_emb = Nx.broadcast(0.0, {batch_size, 1})
-      nana_jumps_emb = Primitives.batch_one_hot(Nx.tensor(List.duplicate(0, batch_size), type: :s32), size: 7, clamp: true)
+      # Jumps: normalized (1-dim) or one-hot (7-dim) based on config
+      nana_jumps_emb = if config.jumps_normalized do
+        Nx.broadcast(0.0, {batch_size, 1})
+      else
+        Primitives.batch_one_hot(Nx.tensor(List.duplicate(0, batch_size), type: :s32), size: 7, clamp: true)
+      end
       nana_shield_emb = Nx.broadcast(0.0, {batch_size, 1})
       nana_ground_emb = Nx.broadcast(0.0, {batch_size, 1})
       nana_exists_emb = Primitives.batch_bool_embed(nana_exists)
@@ -553,6 +571,13 @@ defmodule ExPhil.Embeddings.Player do
   """
   @spec embed_base(PlayerState.t(), config()) :: Nx.Tensor.t()
   def embed_base(%PlayerState{} = player, config) do
+    # Choose jumps embedding based on config
+    jumps_embed = if config.jumps_normalized do
+      Primitives.jumps_left_normalized_embed(player.jumps_left || 0)
+    else
+      Primitives.jumps_left_embed(player.jumps_left || 0)
+    end
+
     Nx.concatenate([
       # Percent - scaled damage
       Primitives.percent_embed(player.percent || 0.0),
@@ -573,8 +598,8 @@ defmodule ExPhil.Embeddings.Player do
       # Invulnerable flag
       Primitives.bool_embed(player.invulnerable || false),
 
-      # Jumps remaining (one-hot)
-      Primitives.jumps_left_embed(player.jumps_left || 0),
+      # Jumps remaining (1-dim normalized or 7-dim one-hot)
+      jumps_embed,
 
       # Shield strength
       Primitives.shield_embed(player.shield_strength || 0.0),
@@ -659,7 +684,7 @@ defmodule ExPhil.Embeddings.Player do
     size = case config.nana_mode do
       :compact -> compact_nana_embedding_size()
       :full ->
-        base_size = base_embedding_size() + 1
+        base_size = base_embedding_size(config) + 1
         speed_size = if config.with_speeds, do: 5, else: 0
         frame_size = if config.with_frame_info, do: 2, else: 0
         stock_size = if config.with_stock, do: 1, else: 0

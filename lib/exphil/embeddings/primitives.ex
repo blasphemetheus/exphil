@@ -325,6 +325,30 @@ defmodule ExPhil.Embeddings.Primitives do
   end
 
   @doc """
+  Embed jumps left as normalized float (1 dimension).
+
+  Normalizes jumps to [0, 1] range by dividing by max jumps (6 for Puff/Kirby).
+  This is more efficient than one-hot while preserving ordinal information
+  (e.g., 2 jumps > 1 jump is meaningful for recovery decisions).
+
+  ## Examples
+
+      iex> jumps_left_normalized_embed(2)
+      #Nx.Tensor<f32[1]>  # [0.333...]
+
+      iex> jumps_left_normalized_embed(6)
+      #Nx.Tensor<f32[1]>  # [1.0]
+
+  """
+  @spec jumps_left_normalized_embed(integer() | number()) :: Nx.Tensor.t()
+  def jumps_left_normalized_embed(jumps) do
+    # Max jumps is 6 (Puff/Kirby), most characters have 2
+    # Normalize to [0, 1] range
+    normalized = min((jumps || 0) / 6, 1.0)
+    Nx.tensor([normalized], type: :f32)
+  end
+
+  @doc """
   Embed item type with unknown category.
   """
   @spec item_type_embed(integer() | Nx.Tensor.t()) :: Nx.Tensor.t()

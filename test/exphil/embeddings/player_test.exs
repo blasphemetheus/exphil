@@ -59,6 +59,7 @@ defmodule ExPhil.Embeddings.PlayerTest do
       assert config.with_frame_info == true
       assert config.with_stock == true
       assert config.with_ledge_distance == true
+      assert config.jumps_normalized == true  # Default to normalized (1-dim)
     end
   end
 
@@ -175,7 +176,21 @@ defmodule ExPhil.Embeddings.PlayerTest do
 
       result = PlayerEmbed.embed_base(player, config)
 
-      # Base size: 1 + 1 + 1 + 1 + 399 + 33 + 1 + 7 + 1 + 1 = 446
+      # Base size with jumps_normalized=true (default):
+      # 1 + 1 + 1 + 1 + 399 + 33 + 1 + 1 + 1 + 1 = 440
+      # (jumps is 1 dim instead of 7)
+      expected_size = 1 + 1 + 1 + 1 + 399 + 33 + 1 + 1 + 1 + 1
+      assert Nx.shape(result) == {expected_size}
+    end
+
+    test "creates base embedding with one-hot jumps" do
+      player = mock_player()
+      config = %PlayerEmbed{jumps_normalized: false}
+
+      result = PlayerEmbed.embed_base(player, config)
+
+      # Base size with jumps_normalized=false:
+      # 1 + 1 + 1 + 1 + 399 + 33 + 1 + 7 + 1 + 1 = 446
       expected_size = 1 + 1 + 1 + 1 + 399 + 33 + 1 + 7 + 1 + 1
       assert Nx.shape(result) == {expected_size}
     end
@@ -254,12 +269,27 @@ defmodule ExPhil.Embeddings.PlayerTest do
     end
 
     test "returns zeros with exists=0 for nil nana (full mode)" do
+      # Use jumps_normalized: false to get classic 446 base size
+      config = %PlayerEmbed{nana_mode: :full, with_speeds: false, with_frame_info: false, with_stock: false, jumps_normalized: false}
+
+      result = PlayerEmbed.embed_nana(nil, config, nil)
+
+      # Base size (446) + 1 for exists flag
+      expected_size = 446 + 1
+      assert Nx.shape(result) == {expected_size}
+
+      # All should be zeros
+      assert Nx.to_number(Nx.sum(result)) == 0.0
+    end
+
+    test "returns zeros with exists=0 for nil nana (full mode, normalized jumps)" do
+      # Default uses jumps_normalized: true
       config = %PlayerEmbed{nana_mode: :full, with_speeds: false, with_frame_info: false, with_stock: false}
 
       result = PlayerEmbed.embed_nana(nil, config, nil)
 
-      # Base size + 1 for exists flag
-      expected_size = 446 + 1
+      # Base size (440 with normalized jumps) + 1 for exists flag
+      expected_size = 440 + 1
       assert Nx.shape(result) == {expected_size}
 
       # All should be zeros
