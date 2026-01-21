@@ -167,6 +167,9 @@ RUN mix local.hex --force && mix local.rebar --force
 # Create directories for data
 RUN mkdir -p /app/replays /app/checkpoints /workspace/replays /workspace/checkpoints
 
+# Copy tmux config for better training session experience
+COPY config/tmux.conf /root/.tmux.conf
+
 # Make fetch script executable
 RUN chmod +x /app/scripts/fetch_replays.sh
 
