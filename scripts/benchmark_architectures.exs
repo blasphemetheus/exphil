@@ -242,7 +242,7 @@ results = architectures
       |> Enum.take(1)
       |> List.first()
     else
-      Data.batched_frames(prepared_train, batch_size: min(4, opts[:batch_size]), shuffle: false)
+      Data.batched(prepared_train, batch_size: min(4, opts[:batch_size]), shuffle: false)
       |> Enum.take(1)
       |> List.first()
     end
@@ -266,7 +266,7 @@ results = architectures
       batches = if opts[:temporal] do
         Data.batched_sequences(prepared_train, batch_size: opts[:batch_size], shuffle: true, seed: epoch)
       else
-        Data.batched_frames(prepared_train, batch_size: opts[:batch_size], shuffle: true, seed: epoch)
+        Data.batched(prepared_train, batch_size: opts[:batch_size], shuffle: true, seed: epoch)
       end
 
       # Train epoch with progress
@@ -300,7 +300,7 @@ results = architectures
       val_batches = if opts[:temporal] do
         Data.batched_sequences(prepared_val, batch_size: opts[:batch_size], shuffle: false)
       else
-        Data.batched_frames(prepared_val, batch_size: opts[:batch_size], shuffle: false)
+        Data.batched(prepared_val, batch_size: opts[:batch_size], shuffle: false)
       end
 
       val_losses = Enum.map(val_batches, fn batch ->
