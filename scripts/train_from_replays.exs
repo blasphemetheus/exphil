@@ -257,6 +257,7 @@ Configuration:
   Frame Delay: #{if opts[:frame_delay] > 0, do: "#{opts[:frame_delay]} frames (online simulation)", else: "0 (instant feedback)"}
   Augment:     #{if opts[:augment], do: "enabled (mirror=#{opts[:mirror_prob]}, noise=#{opts[:noise_prob]})", else: "disabled"}
   Prefetch:    #{if opts[:prefetch], do: "enabled (buffer=#{opts[:prefetch_buffer]})", else: "disabled"}
+  Grad Ckpt:   #{if opts[:gradient_checkpoint], do: "enabled (every #{opts[:checkpoint_every]} layers)", else: "disabled"}
   GPU:         #{gpu_info}
 #{temporal_info}
 """)
@@ -440,7 +441,10 @@ trainer_opts = [
   # Layer normalization for MLP backbone
   layer_norm: opts[:layer_norm],
   # Optimizer selection
-  optimizer: opts[:optimizer]
+  optimizer: opts[:optimizer],
+  # Gradient checkpointing (memory vs compute trade-off)
+  gradient_checkpoint: opts[:gradient_checkpoint],
+  checkpoint_every: opts[:checkpoint_every]
 ]
 
 # Create trainer (or load from checkpoint for resumption)

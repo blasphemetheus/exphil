@@ -259,8 +259,10 @@ defmodule ExPhil.Networks.Policy do
     num_layers = Keyword.get(opts, :num_layers, 2)
     dropout = Keyword.get(opts, :dropout, @default_dropout)
     window_size = Keyword.get(opts, :window_size, 60)
+    gradient_checkpoint = Keyword.get(opts, :gradient_checkpoint, false)
+    checkpoint_every = Keyword.get(opts, :checkpoint_every, 1)
 
-    Mamba.build(
+    mamba_opts = [
       embed_size: embed_size,
       hidden_size: hidden_size,
       state_size: state_size,
@@ -268,8 +270,16 @@ defmodule ExPhil.Networks.Policy do
       conv_size: conv_size,
       num_layers: num_layers,
       dropout: dropout,
-      window_size: window_size
-    )
+      window_size: window_size,
+      checkpoint_every: checkpoint_every
+    ]
+
+    # Use checkpointed version for memory-efficient training
+    if gradient_checkpoint do
+      Mamba.build_checkpointed(mamba_opts)
+    else
+      Mamba.build(mamba_opts)
+    end
   end
 
   defp build_mlp_temporal_backbone(embed_size, opts) do

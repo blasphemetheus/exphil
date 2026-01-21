@@ -106,6 +106,9 @@ defmodule ExPhil.Training.Imitation do
     state_size: 16,               # Mamba SSM state dimension
     expand_factor: 2,             # Mamba expansion factor
     conv_size: 4,                 # Mamba conv kernel size
+    # Gradient checkpointing (trade compute for memory)
+    gradient_checkpoint: false,   # Enable gradient checkpointing for memory efficiency
+    checkpoint_every: 1,          # Checkpoint every N layers (1 = every layer)
     # Layer normalization for MLP backbone
     layer_norm: false,            # Add layer norm after each dense layer
     # Gradient accumulation
@@ -161,7 +164,10 @@ defmodule ExPhil.Training.Imitation do
         axis_buckets: config.axis_buckets,
         shoulder_buckets: config.shoulder_buckets,
         truncate_bptt: config.truncate_bptt,
-        layer_norm: config.layer_norm
+        layer_norm: config.layer_norm,
+        # Gradient checkpointing for memory efficiency
+        gradient_checkpoint: Map.get(config, :gradient_checkpoint, false),
+        checkpoint_every: Map.get(config, :checkpoint_every, 1)
       )
     else
       Policy.build(

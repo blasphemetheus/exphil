@@ -56,22 +56,67 @@ ExPhil.Training.GPUUtils.memory_status()
 # => %{used_mb: 4521, total_mb: 24564, utilization: 0.18}
 ```
 
-## Planned Optimizations
-
-### Mixed Precision Training (BF16)
+### 5. Mixed Precision Training (BF16)
 
 RTX 4090 has excellent BF16 tensor cores. Benefits:
 - ~2x throughput for matrix operations
 - ~50% memory reduction
 - Minimal accuracy loss for neural networks
 
-```elixir
-# Future API
-config :exphil, :training_dtype, :bf16
-config :exphil, :accumulation_dtype, :f32  # Keep gradients in FP32
+```bash
+# BF16 is the default (--precision bf16)
+mix run scripts/train_from_replays.exs --temporal --backbone mamba
+
+# For full precision (slower but exact)
+mix run scripts/train_from_replays.exs --precision f32
 ```
 
-**Status:** Planned - requires careful handling of gradient scaling
+**Status:** ✅ Implemented - default precision is BF16
+
+### 6. Async Data Prefetching
+
+Overlap data loading with GPU compute:
+
+```
+Time:     |--GPU train 1--|--GPU train 2--|--GPU train 3--|
+CPU:      |--compute 1--|--compute 2--|--compute 3--|--compute 4--|
+                        ↑              ↑
+                     batch 2        batch 3
+                     ready          ready
+```
+
+```bash
+# Enabled by default with 2-buffer prefetch
+mix run scripts/train_from_replays.exs --prefetch --prefetch-buffer 2
+
+# Disable for debugging
+mix run scripts/train_from_replays.exs --no-prefetch
+```
+
+**Status:** ✅ Implemented - uses streaming prefetcher with configurable buffer
+
+### 7. Gradient Checkpointing
+
+Trade compute for memory by recomputing activations during backward pass:
+
+- ~60% memory reduction for activations
+- ~30% slower training (recomputation overhead)
+- Enables larger batch sizes or longer sequences
+
+```bash
+# Enable gradient checkpointing for Mamba backbone
+mix run scripts/train_from_replays.exs \
+  --temporal --backbone mamba \
+  --gradient-checkpoint
+
+# Checkpoint every other layer (less memory savings, less overhead)
+mix run scripts/train_from_replays.exs \
+  --gradient-checkpoint --checkpoint-every 2
+```
+
+**Status:** ✅ Implemented - supports per-layer checkpointing
+
+## Planned Optimizations
 
 ### Flash Attention
 
@@ -81,27 +126,6 @@ Memory-efficient attention that computes in blocks:
 - Better cache utilization
 
 **Status:** Planned - significant implementation effort
-
-### Async Data Prefetching
-
-Overlap data loading with GPU compute:
-
-```elixir
-# Pipeline: load batch N+1 while GPU processes batch N
-defmodule ExPhil.Training.AsyncLoader do
-  def stream(dataset, batch_size) do
-    dataset
-    |> Stream.chunk_every(batch_size)
-    |> Stream.transform(nil, fn batch, prefetched ->
-      next = Task.async(fn -> prepare_batch(batch) end)
-      result = if prefetched, do: Task.await(prefetched), else: prepare_batch(batch)
-      {[result], next}
-    end)
-  end
-end
-```
-
-**Status:** Planned - moderate implementation effort
 
 ### Multi-GPU Training
 

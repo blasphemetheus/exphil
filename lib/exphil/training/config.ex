@@ -106,7 +106,10 @@ defmodule ExPhil.Training.Config do
       # Layer normalization for MLP backbone
       layer_norm: false,
       # Optimizer selection
-      optimizer: :adam  # :adam, :adamw, :lamb, :radam
+      optimizer: :adam,  # :adam, :adamw, :lamb, :radam
+      # Gradient checkpointing (memory vs compute trade-off)
+      gradient_checkpoint: false,
+      checkpoint_every: 1  # Checkpoint every N layers (1 = every layer, 2 = every other)
     ]
   end
 
@@ -1097,6 +1100,8 @@ defmodule ExPhil.Training.Config do
     |> parse_flag(args, "--precompute", :precompute)
     |> parse_flag(args, "--prefetch", :prefetch)
     |> parse_flag(args, "--no-prefetch", :no_prefetch)
+    |> parse_flag(args, "--gradient-checkpoint", :gradient_checkpoint)
+    |> parse_int_arg(args, "--checkpoint-every", :checkpoint_every)
     |> then(fn opts ->
       # --no-prefetch disables prefetching
       if opts[:no_prefetch], do: Keyword.put(opts, :prefetch, false), else: opts
