@@ -332,14 +332,14 @@ end
 # Step 1: Find and validate replays
 Output.puts("Step 1: Finding replays...", :cyan)
 
-replay_files = Path.wildcard(Path.join(opts[:replays], "**/*.slp"))
-initial_count = length(replay_files)
+initial_replay_files = Path.wildcard(Path.join(opts[:replays], "**/*.slp"))
+initial_count = length(initial_replay_files)
 Output.puts("  Found #{initial_count} replay files")
 
 # Quick validation to filter out obviously bad files early
-if initial_count > 0 and initial_count <= 5000 do
+replay_files = if initial_count > 0 and initial_count <= 5000 do
   Output.puts("  Validating replay files...")
-  {:ok, validated_files, validation_stats} = ReplayValidation.validate(replay_files,
+  {:ok, validated_files, validation_stats} = ReplayValidation.validate(initial_replay_files,
     show_progress: false,
     verbose: false
   )
@@ -354,11 +354,12 @@ if initial_count > 0 and initial_count <= 5000 do
     end
   end
 
-  replay_files = validated_files
+  validated_files
 else
   if initial_count > 5000 do
     Output.puts("  Skipping validation for large dataset (#{initial_count} files)")
   end
+  initial_replay_files
 end
 
 # Filter by character/stage if specified (uses fast metadata parsing)

@@ -2,7 +2,7 @@
 
 This document tracks the major goals and roadmap for ExPhil development.
 
-**Last Updated:** 2026-01-20
+**Last Updated:** 2026-01-21
 
 ---
 
@@ -11,10 +11,13 @@ This document tracks the major goals and roadmap for ExPhil development.
 ### Completed
 
 - Behavioral cloning pipeline (single-frame + temporal)
-- All backbones: MLP, LSTM, GRU, Mamba, Attention
+- All backbones: MLP, LSTM, GRU, Mamba, Attention, Jamba (Mamba+Attention hybrid)
 - Dolphin integration (sync + async runners)
 - Full training features: EMA, LR scheduling, gradient accumulation, checkpointing
 - GPU optimizations: XLA caching, BF16, async prefetching, gradient checkpointing
+- UX improvements: colored output, progress bars, dry-run, validation, YAML config
+- Frame delay augmentation for online play robustness
+- GitHub Actions CI (test, format, dialyzer)
 - 900+ tests passing
 
 ### Not Done
@@ -121,38 +124,38 @@ The project can do behavioral cloning but lacks self-play RL. This is the bigges
 | **Training summary at end** | Low | Print final stats: total time, best loss, epochs run, etc. | **Done** |
 | **Colored output** | Low | Red for errors, yellow warnings, green success, cyan info | **Done** |
 | **--dry-run flag** | Low | Validate config, show what would happen, don't train | **Done** |
-| Live loss graph (terminal) | Medium | ASCII sparkline showing loss trend: `▁▂▃▅▂▁▃` | Not started |
-| GPU memory warning | Low | Warn before OOM happens (already have monitoring, add threshold) | Not started |
-| Checkpoint size warning | Low | Warn if checkpoint > 500MB (may be saving unnecessary state) | Not started |
+| **Live loss graph (terminal)** | Medium | ASCII sparkline showing loss trend: `▁▂▃▅▂▁▃` | **Done** |
+| **GPU memory warning** | Low | Warn before OOM happens (already have monitoring, add threshold) | **Done** |
+| **Checkpoint size warning** | Low | Warn if checkpoint > 500MB (may be saving unnecessary state) | **Done** |
 
 **Replay Processing**
 
-| Idea | Effort | Description |
-|------|--------|-------------|
-| Replay validation before training | Medium | Quick scan all files before starting, report bad ones |
-| Character/stage filter CLI | Low | `--character mewtwo,fox --stage battlefield,fd` |
-| Replay stats display | Low | Show character distribution, stage distribution, etc. |
-| Duplicate detection | Medium | Skip duplicate replays (by hash or player/date) |
-| Replay quality scoring | High | Filter out obvious bad gameplay (SD chains, AFKs) |
+| Idea | Effort | Description | Status |
+|------|--------|-------------|--------|
+| **Replay validation before training** | Medium | Quick scan all files before starting, report bad ones | **Done** |
+| **Character/stage filter CLI** | Low | `--character mewtwo,fox --stage battlefield,fd` | **Done** |
+| **Replay stats display** | Low | Show character distribution, stage distribution, etc. | **Done** |
+| Duplicate detection | Medium | Skip duplicate replays (by hash or player/date) | Not started |
+| Replay quality scoring | High | Filter out obvious bad gameplay (SD chains, AFKs) | Not started |
 
 **Model Management**
 
-| Idea | Effort | Description |
-|------|--------|-------------|
-| `mix exphil.list` command | Low | List all checkpoints with metadata (size, date, config) |
-| `mix exphil.info MODEL` | Low | Show model details: architecture, training config, metrics |
-| `mix exphil.compare A B` | Medium | Compare two models' configs and performance |
-| Model naming suggestions | Low | Warn if name conflicts with existing checkpoint |
-| Auto-backup before overwrite | Low | Keep .bak of previous checkpoint |
+| Idea | Effort | Description | Status |
+|------|--------|-------------|--------|
+| **`mix exphil.list` command** | Low | List all checkpoints with metadata (size, date, config) | **Done** |
+| **`mix exphil.info MODEL`** | Low | Show model details: architecture, training config, metrics | **Done** |
+| `mix exphil.compare A B` | Medium | Compare two models' configs and performance | Not started |
+| Model naming suggestions | Low | Warn if name conflicts with existing checkpoint | Not started |
+| Auto-backup before overwrite | Low | Keep .bak of previous checkpoint | Not started |
 
 **Error Messages**
 
-| Idea | Effort | Description |
-|------|--------|-------------|
-| Colored output | Low | Red for errors, yellow for warnings, green for success |
-| Contextual help links | Low | "See docs/TRAINING.md#temporal for temporal training" |
-| Common mistake detection | Medium | "You have --temporal but backbone is mlp, did you mean...?" |
-| Stack trace simplification | Medium | Hide Nx/EXLA internals, show user code only |
+| Idea | Effort | Description | Status |
+|------|--------|-------------|--------|
+| **Colored output** | Low | Red for errors, yellow for warnings, green for success | **Done** |
+| Contextual help links | Low | "See docs/TRAINING.md#temporal for temporal training" | Not started |
+| **Common mistake detection** | Medium | "You have --temporal but backbone is mlp, did you mean...?" | **Done** |
+| Stack trace simplification | Medium | Hide Nx/EXLA internals, show user code only | Not started |
 
 **Inference & Evaluation**
 
@@ -165,21 +168,21 @@ The project can do behavioral cloning but lacks self-play RL. This is the bigges
 
 **Configuration**
 
-| Idea | Effort | Description |
-|------|--------|-------------|
-| Config file support | Medium | `--config training.yaml` instead of many CLI args |
-| Interactive config wizard | High | `mix exphil.setup` asks questions, generates command |
-| Preset customization | Low | `--preset quick --epochs 5` already works, document better |
-| Environment variable support | Low | `EXPHIL_REPLAYS_DIR` as default replays path |
+| Idea | Effort | Description | Status |
+|------|--------|-------------|--------|
+| **Config file support** | Medium | `--config training.yaml` instead of many CLI args | **Done** |
+| Interactive config wizard | High | `mix exphil.setup` asks questions, generates command | Not started |
+| **Preset customization** | Low | `--preset quick --epochs 5` already works, document better | **Done** |
+| Environment variable support | Low | `EXPHIL_REPLAYS_DIR` as default replays path | Not started |
 
 **Developer Experience**
 
-| Idea | Effort | Description |
-|------|--------|-------------|
-| `--dry-run` flag | Low | Validate config, show what would happen, don't train |
-| `--verbose` / `--quiet` flags | Low | Control log verbosity |
-| Reproducibility seed logging | Low | Print and save random seed for reproducibility |
-| Config diff on resume | Low | Show what changed since last training run |
+| Idea | Effort | Description | Status |
+|------|--------|-------------|--------|
+| **`--dry-run` flag** | Low | Validate config, show what would happen, don't train | **Done** |
+| `--verbose` / `--quiet` flags | Low | Control log verbosity | Not started |
+| Reproducibility seed logging | Low | Print and save random seed for reproducibility | Not started |
+| **Config diff on resume** | Low | Show what changed since last training run | **Done** |
 
 ---
 
@@ -203,11 +206,11 @@ The project can do behavioral cloning but lacks self-play RL. This is the bigges
 
 ### 5. Testing & CI
 
-**Impact: Medium | Status: No CI**
+**Impact: Medium | Status: CI Complete**
 
 | Task | Effort | Why | Status |
 |------|--------|-----|--------|
-| GitHub Actions CI | Medium | Auto-run tests on PR | Not started |
+| **GitHub Actions CI** | Medium | Auto-run tests on PR | **Done** |
 | Full pipeline integration test | Medium | Data -> train -> inference round-trip | Not started |
 | ONNX export/load test | Low | Verify export doesn't break | Not started |
 
@@ -251,23 +254,24 @@ This is ExPhil's differentiator - no existing research targets low-tiers.
 
 ## Priority Order
 
-### High Impact + Achievable Now
+### ✅ Completed (High Impact)
 
-1. **Projectile parsing** - Unblocks projectile characters (Link, Samus, Falco)
-2. **Focal loss** - Quick win for rare action accuracy (+30-50% on Z/L/R)
-3. **Embedding caching** - 2-3x training speedup
+1. ~~**Projectile parsing**~~ - ✓ Unblocks projectile characters
+2. ~~**Focal loss**~~ - ✓ Rare action accuracy
+3. ~~**Embedding caching**~~ - ✓ 2-3x training speedup
+4. ~~**Residual MLP**~~ - ✓ Deeper networks
+5. ~~**CI/CD**~~ - ✓ GitHub Actions
 
-### Foundational for Next Phase
+### Current Focus
 
-4. **Self-play infrastructure** - BEAM parallel games
-5. **Historical sampling** - Avoid policy collapse
-6. **PPO + self-play integration**
+6. **Self-play infrastructure** - BEAM parallel games
+7. **Historical sampling** - Avoid policy collapse
+8. **PPO + self-play integration**
 
-### Polish
+### Future
 
-7. Residual MLP
-8. CI/CD
 9. Character specialization
+10. Multi-character model
 
 ---
 
