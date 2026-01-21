@@ -255,6 +255,9 @@ Originally, this was ExPhil's differentiator. However, the Bitter Lesson suggest
 | Link | 75 frames for projectiles | Unvalidated |
 | G&W | 45 frames (no L-cancel) | Unvalidated |
 | Zelda | 60 frames for transform | Unvalidated |
+| Ice Climbers | 60+ frames for Nana coordination | Unvalidated |
+
+**Ice Climbers Note:** Nana support exists in embeddings (`with_nana: true` by default). The model receives Nana's position, percent, action, and facing. Nana's jumps/shield/invuln are zeroed (libmelee limitation). Agent controls Popo only; Nana follows via game AI. Desync techniques would need to emerge from learning.
 
 ---
 

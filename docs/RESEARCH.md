@@ -321,6 +321,7 @@ No existing research targets low-tiers. Our original angle:
 | Link | 75 frames | Projectile tracking, item positions | **No** |
 | G&W | 45 frames | No L-cancel, RNG moves (hammer/bucket) | **No** |
 | Zelda | 60 frames | Transform state tracking | **No** |
+| Ice Climbers | 60+ frames | Nana coordination, wobbling, desyncs | **No** |
 
 **Bitter Lesson Alternative:** Train a single multi-character model with character ID as input. Let the model learn optimal behavior per character from data, rather than us specifying context windows and rewards.
 
