@@ -329,9 +329,39 @@ defmodule ExPhil.Training.SelfPlay.SelfPlayEnv do
   end
 
   defp reset_dolphin_game(port) do
-    # TODO: Implement Dolphin reset when MeleePort is ready
-    # For now, just return the port (game continues from current state)
+    # Reset Dolphin game by stepping through menus until back in game.
+    # The Python bridge's auto_menu=true handles menu navigation automatically.
+    wait_for_game_start(port, _max_frames = 1800)  # 30 seconds at 60fps
+  end
+
+  defp wait_for_game_start(port, remaining) when remaining <= 0 do
+    Logger.warning("[SelfPlayEnv] Timeout waiting for game to restart")
     port
+  end
+
+  defp wait_for_game_start(port, remaining) do
+    case MeleePort.step(port, auto_menu: true) do
+      {:ok, _game_state} ->
+        # Back in game!
+        Logger.debug("[SelfPlayEnv] Game restarted successfully")
+        port
+
+      {:postgame, _state} ->
+        # Still in postgame, keep stepping (menu helper will advance)
+        wait_for_game_start(port, remaining - 1)
+
+      {:menu, _state} ->
+        # In menus (character select, stage select, etc)
+        wait_for_game_start(port, remaining - 1)
+
+      {:game_ended, reason} ->
+        Logger.warning("[SelfPlayEnv] Game ended during reset: #{reason}")
+        port
+
+      {:error, reason} ->
+        Logger.error("[SelfPlayEnv] Error during reset: #{inspect(reason)}")
+        port
+    end
   end
 
   defp get_game_state(%{game_type: :mock, game: game}) do

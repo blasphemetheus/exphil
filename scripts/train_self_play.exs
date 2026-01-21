@@ -32,13 +32,8 @@
 #   --gamma F           - Discount factor (default: 0.99)
 #   --gae-lambda F      - GAE lambda (default: 0.95)
 
-# Force line-buffered output for progress visibility
-:io.setopts(:standard_io, [:binary, {:encoding, :unicode}])
-
-defmodule Progress do
-  def puts(line), do: IO.puts(line) |> tap(fn _ -> :erlang.yield() end)
-  def stderr(line), do: IO.puts(:stderr, line)
-end
+# Use standard output module for consistent logging
+alias ExPhil.Training.Output
 
 defmodule SelfPlayHelpers do
   alias ExPhil.Training.PPO
@@ -138,8 +133,8 @@ defmodule SelfPlayHelpers do
     File.mkdir_p!(dir)
 
     case File.write(path, :erlang.term_to_binary(checkpoint)) do
-      :ok -> Progress.stderr("  ✓ Checkpoint saved: #{path}")
-      {:error, reason} -> Progress.stderr("  ⚠ Checkpoint failed: #{inspect(reason)}")
+      :ok -> ExPhil.Training.Output.puts("  ✓ Checkpoint saved: #{path}")
+      {:error, reason} -> ExPhil.Training.Output.puts("  ⚠ Checkpoint failed: #{inspect(reason)}")
     end
   end
 end
@@ -250,64 +245,60 @@ end
 # Display Configuration
 # ============================================================================
 
-IO.puts("""
+Output.banner("ExPhil Self-Play RL Training", "GenServer Architecture")
 
-╔════════════════════════════════════════════════════════════════╗
-║      ExPhil Self-Play RL Training (GenServer Architecture)     ║
-╚════════════════════════════════════════════════════════════════╝
+Output.config([
+  {"Mode", opts.mode},
+  {"Game Type", opts.game_type},
+  {"Num Games", opts.num_games},
+  {"Timesteps", opts.timesteps},
+  {"Rollout Length", opts.rollout_length},
+  {"Batch Size", opts.batch_size},
+  {"Checkpoint", opts.checkpoint},
+  {"Save Interval", "#{opts.save_interval} iterations"},
+  {"Snapshot Interval", "#{opts.snapshot_interval} iterations"},
+  {"Pretrained", opts.pretrained || "none (random init)"},
+  {"Elo Tracking", opts.track_elo}
+])
 
-Configuration:
-  Mode:             #{opts.mode}
-  Game Type:        #{opts.game_type}
-  Num Games:        #{opts.num_games}
-  Timesteps:        #{opts.timesteps}
-  Rollout Length:   #{opts.rollout_length}
-  Batch Size:       #{opts.batch_size}
-  Checkpoint:       #{opts.checkpoint}
-  Save Interval:    #{opts.save_interval} iterations
-  Snapshot Interval:#{opts.snapshot_interval} iterations
-  Pretrained:       #{opts.pretrained || "none (random init)"}
-  Elo Tracking:     #{opts.track_elo}
-
-PPO Config:
-  Epochs:           #{opts.ppo_epochs}
-  Clip Epsilon:     #{opts.ppo_clip}
-  Learning Rate:    #{opts.learning_rate}
-  Gamma:            #{opts.gamma}
-  GAE Lambda:       #{opts.gae_lambda}
-""")
+Output.puts_raw(Output.colorize("PPO Config:", :bold))
+Output.kv("Epochs", opts.ppo_epochs)
+Output.kv("Clip Epsilon", opts.ppo_clip)
+Output.kv("Learning Rate", opts.learning_rate)
+Output.kv("Gamma", opts.gamma)
+Output.kv("GAE Lambda", opts.gae_lambda)
+Output.puts_raw("")
 
 if opts.game_type == :dolphin do
-  IO.puts("""
-Dolphin Config:
-  Path:           #{opts.dolphin_path}
-  ISO:            #{opts.iso_path}
-  Character:      #{opts.character}
-  Stage:          #{opts.stage}
-""")
+  Output.puts_raw(Output.colorize("Dolphin Config:", :bold))
+  Output.kv("Path", opts.dolphin_path)
+  Output.kv("ISO", opts.iso_path)
+  Output.kv("Character", opts.character)
+  Output.kv("Stage", opts.stage)
+  Output.puts_raw("")
 end
 
 # ============================================================================
 # Step 1: Load or Initialize Policy
 # ============================================================================
 
-Progress.stderr("\nStep 1: Initializing policy...")
+Output.step(1, 6, "Initializing policy")
 
 {policy_model, policy_params, embed_size} = if opts.pretrained do
-  Progress.stderr("  Loading pretrained policy from #{opts.pretrained}...")
+  Output.puts("  Loading pretrained policy from #{opts.pretrained}...")
 
   case ExPhil.Training.load_policy(opts.pretrained) do
     {:ok, policy} ->
       embed_size = policy.config[:embed_size] || 1991
-      Progress.stderr("  ✓ Loaded policy (embed_size=#{embed_size})")
+      Output.success("  Loaded policy (embed_size=#{embed_size})")
       {policy.model, policy.params, embed_size}
 
     {:error, reason} ->
-      IO.puts(:stderr, "  ✗ Failed to load policy: #{inspect(reason)}")
+      Output.error("Failed to load policy: #{inspect(reason)}")
       System.halt(1)
   end
 else
-  Progress.stderr("  Creating random actor-critic policy...")
+  Output.puts("  Creating random actor-critic policy...")
   embed_size = 1991
   hidden_sizes = [256, 256]
 
@@ -322,7 +313,7 @@ else
   template = Nx.template({1, embed_size}, :f32)
   params = init_fn.(template, %{})
 
-  Progress.stderr("  ✓ Created random policy (embed_size=#{embed_size})")
+  Output.success("  Created random policy (embed_size=#{embed_size})")
   {model, params, embed_size}
 end
 
@@ -330,7 +321,7 @@ end
 # Step 2: Start Self-Play Supervisor
 # ============================================================================
 
-Progress.stderr("\nStep 2: Starting self-play infrastructure...")
+Output.step(2, 6, "Starting self-play infrastructure")
 
 {:ok, _supervisor} = Supervisor.start_link(
   batch_size: opts.batch_size,
@@ -338,17 +329,17 @@ Progress.stderr("\nStep 2: Starting self-play infrastructure...")
   start_matchmaker: opts.track_elo
 )
 
-Progress.stderr("  ✓ Self-play supervisor started")
+Output.puts("  ✓ Self-play supervisor started")
 
 # Set the current policy
 :ok = Supervisor.set_policy(policy_model, policy_params)
-Progress.stderr("  ✓ Policy registered with population manager")
+Output.puts("  ✓ Policy registered with population manager")
 
 # ============================================================================
 # Step 3: Initialize PPO Trainer
 # ============================================================================
 
-Progress.stderr("\nStep 3: Initializing PPO trainer...")
+Output.step(3, 6, "Initializing PPO trainer")
 
 ppo_trainer = PPO.new(
   embed_size: embed_size,
@@ -361,35 +352,35 @@ ppo_trainer = PPO.new(
   batch_size: opts.batch_size
 )
 
-Progress.stderr("  ✓ PPO trainer initialized")
+Output.puts("  ✓ PPO trainer initialized")
 
 # ============================================================================
 # Step 4: Start Parallel Games
 # ============================================================================
 
-Progress.stderr("\nStep 4: Starting #{opts.num_games} parallel games...")
+Output.step(4, 6, "Starting #{opts.num_games} parallel games")
 
 game_results = Supervisor.start_games(opts.num_games, game_type: opts.game_type)
 
 started_count = Enum.count(game_results, fn {:ok, _} -> true; _ -> false end)
-Progress.stderr("  ✓ #{started_count}/#{opts.num_games} games started")
+Output.puts("  ✓ #{started_count}/#{opts.num_games} games started")
 
 if started_count < opts.num_games do
   failed = Enum.filter(game_results, fn {:ok, _} -> false; _ -> true end)
-  Progress.stderr("  ⚠ Some games failed to start: #{inspect(Enum.take(failed, 3))}")
+  Output.warning("Some games failed to start: #{inspect(Enum.take(failed, 3))}")
 end
 
 # ============================================================================
 # Step 5: Training Loop
 # ============================================================================
 
-Progress.stderr("\nStep 5: Starting self-play training...")
-Progress.stderr("─" |> String.duplicate(60))
+Output.step(5, 6, "Starting self-play training")
+Output.divider()
 
 steps_per_iteration = opts.rollout_length * opts.num_games
 total_iterations = div(opts.timesteps, steps_per_iteration)
-Progress.stderr("  Total iterations: #{total_iterations}")
-Progress.stderr("  Steps per iteration: #{steps_per_iteration}")
+Output.puts("  Total iterations: #{total_iterations}")
+Output.puts("  Steps per iteration: #{steps_per_iteration}")
 
 start_time = System.monotonic_time(:second)
 
@@ -413,7 +404,7 @@ final_state = Enum.reduce_while(1..total_iterations, state, fn iter, state ->
   steps_collected = length(experiences)
 
   if steps_collected == 0 do
-    Progress.stderr("  ⚠ No experience collected in iteration #{iter}, skipping...")
+    Output.warning("No experience collected in iteration #{iter}, skipping...")
     {:cont, %{state | iteration: iter}}
   else
     # Convert experiences to rollout format for PPO
@@ -460,7 +451,8 @@ final_state = Enum.reduce_while(1..total_iterations, state, fn iter, state ->
                    "value_loss: #{Float.round(value_loss, 4)} | " <>
                    "#{steps_per_sec} steps/s"
 
-    Progress.stderr(progress_line)
+    # Use carriage return to overwrite line for live progress
+    IO.write(:stderr, "\r#{progress_line}\n")
 
     # Save checkpoint periodically
     if rem(iter, opts.save_interval) == 0 do
@@ -493,42 +485,44 @@ total_time = System.monotonic_time(:second) - start_time
 total_min = div(total_time, 60)
 total_sec = rem(total_time, 60)
 
-Progress.stderr("")
-Progress.stderr("─" |> String.duplicate(60))
-Progress.stderr("✓ Training complete in #{total_min}m #{total_sec}s")
-Progress.stderr("─" |> String.duplicate(60))
+Output.puts_raw("")
+Output.divider()
+Output.success("Training complete in #{total_min}m #{total_sec}s")
+Output.divider()
 
-Progress.stderr("\nStep 6: Saving final checkpoint...")
+Output.step(6, 6, "Saving final checkpoint")
 
 SelfPlayHelpers.save_checkpoint(final_state.ppo_trainer, final_state.policy_model, opts.checkpoint, final_state.iteration, final_state.total_steps, opts)
 
 # Also export policy for inference
 policy_path = String.replace(opts.checkpoint, ".axon", "_policy.bin")
 PPO.export_policy(final_state.ppo_trainer, policy_path)
-Progress.stderr("  ✓ Policy exported: #{policy_path}")
+Output.puts("  ✓ Policy exported: #{policy_path}")
 
 # Print Elo leaderboard if tracking
 if opts.track_elo do
-  Progress.stderr("\nElo Leaderboard:")
+  Output.section("Elo Leaderboard")
   leaderboard = Supervisor.get_leaderboard(10)
   Enum.with_index(leaderboard, 1) |> Enum.each(fn {entry, rank} ->
-    Progress.stderr("  #{rank}. #{entry.id}: #{Float.round(entry.rating, 1)} (#{entry.wins}W/#{entry.losses}L)")
+    Output.puts("  #{rank}. #{entry.id}: #{Float.round(entry.rating, 1)} (#{entry.wins}W/#{entry.losses}L)")
   end)
 end
 
 # Shutdown
 Supervisor.stop_all_games()
 
-Progress.stderr("""
+Output.training_summary(%{
+  total_time_ms: total_time * 1000,
+  total_steps: final_state.total_steps,
+  epochs_completed: final_state.iteration,
+  epochs_total: total_iterations,
+  checkpoint_path: opts.checkpoint
+})
 
-Training Summary:
-  Total Steps:    #{final_state.total_steps}
-  Iterations:     #{final_state.iteration}
-  Time:           #{total_min}m #{total_sec}s
-
-Next steps:
-  1. Evaluate: mix run scripts/eval_model.exs --policy #{policy_path}
-  2. Play: mix run scripts/play_dolphin.exs --policy #{policy_path} ...
-  3. Continue training: mix run scripts/train_self_play.exs --pretrained #{policy_path} ...
-""")
+Output.puts_raw("")
+Output.puts_raw(Output.colorize("Next steps:", :bold))
+Output.puts_raw("  1. Evaluate: mix run scripts/eval_model.exs --policy #{policy_path}")
+Output.puts_raw("  2. Play: mix run scripts/play_dolphin.exs --policy #{policy_path} ...")
+Output.puts_raw("  3. Continue training: mix run scripts/train_self_play.exs --pretrained #{policy_path} ...")
+Output.puts_raw("")
 

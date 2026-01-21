@@ -146,6 +146,11 @@ defmodule ExPhil.Training.SelfPlay.LeagueTrainer do
     # Parallel games
     num_parallel_games: 2,
 
+    # Game environment
+    game_type: :mock,           # :mock or :dolphin
+    dolphin_config: nil,        # Required if game_type is :dolphin
+                                # %{dolphin_path: "...", iso_path: "...", character: "fox", stage: "final_destination"}
+
     # Opponent mix (for simple_mix mode)
     opponent_mix: %{
       current: 0.4,
@@ -176,6 +181,28 @@ defmodule ExPhil.Training.SelfPlay.LeagueTrainer do
   def new(opts \\ []) do
     mode = Keyword.get(opts, :mode, :simple_mix)
     config = Map.merge(@default_config, Map.new(opts))
+
+    # Validate dolphin_config when using Dolphin
+    if config.game_type == :dolphin do
+      cond do
+        is_nil(config.dolphin_config) ->
+          {:error, "dolphin_config is required when game_type is :dolphin"}
+
+        is_nil(config.dolphin_config[:dolphin_path]) ->
+          {:error, "dolphin_config.dolphin_path is required"}
+
+        is_nil(config.dolphin_config[:iso_path]) ->
+          {:error, "dolphin_config.iso_path is required"}
+
+        true ->
+          do_new(mode, config, opts)
+      end
+    else
+      do_new(mode, config, opts)
+    end
+  end
+
+  defp do_new(mode, config, opts) do
 
     # Initialize opponent pool
     {:ok, opponent_pool} = OpponentPool.new(
@@ -385,15 +412,28 @@ defmodule ExPhil.Training.SelfPlay.LeagueTrainer do
   end
 
   defp collect_rollout(ppo_trainer, _agent, opponent, config) do
-    # Create environment with opponent
-    {:ok, env} = SelfPlayEnv.new(
+    # Build environment options
+    env_opts = [
       p1_policy: {ppo_trainer.model, ppo_trainer.params},
       p2_policy: opponent_to_policy(opponent),
-      game_type: :mock  # TODO: Support Dolphin
-    )
+      game_type: config.game_type
+    ]
+
+    # Add dolphin_config if using Dolphin
+    env_opts = if config.game_type == :dolphin do
+      Keyword.put(env_opts, :dolphin_config, config.dolphin_config)
+    else
+      env_opts
+    end
+
+    # Create environment with opponent
+    {:ok, env} = SelfPlayEnv.new(env_opts)
 
     # Collect steps
-    {:ok, _env, experiences} = SelfPlayEnv.collect_steps(env, config.rollout_length)
+    {:ok, env, experiences} = SelfPlayEnv.collect_steps(env, config.rollout_length)
+
+    # Shutdown environment to release Dolphin resources
+    SelfPlayEnv.shutdown(env)
 
     # Convert to rollout format for PPO
     experiences_to_rollout(experiences)

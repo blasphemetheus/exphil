@@ -148,6 +148,77 @@ See [docs/GOTCHAS.md](docs/GOTCHAS.md) for detailed fixes. Most common issues:
 - JSON serialization: atoms become strings after round-trip
 - File.stat mtime returns tuple `{{y,m,d},{h,m,s}}`, not NaiveDateTime
 
+## Script Logging & UX Standards
+
+All scripts use `ExPhil.Training.Output` for consistent, informative output. Key conventions:
+
+**Always use the Output module** - `alias ExPhil.Training.Output`
+```elixir
+# Timestamped messages (preferred for all output)
+Output.puts("Processing files...")           # [12:34:56] Processing files...
+Output.success("Training complete")          # [12:34:56] ✓ Training complete (green)
+Output.warning("Memory usage high")          # [12:34:56] ⚠️ Memory usage high (yellow)
+Output.error("Failed to load checkpoint")    # [12:34:56] ❌ Failed to load checkpoint (red)
+
+# Step indicators for multi-phase scripts
+Output.step(1, 5, "Loading replays")         # [12:34:56] Step 1/5: Loading replays (cyan)
+Output.step(2, 5, "Parsing frames")
+
+# Script startup banner
+Output.banner("ExPhil Architecture Benchmark")
+
+# Configuration display
+Output.config([
+  {"Replay dir", replay_dir},
+  {"Epochs", epochs},
+  {"Batch size", batch_size}
+])
+```
+
+**Progress bars for long operations:**
+```elixir
+# Live updating progress bar (overwrites line)
+for {item, idx} <- Enum.with_index(items) do
+  Output.progress_bar(idx + 1, length(items), label: "Processing")
+  process(item)
+end
+Output.progress_done()  # Print newline after
+
+# Timed blocks (shows "..." while running, then duration)
+require Output
+Output.timed "Loading dataset" do
+  load_data()
+end
+# Output: [12:34:56] Loading dataset... done! (2.3s)
+```
+
+**JIT compilation indicator** - Always warn users before first batch:
+```elixir
+Output.puts("⏳ JIT compiling model (first batch)... this may take 2-5 minutes")
+Output.puts("   (subsequent batches will be fast)")
+```
+
+**Training epoch progress:**
+```elixir
+# Inline progress: Epoch 1: ████████░░ 40% | 642/1606 | loss: 0.1234 | 0.5s/it | ETA: 8m 12s
+IO.write(:stderr, "\r#{progress_line}")  # Carriage return to overwrite
+```
+
+**GPU memory status** - Show at startup and each epoch:
+```elixir
+Output.puts(GPUUtils.memory_status_string())  # "GPU: 4.2/8.0 GB (52%)"
+```
+
+**Summary at end:**
+```elixir
+Output.training_summary(%{
+  total_time_ms: total_time * 1000,
+  epochs_completed: epochs,
+  final_loss: loss,
+  checkpoint_path: path
+})
+```
+
 ## References
 
 **Melee AI Projects:**

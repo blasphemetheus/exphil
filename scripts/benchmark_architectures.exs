@@ -12,17 +12,11 @@
 #
 # Results are saved to checkpoints/benchmark_results.json and benchmark_report.html
 
-defmodule Output do
-  def puts(line) do
-    timestamp = DateTime.utc_now() |> Calendar.strftime("%H:%M:%S")
-    IO.puts(:stderr, "[#{timestamp}] #{line}")
-  end
-  def puts_raw(line), do: IO.puts(:stderr, line)
-end
-
 alias ExPhil.Data.Peppi
-alias ExPhil.Training.{Data, GPUUtils, Imitation}
+alias ExPhil.Training.{Data, GPUUtils, Imitation, Output}
 alias ExPhil.Embeddings
+
+require Output  # For timed macro
 
 # Parse args
 args = System.argv()
@@ -59,34 +53,28 @@ architectures = [
   {:attention, "Attention", [temporal: true, backbone: :attention, window_size: 30, num_layers: 1, num_heads: 4]}
 ]
 
-Output.puts("""
-
-╔════════════════════════════════════════════════════════════════╗
-║           ExPhil Architecture Benchmark                        ║
-╚════════════════════════════════════════════════════════════════╝
-
-Configuration:
-  Replay dir:    #{replay_dir}
-  Max files:     #{max_files}
-  Epochs:        #{epochs}
-  Batch size:    #{batch_size}
-  Architectures: #{length(architectures)}
-  GPU:           #{GPUUtils.memory_status_string()}
-
-""")
+Output.banner("ExPhil Architecture Benchmark")
+Output.config([
+  {"Replay dir", replay_dir},
+  {"Max files", max_files},
+  {"Epochs", epochs},
+  {"Batch size", batch_size},
+  {"Architectures", length(architectures)},
+  {"GPU", GPUUtils.memory_status_string()}
+])
 
 # Load replays once
-Output.puts("Step 1: Loading replays...")
+Output.step(1, 3, "Loading replays")
 replay_files = Path.wildcard("#{replay_dir}/**/*.slp") |> Enum.take(max_files)
 Output.puts("  Found #{length(replay_files)} replay files")
 
 if length(replay_files) == 0 do
-  Output.puts("ERROR: No replay files found in #{replay_dir}")
+  Output.error("No replay files found in #{replay_dir}")
   System.halt(1)
 end
 
 # Parse all replays
-Output.puts("\nStep 2: Parsing replays...")
+Output.step(2, 3, "Parsing replays")
 all_frames = replay_files
 |> Enum.with_index(1)
 |> Enum.flat_map(fn {path, idx} ->
@@ -109,11 +97,15 @@ val_dataset = Data.from_frames(val_frames)
 
 Output.puts("  Train: #{train_dataset.size} frames, Val: #{val_dataset.size} frames")
 
-Output.puts("\nStep 3: Running benchmarks...")
-Output.puts_raw("─" |> String.duplicate(60))
+Output.step(3, 3, "Running benchmarks")
+Output.divider()
 
-results = Enum.map(architectures, fn {arch_id, arch_name, arch_opts} ->
-  Output.puts("\n▶ Benchmarking: #{arch_name}")
+num_archs = length(architectures)
+results = architectures
+|> Enum.with_index(1)
+|> Enum.map(fn {{arch_id, arch_name, arch_opts}, arch_idx} ->
+  Output.puts("")
+  Output.puts("▶ [#{arch_idx}/#{num_archs}] #{arch_name}", :cyan)
   Output.puts("  #{GPUUtils.memory_status_string()}")
 
   # Merge with base options

@@ -425,6 +425,97 @@ defmodule ExPhil.Training.Output do
   end
 
   @doc """
+  Time a block of code and print status.
+
+  Shows "label..." while running, then "label... done! (Xs)" when complete.
+
+  ## Examples
+
+      iex> Output.timed("Loading data") do
+      ...>   # slow operation
+      ...> end
+      # prints: [12:34:56] Loading data... done! (2.3s)
+
+  """
+  defmacro timed(label, do: block) do
+    quote do
+      IO.write(:stderr, "[#{Calendar.strftime(DateTime.utc_now(), "%H:%M:%S")}] #{unquote(label)}...")
+      start = System.monotonic_time(:millisecond)
+      result = unquote(block)
+      elapsed = System.monotonic_time(:millisecond) - start
+      IO.puts(:stderr, " done! (#{ExPhil.Training.Output.format_duration(elapsed)})")
+      result
+    end
+  end
+
+  @doc """
+  Time a block with a spinner for long operations.
+
+  Shows an animated spinner while running.
+  """
+  defmacro timed_spinner(label, do: block) do
+    quote do
+      task = Task.async(fn -> unquote(block) end)
+
+      spinner_task = Task.async(fn ->
+        Stream.iterate(0, &(&1 + 1))
+        |> Enum.reduce_while(nil, fn frame, _ ->
+          ExPhil.Training.Output.spinner(frame, unquote(label))
+          Process.sleep(100)
+          if Task.yield(task, 0), do: {:halt, nil}, else: {:cont, nil}
+        end)
+      end)
+
+      result = Task.await(task, :infinity)
+      Task.shutdown(spinner_task, :brutal_kill)
+      ExPhil.Training.Output.clear_line()
+      IO.puts(:stderr, "[#{Calendar.strftime(DateTime.utc_now(), "%H:%M:%S")}] #{unquote(label)}... done!")
+      result
+    end
+  end
+
+  @doc """
+  Print a step indicator for multi-step processes.
+
+  ## Examples
+
+      iex> Output.step(1, 5, "Loading replays")
+      # prints: [12:34:56] Step 1/5: Loading replays
+
+  """
+  def step(current, total, description) do
+    puts("Step #{current}/#{total}: #{description}", :cyan)
+  end
+
+  @doc """
+  Print a banner for script startup.
+  """
+  def banner(title, subtitle \\ nil) do
+    width = 60
+    puts_raw("")
+    puts_raw("╔" <> String.duplicate("═", width) <> "╗")
+    title_padding = div(width - String.length(title), 2)
+    puts_raw("║" <> String.duplicate(" ", title_padding) <> title <>
+             String.duplicate(" ", width - title_padding - String.length(title)) <> "║")
+    if subtitle do
+      sub_padding = div(width - String.length(subtitle), 2)
+      puts_raw("║" <> String.duplicate(" ", sub_padding) <> colorize(subtitle, :dim) <>
+               String.duplicate(" ", width - sub_padding - String.length(subtitle)) <> "║")
+    end
+    puts_raw("╚" <> String.duplicate("═", width) <> "╝")
+    puts_raw("")
+  end
+
+  @doc """
+  Print configuration as key-value pairs.
+  """
+  def config(pairs) when is_list(pairs) do
+    puts_raw(colorize("Configuration:", :bold))
+    Enum.each(pairs, fn {k, v} -> kv("  #{k}", inspect(v)) end)
+    puts_raw("")
+  end
+
+  @doc """
   Print replay statistics (character and stage distribution).
   """
   def replay_stats(stats) do

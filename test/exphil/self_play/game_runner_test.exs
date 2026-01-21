@@ -183,6 +183,40 @@ defmodule ExPhil.SelfPlay.GameRunnerTest do
     end
   end
 
+  describe "dolphin configuration" do
+    test "accepts dolphin game_type with config" do
+      game_id = "dolphin_config_test_#{System.unique_integer([:positive])}"
+
+      # This should not crash - just validates config acceptance
+      # Actual Dolphin connection would fail without real Dolphin
+      opts = [
+        game_id: game_id,
+        p1_policy_id: :cpu,
+        p2_policy_id: :cpu,
+        game_type: :dolphin,
+        config: [
+          dolphin_config: %{
+            dolphin_path: "/fake/path",
+            iso_path: "/fake/iso.iso",
+            character: "mewtwo",
+            stage: "final_destination"
+          }
+        ]
+      ]
+
+      # The GenServer will start, but init_game will fail when trying to connect
+      # This test validates that the config structure is accepted
+      assert {:ok, pid} = GameRunner.start_link(opts)
+      assert Process.alive?(pid)
+
+      # Status should be waiting (game not started)
+      status = GameRunner.get_status(pid)
+      assert status.game_type == :dolphin
+
+      safe_stop(pid)
+    end
+  end
+
   # Helper functions
 
   defp safe_stop(pid) do

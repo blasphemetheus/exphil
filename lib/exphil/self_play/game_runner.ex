@@ -807,8 +807,39 @@ defmodule ExPhil.SelfPlay.GameRunner do
   end
 
   defp reset_dolphin_game(pid) do
-    # TODO: Implement proper Dolphin reset
+    # Reset Dolphin game by stepping through menus until back in game.
+    # The Python bridge's auto_menu=true handles menu navigation automatically.
+    wait_for_game_start(pid, _max_frames = 1800)  # 30 seconds at 60fps
+  end
+
+  defp wait_for_game_start(pid, remaining) when remaining <= 0 do
+    Logger.warning("[GameRunner] Timeout waiting for game to restart")
     pid
+  end
+
+  defp wait_for_game_start(pid, remaining) do
+    case ExPhil.Bridge.MeleePort.step(pid, auto_menu: true) do
+      {:ok, _game_state} ->
+        # Back in game!
+        Logger.debug("[GameRunner] Game restarted successfully")
+        pid
+
+      {:postgame, _state} ->
+        # Still in postgame, keep stepping (menu helper will advance)
+        wait_for_game_start(pid, remaining - 1)
+
+      {:menu, _state} ->
+        # In menus (character select, stage select, etc)
+        wait_for_game_start(pid, remaining - 1)
+
+      {:game_ended, reason} ->
+        Logger.warning("[GameRunner] Game ended during reset: #{reason}")
+        pid
+
+      {:error, reason} ->
+        Logger.error("[GameRunner] Error during reset: #{inspect(reason)}")
+        pid
+    end
   end
 
   # Convert policy action map to ControllerState for embedding
