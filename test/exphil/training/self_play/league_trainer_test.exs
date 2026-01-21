@@ -3,6 +3,8 @@ defmodule ExPhil.Training.SelfPlay.LeagueTrainerTest do
 
   alias ExPhil.Training.SelfPlay.LeagueTrainer
 
+  # Tests take 20-150 seconds each due to model initialization
+  @moduletag :slow
   @moduletag :self_play
 
   describe "new/1 validation" do
@@ -71,6 +73,7 @@ defmodule ExPhil.Training.SelfPlay.LeagueTrainerTest do
       assert Map.has_key?(trainer.agents, :main)
     end
 
+    @tag timeout: 180_000  # League mode creates multiple agents, slow on CPU
     test "creates league trainer with multiple agents" do
       assert {:ok, trainer} = LeagueTrainer.new(
         mode: :league,
@@ -123,6 +126,7 @@ defmodule ExPhil.Training.SelfPlay.LeagueTrainerTest do
       assert agent.type == :simple
     end
 
+    @tag timeout: 180_000  # League mode creates multiple agents, slow on CPU
     test "returns highest elo agent for league mode" do
       {:ok, trainer} = LeagueTrainer.new(
         mode: :league,
@@ -146,6 +150,7 @@ defmodule ExPhil.Training.SelfPlay.LeagueTrainerTest do
       assert trainer.agents.main.elo == 1000
     end
 
+    @tag timeout: 180_000  # League mode creates multiple agents, slow on CPU
     test "league mode creates correct agent types" do
       {:ok, trainer} = LeagueTrainer.new(
         mode: :league,
@@ -170,6 +175,7 @@ defmodule ExPhil.Training.SelfPlay.LeagueTrainerTest do
   end
 
   describe "ppo_trainers" do
+    @tag timeout: 180_000  # League mode creates multiple agents, slow on CPU
     test "creates ppo trainer for each agent" do
       {:ok, trainer} = LeagueTrainer.new(
         mode: :league,

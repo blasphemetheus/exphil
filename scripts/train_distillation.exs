@@ -31,6 +31,7 @@ defmodule DistillationTrainer do
   import Nx.Defn
   alias ExPhil.Networks.Policy
   alias ExPhil.Embeddings.Game, as: GameEmbed
+  alias ExPhil.Training.Output
 
   @default_hidden_sizes [64, 64]
   @default_alpha 0.7  # Weight for soft labels vs hard labels
@@ -41,25 +42,29 @@ defmodule DistillationTrainer do
   def run(args) do
     opts = parse_args(args)
 
-    IO.puts("""
-
-    ========================================================================
-                    Knowledge Distillation Training
-    ========================================================================
-    """)
+    Output.banner("Knowledge Distillation Training")
+    Output.config([
+      {"Soft labels", opts.soft_labels},
+      {"Hidden sizes", inspect(opts.hidden_sizes)},
+      {"Epochs", opts.epochs},
+      {"Batch size", opts.batch_size},
+      {"Learning rate", opts.learning_rate},
+      {"Alpha (soft weight)", opts.alpha},
+      {"Output", opts.output}
+    ])
 
     # Load soft labels
-    IO.puts("Step 1: Loading soft labels...")
+    Output.step(1, 7, "Loading soft labels")
     %{config: config, labels: labels} = load_soft_labels(opts.soft_labels)
-    IO.puts("  Loaded #{length(labels)} frames")
-    IO.puts("  Teacher: #{config.teacher_path}")
-    IO.puts("  Temperature: #{config.temperature}")
+    Output.puts("  Loaded #{length(labels)} frames")
+    Output.puts("  Teacher: #{config.teacher_path}")
+    Output.puts("  Temperature: #{config.temperature}")
 
     embed_size = config.embed_size
 
     # Build student model
-    IO.puts("\nStep 2: Building student MLP...")
-    IO.puts("  Hidden sizes: #{inspect(opts.hidden_sizes)}")
+    Output.step(2, 7, "Building student MLP")
+    Output.puts("  Hidden sizes: #{inspect(opts.hidden_sizes)}")
 
     student_model = Policy.build(
       embed_size: embed_size,
@@ -72,16 +77,16 @@ defmodule DistillationTrainer do
     dummy_input = Nx.broadcast(0.0, {1, embed_size})
     params = init_fn.(dummy_input, Axon.ModelState.empty())
     param_count = count_params(params)
-    IO.puts("  Parameters: #{format_number(param_count)}")
+    Output.puts("  Parameters: #{format_number(param_count)}")
 
     # Prepare dataset
-    IO.puts("\nStep 3: Preparing dataset...")
+    Output.step(3, 7, "Preparing dataset")
     {train_data, val_data} = prepare_dataset(labels, opts.val_split)
-    IO.puts("  Training: #{length(train_data)} frames")
-    IO.puts("  Validation: #{length(val_data)} frames")
+    Output.puts("  Training: #{length(train_data)} frames")
+    Output.puts("  Validation: #{length(val_data)} frames")
 
     # Initialize optimizer
-    IO.puts("\nStep 4: Initializing optimizer...")
+    Output.step(4, 7, "Initializing optimizer")
     optimizer = Polaris.Optimizers.adamw(learning_rate: opts.learning_rate)
     optimizer_state = Polaris.Updates.init(optimizer)
 
@@ -89,11 +94,11 @@ defmodule DistillationTrainer do
     {_, predict_fn} = Axon.build(student_model, mode: :inference)
 
     # Training loop
-    IO.puts("\nStep 5: Training...")
-    IO.puts("  Epochs: #{opts.epochs}")
-    IO.puts("  Batch size: #{opts.batch_size}")
-    IO.puts("  Alpha (soft weight): #{opts.alpha}")
-    IO.puts("")
+    Output.step(5, 7, "Training")
+    Output.puts("  Epochs: #{opts.epochs}")
+    Output.puts("  Batch size: #{opts.batch_size}")
+    Output.puts("  Alpha (soft weight): #{opts.alpha}")
+    Output.puts("")
 
     final_state = train_loop(
       train_data, val_data,
@@ -102,7 +107,7 @@ defmodule DistillationTrainer do
     )
 
     # Export policy
-    IO.puts("\nStep 6: Exporting distilled policy...")
+    Output.step(6, 7, "Exporting distilled policy")
     export_policy(student_model, final_state.params, opts.output, %{
       embed_size: embed_size,
       hidden_sizes: opts.hidden_sizes,
@@ -113,23 +118,19 @@ defmodule DistillationTrainer do
     })
 
     # Benchmark inference
-    IO.puts("\nStep 7: Benchmarking inference speed...")
+    Output.step(7, 7, "Benchmarking inference speed")
     benchmark_inference(student_model, final_state.params, embed_size)
 
-    IO.puts("""
-
-    ========================================================================
-                              Complete!
-    ========================================================================
-    Output: #{opts.output}
-    Final validation loss: #{Float.round(final_state.val_loss, 4)}
-
-    Test the policy:
-      mix run scripts/eval_model.exs --policy #{opts.output}
-
-    Play in Dolphin:
-      mix run scripts/play_dolphin.exs --policy #{opts.output}
-    """)
+    Output.divider()
+    Output.section("Complete!")
+    Output.puts("Output: #{opts.output}")
+    Output.puts("Final validation loss: #{Float.round(final_state.val_loss, 4)}")
+    Output.puts("")
+    Output.puts("Test the policy:")
+    Output.puts("  mix run scripts/eval_model.exs --policy #{opts.output}")
+    Output.puts("")
+    Output.puts("Play in Dolphin:")
+    Output.puts("  mix run scripts/play_dolphin.exs --policy #{opts.output}")
   end
 
   defp parse_args(args) do
@@ -220,7 +221,7 @@ defmodule DistillationTrainer do
           # Progress
           if rem(batch_idx + 1, max(1, div(num_batches, 10))) == 0 do
             pct = round((batch_idx + 1) / num_batches * 100)
-            IO.write("\r  Epoch #{epoch}: #{pct}% | loss: #{Float.round(Nx.to_number(loss), 4)}")
+            IO.write(:stderr, "\r  Epoch #{epoch}: #{pct}% | loss: #{Float.round(Nx.to_number(loss), 4)}")
           end
 
           {%{s |
@@ -237,7 +238,7 @@ defmodule DistillationTrainer do
       epoch_time = System.monotonic_time(:millisecond) - epoch_start
       avg_loss = Enum.sum(losses) / length(losses)
 
-      IO.puts("\r  Epoch #{epoch}: train_loss=#{Float.round(avg_loss, 4)} val_loss=#{Float.round(val_loss, 4)} (#{epoch_time}ms)")
+      Output.puts("\r  Epoch #{epoch}: train_loss=#{Float.round(avg_loss, 4)} val_loss=#{Float.round(val_loss, 4)} (#{epoch_time}ms)")
 
       %{epoch_state | epoch: epoch, val_loss: val_loss}
     end)
@@ -400,7 +401,7 @@ defmodule DistillationTrainer do
     }
 
     File.write!(path, :erlang.term_to_binary(policy, [:compressed]))
-    IO.puts("  Saved: #{path}")
+    Output.puts("  Saved: #{path}")
   end
 
   defp benchmark_inference(model, params, embed_size) do
@@ -417,8 +418,8 @@ defmodule DistillationTrainer do
     elapsed = System.monotonic_time(:microsecond) - start
 
     avg_ms = elapsed / iterations / 1000
-    IO.puts("  Average inference: #{Float.round(avg_ms, 2)} ms")
-    IO.puts("  60 FPS ready: #{if avg_ms < 16.67, do: "Yes", else: "No (need <16.67ms)"}")
+    Output.puts("  Average inference: #{Float.round(avg_ms, 2)} ms")
+    Output.puts("  60 FPS ready: #{if avg_ms < 16.67, do: "Yes", else: "No (need <16.67ms)"}")
   end
 
   defp count_params(params) do

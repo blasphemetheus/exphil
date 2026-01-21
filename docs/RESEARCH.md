@@ -13,6 +13,7 @@ This document summarizes research relevant to ExPhil, including lessons learned 
 - [Self-Play & RL](#self-play--rl)
 - [Lessons for ExPhil](#lessons-for-exphil)
 - [Research Roadmap](#research-roadmap)
+- [Compute Scaling & The Bitter Lesson](#compute-scaling--the-bitter-lesson)
 
 ---
 
@@ -380,6 +381,91 @@ end
 
 ---
 
+## Compute Scaling & The Bitter Lesson
+
+### Sutton's Bitter Lesson (2019)
+
+> "The biggest lesson that can be read from 70 years of AI research is that general methods that leverage computation are ultimately the most effective, and by a large margin."
+
+**Key insight:** Methods that scale with compute (search, learning) consistently outperform domain-specific knowledge as compute increases. This has implications for how we approach Melee AI.
+
+**Reference:** [The Bitter Lesson](http://www.incompleteideas.net/IncIdeas/BitterLesson.html)
+
+### Pure RL vs BC+RL: The Evidence
+
+| System | Approach | Compute | Result |
+|--------|----------|---------|--------|
+| **AlphaGo Zero** | Pure RL | 40 days × 4 TPUs | Beat AlphaGo (which used human data) |
+| **OpenAI Five** | Pure RL | 770 PFlops·days (~180 years GPU) | Beat Dota 2 world champions |
+| **slippi-ai** | BC+RL | Days-weeks on single GPU | Competitive with top Melee pros |
+| **ExPhil** | BC+RL | Hours-days on single GPU | In development |
+
+### OpenAI Five: Pure RL at Scale
+
+OpenAI Five (2019) demonstrated pure RL can achieve superhuman performance in complex real-time games:
+
+- **Training:** 10 months, 256 GPUs + 128,000 CPU cores
+- **Architecture:** Scaled LSTM (4096 hidden units)
+- **Algorithm:** PPO with self-play
+- **No human data:** Learned entirely from self-play
+- **Result:** Beat OG (back-to-back TI champions)
+
+**Key findings:**
+1. Coordination emerges from reward shaping (not hard-coded)
+2. Long-horizon planning possible with large models
+3. Self-play curriculum more effective than fixed opponents
+
+### AlphaGo Zero: Tabula Rasa
+
+AlphaGo Zero (2017) showed that starting from scratch beats using human expert knowledge:
+
+- **AlphaGo Lee (2016):** BC from human games → RL → Beat Lee Sedol
+- **AlphaGo Zero (2017):** Pure RL from random → Beat AlphaGo Lee 100-0
+
+The human knowledge in AlphaGo Lee was actually a **ceiling**, not a floor.
+
+### Implications for ExPhil
+
+**The pragmatic view:**
+
+1. **We don't have OpenAI compute** - BC+RL is necessary for efficiency
+2. **BC provides good initialization** - Learns human tech skill quickly
+3. **RL refines** - Fixes BC mistakes, discovers optimal strategies
+4. **Mamba efficiency helps** - 5× faster inference = more training throughput
+
+**The aspirational view:**
+
+If we believe the Bitter Lesson, pure RL would eventually beat BC+RL given enough compute. Experiments to consider:
+
+1. **Small-scale pure RL:** Train a simple MLP policy from scratch on mock environment
+2. **Curriculum learning:** Start with single moves, build up to full games
+3. **Reward engineering:** Dense rewards for Melee-specific skills (L-cancel, tech chase)
+4. **Compute optimization:** Use Mamba's efficiency for maximum samples/second
+
+### The Middle Path
+
+Given our constraints, the optimal strategy:
+
+```
+1. Start with BC (efficient use of human replays)
+2. Transition to self-play RL (population-based to avoid collapse)
+3. Use shaped rewards (character-specific)
+4. Scale model size as compute allows
+```
+
+The key is **not** to over-engineer the BC stage with domain knowledge that won't scale. Keep embeddings simple, let the RL stage discover what matters.
+
+### Experiments to Validate
+
+| Experiment | Question | Approach |
+|------------|----------|----------|
+| BC vs pure RL (mock env) | How much faster is BC? | Train both to same performance, compare samples |
+| Reward shaping study | Which rewards scale best? | Compare sparse vs dense vs shaped rewards |
+| Model scaling | Mamba performance vs size | Train 64, 256, 512, 1024 hidden units |
+| Compute efficiency | Samples/second vs quality | Profile different architectures |
+
+---
+
 ## References
 
 ### Papers
@@ -390,6 +476,9 @@ end
 4. **Parr et al.** - [SSBM: An "Untouchable" Agent](https://arxiv.org/abs/1712.03280)
 5. **Oh et al. (2020)** - [Mastering Fighting Game Using Deep RL with Self-Play](https://ieee-cog.org/2020/papers/paper_207.pdf)
 6. **Tang et al. (2020)** - [Discretizing Continuous Action Space for On-Policy Optimization](https://arxiv.org/abs/1901.10500)
+7. **Silver et al. (2017)** - [Mastering Chess and Shogi by Self-Play (AlphaZero)](https://arxiv.org/abs/1712.01815)
+8. **OpenAI (2019)** - [Dota 2 with Large Scale Deep RL](https://arxiv.org/abs/1912.06680)
+9. **Sutton (2019)** - [The Bitter Lesson](http://www.incompleteideas.net/IncIdeas/BitterLesson.html)
 
 ### Code Repositories
 

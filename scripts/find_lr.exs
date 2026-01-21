@@ -15,7 +15,7 @@
 #   --hidden-sizes Hidden layer sizes (default: 64,64)
 #   --player       Player port to learn from (default: 1)
 
-alias ExPhil.Training.{Config, Data, LRFinder}
+alias ExPhil.Training.{Config, Data, LRFinder, Output}
 alias ExPhil.Networks.Policy
 
 # Parse args
@@ -64,30 +64,24 @@ opts = Enum.reduce(args, opts, fn arg, acc ->
   end
 end)
 
-IO.puts("""
-
-╔══════════════════════════════════════════════════════════════╗
-║              Learning Rate Finder                             ║
-╚══════════════════════════════════════════════════════════════╝
-
-Configuration:
-  Replays:      #{opts[:replays]}
-  Max files:    #{opts[:max_files]}
-  LR range:     #{opts[:min_lr]} -> #{opts[:max_lr]}
-  Steps:        #{opts[:num_steps]}
-  Batch size:   #{opts[:batch_size]}
-  Hidden sizes: #{inspect(opts[:hidden_sizes])}
-
-""")
+Output.banner("Learning Rate Finder")
+Output.config([
+  {"Replays", opts[:replays]},
+  {"Max files", opts[:max_files]},
+  {"LR range", "#{opts[:min_lr]} -> #{opts[:max_lr]}"},
+  {"Steps", opts[:num_steps]},
+  {"Batch size", opts[:batch_size]},
+  {"Hidden sizes", inspect(opts[:hidden_sizes])}
+])
 
 # Check replays directory exists
 unless File.dir?(opts[:replays]) do
-  IO.puts("Error: Replays directory not found: #{opts[:replays]}")
+  Output.error("Replays directory not found: #{opts[:replays]}")
   System.halt(1)
 end
 
 # Load replay data
-IO.puts("Loading replay data...")
+Output.step(1, 3, "Loading replay data")
 
 {frames, _stats} = Data.load_replays(
   opts[:replays],
@@ -95,17 +89,16 @@ IO.puts("Loading replay data...")
   player_port: opts[:player_port]
 )
 
-IO.puts("Loaded #{length(frames)} frames")
+Output.puts("  Loaded #{length(frames)} frames")
 
 # Create batched dataset
 dataset = Data.create_batched_dataset(frames, opts[:batch_size])
 embed_size = Data.compute_embed_size(frames)
 
-IO.puts("Embed size: #{embed_size}")
-IO.puts("")
+Output.puts("  Embed size: #{embed_size}")
 
 # Initialize random model params
-IO.puts("Initializing model...")
+Output.step(2, 3, "Initializing model")
 
 policy_config = %{
   embed_size: embed_size,
@@ -121,8 +114,8 @@ policy_config = %{
 dummy_input = Nx.broadcast(0.0, {1, embed_size})
 model_params = init_fn.(dummy_input, Nx.Random.key(42))
 
-IO.puts("Running LR finder (#{opts[:num_steps]} steps)...")
-IO.puts("")
+Output.step(3, 3, "Running LR finder (#{opts[:num_steps]} steps)")
+Output.puts("  ⏳ This may take a few minutes...")
 
 # Run LR finder
 case LRFinder.find(model_params, dataset,
@@ -133,23 +126,21 @@ case LRFinder.find(model_params, dataset,
   embed_size: embed_size
 ) do
   {:ok, results} ->
-    IO.puts(LRFinder.format_results(results))
+    Output.puts("")
+    Output.puts(LRFinder.format_results(results))
 
-    IO.puts("""
-
-    ════════════════════════════════════════════════════════════════
-
-    Recommendation:
-      Use --lr #{LRFinder.format_results(results) |> String.split("Suggested LR:") |> Enum.at(1) |> String.split("\n") |> hd() |> String.trim()}
-
-    Example:
-      mix run scripts/train_from_replays.exs \\
-        --lr #{Float.round(results.suggested_lr || results.min_loss_lr / 10, 6)} \\
-        --epochs 10
-
-    """)
+    Output.divider()
+    Output.section("Recommendation")
+    suggested_lr = results.suggested_lr || results.min_loss_lr / 10
+    Output.puts("Use --lr #{Float.round(suggested_lr, 6)}")
+    Output.puts("")
+    Output.puts("Example:")
+    Output.puts("  mix run scripts/train_from_replays.exs \\")
+    Output.puts("    --lr #{Float.round(suggested_lr, 6)} \\")
+    Output.puts("    --epochs 10")
+    Output.puts("")
 
   {:error, reason} ->
-    IO.puts("Error: #{reason}")
+    Output.error("LR finder failed: #{reason}")
     System.halt(1)
 end

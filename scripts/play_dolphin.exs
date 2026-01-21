@@ -21,6 +21,7 @@ require Logger
 alias ExPhil.Bridge.MeleePort
 alias ExPhil.Agents.Agent
 alias ExPhil.Bridge.ControllerState
+alias ExPhil.Training.Output
 
 # Parse command line arguments
 args = System.argv()
@@ -87,28 +88,22 @@ if opts[:policy] == nil or opts[:dolphin] == nil or opts[:iso] == nil do
   System.halt(1)
 end
 
-IO.puts("""
-
-╔════════════════════════════════════════════════════════════════╗
-║                    ExPhil Dolphin Play                         ║
-╚════════════════════════════════════════════════════════════════╝
-
-Configuration:
-  Policy:       #{opts[:policy]}
-  Dolphin:      #{opts[:dolphin]}
-  ISO:          #{opts[:iso]}
-  Agent Port:   #{opts[:port]}
-  Your Port:    #{opts[:opponent_port]}
-  Character:    #{opts[:character]}
-  Stage:        #{opts[:stage]}
-  Frame Delay:  #{opts[:frame_delay]}
-  Deterministic: #{opts[:deterministic]}
-  Action Repeat: #{opts[:action_repeat]}
-
-""")
+Output.banner("ExPhil Dolphin Play")
+Output.config([
+  {"Policy", opts[:policy]},
+  {"Dolphin", opts[:dolphin]},
+  {"ISO", opts[:iso]},
+  {"Agent Port", opts[:port]},
+  {"Your Port", opts[:opponent_port]},
+  {"Character", opts[:character]},
+  {"Stage", opts[:stage]},
+  {"Frame Delay", opts[:frame_delay]},
+  {"Deterministic", opts[:deterministic]},
+  {"Action Repeat", opts[:action_repeat]}
+])
 
 # Step 1: Load the agent
-IO.puts("Step 1: Loading agent...")
+Output.step(1, 5, "Loading agent")
 
 {:ok, agent} = Agent.start_link(
   policy_path: opts[:policy],
@@ -118,25 +113,25 @@ IO.puts("Step 1: Loading agent...")
 )
 
 config = Agent.get_config(agent)
-IO.puts("  ✓ Agent loaded")
-IO.puts("    Temporal: #{config.temporal}")
+Output.success("Agent loaded")
+Output.puts("    Temporal: #{config.temporal}")
 if config.temporal do
-  IO.puts("    Backbone: #{config.backbone}")
-  IO.puts("    Window:   #{config.window_size} frames")
+  Output.puts("    Backbone: #{config.backbone}")
+  Output.puts("    Window:   #{config.window_size} frames")
 end
 if opts[:action_repeat] > 1 do
-  IO.puts("    Action Repeat: every #{opts[:action_repeat]} frames")
+  Output.puts("    Action Repeat: every #{opts[:action_repeat]} frames")
 end
 
 # Step 2: Start the Melee bridge
-IO.puts("\nStep 2: Starting Melee bridge...")
+Output.step(2, 5, "Starting Melee bridge")
 
 {:ok, bridge} = MeleePort.start_link()
-IO.puts("  ✓ Bridge process started")
+Output.success("Bridge process started")
 
 # Step 3: Initialize Dolphin
-IO.puts("\nStep 3: Initializing Dolphin...")
-IO.puts("  (This will launch Dolphin - make sure to plug in your controller!)")
+Output.step(3, 5, "Initializing Dolphin")
+Output.puts("  (This will launch Dolphin - make sure to plug in your controller!)")
 
 bridge_config = %{
   dolphin_path: opts[:dolphin],
@@ -150,36 +145,33 @@ bridge_config = %{
 
 case MeleePort.init_console(bridge, bridge_config, 60_000) do
   {:ok, info} ->
-    IO.puts("  ✓ Dolphin initialized and connected!")
-    IO.puts("    Controller on port: #{info.controller_port}")
+    Output.success("Dolphin initialized and connected!")
+    Output.puts("    Controller on port: #{info.controller_port}")
 
   :ok ->
-    IO.puts("  ✓ Dolphin initialized and connected!")
+    Output.success("Dolphin initialized and connected!")
 
   {:error, reason} ->
-    IO.puts("  ✗ Failed to initialize Dolphin: #{inspect(reason)}")
+    Output.error("Failed to initialize Dolphin: #{inspect(reason)}")
     System.halt(1)
 end
 
 # Step 4: JIT Warmup (run dummy inference during menu navigation)
-IO.puts("\nStep 4: JIT Warmup (this may take a minute for temporal models)...")
+Output.step(4, 5, "JIT Warmup (this may take a minute for temporal models)")
 case Agent.warmup(agent) do
   {:ok, warmup_ms} ->
-    IO.puts("  ✓ JIT warmup complete (#{warmup_ms}ms)")
+    Output.success("JIT warmup complete (#{warmup_ms}ms)")
   {:error, reason} ->
-    IO.puts("  ⚠ Warmup failed: #{inspect(reason)} (will warmup on first game frame)")
+    Output.warning("Warmup failed: #{inspect(reason)} (will warmup on first game frame)")
 end
 
 # Step 5: Game loop
-IO.puts("""
-
-╔════════════════════════════════════════════════════════════════╗
-║                      Game Loop Started!                        ║
-╚════════════════════════════════════════════════════════════════╝
-
-Press Ctrl+C to stop.
-
-""")
+Output.step(5, 5, "Game loop")
+Output.divider()
+Output.section("Game Loop Started!")
+Output.puts("")
+Output.puts("Press Ctrl+C to stop.")
+Output.puts("")
 
 defmodule GameLoop do
   @moduledoc "Main game loop with input logging and game-end detection."

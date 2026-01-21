@@ -20,11 +20,12 @@
 #   --json                  - Output as JSON
 
 alias ExPhil.Training.Registry
+alias ExPhil.Training.Output
 
 args = System.argv()
 
-defmodule Output do
-  def puts(line), do: IO.puts(:stderr, line)
+defmodule RegistryUI do
+  @moduledoc "UI helpers specific to registry display"
 
   def format_bytes(bytes) when bytes < 1024, do: "#{bytes} B"
   def format_bytes(bytes) when bytes < 1024 * 1024, do: "#{Float.round(bytes / 1024, 1)} KB"
@@ -55,6 +56,8 @@ defmodule Output do
 end
 
 defmodule Commands do
+  alias ExPhil.Training.Output
+
   def list(args) do
     opts = parse_filter_opts(args)
 
@@ -68,26 +71,24 @@ defmodule Commands do
         if json? do
           IO.puts(Jason.encode!(models, pretty: true))
         else
-          Output.puts("Registered models (#{length(models)}):\n")
+          Output.section("Registered models (#{length(models)})")
           Enum.each(models, fn model ->
-            Output.puts(Output.format_model(model))
+            Output.puts(RegistryUI.format_model(model))
           end)
-          Output.puts("\nUse 'mix run scripts/registry.exs show NAME' for details.")
+          Output.puts("")
+          Output.puts("Use 'mix run scripts/registry.exs show NAME' for details.")
         end
 
       {:error, reason} ->
-        Output.puts("Error: #{inspect(reason)}")
+        Output.error("Error: #{inspect(reason)}")
     end
   end
 
   def show([id | _]) do
     case Registry.get(id) do
       {:ok, model} ->
+        Output.banner("Model: #{model.name}")
         Output.puts("""
-        ╔════════════════════════════════════════════════════════════════╗
-        ║  Model: #{String.pad_trailing(model.name, 52)} ║
-        ╚════════════════════════════════════════════════════════════════╝
-
         ID:           #{model.id}
         Created:      #{model.created_at}
         Parent:       #{model.parent_id || "none"}
@@ -115,7 +116,7 @@ defmodule Commands do
         """)
 
       {:error, :not_found} ->
-        Output.puts("Model '#{id}' not found.")
+        Output.error("Model '#{id}' not found.")
     end
   end
 
@@ -128,27 +129,27 @@ defmodule Commands do
 
     case Registry.best(opts) do
       {:ok, model} ->
-        Output.puts("Best model: #{model.name} (loss=#{get_in(model, [:metrics, :final_loss])})")
+        Output.success("Best model: #{model.name} (loss=#{get_in(model, [:metrics, :final_loss])})")
         Output.puts("  Path: #{model.checkpoint_path}")
 
       {:error, :no_models_with_metric} ->
-        Output.puts("No models with loss metric found.")
+        Output.warning("No models with loss metric found.")
 
       {:error, reason} ->
-        Output.puts("Error: #{inspect(reason)}")
+        Output.error("Error: #{inspect(reason)}")
     end
   end
 
   def tag([id | tags]) when tags != [] do
     case Registry.tag(id, tags) do
       :ok ->
-        Output.puts("Added tags #{inspect(tags)} to '#{id}'")
+        Output.success("Added tags #{inspect(tags)} to '#{id}'")
 
       {:error, :not_found} ->
-        Output.puts("Model '#{id}' not found.")
+        Output.error("Model '#{id}' not found.")
 
       {:error, reason} ->
-        Output.puts("Error: #{inspect(reason)}")
+        Output.error("Error: #{inspect(reason)}")
     end
   end
 
@@ -159,13 +160,13 @@ defmodule Commands do
   def untag([id | tags]) when tags != [] do
     case Registry.untag(id, tags) do
       :ok ->
-        Output.puts("Removed tags #{inspect(tags)} from '#{id}'")
+        Output.success("Removed tags #{inspect(tags)} from '#{id}'")
 
       {:error, :not_found} ->
-        Output.puts("Model '#{id}' not found.")
+        Output.error("Model '#{id}' not found.")
 
       {:error, reason} ->
-        Output.puts("Error: #{inspect(reason)}")
+        Output.error("Error: #{inspect(reason)}")
     end
   end
 
@@ -182,13 +183,13 @@ defmodule Commands do
         case Registry.delete(id, delete_files: delete_files) do
           :ok ->
             extra = if delete_files, do: " (and deleted files)", else: ""
-            Output.puts("Removed '#{id}' from registry#{extra}")
+            Output.success("Removed '#{id}' from registry#{extra}")
 
           {:error, :not_found} ->
-            Output.puts("Model '#{id}' not found.")
+            Output.error("Model '#{id}' not found.")
 
           {:error, reason} ->
-            Output.puts("Error: #{inspect(reason)}")
+            Output.error("Error: #{inspect(reason)}")
         end
 
       [] ->
@@ -199,7 +200,7 @@ defmodule Commands do
   def lineage([id | _]) do
     case Registry.lineage(id) do
       {:ok, models} ->
-        Output.puts("Lineage for '#{id}':\n")
+        Output.section("Lineage for '#{id}'")
         Enum.with_index(models)
         |> Enum.each(fn {model, idx} ->
           prefix = String.duplicate("  ", idx)
@@ -207,10 +208,10 @@ defmodule Commands do
         end)
 
       {:error, :not_found} ->
-        Output.puts("Model '#{id}' not found.")
+        Output.error("Model '#{id}' not found.")
 
       {:error, reason} ->
-        Output.puts("Error: #{inspect(reason)}")
+        Output.error("Error: #{inspect(reason)}")
     end
   end
 
@@ -271,7 +272,7 @@ case args do
   ["lineage" | rest] -> Commands.lineage(rest)
   [] -> Commands.list([])
   [cmd | _] ->
-    Output.puts("Unknown command: #{cmd}")
+    Output.error("Unknown command: #{cmd}")
     Output.puts("""
 
     Usage: mix run scripts/registry.exs [command] [options]

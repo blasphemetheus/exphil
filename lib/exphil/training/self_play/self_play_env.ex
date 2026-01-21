@@ -61,6 +61,7 @@ defmodule ExPhil.Training.SelfPlay.SelfPlayEnv do
     :embed_config,         # Embedding configuration
     :reward_config,        # Reward configuration
     :prev_state,           # Previous game state (for reward computation)
+    :prev_action,          # Previous controller action (for embedding)
     :frame_count,          # Frames in current episode
     :episode_count,        # Total episodes
     :p1_port,              # P1 controller port (default: 1)
@@ -130,6 +131,7 @@ defmodule ExPhil.Training.SelfPlay.SelfPlayEnv do
       embed_config: embed_config,
       reward_config: reward_config,
       prev_state: nil,
+      prev_action: nil,
       frame_count: 0,
       episode_count: 0,
       p1_port: Keyword.get(opts, :p1_port, 1),
@@ -167,8 +169,13 @@ defmodule ExPhil.Training.SelfPlay.SelfPlayEnv do
     # Check if episode is done
     done = is_episode_done(env, next_state)
 
-    # Build experience
-    embedded_state = Embeddings.Game.embed(game_state, env.embed_config)
+    # Build experience (embed with previous action for consistency)
+    embedded_state = Embeddings.Game.embed(
+      game_state,
+      env.prev_action,
+      env.p1_port,
+      config: env.embed_config
+    )
     experience = %{
       state: embedded_state,
       action: p1_action,
@@ -178,10 +185,11 @@ defmodule ExPhil.Training.SelfPlay.SelfPlayEnv do
       done: done
     }
 
-    # Update environment
+    # Update environment - track prev_action for next embedding
     new_env = %{env |
       game: new_game,
       prev_state: game_state,
+      prev_action: action_to_controller_state(p1_action),
       frame_count: env.frame_count + 1
     }
 
@@ -221,6 +229,7 @@ defmodule ExPhil.Training.SelfPlay.SelfPlayEnv do
     {:ok, %{env |
       game: new_game,
       prev_state: nil,
+      prev_action: nil,  # Reset prev_action on episode reset
       frame_count: 0,
       episode_count: env.episode_count + 1
     }}
@@ -412,7 +421,12 @@ defmodule ExPhil.Training.SelfPlay.SelfPlayEnv do
 
   defp get_p1_action(env, game_state) do
     {_model, params, predict_fn} = env.p1_policy
-    embedded = Embeddings.Game.embed(game_state, env.embed_config)
+    embedded = Embeddings.Game.embed(
+      game_state,
+      env.prev_action,
+      env.p1_port,
+      config: env.embed_config
+    )
     input = Nx.new_axis(embedded, 0)
 
     # Forward pass
@@ -447,8 +461,14 @@ defmodule ExPhil.Training.SelfPlay.SelfPlayEnv do
     deterministic = env.config.deterministic_opponent
 
     # Embed from P2's perspective (swap player ports)
+    # Note: P2's prev_action not tracked, use nil
     swapped_state = swap_player_perspective(game_state, env.p1_port, env.p2_port)
-    embedded = Embeddings.Game.embed(swapped_state, env.embed_config)
+    embedded = Embeddings.Game.embed(
+      swapped_state,
+      nil,  # P2's prev_action not tracked
+      env.p2_port,
+      config: env.embed_config
+    )
     input = Nx.new_axis(embedded, 0)
 
     output = predict_fn.(params, input)
@@ -606,6 +626,44 @@ defmodule ExPhil.Training.SelfPlay.SelfPlayEnv do
 
   defp button_pressed?(buttons, idx) do
     buttons |> Nx.squeeze() |> Nx.slice([idx], [1]) |> Nx.to_number() > 0.5
+  end
+
+  # Convert policy action map to ControllerState for embedding
+  # Policy action has discretized indices, ControllerState needs floats/booleans
+  defp action_to_controller_state(action) do
+    buttons = action.buttons |> Nx.to_flat_list()
+
+    # Convert discretized stick indices to 0.0-1.0 range
+    # Assuming 17-position discretization (indices 0-16)
+    stick_to_float = fn idx ->
+      Nx.to_number(idx) / 16.0
+    end
+
+    # Shoulder has fewer positions (typically 4)
+    shoulder_to_float = fn idx ->
+      Nx.to_number(idx) / 3.0
+    end
+
+    %ControllerState{
+      main_stick: %{
+        x: stick_to_float.(action.main_x),
+        y: stick_to_float.(action.main_y)
+      },
+      c_stick: %{
+        x: stick_to_float.(action.c_x),
+        y: stick_to_float.(action.c_y)
+      },
+      l_shoulder: shoulder_to_float.(action.shoulder),
+      r_shoulder: 0.0,
+      button_a: Enum.at(buttons, 0) == 1,
+      button_b: Enum.at(buttons, 1) == 1,
+      button_x: Enum.at(buttons, 2) == 1,
+      button_y: Enum.at(buttons, 3) == 1,
+      button_z: Enum.at(buttons, 4) == 1,
+      button_l: Enum.at(buttons, 5) == 1,
+      button_r: Enum.at(buttons, 6) == 1,
+      button_d_up: false  # Start button mapped, D-up not used
+    }
   end
 
   defp compute_reward(env, prev_state, curr_state) do

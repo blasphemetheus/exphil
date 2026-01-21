@@ -19,6 +19,7 @@ defmodule ExampleBot do
 
   alias ExPhil.Bridge
   alias ExPhil.Bridge.{GameState, Player, ControllerInput}
+  alias ExPhil.Training.Output
 
   # Distance thresholds
   @attack_range 15.0
@@ -30,10 +31,12 @@ defmodule ExampleBot do
     iso_path = Keyword.fetch!(opts, :iso_path)
     character = Keyword.get(opts, :character, :mewtwo)
 
-    IO.puts("Starting ExPhil bridge...")
-    IO.puts("  Dolphin: #{dolphin_path}")
-    IO.puts("  ISO: #{iso_path}")
-    IO.puts("  Character: #{character}")
+    Output.banner("ExPhil Example Bot")
+    Output.config([
+      {"Dolphin", dolphin_path},
+      {"ISO", iso_path},
+      {"Character", character}
+    ])
 
     case Bridge.start(
       dolphin_path: dolphin_path,
@@ -42,26 +45,26 @@ defmodule ExampleBot do
       stage: :final_destination
     ) do
       {:ok, bridge} ->
-        IO.puts("Bridge started successfully!")
+        Output.success("Bridge started successfully!")
         run_loop(bridge)
 
       {:error, reason} ->
-        IO.puts("Failed to start bridge: #{inspect(reason)}")
+        Output.error("Failed to start bridge: #{inspect(reason)}")
         System.halt(1)
     end
   end
 
   defp run_loop(bridge) do
-    IO.puts("Running bot... Press Ctrl+C to stop.")
+    Output.puts("Running bot... Press Ctrl+C to stop.")
 
     result = Bridge.run_ai(bridge, &decide/3, max_frames: :infinity)
 
     case result do
       {:ok, reason} ->
-        IO.puts("Bot stopped: #{inspect(reason)}")
+        Output.puts("Bot stopped: #{inspect(reason)}")
 
       {:error, reason} ->
-        IO.puts("Bot error: #{inspect(reason)}")
+        Output.error("Bot error: #{inspect(reason)}")
     end
 
     Bridge.stop(bridge)

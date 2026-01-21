@@ -24,59 +24,30 @@
 
 require Logger
 
+alias ExPhil.Training.Output
+
 # Check if axon_onnx is available
 axon_onnx_available? = Code.ensure_loaded?(AxonOnnx)
 
 unless axon_onnx_available? do
-  IO.puts("""
-
-  ╔════════════════════════════════════════════════════════════════╗
-  ║              ExPhil ONNX Export - Status                       ║
-  ╚════════════════════════════════════════════════════════════════╝
-
-  ⚠  axon_onnx is not available (Nx 0.10+ compatibility issue)
-
-  The axon_onnx library currently doesn't compile with Nx 0.10.
-  See: https://elixirforum.com/t/error-using-axononnx-v0-4-0-undefined-function-transform-2/63326
-
-  WORKAROUNDS:
-
-  1. **Export weights to NumPy** (recommended):
-     mix run scripts/export_numpy.exs --policy checkpoints/policy.bin --output weights.npz
-
-     Then rebuild the model in Python:
-     ```python
-     import numpy as np
-     import torch.nn as nn
-
-     weights = np.load('weights.npz')
-     # Build equivalent PyTorch model and load weights
-     # Export via torch.onnx.export()
-     ```
-
-  2. **Pin to older Nx** (not recommended - breaks other features):
-     In mix.exs, change:
-       {:nx, "~> 0.9"}
-       {:axon, "~> 0.7"}
-       {:exla, "~> 0.9"}
-     To:
-       {:nx, "~> 0.6.0"}
-       {:axon, "~> 0.6.0"}
-       {:exla, "~> 0.6.0"}
-
-  3. **Wait for axon_onnx update**:
-     Track: https://github.com/elixir-nx/axon_onnx/issues
-
-  Once axon_onnx is updated, uncomment it in mix.exs:
-    {:axon_onnx, "~> 0.4"}
-
-  And run this script to export to ONNX format.
-
-  INT8 QUANTIZATION (works independently):
-  If you obtain an ONNX model via another method, you can quantize it:
-    python priv/python/quantize_onnx.py model.onnx model_int8.onnx
-
-  """)
+  Output.banner("ExPhil ONNX Export - Status")
+  Output.warning("axon_onnx is not available (Nx 0.10+ compatibility issue)")
+  Output.puts("")
+  Output.puts("The axon_onnx library currently doesn't compile with Nx 0.10.")
+  Output.puts("See: https://elixirforum.com/t/error-using-axononnx-v0-4-0-undefined-function-transform-2/63326")
+  Output.puts("")
+  Output.puts("WORKAROUNDS:")
+  Output.puts("")
+  Output.puts("1. **Export weights to NumPy** (recommended):")
+  Output.puts("   mix run scripts/export_numpy.exs --policy checkpoints/policy.bin")
+  Output.puts("")
+  Output.puts("2. **Pin to older Nx** (not recommended)")
+  Output.puts("")
+  Output.puts("3. **Wait for axon_onnx update**")
+  Output.puts("   Track: https://github.com/elixir-nx/axon_onnx/issues")
+  Output.puts("")
+  Output.puts("INT8 QUANTIZATION (works independently):")
+  Output.puts("  python priv/python/quantize_onnx.py model.onnx model_int8.onnx")
   System.halt(1)
 end
 
@@ -98,47 +69,42 @@ output_path = get_arg.("--output", "model.onnx")
 
 # Require either checkpoint or policy
 unless checkpoint_path || policy_path do
-  IO.puts("""
-
-  ╔════════════════════════════════════════════════════════════════╗
-  ║              ExPhil ONNX Export                                ║
-  ╚════════════════════════════════════════════════════════════════╝
-
-  Usage:
-    mix run scripts/export_onnx.exs --policy checkpoints/imitation_latest_policy.bin
-    mix run scripts/export_onnx.exs --checkpoint checkpoints/imitation_latest.axon
-
-  Options:
-    --checkpoint PATH   Load from full checkpoint file
-    --policy PATH       Load from exported policy file
-    --output PATH       Output ONNX file (default: model.onnx)
-
-  After exporting, quantize to INT8 for faster inference:
-    python priv/python/quantize_onnx.py model.onnx model_int8.onnx
-  """)
+  Output.banner("ExPhil ONNX Export")
+  Output.puts("")
+  Output.puts("Usage:")
+  Output.puts("  mix run scripts/export_onnx.exs --policy checkpoints/imitation_latest_policy.bin")
+  Output.puts("  mix run scripts/export_onnx.exs --checkpoint checkpoints/imitation_latest.axon")
+  Output.puts("")
+  Output.puts("Options:")
+  Output.puts("  --checkpoint PATH   Load from full checkpoint file")
+  Output.puts("  --policy PATH       Load from exported policy file")
+  Output.puts("  --output PATH       Output ONNX file (default: model.onnx)")
+  Output.puts("")
+  Output.puts("After exporting, quantize to INT8 for faster inference:")
+  Output.puts("  python priv/python/quantize_onnx.py model.onnx model_int8.onnx")
   System.halt(1)
 end
 
-IO.puts("""
-
-╔════════════════════════════════════════════════════════════════╗
-║              ExPhil ONNX Export                                ║
-╚════════════════════════════════════════════════════════════════╝
-""")
+Output.banner("ExPhil ONNX Export")
+Output.config([
+  {"Checkpoint", checkpoint_path || "none"},
+  {"Policy", policy_path || "none"},
+  {"Output", output_path}
+])
 
 # Step 1: Load policy
-IO.puts("Step 1: Loading policy...")
+Output.step(1, 4, "Loading policy")
 
 {model, params, config} = cond do
   policy_path ->
-    IO.puts("  Loading from policy: #{policy_path}")
+    Output.puts("  Loading from policy: #{policy_path}")
 
     case File.read(policy_path) do
       {:ok, binary} ->
         export = :erlang.binary_to_term(binary)
 
         config = export.config
-        IO.puts("  Config: #{inspect(config)}")
+        Output.puts("  Config: #{inspect(config)}")
 
         # Rebuild the model architecture
         model = if config[:temporal] do
@@ -172,19 +138,19 @@ IO.puts("Step 1: Loading policy...")
         {model, export.params, config}
 
       {:error, reason} ->
-        IO.puts("  Error loading policy: #{inspect(reason)}")
+        Output.error("Error loading policy: #{inspect(reason)}")
         System.halt(1)
     end
 
   checkpoint_path ->
-    IO.puts("  Loading from checkpoint: #{checkpoint_path}")
+    Output.puts("  Loading from checkpoint: #{checkpoint_path}")
 
     case File.read(checkpoint_path) do
       {:ok, binary} ->
         checkpoint = :erlang.binary_to_term(binary)
 
         config = checkpoint.config
-        IO.puts("  Config: #{inspect(config)}")
+        Output.puts("  Config: #{inspect(config)}")
 
         # Rebuild the model architecture
         embed_size = config[:embed_size] || 1991
@@ -220,7 +186,7 @@ IO.puts("Step 1: Loading policy...")
         {model, checkpoint.policy_params, config}
 
       {:error, reason} ->
-        IO.puts("  Error loading checkpoint: #{inspect(reason)}")
+        Output.error("Error loading checkpoint: #{inspect(reason)}")
         System.halt(1)
     end
 end
@@ -231,28 +197,28 @@ params_data = case params do
   data when is_map(data) -> data
 end
 
-IO.puts("  Model loaded successfully")
+Output.puts("  Model loaded successfully")
 
 # Step 2: Prepare for ONNX export
-IO.puts("\nStep 2: Preparing model for ONNX export...")
+Output.step(2, 4, "Preparing model for ONNX export")
 
 # Determine input shape based on temporal mode
 {_input_shape, input_template} = if config[:temporal] do
   embed_size = config[:embed_size] || 1991
   window_size = config[:window_size] || 60
   shape = {1, window_size, embed_size}
-  IO.puts("  Input shape: #{inspect(shape)} (temporal)")
+  Output.puts("  Input shape: #{inspect(shape)} (temporal)")
   {shape, Nx.template(shape, :f32)}
 else
   embed_size = config[:embed_size] || 1991
   shape = {1, embed_size}
-  IO.puts("  Input shape: #{inspect(shape)} (single-frame)")
+  Output.puts("  Input shape: #{inspect(shape)} (single-frame)")
   {shape, Nx.template(shape, :f32)}
 end
 
 # Step 3: Export to ONNX
-IO.puts("\nStep 3: Exporting to ONNX format...")
-IO.puts("  Output: #{output_path}")
+Output.step(3, 4, "Exporting to ONNX format")
+Output.puts("  Output: #{output_path}")
 
 # Ensure output directory exists
 output_dir = Path.dirname(output_path)
@@ -270,45 +236,31 @@ try do
   file_size = File.stat!(output_path).size
   size_kb = Float.round(file_size / 1024, 2)
 
-  IO.puts("  ✓ Exported successfully (#{size_kb} KB)")
+  Output.success("Exported successfully (#{size_kb} KB)")
 rescue
   e ->
-    IO.puts("  ✗ Export failed: #{Exception.message(e)}")
-    IO.puts("\n  Stack trace:")
-    IO.puts(Exception.format(:error, e, __STACKTRACE__))
-    IO.puts("\n  Note: AxonOnnx may not support all layer types.")
-    IO.puts("  Multi-output models and some attention patterns may need custom handling.")
+    Output.error("Export failed: #{Exception.message(e)}")
+    Output.puts("  Stack trace:")
+    Output.puts(Exception.format(:error, e, __STACKTRACE__))
+    Output.puts("  Note: AxonOnnx may not support all layer types.")
     System.halt(1)
 end
 
 # Step 4: Print next steps
-IO.puts("""
-
-╔════════════════════════════════════════════════════════════════╗
-║                      Export Complete!                          ║
-╚════════════════════════════════════════════════════════════════╝
-
-ONNX model saved to: #{output_path}
-
-Next Steps:
-
-1. Verify the model with ONNX Runtime:
-   python -c "import onnxruntime as ort; ort.InferenceSession('#{output_path}')"
-
-2. Quantize to INT8 for 2-4x faster inference:
-   python priv/python/quantize_onnx.py #{output_path} #{String.replace(output_path, ".onnx", "_int8.onnx")}
-
-3. Run inference with ONNX Runtime:
-   - Python: onnxruntime
-   - Elixir: ortex (ONNX Runtime bindings)
-   - Rust: ort crate
-
-4. For Elixir inference with Ortex:
-   {:ok, model} = Ortex.load("#{output_path}")
-   output = Ortex.run(model, input_tensor)
-
-Notes:
-- INT8 quantization typically gives 2-4x speedup with ~1% accuracy loss
-- Dynamic quantization works without calibration data
-- Static quantization is more accurate but needs representative data
-""")
+Output.step(4, 4, "Export complete")
+Output.divider()
+Output.section("Export Complete!")
+Output.puts("")
+Output.puts("ONNX model saved to: #{output_path}")
+Output.puts("")
+Output.puts("Next Steps:")
+Output.puts("")
+Output.puts("1. Verify the model with ONNX Runtime:")
+Output.puts("   python -c \"import onnxruntime as ort; ort.InferenceSession('#{output_path}')\"")
+Output.puts("")
+Output.puts("2. Quantize to INT8 for 2-4x faster inference:")
+Output.puts("   python priv/python/quantize_onnx.py #{output_path} #{String.replace(output_path, ".onnx", "_int8.onnx")}")
+Output.puts("")
+Output.puts("3. For Elixir inference with Ortex:")
+Output.puts("   {:ok, model} = Ortex.load(\"#{output_path}\")")
+Output.puts("   output = Ortex.run(model, input_tensor)")

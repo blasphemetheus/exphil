@@ -26,10 +26,7 @@
 
 require Logger
 
-defmodule Output do
-  def puts(line), do: IO.puts(:stderr, line)
-end
-
+alias ExPhil.Training.Output
 alias ExPhil.Data.Peppi
 alias ExPhil.Training.{Config, Data, Imitation}
 alias ExPhil.Networks.Policy
@@ -122,19 +119,22 @@ model_paths = cond do
     System.halt(1)
 end
 
-Output.puts("""
-
-========================================================================
-                     ExPhil Model Evaluation
-========================================================================
-""")
+Output.banner("ExPhil Model Evaluation")
+Output.config([
+  {"Replays", opts[:replays]},
+  {"Max files", opts[:max_files]},
+  {"Batch size", opts[:batch_size]},
+  {"Player port", opts[:player]},
+  {"Character filter", opts[:character] || "none"},
+  {"Models to evaluate", length(model_paths)}
+])
 
 # Step 1: Load test replays
-Output.puts("Step 1: Loading test replays...")
+Output.step(1, 4, "Loading test replays")
 replay_dir = opts[:replays]
 
 unless File.dir?(replay_dir) do
-  Output.puts("Error: Replay directory not found: #{replay_dir}")
+  Output.error("Replay directory not found: #{replay_dir}")
   System.halt(1)
 end
 
@@ -142,14 +142,14 @@ replay_files = Path.wildcard(Path.join(replay_dir, "**/*.slp"))
   |> Enum.take(opts[:max_files])
 
 if Enum.empty?(replay_files) do
-  Output.puts("Error: No .slp files found in #{replay_dir}")
+  Output.error("No .slp files found in #{replay_dir}")
   System.halt(1)
 end
 
 Output.puts("  Found #{length(replay_files)} replay files")
 
 # Parse replays
-Output.puts("\nStep 2: Parsing replays...")
+Output.step(2, 4, "Parsing replays")
 parse_opts = [
   player_port: opts[:player],
   include_speeds: true
@@ -163,7 +163,7 @@ end
 {:ok, frames} = Peppi.parse_replays(replay_files, parse_opts)
 
 if Enum.empty?(frames) do
-  Output.puts("Error: No frames extracted from replays")
+  Output.error("No frames extracted from replays")
   System.halt(1)
 end
 
@@ -174,7 +174,7 @@ embed_config = Embeddings.config(with_speeds: true)
 embed_size = Embeddings.embedding_size(embed_config)
 
 # Create dataset
-Output.puts("\nStep 3: Creating evaluation dataset...")
+Output.step(3, 4, "Creating evaluation dataset")
 dataset = Data.from_frames(frames,
   embed_config: embed_config,
   temporal: false
@@ -217,9 +217,8 @@ end
 
 # Evaluate a single model
 evaluate_model = fn model_path ->
-  Output.puts("\n" <> String.duplicate("-", 60))
+  Output.divider()
   Output.puts("Evaluating: #{Path.basename(model_path)}")
-  Output.puts(String.duplicate("-", 60))
 
   is_policy_file = String.ends_with?(model_path, ".bin")
 
@@ -329,17 +328,13 @@ evaluate_model = fn model_path ->
 end
 
 # Evaluate all models
-Output.puts("\nStep 4: Evaluating models...")
+Output.step(4, 4, "Evaluating models")
 results = Enum.map(model_paths, evaluate_model)
 
 # Show comparison if multiple models
 if length(results) > 1 do
-  Output.puts("""
-
-========================================================================
-                        Model Comparison
-========================================================================
-""")
+  Output.divider()
+  Output.section("Model Comparison")
 
   sorted = Enum.sort_by(results, & &1.loss)
 

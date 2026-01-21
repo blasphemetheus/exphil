@@ -29,7 +29,7 @@
 
 require Logger
 
-alias ExPhil.Training.PPO
+alias ExPhil.Training.{PPO, Output}
 alias ExPhil.Bridge.{MeleePort, GameState, Player, ControllerState}
 alias ExPhil.{Embeddings, Rewards}
 alias ExPhil.Agents.Agent
@@ -337,43 +337,35 @@ import PPOScript
 # Main Script
 # ============================================================================
 
-IO.puts """
-
-╔════════════════════════════════════════════════════════════════╗
-║                   ExPhil PPO Training                          ║
-╚════════════════════════════════════════════════════════════════╝
-
-Configuration:
-  Pretrained:     #{config.pretrained || "none (random init)"}
-  Total Steps:    #{config.timesteps}
-  Rollout Length: #{config.rollout_length}
-  PPO Epochs:     #{config.num_epochs}
-  Batch Size:     #{config.batch_size}
-  Learning Rate:  #{config.lr}
-  Checkpoint:     #{config.checkpoint}
-  Environment:    #{if config.mock, do: "mock", else: "dolphin"}
-  Character:      #{config.character}
-  Opponent:       #{config.opponent}
-
-"""
+Output.banner("ExPhil PPO Training")
+Output.config([
+  {"Pretrained", config.pretrained || "none (random init)"},
+  {"Total Steps", config.timesteps},
+  {"Rollout Length", config.rollout_length},
+  {"PPO Epochs", config.num_epochs},
+  {"Batch Size", config.batch_size},
+  {"Learning Rate", config.lr},
+  {"Checkpoint", config.checkpoint},
+  {"Environment", if(config.mock, do: "mock", else: "dolphin")},
+  {"Character", config.character},
+  {"Opponent", config.opponent}
+])
 
 # Validate required args for Dolphin mode
 if not config.mock do
   unless config.dolphin && config.iso do
-    IO.puts """
-    ERROR: Dolphin mode requires --dolphin and --iso paths.
-
-    Either provide Dolphin paths:
-      mix run scripts/train_ppo.exs --dolphin /path/to/slippi --iso /path/to/melee.iso
-
-    Or use mock mode for testing:
-      mix run scripts/train_ppo.exs --mock --pretrained checkpoints/policy.bin
-    """
+    Output.error("Dolphin mode requires --dolphin and --iso paths.")
+    Output.puts("")
+    Output.puts("Either provide Dolphin paths:")
+    Output.puts("  mix run scripts/train_ppo.exs --dolphin /path/to/slippi --iso /path/to/melee.iso")
+    Output.puts("")
+    Output.puts("Or use mock mode for testing:")
+    Output.puts("  mix run scripts/train_ppo.exs --mock --pretrained checkpoints/policy.bin")
     System.halt(1)
   end
 end
 
-IO.puts "Step 1: Initializing PPO trainer..."
+Output.step(1, 3, "Initializing PPO trainer")
 
 # Build trainer options
 trainer_opts = [
@@ -396,17 +388,17 @@ else
 end
 
 trainer = PPO.new(trainer_opts)
-IO.puts "  PPO trainer initialized"
-IO.puts "  Embed size: #{trainer.config.embed_size}"
+Output.puts("  PPO trainer initialized")
+Output.puts("  Embed size: #{trainer.config.embed_size}")
 
-IO.puts "\nStep 2: Initializing environment..."
+Output.step(2, 3, "Initializing environment")
 
 env_type = if config.mock, do: :mock, else: :dolphin
 {:ok, env} = init_env(env_type, config)
-IO.puts "  Environment ready"
+Output.puts("  Environment ready")
 
-IO.puts "\nStep 3: Training for #{config.timesteps} timesteps..."
-IO.puts "────────────────────────────────────────────────────────────"
+Output.step(3, 3, "Training for #{config.timesteps} timesteps")
+Output.divider()
 
 # Training loop
 num_updates = div(config.timesteps, config.rollout_length)
@@ -427,11 +419,11 @@ start_time = System.monotonic_time(:millisecond)
     elapsed = (System.monotonic_time(:millisecond) - start_time) / 1000
     fps = timesteps / max(elapsed, 1)
 
-    IO.puts "  Update #{update}/#{num_updates} (#{pct}%) | " <>
+    Output.puts("  Update #{update}/#{num_updates} (#{pct}%) | " <>
             "policy_loss: #{Float.round(metrics.policy_loss || 0.0, 4)} | " <>
             "value_loss: #{Float.round(metrics.value_loss || 0.0, 4)} | " <>
             "entropy: #{Float.round(metrics.entropy || 0.0, 4)} | " <>
-            "#{Float.round(fps, 0)} steps/s"
+            "#{Float.round(fps, 0)} steps/s")
   end
 
   # Save checkpoint periodically
@@ -449,20 +441,20 @@ end)
 
 elapsed = (System.monotonic_time(:millisecond) - start_time) / 1000
 
-IO.puts """
-
-╔════════════════════════════════════════════════════════════════╗
-║                     Training Complete!                         ║
-╚════════════════════════════════════════════════════════════════╝
-
-  Total time:     #{Float.round(elapsed / 60, 1)} minutes
-  Timesteps:      #{config.timesteps}
-  Checkpoint:     #{config.checkpoint}
-  Policy:         #{String.replace(config.checkpoint, ".axon", "_policy.bin")}
-
-To evaluate:
-  mix run scripts/eval_model.exs --policy #{String.replace(config.checkpoint, ".axon", "_policy.bin")}
-
-To play in Dolphin:
-  mix run scripts/play_dolphin.exs --policy #{String.replace(config.checkpoint, ".axon", "_policy.bin")}
-"""
+Output.divider()
+Output.section("Training Complete!")
+Output.puts("")
+Output.training_summary(%{
+  total_time_ms: elapsed * 1000,
+  epochs_completed: num_updates,
+  final_loss: 0.0,
+  checkpoint_path: config.checkpoint
+})
+Output.puts("  Timesteps:      #{config.timesteps}")
+Output.puts("  Policy:         #{String.replace(config.checkpoint, ".axon", "_policy.bin")}")
+Output.puts("")
+Output.puts("To evaluate:")
+Output.puts("  mix run scripts/eval_model.exs --policy #{String.replace(config.checkpoint, ".axon", "_policy.bin")}")
+Output.puts("")
+Output.puts("To play in Dolphin:")
+Output.puts("  mix run scripts/play_dolphin.exs --policy #{String.replace(config.checkpoint, ".axon", "_policy.bin")}")

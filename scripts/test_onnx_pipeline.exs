@@ -10,14 +10,10 @@
 # Usage:
 #   mix run scripts/test_onnx_pipeline.exs
 
-IO.puts("""
-
-╔════════════════════════════════════════════════════════════════╗
-║           ONNX Export + INT8 Quantization Test                 ║
-╚════════════════════════════════════════════════════════════════╝
-""")
-
 alias ExPhil.Networks.OnnxLayers
+alias ExPhil.Training.Output
+
+Output.banner("ONNX Export + INT8 Quantization Test")
 
 # Configuration - using smaller sizes for faster testing
 embed_size = 256
@@ -25,11 +21,13 @@ hidden_size = 64
 seq_len = 10
 output_size = 16
 
-IO.puts("Step 1: Building ONNX-exportable LSTM model...")
-IO.puts("  embed_size: #{embed_size}")
-IO.puts("  hidden_size: #{hidden_size}")
-IO.puts("  seq_len: #{seq_len}")
-IO.puts("  output_size: #{output_size}")
+Output.step(1, 6, "Building ONNX-exportable LSTM model")
+Output.config([
+  {"Embed size", embed_size},
+  {"Hidden size", hidden_size},
+  {"Seq len", seq_len},
+  {"Output size", output_size}
+])
 
 # Build model: LSTM -> sequence_last -> Dense
 input = Axon.input("input", shape: {1, seq_len, embed_size})
@@ -38,24 +36,24 @@ model = output_seq
   |> OnnxLayers.sequence_last(name: "last_timestep")
   |> Axon.dense(output_size, name: "output")
 
-IO.puts("  Model built successfully")
+Output.success("Model built successfully")
 
 # Initialize parameters
 template = Nx.template({1, seq_len, embed_size}, :f32)
 {init_fn, predict_fn} = Axon.build(model)
 params = init_fn.(template, %{})
 
-IO.puts("  Parameters initialized")
+Output.puts("  Parameters initialized")
 
 # Test forward pass
-IO.puts("\nStep 2: Testing forward pass in Axon...")
+Output.step(2, 6, "Testing forward pass in Axon")
 key = Nx.Random.key(42)
 {test_input, _} = Nx.Random.uniform(key, shape: {1, seq_len, embed_size}, type: :f32)
 output = predict_fn.(params, test_input)
-IO.puts("  Output shape: #{inspect(Nx.shape(output))}")
+Output.success("Output shape: #{inspect(Nx.shape(output))}")
 
 # Export to ONNX
-IO.puts("\nStep 3: Exporting to ONNX...")
+Output.step(3, 6, "Exporting to ONNX")
 output_dir = "/tmp/exphil_onnx_test"
 File.mkdir_p!(output_dir)
 onnx_path = Path.join(output_dir, "model.onnx")
@@ -67,16 +65,16 @@ try do
   File.write!(onnx_path, binary)
 
   size_kb = Float.round(byte_size(binary) / 1024, 2)
-  IO.puts("  Exported to: #{onnx_path} (#{size_kb} KB)")
+  Output.success("Exported to: #{onnx_path} (#{size_kb} KB)")
 rescue
   e ->
-    IO.puts("  FAILED: #{Exception.message(e)}")
+    Output.error("FAILED: #{Exception.message(e)}")
     System.halt(1)
 end
 
 # Verify with ONNX Runtime
-IO.puts("\nStep 4: Verifying with ONNX Runtime...")
-{output, exit_code} = System.cmd("python3", [
+Output.step(4, 6, "Verifying with ONNX Runtime")
+{cmd_output, exit_code} = System.cmd("python3", [
   "-c",
   """
 import onnxruntime as ort
@@ -94,42 +92,42 @@ print("  Verification: OK")
   """
 ], stderr_to_stdout: true)
 
-IO.puts(String.trim(output))
+Output.puts(String.trim(cmd_output))
 
 if exit_code != 0 do
-  IO.puts("  FAILED: ONNX Runtime verification failed")
+  Output.error("ONNX Runtime verification failed")
   System.halt(1)
 end
 
 # Quantize to INT8
-IO.puts("\nStep 5: Quantizing to INT8...")
+Output.step(5, 6, "Quantizing to INT8")
 quantize_script = Path.join(File.cwd!(), "priv/python/quantize_onnx.py")
 
-{output, exit_code} = System.cmd("python3", [
+{cmd_output, exit_code} = System.cmd("python3", [
   quantize_script,
   onnx_path,
   int8_path
 ], stderr_to_stdout: true)
 
 # Parse output for key info
-output
+cmd_output
 |> String.split("\n")
 |> Enum.filter(fn line ->
   String.contains?(line, "size:") or
   String.contains?(line, "Compression") or
   String.contains?(line, "successfully")
 end)
-|> Enum.each(&IO.puts/1)
+|> Enum.each(&Output.puts/1)
 
 if exit_code != 0 do
-  IO.puts("  FAILED: Quantization failed")
-  IO.puts(output)
+  Output.error("Quantization failed")
+  Output.puts(cmd_output)
   System.halt(1)
 end
 
 # Benchmark inference
-IO.puts("\nStep 6: Benchmarking inference speed...")
-{output, _} = System.cmd("python3", [
+Output.step(6, 6, "Benchmarking inference speed")
+{bench_output, _} = System.cmd("python3", [
   "-c",
   """
 import onnxruntime as ort
@@ -164,24 +162,20 @@ print(f"  Speedup: {speedup:.2f}x")
   """
 ], stderr_to_stdout: true)
 
-IO.puts(String.trim(output))
+Output.puts(String.trim(bench_output))
 
 # Summary
-IO.puts("""
-
-╔════════════════════════════════════════════════════════════════╗
-║                      Test Complete!                            ║
-╚════════════════════════════════════════════════════════════════╝
-
-Files created:
-  - #{onnx_path}
-  - #{int8_path}
-
-The ONNX + INT8 quantization pipeline is working!
-
-Next steps for ExPhil:
-1. Train a temporal model with LSTM backbone
-2. Export using: mix run scripts/export_onnx.exs --policy <path>
-3. Quantize using: python priv/python/quantize_onnx.py
-4. Use Ortex for Elixir inference or onnxruntime for Python
-""")
+Output.divider()
+Output.section("Test Complete!")
+Output.puts("")
+Output.puts("Files created:")
+Output.puts("  - #{onnx_path}")
+Output.puts("  - #{int8_path}")
+Output.puts("")
+Output.success("The ONNX + INT8 quantization pipeline is working!")
+Output.puts("")
+Output.puts("Next steps for ExPhil:")
+Output.puts("1. Train a temporal model with LSTM backbone")
+Output.puts("2. Export using: mix run scripts/export_onnx.exs --policy <path>")
+Output.puts("3. Quantize using: python priv/python/quantize_onnx.py")
+Output.puts("4. Use Ortex for Elixir inference or onnxruntime for Python")

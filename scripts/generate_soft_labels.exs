@@ -31,6 +31,7 @@ defmodule SoftLabelGenerator do
   """
 
   alias ExPhil.Training
+  alias ExPhil.Training.Output
   alias ExPhil.Data.ReplayParser
   alias ExPhil.Embeddings.Game, as: GameEmbed
 
@@ -40,46 +41,48 @@ defmodule SoftLabelGenerator do
   def run(args) do
     opts = parse_args(args)
 
-    IO.puts("""
-
-    ========================================================================
-                    Soft Label Generation for Distillation
-    ========================================================================
-    """)
+    Output.banner("Soft Label Generation for Distillation")
+    Output.config([
+      {"Teacher", opts.teacher},
+      {"Replays", opts.replays},
+      {"Output", opts.output},
+      {"Temperature", opts.temperature},
+      {"Max files", opts.max_files}
+    ])
 
     # Load teacher policy
-    IO.puts("Step 1: Loading teacher policy...")
+    Output.step(1, 6, "Loading teacher policy")
     {:ok, policy} = Training.load_policy(opts.teacher)
-    IO.puts("  Loaded: #{opts.teacher}")
-    IO.puts("  Config: #{inspect(policy.config, pretty: true, limit: 5)}")
+    Output.puts("  Loaded: #{opts.teacher}")
+    Output.puts("  Config: #{inspect(policy.config, pretty: true, limit: 5)}")
 
     # Check if teacher is temporal
     is_temporal = policy.config[:temporal] || false
     window_size = policy.config[:window_size] || 60
 
     if is_temporal do
-      IO.puts("  Type: Temporal (#{policy.config[:backbone]}, window=#{window_size})")
+      Output.puts("  Type: Temporal (#{policy.config[:backbone]}, window=#{window_size})")
     else
-      IO.puts("  Type: Single-frame MLP")
+      Output.puts("  Type: Single-frame MLP")
     end
 
     # Find replay files
-    IO.puts("\nStep 2: Finding replay files...")
+    Output.step(2, 6, "Finding replay files")
     replay_files = find_replays(opts.replays, opts.max_files)
-    IO.puts("  Found #{length(replay_files)} replay files")
+    Output.puts("  Found #{length(replay_files)} replay files")
 
     # Parse replays and extract frames
-    IO.puts("\nStep 3: Parsing replays and extracting frames...")
+    Output.step(3, 6, "Parsing replays and extracting frames")
     frames = parse_all_replays(replay_files, opts.player_port)
-    IO.puts("  Total frames: #{length(frames)}")
+    Output.puts("  Total frames: #{length(frames)}")
 
     # Build predict function
-    IO.puts("\nStep 4: Building inference function...")
+    Output.step(4, 6, "Building inference function")
     {_init_fn, predict_fn} = Axon.build(policy.model, mode: :inference)
-    IO.puts("  Model compiled")
+    Output.puts("  Model compiled")
 
     # Generate soft labels
-    IO.puts("\nStep 5: Generating soft labels (temperature=#{opts.temperature})...")
+    Output.step(5, 6, "Generating soft labels (temperature=#{opts.temperature})")
     soft_labels = generate_labels(
       frames, policy, predict_fn,
       is_temporal, window_size,
@@ -87,7 +90,7 @@ defmodule SoftLabelGenerator do
     )
 
     # Save to file
-    IO.puts("\nStep 6: Saving soft labels...")
+    Output.step(6, 6, "Saving soft labels")
     save_soft_labels(soft_labels, opts.output, %{
       teacher_path: opts.teacher,
       teacher_config: policy.config,
@@ -96,21 +99,17 @@ defmodule SoftLabelGenerator do
       embed_size: policy.config[:embed_size] || GameEmbed.embedding_size()
     })
 
-    IO.puts("""
-
-    ========================================================================
-                              Complete!
-    ========================================================================
-    Output: #{opts.output}
-    Frames: #{length(soft_labels)}
-    Size: #{File.stat!(opts.output).size |> format_bytes()}
-
-    Next step:
-      mix run scripts/train_distillation.exs \\
-        --soft-labels #{opts.output} \\
-        --hidden 64,64 \\
-        --epochs 10
-    """)
+    Output.divider()
+    Output.section("Complete!")
+    Output.puts("Output: #{opts.output}")
+    Output.puts("Frames: #{length(soft_labels)}")
+    Output.puts("Size: #{File.stat!(opts.output).size |> format_bytes()}")
+    Output.puts("")
+    Output.puts("Next step:")
+    Output.puts("  mix run scripts/train_distillation.exs \\")
+    Output.puts("    --soft-labels #{opts.output} \\")
+    Output.puts("    --hidden 64,64 \\")
+    Output.puts("    --epochs 10")
   end
 
   defp parse_args(args) do

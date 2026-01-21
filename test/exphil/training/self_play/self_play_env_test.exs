@@ -3,6 +3,8 @@ defmodule ExPhil.Training.SelfPlay.SelfPlayEnvTest do
 
   alias ExPhil.Training.SelfPlay.SelfPlayEnv
 
+  # Tests take 1-3 seconds each due to model initialization
+  @moduletag :slow
   @moduletag :self_play
 
   # Create a minimal mock policy for testing

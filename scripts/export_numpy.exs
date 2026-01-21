@@ -17,6 +17,8 @@
 
 require Logger
 
+alias ExPhil.Training.Output
+
 # Parse command line arguments
 args = System.argv()
 
@@ -33,42 +35,37 @@ output_dir = get_arg.("--output", "exports")
 
 # Require either checkpoint or policy
 unless checkpoint_path || policy_path do
-  IO.puts("""
-
-  ╔════════════════════════════════════════════════════════════════╗
-  ║              ExPhil NumPy Export                               ║
-  ╚════════════════════════════════════════════════════════════════╝
-
-  Export model weights to NumPy format for Python/ONNX conversion.
-
-  Usage:
-    mix run scripts/export_numpy.exs --policy checkpoints/imitation_latest_policy.bin
-    mix run scripts/export_numpy.exs --checkpoint checkpoints/imitation_latest.axon
-
-  Options:
-    --checkpoint PATH   Load from full checkpoint file
-    --policy PATH       Load from exported policy file
-    --output PATH       Output directory (default: exports/)
-
-  After exporting, use Python to build ONNX model:
-    python priv/python/build_onnx_from_numpy.py exports/
-  """)
+  Output.banner("ExPhil NumPy Export")
+  Output.puts("")
+  Output.puts("Export model weights to NumPy format for Python/ONNX conversion.")
+  Output.puts("")
+  Output.puts("Usage:")
+  Output.puts("  mix run scripts/export_numpy.exs --policy checkpoints/imitation_latest_policy.bin")
+  Output.puts("  mix run scripts/export_numpy.exs --checkpoint checkpoints/imitation_latest.axon")
+  Output.puts("")
+  Output.puts("Options:")
+  Output.puts("  --checkpoint PATH   Load from full checkpoint file")
+  Output.puts("  --policy PATH       Load from exported policy file")
+  Output.puts("  --output PATH       Output directory (default: exports/)")
+  Output.puts("")
+  Output.puts("After exporting, use Python to build ONNX model:")
+  Output.puts("  python priv/python/build_onnx_from_numpy.py exports/")
   System.halt(1)
 end
 
-IO.puts("""
-
-╔════════════════════════════════════════════════════════════════╗
-║              ExPhil NumPy Export                               ║
-╚════════════════════════════════════════════════════════════════╝
-""")
+Output.banner("ExPhil NumPy Export")
+Output.config([
+  {"Checkpoint", checkpoint_path || "none"},
+  {"Policy", policy_path || "none"},
+  {"Output", output_dir}
+])
 
 # Step 1: Load policy
-IO.puts("Step 1: Loading policy...")
+Output.step(1, 5, "Loading policy")
 
 {params, config} = cond do
   policy_path ->
-    IO.puts("  Loading from policy: #{policy_path}")
+    Output.puts("  Loading from policy: #{policy_path}")
 
     case File.read(policy_path) do
       {:ok, binary} ->
@@ -76,12 +73,12 @@ IO.puts("Step 1: Loading policy...")
         {export.params, export.config}
 
       {:error, reason} ->
-        IO.puts("  Error loading policy: #{inspect(reason)}")
+        Output.error("Error loading policy: #{inspect(reason)}")
         System.halt(1)
     end
 
   checkpoint_path ->
-    IO.puts("  Loading from checkpoint: #{checkpoint_path}")
+    Output.puts("  Loading from checkpoint: #{checkpoint_path}")
 
     case File.read(checkpoint_path) do
       {:ok, binary} ->
@@ -89,12 +86,12 @@ IO.puts("Step 1: Loading policy...")
         {checkpoint.policy_params, checkpoint.config}
 
       {:error, reason} ->
-        IO.puts("  Error loading checkpoint: #{inspect(reason)}")
+        Output.error("Error loading checkpoint: #{inspect(reason)}")
         System.halt(1)
     end
 end
 
-IO.puts("  Config: #{inspect(config)}")
+Output.puts("  Config: #{inspect(config)}")
 
 # Extract params data if wrapped in ModelState
 params_data = case params do
@@ -102,15 +99,15 @@ params_data = case params do
   data when is_map(data) -> data
 end
 
-IO.puts("  Params loaded successfully")
+Output.puts("  Params loaded successfully")
 
 # Step 2: Create output directory
-IO.puts("\nStep 2: Creating output directory...")
+Output.step(2, 5, "Creating output directory")
 File.mkdir_p!(output_dir)
-IO.puts("  Output: #{output_dir}/")
+Output.puts("  Output: #{output_dir}/")
 
 # Step 3: Export weights to binary format
-IO.puts("\nStep 3: Exporting weights...")
+Output.step(3, 5, "Exporting weights")
 
 # Flatten nested params into a list of {path, tensor} pairs
 # Use Y-combinator pattern for recursive anonymous function
@@ -129,7 +126,7 @@ end
 
 flat_params = flatten_params.(flatten_params).(params_data, "")
 
-IO.puts("  Found #{length(flat_params)} weight tensors")
+Output.puts("  Found #{length(flat_params)} weight tensors")
 
 # Save each tensor as binary + metadata
 Enum.each(flat_params, fn {path, tensor} ->
@@ -148,11 +145,11 @@ Enum.each(flat_params, fn {path, tensor} ->
   binary_path = Path.join(output_dir, "#{filename}.bin")
   File.write!(binary_path, binary)
 
-  IO.puts("    #{path}: #{inspect(shape)} (#{inspect(type)})")
+  Output.puts("    #{path}: #{inspect(shape)} (#{inspect(type)})")
 end)
 
 # Step 4: Save metadata as JSON
-IO.puts("\nStep 4: Saving metadata...")
+Output.step(4, 5, "Saving metadata")
 
 metadata = %{
   config: config,
@@ -169,53 +166,30 @@ metadata = %{
 metadata_json = Jason.encode!(metadata, pretty: true)
 metadata_path = Path.join(output_dir, "metadata.json")
 File.write!(metadata_path, metadata_json)
-IO.puts("  Saved metadata to #{metadata_path}")
+Output.puts("  Saved metadata to #{metadata_path}")
 
 # Step 5: Print next steps
-IO.puts("""
-
-╔════════════════════════════════════════════════════════════════╗
-║                      Export Complete!                          ║
-╚════════════════════════════════════════════════════════════════╝
-
-Weights exported to: #{output_dir}/
-
-Files:
-  - metadata.json      Model config and layer info
-  - *.bin              Weight tensors (little-endian f32)
-
-Next Steps:
-
-1. Use Python to load weights and build ONNX model:
-
-   import numpy as np
-   import json
-   import struct
-   from pathlib import Path
-
-   # Load metadata
-   with open('#{output_dir}/metadata.json') as f:
-       meta = json.load(f)
-
-   # Load weights
-   weights = {}
-   for layer in meta['layers']:
-       path = Path('#{output_dir}') / layer['file']
-       data = np.frombuffer(path.read_bytes(), dtype=np.float32)
-       weights[layer['name']] = data.reshape(layer['shape'])
-
-   # Now build your PyTorch/ONNX model and load these weights
-
-2. Or use the provided helper script:
-   python priv/python/build_onnx_from_numpy.py #{output_dir}/
-
-3. Quantize the resulting ONNX model:
-   python priv/python/quantize_onnx.py model.onnx model_int8.onnx
-
-Model Configuration:
-  Temporal: #{config[:temporal] || false}
-  Embed size: #{config[:embed_size] || "unknown"}
-  Hidden sizes: #{inspect(config[:hidden_sizes] || [512, 512])}
-  Axis buckets: #{config[:axis_buckets] || 16}
-  Shoulder buckets: #{config[:shoulder_buckets] || 4}
-""")
+Output.step(5, 5, "Export complete")
+Output.divider()
+Output.section("Export Complete!")
+Output.puts("")
+Output.puts("Weights exported to: #{output_dir}/")
+Output.puts("")
+Output.puts("Files:")
+Output.puts("  - metadata.json      Model config and layer info")
+Output.puts("  - *.bin              Weight tensors (little-endian f32)")
+Output.puts("")
+Output.puts("Next Steps:")
+Output.puts("")
+Output.puts("1. Use Python to load weights and build ONNX model")
+Output.puts("2. Or use the provided helper script:")
+Output.puts("   python priv/python/build_onnx_from_numpy.py #{output_dir}/")
+Output.puts("3. Quantize the resulting ONNX model:")
+Output.puts("   python priv/python/quantize_onnx.py model.onnx model_int8.onnx")
+Output.puts("")
+Output.puts("Model Configuration:")
+Output.puts("  Temporal: #{config[:temporal] || false}")
+Output.puts("  Embed size: #{config[:embed_size] || "unknown"}")
+Output.puts("  Hidden sizes: #{inspect(config[:hidden_sizes] || [512, 512])}")
+Output.puts("  Axis buckets: #{config[:axis_buckets] || 16}")
+Output.puts("  Shoulder buckets: #{config[:shoulder_buckets] || 4}")

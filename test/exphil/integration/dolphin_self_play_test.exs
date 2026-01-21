@@ -30,6 +30,7 @@ defmodule ExPhil.Integration.DolphinSelfPlayTest do
   alias ExPhil.Training.SelfPlay.{SelfPlayEnv, LeagueTrainer}
 
   @moduletag :dolphin
+  @moduletag :integration
   @moduletag :external
   @moduletag timeout: 120_000
 

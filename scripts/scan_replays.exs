@@ -15,6 +15,8 @@ Mix.install([
   {:jason, "~> 1.4"}
 ])
 
+alias ExPhil.Training.Output
+
 defmodule ReplayScanner do
   @moduledoc """
   Fast replay scanner that extracts character info without full parsing.
@@ -55,14 +57,20 @@ defmodule ReplayScanner do
   @low_tier_ids [3, 6, 10, 18, 25]  # G&W, Link, Mewtwo, Zelda, Ganondorf
 
   def scan(dir, opts \\ []) do
+    alias ExPhil.Training.Output
+
     max_files = Keyword.get(opts, :max_files)
 
     files = Path.wildcard(Path.join(dir, "**/*.slp"))
     files = if max_files, do: Enum.take(files, max_files), else: files
     total = length(files)
 
-    IO.puts("\nScanning #{total} replay files...")
-    IO.puts("=" |> String.duplicate(60))
+    Output.banner("ExPhil Replay Scanner")
+    Output.config([
+      {"Directory", dir},
+      {"Max files", max_files || "all"},
+      {"Total found", total}
+    ])
 
     # Try Python scanner first (faster), fall back to Elixir
     case scan_with_python(dir, max_files) do
@@ -70,7 +78,7 @@ defmodule ReplayScanner do
         display_stats(stats, total)
 
       {:error, _reason} ->
-        IO.puts("Python scanner not available, using Elixir scanner (slower)...")
+        Output.warning("Python scanner not available, using Elixir scanner (slower)...")
         stats = scan_with_elixir(files)
         display_stats(stats, total)
     end
@@ -110,24 +118,23 @@ defmodule ReplayScanner do
   end
 
   defp display_stats(stats, total) do
-    IO.puts("")
-    IO.puts("REPLAY STATISTICS")
-    IO.puts("=" |> String.duplicate(60))
-    IO.puts("")
+    alias ExPhil.Training.Output
+
+    Output.divider()
+    Output.section("REPLAY STATISTICS")
 
     # Total files
     scanned = stats["scanned_files"] || stats["total_files"] || total
     errors = stats["error_count"] || 0
-    IO.puts("Total replays found: #{total}")
-    IO.puts("Successfully scanned: #{scanned}")
-    if errors > 0, do: IO.puts("Errors: #{errors}")
-    IO.puts("")
+    Output.puts("Total replays found: #{total}")
+    Output.puts("Successfully scanned: #{scanned}")
+    if errors > 0, do: Output.warning("Errors: #{errors}")
+    Output.puts("")
 
     # Character counts
     char_counts = stats["character_counts"] || %{}
     if map_size(char_counts) > 0 do
-      IO.puts("GAMES BY CHARACTER")
-      IO.puts("-" |> String.duplicate(40))
+      Output.section("GAMES BY CHARACTER")
 
       char_counts
       |> Enum.map(fn {char_id, count} ->
@@ -143,12 +150,12 @@ defmodule ReplayScanner do
 
         # Mark low-tier characters
         marker = if char_id in @low_tier_ids, do: " *", else: ""
-        IO.puts("  #{String.pad_trailing(name, 18)} #{String.pad_leading(to_string(count), 6)} [#{bar}] #{pct}%#{marker}")
+        Output.puts("  #{String.pad_trailing(name, 18)} #{String.pad_leading(to_string(count), 6)} [#{bar}] #{pct}%#{marker}")
       end)
 
-      IO.puts("")
-      IO.puts("  * = Low-tier characters (ExPhil targets)")
-      IO.puts("")
+      Output.puts("")
+      Output.puts("  * = Low-tier characters (ExPhil targets)")
+      Output.puts("")
 
       # Low-tier summary
       low_tier_counts = char_counts
@@ -160,22 +167,20 @@ defmodule ReplayScanner do
       |> Enum.sum()
 
       if low_tier_counts > 0 do
-        IO.puts("LOW-TIER SUMMARY")
-        IO.puts("-" |> String.duplicate(40))
-        IO.puts("  Total low-tier games: #{low_tier_counts}")
-        IO.puts("  Percentage: #{Float.round(low_tier_counts / scanned * 100, 1)}%")
-        IO.puts("")
+        Output.section("LOW-TIER SUMMARY")
+        Output.puts("  Total low-tier games: #{low_tier_counts}")
+        Output.puts("  Percentage: #{Float.round(low_tier_counts / scanned * 100, 1)}%")
+        Output.puts("")
       end
     else
       if stats["error"] do
-        IO.puts("Note: #{stats["error"]}")
-        IO.puts("")
+        Output.warning("Note: #{stats["error"]}")
+        Output.puts("")
       end
     end
 
     # Recommendations
-    IO.puts("TRAINING RECOMMENDATIONS")
-    IO.puts("-" |> String.duplicate(40))
+    Output.section("TRAINING RECOMMENDATIONS")
 
     if map_size(char_counts) > 0 do
       # Find best low-tier to train
@@ -194,7 +199,7 @@ defmodule ReplayScanner do
         {best_id, best_count} = hd(low_tier_data)
         best_name = Map.get(@character_names, best_id, "Unknown")
 
-        IO.puts("  Best low-tier for training: #{best_name} (#{best_count} games)")
+        Output.success("Best low-tier for training: #{best_name} (#{best_count} games)")
 
         # Preset recommendation
         preset = case best_id do
@@ -205,30 +210,29 @@ defmodule ReplayScanner do
           18 -> "zelda"
           _ -> "production"
         end
-        IO.puts("  Recommended preset: --preset #{preset}")
+        Output.puts("  Recommended preset: --preset #{preset}")
 
         # Data sufficiency
         cond do
           best_count >= 10000 ->
-            IO.puts("  Data: Excellent - enough for production model")
+            Output.success("Data: Excellent - enough for production model")
           best_count >= 1000 ->
-            IO.puts("  Data: Good - enough for solid training")
+            Output.puts("  Data: Good - enough for solid training")
           best_count >= 100 ->
-            IO.puts("  Data: Limited - consider augmentation")
+            Output.warning("Data: Limited - consider augmentation")
           true ->
-            IO.puts("  Data: Very limited - need more replays")
+            Output.warning("Data: Very limited - need more replays")
         end
       else
-        IO.puts("  No low-tier character data found.")
-        IO.puts("  Download replays from Slippi Discord or play online!")
+        Output.warning("No low-tier character data found.")
+        Output.puts("  Download replays from Slippi Discord or play online!")
       end
     else
-      IO.puts("  Install py-slippi for full analysis: pip install py-slippi")
-      IO.puts("  Or download replays from the Slippi Discord server")
+      Output.puts("  Install py-slippi for full analysis: pip install py-slippi")
+      Output.puts("  Or download replays from the Slippi Discord server")
     end
 
-    IO.puts("")
-    IO.puts("=" |> String.duplicate(60))
+    Output.divider()
   end
 end
 
@@ -246,14 +250,14 @@ max_files = case Enum.find_index(args, &(&1 == "--max-files")) do
 end
 
 if not File.dir?(replays_dir) do
-  IO.puts("Error: Replay directory not found: #{replays_dir}")
-  IO.puts("")
-  IO.puts("Usage: mix run scripts/scan_replays.exs --replays /path/to/replays")
-  IO.puts("")
-  IO.puts("To get replays:")
-  IO.puts("  1. Join the Slippi Discord (via slippi.gg)")
-  IO.puts("  2. Look for 'anonymized ranked collections' in resources")
-  IO.puts("  3. Or play online - replays save to ~/.slippi-launcher/replays/")
+  Output.error("Replay directory not found: #{replays_dir}")
+  Output.puts("")
+  Output.puts("Usage: mix run scripts/scan_replays.exs --replays /path/to/replays")
+  Output.puts("")
+  Output.puts("To get replays:")
+  Output.puts("  1. Join the Slippi Discord (via slippi.gg)")
+  Output.puts("  2. Look for 'anonymized ranked collections' in resources")
+  Output.puts("  3. Or play online - replays save to ~/.slippi-launcher/replays/")
   System.halt(1)
 end
 

@@ -211,7 +211,8 @@ defmodule ExPhil.SelfPlay.GameRunnerTest do
 
       # Status should be waiting (game not started)
       status = GameRunner.get_status(pid)
-      assert status.game_type == :dolphin
+      assert status.status == :waiting
+      assert status.game_id == game_id
 
       safe_stop(pid)
     end
