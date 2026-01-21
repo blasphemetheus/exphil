@@ -39,8 +39,9 @@ defmodule ExPhil.Embeddings.Player do
     xy_scale: 0.05,
     shield_scale: 0.01,
     speed_scale: 0.5,
-    with_speeds: false,
-    with_nana: true
+    with_speeds: true,  # Enabled for momentum/velocity info (+5 dims per player)
+    with_nana: true,
+    with_frame_info: true  # Hitstun frames + action frame (+2 dims per player)
   ]
 
   @type config :: %__MODULE__{
@@ -48,7 +49,8 @@ defmodule ExPhil.Embeddings.Player do
     shield_scale: float(),
     speed_scale: float(),
     with_speeds: boolean(),
-    with_nana: boolean()
+    with_nana: boolean(),
+    with_frame_info: boolean()
   }
 
   @doc """
@@ -66,14 +68,20 @@ defmodule ExPhil.Embeddings.Player do
 
     speed_size = if config.with_speeds, do: 5, else: 0
 
+    # Hitstun frames remaining + action frame (how far into animation)
+    frame_info_size = if config.with_frame_info, do: 2, else: 0
+
     nana_size = if config.with_nana do
-      # Nana has base embedding + exists flag
-      base_embedding_size() + 1
+      # Nana has base embedding + exists flag + optional speeds + optional frame info
+      nana_base = base_embedding_size() + 1
+      nana_speeds = if config.with_speeds, do: 5, else: 0
+      nana_frames = if config.with_frame_info, do: 2, else: 0
+      nana_base + nana_speeds + nana_frames
     else
       0
     end
 
-    base_size + speed_size + nana_size
+    base_size + speed_size + frame_info_size + nana_size
   end
 
   defp base_embedding_size do
@@ -114,6 +122,12 @@ defmodule ExPhil.Embeddings.Player do
 
     embeddings = if config.with_speeds do
       [embed_speeds(player, config) | embeddings]
+    else
+      embeddings
+    end
+
+    embeddings = if config.with_frame_info do
+      [embed_frame_info(player) | embeddings]
     else
       embeddings
     end
@@ -209,13 +223,32 @@ defmodule ExPhil.Embeddings.Player do
       base_embs
     end
 
+    # Add frame info (hitstun + action frame) if configured
+    embs_with_frame_info = if config.with_frame_info do
+      # Hitstun frames remaining (0-120ish, normalized to 0-1)
+      hitstun_frames = Enum.map(players, fn p -> (p && p.hitstun_frames_left) || 0 end)
+      # Action frame (how far into the animation, typically 0-100+, normalized)
+      action_frames = Enum.map(players, fn p -> (p && p.action_frame) || 0 end)
+
+      frame_embs = [
+        # Scale hitstun: 120 frames max is reasonable, clamp to 0-1
+        Primitives.batch_float_embed(hitstun_frames, scale: 1/120, lower: 0.0, upper: 1.0),
+        # Scale action_frame: most animations under 60 frames, but some longer
+        Primitives.batch_float_embed(action_frames, scale: 1/60, lower: 0.0, upper: 2.0)
+      ]
+
+      embs_with_speeds ++ frame_embs
+    else
+      embs_with_speeds
+    end
+
     # Add Nana (Ice Climbers partner) if configured
     all_embs = if config.with_nana do
       batch_size = length(players)
       nana_embs = embed_batch_nana(players, config, batch_size)
-      embs_with_speeds ++ [nana_embs]
+      embs_with_frame_info ++ [nana_embs]
     else
-      embs_with_speeds
+      embs_with_frame_info
     end
 
     # Concatenate all embeddings: [batch, total_embed_size]
@@ -260,8 +293,8 @@ defmodule ExPhil.Embeddings.Player do
       # Exists flag
       nana_exists_emb = Primitives.batch_bool_embed(nana_exists)
 
-      # Concatenate Nana embeddings
-      Nx.concatenate([
+      # Base Nana embeddings
+      base_nana_embs = [
         nana_percent_emb,    # [batch, 1]
         nana_facing_emb,     # [batch, 1]
         nana_x_emb,          # [batch, 1]
@@ -273,7 +306,25 @@ defmodule ExPhil.Embeddings.Player do
         nana_shield_emb,     # [batch, 1]
         nana_ground_emb,     # [batch, 1]
         nana_exists_emb      # [batch, 1]
-      ], axis: 1)
+      ]
+
+      # Add Nana speeds if configured (Nana has limited speed data, use zeros)
+      nana_embs_with_speeds = if config.with_speeds do
+        nana_speed_zeros = Nx.broadcast(0.0, {batch_size, 5})
+        base_nana_embs ++ [nana_speed_zeros]
+      else
+        base_nana_embs
+      end
+
+      # Add Nana frame info if configured (Nana has limited frame data, use zeros)
+      nana_embs_with_frame_info = if config.with_frame_info do
+        nana_frame_zeros = Nx.broadcast(0.0, {batch_size, 2})
+        nana_embs_with_speeds ++ [nana_frame_zeros]
+      else
+        nana_embs_with_speeds
+      end
+
+      Nx.concatenate(nana_embs_with_frame_info, axis: 1)
     end
   end
 
@@ -328,13 +379,31 @@ defmodule ExPhil.Embeddings.Player do
   end
 
   @doc """
+  Embed frame timing info (hitstun remaining, action frame).
+  Useful for knowing when player/opponent can act.
+  """
+  @spec embed_frame_info(PlayerState.t()) :: Nx.Tensor.t()
+  def embed_frame_info(%PlayerState{} = player) do
+    # Hitstun frames: typically 0-120, normalize to 0-1
+    hitstun = min((player.hitstun_frames_left || 0) / 120, 1.0)
+    # Action frame: how far into animation (0-60+ typically), normalize
+    action_frame = min((player.action_frame || 0) / 60, 2.0)
+
+    Nx.tensor([hitstun, action_frame], type: :f32)
+  end
+
+  @doc """
   Embed Nana (Ice Climbers partner).
   """
   @spec embed_nana(Nana.t() | nil, config()) :: Nx.Tensor.t()
-  def embed_nana(nil, _config) do
+  def embed_nana(nil, config) do
     # Nana doesn't exist - return zeros with exists=false
-    size = base_embedding_size() + 1
-    Nx.broadcast(0.0, {size})
+    # Size includes base + exists + optional speeds + optional frame_info
+    base_size = base_embedding_size() + 1
+    speed_size = if config.with_speeds, do: 5, else: 0
+    frame_size = if config.with_frame_info, do: 2, else: 0
+    total_size = base_size + speed_size + frame_size
+    Nx.broadcast(0.0, {total_size})
   end
 
   def embed_nana(%Nana{} = nana, config) do
@@ -366,7 +435,22 @@ defmodule ExPhil.Embeddings.Player do
     base = embed_base(nana_as_player, config)
     exists = Primitives.bool_embed(true)
 
-    Nx.concatenate([base, exists])
+    # Add optional speeds (zeros for Nana since data not available)
+    embs = [base, exists]
+    embs = if config.with_speeds do
+      embs ++ [Nx.broadcast(0.0, {5})]
+    else
+      embs
+    end
+
+    # Add optional frame info (zeros for Nana since data not available)
+    embs = if config.with_frame_info do
+      embs ++ [Nx.broadcast(0.0, {2})]
+    else
+      embs
+    end
+
+    Nx.concatenate(embs)
   end
 
   @doc """

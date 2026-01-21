@@ -5,8 +5,8 @@ ExPhil is an Elixir-based successor to slippi-ai, creating high-ELO playable bot
 ## Quick Reference
 
 **Embedding dimensions:**
-- Player: 446 dims
-- Game: ~1991 dims (2 players + stage + projectiles)
+- Player: 907 dims (base 446 + speeds 5 + frame_info 2 + Nana 454)
+- Game: ~2054 dims (2 players + stage + projectiles + prev_action + name)
 - Controller: 13 dims (8 buttons + 4 sticks + 1 shoulder)
 
 **Policy network:** 6-head autoregressive (buttons, main_x/y, c_x/y, shoulder)

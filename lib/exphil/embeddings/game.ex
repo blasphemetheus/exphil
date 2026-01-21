@@ -38,7 +38,7 @@ defmodule ExPhil.Embeddings.Game do
   defstruct [
     player: %PlayerEmbed{},
     controller: %ControllerEmbed{},
-    with_projectiles: false,
+    with_projectiles: true,  # Enabled for Link/Samus/Falco/etc projectile tracking
     max_projectiles: 5,
     with_items: false,
     max_items: 5,

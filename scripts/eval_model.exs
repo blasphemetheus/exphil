@@ -106,7 +106,7 @@ opts = Map.merge(defaults, Map.new(opts))
 
 # Determine evaluation mode
 model_paths = cond do
-  opts[:compare] and length(positional) >= 2 ->
+  opts[:compare] == true and length(positional) >= 2 ->
     positional
   opts[:checkpoint] ->
     [opts[:checkpoint]]
@@ -160,7 +160,14 @@ else
   parse_opts
 end
 
-{:ok, frames} = Peppi.parse_replays(replay_files, parse_opts)
+parsed_replays = Peppi.parse_many(replay_files, parse_opts)
+
+# Convert to training frames format (parse_many returns list of {:ok, replay} tuples)
+frames = parsed_replays
+|> Enum.flat_map(fn
+  {:ok, replay} -> Peppi.to_training_frames(replay, player_port: opts[:player])
+  {:error, _} -> []
+end)
 
 if Enum.empty?(frames) do
   Output.error("No frames extracted from replays")
@@ -183,6 +190,7 @@ dataset = Data.from_frames(frames,
 Output.puts("  Dataset size: #{dataset.size} frames")
 
 # Batch the dataset
+Output.puts("  Creating batches (this embeds all frames)...")
 batches = Data.batched(dataset,
   batch_size: opts[:batch_size],
   shuffle: false,
@@ -251,7 +259,17 @@ evaluate_model = fn model_path ->
   shoulder_buckets = config[:shoulder_buckets] || 4
   label_smoothing = config[:label_smoothing] || 0.0
 
-  {total_loss, total_batches, component_metrics} = Enum.reduce(batches, {0.0, 0, %{}}, fn batch, {acc_loss, acc_count, acc_metrics} ->
+  Output.puts("  Running inference on #{num_batches} batches...")
+  Output.puts("  (First batch includes JIT compilation - may take 1-2 minutes)")
+
+  {total_loss, total_batches, component_metrics} = batches
+  |> Enum.with_index(1)
+  |> Enum.reduce({0.0, 0, %{}}, fn {batch, batch_idx}, {acc_loss, acc_count, acc_metrics} ->
+    # Show progress every 100 batches or on first batch
+    if batch_idx == 1 or rem(batch_idx, 100) == 0 or batch_idx == num_batches do
+      pct = round(batch_idx / num_batches * 100)
+      IO.write(:stderr, "\r  Progress: #{batch_idx}/#{num_batches} (#{pct}%)    ")
+    end
     %{states: states, actions: actions} = batch
 
     states = Nx.backend_copy(states)
@@ -290,6 +308,8 @@ evaluate_model = fn model_path ->
 
     {acc_loss + loss_val, acc_count + 1, new_metrics}
   end)
+
+  IO.write(:stderr, "\n")  # Clear progress line
 
   # Compute averages
   avg_loss = total_loss / total_batches
