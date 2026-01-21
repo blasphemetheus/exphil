@@ -194,6 +194,66 @@ def serialize_controller(pre_frame) -> Dict[str, Any]:
     }
 
 
+def serialize_item(item, player_port: int, opponent_port: int) -> Dict[str, Any]:
+    """
+    Convert slippi item/projectile to serializable dict.
+
+    Items in Slippi include both regular items and projectiles (Fox lasers,
+    Sheik needles, Link arrows, etc.). We convert them to a unified format.
+
+    Args:
+        item: Slippi Item object from frame.items
+        player_port: The player whose perspective we're training from
+        opponent_port: The opponent's port
+
+    Returns:
+        Dict with projectile data, or None if invalid
+    """
+    if item is None:
+        return None
+
+    try:
+        # Get position
+        x = float(item.position.x) if item.position else 0.0
+        y = float(item.position.y) if item.position else 0.0
+
+        # Get velocity
+        speed_x = float(item.velocity.x) if item.velocity else 0.0
+        speed_y = float(item.velocity.y) if item.velocity else 0.0
+
+        # Get item type - convert enum to int
+        item_type = item.type.value if hasattr(item.type, 'value') else int(item.type) if item.type else 0
+
+        # Determine owner: spawn_id can help, but we need to infer from context
+        # For projectiles, the spawn_id often correlates with the spawning player
+        # However, the most reliable way is to check if the item was spawned by
+        # a character - which requires tracking spawn frames
+        # For now, we use a heuristic: lower spawn_ids tend to be player 1's projectiles
+        # This isn't perfect but provides a starting point
+        spawn_id = item.spawn_id if item.spawn_id is not None else 0
+
+        # Note: Proper owner detection would require tracking which character
+        # spawned each projectile, which is complex. For now we set owner=0
+        # and let the embedding handle it with positional context
+        owner = 0  # Will be improved in future versions
+
+        return {
+            "owner": owner,
+            "x": x,
+            "y": y,
+            "type": item_type,
+            "subtype": item.state if item.state is not None else 0,  # Action state as subtype
+            "speed_x": speed_x,
+            "speed_y": speed_y,
+            "spawn_id": spawn_id,
+            "timer": item.timer if item.timer is not None else 0,
+            "damage": item.damage if item.damage is not None else 0,
+        }
+    except Exception as e:
+        logger.debug(f"Failed to serialize item: {e}")
+        return None
+
+
 def parse_replay(path: str, player_port: Optional[int] = None) -> Dict[str, Any]:
     """
     Parse a single .slp replay file.
@@ -271,6 +331,14 @@ def parse_replay(path: str, player_port: Optional[int] = None) -> Dict[str, Any]
         if player_data is None:
             continue
 
+        # Parse items/projectiles from frame
+        projectiles = []
+        if hasattr(frame, 'items') and frame.items:
+            for item in frame.items:
+                serialized = serialize_item(item, player_port, opponent_port)
+                if serialized:
+                    projectiles.append(serialized)
+
         # Create game state
         game_state = {
             "frame": frame_num,
@@ -279,7 +347,7 @@ def parse_replay(path: str, player_port: Optional[int] = None) -> Dict[str, Any]
             "players": {
                 str(player_port): player_data,  # JSON keys must be strings
             },
-            "projectiles": [],  # TODO: Parse projectiles
+            "projectiles": projectiles,
             "distance": 0.0,
         }
 

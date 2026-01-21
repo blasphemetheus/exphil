@@ -40,11 +40,16 @@ ExPhil is an Elixir-based successor to slippi-ai, creating high-ELO playable bot
 
 ## Immediate Priorities
 
-Based on research from slippi-ai, Project Nabla, and related papers (see [RESEARCH.md](docs/RESEARCH.md)):
+See [GOALS.md](docs/GOALS.md) for comprehensive roadmap. Current focus:
 
-1. **Self-play infrastructure** - BEAM concurrency + population-based training (avoid policy collapse)
-2. **Frame delay augmentation** - Train with 0-18 frame delays for robust play
-3. **Character-specific rewards** - Mewtwo recovery, Ganon spacing, etc.
+**High Impact (In Progress):**
+1. **Projectile parsing** - 40-60% state info lost for Link/Samus/Falco
+2. **Focal loss** - +30-50% accuracy on rare actions (Z/L/R)
+3. **Embedding caching** - 2-3x training speedup
+
+**Next Phase:**
+4. **Self-play infrastructure** - BEAM concurrency + population-based training
+5. **Character-specific rewards** - Mewtwo recovery, Ganon spacing, etc.
 
 ## Documentation
 
@@ -52,6 +57,7 @@ Detailed guides in `docs/`:
 
 | Doc | Contents |
 |-----|----------|
+| [GOALS.md](docs/GOALS.md) | **Big picture goals, priorities, implementation log** |
 | [ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design, network structure, training pipeline |
 | [TRAINING.md](docs/TRAINING.md) | Training commands, options, performance tips |
 | [INFERENCE.md](docs/INFERENCE.md) | ONNX export, quantization, optimization |

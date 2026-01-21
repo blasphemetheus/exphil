@@ -28,7 +28,7 @@ defmodule ExPhil.Data.ReplayParser do
 
   """
 
-  alias ExPhil.Bridge.{GameState, Player, ControllerState}
+  alias ExPhil.Bridge.{GameState, Player, ControllerState, Projectile}
 
   require Logger
 
@@ -318,12 +318,18 @@ defmodule ExPhil.Data.ReplayParser do
     end)
     |> Map.new()
 
+    # Parse projectiles/items from replay data
+    projectiles = gs
+    |> Map.get("projectiles", [])
+    |> Enum.map(&convert_projectile/1)
+    |> Enum.reject(&is_nil/1)
+
     %GameState{
       frame: Map.get(gs, "frame", 0),
       stage: Map.get(gs, "stage", 0),
       menu_state: Map.get(gs, "menu_state", 2),
       players: players,
-      projectiles: [],  # TODO: Parse projectiles
+      projectiles: projectiles,
       distance: Map.get(gs, "distance", 0.0)
     }
   end
@@ -378,6 +384,19 @@ defmodule ExPhil.Data.ReplayParser do
       button_l: Map.get(c, "button_l", false),
       button_r: Map.get(c, "button_r", false),
       button_d_up: Map.get(c, "button_d_up", false)
+    }
+  end
+
+  defp convert_projectile(nil), do: nil
+  defp convert_projectile(p) when is_map(p) do
+    %Projectile{
+      owner: Map.get(p, "owner", 0),
+      x: Map.get(p, "x", 0.0),
+      y: Map.get(p, "y", 0.0),
+      type: Map.get(p, "type", 0),
+      subtype: Map.get(p, "subtype", 0),
+      speed_x: Map.get(p, "speed_x", 0.0),
+      speed_y: Map.get(p, "speed_y", 0.0)
     }
   end
 

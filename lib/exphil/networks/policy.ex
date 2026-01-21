@@ -590,30 +590,48 @@ defmodule ExPhil.Networks.Policy do
   end
 
   @doc """
-  Compute imitation loss with optional label smoothing.
+  Compute imitation loss with optional label smoothing and focal loss.
 
   Label smoothing prevents overconfidence by replacing hard targets with soft targets:
   - For categorical targets: target class gets (1-ε), others get ε/(num_classes-1)
   - For binary targets: target gets (1-ε), non-target gets ε
 
+  Focal loss down-weights easy examples and focuses on hard/rare ones:
+  - Formula: (1 - p_t)^gamma * CE(p, y)
+  - Helps with rare actions like Z, L, R buttons (~2% frequency)
+
   ## Options
     - `:label_smoothing` - Smoothing factor ε (default: 0.0, typical: 0.1)
+    - `:focal_loss` - Enable focal loss (default: false)
+    - `:focal_gamma` - Focal loss gamma parameter (default: 2.0)
   """
   @spec imitation_loss(map(), map(), keyword()) :: Nx.Tensor.t()
   def imitation_loss(logits, targets, opts) do
     label_smoothing = Keyword.get(opts, :label_smoothing, 0.0)
+    focal_loss = Keyword.get(opts, :focal_loss, false)
+    focal_gamma = Keyword.get(opts, :focal_gamma, 2.0)
 
-    # Button loss (binary cross-entropy with optional label smoothing)
-    button_loss = binary_cross_entropy(logits.buttons, targets.buttons, label_smoothing)
+    # Choose loss functions based on focal_loss flag
+    {button_loss_fn, cat_loss_fn} = if focal_loss do
+      {
+        fn logits, targets, smooth -> focal_binary_cross_entropy(logits, targets, smooth, focal_gamma) end,
+        fn logits, targets, smooth -> focal_categorical_cross_entropy(logits, targets, smooth, focal_gamma) end
+      }
+    else
+      {&binary_cross_entropy/3, &categorical_cross_entropy/3}
+    end
 
-    # Stick losses (categorical cross-entropy with optional label smoothing)
-    main_x_loss = categorical_cross_entropy(logits.main_x, targets.main_x, label_smoothing)
-    main_y_loss = categorical_cross_entropy(logits.main_y, targets.main_y, label_smoothing)
-    c_x_loss = categorical_cross_entropy(logits.c_x, targets.c_x, label_smoothing)
-    c_y_loss = categorical_cross_entropy(logits.c_y, targets.c_y, label_smoothing)
+    # Button loss (binary cross-entropy with optional label smoothing + focal)
+    button_loss = button_loss_fn.(logits.buttons, targets.buttons, label_smoothing)
+
+    # Stick losses (categorical cross-entropy with optional label smoothing + focal)
+    main_x_loss = cat_loss_fn.(logits.main_x, targets.main_x, label_smoothing)
+    main_y_loss = cat_loss_fn.(logits.main_y, targets.main_y, label_smoothing)
+    c_x_loss = cat_loss_fn.(logits.c_x, targets.c_x, label_smoothing)
+    c_y_loss = cat_loss_fn.(logits.c_y, targets.c_y, label_smoothing)
 
     # Shoulder loss
-    shoulder_loss = categorical_cross_entropy(logits.shoulder, targets.shoulder, label_smoothing)
+    shoulder_loss = cat_loss_fn.(logits.shoulder, targets.shoulder, label_smoothing)
 
     # Combine losses
     Nx.add(button_loss,
@@ -713,6 +731,104 @@ defmodule ExPhil.Networks.Policy do
     # Cross-entropy with soft targets: -sum(p * log_q)
     nll = Nx.negate(Nx.sum(Nx.multiply(log_probs, smoothed_targets), axes: [1]))
     Nx.mean(nll)
+  end
+
+  @doc """
+  Focal binary cross-entropy loss for buttons.
+
+  Focal loss down-weights easy examples and focuses on hard ones:
+  - Formula: (1 - p_t)^gamma * BCE(p, y)
+  - p_t is the probability assigned to the correct class
+  - gamma=2.0 is typical, higher values focus more on hard examples
+
+  This helps with rare button presses (Z, L, R are used <2% of the time)
+  by preventing the model from ignoring them in favor of easy negatives.
+  """
+  @spec focal_binary_cross_entropy(Nx.Tensor.t(), Nx.Tensor.t(), float(), float()) :: Nx.Tensor.t()
+  def focal_binary_cross_entropy(logits, targets, label_smoothing, gamma) do
+    # Apply label smoothing to targets
+    smoothed_targets = if label_smoothing > 0.0 do
+      Nx.add(
+        Nx.multiply(targets, 1.0 - 2.0 * label_smoothing),
+        label_smoothing
+      )
+    else
+      targets
+    end
+
+    # Compute probabilities via sigmoid
+    probs = Nx.sigmoid(logits)
+
+    # p_t = p if y=1, (1-p) if y=0
+    # Using: p_t = p * y + (1-p) * (1-y) = y*(2p-1) + (1-p)
+    p_t = Nx.add(
+      Nx.multiply(smoothed_targets, Nx.subtract(Nx.multiply(probs, 2), 1)),
+      Nx.subtract(1, probs)
+    )
+
+    # Focal weight: (1 - p_t)^gamma
+    focal_weight = Nx.pow(Nx.subtract(1.0, p_t), gamma)
+
+    # Standard BCE (numerically stable)
+    max_val = Nx.max(logits, 0)
+    abs_logits = Nx.abs(logits)
+    bce = Nx.subtract(max_val, Nx.multiply(logits, smoothed_targets))
+    bce = Nx.add(bce, Nx.log(Nx.add(1, Nx.exp(Nx.negate(abs_logits)))))
+
+    # Apply focal weight
+    focal_bce = Nx.multiply(focal_weight, bce)
+    Nx.mean(focal_bce)
+  end
+
+  @doc """
+  Focal categorical cross-entropy loss for sticks/shoulder.
+
+  Focal loss down-weights easy examples and focuses on hard ones:
+  - Formula: (1 - p_t)^gamma * CE(p, y)
+  - p_t is the probability assigned to the correct class
+  - gamma=2.0 is typical, higher values focus more on hard examples
+
+  This helps with rare stick positions and shoulder values.
+  """
+  @spec focal_categorical_cross_entropy(Nx.Tensor.t(), Nx.Tensor.t(), float(), float()) :: Nx.Tensor.t()
+  def focal_categorical_cross_entropy(logits, targets, label_smoothing, gamma) do
+    # Compute log probabilities and probabilities
+    log_probs = log_softmax(logits)
+    probs = Nx.exp(log_probs)
+
+    # Get batch size and number of classes
+    {batch_size, num_classes} = Nx.shape(logits)
+
+    # Convert targets to one-hot
+    targets_one_hot = Nx.equal(
+      Nx.reshape(targets, {batch_size, 1}),
+      Nx.iota({1, num_classes})
+    ) |> Nx.as_type(:f32)
+
+    # Apply label smoothing
+    smoothed_targets = if label_smoothing > 0.0 do
+      off_value = label_smoothing / (num_classes - 1)
+      on_value = 1.0 - label_smoothing
+      Nx.add(
+        off_value,
+        Nx.multiply(targets_one_hot, on_value - off_value)
+      )
+    else
+      targets_one_hot
+    end
+
+    # p_t = sum(p * y) for each sample (probability of correct class)
+    p_t = Nx.sum(Nx.multiply(probs, smoothed_targets), axes: [1])
+
+    # Focal weight: (1 - p_t)^gamma
+    focal_weight = Nx.pow(Nx.subtract(1.0, p_t), gamma)
+
+    # Standard cross-entropy: -sum(y * log_p)
+    ce = Nx.negate(Nx.sum(Nx.multiply(log_probs, smoothed_targets), axes: [1]))
+
+    # Apply focal weight
+    focal_ce = Nx.multiply(focal_weight, ce)
+    Nx.mean(focal_ce)
   end
 
   defp log_softmax(logits) do

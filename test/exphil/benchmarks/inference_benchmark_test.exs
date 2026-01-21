@@ -83,9 +83,10 @@ defmodule ExPhil.Benchmarks.InferenceBenchmarkTest do
   end
 
   # Mamba is very slow on CPU - requires GPU for reasonable benchmark times
-  @describetag :gpu
-  @describetag timeout: 300_000  # 5 minutes for GPU benchmarks
   describe "Mamba backbone inference" do
+    @describetag :gpu
+    @describetag timeout: 300_000  # 5 minutes for GPU benchmarks
+
     setup do
       model = Mamba.build(
         embed_size: @embed_size,

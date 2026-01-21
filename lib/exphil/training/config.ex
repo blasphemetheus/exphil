@@ -91,6 +91,9 @@ defmodule ExPhil.Training.Config do
       noise_scale: 0.01,
       # Label smoothing
       label_smoothing: 0.0,  # 0.0 = no smoothing, 0.1 = typical value
+      # Focal loss for rare actions (Z, L, R buttons)
+      focal_loss: false,
+      focal_gamma: 2.0,  # Higher = more focus on hard examples
       # Registry
       no_register: false,
       # Checkpoint pruning
@@ -99,7 +102,8 @@ defmodule ExPhil.Training.Config do
       ema: false,
       ema_decay: 0.999,
       # Embedding precomputation (2-3x speedup for MLP training)
-      precompute: false,
+      precompute: true,  # Precompute embeddings for 2-3x speedup (auto-disabled with augmentation)
+      no_precompute: false,  # Override for explicitly disabling precomputation
       # Data prefetching (load next batch while GPU trains)
       prefetch: true,
       prefetch_buffer: 2,  # Number of batches to prefetch
@@ -1093,11 +1097,14 @@ defmodule ExPhil.Training.Config do
     |> parse_float_arg(args, "--noise-prob", :noise_prob)
     |> parse_float_arg(args, "--noise-scale", :noise_scale)
     |> parse_float_arg(args, "--label-smoothing", :label_smoothing)
+    |> parse_flag(args, "--focal-loss", :focal_loss)
+    |> parse_float_arg(args, "--focal-gamma", :focal_gamma)
     |> parse_flag(args, "--no-register", :no_register)
     |> parse_optional_int_arg(args, "--keep-best", :keep_best)
     |> parse_flag(args, "--ema", :ema)
     |> parse_float_arg(args, "--ema-decay", :ema_decay)
     |> parse_flag(args, "--precompute", :precompute)
+    |> parse_flag(args, "--no-precompute", :no_precompute)
     |> parse_flag(args, "--prefetch", :prefetch)
     |> parse_flag(args, "--no-prefetch", :no_prefetch)
     |> parse_flag(args, "--gradient-checkpoint", :gradient_checkpoint)
@@ -1105,6 +1112,10 @@ defmodule ExPhil.Training.Config do
     |> then(fn opts ->
       # --no-prefetch disables prefetching
       if opts[:no_prefetch], do: Keyword.put(opts, :prefetch, false), else: opts
+    end)
+    |> then(fn opts ->
+      # --no-precompute disables embedding precomputation
+      if opts[:no_precompute], do: Keyword.put(opts, :precompute, false), else: opts
     end)
     |> parse_int_arg(args, "--prefetch-buffer", :prefetch_buffer)
     |> parse_flag(args, "--layer-norm", :layer_norm)

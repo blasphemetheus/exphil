@@ -671,6 +671,8 @@ defmodule ExPhil.Training.Imitation do
     predict_fn = trainer.predict_fn
     model_state = deep_backend_copy(trainer.policy_params)
     label_smoothing = trainer.config[:label_smoothing] || 0.0
+    focal_loss = trainer.config[:focal_loss] || false
+    focal_gamma = trainer.config[:focal_gamma] || 2.0
 
     loss_fn = fn params ->
       {buttons, main_x, main_y, c_x, c_y, shoulder} = predict_fn.(params, states)
@@ -678,7 +680,11 @@ defmodule ExPhil.Training.Imitation do
         buttons: buttons, main_x: main_x, main_y: main_y,
         c_x: c_x, c_y: c_y, shoulder: shoulder
       }
-      Policy.imitation_loss(logits, actions, label_smoothing: label_smoothing)
+      Policy.imitation_loss(logits, actions,
+        label_smoothing: label_smoothing,
+        focal_loss: focal_loss,
+        focal_gamma: focal_gamma
+      )
     end
 
     {loss, grads} = Nx.Defn.value_and_grad(loss_fn).(model_state)
@@ -762,6 +768,8 @@ defmodule ExPhil.Training.Imitation do
     # The original params are stored in trainer and will be used to restore structure
     model_state = deep_backend_copy(trainer.policy_params)
     label_smoothing = trainer.config[:label_smoothing] || 0.0
+    focal_loss = trainer.config[:focal_loss] || false
+    focal_gamma = trainer.config[:focal_gamma] || 2.0
 
     # Build a loss function that takes ModelState as argument
     loss_fn = fn params ->
@@ -778,8 +786,12 @@ defmodule ExPhil.Training.Imitation do
         shoulder: shoulder
       }
 
-      # Compute imitation loss with optional label smoothing
-      Policy.imitation_loss(logits, actions, label_smoothing: label_smoothing)
+      # Compute imitation loss with optional label smoothing and focal loss
+      Policy.imitation_loss(logits, actions,
+        label_smoothing: label_smoothing,
+        focal_loss: focal_loss,
+        focal_gamma: focal_gamma
+      )
     end
 
     # Compute loss and gradients using Nx.Defn.value_and_grad
@@ -829,6 +841,8 @@ defmodule ExPhil.Training.Imitation do
   @spec build_loss_fn(Axon.t(), keyword()) :: {function(), function()}
   def build_loss_fn(policy_model, opts \\ []) do
     label_smoothing = Keyword.get(opts, :label_smoothing, 0.0)
+    focal_loss = Keyword.get(opts, :focal_loss, false)
+    focal_gamma = Keyword.get(opts, :focal_gamma, 2.0)
     {_init_fn, predict_fn} = Axon.build(policy_model)
 
     loss_fn = fn params, states, actions ->
@@ -844,8 +858,12 @@ defmodule ExPhil.Training.Imitation do
         shoulder: shoulder
       }
 
-      # Compute loss with optional label smoothing
-      Policy.imitation_loss(logits, actions, label_smoothing: label_smoothing)
+      # Compute loss with optional label smoothing and focal loss
+      Policy.imitation_loss(logits, actions,
+        label_smoothing: label_smoothing,
+        focal_loss: focal_loss,
+        focal_gamma: focal_gamma
+      )
     end
 
     {predict_fn, loss_fn}

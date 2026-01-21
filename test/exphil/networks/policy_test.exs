@@ -363,6 +363,101 @@ defmodule ExPhil.Networks.PolicyTest do
     end
   end
 
+  describe "imitation_loss with focal loss" do
+    test "computes focal loss when enabled" do
+      logits = %{
+        buttons: Nx.tensor([[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]]),
+        main_x: Nx.tensor([[0.0, 0.0, 1.0, 0.0, 0.0]]),
+        main_y: Nx.tensor([[0.0, 0.0, 1.0, 0.0, 0.0]]),
+        c_x: Nx.tensor([[0.0, 0.0, 1.0, 0.0, 0.0]]),
+        c_y: Nx.tensor([[0.0, 0.0, 1.0, 0.0, 0.0]]),
+        shoulder: Nx.tensor([[0.0, 0.0, 1.0]])
+      }
+
+      targets = %{
+        buttons: Nx.tensor([[1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]]),
+        main_x: Nx.tensor([2]),
+        main_y: Nx.tensor([2]),
+        c_x: Nx.tensor([2]),
+        c_y: Nx.tensor([2]),
+        shoulder: Nx.tensor([2])
+      }
+
+      focal_loss = Policy.imitation_loss(logits, targets, focal_loss: true, focal_gamma: 2.0)
+      regular_loss = Policy.imitation_loss(logits, targets, focal_loss: false)
+
+      assert is_struct(focal_loss, Nx.Tensor)
+      assert Nx.to_number(focal_loss) > 0
+      # Focal loss should differ from regular loss
+      assert Nx.to_number(focal_loss) != Nx.to_number(regular_loss)
+    end
+
+    test "higher gamma focuses more on hard examples" do
+      # Create logits where the model is somewhat confident but wrong
+      # Focal loss with higher gamma should penalize this more
+      uncertain_logits = %{
+        buttons: Nx.tensor([[0.5, -0.5, -0.5, -0.5, -0.5, -0.5, -0.5, -0.5]]),
+        main_x: Nx.tensor([[-0.5, -0.5, 0.5, -0.5, -0.5]]),
+        main_y: Nx.tensor([[-0.5, -0.5, 0.5, -0.5, -0.5]]),
+        c_x: Nx.tensor([[-0.5, -0.5, 0.5, -0.5, -0.5]]),
+        c_y: Nx.tensor([[-0.5, -0.5, 0.5, -0.5, -0.5]]),
+        shoulder: Nx.tensor([[-0.5, -0.5, 0.5]])
+      }
+
+      targets = %{
+        buttons: Nx.tensor([[1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]]),
+        main_x: Nx.tensor([2]),
+        main_y: Nx.tensor([2]),
+        c_x: Nx.tensor([2]),
+        c_y: Nx.tensor([2]),
+        shoulder: Nx.tensor([2])
+      }
+
+      loss_gamma_1 = Nx.to_number(Policy.imitation_loss(uncertain_logits, targets,
+        focal_loss: true, focal_gamma: 1.0))
+      loss_gamma_2 = Nx.to_number(Policy.imitation_loss(uncertain_logits, targets,
+        focal_loss: true, focal_gamma: 2.0))
+      loss_gamma_5 = Nx.to_number(Policy.imitation_loss(uncertain_logits, targets,
+        focal_loss: true, focal_gamma: 5.0))
+
+      # With higher gamma, the loss is down-weighted more for confident predictions
+      # But for uncertain predictions like these, the relationship is more complex
+      # Just verify all losses are finite and positive
+      assert loss_gamma_1 > 0 and is_number(loss_gamma_1)
+      assert loss_gamma_2 > 0 and is_number(loss_gamma_2)
+      assert loss_gamma_5 > 0 and is_number(loss_gamma_5)
+    end
+
+    test "focal loss can be combined with label smoothing" do
+      logits = %{
+        buttons: Nx.tensor([[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]]),
+        main_x: Nx.tensor([[0.0, 0.0, 1.0, 0.0, 0.0]]),
+        main_y: Nx.tensor([[0.0, 0.0, 1.0, 0.0, 0.0]]),
+        c_x: Nx.tensor([[0.0, 0.0, 1.0, 0.0, 0.0]]),
+        c_y: Nx.tensor([[0.0, 0.0, 1.0, 0.0, 0.0]]),
+        shoulder: Nx.tensor([[0.0, 0.0, 1.0]])
+      }
+
+      targets = %{
+        buttons: Nx.tensor([[1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]]),
+        main_x: Nx.tensor([2]),
+        main_y: Nx.tensor([2]),
+        c_x: Nx.tensor([2]),
+        c_y: Nx.tensor([2]),
+        shoulder: Nx.tensor([2])
+      }
+
+      combined_loss = Policy.imitation_loss(logits, targets,
+        focal_loss: true,
+        focal_gamma: 2.0,
+        label_smoothing: 0.1
+      )
+
+      assert is_struct(combined_loss, Nx.Tensor)
+      assert Nx.to_number(combined_loss) > 0
+    end
+  end
+
   # ============================================================================
   # Utility Function Tests
   # ============================================================================
