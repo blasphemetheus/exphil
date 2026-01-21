@@ -57,8 +57,9 @@ defmodule ExPhil.SelfPlay.GameRunner do
 
   use GenServer
 
-  alias ExPhil.Bridge.{GameState, ControllerState}
+  alias ExPhil.Bridge.ControllerState
   alias ExPhil.{Embeddings, Rewards}
+  alias ExPhil.MockEnv.Game, as: MockGame
   alias ExPhil.SelfPlay.PopulationManager
 
   require Logger
@@ -354,8 +355,8 @@ defmodule ExPhil.SelfPlay.GameRunner do
     {p1_action, p1_log_prob, p1_value} = get_p1_action(state)
     p2_action = get_p2_action(state)
 
-    # Apply actions
-    {:ok, new_game_state} = apply_actions(state, p1_action, p2_action)
+    # Apply actions - returns {game_state, game_or_pid}
+    {:ok, new_game_state, new_game_or_pid} = apply_actions(state, p1_action, p2_action)
 
     # Compute reward
     reward = Rewards.compute_weighted(
@@ -387,11 +388,12 @@ defmodule ExPhil.SelfPlay.GameRunner do
     # Submit to collector if configured
     maybe_submit_experience(state, experience)
 
-    # Update state - track prev_action for next embedding
+    # Update state - track prev_action and persist game/pid
     new_state = %{state |
       prev_state: state.current_state,
       prev_action: action_to_controller_state(p1_action),
       current_state: new_game_state,
+      dolphin_pid: new_game_or_pid,  # Persist mock game or Dolphin pid
       frame_count: state.frame_count + 1,
       episode_reward: state.episode_reward + reward
     }
@@ -437,15 +439,16 @@ defmodule ExPhil.SelfPlay.GameRunner do
   end
 
   defp do_reset(state) do
-    new_game = case state.game_type do
+    new_game_or_pid = case state.game_type do
       :mock -> init_mock_game()
       :dolphin -> reset_dolphin_game(state.dolphin_pid)
     end
 
-    {:ok, game_state} = get_game_state(state.game_type, new_game)
+    {:ok, game_state} = get_game_state(state.game_type, new_game_or_pid)
 
     new_state = %{state |
       current_state: game_state,
+      dolphin_pid: new_game_or_pid,  # Persist new mock game or dolphin pid
       prev_state: nil,
       prev_action: nil,  # Reset prev_action on episode reset
       frame_count: 0,
@@ -488,6 +491,18 @@ defmodule ExPhil.SelfPlay.GameRunner do
 
   # Handle {:cpu, level} tuples from PopulationManager
   defp load_policy(_state, {:cpu, _level}), do: :cpu
+
+  # Handle {:historical, version} tuples - need to look up the actual model
+  defp load_policy(state, {:historical, _version} = policy_id) do
+    if state.population_manager do
+      case PopulationManager.get_policy(state.population_manager, policy_id) do
+        {:ok, {model, params}} -> compile_policy({model, params})
+        {:error, _} -> :cpu  # Fallback to CPU
+      end
+    else
+      :cpu
+    end
+  end
 
   defp load_policy(state, policy_id) when is_atom(policy_id) or is_binary(policy_id) do
     if state.population_manager do
@@ -642,7 +657,7 @@ defmodule ExPhil.SelfPlay.GameRunner do
   end
 
   defp apply_actions(%{game_type: :mock} = state, p1_action, _p2_action) do
-    game = state.dolphin_pid  # For mock, dolphin_pid holds mock state
+    game = state.dolphin_pid  # For mock, dolphin_pid holds MockGame struct
 
     # Use frame from current_state if available, otherwise from game
     current_frame = if state.current_state, do: state.current_state.frame, else: 0
@@ -650,9 +665,8 @@ defmodule ExPhil.SelfPlay.GameRunner do
     new_game = update_mock_game(game, p1_action, current_frame)
     {:ok, game_state} = get_game_state(:mock, new_game)
 
-    # Store updated mock game in state via :sys.replace_state later
-    # For now, just return the new state
-    {:ok, game_state}
+    # Return both game_state (for embedding) and new_game (to persist physics state)
+    {:ok, game_state, new_game}
   end
 
   defp apply_actions(%{game_type: :dolphin, dolphin_pid: pid}, p1_action, p2_action) do
@@ -662,7 +676,10 @@ defmodule ExPhil.SelfPlay.GameRunner do
       ExPhil.Bridge.MeleePort.send_controller(pid, 2, action_to_controller(p2_action))
     end
 
-    ExPhil.Bridge.MeleePort.step(pid)
+    case ExPhil.Bridge.MeleePort.step(pid) do
+      {:ok, game_state} -> {:ok, game_state, pid}
+      error -> error
+    end
   end
 
   defp action_to_controller(action) do
@@ -710,103 +727,89 @@ defmodule ExPhil.SelfPlay.GameRunner do
   end
 
   # ============================================================================
-  # Mock Game Functions
+  # Mock Game Functions (using physics-based MockEnv.Game)
   # ============================================================================
 
   defp init_mock_game do
-    %{
-      type: :mock,
-      frame: 0,
-      p1: mock_player(1),
-      p2: mock_player(2),
-      done: false
-    }
-  end
-
-  defp mock_player(port) do
-    %{
-      port: port,
-      x: if(port == 1, do: -20.0, else: 20.0),
-      y: 0.0,
-      percent: 0.0,
-      stock: 4,
-      facing: if(port == 1, do: 1, else: -1),
-      action: 14,  # Wait
-      action_frame: 0
-    }
+    MockGame.new()
   end
 
   defp get_game_state(:mock, game) do
-    {:ok, mock_to_game_state(game)}
+    {:ok, MockGame.to_game_state(game)}
   end
 
   defp get_game_state(:dolphin, pid) do
     ExPhil.Bridge.MeleePort.step(pid)
   end
 
-  defp mock_to_game_state(mock) do
-    %GameState{
-      frame: mock.frame,
-      stage: 2,
-      menu_state: 2,
-      players: %{
-        1 => mock_to_player(mock.p1),
-        2 => mock_to_player(mock.p2)
-      },
-      projectiles: [],
-      items: [],
-      distance: abs(mock.p1.x - mock.p2.x)
-    }
-  end
-
-  defp mock_to_player(p) do
-    %ExPhil.Bridge.Player{
-      x: p.x,
-      y: p.y,
-      percent: p.percent,
-      stock: p.stock,
-      facing: p.facing,
-      action: p.action,
-      action_frame: p.action_frame,
-      shield_strength: 60.0,
-      character: 2,
-      invulnerable: false,
-      hitstun_frames_left: 0,
-      jumps_left: 2,
-      on_ground: true,
-      speed_air_x_self: 0.0,
-      speed_y_self: 0.0,
-      speed_x_attack: 0.0,
-      speed_y_attack: 0.0,
-      speed_ground_x_self: 0.0,
-      nana: nil,
-      controller_state: nil
-    }
-  end
-
-  defp update_mock_game(game_or_mock, action, current_frame) do
-    # Handle both mock game map and :mock atom
-    mock = case game_or_mock do
+  defp update_mock_game(game_or_mock, p1_action, _current_frame) do
+    # Handle both mock game struct and :mock atom (initial state)
+    game = case game_or_mock do
       :mock -> init_mock_game()
-      m when is_map(m) -> m
+      %MockGame{} = g -> g
+      # Legacy map format fallback
+      m when is_map(m) -> init_mock_game()
     end
 
-    %{mock |
-      frame: current_frame + 1,
-      p1: update_mock_player(mock.p1, action),
-      p2: update_mock_player(mock.p2, nil)
+    # Convert policy action to mock action format
+    mock_p1_action = policy_action_to_mock(p1_action)
+
+    # P2 uses simple AI: move toward P1, occasionally jump
+    mock_p2_action = simple_opponent_action(game)
+
+    # Step the physics simulation
+    MockGame.step(game, mock_p1_action, mock_p2_action)
+  end
+
+  # Convert policy action (discretized Nx tensors) to mock action format (floats/booleans)
+  defp policy_action_to_mock(nil), do: nil
+
+  defp policy_action_to_mock(action) do
+    # Buttons are indices 0-7: A, B, X, Y, Z, L, R, Start
+    buttons = action.buttons |> Nx.to_flat_list()
+
+    # Stick values are 0-16, convert to -1.0 to 1.0
+    stick_x = (Nx.to_number(action.main_x) - 8) / 8.0
+    stick_y = (Nx.to_number(action.main_y) - 8) / 8.0
+
+    %{
+      stick_x: stick_x,
+      stick_y: stick_y,
+      button_a: Enum.at(buttons, 0) == 1,
+      button_b: Enum.at(buttons, 1) == 1,
+      button_x: Enum.at(buttons, 2) == 1,
+      button_y: Enum.at(buttons, 3) == 1,
+      button_l: Enum.at(buttons, 5) == 1,
+      button_r: Enum.at(buttons, 6) == 1
     }
   end
 
-  defp update_mock_player(player, nil) do
-    dx = if player.x > 0, do: -0.5, else: 0.5
-    %{player | x: player.x + dx}
-  end
+  # Simple opponent AI for mock games
+  defp simple_opponent_action(game) do
+    p1 = game.p1
+    p2 = game.p2
 
-  defp update_mock_player(player, action) do
-    main_x_val = Nx.to_number(action.main_x)
-    dx = (main_x_val - 8) / 8.0 * 2.0
-    %{player | x: player.x + dx}
+    # Move toward P1
+    dx = p1.x - p2.x
+    stick_x = cond do
+      dx > 5 -> 0.8
+      dx < -5 -> -0.8
+      true -> 0.0
+    end
+
+    # Occasionally jump (10% chance when on ground)
+    jump = p2.on_ground and :rand.uniform() < 0.1
+
+    %{
+      stick_x: stick_x,
+      stick_y: 0.0,
+      button_a: false,
+      button_b: false,
+      button_x: jump,
+      button_y: false,
+      button_l: false,
+      button_r: false
+    }
   end
 
   defp reset_dolphin_game(pid) do
