@@ -349,7 +349,7 @@ end
 - [x] Behavioral cloning from replays
 - [x] Multiple backbone support (MLP, LSTM, GRU, Mamba)
 - [x] Training features (EMA, LR scheduling, augmentation)
-- [ ] **Frame delay augmentation**
+- [x] **Frame delay augmentation** (`--online-robust` or `--frame-delay-augment`)
 - [ ] **K-means stick discretization experiment**
 
 ### Phase 2: Self-Play (Next)
@@ -371,12 +371,12 @@ end
 
 ### Experiments to Run
 
-| Experiment | Hypothesis | Metric |
-|------------|-----------|--------|
-| K-means stick discretization | Better than uniform grid | BC loss, action accuracy |
-| Frame delay augmentation | More robust play | Win rate vs delayed self |
-| Mamba vs Transformer | Comparable quality, faster | Loss, inference time |
-| Population vs single self-play | Avoids collapse | Strategy diversity |
+| Experiment | Hypothesis | Metric | Status |
+|------------|-----------|--------|--------|
+| K-means stick discretization | Better than uniform grid | BC loss, action accuracy | Pending |
+| Frame delay augmentation | More robust play | Win rate vs delayed self | ✅ Implemented |
+| Mamba vs Transformer | Comparable quality, faster | Loss, inference time | Pending |
+| Population vs single self-play | Avoids collapse | Strategy diversity | Pending |
 
 ---
 

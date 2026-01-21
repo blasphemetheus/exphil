@@ -215,6 +215,18 @@ character_str = case opts[:character] do
   char -> "  Character:   #{char}\n"
 end
 
+# Format frame delay display
+format_frame_delay = fn opts ->
+  cond do
+    opts[:frame_delay_augment] ->
+      "augmented (#{opts[:frame_delay_min]}-#{opts[:frame_delay_max]} frames)"
+    opts[:frame_delay] > 0 ->
+      "#{opts[:frame_delay]} frames (online simulation)"
+    true ->
+      "0 (instant feedback)"
+  end
+end
+
 # Extract model name from checkpoint path for display
 model_name = opts[:name] || Path.basename(opts[:checkpoint], ".axon")
 
@@ -247,7 +259,7 @@ Configuration:
   Checkpoint:  #{opts[:checkpoint]}
   Wandb:       #{if opts[:wandb], do: "enabled", else: "disabled"}
   Precision:   #{precision_str}
-  Frame Delay: #{if opts[:frame_delay] > 0, do: "#{opts[:frame_delay]} frames (online simulation)", else: "0 (instant feedback)"}
+  Frame Delay: #{format_frame_delay.(opts)}
   Augment:     #{if opts[:augment], do: "enabled (mirror=#{opts[:mirror_prob]}, noise=#{opts[:noise_prob]})", else: "disabled"}
   Prefetch:    #{if opts[:prefetch], do: "enabled (buffer=#{opts[:prefetch_buffer]})", else: "disabled"}
   Grad Ckpt:   #{if opts[:gradient_checkpoint], do: "enabled (every #{opts[:checkpoint_every]} layers)", else: "disabled"}
@@ -262,6 +274,13 @@ case Config.format_diff(opts) do
     Output.puts("Settings changed from defaults:")
     Output.puts_raw(diff)
     Output.puts("")
+end
+
+# Warn if frame delay augmentation is used with temporal mode
+# (frame delay augmentation only works for single-frame batching)
+if opts[:frame_delay_augment] and opts[:temporal] do
+  Output.warning("Frame delay augmentation (--frame-delay-augment/--online-robust) " <>
+    "only works with non-temporal training. Using fixed frame_delay=#{opts[:frame_delay]} instead.")
 end
 
 # Dry run mode - validate config and show what would happen, then exit
@@ -787,7 +806,12 @@ initial_state = {trainer, 0, false, early_stopping_state, nil, pruner, ema, []}
         batch_size: opts[:batch_size],
         shuffle: true,
         drop_last: true,
-        augment_fn: augment_fn
+        augment_fn: augment_fn,
+        # Frame delay augmentation for online play robustness
+        frame_delay: opts[:frame_delay],
+        frame_delay_augment: opts[:frame_delay_augment],
+        frame_delay_min: opts[:frame_delay_min],
+        frame_delay_max: opts[:frame_delay_max]
       )
     end
 

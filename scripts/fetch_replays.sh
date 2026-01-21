@@ -22,7 +22,7 @@ REPLAY_DIR="${REPLAY_DIR:-/workspace/replays}"
 RCLONE_CONFIG="/tmp/rclone.conf"
 
 log() {
-    echo "[fetch_replays] $(date '+%H:%M:%S') $1"
+    echo "[fetch_replays] $(date '+%H:%M:%S') $1" >&2
 }
 
 error() {

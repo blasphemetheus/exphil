@@ -901,7 +901,7 @@ defmodule ExPhil.Training.Config do
 
   defp format_value(value) when is_list(value), do: inspect(value, charlists: :as_lists)
   defp format_value(value) when is_atom(value), do: ":#{value}"
-  defp format_value(value) when is_float(value), do: :io_lib.format("~.1e", [value]) |> IO.iodata_to_binary()
+  defp format_value(value) when is_float(value), do: :erlang.float_to_binary(value, [:compact, decimals: 6])
   defp format_value(nil), do: "nil"
   defp format_value(value), do: "#{value}"
 
