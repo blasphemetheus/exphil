@@ -529,6 +529,93 @@ apt-get update && apt-get install -y curl
 - `docker-compose.yml` - Compose configs (alternative to raw docker commands)
 - `.dockerignore` - Excludes build artifacts, keeps image small
 
+## Deployment Checklist
+
+Use this checklist when deploying code changes to GPU for testing/training.
+
+### 1. Build, Tag, Push (Local Machine)
+
+```bash
+cd ~/git/melee/exphil
+
+# Build GPU image
+docker buildx build -f Dockerfile.gpu -t exphil:gpu .
+
+# Tag for Docker Hub
+docker tag exphil:gpu bradleyfargo/exphil:gpu
+
+# Push to registry
+docker push bradleyfargo/exphil:gpu
+```
+
+### 2. Restart Pod (RunPod Dashboard)
+
+1. Go to [runpod.io/console/pods](https://runpod.io/console/pods)
+2. **Stop** the pod (if running)
+3. Wait for it to fully stop
+4. **Start** the pod (pulls latest image automatically)
+5. Connect via SSH or Web Terminal
+
+### 3. Smoke Tests (On Pod)
+
+```bash
+cd /app
+
+# Verify compilation (should complete with no errors)
+mix compile --warnings-as-errors
+
+# Quick test run (10 tests, ~30 seconds)
+mix test --max-cases 10 --exclude slow --exclude integration
+```
+
+### 4. Full Test Suite (Optional)
+
+```bash
+# Run all tests except slow/integration (~1-2 min)
+mix test --exclude slow --exclude integration
+
+# Run self-play tests specifically (90 tests)
+mix test test/exphil/self_play/ --exclude integration
+```
+
+### 5. GPU Architecture Benchmark
+
+```bash
+# Quick benchmark (~10-15 min)
+./scripts/gpu_benchmark.sh --replays /workspace/replays --max-files 50 --epochs 3
+
+# Thorough benchmark (~30-45 min)
+./scripts/gpu_benchmark.sh --replays /workspace/replays --max-files 100 --epochs 5 --batch-size 512
+```
+
+**Output:**
+- Console table with rankings
+- `checkpoints/benchmark_results.json` - Raw data
+- `checkpoints/benchmark_report.html` - Visual comparison
+
+### 6. Training (If Everything Passes)
+
+```bash
+# RTX 4090 optimized presets
+./scripts/gpu_train.sh --preset rtx4090_quick --replays /workspace/replays      # ~5 min test
+./scripts/gpu_train.sh --preset rtx4090_standard --replays /workspace/replays   # ~30-60 min
+./scripts/gpu_train.sh --preset rtx4090_full --replays /workspace/replays       # ~2-3 hours
+
+# Or generic GPU presets
+./scripts/gpu_train.sh --preset gpu_standard --replays /workspace/replays
+./scripts/gpu_train.sh --preset production --replays /workspace/replays
+```
+
+### Troubleshooting Deployment
+
+| Issue | Solution |
+|-------|----------|
+| Pod doesn't pull new image | Stop fully, then start (not just restart) |
+| Compilation errors | Check `git status` locally, ensure all changes committed |
+| Test failures | Run locally first with `mix test` before deploying |
+| OOM during benchmark | Reduce `--batch-size` (try 256 or 128) |
+| EXLA not using GPU | Verify `EXLA_TARGET=cuda` is set |
+
 ## Quick Reference Card
 
 ```bash
