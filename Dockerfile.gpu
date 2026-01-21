@@ -178,10 +178,10 @@ ENV XLA_TARGET=cuda12
 ENV EXLA_TARGET=cuda
 ENV CUDA_VISIBLE_DEVICES=0
 
-# XLA persistent cache - avoids recompilation across runs
+# JAX compilation cache - avoids recompilation across runs
 # Cache stored in /workspace so it persists on RunPod volumes
-ENV XLA_FLAGS="--xla_gpu_persistent_cache_dir=/workspace/xla_cache"
-RUN mkdir -p /workspace/xla_cache
+ENV JAX_COMPILATION_CACHE_DIR=/workspace/jax_cache
+RUN mkdir -p /workspace/jax_cache
 
 # Keep container running for interactive use
 CMD ["sleep", "infinity"]
