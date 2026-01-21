@@ -123,9 +123,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-pip \
     # Git needed for mix deps with git SCM
     git \
-    # Utilities for file transfer
+    # Utilities for file transfer and interactive sessions
     curl \
     unzip \
+    tmux \
     # cuDNN 9 for deep learning (required by EXLA)
     libcudnn9-cuda-12 \
     && rm -rf /var/lib/apt/lists/* \
