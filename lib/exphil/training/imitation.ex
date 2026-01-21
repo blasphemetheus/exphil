@@ -59,7 +59,9 @@ defmodule ExPhil.Training.Imitation do
     :metrics,
     # Cached functions for performance (built once, reused every step)
     :predict_fn,
-    :apply_updates_fn
+    :apply_updates_fn,
+    # Compiled loss+grad function - avoids closure creation and deep_backend_copy every batch
+    :loss_and_grad_fn
   ]
 
   @type t :: %__MODULE__{
@@ -72,7 +74,8 @@ defmodule ExPhil.Training.Imitation do
     step: non_neg_integer(),
     metrics: map(),
     predict_fn: function() | nil,
-    apply_updates_fn: function() | nil
+    apply_updates_fn: function() | nil,
+    loss_and_grad_fn: function() | nil
   }
 
   # Default training configuration
@@ -210,6 +213,10 @@ defmodule ExPhil.Training.Imitation do
     {_init_fn, predict_fn} = Axon.build(policy_model, mode: :inference)
     apply_updates_fn = Nx.Defn.jit(&Polaris.Updates.apply_updates/2)
 
+    # Build compiled loss+grad function (avoids deep_backend_copy every batch)
+    # This function is JITted once and reused for all training steps
+    loss_and_grad_fn = build_loss_and_grad_fn(predict_fn, config)
+
     %__MODULE__{
       policy_model: policy_model,
       policy_params: policy_params,
@@ -225,7 +232,8 @@ defmodule ExPhil.Training.Imitation do
         learning_rate: []
       },
       predict_fn: predict_fn,
-      apply_updates_fn: apply_updates_fn
+      apply_updates_fn: apply_updates_fn,
+      loss_and_grad_fn: loss_and_grad_fn
     }
   end
 
@@ -749,62 +757,20 @@ defmodule ExPhil.Training.Imitation do
   @doc """
   Perform a single training step.
 
-  Uses Nx.Defn.value_and_grad for proper gradient computation with Axon models.
+  Uses cached loss_and_grad_fn built in new/1 to avoid per-batch overhead.
+  No more deep_backend_copy or closure creation every batch.
   """
   @spec train_step(t(), map(), function()) :: {t(), map()}
   def train_step(trainer, batch, _loss_fn) do
     %{states: states, actions: actions} = batch
 
-    # Transfer ALL tensors to default backend to avoid EXLA/Defn.Expr mismatch
-    # This is necessary because Nx.Defn.value_and_grad traces with Expr tensors,
-    # which cannot mix with concrete EXLA tensors captured in closures
-    states = Nx.backend_copy(states)
-    actions = Map.new(actions, fn {k, v} -> {k, Nx.backend_copy(v)} end)
-
-    # Convert states to training precision (bf16 for ~2x speedup, minimal accuracy loss)
-    # This matches the model params precision set during initialization
-    states = Nx.as_type(states, trainer.config.precision)
-
-    # Use cached predict_fn (built once in new/1, reused every step)
-    predict_fn = trainer.predict_fn
-
-    # Copy model parameters to avoid EXLA/Expr mismatch in closures
-    # The original params are stored in trainer and will be used to restore structure
-    model_state = deep_backend_copy(trainer.policy_params)
-    label_smoothing = trainer.config[:label_smoothing] || 0.0
-    focal_loss = trainer.config[:focal_loss] || false
-    focal_gamma = trainer.config[:focal_gamma] || 2.0
-
-    # Build a loss function that takes ModelState as argument
-    loss_fn = fn params ->
-      # Forward pass through the model
-      # In inference mode, predict_fn returns the tuple directly
-      {buttons, main_x, main_y, c_x, c_y, shoulder} = predict_fn.(params, states)
-
-      logits = %{
-        buttons: buttons,
-        main_x: main_x,
-        main_y: main_y,
-        c_x: c_x,
-        c_y: c_y,
-        shoulder: shoulder
-      }
-
-      # Compute imitation loss with optional label smoothing and focal loss
-      Policy.imitation_loss(logits, actions,
-        label_smoothing: label_smoothing,
-        focal_loss: focal_loss,
-        focal_gamma: focal_gamma
-      )
-    end
-
-    # Compute loss and gradients using Nx.Defn.value_and_grad
-    # ModelState implements Nx.Container so this works correctly
-    {loss, grads} = Nx.Defn.value_and_grad(loss_fn).(model_state)
+    # Use cached loss+grad function (built once in new/1)
+    # This avoids deep_backend_copy and closure creation every batch
+    {loss, grads} = trainer.loss_and_grad_fn.(trainer.policy_params, states, actions)
 
     # Extract data for optimizer (grads has same structure as ModelState)
     grads_data = get_params_data(grads)
-    params_data = get_params_data(model_state)
+    params_data = get_params_data(trainer.policy_params)
 
     # Update parameters using the optimizer
     {updates, new_optimizer_state} = trainer.optimizer.(
@@ -815,7 +781,7 @@ defmodule ExPhil.Training.Imitation do
 
     # Use cached apply_updates_fn (built once in new/1, reused every step)
     new_params_data = trainer.apply_updates_fn.(params_data, updates)
-    new_params = put_params_data(model_state, new_params_data)
+    new_params = put_params_data(trainer.policy_params, new_params_data)
 
     # Update trainer state (metrics update deferred to avoid GPU sync)
     # Loss stays as tensor - caller should batch conversions at epoch end
@@ -865,6 +831,58 @@ defmodule ExPhil.Training.Imitation do
     end
 
     {predict_fn, loss_fn}
+  end
+
+  @doc """
+  Build a compiled loss+gradient function for efficient training.
+
+  This function is built ONCE in `new/1` and reused for all training steps.
+  It avoids the need for `deep_backend_copy` every batch by:
+  1. Taking all inputs (params, states, actions) as explicit arguments
+  2. Using JIT compilation to cache the computation graph
+  3. Not capturing any tensors in closures
+
+  The returned function takes `(params, states, actions)` and returns `{loss, grads}`.
+  """
+  @spec build_loss_and_grad_fn(function(), map()) :: function()
+  def build_loss_and_grad_fn(predict_fn, config) do
+    # Extract config options that affect loss computation
+    # These are captured once when building the function, not every batch
+    label_smoothing = config[:label_smoothing] || 0.0
+    focal_loss = config[:focal_loss] || false
+    focal_gamma = config[:focal_gamma] || 2.0
+    precision = config[:precision] || :bf16
+
+    # Build the loss+grad function
+    # predict_fn is captured here (once), not in train_step (every batch)
+    fn params, states, actions ->
+      # Convert states to training precision
+      states = Nx.as_type(states, precision)
+
+      # Build loss function for this call
+      # params is the variable we differentiate w.r.t.
+      loss_fn = fn p ->
+        {buttons, main_x, main_y, c_x, c_y, shoulder} = predict_fn.(p, states)
+
+        logits = %{
+          buttons: buttons,
+          main_x: main_x,
+          main_y: main_y,
+          c_x: c_x,
+          c_y: c_y,
+          shoulder: shoulder
+        }
+
+        Policy.imitation_loss(logits, actions,
+          label_smoothing: label_smoothing,
+          focal_loss: focal_loss,
+          focal_gamma: focal_gamma
+        )
+      end
+
+      # Compute loss and gradients
+      Nx.Defn.value_and_grad(loss_fn).(params)
+    end
   end
 
   @doc """

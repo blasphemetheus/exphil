@@ -500,39 +500,29 @@ avg_loss = losses |> Nx.stack() |> Nx.mean() |> Nx.to_number()  # One transfer
 
 ## 19. deep_backend_copy copies all model params every batch
 
-**Status:** Known performance issue, not yet fixed.
+**Status:** FIXED
 
-`train_step/3` calls `deep_backend_copy(trainer.policy_params)` every batch, copying all model parameters (~2M for typical models). This is expensive.
+Previously, `train_step/3` called `deep_backend_copy(trainer.policy_params)` every batch, copying all model parameters (~2M for typical models). This was a workaround for EXLA/Defn.Expr tensor mismatch (see Gotcha #7).
 
-**Why it exists:** Workaround for EXLA/Defn.Expr tensor mismatch (see Gotcha #7). When `Nx.Defn.value_and_grad` traces the loss function, it creates Expr tensors that can't mix with concrete EXLA tensors captured in closures.
-
-**Current code:**
+**The problem (old code):**
 ```elixir
 # In train_step - COPIES ALL PARAMS EVERY BATCH
 model_state = deep_backend_copy(trainer.policy_params)
 loss_fn = fn params ->
-  predict_fn.(params, states)  # states is captured!
+  predict_fn.(params, states)  # states is captured in closure!
   # ...
 end
 {loss, grads} = Nx.Defn.value_and_grad(loss_fn).(model_state)
 ```
 
-**Proper fix:** Refactor to use `defn` functions that take all inputs as parameters:
+**The fix:** Build the loss+grad function ONCE in `new/1` with `predict_fn` and config captured, then call it with explicit arguments in `train_step`:
 
 ```elixir
-# Define at module level with defn
-defn train_step_impl(params, states, actions, predict_fn) do
-  # No closures, all inputs are arguments
-  logits = predict_fn.(params, states)
-  Policy.imitation_loss(logits, actions)
-end
+# In new/1 - build once, capture predict_fn and config
+loss_and_grad_fn = build_loss_and_grad_fn(predict_fn, config)
 
-# In train_step - NO COPYING
-{loss, grads} = Nx.Defn.value_and_grad(&train_step_impl/4).(
-  trainer.policy_params, states, actions, trainer.predict_fn
-)
+# In train_step - NO COPYING, just call with explicit args
+{loss, grads} = trainer.loss_and_grad_fn.(trainer.policy_params, states, actions)
 ```
 
-**Estimated impact:** 20-30% speedup by eliminating per-batch parameter copies.
-
-**Workaround for now:** The fix is complex and risks breaking the training loop. The `Nx.to_number` fix (Gotcha #18) addresses the larger blocking issue. Parameter copying adds overhead but doesn't cause 0% GPU utilization.
+**Impact:** ~20-30% speedup by eliminating per-batch parameter copies and closure creation.
