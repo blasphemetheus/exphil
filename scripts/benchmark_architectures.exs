@@ -12,6 +12,9 @@
 #
 # Results are saved to checkpoints/benchmark_results.json and benchmark_report.html
 
+# Limit inspect output to prevent overwhelming logs with tensor dumps
+Application.put_env(:elixir, :inspect, limit: 10, printable_limit: 100)
+
 alias ExPhil.Data.Peppi
 alias ExPhil.Training.{Data, GPUUtils, Imitation, Output}
 alias ExPhil.Embeddings
