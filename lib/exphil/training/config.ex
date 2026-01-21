@@ -38,7 +38,8 @@ defmodule ExPhil.Training.Config do
     "--label-smoothing", "--focal-loss", "--focal-gamma", "--no-register",
     "--keep-best", "--ema", "--ema-decay", "--precompute", "--no-precompute",
     "--prefetch", "--no-prefetch", "--gradient-checkpoint", "--checkpoint-every",
-    "--prefetch-buffer", "--layer-norm", "--no-layer-norm", "--optimizer", "--preset"
+    "--prefetch-buffer", "--layer-norm", "--no-layer-norm", "--optimizer", "--preset",
+    "--dry-run"
   ]
 
   @doc """
@@ -137,7 +138,9 @@ defmodule ExPhil.Training.Config do
       optimizer: :adam,  # :adam, :adamw, :lamb, :radam
       # Gradient checkpointing (memory vs compute trade-off)
       gradient_checkpoint: false,
-      checkpoint_every: 1  # Checkpoint every N layers (1 = every layer, 2 = every other)
+      checkpoint_every: 1,  # Checkpoint every N layers (1 = every layer, 2 = every other)
+      # Dry run mode - validate config without training
+      dry_run: false
     ]
   end
 
@@ -1162,6 +1165,7 @@ defmodule ExPhil.Training.Config do
       if opts[:no_layer_norm], do: Keyword.put(opts, :layer_norm, false), else: opts
     end)
     |> parse_atom_arg(args, "--optimizer", :optimizer)
+    |> parse_flag(args, "--dry-run", :dry_run)
   end
 
   defp has_flag_value?(args, flag) do

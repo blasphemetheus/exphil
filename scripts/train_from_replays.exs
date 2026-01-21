@@ -108,19 +108,8 @@ end
 #   --ema-decay X       - EMA decay rate (default: 0.999, range: 0-1)
 #                         Higher = slower updates, smoother weights
 
-# Simple unbuffered output - all output goes to stderr which is always line-buffered
-# This means `mix run script.exs` just works without any redirection tricks
-defmodule Output do
-  @moduledoc "Training output with timestamps"
-
-  def puts(line) do
-    timestamp = DateTime.utc_now() |> Calendar.strftime("%H:%M:%S")
-    IO.puts(:stderr, "[#{timestamp}] #{line}")
-  end
-
-  # For lines that shouldn't have timestamps (like progress bars, dividers)
-  def puts_raw(line), do: IO.puts(:stderr, line)
-end
+# Use the training output module for colored output, progress bars, and formatting
+alias ExPhil.Training.Output
 
 # Build auto-tags based on training configuration
 build_model_tags = fn opts ->
@@ -275,6 +264,24 @@ case Config.format_diff(opts) do
     Output.puts("")
 end
 
+# Dry run mode - validate config and show what would happen, then exit
+if opts[:dry_run] do
+  Output.section("Dry Run Mode")
+  Output.success("Configuration is valid")
+  Output.puts_raw("")
+  Output.kv("Replay files", "#{length(Path.wildcard(Path.join(opts[:replays], "**/*.slp")))} found")
+  Output.kv("Would train for", "#{opts[:epochs]} epochs")
+  Output.kv("Checkpoint", opts[:checkpoint])
+
+  if opts[:wandb] do
+    Output.kv("Wandb", "would log to project '#{opts[:wandb_project]}'")
+  end
+
+  Output.puts_raw("")
+  Output.puts("Run without --dry-run to start training", :cyan)
+  System.halt(0)
+end
+
 # Initialize Wandb if enabled
 if opts[:wandb] do
   wandb_opts = [
@@ -304,7 +311,7 @@ if opts[:wandb] do
 end
 
 # Step 1: Find and parse replays
-Output.puts("Step 1: Parsing replays...")
+Output.puts("Step 1: Parsing replays...", :cyan)
 
 replay_files = Path.wildcard(Path.join(opts[:replays], "**/*.slp"))
 replay_files = if opts[:max_files], do: Enum.take(replay_files, opts[:max_files]), else: replay_files
@@ -409,7 +416,7 @@ if length(all_frames) == 0 do
 end
 
 # Step 2: Create dataset
-Output.puts("\nStep 2: Creating dataset...")
+Output.puts("\nStep 2: Creating dataset...", :cyan)
 
 dataset = Data.from_frames(all_frames)
 
@@ -461,7 +468,7 @@ for {button, rate} <- Enum.sort(stats.button_rates) do
 end
 
 # Step 3: Initialize trainer
-Output.puts("\nStep 3: Initializing model...")
+Output.puts("\nStep 3: Initializing model...", :cyan)
 
 embed_size = Embeddings.embedding_size()
 Output.puts("  Embedding size: #{embed_size}")
@@ -570,8 +577,8 @@ early_stopping_msg = if opts[:early_stopping] do
 else
   ""
 end
-Output.puts("\nStep 4: Training for #{opts[:epochs]} epochs#{early_stopping_msg}...")
-Output.puts_raw("─" |> String.duplicate(60))
+Output.puts("\nStep 4: Training for #{opts[:epochs]} epochs#{early_stopping_msg}...", :cyan)
+Output.divider()
 
 # Create incomplete marker for crash recovery
 Recovery.mark_started(opts[:checkpoint], opts)
@@ -840,7 +847,7 @@ Output.puts("✓ Training complete in #{total_min}m #{total_sec}s")
 Output.puts_raw("─" |> String.duplicate(60))
 
 # Step 5: Save checkpoint
-Output.puts("\nStep 5: Saving checkpoint...")
+Output.puts("\nStep 5: Saving checkpoint...", :cyan)
 case Imitation.save_checkpoint(final_trainer, opts[:checkpoint]) do
   :ok -> Output.puts("  ✓ Saved to #{opts[:checkpoint]}")
   {:error, reason} -> Output.puts("  ✗ Failed: #{inspect(reason)}")
@@ -914,7 +921,7 @@ end
 
 # Step 6: Register model in registry
 unless opts[:no_register] do
-  Output.puts("\nStep 6: Registering model...")
+  Output.puts("\nStep 6: Registering model...", :cyan)
 
   # Determine parent model if resuming from checkpoint
   parent_id = if opts[:resume] do
@@ -954,34 +961,48 @@ unless opts[:no_register] do
   end
 end
 
-# Summary
-early_stop_note = if stopped_early, do: " (stopped early)", else: ""
-best_model_note = if opts[:save_best] do
-  best_policy = Config.derive_best_policy_path(opts[:checkpoint])
-  "  Best model: #{best_policy}\n"
-else
-  ""
+# Summary with colors
+final_loss = Float.round(Enum.sum(Enum.take(final_trainer.metrics.loss, 10)) / 10, 4)
+
+# Find best loss from training history
+best_entry = Enum.min_by(training_history, & &1.train_loss, fn -> %{train_loss: final_loss, epoch: epochs_completed} end)
+best_loss = Float.round(best_entry.train_loss, 4)
+best_epoch = best_entry.epoch
+
+Output.puts_raw("")
+Output.puts_raw(Output.colorize("╔════════════════════════════════════════════════════════════════╗", :green))
+Output.puts_raw(Output.colorize("║                      Training Complete!                        ║", :green))
+Output.puts_raw(Output.colorize("╚════════════════════════════════════════════════════════════════╝", :green))
+
+Output.training_summary(%{
+  total_time_ms: total_time * 1000,
+  epochs_completed: epochs_completed,
+  epochs_total: opts[:epochs],
+  total_steps: final_trainer.step,
+  final_loss: final_loss,
+  best_loss: best_loss,
+  best_epoch: best_epoch,
+  checkpoint_path: opts[:checkpoint]
+})
+
+Output.kv("Training frames", "#{train_dataset.size}")
+Output.kv("Replays parsed", "#{length(replay_files)}")
+
+if stopped_early do
+  Output.puts_raw("  " <> Output.colorize("Early stopping triggered", :yellow))
 end
 
-Output.puts("""
+if opts[:save_best] do
+  best_policy = Config.derive_best_policy_path(opts[:checkpoint])
+  Output.kv("Best policy", best_policy)
+end
 
-╔════════════════════════════════════════════════════════════════╗
-║                      Training Complete!                        ║
-╚════════════════════════════════════════════════════════════════╝
-
-Summary:
-  Replays parsed: #{length(replay_files)}
-  Training frames: #{train_dataset.size}
-  Epochs completed: #{epochs_completed}/#{opts[:epochs]}#{early_stop_note}
-  Final training loss: #{Float.round(Enum.sum(Enum.take(final_trainer.metrics.loss, 10)) / 10, 4)}
-  Checkpoint: #{opts[:checkpoint]}
-#{best_model_note}
-Next steps:
-  1. Test the model: mix run scripts/test_model.exs --checkpoint #{opts[:checkpoint]}
-  2. Continue training: mix run scripts/train_from_replays.exs --checkpoint #{opts[:checkpoint]}
-  3. Run against CPU: mix run scripts/eval.exs
-
-""")
+Output.puts_raw("")
+Output.puts_raw(Output.colorize("Next steps:", :bold))
+Output.puts_raw("  1. Test the model: mix run scripts/test_model.exs --checkpoint #{opts[:checkpoint]}")
+Output.puts_raw("  2. Continue training: mix run scripts/train_from_replays.exs --resume #{opts[:checkpoint]}")
+Output.puts_raw("  3. Run against CPU: mix run scripts/eval.exs")
+Output.puts_raw("")
 
 # Finish Wandb run if active
 if Wandb.active?() do

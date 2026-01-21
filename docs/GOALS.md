@@ -107,14 +107,15 @@ The project can do behavioral cloning but lacks self-play RL. This is the bigges
 
 **Training Feedback & Progress**
 
-| Idea | Effort | Description |
-|------|--------|-------------|
-| Progress bar for epochs | Low | Show `[████░░░░░░] 40% epoch 2/5` instead of just logs |
-| ETA display | Low | Estimate time remaining based on batch throughput |
-| Live loss graph (terminal) | Medium | ASCII sparkline showing loss trend: `▁▂▃▅▂▁▃` |
-| GPU memory warning | Low | Warn before OOM happens (already have monitoring, add threshold) |
-| Training summary at end | Low | Print final stats: total time, best loss, epochs run, etc. |
-| Checkpoint size warning | Low | Warn if checkpoint > 500MB (may be saving unnecessary state) |
+| Idea | Effort | Description | Status |
+|------|--------|-------------|--------|
+| **Progress bar for epochs** | Low | Show `[████░░░░░░] 40% epoch 2/5` with ETA | **Done** |
+| **Training summary at end** | Low | Print final stats: total time, best loss, epochs run, etc. | **Done** |
+| **Colored output** | Low | Red for errors, yellow warnings, green success, cyan info | **Done** |
+| **--dry-run flag** | Low | Validate config, show what would happen, don't train | **Done** |
+| Live loss graph (terminal) | Medium | ASCII sparkline showing loss trend: `▁▂▃▅▂▁▃` | Not started |
+| GPU memory warning | Low | Warn before OOM happens (already have monitoring, add threshold) | Not started |
+| Checkpoint size warning | Low | Warn if checkpoint > 500MB (may be saving unnecessary state) | Not started |
 
 **Replay Processing**
 
@@ -310,6 +311,26 @@ Completed:
   - Detects hidden layer count mismatch
   - Clear multi-line error messages with suggestions
   - 10 new tests for validation behavior
+
+### 2026-01-20: UX Quick Wins (Complete)
+
+Completed:
+- [x] Training Output module - **Done**
+  - `lib/exphil/training/output.ex` with colors, progress bars, formatting
+  - ANSI color support: red, green, yellow, blue, cyan, bold, dim
+  - Progress bar with customizable width, color, label
+  - `training_summary/1` for end-of-training stats
+  - `format_duration/1` and `format_bytes/1` helpers
+- [x] --dry-run flag - **Done**
+  - Validates config and shows what would happen without training
+  - Useful for testing config before long runs
+- [x] Colored step headers - **Done**
+  - Step 1-6 headers now in cyan for visibility
+  - Success/warning/error messages use appropriate colors
+- [x] Enhanced training summary - **Done**
+  - Shows total time, epochs, steps, final/best loss
+  - Highlights early stopping if triggered
+  - 11 new tests for Output module
 
 ---
 
