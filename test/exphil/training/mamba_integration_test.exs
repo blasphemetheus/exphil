@@ -19,7 +19,7 @@ defmodule ExPhil.Training.MambaIntegrationTest do
   @batch_size 4
 
   # Helper to create mock game state
-  defp mock_game_state(opts \\ []) do
+  defp mock_game_state(opts) do
     player = %Player{
       x: Keyword.get(opts, :x, 0.0),
       y: Keyword.get(opts, :y, 0.0),
@@ -75,7 +75,7 @@ defmodule ExPhil.Training.MambaIntegrationTest do
     }
   end
 
-  defp mock_controller_state(opts \\ []) do
+  defp mock_controller_state(opts) do
     %ControllerState{
       main_stick: %{
         x: Keyword.get(opts, :main_x, 0.5),

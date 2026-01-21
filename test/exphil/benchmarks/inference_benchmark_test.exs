@@ -83,9 +83,9 @@ defmodule ExPhil.Benchmarks.InferenceBenchmarkTest do
   end
 
   # Mamba is very slow on CPU - requires GPU for reasonable benchmark times
-  @tag :gpu
+  @describetag :gpu
+  @describetag timeout: 300_000  # 5 minutes for GPU benchmarks
   describe "Mamba backbone inference" do
-    @tag timeout: 300_000  # 5 minutes for GPU benchmarks
     setup do
       model = Mamba.build(
         embed_size: @embed_size,
@@ -113,7 +113,7 @@ defmodule ExPhil.Benchmarks.InferenceBenchmarkTest do
       assert stats.mean < 50, "Mamba inference too slow for real-time: #{stats.mean}ms"
     end
 
-    test "scales with sequence length", %{params: params, predict_fn: predict_fn} do
+    test "scales with sequence length", _context do
       # Short sequence
       input_10 = random_tensor({@batch_size, 10, @embed_size})
 

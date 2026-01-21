@@ -8,7 +8,7 @@ defmodule ExPhil.Training.AugmentationTest do
   # Test Data Helpers
   # ============================================================================
 
-  defp sample_player(opts \\ []) do
+  defp sample_player(opts) do
     %Player{
       x: Keyword.get(opts, :x, 10.0),
       y: Keyword.get(opts, :y, 5.0),

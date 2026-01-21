@@ -165,7 +165,7 @@ defmodule ExPhil.Training.RegistryTest do
     end
 
     test "sorts by created_at descending by default" do
-      {:ok, first} = Registry.register(%{
+      {:ok, _first} = Registry.register(%{
         checkpoint_path: "checkpoints/test1.axon",
         training_config: %{}
       })
@@ -192,7 +192,7 @@ defmodule ExPhil.Training.RegistryTest do
     end
 
     test "returns model by name" do
-      {:ok, entry} = Registry.register(%{
+      {:ok, _entry} = Registry.register(%{
         checkpoint_path: "checkpoints/test.axon",
         training_config: %{},
         name: "my_model"

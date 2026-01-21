@@ -518,7 +518,7 @@ defmodule ExPhil.Networks.PolicyTest do
       )
 
       input = Nx.broadcast(0.5, {@batch_size, @seq_len, @embed_size})
-      {buttons, main_x, main_y, c_x, c_y, shoulder} = predict_fn.(params, input)
+      {buttons, main_x, _main_y, _c_x, _c_y, shoulder} = predict_fn.(params, input)
 
       assert Nx.shape(buttons) == {@batch_size, 8}
       assert Nx.shape(main_x) == {@batch_size, 17}

@@ -3,7 +3,7 @@ defmodule ExPhil.Bridge.ItemTest do
 
   alias ExPhil.Bridge.Item
 
-  defp mock_item(opts \\ []) do
+  defp mock_item(opts) do
     %Item{
       x: Keyword.get(opts, :x, 0.0),
       y: Keyword.get(opts, :y, 0.0),
