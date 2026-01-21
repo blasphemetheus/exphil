@@ -86,13 +86,93 @@ The project can do behavioral cloning but lacks self-play RL. This is the bigges
 
 **Impact: Medium | Status: Improved**
 
+#### Completed
+
 | Task | Effort | Why | Status |
 |------|--------|-----|--------|
 | **Error handling improvements** | Low | Bad replays fail silently | **Done** |
 | **CLI argument validation** | Low | Invalid args silently use defaults | **Done** |
-| Architecture mismatch detection | Low | Cryptic errors when loading wrong model | Not started |
+| **Architecture mismatch detection** | Low | Cryptic errors when loading wrong model | **Done** |
+
+#### Remaining
+
+| Task | Effort | Why | Status |
+|------|--------|-----|--------|
 | Training state recovery | Medium | Resume loses optimizer state | Not started |
 | Checkpoint streaming | Medium | Save doesn't block training | Not started |
+
+---
+
+### 4.1 UX Improvement Ideas
+
+**Training Feedback & Progress**
+
+| Idea | Effort | Description |
+|------|--------|-------------|
+| Progress bar for epochs | Low | Show `[████░░░░░░] 40% epoch 2/5` instead of just logs |
+| ETA display | Low | Estimate time remaining based on batch throughput |
+| Live loss graph (terminal) | Medium | ASCII sparkline showing loss trend: `▁▂▃▅▂▁▃` |
+| GPU memory warning | Low | Warn before OOM happens (already have monitoring, add threshold) |
+| Training summary at end | Low | Print final stats: total time, best loss, epochs run, etc. |
+| Checkpoint size warning | Low | Warn if checkpoint > 500MB (may be saving unnecessary state) |
+
+**Replay Processing**
+
+| Idea | Effort | Description |
+|------|--------|-------------|
+| Replay validation before training | Medium | Quick scan all files before starting, report bad ones |
+| Character/stage filter CLI | Low | `--character mewtwo,fox --stage battlefield,fd` |
+| Replay stats display | Low | Show character distribution, stage distribution, etc. |
+| Duplicate detection | Medium | Skip duplicate replays (by hash or player/date) |
+| Replay quality scoring | High | Filter out obvious bad gameplay (SD chains, AFKs) |
+
+**Model Management**
+
+| Idea | Effort | Description |
+|------|--------|-------------|
+| `mix exphil.list` command | Low | List all checkpoints with metadata (size, date, config) |
+| `mix exphil.info MODEL` | Low | Show model details: architecture, training config, metrics |
+| `mix exphil.compare A B` | Medium | Compare two models' configs and performance |
+| Model naming suggestions | Low | Warn if name conflicts with existing checkpoint |
+| Auto-backup before overwrite | Low | Keep .bak of previous checkpoint |
+
+**Error Messages**
+
+| Idea | Effort | Description |
+|------|--------|-------------|
+| Colored output | Low | Red for errors, yellow for warnings, green for success |
+| Contextual help links | Low | "See docs/TRAINING.md#temporal for temporal training" |
+| Common mistake detection | Medium | "You have --temporal but backbone is mlp, did you mean...?" |
+| Stack trace simplification | Medium | Hide Nx/EXLA internals, show user code only |
+
+**Inference & Evaluation**
+
+| Idea | Effort | Description |
+|------|--------|-------------|
+| Warmup indicator | Low | Show "Compiling model..." during first inference |
+| FPS counter in play mode | Low | Show actual vs target FPS |
+| Action distribution viz | Medium | Show what buttons/sticks model is using |
+| Confidence display | Low | Show model's confidence in its predictions |
+
+**Configuration**
+
+| Idea | Effort | Description |
+|------|--------|-------------|
+| Config file support | Medium | `--config training.yaml` instead of many CLI args |
+| Interactive config wizard | High | `mix exphil.setup` asks questions, generates command |
+| Preset customization | Low | `--preset quick --epochs 5` already works, document better |
+| Environment variable support | Low | `EXPHIL_REPLAYS_DIR` as default replays path |
+
+**Developer Experience**
+
+| Idea | Effort | Description |
+|------|--------|-------------|
+| `--dry-run` flag | Low | Validate config, show what would happen, don't train |
+| `--verbose` / `--quiet` flags | Low | Control log verbosity |
+| Reproducibility seed logging | Low | Print and save random seed for reproducibility |
+| Config diff on resume | Low | Show what changed since last training run |
+
+---
 
 **Error Handling Implementation:**
 - CLI flags: `--skip-errors` (default), `--fail-fast`, `--show-errors`, `--hide-errors`, `--error-log`
@@ -103,6 +183,12 @@ The project can do behavioral cloning but lacks self-play RL. This is the bigges
 - Levenshtein distance-based typo detection
 - Suggests corrections for typos within distance 3 (e.g., `--ephocs` → `--epochs`)
 - Warns about unrecognized flags before parsing
+
+**Architecture Mismatch Detection:**
+- Validates checkpoint format (params + config present)
+- Detects temporal/MLP mismatch (e.g., loading LSTM params into MLP config)
+- Detects hidden layer count mismatch
+- Provides clear error messages with suggestions
 
 ---
 
@@ -218,6 +304,12 @@ Completed:
   - Example: `--ephocs` → "Did you mean '--epochs'?"
   - Warns about completely unrecognized flags
   - 12 new tests for validation behavior
+- [x] Architecture mismatch detection - **Done**
+  - `Training.validate_policy/2` validates checkpoint structure
+  - Detects temporal/MLP mismatch by checking layer names
+  - Detects hidden layer count mismatch
+  - Clear multi-line error messages with suggestions
+  - 10 new tests for validation behavior
 
 ---
 

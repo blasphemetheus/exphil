@@ -66,6 +66,7 @@ Detailed guides in `docs/`:
 | [TRAINING_FEATURES.md](docs/TRAINING_FEATURES.md) | Feature roadmap, presets |
 | [RESEARCH.md](docs/RESEARCH.md) | Prior art, papers, lessons learned, research roadmap |
 | [docker-workflow.md](docs/docker-workflow.md) | Docker build, push, cloud GPU deployment |
+| [REPLAY_STORAGE.md](docs/REPLAY_STORAGE.md) | Cloud storage setup for replays (B2/R2) |
 | [RUNPOD_FILTER.md](docs/RUNPOD_FILTER.md) | Filter low-tier replays from large archives on RunPod |
 | [RCLONE_GDRIVE.md](docs/RCLONE_GDRIVE.md) | Download large files from Google Drive with rclone |
 | [TRAINING_IMPROVEMENTS.md](docs/TRAINING_IMPROVEMENTS.md) | Training-specific optimizations |

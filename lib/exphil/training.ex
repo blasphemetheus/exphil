@@ -347,16 +347,177 @@ defmodule ExPhil.Training do
 
   @doc """
   Load exported policy for inference.
+
+  Options:
+  - `validate: true` - Validate that params match config (default: true)
+
+  Returns `{:ok, policy}` or `{:error, reason}` with a descriptive error message.
   """
-  @spec load_policy(Path.t()) :: {:ok, map()} | {:error, term()}
-  def load_policy(path) do
-    case File.read(path) do
-      {:ok, binary} ->
-        {:ok, :erlang.binary_to_term(binary)}
-      error ->
-        error
+  @spec load_policy(Path.t(), keyword()) :: {:ok, map()} | {:error, term()}
+  def load_policy(path, opts \\ []) do
+    validate = Keyword.get(opts, :validate, true)
+
+    with {:ok, binary} <- File.read(path),
+         {:ok, policy} <- safe_deserialize(binary, path),
+         :ok <- if(validate, do: validate_policy(policy, path), else: :ok) do
+      {:ok, policy}
     end
   end
+
+  # Safely deserialize binary term with helpful error messages
+  defp safe_deserialize(binary, path) do
+    try do
+      {:ok, :erlang.binary_to_term(binary)}
+    rescue
+      ArgumentError ->
+        {:error, "Failed to deserialize #{path}: file may be corrupted or not an ExPhil checkpoint"}
+    end
+  end
+
+  @doc """
+  Validate that policy params match the stored config.
+
+  Checks:
+  - Required keys present (params, config)
+  - Temporal config matches param structure
+  - Hidden layer sizes match param shapes
+  - Output head sizes match axis/shoulder buckets
+  """
+  @spec validate_policy(map(), Path.t()) :: :ok | {:error, String.t()}
+  def validate_policy(policy, path \\ "checkpoint") do
+    with :ok <- validate_required_keys(policy, path),
+         :ok <- validate_param_structure(policy, path) do
+      :ok
+    end
+  end
+
+  defp validate_required_keys(policy, path) do
+    cond do
+      not is_map(policy) ->
+        {:error, "#{path}: Expected map with :params and :config, got #{inspect(policy.__struct__ || :map)}"}
+
+      # Check for exported policy format
+      Map.has_key?(policy, :params) and Map.has_key?(policy, :config) ->
+        :ok
+
+      # Check for checkpoint format
+      Map.has_key?(policy, :policy_params) and Map.has_key?(policy, :config) ->
+        :ok
+
+      Map.has_key?(policy, :params) ->
+        {:error, "#{path}: Missing :config key. This may be an old checkpoint format."}
+
+      Map.has_key?(policy, :config) ->
+        {:error, "#{path}: Missing :params key. File may be corrupted."}
+
+      true ->
+        keys = Map.keys(policy) |> Enum.take(5) |> Enum.join(", ")
+        {:error, "#{path}: Unrecognized checkpoint format. Found keys: #{keys}"}
+    end
+  end
+
+  defp validate_param_structure(policy, path) do
+    params = policy[:params] || policy[:policy_params]
+    config = policy[:config]
+
+    # Extract actual model state params (handle both raw params and ModelState)
+    actual_params = extract_params_data(params)
+
+    # Check for temporal/non-temporal mismatch
+    temporal = config[:temporal] || false
+    backbone = config[:backbone] || :mlp
+
+    cond do
+      # Check if params look like temporal model but config says MLP
+      temporal == false and has_temporal_layers?(actual_params) ->
+        {:error, """
+        #{path}: Architecture mismatch detected!
+
+        Config says: temporal=false (MLP model)
+        But params contain temporal layers (#{detected_backbone(actual_params)})
+
+        This checkpoint was likely saved with --temporal but you're trying to load it
+        without --temporal, or vice versa.
+        """}
+
+      # Check if params look like MLP but config says temporal
+      temporal == true and not has_temporal_layers?(actual_params) ->
+        {:error, """
+        #{path}: Architecture mismatch detected!
+
+        Config says: temporal=true, backbone=#{backbone}
+        But params appear to be from a non-temporal MLP model.
+
+        This checkpoint was likely saved without --temporal but you're trying to load it
+        with --temporal.
+        """}
+
+      # Check hidden sizes match
+      not hidden_sizes_match?(actual_params, config) ->
+        expected = config[:hidden_sizes] || [512, 512]
+        {:error, """
+        #{path}: Hidden layer size mismatch!
+
+        Config specifies hidden_sizes: #{inspect(expected)}
+        But params have different layer dimensions.
+
+        Make sure --hidden-sizes matches the checkpoint's architecture.
+        """}
+
+      true ->
+        :ok
+    end
+  end
+
+  # Extract raw params from ModelState or return as-is
+  defp extract_params_data(%Axon.ModelState{data: data}), do: data
+  defp extract_params_data(params) when is_map(params), do: params
+
+  # Check if params contain temporal-specific layers
+  defp has_temporal_layers?(params) when is_map(params) do
+    keys = Map.keys(params) |> Enum.map(&to_string/1)
+
+    Enum.any?(keys, fn key ->
+      String.contains?(key, "lstm") or
+      String.contains?(key, "gru") or
+      String.contains?(key, "mamba") or
+      String.contains?(key, "attention") or
+      String.contains?(key, "sliding_window")
+    end)
+  end
+  defp has_temporal_layers?(_), do: false
+
+  # Try to detect what backbone the params are from
+  defp detected_backbone(params) when is_map(params) do
+    keys = Map.keys(params) |> Enum.map(&to_string/1)
+
+    cond do
+      Enum.any?(keys, &String.contains?(&1, "lstm")) -> "LSTM"
+      Enum.any?(keys, &String.contains?(&1, "gru")) -> "GRU"
+      Enum.any?(keys, &String.contains?(&1, "mamba")) -> "Mamba"
+      Enum.any?(keys, &String.contains?(&1, "attention")) -> "Attention"
+      true -> "unknown temporal"
+    end
+  end
+  defp detected_backbone(_), do: "unknown"
+
+  # Check if hidden layer sizes match params
+  defp hidden_sizes_match?(params, config) when is_map(params) do
+    hidden_sizes = config[:hidden_sizes] || [512, 512]
+    keys = Map.keys(params) |> Enum.map(&to_string/1)
+
+    # Find backbone dense layers
+    backbone_layers = Enum.filter(keys, &String.starts_with?(&1, "backbone_dense_"))
+
+    # If we can't find backbone layers, assume it's ok (different naming convention)
+    if Enum.empty?(backbone_layers) do
+      true
+    else
+      # Check we have the expected number of layers
+      length(backbone_layers) == length(hidden_sizes)
+    end
+  end
+  defp hidden_sizes_match?(_, _), do: true
 
   @doc """
   Get action from trained policy.

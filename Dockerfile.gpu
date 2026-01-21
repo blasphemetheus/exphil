@@ -125,9 +125,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     # Utilities for file transfer
     curl \
+    unzip \
     # cuDNN 9 for deep learning (required by EXLA)
     libcudnn9-cuda-12 \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    # Install rclone for cloud storage sync
+    && curl -s https://rclone.org/install.sh | bash
 
 # Set up Python
 RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1
@@ -161,7 +164,10 @@ COPY --from=builder /app/mix.exs /app/mix.lock /app/
 RUN mix local.hex --force && mix local.rebar --force
 
 # Create directories for data
-RUN mkdir -p /app/replays /app/checkpoints
+RUN mkdir -p /app/replays /app/checkpoints /workspace/replays /workspace/checkpoints
+
+# Make fetch script executable
+RUN chmod +x /app/scripts/fetch_replays.sh
 
 # Environment variables for EXLA/CUDA 12
 ENV XLA_TARGET=cuda12

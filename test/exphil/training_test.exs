@@ -454,6 +454,116 @@ defmodule ExPhil.TrainingTest do
       assert {:error, _} = result
     end
 
+    test "load_policy/1 returns helpful error for corrupted file" do
+      path = Path.join(System.tmp_dir!(), "corrupted_#{:rand.uniform(10_000)}.bin")
+      File.write!(path, "not a valid erlang term")
+
+      on_exit(fn -> File.rm(path) end)
+
+      result = Training.load_policy(path)
+      assert {:error, msg} = result
+      assert msg =~ "corrupted"
+    end
+
+    test "validate_policy/1 accepts valid exported policy format" do
+      policy = %{
+        params: %{"backbone_dense_0" => %{kernel: Nx.broadcast(0, {10, 10})}},
+        config: %{temporal: false, hidden_sizes: [64]}
+      }
+
+      assert :ok = Training.validate_policy(policy)
+    end
+
+    test "validate_policy/1 accepts valid checkpoint format" do
+      policy = %{
+        policy_params: %{"backbone_dense_0" => %{kernel: Nx.broadcast(0, {10, 10})}},
+        config: %{temporal: false, hidden_sizes: [64]}
+      }
+
+      assert :ok = Training.validate_policy(policy)
+    end
+
+    test "validate_policy/1 returns error for missing params" do
+      policy = %{config: %{temporal: false}}
+
+      {:error, msg} = Training.validate_policy(policy, "test.bin")
+      assert msg =~ "Missing :params"
+    end
+
+    test "validate_policy/1 returns error for missing config" do
+      policy = %{params: %{}}
+
+      {:error, msg} = Training.validate_policy(policy, "test.bin")
+      assert msg =~ "Missing :config"
+    end
+
+    test "validate_policy/1 returns error for unrecognized format" do
+      policy = %{something_else: true}
+
+      {:error, msg} = Training.validate_policy(policy, "test.bin")
+      assert msg =~ "Unrecognized checkpoint format"
+    end
+
+    test "validate_policy/1 detects temporal/MLP mismatch - temporal params but MLP config" do
+      # Params have LSTM layers but config says temporal=false
+      policy = %{
+        params: %{
+          "lstm_cell" => %{kernel: Nx.broadcast(0, {10, 10})},
+          "backbone_dense_0" => %{kernel: Nx.broadcast(0, {10, 10})}
+        },
+        config: %{temporal: false, hidden_sizes: [64]}
+      }
+
+      {:error, msg} = Training.validate_policy(policy, "test.bin")
+      assert msg =~ "Architecture mismatch"
+      assert msg =~ "temporal=false"
+      assert msg =~ "LSTM"
+    end
+
+    test "validate_policy/1 detects temporal/MLP mismatch - MLP params but temporal config" do
+      # Params have only MLP layers but config says temporal=true
+      policy = %{
+        params: %{
+          "backbone_dense_0" => %{kernel: Nx.broadcast(0, {10, 10})},
+          "buttons_logits" => %{kernel: Nx.broadcast(0, {10, 8})}
+        },
+        config: %{temporal: true, backbone: :mamba, hidden_sizes: [64]}
+      }
+
+      {:error, msg} = Training.validate_policy(policy, "test.bin")
+      assert msg =~ "Architecture mismatch"
+      assert msg =~ "temporal=true"
+    end
+
+    test "validate_policy/1 detects hidden size layer count mismatch" do
+      # Config says 3 hidden layers but params only have 2
+      policy = %{
+        params: %{
+          "backbone_dense_0" => %{kernel: Nx.broadcast(0, {10, 10})},
+          "backbone_dense_1" => %{kernel: Nx.broadcast(0, {10, 10})}
+        },
+        config: %{temporal: false, hidden_sizes: [64, 64, 64]}  # 3 layers
+      }
+
+      {:error, msg} = Training.validate_policy(policy, "test.bin")
+      assert msg =~ "Hidden layer size mismatch"
+    end
+
+    test "load_policy/2 with validate: false skips validation" do
+      path = Path.join(System.tmp_dir!(), "no_validate_#{:rand.uniform(10_000)}.bin")
+
+      # Write a valid binary term but with missing config
+      File.write!(path, :erlang.term_to_binary(%{params: %{}}))
+
+      on_exit(fn -> File.rm(path) end)
+
+      # With validation, should fail
+      assert {:error, _} = Training.load_policy(path, validate: true)
+
+      # Without validation, should succeed
+      assert {:ok, _} = Training.load_policy(path, validate: false)
+    end
+
     @tag :slow
     test "get_action/3 dispatches to Imitation trainer" do
       trainer = Imitation.new(embed_size: 256, hidden_sizes: [64])

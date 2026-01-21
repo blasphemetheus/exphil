@@ -144,7 +144,35 @@ nvidia-smi
 
 #### Upload Replays
 
-**Option 1: Direct TCP (if available)**
+**Option 1: Cloud Storage (Recommended)**
+
+Best for frequent pod restarts. Upload once, fetch automatically. See [REPLAY_STORAGE.md](REPLAY_STORAGE.md) for full setup.
+
+```bash
+# === ONE-TIME SETUP (local machine) ===
+# 1. Create Backblaze B2 account and bucket
+# 2. Configure rclone:
+rclone config  # Add b2 remote with your credentials
+
+# 3. Upload replays:
+rclone sync ~/git/melee/slp b2:exphil-replays --progress
+
+# === ON EACH POD ===
+# Set env vars in RunPod pod config, or export manually:
+export B2_KEY_ID="your_key_id"
+export B2_APP_KEY="your_app_key"
+export B2_BUCKET="exphil-replays"
+
+# Fetch replays:
+/app/scripts/fetch_replays.sh
+```
+
+Or set RunPod **Start Command** to auto-fetch on pod start:
+```bash
+/app/scripts/fetch_replays.sh && sleep infinity
+```
+
+**Option 2: Direct TCP (if available)**
 
 From your **local machine**, using SSH over exposed TCP:
 
@@ -156,7 +184,7 @@ rsync -avz --progress \
   root@IP:/workspace/replays/
 ```
 
-**Option 2: Via file sharing service (if rsync/scp fail)**
+**Option 3: Via file sharing service (if rsync/scp fail)**
 
 RunPod's SSH proxy doesn't support rsync/scp subsystems. Use a file sharing service:
 
@@ -174,7 +202,7 @@ tar xzf replays.tar.gz
 rm replays.tar.gz
 ```
 
-**Option 3: Via Jupyter Lab**
+**Option 4: Via Jupyter Lab**
 
 If port 8888 is exposed and Jupyter is running, use the web file browser to upload files directly.
 
@@ -485,6 +513,14 @@ apt-get update && apt-get install -y curl
 | `EXLA_TARGET` | `cuda` (GPU) / `host` (CPU) | EXLA backend selection |
 | `CUDA_VISIBLE_DEVICES` | `0` | Which GPU to use |
 | `WANDB_API_KEY` | - | Weights & Biases API key |
+| `B2_KEY_ID` | - | Backblaze B2 key ID for replay sync |
+| `B2_APP_KEY` | - | Backblaze B2 application key |
+| `B2_BUCKET` | - | Backblaze B2 bucket name |
+| `R2_ACCESS_KEY` | - | Cloudflare R2 access key (alternative to B2) |
+| `R2_SECRET_KEY` | - | Cloudflare R2 secret key |
+| `R2_ENDPOINT` | - | Cloudflare R2 endpoint URL |
+| `R2_BUCKET` | - | Cloudflare R2 bucket name |
+| `REPLAY_DIR` | `/workspace/replays` | Target directory for replay sync |
 
 ## Files
 
@@ -503,19 +539,32 @@ docker buildx build -f Dockerfile.gpu -t exphil:gpu .
 docker tag exphil:gpu bradleyfargo/exphil:gpu
 docker push bradleyfargo/exphil:gpu
 
-# Upload replays to RunPod (replace IP/PORT)
-rsync -avz --progress -e "ssh -p PORT" \
-  ~/git/melee/replays/ root@IP:/workspace/replays/
+# Upload replays to cloud storage (one-time)
+rclone sync ~/git/melee/slp b2:exphil-replays --progress
 
-# Download checkpoints from RunPod
-rsync -avz --progress -e "ssh -p PORT" \
-  root@IP:/workspace/checkpoints/ ~/git/melee/exphil/checkpoints/
+# Download checkpoints from cloud storage
+rclone sync b2:exphil-replays/checkpoints ~/git/melee/exphil/checkpoints --progress
 
 
-# === RUNPOD ===
+# === RUNPOD POD CONFIG ===
+
+# Environment Variables (set in RunPod dashboard):
+# B2_KEY_ID=your_key_id
+# B2_APP_KEY=your_app_key
+# B2_BUCKET=exphil-replays
+
+# Start Command (auto-fetch replays on pod start):
+# /app/scripts/fetch_replays.sh && sleep infinity
+
+
+# === RUNPOD (after SSH) ===
 
 # Check GPU
 nvidia-smi
+
+# Fetch replays (if not using Start Command)
+export B2_KEY_ID="..." B2_APP_KEY="..." B2_BUCKET="exphil-replays"
+/app/scripts/fetch_replays.sh
 
 # Quick GPU validation (~5 min)
 cd /app
@@ -538,6 +587,9 @@ mix run scripts/train_from_replays.exs \
   --online-robust \
   --replays /workspace/replays \
   --checkpoint /workspace/checkpoints
+
+# Sync checkpoints back to cloud
+rclone sync /workspace/checkpoints b2:$B2_BUCKET/checkpoints --progress
 
 # Long runs with tmux
 tmux new -s training
