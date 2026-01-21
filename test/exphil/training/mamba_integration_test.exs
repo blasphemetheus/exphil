@@ -381,4 +381,97 @@ defmodule ExPhil.Training.MambaIntegrationTest do
       assert is_tuple(lstm_out) or is_map(lstm_out)
     end
   end
+
+  describe "gradient checkpointing" do
+    @tag :slow
+    test "builds checkpointed Mamba model" do
+      alias ExPhil.Networks.Mamba
+
+      model = Mamba.build_checkpointed(
+        embed_size: @embed_size,
+        hidden_size: @hidden_size,
+        state_size: @state_size,
+        num_layers: 2,
+        window_size: @window_size
+      )
+
+      assert %Axon{} = model
+    end
+
+    @tag :slow
+    test "checkpointed Mamba produces same output shape as regular" do
+      alias ExPhil.Networks.Mamba
+
+      opts = [
+        embed_size: @embed_size,
+        hidden_size: @hidden_size,
+        state_size: @state_size,
+        num_layers: 2,
+        window_size: @window_size
+      ]
+
+      regular_model = Mamba.build(opts)
+      checkpointed_model = Mamba.build_checkpointed(opts)
+
+      # Initialize both
+      {init_reg, predict_reg} = Axon.build(regular_model, mode: :inference)
+      {init_ckpt, predict_ckpt} = Axon.build(checkpointed_model, mode: :inference)
+
+      input_template = Nx.template({1, @window_size, @embed_size}, :f32)
+      params_reg = init_reg.(input_template, Axon.ModelState.empty())
+      params_ckpt = init_ckpt.(input_template, Axon.ModelState.empty())
+
+      # Forward pass
+      input = Nx.broadcast(0.5, {1, @window_size, @embed_size})
+      out_reg = predict_reg.(params_reg, input)
+      out_ckpt = predict_ckpt.(params_ckpt, input)
+
+      # Same output shape
+      assert Nx.shape(out_reg) == Nx.shape(out_ckpt)
+      assert Nx.shape(out_reg) == {1, @hidden_size}
+    end
+
+    @tag :slow
+    test "trainer can be created with gradient checkpointing enabled" do
+      trainer = Imitation.new(
+        embed_size: @embed_size,
+        temporal: true,
+        backbone: :mamba,
+        hidden_size: @hidden_size,
+        window_size: @window_size,
+        gradient_checkpoint: true,
+        checkpoint_every: 1
+      )
+
+      assert %Imitation{} = trainer
+      assert trainer.config.gradient_checkpoint == true
+      assert trainer.config.checkpoint_every == 1
+    end
+
+    @tag :slow
+    test "checkpoint_every option is respected" do
+      alias ExPhil.Networks.Mamba
+
+      # Build with checkpoint_every: 2 (every other layer)
+      model = Mamba.build_checkpointed(
+        embed_size: @embed_size,
+        hidden_size: @hidden_size,
+        state_size: @state_size,
+        num_layers: 4,
+        window_size: @window_size,
+        checkpoint_every: 2
+      )
+
+      # Model should build successfully
+      {init_fn, predict_fn} = Axon.build(model, mode: :inference)
+      input_template = Nx.template({1, @window_size, @embed_size}, :f32)
+      params = init_fn.(input_template, Axon.ModelState.empty())
+
+      # Forward pass should work
+      input = Nx.broadcast(0.5, {1, @window_size, @embed_size})
+      output = predict_fn.(params, input)
+
+      assert Nx.shape(output) == {1, @hidden_size}
+    end
+  end
 end

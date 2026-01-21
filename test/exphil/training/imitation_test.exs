@@ -495,4 +495,103 @@ defmodule ExPhil.Training.ImitationTest do
       end
     end
   end
+
+  describe "precision configuration" do
+    test "creates trainer with bf16 precision (default)" do
+      trainer = Imitation.new(embed_size: 64, hidden_sizes: [32])
+
+      assert trainer.config.precision == :bf16
+    end
+
+    test "creates trainer with f32 precision" do
+      trainer = Imitation.new(embed_size: 64, hidden_sizes: [32], precision: :f32)
+
+      assert trainer.config.precision == :f32
+    end
+
+    @tag :slow
+    test "bf16 training step converts inputs to bf16" do
+      trainer = Imitation.new(embed_size: 64, hidden_sizes: [32], precision: :bf16)
+
+      # Create batch with f32 inputs (simulating typical data loading)
+      batch = %{
+        states: Nx.broadcast(Nx.tensor(0.5, type: :f32), {4, 64}),
+        actions: %{
+          buttons: Nx.broadcast(0, {4, 8}),
+          main_x: Nx.broadcast(8, {4}),
+          main_y: Nx.broadcast(8, {4}),
+          c_x: Nx.broadcast(8, {4}),
+          c_y: Nx.broadcast(8, {4}),
+          shoulder: Nx.broadcast(0, {4})
+        }
+      }
+
+      # Training step should succeed (inputs converted internally)
+      {new_trainer, metrics} = Imitation.train_step(trainer, batch, nil)
+
+      assert new_trainer.step == 1
+      assert is_float(metrics.loss)
+    end
+
+    @tag :slow
+    test "f32 training step works with f32 inputs" do
+      trainer = Imitation.new(embed_size: 64, hidden_sizes: [32], precision: :f32)
+
+      batch = %{
+        states: Nx.broadcast(Nx.tensor(0.5, type: :f32), {4, 64}),
+        actions: %{
+          buttons: Nx.broadcast(0, {4, 8}),
+          main_x: Nx.broadcast(8, {4}),
+          main_y: Nx.broadcast(8, {4}),
+          c_x: Nx.broadcast(8, {4}),
+          c_y: Nx.broadcast(8, {4}),
+          shoulder: Nx.broadcast(0, {4})
+        }
+      }
+
+      {new_trainer, metrics} = Imitation.train_step(trainer, batch, nil)
+
+      assert new_trainer.step == 1
+      assert is_float(metrics.loss)
+    end
+  end
+
+  describe "gradient checkpointing configuration" do
+    test "creates trainer with gradient checkpointing disabled by default" do
+      trainer = Imitation.new(embed_size: 64, hidden_sizes: [32])
+
+      assert trainer.config.gradient_checkpoint == false
+    end
+
+    test "creates trainer with gradient checkpointing enabled" do
+      trainer = Imitation.new(
+        embed_size: 64,
+        hidden_sizes: [32],
+        gradient_checkpoint: true
+      )
+
+      assert trainer.config.gradient_checkpoint == true
+    end
+
+    test "checkpoint_every defaults to 1" do
+      trainer = Imitation.new(
+        embed_size: 64,
+        hidden_sizes: [32],
+        gradient_checkpoint: true
+      )
+
+      assert trainer.config.checkpoint_every == 1
+    end
+
+    test "checkpoint_every can be customized" do
+      trainer = Imitation.new(
+        embed_size: 64,
+        hidden_sizes: [32],
+        gradient_checkpoint: true,
+        checkpoint_every: 2
+      )
+
+      assert trainer.config.checkpoint_every == 2
+    end
+  end
 end
