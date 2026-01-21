@@ -106,6 +106,8 @@ defmodule ExPhil.Training.Imitation do
     state_size: 16,               # Mamba SSM state dimension
     expand_factor: 2,             # Mamba expansion factor
     conv_size: 4,                 # Mamba conv kernel size
+    # Jamba-specific (Mamba + Attention hybrid)
+    attention_every: 3,           # Insert attention layer every N layers
     # Gradient checkpointing (trade compute for memory)
     gradient_checkpoint: false,   # Enable gradient checkpointing for memory efficiency
     checkpoint_every: 1,          # Checkpoint every N layers (1 = every layer)
@@ -165,6 +167,8 @@ defmodule ExPhil.Training.Imitation do
         shoulder_buckets: config.shoulder_buckets,
         truncate_bptt: config.truncate_bptt,
         layer_norm: config.layer_norm,
+        # Jamba-specific
+        attention_every: config.attention_every,
         # Gradient checkpointing for memory efficiency
         gradient_checkpoint: Map.get(config, :gradient_checkpoint, false),
         checkpoint_every: Map.get(config, :checkpoint_every, 1)

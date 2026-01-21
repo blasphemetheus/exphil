@@ -54,7 +54,8 @@ end
 # Architectures to benchmark
 architectures = [
   {:mlp, "MLP (baseline)", [temporal: false, hidden_sizes: [128, 128], precompute: true]},
-  {:mamba, "Mamba SSM", [temporal: true, backbone: :mamba, window_size: 30, num_layers: 1]},
+  {:mamba, "Mamba SSM", [temporal: true, backbone: :mamba, window_size: 30, num_layers: 2]},
+  {:jamba, "Jamba (Mamba+Attn)", [temporal: true, backbone: :jamba, window_size: 30, num_layers: 3, attention_every: 3]},
   {:lstm, "LSTM", [temporal: true, backbone: :lstm, window_size: 30, num_layers: 1]},
   {:gru, "GRU", [temporal: true, backbone: :gru, window_size: 30, num_layers: 1]},
   {:attention, "Attention", [temporal: true, backbone: :attention, window_size: 30, num_layers: 1, num_heads: 4]}
@@ -167,7 +168,8 @@ results = Enum.map(architectures, fn {arch_id, arch_name, arch_opts} ->
     backbone: opts[:backbone],
     window_size: opts[:window_size],
     num_layers: opts[:num_layers],
-    num_heads: opts[:num_heads]
+    num_heads: opts[:num_heads],
+    attention_every: opts[:attention_every]
   )
 
   # Training loop with timing

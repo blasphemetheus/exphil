@@ -271,6 +271,42 @@ This is ExPhil's differentiator - no existing research targets low-tiers.
 
 ---
 
+## Pending Tasks (Run on GPU)
+
+### Architecture Benchmarking
+
+Compare Jamba, Mamba, LSTM, GRU, and Attention on real replay data:
+
+```bash
+# Replay files are at ~/git/melee/slp/mewtwo
+mix run scripts/benchmark_architectures.exs \
+  --replay-dir ~/git/melee/slp/mewtwo \
+  --max-files 100 \
+  --epochs 5
+
+# Results saved to:
+# - checkpoints/benchmark_results.json
+# - checkpoints/benchmark_report.html (open in browser)
+```
+
+### Train K-Means Stick Centers
+
+Train K-means clustering on stick positions from replays:
+
+```bash
+mix run scripts/train_kmeans.exs \
+  --replays ~/git/melee/slp/mewtwo \
+  --k 21 \
+  --output priv/kmeans_centers.nx
+
+# Then use in training:
+mix run scripts/train_from_replays.exs \
+  --kmeans-centers priv/kmeans_centers.nx \
+  --replays ~/git/melee/slp/mewtwo
+```
+
+---
+
 ## Implementation Log
 
 ### 2026-01-20: GPU Optimizations

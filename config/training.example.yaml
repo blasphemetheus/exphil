@@ -20,9 +20,12 @@ batch_size: 128
 # Model architecture
 hidden_sizes: [256, 256]
 temporal: true
-backbone: mamba
+backbone: mamba          # Options: mamba, jamba, lstm, gru, lstm_hybrid, sliding_window
 window_size: 60
 num_layers: 2
+
+# Jamba-specific (Mamba + Attention hybrid)
+# attention_every: 3    # Insert attention layer every N layers (for --backbone jamba)
 
 # MLP backbone options (for non-temporal or --backbone mlp)
 # layer_norm: true     # Layer normalization after each dense layer
