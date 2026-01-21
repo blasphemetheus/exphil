@@ -1620,6 +1620,158 @@ defmodule ExPhil.Training.ConfigTest do
       assert "--temporal" in flags
       assert "--focal-loss" in flags
       assert "--preset" in flags
+      assert "--config" in flags
+    end
+  end
+
+  # ============================================================================
+  # YAML Config Tests
+  # ============================================================================
+
+  describe "parse_yaml/1" do
+    test "parses basic YAML config" do
+      yaml = """
+      epochs: 20
+      batch_size: 128
+      temporal: true
+      """
+
+      {:ok, opts} = Config.parse_yaml(yaml)
+
+      assert opts[:epochs] == 20
+      assert opts[:batch_size] == 128
+      assert opts[:temporal] == true
+    end
+
+    test "parses hidden_sizes as list" do
+      yaml = """
+      hidden_sizes: [256, 256]
+      """
+
+      {:ok, opts} = Config.parse_yaml(yaml)
+      assert opts[:hidden_sizes] == [256, 256]
+    end
+
+    test "converts backbone to atom" do
+      yaml = """
+      backbone: mamba
+      lr_schedule: cosine
+      optimizer: adamw
+      """
+
+      {:ok, opts} = Config.parse_yaml(yaml)
+
+      assert opts[:backbone] == :mamba
+      assert opts[:lr_schedule] == :cosine
+      assert opts[:optimizer] == :adamw
+    end
+
+    test "handles kebab-case keys" do
+      yaml = """
+      batch-size: 64
+      learning-rate: 0.001
+      lr-schedule: constant
+      """
+
+      {:ok, opts} = Config.parse_yaml(yaml)
+
+      assert opts[:batch_size] == 64
+      assert opts[:learning_rate] == 0.001
+      assert opts[:lr_schedule] == :constant
+    end
+
+    test "converts characters list to atoms" do
+      yaml = """
+      characters: [mewtwo, fox, falco]
+      """
+
+      {:ok, opts} = Config.parse_yaml(yaml)
+      assert opts[:characters] == [:mewtwo, :fox, :falco]
+    end
+
+    test "returns error for invalid YAML" do
+      yaml = """
+      epochs: [unclosed bracket
+      """
+
+      assert {:error, _} = Config.parse_yaml(yaml)
+    end
+  end
+
+  describe "load_yaml/1" do
+    @test_dir Path.join(System.tmp_dir!(), "config_test_#{:erlang.unique_integer()}")
+
+    setup do
+      File.mkdir_p!(@test_dir)
+      on_exit(fn -> File.rm_rf!(@test_dir) end)
+      :ok
+    end
+
+    test "loads config from file" do
+      path = Path.join(@test_dir, "config.yaml")
+      File.write!(path, """
+      epochs: 50
+      temporal: true
+      backbone: mamba
+      """)
+
+      {:ok, opts} = Config.load_yaml(path)
+
+      assert opts[:epochs] == 50
+      assert opts[:temporal] == true
+      assert opts[:backbone] == :mamba
+    end
+
+    test "returns error for missing file" do
+      {:error, :file_not_found} = Config.load_yaml("/nonexistent/config.yaml")
+    end
+  end
+
+  describe "save_yaml/2" do
+    @test_dir Path.join(System.tmp_dir!(), "config_save_test_#{:erlang.unique_integer()}")
+
+    setup do
+      File.mkdir_p!(@test_dir)
+      on_exit(fn -> File.rm_rf!(@test_dir) end)
+      :ok
+    end
+
+    test "saves config to YAML file" do
+      path = Path.join(@test_dir, "output.yaml")
+      opts = [epochs: 10, batch_size: 64, temporal: true]
+
+      :ok = Config.save_yaml(opts, path)
+
+      content = File.read!(path)
+      assert content =~ "epochs: 10"
+      assert content =~ "batch-size: 64"
+      assert content =~ "temporal: true"
+    end
+  end
+
+  describe "parse_args with --config" do
+    @test_dir Path.join(System.tmp_dir!(), "config_args_test_#{:erlang.unique_integer()}")
+
+    setup do
+      File.mkdir_p!(@test_dir)
+      on_exit(fn -> File.rm_rf!(@test_dir) end)
+      :ok
+    end
+
+    test "loads config file and merges with CLI args" do
+      path = Path.join(@test_dir, "config.yaml")
+      File.write!(path, """
+      epochs: 50
+      batch_size: 256
+      temporal: true
+      """)
+
+      # CLI args should override YAML
+      opts = Config.parse_args(["--config", path, "--epochs", "10"])
+
+      assert opts[:epochs] == 10  # CLI override
+      assert opts[:batch_size] == 256  # From YAML
+      assert opts[:temporal] == true  # From YAML
     end
   end
 end

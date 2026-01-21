@@ -136,7 +136,7 @@ end
 require Logger
 
 alias ExPhil.Data.Peppi
-alias ExPhil.Training.{Augmentation, CheckpointPruning, Config, Data, EarlyStopping, EMA, GPUUtils, Imitation, Plots, Prefetcher, Recovery, Registry}
+alias ExPhil.Training.{Augmentation, CheckpointPruning, Config, Data, EarlyStopping, EMA, GPUUtils, Imitation, Plots, Prefetcher, Recovery, Registry, ReplayValidation}
 alias ExPhil.Embeddings
 alias ExPhil.Integrations.Wandb
 
@@ -310,13 +310,144 @@ if opts[:wandb] do
   end
 end
 
-# Step 1: Find and parse replays
-Output.puts("Step 1: Parsing replays...", :cyan)
+# Step 1: Find and validate replays
+Output.puts("Step 1: Finding replays...", :cyan)
 
 replay_files = Path.wildcard(Path.join(opts[:replays], "**/*.slp"))
+initial_count = length(replay_files)
+Output.puts("  Found #{initial_count} replay files")
+
+# Quick validation to filter out obviously bad files early
+if initial_count > 0 and initial_count <= 5000 do
+  Output.puts("  Validating replay files...")
+  {:ok, validated_files, validation_stats} = ReplayValidation.validate(replay_files,
+    show_progress: false,
+    verbose: false
+  )
+
+  if validation_stats.invalid > 0 do
+    Output.warning("#{validation_stats.invalid} invalid replay files will be skipped")
+    if validation_stats.invalid <= 5 do
+      # Show details for small number of errors
+      Enum.each(Enum.take(validation_stats.errors, 5), fn {path, reason} ->
+        Output.puts_raw("    - #{Path.basename(path)}: #{reason}")
+      end)
+    end
+  end
+
+  replay_files = validated_files
+else
+  if initial_count > 5000 do
+    Output.puts("  Skipping validation for large dataset (#{initial_count} files)")
+  end
+end
+
+# Filter by character/stage if specified (uses fast metadata parsing)
+# Also collect stats for display
+character_filter = opts[:characters] || []
+stage_filter = opts[:stages] || []
+
+# Stage ID to name mapping for stats display
+stage_id_to_name = %{
+  2 => "Fountain of Dreams",
+  3 => "Pokemon Stadium",
+  8 => "Yoshi's Story",
+  28 => "Dream Land",
+  31 => "Battlefield",
+  32 => "Final Destination"
+}
+
+# Collect metadata for all replays (fast) - used for filtering and stats
+{replay_files, replay_stats} = if character_filter != [] or stage_filter != [] or initial_count <= 1000 do
+  # Get canonical character names for matching
+  char_names = Enum.map(character_filter, &Config.character_name/1) |> Enum.uniq()
+  stage_ids = Enum.map(stage_filter, &Config.stage_id/1) |> Enum.filter(& &1)
+
+  if character_filter != [] or stage_filter != [] do
+    filter_desc = []
+    filter_desc = if char_names != [], do: ["characters: #{Enum.join(char_names, ", ")}" | filter_desc], else: filter_desc
+    filter_desc = if stage_ids != [] do
+      stage_names = Enum.map(stage_filter, fn s ->
+        case Config.stage_info(s) do
+          {name, _} -> name
+          nil -> to_string(s)
+        end
+      end) |> Enum.uniq()
+      ["stages: #{Enum.join(stage_names, ", ")}" | filter_desc]
+    else
+      filter_desc
+    end
+    Output.puts("  Filtering by #{Enum.join(Enum.reverse(filter_desc), ", ")}...")
+  else
+    Output.puts("  Collecting replay metadata...")
+  end
+
+  # Collect metadata and filter
+  {filtered, char_counts, stage_counts} = replay_files
+  |> Task.async_stream(
+    fn path ->
+      case Peppi.metadata(path) do
+        {:ok, meta} -> {:ok, path, meta}
+        {:error, _} -> {:skip, path}
+      end
+    end,
+    max_concurrency: System.schedulers_online(),
+    timeout: 30_000
+  )
+  |> Enum.reduce({[], %{}, %{}}, fn
+    {:ok, {:ok, path, meta}}, {paths, chars, stages} ->
+      # Collect character stats
+      player_chars = Enum.map(meta.players, fn p -> p.character_name end)
+      chars = Enum.reduce(player_chars, chars, fn c, acc ->
+        Map.update(acc, c, 1, & &1 + 1)
+      end)
+
+      # Collect stage stats
+      stage_name = Map.get(stage_id_to_name, meta.stage, "Stage #{meta.stage}")
+      stages = Map.update(stages, stage_name, 1, & &1 + 1)
+
+      # Check filters
+      char_match = char_names == [] or Enum.any?(player_chars, fn c -> c in char_names end)
+      stage_match = stage_ids == [] or meta.stage in stage_ids
+
+      if char_match and stage_match do
+        {[path | paths], chars, stages}
+      else
+        {paths, chars, stages}
+      end
+
+    _, acc -> acc
+  end)
+
+  filtered = Enum.reverse(filtered)
+
+  if character_filter != [] or stage_filter != [] do
+    Output.puts("  #{length(filtered)}/#{initial_count} replays match filters")
+  end
+
+  stats = %{
+    total: initial_count,
+    characters: char_counts,
+    stages: stage_counts
+  }
+
+  {filtered, stats}
+else
+  # Skip metadata collection for large datasets without filters
+  {replay_files, nil}
+end
+
+# Apply max_files limit after filtering
 replay_files = if opts[:max_files], do: Enum.take(replay_files, opts[:max_files]), else: replay_files
 
-Output.puts("  Found #{length(replay_files)} replay files")
+# Show replay stats if collected
+if replay_stats do
+  Output.replay_stats(replay_stats)
+end
+
+if (character_filter != [] or stage_filter != []) and opts[:max_files] do
+  Output.puts("  Using #{length(replay_files)} replays for training (limited by --max-files)")
+end
 
 # Parse replays in parallel and collect training frames
 # Error handling options
@@ -537,6 +668,31 @@ else
   Output.puts("  MLP model initialized")
 end
 Output.puts("  Batch size: #{opts[:batch_size]}")
+
+# Count parameters and show estimates
+param_count = GPUUtils.count_params(trainer.params)
+Output.puts("  Parameters: #{Float.round(param_count / 1_000_000, 2)}M")
+
+# Check for checkpoint size warning
+case GPUUtils.check_checkpoint_size_warning(param_count: param_count, threshold_mb: 500) do
+  {:warning, msg} -> Output.warning(msg)
+  :ok -> :ok
+end
+
+# Estimate GPU memory requirement and check free memory
+estimated_mem_mb = GPUUtils.estimate_memory_mb(
+  param_count: param_count,
+  batch_size: opts[:batch_size],
+  precision: opts[:precision],
+  temporal: opts[:temporal],
+  window_size: opts[:window_size]
+)
+
+case GPUUtils.check_free_memory(required_mb: estimated_mem_mb) do
+  {:warning, msg} -> Output.warning(msg)
+  :ok -> :ok
+  {:error, _} -> :ok  # No GPU, skip check
+end
 if opts[:accumulation_steps] > 1 do
   effective_batch = opts[:batch_size] * opts[:accumulation_steps]
   Output.puts("  Gradient accumulation: #{opts[:accumulation_steps]}x (effective batch: #{effective_batch})")
@@ -645,6 +801,13 @@ initial_state = {trainer, 0, false, early_stopping_state, nil, pruner, ema, []}
     if epoch > 1 do
       Output.puts("\n  ─── Epoch #{epoch}/#{opts[:epochs]} ───")
       Output.puts("  #{gpu_status}")
+
+      # Check for high memory usage and warn
+      case GPUUtils.check_memory_warning(threshold: 0.90) do
+        {:warning, msg} -> Output.warning(msg)
+        _ -> :ok
+      end
+
       Output.puts("  Starting #{num_batches} batches...")
     end
 
@@ -959,6 +1122,12 @@ unless opts[:no_register] do
     {:error, reason} ->
       Output.puts("  ✗ Registry failed: #{inspect(reason)}")
   end
+end
+
+# Show terminal loss graph if training completed multiple epochs
+if length(training_history) > 1 do
+  Output.puts_raw("")
+  Output.terminal_loss_graph(Enum.reverse(training_history), title: "Training Loss", width: 70, height: 14)
 end
 
 # Summary with colors

@@ -332,6 +332,123 @@ Completed:
   - Highlights early stopping if triggered
   - 11 new tests for Output module
 
+### 2026-01-20: Additional UX Features (Complete)
+
+Completed:
+- [x] Character/stage filter CLI - **Done**
+  - `--character mewtwo,fox` and `--stage battlefield,fd` flags
+  - Character aliases: `gnw`, `ics`, `puff`, `ganon`, `doc`, etc.
+  - Stage aliases: `bf`, `fd`, `fod`, `ys`, `ps`, `dl`
+  - Fast filtering via `Peppi.metadata()` before full parsing
+- [x] Replay stats display - **Done**
+  - `Output.replay_stats/1` shows character/stage distribution
+  - Bar charts with percentages for top 10 characters
+  - Integrated into training script for datasets ≤1000 files
+- [x] `mix exphil.list` command - **Done**
+  - Lists all checkpoints with size, date, type (checkpoint/policy)
+  - Sorting by date, size, or name; `--reverse` flag
+  - `lib/mix/tasks/exphil.list.ex`
+- [x] `mix exphil.info MODEL` command - **Done**
+  - Shows architecture, discretization, training config, parameter counts
+  - Layer breakdown for models with ≤15 layers
+  - `lib/mix/tasks/exphil.info.ex`
+- [x] GPU memory warning - **Done**
+  - `GPUUtils.check_memory_warning/1` warns at 90% threshold
+  - `GPUUtils.check_free_memory/1` checks required memory before training
+  - `GPUUtils.estimate_memory_mb/1` estimates training memory needs
+- [x] Checkpoint size warning - **Done**
+  - `GPUUtils.check_checkpoint_size_warning/1` warns for >500MB
+  - `GPUUtils.estimate_checkpoint_size/1` estimates based on param count
+  - `GPUUtils.count_params/1` counts parameters in nested maps
+- [x] Live loss graph (terminal) - **Done**
+  - `Output.terminal_loss_graph/2` renders ASCII loss chart
+  - Box-drawing characters: `┌─┐│└┘┤┴●○`
+  - Shows train/val loss with legend
+  - `Output.loss_sparkline/2` for compact inline display: `▁▂▃▄▅▆▇█`
+- [x] Replay validation before training - **Done**
+  - `ReplayValidation.validate/2` parallel file validation
+  - Checks: file exists, size ≥4KB, valid SLP magic bytes
+  - Skipped for datasets >5000 files (too slow)
+  - `lib/exphil/training/replay_validation.ex`
+- [x] Config file support (YAML) - **Done**
+  - `--config config/training.yaml` loads YAML config
+  - CLI args override YAML, YAML overrides defaults
+  - `Config.load_yaml/1`, `Config.parse_yaml/1`, `Config.save_yaml/2`
+  - Sample config: `config/training.example.yaml`
+
+### 2026-01-20: K-Means Stick Discretization Research
+
+**Status: Research Complete | Implementation: Not Started**
+
+#### Current Implementation (Uniform Buckets)
+
+ExPhil uses uniform bucket discretization for stick inputs:
+- **Location:** `lib/exphil/embeddings/controller.ex`
+- **Default:** 16 buckets per axis → 17 values (0-16)
+- **Formula:** `bucket = trunc(value * n + 0.5)` where value ∈ [0, 1]
+- **One-hot encoding:** 17-dim vector per axis, 81 total dims for controller
+
+```elixir
+# Current discretization (controller.ex:194-199)
+def discretize_axis(value, buckets) do
+  value = max(0.0, min(1.0, value))
+  bucket = trunc(value * buckets + 0.5)
+  min(bucket, buckets)
+end
+```
+
+#### slippi-ai Approach
+
+slippi-ai uses similar uniform buckets but with constraints:
+- Bucket count must divide 160 (native Melee resolution)
+- Valid values: 1, 2, 4, 5, 8, 10, 16, 20, 32, 40, 80, 160
+- Same rounding formula: `(value * n + 0.5)`
+
+#### K-Means Alternative (Research)
+
+**Key finding from Melee AI research:** K-means clustering on actual stick positions from replays creates non-uniform buckets that better capture:
+1. **Cardinal/diagonal concentrations** - Most inputs are near 0, 0.5, 1 on each axis
+2. **Deadzone awareness** - Cluster centers avoid the ~0.2875 analog deadzone
+3. **Character-specific patterns** - Different characters use different stick regions
+
+**slippi-ai findings:** 21 K-means clusters outperformed 16 uniform buckets:
+- Better accuracy on less common stick positions
+- Reduced "quantization noise" for precise inputs (wavedash angles, DI)
+- ~5% improvement in stick prediction accuracy
+
+#### Implementation Plan (If Pursued)
+
+1. **Data collection:** Extract all stick positions from training replays
+2. **K-means clustering:** Run K-means with k=21 (or tune via elbow method)
+3. **Cluster center storage:** Save centers as module attribute or config
+4. **Discretization change:** Find nearest cluster instead of uniform bucket
+5. **Undiscretization:** Return cluster center instead of bucket midpoint
+
+```elixir
+# Proposed K-means discretization
+def discretize_axis_kmeans(value, cluster_centers) do
+  # Find nearest cluster center
+  {idx, _} = cluster_centers
+  |> Enum.with_index()
+  |> Enum.min_by(fn {center, _idx} -> abs(center - value) end)
+  idx
+end
+```
+
+**Trade-offs:**
+- **Pro:** Better accuracy on rare but important inputs (shield drop angles, wavedash)
+- **Pro:** Matches actual gameplay distributions
+- **Con:** Character-specific clusters may not generalize
+- **Con:** More complex to implement and explain
+- **Con:** Need to re-train embeddings with new discretization
+
+#### Recommendation
+
+Keep uniform buckets for now. K-means is a micro-optimization best explored after:
+1. Self-play RL is working (bigger impact)
+2. Character specialization is in progress (can do character-specific clusters)
+3. Current accuracy plateau is reached (need to measure first)
+
 ---
 
 ## References

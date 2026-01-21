@@ -1,0 +1,83 @@
+# ExPhil Training Configuration Example
+#
+# Usage:
+#   mix run scripts/train_from_replays.exs --config config/training.yaml
+#
+# CLI arguments can override config file settings:
+#   mix run scripts/train_from_replays.exs --config config/training.yaml --epochs 5
+
+# ============================================================================
+# Basic Training Settings
+# ============================================================================
+
+# Data source
+replays: ./replays
+
+# Training duration
+epochs: 20
+batch_size: 128
+
+# Model architecture
+hidden_sizes: [256, 256]
+temporal: true
+backbone: mamba
+window_size: 60
+num_layers: 2
+
+# Precision (bf16 for speed, f32 for accuracy)
+precision: bf16
+
+# ============================================================================
+# Regularization
+# ============================================================================
+
+# Data augmentation
+augment: true
+mirror_prob: 0.5
+noise_prob: 0.2
+noise_scale: 0.01
+
+# Label smoothing (reduces overconfidence)
+label_smoothing: 0.1
+
+# ============================================================================
+# Learning Rate
+# ============================================================================
+
+learning_rate: 0.0001
+lr_schedule: cosine
+warmup_steps: 500
+
+# ============================================================================
+# Validation & Early Stopping
+# ============================================================================
+
+val_split: 0.1
+early_stopping: true
+patience: 5
+min_delta: 0.01
+
+# ============================================================================
+# Checkpointing
+# ============================================================================
+
+save_best: true
+save_every: 5
+keep_best: 3
+
+# ============================================================================
+# Model EMA (optional, improves generalization)
+# ============================================================================
+
+ema: true
+ema_decay: 0.999
+
+# ============================================================================
+# Filtering (optional)
+# ============================================================================
+
+# Filter replays by character (uncomment to enable)
+# characters: [mewtwo, fox, falco]
+
+# Filter replays by stage (uncomment to enable)
+# stages: [battlefield, fd, yoshis_story]

@@ -39,7 +39,8 @@ defmodule ExPhil.Training.Config do
     "--keep-best", "--ema", "--ema-decay", "--precompute", "--no-precompute",
     "--prefetch", "--no-prefetch", "--gradient-checkpoint", "--checkpoint-every",
     "--prefetch-buffer", "--layer-norm", "--no-layer-norm", "--optimizer", "--preset",
-    "--dry-run"
+    "--dry-run", "--character", "--characters", "--stage", "--stages",
+    "--config"  # YAML config file path
   ]
 
   @doc """
@@ -140,9 +141,260 @@ defmodule ExPhil.Training.Config do
       gradient_checkpoint: false,
       checkpoint_every: 1,  # Checkpoint every N layers (1 = every layer, 2 = every other)
       # Dry run mode - validate config without training
-      dry_run: false
+      dry_run: false,
+      # Replay filtering
+      characters: [],  # Filter replays by character (e.g., [:mewtwo, :fox])
+      stages: []       # Filter replays by stage (e.g., [:battlefield, :fd])
     ]
   end
+
+  # Character name mappings (atom -> display name, also accepts aliases)
+  @character_map %{
+    captain_falcon: "Captain Falcon",
+    falcon: "Captain Falcon",
+    donkey_kong: "Donkey Kong",
+    dk: "Donkey Kong",
+    fox: "Fox",
+    game_and_watch: "Game & Watch",
+    gnw: "Game & Watch",
+    gameandwatch: "Game & Watch",
+    kirby: "Kirby",
+    bowser: "Bowser",
+    link: "Link",
+    luigi: "Luigi",
+    mario: "Mario",
+    marth: "Marth",
+    mewtwo: "Mewtwo",
+    ness: "Ness",
+    peach: "Peach",
+    pikachu: "Pikachu",
+    pika: "Pikachu",
+    ice_climbers: "Ice Climbers",
+    ics: "Ice Climbers",
+    icies: "Ice Climbers",
+    jigglypuff: "Jigglypuff",
+    puff: "Jigglypuff",
+    jiggs: "Jigglypuff",
+    samus: "Samus",
+    yoshi: "Yoshi",
+    zelda: "Zelda",
+    sheik: "Sheik",
+    falco: "Falco",
+    young_link: "Young Link",
+    ylink: "Young Link",
+    dr_mario: "Dr. Mario",
+    doc: "Dr. Mario",
+    roy: "Roy",
+    pichu: "Pichu",
+    ganondorf: "Ganondorf",
+    ganon: "Ganondorf"
+  }
+
+  # Stage name mappings (atom -> {display name, stage ID})
+  @stage_map %{
+    fountain_of_dreams: {"Fountain of Dreams", 2},
+    fod: {"Fountain of Dreams", 2},
+    fountain: {"Fountain of Dreams", 2},
+    pokemon_stadium: {"Pokemon Stadium", 3},
+    ps: {"Pokemon Stadium", 3},
+    stadium: {"Pokemon Stadium", 3},
+    yoshis_story: {"Yoshi's Story", 8},
+    yoshis: {"Yoshi's Story", 8},
+    ys: {"Yoshi's Story", 8},
+    dream_land: {"Dream Land", 28},
+    dreamland: {"Dream Land", 28},
+    dl: {"Dream Land", 28},
+    battlefield: {"Battlefield", 31},
+    bf: {"Battlefield", 31},
+    final_destination: {"Final Destination", 32},
+    fd: {"Final Destination", 32}
+  }
+
+  @doc "Get display name for a character atom"
+  def character_name(char) when is_atom(char), do: Map.get(@character_map, char, to_string(char))
+
+  @doc "Get display name and ID for a stage atom"
+  def stage_info(stage) when is_atom(stage), do: Map.get(@stage_map, stage)
+
+  @doc "Get stage ID for a stage atom"
+  def stage_id(stage) when is_atom(stage) do
+    case Map.get(@stage_map, stage) do
+      {_name, id} -> id
+      nil -> nil
+    end
+  end
+
+  @doc "List of valid character atoms"
+  def valid_characters, do: Map.keys(@character_map)
+
+  @doc "List of valid stage atoms"
+  def valid_stages, do: Map.keys(@stage_map)
+
+  # ============================================================================
+  # Config File Loading (YAML)
+  # ============================================================================
+
+  @doc """
+  Load training configuration from a YAML file.
+
+  Returns `{:ok, opts}` on success, or `{:error, reason}` on failure.
+
+  ## File Format
+
+  The YAML file should contain training options as key-value pairs.
+  Keys can use either snake_case or kebab-case.
+
+  ## Example config.yaml
+
+      # Basic training settings
+      epochs: 20
+      batch_size: 128
+      hidden_sizes: [256, 256]
+
+      # Model architecture
+      temporal: true
+      backbone: mamba
+      window_size: 60
+      num_layers: 2
+
+      # Regularization
+      augment: true
+      label_smoothing: 0.1
+
+      # LR schedule
+      learning_rate: 0.0001
+      lr_schedule: cosine
+      warmup_steps: 500
+
+  ## Examples
+
+      iex> Config.load_yaml("config/training.yaml")
+      {:ok, [epochs: 20, batch_size: 128, ...]}
+
+      iex> Config.load_yaml("missing.yaml")
+      {:error, :file_not_found}
+  """
+  @spec load_yaml(String.t()) :: {:ok, keyword()} | {:error, atom() | String.t()}
+  def load_yaml(path) do
+    case File.read(path) do
+      {:ok, content} ->
+        parse_yaml(content)
+
+      {:error, :enoent} ->
+        {:error, :file_not_found}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  @doc """
+  Load and merge YAML config with CLI args.
+
+  CLI args take precedence over YAML config, which takes precedence over defaults.
+
+  ## Examples
+
+      iex> Config.load_with_yaml("config.yaml", ["--epochs", "5"])
+      {:ok, [epochs: 5, batch_size: 128, ...]}  # CLI overrides YAML
+  """
+  @spec load_with_yaml(String.t(), [String.t()]) :: {:ok, keyword()} | {:error, any()}
+  def load_with_yaml(yaml_path, cli_args) do
+    with {:ok, yaml_opts} <- load_yaml(yaml_path),
+         cli_opts <- parse_args(cli_args) do
+      # CLI args override YAML config
+      merged = Keyword.merge(yaml_opts, cli_opts)
+      {:ok, merged}
+    end
+  end
+
+  @doc """
+  Parse YAML content into training options.
+  """
+  @spec parse_yaml(String.t()) :: {:ok, keyword()} | {:error, any()}
+  def parse_yaml(content) do
+    case YamlElixir.read_from_string(content) do
+      {:ok, map} when is_map(map) ->
+        opts = convert_yaml_map(map)
+        {:ok, opts}
+
+      {:ok, _other} ->
+        {:error, :invalid_yaml_format}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  @doc """
+  Save current configuration to a YAML file.
+
+  Useful for saving the effective configuration after a training run.
+  """
+  @spec save_yaml(keyword(), String.t()) :: :ok | {:error, any()}
+  def save_yaml(opts, path) do
+    yaml = opts_to_yaml(opts)
+    File.write(path, yaml)
+  end
+
+  # Convert YAML map to keyword list with proper atom/type conversion
+  defp convert_yaml_map(map) do
+    map
+    |> Enum.map(fn {key, value} ->
+      atom_key = normalize_key(key)
+      converted_value = convert_value(atom_key, value)
+      {atom_key, converted_value}
+    end)
+    |> Keyword.new()
+  end
+
+  # Normalize key from string (handles kebab-case and snake_case)
+  defp normalize_key(key) when is_binary(key) do
+    key
+    |> String.replace("-", "_")
+    |> String.to_atom()
+  end
+
+  defp normalize_key(key) when is_atom(key), do: key
+
+  # Convert values based on expected types
+  defp convert_value(:backbone, value) when is_binary(value), do: String.to_atom(value)
+  defp convert_value(:lr_schedule, value) when is_binary(value), do: String.to_atom(value)
+  defp convert_value(:optimizer, value) when is_binary(value), do: String.to_atom(value)
+  defp convert_value(:precision, value) when is_binary(value), do: String.to_atom(value)
+  defp convert_value(:preset, value) when is_binary(value), do: String.to_atom(value)
+  defp convert_value(:character, value) when is_binary(value), do: String.to_atom(value)
+
+  defp convert_value(:characters, values) when is_list(values) do
+    Enum.map(values, &String.to_atom/1)
+  end
+
+  defp convert_value(:stages, values) when is_list(values) do
+    Enum.map(values, &String.to_atom/1)
+  end
+
+  defp convert_value(:hidden_sizes, values) when is_list(values), do: values
+  defp convert_value(_key, value), do: value
+
+  # Convert opts to YAML string
+  defp opts_to_yaml(opts) do
+    opts
+    |> Enum.map(fn {key, value} ->
+      yaml_key = key |> to_string() |> String.replace("_", "-")
+      yaml_value = format_yaml_value(value)
+      "#{yaml_key}: #{yaml_value}"
+    end)
+    |> Enum.join("\n")
+  end
+
+  defp format_yaml_value(value) when is_list(value) do
+    items = Enum.map(value, &to_string/1) |> Enum.join(", ")
+    "[#{items}]"
+  end
+
+  defp format_yaml_value(value) when is_atom(value), do: to_string(value)
+  defp format_yaml_value(value) when is_binary(value), do: "\"#{value}\""
+  defp format_yaml_value(value), do: to_string(value)
 
   # ============================================================================
   # Training Presets
@@ -1066,17 +1318,32 @@ defmodule ExPhil.Training.Config do
 
   """
   def parse_args(args) when is_list(args) do
+    # Check if config file is specified first
+    base_opts = if has_flag_value?(args, "--config") do
+      config_path = get_arg_value(args, "--config")
+      case load_yaml(config_path) do
+        {:ok, yaml_opts} ->
+          # Merge YAML opts on top of defaults
+          Keyword.merge(defaults(), yaml_opts)
+        {:error, reason} ->
+          IO.puts(:stderr, "Error loading config file: #{inspect(reason)}")
+          System.halt(1)
+      end
+    else
+      defaults()
+    end
+
     # Check if preset is specified - if so, use apply_preset flow
     if has_flag_value?(args, "--preset") do
-      apply_preset(defaults(), args)
+      apply_preset(base_opts, args)
     else
       # No preset - standard parsing flow
-      parse_args_standard(args)
+      parse_args_standard(args, base_opts)
     end
   end
 
-  defp parse_args_standard(args) do
-    defaults()
+  defp parse_args_standard(args, base_opts) do
+    base_opts
     |> parse_string_arg(args, "--replays", :replays)
     |> parse_string_arg(args, "--replay-dir", :replays)
     |> parse_int_arg(args, "--epochs", :epochs)
@@ -1166,6 +1433,26 @@ defmodule ExPhil.Training.Config do
     end)
     |> parse_atom_arg(args, "--optimizer", :optimizer)
     |> parse_flag(args, "--dry-run", :dry_run)
+    |> parse_atom_list_arg(args, "--character", :characters)
+    |> parse_atom_list_arg(args, "--characters", :characters)
+    |> parse_atom_list_arg(args, "--stage", :stages)
+    |> parse_atom_list_arg(args, "--stages", :stages)
+  end
+
+  # Parse comma-separated list of atoms (e.g., "mewtwo,fox,falco" -> [:mewtwo, :fox, :falco])
+  defp parse_atom_list_arg(opts, args, flag, key) do
+    case get_arg_value(args, flag) do
+      nil -> opts
+      value ->
+        atoms = value
+        |> String.split(",")
+        |> Enum.map(&String.trim/1)
+        |> Enum.map(&String.to_atom/1)
+
+        # Merge with existing list (allows both --character and --characters)
+        existing = Keyword.get(opts, key, [])
+        Keyword.put(opts, key, Enum.uniq(existing ++ atoms))
+    end
   end
 
   defp has_flag_value?(args, flag) do

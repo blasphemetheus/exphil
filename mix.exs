@@ -52,6 +52,7 @@ defmodule ExPhil.MixProject do
 
       # Data Processing
       {:explorer, "~> 0.9"},
+      {:yaml_elixir, "~> 2.9"},
 
       # Model Export (blasphemetheus fork with Axon 0.8+ fixes)
       # Use override to allow local development with path-based dep

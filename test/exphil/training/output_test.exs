@@ -64,4 +64,123 @@ defmodule ExPhil.Training.OutputTest do
       assert Output.format_bytes(1_073_741_824) == "1.0 GB"
     end
   end
+
+  describe "terminal_loss_graph/2" do
+    import ExUnit.CaptureIO
+
+    test "handles empty history" do
+      output = capture_io(:stderr, fn ->
+        Output.terminal_loss_graph([])
+      end)
+      assert output =~ "No training data"
+    end
+
+    test "renders graph for single epoch" do
+      history = [%{epoch: 1, train_loss: 0.5}]
+      output = capture_io(:stderr, fn ->
+        Output.terminal_loss_graph(history, width: 40, height: 8)
+      end)
+
+      # Should contain border elements
+      assert output =~ "┌"
+      assert output =~ "┘"
+      assert output =~ "●"  # Train point
+    end
+
+    test "renders graph with multiple epochs" do
+      history = [
+        %{epoch: 1, train_loss: 0.8},
+        %{epoch: 2, train_loss: 0.5},
+        %{epoch: 3, train_loss: 0.3}
+      ]
+
+      output = capture_io(:stderr, fn ->
+        Output.terminal_loss_graph(history, width: 50, height: 10)
+      end)
+
+      # Should show title and legend
+      assert output =~ "Loss"
+      assert output =~ "train"
+      assert output =~ "●"
+    end
+
+    test "renders validation loss when present" do
+      history = [
+        %{epoch: 1, train_loss: 0.8, val_loss: 0.9},
+        %{epoch: 2, train_loss: 0.5, val_loss: 0.6}
+      ]
+
+      output = capture_io(:stderr, fn ->
+        Output.terminal_loss_graph(history)
+      end)
+
+      assert output =~ "val"
+      assert output =~ "○"  # Val point
+    end
+
+    test "respects show_val option" do
+      history = [
+        %{epoch: 1, train_loss: 0.8, val_loss: 0.9}
+      ]
+
+      output = capture_io(:stderr, fn ->
+        Output.terminal_loss_graph(history, show_val: false)
+      end)
+
+      refute output =~ "val"
+    end
+
+    test "uses custom title" do
+      history = [%{epoch: 1, train_loss: 0.5}]
+      output = capture_io(:stderr, fn ->
+        Output.terminal_loss_graph(history, title: "Custom Title")
+      end)
+
+      assert output =~ "Custom Title"
+    end
+  end
+
+  describe "loss_sparkline/2" do
+    import ExUnit.CaptureIO
+
+    test "handles empty losses" do
+      output = capture_io(:stderr, fn ->
+        Output.loss_sparkline([])
+      end)
+      assert output =~ "no data"
+    end
+
+    test "renders sparkline for loss values" do
+      losses = [0.8, 0.6, 0.4, 0.3, 0.2]
+      output = capture_io(:stderr, fn ->
+        Output.loss_sparkline(losses)
+      end)
+
+      # Should contain sparkline chars and current value
+      assert output =~ "Loss:"
+      assert output =~ "0.2"
+      # Should contain some sparkline characters
+      assert output =~ "▁" or output =~ "▂" or output =~ "▃"
+    end
+
+    test "uses custom label" do
+      losses = [0.5, 0.3]
+      output = capture_io(:stderr, fn ->
+        Output.loss_sparkline(losses, label: "Val Loss")
+      end)
+
+      assert output =~ "Val Loss:"
+    end
+
+    test "handles constant values" do
+      losses = [0.5, 0.5, 0.5]
+      output = capture_io(:stderr, fn ->
+        Output.loss_sparkline(losses)
+      end)
+
+      # Should still render something
+      assert output =~ "Loss:"
+      assert output =~ "0.5"
+    end
+  end
 end
