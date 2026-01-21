@@ -323,4 +323,146 @@ defmodule ExPhil.Training.Prefetcher do
       end
     )
   end
+
+  @doc """
+  Reduce over a lazy stream with async prefetching, providing batch index.
+
+  Unlike `reduce_indexed/3`, this function keeps the stream lazy and computes
+  batches in background tasks, achieving true overlap between batch preparation
+  and GPU training.
+
+  ## How it works
+
+  ```
+  Time:     |--GPU train 1--|--GPU train 2--|--GPU train 3--|
+  CPU:      |--compute 1--|--compute 2--|--compute 3--|--compute 4--|
+                          ↑              ↑
+                          |              |
+                       batch 2        batch 3
+                       ready          ready
+  ```
+
+  ## Parameters
+
+    - `batch_stream` - A lazy Stream that yields batches when consumed
+    - `initial_acc` - Initial accumulator value
+    - `fun` - Function `(batch, index, acc) -> new_acc`
+    - `opts` - Options:
+      - `:buffer_size` - Number of batches to prefetch (default: 2)
+
+  ## Example
+
+  ```elixir
+  batch_stream = Data.batched_sequences(dataset, batch_size: 128, shuffle: true)
+
+  {final_trainer, _} = Prefetcher.reduce_stream_indexed(batch_stream, {trainer, []},
+    fn batch, idx, {t, losses} ->
+      {new_t, metrics} = Imitation.train_step(t, batch, nil)
+      {new_t, [metrics.loss | losses]}
+    end,
+    buffer_size: 2
+  )
+  ```
+  """
+  @spec reduce_stream_indexed(Enumerable.t(), acc, (term(), non_neg_integer(), acc -> acc), keyword()) :: acc when acc: var
+  def reduce_stream_indexed(batch_stream, initial_acc, fun, opts \\ []) do
+    buffer_size = Keyword.get(opts, :buffer_size, 2)
+
+    # Create an iterator from the stream
+    # We use Stream.transform to pull items lazily
+    stream_ref = make_ref()
+    stream_pid = spawn_link(fn -> stream_producer(batch_stream, stream_ref) end)
+
+    # Start initial prefetch tasks
+    initial_tasks = for _ <- 1..buffer_size do
+      start_prefetch_task(stream_pid, stream_ref)
+    end
+    |> Enum.reject(&is_nil/1)
+
+    # Process batches with prefetching
+    result = process_prefetched_batches(
+      initial_tasks,
+      stream_pid,
+      stream_ref,
+      0,
+      initial_acc,
+      fun
+    )
+
+    # Cleanup
+    send(stream_pid, {:stop, stream_ref})
+    result
+  end
+
+  # Producer process that pulls from the stream on demand
+  defp stream_producer(stream, ref) do
+    # Convert stream to a continuation
+    stream
+    |> Stream.each(fn batch ->
+      receive do
+        {:next, ^ref, pid} ->
+          send(pid, {:batch, ref, batch})
+        {:stop, ^ref} ->
+          :ok
+      end
+    end)
+    |> Stream.run()
+
+    # Signal end of stream to any waiting requests
+    receive_loop_done(ref)
+  end
+
+  defp receive_loop_done(ref) do
+    receive do
+      {:next, ^ref, pid} ->
+        send(pid, {:done, ref})
+        receive_loop_done(ref)
+      {:stop, ^ref} ->
+        :ok
+    after
+      100 -> :ok
+    end
+  end
+
+  # Start an async task to fetch the next batch
+  defp start_prefetch_task(stream_pid, stream_ref) do
+    Task.async(fn ->
+      send(stream_pid, {:next, stream_ref, self()})
+      receive do
+        {:batch, ^stream_ref, batch} -> {:ok, batch}
+        {:done, ^stream_ref} -> :done
+      after
+        60_000 -> :timeout
+      end
+    end)
+  end
+
+  # Process batches with prefetching
+  defp process_prefetched_batches([], _stream_pid, _stream_ref, _idx, acc, _fun) do
+    acc
+  end
+
+  defp process_prefetched_batches([current_task | rest_tasks], stream_pid, stream_ref, idx, acc, fun) do
+    # Wait for current batch
+    case Task.await(current_task, :infinity) do
+      {:ok, batch} ->
+        # Start prefetching next batch while we process this one
+        new_task = start_prefetch_task(stream_pid, stream_ref)
+        new_tasks = if new_task, do: rest_tasks ++ [new_task], else: rest_tasks
+
+        # Process current batch
+        new_acc = fun.(batch, idx, acc)
+
+        # Continue with remaining batches
+        process_prefetched_batches(new_tasks, stream_pid, stream_ref, idx + 1, new_acc, fun)
+
+      :done ->
+        # No more batches from this task, process remaining tasks
+        process_prefetched_batches(rest_tasks, stream_pid, stream_ref, idx, acc, fun)
+
+      :timeout ->
+        # Timeout, skip and continue
+        process_prefetched_batches(rest_tasks, stream_pid, stream_ref, idx, acc, fun)
+    end
+  end
 end

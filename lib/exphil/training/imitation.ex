@@ -659,6 +659,9 @@ defmodule ExPhil.Training.Imitation do
     states = Nx.backend_copy(states)
     actions = Map.new(actions, fn {k, v} -> {k, Nx.backend_copy(v)} end)
 
+    # Convert states to training precision (bf16 for ~2x speedup)
+    states = Nx.as_type(states, trainer.config.precision)
+
     predict_fn = trainer.predict_fn
     model_state = deep_backend_copy(trainer.policy_params)
     label_smoothing = trainer.config[:label_smoothing] || 0.0
@@ -741,6 +744,10 @@ defmodule ExPhil.Training.Imitation do
     # which cannot mix with concrete EXLA tensors captured in closures
     states = Nx.backend_copy(states)
     actions = Map.new(actions, fn {k, v} -> {k, Nx.backend_copy(v)} end)
+
+    # Convert states to training precision (bf16 for ~2x speedup, minimal accuracy loss)
+    # This matches the model params precision set during initialization
+    states = Nx.as_type(states, trainer.config.precision)
 
     # Use cached predict_fn (built once in new/1, reused every step)
     predict_fn = trainer.predict_fn

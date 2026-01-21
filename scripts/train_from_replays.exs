@@ -547,7 +547,7 @@ initial_state = {trainer, 0, false, early_stopping_state, nil, pruner, ema, []}
     # Use appropriate batching function based on temporal mode
     # Note: augmentation is only applied to non-temporal (single-frame) batches
     # Temporal batches use pre-computed embeddings, so augmentation happens at sequence creation
-    # Create batch stream
+    # Create batch stream (kept lazy for true async prefetching)
     batch_stream = if opts[:temporal] do
       Data.batched_sequences(train_dataset,
         batch_size: opts[:batch_size],
@@ -563,9 +563,9 @@ initial_state = {trainer, 0, false, early_stopping_state, nil, pruner, ema, []}
       )
     end
 
-    # Materialize batches (prefetching happens at batch creation level in Data module)
-    batches = Enum.to_list(batch_stream)
-    num_batches = length(batches)
+    # Calculate number of batches for progress display
+    # (we count without materializing to keep the stream lazy)
+    num_batches = div(train_dataset.size, opts[:batch_size])
 
     # Epoch start message with GPU memory status
     gpu_status = GPUUtils.memory_status_string()
@@ -637,11 +637,18 @@ initial_state = {trainer, 0, false, early_stopping_state, nil, pruner, ema, []}
       {new_trainer, [metrics.loss | losses], new_jit_shown}
     end
 
-    # Use prefetcher if enabled (loads next batch while GPU trains on current)
+    # Use prefetcher if enabled (computes next batch while GPU trains on current)
     {updated_trainer, epoch_losses, _} = if opts[:prefetch] do
-      Prefetcher.reduce_indexed(batches, {current_trainer, [], jit_indicator_shown}, process_batch)
+      # Use streaming prefetcher for true async overlap
+      Prefetcher.reduce_stream_indexed(
+        batch_stream,
+        {current_trainer, [], jit_indicator_shown},
+        process_batch,
+        buffer_size: opts[:prefetch_buffer]
+      )
     else
-      # Standard sequential processing
+      # Standard sequential processing (materializes batches)
+      batches = Enum.to_list(batch_stream)
       Enum.reduce(Enum.with_index(batches), {current_trainer, [], jit_indicator_shown}, fn {batch, batch_idx}, acc ->
         process_batch.(batch, batch_idx, acc)
       end)
