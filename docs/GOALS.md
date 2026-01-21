@@ -218,26 +218,43 @@ The project can do behavioral cloning but lacks self-play RL. This is the bigges
 
 ### 6. Character Specialization
 
-**Impact: Project's Unique Value | Status: Not started**
+**Impact: Uncertain | Status: Reconsidering**
 
-This is ExPhil's differentiator - no existing research targets low-tiers.
+> **Note:** See [BITTER_LESSON_PLAN.md](BITTER_LESSON_PLAN.md) for why we're reconsidering this approach.
+
+Originally, this was ExPhil's differentiator. However, the Bitter Lesson suggests that character-specific engineering may be outperformed by simply scaling a general model. We should run experiments before committing to character-specific code paths.
+
+**Original Plan (Now Experimental):**
+
+| Task | Effort | Bitter Lesson Concern | Status |
+|------|--------|----------------------|--------|
+| Character-specific rewards | Medium | Model should discover what matters | Experiment first |
+| Per-character models | High | Single model + scale may beat specialists | Experiment first |
+| Character-specific context windows | Medium | Let model learn optimal window | Experiment first |
+
+**Bitter Lesson Alternative:**
 
 | Task | Effort | Why | Status |
 |------|--------|-----|--------|
-| Character-specific rewards | Medium | Mewtwo recovery, Ganon spacing | Not started |
-| Mewtwo specialist (90-frame) | High | Teleport recovery timing | Not started |
-| Ganondorf specialist | High | Spacing reads, punish optimization | Not started |
-| Link specialist | High | Projectile tracking, item states | Not started |
-| Multi-character model | Very High | Single model with character conditioning | Not started |
+| Single multi-character model | Medium | Scale > specialization | **Preferred approach** |
+| Character ID as input feature | Low | Let model learn differences | **Preferred approach** |
+| Sparse win/loss reward | Low | Don't encode "good play" | Experiment needed |
+| Larger model + more data | High | Scale beats engineering | **Preferred approach** |
 
-**Character-Specific Context Windows:**
-| Character | Window | Reason |
-|-----------|--------|--------|
-| Mewtwo | 90+ frames | Teleport recovery timing, tail hitboxes |
-| Ganondorf | 60 frames | Spacing reads, punish optimization |
-| Link | 75 frames | Projectile tracking, item positions |
-| G&W | 45 frames | No L-cancel, RNG moves |
-| Zelda | 60 frames | Transform state tracking |
+**Experiments to Run:**
+
+1. **Character-specific vs general rewards:** Train with shaped rewards vs sparse (win/loss only). Measure strategy diversity.
+2. **Specialist vs generalist:** Train Mewtwo-only model vs all-character model. Compare win rates.
+3. **Context window ablation:** Try 30, 60, 90 frame windows. Let data determine optimal.
+
+**Character-Specific Context Windows (For Reference Only):**
+| Character | Original Hypothesis | Experiment Status |
+|-----------|--------------------|--------------------|
+| Mewtwo | 90+ frames for teleport timing | Unvalidated |
+| Ganondorf | 60 frames for spacing | Unvalidated |
+| Link | 75 frames for projectiles | Unvalidated |
+| G&W | 45 frames (no L-cancel) | Unvalidated |
+| Zelda | 60 frames for transform | Unvalidated |
 
 ---
 
@@ -268,10 +285,13 @@ This is ExPhil's differentiator - no existing research targets low-tiers.
 7. **Historical sampling** - Avoid policy collapse
 8. **PPO + self-play integration**
 
-### Future
+### Future (Bitter Lesson-Aligned)
 
-9. Character specialization
-10. Multi-character model
+> See [BITTER_LESSON_PLAN.md](BITTER_LESSON_PLAN.md) for rationale.
+
+9. **Scale up:** Larger models (1024+ hidden), more data (100k+ replays)
+10. **Simplify:** Minimal embeddings experiment, sparse rewards experiment
+11. **Validate assumptions:** Character-specific vs general model comparison
 
 ---
 
@@ -618,6 +638,7 @@ Keep uniform buckets for now. K-means is a micro-optimization best explored afte
 
 ## References
 
+- [BITTER_LESSON_PLAN.md](BITTER_LESSON_PLAN.md) - **Scaling vs hand-engineering tradeoffs**
 - [PROJECT_ROADMAP.md](PROJECT_ROADMAP.md) - Detailed implementation tasks
 - [RESEARCH.md](RESEARCH.md) - Prior art and papers
 - [TRAINING_FEATURES.md](TRAINING_FEATURES.md) - Training feature status

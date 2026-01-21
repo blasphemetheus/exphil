@@ -310,19 +310,25 @@ PPO with self-play achieved 62% win rate vs professionals in Blade & Soul:
 
 ### Low-Tier Specific Considerations
 
-No existing research targets low-tiers. Our unique angle:
+> **Bitter Lesson Warning:** See [BITTER_LESSON_PLAN.md](BITTER_LESSON_PLAN.md) for why character-specific engineering may be counterproductive. The approaches below are **hypotheses to test**, not commitments.
 
-| Character | Context Window | Special Features |
-|-----------|---------------|------------------|
-| Mewtwo | 90+ frames | Teleport recovery timing, tail hitboxes |
-| Ganondorf | 60 frames | Spacing reads, punish optimization |
-| Link | 75 frames | Projectile tracking, item positions |
-| G&W | 45 frames | No L-cancel, RNG moves (hammer/bucket) |
-| Zelda | 60 frames | Transform state tracking |
+No existing research targets low-tiers. Our original angle:
+
+| Character | Hypothesized Window | Special Features | Validated? |
+|-----------|---------------------|------------------|------------|
+| Mewtwo | 90+ frames | Teleport recovery timing, tail hitboxes | **No** |
+| Ganondorf | 60 frames | Spacing reads, punish optimization | **No** |
+| Link | 75 frames | Projectile tracking, item positions | **No** |
+| G&W | 45 frames | No L-cancel, RNG moves (hammer/bucket) | **No** |
+| Zelda | 60 frames | Transform state tracking | **No** |
+
+**Bitter Lesson Alternative:** Train a single multi-character model with character ID as input. Let the model learn optimal behavior per character from data, rather than us specifying context windows and rewards.
 
 ### Reward Shaping Ideas
 
-For RL stage, character-specific rewards:
+> **Bitter Lesson Warning:** Shaped rewards encode our understanding of "good play." Sparse win/loss rewards may produce better policies given enough compute. Run experiments comparing shaped vs sparse before committing.
+
+**Original idea (now experimental):**
 
 ```elixir
 # Ganondorf: Reward spacing and punishes
@@ -342,9 +348,24 @@ def mewtwo_reward(state) do
 end
 ```
 
+**Bitter Lesson alternative:**
+
+```elixir
+# Sparse reward - let the model discover what matters
+def sparse_reward(state) do
+  case state.winner do
+    :p1 -> 1.0
+    :p2 -> -1.0
+    nil -> 0.0
+  end
+end
+```
+
 ---
 
 ## Research Roadmap
+
+> **Note:** See [BITTER_LESSON_PLAN.md](BITTER_LESSON_PLAN.md) for how the Bitter Lesson influences this roadmap. Phases 3-4 are now "experiments" rather than commitments.
 
 ### Phase 1: Training Infrastructure (Current)
 - [x] Behavioral cloning from replays
@@ -359,16 +380,16 @@ end
 - [ ] **League system** - Exploiters + main agents
 - [ ] **BEAM concurrency** - Elixir processes for parallel games
 
-### Phase 3: RL Refinement
-- [ ] **PPO integration** with self-play
-- [ ] **Character-specific reward shaping**
-- [ ] **Curriculum learning** - Easy → hard opponents
-- [ ] **Opponent diversity** - Rule-based + learned
+### Phase 3: Bitter Lesson Experiments
+- [ ] **Minimal embedding experiment** - 50-dim vs 1991-dim
+- [ ] **Sparse reward experiment** - Win/loss only vs shaped
+- [ ] **Model scaling experiment** - 256 vs 512 vs 1024 hidden
+- [ ] **Pure RL baseline** - Measure BC sample efficiency gain
 
-### Phase 4: Specialization
-- [ ] **Mewtwo specialist** - Long context, recovery focus
-- [ ] **Ganondorf specialist** - Spacing, reads
-- [ ] **Multi-character model** - Single model, character conditioning
+### Phase 4: Specialization (If Experiments Support It)
+- [ ] **Multi-character model** - Single model, character ID as input (**preferred**)
+- [ ] **Character-specific models** - Only if multi-char underperforms
+- [ ] **Character-specific rewards** - Only if sparse underperforms
 
 ### Experiments to Run
 
