@@ -2,9 +2,30 @@
 # Benchmark different architectures on the same dataset
 #
 # Usage:
-#   mix run scripts/benchmark_architectures.exs --replay-dir /path/to/replays
+#   mix run scripts/benchmark_architectures.exs --replays /path/to/replays [options]
 #
-# This script runs each architecture preset on the same data and compares:
+# Options:
+#   --replays, --replay-dir PATH  Path to replay directory (default: ./replays)
+#   --max-files N                 Max replay files to use (default: 30)
+#   --epochs N                    Training epochs per architecture (default: 3)
+#   --batch-size N                Batch size (default: 128 GPU, 64 CPU)
+#   --only arch1,arch2            Only run specified architectures
+#   --skip arch1,arch2            Skip specified architectures
+#   --continue-on-error           Continue if an architecture fails
+#
+# Available architectures: mlp, mamba, jamba, lstm, gru, attention
+#
+# Examples:
+#   # Quick test with just MLP and Mamba
+#   mix run scripts/benchmark_architectures.exs --replays /workspace/replays --only mlp,mamba
+#
+#   # Skip attention (if it keeps OOMing)
+#   mix run scripts/benchmark_architectures.exs --replays /workspace/replays --skip attention
+#
+#   # Run all but continue if one fails
+#   mix run scripts/benchmark_architectures.exs --replays /workspace/replays --continue-on-error
+#
+# This script compares:
 # - Training loss convergence
 # - Validation accuracy
 # - Training speed (batches/sec)
@@ -41,13 +62,33 @@ end
 
 batch_size = case Enum.find_index(args, &(&1 == "--batch-size")) do
   nil ->
-    # Auto-detect: use 256 for GPU, 128 for CPU
-    if System.get_env("EXLA_TARGET") == "cuda", do: 256, else: 128
+    # Auto-detect: use 128 for GPU (safer for temporal models), 64 for CPU
+    if System.get_env("EXLA_TARGET") == "cuda", do: 128, else: 64
   idx -> String.to_integer(Enum.at(args, idx + 1) || "128")
 end
 
+# Filter architectures
+only_archs = case Enum.find_index(args, &(&1 == "--only")) do
+  nil -> nil
+  idx ->
+    (Enum.at(args, idx + 1) || "")
+    |> String.split(",")
+    |> Enum.map(&String.to_atom/1)
+end
+
+skip_archs = case Enum.find_index(args, &(&1 == "--skip")) do
+  nil -> []
+  idx ->
+    (Enum.at(args, idx + 1) || "")
+    |> String.split(",")
+    |> Enum.map(&String.to_atom/1)
+end
+
+# Continue on error? (useful for benchmarking when some archs might fail)
+continue_on_error = "--continue-on-error" in args
+
 # Architectures to benchmark
-architectures = [
+all_architectures = [
   {:mlp, "MLP (baseline)", [temporal: false, hidden_sizes: [128, 128], precompute: true]},
   {:mamba, "Mamba SSM", [temporal: true, backbone: :mamba, window_size: 30, num_layers: 2]},
   {:jamba, "Jamba (Mamba+Attn)", [temporal: true, backbone: :jamba, window_size: 30, num_layers: 3, attention_every: 3]},
@@ -56,13 +97,26 @@ architectures = [
   {:attention, "Attention", [temporal: true, backbone: :attention, window_size: 30, num_layers: 1, num_heads: 4]}
 ]
 
+# Apply filters
+architectures = all_architectures
+|> Enum.filter(fn {id, _, _} ->
+  (only_archs == nil || id in only_archs) && id not in skip_archs
+end)
+
+if length(architectures) == 0 do
+  Output.error("No architectures selected! Check --only/--skip flags.")
+  Output.puts("Available: #{Enum.map(all_architectures, fn {id, _, _} -> id end) |> Enum.join(", ")}")
+  System.halt(1)
+end
+
 Output.banner("ExPhil Architecture Benchmark")
 Output.config([
   {"Replay dir", replay_dir},
   {"Max files", max_files},
   {"Epochs", epochs},
   {"Batch size", batch_size},
-  {"Architectures", length(architectures)},
+  {"Architectures", "#{length(architectures)} (#{Enum.map(architectures, fn {id, _, _} -> id end) |> Enum.join(", ")})"},
+  {"Continue on error", continue_on_error},
   {"GPU", GPUUtils.memory_status_string()}
 ])
 
@@ -107,180 +161,206 @@ Output.divider()
 num_archs = length(architectures)
 results = architectures
 |> Enum.with_index(1)
-|> Enum.map(fn {{arch_id, arch_name, arch_opts}, arch_idx} ->
+|> Enum.flat_map(fn {{arch_id, arch_name, arch_opts}, arch_idx} ->
+  # Force garbage collection between architectures to free GPU memory
+  if arch_idx > 1 do
+    Output.puts("Clearing memory before next architecture...")
+    :erlang.garbage_collect()
+    Process.sleep(1000)  # Give GPU time to release memory
+  end
+
   Output.section("[#{arch_idx}/#{num_archs}] #{arch_name}")
   Output.puts("#{GPUUtils.memory_status_string()}")
 
-  # Merge with base options
-  opts = Keyword.merge([
-    epochs: epochs,
-    batch_size: batch_size,
-    hidden_sizes: [128, 128],
-    learning_rate: 1.0e-4,
-    warmup_steps: 10,
-    val_split: 0.0,  # We handle split ourselves
-    checkpoint: "checkpoints/benchmark_#{arch_id}.axon"
-  ], arch_opts)
+  # Wrap entire architecture benchmark in try/rescue
+  try do
+    # Merge with base options
+    opts = Keyword.merge([
+      epochs: epochs,
+      batch_size: batch_size,
+      hidden_sizes: [128, 128],
+      learning_rate: 1.0e-4,
+      warmup_steps: 10,
+      val_split: 0.0,  # We handle split ourselves
+      checkpoint: "checkpoints/benchmark_#{arch_id}.axon"
+    ], arch_opts)
 
-  # Build embed config (use default)
-  embed_config = Embeddings.config()
+    # Build embed config (use default)
+    embed_config = Embeddings.config()
 
-  # Prepare dataset based on architecture
-  prepared_train = Output.timed "Preparing train data" do
-    if opts[:temporal] do
-      seq_ds = Data.to_sequences(train_dataset,
-        window_size: opts[:window_size] || 30,
-        stride: opts[:stride] || 1)
-      Data.precompute_embeddings(seq_ds, show_progress: false)
-    else
-      if opts[:precompute] do
-        Data.precompute_frame_embeddings(train_dataset, show_progress: false)
+    # Prepare dataset based on architecture
+    prepared_train = Output.timed "Preparing train data" do
+      if opts[:temporal] do
+        seq_ds = Data.to_sequences(train_dataset,
+          window_size: opts[:window_size] || 30,
+          stride: opts[:stride] || 1)
+        Data.precompute_embeddings(seq_ds, show_progress: false)
       else
-        train_dataset
+        if opts[:precompute] do
+          Data.precompute_frame_embeddings(train_dataset, show_progress: false)
+        else
+          train_dataset
+        end
       end
     end
-  end
 
-  prepared_val = Output.timed "Preparing val data" do
-    if opts[:temporal] do
-      seq_ds = Data.to_sequences(val_dataset,
-        window_size: opts[:window_size] || 30,
-        stride: opts[:stride] || 1)
-      Data.precompute_embeddings(seq_ds, show_progress: false)
-    else
-      val_dataset
-    end
-  end
-
-  # Create trainer
-  trainer = Output.timed "Creating model" do
-    Imitation.new(
-      hidden_sizes: opts[:hidden_sizes],
-      embed_config: embed_config,
-      temporal: opts[:temporal],
-      backbone: opts[:backbone],
-      window_size: opts[:window_size],
-      num_layers: opts[:num_layers],
-      num_heads: opts[:num_heads],
-      attention_every: opts[:attention_every]
-    )
-  end
-
-  # Calculate batch count without materializing (memory efficient)
-  num_train_samples = if opts[:temporal], do: prepared_train.size, else: prepared_train.size
-  num_batches = div(num_train_samples, opts[:batch_size])
-  Output.puts("#{num_batches} train batches (streaming, not pre-materialized)")
-
-  Output.warning("First batch triggers JIT compilation (may take 2-5 min)")
-
-  # Verify batch shape before training (diagnose data issues early)
-  test_batch = if opts[:temporal] do
-    Data.batched_sequences(prepared_train, batch_size: min(4, opts[:batch_size]), shuffle: false)
-    |> Enum.take(1)
-    |> List.first()
-  else
-    Data.batched_frames(prepared_train, batch_size: min(4, opts[:batch_size]), shuffle: false)
-    |> Enum.take(1)
-    |> List.first()
-  end
-
-  if test_batch do
-    Output.puts("  Batch states shape: #{inspect(Nx.shape(test_batch.states))}")
-    Output.puts("  Batch actions keys: #{inspect(Map.keys(test_batch.actions))}")
-  else
-    Output.error("  Failed to create test batch!")
-  end
-
-  # Training loop with timing
-  start_time = System.monotonic_time(:millisecond)
-  num_epochs = opts[:epochs]
-
-  {_final_trainer, epoch_metrics} = Enum.reduce(1..num_epochs, {trainer, []}, fn epoch, {t, metrics} ->
-    epoch_start = System.monotonic_time(:millisecond)
-
-    # Create fresh batch stream each epoch (lazy, memory efficient)
-    # Shuffle happens inside the batch creator via seed
-    batches = if opts[:temporal] do
-      Data.batched_sequences(prepared_train, batch_size: opts[:batch_size], shuffle: true, seed: epoch)
-    else
-      Data.batched_frames(prepared_train, batch_size: opts[:batch_size], shuffle: true, seed: epoch)
-    end
-
-    # Train epoch with progress
-    {updated_t, losses} = batches
-    |> Enum.with_index(1)
-    |> Enum.reduce({t, []}, fn {batch, batch_idx}, {tr, ls} ->
-      # Update progress bar
-      Output.progress_bar(batch_idx, num_batches, label: "Epoch #{epoch}/#{num_epochs}")
-
-      # Wrap train_step with error handling to see actual error
-      try do
-        {new_tr, m} = Imitation.train_step(tr, batch, nil)
-        {new_tr, [m.loss | ls]}
-      rescue
-        e ->
-          Output.progress_done()
-          Output.error("Train step failed at batch #{batch_idx}")
-          Output.error("Batch states shape: #{inspect(Nx.shape(batch.states))}")
-          Output.error("Error: #{Exception.message(e)}")
-          reraise e, __STACKTRACE__
+    prepared_val = Output.timed "Preparing val data" do
+      if opts[:temporal] do
+        seq_ds = Data.to_sequences(val_dataset,
+          window_size: opts[:window_size] || 30,
+          stride: opts[:stride] || 1)
+        Data.precompute_embeddings(seq_ds, show_progress: false)
+      else
+        val_dataset
       end
-    end)
-    Output.progress_done()
-
-    epoch_time = System.monotonic_time(:millisecond) - epoch_start
-    num_losses = length(losses)
-    avg_loss = Enum.sum(losses) / num_losses
-    batches_per_sec = num_losses / (epoch_time / 1000)
-
-    # Validation (create batches lazily, don't materialize all at once)
-    val_batches = if opts[:temporal] do
-      Data.batched_sequences(prepared_val, batch_size: opts[:batch_size], shuffle: false)
-    else
-      Data.batched_frames(prepared_val, batch_size: opts[:batch_size], shuffle: false)
     end
 
-    val_losses = Enum.map(val_batches, fn batch ->
-      Imitation.evaluate(updated_t, batch).loss
+    # Create trainer
+    trainer = Output.timed "Creating model" do
+      Imitation.new(
+        hidden_sizes: opts[:hidden_sizes],
+        embed_config: embed_config,
+        temporal: opts[:temporal],
+        backbone: opts[:backbone],
+        window_size: opts[:window_size],
+        num_layers: opts[:num_layers],
+        num_heads: opts[:num_heads],
+        attention_every: opts[:attention_every]
+      )
+    end
+
+    # Calculate batch count without materializing (memory efficient)
+    num_train_samples = if opts[:temporal], do: prepared_train.size, else: prepared_train.size
+    num_batches = div(num_train_samples, opts[:batch_size])
+    Output.puts("#{num_batches} train batches (streaming, not pre-materialized)")
+
+    Output.warning("First batch triggers JIT compilation (may take 2-5 min)")
+
+    # Verify batch shape before training (diagnose data issues early)
+    test_batch = if opts[:temporal] do
+      Data.batched_sequences(prepared_train, batch_size: min(4, opts[:batch_size]), shuffle: false)
+      |> Enum.take(1)
+      |> List.first()
+    else
+      Data.batched_frames(prepared_train, batch_size: min(4, opts[:batch_size]), shuffle: false)
+      |> Enum.take(1)
+      |> List.first()
+    end
+
+    if test_batch do
+      Output.puts("  Batch states shape: #{inspect(Nx.shape(test_batch.states))}")
+      Output.puts("  Batch actions keys: #{inspect(Map.keys(test_batch.actions))}")
+    else
+      Output.error("  Failed to create test batch!")
+    end
+
+    # Training loop with timing
+    start_time = System.monotonic_time(:millisecond)
+    num_epochs = opts[:epochs]
+
+    {_final_trainer, epoch_metrics} = Enum.reduce(1..num_epochs, {trainer, []}, fn epoch, {t, metrics} ->
+      epoch_start = System.monotonic_time(:millisecond)
+
+      # Create fresh batch stream each epoch (lazy, memory efficient)
+      # Shuffle happens inside the batch creator via seed
+      batches = if opts[:temporal] do
+        Data.batched_sequences(prepared_train, batch_size: opts[:batch_size], shuffle: true, seed: epoch)
+      else
+        Data.batched_frames(prepared_train, batch_size: opts[:batch_size], shuffle: true, seed: epoch)
+      end
+
+      # Train epoch with progress
+      {updated_t, losses} = batches
+      |> Enum.with_index(1)
+      |> Enum.reduce({t, []}, fn {batch, batch_idx}, {tr, ls} ->
+        # Update progress bar
+        Output.progress_bar(batch_idx, num_batches, label: "Epoch #{epoch}/#{num_epochs}")
+
+        # Wrap train_step with error handling to see actual error
+        try do
+          {new_tr, m} = Imitation.train_step(tr, batch, nil)
+          {new_tr, [m.loss | ls]}
+        rescue
+          e ->
+            Output.progress_done()
+            Output.error("Train step failed at batch #{batch_idx}")
+            Output.error("Batch states shape: #{inspect(Nx.shape(batch.states))}")
+            Output.error("Error: #{Exception.message(e)}")
+            reraise e, __STACKTRACE__
+        end
+      end)
+      Output.progress_done()
+
+      epoch_time = System.monotonic_time(:millisecond) - epoch_start
+      num_losses = length(losses)
+      avg_loss = Enum.sum(losses) / num_losses
+      batches_per_sec = num_losses / (epoch_time / 1000)
+
+      # Validation (create batches lazily, don't materialize all at once)
+      val_batches = if opts[:temporal] do
+        Data.batched_sequences(prepared_val, batch_size: opts[:batch_size], shuffle: false)
+      else
+        Data.batched_frames(prepared_val, batch_size: opts[:batch_size], shuffle: false)
+      end
+
+      val_losses = Enum.map(val_batches, fn batch ->
+        Imitation.evaluate(updated_t, batch).loss
+      end)
+      val_loss = if length(val_losses) > 0, do: Enum.sum(val_losses) / length(val_losses), else: avg_loss
+
+      Output.puts("  Epoch #{epoch}: loss=#{Float.round(avg_loss, 4)} val=#{Float.round(val_loss, 4)} (#{Float.round(batches_per_sec, 1)} batch/s)")
+
+      epoch_entry = %{
+        epoch: epoch,
+        train_loss: avg_loss,
+        val_loss: val_loss,
+        batches_per_sec: batches_per_sec,
+        time_ms: epoch_time
+      }
+
+      {updated_t, [epoch_entry | metrics]}
     end)
-    val_loss = if length(val_losses) > 0, do: Enum.sum(val_losses) / length(val_losses), else: avg_loss
 
-    Output.puts("  Epoch #{epoch}: loss=#{Float.round(avg_loss, 4)} val=#{Float.round(val_loss, 4)} (#{Float.round(batches_per_sec, 1)} batch/s)")
+    total_time = System.monotonic_time(:millisecond) - start_time
+    epoch_metrics = Enum.reverse(epoch_metrics)
 
-    epoch_entry = %{
-      epoch: epoch,
-      train_loss: avg_loss,
-      val_loss: val_loss,
-      batches_per_sec: batches_per_sec,
-      time_ms: epoch_time
-    }
+    # Final metrics
+    final_train = List.last(epoch_metrics).train_loss
+    final_val = List.last(epoch_metrics).val_loss
+    avg_speed = Enum.sum(Enum.map(epoch_metrics, & &1.batches_per_sec)) / length(epoch_metrics)
 
-    {updated_t, [epoch_entry | metrics]}
-  end)
+    Output.success("Complete: val=#{Float.round(final_val, 4)}, speed=#{Float.round(avg_speed, 1)} batch/s, time=#{Float.round(total_time/1000, 1)}s")
 
-  total_time = System.monotonic_time(:millisecond) - start_time
-  epoch_metrics = Enum.reverse(epoch_metrics)
-
-  # Final metrics
-  final_train = List.last(epoch_metrics).train_loss
-  final_val = List.last(epoch_metrics).val_loss
-  avg_speed = Enum.sum(Enum.map(epoch_metrics, & &1.batches_per_sec)) / length(epoch_metrics)
-
-  Output.success("Complete: val=#{Float.round(final_val, 4)}, speed=#{Float.round(avg_speed, 1)} batch/s, time=#{Float.round(total_time/1000, 1)}s")
-
-  %{
-    id: arch_id,
-    name: arch_name,
-    final_train_loss: final_train,
-    final_val_loss: final_val,
-    avg_batches_per_sec: avg_speed,
-    total_time_ms: total_time,
-    epochs: epoch_metrics,
-    config: Keyword.take(opts, [:temporal, :backbone, :window_size, :num_layers, :hidden_sizes])
-  }
+    # Return as list for flat_map
+    [%{
+      id: arch_id,
+      name: arch_name,
+      final_train_loss: final_train,
+      final_val_loss: final_val,
+      avg_batches_per_sec: avg_speed,
+      total_time_ms: total_time,
+      epochs: epoch_metrics,
+      config: Keyword.take(opts, [:temporal, :backbone, :window_size, :num_layers, :hidden_sizes])
+    }]
+  rescue
+    e ->
+      Output.error("Architecture #{arch_name} failed: #{Exception.message(e)}")
+      if continue_on_error do
+        Output.warning("Continuing with next architecture (--continue-on-error)")
+        []
+      else
+        reraise e, __STACKTRACE__
+      end
+  end
 end)
 
 Output.divider()
+
+# Handle case where all architectures failed
+if length(results) == 0 do
+  Output.error("All architectures failed! No results to display.")
+  System.halt(1)
+end
 
 # Sort by validation loss
 sorted_results = Enum.sort_by(results, & &1.final_val_loss)
