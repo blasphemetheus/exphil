@@ -96,7 +96,9 @@ defmodule ExPhil.Training.ImitationTest do
       {new_trainer, metrics} = Imitation.train_step(trainer, batch, loss_fn)
 
       assert new_trainer.step == 1
-      assert is_float(metrics.loss)
+      # Loss is returned as tensor to avoid blocking GPU→CPU transfer
+      assert %Nx.Tensor{} = metrics.loss
+      assert Nx.shape(metrics.loss) == {}  # Scalar tensor
     end
 
     @tag :slow
@@ -113,14 +115,27 @@ defmodule ExPhil.Training.ImitationTest do
     end
 
     @tag :slow
-    test "tracks loss in metrics" do
+    @tag :regression
+    test "loss can be efficiently accumulated as tensors" do
+      # Regression test for GPU blocking issue:
+      # Previously, train_step called Nx.to_number(loss) after every batch,
+      # causing GPU→CPU sync that blocked the training loop.
+      # Now loss is returned as a tensor for batch accumulation.
       trainer = Imitation.new(embed_size: 64, hidden_sizes: [32])
       batch = mock_batch(4, 64)
       {_predict_fn, loss_fn} = Imitation.build_loss_fn(trainer.policy_model)
 
-      {new_trainer, _metrics} = Imitation.train_step(trainer, batch, loss_fn)
+      # Simulate accumulating losses over multiple batches
+      {_trainer, losses} = Enum.reduce(1..5, {trainer, []}, fn _i, {t, ls} ->
+        {new_t, metrics} = Imitation.train_step(t, batch, loss_fn)
+        {new_t, [metrics.loss | ls]}
+      end)
 
-      assert length(new_trainer.metrics.loss) == 1
+      # Should be able to stack and average without per-batch GPU sync
+      assert length(losses) == 5
+      avg_loss = losses |> Nx.stack() |> Nx.mean() |> Nx.to_number()
+      assert is_float(avg_loss)
+      assert avg_loss > 0
     end
   end
 
@@ -143,6 +158,42 @@ defmodule ExPhil.Training.ImitationTest do
 
       assert result.loss == 0.0
       assert result.num_batches == 0
+    end
+  end
+
+  describe "evaluate_batch/2" do
+    @tag :slow
+    test "returns loss as tensor for single batch" do
+      trainer = Imitation.new(embed_size: 64, hidden_sizes: [32])
+      batch = mock_batch(4, 64)
+
+      result = Imitation.evaluate_batch(trainer, batch)
+
+      # Loss is returned as tensor to avoid blocking GPU→CPU transfer
+      assert %Nx.Tensor{} = result.loss
+      assert Nx.shape(result.loss) == {}  # Scalar tensor
+    end
+
+    @tag :slow
+    @tag :regression
+    test "validation losses can be efficiently accumulated as tensors" do
+      # Regression test: Previously the benchmark script called
+      # Imitation.evaluate(trainer, single_batch) which was incorrect,
+      # and even when fixed, would block on Nx.to_number per batch.
+      # Now evaluate_batch returns tensor for efficient accumulation.
+      trainer = Imitation.new(embed_size: 64, hidden_sizes: [32])
+      batches = [mock_batch(4, 64), mock_batch(4, 64), mock_batch(4, 64)]
+
+      # Simulate validation loop accumulating tensor losses
+      losses = Enum.map(batches, fn batch ->
+        Imitation.evaluate_batch(trainer, batch).loss
+      end)
+
+      # Should be able to stack and average without per-batch GPU sync
+      assert length(losses) == 3
+      avg_loss = losses |> Nx.stack() |> Nx.mean() |> Nx.to_number()
+      assert is_float(avg_loss)
+      assert avg_loss > 0
     end
   end
 
@@ -530,7 +581,8 @@ defmodule ExPhil.Training.ImitationTest do
       {new_trainer, metrics} = Imitation.train_step(trainer, batch, nil)
 
       assert new_trainer.step == 1
-      assert is_float(metrics.loss)
+      # Loss is returned as tensor (not number) to avoid GPU blocking
+      assert %Nx.Tensor{} = metrics.loss
     end
 
     @tag :slow
@@ -552,7 +604,8 @@ defmodule ExPhil.Training.ImitationTest do
       {new_trainer, metrics} = Imitation.train_step(trainer, batch, nil)
 
       assert new_trainer.step == 1
-      assert is_float(metrics.loss)
+      # Loss is returned as tensor (not number) to avoid GPU blocking
+      assert %Nx.Tensor{} = metrics.loss
     end
   end
 

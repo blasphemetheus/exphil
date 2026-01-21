@@ -271,6 +271,7 @@ results = architectures
       end
 
       # Train epoch with progress
+      # Losses are now tensors (not numbers) to avoid blocking GPU→CPU transfers
       {updated_t, losses} = batches
       |> Enum.with_index(1)
       |> Enum.reduce({t, []}, fn {batch, batch_idx}, {tr, ls} ->
@@ -294,7 +295,8 @@ results = architectures
 
       epoch_time = System.monotonic_time(:millisecond) - epoch_start
       num_losses = length(losses)
-      avg_loss = Enum.sum(losses) / num_losses
+      # Single GPU→CPU transfer at epoch end (not per-batch)
+      avg_loss = losses |> Nx.stack() |> Nx.mean() |> Nx.to_number()
       batches_per_sec = num_losses / (epoch_time / 1000)
 
       # Validation (create batches lazily, don't materialize all at once)
@@ -304,10 +306,15 @@ results = architectures
         Data.batched(prepared_val, batch_size: opts[:batch_size], shuffle: false)
       end
 
+      # Accumulate validation losses as tensors, convert once at end
       val_losses = Enum.map(val_batches, fn batch ->
-        Imitation.evaluate(updated_t, batch).loss
+        Imitation.evaluate_batch(updated_t, batch).loss
       end)
-      val_loss = if length(val_losses) > 0, do: Enum.sum(val_losses) / length(val_losses), else: avg_loss
+      val_loss = if length(val_losses) > 0 do
+        val_losses |> Nx.stack() |> Nx.mean() |> Nx.to_number()
+      else
+        avg_loss
+      end
 
       Output.puts("  Epoch #{epoch}: loss=#{Float.round(avg_loss, 4)} val=#{Float.round(val_loss, 4)} (#{Float.round(batches_per_sec, 1)} batch/s)")
 

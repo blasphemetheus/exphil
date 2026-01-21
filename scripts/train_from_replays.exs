@@ -883,7 +883,9 @@ initial_state = {trainer, 0, false, early_stopping_state, nil, pruner, ema, []}
       # Pad percentage to fixed width for stable display
       pct_str = pct |> Integer.to_string() |> String.pad_leading(3)
 
-      progress_line = "  Epoch #{epoch}: #{bar} #{pct_str}% | #{batch_idx + 1}/#{num_batches} | loss: #{Float.round(metrics.loss, 4)} | #{Float.round(avg_batch_ms / 1000, 2)}s/it | ETA: #{eta_min}m #{eta_sec_rem}s"
+      # Convert tensor loss to number for display (metrics.loss is now a tensor)
+      loss_val = Nx.to_number(metrics.loss)
+      progress_line = "  Epoch #{epoch}: #{bar} #{pct_str}% | #{batch_idx + 1}/#{num_batches} | loss: #{Float.round(loss_val, 4)} | #{Float.round(avg_batch_ms / 1000, 2)}s/it | ETA: #{eta_min}m #{eta_sec_rem}s"
 
       # Use carriage return to overwrite line (no newline until epoch complete)
       # Write directly to stderr to bypass Output module's timestamp
@@ -894,7 +896,8 @@ initial_state = {trainer, 0, false, early_stopping_state, nil, pruner, ema, []}
         IO.write(:stderr, "\n")
       end
 
-      {new_trainer, [metrics.loss | losses], new_jit_shown}
+      # Accumulate tensor loss (already converted for display above, so use loss_val)
+      {new_trainer, [loss_val | losses], new_jit_shown}
     end
 
     # Use prefetcher if enabled (computes next batch while GPU trains on current)
@@ -915,6 +918,7 @@ initial_state = {trainer, 0, false, early_stopping_state, nil, pruner, ema, []}
     end
 
     epoch_time = System.monotonic_time(:second) - epoch_start
+    # epoch_losses is now a list of numbers (converted during progress display)
     avg_loss = Enum.sum(epoch_losses) / length(epoch_losses)
 
     # Validation - only if we have validation data

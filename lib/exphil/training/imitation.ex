@@ -817,23 +817,17 @@ defmodule ExPhil.Training.Imitation do
     new_params_data = trainer.apply_updates_fn.(params_data, updates)
     new_params = put_params_data(model_state, new_params_data)
 
-    # Update metrics
-    loss_val = Nx.to_number(loss)
-    new_metrics = %{
-      loss: [loss_val | Enum.take(trainer.metrics.loss, 99)],
-      button_loss: trainer.metrics.button_loss,
-      stick_loss: trainer.metrics.stick_loss,
-      learning_rate: trainer.metrics.learning_rate
-    }
-
+    # Update trainer state (metrics update deferred to avoid GPU sync)
+    # Loss stays as tensor - caller should batch conversions at epoch end
     new_trainer = %{trainer |
       policy_params: new_params,
       optimizer_state: new_optimizer_state,
-      step: trainer.step + 1,
-      metrics: new_metrics
+      step: trainer.step + 1
     }
 
-    {new_trainer, %{loss: loss_val, step: new_trainer.step}}
+    # Return loss as tensor to avoid blocking GPU→CPU transfer every batch
+    # Caller accumulates tensors and converts to number once per epoch
+    {new_trainer, %{loss: loss, step: new_trainer.step}}
   end
 
   @doc """
@@ -882,18 +876,41 @@ defmodule ExPhil.Training.Imitation do
     label_smoothing = trainer.config[:label_smoothing] || 0.0
     {_predict_fn, loss_fn} = build_loss_fn(trainer.policy_model, label_smoothing: label_smoothing)
 
-    {total_loss, count} = Enum.reduce(dataset, {0.0, 0}, fn batch, {acc_loss, acc_count} ->
+    # Accumulate losses as tensors, convert only once at the end
+    # This avoids blocking GPU→CPU transfer after every batch
+    {losses, count} = Enum.reduce(dataset, {[], 0}, fn batch, {acc_losses, acc_count} ->
       %{states: states, actions: actions} = batch
       loss = loss_fn.(trainer.policy_params, states, actions)
-      {acc_loss + Nx.to_number(loss), acc_count + 1}
+      {[loss | acc_losses], acc_count + 1}
     end)
 
-    avg_loss = if count > 0, do: total_loss / count, else: 0.0
+    avg_loss = if count > 0 do
+      # Single GPU→CPU transfer at the end instead of per-batch
+      total = losses |> Nx.stack() |> Nx.sum() |> Nx.to_number()
+      total / count
+    else
+      0.0
+    end
 
     %{
       loss: avg_loss,
       num_batches: count
     }
+  end
+
+  @doc """
+  Evaluate on a single batch. Returns loss as a tensor (not number) for efficiency.
+  Caller should accumulate tensors and convert to number once at epoch end.
+  """
+  @spec evaluate_batch(t(), map()) :: %{loss: Nx.Tensor.t()}
+  def evaluate_batch(trainer, batch) do
+    label_smoothing = trainer.config[:label_smoothing] || 0.0
+    {_predict_fn, loss_fn} = build_loss_fn(trainer.policy_model, label_smoothing: label_smoothing)
+
+    %{states: states, actions: actions} = batch
+    loss = loss_fn.(trainer.policy_params, states, actions)
+
+    %{loss: loss}
   end
 
   # ============================================================================

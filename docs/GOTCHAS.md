@@ -21,6 +21,8 @@ Hard-won knowledge from debugging ExPhil. Each section documents a specific issu
 15. [RTX 5090 (Blackwell) not supported by EXLA](#15-rtx-5090-blackwell-not-supported-by-exla)
 16. [Noisy XLA/CUDA output during training](#16-noisy-xlacuda-output-during-training)
 17. [Polaris.Schedules incompatibility with Nx 0.10](#17-polarisschedules-incompatibility-with-nx-010)
+18. [Nx.to_number in training loop blocks GPU](#18-nxto_number-in-training-loop-blocks-gpu)
+19. [deep_backend_copy copies all model params every batch](#19-deep_backend_copy-copies-all-model-params-every-batch)
 
 ---
 
@@ -448,3 +450,89 @@ Polaris 0.1.0's schedule functions don't work with Nx 0.10 when `warmup_steps` i
 **Fix in ExPhil:** We replaced Polaris.Schedules with direct Nx implementations in `lib/exphil/training/imitation.ex`. The default `warmup_steps` is set to 1 (not 0) to avoid triggering the bug.
 
 **If you see this error:** Ensure you're using the latest code with `--warmup-steps 1` or rebuild the Docker image.
+
+---
+
+## 18. Nx.to_number in training loop blocks GPU
+
+Calling `Nx.to_number(loss)` after every training batch causes severe GPU underutilization (0% GPU compute, 90% VRAM).
+
+**Symptoms:**
+- GPU utilization 0% despite 90% VRAM usage
+- Training takes 100x longer than expected (hours instead of minutes)
+- CPU utilization also low (6-10%)
+
+**Root cause:** `Nx.to_number/1` forces a synchronous GPU→CPU transfer. When called after every batch:
+
+```
+GPU computes batch → GPU IDLE (waiting) → CPU reads loss → Next batch
+                     ↑
+              This idle time dominates training
+```
+
+The GPU finishes computing quickly but sits idle while waiting for the CPU to fetch the scalar loss value.
+
+**Fix:** Keep losses as tensors during training, convert only at epoch end:
+
+```elixir
+# BAD - blocks after every batch
+{new_trainer, losses} = Enum.reduce(batches, {trainer, []}, fn batch, {t, ls} ->
+  {new_t, m} = Imitation.train_step(t, batch, nil)
+  {new_t, [Nx.to_number(m.loss) | ls]}  # ← BLOCKS HERE
+end)
+
+# GOOD - single GPU→CPU transfer at epoch end
+{new_trainer, losses} = Enum.reduce(batches, {trainer, []}, fn batch, {t, ls} ->
+  {new_t, m} = Imitation.train_step(t, batch, nil)
+  {new_t, [m.loss | ls]}  # loss stays as tensor
+end)
+avg_loss = losses |> Nx.stack() |> Nx.mean() |> Nx.to_number()  # One transfer
+```
+
+**Related functions affected:**
+- `Imitation.train_step/3` - now returns `loss` as tensor
+- `Imitation.evaluate_batch/2` - returns tensor for accumulation
+- `Imitation.evaluate/2` - handles conversion internally
+
+**Regression tests:** See `ImitationTest` for tests tagged `:regression` that verify tensor accumulation works correctly.
+
+---
+
+## 19. deep_backend_copy copies all model params every batch
+
+**Status:** Known performance issue, not yet fixed.
+
+`train_step/3` calls `deep_backend_copy(trainer.policy_params)` every batch, copying all model parameters (~2M for typical models). This is expensive.
+
+**Why it exists:** Workaround for EXLA/Defn.Expr tensor mismatch (see Gotcha #7). When `Nx.Defn.value_and_grad` traces the loss function, it creates Expr tensors that can't mix with concrete EXLA tensors captured in closures.
+
+**Current code:**
+```elixir
+# In train_step - COPIES ALL PARAMS EVERY BATCH
+model_state = deep_backend_copy(trainer.policy_params)
+loss_fn = fn params ->
+  predict_fn.(params, states)  # states is captured!
+  # ...
+end
+{loss, grads} = Nx.Defn.value_and_grad(loss_fn).(model_state)
+```
+
+**Proper fix:** Refactor to use `defn` functions that take all inputs as parameters:
+
+```elixir
+# Define at module level with defn
+defn train_step_impl(params, states, actions, predict_fn) do
+  # No closures, all inputs are arguments
+  logits = predict_fn.(params, states)
+  Policy.imitation_loss(logits, actions)
+end
+
+# In train_step - NO COPYING
+{loss, grads} = Nx.Defn.value_and_grad(&train_step_impl/4).(
+  trainer.policy_params, states, actions, trainer.predict_fn
+)
+```
+
+**Estimated impact:** 20-30% speedup by eliminating per-batch parameter copies.
+
+**Workaround for now:** The fix is complex and risks breaking the training loop. The `Nx.to_number` fix (Gotcha #18) addresses the larger blocking issue. Parameter copying adds overhead but doesn't cause 0% GPU utilization.
