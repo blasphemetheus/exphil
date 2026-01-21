@@ -55,7 +55,7 @@ ENV PATH="${ASDF_DIR}/bin:${ASDF_DIR}/shims:${PATH}"
 # Install Erlang and Elixir via asdf
 RUN asdf plugin add erlang && asdf plugin add elixir
 RUN asdf install erlang 27.0 && asdf global erlang 27.0
-RUN asdf install elixir 1.17.3-otp-27 && asdf global elixir 1.17.3-otp-27
+RUN asdf install elixir 1.18.1-otp-27 && asdf global elixir 1.18.1-otp-27
 
 # Set up Python
 RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1 \
@@ -141,7 +141,7 @@ COPY --from=builder /root/.asdf /root/.asdf
 ENV PATH="${ASDF_DIR}/bin:${ASDF_DIR}/shims:${PATH}"
 
 # Set asdf versions for runtime
-RUN asdf global erlang 27.0 && asdf global elixir 1.17.3-otp-27
+RUN asdf global erlang 27.0 && asdf global elixir 1.18.1-otp-27
 
 # Note: Rust not needed in runtime - Rustler configured with skip_compilation?: true for prod
 
