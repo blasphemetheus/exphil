@@ -158,6 +158,7 @@ results = Enum.map(architectures, fn {arch_id, arch_name, arch_opts} ->
   IO.puts(:stderr, " done!")
 
   # Create trainer
+  IO.write(:stderr, "  Creating trainer...")
   trainer = Imitation.new(
     hidden_sizes: opts[:hidden_sizes],
     embed_config: embed_config,
@@ -168,6 +169,9 @@ results = Enum.map(architectures, fn {arch_id, arch_name, arch_opts} ->
     num_heads: opts[:num_heads],
     attention_every: opts[:attention_every]
   )
+  IO.puts(:stderr, " done!")
+
+  IO.puts(:stderr, "  Starting training (first batch may take time for JIT compilation)...")
 
   # Training loop with timing
   start_time = System.monotonic_time(:millisecond)
