@@ -119,6 +119,58 @@ mix run scripts/train_self_play.exs \
 - CLI: `--focal-loss --focal-gamma 2.0`
 - Works with label smoothing: `--focal-loss --label-smoothing 0.1`
 
+**Embedding Dimension Optimization (Consideration):**
+
+Current embedding size is **1991 dimensions**, which causes XLA autotuning warnings and register spilling during CUDA compilation. Padding to **2048** (power of 2) would improve GPU kernel efficiency.
+
+*Current breakdown (1991 total):*
+| Component | Dimensions | Notes |
+|-----------|------------|-------|
+| Player 1 | 893 | Position, action, damage, stocks, character, etc. |
+| Player 2 | 893 | Same as Player 1 |
+| Stage | 64 | One-hot encoded (64 stages) |
+| Prev action | 13 | Continuous controller state |
+| Player names | 128 | One-hot for human player identification |
+| **Projectiles** | 0 (disabled) | 5 slots × 7 dims = 35 if enabled |
+| **Items** | 0 (disabled) | 5 slots × 11 dims = 55 if enabled |
+
+*Options to reach 2048 (need +57 dimensions):*
+
+| Option | Dims Added | Benefit for Melee | Tradeoff |
+|--------|------------|-------------------|----------|
+| **Enable projectiles** | +35 | **High** - Critical for Link, Samus, Falco, Young Link | More parsing complexity |
+| **Enable items** | +55 | Medium - Link bombs, Peach turnips | Rarely used competitively |
+| Zero padding | +57 | None (pure GPU optimization) | Wasted parameters |
+| Frame timing features | +10-20 | Medium - Hitstun frames remaining, IASA | Requires libmelee data |
+| Momentum/velocity | +8 | Medium - Predict movement continuation | Already partially captured |
+| Platform state | +12 | Low-Medium - FoD/Randall positions | Stage-specific |
+| Matchup embedding | +26 | Medium - Character pair one-hot | Could help generalization |
+
+*Recommendation:*
+1. **Enable projectiles (+35)** - Essential for Link/Samus/Falco matchups, gets us to 2026
+2. **Add zero padding (+22)** - Reach exactly 2048
+
+*Alternative (more useful features):*
+1. Enable projectiles (+35) → 2026
+2. Add hitstun/IASA frames (+4) → 2030
+3. Add platform positions (+12) → 2042
+4. Zero padding (+6) → 2048
+
+*Implementation:*
+```elixir
+# In lib/exphil/embeddings.ex config
+def config(opts \\ []) do
+  %{
+    with_projectiles: Keyword.get(opts, :with_projectiles, true),  # Enable
+    with_items: Keyword.get(opts, :with_items, false),
+    pad_to: Keyword.get(opts, :pad_to, 2048),  # New option
+    # ...
+  }
+end
+```
+
+*Status:* Not started - benchmark first to quantify GPU speedup from aligned dimensions.
+
 ---
 
 ### 4. Robustness & UX
