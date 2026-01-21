@@ -127,9 +127,12 @@ defmodule ExPhil.Training.Plots do
         File.write!(path, html)
 
       :svg ->
-        # VegaLite can export SVG directly via Vl.Export
-        svg = Vl.Export.to_svg(plot)
-        File.write!(path, svg)
+        # SVG export requires vega_lite_convert package, fall back to HTML
+        html_path = String.replace(path, ".svg", ".html")
+        html = to_html(plot)
+        File.write!(html_path, html)
+        require Logger
+        Logger.warning("SVG export requires vega_lite_convert library, saved as HTML: #{html_path}")
 
       :png ->
         # PNG requires additional dependency, fall back to HTML
@@ -157,7 +160,7 @@ defmodule ExPhil.Training.Plots do
   """
   @spec to_html(VegaLite.t()) :: String.t()
   def to_html(plot) do
-    spec = Vl.Export.to_json(plot)
+    spec = Vl.to_spec(plot) |> Jason.encode!()
 
     """
     <!DOCTYPE html>
@@ -205,7 +208,7 @@ defmodule ExPhil.Training.Plots do
     metadata = Keyword.get(opts, :metadata, [])
 
     loss_plot = loss_curve(history)
-    loss_spec = Vl.Export.to_json(loss_plot)
+    loss_spec = Vl.to_spec(loss_plot) |> Jason.encode!()
 
     # Format metadata
     metadata_html = if Enum.empty?(metadata) do

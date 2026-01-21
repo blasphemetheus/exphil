@@ -6,10 +6,7 @@ defmodule ExPhil.Training.Metrics do
   are poorly predicted. Per-action metrics reveal this.
   """
 
-  import Nx.Defn
-
   @button_names [:a, :b, :x, :y, :z, :l, :r, :start]
-  @stick_names [:main_x, :main_y, :c_x, :c_y]
 
   @doc """
   Compute per-action accuracy metrics from predictions and targets.
@@ -48,9 +45,8 @@ defmodule ExPhil.Training.Metrics do
     |> Enum.with_index()
     |> Enum.map(fn {name, idx} ->
       pred_key = :"button_#{idx}"
-      target_key = :"buttons"
 
-      if Map.has_key?(predictions, pred_key) and Map.has_key?(targets, target_key) do
+      if Map.has_key?(predictions, pred_key) and Map.has_key?(targets, :buttons) do
         pred = predictions[pred_key]
         target = Nx.slice_along_axis(targets.buttons, idx, 1, axis: -1) |> Nx.squeeze(axes: [-1])
 
@@ -148,39 +144,51 @@ defmodule ExPhil.Training.Metrics do
     lines = []
 
     # Button accuracy
-    if Map.has_key?(metrics, :button_accuracy) and map_size(metrics.button_accuracy) > 0 do
+    lines = if Map.has_key?(metrics, :button_accuracy) and map_size(metrics.button_accuracy) > 0 do
       button_str = metrics.button_accuracy
       |> Enum.map(fn {k, v} -> "#{k}=#{Float.round(v * 100, 1)}%" end)
       |> Enum.join(" ")
-      lines = ["Buttons: #{button_str}" | lines]
+      ["Buttons: #{button_str}" | lines]
+    else
+      lines
     end
 
     # Stick MSE
-    if Map.has_key?(metrics, :stick_mse) and map_size(metrics.stick_mse) > 0 do
+    lines = if Map.has_key?(metrics, :stick_mse) and map_size(metrics.stick_mse) > 0 do
       stick_str = metrics.stick_mse
       |> Enum.map(fn {k, v} -> "#{k}=#{Float.round(v, 4)}" end)
       |> Enum.join(" ")
-      lines = ["Sticks: #{stick_str}" | lines]
+      ["Sticks: #{stick_str}" | lines]
+    else
+      lines
     end
 
     # Rare action accuracy
-    if Map.has_key?(metrics, :rare_action_accuracy) and map_size(metrics.rare_action_accuracy) > 0 do
+    lines = if Map.has_key?(metrics, :rare_action_accuracy) and map_size(metrics.rare_action_accuracy) > 0 do
       rare_str = metrics.rare_action_accuracy
       |> Enum.map(fn {k, v} -> "#{k}=#{Float.round(v * 100, 1)}%" end)
       |> Enum.join(" ")
-      lines = ["Rare (recall): #{rare_str}" | lines]
+      ["Rare (recall): #{rare_str}" | lines]
+    else
+      lines
     end
 
     # Summary
     summary_parts = []
-    if Map.has_key?(metrics, :overall_button_accuracy) do
-      summary_parts = ["btn_acc=#{Float.round(metrics.overall_button_accuracy * 100, 1)}%" | summary_parts]
+    summary_parts = if Map.has_key?(metrics, :overall_button_accuracy) do
+      ["btn_acc=#{Float.round(metrics.overall_button_accuracy * 100, 1)}%" | summary_parts]
+    else
+      summary_parts
     end
-    if Map.has_key?(metrics, :overall_stick_mse) do
-      summary_parts = ["stick_mse=#{Float.round(metrics.overall_stick_mse, 4)}" | summary_parts]
+    summary_parts = if Map.has_key?(metrics, :overall_stick_mse) do
+      ["stick_mse=#{Float.round(metrics.overall_stick_mse, 4)}" | summary_parts]
+    else
+      summary_parts
     end
-    if length(summary_parts) > 0 do
-      lines = ["Summary: #{Enum.join(summary_parts, " ")}" | lines]
+    lines = if length(summary_parts) > 0 do
+      ["Summary: #{Enum.join(summary_parts, " ")}" | lines]
+    else
+      lines
     end
 
     Enum.reverse(lines) |> Enum.join("\n")
