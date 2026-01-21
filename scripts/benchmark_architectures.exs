@@ -51,6 +51,13 @@ epochs = case Enum.find_index(args, &(&1 == "--epochs")) do
   idx -> String.to_integer(Enum.at(args, idx + 1) || "3")
 end
 
+batch_size = case Enum.find_index(args, &(&1 == "--batch-size")) do
+  nil ->
+    # Auto-detect: use 256 for GPU, 128 for CPU
+    if System.get_env("EXLA_TARGET") == "cuda", do: 256, else: 128
+  idx -> String.to_integer(Enum.at(args, idx + 1) || "128")
+end
+
 # Architectures to benchmark
 architectures = [
   {:mlp, "MLP (baseline)", [temporal: false, hidden_sizes: [128, 128], precompute: true]},
@@ -71,6 +78,7 @@ Configuration:
   Replay dir:    #{replay_dir}
   Max files:     #{max_files}
   Epochs:        #{epochs}
+  Batch size:    #{batch_size}
   Architectures: #{length(architectures)}
   GPU:           #{GPUUtils.memory_status_string()}
 
@@ -123,7 +131,7 @@ results = Enum.map(architectures, fn {arch_id, arch_name, arch_opts} ->
   # Merge with base options
   opts = Keyword.merge([
     epochs: epochs,
-    batch_size: 128,
+    batch_size: batch_size,
     hidden_sizes: [128, 128],
     learning_rate: 1.0e-4,
     warmup_steps: 10,
@@ -173,7 +181,6 @@ results = Enum.map(architectures, fn {arch_id, arch_name, arch_opts} ->
   )
 
   # Training loop with timing
-  epoch_metrics = []
   start_time = System.monotonic_time(:millisecond)
 
   {final_trainer, epoch_metrics} = Enum.reduce(1..opts[:epochs], {trainer, []}, fn epoch, {t, metrics} ->

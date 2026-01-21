@@ -364,27 +364,37 @@ defmodule ExPhil.Training.PPO do
     # Extract params data from ModelState for gradient computation
     params_data = get_params_data(trainer.params)
 
+    # IMPORTANT: Convert closure-captured tensors to BinaryBackend to avoid EXLA/Expr mismatch.
+    # When JIT compiles a function, tensors captured in closures must be on BinaryBackend,
+    # then JIT will promote them to the appropriate backend (EXLA) during compilation.
+    states_bin = Nx.backend_copy(states, Nx.BinaryBackend)
+    old_log_probs_bin = Nx.backend_copy(old_log_probs, Nx.BinaryBackend)
+    advantages_bin = Nx.backend_copy(advantages, Nx.BinaryBackend)
+    returns_bin = Nx.backend_copy(returns, Nx.BinaryBackend)
+    old_values_bin = Nx.backend_copy(old_values, Nx.BinaryBackend)
+    actions_bin = Map.new(actions, fn {k, v} -> {k, Nx.backend_copy(v, Nx.BinaryBackend)} end)
+
     # Loss function that returns only the scalar loss (for gradient computation)
-    # Axon predict_fn accepts plain params map directly
+    # Uses the BinaryBackend copies to avoid EXLA tensor closure issues
     loss_fn = fn params ->
-      %{policy: policy_logits, value: values} = predict_fn.(params, states)
+      %{policy: policy_logits, value: values} = predict_fn.(params, states_bin)
 
       # Compute new log probs
-      new_log_probs = ActorCritic.compute_log_probs(policy_logits, actions)
+      new_log_probs = ActorCritic.compute_log_probs(policy_logits, actions_bin)
 
       # Policy loss (clipped PPO objective)
-      ratio = Nx.exp(Nx.subtract(new_log_probs, old_log_probs))
+      ratio = Nx.exp(Nx.subtract(new_log_probs, old_log_probs_bin))
       clipped_ratio = Nx.clip(ratio, 1.0 - config.clip_range, 1.0 + config.clip_range)
 
-      surr1 = Nx.multiply(ratio, advantages)
-      surr2 = Nx.multiply(clipped_ratio, advantages)
+      surr1 = Nx.multiply(ratio, advantages_bin)
+      surr2 = Nx.multiply(clipped_ratio, advantages_bin)
       policy_loss = Nx.negate(Nx.mean(Nx.min(surr1, surr2)))
 
       # Value loss (optionally clipped)
       value_loss = if config.value_clip do
-        Value.clipped_value_loss(values, old_values, returns, config.clip_range)
+        Value.clipped_value_loss(values, old_values_bin, returns_bin, config.clip_range)
       else
-        Value.value_loss(values, returns)
+        Value.value_loss(values, returns_bin)
       end
 
       # Entropy bonus
@@ -397,7 +407,9 @@ defmodule ExPhil.Training.PPO do
     end
 
     # Compute gradients on params data
-    {loss, grads} = Nx.Defn.value_and_grad(loss_fn).(params_data)
+    # JIT compile the value_and_grad function to ensure consistent backend (EXLA)
+    grad_fn = Nx.Defn.jit(Nx.Defn.value_and_grad(loss_fn))
+    {loss, grads} = grad_fn.(params_data)
 
     # Compute metrics in a separate forward pass (no gradients needed)
     %{policy: policy_logits, value: values} = predict_fn.(trainer.params, states)
@@ -583,31 +595,33 @@ defmodule ExPhil.Training.PPO do
     end
   end
 
-  # Recursively convert all tensors to BinaryBackend for serialization
-  defp to_binary_backend(%Nx.Tensor{} = tensor) do
+  @doc """
+  Recursively convert all tensors to BinaryBackend for serialization.
+  """
+  def to_binary_backend(%Nx.Tensor{} = tensor) do
     Nx.backend_copy(tensor, Nx.BinaryBackend)
   end
 
-  defp to_binary_backend(%Axon.ModelState{data: data, state: state} = ms) do
+  def to_binary_backend(%Axon.ModelState{data: data, state: state} = ms) do
     %{ms | data: to_binary_backend(data), state: to_binary_backend(state)}
   end
 
-  defp to_binary_backend(map) when is_map(map) and not is_struct(map) do
+  def to_binary_backend(map) when is_map(map) and not is_struct(map) do
     Map.new(map, fn {k, v} -> {k, to_binary_backend(v)} end)
   end
 
-  defp to_binary_backend(list) when is_list(list) do
+  def to_binary_backend(list) when is_list(list) do
     Enum.map(list, &to_binary_backend/1)
   end
 
-  defp to_binary_backend(tuple) when is_tuple(tuple) do
+  def to_binary_backend(tuple) when is_tuple(tuple) do
     tuple
     |> Tuple.to_list()
     |> Enum.map(&to_binary_backend/1)
     |> List.to_tuple()
   end
 
-  defp to_binary_backend(other), do: other
+  def to_binary_backend(other), do: other
 
   @doc """
   Load PPO checkpoint.

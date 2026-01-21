@@ -18,6 +18,9 @@ defmodule ExPhil.Training.Config do
     :quick, :standard, :full, :full_cpu,
     :gpu_quick, :gpu_mlp_quick, :gpu_lstm_quick, :gpu_gru_quick, :gpu_attention_quick,
     :gpu_standard, :production,
+    # RTX 4090 optimized (24GB VRAM)
+    :rtx4090_quick, :rtx4090_standard, :rtx4090_full,
+    # Character presets
     :mewtwo, :ganondorf, :link, :gameandwatch, :zelda
   ]
 
@@ -755,6 +758,108 @@ defmodule ExPhil.Training.Config do
   end
 
   # ============================================================================
+  # RTX 4090 Optimized Presets (24GB VRAM)
+  # ============================================================================
+  # These presets are tuned for NVIDIA RTX 4090 with 24GB VRAM.
+  # Usage: EXLA_TARGET=cuda mix run scripts/train_from_replays.exs --preset rtx4090_quick
+
+  def preset(:rtx4090_quick) do
+    # Fast test on 4090 - larger batches than generic gpu_quick
+    # ~5 minutes, good for verifying GPU setup works
+    [
+      epochs: 3,
+      max_files: 30,
+      batch_size: 512,           # 4090 can handle larger batches
+      hidden_sizes: [128, 128],
+      temporal: true,
+      backbone: :mamba,
+      window_size: 30,
+      num_layers: 1,
+      # Light regularization
+      augment: true,
+      val_split: 0.1,
+      preset: :rtx4090_quick
+    ]
+  end
+
+  def preset(:rtx4090_standard) do
+    # Standard training on 4090 - ~30 minutes to 1 hour
+    [
+      epochs: 20,
+      max_files: 200,
+      batch_size: 512,           # Larger batch for faster training
+      hidden_sizes: [256, 256],
+      temporal: true,
+      backbone: :mamba,
+      window_size: 60,
+      num_layers: 2,
+      state_size: 16,
+      # Full regularization
+      augment: true,
+      mirror_prob: 0.5,
+      noise_prob: 0.3,
+      noise_scale: 0.01,
+      label_smoothing: 0.1,
+      # Validation & early stopping
+      val_split: 0.1,
+      early_stopping: true,
+      patience: 5,
+      # LR schedule
+      lr_schedule: :cosine,
+      learning_rate: 1.0e-4,
+      warmup_steps: 500,
+      # EMA
+      ema: true,
+      ema_decay: 0.999,
+      save_best: true,
+      keep_best: 5,
+      preset: :rtx4090_standard
+    ]
+  end
+
+  def preset(:rtx4090_full) do
+    # Maximum quality on 4090 - several hours
+    # Uses gradient accumulation for effective batch size of 2048
+    [
+      epochs: 50,
+      max_files: nil,            # All available files
+      batch_size: 512,
+      hidden_sizes: [256, 256],
+      temporal: true,
+      backbone: :mamba,
+      window_size: 60,
+      num_layers: 3,
+      state_size: 32,
+      expand_factor: 2,
+      # Full regularization
+      augment: true,
+      mirror_prob: 0.5,
+      noise_prob: 0.3,
+      noise_scale: 0.01,
+      label_smoothing: 0.1,
+      # Larger validation
+      val_split: 0.15,
+      early_stopping: true,
+      patience: 10,
+      min_delta: 0.001,
+      # Cosine restarts
+      lr_schedule: :cosine_restarts,
+      learning_rate: 1.0e-4,
+      warmup_steps: 1000,
+      restart_period: 5000,
+      restart_mult: 2,
+      # EMA with slower decay
+      ema: true,
+      ema_decay: 0.9995,
+      # Gradient accumulation for larger effective batch
+      accumulation_steps: 4,     # effective batch = 2048
+      save_best: true,
+      keep_best: 10,
+      preset: :rtx4090_full
+    ]
+  end
+
+  # ============================================================================
   # Character-Specific Presets (Built on :production)
   # ============================================================================
 
@@ -818,17 +923,22 @@ defmodule ExPhil.Training.Config do
 
     Available presets:
       CPU:       quick, standard, full_cpu
-      GPU:       gpu_quick, gpu_standard, full, production
+      GPU:       gpu_quick, gpu_mlp_quick, gpu_standard, full, production
+      RTX 4090:  rtx4090_quick, rtx4090_standard, rtx4090_full
       Character: mewtwo, ganondorf, link, gameandwatch, zelda
 
     Recommended progression:
       1. Test code changes:  --preset quick
-      2. Validate on GPU:    --preset gpu_quick
-      3. Standard training:  --preset gpu_standard (or standard for CPU)
-      4. Full quality:       --preset full
+      2. Validate on GPU:    --preset gpu_quick (or rtx4090_quick for 4090)
+      3. Standard training:  --preset gpu_standard (or rtx4090_standard)
+      4. Full quality:       --preset full (or rtx4090_full)
       5. Production deploy:  --preset production (or character preset)
 
-    Usage: mix run scripts/train_from_replays.exs --preset gpu_standard
+    GPU training requires EXLA_TARGET=cuda:
+      EXLA_TARGET=cuda mix run scripts/train_from_replays.exs --preset rtx4090_quick
+
+    Or use the convenience script:
+      ./scripts/gpu_train.sh --preset rtx4090_quick --replays ./replays
     """
   end
 
