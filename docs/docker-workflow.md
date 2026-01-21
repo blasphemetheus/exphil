@@ -717,3 +717,361 @@ tmux new -s training
 # Ctrl+B, D to detach
 # tmux attach -t training to reattach
 ```
+
+## Training Best Practices
+
+### Logging & Output Management
+
+Training can produce large amounts of output. Manage it effectively:
+
+#### Use `tee` to Log to File While Viewing
+
+```bash
+# Log everything to file while still seeing output
+mix run scripts/train_from_replays.exs --preset production 2>&1 | tee /workspace/train.log
+
+# Benchmark with logging
+mix run scripts/benchmark_architectures.exs --replays /workspace/replays 2>&1 | tee /workspace/benchmark.log
+
+# View just the last 100 lines of a running log
+tail -f /workspace/train.log | tail -100
+```
+
+#### Use `script` for Full Session Recording
+
+```bash
+# Record entire terminal session (including colors, control chars)
+script /workspace/session.log
+
+# Now run training...
+mix run scripts/train_from_replays.exs --preset production
+
+# Exit script recording
+exit
+
+# Replay the session
+cat /workspace/session.log
+```
+
+#### Redirect Errors Separately
+
+```bash
+# Separate stdout and stderr
+mix run scripts/train_from_replays.exs \
+  --preset production \
+  > /workspace/train_stdout.log \
+  2> /workspace/train_stderr.log
+
+# Or combine but know which is which
+mix run scripts/train_from_replays.exs --preset production 2>&1 | \
+  tee >(grep -E "error|Error|ERROR" > /workspace/errors.log) > /workspace/full.log
+```
+
+### Increase tmux Scrollback Buffer
+
+Default tmux scrollback is ~2000 lines. Training with many batches can overflow this.
+
+#### Per-Session Increase
+
+```bash
+# Inside tmux, increase scrollback for current session
+tmux set-option -g history-limit 50000
+
+# Or start tmux with increased limit
+tmux set-option -g history-limit 50000 \; new-session -s train
+```
+
+#### Permanent Configuration
+
+Create `~/.tmux.conf` on the pod:
+
+```bash
+cat > ~/.tmux.conf << 'EOF'
+# Increase scrollback buffer
+set-option -g history-limit 50000
+
+# Enable mouse scrolling
+set -g mouse on
+
+# Better status line
+set -g status-right '%H:%M'
+
+# Scroll with mouse wheel
+bind -n WheelUpPane if-shell -F -t = "#{mouse_any_flag}" "send-keys -M" "if -Ft= '#{pane_in_mode}' 'send-keys -M' 'copy-mode -e; send-keys -M'"
+EOF
+
+# Apply without restarting tmux
+tmux source-file ~/.tmux.conf
+```
+
+#### Save tmux Buffer to File
+
+```bash
+# Inside tmux, save current pane's scrollback to file
+# Press Ctrl+B, then :
+# Type: capture-pane -pS -10000 > /workspace/tmux_buffer.log
+
+# Or from bash:
+tmux capture-pane -pS -10000 -t train > /workspace/tmux_capture.log
+```
+
+### Limit Elixir Inspect Output
+
+Error stacktraces can dump huge tensors, overwhelming logs. The benchmark script already includes this fix:
+
+```elixir
+# Add at top of script to prevent tensor dumps in errors
+Application.put_env(:elixir, :inspect, limit: 10, printable_limit: 100)
+```
+
+This truncates inspect output to 10 items and 100 printable chars, preventing multi-megabyte tensor dumps.
+
+#### Runtime Configuration
+
+```bash
+# Set via environment variable before running
+export ELIXIR_ERL_OPTIONS="+P 1000000"
+
+# Or use IEx for interactive debugging with limits
+iex --erl "+P 1000000" -S mix run scripts/train_from_replays.exs
+```
+
+### GPU & Memory Monitoring
+
+#### Watch GPU Usage in Real-Time
+
+```bash
+# In a second tmux pane (Ctrl+B, then %)
+watch -n 1 nvidia-smi
+
+# More detailed with memory breakdown
+nvidia-smi --query-gpu=timestamp,name,pci.bus_id,driver_version,pstate,pcie.link.gen.max,pcie.link.gen.current,temperature.gpu,utilization.gpu,utilization.memory,memory.total,memory.free,memory.used --format=csv -l 1
+```
+
+#### Monitor System Memory
+
+```bash
+# Real-time memory and CPU
+htop
+
+# Just memory, refreshing
+watch -n 2 free -h
+
+# Check for OOM kills
+dmesg | tail -50 | grep -i "out of memory\|oom\|killed"
+```
+
+#### GPU Memory in Training Output
+
+ExPhil shows GPU memory at each epoch. Look for:
+```
+[12:34:56] GPU: 18.2/24.0 GB (76%)
+```
+
+If memory keeps climbing, you may have a leak. Restart training from checkpoint.
+
+### Crash Recovery
+
+#### Check Why Process Died
+
+```bash
+# OOM killer logs
+dmesg | tail -100 | grep -E "oom|killed|Out of memory"
+
+# If GPU ran out of memory
+nvidia-smi  # Shows if GPU is still accessible
+
+# Check if process is still running
+pgrep -f "mix run"
+```
+
+#### Resume from Checkpoint
+
+ExPhil saves checkpoints periodically. Resume:
+
+```bash
+# List available checkpoints
+ls -la /workspace/checkpoints/
+
+# Resume from latest (training automatically loads if checkpoint exists)
+mix run scripts/train_from_replays.exs \
+  --preset production \
+  --checkpoint /workspace/checkpoints/model.axon \
+  --replays /workspace/replays
+```
+
+#### Prevent OOM
+
+```bash
+# Reduce batch size (most common fix)
+mix run scripts/train_from_replays.exs --preset production --batch-size 64
+
+# Reduce window size for temporal models
+mix run scripts/train_from_replays.exs --temporal --window-size 15
+
+# Reduce max files to lower memory footprint
+mix run scripts/train_from_replays.exs --preset production --max-files 50
+
+# Use gradient accumulation to simulate larger batches
+mix run scripts/train_from_replays.exs \
+  --batch-size 32 \
+  --gradient-accumulation 4  # Effective batch size: 128
+```
+
+### Cost Optimization
+
+#### Use Preemptible/Spot Instances
+
+On RunPod, "Spot" instances are 50-70% cheaper but can be interrupted. Good for:
+- Benchmarks
+- Quick tests
+- Training with frequent checkpoints
+
+Not good for:
+- Final production runs (use On-Demand)
+- When you need guaranteed completion
+
+#### Checkpoint Frequently
+
+```bash
+# Checkpoint every epoch (default for presets)
+# Or explicitly set:
+mix run scripts/train_from_replays.exs --checkpoint-freq 1
+
+# For long runs, checkpoint every 5 epochs to balance I/O vs safety
+mix run scripts/train_from_replays.exs --checkpoint-freq 5
+```
+
+#### Stop When Done
+
+**Set a reminder** - GPU costs ~$0.44/hr (RTX 4090). Leaving a pod running overnight = ~$10.
+
+```bash
+# In another pane, set a timer
+sleep 2h && echo "TRAINING COMPLETE - STOP POD" | wall
+
+# Or auto-stop after training completes
+mix run scripts/train_from_replays.exs --preset production && echo "Done!" && \
+  curl -X POST "https://api.runpod.io/v1/pods/$POD_ID/stop" -H "Authorization: Bearer $RUNPOD_API_KEY"
+```
+
+#### Download Checkpoints to Cloud Storage
+
+Don't lose work if pod terminates:
+
+```bash
+# Sync checkpoints to B2 after each major run
+rclone sync /workspace/checkpoints b2:$B2_BUCKET/checkpoints --progress
+
+# Or set up automatic sync in background
+while true; do
+  sleep 600  # Every 10 minutes
+  rclone sync /workspace/checkpoints b2:$B2_BUCKET/checkpoints --quiet
+done &
+```
+
+### Debugging Training Issues
+
+#### JIT Compilation Hangs
+
+First batch triggers XLA JIT compilation. Expected time:
+- MLP: 30-60 seconds
+- Mamba/LSTM: 2-5 minutes
+- Attention: 3-7 minutes
+
+If it takes longer than 10 minutes, something is wrong:
+```bash
+# Check GPU is being used
+nvidia-smi  # Should show process using VRAM
+
+# Check for infinite JIT (dynamic shapes)
+# Look for repeated "Compiling..." messages in logs
+```
+
+#### Shape Mismatch Errors
+
+Add test batch verification before training (already in benchmark script):
+```elixir
+# Verify batch shape early
+test_batch = Data.batched_sequences(dataset, batch_size: 4, shuffle: false)
+|> Enum.take(1)
+|> List.first()
+
+IO.puts("Batch states shape: #{inspect(Nx.shape(test_batch.states))}")
+# Expected: {4, 30, 1991} for temporal, {4, 1991} for single-frame
+```
+
+#### NaN Loss
+
+```bash
+# Reduce learning rate
+mix run scripts/train_from_replays.exs --learning-rate 1e-5
+
+# Check for data issues
+mix run scripts/validate_replays.exs --replays /workspace/replays
+
+# Enable gradient clipping
+mix run scripts/train_from_replays.exs --gradient-clip 1.0
+```
+
+### Monitoring Dashboard
+
+For long runs, consider setting up a simple monitoring approach:
+
+```bash
+# Create a monitoring script
+cat > /workspace/monitor.sh << 'EOF'
+#!/bin/bash
+while true; do
+  clear
+  echo "=== ExPhil Training Monitor ==="
+  echo ""
+  echo "GPU Status:"
+  nvidia-smi --query-gpu=utilization.gpu,utilization.memory,memory.used,memory.total,temperature.gpu --format=csv,noheader
+  echo ""
+  echo "System Memory:"
+  free -h | head -2
+  echo ""
+  echo "Training Process:"
+  pgrep -f "mix run" > /dev/null && echo "Running" || echo "NOT RUNNING"
+  echo ""
+  echo "Latest Log Lines:"
+  tail -5 /workspace/train.log 2>/dev/null || echo "(no log file)"
+  echo ""
+  echo "Checkpoints:"
+  ls -lhtr /workspace/checkpoints/*.axon 2>/dev/null | tail -3 || echo "(none)"
+  sleep 5
+done
+EOF
+chmod +x /workspace/monitor.sh
+
+# Run in a tmux pane
+./monitor.sh
+```
+
+### Pre-Flight Checklist
+
+Before starting a long training run:
+
+```bash
+# 1. Verify GPU is available
+nvidia-smi
+
+# 2. Check disk space (need ~20GB free)
+df -h /workspace
+
+# 3. Verify replays are accessible
+ls /workspace/replays/*.slp | head -5
+
+# 4. Test quick run first
+mix run scripts/train_from_replays.exs --preset gpu_quick --replays /workspace/replays --dry-run
+
+# 5. Start tmux session
+tmux new -s train
+
+# 6. Set up logging
+mix run scripts/train_from_replays.exs --preset production --replays /workspace/replays 2>&1 | tee /workspace/train.log
+
+# 7. In another pane (Ctrl+B, %), run monitoring
+watch -n 5 nvidia-smi
+```
