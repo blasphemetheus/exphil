@@ -163,35 +163,27 @@ results = architectures
     )
   end
 
-  # Pre-create batches ONCE (not per epoch) for efficiency
-  train_batches = Output.timed "Creating batches" do
-    if opts[:temporal] do
-      Data.batched_sequences(prepared_train, batch_size: opts[:batch_size], shuffle: false)
-    else
-      Data.batched_frames(prepared_train, batch_size: opts[:batch_size], shuffle: false)
-    end |> Enum.to_list()
-  end
-  Output.puts("#{length(train_batches)} train batches")
-
-  # Pre-create validation batches too
-  val_batches = if opts[:temporal] do
-    Data.batched_sequences(prepared_val, batch_size: opts[:batch_size], shuffle: false) |> Enum.to_list()
-  else
-    Data.batched_frames(prepared_val, batch_size: opts[:batch_size], shuffle: false) |> Enum.to_list()
-  end
+  # Calculate batch count without materializing (memory efficient)
+  num_train_samples = if opts[:temporal], do: prepared_train.size, else: prepared_train.size
+  num_batches = div(num_train_samples, opts[:batch_size])
+  Output.puts("#{num_batches} train batches (streaming, not pre-materialized)")
 
   Output.warning("First batch triggers JIT compilation (may take 2-5 min)")
 
   # Training loop with timing
   start_time = System.monotonic_time(:millisecond)
   num_epochs = opts[:epochs]
-  num_batches = length(train_batches)
 
   {_final_trainer, epoch_metrics} = Enum.reduce(1..num_epochs, {trainer, []}, fn epoch, {t, metrics} ->
     epoch_start = System.monotonic_time(:millisecond)
 
-    # Shuffle batch order per epoch (not recreate batches)
-    batches = Enum.shuffle(train_batches)
+    # Create fresh batch stream each epoch (lazy, memory efficient)
+    # Shuffle happens inside the batch creator via seed
+    batches = if opts[:temporal] do
+      Data.batched_sequences(prepared_train, batch_size: opts[:batch_size], shuffle: true, seed: epoch)
+    else
+      Data.batched_frames(prepared_train, batch_size: opts[:batch_size], shuffle: true, seed: epoch)
+    end
 
     # Train epoch with progress
     {updated_t, losses} = batches
@@ -205,10 +197,17 @@ results = architectures
     Output.progress_done()
 
     epoch_time = System.monotonic_time(:millisecond) - epoch_start
-    avg_loss = Enum.sum(losses) / length(losses)
-    batches_per_sec = length(batches) / (epoch_time / 1000)
+    num_losses = length(losses)
+    avg_loss = Enum.sum(losses) / num_losses
+    batches_per_sec = num_losses / (epoch_time / 1000)
 
-    # Validation
+    # Validation (create batches lazily, don't materialize all at once)
+    val_batches = if opts[:temporal] do
+      Data.batched_sequences(prepared_val, batch_size: opts[:batch_size], shuffle: false)
+    else
+      Data.batched_frames(prepared_val, batch_size: opts[:batch_size], shuffle: false)
+    end
+
     val_losses = Enum.map(val_batches, fn batch ->
       Imitation.evaluate(updated_t, batch).loss
     end)

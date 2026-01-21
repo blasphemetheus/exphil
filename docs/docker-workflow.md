@@ -234,16 +234,41 @@ mix run scripts/train_from_replays.exs \
 
 #### Long-Running Training with tmux
 
+**ALWAYS use tmux for GPU training.** SSH disconnects are common and will kill your training otherwise.
+
 ```bash
-# Start tmux session (survives disconnects)
-tmux new -s training
+# Start a new named tmux session
+tmux new -s train
 
-# Run training inside tmux
-mix run scripts/train_from_replays.exs ...
+# Inside tmux, run your training
+cd /app
+mix run scripts/benchmark_architectures.exs --replays /workspace/replays --epochs 3
 
-# Detach: Ctrl+B, then D
-# Reattach later: tmux attach -t training
+# Detach from session (training continues in background)
+# Press: Ctrl+B, then D
+
+# List running sessions
+tmux ls
+
+# Reattach to your session
+tmux attach -t train
+
+# Kill a session when done
+tmux kill-session -t train
 ```
+
+**Essential tmux commands:**
+
+| Action | Keys |
+|--------|------|
+| Detach (leave running) | `Ctrl+B`, then `D` |
+| Scroll up | `Ctrl+B`, then `[`, then arrow keys |
+| Exit scroll mode | `q` |
+| Split horizontal | `Ctrl+B`, then `%` |
+| Split vertical | `Ctrl+B`, then `"` |
+| Switch panes | `Ctrl+B`, then arrow key |
+
+**Pro tip:** Start tmux FIRST, then run your command. If you forget and your SSH dies, the process dies with it.
 
 #### Download Results
 
@@ -619,7 +644,9 @@ MIX_ENV=test mix test test/exphil/self_play/ --exclude integration
 | Compilation errors | Check `git status` locally, ensure all changes committed |
 | Test failures | Run locally first with `mix test` before deploying |
 | `ExPhil.Test.Helpers` not found | Use `MIX_ENV=test mix deps.get` then `MIX_ENV=test mix test` |
-| OOM during benchmark | Reduce `--batch-size` (try 256 or 128) |
+| OOM during benchmark | Reduce `--batch-size` (try 128 or 64), or reduce `--max-files` |
+| Pod disconnects during training | Use tmux (see above), check if OOM killed the process |
+| Process killed with no error | Likely OOM - check `dmesg \| tail` for "Out of memory" |
 | EXLA not using GPU | Verify `EXLA_TARGET=cuda` is set |
 
 ## Quick Reference Card

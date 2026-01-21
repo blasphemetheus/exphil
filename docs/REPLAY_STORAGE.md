@@ -95,6 +95,43 @@ export R2_ENDPOINT="https://YOUR_ACCOUNT_ID.r2.cloudflarestorage.com"
 export R2_BUCKET="exphil-replays"
 ```
 
+## Quick Setup on New Pod
+
+If rclone isn't configured, create config and sync in one command:
+
+```bash
+rclone config create b2 b2 account="$B2_KEY_ID" key="$B2_APP_KEY" && rclone sync b2:exphil-replays /workspace/replays --progress
+```
+
+Or with credentials inline (not recommended for shared environments):
+
+```bash
+rclone config create b2 b2 account="YOUR_KEY_ID" key="YOUR_APP_KEY" && rclone sync b2:YOUR_BUCKET /workspace/replays --progress
+```
+
+## Secrets Management
+
+**Option 1: RunPod Environment Variables (Recommended)**
+
+Set secrets in RunPod pod template under "Environment Variables":
+- `B2_KEY_ID` = your key ID
+- `B2_APP_KEY` = your application key
+- `B2_BUCKET` = your bucket name
+
+These are encrypted at rest and injected at runtime. Then your fetch script just uses `$B2_KEY_ID` etc.
+
+**Option 2: RunPod Secrets**
+
+RunPod has a Secrets feature (Account → Secrets) that's more secure than env vars:
+1. Create secrets in RunPod dashboard
+2. Reference them in pod template as `{{RUNPOD_SECRET_B2_KEY_ID}}`
+
+**Option 3: One-time interactive setup**
+
+SSH in, run `rclone config` interactively, credentials stay in `/root/.config/rclone/rclone.conf` on the pod. Lost when pod terminates unless you use persistent storage.
+
+**Never commit credentials to git or Docker images.**
+
 ## Pod Startup Workflow
 
 ### Option A: Manual (run after SSH)
