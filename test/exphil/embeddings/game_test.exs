@@ -101,9 +101,12 @@ defmodule ExPhil.Embeddings.GameTest do
 
       assert %GameEmbed{} = config
       assert %PlayerEmbed{} = config.player
-      assert config.with_projectiles == false
+      assert config.with_projectiles == true
       assert config.max_projectiles == 5
-      assert config.num_player_names == 128
+      assert config.num_player_names == 112
+      assert config.with_distance == true
+      assert config.with_relative_pos == true
+      assert config.with_frame_count == true
     end
   end
 

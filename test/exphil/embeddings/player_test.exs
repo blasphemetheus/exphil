@@ -54,8 +54,11 @@ defmodule ExPhil.Embeddings.PlayerTest do
       assert config.xy_scale == 0.05
       assert config.shield_scale == 0.01
       assert config.speed_scale == 0.5
-      assert config.with_speeds == false
+      assert config.with_speeds == true
       assert config.with_nana == true
+      assert config.with_frame_info == true
+      assert config.with_stock == true
+      assert config.with_ledge_distance == true
     end
   end
 
@@ -237,11 +240,23 @@ defmodule ExPhil.Embeddings.PlayerTest do
     end
   end
 
-  describe "embed_nana/2" do
-    test "returns zeros with exists=0 for nil nana" do
-      config = PlayerEmbed.default_config()
+  describe "embed_nana/3" do
+    test "returns zeros with exists=0 for nil nana (compact mode)" do
+      config = %PlayerEmbed{nana_mode: :compact}
 
-      result = PlayerEmbed.embed_nana(nil, config)
+      result = PlayerEmbed.embed_nana(nil, config, nil)
+
+      # Compact Nana size
+      assert Nx.shape(result) == {39}
+
+      # All should be zeros
+      assert Nx.to_number(Nx.sum(result)) == 0.0
+    end
+
+    test "returns zeros with exists=0 for nil nana (full mode)" do
+      config = %PlayerEmbed{nana_mode: :full, with_speeds: false, with_frame_info: false, with_stock: false}
+
+      result = PlayerEmbed.embed_nana(nil, config, nil)
 
       # Base size + 1 for exists flag
       expected_size = 446 + 1
@@ -251,13 +266,24 @@ defmodule ExPhil.Embeddings.PlayerTest do
       assert Nx.to_number(Nx.sum(result)) == 0.0
     end
 
-    test "embeds nana with exists=1" do
+    test "embeds nana with exists=1 (compact mode)" do
       nana = mock_nana()
-      config = PlayerEmbed.default_config()
+      config = PlayerEmbed.default_config()  # Default is compact mode
 
-      result = PlayerEmbed.embed_nana(nana, config)
+      result = PlayerEmbed.embed_nana(nana, config, nil)
 
-      # Last element should be 1.0 (exists flag)
+      # In compact mode, exists is the first element
+      exists_flag = Nx.to_number(Nx.squeeze(Nx.slice(result, [0], [1])))
+      assert_in_delta exists_flag, 1.0, 0.001
+    end
+
+    test "embeds nana with exists=1 (full mode)" do
+      nana = mock_nana()
+      config = %PlayerEmbed{nana_mode: :full, with_speeds: false, with_frame_info: false, with_stock: false}
+
+      result = PlayerEmbed.embed_nana(nana, config, nil)
+
+      # In full mode, exists is at position 446 (after base embedding)
       exists_flag = Nx.to_number(Nx.squeeze(Nx.slice(result, [446], [1])))
       assert_in_delta exists_flag, 1.0, 0.001
     end
@@ -267,8 +293,8 @@ defmodule ExPhil.Embeddings.PlayerTest do
       nana2 = mock_nana(percent: 50.0)
       config = PlayerEmbed.default_config()
 
-      result1 = PlayerEmbed.embed_nana(nana1, config)
-      result2 = PlayerEmbed.embed_nana(nana2, config)
+      result1 = PlayerEmbed.embed_nana(nana1, config, nil)
+      result2 = PlayerEmbed.embed_nana(nana2, config, nil)
 
       # Should be different (nana's percent is embedded)
       diff = Nx.sum(Nx.abs(Nx.subtract(result1, result2)))
