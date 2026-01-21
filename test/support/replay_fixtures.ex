@@ -29,20 +29,20 @@ defmodule ExPhil.Test.ReplayFixtures do
   # Character IDs (Melee internal)
   @mewtwo 10
   @fox 2
-  @_falco 20
+  # @falco 20
   @marth 9
   @sheik 19
   @ganondorf 25
   @link 6
-  @_game_and_watch 24
+  # @game_and_watch 24
 
   # Stage IDs
   @final_destination 32
   @battlefield 31
-  @_yoshis_story 8
-  @_fountain_of_dreams 2
-  @_dream_land 28
-  @_pokemon_stadium 3
+  # @yoshis_story 8
+  # @fountain_of_dreams 2
+  # @dream_land 28
+  # @pokemon_stadium 3
 
   # Action states (common)
   @wait 14            # Standing idle
@@ -51,10 +51,10 @@ defmodule ExPhil.Test.ReplayFixtures do
   @jump_squat 24      # Jump squat
   @jump_f 25          # Forward jump
   @fall 30            # Falling
-  @_landing 40        # Landing lag
-  @_shield 178        # Shielding
-  @_grabbed 223       # Being grabbed
-  @_dead_down 0       # Dead (down)
+  # @landing 40       # Landing lag
+  # @shield 178       # Shielding
+  # @grabbed 223      # Being grabbed
+  # @dead_down 0      # Dead (down)
 
   # ============================================================================
   # Neutral Game Fixtures
