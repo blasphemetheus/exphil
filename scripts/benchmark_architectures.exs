@@ -131,6 +131,7 @@ results = Enum.map(architectures, fn {arch_id, arch_name, arch_opts} ->
   embed_config = Embeddings.config()
 
   # Prepare dataset based on architecture
+  IO.write(:stderr, "  Preparing train data...")
   prepared_train = if opts[:temporal] do
     seq_ds = Data.to_sequences(train_dataset,
       window_size: opts[:window_size] || 30,
@@ -143,7 +144,9 @@ results = Enum.map(architectures, fn {arch_id, arch_name, arch_opts} ->
       train_dataset
     end
   end
+  IO.puts(:stderr, " done!")
 
+  IO.write(:stderr, "  Preparing val data...")
   prepared_val = if opts[:temporal] do
     seq_ds = Data.to_sequences(val_dataset,
       window_size: opts[:window_size] || 30,
@@ -152,6 +155,7 @@ results = Enum.map(architectures, fn {arch_id, arch_name, arch_opts} ->
   else
     val_dataset
   end
+  IO.puts(:stderr, " done!")
 
   # Create trainer
   trainer = Imitation.new(
@@ -168,7 +172,8 @@ results = Enum.map(architectures, fn {arch_id, arch_name, arch_opts} ->
   # Training loop with timing
   start_time = System.monotonic_time(:millisecond)
 
-  {_final_trainer, epoch_metrics} = Enum.reduce(1..opts[:epochs], {trainer, []}, fn epoch, {t, metrics} ->
+  num_epochs = opts[:epochs]
+  {_final_trainer, epoch_metrics} = Enum.reduce(1..num_epochs, {trainer, []}, fn epoch, {t, metrics} ->
     epoch_start = System.monotonic_time(:millisecond)
 
     # Create batches
@@ -178,8 +183,17 @@ results = Enum.map(architectures, fn {arch_id, arch_name, arch_opts} ->
       Data.batched_frames(prepared_train, batch_size: opts[:batch_size], shuffle: true) |> Enum.to_list()
     end
 
-    # Train epoch
-    {updated_t, losses} = Enum.reduce(batches, {t, []}, fn batch, {tr, ls} ->
+    num_batches = length(batches)
+    IO.write(:stderr, "    Epoch #{epoch}/#{num_epochs}: training ")
+
+    # Train epoch with progress
+    {updated_t, losses} = batches
+    |> Enum.with_index(1)
+    |> Enum.reduce({t, []}, fn {batch, batch_idx}, {tr, ls} ->
+      # Progress dot every 10 batches
+      if rem(batch_idx, max(div(num_batches, 10), 1)) == 0 do
+        IO.write(:stderr, ".")
+      end
       {new_tr, m} = Imitation.train_step(tr, batch, nil)
       {new_tr, [m.loss | ls]}
     end)
@@ -188,6 +202,8 @@ results = Enum.map(architectures, fn {arch_id, arch_name, arch_opts} ->
     avg_loss = Enum.sum(losses) / length(losses)
     batches_per_sec = length(batches) / (epoch_time / 1000)
 
+    IO.write(:stderr, " validating ")
+
     # Validation
     val_batches = if opts[:temporal] do
       Data.batched_sequences(prepared_val, batch_size: opts[:batch_size], shuffle: false) |> Enum.to_list()
@@ -195,12 +211,16 @@ results = Enum.map(architectures, fn {arch_id, arch_name, arch_opts} ->
       Data.batched_frames(prepared_val, batch_size: opts[:batch_size], shuffle: false) |> Enum.to_list()
     end
 
-    val_losses = Enum.map(val_batches, fn batch ->
+    val_losses = val_batches
+    |> Enum.with_index(1)
+    |> Enum.map(fn {batch, idx} ->
+      if rem(idx, max(div(length(val_batches), 5), 1)) == 0, do: IO.write(:stderr, ".")
       Imitation.evaluate(updated_t, batch).loss
     end)
     val_loss = if length(val_losses) > 0, do: Enum.sum(val_losses) / length(val_losses), else: avg_loss
 
-    Output.puts("    Epoch #{epoch}: train=#{Float.round(avg_loss, 4)} val=#{Float.round(val_loss, 4)} (#{Float.round(batches_per_sec, 1)} batch/s)")
+    IO.puts(:stderr, " done!")
+    Output.puts("      loss=#{Float.round(avg_loss, 4)} val=#{Float.round(val_loss, 4)} (#{Float.round(batches_per_sec, 1)} batch/s, #{Float.round(epoch_time/1000, 1)}s)")
 
     epoch_entry = %{
       epoch: epoch,
