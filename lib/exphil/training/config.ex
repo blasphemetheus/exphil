@@ -256,7 +256,7 @@ defmodule ExPhil.Training.Config do
     [
       epochs: 3,
       max_files: 20,
-      batch_size: 128,
+      batch_size: 256,
       hidden_sizes: [64, 64],
       temporal: true,
       backbone: :mamba,
@@ -299,7 +299,7 @@ defmodule ExPhil.Training.Config do
     [
       epochs: 3,
       max_files: 30,
-      batch_size: 128,
+      batch_size: 256,
       hidden_sizes: [64, 64],
       temporal: true,
       backbone: :lstm,
@@ -317,7 +317,7 @@ defmodule ExPhil.Training.Config do
     [
       epochs: 3,
       max_files: 30,
-      batch_size: 128,
+      batch_size: 256,
       hidden_sizes: [64, 64],
       temporal: true,
       backbone: :gru,
@@ -335,7 +335,7 @@ defmodule ExPhil.Training.Config do
     [
       epochs: 3,
       max_files: 30,
-      batch_size: 128,
+      batch_size: 256,
       hidden_sizes: [64, 64],
       temporal: true,
       backbone: :attention,
@@ -354,7 +354,7 @@ defmodule ExPhil.Training.Config do
     [
       epochs: 20,
       max_files: 100,
-      batch_size: 128,
+      batch_size: 256,
       hidden_sizes: [128, 128],
       temporal: true,
       backbone: :mamba,

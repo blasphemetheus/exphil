@@ -136,6 +136,32 @@ defmodule ExPhil.Training.GPUUtils do
   end
 
   @doc """
+  Convenience alias for `get_memory_info/1` that returns simplified status.
+
+  Returns `{:ok, %{used_mb: int, total_mb: int, utilization: float}}` on success,
+  where utilization is a fraction (0.0 to 1.0).
+
+  ## Examples
+
+      iex> GPUUtils.memory_status()
+      {:ok, %{used_mb: 4521, total_mb: 24564, utilization: 0.18}}
+  """
+  @spec memory_status(non_neg_integer()) :: {:ok, map()} | {:error, atom()}
+  def memory_status(device_id \\ 0) do
+    case get_memory_info(device_id) do
+      {:ok, %{used_mb: used, total_mb: total, utilization: util}} ->
+        {:ok, %{
+          used_mb: used,
+          total_mb: total,
+          utilization: util / 100
+        }}
+
+      error ->
+        error
+    end
+  end
+
+  @doc """
   Get all GPU devices with their info.
   """
   @spec list_devices() :: {:ok, [map()]} | {:error, atom()}
