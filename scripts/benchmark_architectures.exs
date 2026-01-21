@@ -170,6 +170,24 @@ results = architectures
 
   Output.warning("First batch triggers JIT compilation (may take 2-5 min)")
 
+  # Verify batch shape before training (diagnose data issues early)
+  test_batch = if opts[:temporal] do
+    Data.batched_sequences(prepared_train, batch_size: min(4, opts[:batch_size]), shuffle: false)
+    |> Enum.take(1)
+    |> List.first()
+  else
+    Data.batched_frames(prepared_train, batch_size: min(4, opts[:batch_size]), shuffle: false)
+    |> Enum.take(1)
+    |> List.first()
+  end
+
+  if test_batch do
+    Output.puts("  Batch states shape: #{inspect(Nx.shape(test_batch.states))}")
+    Output.puts("  Batch actions keys: #{inspect(Map.keys(test_batch.actions))}")
+  else
+    Output.error("  Failed to create test batch!")
+  end
+
   # Training loop with timing
   start_time = System.monotonic_time(:millisecond)
   num_epochs = opts[:epochs]
@@ -191,8 +209,19 @@ results = architectures
     |> Enum.reduce({t, []}, fn {batch, batch_idx}, {tr, ls} ->
       # Update progress bar
       Output.progress_bar(batch_idx, num_batches, label: "Epoch #{epoch}/#{num_epochs}")
-      {new_tr, m} = Imitation.train_step(tr, batch, nil)
-      {new_tr, [m.loss | ls]}
+
+      # Wrap train_step with error handling to see actual error
+      try do
+        {new_tr, m} = Imitation.train_step(tr, batch, nil)
+        {new_tr, [m.loss | ls]}
+      rescue
+        e ->
+          Output.progress_done()
+          Output.error("Train step failed at batch #{batch_idx}")
+          Output.error("Batch states shape: #{inspect(Nx.shape(batch.states))}")
+          Output.error("Error: #{Exception.message(e)}")
+          reraise e, __STACKTRACE__
+      end
     end)
     Output.progress_done()
 
