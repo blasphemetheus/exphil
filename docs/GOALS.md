@@ -18,11 +18,13 @@ This document tracks the major goals and roadmap for ExPhil development.
 - UX improvements: colored output, progress bars, dry-run, validation, YAML config
 - Frame delay augmentation for online play robustness
 - GitHub Actions CI (test, format, dialyzer)
+- **Self-play RL infrastructure** (GenServer architecture, PPO integration, Elo matchmaking)
+- Mock environment with physics (for fast self-play testing)
 - 900+ tests passing
 
-### Not Done
+### Next Step
 
-RL self-play (the project can imitate humans, but can't improve beyond them)
+Large-scale self-play training (train on GPU cluster, tune hyperparameters)
 
 ---
 
@@ -30,17 +32,43 @@ RL self-play (the project can imitate humans, but can't improve beyond them)
 
 ### 1. Self-Play & RL Infrastructure
 
-**Impact: Critical | Status: Foundational gap**
+**Impact: Critical | Status: ✅ Complete**
 
-The project can do behavioral cloning but lacks self-play RL. This is the biggest gap between "imitating humans" and "beating humans."
+GenServer-based self-play infrastructure with BEAM concurrency, historical sampling, and Elo matchmaking.
 
-| Task | Effort | Why |
-|------|--------|-----|
-| BEAM-based parallel game runner | High | Dolphin self-play needs concurrent games |
-| Historical sampling | Medium | Play against old checkpoints to avoid collapse |
-| Population-based training | High | Multiple agents prevent rock-paper-scissors |
-| PPO integration with self-play | Medium | Already have PPO trainer, needs environment |
-| League system (AlphaStar-style) | High | Exploiters + main agents for diversity |
+| Task | Effort | Status |
+|------|--------|--------|
+| BEAM-based parallel game runner | High | **Done** - GamePoolSupervisor + GameRunner GenServers |
+| Historical sampling | Medium | **Done** - PopulationManager with configurable history |
+| Population-based training | High | **Done** - Matchmaker with skill-based pairing |
+| PPO integration with self-play | Medium | **Done** - train_self_play.exs script |
+| Mock environment | Medium | **Done** - Physics-based MockEnv.Game |
+| Elo rating system | Low | **Done** - Matchmaker with leaderboard |
+| League system (AlphaStar-style) | High | Not started (future enhancement) |
+
+**Implementation:**
+- `lib/exphil/self_play/` - GenServer architecture
+  - `supervisor.ex` - Top-level supervisor
+  - `game_runner.ex` - Per-game GenServer with physics mock
+  - `game_pool_supervisor.ex` - DynamicSupervisor for parallel games
+  - `population_manager.ex` - Policy versioning and historical sampling
+  - `experience_collector.ex` - Batched experience collection
+  - `matchmaker.ex` - Elo ratings and skill-based matchmaking
+  - `elo.ex` - Elo calculation utilities
+- `lib/exphil/mock_env/` - Physics-based mock Melee environment
+  - `game.ex` - Game loop, stage collision, blast zones
+  - `player.ex` - Player physics (gravity, jumping, movement)
+
+**Usage:**
+```bash
+# Quick test with mock environment
+mix run scripts/train_self_play.exs --game-type mock --timesteps 1000
+
+# Full training with pretrained policy
+mix run scripts/train_self_play.exs \
+  --pretrained checkpoints/imitation_policy.bin \
+  --num-games 8 --timesteps 100000 --track-elo
+```
 
 **Key References:**
 - [Project Nabla](https://bycn.github.io/2022/08/19/project-nabla-writeup.html) - Warning about policy collapse
