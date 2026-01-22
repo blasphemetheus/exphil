@@ -403,6 +403,7 @@ stage_id_to_name = %{
   end
 
   # Collect metadata and filter
+  training_port = opts[:player_port]
   {filtered, char_counts, stage_counts} = replay_files
   |> Task.async_stream(
     fn path ->
@@ -416,18 +417,21 @@ stage_id_to_name = %{
   )
   |> Enum.reduce({[], %{}, %{}}, fn
     {:ok, {:ok, path, meta}}, {paths, chars, stages} ->
-      # Collect character stats
-      player_chars = Enum.map(meta.players, fn p -> p.character_name end)
-      chars = Enum.reduce(player_chars, chars, fn c, acc ->
-        Map.update(acc, c, 1, & &1 + 1)
-      end)
+      # Collect character stats for the training player's port only
+      training_player = Enum.find(meta.players, fn p -> p.port == training_port end)
+      chars = if training_player do
+        Map.update(chars, training_player.character_name, 1, & &1 + 1)
+      else
+        chars
+      end
 
       # Collect stage stats
       stage_name = Map.get(stage_id_to_name, meta.stage, "Stage #{meta.stage}")
       stages = Map.update(stages, stage_name, 1, & &1 + 1)
 
-      # Check filters
-      char_match = char_names == [] or Enum.any?(player_chars, fn c -> c in char_names end)
+      # Check filters - only check training player's character
+      training_char = if training_player, do: training_player.character_name, else: nil
+      char_match = char_names == [] or training_char in char_names
       stage_match = stage_ids == [] or meta.stage in stage_ids
 
       if char_match and stage_match do
@@ -690,7 +694,7 @@ end
 Output.puts("  Batch size: #{opts[:batch_size]}")
 
 # Count parameters and show estimates
-param_count = GPUUtils.count_params(trainer.params)
+param_count = GPUUtils.count_params(trainer.policy_params)
 Output.puts("  Parameters: #{Float.round(param_count / 1_000_000, 2)}M")
 
 # Check for checkpoint size warning
@@ -778,7 +782,7 @@ end
 # Initialize EMA if configured
 ema = if opts[:ema] do
   Output.puts("  EMA enabled (decay=#{opts[:ema_decay]})")
-  EMA.new(trainer.params, decay: opts[:ema_decay])
+  EMA.new(trainer.policy_params, decay: opts[:ema_decay])
 else
   nil
 end
@@ -1015,7 +1019,7 @@ initial_state = {trainer, 0, false, early_stopping_state, nil, pruner, ema, []}
 
     # Update EMA weights if enabled
     updated_ema = if current_ema do
-      EMA.update(current_ema, updated_trainer.params)
+      EMA.update(current_ema, updated_trainer.policy_params)
     else
       nil
     end
