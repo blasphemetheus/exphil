@@ -384,6 +384,11 @@ defmodule ExPhil.Training.Registry do
     :crypto.strong_rand_bytes(8) |> Base.url_encode64(padding: false)
   end
 
+  defp sanitize_config(config) when is_list(config) do
+    # Handle keyword lists by converting to map first
+    sanitize_config(Map.new(config))
+  end
+
   defp sanitize_config(config) when is_map(config) do
     # Remove function values that can't be serialized
     config
