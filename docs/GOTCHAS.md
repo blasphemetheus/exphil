@@ -23,6 +23,7 @@ Hard-won knowledge from debugging ExPhil. Each section documents a specific issu
 17. [Polaris.Schedules incompatibility with Nx 0.10](#17-polarisschedules-incompatibility-with-nx-010)
 18. [Nx.to_number in training loop blocks GPU](#18-nxto_number-in-training-loop-blocks-gpu)
 19. [deep_backend_copy copies all model params every batch](#19-deep_backend_copy-copies-all-model-params-every-batch)
+20. [Embedding config() vs default_config() dimension mismatch](#20-embedding-config-vs-default_config-dimension-mismatch)
 
 ---
 
@@ -526,3 +527,60 @@ loss_and_grad_fn = build_loss_and_grad_fn(predict_fn, config)
 ```
 
 **Impact:** ~20-30% speedup by eliminating per-batch parameter copies and closure creation.
+
+---
+
+## 20. Embedding config() vs default_config() dimension mismatch
+
+**Status:** FIXED
+
+`Embeddings.config()` and `Embeddings.default_config()` had different default values, causing a dimension mismatch where the model expected one size but received embedded tensors of a different size.
+
+**Symptoms:**
+```
+** (Axon.CompileError) exception found when compiling layer Axon.Layers.dense/4:
+    ** (ArgumentError) dot/zip expects shapes to be compatible,
+    dimension 1 of left-side (1175) does not equal dimension 0 of right-side (1204)
+```
+
+**The problem:**
+```elixir
+# Player struct defaults
+defstruct [
+  with_speeds: true,        # struct default
+  # ...
+]
+
+# But Embeddings.config() had different hardcoded defaults!
+def config(opts \\ []) do
+  player_config = %Player{
+    with_speeds: Keyword.get(opts, :with_speeds, false),  # DIFFERENT!
+    # ...
+  }
+end
+
+# This caused:
+Embeddings.embedding_size()                    # => 1204 (uses struct defaults)
+Embeddings.embedding_size(Embeddings.config()) # => 1175 (uses config defaults)
+```
+
+**The fix:** Make `config()` start from `default_config()` and merge overrides:
+
+```elixir
+def config(opts \\ []) do
+  base = default_config()
+
+  player_opts = Keyword.take(opts, [:with_speeds, :with_nana, ...])
+  player_config = struct(base.player, player_opts)
+
+  # ... merge other options
+  struct(base, [{:player, player_config} | game_opts])
+end
+```
+
+**Prevention tests:** Added tests that verify:
+- `embedding_size()` matches `embedding_size(config())`
+- `config()` fields match `default_config()` fields
+- Actual embedded tensor size matches `embedding_size(config)`
+
+**Lesson:** When you have multiple ways to create a default config, ensure they produce identical results. Add tests that catch dimension mismatches by comparing sizes from different code paths.

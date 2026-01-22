@@ -535,6 +535,60 @@ defmodule ExPhil.EmbeddingsTest do
       assert config.controller.axis_buckets == 8
       assert config.with_projectiles == false
     end
+
+    # Critical consistency tests - these catch the dimension mismatch bug
+    # where embedding_size() returned 1204 but config() produced 1175 dims
+
+    test "config() produces same embedding size as default_config()" do
+      config_size = Embeddings.embedding_size(Embeddings.config())
+      default_size = Embeddings.embedding_size(Embeddings.default_config())
+
+      assert config_size == default_size,
+        "config() size (#{config_size}) must match default_config() size (#{default_size})"
+    end
+
+    test "embedding_size() with no args matches embedding_size(config())" do
+      no_args_size = Embeddings.embedding_size()
+      with_config_size = Embeddings.embedding_size(Embeddings.config())
+
+      assert no_args_size == with_config_size,
+        "embedding_size() (#{no_args_size}) must match embedding_size(config()) (#{with_config_size})"
+    end
+
+    test "actual embedded tensor shape matches embedding_size()" do
+      game_state = make_game_state()
+      config = Embeddings.config()
+
+      result = Embeddings.embed(game_state, nil, config: config)
+      expected_size = Embeddings.embedding_size(config)
+
+      {actual_size} = Nx.shape(result)
+      assert actual_size == expected_size,
+        "Embedded tensor size (#{actual_size}) must match embedding_size(config) (#{expected_size})"
+    end
+
+    test "config() fields match default_config() fields" do
+      config = Embeddings.config()
+      default = Embeddings.default_config()
+
+      # Player config
+      assert config.player.with_speeds == default.player.with_speeds
+      assert config.player.with_nana == default.player.with_nana
+      assert config.player.nana_mode == default.player.nana_mode
+      assert config.player.with_frame_info == default.player.with_frame_info
+      assert config.player.with_stock == default.player.with_stock
+      assert config.player.with_ledge_distance == default.player.with_ledge_distance
+      assert config.player.jumps_normalized == default.player.jumps_normalized
+      assert config.player.action_mode == default.player.action_mode
+
+      # Game config
+      assert config.with_projectiles == default.with_projectiles
+      assert config.max_projectiles == default.max_projectiles
+      assert config.num_player_names == default.num_player_names
+      assert config.with_distance == default.with_distance
+      assert config.with_relative_pos == default.with_relative_pos
+      assert config.with_frame_count == default.with_frame_count
+    end
   end
 
   describe "Embeddings.embed/3" do
