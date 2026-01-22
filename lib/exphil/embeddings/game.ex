@@ -501,7 +501,6 @@ defmodule ExPhil.Embeddings.Game do
   # NOTE: Uses pure Elixir data extraction to avoid EXLA/Defn.Expr mismatch.
   # Projectiles are extracted as floats, then converted to a single tensor.
   defp embed_batch_projectiles(game_states, config) do
-    batch_size = length(game_states)
     max_proj = config.max_projectiles
     proj_size = projectile_embedding_size()  # 7 dims per projectile
 

@@ -859,6 +859,10 @@ defmodule ExPhil.Training.Imitation do
       # Convert states to training precision
       states = Nx.as_type(states, precision)
 
+      # CRITICAL: Copy states to avoid EXLA/Defn.Expr mismatch when captured in closure
+      # Without this, precomputed EXLA embeddings conflict with defn compilation
+      states = Nx.backend_copy(states)
+
       # Build loss function for this call
       # params is the variable we differentiate w.r.t.
       loss_fn = fn p ->
