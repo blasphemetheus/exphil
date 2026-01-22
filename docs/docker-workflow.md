@@ -677,10 +677,95 @@ MIX_ENV=test mix test test/exphil/self_play/ --exclude integration
 | Compilation errors | Check `git status` locally, ensure all changes committed |
 | Test failures | Run locally first with `mix test` before deploying |
 | `ExPhil.Test.Helpers` not found | Use `MIX_ENV=test mix deps.get` then `MIX_ENV=test mix test` |
-| OOM during benchmark | Reduce `--batch-size` (try 128 or 64), or reduce `--max-files` |
+| OOM during benchmark | See [Benchmark Memory Requirements](#benchmark-memory-requirements) below |
 | Pod disconnects during training | Use tmux (see above), check if OOM killed the process |
 | Process killed with no error | Likely OOM - check `dmesg \| tail` for "Out of memory" |
 | EXLA not using GPU | Verify `EXLA_TARGET=cuda` is set |
+
+### Benchmark Memory Requirements
+
+The benchmark script precomputes embeddings to avoid re-embedding each epoch. This trades **memory for speed**, but has limits.
+
+#### Memory Math
+
+For temporal architectures (Mamba, LSTM, etc.):
+```
+Sequences = frames ÷ stride ≈ frames (stride=1)
+Embedding memory = sequences × window_size × embed_dims × 4 bytes
+
+Example (30 replay files, ~175K sequences):
+  175,000 × 30 × 1204 × 4 = ~25 GB (embeddings alone)
+  + original frame data:     ~8 GB
+  + BEAM/Elixir overhead:    ~4 GB
+  + XLA buffers:             ~8 GB
+  ─────────────────────────────────
+  Total:                    ~45 GB minimum
+  Safe headroom:            ~64 GB recommended
+```
+
+#### Recommended Settings by RAM
+
+| System RAM | Max Files | Sequences | Notes |
+|------------|-----------|-----------|-------|
+| 32 GB | 8-10 | ~50K | Tight, may swap |
+| 64 GB | 20-25 | ~120K | Comfortable |
+| 128 GB | 50+ | ~300K | Full dataset |
+
+#### Tradeoff Options
+
+**Option 1: Reduce dataset size (Recommended for benchmarks)**
+```bash
+mix run scripts/benchmark_architectures.exs --max-files 15
+```
+- ✅ Simple, immediate
+- ✅ Fine for comparing architectures (relative performance is what matters)
+- ❌ Less training data
+
+**Option 2: Skip precomputation (embed on-the-fly)**
+```bash
+# Would require code change to add --no-precompute flag for temporal
+```
+- ✅ Low peak memory
+- ✅ Works on any machine
+- ❌ Slower (re-embed each epoch)
+- ❌ GPU underutilized during embedding
+
+**Option 3: Use larger RAM pod**
+```
+RunPod: 128 GB RAM pods available (~$0.50-0.80/hr more)
+```
+- ✅ No code changes
+- ✅ Fastest training
+- ❌ More expensive
+- ❌ Doesn't scale to huge datasets
+
+**Option 4: Disk-backed embeddings (future)**
+```
+Write embeddings to NVMe, memory-map during training
+```
+- ✅ Unlimited dataset size
+- ✅ Only limited by disk space
+- ❌ Significant code changes
+- ❌ I/O can bottleneck training
+
+#### Decision Guide
+
+| Goal | Recommendation |
+|------|----------------|
+| Quick architecture comparison | `--max-files 15-20` on 64GB pod |
+| Thorough benchmark | `--max-files 30-40` on 128GB pod |
+| Production training | Don't use benchmark script; use `train_from_replays.exs` which streams data |
+| Memory-constrained | Skip temporal archs or use `--skip mamba,jamba,lstm,gru,attention` |
+
+#### Why Benchmark ≠ Training
+
+The benchmark script precomputes ALL embeddings upfront for fair comparison (same data, same preprocessing). Production training (`train_from_replays.exs`) streams data and doesn't have this constraint.
+
+If you just want to train a Mamba model (not benchmark it against others):
+```bash
+# This streams data, much lower memory requirement
+mix run scripts/train_from_replays.exs --temporal --backbone mamba --max-files 50
+```
 
 ## Quick Reference Card
 
