@@ -379,7 +379,7 @@ results = architectures
       avg_batches_per_sec: avg_speed,
       total_time_ms: total_time,
       epochs: epoch_metrics,
-      config: Keyword.take(opts, [:temporal, :backbone, :window_size, :num_layers, :hidden_sizes])
+      config: Map.new(Keyword.take(opts, [:temporal, :backbone, :window_size, :num_layers, :hidden_sizes]))
     }]
   rescue
     e ->
