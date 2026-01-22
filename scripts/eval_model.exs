@@ -187,19 +187,24 @@ dataset = Data.from_frames(frames,
   temporal: false
 )
 
-Output.puts("  Dataset size: #{dataset.size} frames")
+num_frames = dataset.size
+Output.puts("  Dataset size: #{num_frames} frames")
+estimated_batches = div(num_frames, opts[:batch_size])
+Output.puts("  Creating ~#{estimated_batches} batches (embedding #{num_frames} frames)...")
+Output.puts("  ⏳ This may take 1-2 minutes for large datasets...")
 
-# Batch the dataset
-Output.puts("  Creating batches (this embeds all frames)...")
+# Batch the dataset with timing
+batch_start = System.monotonic_time(:millisecond)
 batches = Data.batched(dataset,
   batch_size: opts[:batch_size],
   shuffle: false,
   drop_last: false
 )
 |> Enum.to_list()
+batch_time = System.monotonic_time(:millisecond) - batch_start
 
 num_batches = length(batches)
-Output.puts("  Created #{num_batches} evaluation batches")
+Output.puts("  ✓ Created #{num_batches} batches in #{Float.round(batch_time / 1000, 1)}s")
 
 # Sample batches for faster evaluation (max 100 batches = 6400 frames)
 max_eval_batches = 100
