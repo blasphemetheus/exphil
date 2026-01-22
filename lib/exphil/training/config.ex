@@ -69,6 +69,7 @@ defmodule ExPhil.Training.Config do
       checkpoint: nil,
       player_port: 1,
       train_character: nil,  # Auto-select port based on character (e.g., :mewtwo)
+      dual_port: false,      # Train on both ports (doubles training data)
       wandb: false,
       wandb_project: "exphil",
       wandb_name: nil,
@@ -1483,6 +1484,7 @@ defmodule ExPhil.Training.Config do
     |> parse_string_arg(args, "--checkpoint", :checkpoint)
     |> parse_int_arg(args, "--player", :player_port)
     |> parse_atom_arg(args, "--train-character", :train_character)
+    |> parse_flag(args, "--dual-port", :dual_port)
     |> parse_flag(args, "--wandb", :wandb)
     |> parse_string_arg(args, "--wandb-project", :wandb_project)
     |> parse_string_arg(args, "--wandb-name", :wandb_name)

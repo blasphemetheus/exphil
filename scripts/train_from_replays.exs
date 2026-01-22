@@ -140,6 +140,33 @@ alias ExPhil.Training.{Augmentation, CheckpointPruning, Config, Data, EarlyStopp
 alias ExPhil.Embeddings
 alias ExPhil.Integrations.Wandb
 
+# Helper function for dual-port training - parses both players from a replay
+parse_dual_port = fn path, frame_delay ->
+  # Get metadata to find which ports have players
+  case Peppi.metadata(path) do
+    {:ok, meta} ->
+      ports = Enum.map(meta.players, & &1.port)
+
+      # Parse frames for each port and combine
+      all_frames = Enum.flat_map(ports, fn port ->
+        case Peppi.parse(path, player_port: port) do
+          {:ok, replay} ->
+            Peppi.to_training_frames(replay,
+              player_port: port,
+              frame_delay: frame_delay
+            )
+          {:error, _} ->
+            []
+        end
+      end)
+
+      {:ok, path, length(all_frames), all_frames}
+
+    {:error, reason} ->
+      {:error, path, reason}
+  end
+end
+
 # Parse command line arguments using Config module
 # First validate that all flags are recognized (catches typos early)
 # Then validation runs after parsing to catch value errors (before expensive setup)
@@ -259,7 +286,7 @@ Configuration:
   Batch Size:  #{opts[:batch_size]}
   Hidden:      #{inspect(opts[:hidden_sizes], charlists: :as_lists)}
   Max Files:   #{opts[:max_files] || "all"}
-  Player Port: #{opts[:player_port]}
+  Player Port: #{if opts[:dual_port], do: "both (dual-port)", else: opts[:player_port]}
   Checkpoint:  #{opts[:checkpoint]}
   Wandb:       #{if opts[:wandb], do: "enabled", else: "disabled"}
   Precision:   #{precision_str}
@@ -504,6 +531,11 @@ error_log = Keyword.get(opts, :error_log)
 # Get port map for dynamic port selection (if train_character was used)
 port_map = if replay_stats, do: Map.get(replay_stats, :port_map, %{}), else: %{}
 default_port = opts[:player_port]
+dual_port = opts[:dual_port] || false
+
+if dual_port do
+  Output.puts("  Dual-port mode: training on BOTH players per replay (2x data)")
+end
 
 # Initialize error log file if specified
 if error_log do
@@ -514,18 +546,23 @@ end
   replay_files
   |> Task.async_stream(
     fn path ->
-      # Use dynamic port from port_map if available, otherwise use default
-      player_port = Map.get(port_map, path, default_port)
+      if dual_port do
+        # Dual-port: parse both ports and combine frames
+        parse_dual_port.(path, opts[:frame_delay])
+      else
+        # Single port: use dynamic port from port_map if available
+        player_port = Map.get(port_map, path, default_port)
 
-      case Peppi.parse(path, player_port: player_port) do
-        {:ok, replay} ->
-          frames = Peppi.to_training_frames(replay,
-            player_port: player_port,
-            frame_delay: opts[:frame_delay]
-          )
-          {:ok, path, length(frames), frames}
-        {:error, reason} ->
-          {:error, path, reason}
+        case Peppi.parse(path, player_port: player_port) do
+          {:ok, replay} ->
+            frames = Peppi.to_training_frames(replay,
+              player_port: player_port,
+              frame_delay: opts[:frame_delay]
+            )
+            {:ok, path, length(frames), frames}
+          {:error, reason} ->
+            {:error, path, reason}
+        end
       end
     end,
     max_concurrency: System.schedulers_online(),
