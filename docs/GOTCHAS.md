@@ -27,6 +27,7 @@ Hard-won knowledge from debugging ExPhil. Each section documents a specific issu
 21. [embed_states_fast missing features vs embedding_size](#21-embed_states_fast-missing-features-vs-embedding_size)
 22. [Precomputed embeddings require copying BOTH states AND actions](#22-precomputed-embeddings-require-copying-both-states-and-actions)
 23. [Registry sanitize_config expects map but receives keyword list](#23-registry-sanitize_config-expects-map-but-receives-keyword-list)
+24. [Peppi uses external character IDs, not internal Melee IDs](#24-peppi-uses-external-character-ids-not-internal-melee-ids)
 
 ---
 
@@ -723,3 +724,55 @@ end
 ```
 
 **Lesson:** When writing functions that accept "config" or "options", consider accepting both keyword lists and maps for flexibility. Use `is_list/1` guard for keyword lists and `is_map/1` for maps.
+
+---
+
+## 24. Peppi uses external character IDs, not internal Melee IDs
+
+**Status:** FIXED
+
+The peppi library uses **external character IDs** (Character Select Screen order), not Melee's internal game IDs. This caused character detection to fail for most replays.
+
+**Symptoms:**
+- Only ~17% of "Mewtwo replays" detected as Mewtwo
+- Other characters showing up in stats for single-character replay sets
+- `--train-character` filtering out most replays
+
+**The two ID schemes:**
+
+| Character | External ID (peppi) | Internal ID (game) |
+|-----------|--------------------|--------------------|
+| Captain Falcon | 0x00 | 0x02 |
+| Fox | 0x02 | 0x01 |
+| Mewtwo | **0x0A** | **0x10** |
+| Ice Climbers | 0x0E | 0x0A |
+| Ganondorf | 0x19 | 0x19 |
+
+**How this happened:**
+1. Initial character mapping assumed peppi used internal Melee IDs
+2. Most characters have different IDs between the two schemes
+3. Mewtwo (0x0A external) was being matched against 0x10, returning "Unknown"
+
+**The fix:** Updated `native/exphil_peppi/src/lib.rs` to use external (CSS) character IDs:
+
+```rust
+fn character_name(char_id: u8) -> String {
+    // Peppi uses "external" character IDs (CSS order)
+    match char_id {
+        0x00 => "Captain Falcon",
+        0x02 => "Fox",
+        0x0A => "Mewtwo",      // Was incorrectly 0x10
+        0x0E => "Ice Climbers",
+        0x19 => "Ganondorf",
+        // ... etc
+    }
+}
+```
+
+**How to verify:** After fixing, run with `--train-character mewtwo` and check that all Mewtwo replays are detected.
+
+**Lesson:** When working with Melee data:
+1. Always verify which ID scheme a library uses (external vs internal)
+2. External IDs = Character Select Screen order
+3. Internal IDs = In-game memory order
+4. Test with known single-character replay sets to verify mappings
