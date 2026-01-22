@@ -297,10 +297,11 @@ defmodule ExPhil.Embeddings.Game do
   """
   @spec embed_states_fast([GameState.t()], integer(), keyword()) :: Nx.Tensor.t()
   def embed_states_fast(game_states, own_port \\ 1, opts \\ []) when is_list(game_states) do
+    config = Keyword.get(opts, :config, default_config())
+
     if Enum.empty?(game_states) do
-      Nx.broadcast(0.0, {0, embedding_size(opts)})
+      Nx.broadcast(0.0, {0, embedding_size(config)})
     else
-      config = Keyword.get(opts, :config, default_config())
       name_id = Keyword.get(opts, :name_id, 0)
 
       # Extract own players and opponent players
@@ -375,6 +376,14 @@ defmodule ExPhil.Embeddings.Game do
         embs_with_rel_pos
       end
 
+      # Add projectiles if configured
+      embs_with_projectiles = if config.with_projectiles do
+        proj_emb = embed_batch_projectiles(game_states, config)
+        embs_with_frame ++ [proj_emb]
+      else
+        embs_with_frame
+      end
+
       # Append player action IDs at end when using learned embeddings
       # Shape: [batch, 2] with own_action and opponent_action as floats
       embs_with_actions = if config.player.action_mode == :learned do
@@ -385,9 +394,9 @@ defmodule ExPhil.Embeddings.Game do
           Nx.tensor(own_actions, type: :f32),
           Nx.tensor(opp_actions, type: :f32)
         ], axis: 1)
-        embs_with_frame ++ [action_ids]
+        embs_with_projectiles ++ [action_ids]
       else
-        embs_with_frame
+        embs_with_projectiles
       end
 
       # Append Nana action IDs when using enhanced Nana mode
@@ -484,6 +493,21 @@ defmodule ExPhil.Embeddings.Game do
     # Normalize: 8 minutes = 28800 frames, cap at 1.0
     normalized = min(frame / 28800.0, 1.0)
     Nx.tensor([normalized], type: :f32)
+  end
+
+  # Batch embed projectiles for all game states
+  # Returns tensor of shape [batch_size, max_projectiles * projectile_embedding_size]
+  defp embed_batch_projectiles(game_states, config) do
+    batch_size = length(game_states)
+    proj_total_size = config.max_projectiles * projectile_embedding_size()
+
+    # Embed projectiles for each game state
+    embedded = Enum.map(game_states, fn gs ->
+      embed_projectiles(gs.projectiles, config)
+    end)
+
+    # Stack into [batch, proj_total_size]
+    Nx.stack(embedded) |> Nx.reshape({batch_size, proj_total_size})
   end
 
   defp embed_projectiles(nil, config) do

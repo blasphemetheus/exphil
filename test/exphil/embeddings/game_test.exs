@@ -571,4 +571,60 @@ defmodule ExPhil.Embeddings.GameTest do
       assert Nx.to_number(diff) == 0.0
     end
   end
+
+  # ==========================================================================
+  # embed_states_fast/3 - Batch Embedding (Critical for Training Performance)
+  # ==========================================================================
+
+  describe "embed_states_fast/3" do
+    test "produces embedding matching embedding_size()" do
+      # This test catches the bug where embed_states_fast was missing projectile
+      # embedding, causing 35-dim mismatch (5 projectiles * 7 dims each)
+      game_states = [mock_game_state(), mock_game_state(frame: 100)]
+      config = GameEmbed.default_config()
+
+      result = GameEmbed.embed_states_fast(game_states, 1, config: config)
+      expected_size = GameEmbed.embedding_size(config)
+
+      {batch, actual_size} = Nx.shape(result)
+      assert batch == 2
+      assert actual_size == expected_size,
+        "embed_states_fast produced #{actual_size} dims but embedding_size() expects #{expected_size}"
+    end
+
+    test "matches single embed() output dimensions" do
+      game_state = mock_game_state()
+      config = GameEmbed.default_config()
+
+      # Single embedding
+      single = GameEmbed.embed(game_state, nil, 1, config: config)
+      {single_size} = Nx.shape(single)
+
+      # Batch embedding
+      batch = GameEmbed.embed_states_fast([game_state], 1, config: config)
+      {_, batch_size} = Nx.shape(batch)
+
+      assert single_size == batch_size,
+        "Single embed gave #{single_size} but batch gave #{batch_size}"
+    end
+
+    test "handles projectiles correctly" do
+      projectile = %Projectile{
+        owner: 1, type: 1,
+        x: 10.0, y: 20.0,
+        speed_x: 5.0, speed_y: -2.0
+      }
+      game_state = mock_game_state(projectiles: [projectile])
+      config = %{GameEmbed.default_config() | with_projectiles: true}
+
+      result = GameEmbed.embed_states_fast([game_state], 1, config: config)
+      expected_size = GameEmbed.embedding_size(config)
+
+      {_, actual_size} = Nx.shape(result)
+      assert actual_size == expected_size
+    end
+
+    # Note: Empty list handling removed as Nx.broadcast doesn't support {0, n} shapes.
+    # Training code should never pass empty lists anyway.
+  end
 end

@@ -24,6 +24,7 @@ Hard-won knowledge from debugging ExPhil. Each section documents a specific issu
 18. [Nx.to_number in training loop blocks GPU](#18-nxto_number-in-training-loop-blocks-gpu)
 19. [deep_backend_copy copies all model params every batch](#19-deep_backend_copy-copies-all-model-params-every-batch)
 20. [Embedding config() vs default_config() dimension mismatch](#20-embedding-config-vs-default_config-dimension-mismatch)
+21. [embed_states_fast missing features vs embedding_size](#21-embed_states_fast-missing-features-vs-embedding_size)
 
 ---
 
@@ -584,3 +585,50 @@ end
 - Actual embedded tensor size matches `embedding_size(config)`
 
 **Lesson:** When you have multiple ways to create a default config, ensure they produce identical results. Add tests that catch dimension mismatches by comparing sizes from different code paths.
+
+---
+
+## 21. embed_states_fast missing features vs embedding_size
+
+**Status:** FIXED
+
+The batch embedding function `embed_states_fast/3` was missing projectile embedding, causing a dimension mismatch when `with_projectiles: true`.
+
+**Symptoms:**
+```
+** (Axon.CompileError) dot/zip expects shapes to be compatible,
+dimension 1 of left-side (1169) does not equal dimension 0 of right-side (1204)
+```
+
+The difference (35 dims) = 5 projectiles × 7 dims/projectile.
+
+**How this happened:**
+1. `embedding_size()` correctly counted projectile dimensions
+2. Single-frame `embed/4` correctly embedded projectiles
+3. Batch `embed_states_fast/3` was added later for training performance
+4. When adding `embed_states_fast`, projectile embedding was forgotten
+5. No test compared batch vs single embedding dimensions
+
+**Root cause:** When implementing an optimized batch version of an embedding function, it's easy to forget optional features (projectiles, items, etc.) that are conditionally included.
+
+**The fix:** Added `embed_batch_projectiles/2` to handle batch projectile embedding:
+
+```elixir
+# In embed_states_fast, after frame_count:
+embs_with_projectiles = if config.with_projectiles do
+  proj_emb = embed_batch_projectiles(game_states, config)
+  embs_with_frame ++ [proj_emb]
+else
+  embs_with_frame
+end
+```
+
+**Prevention tests:** Added tests in `game_test.exs`:
+- `embed_states_fast produces embedding matching embedding_size()`
+- `embed_states_fast matches single embed() output dimensions`
+- `embed_states_fast handles projectiles correctly`
+
+**Lesson:** When implementing batch/optimized versions of functions:
+1. Always test that output dimensions match the original
+2. Check all conditional features (`if config.with_X`) are present in both
+3. Compare against `embedding_size(config)` which is the source of truth
