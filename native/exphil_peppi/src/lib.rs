@@ -112,70 +112,79 @@ pub struct ParsedReplay {
 // Character & Stage Mappings
 // ============================================================================
 
-/// Convert internal character ID to our standard ID
+/// Convert peppi's external character ID to our standard ID
 fn character_id(char_id: u8) -> i32 {
-    // Peppi uses Melee's internal character IDs
-    // Map to our consistent ordering
+    // Peppi uses "external" character IDs (CSS order)
+    // Map to our consistent ordering for embeddings
     match char_id {
-        0 => 8,   // Mario
-        1 => 2,   // Fox
-        0x02 => 0,   // Captain Falcon
-        0x03 => 1,   // Donkey Kong
+        0x00 => 0,   // Captain Falcon
+        0x01 => 1,   // Donkey Kong
+        0x02 => 2,   // Fox
+        0x03 => 3,   // Game & Watch
         0x04 => 4,   // Kirby
         0x05 => 5,   // Bowser
         0x06 => 6,   // Link
-        0x07 => 19,  // Sheik
-        0x08 => 11,  // Ness
-        0x09 => 12,  // Peach
-        0x0A => 14,  // Ice Climbers (Popo)
-        0x0B => 14,  // Ice Climbers (Nana)
-        0x0C => 13,  // Pikachu
-        0x0D => 16,  // Samus
-        0x0E => 17,  // Yoshi
+        0x07 => 7,   // Luigi
+        0x08 => 8,   // Mario
+        0x09 => 9,   // Marth
+        0x0A => 10,  // Mewtwo
+        0x0B => 11,  // Ness
+        0x0C => 12,  // Peach
+        0x0D => 13,  // Pikachu
+        0x0E => 14,  // Ice Climbers (Popo)
         0x0F => 15,  // Jigglypuff
-        0x10 => 10,  // Mewtwo
-        0x11 => 7,   // Luigi
-        0x12 => 9,   // Marth
-        0x13 => 18,  // Zelda
-        0x14 => 21,  // Young Link
-        0x15 => 22,  // Dr. Mario
-        0x16 => 20,  // Falco
-        0x17 => 24,  // Pichu
-        0x18 => 3,   // Game & Watch
+        0x10 => 16,  // Samus
+        0x11 => 17,  // Yoshi
+        0x12 => 18,  // Zelda
+        0x13 => 19,  // Sheik
+        0x14 => 20,  // Falco
+        0x15 => 21,  // Young Link
+        0x16 => 22,  // Dr. Mario
+        0x17 => 23,  // Roy
+        0x18 => 24,  // Pichu
         0x19 => 25,  // Ganondorf
-        0x1A => 23,  // Roy
+        0x20 => 14,  // Ice Climbers (Nana) - same as Popo
         _ => -1,
     }
 }
 
 fn character_name(char_id: u8) -> String {
+    // Peppi uses "external" character IDs (CSS order), not internal game IDs
+    // See: https://github.com/hohav/peppi/blob/main/src/ssbm.rs
     match char_id {
-        0 => "Mario",
-        1 => "Fox",
-        0x02 => "Captain Falcon",
-        0x03 => "Donkey Kong",
+        0x00 => "Captain Falcon",
+        0x01 => "Donkey Kong",
+        0x02 => "Fox",
+        0x03 => "Game & Watch",
         0x04 => "Kirby",
         0x05 => "Bowser",
         0x06 => "Link",
-        0x07 => "Sheik",
-        0x08 => "Ness",
-        0x09 => "Peach",
-        0x0A | 0x0B => "Ice Climbers",
-        0x0C => "Pikachu",
-        0x0D => "Samus",
-        0x0E => "Yoshi",
+        0x07 => "Luigi",
+        0x08 => "Mario",
+        0x09 => "Marth",
+        0x0A => "Mewtwo",
+        0x0B => "Ness",
+        0x0C => "Peach",
+        0x0D => "Pikachu",
+        0x0E => "Ice Climbers",  // Popo
         0x0F => "Jigglypuff",
-        0x10 => "Mewtwo",
-        0x11 => "Luigi",
-        0x12 => "Marth",
-        0x13 => "Zelda",
-        0x14 => "Young Link",
-        0x15 => "Dr. Mario",
-        0x16 => "Falco",
-        0x17 => "Pichu",
-        0x18 => "Game & Watch",
+        0x10 => "Samus",
+        0x11 => "Yoshi",
+        0x12 => "Zelda",
+        0x13 => "Sheik",
+        0x14 => "Falco",
+        0x15 => "Young Link",
+        0x16 => "Dr. Mario",
+        0x17 => "Roy",
+        0x18 => "Pichu",
         0x19 => "Ganondorf",
-        0x1A => "Roy",
+        0x1A => "Master Hand",
+        0x1B => "Crazy Hand",
+        0x1C => "Wire Frame Male",
+        0x1D => "Wire Frame Female",
+        0x1E => "Giga Bowser",
+        0x1F => "Sandbag",
+        0x20 => "Ice Climbers",  // Nana (solo)
         _ => "Unknown",
     }.to_string()
 }
