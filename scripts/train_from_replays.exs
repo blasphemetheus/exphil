@@ -1267,9 +1267,9 @@ end
 
 Output.puts_raw("")
 Output.puts_raw(Output.colorize("Next steps:", :bold))
-Output.puts_raw("  1. Test the model: mix run scripts/test_model.exs --checkpoint #{opts[:checkpoint]}")
+Output.puts_raw("  1. Evaluate: mix run scripts/eval_model.exs --checkpoint #{opts[:checkpoint]}")
 Output.puts_raw("  2. Continue training: mix run scripts/train_from_replays.exs --resume #{opts[:checkpoint]}")
-Output.puts_raw("  3. Run against CPU: mix run scripts/eval.exs")
+Output.puts_raw("  3. Self-play refinement: mix run scripts/train_self_play.exs --pretrained #{String.replace(opts[:checkpoint], ".axon", "_policy.bin")}")
 Output.puts_raw("")
 
 # Finish Wandb run if active

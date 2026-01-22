@@ -50,6 +50,36 @@ mix run scripts/train_from_replays.exs --temporal --backbone hybrid
 - Better at learning temporal patterns
 - Recommended after establishing single-frame baseline
 
+### Character & Port Selection
+
+When training from replay archives, the target character may be on different ports across games.
+
+**Option 1: Fixed port (default)**
+```bash
+# Always learn from player 1
+mix run scripts/train_from_replays.exs --player-port 1
+```
+
+**Option 2: Auto-select by character (recommended for single-character training)**
+```bash
+# Learn from whichever port has Mewtwo
+mix run scripts/train_from_replays.exs --train-character mewtwo
+```
+
+**Option 3: Dual-port (2x data)**
+```bash
+# Learn from BOTH players in every game
+mix run scripts/train_from_replays.exs --dual-port
+```
+
+| Mode | Use Case | Data Volume |
+|------|----------|-------------|
+| `--player-port N` | Know which port to train on | 1x |
+| `--train-character X` | Train specific character, unknown ports | 1x (filtered) |
+| `--dual-port` | Maximum data, mixed characters | 2x |
+
+**Note:** `--dual-port` trains on all characters in the replays, not just one. Use `--train-character` for pure single-character training.
+
 ## Command-Line Options
 
 ### Core Options
@@ -61,6 +91,8 @@ mix run scripts/train_from_replays.exs --temporal --backbone hybrid
 | `--batch-size N` | 64 | Batch size |
 | `--max-files N` | nil | Limit number of replay files |
 | `--player-port N` | 1 | Which player to learn from (1 or 2) |
+| `--train-character CHAR` | nil | Auto-select port with this character |
+| `--dual-port` | false | Train on BOTH players (2x data) |
 | `--hidden N,N` | 512,512 | Hidden layer sizes |
 | `--lr X` | 1e-4 | Learning rate |
 | `--dropout X` | 0.1 | Dropout rate |
