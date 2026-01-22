@@ -39,7 +39,7 @@ defmodule ExPhil.Embeddings do
 
   """
 
-  alias ExPhil.Embeddings.{Game, Player, Controller, Primitives}
+  alias ExPhil.Embeddings.{Game, Primitives}
   alias ExPhil.Bridge.{GameState, ControllerState}
 
   # Re-export main config type
@@ -58,26 +58,21 @@ defmodule ExPhil.Embeddings do
   """
   @spec config(keyword()) :: config()
   def config(opts \\ []) do
-    player_config = %Player{
-      with_speeds: Keyword.get(opts, :with_speeds, false),
-      with_nana: Keyword.get(opts, :with_nana, true),
-      xy_scale: Keyword.get(opts, :xy_scale, 0.05),
-      shield_scale: Keyword.get(opts, :shield_scale, 0.01),
-      speed_scale: Keyword.get(opts, :speed_scale, 0.5)
-    }
+    # Start with struct defaults and merge any custom options
+    base = default_config()
 
-    controller_config = %Controller{
-      axis_buckets: Keyword.get(opts, :axis_buckets, 16),
-      shoulder_buckets: Keyword.get(opts, :shoulder_buckets, 4)
-    }
+    player_opts = Keyword.take(opts, [:with_speeds, :with_nana, :xy_scale, :shield_scale,
+                                      :speed_scale, :nana_mode, :with_frame_info, :with_stock,
+                                      :with_ledge_distance, :jumps_normalized, :action_mode])
+    player_config = struct(base.player, player_opts)
 
-    %Game{
-      player: player_config,
-      controller: controller_config,
-      with_projectiles: Keyword.get(opts, :with_projectiles, false),
-      max_projectiles: Keyword.get(opts, :max_projectiles, 5),
-      num_player_names: Keyword.get(opts, :num_player_names, 128)
-    }
+    controller_opts = Keyword.take(opts, [:axis_buckets, :shoulder_buckets])
+    controller_config = struct(base.controller, controller_opts)
+
+    game_opts = Keyword.take(opts, [:with_projectiles, :max_projectiles, :with_items,
+                                    :max_items, :num_player_names, :with_distance,
+                                    :with_relative_pos, :with_frame_count])
+    struct(base, [{:player, player_config}, {:controller, controller_config} | game_opts])
   end
 
   @doc """

@@ -8,8 +8,6 @@
 #
 # Usage:
 #   mix run scripts/benchmark_embeddings.exs [--iterations 1000] [--batch-size 32]
-#
-# TODO: Implement after enhanced Nana mode is complete
 
 defmodule EmbeddingBenchmark do
   @moduledoc """
@@ -106,7 +104,7 @@ defmodule EmbeddingBenchmark do
   end
 
   defp benchmark_config(name, config_opts, iterations, batch_size) do
-    Output.step(name, "Benchmarking #{config_opts.description}")
+    Output.puts("\n[#{name}] Benchmarking #{config_opts.description}")
 
     player_config = config_opts.player
     game_config = %Game{player: player_config}
@@ -130,10 +128,10 @@ defmodule EmbeddingBenchmark do
     embed_ms = embed_time_us / 1000
     embed_per_state_us = embed_time_us / (iterations * batch_size)
 
-    # Benchmark batch embedding if available
+    # Benchmark batch embedding
     {batch_time_us, _} = :timer.tc(fn ->
       for _ <- 1..iterations do
-        Game.embed_states_fast(mock_states, [nil] |> List.duplicate(batch_size), 1, config: game_config)
+        Game.embed_states_fast(mock_states, 1, config: game_config)
       end
     end)
 
@@ -142,7 +140,12 @@ defmodule EmbeddingBenchmark do
 
     # Build and benchmark policy network
     action_embed_size = if player_config.action_mode == :learned, do: 64, else: nil
-    policy = Policy.build(embed_size: embed_size, action_embed_size: action_embed_size)
+    num_action_ids = Game.num_action_ids(game_config)
+    policy = Policy.build(
+      embed_size: embed_size,
+      action_embed_size: action_embed_size,
+      num_action_ids: num_action_ids
+    )
     {init_fn, predict_fn} = Axon.build(policy)
     params = init_fn.(Nx.template({1, embed_size}, :f32), Axon.ModelState.empty())
 

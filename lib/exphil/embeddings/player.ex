@@ -482,6 +482,7 @@ defmodule ExPhil.Embeddings.Player do
   defp embed_batch_nana(players, config, batch_size) do
     case config.nana_mode do
       :compact -> embed_batch_nana_compact(players, batch_size)
+      :enhanced -> embed_batch_nana_enhanced(players, batch_size)
       :full -> embed_batch_nana_full(players, config, batch_size)
     end
   end
@@ -528,6 +529,53 @@ defmodule ExPhil.Embeddings.Player do
         Nx.broadcast(0.0, {batch_size, 1}),                                          # action_frame [batch, 1]
         Nx.broadcast(0.0, {batch_size, 1}),                                          # invulnerable [batch, 1]
         Primitives.batch_one_hot(Nx.tensor(nana_categories, type: :s32), size: @nana_action_categories, clamp: true),  # [batch, 25]
+        Primitives.batch_bool_embed(is_attacking),                                   # [batch, 1]
+        Primitives.batch_bool_embed(is_grabbing),                                    # [batch, 1]
+        Primitives.batch_bool_embed(can_act),                                        # [batch, 1]
+        Primitives.batch_bool_embed(is_synced)                                       # [batch, 1]
+      ], axis: 1)
+    end
+  end
+
+  # Enhanced Nana batch embedding (14 dims - action ID handled separately by GameEmbed)
+  defp embed_batch_nana_enhanced(players, batch_size) do
+    nanas = Enum.map(players, fn p -> p && p.nana end)
+    popo_actions = Enum.map(players, fn p -> (p && p.action) || 0 end)
+    has_any_nana = Enum.any?(nanas, & &1)
+
+    if not has_any_nana do
+      Nx.broadcast(0.0, {batch_size, enhanced_compact_nana_embedding_size()})
+    else
+      # Extract Nana values
+      nana_exists = Enum.map(nanas, fn n -> n != nil end)
+      nana_xs = Enum.map(nanas, fn n -> (n && n.x) || 0.0 end)
+      nana_ys = Enum.map(nanas, fn n -> (n && n.y) || 0.0 end)
+      nana_facings = Enum.map(nanas, fn n -> (n && n.facing) || false end)
+      nana_percents = Enum.map(nanas, fn n -> (n && n.percent) || 0.0 end)
+      nana_stocks = Enum.map(nanas, fn n -> (n && n.stock) || 0 end)
+      nana_actions = Enum.map(nanas, fn n -> (n && n.action) || 0 end)
+
+      # Calculate action categories and IC tech flags
+      nana_categories = Enum.map(nana_actions, &action_to_category/1)
+      is_attacking = Enum.map(nana_categories, fn c -> c in [10, 11, 12, 13, 14, 15, 16] end)
+      is_grabbing = Enum.map(nana_categories, fn c -> c in [17, 18] end)
+      can_act = Enum.map(nana_categories, fn c -> c in [2, 3, 4, 6, 7, 9] end)
+      # Enhanced mode uses exact action comparison for sync (more precise than category)
+      is_synced = Enum.zip(nana_actions, popo_actions) |> Enum.map(fn {n, p} -> n == p end)
+      on_ground = Enum.map(nana_ys, fn y -> y < 5.0 end)
+
+      # Build embedding (14 dims total - no action category one-hot)
+      Nx.concatenate([
+        Primitives.batch_bool_embed(nana_exists),                                    # [batch, 1]
+        Primitives.batch_float_embed(nana_xs, scale: 0.05),                          # [batch, 1]
+        Primitives.batch_float_embed(nana_ys, scale: 0.05),                          # [batch, 1]
+        Primitives.batch_bool_embed(nana_facings, on: 1.0, off: -1.0),              # [batch, 1]
+        Primitives.batch_bool_embed(on_ground),                                      # [batch, 1]
+        Primitives.batch_float_embed(nana_percents, scale: 0.01, lower: 0.0, upper: 5.0),  # [batch, 1]
+        Primitives.batch_float_embed(nana_stocks, scale: 1/4, lower: 0.0, upper: 1.0),     # [batch, 1]
+        Nx.broadcast(0.0, {batch_size, 1}),                                          # hitstun [batch, 1]
+        Nx.broadcast(0.0, {batch_size, 1}),                                          # action_frame [batch, 1]
+        Nx.broadcast(0.0, {batch_size, 1}),                                          # invulnerable [batch, 1]
         Primitives.batch_bool_embed(is_attacking),                                   # [batch, 1]
         Primitives.batch_bool_embed(is_grabbing),                                    # [batch, 1]
         Primitives.batch_bool_embed(can_act),                                        # [batch, 1]

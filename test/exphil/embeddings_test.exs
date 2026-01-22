@@ -515,24 +515,25 @@ defmodule ExPhil.EmbeddingsTest do
   # ============================================================================
 
   describe "Embeddings.config/1" do
-    test "creates default config" do
+    test "creates default config matching struct defaults" do
       config = Embeddings.config()
 
-      assert config.with_projectiles == false
-      assert config.player.with_speeds == false
+      # config() now uses struct defaults for consistency with embedding_size()
+      assert config.with_projectiles == true
+      assert config.player.with_speeds == true
       assert config.controller.axis_buckets == 16
     end
 
-    test "accepts custom options" do
+    test "accepts custom options to override defaults" do
       config = Embeddings.config(
-        with_speeds: true,
+        with_speeds: false,
         axis_buckets: 8,
-        with_projectiles: true
+        with_projectiles: false
       )
 
-      assert config.player.with_speeds == true
+      assert config.player.with_speeds == false
       assert config.controller.axis_buckets == 8
-      assert config.with_projectiles == true
+      assert config.with_projectiles == false
     end
   end
 
