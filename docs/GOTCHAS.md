@@ -28,6 +28,7 @@ Hard-won knowledge from debugging ExPhil. Each section documents a specific issu
 22. [Precomputed embeddings require copying BOTH states AND actions](#22-precomputed-embeddings-require-copying-both-states-and-actions)
 23. [Registry sanitize_config expects map but receives keyword list](#23-registry-sanitize_config-expects-map-but-receives-keyword-list)
 24. [Peppi uses external character IDs, not internal Melee IDs](#24-peppi-uses-external-character-ids-not-internal-melee-ids)
+25. [GPU OOM during embedding precomputation](#25-gpu-oom-during-embedding-precomputation)
 
 ---
 
@@ -776,3 +777,62 @@ fn character_name(char_id: u8) -> String {
 2. External IDs = Character Select Screen order
 3. Internal IDs = In-game memory order
 4. Test with known single-character replay sets to verify mappings
+
+---
+
+## 25. GPU OOM during embedding precomputation
+
+**Status:** FIXED
+
+When precomputing embeddings for large datasets, the GPU runs out of memory because all embeddings accumulate on the GPU before being used.
+
+**Symptoms:**
+```
+Allocator (GPU_0_bfc) ran out of memory trying to allocate 141.1KiB
+If the cause is memory fragmentation maybe the environment variable
+'TF_GPU_ALLOCATOR=cuda_malloc_async' will improve the situation.
+
+** (RuntimeError) Out of memory while trying to allocate 144480 bytes.
+    (exla 0.10.0) EXLA.NIF.binary_to_device_mem(...)
+```
+
+**The math:**
+```
+175,600 sequences × 30 frames × 1204 dims × 4 bytes = ~25GB
+RTX 4090 VRAM = 24GB
+```
+
+**Root cause:**
+1. `precompute_embeddings` and `precompute_frame_embeddings` process in batches
+2. Each batch creates EXLA tensors on GPU
+3. Embeddings accumulate in a list, all staying on GPU
+4. Eventually exceeds VRAM capacity
+
+**The fix:** Copy each batch to CPU after embedding:
+
+```elixir
+# In precompute_embeddings (sequences)
+Enum.map(chunk, fn frame ->
+  game_states = Enum.map(frame.sequence, & &1.game_state)
+  Embeddings.Game.embed_states_fast(game_states, 1, config: embed_config)
+  |> Nx.backend_copy(Nx.BinaryBackend)  # CRITICAL: Move to CPU
+end)
+
+# In precompute_frame_embeddings (frames)
+batch_embedded
+|> Nx.to_batched(1)
+|> Enum.map(fn t ->
+  t |> Nx.squeeze(axes: [0]) |> Nx.backend_copy(Nx.BinaryBackend)
+end)
+```
+
+**Why `TF_GPU_ALLOCATOR=cuda_malloc_async` didn't help:**
+- That setting helps with fragmentation (many small allocations)
+- This issue was total memory exhaustion, not fragmentation
+- 25GB simply doesn't fit in 24GB regardless of allocation strategy
+
+**Lesson:** When accumulating large amounts of data:
+1. Calculate total memory requirement upfront (count × dims × bytes)
+2. Compare against available VRAM
+3. Use `Nx.backend_copy(Nx.BinaryBackend)` to move data to CPU
+4. Data transfers back to GPU per-batch during training (this is the intended flow)
