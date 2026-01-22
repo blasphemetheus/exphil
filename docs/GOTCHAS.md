@@ -25,6 +25,7 @@ Hard-won knowledge from debugging ExPhil. Each section documents a specific issu
 19. [deep_backend_copy copies all model params every batch](#19-deep_backend_copy-copies-all-model-params-every-batch)
 20. [Embedding config() vs default_config() dimension mismatch](#20-embedding-config-vs-default_config-dimension-mismatch)
 21. [embed_states_fast missing features vs embedding_size](#21-embed_states_fast-missing-features-vs-embedding_size)
+22. [Precomputed embeddings require copying BOTH states AND actions](#22-precomputed-embeddings-require-copying-both-states-and-actions)
 
 ---
 
@@ -632,3 +633,53 @@ end
 1. Always test that output dimensions match the original
 2. Check all conditional features (`if config.with_X`) are present in both
 3. Compare against `embedding_size(config)` which is the source of truth
+
+---
+
+## 22. Precomputed embeddings require copying BOTH states AND actions
+
+**Status:** FIXED
+
+When using precomputed embeddings for training (via `embed_states_fast`), both `states` AND `actions` tensors are EXLA tensors that get captured in the loss function closure passed to `value_and_grad`. Both need `Nx.backend_copy`.
+
+**Symptoms:**
+```
+** (RuntimeError) cannot invoke Nx function because it relies on two incompatible
+tensor implementations: Nx.Defn.Expr and EXLA.Backend
+    (exphil 0.1.0) lib/exphil/networks/policy.ex:981: ExPhil.Networks.Policy.binary_cross_entropy/3
+    (exphil 0.1.0) lib/exphil/networks/policy.ex:930: ExPhil.Networks.Policy.imitation_loss/3
+```
+
+**How this happened:**
+1. Training script precomputes embeddings as EXLA tensors for efficiency
+2. `build_loss_and_grad_fn` creates a closure that captures `states` and `actions`
+3. Initial fix added `Nx.backend_copy(states)` to avoid the mismatch
+4. But `actions` is a map of multiple EXLA tensors (buttons, main_x, etc.)
+5. The mismatch moved from states to actions, appearing in `binary_cross_entropy`
+
+**The fix:** Copy both states AND actions in `build_loss_and_grad_fn`:
+
+```elixir
+fn params, states, actions ->
+  states = Nx.as_type(states, precision)
+
+  # CRITICAL: Copy BOTH states AND actions
+  states = Nx.backend_copy(states)
+  actions = Map.new(actions, fn {k, v} -> {k, Nx.backend_copy(v)} end)
+
+  loss_fn = fn p ->
+    # states and actions are now safe to use in defn context
+    {buttons, main_x, main_y, c_x, c_y, shoulder} = predict_fn.(p, states)
+    Policy.imitation_loss(logits, actions, ...)
+  end
+
+  Nx.Defn.value_and_grad(loss_fn).(params)
+end
+```
+
+**Why this is subtle:** The error message points to `binary_cross_entropy` which is deep in the loss calculation, not at the closure capture site. The stack trace makes it look like a Policy.ex bug when it's actually a data preparation issue.
+
+**Lesson:** When using `Nx.Defn.value_and_grad`, ALL non-parameter tensors captured in the closure must be copied:
+1. Look at what variables the loss_fn closure captures
+2. Identify which are precomputed EXLA tensors
+3. Copy ALL of them, not just the obvious one (`states`)
