@@ -248,17 +248,20 @@ results = architectures
     end
 
     # Create trainer
+    # Filter out nil values so defaults are used instead of being overridden with nil
+    trainer_opts = [
+      hidden_sizes: opts[:hidden_sizes],
+      embed_config: embed_config,
+      temporal: opts[:temporal],
+      backbone: opts[:backbone],
+      window_size: opts[:window_size],
+      num_layers: opts[:num_layers],
+      num_heads: opts[:num_heads],
+      attention_every: opts[:attention_every]
+    ] |> Enum.reject(fn {_k, v} -> is_nil(v) end)
+
     trainer = Output.timed "Creating model" do
-      Imitation.new(
-        hidden_sizes: opts[:hidden_sizes],
-        embed_config: embed_config,
-        temporal: opts[:temporal],
-        backbone: opts[:backbone],
-        window_size: opts[:window_size],
-        num_layers: opts[:num_layers],
-        num_heads: opts[:num_heads],
-        attention_every: opts[:attention_every]
-      )
+      Imitation.new(trainer_opts)
     end
 
     # Calculate batch count without materializing (memory efficient)
