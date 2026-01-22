@@ -232,6 +232,39 @@ mix run scripts/train_from_replays.exs \
 
 **Batch size tip:** GPUs handle larger batches (128-256) vs CPU (64). If OOM, reduce batch size.
 
+#### Updating Code on Pod
+
+When you need to pull code changes without rebuilding the Docker image:
+
+```bash
+cd /app
+
+# Install git if not present
+apt-get update && apt-get install -y git
+
+# Set up remote (first time only)
+git init
+git remote add origin https://github.com/blasphemetheus/exphil.git
+
+# Pull latest changes
+git fetch origin main
+git reset --hard origin/main
+
+# Recompile - DO NOT rm -rf _build!
+mix compile --force
+```
+
+**⚠️ IMPORTANT: Never `rm -rf _build` on GPU pods!**
+
+The `_build` directory contains compiled EXLA which caches the XLA binary. Deleting it triggers a redownload of the XLA CUDA archive (~500MB-1GB), which can take 10-15+ minutes.
+
+Instead, use `mix compile --force` which recompiles Elixir code without touching the XLA cache.
+
+If XLA does need to redownload, it caches to `~/.cache/xla/`. You can check download progress:
+```bash
+ls -lah ~/.cache/xla/
+```
+
 #### Long-Running Training with tmux
 
 **ALWAYS use tmux for GPU training.** SSH disconnects are common and will kill your training otherwise.
