@@ -210,9 +210,13 @@ preset_str = case opts[:preset] do
   preset -> "#{preset}"
 end
 
-character_str = case opts[:character] do
-  nil -> ""
-  char -> "  Character:   #{char}\n"
+character_str = cond do
+  opts[:train_character] ->
+    "  Train Char:  #{opts[:train_character]} (auto-select port)\n"
+  opts[:character] ->
+    "  Character:   #{opts[:character]}\n"
+  true ->
+    ""
 end
 
 # Format frame delay display
@@ -403,8 +407,12 @@ stage_id_to_name = %{
   end
 
   # Collect metadata and filter
-  training_port = opts[:player_port]
-  {filtered, char_counts, stage_counts} = replay_files
+  # If train_character is set, dynamically find port; otherwise use fixed port
+  train_character = opts[:train_character]
+  target_char_name = if train_character, do: Config.character_name(train_character), else: nil
+  default_port = opts[:player_port]
+
+  {filtered, char_counts, stage_counts, port_map} = replay_files
   |> Task.async_stream(
     fn path ->
       case Peppi.metadata(path) do
@@ -415,29 +423,42 @@ stage_id_to_name = %{
     max_concurrency: System.schedulers_online(),
     timeout: 30_000
   )
-  |> Enum.reduce({[], %{}, %{}}, fn
-    {:ok, {:ok, path, meta}}, {paths, chars, stages} ->
-      # Collect character stats for the training player's port only
-      training_player = Enum.find(meta.players, fn p -> p.port == training_port end)
-      chars = if training_player do
-        Map.update(chars, training_player.character_name, 1, & &1 + 1)
+  |> Enum.reduce({[], %{}, %{}, %{}}, fn
+    {:ok, {:ok, path, meta}}, {paths, chars, stages, ports} ->
+      # Determine training port - either dynamic (by character) or fixed
+      {training_port, training_player} = if target_char_name do
+        # Find port that has the target character
+        player = Enum.find(meta.players, fn p -> p.character_name == target_char_name end)
+        if player, do: {player.port, player}, else: {nil, nil}
       else
-        chars
+        # Use fixed port
+        player = Enum.find(meta.players, fn p -> p.port == default_port end)
+        {default_port, player}
       end
 
-      # Collect stage stats
-      stage_name = Map.get(stage_id_to_name, meta.stage, "Stage #{meta.stage}")
-      stages = Map.update(stages, stage_name, 1, & &1 + 1)
-
-      # Check filters - only check training player's character
-      training_char = if training_player, do: training_player.character_name, else: nil
-      char_match = char_names == [] or training_char in char_names
-      stage_match = stage_ids == [] or meta.stage in stage_ids
-
-      if char_match and stage_match do
-        {[path | paths], chars, stages}
+      # Skip replay if target character not found
+      if training_player == nil do
+        {paths, chars, stages, ports}
       else
-        {paths, chars, stages}
+        # Collect character stats for the training player
+        chars = Map.update(chars, training_player.character_name, 1, & &1 + 1)
+
+        # Collect stage stats
+        stage_name = Map.get(stage_id_to_name, meta.stage, "Stage #{meta.stage}")
+        stages = Map.update(stages, stage_name, 1, & &1 + 1)
+
+        # Check filters - only check training player's character
+        training_char = training_player.character_name
+        char_match = char_names == [] or training_char in char_names
+        stage_match = stage_ids == [] or meta.stage in stage_ids
+
+        if char_match and stage_match do
+          # Store the port for this replay (for frame parsing later)
+          ports = Map.put(ports, path, training_port)
+          {[path | paths], chars, stages, ports}
+        else
+          {paths, chars, stages, ports}
+        end
       end
 
     _, acc -> acc
@@ -452,7 +473,8 @@ stage_id_to_name = %{
   stats = %{
     total: initial_count,
     characters: char_counts,
-    stages: stage_counts
+    stages: stage_counts,
+    port_map: port_map
   }
 
   {filtered, stats}
@@ -479,6 +501,10 @@ skip_errors = Keyword.get(opts, :skip_errors, true)
 show_errors = Keyword.get(opts, :show_errors, true)
 error_log = Keyword.get(opts, :error_log)
 
+# Get port map for dynamic port selection (if train_character was used)
+port_map = if replay_stats, do: Map.get(replay_stats, :port_map, %{}), else: %{}
+default_port = opts[:player_port]
+
 # Initialize error log file if specified
 if error_log do
   File.write!(error_log, "# ExPhil Replay Parsing Errors\n# #{DateTime.utc_now()}\n\n")
@@ -488,10 +514,13 @@ end
   replay_files
   |> Task.async_stream(
     fn path ->
-      case Peppi.parse(path, player_port: opts[:player_port]) do
+      # Use dynamic port from port_map if available, otherwise use default
+      player_port = Map.get(port_map, path, default_port)
+
+      case Peppi.parse(path, player_port: player_port) do
         {:ok, replay} ->
           frames = Peppi.to_training_frames(replay,
-            player_port: opts[:player_port],
+            player_port: player_port,
             frame_delay: opts[:frame_delay]
           )
           {:ok, path, length(frames), frames}

@@ -68,6 +68,7 @@ defmodule ExPhil.Training.Config do
       error_log: nil,      # Optional file path to log errors
       checkpoint: nil,
       player_port: 1,
+      train_character: nil,  # Auto-select port based on character (e.g., :mewtwo)
       wandb: false,
       wandb_project: "exphil",
       wandb_name: nil,
@@ -1481,6 +1482,7 @@ defmodule ExPhil.Training.Config do
     end)
     |> parse_string_arg(args, "--checkpoint", :checkpoint)
     |> parse_int_arg(args, "--player", :player_port)
+    |> parse_atom_arg(args, "--train-character", :train_character)
     |> parse_flag(args, "--wandb", :wandb)
     |> parse_string_arg(args, "--wandb-project", :wandb_project)
     |> parse_string_arg(args, "--wandb-name", :wandb_name)
