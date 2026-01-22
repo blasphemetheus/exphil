@@ -497,17 +497,42 @@ defmodule ExPhil.Embeddings.Game do
 
   # Batch embed projectiles for all game states
   # Returns tensor of shape [batch_size, max_projectiles * projectile_embedding_size]
+  #
+  # NOTE: Uses pure Elixir data extraction to avoid EXLA/Defn.Expr mismatch.
+  # Projectiles are extracted as floats, then converted to a single tensor.
   defp embed_batch_projectiles(game_states, config) do
     batch_size = length(game_states)
-    proj_total_size = config.max_projectiles * projectile_embedding_size()
+    max_proj = config.max_projectiles
+    proj_size = projectile_embedding_size()  # 7 dims per projectile
 
-    # Embed projectiles for each game state
-    embedded = Enum.map(game_states, fn gs ->
-      embed_projectiles(gs.projectiles, config)
+    # Extract projectile data as flat list of floats for each game state
+    # This avoids creating intermediate tensors that cause backend mismatch
+    all_proj_data = Enum.map(game_states, fn gs ->
+      projectiles = gs.projectiles || []
+      projectiles = Enum.take(projectiles, max_proj)
+
+      # Embed each projectile as list of floats
+      embedded = Enum.flat_map(projectiles, fn proj ->
+        [
+          1.0,  # exists
+          (proj.owner || 0) * 0.5,  # owner scaled
+          (proj.x || 0.0) * 0.05,  # x scaled
+          (proj.y || 0.0) * 0.05,  # y scaled
+          (proj.type || 0) * 0.01,  # type scaled
+          (proj.speed_x || 0.0) * 0.5,  # speed_x scaled
+          (proj.speed_y || 0.0) * 0.5   # speed_y scaled
+        ]
+      end)
+
+      # Pad with zeros for missing projectiles
+      padding_count = max_proj - length(projectiles)
+      padding = List.duplicate(0.0, padding_count * proj_size)
+
+      embedded ++ padding
     end)
 
-    # Stack into [batch, proj_total_size]
-    Nx.stack(embedded) |> Nx.reshape({batch_size, proj_total_size})
+    # Convert to single tensor [batch, proj_total_size]
+    Nx.tensor(all_proj_data, type: :f32)
   end
 
   defp embed_projectiles(nil, config) do
