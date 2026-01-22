@@ -32,9 +32,19 @@
 # - GPU memory usage
 #
 # Results are saved to checkpoints/benchmark_results.json and benchmark_report.html
+#
+# Memory Tips:
+#   If you get OOM errors on Mamba/Jamba, try:
+#     1. Use --skip mamba,jamba to skip memory-heavy architectures
+#     2. Reduce --max-files to use less data
+#   Note: TF_GPU_ALLOCATOR=cuda_malloc_async is set automatically by this script
 
 # Limit inspect output to prevent overwhelming logs with tensor dumps
 Application.put_env(:elixir, :inspect, limit: 10, printable_limit: 100)
+
+# Use async CUDA allocator to reduce memory fragmentation between architectures
+# This helps prevent OOM when switching from MLP to Mamba/Jamba
+System.put_env("TF_GPU_ALLOCATOR", "cuda_malloc_async")
 
 alias ExPhil.Data.Peppi
 alias ExPhil.Training.{Data, GPUUtils, Imitation, Output}
@@ -88,11 +98,13 @@ end
 continue_on_error = "--continue-on-error" in args
 
 # Architectures to benchmark
+# Note: batch_size can be overridden per-architecture for memory-heavy models
+# Mamba/Jamba need smaller batches due to selective scan memory requirements
 all_architectures = [
   # Hidden sizes use 256 (multiple of GPU warp size 32) for better utilization
   {:mlp, "MLP (baseline)", [temporal: false, hidden_sizes: [256, 256], precompute: true]},
-  {:mamba, "Mamba SSM", [temporal: true, backbone: :mamba, window_size: 30, num_layers: 2, hidden_sizes: [256, 256]]},
-  {:jamba, "Jamba (Mamba+Attn)", [temporal: true, backbone: :jamba, window_size: 30, num_layers: 3, attention_every: 3, hidden_sizes: [256, 256]]},
+  {:mamba, "Mamba SSM", [temporal: true, backbone: :mamba, window_size: 30, num_layers: 2, hidden_sizes: [256, 256], batch_size: 64]},
+  {:jamba, "Jamba (Mamba+Attn)", [temporal: true, backbone: :jamba, window_size: 30, num_layers: 3, attention_every: 3, hidden_sizes: [256, 256], batch_size: 32]},
   {:lstm, "LSTM", [temporal: true, backbone: :lstm, window_size: 30, num_layers: 1, hidden_sizes: [256, 256]]},
   {:gru, "GRU", [temporal: true, backbone: :gru, window_size: 30, num_layers: 1, hidden_sizes: [256, 256]]},
   {:attention, "Attention", [temporal: true, backbone: :attention, window_size: 30, num_layers: 1, num_heads: 4, hidden_sizes: [256, 256]]}
@@ -155,6 +167,44 @@ val_dataset = Data.from_frames(val_frames)
 
 Output.puts("Train: #{train_dataset.size} frames, Val: #{val_dataset.size} frames")
 
+# Precompute embeddings ONCE (reused for all architectures)
+# This avoids re-embedding for every architecture which takes 9+ minutes each
+embed_config = Embeddings.config()
+
+# Check if any temporal architectures are selected
+has_temporal = Enum.any?(architectures, fn {_id, _name, opts} -> opts[:temporal] end)
+has_non_temporal = Enum.any?(architectures, fn {_id, _name, opts} -> !opts[:temporal] end)
+
+# Precompute frame embeddings for non-temporal architectures
+{precomputed_train_frames, precomputed_val_frames} = if has_non_temporal do
+  Output.puts("Precomputing frame embeddings (reused for non-temporal architectures)...")
+  train_emb = Output.timed "Embedding train frames" do
+    Data.precompute_frame_embeddings(train_dataset, show_progress: true)
+  end
+  val_emb = Output.timed "Embedding val frames" do
+    Data.precompute_frame_embeddings(val_dataset, show_progress: false)
+  end
+  {train_emb, val_emb}
+else
+  {nil, nil}
+end
+
+# Precompute sequence embeddings for temporal architectures (all use window_size=30)
+{precomputed_train_seqs, precomputed_val_seqs} = if has_temporal do
+  Output.puts("Precomputing sequence embeddings (reused for all temporal architectures)...")
+  train_seq = Output.timed "Embedding train sequences" do
+    seq_ds = Data.to_sequences(train_dataset, window_size: 30, stride: 1)
+    Data.precompute_embeddings(seq_ds, show_progress: true)
+  end
+  val_seq = Output.timed "Embedding val sequences" do
+    seq_ds = Data.to_sequences(val_dataset, window_size: 30, stride: 1)
+    Data.precompute_embeddings(seq_ds, show_progress: false)
+  end
+  {train_seq, val_seq}
+else
+  {nil, nil}
+end
+
 # Step 3: Run benchmarks
 Output.step(3, 3, "Running benchmarks")
 Output.divider()
@@ -186,34 +236,15 @@ results = architectures
       checkpoint: "checkpoints/benchmark_#{arch_id}.axon"
     ], arch_opts)
 
-    # Build embed config (use default)
-    embed_config = Embeddings.config()
-
-    # Prepare dataset based on architecture
-    prepared_train = Output.timed "Preparing train data" do
-      if opts[:temporal] do
-        seq_ds = Data.to_sequences(train_dataset,
-          window_size: opts[:window_size] || 30,
-          stride: opts[:stride] || 1)
-        Data.precompute_embeddings(seq_ds, show_progress: false)
-      else
-        if opts[:precompute] do
-          Data.precompute_frame_embeddings(train_dataset, show_progress: false)
-        else
-          train_dataset
-        end
-      end
-    end
-
-    prepared_val = Output.timed "Preparing val data" do
-      if opts[:temporal] do
-        seq_ds = Data.to_sequences(val_dataset,
-          window_size: opts[:window_size] || 30,
-          stride: opts[:stride] || 1)
-        Data.precompute_embeddings(seq_ds, show_progress: false)
-      else
-        val_dataset
-      end
+    # Use precomputed embeddings (computed once before the loop)
+    {prepared_train, prepared_val} = if opts[:temporal] do
+      # Temporal architectures use precomputed sequence embeddings
+      Output.puts("  Using precomputed sequence embeddings")
+      {precomputed_train_seqs, precomputed_val_seqs}
+    else
+      # Non-temporal architectures use precomputed frame embeddings
+      Output.puts("  Using precomputed frame embeddings")
+      {precomputed_train_frames, precomputed_val_frames}
     end
 
     # Create trainer
