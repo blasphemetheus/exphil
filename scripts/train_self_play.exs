@@ -34,6 +34,7 @@
 
 # Use standard output module for consistent logging
 alias ExPhil.Training.Output
+alias ExPhil.Embeddings
 
 defmodule SelfPlayHelpers do
   alias ExPhil.Training.PPO
@@ -289,7 +290,7 @@ Output.step(1, 6, "Initializing policy")
 
   case ExPhil.Training.load_policy(opts.pretrained) do
     {:ok, policy} ->
-      embed_size = policy.config[:embed_size] || 1991
+      embed_size = policy.config[:embed_size] || Embeddings.embedding_size()
       Output.success("  Loaded policy (embed_size=#{embed_size})")
       {policy.model, policy.params, embed_size}
 
@@ -299,7 +300,7 @@ Output.step(1, 6, "Initializing policy")
   end
 else
   Output.puts("  Creating random actor-critic policy...")
-  embed_size = 1991
+  embed_size = Embeddings.embedding_size()
   hidden_sizes = [256, 256]
 
   # Use ActorCritic to get both policy and value heads
