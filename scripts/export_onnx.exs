@@ -52,6 +52,7 @@ unless axon_onnx_available? do
 end
 
 alias ExPhil.Networks.Policy
+alias ExPhil.Embeddings
 
 # Parse command line arguments
 args = System.argv()
@@ -153,7 +154,7 @@ Output.step(1, 4, "Loading policy")
         Output.puts("  Config: #{inspect(config)}")
 
         # Rebuild the model architecture
-        embed_size = config[:embed_size] || 1991
+        embed_size = config[:embed_size] || Embeddings.embedding_size()
 
         model = if config[:temporal] do
           Policy.build_temporal(
@@ -204,13 +205,13 @@ Output.step(2, 4, "Preparing model for ONNX export")
 
 # Determine input shape based on temporal mode
 {_input_shape, input_template} = if config[:temporal] do
-  embed_size = config[:embed_size] || 1991
+  embed_size = config[:embed_size] || Embeddings.embedding_size()
   window_size = config[:window_size] || 60
   shape = {1, window_size, embed_size}
   Output.puts("  Input shape: #{inspect(shape)} (temporal)")
   {shape, Nx.template(shape, :f32)}
 else
-  embed_size = config[:embed_size] || 1991
+  embed_size = config[:embed_size] || Embeddings.embedding_size()
   shape = {1, embed_size}
   Output.puts("  Input shape: #{inspect(shape)} (single-frame)")
   {shape, Nx.template(shape, :f32)}
