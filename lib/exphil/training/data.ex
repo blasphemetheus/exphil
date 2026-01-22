@@ -657,10 +657,13 @@ defmodule ExPhil.Training.Data do
 
       # Batch embed each sequence in this chunk
       # For each sequence, we batch all frames together
+      # CRITICAL: Copy to CPU after embedding to avoid GPU OOM
+      # (175K sequences × 30 frames × 1204 dims × 4 bytes = 25GB, exceeds GPU memory)
       Enum.map(chunk, fn frame ->
         game_states = Enum.map(frame.sequence, & &1.game_state)
-        # Use batch embedding: all frames at once
+        # Use batch embedding: all frames at once, then copy to CPU
         Embeddings.Game.embed_states_fast(game_states, 1, config: embed_config)
+        |> Nx.backend_copy(Nx.BinaryBackend)
       end)
     end)
 
@@ -715,9 +718,12 @@ defmodule ExPhil.Training.Data do
       batch_embedded = Embeddings.Game.embed_states_fast(game_states, 1, config: embed_config)
 
       # Convert to list of individual embeddings
+      # CRITICAL: Copy to CPU after embedding to avoid GPU OOM when dataset is large
       batch_embedded
       |> Nx.to_batched(1)
-      |> Enum.map(&Nx.squeeze(&1, axes: [0]))
+      |> Enum.map(fn t ->
+        t |> Nx.squeeze(axes: [0]) |> Nx.backend_copy(Nx.BinaryBackend)
+      end)
     end)
 
     if show_progress do
