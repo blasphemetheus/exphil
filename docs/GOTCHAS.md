@@ -26,6 +26,7 @@ Hard-won knowledge from debugging ExPhil. Each section documents a specific issu
 20. [Embedding config() vs default_config() dimension mismatch](#20-embedding-config-vs-default_config-dimension-mismatch)
 21. [embed_states_fast missing features vs embedding_size](#21-embed_states_fast-missing-features-vs-embedding_size)
 22. [Precomputed embeddings require copying BOTH states AND actions](#22-precomputed-embeddings-require-copying-both-states-and-actions)
+23. [Registry sanitize_config expects map but receives keyword list](#23-registry-sanitize_config-expects-map-but-receives-keyword-list)
 
 ---
 
@@ -683,3 +684,42 @@ end
 1. Look at what variables the loss_fn closure captures
 2. Identify which are precomputed EXLA tensors
 3. Copy ALL of them, not just the obvious one (`states`)
+
+---
+
+## 23. Registry sanitize_config expects map but receives keyword list
+
+**Status:** FIXED
+
+The training script passes parsed CLI options as a keyword list to the registry, but `sanitize_config/1` only had a clause for maps.
+
+**Symptoms:**
+```
+** (FunctionClauseError) no function clause matching in ExPhil.Training.Registry.sanitize_config/1
+    The following arguments were given to ExPhil.Training.Registry.sanitize_config/1:
+        # 1
+        [name: "moonwalking_fthrow", checkpoint: "...", ...]
+    Attempted function clauses (showing 1 out of 1):
+        defp sanitize_config(config) when is_map(config)
+```
+
+**Root cause:** Elixir keyword lists and maps are different types. `OptionParser.parse/2` returns keyword lists, but the registry expected a map.
+
+**The fix:** Add a clause to handle keyword lists by converting to map first:
+
+```elixir
+defp sanitize_config(config) when is_list(config) do
+  # Handle keyword lists by converting to map first
+  sanitize_config(Map.new(config))
+end
+
+defp sanitize_config(config) when is_map(config) do
+  # Remove function values that can't be serialized
+  config
+  |> Enum.reject(fn {_k, v} -> is_function(v) end)
+  |> Enum.reject(fn {_k, v} -> is_pid(v) end)
+  |> Enum.into(%{})
+end
+```
+
+**Lesson:** When writing functions that accept "config" or "options", consider accepting both keyword lists and maps for flexibility. Use `is_list/1` guard for keyword lists and `is_map/1` for maps.
