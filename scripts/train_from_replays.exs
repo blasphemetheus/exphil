@@ -962,8 +962,22 @@ initial_state = {trainer, 0, false, early_stopping_state, nil, pruner, ema, []}
 
       stream = Stream.flat_map(file_chunks, fn chunk ->
         # Parse and create dataset for this chunk
-        {:ok, chunk_frames, _errors} = Streaming.parse_chunk(chunk, chunk_opts)
+        {:ok, chunk_frames, errors} = Streaming.parse_chunk(chunk, chunk_opts)
+
+        # Debug: show chunk stats
+        if length(chunk_frames) == 0 do
+          Output.warning("Chunk produced 0 frames from #{length(chunk)} files")
+          if errors != [] do
+            Output.puts("    Errors: #{inspect(Enum.take(errors, 3))}")
+          end
+        end
+
         chunk_dataset = Streaming.create_dataset(chunk_frames, dataset_opts)
+
+        # Debug: show dataset size after sequence conversion
+        if chunk_dataset.size == 0 and length(chunk_frames) > 0 do
+          Output.warning("Dataset has 0 sequences (frames: #{length(chunk_frames)}, window: #{opts[:window_size]})")
+        end
 
         # Create batches from this chunk
         if opts[:temporal] do
