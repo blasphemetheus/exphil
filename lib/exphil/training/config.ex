@@ -31,7 +31,7 @@ defmodule ExPhil.Training.Config do
     "--max-files", "--skip-errors", "--fail-fast", "--show-errors", "--hide-errors",
     "--error-log", "--checkpoint", "--player", "--wandb", "--wandb-project",
     "--wandb-name", "--temporal", "--backbone", "--window-size", "--stride",
-    "--num-layers", "--state-size", "--expand-factor", "--conv-size",
+    "--num-layers", "--attention-every", "--num-heads", "--state-size", "--expand-factor", "--conv-size",
     "--truncate-bptt", "--precision", "--frame-delay", "--frame-delay-augment",
     "--frame-delay-min", "--frame-delay-max", "--online-robust", "--early-stopping",
     "--patience", "--min-delta", "--save-best", "--save-every", "--lr",
