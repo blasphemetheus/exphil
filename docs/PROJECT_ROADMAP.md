@@ -7,116 +7,116 @@ Comprehensive roadmap of improvements across all project areas. See also:
 ## Critical Issues
 
 ### 1. Self-Play Dolphin Integration
-**Status:** Mock games only  
-**Files:** `lib/exphil/training/self_play/league_trainer.ex`, `self_play_env.ex`  
-**Issue:** Self-play trainer uses `game_type: :mock`, not actual Dolphin gameplay  
-**Impact:** Cannot collect realistic RL experience  
-**Fix:**
-- Implement MeleePort-based game runner for self-play
-- Add game state synchronization between parallel agents
-- Document port/frame timing for concurrent games
+**Status:** ✅ COMPLETE (GenServer infrastructure done, needs real-game testing)
+**Files:** `lib/exphil/self_play/` (GameRunner, PopulationManager, ExperienceCollector, Matchmaker)
+**Completed:**
+- GenServer-based game runner (`game_runner.ex`)
+- DynamicSupervisor for game pool (`game_pool_supervisor.ex`)
+- Population management with historical policies (`population_manager.ex`)
+- Experience batching and collection (`experience_collector.ex`)
+- Elo ratings and matchmaking (`matchmaker.ex`, `elo.ex`)
+- Training supervisor (`supervisor.ex`)
 
-### 2. Projectile Parsing Missing
-**Status:** TODO stub  
-**Files:** `lib/exphil/data/replay_parser.ex:326`  
-**Issue:** Projectiles not parsed from replays  
-**Impact:** 40-60% state information lost for projectile characters (Link, Falco, Samus)  
-**Fix:**
-- Extract projectile data from replay via peppi NIF
-- Add projectile embedding module (type, position, velocity, owner)
-- Include in state embedding
+**Next steps:**
+- Test with actual Dolphin (MeleePort integration)
+- Run large-scale self-play training on GPU cluster
+- Tune Elo K-factor and matchmaking strategies
+
+### 2. Projectile Parsing
+**Status:** ✅ COMPLETE
+**Files:** `lib/exphil/embeddings/projectile.ex`, `lib/exphil/embeddings/game.ex`
+**Completed:**
+- Projectile embedding (type, position, velocity, owner, damage)
+- Up to 15 projectiles per frame
+- Integrated into game state embedding
+- 1204-dim total embedding includes projectiles
 
 ### 3. Data Pipeline Error Handling
-**Status:** Generic error catch  
-**Files:** `lib/exphil/training/data.ex`  
-**Issue:** Malformed replays fail silently without feedback  
-**Fix:**
-- Detailed error messages per file (path, reason)
-- `--skip-errors` flag to continue past bad files
-- Separate error log for debugging
+**Status:** ✅ COMPLETE
+**Files:** `lib/exphil/training/data.ex`
+**Completed:**
+- `--skip-errors` (default), `--fail-fast`, `--show-errors`, `--hide-errors` flags
+- `--error-log FILE` for separate error logging
+- Error collection with summary at end of processing
 
 ---
 
 ## High Priority Features
 
 ### Residual MLP Architecture
-**Effort:** Medium | **Impact:** +5-15% accuracy  
-**Files:** `lib/exphil/networks/policy.ex`  
-**Current:** Plain feedforward MLP  
-**Proposed:**
-```elixir
-# Add skip_connections: true option
-Policy.build(embed_size: 1024, hidden_sizes: [256, 256], skip_connections: true)
-```
-**Why:** Enables deeper networks without gradient degradation
+**Status:** ✅ COMPLETE
+**Files:** `lib/exphil/networks/policy.ex`
+**Completed:**
+- `--residual` and `--no-residual` CLI flags
+- Automatic projection layers when input/output dimensions differ
+- Works with `--layer-norm` for ResNet-style blocks
+- Enables deeper networks (4+ layers) without gradient degradation
 
 ### Focal Loss for Rare Actions
-**Effort:** Medium | **Impact:** +30-50% accuracy on Z/L/R  
-**Files:** `lib/exphil/networks/policy.ex`  
-**Issue:** Cross-entropy treats all actions equally; rare actions (<2% frequency) ignored  
-**Implementation:**
-```elixir
-# Focal loss: (1 - p)^gamma * CE(p, y)
-def focal_loss(logits, targets, gamma \\ 2.0) do
-  ce = Axon.Losses.categorical_cross_entropy(logits, targets)
-  pt = Nx.exp(Nx.negate(ce))
-  Nx.multiply(Nx.pow(Nx.subtract(1.0, pt), gamma), ce)
-end
-```
+**Status:** ✅ COMPLETE
+**Files:** `lib/exphil/networks/policy.ex`
+**Completed:**
+- `focal_binary_cross_entropy` and `focal_categorical_cross_entropy`
+- CLI flags: `--focal-loss --focal-gamma 2.0`
+- Combines with label smoothing
 
 ### Embedding Caching
-**Effort:** Medium | **Impact:** 2-3x speedup  
-**Files:** `lib/exphil/training/data.ex`, `lib/exphil/embeddings.ex`  
-**Current:** Embeddings computed every batch, every epoch  
-**Proposed:** Precompute all embeddings before training loop  
-**Status:** Partial implementation exists
+**Status:** ✅ COMPLETE
+**Files:** `lib/exphil/training/data.ex`, `lib/exphil/embeddings.ex`
+**Completed:**
+- `precompute: true` is the default
+- 2-3x speedup for MLP training by embedding once instead of per-batch
+- Auto-bypasses when augmentation is enabled
+- `--no-precompute` flag for explicit override
 
 ---
 
 ## Robustness Improvements
 
 ### Model Architecture Mismatch Detection
-**Effort:** Low | **Impact:** Better UX  
-**Files:** `lib/exphil/agents/agent.ex`, `lib/exphil/training/imitation.ex`  
-**Issue:** Loading policy with wrong architecture gives cryptic shape errors  
-**Fix:**
-- Validate architecture before loading
-- Store architecture fingerprint in policy files
-- Clear error: "Policy expects hidden_sizes [512,512], got [64,64]"
+**Status:** ✅ COMPLETE
+**Files:** `lib/exphil/training/training.ex`
+**Completed:**
+- `Training.validate_policy/2` validates checkpoint structure
+- Detects temporal/MLP mismatch by checking layer names
+- Detects hidden layer count mismatch
+- Clear multi-line error messages with suggestions
 
 ### Training State Recovery
-**Effort:** Medium | **Impact:** Crash resilience  
-**Files:** `lib/exphil/training/recovery.ex`  
-**Issue:** Resume loses optimizer state, schedule position  
+**Effort:** Medium | **Impact:** Crash resilience
+**Files:** `lib/exphil/training/recovery.ex`
+**Issue:** Resume loses optimizer state, schedule position
 **Fix:**
 - Save complete training state (optimizer, schedule, metrics history)
 - Restore optimizer warmup position
 - Document expected +5% loss spike on resume
 
 ### CLI Argument Validation
-**Effort:** Low | **Impact:** Fewer misconfigurations  
-**Files:** `lib/exphil/training/config.ex`  
-**Issue:** Invalid args silently use defaults  
-**Fix:**
-- Validate option types and combinations
-- Suggest did-you-mean for typos
-- Display parsed config before training
+**Status:** ✅ COMPLETE
+**Files:** `lib/exphil/training/config.ex`
+**Completed:**
+- Levenshtein distance algorithm for fuzzy matching
+- Suggests corrections for typos within distance 3
+- Warns about completely unrecognized flags
+- Displays parsed config before training
 
 ---
 
 ## Documentation Gaps
 
 ### Self-Play Training Guide
-**Status:** Missing  
-**Proposed:** `docs/SELF_PLAY.md`  
+**Status:** TODO
+**Proposed:** `docs/SELF_PLAY.md`
 **Contents:**
-- Simple vs league mode comparison
+- GenServer architecture overview
+- Elo rating system explanation
+- Matchmaking strategies (self-play, historical, skill-based, exploiter)
 - Hyperparameter tuning for self-play PPO
 - Troubleshooting policy collapse
 - Example configs per character
 
 ### Inference Optimization Decision Tree
-**Status:** Partial in INFERENCE.md  
+**Status:** Partial in INFERENCE.md
 **Add:**
 - Decision tree: "Which optimization for my use case?"
 - Benchmark table for CPU/GPU/mobile
@@ -158,17 +158,42 @@ end
 
 ## Implementation Priority
 
-1. **Projectile parsing** - Critical for character coverage
-2. **Error handling** - Quick win, big debugging improvement
-3. **Focal loss** - Addresses known rare-action problem
-4. **Residual MLP** - Try when hitting accuracy ceiling
-5. **Embedding caching** - Biggest speedup opportunity
-6. **Self-play Dolphin** - Required for RL beyond imitation
+1. ~~**Projectile parsing**~~ ✅ COMPLETE
+2. ~~**Error handling**~~ ✅ COMPLETE
+3. ~~**Focal loss**~~ ✅ COMPLETE
+4. ~~**Residual MLP**~~ ✅ COMPLETE
+5. ~~**Embedding caching**~~ ✅ COMPLETE
+6. ~~**Self-play infrastructure**~~ ✅ COMPLETE (GenServers done)
+
+**Current priorities:**
+1. **Self-play Dolphin testing** - Run with real MeleePort games
+2. **Large-scale self-play training** - GPU cluster deployment
+3. **Training state recovery** - Save/restore optimizer state on resume
+4. **Self-play documentation** - Write SELF_PLAY.md guide
 
 ---
 
 ## Completed (Recent)
 
+### Infrastructure (2026-01)
+- [x] Self-play GenServer architecture (GameRunner, PopulationManager, ExperienceCollector, Matchmaker)
+- [x] Elo rating system with matchmaking strategies
+- [x] Projectile embedding (15 projectiles/frame, integrated into 1204-dim state)
+- [x] Architecture benchmark script with per-backbone batch sizes
+
+### Training Features (2026-01)
+- [x] Focal loss for rare actions (`--focal-loss --focal-gamma 2.0`)
+- [x] Residual MLP connections (`--residual`)
+- [x] Embedding precomputation (2-3x speedup, enabled by default)
+- [x] Data pipeline error handling (`--skip-errors`, `--error-log`)
+- [x] CLI argument validation with typo suggestions
+
+### Robustness (2026-01)
+- [x] Model architecture mismatch detection
+- [x] Hybrid Jamba backbone (Mamba + Attention)
+- [x] K-Means stick discretization
+
+### Testing (Previous)
 - [x] Benchmark tests for performance regression
 - [x] Snapshot testing for embeddings
 - [x] Replay fixtures for testing

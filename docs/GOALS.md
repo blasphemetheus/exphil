@@ -723,6 +723,70 @@ Keep uniform buckets for now. K-means is a micro-optimization best explored afte
 2. Character specialization is in progress (can do character-specific clusters)
 3. Current accuracy plateau is reached (need to measure first)
 
+### 2026-01-22: Architecture Benchmark Results & Fixes
+
+**Status:** COMPLETE
+
+Ran comprehensive benchmarks on RunPod GPU pod (RTX 4090, 64GB RAM) comparing backbone architectures.
+
+#### Benchmark Results
+
+| Rank | Architecture | Val Loss | Batch/s | Training Time | Notes |
+|------|-------------|----------|---------|---------------|-------|
+| 1 | **Attention** | **3.68** | 1.0 | 31min | Best val loss, 5x faster than GRU |
+| 2 | Jamba | 3.87 | 1.7 | 72min | Hybrid Mamba+Attention, fast convergence |
+| 3 | GRU | 4.48 | 0.2 | 2.6h | Slow but reliable |
+| 4 | LSTM | 4.75 | 0.2 | 3h | Similar to GRU |
+| 5 | Mamba | 8.22 | 1.3 | 48min | Fast but struggles with temporal patterns |
+
+**Key findings:**
+- **Attention wins:** Pure attention achieved the best val loss (3.68) while being 5x faster than GRU. Global attention captures Melee's temporal patterns better than recurrent processing.
+- **Jamba is the sweet spot:** Hybrid Mamba+Attention (3.87) is nearly as good as pure attention but 70% faster per batch. Good balance of speed and accuracy.
+- **Mamba needs work:** The 8.22 val loss suggests Mamba alone struggles with Melee's temporal patterns. May need more epochs or architectural tuning.
+- **Recurrent is reliable but slow:** GRU/LSTM achieve decent loss but are 5x slower than attention-based approaches.
+
+#### Fixes Made
+
+1. **GPU OOM during embedding precomputation** (Gotcha #25)
+   - 175K sequences × 30 frames × 1204 dims × 4 bytes = 25GB > 24GB VRAM
+   - Fixed by adding `Nx.backend_copy(Nx.BinaryBackend)` after each batch
+   - Embeddings now stored on CPU RAM, transferred per-batch during training
+
+2. **Jamba "bad argument in arithmetic expression"**
+   - `num_heads: nil` from benchmark overrode default value of 4
+   - `nil * head_dim` crashed in attention layer sizing
+   - Fixed by filtering nil values: `|> Enum.reject(fn {_k, v} -> is_nil(v) end)`
+
+3. **Attention "no case clause matching: :attention"**
+   - `:attention` backbone type not handled in Policy.build_temporal
+   - Added `:attention` as alias for `:sliding_window` in three case statements
+
+4. **JSON encoding error for tuples**
+   - `Keyword.take` returns tuples, Jason can't encode them
+   - Fixed with `Map.new(Keyword.take(...))`
+
+5. **Embedding precomputation optimization**
+   - Previously embeddings were recomputed for EVERY architecture (~45 min each)
+   - Fixed by precomputing embeddings ONCE before the architecture loop
+   - Added per-architecture batch sizes (Mamba: 64, Jamba: 32)
+
+#### Memory Requirements Documented
+
+Added comprehensive memory requirements to `docker-workflow.md`:
+- 64GB RAM: Full dataset (~175K sequences) with `--max-files 30`
+- 32GB RAM: Use `--max-files 15` (~87K sequences)
+- 16GB RAM: Use `--max-files 8` (~46K sequences)
+
+Formula: `sequences × 30 frames × 1204 dims × 4 bytes = ~150 bytes/frame × 30 = 4.5KB/sequence`
+
+#### Files Changed
+
+- `scripts/benchmark_architectures.exs` - Precompute embeddings once, filter nil opts, per-arch batch sizes
+- `lib/exphil/training/data.ex` - GPU→CPU copy after embedding batches
+- `lib/exphil/networks/policy.ex` - Added `:attention` backbone case
+- `docs/GOTCHAS.md` - Added Gotcha #25
+- `docs/docker-workflow.md` - Added memory requirements section
+
 ---
 
 ## References
