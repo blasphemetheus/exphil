@@ -452,40 +452,52 @@ stage_id_to_name = %{
   )
   |> Enum.reduce({[], %{}, %{}, %{}}, fn
     {:ok, {:ok, path, meta}}, {paths, chars, stages, ports} ->
-      # Determine training port - either dynamic (by character) or fixed
-      {training_port, training_player} = if target_char_name do
-        # Find port that has the target character
-        player = Enum.find(meta.players, fn p -> p.character_name == target_char_name end)
-        if player, do: {player.port, player}, else: {nil, nil}
+      # Determine training players - either dynamic (by character) or fixed
+      matching_players = if target_char_name do
+        # Find ALL ports that have the target character (for dittos like Mewtwo vs Mewtwo)
+        Enum.filter(meta.players, fn p -> p.character_name == target_char_name end)
       else
-        # Use fixed port
-        player = Enum.find(meta.players, fn p -> p.port == default_port end)
-        {default_port, player}
+        # Use fixed port (or dual-port if enabled)
+        if opts[:dual_port] do
+          meta.players
+        else
+          case Enum.find(meta.players, fn p -> p.port == default_port end) do
+            nil -> []
+            player -> [player]
+          end
+        end
       end
 
-      # Skip replay if target character not found
-      if training_player == nil do
+      # Skip replay if no matching players found
+      if matching_players == [] do
         {paths, chars, stages, ports}
       else
-        # Collect character stats for the training player
-        chars = Map.update(chars, training_player.character_name, 1, & &1 + 1)
+        # Collect stats and add paths for EACH matching player
+        Enum.reduce(matching_players, {paths, chars, stages, ports}, fn player, {p, c, s, pt} ->
+          # Collect character stats
+          c = Map.update(c, player.character_name, 1, & &1 + 1)
 
-        # Collect stage stats
-        stage_name = Map.get(stage_id_to_name, meta.stage, "Stage #{meta.stage}")
-        stages = Map.update(stages, stage_name, 1, & &1 + 1)
+          # Collect stage stats (only once per replay)
+          stage_name = Map.get(stage_id_to_name, meta.stage, "Stage #{meta.stage}")
+          s = if player == hd(matching_players) do
+            Map.update(s, stage_name, 1, & &1 + 1)
+          else
+            s
+          end
 
-        # Check filters - only check training player's character
-        training_char = training_player.character_name
-        char_match = char_names == [] or training_char in char_names
-        stage_match = stage_ids == [] or meta.stage in stage_ids
+          # Check filters
+          char_match = char_names == [] or player.character_name in char_names
+          stage_match = stage_ids == [] or meta.stage in stage_ids
 
-        if char_match and stage_match do
-          # Store the port for this replay (for frame parsing later)
-          ports = Map.put(ports, path, training_port)
-          {[path | paths], chars, stages, ports}
-        else
-          {paths, chars, stages, ports}
-        end
+          if char_match and stage_match do
+            # Use {path, port} tuple to uniquely identify each training example
+            path_key = {path, player.port}
+            pt = Map.put(pt, path_key, player.port)
+            {[path_key | p], c, s, pt}
+          else
+            {p, c, s, pt}
+          end
+        end)
       end
 
     _, acc -> acc
@@ -545,14 +557,23 @@ end
 {parse_time, {all_frames, errors}} = :timer.tc(fn ->
   replay_files
   |> Task.async_stream(
-    fn path ->
+    fn path_or_tuple ->
+      # Handle both {path, port} tuples (from character filter) and plain paths
+      {path, player_port} = case path_or_tuple do
+        {p, port} -> {p, port}
+        p when is_binary(p) ->
+          if dual_port do
+            {p, nil}  # dual_port will parse both
+          else
+            {p, Map.get(port_map, p, default_port)}
+          end
+      end
+
       if dual_port do
         # Dual-port: parse both ports and combine frames
         parse_dual_port.(path, opts[:frame_delay])
       else
-        # Single port: use dynamic port from port_map if available
-        player_port = Map.get(port_map, path, default_port)
-
+        # Single port: use the determined port
         case Peppi.parse(path, player_port: player_port) do
           {:ok, replay} ->
             frames = Peppi.to_training_frames(replay,
