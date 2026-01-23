@@ -52,14 +52,16 @@ ExPhil is an Elixir-based successor to slippi-ai, creating high-ELO playable bot
 
 See [GOALS.md](docs/GOALS.md) for comprehensive roadmap. Current focus:
 
-**High Impact (In Progress):**
-1. **Projectile parsing** - 40-60% state info lost for Link/Samus/Falco
-2. **Focal loss** - +30-50% accuracy on rare actions (Z/L/R)
-3. **Embedding caching** - 2-3x training speedup
+**Completed:**
+- Projectile parsing (1204-dim embedding includes projectiles)
+- Focal loss (`--focal-loss --focal-gamma 2.0`)
+- Embedding caching (2-3x speedup, default)
+- Self-play GenServer infrastructure
 
 **Next Phase:**
-4. **Self-play infrastructure** - BEAM concurrency + population-based training
-5. **Character-specific rewards** - Mewtwo recovery, Ganon spacing, etc.
+1. **Self-play Dolphin testing** - Run with real MeleePort games
+2. **Large-scale self-play training** - GPU cluster deployment
+3. **Character-specific rewards** - Mewtwo recovery, Ganon spacing, etc.
 
 ## Documentation
 
@@ -69,6 +71,7 @@ Detailed guides in `docs/`:
 |-----|----------|
 | [GOALS.md](docs/GOALS.md) | **Big picture goals, priorities, implementation log** |
 | [ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design, network structure, training pipeline |
+| [architectures/](docs/architectures/ARCHITECTURES.md) | **Backbone docs: MLP, LSTM, GRU, Attention, Mamba, Jamba** |
 | [TRAINING.md](docs/TRAINING.md) | Training commands, options, performance tips |
 | [INFERENCE.md](docs/INFERENCE.md) | ONNX export, quantization, optimization |
 | [DOLPHIN.md](docs/DOLPHIN.md) | Dolphin setup, running agents |
