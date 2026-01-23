@@ -55,6 +55,7 @@ This directory contains comprehensive documentation of existing Super Smash Bros
 | [action-space.md](action-space.md) | Melee's 30 billion input action space problem |
 | [state-representation.md](state-representation.md) | How to embed Melee game state for ML |
 | [training-approaches.md](training-approaches.md) | BC vs RL vs hybrid methodology comparison |
+| [reward-shaping.md](reward-shaping.md) | **Reward design: PBRS theory, character-specific, hacking** |
 | [research-papers.md](research-papers.md) | Key academic papers and technical blogs |
 | [other-fighting-game-ai.md](other-fighting-game-ai.md) | AlphaStar, OpenAI Five, FightingICE, Street Fighter |
 | [deployment-inference.md](deployment-inference.md) | ONNX, quantization, real-time inference |
@@ -87,6 +88,9 @@ See [training-approaches.md](training-approaches.md) and [research-papers.md](re
 
 **For technical architecture decisions:**
 Check [action-space.md](action-space.md) and [state-representation.md](state-representation.md).
+
+**For reward function design:**
+See [reward-shaping.md](reward-shaping.md) for PBRS theory, character-specific rewards, and avoiding reward hacking.
 
 **For a complete list of all projects:**
 See [all-projects.md](all-projects.md) for the comprehensive index.

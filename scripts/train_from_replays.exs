@@ -1119,9 +1119,10 @@ initial_state = {trainer, 0, false, early_stopping_state, nil, pruner, ema, []}
         buffer_size: opts[:prefetch_buffer]
       )
     else
-      # Standard sequential processing (materializes batches)
-      batches = Enum.to_list(batch_stream)
-      Enum.reduce(Enum.with_index(batches), {current_trainer, [], jit_indicator_shown}, fn {batch, batch_idx}, acc ->
+      # Standard sequential processing - iterate lazily for streaming mode
+      batch_stream
+      |> Stream.with_index()
+      |> Enum.reduce({current_trainer, [], jit_indicator_shown}, fn {batch, batch_idx}, acc ->
         process_batch.(batch, batch_idx, acc)
       end)
     end

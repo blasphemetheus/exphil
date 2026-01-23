@@ -38,17 +38,18 @@ This document tracks areas that need additional research and documentation for t
 
 ---
 
-### [ ] Reward Shaping Deep Dive
+### [x] Reward Shaping Deep Dive
 **Why**: Character-specific rewards are key to low-tier success
-**Topics to cover**:
+**Topics covered**:
 - Standard reward functions (KO, damage, stocks)
-- Character-specific shaping (Mewtwo recovery, Ganon spacing, G&W bucket)
-- Intrinsic motivation / curiosity-driven exploration
-- Reward hacking failure modes
-- Potential-based reward shaping theory
+- Character-specific shaping (Mewtwo recovery, Ganon spacing, G&W bucket, Link projectiles, IC Nana)
+- Intrinsic motivation / curiosity-driven exploration (ICM, skill-based curiosity)
+- Reward hacking failure modes (approach oscillation, damage farming, stalling, ledge camping)
+- Potential-based reward shaping theory (PBRS guarantees, 2024 research)
 - What slippi-ai and Phillip used
+- Practical recommendations for ExPhil training phases
 
-**Output**: `reward-shaping.md`
+**Output**: `reward-shaping.md` ✓
 
 ---
 
@@ -177,6 +178,7 @@ This document tracks areas that need additional research and documentation for t
 | `slip-py.md` | 2026-01-23 | Flask replay browser |
 | `melee-prediction.md` | 2026-01-23 | XGBoost prediction |
 | `svm-melee.md` | 2026-01-23 | SVM classification |
+| `reward-shaping.md` | 2026-01-23 | PBRS theory, character-specific rewards, hacking |
 
 ---
 
