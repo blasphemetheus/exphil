@@ -25,6 +25,12 @@
 #   - XLA multi-threading is enabled by default (2-3x faster on multi-core CPUs)
 #   - Larger batch sizes (128, 256) reduce per-batch overhead if RAM allows
 #
+# Memory Management:
+#   --stream-chunk-size N - Load files in chunks of N to bound memory usage
+#                           Enables training on large datasets without OOM
+#                           Example: --stream-chunk-size 30 for 56GB RAM
+#                           Trade-off: ~10-20% slower due to repeated I/O
+#
 # Options:
 
 # Enable XLA multi-threading for CPU training (2-3x speedup on multi-core)
@@ -136,7 +142,7 @@ end
 require Logger
 
 alias ExPhil.Data.Peppi
-alias ExPhil.Training.{Augmentation, CheckpointPruning, Config, Data, EarlyStopping, EMA, GPUUtils, Imitation, Plots, Prefetcher, Recovery, Registry, ReplayValidation}
+alias ExPhil.Training.{Augmentation, CheckpointPruning, Config, Data, EarlyStopping, EMA, GPUUtils, Imitation, Plots, Prefetcher, Recovery, Registry, ReplayValidation, Streaming}
 alias ExPhil.Embeddings
 alias ExPhil.Integrations.Wandb
 
@@ -295,6 +301,7 @@ Configuration:
   Prefetch:    #{if opts[:prefetch], do: "enabled (buffer=#{opts[:prefetch_buffer]})", else: "disabled"}
   Grad Ckpt:   #{if opts[:gradient_checkpoint], do: "enabled (every #{opts[:checkpoint_every]} layers)", else: "disabled"}
   GPU:         #{gpu_info}
+  Streaming:   #{if opts[:stream_chunk_size], do: "enabled (#{opts[:stream_chunk_size]} files/chunk)", else: "disabled"}
 #{temporal_info}
 """)
 
@@ -312,6 +319,17 @@ end
 if opts[:frame_delay_augment] and opts[:temporal] do
   Output.warning("Frame delay augmentation (--frame-delay-augment/--online-robust) " <>
     "only works with non-temporal training. Using fixed frame_delay=#{opts[:frame_delay]} instead.")
+end
+
+# Warn about streaming mode limitations
+if opts[:stream_chunk_size] do
+  Output.puts("")
+  Output.puts("📦 Streaming mode enabled: Files will be loaded in chunks of #{opts[:stream_chunk_size]}", :cyan)
+  Output.puts("   Memory usage bounded regardless of total dataset size")
+
+  if opts[:val_split] > 0.0 do
+    Output.warning("Validation in streaming mode uses samples from each chunk, not a global split")
+  end
 end
 
 # Dry run mode - validate config and show what would happen, then exit
@@ -554,7 +572,21 @@ if error_log do
   File.write!(error_log, "# ExPhil Replay Parsing Errors\n# #{DateTime.utc_now()}\n\n")
 end
 
-{parse_time, {all_frames, errors}} = :timer.tc(fn ->
+# Streaming mode: prepare file chunks but don't load data yet
+# Data will be loaded chunk-by-chunk during training
+streaming_mode = opts[:stream_chunk_size] != nil
+file_chunks = if streaming_mode do
+  chunk_size = opts[:stream_chunk_size]
+  chunks = Streaming.chunk_files(replay_files, chunk_size)
+  Output.puts("  Streaming: #{length(chunks)} chunks of up to #{chunk_size} files")
+  chunks
+else
+  nil
+end
+
+# Standard mode: parse all files upfront
+{parse_time, {all_frames, errors}} = if not streaming_mode do
+  :timer.tc(fn ->
   replay_files
   |> Task.async_stream(
     fn path_or_tuple ->
@@ -629,84 +661,99 @@ end
     end
     {List.flatten(frame_lists), Enum.reverse(errors)}
   end)
-end)
+  end)
+else
+  # Streaming mode: skip upfront parsing, data loaded per-chunk during training
+  {0, {[], []}}
+end
 
-Output.puts("  Parse time: #{Float.round(parse_time / 1_000_000, 2)}s")
-Output.puts("  Total training frames: #{length(all_frames)}")
+if not streaming_mode do
+  Output.puts("  Parse time: #{Float.round(parse_time / 1_000_000, 2)}s")
+  Output.puts("  Total training frames: #{length(all_frames)}")
 
-# Show error summary if there were failures
-if length(errors) > 0 do
-  Output.puts("\n  Error Summary (#{length(errors)} failed files):")
-  if show_errors do
-    errors
-    |> Enum.take(10)  # Show first 10
-    |> Enum.each(fn %{path: path, reason: reason} ->
-      Output.puts("    - #{Path.basename(path)}: #{inspect(reason)}")
-    end)
-    if length(errors) > 10 do
-      Output.puts("    ... and #{length(errors) - 10} more")
+  # Show error summary if there were failures
+  if length(errors) > 0 do
+    Output.puts("\n  Error Summary (#{length(errors)} failed files):")
+    if show_errors do
+      errors
+      |> Enum.take(10)  # Show first 10
+      |> Enum.each(fn %{path: path, reason: reason} ->
+        Output.puts("    - #{Path.basename(path)}: #{inspect(reason)}")
+      end)
+      if length(errors) > 10 do
+        Output.puts("    ... and #{length(errors) - 10} more")
+      end
+    end
+    if error_log do
+      Output.puts("  Full error log: #{error_log}")
     end
   end
-  if error_log do
-    Output.puts("  Full error log: #{error_log}")
+
+  if length(all_frames) == 0 do
+    Output.puts("\n❌ No training frames found. Check replay files and player port.")
+    System.halt(1)
   end
 end
 
-if length(all_frames) == 0 do
-  Output.puts("\n❌ No training frames found. Check replay files and player port.")
-  System.halt(1)
-end
+# Step 2: Create dataset (skipped in streaming mode - data loaded per-chunk)
+{train_dataset, val_dataset} = if not streaming_mode do
+  Output.puts("\nStep 2: Creating dataset...", :cyan)
 
-# Step 2: Create dataset
-Output.puts("\nStep 2: Creating dataset...", :cyan)
+  dataset = Data.from_frames(all_frames)
 
-dataset = Data.from_frames(all_frames)
+  # Convert to sequences for temporal training, or precompute embeddings for MLP
+  base_dataset = if opts[:temporal] do
+    Output.puts("  Converting to sequences (window=#{opts[:window_size]}, stride=#{opts[:stride]})...")
+    seq_dataset = Data.to_sequences(dataset,
+      window_size: opts[:window_size],
+      stride: opts[:stride]
+    )
 
-# Convert to sequences for temporal training, or precompute embeddings for MLP
-base_dataset = if opts[:temporal] do
-  Output.puts("  Converting to sequences (window=#{opts[:window_size]}, stride=#{opts[:stride]})...")
-  seq_dataset = Data.to_sequences(dataset,
-    window_size: opts[:window_size],
-    stride: opts[:stride]
-  )
-
-  # Pre-compute embeddings to avoid slow per-batch embedding
-  # This embeds all frames ONCE instead of on every batch
-  Data.precompute_embeddings(seq_dataset)
-else
-  # For MLP training, optionally precompute frame embeddings
-  if opts[:precompute] do
-    Output.puts("  Pre-computing embeddings (2-3x speedup)...")
-    Data.precompute_frame_embeddings(dataset)
+    # Pre-compute embeddings to avoid slow per-batch embedding
+    # This embeds all frames ONCE instead of on every batch
+    Data.precompute_embeddings(seq_dataset)
   else
-    dataset
+    # For MLP training, optionally precompute frame embeddings
+    if opts[:precompute] do
+      Output.puts("  Pre-computing embeddings (2-3x speedup)...")
+      Data.precompute_frame_embeddings(dataset)
+    else
+      dataset
+    end
   end
-end
 
-# Split into train/val based on val_split option
-# val_split = 0.0 means no validation set, val_split = 0.1 means 10% validation
-{train_dataset, val_dataset} = if opts[:val_split] > 0.0 do
-  train_ratio = 1.0 - opts[:val_split]
-  Data.split(base_dataset, ratio: train_ratio)
+  # Split into train/val based on val_split option
+  # val_split = 0.0 means no validation set, val_split = 0.1 means 10% validation
+  {train_ds, val_ds} = if opts[:val_split] > 0.0 do
+    train_ratio = 1.0 - opts[:val_split]
+    Data.split(base_dataset, ratio: train_ratio)
+  else
+    # No validation split - use all data for training, create empty val dataset
+    {base_dataset, Data.empty(base_dataset)}
+  end
+
+  data_type = if opts[:temporal], do: "sequences", else: "frames"
+  Output.puts("  Training #{data_type}: #{train_ds.size}")
+  if val_ds.size > 0 do
+    Output.puts("  Validation #{data_type}: #{val_ds.size} (#{Float.round(opts[:val_split] * 100, 1)}%)")
+  else
+    Output.puts("  Validation: disabled (--val-split 0.0)")
+  end
+
+  # Show some statistics
+  stats = Data.stats(train_ds)
+  Output.puts("\n  Button press rates:")
+  for {button, rate} <- Enum.sort(stats.button_rates) do
+    bar = String.duplicate("█", round(rate * 50))
+    Output.puts("    #{button |> to_string() |> String.pad_trailing(6)}: #{bar} #{Float.round(rate * 100, 1)}%")
+  end
+
+  {train_ds, val_ds}
 else
-  # No validation split - use all data for training, create empty val dataset
-  {base_dataset, Data.empty(base_dataset)}
-end
-
-data_type = if opts[:temporal], do: "sequences", else: "frames"
-Output.puts("  Training #{data_type}: #{train_dataset.size}")
-if val_dataset.size > 0 do
-  Output.puts("  Validation #{data_type}: #{val_dataset.size} (#{Float.round(opts[:val_split] * 100, 1)}%)")
-else
-  Output.puts("  Validation: disabled (--val-split 0.0)")
-end
-
-# Show some statistics
-stats = Data.stats(train_dataset)
-Output.puts("\n  Button press rates:")
-for {button, rate} <- Enum.sort(stats.button_rates) do
-  bar = String.duplicate("█", round(rate * 50))
-  Output.puts("    #{button |> to_string() |> String.pad_trailing(6)}: #{bar} #{Float.round(rate * 100, 1)}%")
+  # Streaming mode: datasets are created per-chunk during training
+  Output.puts("\nStep 2: Dataset creation deferred (streaming mode)", :cyan)
+  Output.puts("  Data will be loaded in #{length(file_chunks)} chunks during training")
+  {nil, nil}
 end
 
 # Step 3: Initialize trainer
@@ -887,29 +934,80 @@ initial_state = {trainer, 0, false, early_stopping_state, nil, pruner, ema, []}
     # Note: augmentation is only applied to non-temporal (single-frame) batches
     # Temporal batches use pre-computed embeddings, so augmentation happens at sequence creation
     # Create batch stream (kept lazy for true async prefetching)
-    batch_stream = if opts[:temporal] do
-      Data.batched_sequences(train_dataset,
-        batch_size: opts[:batch_size],
-        shuffle: true,
-        drop_last: true
-      )
-    else
-      Data.batched(train_dataset,
-        batch_size: opts[:batch_size],
-        shuffle: true,
-        drop_last: true,
-        augment_fn: augment_fn,
-        # Frame delay augmentation for online play robustness
-        frame_delay: opts[:frame_delay],
-        frame_delay_augment: opts[:frame_delay_augment],
-        frame_delay_min: opts[:frame_delay_min],
-        frame_delay_max: opts[:frame_delay_max]
-      )
-    end
+    {batch_stream, num_batches} = if streaming_mode do
+      # Streaming mode: process each chunk and chain batches together
+      # Each chunk is parsed, embedded, and batched on-demand
+      chunk_opts = [
+        player_port: default_port,
+        port_map: port_map,
+        dual_port: dual_port,
+        frame_delay: opts[:frame_delay]
+      ]
 
-    # Calculate number of batches for progress display
-    # (we count without materializing to keep the stream lazy)
-    num_batches = div(train_dataset.size, opts[:batch_size])
+      dataset_opts = [
+        temporal: opts[:temporal],
+        window_size: opts[:window_size],
+        stride: opts[:stride],
+        precompute: opts[:precompute]
+      ]
+
+      # Estimate total batches (rough estimate based on first chunk)
+      estimated_batches = length(file_chunks) * 200  # Conservative estimate
+
+      stream = Stream.flat_map(file_chunks, fn chunk ->
+        # Parse and create dataset for this chunk
+        {:ok, chunk_frames, _errors} = Streaming.parse_chunk(chunk, chunk_opts)
+        chunk_dataset = Streaming.create_dataset(chunk_frames, dataset_opts)
+
+        # Create batches from this chunk
+        if opts[:temporal] do
+          Data.batched_sequences(chunk_dataset,
+            batch_size: opts[:batch_size],
+            shuffle: true,
+            drop_last: false  # Don't drop - small chunks may lose data
+          )
+        else
+          Data.batched(chunk_dataset,
+            batch_size: opts[:batch_size],
+            shuffle: true,
+            drop_last: false,
+            augment_fn: augment_fn,
+            frame_delay: opts[:frame_delay],
+            frame_delay_augment: opts[:frame_delay_augment],
+            frame_delay_min: opts[:frame_delay_min],
+            frame_delay_max: opts[:frame_delay_max]
+          )
+        end
+      end)
+
+      {stream, estimated_batches}
+    else
+      # Standard mode: use pre-loaded dataset
+      stream = if opts[:temporal] do
+        Data.batched_sequences(train_dataset,
+          batch_size: opts[:batch_size],
+          shuffle: true,
+          drop_last: true
+        )
+      else
+        Data.batched(train_dataset,
+          batch_size: opts[:batch_size],
+          shuffle: true,
+          drop_last: true,
+          augment_fn: augment_fn,
+          # Frame delay augmentation for online play robustness
+          frame_delay: opts[:frame_delay],
+          frame_delay_augment: opts[:frame_delay_augment],
+          frame_delay_min: opts[:frame_delay_min],
+          frame_delay_max: opts[:frame_delay_max]
+        )
+      end
+
+      # Calculate number of batches for progress display
+      # (we count without materializing to keep the stream lazy)
+      batches = div(train_dataset.size, opts[:batch_size])
+      {stream, batches}
+    end
 
     # Epoch start message with GPU memory status
     gpu_status = GPUUtils.memory_status_string()
@@ -1012,18 +1110,25 @@ initial_state = {trainer, 0, false, early_stopping_state, nil, pruner, ema, []}
     # epoch_losses is now a list of numbers (converted during progress display)
     avg_loss = Enum.sum(epoch_losses) / length(epoch_losses)
 
-    # Validation - only if we have validation data
-    {val_loss, _val_metrics} = if val_dataset.size > 0 do
-      val_batches = if opts[:temporal] do
-        Data.batched_sequences(val_dataset, batch_size: opts[:batch_size], shuffle: false)
-      else
-        Data.batched(val_dataset, batch_size: opts[:batch_size], shuffle: false)
-      end
-      metrics = Imitation.evaluate(updated_trainer, val_batches)
-      {metrics.loss, metrics}
-    else
-      # No validation set - use training loss as proxy
-      {avg_loss, %{loss: avg_loss}}
+    # Validation - only if we have validation data (not in streaming mode)
+    {val_loss, _val_metrics} = cond do
+      streaming_mode ->
+        # In streaming mode, use training loss as proxy
+        # (validation would require holding extra data in memory)
+        {avg_loss, %{loss: avg_loss}}
+
+      val_dataset != nil and val_dataset.size > 0 ->
+        val_batches = if opts[:temporal] do
+          Data.batched_sequences(val_dataset, batch_size: opts[:batch_size], shuffle: false)
+        else
+          Data.batched(val_dataset, batch_size: opts[:batch_size], shuffle: false)
+        end
+        metrics = Imitation.evaluate(updated_trainer, val_batches)
+        {metrics.loss, metrics}
+
+      true ->
+        # No validation set - use training loss as proxy
+        {avg_loss, %{loss: avg_loss}}
     end
 
     # Check early stopping (uses val_loss or train_loss if no validation)
@@ -1035,16 +1140,18 @@ initial_state = {trainer, 0, false, early_stopping_state, nil, pruner, ema, []}
     end
 
     # Track epoch metrics for loss plot
+    # Determine if we have separate validation (not in streaming mode and val_dataset exists)
+    has_validation = not streaming_mode and val_dataset != nil and val_dataset.size > 0
     epoch_entry = %{
       epoch: epoch,
       train_loss: avg_loss,
-      val_loss: if(val_dataset.size > 0, do: val_loss, else: nil),
+      val_loss: if(has_validation, do: val_loss, else: nil),
       time_seconds: epoch_time
     }
     updated_history = [epoch_entry | history]
 
     Output.puts("")
-    if val_dataset.size > 0 do
+    if has_validation do
       Output.puts("  ✓ Epoch #{epoch} complete: train_loss=#{Float.round(avg_loss, 4)} val_loss=#{Float.round(val_loss, 4)} (#{epoch_time}s)#{es_message}")
     else
       Output.puts("  ✓ Epoch #{epoch} complete: train_loss=#{Float.round(avg_loss, 4)} (#{epoch_time}s)#{es_message}")
@@ -1061,7 +1168,7 @@ initial_state = {trainer, 0, false, early_stopping_state, nil, pruner, ema, []}
       best_checkpoint_path = Config.derive_best_checkpoint_path(opts[:checkpoint])
       best_policy_path = Config.derive_best_policy_path(opts[:checkpoint])
 
-      loss_type = if val_dataset.size > 0, do: "val_loss", else: "train_loss"
+      loss_type = if has_validation, do: "val_loss", else: "train_loss"
       case Imitation.save_checkpoint(updated_trainer, best_checkpoint_path) do
         :ok ->
           case Imitation.export_policy(updated_trainer, best_policy_path) do

@@ -44,7 +44,8 @@ defmodule ExPhil.Training.Config do
     "--prefetch-buffer", "--layer-norm", "--no-layer-norm", "--residual", "--no-residual",
     "--optimizer", "--preset", "--dry-run", "--character", "--characters", "--stage", "--stages",
     "--config",  # YAML config file path
-    "--kmeans-centers"  # K-means cluster centers file for stick discretization
+    "--kmeans-centers",  # K-means cluster centers file for stick discretization
+    "--stream-chunk-size"  # Process files in chunks for memory efficiency
   ]
 
   @doc """
@@ -154,7 +155,9 @@ defmodule ExPhil.Training.Config do
       characters: [],  # Filter replays by character (e.g., [:mewtwo, :fox])
       stages: [],      # Filter replays by stage (e.g., [:battlefield, :fd])
       # K-means stick discretization
-      kmeans_centers: nil  # Path to K-means cluster centers file (.nx)
+      kmeans_centers: nil,  # Path to K-means cluster centers file (.nx)
+      # Streaming data loading (process files in chunks to bound memory)
+      stream_chunk_size: nil  # nil = load all at once, N = process N files per chunk
     ]
   end
 
@@ -1118,6 +1121,7 @@ defmodule ExPhil.Training.Config do
     |> validate_label_smoothing(opts)
     |> validate_positive_or_nil(opts, :keep_best)
     |> validate_ema_decay(opts)
+    |> validate_positive_or_nil(opts, :stream_chunk_size)
   end
 
   defp collect_warnings(opts) do
@@ -1565,6 +1569,7 @@ defmodule ExPhil.Training.Config do
     |> parse_atom_list_arg(args, "--stage", :stages)
     |> parse_atom_list_arg(args, "--stages", :stages)
     |> parse_string_arg(args, "--kmeans-centers", :kmeans_centers)
+    |> parse_optional_int_arg(args, "--stream-chunk-size", :stream_chunk_size)
   end
 
   # Parse comma-separated list of atoms (e.g., "mewtwo,fox,falco" -> [:mewtwo, :fox, :falco])
