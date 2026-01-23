@@ -132,6 +132,7 @@ mix run scripts/train_from_replays.exs --dual-port
 | `--resume PATH` | nil | Resume from checkpoint |
 | `--precision TYPE` | bf16 | bf16 or f32 |
 | `--frame-delay N` | 0 | Simulated online delay (for Slippi) |
+| `--stream-chunk-size N` | nil | Load N files at a time (memory-bounded) |
 
 ### Monitoring
 
@@ -166,12 +167,21 @@ mix run scripts/train_from_replays.exs \
 
 ### Memory-Constrained Training
 
+Reduce model/batch size for limited GPU memory:
+
 ```bash
 mix run scripts/train_from_replays.exs \
   --temporal --backbone mamba \
   --hidden 128 --window-size 30 \
   --num-layers 2 --batch-size 32 \
   --max-files 5 --epochs 3
+```
+
+Or use streaming for large datasets that don't fit in RAM (see [Streaming Data Loading](#streaming-data-loading)):
+
+```bash
+mix run scripts/train_from_replays.exs \
+  --stream-chunk-size 30  # Process 30 files at a time
 ```
 
 ### Faster Training with Truncated BPTT
@@ -215,6 +225,41 @@ Simulate larger batch sizes on limited memory:
 mix run scripts/train_from_replays.exs \
   --batch-size 32 --accumulation-steps 4 --epochs 10
 ```
+
+### Streaming Data Loading
+
+Train on large datasets without running out of memory by loading files in chunks:
+
+```bash
+# Process 30 files at a time (good for 56GB RAM)
+mix run scripts/train_from_replays.exs \
+  --temporal --backbone jamba \
+  --train-character mewtwo \
+  --stream-chunk-size 30 \
+  --epochs 20
+```
+
+**How it works:**
+1. Files are split into chunks of N files each
+2. For each epoch, iterate through all chunks
+3. Each chunk: parse → embed → train → free memory → next chunk
+
+| Chunk Size | RAM Usage | Speed | Use Case |
+|------------|-----------|-------|----------|
+| `30` | ~20GB | 1x | Standard GPU pods (56GB RAM) |
+| `50` | ~35GB | ~1.1x | High-memory machines |
+| `100` | ~70GB | ~1.15x | Large RAM servers |
+| nil (default) | All data | Fastest | When data fits in RAM |
+
+**Trade-offs:**
+- ~10-20% slower due to repeated file I/O each epoch
+- Validation uses training loss as proxy (no separate val set in streaming mode)
+- Memory bounded by chunk size, not total dataset size
+
+**Recommended chunk sizes by RAM:**
+- 32GB RAM: `--stream-chunk-size 15`
+- 56GB RAM: `--stream-chunk-size 30`
+- 128GB RAM: `--stream-chunk-size 60` or no streaming
 
 ## Performance Tips
 
