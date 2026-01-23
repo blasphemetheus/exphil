@@ -427,7 +427,9 @@ stage_id_to_name = %{
 }
 
 # Collect metadata for all replays (fast) - used for filtering and stats
-{replay_files, replay_stats} = if character_filter != [] or stage_filter != [] or initial_count <= 1000 do
+# Note: train_character requires metadata to find which port has the target character
+train_character = opts[:train_character]
+{replay_files, replay_stats} = if character_filter != [] or stage_filter != [] or train_character != nil or initial_count <= 1000 do
   # Get canonical character names for matching
   char_names = Enum.map(character_filter, &Config.character_name/1) |> Enum.uniq()
   stage_ids = Enum.map(stage_filter, &Config.stage_id/1) |> Enum.filter(& &1)
@@ -453,7 +455,6 @@ stage_id_to_name = %{
 
   # Collect metadata and filter
   # If train_character is set, dynamically find port; otherwise use fixed port
-  train_character = opts[:train_character]
   target_char_name = if train_character, do: Config.character_name(train_character), else: nil
   default_port = opts[:player_port]
 
@@ -1113,7 +1114,12 @@ initial_state = {trainer, 0, false, early_stopping_state, nil, pruner, ema, []}
 
     epoch_time = System.monotonic_time(:second) - epoch_start
     # epoch_losses is now a list of numbers (converted during progress display)
-    avg_loss = Enum.sum(epoch_losses) / length(epoch_losses)
+    avg_loss = if epoch_losses == [] do
+      Output.warning("No batches processed this epoch - check replay data")
+      0.0
+    else
+      Enum.sum(epoch_losses) / length(epoch_losses)
+    end
 
     # Validation - only if we have validation data (not in streaming mode)
     {val_loss, _val_metrics} = cond do
