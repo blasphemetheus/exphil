@@ -861,16 +861,21 @@ end
 
 # Time estimation
 # Based on empirical measurements: ~0.1s per batch after JIT, 3-5min for JIT compilation
-batches_per_epoch = div(train_dataset.size, opts[:batch_size])
-jit_overhead_sec = 300  # ~5 minutes for first JIT compilation
-seconds_per_batch = if opts[:temporal], do: 0.5, else: 0.1  # Temporal is slower
-estimated_train_sec = (batches_per_epoch * opts[:epochs] * seconds_per_batch) + jit_overhead_sec
-estimated_minutes = div(trunc(estimated_train_sec), 60)
-estimated_remaining = rem(trunc(estimated_train_sec), 60)
+if not streaming_mode and train_dataset != nil do
+  batches_per_epoch = div(train_dataset.size, opts[:batch_size])
+  jit_overhead_sec = 300  # ~5 minutes for first JIT compilation
+  seconds_per_batch = if opts[:temporal], do: 0.5, else: 0.1  # Temporal is slower
+  estimated_train_sec = (batches_per_epoch * opts[:epochs] * seconds_per_batch) + jit_overhead_sec
+  estimated_minutes = div(trunc(estimated_train_sec), 60)
+  estimated_remaining = rem(trunc(estimated_train_sec), 60)
 
-Output.puts("")
-Output.puts("  ⏱  Estimated training time: ~#{estimated_minutes}m #{estimated_remaining}s")
-Output.puts("      (#{batches_per_epoch} batches/epoch × #{opts[:epochs]} epochs + JIT compilation)")
+  Output.puts("")
+  Output.puts("  ⏱  Estimated training time: ~#{estimated_minutes}m #{estimated_remaining}s")
+  Output.puts("      (#{batches_per_epoch} batches/epoch × #{opts[:epochs]} epochs + JIT compilation)")
+else
+  Output.puts("")
+  Output.puts("  ⏱  Streaming mode: time estimate not available")
+end
 
 # Step 4: Training loop
 # Create augmentation function if enabled
@@ -1272,8 +1277,8 @@ end
 config_path = Config.derive_config_path(opts[:checkpoint])
 training_results = %{
   embed_size: embed_size,
-  training_frames: train_dataset.size,
-  validation_frames: val_dataset.size,
+  training_frames: if(train_dataset, do: train_dataset.size, else: :streaming),
+  validation_frames: if(val_dataset, do: val_dataset.size, else: nil),
   total_time_seconds: total_time,
   final_training_loss: Float.round(Enum.sum(Enum.take(final_trainer.metrics.loss, 10)) / 10, 4),
   epochs_completed: epochs_completed,
@@ -1334,8 +1339,8 @@ unless opts[:no_register] do
     metrics: %{
       final_loss: Float.round(Enum.sum(Enum.take(final_trainer.metrics.loss, 10)) / 10, 4),
       epochs_completed: epochs_completed,
-      training_frames: train_dataset.size,
-      validation_frames: val_dataset.size,
+      training_frames: if(train_dataset, do: train_dataset.size, else: :streaming),
+      validation_frames: if(val_dataset, do: val_dataset.size, else: nil),
       stopped_early: stopped_early,
       total_time_seconds: total_time
     },
@@ -1381,7 +1386,11 @@ Output.training_summary(%{
   checkpoint_path: opts[:checkpoint]
 })
 
-Output.kv("Training frames", "#{train_dataset.size}")
+if train_dataset do
+  Output.kv("Training frames", "#{train_dataset.size}")
+else
+  Output.kv("Training mode", "streaming (#{length(file_chunks)} chunks)")
+end
 Output.kv("Replays parsed", "#{length(replay_files)}")
 
 if stopped_early do
