@@ -161,27 +161,20 @@ defmodule ExPhil.Training.Streaming do
     temporal = Keyword.get(opts, :temporal, false)
     window_size = Keyword.get(opts, :window_size, 60)
     stride = Keyword.get(opts, :stride, 1)
-    precompute = Keyword.get(opts, :precompute, true)
+    # NOTE: In streaming mode, precompute is wasteful since embeddings are
+    # discarded after each chunk. Force precompute=false for streaming.
+    # Embeddings will be computed on-the-fly during training instead.
+    _precompute = Keyword.get(opts, :precompute, true)
 
     dataset = Data.from_frames(frames)
 
     if temporal do
-      seq_dataset = Data.to_sequences(dataset,
+      Data.to_sequences(dataset,
         window_size: window_size,
         stride: stride
       )
-
-      if precompute do
-        Data.precompute_embeddings(seq_dataset, show_progress: false)
-      else
-        seq_dataset
-      end
     else
-      if precompute do
-        Data.precompute_frame_embeddings(dataset, show_progress: false)
-      else
-        dataset
-      end
+      dataset
     end
   end
 
