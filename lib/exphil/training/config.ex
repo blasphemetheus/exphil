@@ -1839,7 +1839,12 @@ defmodule ExPhil.Training.Config do
   defp parse_float_arg(opts, args, flag, key) do
     case get_arg_value(args, flag) do
       nil -> opts
-      value -> Keyword.put(opts, key, String.to_float(value))
+      value ->
+        # Use Float.parse to handle scientific notation (e.g., "1e-4")
+        case Float.parse(value) do
+          {float, ""} -> Keyword.put(opts, key, float)
+          _ -> raise ArgumentError, "Invalid float for #{flag}: #{value}"
+        end
     end
   end
 
