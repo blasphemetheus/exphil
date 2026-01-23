@@ -53,18 +53,19 @@ This document tracks areas that need additional research and documentation for t
 
 ---
 
-### [ ] Dataset Curation
+### [x] Dataset Curation
 **Why**: Training data quality directly impacts model quality
-**Topics to cover**:
-- Skill-level filtering strategies
-- Character/matchup balance
-- Data augmentation techniques
+**Topics covered**:
+- Skill-level filtering strategies (rank tiers, heuristics, curriculum)
+- Character/matchup balance (filtering, upsampling, loss weighting)
+- Data augmentation techniques (mirror, noise, frame delay)
 - Anonymized vs named player data
-- Where to obtain replays (Fizzi's collections, tournament archives)
+- Where to obtain replays (Fizzi's collections, ThePlayerDatabase, tournament archives)
 - Legal/ethical considerations
-- Dataset statistics (size, distribution)
+- Dataset statistics (size, distribution, quality indicators)
+- Cloud storage pipeline (B2, R2, RunPod)
 
-**Output**: `dataset-curation.md`
+**Output**: `dataset-curation.md` ✓
 
 ---
 
@@ -82,16 +83,20 @@ This document tracks areas that need additional research and documentation for t
 
 ---
 
-### [ ] Stage Considerations
+### [x] Stage Considerations
 **Why**: Stages significantly affect gameplay
-**Topics to cover**:
+**Topics covered**:
 - Platform stages vs Final Destination
-- Dynamic stage elements (Randall, FoD platforms)
-- Stage-specific embeddings
-- Tournament-legal stage list
-- Stage counterpicking implications
+- Dynamic stage elements (Randall cycle timing, FoD platform heights, Whispy wind, Stadium transformations)
+- Stage-specific embeddings with code examples
+- Tournament-legal stage list with blast zone data
+- Stage asymmetries (Battlefield ledges, coordinate systems)
+- Frozen vs unfrozen Pokemon Stadium
+- Shy Guys on Yoshi's Story
+- Mirror augmentation considerations per stage
+- Character-specific stage preferences for low-tier
 
-**Output**: Add section to `state-representation.md` or create `stages.md`
+**Output**: `stages.md` ✓
 
 ---
 
@@ -179,6 +184,8 @@ This document tracks areas that need additional research and documentation for t
 | `melee-prediction.md` | 2026-01-23 | XGBoost prediction |
 | `svm-melee.md` | 2026-01-23 | SVM classification |
 | `reward-shaping.md` | 2026-01-23 | PBRS theory, character-specific rewards, hacking |
+| `dataset-curation.md` | 2026-01-23 | Data sources, filtering, augmentation, storage |
+| `stages.md` | 2026-01-23 | Dynamic elements, blast zones, asymmetries, embedding |
 
 ---
 

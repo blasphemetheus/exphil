@@ -56,6 +56,8 @@ This directory contains comprehensive documentation of existing Super Smash Bros
 | [state-representation.md](state-representation.md) | How to embed Melee game state for ML |
 | [training-approaches.md](training-approaches.md) | BC vs RL vs hybrid methodology comparison |
 | [reward-shaping.md](reward-shaping.md) | **Reward design: PBRS theory, character-specific, hacking** |
+| [dataset-curation.md](dataset-curation.md) | **Data sources, filtering, augmentation, cloud storage** |
+| [stages.md](stages.md) | **Stage dynamics: Randall, FoD, Whispy, blast zones** |
 | [research-papers.md](research-papers.md) | Key academic papers and technical blogs |
 | [other-fighting-game-ai.md](other-fighting-game-ai.md) | AlphaStar, OpenAI Five, FightingICE, Street Fighter |
 | [deployment-inference.md](deployment-inference.md) | ONNX, quantization, real-time inference |
@@ -91,6 +93,12 @@ Check [action-space.md](action-space.md) and [state-representation.md](state-rep
 
 **For reward function design:**
 See [reward-shaping.md](reward-shaping.md) for PBRS theory, character-specific rewards, and avoiding reward hacking.
+
+**For training data preparation:**
+See [dataset-curation.md](dataset-curation.md) for data sources, skill filtering, augmentation, and cloud storage.
+
+**For stage-specific mechanics:**
+See [stages.md](stages.md) for Randall timing, FoD platforms, Whispy, blast zones, and embedding strategies.
 
 **For a complete list of all projects:**
 See [all-projects.md](all-projects.md) for the comprehensive index.

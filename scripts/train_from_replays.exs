@@ -957,8 +957,16 @@ initial_state = {trainer, 0, false, early_stopping_state, nil, pruner, ema, []}
         precompute: opts[:precompute]
       ]
 
-      # Estimate total batches (rough estimate based on first chunk)
-      estimated_batches = length(file_chunks) * 200  # Conservative estimate
+      # Estimate total batches by sampling first chunk
+      estimated_batches = if length(file_chunks) > 0 do
+        first_chunk = hd(file_chunks)
+        {:ok, sample_frames, _} = Streaming.parse_chunk(first_chunk, chunk_opts)
+        sample_dataset = Streaming.create_dataset(sample_frames, dataset_opts)
+        batches_per_chunk = max(div(sample_dataset.size, opts[:batch_size]), 1)
+        batches_per_chunk * length(file_chunks)
+      else
+        0
+      end
 
       stream = Stream.flat_map(file_chunks, fn chunk ->
         # Parse and create dataset for this chunk
