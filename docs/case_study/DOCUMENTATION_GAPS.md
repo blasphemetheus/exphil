@@ -100,16 +100,18 @@ This document tracks areas that need additional research and documentation for t
 
 ---
 
-### [ ] Slippi Replay Ecosystem
+### [x] Slippi Replay Ecosystem
 **Why**: Understanding data sources
-**Topics to cover**:
-- Replay file format details
-- Fizzi's anonymized ranked collections
-- Tournament replay archives
-- Community replay sharing
-- Data pipeline best practices
+**Topics covered**:
+- .slp UBJSON format specification with event types (0x35-0x3F)
+- Parser comparison table (peppi, peppi-py, slippi-js, py-slippi, slippc)
+- .slpp Arrow format vs .zlp LZMA compressed format
+- Data sources: Fizzi anonymized, tournament archives, SmashLadder
+- Quality filtering: skill tiers, character balance, heuristics
+- Community tools: Slippipedia, slip.py, SlippiLab
+- Pipeline architecture from acquisition to training
 
-**Output**: `replay-ecosystem.md`
+**Output**: `slippi-replay-ecosystem.md` ✓
 
 ---
 
@@ -186,6 +188,7 @@ This document tracks areas that need additional research and documentation for t
 | `reward-shaping.md` | 2026-01-23 | PBRS theory, character-specific rewards, hacking |
 | `dataset-curation.md` | 2026-01-23 | Data sources, filtering, augmentation, storage |
 | `stages.md` | 2026-01-23 | Dynamic elements, blast zones, asymmetries, embedding |
+| `slippi-replay-ecosystem.md` | 2026-01-23 | .slp format, parsers, data sources, pipelines |
 
 ---
 

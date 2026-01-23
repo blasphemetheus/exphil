@@ -45,6 +45,7 @@ This directory contains comprehensive documentation of existing Super Smash Bros
 |----------|-------------|
 | [project-slippi.md](project-slippi.md) | The foundational Slippi ecosystem (Fizzi) |
 | [peppi-ecosystem.md](peppi-ecosystem.md) | Rust parser + Python/Julia bindings (hohav) |
+| [slippi-replay-ecosystem.md](slippi-replay-ecosystem.md) | **.slp format, parsers, data sources, pipelines** |
 | [smashscan.md](smashscan.md) | YOLO-based video analysis for tournaments |
 
 ### Technical Deep Dives
@@ -99,6 +100,9 @@ See [dataset-curation.md](dataset-curation.md) for data sources, skill filtering
 
 **For stage-specific mechanics:**
 See [stages.md](stages.md) for Randall timing, FoD platforms, Whispy, blast zones, and embedding strategies.
+
+**For understanding replay infrastructure:**
+See [slippi-replay-ecosystem.md](slippi-replay-ecosystem.md) for .slp format, parser comparison, data sources, and pipeline architecture.
 
 **For a complete list of all projects:**
 See [all-projects.md](all-projects.md) for the comprehensive index.

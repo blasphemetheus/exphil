@@ -927,6 +927,41 @@ else
   nil
 end
 
+# Pre-compute streaming config and batch estimate (once, not per epoch)
+{streaming_chunk_opts, streaming_dataset_opts, estimated_streaming_batches} = if streaming_mode do
+  chunk_opts = [
+    player_port: default_port,
+    port_map: port_map,
+    dual_port: dual_port,
+    frame_delay: opts[:frame_delay]
+  ]
+
+  dataset_opts = [
+    temporal: opts[:temporal],
+    window_size: opts[:window_size],
+    stride: opts[:stride],
+    precompute: opts[:precompute]
+  ]
+
+  # Estimate total batches by sampling first chunk (only once at startup)
+  estimated_batches = if length(file_chunks) > 0 do
+    Output.puts("  Estimating batch count from first chunk...")
+    first_chunk = hd(file_chunks)
+    {:ok, sample_frames, _} = Streaming.parse_chunk(first_chunk, chunk_opts)
+    sample_dataset = Streaming.create_dataset(sample_frames, dataset_opts)
+    batches_per_chunk = max(div(sample_dataset.size, opts[:batch_size]), 1)
+    total = batches_per_chunk * length(file_chunks)
+    Output.puts("  Estimated #{total} batches per epoch (#{batches_per_chunk}/chunk × #{length(file_chunks)} chunks)")
+    total
+  else
+    0
+  end
+
+  {chunk_opts, dataset_opts, estimated_batches}
+else
+  {nil, nil, nil}
+end
+
 # Training loop with early stopping and best model tracking
 # Returns {trainer, epochs_completed, stopped_early, early_stopping_state, best_val_loss, pruner, ema, history}
 initial_state = {trainer, 0, false, early_stopping_state, nil, pruner, ema, []}
@@ -943,34 +978,11 @@ initial_state = {trainer, 0, false, early_stopping_state, nil, pruner, ema, []}
     {batch_stream, num_batches} = if streaming_mode do
       # Streaming mode: process each chunk and chain batches together
       # Each chunk is parsed, embedded, and batched on-demand
-      chunk_opts = [
-        player_port: default_port,
-        port_map: port_map,
-        dual_port: dual_port,
-        frame_delay: opts[:frame_delay]
-      ]
-
-      dataset_opts = [
-        temporal: opts[:temporal],
-        window_size: opts[:window_size],
-        stride: opts[:stride],
-        precompute: opts[:precompute]
-      ]
-
-      # Estimate total batches by sampling first chunk
-      estimated_batches = if length(file_chunks) > 0 do
-        first_chunk = hd(file_chunks)
-        {:ok, sample_frames, _} = Streaming.parse_chunk(first_chunk, chunk_opts)
-        sample_dataset = Streaming.create_dataset(sample_frames, dataset_opts)
-        batches_per_chunk = max(div(sample_dataset.size, opts[:batch_size]), 1)
-        batches_per_chunk * length(file_chunks)
-      else
-        0
-      end
+      # (chunk_opts, dataset_opts, and batch estimate computed once before epoch loop)
 
       stream = Stream.flat_map(file_chunks, fn chunk ->
         # Parse and create dataset for this chunk
-        {:ok, chunk_frames, errors} = Streaming.parse_chunk(chunk, chunk_opts)
+        {:ok, chunk_frames, errors} = Streaming.parse_chunk(chunk, streaming_chunk_opts)
 
         # Debug: show chunk stats
         if length(chunk_frames) == 0 do
@@ -980,7 +992,7 @@ initial_state = {trainer, 0, false, early_stopping_state, nil, pruner, ema, []}
           end
         end
 
-        chunk_dataset = Streaming.create_dataset(chunk_frames, dataset_opts)
+        chunk_dataset = Streaming.create_dataset(chunk_frames, streaming_dataset_opts)
 
         # Debug: show dataset size after sequence conversion
         if chunk_dataset.size == 0 and length(chunk_frames) > 0 do
@@ -1008,7 +1020,7 @@ initial_state = {trainer, 0, false, early_stopping_state, nil, pruner, ema, []}
         end
       end)
 
-      {stream, estimated_batches}
+      {stream, estimated_streaming_batches}
     else
       # Standard mode: use pre-loaded dataset
       stream = if opts[:temporal] do
