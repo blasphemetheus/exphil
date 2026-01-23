@@ -1086,7 +1086,7 @@ initial_state = {trainer, 0, false, early_stopping_state, nil, pruner, ema, []}
 
       # Format: Epoch 1: ████████░░ 40% | 642/1606 | loss: 0.1234 | 0.5s/it | ETA: 8m 12s
       bar_width = 20
-      filled = round(pct / 100 * bar_width)
+      filled = min(round(pct / 100 * bar_width), bar_width)  # Clamp to avoid negative
       bar = String.duplicate("█", filled) <> String.duplicate("░", bar_width - filled)
 
       # Pad percentage to fixed width for stable display
