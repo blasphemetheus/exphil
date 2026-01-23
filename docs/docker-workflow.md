@@ -108,18 +108,320 @@ docker pull bradleyfargo/exphil:gpu
 
 **Recommendation:** Start with **RTX 4090** ($0.44/hr). Your model is small enough that 24GB VRAM is plenty. RTX 5090 works but requires CUDA 12.6+ base image.
 
+#### Persistence Options
+
+Community Cloud pods are **ephemeral** — when you stop them, they often won't be available to resume, and all data is lost when terminated. You have two options for persistence:
+
+**Option 1: Cloud Storage Sync (Recommended for Community Cloud)**
+
+Treat every pod as disposable. State lives in B2/R2, synced automatically.
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│  CLOUD STORAGE (B2/R2) - $5/month for 50GB                          │
+│  ├── replays/          ← Upload once from local machine            │
+│  └── checkpoints/      ← Auto-sync during training                 │
+└─────────────────────────────────────────────────────────────────────┘
+           │
+           │ fetch on start, sync during training
+           ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│  COMMUNITY POD (ephemeral)                                          │
+│  - Spin up any available GPU                                       │
+│  - Run setup script → fetches replays                              │
+│  - Train with auto-sync → checkpoints backed up every 10 min       │
+│  - Pod dies? Spin up another, resume from last checkpoint          │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+**Setup:**
+
+1. Set RunPod **Environment Variables** in your pod template:
+   ```
+   B2_KEY_ID=your_key_id
+   B2_APP_KEY=your_app_key
+   B2_BUCKET=exphil-replays
+   ```
+
+2. Set **Start Command** to auto-fetch:
+   ```bash
+   /app/scripts/fetch_replays.sh && sleep infinity
+   ```
+
+3. After training starts, enable auto-sync in a tmux pane:
+   ```bash
+   /app/scripts/auto_sync_checkpoints.sh
+   ```
+
+**Why this works:**
+- Replays download fast (~2-5 min for 10GB on RunPod's network)
+- Auto-sync ensures you never lose more than 10 min of training
+- Any community pod works — no region lock-in
+- Cheaper than Secure Cloud (~50% less)
+
+---
+
+**Option 2: Network Volumes (Secure Cloud Only)**
+
+**Important:** You can *create* Network Volumes in the RunPod dashboard, but Community Cloud pods **cannot attach them**. The "Network Volume" dropdown won't appear when deploying a Community Cloud pod. Only Secure Cloud pods support volume attachment.
+
+**Why Network Volumes (if using Secure Cloud):**
+- Persist across pod terminations
+- Attach to any Secure Cloud pod in the same region
+- Much faster than re-downloading replays each session
+- Cost: ~$0.10/GB/month + higher pod prices
+
+**Trade-off:** Secure Cloud pods cost ~2x more than Community Cloud for the same GPU, but you get guaranteed availability and persistent volumes.
+
+**Setup (if using Secure Cloud):**
+
+1. **Create Network Volume:**
+   - RunPod Dashboard → **Storage** → **+ New Network Volume**
+   - Name: `exphil-workspace`
+   - Size: 50GB
+   - Region: Pick one and stick with it (e.g., `US-OR-1`)
+
+2. **Deploy Secure Cloud pod in the same region**
+
+3. **Attach volume at `/workspace`**
+
+4. First-time setup:
+   ```bash
+   /app/scripts/setup_workspace.sh
+   ```
+
+---
+
+**Comparison:**
+
+| Aspect | Community Cloud + B2 | Secure Cloud + Network Volume |
+|--------|---------------------|-------------------------------|
+| Pod availability | Variable (may need to wait) | Guaranteed |
+| Data persistence | Cloud storage (sync on start/end) | Network volume (instant) |
+| Setup time per session | 2-5 min (fetch replays) | Instant |
+| Cost (RTX 4090) | ~$0.44/hr + $5/mo storage | ~$0.69/hr + $5/mo storage |
+| Region lock-in | No | Yes |
+| Risk of data loss | Low (auto-sync) | Very low |
+
+**Recommendation:** Start with **Community Cloud + B2 sync**. It's cheaper and the auto-sync scripts make it nearly as convenient. Switch to Secure Cloud if you need guaranteed availability for long multi-day training runs.
+
+---
+
+#### Complete Community Cloud Workflow
+
+This is the step-by-step workflow for training on Community Cloud pods with cloud storage persistence.
+
+**One-Time Setup (Local Machine):**
+
+```bash
+# 1. Install rclone if you haven't
+curl https://rclone.org/install.sh | sudo bash
+
+# 2. Configure Backblaze B2
+rclone config
+# → n (new remote)
+# → name: b2
+# → Storage: b2
+# → account: YOUR_B2_KEY_ID
+# → key: YOUR_B2_APP_KEY
+# → (leave rest as defaults)
+
+# 3. Upload your replays to B2
+rclone sync ~/git/melee/slp b2:exphil-replays --progress
+```
+
+**One-Time Setup (RunPod Dashboard):**
+
+1. Go to **Templates** → **New Template** (or edit your existing one)
+
+2. Set **Container Image:** `bradleyfargo/exphil:gpu`
+
+3. Add **Environment Variables:**
+   ```
+   B2_KEY_ID=your_key_id_here
+   B2_APP_KEY=your_app_key_here
+   B2_BUCKET=exphil-replays
+   ```
+
+4. Set **Start Command:**
+   ```
+   /app/scripts/fetch_replays.sh && sleep infinity
+   ```
+
+5. Set **Container Disk:** 50GB (for replays + checkpoints)
+
+6. Save the template
+
+**Each Training Session:**
+
+```bash
+# ┌─────────────────────────────────────────────────────────────────┐
+# │ STEP 1: Deploy Pod                                              │
+# └─────────────────────────────────────────────────────────────────┘
+#
+# RunPod Dashboard → Pods → + Deploy
+# Select your template, pick an RTX 4090 (or similar)
+# Wait for pod to start (~1-2 min)
+# Replays auto-fetch during startup via Start Command
+
+# ┌─────────────────────────────────────────────────────────────────┐
+# │ STEP 2: Connect via SSH                                         │
+# └─────────────────────────────────────────────────────────────────┘
+#
+# Pod → Connect → SSH over exposed TCP
+ssh root@<IP> -p <PORT> -i ~/.ssh/id_ed25519
+
+# ┌─────────────────────────────────────────────────────────────────┐
+# │ STEP 3: Start tmux (CRITICAL - protects against disconnects)   │
+# └─────────────────────────────────────────────────────────────────┘
+tmux new -s train
+
+# ┌─────────────────────────────────────────────────────────────────┐
+# │ STEP 4: Start auto-sync in a split pane                        │
+# └─────────────────────────────────────────────────────────────────┘
+# Press Ctrl+B, then % to split vertically
+# In the new pane:
+/app/scripts/auto_sync_checkpoints.sh
+
+# Press Ctrl+B, then ← to go back to the main pane
+
+# ┌─────────────────────────────────────────────────────────────────┐
+# │ STEP 5: Verify setup                                            │
+# └─────────────────────────────────────────────────────────────────┘
+nvidia-smi                              # Check GPU is available
+ls /workspace/replays/ | head          # Check replays downloaded
+
+# ┌─────────────────────────────────────────────────────────────────┐
+# │ STEP 6: Run training                                            │
+# └─────────────────────────────────────────────────────────────────┘
+cd /app
+
+# Quick test first (~5 min)
+mix run scripts/train_from_replays.exs \
+  --preset gpu_quick \
+  --replays /workspace/replays \
+  --checkpoint /workspace/checkpoints
+
+# Production training (~2-3 hours)
+mix run scripts/train_from_replays.exs \
+  --preset production \
+  --online-robust \
+  --replays /workspace/replays \
+  --checkpoint /workspace/checkpoints
+
+# ┌─────────────────────────────────────────────────────────────────┐
+# │ STEP 7: Final sync before stopping pod                          │
+# └─────────────────────────────────────────────────────────────────┘
+# Auto-sync runs every 10 min, but do a final sync to be safe:
+/app/scripts/auto_sync_checkpoints.sh --once
+
+# ┌─────────────────────────────────────────────────────────────────┐
+# │ STEP 8: Stop the pod (save money!)                              │
+# └─────────────────────────────────────────────────────────────────┘
+# RunPod Dashboard → Pods → Stop (or Terminate if done)
+```
+
+**Resuming Training (Next Session):**
+
+```bash
+# 1. Deploy a new pod (any available GPU in any region)
+# 2. SSH in, start tmux
+tmux new -s train
+
+# 3. Start auto-sync
+tmux split-window -h '/app/scripts/auto_sync_checkpoints.sh'
+
+# 4. Fetch your previous checkpoints from cloud
+rclone sync b2:$B2_BUCKET/checkpoints /workspace/checkpoints --progress
+
+# 5. Resume training (it auto-loads the checkpoint)
+cd /app
+mix run scripts/train_from_replays.exs \
+  --preset production \
+  --replays /workspace/replays \
+  --checkpoint /workspace/checkpoints/model.axon
+```
+
+**If SSH Disconnects:**
+
+```bash
+# Reconnect to pod
+ssh root@<IP> -p <PORT> -i ~/.ssh/id_ed25519
+
+# Reattach to your tmux session (training is still running!)
+tmux attach -t train
+```
+
+**If Pod Gets Preempted/Terminated:**
+
+Your checkpoints are safe in B2 (auto-synced every 10 min). Just:
+1. Deploy a new pod
+2. Fetch checkpoints: `rclone sync b2:$B2_BUCKET/checkpoints /workspace/checkpoints`
+3. Resume training
+
+---
+
+**Auto-Sync Script:**
+
+Run in the background during training to continuously backup checkpoints:
+
+```bash
+# Start auto-sync (syncs every 10 minutes)
+/app/scripts/auto_sync_checkpoints.sh &
+
+# Or in a separate tmux pane
+tmux split-window -h '/app/scripts/auto_sync_checkpoints.sh'
+
+# Single sync (end of session)
+/app/scripts/auto_sync_checkpoints.sh --once
+```
+
+See [scripts/auto_sync_checkpoints.sh](../scripts/auto_sync_checkpoints.sh) for details.
+
+---
+
+#### Community Cloud Troubleshooting
+
+| Problem | Solution |
+|---------|----------|
+| No GPUs available | Try different GPU type (3090 instead of 4090) or different region |
+| Replays didn't download | Check env vars are set: `echo $B2_KEY_ID`. Re-run `/app/scripts/fetch_replays.sh` |
+| Auto-sync not running | Start it: `/app/scripts/auto_sync_checkpoints.sh &` |
+| Lost checkpoint after terminate | Fetch from cloud: `rclone sync b2:$B2_BUCKET/checkpoints /workspace/checkpoints` |
+| SSH disconnected | Reconnect and `tmux attach -t train` |
+| Training crashed | Check `dmesg | tail` for OOM. Reduce batch size or max-files |
+| rclone not configured | Run `/app/scripts/fetch_replays.sh` (auto-configures from env vars) |
+| "No cloud storage configured" | Set B2_KEY_ID, B2_APP_KEY, B2_BUCKET in RunPod env vars |
+
+**Common Gotchas:**
+
+1. **Forgot to start tmux** → SSH disconnect kills training. Always `tmux new -s train` first.
+
+2. **Forgot to start auto-sync** → Pod terminates, lose hours of training. Start it immediately after tmux.
+
+3. **Left pod running overnight** → $10+ bill. Set a reminder or use spot instances.
+
+4. **Wrong checkpoint path** → Training starts from scratch. Verify checkpoint exists before training.
+
+5. **Env vars not set** → Replays don't fetch. Check RunPod template has B2_* variables.
+
 #### Pod Configuration
 
 Go to **Pods** → **+ Deploy**
 
+**For Community Cloud (recommended):**
 - **Container Image:** `bradleyfargo/exphil:gpu`
-- **Container Disk:** 20GB
-- **Volume Disk:** 50GB (persists replays/checkpoints between restarts)
+- **Container Disk:** 20GB (temporary, lost on terminate)
 - **Volume Mount Path:** `/workspace`
 - **Expose HTTP/TCP Ports:** Leave empty (SSH is automatic)
-- **Start Command:** Leave blank
+- **Start Command:** `/app/scripts/fetch_replays.sh && sleep infinity`
 
-**Why use a volume:** Without a volume, replays and checkpoints disappear when the pod stops. Volume persists at ~$0.10/GB/month.
+**For Secure Cloud (if using Network Volumes):**
+- Same as above, plus:
+- **Network Volume:** Select your `exphil-workspace` volume
+- **Start Command:** Can leave blank (data persists on volume)
+
+**Note:** The "Network Volume" option only appears for Secure Cloud pods. Community Cloud pods use cloud storage sync instead.
 
 #### Connect to Pod
 
@@ -133,10 +435,17 @@ Or use **Web Terminal** button for browser-based access.
 
 #### First-Time Setup on Pod
 
+**Quick setup (recommended):**
 ```bash
-# You land in /workspace (persistent volume)
+# Run the setup script - creates directories, checks GPU, syncs replays
+/app/scripts/setup_workspace.sh
+```
+
+**Manual setup:**
+```bash
+# You land in /workspace (Network Volume)
 cd /workspace
-mkdir -p replays checkpoints
+mkdir -p replays checkpoints logs
 
 # Verify GPU
 nvidia-smi
@@ -797,12 +1106,14 @@ rclone sync b2:exphil-replays/checkpoints ~/git/melee/exphil/checkpoints --progr
 
 # === RUNPOD (after SSH) ===
 
-# Check GPU
-nvidia-smi
+# First-time setup (creates dirs, checks GPU, syncs replays)
+/app/scripts/setup_workspace.sh
 
-# Fetch replays (if not using Start Command)
-export B2_KEY_ID="..." B2_APP_KEY="..." B2_BUCKET="exphil-replays"
-/app/scripts/fetch_replays.sh
+# Or manual setup:
+# nvidia-smi                    # Check GPU
+# mkdir -p /workspace/{replays,checkpoints,logs}
+# export B2_KEY_ID="..." B2_APP_KEY="..." B2_BUCKET="exphil-replays"
+# /app/scripts/fetch_replays.sh
 
 # Quick GPU validation (~5 min)
 cd /app
@@ -826,14 +1137,20 @@ mix run scripts/train_from_replays.exs \
   --replays /workspace/replays \
   --checkpoint /workspace/checkpoints
 
-# Sync checkpoints back to cloud
-rclone sync /workspace/checkpoints b2:$B2_BUCKET/checkpoints --progress
+# Sync checkpoints back to cloud (manual, one-time)
+/app/scripts/auto_sync_checkpoints.sh --once
 
-# Long runs with tmux
+# Or start auto-sync in background (syncs every 10 min)
+/app/scripts/auto_sync_checkpoints.sh &
+
+# Long runs with tmux (ALWAYS use tmux for training!)
 tmux new -s training
 # ... run training ...
 # Ctrl+B, D to detach
 # tmux attach -t training to reattach
+
+# Pro tip: Run auto-sync in a split pane
+tmux split-window -h '/app/scripts/auto_sync_checkpoints.sh'
 ```
 
 ## Training Best Practices
