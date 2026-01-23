@@ -29,6 +29,9 @@ Hard-won knowledge from debugging ExPhil. Each section documents a specific issu
 23. [Registry sanitize_config expects map but receives keyword list](#23-registry-sanitize_config-expects-map-but-receives-keyword-list)
 24. [Peppi uses external character IDs, not internal Melee IDs](#24-peppi-uses-external-character-ids-not-internal-melee-ids)
 25. [GPU OOM during embedding precomputation](#25-gpu-oom-during-embedding-precomputation)
+26. [Streaming mode requires --no-prefetch](#26-streaming-mode-requires---no-prefetch)
+27. [Streaming mode auto-disables precompute](#27-streaming-mode-auto-disables-precompute)
+28. [--train-character requires metadata collection](#28---train-character-requires-metadata-collection)
 
 ---
 
@@ -836,3 +839,67 @@ end)
 2. Compare against available VRAM
 3. Use `Nx.backend_copy(Nx.BinaryBackend)` to move data to CPU
 4. Data transfers back to GPU per-batch during training (this is the intended flow)
+
+---
+
+## 26. Streaming mode requires --no-prefetch
+
+**Symptom:** With `--stream-chunk-size`, training shows "No batches processed this epoch" even though replays are found.
+
+**Root cause:** The prefetcher uses `Stream.each` with a producer process that waits for batch requests. With lazy streaming chunks, the producer blocks waiting for the stream to yield batches, while the main process sends batch requests. This creates a deadlock-like situation where batches are never consumed.
+
+**Fix:** Use `--no-prefetch` when using streaming mode:
+```bash
+mix run scripts/train_from_replays.exs \
+  --stream-chunk-size 30 \
+  --no-prefetch
+```
+
+**Performance impact:** ~10-20% slower without prefetch, but streaming mode is necessary for large datasets that don't fit in RAM.
+
+**Future fix:** Rewrite prefetcher to handle lazy chunk streams correctly.
+
+---
+
+## 27. Streaming mode auto-disables precompute
+
+**Symptom:** With `--stream-chunk-size`, parsing takes 3-5+ minutes per chunk instead of 30-60 seconds.
+
+**Root cause:** In non-streaming mode, precompute is efficient:
+- Compute all embeddings once upfront
+- Reuse across all epochs
+
+In streaming mode, precompute is wasteful:
+- Compute embeddings for chunk 1, train, **discard**
+- Compute embeddings for chunk 2, train, **discard**
+- Repeat every epoch
+
+With 5 chunks × 20 epochs = 100 precompute passes instead of 1!
+
+**Fix:** Streaming mode now auto-disables precompute in `Streaming.create_dataset/2`. Embeddings are computed on-the-fly during training instead.
+
+**Code location:** `lib/exphil/training/streaming.ex` - `create_dataset/2` ignores the `:precompute` option.
+
+---
+
+## 28. --train-character requires metadata collection
+
+**Symptom:** With `--train-character mewtwo` and `--stream-chunk-size`, training shows "Found 0 replay files" or "No batches processed" even though replays exist.
+
+**Root cause:** The `--train-character` flag needs to scan replay metadata to find which port has the target character. The metadata collection code was only triggered when:
+- `--character` filter was set, OR
+- `--stage` filter was set, OR
+- File count ≤ 1000
+
+With >1000 files and only `--train-character` (no other filters), metadata collection was skipped, so port selection didn't work.
+
+**Fix:** Added `train_character != nil` to the metadata collection condition:
+```elixir
+# Before (broken)
+if character_filter != [] or stage_filter != [] or initial_count <= 1000 do
+
+# After (fixed)
+if character_filter != [] or stage_filter != [] or train_character != nil or initial_count <= 1000 do
+```
+
+**Code location:** `scripts/train_from_replays.exs` around line 430.
