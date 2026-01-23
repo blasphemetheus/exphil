@@ -45,7 +45,9 @@ defmodule ExPhil.Training.Config do
     "--optimizer", "--preset", "--dry-run", "--character", "--characters", "--stage", "--stages",
     "--config",  # YAML config file path
     "--kmeans-centers",  # K-means cluster centers file for stick discretization
-    "--stream-chunk-size"  # Process files in chunks for memory efficiency
+    "--stream-chunk-size",  # Process files in chunks for memory efficiency
+    "--train-character",  # Auto-select port based on character
+    "--dual-port"  # Train on both players per replay
   ]
 
   @doc """
