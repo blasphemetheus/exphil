@@ -245,6 +245,10 @@ defmodule ExPhil.Networks.Policy do
       :sliding_window ->
         build_sliding_window_backbone(embed_size, opts)
 
+      :attention ->
+        # Pure attention (alias for sliding_window)
+        build_sliding_window_backbone(embed_size, opts)
+
       :lstm_hybrid ->
         # LSTM + Attention hybrid
         build_lstm_attention_backbone(embed_size, opts)
@@ -325,7 +329,7 @@ defmodule ExPhil.Networks.Policy do
     dropout = Keyword.get(opts, :dropout, @default_dropout)
 
     case backbone_type do
-      :sliding_window ->
+      type when type in [:sliding_window, :attention] ->
         # Simple multi-head attention stack
         output_dim = num_heads * head_dim
 
@@ -1234,7 +1238,7 @@ defmodule ExPhil.Networks.Policy do
   @spec temporal_backbone_output_size(backbone_type(), keyword()) :: non_neg_integer()
   def temporal_backbone_output_size(backbone_type, opts \\ []) do
     case backbone_type do
-      :sliding_window ->
+      type when type in [:sliding_window, :attention] ->
         num_heads = Keyword.get(opts, :num_heads, 4)
         head_dim = Keyword.get(opts, :head_dim, 64)
         num_heads * head_dim
