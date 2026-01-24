@@ -9,8 +9,11 @@ defmodule ExPhil.Training.SelfPlay.SelfPlayEnvTest do
 
   # Create a minimal mock policy for testing
   defp mock_policy do
+    # Get actual embed size dynamically
+    embed_size = ExPhil.Embeddings.embedding_size()
+
     # Simple MLP that outputs the right shapes for policy
-    model = Axon.input("state", shape: {nil, 1991})
+    model = Axon.input("state", shape: {nil, embed_size})
     |> Axon.dense(64, activation: :relu)
     |> then(fn x ->
       buttons = Axon.dense(x, 8, name: "buttons")
@@ -28,7 +31,7 @@ defmodule ExPhil.Training.SelfPlay.SelfPlayEnvTest do
     end)
 
     {init_fn, _predict_fn} = Axon.build(model)
-    params = init_fn.(Nx.template({1, 1991}, :f32), %{})
+    params = init_fn.(Nx.template({1, embed_size}, :f32), %{})
 
     {model, params}
   end

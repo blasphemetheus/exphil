@@ -50,7 +50,18 @@ defmodule ExPhil.Training.Config do
     "--dual-port",  # Train on both players per replay
     "--balance-characters",  # Weight sampling by inverse character frequency
     "--stage-mode",  # Stage embedding mode: full, compact, learned
-    "--num-player-names"  # Number of player name embedding dims (0 to disable, default: 112)
+    "--num-player-names",  # Number of player name embedding dims (0 to disable, default: 112)
+    # Verbosity control
+    "--verbose",  # Extra debug output (level 2)
+    "--quiet",  # Minimal output, errors only (level 0)
+    # Reproducibility
+    "--seed",  # Random seed for reproducibility
+    # Checkpoint safety
+    "--overwrite",  # Allow overwriting existing checkpoints
+    "--no-overwrite",  # Fail if checkpoint exists
+    "--backup",  # Create .bak before overwrite (default)
+    "--no-backup",  # Skip backup creation
+    "--backup-count"  # Number of backup versions to keep (default: 3)
   ]
 
   @doc """
@@ -166,8 +177,45 @@ defmodule ExPhil.Training.Config do
       stream_chunk_size: nil,  # nil = load all at once, N = process N files per chunk
       # Embedding options
       stage_mode: :one_hot_full,  # :one_hot_full (64 dims), :one_hot_compact (7 dims), :learned (1 ID)
-      num_player_names: 112  # Player name embedding dims (0 = disable, 112 = slippi-ai compatible)
+      num_player_names: 112,  # Player name embedding dims (0 = disable, 112 = slippi-ai compatible)
+      # Verbosity control
+      verbosity: 1,  # 0 = quiet (errors only), 1 = normal, 2 = verbose (debug)
+      # Reproducibility
+      seed: nil,  # Random seed (nil = generate from entropy)
+      # Checkpoint safety
+      overwrite: false,  # Allow overwriting existing checkpoints
+      backup: true,  # Create .bak before overwrite
+      backup_count: 3  # Number of backup versions to keep
     ]
+    |> apply_env_defaults()
+  end
+
+  # Apply environment variable defaults (lower priority than CLI args)
+  defp apply_env_defaults(opts) do
+    opts
+    |> maybe_env(:replays, "EXPHIL_REPLAYS_DIR")
+    |> maybe_env(:wandb_project, "EXPHIL_WANDB_PROJECT")
+    |> maybe_env_preset("EXPHIL_DEFAULT_PRESET")
+  end
+
+  defp maybe_env(opts, key, env_var) do
+    case System.get_env(env_var) do
+      nil -> opts
+      value -> Keyword.put(opts, key, value)  # Override default with env var
+    end
+  end
+
+  defp maybe_env_preset(opts, env_var) do
+    case System.get_env(env_var) do
+      nil -> opts
+      value ->
+        preset = String.to_atom(value)
+        if preset in @valid_presets do
+          Keyword.put_new(opts, :preset, preset)
+        else
+          opts
+        end
+    end
   end
 
   # Character name mappings (atom -> display name, also accepts aliases)
@@ -1582,6 +1630,33 @@ defmodule ExPhil.Training.Config do
     |> parse_optional_int_arg(args, "--stream-chunk-size", :stream_chunk_size)
     |> parse_stage_mode_arg(args)
     |> parse_optional_int_arg(args, "--num-player-names", :num_player_names)
+    # Verbosity control
+    |> parse_verbosity_flags(args)
+    # Reproducibility
+    |> parse_optional_int_arg(args, "--seed", :seed)
+    # Checkpoint safety
+    |> parse_flag(args, "--overwrite", :overwrite)
+    |> parse_flag(args, "--no-overwrite", :no_overwrite)
+    |> parse_flag(args, "--backup", :backup)
+    |> parse_flag(args, "--no-backup", :no_backup)
+    |> parse_optional_int_arg(args, "--backup-count", :backup_count)
+    |> then(fn opts ->
+      # --no-overwrite makes overwrite explicitly false
+      if opts[:no_overwrite], do: Keyword.put(opts, :overwrite, false), else: opts
+    end)
+    |> then(fn opts ->
+      # --no-backup disables backup
+      if opts[:no_backup], do: Keyword.put(opts, :backup, false), else: opts
+    end)
+  end
+
+  # Parse verbosity flags: --quiet (0), default (1), --verbose (2)
+  defp parse_verbosity_flags(opts, args) do
+    cond do
+      "--quiet" in args -> Keyword.put(opts, :verbosity, 0)
+      "--verbose" in args -> Keyword.put(opts, :verbosity, 2)
+      true -> opts
+    end
   end
 
   # Parse stage mode with alias support (full, compact, learned -> atoms)
@@ -2035,4 +2110,155 @@ defmodule ExPhil.Training.Config do
 
     List.last(final_row)
   end
+
+  # =============================================================================
+  # Checkpoint Safety Functions
+  # =============================================================================
+
+  @doc """
+  Check if a checkpoint path would overwrite an existing file.
+
+  Returns `{:ok, :new}` if path doesn't exist,
+  `{:ok, :overwrite, info}` if exists and overwrite allowed,
+  `{:error, :exists, info}` if exists and overwrite not allowed.
+
+  The `info` map contains file metadata for warning display.
+  """
+  @spec check_checkpoint_path(Path.t(), keyword()) ::
+    {:ok, :new} | {:ok, :overwrite, map()} | {:error, :exists, map()}
+  def check_checkpoint_path(path, opts \\ []) do
+    overwrite = Keyword.get(opts, :overwrite, false)
+
+    case File.stat(path) do
+      {:error, :enoent} ->
+        {:ok, :new}
+
+      {:ok, stat} ->
+        info = %{
+          path: path,
+          size: stat.size,
+          modified: stat.mtime
+        }
+
+        if overwrite do
+          {:ok, :overwrite, info}
+        else
+          {:error, :exists, info}
+        end
+    end
+  end
+
+  @doc """
+  Format file info for display in collision warnings.
+
+  ## Example
+
+      iex> format_file_info(%{path: "model.axon", size: 45_200_000, modified: {{2026, 1, 23}, {14, 30, 0}}})
+      "Size: 45.2 MB, Modified: 2026-01-23 14:30:00"
+  """
+  @spec format_file_info(map()) :: String.t()
+  def format_file_info(info) do
+    size_str = format_bytes(info.size)
+    time_str = format_datetime(info.modified)
+    "Size: #{size_str}, Modified: #{time_str}"
+  end
+
+  defp format_bytes(bytes) when bytes < 1024, do: "#{bytes} B"
+  defp format_bytes(bytes) when bytes < 1024 * 1024, do: "#{Float.round(bytes / 1024, 1)} KB"
+  defp format_bytes(bytes) when bytes < 1024 * 1024 * 1024, do: "#{Float.round(bytes / (1024 * 1024), 1)} MB"
+  defp format_bytes(bytes), do: "#{Float.round(bytes / (1024 * 1024 * 1024), 2)} GB"
+
+  defp format_datetime({{y, m, d}, {h, min, s}}) do
+    "#{y}-#{pad(m)}-#{pad(d)} #{pad(h)}:#{pad(min)}:#{pad(s)}"
+  end
+
+  defp pad(n) when n < 10, do: "0#{n}"
+  defp pad(n), do: "#{n}"
+
+  @doc """
+  Backup an existing checkpoint before overwriting.
+
+  Creates backups with rotation: file.bak, file.bak.1, file.bak.2, etc.
+  Keeps at most `backup_count` versions.
+
+  ## Options
+    - `:backup_count` - Maximum number of backups to keep (default: 3)
+
+  Returns `{:ok, backup_path}` on success, `{:error, reason}` on failure.
+  """
+  @spec backup_checkpoint(Path.t(), keyword()) :: {:ok, Path.t()} | {:error, term()}
+  def backup_checkpoint(path, opts \\ []) do
+    backup_count = Keyword.get(opts, :backup_count, 3)
+
+    if File.exists?(path) do
+      # Rotate existing backups
+      rotate_backups(path, backup_count)
+
+      # Create new backup
+      backup_path = "#{path}.bak"
+      case File.copy(path, backup_path) do
+        {:ok, _} -> {:ok, backup_path}
+        {:error, reason} -> {:error, reason}
+      end
+    else
+      {:ok, nil}  # Nothing to backup
+    end
+  end
+
+  defp rotate_backups(path, count) when count > 0 do
+    # Delete the oldest backup if it exists
+    oldest = "#{path}.bak.#{count - 1}"
+    File.rm(oldest)
+
+    # Rotate .bak.N -> .bak.N+1 (from highest to lowest)
+    Enum.each((count - 2)..0, fn n ->
+      src = if n == 0, do: "#{path}.bak", else: "#{path}.bak.#{n}"
+      dst = "#{path}.bak.#{n + 1}"
+      if File.exists?(src), do: File.rename(src, dst)
+    end)
+  end
+
+  defp rotate_backups(_path, _count), do: :ok
+
+  # =============================================================================
+  # Reproducibility Functions
+  # =============================================================================
+
+  @doc """
+  Initialize random seed for reproducibility.
+
+  If seed is provided, uses it directly. Otherwise generates a seed from system entropy.
+  Returns the seed used (for logging).
+
+  Sets seeds for:
+  - Erlang's :rand module
+  - Nx global default seed (for parameter initialization, dropout)
+  """
+  @spec init_seed(integer() | nil) :: integer()
+  def init_seed(nil) do
+    # Generate seed from system entropy
+    seed = :rand.uniform(2_147_483_647)
+    init_seed(seed)
+  end
+
+  def init_seed(seed) when is_integer(seed) do
+    # Seed Erlang's random module
+    :rand.seed(:exsss, {seed, seed, seed})
+
+    # Seed Nx's global key (affects Nx.Random operations)
+    # Note: Nx uses a PRNG key system, this sets the default
+    Nx.default_backend(EXLA.Backend)
+    Application.put_env(:nx, :default_defn_options, [seed: seed])
+
+    seed
+  end
+
+  @doc """
+  Get verbosity level description.
+  """
+  @spec verbosity_name(integer()) :: String.t()
+  def verbosity_name(0), do: "quiet"
+  def verbosity_name(1), do: "normal"
+  def verbosity_name(2), do: "verbose"
+  def verbosity_name(_), do: "unknown"
 end

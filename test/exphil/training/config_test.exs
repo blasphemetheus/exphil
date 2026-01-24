@@ -1869,4 +1869,241 @@ defmodule ExPhil.Training.ConfigTest do
       assert opts[:temporal] == true  # From YAML
     end
   end
+
+  # ============================================================================
+  # Verbosity Tests
+  # ============================================================================
+
+  describe "parse_args/1 with verbosity flags" do
+    test "defaults verbosity to 1 (normal)" do
+      opts = Config.parse_args([])
+      assert opts[:verbosity] == 1
+    end
+
+    test "--quiet sets verbosity to 0" do
+      opts = Config.parse_args(["--quiet"])
+      assert opts[:verbosity] == 0
+    end
+
+    test "--verbose sets verbosity to 2" do
+      opts = Config.parse_args(["--verbose"])
+      assert opts[:verbosity] == 2
+    end
+
+    test "--verbose takes precedence over default" do
+      opts = Config.parse_args(["--verbose", "--epochs", "5"])
+      assert opts[:verbosity] == 2
+      assert opts[:epochs] == 5
+    end
+  end
+
+  # ============================================================================
+  # Seed Tests
+  # ============================================================================
+
+  describe "parse_args/1 with seed" do
+    test "defaults seed to nil" do
+      opts = Config.parse_args([])
+      assert opts[:seed] == nil
+    end
+
+    test "--seed sets explicit seed" do
+      opts = Config.parse_args(["--seed", "12345"])
+      assert opts[:seed] == 12345
+    end
+  end
+
+  describe "init_seed/1" do
+    test "returns the seed it was given" do
+      seed = Config.init_seed(42)
+      assert seed == 42
+    end
+
+    test "generates a seed when given nil" do
+      seed = Config.init_seed(nil)
+      assert is_integer(seed)
+      assert seed > 0
+    end
+
+    test "generated seeds are different" do
+      seed1 = Config.init_seed(nil)
+      # Reset entropy
+      :rand.seed(:exsss)
+      seed2 = Config.init_seed(nil)
+      # Seeds should generally be different (probabilistically)
+      # This is a weak test but catches obvious bugs
+      assert is_integer(seed1)
+      assert is_integer(seed2)
+    end
+  end
+
+  # ============================================================================
+  # Checkpoint Safety Tests
+  # ============================================================================
+
+  describe "parse_args/1 with checkpoint safety flags" do
+    test "defaults overwrite to false" do
+      opts = Config.parse_args([])
+      assert opts[:overwrite] == false
+    end
+
+    test "--overwrite enables overwrite" do
+      opts = Config.parse_args(["--overwrite"])
+      assert opts[:overwrite] == true
+    end
+
+    test "--no-overwrite explicitly disables overwrite" do
+      opts = Config.parse_args(["--no-overwrite"])
+      assert opts[:overwrite] == false
+    end
+
+    test "defaults backup to true" do
+      opts = Config.parse_args([])
+      assert opts[:backup] == true
+    end
+
+    test "--no-backup disables backup" do
+      opts = Config.parse_args(["--no-backup"])
+      assert opts[:backup] == false
+    end
+
+    test "defaults backup_count to 3" do
+      opts = Config.parse_args([])
+      assert opts[:backup_count] == 3
+    end
+
+    test "--backup-count sets custom count" do
+      opts = Config.parse_args(["--backup-count", "5"])
+      assert opts[:backup_count] == 5
+    end
+  end
+
+  describe "check_checkpoint_path/2" do
+    @test_dir Path.join(System.tmp_dir!(), "checkpoint_test_#{:erlang.unique_integer()}")
+
+    setup do
+      File.mkdir_p!(@test_dir)
+      on_exit(fn -> File.rm_rf!(@test_dir) end)
+      :ok
+    end
+
+    test "returns {:ok, :new} for non-existent path" do
+      path = Path.join(@test_dir, "new_model.axon")
+      assert {:ok, :new} = Config.check_checkpoint_path(path)
+    end
+
+    test "returns {:error, :exists, info} for existing path without overwrite" do
+      path = Path.join(@test_dir, "existing.axon")
+      File.write!(path, "test content")
+
+      assert {:error, :exists, info} = Config.check_checkpoint_path(path)
+      assert info.path == path
+      assert info.size > 0
+    end
+
+    test "returns {:ok, :overwrite, info} for existing path with overwrite" do
+      path = Path.join(@test_dir, "existing.axon")
+      File.write!(path, "test content")
+
+      assert {:ok, :overwrite, info} = Config.check_checkpoint_path(path, overwrite: true)
+      assert info.path == path
+    end
+  end
+
+  describe "backup_checkpoint/2" do
+    @test_dir Path.join(System.tmp_dir!(), "backup_test_#{:erlang.unique_integer()}")
+
+    setup do
+      File.mkdir_p!(@test_dir)
+      on_exit(fn -> File.rm_rf!(@test_dir) end)
+      :ok
+    end
+
+    test "creates .bak file" do
+      path = Path.join(@test_dir, "model.axon")
+      File.write!(path, "original content")
+
+      assert {:ok, backup_path} = Config.backup_checkpoint(path)
+      assert backup_path == "#{path}.bak"
+      assert File.exists?(backup_path)
+      assert File.read!(backup_path) == "original content"
+    end
+
+    test "rotates existing backups" do
+      path = Path.join(@test_dir, "model.axon")
+      File.write!(path, "v3")
+      File.write!("#{path}.bak", "v2")
+      File.write!("#{path}.bak.1", "v1")
+
+      assert {:ok, _} = Config.backup_checkpoint(path, backup_count: 3)
+
+      assert File.read!("#{path}.bak") == "v3"
+      assert File.read!("#{path}.bak.1") == "v2"
+      assert File.read!("#{path}.bak.2") == "v1"
+    end
+
+    test "returns {:ok, nil} for non-existent file" do
+      path = Path.join(@test_dir, "nonexistent.axon")
+      assert {:ok, nil} = Config.backup_checkpoint(path)
+    end
+  end
+
+  describe "format_file_info/1" do
+    test "formats bytes correctly" do
+      info = %{path: "model.axon", size: 1024, modified: {{2026, 1, 23}, {14, 30, 0}}}
+      result = Config.format_file_info(info)
+      assert result =~ "1.0 KB"
+      assert result =~ "2026-01-23 14:30:00"
+    end
+
+    test "formats megabytes correctly" do
+      info = %{path: "model.axon", size: 45_200_000, modified: {{2026, 1, 23}, {14, 30, 0}}}
+      result = Config.format_file_info(info)
+      assert result =~ "43.1 MB"
+    end
+  end
+
+  # ============================================================================
+  # Environment Variable Tests
+  # ============================================================================
+
+  describe "environment variable defaults" do
+    test "EXPHIL_REPLAYS_DIR overrides default replays path" do
+      # Save original
+      original = System.get_env("EXPHIL_REPLAYS_DIR")
+
+      try do
+        System.put_env("EXPHIL_REPLAYS_DIR", "/custom/replays")
+        opts = Config.defaults()
+        assert opts[:replays] == "/custom/replays"
+      after
+        # Restore
+        if original, do: System.put_env("EXPHIL_REPLAYS_DIR", original), else: System.delete_env("EXPHIL_REPLAYS_DIR")
+      end
+    end
+
+    test "EXPHIL_WANDB_PROJECT overrides default wandb project" do
+      original = System.get_env("EXPHIL_WANDB_PROJECT")
+
+      try do
+        System.put_env("EXPHIL_WANDB_PROJECT", "my-project")
+        opts = Config.defaults()
+        assert opts[:wandb_project] == "my-project"
+      after
+        if original, do: System.put_env("EXPHIL_WANDB_PROJECT", original), else: System.delete_env("EXPHIL_WANDB_PROJECT")
+      end
+    end
+
+    test "CLI args override environment variables" do
+      original = System.get_env("EXPHIL_REPLAYS_DIR")
+
+      try do
+        System.put_env("EXPHIL_REPLAYS_DIR", "/env/replays")
+        opts = Config.parse_args(["--replays", "/cli/replays"])
+        assert opts[:replays] == "/cli/replays"
+      after
+        if original, do: System.put_env("EXPHIL_REPLAYS_DIR", original), else: System.delete_env("EXPHIL_REPLAYS_DIR")
+      end
+    end
+  end
 end

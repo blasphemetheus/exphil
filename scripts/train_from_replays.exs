@@ -191,8 +191,45 @@ opts = args
        |> Config.ensure_checkpoint_name()
        |> Config.validate!()
 
+# Set verbosity level (affects all Output calls)
+Output.set_verbosity(opts[:verbosity])
+
+# Initialize random seed for reproducibility
+seed = Config.init_seed(opts[:seed])
+Output.debug("Random seed: #{seed}")
+
 # Ensure checkpoints directory exists
 File.mkdir_p!("checkpoints")
+
+# Check for checkpoint collision (unless resuming)
+unless opts[:resume] do
+  case Config.check_checkpoint_path(opts[:checkpoint], overwrite: opts[:overwrite]) do
+    {:ok, :new} ->
+      :ok
+
+    {:ok, :overwrite, info} ->
+      Output.warning("Checkpoint '#{opts[:checkpoint]}' already exists")
+      Output.puts("       #{Config.format_file_info(info)}")
+
+      # Create backup if enabled
+      if opts[:backup] do
+        case Config.backup_checkpoint(opts[:checkpoint], backup_count: opts[:backup_count]) do
+          {:ok, backup_path} when is_binary(backup_path) ->
+            Output.puts("       Backup created: #{backup_path}")
+          {:ok, nil} ->
+            :ok
+          {:error, reason} ->
+            Output.warning("Failed to create backup: #{inspect(reason)}")
+        end
+      end
+
+    {:error, :exists, info} ->
+      Output.error("Checkpoint '#{opts[:checkpoint]}' already exists!")
+      Output.puts("       #{Config.format_file_info(info)}")
+      Output.puts("       Use --overwrite to replace, or choose a different --name")
+      System.halt(1)
+  end
+end
 
 # Check for incomplete training run and offer to resume
 opts = case Recovery.check_incomplete(opts[:checkpoint]) do
@@ -284,6 +321,14 @@ gpu_info = case GPUUtils.device_name() do
   {:error, _} -> "N/A (CPU mode)"
 end
 
+# Format verbosity for display
+verbosity_str = case opts[:verbosity] do
+  0 -> "quiet"
+  1 -> "normal"
+  2 -> "verbose"
+  _ -> "unknown"
+end
+
 Output.puts("""
 
 ╔════════════════════════════════════════════════════════════════╗
@@ -291,6 +336,7 @@ Output.puts("""
 ╚════════════════════════════════════════════════════════════════╝
 
   Model Name:  #{model_name}
+  Seed:        #{seed} (use --seed #{seed} to reproduce)
 
 Configuration:
   Preset:      #{preset_str}
@@ -309,6 +355,7 @@ Configuration:
   Grad Ckpt:   #{if opts[:gradient_checkpoint], do: "enabled (every #{opts[:checkpoint_every]} layers)", else: "disabled"}
   GPU:         #{gpu_info}
   Streaming:   #{if opts[:stream_chunk_size], do: "enabled (#{opts[:stream_chunk_size]} files/chunk)", else: "disabled"}
+  Verbosity:   #{verbosity_str}
 #{temporal_info}
 """)
 

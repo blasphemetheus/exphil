@@ -183,4 +183,151 @@ defmodule ExPhil.Training.OutputTest do
       assert output =~ "0.5"
     end
   end
+
+  describe "verbosity" do
+    test "set_verbosity/1 sets verbosity level" do
+      Output.set_verbosity(0)
+      assert Output.get_verbosity() == 0
+
+      Output.set_verbosity(2)
+      assert Output.get_verbosity() == 2
+
+      # Reset to normal for other tests
+      Output.set_verbosity(1)
+    end
+
+    test "set_verbosity/1 accepts atoms" do
+      Output.set_verbosity(:quiet)
+      assert Output.get_verbosity() == 0
+
+      Output.set_verbosity(:normal)
+      assert Output.get_verbosity() == 1
+
+      Output.set_verbosity(:verbose)
+      assert Output.get_verbosity() == 2
+
+      # Reset
+      Output.set_verbosity(1)
+    end
+
+    test "quiet?/0 returns true when verbosity is 0" do
+      Output.set_verbosity(0)
+      assert Output.quiet?() == true
+
+      Output.set_verbosity(1)
+      assert Output.quiet?() == false
+
+      # Reset
+      Output.set_verbosity(1)
+    end
+
+    test "verbose?/0 returns true when verbosity is 2" do
+      Output.set_verbosity(2)
+      assert Output.verbose?() == true
+
+      Output.set_verbosity(1)
+      assert Output.verbose?() == false
+
+      # Reset
+      Output.set_verbosity(1)
+    end
+
+    test "should_output?/1 respects verbosity level" do
+      Output.set_verbosity(0)
+      assert Output.should_output?(0) == true
+      assert Output.should_output?(1) == false
+      assert Output.should_output?(2) == false
+
+      Output.set_verbosity(1)
+      assert Output.should_output?(0) == true
+      assert Output.should_output?(1) == true
+      assert Output.should_output?(2) == false
+
+      Output.set_verbosity(2)
+      assert Output.should_output?(0) == true
+      assert Output.should_output?(1) == true
+      assert Output.should_output?(2) == true
+
+      # Reset
+      Output.set_verbosity(1)
+    end
+  end
+
+  describe "verbosity-aware output" do
+    import ExUnit.CaptureIO
+
+    test "puts/1 suppressed in quiet mode" do
+      Output.set_verbosity(0)
+
+      output = capture_io(:stderr, fn ->
+        Output.puts("normal message")
+      end)
+
+      assert output == ""
+
+      # Reset
+      Output.set_verbosity(1)
+    end
+
+    test "puts/1 shown in normal mode" do
+      Output.set_verbosity(1)
+
+      output = capture_io(:stderr, fn ->
+        Output.puts("normal message")
+      end)
+
+      assert output =~ "normal message"
+
+      # Reset
+      Output.set_verbosity(1)
+    end
+
+    test "debug/1 only shown in verbose mode" do
+      Output.set_verbosity(1)
+
+      output = capture_io(:stderr, fn ->
+        Output.debug("debug message")
+      end)
+
+      assert output == ""
+
+      Output.set_verbosity(2)
+
+      output = capture_io(:stderr, fn ->
+        Output.debug("debug message")
+      end)
+
+      assert output =~ "debug message"
+      assert output =~ "[DEBUG]"
+
+      # Reset
+      Output.set_verbosity(1)
+    end
+
+    test "error/1 always shown even in quiet mode" do
+      Output.set_verbosity(0)
+
+      output = capture_io(:stderr, fn ->
+        Output.error("error message")
+      end)
+
+      assert output =~ "error message"
+
+      # Reset
+      Output.set_verbosity(1)
+    end
+
+    test "warning/1 always shown even in quiet mode" do
+      Output.set_verbosity(0)
+
+      output = capture_io(:stderr, fn ->
+        Output.warning("warning message")
+      end)
+
+      assert output =~ "warning message"
+
+      # Reset
+      Output.set_verbosity(1)
+    end
+  end
 end

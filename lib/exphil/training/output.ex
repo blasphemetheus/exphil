@@ -3,6 +3,14 @@ defmodule ExPhil.Training.Output do
   Training output utilities with colors, progress bars, and formatting.
 
   All output goes to stderr for immediate display (no buffering issues).
+
+  ## Verbosity Levels
+
+  - `0` (quiet): Errors only, no progress bars
+  - `1` (normal): Standard output with progress bars
+  - `2` (verbose): Debug info including timing, memory, gradients
+
+  Set verbosity with `set_verbosity/1` or via `--quiet`/`--verbose` CLI flags.
   """
 
   # ANSI color codes
@@ -15,48 +23,125 @@ defmodule ExPhil.Training.Output do
   @blue "\e[34m"
   @cyan "\e[36m"
 
+  # Verbosity levels
+  @quiet 0
+  @normal 1
+  @verbose 2
+
   @doc """
-  Print a line with timestamp.
+  Set the output verbosity level.
+
+  - `0` or `:quiet` - Errors only
+  - `1` or `:normal` - Standard output (default)
+  - `2` or `:verbose` - Debug output
+
+  Stored in process dictionary, inherited by spawned processes.
+  """
+  @spec set_verbosity(integer() | atom()) :: :ok
+  def set_verbosity(level) when is_integer(level) do
+    Process.put(:exphil_verbosity, level)
+    :ok
+  end
+  def set_verbosity(:quiet), do: set_verbosity(@quiet)
+  def set_verbosity(:normal), do: set_verbosity(@normal)
+  def set_verbosity(:verbose), do: set_verbosity(@verbose)
+
+  @doc """
+  Get the current verbosity level.
+  """
+  @spec get_verbosity() :: integer()
+  def get_verbosity do
+    Process.get(:exphil_verbosity, @normal)
+  end
+
+  @doc """
+  Check if output at the given level should be shown.
+  """
+  @spec should_output?(integer()) :: boolean()
+  def should_output?(level), do: get_verbosity() >= level
+
+  @doc """
+  Check if we're in quiet mode.
+  """
+  @spec quiet?() :: boolean()
+  def quiet?, do: get_verbosity() == @quiet
+
+  @doc """
+  Check if we're in verbose mode.
+  """
+  @spec verbose?() :: boolean()
+  def verbose?, do: get_verbosity() >= @verbose
+
+  @doc """
+  Print a line with timestamp (respects verbosity).
   """
   def puts(line) do
-    timestamp = DateTime.utc_now() |> Calendar.strftime("%H:%M:%S")
-    IO.puts(:stderr, "[#{timestamp}] #{line}")
+    if should_output?(@normal) do
+      timestamp = DateTime.utc_now() |> Calendar.strftime("%H:%M:%S")
+      IO.puts(:stderr, "[#{timestamp}] #{line}")
+    end
   end
 
   @doc """
-  Print a line without timestamp.
+  Print a line without timestamp (respects verbosity).
   """
-  def puts_raw(line), do: IO.puts(:stderr, line)
+  def puts_raw(line) do
+    if should_output?(@normal) do
+      IO.puts(:stderr, line)
+    end
+  end
 
   @doc """
-  Print with color. Colors: :red, :green, :yellow, :blue, :cyan, :bold, :dim
+  Print with color (respects verbosity). Colors: :red, :green, :yellow, :blue, :cyan, :bold, :dim
   """
   def puts(line, color) when is_atom(color) do
-    timestamp = DateTime.utc_now() |> Calendar.strftime("%H:%M:%S")
-    IO.puts(:stderr, "[#{timestamp}] #{colorize(line, color)}")
+    if should_output?(@normal) do
+      timestamp = DateTime.utc_now() |> Calendar.strftime("%H:%M:%S")
+      IO.puts(:stderr, "[#{timestamp}] #{colorize(line, color)}")
+    end
   end
 
   @doc """
-  Print colored text without timestamp.
+  Print colored text without timestamp (respects verbosity).
   """
   def puts_raw(line, color) when is_atom(color) do
-    IO.puts(:stderr, colorize(line, color))
+    if should_output?(@normal) do
+      IO.puts(:stderr, colorize(line, color))
+    end
+  end
+
+  @doc """
+  Print a debug message (verbose mode only).
+  """
+  def debug(line) do
+    if verbose?() do
+      timestamp = DateTime.utc_now() |> Calendar.strftime("%H:%M:%S")
+      IO.puts(:stderr, "[#{timestamp}] #{colorize("[DEBUG] #{line}", :dim)}")
+    end
   end
 
   @doc """
   Print a success message (green).
   """
-  def success(line), do: puts(line, :green)
+  def success(line), do: puts("✓ #{line}", :green)
 
   @doc """
-  Print a warning message (yellow).
+  Print a warning message (yellow). Always shown (even in quiet mode).
   """
-  def warning(line), do: puts("⚠️  #{line}", :yellow)
+  def warning(line) do
+    # Warnings always show
+    timestamp = DateTime.utc_now() |> Calendar.strftime("%H:%M:%S")
+    IO.puts(:stderr, "[#{timestamp}] #{colorize("⚠️  #{line}", :yellow)}")
+  end
 
   @doc """
-  Print an error message (red).
+  Print an error message (red). Always shown (even in quiet mode).
   """
-  def error(line), do: puts("❌ #{line}", :red)
+  def error(line) do
+    # Errors always show
+    timestamp = DateTime.utc_now() |> Calendar.strftime("%H:%M:%S")
+    IO.puts(:stderr, "[#{timestamp}] #{colorize("❌ #{line}", :red)}")
+  end
 
   @doc """
   Print an info message (cyan).

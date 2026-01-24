@@ -260,16 +260,141 @@ Current embedding size is **1204 dimensions** with all optimizations enabled.
 | **Config file support** | Medium | `--config training.yaml` instead of many CLI args | **Done** |
 | Interactive config wizard | High | `mix exphil.setup` asks questions, generates command | Not started |
 | **Preset customization** | Low | `--preset quick --epochs 5` already works, document better | **Done** |
-| Environment variable support | Low | `EXPHIL_REPLAYS_DIR` as default replays path | Not started |
+| **Environment variable support** | Low | `EXPHIL_REPLAYS_DIR` as default replays path | **Done** |
 
 **Developer Experience**
 
 | Idea | Effort | Description | Status |
 |------|--------|-------------|--------|
 | **`--dry-run` flag** | Low | Validate config, show what would happen, don't train | **Done** |
-| `--verbose` / `--quiet` flags | Low | Control log verbosity | Not started |
-| Reproducibility seed logging | Low | Print and save random seed for reproducibility | Not started |
+| **`--verbose` / `--quiet` flags** | Low | Control log verbosity | **Done** |
+| **Reproducibility seed logging** | Low | Print and save random seed for reproducibility | **Done** |
 | **Config diff on resume** | Low | Show what changed since last training run | **Done** |
+| **Model naming collision warnings** | Low | Warn if checkpoint name conflicts with existing file | **Done** |
+| **Auto-backup before overwrite** | Low | Copy existing checkpoint to `.bak` before overwriting | **Done** |
+
+---
+
+### 4.2 Planned UX Features (Detailed Specs)
+
+#### Environment Variable Support
+
+**Purpose:** Allow default configuration via environment variables, reducing repetitive CLI args.
+
+**Supported Variables:**
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `EXPHIL_REPLAYS_DIR` | `~/melee/replays` | Default replay directory |
+| `EXPHIL_CHECKPOINTS_DIR` | `./checkpoints` | Default checkpoint output directory |
+| `EXPHIL_WANDB_PROJECT` | `exphil` | Default W&B project name |
+| `EXPHIL_DEFAULT_PRESET` | `nil` | Default preset to use |
+
+**Priority:** CLI args > Environment variables > Hardcoded defaults
+
+**Usage:**
+```bash
+export EXPHIL_REPLAYS_DIR=/data/melee/replays
+export EXPHIL_CHECKPOINTS_DIR=/models/exphil
+mix run scripts/train_from_replays.exs --epochs 10  # Uses env defaults
+```
+
+---
+
+#### Verbosity Control (`--verbose` / `--quiet`)
+
+**Purpose:** Control output verbosity for different use cases (debugging vs CI/scripted runs).
+
+**Levels:**
+| Flag | Level | Output |
+|------|-------|--------|
+| `--quiet` | 0 | Errors only, no progress bars |
+| (default) | 1 | Normal output with progress bars |
+| `--verbose` | 2 | Debug info: batch timing, memory, gradients |
+
+**Verbose output includes:**
+- Per-batch timing breakdown
+- GPU memory after each epoch
+- Gradient norm statistics
+- Data loading time vs training time
+- Cache hit rates
+
+**Quiet output:**
+- Suppresses progress bars (for CI logs)
+- Only prints errors and final summary
+- Suitable for `nohup` or background jobs
+
+---
+
+#### Reproducibility Seed Logging
+
+**Purpose:** Enable exact reproduction of training runs for debugging and research.
+
+**Implementation:**
+1. If `--seed N` provided, use that seed
+2. Otherwise, generate random seed from system entropy
+3. Print seed at startup: `[12:34:56] Random seed: 42`
+4. Save seed in checkpoint metadata
+5. Log seed to W&B if enabled
+
+**Affected randomness:**
+- Nx/EXLA random operations (parameter init, dropout)
+- Data shuffling order
+- Augmentation random choices
+- Train/val split
+
+**Usage:**
+```bash
+# First run (generates seed)
+mix run scripts/train_from_replays.exs --epochs 5
+# Output: [12:34:56] Random seed: 1234567890
+
+# Reproduce exactly
+mix run scripts/train_from_replays.exs --epochs 5 --seed 1234567890
+```
+
+---
+
+#### Model Naming Collision Warnings
+
+**Purpose:** Prevent accidental overwrites of valuable checkpoints.
+
+**Behavior:**
+1. Before saving, check if target path exists
+2. If exists and not `--resume`, warn with file details:
+   ```
+   ⚠️  Checkpoint 'checkpoints/mewtwo_v1.axon' already exists
+       Size: 45.2 MB, Modified: 2026-01-23 14:30
+       Use --overwrite to replace, or choose a different --name
+   ```
+3. With `--overwrite` flag, proceed (after backup if enabled)
+4. With `--no-overwrite`, fail with error
+
+**Related flags:**
+- `--name MODEL_NAME` - Explicit model name
+- `--overwrite` - Allow overwriting existing checkpoints
+- `--no-overwrite` - Fail if checkpoint exists (for CI)
+
+---
+
+#### Auto-Backup Before Overwrite
+
+**Purpose:** Protect against data loss from failed saves or accidental overwrites.
+
+**Behavior:**
+1. When `--overwrite` is used (or implicit in `--resume`)
+2. Before writing new checkpoint, copy existing to `{name}.bak`
+3. If `.bak` already exists, rotate: `.bak` → `.bak.1`, `.bak.1` → `.bak.2`
+4. Keep at most 3 backups (configurable with `--backup-count N`)
+
+**Example:**
+```
+checkpoints/
+  mewtwo_v1.axon      # Current (being overwritten)
+  mewtwo_v1.axon.bak  # Previous version
+  mewtwo_v1.axon.bak.1  # Two versions ago
+```
+
+**Disable:** `--no-backup` to skip backup (faster, for ephemeral training)
 
 ---
 

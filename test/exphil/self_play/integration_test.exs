@@ -227,8 +227,8 @@ defmodule ExPhil.SelfPlay.IntegrationTest do
 
   # Helper functions
 
-  # Game embedding is ~1991 dims (2 players @ 446 each + stage + projectiles)
-  @game_embed_size 1991
+  # Get embed size dynamically (was hardcoded to 1991, now varies with config)
+  defp game_embed_size, do: ExPhil.Embeddings.embedding_size()
   @hidden_size 64
 
   # Policy output sizes match the autoregressive controller head
@@ -238,9 +238,10 @@ defmodule ExPhil.SelfPlay.IntegrationTest do
 
   defp mock_model do
     # Build a minimal model with correct input/output dimensions
-    # Input: game embedding [batch, 1991]
+    # Input: game embedding [batch, embed_size]
     # Output: {policy_logits, value} where policy_logits is tuple of 6 heads
-    input = Axon.input("state", shape: {nil, @game_embed_size})
+    embed_size = game_embed_size()
+    input = Axon.input("state", shape: {nil, embed_size})
 
     # Simple backbone
     backbone = input
@@ -267,9 +268,10 @@ defmodule ExPhil.SelfPlay.IntegrationTest do
 
   defp mock_params do
     # Initialize with small random-ish values
+    embed_size = game_embed_size()
     %{
       "backbone_dense" => %{
-        "kernel" => Nx.broadcast(0.01, {@game_embed_size, @hidden_size}),
+        "kernel" => Nx.broadcast(0.01, {embed_size, @hidden_size}),
         "bias" => Nx.broadcast(0.0, {@hidden_size})
       },
       "buttons_logits" => %{
@@ -304,8 +306,9 @@ defmodule ExPhil.SelfPlay.IntegrationTest do
   end
 
   defp mock_experience do
+    embed_size = game_embed_size()
     %{
-      state: Nx.tensor(Enum.map(1..@game_embed_size, fn _ -> :rand.uniform() end)),
+      state: Nx.tensor(Enum.map(1..embed_size, fn _ -> :rand.uniform() end)),
       action: %{
         buttons: Nx.tensor([0, 0, 0, 0, 0, 0, 0, 0]),
         main_x: Nx.tensor(8),
