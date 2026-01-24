@@ -39,6 +39,7 @@ defmodule ExPhil.Agents.Agent do
 
   alias ExPhil.{Embeddings, Networks, Training}
   alias ExPhil.Bridge.{GameState, ControllerState}
+  alias ExPhil.Training.Utils
 
   require Logger
 
@@ -299,11 +300,11 @@ defmodule ExPhil.Agents.Agent do
         |> Nx.stack()
         |> Nx.new_axis(0)  # Add batch dimension
 
-        _output = state.predict_fn.(state.policy_params, dummy_sequence)
+        _output = state.predict_fn.(Utils.ensure_model_state(state.policy_params), dummy_sequence)
       else
         # For MLP, just single frame
         input = Nx.reshape(dummy_embedded, {1, :auto})
-        _output = state.predict_fn.(state.policy_params, input)
+        _output = state.predict_fn.(Utils.ensure_model_state(state.policy_params), input)
       end
 
       elapsed = System.monotonic_time(:millisecond) - start_time

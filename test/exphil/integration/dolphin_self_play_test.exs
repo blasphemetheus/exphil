@@ -265,7 +265,7 @@ defmodule ExPhil.Integration.DolphinSelfPlayTest do
     end)
 
     {init_fn, _} = Axon.build(model)
-    params = init_fn.(Nx.template({1, 1991}, :f32), %{})
+    params = init_fn.(Nx.template({1, 1991}, :f32), Axon.ModelState.empty())
 
     {model, params}
   end

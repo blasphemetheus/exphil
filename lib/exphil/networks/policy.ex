@@ -62,6 +62,7 @@ defmodule ExPhil.Networks.Policy do
   alias ExPhil.Networks.Hybrid
   alias ExPhil.Networks.Mamba
   alias ExPhil.Networks.Recurrent
+  alias ExPhil.Training.Utils
 
   # Default architecture hyperparameters
   @default_hidden_sizes [512, 512]
@@ -980,7 +981,7 @@ defmodule ExPhil.Networks.Policy do
 
     # Forward pass to get all logits
     {buttons_logits, main_x_logits, main_y_logits, c_x_logits, c_y_logits, shoulder_logits} =
-      predict_fn.(params, state)
+      predict_fn.(Utils.ensure_model_state(params), state)
 
     # Sample buttons (independent Bernoulli)
     buttons = sample_buttons(buttons_logits, deterministic)

@@ -61,6 +61,7 @@ defmodule ExPhil.SelfPlay.GameRunner do
   alias ExPhil.{Embeddings, Rewards}
   alias ExPhil.MockEnv.Game, as: MockGame
   alias ExPhil.SelfPlay.PopulationManager
+  alias ExPhil.Training.Utils
 
   require Logger
 
@@ -540,7 +541,7 @@ defmodule ExPhil.SelfPlay.GameRunner do
     )
     input = Nx.new_axis(embedded, 0)
 
-    output = predict_fn.(params, input)
+    output = predict_fn.(Utils.ensure_model_state(params), input)
 
     {policy_logits, value} = parse_model_output(output)
     action = sample_action(policy_logits, deterministic: false)
@@ -565,7 +566,7 @@ defmodule ExPhil.SelfPlay.GameRunner do
     )
     input = Nx.new_axis(embedded, 0)
 
-    output = predict_fn.(params, input)
+    output = predict_fn.(Utils.ensure_model_state(params), input)
     {policy_logits, _value} = parse_model_output(output)
 
     sample_action(policy_logits, deterministic: deterministic)

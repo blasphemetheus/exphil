@@ -312,7 +312,7 @@ else
 
   {init_fn, _} = Axon.build(model)
   template = Nx.template({1, embed_size}, :f32)
-  params = init_fn.(template, %{})
+  params = init_fn.(template, Axon.ModelState.empty())
 
   Output.success("  Created random policy (embed_size=#{embed_size})")
   {model, params, embed_size}

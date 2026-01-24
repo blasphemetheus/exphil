@@ -49,6 +49,7 @@ defmodule ExPhil.Training.PPO do
 
   alias ExPhil.Networks.{Policy, Value, ActorCritic}
   alias ExPhil.Embeddings
+  alias ExPhil.Training.Utils
 
   require Logger
 
@@ -377,7 +378,7 @@ defmodule ExPhil.Training.PPO do
     # Loss function that returns only the scalar loss (for gradient computation)
     # Uses the BinaryBackend copies to avoid EXLA tensor closure issues
     loss_fn = fn params ->
-      %{policy: policy_logits, value: values} = predict_fn.(params, states_bin)
+      %{policy: policy_logits, value: values} = predict_fn.(Utils.ensure_model_state(params), states_bin)
 
       # Compute new log probs
       new_log_probs = ActorCritic.compute_log_probs(policy_logits, actions_bin)
@@ -412,7 +413,7 @@ defmodule ExPhil.Training.PPO do
     {loss, grads} = grad_fn.(params_data)
 
     # Compute metrics in a separate forward pass (no gradients needed)
-    %{policy: policy_logits, value: values} = predict_fn.(trainer.params, states)
+    %{policy: policy_logits, value: values} = predict_fn.(Utils.ensure_model_state(trainer.params), states)
     new_log_probs = ActorCritic.compute_log_probs(policy_logits, actions)
     ratio = Nx.exp(Nx.subtract(new_log_probs, old_log_probs))
 
@@ -506,7 +507,7 @@ defmodule ExPhil.Training.PPO do
         current_state = step_fn.(:get_state, state)
 
         # Get action from policy
-        %{policy: policy_logits, value: value} = predict_fn.(trainer.params, current_state)
+        %{policy: policy_logits, value: value} = predict_fn.(Utils.ensure_model_state(trainer.params), current_state)
 
         # Sample action
         action = sample_action(policy_logits, trainer.config)
@@ -730,7 +731,7 @@ defmodule ExPhil.Training.PPO do
     {_init_fn, predict_fn} = Axon.build(trainer.model)
     deterministic = Keyword.get(opts, :deterministic, false)
 
-    %{policy: policy_logits, value: value} = predict_fn.(trainer.params, state)
+    %{policy: policy_logits, value: value} = predict_fn.(Utils.ensure_model_state(trainer.params), state)
 
     {buttons, main_x, main_y, c_x, c_y, shoulder} = policy_logits
 
@@ -764,7 +765,7 @@ defmodule ExPhil.Training.PPO do
   @spec get_value(t(), Nx.Tensor.t()) :: float()
   def get_value(trainer, state) do
     {_init_fn, predict_fn} = Axon.build(trainer.model)
-    %{value: value} = predict_fn.(trainer.params, state)
+    %{value: value} = predict_fn.(Utils.ensure_model_state(trainer.params), state)
 
     value
     |> Nx.squeeze()

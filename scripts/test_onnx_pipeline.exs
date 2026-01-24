@@ -41,7 +41,7 @@ Output.success("Model built successfully")
 # Initialize parameters
 template = Nx.template({1, seq_len, embed_size}, :f32)
 {init_fn, predict_fn} = Axon.build(model)
-params = init_fn.(template, %{})
+params = init_fn.(template, Axon.ModelState.empty())
 
 Output.puts("  Parameters initialized")
 
@@ -49,7 +49,7 @@ Output.puts("  Parameters initialized")
 Output.step(2, 6, "Testing forward pass in Axon")
 key = Nx.Random.key(42)
 {test_input, _} = Nx.Random.uniform(key, shape: {1, seq_len, embed_size}, type: :f32)
-output = predict_fn.(params, test_input)
+output = predict_fn.(ExPhil.Training.Utils.ensure_model_state(params), test_input)
 Output.success("Output shape: #{inspect(Nx.shape(output))}")
 
 # Export to ONNX

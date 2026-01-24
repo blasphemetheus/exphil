@@ -31,7 +31,7 @@ defmodule ExPhil.Training.SelfPlay.SelfPlayEnvTest do
     end)
 
     {init_fn, _predict_fn} = Axon.build(model)
-    params = init_fn.(Nx.template({1, embed_size}, :f32), %{})
+    params = init_fn.(Nx.template({1, embed_size}, :f32), Axon.ModelState.empty())
 
     {model, params}
   end

@@ -45,6 +45,7 @@ defmodule ExPhil.Training.Imitation do
 
   alias ExPhil.Networks.Policy
   alias ExPhil.Embeddings
+  alias ExPhil.Training.Utils
 
   require Logger
 
@@ -687,7 +688,7 @@ defmodule ExPhil.Training.Imitation do
     focal_gamma = trainer.config[:focal_gamma] || 2.0
 
     loss_fn = fn params ->
-      {buttons, main_x, main_y, c_x, c_y, shoulder} = predict_fn.(params, states)
+      {buttons, main_x, main_y, c_x, c_y, shoulder} = predict_fn.(Utils.ensure_model_state(params), states)
       logits = %{
         buttons: buttons, main_x: main_x, main_y: main_y,
         c_x: c_x, c_y: c_y, shoulder: shoulder
@@ -811,7 +812,7 @@ defmodule ExPhil.Training.Imitation do
 
     loss_fn = fn params, states, actions ->
       # Forward pass
-      {buttons, main_x, main_y, c_x, c_y, shoulder} = predict_fn.(params, states)
+      {buttons, main_x, main_y, c_x, c_y, shoulder} = predict_fn.(Utils.ensure_model_state(params), states)
 
       logits = %{
         buttons: buttons,
@@ -868,7 +869,7 @@ defmodule ExPhil.Training.Imitation do
       # Build loss function for this call
       # params is the variable we differentiate w.r.t.
       loss_fn = fn p ->
-        {buttons, main_x, main_y, c_x, c_y, shoulder} = predict_fn.(p, states)
+        {buttons, main_x, main_y, c_x, c_y, shoulder} = predict_fn.(Utils.ensure_model_state(p), states)
 
         logits = %{
           buttons: buttons,
