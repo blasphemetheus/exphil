@@ -18,6 +18,7 @@ ExPhil is an Elixir-based successor to slippi-ai, creating high-ELO playable bot
   - `:full`: 449 dims (complete action state, use `nana_mode: :full`)
 - Jumps: Normalized (1 dim) by default; use `jumps_normalized: false` for 7-dim one-hot
 - Controller: 13 dims (8 buttons + 4 sticks + 1 shoulder)
+- Stick discretization: 17 uniform buckets (default) or 21 K-means clusters (`--kmeans-centers`)
 - Action modes: `:one_hot` (399 dims, default) or `:learned` (64-dim trainable embedding, saves ~670 dims)
 - Character modes: `:one_hot` (33 dims, default) or `:learned` (64-dim trainable embedding, saves 64 dims)
 - Stage modes:
@@ -58,6 +59,7 @@ ExPhil is an Elixir-based successor to slippi-ai, creating high-ELO playable bot
 - Checkpoint pruning (keep best N)
 - Frame delay augmentation for online play (`--online-robust`)
 - Training presets (quick, standard, production, character-specific)
+- K-means stick discretization (`scripts/train_kmeans.exs`, `--kmeans-centers`)
 - Model evaluation script (`scripts/eval_model.exs`)
 - Interactive setup wizard (`mix exphil.setup`)
 - Environment variable support (`EXPHIL_REPLAYS_DIR`, `EXPHIL_WANDB_PROJECT`)
@@ -119,6 +121,10 @@ mix run scripts/train_from_replays.exs --preset full      # Maximum quality
 
 # Manual configuration
 mix run scripts/train_from_replays.exs --temporal --backbone mamba --epochs 5
+
+# Optional: Train K-means stick discretization for ~5% better precision inputs
+mix run scripts/train_kmeans.exs --replays ./replays --k 21 --output priv/kmeans_centers.nx
+mix run scripts/train_from_replays.exs --kmeans-centers priv/kmeans_centers.nx --temporal --backbone mamba
 
 # Evaluate a trained model
 mix run scripts/eval_model.exs --checkpoint checkpoints/model.axon

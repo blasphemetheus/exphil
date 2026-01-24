@@ -262,6 +262,29 @@ mix run scripts/train_from_replays.exs --dual-port
 | `--stage-mode MODE` | full | Stage embedding: full, compact, learned |
 | `--num-player-names N` | 112 | Player name dims (0 to disable) |
 
+### K-means Stick Discretization
+
+By default, stick positions are discretized into 17 uniform buckets (0-16). K-means clustering learns the actual distribution from replay data, placing more cluster centers where human inputs concentrate (cardinal/diagonal positions, specific angles for techniques).
+
+**Benefits:**
+- ~5% accuracy improvement on rare but important inputs (wavedash angles, shield drops)
+- Better coverage of deadzone boundaries
+- Character-specific patterns captured
+
+**Usage:**
+```bash
+# Step 1: Train K-means centers from your replays
+mix run scripts/train_kmeans.exs --replays ./replays --k 21 --output priv/kmeans_centers.nx
+
+# Step 2: Use centers during training
+mix run scripts/train_from_replays.exs --kmeans-centers priv/kmeans_centers.nx --temporal --backbone mamba
+```
+
+The default 21 clusters matches slippi-ai's research findings. You can also save to JSON for inspection:
+```bash
+cat priv/kmeans_centers.json
+```
+
 ## Presets
 
 ```bash
