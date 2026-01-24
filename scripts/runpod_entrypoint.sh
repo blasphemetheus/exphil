@@ -65,20 +65,30 @@ fi
 # Create helper scripts for checkpoint management
 cat > /usr/local/bin/sync-checkpoints-up << 'SCRIPT'
 #!/bin/bash
-# Upload local checkpoints to B2 (organized by pod ID)
-# Usage: sync-checkpoints-up [--all]
+# Upload local checkpoints to B2 (organized by date)
+# Usage: sync-checkpoints-up [--today | --date YYYY-MM-DD | --flat]
+#
+# Default: uploads to checkpoints/YYYY-MM-DD/ based on each file's date
+# --today: upload all to today's folder
+# --date: upload all to specific date folder
+# --flat: upload to root checkpoints/ folder (no date organization)
 
 B2_BUCKET="${B2_BUCKET:-exphil-replays-blewfargs}"
-POD_ID="${POD_ID:-$(hostname)_$(date +%Y%m%d)}"
+TODAY=$(date +%Y-%m-%d)
 
-if [ "$1" = "--all" ]; then
-  # Upload to shared checkpoints folder (flattened)
-  echo "Uploading all checkpoints to b2:$B2_BUCKET/checkpoints/..."
+if [ "$1" = "--flat" ]; then
+  echo "Uploading checkpoints to b2:$B2_BUCKET/checkpoints/ (flat)..."
   rclone copy /workspace/checkpoints/ "b2:$B2_BUCKET/checkpoints/" --progress
+elif [ "$1" = "--date" ] && [ -n "$2" ]; then
+  echo "Uploading checkpoints to b2:$B2_BUCKET/checkpoints/$2/..."
+  rclone copy /workspace/checkpoints/ "b2:$B2_BUCKET/checkpoints/$2/" --progress
+elif [ "$1" = "--today" ] || [ -z "$1" ]; then
+  # Default: upload to today's date folder
+  echo "Uploading checkpoints to b2:$B2_BUCKET/checkpoints/$TODAY/..."
+  rclone copy /workspace/checkpoints/ "b2:$B2_BUCKET/checkpoints/$TODAY/" --progress
 else
-  # Upload to pod-specific folder (avoids collisions)
-  echo "Uploading checkpoints to b2:$B2_BUCKET/checkpoints/$POD_ID/..."
-  rclone copy /workspace/checkpoints/ "b2:$B2_BUCKET/checkpoints/$POD_ID/" --progress
+  echo "Usage: sync-checkpoints-up [--today | --date YYYY-MM-DD | --flat]"
+  exit 1
 fi
 echo "✓ Checkpoints uploaded"
 SCRIPT
@@ -87,18 +97,36 @@ chmod +x /usr/local/bin/sync-checkpoints-up
 cat > /usr/local/bin/sync-checkpoints-down << 'SCRIPT'
 #!/bin/bash
 # Download checkpoints from B2
-# Usage: sync-checkpoints-down [pod_id]
+# Usage: sync-checkpoints-down [YYYY-MM-DD | --all | --latest]
+#
+# YYYY-MM-DD: download from specific date folder
+# --all: download everything (all dates)
+# --latest: download from most recent date folder
 
 B2_BUCKET="${B2_BUCKET:-exphil-replays-blewfargs}"
 
-if [ -n "$1" ]; then
-  # Download from specific pod folder
+if [ "$1" = "--all" ]; then
+  echo "Downloading ALL checkpoints from b2:$B2_BUCKET/checkpoints/..."
+  rclone copy "b2:$B2_BUCKET/checkpoints/" /workspace/checkpoints/ --progress
+elif [ "$1" = "--latest" ]; then
+  # Find most recent date folder
+  LATEST=$(rclone lsd "b2:$B2_BUCKET/checkpoints/" 2>/dev/null | awk '{print $NF}' | sort -r | head -1)
+  if [ -z "$LATEST" ]; then
+    echo "No checkpoint folders found on B2"
+    exit 1
+  fi
+  echo "Downloading checkpoints from b2:$B2_BUCKET/checkpoints/$LATEST/ (most recent)..."
+  rclone copy "b2:$B2_BUCKET/checkpoints/$LATEST/" /workspace/checkpoints/ --progress
+elif [ -n "$1" ]; then
+  # Download from specific date folder
   echo "Downloading checkpoints from b2:$B2_BUCKET/checkpoints/$1/..."
   rclone copy "b2:$B2_BUCKET/checkpoints/$1/" /workspace/checkpoints/ --progress
 else
-  # Download all checkpoints (flattened)
-  echo "Downloading all checkpoints from b2:$B2_BUCKET/checkpoints/..."
-  rclone copy "b2:$B2_BUCKET/checkpoints/" /workspace/checkpoints/ --progress
+  echo "Usage: sync-checkpoints-down [YYYY-MM-DD | --all | --latest]"
+  echo ""
+  echo "Available dates on B2:"
+  rclone lsd "b2:$B2_BUCKET/checkpoints/" 2>/dev/null | awk '{print "  " $NF}' || echo "  (none)"
+  exit 0
 fi
 echo "✓ Checkpoints downloaded"
 SCRIPT
@@ -106,22 +134,31 @@ chmod +x /usr/local/bin/sync-checkpoints-down
 
 cat > /usr/local/bin/list-checkpoints << 'SCRIPT'
 #!/bin/bash
-# List checkpoints on B2
-# Usage: list-checkpoints [--local]
+# List checkpoints on B2 or locally
+# Usage: list-checkpoints [--local | YYYY-MM-DD]
 
 B2_BUCKET="${B2_BUCKET:-exphil-replays-blewfargs}"
 
 if [ "$1" = "--local" ]; then
   echo "Local checkpoints in /workspace/checkpoints/:"
-  ls -lah /workspace/checkpoints/ 2>/dev/null || echo "  (none)"
+  ls -lah /workspace/checkpoints/*.axon 2>/dev/null || echo "  (no .axon files)"
+  echo ""
+  ls -lah /workspace/checkpoints/*.bin 2>/dev/null || echo "  (no .bin files)"
+elif [ -n "$1" ]; then
+  # List specific date folder
+  echo "Checkpoints on B2 for $1:"
+  rclone ls "b2:$B2_BUCKET/checkpoints/$1/" 2>/dev/null || echo "  (none or folder doesn't exist)"
 else
-  echo "Checkpoints on B2 (b2:$B2_BUCKET/checkpoints/):"
+  echo "Checkpoint dates on B2 (b2:$B2_BUCKET/checkpoints/):"
   echo ""
-  echo "Pod folders:"
-  rclone lsd "b2:$B2_BUCKET/checkpoints/" 2>/dev/null || echo "  (none)"
+  rclone lsd "b2:$B2_BUCKET/checkpoints/" 2>/dev/null | while read line; do
+    folder=$(echo "$line" | awk '{print $NF}')
+    count=$(rclone ls "b2:$B2_BUCKET/checkpoints/$folder/" 2>/dev/null | wc -l)
+    echo "  $folder/ ($count files)"
+  done || echo "  (none)"
   echo ""
-  echo "Files in root:"
-  rclone ls "b2:$B2_BUCKET/checkpoints/" --max-depth 1 2>/dev/null | head -20 || echo "  (none)"
+  echo "Use 'list-checkpoints YYYY-MM-DD' to see files in a specific date"
+  echo "Use 'list-checkpoints --local' to see local checkpoints"
 fi
 SCRIPT
 chmod +x /usr/local/bin/list-checkpoints
@@ -129,12 +166,18 @@ chmod +x /usr/local/bin/list-checkpoints
 echo "=== Entrypoint complete ==="
 echo ""
 echo "Checkpoint sync commands available:"
-echo "  sync-checkpoints-up      # Upload to B2 (pod-specific folder)"
-echo "  sync-checkpoints-up --all # Upload to B2 (shared folder)"
-echo "  sync-checkpoints-down    # Download all from B2"
-echo "  sync-checkpoints-down <pod_id>  # Download from specific pod"
-echo "  list-checkpoints         # List checkpoints on B2"
-echo "  list-checkpoints --local # List local checkpoints"
+echo "  sync-checkpoints-up           # Upload to B2 (today's date folder)"
+echo "  sync-checkpoints-up --date YYYY-MM-DD  # Upload to specific date"
+echo "  sync-checkpoints-up --flat    # Upload to root (no date folders)"
+echo ""
+echo "  sync-checkpoints-down         # Show available dates"
+echo "  sync-checkpoints-down YYYY-MM-DD  # Download from specific date"
+echo "  sync-checkpoints-down --latest    # Download most recent date"
+echo "  sync-checkpoints-down --all       # Download everything"
+echo ""
+echo "  list-checkpoints              # List dates on B2"
+echo "  list-checkpoints YYYY-MM-DD   # List files in date folder"
+echo "  list-checkpoints --local      # List local checkpoints"
 echo ""
 
 # Run whatever command was passed (or default to bash)
