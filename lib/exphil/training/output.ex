@@ -639,4 +639,109 @@ defmodule ExPhil.Training.Output do
 
     divider()
   end
+
+  # ============================================================
+  # JIT/Warmup Indicators
+  # ============================================================
+
+  @doc """
+  Print JIT warmup start indicator.
+
+  Call this before the first inference/training batch to inform users
+  about the expected JIT compilation time.
+
+  ## Options
+
+    * `:expected_time` - Expected time string (default: "2-5 minutes")
+    * `:operation` - What's being compiled (default: "model")
+
+  ## Examples
+
+      iex> Output.warmup_start()
+      # prints: [12:34:56] ⏳ JIT compiling model (first batch)... this may take 2-5 minutes
+      #                   (subsequent batches will be fast)
+
+      iex> Output.warmup_start(expected_time: "30-60 seconds", operation: "policy network")
+      # prints: [12:34:56] ⏳ JIT compiling policy network (first batch)... this may take 30-60 seconds
+      #                   (subsequent batches will be fast)
+
+  """
+  def warmup_start(opts \\ []) do
+    expected = Keyword.get(opts, :expected_time, "2-5 minutes")
+    operation = Keyword.get(opts, :operation, "model")
+
+    puts("⏳ JIT compiling #{operation} (first batch)... this may take #{expected}")
+    puts_raw("     (subsequent batches will be fast)")
+  end
+
+  @doc """
+  Print JIT warmup complete indicator.
+
+  Call this after the first inference/training batch completes to show
+  the actual compilation time.
+
+  ## Arguments
+
+    * `elapsed_ms` - Time in milliseconds that JIT compilation took
+
+  ## Examples
+
+      iex> Output.warmup_done(45_000)
+      # prints: [12:34:56] ✓ JIT compilation complete (45.0s)
+
+  """
+  def warmup_done(elapsed_ms) when is_number(elapsed_ms) do
+    seconds = Float.round(elapsed_ms / 1000, 1)
+    success("JIT compilation complete (#{seconds}s)")
+  end
+
+  @doc """
+  Run a function with warmup indicators.
+
+  Automatically shows warmup start message, runs the function,
+  and shows completion time.
+
+  ## Options
+
+    * `:expected_time` - Expected time string (default: "2-5 minutes")
+    * `:operation` - What's being compiled (default: "model")
+
+  ## Examples
+
+      iex> result = Output.with_warmup(fn ->
+      ...>   Imitation.train_step(trainer, batch, nil)
+      ...> end)
+      # prints warmup_start, runs function, prints warmup_done
+
+  """
+  def with_warmup(opts \\ [], fun) when is_function(fun, 0) do
+    warmup_start(opts)
+    start = System.monotonic_time(:millisecond)
+    result = fun.()
+    elapsed = System.monotonic_time(:millisecond) - start
+    warmup_done(elapsed)
+    result
+  end
+
+  @doc """
+  Run a function with warmup indicator (macro version for blocks).
+
+  ## Examples
+
+      require Output
+      result = Output.warmup "policy network" do
+        Imitation.train_step(trainer, batch, nil)
+      end
+
+  """
+  defmacro warmup(operation \\ "model", do: block) do
+    quote do
+      ExPhil.Training.Output.warmup_start(operation: unquote(operation))
+      start = System.monotonic_time(:millisecond)
+      result = unquote(block)
+      elapsed = System.monotonic_time(:millisecond) - start
+      ExPhil.Training.Output.warmup_done(elapsed)
+      result
+    end
+  end
 end

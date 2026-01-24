@@ -330,4 +330,82 @@ defmodule ExPhil.Training.OutputTest do
       Output.set_verbosity(1)
     end
   end
+
+  describe "warmup_start/1" do
+    import ExUnit.CaptureIO
+
+    test "shows default JIT message" do
+      output = capture_io(:stderr, fn ->
+        Output.warmup_start()
+      end)
+
+      assert output =~ "JIT compiling model"
+      assert output =~ "first batch"
+      assert output =~ "2-5 minutes"
+      assert output =~ "subsequent batches will be fast"
+    end
+
+    test "accepts custom expected time" do
+      output = capture_io(:stderr, fn ->
+        Output.warmup_start(expected_time: "30-60 seconds")
+      end)
+
+      assert output =~ "30-60 seconds"
+    end
+
+    test "accepts custom operation name" do
+      output = capture_io(:stderr, fn ->
+        Output.warmup_start(operation: "policy network")
+      end)
+
+      assert output =~ "JIT compiling policy network"
+    end
+  end
+
+  describe "warmup_done/1" do
+    import ExUnit.CaptureIO
+
+    test "shows completion with time in seconds" do
+      output = capture_io(:stderr, fn ->
+        Output.warmup_done(45_000)
+      end)
+
+      assert output =~ "JIT compilation complete"
+      assert output =~ "45.0s"
+    end
+
+    test "rounds to one decimal place" do
+      output = capture_io(:stderr, fn ->
+        Output.warmup_done(123_456)
+      end)
+
+      assert output =~ "123.5s"
+    end
+  end
+
+  describe "with_warmup/2" do
+    import ExUnit.CaptureIO
+
+    test "wraps function with warmup indicators" do
+      output = capture_io(:stderr, fn ->
+        result = Output.with_warmup(fn ->
+          Process.sleep(10)
+          :done
+        end)
+
+        assert result == :done
+      end)
+
+      assert output =~ "JIT compiling"
+      assert output =~ "JIT compilation complete"
+    end
+
+    test "accepts options" do
+      output = capture_io(:stderr, fn ->
+        Output.with_warmup([operation: "custom"], fn -> :ok end)
+      end)
+
+      assert output =~ "JIT compiling custom"
+    end
+  end
 end
