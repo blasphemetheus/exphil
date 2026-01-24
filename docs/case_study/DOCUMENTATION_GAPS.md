@@ -71,15 +71,19 @@ This document tracks areas that need additional research and documentation for t
 
 ## Medium Priority
 
-### [ ] Matchup-Specific Training
+### [x] Matchup-Specific Training
 **Why**: Different matchups require different strategies
-**Topics to cover**:
-- Single model vs per-matchup models
-- Transfer learning between matchups
-- Matchup-aware embeddings
-- How pros handle matchup differences
+**Topics covered**:
+- Single model vs per-matchup models (5 strategies compared)
+- Transfer learning between matchups (base + fine-tuning)
+- Matchup-aware embeddings (opponent embedding, MoE routing)
+- How pros handle matchup differences (Zain, Cody, aMSa examples)
+- Opponent modeling techniques (DQN encoding, TCN, online adaptation)
+- Multi-task learning with matchup heads
+- Data availability by matchup (Fox-Fox 30K vs Link-G&W <100)
+- FightingICE competition insights (RHEA + opponent model)
 
-**Output**: Add section to `training-approaches.md` or create `matchup-training.md`
+**Output**: `matchup-training.md` ✓
 
 ---
 
@@ -117,39 +121,57 @@ This document tracks areas that need additional research and documentation for t
 
 ## Lower Priority (But Interesting)
 
-### [ ] Conference Talks & Presentations
+### [x] Conference Talks & Presentations
 **Why**: Academic and industry perspectives
-**Topics to cover**:
-- GDC game AI talks
-- NeurIPS/ICML game-playing papers
-- Melee community presentations
-- YouTube technical deep-dives
+**Topics covered**:
+- DEF CON 24 SmashBot talk (altf4, 2016)
+- Phillip arXiv paper presentation (2017)
+- AlphaStar DeepMind demos + MIT/BU talks
+- OpenAI Five Dota 2 paper and demos
+- FightingICE IEEE CoG competition (2013-present)
+- GDC rollback netcode talks (NRS, GGPO/Tony Cannon)
+- Academic lectures (UC Berkeley, MIT, CMU, Waterloo)
+- Community content (Samox documentaries, vladfi1 streams)
+- Technical blog posts (Eric Gu, Project Nabla, Fizzi)
 
-**Output**: Add to `research-papers.md`
+**Output**: `conference-talks.md` ✓
 
 ---
 
-### [ ] Community Research Channels
+### [x] Community Research Channels
 **Why**: Stay connected to ongoing work
-**Topics to cover**:
-- Slippi Discord AI channels
-- Reddit r/SSBM technical threads
-- Twitter/X researchers to follow
-- Private research groups
+**Topics covered**:
+- Slippi Discord (#ai-ml channel, 40K+ members, replay data access)
+- slippi-ai Discord (development support)
+- Reddit r/SSBM (discussion threads)
+- Twitter/X researchers (Fizzi, vladfi1, altf4, Eric Gu)
+- Twitch/YouTube (x_pilot streams, exhibition matches)
+- GitHub organizations (project-slippi, key repos)
+- Smashboards legacy threads
+- Frame data sites (ikneedata, meleeframedata)
+- Melee Library (tech guides)
+- Key people to follow with handles
+- Getting involved guide
 
-**Output**: Add to `community-projects.md`
+**Output**: `community-channels.md` ✓
 
 ---
 
-### [ ] Historical Context
+### [x] Historical Context
 **Why**: Understanding the evolution of Melee AI
-**Topics to cover**:
-- Timeline of major milestones
-- How the meta evolved with AI
-- Community reception over time
-- Future directions
+**Topics covered**:
+- Timeline of major milestones (2015-2025)
+- SmashBot/libmelee foundation (2015-2016)
+- Phillip pure RL breakthrough + Genesis 4 demo (2017)
+- Slippi launch and infrastructure revolution (2018-2019)
+- COVID pandemic catalyst + rollback netcode (2020)
+- BC+RL hybrid approaches + Project Nabla (2021-2022)
+- Eric Gu Transformer + Ranked mode (2023-2024)
+- Top player exhibitions (Moky 10-3, Zain 5-3)
+- Community reception evolution (skepticism → acceptance)
+- Future directions and open questions
 
-**Output**: `history-timeline.md`
+**Output**: `history-timeline.md` ✓
 
 ---
 
@@ -189,6 +211,10 @@ This document tracks areas that need additional research and documentation for t
 | `dataset-curation.md` | 2026-01-23 | Data sources, filtering, augmentation, storage |
 | `stages.md` | 2026-01-23 | Dynamic elements, blast zones, asymmetries, embedding |
 | `slippi-replay-ecosystem.md` | 2026-01-23 | .slp format, parsers, data sources, pipelines |
+| `matchup-training.md` | 2026-01-23 | Single vs multi-model, opponent modeling, transfer |
+| `history-timeline.md` | 2026-01-23 | 2015-2025 evolution, milestones, community reception |
+| `conference-talks.md` | 2026-01-23 | DEF CON, GDC, NeurIPS, IEEE CoG, community content |
+| `community-channels.md` | 2026-01-23 | Discord, GitHub, Twitter, streams, frame data sites |
 
 ---
 

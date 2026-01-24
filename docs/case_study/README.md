@@ -56,10 +56,12 @@ This directory contains comprehensive documentation of existing Super Smash Bros
 | [action-space.md](action-space.md) | Melee's 30 billion input action space problem |
 | [state-representation.md](state-representation.md) | How to embed Melee game state for ML |
 | [training-approaches.md](training-approaches.md) | BC vs RL vs hybrid methodology comparison |
+| [matchup-training.md](matchup-training.md) | **Matchup strategies: single vs multi-model, opponent modeling** |
 | [reward-shaping.md](reward-shaping.md) | **Reward design: PBRS theory, character-specific, hacking** |
 | [dataset-curation.md](dataset-curation.md) | **Data sources, filtering, augmentation, cloud storage** |
 | [stages.md](stages.md) | **Stage dynamics: Randall, FoD, Whispy, blast zones** |
 | [research-papers.md](research-papers.md) | Key academic papers and technical blogs |
+| [conference-talks.md](conference-talks.md) | **DEF CON, GDC, NeurIPS, IEEE CoG, community talks** |
 | [other-fighting-game-ai.md](other-fighting-game-ai.md) | AlphaStar, OpenAI Five, FightingICE, Street Fighter |
 | [deployment-inference.md](deployment-inference.md) | ONNX, quantization, real-time inference |
 
@@ -68,7 +70,9 @@ This directory contains comprehensive documentation of existing Super Smash Bros
 | Document | Description |
 |----------|-------------|
 | [characters.md](characters.md) | Character-specific considerations for AI |
+| [history-timeline.md](history-timeline.md) | **2015-2025 evolution: SmashBot → Phillip → Slippi → today** |
 | [community-projects.md](community-projects.md) | Additional notable projects summary |
+| [community-channels.md](community-channels.md) | **Discord, GitHub, Twitter, streams, frame data sites** |
 | [all-projects.md](all-projects.md) | **Complete index of all known projects** |
 | [DOCUMENTATION_GAPS.md](DOCUMENTATION_GAPS.md) | **Roadmap of areas needing more research** |
 
@@ -104,8 +108,20 @@ See [stages.md](stages.md) for Randall timing, FoD platforms, Whispy, blast zone
 **For understanding replay infrastructure:**
 See [slippi-replay-ecosystem.md](slippi-replay-ecosystem.md) for .slp format, parser comparison, data sources, and pipeline architecture.
 
+**For matchup-specific training:**
+See [matchup-training.md](matchup-training.md) for single vs multi-model strategies, opponent modeling, and transfer learning.
+
+**For historical context:**
+See [history-timeline.md](history-timeline.md) for the 2015-2025 evolution from SmashBot through Phillip to modern BC+RL approaches.
+
+**For conference talks and presentations:**
+See [conference-talks.md](conference-talks.md) for DEF CON, GDC, NeurIPS talks and academic lectures on game AI.
+
 **For a complete list of all projects:**
 See [all-projects.md](all-projects.md) for the comprehensive index.
+
+**For community engagement:**
+See [community-channels.md](community-channels.md) for Discord servers, key people to follow, data sources, and getting involved.
 
 **For tracking documentation progress:**
 See [DOCUMENTATION_GAPS.md](DOCUMENTATION_GAPS.md) for the research roadmap.
