@@ -76,20 +76,20 @@ defmodule ExPhil.Embeddings.Game do
   end
 
   @doc """
-  Get the size of the continuous features (everything except action IDs).
+  Get the size of the continuous features (everything except IDs).
 
   When using learned embeddings, the network needs to know where to split:
   - continuous_features = input[:, :-n]
-  - action_ids = input[:, -n:]
+  - ids = input[:, -n:]
 
-  where n = num_action_ids(config)
+  where n = num_total_ids(config) (action IDs + character IDs)
 
   This function returns the size of continuous_features.
   """
   @spec continuous_embedding_size(config()) :: non_neg_integer()
   def continuous_embedding_size(config \\ default_config()) do
     total = embedding_size(config)
-    total - num_action_ids(config)
+    total - num_action_ids(config) - num_character_ids(config)
   end
 
   @doc """
@@ -106,6 +106,32 @@ defmodule ExPhil.Embeddings.Game do
   @spec uses_enhanced_nana?(config()) :: boolean()
   def uses_enhanced_nana?(config) do
     config.player.nana_mode == :enhanced and config.player.with_nana
+  end
+
+  @doc """
+  Number of character IDs appended when using learned character embeddings.
+
+  - 2 IDs when using learned character embeddings (own + opponent)
+  """
+  @spec num_character_ids(config()) :: non_neg_integer()
+  def num_character_ids(config \\ default_config()) do
+    if config.player.character_mode == :learned, do: 2, else: 0
+  end
+
+  @doc """
+  Total number of IDs appended (action IDs + character IDs).
+  """
+  @spec num_total_ids(config()) :: non_neg_integer()
+  def num_total_ids(config \\ default_config()) do
+    num_action_ids(config) + num_character_ids(config)
+  end
+
+  @doc """
+  Check if the config uses learned character embeddings.
+  """
+  @spec uses_learned_characters?(config()) :: boolean()
+  def uses_learned_characters?(config) do
+    config.player.character_mode == :learned
   end
 
   @spec default_config() :: config()
@@ -162,9 +188,14 @@ defmodule ExPhil.Embeddings.Game do
     # Includes: player actions (2) + Nana actions if enhanced mode (2)
     action_ids_size = num_action_ids(config)
 
+    # Character IDs appended at very end when using learned character embeddings
+    # Includes: own character (1) + opponent character (1)
+    character_ids_size = num_character_ids(config)
+
     players_size + stage_size + prev_action_size + name_size +
       projectile_size + item_size +
-      distance_size + relative_pos_size + frame_count_size + action_ids_size
+      distance_size + relative_pos_size + frame_count_size +
+      action_ids_size + character_ids_size
   end
 
   defp projectile_embedding_size do
@@ -276,6 +307,17 @@ defmodule ExPhil.Embeddings.Game do
       opp_nana_action = PlayerEmbed.get_nana_action_id(opponent)
       nana_action_ids = Nx.tensor([own_nana_action, opp_nana_action], type: :f32)
       [nana_action_ids | embeddings]
+    else
+      embeddings
+    end
+
+    # Append character IDs when using learned character embeddings
+    # Order: [char_own, char_opp] at end of tensor
+    embeddings = if config.player.character_mode == :learned do
+      own_char = PlayerEmbed.get_character_id(own)
+      opp_char = PlayerEmbed.get_character_id(opponent)
+      char_ids = Nx.tensor([own_char, opp_char], type: :f32)
+      [char_ids | embeddings]
     else
       embeddings
     end
@@ -401,7 +443,7 @@ defmodule ExPhil.Embeddings.Game do
 
       # Append Nana action IDs when using enhanced Nana mode
       # Order: [player_own, player_opp, nana_own, nana_opp]
-      all_embs = if config.player.nana_mode == :enhanced and config.player.with_nana do
+      embs_with_nana = if config.player.nana_mode == :enhanced and config.player.with_nana do
         own_nana_actions = Enum.map(own_players, &PlayerEmbed.get_nana_action_id/1)
         opp_nana_actions = Enum.map(opponent_players, &PlayerEmbed.get_nana_action_id/1)
         # Stack as [batch, 2] tensor
@@ -412,6 +454,21 @@ defmodule ExPhil.Embeddings.Game do
         embs_with_actions ++ [nana_action_ids]
       else
         embs_with_actions
+      end
+
+      # Append character IDs when using learned character embeddings
+      # Order: [char_own, char_opp] at end of tensor
+      all_embs = if config.player.character_mode == :learned do
+        own_chars = Enum.map(own_players, &PlayerEmbed.get_character_id/1)
+        opp_chars = Enum.map(opponent_players, &PlayerEmbed.get_character_id/1)
+        # Stack as [batch, 2] tensor
+        char_ids = Nx.stack([
+          Nx.tensor(own_chars, type: :f32),
+          Nx.tensor(opp_chars, type: :f32)
+        ], axis: 1)
+        embs_with_nana ++ [char_ids]
+      else
+        embs_with_nana
       end
 
       # Concatenate all: [batch, total_embed_size]

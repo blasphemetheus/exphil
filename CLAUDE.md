@@ -7,8 +7,10 @@ ExPhil is an Elixir-based successor to slippi-ai, creating high-ELO playable bot
 **Embedding dimensions:**
 - Player: 488 dims (base 440 + speeds 5 + frame_info 2 + stock 1 + ledge_dist 1 + compact Nana 39)
 - Player (learned actions): 91 dims (base 41 + speeds 5 + frame_info 2 + stock 1 + ledge_dist 1 + compact Nana 39 + action IDs in network)
+- Player (learned actions + chars): 58 dims (excludes 33-dim character one-hot)
 - Game: 1204 dims (2 players + stage + spatial features + projectiles)
 - Game (learned actions): 408 dims + 2 action IDs (use `action_mode: :learned` for trainable action embedding)
+- Game (learned actions + chars): 344 dims + 4 IDs (saves 64 dims net: 2×33 one-hot → 2 char IDs)
 - **512-dim target**: 254 continuous + 4 action IDs × 64 embedding (use `action_mode: :learned, nana_mode: :enhanced`)
 - Nana modes:
   - `:compact` (default): 39 dims (preserves IC tech: handoffs, regrabs, desyncs)
@@ -17,7 +19,9 @@ ExPhil is an Elixir-based successor to slippi-ai, creating high-ELO playable bot
 - Jumps: Normalized (1 dim) by default; use `jumps_normalized: false` for 7-dim one-hot
 - Controller: 13 dims (8 buttons + 4 sticks + 1 shoulder)
 - Action modes: `:one_hot` (399 dims, default) or `:learned` (64-dim trainable embedding, saves ~670 dims)
+- Character modes: `:one_hot` (33 dims, default) or `:learned` (64-dim trainable embedding, saves 64 dims)
 - Action IDs: 2 (players only) or 4 (players + Nana with `nana_mode: :enhanced`)
+- Character IDs: 2 when `character_mode: :learned` (own + opponent)
 
 **Policy network:** 6-head autoregressive (buttons, main_x/y, c_x/y, shoulder)
 
@@ -30,9 +34,10 @@ ExPhil is an Elixir-based successor to slippi-ai, creating high-ELO playable bot
 
 ## Current Status
 
-**Test coverage:** 900+ tests passing
+**Test coverage:** 1394 tests passing
 
 **Completed:**
+- Learned character embeddings (33 chars → 64-dim trainable, saves 64 dims)
 - Imitation learning (single-frame + temporal)
 - All backbones: MLP, LSTM, GRU, Mamba, attention
 - PPO trainer with clipped objective

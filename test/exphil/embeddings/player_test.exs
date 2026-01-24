@@ -591,4 +591,85 @@ defmodule ExPhil.Embeddings.PlayerTest do
       assert Nx.to_number(Nx.is_infinity(result) |> Nx.sum()) == 0
     end
   end
+
+  # ============================================================================
+  # Character ID Tests
+  # ============================================================================
+
+  describe "get_character_id/1" do
+    test "returns character from player state" do
+      player = mock_player(character: 10)  # Mewtwo
+
+      assert PlayerEmbed.get_character_id(player) == 10
+    end
+
+    test "returns 0 for nil player" do
+      assert PlayerEmbed.get_character_id(nil) == 0
+    end
+
+    test "returns 0 for nil character" do
+      player = %PlayerState{character: nil}
+
+      assert PlayerEmbed.get_character_id(player) == 0
+    end
+
+    test "returns correct ID for different characters" do
+      # Fox = 2, Falco = 20, Marth = 9, Sheik = 19
+      assert PlayerEmbed.get_character_id(mock_player(character: 2)) == 2
+      assert PlayerEmbed.get_character_id(mock_player(character: 20)) == 20
+      assert PlayerEmbed.get_character_id(mock_player(character: 9)) == 9
+      assert PlayerEmbed.get_character_id(mock_player(character: 19)) == 19
+    end
+  end
+
+  describe "get_character_ids_batch/1" do
+    test "returns tensor of character IDs" do
+      players = [
+        mock_player(character: 10),  # Mewtwo
+        mock_player(character: 2),   # Fox
+        mock_player(character: 20)   # Falco
+      ]
+
+      result = PlayerEmbed.get_character_ids_batch(players)
+
+      assert Nx.shape(result) == {3}
+      assert Nx.to_list(result) == [10, 2, 20]
+    end
+
+    test "handles nil players in batch" do
+      players = [
+        mock_player(character: 10),
+        nil,
+        mock_player(character: 20)
+      ]
+
+      result = PlayerEmbed.get_character_ids_batch(players)
+
+      assert Nx.shape(result) == {3}
+      assert Nx.to_list(result) == [10, 0, 20]
+    end
+  end
+
+  describe "character embedding config" do
+    test "embedding_size smaller with learned character mode" do
+      # With learned character embeddings, the 33-dim one-hot character vector
+      # is excluded from player embedding (character ID appended at game level instead)
+      config_onehot = %PlayerEmbed{character_mode: :one_hot, with_nana: false}
+      config_learned = %PlayerEmbed{character_mode: :learned, with_nana: false}
+
+      size_onehot = PlayerEmbed.embedding_size(config_onehot)
+      size_learned = PlayerEmbed.embedding_size(config_learned)
+
+      # Learned mode saves 33 dimensions (character one-hot vector)
+      assert size_onehot - size_learned == 33
+    end
+
+    test "learned character mode reduces embedding by 33 dims" do
+      # 33 Melee characters = 33-dim one-hot
+      config_base = %PlayerEmbed{character_mode: :one_hot, with_nana: false, with_speeds: true}
+      config_learned = %PlayerEmbed{character_mode: :learned, with_nana: false, with_speeds: true}
+
+      assert PlayerEmbed.embedding_size(config_base) - PlayerEmbed.embedding_size(config_learned) == 33
+    end
+  end
 end

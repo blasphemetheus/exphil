@@ -232,6 +232,76 @@ defmodule ExPhil.Embeddings.GameTest do
     end
   end
 
+  describe "num_character_ids/1" do
+    test "returns 0 for default config (one-hot characters)" do
+      config = GameEmbed.default_config()
+      assert GameEmbed.num_character_ids(config) == 0
+    end
+
+    test "returns 2 when using learned character embeddings" do
+      player_config = %PlayerEmbed{character_mode: :learned}
+      config = %GameEmbed{player: player_config}
+      assert GameEmbed.num_character_ids(config) == 2
+    end
+  end
+
+  describe "uses_learned_characters?/1" do
+    test "returns false for default config (one-hot)" do
+      config = GameEmbed.default_config()
+
+      refute GameEmbed.uses_learned_characters?(config)
+    end
+
+    test "returns true when player character_mode is :learned" do
+      player_config = %PlayerEmbed{character_mode: :learned}
+      config = %GameEmbed{player: player_config}
+
+      assert GameEmbed.uses_learned_characters?(config)
+    end
+  end
+
+  describe "combined action and character IDs" do
+    test "embedding_size includes both action and character IDs" do
+      # Config with both learned actions and characters
+      player_config = %PlayerEmbed{action_mode: :learned, character_mode: :learned}
+      config = %GameEmbed{player: player_config}
+
+      total_size = GameEmbed.embedding_size(config)
+      continuous_size = GameEmbed.continuous_embedding_size(config)
+      num_action_ids = GameEmbed.num_action_ids(config)
+      num_char_ids = GameEmbed.num_character_ids(config)
+
+      assert num_action_ids == 2
+      assert num_char_ids == 2
+      assert continuous_size == total_size - num_action_ids - num_char_ids
+    end
+
+    test "num_total_ids returns sum of action and character IDs" do
+      player_config = %PlayerEmbed{action_mode: :learned, character_mode: :learned}
+      config = %GameEmbed{player: player_config}
+
+      assert GameEmbed.num_total_ids(config) == 4
+    end
+
+    test "learned character mode reduces embedding by 33 dims per player" do
+      # Compare config with one-hot characters vs learned characters
+      player_onehot = %PlayerEmbed{character_mode: :one_hot}
+      player_learned = %PlayerEmbed{character_mode: :learned}
+
+      config_onehot = %GameEmbed{player: player_onehot}
+      config_learned = %GameEmbed{player: player_learned}
+
+      # With learned characters, we exclude 33-dim one-hot from each player (66 total)
+      # but add 2 character IDs at the end
+      size_onehot = GameEmbed.embedding_size(config_onehot)
+      size_learned = GameEmbed.embedding_size(config_learned)
+
+      # 66 dims saved from 2 players, 2 dims added for character IDs
+      # Net savings = 66 - 2 = 64 dims
+      assert size_onehot - size_learned == 64
+    end
+  end
+
   # ============================================================================
   # Main Embedding Tests
   # ============================================================================

@@ -46,11 +46,13 @@ defmodule ExPhil.Embeddings.Player do
     with_stock: true,  # Stock count (+1 dim per player)
     with_ledge_distance: true,  # Distance to nearest ledge (+1 dim per player)
     jumps_normalized: true,  # Use 1-dim normalized float instead of 7-dim one-hot (saves 6 dims/player)
-    action_mode: :one_hot  # :one_hot (399 dims) or :learned (action embedded in network, 0 dims here)
+    action_mode: :one_hot,  # :one_hot (399 dims) or :learned (action embedded in network, 0 dims here)
+    character_mode: :one_hot  # :one_hot (33 dims) or :learned (character embedded in network, 0 dims here)
   ]
 
   @type nana_mode :: :full | :compact | :enhanced
   @type action_mode :: :one_hot | :learned
+  @type character_mode :: :one_hot | :learned
 
   @type config :: %__MODULE__{
     xy_scale: float(),
@@ -63,7 +65,8 @@ defmodule ExPhil.Embeddings.Player do
     with_stock: boolean(),
     with_ledge_distance: boolean(),
     jumps_normalized: boolean(),
-    action_mode: action_mode()
+    action_mode: action_mode(),
+    character_mode: character_mode()
   }
 
   # ==========================================================================
@@ -251,12 +254,18 @@ defmodule ExPhil.Embeddings.Player do
       :learned -> 0
     end
 
+    # Character: 33 dims for one-hot, 0 dims for learned (handled by network)
+    character_size = case config.character_mode do
+      :one_hot -> Primitives.embedding_size(:character)
+      :learned -> 0
+    end
+
     1 +  # percent
     1 +  # facing
     1 +  # x
     1 +  # y
     action_size +
-    Primitives.embedding_size(:character) +
+    character_size +
     1 +  # invulnerable
     jumps_size +
     1 +  # shield
@@ -360,7 +369,6 @@ defmodule ExPhil.Embeddings.Player do
     facing_emb = Primitives.batch_bool_embed(facings, on: 1.0, off: -1.0)
     x_emb = Primitives.batch_float_embed(xs, scale: config.xy_scale)
     y_emb = Primitives.batch_float_embed(ys, scale: config.xy_scale)
-    char_emb = Primitives.batch_one_hot(Nx.tensor(characters, type: :s32), size: 33, clamp: true)
     invuln_emb = Primitives.batch_bool_embed(invulnerables)
 
     # Jumps: normalized (1-dim) or one-hot (7-dim) based on config
@@ -392,9 +400,17 @@ defmodule ExPhil.Embeddings.Player do
         base_embs  # Action IDs handled separately by network
     end
 
+    # Add character one-hot only if not using learned embeddings
+    base_embs = case config.character_mode do
+      :one_hot ->
+        char_emb = Primitives.batch_one_hot(Nx.tensor(characters, type: :s32), size: 33, clamp: true)
+        base_embs ++ [char_emb]  # [batch, 33]
+      :learned ->
+        base_embs  # Character IDs handled separately by network
+    end
+
     # Continue with rest of features
     base_embs = base_embs ++ [
-      char_emb,      # [batch, 33]
       invuln_emb,    # [batch, 1]
       jumps_emb,     # [batch, 1] or [batch, 7]
       shield_emb,    # [batch, 1]
@@ -1029,6 +1045,44 @@ defmodule ExPhil.Embeddings.Player do
     |> Enum.map(&get_nana_action_id/1)
     |> Nx.tensor(type: :s32)
   end
+
+  @doc """
+  Get a player's character ID for learned embedding.
+
+  Returns the integer character ID (0-32 for Melee's 33 characters).
+  Returns 0 if player is nil.
+
+  ## Examples
+
+      iex> get_character_id(%PlayerState{character: 10})
+      10
+
+      iex> get_character_id(nil)
+      0
+
+  """
+  @spec get_character_id(PlayerState.t() | nil) :: non_neg_integer()
+  def get_character_id(nil), do: 0
+  def get_character_id(%PlayerState{} = player), do: player.character || 0
+
+  @doc """
+  Get character IDs from a list of players as a tensor.
+
+  ## Returns
+    Tensor of shape [batch_size] with character IDs as integers.
+  """
+  @spec get_character_ids_batch([PlayerState.t() | nil]) :: Nx.Tensor.t()
+  def get_character_ids_batch(players) when is_list(players) do
+    players
+    |> Enum.map(&get_character_id/1)
+    |> Nx.tensor(type: :s32)
+  end
+
+  @doc """
+  Check if learned character embeddings are being used.
+  """
+  @spec uses_learned_characters?(config()) :: boolean()
+  def uses_learned_characters?(config), do: config.character_mode == :learned
 
   @doc """
   Check if enhanced Nana mode is being used.
