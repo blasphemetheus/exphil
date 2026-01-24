@@ -83,7 +83,7 @@ mix run scripts/train_self_play.exs \
 | Task | Effort | Why | Status |
 |------|--------|-----|--------|
 | **Projectile parsing** | Medium | 40-60% state info lost for Link/Samus/Falco | **Done** |
-| Error handling improvements | Low | Bad replays fail silently | Not started |
+| Error handling improvements | Low | Bad replays fail silently | **Done** |
 | Embedding caching | Medium | 2-3x speedup by precomputing embeddings | **Done** |
 | K-means stick discretization | Medium | Research shows 21 clusters beats uniform grid | Not started |
 

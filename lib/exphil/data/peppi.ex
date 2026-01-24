@@ -209,6 +209,78 @@ defmodule ExPhil.Data.Peppi do
     end
   end
 
+  @doc """
+  Convert parsed replay to training frames with detailed statistics.
+
+  Returns `{frames, stats}` where stats tracks why frames were dropped.
+  Use this to diagnose issues like wrong port selection or corrupted data.
+
+  ## Options
+    Same as `to_training_frames/2`
+
+  ## Examples
+
+      {:ok, replay} = Peppi.parse("game.slp")
+      {frames, stats} = Peppi.to_training_frames_with_stats(replay, player_port: 1)
+
+      if ParseStats.has_issues?(stats) do
+        ParseStats.print_summary(stats)
+      end
+
+  """
+  @spec to_training_frames_with_stats(ParsedReplay.t(), keyword()) ::
+          {[map()], ExPhil.Data.ParseStats.t()}
+  def to_training_frames_with_stats(%ParsedReplay{} = replay, opts \\ []) do
+    alias ExPhil.Data.ParseStats
+
+    player_port = Keyword.get(opts, :player_port, 1)
+    opponent_port = Keyword.get(opts, :opponent_port, 2)
+    frame_delay = Keyword.get(opts, :frame_delay, 0)
+
+    # Track frame extraction with stats
+    {valid_frames, stats} =
+      ParseStats.track_extraction(replay.frames, player_port, opponent_port,
+        frame_delay: frame_delay
+      )
+
+    # Convert valid frames to training format
+    frames =
+      valid_frames
+      |> Enum.map(fn frame ->
+        %{
+          game_state: build_game_state(frame, player_port, opponent_port, replay.metadata),
+          controller: build_controller_state(Map.get(frame.players, player_port))
+        }
+      end)
+      |> apply_frame_delay(frame_delay)
+
+    {frames, stats}
+  end
+
+  # Apply frame delay pairing (state from t-delay, action from t)
+  defp apply_frame_delay(frames, 0), do: frames
+
+  defp apply_frame_delay(frames, delay) when length(frames) <= delay, do: []
+
+  defp apply_frame_delay(frames, delay) do
+    frame_array = :array.from_list(frames)
+    num_frames = length(frames)
+
+    delay..(num_frames - 1)
+    |> Enum.map(fn t ->
+      delayed = :array.get(t - delay, frame_array)
+      current = :array.get(t, frame_array)
+
+      %{
+        game_state: delayed.game_state,
+        controller: current.controller,
+        frame_delay: delay,
+        observed_frame: t - delay,
+        action_frame: t
+      }
+    end)
+  end
+
   defp extract_frames_no_delay(replay, player_port, opponent_port) do
     Enum.map(replay.frames, fn frame ->
       player = Map.get(frame.players, player_port)

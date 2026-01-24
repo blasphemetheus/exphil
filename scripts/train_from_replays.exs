@@ -571,7 +571,7 @@ train_character = opts[:train_character]
         replay_frames = meta.duration_frames || 0
         frames = frames + replay_frames
 
-        Enum.reduce(matching_players, {paths, chars, stages, ports}, fn player, {p, c, s, pt} ->
+        {p, c, s, pt} = Enum.reduce(matching_players, {paths, chars, stages, ports}, fn player, {p, c, s, pt} ->
           # Collect character stats
           c = Map.update(c, player.character_name, 1, & &1 + 1)
 
@@ -596,7 +596,7 @@ train_character = opts[:train_character]
             {p, c, s, pt}
           end
         end)
-        |> Tuple.append(frames)  # Add frames back to outer accumulator
+        {p, c, s, pt, frames}
       end
 
     _, acc -> acc
