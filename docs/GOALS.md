@@ -436,7 +436,7 @@ checkpoints/
 | Task | Effort | Why | Status |
 |------|--------|-----|--------|
 | **GitHub Actions CI** | Medium | Auto-run tests on PR | **Done** |
-| Full pipeline integration test | Medium | Data -> train -> inference round-trip | Not started |
+| Full pipeline integration test | Medium | Data -> train -> inference round-trip | **Done** |
 | ONNX export/load test | Low | Verify export doesn't break | **Done** |
 
 ---
