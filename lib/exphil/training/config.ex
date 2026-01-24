@@ -1861,11 +1861,38 @@ defmodule ExPhil.Training.Config do
       expand_factor: opts[:expand_factor],
       conv_size: opts[:conv_size],
 
+      # Attention/Jamba options
+      attention_every: opts[:attention_every],
+      num_heads: opts[:num_heads],
+      head_dim: opts[:head_dim],
+      dropout: opts[:dropout],
+
       # Training parameters
       epochs: opts[:epochs],
       batch_size: opts[:batch_size],
       precision: to_string(opts[:precision]),
       frame_delay: opts[:frame_delay],
+
+      # Optimizer settings
+      learning_rate: opts[:lr],
+      lr_schedule: opts[:lr_schedule] && to_string(opts[:lr_schedule]),
+      warmup_steps: opts[:warmup_steps],
+      optimizer: opts[:optimizer] && to_string(opts[:optimizer]),
+      max_grad_norm: opts[:max_grad_norm],
+      accumulation_steps: opts[:accumulation_steps],
+
+      # Regularization
+      label_smoothing: opts[:label_smoothing],
+      focal_loss: opts[:focal_loss],
+      focal_gamma: opts[:focal_gamma],
+      ema: opts[:ema],
+      ema_decay: opts[:ema_decay],
+
+      # Data options
+      train_character: opts[:train_character] && to_string(opts[:train_character]),
+      augment: opts[:augment],
+      val_split: opts[:val_split],
+      seed: opts[:seed],
 
       # Early stopping
       early_stopping: opts[:early_stopping],

@@ -307,7 +307,13 @@ evaluate_model = fn model_path ->
       hidden_size: hd(hidden_sizes),
       num_layers: config[:num_layers] || 2,
       num_heads: config[:num_heads] || 4,
+      head_dim: config[:head_dim] || 64,
       attention_every: config[:attention_every] || 3,
+      window_size: config[:window_size] || opts[:window_size],
+      state_size: config[:state_size] || 16,
+      expand_factor: config[:expand_factor] || 2,
+      conv_size: config[:conv_size] || 4,
+      dropout: config[:dropout] || 0.1,
       axis_buckets: config[:axis_buckets] || 16,
       shoulder_buckets: config[:shoulder_buckets] || 4
     )
