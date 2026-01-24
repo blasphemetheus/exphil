@@ -500,7 +500,13 @@ defmodule ExPhil.Training.ReplayQuality do
     final = Enum.reduce(frames, initial, fn frame, acc ->
       players = frame.players || []
 
-      Enum.reduce(Enum.with_index(players), acc, fn {player, idx}, acc2 ->
+      Enum.reduce(Enum.with_index(players), acc, fn {player_data, idx}, acc2 ->
+        # Handle both {port, player} tuples and bare player structs
+        player = case player_data do
+          {_port, p} -> p
+          p -> p
+        end
+
         if idx >= num_players do
           acc2
         else
