@@ -47,7 +47,8 @@ defmodule ExPhil.Training.Config do
     "--kmeans-centers",  # K-means cluster centers file for stick discretization
     "--stream-chunk-size",  # Process files in chunks for memory efficiency
     "--train-character",  # Auto-select port based on character
-    "--dual-port"  # Train on both players per replay
+    "--dual-port",  # Train on both players per replay
+    "--balance-characters"  # Weight sampling by inverse character frequency
   ]
 
   @doc """
@@ -73,6 +74,7 @@ defmodule ExPhil.Training.Config do
       player_port: 1,
       train_character: nil,  # Auto-select port based on character (e.g., :mewtwo)
       dual_port: false,      # Train on both ports (doubles training data)
+      balance_characters: false,  # Weight sampling by inverse character frequency
       wandb: false,
       wandb_project: "exphil",
       wandb_name: nil,
@@ -1491,6 +1493,7 @@ defmodule ExPhil.Training.Config do
     |> parse_int_arg(args, "--player", :player_port)
     |> parse_atom_arg(args, "--train-character", :train_character)
     |> parse_flag(args, "--dual-port", :dual_port)
+    |> parse_flag(args, "--balance-characters", :balance_characters)
     |> parse_flag(args, "--wandb", :wandb)
     |> parse_string_arg(args, "--wandb-project", :wandb_project)
     |> parse_string_arg(args, "--wandb-name", :wandb_name)

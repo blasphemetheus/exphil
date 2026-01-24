@@ -230,18 +230,36 @@ defmodule ExPhil.Training.Data do
     frame_delay_max = Keyword.get(opts, :frame_delay_max, 18)
     seed = Keyword.get(opts, :seed, System.system_time())
     augment_fn = Keyword.get(opts, :augment_fn, nil)
+    character_weights = Keyword.get(opts, :character_weights, nil)
 
     # Determine max delay for index bounds
     max_delay = if frame_delay_augment, do: frame_delay_max, else: frame_delay
 
     # Prepare indices (leave room for max possible delay)
-    indices = 0..(dataset.size - 1 - max_delay) |> Enum.to_list()
+    valid_indices = 0..(dataset.size - 1 - max_delay) |> Enum.to_list()
 
-    indices = if shuffle do
-      :rand.seed(:exsss, {seed, seed, seed})
-      Enum.shuffle(indices)
-    else
-      indices
+    # Seed random number generator
+    :rand.seed(:exsss, {seed, seed, seed})
+
+    indices = cond do
+      # Character-balanced sampling (weighted by inverse frequency)
+      character_weights != nil ->
+        alias ExPhil.Training.CharacterBalance
+        # Get weights only for valid indices
+        frame_weights = valid_indices
+        |> Enum.map(fn idx -> Enum.at(dataset.frames, idx) end)
+        |> CharacterBalance.frame_weights(character_weights)
+
+        # Weighted sampling with replacement to balance characters
+        CharacterBalance.balanced_indices(frame_weights, length(valid_indices))
+
+      # Standard shuffle
+      shuffle ->
+        Enum.shuffle(valid_indices)
+
+      # No shuffle
+      true ->
+        valid_indices
     end
 
     # Build delay config
@@ -763,6 +781,7 @@ defmodule ExPhil.Training.Data do
     shuffle = Keyword.get(opts, :shuffle, true)
     drop_last = Keyword.get(opts, :drop_last, false)
     seed = Keyword.get(opts, :seed, System.system_time())
+    character_weights = Keyword.get(opts, :character_weights, nil)
 
     # Convert lists to arrays for O(1) index access (vs O(n) for lists)
     frames_array = :array.from_list(dataset.frames)
@@ -773,13 +792,27 @@ defmodule ExPhil.Training.Data do
     end
 
     # Prepare indices
-    indices = 0..(dataset.size - 1) |> Enum.to_list()
+    valid_indices = 0..(dataset.size - 1) |> Enum.to_list()
 
-    indices = if shuffle do
-      :rand.seed(:exsss, {seed, seed, seed})
-      Enum.shuffle(indices)
-    else
-      indices
+    # Seed random number generator
+    :rand.seed(:exsss, {seed, seed, seed})
+
+    indices = cond do
+      # Character-balanced sampling (weighted by inverse frequency)
+      character_weights != nil ->
+        alias ExPhil.Training.CharacterBalance
+        # Get weights for all sequences
+        frame_weights = CharacterBalance.frame_weights(dataset.frames, character_weights)
+        # Weighted sampling with replacement
+        CharacterBalance.balanced_indices(frame_weights, length(valid_indices))
+
+      # Standard shuffle
+      shuffle ->
+        Enum.shuffle(valid_indices)
+
+      # No shuffle
+      true ->
+        valid_indices
     end
 
     # Create batch stream with array-backed lookup

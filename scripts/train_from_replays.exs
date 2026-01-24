@@ -102,6 +102,13 @@ end
 #   --label-smoothing X - Smoothing factor for targets (default: 0.0, typical: 0.1)
 #                         Reduces overconfidence by softening hard labels
 #
+# Character Balancing:
+#   --balance-characters - Balance sampling by inverse character frequency
+#                          Rare characters (Link, G&W) get higher sampling weights
+#                          Common characters (Fox) get lower weights
+#                          Useful for multi-character training:
+#                          --character mewtwo,ganondorf,link --balance-characters
+#
 # Model Registry:
 #   --no-register       - Skip registering model in registry (for test runs)
 #
@@ -142,7 +149,7 @@ end
 require Logger
 
 alias ExPhil.Data.Peppi
-alias ExPhil.Training.{Augmentation, CheckpointPruning, Config, Data, EarlyStopping, EMA, GPUUtils, Imitation, Plots, Prefetcher, Recovery, Registry, ReplayValidation, Streaming}
+alias ExPhil.Training.{Augmentation, CharacterBalance, CheckpointPruning, Config, Data, EarlyStopping, EMA, GPUUtils, Imitation, Plots, Prefetcher, Recovery, Registry, ReplayValidation, Streaming}
 alias ExPhil.Embeddings
 alias ExPhil.Integrations.Wandb
 
@@ -580,6 +587,14 @@ file_chunks = if streaming_mode do
   chunk_size = opts[:stream_chunk_size]
   chunks = Streaming.chunk_files(replay_files, chunk_size)
   Output.puts("  Streaming: #{length(chunks)} chunks of up to #{chunk_size} files")
+
+  # Warn if character balancing is requested with streaming mode
+  if opts[:balance_characters] do
+    Output.warning("--balance-characters is not fully supported in streaming mode")
+    Output.puts("    Character weights will not be computed (data not available upfront)")
+    Output.puts("    Consider using standard mode for multi-character training")
+  end
+
   chunks
 else
   nil
@@ -755,6 +770,32 @@ else
   Output.puts("\nStep 2: Dataset creation deferred (streaming mode)", :cyan)
   Output.puts("  Data will be loaded in #{length(file_chunks)} chunks during training")
   {nil, nil}
+end
+
+# Character balancing: compute weights if enabled
+character_weights = if opts[:balance_characters] and train_dataset != nil do
+  Output.puts("\n  Character balancing enabled:")
+
+  # Count characters from training dataset frames
+  char_counts = CharacterBalance.count_characters(train_dataset.frames)
+
+  if map_size(char_counts) > 1 do
+    # Compute inverse frequency weights
+    weights = CharacterBalance.compute_weights(char_counts)
+
+    # Display distribution with weights
+    for line <- CharacterBalance.format_distribution(char_counts, weights) do
+      Output.puts(line)
+    end
+
+    Output.puts("  Rare characters will be sampled more frequently")
+    weights
+  else
+    Output.puts("  Only one character found - balancing not needed")
+    nil
+  end
+else
+  nil
 end
 
 # Step 3: Initialize trainer
@@ -1000,11 +1041,13 @@ initial_state = {trainer, 0, false, early_stopping_state, nil, pruner, ema, []}
         end
 
         # Create batches from this chunk
+        # Note: character_weights is nil in streaming mode (computed per-chunk would be less effective)
         if opts[:temporal] do
           Data.batched_sequences(chunk_dataset,
             batch_size: opts[:batch_size],
             shuffle: true,
-            drop_last: false  # Don't drop - small chunks may lose data
+            drop_last: false,  # Don't drop - small chunks may lose data
+            character_weights: character_weights
           )
         else
           Data.batched(chunk_dataset,
@@ -1015,7 +1058,8 @@ initial_state = {trainer, 0, false, early_stopping_state, nil, pruner, ema, []}
             frame_delay: opts[:frame_delay],
             frame_delay_augment: opts[:frame_delay_augment],
             frame_delay_min: opts[:frame_delay_min],
-            frame_delay_max: opts[:frame_delay_max]
+            frame_delay_max: opts[:frame_delay_max],
+            character_weights: character_weights
           )
         end
       end)
@@ -1027,7 +1071,9 @@ initial_state = {trainer, 0, false, early_stopping_state, nil, pruner, ema, []}
         Data.batched_sequences(train_dataset,
           batch_size: opts[:batch_size],
           shuffle: true,
-          drop_last: true
+          drop_last: true,
+          # Character-balanced sampling (if enabled)
+          character_weights: character_weights
         )
       else
         Data.batched(train_dataset,
@@ -1039,7 +1085,9 @@ initial_state = {trainer, 0, false, early_stopping_state, nil, pruner, ema, []}
           frame_delay: opts[:frame_delay],
           frame_delay_augment: opts[:frame_delay_augment],
           frame_delay_min: opts[:frame_delay_min],
-          frame_delay_max: opts[:frame_delay_max]
+          frame_delay_max: opts[:frame_delay_max],
+          # Character-balanced sampling (if enabled)
+          character_weights: character_weights
         )
       end
 

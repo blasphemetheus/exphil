@@ -275,6 +275,6 @@ See [RESEARCH.md](RESEARCH.md) for detailed background on these features.
 - [ ] Ganondorf specialist (spacing, punish optimization)
 - [ ] Link specialist (projectile tracking)
 - [ ] Multi-character unified model (`--character mewtwo,ganondorf,link,gameandwatch,zelda`)
-- [ ] Character-balanced sampling (`--balance-characters`)
+- [x] Character-balanced sampling (`--balance-characters`) ✅
 - [ ] Learned character embedding (`character_mode: :learned`, 64-dim trainable)
 - [ ] Cross-character evaluation metrics
