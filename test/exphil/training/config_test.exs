@@ -1627,6 +1627,23 @@ defmodule ExPhil.Training.ConfigTest do
     end
   end
 
+  describe "parse_args/1 with num_player_names" do
+    test "defaults num_player_names to 112 for backwards compatibility" do
+      opts = Config.parse_args([])
+      assert opts[:num_player_names] == 112
+    end
+
+    test "parses --num-player-names 0 to disable player name embedding" do
+      opts = Config.parse_args(["--num-player-names", "0"])
+      assert opts[:num_player_names] == 0
+    end
+
+    test "parses custom --num-player-names value" do
+      opts = Config.parse_args(["--num-player-names", "64"])
+      assert opts[:num_player_names] == 64
+    end
+  end
+
   describe "validate_args/1 CLI argument validation" do
     test "returns empty warnings for valid args" do
       assert {:ok, []} = Config.validate_args(["--epochs", "10", "--batch-size", "32"])

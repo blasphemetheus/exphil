@@ -49,7 +49,8 @@ defmodule ExPhil.Training.Config do
     "--train-character",  # Auto-select port based on character
     "--dual-port",  # Train on both players per replay
     "--balance-characters",  # Weight sampling by inverse character frequency
-    "--stage-mode"  # Stage embedding mode: full, compact, learned
+    "--stage-mode",  # Stage embedding mode: full, compact, learned
+    "--num-player-names"  # Number of player name embedding dims (0 to disable, default: 112)
   ]
 
   @doc """
@@ -164,7 +165,8 @@ defmodule ExPhil.Training.Config do
       # Streaming data loading (process files in chunks to bound memory)
       stream_chunk_size: nil,  # nil = load all at once, N = process N files per chunk
       # Embedding options
-      stage_mode: :one_hot_full  # :one_hot_full (64 dims), :one_hot_compact (7 dims), :learned (1 ID)
+      stage_mode: :one_hot_full,  # :one_hot_full (64 dims), :one_hot_compact (7 dims), :learned (1 ID)
+      num_player_names: 112  # Player name embedding dims (0 = disable, 112 = slippi-ai compatible)
     ]
   end
 
@@ -1579,6 +1581,7 @@ defmodule ExPhil.Training.Config do
     |> parse_string_arg(args, "--kmeans-centers", :kmeans_centers)
     |> parse_optional_int_arg(args, "--stream-chunk-size", :stream_chunk_size)
     |> parse_stage_mode_arg(args)
+    |> parse_optional_int_arg(args, "--num-player-names", :num_player_names)
   end
 
   # Parse stage mode with alias support (full, compact, learned -> atoms)

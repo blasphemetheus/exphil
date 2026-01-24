@@ -465,7 +465,7 @@ train_character = opts[:train_character]
   target_char_name = if train_character, do: Config.character_name(train_character), else: nil
   default_port = opts[:player_port]
 
-  {filtered, char_counts, stage_counts, port_map} = replay_files
+  {filtered, char_counts, stage_counts, port_map, total_frames} = replay_files
   |> Task.async_stream(
     fn path ->
       case Peppi.metadata(path) do
@@ -476,8 +476,8 @@ train_character = opts[:train_character]
     max_concurrency: System.schedulers_online(),
     timeout: 30_000
   )
-  |> Enum.reduce({[], %{}, %{}, %{}}, fn
-    {:ok, {:ok, path, meta}}, {paths, chars, stages, ports} ->
+  |> Enum.reduce({[], %{}, %{}, %{}, 0}, fn
+    {:ok, {:ok, path, meta}}, {paths, chars, stages, ports, frames} ->
       # Determine training players - either dynamic (by character) or fixed
       matching_players = if target_char_name do
         # Find ALL ports that have the target character (for dittos like Mewtwo vs Mewtwo)
@@ -496,9 +496,13 @@ train_character = opts[:train_character]
 
       # Skip replay if no matching players found
       if matching_players == [] do
-        {paths, chars, stages, ports}
+        {paths, chars, stages, ports, frames}
       else
         # Collect stats and add paths for EACH matching player
+        # Add frame count once per replay (not per player in dittos)
+        replay_frames = meta.duration_frames || 0
+        frames = frames + replay_frames
+
         Enum.reduce(matching_players, {paths, chars, stages, ports}, fn player, {p, c, s, pt} ->
           # Collect character stats
           c = Map.update(c, player.character_name, 1, & &1 + 1)
@@ -524,6 +528,7 @@ train_character = opts[:train_character]
             {p, c, s, pt}
           end
         end)
+        |> Tuple.append(frames)  # Add frames back to outer accumulator
       end
 
     _, acc -> acc
@@ -539,7 +544,8 @@ train_character = opts[:train_character]
     total: initial_count,
     characters: char_counts,
     stages: stage_counts,
-    port_map: port_map
+    port_map: port_map,
+    total_frames: total_frames
   }
 
   {filtered, stats}
@@ -711,8 +717,11 @@ if not streaming_mode do
   end
 end
 
-# Build embedding config with stage_mode option (needed for dataset creation)
-embed_config = Embeddings.config(stage_mode: opts[:stage_mode])
+# Build embedding config with stage_mode and num_player_names options (needed for dataset creation)
+embed_config = Embeddings.config(
+  stage_mode: opts[:stage_mode],
+  num_player_names: opts[:num_player_names]
+)
 
 # Step 2: Create dataset (skipped in streaming mode - data loaded per-chunk)
 {train_dataset, val_dataset} = if not streaming_mode do
@@ -993,18 +1002,29 @@ end
     embed_config: embed_config
   ]
 
-  # Estimate total batches by sampling first chunk (only once at startup)
-  estimated_batches = if length(file_chunks) > 0 do
-    Output.puts("  Estimating batch count from first chunk...")
-    first_chunk = hd(file_chunks)
-    {:ok, sample_frames, _} = Streaming.parse_chunk(first_chunk, chunk_opts)
-    sample_dataset = Streaming.create_dataset(sample_frames, dataset_opts)
-    batches_per_chunk = max(div(sample_dataset.size, opts[:batch_size]), 1)
-    total = batches_per_chunk * length(file_chunks)
-    Output.puts("  Estimated #{total} batches per epoch (#{batches_per_chunk}/chunk × #{length(file_chunks)} chunks)")
-    total
+  # Estimate total batches from metadata (no parsing needed)
+  estimated_batches = if replay_stats && replay_stats[:total_frames] do
+    total_frames = replay_stats[:total_frames]
+    window_size = opts[:window_size]
+    stride = opts[:stride]
+    batch_size = opts[:batch_size]
+
+    # Each replay produces (frames - window_size) / stride sequences
+    # For dittos, we train on both players, so multiply by training examples per replay
+    num_training_examples = length(replay_files)
+    avg_frames_per_example = if num_training_examples > 0, do: div(total_frames, num_training_examples), else: 0
+
+    # Sequences per training example
+    sequences_per_example = max(div(avg_frames_per_example - window_size, stride), 0)
+    total_sequences = sequences_per_example * num_training_examples
+    total_batches = max(div(total_sequences, batch_size), 1)
+
+    Output.puts("  Estimated #{total_batches} batches per epoch")
+    Output.puts("    (#{total_frames} frames, #{num_training_examples} examples, window=#{window_size}, stride=#{stride})")
+    total_batches
   else
-    0
+    # Fallback: rough estimate
+    length(file_chunks) * 200
   end
 
   {chunk_opts, dataset_opts, estimated_batches}
