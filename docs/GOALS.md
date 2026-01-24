@@ -155,7 +155,7 @@ Current embedding size is **1204 dimensions** with all optimizations enabled.
 | Option | Current | Potential | Benefit | Status |
 |--------|---------|-----------|---------|--------|
 | **Stage embedding modes** | 64 dims | 7 (compact) or 1 ID (learned) | `stage_mode: :one_hot_compact` (7 dims) or `:learned` (1 ID + embedding) | **Done** |
-| **Player names embedding** | 112 dims | 0-32 dims | Style-conditional imitation (currently unused) | Not started |
+| **Player names embedding** | 112 dims | 0-32 dims | Style-conditional imitation | **Done** |
 | **IC Tech Feature Block** | N/A | +32 dims | Dedicated grab/regrab/desync features | Not started |
 
 **Learned Action Embedding Implementation:**
@@ -178,11 +178,13 @@ Current embedding size is **1204 dimensions** with all optimizations enabled.
 - Competitive stages: FoD=2, PS=3, YS=8, DL=28, BF=31, FD=32
 - CLI: `--stage-mode compact` or `--stage-mode learned`
 
-**Player Names Feature:**
-- Currently 112 dims allocated but unused (num_player_names=112)
-- Purpose: Style-conditional imitation (learn "play like Mango" vs "play like Armada")
-- Requires: Player identification during replay parsing
-- Option to reduce to learned embedding once implemented
+**Player Names Feature (Implemented):**
+- 112 dims one-hot encoding for player tag IDs
+- PlayerRegistry maps tags ("Plup", "Jmook") → numeric IDs
+- Tags extracted from replay metadata during parsing
+- CLI: `--learn-player-styles --player-registry players.json`
+- Registry persists to JSON for reproducible training runs
+- Unknown players use hash bucketing to spread across ID space
 
 ---
 
