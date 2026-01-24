@@ -47,7 +47,11 @@ args = System.argv()
     compare: :boolean,
     detailed: :boolean,
     output: :string,
-    help: :boolean
+    help: :boolean,
+    # Temporal model options
+    temporal: :boolean,
+    backbone: :string,
+    window_size: :integer
   ],
   aliases: [
     c: :checkpoint,
@@ -55,7 +59,8 @@ args = System.argv()
     r: :replays,
     m: :max_files,
     b: :batch_size,
-    h: :help
+    h: :help,
+    t: :temporal
   ]
 )
 
@@ -99,7 +104,10 @@ defaults = %{
   max_files: 20,
   batch_size: 64,
   player: 1,
-  detailed: false
+  detailed: false,
+  temporal: false,
+  backbone: "mlp",
+  window_size: 60
 }
 
 opts = Map.merge(defaults, Map.new(opts))
@@ -126,6 +134,9 @@ Output.config([
   {"Batch size", opts[:batch_size]},
   {"Player port", opts[:player]},
   {"Character filter", opts[:character] || "none"},
+  {"Temporal", opts[:temporal]},
+  {"Backbone", if(opts[:temporal], do: opts[:backbone], else: "n/a")},
+  {"Window size", if(opts[:temporal], do: opts[:window_size], else: "n/a")},
   {"Models to evaluate", length(model_paths)}
 ])
 
@@ -182,24 +193,44 @@ embed_size = Embeddings.embedding_size(embed_config)
 
 # Create dataset
 Output.step(3, 4, "Creating evaluation dataset")
-dataset = Data.from_frames(frames,
-  embed_config: embed_config,
-  temporal: false
-)
 
-num_frames = dataset.size
-Output.puts("  Dataset size: #{num_frames} frames")
-estimated_batches = div(num_frames, opts[:batch_size])
-Output.puts("  Creating ~#{estimated_batches} batches (embedding #{num_frames} frames)...")
-Output.puts("  ⏳ This may take 1-2 minutes for large datasets...")
+dataset = if opts[:temporal] do
+  # Temporal mode: create sequences
+  base_dataset = Data.from_frames(frames, embed_config: embed_config)
+  seq_dataset = Data.to_sequences(base_dataset,
+    window_size: opts[:window_size],
+    stride: 1
+  )
+  # Precompute embeddings for faster evaluation
+  Data.precompute_embeddings(seq_dataset, show_progress: true)
+else
+  Data.from_frames(frames,
+    embed_config: embed_config,
+    temporal: false
+  )
+end
+
+num_examples = dataset.size
+example_type = if opts[:temporal], do: "sequences", else: "frames"
+Output.puts("  Dataset size: #{num_examples} #{example_type}")
+estimated_batches = div(num_examples, opts[:batch_size])
+Output.puts("  Creating ~#{estimated_batches} batches...")
 
 # Batch the dataset with timing
 batch_start = System.monotonic_time(:millisecond)
-batches = Data.batched(dataset,
-  batch_size: opts[:batch_size],
-  shuffle: false,
-  drop_last: false
-)
+batches = if opts[:temporal] do
+  Data.batched_sequences(dataset,
+    batch_size: opts[:batch_size],
+    shuffle: false,
+    drop_last: false
+  )
+else
+  Data.batched(dataset,
+    batch_size: opts[:batch_size],
+    shuffle: false,
+    drop_last: false
+  )
+end
 |> Enum.to_list()
 batch_time = System.monotonic_time(:millisecond) - batch_start
 
@@ -256,16 +287,30 @@ evaluate_model = fn model_path ->
     {checkpoint.policy_params, checkpoint.config}
   end
 
-  # Build policy model
+  # Build policy model based on temporal mode
   model_embed_size = config[:embed_size] || embed_size
   hidden_sizes = config[:hidden_sizes] || [512, 512]
 
-  policy_model = Policy.build(
-    embed_size: model_embed_size,
-    hidden_sizes: hidden_sizes,
-    axis_buckets: config[:axis_buckets] || 16,
-    shoulder_buckets: config[:shoulder_buckets] || 4
-  )
+  policy_model = if opts[:temporal] do
+    backbone_type = String.to_atom(opts[:backbone])
+    Policy.build_temporal(
+      embed_size: model_embed_size,
+      backbone: backbone_type,
+      hidden_size: hd(hidden_sizes),
+      num_layers: config[:num_layers] || 2,
+      num_heads: config[:num_heads] || 4,
+      attention_every: config[:attention_every] || 3,
+      axis_buckets: config[:axis_buckets] || 16,
+      shoulder_buckets: config[:shoulder_buckets] || 4
+    )
+  else
+    Policy.build(
+      embed_size: model_embed_size,
+      hidden_sizes: hidden_sizes,
+      axis_buckets: config[:axis_buckets] || 16,
+      shoulder_buckets: config[:shoulder_buckets] || 4
+    )
+  end
 
   {_init_fn, predict_fn} = Axon.build(policy_model)
 
