@@ -256,16 +256,15 @@ mix run scripts/train_from_replays.exs \
 - Validation uses training loss as proxy (no separate val set in streaming mode)
 - Memory bounded by chunk size, not total dataset size
 
-**Important: Use `--no-prefetch` with streaming mode:**
+**Prefetching works with streaming mode** (fixed in commit 72e4c8f):
 ```bash
 mix run scripts/train_from_replays.exs \
   --temporal --backbone jamba \
-  --stream-chunk-size 30 \
-  --no-prefetch  # Required for streaming mode
+  --stream-chunk-size 30
+  # Prefetching enabled by default, works correctly
 ```
 
-The prefetcher's async batch loading doesn't work correctly with lazy chunk streams.
-This will be fixed in a future update.
+The prefetcher eagerly buffers batches from lazy chunk streams.
 
 **Automatic optimizations in streaming mode:**
 - Precompute is auto-disabled (embeddings computed on-the-fly)

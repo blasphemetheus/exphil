@@ -842,22 +842,22 @@ end)
 
 ---
 
-## 26. Streaming mode requires --no-prefetch
+## 26. Streaming mode requires --no-prefetch (FIXED)
 
 **Symptom:** With `--stream-chunk-size`, training shows "No batches processed this epoch" even though replays are found.
 
-**Root cause:** The prefetcher uses `Stream.each` with a producer process that waits for batch requests. With lazy streaming chunks, the producer blocks waiting for the stream to yield batches, while the main process sends batch requests. This creates a deadlock-like situation where batches are never consumed.
+**Root cause:** The prefetcher used `Stream.each` with a producer process that waited for batch requests. With lazy streaming chunks, the producer blocked waiting for the stream to yield batches, while the main process sent batch requests. This created a deadlock.
 
-**Fix:** Use `--no-prefetch` when using streaming mode:
+**Fix:** The prefetcher was rewritten to eagerly buffer batches from the stream iterator. The producer now spawns a separate process that iterates the stream and queues batches, which the consumer pulls from.
+
+Streaming mode now works with prefetching enabled (default):
 ```bash
 mix run scripts/train_from_replays.exs \
-  --stream-chunk-size 30 \
-  --no-prefetch
+  --stream-chunk-size 30
+  # No --no-prefetch needed anymore
 ```
 
-**Performance impact:** ~10-20% slower without prefetch, but streaming mode is necessary for large datasets that don't fit in RAM.
-
-**Future fix:** Rewrite prefetcher to handle lazy chunk streams correctly.
+**Code location:** `lib/exphil/training/prefetcher.ex` - `stream_producer/2` and `stream_producer_loop/4`
 
 ---
 

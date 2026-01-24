@@ -394,33 +394,62 @@ defmodule ExPhil.Training.Prefetcher do
     result
   end
 
-  # Producer process that pulls from the stream on demand
+  # Producer process that eagerly pulls from the stream and buffers batches
+  # This fixes the deadlock with lazy streaming chunks where Stream.each
+  # would wait for :next before pulling, but the stream needs iteration to produce batches
   defp stream_producer(stream, ref) do
-    # Convert stream to a continuation
-    stream
-    |> Stream.each(fn batch ->
-      receive do
-        {:next, ^ref, pid} ->
-          send(pid, {:batch, ref, batch})
-        {:stop, ^ref} ->
-          :ok
-      end
+    # Start a separate process to eagerly iterate the stream
+    parent = self()
+    iterator = spawn_link(fn ->
+      stream
+      |> Stream.each(fn batch ->
+        send(parent, {:batch_ready, ref, batch})
+      end)
+      |> Stream.run()
+      send(parent, {:stream_done, ref})
     end)
-    |> Stream.run()
 
-    # Signal end of stream to any waiting requests
-    receive_loop_done(ref)
+    # Buffer batches and serve requests
+    stream_producer_loop(ref, iterator, :queue.new(), false)
   end
 
-  defp receive_loop_done(ref) do
+  # Producer loop: buffers batches from iterator, serves requests from consumers
+  defp stream_producer_loop(ref, iterator, queue, done) do
     receive do
+      # Batch arrived from iterator - buffer it
+      {:batch_ready, ^ref, batch} ->
+        new_queue = :queue.in(batch, queue)
+        stream_producer_loop(ref, iterator, new_queue, done)
+
+      # Iterator finished
+      {:stream_done, ^ref} ->
+        stream_producer_loop(ref, iterator, queue, true)
+
+      # Consumer requesting next batch
       {:next, ^ref, pid} ->
-        send(pid, {:done, ref})
-        receive_loop_done(ref)
+        case :queue.out(queue) do
+          {{:value, batch}, new_queue} ->
+            send(pid, {:batch, ref, batch})
+            stream_producer_loop(ref, iterator, new_queue, done)
+          {:empty, _} when done ->
+            send(pid, {:done, ref})
+            stream_producer_loop(ref, iterator, queue, done)
+          {:empty, _} ->
+            # No batch ready yet, wait for one
+            receive do
+              {:batch_ready, ^ref, batch} ->
+                send(pid, {:batch, ref, batch})
+                stream_producer_loop(ref, iterator, queue, done)
+              {:stream_done, ^ref} ->
+                send(pid, {:done, ref})
+                stream_producer_loop(ref, iterator, queue, true)
+            end
+        end
+
+      # Shutdown
       {:stop, ^ref} ->
+        Process.exit(iterator, :shutdown)
         :ok
-    after
-      100 -> :ok
     end
   end
 
