@@ -430,7 +430,7 @@ checkpoints/
 |------|--------|-----|--------|
 | **GitHub Actions CI** | Medium | Auto-run tests on PR | **Done** |
 | Full pipeline integration test | Medium | Data -> train -> inference round-trip | Not started |
-| ONNX export/load test | Low | Verify export doesn't break | Not started |
+| ONNX export/load test | Low | Verify export doesn't break | **Done** |
 
 ---
 

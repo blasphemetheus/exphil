@@ -57,6 +57,8 @@ defmodule ExPhil.MixProject do
       # Model Export (blasphemetheus fork with Axon 0.8+ fixes)
       # Use override to allow local development with path-based dep
       {:axon_onnx, github: "blasphemetheus/axon_onnx", branch: "runtime-fixes", override: true},
+      # ONNX Runtime for inference (used in tests)
+      {:ortex, "~> 0.1", only: [:dev, :test]},
 
       # Rust NIFs (for Peppi replay parsing)
       {:rustler, "~> 0.35"},
