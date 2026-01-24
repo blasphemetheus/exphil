@@ -190,6 +190,18 @@ See [docs/GOTCHAS.md](docs/GOTCHAS.md) for detailed fixes. Most common issues:
 - JSON serialization: atoms become strings after round-trip
 - File.stat mtime returns tuple `{{y,m,d},{h,m,s}}`, not NaiveDateTime
 
+**Adding new CLI flags:**
+When adding a new training flag, update these locations in order:
+1. `lib/exphil/training/config.ex` - Add to `@valid_flags` list
+2. `lib/exphil/training/config.ex` - Add default in `defaults/0`
+3. `lib/exphil/training/config.ex` - Add parsing logic (e.g., `parse_int_arg`)
+4. `docs/TRAINING.md` - Add to appropriate table: `| --flag-name | default | Description |`
+
+The table format `| Option | Default | Description |` in TRAINING.md ensures:
+- Discoverability: users can scan defaults without reading code
+- Consistency: every flag follows the same documentation pattern
+- Verification: easy to cross-reference against `@valid_flags` to catch drift
+
 ## Script Logging & UX Standards
 
 All scripts use `ExPhil.Training.Output` for consistent, informative output. Key conventions:

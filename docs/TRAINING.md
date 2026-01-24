@@ -101,6 +101,30 @@ mix run scripts/train_from_replays.exs --dual-port
 | `--hidden N,N` | 512,512 | Hidden layer sizes |
 | `--lr X` | 1e-4 | Learning rate |
 | `--dropout X` | 0.1 | Dropout rate |
+| `--name NAME` | nil | Custom checkpoint name |
+| `--preset NAME` | nil | Training preset (quick, standard, full, mewtwo) |
+| `--config PATH` | nil | YAML config file path |
+| `--dry-run` | false | Validate config without training |
+
+### Error Handling
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--skip-errors` | true | Continue past bad replay files |
+| `--fail-fast` | false | Stop on first error |
+| `--show-errors` | true | Show individual file errors |
+| `--hide-errors` | false | Hide individual file errors |
+| `--error-log PATH` | nil | Log errors to file |
+
+### Data Filtering
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--characters CHAR,...` | [] | Filter replays by character |
+| `--stages STAGE,...` | [] | Filter replays by stage |
+| `--balance-characters` | false | Weight sampling by inverse char frequency |
+| `--skip-duplicates` | true | Skip duplicate replay files by hash |
+| `--no-skip-duplicates` | false | Include all files even if duplicates |
 
 ### Temporal Options
 
@@ -121,6 +145,23 @@ mix run scripts/train_from_replays.exs --dual-port
 | `--conv-size N` | 4 | Convolution kernel size |
 | `--num-layers N` | 2 | Number of Mamba layers |
 
+### Attention/Hybrid Options
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--num-heads N` | 4 | Number of attention heads |
+| `--attention-every N` | 2 | Add attention every N layers (hybrid) |
+
+### Model Architecture
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--optimizer TYPE` | adam | adam, adamw, lamb, radam |
+| `--layer-norm` | false | Enable layer normalization (MLP) |
+| `--no-layer-norm` | - | Disable layer normalization |
+| `--residual` | false | Enable residual connections (MLP) |
+| `--no-residual` | - | Disable residual connections |
+
 ### Training Features
 
 | Option | Default | Description |
@@ -128,16 +169,41 @@ mix run scripts/train_from_replays.exs --dual-port
 | `--val-split X` | 0.0 | Validation split (0.1 = 10%) |
 | `--accumulation-steps N` | 1 | Gradient accumulation steps |
 | `--lr-schedule TYPE` | constant | cosine, linear, exponential |
-| `--warmup-steps N` | 0 | Learning rate warmup steps |
-| `--decay-steps N` | 10000 | Steps for LR decay |
+| `--warmup-steps N` | 1 | Learning rate warmup steps |
+| `--decay-steps N` | nil | Steps for LR decay |
+| `--restart-period N` | 1000 | Cosine annealing restart period (T_0) |
+| `--restart-mult N` | 2 | Restart period multiplier (T_mult) |
+| `--max-grad-norm X` | 1.0 | Gradient clipping norm (0 = disabled) |
 | `--early-stopping` | false | Enable early stopping |
 | `--patience N` | 5 | Epochs without improvement before stopping |
 | `--min-delta X` | 0.01 | Minimum improvement to count as progress |
-| `--save-best` | false | Save model when val_loss improves |
+| `--save-best` | true | Save model when val_loss improves |
+| `--save-every N` | nil | Save checkpoint every N epochs |
 | `--resume PATH` | nil | Resume from checkpoint |
 | `--precision TYPE` | bf16 | bf16 or f32 |
 | `--frame-delay N` | 0 | Simulated online delay (for Slippi) |
 | `--stream-chunk-size N` | nil | Load N files at a time (memory-bounded) |
+
+### Data Augmentation
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--augment` | false | Enable data augmentation |
+| `--mirror-prob X` | 0.5 | Mirror augmentation probability |
+| `--noise-prob X` | 0.3 | Noise augmentation probability |
+| `--noise-scale X` | 0.01 | Noise magnitude |
+| `--label-smoothing X` | 0.0 | Label smoothing (0.1 = typical) |
+| `--focal-loss` | false | Enable focal loss for rare actions |
+| `--focal-gamma X` | 2.0 | Focal loss gamma (higher = focus on hard) |
+
+### Online Play Training
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--online-robust` | false | Enable online play training mode |
+| `--frame-delay-augment` | false | Enable frame delay augmentation |
+| `--frame-delay-min N` | 0 | Minimum delay frames (local play) |
+| `--frame-delay-max N` | 18 | Maximum delay frames (online play) |
 
 ### Monitoring
 
@@ -145,6 +211,7 @@ mix run scripts/train_from_replays.exs --dual-port
 |--------|---------|-------------|
 | `--wandb` | false | Enable Weights & Biases logging |
 | `--wandb-project NAME` | exphil | W&B project name |
+| `--wandb-name NAME` | nil | W&B run name (auto-generated if nil) |
 
 ### Verbosity & Reproducibility
 
@@ -163,6 +230,28 @@ mix run scripts/train_from_replays.exs --dual-port
 | `--backup` | true | Create .bak before overwrite |
 | `--no-backup` | false | Skip backup creation |
 | `--backup-count N` | 3 | Number of backup versions to keep |
+
+### Performance Options
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--precompute` | true | Precompute embeddings (2-3x speedup) |
+| `--no-precompute` | - | Disable embedding precomputation |
+| `--prefetch` | true | Prefetch batches while GPU trains |
+| `--no-prefetch` | - | Disable batch prefetching |
+| `--prefetch-buffer N` | 2 | Number of batches to prefetch |
+| `--gradient-checkpoint` | false | Trade memory for compute |
+| `--checkpoint-every N` | 1 | Checkpoint every N layers |
+
+### Advanced Options
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--ema` | false | Enable model EMA |
+| `--ema-decay X` | 0.999 | EMA decay rate |
+| `--no-register` | false | Skip model registry |
+| `--keep-best N` | nil | Keep best N checkpoints (prune others) |
+| `--kmeans-centers PATH` | nil | K-means cluster centers for sticks |
 
 ### Embedding Options
 
