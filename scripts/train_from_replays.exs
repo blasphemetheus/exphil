@@ -152,31 +152,44 @@ end
 require Logger
 
 alias ExPhil.Data.Peppi
-alias ExPhil.Training.{Augmentation, CharacterBalance, CheckpointPruning, Config, Data, DuplicateDetector, EarlyStopping, EMA, GPUUtils, Imitation, Plots, Prefetcher, Recovery, Registry, ReplayValidation, Stacktrace, Streaming}
+alias ExPhil.Training.{Augmentation, CharacterBalance, CheckpointPruning, Config, Data, DuplicateDetector, EarlyStopping, EMA, GPUUtils, Imitation, Plots, Prefetcher, Recovery, Registry, ReplayQuality, ReplayValidation, Stacktrace, Streaming}
 alias ExPhil.Embeddings
 alias ExPhil.Integrations.Wandb
 
 # Helper function for dual-port training - parses both players from a replay
-parse_dual_port = fn path, frame_delay ->
+parse_dual_port = fn path, frame_delay, min_quality ->
   # Get metadata to find which ports have players
   case Peppi.metadata(path) do
     {:ok, meta} ->
       ports = Enum.map(meta.players, & &1.port)
 
-      # Parse frames for each port and combine
-      all_frames = Enum.flat_map(ports, fn port ->
-        case Peppi.parse(path, player_port: port) do
-          {:ok, replay} ->
-            Peppi.to_training_frames(replay,
-              player_port: port,
-              frame_delay: frame_delay
-            )
-          {:error, _} ->
-            []
-        end
-      end)
+      # Parse the full replay once for quality scoring (if enabled)
+      case Peppi.parse(path) do
+        {:ok, replay} ->
+          # Check quality if filtering enabled
+          quality_score = if min_quality do
+            quality_data = ReplayQuality.from_parsed_replay(replay)
+            ReplayQuality.score(quality_data)
+          else
+            nil
+          end
 
-      {:ok, path, length(all_frames), all_frames}
+          if min_quality && (quality_score == :rejected or quality_score < min_quality) do
+            {:quality_rejected, path, quality_score}
+          else
+            # Parse frames for each port and combine
+            all_frames = Enum.flat_map(ports, fn port ->
+              Peppi.to_training_frames(replay,
+                player_port: port,
+                frame_delay: frame_delay
+              )
+            end)
+            {:ok, path, length(all_frames), all_frames, quality_score}
+          end
+
+        {:error, reason} ->
+          {:error, path, reason}
+      end
 
     {:error, reason} ->
       {:error, path, reason}
@@ -693,16 +706,32 @@ end
 
       if dual_port do
         # Dual-port: parse both ports and combine frames
-        parse_dual_port.(path, opts[:frame_delay])
+        parse_dual_port.(path, opts[:frame_delay], opts[:min_quality])
       else
         # Single port: use the determined port
         case Peppi.parse(path, player_port: player_port) do
           {:ok, replay} ->
-            frames = Peppi.to_training_frames(replay,
-              player_port: player_port,
-              frame_delay: opts[:frame_delay]
-            )
-            {:ok, path, length(frames), frames}
+            # Quality filtering if enabled
+            if opts[:min_quality] do
+              quality_data = ReplayQuality.from_parsed_replay(replay)
+              score = ReplayQuality.score(quality_data)
+
+              if score == :rejected or score < opts[:min_quality] do
+                {:quality_rejected, path, score}
+              else
+                frames = Peppi.to_training_frames(replay,
+                  player_port: player_port,
+                  frame_delay: opts[:frame_delay]
+                )
+                {:ok, path, length(frames), frames, score}
+              end
+            else
+              frames = Peppi.to_training_frames(replay,
+                player_port: player_port,
+                frame_delay: opts[:frame_delay]
+              )
+              {:ok, path, length(frames), frames, nil}
+            end
           {:error, reason} ->
             {:error, path, reason}
         end
@@ -711,11 +740,15 @@ end
     max_concurrency: System.schedulers_online(),
     timeout: :infinity
   )
-  |> Enum.reduce({0, 0, [], []}, fn
-    {:ok, {:ok, _path, frame_count, frames}}, {total_files, total_frames, all_frames, errors} ->
-      {total_files + 1, total_frames + frame_count, [frames | all_frames], errors}
+  |> Enum.reduce({0, 0, [], [], 0, []}, fn
+    {:ok, {:ok, _path, frame_count, frames, quality_score}}, {total_files, total_frames, all_frames, errors, rejected, scores} ->
+      scores = if quality_score, do: [quality_score | scores], else: scores
+      {total_files + 1, total_frames + frame_count, [frames | all_frames], errors, rejected, scores}
 
-    {:ok, {:error, path, reason}}, {total_files, total_frames, all_frames, errors} ->
+    {:ok, {:quality_rejected, _path, _score}}, {total_files, total_frames, all_frames, errors, rejected, scores} ->
+      {total_files, total_frames, all_frames, errors, rejected + 1, scores}
+
+    {:ok, {:error, path, reason}}, {total_files, total_frames, all_frames, errors, rejected, scores} ->
       error = %{path: path, reason: reason}
 
       # Show error if enabled
@@ -737,17 +770,27 @@ end
         System.halt(1)
       end
 
-      {total_files, total_frames, all_frames, [error | errors]}
+      {total_files, total_frames, all_frames, [error | errors], rejected, scores}
 
-    {:exit, reason}, {total_files, total_frames, all_frames, errors} ->
+    {:exit, reason}, {total_files, total_frames, all_frames, errors, rejected, scores} ->
       # Task crashed - treat as error
       error = %{path: "unknown", reason: {:exit, reason}}
-      {total_files, total_frames, all_frames, [error | errors]}
+      {total_files, total_frames, all_frames, [error | errors], rejected, scores}
   end)
-  |> then(fn {files, frames, frame_lists, errors} ->
+  |> then(fn {files, frames, frame_lists, errors, quality_rejected, quality_scores} ->
     Output.puts("  Parsed #{files} files, #{frames} total frames")
+    if quality_rejected > 0 do
+      Output.puts("  Filtered #{quality_rejected} replays below quality threshold")
+    end
     if length(errors) > 0 do
       Output.puts("  ⚠ #{length(errors)} files failed to parse")
+    end
+    # Show quality stats if enabled
+    if opts[:show_quality_stats] and length(quality_scores) > 0 do
+      avg = Enum.sum(quality_scores) / length(quality_scores)
+      min_q = Enum.min(quality_scores)
+      max_q = Enum.max(quality_scores)
+      Output.puts("  Quality: avg=#{Float.round(avg, 1)}, min=#{min_q}, max=#{max_q}")
     end
     {List.flatten(frame_lists), Enum.reverse(errors)}
   end)
