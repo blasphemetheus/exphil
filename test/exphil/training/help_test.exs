@@ -8,6 +8,7 @@ defmodule ExPhil.Training.HelpTest do
       assert Help.link(:temporal) == "See docs/TRAINING.md#temporal-training"
       assert Help.link(:backbone) == "See docs/TRAINING.md#temporal-options"
       assert Help.link(:mamba) == "See docs/TRAINING.md#mamba-specific-options"
+      assert Help.link(:kmeans) == "See docs/TRAINING.md#k-means-stick-discretization"
     end
 
     test "returns link without anchor when not specified" do
@@ -85,6 +86,12 @@ defmodule ExPhil.Training.HelpTest do
     test "suggests frame_delay for online/delay messages" do
       assert Help.suggest_topic("frame delay is too high") == :frame_delay
       assert Help.suggest_topic("online play requires delay") == :frame_delay
+    end
+
+    test "suggests kmeans for discretization messages" do
+      assert Help.suggest_topic("kmeans centers not found") == :kmeans
+      assert Help.suggest_topic("k-means discretization") == :kmeans
+      assert Help.suggest_topic("stick discretization options") == :kmeans
     end
 
     test "returns nil for unrecognized messages" do

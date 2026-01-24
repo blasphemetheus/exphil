@@ -2,7 +2,7 @@
 
 This document tracks the major goals and roadmap for ExPhil development.
 
-**Last Updated:** 2026-01-21
+**Last Updated:** 2026-01-23
 
 ---
 
@@ -61,14 +61,20 @@ GenServer-based self-play infrastructure with BEAM concurrency, historical sampl
 
 **Usage:**
 ```bash
-# Quick test with mock environment
-mix run scripts/train_self_play.exs --game-type mock --timesteps 1000
+# Quick test with mock environment (short episodes)
+mix run scripts/train_self_play.exs --game-type mock --timesteps 1000 --max-episode-frames 600
 
 # Full training with pretrained policy
 mix run scripts/train_self_play.exs \
   --pretrained checkpoints/imitation_policy.bin \
   --num-games 8 --timesteps 100000 --track-elo
 ```
+
+**Verified (2026-01-24):**
+- Mock environment runs successfully with parallel games
+- Game results are reported to matchmaker for Elo tracking
+- Elo system handles wins, losses, and draws correctly (26 tests passing)
+- Note: Random policies typically result in draws (equal stocks at timeout), so Elo changes are 0. Use trained policies or longer episodes to see meaningful Elo movement.
 
 **Key References:**
 - [Project Nabla](https://bycn.github.io/2022/08/19/project-nabla-writeup.html) - Warning about policy collapse
@@ -85,7 +91,7 @@ mix run scripts/train_self_play.exs \
 | **Projectile parsing** | Medium | 40-60% state info lost for Link/Samus/Falco | **Done** |
 | Error handling improvements | Low | Bad replays fail silently | **Done** |
 | Embedding caching | Medium | 2-3x speedup by precomputing embeddings | **Done** |
-| K-means stick discretization | Medium | Research shows 21 clusters beats uniform grid | Not started |
+| K-means stick discretization | Medium | Research shows 21 clusters beats uniform grid | **Done** |
 
 **Projectile Parsing Details:**
 - py-slippi's `Frame.items` contains projectiles (Fox lasers, Sheik needles, etc.)
