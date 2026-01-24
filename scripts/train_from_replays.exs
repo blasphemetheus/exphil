@@ -1691,6 +1691,34 @@ end
 
 # Save training config as JSON (for reproducibility)
 config_path = Config.derive_config_path(opts[:checkpoint])
+
+# Build replay manifest for provenance tracking
+# Store file paths (relative to replays_dir for portability) if <= 500 files, else just hash
+replay_manifest = if length(replay_files) <= 500 do
+  # Store relative paths for portability
+  base_dir = opts[:replays]
+  Enum.map(replay_files, fn path_or_tuple ->
+    path = if is_tuple(path_or_tuple), do: elem(path_or_tuple, 0), else: path_or_tuple
+    Path.relative_to(path, base_dir)
+  end)
+else
+  nil  # Too many files, just use hash
+end
+
+# Get absolute paths for hashing
+replay_paths_for_hash = Enum.map(replay_files, fn path_or_tuple ->
+  if is_tuple(path_or_tuple), do: elem(path_or_tuple, 0), else: path_or_tuple
+end)
+
+# Extract character distribution from replay_stats if available
+character_distribution = if replay_stats && replay_stats[:characters] do
+  replay_stats[:characters]
+  |> Enum.map(fn {char, count} -> {to_string(char), count} end)
+  |> Map.new()
+else
+  nil
+end
+
 training_results = %{
   embed_size: embed_size,
   training_frames: if(train_dataset, do: train_dataset.size, else: :streaming),
@@ -1698,7 +1726,12 @@ training_results = %{
   total_time_seconds: total_time,
   final_training_loss: Float.round(Enum.sum(Enum.take(final_trainer.metrics.loss, 10)) / 10, 4),
   epochs_completed: epochs_completed,
-  stopped_early: stopped_early
+  stopped_early: stopped_early,
+  # Replay provenance
+  replay_count: length(replay_files),
+  replay_files: replay_manifest,
+  replay_manifest_hash: Config.compute_manifest_hash(replay_paths_for_hash),
+  character_distribution: character_distribution
 }
 training_config = Config.build_config_json(opts, training_results)
 

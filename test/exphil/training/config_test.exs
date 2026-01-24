@@ -1235,6 +1235,98 @@ defmodule ExPhil.Training.ConfigTest do
     end
   end
 
+  describe "build_config_json/2 with provenance" do
+    test "includes character and stage filters" do
+      opts = Config.defaults()
+      |> Keyword.put(:checkpoint, "test.axon")
+      |> Keyword.put(:characters, [:mewtwo, :fox])
+      |> Keyword.put(:stages, [:battlefield, :fd])
+
+      json = Config.build_config_json(opts)
+
+      assert json[:characters] == ["mewtwo", "fox"]
+      assert json[:stages] == ["battlefield", "fd"]
+    end
+
+    test "handles empty character/stage filters" do
+      opts = Config.defaults()
+      |> Keyword.put(:checkpoint, "test.axon")
+      |> Keyword.put(:characters, [])
+      |> Keyword.put(:stages, [])
+
+      json = Config.build_config_json(opts)
+
+      # Empty lists become nil for cleaner JSON
+      assert json[:characters] == nil
+      assert json[:stages] == nil
+    end
+
+    test "includes replay manifest fields" do
+      opts = Config.defaults() |> Keyword.put(:checkpoint, "test.axon")
+      results = %{
+        replay_count: 150,
+        replay_files: ["replay1.slp", "replay2.slp"],
+        replay_manifest_hash: "sha256:abc123",
+        character_distribution: %{"mewtwo" => 100, "fox" => 50}
+      }
+
+      json = Config.build_config_json(opts, results)
+
+      assert json[:replay_count] == 150
+      assert json[:replay_files] == ["replay1.slp", "replay2.slp"]
+      assert json[:replay_manifest_hash] == "sha256:abc123"
+      assert json[:character_distribution] == %{"mewtwo" => 100, "fox" => 50}
+    end
+
+    test "handles nil replay manifest fields" do
+      opts = Config.defaults() |> Keyword.put(:checkpoint, "test.axon")
+      json = Config.build_config_json(opts, %{})
+
+      assert json[:replay_count] == nil
+      assert json[:replay_files] == nil
+      assert json[:replay_manifest_hash] == nil
+      assert json[:character_distribution] == nil
+    end
+  end
+
+  describe "compute_manifest_hash/1" do
+    test "returns nil for empty list" do
+      assert Config.compute_manifest_hash([]) == nil
+    end
+
+    test "computes consistent hash for same files" do
+      files = ["/path/to/a.slp", "/path/to/b.slp", "/path/to/c.slp"]
+
+      hash1 = Config.compute_manifest_hash(files)
+      hash2 = Config.compute_manifest_hash(files)
+
+      assert hash1 == hash2
+      assert String.starts_with?(hash1, "sha256:")
+    end
+
+    test "same hash regardless of input order" do
+      files_a = ["/path/to/a.slp", "/path/to/b.slp", "/path/to/c.slp"]
+      files_b = ["/path/to/c.slp", "/path/to/a.slp", "/path/to/b.slp"]
+
+      assert Config.compute_manifest_hash(files_a) == Config.compute_manifest_hash(files_b)
+    end
+
+    test "different files produce different hashes" do
+      files_a = ["/path/to/a.slp", "/path/to/b.slp"]
+      files_b = ["/path/to/a.slp", "/path/to/c.slp"]
+
+      assert Config.compute_manifest_hash(files_a) != Config.compute_manifest_hash(files_b)
+    end
+
+    test "hash format is sha256:hex" do
+      hash = Config.compute_manifest_hash(["/path/to/test.slp"])
+
+      assert String.starts_with?(hash, "sha256:")
+      # SHA256 produces 64 hex characters
+      assert String.length(hash) == 7 + 64  # "sha256:" + 64 hex chars
+    end
+  end
+
   # ============================================================================
   # Checkpointing CLI Tests
   # ============================================================================

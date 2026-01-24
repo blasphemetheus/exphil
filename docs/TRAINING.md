@@ -629,6 +629,59 @@ mix run scripts/train_from_replays.exs --resume checkpoints/mewtwo_interrupt.axo
 
 The trainer state is updated every 10 batches, so at most ~10 batches of work may be lost on interrupt.
 
+### Config JSON Contents
+
+Each checkpoint produces a `*_config.json` file with complete training provenance:
+
+```json
+{
+  "timestamp": "2026-01-24T17:00:00Z",
+
+  "// Training parameters": "",
+  "backbone": "mamba",
+  "epochs": 10,
+  "batch_size": 64,
+  "hidden_sizes": [256, 256],
+  "temporal": true,
+  "window_size": 30,
+
+  "// Data filtering (what was trained on)": "",
+  "characters": ["mewtwo"],
+  "stages": null,
+  "replays_dir": "/path/to/replays",
+  "max_files": 100,
+
+  "// Replay manifest (provenance)": "",
+  "replay_count": 100,
+  "replay_files": ["game1.slp", "game2.slp", "..."],
+  "replay_manifest_hash": "sha256:abc123...",
+  "character_distribution": {"mewtwo": 80000, "fox": 20000},
+
+  "// Results": "",
+  "training_frames": 125000,
+  "validation_frames": 13000,
+  "final_training_loss": 3.68,
+  "total_time_seconds": 1847
+}
+```
+
+**Key provenance fields:**
+
+| Field | Description |
+|-------|-------------|
+| `characters` | Character filter used (`--characters mewtwo,fox`), null if unfiltered |
+| `stages` | Stage filter used (`--stages battlefield,fd`), null if unfiltered |
+| `replay_count` | Number of replay files used |
+| `replay_files` | Actual file paths (if ≤500 files), for reproducibility |
+| `replay_manifest_hash` | SHA256 of sorted file list, for deduplication |
+| `character_distribution` | Frame counts per character in training data |
+
+**Use cases:**
+- Know exactly which replays trained a model
+- Verify two models used the same data (compare hashes)
+- Understand character composition of training data
+- Reproduce training with same data
+
 ## Tests
 
 ```bash

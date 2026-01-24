@@ -1841,6 +1841,16 @@ defmodule ExPhil.Training.Config do
       max_files: opts[:max_files],
       player_port: opts[:player_port],
 
+      # Data filtering (for provenance)
+      characters: format_atom_list(opts[:characters]),
+      stages: format_atom_list(opts[:stages]),
+
+      # Replay manifest (for provenance)
+      replay_count: results[:replay_count],
+      replay_files: results[:replay_files],
+      replay_manifest_hash: results[:replay_manifest_hash],
+      character_distribution: results[:character_distribution],
+
       # Model architecture
       temporal: opts[:temporal],
       backbone: if(opts[:temporal], do: to_string(opts[:backbone]), else: "mlp"),
@@ -1923,6 +1933,29 @@ defmodule ExPhil.Training.Config do
   def derive_policy_path(nil), do: nil
   def derive_policy_path(checkpoint_path) do
     String.replace(checkpoint_path, ".axon", "_policy.bin")
+  end
+
+  @doc """
+  Compute a SHA256 hash of a list of file paths for replay manifest.
+
+  Sorts paths alphabetically before hashing for determinism.
+  """
+  @spec compute_manifest_hash([String.t()]) :: String.t()
+  def compute_manifest_hash([]), do: nil
+  def compute_manifest_hash(paths) when is_list(paths) do
+    paths
+    |> Enum.sort()
+    |> Enum.join("\n")
+    |> then(&:crypto.hash(:sha256, &1))
+    |> Base.encode16(case: :lower)
+    |> then(&"sha256:#{&1}")
+  end
+
+  # Format a list of atoms as strings for JSON serialization
+  defp format_atom_list(nil), do: nil
+  defp format_atom_list([]), do: nil
+  defp format_atom_list(atoms) when is_list(atoms) do
+    Enum.map(atoms, &to_string/1)
   end
 
   @doc """
