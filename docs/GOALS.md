@@ -222,7 +222,7 @@ Current embedding size is **1204 dimensions** with all optimizations enabled.
 | **Replay validation before training** | Medium | Quick scan all files before starting, report bad ones | **Done** |
 | **Character/stage filter CLI** | Low | `--character mewtwo,fox --stage battlefield,fd` | **Done** |
 | **Replay stats display** | Low | Show character distribution, stage distribution, etc. | **Done** |
-| Duplicate detection | Medium | Skip duplicate replays (by hash or player/date) | Not started |
+| **Duplicate detection** | Medium | Skip duplicate replays (by hash or player/date) | **Done** |
 | **Replay quality scoring** | High | Filter out obvious bad gameplay (SD chains, AFKs) | **Done** |
 
 **Model Management**

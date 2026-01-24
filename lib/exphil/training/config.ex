@@ -63,7 +63,10 @@ defmodule ExPhil.Training.Config do
     "--no-overwrite",  # Fail if checkpoint exists
     "--backup",  # Create .bak before overwrite (default)
     "--no-backup",  # Skip backup creation
-    "--backup-count"  # Number of backup versions to keep (default: 3)
+    "--backup-count",  # Number of backup versions to keep (default: 3)
+    # Duplicate detection
+    "--skip-duplicates",  # Skip duplicate replay files by hash (default)
+    "--no-skip-duplicates"  # Include all files even if duplicates
   ]
 
   @doc """
@@ -187,7 +190,9 @@ defmodule ExPhil.Training.Config do
       # Checkpoint safety
       overwrite: false,  # Allow overwriting existing checkpoints
       backup: true,  # Create .bak before overwrite
-      backup_count: 3  # Number of backup versions to keep
+      backup_count: 3,  # Number of backup versions to keep
+      # Duplicate detection
+      skip_duplicates: true  # Skip duplicate replay files by hash
     ]
     |> apply_env_defaults()
   end
@@ -1658,6 +1663,9 @@ defmodule ExPhil.Training.Config do
     |> parse_flag(args, "--backup", :backup)
     |> parse_flag(args, "--no-backup", :no_backup)
     |> parse_optional_int_arg(args, "--backup-count", :backup_count)
+    # Duplicate detection
+    |> parse_flag(args, "--skip-duplicates", :skip_duplicates)
+    |> parse_flag(args, "--no-skip-duplicates", :no_skip_duplicates)
     |> then(fn opts ->
       # --no-overwrite makes overwrite explicitly false
       if opts[:no_overwrite], do: Keyword.put(opts, :overwrite, false), else: opts
@@ -1665,6 +1673,10 @@ defmodule ExPhil.Training.Config do
     |> then(fn opts ->
       # --no-backup disables backup
       if opts[:no_backup], do: Keyword.put(opts, :backup, false), else: opts
+    end)
+    |> then(fn opts ->
+      # --no-skip-duplicates disables duplicate detection
+      if opts[:no_skip_duplicates], do: Keyword.put(opts, :skip_duplicates, false), else: opts
     end)
   end
 
