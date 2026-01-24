@@ -171,6 +171,15 @@ Comprehensive roadmap of improvements across all project areas. See also:
 3. **Training state recovery** - Save/restore optimizer state on resume
 4. **Self-play documentation** - Write SELF_PLAY.md guide
 
+**Recently completed (2026-01-23):**
+- [x] `mix exphil.compare` - Side-by-side model comparison
+- [x] Contextual help links - "See docs/TRAINING.md#..." in errors/warnings
+- [x] Warmup indicator - Reusable JIT compilation status functions
+- [x] Action distribution viz - Track/display button and stick usage
+- [x] Replay quality scoring - Filter bad replays (SD chains, AFKs)
+- [x] Duplicate detection - Skip duplicate files by hash (`--skip-duplicates`)
+- [x] Stack trace simplification - Hide Nx/EXLA internals in errors
+
 ---
 
 ## Completed (Recent)
@@ -201,3 +210,40 @@ Comprehensive roadmap of improvements across all project areas. See also:
 - [x] Doctest coverage for EarlyStopping
 - [x] Flaky test retry mechanism
 - [x] Property-based testing with StreamData
+
+---
+
+## Future Directions
+
+Remaining tasks grouped by category. See also [GOALS.md](GOALS.md) for the full list with status.
+
+### High Impact (Core Training)
+| Task | Effort | Description |
+|------|--------|-------------|
+| Training state recovery | Medium | Resume loses optimizer state (restarts from scratch) |
+| K-means stick discretization | Medium | Research shows 21 clusters beats uniform grid |
+| Full pipeline integration test | Medium | Data → train → inference round-trip test |
+
+### Medium Impact (UX/Tooling)
+| Task | Effort | Description |
+|------|--------|-------------|
+| Checkpoint streaming | Medium | Save doesn't block training |
+| Error handling improvements | Low | Bad replays fail silently |
+| Model naming suggestions | Low | Warn if name conflicts with existing checkpoint |
+| Auto-backup before overwrite | Low | Keep .bak of previous checkpoint |
+
+### Low Effort Quick Wins
+| Task | Effort | Description |
+|------|--------|-------------|
+| FPS counter in play mode | Low | Show actual vs target FPS |
+| Confidence display | Low | Show model's prediction confidence |
+| ONNX export/load test | Low | Verify export doesn't break |
+
+### Research/Experimental
+| Task | Effort | Description |
+|------|--------|-------------|
+| League system (AlphaStar-style) | High | Population-based league training |
+| IC Tech Feature Block | Medium | Dedicated grab/regrab/desync features |
+| Player names embedding | Low | Style-conditional imitation (currently unused) |
+| Character-specific rewards | Medium | Model should discover what matters |
+| Per-character models vs single model | High | Scale vs specialization experiment |
