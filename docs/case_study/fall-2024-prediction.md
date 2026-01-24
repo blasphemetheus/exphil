@@ -1,273 +1,144 @@
-# Fall 2024 Melee Prediction
+# Fall 2024 Smash Melee Prediction
 
 **Repository:** https://github.com/jjaw89/fall-2024-smash-melee-prediction
-**Author:** jjaw89
-**Language:** Python (scikit-learn, XGBoost)
-**Status:** 2024 project
-**Purpose:** Tournament match outcome prediction using ELO/Glicko-2 and machine learning
+**Authors:** Erdos Institute Data Science Boot Camp team
+**Language:** Python
+**Status:** Complete (2024)
+**Purpose:** Tournament match outcome prediction using machine learning
 
 ## Overview
 
-This project predicts Super Smash Bros. Melee tournament match outcomes using a combination of rating systems (Glicko-2) and gradient boosted trees (XGBoost). It achieved 79.89% accuracy on single-set predictions and 70.1% on top-8 winner predictions.
+A capstone project from the Erdos Institute's Data Science Boot Camp (Fall 2024) that predicts Super Smash Bros. Melee tournament outcomes using XGBoost with sophisticated feature engineering. Achieved 79.89% accuracy on single-set predictions.
+
+## Algorithm
+
+**Primary Model:** XGBoost (Gradient Boosting)
+- Python implementation using xgboost >= 2.1.1
+- Emphasis on feature engineering over model complexity
+- Parallel processing for scalability
+
+## Features Used
+
+### Core Rating System
+- **Glicko-2 ratings** - Extended ELO with rating deviation (RD) for confidence
+- **Character-specific matchup analysis** (three variants):
+  - Alt: Basic character adjustments
+  - Alt2: Character-adjusted ELO for specific pairings
+  - Alt3: Unique (player, character) combinations as separate entities
+
+### Additional Features
+| Feature | Description |
+|---------|-------------|
+| Rating Deviation (RD) | Measurement uncertainty from Glicko-2 |
+| Head-to-head history | Results from last 10 matches between players |
+| Update frequency | Proxy for player activity level |
+| Tournament momentum | Probability of exceeding expected performance |
+
+## Dataset
+
+**Source:** The Player Database
+- 1.8M sets total
+- 96K+ players
+- 39K+ tournaments
+
+**Preprocessing:**
+- SQLite database extraction
+- Data cleaning for missing entries
+- Player 1/2 order randomization (bias correction)
+
+## Accuracy Results
+
+### Single-Set Predictions (2024 test data)
+
+| Model | Accuracy | Notes |
+|-------|----------|-------|
+| Baseline (higher ELO wins) | 77.56% ± 0.16% | Simple heuristic |
+| XGBoost + ELO only | 79.05% ± 0.16% | No feature engineering |
+| **XGBoost + all features** | **79.89% ± 0.16%** | Best result |
+| Top 8 sets only | 75.03% ± 0.35% | Harder to predict |
+
+**Improvement:** +2.33% over baseline (statistically significant on 247,608 test samples)
+
+### Top 8 Winner Predictions
+
+| Model | Accuracy |
+|-------|----------|
+| Baseline (highest ELO in top 8) | 67.6% ± 1.3% |
+| Baseline (highest ELO in winners' semis) | 70.2% ± 1.3% |
+| XGBoost + features | 70.1% ± 1.3% |
+
+Strong baseline limits ML improvement potential.
 
 ## Methodology
 
-### Data Collection
+### Pipeline Stages
+1. **Preprocessing** - Extract tournament data, clean entries, randomize order
+2. **Feature Engineering** - Compute Glicko-2 across data splits
+3. **Dataset Generation** - Combine preprocessed data with features
+4. **Model Training** - XGBoost with cross-validation
 
-```
-Data Sources:
-├── start.gg API
-│   ├── Tournament results
-│   ├── Set scores
-│   ├── Player identifiers
-│   └── Character selections (when available)
-├── Liquipedia
-│   └── Historical rankings
-└── slippi.gg
-    └── Ranked ladder data
-```
+### Training Setup
+- Python 3.10.12
+- Jupyter notebooks for development
+- glicko2==2.1.0 for rating calculations
+- Docker for reproducibility
 
-### Rating Systems
+## Key Insights
 
-#### Glicko-2 Implementation
+### 1. Feature Engineering > Model Complexity
+Success came from domain-specific features (character matchups, rating deviation), not algorithmic sophistication. Domain expertise drives accuracy.
 
-```python
-# Glicko-2 parameters
-INITIAL_RATING = 1500
-INITIAL_RD = 350  # Rating deviation
-INITIAL_VOLATILITY = 0.06
-TAU = 0.5  # System constant
+### 2. Character Matchups Matter
+Character-specific ELO variants (alt2/alt3) provided consistent improvements. Player skill is character-dependent.
 
-def update_ratings(player1, player2, result):
-    """
-    Update Glicko-2 ratings after a match.
+### 3. Baseline Saturation
+Top 8 predictions hit diminishing returns (~70%) where simple ELO was already strong (67.6%). Basic heuristics capture significant variance.
 
-    result: 1.0 = player1 wins, 0.0 = player2 wins, 0.5 = draw
-    """
-    # Convert to Glicko-2 scale
-    mu1 = (player1.rating - 1500) / 173.7178
-    mu2 = (player2.rating - 1500) / 173.7178
-    phi1 = player1.rd / 173.7178
-    phi2 = player2.rd / 173.7178
+### 4. History Has Limited Impact
+Head-to-head from last 10 matches helped modestly. For gameplay AI, frame-by-frame decisions likely matter more than historical aggregates.
 
-    # Calculate expected score
-    g_phi2 = 1 / sqrt(1 + 3 * phi2**2 / pi**2)
-    E = 1 / (1 + exp(-g_phi2 * (mu1 - mu2)))
+### 5. Uncertainty Estimation Helps
+Including Glicko-2's rating deviation improved predictions. Could inform curriculum learning or sample weighting in AI training.
 
-    # Update rating, RD, and volatility
-    # (Full Glicko-2 algorithm)
-    ...
-```
+## Comparison: Match Prediction vs Gameplay AI
 
-#### Weekly Rating Updates
+| Aspect | Match Prediction | Gameplay AI (ExPhil) |
+|--------|------------------|----------------------|
+| Input | Player ratings, history | Frame-by-frame state |
+| Features | ~10-20 engineered | 408-1204 dims |
+| Prediction | Win/loss outcome | Controller actions |
+| Temporal | Static snapshot | 60 FPS sequence |
+| Data scale | 1.8M match sets | 100K+ replay files |
 
-Ratings are updated weekly to:
-- Account for activity decay (RD increases when inactive)
-- Smooth out variance from single tournaments
-- Allow new information to propagate
+## Relevance to ExPhil
 
-### Feature Engineering
+### Shared Insights
+- Large datasets essential for meaningful gains
+- Character matchups significantly impact outcomes
+- Uncertainty quantification valuable for learning
 
-```python
-FEATURES = [
-    # Rating features
-    'player1_rating',
-    'player2_rating',
-    'rating_diff',
-    'player1_rd',
-    'player2_rd',
-    'rd_diff',
+### Key Differences
+- Match prediction uses aggregated statistics; gameplay AI needs frame-level decisions
+- Static features vs dynamic temporal sequences
+- Outcome prediction vs action generation
 
-    # Historical features
-    'player1_win_rate_30d',
-    'player2_win_rate_30d',
-    'head_to_head_wins_p1',
-    'head_to_head_total',
+### Potential Applications
+- Glicko-2 ratings could weight training samples by player skill
+- Character matchup analysis could inform character-specific models
+- Tournament momentum metrics could identify high-variance situations
 
-    # Character features (when available)
-    'player1_main_char',
-    'player2_main_char',
-    'matchup_historical_wr',
+## Technical Stack
 
-    # Tournament context
-    'tournament_tier',  # Major, regional, local
-    'bracket_round',    # Winners, losers, grands
-    'is_bo5',
-
-    # Momentum features
-    'player1_streak',
-    'player2_streak',
-    'player1_recent_upsets',
-    'player2_recent_upsets'
-]
-```
-
-### Model Architecture
-
-#### XGBoost Configuration
-
-```python
-model = XGBClassifier(
-    n_estimators=200,
-    max_depth=6,
-    learning_rate=0.1,
-    subsample=0.8,
-    colsample_bytree=0.8,
-    objective='binary:logistic',
-    eval_metric='logloss',
-    early_stopping_rounds=20
-)
-```
-
-#### Training Process
-
-```
-Training Pipeline:
-1. Collect tournament data (2019-2024)
-2. Build Glicko-2 rating history
-3. Generate features for each set
-4. Train/test split (temporal, not random)
-5. Hyperparameter tuning with CV
-6. Evaluate on held-out tournaments
-```
-
-## Results
-
-### Single Set Prediction
-
-| Model | Accuracy | Log Loss |
-|-------|----------|----------|
-| Random | 50.0% | 0.693 |
-| Higher seed | 62.3% | - |
-| ELO only | 71.2% | 0.521 |
-| Glicko-2 only | 73.8% | 0.498 |
-| XGBoost | **79.89%** | **0.412** |
-
-### Tournament Bracket Prediction
-
-| Metric | Accuracy |
-|--------|----------|
-| Top 8 placements | 70.1% |
-| Grand finals entrants | 68.4% |
-| Tournament winner | 52.3% |
-| Full bracket (8 players) | 12.1% |
-
-### Feature Importance
-
-```
-Top 10 Features:
-1. rating_diff (0.312)
-2. player1_rating (0.156)
-3. player2_rating (0.142)
-4. head_to_head_wins_p1 (0.089)
-5. player1_rd (0.067)
-6. tournament_tier (0.054)
-7. player1_win_rate_30d (0.048)
-8. bracket_round (0.041)
-9. is_bo5 (0.035)
-10. matchup_historical_wr (0.028)
-```
-
-## Character-Adjusted Ratings
-
-The project experimented with character-specific ELO:
-
-```python
-# Track separate rating per character
-class CharacterRatings:
-    def __init__(self, player_id):
-        self.overall = GlickoRating()
-        self.by_character = {}  # char_id -> GlickoRating
-
-    def get_matchup_rating(self, own_char, opp_char):
-        """Blend overall and character-specific ratings"""
-        char_rating = self.by_character.get(own_char, self.overall)
-        # Weight by games played on character
-        games_on_char = char_rating.games_played
-        blend = min(games_on_char / 50, 1.0)
-        return blend * char_rating + (1 - blend) * self.overall
-```
-
-### Character ELO Results
-
-| Approach | Accuracy | Notes |
-|----------|----------|-------|
-| Overall only | 79.89% | Baseline |
-| Character-specific | 78.2% | Insufficient data |
-| Blended | 80.1% | Slight improvement |
-| Matchup-adjusted | 79.5% | No improvement |
-
-Character-specific ratings didn't significantly improve predictions, likely due to:
-- Insufficient games per character for most players
-- Top players are consistent across characters
-- Character selection often responds to matchup (confounding)
-
-## Upset Analysis
-
-The model identifies upsets (lower-rated player wins):
-
-```
-Upset Factors (when lower-rated wins):
-- Smaller rating difference: avg 142 vs 287 for expected
-- Higher RD for favorite: less certain ratings
-- Losers bracket: 8% more upsets than winners
-- Bo3 vs Bo5: 12% more upsets in Bo3
-- Character counterpick: visible in top 50 only
-```
-
-## Limitations
-
-1. **Data Quality**: Character data sparse, especially for non-majors
-2. **Meta Shifts**: Model trained on 2019-2024 may not generalize
-3. **Player Variance**: Some players are inherently more volatile
-4. **Context Missing**: Travel fatigue, motivation, practice partners
-
-## ExPhil Relevance
-
-### Rating System for Self-Play
-
-Glicko-2 could rank AI agents in population-based training:
-- Track rating per policy checkpoint
-- Use RD to identify uncertain matchups
-- Select training opponents based on rating proximity
-
-### Match Prediction for Dataset Curation
-
-- Filter replays to high-skill matches (both players rated)
-- Weight training samples by match competitiveness
-- Identify "clean" games (rating-expected outcomes)
-
-### Feature Engineering Patterns
-
-- Historical win rate features for opponent modeling
-- Momentum/streak features for temporal patterns
-- Tournament context as auxiliary prediction targets
-
-## Reproduction
-
-```bash
-git clone https://github.com/jjaw89/fall-2024-smash-melee-prediction
-cd fall-2024-smash-melee-prediction
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Fetch tournament data
-python scripts/fetch_startgg.py --start 2019-01-01 --end 2024-12-01
-
-# Build rating history
-python scripts/build_ratings.py
-
-# Train model
-python scripts/train_model.py
-
-# Evaluate
-python scripts/evaluate.py --tournament "Genesis 10"
-```
+| Component | Technology |
+|-----------|------------|
+| ML Framework | XGBoost, scikit-learn |
+| Rating System | glicko2 package |
+| Data Processing | pandas, numpy |
+| Environment | Python 3.10.12, Docker |
+| Development | Jupyter notebooks |
 
 ## Links
 
-- **Repository**: https://github.com/jjaw89/fall-2024-smash-melee-prediction
-- **Glicko-2 Paper**: http://www.glicko.net/glicko/glicko2.pdf
-- **start.gg API**: https://developer.start.gg/docs/intro
-- **XGBoost**: https://xgboost.readthedocs.io/
+- [GitHub Repository](https://github.com/jjaw89/fall-2024-smash-melee-prediction)
+- [The Player Database](https://theplayerdatabase.com/)
+- [Glicko-2 Paper](http://www.glicko.net/glicko/glicko2.pdf)

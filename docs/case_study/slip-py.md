@@ -2,288 +2,163 @@
 
 **Repository:** https://github.com/pcrain/slip.py
 **Author:** pcrain
-**Language:** Python (Flask), C++ (slippc parser)
+**Language:** Python (Flask), JavaScript, C++ (slippc)
 **Status:** Active
-**Purpose:** Web-based replay browser and search engine with server-side parsing
+**Purpose:** Web-based replay browser, search engine, and analyzer
 
 ## Overview
 
-slip.py is a Flask-based web application for browsing and searching Slippi replay collections. It features a fast C++ parser (slippc) for server-side processing and GLSL shaders for visualization. The project focuses on being a searchable replay database with rich metadata extraction.
+slip.py is a production-grade web application for indexing, searching, and analyzing Slippi replay files. Built on Flask with a C++ backend parser (slippc), it provides comprehensive replay management with advanced search capabilities and detailed frame-by-frame analysis.
+
+## Technology Stack
+
+| Component | Technology |
+|-----------|------------|
+| Web Framework | Flask (Python) |
+| Database | SQLite + Flask-SQLAlchemy |
+| Parser | slippc (C++ subprocess) |
+| Templates | Jinja2 (25 templates) |
+| Desktop Wrapper | PyFladesk (optional) |
+| Compression | LZMA (93-97% ratios) |
+| Background Tasks | Flask-Executor |
 
 ## Architecture
 
-### System Design
-
 ```
-┌─────────────────────────────────────────────────────┐
-│                   Web Browser                        │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐ │
-│  │   Search    │  │   Replay    │  │   Stats     │ │
-│  │   Interface │  │   Viewer    │  │   Display   │ │
-│  └─────────────┘  └─────────────┘  └─────────────┘ │
-└─────────────────────────┬───────────────────────────┘
-                          │ HTTP
-┌─────────────────────────┴───────────────────────────┐
-│                   Flask Server                       │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐ │
-│  │   Routes    │  │   Search    │  │   Parser    │ │
-│  │   API       │  │   Engine    │  │   Wrapper   │ │
-│  └─────────────┘  └─────────────┘  └─────────────┘ │
-└─────────────────────────┬───────────────────────────┘
-                          │
-┌─────────────────────────┴───────────────────────────┐
-│                    slippc (C++)                      │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐ │
-│  │   .slp      │  │   Frame     │  │   Stats     │ │
-│  │   Parser    │  │   Extractor │  │   Computer  │ │
-│  └─────────────┘  └─────────────┘  └─────────────┘ │
-└─────────────────────────────────────────────────────┘
+Slippi Replay (.slp)
+        ↓
+[slippc C++ Parser]
+    ├→ UBJSON deserialization
+    ├→ Frame reorganization
+    └→ Internal structures
+        ↓
+[slippc Analyzer]
+    ├→ Interaction classification
+    ├→ Punish detection
+    └→ JSON export
+        ↓
+[slip.py Flask App]
+    ├→ Database insertion
+    ├→ Search indexing
+    └→ Web UI
 ```
 
-### Key Components
+## Key Features
 
-1. **Flask Web Server**: Routes, templates, API endpoints
-2. **slippc Parser**: High-performance C++ replay parsing
-3. **Search Engine**: Query replays by various criteria
-4. **GLSL Visualizations**: Shader-based replay rendering
+### Search Engine
+- Filter by character, costume/color, stage
+- Filter by stock count, game duration
+- Keyword search across player names and filenames
+- Complex query combinations
+- Paginated results (60 per page default)
+
+### Per-Player Statistics
+- Character-based win/loss records
+- Most frequent opponents
+- Performance metrics per matchup
+- Game count and win percentage
+
+### Frame-by-Frame Analysis
+- Complete frame breakdown
+- Move identification and damage calculation
+- Punish (combo) detection with frame ranges
+- Interaction classification:
+  - Neutral (positioning, footsies)
+  - Offensive (pressure, combos)
+  - Defensive (shielding, teching)
+  - Edge-guarding and recovery
+
+### Technical Metrics
+- Ledgedash success rates and angles
+- Short hop vs full hop rates
+- Defense efficiency during pressure
+- Neutral game control metrics
+- Input accuracy and speed
+
+### Replay Management
+- Quarantine system for unwanted replays
+- Batch operations for cleanup
+- Public/private visibility settings
+- Multi-threaded scanning
+
+## Database Schema
+
+```sql
+Replay:
+  - checksum, filename, filedir, filesize
+  - played, uploaded (timestamps)
+  - frames, stage, winner, timer
+  - p1char, p1color, p1stocks, p1display
+  - p2char, p2color, p2stocks, p2display
+  - p1punish, p1defense, p1neutral, p1speed
+  - ver_slippi, ver_stats, ver_viz
+  - is_public
+```
 
 ## slippc Parser
 
-The C++ parser is the performance-critical component:
+The C++ backend parser (slippc) handles:
+- Replay versions 0.1.0 through 3.12.0
+- UBJSON to internal structure conversion
+- Big-endian to little-endian conversion
+- Compressed replay support (.zlp format)
 
-### Features
-- Parses .slp files 10-100x faster than pure Python
-- Extracts all frame data and metadata
-- Computes derived statistics
-- Outputs JSON for Python consumption
+### Compression Performance
+- LZMA compression: 93-97% size reduction
+- Enables efficient large-scale storage
 
-### Usage
-```bash
-# Parse single replay
-./slippc replay.slp --json
+## Interaction Classification
 
-# Parse with stats
-./slippc replay.slp --stats --json
+slippc automatically classifies all player interactions:
 
-# Batch processing
-find replays/ -name "*.slp" | xargs -P4 -I{} ./slippc {} --json
-```
+| Type | Description |
+|------|-------------|
+| Neutral | Positioning, footsies, pokes |
+| Offensive | Pressure, punishes, combos |
+| Defensive | Shielding, teching, escaping |
+| Edgeguard | Off-stage offense |
+| Recovery | Off-stage defense |
 
-### Output Format
-```json
-{
-  "metadata": {
-    "startAt": "2024-01-15T10:30:00Z",
-    "playedOn": "dolphin",
-    "lastFrame": 7200
-  },
-  "players": [
-    {
-      "port": 0,
-      "character": 2,
-      "connectCode": "TEST#123",
-      "stocks": 2,
-      "damage": 142.5
-    }
-  ],
-  "stats": {
-    "lcancelRate": 0.85,
-    "apm": 320,
-    "openingsPerKill": 4.2
-  }
-}
-```
+## Relevance to AI Training
 
-## Web Interface
+### Pre-computed Features
+- Interaction labels provide supervision signals
+- Move identification maps to action prediction
+- Damage accounting enables reward signal design
 
-### Search Capabilities
+### Data Organization
+- Searchable database enables filtered dataset creation
+- Character/stage/skill filtering for curriculum learning
+- Compressed storage for large-scale datasets
 
-```
-Search Parameters:
-├── Player
-│   ├── Connect code (exact/partial)
-│   ├── Character
-│   └── Tag/display name
-├── Match
-│   ├── Stage
-│   ├── Date range
-│   ├── Duration (min/max frames)
-│   └── Game mode
-├── Outcome
-│   ├── Winner
-│   ├── Stock count
-│   └── Timeout
-└── Technical
-    ├── L-cancel rate
-    ├── APM range
-    └── Damage dealt
-```
+### Analysis Pipeline Parallels
 
-### API Endpoints
+| slip.py | ExPhil Equivalent |
+|---------|-------------------|
+| Game state parsing | Embedding layer |
+| Interaction classification | Auxiliary prediction task |
+| Move identification | Controller action targets |
+| Damage tracking | Reward signal |
 
-```python
-# Flask routes (simplified)
-@app.route('/api/search')
-def search_replays():
-    """Search replays with filters"""
-    pass
+### Limitations
+- Designed for 1v1 singles (ICs partially supported)
+- Assumes tournament-legal rulesets
+- Some damage sources imperfectly handled
 
-@app.route('/api/replay/<replay_id>')
-def get_replay(replay_id):
-    """Get full replay data"""
-    pass
+## API Endpoints
 
-@app.route('/api/stats/<player_code>')
-def get_player_stats(player_code):
-    """Aggregate stats for player"""
-    pass
+| Endpoint | Purpose |
+|----------|---------|
+| `GET /raw/<r>` | Raw analysis JSON export |
+| `POST /scan/progress` | Real-time scan status |
+| Search endpoints | Filtered replay queries |
 
-@app.route('/api/parse', methods=['POST'])
-def parse_replay():
-    """Upload and parse new replay"""
-    pass
-```
+## Key Insight
 
-## GLSL Visualizations
-
-slip.py includes shader-based visualizations:
-
-### Stage Rendering
-- 2D stage layouts with platforms
-- Player position heatmaps
-- Movement trails
-
-### Input Display
-- Controller state over time
-- Stick position plots
-- Button press timelines
-
-### Combat Analysis
-- Hit/hurtbox visualization
-- Combo flowcharts
-- Damage accumulation graphs
-
-## Database Design
-
-```sql
--- Replay metadata
-CREATE TABLE replays (
-    id TEXT PRIMARY KEY,  -- Hash of file
-    path TEXT,
-    parsed_at TIMESTAMP,
-    duration_frames INTEGER,
-    stage INTEGER,
-    winner_port INTEGER
-);
-
--- Player data per replay
-CREATE TABLE replay_players (
-    replay_id TEXT REFERENCES replays(id),
-    port INTEGER,
-    character INTEGER,
-    connect_code TEXT,
-    tag TEXT,
-    stocks_remaining INTEGER,
-    damage_dealt REAL,
-    PRIMARY KEY (replay_id, port)
-);
-
--- Computed statistics
-CREATE TABLE replay_stats (
-    replay_id TEXT REFERENCES replays(id),
-    player_port INTEGER,
-    lcancel_rate REAL,
-    apm REAL,
-    openings INTEGER,
-    conversions INTEGER,
-    PRIMARY KEY (replay_id, player_port)
-);
-
--- Full-text search index
-CREATE VIRTUAL TABLE replay_search USING fts5(
-    connect_code, tag, content='replay_players'
-);
-```
-
-## Installation
-
-### Requirements
-- Python 3.8+
-- Flask
-- C++ compiler (for slippc)
-- SQLite
-
-### Setup
-```bash
-git clone https://github.com/pcrain/slip.py
-cd slip.py
-
-# Build C++ parser
-cd slippc
-make
-cd ..
-
-# Install Python dependencies
-pip install -r requirements.txt
-
-# Initialize database
-python init_db.py
-
-# Run server
-flask run
-```
-
-## Performance
-
-### Parser Benchmarks
-| Method | Time per Replay | Notes |
-|--------|-----------------|-------|
-| slippc (C++) | ~5-10ms | Metadata only |
-| slippc (C++) | ~50-100ms | Full frame data |
-| py-slippi | ~200-500ms | Pure Python |
-
-### Server Performance
-- Search queries: <100ms for 10K replays
-- Replay detail: <50ms (cached)
-- Batch import: ~100 replays/second
-
-## Comparison with Alternatives
-
-| Feature | slip.py | slippi-stats | Slippipedia |
-|---------|---------|--------------|-------------|
-| Platform | Web | Browser | Desktop |
-| Parser | C++ (fast) | JS | C++ |
-| Search | Full-text | Basic | SQL |
-| Multi-user | Yes | No | No |
-| Visualizations | GLSL | Basic | None |
-| Self-hosted | Yes | N/A | N/A |
-
-## Limitations
-
-1. **Server Required**: Not a standalone client
-2. **Setup Complexity**: C++ compilation needed
-3. **Storage**: Requires disk space for database
-4. **No Real-time**: Post-hoc analysis only
-
-## ExPhil Relevance
-
-### C++ Parser Integration
-- slippc could be wrapped for faster Elixir parsing via NIF
-- JSON output format compatible with Elixir's Jason
-- Batch processing patterns for large datasets
-
-### Search Architecture
-- Full-text search patterns for replay filtering
-- Metadata indexing strategies
-- Player code lookup for dataset curation
-
-### Visualization Ideas
-- GLSL patterns could inform training visualizations
-- Heatmap generation for position analysis
-- Movement trail analysis for character-specific patterns
+slip.py demonstrates a complete production architecture for replay analysis at scale. The separation of C++ parsing (slippc) from Python web serving shows how to build efficient pipelines that could be adapted for training data preparation.
 
 ## Links
 
-- **Repository**: https://github.com/pcrain/slip.py
-- **slippc Parser**: Included in repository
-- **Flask**: https://flask.palletsprojects.com/
+- [slip.py GitHub](https://github.com/pcrain/slip.py)
+- [slippc Parser](https://github.com/pcrain/slippc)
+- [Project Slippi](https://github.com/project-slippi)

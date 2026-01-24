@@ -1,224 +1,113 @@
 # Slippipedia
 
 **Repository:** https://github.com/cbartsch/Slippipedia
-**Author:** cbartsch
-**Language:** QML/Qt (C++ backend)
-**Status:** Active, maintained
-**Purpose:** Desktop replay browser with SQLite persistence and advanced analytics
+**Author:** Christian Bartsch (cbartsch)
+**Language:** QML (88.8%), C++ (7.2%)
+**Status:** Active (v2.2 released January 2025)
+**Purpose:** Desktop replay analysis and management tool
 
 ## Overview
 
-Slippipedia is a desktop application for browsing, searching, and analyzing Slippi replay collections. Unlike browser-based tools, it uses SQLite for persistent storage, enabling fast queries across thousands of replays without re-parsing.
+Slippipedia is a cross-platform desktop application for analyzing and managing large collections of Slippi replay files. It functions as "Your flexible replay manager" - parsing replays once into a SQLite database for fast subsequent queries and comprehensive statistics.
 
-## Architecture
+## Technology Stack
 
-### Technology Stack
+| Component | Technology |
+|-----------|------------|
+| UI Framework | QML + Felgo SDK (Qt-based) |
+| Backend | C++ for replay parsing |
+| Parser | slippc (Git submodule) |
+| Database | SQLite (local persistence) |
+| Video Export | FFmpeg integration |
+| Platforms | macOS, Windows, Linux |
 
-```
-┌─────────────────────────────────────────────────┐
-│                 Qt/QML Frontend                  │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────┐ │
-│  │   Replay    │  │   Stats     │  │  Filter │ │
-│  │   Browser   │  │   Views     │  │  Panel  │ │
-│  └─────────────┘  └─────────────┘  └─────────┘ │
-└─────────────────────────┬───────────────────────┘
-                          │
-┌─────────────────────────┴───────────────────────┐
-│                  C++ Backend                     │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────┐ │
-│  │   Replay    │  │   SQLite    │  │  Stats  │ │
-│  │   Parser    │  │   Storage   │  │  Engine │ │
-│  └─────────────┘  └─────────────┘  └─────────┘ │
-└─────────────────────────────────────────────────┘
-```
+## Key Features
 
-### Key Components
+### Statistics & Analytics
+- **Win rate tracking** by character, matchup, stage, time period
+- **Opponent tracking** with detailed per-opponent statistics
+- **Character usage** breakdown for player and opponents
+- **Stage frequency** analysis
 
-1. **Replay Parser**: Native C++ parsing for speed
-2. **SQLite Database**: Indexed storage for fast queries
-3. **QML UI**: Modern, responsive interface
-4. **Stats Engine**: Computes analytics from stored data
-
-## Features
+### Punish Analysis
+- Extraction and cataloging of offensive combo sequences
+- Damage dealt and move count per punish
+- Kill property tracking (whether punishes result in KOs)
+- Frame duration of punish sequences
+- Filtering by damage range, move count, player percent
 
 ### Replay Management
+- **One-time parsing** with persistent SQLite storage
+- **Fast database lookup** for subsequent queries
+- **Auto-analysis** option for new replays
+- Support for multiple connect-codes and player tags
+- Game mode filtering (Ranked, Unranked, Direct)
 
-- **Batch Import**: Scan directories for .slp files
-- **Metadata Extraction**: Character, stage, duration, winner
-- **Connect Code Tracking**: Associate replays with player identities
-- **Duplicate Detection**: Avoid re-importing same replays
-
-### Search & Filtering
-
-```
-Filters:
-├── Character (own/opponent)
-├── Stage
-├── Date range
-├── Duration
-├── Player codes
-├── Win/loss
-└── Game mode (ranked/unranked/direct)
-```
-
-### Analytics
-
-#### Punish Analysis
-- Opening type (neutral win, whiff punish, edgeguard)
-- Damage per opening
-- Kill confirms
-- Combo trees
-
-#### Matchup Statistics
-- Win rate by character matchup
-- Stage win rates
-- Performance over time trends
-
-#### Technical Execution
-- L-cancel rates
-- Wavedash frequency
-- Tech success rates
+### Video Export
+- MP4 conversion from Dolphin recordings
+- Export options: full game, single stocks, or specific punishes
+- Audio synchronization support (v2.2+)
 
 ## Database Schema
 
-```sql
--- Core tables (simplified)
-CREATE TABLE replays (
-    id INTEGER PRIMARY KEY,
-    path TEXT UNIQUE,
-    hash TEXT,
-    date DATETIME,
-    stage INTEGER,
-    duration_frames INTEGER,
-    winner INTEGER
-);
+Replay metadata stored includes:
+- Player characters, colors, stocks, display names
+- Stage ID and game duration
+- Win/loss outcomes
+- Performance metrics (punish, defense, neutral, speed)
+- Connect codes and timestamps
 
-CREATE TABLE players (
-    id INTEGER PRIMARY KEY,
-    replay_id INTEGER REFERENCES replays(id),
-    port INTEGER,
-    character INTEGER,
-    connect_code TEXT,
-    stocks_remaining INTEGER,
-    damage_dealt REAL
-);
-
-CREATE TABLE punishes (
-    id INTEGER PRIMARY KEY,
-    replay_id INTEGER REFERENCES replays(id),
-    player_port INTEGER,
-    start_frame INTEGER,
-    end_frame INTEGER,
-    damage REAL,
-    kills BOOLEAN,
-    opening_type TEXT
-);
-
--- Indexes for fast queries
-CREATE INDEX idx_players_code ON players(connect_code);
-CREATE INDEX idx_players_char ON players(character);
-CREATE INDEX idx_replays_date ON replays(date);
-```
-
-## Punish Detection Algorithm
-
-Slippipedia implements sophisticated punish detection:
+## Data Flow
 
 ```
-Punish Detection:
-1. Track opponent hitstun/tumble states
-2. Punish starts when opponent enters hitstun
-3. Punish continues while:
-   - Opponent in hitstun/tumble/tech situation
-   - OR gap < N frames (combo window)
-4. Punish ends when:
-   - Opponent returns to actionable state
-   - Gap exceeds threshold
-   - Stock lost
-
-Opening Classification:
-- Neutral win: Both players actionable before punish
-- Whiff punish: Opponent in lag when hit
-- Edgeguard: Opponent offstage or on ledge
-- Tech chase: Opponent missed tech or in tech animation
+.slp files → slippc parser → SQLite database → QML UI
+                                    ↓
+                            Fast queries for:
+                            - Statistics
+                            - Filtering
+                            - Punish analysis
 ```
 
-## Performance
+## Relevance to AI Training
 
-### Import Speed
-- ~100-200 replays/second on modern hardware
-- Initial import builds SQLite database
-- Subsequent queries are instant
+### Training Data Organization
+- **Normalized game states**: Database extracts position, action, damage, stocks - maps directly to training embeddings
+- **Punish sequences**: Identified combo sequences align with temporal dependency learning
+- **Matchup filtering**: Organize data for character-specific agent training
 
-### Query Performance
-- Character matchup stats: <100ms for 10K replays
-- Full-text search on player codes: <50ms
-- Date range filtering: <10ms (indexed)
+### Quality Indicators
+- Game duration and stock counts indicate competitive vs casual matches
+- Opponent characterization enables filtering for high-level play
+- Performance metrics (neutral win rate, conversion rate) could inform sample weighting
 
-## Comparison with Other Tools
+### Practical Integration
+- slippc parsing pipeline demonstrates efficient binary replay extraction
+- Multi-dimensional statistics suggest patterns for curriculum learning
+- Database architecture shows how to manage large replay collections
 
-| Feature | Slippipedia | slippi-stats | slip.py |
-|---------|-------------|--------------|---------|
-| Platform | Desktop (Qt) | Browser | Browser |
-| Storage | SQLite | None | Server |
-| Offline | Yes | Yes | No |
-| Punish analysis | Detailed | Basic | Basic |
-| Batch import | Fast | Manual | Batch |
-| Custom queries | SQL | No | No |
+## Version History
 
-## Installation
+| Version | Date | Key Features |
+|---------|------|--------------|
+| v2.0 | Oct 2022 | MP4 export, neutral game analysis |
+| v2.1 | June 2023 | Game mode filtering, UI improvements |
+| v2.2 | Jan 2025 | Multi-filter, Linux build, audio fixes |
 
-### Pre-built Binaries
-Available for Windows, macOS, Linux from GitHub releases.
+## Comparison to ExPhil
 
-### Building from Source
-```bash
-# Requires Qt 5.15+ with QML
-git clone https://github.com/cbartsch/Slippipedia
-cd Slippipedia
-qmake
-make
-```
+| Aspect | Slippipedia | ExPhil |
+|--------|-------------|--------|
+| Purpose | Post-hoc analysis | Real-time gameplay |
+| Data format | Aggregated statistics | Frame-by-frame state |
+| Output | Visualizations | Controller actions |
+| Use case | Player improvement | Bot development |
 
-## Use Cases
+## Key Insight
 
-### For Players
-- Track improvement over time
-- Identify weak matchups
-- Find replays of specific situations
-- Compare stats against opponents
-
-### For Analysts
-- Study punish game patterns
-- Matchup research
-- Tournament set analysis
-
-### For Developers
-- SQLite database as data source
-- Export stats for further analysis
-- Reference implementation for punish detection
-
-## Limitations
-
-1. **Desktop Only**: No web/mobile version
-2. **Qt Dependency**: Large runtime requirement
-3. **Single User**: No cloud sync or sharing
-4. **Manual Import**: Must point to replay directories
-
-## ExPhil Relevance
-
-### Data Pipeline
-- SQLite schema is a reference for replay indexing
-- Punish detection algorithm useful for reward shaping
-- Batch import patterns for large replay collections
-
-### Analytics Features
-- Opening classification maps to reward signals
-- Tech execution metrics for training evaluation
-- Matchup filtering for character-specific datasets
+Slippipedia demonstrates that Melee gameplay produces statistically distinctive patterns at the matchup, stage, and temporal level. The success of its filtering and grouping features validates that these dimensions are meaningful for organizing training data.
 
 ## Links
 
-- **Repository**: https://github.com/cbartsch/Slippipedia
-- **Releases**: GitHub releases page for binaries
-- **Qt Framework**: https://www.qt.io/
+- [GitHub Repository](https://github.com/cbartsch/Slippipedia)
+- [Releases](https://github.com/cbartsch/Slippipedia/releases)
+- [slippc Parser](https://github.com/pcrain/slippc)
