@@ -202,8 +202,15 @@ Current embedding size is **1204 dimensions** with all optimizations enabled.
 
 | Task | Effort | Why | Status |
 |------|--------|-----|--------|
-| Training state recovery | Medium | Resume loses optimizer state | Not started |
-| Checkpoint streaming | Medium | Save doesn't block training | Not started |
+| Training state recovery | Medium | Resume loses optimizer state | **Done** |
+| Checkpoint streaming | Medium | Save doesn't block training | **Done** |
+
+**Async Checkpoint Implementation:**
+- `lib/exphil/training/async_checkpoint.ex` - GenServer for background saves
+- Queue-based save with atomic writes (temp file + rename)
+- `save_async/2`, `await_pending/0`, `pending_count/0` API
+- Deep binary copy to avoid EXLA tensor cross-process issues
+- `test/exphil/training/checkpoint_roundtrip_test.exs` - Verifies optimizer state preservation
 
 ---
 
