@@ -170,8 +170,8 @@ RUN mkdir -p /app/replays /app/checkpoints /workspace/replays /workspace/checkpo
 # Copy tmux config for better training session experience
 COPY config/tmux.conf /root/.tmux.conf
 
-# Make fetch script executable
-RUN chmod +x /app/scripts/fetch_replays.sh
+# Make scripts executable
+RUN chmod +x /app/scripts/fetch_replays.sh /app/scripts/runpod_entrypoint.sh
 
 # Environment variables for EXLA/CUDA 12
 ENV XLA_TARGET=cuda12
@@ -182,6 +182,9 @@ ENV CUDA_VISIBLE_DEVICES=0
 # Cache stored in /workspace so it persists on RunPod volumes
 ENV JAX_COMPILATION_CACHE_DIR=/workspace/jax_cache
 RUN mkdir -p /workspace/jax_cache
+
+# Entrypoint handles rclone config from env vars
+ENTRYPOINT ["/app/scripts/runpod_entrypoint.sh"]
 
 # Keep container running for interactive use
 CMD ["sleep", "infinity"]
