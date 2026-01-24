@@ -401,6 +401,17 @@ defmodule ExPhil.SelfPlay.GameRunner do
 
     new_state = if done do
       Logger.debug("[GameRunner #{state.game_id}] Episode #{state.episode_count + 1} done, reward: #{Float.round(new_state.episode_reward, 2)}")
+
+      # Report result to matchmaker for Elo tracking
+      result = determine_winner(new_game_state, state.p1_port, state.p2_port)
+      if result do
+        ExPhil.SelfPlay.Supervisor.report_game_result(
+          state.p1_policy_id,
+          state.p2_policy_id,
+          result
+        )
+      end
+
       %{new_state | status: :finished, episode_count: state.episode_count + 1}
     else
       new_state
