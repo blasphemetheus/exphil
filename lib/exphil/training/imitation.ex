@@ -976,6 +976,48 @@ defmodule ExPhil.Training.Imitation do
     end
   end
 
+  @doc """
+  Save a training checkpoint asynchronously.
+
+  Like `save_checkpoint/2` but returns immediately while the checkpoint
+  is written in the background. This prevents training from blocking
+  on disk I/O.
+
+  Requires `ExPhil.Training.AsyncCheckpoint` to be started (typically
+  in your application's supervision tree).
+
+  ## Options
+    - `:timeout` - Max time to wait if save queue is full (default: 5000ms)
+
+  ## Example
+
+      # Add to your application.ex supervision tree:
+      children = [
+        ExPhil.Training.AsyncCheckpoint,
+        # ... other children
+      ]
+
+      # Then in training:
+      :ok = Imitation.save_checkpoint_async(trainer, path)
+
+      # At end of training, wait for pending saves:
+      :ok = ExPhil.Training.AsyncCheckpoint.await_pending()
+  """
+  @spec save_checkpoint_async(t(), Path.t(), keyword()) :: :ok | {:error, :queue_full}
+  def save_checkpoint_async(trainer, path, opts \\ []) do
+    # Build checkpoint map (no need to convert to BinaryBackend here,
+    # AsyncCheckpoint does that internally to handle cross-process access)
+    checkpoint = %{
+      policy_params: trainer.policy_params,
+      optimizer_state: trainer.optimizer_state,
+      config: trainer.config,
+      step: trainer.step,
+      metrics: trainer.metrics
+    }
+
+    ExPhil.Training.AsyncCheckpoint.save_async(checkpoint, path, opts)
+  end
+
   # Recursively convert all tensors to BinaryBackend for serialization
   defp to_binary_backend(%Nx.Tensor{} = tensor) do
     Nx.backend_copy(tensor, Nx.BinaryBackend)
@@ -1003,10 +1045,49 @@ defmodule ExPhil.Training.Imitation do
   defp to_binary_backend(other), do: other
 
   @doc """
+  Extract the optimizer's internal step count.
+
+  The optimizer state tracks steps internally for LR scheduling.
+  This should match `trainer.step` after proper save/load.
+
+  Returns the step count or nil if the state structure is unexpected.
+
+  ## Optimizer State Structure
+
+  When using gradient clipping with an optimizer (via `Polaris.Updates.compose`),
+  the state is wrapped in an extra tuple:
+
+      {{clip_state, optimizer_state}}
+
+  Where:
+  - `clip_state` has `:count` for clip step tracking
+  - `optimizer_state` (e.g., AdamW) has `:count`, `:mu`, `:nu`
+  """
+  @spec get_optimizer_step(tuple()) :: non_neg_integer() | nil
+  def get_optimizer_step(optimizer_state) do
+    case optimizer_state do
+      # Composed optimizer (gradient clipping + base optimizer)
+      {{_clip_state, inner_state}} when is_map(inner_state) ->
+        case inner_state[:count] do
+          %Nx.Tensor{} = count -> Nx.to_number(count)
+          _ -> nil
+        end
+
+      # Direct optimizer (no composition)
+      %{count: %Nx.Tensor{} = count} ->
+        Nx.to_number(count)
+
+      _ ->
+        nil
+    end
+  end
+
+  @doc """
   Load a training checkpoint.
 
   Validates embed size if the trainer was initialized with one.
   Warns if checkpoint embed size differs from current config.
+  Also validates that optimizer step count matches trainer.step.
   """
   @spec load_checkpoint(t(), Path.t()) :: {:ok, t()} | {:error, term()}
   def load_checkpoint(trainer, path) do
@@ -1021,6 +1102,21 @@ defmodule ExPhil.Training.Imitation do
           step: checkpoint.step,
           metrics: checkpoint.metrics
         }
+
+        # Validate optimizer step matches trainer step
+        case get_optimizer_step(new_trainer.optimizer_state) do
+          nil ->
+            Logger.warning("Could not verify optimizer step count")
+
+          opt_step when opt_step != new_trainer.step ->
+            Logger.warning(
+              "Optimizer step count (#{opt_step}) differs from trainer step (#{new_trainer.step}). " <>
+              "LR schedule may not continue correctly."
+            )
+
+          _ ->
+            :ok
+        end
 
         Logger.info("Loaded checkpoint from #{path} at step #{new_trainer.step}")
         {:ok, new_trainer}

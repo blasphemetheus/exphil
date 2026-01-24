@@ -32,6 +32,7 @@ Hard-won knowledge from debugging ExPhil. Each section documents a specific issu
 26. [Streaming mode requires --no-prefetch](#26-streaming-mode-requires---no-prefetch)
 27. [Streaming mode auto-disables precompute](#27-streaming-mode-auto-disables-precompute)
 28. [--train-character requires metadata collection](#28---train-character-requires-metadata-collection)
+29. [Polaris composed optimizer state structure](#29-polaris-composed-optimizer-state-structure)
 
 ---
 
@@ -903,3 +904,57 @@ if character_filter != [] or stage_filter != [] or train_character != nil or ini
 ```
 
 **Code location:** `scripts/train_from_replays.exs` around line 430.
+
+---
+
+## 29. Polaris composed optimizer state structure
+
+**Symptom:** Pattern matching on optimizer state fails with confusing errors after using `Polaris.Updates.compose`.
+
+**Root cause:** When you compose multiple optimizers (e.g., gradient clipping + AdamW):
+
+```elixir
+clip = Polaris.Updates.clip_by_global_norm(max_norm: 1.0)
+optimizer = Polaris.Updates.adamw(learning_rate: 1.0e-4)
+{init_fn, update_fn} = Polaris.Updates.compose(clip, optimizer)
+```
+
+The resulting state is wrapped in an extra tuple:
+
+```elixir
+# Expected (direct optimizer)
+%{count: ..., mu: ..., nu: ...}
+
+# Actual (composed optimizer)
+{{clip_state, optimizer_state}}
+
+# Where:
+# clip_state = %{count: ...}
+# optimizer_state = %{count: ..., mu: ..., nu: ...}
+```
+
+This double-nesting affects:
+- Checkpoint save/load (must recursively convert tuples)
+- Extracting step count for validation
+- Any code that inspects optimizer state
+
+**Fix:** Account for the nested structure when accessing optimizer state:
+
+```elixir
+# Extracting optimizer step count
+def get_optimizer_step(optimizer_state) do
+  case optimizer_state do
+    # Composed optimizer (gradient clipping + base optimizer)
+    {{_clip_state, inner_state}} when is_map(inner_state) ->
+      Nx.to_number(inner_state[:count])
+
+    # Direct optimizer (no composition)
+    %{count: count} ->
+      Nx.to_number(count)
+  end
+end
+```
+
+The `to_binary_backend/1` helper in `Imitation` correctly handles this by recursively processing tuples.
+
+**Code location:** `lib/exphil/training/imitation.ex` - `to_binary_backend/1`, `get_optimizer_step/1`
