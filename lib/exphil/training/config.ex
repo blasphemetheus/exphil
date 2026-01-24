@@ -36,7 +36,7 @@ defmodule ExPhil.Training.Config do
     "--num-layers", "--attention-every", "--num-heads", "--state-size", "--expand-factor", "--conv-size",
     "--truncate-bptt", "--precision", "--frame-delay", "--frame-delay-augment",
     "--frame-delay-min", "--frame-delay-max", "--online-robust", "--early-stopping",
-    "--patience", "--min-delta", "--save-best", "--save-every", "--lr",
+    "--patience", "--min-delta", "--save-best", "--save-every", "--save-every-batches", "--lr",
     "--lr-schedule", "--warmup-steps", "--decay-steps", "--restart-period",
     "--restart-mult", "--max-grad-norm", "--resume", "--name", "--accumulation-steps",
     "--val-split", "--augment", "--mirror-prob", "--noise-prob", "--noise-scale",
@@ -124,6 +124,7 @@ defmodule ExPhil.Training.Config do
       # Checkpointing
       save_best: true,
       save_every: nil,
+      save_every_batches: nil,  # Save checkpoint every N batches (useful for streaming mode)
       # Learning rate
       learning_rate: 1.0e-4,
       lr_schedule: :constant,
@@ -1600,6 +1601,7 @@ defmodule ExPhil.Training.Config do
     |> parse_float_arg(args, "--min-delta", :min_delta)
     |> parse_flag(args, "--save-best", :save_best)
     |> parse_optional_int_arg(args, "--save-every", :save_every)
+    |> parse_optional_int_arg(args, "--save-every-batches", :save_every_batches)
     |> parse_float_arg(args, "--lr", :learning_rate)
     |> parse_atom_arg(args, "--lr-schedule", :lr_schedule)
     |> parse_optional_int_arg(args, "--warmup-steps", :warmup_steps)

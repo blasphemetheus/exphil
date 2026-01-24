@@ -371,6 +371,7 @@ Configuration:
   Grad Ckpt:   #{if opts[:gradient_checkpoint], do: "enabled (every #{opts[:checkpoint_every]} layers)", else: "disabled"}
   GPU:         #{gpu_info}
   Streaming:   #{if opts[:stream_chunk_size], do: "enabled (#{opts[:stream_chunk_size]} files/chunk)", else: "disabled"}
+  Batch Save:  #{if opts[:save_every_batches], do: "every #{opts[:save_every_batches]} batches", else: "disabled"}
   K-means:     #{if opts[:kmeans_centers], do: "enabled (#{opts[:kmeans_centers]})", else: "disabled (uniform 17 buckets)"}
   Verbosity:   #{verbosity_str}
 #{temporal_info}
@@ -1151,11 +1152,17 @@ else
 end
 
 # Training loop with early stopping and best model tracking
-# Returns {trainer, epochs_completed, stopped_early, early_stopping_state, best_val_loss, pruner, ema, history}
-initial_state = {trainer, 0, false, early_stopping_state, nil, pruner, ema, []}
+# Returns {trainer, epochs_completed, stopped_early, early_stopping_state, best_val_loss, pruner, ema, history, global_batch_idx}
+initial_state = {trainer, 0, false, early_stopping_state, nil, pruner, ema, [], 0}
 
-{final_trainer, epochs_completed, stopped_early, _es_state, _best_val, _final_pruner, final_ema, training_history} =
-  Enum.reduce_while(1..opts[:epochs], initial_state, fn epoch, {current_trainer, _, _, es_state, best_val_loss, current_pruner, current_ema, history} ->
+# Batch checkpoint interval (nil = disabled)
+save_every_batches = opts[:save_every_batches]
+batch_checkpoint_path = if save_every_batches do
+  String.replace(opts[:checkpoint], ".axon", "_batch.axon")
+end
+
+{final_trainer, epochs_completed, stopped_early, _es_state, _best_val, _final_pruner, final_ema, training_history, _final_batch_idx} =
+  Enum.reduce_while(1..opts[:epochs], initial_state, fn epoch, {current_trainer, _, _, es_state, best_val_loss, current_pruner, current_ema, history, global_batch_idx} ->
     epoch_start = System.monotonic_time(:second)
 
     # Create batched dataset for this epoch
@@ -1275,11 +1282,15 @@ initial_state = {trainer, 0, false, early_stopping_state, nil, pruner, ema, []}
     epoch_batch_start = System.monotonic_time(:millisecond)
 
     # Define batch processing function (shared by prefetch and non-prefetch paths)
-    process_batch = fn batch, batch_idx, {t, losses, jit_shown} ->
+    # State includes global_batch_idx for cross-epoch batch counting
+    process_batch = fn batch, batch_idx, {t, losses, jit_shown, curr_global_idx} ->
       batch_start = System.monotonic_time(:millisecond)
       # Note: loss_fn is ignored by train_step (it uses cached predict_fn internally)
       {new_trainer, metrics} = Imitation.train_step(t, batch, nil)
       batch_time_ms = System.monotonic_time(:millisecond) - batch_start
+
+      # Increment global batch index
+      new_global_idx = curr_global_idx + 1
 
       # Show JIT completion message after first batch
       new_jit_shown = if jit_shown and batch_idx == 0 do
@@ -1287,6 +1298,16 @@ initial_state = {trainer, 0, false, early_stopping_state, nil, pruner, ema, []}
         true
       else
         jit_shown
+      end
+
+      # Batch-interval checkpointing (for streaming mode resilience)
+      if save_every_batches && rem(new_global_idx, save_every_batches) == 0 do
+        IO.write(:stderr, "\n")
+        Output.puts("  💾 Saving batch checkpoint (batch #{new_global_idx})...")
+        case Imitation.save_checkpoint(new_trainer, batch_checkpoint_path) do
+          :ok -> Output.puts("  ✓ Saved to #{batch_checkpoint_path}")
+          {:error, reason} -> Output.warning("Failed to save batch checkpoint: #{inspect(reason)}")
+        end
       end
 
       # Live progress bar - updates in place using carriage return
@@ -1324,15 +1345,15 @@ initial_state = {trainer, 0, false, early_stopping_state, nil, pruner, ema, []}
       IO.write(:stderr, "\r#{progress_line}")
 
       # Accumulate tensor loss (already converted for display above, so use loss_val)
-      {new_trainer, [loss_val | losses], new_jit_shown}
+      {new_trainer, [loss_val | losses], new_jit_shown, new_global_idx}
     end
 
     # Use prefetcher if enabled (computes next batch while GPU trains on current)
-    {updated_trainer, epoch_losses, _} = if opts[:prefetch] do
+    {updated_trainer, epoch_losses, _, updated_global_batch_idx} = if opts[:prefetch] do
       # Use streaming prefetcher for true async overlap
       Prefetcher.reduce_stream_indexed(
         batch_stream,
-        {current_trainer, [], jit_indicator_shown},
+        {current_trainer, [], jit_indicator_shown, global_batch_idx},
         process_batch,
         buffer_size: opts[:prefetch_buffer]
       )
@@ -1340,7 +1361,7 @@ initial_state = {trainer, 0, false, early_stopping_state, nil, pruner, ema, []}
       # Standard sequential processing - iterate lazily for streaming mode
       batch_stream
       |> Stream.with_index()
-      |> Enum.reduce({current_trainer, [], jit_indicator_shown}, fn {batch, batch_idx}, acc ->
+      |> Enum.reduce({current_trainer, [], jit_indicator_shown, global_batch_idx}, fn {batch, batch_idx}, acc ->
         process_batch.(batch, batch_idx, acc)
       end)
     end
@@ -1466,9 +1487,9 @@ initial_state = {trainer, 0, false, early_stopping_state, nil, pruner, ema, []}
     case es_decision do
       :stop ->
         Output.puts("\n  ⚠ Early stopping triggered - no improvement for #{opts[:patience]} epochs")
-        {:halt, {updated_trainer, epoch, true, new_es_state, new_best_val_loss, updated_pruner, updated_ema, updated_history}}
+        {:halt, {updated_trainer, epoch, true, new_es_state, new_best_val_loss, updated_pruner, updated_ema, updated_history, updated_global_batch_idx}}
       :continue ->
-        {:cont, {updated_trainer, epoch, false, new_es_state, new_best_val_loss, updated_pruner, updated_ema, updated_history}}
+        {:cont, {updated_trainer, epoch, false, new_es_state, new_best_val_loss, updated_pruner, updated_ema, updated_history, updated_global_batch_idx}}
     end
   end)
 

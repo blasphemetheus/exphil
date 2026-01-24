@@ -181,6 +181,7 @@ mix run scripts/train_from_replays.exs --dual-port
 | `--min-delta X` | 0.01 | Minimum improvement to count as progress |
 | `--save-best` | true | Save model when val_loss improves |
 | `--save-every N` | nil | Save checkpoint every N epochs |
+| `--save-every-batches N` | nil | Save checkpoint every N batches (for streaming) |
 | `--resume PATH` | nil | Resume from checkpoint |
 | `--precision TYPE` | bf16 | bf16 or f32 |
 | `--frame-delay N` | 0 | Simulated online delay (for Slippi) |
@@ -551,6 +552,26 @@ mix run scripts/train_from_replays.exs --save-best --val-split 0.1
 ```
 
 Saves whenever validation loss improves.
+
+### Batch-Interval Checkpointing
+
+For streaming mode or long epochs, save checkpoints every N batches:
+
+```bash
+# Save every 500 batches (recommended for streaming mode)
+mix run scripts/train_from_replays.exs --stream-chunk-size 30 --save-every-batches 500
+
+# More frequent saves for large datasets
+mix run scripts/train_from_replays.exs --save-every-batches 200
+```
+
+This creates `checkpoints/{name}_batch.axon` that gets overwritten at each interval.
+Protects against losing progress if training crashes or is interrupted.
+
+**When to use:**
+- Streaming mode (epochs can be very long)
+- Training on large datasets (>1000 batches per epoch)
+- Unreliable GPU/cloud instances (preemptible VMs)
 
 ## Tests
 

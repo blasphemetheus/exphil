@@ -318,6 +318,14 @@ defmodule Mix.Tasks.Exphil.Setup do
           nil
         end
 
+        # Batch checkpointing (recommended for streaming/large datasets)
+        save_every_batches = if ask_yes_no("Enable batch-interval checkpointing (protects against crashes)?", goal == :production) do
+          Output.puts_raw("  Saves checkpoint every N batches (useful for streaming mode or long epochs)")
+          ask_int("Save every N batches", 500)
+        else
+          nil
+        end
+
         # Build options list
         opts = [
           temporal: temporal,
@@ -331,7 +339,8 @@ defmodule Mix.Tasks.Exphil.Setup do
           precision: precision,
           online_robust: online_robust,
           wandb: wandb,
-          seed: seed
+          seed: seed,
+          save_every_batches: save_every_batches
         ]
         |> Enum.reject(fn {_k, v} -> v == nil or v == false or v == 0.0 end)
 
@@ -487,6 +496,7 @@ defmodule Mix.Tasks.Exphil.Setup do
       # Checkpointing
       {:resume, v} -> ["--resume", v]
       {:save_best, true} -> ["--save-best"]
+      {:save_every_batches, v} when not is_nil(v) and v > 0 -> ["--save-every-batches", to_string(v)]
       # Discretization
       {:kmeans_centers, v} when not is_nil(v) -> ["--kmeans-centers", v]
       # Reproducibility
@@ -523,6 +533,7 @@ defmodule Mix.Tasks.Exphil.Setup do
     show_opt(opts, :online_robust, "Online Mode")
     show_opt(opts, :wandb, "W&B Logging")
     show_opt(opts, :kmeans_centers, "K-means")
+    show_opt(opts, :save_every_batches, "Batch Ckpt")
     show_opt(opts, :seed, "Seed")
     show_opt(opts, :resume, "Resume From")
 

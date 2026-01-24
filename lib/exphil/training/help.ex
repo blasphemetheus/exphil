@@ -39,6 +39,8 @@ defmodule ExPhil.Training.Help do
     checkpoint: {"TRAINING.md", "checkpointing"},
     resume: {"TRAINING.md", "resume-training"},
     checkpoint_safety: {"TRAINING.md", "checkpoint-safety"},
+    batch_checkpoint: {"TRAINING.md", "batch-interval-checkpointing"},
+    save_every_batches: {"TRAINING.md", "batch-interval-checkpointing"},
 
     # Monitoring
     wandb: {"TRAINING.md", "monitoring"},
@@ -141,6 +143,8 @@ defmodule ExPhil.Training.Help do
       message_lower =~ "backbone" -> :backbone
       message_lower =~ "mamba" -> :mamba
       message_lower =~ "window" -> :window_size
+      message_lower =~ "batch" and message_lower =~ "checkpoint" -> :batch_checkpoint
+      message_lower =~ "save" and message_lower =~ "batch" -> :batch_checkpoint
       message_lower =~ "batch" -> :batch_size
       message_lower =~ "learning rate" or message_lower =~ "lr" -> :learning_rate
       message_lower =~ "epoch" -> :epochs
