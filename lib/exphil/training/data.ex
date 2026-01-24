@@ -43,6 +43,7 @@ defmodule ExPhil.Training.Data do
 
   alias ExPhil.Embeddings
   alias ExPhil.Bridge.{GameState, ControllerState}
+  alias ExPhil.Training.PlayerRegistry
 
   require Logger
 
@@ -52,20 +53,24 @@ defmodule ExPhil.Training.Data do
     :embed_config,        # Embedding configuration
     :size,                # Number of frames
     :embedded_sequences,  # Pre-computed embeddings (optional, for temporal training)
-    :embedded_frames      # Pre-computed single-frame embeddings (optional, for MLP training)
+    :embedded_frames,     # Pre-computed single-frame embeddings (optional, for MLP training)
+    :player_registry      # Player tag -> ID mapping for style-conditional training
   ]
 
   @type frame :: %{
     game_state: GameState.t(),
     controller: ControllerState.t() | nil,
-    action: map() | nil
+    action: map() | nil,
+    player_tag: String.t() | nil,
+    name_id: non_neg_integer() | nil
   }
 
   @type t :: %__MODULE__{
     frames: [frame()],
     metadata: map(),
     embed_config: map(),
-    size: non_neg_integer()
+    size: non_neg_integer(),
+    player_registry: PlayerRegistry.t() | nil
   }
 
   # ============================================================================
@@ -115,6 +120,11 @@ defmodule ExPhil.Training.Data do
   Create a dataset from a list of frames directly.
 
   Useful for testing or when data is already in memory.
+
+  ## Options
+    - `:embed_config` - Embedding configuration
+    - `:metadata` - Dataset metadata
+    - `:player_registry` - PlayerRegistry for style-conditional training
   """
   @spec from_frames([frame()], keyword()) :: t()
   def from_frames(frames, opts \\ []) do
@@ -122,11 +132,26 @@ defmodule ExPhil.Training.Data do
       Embeddings.config()
     end)
 
+    player_registry = Keyword.get(opts, :player_registry)
+
+    # Add name_id to frames if registry is provided
+    frames =
+      if player_registry do
+        Enum.map(frames, fn frame ->
+          player_tag = frame[:player_tag]
+          name_id = PlayerRegistry.get_id(player_registry, player_tag)
+          Map.put(frame, :name_id, name_id)
+        end)
+      else
+        frames
+      end
+
     %__MODULE__{
       frames: frames,
       metadata: Keyword.get(opts, :metadata, %{}),
       embed_config: embed_config,
-      size: length(frames)
+      size: length(frames),
+      player_registry: player_registry
     }
   end
 
@@ -325,7 +350,7 @@ defmodule ExPhil.Training.Data do
 
   # Standard path: embed on the fly (used when augmentation is enabled)
   defp create_batch_standard(dataset, indices, delay_config, augment_fn) do
-    # Collect frames
+    # Collect frames with name_ids for style-conditional training
     frame_data = Enum.map(indices, fn idx ->
       # Determine frame delay for this sample
       frame_delay = get_frame_delay(delay_config)
@@ -345,12 +370,14 @@ defmodule ExPhil.Training.Data do
         {state_frame, action_frame}
       end
 
-      {state_frame.game_state, get_action(action_frame)}
+      # Include name_id for player embedding (defaults to 0 if not available)
+      name_id = state_frame[:name_id] || 0
+      {state_frame.game_state, get_action(action_frame), name_id}
     end)
 
-    # Embed states
-    {game_states, actions} = Enum.unzip(frame_data)
-    states = embed_states(game_states, dataset.embed_config)
+    # Embed states with name_ids
+    {game_states, actions, name_ids} = unzip3(frame_data)
+    states = embed_states(game_states, dataset.embed_config, name_ids)
 
     # Convert actions to tensors
     action_tensors = actions_to_tensors(actions)
@@ -369,6 +396,13 @@ defmodule ExPhil.Training.Data do
     end
   end
 
+  # Unzip a list of 3-tuples into three lists
+  defp unzip3(list) do
+    Enum.reduce(Enum.reverse(list), {[], [], []}, fn {a, b, c}, {as, bs, cs} ->
+      {[a | as], [b | bs], [c | cs]}
+    end)
+  end
+
   # Get frame delay for this sample - either fixed or random based on config
   defp get_frame_delay(%{augment: true, min: min_delay, max: max_delay}) do
     # Random delay uniformly distributed between min and max
@@ -380,12 +414,22 @@ defmodule ExPhil.Training.Data do
   # Handle legacy integer delay (backward compatibility)
   defp get_frame_delay(delay) when is_integer(delay), do: delay
 
-  defp embed_states(game_states, embed_config) do
+  # Embed states with optional name_ids for style-conditional training
+  defp embed_states(game_states, embed_config, nil) do
     embeddings = Enum.map(game_states, fn gs ->
-      # Embed using the standard interface
-      # Passes embed_config as opts
       Embeddings.embed(gs, nil, embed_config: embed_config)
     end)
+
+    Nx.stack(embeddings)
+  end
+
+  defp embed_states(game_states, embed_config, name_ids) when is_list(name_ids) do
+    embeddings =
+      Enum.zip(game_states, name_ids)
+      |> Enum.map(fn {gs, name_id} ->
+        # Pass name_id for player embedding (style-conditional training)
+        Embeddings.embed(gs, nil, embed_config: embed_config, name_id: name_id)
+      end)
 
     Nx.stack(embeddings)
   end
@@ -731,9 +775,11 @@ defmodule ExPhil.Training.Data do
         IO.write(:stderr, "\r  Embedding: #{pct}% (#{processed}/#{total})    ")
       end
 
-      # Batch embed all frames in this chunk
+      # Batch embed all frames in this chunk with name_ids for style-conditional training
       game_states = Enum.map(chunk, & &1.game_state)
-      batch_embedded = Embeddings.Game.embed_states_fast(game_states, 1, config: embed_config)
+      name_ids = Enum.map(chunk, fn f -> f[:name_id] || 0 end)
+      batch_embedded = Embeddings.Game.embed_states_fast(game_states, 1,
+        config: embed_config, name_id: name_ids)
 
       # Convert to list of individual embeddings
       # CRITICAL: Copy to CPU after embedding to avoid GPU OOM when dataset is large
@@ -851,15 +897,18 @@ defmodule ExPhil.Training.Data do
     # Slow path: no pre-computed embeddings, embed on-the-fly
     sequence_data = Enum.map(indices, fn idx ->
       frame = :array.get(idx, frames_array)
-      {frame.sequence, frame.action}
+      # Extract name_id from first frame of sequence for style-conditional training
+      name_id = get_in(frame, [:sequence, Access.at(0), :name_id]) || 0
+      {frame.sequence, frame.action, name_id}
     end)
 
-    {sequences, actions} = Enum.unzip(sequence_data)
+    {sequences, actions, name_ids} = unzip3(sequence_data)
 
-    # Embed sequences
-    embedded = Enum.map(sequences, fn seq ->
+    # Embed sequences with name_ids
+    embedded = Enum.zip(sequences, name_ids)
+    |> Enum.map(fn {seq, name_id} ->
       game_states = Enum.map(seq, & &1.game_state)
-      Embeddings.Game.embed_states_fast(game_states, 1)
+      Embeddings.Game.embed_states_fast(game_states, 1, name_id: name_id)
     end)
 
     states = Nx.stack(embedded)

@@ -545,7 +545,15 @@ defmodule ExPhil.Embeddings.Game do
     if Enum.empty?(game_states) do
       Nx.broadcast(0.0, {0, embedding_size(config)})
     else
-      name_id = Keyword.get(opts, :name_id, 0)
+      batch_size = length(game_states)
+
+      # name_id can be a single integer (broadcast to all) or a list (one per frame)
+      name_ids_opt = Keyword.get(opts, :name_id, 0)
+      name_ids = case name_ids_opt do
+        id when is_integer(id) -> List.duplicate(id, batch_size)
+        ids when is_list(ids) -> ids
+        _ -> List.duplicate(0, batch_size)
+      end
 
       # Extract own players and opponent players
       {own_players, opponent_players} = game_states
@@ -559,9 +567,7 @@ defmodule ExPhil.Embeddings.Game do
       own_emb = PlayerEmbed.embed_batch(own_players, config.player)
       opp_emb = PlayerEmbed.embed_batch(opponent_players, config.player)
 
-      # Batch embed name_id (same for all in batch)
-      batch_size = length(game_states)
-      name_ids = List.duplicate(name_id, batch_size)
+      # Batch embed name_ids (style-conditional training)
       name_emb = Primitives.batch_one_hot(Nx.tensor(name_ids, type: :s32), size: config.num_player_names, clamp: true)
 
       # Previous action (zeros since we don't have it in temporal sequences)

@@ -262,6 +262,40 @@ mix run scripts/train_from_replays.exs --dual-port
 |--------|---------|-------------|
 | `--stage-mode MODE` | full | Stage embedding: full, compact, learned |
 | `--num-player-names N` | 112 | Player name dims (0 to disable) |
+| `--learn-player-styles` | false | Enable style-conditional training |
+| `--player-registry PATH` | nil | Save/load player registry JSON |
+| `--min-player-games N` | 1 | Min games for player to be in registry |
+
+### Player Style Learning
+
+Style-conditional training learns player-specific playstyles by embedding player tags from replays. This allows the model to learn "how Plup plays Sheik" vs "how Jmook plays Sheik" - same character, different tendencies.
+
+**Usage:**
+```bash
+# Enable style learning (builds registry from replay tags)
+mix run scripts/train_from_replays.exs --learn-player-styles --temporal --backbone mamba
+
+# Save registry for later use or inspection
+mix run scripts/train_from_replays.exs --learn-player-styles --player-registry players.json
+
+# Reuse saved registry (ensures consistent player IDs across runs)
+mix run scripts/train_from_replays.exs --learn-player-styles --player-registry players.json
+```
+
+**How it works:**
+1. Scans replay metadata for player tags (e.g., "Plup", "Jmook", "Mango")
+2. Assigns each unique player a numeric ID (0 to num_player_names-1)
+3. Embeds player ID as one-hot vector during training
+4. Model learns player-specific tendencies through this conditioning
+
+**Options:**
+- `--min-player-games N` - Only include players with N+ games (filter rare tags)
+- `--num-player-names N` - Max unique players (overflow uses hash bucketing)
+
+**Use cases:**
+- Train a model that can mimic specific player styles
+- Analyze playstyle differences between players
+- Condition generation: "play aggressively like Mango"
 
 ### K-means Stick Discretization
 

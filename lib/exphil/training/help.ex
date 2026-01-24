@@ -53,6 +53,9 @@ defmodule ExPhil.Training.Help do
     # Embedding
     stage_mode: {"TRAINING.md", "embedding-options"},
     player_names: {"TRAINING.md", "embedding-options"},
+    player_styles: {"TRAINING.md", "player-style-learning"},
+    player_registry: {"TRAINING.md", "player-style-learning"},
+    learn_player_styles: {"TRAINING.md", "player-style-learning"},
 
     # Discretization
     kmeans: {"TRAINING.md", "k-means-stick-discretization"},
@@ -171,6 +174,7 @@ defmodule ExPhil.Training.Help do
       message_lower =~ "backup" or message_lower =~ "overwrite" -> :checkpoint_safety
       message_lower =~ "kmeans" or message_lower =~ "k-means" or message_lower =~ "discretiz" -> :kmeans
       message_lower =~ "interrupt" or message_lower =~ "sigterm" or message_lower =~ "sigint" or message_lower =~ "ctrl" -> :graceful_shutdown
+      message_lower =~ "player style" or message_lower =~ "player tag" or message_lower =~ "player registry" or message_lower =~ "style condition" -> :player_styles
       true -> nil
     end
   end

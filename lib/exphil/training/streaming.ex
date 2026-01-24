@@ -163,13 +163,16 @@ defmodule ExPhil.Training.Streaming do
     window_size = Keyword.get(opts, :window_size, 60)
     stride = Keyword.get(opts, :stride, 1)
     embed_config = Keyword.get(opts, :embed_config)
+    player_registry = Keyword.get(opts, :player_registry)
     # NOTE: In streaming mode, precompute is wasteful since embeddings are
     # discarded after each chunk. Force precompute=false for streaming.
     # Embeddings will be computed on-the-fly during training instead.
     _precompute = Keyword.get(opts, :precompute, true)
 
-    # Build from_frames options with embed_config if provided
-    from_frames_opts = if embed_config, do: [embed_config: embed_config], else: []
+    # Build from_frames options with embed_config and player_registry if provided
+    from_frames_opts = []
+    from_frames_opts = if embed_config, do: [{:embed_config, embed_config} | from_frames_opts], else: from_frames_opts
+    from_frames_opts = if player_registry, do: [{:player_registry, player_registry} | from_frames_opts], else: from_frames_opts
     dataset = Data.from_frames(frames, from_frames_opts)
 
     if temporal do

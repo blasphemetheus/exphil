@@ -836,11 +836,70 @@ embed_config = Embeddings.config(
   num_player_names: opts[:num_player_names]
 )
 
+# Build player registry for style-conditional training (if enabled)
+alias ExPhil.Training.PlayerRegistry
+
+player_registry = if opts[:learn_player_styles] do
+  Output.puts("\n  Building player registry for style-conditional training...", :cyan)
+
+  # Helper to build registry from replays
+  build_from_replays = fn files ->
+    {:ok, reg} = PlayerRegistry.from_replays(files,
+      max_players: opts[:num_player_names],
+      min_games: opts[:min_player_games],
+      unknown_strategy: :hash
+    )
+    Output.puts("    ✓ Found #{PlayerRegistry.size(reg)} unique players")
+
+    # Show top players
+    if PlayerRegistry.size(reg) > 0 do
+      top_tags = reg |> PlayerRegistry.list_tags() |> Enum.take(5)
+      Output.puts("    Top players: #{Enum.join(top_tags, ", ")}")
+    end
+
+    reg
+  end
+
+  registry = cond do
+    # Load existing registry if provided
+    opts[:player_registry] && File.exists?(opts[:player_registry]) ->
+      Output.puts("    Loading registry from #{opts[:player_registry]}...")
+      case PlayerRegistry.from_json(opts[:player_registry]) do
+        {:ok, reg} ->
+          Output.puts("    ✓ Loaded #{PlayerRegistry.size(reg)} players")
+          reg
+        {:error, reason} ->
+          Output.warning("Failed to load registry: #{inspect(reason)}")
+          Output.puts("    Building new registry from replays...")
+          build_from_replays.(replay_files)
+      end
+
+    # Build from replays
+    true ->
+      build_from_replays.(replay_files)
+  end
+
+  # Save registry if path provided
+  if opts[:player_registry] do
+    case PlayerRegistry.to_json(registry, opts[:player_registry]) do
+      :ok -> Output.puts("    ✓ Saved registry to #{opts[:player_registry]}")
+      {:error, reason} -> Output.warning("Failed to save registry: #{inspect(reason)}")
+    end
+  end
+
+  registry
+else
+  nil
+end
+
 # Step 2: Create dataset (skipped in streaming mode - data loaded per-chunk)
 {train_dataset, val_dataset} = if not streaming_mode do
   Output.puts("\nStep 2: Creating dataset...", :cyan)
 
-  dataset = Data.from_frames(all_frames, embed_config: embed_config)
+  dataset = Data.from_frames(all_frames,
+    embed_config: embed_config,
+    player_registry: player_registry
+  )
 
   # Convert to sequences for temporal training, or precompute embeddings for MLP
   base_dataset = if opts[:temporal] do
@@ -1109,12 +1168,16 @@ graceful_shutdown = fn signal ->
   System.halt(if signal == :sigint, do: 130, else: 143)
 end
 
-# Trap SIGTERM and SIGINT (Ctrl+C)
-# Note: :sigint requires Elixir 1.12+
-for signal <- [:sigterm, :sigint] do
-  case System.trap_signal(signal, fn -> graceful_shutdown.(signal) end) do
-    {:ok, _} -> :ok
-    {:error, :not_sup} -> Output.warning("Signal #{signal} trapping not supported on this platform")
+# Trap SIGTERM for graceful shutdown
+# Note: :sigint is not supported by System.trap_signal/3 (Ctrl+C handled by BEAM)
+for signal <- [:sigterm] do
+  try do
+    case System.trap_signal(signal, fn -> graceful_shutdown.(signal) end) do
+      {:ok, _} -> :ok
+      {:error, :not_sup} -> Output.warning("Signal #{signal} trapping not supported on this platform")
+    end
+  rescue
+    _ -> Output.warning("Signal #{signal} trapping failed")
   end
 end
 
@@ -1156,7 +1219,8 @@ end
     window_size: opts[:window_size],
     stride: opts[:stride],
     precompute: opts[:precompute],
-    embed_config: embed_config
+    embed_config: embed_config,
+    player_registry: player_registry
   ]
 
   # Estimate total batches from metadata (no parsing needed)
@@ -1564,8 +1628,12 @@ end
 
 # Training complete - stop the trainer state agent and untrap signals
 Agent.stop(:trainer_state)
-for signal <- [:sigterm, :sigint] do
-  System.untrap_signal(signal)
+for signal <- [:sigterm] do
+  try do
+    System.untrap_signal(signal)
+  rescue
+    _ -> :ok
+  end
 end
 
 total_time = System.monotonic_time(:second) - start_time

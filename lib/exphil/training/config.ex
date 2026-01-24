@@ -53,6 +53,10 @@ defmodule ExPhil.Training.Config do
     "--balance-characters",  # Weight sampling by inverse character frequency
     "--stage-mode",  # Stage embedding mode: full, compact, learned
     "--num-player-names",  # Number of player name embedding dims (0 to disable, default: 112)
+    "--learn-player-styles",  # Enable style-conditional training (build player registry)
+    "--no-learn-player-styles",  # Disable style-conditional training
+    "--player-registry",  # Path to save/load player registry JSON
+    "--min-player-games",  # Minimum games for player to be included in registry (default: 1)
     # Verbosity control
     "--verbose",  # Extra debug output (level 2)
     "--quiet",  # Minimal output, errors only (level 0)
@@ -187,6 +191,9 @@ defmodule ExPhil.Training.Config do
       # Embedding options
       stage_mode: :one_hot_full,  # :one_hot_full (64 dims), :one_hot_compact (7 dims), :learned (1 ID)
       num_player_names: 112,  # Player name embedding dims (0 = disable, 112 = slippi-ai compatible)
+      learn_player_styles: false,  # Enable style-conditional training
+      player_registry: nil,  # Path to save/load player registry JSON
+      min_player_games: 1,  # Minimum games for player to be in registry
       # Verbosity control
       verbosity: 1,  # 0 = quiet (errors only), 1 = normal, 2 = verbose (debug)
       # Reproducibility
@@ -1661,6 +1668,11 @@ defmodule ExPhil.Training.Config do
     |> parse_optional_int_arg(args, "--stream-chunk-size", :stream_chunk_size)
     |> parse_stage_mode_arg(args)
     |> parse_optional_int_arg(args, "--num-player-names", :num_player_names)
+    # Player style learning
+    |> parse_flag(args, "--learn-player-styles", :learn_player_styles)
+    |> parse_flag(args, "--no-learn-player-styles", :no_learn_player_styles)
+    |> parse_string_arg(args, "--player-registry", :player_registry)
+    |> parse_optional_int_arg(args, "--min-player-games", :min_player_games)
     # Verbosity control
     |> parse_verbosity_flags(args)
     # Reproducibility
@@ -1688,6 +1700,10 @@ defmodule ExPhil.Training.Config do
     |> then(fn opts ->
       # --no-skip-duplicates disables duplicate detection
       if opts[:no_skip_duplicates], do: Keyword.put(opts, :skip_duplicates, false), else: opts
+    end)
+    |> then(fn opts ->
+      # --no-learn-player-styles disables style-conditional training
+      if opts[:no_learn_player_styles], do: Keyword.put(opts, :learn_player_styles, false), else: opts
     end)
   end
 
