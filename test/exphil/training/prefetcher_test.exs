@@ -215,4 +215,84 @@ defmodule ExPhil.Training.PrefetcherTest do
       assert count == 3  # 3 batches of 4
     end
   end
+
+  describe "Nx tensor compatibility (regression test for EXLA deadlock bug)" do
+    # Regression test for gotcha #32: Prefetcher deadlock with EXLA tensors in spawned processes
+    # The bug: reduce_stream_indexed spawns a process that calls Stream.run(), and Nx.stack
+    # operations inside that spawned process can deadlock with EXLA tensors.
+    # The fix: use reduce_indexed (materializes in main process) for non-streaming mode.
+
+    test "reduce_indexed works with Nx tensor batches" do
+      # Simulate Data.batched_sequences: a stream that creates Nx tensors via Nx.stack
+      # This is what happens with precomputed embeddings
+      embeddings = [
+        Nx.tensor([[1.0, 2.0], [3.0, 4.0]]),
+        Nx.tensor([[5.0, 6.0], [7.0, 8.0]]),
+        Nx.tensor([[9.0, 10.0], [11.0, 12.0]])
+      ]
+
+      # Stream.map with Nx.stack simulates batch creation
+      batch_stream =
+        Enum.chunk_every(embeddings, 2)
+        |> Stream.map(fn chunk ->
+          %{states: Nx.stack(chunk)}
+        end)
+
+      # reduce_indexed should work (materializes to list in main process first)
+      {results, count} = Prefetcher.reduce_indexed(batch_stream, {[], 0}, fn batch, idx, {acc, cnt} ->
+        # Verify we can access the tensor
+        shape = Nx.shape(batch.states)
+        {[{idx, shape} | acc], cnt + 1}
+      end)
+
+      assert count == 2
+      assert Enum.sort(results) == [{0, {2, 2, 2}}, {1, {1, 2, 2}}]
+    end
+
+    test "reduce_indexed processes all Nx batches without deadlock" do
+      # Create a larger batch stream to stress test
+      num_batches = 20
+      batch_size = 4
+      embed_size = 8
+
+      # Pre-create tensors (simulating precomputed embeddings)
+      key = Nx.Random.key(42)
+      {tensors, _} = Enum.map_reduce(1..num_batches, key, fn _, k ->
+        Nx.Random.uniform(k, shape: {batch_size, embed_size})
+      end)
+
+      batch_stream = Stream.map(tensors, fn t -> %{states: t, label: Nx.sum(t)} end)
+
+      # This should complete without deadlock
+      {processed_count, total_sum} = Prefetcher.reduce_indexed(
+        batch_stream,
+        {0, 0.0},
+        fn batch, _idx, {count, sum} ->
+          batch_sum = Nx.to_number(batch.label)
+          {count + 1, sum + batch_sum}
+        end
+      )
+
+      assert processed_count == num_batches
+      # Sum should be positive (random values are positive)
+      assert total_sum > 0
+    end
+
+    test "reduce_stream_indexed works with simple Nx tensors" do
+      # Stream-based prefetcher should still work with Nx tensors
+      # (it works with BinaryBackend, the issue was specifically with EXLA in spawned processes)
+      stream = Stream.map(1..5, fn i ->
+        %{tensor: Nx.tensor([i, i * 2, i * 3])}
+      end)
+
+      result = Prefetcher.reduce_stream_indexed(stream, [], fn batch, idx, acc ->
+        sum = Nx.to_number(Nx.sum(batch.tensor))
+        [{idx, sum} | acc]
+      end)
+
+      # i + 2i + 3i = 6i
+      expected = [{0, 6}, {1, 12}, {2, 18}, {3, 24}, {4, 30}]
+      assert Enum.sort(result) == Enum.sort(expected)
+    end
+  end
 end

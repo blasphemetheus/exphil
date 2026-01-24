@@ -35,6 +35,7 @@ Hard-won knowledge from debugging ExPhil. Each section documents a specific issu
 29. [Jamba/Temporal model architecture mismatch on load](#29-jambatemporal-model-architecture-mismatch-on-load)
 30. [Model outputs nonsensical actions](#30-model-outputs-nonsensical-actions-eg-always-rolls-right)
 31. [Polaris composed optimizer state structure](#31-polaris-composed-optimizer-state-structure)
+32. [Prefetcher deadlock with EXLA tensors in spawned processes](#32-prefetcher-deadlock-with-exla-tensors-in-spawned-processes)
 
 ---
 
@@ -1045,3 +1046,54 @@ end
 The `to_binary_backend/1` helper in `Imitation` correctly handles this by recursively processing tuples.
 
 **Code location:** `lib/exphil/training/imitation.ex` - `to_binary_backend/1`, `get_optimizer_step/1`
+
+---
+
+## 32. Prefetcher deadlock with EXLA tensors in spawned processes
+
+**Symptom:** Training shows "No batches processed this epoch" with loss=0.0. GPU utilization is 0% despite VRAM being allocated. The `--no-prefetch` flag makes training work correctly.
+
+**Root cause:** The streaming prefetcher (`Prefetcher.reduce_stream_indexed`) spawns an iterator process that calls `Stream.run()` to iterate batches. When batches are created (via `Nx.stack` on pre-computed embeddings), the Nx operations happen in this spawned process.
+
+EXLA tensors have process-local state and NIF resources that may not work correctly in raw `spawn_link`ed processes. The `Nx.stack` operation blocks or fails silently, causing no batches to be produced.
+
+```elixir
+# Inside prefetcher's stream_producer:
+iterator = spawn_link(fn ->
+  stream
+  |> Stream.each(fn batch ->       # batch creation (Nx.stack) happens here
+    send(parent, {:batch_ready, ref, batch})
+  end)
+  |> Stream.run()
+end)
+```
+
+**The difference:**
+- `reduce_stream_indexed`: Spawns iterator process, Nx operations happen there → deadlock with EXLA
+- `reduce_indexed`: Calls `Enum.to_list(batches)` in main process first, then uses Task.async for prefetching already-computed batches → works
+
+**Fix:** Use `reduce_indexed` for non-streaming (precomputed embeddings) mode:
+
+```elixir
+{updated_trainer, epoch_losses, _, updated_global_batch_idx} = cond do
+  opts[:prefetch] and streaming_mode ->
+    # Streaming: use lazy stream-based prefetcher
+    Prefetcher.reduce_stream_indexed(batch_stream, initial_acc, process_batch, ...)
+
+  opts[:prefetch] ->
+    # Non-streaming: use list-based prefetcher (safe for EXLA)
+    Prefetcher.reduce_indexed(batch_stream, initial_acc, process_batch)
+
+  true ->
+    # No prefetching
+    batch_stream |> Stream.with_index() |> Enum.reduce(...)
+end
+```
+
+**Why this is safe:** For non-streaming mode with precomputed embeddings:
+1. The embeddings are already in memory (just array lookups)
+2. `Nx.stack` is fast for pre-computed tensors
+3. Materializing the batch list upfront is acceptable memory-wise
+4. All Nx operations happen in the main process before Task-based prefetching
+
+**Code location:** `scripts/train_from_replays.exs` around line 1485, `lib/exphil/training/prefetcher.ex`

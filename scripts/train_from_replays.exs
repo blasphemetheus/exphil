@@ -1482,21 +1482,34 @@ end
     end
 
     # Use prefetcher if enabled (computes next batch while GPU trains on current)
-    {updated_trainer, epoch_losses, _, updated_global_batch_idx} = if opts[:prefetch] do
-      # Use streaming prefetcher for true async overlap
-      Prefetcher.reduce_stream_indexed(
-        batch_stream,
-        {current_trainer, [], jit_indicator_shown, global_batch_idx},
-        process_batch,
-        buffer_size: opts[:prefetch_buffer]
-      )
-    else
-      # Standard sequential processing - iterate lazily for streaming mode
-      batch_stream
-      |> Stream.with_index()
-      |> Enum.reduce({current_trainer, [], jit_indicator_shown, global_batch_idx}, fn {batch, batch_idx}, acc ->
-        process_batch.(batch, batch_idx, acc)
-      end)
+    {updated_trainer, epoch_losses, _, updated_global_batch_idx} = cond do
+      opts[:prefetch] and streaming_mode ->
+        # Streaming mode: use stream-based prefetcher for lazy iteration
+        # This avoids materializing all chunks at once
+        Prefetcher.reduce_stream_indexed(
+          batch_stream,
+          {current_trainer, [], jit_indicator_shown, global_batch_idx},
+          process_batch,
+          buffer_size: opts[:prefetch_buffer]
+        )
+
+      opts[:prefetch] ->
+        # Non-streaming mode: use list-based prefetcher
+        # reduce_indexed materializes the stream first (safe for EXLA tensors)
+        # then does simple Task-based prefetching
+        Prefetcher.reduce_indexed(
+          batch_stream,
+          {current_trainer, [], jit_indicator_shown, global_batch_idx},
+          process_batch
+        )
+
+      true ->
+        # No prefetching - standard sequential processing
+        batch_stream
+        |> Stream.with_index()
+        |> Enum.reduce({current_trainer, [], jit_indicator_shown, global_batch_idx}, fn {batch, batch_idx}, acc ->
+          process_batch.(batch, batch_idx, acc)
+        end)
     end
 
     epoch_time = System.monotonic_time(:second) - epoch_start
