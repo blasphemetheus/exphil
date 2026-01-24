@@ -246,10 +246,14 @@ defmodule ExPhil.SelfPlay.Matchmaker do
 
   @impl true
   def handle_call({:report_result, p1_id, p2_id, result}, _from, state) do
+    require Logger
+    Logger.debug("[Matchmaker] Reporting result: #{inspect(p1_id)} vs #{inspect(p2_id)} = #{inspect(result)}")
+
     state = ensure_registered(state, p1_id)
     state = ensure_registered(state, p2_id)
 
     {new_state, rating_changes} = update_ratings(state, p1_id, p2_id, result)
+    Logger.debug("[Matchmaker] Rating changes: #{inspect(rating_changes)}")
 
     # Record match
     match_record = %{

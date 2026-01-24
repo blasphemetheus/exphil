@@ -184,7 +184,9 @@ opts = %{
   gae_lambda: String.to_float(get_arg.("--gae-lambda", "0.95")),
   # Flags
   help: has_flag.("--help") or has_flag.("-h"),
-  track_elo: has_flag.("--track-elo")
+  track_elo: has_flag.("--track-elo"),
+  # Game config
+  max_episode_frames: String.to_integer(get_arg.("--max-episode-frames", "28800"))
 }
 
 if opts.help do
@@ -361,7 +363,10 @@ Output.puts("  ✓ PPO trainer initialized")
 
 Output.step(4, 6, "Starting #{opts.num_games} parallel games")
 
-game_results = Supervisor.start_games(opts.num_games, game_type: opts.game_type)
+game_results = Supervisor.start_games(opts.num_games,
+  game_type: opts.game_type,
+  config: [max_episode_frames: opts.max_episode_frames]
+)
 
 started_count = Enum.count(game_results, fn {:ok, _} -> true; _ -> false end)
 Output.puts("  ✓ #{started_count}/#{opts.num_games} games started")

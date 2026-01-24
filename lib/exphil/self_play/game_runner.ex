@@ -404,6 +404,7 @@ defmodule ExPhil.SelfPlay.GameRunner do
 
       # Report result to matchmaker for Elo tracking
       result = determine_winner(new_game_state, state.p1_port, state.p2_port)
+      Logger.debug("[GameRunner #{state.game_id}] Winner: #{inspect(result)}, p1=#{inspect(state.p1_policy_id)}, p2=#{inspect(state.p2_policy_id)}")
       if result do
         ExPhil.SelfPlay.Supervisor.report_game_result(
           state.p1_policy_id,
@@ -729,6 +730,31 @@ defmodule ExPhil.SelfPlay.GameRunner do
         p1 = Map.get(game_state.players, state.p1_port)
         p2 = Map.get(game_state.players, state.p2_port)
         (p1 && p1.stock <= 0) || (p2 && p2.stock <= 0)
+    end
+  end
+
+  # Determine winner based on stock counts
+  # Returns :win (p1 wins), :loss (p2 wins), or nil (undetermined)
+  defp determine_winner(game_state, p1_port, p2_port) do
+    p1 = Map.get(game_state.players, p1_port)
+    p2 = Map.get(game_state.players, p2_port)
+
+    cond do
+      p1 == nil or p2 == nil -> nil
+      p2.stock <= 0 and p1.stock > 0 -> :win
+      p1.stock <= 0 and p2.stock > 0 -> :loss
+      # Tie-breaker: lower percent wins
+      p1.stock <= 0 and p2.stock <= 0 ->
+        if p1.percent <= p2.percent, do: :win, else: :loss
+      # Game ended by timeout or other reason
+      true ->
+        cond do
+          p1.stock > p2.stock -> :win
+          p2.stock > p1.stock -> :loss
+          p1.percent < p2.percent -> :win
+          p2.percent < p1.percent -> :loss
+          true -> :draw
+        end
     end
   end
 

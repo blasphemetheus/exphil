@@ -481,6 +481,35 @@ mix run scripts/train_ppo.exs \
   --timesteps 100000
 ```
 
+## Self-Play Training
+
+Train multiple agents against each other with Elo tracking:
+
+```bash
+# Basic self-play (4 parallel games)
+mix run scripts/train_self_play.exs \
+  --num-games 4 \
+  --track-elo
+
+# With custom episode length (default: 28800 frames = ~8 min)
+mix run scripts/train_self_play.exs \
+  --num-games 4 \
+  --max-episode-frames 18000 \
+  --track-elo
+```
+
+### Self-Play Options
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--num-games N` | 4 | Number of parallel games to run |
+| `--game-type TYPE` | mock | Game type: mock, dolphin, libmelee |
+| `--max-episode-frames N` | 28800 | Max frames per episode (~8 min at 60fps) |
+| `--track-elo` | false | Enable Elo rating tracking |
+| `--ppo-epochs N` | 4 | PPO update epochs per batch |
+| `--clip-epsilon F` | 0.2 | PPO clipping parameter |
+| `--gae-lambda F` | 0.95 | GAE lambda for advantage estimation |
+
 ## Evaluation
 
 ```bash

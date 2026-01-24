@@ -275,10 +275,41 @@ defmodule Mix.Tasks.Exphil.Setup do
         augment = ask_yes_no("Enable data augmentation (better generalization)?", true)
         wandb = ask_yes_no("Enable Weights & Biases logging?", false)
 
-        [temporal: temporal, backbone: backbone, augment: augment, wandb: wandb]
+        kmeans = ask_kmeans()
+
+        opts = [temporal: temporal, backbone: backbone, augment: augment, wandb: wandb]
+        if kmeans, do: [{:kmeans_centers, kmeans} | opts], else: opts
       else
         # Sensible defaults for non-quick
         [temporal: true, backbone: :mamba, augment: true]
+      end
+    end
+  end
+
+  defp ask_kmeans do
+    # Check if K-means centers file exists
+    default_path = "priv/kmeans_centers.nx"
+    has_centers = File.exists?(default_path)
+
+    if has_centers do
+      Output.puts_raw("\n  Found K-means centers at #{default_path}")
+      if ask_yes_no("Use K-means stick discretization (~5% better on precision inputs)?", true) do
+        default_path
+      else
+        nil
+      end
+    else
+      if ask_yes_no("Use K-means stick discretization (requires training centers first)?", false) do
+        Output.puts_raw("""
+
+          To train K-means centers, run:
+            mix run scripts/train_kmeans.exs --replays ./replays --k 21
+
+        """)
+        path = ask_string("Path to K-means centers file", default_path)
+        if File.exists?(path), do: path, else: nil
+      else
+        nil
       end
     end
   end
@@ -372,6 +403,7 @@ defmodule Mix.Tasks.Exphil.Setup do
       {:gradient_checkpoint, false} -> []
       {:resume, v} -> ["--resume", v]
       {:hidden_sizes, v} -> ["--hidden-sizes", Enum.join(v, ",")]
+      {:kmeans_centers, v} when not is_nil(v) -> ["--kmeans-centers", v]
       _ -> []
     end)
   end
@@ -397,6 +429,7 @@ defmodule Mix.Tasks.Exphil.Setup do
     show_opt(opts, :backbone, "Backbone")
     show_opt(opts, :augment, "Augmentation")
     show_opt(opts, :wandb, "W&B Logging")
+    show_opt(opts, :kmeans_centers, "K-means")
     show_opt(opts, :resume, "Resume From")
 
     Output.puts_raw("""

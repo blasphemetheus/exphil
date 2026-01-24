@@ -49,6 +49,10 @@ defmodule ExPhil.Training.Help do
     stage_mode: {"TRAINING.md", "embedding-options"},
     player_names: {"TRAINING.md", "embedding-options"},
 
+    # Discretization
+    kmeans: {"TRAINING.md", "k-means-stick-discretization"},
+    stick_discretization: {"TRAINING.md", "k-means-stick-discretization"},
+
     # Presets
     presets: {"TRAINING.md", "presets"},
     setup_wizard: {"TRAINING.md", "interactive-setup-wizard"},
@@ -158,6 +162,7 @@ defmodule ExPhil.Training.Help do
       message_lower =~ "seed" -> :seed
       message_lower =~ "verbose" or message_lower =~ "quiet" -> :verbosity
       message_lower =~ "backup" or message_lower =~ "overwrite" -> :checkpoint_safety
+      message_lower =~ "kmeans" or message_lower =~ "k-means" or message_lower =~ "discretiz" -> :kmeans
       true -> nil
     end
   end
