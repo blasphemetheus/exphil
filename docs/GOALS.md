@@ -148,7 +148,7 @@ Current embedding size is **1204 dimensions** with all optimizations enabled.
 
 | Option | Current | Potential | Benefit | Status |
 |--------|---------|-----------|---------|--------|
-| **Stage embedding with PS variants** | 64 dims | ~10-20 dims | Distinguish frozen/unfrozen PS, focus on competitive | Not started |
+| **Stage embedding modes** | 64 dims | 7 (compact) or 1 ID (learned) | `stage_mode: :one_hot_compact` (7 dims) or `:learned` (1 ID + embedding) | **Done** |
 | **Player names embedding** | 112 dims | 0-32 dims | Style-conditional imitation (currently unused) | Not started |
 | **IC Tech Feature Block** | N/A | +32 dims | Dedicated grab/regrab/desync features | Not started |
 
@@ -165,11 +165,12 @@ Current embedding size is **1204 dimensions** with all optimizations enabled.
 - Reduces Nana embedding from 39 → 14 dims continuous + 1 action ID
 - Total network input: 254 continuous + 4×64 action embedding = 510 dims (under 512 target!)
 
-**Stage Embedding Improvements:**
-- Current: 64-dim one-hot (mostly unused dimensions)
-- Competitive stages: BF=31, FD=2, DL=28, YS=8, FoD=3, PS=18
-- Pokemon Stadium has transformations (fire/grass/rock/water)
-- Proposed: 6-dim competitive one-hot + 4-dim PS transformation + 1-dim "other stage" flag
+**Stage Embedding Modes (Implemented):**
+- `:one_hot_full` (default): 64-dim one-hot
+- `:one_hot_compact`: 7-dim (6 competitive + "other"), saves 57 dims
+- `:learned`: 1 stage ID + trainable 64-dim embedding, saves 63 dims
+- Competitive stages: FoD=2, PS=3, YS=8, DL=28, BF=31, FD=32
+- CLI: `--stage-mode compact` or `--stage-mode learned`
 
 **Player Names Feature:**
 - Currently 112 dims allocated but unused (num_player_names=112)

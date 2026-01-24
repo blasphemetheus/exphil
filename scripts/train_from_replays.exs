@@ -711,11 +711,14 @@ if not streaming_mode do
   end
 end
 
+# Build embedding config with stage_mode option (needed for dataset creation)
+embed_config = Embeddings.config(stage_mode: opts[:stage_mode])
+
 # Step 2: Create dataset (skipped in streaming mode - data loaded per-chunk)
 {train_dataset, val_dataset} = if not streaming_mode do
   Output.puts("\nStep 2: Creating dataset...", :cyan)
 
-  dataset = Data.from_frames(all_frames)
+  dataset = Data.from_frames(all_frames, embed_config: embed_config)
 
   # Convert to sequences for temporal training, or precompute embeddings for MLP
   base_dataset = if opts[:temporal] do
@@ -801,8 +804,12 @@ end
 # Step 3: Initialize trainer
 Output.puts("\nStep 3: Initializing model...", :cyan)
 
-embed_size = Embeddings.embedding_size()
+# Use embed_config created earlier (before dataset creation)
+embed_size = Embeddings.embedding_size(embed_config)
 Output.puts("  Embedding size: #{embed_size}")
+if opts[:stage_mode] != :one_hot_full do
+  Output.puts("  Stage mode: #{opts[:stage_mode]}")
+end
 
 # For Mamba, use first hidden_size value as hidden_size (single int)
 # For other backbones, use hidden_sizes list
@@ -812,6 +819,7 @@ hidden_size = case opts[:hidden_sizes] do
 end
 
 trainer_opts = [
+  embed_config: embed_config,
   embed_size: embed_size,
   hidden_sizes: opts[:hidden_sizes],
   hidden_size: hidden_size,
@@ -981,7 +989,8 @@ end
     temporal: opts[:temporal],
     window_size: opts[:window_size],
     stride: opts[:stride],
-    precompute: opts[:precompute]
+    precompute: opts[:precompute],
+    embed_config: embed_config
   ]
 
   # Estimate total batches by sampling first chunk (only once at startup)

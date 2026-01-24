@@ -1595,6 +1595,38 @@ defmodule ExPhil.Training.ConfigTest do
     end
   end
 
+  describe "parse_args/1 with stage_mode" do
+    test "defaults stage_mode to :one_hot_full" do
+      opts = Config.parse_args([])
+      assert opts[:stage_mode] == :one_hot_full
+    end
+
+    test "parses --stage-mode full" do
+      opts = Config.parse_args(["--stage-mode", "full"])
+      assert opts[:stage_mode] == :one_hot_full
+    end
+
+    test "parses --stage-mode compact" do
+      opts = Config.parse_args(["--stage-mode", "compact"])
+      assert opts[:stage_mode] == :one_hot_compact
+    end
+
+    test "parses --stage-mode learned" do
+      opts = Config.parse_args(["--stage-mode", "learned"])
+      assert opts[:stage_mode] == :learned
+    end
+
+    test "parses --stage-mode one_hot_full" do
+      opts = Config.parse_args(["--stage-mode", "one_hot_full"])
+      assert opts[:stage_mode] == :one_hot_full
+    end
+
+    test "parses --stage-mode one_hot_compact" do
+      opts = Config.parse_args(["--stage-mode", "one_hot_compact"])
+      assert opts[:stage_mode] == :one_hot_compact
+    end
+  end
+
   describe "validate_args/1 CLI argument validation" do
     test "returns empty warnings for valid args" do
       assert {:ok, []} = Config.validate_args(["--epochs", "10", "--batch-size", "32"])

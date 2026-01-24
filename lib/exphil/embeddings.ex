@@ -54,6 +54,10 @@ defmodule ExPhil.Embeddings do
     - `:with_projectiles` - Include projectile data (default: false)
     - `:axis_buckets` - Discretization for stick axes (default: 16)
     - `:shoulder_buckets` - Discretization for triggers (default: 4)
+    - `:stage_mode` - Stage embedding mode:
+      - `:one_hot_full` (default) - 64-dim one-hot
+      - `:one_hot_compact` - 7-dim (6 competitive + "other")
+      - `:learned` - 1 ID + trainable embedding
 
   """
   @spec config(keyword()) :: config()
@@ -71,7 +75,7 @@ defmodule ExPhil.Embeddings do
 
     game_opts = Keyword.take(opts, [:with_projectiles, :max_projectiles, :with_items,
                                     :max_items, :num_player_names, :with_distance,
-                                    :with_relative_pos, :with_frame_count])
+                                    :with_relative_pos, :with_frame_count, :stage_mode])
     struct(base, [{:player, player_config}, {:controller, controller_config} | game_opts])
   end
 

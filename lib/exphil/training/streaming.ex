@@ -155,18 +155,22 @@ defmodule ExPhil.Training.Streaming do
   - `:window_size` - Window size for sequences (default: 60)
   - `:stride` - Stride for sequence sampling (default: 1)
   - `:precompute` - Whether to precompute embeddings (default: true)
+  - `:embed_config` - Embedding configuration (optional)
   """
   @spec create_dataset(list(), keyword()) :: Data.t()
   def create_dataset(frames, opts \\ []) do
     temporal = Keyword.get(opts, :temporal, false)
     window_size = Keyword.get(opts, :window_size, 60)
     stride = Keyword.get(opts, :stride, 1)
+    embed_config = Keyword.get(opts, :embed_config)
     # NOTE: In streaming mode, precompute is wasteful since embeddings are
     # discarded after each chunk. Force precompute=false for streaming.
     # Embeddings will be computed on-the-fly during training instead.
     _precompute = Keyword.get(opts, :precompute, true)
 
-    dataset = Data.from_frames(frames)
+    # Build from_frames options with embed_config if provided
+    from_frames_opts = if embed_config, do: [embed_config: embed_config], else: []
+    dataset = Data.from_frames(frames, from_frames_opts)
 
     if temporal do
       Data.to_sequences(dataset,

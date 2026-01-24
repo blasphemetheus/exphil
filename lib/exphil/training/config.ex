@@ -48,7 +48,8 @@ defmodule ExPhil.Training.Config do
     "--stream-chunk-size",  # Process files in chunks for memory efficiency
     "--train-character",  # Auto-select port based on character
     "--dual-port",  # Train on both players per replay
-    "--balance-characters"  # Weight sampling by inverse character frequency
+    "--balance-characters",  # Weight sampling by inverse character frequency
+    "--stage-mode"  # Stage embedding mode: full, compact, learned
   ]
 
   @doc """
@@ -161,7 +162,9 @@ defmodule ExPhil.Training.Config do
       # K-means stick discretization
       kmeans_centers: nil,  # Path to K-means cluster centers file (.nx)
       # Streaming data loading (process files in chunks to bound memory)
-      stream_chunk_size: nil  # nil = load all at once, N = process N files per chunk
+      stream_chunk_size: nil,  # nil = load all at once, N = process N files per chunk
+      # Embedding options
+      stage_mode: :one_hot_full  # :one_hot_full (64 dims), :one_hot_compact (7 dims), :learned (1 ID)
     ]
   end
 
@@ -1575,6 +1578,24 @@ defmodule ExPhil.Training.Config do
     |> parse_atom_list_arg(args, "--stages", :stages)
     |> parse_string_arg(args, "--kmeans-centers", :kmeans_centers)
     |> parse_optional_int_arg(args, "--stream-chunk-size", :stream_chunk_size)
+    |> parse_stage_mode_arg(args)
+  end
+
+  # Parse stage mode with alias support (full, compact, learned -> atoms)
+  defp parse_stage_mode_arg(opts, args) do
+    case get_arg_value(args, "--stage-mode") do
+      nil -> opts
+      value ->
+        mode = case String.downcase(value) do
+          "full" -> :one_hot_full
+          "one_hot_full" -> :one_hot_full
+          "compact" -> :one_hot_compact
+          "one_hot_compact" -> :one_hot_compact
+          "learned" -> :learned
+          other -> String.to_atom(other)
+        end
+        Keyword.put(opts, :stage_mode, mode)
+    end
   end
 
   # Parse comma-separated list of atoms (e.g., "mewtwo,fox,falco" -> [:mewtwo, :fox, :falco])
