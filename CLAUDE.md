@@ -40,7 +40,7 @@ ExPhil is an Elixir-based successor to slippi-ai, creating high-ELO playable bot
 
 ## Current Status
 
-**Test coverage:** 1394 tests passing
+**Test coverage:** 1459 tests passing
 
 **Completed:**
 - Stage embedding modes (full 64-dim, compact 7-dim, or learned embedding)
@@ -59,6 +59,11 @@ ExPhil is an Elixir-based successor to slippi-ai, creating high-ELO playable bot
 - Frame delay augmentation for online play (`--online-robust`)
 - Training presets (quick, standard, production, character-specific)
 - Model evaluation script (`scripts/eval_model.exs`)
+- Interactive setup wizard (`mix exphil.setup`)
+- Environment variable support (`EXPHIL_REPLAYS_DIR`, `EXPHIL_WANDB_PROJECT`)
+- Verbosity control (`--verbose` / `--quiet`)
+- Reproducibility seed logging (`--seed N`)
+- Checkpoint collision warnings and auto-backup (`--overwrite`, `--backup`)
 
 ## Immediate Priorities
 
@@ -104,15 +109,16 @@ Detailed guides in `docs/`:
 # Install dependencies
 mix deps.get
 
-# Single-frame training (baseline)
-mix run scripts/train_from_replays.exs --epochs 10 --max-files 50
-
-# Temporal training with Mamba (recommended)
-mix run scripts/train_from_replays.exs --temporal --backbone mamba --epochs 5
+# NEW: Interactive setup wizard (recommended for beginners)
+mix exphil.setup
 
 # Using presets
-mix run scripts/train_from_replays.exs --preset quick     # Fast iteration
+mix run scripts/train_from_replays.exs --preset quick     # Fast iteration (~5 min)
+mix run scripts/train_from_replays.exs --preset mewtwo    # Character-specific
 mix run scripts/train_from_replays.exs --preset full      # Maximum quality
+
+# Manual configuration
+mix run scripts/train_from_replays.exs --temporal --backbone mamba --epochs 5
 
 # Evaluate a trained model
 mix run scripts/eval_model.exs --checkpoint checkpoints/model.axon
@@ -124,6 +130,17 @@ mix run scripts/play_dolphin_async.exs \
   --dolphin ~/.config/Slippi\ Launcher/netplay \
   --iso ~/melee.iso
 ```
+
+**Environment variables** (optional):
+```bash
+export EXPHIL_REPLAYS_DIR=/path/to/replays
+export EXPHIL_WANDB_PROJECT=my-project
+```
+
+**Useful flags:**
+- `--verbose` / `--quiet` - Control output verbosity
+- `--seed N` - Set random seed for reproducibility
+- `--overwrite` - Allow checkpoint overwrite (creates .bak backup)
 
 ## Project Structure
 

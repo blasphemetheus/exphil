@@ -4,17 +4,22 @@ Complete reference for training ExPhil models.
 
 ## Quick Start
 
+**New to ExPhil?** Use the interactive wizard:
 ```bash
-# Single-frame imitation learning (baseline)
+mix exphil.setup
+```
+
+Or use presets directly:
+```bash
+# Using presets (recommended)
+mix run scripts/train_from_replays.exs --preset quick     # Fast iteration (~5 min)
+mix run scripts/train_from_replays.exs --preset standard  # Balanced (~30 min)
+mix run scripts/train_from_replays.exs --preset full      # Maximum quality (~2 hrs)
+mix run scripts/train_from_replays.exs --preset mewtwo    # Character-specific
+
+# Manual configuration
 mix run scripts/train_from_replays.exs --epochs 10 --max-files 100
-
-# Temporal training with Mamba (recommended)
 mix run scripts/train_from_replays.exs --temporal --backbone mamba --epochs 5
-
-# Using presets
-mix run scripts/train_from_replays.exs --preset quick     # Fast iteration
-mix run scripts/train_from_replays.exs --preset standard  # Balanced
-mix run scripts/train_from_replays.exs --preset full      # Maximum quality
 ```
 
 ## Training Modes
@@ -140,6 +145,31 @@ mix run scripts/train_from_replays.exs --dual-port
 |--------|---------|-------------|
 | `--wandb` | false | Enable Weights & Biases logging |
 | `--wandb-project NAME` | exphil | W&B project name |
+
+### Verbosity & Reproducibility
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--quiet` | false | Minimal output (errors only) |
+| `--verbose` | false | Debug output (timing, memory) |
+| `--seed N` | random | Random seed for reproducibility |
+
+### Checkpoint Safety
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--overwrite` | false | Allow overwriting existing checkpoints |
+| `--no-overwrite` | false | Fail if checkpoint exists |
+| `--backup` | true | Create .bak before overwrite |
+| `--no-backup` | false | Skip backup creation |
+| `--backup-count N` | 3 | Number of backup versions to keep |
+
+### Embedding Options
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--stage-mode MODE` | full | Stage embedding: full, compact, learned |
+| `--num-player-names N` | 112 | Player name dims (0 to disable) |
 
 ## Presets
 
@@ -387,3 +417,234 @@ mix test --cover                              # With coverage
 mix test test/exphil/training/imitation_test.exs  # Specific file
 mix test --include slow                       # Include slow tests
 ```
+
+## Interactive Setup Wizard
+
+New to ExPhil? Use the interactive wizard to build your training command:
+
+```bash
+mix exphil.setup
+```
+
+The wizard walks you through:
+
+1. **Goal Selection** - Quick experiment, character training, production model, or fine-tuning
+2. **Character Selection** - Choose from Mewtwo, Ganondorf, Link, G&W, Zelda, Ice Climbers, or general
+3. **Hardware Configuration** - Auto-detects GPU and recommends batch size
+4. **Data Configuration** - Replay directory, file limits
+5. **Advanced Options** - Backbone, augmentation, W&B logging
+
+At the end, it generates a ready-to-run command and optionally executes it.
+
+**Example session:**
+```
+╔════════════════════════════════════════════════════════════════╗
+║                ExPhil Training Setup Wizard                    ║
+╚════════════════════════════════════════════════════════════════╝
+
+Detected Hardware:
+  GPU: NVIDIA GeForce RTX 4090 (24 GB)
+
+What would you like to do?
+  [1] Quick experiment (test setup, ~5 minutes)
+  [2] Train a character-specific model
+  [3] Train a general-purpose model
+  [4] Fine-tune an existing model
+
+Choice [1]: 2
+
+Which character?
+  [1] Mewtwo - Floaty, teleport recovery, tail hitboxes
+  [2] Ganondorf - Heavy, powerful, spacing-focused
+  ...
+
+Choice [1]: 1
+
+GPU Memory Tier: 24GB+
+  Recommended batch size: 256
+Use recommended settings? [Y/n]: y
+
+...
+
+════════════════════════════════════════════════════════════════
+                              Command
+════════════════════════════════════════════════════════════════
+
+  mix run scripts/train_from_replays.exs --train-character mewtwo --epochs 20 --batch-size 256 --temporal --backbone mamba --augment
+
+Run this command now? [y/N]:
+```
+
+## Environment Variables
+
+Configure defaults via environment variables (CLI args still override):
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `EXPHIL_REPLAYS_DIR` | `./replays` | Default replay directory |
+| `EXPHIL_WANDB_PROJECT` | `exphil` | Default W&B project name |
+| `EXPHIL_DEFAULT_PRESET` | none | Default preset to use |
+
+**Usage:**
+```bash
+# Set in shell profile (~/.bashrc or ~/.zshrc)
+export EXPHIL_REPLAYS_DIR="/data/melee/replays"
+export EXPHIL_WANDB_PROJECT="my-melee-ai"
+
+# Now training uses these defaults
+mix run scripts/train_from_replays.exs --epochs 10
+
+# CLI args still override
+mix run scripts/train_from_replays.exs --replays /other/path
+```
+
+## Verbosity Control
+
+Control output verbosity with `--quiet` or `--verbose`:
+
+| Flag | Level | Output |
+|------|-------|--------|
+| `--quiet` | 0 | Errors and warnings only, no progress bars |
+| (default) | 1 | Normal output with progress bars |
+| `--verbose` | 2 | Debug info: timing, memory, gradients |
+
+**Examples:**
+```bash
+# Quiet mode for CI/scripted runs
+mix run scripts/train_from_replays.exs --quiet --preset quick
+
+# Verbose mode for debugging
+mix run scripts/train_from_replays.exs --verbose --preset quick
+```
+
+**Verbose output includes:**
+- Per-batch timing breakdown
+- GPU memory usage after each epoch
+- Gradient norm statistics
+- Data loading vs training time
+- Cache hit rates
+- Debug messages marked with `[DEBUG]`
+
+## Reproducibility
+
+Training runs can be exactly reproduced using random seeds.
+
+### Seed Display
+
+Every training run shows its seed in the startup banner:
+```
+  Model Name:  mamba_mewtwo_20260123_143052
+  Seed:        1234567890 (use --seed 1234567890 to reproduce)
+```
+
+### Explicit Seed
+
+```bash
+# Reproduce a previous run exactly
+mix run scripts/train_from_replays.exs --seed 1234567890 --preset quick
+```
+
+### What the seed controls
+
+- Parameter initialization (Nx/EXLA random operations)
+- Data shuffling order
+- Augmentation random choices (mirror, noise)
+- Train/validation split randomness
+
+**Note:** For exact reproduction, you also need the same:
+- Replay files (same files in same order)
+- Hardware (GPU vs CPU may differ slightly)
+- ExPhil version
+
+## Checkpoint Safety
+
+Protect valuable checkpoints from accidental overwrites.
+
+### Collision Warnings
+
+If a checkpoint already exists, you'll see a warning:
+```
+⚠️  Checkpoint 'checkpoints/mewtwo_v1.axon' already exists
+       Size: 45.2 MB, Modified: 2026-01-23 14:30:00
+       Use --overwrite to replace, or choose a different --name
+```
+
+### Overwrite Control
+
+| Flag | Behavior |
+|------|----------|
+| (default) | Error if checkpoint exists |
+| `--overwrite` | Allow overwriting (with backup) |
+| `--no-overwrite` | Explicitly fail if exists (for CI) |
+
+### Automatic Backups
+
+When overwriting, the existing checkpoint is automatically backed up:
+
+```bash
+# This creates a backup before overwriting
+mix run scripts/train_from_replays.exs --overwrite --name mewtwo_v1
+```
+
+Backup files:
+```
+checkpoints/
+├── mewtwo_v1.axon        # Current (new)
+├── mewtwo_v1.axon.bak    # Previous version
+├── mewtwo_v1.axon.bak.1  # Two versions ago
+└── mewtwo_v1.axon.bak.2  # Three versions ago
+```
+
+### Backup Options
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--backup` | true | Create .bak before overwrite |
+| `--no-backup` | - | Skip backup (faster) |
+| `--backup-count N` | 3 | Number of backup versions to keep |
+
+**Example:**
+```bash
+# Keep 5 backup versions
+mix run scripts/train_from_replays.exs --overwrite --backup-count 5
+
+# Skip backups (for ephemeral training)
+mix run scripts/train_from_replays.exs --overwrite --no-backup
+```
+
+## Embedding Options
+
+### Stage Embedding Mode
+
+Control how stages are embedded:
+
+| Mode | Dims | Description |
+|------|------|-------------|
+| `--stage-mode full` | 64 | One-hot for all 64 stages (default) |
+| `--stage-mode compact` | 7 | One-hot for 6 competitive + "other" |
+| `--stage-mode learned` | 1 | Stage ID with trainable embedding |
+
+```bash
+# Save 57 dimensions with compact mode
+mix run scripts/train_from_replays.exs --stage-mode compact
+
+# Learned embedding (most compact)
+mix run scripts/train_from_replays.exs --stage-mode learned
+```
+
+### Player Name Embedding
+
+Control player name embedding dimensions:
+
+| Option | Dims | Description |
+|--------|------|-------------|
+| (default) | 112 | slippi-ai compatible |
+| `--num-player-names 0` | 0 | Disable (saves 112 dims) |
+| `--num-player-names N` | N | Custom size |
+
+```bash
+# Disable player names to save dimensions
+mix run scripts/train_from_replays.exs --num-player-names 0
+```
+
+**Note:** Existing models trained with 112 dims require `--num-player-names 112` for inference compatibility.

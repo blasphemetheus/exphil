@@ -258,7 +258,7 @@ Current embedding size is **1204 dimensions** with all optimizations enabled.
 | Idea | Effort | Description | Status |
 |------|--------|-------------|--------|
 | **Config file support** | Medium | `--config training.yaml` instead of many CLI args | **Done** |
-| Interactive config wizard | High | `mix exphil.setup` asks questions, generates command | Not started |
+| **Interactive config wizard** | High | `mix exphil.setup` asks questions, generates command | **Done** |
 | **Preset customization** | Low | `--preset quick --epochs 5` already works, document better | **Done** |
 | **Environment variable support** | Low | `EXPHIL_REPLAYS_DIR` as default replays path | **Done** |
 
