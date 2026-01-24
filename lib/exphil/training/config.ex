@@ -66,7 +66,10 @@ defmodule ExPhil.Training.Config do
     "--backup-count",  # Number of backup versions to keep (default: 3)
     # Duplicate detection
     "--skip-duplicates",  # Skip duplicate replay files by hash (default)
-    "--no-skip-duplicates"  # Include all files even if duplicates
+    "--no-skip-duplicates",  # Include all files even if duplicates
+    # Replay quality filtering
+    "--min-quality",  # Minimum quality score (0-100) for replays
+    "--show-quality-stats"  # Show quality distribution stats
   ]
 
   @doc """
@@ -192,7 +195,10 @@ defmodule ExPhil.Training.Config do
       backup: true,  # Create .bak before overwrite
       backup_count: 3,  # Number of backup versions to keep
       # Duplicate detection
-      skip_duplicates: true  # Skip duplicate replay files by hash
+      skip_duplicates: true,  # Skip duplicate replay files by hash
+      # Replay quality filtering
+      min_quality: nil,  # nil = no quality filtering, N = minimum score (0-100)
+      show_quality_stats: false  # Show quality distribution after filtering
     ]
     |> apply_env_defaults()
   end
@@ -1666,6 +1672,9 @@ defmodule ExPhil.Training.Config do
     # Duplicate detection
     |> parse_flag(args, "--skip-duplicates", :skip_duplicates)
     |> parse_flag(args, "--no-skip-duplicates", :no_skip_duplicates)
+    # Replay quality filtering
+    |> parse_optional_int_arg(args, "--min-quality", :min_quality)
+    |> parse_flag(args, "--show-quality-stats", :show_quality_stats)
     |> then(fn opts ->
       # --no-overwrite makes overwrite explicitly false
       if opts[:no_overwrite], do: Keyword.put(opts, :overwrite, false), else: opts

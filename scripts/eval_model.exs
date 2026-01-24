@@ -28,7 +28,7 @@ require Logger
 
 alias ExPhil.Training.Output
 alias ExPhil.Data.Peppi
-alias ExPhil.Training.{Config, Data, Imitation}
+alias ExPhil.Training.{ActionViz, Config, Data, Imitation}
 alias ExPhil.Networks.Policy
 alias ExPhil.Embeddings
 
@@ -322,9 +322,12 @@ evaluate_model = fn model_path ->
   Output.puts("  Running inference on #{num_batches} batches...")
   Output.puts("  (First batch includes JIT compilation - may take 1-2 minutes)")
 
-  {total_loss, total_batches, component_metrics} = batches
+  # Initialize action visualizer
+  initial_viz = ActionViz.new()
+
+  {total_loss, total_batches, component_metrics, action_viz} = batches
   |> Enum.with_index(1)
-  |> Enum.reduce({0.0, 0, %{}}, fn {batch, batch_idx}, {acc_loss, acc_count, acc_metrics} ->
+  |> Enum.reduce({0.0, 0, %{}, initial_viz}, fn {batch, batch_idx}, {acc_loss, acc_count, acc_metrics, viz} ->
     # Show progress every 100 batches or on first batch
     if batch_idx == 1 or rem(batch_idx, 100) == 0 or batch_idx == num_batches do
       pct = round(batch_idx / num_batches * 100)
@@ -364,7 +367,17 @@ evaluate_model = fn model_path ->
       Map.merge(acc_metrics, batch_metrics, fn _k, v1, v2 -> v1 + v2 end)
     end
 
-    {acc_loss + loss_val, acc_count + 1, new_metrics}
+    # Track predicted actions for visualization
+    viz = ActionViz.record_batch(viz, %{
+      buttons: Nx.greater(Nx.sigmoid(buttons), 0.5),
+      main_x: Nx.argmax(main_x, axis: -1),
+      main_y: Nx.argmax(main_y, axis: -1),
+      c_x: Nx.argmax(c_x, axis: -1),
+      c_y: Nx.argmax(c_y, axis: -1),
+      shoulder: Nx.argmax(shoulder, axis: -1)
+    }, axis_buckets)
+
+    {acc_loss + loss_val, acc_count + 1, new_metrics, viz}
   end)
 
   IO.write(:stderr, "\n")  # Clear progress line
@@ -396,6 +409,10 @@ evaluate_model = fn model_path ->
   )
   Output.puts("")
   Output.puts("  Overall Weighted Accuracy: #{Float.round(overall_acc * 100, 1)}%")
+
+  # Show action distribution visualization
+  Output.puts("")
+  ActionViz.print_summary(action_viz)
 
   %{
     path: model_path,

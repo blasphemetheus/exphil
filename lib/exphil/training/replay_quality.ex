@@ -442,4 +442,141 @@ defmodule ExPhil.Training.ReplayQuality do
   defp score_color(score) when score >= 60, do: :cyan
   defp score_color(score) when score >= 40, do: :yellow
   defp score_color(_), do: :red
+
+  # ============================================================
+  # Peppi Integration
+  # ============================================================
+
+  @doc """
+  Convert a parsed Peppi replay to quality scoring format.
+
+  Extracts quality metrics from the Peppi ParsedReplay struct:
+  - Frame count from metadata or frames list
+  - Per-player damage, stocks, SD rate, input activity, action diversity
+
+  ## Example
+
+      {:ok, replay} = Peppi.parse("game.slp")
+      quality_data = ReplayQuality.from_parsed_replay(replay)
+      score = ReplayQuality.score(quality_data)
+
+  """
+  @spec from_parsed_replay(map() | struct()) :: map()
+  def from_parsed_replay(%{frames: frames, metadata: metadata}) do
+    frame_count = length(frames)
+    players_meta = metadata.players || []
+
+    # Build per-player stats by analyzing frames
+    player_stats = compute_player_stats(frames, players_meta)
+
+    %{
+      frames: frame_count,
+      players: player_stats
+    }
+  end
+
+  defp compute_player_stats(frames, players_meta) do
+    # Initialize accumulators for each player
+    num_players = length(players_meta)
+    if num_players == 0, do: [], else: do_compute_player_stats(frames, num_players, players_meta)
+  end
+
+  defp do_compute_player_stats(frames, num_players, _players_meta) do
+    # Track per-player metrics across all frames
+    initial = for i <- 0..(num_players - 1), into: %{} do
+      {i, %{
+        prev_percent: 0.0,
+        prev_stock: 4,
+        damage_dealt: 0.0,
+        damage_taken: 0.0,
+        stocks_lost: 0,
+        sd_count: 0,
+        input_frames: 0,
+        actions_seen: MapSet.new()
+      }}
+    end
+
+    # Process each frame
+    final = Enum.reduce(frames, initial, fn frame, acc ->
+      players = frame.players || []
+
+      Enum.reduce(Enum.with_index(players), acc, fn {player, idx}, acc2 ->
+        if idx >= num_players do
+          acc2
+        else
+          prev = Map.get(acc2, idx, %{prev_percent: 0.0, prev_stock: 4, damage_dealt: 0.0,
+                                       damage_taken: 0.0, stocks_lost: 0, sd_count: 0,
+                                       input_frames: 0, actions_seen: MapSet.new()})
+
+          current_percent = player.percent || 0.0
+          current_stock = player.stock || 4
+          action = player.action
+
+          # Damage taken = percent increase
+          damage_increase = max(0, current_percent - prev.prev_percent)
+
+          # Stock lost detection (stock decreased and percent reset)
+          stock_lost = if current_stock < prev.prev_stock and current_percent < 30, do: 1, else: 0
+
+          # SD detection: stock lost while near blast zone or in certain actions
+          # Simplified: count stock losses where opponent didn't deal recent damage
+          # For now, estimate SD as stock loss when percent was < 50
+          sd = if stock_lost > 0 and prev.prev_percent < 50, do: 1, else: 0
+
+          # Input activity: non-neutral stick or any button pressed
+          has_input = has_active_input?(player.controller)
+
+          updated = %{
+            prev_percent: if(current_stock < prev.prev_stock, do: 0.0, else: current_percent),
+            prev_stock: current_stock,
+            damage_dealt: prev.damage_dealt,  # Updated from opponent's perspective
+            damage_taken: prev.damage_taken + damage_increase,
+            stocks_lost: prev.stocks_lost + stock_lost,
+            sd_count: prev.sd_count + sd,
+            input_frames: prev.input_frames + if(has_input, do: 1, else: 0),
+            actions_seen: MapSet.put(prev.actions_seen, action)
+          }
+
+          Map.put(acc2, idx, updated)
+        end
+      end)
+    end)
+
+    # Cross-reference damage: P1's damage_dealt = P2's damage_taken
+    for i <- 0..(num_players - 1) do
+      stats = Map.get(final, i, %{})
+      opponent_idx = rem(i + 1, num_players)
+      opponent = Map.get(final, opponent_idx, %{damage_taken: 0.0})
+
+      %{
+        damage_dealt: opponent.damage_taken,
+        damage_taken: stats.damage_taken,
+        stocks_lost: stats.stocks_lost,
+        sd_count: stats.sd_count,
+        input_frames: stats.input_frames,
+        unique_actions: MapSet.size(stats.actions_seen),
+        is_cpu: false  # Peppi metadata doesn't expose this directly
+      }
+    end
+  end
+
+  defp has_active_input?(nil), do: false
+  defp has_active_input?(controller) do
+    # Check for non-neutral stick
+    main_x = controller.main_stick_x || 0.0
+    main_y = controller.main_stick_y || 0.0
+    c_x = controller.c_stick_x || 0.0
+    c_y = controller.c_stick_y || 0.0
+
+    stick_active = abs(main_x) > 0.3 or abs(main_y) > 0.3 or
+                   abs(c_x) > 0.3 or abs(c_y) > 0.3
+
+    # Check for button presses
+    button_active = controller.button_a or controller.button_b or
+                    controller.button_x or controller.button_y or
+                    controller.button_z or controller.button_l or
+                    controller.button_r
+
+    stick_active or button_active
+  end
 end

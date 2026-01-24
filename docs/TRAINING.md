@@ -125,6 +125,8 @@ mix run scripts/train_from_replays.exs --dual-port
 | `--balance-characters` | false | Weight sampling by inverse char frequency |
 | `--skip-duplicates` | true | Skip duplicate replay files by hash |
 | `--no-skip-duplicates` | false | Include all files even if duplicates |
+| `--min-quality N` | nil | Minimum quality score (0-100) for replays |
+| `--show-quality-stats` | false | Show quality distribution after filtering |
 
 ### Temporal Options
 

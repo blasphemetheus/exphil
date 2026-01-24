@@ -195,6 +195,63 @@ defmodule ExPhil.Training.ActionViz do
   end
 
   @doc """
+  Record actions from component tensors (buttons, sticks, shoulder).
+
+  This is useful for recording predictions from policy networks that output
+  separate tensors for each component.
+
+  ## Parameters
+
+    * `viz` - The ActionViz struct
+    * `components` - Map with keys: :buttons, :main_x, :main_y, :c_x, :c_y, :shoulder
+      - :buttons is a {batch, 8} boolean tensor
+      - :main_x, :main_y, :c_x, :c_y are {batch} integer tensors (bucket indices)
+      - :shoulder is a {batch} integer tensor
+    * `axis_buckets` - Number of axis buckets (for converting indices to grid)
+
+  """
+  @spec record_batch(t(), map(), non_neg_integer()) :: t()
+  def record_batch(%__MODULE__{} = viz, components, axis_buckets) when is_map(components) do
+    buttons = components[:buttons]
+    main_x = components[:main_x]
+    main_y = components[:main_y]
+    c_x = components[:c_x]
+    c_y = components[:c_y]
+    shoulder = components[:shoulder]
+
+    batch_size = Nx.axis_size(main_x, 0)
+
+    # Convert to lists for iteration
+    buttons_list = Nx.to_list(buttons)
+    main_x_list = Nx.to_list(main_x)
+    main_y_list = Nx.to_list(main_y)
+    c_x_list = Nx.to_list(c_x)
+    c_y_list = Nx.to_list(c_y)
+    shoulder_list = Nx.to_list(shoulder)
+
+    # Record each sample
+    Enum.reduce(0..(batch_size - 1), viz, fn i, acc ->
+      button_values = Enum.at(buttons_list, i)
+      action = %{
+        buttons: button_values,
+        main_x: bucket_to_grid(Enum.at(main_x_list, i), axis_buckets, acc.grid_size),
+        main_y: bucket_to_grid(Enum.at(main_y_list, i), axis_buckets, acc.grid_size),
+        c_x: bucket_to_grid(Enum.at(c_x_list, i), axis_buckets, acc.grid_size),
+        c_y: bucket_to_grid(Enum.at(c_y_list, i), axis_buckets, acc.grid_size),
+        shoulder: Enum.at(shoulder_list, i)
+      }
+      record(acc, action)
+    end)
+  end
+
+  # Convert axis bucket index to grid position
+  defp bucket_to_grid(bucket_idx, axis_buckets, grid_size) do
+    # Map bucket index (0..axis_buckets) to grid position (0..grid_size-1)
+    # Bucket 0 = center/neutral, buckets spread around
+    round(bucket_idx / axis_buckets * (grid_size - 1))
+  end
+
+  @doc """
   Print a summary of the action distribution.
   """
   @spec print_summary(t(), keyword()) :: :ok
