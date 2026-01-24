@@ -54,7 +54,10 @@ defmodule ExPhil.Application do
       {ExPhil.Agents.Supervisor, []},
 
       # Telemetry metrics collector (optional, can be disabled)
-      {ExPhil.Telemetry.Collector, []}
+      {ExPhil.Telemetry.Collector, []},
+
+      # Async checkpoint saver (non-blocking checkpoint saves)
+      {ExPhil.Training.AsyncCheckpoint, []}
     ]
 
     opts = [strategy: :one_for_one, name: ExPhil.Supervisor]
