@@ -243,13 +243,17 @@ defmodule ExPhil.Data.Peppi do
         frame_delay: frame_delay
       )
 
+    # Extract player tag from metadata for style-conditional training
+    player_tag = get_player_tag(replay.metadata, player_port)
+
     # Convert valid frames to training format
     frames =
       valid_frames
       |> Enum.map(fn frame ->
         %{
           game_state: build_game_state(frame, player_port, opponent_port, replay.metadata),
-          controller: build_controller_state(Map.get(frame.players, player_port))
+          controller: build_controller_state(Map.get(frame.players, player_port)),
+          player_tag: player_tag
         }
       end)
       |> apply_frame_delay(frame_delay)
@@ -274,6 +278,7 @@ defmodule ExPhil.Data.Peppi do
       %{
         game_state: delayed.game_state,
         controller: current.controller,
+        player_tag: current[:player_tag],
         frame_delay: delay,
         observed_frame: t - delay,
         action_frame: t
@@ -282,13 +287,17 @@ defmodule ExPhil.Data.Peppi do
   end
 
   defp extract_frames_no_delay(replay, player_port, opponent_port) do
+    # Extract player tag from metadata for style-conditional training
+    player_tag = get_player_tag(replay.metadata, player_port)
+
     Enum.map(replay.frames, fn frame ->
       player = Map.get(frame.players, player_port)
       _opponent = Map.get(frame.players, opponent_port)
 
       %{
         game_state: build_game_state(frame, player_port, opponent_port, replay.metadata),
-        controller: build_controller_state(player)
+        controller: build_controller_state(player),
+        player_tag: player_tag
       }
     end)
     |> Enum.filter(fn f -> f.game_state != nil and f.controller != nil end)
@@ -302,6 +311,9 @@ defmodule ExPhil.Data.Peppi do
       # Not enough frames for this delay
       []
     else
+      # Extract player tag from metadata for style-conditional training
+      player_tag = get_player_tag(replay.metadata, player_port)
+
       # Convert to array for O(1) lookups
       frame_array = :array.from_list(frames)
 
@@ -320,6 +332,7 @@ defmodule ExPhil.Data.Peppi do
         %{
           game_state: delayed_state,
           controller: current_action,
+          player_tag: player_tag,
           # Include delay metadata for debugging/analysis
           frame_delay: delay,
           observed_frame: t - delay,
@@ -333,6 +346,16 @@ defmodule ExPhil.Data.Peppi do
   # ============================================================================
   # Private Helpers
   # ============================================================================
+
+  # Extract player tag from replay metadata for style-conditional training
+  defp get_player_tag(%ReplayMeta{players: players}, player_port) when is_list(players) do
+    case Enum.find(players, fn p -> p.port == player_port end) do
+      %PlayerMeta{tag: tag} when is_binary(tag) and tag != "" -> tag
+      _ -> nil
+    end
+  end
+
+  defp get_player_tag(_, _), do: nil
 
   defp build_game_state(frame, player_port, opponent_port, metadata) do
     player = Map.get(frame.players, player_port)
