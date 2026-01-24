@@ -20,7 +20,7 @@ This document tracks the major goals and roadmap for ExPhil development.
 - GitHub Actions CI (test, format, dialyzer)
 - **Self-play RL infrastructure** (GenServer architecture, PPO integration, Elo matchmaking)
 - Mock environment with physics (for fast self-play testing)
-- 900+ tests passing
+- 1576 tests passing
 
 ### Next Step
 
