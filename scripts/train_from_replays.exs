@@ -1121,17 +1121,21 @@ end
     batch_size = opts[:batch_size]
 
     # Each replay produces (frames - window_size) / stride sequences
-    # For dittos, we train on both players, so multiply by training examples per replay
+    # For dittos/dual-port, we train on both players (2 training examples per replay)
     num_training_examples = length(replay_files)
-    avg_frames_per_example = if num_training_examples > 0, do: div(total_frames, num_training_examples), else: 0
 
-    # Sequences per training example
-    sequences_per_example = max(div(avg_frames_per_example - window_size, stride), 0)
+    # total_frames counts each replay ONCE, but num_training_examples may be doubled for dual-port
+    # So we need to use num_replays for avg_frames calculation
+    num_replays = if dual_port, do: max(div(num_training_examples, 2), 1), else: num_training_examples
+    avg_frames_per_replay = if num_replays > 0, do: div(total_frames, num_replays), else: 0
+
+    # Sequences per training example (each example processes the full replay)
+    sequences_per_example = max(div(avg_frames_per_replay - window_size, stride), 0)
     total_sequences = sequences_per_example * num_training_examples
     total_batches = max(div(total_sequences, batch_size), 1)
 
     Output.puts("  Estimated #{total_batches} batches per epoch")
-    Output.puts("    (#{total_frames} frames, #{num_training_examples} examples, window=#{window_size}, stride=#{stride})")
+    Output.puts("    (#{total_frames} frames, #{num_replays} replays, #{num_training_examples} examples, window=#{window_size}, stride=#{stride})")
     total_batches
   else
     # Fallback: rough estimate
@@ -1284,34 +1288,37 @@ initial_state = {trainer, 0, false, early_stopping_state, nil, pruner, ema, []}
 
       # Live progress bar - updates in place using carriage return
       # Update every batch for smooth progress (terminal handles the refresh)
-      pct = round((batch_idx + 1) / num_batches * 100)
       elapsed_total_ms = System.monotonic_time(:millisecond) - epoch_batch_start
       avg_batch_ms = elapsed_total_ms / (batch_idx + 1)
-      remaining_batches = num_batches - (batch_idx + 1)
+
+      # Handle case where actual batches exceed estimate (estimate was wrong)
+      # Use the larger of estimated or actual count for display
+      display_total = max(num_batches, batch_idx + 1)
+      pct = min(round((batch_idx + 1) / display_total * 100), 100)
+
+      remaining_batches = max(display_total - (batch_idx + 1), 0)
       eta_sec = round(remaining_batches * avg_batch_ms / 1000)
       eta_min = div(eta_sec, 60)
       eta_sec_rem = rem(eta_sec, 60)
 
       # Format: Epoch 1: ████████░░ 40% | 642/1606 | loss: 0.1234 | 0.5s/it | ETA: 8m 12s
       bar_width = 20
-      filled = min(round(pct / 100 * bar_width), bar_width)  # Clamp to avoid negative
+      filled = min(round(pct / 100 * bar_width), bar_width)  # Clamp to avoid overflow
       bar = String.duplicate("█", filled) <> String.duplicate("░", bar_width - filled)
 
       # Pad percentage to fixed width for stable display
       pct_str = pct |> Integer.to_string() |> String.pad_leading(3)
 
+      # Show "~" prefix on total if we exceeded the estimate (indicating it's now a live count)
+      total_str = if batch_idx + 1 > num_batches, do: "~#{display_total}", else: "#{display_total}"
+
       # Convert tensor loss to number for display (metrics.loss is now a tensor)
       loss_val = Nx.to_number(metrics.loss)
-      progress_line = "  Epoch #{epoch}: #{bar} #{pct_str}% | #{batch_idx + 1}/#{num_batches} | loss: #{Float.round(loss_val, 4)} | #{Float.round(avg_batch_ms / 1000, 2)}s/it | ETA: #{eta_min}m #{eta_sec_rem}s"
+      progress_line = "  Epoch #{epoch}: #{bar} #{pct_str}% | #{batch_idx + 1}/#{total_str} | loss: #{Float.round(loss_val, 4)} | #{Float.round(avg_batch_ms / 1000, 2)}s/it | ETA: #{eta_min}m #{eta_sec_rem}s"
 
       # Use carriage return to overwrite line (no newline until epoch complete)
       # Write directly to stderr to bypass Output module's timestamp
       IO.write(:stderr, "\r#{progress_line}")
-
-      # Print newline at end of epoch
-      if batch_idx + 1 == num_batches do
-        IO.write(:stderr, "\n")
-      end
 
       # Accumulate tensor loss (already converted for display above, so use loss_val)
       {new_trainer, [loss_val | losses], new_jit_shown}
