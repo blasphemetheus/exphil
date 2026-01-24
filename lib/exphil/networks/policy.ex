@@ -1323,11 +1323,17 @@ defmodule ExPhil.Networks.Policy do
 
   @doc """
   Convert sampled action indices to ControllerState.
+
+  ## Options
+    - `:axis_buckets` - Number of buckets for uniform discretization (default: 16)
+    - `:shoulder_buckets` - Number of buckets for shoulder (default: 4)
+    - `:kmeans_centers` - Tensor of K-means cluster centers (overrides axis_buckets)
   """
   @spec to_controller_state(map(), keyword()) :: ExPhil.Bridge.ControllerState.t()
   def to_controller_state(samples, opts \\ []) do
     axis_buckets = Keyword.get(opts, :axis_buckets, @axis_buckets)
     shoulder_buckets = Keyword.get(opts, :shoulder_buckets, @shoulder_buckets)
+    kmeans_centers = Keyword.get(opts, :kmeans_centers)
 
     # Extract first element if batched
     buttons = squeeze_if_batched(samples.buttons)
@@ -1341,14 +1347,21 @@ defmodule ExPhil.Networks.Policy do
     button_list = Nx.to_flat_list(buttons)
     [a, b, x, y, z, l, r, d_up] = Enum.map(button_list, &(&1 == 1))
 
+    # Use K-means undiscretization if centers provided
+    undiscretize_axis = if kmeans_centers do
+      fn index -> ExPhil.Embeddings.KMeans.undiscretize(Nx.to_number(index), kmeans_centers) end
+    else
+      fn index -> ControllerEmbed.undiscretize_axis(Nx.to_number(index), axis_buckets) end
+    end
+
     %ExPhil.Bridge.ControllerState{
       main_stick: %{
-        x: ControllerEmbed.undiscretize_axis(Nx.to_number(main_x), axis_buckets),
-        y: ControllerEmbed.undiscretize_axis(Nx.to_number(main_y), axis_buckets)
+        x: undiscretize_axis.(main_x),
+        y: undiscretize_axis.(main_y)
       },
       c_stick: %{
-        x: ControllerEmbed.undiscretize_axis(Nx.to_number(c_x), axis_buckets),
-        y: ControllerEmbed.undiscretize_axis(Nx.to_number(c_y), axis_buckets)
+        x: undiscretize_axis.(c_x),
+        y: undiscretize_axis.(c_y)
       },
       l_shoulder: ControllerEmbed.undiscretize_axis(Nx.to_number(shoulder), shoulder_buckets),
       r_shoulder: 0.0,

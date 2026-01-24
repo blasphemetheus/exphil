@@ -371,6 +371,7 @@ Configuration:
   Grad Ckpt:   #{if opts[:gradient_checkpoint], do: "enabled (every #{opts[:checkpoint_every]} layers)", else: "disabled"}
   GPU:         #{gpu_info}
   Streaming:   #{if opts[:stream_chunk_size], do: "enabled (#{opts[:stream_chunk_size]} files/chunk)", else: "disabled"}
+  K-means:     #{if opts[:kmeans_centers], do: "enabled (#{opts[:kmeans_centers]})", else: "disabled (uniform 17 buckets)"}
   Verbosity:   #{verbosity_str}
 #{temporal_info}
 """)
@@ -971,7 +972,9 @@ trainer_opts = [
   optimizer: opts[:optimizer],
   # Gradient checkpointing (memory vs compute trade-off)
   gradient_checkpoint: opts[:gradient_checkpoint],
-  checkpoint_every: opts[:checkpoint_every]
+  checkpoint_every: opts[:checkpoint_every],
+  # K-means stick discretization
+  kmeans_centers: opts[:kmeans_centers]
 ]
 
 # Create trainer (or load from checkpoint for resumption)

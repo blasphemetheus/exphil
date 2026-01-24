@@ -687,6 +687,28 @@ defmodule ExPhil.Networks.PolicyTest do
       assert controller.button_a == true
       assert controller.button_x == true
     end
+
+    test "uses K-means undiscretization when kmeans_centers provided" do
+      # Create sorted K-means centers: 5 clusters at 0.0, 0.25, 0.5, 0.75, 1.0
+      centers = Nx.tensor([0.0, 0.25, 0.5, 0.75, 1.0])
+
+      samples = %{
+        buttons: Nx.tensor([0, 0, 0, 0, 0, 0, 0, 0]),
+        main_x: Nx.tensor(2),   # Index 2 -> center value 0.5
+        main_y: Nx.tensor(4),   # Index 4 -> center value 1.0
+        c_x: Nx.tensor(1),      # Index 1 -> center value 0.25
+        c_y: Nx.tensor(3),      # Index 3 -> center value 0.75
+        shoulder: Nx.tensor(0)
+      }
+
+      controller = Policy.to_controller_state(samples, kmeans_centers: centers)
+
+      # Check that values match the K-means cluster centers
+      assert_in_delta controller.main_stick.x, 0.5, 0.001
+      assert_in_delta controller.main_stick.y, 1.0, 0.001
+      assert_in_delta controller.c_stick.x, 0.25, 0.001
+      assert_in_delta controller.c_stick.y, 0.75, 0.001
+    end
   end
 
   # ============================================================================

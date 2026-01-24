@@ -122,7 +122,9 @@ defmodule ExPhil.Training.Imitation do
     # Label smoothing
     label_smoothing: 0.0,         # 0.0 = no smoothing, 0.1 = typical value
     # Optimizer selection
-    optimizer: :adamw             # :adam, :adamw, :lamb, :radam, :sgd, :rmsprop
+    optimizer: :adamw,            # :adam, :adamw, :lamb, :radam, :sgd, :rmsprop
+    # K-means stick discretization
+    kmeans_centers: nil           # Path or tensor of K-means centers (nil = uniform buckets)
   }
 
   @doc """
@@ -154,6 +156,9 @@ defmodule ExPhil.Training.Imitation do
     config = @default_config
     |> Map.merge(Map.new(Keyword.take(opts, Map.keys(@default_config))))
     |> Map.put(:embed_size, embed_size)
+
+    # Load K-means centers if path provided
+    config = load_kmeans_centers(config)
 
     # Build policy model - temporal or regular
     policy_model = if config.temporal do
@@ -1097,7 +1102,8 @@ defmodule ExPhil.Training.Imitation do
 
     Policy.to_controller_state(samples,
       axis_buckets: trainer.config.axis_buckets,
-      shoulder_buckets: trainer.config.shoulder_buckets
+      shoulder_buckets: trainer.config.shoulder_buckets,
+      kmeans_centers: trainer.config[:kmeans_centers_tensor]
     )
   end
 
@@ -1150,4 +1156,34 @@ defmodule ExPhil.Training.Imitation do
   end
 
   defp deep_backend_copy(other), do: other
+
+  # Load K-means centers from file path and update config with tensor and axis_size
+  defp load_kmeans_centers(%{kmeans_centers: nil} = config), do: config
+
+  defp load_kmeans_centers(%{kmeans_centers: path} = config) when is_binary(path) do
+    alias ExPhil.Embeddings.KMeans
+
+    case KMeans.load(path) do
+      {:ok, centers} ->
+        k = Nx.axis_size(centers, 0)
+        # K-means gives us k clusters directly (no +1 like buckets)
+        config
+        |> Map.put(:kmeans_centers_tensor, centers)
+        |> Map.put(:axis_size, k)
+        |> Map.put(:axis_buckets, k - 1)  # For compatibility with existing code
+
+      {:error, reason} ->
+        raise "Failed to load K-means centers from #{path}: #{inspect(reason)}"
+    end
+  end
+
+  defp load_kmeans_centers(%{kmeans_centers: %Nx.Tensor{} = centers} = config) do
+    k = Nx.axis_size(centers, 0)
+    config
+    |> Map.put(:kmeans_centers_tensor, centers)
+    |> Map.put(:axis_size, k)
+    |> Map.put(:axis_buckets, k - 1)
+  end
+
+  defp load_kmeans_centers(config), do: config
 end
