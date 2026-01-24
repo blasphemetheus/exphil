@@ -251,6 +251,7 @@ defmodule Mix.Tasks.Exphil.Setup do
       Output.puts_raw("\nAdvanced Options:\n")
 
       if ask_yes_no("Configure advanced options?", false) do
+        # Architecture options
         temporal = ask_yes_no("Enable temporal training (better quality, slower)?", true)
 
         backbone = if temporal do
@@ -272,17 +273,82 @@ defmodule Mix.Tasks.Exphil.Setup do
           :mlp
         end
 
+        # Data options
         augment = ask_yes_no("Enable data augmentation (better generalization)?", true)
+        dual_port = ask_yes_no("Train on both players per replay (2x data)?", false)
+
+        # Training options
+        Output.puts_raw("\nTraining options:\n")
+
+        lr = ask_float("Learning rate", 1.0e-4)
+
+        early_stopping = ask_yes_no("Enable early stopping (stop when validation loss plateaus)?", true)
+        val_split = if early_stopping do
+          ask_float("Validation split (0.0-0.5)", 0.1)
+        else
+          0.0
+        end
+        patience = if early_stopping, do: ask_int("Early stopping patience (epochs)", 5), else: nil
+
+        # Precision
+        Output.puts_raw("""
+
+        Precision:
+          [1] bf16 (recommended - 2x faster, minimal accuracy loss)
+          [2] f32 (full precision, slower but more stable)
+        """)
+        precision = case ask_choice("Choice", 1, 1..2) do
+          1 -> :bf16
+          2 -> :f32
+        end
+
+        # Online play
+        online_robust = ask_yes_no("Train for online play (adds frame delay augmentation)?", false)
+
+        # Monitoring
         wandb = ask_yes_no("Enable Weights & Biases logging?", false)
 
+        # K-means
         kmeans = ask_kmeans()
 
-        opts = [temporal: temporal, backbone: backbone, augment: augment, wandb: wandb]
+        # Reproducibility
+        seed = if ask_yes_no("Set random seed for reproducibility?", false) do
+          ask_int("Seed", :rand.uniform(1_000_000_000))
+        else
+          nil
+        end
+
+        # Build options list
+        opts = [
+          temporal: temporal,
+          backbone: backbone,
+          augment: augment,
+          dual_port: dual_port,
+          learning_rate: lr,
+          early_stopping: early_stopping,
+          val_split: val_split,
+          patience: patience,
+          precision: precision,
+          online_robust: online_robust,
+          wandb: wandb,
+          seed: seed
+        ]
+        |> Enum.reject(fn {_k, v} -> v == nil or v == false or v == 0.0 end)
+
         if kmeans, do: [{:kmeans_centers, kmeans} | opts], else: opts
       else
         # Sensible defaults for non-quick
-        [temporal: true, backbone: :mamba, augment: true]
+        [temporal: true, backbone: :mamba, augment: true, early_stopping: true, val_split: 0.1]
       end
+    end
+  end
+
+  defp ask_float(prompt, default) do
+    result = ask_string(prompt, to_string(default))
+    case Float.parse(result) do
+      {float, ""} -> float
+      {float, _} -> float
+      :error -> default
     end
   end
 
@@ -384,26 +450,47 @@ defmodule Mix.Tasks.Exphil.Setup do
   defp command_to_args(opts) do
     opts
     |> Enum.flat_map(fn
+      # Core
       {:replays, v} -> ["--replays", v]
       {:epochs, v} -> ["--epochs", to_string(v)]
       {:batch_size, v} -> ["--batch-size", to_string(v)]
       {:max_files, v} when not is_nil(v) -> ["--max-files", to_string(v)]
       {:character, v} -> ["--train-character", to_string(v)]
+      {:dual_port, true} -> ["--dual-port"]
+      # Architecture
       {:temporal, true} -> ["--temporal"]
       {:temporal, false} -> []
-      {:backbone, v} -> ["--backbone", to_string(v)]
+      {:backbone, v} when v != :mlp -> ["--backbone", to_string(v)]
       {:window_size, v} -> ["--window-size", to_string(v)]
+      {:hidden_sizes, v} -> ["--hidden-sizes", Enum.join(v, ",")]
+      # Training
+      {:learning_rate, v} when v != 1.0e-4 -> ["--lr", to_string(v)]
+      {:early_stopping, true} -> ["--early-stopping"]
+      {:val_split, v} when v > 0 -> ["--val-split", to_string(v)]
+      {:patience, v} when not is_nil(v) -> ["--patience", to_string(v)]
+      {:precision, :f32} -> ["--precision", "f32"]
+      {:precision, :bf16} -> []  # default
+      {:online_robust, true} -> ["--online-robust"]
+      # Augmentation
       {:augment, true} -> ["--augment"]
       {:augment, false} -> []
-      {:wandb, true} -> ["--wandb"]
-      {:wandb, false} -> []
+      # Regularization
+      {:label_smoothing, v} when v > 0 -> ["--label-smoothing", to_string(v)]
       {:ema, true} -> ["--ema"]
       {:ema, false} -> []
+      # Memory
       {:gradient_checkpoint, true} -> ["--gradient-checkpoint"]
       {:gradient_checkpoint, false} -> []
+      # Monitoring
+      {:wandb, true} -> ["--wandb"]
+      {:wandb, false} -> []
+      # Checkpointing
       {:resume, v} -> ["--resume", v]
-      {:hidden_sizes, v} -> ["--hidden-sizes", Enum.join(v, ",")]
+      {:save_best, true} -> ["--save-best"]
+      # Discretization
       {:kmeans_centers, v} when not is_nil(v) -> ["--kmeans-centers", v]
+      # Reproducibility
+      {:seed, v} when not is_nil(v) -> ["--seed", to_string(v)]
       _ -> []
     end)
   end
@@ -425,11 +512,18 @@ defmodule Mix.Tasks.Exphil.Setup do
     show_opt(opts, :epochs, "Epochs")
     show_opt(opts, :batch_size, "Batch Size")
     show_opt(opts, :max_files, "Max Files")
+    show_opt(opts, :dual_port, "Dual Port")
     show_opt(opts, :temporal, "Temporal")
     show_opt(opts, :backbone, "Backbone")
     show_opt(opts, :augment, "Augmentation")
+    show_opt(opts, :learning_rate, "Learning Rate")
+    show_opt(opts, :early_stopping, "Early Stop")
+    show_opt(opts, :val_split, "Val Split")
+    show_opt(opts, :precision, "Precision")
+    show_opt(opts, :online_robust, "Online Mode")
     show_opt(opts, :wandb, "W&B Logging")
     show_opt(opts, :kmeans_centers, "K-means")
+    show_opt(opts, :seed, "Seed")
     show_opt(opts, :resume, "Resume From")
 
     Output.puts_raw("""

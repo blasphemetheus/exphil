@@ -191,8 +191,10 @@ Output.puts("")
 Output.puts("Press Ctrl+C to stop.")
 Output.puts("")
 
-# Stats monitoring loop
+# Stats monitoring loop with enhanced FPS and confidence display
 defmodule StatsMonitor do
+  @target_fps 60
+
   def run(runner, interval_ms \\ 5000) do
     Process.sleep(interval_ms)
 
@@ -201,11 +203,40 @@ defmodule StatsMonitor do
     if stats.elapsed_ms > 0 do
       elapsed_s = stats.elapsed_ms / 1000
       games_str = if stats.games_played > 0, do: " | Games: #{stats.games_played}", else: ""
-      IO.puts("[Stats] #{Float.round(elapsed_s, 1)}s | Frames: #{stats.frames_read} (#{Float.round(stats.fps, 1)} fps) | Inferences: #{stats.inferences_run} (#{Float.round(stats.inference_rate, 1)}/s)#{games_str}")
+
+      # FPS with target comparison and color
+      fps = Float.round(stats.fps, 1)
+      fps_color = fps_color_code(fps)
+      fps_str = "#{fps_color}#{fps}/#{@target_fps} fps#{IO.ANSI.reset()}"
+
+      # Confidence display
+      conf_str = format_confidence(stats.latest_confidence, stats.avg_confidence)
+
+      IO.puts("[Stats] #{Float.round(elapsed_s, 1)}s | #{fps_str} | Inferences: #{stats.inferences_run}#{conf_str}#{games_str}")
     end
 
     run(runner, interval_ms)
   end
+
+  # Color code based on FPS performance
+  defp fps_color_code(fps) when fps >= 58, do: IO.ANSI.green()      # Good (97%+ of target)
+  defp fps_color_code(fps) when fps >= 50, do: IO.ANSI.yellow()     # OK (83%+ of target)
+  defp fps_color_code(_fps), do: IO.ANSI.red()                       # Poor
+
+  defp format_confidence(nil, _avg), do: ""
+  defp format_confidence(latest, avg) when is_map(latest) do
+    overall = Map.get(latest, :overall, 0)
+    avg_val = if is_number(avg), do: Float.round(avg, 2), else: 0
+
+    # Color code confidence: green = high, yellow = medium, red = low
+    conf_color = confidence_color(overall)
+    " | #{conf_color}Conf: #{Float.round(overall, 2)} (avg: #{avg_val})#{IO.ANSI.reset()}"
+  end
+  defp format_confidence(_, _), do: ""
+
+  defp confidence_color(conf) when conf >= 0.7, do: IO.ANSI.green()
+  defp confidence_color(conf) when conf >= 0.4, do: IO.ANSI.yellow()
+  defp confidence_color(_), do: IO.ANSI.red()
 end
 
 # Run stats monitor

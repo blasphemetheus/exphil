@@ -255,9 +255,9 @@ Current embedding size is **1204 dimensions** with all optimizations enabled.
 | Idea | Effort | Description | Status |
 |------|--------|-------------|--------|
 | **Warmup indicator** | Low | Show "Compiling model..." during first inference | **Done** |
-| FPS counter in play mode | Low | Show actual vs target FPS | Not started |
+| FPS counter in play mode | Low | Show actual vs target FPS | **Done** |
 | **Action distribution viz** | Medium | Show what buttons/sticks model is using | **Done** |
-| Confidence display | Low | Show model's confidence in its predictions | Not started |
+| Confidence display | Low | Show model's confidence in its predictions | **Done** |
 
 **Configuration**
 

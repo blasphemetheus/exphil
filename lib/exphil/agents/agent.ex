@@ -108,6 +108,22 @@ defmodule ExPhil.Agents.Agent do
   end
 
   @doc """
+  Get action with confidence scores.
+
+  Returns `{:ok, action, confidence}` where confidence is a map with:
+  - `:overall` - Overall confidence (0-1)
+  - `:buttons` - Button prediction confidence
+  - `:main` - Main stick confidence
+  - `:c` - C-stick confidence
+  - `:shoulder` - Shoulder confidence
+  """
+  @spec get_action_with_confidence(GenServer.server(), GameState.t(), keyword()) ::
+    {:ok, map(), map()} | {:error, term()}
+  def get_action_with_confidence(agent, game_state, opts \\ []) do
+    GenServer.call(agent, {:get_action_with_confidence, game_state, opts})
+  end
+
+  @doc """
   Get controller state for a game state.
 
   Returns a ControllerState struct ready to send to the bridge.
@@ -226,8 +242,19 @@ defmodule ExPhil.Agents.Agent do
   @impl true
   def handle_call({:get_action, game_state, opts}, _from, state) do
     case compute_action(state, game_state, opts) do
-      {:ok, action, new_state} ->
+      {:ok, action, _confidence, new_state} ->
         {:reply, {:ok, action}, new_state}
+
+      {:error, _} = error ->
+        {:reply, error, state}
+    end
+  end
+
+  @impl true
+  def handle_call({:get_action_with_confidence, game_state, opts}, _from, state) do
+    case compute_action(state, game_state, opts) do
+      {:ok, action, confidence, new_state} ->
+        {:reply, {:ok, action, confidence}, new_state}
 
       {:error, _} = error ->
         {:reply, error, state}
@@ -237,7 +264,7 @@ defmodule ExPhil.Agents.Agent do
   @impl true
   def handle_call({:get_controller, game_state, opts}, _from, state) do
     case compute_action(state, game_state, opts) do
-      {:ok, action, new_state} ->
+      {:ok, action, _confidence, new_state} ->
         controller = action_to_controller(action, state)
         {:reply, {:ok, controller}, new_state}
 
@@ -341,9 +368,10 @@ defmodule ExPhil.Agents.Agent do
     # Action repeat: return cached action if we haven't hit the repeat interval
     if state.action_repeat > 1 and state.last_action != nil and
        state.frames_since_inference < state.action_repeat do
-      # Return cached action, increment counter
+      # Return cached action with default confidence, increment counter
       new_state = %{state | frames_since_inference: state.frames_since_inference + 1}
-      {:ok, state.last_action, new_state}
+      default_conf = %{overall: 0.0, buttons: 0.0, main: 0.0, c: 0.0, shoulder: 0.0}
+      {:ok, state.last_action, default_conf, new_state}
     else
       # Time to run actual inference
       do_compute_action(state, game_state, opts)
@@ -357,7 +385,7 @@ defmodule ExPhil.Agents.Agent do
       embedded = embed_game_state(game_state, player_port, state.embed_config)
 
       # Route to temporal or single-frame inference
-      {action, new_state} = if state.temporal do
+      {action, confidence, new_state} = if state.temporal do
         compute_temporal_action(state, embedded, opts)
       else
         compute_single_frame_action(state, embedded, opts)
@@ -370,7 +398,7 @@ defmodule ExPhil.Agents.Agent do
         warmed_up: true  # Mark as warmed up after first successful inference
       }
 
-      {:ok, action, new_state}
+      {:ok, action, confidence, new_state}
     rescue
       e ->
         Logger.error("[Agent] Error computing action: #{inspect(e)}")
@@ -394,7 +422,10 @@ defmodule ExPhil.Agents.Agent do
       temperature: temperature
     )
 
-    {action, state}
+    # Compute confidence from logits
+    confidence = Networks.Policy.compute_confidence(action)
+
+    {action, confidence, state}
   end
 
   # Temporal inference with frame buffering
@@ -433,10 +464,13 @@ defmodule ExPhil.Agents.Agent do
       temperature: temperature
     )
 
+    # Compute confidence from logits
+    confidence = Networks.Policy.compute_confidence(action)
+
     # Update state with new buffer
     new_state = %{state | frame_buffer: buffer}
 
-    {action, new_state}
+    {action, confidence, new_state}
   end
 
   # Trim buffer to max size, dropping oldest frames

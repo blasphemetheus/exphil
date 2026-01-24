@@ -367,6 +367,93 @@ defmodule ExPhil.Networks.PolicyTest do
     end
   end
 
+  describe "compute_confidence/1" do
+    test "returns confidence map with all keys" do
+      logits = %{
+        buttons: Nx.tensor([[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]]),
+        main_x: Nx.tensor([[0.0, 0.0, 1.0, 0.0, 0.0]]),
+        main_y: Nx.tensor([[0.0, 0.0, 1.0, 0.0, 0.0]]),
+        c_x: Nx.tensor([[0.0, 0.0, 1.0, 0.0, 0.0]]),
+        c_y: Nx.tensor([[0.0, 0.0, 1.0, 0.0, 0.0]]),
+        shoulder: Nx.tensor([[1.0, 0.0, 0.0, 0.0]])
+      }
+
+      confidence = Policy.compute_confidence(logits)
+
+      assert is_map(confidence)
+      assert Map.has_key?(confidence, :overall)
+      assert Map.has_key?(confidence, :buttons)
+      assert Map.has_key?(confidence, :main)
+      assert Map.has_key?(confidence, :c)
+      assert Map.has_key?(confidence, :shoulder)
+    end
+
+    test "high confidence for peaked distributions" do
+      # Very peaked distributions should have high confidence
+      logits = %{
+        buttons: Nx.tensor([[10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0]]),
+        main_x: Nx.tensor([[0.0, 0.0, 10.0, 0.0, 0.0]]),
+        main_y: Nx.tensor([[0.0, 0.0, 10.0, 0.0, 0.0]]),
+        c_x: Nx.tensor([[0.0, 0.0, 10.0, 0.0, 0.0]]),
+        c_y: Nx.tensor([[0.0, 0.0, 10.0, 0.0, 0.0]]),
+        shoulder: Nx.tensor([[10.0, 0.0, 0.0, 0.0]])
+      }
+
+      confidence = Policy.compute_confidence(logits)
+
+      # High confidence for peaked distributions
+      assert confidence.overall > 0.8
+      assert confidence.buttons > 0.9  # sigmoid(10) ≈ 1.0, far from 0.5
+      assert confidence.main > 0.9      # softmax([0,0,10,0,0]) peaks at ~1.0
+    end
+
+    test "low confidence for uniform distributions" do
+      # Uniform distributions should have low confidence
+      logits = %{
+        buttons: Nx.tensor([[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]]),
+        main_x: Nx.tensor([[1.0, 1.0, 1.0, 1.0, 1.0]]),
+        main_y: Nx.tensor([[1.0, 1.0, 1.0, 1.0, 1.0]]),
+        c_x: Nx.tensor([[1.0, 1.0, 1.0, 1.0, 1.0]]),
+        c_y: Nx.tensor([[1.0, 1.0, 1.0, 1.0, 1.0]]),
+        shoulder: Nx.tensor([[1.0, 1.0, 1.0, 1.0]])
+      }
+
+      confidence = Policy.compute_confidence(logits)
+
+      # Low confidence for uniform distributions
+      assert confidence.buttons < 0.1   # sigmoid(0) = 0.5, no confidence
+      assert confidence.main < 0.3      # uniform softmax = 0.2 each
+      assert confidence.overall < 0.3
+    end
+
+    test "accepts action map with :logits key" do
+      action = %{
+        buttons: Nx.tensor([1, 0, 0, 0, 0, 0, 0, 0]),
+        main_x: 8,
+        main_y: 8,
+        logits: %{
+          buttons: Nx.tensor([[5.0, -5.0, -5.0, -5.0, -5.0, -5.0, -5.0, -5.0]]),
+          main_x: Nx.tensor([[0.0, 0.0, 5.0, 0.0, 0.0]]),
+          main_y: Nx.tensor([[0.0, 0.0, 5.0, 0.0, 0.0]]),
+          c_x: Nx.tensor([[0.0, 0.0, 5.0, 0.0, 0.0]]),
+          c_y: Nx.tensor([[0.0, 0.0, 5.0, 0.0, 0.0]]),
+          shoulder: Nx.tensor([[5.0, 0.0, 0.0, 0.0]])
+        }
+      }
+
+      confidence = Policy.compute_confidence(action)
+
+      assert confidence.overall > 0.5
+    end
+
+    test "returns zero confidence for invalid input" do
+      confidence = Policy.compute_confidence(%{})
+
+      assert confidence.overall == 0.0
+      assert confidence.buttons == 0.0
+    end
+  end
+
   # ============================================================================
   # Loss Function Tests
   # ============================================================================

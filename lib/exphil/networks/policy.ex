@@ -1049,6 +1049,71 @@ defmodule ExPhil.Networks.Policy do
     end
   end
 
+  @doc """
+  Compute confidence scores from action logits.
+
+  Returns a map with confidence scores (0-1 scale) for each component:
+  - `:buttons` - Average button confidence (how far from 0.5 the sigmoid probs are)
+  - `:main` - Main stick confidence (max softmax probability)
+  - `:c` - C-stick confidence (max softmax probability)
+  - `:shoulder` - Shoulder confidence (max softmax probability)
+  - `:overall` - Weighted average of all components
+
+  Higher values = more confident predictions.
+  """
+  @spec compute_confidence(map()) :: map()
+  def compute_confidence(%{logits: logits}) do
+    compute_confidence(logits)
+  end
+
+  def compute_confidence(%{buttons: buttons_logits, main_x: main_x_logits, main_y: main_y_logits,
+                          c_x: c_x_logits, c_y: c_y_logits, shoulder: shoulder_logits}) do
+    # Button confidence: how far from 0.5 (uncertain) the probabilities are
+    # Confidence = mean(|sigmoid(logit) - 0.5| * 2)
+    button_probs = Nx.sigmoid(buttons_logits)
+    button_confidence = button_probs
+    |> Nx.subtract(0.5)
+    |> Nx.abs()
+    |> Nx.multiply(2)
+    |> Nx.mean()
+    |> Nx.to_number()
+
+    # Categorical confidence: max softmax probability
+    main_x_conf = max_softmax_prob(main_x_logits)
+    main_y_conf = max_softmax_prob(main_y_logits)
+    main_confidence = (main_x_conf + main_y_conf) / 2
+
+    c_x_conf = max_softmax_prob(c_x_logits)
+    c_y_conf = max_softmax_prob(c_y_logits)
+    c_confidence = (c_x_conf + c_y_conf) / 2
+
+    shoulder_confidence = max_softmax_prob(shoulder_logits)
+
+    # Overall: weighted average (buttons are most important for gameplay)
+    overall = (button_confidence * 0.4 + main_confidence * 0.3 +
+               c_confidence * 0.15 + shoulder_confidence * 0.15)
+
+    %{
+      buttons: Float.round(button_confidence, 3),
+      main: Float.round(main_confidence, 3),
+      c: Float.round(c_confidence, 3),
+      shoulder: Float.round(shoulder_confidence, 3),
+      overall: Float.round(overall, 3)
+    }
+  end
+
+  def compute_confidence(_), do: %{overall: 0.0, buttons: 0.0, main: 0.0, c: 0.0, shoulder: 0.0}
+
+  # Helper: compute max probability from softmax of logits
+  defp max_softmax_prob(logits) do
+    # Softmax then max
+    probs = Axon.Activations.softmax(logits, axis: -1)
+    probs
+    |> Nx.reduce_max(axes: [-1])
+    |> Nx.mean()  # Average across batch if present
+    |> Nx.to_number()
+  end
+
   # ============================================================================
   # Loss Functions
   # ============================================================================

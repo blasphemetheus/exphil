@@ -99,6 +99,8 @@ defmodule ExPhil.Bridge.AsyncRunner do
     :ets.insert(table, {:inference_count, 0})
     :ets.insert(table, {:games_played, 0})
     :ets.insert(table, {:start_time, nil})
+    :ets.insert(table, {:latest_confidence, nil})
+    :ets.insert(table, {:confidence_sum, 0.0})  # For running average
 
     state = %__MODULE__{
       agent: agent,
@@ -165,16 +167,25 @@ defmodule ExPhil.Bridge.AsyncRunner do
     [{:inference_count, inferences}] = :ets.lookup(state.state_table, :inference_count)
     [{:games_played, games}] = :ets.lookup(state.state_table, :games_played)
     [{:start_time, start_time}] = :ets.lookup(state.state_table, :start_time)
+    [{:latest_confidence, latest_conf}] = :ets.lookup(state.state_table, :latest_confidence)
+    [{:confidence_sum, conf_sum}] = :ets.lookup(state.state_table, :confidence_sum)
 
     elapsed = if start_time, do: System.monotonic_time(:millisecond) - start_time, else: 0
+    fps = if(elapsed > 0, do: frames * 1000 / elapsed, else: 0)
+    avg_confidence = if(inferences > 0, do: conf_sum / inferences, else: 0)
 
     stats = %{
       frames_read: frames,
       inferences_run: inferences,
       games_played: games,
       elapsed_ms: elapsed,
-      fps: if(elapsed > 0, do: frames * 1000 / elapsed, else: 0),
-      inference_rate: if(elapsed > 0, do: inferences * 1000 / elapsed, else: 0)
+      fps: fps,
+      target_fps: 60,
+      fps_ratio: fps / 60,  # 1.0 = hitting target, <1.0 = falling behind
+      inference_rate: if(elapsed > 0, do: inferences * 1000 / elapsed, else: 0),
+      # Confidence stats
+      latest_confidence: latest_conf,
+      avg_confidence: avg_confidence
     }
 
     {:reply, stats, state}
@@ -360,11 +371,16 @@ defmodule ExPhil.Bridge.AsyncRunner do
             # Check if we're in game
             case :ets.lookup(table, :in_game) do
               [{:in_game, true}] ->
-                # Run inference
-                case Agent.get_action(agent, game_state, player_port: player_port) do
-                  {:ok, action} ->
+                # Run inference with confidence
+                case Agent.get_action_with_confidence(agent, game_state, player_port: player_port) do
+                  {:ok, action, confidence} ->
                     :ets.insert(table, {:latest_action, action})
+                    :ets.insert(table, {:latest_confidence, confidence})
                     :ets.update_counter(table, :inference_count, 1)
+                    # Update running sum for average
+                    overall_conf = Map.get(confidence, :overall, 0)
+                    [{:confidence_sum, old_sum}] = :ets.lookup(table, :confidence_sum)
+                    :ets.insert(table, {:confidence_sum, old_sum + overall_conf})
 
                   {:error, reason} ->
                     Logger.warning("[AsyncRunner:Inference] Error: #{inspect(reason)}")
