@@ -120,6 +120,9 @@ end
 #   --ema               - Enable EMA weight tracking (often better generalization)
 #   --ema-decay X       - EMA decay rate (default: 0.999, range: 0-1)
 #                         Higher = slower updates, smoother weights
+#
+# Debugging:
+#   EXPHIL_FULL_STACKTRACE=1  - Show full stack traces (default: simplified, hides Nx/EXLA internals)
 
 # Use the training output module for colored output, progress bars, and formatting
 alias ExPhil.Training.Output
@@ -149,7 +152,7 @@ end
 require Logger
 
 alias ExPhil.Data.Peppi
-alias ExPhil.Training.{Augmentation, CharacterBalance, CheckpointPruning, Config, Data, EarlyStopping, EMA, GPUUtils, Imitation, Plots, Prefetcher, Recovery, Registry, ReplayValidation, Streaming}
+alias ExPhil.Training.{Augmentation, CharacterBalance, CheckpointPruning, Config, Data, DuplicateDetector, EarlyStopping, EMA, GPUUtils, Imitation, Plots, Prefetcher, Recovery, Registry, ReplayValidation, Stacktrace, Streaming}
 alias ExPhil.Embeddings
 alias ExPhil.Integrations.Wandb
 
@@ -463,6 +466,24 @@ else
     Output.puts("  Skipping validation for large dataset (#{initial_count} files)")
   end
   initial_replay_files
+end
+
+# Duplicate detection (skip files with identical content)
+replay_files = if opts[:skip_duplicates] && length(replay_files) > 1 do
+  Output.puts("  Checking for duplicate files...")
+  {unique_files, dup_stats} = DuplicateDetector.filter_duplicates(replay_files,
+    show_progress: length(replay_files) > 100,
+    parallel: length(replay_files) > 10
+  )
+
+  if dup_stats.duplicates > 0 do
+    pct = Float.round(dup_stats.duplicates / dup_stats.total * 100, 1)
+    Output.puts("  Removed #{dup_stats.duplicates} duplicate files (#{pct}%)")
+  end
+
+  unique_files
+else
+  replay_files
 end
 
 # Filter by character/stage if specified (uses fast metadata parsing)
@@ -1475,7 +1496,9 @@ if length(training_history) > 0 do
     )
     Output.puts("  ✓ Loss plot saved to #{plot_path}")
   rescue
-    e -> Output.puts("  ⚠ Loss plot generation failed: #{inspect(e)}")
+    e ->
+      Output.puts("  ⚠ Loss plot generation failed:")
+      Stacktrace.print_exception(e, __STACKTRACE__)
   end
 end
 
