@@ -28,7 +28,7 @@ require Logger
 
 alias ExPhil.Training.Output
 alias ExPhil.Data.Peppi
-alias ExPhil.Training.{ActionViz, Config, Data, Imitation}
+alias ExPhil.Training.{ActionViz, Checkpoint, Config, Data, Imitation}
 alias ExPhil.Networks.Policy
 alias ExPhil.Embeddings
 
@@ -276,15 +276,23 @@ evaluate_model = fn model_path ->
 
   is_policy_file = String.ends_with?(model_path, ".bin")
 
-  # Load model
+  # Load model with embed size validation
   {params, config} = if is_policy_file do
-    {:ok, binary} = File.read(model_path)
-    export = :erlang.binary_to_term(binary)
-    {export.params, export.config}
+    case Checkpoint.load_policy(model_path, current_embed_size: embed_size) do
+      {:ok, export} ->
+        {export.params, export.config}
+      {:error, reason} ->
+        Output.error("Failed to load policy: #{inspect(reason)}")
+        System.halt(1)
+    end
   else
-    {:ok, binary} = File.read(model_path)
-    checkpoint = :erlang.binary_to_term(binary)
-    {checkpoint.policy_params, checkpoint.config}
+    case Checkpoint.load(model_path, current_embed_size: embed_size) do
+      {:ok, checkpoint} ->
+        {checkpoint.policy_params, checkpoint.config}
+      {:error, reason} ->
+        Output.error("Failed to load checkpoint: #{inspect(reason)}")
+        System.halt(1)
+    end
   end
 
   # Build policy model based on temporal mode

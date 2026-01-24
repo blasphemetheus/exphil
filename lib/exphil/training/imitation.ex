@@ -45,7 +45,7 @@ defmodule ExPhil.Training.Imitation do
 
   alias ExPhil.Networks.Policy
   alias ExPhil.Embeddings
-  alias ExPhil.Training.Utils
+  alias ExPhil.Training.{Checkpoint, Utils}
 
   require Logger
 
@@ -1004,13 +1004,16 @@ defmodule ExPhil.Training.Imitation do
 
   @doc """
   Load a training checkpoint.
+
+  Validates embed size if the trainer was initialized with one.
+  Warns if checkpoint embed size differs from current config.
   """
   @spec load_checkpoint(t(), Path.t()) :: {:ok, t()} | {:error, term()}
   def load_checkpoint(trainer, path) do
-    case File.read(path) do
-      {:ok, binary} ->
-        checkpoint = :erlang.binary_to_term(binary)
+    current_embed_size = trainer.config[:embed_size]
 
+    case Checkpoint.load(path, current_embed_size: current_embed_size) do
+      {:ok, checkpoint} ->
         new_trainer = %{trainer |
           policy_params: checkpoint.policy_params,
           optimizer_state: checkpoint.optimizer_state,
@@ -1022,8 +1025,8 @@ defmodule ExPhil.Training.Imitation do
         Logger.info("Loaded checkpoint from #{path} at step #{new_trainer.step}")
         {:ok, new_trainer}
 
-      error ->
-        error
+      {:error, reason} ->
+        {:error, reason}
     end
   end
 
