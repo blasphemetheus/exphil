@@ -697,4 +697,180 @@ defmodule ExPhil.Embeddings.GameTest do
     # Note: Empty list handling removed as Nx.broadcast doesn't support {0, n} shapes.
     # Training code should never pass empty lists anyway.
   end
+
+  # ============================================================================
+  # Stage Mode Tests
+  # ============================================================================
+
+  describe "stage_mode" do
+    test "default config uses one_hot_full" do
+      config = GameEmbed.default_config()
+      assert config.stage_mode == :one_hot_full
+    end
+
+    test "stage_embedding_size returns 64 for one_hot_full" do
+      config = %{GameEmbed.default_config() | stage_mode: :one_hot_full}
+      assert GameEmbed.stage_embedding_size(config) == 64
+    end
+
+    test "stage_embedding_size returns 7 for one_hot_compact" do
+      config = %{GameEmbed.default_config() | stage_mode: :one_hot_compact}
+      assert GameEmbed.stage_embedding_size(config) == 7
+    end
+
+    test "stage_embedding_size returns 0 for learned" do
+      config = %{GameEmbed.default_config() | stage_mode: :learned}
+      assert GameEmbed.stage_embedding_size(config) == 0
+    end
+
+    test "num_stage_ids returns 0 for one_hot modes" do
+      full_config = %{GameEmbed.default_config() | stage_mode: :one_hot_full}
+      compact_config = %{GameEmbed.default_config() | stage_mode: :one_hot_compact}
+      assert GameEmbed.num_stage_ids(full_config) == 0
+      assert GameEmbed.num_stage_ids(compact_config) == 0
+    end
+
+    test "num_stage_ids returns 1 for learned mode" do
+      config = %{GameEmbed.default_config() | stage_mode: :learned}
+      assert GameEmbed.num_stage_ids(config) == 1
+    end
+
+    test "uses_learned_stages? returns correct values" do
+      full_config = %{GameEmbed.default_config() | stage_mode: :one_hot_full}
+      compact_config = %{GameEmbed.default_config() | stage_mode: :one_hot_compact}
+      learned_config = %{GameEmbed.default_config() | stage_mode: :learned}
+
+      refute GameEmbed.uses_learned_stages?(full_config)
+      refute GameEmbed.uses_learned_stages?(compact_config)
+      assert GameEmbed.uses_learned_stages?(learned_config)
+    end
+  end
+
+  describe "embed_stage/2" do
+    test "one_hot_full returns 64-dim tensor" do
+      config = %{GameEmbed.default_config() | stage_mode: :one_hot_full}
+      result = GameEmbed.embed_stage(32, config)  # FD = stage 32
+      assert Nx.shape(result) == {64}
+      # FD should have 1.0 at position 32
+      assert Nx.to_number(result[32]) == 1.0
+    end
+
+    test "one_hot_compact returns 7-dim tensor for competitive stage" do
+      config = %{GameEmbed.default_config() | stage_mode: :one_hot_compact}
+      result = GameEmbed.embed_stage(32, config)  # FD = competitive index 5
+      assert Nx.shape(result) == {7}
+      # FD is index 5 in competitive stages
+      assert Nx.to_number(result[5]) == 1.0
+      # "Other" bit should be 0
+      assert Nx.to_number(result[6]) == 0.0
+    end
+
+    test "one_hot_compact sets 'other' bit for non-competitive stage" do
+      config = %{GameEmbed.default_config() | stage_mode: :one_hot_compact}
+      result = GameEmbed.embed_stage(1, config)  # Non-competitive stage
+      assert Nx.shape(result) == {7}
+      # All competitive stage bits should be 0
+      for i <- 0..5 do
+        assert Nx.to_number(result[i]) == 0.0
+      end
+      # "Other" bit should be 1
+      assert Nx.to_number(result[6]) == 1.0
+    end
+
+    test "learned mode returns :skip" do
+      config = %{GameEmbed.default_config() | stage_mode: :learned}
+      result = GameEmbed.embed_stage(32, config)
+      # In learned mode, embed_stage returns :skip (stage ID is appended separately)
+      assert result == :skip
+    end
+
+    test "handles nil stage" do
+      config = %{GameEmbed.default_config() | stage_mode: :one_hot_full}
+      result = GameEmbed.embed_stage(nil, config)
+      assert Nx.shape(result) == {64}
+      # Nil defaults to stage 0
+      assert Nx.to_number(result[0]) == 1.0
+    end
+  end
+
+  describe "embed_stages_batch/2" do
+    test "one_hot_full batch returns correct shape" do
+      config = %{GameEmbed.default_config() | stage_mode: :one_hot_full}
+      stages = [32, 28, 3, 2]  # FD, YS, PS, FoD
+      result = GameEmbed.embed_stages_batch(stages, config)
+      assert Nx.shape(result) == {4, 64}
+    end
+
+    test "one_hot_compact batch returns correct shape" do
+      config = %{GameEmbed.default_config() | stage_mode: :one_hot_compact}
+      stages = [32, 28, 3, 2]  # FD, YS, PS, FoD
+      result = GameEmbed.embed_stages_batch(stages, config)
+      assert Nx.shape(result) == {4, 7}
+    end
+
+    test "learned mode batch returns :skip" do
+      config = %{GameEmbed.default_config() | stage_mode: :learned}
+      stages = [32, 28, 3, 2]
+      result = GameEmbed.embed_stages_batch(stages, config)
+      # In learned mode, batch returns :skip (stage IDs appended separately)
+      assert result == :skip
+    end
+  end
+
+  describe "embedding_size with stage modes" do
+    test "one_hot_compact saves 57 dimensions" do
+      full_config = %{GameEmbed.default_config() | stage_mode: :one_hot_full}
+      compact_config = %{GameEmbed.default_config() | stage_mode: :one_hot_compact}
+
+      full_size = GameEmbed.embedding_size(full_config)
+      compact_size = GameEmbed.embedding_size(compact_config)
+
+      # Compact saves 64 - 7 = 57 dimensions
+      assert full_size - compact_size == 57
+    end
+
+    test "learned mode saves 63 dimensions (64 - 1 ID)" do
+      full_config = %{GameEmbed.default_config() | stage_mode: :one_hot_full}
+      learned_config = %{GameEmbed.default_config() | stage_mode: :learned}
+
+      full_size = GameEmbed.embedding_size(full_config)
+      learned_size = GameEmbed.embedding_size(learned_config)
+
+      # Learned saves 64 dims, adds 1 ID = net savings of 63 dims
+      assert full_size - learned_size == 63
+    end
+  end
+
+  describe "embed_states_fast with stage modes" do
+    test "respects one_hot_compact mode" do
+      config = %{GameEmbed.default_config() | stage_mode: :one_hot_compact}
+      game_state = mock_game_state(stage: 32)  # FD
+
+      result = GameEmbed.embed_states_fast([game_state], 1, config: config)
+      expected_size = GameEmbed.embedding_size(config)
+
+      {_, actual_size} = Nx.shape(result)
+      assert actual_size == expected_size
+    end
+
+    test "appends stage ID in learned mode" do
+      config = %{GameEmbed.default_config() | stage_mode: :learned}
+      game_state = mock_game_state(stage: 32)  # FD
+
+      result = GameEmbed.embed_states_fast([game_state], 1, config: config)
+      expected_size = GameEmbed.embedding_size(config)
+
+      {batch_size, actual_size} = Nx.shape(result)
+      assert batch_size == 1
+      assert actual_size == expected_size
+
+      # Stage ID should be at the end
+      # continuous_size = total - num_total_ids
+      continuous_size = GameEmbed.continuous_embedding_size(config)
+      total_ids = GameEmbed.num_total_ids(config)
+
+      # With stage_mode: :learned, stage_id is at position continuous_size (or later)
+      assert continuous_size + total_ids == actual_size
+    end
+  end
 end

@@ -176,7 +176,7 @@ defmodule ExPhil.Training.ConfigTest do
       result = Config.ensure_checkpoint_name(opts)
 
       # Format: checkpoints/mlp_memorablename_timestamp.axon
-      assert result[:checkpoint] =~ ~r/checkpoints\/mlp_[a-z_]+_\d{8}_\d{6}\.axon/
+      assert result[:checkpoint] =~ ~r/checkpoints\/mlp_[a-z0-9_]+_\d{8}_\d{6}\.axon/
       assert is_binary(result[:name])
     end
 
@@ -185,7 +185,7 @@ defmodule ExPhil.Training.ConfigTest do
       result = Config.ensure_checkpoint_name(opts)
 
       # Format: checkpoints/mamba_memorablename_timestamp.axon
-      assert result[:checkpoint] =~ ~r/checkpoints\/mamba_[a-z_]+_\d{8}_\d{6}\.axon/
+      assert result[:checkpoint] =~ ~r/checkpoints\/mamba_[a-z0-9_]+_\d{8}_\d{6}\.axon/
       assert is_binary(result[:name])
     end
 
@@ -194,7 +194,7 @@ defmodule ExPhil.Training.ConfigTest do
       result = Config.ensure_checkpoint_name(opts)
 
       # Format: checkpoints/lstm_memorablename_timestamp.axon
-      assert result[:checkpoint] =~ ~r/checkpoints\/lstm_[a-z_]+_\d{8}_\d{6}\.axon/
+      assert result[:checkpoint] =~ ~r/checkpoints\/lstm_[a-z0-9_]+_\d{8}_\d{6}\.axon/
       assert is_binary(result[:name])
     end
 
@@ -477,7 +477,7 @@ defmodule ExPhil.Training.ConfigTest do
         result = Config.ensure_checkpoint_name(opts)
 
         # Format: checkpoints/backbone_memorablename_timestamp.axon
-        assert result[:checkpoint] =~ ~r/checkpoints\/#{backbone}_[a-z_]+_\d{8}_\d{6}\.axon/
+        assert result[:checkpoint] =~ ~r/checkpoints\/#{backbone}_[a-z0-9_]+_\d{8}_\d{6}\.axon/
         # Should also set the :name option
         assert is_binary(result[:name])
       end
@@ -488,7 +488,7 @@ defmodule ExPhil.Training.ConfigTest do
       result = Config.ensure_checkpoint_name(opts)
 
       # Format: checkpoints/mlp_memorablename_timestamp.axon
-      assert result[:checkpoint] =~ ~r/checkpoints\/mlp_[a-z_]+_\d{8}_\d{6}\.axon/
+      assert result[:checkpoint] =~ ~r/checkpoints\/mlp_[a-z0-9_]+_\d{8}_\d{6}\.axon/
       assert is_binary(result[:name])
     end
   end

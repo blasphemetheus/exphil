@@ -20,8 +20,14 @@ ExPhil is an Elixir-based successor to slippi-ai, creating high-ELO playable bot
 - Controller: 13 dims (8 buttons + 4 sticks + 1 shoulder)
 - Action modes: `:one_hot` (399 dims, default) or `:learned` (64-dim trainable embedding, saves ~670 dims)
 - Character modes: `:one_hot` (33 dims, default) or `:learned` (64-dim trainable embedding, saves 64 dims)
+- Stage modes:
+  - `:one_hot_full` (default): 64 dims (full stage one-hot)
+  - `:one_hot_compact`: 7 dims (6 competitive stages + "other", saves 57 dims)
+  - `:learned`: 1 ID + trainable embedding (saves 63 dims)
+- Competitive stages for compact mode: FoD (2), PS (3), YS (8), DL (28), BF (31), FD (32)
 - Action IDs: 2 (players only) or 4 (players + Nana with `nana_mode: :enhanced`)
 - Character IDs: 2 when `character_mode: :learned` (own + opponent)
+- Stage IDs: 1 when `stage_mode: :learned`
 
 **Policy network:** 6-head autoregressive (buttons, main_x/y, c_x/y, shoulder)
 
@@ -37,6 +43,7 @@ ExPhil is an Elixir-based successor to slippi-ai, creating high-ELO playable bot
 **Test coverage:** 1394 tests passing
 
 **Completed:**
+- Stage embedding modes (full 64-dim, compact 7-dim, or learned embedding)
 - Learned character embeddings (33 chars → 64-dim trainable, saves 64 dims)
 - Imitation learning (single-frame + temporal)
 - All backbones: MLP, LSTM, GRU, Mamba, attention

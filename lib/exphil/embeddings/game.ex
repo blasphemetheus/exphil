@@ -46,8 +46,12 @@ defmodule ExPhil.Embeddings.Game do
     # Game-level spatial features
     with_distance: true,  # Distance between players (+1 dim)
     with_relative_pos: true,  # Relative position dx, dy (+2 dims)
-    with_frame_count: true  # Game frame/timer (+1 dim)
+    with_frame_count: true,  # Game frame/timer (+1 dim)
+    # Stage embedding mode
+    stage_mode: :one_hot_full  # :one_hot_full (64), :one_hot_compact (7), :learned (ID in network)
   ]
+
+  @type stage_mode :: :one_hot_full | :one_hot_compact | :learned
 
   @type config :: %__MODULE__{
     player: PlayerEmbed.config(),
@@ -59,8 +63,36 @@ defmodule ExPhil.Embeddings.Game do
     num_player_names: non_neg_integer(),
     with_distance: boolean(),
     with_relative_pos: boolean(),
-    with_frame_count: boolean()
+    with_frame_count: boolean(),
+    stage_mode: stage_mode()
   }
+
+  # ============================================================================
+  # Stage Constants
+  # ============================================================================
+
+  # Competitive stage IDs (from replay files, NOT libmelee)
+  @competitive_stages %{
+    fountain_of_dreams: 2,
+    pokemon_stadium: 3,
+    yoshis_story: 8,
+    dream_land: 28,
+    battlefield: 31,
+    final_destination: 32
+  }
+
+  # Reverse lookup: stage_id -> index (0-5 for compact one-hot)
+  @competitive_stage_index %{
+    2 => 0,   # FoD
+    3 => 1,   # PS
+    8 => 2,   # YS
+    28 => 3,  # DL
+    31 => 4,  # BF
+    32 => 5   # FD
+  }
+
+  @num_stages_full 64  # Full one-hot size
+  @num_stages_compact 7  # 6 competitive + 1 "other"
 
   @doc """
   Number of action IDs appended when using learned embeddings.
@@ -82,14 +114,14 @@ defmodule ExPhil.Embeddings.Game do
   - continuous_features = input[:, :-n]
   - ids = input[:, -n:]
 
-  where n = num_total_ids(config) (action IDs + character IDs)
+  where n = num_total_ids(config) (action IDs + character IDs + stage IDs)
 
   This function returns the size of continuous_features.
   """
   @spec continuous_embedding_size(config()) :: non_neg_integer()
   def continuous_embedding_size(config \\ default_config()) do
     total = embedding_size(config)
-    total - num_action_ids(config) - num_character_ids(config)
+    total - num_total_ids(config)
   end
 
   @doc """
@@ -119,11 +151,11 @@ defmodule ExPhil.Embeddings.Game do
   end
 
   @doc """
-  Total number of IDs appended (action IDs + character IDs).
+  Total number of IDs appended (action IDs + character IDs + stage IDs).
   """
   @spec num_total_ids(config()) :: non_neg_integer()
   def num_total_ids(config \\ default_config()) do
-    num_action_ids(config) + num_character_ids(config)
+    num_action_ids(config) + num_character_ids(config) + num_stage_ids(config)
   end
 
   @doc """
@@ -133,6 +165,81 @@ defmodule ExPhil.Embeddings.Game do
   def uses_learned_characters?(config) do
     config.player.character_mode == :learned
   end
+
+  @doc """
+  Check if the config uses learned stage embeddings.
+  """
+  @spec uses_learned_stages?(config()) :: boolean()
+  def uses_learned_stages?(config) do
+    config.stage_mode == :learned
+  end
+
+  @doc """
+  Number of stage IDs appended when using learned stage embeddings.
+
+  - 1 ID when using learned stage embedding
+  - 0 when using one-hot (full or compact)
+  """
+  @spec num_stage_ids(config()) :: non_neg_integer()
+  def num_stage_ids(config \\ default_config()) do
+    if config.stage_mode == :learned, do: 1, else: 0
+  end
+
+  @doc """
+  Check if the config uses learned stage embeddings.
+  """
+  @spec uses_learned_stage?(config()) :: boolean()
+  def uses_learned_stage?(config) do
+    config.stage_mode == :learned
+  end
+
+  @doc """
+  Get the stage embedding size for the current config.
+
+  - `:one_hot_full` - 64 dimensions (default, backward compatible)
+  - `:one_hot_compact` - 7 dimensions (6 competitive stages + 1 other)
+  - `:learned` - 0 dimensions (stage ID appended at end for network embedding)
+  """
+  @spec stage_embedding_size(config()) :: non_neg_integer()
+  def stage_embedding_size(config \\ default_config()) do
+    case config.stage_mode do
+      :one_hot_full -> @num_stages_full
+      :one_hot_compact -> @num_stages_compact
+      :learned -> 0
+    end
+  end
+
+  @doc """
+  Get stage ID for learned embedding lookup.
+
+  Returns the raw stage ID (0-63 range), suitable for embedding table lookup.
+  """
+  @spec get_stage_id(GameState.t() | nil) :: non_neg_integer()
+  def get_stage_id(nil), do: 0
+  def get_stage_id(%GameState{stage: nil}), do: 0
+  def get_stage_id(%GameState{stage: stage}), do: stage
+
+  @doc """
+  Check if a stage ID is a competitive stage.
+  """
+  @spec competitive_stage?(non_neg_integer()) :: boolean()
+  def competitive_stage?(stage_id) do
+    Map.has_key?(@competitive_stage_index, stage_id)
+  end
+
+  @doc """
+  Get the competitive stage index (0-5) or nil if not competitive.
+  """
+  @spec competitive_stage_index(non_neg_integer()) :: non_neg_integer() | nil
+  def competitive_stage_index(stage_id) do
+    Map.get(@competitive_stage_index, stage_id)
+  end
+
+  @doc """
+  Get the map of competitive stage atoms to IDs.
+  """
+  @spec competitive_stages() :: map()
+  def competitive_stages, do: @competitive_stages
 
   @spec default_config() :: config()
   def default_config do
@@ -156,8 +263,8 @@ defmodule ExPhil.Embeddings.Game do
     # Two players
     players_size = 2 * player_size
 
-    # Stage
-    stage_size = Primitives.embedding_size(:stage)
+    # Stage (depends on stage_mode)
+    stage_size = stage_embedding_size(config)
 
     # Previous action (continuous)
     prev_action_size = ControllerEmbed.continuous_embedding_size()
@@ -188,14 +295,93 @@ defmodule ExPhil.Embeddings.Game do
     # Includes: player actions (2) + Nana actions if enhanced mode (2)
     action_ids_size = num_action_ids(config)
 
-    # Character IDs appended at very end when using learned character embeddings
+    # Character IDs appended when using learned character embeddings
     # Includes: own character (1) + opponent character (1)
     character_ids_size = num_character_ids(config)
+
+    # Stage ID appended at very end when using learned stage embeddings
+    stage_ids_size = num_stage_ids(config)
 
     players_size + stage_size + prev_action_size + name_size +
       projectile_size + item_size +
       distance_size + relative_pos_size + frame_count_size +
-      action_ids_size + character_ids_size
+      action_ids_size + character_ids_size + stage_ids_size
+  end
+
+  # ============================================================================
+  # Stage Embedding Functions
+  # ============================================================================
+
+  @doc """
+  Embed stage according to the configured mode.
+
+  - `:one_hot_full` - 64-dim one-hot (backward compatible)
+  - `:one_hot_compact` - 7-dim: 6 competitive stages + 1 "other"
+  - `:learned` - Returns empty tensor (stage ID appended at end for network)
+  """
+  @spec embed_stage(non_neg_integer() | nil, config()) :: Nx.Tensor.t()
+  def embed_stage(stage_id, config \\ default_config())
+
+  def embed_stage(nil, config), do: embed_stage(0, config)
+
+  def embed_stage(stage_id, config) do
+    case config.stage_mode do
+      :one_hot_full ->
+        # Full 64-dim one-hot (current behavior)
+        Primitives.stage_embed(stage_id)
+
+      :one_hot_compact ->
+        # 7-dim: 6 competitive + 1 other
+        embed_stage_compact(stage_id)
+
+      :learned ->
+        # No stage embedding - stage ID will be appended at end
+        # Return :skip to indicate this should be excluded from concatenation
+        :skip
+    end
+  end
+
+  @doc """
+  Embed stage as compact 7-dim one-hot (6 competitive + 1 other).
+  """
+  @spec embed_stage_compact(non_neg_integer()) :: Nx.Tensor.t()
+  def embed_stage_compact(stage_id) do
+    case Map.get(@competitive_stage_index, stage_id) do
+      nil ->
+        # Not a competitive stage - set "other" flag (index 6)
+        Nx.tensor([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0], type: :f32)
+
+      idx ->
+        # Competitive stage - one-hot at position idx (0-5)
+        zeros = List.duplicate(0.0, @num_stages_compact)
+        zeros
+        |> List.replace_at(idx, 1.0)
+        |> Nx.tensor(type: :f32)
+    end
+  end
+
+  @doc """
+  Batch embed stages according to the configured mode.
+  """
+  @spec embed_stages_batch(list(non_neg_integer() | nil), config()) :: Nx.Tensor.t()
+  def embed_stages_batch(stage_ids, config \\ default_config()) do
+    case config.stage_mode do
+      :one_hot_full ->
+        # Full 64-dim one-hot
+        ids = Enum.map(stage_ids, &(&1 || 0))
+        Primitives.batch_one_hot(Nx.tensor(ids, type: :s32), size: @num_stages_full, clamp: true)
+
+      :one_hot_compact ->
+        # 7-dim compact one-hot
+        stage_ids
+        |> Enum.map(&embed_stage_compact(&1 || 0))
+        |> Nx.stack()
+
+      :learned ->
+        # No stage embedding - stage ID will be appended at end
+        # Return :skip to indicate this should be excluded from concatenation
+        :skip
+    end
   end
 
   defp projectile_embedding_size do
@@ -239,13 +425,11 @@ defmodule ExPhil.Embeddings.Game do
     # Get players in ego-centric order (own first, opponent second)
     {own, opponent} = get_players_ego(game_state, own_port)
 
-    embeddings = [
+    # Base embeddings (players, action, name)
+    base_embeddings = [
       # Players (ego-centric)
       PlayerEmbed.embed(own, config.player),
       PlayerEmbed.embed(opponent, config.player),
-
-      # Stage
-      Primitives.stage_embed(game_state.stage || 0),
 
       # Previous action
       ControllerEmbed.embed_continuous(prev_action),
@@ -253,6 +437,15 @@ defmodule ExPhil.Embeddings.Game do
       # Player name/tag ID (for style learning)
       Primitives.one_hot(name_id, size: config.num_player_names, clamp: true)
     ]
+
+    # Stage embedding (only when using one-hot modes, not learned)
+    embeddings = if config.stage_mode in [:one_hot_full, :one_hot_compact] do
+      stage_emb = embed_stage(game_state.stage, config)
+      # Insert stage after players, before prev_action
+      [Enum.at(base_embeddings, 0), Enum.at(base_embeddings, 1), stage_emb | Enum.drop(base_embeddings, 2)]
+    else
+      base_embeddings
+    end
 
     # Optional: projectiles
     embeddings = if config.with_projectiles do
@@ -322,6 +515,14 @@ defmodule ExPhil.Embeddings.Game do
       embeddings
     end
 
+    # Append stage ID at very end when using learned stage embeddings
+    embeddings = if config.stage_mode == :learned do
+      stage_id = Nx.tensor([game_state.stage || 0], type: :f32)
+      [stage_id | embeddings]
+    else
+      embeddings
+    end
+
     Nx.concatenate(Enum.reverse(embeddings))
   end
 
@@ -358,9 +559,6 @@ defmodule ExPhil.Embeddings.Game do
       own_emb = PlayerEmbed.embed_batch(own_players, config.player)
       opp_emb = PlayerEmbed.embed_batch(opponent_players, config.player)
 
-      # Batch embed stages
-      stage_emb = Primitives.batch_one_hot(Nx.tensor(stages, type: :s32), size: 64, clamp: true)
-
       # Batch embed name_id (same for all in batch)
       batch_size = length(game_states)
       name_ids = List.duplicate(name_id, batch_size)
@@ -370,8 +568,13 @@ defmodule ExPhil.Embeddings.Game do
       # continuous_embedding_size = 8 + 2 + 2 + 1 = 13
       prev_action_emb = Nx.broadcast(0.0, {batch_size, ControllerEmbed.continuous_embedding_size()})
 
-      # Base embeddings
-      base_embs = [own_emb, opp_emb, stage_emb, prev_action_emb, name_emb]
+      # Base embeddings (stage only included for one-hot modes)
+      base_embs = if config.stage_mode in [:one_hot_full, :one_hot_compact] do
+        stage_emb = embed_stages_batch(stages, config)
+        [own_emb, opp_emb, stage_emb, prev_action_emb, name_emb]
+      else
+        [own_emb, opp_emb, prev_action_emb, name_emb]
+      end
 
       # Add distance if configured
       embs_with_distance = if config.with_distance do
@@ -458,7 +661,7 @@ defmodule ExPhil.Embeddings.Game do
 
       # Append character IDs when using learned character embeddings
       # Order: [char_own, char_opp] at end of tensor
-      all_embs = if config.player.character_mode == :learned do
+      embs_with_chars = if config.player.character_mode == :learned do
         own_chars = Enum.map(own_players, &PlayerEmbed.get_character_id/1)
         opp_chars = Enum.map(opponent_players, &PlayerEmbed.get_character_id/1)
         # Stack as [batch, 2] tensor
@@ -469,6 +672,16 @@ defmodule ExPhil.Embeddings.Game do
         embs_with_nana ++ [char_ids]
       else
         embs_with_nana
+      end
+
+      # Append stage ID at very end when using learned stage embeddings
+      # Shape: [batch, 1] with stage_id as float
+      all_embs = if config.stage_mode == :learned do
+        # Stage IDs as [batch, 1] tensor
+        stage_ids = Nx.tensor(stages, type: :f32) |> Nx.reshape({:auto, 1})
+        embs_with_chars ++ [stage_ids]
+      else
+        embs_with_chars
       end
 
       # Concatenate all: [batch, total_embed_size]
@@ -487,11 +700,20 @@ defmodule ExPhil.Embeddings.Game do
 
     {own, opponent} = get_players_ego(game_state, own_port)
 
-    Nx.concatenate([
+    base_embeddings = [
       PlayerEmbed.embed(own, config.player),
-      PlayerEmbed.embed(opponent, config.player),
-      Primitives.stage_embed(game_state.stage || 0)
-    ])
+      PlayerEmbed.embed(opponent, config.player)
+    ]
+
+    # Add stage embedding only for one-hot modes
+    embeddings = if config.stage_mode in [:one_hot_full, :one_hot_compact] do
+      base_embeddings ++ [embed_stage(game_state.stage, config)]
+    else
+      # For learned mode, stage ID would need to be handled by caller
+      base_embeddings
+    end
+
+    Nx.concatenate(embeddings)
   end
 
   # ============================================================================
