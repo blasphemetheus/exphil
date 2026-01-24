@@ -205,7 +205,7 @@ This document tracks areas that need additional research and documentation for t
 | `slippi-stats.md` | 2026-01-23 | Browser stats tool |
 | `slippipedia.md` | 2026-01-23 | QML replay manager |
 | `slip-py.md` | 2026-01-23 | Flask replay browser |
-| `melee-prediction.md` | 2026-01-23 | XGBoost prediction |
+| `fall-2024-prediction.md` | 2026-01-23 | XGBoost/Glicko-2 prediction (79.89% accuracy) |
 | `svm-melee.md` | 2026-01-23 | SVM classification |
 | `reward-shaping.md` | 2026-01-23 | PBRS theory, character-specific rewards, hacking |
 | `dataset-curation.md` | 2026-01-23 | Data sources, filtering, augmentation, storage |

@@ -36,8 +36,8 @@ This directory contains comprehensive documentation of existing Super Smash Bros
 
 | Document | Description |
 |----------|-------------|
-| [melee-prediction.md](melee-prediction.md) | XGBoost match/tournament prediction (Erdos Institute) |
-| [svm-melee.md](svm-melee.md) | SVM character classification from replays |
+| [fall-2024-prediction.md](fall-2024-prediction.md) | XGBoost match/tournament prediction with Glicko-2 (79.89% accuracy) |
+| [svm-melee.md](svm-melee.md) | SVM character classification from replays (87.2% on 4 chars) |
 
 ### Infrastructure & Ecosystem
 
