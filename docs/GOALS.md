@@ -240,7 +240,7 @@ Current embedding size is **1204 dimensions** with all optimizations enabled.
 | Idea | Effort | Description | Status |
 |------|--------|-------------|--------|
 | **Colored output** | Low | Red for errors, yellow for warnings, green for success | **Done** |
-| Contextual help links | Low | "See docs/TRAINING.md#temporal for temporal training" | Not started |
+| **Contextual help links** | Low | "See docs/TRAINING.md#temporal for temporal training" | **Done** |
 | **Common mistake detection** | Medium | "You have --temporal but backbone is mlp, did you mean...?" | **Done** |
 | Stack trace simplification | Medium | Hide Nx/EXLA internals, show user code only | Not started |
 

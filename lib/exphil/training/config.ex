@@ -9,6 +9,8 @@ defmodule ExPhil.Training.Config do
   - Training config JSON structure
   """
 
+  alias ExPhil.Training.Help
+
   # Default replays directory - relative path for portability
   # Can be overridden with --replays or --replay-dir
   @default_replays_dir "./replays"
@@ -1244,10 +1246,12 @@ defmodule ExPhil.Training.Config do
         if Enum.all?(sizes, &(is_integer(&1) and &1 > 0)) do
           errors
         else
-          ["hidden_sizes must be a list of positive integers, got: #{inspect(sizes)}" | errors]
+          msg = "hidden_sizes must be a list of positive integers, got: #{inspect(sizes)}"
+          [Help.with_link(msg, :hidden_sizes) | errors]
         end
       other ->
-        ["hidden_sizes must be a list, got: #{inspect(other)}" | errors]
+        msg = "hidden_sizes must be a list, got: #{inspect(other)}"
+        [Help.with_link(msg, :hidden_sizes) | errors]
     end
   end
 
@@ -1269,7 +1273,8 @@ defmodule ExPhil.Training.Config do
     if opts[:temporal] do
       backbone = opts[:backbone]
       if backbone not in @valid_backbones do
-        ["temporal training requires backbone in #{inspect(@valid_backbones)}, got: #{inspect(backbone)}" | errors]
+        msg = "temporal training requires backbone in #{inspect(@valid_backbones)}, got: #{inspect(backbone)}"
+        [Help.with_link(msg, :backbone) | errors]
       else
         errors
       end
@@ -1282,7 +1287,9 @@ defmodule ExPhil.Training.Config do
     case opts[:precision] do
       p when p in [:bf16, :f32] -> errors
       nil -> errors
-      other -> ["precision must be :bf16 or :f32, got: #{inspect(other)}" | errors]
+      other ->
+        msg = "precision must be :bf16 or :f32, got: #{inspect(other)}"
+        [Help.with_link(msg, :precision) | errors]
     end
   end
 
@@ -1297,7 +1304,8 @@ defmodule ExPhil.Training.Config do
   defp validate_replays_dir(errors, opts) do
     dir = opts[:replays]
     if dir && not File.dir?(dir) do
-      ["replays directory does not exist: #{dir}" | errors]
+      msg = "replays directory does not exist: #{dir}"
+      [Help.with_link(msg, :replays) | errors]
     else
       errors
     end
@@ -1308,7 +1316,8 @@ defmodule ExPhil.Training.Config do
   defp validate_lr_schedule(errors, opts) do
     schedule = opts[:lr_schedule]
     if schedule && schedule not in @valid_lr_schedules do
-      ["lr_schedule must be one of #{inspect(@valid_lr_schedules)}, got: #{inspect(schedule)}" | errors]
+      msg = "lr_schedule must be one of #{inspect(@valid_lr_schedules)}, got: #{inspect(schedule)}"
+      [Help.with_link(msg, :lr_schedule) | errors]
     else
       errors
     end
@@ -1317,7 +1326,8 @@ defmodule ExPhil.Training.Config do
   defp validate_resume_checkpoint(errors, opts) do
     resume_path = opts[:resume]
     if resume_path && not File.exists?(resume_path) do
-      ["resume checkpoint does not exist: #{resume_path}" | errors]
+      msg = "resume checkpoint does not exist: #{resume_path}"
+      [Help.with_link(msg, :resume) | errors]
     else
       errors
     end
@@ -1347,8 +1357,12 @@ defmodule ExPhil.Training.Config do
     value = opts[:label_smoothing]
     cond do
       is_nil(value) -> errors
-      not is_number(value) -> ["label_smoothing must be a number, got: #{inspect(value)}" | errors]
-      value < 0.0 or value >= 1.0 -> ["label_smoothing must be in [0.0, 1.0), got: #{value}" | errors]
+      not is_number(value) ->
+        msg = "label_smoothing must be a number, got: #{inspect(value)}"
+        [Help.with_link(msg, :label_smoothing) | errors]
+      value < 0.0 or value >= 1.0 ->
+        msg = "label_smoothing must be in [0.0, 1.0), got: #{value}"
+        [Help.with_link(msg, :label_smoothing) | errors]
       true -> errors
     end
   end
@@ -1376,7 +1390,8 @@ defmodule ExPhil.Training.Config do
   # Warning collectors
   defp warn_large_window_size(warnings, opts) do
     if opts[:window_size] && opts[:window_size] > 120 do
-      ["window_size #{opts[:window_size]} > 120 may cause memory issues" | warnings]
+      msg = "window_size #{opts[:window_size]} > 120 may cause memory issues"
+      [Help.warning_with_help(msg, :window_size) | warnings]
     else
       warnings
     end
@@ -1384,7 +1399,8 @@ defmodule ExPhil.Training.Config do
 
   defp warn_large_batch_size(warnings, opts) do
     if opts[:batch_size] && opts[:batch_size] > 256 do
-      ["batch_size #{opts[:batch_size]} > 256 may cause memory issues on CPU" | warnings]
+      msg = "batch_size #{opts[:batch_size]} > 256 may cause memory issues on CPU"
+      [Help.warning_with_help(msg, :batch_size) | warnings]
     else
       warnings
     end
@@ -1394,7 +1410,8 @@ defmodule ExPhil.Training.Config do
     epochs = opts[:epochs] || 0
     wandb = opts[:wandb] || false
     if epochs >= 20 and not wandb do
-      ["training #{epochs} epochs without --wandb; consider enabling for metrics tracking" | warnings]
+      msg = "training #{epochs} epochs without --wandb; consider enabling for metrics tracking"
+      [Help.warning_with_help(msg, :wandb) | warnings]
     else
       warnings
     end
@@ -1404,7 +1421,8 @@ defmodule ExPhil.Training.Config do
     temporal = opts[:temporal] || false
     window_size = opts[:window_size] || 60
     if temporal and window_size < 30 do
-      ["temporal training with window_size < 30 may miss important temporal patterns" | warnings]
+      msg = "temporal training with window_size < 30 may miss important temporal patterns"
+      [Help.warning_with_help(msg, :temporal) | warnings]
     else
       warnings
     end
