@@ -238,8 +238,8 @@ Current embedding size is **1204 dimensions** with all optimizations enabled.
 | **`mix exphil.list` command** | Low | List all checkpoints with metadata (size, date, config) | **Done** |
 | **`mix exphil.info MODEL`** | Low | Show model details: architecture, training config, metrics | **Done** |
 | **`mix exphil.compare A B`** | Medium | Compare two models' configs and performance | **Done** |
-| Model naming suggestions | Low | Warn if name conflicts with existing checkpoint | Not started |
-| Auto-backup before overwrite | Low | Keep .bak of previous checkpoint | Not started |
+| Model naming suggestions | Low | Warn if name conflicts with existing checkpoint | **Done** |
+| Auto-backup before overwrite | Low | Keep .bak of previous checkpoint | **Done** |
 
 **Error Messages**
 
