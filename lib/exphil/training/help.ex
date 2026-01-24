@@ -41,6 +41,9 @@ defmodule ExPhil.Training.Help do
     checkpoint_safety: {"TRAINING.md", "checkpoint-safety"},
     batch_checkpoint: {"TRAINING.md", "batch-interval-checkpointing"},
     save_every_batches: {"TRAINING.md", "batch-interval-checkpointing"},
+    graceful_shutdown: {"TRAINING.md", "graceful-shutdown-ctrlc"},
+    interrupt: {"TRAINING.md", "graceful-shutdown-ctrlc"},
+    sigterm: {"TRAINING.md", "graceful-shutdown-ctrlc"},
 
     # Monitoring
     wandb: {"TRAINING.md", "monitoring"},
@@ -167,6 +170,7 @@ defmodule ExPhil.Training.Help do
       message_lower =~ "verbose" or message_lower =~ "quiet" -> :verbosity
       message_lower =~ "backup" or message_lower =~ "overwrite" -> :checkpoint_safety
       message_lower =~ "kmeans" or message_lower =~ "k-means" or message_lower =~ "discretiz" -> :kmeans
+      message_lower =~ "interrupt" or message_lower =~ "sigterm" or message_lower =~ "sigint" or message_lower =~ "ctrl" -> :graceful_shutdown
       true -> nil
     end
   end

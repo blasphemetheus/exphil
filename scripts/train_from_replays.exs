@@ -1076,6 +1076,48 @@ Output.divider()
 # Create incomplete marker for crash recovery
 Recovery.mark_started(opts[:checkpoint], opts)
 
+# Set up graceful shutdown handler for SIGTERM/SIGINT (Ctrl+C)
+# Uses an Agent to track trainer state since signal handlers can't access reduce state
+interrupt_checkpoint_path = String.replace(opts[:checkpoint], ".axon", "_interrupt.axon")
+
+{:ok, _trainer_state_agent} = Agent.start_link(fn -> nil end, name: :trainer_state)
+
+graceful_shutdown = fn signal ->
+  IO.write(:stderr, "\n\n")
+  Output.warning("Received #{signal} - saving checkpoint before exit...")
+
+  case Agent.get(:trainer_state, fn state -> state end, 5000) do
+    {trainer, epoch, batch_idx} when trainer != nil ->
+      Output.puts("  Saving trainer state (epoch #{epoch}, batch #{batch_idx})...")
+
+      case Imitation.save_checkpoint(trainer, interrupt_checkpoint_path) do
+        :ok ->
+          Output.success("Interrupt checkpoint saved to #{interrupt_checkpoint_path}")
+          Output.puts("  Resume with: --resume #{interrupt_checkpoint_path}")
+        {:error, reason} ->
+          Output.error("Failed to save checkpoint: #{inspect(reason)}")
+      end
+
+    _ ->
+      Output.warning("No trainer state available to save")
+  end
+
+  # Clean up the agent
+  Agent.stop(:trainer_state)
+
+  # Exit with appropriate code
+  System.halt(if signal == :sigint, do: 130, else: 143)
+end
+
+# Trap SIGTERM and SIGINT (Ctrl+C)
+# Note: :sigint requires Elixir 1.12+
+for signal <- [:sigterm, :sigint] do
+  case System.trap_signal(signal, fn -> graceful_shutdown.(signal) end) do
+    {:ok, _} -> :ok
+    {:error, :not_sup} -> Output.warning("Signal #{signal} trapping not supported on this platform")
+  end
+end
+
 start_time = System.monotonic_time(:second)
 
 # Initialize early stopping state if enabled
@@ -1118,6 +1160,7 @@ end
   ]
 
   # Estimate total batches from metadata (no parsing needed)
+  # IMPORTANT: In streaming mode, this estimates batches for ONE EPOCH (all chunks)
   estimated_batches = if replay_stats && replay_stats[:total_frames] do
     total_frames = replay_stats[:total_frames]
     window_size = opts[:window_size]
@@ -1142,8 +1185,21 @@ end
     Output.puts("    (#{total_frames} frames, #{num_replays} replays, #{num_training_examples} examples, window=#{window_size}, stride=#{stride})")
     total_batches
   else
-    # Fallback: rough estimate
-    length(file_chunks) * 200
+    # Better fallback: estimate based on typical Melee replay stats
+    # Average replay: ~10,000 frames, with window=90, stride=1: ~9,910 sequences
+    # With batch_size=32: ~310 batches per replay
+    # Adjust for max_files limit
+    num_files = min(length(replay_files), opts[:max_files] || length(replay_files))
+    window_size = opts[:window_size] || 60
+    stride = opts[:stride] || 1
+    batch_size = opts[:batch_size] || 32
+    avg_frames_per_replay = 10_000  # Conservative estimate for Melee replays
+
+    sequences_per_replay = max(div(avg_frames_per_replay - window_size, stride), 1)
+    total_batches = max(div(sequences_per_replay * num_files, batch_size), 1)
+
+    Output.puts("  Estimated ~#{total_batches} batches per epoch (from #{num_files} files)")
+    total_batches
   end
 
   {chunk_opts, dataset_opts, estimated_batches}
@@ -1174,8 +1230,15 @@ end
       # Streaming mode: process each chunk and chain batches together
       # Each chunk is parsed, embedded, and batched on-demand
       # (chunk_opts, dataset_opts, and batch estimate computed once before epoch loop)
+      num_chunks = length(file_chunks)
 
-      stream = Stream.flat_map(file_chunks, fn chunk ->
+      stream = file_chunks
+      |> Enum.with_index(1)
+      |> Stream.flat_map(fn {chunk, chunk_idx} ->
+        # Show chunk progress (helps user understand streaming progress)
+        IO.write(:stderr, "\n")
+        Output.puts("  📦 Processing chunk #{chunk_idx}/#{num_chunks} (#{length(chunk)} files)...")
+
         # Parse and create dataset for this chunk
         {:ok, chunk_frames, errors} = Streaming.parse_chunk(chunk, streaming_chunk_opts)
 
@@ -1308,6 +1371,12 @@ end
           :ok -> Output.puts("  ✓ Saved to #{batch_checkpoint_path}")
           {:error, reason} -> Output.warning("Failed to save batch checkpoint: #{inspect(reason)}")
         end
+      end
+
+      # Update trainer state agent for graceful shutdown (Ctrl+C)
+      # Only update every 10 batches to minimize overhead
+      if rem(new_global_idx, 10) == 0 do
+        Agent.update(:trainer_state, fn _ -> {new_trainer, epoch, batch_idx} end)
       end
 
       # Live progress bar - updates in place using carriage return
@@ -1492,6 +1561,12 @@ end
         {:cont, {updated_trainer, epoch, false, new_es_state, new_best_val_loss, updated_pruner, updated_ema, updated_history, updated_global_batch_idx}}
     end
   end)
+
+# Training complete - stop the trainer state agent and untrap signals
+Agent.stop(:trainer_state)
+for signal <- [:sigterm, :sigint] do
+  System.untrap_signal(signal)
+end
 
 total_time = System.monotonic_time(:second) - start_time
 total_min = div(total_time, 60)

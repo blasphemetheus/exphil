@@ -573,6 +573,28 @@ Protects against losing progress if training crashes or is interrupted.
 - Training on large datasets (>1000 batches per epoch)
 - Unreliable GPU/cloud instances (preemptible VMs)
 
+### Graceful Shutdown (Ctrl+C)
+
+Training automatically handles SIGTERM and SIGINT (Ctrl+C) signals:
+
+- Pressing Ctrl+C during training saves a checkpoint before exiting
+- Checkpoint saved to `checkpoints/{name}_interrupt.axon`
+- Resume interrupted training: `--resume checkpoints/{name}_interrupt.axon`
+
+```bash
+# Example: interrupt during training
+# Press Ctrl+C, see:
+#   ⚠ Received sigint - saving checkpoint before exit...
+#   Saving trainer state (epoch 3, batch 450)...
+#   ✓ Interrupt checkpoint saved to checkpoints/mewtwo_interrupt.axon
+#   Resume with: --resume checkpoints/mewtwo_interrupt.axon
+
+# Then resume:
+mix run scripts/train_from_replays.exs --resume checkpoints/mewtwo_interrupt.axon
+```
+
+The trainer state is updated every 10 batches, so at most ~10 batches of work may be lost on interrupt.
+
 ## Tests
 
 ```bash
