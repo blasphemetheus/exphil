@@ -266,9 +266,15 @@ See [RESEARCH.md](RESEARCH.md) for detailed background on these features.
 - [ ] K-means stick discretization (vs uniform grid)
 - [ ] Mamba vs Transformer comparison
 - [ ] DAgger for distributional shift
+- [ ] Multi-character vs single-character training (Eric Gu insight)
+- [ ] Context length ablation (60 vs 120 vs 180 vs 300 frames)
+- [ ] Character-balanced sampling for unified models
 
 ### Phase 5: Character Specialization
 - [ ] Mewtwo specialist (90+ frame context, recovery focus)
 - [ ] Ganondorf specialist (spacing, punish optimization)
 - [ ] Link specialist (projectile tracking)
-- [ ] Multi-character model (single model, character conditioning)
+- [ ] Multi-character unified model (`--character mewtwo,ganondorf,link,gameandwatch,zelda`)
+- [ ] Character-balanced sampling (`--balance-characters`)
+- [ ] Learned character embedding (`character_mode: :learned`, 64-dim trainable)
+- [ ] Cross-character evaluation metrics

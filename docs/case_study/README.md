@@ -64,6 +64,7 @@ This directory contains comprehensive documentation of existing Super Smash Bros
 | [conference-talks.md](conference-talks.md) | **DEF CON, GDC, NeurIPS, IEEE CoG, community talks** |
 | [other-fighting-game-ai.md](other-fighting-game-ai.md) | AlphaStar, OpenAI Five, FightingICE, Street Fighter |
 | [deployment-inference.md](deployment-inference.md) | ONNX, quantization, real-time inference |
+| [architecture-recommendations.md](architecture-recommendations.md) | **Eric Gu analysis, multi-char training, experiments** |
 
 ### Reference Materials
 
