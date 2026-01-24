@@ -111,14 +111,14 @@ echo "Using checkpoint directory: $CKPT_DIR"
 
 if [ "$1" = "--flat" ]; then
   echo "Uploading checkpoints to b2:$B2_BUCKET/checkpoints/ (flat)..."
-  rclone copy "$CKPT_DIR/" "b2:$B2_BUCKET/checkpoints/" --progress
+  rclone copy "$CKPT_DIR/" "b2:$B2_BUCKET/checkpoints/" --copy-links --progress
 elif [ "$1" = "--date" ] && [ -n "$2" ]; then
   echo "Uploading checkpoints to b2:$B2_BUCKET/checkpoints/$2/..."
-  rclone copy "$CKPT_DIR/" "b2:$B2_BUCKET/checkpoints/$2/" --progress
+  rclone copy "$CKPT_DIR/" "b2:$B2_BUCKET/checkpoints/$2/" --copy-links --progress
 elif [ "$1" = "--today" ] || [ -z "$1" ]; then
   # Default: upload to today's date folder
   echo "Uploading checkpoints to b2:$B2_BUCKET/checkpoints/$TODAY/..."
-  rclone copy "$CKPT_DIR/" "b2:$B2_BUCKET/checkpoints/$TODAY/" --progress
+  rclone copy "$CKPT_DIR/" "b2:$B2_BUCKET/checkpoints/$TODAY/" --copy-links --progress
 else
   echo "Usage: sync-checkpoints-up [--today | --date YYYY-MM-DD | --flat]"
   exit 1
