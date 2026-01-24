@@ -32,7 +32,9 @@ Hard-won knowledge from debugging ExPhil. Each section documents a specific issu
 26. [Streaming mode requires --no-prefetch](#26-streaming-mode-requires---no-prefetch)
 27. [Streaming mode auto-disables precompute](#27-streaming-mode-auto-disables-precompute)
 28. [--train-character requires metadata collection](#28---train-character-requires-metadata-collection)
-29. [Polaris composed optimizer state structure](#29-polaris-composed-optimizer-state-structure)
+29. [Jamba/Temporal model architecture mismatch on load](#29-jambatemporal-model-architecture-mismatch-on-load)
+30. [Model outputs nonsensical actions](#30-model-outputs-nonsensical-actions-eg-always-rolls-right)
+31. [Polaris composed optimizer state structure](#31-polaris-composed-optimizer-state-structure)
 
 ---
 
@@ -907,7 +909,92 @@ if character_filter != [] or stage_filter != [] or train_character != nil or ini
 
 ---
 
-## 29. Polaris composed optimizer state structure
+## 29. Jamba/Temporal model architecture mismatch on load
+
+**Symptom:** When evaluating or playing a Jamba/temporal model, you get shape errors like:
+```
+** (ArgumentError) dot/zip expects shapes to be compatible,
+dimension 2 of left-side (128) does not equal dimension 0 of right-side (64)
+```
+
+Or the model produces nonsensical output (e.g., always rolling right).
+
+**Root cause:** Jamba models have several architecture-defining parameters that must match between training and inference:
+- `head_dim` - dimension per attention head (default 64)
+- `num_heads` - number of attention heads (default 4)
+- `window_size` - context window length (default 60)
+- `num_layers` - number of Mamba/attention layers (default 2)
+- `attention_every` - how often attention layers appear (default 3)
+
+If training used non-default values (e.g., `head_dim: 32`, `num_heads: 2`), but evaluation uses defaults, the model architecture won't match the saved weights.
+
+**Example:** Training with `num_heads=2, head_dim=32` creates attention layers with dim=64. If evaluation defaults to `num_heads=4, head_dim=64`, it builds dim=256. The saved weights (expecting 64) crash when fed 256-dim input.
+
+**Fix:** The policy.bin and checkpoint.axon files now save all architecture parameters. The Agent loads them correctly:
+```elixir
+# Agent.ex loads from config:
+num_heads: Map.get(config, :num_heads, 4),
+head_dim: Map.get(config, :head_dim, 64),
+```
+
+For eval_model.exs, these are now also read from the checkpoint config. If using custom parameters, verify the config was saved correctly:
+```bash
+mix run -e '
+  {:ok, p} = ExPhil.Training.Checkpoint.load_policy("checkpoints/model_policy.bin")
+  IO.inspect(p.config)
+'
+```
+
+**Prevention:**
+1. All architecture params now saved in `build_config_json/1`
+2. Evaluation scripts read params from checkpoint config
+3. Agent.ex reads all params from policy config
+
+---
+
+## 30. Model outputs nonsensical actions (e.g., always rolls right)
+
+**Symptom:** When playing against a model in Dolphin, it performs repetitive useless actions like continuously rolling in one direction, holding shield, or doing nothing.
+
+**Possible causes:**
+
+1. **Undertrained model** - The most common cause. Models need significant training (10+ epochs) to produce coherent behavior. Early checkpoints may show degenerate policies.
+
+2. **Architecture mismatch** - See gotcha #29. If the architecture doesn't match, the model may still "work" but produce garbage outputs.
+
+3. **Embedding mismatch** - The game state embedding must match between training and inference. Check `embed_size` in the config matches what the model expects.
+
+4. **Wrong player port** - If training data used port 1 but you're controlling port 2, the inputs/outputs are reversed.
+
+**Debugging steps:**
+
+1. Run evaluation to check accuracy:
+   ```bash
+   mix run scripts/eval_model.exs --checkpoint model.axon --temporal --backbone jamba --window-size 30
+   ```
+
+2. Check if the saved config looks reasonable:
+   ```bash
+   mix run -e '
+     {:ok, p} = ExPhil.Training.Checkpoint.load_policy("model_policy.bin")
+     IO.inspect(p.config)
+   '
+   ```
+
+3. Try a known-good model (e.g., MLP model that trained successfully)
+
+4. Enable verbose logging in the Agent to see what actions it's selecting
+
+**Expected eval metrics for a functional model:**
+- Button accuracy: >80%
+- Stick accuracy: >50% (top-3: >70%)
+- Overall weighted: >65%
+
+If metrics are much lower, the model needs more training.
+
+---
+
+## 31. Polaris composed optimizer state structure
 
 **Symptom:** Pattern matching on optimizer state fails with confusing errors after using `Polaris.Updates.compose`.
 
