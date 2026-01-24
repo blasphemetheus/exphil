@@ -273,4 +273,33 @@ defmodule ExPhil.MockEnv.Game do
       projectiles: []
     }
   end
+
+  # ===========================================================================
+  # Helper Functions (for League compatibility)
+  # ===========================================================================
+
+  @doc """
+  Get the current frame number.
+  """
+  @spec get_frame(t()) :: non_neg_integer()
+  def get_frame(%__MODULE__{frame: frame}), do: frame
+
+  @doc """
+  Check if the game is over.
+  """
+  @spec is_over?(t()) :: boolean()
+  def is_over?(%__MODULE__{done: done}), do: done
+
+  @doc """
+  Get the stock count for a player.
+  """
+  @spec get_stocks(t(), :p1 | :p2) :: non_neg_integer()
+  def get_stocks(%__MODULE__{p1: p1}, :p1), do: p1.stock
+  def get_stocks(%__MODULE__{p2: p2}, :p2), do: p2.stock
+
+  @doc """
+  Get the game state for embedding (alias for to_game_state).
+  """
+  @spec get_state(t()) :: ExPhil.Bridge.GameState.t()
+  def get_state(%__MODULE__{} = game), do: to_game_state(game)
 end

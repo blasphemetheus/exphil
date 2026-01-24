@@ -193,24 +193,19 @@ defmodule ExPhil.League.Evolution do
         Output.puts("")
       end
 
-      case evolve(league, opts) do
-        {:ok, metrics} ->
-          # Callback
-          callback.(gen, metrics)
+      {:ok, metrics} = evolve(league, opts)
 
-          # Checkpoint
-          if checkpoint_dir && rem(gen, checkpoint_every) == 0 do
-            gen_dir = Path.join(checkpoint_dir, "gen_#{gen}")
-            League.save_all_checkpoints(league, gen_dir)
-            if verbose, do: Output.puts("  Checkpoint saved to #{gen_dir}")
-          end
+      # Callback
+      callback.(gen, metrics)
 
-          [metrics | acc]
-
-        {:error, reason} ->
-          Logger.error("[Evolution] Generation #{gen} failed: #{inspect(reason)}")
-          acc
+      # Checkpoint
+      if checkpoint_dir && rem(gen, checkpoint_every) == 0 do
+        gen_dir = Path.join(checkpoint_dir, "gen_#{gen}")
+        League.save_all_checkpoints(league, gen_dir)
+        if verbose, do: Output.puts("  Checkpoint saved to #{gen_dir}")
       end
+
+      [metrics | acc]
     end)
 
     # Final checkpoint
@@ -359,13 +354,8 @@ defmodule ExPhil.League.Evolution do
       }
 
       # Run PPO update
-      case run_ppo_update(arch.model, arch.params, rollout, ppo_config) do
-        {:ok, new_params, metrics} ->
-          {:ok, new_params, metrics}
-
-        {:error, reason} ->
-          {:error, reason}
-      end
+      {:ok, new_params, metrics} = run_ppo_update(arch.model, arch.params, rollout, ppo_config)
+      {:ok, new_params, metrics}
     end
   end
 

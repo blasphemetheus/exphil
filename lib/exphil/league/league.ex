@@ -546,15 +546,9 @@ defmodule ExPhil.League do
         metadata = File.read!(metadata_path) |> Jason.decode!()
         params = load_params(params_path)
 
-        case ArchitectureEntry.from_metadata(metadata) do
-          {:ok, entry} ->
-            entry = %{entry | params: params}
-            {Map.put(acc, entry.id, entry), count + 1}
-
-          {:error, _} ->
-            Logger.warning("[League] Failed to load #{arch_id} from metadata")
-            {acc, count}
-        end
+        {:ok, entry} = ArchitectureEntry.from_metadata(metadata)
+        entry = %{entry | params: params}
+        {Map.put(acc, entry.id, entry), count + 1}
       else
         Logger.warning("[League] Missing files for #{arch_id}")
         {acc, count}
@@ -683,7 +677,7 @@ defmodule ExPhil.League do
 
   defp run_mock_game(config, p1_entry, p2_entry) do
     # Initialize mock game
-    {:ok, game} = MockEnv.Game.new(
+    game = MockEnv.Game.new(
       stocks: config.stocks,
       p1_character: p1_entry.character,
       p2_character: p2_entry.character
@@ -736,7 +730,7 @@ defmodule ExPhil.League do
       p2_action = p2_policy.(state, :p2)
 
       # Step the game
-      {:ok, new_game} = MockEnv.Game.step(game, p1_action, p2_action)
+      new_game = MockEnv.Game.step(game, p1_action, p2_action)
 
       # Collect experience (for P1 - can be extended to both)
       experience = %{
