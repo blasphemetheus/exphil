@@ -56,10 +56,32 @@ fi
 # Create workspace directories if they don't exist
 mkdir -p /workspace/checkpoints /workspace/logs /workspace/replays
 
-# Link checkpoint dirs if not already linked
+# Link checkpoint/logs dirs to workspace for persistence
+# Must remove existing directories first (ln -sf can't replace dirs)
 if [ -d "/app" ]; then
+  # Checkpoints: move any existing files to workspace, then symlink
+  if [ -d "/app/checkpoints" ] && [ ! -L "/app/checkpoints" ]; then
+    # Real directory exists - move contents to workspace
+    if [ "$(ls -A /app/checkpoints 2>/dev/null)" ]; then
+      echo "Moving existing checkpoints to /workspace/checkpoints/"
+      mv /app/checkpoints/* /workspace/checkpoints/ 2>/dev/null || true
+    fi
+    rmdir /app/checkpoints 2>/dev/null || rm -rf /app/checkpoints
+  fi
   ln -sf /workspace/checkpoints /app/checkpoints 2>/dev/null || true
+
+  # Logs: same process
+  if [ -d "/app/logs" ] && [ ! -L "/app/logs" ]; then
+    if [ "$(ls -A /app/logs 2>/dev/null)" ]; then
+      echo "Moving existing logs to /workspace/logs/"
+      mv /app/logs/* /workspace/logs/ 2>/dev/null || true
+    fi
+    rmdir /app/logs 2>/dev/null || rm -rf /app/logs
+  fi
   ln -sf /workspace/logs /app/logs 2>/dev/null || true
+
+  echo "✓ /app/checkpoints -> /workspace/checkpoints (persistent)"
+  echo "✓ /app/logs -> /workspace/logs (persistent)"
 fi
 
 # Create helper scripts for checkpoint management
@@ -76,16 +98,27 @@ cat > /usr/local/bin/sync-checkpoints-up << 'SCRIPT'
 B2_BUCKET="${B2_BUCKET:-exphil-replays-blewfargs}"
 TODAY=$(date +%Y-%m-%d)
 
+# Find checkpoint directory (prefer /app/checkpoints, fallback to /workspace)
+if [ -d "/app/checkpoints" ] && [ "$(ls -A /app/checkpoints 2>/dev/null)" ]; then
+  CKPT_DIR="/app/checkpoints"
+elif [ -d "/workspace/checkpoints" ] && [ "$(ls -A /workspace/checkpoints 2>/dev/null)" ]; then
+  CKPT_DIR="/workspace/checkpoints"
+else
+  echo "No checkpoints found in /app/checkpoints or /workspace/checkpoints"
+  exit 1
+fi
+echo "Using checkpoint directory: $CKPT_DIR"
+
 if [ "$1" = "--flat" ]; then
   echo "Uploading checkpoints to b2:$B2_BUCKET/checkpoints/ (flat)..."
-  rclone copy /workspace/checkpoints/ "b2:$B2_BUCKET/checkpoints/" --progress
+  rclone copy "$CKPT_DIR/" "b2:$B2_BUCKET/checkpoints/" --progress
 elif [ "$1" = "--date" ] && [ -n "$2" ]; then
   echo "Uploading checkpoints to b2:$B2_BUCKET/checkpoints/$2/..."
-  rclone copy /workspace/checkpoints/ "b2:$B2_BUCKET/checkpoints/$2/" --progress
+  rclone copy "$CKPT_DIR/" "b2:$B2_BUCKET/checkpoints/$2/" --progress
 elif [ "$1" = "--today" ] || [ -z "$1" ]; then
   # Default: upload to today's date folder
   echo "Uploading checkpoints to b2:$B2_BUCKET/checkpoints/$TODAY/..."
-  rclone copy /workspace/checkpoints/ "b2:$B2_BUCKET/checkpoints/$TODAY/" --progress
+  rclone copy "$CKPT_DIR/" "b2:$B2_BUCKET/checkpoints/$TODAY/" --progress
 else
   echo "Usage: sync-checkpoints-up [--today | --date YYYY-MM-DD | --flat]"
   exit 1
@@ -140,9 +173,18 @@ cat > /usr/local/bin/list-checkpoints << 'SCRIPT'
 B2_BUCKET="${B2_BUCKET:-exphil-replays-blewfargs}"
 
 if [ "$1" = "--local" ]; then
-  echo "Local checkpoints in /workspace/checkpoints/:"
-  ls -lah /workspace/checkpoints/*.axon 2>/dev/null || echo "  (no .axon files)"
+  echo "Local checkpoints:"
   echo ""
+  if [ -L "/app/checkpoints" ]; then
+    echo "/app/checkpoints -> $(readlink /app/checkpoints) (symlink)"
+  elif [ -d "/app/checkpoints" ]; then
+    echo "/app/checkpoints/ (real directory):"
+    ls -lah /app/checkpoints/*.axon 2>/dev/null || echo "  (no .axon files)"
+    ls -lah /app/checkpoints/*.bin 2>/dev/null || echo "  (no .bin files)"
+  fi
+  echo ""
+  echo "/workspace/checkpoints/:"
+  ls -lah /workspace/checkpoints/*.axon 2>/dev/null || echo "  (no .axon files)"
   ls -lah /workspace/checkpoints/*.bin 2>/dev/null || echo "  (no .bin files)"
 elif [ -n "$1" ]; then
   # List specific date folder
