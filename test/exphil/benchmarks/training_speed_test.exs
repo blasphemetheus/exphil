@@ -358,6 +358,125 @@ defmodule ExPhil.Benchmarks.TrainingSpeedTest do
     end
   end
 
+  describe "Sliding Window (pure attention) training speed" do
+    setup do
+      # Note: Use window_size, not seq_len - Imitation.new only recognizes window_size
+      trainer = Imitation.new(
+        embed_size: @embed_size,
+        hidden_sizes: [256],
+        temporal: true,
+        backbone: :sliding_window,
+        window_size: @seq_len,
+        num_heads: 4,
+        head_dim: 64,
+        num_layers: 2,
+        learning_rate: 1.0e-4
+      )
+
+      # Smaller batch for attention (memory intensive)
+      batches = generate_training_batches(@num_batches, 32, @embed_size,
+        temporal: true, seq_len: @seq_len)
+
+      {:ok, trainer: trainer, batches: batches}
+    end
+
+    test "train_step completes under 3000ms per batch", %{trainer: trainer, batches: batches} do
+      [first_batch | rest] = batches
+      {warmup_trainer, _} = Imitation.train_step(trainer, first_batch, nil)
+
+      {total_time_us, _} = :timer.tc(fn ->
+        Enum.reduce(rest, warmup_trainer, fn batch, t ->
+          {new_t, _metrics} = Imitation.train_step(t, batch, nil)
+          new_t
+        end)
+      end)
+
+      avg_ms = total_time_us / 1000 / (length(rest))
+
+      assert avg_ms < 3000,
+        "Sliding Window training too slow: #{Float.round(avg_ms, 1)}ms/batch (expected <3000ms)"
+    end
+  end
+
+  describe "LSTM+Attention (hybrid) training speed" do
+    setup do
+      # Note: Use window_size, not seq_len - Imitation.new only recognizes window_size
+      trainer = Imitation.new(
+        embed_size: @embed_size,
+        hidden_sizes: [256],
+        temporal: true,
+        backbone: :hybrid,
+        window_size: @seq_len,
+        num_heads: 4,
+        head_dim: 64,
+        num_layers: 1,
+        learning_rate: 1.0e-4
+      )
+
+      # Smaller batch for hybrid (attention + LSTM both use memory)
+      batches = generate_training_batches(@num_batches, 32, @embed_size,
+        temporal: true, seq_len: @seq_len)
+
+      {:ok, trainer: trainer, batches: batches}
+    end
+
+    # Hybrid combines LSTM (slow BPTT) with attention, so expect slower than pure attention
+    test "train_step completes under 10000ms per batch", %{trainer: trainer, batches: batches} do
+      [first_batch | rest] = batches
+      {warmup_trainer, _} = Imitation.train_step(trainer, first_batch, nil)
+
+      {total_time_us, _} = :timer.tc(fn ->
+        Enum.reduce(rest, warmup_trainer, fn batch, t ->
+          {new_t, _metrics} = Imitation.train_step(t, batch, nil)
+          new_t
+        end)
+      end)
+
+      avg_ms = total_time_us / 1000 / (length(rest))
+
+      assert avg_ms < 10000,
+        "Hybrid training too slow: #{Float.round(avg_ms, 1)}ms/batch (expected <10000ms)"
+    end
+  end
+
+  describe "Temporal MLP training speed" do
+    setup do
+      # Temporal MLP just takes last frame, so very fast
+      # Note: Use window_size, not seq_len - Imitation.new only recognizes window_size
+      trainer = Imitation.new(
+        embed_size: @embed_size,
+        hidden_sizes: [256, 256],
+        temporal: true,
+        backbone: :mlp,
+        window_size: @seq_len,
+        learning_rate: 1.0e-4
+      )
+
+      batches = generate_training_batches(@num_batches, @batch_size, @embed_size,
+        temporal: true, seq_len: @seq_len)
+
+      {:ok, trainer: trainer, batches: batches}
+    end
+
+    # Temporal MLP should be as fast as regular MLP since it just uses last frame
+    test "train_step completes under 500ms per batch", %{trainer: trainer, batches: batches} do
+      [first_batch | rest] = batches
+      {warmup_trainer, _} = Imitation.train_step(trainer, first_batch, nil)
+
+      {total_time_us, _} = :timer.tc(fn ->
+        Enum.reduce(rest, warmup_trainer, fn batch, t ->
+          {new_t, _metrics} = Imitation.train_step(t, batch, nil)
+          new_t
+        end)
+      end)
+
+      avg_ms = total_time_us / 1000 / (length(rest))
+
+      assert avg_ms < 500,
+        "Temporal MLP training too slow: #{Float.round(avg_ms, 1)}ms/batch (expected <500ms)"
+    end
+  end
+
   describe "Nx.to_number blocking regression (Gotcha #18)" do
     @describetag :regression
 
@@ -436,6 +555,90 @@ defmodule ExPhil.Benchmarks.TrainingSpeedTest do
         """
     end
   end
+
+  describe "All architectures smoke test" do
+    @describetag :smoke
+
+    # This test verifies ALL backbones can complete at least one train_step
+    # without crashing. It's a quick sanity check that all architectures work.
+
+    @architectures [
+      {:mlp, false, "MLP (non-temporal)"},
+      {:mlp, true, "MLP (temporal)"},
+      {:lstm, true, "LSTM"},
+      {:gru, true, "GRU"},
+      {:mamba, true, "Mamba"},
+      {:jamba, true, "Jamba (Mamba+Attention)"},
+      {:sliding_window, true, "Sliding Window (pure attention)"},
+      {:hybrid, true, "Hybrid (LSTM+Attention)"}
+    ]
+
+    for {backbone, temporal, name} <- @architectures do
+      @tag :gpu
+      test "#{name} completes train_step without error" do
+        backbone = unquote(backbone)
+        temporal = unquote(temporal)
+
+        # Common options
+        opts = [
+          embed_size: @embed_size,
+          hidden_sizes: [128],
+          temporal: temporal,
+          learning_rate: 1.0e-4
+        ]
+
+        # Add backbone-specific options
+        opts = if temporal do
+          opts
+          |> Keyword.put(:backbone, backbone)
+          |> Keyword.put(:window_size, 16)  # Small for fast test
+          |> Keyword.put(:num_layers, 1)
+        else
+          opts
+        end
+
+        # Add extra options for specific backbones
+        opts = case backbone do
+          :mamba -> Keyword.merge(opts, state_size: 8, num_layers: 1)
+          :jamba -> Keyword.merge(opts, num_layers: 2, attention_every: 2, num_heads: 2, head_dim: 32)
+          :sliding_window -> Keyword.merge(opts, num_heads: 2, head_dim: 32)
+          :hybrid -> Keyword.merge(opts, num_heads: 2, head_dim: 32)
+          _ -> opts
+        end
+
+        # Create trainer
+        trainer = Imitation.new(opts)
+
+        # Generate one batch
+        batch = if temporal do
+          generate_training_batches(1, 8, @embed_size, temporal: true, seq_len: 16) |> hd()
+        else
+          generate_training_batches(1, 8, @embed_size, temporal: false) |> hd()
+        end
+
+        # Should complete without error
+        {new_trainer, metrics} = Imitation.train_step(trainer, batch, nil)
+
+        # Basic sanity checks
+        assert new_trainer.step == 1, "Step should increment"
+        assert is_map(metrics), "Metrics should be a map"
+        assert Map.has_key?(metrics, :loss), "Metrics should include loss"
+
+        loss = Nx.to_number(metrics.loss)
+        assert is_float(loss), "Loss should be a number"
+        refute is_nan(loss), "Loss should not be NaN"
+        refute is_infinite(loss), "Loss should not be infinite"
+      end
+    end
+  end
+
+  # Helper to check if value is NaN
+  defp is_nan(x) when is_float(x), do: x != x
+  defp is_nan(_), do: false
+
+  # Helper to check if value is infinite
+  defp is_infinite(x) when is_float(x), do: x == :infinity or x == :neg_infinity or abs(x) > 1.0e38
+  defp is_infinite(_), do: false
 
   # Helper to generate training batches
   defp generate_training_batches(num_batches, batch_size, embed_size, opts) do
