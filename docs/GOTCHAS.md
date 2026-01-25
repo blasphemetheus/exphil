@@ -1398,14 +1398,18 @@ actions = Map.new(actions, fn {k, v} -> {k, Nx.backend_copy(v, Nx.BinaryBackend)
 The `value_and_grad(loss_fn)` traces `loss_fn`, which captures `states` and `actions` in its closure.
 EXLA tensors in closures conflict with Defn.Expr tracing.
 
-**Potential faster fix (TODO):**
-Pass tensors as arguments instead of capturing in closure:
+**Why multi-arg value_and_grad doesn't work:**
 ```elixir
+# This DOESN'T work - value_and_grad expects arity-1 function
 loss_fn = fn params, states, actions -> ... end
-# Differentiate only w.r.t. params (argument 0)
-{loss, grad} = Nx.Defn.value_and_grad(loss_fn, [0]).(params, states, actions)
+Nx.Defn.value_and_grad(loss_fn, [0]).(params, states, actions)  # FunctionClauseError!
 ```
-This would allow EXLA tensors without closure conflicts.
+Nx.Defn.value_and_grad only accepts single-argument functions. Closure capture is required.
+
+**Future optimization ideas:**
+- Pre-JIT compile the loss function with fixed batch shape
+- Use Nx.Defn.compile to create a reusable compiled function
+- Investigate EXLA's async transfer APIs
 
 **Code location:**
 - `lib/exphil/training/imitation.ex:886-887` - Current BinaryBackend copy
