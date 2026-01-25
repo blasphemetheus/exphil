@@ -570,7 +570,7 @@ defmodule ExPhil.Benchmarks.TrainingSpeedTest do
       {:mamba, true, "Mamba"},
       {:jamba, true, "Jamba (Mamba+Attention)"},
       {:sliding_window, true, "Sliding Window (pure attention)"},
-      {:hybrid, true, "Hybrid (LSTM+Attention)"}
+      {:lstm_hybrid, true, "Hybrid (LSTM+Attention)"}
     ]
 
     for {backbone, temporal, name} <- @architectures do
@@ -630,7 +630,7 @@ defmodule ExPhil.Benchmarks.TrainingSpeedTest do
   defp backbone_specific_opts(:mamba), do: [state_size: 8, num_layers: 1]
   defp backbone_specific_opts(:jamba), do: [num_layers: 2, attention_every: 2, num_heads: 2, head_dim: 32]
   defp backbone_specific_opts(:sliding_window), do: [num_heads: 2, head_dim: 32]
-  defp backbone_specific_opts(:hybrid), do: [num_heads: 2, head_dim: 32]
+  defp backbone_specific_opts(:lstm_hybrid), do: [num_heads: 2, head_dim: 32]
   defp backbone_specific_opts(_), do: []
 
   # Helper to check if value is NaN
