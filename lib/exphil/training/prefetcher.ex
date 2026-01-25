@@ -132,48 +132,15 @@ defmodule ExPhil.Training.Prefetcher do
   """
   @spec reduce_indexed(Enumerable.t(), acc, (term(), non_neg_integer(), acc -> acc)) :: acc when acc: var
   def reduce_indexed(batches, initial_acc, fun) do
-    # Convert to list to allow lookahead
-    batch_list = Enum.to_list(batches)
-
-    case batch_list do
-      [] ->
-        initial_acc
-
-      [single] ->
-        # Only one batch, no prefetching needed
-        fun.(single, 0, initial_acc)
-
-      [first | rest] ->
-        # Start prefetching second batch
-        prefetch_task = Task.async(fn -> hd(rest) end)
-
-        # Process first batch while second loads
-        acc = fun.(first, 0, initial_acc)
-
-        # Process remaining batches with prefetching
-        {final_acc, _last_task} = reduce_indexed_with_prefetch(tl(rest), 1, acc, fun, prefetch_task)
-        final_acc
-    end
-  end
-
-  defp reduce_indexed_with_prefetch([], idx, acc, fun, current_task) do
-    # No more batches to prefetch, just await and process the last one
-    batch = Task.await(current_task, :infinity)
-    {fun.(batch, idx, acc), nil}
-  end
-
-  defp reduce_indexed_with_prefetch([next | rest], idx, acc, fun, current_task) do
-    # Start prefetching next batch
-    next_task = Task.async(fn -> next end)
-
-    # Await current batch (should be ready or nearly ready)
-    batch = Task.await(current_task, :infinity)
-
-    # Process current batch while next loads
-    new_acc = fun.(batch, idx, acc)
-
-    # Continue
-    reduce_indexed_with_prefetch(rest, idx + 1, new_acc, fun, next_task)
+    # Iterate lazily through stream - don't materialize all at once
+    # This is essentially sequential processing with index tracking
+    # True prefetching requires spawned processes which can cause EXLA issues
+    # So we just iterate in the main process for safety
+    batches
+    |> Stream.with_index()
+    |> Enum.reduce(initial_acc, fn {batch, idx}, acc ->
+      fun.(batch, idx, acc)
+    end)
   end
 
   @doc """
