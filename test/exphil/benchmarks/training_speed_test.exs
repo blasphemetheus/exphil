@@ -598,13 +598,7 @@ defmodule ExPhil.Benchmarks.TrainingSpeedTest do
         end
 
         # Add extra options for specific backbones
-        opts = case backbone do
-          :mamba -> Keyword.merge(opts, state_size: 8, num_layers: 1)
-          :jamba -> Keyword.merge(opts, num_layers: 2, attention_every: 2, num_heads: 2, head_dim: 32)
-          :sliding_window -> Keyword.merge(opts, num_heads: 2, head_dim: 32)
-          :hybrid -> Keyword.merge(opts, num_heads: 2, head_dim: 32)
-          _ -> opts
-        end
+        opts = Keyword.merge(opts, backbone_specific_opts(backbone))
 
         # Create trainer
         trainer = Imitation.new(opts)
@@ -631,6 +625,13 @@ defmodule ExPhil.Benchmarks.TrainingSpeedTest do
       end
     end
   end
+
+  # Helper to get backbone-specific options (avoids compile-time type warnings in generated tests)
+  defp backbone_specific_opts(:mamba), do: [state_size: 8, num_layers: 1]
+  defp backbone_specific_opts(:jamba), do: [num_layers: 2, attention_every: 2, num_heads: 2, head_dim: 32]
+  defp backbone_specific_opts(:sliding_window), do: [num_heads: 2, head_dim: 32]
+  defp backbone_specific_opts(:hybrid), do: [num_heads: 2, head_dim: 32]
+  defp backbone_specific_opts(_), do: []
 
   # Helper to check if value is NaN
   defp is_nan(x) when is_float(x), do: x != x
