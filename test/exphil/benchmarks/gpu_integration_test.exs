@@ -19,6 +19,7 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
   use ExUnit.Case, async: false
 
   alias ExPhil.Training.Imitation
+  alias ExPhil.Training.Utils
 
   @moduletag :gpu
   @moduletag :slow
@@ -94,13 +95,13 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
       batch = generate_batch(1, @embed_size, temporal: true, seq_len: @seq_len)
 
       # Warmup
-      _ = Imitation.predict(trainer, batch.states)
+      _ = do_predict(trainer, batch.states)
 
       # Measure 100 inferences
       num_inferences = 100
       {total_us, _} = :timer.tc(fn ->
         for _ <- 1..num_inferences do
-          Imitation.predict(trainer, batch.states)
+          do_predict(trainer, batch.states)
         end
       end)
 
@@ -139,18 +140,18 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
       mamba_batch = generate_batch(1, @embed_size, temporal: true, seq_len: @seq_len)
 
       # Warmup
-      _ = Imitation.predict(mlp_trainer, mlp_batch.states)
-      _ = Imitation.predict(mamba_trainer, mamba_batch.states)
+      _ = do_predict(mlp_trainer, mlp_batch.states)
+      _ = do_predict(mamba_trainer, mamba_batch.states)
 
       # Measure
       num_inferences = 50
 
       {mlp_us, _} = :timer.tc(fn ->
-        for _ <- 1..num_inferences, do: Imitation.predict(mlp_trainer, mlp_batch.states)
+        for _ <- 1..num_inferences, do: do_predict(mlp_trainer, mlp_batch.states)
       end)
 
       {mamba_us, _} = :timer.tc(fn ->
-        for _ <- 1..num_inferences, do: Imitation.predict(mamba_trainer, mamba_batch.states)
+        for _ <- 1..num_inferences, do: do_predict(mamba_trainer, mamba_batch.states)
       end)
 
       mlp_ms = mlp_us / 1000 / num_inferences
@@ -296,7 +297,7 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
       test_batch = generate_batch(4, @embed_size, temporal: true, seq_len: @seq_len)
 
       # Get predictions before save
-      pred_before = Imitation.predict(trained, test_batch.states)
+      pred_before = do_predict(trained, test_batch.states)
 
       # Save and reload
       tmp_dir = System.tmp_dir!()
@@ -304,10 +305,10 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
 
       try do
         :ok = Imitation.save_checkpoint(trained, checkpoint_path)
-        loaded = Imitation.load_checkpoint(checkpoint_path)
+        {:ok, loaded} = Imitation.load_checkpoint(trained, checkpoint_path)
 
         # Get predictions after load
-        pred_after = Imitation.predict(loaded, test_batch.states)
+        pred_after = do_predict(loaded, test_batch.states)
 
         # Compare predictions (should be identical)
         assert_tensors_close(pred_before, pred_after, atol: 1.0e-5)
@@ -341,7 +342,7 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
 
       try do
         :ok = Imitation.save_checkpoint(trained, checkpoint_path)
-        loaded = Imitation.load_checkpoint(checkpoint_path)
+        {:ok, loaded} = Imitation.load_checkpoint(trained, checkpoint_path)
 
         assert loaded.step == original_step,
           "Step not preserved: expected #{original_step}, got #{loaded.step}"
@@ -432,7 +433,7 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
 
       # Generate consistent data
       key = Nx.Random.key(42)
-      {large_states, key} = Nx.Random.uniform(key, shape: {64, @embed_size}, type: :f32)
+      {large_states, _key} = Nx.Random.uniform(key, shape: {64, @embed_size}, type: :f32)
       actions = generate_actions(64)
       large_batch = %{states: large_states, actions: actions}
 
@@ -452,7 +453,7 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
       end
 
       # Method 1: Single large batch
-      {trained_large, metrics_large} = Imitation.train_step(trainer1, large_batch, nil)
+      {_trained_large, metrics_large} = Imitation.train_step(trainer1, large_batch, nil)
       loss_large = Nx.to_number(metrics_large.loss)
 
       # Method 2: 4 small batches (simulated accumulation)
@@ -828,7 +829,7 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
       end)
 
       test_batch = generate_batch(4, @embed_size, temporal: false)
-      pred_before = Imitation.predict(trained, test_batch.states)
+      pred_before = do_predict(trained, test_batch.states)
 
       tmp_dir = System.tmp_dir!()
       checkpoint_path = Path.join(tmp_dir, "cross_device_#{:rand.uniform(100000)}.axon")
@@ -842,10 +843,10 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
         assert stat.size > 1000, "Checkpoint too small: #{stat.size} bytes"
 
         # Load (should work regardless of backend)
-        loaded = Imitation.load_checkpoint(checkpoint_path)
+        {:ok, loaded} = Imitation.load_checkpoint(trained, checkpoint_path)
 
         # Predictions should match
-        pred_after = Imitation.predict(loaded, test_batch.states)
+        pred_after = do_predict(loaded, test_batch.states)
         assert_tensors_close(pred_before, pred_after, atol: 1.0e-4)
 
         IO.puts("\n  [INFO] Cross-device checkpoint: #{stat.size} bytes, predictions match")
@@ -856,6 +857,14 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
 
     @tag :gpu
     test "handles corrupted checkpoint gracefully" do
+      # Need a trainer to attempt loading
+      trainer = Imitation.new(
+        embed_size: @embed_size,
+        hidden_sizes: [256],
+        temporal: false,
+        learning_rate: 1.0e-4
+      )
+
       tmp_dir = System.tmp_dir!()
       corrupt_path = Path.join(tmp_dir, "corrupt_#{:rand.uniform(100000)}.axon")
 
@@ -865,8 +874,7 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
 
         # Should raise or return error, not crash
         result = try do
-          Imitation.load_checkpoint(corrupt_path)
-          :loaded_unexpectedly
+          Imitation.load_checkpoint(trainer, corrupt_path)
         rescue
           e -> {:error, e}
         catch
@@ -874,9 +882,9 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
         end
 
         case result do
-          :loaded_unexpectedly ->
+          {:ok, _} ->
             flunk("Should not load corrupted checkpoint")
-          {:error, _} ->
+          {:error, _reason} ->
             IO.puts("\n  [INFO] Corrupted checkpoint correctly rejected with error")
           {:caught, _, _} ->
             IO.puts("\n  [INFO] Corrupted checkpoint correctly rejected with exception")
@@ -956,7 +964,7 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
       batch = generate_batch(8, @embed_size, temporal: false)
 
       # Get GPU prediction
-      gpu_pred = Imitation.predict(trainer, batch.states)
+      gpu_pred = do_predict(trainer, batch.states)
 
       # Convert to CPU (BinaryBackend) and predict
       # Note: We compare the numerical values, not the backend
@@ -985,9 +993,9 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
       {states, _} = Nx.Random.uniform(key, shape: {4, @embed_size}, type: :f32)
 
       # Run prediction multiple times
-      pred1 = Imitation.predict(trainer, states)
-      pred2 = Imitation.predict(trainer, states)
-      pred3 = Imitation.predict(trainer, states)
+      pred1 = do_predict(trainer, states)
+      pred2 = do_predict(trainer, states)
+      pred3 = do_predict(trainer, states)
 
       # All should be identical
       assert_tensors_close(pred1, pred2, atol: 1.0e-6)
@@ -1104,4 +1112,10 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
 
   defp is_infinite(x) when is_float(x), do: x == :infinity or x == :neg_infinity or abs(x) > 1.0e38
   defp is_infinite(_), do: false
+
+  # Helper to run prediction using the trainer's predict function
+  defp do_predict(trainer, states) do
+    model_state = Utils.ensure_model_state(trainer.policy_params)
+    trainer.predict_fn.(model_state, states)
+  end
 end
