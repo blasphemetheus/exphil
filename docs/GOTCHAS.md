@@ -1187,7 +1187,7 @@ With gradients (BPTT - Backpropagation Through Time):
 
 ---
 
-## 34. Jamba seq_len not passed to Hybrid.build
+## 34. Imitation.new uses window_size, not seq_len
 
 **Symptom:** Jamba model fails to compile with shape mismatch error:
 ```
@@ -1196,35 +1196,34 @@ inferred as shape {32, 30, 408}, is incompatible with the output of
 layer self_attn_compute ({1, 60, 60})
 ```
 
-**Cause:** The attention mask was pre-computed with `seq_len=60` (default `window_size`), but the input has `seq_len=30`. The `build_jamba_backbone` function in `policy.ex` was not passing the `seq_len` option to `Hybrid.build()`.
+**Cause:** `Imitation.new()` only recognizes `window_size` in its config, not `seq_len`. If you pass `seq_len: 30`, it's silently ignored and the default `window_size: 60` is used instead.
 
 **The problem:**
 ```elixir
-# In build_jamba_backbone - BEFORE FIX
-window_size = Keyword.get(opts, :window_size, 60)
-
-Hybrid.build(
+# This DOES NOT WORK - seq_len is ignored!
+trainer = Imitation.new(
+  backbone: :jamba,
+  seq_len: 30,  # WRONG: This key is not in @default_config, so it's dropped
   # ...
-  window_size: window_size,
-  # seq_len NOT passed! Hybrid.build defaults to window_size (60)
 )
 
-# Meanwhile in Hybrid.build:
-seq_len = Keyword.get(opts, :seq_len, window_size)  # Gets 60 when it should be 30
-precomputed_mask = Attention.window_mask(seq_len, window_size)  # Creates 60x60 mask
+# Imitation uses Keyword.take(opts, Map.keys(@default_config))
+# Since seq_len is not in @default_config, it's not included
+# The model is built with window_size: 60 (default)
 ```
 
-**The fix:** Pass `seq_len` through to `Hybrid.build()`:
+**The fix:** Use `window_size` instead of `seq_len`:
 ```elixir
-# In build_jamba_backbone - AFTER FIX
-window_size = Keyword.get(opts, :window_size, 60)
-seq_len = Keyword.get(opts, :seq_len, window_size)  # Get from opts
-
-Hybrid.build(
+# This WORKS - window_size is a recognized config key
+trainer = Imitation.new(
+  backbone: :jamba,
+  window_size: 30,  # CORRECT: Use window_size
   # ...
-  window_size: window_size,
-  seq_len: seq_len,  # Pass it through!
 )
 ```
 
-**Code location:** `lib/exphil/networks/policy.ex:624` - `build_jamba_backbone` function
+**Key insight:** The internal machinery does support `seq_len` at lower levels (`Policy.build_temporal`, `Hybrid.build`), but `Imitation.new()` filters opts to only recognized keys. If you need a non-default sequence length, use `window_size`.
+
+**Code location:**
+- `lib/exphil/training/imitation.ex:83` - `@default_config` defines valid keys
+- `lib/exphil/training/imitation.ex:157` - `Keyword.take(opts, Map.keys(@default_config))` filters unknown keys

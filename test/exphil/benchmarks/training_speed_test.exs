@@ -146,12 +146,13 @@ defmodule ExPhil.Benchmarks.TrainingSpeedTest do
 
   describe "LSTM training speed" do
     setup do
+      # Note: Use window_size, not seq_len - Imitation.new only recognizes window_size
       trainer = Imitation.new(
         embed_size: @embed_size,
         hidden_sizes: [256],
         temporal: true,
         backbone: :lstm,
-        seq_len: @seq_len,
+        window_size: @seq_len,
         learning_rate: 1.0e-4
       )
 
@@ -184,12 +185,13 @@ defmodule ExPhil.Benchmarks.TrainingSpeedTest do
 
   describe "GRU training speed" do
     setup do
+      # Note: Use window_size, not seq_len - Imitation.new only recognizes window_size
       trainer = Imitation.new(
         embed_size: @embed_size,
         hidden_sizes: [256],
         temporal: true,
         backbone: :gru,
-        seq_len: @seq_len,
+        window_size: @seq_len,
         learning_rate: 1.0e-4
       )
 
@@ -222,12 +224,13 @@ defmodule ExPhil.Benchmarks.TrainingSpeedTest do
 
   describe "Mamba training speed" do
     setup do
+      # Note: Use window_size, not seq_len - Imitation.new only recognizes window_size
       trainer = Imitation.new(
         embed_size: @embed_size,
         hidden_sizes: [256],
         temporal: true,
         backbone: :mamba,
-        seq_len: @seq_len,
+        window_size: @seq_len,
         num_layers: 2,
         state_size: 16,
         learning_rate: 1.0e-4
@@ -259,12 +262,13 @@ defmodule ExPhil.Benchmarks.TrainingSpeedTest do
 
     test "Mamba is faster than LSTM for same sequence length" do
       # Build both trainers
+      # Note: Use window_size, not seq_len - Imitation.new only recognizes window_size
       mamba_trainer = Imitation.new(
         embed_size: @embed_size,
         hidden_sizes: [256],
         temporal: true,
         backbone: :mamba,
-        seq_len: @seq_len,
+        window_size: @seq_len,
         num_layers: 2,
         state_size: 16,
         learning_rate: 1.0e-4
@@ -275,7 +279,7 @@ defmodule ExPhil.Benchmarks.TrainingSpeedTest do
         hidden_sizes: [256],
         temporal: true,
         backbone: :lstm,
-        seq_len: @seq_len,
+        window_size: @seq_len,
         learning_rate: 1.0e-4
       )
 
@@ -317,12 +321,13 @@ defmodule ExPhil.Benchmarks.TrainingSpeedTest do
 
   describe "Jamba (Mamba + Attention) training speed" do
     setup do
+      # Note: Use window_size, not seq_len - Imitation.new only recognizes window_size
       trainer = Imitation.new(
         embed_size: @embed_size,
         hidden_sizes: [256],
         temporal: true,
         backbone: :jamba,
-        seq_len: @seq_len,
+        window_size: @seq_len,
         num_layers: 3,
         attention_every: 3,
         learning_rate: 1.0e-4
