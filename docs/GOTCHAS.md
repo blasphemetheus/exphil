@@ -1303,3 +1303,41 @@ mix run scripts/train_from_replays.exs --gc-every 50
 **Code location:**
 - `lib/exphil/training/prefetcher.ex:70-77` - `reduce/3` now uses lazy Enum.reduce
 - `lib/exphil/training/prefetcher.ex:233-238` - `wrap/2` now returns lazy stream
+
+## 36. Embedding pre-computation exhausts RAM on large datasets
+
+**Problem:** Pre-computing embeddings for large datasets (1M+ sequences) accumulates all embeddings in memory before training starts, causing OOM.
+
+**Symptoms:**
+- Training crashes during "Pre-computing embeddings for X sequences..."
+- Progress shows low percentage (e.g., "Embedding: 4%") then pod becomes unresponsive
+- RAM hits 100% before training loop begins
+
+**Root cause:** `Data.precompute_embeddings/2` uses `Enum.flat_map` to collect all embeddings into a list. For 1.8M sequences:
+- Each sequence: 60 frames × 400 dims × 4 bytes = ~96KB
+- Total: 1.8M × 96KB = **~173GB** (far exceeds available RAM)
+
+**The fix:** Added periodic garbage collection during embedding:
+```elixir
+# In Data.precompute_embeddings/2
+if gc_every > 0 and rem(chunk_idx, gc_every) == 0 and chunk_idx > 0 do
+  :erlang.garbage_collect()
+end
+```
+
+Also added warning for large datasets:
+```
+⚠ Large dataset (1826706 sequences) - consider using --stream-chunk-size
+  Pre-computing will use ~173.1GB RAM
+```
+
+**Better solution:** For datasets >500K sequences, use streaming mode:
+```bash
+mix run scripts/train_from_replays.exs --stream-chunk-size 30
+```
+
+This processes files in chunks, computing embeddings on-the-fly instead of pre-computing all.
+
+**Code location:**
+- `lib/exphil/training/data.ex:696` - `precompute_embeddings/2` now has GC
+- `lib/exphil/training/data.ex:768` - `precompute_frame_embeddings/2` now has GC

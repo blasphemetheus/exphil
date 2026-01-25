@@ -695,13 +695,21 @@ defmodule ExPhil.Training.Data do
   @spec precompute_embeddings(t(), keyword()) :: t()
   def precompute_embeddings(dataset, opts \\ []) do
     show_progress = Keyword.get(opts, :show_progress, true)
+    gc_every = Keyword.get(opts, :gc_every, 100)  # GC every N chunks
+
+    total = dataset.size
+
+    # Warn if dataset is very large - recommend streaming instead
+    if total > 500_000 and show_progress do
+      IO.puts(:stderr, "  ⚠ Large dataset (#{total} sequences) - consider using --stream-chunk-size")
+      IO.puts(:stderr, "    Pre-computing will use ~#{Float.round(total * 60 * 400 * 4 / 1_000_000_000, 1)}GB RAM")
+    end
 
     if show_progress do
-      IO.puts(:stderr, "  Pre-computing embeddings for #{dataset.size} sequences...")
+      IO.puts(:stderr, "  Pre-computing embeddings for #{total} sequences...")
     end
 
     embed_config = dataset.embed_config
-    total = dataset.size
 
     # Process in chunks to show progress and manage memory
     chunk_size = min(500, max(1, div(total, 10)))
@@ -715,6 +723,11 @@ defmodule ExPhil.Training.Data do
         processed = min((chunk_idx + 1) * chunk_size, total)
         pct = round(processed / total * 100)
         IO.write(:stderr, "\r  Embedding: #{pct}% (#{processed}/#{total})    ")
+      end
+
+      # Periodic garbage collection to prevent memory buildup
+      if gc_every > 0 and rem(chunk_idx, gc_every) == 0 and chunk_idx > 0 do
+        :erlang.garbage_collect()
       end
 
       # Batch embed each sequence in this chunk
@@ -755,13 +768,21 @@ defmodule ExPhil.Training.Data do
   def precompute_frame_embeddings(dataset, opts \\ []) do
     show_progress = Keyword.get(opts, :show_progress, true)
     batch_size = Keyword.get(opts, :batch_size, 1000)
+    gc_every = Keyword.get(opts, :gc_every, 100)  # GC every N batches
+
+    total = dataset.size
+
+    # Warn if dataset is very large - recommend streaming instead
+    if total > 1_000_000 and show_progress do
+      IO.puts(:stderr, "  ⚠ Large dataset (#{total} frames) - consider using --stream-chunk-size")
+      IO.puts(:stderr, "    Pre-computing will use ~#{Float.round(total * 400 * 4 / 1_000_000_000, 1)}GB RAM")
+    end
 
     if show_progress do
-      IO.puts(:stderr, "  Pre-computing embeddings for #{dataset.size} frames...")
+      IO.puts(:stderr, "  Pre-computing embeddings for #{total} frames...")
     end
 
     embed_config = dataset.embed_config
-    total = dataset.size
 
     # Process in batches for GPU efficiency and memory management
     embedded = dataset.frames
@@ -773,6 +794,11 @@ defmodule ExPhil.Training.Data do
         processed = min((chunk_idx + 1) * batch_size, total)
         pct = round(processed / total * 100)
         IO.write(:stderr, "\r  Embedding: #{pct}% (#{processed}/#{total})    ")
+      end
+
+      # Periodic garbage collection to prevent memory buildup
+      if gc_every > 0 and rem(chunk_idx, gc_every) == 0 and chunk_idx > 0 do
+        :erlang.garbage_collect()
       end
 
       # Batch embed all frames in this chunk with name_ids for style-conditional training
