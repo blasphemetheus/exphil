@@ -5,6 +5,26 @@ set -e
 
 echo "=== ExPhil RunPod Entrypoint ==="
 
+# Clean up files that cause git pull conflicts
+# These files are in git but may have stale copies from Docker build
+# Removing them allows git pull to succeed without conflicts
+if [ -d "/app/.git" ]; then
+  echo "Cleaning up potential git conflicts..."
+  # List of files that frequently cause conflicts between Docker build and git
+  CONFLICT_FILES=(
+    "scripts/analyze_replays.exs"
+  )
+  for f in "${CONFLICT_FILES[@]}"; do
+    if [ -f "/app/$f" ]; then
+      # Check if file differs from git
+      if ! git -C /app diff --quiet HEAD -- "$f" 2>/dev/null; then
+        echo "  Removing stale $f (will be restored by git pull)"
+        rm -f "/app/$f"
+      fi
+    fi
+  done
+fi
+
 # Generate unique pod identifier for checkpoint organization
 # Format: hostname_YYYYMMDD (e.g., fd9c9e74e6d5_20260124)
 POD_ID="${HOSTNAME:-$(hostname)}_$(date +%Y%m%d)"
