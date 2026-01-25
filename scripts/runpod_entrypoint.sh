@@ -56,32 +56,70 @@ fi
 # Create workspace directories if they don't exist
 mkdir -p /workspace/checkpoints /workspace/logs /workspace/replays
 
+# Fix any circular symlinks from previous buggy runs
+# (Bug: ln -sf on existing symlink-to-dir creates symlink inside the dir)
+if [ -L "/workspace/checkpoints/checkpoints" ]; then
+  echo "⚠ Removing circular symlink /workspace/checkpoints/checkpoints"
+  rm /workspace/checkpoints/checkpoints
+fi
+if [ -L "/workspace/logs/logs" ]; then
+  echo "⚠ Removing circular symlink /workspace/logs/logs"
+  rm /workspace/logs/logs
+fi
+
 # Link checkpoint/logs dirs to workspace for persistence
 # Must remove existing directories first (ln -sf can't replace dirs)
+# IMPORTANT: Check if symlink already exists to avoid circular symlinks on re-run
 if [ -d "/app" ]; then
   # Checkpoints: move any existing files to workspace, then symlink
-  if [ -d "/app/checkpoints" ] && [ ! -L "/app/checkpoints" ]; then
-    # Real directory exists - move contents to workspace
+  if [ -L "/app/checkpoints" ]; then
+    # Already a symlink - check if it points to the right place
+    if [ "$(readlink /app/checkpoints)" = "/workspace/checkpoints" ]; then
+      echo "✓ /app/checkpoints symlink already correct"
+    else
+      echo "Fixing /app/checkpoints symlink..."
+      rm /app/checkpoints
+      ln -s /workspace/checkpoints /app/checkpoints
+    fi
+  elif [ -d "/app/checkpoints" ]; then
+    # Real directory exists - move contents to workspace, then symlink
     if [ "$(ls -A /app/checkpoints 2>/dev/null)" ]; then
       echo "Moving existing checkpoints to /workspace/checkpoints/"
       mv /app/checkpoints/* /workspace/checkpoints/ 2>/dev/null || true
     fi
-    rmdir /app/checkpoints 2>/dev/null || rm -rf /app/checkpoints
+    rm -rf /app/checkpoints
+    ln -s /workspace/checkpoints /app/checkpoints
+    echo "✓ Created /app/checkpoints -> /workspace/checkpoints"
+  else
+    # Doesn't exist - create symlink
+    ln -s /workspace/checkpoints /app/checkpoints
+    echo "✓ Created /app/checkpoints -> /workspace/checkpoints"
   fi
-  ln -sf /workspace/checkpoints /app/checkpoints 2>/dev/null || true
 
   # Logs: same process
-  if [ -d "/app/logs" ] && [ ! -L "/app/logs" ]; then
+  if [ -L "/app/logs" ]; then
+    # Already a symlink - check if it points to the right place
+    if [ "$(readlink /app/logs)" = "/workspace/logs" ]; then
+      echo "✓ /app/logs symlink already correct"
+    else
+      echo "Fixing /app/logs symlink..."
+      rm /app/logs
+      ln -s /workspace/logs /app/logs
+    fi
+  elif [ -d "/app/logs" ]; then
+    # Real directory exists - move contents to workspace, then symlink
     if [ "$(ls -A /app/logs 2>/dev/null)" ]; then
       echo "Moving existing logs to /workspace/logs/"
       mv /app/logs/* /workspace/logs/ 2>/dev/null || true
     fi
-    rmdir /app/logs 2>/dev/null || rm -rf /app/logs
+    rm -rf /app/logs
+    ln -s /workspace/logs /app/logs
+    echo "✓ Created /app/logs -> /workspace/logs"
+  else
+    # Doesn't exist - create symlink
+    ln -s /workspace/logs /app/logs
+    echo "✓ Created /app/logs -> /workspace/logs"
   fi
-  ln -sf /workspace/logs /app/logs 2>/dev/null || true
-
-  echo "✓ /app/checkpoints -> /workspace/checkpoints (persistent)"
-  echo "✓ /app/logs -> /workspace/logs (persistent)"
 fi
 
 # Create helper scripts for checkpoint management
