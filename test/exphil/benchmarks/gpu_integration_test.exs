@@ -963,12 +963,13 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
       # Generate test input
       batch = generate_batch(8, @embed_size, temporal: false)
 
-      # Get GPU prediction
+      # Get GPU prediction (tuple of tensors)
       gpu_pred = do_predict(trainer, batch.states)
 
-      # Convert to CPU (BinaryBackend) and predict
-      # Note: We compare the numerical values, not the backend
-      gpu_values = Nx.to_flat_list(gpu_pred)
+      # Flatten all tensors in the tuple to a single list of values
+      gpu_values = gpu_pred
+        |> Tuple.to_list()
+        |> Enum.flat_map(&Nx.to_flat_list/1)
 
       # Verify predictions are reasonable numbers
       for {val, idx} <- Enum.with_index(gpu_values) do
