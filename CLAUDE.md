@@ -104,6 +104,8 @@ Detailed guides in `docs/`:
 | [TRAINING_IMPROVEMENTS.md](docs/TRAINING_IMPROVEMENTS.md) | Training-specific optimizations |
 | [PROJECT_ROADMAP.md](docs/PROJECT_ROADMAP.md) | Comprehensive project improvement roadmap |
 | [TESTING.md](docs/TESTING.md) | Test harness, tags, factories, coverage |
+| [GPU_OPTIMIZATIONS.md](docs/GPU_OPTIMIZATIONS.md) | GPU training: JIT wrapping, BF16, gradient accumulation |
+| [MAMBA_OPTIMIZATIONS.md](docs/MAMBA_OPTIMIZATIONS.md) | Mamba-specific: parallel scan, SSD, state caching |
 
 ## Quick Start
 
