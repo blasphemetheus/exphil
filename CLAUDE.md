@@ -98,7 +98,7 @@ Detailed guides in `docs/`:
 | [TRAINING_FEATURES.md](docs/TRAINING_FEATURES.md) | Feature roadmap, presets |
 | [RESEARCH.md](docs/RESEARCH.md) | Prior art, papers, lessons learned, research roadmap |
 | [docker-workflow.md](docs/docker-workflow.md) | Docker build, push, cloud GPU deployment |
-| [REPLAY_STORAGE.md](docs/REPLAY_STORAGE.md) | Cloud storage setup for replays (B2/R2) |
+| [REPLAY_STORAGE.md](docs/REPLAY_STORAGE.md) | Cloud storage for replays & checkpoints (B2/R2), sync commands |
 | [RUNPOD_FILTER.md](docs/RUNPOD_FILTER.md) | Filter low-tier replays from large archives on RunPod |
 | [RCLONE_GDRIVE.md](docs/RCLONE_GDRIVE.md) | Download large files from Google Drive with rclone |
 | [TRAINING_IMPROVEMENTS.md](docs/TRAINING_IMPROVEMENTS.md) | Training-specific optimizations |
@@ -147,6 +147,42 @@ export EXPHIL_WANDB_PROJECT=my-project
 - `--verbose` / `--quiet` - Control output verbosity
 - `--seed N` - Set random seed for reproducibility
 - `--overwrite` - Allow checkpoint overwrite (creates .bak backup)
+
+## RunPod Quick Reference
+
+**On pod startup:**
+```bash
+cd /app
+git pull origin main                    # Get latest code
+source /app/scripts/runpod_entrypoint.sh  # Load helper commands
+sync-checkpoints-down --latest          # Optional: pull previous checkpoints
+```
+
+**Start training (in tmux):**
+```bash
+tmux new -s train
+mix run scripts/train_from_replays.exs \
+  --backbone mlp \
+  --hidden-sizes 512,512,256 \
+  --epochs 10 \
+  --batch-size 512 \
+  --train-character mewtwo \
+  --save-best \
+  --replays /workspace/replays/mewtwo \
+  --name mlp_mewtwo \
+  2>&1 | tee /workspace/logs/training.log
+# Ctrl+B, D to detach
+```
+
+**Before pod shutdown:**
+```bash
+sync-checkpoints-up   # Upload to B2 (organized by date)
+```
+
+**Checkpoint sync commands** (see [REPLAY_STORAGE.md](docs/REPLAY_STORAGE.md)):
+- `sync-checkpoints-up` - Upload to today's date folder
+- `sync-checkpoints-down --latest` - Download most recent
+- `list-checkpoints` - List dates on B2
 
 ## Project Structure
 

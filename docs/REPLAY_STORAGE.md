@@ -177,16 +177,80 @@ services:
 └── checkpoints/       # Training outputs (keep on pod or sync back)
 ```
 
-## Syncing Checkpoints Back
+## Checkpoint Syncing
 
-After training, push checkpoints to storage:
+Checkpoints are organized by date on B2 to keep different training sessions separate:
+
+```
+b2:exphil-replays-blewfargs/checkpoints/
+├── registry.json
+├── 2026-01-23/
+│   └── jamba_* files
+├── 2026-01-24/
+│   └── mlp_* files
+└── 2026-01-25/
+    └── (future training)
+```
+
+### Helper Commands
+
+The entrypoint script (`/app/scripts/runpod_entrypoint.sh`) creates these commands:
+
+**Upload checkpoints:**
+```bash
+sync-checkpoints-up              # Upload to today's date folder
+sync-checkpoints-up --date 2026-01-24  # Upload to specific date
+sync-checkpoints-up --flat       # Upload to root (no date folders)
+```
+
+**Download checkpoints:**
+```bash
+sync-checkpoints-down            # Show available dates
+sync-checkpoints-down 2026-01-24 # Download from specific date
+sync-checkpoints-down --latest   # Download most recent date
+sync-checkpoints-down --all      # Download everything
+```
+
+**List checkpoints:**
+```bash
+list-checkpoints                 # List dates on B2
+list-checkpoints 2026-01-24      # List files in date folder
+list-checkpoints --local         # List local checkpoints
+```
+
+### Workflow
+
+**On pod startup (if continuing training):**
+```bash
+source /app/scripts/runpod_entrypoint.sh  # If commands not available
+sync-checkpoints-down --latest
+```
+
+**After training / before pod shutdown:**
+```bash
+sync-checkpoints-up
+```
+
+**To pull to local machine:**
+```bash
+rclone copy b2:exphil-replays-blewfargs/checkpoints/ ~/git/melee/exphil/checkpoints/ --progress
+```
+
+### Important Notes
+
+- Uses `rclone copy` (not sync) to avoid deleting files
+- Multiple pods can upload simultaneously without conflicts (date-based organization)
+- The `--copy-links` flag is used automatically to handle symlinks
+- If commands aren't available, run `source /app/scripts/runpod_entrypoint.sh`
+
+### Manual rclone (if helper commands unavailable)
 
 ```bash
-# Push to B2
-rclone sync /workspace/checkpoints b2:exphil-replays/checkpoints --progress
+# Upload
+rclone copy /app/checkpoints/ "b2:exphil-replays-blewfargs/checkpoints/$(date +%Y-%m-%d)/" --copy-links --progress
 
-# Or download locally
-rclone sync b2:exphil-replays/checkpoints ~/git/melee/exphil/checkpoints --progress
+# Download
+rclone copy b2:exphil-replays-blewfargs/checkpoints/2026-01-24/ /workspace/checkpoints/ --progress
 ```
 
 ## Quick Reference
