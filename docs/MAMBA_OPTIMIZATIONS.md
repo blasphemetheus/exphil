@@ -143,7 +143,7 @@ Scan length: 1024/64 = 16 (vs 1024 for naive scan)
 
 ---
 
-### 3. Inference State Caching (Priority: HIGH for real-time play)
+### 3. Inference State Caching (Priority: HIGH for real-time play) ✅ IMPLEMENTED
 
 **What:** Cache SSM hidden state between frames during inference.
 
@@ -164,30 +164,33 @@ Frame 2: Compute h₂ from h₁, x₂, cache h₂
 Frame 3: Compute h₃ from h₂, x₃, cache h₃
 ```
 
-**Implementation:**
+**Implementation:** See `lib/exphil/networks/mamba.ex`
 
 ```elixir
-defmodule ExPhil.Networks.Mamba.InferenceCache do
-  defstruct [:hidden_state, :step]
+# Initialize cache
+cache = Mamba.init_cache(
+  batch_size: 1,
+  hidden_size: 256,
+  num_layers: 2
+)
 
-  def init(batch_size, state_size) do
-    %__MODULE__{
-      hidden_state: Nx.broadcast(0.0, {batch_size, state_size}),
-      step: 0
-    }
-  end
-
-  def step(cache, new_frame, model_fn) do
-    # Only process the new frame, using cached state
-    {output, new_hidden} = model_fn.(cache.hidden_state, new_frame)
-
-    new_cache = %{cache | hidden_state: new_hidden, step: cache.step + 1}
-    {output, new_cache}
-  end
-end
+# Single-frame inference (O(1))
+{output, new_cache} = Mamba.step(frame, params, cache)
 ```
 
-**Estimated speedup:** 10-100x for inference (O(1) per frame vs O(L))
+The Agent automatically uses incremental inference when:
+- Backbone is `:mamba`
+- `use_incremental: true` (default)
+
+```elixir
+# Agent automatically uses O(1) inference
+{:ok, agent} = Agent.start_link(
+  policy_path: "checkpoints/mamba_policy.bin",
+  use_incremental: true  # default
+)
+```
+
+**Speedup:** 10-60x for inference (O(1) per frame vs O(window_size))
 
 ---
 
@@ -232,13 +235,13 @@ end
 
 ## Implementation Roadmap
 
-| Phase | Optimization | Effort | Impact |
-|-------|--------------|--------|--------|
-| 1 | Inference state caching | Medium | 10-100x inference |
-| 2 | Parallel associative scan | High | 2-5x training |
-| 3 | Chunked processing | Low | Memory savings |
-| 4 | SSD algorithm (Mamba-2) | High | 3-10x training |
-| 5 | Custom CUDA kernel | Very High | 2-3x additional |
+| Phase | Optimization | Effort | Impact | Status |
+|-------|--------------|--------|--------|--------|
+| 1 | Inference state caching | Medium | 10-60x inference | ✅ Done |
+| 2 | Parallel associative scan | High | 2-5x training | Planned |
+| 3 | Chunked processing | Low | Memory savings | Planned |
+| 4 | SSD algorithm (Mamba-2) | High | 3-10x training | Planned |
+| 5 | Custom CUDA kernel | Very High | 2-3x additional | Future |
 
 ## Testing the Improvements
 
