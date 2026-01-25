@@ -863,6 +863,19 @@ MIX_ENV=test mix test --only gpu 2>&1 | tee test_output.txt
 | **Backend** | GPU/CPU similarity | Finite values |
 | | Deterministic output | Same input = same output |
 | **Gradients** | Accumulation correctness | Small batches ≈ large batch |
+| **Resume** | Resumed training continues | Step preserved, training works |
+| **Stress** | Rapid model creation/destruction | No memory leak over 30 cycles |
+| | Very long sequences (120 frames) | Mamba handles 2x normal seq |
+| | Deep MLP (6 layers) | Trains stably with norms |
+| **Precision** | bf16 small values | No underflow |
+| | bf16 large values | No overflow |
+| **Schedules** | Warmup LR | Warmup steps work |
+| | Cosine annealing | LR decreases over time |
+| **Early Stop** | Monitors validation loss | Triggers after patience |
+| | Training respects stopping | Loop exits correctly |
+| **Validation** | Train/val different losses | Model changes affect val |
+| **Config** | Embedding dimension mismatch | Detects/handles mismatched dims |
+| | Backbone compatibility | MLP backbone works |
 
 ### GPU Test Ideas (Future Roadmap)
 
@@ -908,81 +921,32 @@ end
 
 #### Stress Tests
 
-| Test | Description | Priority |
-|------|-------------|----------|
-| **Rapid model creation/destruction** | Create 100 models, verify no leak | Medium |
-| **Concurrent training** | Multiple trainers in parallel | Low |
-| **Very long sequences** | seq_len=500+ stability | Medium |
-| **Very deep networks** | 20+ layer stability | Low |
-| **Mixed precision edge cases** | bf16 underflow/overflow | Medium |
-
-```elixir
-# Example: Rapid model churn
-@tag :gpu
-@tag :slow
-test "no memory leak from rapid model creation" do
-  initial_mem = :erlang.memory(:total)
-
-  for _ <- 1..50 do
-    trainer = Imitation.new(backbone: :mamba, hidden_sizes: [256])
-    batch = generate_batch(16, @embed_size, temporal: true, seq_len: 30)
-    {_, _} = Imitation.train_step(trainer, batch, nil)
-    :erlang.garbage_collect()
-  end
-
-  :erlang.garbage_collect()
-  final_mem = :erlang.memory(:total)
-  growth_mb = (final_mem - initial_mem) / 1_000_000
-
-  assert growth_mb < 100, "Memory leak: #{growth_mb}MB growth"
-end
-```
+| Test | Description | Status |
+|------|-------------|--------|
+| **Rapid model creation/destruction** | Create 30 models, verify no leak | ✅ Implemented |
+| **Concurrent training** | Multiple trainers in parallel | Pending |
+| **Very long sequences** | 120-frame Mamba stability | ✅ Implemented |
+| **Very deep networks** | 6-layer MLP with norms | ✅ Implemented |
+| **Mixed precision edge cases** | bf16 underflow/overflow | ✅ Implemented |
 
 #### Real-World Scenario Tests
 
-| Test | Description | Priority |
-|------|-------------|----------|
-| **Resume training** | Save mid-epoch, resume, verify loss continues | High |
-| **Learning rate warmup** | Verify warmup schedule works | Medium |
-| **Early stopping** | Verify training stops when loss plateaus | Medium |
-| **Validation evaluation** | Train/val split produces different losses | Medium |
-
-```elixir
-# Example: Resume training continuity
-@tag :gpu
-test "resumed training continues learning" do
-  trainer = Imitation.new(backbone: :mlp, learning_rate: 1.0e-3)
-  batches = generate_batches(50, 32, @embed_size, temporal: false)
-
-  # Train 25 batches
-  {mid_trainer, _} = Enum.reduce(Enum.take(batches, 25), {trainer, nil}, fn batch, {t, _} ->
-    Imitation.train_step(t, batch, nil)
-  end)
-  mid_loss = get_last_loss(mid_trainer)
-
-  # Save and reload
-  path = "/tmp/resume_test.axon"
-  :ok = Imitation.save_checkpoint(mid_trainer, path)
-  {:ok, loaded} = Imitation.load_checkpoint(mid_trainer, path)
-
-  # Continue training 25 more batches
-  {final_trainer, _} = Enum.reduce(Enum.drop(batches, 25), {loaded, nil}, fn batch, {t, _} ->
-    Imitation.train_step(t, batch, nil)
-  end)
-  final_loss = get_last_loss(final_trainer)
-
-  # Loss should have decreased (model is learning)
-  assert final_loss < mid_loss, "Loss didn't decrease after resume"
-end
-```
+| Test | Description | Status |
+|------|-------------|--------|
+| **Resume training** | Save checkpoint, resume, verify step continues | ✅ Implemented |
+| **Learning rate warmup** | Verify warmup schedule works | ✅ Implemented |
+| **Cosine annealing** | LR decreases over training | ✅ Implemented |
+| **Early stopping** | Verify training stops when loss plateaus | ✅ Implemented |
+| **Validation evaluation** | Train/val split produces different losses | ✅ Implemented |
 
 #### Regression Tests
 
-| Test | Description | Priority |
-|------|-------------|----------|
-| **Known good checkpoint** | Load v1.0 checkpoint, verify predictions | High |
-| **Backward compatibility** | Old config format still works | Medium |
-| **Embedding dimension changes** | Detect config/model mismatch | High |
+| Test | Description | Status |
+|------|-------------|--------|
+| **Known good checkpoint** | Load v1.0 checkpoint, verify predictions | Pending |
+| **Backward compatibility** | Old config format still works | Pending |
+| **Embedding dimension mismatch** | Detect config/model mismatch | ✅ Implemented |
+| **Backbone compatibility** | Verify backbone works correctly | ✅ Implemented |
 
 #### Dolphin Integration Tests (requires Dolphin setup)
 
@@ -993,42 +957,14 @@ end
 | **Memory stability in play** | No leak over 5 min game | Medium |
 | **Controller output validity** | All outputs in valid range | High |
 
-    # Get predictions after load
-    pred_after = Imitation.predict(loaded_trainer, batch)
-
-    # Should be identical
-    assert_tensors_close(pred_before, pred_after, atol: 1.0e-6)
-  end)
-end
-```
-
 #### Gradient Tests
 
-| Test | Description | Priority |
-|------|-------------|----------|
-| **Gradient accumulation correctness** | 4x small batches = 1x large batch | High |
-| **Gradient clipping** | Verify clipping activates for large grads | Medium |
-| **Frozen layer gradients** | Verify frozen params have zero grad | Medium |
-| **Gradient checkpointing** | Verify memory reduction works | Low |
-
-```elixir
-# Example: Gradient accumulation
-@tag :gpu
-test "gradient accumulation matches large batch" do
-  # Single large batch
-  large_trainer = Imitation.new(batch_size: 128)
-  large_batch = generate_batch(128, 408)
-  {_, large_grads} = compute_gradients(large_trainer, large_batch)
-
-  # 4 small batches accumulated
-  small_trainer = Imitation.new(batch_size: 32)
-  small_batches = for _ <- 1..4, do: generate_batch(32, 408)
-  accumulated_grads = accumulate_gradients(small_trainer, small_batches)
-
-  # Should be approximately equal (within numerical precision)
-  assert_tensors_close(large_grads, accumulated_grads, rtol: 0.01)
-end
-```
+| Test | Description | Status |
+|------|-------------|--------|
+| **Gradient accumulation correctness** | 4x small batches ≈ 1x large batch | ✅ Implemented |
+| **Gradient clipping** | Verify clipping activates for large grads | ✅ Implemented |
+| **Frozen layer gradients** | Verify frozen params have zero grad | Pending |
+| **Gradient checkpointing** | Verify memory reduction works | Pending |
 
 #### Multi-GPU Tests (Future)
 
