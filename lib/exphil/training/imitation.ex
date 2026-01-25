@@ -872,22 +872,21 @@ defmodule ExPhil.Training.Imitation do
     focal_gamma = config[:focal_gamma] || 2.0
     precision = config[:precision] || :bf16
 
-    # Build the loss+grad function
+    # Build the loss+grad function using JIT compilation
     # predict_fn is captured here (once), not in train_step (every batch)
-    fn params, states, actions ->
+    #
+    # Strategy: We JIT compile a function that takes (params, states, actions) as
+    # explicit arguments. By using Nx.Defn.jit on the outer function, all tensors
+    # flow through as arguments and get properly traced together.
+    #
+    # The inner value_and_grad closure is fine because when the outer function is
+    # JIT compiled, states/actions become Defn.Expr during tracing (not EXLA tensors).
+
+    inner_fn = fn params, states, actions ->
       # Convert states to training precision
       states = Nx.as_type(states, precision)
 
-      # CRITICAL: Copy tensors to BinaryBackend to avoid EXLA/Defn.Expr mismatch in closure.
-      # - EXLA tensors captured in defn closures cause compilation errors
-      # - BinaryBackend tensors are inlined into the defn expression
-      # - EXLA JIT will automatically transfer data to GPU during execution
-      # This adds ~4s/batch overhead but is the only approach that works with Nx.Defn.
-      states = Nx.backend_copy(states, Nx.BinaryBackend)
-      actions = Map.new(actions, fn {k, v} -> {k, Nx.backend_copy(v, Nx.BinaryBackend)} end)
-
-      # Build loss function for this call
-      # params is the variable we differentiate w.r.t.
+      # Build loss function - states/actions are already Defn.Expr from outer JIT
       loss_fn = fn p ->
         {buttons, main_x, main_y, c_x, c_y, shoulder} = predict_fn.(Utils.ensure_model_state(p), states)
 
@@ -910,6 +909,10 @@ defmodule ExPhil.Training.Imitation do
       # Compute loss and gradients
       Nx.Defn.value_and_grad(loss_fn).(params)
     end
+
+    # JIT compile the entire function - this makes states/actions flow as Defn.Expr
+    # during tracing, avoiding the EXLA/Defn.Expr conflict
+    Nx.Defn.jit(inner_fn, compiler: EXLA)
   end
 
   @doc """
