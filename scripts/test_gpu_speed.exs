@@ -26,7 +26,8 @@ trainer = Imitation.new(
   temporal: false,
   learning_rate: 1.0e-4
 )
-IO.puts("  ✓ Trainer initialized (#{Float.round(trainer.config[:param_count] / 1_000_000, 2)}M params)")
+param_count = trainer.config[:param_count] || 0
+IO.puts("  ✓ Trainer initialized (#{Float.round(param_count / 1_000_000, 2)}M params)")
 
 # Generate test batch
 IO.puts("\nGenerating test batch...")
