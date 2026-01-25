@@ -156,6 +156,30 @@ alias ExPhil.Training.{Augmentation, CharacterBalance, CheckpointPruning, Config
 alias ExPhil.Embeddings
 alias ExPhil.Integrations.Wandb
 
+# Helper function to safely round floats that might be NaN or infinity
+# Returns "NaN" or "Inf" strings instead of crashing
+safe_round = fn
+  x, precision when is_float(x) ->
+    cond do
+      x != x -> "NaN"  # NaN check: NaN != NaN
+      x == :infinity or x > 1.0e38 -> "Inf"
+      x == :neg_infinity or x < -1.0e38 -> "-Inf"
+      true -> Float.round(x, precision)
+    end
+  :nan, _precision -> "NaN"
+  :infinity, _precision -> "Inf"
+  :neg_infinity, _precision -> "-Inf"
+  x, precision when is_integer(x) -> Float.round(x * 1.0, precision)
+  x, _precision -> inspect(x)  # Fallback for unexpected types
+end
+
+# Helper to check if a number is NaN
+is_nan? = fn
+  x when is_float(x) -> x != x
+  :nan -> true
+  _ -> false
+end
+
 # Helper function for dual-port training - parses both players from a replay
 parse_dual_port = fn path, frame_delay, min_quality ->
   # Get metadata to find which ports have players
@@ -1482,7 +1506,19 @@ end
         end
       end
 
-      progress_line = "  Epoch #{epoch}: #{bar} #{pct_str}% | #{batch_idx + 1}/#{total_str} | loss: #{Float.round(display_loss, 4)} | #{Float.round(avg_batch_ms / 1000, 2)}s/it | ETA: #{eta_min}m #{eta_sec_rem}s"
+      # Check for NaN loss - training has diverged and should stop
+      if is_nan?.(display_loss) do
+        IO.write(:stderr, "\n")
+        Output.error("Loss became NaN at batch #{batch_idx + 1} - training diverged!")
+        Output.puts("  This usually indicates:")
+        Output.puts("    - Learning rate too high (try --learning-rate 1e-5)")
+        Output.puts("    - Gradient explosion (try --grad-clip 1.0)")
+        Output.puts("    - Numerical instability (try --precision f32 instead of bf16)")
+        raise "Training diverged: loss is NaN"
+      end
+
+      # Use safe_round to handle edge cases (NaN, Inf) gracefully
+      progress_line = "  Epoch #{epoch}: #{bar} #{pct_str}% | #{batch_idx + 1}/#{total_str} | loss: #{safe_round.(display_loss, 4)} | #{safe_round.(avg_batch_ms / 1000, 2)}s/it | ETA: #{eta_min}m #{eta_sec_rem}s"
 
       # Use carriage return to overwrite line (no newline until epoch complete)
       # Write directly to stderr to bypass Output module's timestamp
@@ -1581,16 +1617,18 @@ end
 
     Output.puts("")
     if has_validation do
-      Output.puts("  ✓ Epoch #{epoch} complete: train_loss=#{Float.round(avg_loss, 4)} val_loss=#{Float.round(val_loss, 4)} (#{epoch_time}s)#{es_message}")
+      Output.puts("  ✓ Epoch #{epoch} complete: train_loss=#{safe_round.(avg_loss, 4)} val_loss=#{safe_round.(val_loss, 4)} (#{epoch_time}s)#{es_message}")
     else
-      Output.puts("  ✓ Epoch #{epoch} complete: train_loss=#{Float.round(avg_loss, 4)} (#{epoch_time}s)#{es_message}")
+      Output.puts("  ✓ Epoch #{epoch} complete: train_loss=#{safe_round.(avg_loss, 4)} (#{epoch_time}s)#{es_message}")
     end
 
     # Update incomplete marker for crash recovery
     Recovery.mark_epoch_complete(opts[:checkpoint], epoch, val_loss)
 
     # Save best model if this is the best loss so far (val_loss if available, else train_loss)
-    is_new_best = best_val_loss == nil or val_loss < best_val_loss
+    # Don't save if loss is NaN
+    is_valid_loss = not is_nan?.(val_loss)
+    is_new_best = is_valid_loss and (best_val_loss == nil or val_loss < best_val_loss)
     new_best_val_loss = if is_new_best, do: val_loss, else: best_val_loss
 
     if opts[:save_best] and is_new_best do
@@ -1601,7 +1639,7 @@ end
       case Imitation.save_checkpoint(updated_trainer, best_checkpoint_path) do
         :ok ->
           case Imitation.export_policy(updated_trainer, best_policy_path) do
-            :ok -> Output.puts("    ★ New best model saved (#{loss_type}=#{Float.round(val_loss, 4)})")
+            :ok -> Output.puts("    ★ New best model saved (#{loss_type}=#{safe_round.(val_loss, 4)})")
             {:error, _} -> Output.puts("    ★ Best checkpoint saved, policy export failed")
           end
         {:error, reason} ->
@@ -1737,12 +1775,13 @@ else
   nil
 end
 
+final_loss_avg = Enum.sum(Enum.take(final_trainer.metrics.loss, 10)) / 10
 training_results = %{
   embed_size: embed_size,
   training_frames: if(train_dataset, do: train_dataset.size, else: :streaming),
   validation_frames: if(val_dataset, do: val_dataset.size, else: nil),
   total_time_seconds: total_time,
-  final_training_loss: Float.round(Enum.sum(Enum.take(final_trainer.metrics.loss, 10)) / 10, 4),
+  final_training_loss: safe_round.(final_loss_avg, 4),
   epochs_completed: epochs_completed,
   stopped_early: stopped_early,
   # Replay provenance
@@ -1806,7 +1845,7 @@ unless opts[:no_register] do
     config_path: config_path,
     training_config: opts,
     metrics: %{
-      final_loss: Float.round(Enum.sum(Enum.take(final_trainer.metrics.loss, 10)) / 10, 4),
+      final_loss: safe_round.(final_loss_avg, 4),
       epochs_completed: epochs_completed,
       training_frames: if(train_dataset, do: train_dataset.size, else: :streaming),
       validation_frames: if(val_dataset, do: val_dataset.size, else: nil),
@@ -1832,11 +1871,11 @@ if length(training_history) > 1 do
 end
 
 # Summary with colors
-final_loss = Float.round(Enum.sum(Enum.take(final_trainer.metrics.loss, 10)) / 10, 4)
+final_loss = safe_round.(final_loss_avg, 4)
 
 # Find best loss from training history
-best_entry = Enum.min_by(training_history, & &1.train_loss, fn -> %{train_loss: final_loss, epoch: epochs_completed} end)
-best_loss = Float.round(best_entry.train_loss, 4)
+best_entry = Enum.min_by(training_history, & &1.train_loss, fn -> %{train_loss: final_loss_avg, epoch: epochs_completed} end)
+best_loss = safe_round.(best_entry.train_loss, 4)
 best_epoch = best_entry.epoch
 
 Output.puts_raw("")
