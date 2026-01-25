@@ -1089,6 +1089,17 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
     end
   end
 
+  # Handle tuple of tensors (from predict_fn output)
+  defp assert_tensors_close(a, b, opts) when is_tuple(a) and is_tuple(b) do
+    a_list = Tuple.to_list(a)
+    b_list = Tuple.to_list(b)
+    assert length(a_list) == length(b_list), "Tuple sizes don't match"
+
+    Enum.zip(a_list, b_list)
+    |> Enum.each(fn {at, bt} -> assert_tensors_close(at, bt, opts) end)
+  end
+
+  # Handle single tensor
   defp assert_tensors_close(a, b, opts) do
     atol = Keyword.get(opts, :atol, 1.0e-5)
 

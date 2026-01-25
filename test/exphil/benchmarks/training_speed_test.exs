@@ -405,7 +405,7 @@ defmodule ExPhil.Benchmarks.TrainingSpeedTest do
         embed_size: @embed_size,
         hidden_sizes: [256],
         temporal: true,
-        backbone: :hybrid,
+        backbone: :lstm_hybrid,
         window_size: @seq_len,
         num_heads: 4,
         head_dim: 64,
