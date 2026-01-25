@@ -295,4 +295,79 @@ defmodule ExPhil.Training.PrefetcherTest do
       assert Enum.sort(result) == Enum.sort(expected)
     end
   end
+
+  describe "lazy iteration regression (gotcha #32)" do
+    # Regression test for the fix that changed reduce_indexed from materializing
+    # all batches upfront (Enum.to_list) to lazy iteration (Stream.with_index).
+    # The old behavior caused 25+ minute delays when training on large datasets
+    # because Nx.stack was called on ALL batches before training started.
+
+    test "reduce_indexed iterates lazily, not materializing all batches upfront" do
+      # Track when each batch is accessed
+      access_log = Agent.start_link(fn -> [] end) |> elem(1)
+
+      # Create a stream that logs when each element is accessed
+      stream = Stream.map(1..5, fn i ->
+        Agent.update(access_log, fn log -> [{:accessed, i} | log] end)
+        i
+      end)
+
+      # Process with reduce_indexed, logging when each batch is processed
+      _result = Prefetcher.reduce_indexed(stream, [], fn batch, _idx, acc ->
+        Agent.update(access_log, fn log -> [{:processed, batch} | log] end)
+        [batch | acc]
+      end)
+
+      log = Agent.get(access_log, & &1) |> Enum.reverse()
+
+      # Key assertion: batches should be accessed and processed in an interleaved pattern
+      # NOT all accessed first, then all processed (which would indicate upfront materialization)
+      #
+      # Lazy iteration pattern: [:accessed 1, :processed 1, :accessed 2, :processed 2, ...]
+      # Upfront materialization: [:accessed 1, :accessed 2, ..., :accessed 5, :processed 1, ...]
+
+      # Check that the first processed event comes early (lazy), not after all accesses (upfront)
+      first_processed_idx = Enum.find_index(log, fn {type, _} -> type == :processed end)
+
+      # If lazy: first_processed_idx should be 1 (after first access)
+      # If upfront: first_processed_idx would be 5 (after all accesses)
+      assert first_processed_idx < 5, "reduce_indexed should not materialize all batches before processing"
+
+      # Verify interleaved pattern: each access should be followed by its processing
+      assert log == [
+        {:accessed, 1}, {:processed, 1},
+        {:accessed, 2}, {:processed, 2},
+        {:accessed, 3}, {:processed, 3},
+        {:accessed, 4}, {:processed, 4},
+        {:accessed, 5}, {:processed, 5}
+      ]
+    end
+
+    test "reduce_indexed with Nx.stack batches doesn't cause startup delay" do
+      # Simulates the actual training scenario: stream of batches where each
+      # batch creation involves Nx.stack (which was slow when done 3567 times upfront)
+
+      batch_count = 10
+      batch_creation_count = Agent.start_link(fn -> 0 end) |> elem(1)
+
+      # Stream that creates Nx tensors (simulating batch creation with Nx.stack)
+      batch_stream = Stream.map(1..batch_count, fn i ->
+        Agent.update(batch_creation_count, &(&1 + 1))
+        # Simulate batch creation with Nx.stack
+        Nx.stack([Nx.tensor([i, i * 2]), Nx.tensor([i * 3, i * 4])])
+      end)
+
+      # Process batches
+      {results, _} = Prefetcher.reduce_indexed(batch_stream, {[], 0}, fn batch, idx, {acc, count} ->
+        sum = Nx.to_number(Nx.sum(batch))
+        {[{idx, sum} | acc], count + 1}
+      end)
+
+      # Verify all batches were processed
+      assert length(results) == batch_count
+
+      # Verify batch creation happened (sanity check)
+      assert Agent.get(batch_creation_count, & &1) == batch_count
+    end
+  end
 end

@@ -1068,9 +1068,11 @@ iterator = spawn_link(fn ->
 end)
 ```
 
-**The difference:**
-- `reduce_stream_indexed`: Spawns iterator process, Nx operations happen there → deadlock with EXLA
-- `reduce_indexed`: Calls `Enum.to_list(batches)` in main process first, then uses Task.async for prefetching already-computed batches → works
+**The key safety property:** All Nx operations must happen in the main process, not spawned processes.
+
+**Functions and their safety:**
+- `reduce_stream_indexed`: Spawns iterator process, Nx operations happen there → **deadlock with EXLA**
+- `reduce_indexed`: All operations in main process (no spawn) → **safe for EXLA**
 
 **Fix:** Use `reduce_indexed` for non-streaming (precomputed embeddings) mode:
 
@@ -1090,10 +1092,30 @@ end)
 end
 ```
 
-**Why this is safe:** For non-streaming mode with precomputed embeddings:
-1. The embeddings are already in memory (just array lookups)
-2. `Nx.stack` is fast for pre-computed tensors
-3. Materializing the batch list upfront is acceptable memory-wise
-4. All Nx operations happen in the main process before Task-based prefetching
+**Why `reduce_indexed` is safe:** It uses lazy iteration with `Stream.with_index() |> Enum.reduce()` which runs synchronously in the main process. No spawned processes, no deadlock risk.
+
+**Important history (January 2025):** The original `reduce_indexed` called `Enum.to_list(batches)` upfront to materialize all batches before prefetching. This was safe but caused a severe startup delay (~25+ minutes) when training on large datasets (e.g., 3567 batches), because `Nx.stack` was called 3567 times upfront before any training started.
+
+The fix was to simplify `reduce_indexed` to iterate lazily:
+```elixir
+# OLD (slow - materialized all batches upfront):
+def reduce_indexed(batches, initial_acc, fun) do
+  batch_list = Enum.to_list(batches)  # Nx.stack on ALL 3567 batches!
+  # ... then prefetch from the list
+end
+
+# NEW (fast - lazy iteration in main process):
+def reduce_indexed(batches, initial_acc, fun) do
+  batches
+  |> Stream.with_index()
+  |> Enum.reduce(initial_acc, fn {batch, idx}, acc ->
+    fun.(batch, idx, acc)  # Nx.stack happens here, one batch at a time
+  end)
+end
+```
+
+This is still safe because `Enum.reduce` runs synchronously in the main process - no spawned processes are involved. The batch stream is consumed lazily, and each `Nx.stack` happens in the main process.
+
+**Regression tests:** `test/exphil/training/prefetcher_test.exs` has "Nx tensor compatibility" tests that verify `reduce_indexed` works correctly with EXLA tensors.
 
 **Code location:** `scripts/train_from_replays.exs` around line 1485, `lib/exphil/training/prefetcher.ex`
