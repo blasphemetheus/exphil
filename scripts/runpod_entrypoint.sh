@@ -165,6 +165,59 @@ echo "✓ Checkpoints uploaded"
 SCRIPT
 chmod +x /usr/local/bin/sync-checkpoints-up
 
+cat > /usr/local/bin/sync-logs-up << 'SCRIPT'
+#!/bin/bash
+# Upload local logs to B2 (organized by date)
+# Usage: sync-logs-up [--today | --date YYYY-MM-DD | --flat]
+
+B2_BUCKET="${B2_BUCKET:-exphil-replays-blewfargs}"
+TODAY=$(date +%Y-%m-%d)
+
+# Find logs directory
+if [ -d "/app/logs" ] && [ "$(ls -A /app/logs 2>/dev/null)" ]; then
+  LOGS_DIR="/app/logs"
+elif [ -d "/workspace/logs" ] && [ "$(ls -A /workspace/logs 2>/dev/null)" ]; then
+  LOGS_DIR="/workspace/logs"
+else
+  echo "No logs found in /app/logs or /workspace/logs"
+  exit 1
+fi
+echo "Using logs directory: $LOGS_DIR"
+
+if [ "$1" = "--flat" ]; then
+  echo "Uploading logs to b2:$B2_BUCKET/logs/ (flat)..."
+  rclone copy "$LOGS_DIR/" "b2:$B2_BUCKET/logs/" --copy-links --progress
+elif [ "$1" = "--date" ] && [ -n "$2" ]; then
+  echo "Uploading logs to b2:$B2_BUCKET/logs/$2/..."
+  rclone copy "$LOGS_DIR/" "b2:$B2_BUCKET/logs/$2/" --copy-links --progress
+elif [ "$1" = "--today" ] || [ -z "$1" ]; then
+  echo "Uploading logs to b2:$B2_BUCKET/logs/$TODAY/..."
+  rclone copy "$LOGS_DIR/" "b2:$B2_BUCKET/logs/$TODAY/" --copy-links --progress
+else
+  echo "Usage: sync-logs-up [--today | --date YYYY-MM-DD | --flat]"
+  exit 1
+fi
+echo "✓ Logs uploaded"
+SCRIPT
+chmod +x /usr/local/bin/sync-logs-up
+
+cat > /usr/local/bin/sync-all-up << 'SCRIPT'
+#!/bin/bash
+# Upload both checkpoints and logs to B2
+# Usage: sync-all-up [--today | --date YYYY-MM-DD | --flat]
+
+echo "=== Syncing checkpoints ==="
+sync-checkpoints-up "$@"
+
+echo ""
+echo "=== Syncing logs ==="
+sync-logs-up "$@"
+
+echo ""
+echo "✓ All synced"
+SCRIPT
+chmod +x /usr/local/bin/sync-all-up
+
 cat > /usr/local/bin/sync-checkpoints-down << 'SCRIPT'
 #!/bin/bash
 # Download checkpoints from B2
@@ -245,19 +298,17 @@ chmod +x /usr/local/bin/list-checkpoints
 
 echo "=== Entrypoint complete ==="
 echo ""
-echo "Checkpoint sync commands available:"
-echo "  sync-checkpoints-up           # Upload to B2 (today's date folder)"
-echo "  sync-checkpoints-up --date YYYY-MM-DD  # Upload to specific date"
-echo "  sync-checkpoints-up --flat    # Upload to root (no date folders)"
+echo "Sync commands available:"
+echo "  sync-all-up                   # Upload checkpoints + logs to B2"
 echo ""
-echo "  sync-checkpoints-down         # Show available dates"
-echo "  sync-checkpoints-down YYYY-MM-DD  # Download from specific date"
-echo "  sync-checkpoints-down --latest    # Download most recent date"
-echo "  sync-checkpoints-down --all       # Download everything"
+echo "  sync-checkpoints-up           # Upload checkpoints (today's date folder)"
+echo "  sync-checkpoints-down --latest    # Download most recent checkpoints"
 echo ""
-echo "  list-checkpoints              # List dates on B2"
-echo "  list-checkpoints YYYY-MM-DD   # List files in date folder"
-echo "  list-checkpoints --local      # List local checkpoints"
+echo "  sync-logs-up                  # Upload logs (today's date folder)"
+echo ""
+echo "  list-checkpoints              # List checkpoint dates on B2"
+echo ""
+echo "Options for all sync commands: --today, --date YYYY-MM-DD, --flat"
 echo ""
 
 # Run whatever command was passed (or default to bash)
