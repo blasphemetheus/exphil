@@ -186,6 +186,7 @@ mix run scripts/train_from_replays.exs --dual-port
 | `--precision TYPE` | bf16 | bf16 or f32 |
 | `--frame-delay N` | 0 | Simulated online delay (for Slippi) |
 | `--stream-chunk-size N` | nil | Load N files at a time (memory-bounded) |
+| `--gc-every N` | 100 | Run garbage collection every N batches (0=disabled) |
 
 ### Data Augmentation
 

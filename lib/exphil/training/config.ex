@@ -73,7 +73,9 @@ defmodule ExPhil.Training.Config do
     "--no-skip-duplicates",  # Include all files even if duplicates
     # Replay quality filtering
     "--min-quality",  # Minimum quality score (0-100) for replays
-    "--show-quality-stats"  # Show quality distribution stats
+    "--show-quality-stats",  # Show quality distribution stats
+    # Memory management
+    "--gc-every"  # Run garbage collection every N batches (0 = disabled)
   ]
 
   @doc """
@@ -206,7 +208,9 @@ defmodule ExPhil.Training.Config do
       skip_duplicates: true,  # Skip duplicate replay files by hash
       # Replay quality filtering
       min_quality: nil,  # nil = no quality filtering, N = minimum score (0-100)
-      show_quality_stats: false  # Show quality distribution after filtering
+      show_quality_stats: false,  # Show quality distribution after filtering
+      # Memory management
+      gc_every: 100  # Run garbage collection every N batches (0 = disabled)
     ]
     |> apply_env_defaults()
   end
@@ -1689,6 +1693,8 @@ defmodule ExPhil.Training.Config do
     # Replay quality filtering
     |> parse_optional_int_arg(args, "--min-quality", :min_quality)
     |> parse_flag(args, "--show-quality-stats", :show_quality_stats)
+    # Memory management
+    |> parse_optional_int_arg(args, "--gc-every", :gc_every)
     |> then(fn opts ->
       # --no-overwrite makes overwrite explicitly false
       if opts[:no_overwrite], do: Keyword.put(opts, :overwrite, false), else: opts

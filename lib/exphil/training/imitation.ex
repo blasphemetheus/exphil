@@ -592,6 +592,7 @@ defmodule ExPhil.Training.Imitation do
 
   defp train_epoch_no_accumulation(trainer, dataset, epoch, callback) do
     {_predict_fn, loss_fn} = build_loss_fn(trainer.policy_model)
+    gc_every = trainer.config[:gc_every] || 0
 
     Enum.reduce(dataset, trainer, fn batch, acc ->
       {new_trainer, metrics} = train_step(acc, batch, loss_fn)
@@ -605,11 +606,18 @@ defmodule ExPhil.Training.Imitation do
         Logger.info("Step #{new_trainer.step}: loss=#{Float.round(metrics.loss, 4)}")
       end
 
+      # Periodic garbage collection to prevent memory buildup
+      if gc_every > 0 and rem(new_trainer.step, gc_every) == 0 do
+        :erlang.garbage_collect()
+      end
+
       new_trainer
     end)
   end
 
   defp train_epoch_with_accumulation(trainer, dataset, epoch, callback, accumulation_steps) do
+    gc_every = trainer.config[:gc_every] || 0
+
     # Track accumulated gradients and losses
     init_accum = %{
       trainer: trainer,
@@ -651,6 +659,11 @@ defmodule ExPhil.Training.Imitation do
         # Log periodically
         if rem(new_trainer.step, new_trainer.config.log_interval) == 0 do
           Logger.info("Step #{new_trainer.step}: loss=#{Float.round(avg_loss, 4)} (accum=#{accumulation_steps})")
+        end
+
+        # Periodic garbage collection to prevent memory buildup
+        if gc_every > 0 and rem(new_trainer.step, gc_every) == 0 do
+          :erlang.garbage_collect()
         end
 
         # Reset accumulation state

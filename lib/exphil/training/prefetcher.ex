@@ -68,49 +68,12 @@ defmodule ExPhil.Training.Prefetcher do
   """
   @spec reduce(Enumerable.t(), acc, (term(), acc -> acc)) :: acc when acc: var
   def reduce(batches, initial_acc, fun) do
-    # Convert to list to allow lookahead
-    # For streams, we'd need a different approach
-    batch_list = Enum.to_list(batches)
-
-    case batch_list do
-      [] ->
-        initial_acc
-
-      [single] ->
-        # Only one batch, no prefetching needed
-        fun.(single, initial_acc)
-
-      [first | rest] ->
-        # Start prefetching second batch
-        prefetch_task = Task.async(fn -> hd(rest) end)
-
-        # Process first batch while second loads
-        acc = fun.(first, initial_acc)
-
-        # Process remaining batches with prefetching
-        {final_acc, _last_task} = reduce_with_prefetch(tl(rest), acc, fun, prefetch_task)
-        final_acc
-    end
-  end
-
-  defp reduce_with_prefetch([], acc, fun, current_task) do
-    # No more batches to prefetch, just await and process the last one
-    batch = Task.await(current_task, :infinity)
-    {fun.(batch, acc), nil}
-  end
-
-  defp reduce_with_prefetch([next | rest], acc, fun, current_task) do
-    # Start prefetching next batch
-    next_task = Task.async(fn -> next end)
-
-    # Await current batch (should be ready or nearly ready)
-    batch = Task.await(current_task, :infinity)
-
-    # Process current batch while next loads
-    new_acc = fun.(batch, acc)
-
-    # Continue
-    reduce_with_prefetch(rest, new_acc, fun, next_task)
+    # MEMORY FIX: Use lazy streaming instead of Enum.to_list
+    # This avoids loading all batches into memory at once
+    batches
+    |> Enum.reduce(initial_acc, fn batch, acc ->
+      fun.(batch, acc)
+    end)
   end
 
   @doc """
@@ -245,50 +208,11 @@ defmodule ExPhil.Training.Prefetcher do
   ```
   """
   @spec wrap(Enumerable.t(), keyword()) :: Enumerable.t()
-  def wrap(enumerable, opts \\ []) do
-    buffer_size = Keyword.get(opts, :buffer_size, 1)
-
-    Stream.resource(
-      # Initialize: convert to list and start prefetch tasks
-      fn ->
-        batches = Enum.to_list(enumerable)
-        {prefetch_batches, remaining} = Enum.split(batches, buffer_size)
-
-        tasks = Enum.map(prefetch_batches, fn batch ->
-          Task.async(fn -> batch end)
-        end)
-
-        {tasks, remaining}
-      end,
-
-      # Next
-      fn
-        {[], []} ->
-          {:halt, {[], []}}
-
-        {[], _remaining} ->
-          {:halt, {[], []}}
-
-        {[current | rest_tasks], remaining} ->
-          batch = Task.await(current, :infinity)
-
-          # Start new prefetch if batches remain
-          {new_tasks, new_remaining} = case remaining do
-            [] ->
-              {rest_tasks, []}
-            [next | rest] ->
-              new_task = Task.async(fn -> next end)
-              {rest_tasks ++ [new_task], rest}
-          end
-
-          {[batch], {new_tasks, new_remaining}}
-      end,
-
-      # Cleanup
-      fn {tasks, _remaining} ->
-        Enum.each(tasks, &Task.shutdown(&1, :brutal_kill))
-      end
-    )
+  def wrap(enumerable, _opts \\ []) do
+    # MEMORY FIX: Simply return the enumerable as a lazy stream
+    # Avoid Enum.to_list which materializes ALL batches into memory
+    # The caller can iterate lazily
+    Stream.map(enumerable, & &1)
   end
 
   @doc """
