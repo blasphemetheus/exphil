@@ -874,22 +874,18 @@ defmodule ExPhil.Training.Imitation do
 
     # Build the loss+grad function
     # predict_fn is captured here (once), not in train_step (every batch)
+    #
+    # PERFORMANCE: We pass states/actions as arguments to value_and_grad instead of
+    # capturing them in a closure. This allows EXLA tensors to stay on GPU without
+    # the EXLA/Defn.Expr mismatch error. The [0] means "differentiate w.r.t. arg 0 (params)".
     fn params, states, actions ->
       # Convert states to training precision
       states = Nx.as_type(states, precision)
 
-      # CRITICAL: Copy tensors to BinaryBackend to avoid EXLA/Defn.Expr mismatch in closure.
-      # - EXLA tensors captured in defn closures cause compilation errors
-      # - BinaryBackend tensors are inlined into the defn expression
-      # - EXLA JIT will automatically transfer data to GPU during execution
-      # This is the correct pattern: BinaryBackend for defn compatibility, EXLA handles GPU.
-      states = Nx.backend_copy(states, Nx.BinaryBackend)
-      actions = Map.new(actions, fn {k, v} -> {k, Nx.backend_copy(v, Nx.BinaryBackend)} end)
-
-      # Build loss function for this call
-      # params is the variable we differentiate w.r.t.
-      loss_fn = fn p ->
-        {buttons, main_x, main_y, c_x, c_y, shoulder} = predict_fn.(Utils.ensure_model_state(p), states)
+      # Build loss function that takes all tensors as arguments (no closure captures)
+      # This avoids the EXLA/Defn.Expr conflict and allows GPU tensors to stay on GPU
+      loss_fn = fn p, s, a ->
+        {buttons, main_x, main_y, c_x, c_y, shoulder} = predict_fn.(Utils.ensure_model_state(p), s)
 
         logits = %{
           buttons: buttons,
@@ -900,15 +896,16 @@ defmodule ExPhil.Training.Imitation do
           shoulder: shoulder
         }
 
-        Policy.imitation_loss(logits, actions,
+        Policy.imitation_loss(logits, a,
           label_smoothing: label_smoothing,
           focal_loss: focal_loss,
           focal_gamma: focal_gamma
         )
       end
 
-      # Compute loss and gradients
-      Nx.Defn.value_and_grad(loss_fn).(params)
+      # Compute loss and gradients - differentiate only w.r.t. first arg (params)
+      # states and actions are passed as args, not captured, so EXLA tensors work
+      Nx.Defn.value_and_grad(loss_fn, [0]).(params, states, actions)
     end
   end
 

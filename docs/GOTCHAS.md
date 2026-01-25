@@ -1383,8 +1383,32 @@ actions = Map.new(actions, fn {k, v} -> {k, Nx.backend_transfer(v, EXLA.Backend)
 - `Nx.backend_transfer(tensor, backend)` - transfers to backend (more efficient, may move instead of copy)
 - `Nx.backend(tensor)` - returns current backend module
 
+**What we learned:**
+1. `Nx.backend_transfer(tensor, EXLA.Backend)` → Creates EXLA tensor → **breaks defn closures**
+2. `Nx.backend_copy(tensor, Nx.BinaryBackend)` → Safe for defn → **works but slow (4-5s/batch)**
+3. The slowness comes from CPU→GPU transfer happening every batch
+
+**Current fix (safe but slow):**
+```elixir
+states = Nx.backend_copy(states, Nx.BinaryBackend)
+actions = Map.new(actions, fn {k, v} -> {k, Nx.backend_copy(v, Nx.BinaryBackend)} end)
+```
+
+**Why closures are the problem:**
+The `value_and_grad(loss_fn)` traces `loss_fn`, which captures `states` and `actions` in its closure.
+EXLA tensors in closures conflict with Defn.Expr tracing.
+
+**Potential faster fix (TODO):**
+Pass tensors as arguments instead of capturing in closure:
+```elixir
+loss_fn = fn params, states, actions -> ... end
+# Differentiate only w.r.t. params (argument 0)
+{loss, grad} = Nx.Defn.value_and_grad(loss_fn, [0]).(params, states, actions)
+```
+This would allow EXLA tensors without closure conflicts.
+
 **Code location:**
-- `lib/exphil/training/imitation.ex:884-885` - Fixed to use `Nx.backend_transfer(tensor, EXLA.Backend)`
+- `lib/exphil/training/imitation.ex:886-887` - Current BinaryBackend copy
 
 **Regression test:**
 - `test/exphil/benchmarks/gpu_integration_test.exs` - "CPU to GPU backend transfer" tests
