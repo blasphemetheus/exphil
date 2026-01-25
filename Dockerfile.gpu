@@ -161,6 +161,14 @@ COPY --from=builder /app/priv /app/priv
 COPY --from=builder /app/test /app/test
 COPY --from=builder /app/mix.exs /app/mix.lock /app/
 
+# Initialize git repo so `git pull` works for updates
+# This creates a git repo pointing to origin, allowing easy updates without conflicts
+RUN git init && \
+    git remote add origin https://github.com/blasphemetheus/exphil.git && \
+    git fetch origin main && \
+    git reset --mixed origin/main && \
+    git branch --set-upstream-to=origin/main main
+
 # Set up mix
 RUN mix local.hex --force && mix local.rebar --force
 
