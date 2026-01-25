@@ -1005,6 +1005,189 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
   end
 
   # ============================================================================
+  # Resume Training Tests
+  # ============================================================================
+
+  describe "resume training" do
+    @tag :gpu
+    test "resumed training continues learning" do
+      # Train for 20 batches, save, resume, train 20 more
+      # Loss should decrease overall (model is learning)
+      trainer = Imitation.new(
+        embed_size: @embed_size,
+        hidden_sizes: [256],
+        temporal: false,
+        learning_rate: 1.0e-3  # Higher LR for faster convergence in test
+      )
+
+      # Use consistent random data so loss can actually decrease
+      key = Nx.Random.key(42)
+      all_batches = for i <- 1..40 do
+        {states, key} = Nx.Random.uniform(key, shape: {32, @embed_size}, type: :f32)
+        actions = generate_actions(32, key)
+        %{states: states, actions: actions}
+      end
+
+      first_half = Enum.take(all_batches, 20)
+      second_half = Enum.drop(all_batches, 20)
+
+      # Train first 20 batches
+      {mid_trainer, mid_losses} = Enum.reduce(first_half, {trainer, []}, fn batch, {t, losses} ->
+        {new_t, metrics} = Imitation.train_step(t, batch, nil)
+        {new_t, [Nx.to_number(metrics.loss) | losses]}
+      end)
+
+      mid_avg_loss = Enum.sum(Enum.take(mid_losses, 5)) / 5  # Last 5 losses
+
+      # Save checkpoint
+      tmp_dir = System.tmp_dir!()
+      checkpoint_path = Path.join(tmp_dir, "resume_test_#{:rand.uniform(100000)}.axon")
+
+      try do
+        :ok = Imitation.save_checkpoint(mid_trainer, checkpoint_path)
+
+        # Load and verify step was preserved
+        {:ok, loaded} = Imitation.load_checkpoint(mid_trainer, checkpoint_path)
+        assert loaded.step == mid_trainer.step, "Step not preserved on load"
+
+        # Train 20 more batches on loaded model
+        {final_trainer, final_losses} = Enum.reduce(second_half, {loaded, []}, fn batch, {t, losses} ->
+          {new_t, metrics} = Imitation.train_step(t, batch, nil)
+          {new_t, [Nx.to_number(metrics.loss) | losses]}
+        end)
+
+        final_avg_loss = Enum.sum(Enum.take(final_losses, 5)) / 5
+
+        # Step should have incremented
+        assert final_trainer.step == 40, "Expected step=40, got #{final_trainer.step}"
+
+        IO.puts("\n  [INFO] Mid-training avg loss: #{Float.round(mid_avg_loss, 4)}")
+        IO.puts("  [INFO] Final avg loss: #{Float.round(final_avg_loss, 4)}")
+        IO.puts("  [INFO] Resume successful: step=#{final_trainer.step}")
+
+        # Note: We don't assert loss decreased because random data may not converge
+        # The key test is that training CONTINUES (step increments, no errors)
+      after
+        File.rm(checkpoint_path)
+      end
+    end
+  end
+
+  # ============================================================================
+  # Stress Tests
+  # ============================================================================
+
+  describe "stress tests" do
+    @tag :gpu
+    @tag :slow
+    @tag timeout: 300_000
+    test "no memory leak from rapid model creation/destruction" do
+      # Create and destroy 30 models, train one batch each
+      # Memory should not grow significantly
+      :erlang.garbage_collect()
+      Process.sleep(100)
+      initial_memory = :erlang.memory(:total)
+
+      for i <- 1..30 do
+        # Create model
+        trainer = Imitation.new(
+          embed_size: @embed_size,
+          hidden_sizes: [256],
+          temporal: false,
+          learning_rate: 1.0e-4
+        )
+
+        # Train one batch
+        batch = generate_batch(32, @embed_size, temporal: false)
+        {_new_trainer, metrics} = Imitation.train_step(trainer, batch, nil)
+
+        # Verify training worked
+        loss = Nx.to_number(metrics.loss)
+        refute is_nan(loss), "NaN at iteration #{i}"
+
+        # Let trainer go out of scope (should be GC'd)
+        :erlang.garbage_collect()
+      end
+
+      :erlang.garbage_collect()
+      Process.sleep(200)
+      final_memory = :erlang.memory(:total)
+      growth_mb = (final_memory - initial_memory) / 1_000_000
+
+      IO.puts("\n  [INFO] Initial memory: #{Float.round(initial_memory / 1_000_000, 1)}MB")
+      IO.puts("  [INFO] Final memory: #{Float.round(final_memory / 1_000_000, 1)}MB")
+      IO.puts("  [INFO] Growth after 30 model cycles: #{Float.round(growth_mb, 1)}MB")
+
+      # Allow some growth but catch major leaks
+      # 200MB for 30 models would indicate a leak
+      assert growth_mb < 200,
+        "Possible memory leak: #{growth_mb}MB growth after 30 model create/destroy cycles"
+    end
+
+    @tag :gpu
+    test "Mamba handles very long sequences (120 frames)" do
+      # Test with 2 seconds of gameplay (120 frames at 60fps)
+      long_seq_len = 120
+
+      trainer = Imitation.new(
+        embed_size: @embed_size,
+        hidden_sizes: [128],  # Smaller for memory
+        temporal: true,
+        backbone: :mamba,
+        window_size: long_seq_len,
+        num_layers: 2,
+        learning_rate: 1.0e-4
+      )
+
+      # Generate batch with long sequence
+      batch = generate_batch(8, @embed_size, temporal: true, seq_len: long_seq_len)
+
+      # Should complete without OOM or numerical issues
+      {time_us, {new_trainer, metrics}} = :timer.tc(fn ->
+        Imitation.train_step(trainer, batch, nil)
+      end)
+
+      loss = Nx.to_number(metrics.loss)
+      time_ms = time_us / 1000
+
+      refute is_nan(loss), "NaN loss with long sequence"
+      refute is_infinite(loss), "Infinite loss with long sequence"
+      assert new_trainer.step == 1
+
+      IO.puts("\n  [INFO] Long sequence (#{long_seq_len} frames) training: #{Float.round(time_ms, 1)}ms")
+      IO.puts("  [INFO] Loss: #{Float.round(loss, 4)}")
+    end
+
+    @tag :gpu
+    test "deep MLP network (6 layers) trains stably" do
+      # Test with deeper than typical network
+      trainer = Imitation.new(
+        embed_size: @embed_size,
+        hidden_sizes: [256, 256, 128, 128, 64, 64],  # 6 layers
+        temporal: false,
+        learning_rate: 1.0e-4,
+        layer_norm: true,  # Helps with deep networks
+        residual: true     # Skip connections for stability
+      )
+
+      # Train 20 batches
+      final_trainer = Enum.reduce(1..20, trainer, fn i, t ->
+        batch = generate_batch(32, @embed_size, temporal: false)
+        {new_t, metrics} = Imitation.train_step(t, batch, nil)
+
+        loss = Nx.to_number(metrics.loss)
+        refute is_nan(loss), "NaN at batch #{i}"
+        refute is_infinite(loss), "Infinite loss at batch #{i}"
+
+        new_t
+      end)
+
+      assert final_trainer.step == 20
+      IO.puts("\n  [INFO] Deep MLP (6 layers) completed 20 batches stably")
+    end
+  end
+
+  # ============================================================================
   # Helpers
   # ============================================================================
 
