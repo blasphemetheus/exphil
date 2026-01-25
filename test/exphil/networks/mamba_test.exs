@@ -355,4 +355,256 @@ defmodule ExPhil.Networks.MambaTest do
       assert Nx.shape(shoulder) == {@batch_size, 5}
     end
   end
+
+  # ============================================================================
+  # Incremental Inference (State Caching) Tests
+  # ============================================================================
+
+  describe "init_cache/1" do
+    test "initializes cache with correct structure" do
+      cache = Mamba.init_cache(
+        batch_size: 2,
+        hidden_size: @hidden_size,
+        state_size: @state_size,
+        expand_factor: 2,
+        conv_size: 4,
+        num_layers: 2
+      )
+
+      assert Map.has_key?(cache, :layers)
+      assert Map.has_key?(cache, :step)
+      assert Map.has_key?(cache, :config)
+
+      assert cache.step == 0
+      assert map_size(cache.layers) == 2
+    end
+
+    test "layer cache has correct tensor shapes" do
+      batch_size = 2
+      inner_size = @hidden_size * 2  # expand_factor = 2
+      conv_size = 4
+
+      cache = Mamba.init_cache(
+        batch_size: batch_size,
+        hidden_size: @hidden_size,
+        state_size: @state_size,
+        expand_factor: 2,
+        conv_size: conv_size,
+        num_layers: 1
+      )
+
+      layer_cache = cache.layers["layer_1"]
+
+      # SSM hidden state: [batch, inner_size, state_size]
+      assert Nx.shape(layer_cache.h) == {batch_size, inner_size, @state_size}
+
+      # Conv buffer: [batch, conv_size-1, inner_size]
+      assert Nx.shape(layer_cache.conv_buffer) == {batch_size, conv_size - 1, inner_size}
+    end
+
+    test "initializes with zeros" do
+      cache = Mamba.init_cache(
+        batch_size: 1,
+        hidden_size: @hidden_size,
+        num_layers: 1
+      )
+
+      layer_cache = cache.layers["layer_1"]
+
+      # All values should be zero
+      assert Nx.to_number(Nx.sum(layer_cache.h)) == 0.0
+      assert Nx.to_number(Nx.sum(layer_cache.conv_buffer)) == 0.0
+    end
+  end
+
+  describe "step/4" do
+    test "produces output with correct shape" do
+      # Build model and get params
+      model = Mamba.build(
+        embed_size: @hidden_size,  # Same size to avoid projection complexity
+        hidden_size: @hidden_size,
+        state_size: @state_size,
+        num_layers: 1,
+        window_size: @seq_len
+      )
+
+      {init_fn, _predict_fn} = Axon.build(model)
+      params = init_fn.(Nx.template({1, @seq_len, @hidden_size}, :f32), Axon.ModelState.empty())
+
+      # Initialize cache
+      cache = Mamba.init_cache(
+        batch_size: 1,
+        hidden_size: @hidden_size,
+        state_size: @state_size,
+        num_layers: 1
+      )
+
+      # Single frame input
+      x = Nx.broadcast(0.5, {1, @hidden_size})
+
+      # Run step
+      {output, new_cache} = Mamba.step(x, params, cache)
+
+      # Output should be [batch, hidden_size]
+      assert Nx.shape(output) == {1, @hidden_size}
+
+      # Cache step should increment
+      assert new_cache.step == 1
+    end
+
+    test "updates cache state across multiple steps" do
+      model = Mamba.build(
+        embed_size: @hidden_size,
+        hidden_size: @hidden_size,
+        state_size: @state_size,
+        num_layers: 1,
+        window_size: @seq_len
+      )
+
+      {init_fn, _predict_fn} = Axon.build(model)
+      params = init_fn.(Nx.template({1, @seq_len, @hidden_size}, :f32), Axon.ModelState.empty())
+
+      cache = Mamba.init_cache(
+        batch_size: 1,
+        hidden_size: @hidden_size,
+        state_size: @state_size,
+        num_layers: 1
+      )
+
+      # Run multiple steps
+      x1 = Nx.broadcast(0.5, {1, @hidden_size})
+      {out1, cache} = Mamba.step(x1, params, cache)
+
+      x2 = Nx.broadcast(0.7, {1, @hidden_size})
+      {out2, cache} = Mamba.step(x2, params, cache)
+
+      x3 = Nx.broadcast(0.3, {1, @hidden_size})
+      {out3, cache} = Mamba.step(x3, params, cache)
+
+      # Cache should track steps
+      assert cache.step == 3
+
+      # Outputs should all be valid and non-zero
+      assert Nx.shape(out1) == {1, @hidden_size}
+      assert Nx.shape(out2) == {1, @hidden_size}
+      assert Nx.shape(out3) == {1, @hidden_size}
+
+      # Different inputs should produce different outputs
+      # (this verifies the model is actually processing input)
+      out1_sum = Nx.to_number(Nx.sum(out1))
+      out2_sum = Nx.to_number(Nx.sum(out2))
+      out3_sum = Nx.to_number(Nx.sum(out3))
+
+      assert out1_sum != out2_sum or out2_sum != out3_sum,
+        "Outputs should vary with different inputs"
+    end
+
+    test "accepts [batch, 1, hidden] input shape" do
+      model = Mamba.build(
+        embed_size: @hidden_size,
+        hidden_size: @hidden_size,
+        state_size: @state_size,
+        num_layers: 1,
+        window_size: @seq_len
+      )
+
+      {init_fn, _predict_fn} = Axon.build(model)
+      params = init_fn.(Nx.template({1, @seq_len, @hidden_size}, :f32), Axon.ModelState.empty())
+
+      cache = Mamba.init_cache(
+        batch_size: 1,
+        hidden_size: @hidden_size,
+        state_size: @state_size,
+        num_layers: 1
+      )
+
+      # Input with explicit seq_len=1 dimension
+      x = Nx.broadcast(0.5, {1, 1, @hidden_size})
+
+      {output, _cache} = Mamba.step(x, params, cache)
+
+      # Should squeeze and produce correct output
+      assert Nx.shape(output) == {1, @hidden_size}
+    end
+
+    test "produces finite outputs" do
+      model = Mamba.build(
+        embed_size: @hidden_size,
+        hidden_size: @hidden_size,
+        state_size: @state_size,
+        num_layers: 2,
+        window_size: @seq_len
+      )
+
+      {init_fn, _predict_fn} = Axon.build(model)
+      params = init_fn.(Nx.template({1, @seq_len, @hidden_size}, :f32), Axon.ModelState.empty())
+
+      cache = Mamba.init_cache(
+        batch_size: 1,
+        hidden_size: @hidden_size,
+        state_size: @state_size,
+        num_layers: 2
+      )
+
+      # Random input
+      key = Nx.Random.key(42)
+      {x, _} = Nx.Random.uniform(key, shape: {1, @hidden_size}, type: :f32)
+
+      {output, _cache} = Mamba.step(x, params, cache)
+
+      # Check no NaN or Inf
+      assert Nx.all(Nx.is_nan(output) |> Nx.logical_not()) |> Nx.to_number() == 1
+      assert Nx.all(Nx.is_infinity(output) |> Nx.logical_not()) |> Nx.to_number() == 1
+    end
+  end
+
+  describe "incremental vs full sequence comparison" do
+    @tag :slow
+    test "incremental inference produces valid outputs for each step" do
+      # This test verifies that incremental inference produces reasonable outputs
+      # Note: Due to the simplified SSM approximation, exact equivalence with
+      # full-sequence inference is not guaranteed, but outputs should be finite
+      # and of correct shape.
+
+      seq_len = 5
+
+      model = Mamba.build(
+        embed_size: @hidden_size,
+        hidden_size: @hidden_size,
+        state_size: @state_size,
+        num_layers: 1,
+        window_size: seq_len
+      )
+
+      {init_fn, _predict_fn} = Axon.build(model)
+      params = init_fn.(Nx.template({1, seq_len, @hidden_size}, :f32), Axon.ModelState.empty())
+
+      # Create sequence of frames
+      key = Nx.Random.key(123)
+      {frames, _} = Nx.Random.uniform(key, shape: {seq_len, @hidden_size}, type: :f32)
+
+      # Run incremental inference
+      cache = Mamba.init_cache(
+        batch_size: 1,
+        hidden_size: @hidden_size,
+        state_size: @state_size,
+        num_layers: 1
+      )
+
+      incremental_outputs =
+        Enum.reduce(0..(seq_len - 1), {[], cache}, fn i, {outputs, cache} ->
+          x = frames[i] |> Nx.new_axis(0)  # [1, hidden_size]
+          {out, new_cache} = Mamba.step(x, params, cache)
+          {[out | outputs], new_cache}
+        end)
+        |> elem(0)
+        |> Enum.reverse()
+
+      # Verify each output is finite and correct shape
+      for output <- incremental_outputs do
+        assert Nx.shape(output) == {1, @hidden_size}
+        assert Nx.all(Nx.is_nan(output) |> Nx.logical_not()) |> Nx.to_number() == 1
+      end
+    end
+  end
 end

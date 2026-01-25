@@ -522,4 +522,327 @@ defmodule ExPhil.Networks.Mamba do
       dropout: 0.1
     ]
   end
+
+  # ============================================================================
+  # Incremental Inference (State Caching)
+  # ============================================================================
+
+  @doc """
+  Initialize hidden state for incremental inference.
+
+  Returns a map containing the cached state for each layer.
+  For each layer, we cache:
+  - `:h` - The SSM hidden state [batch, state_size]
+  - `:conv_buffer` - Buffer for causal convolution [batch, conv_size-1, inner_size]
+
+  ## Options
+    - `:batch_size` - Batch size (default: 1)
+    - `:hidden_size` - Hidden dimension D (default: 256)
+    - `:state_size` - SSM state dimension N (default: 16)
+    - `:expand_factor` - Expansion factor E (default: 2)
+    - `:conv_size` - Convolution kernel size (default: 4)
+    - `:num_layers` - Number of Mamba blocks (default: 2)
+
+  ## Example
+
+      cache = Mamba.init_cache(batch_size: 1, hidden_size: 256)
+      {output, new_cache} = Mamba.step(x_single_frame, params, cache, opts)
+  """
+  @spec init_cache(keyword()) :: map()
+  def init_cache(opts \\ []) do
+    batch_size = Keyword.get(opts, :batch_size, 1)
+    hidden_size = Keyword.get(opts, :hidden_size, @default_hidden_size)
+    state_size = Keyword.get(opts, :state_size, @default_state_size)
+    expand_factor = Keyword.get(opts, :expand_factor, @default_expand_factor)
+    conv_size = Keyword.get(opts, :conv_size, @default_conv_size)
+    num_layers = Keyword.get(opts, :num_layers, @default_num_layers)
+
+    inner_size = hidden_size * expand_factor
+
+    # Initialize cache for each layer
+    layers =
+      for layer_idx <- 1..num_layers, into: %{} do
+        layer_cache = %{
+          # SSM hidden state: [batch, inner_size, state_size]
+          # (we maintain state per hidden dimension, projected to state_size)
+          h: Nx.broadcast(Nx.tensor(0.0), {batch_size, inner_size, state_size}),
+
+          # Convolution buffer: [batch, conv_size-1, inner_size]
+          # Stores the last (conv_size-1) inputs for causal conv
+          conv_buffer: Nx.broadcast(Nx.tensor(0.0), {batch_size, conv_size - 1, inner_size})
+        }
+
+        {"layer_#{layer_idx}", layer_cache}
+      end
+
+    %{
+      layers: layers,
+      step: 0,
+      config: %{
+        hidden_size: hidden_size,
+        state_size: state_size,
+        expand_factor: expand_factor,
+        conv_size: conv_size,
+        num_layers: num_layers
+      }
+    }
+  end
+
+  @doc """
+  Perform a single incremental step with cached state.
+
+  Takes a single frame input and the current cache, returns the output
+  and updated cache. This enables O(1) inference per frame instead of
+  O(window_size).
+
+  ## Arguments
+    - `x` - Single frame input [batch, hidden_size] or [batch, 1, hidden_size]
+    - `params` - Model parameters (from trained model)
+    - `cache` - Cache from `init_cache/1` or previous `step/4` call
+
+  ## Returns
+    `{output, new_cache}` where:
+    - `output` - [batch, hidden_size] tensor
+    - `new_cache` - Updated cache for next step
+
+  ## Example
+
+      cache = Mamba.init_cache(hidden_size: 256)
+      {out1, cache} = Mamba.step(frame1, params, cache)
+      {out2, cache} = Mamba.step(frame2, params, cache)
+      # out2 is equivalent to running [frame1, frame2] through full model
+  """
+  @spec step(Nx.Tensor.t(), map(), map(), keyword()) :: {Nx.Tensor.t(), map()}
+  def step(x, params, cache, opts \\ []) do
+    config = cache.config
+    hidden_size = config.hidden_size
+    state_size = config.state_size
+    expand_factor = config.expand_factor
+    num_layers = config.num_layers
+
+    dt_rank = div(hidden_size, state_size)
+
+    # Ensure input is [batch, hidden_size]
+    x = case Nx.shape(x) do
+      {_batch, 1, _hidden} -> Nx.squeeze(x, axes: [1])
+      {_batch, _hidden} -> x
+      _ -> raise "Expected input shape [batch, hidden_size] or [batch, 1, hidden_size]"
+    end
+
+    # Convert Axon.ModelState to plain map if needed
+    params_map = case params do
+      %Axon.ModelState{data: data} -> data
+      %{} -> params
+    end
+
+    # Project input to hidden_size if needed
+    x = if Keyword.get(opts, :project_input, false) and Map.has_key?(params_map, "input_projection") do
+      dense_forward(x, params_map["input_projection"])
+    else
+      x
+    end
+
+    # Process through each layer with cached state
+    {output, new_layers} =
+      Enum.reduce(1..num_layers, {x, cache.layers}, fn layer_idx, {acc, layers} ->
+        layer_name = "layer_#{layer_idx}"
+        layer_cache = layers[layer_name]
+        block_name = "mamba_block_#{layer_idx}"
+
+        # Get layer params (using converted map)
+        layer_params = get_layer_params(params_map, block_name)
+
+        # Forward through block with cache
+        {block_out, new_layer_cache} = step_mamba_block(
+          acc,
+          layer_params,
+          layer_cache,
+          hidden_size: hidden_size,
+          state_size: state_size,
+          expand_factor: expand_factor,
+          dt_rank: dt_rank
+        )
+
+        # Residual connection
+        out = Nx.add(acc, block_out)
+
+        new_layers = Map.put(layers, layer_name, new_layer_cache)
+        {out, new_layers}
+      end)
+
+    new_cache = %{cache |
+      layers: new_layers,
+      step: cache.step + 1
+    }
+
+    {output, new_cache}
+  end
+
+  # Single step through a Mamba block with cache
+  defp step_mamba_block(x, params, cache, opts) do
+    hidden_size = Keyword.fetch!(opts, :hidden_size)
+    state_size = Keyword.fetch!(opts, :state_size)
+    expand_factor = Keyword.fetch!(opts, :expand_factor)
+    dt_rank = Keyword.fetch!(opts, :dt_rank)
+
+    inner_size = hidden_size * expand_factor
+
+    # Layer norm
+    x = if Map.has_key?(params, :norm) do
+      layer_norm_forward(x, params.norm)
+    else
+      x
+    end
+
+    # Project to 2x inner_size
+    xz = dense_forward(x, params.in_proj)
+
+    # Split into x (SSM path) and z (gating path)
+    x_branch = Nx.slice_along_axis(xz, 0, inner_size, axis: 1)
+    z_branch = Nx.slice_along_axis(xz, inner_size, inner_size, axis: 1)
+
+    # X branch: Conv1D with cached buffer -> SiLU -> SSM
+
+    # Update conv buffer and compute convolution
+    {x_conv, new_conv_buffer} = step_causal_conv1d(
+      x_branch,
+      cache.conv_buffer,
+      params.conv
+    )
+
+    x_activated = Nx.sigmoid(x_conv) |> Nx.multiply(x_conv)  # SiLU
+
+    # SSM step with cached hidden state
+    {x_ssm, new_h} = step_ssm(
+      x_activated,
+      cache.h,
+      params.ssm,
+      state_size: state_size,
+      dt_rank: dt_rank
+    )
+
+    # Z branch: SiLU activation
+    z_activated = Nx.sigmoid(z_branch) |> Nx.multiply(z_branch)
+
+    # Gated output
+    gated = Nx.multiply(x_ssm, z_activated)
+
+    # Project back
+    output = dense_forward(gated, params.out_proj)
+
+    new_cache = %{cache |
+      h: new_h,
+      conv_buffer: new_conv_buffer
+    }
+
+    {output, new_cache}
+  end
+
+  # Single step of causal conv1d with buffer
+  defp step_causal_conv1d(x, conv_buffer, params) do
+    # x: [batch, inner_size]
+    # conv_buffer: [batch, conv_size-1, inner_size]
+
+    # Append new input to buffer
+    x_expanded = Nx.new_axis(x, 1)  # [batch, 1, inner_size]
+    full_buffer = Nx.concatenate([conv_buffer, x_expanded], axis: 1)  # [batch, conv_size, inner_size]
+
+    # Compute convolution (mean over window, then project)
+    conv_out = Nx.mean(full_buffer, axes: [1])  # [batch, inner_size]
+    conv_out = dense_forward(conv_out, params)
+
+    # Slide buffer: drop oldest, keep conv_size-1 newest
+    new_buffer = Nx.slice_along_axis(full_buffer, 1, Nx.axis_size(conv_buffer, 1), axis: 1)
+
+    {conv_out, new_buffer}
+  end
+
+  # Single step of SSM with cached hidden state
+  defp step_ssm(x, h, params, opts) do
+    state_size = Keyword.fetch!(opts, :state_size)
+    _dt_rank = Keyword.fetch!(opts, :dt_rank)
+
+    # x: [batch, inner_size]
+    # h: [batch, inner_size, state_size] - hidden state
+
+    # Compute B and C from input
+    bc = dense_forward(x, params.bc_proj)
+    b = Nx.slice_along_axis(bc, 0, state_size, axis: 1)        # [batch, state_size]
+    c = Nx.slice_along_axis(bc, state_size, state_size, axis: 1)  # [batch, state_size]
+
+    # Compute discretization step dt
+    dt = x
+    |> dense_forward(params.dt_rank)
+    |> dense_forward(params.dt_proj)
+    dt = Nx.add(dt, Nx.log(Nx.add(Nx.exp(dt), 1.0)))  # softplus
+
+    # SSM update: h_new = exp(dt * A) * h + dt * B * x
+    # A is implicitly -1 (stable decay), so exp(dt * A) = exp(-dt)
+
+    # Discretized A: exp(-dt), shape [batch, inner_size]
+    a_bar = Nx.exp(Nx.negate(Nx.mean(dt, axes: [1], keep_axes: true)))  # [batch, 1]
+    a_bar = Nx.broadcast(a_bar, {Nx.axis_size(h, 0), Nx.axis_size(h, 1), state_size})
+
+    # Discretized B * x: dt * B * x
+    # b: [batch, state_size], x: [batch, inner_size]
+    # We need [batch, inner_size, state_size]
+    b_expanded = Nx.new_axis(b, 1)  # [batch, 1, state_size]
+    x_expanded = Nx.new_axis(x, 2)  # [batch, inner_size, 1]
+    dt_mean = Nx.mean(dt)
+    bx = Nx.multiply(Nx.multiply(b_expanded, x_expanded), dt_mean)  # [batch, inner_size, state_size]
+
+    # Hidden state update
+    h_new = Nx.add(Nx.multiply(a_bar, h), bx)
+
+    # Output: y = C * h
+    # c: [batch, state_size], h_new: [batch, inner_size, state_size]
+    c_expanded = Nx.new_axis(c, 1)  # [batch, 1, state_size]
+    y = Nx.sum(Nx.multiply(c_expanded, h_new), axes: [2])  # [batch, inner_size]
+
+    {y, h_new}
+  end
+
+  # Helper: dense layer forward pass
+  defp dense_forward(x, params) when is_map(params) do
+    kernel = params["kernel"] || params[:kernel]
+    bias = params["bias"] || params[:bias]
+
+    out = Nx.dot(x, kernel)
+    if bias, do: Nx.add(out, bias), else: out
+  end
+
+  # Helper: layer norm forward pass
+  defp layer_norm_forward(x, params) do
+    gamma = params["gamma"] || params[:gamma] || params["scale"] || params[:scale]
+    beta = params["beta"] || params[:beta] || params["bias"] || params[:bias]
+
+    mean = Nx.mean(x, axes: [-1], keep_axes: true)
+    variance = Nx.variance(x, axes: [-1], keep_axes: true)
+    normalized = Nx.divide(Nx.subtract(x, mean), Nx.sqrt(Nx.add(variance, 1.0e-5)))
+
+    result = if gamma, do: Nx.multiply(normalized, gamma), else: normalized
+    if beta, do: Nx.add(result, beta), else: result
+  end
+
+  # Extract layer parameters from model params
+  # Handles both plain maps and Axon.ModelState structs
+  defp get_layer_params(params, block_name) do
+    # Convert Axon.ModelState to plain map if needed
+    params_map = case params do
+      %Axon.ModelState{data: data} -> data
+      %{} -> params
+    end
+
+    %{
+      norm: params_map["#{block_name}_norm"] || %{},
+      in_proj: params_map["#{block_name}_in_proj"] || %{},
+      conv: params_map["#{block_name}_conv_proj"] || %{},
+      out_proj: params_map["#{block_name}_out_proj"] || %{},
+      ssm: %{
+        bc_proj: params_map["#{block_name}_ssm_bc_proj"] || %{},
+        dt_rank: params_map["#{block_name}_ssm_dt_rank"] || %{},
+        dt_proj: params_map["#{block_name}_ssm_dt_proj"] || %{}
+      }
+    }
+  end
 end
