@@ -878,13 +878,13 @@ defmodule ExPhil.Training.Imitation do
       # Convert states to training precision
       states = Nx.as_type(states, precision)
 
-      # CRITICAL: Transfer tensors to GPU and copy to avoid EXLA/Defn.Expr mismatch
-      # Without this, precomputed embeddings stored on CPU (BinaryBackend) stay on CPU,
-      # causing 0% GPU utilization even though model params are on GPU.
-      # Both states AND actions need to be transferred since both are precomputed.
-      # Use backend_transfer for efficiency (doesn't keep original copy).
-      states = Nx.backend_transfer(states, EXLA.Backend)
-      actions = Map.new(actions, fn {k, v} -> {k, Nx.backend_transfer(v, EXLA.Backend)} end)
+      # CRITICAL: Copy tensors to BinaryBackend to avoid EXLA/Defn.Expr mismatch in closure.
+      # - EXLA tensors captured in defn closures cause compilation errors
+      # - BinaryBackend tensors are inlined into the defn expression
+      # - EXLA JIT will automatically transfer data to GPU during execution
+      # This is the correct pattern: BinaryBackend for defn compatibility, EXLA handles GPU.
+      states = Nx.backend_copy(states, Nx.BinaryBackend)
+      actions = Map.new(actions, fn {k, v} -> {k, Nx.backend_copy(v, Nx.BinaryBackend)} end)
 
       # Build loss function for this call
       # params is the variable we differentiate w.r.t.
