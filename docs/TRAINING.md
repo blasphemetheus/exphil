@@ -456,6 +456,133 @@ The prefetcher eagerly buffers batches from lazy chunk streams.
 - 56GB RAM: `--stream-chunk-size 30`
 - 128GB RAM: `--stream-chunk-size 60` or no streaming
 
+## Memory Management
+
+Training can consume significant RAM and GPU memory. This section covers how to prevent OOM errors and optimize memory usage.
+
+### Memory Usage Patterns
+
+**Where memory goes during training:**
+1. **Replay data** - Parsed frames loaded into RAM
+2. **Embeddings** - Pre-computed state embeddings (if `--precompute`)
+3. **Model parameters** - Network weights and optimizer state
+4. **Batch tensors** - Current batch on GPU
+5. **Gradient tensors** - Backprop intermediate values
+
+### Symptoms of Memory Issues
+
+| Symptom | Likely Cause | Solution |
+|---------|--------------|----------|
+| SSH freezes, can't connect | System RAM exhausted | Use `--stream-chunk-size`, reduce `--max-files` |
+| Training crashes with OOM | GPU VRAM exhausted | Reduce `--batch-size`, use `--precision bf16` |
+| Training gets progressively slower | Memory leak / fragmentation | Use `--gc-every 50` |
+| Swap usage increasing | RAM pressure | Use streaming mode, reduce batch size |
+
+### Memory Optimization Flags
+
+| Flag | Default | Effect |
+|------|---------|--------|
+| `--stream-chunk-size N` | nil | Load N files at a time instead of all |
+| `--gc-every N` | 100 | Run garbage collection every N batches |
+| `--batch-size N` | 64 | Smaller = less GPU memory |
+| `--precision bf16` | bf16 | Half precision uses ~50% less VRAM |
+| `--no-precompute` | false | Compute embeddings on-the-fly (saves RAM) |
+
+### Recommended Configurations by Hardware
+
+**RunPod RTX 4090 (24GB VRAM, ~50GB RAM):**
+```bash
+mix run scripts/train_from_replays.exs \
+  --temporal --backbone mamba \
+  --stream-chunk-size 30 \
+  --gc-every 50 \
+  --batch-size 64 \
+  --precision bf16
+```
+
+**Local GPU (8-12GB VRAM):**
+```bash
+mix run scripts/train_from_replays.exs \
+  --temporal --backbone mamba \
+  --stream-chunk-size 15 \
+  --gc-every 50 \
+  --batch-size 32 \
+  --precision bf16
+```
+
+**CPU-only (32GB RAM):**
+```bash
+mix run scripts/train_from_replays.exs \
+  --backbone mlp \
+  --stream-chunk-size 10 \
+  --gc-every 100 \
+  --batch-size 128 \
+  --no-precompute
+```
+
+### Monitoring Memory During Training
+
+**System RAM:**
+```bash
+# Watch memory usage
+watch -n 1 'free -h'
+
+# Or use htop
+htop
+```
+
+**GPU Memory (NVIDIA):**
+```bash
+# Watch GPU memory
+watch -n 1 'nvidia-smi'
+
+# Or continuous monitoring
+nvidia-smi -l 1
+```
+
+**From Elixir (in IEx):**
+```elixir
+# System memory
+:erlang.memory(:total) / 1_000_000  # MB
+
+# Force garbage collection
+:erlang.garbage_collect()
+```
+
+### Troubleshooting Memory Issues
+
+**If SSH freezes during training:**
+1. The pod is likely out of system RAM
+2. Use RunPod web terminal (Connect → Web Terminal) instead
+3. For future runs, use `--stream-chunk-size` to bound memory
+
+**If training crashes with CUDA OOM:**
+1. Reduce `--batch-size` (try halving it)
+2. Ensure `--precision bf16` is set
+3. For temporal models, reduce `--window-size`
+
+**If memory grows over time:**
+1. Enable `--gc-every 50` for more frequent garbage collection
+2. This is normal for long runs - Erlang's GC is generational
+3. The `--gc-every` flag forces full collection periodically
+
+### Technical Details
+
+**Why streaming helps:**
+- Without streaming: All replay files are parsed and loaded into RAM before training starts
+- With streaming: Files are loaded in chunks, processed, then freed
+
+**Why `--gc-every` helps:**
+- BEAM's garbage collector is per-process and generational
+- Long-running training can accumulate garbage in older generations
+- Periodic `:erlang.garbage_collect()` forces full collection
+- Default of 100 batches balances memory vs overhead (~1ms per GC)
+
+**Prefetcher memory fix (v6911c16):**
+- Previous versions materialized ALL batches into memory before training
+- Now uses lazy streaming - only current batch is in memory
+- This alone can reduce RAM usage by 50%+ for large datasets
+
 ## Performance Tips
 
 ### CPU Training Optimization

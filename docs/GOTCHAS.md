@@ -37,7 +37,8 @@ Hard-won knowledge from debugging ExPhil. Each section documents a specific issu
 31. [Polaris composed optimizer state structure](#31-polaris-composed-optimizer-state-structure)
 32. [Prefetcher deadlock with EXLA tensors in spawned processes](#32-prefetcher-deadlock-with-exla-tensors-in-spawned-processes)
 33. [LSTM/GRU training is inherently slow (not a bug)](#33-lstmgru-training-is-inherently-slow-not-a-bug)
-34. [Jamba seq_len not passed to Hybrid.build](#34-jamba-seq_len-not-passed-to-hybridbuild)
+34. [Imitation.new uses window_size, not seq_len](#34-imitationnew-uses-window_size-not-seq_len)
+35. [Prefetcher materializes all batches into memory](#35-prefetcher-materializes-all-batches-into-memory)
 
 ---
 
@@ -1227,3 +1228,78 @@ trainer = Imitation.new(
 **Code location:**
 - `lib/exphil/training/imitation.ex:83` - `@default_config` defines valid keys
 - `lib/exphil/training/imitation.ex:157` - `Keyword.take(opts, Map.keys(@default_config))` filters unknown keys
+
+---
+
+## 35. Prefetcher materializes all batches into memory
+
+**Status:** FIXED in v6911c16
+
+**Symptom:** System RAM exhausted during training, SSH freezes, can't connect to pod. Training appears to run but system becomes unresponsive.
+
+**Cause:** The `Prefetcher.reduce/3` and `Prefetcher.wrap/2` functions called `Enum.to_list(batches)` which materialized ALL batches into RAM before training even started.
+
+**Why it was written this way (and why it didn't help):**
+The intent was to enable "prefetching" - loading the next batch while GPU trains on current. But the implementation was flawed:
+1. `Enum.to_list(batches)` loaded ALL batches upfront (defeating the purpose)
+2. The async tasks then just returned data already in memory
+3. No actual prefetching happened - it was pure overhead + memory waste
+
+The proper prefetching is in `reduce_stream_indexed/4` which pulls from a lazy stream in background tasks. The simple `reduce/3` doesn't need prefetching at all - just iterate lazily.
+
+**The problem:**
+```elixir
+# OLD CODE (memory leak, no actual benefit):
+def reduce(batches, initial_acc, fun) do
+  # This loads EVERY batch into memory at once!
+  batch_list = Enum.to_list(batches)  # Memory spike happens HERE
+  # ... then iterates through already-loaded data
+end
+
+def wrap(enumerable, opts \\ []) do
+  # Also materializes everything!
+  batches = Enum.to_list(enumerable)
+  # ...
+end
+```
+
+For a training run with 10,000 batches of size 64 with 408-dim embeddings:
+- Per batch: 64 × 408 × 4 bytes = ~100KB
+- All batches: 10,000 × 100KB = **~1GB just for states**
+- Plus actions, gradients, etc. → easily 5-10GB
+
+**The fix:** Use lazy iteration instead of materializing:
+```elixir
+# NEW CODE (memory efficient):
+def reduce(batches, initial_acc, fun) do
+  # Lazy - only current batch in memory
+  batches
+  |> Enum.reduce(initial_acc, fn batch, acc ->
+    fun.(batch, acc)
+  end)
+end
+
+def wrap(enumerable, _opts \\ []) do
+  # Return lazy stream - don't materialize
+  Stream.map(enumerable, & &1)
+end
+```
+
+**Additional mitigation:** Use `--gc-every N` flag to run garbage collection periodically:
+```bash
+mix run scripts/train_from_replays.exs --gc-every 50
+```
+
+**How to detect this issue:**
+1. Monitor RAM with `watch -n 1 'free -h'`
+2. If RAM spikes immediately when training starts (before any batches process), this is likely the cause
+3. SSH becoming unresponsive is a strong indicator
+
+**Prevention:** The fix is now in the codebase. For older versions:
+- Use `--stream-chunk-size` to limit data loaded
+- Use `--gc-every 50` for more aggressive garbage collection
+- Reduce `--max-files` if training large datasets
+
+**Code location:**
+- `lib/exphil/training/prefetcher.ex:70-77` - `reduce/3` now uses lazy Enum.reduce
+- `lib/exphil/training/prefetcher.ex:233-238` - `wrap/2` now returns lazy stream
