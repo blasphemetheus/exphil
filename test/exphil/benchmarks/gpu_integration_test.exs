@@ -1601,10 +1601,12 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
 
       IO.puts("\n  [INFO] Training time: #{Float.round(time_per_batch_ms, 1)}ms/batch")
 
-      # With GPU, should be under 5 seconds per batch (was 71s without the fix)
-      # Being conservative since JIT overhead might still be present
-      assert time_per_batch_ms < 5000,
-        "Training too slow (#{time_per_batch_ms}ms/batch) - GPU transfer may not be working"
+      # With GPU and JIT-wrapped function, should be under 1 second per batch
+      # - Original bug: 71s/batch (0% GPU util)
+      # - BinaryBackend copy: 4-5s/batch
+      # - JIT outer function: ~200ms/batch (optimal)
+      assert time_per_batch_ms < 1000,
+        "Training too slow (#{time_per_batch_ms}ms/batch) - expected <1000ms with JIT optimization"
     end
   end
 

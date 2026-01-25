@@ -1386,17 +1386,37 @@ actions = Map.new(actions, fn {k, v} -> {k, Nx.backend_transfer(v, EXLA.Backend)
 **What we learned:**
 1. `Nx.backend_transfer(tensor, EXLA.Backend)` → Creates EXLA tensor → **breaks defn closures**
 2. `Nx.backend_copy(tensor, Nx.BinaryBackend)` → Safe for defn → **works but slow (4-5s/batch)**
-3. The slowness comes from CPU→GPU transfer happening every batch
-
-**Current fix (safe but slow):**
-```elixir
-states = Nx.backend_copy(states, Nx.BinaryBackend)
-actions = Map.new(actions, fn {k, v} -> {k, Nx.backend_copy(v, Nx.BinaryBackend)} end)
-```
+3. `Nx.Defn.jit(outer_fn)` → **FAST (~200ms/batch)** - tensors become Defn.Expr during tracing
 
 **Why closures are the problem:**
 The `value_and_grad(loss_fn)` traces `loss_fn`, which captures `states` and `actions` in its closure.
 EXLA tensors in closures conflict with Defn.Expr tracing.
+
+**The solution - JIT compile the outer function:**
+```elixir
+# WRONG - EXLA tensors captured in inner closure cause conflict
+fn params, states, actions ->
+  loss_fn = fn p -> compute(p, states, actions) end  # states/actions are EXLA here!
+  Nx.Defn.value_and_grad(loss_fn).(params)
+end
+
+# RIGHT - Wrap with Nx.Defn.jit so tensors become Defn.Expr during tracing
+inner_fn = fn params, states, actions ->
+  loss_fn = fn p -> compute(p, states, actions) end  # states/actions are Defn.Expr!
+  Nx.Defn.value_and_grad(loss_fn).(params)
+end
+Nx.Defn.jit(inner_fn, compiler: EXLA)
+```
+
+When the outer function is JIT compiled, all arguments (including states/actions) are traced as
+Defn.Expr, not as live EXLA tensors. This avoids the conflict while keeping everything on GPU.
+
+**Performance comparison:**
+| Approach | Time/batch | Notes |
+|----------|------------|-------|
+| No fix (original bug) | 71s | 0% GPU util, all on CPU |
+| BinaryBackend copy | 4-5s | Works but CPU→GPU transfer each batch |
+| **JIT outer function** | **~200ms** | Tensors stay on GPU, optimal |
 
 **Why multi-arg value_and_grad doesn't work:**
 ```elixir
@@ -1404,15 +1424,15 @@ EXLA tensors in closures conflict with Defn.Expr tracing.
 loss_fn = fn params, states, actions -> ... end
 Nx.Defn.value_and_grad(loss_fn, [0]).(params, states, actions)  # FunctionClauseError!
 ```
-Nx.Defn.value_and_grad only accepts single-argument functions. Closure capture is required.
 
-**Future optimization ideas:**
-- Pre-JIT compile the loss function with fixed batch shape
-- Use Nx.Defn.compile to create a reusable compiled function
-- Investigate EXLA's async transfer APIs
+**Implications for other architectures:**
+- This pattern applies to ALL training code using value_and_grad with batch data
+- Temporal models (LSTM, Mamba, Attention) benefit equally from this fix
+- Any code that calls value_and_grad should wrap the outer function with Nx.Defn.jit
 
 **Code location:**
-- `lib/exphil/training/imitation.ex:886-887` - Current BinaryBackend copy
+- `lib/exphil/training/imitation.ex:875-910` - JIT-wrapped loss+grad function
 
 **Regression test:**
 - `test/exphil/benchmarks/gpu_integration_test.exs` - "CPU to GPU backend transfer" tests
+- `scripts/test_gpu_speed.exs` - Quick benchmark script
