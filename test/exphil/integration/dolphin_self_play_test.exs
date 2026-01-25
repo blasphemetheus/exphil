@@ -92,7 +92,7 @@ defmodule ExPhil.Integration.DolphinSelfPlayTest do
       {:ok, _} = MeleePort.init_console(port, config)
 
       # Wait for game to start
-      {:ok, initial_state} = wait_for_in_game(port, 600)  # 10 seconds
+      {:ok, _initial_state} = wait_for_in_game(port, 600)  # 10 seconds
 
       # Step a few frames
       frames = for _ <- 1..60 do
