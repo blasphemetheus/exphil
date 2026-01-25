@@ -780,149 +780,218 @@ GPU tests verify CUDA/EXLA functionality and catch GPU-specific issues like memo
 
 ### Running GPU Tests
 
+**On a local machine with GPU:**
 ```bash
-# On a machine with GPU
 MIX_ENV=test mix test --only gpu
-
-# With verbose output
-MIX_ENV=test mix test --only gpu --trace
-
-# Specific GPU test file
-MIX_ENV=test mix test test/exphil/benchmarks/training_speed_test.exs
 ```
 
-**Important:** On RunPod/cloud pods, `MIX_ENV=prod` is the default. Always use `MIX_ENV=test` explicitly.
+**On RunPod/Cloud (step by step):**
+```bash
+# 1. SSH into your pod
+ssh root@your-pod-ip
+
+# 2. Navigate to the app directory
+cd /app
+
+# 3. Fetch and reset to latest code
+git fetch origin main
+git reset --hard origin/main
+
+# 4. Run GPU tests (MIX_ENV=test is required!)
+MIX_ENV=test mix test --only gpu 2>&1 | tee test_output.txt
+
+# 5. View results
+cat test_output.txt
+```
+
+**Using tmux (recommended for long test runs):**
+```bash
+# Start tmux session
+tmux new -s tests
+
+# Run tests
+MIX_ENV=test mix test --only gpu 2>&1 | tee test_output.txt
+
+# Detach: Ctrl+b then d
+# Reattach: tmux attach -t tests
+# New window: Ctrl+b then c
+# Switch windows: Ctrl+b then n/p
+```
+
+**Important:** On RunPod/cloud pods, `MIX_ENV=prod` is the default. Always use `MIX_ENV=test` explicitly or test dependencies won't be compiled.
 
 ### Current GPU Tests
 
-Located in `test/exphil/benchmarks/training_speed_test.exs`:
+**Architecture Tests** (`test/exphil/benchmarks/training_speed_test.exs`):
 
 | Test | Purpose | Threshold |
 |------|---------|-----------|
 | MLP training speed | Baseline comparison | <500ms/batch |
+| MLP (temporal) | MLP with sequence input | <1000ms/batch |
 | LSTM training speed | Verify BPTT performance | <15000ms/batch |
 | GRU training speed | Verify BPTT performance | <15000ms/batch |
 | Mamba training speed | Verify SSM performance | <2000ms/batch |
 | Jamba training speed | Verify hybrid architecture | <3000ms/batch |
+| Sliding window attention | Pure attention | <3000ms/batch |
+| LSTM+Attention hybrid | Hybrid architecture | <5000ms/batch |
 | Mamba vs LSTM comparison | Mamba should be faster | Mamba < LSTM * 1.5 |
-| Tensor accumulation regression | Catch Gotcha #18 | <5000ms total |
-| Periodic conversion correctness | Verify progress display fix | Loss within 0.0001 |
-| GPU utilization proxy | Detect blocking | <1000ms/batch |
+| All architectures smoke test | All 8 backbones complete | No errors |
 
-### GPU Test Ideas (Roadmap)
+**Integration Tests** (`test/exphil/benchmarks/gpu_integration_test.exs`):
 
-#### Memory Tests
+| Category | Test | What it Verifies |
+|----------|------|------------------|
+| **Performance** | JIT compilation overhead | Cold vs warm timing |
+| | Single-frame 60fps | <16.6ms inference |
+| | MLP vs Mamba speed | MLP faster than Mamba |
+| **Numerical** | 100 batches no NaN/Inf | Training stability |
+| | Extreme inputs | Large/small values handled |
+| | Gradient bounds | No explosion |
+| **Memory** | No leak over 200 batches | Memory stable |
+| | Max batch size MLP | OOM boundary |
+| | Max batch size Mamba | OOM boundary |
+| **Checkpoints** | Save/load roundtrip | Predictions match |
+| | State preservation | Step/optimizer preserved |
+| | Cross-device load | GPU→CPU works |
+| | Corrupted file handling | Graceful error |
+| **Scaling** | Batch size throughput | Larger = faster |
+| | Sequence length | Mamba handles 16/30/60 |
+| **Precision** | bf16 vs f32 speed | bf16 not slower |
+| | bf16 vs f32 loss | Similar accuracy |
+| **Stability** | 500 batch training | No divergence |
+| | Gradient clipping | Prevents explosion |
+| **Backend** | GPU/CPU similarity | Finite values |
+| | Deterministic output | Same input = same output |
+| **Gradients** | Accumulation correctness | Small batches ≈ large batch |
+
+### GPU Test Ideas (Future Roadmap)
+
+Most high-priority tests are now implemented. Here are additional test ideas:
+
+#### Multi-GPU Tests (if multiple GPUs available)
 
 | Test | Description | Priority |
 |------|-------------|----------|
-| **OOM boundary detection** | Find max batch size before OOM for each backbone | High |
-| **Memory leak detection** | Run 1000 batches, assert memory doesn't grow | High |
-| **Gradient accumulation memory** | Verify accumulated grads use less memory than large batch | Medium |
-| **Checkpoint memory spike** | Measure memory during save/load operations | Medium |
-| **Multi-model memory** | Load multiple models, verify total memory fits | Low |
+| **Data parallel training** | Same model on multiple GPUs | Medium |
+| **Model parallel sharding** | Large model split across GPUs | Low |
+| **GPU selection** | Train on specific GPU index | Medium |
+| **Memory isolation** | One GPU OOM doesn't crash others | Low |
+
+#### ONNX Export Tests
+
+| Test | Description | Priority |
+|------|-------------|----------|
+| **ONNX export roundtrip** | Export, reimport, compare predictions | High |
+| **ONNX inference speed** | Compare ONNX vs Axon inference | High |
+| **ONNX INT8 quantization** | Verify quantized model accuracy | Medium |
+| **ONNX on different runtimes** | Test with onnxruntime, TensorRT | Low |
 
 ```elixir
-# Example: OOM boundary test
+# Example: ONNX roundtrip
+@tag :gpu
+test "ONNX export produces identical predictions" do
+  trainer = Imitation.new(backbone: :mlp, hidden_sizes: [256])
+  batch = generate_batch(8, @embed_size, temporal: false)
+
+  axon_pred = do_predict(trainer, batch.states)
+
+  # Export to ONNX
+  onnx_path = "/tmp/test_model.onnx"
+  :ok = ExPhil.Export.to_onnx(trainer, onnx_path)
+
+  # Load and run ONNX
+  onnx_pred = ExPhil.Export.run_onnx(onnx_path, batch.states)
+
+  assert_tensors_close(axon_pred, onnx_pred, atol: 1.0e-4)
+end
+```
+
+#### Stress Tests
+
+| Test | Description | Priority |
+|------|-------------|----------|
+| **Rapid model creation/destruction** | Create 100 models, verify no leak | Medium |
+| **Concurrent training** | Multiple trainers in parallel | Low |
+| **Very long sequences** | seq_len=500+ stability | Medium |
+| **Very deep networks** | 20+ layer stability | Low |
+| **Mixed precision edge cases** | bf16 underflow/overflow | Medium |
+
+```elixir
+# Example: Rapid model churn
 @tag :gpu
 @tag :slow
-test "finds max batch size for MLP before OOM" do
-  max_batch = find_max_batch_size(:mlp, starting: 64, max: 4096)
-  assert max_batch >= 512, "Expected at least batch_size=512 on this GPU"
-  IO.puts("\n  [INFO] Max MLP batch size: #{max_batch}")
+test "no memory leak from rapid model creation" do
+  initial_mem = :erlang.memory(:total)
+
+  for _ <- 1..50 do
+    trainer = Imitation.new(backbone: :mamba, hidden_sizes: [256])
+    batch = generate_batch(16, @embed_size, temporal: true, seq_len: 30)
+    {_, _} = Imitation.train_step(trainer, batch, nil)
+    :erlang.garbage_collect()
+  end
+
+  :erlang.garbage_collect()
+  final_mem = :erlang.memory(:total)
+  growth_mb = (final_mem - initial_mem) / 1_000_000
+
+  assert growth_mb < 100, "Memory leak: #{growth_mb}MB growth"
 end
 ```
 
-#### Performance Tests
+#### Real-World Scenario Tests
 
 | Test | Description | Priority |
 |------|-------------|----------|
-| **JIT compilation time** | Measure first-batch compilation overhead | High |
-| **Warm vs cold inference** | Compare first vs subsequent batch timing | High |
-| **Batch size scaling** | Verify throughput scales with batch size | Medium |
-| **Sequence length scaling** | Measure how seq_len affects speed | Medium |
-| **bf16 vs f32 speed** | Measure mixed precision speedup | Medium |
-| **ONNX vs Axon inference** | Compare exported model speed | Medium |
-| **Real-time budget check** | Verify <16.6ms inference for 60fps | High |
+| **Resume training** | Save mid-epoch, resume, verify loss continues | High |
+| **Learning rate warmup** | Verify warmup schedule works | Medium |
+| **Early stopping** | Verify training stops when loss plateaus | Medium |
+| **Validation evaluation** | Train/val split produces different losses | Medium |
 
 ```elixir
-# Example: Real-time inference check
+# Example: Resume training continuity
 @tag :gpu
-test "inference meets 60fps budget" do
-  trainer = Imitation.new(embed_size: 408, backbone: :mamba, window_size: 30)
-  batch = generate_batch(1, 408, temporal: true, seq_len: 30)
+test "resumed training continues learning" do
+  trainer = Imitation.new(backbone: :mlp, learning_rate: 1.0e-3)
+  batches = generate_batches(50, 32, @embed_size, temporal: false)
 
-  # Warmup
-  _ = Imitation.predict(trainer, batch)
-
-  # Measure
-  {time_us, _} = :timer.tc(fn ->
-    for _ <- 1..60, do: Imitation.predict(trainer, batch)
+  # Train 25 batches
+  {mid_trainer, _} = Enum.reduce(Enum.take(batches, 25), {trainer, nil}, fn batch, {t, _} ->
+    Imitation.train_step(t, batch, nil)
   end)
+  mid_loss = get_last_loss(mid_trainer)
 
-  avg_ms = time_us / 1000 / 60
-  assert avg_ms < 16.6, "Inference too slow for 60fps: #{avg_ms}ms"
-end
-```
+  # Save and reload
+  path = "/tmp/resume_test.axon"
+  :ok = Imitation.save_checkpoint(mid_trainer, path)
+  {:ok, loaded} = Imitation.load_checkpoint(mid_trainer, path)
 
-#### Numerical Stability Tests
-
-| Test | Description | Priority |
-|------|-------------|----------|
-| **No NaN/Inf in training** | Run 100 batches, assert all outputs finite | High |
-| **Gradient explosion detection** | Verify grad norms stay bounded | High |
-| **bf16 precision loss** | Compare bf16 vs f32 loss values | Medium |
-| **Long training stability** | 10000 steps without NaN | Medium |
-| **Extreme input handling** | Very large/small input values | Low |
-
-```elixir
-# Example: Numerical stability
-@tag :gpu
-@tag :slow
-test "training stays numerically stable for 1000 batches" do
-  trainer = Imitation.new(backbone: :mamba)
-  batches = generate_training_batches(1000, 32, 408, temporal: true)
-
-  final_trainer = Enum.reduce(batches, trainer, fn batch, t ->
-    {new_t, metrics} = Imitation.train_step(t, batch, nil)
-    loss = Nx.to_number(metrics.loss)
-
-    assert is_float(loss), "Loss is not a float: #{inspect(loss)}"
-    refute is_nan(loss), "NaN loss at step #{new_t.step}"
-    refute is_infinite(loss), "Infinite loss at step #{new_t.step}"
-
-    new_t
+  # Continue training 25 more batches
+  {final_trainer, _} = Enum.reduce(Enum.drop(batches, 25), {loaded, nil}, fn batch, {t, _} ->
+    Imitation.train_step(t, batch, nil)
   end)
+  final_loss = get_last_loss(final_trainer)
 
-  assert final_trainer.step == 1000
+  # Loss should have decreased (model is learning)
+  assert final_loss < mid_loss, "Loss didn't decrease after resume"
 end
 ```
 
-#### Checkpoint Tests
+#### Regression Tests
 
 | Test | Description | Priority |
 |------|-------------|----------|
-| **Save/load roundtrip** | Save, load, verify identical predictions | High |
-| **Cross-device load** | Save on GPU, load on CPU (and vice versa) | High |
-| **Corrupted checkpoint** | Graceful error on bad checkpoint | Medium |
-| **Checkpoint size** | Verify file size is reasonable | Low |
-| **Incremental checkpointing** | Verify only changed params saved | Low |
+| **Known good checkpoint** | Load v1.0 checkpoint, verify predictions | High |
+| **Backward compatibility** | Old config format still works | Medium |
+| **Embedding dimension changes** | Detect config/model mismatch | High |
 
-```elixir
-# Example: Roundtrip test
-@tag :gpu
-test "checkpoint roundtrip produces identical predictions" do
-  trainer = Imitation.new(backbone: :mamba)
-  batch = generate_batch(8, 408, temporal: true)
+#### Dolphin Integration Tests (requires Dolphin setup)
 
-  # Get predictions before save
-  pred_before = Imitation.predict(trainer, batch)
-
-  with_temp_dir(fn dir ->
-    path = Path.join(dir, "test.axon")
-
-    # Save and reload
-    Imitation.save_checkpoint(trainer, path)
-    loaded_trainer = Imitation.load_checkpoint(path)
+| Test | Description | Priority |
+|------|-------------|----------|
+| **Agent plays 1 game** | Run agent for 60 seconds | High |
+| **Frame timing consistency** | Verify <16.6ms per frame | High |
+| **Memory stability in play** | No leak over 5 min game | Medium |
+| **Controller output validity** | All outputs in valid range | High |
 
     # Get predictions after load
     pred_after = Imitation.predict(loaded_trainer, batch)
@@ -969,50 +1038,6 @@ end
 | **Data parallel training** | Same model, split batches across GPUs | Low |
 | **Model parallel** | Split model across GPUs | Low |
 | **NCCL communication** | Verify all-reduce works | Low |
-
-#### Backend Comparison Tests
-
-| Test | Description | Priority |
-|------|-------------|----------|
-| **EXLA vs BinaryBackend** | Verify same results (within precision) | High |
-| **GPU vs CPU predictions** | Same input → same output | High |
-| **JIT vs eager mode** | Verify JIT doesn't change results | Medium |
-
-```elixir
-# Example: Backend comparison
-@tag :gpu
-test "GPU and CPU produce same predictions" do
-  # Build on GPU
-  gpu_trainer = Imitation.new(backbone: :mamba)
-
-  # Generate data on CPU, copy to GPU
-  batch_cpu = generate_batch(8, 408, temporal: true)
-  batch_gpu = deep_copy_to_device(batch_cpu, EXLA.Backend)
-
-  # Predict on GPU
-  pred_gpu = Imitation.predict(gpu_trainer, batch_gpu)
-
-  # Move model to CPU and predict
-  cpu_trainer = to_cpu(gpu_trainer)
-  pred_cpu = Imitation.predict(cpu_trainer, batch_cpu)
-
-  # Should match within floating point tolerance
-  assert_tensors_close(
-    Nx.backend_copy(pred_gpu, Nx.BinaryBackend),
-    pred_cpu,
-    atol: 1.0e-4
-  )
-end
-```
-
-#### Stress Tests
-
-| Test | Description | Priority |
-|------|-------------|----------|
-| **Continuous training** | Train for 1 hour without failure | Low |
-| **Rapid model switching** | Load/unload different models quickly | Low |
-| **Concurrent inference** | Multiple processes, same GPU | Low |
-| **Recovery from OOM** | Hit OOM, recover gracefully | Low |
 
 ### Writing GPU Tests
 
