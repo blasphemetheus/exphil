@@ -1,0 +1,9 @@
+{
+  "started_at": "2026-01-22T05:14:27.976537Z",
+  "last_update": "2026-01-22T05:14:27.976542Z",
+  "checkpoint": "checkpoints/mlp_hardmodded_neutral_20260122_051408.axon",
+  "preset": "quick",
+  "epochs_completed": 0,
+  "epochs_target": 2,
+  "last_epoch_loss": null
+}

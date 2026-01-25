@@ -1,0 +1,10 @@
+{
+  "max_players": 50,
+  "players": [
+    "Plup",
+    "Jmook",
+    "Mango"
+  ],
+  "unknown_strategy": "hash",
+  "version": 1
+}

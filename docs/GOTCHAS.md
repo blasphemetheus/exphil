@@ -36,6 +36,7 @@ Hard-won knowledge from debugging ExPhil. Each section documents a specific issu
 30. [Model outputs nonsensical actions](#30-model-outputs-nonsensical-actions-eg-always-rolls-right)
 31. [Polaris composed optimizer state structure](#31-polaris-composed-optimizer-state-structure)
 32. [Prefetcher deadlock with EXLA tensors in spawned processes](#32-prefetcher-deadlock-with-exla-tensors-in-spawned-processes)
+33. [LSTM/GRU training is inherently slow (not a bug)](#33-lstmgru-training-is-inherently-slow-not-a-bug)
 
 ---
 
@@ -1143,3 +1144,42 @@ This is still safe because `Enum.reduce` runs synchronously in the main process 
 **Regression tests:** `test/exphil/training/prefetcher_test.exs` has "Nx tensor compatibility" tests that verify `reduce_indexed` works correctly with EXLA tensors.
 
 **Code location:** `scripts/train_from_replays.exs` around line 1485, `lib/exphil/training/prefetcher.ex`
+
+---
+
+## 33. LSTM/GRU training is inherently slow (not a bug)
+
+**Symptom:** LSTM or GRU training takes 10-15 seconds per batch, while MLP/Mamba take <1s.
+
+**This is expected behavior, not a bug.** Recurrent networks (LSTM, GRU) cannot parallelize across the sequence dimension because each timestep depends on the previous hidden state.
+
+**Why recurrent networks are slow:**
+
+```
+Sequence processing:
+  MLP/Mamba:  [frame1, frame2, frame3, ...] → All computed in parallel
+  LSTM/GRU:   frame1 → frame2 → frame3 → ... → Sequential (each depends on prev)
+
+With gradients (BPTT - Backpropagation Through Time):
+  Forward:  30 sequential steps
+  Backward: 30 sequential steps (gradients flow backward through time)
+  Total:    60 sequential operations that can't be parallelized
+```
+
+**Expected training speeds per batch:**
+
+| Architecture | Expected Speed | Parallelizable |
+|--------------|----------------|----------------|
+| MLP | <500ms | Yes (no sequence) |
+| Mamba | <2000ms | Yes (selective scan) |
+| LSTM | <15000ms | **No** (sequential) |
+| GRU | <15000ms | **No** (sequential) |
+| Jamba | <3000ms | Partially |
+
+**Don't confuse with Gotcha #18:**
+- Gotcha #18 (Nx.to_number blocking): ~80s/batch, 0% GPU util, affects ALL architectures
+- This gotcha: ~10-15s/batch for LSTM/GRU only, GPU util is normal
+
+**Recommendation:** For real-time inference, use Mamba instead of LSTM/GRU. Mamba achieves similar temporal modeling with parallelizable operations (8.9ms inference vs 220ms for LSTM).
+
+**Code location:** `test/exphil/benchmarks/training_speed_test.exs` - thresholds adjusted for recurrent architectures

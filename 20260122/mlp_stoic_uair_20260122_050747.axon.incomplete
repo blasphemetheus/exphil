@@ -1,0 +1,9 @@
+{
+  "started_at": "2026-01-22T05:08:05.423554Z",
+  "last_update": "2026-01-22T05:08:05.423558Z",
+  "checkpoint": "checkpoints/mlp_stoic_uair_20260122_050747.axon",
+  "preset": "quick",
+  "epochs_completed": 0,
+  "epochs_target": 2,
+  "last_epoch_loss": null
+}

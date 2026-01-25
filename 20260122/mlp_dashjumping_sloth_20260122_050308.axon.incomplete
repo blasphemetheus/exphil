@@ -1,0 +1,9 @@
+{
+  "started_at": "2026-01-22T05:03:25.744592Z",
+  "last_update": "2026-01-22T05:03:25.744596Z",
+  "checkpoint": "checkpoints/mlp_dashjumping_sloth_20260122_050308.axon",
+  "preset": "quick",
+  "epochs_completed": 0,
+  "epochs_target": 2,
+  "last_epoch_loss": null
+}
