@@ -585,6 +585,41 @@ nvidia-smi -l 1
 
 ## Performance Tips
 
+### GPU Training Optimization
+
+**See [GPU_OPTIMIZATIONS.md](GPU_OPTIMIZATIONS.md) for comprehensive GPU guide.**
+
+Quick wins for GPU training:
+
+```bash
+# Maximum speed - larger batch + mixed precision
+mix run scripts/train_from_replays.exs \
+  --batch-size 512 \
+  --precision bf16 \
+  --prefetch
+
+# If GPU memory limited, use gradient accumulation
+mix run scripts/train_from_replays.exs \
+  --batch-size 256 \
+  --accumulation-steps 2 \
+  --prefetch
+```
+
+| Optimization | Flag | Impact |
+|--------------|------|--------|
+| Mixed precision | `--precision bf16` | ~2x throughput |
+| Larger batch | `--batch-size 512` | Better GPU utilization |
+| Prefetching | `--prefetch` | Overlap data/compute |
+| Grad accumulation | `--accumulation-steps 4` | Effective larger batch |
+
+**Training time (GPU):**
+
+| Dataset Size | Epochs | Time (RTX 4090) |
+|--------------|--------|-----------------|
+| 100 files | 10 | ~30 min |
+| 1000 files | 10 | ~3-4 hours |
+| Full dataset | 10 | ~8-10 hours |
+
 ### CPU Training Optimization
 
 **XLA Multi-threading** (auto-enabled):

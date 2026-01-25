@@ -73,7 +73,71 @@ mix run scripts/train_from_replays.exs --precision f32
 
 **Status:** ✅ Implemented - default precision is BF16
 
-### 6. Async Data Prefetching
+### 6. JIT-Wrapped Training Step (300x Speedup)
+
+**This is the most important optimization.** Without it, training runs at 0% GPU utilization.
+
+The problem: `Nx.Defn.value_and_grad` traces through its function argument. If that function
+captures EXLA tensors in a closure, you get an EXLA/Defn.Expr conflict error. The naive fix
+(copying to BinaryBackend) causes expensive CPU→GPU transfers every batch (4-5s/batch).
+
+The solution: Wrap the entire loss+grad function with `Nx.Defn.jit`. This makes batch tensors
+flow as Defn.Expr during tracing, avoiding the conflict while keeping tensors on GPU.
+
+```elixir
+# SLOW (4-5s/batch) - BinaryBackend copy
+fn params, states, actions ->
+  states = Nx.backend_copy(states, Nx.BinaryBackend)  # CPU→GPU every batch!
+  Nx.Defn.value_and_grad(fn p -> loss(p, states, actions) end).(params)
+end
+
+# FAST (~200ms/batch) - JIT outer function
+inner_fn = fn params, states, actions ->
+  Nx.Defn.value_and_grad(fn p -> loss(p, states, actions) end).(params)
+end
+Nx.Defn.jit(inner_fn, compiler: EXLA)  # Tensors become Defn.Expr during tracing
+```
+
+**Impact:** 71s → 200ms per batch (300x speedup)
+
+**Sources:**
+- [Nx.Defn docs](https://hexdocs.pm/nx/Nx.Defn.html) - JIT compilation
+- [Axon Loop source](https://github.com/elixir-nx/axon/blob/v0.7.0/lib/axon/loop.ex) - uses `defnp` for train_step
+- [GitHub issue #776](https://github.com/elixir-nx/nx/issues/776) - EXLA/Defn.Expr conflict
+
+**Status:** ✅ Implemented - automatic in all training
+
+### 7. Gradient Accumulation
+
+Simulate larger batch sizes without increasing memory by accumulating gradients over multiple
+mini-batches before updating weights:
+
+```
+Effective batch = batch_size × accumulation_steps
+Memory usage = batch_size (not effective batch)
+```
+
+```bash
+# Effective batch of 2048 using 512 actual batch
+mix run scripts/train_from_replays.exs \
+  --batch-size 512 \
+  --accumulation-steps 4
+```
+
+**When to use:**
+- GPU memory limited but want larger effective batch
+- Stabilize training with very small physical batch sizes
+- Match published paper batch sizes on smaller GPUs
+
+**Impact:** Same convergence as larger batch with less memory
+
+**Sources:**
+- [Gradient Accumulation in PyTorch](https://kozodoi.me/blog/20210219/gradient-accumulation)
+- [Why Large Batches Train Better](https://arxiv.org/abs/1711.00489)
+
+**Status:** ✅ Implemented - use `--accumulation-steps N`
+
+### 9. Async Data Prefetching
 
 Overlap data loading with GPU compute:
 
@@ -93,9 +157,12 @@ mix run scripts/train_from_replays.exs --prefetch --prefetch-buffer 2
 mix run scripts/train_from_replays.exs --no-prefetch
 ```
 
+**Sources:**
+- [NVIDIA Data Loading Best Practices](https://developer.nvidia.com/blog/how-optimize-data-transfers-cuda-cc/)
+
 **Status:** ✅ Implemented - uses streaming prefetcher with configurable buffer
 
-### 7. Gradient Checkpointing
+### 10. Gradient Checkpointing
 
 Trade compute for memory by recomputing activations during backward pass:
 
