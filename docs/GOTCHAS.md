@@ -473,6 +473,7 @@ Calling `Nx.to_number(loss)` after every training batch causes severe GPU underu
 **Symptoms:**
 - GPU utilization 0% despite 90% VRAM usage
 - Training takes 100x longer than expected (hours instead of minutes)
+- ~80s per batch instead of ~0.2s per batch
 - CPU utilization also low (6-10%)
 
 **Root cause:** `Nx.to_number/1` forces a synchronous GPU→CPU transfer. When called after every batch:
@@ -484,6 +485,11 @@ GPU computes batch → GPU IDLE (waiting) → CPU reads loss → Next batch
 ```
 
 The GPU finishes computing quickly but sits idle while waiting for the CPU to fetch the scalar loss value.
+
+**Common sources of this bug:**
+1. Progress display converting loss every batch for display
+2. Logging/metrics collection converting every batch
+3. Accumulating numbers instead of tensors
 
 **Fix:** Keep losses as tensors during training, convert only at epoch end:
 
@@ -502,10 +508,28 @@ end)
 avg_loss = losses |> Nx.stack() |> Nx.mean() |> Nx.to_number()  # One transfer
 ```
 
+**Progress display fix (January 2025):** The training script's progress bar was calling `Nx.to_number(metrics.loss)` every batch to display the current loss. Fixed by:
+1. Only converting to number every 50 batches for display
+2. Storing `{display_loss, tensor}` tuples in accumulator
+3. Computing epoch mean from tensors at epoch end
+
+```elixir
+# For progress display: convert only periodically
+display_loss = if rem(batch_idx, 50) == 0 do
+  Nx.to_number(metrics.loss)
+else
+  previous_display_loss  # Reuse cached value
+end
+
+# Accumulate tensor, convert at epoch end
+{new_trainer, [{display_loss, metrics.loss} | losses], ...}
+```
+
 **Related functions affected:**
 - `Imitation.train_step/3` - now returns `loss` as tensor
 - `Imitation.evaluate_batch/2` - returns tensor for accumulation
 - `Imitation.evaluate/2` - handles conversion internally
+- `scripts/train_from_replays.exs` - progress display fixed
 
 **Regression tests:** See `ImitationTest` for tests tagged `:regression` that verify tensor accumulation works correctly.
 

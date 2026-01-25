@@ -1469,16 +1469,28 @@ end
       # Show "~" prefix on total if we exceeded the estimate (indicating it's now a live count)
       total_str = if batch_idx + 1 > num_batches, do: "~#{display_total}", else: "#{display_total}"
 
-      # Convert tensor loss to number for display (metrics.loss is now a tensor)
-      loss_val = Nx.to_number(metrics.loss)
-      progress_line = "  Epoch #{epoch}: #{bar} #{pct_str}% | #{batch_idx + 1}/#{total_str} | loss: #{Float.round(loss_val, 4)} | #{Float.round(avg_batch_ms / 1000, 2)}s/it | ETA: #{eta_min}m #{eta_sec_rem}s"
+      # IMPORTANT: Only convert loss to number periodically to avoid GPU→CPU sync every batch
+      # (See gotcha #18: Nx.to_number blocks GPU utilization)
+      # Convert every 50 batches for display, but accumulate tensor for epoch-end averaging
+      display_loss = if rem(batch_idx, 50) == 0 or batch_idx == 0 do
+        Nx.to_number(metrics.loss)
+      else
+        # Use previous display loss (stored in accumulator) or 0.0 for display only
+        case losses do
+          [{prev_display, _} | _] -> prev_display
+          _ -> 0.0
+        end
+      end
+
+      progress_line = "  Epoch #{epoch}: #{bar} #{pct_str}% | #{batch_idx + 1}/#{total_str} | loss: #{Float.round(display_loss, 4)} | #{Float.round(avg_batch_ms / 1000, 2)}s/it | ETA: #{eta_min}m #{eta_sec_rem}s"
 
       # Use carriage return to overwrite line (no newline until epoch complete)
       # Write directly to stderr to bypass Output module's timestamp
       IO.write(:stderr, "\r#{progress_line}")
 
-      # Accumulate tensor loss (already converted for display above, so use loss_val)
-      {new_trainer, [loss_val | losses], new_jit_shown, new_global_idx}
+      # Accumulate tensor loss (keep as tensor, convert at epoch end)
+      # Store tuple of {display_loss, tensor} so we can show loss but compute mean from tensors
+      {new_trainer, [{display_loss, metrics.loss} | losses], new_jit_shown, new_global_idx}
     end
 
     # Use prefetcher if enabled (computes next batch while GPU trains on current)
@@ -1513,12 +1525,18 @@ end
     end
 
     epoch_time = System.monotonic_time(:second) - epoch_start
-    # epoch_losses is now a list of numbers (converted during progress display)
+    # epoch_losses is a list of {display_loss, tensor} tuples
+    # Extract tensors and compute mean (single GPU→CPU transfer at epoch end)
     avg_loss = if epoch_losses == [] do
       Output.warning("No batches processed this epoch - check replay data")
       0.0
     else
-      Enum.sum(epoch_losses) / length(epoch_losses)
+      # Extract tensor losses, stack, and compute mean
+      tensor_losses = Enum.map(epoch_losses, fn {_display, tensor} -> tensor end)
+      tensor_losses
+      |> Nx.stack()
+      |> Nx.mean()
+      |> Nx.to_number()
     end
 
     # Validation - only if we have validation data (not in streaming mode)
