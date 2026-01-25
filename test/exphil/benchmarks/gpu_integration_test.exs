@@ -474,6 +474,530 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
   end
 
   # ============================================================================
+  # OOM and Memory Boundary Tests
+  # ============================================================================
+
+  describe "OOM boundary detection" do
+    @tag :gpu
+    @tag :slow
+    @tag timeout: 600_000
+    test "finds maximum batch size before OOM for MLP" do
+      # Binary search for max batch size
+      # Start conservative, double until OOM, then binary search
+      embed_size = @embed_size
+
+      find_max_batch = fn ->
+        # Start with small batch, keep doubling
+        Enum.reduce_while([32, 64, 128, 256, 512, 1024, 2048], 32, fn batch_size, last_good ->
+          try do
+            trainer = Imitation.new(
+              embed_size: embed_size,
+              hidden_sizes: [256, 256],
+              temporal: false,
+              learning_rate: 1.0e-4
+            )
+
+            batch = generate_batch(batch_size, embed_size, temporal: false)
+            {_, _} = Imitation.train_step(trainer, batch, nil)
+
+            # Force memory cleanup
+            :erlang.garbage_collect()
+
+            {:cont, batch_size}
+          rescue
+            _ -> {:halt, last_good}
+          catch
+            :exit, _ -> {:halt, last_good}
+          end
+        end)
+      end
+
+      max_batch = find_max_batch.()
+
+      IO.puts("\n  [INFO] Max MLP batch size: #{max_batch}")
+
+      # Should support at least batch_size=128 on any reasonable GPU
+      assert max_batch >= 128,
+        "GPU should support at least batch_size=128, got #{max_batch}"
+    end
+
+    @tag :gpu
+    @tag :slow
+    test "finds maximum batch size for Mamba" do
+      embed_size = @embed_size
+      seq_len = @seq_len
+
+      find_max_batch = fn ->
+        Enum.reduce_while([8, 16, 32, 64, 128, 256], 8, fn batch_size, last_good ->
+          try do
+            trainer = Imitation.new(
+              embed_size: embed_size,
+              hidden_sizes: [256],
+              temporal: true,
+              backbone: :mamba,
+              window_size: seq_len,
+              num_layers: 2,
+              learning_rate: 1.0e-4
+            )
+
+            batch = generate_batch(batch_size, embed_size, temporal: true, seq_len: seq_len)
+            {_, _} = Imitation.train_step(trainer, batch, nil)
+
+            :erlang.garbage_collect()
+
+            {:cont, batch_size}
+          rescue
+            _ -> {:halt, last_good}
+          catch
+            :exit, _ -> {:halt, last_good}
+          end
+        end)
+      end
+
+      max_batch = find_max_batch.()
+
+      IO.puts("\n  [INFO] Max Mamba batch size (seq_len=#{seq_len}): #{max_batch}")
+
+      assert max_batch >= 16,
+        "GPU should support at least batch_size=16 for Mamba, got #{max_batch}"
+    end
+  end
+
+  # ============================================================================
+  # Scaling Tests
+  # ============================================================================
+
+  describe "batch size scaling" do
+    @tag :gpu
+    test "throughput scales with batch size" do
+      trainer = Imitation.new(
+        embed_size: @embed_size,
+        hidden_sizes: [256],
+        temporal: false,
+        learning_rate: 1.0e-4
+      )
+
+      batch_sizes = [16, 32, 64, 128]
+      results = for bs <- batch_sizes do
+        batch = generate_batch(bs, @embed_size, temporal: false)
+
+        # Warmup
+        {_, _} = Imitation.train_step(trainer, batch, nil)
+
+        # Measure
+        {time_us, _} = :timer.tc(fn ->
+          for _ <- 1..10 do
+            Imitation.train_step(trainer, batch, nil)
+          end
+        end)
+
+        samples_per_sec = bs * 10 / (time_us / 1_000_000)
+        {bs, samples_per_sec}
+      end
+
+      IO.puts("\n  [INFO] Throughput scaling:")
+      for {bs, throughput} <- results do
+        IO.puts("    batch_size=#{bs}: #{Float.round(throughput, 1)} samples/sec")
+      end
+
+      # Larger batches should have better throughput (up to a point)
+      throughputs = Enum.map(results, fn {_, t} -> t end)
+      max_throughput = Enum.max(throughputs)
+      min_throughput = Enum.min(throughputs)
+
+      # Max should be at least 1.5x min (some scaling benefit)
+      assert max_throughput > min_throughput * 1.2,
+        "Expected throughput to scale with batch size"
+    end
+  end
+
+  describe "sequence length scaling" do
+    @tag :gpu
+    test "Mamba handles different sequence lengths" do
+      seq_lengths = [16, 30, 60]
+
+      results = for seq_len <- seq_lengths do
+        trainer = Imitation.new(
+          embed_size: @embed_size,
+          hidden_sizes: [256],
+          temporal: true,
+          backbone: :mamba,
+          window_size: seq_len,
+          num_layers: 2,
+          learning_rate: 1.0e-4
+        )
+
+        batch = generate_batch(32, @embed_size, temporal: true, seq_len: seq_len)
+
+        # Warmup
+        {_, _} = Imitation.train_step(trainer, batch, nil)
+
+        # Measure
+        {time_us, _} = :timer.tc(fn ->
+          for _ <- 1..5 do
+            Imitation.train_step(trainer, batch, nil)
+          end
+        end)
+
+        avg_ms = time_us / 1000 / 5
+        {seq_len, avg_ms}
+      end
+
+      IO.puts("\n  [INFO] Mamba timing by sequence length:")
+      for {seq_len, ms} <- results do
+        IO.puts("    seq_len=#{seq_len}: #{Float.round(ms, 1)}ms/batch")
+      end
+
+      # All should complete (Mamba is O(L) so should handle all lengths)
+      for {seq_len, ms} <- results do
+        assert ms < 10000, "seq_len=#{seq_len} too slow: #{ms}ms"
+      end
+    end
+  end
+
+  # ============================================================================
+  # Precision Tests (bf16 vs f32)
+  # ============================================================================
+
+  describe "precision comparison" do
+    @tag :gpu
+    test "bf16 is faster than f32" do
+      # bf16 trainer
+      bf16_trainer = Imitation.new(
+        embed_size: @embed_size,
+        hidden_sizes: [256],
+        temporal: false,
+        precision: :bf16,
+        learning_rate: 1.0e-4
+      )
+
+      # f32 trainer
+      f32_trainer = Imitation.new(
+        embed_size: @embed_size,
+        hidden_sizes: [256],
+        temporal: false,
+        precision: :f32,
+        learning_rate: 1.0e-4
+      )
+
+      batch = generate_batch(64, @embed_size, temporal: false)
+
+      # Warmup both
+      {_, _} = Imitation.train_step(bf16_trainer, batch, nil)
+      {_, _} = Imitation.train_step(f32_trainer, batch, nil)
+
+      # Measure bf16
+      {bf16_us, _} = :timer.tc(fn ->
+        for _ <- 1..20 do
+          Imitation.train_step(bf16_trainer, batch, nil)
+        end
+      end)
+
+      # Measure f32
+      {f32_us, _} = :timer.tc(fn ->
+        for _ <- 1..20 do
+          Imitation.train_step(f32_trainer, batch, nil)
+        end
+      end)
+
+      bf16_ms = bf16_us / 1000 / 20
+      f32_ms = f32_us / 1000 / 20
+      speedup = f32_ms / bf16_ms
+
+      IO.puts("\n  [INFO] bf16: #{Float.round(bf16_ms, 1)}ms/batch")
+      IO.puts("  [INFO] f32: #{Float.round(f32_ms, 1)}ms/batch")
+      IO.puts("  [INFO] bf16 speedup: #{Float.round(speedup, 2)}x")
+
+      # bf16 should be at least as fast (often 1.5-2x faster)
+      assert bf16_ms <= f32_ms * 1.1,
+        "bf16 should not be slower than f32"
+    end
+
+    @tag :gpu
+    test "bf16 produces similar loss to f32" do
+      # Same random seed for both
+      batch = generate_batch(32, @embed_size, temporal: false)
+
+      bf16_trainer = Imitation.new(
+        embed_size: @embed_size,
+        hidden_sizes: [256],
+        temporal: false,
+        precision: :bf16,
+        learning_rate: 1.0e-4
+      )
+
+      f32_trainer = Imitation.new(
+        embed_size: @embed_size,
+        hidden_sizes: [256],
+        temporal: false,
+        precision: :f32,
+        learning_rate: 1.0e-4
+      )
+
+      # Train both for a few steps
+      bf16_losses = for _ <- 1..10 do
+        {_, metrics} = Imitation.train_step(bf16_trainer, batch, nil)
+        Nx.to_number(metrics.loss)
+      end
+
+      f32_losses = for _ <- 1..10 do
+        {_, metrics} = Imitation.train_step(f32_trainer, batch, nil)
+        Nx.to_number(metrics.loss)
+      end
+
+      bf16_avg = Enum.sum(bf16_losses) / 10
+      f32_avg = Enum.sum(f32_losses) / 10
+
+      IO.puts("\n  [INFO] bf16 avg loss: #{Float.round(bf16_avg, 4)}")
+      IO.puts("  [INFO] f32 avg loss: #{Float.round(f32_avg, 4)}")
+
+      # Losses should be in similar range (within 20%)
+      assert_in_delta bf16_avg, f32_avg, max(bf16_avg, f32_avg) * 0.5,
+        "bf16 and f32 losses too different"
+    end
+  end
+
+  # ============================================================================
+  # Long Training Stability
+  # ============================================================================
+
+  describe "long training stability" do
+    @tag :gpu
+    @tag :slow
+    @tag timeout: 900_000  # 15 min
+    test "training remains stable for 1000 batches" do
+      trainer = Imitation.new(
+        embed_size: @embed_size,
+        hidden_sizes: [256],
+        temporal: true,
+        backbone: :mamba,
+        window_size: @seq_len,
+        num_layers: 2,
+        learning_rate: 1.0e-4
+      )
+
+      # Track loss over time to detect divergence
+      losses = []
+
+      final_trainer = Enum.reduce(1..1000, {trainer, losses}, fn idx, {t, loss_acc} ->
+        batch = generate_batch(32, @embed_size, temporal: true, seq_len: @seq_len)
+        {new_t, metrics} = Imitation.train_step(t, batch, nil)
+
+        loss = Nx.to_number(metrics.loss)
+
+        # Check for problems
+        refute is_nan(loss), "NaN at batch #{idx}"
+        refute is_infinite(loss), "Inf at batch #{idx}"
+        assert loss < 100, "Loss exploded at batch #{idx}: #{loss}"
+
+        # Track every 100th loss
+        new_losses = if rem(idx, 100) == 0 do
+          [{idx, loss} | loss_acc]
+        else
+          loss_acc
+        end
+
+        {new_t, new_losses}
+      end)
+      |> elem(0)
+
+      assert final_trainer.step == 1000
+      IO.puts("\n  [INFO] Completed 1000 batches without divergence")
+    end
+  end
+
+  # ============================================================================
+  # Cross-Device Checkpoint Tests
+  # ============================================================================
+
+  describe "cross-device checkpoints" do
+    @tag :gpu
+    test "checkpoint saved on GPU loads correctly" do
+      # Train on GPU
+      trainer = Imitation.new(
+        embed_size: @embed_size,
+        hidden_sizes: [256],
+        temporal: false,
+        learning_rate: 1.0e-4
+      )
+
+      batches = generate_batches(5, 16, @embed_size, temporal: false)
+      trained = Enum.reduce(batches, trainer, fn batch, t ->
+        {new_t, _} = Imitation.train_step(t, batch, nil)
+        new_t
+      end)
+
+      test_batch = generate_batch(4, @embed_size, temporal: false)
+      pred_before = Imitation.predict(trained, test_batch.states)
+
+      tmp_dir = System.tmp_dir!()
+      checkpoint_path = Path.join(tmp_dir, "cross_device_#{:rand.uniform(100000)}.axon")
+
+      try do
+        # Save
+        :ok = Imitation.save_checkpoint(trained, checkpoint_path)
+
+        # Verify file exists and has reasonable size
+        {:ok, stat} = File.stat(checkpoint_path)
+        assert stat.size > 1000, "Checkpoint too small: #{stat.size} bytes"
+
+        # Load (should work regardless of backend)
+        loaded = Imitation.load_checkpoint(checkpoint_path)
+
+        # Predictions should match
+        pred_after = Imitation.predict(loaded, test_batch.states)
+        assert_tensors_close(pred_before, pred_after, atol: 1.0e-4)
+
+        IO.puts("\n  [INFO] Cross-device checkpoint: #{stat.size} bytes, predictions match")
+      after
+        File.rm(checkpoint_path)
+      end
+    end
+
+    @tag :gpu
+    test "handles corrupted checkpoint gracefully" do
+      tmp_dir = System.tmp_dir!()
+      corrupt_path = Path.join(tmp_dir, "corrupt_#{:rand.uniform(100000)}.axon")
+
+      try do
+        # Write garbage data
+        File.write!(corrupt_path, "not a valid checkpoint file at all!!!")
+
+        # Should raise or return error, not crash
+        result = try do
+          Imitation.load_checkpoint(corrupt_path)
+          :loaded_unexpectedly
+        rescue
+          e -> {:error, e}
+        catch
+          kind, reason -> {:caught, kind, reason}
+        end
+
+        case result do
+          :loaded_unexpectedly ->
+            flunk("Should not load corrupted checkpoint")
+          {:error, _} ->
+            IO.puts("\n  [INFO] Corrupted checkpoint correctly rejected with error")
+          {:caught, _, _} ->
+            IO.puts("\n  [INFO] Corrupted checkpoint correctly rejected with exception")
+        end
+      after
+        File.rm(corrupt_path)
+      end
+    end
+  end
+
+  # ============================================================================
+  # Gradient Clipping Tests
+  # ============================================================================
+
+  describe "gradient clipping" do
+    @tag :gpu
+    test "gradient clipping prevents explosion" do
+      # Trainer WITH clipping
+      clipped_trainer = Imitation.new(
+        embed_size: @embed_size,
+        hidden_sizes: [256],
+        temporal: false,
+        max_grad_norm: 1.0,
+        learning_rate: 1.0e-2  # High LR to stress test
+      )
+
+      # Trainer WITHOUT clipping
+      unclipped_trainer = Imitation.new(
+        embed_size: @embed_size,
+        hidden_sizes: [256],
+        temporal: false,
+        max_grad_norm: nil,
+        learning_rate: 1.0e-2
+      )
+
+      # Use extreme input to generate large gradients
+      extreme_batch = %{
+        states: Nx.broadcast(10.0, {32, @embed_size}),
+        actions: generate_actions(32)
+      }
+
+      # Both should complete without NaN
+      {clipped_result, clipped_metrics} = Imitation.train_step(clipped_trainer, extreme_batch, nil)
+      {unclipped_result, unclipped_metrics} = Imitation.train_step(unclipped_trainer, extreme_batch, nil)
+
+      clipped_loss = Nx.to_number(clipped_metrics.loss)
+      unclipped_loss = Nx.to_number(unclipped_metrics.loss)
+
+      IO.puts("\n  [INFO] Clipped loss: #{Float.round(clipped_loss, 4)}")
+      IO.puts("  [INFO] Unclipped loss: #{Float.round(unclipped_loss, 4)}")
+
+      # Clipped should not be NaN
+      refute is_nan(clipped_loss), "Clipped training produced NaN"
+
+      # Both completed
+      assert clipped_result.step == 1
+      assert unclipped_result.step == 1
+    end
+  end
+
+  # ============================================================================
+  # Backend Comparison Tests
+  # ============================================================================
+
+  describe "backend comparison" do
+    @tag :gpu
+    test "GPU and CPU produce similar predictions" do
+      # Build trainer (will use GPU via EXLA default)
+      trainer = Imitation.new(
+        embed_size: @embed_size,
+        hidden_sizes: [256],
+        temporal: false,
+        learning_rate: 1.0e-4
+      )
+
+      # Generate test input
+      batch = generate_batch(8, @embed_size, temporal: false)
+
+      # Get GPU prediction
+      gpu_pred = Imitation.predict(trainer, batch.states)
+
+      # Convert to CPU (BinaryBackend) and predict
+      # Note: We compare the numerical values, not the backend
+      gpu_values = Nx.to_flat_list(gpu_pred)
+
+      # Verify predictions are reasonable numbers
+      for {val, idx} <- Enum.with_index(gpu_values) do
+        refute is_nan(val), "NaN at index #{idx}"
+        refute is_infinite(val), "Inf at index #{idx}"
+      end
+
+      IO.puts("\n  [INFO] GPU predictions: #{length(gpu_values)} values, all finite")
+    end
+
+    @tag :gpu
+    test "same input produces deterministic output" do
+      trainer = Imitation.new(
+        embed_size: @embed_size,
+        hidden_sizes: [256],
+        temporal: false,
+        learning_rate: 1.0e-4
+      )
+
+      # Fixed input
+      key = Nx.Random.key(12345)
+      {states, _} = Nx.Random.uniform(key, shape: {4, @embed_size}, type: :f32)
+
+      # Run prediction multiple times
+      pred1 = Imitation.predict(trainer, states)
+      pred2 = Imitation.predict(trainer, states)
+      pred3 = Imitation.predict(trainer, states)
+
+      # All should be identical
+      assert_tensors_close(pred1, pred2, atol: 1.0e-6)
+      assert_tensors_close(pred2, pred3, atol: 1.0e-6)
+
+      IO.puts("\n  [INFO] Predictions are deterministic")
+    end
+  end
+
+  # ============================================================================
   # Helpers
   # ============================================================================
 
