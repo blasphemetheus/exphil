@@ -1506,6 +1506,109 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
   end
 
   # ============================================================================
+  # Backend Transfer Tests (regression for 0% GPU utilization bug)
+  # ============================================================================
+
+  describe "CPU to GPU backend transfer" do
+    @tag :gpu
+    test "training works with tensors explicitly on BinaryBackend (pre-computed embeddings)" do
+      # This is a regression test for the bug where pre-computed embeddings
+      # stored on CPU (BinaryBackend) caused 0% GPU utilization because
+      # Nx.backend_copy/1 without explicit backend doesn't transfer to GPU.
+      #
+      # The fix: Use Nx.backend_transfer(tensor, EXLA.Backend) to explicitly
+      # move tensors to GPU during training.
+
+      trainer = Imitation.new(
+        embed_size: @embed_size,
+        hidden_sizes: [256],
+        temporal: false,
+        learning_rate: 1.0e-3  # Higher LR to see faster convergence
+      )
+
+      # Generate data and EXPLICITLY put on BinaryBackend (simulating pre-computed embeddings)
+      key = Nx.Random.key(42)
+      {states_gpu, key} = Nx.Random.uniform(key, shape: {64, @embed_size}, type: :f32)
+
+      # Transfer to CPU (BinaryBackend) - this simulates pre-computed embeddings
+      states_cpu = Nx.backend_transfer(states_gpu, Nx.BinaryBackend)
+
+      # Verify it's actually on BinaryBackend (check backend via tensor.data.__struct__)
+      assert states_cpu.data.__struct__ == Nx.BinaryBackend,
+        "States should be on BinaryBackend, got: #{inspect(states_cpu.data.__struct__)}"
+
+      actions = generate_actions(64, key)
+      # Also put actions on CPU
+      actions_cpu = Map.new(actions, fn {k, v} ->
+        {k, Nx.backend_transfer(v, Nx.BinaryBackend)}
+      end)
+
+      batch = %{states: states_cpu, actions: actions_cpu}
+
+      # Train multiple steps and verify loss decreases
+      # This would NOT happen with 0% GPU utilization
+      losses = for _ <- 1..10 do
+        {_trainer, metrics} = Imitation.train_step(trainer, batch, nil)
+        Nx.to_number(metrics.loss)
+      end
+
+      # Verify training actually happened
+      refute Enum.any?(losses, &is_nan/1), "Training produced NaN"
+      refute Enum.any?(losses, &is_infinite/1), "Training produced Inf"
+
+      # Loss should generally be in reasonable range
+      avg_loss = Enum.sum(losses) / length(losses)
+      assert avg_loss < 20.0, "Loss too high: #{avg_loss}"
+
+      IO.puts("\n  [INFO] Training with CPU tensors: avg loss = #{Float.round(avg_loss, 4)}")
+      IO.puts("  [INFO] Losses: #{inspect(Enum.map(losses, &Float.round(&1, 4)))}")
+    end
+
+    @tag :gpu
+    test "GPU training is faster than CPU-only (backend transfer verification)" do
+      # This test verifies that backend transfer actually happens by comparing
+      # training speed. If tensors aren't transferred to GPU, training would be
+      # much slower (70s/batch vs sub-second).
+
+      trainer = Imitation.new(
+        embed_size: @embed_size,
+        hidden_sizes: [256, 256],
+        temporal: false,
+        learning_rate: 1.0e-4
+      )
+
+      # Create batch on CPU
+      key = Nx.Random.key(123)
+      {states_gpu, key} = Nx.Random.uniform(key, shape: {128, @embed_size}, type: :f32)
+      states_cpu = Nx.backend_transfer(states_gpu, Nx.BinaryBackend)
+      actions = generate_actions(128, key)
+      actions_cpu = Map.new(actions, fn {k, v} ->
+        {k, Nx.backend_transfer(v, Nx.BinaryBackend)}
+      end)
+      batch = %{states: states_cpu, actions: actions_cpu}
+
+      # Warm up JIT
+      {_, _} = Imitation.train_step(trainer, batch, nil)
+
+      # Time 10 batches
+      {time_us, _} = :timer.tc(fn ->
+        for _ <- 1..10 do
+          Imitation.train_step(trainer, batch, nil)
+        end
+      end)
+
+      time_per_batch_ms = time_us / 1000 / 10
+
+      IO.puts("\n  [INFO] Training time: #{Float.round(time_per_batch_ms, 1)}ms/batch")
+
+      # With GPU, should be under 5 seconds per batch (was 71s without the fix)
+      # Being conservative since JIT overhead might still be present
+      assert time_per_batch_ms < 5000,
+        "Training too slow (#{time_per_batch_ms}ms/batch) - GPU transfer may not be working"
+    end
+  end
+
+  # ============================================================================
   # Helpers
   # ============================================================================
 

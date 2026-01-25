@@ -39,6 +39,8 @@ Hard-won knowledge from debugging ExPhil. Each section documents a specific issu
 33. [LSTM/GRU training is inherently slow (not a bug)](#33-lstmgru-training-is-inherently-slow-not-a-bug)
 34. [Imitation.new uses window_size, not seq_len](#34-imitationnew-uses-window_size-not-seq_len)
 35. [Prefetcher materializes all batches into memory](#35-prefetcher-materializes-all-batches-into-memory)
+36. [Embedding pre-computation exhausts RAM on large datasets](#36-embedding-pre-computation-exhausts-ram-on-large-datasets)
+37. [0% GPU utilization with pre-computed embeddings](#37-0-gpu-utilization-with-pre-computed-embeddings)
 
 ---
 
@@ -1341,3 +1343,48 @@ This processes files in chunks, computing embeddings on-the-fly instead of pre-c
 **Code location:**
 - `lib/exphil/training/data.ex:696` - `precompute_embeddings/2` now has GC
 - `lib/exphil/training/data.ex:768` - `precompute_frame_embeddings/2` now has GC
+
+## 37. 0% GPU utilization with pre-computed embeddings
+
+**Status:** FIXED
+
+**Symptom:** Training runs extremely slowly (70+ seconds per batch) with 0% GPU utilization despite GPU memory being 90%+ utilized. Model parameters are on GPU, but compute happens on CPU.
+
+**How to identify:**
+```
+# nvidia-smi shows:
+# - GPU Mem: 90%
+# - GPU Util: 0%
+# Training log shows: "71.3s/batch" (should be <1s)
+```
+
+**Root cause:** Pre-computed embeddings are stored on CPU (BinaryBackend) to save GPU memory. During training, `Nx.backend_copy(tensor)` was called without an explicit backend argument:
+
+```elixir
+# BAD - This does nothing for CPU tensors!
+states = Nx.backend_copy(states)
+actions = Map.new(actions, fn {k, v} -> {k, Nx.backend_copy(v)} end)
+```
+
+`Nx.backend_copy/1` copies within the *same* backend. For CPU tensors, it just copies CPU → CPU.
+The result: model params on GPU, data on CPU = every tensor operation transfers to GPU, computes, transfers back. Massive overhead.
+
+**The fix:** Explicitly transfer to GPU using `Nx.backend_transfer/2`:
+
+```elixir
+# GOOD - Explicitly transfer to GPU
+states = Nx.backend_transfer(states, EXLA.Backend)
+actions = Map.new(actions, fn {k, v} -> {k, Nx.backend_transfer(v, EXLA.Backend)} end)
+```
+
+**Key Nx backend functions:**
+- `Nx.backend_copy(tensor)` - copies within current backend (no-op for CPU → CPU)
+- `Nx.backend_copy(tensor, backend)` - copies to specified backend
+- `Nx.backend_transfer(tensor, backend)` - transfers to backend (more efficient, may move instead of copy)
+- `Nx.backend(tensor)` - returns current backend module
+
+**Code location:**
+- `lib/exphil/training/imitation.ex:884-885` - Fixed to use `Nx.backend_transfer(tensor, EXLA.Backend)`
+
+**Regression test:**
+- `test/exphil/benchmarks/gpu_integration_test.exs` - "CPU to GPU backend transfer" tests
