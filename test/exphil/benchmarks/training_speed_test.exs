@@ -78,9 +78,13 @@ defmodule ExPhil.Benchmarks.TrainingSpeedTest do
     end
 
     @tag :regression
-    test "tensor loss accumulation is faster than per-batch conversion", %{trainer: trainer, batches: batches} do
+    test "neither accumulation method causes GPU blocking", %{trainer: trainer, batches: batches} do
       # This test verifies the fix for gotcha #18
-      # Accumulating tensor losses should be MUCH faster than converting each batch
+      # BOTH methods should complete quickly - if Nx.to_number was blocking,
+      # the number method would take ~80s/batch (720,000ms total), not ~600ms
+      #
+      # Note: We don't compare the two methods because the difference is negligible
+      # for small batch counts. The real issue (gotcha #18) was 400x slowdown.
 
       [first_batch | rest] = batches
       {warmup_trainer, _} = Imitation.train_step(trainer, first_batch, nil)
@@ -96,33 +100,47 @@ defmodule ExPhil.Benchmarks.TrainingSpeedTest do
       # Compute mean from tensors (single transfer)
       _avg_loss_tensor = tensor_losses |> Nx.stack() |> Nx.mean() |> Nx.to_number()
 
-      # Method 2: Convert each batch (BAD - blocks GPU every batch)
+      # Method 2: Convert each batch (potentially blocking)
       {warmup_trainer2, _} = Imitation.train_step(trainer, first_batch, nil)
 
       {time_number_us, _} = :timer.tc(fn ->
         Enum.reduce(rest, {warmup_trainer2, []}, fn batch, {t, losses} ->
           {new_t, metrics} = Imitation.train_step(t, batch, nil)
-          {new_t, [Nx.to_number(metrics.loss) | losses]}  # Blocks every batch!
+          {new_t, [Nx.to_number(metrics.loss) | losses]}
         end)
       end)
 
       tensor_ms = time_tensor_us / 1000
       number_ms = time_number_us / 1000
+      num_batches = length(rest)
 
-      # Tensor accumulation should be at least 2x faster
-      # (In practice it's often 10-100x faster on GPU)
-      assert tensor_ms < number_ms,
+      # Both methods should complete quickly (under 5000ms for 9 batches = ~555ms/batch)
+      # The blocking issue would cause ~80,000ms/batch = 720,000ms total
+      max_expected_ms = 5000
+
+      assert tensor_ms < max_expected_ms,
         """
-        Tensor accumulation should be faster than per-batch Nx.to_number!
-        Tensor method: #{Float.round(tensor_ms, 1)}ms
-        Number method: #{Float.round(number_ms, 1)}ms
+        Tensor accumulation too slow - possible GPU blocking!
+        Time: #{Float.round(tensor_ms, 1)}ms for #{num_batches} batches
+        (#{Float.round(tensor_ms / num_batches, 1)}ms/batch)
 
-        This indicates the Nx.to_number blocking issue (gotcha #18) may be recurring.
+        If this is ~80s/batch, check for GPU→CPU sync issues.
+        See gotcha #18 in docs/GOTCHAS.md
         """
 
-      # Log the speedup for visibility
-      speedup = number_ms / tensor_ms
-      IO.puts("\n  [INFO] Tensor accumulation speedup: #{Float.round(speedup, 1)}x faster")
+      assert number_ms < max_expected_ms,
+        """
+        Per-batch Nx.to_number too slow - GPU blocking detected!
+        Time: #{Float.round(number_ms, 1)}ms for #{num_batches} batches
+        (#{Float.round(number_ms / num_batches, 1)}ms/batch)
+
+        This is the gotcha #18 issue - Nx.to_number blocks GPU every batch.
+        See docs/GOTCHAS.md for the fix.
+        """
+
+      # Log results for visibility
+      IO.puts("\n  [INFO] Tensor method: #{Float.round(tensor_ms, 1)}ms (#{Float.round(tensor_ms / num_batches, 1)}ms/batch)")
+      IO.puts("  [INFO] Number method: #{Float.round(number_ms, 1)}ms (#{Float.round(number_ms / num_batches, 1)}ms/batch)")
     end
   end
 

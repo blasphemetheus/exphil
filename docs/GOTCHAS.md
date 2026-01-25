@@ -37,6 +37,7 @@ Hard-won knowledge from debugging ExPhil. Each section documents a specific issu
 31. [Polaris composed optimizer state structure](#31-polaris-composed-optimizer-state-structure)
 32. [Prefetcher deadlock with EXLA tensors in spawned processes](#32-prefetcher-deadlock-with-exla-tensors-in-spawned-processes)
 33. [LSTM/GRU training is inherently slow (not a bug)](#33-lstmgru-training-is-inherently-slow-not-a-bug)
+34. [Jamba seq_len not passed to Hybrid.build](#34-jamba-seq_len-not-passed-to-hybridbuild)
 
 ---
 
@@ -1183,3 +1184,47 @@ With gradients (BPTT - Backpropagation Through Time):
 **Recommendation:** For real-time inference, use Mamba instead of LSTM/GRU. Mamba achieves similar temporal modeling with parallelizable operations (8.9ms inference vs 220ms for LSTM).
 
 **Code location:** `test/exphil/benchmarks/training_speed_test.exs` - thresholds adjusted for recurrent architectures
+
+---
+
+## 34. Jamba seq_len not passed to Hybrid.build
+
+**Symptom:** Jamba model fails to compile with shape mismatch error:
+```
+(Axon.CompileError) cannot compile graph because input state_sequence,
+inferred as shape {32, 30, 408}, is incompatible with the output of
+layer self_attn_compute ({1, 60, 60})
+```
+
+**Cause:** The attention mask was pre-computed with `seq_len=60` (default `window_size`), but the input has `seq_len=30`. The `build_jamba_backbone` function in `policy.ex` was not passing the `seq_len` option to `Hybrid.build()`.
+
+**The problem:**
+```elixir
+# In build_jamba_backbone - BEFORE FIX
+window_size = Keyword.get(opts, :window_size, 60)
+
+Hybrid.build(
+  # ...
+  window_size: window_size,
+  # seq_len NOT passed! Hybrid.build defaults to window_size (60)
+)
+
+# Meanwhile in Hybrid.build:
+seq_len = Keyword.get(opts, :seq_len, window_size)  # Gets 60 when it should be 30
+precomputed_mask = Attention.window_mask(seq_len, window_size)  # Creates 60x60 mask
+```
+
+**The fix:** Pass `seq_len` through to `Hybrid.build()`:
+```elixir
+# In build_jamba_backbone - AFTER FIX
+window_size = Keyword.get(opts, :window_size, 60)
+seq_len = Keyword.get(opts, :seq_len, window_size)  # Get from opts
+
+Hybrid.build(
+  # ...
+  window_size: window_size,
+  seq_len: seq_len,  # Pass it through!
+)
+```
+
+**Code location:** `lib/exphil/networks/policy.ex:624` - `build_jamba_backbone` function

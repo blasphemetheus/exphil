@@ -633,6 +633,8 @@ defmodule ExPhil.Networks.Policy do
     dropout = Keyword.get(opts, :dropout, @default_dropout)
     window_size = Keyword.get(opts, :window_size, 60)
     use_sliding_window = Keyword.get(opts, :use_sliding_window, true)
+    # seq_len must be passed through for concrete mask shapes (avoids shape mismatch)
+    seq_len = Keyword.get(opts, :seq_len, window_size)
 
     Hybrid.build(
       embed_size: embed_size,
@@ -646,6 +648,7 @@ defmodule ExPhil.Networks.Policy do
       head_dim: head_dim,
       dropout: dropout,
       window_size: window_size,
+      seq_len: seq_len,
       use_sliding_window: use_sliding_window
     )
   end
