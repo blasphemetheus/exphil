@@ -12,6 +12,9 @@
 #   --only arch1,arch2            Only run specified architectures
 #   --skip arch1,arch2            Skip specified architectures
 #   --continue-on-error           Continue if an architecture fails
+#   --cache                       Enable embedding disk cache (saves ~1hr on re-runs)
+#   --cache-dir PATH              Cache directory (default: /workspace/cache/embeddings)
+#   --force-recompute             Ignore cache and recompute embeddings
 #
 # Available architectures: mlp, mamba, jamba, lstm, gru, attention
 #
@@ -24,6 +27,12 @@
 #
 #   # Run all but continue if one fails
 #   mix run scripts/benchmark_architectures.exs --replays /workspace/replays --continue-on-error
+#
+#   # Use embedding cache (saves ~1hr on subsequent runs)
+#   mix run scripts/benchmark_architectures.exs --replays /workspace/replays --cache
+#
+#   # Force recompute even if cache exists
+#   mix run scripts/benchmark_architectures.exs --replays /workspace/replays --cache --force-recompute
 #
 # This script compares:
 # - Training loss convergence
@@ -52,7 +61,7 @@ System.put_env("TF_GPU_ALLOCATOR", "cuda_malloc_async")
 Application.put_env(:exla, :clients, cuda: [platform: :cuda, memory_fraction: 0.7])
 
 alias ExPhil.Data.Peppi
-alias ExPhil.Training.{Data, GPUUtils, Imitation, Output}
+alias ExPhil.Training.{Data, EmbeddingCache, GPUUtils, Imitation, Output}
 alias ExPhil.Embeddings
 
 # For timed macro
@@ -132,6 +141,16 @@ skip_archs =
 # Continue on error? (useful for benchmarking when some archs might fail)
 continue_on_error = "--continue-on-error" in args
 
+# Embedding cache options
+cache_enabled = "--cache" in args
+force_recompute = "--force-recompute" in args
+
+cache_dir =
+  case Enum.find_index(args, &(&1 == "--cache-dir")) do
+    nil -> "/workspace/cache/embeddings"
+    idx -> Enum.at(args, idx + 1) || "/workspace/cache/embeddings"
+  end
+
 # Architectures to benchmark
 # Note: batch_size can be overridden per-architecture for memory-heavy models
 # Mamba/Jamba need smaller batches due to selective scan memory requirements
@@ -199,6 +218,7 @@ Output.config([
   {"Architectures",
    "#{length(architectures)} (#{Enum.map(architectures, fn {id, _, _} -> id end) |> Enum.join(", ")})"},
   {"Continue on error", continue_on_error},
+  {"Embedding cache", if(cache_enabled, do: "enabled (#{cache_dir})", else: "disabled")},
   {"GPU", "#{gpu_info.name} (#{Float.round(gpu_info.memory_gb, 1)} GB)"},
   {"Memory", GPUUtils.memory_status_string()}
 ])
@@ -253,14 +273,22 @@ has_non_temporal = Enum.any?(architectures, fn {_id, _name, opts} -> !opts[:temp
   if has_non_temporal do
     Output.puts("Precomputing frame embeddings (reused for non-temporal architectures)...")
 
+    cache_opts = [
+      cache: cache_enabled,
+      cache_dir: cache_dir,
+      force_recompute: force_recompute,
+      replay_files: replay_files,
+      show_progress: true
+    ]
+
     train_emb =
       Output.timed "Embedding train frames" do
-        Data.precompute_frame_embeddings(train_dataset, show_progress: true)
+        Data.precompute_frame_embeddings_cached(train_dataset, cache_opts)
       end
 
     val_emb =
       Output.timed "Embedding val frames" do
-        Data.precompute_frame_embeddings(val_dataset, show_progress: false)
+        Data.precompute_frame_embeddings_cached(val_dataset, Keyword.put(cache_opts, :show_progress, false))
       end
 
     {train_emb, val_emb}
@@ -273,16 +301,26 @@ has_non_temporal = Enum.any?(architectures, fn {_id, _name, opts} -> !opts[:temp
   if has_temporal do
     Output.puts("Precomputing sequence embeddings (reused for all temporal architectures)...")
 
+    seq_cache_opts = [
+      cache: cache_enabled,
+      cache_dir: cache_dir,
+      force_recompute: force_recompute,
+      replay_files: replay_files,
+      window_size: 30,
+      stride: 1,
+      show_progress: true
+    ]
+
     train_seq =
       Output.timed "Embedding train sequences" do
         seq_ds = Data.to_sequences(train_dataset, window_size: 30, stride: 1)
-        Data.precompute_embeddings(seq_ds, show_progress: true)
+        Data.precompute_embeddings_cached(seq_ds, seq_cache_opts)
       end
 
     val_seq =
       Output.timed "Embedding val sequences" do
         seq_ds = Data.to_sequences(val_dataset, window_size: 30, stride: 1)
-        Data.precompute_embeddings(seq_ds, show_progress: false)
+        Data.precompute_embeddings_cached(seq_ds, Keyword.put(seq_cache_opts, :show_progress, false))
       end
 
     {train_seq, val_seq}

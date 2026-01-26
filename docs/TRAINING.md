@@ -526,6 +526,45 @@ The embedding step happens before training starts. If your terminal becomes unre
 | `--precision bf16` | bf16 | Half precision uses ~50% less VRAM |
 | `--no-precompute` | false | Compute embeddings on-the-fly (saves RAM) |
 
+### Embedding Disk Cache
+
+Embedding precomputation can take 1+ hours for large datasets. Enable disk caching to reuse embeddings across runs:
+
+```bash
+# Enable embedding cache (saves ~1 hour on re-runs)
+mix run scripts/benchmark_architectures.exs --replays /workspace/replays --cache
+
+# Custom cache directory
+mix run scripts/benchmark_architectures.exs --replays /workspace/replays --cache --cache-dir /workspace/my_cache
+
+# Force recompute even if cache exists
+mix run scripts/benchmark_architectures.exs --replays /workspace/replays --cache --force-recompute
+```
+
+**Cache flags:**
+| Flag | Default | Effect |
+|------|---------|--------|
+| `--cache` | false | Enable disk caching of embeddings |
+| `--cache-dir PATH` | `/workspace/cache/embeddings` | Cache directory |
+| `--force-recompute` | false | Ignore cache and recompute |
+
+**Cache key is based on:**
+- Replay file list (sorted paths)
+- Embedding config (action_mode, character_mode, stage_mode, etc.)
+- Window size and stride (for temporal embeddings)
+
+**Managing cache:**
+```elixir
+# List cached embeddings
+ExPhil.Training.EmbeddingCache.list()
+
+# Clear all cached embeddings
+ExPhil.Training.EmbeddingCache.clear()
+
+# Invalidate specific cache
+ExPhil.Training.EmbeddingCache.invalidate("cache_key_here")
+```
+
 ### Recommended Configurations by Hardware
 
 **RunPod RTX 4090 (24GB VRAM, ~50GB RAM):**
