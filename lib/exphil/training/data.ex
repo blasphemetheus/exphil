@@ -336,16 +336,28 @@ defmodule ExPhil.Training.Data do
     end)
     |> Enum.unzip()
 
-    # Stack precomputed embeddings
-    states = Nx.stack(embeddings)
+    # Stack precomputed embeddings and transfer to GPU
+    # Embeddings are stored on CPU (BinaryBackend) to avoid GPU OOM during storage
+    # We transfer to GPU here for efficient training
+    states = embeddings
+    |> Nx.stack()
+    |> Nx.backend_transfer(EXLA.Backend)
 
-    # Convert actions to tensors
+    # Convert actions to tensors and transfer to GPU
     action_tensors = actions_to_tensors(actions)
+    |> transfer_actions_to_gpu()
 
     %{
       states: states,
       actions: action_tensors
     }
+  end
+
+  # Transfer action tensors to GPU
+  defp transfer_actions_to_gpu(actions) when is_map(actions) do
+    Map.new(actions, fn {k, v} ->
+      {k, Nx.backend_transfer(v, EXLA.Backend)}
+    end)
   end
 
   # Standard path: embed on the fly (used when augmentation is enabled)
@@ -907,11 +919,15 @@ defmodule ExPhil.Training.Data do
 
     {embeddings, actions} = Enum.unzip(batch_data)
 
-    # Stack embeddings: [batch, seq_len, embed_size]
-    states = Nx.stack(embeddings)
+    # Stack embeddings and transfer to GPU: [batch, seq_len, embed_size]
+    # Embeddings are stored on CPU to avoid GPU OOM, transfer here for training
+    states = embeddings
+    |> Nx.stack()
+    |> Nx.backend_transfer(EXLA.Backend)
 
-    # Convert actions to tensors
+    # Convert actions to tensors and transfer to GPU
     action_tensors = actions_to_tensors(actions)
+    |> transfer_actions_to_gpu()
 
     %{
       states: states,
