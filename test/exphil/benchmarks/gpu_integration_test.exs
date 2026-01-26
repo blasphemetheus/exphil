@@ -1594,8 +1594,8 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
             # The loaded model should work (may have original or new dimensions)
             # Use checkpoint's size
             batch = generate_batch(8, 256, temporal: false)
-            {_pred, loss} = Imitation.evaluate(loaded, batch)
-            assert Nx.to_number(loss) > 0
+            %{loss: loss} = Imitation.evaluate(loaded, [batch])
+            assert loss > 0
             IO.puts("\n  [INFO] Load succeeded - model dimensions preserved from checkpoint")
 
           {:error, reason} ->

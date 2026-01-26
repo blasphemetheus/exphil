@@ -515,7 +515,10 @@ end
 # Warn about caching without precompute (nothing to cache)
 if opts[:cache_embeddings] and opts[:no_precompute] do
   Output.warning("--cache-embeddings has no effect with --no-precompute")
-  Output.puts("    Embedding cache requires precomputation. Remove --no-precompute to use caching.")
+
+  Output.puts(
+    "    Embedding cache requires precomputation. Remove --no-precompute to use caching."
+  )
 end
 
 # Warn about BPTT truncation without temporal mode
