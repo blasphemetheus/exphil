@@ -165,6 +165,7 @@ alias ExPhil.Training.{
   DuplicateDetector,
   EarlyStopping,
   EMA,
+  EmbeddingCache,
   GPUUtils,
   Imitation,
   Plots,
@@ -518,6 +519,15 @@ if opts[:cache_embeddings] and opts[:no_precompute] do
 
   Output.puts(
     "    Embedding cache requires precomputation. Remove --no-precompute to use caching."
+  )
+end
+
+# Warn about caching with streaming mode (cache not used in streaming)
+if opts[:cache_embeddings] and opts[:stream_chunk_size] do
+  Output.warning("--cache-embeddings has no effect with --stream-chunk-size")
+
+  Output.puts(
+    "    Streaming mode processes chunks on-the-fly. Remove --stream-chunk-size to use caching."
   )
 end
 
@@ -1138,12 +1148,41 @@ player_registry =
 
         # Pre-compute embeddings to avoid slow per-batch embedding
         # This embeds all frames ONCE instead of on every batch
-        Data.precompute_embeddings(seq_dataset)
+        # Use cached version if --cache-embeddings is enabled (saves ~1hr on re-runs)
+        if opts[:cache_embeddings] do
+          Output.puts("  Using embedding cache (#{opts[:cache_dir]})...")
+
+          Data.precompute_embeddings_cached(seq_dataset,
+            cache: true,
+            cache_dir: opts[:cache_dir],
+            force_recompute: opts[:no_cache],
+            replay_files: replay_files,
+            window_size: opts[:window_size],
+            stride: opts[:stride],
+            show_progress: true
+          )
+        else
+          Data.precompute_embeddings(seq_dataset)
+        end
       else
         # For MLP training, optionally precompute frame embeddings
         if opts[:precompute] do
           Output.puts("  Pre-computing embeddings (2-3x speedup)...")
-          Data.precompute_frame_embeddings(dataset)
+
+          # Use cached version if --cache-embeddings is enabled (saves ~1hr on re-runs)
+          if opts[:cache_embeddings] do
+            Output.puts("  Using embedding cache (#{opts[:cache_dir]})...")
+
+            Data.precompute_frame_embeddings_cached(dataset,
+              cache: true,
+              cache_dir: opts[:cache_dir],
+              force_recompute: opts[:no_cache],
+              replay_files: replay_files,
+              show_progress: true
+            )
+          else
+            Data.precompute_frame_embeddings(dataset)
+          end
         else
           dataset
         end

@@ -204,6 +204,139 @@ defmodule ExPhil.Training.EmbeddingCacheTest do
     end
   end
 
+  # ============================================================================
+  # precompute_frame_embeddings_cached Integration Tests
+  # ============================================================================
+
+  describe "Data.precompute_frame_embeddings_cached/2" do
+    @tag :tmp_dir
+    test "saves cache on first call, loads on second", %{tmp_dir: tmp_dir} do
+      dataset = ExPhil.Test.Factory.frame_dataset(num_frames: 10)
+      replay_files = ["test1.slp", "test2.slp"]
+
+      opts = [
+        cache: true,
+        cache_dir: tmp_dir,
+        force_recompute: false,
+        replay_files: replay_files,
+        show_progress: false
+      ]
+
+      # First call should compute and save
+      result1 = Data.precompute_frame_embeddings_cached(dataset, opts)
+      assert is_struct(result1.embedded_frames, Nx.Tensor)
+
+      # Verify cache file was created
+      cache_files = Path.wildcard("#{tmp_dir}/*.emb")
+      assert length(cache_files) == 1
+
+      # Second call should load from cache (same result)
+      result2 = Data.precompute_frame_embeddings_cached(dataset, opts)
+      assert Nx.shape(result2.embedded_frames) == Nx.shape(result1.embedded_frames)
+    end
+
+    @tag :tmp_dir
+    test "force_recompute ignores existing cache", %{tmp_dir: tmp_dir} do
+      dataset = ExPhil.Test.Factory.frame_dataset(num_frames: 10)
+      replay_files = ["test1.slp"]
+
+      # First call - cache
+      opts1 = [
+        cache: true,
+        cache_dir: tmp_dir,
+        force_recompute: false,
+        replay_files: replay_files,
+        show_progress: false
+      ]
+
+      _result1 = Data.precompute_frame_embeddings_cached(dataset, opts1)
+
+      # Second call with force_recompute - should recompute
+      opts2 = Keyword.put(opts1, :force_recompute, true)
+      result2 = Data.precompute_frame_embeddings_cached(dataset, opts2)
+
+      # Should still work
+      assert is_struct(result2.embedded_frames, Nx.Tensor)
+    end
+
+    test "cache disabled falls back to non-cached version" do
+      dataset = ExPhil.Test.Factory.frame_dataset(num_frames: 5)
+
+      opts = [cache: false, show_progress: false]
+
+      result = Data.precompute_frame_embeddings_cached(dataset, opts)
+      assert is_struct(result.embedded_frames, Nx.Tensor)
+    end
+  end
+
+  # ============================================================================
+  # precompute_embeddings_cached Integration Tests (Sequences)
+  # ============================================================================
+
+  describe "Data.precompute_embeddings_cached/2" do
+    @tag :tmp_dir
+    test "saves cache on first call, loads on second", %{tmp_dir: tmp_dir} do
+      dataset = ExPhil.Test.Factory.sequence_dataset(num_sequences: 8, seq_len: 4)
+      replay_files = ["test1.slp", "test2.slp"]
+
+      opts = [
+        cache: true,
+        cache_dir: tmp_dir,
+        force_recompute: false,
+        replay_files: replay_files,
+        window_size: 30,
+        stride: 1,
+        show_progress: false
+      ]
+
+      # First call should compute and save
+      result1 = Data.precompute_embeddings_cached(dataset, opts)
+      assert is_tuple(result1.embedded_sequences)
+
+      # Verify cache file was created
+      cache_files = Path.wildcard("#{tmp_dir}/*.emb")
+      assert length(cache_files) == 1
+
+      # Second call should load from cache
+      result2 = Data.precompute_embeddings_cached(dataset, opts)
+      assert :array.size(result2.embedded_sequences) == :array.size(result1.embedded_sequences)
+    end
+
+    @tag :tmp_dir
+    test "different window_size creates different cache", %{tmp_dir: tmp_dir} do
+      dataset = ExPhil.Test.Factory.sequence_dataset(num_sequences: 8, seq_len: 4)
+      replay_files = ["test1.slp"]
+
+      base_opts = [
+        cache: true,
+        cache_dir: tmp_dir,
+        force_recompute: false,
+        replay_files: replay_files,
+        stride: 1,
+        show_progress: false
+      ]
+
+      # Cache with window_size 30
+      _result1 = Data.precompute_embeddings_cached(dataset, Keyword.put(base_opts, :window_size, 30))
+
+      # Cache with window_size 60 (should create new cache file)
+      _result2 = Data.precompute_embeddings_cached(dataset, Keyword.put(base_opts, :window_size, 60))
+
+      # Should have 2 cache files now
+      cache_files = Path.wildcard("#{tmp_dir}/*.emb")
+      assert length(cache_files) == 2
+    end
+
+    test "cache disabled falls back to non-cached version" do
+      dataset = ExPhil.Test.Factory.sequence_dataset(num_sequences: 5, seq_len: 4)
+
+      opts = [cache: false, show_progress: false]
+
+      result = Data.precompute_embeddings_cached(dataset, opts)
+      assert is_tuple(result.embedded_sequences)
+    end
+  end
+
   # Helper to identify type for error messages
   defp type_of(x) when is_list(x), do: :list
   defp type_of(x) when is_tuple(x), do: :tuple

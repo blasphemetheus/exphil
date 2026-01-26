@@ -533,25 +533,55 @@ The embedding step happens before training starts. If your terminal becomes unre
 
 ### Embedding Disk Cache
 
-Embedding precomputation can take 1+ hours for large datasets. Enable disk caching to reuse embeddings across runs:
+Embedding precomputation can take 1+ hours for large datasets. Enable disk caching to reuse embeddings across runs.
+
+**Cache flags (consistent across all scripts):**
+
+| Flag | Default | Effect |
+|------|---------|--------|
+| `--cache-embeddings` | false | Enable disk caching of embeddings |
+| `--cache-dir PATH` | `cache/embeddings` (training) or `/workspace/cache/embeddings` (benchmark) | Cache directory |
+| `--no-cache` | false | Ignore existing cache and recompute |
+
+#### Training Script Examples
 
 ```bash
 # Enable embedding cache (saves ~1 hour on re-runs)
-mix run scripts/benchmark_architectures.exs --replays /workspace/replays --cache
+mix run scripts/train_from_replays.exs \
+  --replays /workspace/replays/mewtwo \
+  --cache-embeddings \
+  --temporal --backbone mlp
 
 # Custom cache directory
-mix run scripts/benchmark_architectures.exs --replays /workspace/replays --cache --cache-dir /workspace/my_cache
+mix run scripts/train_from_replays.exs \
+  --replays /workspace/replays/mewtwo \
+  --cache-embeddings \
+  --cache-dir /workspace/cache/embeddings
 
 # Force recompute even if cache exists
-mix run scripts/benchmark_architectures.exs --replays /workspace/replays --cache --force-recompute
+mix run scripts/train_from_replays.exs \
+  --replays /workspace/replays/mewtwo \
+  --cache-embeddings \
+  --no-cache
 ```
 
-**Cache flags:**
-| Flag | Default | Effect |
-|------|---------|--------|
-| `--cache` | false | Enable disk caching of embeddings |
-| `--cache-dir PATH` | `/workspace/cache/embeddings` | Cache directory |
-| `--force-recompute` | false | Ignore cache and recompute |
+**Incompatible flags:**
+- `--cache-embeddings` + `--augment`: Augmentation randomizes data, invalidating cache
+- `--cache-embeddings` + `--no-precompute`: Nothing to cache without precomputation
+- `--cache-embeddings` + `--stream-chunk-size`: Streaming mode processes chunks on-the-fly, cache not used
+
+#### Benchmark Script Examples
+
+```bash
+# Enable embedding cache
+mix run scripts/benchmark_architectures.exs --replays /workspace/replays --cache-embeddings
+
+# Custom cache directory
+mix run scripts/benchmark_architectures.exs --replays /workspace/replays --cache-embeddings --cache-dir /workspace/my_cache
+
+# Force recompute even if cache exists
+mix run scripts/benchmark_architectures.exs --replays /workspace/replays --cache-embeddings --no-cache
+```
 
 **Cache key is based on:**
 - Replay file list (sorted paths)

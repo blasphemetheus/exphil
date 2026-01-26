@@ -12,9 +12,9 @@
 #   --only arch1,arch2            Only run specified architectures
 #   --skip arch1,arch2            Skip specified architectures
 #   --continue-on-error           Continue if an architecture fails
-#   --cache                       Enable embedding disk cache (saves ~1hr on re-runs)
+#   --cache-embeddings            Enable embedding disk cache (saves ~1hr on re-runs)
 #   --cache-dir PATH              Cache directory (default: /workspace/cache/embeddings)
-#   --force-recompute             Ignore cache and recompute embeddings
+#   --no-cache                    Ignore cache and recompute embeddings
 #
 # Available architectures: mlp, mamba, jamba, lstm, gru, attention
 #
@@ -29,10 +29,10 @@
 #   mix run scripts/benchmark_architectures.exs --replays /workspace/replays --continue-on-error
 #
 #   # Use embedding cache (saves ~1hr on subsequent runs)
-#   mix run scripts/benchmark_architectures.exs --replays /workspace/replays --cache
+#   mix run scripts/benchmark_architectures.exs --replays /workspace/replays --cache-embeddings
 #
 #   # Force recompute even if cache exists
-#   mix run scripts/benchmark_architectures.exs --replays /workspace/replays --cache --force-recompute
+#   mix run scripts/benchmark_architectures.exs --replays /workspace/replays --cache-embeddings --no-cache
 #
 # This script compares:
 # - Training loss convergence
@@ -141,9 +141,9 @@ skip_archs =
 # Continue on error? (useful for benchmarking when some archs might fail)
 continue_on_error = "--continue-on-error" in args
 
-# Embedding cache options
-cache_enabled = "--cache" in args
-force_recompute = "--force-recompute" in args
+# Embedding cache options (consistent with train_from_replays.exs)
+cache_enabled = "--cache-embeddings" in args
+force_recompute = "--no-cache" in args
 
 cache_dir =
   case Enum.find_index(args, &(&1 == "--cache-dir")) do

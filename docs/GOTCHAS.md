@@ -44,6 +44,7 @@ Hard-won knowledge from debugging ExPhil. Each section documents a specific issu
 38. [Streaming prefetcher timeout causes silent batch drops](#38-streaming-prefetcher-timeout-causes-silent-batch-drops)
 39. [XLA preallocates 90% GPU memory and never releases it](#39-xla-preallocates-90-gpu-memory-and-never-releases-it)
 40. [--augment flag bypasses precomputed embeddings (100x slower)](#40---augment-flag-bypasses-precomputed-embeddings-100x-slower)
+41. [--cache-embeddings flag parsed but not used](#41---cache-embeddings-flag-parsed-but-not-used-train_from_replaysexs)
 
 ---
 
@@ -1661,3 +1662,67 @@ states = Nx.take(stacked_embeddings, indices_tensor, axis: 0)  # FAST: single ga
 - `lib/exphil/training/embedding_cache.ex` - Save/load handles both formats
 
 **Cache compatibility:** Old cached files (array format) are auto-converted to stacked tensor on load.
+
+---
+
+## 41. --cache-embeddings flag parsed but not used (train_from_replays.exs)
+
+**Status:** FIXED (Jan 2026)
+
+**Symptom:** Training with `--cache-embeddings` shows precomputation completing, but cache directory remains empty. Every run recomputes embeddings from scratch (~14 minutes for 1.4M frames), and training speed is ~50s/batch instead of ~0.04s/batch.
+
+**Example output:**
+```bash
+ls -la /workspace/cache/embeddings/
+# Shows: empty directory despite multiple training runs
+
+# Training shows:
+# Embedding: 100% (1454622/1454622) - done!
+# But no "[EmbeddingCache] Saved ..." message appears
+```
+
+**Root cause:** The `--cache-embeddings` flag was defined in `Config.ex` and parsed, but `train_from_replays.exs` called the non-cached functions:
+
+```elixir
+# BUG: Always called non-cached version regardless of flag
+Data.precompute_frame_embeddings(dataset)  # No caching!
+Data.precompute_embeddings(seq_dataset)     # No caching!
+
+# Should have called:
+Data.precompute_frame_embeddings_cached(dataset, cache_opts)
+Data.precompute_embeddings_cached(seq_dataset, cache_opts)
+```
+
+The benchmark script (`benchmark_architectures.exs`) used the cached versions correctly, which is why caching worked there but not in training.
+
+**The fix:** Updated `train_from_replays.exs` to use cached functions when `--cache-embeddings` is set:
+
+```elixir
+if opts[:cache_embeddings] do
+  Output.puts("  Using embedding cache (#{opts[:cache_dir]})...")
+
+  Data.precompute_frame_embeddings_cached(dataset,
+    cache: true,
+    cache_dir: opts[:cache_dir],
+    force_recompute: opts[:no_cache],
+    replay_files: replay_files,
+    show_progress: true
+  )
+else
+  Data.precompute_frame_embeddings(dataset)
+end
+```
+
+**Also added:** Warning when using `--cache-embeddings` with `--stream-chunk-size` since streaming mode doesn't benefit from caching (chunks processed on-the-fly).
+
+**Performance impact:**
+- Without fix: Every run = 14 min precompute + ~50s/batch training
+- With fix: First run = 14 min, subsequent runs = instant load + ~0.04s/batch training
+- **Speedup after first run: ~1000x+**
+
+**Code locations:**
+- `scripts/train_from_replays.exs:1128-1175` - Updated precomputation logic
+- `scripts/train_from_replays.exs:159` - Added `EmbeddingCache` to alias list
+- `scripts/train_from_replays.exs:524-530` - Added streaming mode warning
+
+**RunPod note:** Ensure `source /app/scripts/runpod_entrypoint.sh` is run to create `/app/cache -> /workspace/cache` symlink. Without this, cache may be written to ephemeral storage and lost on pod restart.
