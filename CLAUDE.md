@@ -5,11 +5,12 @@ ExPhil is an Elixir-based successor to slippi-ai, creating high-ELO playable bot
 ## Quick Reference
 
 **Embedding dimensions:**
+- **Default (learned)**: ~287 dims (with `action_mode: :learned`, `character_mode: :learned`, `stage_mode: :one_hot_compact`)
 - Player: 488 dims (base 440 + speeds 5 + frame_info 2 + stock 1 + ledge_dist 1 + compact Nana 39)
 - Player (learned actions): 91 dims (base 41 + speeds 5 + frame_info 2 + stock 1 + ledge_dist 1 + compact Nana 39 + action IDs in network)
 - Player (learned actions + chars): 58 dims (excludes 33-dim character one-hot)
-- Game: 1204 dims (2 players + stage + spatial features + projectiles)
-- Game (learned actions): 408 dims + 2 action IDs (use `action_mode: :learned` for trainable action embedding)
+- Game (one_hot, legacy): 1204 dims (2 players + stage + spatial features + projectiles)
+- Game (learned actions): 408 dims + 2 action IDs
 - Game (learned actions + chars): 344 dims + 4 IDs (saves 64 dims net: 2×33 one-hot → 2 char IDs)
 - **512-dim target**: 254 continuous + 4 action IDs × 64 embedding (use `action_mode: :learned, nana_mode: :enhanced`)
 - Nana modes:
@@ -19,11 +20,11 @@ ExPhil is an Elixir-based successor to slippi-ai, creating high-ELO playable bot
 - Jumps: Normalized (1 dim) by default; use `jumps_normalized: false` for 7-dim one-hot
 - Controller: 13 dims (8 buttons + 4 sticks + 1 shoulder)
 - Stick discretization: 17 uniform buckets (default) or 21 K-means clusters (`--kmeans-centers`)
-- Action modes: `:one_hot` (399 dims, default) or `:learned` (64-dim trainable embedding, saves ~670 dims)
-- Character modes: `:one_hot` (33 dims, default) or `:learned` (64-dim trainable embedding, saves 64 dims)
+- Action modes: `:one_hot` (399 dims) or `:learned` (64-dim trainable embedding, **default**, saves ~670 dims)
+- Character modes: `:one_hot` (33 dims) or `:learned` (64-dim trainable embedding, **default**, saves 64 dims)
 - Stage modes:
-  - `:one_hot_full` (default): 64 dims (full stage one-hot)
-  - `:one_hot_compact`: 7 dims (6 competitive stages + "other", saves 57 dims)
+  - `:one_hot_full`: 64 dims (full stage one-hot)
+  - `:one_hot_compact` (**default**): 7 dims (6 competitive stages + "other", saves 57 dims)
   - `:learned`: 1 ID + trainable embedding (saves 63 dims)
 - Competitive stages for compact mode: FoD (2), PS (3), YS (8), DL (28), BF (31), FD (32)
 - Action IDs: 2 (players only) or 4 (players + Nana with `nana_mode: :enhanced`)
@@ -109,6 +110,8 @@ Detailed guides in `docs/`:
 
 ## Quick Start
 
+**New defaults (Jan 2026):** Training now uses learned embeddings by default (~287 dims vs 1204). This allows 6x larger networks at the same training speed. Use `--action-mode one_hot --character-mode one_hot --stage-mode full` for legacy 1204-dim behavior.
+
 ```bash
 # Install dependencies
 mix deps.get
@@ -121,7 +124,7 @@ mix run scripts/train_from_replays.exs --preset quick     # Fast iteration (~5 m
 mix run scripts/train_from_replays.exs --preset mewtwo    # Character-specific
 mix run scripts/train_from_replays.exs --preset full      # Maximum quality
 
-# Manual configuration
+# Manual configuration (uses learned embeddings by default)
 mix run scripts/train_from_replays.exs --temporal --backbone mamba --epochs 5
 
 # Optional: Train K-means stick discretization for ~5% better precision inputs
