@@ -363,6 +363,9 @@ defmodule ExPhil.Training.Prefetcher do
   end
 
   # Start an async task to fetch the next batch
+  # Timeout is 5 minutes to allow for large chunk parsing in streaming mode
+  @prefetch_timeout_ms 300_000
+
   defp start_prefetch_task(stream_pid, stream_ref) do
     Task.async(fn ->
       send(stream_pid, {:next, stream_ref, self()})
@@ -371,7 +374,7 @@ defmodule ExPhil.Training.Prefetcher do
         {:batch, ^stream_ref, batch} -> {:ok, batch}
         {:done, ^stream_ref} -> :done
       after
-        60_000 -> :timeout
+        @prefetch_timeout_ms -> :timeout
       end
     end)
   end
@@ -407,7 +410,9 @@ defmodule ExPhil.Training.Prefetcher do
         process_prefetched_batches(rest_tasks, stream_pid, stream_ref, idx, acc, fun)
 
       :timeout ->
-        # Timeout, skip and continue
+        # Timeout waiting for batch - likely chunk parsing taking too long
+        require Logger
+        Logger.warning("[Prefetcher] Timeout waiting for batch #{idx} - chunk parsing may be slow")
         process_prefetched_batches(rest_tasks, stream_pid, stream_ref, idx, acc, fun)
     end
   end
