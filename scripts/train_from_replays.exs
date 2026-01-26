@@ -1714,8 +1714,9 @@ batch_checkpoint_path =
     epoch_batch_start = System.monotonic_time(:millisecond)
 
     # Define batch processing function (shared by prefetch and non-prefetch paths)
-    # State includes global_batch_idx for cross-epoch batch counting
-    process_batch = fn batch, batch_idx, {t, losses, jit_shown, curr_global_idx} ->
+    # State includes global_batch_idx for cross-epoch batch counting and smoothed_loss for EMA display
+    # smoothed_loss uses exponential moving average (EMA) with alpha=0.1 for stable display
+    process_batch = fn batch, batch_idx, {t, losses, jit_shown, curr_global_idx, smoothed_loss} ->
       batch_start = System.monotonic_time(:millisecond)
       # Note: loss_fn is ignored by train_step (it uses cached predict_fn internally)
       {new_trainer, metrics} = Imitation.train_step(t, batch, nil)
@@ -1787,16 +1788,26 @@ batch_checkpoint_path =
       # IMPORTANT: Only convert loss to number periodically to avoid GPU→CPU sync every batch
       # (See gotcha #18: Nx.to_number blocks GPU utilization)
       # Convert every 50 batches for display, but accumulate tensor for epoch-end averaging
-      display_loss =
+      {raw_loss, new_smoothed_loss} =
         if rem(batch_idx, 50) == 0 or batch_idx == 0 do
-          Nx.to_number(metrics.loss)
+          raw = Nx.to_number(metrics.loss)
+          # Exponential moving average: smoothed = alpha * new + (1 - alpha) * old
+          # alpha = 0.1 gives smooth display while still responding to changes
+          smoothed =
+            case smoothed_loss do
+              nil -> raw
+              prev -> 0.1 * raw + 0.9 * prev
+            end
+
+          {raw, smoothed}
         else
-          # Use previous display loss (stored in accumulator) or 0.0 for display only
-          case losses do
-            [{prev_display, _} | _] -> prev_display
-            _ -> 0.0
-          end
+          # Use previous smoothed loss for display
+          prev_smoothed = smoothed_loss || 0.0
+          {prev_smoothed, prev_smoothed}
         end
+
+      # Display the smoothed loss for stable progress bar
+      display_loss = new_smoothed_loss
 
       # Check for NaN loss - training has diverged and should stop
       if is_nan?.(display_loss) do
@@ -1819,18 +1830,22 @@ batch_checkpoint_path =
 
       # Accumulate tensor loss (keep as tensor, convert at epoch end)
       # Store tuple of {display_loss, tensor} so we can show loss but compute mean from tensors
-      {new_trainer, [{display_loss, metrics.loss} | losses], new_jit_shown, new_global_idx}
+      {new_trainer, [{raw_loss, metrics.loss} | losses], new_jit_shown, new_global_idx,
+       new_smoothed_loss}
     end
 
     # Use prefetcher if enabled (computes next batch while GPU trains on current)
-    {updated_trainer, epoch_losses, _, updated_global_batch_idx} =
+    # Initial state: {trainer, losses, jit_shown, global_batch_idx, smoothed_loss}
+    initial_state = {current_trainer, [], jit_indicator_shown, global_batch_idx, nil}
+
+    {updated_trainer, epoch_losses, _, updated_global_batch_idx, _final_smoothed} =
       cond do
         opts[:prefetch] and streaming_mode ->
           # Streaming mode: use stream-based prefetcher for lazy iteration
           # This avoids materializing all chunks at once
           Prefetcher.reduce_stream_indexed(
             batch_stream,
-            {current_trainer, [], jit_indicator_shown, global_batch_idx},
+            initial_state,
             process_batch,
             buffer_size: opts[:prefetch_buffer]
           )
@@ -1841,7 +1856,7 @@ batch_checkpoint_path =
           # then does simple Task-based prefetching
           Prefetcher.reduce_indexed(
             batch_stream,
-            {current_trainer, [], jit_indicator_shown, global_batch_idx},
+            initial_state,
             process_batch
           )
 
@@ -1849,9 +1864,7 @@ batch_checkpoint_path =
           # No prefetching - standard sequential processing
           batch_stream
           |> Stream.with_index()
-          |> Enum.reduce({current_trainer, [], jit_indicator_shown, global_batch_idx}, fn {batch,
-                                                                                           batch_idx},
-                                                                                          acc ->
+          |> Enum.reduce(initial_state, fn {batch, batch_idx}, acc ->
             process_batch.(batch, batch_idx, acc)
           end)
       end
