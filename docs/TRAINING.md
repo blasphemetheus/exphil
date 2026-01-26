@@ -280,13 +280,14 @@ Using learned embeddings dramatically reduces input dimensions:
 - `--stage-mode compact` saves 57 dims (64 → 7)
 - `--nana-mode enhanced` optimizes IC handling with action ID
 
+**Note:** These optimized settings are now the **default**. Total embedding is 287 dims (vs 1204 with all one-hot). You only need to specify these flags if you want to change back to one-hot mode:
+
 ```bash
-# Maximum dimension reduction (~70% smaller embedding)
+# Use one-hot mode (larger embeddings, slower training)
 mix run scripts/train_from_replays.exs \
-  --action-mode learned \
-  --character-mode learned \
-  --stage-mode compact \
-  --backbone mlp
+  --action-mode one_hot \
+  --character-mode one_hot \
+  --stage-mode full
 ```
 
 ### Player Style Learning
@@ -484,6 +485,19 @@ The prefetcher eagerly buffers batches from lazy chunk streams.
 
 Training can consume significant RAM and GPU memory. This section covers how to prevent OOM errors and optimize memory usage.
 
+### Quick Reference: When to Use Streaming
+
+| Total Frames | RAM Needed (approx) | Recommendation |
+|--------------|---------------------|----------------|
+| < 200K | ~2 GB | Standard mode OK |
+| 200K - 500K | 2-8 GB | Standard usually OK, streaming safer |
+| 500K - 1M | 8-20 GB | Use `--stream-chunk-size 20000` |
+| > 1M | 20+ GB | **Always** use `--stream-chunk-size 10000-20000` |
+
+**Rule of thumb:** If the script shows "Total training frames: X" where X > 500K, add `--stream-chunk-size 20000` to avoid OOM during embedding.
+
+The embedding step happens before training starts. If your terminal becomes unresponsive at "Embedding: N%" with memory at 100%, the dataset is too large for available RAM.
+
 ### Memory Usage Patterns
 
 **Where memory goes during training:**
@@ -518,10 +532,14 @@ Training can consume significant RAM and GPU memory. This section covers how to 
 ```bash
 mix run scripts/train_from_replays.exs \
   --temporal --backbone mamba \
-  --stream-chunk-size 30 \
+  --hidden-sizes 512,256 \
+  --stream-chunk-size 20000 \
   --gc-every 50 \
-  --batch-size 64 \
-  --precision bf16
+  --batch-size 512 \
+  --seq-len 64 \
+  --save-best \
+  --name mamba_training \
+  2>&1 | tee /workspace/logs/training_$(date +%Y%m%d_%H%M%S).log
 ```
 
 **Local GPU (8-12GB VRAM):**
