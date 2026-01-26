@@ -162,8 +162,8 @@ if [ -d "/app/checkpoints" ] && [ "$(ls -A /app/checkpoints 2>/dev/null)" ]; the
 elif [ -d "/workspace/checkpoints" ] && [ "$(ls -A /workspace/checkpoints 2>/dev/null)" ]; then
   CKPT_DIR="/workspace/checkpoints"
 else
-  echo "No checkpoints found in /app/checkpoints or /workspace/checkpoints"
-  exit 1
+  echo "No checkpoints found in /app/checkpoints or /workspace/checkpoints (nothing to upload)"
+  exit 0  # Not an error, just nothing to do
 fi
 echo "Using checkpoint directory: $CKPT_DIR"
 
@@ -199,8 +199,8 @@ if [ -d "/app/logs" ] && [ "$(ls -A /app/logs 2>/dev/null)" ]; then
 elif [ -d "/workspace/logs" ] && [ "$(ls -A /workspace/logs 2>/dev/null)" ]; then
   LOGS_DIR="/workspace/logs"
 else
-  echo "No logs found in /app/logs or /workspace/logs"
-  exit 1
+  echo "No logs found in /app/logs or /workspace/logs (nothing to upload)"
+  exit 0  # Not an error, just nothing to do
 fi
 echo "Using logs directory: $LOGS_DIR"
 
