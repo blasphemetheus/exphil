@@ -92,6 +92,26 @@ mix run scripts/train_self_play.exs \
 | Error handling improvements | Low | Bad replays fail silently | **Done** |
 | Embedding caching | Medium | 2-3x speedup by precomputing embeddings | **Done** |
 | K-means stick discretization | Medium | Research shows 21 clusters beats uniform grid | **Done** |
+| **Embedding disk caching** | Medium | Save precomputed embeddings to disk for reuse across runs | Planned |
+
+**Embedding Disk Caching (Planned):**
+
+Currently, embeddings are precomputed at the start of each training run. For large datasets (1.8M+ frames), this takes several minutes. Disk caching would:
+
+1. **Hash the embedding config** (action_mode, nana_mode, character_mode, stage_mode, etc.)
+2. **Save embeddings to disk** with the config hash as filename (e.g., `cache/embeddings_abc123.bin`)
+3. **Load cached embeddings** on subsequent runs if config matches
+4. **Invalidate cache** when replay files change (via mtime or hash)
+
+*Benefits:*
+- Skip 5-10 min precompute on subsequent runs with same config
+- Enables rapid iteration on hyperparameters without re-embedding
+- Amortizes embedding cost across many training runs
+
+*Trade-offs:*
+- Disk space: ~7GB for 1.8M frames (1204 dims × 4 bytes × 1.8M = 8.7GB, compressible)
+- Cache invalidation complexity
+- Memory-mapped loading could further speed up large datasets
 
 **Projectile Parsing Details:**
 - py-slippi's `Frame.items` contains projectiles (Fox lasers, Sheik needles, etc.)
@@ -927,6 +947,92 @@ Formula: `sequences × 30 frames × 1204 dims × 4 bytes = ~150 bytes/frame × 3
 - `lib/exphil/networks/policy.ex` - Added `:attention` backbone case
 - `docs/GOTCHAS.md` - Added Gotcha #25
 - `docs/docker-workflow.md` - Added memory requirements section
+
+### 2026-01-25: Benchmark Report Enhancements
+
+**Status:** COMPLETE
+
+Enhanced `scripts/benchmark_architectures.exs` with comprehensive reporting and visualizations.
+
+#### New Features
+
+1. **Machine Detection**
+   - GPU model and memory detected via `nvidia-smi`
+   - Displayed in config summary and HTML report
+   - Stored in JSON results for reproducibility
+
+2. **Inference Benchmarking**
+   - Measures actual inference latency per architecture
+   - Runs 10 inference passes after warmup (JIT compile)
+   - Reports ms/batch and μs/sample
+
+3. **Theoretical Complexity Annotations**
+   - Each architecture tagged with Big-O complexity
+   - MLP: O(1), LSTM/GRU: O(L) sequential, Mamba: O(L) parallel
+   - Attention: O(L²), Jamba: O(L) + O(L²/3) hybrid
+
+4. **New Charts in HTML Report**
+   | Chart | Description |
+   |-------|-------------|
+   | Validation Loss Comparison | Bar chart of final val loss per architecture |
+   | Loss Curves | Line chart showing convergence over epochs |
+   | Measured Training Speed | Batches/sec bar chart (higher is better) |
+   | Measured Inference Latency | ms/batch bar chart (lower is better) |
+   | Theoretical Complexity | Log-scale comparison of Big-O complexity |
+
+5. **Enhanced Results Table**
+   - Added Inference column (ms/batch)
+   - Added Complexity column (O() notation)
+   - Console and HTML tables match
+
+6. **Notes Section**
+   - Template for recording observations
+   - Prompts for common analysis questions
+
+#### Usage
+
+```bash
+mix run scripts/benchmark_architectures.exs \
+  --replays /workspace/replays/mewtwo \
+  --max-files 10 \
+  --epochs 3
+
+# Results saved to:
+# - checkpoints/benchmark_results.json (with machine info)
+# - checkpoints/benchmark_report.html (with all charts)
+```
+
+#### JSON Schema
+
+```json
+{
+  "timestamp": "2026-01-25T12:00:00Z",
+  "machine": {
+    "gpu": "NVIDIA GeForce RTX 4090",
+    "gpu_memory_gb": 24.0
+  },
+  "config": {
+    "replay_dir": "/workspace/replays/mewtwo",
+    "max_files": 10,
+    "epochs": 3,
+    "batch_size": 128,
+    "train_frames": 74067,
+    "val_frames": 8230
+  },
+  "results": [
+    {
+      "id": "attention",
+      "name": "Attention",
+      "final_val_loss": 2.921,
+      "avg_batches_per_sec": 7.9,
+      "inference_us_per_batch": 1234.5,
+      "theoretical_complexity": "O(L²)",
+      ...
+    }
+  ],
+  "best": "attention"
+}
+```
 
 ---
 

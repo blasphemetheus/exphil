@@ -52,6 +52,16 @@ alias ExPhil.Embeddings
 
 require Output  # For timed macro
 
+# Detect GPU model
+gpu_info = case System.cmd("nvidia-smi", ["--query-gpu=name,memory.total", "--format=csv,noheader,nounits"], stderr_to_stdout: true) do
+  {output, 0} ->
+    case String.split(String.trim(output), ", ") do
+      [name, memory_mb] -> %{name: name, memory_gb: String.to_integer(memory_mb) / 1024}
+      _ -> %{name: "Unknown GPU", memory_gb: 0}
+    end
+  _ -> %{name: "CPU only", memory_gb: 0}
+end
+
 # Parse args
 args = System.argv()
 
@@ -130,7 +140,8 @@ Output.config([
   {"Batch size", batch_size},
   {"Architectures", "#{length(architectures)} (#{Enum.map(architectures, fn {id, _, _} -> id end) |> Enum.join(", ")})"},
   {"Continue on error", continue_on_error},
-  {"GPU", GPUUtils.memory_status_string()}
+  {"GPU", "#{gpu_info.name} (#{Float.round(gpu_info.memory_gb, 1)} GB)"},
+  {"Memory", GPUUtils.memory_status_string()}
 ])
 
 # Step 1: Load replays
@@ -373,6 +384,37 @@ results = architectures
 
     Output.success("Complete: val=#{Float.round(final_val, 4)}, speed=#{Float.round(avg_speed, 1)} batch/s, time=#{Float.round(total_time/1000, 1)}s")
 
+    # Inference benchmarking - measure single batch latency
+    Output.puts("  Measuring inference latency...")
+    inference_batch = test_batch
+
+    # Warmup inference (JIT compile)
+    _ = Imitation.evaluate_batch(trainer, inference_batch)
+
+    # Measure 10 inference passes
+    inference_times = for _ <- 1..10 do
+      start = System.monotonic_time(:microsecond)
+      _ = Imitation.evaluate_batch(trainer, inference_batch)
+      System.monotonic_time(:microsecond) - start
+    end
+
+    avg_inference_us = Enum.sum(inference_times) / length(inference_times)
+    inference_batch_size = Nx.axis_size(inference_batch.states, 0)
+    per_sample_us = avg_inference_us / inference_batch_size
+
+    Output.puts("  Inference: #{Float.round(avg_inference_us / 1000, 2)}ms/batch, #{Float.round(per_sample_us, 1)}μs/sample")
+
+    # Theoretical complexity (for documentation)
+    theoretical_complexity = case arch_id do
+      :mlp -> "O(1)"
+      :lstm -> "O(L) sequential"
+      :gru -> "O(L) sequential"
+      :mamba -> "O(L) parallel"
+      :jamba -> "O(L) + O(L²) hybrid"
+      :attention -> "O(L²)"
+      _ -> "unknown"
+    end
+
     # Return as list for flat_map
     [%{
       id: arch_id,
@@ -381,6 +423,9 @@ results = architectures
       final_val_loss: final_val,
       avg_batches_per_sec: avg_speed,
       total_time_ms: total_time,
+      inference_us_per_batch: avg_inference_us,
+      inference_us_per_sample: per_sample_us,
+      theoretical_complexity: theoretical_complexity,
       epochs: epoch_metrics,
       config: Map.new(Keyword.take(opts, [:temporal, :backbone, :window_size, :num_layers, :hidden_sizes]))
     }]
@@ -410,8 +455,8 @@ sorted_results = Enum.sort_by(results, & &1.final_val_loss)
 # Print comparison table
 Output.section("Benchmark Results")
 Output.puts("Ranked by validation loss (lower is better):\n")
-Output.puts("  Rank | Architecture    | Val Loss | Train Loss | Speed (b/s) | Time")
-Output.puts("  -----+-----------------+----------+------------+-------------+------")
+Output.puts("  Rank | Architecture    | Val Loss | Train Loss | Speed (b/s) | Inference | Complexity")
+Output.puts("  -----+-----------------+----------+------------+-------------+-----------+-----------")
 
 sorted_results
 |> Enum.with_index(1)
@@ -420,8 +465,9 @@ sorted_results
   val = Float.round(r.final_val_loss, 4) |> to_string() |> String.pad_leading(8)
   train = Float.round(r.final_train_loss, 4) |> to_string() |> String.pad_leading(10)
   speed = Float.round(r.avg_batches_per_sec, 1) |> to_string() |> String.pad_leading(11)
-  time = "#{Float.round(r.total_time_ms/1000, 1)}s" |> String.pad_leading(5)
-  Output.puts("  #{rank}    | #{name} | #{val} | #{train} | #{speed} | #{time}")
+  inference = "#{Float.round(r.inference_us_per_batch / 1000, 1)}ms" |> String.pad_leading(9)
+  complexity = String.pad_trailing(r.theoretical_complexity, 10)
+  Output.puts("  #{rank}    | #{name} | #{val} | #{train} | #{speed} | #{inference} | #{complexity}")
 end)
 
 # Best architecture
@@ -435,10 +481,15 @@ File.mkdir_p!("checkpoints")
 
 json_results = %{
   timestamp: DateTime.utc_now() |> DateTime.to_iso8601(),
+  machine: %{
+    gpu: gpu_info.name,
+    gpu_memory_gb: Float.round(gpu_info.memory_gb, 1)
+  },
   config: %{
     replay_dir: replay_dir,
     max_files: max_files,
     epochs: epochs,
+    batch_size: batch_size,
     train_frames: train_dataset.size,
     val_frames: val_dataset.size
   },
@@ -467,8 +518,75 @@ comparison_plot = VegaLite.new(width: 700, height: 400, title: "Architecture Com
 |> VegaLite.encode_field(:y, "loss", type: :quantitative, title: "Validation Loss", scale: [zero: false])
 |> VegaLite.encode_field(:color, "architecture", type: :nominal, title: "Architecture")
 
+# Build training speed bar chart data
+speed_data = sorted_results
+|> Enum.map(fn r -> %{architecture: r.name, speed: r.avg_batches_per_sec} end)
+
+speed_plot = VegaLite.new(width: 700, height: 300, title: "Training Speed (batches/sec)")
+|> VegaLite.data_from_values(speed_data)
+|> VegaLite.mark(:bar)
+|> VegaLite.encode_field(:x, "architecture", type: :nominal, title: "Architecture", sort: "-y")
+|> VegaLite.encode_field(:y, "speed", type: :quantitative, title: "Batches/sec")
+|> VegaLite.encode_field(:color, "architecture", type: :nominal, legend: nil)
+
+# Build inference speed bar chart data
+inference_data = sorted_results
+|> Enum.map(fn r -> %{architecture: r.name, latency_ms: r.inference_us_per_batch / 1000} end)
+
+inference_plot = VegaLite.new(width: 700, height: 300, title: "Inference Latency (ms/batch)")
+|> VegaLite.data_from_values(inference_data)
+|> VegaLite.mark(:bar)
+|> VegaLite.encode_field(:x, "architecture", type: :nominal, title: "Architecture", sort: "y")
+|> VegaLite.encode_field(:y, "latency_ms", type: :quantitative, title: "Latency (ms)")
+|> VegaLite.encode_field(:color, "architecture", type: :nominal, legend: nil)
+
+# Build theoretical complexity chart data
+# For training: includes backward pass, so multiply by ~3x
+# For inference: just forward pass
+# Normalized to MLP = 1 (baseline)
+window_size = 30
+theoretical_data = sorted_results
+|> Enum.flat_map(fn r ->
+  {train_ops, inference_ops} = case r.id do
+    :mlp -> {1, 1}  # O(1) baseline
+    :lstm -> {window_size * 3, window_size}  # O(L) sequential, 3x for backprop
+    :gru -> {window_size * 3, window_size}   # O(L) sequential, 3x for backprop
+    :mamba -> {window_size, window_size}     # O(L) parallel scan
+    :attention -> {window_size * window_size * 3, window_size * window_size}  # O(L²)
+    :jamba -> {window_size + div(window_size * window_size, 3), window_size + div(window_size * window_size, 3)}  # O(L) + O(L²/3)
+    _ -> {1, 1}
+  end
+  [
+    %{architecture: r.name, type: "Training (relative)", ops: train_ops},
+    %{architecture: r.name, type: "Inference (relative)", ops: inference_ops}
+  ]
+end)
+
+theoretical_plot = VegaLite.new(width: 700, height: 300, title: "Theoretical Complexity (relative to MLP baseline)")
+|> VegaLite.data_from_values(theoretical_data)
+|> VegaLite.mark(:bar)
+|> VegaLite.encode_field(:x, "architecture", type: :nominal, title: "Architecture")
+|> VegaLite.encode_field(:y, "ops", type: :quantitative, title: "Relative Operations", scale: [type: :log])
+|> VegaLite.encode_field(:color, "type", type: :nominal, title: "Phase")
+|> VegaLite.encode_field(:x_offset, "type", type: :nominal)
+
+# Build training loss bar chart (final val loss comparison)
+loss_bar_data = sorted_results
+|> Enum.map(fn r -> %{architecture: r.name, loss: r.final_val_loss} end)
+
+loss_bar_plot = VegaLite.new(width: 700, height: 300, title: "Final Validation Loss (lower is better)")
+|> VegaLite.data_from_values(loss_bar_data)
+|> VegaLite.mark(:bar)
+|> VegaLite.encode_field(:x, "architecture", type: :nominal, title: "Architecture", sort: "y")
+|> VegaLite.encode_field(:y, "loss", type: :quantitative, title: "Validation Loss", scale: [zero: false])
+|> VegaLite.encode_field(:color, "architecture", type: :nominal, legend: nil)
+
 # Save report (use to_spec + Jason instead of deprecated Export.to_json)
 spec = comparison_plot |> VegaLite.to_spec() |> Jason.encode!()
+speed_spec = speed_plot |> VegaLite.to_spec() |> Jason.encode!()
+inference_spec = inference_plot |> VegaLite.to_spec() |> Jason.encode!()
+theoretical_spec = theoretical_plot |> VegaLite.to_spec() |> Jason.encode!()
+loss_bar_spec = loss_bar_plot |> VegaLite.to_spec() |> Jason.encode!()
 
 html = """
 <!DOCTYPE html>
@@ -483,12 +601,14 @@ html = """
     body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; padding: 40px; max-width: 900px; margin: 0 auto; }
     h1 { color: #333; }
     .summary { background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0; }
+    .notes { background: #fff3cd; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #ffc107; }
     table { border-collapse: collapse; width: 100%; margin: 20px 0; }
     th, td { padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }
     th { background: #333; color: white; }
     tr:nth-child(1) td { background: #d4edda; font-weight: bold; }
     .winner { color: #28a745; font-weight: bold; }
-    #plot { margin: 30px 0; }
+    .plot { margin: 30px 0; }
+    .complexity { font-family: monospace; background: #e9ecef; padding: 2px 6px; border-radius: 3px; }
   </style>
 </head>
 <body>
@@ -496,25 +616,65 @@ html = """
 
   <div class="summary">
     <h3>Configuration</h3>
-    <p>Replays: #{max_files} files (#{train_dataset.size} train / #{val_dataset.size} val frames)</p>
-    <p>Epochs: #{epochs}</p>
-    <p>Generated: #{DateTime.utc_now() |> Calendar.strftime("%Y-%m-%d %H:%M:%S UTC")}</p>
+    <p><strong>Machine:</strong> #{gpu_info.name} (#{Float.round(gpu_info.memory_gb, 1)} GB)</p>
+    <p><strong>Replays:</strong> #{max_files} files (#{train_dataset.size} train / #{val_dataset.size} val frames)</p>
+    <p><strong>Epochs:</strong> #{epochs}</p>
+    <p><strong>Batch size:</strong> #{batch_size}</p>
+    <p><strong>Generated:</strong> #{DateTime.utc_now() |> Calendar.strftime("%Y-%m-%d %H:%M:%S UTC")}</p>
   </div>
 
   <h2>Results (ranked by validation loss)</h2>
   <table>
-    <tr><th>Rank</th><th>Architecture</th><th>Val Loss</th><th>Train Loss</th><th>Speed</th><th>Time</th></tr>
+    <tr><th>Rank</th><th>Architecture</th><th>Val Loss</th><th>Train Loss</th><th>Speed</th><th>Inference</th><th>Complexity</th><th>Time</th></tr>
     #{sorted_results |> Enum.with_index(1) |> Enum.map(fn {r, rank} ->
-      "<tr><td>#{rank}</td><td>#{r.name}</td><td>#{Float.round(r.final_val_loss, 4)}</td><td>#{Float.round(r.final_train_loss, 4)}</td><td>#{Float.round(r.avg_batches_per_sec, 1)} b/s</td><td>#{Float.round(r.total_time_ms/1000, 1)}s</td></tr>"
+      "<tr><td>#{rank}</td><td>#{r.name}</td><td>#{Float.round(r.final_val_loss, 4)}</td><td>#{Float.round(r.final_train_loss, 4)}</td><td>#{Float.round(r.avg_batches_per_sec, 1)} b/s</td><td>#{Float.round(r.inference_us_per_batch / 1000, 2)} ms</td><td><span class=\"complexity\">#{r.theoretical_complexity}</span></td><td>#{Float.round(r.total_time_ms/1000, 1)}s</td></tr>"
     end) |> Enum.join("\n")}
   </table>
 
   <p class="winner">Best: #{best.name}</p>
 
-  <h2>Loss Curves</h2>
-  <div id="plot"></div>
+  <div class="notes">
+    <h3>Notes</h3>
+    <p><em>Add your observations here after reviewing the results.</em></p>
+    <ul>
+      <li>Loss curves: Do the temporal architectures show improvement over epochs?</li>
+      <li>Mamba/Jamba may need more epochs or different hyperparameters to converge</li>
+      <li>Consider training speed vs accuracy tradeoffs for your use case</li>
+    </ul>
+  </div>
 
-  <script>vegaEmbed('#plot', #{spec});</script>
+  <h2>Validation Loss Comparison</h2>
+  <div id="loss_bar_plot" class="plot"></div>
+
+  <h2>Loss Curves (over epochs)</h2>
+  <div id="loss_plot" class="plot"></div>
+
+  <h2>Measured Training Speed</h2>
+  <p>Batches per second during training. Higher is better.</p>
+  <div id="speed_plot" class="plot"></div>
+
+  <h2>Measured Inference Latency</h2>
+  <p>Lower is better. Target for 60 FPS gameplay: &lt;16.7ms per frame.</p>
+  <div id="inference_plot" class="plot"></div>
+
+  <h2>Theoretical Complexity</h2>
+  <p>Big-O complexity relative to MLP baseline (L = window size = 30). Log scale. Lower is better.</p>
+  <ul>
+    <li><strong>MLP:</strong> O(1) - constant time, no temporal context</li>
+    <li><strong>LSTM/GRU:</strong> O(L) - sequential, cannot parallelize</li>
+    <li><strong>Mamba:</strong> O(L) - parallel scan, GPU-friendly</li>
+    <li><strong>Attention:</strong> O(L²) - quadratic, but highly parallel</li>
+    <li><strong>Jamba:</strong> O(L) + O(L²/3) - hybrid, attention every 3 layers</li>
+  </ul>
+  <div id="theoretical_plot" class="plot"></div>
+
+  <script>
+    vegaEmbed('#loss_bar_plot', #{loss_bar_spec});
+    vegaEmbed('#loss_plot', #{spec});
+    vegaEmbed('#speed_plot', #{speed_spec});
+    vegaEmbed('#inference_plot', #{inference_spec});
+    vegaEmbed('#theoretical_plot', #{theoretical_spec});
+  </script>
 </body>
 </html>
 """
