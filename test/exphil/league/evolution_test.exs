@@ -30,11 +30,18 @@ defmodule ExPhil.League.EvolutionTest do
     test "accepts generation count" do
       # Verify the function signature accepts expected options
       # Functions have default opts, so arity 1 is the base
+      Code.ensure_loaded!(Evolution)
       assert function_exported?(Evolution, :run, 1)
     end
   end
 
   describe "module structure" do
+    # Ensure module is loaded before checking exports
+    setup do
+      Code.ensure_loaded!(Evolution)
+      :ok
+    end
+
     test "exports evolve/1 (with default opts)" do
       assert function_exported?(Evolution, :evolve, 1)
     end

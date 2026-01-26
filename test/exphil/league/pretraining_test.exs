@@ -69,6 +69,12 @@ defmodule ExPhil.League.PretrainingTest do
   end
 
   describe "module structure" do
+    # Ensure module is loaded before checking exports
+    setup do
+      Code.ensure_loaded!(Pretraining)
+      :ok
+    end
+
     test "exports train_all/3" do
       assert function_exported?(Pretraining, :train_all, 3)
     end
