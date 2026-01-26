@@ -1100,10 +1100,20 @@ defmodule ExPhil.Training.Data do
     frames_array = :array.from_list(dataset.frames)
 
     embeddings_array =
-      if dataset.embedded_sequences do
-        :array.from_list(dataset.embedded_sequences)
-      else
-        nil
+      cond do
+        is_nil(dataset.embedded_sequences) ->
+          nil
+
+        # Already an array (from precompute_embeddings or cache load)
+        is_tuple(dataset.embedded_sequences) and elem(dataset.embedded_sequences, 0) == :array ->
+          dataset.embedded_sequences
+
+        # List that needs conversion
+        is_list(dataset.embedded_sequences) ->
+          :array.from_list(dataset.embedded_sequences)
+
+        true ->
+          nil
       end
 
     # Prepare indices
