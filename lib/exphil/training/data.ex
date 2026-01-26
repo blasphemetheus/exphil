@@ -411,10 +411,12 @@ defmodule ExPhil.Training.Data do
 
     # Embed states with name_ids
     {game_states, actions, name_ids} = unzip3(frame_data)
-    states = embed_states(game_states, dataset.embed_config, name_ids)
+    states = embed_states_parallel(game_states, dataset.embed_config, name_ids)
 
-    # Convert actions to tensors
-    action_tensors = actions_to_tensors(actions)
+    # Convert actions to tensors and transfer to GPU
+    action_tensors =
+      actions_to_tensors(actions)
+      |> transfer_actions_to_gpu()
 
     %{
       states: states,
@@ -469,6 +471,44 @@ defmodule ExPhil.Training.Data do
       end)
 
     Nx.stack(embeddings)
+  end
+
+  # Parallel embedding for non-precompute path - uses multiple CPU cores
+  # then transfers the result to GPU for efficient training
+  defp embed_states_parallel(game_states, embed_config, nil) do
+    # Parallelize across CPU cores (embedding is CPU-bound struct → tensor conversion)
+    embeddings =
+      game_states
+      |> Task.async_stream(
+        fn gs -> Embeddings.embed(gs, nil, embed_config: embed_config) end,
+        max_concurrency: System.schedulers_online(),
+        ordered: true
+      )
+      |> Enum.map(fn {:ok, emb} -> emb end)
+
+    # Stack and transfer to GPU
+    embeddings
+    |> Nx.stack()
+    |> Nx.backend_transfer(EXLA.Backend)
+  end
+
+  defp embed_states_parallel(game_states, embed_config, name_ids) when is_list(name_ids) do
+    # Parallelize across CPU cores with name_ids
+    embeddings =
+      Enum.zip(game_states, name_ids)
+      |> Task.async_stream(
+        fn {gs, name_id} ->
+          Embeddings.embed(gs, nil, embed_config: embed_config, name_id: name_id)
+        end,
+        max_concurrency: System.schedulers_online(),
+        ordered: true
+      )
+      |> Enum.map(fn {:ok, emb} -> emb end)
+
+    # Stack and transfer to GPU
+    embeddings
+    |> Nx.stack()
+    |> Nx.backend_transfer(EXLA.Backend)
   end
 
   # ============================================================================
