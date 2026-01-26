@@ -496,6 +496,51 @@ if opts[:stream_chunk_size] do
   end
 end
 
+# ============================================================================
+# Flag combination warnings (shown before dry-run so users see them)
+# ============================================================================
+
+# Warn about early stopping without validation split
+if opts[:early_stopping] and opts[:val_split] == 0.0 do
+  Output.warning("--early-stopping without --val-split uses training loss")
+  Output.puts("    This may not detect overfitting. Consider adding --val-split 0.1")
+end
+
+# Warn about caching with augmentation (cache would be invalid)
+if opts[:cache_embeddings] and opts[:augment] do
+  Output.warning("--cache-embeddings with --augment is not recommended")
+  Output.puts("    Augmentation randomizes data each run, making cached embeddings invalid")
+end
+
+# Warn about caching without precompute (nothing to cache)
+if opts[:cache_embeddings] and opts[:no_precompute] do
+  Output.warning("--cache-embeddings has no effect with --no-precompute")
+  Output.puts("    Embedding cache requires precomputation. Remove --no-precompute to use caching.")
+end
+
+# Warn about BPTT truncation without temporal mode
+if opts[:truncate_bptt] != nil and not opts[:temporal] do
+  Output.warning("--truncate-bptt has no effect without --temporal")
+  Output.puts("    BPTT truncation only applies to recurrent models (LSTM, GRU, Mamba)")
+end
+
+# Warn about MLP-specific flags with temporal backbone
+if opts[:temporal] and (opts[:residual] or opts[:layer_norm]) do
+  backbone = opts[:backbone]
+
+  if backbone not in [:mlp, :sliding_window] do
+    if opts[:residual] do
+      Output.warning("--residual has no effect with --backbone #{backbone}")
+      Output.puts("    Residual connections only apply to MLP backbone")
+    end
+
+    if opts[:layer_norm] do
+      Output.warning("--layer-norm has no effect with --backbone #{backbone}")
+      Output.puts("    Layer normalization only applies to MLP backbone")
+    end
+  end
+end
+
 # Dry run mode - validate config and show what would happen, then exit
 if opts[:dry_run] do
   Output.section("Dry Run Mode")
