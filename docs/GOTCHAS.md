@@ -1555,3 +1555,5 @@ elixir -e "System.cmd(\"mix\", [\"run\", \"script.exs\", \"--arch\", \"mamba\"])
 - [EXLA docs](https://hexdocs.pm/exla/EXLA.html)
 
 **Code location:** `scripts/benchmark_architectures.exs:50-52`
+
+**Recommended setting for benchmarks:** `memory_fraction: 0.7` balances preallocation benefits with headroom for spikes. Use `preallocate: false` only if OOM persists.

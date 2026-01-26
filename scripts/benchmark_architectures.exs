@@ -46,10 +46,10 @@ Application.put_env(:elixir, :inspect, limit: 10, printable_limit: 100)
 # This helps prevent OOM when switching from MLP to Mamba/Jamba
 System.put_env("TF_GPU_ALLOCATOR", "cuda_malloc_async")
 
-# Disable XLA memory preallocation (default: 90% of VRAM)
-# This allows GPU memory to be allocated on-demand and released between architectures
-# Trade-off: ~5-10% slower but prevents OOM when running multiple architectures sequentially
-Application.put_env(:exla, :clients, cuda: [platform: :cuda, preallocate: false])
+# Limit XLA memory preallocation to 70% (default: 90% of VRAM)
+# This leaves 30% headroom for memory spikes during architecture transitions
+# More stable than preallocate: false, less fragmentation, ~5% slower than default
+Application.put_env(:exla, :clients, cuda: [platform: :cuda, memory_fraction: 0.7])
 
 alias ExPhil.Data.Peppi
 alias ExPhil.Training.{Data, GPUUtils, Imitation, Output}
