@@ -941,6 +941,139 @@ defmodule ExPhil.Training.Data do
   def has_precomputed_embeddings?(%__MODULE__{embedded_frames: nil}), do: false
   def has_precomputed_embeddings?(%__MODULE__{embedded_frames: _}), do: true
 
+  # ============================================================================
+  # Embedding Cache Integration
+  # ============================================================================
+
+  @doc """
+  Pre-compute frame embeddings with optional disk caching.
+
+  If caching is enabled and a cached version exists, loads from disk.
+  Otherwise computes embeddings and optionally saves to cache.
+
+  ## Options
+    - `:cache` - Enable caching (default: false)
+    - `:cache_dir` - Cache directory (default: "cache/embeddings")
+    - `:force_recompute` - Ignore cache and recompute (default: false)
+    - `:replay_files` - List of replay file paths (required for cache key)
+    - All options from `precompute_frame_embeddings/2`
+
+  ## Example
+
+      # With caching enabled
+      dataset = Data.precompute_frame_embeddings_cached(dataset,
+        cache: true,
+        replay_files: replay_files
+      )
+  """
+  @spec precompute_frame_embeddings_cached(t(), keyword()) :: t()
+  def precompute_frame_embeddings_cached(dataset, opts \\ []) do
+    cache_enabled = Keyword.get(opts, :cache, false)
+    force_recompute = Keyword.get(opts, :force_recompute, false)
+    replay_files = Keyword.get(opts, :replay_files, [])
+    cache_dir = Keyword.get(opts, :cache_dir, "cache/embeddings")
+
+    alias ExPhil.Training.EmbeddingCache
+
+    if cache_enabled and not force_recompute and length(replay_files) > 0 do
+      cache_key = EmbeddingCache.cache_key(dataset.embed_config, replay_files, temporal: false)
+
+      case EmbeddingCache.load(cache_key, cache_dir: cache_dir) do
+        {:ok, embedded_array} ->
+          Logger.info("[EmbeddingCache] Using cached frame embeddings")
+          %{dataset | embedded_frames: embedded_array}
+
+        {:error, :not_found} ->
+          Logger.info("[EmbeddingCache] Cache miss, computing embeddings...")
+          result = precompute_frame_embeddings(dataset, opts)
+
+          # Save to cache
+          if result.embedded_frames do
+            EmbeddingCache.save(cache_key, result.embedded_frames, cache_dir: cache_dir)
+          end
+
+          result
+
+        {:error, reason} ->
+          Logger.warning(
+            "[EmbeddingCache] Failed to load cache: #{inspect(reason)}, recomputing..."
+          )
+
+          precompute_frame_embeddings(dataset, opts)
+      end
+    else
+      precompute_frame_embeddings(dataset, opts)
+    end
+  end
+
+  @doc """
+  Pre-compute sequence embeddings with optional disk caching.
+
+  If caching is enabled and a cached version exists, loads from disk.
+  Otherwise computes embeddings and optionally saves to cache.
+
+  ## Options
+    - `:cache` - Enable caching (default: false)
+    - `:cache_dir` - Cache directory (default: "cache/embeddings")
+    - `:force_recompute` - Ignore cache and recompute (default: false)
+    - `:replay_files` - List of replay file paths (required for cache key)
+    - `:window_size` - Window size (used in cache key)
+    - `:stride` - Stride (used in cache key)
+    - All options from `precompute_embeddings/2`
+  """
+  @spec precompute_embeddings_cached(t(), keyword()) :: t()
+  def precompute_embeddings_cached(dataset, opts \\ []) do
+    cache_enabled = Keyword.get(opts, :cache, false)
+    force_recompute = Keyword.get(opts, :force_recompute, false)
+    replay_files = Keyword.get(opts, :replay_files, [])
+    cache_dir = Keyword.get(opts, :cache_dir, "cache/embeddings")
+    window_size = Keyword.get(opts, :window_size, 30)
+    stride = Keyword.get(opts, :stride, 1)
+
+    alias ExPhil.Training.EmbeddingCache
+
+    if cache_enabled and not force_recompute and length(replay_files) > 0 do
+      cache_key =
+        EmbeddingCache.cache_key(dataset.embed_config, replay_files,
+          temporal: true,
+          window_size: window_size,
+          stride: stride
+        )
+
+      case EmbeddingCache.load(cache_key, cache_dir: cache_dir) do
+        {:ok, cached_dataset} when is_struct(cached_dataset, __MODULE__) ->
+          # Full dataset was cached
+          Logger.info("[EmbeddingCache] Using cached sequence embeddings")
+          cached_dataset
+
+        {:ok, embedded_seqs} ->
+          # Just the embeddings were cached
+          Logger.info("[EmbeddingCache] Using cached sequence embeddings")
+          %{dataset | embedded_sequences: embedded_seqs}
+
+        {:error, :not_found} ->
+          Logger.info("[EmbeddingCache] Cache miss, computing embeddings...")
+          result = precompute_embeddings(dataset, opts)
+
+          # Save to cache
+          if result.embedded_sequences do
+            EmbeddingCache.save(cache_key, result, cache_dir: cache_dir)
+          end
+
+          result
+
+        {:error, reason} ->
+          Logger.warning(
+            "[EmbeddingCache] Failed to load cache: #{inspect(reason)}, recomputing..."
+          )
+
+          precompute_embeddings(dataset, opts)
+      end
+    else
+      precompute_embeddings(dataset, opts)
+    end
+  end
+
   @doc """
   Create batched iterator for sequence data (temporal training).
 

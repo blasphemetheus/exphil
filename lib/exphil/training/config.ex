@@ -106,6 +106,9 @@ defmodule ExPhil.Training.Config do
     "--ema-decay",
     "--precompute",
     "--no-precompute",
+    "--cache-embeddings",
+    "--no-cache",
+    "--cache-dir",
     "--prefetch",
     "--no-prefetch",
     "--gradient-checkpoint",
@@ -289,6 +292,12 @@ defmodule ExPhil.Training.Config do
       precompute: true,
       # Override for explicitly disabling precomputation
       no_precompute: false,
+      # Embedding disk caching (save precomputed embeddings to disk for reuse)
+      cache_embeddings: false,
+      # Force recompute even if cache exists
+      no_cache: false,
+      # Directory for embedding cache files
+      cache_dir: "cache/embeddings",
       # Data prefetching (load next batch while GPU trains)
       prefetch: true,
       # Number of batches to prefetch
@@ -1852,6 +1861,9 @@ defmodule ExPhil.Training.Config do
     |> parse_float_arg(args, "--ema-decay", :ema_decay)
     |> parse_flag(args, "--precompute", :precompute)
     |> parse_flag(args, "--no-precompute", :no_precompute)
+    |> parse_flag(args, "--cache-embeddings", :cache_embeddings)
+    |> parse_flag(args, "--no-cache", :no_cache)
+    |> parse_string_arg(args, "--cache-dir", :cache_dir)
     |> parse_flag(args, "--prefetch", :prefetch)
     |> parse_flag(args, "--no-prefetch", :no_prefetch)
     |> parse_flag(args, "--gradient-checkpoint", :gradient_checkpoint)
