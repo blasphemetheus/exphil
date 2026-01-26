@@ -52,9 +52,9 @@ defmodule ExPhil.Embeddings.Player do
             # Use 1-dim normalized float instead of 7-dim one-hot (saves 6 dims/player)
             jumps_normalized: true,
             # :one_hot (399 dims) or :learned (action embedded in network, 0 dims here)
-            action_mode: :one_hot,
+            action_mode: :learned,
             # :one_hot (33 dims) or :learned (character embedded in network, 0 dims here)
-            character_mode: :one_hot
+            character_mode: :learned
 
   @type nana_mode :: :full | :compact | :enhanced
   @type action_mode :: :one_hot | :learned
@@ -839,13 +839,18 @@ defmodule ExPhil.Embeddings.Player do
         :learned -> base_features
       end
 
+    # Add character one-hot only if not using learned embeddings
+    base_features =
+      case config.character_mode do
+        :one_hot -> base_features ++ [Primitives.character_embed(player.character || 0)]
+        # Character ID handled separately by network
+        :learned -> base_features
+      end
+
     # Continue with rest of features
     all_features =
       base_features ++
         [
-          # Character (one-hot)
-          Primitives.character_embed(player.character || 0),
-
           # Invulnerable flag
           Primitives.bool_embed(player.invulnerable || false),
 

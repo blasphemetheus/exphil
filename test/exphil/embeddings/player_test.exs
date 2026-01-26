@@ -137,17 +137,32 @@ defmodule ExPhil.Embeddings.PlayerTest do
       assert Nx.to_number(diff) > 0.1
     end
 
-    test "embedding changes with different actions" do
+    test "embedding changes with different actions (one-hot mode)" do
       player1 = mock_player(action: 0)
       player2 = mock_player(action: 100)
-      config = %PlayerEmbed{with_nana: false, with_speeds: false}
+      # Use explicit one-hot action mode to test action embedding differences
+      config = %PlayerEmbed{with_nana: false, with_speeds: false, action_mode: :one_hot}
 
       result1 = PlayerEmbed.embed(player1, config)
       result2 = PlayerEmbed.embed(player2, config)
 
-      # Should be different
+      # Should be different when using one-hot (different actions)
       diff = Nx.sum(Nx.abs(Nx.subtract(result1, result2)))
       assert Nx.to_number(diff) > 0
+    end
+
+    test "embedding same for different actions (learned mode - action ID separate)" do
+      player1 = mock_player(action: 0)
+      player2 = mock_player(action: 100)
+      # With learned mode, action is NOT embedded - ID is passed separately to network
+      config = %PlayerEmbed{with_nana: false, with_speeds: false, action_mode: :learned}
+
+      result1 = PlayerEmbed.embed(player1, config)
+      result2 = PlayerEmbed.embed(player2, config)
+
+      # Should be same (action ID handled separately by network)
+      diff = Nx.sum(Nx.abs(Nx.subtract(result1, result2)))
+      assert Nx.to_number(diff) == 0
     end
 
     test "embeds with speeds when configured" do
@@ -173,22 +188,43 @@ defmodule ExPhil.Embeddings.PlayerTest do
   end
 
   describe "embed_base/2" do
-    test "creates base embedding" do
+    test "creates base embedding with default config (learned actions/chars)" do
       player = mock_player()
       config = PlayerEmbed.default_config()
 
       result = PlayerEmbed.embed_base(player, config)
 
-      # Base size with jumps_normalized=true (default):
+      # Base size with learned actions + learned chars + jumps_normalized=true (default):
+      # 1 + 1 + 1 + 1 + 0 + 0 + 1 + 1 + 1 + 1 = 8
+      # (action is 0 dims, character is 0 dims, jumps is 1 dim)
+      expected_size = 1 + 1 + 1 + 1 + 0 + 0 + 1 + 1 + 1 + 1
+      assert Nx.shape(result) == {expected_size}
+    end
+
+    test "creates base embedding with one-hot actions and characters" do
+      player = mock_player()
+      # Explicit one-hot mode for full embedding
+      config = %PlayerEmbed{
+        jumps_normalized: true,
+        action_mode: :one_hot,
+        character_mode: :one_hot
+      }
+
+      result = PlayerEmbed.embed_base(player, config)
+
+      # Base size with one-hot actions (399) + one-hot chars (33):
       # 1 + 1 + 1 + 1 + 399 + 33 + 1 + 1 + 1 + 1 = 440
-      # (jumps is 1 dim instead of 7)
       expected_size = 1 + 1 + 1 + 1 + 399 + 33 + 1 + 1 + 1 + 1
       assert Nx.shape(result) == {expected_size}
     end
 
-    test "creates base embedding with one-hot jumps" do
+    test "creates base embedding with one-hot jumps (one-hot actions/chars)" do
       player = mock_player()
-      config = %PlayerEmbed{jumps_normalized: false}
+      config = %PlayerEmbed{
+        jumps_normalized: false,
+        action_mode: :one_hot,
+        character_mode: :one_hot
+      }
 
       result = PlayerEmbed.embed_base(player, config)
 
@@ -231,22 +267,30 @@ defmodule ExPhil.Embeddings.PlayerTest do
       assert_in_delta facing_left, -1.0, 0.001
     end
 
-    test "creates base embedding without action one-hot (learned action mode)" do
+    test "creates base embedding with learned action, one-hot character" do
       player = mock_player()
-      config = %PlayerEmbed{action_mode: :learned, jumps_normalized: true}
+      config = %PlayerEmbed{
+        action_mode: :learned,
+        character_mode: :one_hot,
+        jumps_normalized: true
+      }
 
       result = PlayerEmbed.embed_base(player, config)
 
-      # Base size with action_mode: :learned:
+      # Base size with action_mode: :learned, character_mode: :one_hot:
       # 1 + 1 + 1 + 1 + 0 + 33 + 1 + 1 + 1 + 1 = 41
       # (action is 0 dims instead of 399)
       expected_size = 1 + 1 + 1 + 1 + 0 + 33 + 1 + 1 + 1 + 1
       assert Nx.shape(result) == {expected_size}
     end
 
-    test "creates base embedding without action one-hot and with one-hot jumps" do
+    test "creates base embedding with learned action, one-hot character, one-hot jumps" do
       player = mock_player()
-      config = %PlayerEmbed{action_mode: :learned, jumps_normalized: false}
+      config = %PlayerEmbed{
+        action_mode: :learned,
+        character_mode: :one_hot,
+        jumps_normalized: false
+      }
 
       result = PlayerEmbed.embed_base(player, config)
 
@@ -347,13 +391,15 @@ defmodule ExPhil.Embeddings.PlayerTest do
     end
 
     test "returns zeros with exists=0 for nil nana (full mode)" do
-      # Use jumps_normalized: false to get classic 446 base size
+      # Use explicit one-hot modes to get classic 446 base size
       config = %PlayerEmbed{
         nana_mode: :full,
         with_speeds: false,
         with_frame_info: false,
         with_stock: false,
-        jumps_normalized: false
+        jumps_normalized: false,
+        action_mode: :one_hot,
+        character_mode: :one_hot
       }
 
       result = PlayerEmbed.embed_nana(nil, config, nil)
@@ -367,12 +413,14 @@ defmodule ExPhil.Embeddings.PlayerTest do
     end
 
     test "returns zeros with exists=0 for nil nana (full mode, normalized jumps)" do
-      # Default uses jumps_normalized: true
+      # Explicit one-hot modes for classic 440 base size
       config = %PlayerEmbed{
         nana_mode: :full,
         with_speeds: false,
         with_frame_info: false,
-        with_stock: false
+        with_stock: false,
+        action_mode: :one_hot,
+        character_mode: :one_hot
       }
 
       result = PlayerEmbed.embed_nana(nil, config, nil)
@@ -400,17 +448,21 @@ defmodule ExPhil.Embeddings.PlayerTest do
     test "embeds nana with exists=1 (full mode)" do
       nana = mock_nana()
 
+      # Explicit one-hot for predictable base size
       config = %PlayerEmbed{
         nana_mode: :full,
         with_speeds: false,
         with_frame_info: false,
-        with_stock: false
+        with_stock: false,
+        action_mode: :one_hot,
+        character_mode: :one_hot
       }
 
       result = PlayerEmbed.embed_nana(nana, config, nil)
 
-      # In full mode, exists is at position 446 (after base embedding)
-      exists_flag = Nx.to_number(Nx.squeeze(Nx.slice(result, [446], [1])))
+      # In full mode, exists is at position 440 (after base embedding with normalized jumps)
+      # Base: 1+1+1+1+399+33+1+1+1+1 = 440
+      exists_flag = Nx.to_number(Nx.squeeze(Nx.slice(result, [440], [1])))
       assert_in_delta exists_flag, 1.0, 0.001
     end
 

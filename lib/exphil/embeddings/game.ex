@@ -53,7 +53,7 @@ defmodule ExPhil.Embeddings.Game do
             with_frame_count: true,
             # Stage embedding mode
             # :one_hot_full (64), :one_hot_compact (7), :learned (ID in network)
-            stage_mode: :one_hot_full
+            stage_mode: :one_hot_compact
 
   @type stage_mode :: :one_hot_full | :one_hot_compact | :learned
 

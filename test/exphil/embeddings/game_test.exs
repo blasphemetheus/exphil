@@ -142,24 +142,32 @@ defmodule ExPhil.Embeddings.GameTest do
     end
 
     test "size includes action IDs when using learned actions" do
-      player_config = %PlayerEmbed{action_mode: :learned}
-      config = %GameEmbed{player: player_config}
+      # Explicitly use one-hot for character to isolate action ID testing
+      player_config = %PlayerEmbed{action_mode: :learned, character_mode: :one_hot}
+      config = %GameEmbed{player: player_config, stage_mode: :one_hot_full}
 
       size = GameEmbed.embedding_size(config)
 
       # Should include 2 action IDs (own + opponent)
       assert size > 0
-      # Size should be continuous_embedding_size + num_action_ids
+      # Size should be continuous_embedding_size + num_total_ids
       continuous_size = GameEmbed.continuous_embedding_size(config)
-      num_ids = GameEmbed.num_action_ids(config)
-      assert num_ids == 2
+      num_ids = GameEmbed.num_total_ids(config)
+      assert GameEmbed.num_action_ids(config) == 2
       assert size == continuous_size + num_ids
     end
   end
 
   describe "num_action_ids/1" do
-    test "returns 0 for default config (one-hot actions)" do
+    test "returns 2 for default config (learned actions)" do
       config = GameEmbed.default_config()
+      # Default now uses learned action embeddings
+      assert GameEmbed.num_action_ids(config) == 2
+    end
+
+    test "returns 0 with explicit one-hot actions" do
+      player_config = %PlayerEmbed{action_mode: :one_hot}
+      config = %GameEmbed{player: player_config}
       assert GameEmbed.num_action_ids(config) == 0
     end
 
@@ -185,30 +193,39 @@ defmodule ExPhil.Embeddings.GameTest do
   end
 
   describe "continuous_embedding_size/1" do
-    test "equals total size when using one-hot actions" do
-      # Uses one-hot by default
-      config = GameEmbed.default_config()
+    test "equals total size when using explicit one-hot actions and characters" do
+      # Explicitly use one-hot for both actions and characters
+      player_config = %PlayerEmbed{action_mode: :one_hot, character_mode: :one_hot}
+      config = %GameEmbed{player: player_config, stage_mode: :one_hot_full}
       total_size = GameEmbed.embedding_size(config)
       continuous_size = GameEmbed.continuous_embedding_size(config)
 
       assert continuous_size == total_size
     end
 
-    test "is smaller than total when using learned actions" do
-      player_config = %PlayerEmbed{action_mode: :learned}
-      config = %GameEmbed{player: player_config}
+    test "is smaller than total when using learned embeddings (default)" do
+      # Default now uses learned embeddings (action + character)
+      config = GameEmbed.default_config()
 
       total_size = GameEmbed.embedding_size(config)
       continuous_size = GameEmbed.continuous_embedding_size(config)
-      num_ids = GameEmbed.num_action_ids(config)
+      # Use num_total_ids (includes action + character + stage IDs)
+      num_ids = GameEmbed.num_total_ids(config)
 
-      assert num_ids == 2
+      # 2 action IDs + 2 character IDs = 4 total (stage is one_hot_compact, not learned)
+      assert num_ids == 4
       assert continuous_size == total_size - num_ids
     end
 
     test "accounts for 4 action IDs with enhanced Nana" do
-      player_config = %PlayerEmbed{action_mode: :learned, nana_mode: :enhanced, with_nana: true}
-      config = %GameEmbed{player: player_config}
+      # Use one-hot character to isolate action ID testing
+      player_config = %PlayerEmbed{
+        action_mode: :learned,
+        nana_mode: :enhanced,
+        with_nana: true,
+        character_mode: :one_hot
+      }
+      config = %GameEmbed{player: player_config, stage_mode: :one_hot_full}
 
       total_size = GameEmbed.embedding_size(config)
       continuous_size = GameEmbed.continuous_embedding_size(config)
@@ -220,45 +237,46 @@ defmodule ExPhil.Embeddings.GameTest do
   end
 
   describe "uses_learned_actions?/1" do
-    test "returns false for default config (one-hot)" do
+    test "returns true for default config (learned actions)" do
       config = GameEmbed.default_config()
-
-      refute GameEmbed.uses_learned_actions?(config)
+      # Default now uses learned action embeddings
+      assert GameEmbed.uses_learned_actions?(config)
     end
 
-    test "returns true when player action_mode is :learned" do
-      player_config = %PlayerEmbed{action_mode: :learned}
+    test "returns false with explicit one-hot actions" do
+      player_config = %PlayerEmbed{action_mode: :one_hot}
       config = %GameEmbed{player: player_config}
 
-      assert GameEmbed.uses_learned_actions?(config)
+      refute GameEmbed.uses_learned_actions?(config)
     end
   end
 
   describe "num_character_ids/1" do
-    test "returns 0 for default config (one-hot characters)" do
+    test "returns 2 for default config (learned characters)" do
       config = GameEmbed.default_config()
-      assert GameEmbed.num_character_ids(config) == 0
+      # Default now uses learned character embeddings
+      assert GameEmbed.num_character_ids(config) == 2
     end
 
-    test "returns 2 when using learned character embeddings" do
-      player_config = %PlayerEmbed{character_mode: :learned}
+    test "returns 0 with explicit one-hot characters" do
+      player_config = %PlayerEmbed{character_mode: :one_hot}
       config = %GameEmbed{player: player_config}
-      assert GameEmbed.num_character_ids(config) == 2
+      assert GameEmbed.num_character_ids(config) == 0
     end
   end
 
   describe "uses_learned_characters?/1" do
-    test "returns false for default config (one-hot)" do
+    test "returns true for default config (learned characters)" do
       config = GameEmbed.default_config()
-
-      refute GameEmbed.uses_learned_characters?(config)
+      # Default now uses learned character embeddings
+      assert GameEmbed.uses_learned_characters?(config)
     end
 
-    test "returns true when player character_mode is :learned" do
-      player_config = %PlayerEmbed{character_mode: :learned}
+    test "returns false with explicit one-hot characters" do
+      player_config = %PlayerEmbed{character_mode: :one_hot}
       config = %GameEmbed{player: player_config}
 
-      assert GameEmbed.uses_learned_characters?(config)
+      refute GameEmbed.uses_learned_characters?(config)
     end
   end
 
@@ -373,9 +391,20 @@ defmodule ExPhil.Embeddings.GameTest do
       # Action ID 100
       player2 = mock_player(action: 100)
       game_state = mock_game_state(player1: player1, player2: player2)
-      player_config = %PlayerEmbed{action_mode: :learned, with_nana: false, with_speeds: false}
+      # Use one-hot for character to ensure only action IDs at end
+      player_config = %PlayerEmbed{
+        action_mode: :learned,
+        character_mode: :one_hot,
+        with_nana: false,
+        with_speeds: false
+      }
       # Use a small but valid num_player_names (can't be 0)
-      config = %GameEmbed{player: player_config, with_projectiles: false, num_player_names: 2}
+      config = %GameEmbed{
+        player: player_config,
+        with_projectiles: false,
+        num_player_names: 2,
+        stage_mode: :one_hot_full
+      }
 
       result = GameEmbed.embed(game_state, nil, 1, config: config)
       total_size = GameEmbed.embedding_size(config)
@@ -401,8 +430,8 @@ defmodule ExPhil.Embeddings.GameTest do
 
       # Should be smaller than full embed (no prev_action, no name)
       player_size = PlayerEmbed.embedding_size(config.player)
-      # Stage one-hot
-      stage_size = 64
+      # Stage size depends on config
+      stage_size = GameEmbed.stage_embedding_size(config)
 
       expected_size = 2 * player_size + stage_size
       assert Nx.shape(result) == {expected_size}
@@ -726,9 +755,10 @@ defmodule ExPhil.Embeddings.GameTest do
   # ============================================================================
 
   describe "stage_mode" do
-    test "default config uses one_hot_full" do
+    test "default config uses one_hot_compact" do
       config = GameEmbed.default_config()
-      assert config.stage_mode == :one_hot_full
+      # Default now uses compact stage encoding (7 dims for competitive stages)
+      assert config.stage_mode == :one_hot_compact
     end
 
     test "stage_embedding_size returns 64 for one_hot_full" do
