@@ -245,6 +245,8 @@ mix run scripts/train_from_replays.exs --dual-port
 | `--no-prefetch` | - | Disable batch prefetching |
 | `--prefetch-buffer N` | 2 | Number of batches to prefetch |
 | `--gradient-checkpoint` | false | Trade memory for compute |
+
+> **Note:** `--prefetch` only has effect when used with `--stream-chunk-size`. In standard (non-streaming) mode, prefetching is disabled due to EXLA tensor process limitations. A warning is shown if you use `--prefetch` without streaming mode.
 | `--checkpoint-every N` | 1 | Checkpoint every N layers |
 
 ### Advanced Options
@@ -445,6 +447,8 @@ mix run scripts/train_from_replays.exs \
 ```
 
 The prefetcher eagerly buffers batches from lazy chunk streams.
+
+> **Why prefetch only works in streaming mode:** EXLA tensors cannot safely cross Erlang process boundaries. The streaming prefetcher uses a producer process that buffers Elixir data structures (not tensors), allowing true async batch preparation. In non-streaming mode, batches contain pre-computed EXLA tensors, so prefetching would require unsafe tensor transfers between processes.
 
 **Automatic optimizations in streaming mode:**
 - Precompute is auto-disabled (embeddings computed on-the-fly)

@@ -802,6 +802,13 @@ end
 # Data will be loaded chunk-by-chunk during training
 streaming_mode = opts[:stream_chunk_size] != nil
 
+# Warn if prefetch is enabled without streaming mode (it's a no-op)
+if opts[:prefetch] and not streaming_mode do
+  Output.warning("--prefetch has no effect without --stream-chunk-size")
+  Output.puts("    Prefetching requires streaming mode due to EXLA tensor process limitations")
+  Output.puts("    Either add --stream-chunk-size N or remove --prefetch to silence this warning")
+end
+
 file_chunks =
   if streaming_mode do
     chunk_size = opts[:stream_chunk_size]
