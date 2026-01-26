@@ -392,7 +392,7 @@ defmodule ExPhil.Training.ConfigTest do
 
       assert defaults[:epochs] == 10
       assert defaults[:batch_size] == 64
-      assert defaults[:hidden_sizes] == [64, 64]
+      assert defaults[:hidden_sizes] == [512, 256]
       assert defaults[:temporal] == false
       assert defaults[:backbone] == :sliding_window
       assert defaults[:window_size] == 60
@@ -1767,9 +1767,9 @@ defmodule ExPhil.Training.ConfigTest do
   end
 
   describe "parse_args/1 with stage_mode" do
-    test "defaults stage_mode to :one_hot_full" do
+    test "defaults stage_mode to :one_hot_compact" do
       opts = Config.parse_args([])
-      assert opts[:stage_mode] == :one_hot_full
+      assert opts[:stage_mode] == :one_hot_compact
     end
 
     test "parses --stage-mode full" do
