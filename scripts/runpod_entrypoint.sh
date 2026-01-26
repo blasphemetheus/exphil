@@ -86,6 +86,10 @@ if [ -L "/workspace/logs/logs" ]; then
   echo "⚠ Removing circular symlink /workspace/logs/logs"
   rm /workspace/logs/logs
 fi
+if [ -L "/workspace/cache/cache" ]; then
+  echo "⚠ Removing circular symlink /workspace/cache/cache"
+  rm /workspace/cache/cache
+fi
 
 # Link checkpoint/logs dirs to workspace for persistence
 # Must remove existing directories first (ln -sf can't replace dirs)
@@ -139,6 +143,31 @@ if [ -d "/app" ]; then
     # Doesn't exist - create symlink
     ln -s /workspace/logs /app/logs
     echo "✓ Created /app/logs -> /workspace/logs"
+  fi
+
+  # Cache: same process (embeddings, kmeans centers, etc.)
+  if [ -L "/app/cache" ]; then
+    # Already a symlink - check if it points to the right place
+    if [ "$(readlink /app/cache)" = "/workspace/cache" ]; then
+      echo "✓ /app/cache symlink already correct"
+    else
+      echo "Fixing /app/cache symlink..."
+      rm /app/cache
+      ln -s /workspace/cache /app/cache
+    fi
+  elif [ -d "/app/cache" ]; then
+    # Real directory exists - move contents to workspace, then symlink
+    if [ "$(ls -A /app/cache 2>/dev/null)" ]; then
+      echo "Moving existing cache to /workspace/cache/"
+      mv /app/cache/* /workspace/cache/ 2>/dev/null || true
+    fi
+    rm -rf /app/cache
+    ln -s /workspace/cache /app/cache
+    echo "✓ Created /app/cache -> /workspace/cache"
+  else
+    # Doesn't exist - create symlink
+    ln -s /workspace/cache /app/cache
+    echo "✓ Created /app/cache -> /workspace/cache"
   fi
 fi
 

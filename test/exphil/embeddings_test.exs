@@ -263,8 +263,9 @@ defmodule ExPhil.EmbeddingsTest do
   # ============================================================================
 
   describe "PlayerEmbed.embedding_size/1" do
-    test "calculates base size correctly" do
+    test "calculates base size correctly with one_hot modes" do
       # Disable all optional features to test pure base size
+      # Explicitly use one_hot modes to test full embedding dimensions
       config = %ExPhil.Embeddings.Player{
         with_speeds: false,
         with_nana: false,
@@ -272,7 +273,10 @@ defmodule ExPhil.EmbeddingsTest do
         with_stock: false,
         with_ledge_distance: false,
         # Use classic 7-dim jumps
-        jumps_normalized: false
+        jumps_normalized: false,
+        # Explicitly use one_hot for predictable sizes
+        action_mode: :one_hot,
+        character_mode: :one_hot
       }
 
       size = PlayerEmbed.embedding_size(config)
@@ -288,8 +292,9 @@ defmodule ExPhil.EmbeddingsTest do
       assert size == expected
     end
 
-    test "calculates base size with normalized jumps" do
+    test "calculates base size with normalized jumps and one_hot modes" do
       # Disable optional features except jumps_normalized
+      # Explicitly use one_hot modes to test full embedding dimensions
       config = %ExPhil.Embeddings.Player{
         with_speeds: false,
         with_nana: false,
@@ -297,7 +302,10 @@ defmodule ExPhil.EmbeddingsTest do
         with_stock: false,
         with_ledge_distance: false,
         # 1-dim instead of 7-dim
-        jumps_normalized: true
+        jumps_normalized: true,
+        # Explicitly use one_hot for predictable sizes
+        action_mode: :one_hot,
+        character_mode: :one_hot
       }
 
       size = PlayerEmbed.embedding_size(config)
@@ -451,21 +459,31 @@ defmodule ExPhil.EmbeddingsTest do
       size = GameEmbed.embedding_size(config)
 
       player_size = PlayerEmbed.embedding_size(config.player)
-      stage_size = Primitives.embedding_size(:stage)
+      # Use actual stage_embedding_size which respects stage_mode (default: :one_hot_compact = 7 dims)
+      stage_size = GameEmbed.stage_embedding_size(config)
       prev_action_size = ControllerEmbed.continuous_embedding_size()
       name_size = config.num_player_names
 
       # Projectiles (5 slots × 7 dims each by default)
       projectile_size = if config.with_projectiles, do: config.max_projectiles * 7, else: 0
 
+      # Items
+      item_size = if config.with_items, do: config.max_items * 7, else: 0
+
       # Spatial features
       distance_size = if config.with_distance, do: 1, else: 0
       relative_pos_size = if config.with_relative_pos, do: 2, else: 0
       frame_count_size = if config.with_frame_count, do: 1, else: 0
 
+      # IDs appended for learned embeddings (action, character, stage)
+      action_ids_size = GameEmbed.num_action_ids(config)
+      character_ids_size = GameEmbed.num_character_ids(config)
+      stage_ids_size = GameEmbed.num_stage_ids(config)
+
       expected =
         2 * player_size + stage_size + prev_action_size + name_size +
-          projectile_size + distance_size + relative_pos_size + frame_count_size
+          projectile_size + item_size + distance_size + relative_pos_size + frame_count_size +
+          action_ids_size + character_ids_size + stage_ids_size
 
       assert size == expected
     end
