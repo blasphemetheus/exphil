@@ -482,7 +482,8 @@ defmodule ExPhil.Training.Data do
       |> Task.async_stream(
         fn gs -> Embeddings.embed(gs, nil, embed_config: embed_config) end,
         max_concurrency: System.schedulers_online(),
-        ordered: true
+        ordered: true,
+        timeout: :infinity
       )
       |> Enum.map(fn {:ok, emb} -> emb end)
 
@@ -501,7 +502,8 @@ defmodule ExPhil.Training.Data do
           Embeddings.embed(gs, nil, embed_config: embed_config, name_id: name_id)
         end,
         max_concurrency: System.schedulers_online(),
-        ordered: true
+        ordered: true,
+        timeout: :infinity
       )
       |> Enum.map(fn {:ok, emb} -> emb end)
 
