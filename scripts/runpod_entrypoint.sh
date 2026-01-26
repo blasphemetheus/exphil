@@ -74,7 +74,7 @@ else
 fi
 
 # Create workspace directories if they don't exist
-mkdir -p /workspace/checkpoints /workspace/logs /workspace/replays
+mkdir -p /workspace/checkpoints /workspace/logs /workspace/replays /workspace/cache
 
 # Fix any circular symlinks from previous buggy runs
 # (Bug: ln -sf on existing symlink-to-dir creates symlink inside the dir)
@@ -221,9 +221,96 @@ echo "✓ Logs uploaded"
 SCRIPT
 chmod +x /usr/local/bin/sync-logs-up
 
+cat > /usr/local/bin/sync-cache-up << 'SCRIPT'
+#!/bin/bash
+# Upload local cache to B2 (embeddings, kmeans centers, etc.)
+# Usage: sync-cache-up [--today | --date YYYY-MM-DD | --flat]
+#
+# Cache includes:
+#   - Precomputed embeddings (saves ~1hr on re-runs)
+#   - K-means cluster centers
+#   - Any other cached data
+
+B2_BUCKET="${B2_BUCKET:-exphil-replays-blewfargs}"
+TODAY=$(date +%Y-%m-%d)
+
+# Find cache directory
+if [ -d "/workspace/cache" ] && [ "$(ls -A /workspace/cache 2>/dev/null)" ]; then
+  CACHE_DIR="/workspace/cache"
+else
+  echo "No cache found in /workspace/cache (nothing to upload)"
+  exit 0  # Not an error, just nothing to do
+fi
+echo "Using cache directory: $CACHE_DIR"
+
+# Show what will be uploaded
+echo "Cache contents:"
+du -sh "$CACHE_DIR"/* 2>/dev/null | head -10
+
+if [ "$1" = "--flat" ]; then
+  echo "Uploading cache to b2:$B2_BUCKET/cache/ (flat)..."
+  rclone copy "$CACHE_DIR/" "b2:$B2_BUCKET/cache/" --copy-links --progress
+elif [ "$1" = "--date" ] && [ -n "$2" ]; then
+  echo "Uploading cache to b2:$B2_BUCKET/cache/$2/..."
+  rclone copy "$CACHE_DIR/" "b2:$B2_BUCKET/cache/$2/" --copy-links --progress
+elif [ "$1" = "--today" ] || [ -z "$1" ]; then
+  echo "Uploading cache to b2:$B2_BUCKET/cache/$TODAY/..."
+  rclone copy "$CACHE_DIR/" "b2:$B2_BUCKET/cache/$TODAY/" --copy-links --progress
+else
+  echo "Usage: sync-cache-up [--today | --date YYYY-MM-DD | --flat]"
+  exit 1
+fi
+echo "✓ Cache uploaded"
+SCRIPT
+chmod +x /usr/local/bin/sync-cache-up
+
+cat > /usr/local/bin/sync-cache-down << 'SCRIPT'
+#!/bin/bash
+# Download cache from B2
+# Usage: sync-cache-down [YYYY-MM-DD | --all | --latest | --flat]
+#
+# YYYY-MM-DD: download from specific date folder
+# --all: download everything (all dates merged)
+# --latest: download from most recent date folder
+# --flat: download from root cache/ folder (no date organization)
+
+B2_BUCKET="${B2_BUCKET:-exphil-replays-blewfargs}"
+mkdir -p /workspace/cache
+
+if [ "$1" = "--all" ]; then
+  echo "Downloading ALL cache from b2:$B2_BUCKET/cache/..."
+  rclone copy "b2:$B2_BUCKET/cache/" /workspace/cache/ --progress
+elif [ "$1" = "--flat" ]; then
+  echo "Downloading cache from b2:$B2_BUCKET/cache/ (flat structure)..."
+  rclone copy "b2:$B2_BUCKET/cache/" /workspace/cache/ --progress --max-depth 1
+elif [ "$1" = "--latest" ]; then
+  # Find most recent date folder
+  LATEST=$(rclone lsd "b2:$B2_BUCKET/cache/" 2>/dev/null | awk '{print $NF}' | grep -E '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' | sort -r | head -1)
+  if [ -z "$LATEST" ]; then
+    echo "No dated cache folders found on B2, trying flat structure..."
+    rclone copy "b2:$B2_BUCKET/cache/" /workspace/cache/ --progress
+  else
+    echo "Downloading cache from b2:$B2_BUCKET/cache/$LATEST/ (most recent)..."
+    rclone copy "b2:$B2_BUCKET/cache/$LATEST/" /workspace/cache/ --progress
+  fi
+elif [ -n "$1" ]; then
+  # Download from specific date folder
+  echo "Downloading cache from b2:$B2_BUCKET/cache/$1/..."
+  rclone copy "b2:$B2_BUCKET/cache/$1/" /workspace/cache/ --progress
+else
+  echo "Usage: sync-cache-down [YYYY-MM-DD | --all | --latest | --flat]"
+  echo ""
+  echo "Available dates on B2:"
+  rclone lsd "b2:$B2_BUCKET/cache/" 2>/dev/null | awk '{print "  " $NF}' || echo "  (none)"
+  exit 0
+fi
+echo "✓ Cache downloaded"
+SCRIPT
+chmod +x /usr/local/bin/sync-cache-down
+
 cat > /usr/local/bin/sync-all-up << 'SCRIPT'
 #!/bin/bash
-# Upload both checkpoints and logs to B2
+# Upload checkpoints, logs, and cache to B2
 # Usage: sync-all-up [--today | --date YYYY-MM-DD | --flat]
 
 echo "=== Syncing checkpoints ==="
@@ -232,6 +319,10 @@ sync-checkpoints-up "$@"
 echo ""
 echo "=== Syncing logs ==="
 sync-logs-up "$@"
+
+echo ""
+echo "=== Syncing cache ==="
+sync-cache-up "$@"
 
 echo ""
 echo "✓ All synced"
@@ -319,12 +410,15 @@ chmod +x /usr/local/bin/list-checkpoints
 echo "=== Entrypoint complete ==="
 echo ""
 echo "Sync commands available:"
-echo "  sync-all-up                   # Upload checkpoints + logs to B2"
+echo "  sync-all-up                   # Upload checkpoints + logs + cache to B2"
 echo ""
 echo "  sync-checkpoints-up           # Upload checkpoints (today's date folder)"
 echo "  sync-checkpoints-down --latest    # Download most recent checkpoints"
 echo ""
 echo "  sync-logs-up                  # Upload logs (today's date folder)"
+echo ""
+echo "  sync-cache-up                 # Upload cache (embeddings, kmeans centers)"
+echo "  sync-cache-down --latest      # Download most recent cache"
 echo ""
 echo "  list-checkpoints              # List checkpoint dates on B2"
 echo ""
