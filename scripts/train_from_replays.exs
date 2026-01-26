@@ -1278,10 +1278,16 @@ trainer_opts = [
 ]
 
 # Create trainer (or load from checkpoint for resumption)
+require Output
+
 {trainer, resumed_step} =
   if opts[:resume] do
     Output.puts("  Resuming from checkpoint: #{opts[:resume]}")
-    base_trainer = Imitation.new(trainer_opts)
+
+    base_trainer =
+      Output.timed "  Building model architecture" do
+        Imitation.new(trainer_opts)
+      end
 
     case Imitation.load_checkpoint(base_trainer, opts[:resume]) do
       {:ok, loaded_trainer} ->
@@ -1293,7 +1299,12 @@ trainer_opts = [
         System.halt(1)
     end
   else
-    {Imitation.new(trainer_opts), 0}
+    trainer =
+      Output.timed "  Building model architecture" do
+        Imitation.new(trainer_opts)
+      end
+
+    {trainer, 0}
   end
 
 if opts[:temporal] do
