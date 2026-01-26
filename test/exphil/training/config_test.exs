@@ -13,7 +13,7 @@ defmodule ExPhil.Training.ConfigTest do
 
       assert opts[:epochs] == 10
       assert opts[:batch_size] == 64
-      assert opts[:hidden_sizes] == [64, 64]
+      assert opts[:hidden_sizes] == [512, 256]
       assert opts[:temporal] == false
       assert opts[:precision] == :bf16
     end

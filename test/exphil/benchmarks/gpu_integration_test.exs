@@ -1103,7 +1103,7 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
       key = Nx.Random.key(42)
 
       all_batches =
-        for i <- 1..40 do
+        for _i <- 1..40 do
           {states, key} = Nx.Random.uniform(key, shape: {32, @embed_size}, type: :f32)
           actions = generate_actions(32, key)
           %{states: states, actions: actions}
