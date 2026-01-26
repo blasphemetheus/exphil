@@ -14,7 +14,7 @@ defmodule ExPhil.Training.Config do
   # Default replays directory - relative path for portability
   # Can be overridden with --replays or --replay-dir
   @default_replays_dir "./replays"
-  @default_hidden_sizes [64, 64]
+  @default_hidden_sizes [512, 256]
 
   @valid_presets [
     :quick,
@@ -337,11 +337,11 @@ defmodule ExPhil.Training.Config do
       stream_chunk_size: nil,
       # Embedding options
       # Stage: :one_hot_full (64 dims), :one_hot_compact (7 dims), :learned (1 ID)
-      stage_mode: :one_hot_full,
+      stage_mode: :one_hot_compact,
       # Action: :one_hot (399 dims per player) or :learned (64-dim trainable, 2 IDs)
-      action_mode: :one_hot,
+      action_mode: :learned,
       # Character: :one_hot (33 dims per player) or :learned (64-dim trainable, 2 IDs)
-      character_mode: :one_hot,
+      character_mode: :learned,
       # Nana (Ice Climbers): :compact (39 dims), :enhanced (14 + ID), :full (449 dims)
       nana_mode: :compact,
       # Jumps: true = normalized (1 dim), false = one_hot (7 dims)

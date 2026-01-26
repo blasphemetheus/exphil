@@ -263,9 +263,9 @@ mix run scripts/train_from_replays.exs --dual-port
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `--stage-mode MODE` | full | Stage embedding: full, compact, learned |
-| `--action-mode MODE` | one_hot | Action embedding: one_hot (399 dims) or learned (64-dim trainable) |
-| `--character-mode MODE` | one_hot | Character embedding: one_hot (33 dims) or learned (64-dim trainable) |
+| `--stage-mode MODE` | compact | Stage embedding: full, compact, learned |
+| `--action-mode MODE` | learned | Action embedding: one_hot (399 dims) or learned (64-dim trainable) |
+| `--character-mode MODE` | learned | Character embedding: one_hot (33 dims) or learned (64-dim trainable) |
 | `--nana-mode MODE` | compact | Ice Climbers Nana: compact (39), enhanced (14+ID), full (449) |
 | `--jumps-normalized` | true | Jumps as 1 normalized dim (false = 7-dim one-hot) |
 | `--num-player-names N` | 112 | Player name dims (0 to disable) |
