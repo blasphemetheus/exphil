@@ -603,12 +603,15 @@ Output.success(
   "Best architecture: #{best.name} (val_loss=#{Float.round(best.final_val_loss, 4)})"
 )
 
-# Save results
-results_path = "checkpoints/benchmark_results.json"
+# Save results with timestamp in filename
+timestamp = DateTime.utc_now()
+timestamp_str = Calendar.strftime(timestamp, "%Y%m%d_%H%M%S")
+results_path = "checkpoints/benchmark_results_#{timestamp_str}.json"
+report_path = "checkpoints/benchmark_report_#{timestamp_str}.html"
 File.mkdir_p!("checkpoints")
 
 json_results = %{
-  timestamp: DateTime.utc_now() |> DateTime.to_iso8601(),
+  timestamp: DateTime.to_iso8601(timestamp),
   machine: %{
     gpu: gpu_info.name,
     gpu_memory_gb: Float.round(gpu_info.memory_gb, 1)
@@ -629,7 +632,6 @@ File.write!(results_path, Jason.encode!(json_results, pretty: true))
 Output.puts("Results saved to #{results_path}")
 
 # Generate comparison plot
-report_path = "checkpoints/benchmark_report.html"
 
 # Build loss comparison data
 plot_data =
@@ -856,6 +858,15 @@ html = """
 
 File.write!(report_path, html)
 Output.success("Report saved to #{report_path}")
+
+# Create symlinks to latest reports for easy access
+latest_json = "checkpoints/benchmark_results_latest.json"
+latest_html = "checkpoints/benchmark_report_latest.html"
+File.rm(latest_json)
+File.rm(latest_html)
+File.ln_s!(Path.basename(results_path), latest_json)
+File.ln_s!(Path.basename(report_path), latest_html)
+Output.puts("Symlinked to #{latest_json} and #{latest_html}")
 
 Output.puts("")
 Output.puts("Open #{report_path} in a browser to see the comparison.")
