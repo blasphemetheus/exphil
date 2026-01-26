@@ -156,9 +156,13 @@ defmodule TrainKMeans do
         frames = Map.get(replay, :frames, [])
 
         Enum.flat_map(frames, fn frame ->
-          p1_sticks = extract_sticks(frame[:p1_controller])
-          p2_sticks = extract_sticks(frame[:p2_controller])
-          p1_sticks ++ p2_sticks
+          # GameFrame has players: %{port => PlayerFrame}
+          # Each PlayerFrame has a controller field
+          frame.players
+          |> Map.values()
+          |> Enum.flat_map(fn player_frame ->
+            extract_sticks(player_frame.controller)
+          end)
         end)
 
       {:error, _reason} ->
@@ -168,20 +172,16 @@ defmodule TrainKMeans do
 
   defp extract_sticks(nil), do: []
 
-  defp extract_sticks(%{main_stick: main, c_stick: c}) do
-    main_values =
-      case main do
-        %{x: x, y: y} when is_number(x) and is_number(y) -> [x, y]
-        _ -> []
-      end
+  # Controller struct has main_stick_x, main_stick_y, c_stick_x, c_stick_y
+  defp extract_sticks(%{main_stick_x: mx, main_stick_y: my, c_stick_x: cx, c_stick_y: cy}) do
+    values = []
 
-    c_values =
-      case c do
-        %{x: x, y: y} when is_number(x) and is_number(y) -> [x, y]
-        _ -> []
-      end
+    values = if is_number(mx), do: [mx | values], else: values
+    values = if is_number(my), do: [my | values], else: values
+    values = if is_number(cx), do: [cx | values], else: values
+    values = if is_number(cy), do: [cy | values], else: values
 
-    main_values ++ c_values
+    values
   end
 
   defp extract_sticks(_), do: []
