@@ -227,6 +227,17 @@ defmodule ExPhil.Training.EmbeddingCache do
 
   # Prepare embeddings for disk storage
   # Convert Nx tensors to binary format
+
+  # NEW: Stacked tensor format {num_frames, embed_size} - much more efficient
+  defp prepare_for_save(embeddings) when is_struct(embeddings, Nx.Tensor) do
+    shape = Nx.shape(embeddings)
+    type = Nx.type(embeddings)
+    binary = Nx.to_binary(embeddings)
+
+    {:stacked_frame_embeddings, %{binary: binary, shape: shape, type: type}}
+  end
+
+  # LEGACY: :array of individual tensors (for backwards compatibility)
   defp prepare_for_save(embeddings) when is_tuple(embeddings) and elem(embeddings, 0) == :array do
     # :array of tensors - convert each to binary
     size = :array.size(embeddings)
@@ -276,16 +287,23 @@ defmodule ExPhil.Training.EmbeddingCache do
   defp prepare_for_save(other), do: {:raw, other}
 
   # Restore embeddings from loaded data
+
+  # NEW: Stacked tensor format - direct restore
+  defp restore_from_load({:stacked_frame_embeddings, %{binary: binary, shape: shape, type: type}}) do
+    Nx.from_binary(binary, type) |> Nx.reshape(shape)
+  end
+
+  # LEGACY: Convert old array format to stacked tensor for consistency
+  # This ensures all cached data works with the new fast batching code
   defp restore_from_load({:frame_embeddings, %{tensors: tensors, shape: shape, type: type}}) do
-    array =
-      tensors
-      |> Enum.with_index()
-      |> Enum.reduce(:array.new(), fn {binary, i}, arr ->
-        tensor = Nx.from_binary(binary, type) |> Nx.reshape(shape)
-        :array.set(i, tensor, arr)
+    # Restore individual tensors and stack them
+    restored_tensors =
+      Enum.map(tensors, fn binary ->
+        Nx.from_binary(binary, type) |> Nx.reshape(shape)
       end)
 
-    array
+    # Stack into single tensor {num_frames, embed_size}
+    Nx.stack(restored_tensors)
   end
 
   defp restore_from_load(

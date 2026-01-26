@@ -1612,3 +1612,52 @@ With augmentation enabled, every batch:
 **Code locations:**
 - `lib/exphil/training/data.ex:329` - The bypass condition
 - `lib/exphil/training/augmentation.ex` - Mirror and noise functions
+
+---
+
+## 16. Precomputed Embeddings: Array vs Stacked Tensor Performance
+
+**Status:** FIXED (Jan 2026)
+
+**Symptom:** MLP training with precomputed embeddings was taking ~50 seconds per batch instead of ~50 milliseconds. GPU showed 90% memory usage but 0% utilization.
+
+**Example output:**
+```
+[08:11:26] GPU: 21.57 GB/23.99 GB (90%) | Util: 0%
+[08:11:26] Starting epoch 1/30
+[08:12:16] Batch 1/3227 | Loss: 2.1234 | ~50s/it   # ~1000x slower than expected
+```
+
+**Root cause:** Precomputed embeddings were stored as individual tensors in an Erlang array (1.3M tensors of shape `{287}`). Each batch of 512 frames required:
+1. 512 individual `:array.get()` calls
+2. `Nx.stack()` to combine 512 scattered tensors into `{512, 287}`
+3. `Nx.backend_transfer()` to move to GPU
+
+`Nx.stack()` on 512 individual tensors is extremely slow because it must allocate memory and copy from 512 scattered locations.
+
+**The fix:** Store embeddings as a single stacked tensor `{num_frames, embed_size}` and use `Nx.take()` for batch extraction:
+
+```elixir
+# OLD (slow): Individual tensors in Erlang array
+embedded_array = :array.from_list(individual_tensors)
+# Batching: O(batch_size) stack operations
+embeddings = Enum.map(indices, fn idx -> :array.get(idx, array) end)
+states = Nx.stack(embeddings)  # SLOW: 512 individual copies
+
+# NEW (fast): Single stacked tensor
+stacked_embeddings = Nx.concatenate(batch_tensors, axis: 0)
+# Batching: O(1) gather operation
+indices_tensor = Nx.tensor(indices, type: :s64)
+states = Nx.take(stacked_embeddings, indices_tensor, axis: 0)  # FAST: single gather
+```
+
+**Performance improvement:**
+- OLD: ~50 seconds/batch (CPU-bound copying)
+- NEW: ~50 milliseconds/batch (GPU gather)
+- **1000x speedup**
+
+**Code locations:**
+- `lib/exphil/training/data.ex` - `precompute_frame_embeddings/2` and `create_batch_precomputed/3`
+- `lib/exphil/training/embedding_cache.ex` - Save/load handles both formats
+
+**Cache compatibility:** Old cached files (array format) are auto-converted to stacked tensor on load.

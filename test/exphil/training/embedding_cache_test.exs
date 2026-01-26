@@ -63,15 +63,16 @@ defmodule ExPhil.Training.EmbeddingCacheTest do
   # ============================================================================
 
   describe "Data.precompute_frame_embeddings/2 return type" do
-    test "returns embedded_frames as Erlang array" do
+    test "returns embedded_frames as stacked tensor" do
       dataset = ExPhil.Test.Factory.frame_dataset(num_frames: 10)
 
       result = Data.precompute_frame_embeddings(dataset, show_progress: false)
 
-      # Must be an Erlang array
-      assert is_tuple(result.embedded_frames)
-      assert elem(result.embedded_frames, 0) == :array
-      assert :array.size(result.embedded_frames) == 10
+      # NEW: Must be a stacked tensor {num_frames, embed_size} for fast batching
+      assert is_struct(result.embedded_frames, Nx.Tensor)
+      {num_frames, embed_size} = Nx.shape(result.embedded_frames)
+      assert num_frames == 10
+      assert embed_size > 0
     end
   end
 
@@ -127,16 +128,16 @@ defmodule ExPhil.Training.EmbeddingCacheTest do
 
       cache_key = "test_frames_#{System.unique_integer([:positive])}"
 
-      # Save just the embedded_frames array (not the whole dataset)
+      # Save the embedded_frames tensor (stacked format)
       assert :ok = EmbeddingCache.save(cache_key, dataset.embedded_frames, cache_dir: tmp_dir)
 
       # Load should succeed
       {:ok, loaded} = EmbeddingCache.load(cache_key, cache_dir: tmp_dir)
 
-      # Loaded should be an array with same size
-      assert is_tuple(loaded)
-      assert elem(loaded, 0) == :array
-      assert :array.size(loaded) == 10
+      # Loaded should be a stacked tensor with same shape
+      assert is_struct(loaded, Nx.Tensor)
+      {num_frames, _embed_size} = Nx.shape(loaded)
+      assert num_frames == 10
     end
 
     @tag :tmp_dir

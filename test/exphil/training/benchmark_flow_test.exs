@@ -79,14 +79,11 @@ defmodule ExPhil.Training.BenchmarkFlowTest do
       dataset = ExPhil.Test.Factory.frame_dataset(num_frames: 5)
       result = Data.precompute_frame_embeddings(dataset, show_progress: false)
 
-      # All embeddings should have the same shape
-      first = :array.get(0, result.embedded_frames)
-      embed_size = Nx.axis_size(first, 0)
-
-      for i <- 0..4 do
-        tensor = :array.get(i, result.embedded_frames)
-        assert Nx.axis_size(tensor, 0) == embed_size
-      end
+      # embedded_frames is now a stacked tensor {num_frames, embed_size}
+      assert is_struct(result.embedded_frames, Nx.Tensor)
+      {num_frames, embed_size} = Nx.shape(result.embedded_frames)
+      assert num_frames == 5
+      assert embed_size > 0
     end
 
     test "sequence embeddings have consistent shape" do
@@ -277,6 +274,50 @@ defmodule ExPhil.Training.BenchmarkFlowTest do
   end
 
   # ============================================================================
+  # Fast Batching Performance Tests
+  # ============================================================================
+
+  describe "fast batching with stacked tensors" do
+    test "batching uses Nx.take for stacked tensor format" do
+      dataset = ExPhil.Test.Factory.frame_dataset(num_frames: 50)
+      dataset = Data.precompute_frame_embeddings(dataset, show_progress: false)
+
+      # Verify stacked tensor format
+      assert is_struct(dataset.embedded_frames, Nx.Tensor)
+
+      # Create batches - this should use fast Nx.take path
+      batches = Data.batched(dataset, batch_size: 10, shuffle: false)
+      batch_list = Enum.take(batches, 3)
+
+      assert length(batch_list) == 3
+
+      # Verify batch shapes
+      for batch <- batch_list do
+        {batch_size, _embed_size} = Nx.shape(batch.states)
+        assert batch_size == 10
+      end
+    end
+
+    test "multiple batches have correct sequential content" do
+      dataset = ExPhil.Test.Factory.frame_dataset(num_frames: 20)
+      dataset = Data.precompute_frame_embeddings(dataset, show_progress: false)
+
+      # Get all batches without shuffle to verify sequential indexing
+      batches = Data.batched(dataset, batch_size: 5, shuffle: false, drop_last: true)
+      batch_list = Enum.to_list(batches)
+
+      # Should have 4 batches of 5 (20 frames / 5 = 4)
+      assert length(batch_list) == 4
+
+      # Each batch should have states tensor
+      for batch <- batch_list do
+        assert is_struct(batch.states, Nx.Tensor)
+        assert is_map(batch.actions)
+      end
+    end
+  end
+
+  # ============================================================================
   # Integration Test
   # ============================================================================
 
@@ -303,10 +344,11 @@ defmodule ExPhil.Training.BenchmarkFlowTest do
       train_embedded = Data.precompute_frame_embeddings(train_dataset, show_progress: false)
       val_embedded = Data.precompute_frame_embeddings(val_dataset, show_progress: false)
 
-      # Verify arrays
-      assert is_tuple(train_embedded.embedded_frames)
-      assert elem(train_embedded.embedded_frames, 0) == :array
-      assert is_tuple(val_embedded.embedded_frames)
+      # Verify stacked tensors (new fast format)
+      assert is_struct(train_embedded.embedded_frames, Nx.Tensor)
+      assert is_struct(val_embedded.embedded_frames, Nx.Tensor)
+      {train_size, _embed_size} = Nx.shape(train_embedded.embedded_frames)
+      assert train_size == 24
 
       # Step 5: Create trainer
       embed_config = Embeddings.default_config()
