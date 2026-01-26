@@ -200,6 +200,11 @@ mix run scripts/train_from_replays.exs --dual-port
 | `--focal-loss` | false | Enable focal loss for rare actions |
 | `--focal-gamma X` | 2.0 | Focal loss gamma (higher = focus on hard) |
 
+> **Warning:** `--augment` currently causes ~100x slower training (~100s/batch instead of <1s).
+> This is because augmentation modifies raw game states before embedding, which bypasses precomputed embeddings.
+> **Recommended alternative:** Use `--online-robust` for frame delay augmentation (no performance impact).
+> See [Gotcha #40](GOTCHAS.md#40---augment-flag-bypasses-precomputed-embeddings-100x-slower) for details.
+
 ### Online Play Training
 
 | Option | Default | Description |

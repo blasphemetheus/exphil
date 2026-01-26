@@ -92,26 +92,54 @@ mix run scripts/train_self_play.exs \
 | Error handling improvements | Low | Bad replays fail silently | **Done** |
 | Embedding caching | Medium | 2-3x speedup by precomputing embeddings | **Done** |
 | K-means stick discretization | Medium | Research shows 21 clusters beats uniform grid | **Done** |
-| **Embedding disk caching** | Medium | Save precomputed embeddings to disk for reuse across runs | Planned |
+| **Embedding disk caching** | Medium | Save precomputed embeddings to disk for reuse across runs | **Done** |
+| **Augmented embedding caching** | Medium | Pre-cache multiple augmented versions per state | Planned |
 
-**Embedding Disk Caching (Planned):**
+**Embedding Disk Caching (Done):**
+- Use `--cache-embeddings` to save precomputed embeddings to disk
+- Use `--cache-dir PATH` to specify cache location (default: `cache/embeddings`)
+- Cache key includes embedding config hash (action_mode, character_mode, stage_mode, etc.)
+- Cache is invalidated when replay files change
 
-Currently, embeddings are precomputed at the start of each training run. For large datasets (1.8M+ frames), this takes several minutes. Disk caching would:
+**Augmented Embedding Caching (Planned):**
 
-1. **Hash the embedding config** (action_mode, nana_mode, character_mode, stage_mode, etc.)
-2. **Save embeddings to disk** with the config hash as filename (e.g., `cache/embeddings_abc123.bin`)
-3. **Load cached embeddings** on subsequent runs if config matches
-4. **Invalidate cache** when replay files change (via mtime or hash)
+**Problem:** The `--augment` flag enables mirror flipping and noise injection for better generalization. However, augmentation modifies raw game states (X positions, velocities, facing directions) which must happen BEFORE embedding. This means precomputed embeddings cannot be used with `--augment`, causing ~100x slowdown (from <1s/batch to ~100s/batch).
+
+**Current behavior (data.ex:329):**
+```elixir
+use_precomputed = dataset.embedded_frames != nil and augment_fn == nil
+```
+
+When augmentation is enabled, every batch re-embeds 512 states on-the-fly, running on CPU with 0% GPU utilization.
+
+**Proposed solution:** Pre-compute multiple augmented versions of each state:
+
+1. **Original embedding** - the unmodified game state
+2. **Mirrored embedding** - X positions, velocities, and stick X values negated
+3. **Noisy variants** (optional) - 2-3 versions with different noise seeds
+
+**Implementation approach:**
+```elixir
+# For each game state, pre-compute:
+# - embed(state)                     # Original
+# - embed(mirror(state))             # Mirrored (50% of time)
+# - embed(add_noise(state, seed: 1)) # Noisy variant (30% of time)
+
+# During training, randomly select which embedding to use
+# This gives augmentation benefits with precomputed speed
+```
 
 *Benefits:*
-- Skip 5-10 min precompute on subsequent runs with same config
-- Enables rapid iteration on hyperparameters without re-embedding
-- Amortizes embedding cost across many training runs
+- ~100x faster training with augmentation
+- Same generalization benefits as online augmentation
+- Compatible with embedding disk caching
 
 *Trade-offs:*
-- Disk space: ~7GB for 1.8M frames (1204 dims × 4 bytes × 1.8M = 8.7GB, compressible)
-- Cache invalidation complexity
-- Memory-mapped loading could further speed up large datasets
+- 2-4x more embeddings to store (disk and memory)
+- More complex batch selection logic
+- Noise augmentation requires fixed seeds (slightly less random)
+
+*Workaround (current):* Don't use `--augment`. Use frame delay augmentation (`--online-robust`) instead, which operates at the temporal level and doesn't require re-embedding
 
 **Projectile Parsing Details:**
 - py-slippi's `Frame.items` contains projectiles (Fox lasers, Sheik needles, etc.)

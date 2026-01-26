@@ -43,6 +43,7 @@ Hard-won knowledge from debugging ExPhil. Each section documents a specific issu
 37. [0% GPU utilization with pre-computed embeddings](#37-0-gpu-utilization-with-pre-computed-embeddings)
 38. [Streaming prefetcher timeout causes silent batch drops](#38-streaming-prefetcher-timeout-causes-silent-batch-drops)
 39. [XLA preallocates 90% GPU memory and never releases it](#39-xla-preallocates-90-gpu-memory-and-never-releases-it)
+40. [--augment flag bypasses precomputed embeddings (100x slower)](#40---augment-flag-bypasses-precomputed-embeddings-100x-slower)
 
 ---
 
@@ -1557,3 +1558,57 @@ elixir -e "System.cmd(\"mix\", [\"run\", \"script.exs\", \"--arch\", \"mamba\"])
 **Code location:** `scripts/benchmark_architectures.exs:50-52`
 
 **Recommended setting for benchmarks:** `memory_fraction: 0.7` balances preallocation benefits with headroom for spikes. Use `preallocate: false` only if OOM persists.
+
+---
+
+## 40. --augment flag bypasses precomputed embeddings (100x slower)
+
+**Status:** DOCUMENTED (workaround: don't use --augment)
+
+**Symptom:** Training with `--augment` is extremely slow (~100s/batch instead of <1s/batch). GPU shows 90% memory usage but 0% utilization - training runs entirely on CPU.
+
+**Example output:**
+```
+[08:11:26] GPU: 21.57 GB/23.99 GB (90%) | Util: 0%
+[08:11:26] Starting epoch 1/30
+[08:13:06] Batch 1/3227 | Loss: 7.1918 | ~100s/it   # WAY TOO SLOW
+```
+
+**Root cause:** Augmentation modifies raw game states (X positions, velocities, facing directions) which must happen BEFORE embedding. When `--augment` is enabled, precomputed embeddings are bypassed entirely.
+
+**The culprit (data.ex:329):**
+```elixir
+use_precomputed = dataset.embedded_frames != nil and augment_fn == nil
+```
+
+With augmentation enabled, every batch:
+1. Retrieves 512 raw game states
+2. Applies augmentation (mirror flip, noise injection)
+3. Re-embeds all 512 states from scratch
+4. This embedding runs on CPU (EXLA not involved), hence 0% GPU util
+
+**Workaround options:**
+
+1. **Don't use `--augment`** (recommended for now)
+   ```bash
+   # Remove --augment flag from command
+   mix run scripts/train_from_replays.exs --epochs 30 ...
+   ```
+
+2. **Use frame delay augmentation instead** (operates at temporal level, no re-embedding)
+   ```bash
+   mix run scripts/train_from_replays.exs --online-robust --epochs 30 ...
+   ```
+
+3. **Train longer without augmentation** - More epochs may compensate for reduced diversity
+
+**Why mirror augmentation matters:**
+- Most Melee stages are horizontally symmetric
+- Mirroring effectively doubles training data
+- Prevents overfitting to one side of the stage
+
+**Planned fix:** Augmented embedding caching - pre-compute both original and mirrored embeddings, then randomly select during training. See [GOALS.md](GOALS.md#2-data-pipeline) for details.
+
+**Code locations:**
+- `lib/exphil/training/data.ex:329` - The bypass condition
+- `lib/exphil/training/augmentation.ex` - Mirror and noise functions
