@@ -82,10 +82,36 @@ defmodule TrainKMeans do
     Output.step(3, 4, "Running K-means clustering (k=#{k}, max_iters=#{max_iters})")
 
     # Convert to tensor
+    Output.puts("  Converting #{length(stick_data)} samples to tensor...")
     stick_tensor = Nx.tensor(stick_data, type: :f32)
+    Output.puts("  Tensor shape: #{inspect(Nx.shape(stick_tensor))}")
+
+    # Progress callbacks
+    init_progress_fn = fn step, total ->
+      if rem(step, 5) == 0 or step == total do
+        IO.write("\r  K-means++ init: #{step}/#{total} centers selected")
+      end
+    end
+
+    iter_progress_fn = fn iter, max_iters, diff ->
+      if rem(iter, 5) == 0 or iter == 1 do
+        IO.write("\r  Iteration #{iter}/#{max_iters} | max center shift: #{Float.round(diff, 6)}    ")
+      end
+    end
+
+    Output.puts("  Phase 1: K-means++ initialization...")
 
     # Fit K-means
-    centers = KMeans.fit(stick_tensor, k: k, max_iters: max_iters)
+    centers =
+      KMeans.fit(stick_tensor,
+        k: k,
+        max_iters: max_iters,
+        init_progress_fn: init_progress_fn,
+        progress_fn: iter_progress_fn
+      )
+
+    IO.puts("")
+    Output.success("Converged!")
 
     Output.puts("  Cluster centers:")
     centers_list = Nx.to_flat_list(centers)

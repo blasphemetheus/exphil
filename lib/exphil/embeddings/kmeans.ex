@@ -34,6 +34,8 @@ defmodule ExPhil.Embeddings.KMeans do
     - `:max_iters` - Maximum iterations (default: 100)
     - `:tol` - Convergence tolerance (default: 1.0e-4)
     - `:seed` - Random seed for initialization (default: 42)
+    - `:progress_fn` - Optional callback `fn iter, max_iters, diff -> :ok end`
+    - `:init_progress_fn` - Optional callback `fn step, total -> :ok end` for init phase
 
   ## Returns
     Sorted tensor of cluster centers, shape {k}
@@ -44,15 +46,17 @@ defmodule ExPhil.Embeddings.KMeans do
     max_iters = Keyword.get(opts, :max_iters, 100)
     tol = Keyword.get(opts, :tol, 1.0e-4)
     seed = Keyword.get(opts, :seed, 42)
+    progress_fn = Keyword.get(opts, :progress_fn)
+    init_progress_fn = Keyword.get(opts, :init_progress_fn)
 
     # Ensure data is 1D float tensor
     data = data |> Nx.flatten() |> Nx.as_type(:f32)
 
     # Initialize centers using K-means++ for better convergence
-    centers = kmeans_plusplus_init(data, k, seed)
+    centers = kmeans_plusplus_init(data, k, seed, init_progress_fn)
 
     # Run K-means iterations
-    centers = iterate(data, centers, max_iters, tol)
+    centers = iterate(data, centers, max_iters, tol, progress_fn: progress_fn)
 
     # Sort centers for consistent ordering
     Nx.sort(centers)
@@ -65,8 +69,9 @@ defmodule ExPhil.Embeddings.KMeans do
   squared distance from nearest existing center, leading to better
   convergence than random initialization.
   """
-  @spec kmeans_plusplus_init(Nx.Tensor.t(), non_neg_integer(), integer()) :: Nx.Tensor.t()
-  def kmeans_plusplus_init(data, k, seed) do
+  @spec kmeans_plusplus_init(Nx.Tensor.t(), non_neg_integer(), integer(), function() | nil) ::
+          Nx.Tensor.t()
+  def kmeans_plusplus_init(data, k, seed, progress_fn \\ nil) do
     n = Nx.axis_size(data, 0)
     key = Nx.Random.key(seed)
 
@@ -76,9 +81,10 @@ defmodule ExPhil.Embeddings.KMeans do
 
     # Choose remaining centers
     centers_list = [Nx.to_number(first_center)]
+    if progress_fn, do: progress_fn.(1, k)
 
     {centers_list, _key} =
-      Enum.reduce(1..(k - 1), {centers_list, key}, fn _i, {centers_list, key} ->
+      Enum.reduce(1..(k - 1), {centers_list, key}, fn i, {centers_list, key} ->
         centers = Nx.tensor(centers_list, type: :f32)
 
         # Compute squared distances to nearest center
@@ -97,6 +103,8 @@ defmodule ExPhil.Embeddings.KMeans do
         # Sample next center
         {new_center_idx, key} = sample_weighted(key, probs)
         new_center = data |> Nx.slice([new_center_idx], [1]) |> Nx.squeeze() |> Nx.to_number()
+
+        if progress_fn, do: progress_fn.(i + 1, k)
 
         {centers_list ++ [new_center], key}
       end)
@@ -128,21 +136,33 @@ defmodule ExPhil.Embeddings.KMeans do
 
   @doc """
   Run K-means iterations until convergence or max_iters.
+
+  ## Options
+    - `:progress_fn` - Optional callback `fn iter, max_iters, diff -> :ok end` for progress
   """
-  @spec iterate(Nx.Tensor.t(), Nx.Tensor.t(), non_neg_integer(), float()) :: Nx.Tensor.t()
-  def iterate(data, centers, max_iters, tol) do
-    Enum.reduce_while(1..max_iters, centers, fn _iter, centers ->
-      new_centers = update_centers(data, centers)
+  @spec iterate(Nx.Tensor.t(), Nx.Tensor.t(), non_neg_integer(), float(), keyword()) ::
+          Nx.Tensor.t()
+  def iterate(data, centers, max_iters, tol, opts \\ []) do
+    progress_fn = Keyword.get(opts, :progress_fn)
 
-      # Check convergence
-      diff = Nx.abs(Nx.subtract(new_centers, centers)) |> Nx.reduce_max() |> Nx.to_number()
+    {final_centers, _iter} =
+      Enum.reduce_while(1..max_iters, {centers, 0}, fn iter, {centers, _} ->
+        new_centers = update_centers(data, centers)
 
-      if diff < tol do
-        {:halt, new_centers}
-      else
-        {:cont, new_centers}
-      end
-    end)
+        # Check convergence
+        diff = Nx.abs(Nx.subtract(new_centers, centers)) |> Nx.reduce_max() |> Nx.to_number()
+
+        # Report progress if callback provided
+        if progress_fn, do: progress_fn.(iter, max_iters, diff)
+
+        if diff < tol do
+          {:halt, {new_centers, iter}}
+        else
+          {:cont, {new_centers, iter}}
+        end
+      end)
+
+    final_centers
   end
 
   @doc """
