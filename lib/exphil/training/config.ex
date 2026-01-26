@@ -2190,6 +2190,13 @@ defmodule ExPhil.Training.Config do
       residual: opts[:residual],
       kmeans_centers: opts[:kmeans_centers],
 
+      # Embedding options
+      stage_mode: opts[:stage_mode] && to_string(opts[:stage_mode]),
+      action_mode: opts[:action_mode] && to_string(opts[:action_mode]),
+      character_mode: opts[:character_mode] && to_string(opts[:character_mode]),
+      nana_mode: opts[:nana_mode] && to_string(opts[:nana_mode]),
+      jumps_normalized: opts[:jumps_normalized],
+
       # Temporal options
       window_size: opts[:window_size],
       stride: opts[:stride],
