@@ -459,6 +459,7 @@ defmodule ExPhil.EmbeddingsTest do
       size = GameEmbed.embedding_size(config)
 
       player_size = PlayerEmbed.embedding_size(config.player)
+
       # Use actual stage_embedding_size which respects stage_mode (default: :one_hot_compact = 7 dims)
       stage_size = GameEmbed.stage_embedding_size(config)
       prev_action_size = ControllerEmbed.continuous_embedding_size()
