@@ -288,7 +288,10 @@ has_non_temporal = Enum.any?(architectures, fn {_id, _name, opts} -> !opts[:temp
 
     val_emb =
       Output.timed "Embedding val frames" do
-        Data.precompute_frame_embeddings_cached(val_dataset, Keyword.put(cache_opts, :show_progress, false))
+        Data.precompute_frame_embeddings_cached(
+          val_dataset,
+          Keyword.put(cache_opts, :show_progress, false)
+        )
       end
 
     {train_emb, val_emb}
@@ -320,7 +323,11 @@ has_non_temporal = Enum.any?(architectures, fn {_id, _name, opts} -> !opts[:temp
     val_seq =
       Output.timed "Embedding val sequences" do
         seq_ds = Data.to_sequences(val_dataset, window_size: 30, stride: 1)
-        Data.precompute_embeddings_cached(seq_ds, Keyword.put(seq_cache_opts, :show_progress, false))
+
+        Data.precompute_embeddings_cached(
+          seq_ds,
+          Keyword.put(seq_cache_opts, :show_progress, false)
+        )
       end
 
     {train_seq, val_seq}

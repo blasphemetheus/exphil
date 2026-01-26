@@ -225,6 +225,7 @@ defmodule ExPhil.Embeddings.GameTest do
         with_nana: true,
         character_mode: :one_hot
       }
+
       config = %GameEmbed{player: player_config, stage_mode: :one_hot_full}
 
       total_size = GameEmbed.embedding_size(config)
@@ -398,6 +399,7 @@ defmodule ExPhil.Embeddings.GameTest do
         with_nana: false,
         with_speeds: false
       }
+
       # Use a small but valid num_player_names (can't be 0)
       config = %GameEmbed{
         player: player_config,

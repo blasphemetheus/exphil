@@ -220,6 +220,7 @@ defmodule ExPhil.Embeddings.PlayerTest do
 
     test "creates base embedding with one-hot jumps (one-hot actions/chars)" do
       player = mock_player()
+
       config = %PlayerEmbed{
         jumps_normalized: false,
         action_mode: :one_hot,
@@ -269,6 +270,7 @@ defmodule ExPhil.Embeddings.PlayerTest do
 
     test "creates base embedding with learned action, one-hot character" do
       player = mock_player()
+
       config = %PlayerEmbed{
         action_mode: :learned,
         character_mode: :one_hot,
@@ -286,6 +288,7 @@ defmodule ExPhil.Embeddings.PlayerTest do
 
     test "creates base embedding with learned action, one-hot character, one-hot jumps" do
       player = mock_player()
+
       config = %PlayerEmbed{
         action_mode: :learned,
         character_mode: :one_hot,

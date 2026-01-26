@@ -95,7 +95,9 @@ defmodule TrainKMeans do
 
     iter_progress_fn = fn iter, max_iters, diff ->
       if rem(iter, 5) == 0 or iter == 1 do
-        IO.write("\r  Iteration #{iter}/#{max_iters} | max center shift: #{Float.round(diff, 6)}    ")
+        IO.write(
+          "\r  Iteration #{iter}/#{max_iters} | max center shift: #{Float.round(diff, 6)}    "
+        )
       end
     end
 

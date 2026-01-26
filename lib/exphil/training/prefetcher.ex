@@ -412,7 +412,11 @@ defmodule ExPhil.Training.Prefetcher do
       :timeout ->
         # Timeout waiting for batch - likely chunk parsing taking too long
         require Logger
-        Logger.warning("[Prefetcher] Timeout waiting for batch #{idx} - chunk parsing may be slow")
+
+        Logger.warning(
+          "[Prefetcher] Timeout waiting for batch #{idx} - chunk parsing may be slow"
+        )
+
         process_prefetched_batches(rest_tasks, stream_pid, stream_ref, idx, acc, fun)
     end
   end
