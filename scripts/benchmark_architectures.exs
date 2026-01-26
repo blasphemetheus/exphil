@@ -63,11 +63,11 @@ gpu_info =
     {output, 0} ->
       case String.split(String.trim(output), ", ") do
         [name, memory_mb] -> %{name: name, memory_gb: String.to_integer(memory_mb) / 1024}
-        _ -> %{name: "Unknown GPU", memory_gb: 0}
+        _ -> %{name: "Unknown GPU", memory_gb: 0.0}
       end
 
     _ ->
-      %{name: "CPU only", memory_gb: 0}
+      %{name: "CPU only", memory_gb: 0.0}
   end
 
 # Parse args
