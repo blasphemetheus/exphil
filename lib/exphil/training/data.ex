@@ -841,7 +841,10 @@ defmodule ExPhil.Training.Data do
       IO.puts(:stderr, "\r  Embedding: 100% (#{total}/#{total}) - done!    ")
     end
 
-    %{dataset | embedded_sequences: embedded}
+    # Convert to array for O(1) access during batching and cache compatibility
+    embedded_array = :array.from_list(embedded)
+
+    %{dataset | embedded_sequences: embedded_array}
   end
 
   @doc """
