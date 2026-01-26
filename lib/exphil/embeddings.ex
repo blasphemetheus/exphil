@@ -77,7 +77,8 @@ defmodule ExPhil.Embeddings do
         :with_stock,
         :with_ledge_distance,
         :jumps_normalized,
-        :action_mode
+        :action_mode,
+        :character_mode
       ])
 
     player_config = struct(base.player, player_opts)

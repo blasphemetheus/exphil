@@ -264,10 +264,30 @@ mix run scripts/train_from_replays.exs --dual-port
 | Option | Default | Description |
 |--------|---------|-------------|
 | `--stage-mode MODE` | full | Stage embedding: full, compact, learned |
+| `--action-mode MODE` | one_hot | Action embedding: one_hot (399 dims) or learned (64-dim trainable) |
+| `--character-mode MODE` | one_hot | Character embedding: one_hot (33 dims) or learned (64-dim trainable) |
+| `--nana-mode MODE` | compact | Ice Climbers Nana: compact (39), enhanced (14+ID), full (449) |
+| `--jumps-normalized` | true | Jumps as 1 normalized dim (false = 7-dim one-hot) |
 | `--num-player-names N` | 112 | Player name dims (0 to disable) |
 | `--learn-player-styles` | false | Enable style-conditional training |
 | `--player-registry PATH` | nil | Save/load player registry JSON |
 | `--min-player-games N` | 1 | Min games for player to be in registry |
+
+**Embedding dimension reduction:**
+Using learned embeddings dramatically reduces input dimensions:
+- `--action-mode learned` saves ~670 dims (399×2 players → 2 action IDs)
+- `--character-mode learned` saves ~64 dims (33×2 players → 2 char IDs)
+- `--stage-mode compact` saves 57 dims (64 → 7)
+- `--nana-mode enhanced` optimizes IC handling with action ID
+
+```bash
+# Maximum dimension reduction (~70% smaller embedding)
+mix run scripts/train_from_replays.exs \
+  --action-mode learned \
+  --character-mode learned \
+  --stage-mode compact \
+  --backbone mlp
+```
 
 ### Player Style Learning
 

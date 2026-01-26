@@ -1039,10 +1039,14 @@ if not streaming_mode do
   end
 end
 
-# Build embedding config with stage_mode and num_player_names options (needed for dataset creation)
+# Build embedding config with all embedding options (needed for dataset creation)
 embed_config =
   Embeddings.config(
     stage_mode: opts[:stage_mode],
+    action_mode: opts[:action_mode],
+    character_mode: opts[:character_mode],
+    nana_mode: opts[:nana_mode],
+    jumps_normalized: opts[:jumps_normalized],
     num_player_names: opts[:num_player_names]
   )
 

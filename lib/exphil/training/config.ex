@@ -139,6 +139,15 @@ defmodule ExPhil.Training.Config do
     "--balance-characters",
     # Stage embedding mode: full, compact, learned
     "--stage-mode",
+    # Action embedding mode: one_hot (399 dims) or learned (64-dim trainable)
+    "--action-mode",
+    # Character embedding mode: one_hot (33 dims) or learned (64-dim trainable)
+    "--character-mode",
+    # Nana (Ice Climbers) embedding mode: compact (39 dims), enhanced (14 + ID), full (449 dims)
+    "--nana-mode",
+    # Jumps remaining representation: normalized (1 dim) or one_hot (7 dims)
+    "--jumps-normalized",
+    "--no-jumps-normalized",
     # Number of player name embedding dims (0 to disable, default: 112)
     "--num-player-names",
     # Enable style-conditional training (build player registry)
@@ -327,8 +336,16 @@ defmodule ExPhil.Training.Config do
       # nil = load all at once, N = process N files per chunk
       stream_chunk_size: nil,
       # Embedding options
-      # :one_hot_full (64 dims), :one_hot_compact (7 dims), :learned (1 ID)
+      # Stage: :one_hot_full (64 dims), :one_hot_compact (7 dims), :learned (1 ID)
       stage_mode: :one_hot_full,
+      # Action: :one_hot (399 dims per player) or :learned (64-dim trainable, 2 IDs)
+      action_mode: :one_hot,
+      # Character: :one_hot (33 dims per player) or :learned (64-dim trainable, 2 IDs)
+      character_mode: :one_hot,
+      # Nana (Ice Climbers): :compact (39 dims), :enhanced (14 + ID), :full (449 dims)
+      nana_mode: :compact,
+      # Jumps: true = normalized (1 dim), false = one_hot (7 dims)
+      jumps_normalized: true,
       # Player name embedding dims (0 = disable, 112 = slippi-ai compatible)
       num_player_names: 112,
       # Enable style-conditional training
@@ -1898,6 +1915,10 @@ defmodule ExPhil.Training.Config do
     |> parse_string_arg(args, "--kmeans-centers", :kmeans_centers)
     |> parse_optional_int_arg(args, "--stream-chunk-size", :stream_chunk_size)
     |> parse_stage_mode_arg(args)
+    |> parse_action_mode_arg(args)
+    |> parse_character_mode_arg(args)
+    |> parse_nana_mode_arg(args)
+    |> parse_jumps_normalized_arg(args)
     |> parse_optional_int_arg(args, "--num-player-names", :num_player_names)
     # Player style learning
     |> parse_flag(args, "--learn-player-styles", :learn_player_styles)
@@ -1969,6 +1990,72 @@ defmodule ExPhil.Training.Config do
           end
 
         Keyword.put(opts, :stage_mode, mode)
+    end
+  end
+
+  # Parse action mode: one_hot or learned
+  defp parse_action_mode_arg(opts, args) do
+    case get_arg_value(args, "--action-mode") do
+      nil ->
+        opts
+
+      value ->
+        mode =
+          case String.downcase(value) do
+            "one_hot" -> :one_hot
+            "onehot" -> :one_hot
+            "learned" -> :learned
+            other -> String.to_atom(other)
+          end
+
+        Keyword.put(opts, :action_mode, mode)
+    end
+  end
+
+  # Parse character mode: one_hot or learned
+  defp parse_character_mode_arg(opts, args) do
+    case get_arg_value(args, "--character-mode") do
+      nil ->
+        opts
+
+      value ->
+        mode =
+          case String.downcase(value) do
+            "one_hot" -> :one_hot
+            "onehot" -> :one_hot
+            "learned" -> :learned
+            other -> String.to_atom(other)
+          end
+
+        Keyword.put(opts, :character_mode, mode)
+    end
+  end
+
+  # Parse nana mode: compact, enhanced, or full
+  defp parse_nana_mode_arg(opts, args) do
+    case get_arg_value(args, "--nana-mode") do
+      nil ->
+        opts
+
+      value ->
+        mode =
+          case String.downcase(value) do
+            "compact" -> :compact
+            "enhanced" -> :enhanced
+            "full" -> :full
+            other -> String.to_atom(other)
+          end
+
+        Keyword.put(opts, :nana_mode, mode)
+    end
+  end
+
+  # Parse jumps normalized flag
+  defp parse_jumps_normalized_arg(opts, args) do
+    cond do
+      "--no-jumps-normalized" in args -> Keyword.put(opts, :jumps_normalized, false)
+      "--jumps-normalized" in args -> Keyword.put(opts, :jumps_normalized, true)
+      true -> opts
     end
   end
 
