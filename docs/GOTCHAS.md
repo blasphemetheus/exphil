@@ -42,6 +42,7 @@ Hard-won knowledge from debugging ExPhil. Each section documents a specific issu
 36. [Embedding pre-computation exhausts RAM on large datasets](#36-embedding-pre-computation-exhausts-ram-on-large-datasets)
 37. [0% GPU utilization with pre-computed embeddings](#37-0-gpu-utilization-with-pre-computed-embeddings)
 38. [Streaming prefetcher timeout causes silent batch drops](#38-streaming-prefetcher-timeout-causes-silent-batch-drops)
+39. [XLA preallocates 90% GPU memory and never releases it](#39-xla-preallocates-90-gpu-memory-and-never-releases-it)
 
 ---
 
@@ -1483,3 +1484,74 @@ When parsing a large chunk of files took longer than 60 seconds, the prefetcher 
 **Code location:** `lib/exphil/training/prefetcher.ex:365-377`
 
 **Workaround (if timeout still occurs):** Use smaller `--stream-chunk-size` values (e.g., 5000 instead of 20000) to reduce per-chunk parsing time.
+
+---
+
+## 39. XLA preallocates 90% GPU memory and never releases it
+
+**Status:** DOCUMENTED (workaround available)
+
+**Symptom:** GPU memory shows 90% usage immediately after first EXLA operation, even before loading significant data. Subsequent operations OOM despite seemingly having enough memory, especially when running multiple models/architectures sequentially.
+
+**Example output:**
+```
+[08:11:26] GPU: 21.57 GB/23.99 GB (90%) | Util: 3%  # 90% used before training starts!
+...
+[08:25:14] ❌ Architecture Mamba SSM failed: Out of memory while trying to allocate 3932160 bytes.
+```
+
+**Root cause:** XLA's BFC (Best-Fit with Coalescing) allocator preallocates 90% of GPU VRAM by default for performance optimization. This memory is **never released** during the BEAM process lifetime - not by garbage collection, not by setting tensors to nil, not by any API call.
+
+This mirrors TensorFlow and JAX behavior (same underlying XLA client).
+
+**What DOESN'T work:**
+```elixir
+# These do NOT free GPU memory:
+:erlang.garbage_collect()           # Only frees BEAM memory, not XLA/GPU
+tensor = nil                         # Reference gone, but XLA keeps the memory
+Nx.backend_transfer(t, Nx.BinaryBackend)  # Frees that tensor's GPU memory, but BFC keeps the pool
+```
+
+**The fix - disable preallocation:**
+```elixir
+# Add to script or config/runtime.exs BEFORE any EXLA operations:
+Application.put_env(:exla, :clients, cuda: [platform: :cuda, preallocate: false])
+```
+
+**Alternative - limit preallocation:**
+```elixir
+# Preallocate only 50% instead of 90%:
+Application.put_env(:exla, :clients, cuda: [platform: :cuda, memory_fraction: 0.5])
+```
+
+**Trade-offs:**
+
+| Setting | Memory Usage | Speed | Use Case |
+|---------|--------------|-------|----------|
+| Default (preallocate: true, 90%) | 90% immediately | Fastest | Single model training |
+| `preallocate: false` | On-demand | ~5-10% slower | Multiple models, benchmarks |
+| `memory_fraction: 0.5` | 50% immediately | ~5% slower | Shared GPU, multiple processes |
+
+**Nuclear option - subprocess isolation:**
+
+If memory issues persist, run each model in a separate BEAM process:
+```bash
+# GPU memory fully released when process exits
+elixir -e "System.cmd(\"mix\", [\"run\", \"script.exs\", \"--arch\", \"mamba\"])"
+```
+
+**Key Nx/EXLA memory functions:**
+
+| Function | Effect |
+|----------|--------|
+| `Nx.backend_copy(t, Nx.BinaryBackend)` | Copies to CPU (GPU tensor remains) |
+| `Nx.backend_transfer(t, Nx.BinaryBackend)` | Moves to CPU (frees that tensor's GPU memory) |
+| `:erlang.garbage_collect()` | Frees BEAM memory only |
+| Process termination | **Only way to fully release XLA memory pool** |
+
+**References:**
+- [Elixir Forum: GPU RAM deallocation issue](https://elixirforum.com/t/possible-graphic-ram-deallocation-issue-noticed-when-using-nx-with-exla/47629)
+- [Elixir Forum: Axon memory usage high](https://elixirforum.com/t/axon-memory-usage-high/63304)
+- [EXLA docs](https://hexdocs.pm/exla/EXLA.html)
+
+**Code location:** `scripts/benchmark_architectures.exs:50-52`
