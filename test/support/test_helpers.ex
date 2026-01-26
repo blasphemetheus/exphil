@@ -26,8 +26,9 @@ defmodule ExPhil.Test.Helpers do
   """
   def assert_tensor_shape(tensor, expected_shape) do
     actual_shape = Nx.shape(tensor)
+
     assert actual_shape == expected_shape,
-      "Expected tensor shape #{inspect(expected_shape)}, got #{inspect(actual_shape)}"
+           "Expected tensor shape #{inspect(expected_shape)}, got #{inspect(actual_shape)}"
   end
 
   @doc """
@@ -38,9 +39,10 @@ defmodule ExPhil.Test.Helpers do
     max_actual = Nx.reduce_max(tensor) |> Nx.to_number()
 
     assert min_actual >= min_val,
-      "Tensor min #{min_actual} is below expected min #{min_val}"
+           "Tensor min #{min_actual} is below expected min #{min_val}"
+
     assert max_actual <= max_val,
-      "Tensor max #{max_actual} is above expected max #{max_val}"
+           "Tensor max #{max_actual} is above expected max #{max_val}"
   end
 
   @doc """
@@ -64,7 +66,7 @@ defmodule ExPhil.Test.Helpers do
     rtol = Keyword.get(opts, :rtol, 1.0e-5)
 
     assert Nx.shape(tensor1) == Nx.shape(tensor2),
-      "Tensor shapes don't match: #{inspect(Nx.shape(tensor1))} vs #{inspect(Nx.shape(tensor2))}"
+           "Tensor shapes don't match: #{inspect(Nx.shape(tensor1))} vs #{inspect(Nx.shape(tensor2))}"
 
     diff = Nx.abs(Nx.subtract(tensor1, tensor2))
     threshold = Nx.add(atol, Nx.multiply(rtol, Nx.abs(tensor2)))
@@ -78,8 +80,9 @@ defmodule ExPhil.Test.Helpers do
   """
   def assert_tensor_type(tensor, expected_type) do
     actual_type = Nx.type(tensor)
+
     assert actual_type == expected_type,
-      "Expected tensor type #{inspect(expected_type)}, got #{inspect(actual_type)}"
+           "Expected tensor type #{inspect(expected_type)}, got #{inspect(actual_type)}"
   end
 
   # ============================================================================
@@ -149,7 +152,7 @@ defmodule ExPhil.Test.Helpers do
     {result, time_ms} = timed(fun)
 
     assert time_ms <= max_ms,
-      "Operation took #{Float.round(time_ms, 1)}ms, expected <= #{max_ms}ms"
+           "Operation took #{Float.round(time_ms, 1)}ms, expected <= #{max_ms}ms"
 
     result
   end
@@ -197,6 +200,7 @@ defmodule ExPhil.Test.Helpers do
       :ok
     else
       now = System.monotonic_time(:millisecond)
+
       if now >= deadline do
         flunk("Condition not met within timeout")
       else
@@ -295,6 +299,7 @@ defmodule ExPhil.Test.Helpers do
           if log? do
             IO.puts("[Flaky retry] Attempt #{attempt}/#{retries} failed: #{Exception.message(e)}")
           end
+
           Process.sleep(delay)
           do_retry(retries, delay, log?, fun, attempt + 1)
         else
@@ -373,10 +378,12 @@ defmodule ExPhil.Test.Helpers do
     for _ <- 1..warmup, do: fun.()
 
     # Measure
-    times = for _ <- 1..iterations do
-      {time_us, _result} = :timer.tc(fun)
-      time_us / 1000  # Convert to ms
-    end
+    times =
+      for _ <- 1..iterations do
+        {time_us, _result} = :timer.tc(fun)
+        # Convert to ms
+        time_us / 1000
+      end
 
     stats = %{
       mean: Enum.sum(times) / length(times),
@@ -442,14 +449,15 @@ defmodule ExPhil.Test.Helpers do
   defp update_baseline(name, stats) do
     baselines = load_baselines()
 
-    updated = Map.put(baselines, name, %{
-      "mean" => stats.mean,
-      "median" => stats.median,
-      "min" => stats.min,
-      "max" => stats.max,
-      "stddev" => stats.stddev,
-      "updated_at" => DateTime.utc_now() |> DateTime.to_iso8601()
-    })
+    updated =
+      Map.put(baselines, name, %{
+        "mean" => stats.mean,
+        "median" => stats.median,
+        "min" => stats.min,
+        "max" => stats.max,
+        "stddev" => stats.stddev,
+        "updated_at" => DateTime.utc_now() |> DateTime.to_iso8601()
+      })
 
     File.mkdir_p!(Path.dirname(@benchmark_baseline_path))
     File.write!(@benchmark_baseline_path, Jason.encode!(updated, pretty: true))

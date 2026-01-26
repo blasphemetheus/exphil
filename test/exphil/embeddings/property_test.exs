@@ -16,8 +16,10 @@ defmodule ExPhil.Embeddings.PropertyTest do
 
   describe "Player.embed/2" do
     property "produces finite tensor for any valid player" do
-      check all player <- player_gen(),
-                max_runs: 50 do
+      check all(
+              player <- player_gen(),
+              max_runs: 50
+            ) do
         # Player.embed(player, config) - use default config
         embedded = Player.embed(player)
 
@@ -35,9 +37,11 @@ defmodule ExPhil.Embeddings.PropertyTest do
     end
 
     property "embedding size is consistent regardless of input" do
-      check all player1 <- player_gen(),
-                player2 <- player_gen(),
-                max_runs: 20 do
+      check all(
+              player1 <- player_gen(),
+              player2 <- player_gen(),
+              max_runs: 20
+            ) do
         # Use same config for both
         embedded1 = Player.embed(player1)
         embedded2 = Player.embed(player2)
@@ -49,8 +53,10 @@ defmodule ExPhil.Embeddings.PropertyTest do
 
   describe "Controller.embed_continuous/1" do
     property "produces finite tensor for any valid controller state" do
-      check all controller <- controller_state_gen(),
-                max_runs: 50 do
+      check all(
+              controller <- controller_state_gen(),
+              max_runs: 50
+            ) do
         embedded = Controller.embed_continuous(controller)
 
         assert is_struct(embedded, Nx.Tensor)
@@ -61,8 +67,10 @@ defmodule ExPhil.Embeddings.PropertyTest do
     end
 
     property "button embeddings are binary" do
-      check all controller <- controller_state_gen(),
-                max_runs: 50 do
+      check all(
+              controller <- controller_state_gen(),
+              max_runs: 50
+            ) do
         embedded = Controller.embed_continuous(controller)
 
         # First 8 values are button embeddings (0 or 1)
@@ -78,8 +86,10 @@ defmodule ExPhil.Embeddings.PropertyTest do
 
   describe "Game.embed/4" do
     property "produces finite tensor for any valid game state" do
-      check all game_state <- game_state_gen(),
-                max_runs: 30 do
+      check all(
+              game_state <- game_state_gen(),
+              max_runs: 30
+            ) do
         # Game.embed(game_state, prev_action, own_port, opts)
         # Use nil for prev_action (no previous controller state)
         embedded = Game.embed(game_state, nil, 1)
@@ -93,8 +103,10 @@ defmodule ExPhil.Embeddings.PropertyTest do
     end
 
     property "embedding respects player perspective" do
-      check all game_state <- game_state_gen(),
-                max_runs: 20 do
+      check all(
+              game_state <- game_state_gen(),
+              max_runs: 20
+            ) do
         # Embedding from player 1 vs player 2 perspective should differ
         embed1 = Game.embed(game_state, nil, 1)
         embed2 = Game.embed(game_state, nil, 2)

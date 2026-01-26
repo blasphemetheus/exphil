@@ -96,11 +96,12 @@ defmodule ExPhil.Training.AsyncCheckpoint do
 
   @impl true
   def init(_opts) do
-    {:ok, %{
-      queue: :queue.new(),
-      saving: false,
-      current_task: nil
-    }}
+    {:ok,
+     %{
+       queue: :queue.new(),
+       saving: false,
+       current_task: nil
+     }}
   end
 
   @impl true
@@ -184,12 +185,13 @@ defmodule ExPhil.Training.AsyncCheckpoint do
 
       {{:value, {checkpoint, path, from}}, new_queue} ->
         # Start async save task
-        task = Task.async(fn ->
-          result = atomic_write(checkpoint, path)
-          # Reply to the original caller
-          GenServer.reply(from, :ok)
-          result
-        end)
+        task =
+          Task.async(fn ->
+            result = atomic_write(checkpoint, path)
+            # Reply to the original caller
+            GenServer.reply(from, :ok)
+            result
+          end)
 
         %{state | queue: new_queue, saving: true, current_task: task}
     end
@@ -219,6 +221,7 @@ defmodule ExPhil.Training.AsyncCheckpoint do
         {:ok, fd} ->
           :file.datasync(fd)
           File.close(fd)
+
         _ ->
           :ok
       end

@@ -68,7 +68,8 @@ defmodule ExPhil.Networks.Hybrid do
   @default_expand_factor 2
   @default_conv_size 4
   @default_num_layers 6
-  @default_attention_every 3  # Attention every 3rd layer
+  # Attention every 3rd layer
+  @default_attention_every 3
   @default_num_heads 4
   @default_head_dim 64
   @default_window_size 60
@@ -139,11 +140,12 @@ defmodule ExPhil.Networks.Hybrid do
     input_seq_dim = if seq_len, do: seq_len, else: nil
 
     # Pre-compute attention mask for sliding window
-    precomputed_mask = if use_sliding_window and seq_len do
-      Attention.window_mask(seq_len, window_size) |> Nx.backend_copy(Nx.BinaryBackend)
-    else
-      nil
-    end
+    precomputed_mask =
+      if use_sliding_window and seq_len do
+        Attention.window_mask(seq_len, window_size) |> Nx.backend_copy(Nx.BinaryBackend)
+      else
+        nil
+      end
 
     attn_hidden_dim = num_heads * head_dim
 
@@ -151,56 +153,63 @@ defmodule ExPhil.Networks.Hybrid do
     input = Axon.input("state_sequence", shape: {nil, input_seq_dim, embed_size})
 
     # Project input to hidden dimension if different
-    x = if embed_size != hidden_size do
-      Axon.dense(input, hidden_size, name: "input_projection")
-    else
-      input
-    end
+    x =
+      if embed_size != hidden_size do
+        Axon.dense(input, hidden_size, name: "input_projection")
+      else
+        input
+      end
 
     # Add positional encoding (important for attention layers to know positions)
     x = Attention.add_positional_encoding(x, name: "pos_encoding")
 
     # Build interleaved layers
-    x = Enum.reduce(1..num_layers, x, fn layer_idx, acc ->
-      is_attention_layer = rem(layer_idx, attention_every) == 0
+    x =
+      Enum.reduce(1..num_layers, x, fn layer_idx, acc ->
+        is_attention_layer = rem(layer_idx, attention_every) == 0
 
-      if is_attention_layer do
-        # Attention layer
-        build_attention_layer(
-          acc,
-          hidden_size: hidden_size,
-          attn_hidden_dim: attn_hidden_dim,
-          num_heads: num_heads,
-          head_dim: head_dim,
-          dropout: dropout,
-          use_sliding_window: use_sliding_window,
-          window_size: window_size,
-          precomputed_mask: precomputed_mask,
-          name: "layer_#{layer_idx}_attn"
-        )
-      else
-        # Mamba layer
-        build_mamba_layer(
-          acc,
-          hidden_size: hidden_size,
-          state_size: state_size,
-          expand_factor: expand_factor,
-          conv_size: conv_size,
-          dropout: dropout,
-          name: "layer_#{layer_idx}_mamba"
-        )
-      end
-    end)
+        if is_attention_layer do
+          # Attention layer
+          build_attention_layer(
+            acc,
+            hidden_size: hidden_size,
+            attn_hidden_dim: attn_hidden_dim,
+            num_heads: num_heads,
+            head_dim: head_dim,
+            dropout: dropout,
+            use_sliding_window: use_sliding_window,
+            window_size: window_size,
+            precomputed_mask: precomputed_mask,
+            name: "layer_#{layer_idx}_attn"
+          )
+        else
+          # Mamba layer
+          build_mamba_layer(
+            acc,
+            hidden_size: hidden_size,
+            state_size: state_size,
+            expand_factor: expand_factor,
+            conv_size: conv_size,
+            dropout: dropout,
+            name: "layer_#{layer_idx}_mamba"
+          )
+        end
+      end)
 
     # Final layer norm
     x = Axon.layer_norm(x, name: "final_norm")
 
     # Extract last timestep: [batch, seq_len, hidden] -> [batch, hidden]
-    Axon.nx(x, fn tensor ->
-      seq_len_actual = Nx.axis_size(tensor, 1)
-      Nx.slice_along_axis(tensor, seq_len_actual - 1, 1, axis: 1)
-      |> Nx.squeeze(axes: [1])
-    end, name: "last_timestep")
+    Axon.nx(
+      x,
+      fn tensor ->
+        seq_len_actual = Nx.axis_size(tensor, 1)
+
+        Nx.slice_along_axis(tensor, seq_len_actual - 1, 1, axis: 1)
+        |> Nx.squeeze(axes: [1])
+      end,
+      name: "last_timestep"
+    )
   end
 
   @doc """
@@ -216,14 +225,15 @@ defmodule ExPhil.Networks.Hybrid do
     name = Keyword.get(opts, :name, "mamba_layer")
 
     # Mamba block (includes internal normalization)
-    block = Mamba.build_mamba_block(
-      input,
-      hidden_size: hidden_size,
-      state_size: state_size,
-      expand_factor: expand_factor,
-      conv_size: conv_size,
-      name: name
-    )
+    block =
+      Mamba.build_mamba_block(
+        input,
+        hidden_size: hidden_size,
+        state_size: state_size,
+        expand_factor: expand_factor,
+        conv_size: conv_size,
+        name: name
+      )
 
     # Residual connection + dropout
     residual = Axon.add(input, block, name: "#{name}_residual")
@@ -254,54 +264,61 @@ defmodule ExPhil.Networks.Hybrid do
     normalized = Axon.layer_norm(input, name: "#{name}_pre_norm")
 
     # Project to attention dimension if needed
-    x = if hidden_size != attn_hidden_dim do
-      Axon.dense(normalized, attn_hidden_dim, name: "#{name}_attn_proj_in")
-    else
-      normalized
-    end
+    x =
+      if hidden_size != attn_hidden_dim do
+        Axon.dense(normalized, attn_hidden_dim, name: "#{name}_attn_proj_in")
+      else
+        normalized
+      end
 
     # Attention
-    attended = if use_sliding_window do
-      Attention.sliding_window_attention(x,
-        window_size: window_size,
-        num_heads: num_heads,
-        head_dim: head_dim,
-        mask: precomputed_mask,
-        name: name
-      )
-    else
-      Attention.multi_head_attention(x,
-        num_heads: num_heads,
-        head_dim: head_dim,
-        dropout: dropout,
-        causal: true,
-        name: name
-      )
-    end
+    attended =
+      if use_sliding_window do
+        Attention.sliding_window_attention(x,
+          window_size: window_size,
+          num_heads: num_heads,
+          head_dim: head_dim,
+          mask: precomputed_mask,
+          name: name
+        )
+      else
+        Attention.multi_head_attention(x,
+          num_heads: num_heads,
+          head_dim: head_dim,
+          dropout: dropout,
+          causal: true,
+          name: name
+        )
+      end
 
     # Project back to hidden_size if needed
-    attended = if hidden_size != attn_hidden_dim do
-      Axon.dense(attended, hidden_size, name: "#{name}_attn_proj_out")
-    else
-      attended
-    end
+    attended =
+      if hidden_size != attn_hidden_dim do
+        Axon.dense(attended, hidden_size, name: "#{name}_attn_proj_out")
+      else
+        attended
+      end
 
     # Residual + post-norm
     x = Axon.add(input, attended, name: "#{name}_residual1")
     x = Axon.layer_norm(x, name: "#{name}_post_norm1")
 
     # Feed-forward network
-    ffn_dim = hidden_size * 4  # Standard 4x expansion
-    ffn = x
-    |> Axon.dense(ffn_dim, name: "#{name}_ffn1")
-    |> Axon.gelu()
-    |> Axon.dense(hidden_size, name: "#{name}_ffn2")
+    # Standard 4x expansion
+    ffn_dim = hidden_size * 4
 
-    ffn = if dropout > 0 do
-      Axon.dropout(ffn, rate: dropout, name: "#{name}_ffn_dropout")
-    else
-      ffn
-    end
+    ffn =
+      x
+      |> Axon.dense(ffn_dim, name: "#{name}_ffn1")
+      |> Axon.gelu()
+      |> Axon.dense(hidden_size, name: "#{name}_ffn2")
+
+    ffn =
+      if dropout > 0 do
+        Axon.dropout(ffn, rate: dropout, name: "#{name}_ffn_dropout")
+      else
+        ffn
+      end
 
     # Final residual + norm
     x = Axon.add(x, ffn, name: "#{name}_residual2")
@@ -339,18 +356,29 @@ defmodule ExPhil.Networks.Hybrid do
     dt_rank = div(hidden_size, state_size)
 
     # Per Mamba layer
-    mamba_per_layer = hidden_size * (2 * inner_size) +  # in_proj
-                      inner_size * 4 +                    # conv
-                      inner_size * (2 * state_size) +     # BC
-                      inner_size * dt_rank + dt_rank * inner_size +  # dt
-                      inner_size * hidden_size            # out_proj
+    # in_proj
+    # conv
+    # BC
+    # dt
+    # out_proj
+    mamba_per_layer =
+      hidden_size * (2 * inner_size) +
+        inner_size * 4 +
+        inner_size * (2 * state_size) +
+        inner_size * dt_rank + dt_rank * inner_size +
+        inner_size * hidden_size
 
     # Per Attention layer
     ffn_dim = hidden_size * 4
-    attn_per_layer = attn_hidden_dim * 3 * attn_hidden_dim +  # QKV
-                     attn_hidden_dim * attn_hidden_dim +       # output proj
-                     hidden_size * ffn_dim +                   # FFN1
-                     ffn_dim * hidden_size                     # FFN2
+    # QKV
+    # output proj
+    # FFN1
+    # FFN2
+    attn_per_layer =
+      attn_hidden_dim * 3 * attn_hidden_dim +
+        attn_hidden_dim * attn_hidden_dim +
+        hidden_size * ffn_dim +
+        ffn_dim * hidden_size
 
     # Count layer types
     num_attn_layers = div(num_layers, attention_every)
@@ -359,7 +387,7 @@ defmodule ExPhil.Networks.Hybrid do
     # Input projection
     input_proj = if embed_size != hidden_size, do: embed_size * hidden_size, else: 0
 
-    input_proj + (mamba_per_layer * num_mamba_layers) + (attn_per_layer * num_attn_layers)
+    input_proj + mamba_per_layer * num_mamba_layers + attn_per_layer * num_attn_layers
   end
 
   @doc """
@@ -378,7 +406,8 @@ defmodule ExPhil.Networks.Hybrid do
       expand_factor: 2,
       conv_size: 4,
       num_layers: 6,
-      attention_every: 3,  # 2 Mamba : 1 Attention ratio (4 Mamba, 2 Attn layers)
+      # 2 Mamba : 1 Attention ratio (4 Mamba, 2 Attn layers)
+      attention_every: 3,
       num_heads: 4,
       head_dim: 64,
       window_size: 60,

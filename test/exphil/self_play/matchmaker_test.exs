@@ -22,7 +22,8 @@ defmodule ExPhil.SelfPlay.MatchmakerTest do
       assert :ok = Matchmaker.register_policy(mm, "test_policy")
       {:ok, info} = Matchmaker.get_rating(mm, "test_policy")
 
-      assert info.rating == 1000  # Default initial
+      # Default initial
+      assert info.rating == 1000
       assert info.wins == 0
       assert info.losses == 0
       assert info.games_played == 0
@@ -70,10 +71,11 @@ defmodule ExPhil.SelfPlay.MatchmakerTest do
     test "self_play strategy matches player against itself", %{mm: mm} do
       Matchmaker.register_policy(mm, :current)
 
-      {:ok, match} = Matchmaker.request_match(mm, "game_1",
-        player_id: :current,
-        strategy: :self_play
-      )
+      {:ok, match} =
+        Matchmaker.request_match(mm, "game_1",
+          player_id: :current,
+          strategy: :self_play
+        )
 
       # p1/p2 keep original type, ratings use normalized string key
       assert match.p1 == :current
@@ -85,10 +87,11 @@ defmodule ExPhil.SelfPlay.MatchmakerTest do
       Matchmaker.register_policy(mm, "v1")
       Matchmaker.register_policy(mm, "v2")
 
-      {:ok, match} = Matchmaker.request_match(mm, "game_1",
-        player_id: :current,
-        strategy: :historical
-      )
+      {:ok, match} =
+        Matchmaker.request_match(mm, "game_1",
+          player_id: :current,
+          strategy: :historical
+        )
 
       assert match.p1 == :current
       assert match.p2 in ["v1", "v2"]
@@ -97,10 +100,11 @@ defmodule ExPhil.SelfPlay.MatchmakerTest do
     test "historical falls back to self_play when no historical", %{mm: mm} do
       Matchmaker.register_policy(mm, :current)
 
-      {:ok, match} = Matchmaker.request_match(mm, "game_1",
-        player_id: :current,
-        strategy: :historical
-      )
+      {:ok, match} =
+        Matchmaker.request_match(mm, "game_1",
+          player_id: :current,
+          strategy: :historical
+        )
 
       assert match.p2 == :current
     end
@@ -259,7 +263,8 @@ defmodule ExPhil.SelfPlay.MatchmakerTest do
       history = Matchmaker.get_match_history(mm, "p1", 10)
 
       assert length(history) == 2
-      assert hd(history).result == :loss  # Most recent first
+      # Most recent first
+      assert hd(history).result == :loss
     end
 
     test "respects limit", %{mm: mm} do
@@ -292,20 +297,25 @@ defmodule ExPhil.SelfPlay.MatchmakerTest do
   describe "skill_based matching" do
     test "matches players within elo range", %{mm: mm} do
       Matchmaker.register_policy(mm, "p1", 1000)
-      Matchmaker.register_policy(mm, "close", 1050)  # Within default 100 range
-      Matchmaker.register_policy(mm, "far", 1500)    # Outside range
+      # Within default 100 range
+      Matchmaker.register_policy(mm, "close", 1050)
+      # Outside range
+      Matchmaker.register_policy(mm, "far", 1500)
 
       # Run multiple times to check consistency
-      opponents = for _ <- 1..10 do
-        {:ok, match} = Matchmaker.request_match(mm, "game",
-          player_id: "p1",
-          strategy: :skill_based
-        )
-        match.p2
-      end
+      opponents =
+        for _ <- 1..10 do
+          {:ok, match} =
+            Matchmaker.request_match(mm, "game",
+              player_id: "p1",
+              strategy: :skill_based
+            )
+
+          match.p2
+        end
 
       # Should prefer close opponent
-      close_count = Enum.count(opponents, & &1 == "close")
+      close_count = Enum.count(opponents, &(&1 == "close"))
       assert close_count > 0
     end
   end
@@ -323,15 +333,18 @@ defmodule ExPhil.SelfPlay.MatchmakerTest do
       end
 
       # Exploiter should prefer hard opponents
-      opponents = for _ <- 1..20 do
-        {:ok, match} = Matchmaker.request_match(mm, "game",
-          player_id: "p1",
-          strategy: :exploiter
-        )
-        match.p2
-      end
+      opponents =
+        for _ <- 1..20 do
+          {:ok, match} =
+            Matchmaker.request_match(mm, "game",
+              player_id: "p1",
+              strategy: :exploiter
+            )
 
-      hard_count = Enum.count(opponents, & &1 == "hard")
+          match.p2
+        end
+
+      hard_count = Enum.count(opponents, &(&1 == "hard"))
 
       # Should prefer hard opponent more often (low win rate = high priority)
       assert hard_count > 5

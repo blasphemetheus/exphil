@@ -14,7 +14,7 @@ defmodule ExPhil.Training.CharacterBalanceTest do
     end
 
     test "rarest character gets weight 1.0" do
-      counts = %{fox: 100000, link: 1000}
+      counts = %{fox: 100_000, link: 1000}
       weights = CharacterBalance.compute_weights(counts)
 
       assert weights.link == 1.0
@@ -29,7 +29,7 @@ defmodule ExPhil.Training.CharacterBalanceTest do
     end
 
     test "respects min_weight option" do
-      counts = %{fox: 1000000, link: 100}
+      counts = %{fox: 1_000_000, link: 100}
       weights = CharacterBalance.compute_weights(counts, min_weight: 0.01)
 
       # Fox would be 0.0001 without min_weight
@@ -76,7 +76,8 @@ defmodule ExPhil.Training.CharacterBalanceTest do
       frame = %{
         game_state: %{
           players: %{
-            0 => %{character: 10}  # Mewtwo ID
+            # Mewtwo ID
+            0 => %{character: 10}
           }
         }
       }
@@ -102,8 +103,10 @@ defmodule ExPhil.Training.CharacterBalanceTest do
     test "ignores frames with no character" do
       frames = [
         %{game_state: %{players: %{1 => %{character: :mewtwo}}}},
-        %{},  # No character
-        %{game_state: %{players: %{}}}  # Empty players
+        # No character
+        %{},
+        # Empty players
+        %{game_state: %{players: %{}}}
       ]
 
       counts = CharacterBalance.count_characters(frames)

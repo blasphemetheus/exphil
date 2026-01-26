@@ -27,24 +27,57 @@ defmodule Mix.Tasks.Exphil.Compare do
   @shortdoc "Compare two ExPhil checkpoints"
 
   # Config fields grouped by category for organized display
-  @architecture_fields [:temporal, :backbone, :window_size, :num_layers, :hidden_sizes,
-                        :embed_size, :state_size, :expand_factor, :conv_size, :head_dim,
-                        :num_heads, :hidden_size, :dropout, :layer_norm, :residual]
+  @architecture_fields [
+    :temporal,
+    :backbone,
+    :window_size,
+    :num_layers,
+    :hidden_sizes,
+    :embed_size,
+    :state_size,
+    :expand_factor,
+    :conv_size,
+    :head_dim,
+    :num_heads,
+    :hidden_size,
+    :dropout,
+    :layer_norm,
+    :residual
+  ]
 
-  @training_fields [:learning_rate, :batch_size, :epochs, :accumulation_steps,
-                    :lr_schedule, :warmup_steps, :decay_steps, :max_grad_norm,
-                    :optimizer, :precision]
+  @training_fields [
+    :learning_rate,
+    :batch_size,
+    :epochs,
+    :accumulation_steps,
+    :lr_schedule,
+    :warmup_steps,
+    :decay_steps,
+    :max_grad_norm,
+    :optimizer,
+    :precision
+  ]
 
-  @regularization_fields [:label_smoothing, :focal_loss, :focal_gamma, :augment,
-                          :mirror_prob, :noise_prob, :noise_scale, :ema, :ema_decay]
+  @regularization_fields [
+    :label_smoothing,
+    :focal_loss,
+    :focal_gamma,
+    :augment,
+    :mirror_prob,
+    :noise_prob,
+    :noise_scale,
+    :ema,
+    :ema_decay
+  ]
 
   @discretization_fields [:axis_buckets, :shoulder_buckets]
 
   @impl Mix.Task
   def run(args) do
-    {opts, paths, _} = OptionParser.parse(args,
-      strict: [all: :boolean, metrics: :boolean]
-    )
+    {opts, paths, _} =
+      OptionParser.parse(args,
+        strict: [all: :boolean, metrics: :boolean]
+      )
 
     case paths do
       [path_a, path_b] ->
@@ -60,7 +93,6 @@ defmodule Mix.Tasks.Exphil.Compare do
     # Load both checkpoints
     with {:ok, data_a, type_a} <- load_checkpoint(path_a),
          {:ok, data_b, type_b} <- load_checkpoint(path_b) do
-
       name_a = Path.basename(path_a)
       name_b = Path.basename(path_b)
 
@@ -81,7 +113,12 @@ defmodule Mix.Tasks.Exphil.Compare do
       stat_b = File.stat!(path_b)
 
       show_comparison_row("Type", type_name(type_a), type_name(type_b))
-      show_comparison_row("Size", Output.format_bytes(stat_a.size), Output.format_bytes(stat_b.size))
+
+      show_comparison_row(
+        "Size",
+        Output.format_bytes(stat_a.size),
+        Output.format_bytes(stat_b.size)
+      )
 
       config_a = data_a[:config] || %{}
       config_b = data_b[:config] || %{}
@@ -133,6 +170,7 @@ defmodule Mix.Tasks.Exphil.Compare do
 
         step_a = data_a[:step]
         step_b = data_b[:step]
+
         if step_a || step_b do
           show_comparison_row("Step", step_a || "?", step_b || "?")
         end
@@ -165,17 +203,23 @@ defmodule Mix.Tasks.Exphil.Compare do
       Output.divider()
 
       # Show summary of differences
-      diff_count = count_differences(config_a, config_b,
-        @architecture_fields ++ @training_fields ++ @regularization_fields ++ @discretization_fields)
+      diff_count =
+        count_differences(
+          config_a,
+          config_b,
+          @architecture_fields ++
+            @training_fields ++ @regularization_fields ++ @discretization_fields
+        )
 
       if diff_count == 0 do
         Output.puts_raw("  " <> Output.colorize("Configurations are identical", :green))
       else
-        Output.puts_raw("  " <> Output.colorize("#{diff_count} configuration difference(s)", :yellow))
+        Output.puts_raw(
+          "  " <> Output.colorize("#{diff_count} configuration difference(s)", :yellow)
+        )
       end
 
       Output.puts_raw("")
-
     else
       {:error, path, reason} ->
         Mix.shell().error("Failed to load #{path}: #{reason}")
@@ -191,11 +235,12 @@ defmodule Mix.Tasks.Exphil.Compare do
         binary = File.read!(path)
         data = :erlang.binary_to_term(binary)
 
-        type = cond do
-          Map.has_key?(data, :policy_params) -> :checkpoint
-          Map.has_key?(data, :params) -> :policy
-          true -> :unknown
-        end
+        type =
+          cond do
+            Map.has_key?(data, :policy_params) -> :checkpoint
+            Map.has_key?(data, :params) -> :policy
+            true -> :unknown
+          end
 
         {:ok, data, type}
       rescue
@@ -211,7 +256,7 @@ defmodule Mix.Tasks.Exphil.Compare do
       val_b = get_config_value(config_b, field)
 
       # Show if different, or if --all and at least one has a value
-      should_show = (val_a != val_b) || (show_all && (val_a != nil || val_b != nil))
+      should_show = val_a != val_b || (show_all && (val_a != nil || val_b != nil))
 
       if should_show do
         show_comparison_row(format_field_name(field), format_value(val_a), format_value(val_b))
@@ -223,9 +268,11 @@ defmodule Mix.Tasks.Exphil.Compare do
     # Try both atom and string keys
     Map.get(config, field) || Map.get(config, to_string(field))
   end
+
   defp get_config_value(config, field) when is_list(config) do
     Keyword.get(config, field)
   end
+
   defp get_config_value(_, _), do: nil
 
   defp show_comparison_row(label, val_a, val_b) do
@@ -235,7 +282,9 @@ defmodule Mix.Tasks.Exphil.Compare do
 
     # Highlight if different
     if val_a != val_b do
-      Output.puts_raw("    #{label_str} #{Output.colorize(val_a_str, :yellow)} #{Output.colorize(val_b_str, :cyan)}")
+      Output.puts_raw(
+        "    #{label_str} #{Output.colorize(val_a_str, :yellow)} #{Output.colorize(val_b_str, :cyan)}"
+      )
     else
       Output.puts_raw("    #{label_str} #{val_a_str} #{val_b_str}")
     end
@@ -280,6 +329,7 @@ defmodule Mix.Tasks.Exphil.Compare do
       acc + count_params(value)
     end)
   end
+
   defp count_params(%Nx.Tensor{} = tensor), do: Nx.size(tensor)
   defp count_params(%Axon.ModelState{data: data}), do: count_params(data)
   defp count_params(_), do: 0

@@ -21,9 +21,10 @@ defmodule ExPhil.Networks.OnnxExportTest do
     @tag :onnx
     test "exports and loads a simple dense network" do
       # Build a simple model
-      model = Axon.input("input", shape: {nil, 16})
-      |> Axon.dense(32, activation: :relu, name: "dense1")
-      |> Axon.dense(8, name: "output")
+      model =
+        Axon.input("input", shape: {nil, 16})
+        |> Axon.dense(32, activation: :relu, name: "dense1")
+        |> Axon.dense(8, name: "output")
 
       # Initialize and get params
       template = Nx.template({1, 16}, :f32)
@@ -52,10 +53,11 @@ defmodule ExPhil.Networks.OnnxExportTest do
         ort_tensor = Nx.backend_transfer(ort_output)
 
         # Compare outputs
-        diff = Nx.subtract(axon_output, ort_tensor)
-        |> Nx.abs()
-        |> Nx.reduce_max()
-        |> Nx.to_number()
+        diff =
+          Nx.subtract(axon_output, ort_tensor)
+          |> Nx.abs()
+          |> Nx.reduce_max()
+          |> Nx.to_number()
 
         assert diff < @tolerance, "Output difference #{diff} exceeds tolerance #{@tolerance}"
       after
@@ -76,10 +78,11 @@ defmodule ExPhil.Networks.OnnxExportTest do
 
       # Use a simple approach: dense on each timestep, then sequence_last
       # (LSTM export is more complex and may have issues)
-      model = input
-      |> Axon.dense(hidden_size, name: "embed")
-      |> OnnxLayers.sequence_last(name: "last_timestep")
-      |> Axon.dense(8, name: "output")
+      model =
+        input
+        |> Axon.dense(hidden_size, name: "embed")
+        |> OnnxLayers.sequence_last(name: "last_timestep")
+        |> Axon.dense(8, name: "output")
 
       # Initialize
       template = Nx.template({1, seq_len, embed_size}, :f32)
@@ -114,10 +117,11 @@ defmodule ExPhil.Networks.OnnxExportTest do
         ort_tensor = Nx.backend_transfer(ort_output)
 
         # Compare
-        diff = Nx.subtract(axon_output, ort_tensor)
-        |> Nx.abs()
-        |> Nx.reduce_max()
-        |> Nx.to_number()
+        diff =
+          Nx.subtract(axon_output, ort_tensor)
+          |> Nx.abs()
+          |> Nx.reduce_max()
+          |> Nx.to_number()
 
         assert diff < @tolerance, "sequence_last output difference #{diff} exceeds tolerance"
       after
@@ -132,13 +136,16 @@ defmodule ExPhil.Networks.OnnxExportTest do
     test "exports MLP policy network" do
       # Build a minimal MLP policy
       embed_size = 64
-      model = Policy.build(
-        embed_size: embed_size,
-        hidden_sizes: [32, 32],
-        dropout: 0.0,  # Disable dropout for deterministic testing
-        axis_buckets: 8,
-        shoulder_buckets: 2
-      )
+
+      model =
+        Policy.build(
+          embed_size: embed_size,
+          hidden_sizes: [32, 32],
+          # Disable dropout for deterministic testing
+          dropout: 0.0,
+          axis_buckets: 8,
+          shoulder_buckets: 2
+        )
 
       # Initialize
       template = Nx.template({1, embed_size}, :f32)
@@ -172,8 +179,9 @@ defmodule ExPhil.Networks.OnnxExportTest do
     @tag :onnx
     test "multiple exports produce identical ONNX files" do
       # Simple model
-      model = Axon.input("input", shape: {nil, 8})
-      |> Axon.dense(4, name: "output")
+      model =
+        Axon.input("input", shape: {nil, 8})
+        |> Axon.dense(4, name: "output")
 
       template = Nx.template({1, 8}, :f32)
       {init_fn, _} = Axon.build(model)
@@ -193,8 +201,9 @@ defmodule ExPhil.Networks.OnnxExportTest do
     @tag :onnx
     test "export preserves weights correctly" do
       # Model with known weights
-      model = Axon.input("input", shape: {nil, 2})
-      |> Axon.dense(2, name: "dense", use_bias: false)
+      model =
+        Axon.input("input", shape: {nil, 2})
+        |> Axon.dense(2, name: "dense", use_bias: false)
 
       template = Nx.template({1, 2}, :f32)
       {init_fn, predict_fn} = Axon.build(model)
@@ -233,10 +242,11 @@ defmodule ExPhil.Networks.OnnxExportTest do
 
   # Helper for floating point comparison
   defp assert_all_close(tensor1, tensor2, tolerance \\ @tolerance) do
-    diff = Nx.subtract(tensor1, tensor2)
-    |> Nx.abs()
-    |> Nx.reduce_max()
-    |> Nx.to_number()
+    diff =
+      Nx.subtract(tensor1, tensor2)
+      |> Nx.abs()
+      |> Nx.reduce_max()
+      |> Nx.to_number()
 
     assert diff < tolerance, "Tensors differ by #{diff}, exceeds tolerance #{tolerance}"
   end

@@ -94,12 +94,12 @@ defmodule ExPhil.Rewards do
     # Weighted sum
     reward =
       standard.stock * config.stock_weight +
-      standard.damage * config.damage_weight +
-      standard.win * config.win_bonus +
-      shaped.approach * config.approach_weight +
-      shaped.combo * config.combo_weight +
-      shaped.edge_guard * config.edge_guard_weight -
-      shaped.recovery_risk * config.recovery_penalty
+        standard.damage * config.damage_weight +
+        standard.win * config.win_bonus +
+        shaped.approach * config.approach_weight +
+        shaped.combo * config.combo_weight +
+        shaped.edge_guard * config.edge_guard_weight -
+        shaped.recovery_risk * config.recovery_penalty
 
     if config.normalize do
       # Clip to reasonable range

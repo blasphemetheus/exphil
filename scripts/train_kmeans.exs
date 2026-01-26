@@ -21,14 +21,18 @@ defmodule TrainKMeans do
     # Parse args
     replays_dir = get_arg_value(args, "--replays") || "./replays"
     k = String.to_integer(get_arg_value(args, "--k") || "21")
-    max_files = case get_arg_value(args, "--max-files") do
-      nil -> nil
-      v -> String.to_integer(v)
-    end
+
+    max_files =
+      case get_arg_value(args, "--max-files") do
+        nil -> nil
+        v -> String.to_integer(v)
+      end
+
     output_path = get_arg_value(args, "--output") || "priv/kmeans_centers.nx"
     max_iters = String.to_integer(get_arg_value(args, "--max-iters") || "100")
 
     Output.banner("K-Means Stick Discretization Training")
+
     Output.config([
       {"Replays", replays_dir},
       {"Clusters", k},
@@ -53,15 +57,18 @@ defmodule TrainKMeans do
     Output.step(2, 4, "Extracting stick positions from replays")
 
     total = length(replay_files)
-    stick_data = replay_files
-    |> Enum.with_index()
-    |> Enum.flat_map(fn {file, idx} ->
-      if rem(idx, 100) == 0 do
-        Output.progress_bar(idx + 1, total, label: "Processing")
-      end
 
-      extract_sticks_from_file(file)
-    end)
+    stick_data =
+      replay_files
+      |> Enum.with_index()
+      |> Enum.flat_map(fn {file, idx} ->
+        if rem(idx, 100) == 0 do
+          Output.progress_bar(idx + 1, total, label: "Processing")
+        end
+
+        extract_sticks_from_file(file)
+      end)
+
     Output.progress_done()
 
     Output.puts("  Extracted #{length(stick_data)} stick positions")
@@ -82,6 +89,7 @@ defmodule TrainKMeans do
 
     Output.puts("  Cluster centers:")
     centers_list = Nx.to_flat_list(centers)
+
     Enum.with_index(centers_list)
     |> Enum.each(fn {center, idx} ->
       Output.puts("    #{idx}: #{Float.round(center, 4)}")
@@ -99,13 +107,19 @@ defmodule TrainKMeans do
 
         # Also save as human-readable JSON
         json_path = String.replace(output_path, ".nx", ".json")
-        json = Jason.encode!(%{
-          k: k,
-          centers: centers_list,
-          source_files: length(replay_files),
-          source_samples: length(stick_data),
-          timestamp: DateTime.utc_now() |> DateTime.to_iso8601()
-        }, pretty: true)
+
+        json =
+          Jason.encode!(
+            %{
+              k: k,
+              centers: centers_list,
+              source_files: length(replay_files),
+              source_samples: length(stick_data),
+              timestamp: DateTime.utc_now() |> DateTime.to_iso8601()
+            },
+            pretty: true
+          )
+
         File.write!(json_path, json)
         Output.success("Saved metadata to #{json_path}")
 
@@ -140,6 +154,7 @@ defmodule TrainKMeans do
     case Peppi.parse(file) do
       {:ok, replay} ->
         frames = Map.get(replay, :frames, [])
+
         Enum.flat_map(frames, fn frame ->
           p1_sticks = extract_sticks(frame[:p1_controller])
           p2_sticks = extract_sticks(frame[:p2_controller])
@@ -152,17 +167,23 @@ defmodule TrainKMeans do
   end
 
   defp extract_sticks(nil), do: []
+
   defp extract_sticks(%{main_stick: main, c_stick: c}) do
-    main_values = case main do
-      %{x: x, y: y} when is_number(x) and is_number(y) -> [x, y]
-      _ -> []
-    end
-    c_values = case c do
-      %{x: x, y: y} when is_number(x) and is_number(y) -> [x, y]
-      _ -> []
-    end
+    main_values =
+      case main do
+        %{x: x, y: y} when is_number(x) and is_number(y) -> [x, y]
+        _ -> []
+      end
+
+    c_values =
+      case c do
+        %{x: x, y: y} when is_number(x) and is_number(y) -> [x, y]
+        _ -> []
+      end
+
     main_values ++ c_values
   end
+
   defp extract_sticks(_), do: []
 end
 

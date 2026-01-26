@@ -73,7 +73,7 @@ defmodule EmbeddingBenchmark do
         action_mode: :learned,
         nana_mode: :enhanced,
         jumps_normalized: true
-      },
+      }
       # TODO: Add when implemented
       # stage_mode: :competitive,
       # num_player_names: 0,
@@ -90,14 +90,16 @@ defmodule EmbeddingBenchmark do
     batch_size = Keyword.get(opts, :batch_size, @default_batch_size)
 
     Output.banner("Embedding Dimension Benchmark")
+
     Output.config([
       {"Iterations", iterations},
       {"Batch size", batch_size}
     ])
 
-    results = Enum.map(@configs, fn {name, config_opts} ->
-      benchmark_config(name, config_opts, iterations, batch_size)
-    end)
+    results =
+      Enum.map(@configs, fn {name, config_opts} ->
+        benchmark_config(name, config_opts, iterations, batch_size)
+      end)
 
     print_results(results)
     results
@@ -117,23 +119,25 @@ defmodule EmbeddingBenchmark do
     mock_states = create_mock_states(batch_size)
 
     # Benchmark embedding speed
-    {embed_time_us, _} = :timer.tc(fn ->
-      for _ <- 1..iterations do
-        Enum.map(mock_states, fn state ->
-          Game.embed(state, nil, 1, config: game_config)
-        end)
-      end
-    end)
+    {embed_time_us, _} =
+      :timer.tc(fn ->
+        for _ <- 1..iterations do
+          Enum.map(mock_states, fn state ->
+            Game.embed(state, nil, 1, config: game_config)
+          end)
+        end
+      end)
 
     embed_ms = embed_time_us / 1000
     embed_per_state_us = embed_time_us / (iterations * batch_size)
 
     # Benchmark batch embedding
-    {batch_time_us, _} = :timer.tc(fn ->
-      for _ <- 1..iterations do
-        Game.embed_states_fast(mock_states, 1, config: game_config)
-      end
-    end)
+    {batch_time_us, _} =
+      :timer.tc(fn ->
+        for _ <- 1..iterations do
+          Game.embed_states_fast(mock_states, 1, config: game_config)
+        end
+      end)
 
     batch_ms = batch_time_us / 1000
     batch_per_state_us = batch_time_us / (iterations * batch_size)
@@ -141,21 +145,26 @@ defmodule EmbeddingBenchmark do
     # Build and benchmark policy network
     action_embed_size = if player_config.action_mode == :learned, do: 64, else: nil
     num_action_ids = Game.num_action_ids(game_config)
-    policy = Policy.build(
-      embed_size: embed_size,
-      action_embed_size: action_embed_size,
-      num_action_ids: num_action_ids
-    )
+
+    policy =
+      Policy.build(
+        embed_size: embed_size,
+        action_embed_size: action_embed_size,
+        num_action_ids: num_action_ids
+      )
+
     {init_fn, predict_fn} = Axon.build(policy)
     params = init_fn.(Nx.template({1, embed_size}, :f32), Axon.ModelState.empty())
 
     # Benchmark inference
     input = Nx.broadcast(0.5, {batch_size, embed_size})
-    {inference_time_us, _} = :timer.tc(fn ->
-      for _ <- 1..iterations do
-        predict_fn.(params, input)
-      end
-    end)
+
+    {inference_time_us, _} =
+      :timer.tc(fn ->
+        for _ <- 1..iterations do
+          predict_fn.(params, input)
+        end
+      end)
 
     inference_ms = inference_time_us / 1000
     inference_per_batch_us = inference_time_us / iterations
@@ -172,7 +181,8 @@ defmodule EmbeddingBenchmark do
       batch_per_state_us: batch_per_state_us,
       inference_total_ms: inference_ms,
       inference_per_batch_us: inference_per_batch_us,
-      fps_60_ready: inference_per_batch_us < 16_666  # 60 FPS = 16.67ms per frame
+      # 60 FPS = 16.67ms per frame
+      fps_60_ready: inference_per_batch_us < 16_666
     }
   end
 
@@ -181,7 +191,8 @@ defmodule EmbeddingBenchmark do
     for _ <- 1..count do
       %ExPhil.Bridge.GameState{
         frame: :rand.uniform(10000),
-        stage: 31,  # Battlefield
+        # Battlefield
+        stage: 31,
         players: %{
           1 => mock_player(with_nana: true),
           2 => mock_player(with_nana: false)
@@ -194,18 +205,19 @@ defmodule EmbeddingBenchmark do
   end
 
   defp mock_player(opts) do
-    nana = if opts[:with_nana] do
-      %ExPhil.Bridge.Nana{
-        x: :rand.uniform() * 100 - 50,
-        y: :rand.uniform() * 50,
-        percent: :rand.uniform() * 100,
-        stock: :rand.uniform(4),
-        facing: Enum.random([true, false]),
-        action: :rand.uniform(398)
-      }
-    else
-      nil
-    end
+    nana =
+      if opts[:with_nana] do
+        %ExPhil.Bridge.Nana{
+          x: :rand.uniform() * 100 - 50,
+          y: :rand.uniform() * 50,
+          percent: :rand.uniform() * 100,
+          stock: :rand.uniform(4),
+          facing: Enum.random([true, false]),
+          action: :rand.uniform(398)
+        }
+      else
+        nil
+      end
 
     %ExPhil.Bridge.Player{
       x: :rand.uniform() * 100 - 50,
@@ -238,25 +250,30 @@ defmodule EmbeddingBenchmark do
 
     # Header
     IO.puts("")
-    IO.puts(String.pad_trailing("Config", 20) <>
-            String.pad_leading("Dims", 8) <>
-            String.pad_leading("Cont", 8) <>
-            String.pad_leading("IDs", 6) <>
-            String.pad_leading("Embed μs", 12) <>
-            String.pad_leading("Infer μs", 12) <>
-            String.pad_leading("60 FPS", 8))
+
+    IO.puts(
+      String.pad_trailing("Config", 20) <>
+        String.pad_leading("Dims", 8) <>
+        String.pad_leading("Cont", 8) <>
+        String.pad_leading("IDs", 6) <>
+        String.pad_leading("Embed μs", 12) <>
+        String.pad_leading("Infer μs", 12) <>
+        String.pad_leading("60 FPS", 8)
+    )
+
     IO.puts(String.duplicate("-", 80))
 
     Enum.each(results, fn r ->
       fps_ready = if r.fps_60_ready, do: "✓", else: "✗"
+
       IO.puts(
         String.pad_trailing(r.name, 20) <>
-        String.pad_leading("#{r.embed_size}", 8) <>
-        String.pad_leading("#{r.continuous_size}", 8) <>
-        String.pad_leading("#{r.action_ids}", 6) <>
-        String.pad_leading("#{Float.round(r.embed_per_state_us, 1)}", 12) <>
-        String.pad_leading("#{Float.round(r.inference_per_batch_us, 1)}", 12) <>
-        String.pad_leading(fps_ready, 8)
+          String.pad_leading("#{r.embed_size}", 8) <>
+          String.pad_leading("#{r.continuous_size}", 8) <>
+          String.pad_leading("#{r.action_ids}", 6) <>
+          String.pad_leading("#{Float.round(r.embed_per_state_us, 1)}", 12) <>
+          String.pad_leading("#{Float.round(r.inference_per_batch_us, 1)}", 12) <>
+          String.pad_leading(fps_ready, 8)
       )
     end)
 
@@ -272,10 +289,13 @@ defmodule EmbeddingBenchmark do
 end
 
 # Parse command line args
-{opts, _, _} = OptionParser.parse(System.argv(), strict: [
-  iterations: :integer,
-  batch_size: :integer
-])
+{opts, _, _} =
+  OptionParser.parse(System.argv(),
+    strict: [
+      iterations: :integer,
+      batch_size: :integer
+    ]
+  )
 
 # Run benchmark
 EmbeddingBenchmark.run(opts)

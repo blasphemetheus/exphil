@@ -188,9 +188,13 @@ defmodule ExPhil.SelfPlay.GamePoolSupervisor do
   """
   def step_all(pool) do
     get_runners(pool)
-    |> Task.async_stream(fn pid ->
-      GameRunner.step(pid)
-    end, timeout: 30_000, ordered: false)
+    |> Task.async_stream(
+      fn pid ->
+        GameRunner.step(pid)
+      end,
+      timeout: 30_000,
+      ordered: false
+    )
     |> Enum.map(fn
       {:ok, result} -> result
       {:exit, reason} -> {:error, reason}
@@ -202,9 +206,13 @@ defmodule ExPhil.SelfPlay.GamePoolSupervisor do
   """
   def collect_all_steps(pool, n) do
     get_runners(pool)
-    |> Task.async_stream(fn pid ->
-      GameRunner.collect_steps(pid, n)
-    end, timeout: 120_000, ordered: false)
+    |> Task.async_stream(
+      fn pid ->
+        GameRunner.collect_steps(pid, n)
+      end,
+      timeout: 120_000,
+      ordered: false
+    )
     |> Enum.flat_map(fn
       {:ok, {:ok, experiences}} -> experiences
       _ -> []

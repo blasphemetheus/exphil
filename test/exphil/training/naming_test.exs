@@ -40,6 +40,7 @@ defmodule ExPhil.Training.NamingTest do
     defp find_adjective_prefix(name, adjectives) do
       # Sort by length descending to match longest first (e.g., "pivot_grabbing" before "pivot")
       sorted = Enum.sort_by(adjectives, &(-String.length(&1)))
+
       Enum.find_value(sorted, {nil, name}, fn adj ->
         if String.starts_with?(name, adj <> "_") do
           {adj, String.trim_leading(name, adj)}

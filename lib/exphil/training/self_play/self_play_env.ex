@@ -53,28 +53,45 @@ defmodule ExPhil.Training.SelfPlay.SelfPlayEnv do
   require Logger
 
   defstruct [
-    :game,                 # Game interface (:mock or MeleePort pid)
-    :game_type,            # :mock or :dolphin
-    :p1_policy,            # P1 policy (learner) - {model, params, predict_fn}
-    :p2_policy,            # P2 policy (opponent) - {model, params, predict_fn} or :cpu
-    :p2_cpu_level,         # CPU level if p2_policy is :cpu
-    :embed_config,         # Embedding configuration
-    :reward_config,        # Reward configuration
-    :prev_state,           # Previous game state (for reward computation)
-    :prev_action,          # Previous controller action (for embedding)
-    :frame_count,          # Frames in current episode
-    :episode_count,        # Total episodes
-    :p1_port,              # P1 controller port (default: 1)
-    :p2_port,              # P2 controller port (default: 2)
-    :config                # Additional configuration
+    # Game interface (:mock or MeleePort pid)
+    :game,
+    # :mock or :dolphin
+    :game_type,
+    # P1 policy (learner) - {model, params, predict_fn}
+    :p1_policy,
+    # P2 policy (opponent) - {model, params, predict_fn} or :cpu
+    :p2_policy,
+    # CPU level if p2_policy is :cpu
+    :p2_cpu_level,
+    # Embedding configuration
+    :embed_config,
+    # Reward configuration
+    :reward_config,
+    # Previous game state (for reward computation)
+    :prev_state,
+    # Previous controller action (for embedding)
+    :prev_action,
+    # Frames in current episode
+    :frame_count,
+    # Total episodes
+    :episode_count,
+    # P1 controller port (default: 1)
+    :p1_port,
+    # P2 controller port (default: 2)
+    :p2_port,
+    # Additional configuration
+    :config
   ]
 
   @type t :: %__MODULE__{}
 
   @default_config %{
-    max_episode_frames: 28800,   # 8 minutes at 60fps
-    frame_skip: 1,               # Act every N frames
-    deterministic_opponent: true # Opponent uses argmax vs sampling
+    # 8 minutes at 60fps
+    max_episode_frames: 28800,
+    # Act every N frames
+    frame_skip: 1,
+    # Opponent uses argmax vs sampling
+    deterministic_opponent: true
   }
 
   # ============================================================================
@@ -101,9 +118,10 @@ defmodule ExPhil.Training.SelfPlay.SelfPlayEnv do
     p2_policy = Keyword.fetch!(opts, :p2_policy)
     game_type = Keyword.get(opts, :game_type, :mock)
 
-    embed_config = Keyword.get_lazy(opts, :embed_config, fn ->
-      Embeddings.config([])
-    end)
+    embed_config =
+      Keyword.get_lazy(opts, :embed_config, fn ->
+        Embeddings.config([])
+      end)
 
     reward_config = Keyword.get(opts, :reward_config, Rewards.default_config())
     config = Map.merge(@default_config, Map.new(Keyword.get(opts, :config, [])))
@@ -113,14 +131,15 @@ defmodule ExPhil.Training.SelfPlay.SelfPlayEnv do
     p2_compiled = if p2_policy == :cpu, do: :cpu, else: compile_policy(p2_policy)
 
     # Initialize game
-    game = case game_type do
-      :mock ->
-        init_mock_game()
+    game =
+      case game_type do
+        :mock ->
+          init_mock_game()
 
-      :dolphin ->
-        dolphin_config = Keyword.fetch!(opts, :dolphin_config)
-        init_dolphin_game(dolphin_config)
-    end
+        :dolphin ->
+          dolphin_config = Keyword.fetch!(opts, :dolphin_config)
+          init_dolphin_game(dolphin_config)
+      end
 
     env = %__MODULE__{
       game: game,
@@ -170,12 +189,14 @@ defmodule ExPhil.Training.SelfPlay.SelfPlayEnv do
     done = is_episode_done(env, next_state)
 
     # Build experience (embed with previous action for consistency)
-    embedded_state = Embeddings.Game.embed(
-      game_state,
-      env.prev_action,
-      env.p1_port,
-      config: env.embed_config
-    )
+    embedded_state =
+      Embeddings.Game.embed(
+        game_state,
+        env.prev_action,
+        env.p1_port,
+        config: env.embed_config
+      )
+
     experience = %{
       state: embedded_state,
       action: p1_action,
@@ -186,11 +207,12 @@ defmodule ExPhil.Training.SelfPlay.SelfPlayEnv do
     }
 
     # Update environment - track prev_action for next embedding
-    new_env = %{env |
-      game: new_game,
-      prev_state: game_state,
-      prev_action: action_to_controller_state(p1_action),
-      frame_count: env.frame_count + 1
+    new_env = %{
+      env
+      | game: new_game,
+        prev_state: game_state,
+        prev_action: action_to_controller_state(p1_action),
+        frame_count: env.frame_count + 1
     }
 
     if done do
@@ -221,18 +243,22 @@ defmodule ExPhil.Training.SelfPlay.SelfPlayEnv do
   """
   @spec reset(t()) :: {:ok, t()}
   def reset(%__MODULE__{} = env) do
-    new_game = case env.game_type do
-      :mock -> init_mock_game()
-      :dolphin -> reset_dolphin_game(env.game)
-    end
+    new_game =
+      case env.game_type do
+        :mock -> init_mock_game()
+        :dolphin -> reset_dolphin_game(env.game)
+      end
 
-    {:ok, %{env |
-      game: new_game,
-      prev_state: nil,
-      prev_action: nil,  # Reset prev_action on episode reset
-      frame_count: 0,
-      episode_count: env.episode_count + 1
-    }}
+    {:ok,
+     %{
+       env
+       | game: new_game,
+         prev_state: nil,
+         # Reset prev_action on episode reset
+         prev_action: nil,
+         frame_count: 0,
+         episode_count: env.episode_count + 1
+     }}
   end
 
   @doc """
@@ -270,7 +296,8 @@ defmodule ExPhil.Training.SelfPlay.SelfPlayEnv do
 
   def update_opponent(%__MODULE__{} = env, %{params: params}) when not is_nil(params) do
     # Historical or current policy with params
-    {model, _, _} = env.p1_policy  # Reuse P1's model architecture
+    # Reuse P1's model architecture
+    {model, _, _} = env.p1_policy
     update_p2_policy(env, {model, params})
   end
 
@@ -289,6 +316,7 @@ defmodule ExPhil.Training.SelfPlay.SelfPlayEnv do
     if is_pid(port) and Process.alive?(port) do
       MeleePort.stop(port)
     end
+
     :ok
   end
 
@@ -319,7 +347,8 @@ defmodule ExPhil.Training.SelfPlay.SelfPlayEnv do
       percent: 0.0,
       stock: 4,
       facing: if(port == 1, do: 1, else: -1),
-      action: 14,  # Wait
+      # Wait
+      action: 14,
       action_frame: 0
     }
   end
@@ -327,12 +356,13 @@ defmodule ExPhil.Training.SelfPlay.SelfPlayEnv do
   defp init_dolphin_game(config) do
     {:ok, port} = MeleePort.start_link()
 
-    :ok = MeleePort.init_console(port, %{
-      dolphin_path: config.dolphin_path,
-      iso_path: config.iso_path,
-      character: config.character || "fox",
-      stage: config.stage || "final_destination"
-    })
+    :ok =
+      MeleePort.init_console(port, %{
+        dolphin_path: config.dolphin_path,
+        iso_path: config.iso_path,
+        character: config.character || "fox",
+        stage: config.stage || "final_destination"
+      })
 
     port
   end
@@ -340,7 +370,8 @@ defmodule ExPhil.Training.SelfPlay.SelfPlayEnv do
   defp reset_dolphin_game(port) do
     # Reset Dolphin game by stepping through menus until back in game.
     # The Python bridge's auto_menu=true handles menu navigation automatically.
-    wait_for_game_start(port, _max_frames = 1800)  # 30 seconds at 60fps
+    # 30 seconds at 60fps
+    wait_for_game_start(port, _max_frames = 1800)
   end
 
   defp wait_for_game_start(port, remaining) when remaining <= 0 do
@@ -384,8 +415,10 @@ defmodule ExPhil.Training.SelfPlay.SelfPlayEnv do
   defp mock_to_game_state(mock) do
     %GameState{
       frame: mock.frame,
-      stage: 2,  # Final Destination
-      menu_state: 2,  # In-game
+      # Final Destination
+      stage: 2,
+      # In-game
+      menu_state: 2,
       players: %{
         1 => mock_to_player(mock.p1),
         2 => mock_to_player(mock.p2)
@@ -404,7 +437,8 @@ defmodule ExPhil.Training.SelfPlay.SelfPlayEnv do
       action: p.action,
       action_frame: p.action_frame,
       shield_strength: 60.0,
-      character: 2,  # Fox
+      # Fox
+      character: 2,
       invulnerable: false,
       hitstun_frames_left: 0,
       jumps_left: 2,
@@ -421,26 +455,34 @@ defmodule ExPhil.Training.SelfPlay.SelfPlayEnv do
 
   defp get_p1_action(env, game_state) do
     {_model, params, predict_fn} = env.p1_policy
-    embedded = Embeddings.Game.embed(
-      game_state,
-      env.prev_action,
-      env.p1_port,
-      config: env.embed_config
-    )
+
+    embedded =
+      Embeddings.Game.embed(
+        game_state,
+        env.prev_action,
+        env.p1_port,
+        config: env.embed_config
+      )
+
     input = Nx.new_axis(embedded, 0)
 
     # Forward pass
     output = predict_fn.(params, input)
 
     # Handle different output formats
-    {policy_logits, value} = case output do
-      %{policy: p, value: v} -> {p, v}
-      {p, v} when is_tuple(p) -> {p, v}
-      tuple when is_tuple(tuple) ->
-        # Assume last element is value, rest is policy
-        policy = Tuple.delete_at(tuple, tuple_size(tuple) - 1)
-        {policy, elem(tuple, tuple_size(tuple) - 1)}
-    end
+    {policy_logits, value} =
+      case output do
+        %{policy: p, value: v} ->
+          {p, v}
+
+        {p, v} when is_tuple(p) ->
+          {p, v}
+
+        tuple when is_tuple(tuple) ->
+          # Assume last element is value, rest is policy
+          policy = Tuple.delete_at(tuple, tuple_size(tuple) - 1)
+          {policy, elem(tuple, tuple_size(tuple) - 1)}
+      end
 
     # Sample action
     action = sample_action(policy_logits, deterministic: false)
@@ -463,21 +505,26 @@ defmodule ExPhil.Training.SelfPlay.SelfPlayEnv do
     # Embed from P2's perspective (swap player ports)
     # Note: P2's prev_action not tracked, use nil
     swapped_state = swap_player_perspective(game_state, env.p1_port, env.p2_port)
-    embedded = Embeddings.Game.embed(
-      swapped_state,
-      nil,  # P2's prev_action not tracked
-      env.p2_port,
-      config: env.embed_config
-    )
+
+    embedded =
+      Embeddings.Game.embed(
+        swapped_state,
+        # P2's prev_action not tracked
+        nil,
+        env.p2_port,
+        config: env.embed_config
+      )
+
     input = Nx.new_axis(embedded, 0)
 
     output = predict_fn.(params, input)
 
-    policy_logits = case output do
-      %{policy: p} -> p
-      {p, _v} when is_tuple(p) -> p
-      tuple when is_tuple(tuple) -> Tuple.delete_at(tuple, tuple_size(tuple) - 1)
-    end
+    policy_logits =
+      case output do
+        %{policy: p} -> p
+        {p, _v} when is_tuple(p) -> p
+        tuple when is_tuple(tuple) -> Tuple.delete_at(tuple, tuple_size(tuple) - 1)
+      end
 
     sample_action(policy_logits, deterministic: deterministic)
   end
@@ -485,10 +532,12 @@ defmodule ExPhil.Training.SelfPlay.SelfPlayEnv do
   defp swap_player_perspective(game_state, p1_port, p2_port) do
     # Swap players so P2 sees itself as "player 1"
     players = game_state.players
+
     swapped = %{
       p1_port => Map.get(players, p2_port),
       p2_port => Map.get(players, p1_port)
     }
+
     %{game_state | players: swapped}
   end
 
@@ -540,12 +589,17 @@ defmodule ExPhil.Training.SelfPlay.SelfPlayEnv do
     # Button log probs (Bernoulli)
     btn_probs = Nx.sigmoid(buttons) |> Nx.squeeze()
     btn_action = action.buttons
-    btn_log_prob = Nx.sum(
-      Nx.add(
-        Nx.multiply(btn_action, Nx.log(Nx.add(btn_probs, 1.0e-8))),
-        Nx.multiply(Nx.subtract(1, btn_action), Nx.log(Nx.add(Nx.subtract(1, btn_probs), 1.0e-8)))
+
+    btn_log_prob =
+      Nx.sum(
+        Nx.add(
+          Nx.multiply(btn_action, Nx.log(Nx.add(btn_probs, 1.0e-8))),
+          Nx.multiply(
+            Nx.subtract(1, btn_action),
+            Nx.log(Nx.add(Nx.subtract(1, btn_probs), 1.0e-8))
+          )
+        )
       )
-    )
 
     # Categorical log probs
     cat_log_prob = fn logits, action_idx ->
@@ -553,12 +607,13 @@ defmodule ExPhil.Training.SelfPlay.SelfPlayEnv do
       Nx.take(log_probs, action_idx)
     end
 
-    total_log_prob = btn_log_prob
-    |> Nx.add(cat_log_prob.(main_x, action.main_x))
-    |> Nx.add(cat_log_prob.(main_y, action.main_y))
-    |> Nx.add(cat_log_prob.(c_x, action.c_x))
-    |> Nx.add(cat_log_prob.(c_y, action.c_y))
-    |> Nx.add(cat_log_prob.(shoulder, action.shoulder))
+    total_log_prob =
+      btn_log_prob
+      |> Nx.add(cat_log_prob.(main_x, action.main_x))
+      |> Nx.add(cat_log_prob.(main_y, action.main_y))
+      |> Nx.add(cat_log_prob.(c_x, action.c_x))
+      |> Nx.add(cat_log_prob.(c_y, action.c_y))
+      |> Nx.add(cat_log_prob.(shoulder, action.shoulder))
 
     total_log_prob
   end
@@ -567,10 +622,12 @@ defmodule ExPhil.Training.SelfPlay.SelfPlayEnv do
     # Mock environment: simulate simple physics
     game = env.game
 
-    new_game = %{game |
-      frame: game.frame + 1,
-      p1: update_mock_player(game.p1, p1_action),
-      p2: update_mock_player(game.p2, nil)  # Simple AI for P2 in mock
+    new_game = %{
+      game
+      | frame: game.frame + 1,
+        p1: update_mock_player(game.p1, p1_action),
+        # Simple AI for P2 in mock
+        p2: update_mock_player(game.p2, nil)
     }
 
     {:ok, new_game}
@@ -596,7 +653,8 @@ defmodule ExPhil.Training.SelfPlay.SelfPlayEnv do
   defp update_mock_player(player, action) do
     # Apply action to mock player
     main_x_val = Nx.to_number(action.main_x)
-    dx = (main_x_val - 8) / 8.0 * 2.0  # Map 0-16 to -2..2
+    # Map 0-16 to -2..2
+    dx = (main_x_val - 8) / 8.0 * 2.0
 
     %{player | x: player.x + dx}
   end
@@ -604,12 +662,12 @@ defmodule ExPhil.Training.SelfPlay.SelfPlayEnv do
   defp action_to_controller(action) do
     %ControllerState{
       main_stick: %{
-        x: (Nx.to_number(action.main_x) / 16.0),
-        y: (Nx.to_number(action.main_y) / 16.0)
+        x: Nx.to_number(action.main_x) / 16.0,
+        y: Nx.to_number(action.main_y) / 16.0
       },
       c_stick: %{
-        x: (Nx.to_number(action.c_x) / 16.0),
-        y: (Nx.to_number(action.c_y) / 16.0)
+        x: Nx.to_number(action.c_x) / 16.0,
+        y: Nx.to_number(action.c_y) / 16.0
       },
       l_shoulder: Nx.to_number(action.shoulder) / 4.0,
       r_shoulder: 0.0,
@@ -662,7 +720,8 @@ defmodule ExPhil.Training.SelfPlay.SelfPlayEnv do
       button_z: Enum.at(buttons, 4) == 1,
       button_l: Enum.at(buttons, 5) == 1,
       button_r: Enum.at(buttons, 6) == 1,
-      button_d_up: false  # Start button mapped, D-up not used
+      # Start button mapped, D-up not used
+      button_d_up: false
     }
   end
 

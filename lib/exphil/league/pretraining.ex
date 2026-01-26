@@ -85,6 +85,7 @@ defmodule ExPhil.League.Pretraining do
 
     if verbose do
       Output.banner("Architecture League Pretraining")
+
       Output.config([
         {"Architectures", length(architectures)},
         {"Dataset size", length(dataset)},
@@ -116,48 +117,50 @@ defmodule ExPhil.League.Pretraining do
     # Train each architecture
     total = length(architectures)
 
-    results = architectures
-    |> Enum.with_index(1)
-    |> Enum.reduce(%{}, fn {arch_spec, idx}, acc ->
-      arch_id = arch_spec.id
-      architecture = arch_spec.architecture
-      config = Map.get(arch_spec, :config, %{})
+    results =
+      architectures
+      |> Enum.with_index(1)
+      |> Enum.reduce(%{}, fn {arch_spec, idx}, acc ->
+        arch_id = arch_spec.id
+        architecture = arch_spec.architecture
+        config = Map.get(arch_spec, :config, %{})
 
-      if verbose do
-        Output.step(idx, total, "Training #{arch_id} (#{architecture})")
-        Output.puts(GPUUtils.memory_status_string())
-      end
+        if verbose do
+          Output.step(idx, total, "Training #{arch_id} (#{architecture})")
+          Output.puts(GPUUtils.memory_status_string())
+        end
 
-      # Build model for this architecture
-      model = build_model(architecture, embed_config, config)
+        # Build model for this architecture
+        model = build_model(architecture, embed_config, config)
 
-      # Train to target loss
-      result = train_to_target(
-        model,
-        train_embedded,
-        val_embedded,
-        embed_config,
-        opts
-      )
+        # Train to target loss
+        result =
+          train_to_target(
+            model,
+            train_embedded,
+            val_embedded,
+            embed_config,
+            opts
+          )
 
-      case result do
-        {:ok, params, final_loss, epochs} ->
-          if verbose do
-            Output.success("#{arch_id}: loss=#{Float.round(final_loss, 4)} in #{epochs} epochs")
-          end
+        case result do
+          {:ok, params, final_loss, epochs} ->
+            if verbose do
+              Output.success("#{arch_id}: loss=#{Float.round(final_loss, 4)} in #{epochs} epochs")
+            end
 
-          # Save checkpoint if configured
-          if opts[:checkpoint_dir] do
-            save_checkpoint(opts[:checkpoint_dir], arch_id, model, params)
-          end
+            # Save checkpoint if configured
+            if opts[:checkpoint_dir] do
+              save_checkpoint(opts[:checkpoint_dir], arch_id, model, params)
+            end
 
-          Map.put(acc, arch_id, {model, params, final_loss, epochs})
+            Map.put(acc, arch_id, {model, params, final_loss, epochs})
 
-        {:error, reason} ->
-          Logger.warning("[Pretraining] Failed to train #{arch_id}: #{inspect(reason)}")
-          acc
-      end
-    end)
+          {:error, reason} ->
+            Logger.warning("[Pretraining] Failed to train #{arch_id}: #{inspect(reason)}")
+            acc
+        end
+      end)
 
     if verbose do
       Output.puts("")
@@ -195,14 +198,15 @@ defmodule ExPhil.League.Pretraining do
     verbose = opts[:verbose]
 
     # Initialize trainer
-    trainer = Imitation.new(
-      embed_config: embed_config,
-      hidden_sizes: [256, 256],
-      learning_rate: learning_rate,
-      batch_size: batch_size,
-      temporal: is_temporal_model?(model),
-      window_size: 30
-    )
+    trainer =
+      Imitation.new(
+        embed_config: embed_config,
+        hidden_sizes: [256, 256],
+        learning_rate: learning_rate,
+        batch_size: batch_size,
+        temporal: is_temporal_model?(model),
+        window_size: 30
+      )
 
     # Initialize params using Axon.build
     sample_input = create_sample_input(embed_config, batch_size)
@@ -363,7 +367,9 @@ defmodule ExPhil.League.Pretraining do
     {_loss_fn, grad_fn} = build_training_fns(model, trainer)
 
     # Optimizer - returns {init_fn, update_fn} tuple
-    {optimizer_init, optimizer_update} = Polaris.Optimizers.adamw(learning_rate: trainer.config.learning_rate)
+    {optimizer_init, optimizer_update} =
+      Polaris.Optimizers.adamw(learning_rate: trainer.config.learning_rate)
+
     opt_state = optimizer_init.(params)
 
     # Training state
@@ -459,39 +465,43 @@ defmodule ExPhil.League.Pretraining do
          verbose
        ) do
     # Run one epoch
-    {new_params, new_opt_state, train_loss} = run_epoch(
-      state.params,
-      state.opt_state,
-      train_data,
-      grad_fn,
-      optimizer,
-      trainer.config.batch_size
-    )
+    {new_params, new_opt_state, train_loss} =
+      run_epoch(
+        state.params,
+        state.opt_state,
+        train_data,
+        grad_fn,
+        optimizer,
+        trainer.config.batch_size
+      )
 
     # Validate
     val_loss = compute_validation_loss(model, new_params, val_data)
 
     # Update state
-    {best_loss, best_params, no_improve} = if val_loss < state.best_loss do
-      {val_loss, new_params, 0}
-    else
-      {state.best_loss, state.best_params, state.no_improve_count + 1}
-    end
+    {best_loss, best_params, no_improve} =
+      if val_loss < state.best_loss do
+        {val_loss, new_params, 0}
+      else
+        {state.best_loss, state.best_params, state.no_improve_count + 1}
+      end
 
     if verbose do
-      IO.write(:stderr,
+      IO.write(
+        :stderr,
         "\r  Epoch #{state.epoch + 1}: train_loss=#{Float.round(train_loss, 4)}, " <>
-        "val_loss=#{Float.round(val_loss, 4)}, best=#{Float.round(best_loss, 4)}"
+          "val_loss=#{Float.round(val_loss, 4)}, best=#{Float.round(best_loss, 4)}"
       )
     end
 
-    new_state = %{state |
-      params: new_params,
-      opt_state: new_opt_state,
-      best_loss: best_loss,
-      best_params: best_params,
-      no_improve_count: no_improve,
-      epoch: state.epoch + 1
+    new_state = %{
+      state
+      | params: new_params,
+        opt_state: new_opt_state,
+        best_loss: best_loss,
+        best_params: best_params,
+        no_improve_count: no_improve,
+        epoch: state.epoch + 1
     }
 
     do_train_loop(
@@ -534,11 +544,12 @@ defmodule ExPhil.League.Pretraining do
   defp compute_validation_loss(model, params, val_data) do
     batches = create_batches(val_data, 64)
 
-    {total_loss, count} = Enum.reduce(batches, {0.0, 0}, fn batch, {sum, c} ->
-      output = Axon.predict(model, params, %{"state" => batch.states})
-      loss = compute_policy_loss(output, batch.actions)
-      {sum + Nx.to_number(loss), c + 1}
-    end)
+    {total_loss, count} =
+      Enum.reduce(batches, {0.0, 0}, fn batch, {sum, c} ->
+        output = Axon.predict(model, params, %{"state" => batch.states})
+        loss = compute_policy_loss(output, batch.actions)
+        {sum + Nx.to_number(loss), c + 1}
+      end)
 
     if count > 0, do: total_loss / count, else: 0.0
   end
@@ -559,20 +570,22 @@ defmodule ExPhil.League.Pretraining do
 
   defp precompute_embeddings(train_data, val_data, embed_config) do
     # Embed training data
-    train_embedded = Enum.map(train_data, fn sample ->
-      %{
-        state: embed_sample(sample.state, embed_config),
-        action: sample.action
-      }
-    end)
+    train_embedded =
+      Enum.map(train_data, fn sample ->
+        %{
+          state: embed_sample(sample.state, embed_config),
+          action: sample.action
+        }
+      end)
 
     # Embed validation data
-    val_embedded = Enum.map(val_data, fn sample ->
-      %{
-        state: embed_sample(sample.state, embed_config),
-        action: sample.action
-      }
-    end)
+    val_embedded =
+      Enum.map(val_data, fn sample ->
+        %{
+          state: embed_sample(sample.state, embed_config),
+          action: sample.action
+        }
+      end)
 
     {train_embedded, val_embedded}
   end
@@ -606,6 +619,7 @@ defmodule ExPhil.League.Pretraining do
     case hd(actions) do
       %{} = _action_map ->
         keys = Map.keys(hd(actions))
+
         Map.new(keys, fn key ->
           values = Enum.map(actions, &Map.get(&1, key))
           {key, Nx.stack(values)}
@@ -649,10 +663,11 @@ defmodule ExPhil.League.Pretraining do
 
     case output do
       %{"buttons" => buttons_logits} ->
-        target = case target_actions do
-          %{buttons: t} -> t
-          _ -> Nx.broadcast(0, Nx.shape(buttons_logits) |> elem(0))
-        end
+        target =
+          case target_actions do
+            %{buttons: t} -> t
+            _ -> Nx.broadcast(0, Nx.shape(buttons_logits) |> elem(0))
+          end
 
         Axon.Losses.categorical_cross_entropy(
           target,
@@ -682,9 +697,10 @@ defmodule ExPhil.League.Pretraining do
     # Save params
     params_path = Path.join(dir, "#{arch_id}_pretrained.bin")
 
-    params_binary = params
-    |> Enum.map(fn {k, v} -> {k, Nx.backend_transfer(v, Nx.BinaryBackend)} end)
-    |> Map.new()
+    params_binary =
+      params
+      |> Enum.map(fn {k, v} -> {k, Nx.backend_transfer(v, Nx.BinaryBackend)} end)
+      |> Map.new()
 
     File.write!(params_path, :erlang.term_to_binary(params_binary))
 

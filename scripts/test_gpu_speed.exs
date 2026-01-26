@@ -20,12 +20,15 @@ IO.puts("  Test batches: #{num_batches}")
 
 # Create trainer
 IO.puts("\nInitializing trainer...")
-trainer = Imitation.new(
-  embed_size: embed_size,
-  hidden_sizes: [512, 512, 256],
-  temporal: false,
-  learning_rate: 1.0e-4
-)
+
+trainer =
+  Imitation.new(
+    embed_size: embed_size,
+    hidden_sizes: [512, 512, 256],
+    temporal: false,
+    learning_rate: 1.0e-4
+  )
+
 param_count = trainer.config[:param_count] || 0
 IO.puts("  ✓ Trainer initialized (#{Float.round(param_count / 1_000_000, 2)}M params)")
 
@@ -67,22 +70,27 @@ IO.puts("  Buttons: #{inspect(buttons.data.__struct__)}")
 
 # Warm up (JIT compilation)
 IO.puts("\n⏳ JIT compiling (first batch)...")
-{jit_time_us, {_trainer, _metrics}} = :timer.tc(fn ->
-  Imitation.train_step(trainer, batch, nil)
-end)
+
+{jit_time_us, {_trainer, _metrics}} =
+  :timer.tc(fn ->
+    Imitation.train_step(trainer, batch, nil)
+  end)
+
 jit_time_s = jit_time_us / 1_000_000
 IO.puts("  ✓ JIT complete in #{Float.round(jit_time_s, 1)}s")
 
 # Benchmark
 IO.puts("\nRunning #{num_batches} batches...")
-{total_time_us, _} = :timer.tc(fn ->
-  Enum.reduce(1..num_batches, trainer, fn i, t ->
-    {new_t, metrics} = Imitation.train_step(t, batch, nil)
-    loss = Nx.to_number(metrics.loss)
-    IO.puts("  Batch #{i}/#{num_batches}: loss=#{Float.round(loss, 4)}")
-    new_t
+
+{total_time_us, _} =
+  :timer.tc(fn ->
+    Enum.reduce(1..num_batches, trainer, fn i, t ->
+      {new_t, metrics} = Imitation.train_step(t, batch, nil)
+      loss = Nx.to_number(metrics.loss)
+      IO.puts("  Batch #{i}/#{num_batches}: loss=#{Float.round(loss, 4)}")
+      new_t
+    end)
   end)
-end)
 
 total_time_ms = total_time_us / 1000
 avg_time_ms = total_time_ms / num_batches
@@ -97,10 +105,15 @@ IO.puts("")
 cond do
   avg_time_ms < 500 ->
     IO.puts("  ✅ FAST: #{Float.round(avg_time_ms, 1)}ms/batch - GPU is working correctly!")
+
   avg_time_ms < 2000 ->
     IO.puts("  ⚠️  MEDIUM: #{Float.round(avg_time_ms, 1)}ms/batch - GPU working but with overhead")
+
   avg_time_ms < 10000 ->
-    IO.puts("  ⚠️  SLOW: #{Float.round(avg_time_ms, 1)}ms/batch - likely CPU→GPU transfer each batch")
+    IO.puts(
+      "  ⚠️  SLOW: #{Float.round(avg_time_ms, 1)}ms/batch - likely CPU→GPU transfer each batch"
+    )
+
   true ->
     IO.puts("  ❌ VERY SLOW: #{Float.round(avg_time_ms, 1)}ms/batch - GPU may not be used")
 end

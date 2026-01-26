@@ -177,36 +177,39 @@ defmodule ExPhil.League.Evolution do
 
     if verbose do
       Output.banner("Architecture League Evolution")
+
       Output.config([
         {"Generations", generations},
         {"Architectures", length(League.list_architectures(league))},
         {"Matches per pair", opts[:matches_per_pair] || 10}
       ])
+
       Output.puts("")
     end
 
     # Run evolution loop
-    all_metrics = Enum.reduce(1..generations, [], fn gen, acc ->
-      if verbose do
-        Output.puts("=" |> String.duplicate(60))
-        Output.puts("Generation #{gen}/#{generations}")
-        Output.puts("")
-      end
+    all_metrics =
+      Enum.reduce(1..generations, [], fn gen, acc ->
+        if verbose do
+          Output.puts("=" |> String.duplicate(60))
+          Output.puts("Generation #{gen}/#{generations}")
+          Output.puts("")
+        end
 
-      {:ok, metrics} = evolve(league, opts)
+        {:ok, metrics} = evolve(league, opts)
 
-      # Callback
-      callback.(gen, metrics)
+        # Callback
+        callback.(gen, metrics)
 
-      # Checkpoint
-      if checkpoint_dir && rem(gen, checkpoint_every) == 0 do
-        gen_dir = Path.join(checkpoint_dir, "gen_#{gen}")
-        League.save_all_checkpoints(league, gen_dir)
-        if verbose, do: Output.puts("  Checkpoint saved to #{gen_dir}")
-      end
+        # Checkpoint
+        if checkpoint_dir && rem(gen, checkpoint_every) == 0 do
+          gen_dir = Path.join(checkpoint_dir, "gen_#{gen}")
+          League.save_all_checkpoints(league, gen_dir)
+          if verbose, do: Output.puts("  Checkpoint saved to #{gen_dir}")
+        end
 
-      [metrics | acc]
-    end)
+        [metrics | acc]
+      end)
 
     # Final checkpoint
     if checkpoint_dir do
@@ -284,12 +287,13 @@ defmodule ExPhil.League.Evolution do
       schedule = MatchScheduler.round_robin(arch_ids, matches_per_pair: matches_per_pair)
 
       # Run matches
-      results = Enum.flat_map(schedule, fn {p1, p2} ->
-        case League.run_match(league, p1, p2) do
-          {:ok, result} -> [result]
-          {:error, _} -> []
-        end
-      end)
+      results =
+        Enum.flat_map(schedule, fn {p1, p2} ->
+          case League.run_match(league, p1, p2) do
+            {:ok, result} -> [result]
+            {:error, _} -> []
+          end
+        end)
 
       {:ok, results}
     end
@@ -311,18 +315,19 @@ defmodule ExPhil.League.Evolution do
       architectures = League.list_architectures(league)
 
       # Train each architecture
-      metrics = Enum.reduce(architectures, %{}, fn arch, acc ->
-        case train_architecture(arch, experiences, opts) do
-          {:ok, new_params, train_metrics} ->
-            # Update params in league
-            League.update_params(league, arch.id, new_params)
-            Map.put(acc, arch.id, train_metrics)
+      metrics =
+        Enum.reduce(architectures, %{}, fn arch, acc ->
+          case train_architecture(arch, experiences, opts) do
+            {:ok, new_params, train_metrics} ->
+              # Update params in league
+              League.update_params(league, arch.id, new_params)
+              Map.put(acc, arch.id, train_metrics)
 
-          {:error, reason} ->
-            Logger.warning("[Evolution] Failed to train #{arch.id}: #{inspect(reason)}")
-            acc
-        end
-      end)
+            {:error, reason} ->
+              Logger.warning("[Evolution] Failed to train #{arch.id}: #{inspect(reason)}")
+              acc
+          end
+        end)
 
       # Clear experience pool for next generation
       League.clear_experiences(league)
@@ -382,6 +387,7 @@ defmodule ExPhil.League.Evolution do
     case hd(actions) do
       %{} = action_map ->
         keys = Map.keys(action_map)
+
         Map.new(keys, fn key ->
           values = Enum.map(actions, &Map.get(&1, key, 0))
           {key, Nx.tensor(values, type: :f32)}
@@ -408,19 +414,22 @@ defmodule ExPhil.League.Evolution do
 
   defp run_ppo_update(model, params, rollout, config) do
     # Compute advantages using GAE
-    advantages = compute_gae(
-      rollout.rewards,
-      rollout.values,
-      rollout.dones,
-      config[:gamma] || 0.99,
-      config[:gae_lambda] || 0.95
-    )
+    advantages =
+      compute_gae(
+        rollout.rewards,
+        rollout.values,
+        rollout.dones,
+        config[:gamma] || 0.99,
+        config[:gae_lambda] || 0.95
+      )
 
     # Compute returns
     returns = Nx.add(advantages, rollout.values)
 
     # Initialize optimizer - returns {init_fn, update_fn} tuple
-    {optimizer_init, optimizer_update} = Polaris.Optimizers.adam(learning_rate: config.learning_rate)
+    {optimizer_init, optimizer_update} =
+      Polaris.Optimizers.adam(learning_rate: config.learning_rate)
+
     opt_state = optimizer_init.(params)
 
     # Create minibatches
@@ -429,7 +438,8 @@ defmodule ExPhil.League.Evolution do
 
     # Run PPO epochs
     {final_params, _final_opt_state, metrics} =
-      Enum.reduce(1..config.num_epochs, {params, opt_state, init_ppo_metrics()}, fn _epoch, {p, opt, m} ->
+      Enum.reduce(1..config.num_epochs, {params, opt_state, init_ppo_metrics()}, fn _epoch,
+                                                                                    {p, opt, m} ->
         # Process minibatches
         batch_indices = Enum.chunk_every(indices, config.batch_size)
 
@@ -460,16 +470,24 @@ defmodule ExPhil.League.Evolution do
     n = Nx.axis_size(rewards, 0)
 
     # Add bootstrap value (0 for terminal states)
-    values_with_bootstrap = Nx.concatenate([
-      values,
-      Nx.tensor([0.0], type: :f32)
-    ])
+    values_with_bootstrap =
+      Nx.concatenate([
+        values,
+        Nx.tensor([0.0], type: :f32)
+      ])
 
     # Compute deltas
-    deltas = Nx.subtract(
-      Nx.add(rewards, Nx.multiply(gamma, Nx.multiply(Nx.subtract(1.0, dones), Nx.slice(values_with_bootstrap, [1], [n])))),
-      Nx.slice(values_with_bootstrap, [0], [n])
-    )
+    deltas =
+      Nx.subtract(
+        Nx.add(
+          rewards,
+          Nx.multiply(
+            gamma,
+            Nx.multiply(Nx.subtract(1.0, dones), Nx.slice(values_with_bootstrap, [1], [n]))
+          )
+        ),
+        Nx.slice(values_with_bootstrap, [0], [n])
+      )
 
     # Compute GAE backwards
     compute_gae_backwards(deltas, dones, gamma * gae_lambda, n - 1, Nx.broadcast(0.0, {n}))
@@ -480,13 +498,17 @@ defmodule ExPhil.League.Evolution do
   defp compute_gae_backwards(deltas, dones, discount, t, advantages) do
     delta_t = Nx.slice(deltas, [t], [1]) |> Nx.squeeze()
     done_t = Nx.slice(dones, [t], [1]) |> Nx.squeeze()
-    next_adv = if t < Nx.axis_size(advantages, 0) - 1 do
-      Nx.slice(advantages, [t + 1], [1]) |> Nx.squeeze()
-    else
-      Nx.tensor(0.0, type: :f32)
-    end
 
-    adv_t = Nx.add(delta_t, Nx.multiply(discount, Nx.multiply(Nx.subtract(1.0, done_t), next_adv)))
+    next_adv =
+      if t < Nx.axis_size(advantages, 0) - 1 do
+        Nx.slice(advantages, [t + 1], [1]) |> Nx.squeeze()
+      else
+        Nx.tensor(0.0, type: :f32)
+      end
+
+    adv_t =
+      Nx.add(delta_t, Nx.multiply(discount, Nx.multiply(Nx.subtract(1.0, done_t), next_adv)))
+
     new_advantages = Nx.indexed_put(advantages, Nx.tensor([[t]]), Nx.reshape(adv_t, {1}))
 
     compute_gae_backwards(deltas, dones, discount, t - 1, new_advantages)
@@ -521,21 +543,23 @@ defmodule ExPhil.League.Evolution do
       policy_loss = compute_policy_loss(output, batch, config)
 
       # Compute value loss
-      value_loss = if Map.has_key?(output, "value") do
-        values = output["value"]
-        Nx.mean(Nx.pow(Nx.subtract(values, batch.returns), 2))
-      else
-        Nx.tensor(0.0, type: :f32)
-      end
+      value_loss =
+        if Map.has_key?(output, "value") do
+          values = output["value"]
+          Nx.mean(Nx.pow(Nx.subtract(values, batch.returns), 2))
+        else
+          Nx.tensor(0.0, type: :f32)
+        end
 
       # Compute entropy bonus
       entropy = compute_entropy(output)
 
       # Total loss
-      total_loss = Nx.add(
-        Nx.add(policy_loss, Nx.multiply(config.value_loss_coef, value_loss)),
-        Nx.multiply(-config.entropy_coef, entropy)
-      )
+      total_loss =
+        Nx.add(
+          Nx.add(policy_loss, Nx.multiply(config.value_loss_coef, value_loss)),
+          Nx.multiply(-config.entropy_coef, entropy)
+        )
 
       total_loss
     end)
@@ -576,9 +600,10 @@ defmodule ExPhil.League.Evolution do
 
   defp clip_gradients(grads, max_norm) do
     # Compute total norm
-    total_norm_sq = grads
-    |> Enum.map(fn {_k, g} -> Nx.sum(Nx.pow(g, 2)) end)
-    |> Enum.reduce(Nx.tensor(0.0), &Nx.add/2)
+    total_norm_sq =
+      grads
+      |> Enum.map(fn {_k, g} -> Nx.sum(Nx.pow(g, 2)) end)
+      |> Enum.reduce(Nx.tensor(0.0), &Nx.add/2)
 
     total_norm = Nx.sqrt(total_norm_sq)
     clip_coef = Nx.min(Nx.divide(max_norm, Nx.add(total_norm, 1.0e-6)), 1.0)
@@ -598,11 +623,12 @@ defmodule ExPhil.League.Evolution do
   end
 
   defp finalize_ppo_metrics(metrics) do
-    avg_loss = if metrics.num_updates > 0 do
-      metrics.total_loss / metrics.num_updates
-    else
-      0.0
-    end
+    avg_loss =
+      if metrics.num_updates > 0 do
+        metrics.total_loss / metrics.num_updates
+      else
+        0.0
+      end
 
     %{
       avg_loss: avg_loss,
@@ -624,9 +650,10 @@ defmodule ExPhil.League.Evolution do
       sorted = Enum.sort_by(architectures, & &1.elo)
 
       # Find candidates for removal
-      to_remove = sorted
-      |> Enum.filter(&(&1.elo < min_elo))
-      |> Enum.take(length(architectures) - keep_min)
+      to_remove =
+        sorted
+        |> Enum.filter(&(&1.elo < min_elo))
+        |> Enum.take(length(architectures) - keep_min)
 
       # Remove weak architectures
       Enum.each(to_remove, fn arch ->
@@ -642,19 +669,21 @@ defmodule ExPhil.League.Evolution do
 
   defp summarize_tournament(results) do
     # Count wins per architecture
-    wins_by_arch = Enum.reduce(results, %{}, fn result, acc ->
-      winner_id = case result.winner do
-        :p1 -> result.p1_id
-        :p2 -> result.p2_id
-        :draw -> nil
-      end
+    wins_by_arch =
+      Enum.reduce(results, %{}, fn result, acc ->
+        winner_id =
+          case result.winner do
+            :p1 -> result.p1_id
+            :p2 -> result.p2_id
+            :draw -> nil
+          end
 
-      if winner_id do
-        Map.update(acc, winner_id, 1, &(&1 + 1))
-      else
-        acc
-      end
-    end)
+        if winner_id do
+          Map.update(acc, winner_id, 1, &(&1 + 1))
+        else
+          acc
+        end
+      end)
 
     %{
       total_matches: length(results),
@@ -686,7 +715,10 @@ defmodule ExPhil.League.Evolution do
       win_rate = Float.round(entry.win_rate * 100, 1)
       Output.puts("  #{rank}. #{entry.id}")
       Output.puts("     Elo: #{Float.round(entry.elo, 1)} | Win Rate: #{win_rate}%")
-      Output.puts("     Games: #{entry.games_played} (#{entry.wins}W/#{entry.losses}L/#{entry.draws}D)")
+
+      Output.puts(
+        "     Games: #{entry.games_played} (#{entry.wins}W/#{entry.losses}L/#{entry.draws}D)"
+      )
     end)
 
     Output.puts("")

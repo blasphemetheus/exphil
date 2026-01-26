@@ -58,6 +58,7 @@ defmodule ExPhil.Networks.OnnxLayers do
       fn inputs, _opts ->
         # Extract last timestep: [batch, seq_len, hidden] -> [batch, hidden]
         seq_len = Nx.axis_size(inputs, 1)
+
         Nx.slice_along_axis(inputs, seq_len - 1, 1, axis: 1)
         |> Nx.squeeze(axes: [1])
       end,

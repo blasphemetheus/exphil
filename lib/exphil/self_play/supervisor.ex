@@ -173,10 +173,14 @@ defmodule ExPhil.SelfPlay.Supervisor do
   Starts a new game.
   """
   def start_game(opts \\ []) do
-    opts = Keyword.merge([
-      population_manager: population_manager(),
-      experience_collector: experience_collector()
-    ], opts)
+    opts =
+      Keyword.merge(
+        [
+          population_manager: population_manager(),
+          experience_collector: experience_collector()
+        ],
+        opts
+      )
 
     # Default policy IDs if not provided
     opts = Keyword.put_new(opts, :p1_policy_id, :current)
@@ -189,12 +193,17 @@ defmodule ExPhil.SelfPlay.Supervisor do
   Starts multiple games.
   """
   def start_games(count, opts \\ []) do
-    base_opts = Keyword.merge([
-      population_manager: population_manager(),
-      experience_collector: experience_collector(),
-      p1_policy_id: :current,
-      p2_policy_id: :cpu  # Default to CPU opponent
-    ], opts)
+    base_opts =
+      Keyword.merge(
+        [
+          population_manager: population_manager(),
+          experience_collector: experience_collector(),
+          p1_policy_id: :current,
+          # Default to CPU opponent
+          p2_policy_id: :cpu
+        ],
+        opts
+      )
 
     GamePoolSupervisor.start_games(game_pool(), count, base_opts)
   end
@@ -249,6 +258,7 @@ defmodule ExPhil.SelfPlay.Supervisor do
 
     Enum.each(games, fn %{id: game_id} ->
       {:ok, {policy_id, _policy}} = sample_opponent()
+
       case ExPhil.SelfPlay.GameRunner.whereis(game_id) do
         nil -> :ok
         pid -> ExPhil.SelfPlay.GameRunner.swap_policy(pid, :p2, policy_id)
@@ -307,31 +317,37 @@ defmodule ExPhil.SelfPlay.Supervisor do
       {Registry, keys: :unique, name: @registry_name},
 
       # Population Manager
-      {PopulationManager, [
-        name: @population_name,
-        max_history_size: max_history_size
-      ]},
+      {PopulationManager,
+       [
+         name: @population_name,
+         max_history_size: max_history_size
+       ]},
 
       # Experience Collector
-      {ExperienceCollector, [
-        name: @collector_name,
-        batch_size: batch_size
-      ]},
+      {ExperienceCollector,
+       [
+         name: @collector_name,
+         batch_size: batch_size
+       ]},
 
       # Game Pool Supervisor
-      {GamePoolSupervisor, [
-        name: @pool_name
-      ]}
+      {GamePoolSupervisor,
+       [
+         name: @pool_name
+       ]}
     ]
 
     # Conditionally add matchmaker
-    children = if start_matchmaker do
-      children ++ [{Matchmaker, [name: @matchmaker_name]}]
-    else
-      children
-    end
+    children =
+      if start_matchmaker do
+        children ++ [{Matchmaker, [name: @matchmaker_name]}]
+      else
+        children
+      end
 
-    Logger.info("[SelfPlay.Supervisor] Starting with batch_size=#{batch_size}, max_history=#{max_history_size}")
+    Logger.info(
+      "[SelfPlay.Supervisor] Starting with batch_size=#{batch_size}, max_history=#{max_history_size}"
+    )
 
     Supervisor.init(children, strategy: :one_for_one)
   end

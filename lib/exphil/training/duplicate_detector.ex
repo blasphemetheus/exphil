@@ -32,7 +32,8 @@ defmodule ExPhil.Training.DuplicateDetector do
   alias ExPhil.Training.Output
 
   @hash_algorithm :md5
-  @chunk_size 65_536  # 64KB chunks for streaming hash
+  # 64KB chunks for streaming hash
+  @chunk_size 65_536
 
   @doc """
   Filter duplicate files from a list, keeping the first occurrence.
@@ -57,24 +58,29 @@ defmodule ExPhil.Training.DuplicateDetector do
     total = length(files)
 
     # Compute hashes (optionally in parallel)
-    hashed_files = if parallel and total > 10 do
-      hash_files_parallel(files, show_progress)
-    else
-      hash_files_sequential(files, show_progress)
-    end
+    hashed_files =
+      if parallel and total > 10 do
+        hash_files_parallel(files, show_progress)
+      else
+        hash_files_sequential(files, show_progress)
+      end
 
     # Group by hash, keeping track of all files with same hash
-    grouped = Enum.group_by(hashed_files, fn {hash, _path} -> hash end, fn {_hash, path} -> path end)
+    grouped =
+      Enum.group_by(hashed_files, fn {hash, _path} -> hash end, fn {_hash, path} -> path end)
 
     # Keep first file from each group
-    unique_files = grouped
-    |> Enum.map(fn {_hash, [first | _rest]} -> first end)
-    |> Enum.sort()  # Deterministic ordering
+    unique_files =
+      grouped
+      |> Enum.map(fn {_hash, [first | _rest]} -> first end)
+      # Deterministic ordering
+      |> Enum.sort()
 
     # Find duplicates (groups with more than one file)
-    duplicate_groups = grouped
-    |> Enum.filter(fn {_hash, paths} -> length(paths) > 1 end)
-    |> Map.new()
+    duplicate_groups =
+      grouped
+      |> Enum.filter(fn {_hash, paths} -> length(paths) > 1 end)
+      |> Map.new()
 
     duplicates_count = total - length(unique_files)
 
@@ -100,7 +106,8 @@ defmodule ExPhil.Training.DuplicateDetector do
       case hash_file(file) do
         {:ok, hash} ->
           if MapSet.member?(seen_hashes, hash) do
-            {[], seen_hashes}  # Skip duplicate
+            # Skip duplicate
+            {[], seen_hashes}
           else
             {[file], MapSet.put(seen_hashes, hash)}
           end
@@ -118,11 +125,12 @@ defmodule ExPhil.Training.DuplicateDetector do
   @spec hash_file(Path.t()) :: {:ok, binary()} | {:error, term()}
   def hash_file(path) do
     try do
-      hash = File.stream!(path, @chunk_size)
-      |> Enum.reduce(:crypto.hash_init(@hash_algorithm), fn chunk, acc ->
-        :crypto.hash_update(acc, chunk)
-      end)
-      |> :crypto.hash_final()
+      hash =
+        File.stream!(path, @chunk_size)
+        |> Enum.reduce(:crypto.hash_init(@hash_algorithm), fn chunk, acc ->
+          :crypto.hash_update(acc, chunk)
+        end)
+        |> :crypto.hash_final()
 
       {:ok, hash}
     rescue
@@ -137,7 +145,10 @@ defmodule ExPhil.Training.DuplicateDetector do
   def print_summary(stats) do
     if stats.duplicates > 0 do
       pct = Float.round(stats.duplicates / stats.total * 100, 1)
-      Output.puts("Duplicate detection: removed #{stats.duplicates}/#{stats.total} files (#{pct}%)")
+
+      Output.puts(
+        "Duplicate detection: removed #{stats.duplicates}/#{stats.total} files (#{pct}%)"
+      )
 
       if map_size(stats.duplicate_groups) <= 5 do
         # Show details for small number of duplicate groups
@@ -170,7 +181,8 @@ defmodule ExPhil.Training.DuplicateDetector do
 
       case hash_file(file) do
         {:ok, hash} -> {hash, file}
-        {:error, _} -> {make_ref(), file}  # Unique ref for unhashable files
+        # Unique ref for unhashable files
+        {:error, _} -> {make_ref(), file}
       end
     end)
     |> tap(fn _ -> if show_progress, do: Output.progress_done() end)
@@ -196,6 +208,7 @@ defmodule ExPhil.Training.DuplicateDetector do
       if show_progress and rem(idx, 100) == 0 do
         Output.progress_bar(idx, total, label: "Hashing")
       end
+
       result
     end)
     |> tap(fn _ -> if show_progress, do: Output.progress_done() end)

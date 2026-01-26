@@ -103,7 +103,8 @@ defmodule ExPhil.Data.PeppiTest do
       }
 
       player_frame = %Peppi.PlayerFrame{
-        character: 10,  # Mewtwo
+        # Mewtwo
+        character: 10,
         x: 0.0,
         y: 0.0,
         percent: 0.0,
@@ -131,7 +132,8 @@ defmodule ExPhil.Data.PeppiTest do
 
       metadata = %Peppi.ReplayMeta{
         path: "test.slp",
-        stage: 32,  # Final Destination
+        # Final Destination
+        stage: 32,
         duration_frames: 1,
         players: [
           %Peppi.PlayerMeta{port: 1, character: 10, character_name: "Mewtwo", tag: nil},
@@ -235,25 +237,57 @@ defmodule ExPhil.Data.PeppiTest do
 
     test "player_tag is nil when tag not set" do
       controller = %Peppi.Controller{
-        main_stick_x: 0.5, main_stick_y: 0.5, c_stick_x: 0.5, c_stick_y: 0.5,
-        l_trigger: 0.0, r_trigger: 0.0,
-        button_a: false, button_b: false, button_x: false, button_y: false,
-        button_z: false, button_l: false, button_r: false, button_start: false,
-        button_d_up: false, button_d_down: false, button_d_left: false, button_d_right: false
+        main_stick_x: 0.5,
+        main_stick_y: 0.5,
+        c_stick_x: 0.5,
+        c_stick_y: 0.5,
+        l_trigger: 0.0,
+        r_trigger: 0.0,
+        button_a: false,
+        button_b: false,
+        button_x: false,
+        button_y: false,
+        button_z: false,
+        button_l: false,
+        button_r: false,
+        button_start: false,
+        button_d_up: false,
+        button_d_down: false,
+        button_d_left: false,
+        button_d_right: false
       }
 
       player_frame = %Peppi.PlayerFrame{
-        character: 10, x: 0.0, y: 0.0, percent: 0.0, stock: 4, facing: 1,
-        action: 14, action_frame: 0.0, invulnerable: false, jumps_left: 2,
-        on_ground: true, shield_strength: 60.0, hitstun_frames_left: 0.0,
-        speed_air_x_self: 0.0, speed_ground_x_self: 0.0, speed_y_self: 0.0,
-        speed_x_attack: 0.0, speed_y_attack: 0.0, controller: controller
+        character: 10,
+        x: 0.0,
+        y: 0.0,
+        percent: 0.0,
+        stock: 4,
+        facing: 1,
+        action: 14,
+        action_frame: 0.0,
+        invulnerable: false,
+        jumps_left: 2,
+        on_ground: true,
+        shield_strength: 60.0,
+        hitstun_frames_left: 0.0,
+        speed_air_x_self: 0.0,
+        speed_ground_x_self: 0.0,
+        speed_y_self: 0.0,
+        speed_x_attack: 0.0,
+        speed_y_attack: 0.0,
+        controller: controller
       }
 
-      game_frame = %Peppi.GameFrame{frame_number: 0, players: %{1 => player_frame, 2 => player_frame}}
+      game_frame = %Peppi.GameFrame{
+        frame_number: 0,
+        players: %{1 => player_frame, 2 => player_frame}
+      }
 
       metadata = %Peppi.ReplayMeta{
-        path: "test.slp", stage: 32, duration_frames: 1,
+        path: "test.slp",
+        stage: 32,
+        duration_frames: 1,
         players: [
           %Peppi.PlayerMeta{port: 1, character: 10, character_name: "Mewtwo", tag: nil},
           %Peppi.PlayerMeta{port: 2, character: 2, character_name: "Fox", tag: ""}
@@ -266,7 +300,8 @@ defmodule ExPhil.Data.PeppiTest do
       assert frame_p1[:player_tag] == nil
 
       [frame_p2] = Peppi.to_training_frames(replay, player_port: 2)
-      assert frame_p2[:player_tag] == nil  # Empty string is treated as nil
+      # Empty string is treated as nil
+      assert frame_p2[:player_tag] == nil
     end
   end
 end

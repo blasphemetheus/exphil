@@ -26,7 +26,6 @@ defmodule ExPhil.Embeddings.KMeans do
   - Better on rare but important inputs (wavedash angles, shield drops)
   """
 
-
   @doc """
   Fit K-means clustering to 1D data points.
 
@@ -78,26 +77,29 @@ defmodule ExPhil.Embeddings.KMeans do
     # Choose remaining centers
     centers_list = [Nx.to_number(first_center)]
 
-    {centers_list, _key} = Enum.reduce(1..(k-1), {centers_list, key}, fn _i, {centers_list, key} ->
-      centers = Nx.tensor(centers_list, type: :f32)
+    {centers_list, _key} =
+      Enum.reduce(1..(k - 1), {centers_list, key}, fn _i, {centers_list, key} ->
+        centers = Nx.tensor(centers_list, type: :f32)
 
-      # Compute squared distances to nearest center
-      distances = compute_min_distances(data, centers)
+        # Compute squared distances to nearest center
+        distances = compute_min_distances(data, centers)
 
-      # Sample proportional to squared distance
-      total = Nx.sum(distances) |> Nx.to_number()
-      probs = if total > 0 do
-        Nx.divide(distances, total + 1.0e-10)
-      else
-        Nx.broadcast(1.0 / n, {n})
-      end
+        # Sample proportional to squared distance
+        total = Nx.sum(distances) |> Nx.to_number()
 
-      # Sample next center
-      {new_center_idx, key} = sample_weighted(key, probs)
-      new_center = data |> Nx.slice([new_center_idx], [1]) |> Nx.squeeze() |> Nx.to_number()
+        probs =
+          if total > 0 do
+            Nx.divide(distances, total + 1.0e-10)
+          else
+            Nx.broadcast(1.0 / n, {n})
+          end
 
-      {centers_list ++ [new_center], key}
-    end)
+        # Sample next center
+        {new_center_idx, key} = sample_weighted(key, probs)
+        new_center = data |> Nx.slice([new_center_idx], [1]) |> Nx.squeeze() |> Nx.to_number()
+
+        {centers_list ++ [new_center], key}
+      end)
 
     Nx.tensor(centers_list, type: :f32)
   end
@@ -120,7 +122,7 @@ defmodule ExPhil.Embeddings.KMeans do
     cumsum = Nx.cumulative_sum(probs) |> Nx.to_flat_list()
 
     # Find first index where cumsum >= u
-    idx = Enum.find_index(cumsum, fn c -> c >= u_num end) || (length(cumsum) - 1)
+    idx = Enum.find_index(cumsum, fn c -> c >= u_num end) || length(cumsum) - 1
     {idx, key}
   end
 
@@ -154,18 +156,19 @@ defmodule ExPhil.Embeddings.KMeans do
     assignments = assign_to_clusters(data, centers)
 
     # Compute new centers as mean of assigned points
-    new_centers = Enum.map(0..(k-1), fn cluster_idx ->
-      mask = Nx.equal(assignments, cluster_idx)
-      count = Nx.sum(mask) |> Nx.to_number()
+    new_centers =
+      Enum.map(0..(k - 1), fn cluster_idx ->
+        mask = Nx.equal(assignments, cluster_idx)
+        count = Nx.sum(mask) |> Nx.to_number()
 
-      if count > 0 do
-        sum = Nx.sum(Nx.multiply(data, mask)) |> Nx.to_number()
-        sum / count
-      else
-        # Keep old center if no points assigned
-        centers |> Nx.slice([cluster_idx], [1]) |> Nx.reshape({}) |> Nx.to_number()
-      end
-    end)
+        if count > 0 do
+          sum = Nx.sum(Nx.multiply(data, mask)) |> Nx.to_number()
+          sum / count
+        else
+          # Keep old center if no points assigned
+          centers |> Nx.slice([cluster_idx], [1]) |> Nx.reshape({}) |> Nx.to_number()
+        end
+      end)
 
     Nx.tensor(new_centers, type: :f32)
   end
@@ -300,7 +303,7 @@ defmodule ExPhil.Embeddings.KMeans do
   @spec default_centers(non_neg_integer()) :: Nx.Tensor.t()
   def default_centers(k) do
     # Place centers at bucket midpoints, same as uniform discretization
-    Enum.map(0..(k-1), fn i -> i / (k - 1) end)
+    Enum.map(0..(k - 1), fn i -> i / (k - 1) end)
     |> Nx.tensor(type: :f32)
   end
 end

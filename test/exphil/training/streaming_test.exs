@@ -8,19 +8,19 @@ defmodule ExPhil.Training.StreamingTest do
       files = ["a.slp", "b.slp", "c.slp", "d.slp", "e.slp"]
 
       assert Streaming.chunk_files(files, 2) == [
-        ["a.slp", "b.slp"],
-        ["c.slp", "d.slp"],
-        ["e.slp"]
-      ]
+               ["a.slp", "b.slp"],
+               ["c.slp", "d.slp"],
+               ["e.slp"]
+             ]
     end
 
     test "handles exact divisor" do
       files = ["a.slp", "b.slp", "c.slp", "d.slp"]
 
       assert Streaming.chunk_files(files, 2) == [
-        ["a.slp", "b.slp"],
-        ["c.slp", "d.slp"]
-      ]
+               ["a.slp", "b.slp"],
+               ["c.slp", "d.slp"]
+             ]
     end
 
     test "handles single file" do
@@ -35,19 +35,19 @@ defmodule ExPhil.Training.StreamingTest do
       files = [{"a.slp", 1}, {"b.slp", 2}, {"c.slp", 1}]
 
       assert Streaming.chunk_files(files, 2) == [
-        [{"a.slp", 1}, {"b.slp", 2}],
-        [{"c.slp", 1}]
-      ]
+               [{"a.slp", 1}, {"b.slp", 2}],
+               [{"c.slp", 1}]
+             ]
     end
 
     test "chunk size of 1 returns individual files" do
       files = ["a.slp", "b.slp", "c.slp"]
 
       assert Streaming.chunk_files(files, 1) == [
-        ["a.slp"],
-        ["b.slp"],
-        ["c.slp"]
-      ]
+               ["a.slp"],
+               ["b.slp"],
+               ["c.slp"]
+             ]
     end
   end
 

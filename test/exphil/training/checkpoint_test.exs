@@ -23,7 +23,10 @@ defmodule ExPhil.Training.CheckpointTest do
 
     test "returns warning when sizes mismatch" do
       config = %{embed_size: 1991}
-      assert {:warning, message} = Checkpoint.validate_embed_size(config, current_embed_size: 1204)
+
+      assert {:warning, message} =
+               Checkpoint.validate_embed_size(config, current_embed_size: 1204)
+
       assert message =~ "Embed size mismatch"
       assert message =~ "1991"
       assert message =~ "1204"
@@ -31,10 +34,13 @@ defmodule ExPhil.Training.CheckpointTest do
 
     test "returns error when sizes mismatch and error_on_mismatch is true" do
       config = %{embed_size: 1991}
-      result = Checkpoint.validate_embed_size(config,
-        current_embed_size: 1204,
-        error_on_mismatch: true
-      )
+
+      result =
+        Checkpoint.validate_embed_size(config,
+          current_embed_size: 1204,
+          error_on_mismatch: true
+        )
+
       assert {:error, message} = result
       assert message =~ "Embed size mismatch"
     end
@@ -77,7 +83,8 @@ defmodule ExPhil.Training.CheckpointTest do
 
     test "ignores keys not present in both" do
       checkpoint_config = %{embed_size: 1991, backbone: :mamba}
-      current_opts = [embed_size: 1204]  # no backbone
+      # no backbone
+      current_opts = [embed_size: 1204]
 
       diffs = Checkpoint.config_diff(checkpoint_config, current_opts)
 
@@ -137,9 +144,10 @@ defmodule ExPhil.Training.CheckpointTest do
       path = Path.join(tmp_dir, "mismatch.axon")
       File.write!(path, :erlang.term_to_binary(checkpoint))
 
-      output = capture_io(:stderr, fn ->
-        {:ok, _} = Checkpoint.load(path, current_embed_size: 1204)
-      end)
+      output =
+        capture_io(:stderr, fn ->
+          {:ok, _} = Checkpoint.load(path, current_embed_size: 1204)
+        end)
 
       assert output =~ "Embed size mismatch" or output =~ "1991"
     end

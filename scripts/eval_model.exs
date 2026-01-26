@@ -35,34 +35,35 @@ alias ExPhil.Embeddings
 # Parse command line arguments
 args = System.argv()
 
-{opts, positional, _} = OptionParser.parse(args,
-  strict: [
-    checkpoint: :string,
-    policy: :string,
-    replays: :string,
-    max_files: :integer,
-    batch_size: :integer,
-    player: :integer,
-    character: :string,
-    compare: :boolean,
-    detailed: :boolean,
-    output: :string,
-    help: :boolean,
-    # Temporal model options
-    temporal: :boolean,
-    backbone: :string,
-    window_size: :integer
-  ],
-  aliases: [
-    c: :checkpoint,
-    p: :policy,
-    r: :replays,
-    m: :max_files,
-    b: :batch_size,
-    h: :help,
-    t: :temporal
-  ]
-)
+{opts, positional, _} =
+  OptionParser.parse(args,
+    strict: [
+      checkpoint: :string,
+      policy: :string,
+      replays: :string,
+      max_files: :integer,
+      batch_size: :integer,
+      player: :integer,
+      character: :string,
+      compare: :boolean,
+      detailed: :boolean,
+      output: :string,
+      help: :boolean,
+      # Temporal model options
+      temporal: :boolean,
+      backbone: :string,
+      window_size: :integer
+    ],
+    aliases: [
+      c: :checkpoint,
+      p: :policy,
+      r: :replays,
+      m: :max_files,
+      b: :batch_size,
+      h: :help,
+      t: :temporal
+    ]
+  )
 
 if opts[:help] do
   Output.puts("""
@@ -95,6 +96,7 @@ if opts[:help] do
     # Compare two models
     mix run scripts/eval_model.exs --compare model_v1.axon model_v2.axon
   """)
+
   System.halt(0)
 end
 
@@ -113,21 +115,27 @@ defaults = %{
 opts = Map.merge(defaults, Map.new(opts))
 
 # Determine evaluation mode
-model_paths = cond do
-  opts[:compare] == true and length(positional) >= 2 ->
-    positional
-  opts[:checkpoint] ->
-    [opts[:checkpoint]]
-  opts[:policy] ->
-    [opts[:policy]]
-  length(positional) >= 1 ->
-    positional
-  true ->
-    Output.puts("Error: Must provide --checkpoint, --policy, or paths to compare")
-    System.halt(1)
-end
+model_paths =
+  cond do
+    opts[:compare] == true and length(positional) >= 2 ->
+      positional
+
+    opts[:checkpoint] ->
+      [opts[:checkpoint]]
+
+    opts[:policy] ->
+      [opts[:policy]]
+
+    length(positional) >= 1 ->
+      positional
+
+    true ->
+      Output.puts("Error: Must provide --checkpoint, --policy, or paths to compare")
+      System.halt(1)
+  end
 
 Output.banner("ExPhil Model Evaluation")
+
 Output.config([
   {"Replays", opts[:replays]},
   {"Max files", opts[:max_files]},
@@ -149,7 +157,8 @@ unless File.dir?(replay_dir) do
   System.halt(1)
 end
 
-replay_files = Path.wildcard(Path.join(replay_dir, "**/*.slp"))
+replay_files =
+  Path.wildcard(Path.join(replay_dir, "**/*.slp"))
   |> Enum.take(opts[:max_files])
 
 if Enum.empty?(replay_files) do
@@ -161,24 +170,28 @@ Output.puts("  Found #{length(replay_files)} replay files")
 
 # Parse replays
 Output.step(2, 4, "Parsing replays")
+
 parse_opts = [
   player_port: opts[:player],
   include_speeds: true
 ]
-parse_opts = if opts[:character] do
-  Keyword.put(parse_opts, :filter_character, opts[:character])
-else
-  parse_opts
-end
+
+parse_opts =
+  if opts[:character] do
+    Keyword.put(parse_opts, :filter_character, opts[:character])
+  else
+    parse_opts
+  end
 
 parsed_replays = Peppi.parse_many(replay_files, parse_opts)
 
 # Convert to training frames format (parse_many returns list of {:ok, replay} tuples)
-frames = parsed_replays
-|> Enum.flat_map(fn
-  {:ok, replay} -> Peppi.to_training_frames(replay, player_port: opts[:player])
-  {:error, _} -> []
-end)
+frames =
+  parsed_replays
+  |> Enum.flat_map(fn
+    {:ok, replay} -> Peppi.to_training_frames(replay, player_port: opts[:player])
+    {:error, _} -> []
+  end)
 
 if Enum.empty?(frames) do
   Output.error("No frames extracted from replays")
@@ -194,21 +207,25 @@ embed_size = Embeddings.embedding_size(embed_config)
 # Create dataset
 Output.step(3, 4, "Creating evaluation dataset")
 
-dataset = if opts[:temporal] do
-  # Temporal mode: create sequences
-  base_dataset = Data.from_frames(frames, embed_config: embed_config)
-  seq_dataset = Data.to_sequences(base_dataset,
-    window_size: opts[:window_size],
-    stride: 1
-  )
-  # Precompute embeddings for faster evaluation
-  Data.precompute_embeddings(seq_dataset, show_progress: true)
-else
-  Data.from_frames(frames,
-    embed_config: embed_config,
-    temporal: false
-  )
-end
+dataset =
+  if opts[:temporal] do
+    # Temporal mode: create sequences
+    base_dataset = Data.from_frames(frames, embed_config: embed_config)
+
+    seq_dataset =
+      Data.to_sequences(base_dataset,
+        window_size: opts[:window_size],
+        stride: 1
+      )
+
+    # Precompute embeddings for faster evaluation
+    Data.precompute_embeddings(seq_dataset, show_progress: true)
+  else
+    Data.from_frames(frames,
+      embed_config: embed_config,
+      temporal: false
+    )
+  end
 
 num_examples = dataset.size
 example_type = if opts[:temporal], do: "sequences", else: "frames"
@@ -218,20 +235,23 @@ Output.puts("  Creating ~#{estimated_batches} batches...")
 
 # Batch the dataset with timing
 batch_start = System.monotonic_time(:millisecond)
-batches = if opts[:temporal] do
-  Data.batched_sequences(dataset,
-    batch_size: opts[:batch_size],
-    shuffle: false,
-    drop_last: false
-  )
-else
-  Data.batched(dataset,
-    batch_size: opts[:batch_size],
-    shuffle: false,
-    drop_last: false
-  )
-end
-|> Enum.to_list()
+
+batches =
+  if opts[:temporal] do
+    Data.batched_sequences(dataset,
+      batch_size: opts[:batch_size],
+      shuffle: false,
+      drop_last: false
+    )
+  else
+    Data.batched(dataset,
+      batch_size: opts[:batch_size],
+      shuffle: false,
+      drop_last: false
+    )
+  end
+  |> Enum.to_list()
+
 batch_time = System.monotonic_time(:millisecond) - batch_start
 
 num_batches = length(batches)
@@ -239,12 +259,18 @@ Output.puts("  ✓ Created #{num_batches} batches in #{Float.round(batch_time / 
 
 # Sample batches for faster evaluation (max 100 batches = 6400 frames)
 max_eval_batches = 100
-batches = if num_batches > max_eval_batches do
-  Output.puts("  Sampling #{max_eval_batches} batches for evaluation (use --batch-size to adjust)")
-  Enum.take_random(batches, max_eval_batches)
-else
-  batches
-end
+
+batches =
+  if num_batches > max_eval_batches do
+    Output.puts(
+      "  Sampling #{max_eval_batches} batches for evaluation (use --batch-size to adjust)"
+    )
+
+    Enum.take_random(batches, max_eval_batches)
+  else
+    batches
+  end
+
 num_batches = length(batches)
 
 # Helper functions for metrics
@@ -277,54 +303,59 @@ evaluate_model = fn model_path ->
   is_policy_file = String.ends_with?(model_path, ".bin")
 
   # Load model with embed size validation
-  {params, config} = if is_policy_file do
-    case Checkpoint.load_policy(model_path, current_embed_size: embed_size) do
-      {:ok, export} ->
-        {export.params, export.config}
-      {:error, reason} ->
-        Output.error("Failed to load policy: #{inspect(reason)}")
-        System.halt(1)
+  {params, config} =
+    if is_policy_file do
+      case Checkpoint.load_policy(model_path, current_embed_size: embed_size) do
+        {:ok, export} ->
+          {export.params, export.config}
+
+        {:error, reason} ->
+          Output.error("Failed to load policy: #{inspect(reason)}")
+          System.halt(1)
+      end
+    else
+      case Checkpoint.load(model_path, current_embed_size: embed_size) do
+        {:ok, checkpoint} ->
+          {checkpoint.policy_params, checkpoint.config}
+
+        {:error, reason} ->
+          Output.error("Failed to load checkpoint: #{inspect(reason)}")
+          System.halt(1)
+      end
     end
-  else
-    case Checkpoint.load(model_path, current_embed_size: embed_size) do
-      {:ok, checkpoint} ->
-        {checkpoint.policy_params, checkpoint.config}
-      {:error, reason} ->
-        Output.error("Failed to load checkpoint: #{inspect(reason)}")
-        System.halt(1)
-    end
-  end
 
   # Build policy model based on temporal mode
   model_embed_size = config[:embed_size] || embed_size
   hidden_sizes = config[:hidden_sizes] || [512, 512]
 
-  policy_model = if opts[:temporal] do
-    backbone_type = String.to_atom(opts[:backbone])
-    Policy.build_temporal(
-      embed_size: model_embed_size,
-      backbone: backbone_type,
-      hidden_size: hd(hidden_sizes),
-      num_layers: config[:num_layers] || 2,
-      num_heads: config[:num_heads] || 4,
-      head_dim: config[:head_dim] || 64,
-      attention_every: config[:attention_every] || 3,
-      window_size: config[:window_size] || opts[:window_size],
-      state_size: config[:state_size] || 16,
-      expand_factor: config[:expand_factor] || 2,
-      conv_size: config[:conv_size] || 4,
-      dropout: config[:dropout] || 0.1,
-      axis_buckets: config[:axis_buckets] || 16,
-      shoulder_buckets: config[:shoulder_buckets] || 4
-    )
-  else
-    Policy.build(
-      embed_size: model_embed_size,
-      hidden_sizes: hidden_sizes,
-      axis_buckets: config[:axis_buckets] || 16,
-      shoulder_buckets: config[:shoulder_buckets] || 4
-    )
-  end
+  policy_model =
+    if opts[:temporal] do
+      backbone_type = String.to_atom(opts[:backbone])
+
+      Policy.build_temporal(
+        embed_size: model_embed_size,
+        backbone: backbone_type,
+        hidden_size: hd(hidden_sizes),
+        num_layers: config[:num_layers] || 2,
+        num_heads: config[:num_heads] || 4,
+        head_dim: config[:head_dim] || 64,
+        attention_every: config[:attention_every] || 3,
+        window_size: config[:window_size] || opts[:window_size],
+        state_size: config[:state_size] || 16,
+        expand_factor: config[:expand_factor] || 2,
+        conv_size: config[:conv_size] || 4,
+        dropout: config[:dropout] || 0.1,
+        axis_buckets: config[:axis_buckets] || 16,
+        shoulder_buckets: config[:shoulder_buckets] || 4
+      )
+    else
+      Policy.build(
+        embed_size: model_embed_size,
+        hidden_sizes: hidden_sizes,
+        axis_buckets: config[:axis_buckets] || 16,
+        shoulder_buckets: config[:shoulder_buckets] || 4
+      )
+    end
 
   {_init_fn, predict_fn} = Axon.build(policy_model)
 
@@ -339,62 +370,72 @@ evaluate_model = fn model_path ->
   # Initialize action visualizer
   initial_viz = ActionViz.new()
 
-  {total_loss, total_batches, component_metrics, action_viz} = batches
-  |> Enum.with_index(1)
-  |> Enum.reduce({0.0, 0, %{}, initial_viz}, fn {batch, batch_idx}, {acc_loss, acc_count, acc_metrics, viz} ->
-    # Show progress every 100 batches or on first batch
-    if batch_idx == 1 or rem(batch_idx, 100) == 0 or batch_idx == num_batches do
-      pct = round(batch_idx / num_batches * 100)
-      IO.write(:stderr, "\r  Progress: #{batch_idx}/#{num_batches} (#{pct}%)    ")
-    end
-    %{states: states, actions: actions} = batch
+  {total_loss, total_batches, component_metrics, action_viz} =
+    batches
+    |> Enum.with_index(1)
+    |> Enum.reduce({0.0, 0, %{}, initial_viz}, fn {batch, batch_idx},
+                                                  {acc_loss, acc_count, acc_metrics, viz} ->
+      # Show progress every 100 batches or on first batch
+      if batch_idx == 1 or rem(batch_idx, 100) == 0 or batch_idx == num_batches do
+        pct = round(batch_idx / num_batches * 100)
+        IO.write(:stderr, "\r  Progress: #{batch_idx}/#{num_batches} (#{pct}%)    ")
+      end
 
-    # Run inference (no backend_copy needed - tensors are already on correct backend)
-    {buttons, main_x, main_y, c_x, c_y, shoulder} = predict_fn.(params, states)
+      %{states: states, actions: actions} = batch
 
-    logits = %{
-      buttons: buttons,
-      main_x: main_x,
-      main_y: main_y,
-      c_x: c_x,
-      c_y: c_y,
-      shoulder: shoulder
-    }
+      # Run inference (no backend_copy needed - tensors are already on correct backend)
+      {buttons, main_x, main_y, c_x, c_y, shoulder} = predict_fn.(params, states)
 
-    loss = Policy.imitation_loss(logits, actions, label_smoothing: label_smoothing)
-    loss_val = Nx.to_number(loss)
+      logits = %{
+        buttons: buttons,
+        main_x: main_x,
+        main_y: main_y,
+        c_x: c_x,
+        c_y: c_y,
+        shoulder: shoulder
+      }
 
-    batch_metrics = %{
-      button_acc: compute_button_accuracy.(buttons, actions.buttons),
-      main_x_acc: compute_accuracy.(main_x, actions.main_x, axis_buckets + 1),
-      main_y_acc: compute_accuracy.(main_y, actions.main_y, axis_buckets + 1),
-      c_x_acc: compute_accuracy.(c_x, actions.c_x, axis_buckets + 1),
-      c_y_acc: compute_accuracy.(c_y, actions.c_y, axis_buckets + 1),
-      shoulder_acc: compute_accuracy.(shoulder, actions.shoulder, shoulder_buckets + 1),
-      main_x_top3: compute_top_k_accuracy.(main_x, actions.main_x, 3),
-      main_y_top3: compute_top_k_accuracy.(main_y, actions.main_y, 3)
-    }
+      loss = Policy.imitation_loss(logits, actions, label_smoothing: label_smoothing)
+      loss_val = Nx.to_number(loss)
 
-    new_metrics = if map_size(acc_metrics) == 0 do
-      batch_metrics
-    else
-      Map.merge(acc_metrics, batch_metrics, fn _k, v1, v2 -> v1 + v2 end)
-    end
+      batch_metrics = %{
+        button_acc: compute_button_accuracy.(buttons, actions.buttons),
+        main_x_acc: compute_accuracy.(main_x, actions.main_x, axis_buckets + 1),
+        main_y_acc: compute_accuracy.(main_y, actions.main_y, axis_buckets + 1),
+        c_x_acc: compute_accuracy.(c_x, actions.c_x, axis_buckets + 1),
+        c_y_acc: compute_accuracy.(c_y, actions.c_y, axis_buckets + 1),
+        shoulder_acc: compute_accuracy.(shoulder, actions.shoulder, shoulder_buckets + 1),
+        main_x_top3: compute_top_k_accuracy.(main_x, actions.main_x, 3),
+        main_y_top3: compute_top_k_accuracy.(main_y, actions.main_y, 3)
+      }
 
-    # Track predicted actions for visualization
-    viz = ActionViz.record_batch(viz, %{
-      buttons: Nx.greater(Nx.sigmoid(buttons), 0.5),
-      main_x: Nx.argmax(main_x, axis: -1),
-      main_y: Nx.argmax(main_y, axis: -1),
-      c_x: Nx.argmax(c_x, axis: -1),
-      c_y: Nx.argmax(c_y, axis: -1),
-      shoulder: Nx.argmax(shoulder, axis: -1)
-    }, axis_buckets)
+      new_metrics =
+        if map_size(acc_metrics) == 0 do
+          batch_metrics
+        else
+          Map.merge(acc_metrics, batch_metrics, fn _k, v1, v2 -> v1 + v2 end)
+        end
 
-    {acc_loss + loss_val, acc_count + 1, new_metrics, viz}
-  end)
+      # Track predicted actions for visualization
+      viz =
+        ActionViz.record_batch(
+          viz,
+          %{
+            buttons: Nx.greater(Nx.sigmoid(buttons), 0.5),
+            main_x: Nx.argmax(main_x, axis: -1),
+            main_y: Nx.argmax(main_y, axis: -1),
+            c_x: Nx.argmax(c_x, axis: -1),
+            c_y: Nx.argmax(c_y, axis: -1),
+            shoulder: Nx.argmax(shoulder, axis: -1)
+          },
+          axis_buckets
+        )
 
-  IO.write(:stderr, "\n")  # Clear progress line
+      {acc_loss + loss_val, acc_count + 1, new_metrics, viz}
+    end)
+
+  # Clear progress line
+  IO.write(:stderr, "\n")
 
   # Compute averages
   avg_loss = total_loss / total_batches
@@ -406,21 +447,28 @@ evaluate_model = fn model_path ->
   Output.puts("")
   Output.puts("  Component Accuracy:")
   Output.puts("    Buttons:      #{Float.round(avg_metrics.button_acc * 100, 1)}%")
-  Output.puts("    Main Stick X: #{Float.round(avg_metrics.main_x_acc * 100, 1)}% (top-3: #{Float.round(avg_metrics.main_x_top3 * 100, 1)}%)")
-  Output.puts("    Main Stick Y: #{Float.round(avg_metrics.main_y_acc * 100, 1)}% (top-3: #{Float.round(avg_metrics.main_y_top3 * 100, 1)}%)")
+
+  Output.puts(
+    "    Main Stick X: #{Float.round(avg_metrics.main_x_acc * 100, 1)}% (top-3: #{Float.round(avg_metrics.main_x_top3 * 100, 1)}%)"
+  )
+
+  Output.puts(
+    "    Main Stick Y: #{Float.round(avg_metrics.main_y_acc * 100, 1)}% (top-3: #{Float.round(avg_metrics.main_y_top3 * 100, 1)}%)"
+  )
+
   Output.puts("    C-Stick X:    #{Float.round(avg_metrics.c_x_acc * 100, 1)}%")
   Output.puts("    C-Stick Y:    #{Float.round(avg_metrics.c_y_acc * 100, 1)}%")
   Output.puts("    Shoulder:     #{Float.round(avg_metrics.shoulder_acc * 100, 1)}%")
 
   # Overall weighted accuracy
-  overall_acc = (
+  overall_acc =
     avg_metrics.button_acc * 0.3 +
-    avg_metrics.main_x_acc * 0.2 +
-    avg_metrics.main_y_acc * 0.2 +
-    avg_metrics.c_x_acc * 0.1 +
-    avg_metrics.c_y_acc * 0.1 +
-    avg_metrics.shoulder_acc * 0.1
-  )
+      avg_metrics.main_x_acc * 0.2 +
+      avg_metrics.main_y_acc * 0.2 +
+      avg_metrics.c_x_acc * 0.1 +
+      avg_metrics.c_y_acc * 0.1 +
+      avg_metrics.shoulder_acc * 0.1
+
   Output.puts("")
   Output.puts("  Overall Weighted Accuracy: #{Float.round(overall_acc * 100, 1)}%")
 
@@ -466,14 +514,15 @@ end
 
 # Save to JSON if requested
 if opts[:output] do
-  json_results = Enum.map(results, fn r ->
-    %{
-      path: r.path,
-      loss: Float.round(r.loss, 6),
-      overall_accuracy: Float.round(r.overall_acc, 4),
-      component_accuracy: Map.new(r.metrics, fn {k, v} -> {k, Float.round(v, 4)} end)
-    }
-  end)
+  json_results =
+    Enum.map(results, fn r ->
+      %{
+        path: r.path,
+        loss: Float.round(r.loss, 6),
+        overall_accuracy: Float.round(r.overall_acc, 4),
+        component_accuracy: Map.new(r.metrics, fn {k, v} -> {k, Float.round(v, 4)} end)
+      }
+    end)
 
   case File.write(opts[:output], Jason.encode!(json_results, pretty: true)) do
     :ok -> Output.puts("\nResults saved to #{opts[:output]}")

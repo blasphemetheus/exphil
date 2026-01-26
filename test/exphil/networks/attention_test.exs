@@ -37,12 +37,16 @@ defmodule ExPhil.Networks.AttentionTest do
       mask = Attention.causal_mask(4)
 
       # Should be lower triangular
-      expected = Nx.tensor([
-        [1, 0, 0, 0],
-        [1, 1, 0, 0],
-        [1, 1, 1, 0],
-        [1, 1, 1, 1]
-      ], type: :u8)
+      expected =
+        Nx.tensor(
+          [
+            [1, 0, 0, 0],
+            [1, 1, 0, 0],
+            [1, 1, 1, 0],
+            [1, 1, 1, 1]
+          ],
+          type: :u8
+        )
 
       assert Nx.to_list(mask) == Nx.to_list(expected)
     end
@@ -71,20 +75,24 @@ defmodule ExPhil.Networks.AttentionTest do
 
   describe "build_sliding_window/1" do
     test "builds model with correct output shape" do
-      model = Attention.build_sliding_window(
-        embed_size: @embed_size,
-        window_size: 5,
-        seq_len: @seq_len,  # Use test's seq_len (differs from window_size)
-        num_heads: @num_heads,
-        head_dim: @head_dim,
-        num_layers: 1
-      )
+      model =
+        Attention.build_sliding_window(
+          embed_size: @embed_size,
+          window_size: 5,
+          # Use test's seq_len (differs from window_size)
+          seq_len: @seq_len,
+          num_heads: @num_heads,
+          head_dim: @head_dim,
+          num_layers: 1
+        )
 
       {init_fn, predict_fn} = Axon.build(model)
-      params = init_fn.(
-        Nx.template({@batch_size, @seq_len, @embed_size}, :f32),
-        Axon.ModelState.empty()
-      )
+
+      params =
+        init_fn.(
+          Nx.template({@batch_size, @seq_len, @embed_size}, :f32),
+          Axon.ModelState.empty()
+        )
 
       input = Nx.broadcast(0.5, {@batch_size, @seq_len, @embed_size})
       output = predict_fn.(params, input)
@@ -95,20 +103,24 @@ defmodule ExPhil.Networks.AttentionTest do
     end
 
     test "works with multiple layers" do
-      model = Attention.build_sliding_window(
-        embed_size: @embed_size,
-        window_size: 5,
-        seq_len: @seq_len,  # Use test's seq_len (differs from window_size)
-        num_heads: @num_heads,
-        head_dim: @head_dim,
-        num_layers: 3
-      )
+      model =
+        Attention.build_sliding_window(
+          embed_size: @embed_size,
+          window_size: 5,
+          # Use test's seq_len (differs from window_size)
+          seq_len: @seq_len,
+          num_heads: @num_heads,
+          head_dim: @head_dim,
+          num_layers: 3
+        )
 
       {init_fn, predict_fn} = Axon.build(model)
-      params = init_fn.(
-        Nx.template({@batch_size, @seq_len, @embed_size}, :f32),
-        Axon.ModelState.empty()
-      )
+
+      params =
+        init_fn.(
+          Nx.template({@batch_size, @seq_len, @embed_size}, :f32),
+          Axon.ModelState.empty()
+        )
 
       input = Nx.broadcast(0.5, {@batch_size, @seq_len, @embed_size})
       output = predict_fn.(params, input)
@@ -119,20 +131,24 @@ defmodule ExPhil.Networks.AttentionTest do
 
   describe "build_hybrid/1" do
     test "builds LSTM + attention hybrid model" do
-      model = Attention.build_hybrid(
-        embed_size: @embed_size,
-        lstm_hidden: 32,
-        lstm_layers: 1,
-        num_heads: @num_heads,
-        head_dim: @head_dim,
-        seq_len: @seq_len  # Use test's seq_len
-      )
+      model =
+        Attention.build_hybrid(
+          embed_size: @embed_size,
+          lstm_hidden: 32,
+          lstm_layers: 1,
+          num_heads: @num_heads,
+          head_dim: @head_dim,
+          # Use test's seq_len
+          seq_len: @seq_len
+        )
 
       {init_fn, predict_fn} = Axon.build(model)
-      params = init_fn.(
-        Nx.template({@batch_size, @seq_len, @embed_size}, :f32),
-        Axon.ModelState.empty()
-      )
+
+      params =
+        init_fn.(
+          Nx.template({@batch_size, @seq_len, @embed_size}, :f32),
+          Axon.ModelState.empty()
+        )
 
       input = Nx.broadcast(0.5, {@batch_size, @seq_len, @embed_size})
       output = predict_fn.(params, input)
@@ -144,20 +160,24 @@ defmodule ExPhil.Networks.AttentionTest do
 
   describe "build_hybrid_mlp/1" do
     test "adds MLP layers to hybrid model" do
-      model = Attention.build_hybrid_mlp(
-        embed_size: @embed_size,
-        lstm_hidden: 32,
-        num_heads: @num_heads,
-        head_dim: @head_dim,
-        mlp_sizes: [64, 32],
-        seq_len: @seq_len  # Use test's seq_len
-      )
+      model =
+        Attention.build_hybrid_mlp(
+          embed_size: @embed_size,
+          lstm_hidden: 32,
+          num_heads: @num_heads,
+          head_dim: @head_dim,
+          mlp_sizes: [64, 32],
+          # Use test's seq_len
+          seq_len: @seq_len
+        )
 
       {init_fn, predict_fn} = Axon.build(model)
-      params = init_fn.(
-        Nx.template({@batch_size, @seq_len, @embed_size}, :f32),
-        Axon.ModelState.empty()
-      )
+
+      params =
+        init_fn.(
+          Nx.template({@batch_size, @seq_len, @embed_size}, :f32),
+          Axon.ModelState.empty()
+        )
 
       input = Nx.broadcast(0.5, {@batch_size, @seq_len, @embed_size})
       output = predict_fn.(params, input)
@@ -173,10 +193,12 @@ defmodule ExPhil.Networks.AttentionTest do
       encoded = Attention.add_positional_encoding(input)
 
       {init_fn, predict_fn} = Axon.build(encoded)
-      params = init_fn.(
-        Nx.template({@batch_size, @seq_len, @embed_size}, :f32),
-        Axon.ModelState.empty()
-      )
+
+      params =
+        init_fn.(
+          Nx.template({@batch_size, @seq_len, @embed_size}, :f32),
+          Axon.ModelState.empty()
+        )
 
       input_data = Nx.broadcast(0.0, {@batch_size, @seq_len, @embed_size})
       output = predict_fn.(params, input_data)
@@ -192,7 +214,8 @@ defmodule ExPhil.Networks.AttentionTest do
     test "returns correct dimension" do
       assert Attention.output_size(num_heads: 4, head_dim: 64) == 256
       assert Attention.output_size(num_heads: 8, head_dim: 32) == 256
-      assert Attention.output_size() == 256  # defaults
+      # defaults
+      assert Attention.output_size() == 256
     end
   end
 
@@ -200,7 +223,8 @@ defmodule ExPhil.Networks.AttentionTest do
     test "returns sensible defaults for 60fps gameplay" do
       defaults = Attention.melee_defaults()
 
-      assert defaults[:window_size] == 60  # 1 second
+      # 1 second
+      assert defaults[:window_size] == 60
       assert defaults[:num_heads] == 4
       assert defaults[:head_dim] == 64
     end
@@ -218,22 +242,25 @@ defmodule ExPhil.Networks.AttentionTest do
       # - Input shape should match window_size, not be dynamic
 
       window_size = 5
-      model = Attention.build_sliding_window(
-        embed_size: @embed_size,
-        window_size: window_size,
-        num_heads: @num_heads,
-        head_dim: @head_dim
-        # NOTE: Not passing seq_len - should default to window_size
-      )
+
+      model =
+        Attention.build_sliding_window(
+          embed_size: @embed_size,
+          window_size: window_size,
+          num_heads: @num_heads,
+          head_dim: @head_dim
+          # NOTE: Not passing seq_len - should default to window_size
+        )
 
       # Model should build and compile within reasonable time (would hang with dynamic)
       {init_fn, predict_fn} = Axon.build(model)
 
       # Template must use window_size as seq_len (the default)
-      params = init_fn.(
-        Nx.template({@batch_size, window_size, @embed_size}, :f32),
-        Axon.ModelState.empty()
-      )
+      params =
+        init_fn.(
+          Nx.template({@batch_size, window_size, @embed_size}, :f32),
+          Axon.ModelState.empty()
+        )
 
       # Should execute without issue
       input = Nx.broadcast(0.5, {@batch_size, window_size, @embed_size})
@@ -247,21 +274,26 @@ defmodule ExPhil.Networks.AttentionTest do
       # it should still work but requires explicit seq_len parameter
 
       window_size = 5
-      seq_len = 10  # Different from window_size
+      # Different from window_size
+      seq_len = 10
 
-      model = Attention.build_sliding_window(
-        embed_size: @embed_size,
-        window_size: window_size,
-        seq_len: seq_len,  # Explicit seq_len
-        num_heads: @num_heads,
-        head_dim: @head_dim
-      )
+      model =
+        Attention.build_sliding_window(
+          embed_size: @embed_size,
+          window_size: window_size,
+          # Explicit seq_len
+          seq_len: seq_len,
+          num_heads: @num_heads,
+          head_dim: @head_dim
+        )
 
       {init_fn, predict_fn} = Axon.build(model)
-      params = init_fn.(
-        Nx.template({@batch_size, seq_len, @embed_size}, :f32),
-        Axon.ModelState.empty()
-      )
+
+      params =
+        init_fn.(
+          Nx.template({@batch_size, seq_len, @embed_size}, :f32),
+          Axon.ModelState.empty()
+        )
 
       input = Nx.broadcast(0.5, {@batch_size, seq_len, @embed_size})
       output = predict_fn.(params, input)
@@ -279,23 +311,26 @@ defmodule ExPhil.Networks.AttentionTest do
       # verifies that the model compiles and runs without EXLA/Defn.Expr errors.
 
       window_size = 5
-      model = Attention.build_sliding_window(
-        embed_size: @embed_size,
-        window_size: window_size,
-        num_heads: @num_heads,
-        head_dim: @head_dim
-        # Using default seq_len (= window_size) which triggers precomputed mask
-      )
+
+      model =
+        Attention.build_sliding_window(
+          embed_size: @embed_size,
+          window_size: window_size,
+          num_heads: @num_heads,
+          head_dim: @head_dim
+          # Using default seq_len (= window_size) which triggers precomputed mask
+        )
 
       # This should NOT raise:
       # "cannot invoke Nx function because it relies on two incompatible tensor
       # implementations: EXLA.Backend and Nx.Defn.Expr"
       {init_fn, predict_fn} = Axon.build(model)
 
-      params = init_fn.(
-        Nx.template({@batch_size, window_size, @embed_size}, :f32),
-        Axon.ModelState.empty()
-      )
+      params =
+        init_fn.(
+          Nx.template({@batch_size, window_size, @embed_size}, :f32),
+          Axon.ModelState.empty()
+        )
 
       input = Nx.broadcast(0.5, {@batch_size, window_size, @embed_size})
       output = predict_fn.(params, input)

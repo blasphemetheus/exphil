@@ -89,9 +89,10 @@ defmodule ExPhil.League.MatchSchedulerTest do
       schedule = MatchScheduler.skill_based(archs, num_matches: 100, elo_range: 100)
 
       # Count matchups between :low (900) and :high (1200)
-      extreme_matchups = Enum.count(schedule, fn {p1, p2} ->
-        (:low in [p1, p2]) and (:high in [p1, p2])
-      end)
+      extreme_matchups =
+        Enum.count(schedule, fn {p1, p2} ->
+          :low in [p1, p2] and :high in [p1, p2]
+        end)
 
       # Most matches should be between closer ratings
       # :low and :high are 300 points apart, outside the range
@@ -102,14 +103,17 @@ defmodule ExPhil.League.MatchSchedulerTest do
 
   describe "swiss_rounds/2" do
     setup do
-      architectures = Enum.map(1..8, fn i ->
-        {:ok, entry} = ArchitectureEntry.new(
-          id: :"arch_#{i}",
-          architecture: :mlp,
-          elo: 1000 + i * 10
-        )
-        entry
-      end)
+      architectures =
+        Enum.map(1..8, fn i ->
+          {:ok, entry} =
+            ArchitectureEntry.new(
+              id: :"arch_#{i}",
+              architecture: :mlp,
+              elo: 1000 + i * 10
+            )
+
+          entry
+        end)
 
       {:ok, archs: architectures}
     end
@@ -133,9 +137,10 @@ defmodule ExPhil.League.MatchSchedulerTest do
       ids = Enum.map(archs, & &1.id) |> MapSet.new()
       [round1 | _] = MatchScheduler.swiss_rounds(archs, num_rounds: 1)
 
-      participants = round1
-      |> Enum.flat_map(fn {p1, p2} -> [p1, p2] end)
-      |> MapSet.new()
+      participants =
+        round1
+        |> Enum.flat_map(fn {p1, p2} -> [p1, p2] end)
+        |> MapSet.new()
 
       assert participants == ids
     end
@@ -155,9 +160,11 @@ defmodule ExPhil.League.MatchSchedulerTest do
       assert length(first_round) == 2
 
       # One matchup should include a bye
-      bye_matchups = Enum.count(first_round, fn {p1, p2} ->
-        p1 == :bye or p2 == :bye
-      end)
+      bye_matchups =
+        Enum.count(first_round, fn {p1, p2} ->
+          p1 == :bye or p2 == :bye
+        end)
+
       assert bye_matchups == 1
     end
 
@@ -173,7 +180,7 @@ defmodule ExPhil.League.MatchSchedulerTest do
       # At least one should be different when shuffled
       # (very high probability with 8 participants)
       assert {p1_1, p2_1} != {p1_2, p2_2} or
-             bracket1 != bracket2
+               bracket1 != bracket2
     end
   end
 
@@ -208,10 +215,11 @@ defmodule ExPhil.League.MatchSchedulerTest do
         %{id: :hard, win_rate: 0.1}
       ]
 
-      opponents = MatchScheduler.pfsp(:target, candidates,
-        num_matches: 100,
-        exploit_factor: 0.9
-      )
+      opponents =
+        MatchScheduler.pfsp(:target, candidates,
+          num_matches: 100,
+          exploit_factor: 0.9
+        )
 
       hard_count = Enum.count(opponents, &(&1 == :hard))
       easy_count = Enum.count(opponents, &(&1 == :easy))
@@ -231,14 +239,17 @@ defmodule ExPhil.League.MatchSchedulerTest do
 
   describe "diverse/2" do
     setup do
-      architectures = Enum.map(1..4, fn i ->
-        {:ok, entry} = ArchitectureEntry.new(
-          id: :"arch_#{i}",
-          architecture: :mlp,
-          elo: 1000 + i * 50
-        )
-        entry
-      end)
+      architectures =
+        Enum.map(1..4, fn i ->
+          {:ok, entry} =
+            ArchitectureEntry.new(
+              id: :"arch_#{i}",
+              architecture: :mlp,
+              elo: 1000 + i * 50
+            )
+
+          entry
+        end)
 
       {:ok, archs: architectures}
     end
@@ -283,10 +294,11 @@ defmodule ExPhil.League.MatchSchedulerTest do
     test "calculates duration for schedule" do
       schedule = [{:a, :b}, {:a, :c}, {:b, :c}]
 
-      duration = MatchScheduler.estimated_duration(schedule,
-        avg_match_frames: 4500,
-        parallel_games: 1
-      )
+      duration =
+        MatchScheduler.estimated_duration(schedule,
+          avg_match_frames: 4500,
+          parallel_games: 1
+        )
 
       # 3 matches * 4500 frames / 60 fps = 225 seconds
       assert_in_delta duration, 225.0, 1.0

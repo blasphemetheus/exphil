@@ -40,7 +40,11 @@ unless checkpoint_path || policy_path do
   Output.puts("Export model weights to NumPy format for Python/ONNX conversion.")
   Output.puts("")
   Output.puts("Usage:")
-  Output.puts("  mix run scripts/export_numpy.exs --policy checkpoints/imitation_latest_policy.bin")
+
+  Output.puts(
+    "  mix run scripts/export_numpy.exs --policy checkpoints/imitation_latest_policy.bin"
+  )
+
   Output.puts("  mix run scripts/export_numpy.exs --checkpoint checkpoints/imitation_latest.axon")
   Output.puts("")
   Output.puts("Options:")
@@ -54,6 +58,7 @@ unless checkpoint_path || policy_path do
 end
 
 Output.banner("ExPhil NumPy Export")
+
 Output.config([
   {"Checkpoint", checkpoint_path || "none"},
   {"Policy", policy_path || "none"},
@@ -63,41 +68,43 @@ Output.config([
 # Step 1: Load policy
 Output.step(1, 5, "Loading policy")
 
-{params, config} = cond do
-  policy_path ->
-    Output.puts("  Loading from policy: #{policy_path}")
+{params, config} =
+  cond do
+    policy_path ->
+      Output.puts("  Loading from policy: #{policy_path}")
 
-    case File.read(policy_path) do
-      {:ok, binary} ->
-        export = :erlang.binary_to_term(binary)
-        {export.params, export.config}
+      case File.read(policy_path) do
+        {:ok, binary} ->
+          export = :erlang.binary_to_term(binary)
+          {export.params, export.config}
 
-      {:error, reason} ->
-        Output.error("Error loading policy: #{inspect(reason)}")
-        System.halt(1)
-    end
+        {:error, reason} ->
+          Output.error("Error loading policy: #{inspect(reason)}")
+          System.halt(1)
+      end
 
-  checkpoint_path ->
-    Output.puts("  Loading from checkpoint: #{checkpoint_path}")
+    checkpoint_path ->
+      Output.puts("  Loading from checkpoint: #{checkpoint_path}")
 
-    case File.read(checkpoint_path) do
-      {:ok, binary} ->
-        checkpoint = :erlang.binary_to_term(binary)
-        {checkpoint.policy_params, checkpoint.config}
+      case File.read(checkpoint_path) do
+        {:ok, binary} ->
+          checkpoint = :erlang.binary_to_term(binary)
+          {checkpoint.policy_params, checkpoint.config}
 
-      {:error, reason} ->
-        Output.error("Error loading checkpoint: #{inspect(reason)}")
-        System.halt(1)
-    end
-end
+        {:error, reason} ->
+          Output.error("Error loading checkpoint: #{inspect(reason)}")
+          System.halt(1)
+      end
+  end
 
 Output.puts("  Config: #{inspect(config)}")
 
 # Extract params data if wrapped in ModelState
-params_data = case params do
-  %Axon.ModelState{data: data} -> data
-  data when is_map(data) -> data
-end
+params_data =
+  case params do
+    %Axon.ModelState{data: data} -> data
+    data when is_map(data) -> data
+  end
 
 Output.puts("  Params loaded successfully")
 
@@ -115,6 +122,7 @@ flatten_params = fn flatten_params ->
   fn params, prefix ->
     Enum.flat_map(params, fn {key, value} ->
       path = if prefix == "", do: to_string(key), else: "#{prefix}.#{key}"
+
       case value do
         %Nx.Tensor{} = tensor -> [{path, tensor}]
         map when is_map(map) -> flatten_params.(flatten_params).(map, path)
@@ -153,14 +161,15 @@ Output.step(4, 5, "Saving metadata")
 
 metadata = %{
   config: config,
-  layers: Enum.map(flat_params, fn {path, tensor} ->
-    %{
-      name: path,
-      shape: Nx.shape(tensor) |> Tuple.to_list(),
-      dtype: inspect(Nx.type(tensor)),
-      file: "#{String.replace(path, ".", "_")}.bin"
-    }
-  end)
+  layers:
+    Enum.map(flat_params, fn {path, tensor} ->
+      %{
+        name: path,
+        shape: Nx.shape(tensor) |> Tuple.to_list(),
+        dtype: inspect(Nx.type(tensor)),
+        file: "#{String.replace(path, ".", "_")}.bin"
+      }
+    end)
 }
 
 metadata_json = Jason.encode!(metadata, pretty: true)

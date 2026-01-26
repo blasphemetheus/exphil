@@ -17,65 +17,167 @@ defmodule ExPhil.Training.Config do
   @default_hidden_sizes [64, 64]
 
   @valid_presets [
-    :quick, :standard, :full, :full_cpu,
-    :gpu_quick, :gpu_mlp_quick, :gpu_lstm_quick, :gpu_gru_quick, :gpu_attention_quick,
-    :gpu_standard, :production,
+    :quick,
+    :standard,
+    :full,
+    :full_cpu,
+    :gpu_quick,
+    :gpu_mlp_quick,
+    :gpu_lstm_quick,
+    :gpu_gru_quick,
+    :gpu_attention_quick,
+    :gpu_standard,
+    :production,
     # RTX 4090 optimized (24GB VRAM)
-    :rtx4090_quick, :rtx4090_standard, :rtx4090_full,
+    :rtx4090_quick,
+    :rtx4090_standard,
+    :rtx4090_full,
     # Character presets
-    :mewtwo, :ganondorf, :link, :gameandwatch, :zelda
+    :mewtwo,
+    :ganondorf,
+    :link,
+    :gameandwatch,
+    :zelda
   ]
 
   # All valid CLI flags for argument validation
   # This list is used to detect typos and suggest corrections
   @valid_flags [
-    "--replays", "--replay-dir", "--epochs", "--batch-size", "--hidden-sizes",
-    "--max-files", "--skip-errors", "--fail-fast", "--show-errors", "--hide-errors",
-    "--error-log", "--checkpoint", "--player", "--wandb", "--wandb-project",
-    "--wandb-name", "--temporal", "--backbone", "--window-size", "--stride",
-    "--num-layers", "--attention-every", "--num-heads", "--state-size", "--expand-factor", "--conv-size",
-    "--truncate-bptt", "--precision", "--frame-delay", "--frame-delay-augment",
-    "--frame-delay-min", "--frame-delay-max", "--online-robust", "--early-stopping",
-    "--patience", "--min-delta", "--save-best", "--save-every", "--save-every-batches", "--lr",
-    "--lr-schedule", "--warmup-steps", "--decay-steps", "--restart-period",
-    "--restart-mult", "--max-grad-norm", "--resume", "--name", "--accumulation-steps",
-    "--val-split", "--augment", "--mirror-prob", "--noise-prob", "--noise-scale",
-    "--label-smoothing", "--focal-loss", "--focal-gamma", "--no-register",
-    "--keep-best", "--ema", "--ema-decay", "--precompute", "--no-precompute",
-    "--prefetch", "--no-prefetch", "--gradient-checkpoint", "--checkpoint-every",
-    "--prefetch-buffer", "--layer-norm", "--no-layer-norm", "--residual", "--no-residual",
-    "--optimizer", "--preset", "--dry-run", "--character", "--characters", "--stage", "--stages",
-    "--config",  # YAML config file path
-    "--kmeans-centers",  # K-means cluster centers file for stick discretization
-    "--stream-chunk-size",  # Process files in chunks for memory efficiency
-    "--train-character",  # Auto-select port based on character
-    "--dual-port",  # Train on both players per replay
-    "--balance-characters",  # Weight sampling by inverse character frequency
-    "--stage-mode",  # Stage embedding mode: full, compact, learned
-    "--num-player-names",  # Number of player name embedding dims (0 to disable, default: 112)
-    "--learn-player-styles",  # Enable style-conditional training (build player registry)
-    "--no-learn-player-styles",  # Disable style-conditional training
-    "--player-registry",  # Path to save/load player registry JSON
-    "--min-player-games",  # Minimum games for player to be included in registry (default: 1)
+    "--replays",
+    "--replay-dir",
+    "--epochs",
+    "--batch-size",
+    "--hidden-sizes",
+    "--max-files",
+    "--skip-errors",
+    "--fail-fast",
+    "--show-errors",
+    "--hide-errors",
+    "--error-log",
+    "--checkpoint",
+    "--player",
+    "--wandb",
+    "--wandb-project",
+    "--wandb-name",
+    "--temporal",
+    "--backbone",
+    "--window-size",
+    "--stride",
+    "--num-layers",
+    "--attention-every",
+    "--num-heads",
+    "--state-size",
+    "--expand-factor",
+    "--conv-size",
+    "--truncate-bptt",
+    "--precision",
+    "--frame-delay",
+    "--frame-delay-augment",
+    "--frame-delay-min",
+    "--frame-delay-max",
+    "--online-robust",
+    "--early-stopping",
+    "--patience",
+    "--min-delta",
+    "--save-best",
+    "--save-every",
+    "--save-every-batches",
+    "--lr",
+    "--lr-schedule",
+    "--warmup-steps",
+    "--decay-steps",
+    "--restart-period",
+    "--restart-mult",
+    "--max-grad-norm",
+    "--resume",
+    "--name",
+    "--accumulation-steps",
+    "--val-split",
+    "--augment",
+    "--mirror-prob",
+    "--noise-prob",
+    "--noise-scale",
+    "--label-smoothing",
+    "--focal-loss",
+    "--focal-gamma",
+    "--no-register",
+    "--keep-best",
+    "--ema",
+    "--ema-decay",
+    "--precompute",
+    "--no-precompute",
+    "--prefetch",
+    "--no-prefetch",
+    "--gradient-checkpoint",
+    "--checkpoint-every",
+    "--prefetch-buffer",
+    "--layer-norm",
+    "--no-layer-norm",
+    "--residual",
+    "--no-residual",
+    "--optimizer",
+    "--preset",
+    "--dry-run",
+    "--character",
+    "--characters",
+    "--stage",
+    "--stages",
+    # YAML config file path
+    "--config",
+    # K-means cluster centers file for stick discretization
+    "--kmeans-centers",
+    # Process files in chunks for memory efficiency
+    "--stream-chunk-size",
+    # Auto-select port based on character
+    "--train-character",
+    # Train on both players per replay
+    "--dual-port",
+    # Weight sampling by inverse character frequency
+    "--balance-characters",
+    # Stage embedding mode: full, compact, learned
+    "--stage-mode",
+    # Number of player name embedding dims (0 to disable, default: 112)
+    "--num-player-names",
+    # Enable style-conditional training (build player registry)
+    "--learn-player-styles",
+    # Disable style-conditional training
+    "--no-learn-player-styles",
+    # Path to save/load player registry JSON
+    "--player-registry",
+    # Minimum games for player to be included in registry (default: 1)
+    "--min-player-games",
     # Verbosity control
-    "--verbose",  # Extra debug output (level 2)
-    "--quiet",  # Minimal output, errors only (level 0)
+    # Extra debug output (level 2)
+    "--verbose",
+    # Minimal output, errors only (level 0)
+    "--quiet",
     # Reproducibility
-    "--seed",  # Random seed for reproducibility
+    # Random seed for reproducibility
+    "--seed",
     # Checkpoint safety
-    "--overwrite",  # Allow overwriting existing checkpoints
-    "--no-overwrite",  # Fail if checkpoint exists
-    "--backup",  # Create .bak before overwrite (default)
-    "--no-backup",  # Skip backup creation
-    "--backup-count",  # Number of backup versions to keep (default: 3)
+    # Allow overwriting existing checkpoints
+    "--overwrite",
+    # Fail if checkpoint exists
+    "--no-overwrite",
+    # Create .bak before overwrite (default)
+    "--backup",
+    # Skip backup creation
+    "--no-backup",
+    # Number of backup versions to keep (default: 3)
+    "--backup-count",
     # Duplicate detection
-    "--skip-duplicates",  # Skip duplicate replay files by hash (default)
-    "--no-skip-duplicates",  # Include all files even if duplicates
+    # Skip duplicate replay files by hash (default)
+    "--skip-duplicates",
+    # Include all files even if duplicates
+    "--no-skip-duplicates",
     # Replay quality filtering
-    "--min-quality",  # Minimum quality score (0-100) for replays
-    "--show-quality-stats",  # Show quality distribution stats
+    # Minimum quality score (0-100) for replays
+    "--min-quality",
+    # Show quality distribution stats
+    "--show-quality-stats",
     # Memory management
-    "--gc-every"  # Run garbage collection every N batches (0 = disabled)
+    # Run garbage collection every N batches (0 = disabled)
+    "--gc-every"
   ]
 
   @doc """
@@ -94,14 +196,20 @@ defmodule ExPhil.Training.Config do
       hidden_sizes: @default_hidden_sizes,
       max_files: nil,
       # Error handling for bad replay files
-      skip_errors: true,   # Continue past bad files (default: true for convenience)
-      show_errors: true,   # Show individual file errors (default: true)
-      error_log: nil,      # Optional file path to log errors
+      # Continue past bad files (default: true for convenience)
+      skip_errors: true,
+      # Show individual file errors (default: true)
+      show_errors: true,
+      # Optional file path to log errors
+      error_log: nil,
       checkpoint: nil,
       player_port: 1,
-      train_character: nil,  # Auto-select port based on character (e.g., :mewtwo)
-      dual_port: false,      # Train on both ports (doubles training data)
-      balance_characters: false,  # Weight sampling by inverse character frequency
+      # Auto-select port based on character (e.g., :mewtwo)
+      train_character: nil,
+      # Train on both ports (doubles training data)
+      dual_port: false,
+      # Weight sampling by inverse character frequency
+      balance_characters: false,
       wandb: false,
       wandb_project: "exphil",
       wandb_name: nil,
@@ -119,8 +227,10 @@ defmodule ExPhil.Training.Config do
       # Frame delay augmentation for online robustness
       # Enable with --frame-delay-augment or --online-robust
       frame_delay_augment: false,
-      frame_delay_min: 0,      # Local play - no delay
-      frame_delay_max: 18,     # Online play - typical Slippi delay
+      # Local play - no delay
+      frame_delay_min: 0,
+      # Online play - typical Slippi delay
+      frame_delay_max: 18,
       preset: nil,
       character: nil,
       # Early stopping
@@ -130,17 +240,22 @@ defmodule ExPhil.Training.Config do
       # Checkpointing
       save_best: true,
       save_every: nil,
-      save_every_batches: nil,  # Save checkpoint every N batches (useful for streaming mode)
+      # Save checkpoint every N batches (useful for streaming mode)
+      save_every_batches: nil,
       # Learning rate
       learning_rate: 1.0e-4,
       lr_schedule: :constant,
-      warmup_steps: 1,  # 1 instead of 0 to avoid Polaris/Nx 0.10 compatibility bug
+      # 1 instead of 0 to avoid Polaris/Nx 0.10 compatibility bug
+      warmup_steps: 1,
       decay_steps: nil,
       # Cosine restarts (SGDR)
-      restart_period: 1000,     # Initial period before first restart (T_0)
-      restart_mult: 2,          # Multiply period by this after each restart (T_mult)
+      # Initial period before first restart (T_0)
+      restart_period: 1000,
+      # Multiply period by this after each restart (T_mult)
+      restart_mult: 2,
       # Gradient clipping
-      max_grad_norm: 1.0,       # Clip gradients by global norm (0 = disabled)
+      # Clip gradients by global norm (0 = disabled)
+      max_grad_norm: 1.0,
       # Resumption
       resume: nil,
       # Model naming
@@ -155,62 +270,88 @@ defmodule ExPhil.Training.Config do
       noise_prob: 0.3,
       noise_scale: 0.01,
       # Label smoothing
-      label_smoothing: 0.0,  # 0.0 = no smoothing, 0.1 = typical value
+      # 0.0 = no smoothing, 0.1 = typical value
+      label_smoothing: 0.0,
       # Focal loss for rare actions (Z, L, R buttons)
       focal_loss: false,
-      focal_gamma: 2.0,  # Higher = more focus on hard examples
+      # Higher = more focus on hard examples
+      focal_gamma: 2.0,
       # Registry
       no_register: false,
       # Checkpoint pruning
-      keep_best: nil,  # nil = no pruning, N = keep best N epoch checkpoints
+      # nil = no pruning, N = keep best N epoch checkpoints
+      keep_best: nil,
       # Model EMA
       ema: false,
       ema_decay: 0.999,
       # Embedding precomputation (2-3x speedup for MLP training)
-      precompute: true,  # Precompute embeddings for 2-3x speedup (auto-disabled with augmentation)
-      no_precompute: false,  # Override for explicitly disabling precomputation
+      # Precompute embeddings for 2-3x speedup (auto-disabled with augmentation)
+      precompute: true,
+      # Override for explicitly disabling precomputation
+      no_precompute: false,
       # Data prefetching (load next batch while GPU trains)
       prefetch: true,
-      prefetch_buffer: 2,  # Number of batches to prefetch
+      # Number of batches to prefetch
+      prefetch_buffer: 2,
       # Layer normalization for MLP backbone
       layer_norm: false,
       # Residual connections for MLP backbone (enables deeper networks, +5-15% accuracy)
       residual: false,
       # Optimizer selection
-      optimizer: :adam,  # :adam, :adamw, :lamb, :radam
+      # :adam, :adamw, :lamb, :radam
+      optimizer: :adam,
       # Gradient checkpointing (memory vs compute trade-off)
       gradient_checkpoint: false,
-      checkpoint_every: 1,  # Checkpoint every N layers (1 = every layer, 2 = every other)
+      # Checkpoint every N layers (1 = every layer, 2 = every other)
+      checkpoint_every: 1,
       # Dry run mode - validate config without training
       dry_run: false,
       # Replay filtering
-      characters: [],  # Filter replays by character (e.g., [:mewtwo, :fox])
-      stages: [],      # Filter replays by stage (e.g., [:battlefield, :fd])
+      # Filter replays by character (e.g., [:mewtwo, :fox])
+      characters: [],
+      # Filter replays by stage (e.g., [:battlefield, :fd])
+      stages: [],
       # K-means stick discretization
-      kmeans_centers: nil,  # Path to K-means cluster centers file (.nx)
+      # Path to K-means cluster centers file (.nx)
+      kmeans_centers: nil,
       # Streaming data loading (process files in chunks to bound memory)
-      stream_chunk_size: nil,  # nil = load all at once, N = process N files per chunk
+      # nil = load all at once, N = process N files per chunk
+      stream_chunk_size: nil,
       # Embedding options
-      stage_mode: :one_hot_full,  # :one_hot_full (64 dims), :one_hot_compact (7 dims), :learned (1 ID)
-      num_player_names: 112,  # Player name embedding dims (0 = disable, 112 = slippi-ai compatible)
-      learn_player_styles: false,  # Enable style-conditional training
-      player_registry: nil,  # Path to save/load player registry JSON
-      min_player_games: 1,  # Minimum games for player to be in registry
+      # :one_hot_full (64 dims), :one_hot_compact (7 dims), :learned (1 ID)
+      stage_mode: :one_hot_full,
+      # Player name embedding dims (0 = disable, 112 = slippi-ai compatible)
+      num_player_names: 112,
+      # Enable style-conditional training
+      learn_player_styles: false,
+      # Path to save/load player registry JSON
+      player_registry: nil,
+      # Minimum games for player to be in registry
+      min_player_games: 1,
       # Verbosity control
-      verbosity: 1,  # 0 = quiet (errors only), 1 = normal, 2 = verbose (debug)
+      # 0 = quiet (errors only), 1 = normal, 2 = verbose (debug)
+      verbosity: 1,
       # Reproducibility
-      seed: nil,  # Random seed (nil = generate from entropy)
+      # Random seed (nil = generate from entropy)
+      seed: nil,
       # Checkpoint safety
-      overwrite: false,  # Allow overwriting existing checkpoints
-      backup: true,  # Create .bak before overwrite
-      backup_count: 3,  # Number of backup versions to keep
+      # Allow overwriting existing checkpoints
+      overwrite: false,
+      # Create .bak before overwrite
+      backup: true,
+      # Number of backup versions to keep
+      backup_count: 3,
       # Duplicate detection
-      skip_duplicates: true,  # Skip duplicate replay files by hash
+      # Skip duplicate replay files by hash
+      skip_duplicates: true,
       # Replay quality filtering
-      min_quality: nil,  # nil = no quality filtering, N = minimum score (0-100)
-      show_quality_stats: false,  # Show quality distribution after filtering
+      # nil = no quality filtering, N = minimum score (0-100)
+      min_quality: nil,
+      # Show quality distribution after filtering
+      show_quality_stats: false,
       # Memory management
-      gc_every: 100  # Run garbage collection every N batches (0 = disabled)
+      # Run garbage collection every N batches (0 = disabled)
+      gc_every: 100
     ]
     |> apply_env_defaults()
   end
@@ -226,15 +367,19 @@ defmodule ExPhil.Training.Config do
   defp maybe_env(opts, key, env_var) do
     case System.get_env(env_var) do
       nil -> opts
-      value -> Keyword.put(opts, key, value)  # Override default with env var
+      # Override default with env var
+      value -> Keyword.put(opts, key, value)
     end
   end
 
   defp maybe_env_preset(opts, env_var) do
     case System.get_env(env_var) do
-      nil -> opts
+      nil ->
+        opts
+
       value ->
         preset = String.to_atom(value)
+
         if preset in @valid_presets do
           Keyword.put_new(opts, :preset, preset)
         else
@@ -545,6 +690,7 @@ defmodule ExPhil.Training.Config do
       [character: :mewtwo, epochs: 100, window_size: 90, ...]
 
   """
+
   # ============================================================================
   # CPU Presets (No GPU Required)
   # ============================================================================
@@ -795,7 +941,8 @@ defmodule ExPhil.Training.Config do
       ema: true,
       ema_decay: 0.999,
       # Gradient accumulation for larger effective batch
-      accumulation_steps: 2,  # effective batch = 512
+      # effective batch = 512
+      accumulation_steps: 2,
       save_best: true,
       keep_best: 5,
       preset: :full
@@ -837,7 +984,8 @@ defmodule ExPhil.Training.Config do
       ema: true,
       ema_decay: 0.9995,
       # Gradient accumulation
-      accumulation_steps: 4,  # effective batch = 1024
+      # effective batch = 1024
+      accumulation_steps: 4,
       save_best: true,
       keep_best: 10,
       preset: :production
@@ -856,7 +1004,8 @@ defmodule ExPhil.Training.Config do
     [
       epochs: 3,
       max_files: 30,
-      batch_size: 512,           # 4090 can handle larger batches
+      # 4090 can handle larger batches
+      batch_size: 512,
       hidden_sizes: [128, 128],
       temporal: true,
       backbone: :mamba,
@@ -874,7 +1023,8 @@ defmodule ExPhil.Training.Config do
     [
       epochs: 20,
       max_files: 200,
-      batch_size: 512,           # Larger batch for faster training
+      # Larger batch for faster training
+      batch_size: 512,
       hidden_sizes: [256, 256],
       temporal: true,
       backbone: :mamba,
@@ -909,7 +1059,8 @@ defmodule ExPhil.Training.Config do
     # Uses gradient accumulation for effective batch size of 2048
     [
       epochs: 50,
-      max_files: nil,            # All available files
+      # All available files
+      max_files: nil,
       batch_size: 512,
       hidden_sizes: [256, 256],
       temporal: true,
@@ -939,7 +1090,8 @@ defmodule ExPhil.Training.Config do
       ema: true,
       ema_decay: 0.9995,
       # Gradient accumulation for larger effective batch
-      accumulation_steps: 4,     # effective batch = 2048
+      # effective batch = 2048
+      accumulation_steps: 4,
       save_best: true,
       keep_best: 10,
       preset: :rtx4090_full
@@ -953,51 +1105,51 @@ defmodule ExPhil.Training.Config do
   def preset(:mewtwo) do
     # Mewtwo: Long context for teleport recovery timing
     # Teleport takes ~40 frames, need to track full recovery sequences
-    Keyword.merge(preset(:production), [
+    Keyword.merge(preset(:production),
       character: :mewtwo,
       window_size: 90,
       preset: :mewtwo
-    ])
+    )
   end
 
   def preset(:ganondorf) do
     # Ganondorf: Standard context, spacing-focused
     # Slower character benefits from prediction over reaction
-    Keyword.merge(preset(:production), [
+    Keyword.merge(preset(:production),
       character: :ganondorf,
       window_size: 60,
       preset: :ganondorf
-    ])
+    )
   end
 
   def preset(:link) do
     # Link: Extended context for projectile tracking
     # Boomerang return timing, bomb trajectories
-    Keyword.merge(preset(:production), [
+    Keyword.merge(preset(:production),
       character: :link,
       window_size: 75,
       preset: :link
-    ])
+    )
   end
 
   def preset(:gameandwatch) do
     # Game & Watch: Shorter context for unique timing
     # Only fair/dair have L-cancel, bucket/hammer RNG
-    Keyword.merge(preset(:production), [
+    Keyword.merge(preset(:production),
       character: :gameandwatch,
       window_size: 45,
       preset: :gameandwatch
-    ])
+    )
   end
 
   def preset(:zelda) do
     # Zelda: Standard context for transform mechanics
     # Focus on spacing with kicks, transform rarely needed in training
-    Keyword.merge(preset(:production), [
+    Keyword.merge(preset(:production),
       character: :zelda,
       window_size: 60,
       preset: :zelda
-    ])
+    )
   end
 
   def preset(name) when is_binary(name) do
@@ -1055,15 +1207,18 @@ defmodule ExPhil.Training.Config do
   @spec diff_from_defaults(keyword(), keyword()) :: [{atom(), any(), any()}]
   def diff_from_defaults(opts, diff_opts \\ []) do
     defaults = defaults()
-    skip_keys = Keyword.get(diff_opts, :skip, [:replays, :checkpoint, :name, :wandb_name, :wandb_project])
+
+    skip_keys =
+      Keyword.get(diff_opts, :skip, [:replays, :checkpoint, :name, :wandb_name, :wandb_project])
+
     include_nil = Keyword.get(diff_opts, :include_nil, false)
 
     opts
     |> Enum.filter(fn {key, value} ->
       key not in skip_keys and
-      Keyword.has_key?(defaults, key) and
-      value != Keyword.get(defaults, key) and
-      (include_nil or value != nil)
+        Keyword.has_key?(defaults, key) and
+        value != Keyword.get(defaults, key) and
+        (include_nil or value != nil)
     end)
     |> Enum.map(fn {key, value} ->
       {key, value, Keyword.get(defaults, key)}
@@ -1098,7 +1253,10 @@ defmodule ExPhil.Training.Config do
 
   defp format_value(value) when is_list(value), do: inspect(value, charlists: :as_lists)
   defp format_value(value) when is_atom(value), do: ":#{value}"
-  defp format_value(value) when is_float(value), do: :erlang.float_to_binary(value, [:compact, decimals: 6])
+
+  defp format_value(value) when is_float(value),
+    do: :erlang.float_to_binary(value, [:compact, decimals: 6])
+
   defp format_value(nil), do: "nil"
   defp format_value(value), do: "#{value}"
 
@@ -1154,7 +1312,9 @@ defmodule ExPhil.Training.Config do
   """
   def validate!(opts) do
     case validate(opts) do
-      {:ok, opts} -> opts
+      {:ok, opts} ->
+        opts
+
       {:error, errors} ->
         raise ArgumentError, """
         Invalid training configuration:
@@ -1217,6 +1377,7 @@ defmodule ExPhil.Training.Config do
   # Error validators
   defp validate_positive(errors, opts, key) do
     value = opts[key]
+
     if is_integer(value) and value <= 0 do
       ["#{key} must be positive, got: #{value}" | errors]
     else
@@ -1226,6 +1387,7 @@ defmodule ExPhil.Training.Config do
 
   defp validate_positive_or_nil(errors, opts, key) do
     value = opts[key]
+
     if value != nil and (not is_integer(value) or value <= 0) do
       ["#{key} must be a positive integer or nil, got: #{inspect(value)}" | errors]
     else
@@ -1235,6 +1397,7 @@ defmodule ExPhil.Training.Config do
 
   defp validate_non_negative(errors, opts, key) do
     value = opts[key]
+
     if is_integer(value) and value < 0 do
       ["#{key} must be non-negative, got: #{value}" | errors]
     else
@@ -1244,6 +1407,7 @@ defmodule ExPhil.Training.Config do
 
   defp validate_positive_float(errors, opts, key) do
     value = opts[key]
+
     cond do
       is_nil(value) -> errors
       is_number(value) and value > 0 -> errors
@@ -1254,6 +1418,7 @@ defmodule ExPhil.Training.Config do
 
   defp validate_non_negative_float(errors, opts, key) do
     value = opts[key]
+
     cond do
       is_nil(value) -> errors
       is_number(value) and value >= 0 -> errors
@@ -1264,7 +1429,9 @@ defmodule ExPhil.Training.Config do
 
   defp validate_hidden_sizes(errors, opts) do
     case opts[:hidden_sizes] do
-      nil -> errors
+      nil ->
+        errors
+
       sizes when is_list(sizes) ->
         if Enum.all?(sizes, &(is_integer(&1) and &1 > 0)) do
           errors
@@ -1272,6 +1439,7 @@ defmodule ExPhil.Training.Config do
           msg = "hidden_sizes must be a list of positive integers, got: #{inspect(sizes)}"
           [Help.with_link(msg, :hidden_sizes) | errors]
         end
+
       other ->
         msg = "hidden_sizes must be a list, got: #{inspect(other)}"
         [Help.with_link(msg, :hidden_sizes) | errors]
@@ -1284,9 +1452,14 @@ defmodule ExPhil.Training.Config do
 
     cond do
       min_delay > max_delay ->
-        ["frame_delay_min (#{min_delay}) cannot be greater than frame_delay_max (#{max_delay})" | errors]
+        [
+          "frame_delay_min (#{min_delay}) cannot be greater than frame_delay_max (#{max_delay})"
+          | errors
+        ]
+
       max_delay > 60 ->
         ["frame_delay_max > 60 is unusually high (online play is typically 18 frames)" | errors]
+
       true ->
         errors
     end
@@ -1295,8 +1468,11 @@ defmodule ExPhil.Training.Config do
   defp validate_temporal_backbone(errors, opts) do
     if opts[:temporal] do
       backbone = opts[:backbone]
+
       if backbone not in @valid_backbones do
-        msg = "temporal training requires backbone in #{inspect(@valid_backbones)}, got: #{inspect(backbone)}"
+        msg =
+          "temporal training requires backbone in #{inspect(@valid_backbones)}, got: #{inspect(backbone)}"
+
         [Help.with_link(msg, :backbone) | errors]
       else
         errors
@@ -1308,8 +1484,12 @@ defmodule ExPhil.Training.Config do
 
   defp validate_precision(errors, opts) do
     case opts[:precision] do
-      p when p in [:bf16, :f32] -> errors
-      nil -> errors
+      p when p in [:bf16, :f32] ->
+        errors
+
+      nil ->
+        errors
+
       other ->
         msg = "precision must be :bf16 or :f32, got: #{inspect(other)}"
         [Help.with_link(msg, :precision) | errors]
@@ -1318,14 +1498,23 @@ defmodule ExPhil.Training.Config do
 
   defp validate_optimizer(errors, opts) do
     case opts[:optimizer] do
-      o when o in @valid_optimizers -> errors
-      nil -> errors
-      other -> ["optimizer must be one of #{inspect(@valid_optimizers)}, got: #{inspect(other)}" | errors]
+      o when o in @valid_optimizers ->
+        errors
+
+      nil ->
+        errors
+
+      other ->
+        [
+          "optimizer must be one of #{inspect(@valid_optimizers)}, got: #{inspect(other)}"
+          | errors
+        ]
     end
   end
 
   defp validate_replays_dir(errors, opts) do
     dir = opts[:replays]
+
     if dir && not File.dir?(dir) do
       msg = "replays directory does not exist: #{dir}"
       [Help.with_link(msg, :replays) | errors]
@@ -1338,8 +1527,11 @@ defmodule ExPhil.Training.Config do
 
   defp validate_lr_schedule(errors, opts) do
     schedule = opts[:lr_schedule]
+
     if schedule && schedule not in @valid_lr_schedules do
-      msg = "lr_schedule must be one of #{inspect(@valid_lr_schedules)}, got: #{inspect(schedule)}"
+      msg =
+        "lr_schedule must be one of #{inspect(@valid_lr_schedules)}, got: #{inspect(schedule)}"
+
       [Help.with_link(msg, :lr_schedule) | errors]
     else
       errors
@@ -1348,6 +1540,7 @@ defmodule ExPhil.Training.Config do
 
   defp validate_resume_checkpoint(errors, opts) do
     resume_path = opts[:resume]
+
     if resume_path && not File.exists?(resume_path) do
       msg = "resume checkpoint does not exist: #{resume_path}"
       [Help.with_link(msg, :resume) | errors]
@@ -1358,16 +1551,25 @@ defmodule ExPhil.Training.Config do
 
   defp validate_val_split(errors, opts) do
     val_split = opts[:val_split]
+
     cond do
-      is_nil(val_split) -> errors
-      not is_number(val_split) -> ["val_split must be a number, got: #{inspect(val_split)}" | errors]
-      val_split < 0.0 or val_split >= 1.0 -> ["val_split must be in [0.0, 1.0), got: #{val_split}" | errors]
-      true -> errors
+      is_nil(val_split) ->
+        errors
+
+      not is_number(val_split) ->
+        ["val_split must be a number, got: #{inspect(val_split)}" | errors]
+
+      val_split < 0.0 or val_split >= 1.0 ->
+        ["val_split must be in [0.0, 1.0), got: #{val_split}" | errors]
+
+      true ->
+        errors
     end
   end
 
   defp validate_probability(errors, opts, key) do
     value = opts[key]
+
     cond do
       is_nil(value) -> errors
       not is_number(value) -> ["#{key} must be a number, got: #{inspect(value)}" | errors]
@@ -1378,20 +1580,27 @@ defmodule ExPhil.Training.Config do
 
   defp validate_label_smoothing(errors, opts) do
     value = opts[:label_smoothing]
+
     cond do
-      is_nil(value) -> errors
+      is_nil(value) ->
+        errors
+
       not is_number(value) ->
         msg = "label_smoothing must be a number, got: #{inspect(value)}"
         [Help.with_link(msg, :label_smoothing) | errors]
+
       value < 0.0 or value >= 1.0 ->
         msg = "label_smoothing must be in [0.0, 1.0), got: #{value}"
         [Help.with_link(msg, :label_smoothing) | errors]
-      true -> errors
+
+      true ->
+        errors
     end
   end
 
   defp validate_ema_decay(errors, opts) do
     value = opts[:ema_decay]
+
     cond do
       is_nil(value) -> errors
       not is_number(value) -> ["ema_decay must be a number, got: #{inspect(value)}" | errors]
@@ -1402,6 +1611,7 @@ defmodule ExPhil.Training.Config do
 
   defp validate_restart_mult(errors, opts) do
     value = opts[:restart_mult]
+
     cond do
       is_nil(value) -> errors
       not is_number(value) -> ["restart_mult must be a number, got: #{inspect(value)}" | errors]
@@ -1432,6 +1642,7 @@ defmodule ExPhil.Training.Config do
   defp warn_many_epochs_without_wandb(warnings, opts) do
     epochs = opts[:epochs] || 0
     wandb = opts[:wandb] || false
+
     if epochs >= 20 and not wandb do
       msg = "training #{epochs} epochs without --wandb; consider enabling for metrics tracking"
       [Help.warning_with_help(msg, :wandb) | warnings]
@@ -1443,6 +1654,7 @@ defmodule ExPhil.Training.Config do
   defp warn_temporal_without_window(warnings, opts) do
     temporal = opts[:temporal] || false
     window_size = opts[:window_size] || 60
+
     if temporal and window_size < 30 do
       msg = "temporal training with window_size < 30 may miss important temporal patterns"
       [Help.warning_with_help(msg, :temporal) | warnings]
@@ -1539,19 +1751,22 @@ defmodule ExPhil.Training.Config do
   """
   def parse_args(args) when is_list(args) do
     # Check if config file is specified first
-    base_opts = if has_flag_value?(args, "--config") do
-      config_path = get_arg_value(args, "--config")
-      case load_yaml(config_path) do
-        {:ok, yaml_opts} ->
-          # Merge YAML opts on top of defaults
-          Keyword.merge(defaults(), yaml_opts)
-        {:error, reason} ->
-          IO.puts(:stderr, "Error loading config file: #{inspect(reason)}")
-          System.halt(1)
+    base_opts =
+      if has_flag_value?(args, "--config") do
+        config_path = get_arg_value(args, "--config")
+
+        case load_yaml(config_path) do
+          {:ok, yaml_opts} ->
+            # Merge YAML opts on top of defaults
+            Keyword.merge(defaults(), yaml_opts)
+
+          {:error, reason} ->
+            IO.puts(:stderr, "Error loading config file: #{inspect(reason)}")
+            System.halt(1)
+        end
+      else
+        defaults()
       end
-    else
-      defaults()
-    end
 
     # Check if preset is specified - if so, use apply_preset flow
     if has_flag_value?(args, "--preset") do
@@ -1709,7 +1924,9 @@ defmodule ExPhil.Training.Config do
     end)
     |> then(fn opts ->
       # --no-learn-player-styles disables style-conditional training
-      if opts[:no_learn_player_styles], do: Keyword.put(opts, :learn_player_styles, false), else: opts
+      if opts[:no_learn_player_styles],
+        do: Keyword.put(opts, :learn_player_styles, false),
+        else: opts
     end)
   end
 
@@ -1725,16 +1942,20 @@ defmodule ExPhil.Training.Config do
   # Parse stage mode with alias support (full, compact, learned -> atoms)
   defp parse_stage_mode_arg(opts, args) do
     case get_arg_value(args, "--stage-mode") do
-      nil -> opts
+      nil ->
+        opts
+
       value ->
-        mode = case String.downcase(value) do
-          "full" -> :one_hot_full
-          "one_hot_full" -> :one_hot_full
-          "compact" -> :one_hot_compact
-          "one_hot_compact" -> :one_hot_compact
-          "learned" -> :learned
-          other -> String.to_atom(other)
-        end
+        mode =
+          case String.downcase(value) do
+            "full" -> :one_hot_full
+            "one_hot_full" -> :one_hot_full
+            "compact" -> :one_hot_compact
+            "one_hot_compact" -> :one_hot_compact
+            "learned" -> :learned
+            other -> String.to_atom(other)
+          end
+
         Keyword.put(opts, :stage_mode, mode)
     end
   end
@@ -1742,12 +1963,15 @@ defmodule ExPhil.Training.Config do
   # Parse comma-separated list of atoms (e.g., "mewtwo,fox,falco" -> [:mewtwo, :fox, :falco])
   defp parse_atom_list_arg(opts, args, flag, key) do
     case get_arg_value(args, flag) do
-      nil -> opts
+      nil ->
+        opts
+
       value ->
-        atoms = value
-        |> String.split(",")
-        |> Enum.map(&String.trim/1)
-        |> Enum.map(&String.to_atom/1)
+        atoms =
+          value
+          |> String.split(",")
+          |> Enum.map(&String.trim/1)
+          |> Enum.map(&String.to_atom/1)
 
         # Merge with existing list (allows both --character and --characters)
         existing = Keyword.get(opts, key, [])
@@ -1801,11 +2025,12 @@ defmodule ExPhil.Training.Config do
       name = opts[:name] || Naming.generate()
       character = opts[:character]
 
-      checkpoint_name = if character do
-        "checkpoints/#{character}_#{backbone}_#{name}_#{timestamp}.axon"
-      else
-        "checkpoints/#{backbone}_#{name}_#{timestamp}.axon"
-      end
+      checkpoint_name =
+        if character do
+          "checkpoints/#{character}_#{backbone}_#{name}_#{timestamp}.axon"
+        else
+          "checkpoints/#{backbone}_#{name}_#{timestamp}.axon"
+        end
 
       # Store the generated name in opts for display
       opts
@@ -1937,6 +2162,7 @@ defmodule ExPhil.Training.Config do
 
   """
   def derive_policy_path(nil), do: nil
+
   def derive_policy_path(checkpoint_path) do
     String.replace(checkpoint_path, ".axon", "_policy.bin")
   end
@@ -1948,6 +2174,7 @@ defmodule ExPhil.Training.Config do
   """
   @spec compute_manifest_hash([String.t()]) :: String.t()
   def compute_manifest_hash([]), do: nil
+
   def compute_manifest_hash(paths) when is_list(paths) do
     paths
     |> Enum.sort()
@@ -1960,6 +2187,7 @@ defmodule ExPhil.Training.Config do
   # Format a list of atoms as strings for JSON serialization
   defp format_atom_list(nil), do: nil
   defp format_atom_list([]), do: nil
+
   defp format_atom_list(atoms) when is_list(atoms) do
     Enum.map(atoms, &to_string/1)
   end
@@ -1974,6 +2202,7 @@ defmodule ExPhil.Training.Config do
 
   """
   def derive_config_path(nil), do: nil
+
   def derive_config_path(checkpoint_path) do
     String.replace(checkpoint_path, ".axon", "_config.json")
   end
@@ -1988,6 +2217,7 @@ defmodule ExPhil.Training.Config do
 
   """
   def derive_best_checkpoint_path(nil), do: nil
+
   def derive_best_checkpoint_path(checkpoint_path) do
     String.replace(checkpoint_path, ".axon", "_best.axon")
   end
@@ -2002,6 +2232,7 @@ defmodule ExPhil.Training.Config do
 
   """
   def derive_best_policy_path(nil), do: nil
+
   def derive_best_policy_path(checkpoint_path) do
     String.replace(checkpoint_path, ".axon", "_best_policy.bin")
   end
@@ -2063,7 +2294,9 @@ defmodule ExPhil.Training.Config do
 
   defp parse_float_arg(opts, args, flag, key) do
     case get_arg_value(args, flag) do
-      nil -> opts
+      nil ->
+        opts
+
       value ->
         # Use Float.parse to handle scientific notation (e.g., "1e-4")
         case Float.parse(value) do
@@ -2110,6 +2343,7 @@ defmodule ExPhil.Training.Config do
     if has_flag?(args, "--online-robust") do
       opts
       |> Keyword.put(:frame_delay_augment, true)
+
       # Use defaults: 0-18 frame range (local to online play)
       # Can be overridden with explicit --frame-delay-min/max
     else
@@ -2140,19 +2374,21 @@ defmodule ExPhil.Training.Config do
   @spec validate_args(list(String.t())) :: {:ok, list(String.t())}
   def validate_args(args) when is_list(args) do
     # Extract all flags (args starting with --)
-    input_flags = args
-    |> Enum.filter(&String.starts_with?(&1, "--"))
-    |> Enum.uniq()
+    input_flags =
+      args
+      |> Enum.filter(&String.starts_with?(&1, "--"))
+      |> Enum.uniq()
 
     # Find unrecognized flags
     unrecognized = input_flags -- @valid_flags
 
-    warnings = Enum.map(unrecognized, fn flag ->
-      case suggest_flag(flag) do
-        nil -> "Unknown flag '#{flag}'. Run with --help to see available options."
-        suggestion -> "Unknown flag '#{flag}'. Did you mean '#{suggestion}'?"
-      end
-    end)
+    warnings =
+      Enum.map(unrecognized, fn flag ->
+        case suggest_flag(flag) do
+          nil -> "Unknown flag '#{flag}'. Run with --help to see available options."
+          suggestion -> "Unknown flag '#{flag}'. Did you mean '#{suggestion}'?"
+        end
+      end)
 
     {:ok, warnings}
   end
@@ -2179,9 +2415,11 @@ defmodule ExPhil.Training.Config do
 
     if warnings != [] do
       IO.puts(:stderr, "")
+
       Enum.each(warnings, fn warning ->
         IO.puts(:stderr, "⚠️  #{warning}")
       end)
+
       IO.puts(:stderr, "")
     end
 
@@ -2213,23 +2451,26 @@ defmodule ExPhil.Training.Config do
     initial_row = Enum.to_list(0..s2_len)
 
     # Process each character of s1
-    {final_row, _} = Enum.reduce(Enum.with_index(s1_chars), {initial_row, 0}, fn {c1, i}, {prev_row, _} ->
-      # Start new row with distance from s1 prefix to empty string
-      first = i + 1
+    {final_row, _} =
+      Enum.reduce(Enum.with_index(s1_chars), {initial_row, 0}, fn {c1, i}, {prev_row, _} ->
+        # Start new row with distance from s1 prefix to empty string
+        first = i + 1
 
-      # Process each character of s2
-      {new_row_reversed, _} = Enum.reduce(Enum.with_index(s2_chars), {[first], first}, fn {c2, j}, {row_acc, diagonal} ->
-        above = Enum.at(prev_row, j + 1)
-        left = hd(row_acc)
+        # Process each character of s2
+        {new_row_reversed, _} =
+          Enum.reduce(Enum.with_index(s2_chars), {[first], first}, fn {c2, j},
+                                                                      {row_acc, diagonal} ->
+            above = Enum.at(prev_row, j + 1)
+            left = hd(row_acc)
 
-        cost = if c1 == c2, do: 0, else: 1
-        min_val = min(min(above + 1, left + 1), diagonal + cost)
+            cost = if c1 == c2, do: 0, else: 1
+            min_val = min(min(above + 1, left + 1), diagonal + cost)
 
-        {[min_val | row_acc], above}
+            {[min_val | row_acc], above}
+          end)
+
+        {Enum.reverse(new_row_reversed), i + 1}
       end)
-
-      {Enum.reverse(new_row_reversed), i + 1}
-    end)
 
     List.last(final_row)
   end
@@ -2248,7 +2489,7 @@ defmodule ExPhil.Training.Config do
   The `info` map contains file metadata for warning display.
   """
   @spec check_checkpoint_path(Path.t(), keyword()) ::
-    {:ok, :new} | {:ok, :overwrite, map()} | {:error, :exists, map()}
+          {:ok, :new} | {:ok, :overwrite, map()} | {:error, :exists, map()}
   def check_checkpoint_path(path, opts \\ []) do
     overwrite = Keyword.get(opts, :overwrite, false)
 
@@ -2288,7 +2529,10 @@ defmodule ExPhil.Training.Config do
 
   defp format_bytes(bytes) when bytes < 1024, do: "#{bytes} B"
   defp format_bytes(bytes) when bytes < 1024 * 1024, do: "#{Float.round(bytes / 1024, 1)} KB"
-  defp format_bytes(bytes) when bytes < 1024 * 1024 * 1024, do: "#{Float.round(bytes / (1024 * 1024), 1)} MB"
+
+  defp format_bytes(bytes) when bytes < 1024 * 1024 * 1024,
+    do: "#{Float.round(bytes / (1024 * 1024), 1)} MB"
+
   defp format_bytes(bytes), do: "#{Float.round(bytes / (1024 * 1024 * 1024), 2)} GB"
 
   defp format_datetime({{y, m, d}, {h, min, s}}) do
@@ -2319,12 +2563,14 @@ defmodule ExPhil.Training.Config do
 
       # Create new backup
       backup_path = "#{path}.bak"
+
       case File.copy(path, backup_path) do
         {:ok, _} -> {:ok, backup_path}
         {:error, reason} -> {:error, reason}
       end
     else
-      {:ok, nil}  # Nothing to backup
+      # Nothing to backup
+      {:ok, nil}
     end
   end
 
@@ -2371,7 +2617,7 @@ defmodule ExPhil.Training.Config do
     # Seed Nx's global key (affects Nx.Random operations)
     # Note: Nx uses a PRNG key system, this sets the default
     Nx.default_backend(EXLA.Backend)
-    Application.put_env(:nx, :default_defn_options, [seed: seed])
+    Application.put_env(:nx, :default_defn_options, seed: seed)
 
     seed
   end

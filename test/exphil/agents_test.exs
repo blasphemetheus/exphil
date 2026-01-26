@@ -324,7 +324,8 @@ defmodule ExPhil.Agents.AgentTest do
       # Create a mock temporal policy export
       # We need to create actual params for this to work
       temporal_policy = %{
-        params: %{},  # Empty params - will fail inference but loading should work
+        # Empty params - will fail inference but loading should work
+        params: %{},
         config: %{
           temporal: true,
           backbone: :sliding_window,

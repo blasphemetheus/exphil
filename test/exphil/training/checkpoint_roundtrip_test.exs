@@ -15,12 +15,13 @@ defmodule ExPhil.Training.CheckpointRoundtripTest do
   describe "optimizer state round-trip" do
     test "optimizer state count is preserved after save/load" do
       # Create a minimal trainer
-      trainer = Imitation.new(
-        embed_size: 64,
-        hidden_sizes: [32],
-        learning_rate: 1.0e-3,
-        temporal: false
-      )
+      trainer =
+        Imitation.new(
+          embed_size: 64,
+          hidden_sizes: [32],
+          learning_rate: 1.0e-3,
+          temporal: false
+        )
 
       # Create a minimal batch
       batch = %{
@@ -56,18 +57,21 @@ defmodule ExPhil.Training.CheckpointRoundtripTest do
       assert adam_count_before == 10
 
       # Save checkpoint
-      path = Path.join(System.tmp_dir!(), "checkpoint_roundtrip_test_#{System.unique_integer()}.axon")
+      path =
+        Path.join(System.tmp_dir!(), "checkpoint_roundtrip_test_#{System.unique_integer()}.axon")
+
       on_exit(fn -> File.rm(path) end)
 
       :ok = Imitation.save_checkpoint(trained_trainer, path)
 
       # Create a fresh trainer and load checkpoint
-      fresh_trainer = Imitation.new(
-        embed_size: 64,
-        hidden_sizes: [32],
-        learning_rate: 1.0e-3,
-        temporal: false
-      )
+      fresh_trainer =
+        Imitation.new(
+          embed_size: 64,
+          hidden_sizes: [32],
+          learning_rate: 1.0e-3,
+          temporal: false
+        )
 
       {:ok, loaded_trainer} = Imitation.load_checkpoint(fresh_trainer, path)
 
@@ -85,12 +89,13 @@ defmodule ExPhil.Training.CheckpointRoundtripTest do
     end
 
     test "momentum and velocity tensors are preserved" do
-      trainer = Imitation.new(
-        embed_size: 64,
-        hidden_sizes: [32],
-        learning_rate: 1.0e-3,
-        temporal: false
-      )
+      trainer =
+        Imitation.new(
+          embed_size: 64,
+          hidden_sizes: [32],
+          learning_rate: 1.0e-3,
+          temporal: false
+        )
 
       batch = %{
         states: Nx.broadcast(0.5, {4, 64}),
@@ -123,17 +128,20 @@ defmodule ExPhil.Training.CheckpointRoundtripTest do
       assert Nx.to_number(Nx.sum(Nx.abs(first_nu_before))) > 0
 
       # Save and load
-      path = Path.join(System.tmp_dir!(), "checkpoint_momentum_test_#{System.unique_integer()}.axon")
+      path =
+        Path.join(System.tmp_dir!(), "checkpoint_momentum_test_#{System.unique_integer()}.axon")
+
       on_exit(fn -> File.rm(path) end)
 
       :ok = Imitation.save_checkpoint(trained_trainer, path)
 
-      fresh_trainer = Imitation.new(
-        embed_size: 64,
-        hidden_sizes: [32],
-        learning_rate: 1.0e-3,
-        temporal: false
-      )
+      fresh_trainer =
+        Imitation.new(
+          embed_size: 64,
+          hidden_sizes: [32],
+          learning_rate: 1.0e-3,
+          temporal: false
+        )
 
       {:ok, loaded_trainer} = Imitation.load_checkpoint(fresh_trainer, path)
 
@@ -145,19 +153,21 @@ defmodule ExPhil.Training.CheckpointRoundtripTest do
       # Verify they match
       assert Nx.to_number(Nx.sum(Nx.abs(Nx.subtract(first_mu_before, first_mu_after)))) < 1.0e-6,
              "Momentum (mu) not preserved"
+
       assert Nx.to_number(Nx.sum(Nx.abs(Nx.subtract(first_nu_before, first_nu_after)))) < 1.0e-6,
              "Velocity (nu) not preserved"
     end
 
     test "training continues correctly after resume" do
-      trainer = Imitation.new(
-        embed_size: 64,
-        hidden_sizes: [32],
-        learning_rate: 1.0e-3,
-        lr_schedule: :cosine,
-        decay_steps: 100,
-        temporal: false
-      )
+      trainer =
+        Imitation.new(
+          embed_size: 64,
+          hidden_sizes: [32],
+          learning_rate: 1.0e-3,
+          lr_schedule: :cosine,
+          decay_steps: 100,
+          temporal: false
+        )
 
       batch = %{
         states: Nx.broadcast(0.5, {4, 64}),
@@ -179,19 +189,23 @@ defmodule ExPhil.Training.CheckpointRoundtripTest do
         end)
 
       # Save at step 20
-      path = Path.join(System.tmp_dir!(), "checkpoint_resume_test_#{System.unique_integer()}.axon")
+      path =
+        Path.join(System.tmp_dir!(), "checkpoint_resume_test_#{System.unique_integer()}.axon")
+
       on_exit(fn -> File.rm(path) end)
       :ok = Imitation.save_checkpoint(trained_20, path)
 
       # Load and continue training
-      fresh_trainer = Imitation.new(
-        embed_size: 64,
-        hidden_sizes: [32],
-        learning_rate: 1.0e-3,
-        lr_schedule: :cosine,
-        decay_steps: 100,
-        temporal: false
-      )
+      fresh_trainer =
+        Imitation.new(
+          embed_size: 64,
+          hidden_sizes: [32],
+          learning_rate: 1.0e-3,
+          lr_schedule: :cosine,
+          decay_steps: 100,
+          temporal: false
+        )
+
       {:ok, resumed} = Imitation.load_checkpoint(fresh_trainer, path)
 
       # Train 10 more steps

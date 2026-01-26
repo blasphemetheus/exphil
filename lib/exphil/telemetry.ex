@@ -173,9 +173,14 @@ defmodule ExPhil.Telemetry do
     event_name = Enum.join(event, ".")
 
     case level do
-      :debug -> Logger.debug("[Telemetry] #{event_name}: #{inspect(measurements)}, #{inspect(metadata)}")
-      :info -> Logger.info("[Telemetry] #{event_name}: #{inspect(measurements)}")
-      _ -> :ok
+      :debug ->
+        Logger.debug("[Telemetry] #{event_name}: #{inspect(measurements)}, #{inspect(metadata)}")
+
+      :info ->
+        Logger.info("[Telemetry] #{event_name}: #{inspect(measurements)}")
+
+      _ ->
+        :ok
     end
   end
 
@@ -262,16 +267,18 @@ defmodule ExPhil.Telemetry.Collector do
     event_key = Enum.join(event, ".")
 
     # Accumulate measurements
-    metrics = Map.update(
-      state.metrics,
-      event_key,
-      measurements,
-      fn existing ->
-        Map.merge(existing, measurements, fn _k, v1, v2 ->
-          (v1 + v2) / 2  # Simple running average
-        end)
-      end
-    )
+    metrics =
+      Map.update(
+        state.metrics,
+        event_key,
+        measurements,
+        fn existing ->
+          Map.merge(existing, measurements, fn _k, v1, v2 ->
+            # Simple running average
+            (v1 + v2) / 2
+          end)
+        end
+      )
 
     counts = Map.update(state.counts, event_key, 1, &(&1 + 1))
 

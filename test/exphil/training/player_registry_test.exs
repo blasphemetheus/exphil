@@ -8,7 +8,7 @@ defmodule ExPhil.Training.PlayerRegistryTest do
       registry = PlayerRegistry.new()
 
       assert registry.max_players == 112
-      assert registry.unknown_strategy == :nil
+      assert registry.unknown_strategy == nil
       assert PlayerRegistry.size(registry) == 0
     end
 
@@ -55,7 +55,7 @@ defmodule ExPhil.Training.PlayerRegistryTest do
     end
 
     test "returns nil for unknown tag with :nil strategy" do
-      registry = PlayerRegistry.from_tags(["Plup"], unknown_strategy: :nil)
+      registry = PlayerRegistry.from_tags(["Plup"], unknown_strategy: nil)
 
       assert PlayerRegistry.get_id(registry, "Unknown") == nil
     end
@@ -156,10 +156,11 @@ defmodule ExPhil.Training.PlayerRegistryTest do
   describe "JSON serialization" do
     @tag :tmp_dir
     test "round-trips through JSON", %{tmp_dir: tmp_dir} do
-      registry = PlayerRegistry.from_tags(["Plup", "Jmook", "Mango"],
-        max_players: 50,
-        unknown_strategy: :hash
-      )
+      registry =
+        PlayerRegistry.from_tags(["Plup", "Jmook", "Mango"],
+          max_players: 50,
+          unknown_strategy: :hash
+        )
 
       json_path = Path.join(tmp_dir, "players.json")
 

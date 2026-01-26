@@ -66,10 +66,14 @@ defmodule ExPhil.SelfPlay.PopulationManager do
   require Logger
 
   defstruct [
-    :model,               # Current model architecture (Axon.t())
-    :current_params,      # Current policy parameters
-    :current_generation,  # Current generation number
-    :historical_policies, # List of {version_id, params, timestamp}
+    # Current model architecture (Axon.t())
+    :model,
+    # Current policy parameters
+    :current_params,
+    # Current generation number
+    :current_generation,
+    # List of {version_id, params, timestamp}
+    :historical_policies,
     :max_history_size,
     :history_sample_prob,
     :cpu_levels,
@@ -211,7 +215,8 @@ defmodule ExPhil.SelfPlay.PopulationManager do
       current_generation: 0,
       historical_policies: [],
       max_history_size: Keyword.get(opts, :max_history_size, @default_opts.max_history_size),
-      history_sample_prob: Keyword.get(opts, :history_sample_prob, @default_opts.history_sample_prob),
+      history_sample_prob:
+        Keyword.get(opts, :history_sample_prob, @default_opts.history_sample_prob),
       cpu_levels: Keyword.get(opts, :cpu_levels, @default_opts.cpu_levels),
       sampling_weights: Keyword.get(opts, :sampling_weights, @default_opts.sampling_weights),
       stats: init_stats()
@@ -224,22 +229,26 @@ defmodule ExPhil.SelfPlay.PopulationManager do
 
   @impl true
   def handle_call({:set_current, model, params}, _from, state) do
-    new_state = %{state |
-      model: model,
-      current_params: params,
-      current_generation: state.current_generation + 1
+    new_state = %{
+      state
+      | model: model,
+        current_params: params,
+        current_generation: state.current_generation + 1
     }
 
-    Logger.debug("[PopulationManager] Set current policy (generation #{new_state.current_generation})")
+    Logger.debug(
+      "[PopulationManager] Set current policy (generation #{new_state.current_generation})"
+    )
 
     {:reply, :ok, new_state}
   end
 
   @impl true
   def handle_call({:update_params, params}, _from, state) do
-    new_state = %{state |
-      current_params: params,
-      current_generation: state.current_generation + 1
+    new_state = %{
+      state
+      | current_params: params,
+        current_generation: state.current_generation + 1
     }
 
     {:reply, :ok, new_state}
@@ -271,12 +280,15 @@ defmodule ExPhil.SelfPlay.PopulationManager do
     entry = {version_id, state.model, params_copy, timestamp}
 
     # Add to front, trim if over limit
-    new_history = [entry | state.historical_policies]
-    |> Enum.take(state.max_history_size)
+    new_history =
+      [entry | state.historical_policies]
+      |> Enum.take(state.max_history_size)
 
     new_stats = update_stats(state.stats, :snapshot)
 
-    Logger.info("[PopulationManager] Snapshotted #{version_id} (#{length(new_history)} in history)")
+    Logger.info(
+      "[PopulationManager] Snapshotted #{version_id} (#{length(new_history)} in history)"
+    )
 
     {:reply, :ok, %{state | historical_policies: new_history, stats: new_stats}}
   end
@@ -285,13 +297,14 @@ defmodule ExPhil.SelfPlay.PopulationManager do
   def handle_call({:sample_opponent, opts}, _from, state) do
     strategy = Keyword.get(opts, :strategy, :weighted)
 
-    {policy_id, result} = case strategy do
-      :weighted -> weighted_sample(state)
-      :current_only -> sample_current(state)
-      :historical_only -> sample_historical(state)
-      :cpu_only -> sample_cpu(state)
-      _ -> weighted_sample(state)
-    end
+    {policy_id, result} =
+      case strategy do
+        :weighted -> weighted_sample(state)
+        :current_only -> sample_current(state)
+        :historical_only -> sample_historical(state)
+        :cpu_only -> sample_cpu(state)
+        _ -> weighted_sample(state)
+      end
 
     new_stats = update_stats(state.stats, {:sample, policy_id})
 
@@ -331,30 +344,35 @@ defmodule ExPhil.SelfPlay.PopulationManager do
 
   @impl true
   def handle_call(:list_policies, _from, state) do
-    current = if state.current_params do
-      [%{id: :current, generation: state.current_generation, type: :current}]
-    else
-      []
-    end
+    current =
+      if state.current_params do
+        [%{id: :current, generation: state.current_generation, type: :current}]
+      else
+        []
+      end
 
-    historical = Enum.map(state.historical_policies, fn {version, _model, _params, ts} ->
-      %{id: {:historical, version}, version: version, type: :historical, timestamp: ts}
-    end)
+    historical =
+      Enum.map(state.historical_policies, fn {version, _model, _params, ts} ->
+        %{id: {:historical, version}, version: version, type: :historical, timestamp: ts}
+      end)
 
-    cpu = Enum.map(state.cpu_levels, fn level ->
-      %{id: {:cpu, level}, level: level, type: :cpu}
-    end)
+    cpu =
+      Enum.map(state.cpu_levels, fn level ->
+        %{id: {:cpu, level}, level: level, type: :cpu}
+      end)
 
     {:reply, current ++ historical ++ cpu, state}
   end
 
   @impl true
   def handle_call(:get_stats, _from, state) do
-    stats = Map.merge(state.stats, %{
-      current_generation: state.current_generation,
-      history_size: length(state.historical_policies),
-      has_current: state.current_params != nil
-    })
+    stats =
+      Map.merge(state.stats, %{
+        current_generation: state.current_generation,
+        history_size: length(state.historical_policies),
+        has_current: state.current_params != nil
+      })
+
     {:reply, stats, state}
   end
 
@@ -365,8 +383,9 @@ defmodule ExPhil.SelfPlay.PopulationManager do
 
     entry = {version_id, model, params_copy, timestamp}
 
-    new_history = [entry | state.historical_policies]
-    |> Enum.take(state.max_history_size)
+    new_history =
+      [entry | state.historical_policies]
+      |> Enum.take(state.max_history_size)
 
     Logger.info("[PopulationManager] Added external policy #{version_id}")
 
@@ -377,10 +396,13 @@ defmodule ExPhil.SelfPlay.PopulationManager do
   def handle_call({:load_from_directory, directory}, _from, state) do
     {:ok, loaded_policies} = load_checkpoints_from_dir(directory, state)
 
-    new_history = (loaded_policies ++ state.historical_policies)
-    |> Enum.take(state.max_history_size)
+    new_history =
+      (loaded_policies ++ state.historical_policies)
+      |> Enum.take(state.max_history_size)
 
-    Logger.info("[PopulationManager] Loaded #{length(loaded_policies)} policies from #{directory}")
+    Logger.info(
+      "[PopulationManager] Loaded #{length(loaded_policies)} policies from #{directory}"
+    )
 
     {:reply, {:ok, length(loaded_policies)}, %{state | historical_policies: new_history}}
   end
@@ -438,15 +460,16 @@ defmodule ExPhil.SelfPlay.PopulationManager do
     # Sample from recent half with higher probability
     recent_count = max(1, div(length(state.historical_policies), 2))
 
-    policy = if :rand.uniform() < 0.7 do
-      # 70% recent
-      state.historical_policies
-      |> Enum.take(recent_count)
-      |> Enum.random()
-    else
-      # 30% any
-      Enum.random(state.historical_policies)
-    end
+    policy =
+      if :rand.uniform() < 0.7 do
+        # 70% recent
+        state.historical_policies
+        |> Enum.take(recent_count)
+        |> Enum.random()
+      else
+        # 30% any
+        Enum.random(state.historical_policies)
+      end
 
     {version, model, params, _ts} = policy
     {{:historical, version}, {model, params}}
@@ -458,15 +481,16 @@ defmodule ExPhil.SelfPlay.PopulationManager do
   end
 
   defp sample_uniform(state) do
-    all_options = [
-      if(state.current_params, do: {:current, {state.model, state.current_params}}),
-      Enum.map(state.historical_policies, fn {v, m, p, _ts} ->
-        {{:historical, v}, {m, p}}
-      end),
-      Enum.map(state.cpu_levels, fn l -> {{:cpu, l}, {:cpu, l}} end)
-    ]
-    |> List.flatten()
-    |> Enum.reject(&is_nil/1)
+    all_options =
+      [
+        if(state.current_params, do: {:current, {state.model, state.current_params}}),
+        Enum.map(state.historical_policies, fn {v, m, p, _ts} ->
+          {{:historical, v}, {m, p}}
+        end),
+        Enum.map(state.cpu_levels, fn l -> {{:cpu, l}, {:cpu, l}} end)
+      ]
+      |> List.flatten()
+      |> Enum.reject(&is_nil/1)
 
     if length(all_options) > 0 do
       Enum.random(all_options)
@@ -481,7 +505,8 @@ defmodule ExPhil.SelfPlay.PopulationManager do
     # Disable categories that aren't available
     adjusted = %{
       current: if(state.current_params, do: weights[:current] || 0, else: 0),
-      historical: if(length(state.historical_policies) > 0, do: weights[:historical] || 0, else: 0),
+      historical:
+        if(length(state.historical_policies) > 0, do: weights[:historical] || 0, else: 0),
       cpu: if(length(state.cpu_levels) > 0, do: weights[:cpu] || 0, else: 0),
       uniform: weights[:uniform] || 0
     }
@@ -501,6 +526,7 @@ defmodule ExPhil.SelfPlay.PopulationManager do
     weights
     |> Enum.reduce_while({0.0, :cpu}, fn {category, weight}, {cumsum, _} ->
       new_cumsum = cumsum + weight
+
       if r <= new_cumsum do
         {:halt, {new_cumsum, category}}
       else
@@ -513,10 +539,7 @@ defmodule ExPhil.SelfPlay.PopulationManager do
   defp deep_copy_params(%Nx.Tensor{} = t), do: Nx.backend_copy(t, Nx.BinaryBackend)
 
   defp deep_copy_params(%Axon.ModelState{} = state) do
-    %{state |
-      data: deep_copy_params(state.data),
-      state: deep_copy_params(state.state)
-    }
+    %{state | data: deep_copy_params(state.data), state: deep_copy_params(state.state)}
   end
 
   defp deep_copy_params(map) when is_map(map) and not is_struct(map) do
@@ -542,46 +565,56 @@ defmodule ExPhil.SelfPlay.PopulationManager do
   defp load_checkpoints_from_dir(directory, _state) do
     pattern = Path.join(directory, "*.bin")
 
-    checkpoints = Path.wildcard(pattern)
-    |> Enum.sort_by(fn path ->
-      case File.stat(path) do
-        {:ok, stat} -> stat.mtime
-        _ -> {{0, 0, 0}, {0, 0, 0}}
-      end
-    end, :desc)
-
-    loaded = Enum.flat_map(checkpoints, fn path ->
-      case File.read(path) do
-        {:ok, binary} ->
-          case :erlang.binary_to_term(binary) do
-            %{model: model, params: params} ->
-              version = Path.basename(path, ".bin")
-              timestamp = case File.stat(path) do
-                {:ok, stat} ->
-                  {{y, mo, d}, {h, mi, s}} = stat.mtime
-                  NaiveDateTime.new!(y, mo, d, h, mi, s)
-                  |> DateTime.from_naive!("Etc/UTC")
-                  |> DateTime.to_unix()
-                _ -> System.system_time(:second)
-              end
-
-              [{version, model, params, timestamp}]
-
-            %{params: _params} ->
-              # No model saved, skip
-              Logger.warning("Checkpoint #{path} missing model, skipping")
-              []
-
-            _ ->
-              Logger.warning("Invalid checkpoint format: #{path}")
-              []
+    checkpoints =
+      Path.wildcard(pattern)
+      |> Enum.sort_by(
+        fn path ->
+          case File.stat(path) do
+            {:ok, stat} -> stat.mtime
+            _ -> {{0, 0, 0}, {0, 0, 0}}
           end
+        end,
+        :desc
+      )
 
-        {:error, reason} ->
-          Logger.warning("Failed to read #{path}: #{inspect(reason)}")
-          []
-      end
-    end)
+    loaded =
+      Enum.flat_map(checkpoints, fn path ->
+        case File.read(path) do
+          {:ok, binary} ->
+            case :erlang.binary_to_term(binary) do
+              %{model: model, params: params} ->
+                version = Path.basename(path, ".bin")
+
+                timestamp =
+                  case File.stat(path) do
+                    {:ok, stat} ->
+                      {{y, mo, d}, {h, mi, s}} = stat.mtime
+
+                      NaiveDateTime.new!(y, mo, d, h, mi, s)
+                      |> DateTime.from_naive!("Etc/UTC")
+                      |> DateTime.to_unix()
+
+                    _ ->
+                      System.system_time(:second)
+                  end
+
+                [{version, model, params, timestamp}]
+
+              %{params: _params} ->
+                # No model saved, skip
+                Logger.warning("Checkpoint #{path} missing model, skipping")
+                []
+
+              _ ->
+                Logger.warning("Invalid checkpoint format: #{path}")
+                []
+            end
+
+          {:error, reason} ->
+            Logger.warning("Failed to read #{path}: #{inspect(reason)}")
+            []
+        end
+      end)
 
     {:ok, loaded}
   end
@@ -599,18 +632,16 @@ defmodule ExPhil.SelfPlay.PopulationManager do
   end
 
   defp update_stats(stats, {:sample, policy_id}) do
-    type = case policy_id do
-      :current -> :current
-      {:historical, _} -> :historical
-      {:cpu, _} -> :cpu
-      _ -> :uniform
-    end
+    type =
+      case policy_id do
+        :current -> :current
+        {:historical, _} -> :historical
+        {:cpu, _} -> :cpu
+        _ -> :uniform
+      end
 
     samples_by_type = Map.update(stats.samples_by_type, type, 1, &(&1 + 1))
 
-    %{stats |
-      total_samples: stats.total_samples + 1,
-      samples_by_type: samples_by_type
-    }
+    %{stats | total_samples: stats.total_samples + 1, samples_by_type: samples_by_type}
   end
 end

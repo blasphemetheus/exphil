@@ -82,7 +82,8 @@ defmodule ExPhil.Embeddings.GameTest do
     %Item{
       x: Keyword.get(opts, :x, 0.0),
       y: Keyword.get(opts, :y, 0.0),
-      type: Keyword.get(opts, :type, 0x2C),  # Link bomb
+      # Link bomb
+      type: Keyword.get(opts, :type, 0x2C),
       facing: Keyword.get(opts, :facing, 1),
       owner: Keyword.get(opts, :owner, 1),
       held_by: Keyword.get(opts, :held_by, nil),
@@ -127,7 +128,7 @@ defmodule ExPhil.Embeddings.GameTest do
       proj_size = GameEmbed.embedding_size(proj_config)
 
       # Each projectile adds 7 dimensions
-      assert proj_size == base_size + (5 * 7)
+      assert proj_size == base_size + 5 * 7
     end
 
     test "size scales with max_projectiles" do
@@ -137,7 +138,7 @@ defmodule ExPhil.Embeddings.GameTest do
       size5 = GameEmbed.embedding_size(config5)
       size10 = GameEmbed.embedding_size(config10)
 
-      assert size10 == size5 + (5 * 7)
+      assert size10 == size5 + 5 * 7
     end
 
     test "size includes action IDs when using learned actions" do
@@ -185,7 +186,8 @@ defmodule ExPhil.Embeddings.GameTest do
 
   describe "continuous_embedding_size/1" do
     test "equals total size when using one-hot actions" do
-      config = GameEmbed.default_config()  # Uses one-hot by default
+      # Uses one-hot by default
+      config = GameEmbed.default_config()
       total_size = GameEmbed.embedding_size(config)
       continuous_size = GameEmbed.continuous_embedding_size(config)
 
@@ -327,10 +329,12 @@ defmodule ExPhil.Embeddings.GameTest do
     end
 
     test "produces different embeddings for different ports" do
-      game_state = mock_game_state(
-        player1: mock_player(x: 0.0, percent: 0.0),
-        player2: mock_player(x: 50.0, percent: 100.0)
-      )
+      game_state =
+        mock_game_state(
+          player1: mock_player(x: 0.0, percent: 0.0),
+          player2: mock_player(x: 50.0, percent: 100.0)
+        )
+
       config = GameEmbed.default_config()
 
       result1 = GameEmbed.embed(game_state, nil, 1, config: config)
@@ -364,8 +368,10 @@ defmodule ExPhil.Embeddings.GameTest do
     end
 
     test "appends action IDs at end when using learned actions" do
-      player1 = mock_player(action: 50)  # Action ID 50
-      player2 = mock_player(action: 100)  # Action ID 100
+      # Action ID 50
+      player1 = mock_player(action: 50)
+      # Action ID 100
+      player2 = mock_player(action: 100)
       game_state = mock_game_state(player1: player1, player2: player2)
       player_config = %PlayerEmbed{action_mode: :learned, with_nana: false, with_speeds: false}
       # Use a small but valid num_player_names (can't be 0)
@@ -395,17 +401,20 @@ defmodule ExPhil.Embeddings.GameTest do
 
       # Should be smaller than full embed (no prev_action, no name)
       player_size = PlayerEmbed.embedding_size(config.player)
-      stage_size = 64  # Stage one-hot
+      # Stage one-hot
+      stage_size = 64
 
       expected_size = 2 * player_size + stage_size
       assert Nx.shape(result) == {expected_size}
     end
 
     test "different ports give different state embeddings" do
-      game_state = mock_game_state(
-        player1: mock_player(percent: 50.0),
-        player2: mock_player(percent: 100.0)
-      )
+      game_state =
+        mock_game_state(
+          player1: mock_player(percent: 50.0),
+          player2: mock_player(percent: 100.0)
+        )
+
       config = GameEmbed.default_config()
 
       result1 = GameEmbed.embed_state(game_state, 1, config: config)
@@ -427,6 +436,7 @@ defmodule ExPhil.Embeddings.GameTest do
         {mock_game_state(), nil, 1},
         {mock_game_state(), nil, 1}
       ]
+
       config = GameEmbed.default_config()
 
       result = GameEmbed.embed_batch(states, config: config)
@@ -439,6 +449,7 @@ defmodule ExPhil.Embeddings.GameTest do
         {mock_game_state(), nil, 1},
         {mock_game_state(), nil, 2}
       ]
+
       config = GameEmbed.default_config()
 
       result = GameEmbed.embed_batch(states, config: config)
@@ -512,7 +523,8 @@ defmodule ExPhil.Embeddings.GameTest do
 
   describe "item embedding" do
     test "embeds items when configured" do
-      items = [mock_item(x: 10.0, type: 0x2C)]  # Link bomb
+      # Link bomb
+      items = [mock_item(x: 10.0, type: 0x2C)]
       game_state = mock_game_state(items: items)
       config = %GameEmbed{with_items: true, max_items: 5}
 
@@ -551,7 +563,8 @@ defmodule ExPhil.Embeddings.GameTest do
     end
 
     test "embeds Peach turnip correctly" do
-      turnip = mock_item(type: 0x32, x: 5.0, y: 10.0)  # Peach turnip
+      # Peach turnip
+      turnip = mock_item(type: 0x32, x: 5.0, y: 10.0)
       game_state = mock_game_state(items: [turnip])
       config = %GameEmbed{with_items: true, max_items: 5}
 
@@ -561,7 +574,8 @@ defmodule ExPhil.Embeddings.GameTest do
     end
 
     test "embeds Mr. Saturn correctly" do
-      saturn = mock_item(type: 0x15, x: -20.0, y: 0.0)  # Mr. Saturn
+      # Mr. Saturn
+      saturn = mock_item(type: 0x15, x: -20.0, y: 0.0)
       game_state = mock_game_state(items: [saturn])
       config = %GameEmbed{with_items: true, max_items: 5}
 
@@ -572,10 +586,14 @@ defmodule ExPhil.Embeddings.GameTest do
 
     test "embeds mixed item types" do
       items = [
-        mock_item(type: 0x2C, x: 0.0),   # Link bomb
-        mock_item(type: 0x32, x: 10.0),  # Peach turnip
-        mock_item(type: 0x15, x: 20.0)   # Mr. Saturn
+        # Link bomb
+        mock_item(type: 0x2C, x: 0.0),
+        # Peach turnip
+        mock_item(type: 0x32, x: 10.0),
+        # Mr. Saturn
+        mock_item(type: 0x15, x: 20.0)
       ]
+
       game_state = mock_game_state(items: items)
       config = %GameEmbed{with_items: true, max_items: 5}
 
@@ -658,8 +676,9 @@ defmodule ExPhil.Embeddings.GameTest do
 
       {batch, actual_size} = Nx.shape(result)
       assert batch == 2
+
       assert actual_size == expected_size,
-        "embed_states_fast produced #{actual_size} dims but embedding_size() expects #{expected_size}"
+             "embed_states_fast produced #{actual_size} dims but embedding_size() expects #{expected_size}"
     end
 
     test "matches single embed() output dimensions" do
@@ -675,15 +694,19 @@ defmodule ExPhil.Embeddings.GameTest do
       {_, batch_size} = Nx.shape(batch)
 
       assert single_size == batch_size,
-        "Single embed gave #{single_size} but batch gave #{batch_size}"
+             "Single embed gave #{single_size} but batch gave #{batch_size}"
     end
 
     test "handles projectiles correctly" do
       projectile = %Projectile{
-        owner: 1, type: 1,
-        x: 10.0, y: 20.0,
-        speed_x: 5.0, speed_y: -2.0
+        owner: 1,
+        type: 1,
+        x: 10.0,
+        y: 20.0,
+        speed_x: 5.0,
+        speed_y: -2.0
       }
+
       game_state = mock_game_state(projectiles: [projectile])
       config = %{GameEmbed.default_config() | with_projectiles: true}
 
@@ -749,7 +772,8 @@ defmodule ExPhil.Embeddings.GameTest do
   describe "embed_stage/2" do
     test "one_hot_full returns 64-dim tensor" do
       config = %{GameEmbed.default_config() | stage_mode: :one_hot_full}
-      result = GameEmbed.embed_stage(32, config)  # FD = stage 32
+      # FD = stage 32
+      result = GameEmbed.embed_stage(32, config)
       assert Nx.shape(result) == {64}
       # FD should have 1.0 at position 32
       assert Nx.to_number(result[32]) == 1.0
@@ -757,7 +781,8 @@ defmodule ExPhil.Embeddings.GameTest do
 
     test "one_hot_compact returns 7-dim tensor for competitive stage" do
       config = %{GameEmbed.default_config() | stage_mode: :one_hot_compact}
-      result = GameEmbed.embed_stage(32, config)  # FD = competitive index 5
+      # FD = competitive index 5
+      result = GameEmbed.embed_stage(32, config)
       assert Nx.shape(result) == {7}
       # FD is index 5 in competitive stages
       assert Nx.to_number(result[5]) == 1.0
@@ -767,12 +792,14 @@ defmodule ExPhil.Embeddings.GameTest do
 
     test "one_hot_compact sets 'other' bit for non-competitive stage" do
       config = %{GameEmbed.default_config() | stage_mode: :one_hot_compact}
-      result = GameEmbed.embed_stage(1, config)  # Non-competitive stage
+      # Non-competitive stage
+      result = GameEmbed.embed_stage(1, config)
       assert Nx.shape(result) == {7}
       # All competitive stage bits should be 0
       for i <- 0..5 do
         assert Nx.to_number(result[i]) == 0.0
       end
+
       # "Other" bit should be 1
       assert Nx.to_number(result[6]) == 1.0
     end
@@ -796,14 +823,16 @@ defmodule ExPhil.Embeddings.GameTest do
   describe "embed_stages_batch/2" do
     test "one_hot_full batch returns correct shape" do
       config = %{GameEmbed.default_config() | stage_mode: :one_hot_full}
-      stages = [32, 28, 3, 2]  # FD, YS, PS, FoD
+      # FD, YS, PS, FoD
+      stages = [32, 28, 3, 2]
       result = GameEmbed.embed_stages_batch(stages, config)
       assert Nx.shape(result) == {4, 64}
     end
 
     test "one_hot_compact batch returns correct shape" do
       config = %{GameEmbed.default_config() | stage_mode: :one_hot_compact}
-      stages = [32, 28, 3, 2]  # FD, YS, PS, FoD
+      # FD, YS, PS, FoD
+      stages = [32, 28, 3, 2]
       result = GameEmbed.embed_stages_batch(stages, config)
       assert Nx.shape(result) == {4, 7}
     end
@@ -844,7 +873,8 @@ defmodule ExPhil.Embeddings.GameTest do
   describe "embed_states_fast with stage modes" do
     test "respects one_hot_compact mode" do
       config = %{GameEmbed.default_config() | stage_mode: :one_hot_compact}
-      game_state = mock_game_state(stage: 32)  # FD
+      # FD
+      game_state = mock_game_state(stage: 32)
 
       result = GameEmbed.embed_states_fast([game_state], 1, config: config)
       expected_size = GameEmbed.embedding_size(config)
@@ -855,7 +885,8 @@ defmodule ExPhil.Embeddings.GameTest do
 
     test "appends stage ID in learned mode" do
       config = %{GameEmbed.default_config() | stage_mode: :learned}
-      game_state = mock_game_state(stage: 32)  # FD
+      # FD
+      game_state = mock_game_state(stage: 32)
 
       result = GameEmbed.embed_states_fast([game_state], 1, config: config)
       expected_size = GameEmbed.embedding_size(config)

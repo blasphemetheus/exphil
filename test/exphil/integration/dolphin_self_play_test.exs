@@ -78,7 +78,8 @@ defmodule ExPhil.Integration.DolphinSelfPlayTest do
       assert {:ok, %{controller_port: _}} = result
 
       # Get a game state (may be menu or game)
-      {:ok, state} = wait_for_game_state(port, 300)  # 5 seconds
+      # 5 seconds
+      {:ok, state} = wait_for_game_state(port, 300)
 
       assert is_map(state.players)
 
@@ -92,13 +93,15 @@ defmodule ExPhil.Integration.DolphinSelfPlayTest do
       {:ok, _} = MeleePort.init_console(port, config)
 
       # Wait for game to start
-      {:ok, _initial_state} = wait_for_in_game(port, 600)  # 10 seconds
+      # 10 seconds
+      {:ok, _initial_state} = wait_for_in_game(port, 600)
 
       # Step a few frames
-      frames = for _ <- 1..60 do
-        {:ok, state} = MeleePort.step(port)
-        state.frame
-      end
+      frames =
+        for _ <- 1..60 do
+          {:ok, state} = MeleePort.step(port)
+          state.frame
+        end
 
       # Frames should be incrementing
       assert Enum.uniq(frames) |> length() > 1
@@ -121,19 +124,23 @@ defmodule ExPhil.Integration.DolphinSelfPlayTest do
       IO.puts("[Test] The test will verify reset logic after game ends.\n")
 
       # Wait for game to end (postgame state)
-      {:postgame, _state} = wait_for_postgame(port, 3600)  # 60 seconds
+      # 60 seconds
+      {:postgame, _state} = wait_for_postgame(port, 3600)
 
       IO.puts("[Test] Game ended, testing reset...")
 
       # Now test the reset - it should navigate back to game
       start_time = System.monotonic_time(:millisecond)
-      {:ok, new_state} = wait_for_in_game(port, 1800)  # 30 seconds
+      # 30 seconds
+      {:ok, new_state} = wait_for_in_game(port, 1800)
       elapsed = System.monotonic_time(:millisecond) - start_time
 
       IO.puts("[Test] Reset completed in #{elapsed}ms")
 
-      assert new_state.frame < 100  # Should be early in new game
-      assert new_state.menu_state == 2  # IN_GAME
+      # Should be early in new game
+      assert new_state.frame < 100
+      # IN_GAME
+      assert new_state.menu_state == 2
 
       MeleePort.stop(port)
     end
@@ -146,12 +153,13 @@ defmodule ExPhil.Integration.DolphinSelfPlayTest do
       # Create a simple mock policy
       policy = create_test_policy()
 
-      {:ok, env} = SelfPlayEnv.new(
-        p1_policy: policy,
-        p2_policy: :cpu,
-        game_type: :dolphin,
-        dolphin_config: config
-      )
+      {:ok, env} =
+        SelfPlayEnv.new(
+          p1_policy: policy,
+          p2_policy: :cpu,
+          game_type: :dolphin,
+          dolphin_config: config
+        )
 
       IO.puts("\n[Test] Collecting 60 steps (1 second of gameplay)...")
 
@@ -176,13 +184,15 @@ defmodule ExPhil.Integration.DolphinSelfPlayTest do
     @tag :dolphin
     @tag timeout: 300_000
     test "can run short training session with real Dolphin", %{config: config} do
-      {:ok, trainer} = LeagueTrainer.new(
-        mode: :simple_mix,
-        game_type: :dolphin,
-        dolphin_config: config,
-        rollout_length: 128,  # Short rollout for testing
-        num_parallel_games: 1
-      )
+      {:ok, trainer} =
+        LeagueTrainer.new(
+          mode: :simple_mix,
+          game_type: :dolphin,
+          dolphin_config: config,
+          # Short rollout for testing
+          rollout_length: 128,
+          num_parallel_games: 1
+        )
 
       IO.puts("\n[Test] Running short training iteration...")
       IO.puts("[Test] This will collect 128 frames and do one PPO update.\n")
@@ -206,6 +216,7 @@ defmodule ExPhil.Integration.DolphinSelfPlayTest do
   end
 
   defp wait_for_game_state(_port, 0, last_state), do: {:ok, last_state}
+
   defp wait_for_game_state(port, remaining, _last_state) do
     case MeleePort.step(port, auto_menu: true) do
       {:ok, state} -> {:ok, state}
@@ -220,6 +231,7 @@ defmodule ExPhil.Integration.DolphinSelfPlayTest do
   end
 
   defp wait_for_in_game(_port, 0, _last), do: {:error, :timeout}
+
   defp wait_for_in_game(port, remaining, _last) do
     case MeleePort.step(port, auto_menu: true) do
       {:ok, state} -> {:ok, state}
@@ -235,6 +247,7 @@ defmodule ExPhil.Integration.DolphinSelfPlayTest do
   end
 
   defp wait_for_postgame(_port, 0, _last), do: {:error, :timeout}
+
   defp wait_for_postgame(port, remaining, _last) do
     case MeleePort.step(port, auto_menu: true) do
       {:ok, _state} -> wait_for_postgame(port, remaining - 1, nil)
@@ -247,22 +260,23 @@ defmodule ExPhil.Integration.DolphinSelfPlayTest do
 
   defp create_test_policy do
     # Simple MLP that outputs the right shapes
-    model = Axon.input("state", shape: {nil, 1991})
-    |> Axon.dense(64, activation: :relu)
-    |> then(fn x ->
-      buttons = Axon.dense(x, 8, name: "buttons")
-      main_x = Axon.dense(x, 17, name: "main_x")
-      main_y = Axon.dense(x, 17, name: "main_y")
-      c_x = Axon.dense(x, 17, name: "c_x")
-      c_y = Axon.dense(x, 17, name: "c_y")
-      shoulder = Axon.dense(x, 5, name: "shoulder")
-      value = Axon.dense(x, 1, name: "value")
+    model =
+      Axon.input("state", shape: {nil, 1991})
+      |> Axon.dense(64, activation: :relu)
+      |> then(fn x ->
+        buttons = Axon.dense(x, 8, name: "buttons")
+        main_x = Axon.dense(x, 17, name: "main_x")
+        main_y = Axon.dense(x, 17, name: "main_y")
+        c_x = Axon.dense(x, 17, name: "c_x")
+        c_y = Axon.dense(x, 17, name: "c_y")
+        shoulder = Axon.dense(x, 5, name: "shoulder")
+        value = Axon.dense(x, 1, name: "value")
 
-      Axon.container({
-        {buttons, main_x, main_y, c_x, c_y, shoulder},
-        value
-      })
-    end)
+        Axon.container({
+          {buttons, main_x, main_y, c_x, c_y, shoulder},
+          value
+        })
+      end)
 
     {init_fn, _} = Axon.build(model)
     params = init_fn.(Nx.template({1, 1991}, :f32), Axon.ModelState.empty())

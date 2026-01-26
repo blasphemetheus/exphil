@@ -137,16 +137,17 @@ defmodule ExPhil.Data.ReplayParser do
   @spec load_parsed(Path.t()) :: {:ok, map()} | {:error, term()}
   def load_parsed(path) do
     try do
-      data = if String.ends_with?(path, ".gz") do
-        path
-        |> File.read!()
-        |> :zlib.gunzip()
-        |> Jason.decode!()
-      else
-        path
-        |> File.read!()
-        |> Jason.decode!()
-      end
+      data =
+        if String.ends_with?(path, ".gz") do
+          path
+          |> File.read!()
+          |> :zlib.gunzip()
+          |> Jason.decode!()
+        else
+          path
+          |> File.read!()
+          |> Jason.decode!()
+        end
 
       {:ok, convert_result(data)}
     rescue
@@ -288,9 +289,10 @@ defmodule ExPhil.Data.ReplayParser do
   end
 
   defp convert_result(data) when is_map(data) do
-    frames = data
-    |> Map.get("frames", [])
-    |> Enum.map(&convert_frame/1)
+    frames =
+      data
+      |> Map.get("frames", [])
+      |> Enum.map(&convert_frame/1)
 
     metadata = convert_metadata(Map.get(data, "metadata", %{}))
 
@@ -310,19 +312,21 @@ defmodule ExPhil.Data.ReplayParser do
   end
 
   defp convert_game_state(gs) when is_map(gs) do
-    players = gs
-    |> Map.get("players", %{})
-    |> Enum.map(fn {port_str, player_data} ->
-      port = String.to_integer(port_str)
-      {port, convert_player(player_data)}
-    end)
-    |> Map.new()
+    players =
+      gs
+      |> Map.get("players", %{})
+      |> Enum.map(fn {port_str, player_data} ->
+        port = String.to_integer(port_str)
+        {port, convert_player(player_data)}
+      end)
+      |> Map.new()
 
     # Parse projectiles/items from replay data
-    projectiles = gs
-    |> Map.get("projectiles", [])
-    |> Enum.map(&convert_projectile/1)
-    |> Enum.reject(&is_nil/1)
+    projectiles =
+      gs
+      |> Map.get("projectiles", [])
+      |> Enum.map(&convert_projectile/1)
+      |> Enum.reject(&is_nil/1)
 
     %GameState{
       frame: Map.get(gs, "frame", 0),
@@ -335,6 +339,7 @@ defmodule ExPhil.Data.ReplayParser do
   end
 
   defp convert_player(nil), do: nil
+
   defp convert_player(p) when is_map(p) do
     %Player{
       character: Map.get(p, "character", 0),
@@ -361,6 +366,7 @@ defmodule ExPhil.Data.ReplayParser do
   end
 
   defp convert_controller(nil), do: nil
+
   defp convert_controller(c) when is_map(c) do
     main_stick = Map.get(c, "main_stick", %{})
     c_stick = Map.get(c, "c_stick", %{})
@@ -388,6 +394,7 @@ defmodule ExPhil.Data.ReplayParser do
   end
 
   defp convert_projectile(nil), do: nil
+
   defp convert_projectile(p) when is_map(p) do
     %Projectile{
       owner: Map.get(p, "owner", 0),
@@ -401,13 +408,14 @@ defmodule ExPhil.Data.ReplayParser do
   end
 
   defp convert_metadata(meta) do
-    players = meta
-    |> Map.get("players", %{})
-    |> Enum.map(fn {port_str, info} ->
-      port = if is_binary(port_str), do: String.to_integer(port_str), else: port_str
-      {port, info}
-    end)
-    |> Map.new()
+    players =
+      meta
+      |> Map.get("players", %{})
+      |> Enum.map(fn {port_str, info} ->
+        port = if is_binary(port_str), do: String.to_integer(port_str), else: port_str
+        {port, info}
+      end)
+      |> Map.new()
 
     %{
       path: Map.get(meta, "path"),

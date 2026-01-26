@@ -70,17 +70,21 @@ defmodule ExPhil.SelfPlay.GameRunner do
 
   defstruct [
     :game_id,
-    :dolphin_pid,        # MeleePort process pid (or :mock for mock games)
+    # MeleePort process pid (or :mock for mock games)
+    :dolphin_pid,
     :game_type,
     :p1_policy_id,
     :p2_policy_id,
-    :p1_policy,          # Compiled policy {model, params, predict_fn}
-    :p2_policy,          # Compiled policy or :cpu
+    # Compiled policy {model, params, predict_fn}
+    :p1_policy,
+    # Compiled policy or :cpu
+    :p2_policy,
     :p2_cpu_level,
     :embed_config,
     :reward_config,
     :prev_state,
-    :prev_action,        # Previous controller action (for embedding)
+    # Previous controller action (for embedding)
+    :prev_action,
     :current_state,
     :frame_count,
     :episode_count,
@@ -89,15 +93,19 @@ defmodule ExPhil.SelfPlay.GameRunner do
     :p1_port,
     :p2_port,
     :config,
-    :population_manager,  # PID of PopulationManager
-    :experience_collector # PID of ExperienceCollector (optional)
+    # PID of PopulationManager
+    :population_manager,
+    # PID of ExperienceCollector (optional)
+    :experience_collector
   ]
 
   @default_config %{
-    max_episode_frames: 28800,     # 8 minutes at 60fps
+    # 8 minutes at 60fps
+    max_episode_frames: 28800,
     frame_skip: 1,
     deterministic_opponent: true,
-    auto_reset: true               # Auto-reset episode on done
+    # Auto-reset episode on done
+    auto_reset: true
   }
 
   # ============================================================================
@@ -201,9 +209,10 @@ defmodule ExPhil.SelfPlay.GameRunner do
     p1_policy_id = Keyword.fetch!(opts, :p1_policy_id)
     p2_policy_id = Keyword.fetch!(opts, :p2_policy_id)
 
-    embed_config = Keyword.get_lazy(opts, :embed_config, fn ->
-      Embeddings.config([])
-    end)
+    embed_config =
+      Keyword.get_lazy(opts, :embed_config, fn ->
+        Embeddings.config([])
+      end)
 
     reward_config = Keyword.get(opts, :reward_config, Rewards.default_config())
     config = Map.merge(@default_config, Map.new(Keyword.get(opts, :config, [])))
@@ -278,15 +287,16 @@ defmodule ExPhil.SelfPlay.GameRunner do
 
   @impl true
   def handle_call({:swap_policy, port, policy_id}, _from, state) do
-    new_state = case port do
-      :p1 ->
-        policy = load_policy(state, policy_id)
-        %{state | p1_policy_id: policy_id, p1_policy: policy}
+    new_state =
+      case port do
+        :p1 ->
+          policy = load_policy(state, policy_id)
+          %{state | p1_policy_id: policy_id, p1_policy: policy}
 
-      :p2 ->
-        policy = load_policy(state, policy_id)
-        %{state | p2_policy_id: policy_id, p2_policy: policy}
-    end
+        :p2 ->
+          policy = load_policy(state, policy_id)
+          %{state | p2_policy_id: policy_id, p2_policy: policy}
+      end
 
     Logger.debug("[GameRunner #{state.game_id}] Swapped #{port} to #{inspect(policy_id)}")
     {:reply, :ok, new_state}
@@ -303,6 +313,7 @@ defmodule ExPhil.SelfPlay.GameRunner do
       p1_policy_id: state.p1_policy_id,
       p2_policy_id: state.p2_policy_id
     }
+
     {:reply, status, state}
   end
 
@@ -335,15 +346,17 @@ defmodule ExPhil.SelfPlay.GameRunner do
     # Initialize game
     case init_game(state) do
       {:ok, game_pid, initial_state} ->
-        new_state = %{state |
-          dolphin_pid: game_pid,
-          p1_policy: p1_policy,
-          p2_policy: p2_policy,
-          current_state: initial_state,
-          status: :playing,
-          frame_count: 0,
-          episode_reward: 0.0
+        new_state = %{
+          state
+          | dolphin_pid: game_pid,
+            p1_policy: p1_policy,
+            p2_policy: p2_policy,
+            current_state: initial_state,
+            status: :playing,
+            frame_count: 0,
+            episode_reward: 0.0
         }
+
         {:ok, new_state}
 
       {:error, _} = error ->
@@ -360,23 +373,26 @@ defmodule ExPhil.SelfPlay.GameRunner do
     {:ok, new_game_state, new_game_or_pid} = apply_actions(state, p1_action, p2_action)
 
     # Compute reward
-    reward = Rewards.compute_weighted(
-      state.current_state,
-      new_game_state,
-      state.reward_config,
-      player_port: state.p1_port
-    )
+    reward =
+      Rewards.compute_weighted(
+        state.current_state,
+        new_game_state,
+        state.reward_config,
+        player_port: state.p1_port
+      )
 
     # Check if done
     done = is_episode_done(state, new_game_state)
 
     # Build experience (embed with previous action for consistency)
-    embedded_state = Embeddings.Game.embed(
-      state.current_state,
-      state.prev_action,
-      state.p1_port,
-      config: state.embed_config
-    )
+    embedded_state =
+      Embeddings.Game.embed(
+        state.current_state,
+        state.prev_action,
+        state.p1_port,
+        config: state.embed_config
+      )
+
     experience = %{
       state: embedded_state,
       action: p1_action,
@@ -390,33 +406,42 @@ defmodule ExPhil.SelfPlay.GameRunner do
     maybe_submit_experience(state, experience)
 
     # Update state - track prev_action and persist game/pid
-    new_state = %{state |
-      prev_state: state.current_state,
-      prev_action: action_to_controller_state(p1_action),
-      current_state: new_game_state,
-      dolphin_pid: new_game_or_pid,  # Persist mock game or Dolphin pid
-      frame_count: state.frame_count + 1,
-      episode_reward: state.episode_reward + reward
+    new_state = %{
+      state
+      | prev_state: state.current_state,
+        prev_action: action_to_controller_state(p1_action),
+        current_state: new_game_state,
+        # Persist mock game or Dolphin pid
+        dolphin_pid: new_game_or_pid,
+        frame_count: state.frame_count + 1,
+        episode_reward: state.episode_reward + reward
     }
 
-    new_state = if done do
-      Logger.debug("[GameRunner #{state.game_id}] Episode #{state.episode_count + 1} done, reward: #{Float.round(new_state.episode_reward, 2)}")
-
-      # Report result to matchmaker for Elo tracking
-      result = determine_winner(new_game_state, state.p1_port, state.p2_port)
-      Logger.debug("[GameRunner #{state.game_id}] Winner: #{inspect(result)}, p1=#{inspect(state.p1_policy_id)}, p2=#{inspect(state.p2_policy_id)}")
-      if result do
-        ExPhil.SelfPlay.Supervisor.report_game_result(
-          state.p1_policy_id,
-          state.p2_policy_id,
-          result
+    new_state =
+      if done do
+        Logger.debug(
+          "[GameRunner #{state.game_id}] Episode #{state.episode_count + 1} done, reward: #{Float.round(new_state.episode_reward, 2)}"
         )
-      end
 
-      %{new_state | status: :finished, episode_count: state.episode_count + 1}
-    else
-      new_state
-    end
+        # Report result to matchmaker for Elo tracking
+        result = determine_winner(new_game_state, state.p1_port, state.p2_port)
+
+        Logger.debug(
+          "[GameRunner #{state.game_id}] Winner: #{inspect(result)}, p1=#{inspect(state.p1_policy_id)}, p2=#{inspect(state.p2_policy_id)}"
+        )
+
+        if result do
+          ExPhil.SelfPlay.Supervisor.report_game_result(
+            state.p1_policy_id,
+            state.p2_policy_id,
+            result
+          )
+        end
+
+        %{new_state | status: :finished, episode_count: state.episode_count + 1}
+      else
+        new_state
+      end
 
     {:reply, {:ok, experience}, new_state}
   end
@@ -452,21 +477,25 @@ defmodule ExPhil.SelfPlay.GameRunner do
   end
 
   defp do_reset(state) do
-    new_game_or_pid = case state.game_type do
-      :mock -> init_mock_game()
-      :dolphin -> reset_dolphin_game(state.dolphin_pid)
-    end
+    new_game_or_pid =
+      case state.game_type do
+        :mock -> init_mock_game()
+        :dolphin -> reset_dolphin_game(state.dolphin_pid)
+      end
 
     {:ok, game_state} = get_game_state(state.game_type, new_game_or_pid)
 
-    new_state = %{state |
-      current_state: game_state,
-      dolphin_pid: new_game_or_pid,  # Persist new mock game or dolphin pid
-      prev_state: nil,
-      prev_action: nil,  # Reset prev_action on episode reset
-      frame_count: 0,
-      episode_reward: 0.0,
-      status: :playing
+    new_state = %{
+      state
+      | current_state: game_state,
+        # Persist new mock game or dolphin pid
+        dolphin_pid: new_game_or_pid,
+        prev_state: nil,
+        # Reset prev_action on episode reset
+        prev_action: nil,
+        frame_count: 0,
+        episode_reward: 0.0,
+        status: :playing
     }
 
     {:ok, new_state}
@@ -483,12 +512,13 @@ defmodule ExPhil.SelfPlay.GameRunner do
 
     case ExPhil.Bridge.MeleePort.start_link() do
       {:ok, pid} ->
-        :ok = ExPhil.Bridge.MeleePort.init_console(pid, %{
-          dolphin_path: dolphin_config[:dolphin_path],
-          iso_path: dolphin_config[:iso_path],
-          character: dolphin_config[:character] || "fox",
-          stage: dolphin_config[:stage] || "final_destination"
-        })
+        :ok =
+          ExPhil.Bridge.MeleePort.init_console(pid, %{
+            dolphin_path: dolphin_config[:dolphin_path],
+            iso_path: dolphin_config[:iso_path],
+            character: dolphin_config[:character] || "fox",
+            stage: dolphin_config[:stage] || "final_destination"
+          })
 
         case ExPhil.Bridge.MeleePort.step(pid) do
           {:ok, initial_state} -> {:ok, pid, initial_state}
@@ -510,7 +540,8 @@ defmodule ExPhil.SelfPlay.GameRunner do
     if state.population_manager do
       case PopulationManager.get_policy(state.population_manager, policy_id) do
         {:ok, {model, params}} -> compile_policy({model, params})
-        {:error, _} -> :cpu  # Fallback to CPU
+        # Fallback to CPU
+        {:error, _} -> :cpu
       end
     else
       :cpu
@@ -521,7 +552,8 @@ defmodule ExPhil.SelfPlay.GameRunner do
     if state.population_manager do
       case PopulationManager.get_policy(state.population_manager, policy_id) do
         {:ok, {model, params}} -> compile_policy({model, params})
-        {:error, _} -> :cpu  # Fallback to CPU
+        # Fallback to CPU
+        {:error, _} -> :cpu
       end
     else
       :cpu
@@ -545,12 +577,14 @@ defmodule ExPhil.SelfPlay.GameRunner do
   defp get_p1_action(state) do
     {_model, params, predict_fn} = state.p1_policy
     # Game.embed signature: (game_state, prev_action, own_port, opts)
-    embedded = Embeddings.Game.embed(
-      state.current_state,
-      state.prev_action,
-      state.p1_port,
-      config: state.embed_config
-    )
+    embedded =
+      Embeddings.Game.embed(
+        state.current_state,
+        state.prev_action,
+        state.p1_port,
+        config: state.embed_config
+      )
+
     input = Nx.new_axis(embedded, 0)
 
     output = predict_fn.(Utils.ensure_model_state(params), input)
@@ -570,12 +604,15 @@ defmodule ExPhil.SelfPlay.GameRunner do
 
     # Embed from P2's perspective (swapped view)
     # Note: P2 doesn't need prev_action tracking, use nil
-    embedded = Embeddings.Game.embed(
-      state.current_state,
-      nil,  # P2's prev_action not tracked
-      state.p2_port,
-      config: state.embed_config
-    )
+    embedded =
+      Embeddings.Game.embed(
+        state.current_state,
+        # P2's prev_action not tracked
+        nil,
+        state.p2_port,
+        config: state.embed_config
+      )
+
     input = Nx.new_axis(embedded, 0)
 
     output = predict_fn.(Utils.ensure_model_state(params), input)
@@ -586,8 +623,12 @@ defmodule ExPhil.SelfPlay.GameRunner do
 
   defp parse_model_output(output) do
     case output do
-      %{policy: p, value: v} -> {p, v}
-      {p, v} when is_tuple(p) -> {p, v}
+      %{policy: p, value: v} ->
+        {p, v}
+
+      {p, v} when is_tuple(p) ->
+        {p, v}
+
       tuple when is_tuple(tuple) ->
         policy = Tuple.delete_at(tuple, tuple_size(tuple) - 1)
         {policy, elem(tuple, tuple_size(tuple) - 1)}
@@ -638,12 +679,17 @@ defmodule ExPhil.SelfPlay.GameRunner do
     # Button log probs (Bernoulli)
     btn_probs = Nx.sigmoid(buttons) |> Nx.squeeze()
     btn_action = action.buttons
-    btn_log_prob = Nx.sum(
-      Nx.add(
-        Nx.multiply(btn_action, Nx.log(Nx.add(btn_probs, 1.0e-8))),
-        Nx.multiply(Nx.subtract(1, btn_action), Nx.log(Nx.add(Nx.subtract(1, btn_probs), 1.0e-8)))
+
+    btn_log_prob =
+      Nx.sum(
+        Nx.add(
+          Nx.multiply(btn_action, Nx.log(Nx.add(btn_probs, 1.0e-8))),
+          Nx.multiply(
+            Nx.subtract(1, btn_action),
+            Nx.log(Nx.add(Nx.subtract(1, btn_probs), 1.0e-8))
+          )
+        )
       )
-    )
 
     cat_log_prob = fn logits, action_idx ->
       log_probs = Axon.Activations.log_softmax(logits, axis: -1) |> Nx.squeeze()
@@ -670,7 +716,8 @@ defmodule ExPhil.SelfPlay.GameRunner do
   end
 
   defp apply_actions(%{game_type: :mock} = state, p1_action, _p2_action) do
-    game = state.dolphin_pid  # For mock, dolphin_pid holds MockGame struct
+    # For mock, dolphin_pid holds MockGame struct
+    game = state.dolphin_pid
 
     # Use frame from current_state if available, otherwise from game
     current_frame = if state.current_state, do: state.current_state.frame, else: 0
@@ -724,8 +771,12 @@ defmodule ExPhil.SelfPlay.GameRunner do
 
   defp is_episode_done(state, game_state) do
     cond do
-      state.frame_count >= state.config.max_episode_frames -> true
-      game_state.menu_state != 2 -> true
+      state.frame_count >= state.config.max_episode_frames ->
+        true
+
+      game_state.menu_state != 2 ->
+        true
+
       true ->
         p1 = Map.get(game_state.players, state.p1_port)
         p2 = Map.get(game_state.players, state.p2_port)
@@ -740,12 +791,19 @@ defmodule ExPhil.SelfPlay.GameRunner do
     p2 = Map.get(game_state.players, p2_port)
 
     cond do
-      p1 == nil or p2 == nil -> nil
-      p2.stock <= 0 and p1.stock > 0 -> :win
-      p1.stock <= 0 and p2.stock > 0 -> :loss
+      p1 == nil or p2 == nil ->
+        nil
+
+      p2.stock <= 0 and p1.stock > 0 ->
+        :win
+
+      p1.stock <= 0 and p2.stock > 0 ->
+        :loss
+
       # Tie-breaker: lower percent wins
       p1.stock <= 0 and p2.stock <= 0 ->
         if p1.percent <= p2.percent, do: :win, else: :loss
+
       # Game ended by timeout or other reason
       true ->
         cond do
@@ -782,12 +840,13 @@ defmodule ExPhil.SelfPlay.GameRunner do
 
   defp update_mock_game(game_or_mock, p1_action, _current_frame) do
     # Handle both mock game struct and :mock atom (initial state)
-    game = case game_or_mock do
-      :mock -> init_mock_game()
-      %MockGame{} = g -> g
-      # Legacy map format fallback
-      m when is_map(m) -> init_mock_game()
-    end
+    game =
+      case game_or_mock do
+        :mock -> init_mock_game()
+        %MockGame{} = g -> g
+        # Legacy map format fallback
+        m when is_map(m) -> init_mock_game()
+      end
 
     # Convert policy action to mock action format
     mock_p1_action = policy_action_to_mock(p1_action)
@@ -829,11 +888,13 @@ defmodule ExPhil.SelfPlay.GameRunner do
 
     # Move toward P1
     dx = p1.x - p2.x
-    stick_x = cond do
-      dx > 5 -> 0.8
-      dx < -5 -> -0.8
-      true -> 0.0
-    end
+
+    stick_x =
+      cond do
+        dx > 5 -> 0.8
+        dx < -5 -> -0.8
+        true -> 0.0
+      end
 
     # Occasionally jump (10% chance when on ground)
     jump = p2.on_ground and :rand.uniform() < 0.1
@@ -853,7 +914,8 @@ defmodule ExPhil.SelfPlay.GameRunner do
   defp reset_dolphin_game(pid) do
     # Reset Dolphin game by stepping through menus until back in game.
     # The Python bridge's auto_menu=true handles menu navigation automatically.
-    wait_for_game_start(pid, _max_frames = 1800)  # 30 seconds at 60fps
+    # 30 seconds at 60fps
+    wait_for_game_start(pid, _max_frames = 1800)
   end
 
   defp wait_for_game_start(pid, remaining) when remaining <= 0 do
@@ -920,7 +982,8 @@ defmodule ExPhil.SelfPlay.GameRunner do
       button_z: Enum.at(buttons, 4) == 1,
       button_l: Enum.at(buttons, 5) == 1,
       button_r: Enum.at(buttons, 6) == 1,
-      button_d_up: false  # Start button mapped, D-up not used
+      # Start button mapped, D-up not used
+      button_d_up: false
     }
   end
 end

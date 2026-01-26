@@ -34,7 +34,8 @@ defmodule DistillationTrainer do
   alias ExPhil.Training.Output
 
   @default_hidden_sizes [64, 64]
-  @default_alpha 0.7  # Weight for soft labels vs hard labels
+  # Weight for soft labels vs hard labels
+  @default_alpha 0.7
   @default_learning_rate 1.0e-3
   @default_batch_size 128
   @default_epochs 10
@@ -43,6 +44,7 @@ defmodule DistillationTrainer do
     opts = parse_args(args)
 
     Output.banner("Knowledge Distillation Training")
+
     Output.config([
       {"Soft labels", opts.soft_labels},
       {"Hidden sizes", inspect(opts.hidden_sizes)},
@@ -66,11 +68,12 @@ defmodule DistillationTrainer do
     Output.step(2, 7, "Building student MLP")
     Output.puts("  Hidden sizes: #{inspect(opts.hidden_sizes)}")
 
-    student_model = Policy.build(
-      embed_size: embed_size,
-      hidden_sizes: opts.hidden_sizes,
-      dropout: opts.dropout
-    )
+    student_model =
+      Policy.build(
+        embed_size: embed_size,
+        hidden_sizes: opts.hidden_sizes,
+        dropout: opts.dropout
+      )
 
     # Count parameters
     {init_fn, _} = Axon.build(student_model, mode: :inference)
@@ -100,14 +103,20 @@ defmodule DistillationTrainer do
     Output.puts("  Alpha (soft weight): #{opts.alpha}")
     Output.puts("")
 
-    final_state = train_loop(
-      train_data, val_data,
-      params, optimizer, optimizer_state,
-      predict_fn, opts
-    )
+    final_state =
+      train_loop(
+        train_data,
+        val_data,
+        params,
+        optimizer,
+        optimizer_state,
+        predict_fn,
+        opts
+      )
 
     # Export policy
     Output.step(6, 7, "Exporting distilled policy")
+
     export_policy(student_model, final_state.params, opts.output, %{
       embed_size: embed_size,
       hidden_sizes: opts.hidden_sizes,
@@ -134,22 +143,26 @@ defmodule DistillationTrainer do
   end
 
   defp parse_args(args) do
-    {parsed, _, _} = OptionParser.parse(args, strict: [
-      soft_labels: :string,
-      hidden: :string,
-      epochs: :integer,
-      batch_size: :integer,
-      learning_rate: :float,
-      alpha: :float,
-      dropout: :float,
-      val_split: :float,
-      output: :string
-    ])
+    {parsed, _, _} =
+      OptionParser.parse(args,
+        strict: [
+          soft_labels: :string,
+          hidden: :string,
+          epochs: :integer,
+          batch_size: :integer,
+          learning_rate: :float,
+          alpha: :float,
+          dropout: :float,
+          val_split: :float,
+          output: :string
+        ]
+      )
 
-    hidden_sizes = case Keyword.get(parsed, :hidden) do
-      nil -> @default_hidden_sizes
-      str -> str |> String.split(",") |> Enum.map(&String.to_integer/1)
-    end
+    hidden_sizes =
+      case Keyword.get(parsed, :hidden) do
+        nil -> @default_hidden_sizes
+        str -> str |> String.split(",") |> Enum.map(&String.to_integer/1)
+      end
 
     %{
       soft_labels: Keyword.fetch!(parsed, :soft_labels),
@@ -200,37 +213,50 @@ defmodule DistillationTrainer do
       num_batches = length(batches)
 
       # Train epoch
-      {epoch_state, losses} = Enum.reduce(
-        Enum.with_index(batches),
-        {state, []},
-        fn {batch, batch_idx}, {s, losses} ->
-          # Prepare batch tensors
-          {states, soft_labels, hard_labels} = prepare_batch(batch)
+      {epoch_state, losses} =
+        Enum.reduce(
+          Enum.with_index(batches),
+          {state, []},
+          fn {batch, batch_idx}, {s, losses} ->
+            # Prepare batch tensors
+            {states, soft_labels, hard_labels} = prepare_batch(batch)
 
-          # Compute gradients and update
-          {loss, grads} = compute_loss_and_grads(
-            s.params, predict_fn, states, soft_labels, hard_labels, opts.alpha
-          )
+            # Compute gradients and update
+            {loss, grads} =
+              compute_loss_and_grads(
+                s.params,
+                predict_fn,
+                states,
+                soft_labels,
+                hard_labels,
+                opts.alpha
+              )
 
-          # Apply updates
-          {updates, new_opt_state} = Polaris.Updates.update(
-            optimizer, grads, s.opt_state, s.params
-          )
-          new_params = apply_updates_fn.(s.params, updates)
+            # Apply updates
+            {updates, new_opt_state} =
+              Polaris.Updates.update(
+                optimizer,
+                grads,
+                s.opt_state,
+                s.params
+              )
 
-          # Progress
-          if rem(batch_idx + 1, max(1, div(num_batches, 10))) == 0 do
-            pct = round((batch_idx + 1) / num_batches * 100)
-            IO.write(:stderr, "\r  Epoch #{epoch}: #{pct}% | loss: #{Float.round(Nx.to_number(loss), 4)}")
+            new_params = apply_updates_fn.(s.params, updates)
+
+            # Progress
+            if rem(batch_idx + 1, max(1, div(num_batches, 10))) == 0 do
+              pct = round((batch_idx + 1) / num_batches * 100)
+
+              IO.write(
+                :stderr,
+                "\r  Epoch #{epoch}: #{pct}% | loss: #{Float.round(Nx.to_number(loss), 4)}"
+              )
+            end
+
+            {%{s | params: new_params, opt_state: new_opt_state, step: s.step + 1},
+             [Nx.to_number(loss) | losses]}
           end
-
-          {%{s |
-            params: new_params,
-            opt_state: new_opt_state,
-            step: s.step + 1
-          }, [Nx.to_number(loss) | losses]}
-        end
-      )
+        )
 
       # Validation
       val_loss = compute_validation_loss(val_data, epoch_state.params, predict_fn, opts)
@@ -238,7 +264,9 @@ defmodule DistillationTrainer do
       epoch_time = System.monotonic_time(:millisecond) - epoch_start
       avg_loss = Enum.sum(losses) / length(losses)
 
-      Output.puts("\r  Epoch #{epoch}: train_loss=#{Float.round(avg_loss, 4)} val_loss=#{Float.round(val_loss, 4)} (#{epoch_time}ms)")
+      Output.puts(
+        "\r  Epoch #{epoch}: train_loss=#{Float.round(avg_loss, 4)} val_loss=#{Float.round(val_loss, 4)} (#{epoch_time}ms)"
+      )
 
       %{epoch_state | epoch: epoch, val_loss: val_loss}
     end)
@@ -246,9 +274,10 @@ defmodule DistillationTrainer do
 
   defp prepare_batch(batch) do
     # Embed game states
-    states = batch
-    |> Enum.map(fn frame -> GameEmbed.embed(frame.game_state) end)
-    |> Nx.stack()
+    states =
+      batch
+      |> Enum.map(fn frame -> GameEmbed.embed(frame.game_state) end)
+      |> Nx.stack()
 
     # Stack soft labels
     soft_labels = %{
@@ -261,11 +290,12 @@ defmodule DistillationTrainer do
     }
 
     # Convert controller states to hard labels
-    hard_labels = batch
-    |> Enum.map(fn frame ->
-      ExPhil.Embeddings.Controller.to_training_targets(frame.controller)
-    end)
-    |> stack_targets()
+    hard_labels =
+      batch
+      |> Enum.map(fn frame ->
+        ExPhil.Embeddings.Controller.to_training_targets(frame.controller)
+      end)
+      |> stack_targets()
 
     {states, soft_labels, hard_labels}
   end
@@ -300,7 +330,8 @@ defmodule DistillationTrainer do
     {btn_logits, mx_logits, my_logits, cx_logits, cy_logits, sh_logits} = logits
 
     # Soft loss: KL divergence from teacher distributions
-    soft_loss = kl_divergence_buttons(btn_logits, soft_labels.buttons)
+    soft_loss =
+      kl_divergence_buttons(btn_logits, soft_labels.buttons)
       |> Nx.add(kl_divergence_categorical(mx_logits, soft_labels.main_x))
       |> Nx.add(kl_divergence_categorical(my_logits, soft_labels.main_y))
       |> Nx.add(kl_divergence_categorical(cx_logits, soft_labels.c_x))
@@ -308,7 +339,8 @@ defmodule DistillationTrainer do
       |> Nx.add(kl_divergence_categorical(sh_logits, soft_labels.shoulder))
 
     # Hard loss: Cross-entropy with ground truth
-    hard_loss = button_bce(btn_logits, hard_labels.buttons)
+    hard_loss =
+      button_bce(btn_logits, hard_labels.buttons)
       |> Nx.add(categorical_ce(mx_logits, hard_labels.main_x))
       |> Nx.add(categorical_ce(my_logits, hard_labels.main_y))
       |> Nx.add(categorical_ce(cx_logits, hard_labels.c_x))
@@ -329,8 +361,9 @@ defmodule DistillationTrainer do
     probs = Nx.clip(probs, eps, 1.0 - eps)
     soft_targets = Nx.clip(soft_targets, eps, 1.0 - eps)
 
-    kl = soft_targets * Nx.log(soft_targets / probs) +
-         (1 - soft_targets) * Nx.log((1 - soft_targets) / (1 - probs))
+    kl =
+      soft_targets * Nx.log(soft_targets / probs) +
+        (1 - soft_targets) * Nx.log((1 - soft_targets) / (1 - probs))
 
     Nx.mean(kl)
   end
@@ -369,19 +402,20 @@ defmodule DistillationTrainer do
   defp compute_validation_loss(val_data, params, predict_fn, opts) do
     batches = Enum.chunk_every(val_data, opts.batch_size, opts.batch_size, :discard)
 
-    losses = Enum.map(batches, fn batch ->
-      {states, soft_labels, hard_labels} = prepare_batch(batch)
+    losses =
+      Enum.map(batches, fn batch ->
+        {states, soft_labels, hard_labels} = prepare_batch(batch)
 
-      # Copy for JIT
-      states = Nx.backend_copy(states)
-      soft_labels = Map.new(soft_labels, fn {k, v} -> {k, Nx.backend_copy(v)} end)
-      hard_labels = Map.new(hard_labels, fn {k, v} -> {k, Nx.backend_copy(v)} end)
-      params_copy = deep_backend_copy(params)
+        # Copy for JIT
+        states = Nx.backend_copy(states)
+        soft_labels = Map.new(soft_labels, fn {k, v} -> {k, Nx.backend_copy(v)} end)
+        hard_labels = Map.new(hard_labels, fn {k, v} -> {k, Nx.backend_copy(v)} end)
+        params_copy = deep_backend_copy(params)
 
-      logits = predict_fn.(params_copy, states)
-      loss = distillation_loss(logits, soft_labels, hard_labels, opts.alpha)
-      Nx.to_number(loss)
-    end)
+        logits = predict_fn.(params_copy, states)
+        loss = distillation_loss(logits, soft_labels, hard_labels, opts.alpha)
+        Nx.to_number(loss)
+      end)
 
     if length(losses) > 0 do
       Enum.sum(losses) / length(losses)
@@ -429,35 +463,41 @@ defmodule DistillationTrainer do
   end
 
   defp count_params_recursive(%Nx.Tensor{} = t), do: Nx.size(t)
+
   defp count_params_recursive(map) when is_map(map) do
     map |> Map.values() |> Enum.map(&count_params_recursive/1) |> Enum.sum()
   end
+
   defp count_params_recursive(_), do: 0
 
   defp deep_backend_copy(%Nx.Tensor{} = t), do: Nx.backend_copy(t)
+
   defp deep_backend_copy(%Axon.ModelState{} = state) do
-    %{state |
-      data: deep_backend_copy(state.data),
-      state: deep_backend_copy(state.state)
-    }
+    %{state | data: deep_backend_copy(state.data), state: deep_backend_copy(state.state)}
   end
+
   defp deep_backend_copy(map) when is_map(map) and not is_struct(map) do
     Map.new(map, fn {k, v} -> {k, deep_backend_copy(v)} end)
   end
+
   defp deep_backend_copy(other), do: other
 
   defp deep_backend_copy_to_binary(%Nx.Tensor{} = t) do
     Nx.backend_copy(t, Nx.BinaryBackend)
   end
+
   defp deep_backend_copy_to_binary(%Axon.ModelState{} = state) do
-    %{state |
-      data: deep_backend_copy_to_binary(state.data),
-      state: deep_backend_copy_to_binary(state.state)
+    %{
+      state
+      | data: deep_backend_copy_to_binary(state.data),
+        state: deep_backend_copy_to_binary(state.state)
     }
   end
+
   defp deep_backend_copy_to_binary(map) when is_map(map) and not is_struct(map) do
     Map.new(map, fn {k, v} -> {k, deep_backend_copy_to_binary(v)} end)
   end
+
   defp deep_backend_copy_to_binary(other), do: other
 
   defp format_number(n) when n >= 1_000_000, do: "#{Float.round(n / 1_000_000, 2)}M"

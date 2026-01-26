@@ -18,10 +18,14 @@ defmodule ExPhil.SelfPlay.IntegrationTest do
       # Start the supervisor with unique names to avoid conflicts
       suffix = System.unique_integer([:positive])
 
-      {:ok, sup} = start_supervised({Supervisor, [
-        name: :"test_sup_#{suffix}",
-        start_matchmaker: true
-      ]})
+      {:ok, sup} =
+        start_supervised(
+          {Supervisor,
+           [
+             name: :"test_sup_#{suffix}",
+             start_matchmaker: true
+           ]}
+        )
 
       %{supervisor: sup}
     end
@@ -66,7 +70,10 @@ defmodule ExPhil.SelfPlay.IntegrationTest do
       results = Supervisor.start_games(3, game_type: :mock)
 
       # All should succeed
-      assert Enum.all?(results, fn {:ok, _} -> true; _ -> false end)
+      assert Enum.all?(results, fn
+               {:ok, _} -> true
+               _ -> false
+             end)
 
       counts = Supervisor.count_games()
       assert counts.total == 3
@@ -203,7 +210,8 @@ defmodule ExPhil.SelfPlay.IntegrationTest do
 
       leaderboard = Matchmaker.get_leaderboard(mm, 2)
       assert length(leaderboard) == 2
-      assert hd(leaderboard).id == "p1"  # Winner should be on top
+      # Winner should be on top
+      assert hd(leaderboard).id == "p1"
     end
 
     test "game pool supervisor works standalone" do
@@ -211,12 +219,13 @@ defmodule ExPhil.SelfPlay.IntegrationTest do
       {:ok, _} = start_supervised({Registry, keys: :unique, name: ExPhil.SelfPlay.GameRegistry})
       {:ok, pool} = start_supervised({GamePoolSupervisor, [name: nil]})
 
-      {:ok, game_id} = GamePoolSupervisor.start_game(pool, [
-        game_id: "standalone_game",
-        p1_policy_id: :cpu,
-        p2_policy_id: :cpu,
-        game_type: :mock
-      ])
+      {:ok, game_id} =
+        GamePoolSupervisor.start_game(pool,
+          game_id: "standalone_game",
+          p1_policy_id: :cpu,
+          p2_policy_id: :cpu,
+          game_type: :mock
+        )
 
       games = GamePoolSupervisor.list_games(pool)
       assert length(games) == 1
@@ -233,8 +242,10 @@ defmodule ExPhil.SelfPlay.IntegrationTest do
 
   # Policy output sizes match the autoregressive controller head
   @num_buttons 8
-  @axis_size 17      # 0-16 = 17 values
-  @shoulder_size 5   # 0-4 = 5 values
+  # 0-16 = 17 values
+  @axis_size 17
+  # 0-4 = 5 values
+  @shoulder_size 5
 
   defp mock_model do
     # Build a minimal model with correct input/output dimensions
@@ -244,9 +255,10 @@ defmodule ExPhil.SelfPlay.IntegrationTest do
     input = Axon.input("state", shape: {nil, embed_size})
 
     # Simple backbone
-    backbone = input
-    |> Axon.dense(@hidden_size, name: "backbone_dense")
-    |> Axon.relu()
+    backbone =
+      input
+      |> Axon.dense(@hidden_size, name: "backbone_dense")
+      |> Axon.relu()
 
     # Policy heads (independent in mock - real model is autoregressive)
     buttons = Axon.dense(backbone, @num_buttons, name: "buttons_logits")
@@ -269,6 +281,7 @@ defmodule ExPhil.SelfPlay.IntegrationTest do
   defp mock_params do
     # Initialize with small random-ish values
     embed_size = game_embed_size()
+
     %{
       "backbone_dense" => %{
         "kernel" => Nx.broadcast(0.01, {embed_size, @hidden_size}),
@@ -307,6 +320,7 @@ defmodule ExPhil.SelfPlay.IntegrationTest do
 
   defp mock_experience do
     embed_size = game_embed_size()
+
     %{
       state: Nx.tensor(Enum.map(1..embed_size, fn _ -> :rand.uniform() end)),
       action: %{

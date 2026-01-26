@@ -97,7 +97,8 @@ defmodule ExPhil.Training.Checkpoint do
   `{:warning, message}` if mismatch but not erroring,
   `{:error, message}` if mismatch and error_on_mismatch is true.
   """
-  @spec validate_embed_size(map(), keyword()) :: :ok | {:warning, String.t()} | {:error, String.t()}
+  @spec validate_embed_size(map(), keyword()) ::
+          :ok | {:warning, String.t()} | {:error, String.t()}
   def validate_embed_size(config, opts) do
     current = Keyword.get(opts, :current_embed_size)
     error_on_mismatch = Keyword.get(opts, :error_on_mismatch, false)
@@ -146,8 +147,16 @@ defmodule ExPhil.Training.Checkpoint do
   """
   @spec config_diff(map(), keyword()) :: [{atom(), {term(), term()}}]
   def config_diff(checkpoint_config, current_opts) do
-    keys_to_check = [:embed_size, :hidden_sizes, :axis_buckets, :shoulder_buckets,
-                     :temporal, :backbone, :window_size, :num_layers]
+    keys_to_check = [
+      :embed_size,
+      :hidden_sizes,
+      :axis_buckets,
+      :shoulder_buckets,
+      :temporal,
+      :backbone,
+      :window_size,
+      :num_layers
+    ]
 
     Enum.flat_map(keys_to_check, fn key ->
       checkpoint_val = Map.get(checkpoint_config, key)
@@ -171,9 +180,13 @@ defmodule ExPhil.Training.Checkpoint do
     if diffs != [] do
       Output.puts("")
       Output.warning("Config differences between checkpoint and current:")
+
       for {key, {checkpoint_val, current_val}} <- diffs do
-        Output.puts("  #{key}: checkpoint=#{inspect(checkpoint_val)}, current=#{inspect(current_val)}")
+        Output.puts(
+          "  #{key}: checkpoint=#{inspect(checkpoint_val)}, current=#{inspect(current_val)}"
+        )
       end
+
       Output.puts("")
     end
 
@@ -183,10 +196,11 @@ defmodule ExPhil.Training.Checkpoint do
   # Private helpers
 
   defp validate_and_return(data, type, opts) do
-    config = case type do
-      :checkpoint -> data.config || %{}
-      :policy -> data.config || %{}
-    end
+    config =
+      case type do
+        :checkpoint -> data.config || %{}
+        :policy -> data.config || %{}
+      end
 
     warn_on_mismatch = Keyword.get(opts, :warn_on_mismatch, true)
 
@@ -198,6 +212,7 @@ defmodule ExPhil.Training.Checkpoint do
         if warn_on_mismatch do
           Output.warning(message)
         end
+
         {:ok, data}
 
       {:error, message} ->

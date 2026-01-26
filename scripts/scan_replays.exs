@@ -54,7 +54,8 @@ defmodule ReplayScanner do
     25 => "Ganondorf"
   }
 
-  @low_tier_ids [3, 6, 10, 18, 25]  # G&W, Link, Mewtwo, Zelda, Ganondorf
+  # G&W, Link, Mewtwo, Zelda, Ganondorf
+  @low_tier_ids [3, 6, 10, 18, 25]
 
   def scan(dir, opts \\ []) do
     alias ExPhil.Training.Output
@@ -66,6 +67,7 @@ defmodule ReplayScanner do
     total = length(files)
 
     Output.banner("ExPhil Replay Scanner")
+
     Output.config([
       {"Directory", dir},
       {"Max files", max_files || "all"},
@@ -113,7 +115,8 @@ defmodule ReplayScanner do
       "total_files" => length(files),
       "character_counts" => %{},
       "matchup_counts" => %{},
-      "error" => "Full character analysis requires Python. Install py-slippi: pip install py-slippi"
+      "error" =>
+        "Full character analysis requires Python. Install py-slippi: pip install py-slippi"
     }
   end
 
@@ -133,6 +136,7 @@ defmodule ReplayScanner do
 
     # Character counts
     char_counts = stats["character_counts"] || %{}
+
     if map_size(char_counts) > 0 do
       Output.section("GAMES BY CHARACTER")
 
@@ -150,7 +154,10 @@ defmodule ReplayScanner do
 
         # Mark low-tier characters
         marker = if char_id in @low_tier_ids, do: " *", else: ""
-        Output.puts("  #{String.pad_trailing(name, 18)} #{String.pad_leading(to_string(count), 6)} [#{bar}] #{pct}%#{marker}")
+
+        Output.puts(
+          "  #{String.pad_trailing(name, 18)} #{String.pad_leading(to_string(count), 6)} [#{bar}] #{pct}%#{marker}"
+        )
       end)
 
       Output.puts("")
@@ -158,13 +165,14 @@ defmodule ReplayScanner do
       Output.puts("")
 
       # Low-tier summary
-      low_tier_counts = char_counts
-      |> Enum.filter(fn {char_id, _} ->
-        id = if is_binary(char_id), do: String.to_integer(char_id), else: char_id
-        id in @low_tier_ids
-      end)
-      |> Enum.map(fn {_, count} -> count end)
-      |> Enum.sum()
+      low_tier_counts =
+        char_counts
+        |> Enum.filter(fn {char_id, _} ->
+          id = if is_binary(char_id), do: String.to_integer(char_id), else: char_id
+          id in @low_tier_ids
+        end)
+        |> Enum.map(fn {_, count} -> count end)
+        |> Enum.sum()
 
       if low_tier_counts > 0 do
         Output.section("LOW-TIER SUMMARY")
@@ -184,16 +192,17 @@ defmodule ReplayScanner do
 
     if map_size(char_counts) > 0 do
       # Find best low-tier to train
-      low_tier_data = char_counts
-      |> Enum.filter(fn {char_id, _} ->
-        id = if is_binary(char_id), do: String.to_integer(char_id), else: char_id
-        id in @low_tier_ids
-      end)
-      |> Enum.map(fn {char_id, count} ->
-        id = if is_binary(char_id), do: String.to_integer(char_id), else: char_id
-        {id, count}
-      end)
-      |> Enum.sort_by(fn {_, count} -> -count end)
+      low_tier_data =
+        char_counts
+        |> Enum.filter(fn {char_id, _} ->
+          id = if is_binary(char_id), do: String.to_integer(char_id), else: char_id
+          id in @low_tier_ids
+        end)
+        |> Enum.map(fn {char_id, count} ->
+          id = if is_binary(char_id), do: String.to_integer(char_id), else: char_id
+          {id, count}
+        end)
+        |> Enum.sort_by(fn {_, count} -> -count end)
 
       if length(low_tier_data) > 0 do
         {best_id, best_count} = hd(low_tier_data)
@@ -202,24 +211,29 @@ defmodule ReplayScanner do
         Output.success("Best low-tier for training: #{best_name} (#{best_count} games)")
 
         # Preset recommendation
-        preset = case best_id do
-          10 -> "mewtwo"
-          25 -> "ganondorf"
-          6 -> "link"
-          3 -> "gameandwatch"
-          18 -> "zelda"
-          _ -> "production"
-        end
+        preset =
+          case best_id do
+            10 -> "mewtwo"
+            25 -> "ganondorf"
+            6 -> "link"
+            3 -> "gameandwatch"
+            18 -> "zelda"
+            _ -> "production"
+          end
+
         Output.puts("  Recommended preset: --preset #{preset}")
 
         # Data sufficiency
         cond do
           best_count >= 10000 ->
             Output.success("Data: Excellent - enough for production model")
+
           best_count >= 1000 ->
             Output.puts("  Data: Good - enough for solid training")
+
           best_count >= 100 ->
             Output.warning("Data: Limited - consider augmentation")
+
           true ->
             Output.warning("Data: Very limited - need more replays")
         end
@@ -239,15 +253,17 @@ end
 # Parse arguments
 args = System.argv()
 
-replays_dir = case Enum.find_index(args, &(&1 == "--replays")) do
-  nil -> "/home/dori/git/melee/replays"
-  idx -> Enum.at(args, idx + 1)
-end
+replays_dir =
+  case Enum.find_index(args, &(&1 == "--replays")) do
+    nil -> "/home/dori/git/melee/replays"
+    idx -> Enum.at(args, idx + 1)
+  end
 
-max_files = case Enum.find_index(args, &(&1 == "--max-files")) do
-  nil -> nil
-  idx -> String.to_integer(Enum.at(args, idx + 1))
-end
+max_files =
+  case Enum.find_index(args, &(&1 == "--max-files")) do
+    nil -> nil
+    idx -> String.to_integer(Enum.at(args, idx + 1))
+  end
 
 if not File.dir?(replays_dir) do
   Output.error("Replay directory not found: #{replays_dir}")

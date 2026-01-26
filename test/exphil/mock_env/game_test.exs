@@ -45,18 +45,32 @@ defmodule ExPhil.MockEnv.GameTest do
 
     test "player can jump" do
       game = Game.new()
-      action = %{stick_x: 0.0, stick_y: 0.0, button_x: true, button_y: false,
-                 button_a: false, button_b: false, button_l: false, button_r: false}
+
+      action = %{
+        stick_x: 0.0,
+        stick_y: 0.0,
+        button_x: true,
+        button_y: false,
+        button_a: false,
+        button_b: false,
+        button_l: false,
+        button_r: false
+      }
 
       # Press jump - enters jump squat
       game = Game.step(game, action, nil)
-      assert game.p1.action == 24  # Jump squat
+      # Jump squat
+      assert game.p1.action == 24
 
       # Continue holding through jump squat (3 frames: 0, 1, 2)
-      game = Game.step(game, action, nil)  # frame 1
-      game = Game.step(game, action, nil)  # frame 2
-      game = Game.step(game, action, nil)  # frame 3 - jump executes
-      game = Game.step(game, action, nil)  # frame 4 - now airborne
+      # frame 1
+      game = Game.step(game, action, nil)
+      # frame 2
+      game = Game.step(game, action, nil)
+      # frame 3 - jump executes
+      game = Game.step(game, action, nil)
+      # frame 4 - now airborne
+      game = Game.step(game, action, nil)
 
       # Should now be airborne
       assert game.p1.on_ground == false
@@ -65,8 +79,17 @@ defmodule ExPhil.MockEnv.GameTest do
 
     test "player can move horizontally" do
       game = Game.new()
-      action = %{stick_x: 1.0, stick_y: 0.0, button_x: false, button_y: false,
-                 button_a: false, button_b: false, button_l: false, button_r: false}
+
+      action = %{
+        stick_x: 1.0,
+        stick_y: 0.0,
+        button_x: false,
+        button_y: false,
+        button_a: false,
+        button_b: false,
+        button_l: false,
+        button_r: false
+      }
 
       initial_x = game.p1.x
       game = Game.step(game, action, nil)
@@ -81,8 +104,17 @@ defmodule ExPhil.MockEnv.GameTest do
       game = %{game | p1: %{game.p1 | y: 50.0, vel_y: -0.5, on_ground: false, action: 26}}
 
       # Tap down
-      action = %{stick_x: 0.0, stick_y: -1.0, button_x: false, button_y: false,
-                 button_a: false, button_b: false, button_l: false, button_r: false}
+      action = %{
+        stick_x: 0.0,
+        stick_y: -1.0,
+        button_x: false,
+        button_y: false,
+        button_a: false,
+        button_b: false,
+        button_l: false,
+        button_r: false
+      }
+
       game = Game.step(game, action, nil)
 
       # Should fast fall
@@ -101,7 +133,8 @@ defmodule ExPhil.MockEnv.GameTest do
 
       # Should lose a stock and respawn
       assert game.p1.stock == 3
-      assert game.p1.y > 0  # Respawned above stage
+      # Respawned above stage
+      assert game.p1.y > 0
     end
 
     test "player dies when hitting side blast zone" do
@@ -144,16 +177,21 @@ defmodule ExPhil.MockEnv.GameTest do
     test "player can double jump in air" do
       game = Game.new()
       # Put P1 in air after using first jump
-      game = %{game | p1: %{game.p1 |
-        y: 30.0,
-        vel_y: -0.5,
-        on_ground: false,
-        jumps_left: 1,
-        action: 26
-      }}
+      game = %{
+        game
+        | p1: %{game.p1 | y: 30.0, vel_y: -0.5, on_ground: false, jumps_left: 1, action: 26}
+      }
 
-      action = %{stick_x: 0.0, stick_y: 0.0, button_x: true, button_y: false,
-                 button_a: false, button_b: false, button_l: false, button_r: false}
+      action = %{
+        stick_x: 0.0,
+        stick_y: 0.0,
+        button_x: true,
+        button_y: false,
+        button_a: false,
+        button_b: false,
+        button_l: false,
+        button_r: false
+      }
 
       game = Game.step(game, action, nil)
 
@@ -165,17 +203,23 @@ defmodule ExPhil.MockEnv.GameTest do
     test "player cannot triple jump" do
       game = Game.new()
       # P1 in air with no jumps left
-      game = %{game | p1: %{game.p1 |
-        y: 30.0,
-        vel_y: -0.5,
-        on_ground: false,
-        jumps_left: 0,
-        action: 26
-      }}
+      game = %{
+        game
+        | p1: %{game.p1 | y: 30.0, vel_y: -0.5, on_ground: false, jumps_left: 0, action: 26}
+      }
 
       initial_vel_y = game.p1.vel_y
-      action = %{stick_x: 0.0, stick_y: 0.0, button_x: true, button_y: false,
-                 button_a: false, button_b: false, button_l: false, button_r: false}
+
+      action = %{
+        stick_x: 0.0,
+        stick_y: 0.0,
+        button_x: true,
+        button_y: false,
+        button_a: false,
+        button_b: false,
+        button_l: false,
+        button_r: false
+      }
 
       game = Game.step(game, action, nil)
 

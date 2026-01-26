@@ -13,10 +13,12 @@ defmodule ExPhil.Training.RecoveryTest do
     setup do
       tmp_dir = System.tmp_dir!()
       checkpoint = Path.join(tmp_dir, "test_recovery_#{:erlang.unique_integer([:positive])}.axon")
+
       on_exit(fn ->
         File.rm(checkpoint)
         File.rm(Recovery.marker_path(checkpoint))
       end)
+
       %{checkpoint: checkpoint}
     end
 
@@ -103,10 +105,12 @@ defmodule ExPhil.Training.RecoveryTest do
       tmp_dir = System.tmp_dir!()
       checkpoint = Path.join(tmp_dir, "test_resume_#{:erlang.unique_integer([:positive])}.axon")
       best_checkpoint = String.replace(checkpoint, ".axon", "_best.axon")
+
       on_exit(fn ->
         File.rm(checkpoint)
         File.rm(best_checkpoint)
       end)
+
       %{checkpoint: checkpoint, best: best_checkpoint}
     end
 

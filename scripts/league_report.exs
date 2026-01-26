@@ -66,25 +66,26 @@ defmodule LeagueReporter do
   # ============================================================================
 
   defp parse_args(args) do
-    {opts, _rest, _invalid} = OptionParser.parse(args,
-      strict: [
-        checkpoint_dir: :string,
-        league_state: :string,
-        output: :string,
-        format: :string,
-        include_charts: :boolean,
-        include_history: :boolean,
-        theme: :string,
-        help: :boolean
-      ],
-      aliases: [
-        c: :checkpoint_dir,
-        s: :league_state,
-        o: :output,
-        f: :format,
-        h: :help
-      ]
-    )
+    {opts, _rest, _invalid} =
+      OptionParser.parse(args,
+        strict: [
+          checkpoint_dir: :string,
+          league_state: :string,
+          output: :string,
+          format: :string,
+          include_charts: :boolean,
+          include_history: :boolean,
+          theme: :string,
+          help: :boolean
+        ],
+        aliases: [
+          c: :checkpoint_dir,
+          s: :league_state,
+          o: :output,
+          f: :format,
+          h: :help
+        ]
+      )
 
     if opts[:help] do
       print_help()
@@ -98,16 +99,18 @@ defmodule LeagueReporter do
       System.halt(1)
     end
 
-    format = case opts[:format] do
-      "json" -> :json
-      "terminal" -> :terminal
-      _ -> :html
-    end
+    format =
+      case opts[:format] do
+        "json" -> :json
+        "terminal" -> :terminal
+        _ -> :html
+      end
 
-    theme = case opts[:theme] do
-      "dark" -> :dark
-      _ -> :light
-    end
+    theme =
+      case opts[:theme] do
+        "dark" -> :dark
+        _ -> :light
+      end
 
     output_ext = if format == :json, do: ".json", else: ".html"
     default_output = "league_report#{output_ext}"
@@ -207,13 +210,14 @@ defmodule LeagueReporter do
 
   defp load_from_generation_dirs(dir) do
     # Find all gen_N directories
-    generation_dirs = Path.wildcard(Path.join(dir, "gen_*"))
-    |> Enum.sort_by(fn path ->
-      path
-      |> Path.basename()
-      |> String.replace("gen_", "")
-      |> String.to_integer()
-    end)
+    generation_dirs =
+      Path.wildcard(Path.join(dir, "gen_*"))
+      |> Enum.sort_by(fn path ->
+        path
+        |> Path.basename()
+        |> String.replace("gen_", "")
+        |> String.to_integer()
+      end)
 
     if length(generation_dirs) == 0 do
       Output.warning("No generation checkpoints found in #{dir}")
@@ -225,20 +229,22 @@ defmodule LeagueReporter do
       architectures = load_architectures_from_dir(latest_gen_dir)
 
       # Build history from all generations
-      history = Enum.map(generation_dirs, fn gen_dir ->
-        gen_num = gen_dir
-        |> Path.basename()
-        |> String.replace("gen_", "")
-        |> String.to_integer()
+      history =
+        Enum.map(generation_dirs, fn gen_dir ->
+          gen_num =
+            gen_dir
+            |> Path.basename()
+            |> String.replace("gen_", "")
+            |> String.to_integer()
 
-        gen_archs = load_architectures_from_dir(gen_dir)
+          gen_archs = load_architectures_from_dir(gen_dir)
 
-        %{
-          generation: gen_num,
-          leaderboard: gen_archs |> Enum.sort_by(& &1.elo, :desc),
-          tournament: %{matches_played: estimate_matches(gen_archs)}
-        }
-      end)
+          %{
+            generation: gen_num,
+            leaderboard: gen_archs |> Enum.sort_by(& &1.elo, :desc),
+            tournament: %{matches_played: estimate_matches(gen_archs)}
+          }
+        end)
 
       %{
         architectures: architectures,
@@ -254,20 +260,25 @@ defmodule LeagueReporter do
     # Look for *.axon or *.json files
     arch_files = Path.wildcard(Path.join(dir, "*.json"))
 
-    architectures = Enum.flat_map(arch_files, fn file ->
-      case File.read(file) do
-        {:ok, content} ->
-          case Jason.decode(content) do
-            {:ok, data} when is_map(data) ->
-              case ArchitectureEntry.from_metadata(data) do
-                {:ok, entry} -> [entry_to_map(entry)]
-                _ -> []
-              end
-            _ -> []
-          end
-        _ -> []
-      end
-    end)
+    architectures =
+      Enum.flat_map(arch_files, fn file ->
+        case File.read(file) do
+          {:ok, content} ->
+            case Jason.decode(content) do
+              {:ok, data} when is_map(data) ->
+                case ArchitectureEntry.from_metadata(data) do
+                  {:ok, entry} -> [entry_to_map(entry)]
+                  _ -> []
+                end
+
+              _ ->
+                []
+            end
+
+          _ ->
+            []
+        end
+      end)
 
     %{
       architectures: architectures,
@@ -291,33 +302,39 @@ defmodule LeagueReporter do
                 {:ok, entry} -> [entry_to_map(entry)]
                 _ -> []
               end
-            _ -> []
+
+            _ ->
+              []
           end
-        _ -> []
+
+        _ ->
+          []
       end
     end)
   end
 
   defp parse_state_data(data) do
-    architectures = (data["architectures"] || [])
-    |> Enum.map(fn arch_data ->
-      case ArchitectureEntry.from_metadata(arch_data) do
-        {:ok, entry} -> entry_to_map(entry)
-        _ -> nil
-      end
-    end)
-    |> Enum.reject(&is_nil/1)
+    architectures =
+      (data["architectures"] || [])
+      |> Enum.map(fn arch_data ->
+        case ArchitectureEntry.from_metadata(arch_data) do
+          {:ok, entry} -> entry_to_map(entry)
+          _ -> nil
+        end
+      end)
+      |> Enum.reject(&is_nil/1)
 
-    history = (data["history"] || [])
-    |> Enum.map(fn gen_data ->
-      %{
-        generation: gen_data["generation"] || 0,
-        leaderboard: parse_leaderboard(gen_data["leaderboard"] || []),
-        tournament: %{
-          matches_played: get_in(gen_data, ["tournament", "matches_played"]) || 0
+    history =
+      (data["history"] || [])
+      |> Enum.map(fn gen_data ->
+        %{
+          generation: gen_data["generation"] || 0,
+          leaderboard: parse_leaderboard(gen_data["leaderboard"] || []),
+          tournament: %{
+            matches_played: get_in(gen_data, ["tournament", "matches_played"]) || 0
+          }
         }
-      }
-    end)
+      end)
 
     %{
       architectures: architectures,
@@ -357,10 +374,12 @@ defmodule LeagueReporter do
   end
 
   defp compute_stats(architectures) do
-    total_games = architectures
-    |> Enum.map(& &1.games_played)
-    |> Enum.sum()
-    |> div(2)  # Each game is counted twice (once per player)
+    total_games =
+      architectures
+      |> Enum.map(& &1.games_played)
+      |> Enum.sum()
+      # Each game is counted twice (once per player)
+      |> div(2)
 
     %{
       num_architectures: length(architectures),
@@ -379,23 +398,26 @@ defmodule LeagueReporter do
   # ============================================================================
 
   defp generate_html_report(data, config) do
-    theme_styles = if config.theme == :dark do
-      dark_theme_css()
-    else
-      light_theme_css()
-    end
+    theme_styles =
+      if config.theme == :dark do
+        dark_theme_css()
+      else
+        light_theme_css()
+      end
 
-    charts_section = if config.include_charts do
-      generate_charts_section(data)
-    else
-      ""
-    end
+    charts_section =
+      if config.include_charts do
+        generate_charts_section(data)
+      else
+        ""
+      end
 
-    history_section = if config.include_history && length(data.history) > 0 do
-      generate_history_section(data.history)
-    else
-      ""
-    end
+    history_section =
+      if config.include_history && length(data.history) > 0 do
+        generate_history_section(data.history)
+      else
+        ""
+      end
 
     """
     <!DOCTYPE html>
@@ -717,74 +739,77 @@ defmodule LeagueReporter do
         </div>
       </div>
       #{if length(data.history) > 0 do
-        """
-        <div class="chart-container">
-          <h3>Elo Progression Over Generations</h3>
-          <canvas id="progressionChart"></canvas>
-        </div>
-        """
-      else
-        ""
-      end}
+      """
+      <div class="chart-container">
+        <h3>Elo Progression Over Generations</h3>
+        <canvas id="progressionChart"></canvas>
+      </div>
+      """
+    else
+      ""
+    end}
     </section>
     """
   end
 
   defp chart_init_script(data) do
-    labels = data.final_leaderboard |> Enum.map(& &1.id |> to_string())
-    elos = data.final_leaderboard |> Enum.map(& &1.elo |> Float.round(1))
-    win_rates = data.final_leaderboard |> Enum.map(& (&1.win_rate * 100) |> Float.round(1))
+    labels = data.final_leaderboard |> Enum.map(&(&1.id |> to_string()))
+    elos = data.final_leaderboard |> Enum.map(&(&1.elo |> Float.round(1)))
+    win_rates = data.final_leaderboard |> Enum.map(&((&1.win_rate * 100) |> Float.round(1)))
 
-    progression_data = if length(data.history) > 0 do
-      # Get all unique architecture IDs
-      all_ids = data.architectures |> Enum.map(& &1.id) |> Enum.uniq()
+    progression_data =
+      if length(data.history) > 0 do
+        # Get all unique architecture IDs
+        all_ids = data.architectures |> Enum.map(& &1.id) |> Enum.uniq()
 
-      datasets = Enum.map(all_ids, fn id ->
-        elo_history = Enum.map(data.history, fn gen ->
-          case Enum.find(gen.leaderboard, &(&1.id == id)) do
-            nil -> nil
-            entry -> entry.elo
-          end
-        end)
+        datasets =
+          Enum.map(all_ids, fn id ->
+            elo_history =
+              Enum.map(data.history, fn gen ->
+                case Enum.find(gen.leaderboard, &(&1.id == id)) do
+                  nil -> nil
+                  entry -> entry.elo
+                end
+              end)
 
-        color = get_color_for_arch(id)
+            color = get_color_for_arch(id)
+
+            """
+            {
+              label: '#{id}',
+              data: #{Jason.encode!(elo_history)},
+              borderColor: '#{color}',
+              backgroundColor: '#{color}33',
+              tension: 0.3,
+              fill: false
+            }
+            """
+          end)
+
+        generations = Enum.map(data.history, & &1.generation)
 
         """
-        {
-          label: '#{id}',
-          data: #{Jason.encode!(elo_history)},
-          borderColor: '#{color}',
-          backgroundColor: '#{color}33',
-          tension: 0.3,
-          fill: false
-        }
-        """
-      end)
-
-      generations = Enum.map(data.history, & &1.generation)
-
-      """
-      new Chart(document.getElementById('progressionChart'), {
-        type: 'line',
-        data: {
-          labels: #{Jason.encode!(generations)},
-          datasets: [#{Enum.join(datasets, ",")}]
-        },
-        options: {
-          responsive: true,
-          plugins: {
-            legend: { position: 'bottom' }
+        new Chart(document.getElementById('progressionChart'), {
+          type: 'line',
+          data: {
+            labels: #{Jason.encode!(generations)},
+            datasets: [#{Enum.join(datasets, ",")}]
           },
-          scales: {
-            y: { title: { display: true, text: 'Elo Rating' } },
-            x: { title: { display: true, text: 'Generation' } }
+          options: {
+            responsive: true,
+            plugins: {
+              legend: { position: 'bottom' }
+            },
+            scales: {
+              y: { title: { display: true, text: 'Elo Rating' } },
+              x: { title: { display: true, text: 'Generation' } }
+            }
           }
-        }
-      });
-      """
-    else
-      ""
-    end
+        });
+        """
+      else
+        ""
+      end
 
     """
     <script>
@@ -846,6 +871,7 @@ defmodule LeagueReporter do
 
   defp get_color_for_arch(id) do
     id_str = to_string(id)
+
     cond do
       String.contains?(id_str, "mlp") -> "#1565c0"
       String.contains?(id_str, "lstm") -> "#7b1fa2"
@@ -883,12 +909,13 @@ defmodule LeagueReporter do
     leaderboard
     |> Enum.with_index(1)
     |> Enum.map(fn {entry, rank} ->
-      {rank_class, medal} = case rank do
-        1 -> {"rank-1", "🥇"}
-        2 -> {"rank-2", "🥈"}
-        3 -> {"rank-3", "🥉"}
-        _ -> {"", ""}
-      end
+      {rank_class, medal} =
+        case rank do
+          1 -> {"rank-1", "🥇"}
+          2 -> {"rank-2", "🥈"}
+          3 -> {"rank-3", "🥉"}
+          _ -> {"", ""}
+        end
 
       arch_type = Map.get(entry, :architecture, infer_architecture_type(entry.id))
       type_class = "type-#{arch_type}"
@@ -912,10 +939,12 @@ defmodule LeagueReporter do
     history
     |> Enum.map(fn gen ->
       leader = List.first(gen.leaderboard) || %{id: "N/A", elo: 0}
-      top3 = gen.leaderboard
-      |> Enum.take(3)
-      |> Enum.map(& &1.id)
-      |> Enum.join(", ")
+
+      top3 =
+        gen.leaderboard
+        |> Enum.take(3)
+        |> Enum.map(& &1.id)
+        |> Enum.join(", ")
 
       """
       <tr>
@@ -938,11 +967,13 @@ defmodule LeagueReporter do
       type_class = "type-#{arch_type}"
 
       win_pct = Float.round(arch.win_rate * 100, 1)
-      loss_pct = if arch.games_played > 0 do
-        Float.round(arch.losses / arch.games_played * 100, 1)
-      else
-        0.0
-      end
+
+      loss_pct =
+        if arch.games_played > 0 do
+          Float.round(arch.losses / arch.games_played * 100, 1)
+        else
+          0.0
+        end
 
       """
       <div class="architecture-card">
@@ -989,6 +1020,7 @@ defmodule LeagueReporter do
 
   defp infer_architecture_type(id) do
     id_str = to_string(id)
+
     cond do
       String.contains?(id_str, "mlp") -> :mlp
       String.contains?(id_str, "lstm") -> :lstm
@@ -1013,32 +1045,36 @@ defmodule LeagueReporter do
         num_architectures: data.final_stats.num_architectures,
         champion: get_champion_name(data)
       },
-      leaderboard: Enum.map(data.final_leaderboard, fn entry ->
-        %{
-          rank: Enum.find_index(data.final_leaderboard, &(&1 == entry)) + 1,
-          id: to_string(entry.id),
-          architecture: to_string(Map.get(entry, :architecture, infer_architecture_type(entry.id))),
-          elo: Float.round(entry.elo, 2),
-          win_rate: Float.round(entry.win_rate, 4),
-          games_played: entry.games_played,
-          wins: entry.wins,
-          losses: entry.losses,
-          draws: entry.draws
-        }
-      end),
-      history: Enum.map(data.history, fn gen ->
-        %{
-          generation: gen.generation,
-          matches_played: gen.tournament.matches_played,
-          leaderboard: Enum.map(gen.leaderboard, fn entry ->
-            %{
-              id: to_string(entry.id),
-              elo: Float.round(entry.elo, 2),
-              win_rate: Float.round(entry.win_rate, 4)
-            }
-          end)
-        }
-      end)
+      leaderboard:
+        Enum.map(data.final_leaderboard, fn entry ->
+          %{
+            rank: Enum.find_index(data.final_leaderboard, &(&1 == entry)) + 1,
+            id: to_string(entry.id),
+            architecture:
+              to_string(Map.get(entry, :architecture, infer_architecture_type(entry.id))),
+            elo: Float.round(entry.elo, 2),
+            win_rate: Float.round(entry.win_rate, 4),
+            games_played: entry.games_played,
+            wins: entry.wins,
+            losses: entry.losses,
+            draws: entry.draws
+          }
+        end),
+      history:
+        Enum.map(data.history, fn gen ->
+          %{
+            generation: gen.generation,
+            matches_played: gen.tournament.matches_played,
+            leaderboard:
+              Enum.map(gen.leaderboard, fn entry ->
+                %{
+                  id: to_string(entry.id),
+                  elo: Float.round(entry.elo, 2),
+                  win_rate: Float.round(entry.win_rate, 4)
+                }
+              end)
+          }
+        end)
     }
     |> Jason.encode!(pretty: true)
   end
@@ -1066,17 +1102,21 @@ defmodule LeagueReporter do
     data.final_leaderboard
     |> Enum.with_index(1)
     |> Enum.each(fn {entry, rank} ->
-      medal = case rank do
-        1 -> "🥇"
-        2 -> "🥈"
-        3 -> "🥉"
-        _ -> "  "
-      end
+      medal =
+        case rank do
+          1 -> "🥇"
+          2 -> "🥈"
+          3 -> "🥉"
+          _ -> "  "
+        end
 
       Output.puts("#{medal} #{rank}. #{entry.id}")
-      Output.puts("      Elo: #{Float.round(entry.elo, 1)} | " <>
-                  "Win Rate: #{Float.round(entry.win_rate * 100, 1)}% | " <>
-                  "Games: #{entry.games_played} (#{entry.wins}W/#{entry.losses}L/#{entry.draws}D)")
+
+      Output.puts(
+        "      Elo: #{Float.round(entry.elo, 1)} | " <>
+          "Win Rate: #{Float.round(entry.win_rate * 100, 1)}% | " <>
+          "Games: #{entry.games_played} (#{entry.wins}W/#{entry.losses}L/#{entry.draws}D)"
+      )
     end)
 
     Output.puts("")

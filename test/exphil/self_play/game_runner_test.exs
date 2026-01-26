@@ -40,12 +40,13 @@ defmodule ExPhil.SelfPlay.GameRunnerTest do
     setup do
       game_id = "status_test_#{System.unique_integer([:positive])}"
 
-      {:ok, pid} = GameRunner.start_link(
-        game_id: game_id,
-        p1_policy_id: :cpu,
-        p2_policy_id: :cpu,
-        game_type: :mock
-      )
+      {:ok, pid} =
+        GameRunner.start_link(
+          game_id: game_id,
+          p1_policy_id: :cpu,
+          p2_policy_id: :cpu,
+          game_type: :mock
+        )
 
       on_exit(fn -> safe_stop(pid) end)
 
@@ -66,12 +67,13 @@ defmodule ExPhil.SelfPlay.GameRunnerTest do
     setup do
       game_id = "start_test_#{System.unique_integer([:positive])}"
 
-      {:ok, pid} = GameRunner.start_link(
-        game_id: game_id,
-        p1_policy_id: :cpu,
-        p2_policy_id: :cpu,
-        game_type: :mock
-      )
+      {:ok, pid} =
+        GameRunner.start_link(
+          game_id: game_id,
+          p1_policy_id: :cpu,
+          p2_policy_id: :cpu,
+          game_type: :mock
+        )
 
       on_exit(fn -> safe_stop(pid) end)
 
@@ -90,12 +92,13 @@ defmodule ExPhil.SelfPlay.GameRunnerTest do
     setup do
       game_id = "step_test_#{System.unique_integer([:positive])}"
 
-      {:ok, pid} = GameRunner.start_link(
-        game_id: game_id,
-        p1_policy_id: :cpu,
-        p2_policy_id: :cpu,
-        game_type: :mock
-      )
+      {:ok, pid} =
+        GameRunner.start_link(
+          game_id: game_id,
+          p1_policy_id: :cpu,
+          p2_policy_id: :cpu,
+          game_type: :mock
+        )
 
       :ok = GameRunner.start_game(pid)
 
@@ -129,12 +132,13 @@ defmodule ExPhil.SelfPlay.GameRunnerTest do
     setup do
       game_id = "collect_test_#{System.unique_integer([:positive])}"
 
-      {:ok, pid} = GameRunner.start_link(
-        game_id: game_id,
-        p1_policy_id: :cpu,
-        p2_policy_id: :cpu,
-        game_type: :mock
-      )
+      {:ok, pid} =
+        GameRunner.start_link(
+          game_id: game_id,
+          p1_policy_id: :cpu,
+          p2_policy_id: :cpu,
+          game_type: :mock
+        )
 
       :ok = GameRunner.start_game(pid)
 
@@ -156,12 +160,13 @@ defmodule ExPhil.SelfPlay.GameRunnerTest do
     setup do
       game_id = "reset_test_#{System.unique_integer([:positive])}"
 
-      {:ok, pid} = GameRunner.start_link(
-        game_id: game_id,
-        p1_policy_id: :cpu,
-        p2_policy_id: :cpu,
-        game_type: :mock
-      )
+      {:ok, pid} =
+        GameRunner.start_link(
+          game_id: game_id,
+          p1_policy_id: :cpu,
+          p2_policy_id: :cpu,
+          game_type: :mock
+        )
 
       :ok = GameRunner.start_game(pid)
 

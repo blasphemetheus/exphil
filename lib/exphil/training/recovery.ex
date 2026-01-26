@@ -38,7 +38,9 @@ defmodule ExPhil.Training.Recovery do
             {:ok, state} -> {:incomplete, state}
             _ -> :ok
           end
-        _ -> :ok
+
+        _ ->
+          :ok
       end
     else
       :ok
@@ -78,16 +80,21 @@ defmodule ExPhil.Training.Recovery do
       {:ok, content} ->
         case Jason.decode(content) do
           {:ok, state} ->
-            updated = Map.merge(state, %{
-              "epochs_completed" => epoch,
-              "last_epoch_loss" => loss,
-              "last_update" => DateTime.utc_now() |> DateTime.to_iso8601()
-            })
+            updated =
+              Map.merge(state, %{
+                "epochs_completed" => epoch,
+                "last_epoch_loss" => loss,
+                "last_update" => DateTime.utc_now() |> DateTime.to_iso8601()
+              })
+
             write_marker(marker, updated)
+
           _ ->
             {:error, :invalid_marker}
         end
-      error -> error
+
+      error ->
+        error
     end
   end
 
@@ -100,7 +107,8 @@ defmodule ExPhil.Training.Recovery do
 
     case File.rm(marker) do
       :ok -> :ok
-      {:error, :enoent} -> :ok  # Already removed, that's fine
+      # Already removed, that's fine
+      {:error, :enoent} -> :ok
       error -> error
     end
   end
@@ -120,8 +128,8 @@ defmodule ExPhil.Training.Recovery do
     preset_str = if preset, do: " [preset: #{preset}]", else: ""
 
     "Incomplete training detected#{preset_str}\n" <>
-    "  Started: #{started}\n" <>
-    "  Progress: #{epochs_done}/#{epochs_target} epochs#{loss_str}"
+      "  Started: #{started}\n" <>
+      "  Progress: #{epochs_done}/#{epochs_target} epochs#{loss_str}"
   end
 
   @doc """

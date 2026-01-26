@@ -40,24 +40,39 @@ defmodule ExPhil.Training.SelfPlay.OpponentPool do
   require Logger
 
   defstruct [
-    :current_params,       # Current policy parameters
-    :historical,           # List of {version, params} tuples
-    :cpu_levels,           # List of CPU levels to use
-    :config,               # Sampling configuration
-    :win_rates,            # Map of opponent_id => win_rate (for prioritized sampling)
-    :max_historical        # Max historical checkpoints to keep
+    # Current policy parameters
+    :current_params,
+    # List of {version, params} tuples
+    :historical,
+    # List of CPU levels to use
+    :cpu_levels,
+    # Sampling configuration
+    :config,
+    # Map of opponent_id => win_rate (for prioritized sampling)
+    :win_rates,
+    # Max historical checkpoints to keep
+    :max_historical
   ]
 
   @type opponent_type :: :current | :historical | :cpu | :random
-  @type opponent :: %{type: opponent_type, params: map() | nil, level: integer() | nil, version: String.t() | nil}
+  @type opponent :: %{
+          type: opponent_type,
+          params: map() | nil,
+          level: integer() | nil,
+          version: String.t() | nil
+        }
   @type t :: %__MODULE__{}
 
   # Default sampling weights
   @default_config %{
-    current: 0.4,      # 40% current self-play
-    historical: 0.3,   # 30% recent historical
-    cpu: 0.2,          # 20% CPU opponents
-    random: 0.1        # 10% random from full history
+    # 40% current self-play
+    current: 0.4,
+    # 30% recent historical
+    historical: 0.3,
+    # 20% CPU opponents
+    cpu: 0.2,
+    # 10% random from full history
+    random: 0.1
   }
 
   @default_cpu_levels [5, 6, 7, 8, 9]
@@ -133,8 +148,9 @@ defmodule ExPhil.Training.SelfPlay.OpponentPool do
     entry = {version, params_copy, System.system_time(:second)}
 
     # Add to front, trim if over limit
-    historical = [entry | pool.historical]
-    |> Enum.take(pool.max_historical)
+    historical =
+      [entry | pool.historical]
+      |> Enum.take(pool.max_historical)
 
     Logger.info("Snapshotted policy version #{version} (#{length(historical)} in pool)")
 
@@ -184,11 +200,12 @@ defmodule ExPhil.Training.SelfPlay.OpponentPool do
   def record_result(%__MODULE__{} = pool, opponent_id, result) do
     current = Map.get(pool.win_rates, opponent_id, %{wins: 0, losses: 0, draws: 0})
 
-    updated = case result do
-      :win -> %{current | wins: current.wins + 1}
-      :loss -> %{current | losses: current.losses + 1}
-      :draw -> %{current | draws: current.draws + 1}
-    end
+    updated =
+      case result do
+        :win -> %{current | wins: current.wins + 1}
+        :loss -> %{current | losses: current.losses + 1}
+        :draw -> %{current | draws: current.draws + 1}
+      end
 
     %{pool | win_rates: Map.put(pool.win_rates, opponent_id, updated)}
   end
@@ -199,7 +216,10 @@ defmodule ExPhil.Training.SelfPlay.OpponentPool do
   @spec get_win_rate(t(), String.t()) :: float()
   def get_win_rate(%__MODULE__{} = pool, opponent_id) do
     case Map.get(pool.win_rates, opponent_id) do
-      nil -> 0.5  # Unknown opponent, assume 50%
+      # Unknown opponent, assume 50%
+      nil ->
+        0.5
+
       %{wins: w, losses: l, draws: d} ->
         total = w + l + d
         if total == 0, do: 0.5, else: (w + d * 0.5) / total
@@ -213,13 +233,15 @@ defmodule ExPhil.Training.SelfPlay.OpponentPool do
   def list_opponents(%__MODULE__{} = pool) do
     current = if pool.current_params, do: [%{type: :current, id: "current"}], else: []
 
-    historical = Enum.map(pool.historical, fn {version, _params, _time} ->
-      %{type: :historical, id: version}
-    end)
+    historical =
+      Enum.map(pool.historical, fn {version, _params, _time} ->
+        %{type: :historical, id: version}
+      end)
 
-    cpu = Enum.map(pool.cpu_levels, fn level ->
-      %{type: :cpu, id: "cpu_#{level}"}
-    end)
+    cpu =
+      Enum.map(pool.cpu_levels, fn level ->
+        %{type: :cpu, id: "cpu_#{level}"}
+      end)
 
     current ++ historical ++ cpu
   end
@@ -229,15 +251,17 @@ defmodule ExPhil.Training.SelfPlay.OpponentPool do
   """
   @spec load_from_directory(t(), String.t()) :: t()
   def load_from_directory(%__MODULE__{} = pool, dir) do
-    checkpoints = Path.wildcard(Path.join(dir, "*.bin"))
-    |> Enum.sort_by(&File.stat!(&1).mtime, :desc)
-    |> Enum.take(pool.max_historical)
+    checkpoints =
+      Path.wildcard(Path.join(dir, "*.bin"))
+      |> Enum.sort_by(&File.stat!(&1).mtime, :desc)
+      |> Enum.take(pool.max_historical)
 
-    historical = Enum.map(checkpoints, fn path ->
-      version = Path.basename(path, ".bin")
-      {:ok, policy} = ExPhil.Training.load_policy(path)
-      {version, policy.params, File.stat!(path).mtime |> DateTime.to_unix()}
-    end)
+    historical =
+      Enum.map(checkpoints, fn path ->
+        version = Path.basename(path, ".bin")
+        {:ok, policy} = ExPhil.Training.load_policy(path)
+        {version, policy.params, File.stat!(path).mtime |> DateTime.to_unix()}
+      end)
 
     Logger.info("Loaded #{length(historical)} checkpoints from #{dir}")
 
@@ -315,6 +339,7 @@ defmodule ExPhil.Training.SelfPlay.OpponentPool do
     weights
     |> Enum.reduce_while({0.0, nil}, fn {category, weight}, {cumsum, _} ->
       new_cumsum = cumsum + weight
+
       if r <= new_cumsum do
         {:halt, {new_cumsum, category}}
       else
@@ -323,7 +348,8 @@ defmodule ExPhil.Training.SelfPlay.OpponentPool do
     end)
     |> elem(1)
     |> case do
-      nil -> :cpu  # Fallback
+      # Fallback
+      nil -> :cpu
       category -> category
     end
   end
@@ -348,14 +374,14 @@ defmodule ExPhil.Training.SelfPlay.OpponentPool do
   end
 
   defp deep_copy(%Nx.Tensor{} = t), do: Nx.backend_copy(t, Nx.BinaryBackend)
+
   defp deep_copy(%Axon.ModelState{} = state) do
-    %{state |
-      data: deep_copy(state.data),
-      state: deep_copy(state.state)
-    }
+    %{state | data: deep_copy(state.data), state: deep_copy(state.state)}
   end
+
   defp deep_copy(map) when is_map(map) and not is_struct(map) do
     Map.new(map, fn {k, v} -> {k, deep_copy(v)} end)
   end
+
   defp deep_copy(other), do: other
 end

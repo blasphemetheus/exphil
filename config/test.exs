@@ -17,7 +17,7 @@ nx_backend =
     _ ->
       # Auto-detect: use EXLA if CUDA is available
       if System.get_env("EXLA_TARGET") == "cuda" or
-         System.get_env("XLA_TARGET") == "cuda12" do
+           System.get_env("XLA_TARGET") == "cuda12" do
         EXLA.Backend
       else
         Nx.BinaryBackend

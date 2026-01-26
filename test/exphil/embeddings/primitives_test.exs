@@ -303,7 +303,8 @@ defmodule ExPhil.Embeddings.PrimitivesTest do
 
   describe "action_embed/1" do
     test "creates 399-dimensional one-hot vector" do
-      result = Primitives.action_embed(14)  # Common wait action
+      # Common wait action
+      result = Primitives.action_embed(14)
 
       assert Nx.shape(result) == {399}
       # Sum should be 1.0
@@ -321,7 +322,8 @@ defmodule ExPhil.Embeddings.PrimitivesTest do
 
   describe "character_embed/1" do
     test "creates 33-dimensional one-hot vector" do
-      result = Primitives.character_embed(10)  # Mewtwo
+      # Mewtwo
+      result = Primitives.character_embed(10)
 
       assert Nx.shape(result) == {33}
       assert_in_delta Nx.to_number(Nx.sum(result)), 1.0, 0.001
@@ -330,7 +332,8 @@ defmodule ExPhil.Embeddings.PrimitivesTest do
 
   describe "stage_embed/1" do
     test "creates 64-dimensional one-hot vector" do
-      result = Primitives.stage_embed(32)  # Final Destination
+      # Final Destination
+      result = Primitives.stage_embed(32)
 
       assert Nx.shape(result) == {64}
       assert_in_delta Nx.to_number(Nx.sum(result)), 1.0, 0.001

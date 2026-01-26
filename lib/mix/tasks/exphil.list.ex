@@ -27,9 +27,10 @@ defmodule Mix.Tasks.Exphil.List do
 
   @impl Mix.Task
   def run(args) do
-    {opts, _, _} = OptionParser.parse(args,
-      strict: [dir: :string, sort: :string, reverse: :boolean]
-    )
+    {opts, _, _} =
+      OptionParser.parse(args,
+        strict: [dir: :string, sort: :string, reverse: :boolean]
+      )
 
     dir = Keyword.get(opts, :dir, "./checkpoints")
     sort_by = Keyword.get(opts, :sort, "date")
@@ -51,24 +52,27 @@ defmodule Mix.Tasks.Exphil.List do
     end
 
     # Collect file info
-    checkpoints = all_files
-    |> Enum.map(fn path ->
-      stat = File.stat!(path)
-      %{
-        path: path,
-        name: Path.basename(path),
-        size: stat.size,
-        mtime: stat.mtime,
-        type: if(String.ends_with?(path, ".axon"), do: :checkpoint, else: :policy)
-      }
-    end)
+    checkpoints =
+      all_files
+      |> Enum.map(fn path ->
+        stat = File.stat!(path)
+
+        %{
+          path: path,
+          name: Path.basename(path),
+          size: stat.size,
+          mtime: stat.mtime,
+          type: if(String.ends_with?(path, ".axon"), do: :checkpoint, else: :policy)
+        }
+      end)
 
     # Sort
-    checkpoints = case sort_by do
-      "size" -> Enum.sort_by(checkpoints, & &1.size)
-      "name" -> Enum.sort_by(checkpoints, & &1.name)
-      _ -> Enum.sort_by(checkpoints, & &1.mtime)
-    end
+    checkpoints =
+      case sort_by do
+        "size" -> Enum.sort_by(checkpoints, & &1.size)
+        "name" -> Enum.sort_by(checkpoints, & &1.name)
+        _ -> Enum.sort_by(checkpoints, & &1.mtime)
+      end
 
     checkpoints = if reverse, do: checkpoints, else: Enum.reverse(checkpoints)
 

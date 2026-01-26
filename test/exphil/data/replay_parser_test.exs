@@ -380,6 +380,7 @@ defmodule ExPhil.Data.ReplayParserTest do
             "metadata" => %{"path" => "game#{i}.slp"},
             "success" => true
           }
+
           path = Path.join(dir, "game#{i}.json")
           File.write!(path, Jason.encode!(mock_data))
         end

@@ -65,7 +65,8 @@ defmodule ExPhil.SelfPlay.EloTest do
       gain = new_b - 1400
 
       # Upset win is more valuable
-      assert gain > 16  # More than default K/2
+      # More than default K/2
+      assert gain > 16
     end
 
     test "custom K-factor affects rating change" do
@@ -192,7 +193,8 @@ defmodule ExPhil.SelfPlay.EloTest do
       games = Elo.games_to_reach(1000, 1100, 900, 0.8)
 
       assert games > 0
-      assert games < 50  # Should be achievable with 80% win rate against weaker
+      # Should be achievable with 80% win rate against weaker
+      assert games < 50
     end
 
     test "more games needed with lower win rate" do

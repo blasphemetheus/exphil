@@ -49,7 +49,8 @@ defmodule ExPhil.Rewards.Shaped do
     %{
       approach: compute_approach_reward(prev_state, curr_state, player_port),
       combo: compute_combo_reward(prev_opponent, curr_opponent),
-      edge_guard: compute_edge_guard_reward(prev_player, curr_player, prev_opponent, curr_opponent),
+      edge_guard:
+        compute_edge_guard_reward(prev_player, curr_player, prev_opponent, curr_opponent),
       recovery_risk: compute_recovery_risk(curr_player)
     }
   end
@@ -157,8 +158,10 @@ defmodule ExPhil.Rewards.Shaped do
     cond do
       player.x < @stage_left ->
         min(1.0, (@stage_left - player.x) / 50.0)
+
       player.x > @stage_right ->
         min(1.0, (player.x - @stage_right) / 50.0)
+
       true ->
         0.0
     end
@@ -194,7 +197,10 @@ defmodule ExPhil.Rewards.Shaped do
 
   defp get_player(%GameState{players: players}, port) do
     Map.get(players, port, %Player{
-      x: 0.0, y: 0.0, stock: 0, percent: 0.0,
+      x: 0.0,
+      y: 0.0,
+      stock: 0,
+      percent: 0.0,
       hitstun_frames_left: 0
     })
   end

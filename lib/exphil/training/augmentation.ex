@@ -47,9 +47,10 @@ defmodule ExPhil.Training.Augmentation do
   """
   @spec mirror(map()) :: map()
   def mirror(%{game_state: game_state, controller: controller} = frame) do
-    %{frame |
-      game_state: mirror_game_state(game_state),
-      controller: mirror_controller(controller)
+    %{
+      frame
+      | game_state: mirror_game_state(game_state),
+        controller: mirror_controller(controller)
     }
   end
 
@@ -71,6 +72,7 @@ defmodule ExPhil.Training.Augmentation do
   @spec maybe_mirror(map(), keyword()) :: map()
   def maybe_mirror(frame, opts \\ []) do
     probability = Keyword.get(opts, :probability, 0.5)
+
     if :rand.uniform() < probability do
       mirror(frame)
     else
@@ -111,6 +113,7 @@ defmodule ExPhil.Training.Augmentation do
   @spec maybe_add_noise(map(), keyword()) :: map()
   def maybe_add_noise(frame, opts \\ []) do
     probability = Keyword.get(opts, :probability, 0.3)
+
     if :rand.uniform() < probability do
       add_noise(frame, opts)
     else
@@ -143,21 +146,25 @@ defmodule ExPhil.Training.Augmentation do
   # ===========================================================================
 
   defp mirror_game_state(%GameState{} = gs) do
-    %{gs |
-      players: Map.new(gs.players, fn {port, player} ->
-        {port, mirror_player(player)}
-      end),
-      projectiles: Enum.map(gs.projectiles || [], &mirror_projectile/1),
-      items: Enum.map(gs.items || [], &mirror_item/1)
+    %{
+      gs
+      | players:
+          Map.new(gs.players, fn {port, player} ->
+            {port, mirror_player(player)}
+          end),
+        projectiles: Enum.map(gs.projectiles || [], &mirror_projectile/1),
+        items: Enum.map(gs.items || [], &mirror_item/1)
     }
   end
 
   defp mirror_game_state(gs) when is_map(gs) do
     # Handle plain map game states (from parsed replays)
     players = gs[:players] || gs["players"] || %{}
-    mirrored_players = Map.new(players, fn {port, player} ->
-      {port, mirror_player_map(player)}
-    end)
+
+    mirrored_players =
+      Map.new(players, fn {port, player} ->
+        {port, mirror_player_map(player)}
+      end)
 
     gs
     |> Map.put(:players, mirrored_players)
@@ -165,13 +172,14 @@ defmodule ExPhil.Training.Augmentation do
   end
 
   defp mirror_player(%Player{} = p) do
-    %{p |
-      x: -p.x,
-      facing: -p.facing,
-      speed_air_x_self: -(p.speed_air_x_self || 0.0),
-      speed_ground_x_self: -(p.speed_ground_x_self || 0.0),
-      speed_x_attack: -(p.speed_x_attack || 0.0),
-      nana: mirror_nana(p.nana)
+    %{
+      p
+      | x: -p.x,
+        facing: -p.facing,
+        speed_air_x_self: -(p.speed_air_x_self || 0.0),
+        speed_ground_x_self: -(p.speed_ground_x_self || 0.0),
+        speed_x_attack: -(p.speed_x_attack || 0.0),
+        nana: mirror_nana(p.nana)
     }
   end
 
@@ -189,10 +197,7 @@ defmodule ExPhil.Training.Augmentation do
   end
 
   defp mirror_nana(%Nana{} = n) do
-    %{n |
-      x: -n.x,
-      facing: -n.facing
-    }
+    %{n | x: -n.x, facing: -n.facing}
   end
 
   defp mirror_nana(nil), do: nil
@@ -204,10 +209,7 @@ defmodule ExPhil.Training.Augmentation do
   end
 
   defp mirror_controller(%ControllerState{} = cs) do
-    %{cs |
-      main_stick: mirror_stick(cs.main_stick),
-      c_stick: mirror_stick(cs.c_stick)
-    }
+    %{cs | main_stick: mirror_stick(cs.main_stick), c_stick: mirror_stick(cs.c_stick)}
   end
 
   defp mirror_controller(cs) when is_map(cs) do
@@ -256,18 +258,22 @@ defmodule ExPhil.Training.Augmentation do
   # ===========================================================================
 
   defp add_noise_to_game_state(%GameState{} = gs, scale) do
-    %{gs |
-      players: Map.new(gs.players, fn {port, player} ->
-        {port, add_noise_to_player(player, scale)}
-      end)
+    %{
+      gs
+      | players:
+          Map.new(gs.players, fn {port, player} ->
+            {port, add_noise_to_player(player, scale)}
+          end)
     }
   end
 
   defp add_noise_to_game_state(gs, scale) when is_map(gs) do
     players = gs[:players] || gs["players"] || %{}
-    noisy_players = Map.new(players, fn {port, player} ->
-      {port, add_noise_to_player_map(player, scale)}
-    end)
+
+    noisy_players =
+      Map.new(players, fn {port, player} ->
+        {port, add_noise_to_player_map(player, scale)}
+      end)
 
     gs
     |> Map.put(:players, noisy_players)
@@ -275,13 +281,15 @@ defmodule ExPhil.Training.Augmentation do
   end
 
   defp add_noise_to_player(%Player{} = p, scale) do
-    %{p |
-      x: p.x + gaussian_noise(scale),
-      y: p.y + gaussian_noise(scale),
-      percent: max(0.0, p.percent + gaussian_noise(scale * 10)),  # Larger scale for percent
-      speed_air_x_self: (p.speed_air_x_self || 0.0) + gaussian_noise(scale),
-      speed_ground_x_self: (p.speed_ground_x_self || 0.0) + gaussian_noise(scale),
-      speed_y_self: (p.speed_y_self || 0.0) + gaussian_noise(scale)
+    %{
+      p
+      | x: p.x + gaussian_noise(scale),
+        y: p.y + gaussian_noise(scale),
+        # Larger scale for percent
+        percent: max(0.0, p.percent + gaussian_noise(scale * 10)),
+        speed_air_x_self: (p.speed_air_x_self || 0.0) + gaussian_noise(scale),
+        speed_ground_x_self: (p.speed_ground_x_self || 0.0) + gaussian_noise(scale),
+        speed_y_self: (p.speed_y_self || 0.0) + gaussian_noise(scale)
     }
   end
 

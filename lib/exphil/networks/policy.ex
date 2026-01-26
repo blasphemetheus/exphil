@@ -75,16 +75,22 @@ defmodule ExPhil.Networks.Policy do
 
   # Controller output sizes
   @num_buttons 8
-  @axis_buckets 16  # 0-16 = 17 values
-  @shoulder_buckets 4  # 0-4 = 5 values
+  # 0-16 = 17 values
+  @axis_buckets 16
+  # 0-4 = 5 values
+  @shoulder_buckets 4
 
   # Action embedding constants
-  @num_actions 399  # Melee action state count
-  @default_num_action_ids 2  # Default: own + opponent player actions
+  # Melee action state count
+  @num_actions 399
+  # Default: own + opponent player actions
+  @default_num_action_ids 2
 
   # Character embedding constants
-  @num_characters 33  # Melee character count
-  @default_num_character_ids 2  # Default: own + opponent characters
+  # Melee character count
+  @num_characters 33
+  # Default: own + opponent characters
+  @default_num_character_ids 2
 
   @doc """
   Build the policy network model.
@@ -129,15 +135,22 @@ defmodule ExPhil.Networks.Policy do
 
     # Process input: extract IDs and embed if using learned embeddings
     # Order in input tensor: [continuous, action_ids (if any), character_ids (if any)]
-    processed_input = build_embedding_preprocessing(
-      input, embed_size,
-      action_embed_size, num_action_ids,
-      character_embed_size, num_character_ids
-    )
+    processed_input =
+      build_embedding_preprocessing(
+        input,
+        embed_size,
+        action_embed_size,
+        num_action_ids,
+        character_embed_size,
+        num_character_ids
+      )
 
     # Build backbone
-    backbone = build_backbone(processed_input, hidden_sizes, activation, dropout,
-      layer_norm: layer_norm, residual: residual)
+    backbone =
+      build_backbone(processed_input, hidden_sizes, activation, dropout,
+        layer_norm: layer_norm,
+        residual: residual
+      )
 
     # Build autoregressive controller head
     build_controller_head(backbone, axis_buckets, shoulder_buckets)
@@ -153,11 +166,21 @@ defmodule ExPhil.Networks.Policy do
   concatenates everything back together.
   """
   @spec build_embedding_preprocessing(
-    Axon.t(), non_neg_integer(),
-    non_neg_integer() | nil, non_neg_integer(),
-    non_neg_integer() | nil, non_neg_integer()
-  ) :: Axon.t()
-  def build_embedding_preprocessing(input, embed_size, action_embed_size, num_action_ids, character_embed_size, num_character_ids) do
+          Axon.t(),
+          non_neg_integer(),
+          non_neg_integer() | nil,
+          non_neg_integer(),
+          non_neg_integer() | nil,
+          non_neg_integer()
+        ) :: Axon.t()
+  def build_embedding_preprocessing(
+        input,
+        embed_size,
+        action_embed_size,
+        num_action_ids,
+        character_embed_size,
+        num_character_ids
+      ) do
     # Calculate sizes based on what's present
     num_action_slots = if action_embed_size, do: num_action_ids, else: 0
     num_char_slots = if character_embed_size, do: num_character_ids, else: 0
@@ -167,9 +190,12 @@ defmodule ExPhil.Networks.Policy do
       # Both action and character embeddings
       action_embed_size && character_embed_size ->
         build_combined_embedding_layer(
-          input, continuous_size,
-          num_action_ids, action_embed_size,
-          num_character_ids, character_embed_size
+          input,
+          continuous_size,
+          num_action_ids,
+          action_embed_size,
+          num_character_ids,
+          character_embed_size
         )
 
       # Only action embeddings
@@ -178,7 +204,12 @@ defmodule ExPhil.Networks.Policy do
 
       # Only character embeddings
       character_embed_size ->
-        build_character_embedding_layer(input, embed_size, character_embed_size, num_character_ids)
+        build_character_embedding_layer(
+          input,
+          embed_size,
+          character_embed_size,
+          num_character_ids
+        )
 
       # No learned embeddings
       true ->
@@ -192,37 +223,65 @@ defmodule ExPhil.Networks.Policy do
   Input tensor structure: [continuous, action_ids, character_ids]
   Output: [continuous, embedded_actions, embedded_characters]
   """
-  def build_combined_embedding_layer(input, continuous_size, num_action_ids, action_embed_size, num_character_ids, character_embed_size) do
+  def build_combined_embedding_layer(
+        input,
+        continuous_size,
+        num_action_ids,
+        action_embed_size,
+        num_character_ids,
+        character_embed_size
+      ) do
     # Extract continuous features
-    continuous = Axon.nx(input, fn x ->
-      Nx.slice_along_axis(x, 0, continuous_size, axis: 1)
-    end, name: "extract_continuous")
+    continuous =
+      Axon.nx(
+        input,
+        fn x ->
+          Nx.slice_along_axis(x, 0, continuous_size, axis: 1)
+        end,
+        name: "extract_continuous"
+      )
 
     # Extract action IDs (after continuous)
-    action_ids = Axon.nx(input, fn x ->
-      Nx.slice_along_axis(x, continuous_size, num_action_ids, axis: 1)
-      |> Nx.as_type(:s32)
-    end, name: "extract_action_ids")
+    action_ids =
+      Axon.nx(
+        input,
+        fn x ->
+          Nx.slice_along_axis(x, continuous_size, num_action_ids, axis: 1)
+          |> Nx.as_type(:s32)
+        end,
+        name: "extract_action_ids"
+      )
 
     # Extract character IDs (after action IDs)
-    character_ids = Axon.nx(input, fn x ->
-      Nx.slice_along_axis(x, continuous_size + num_action_ids, num_character_ids, axis: 1)
-      |> Nx.as_type(:s32)
-    end, name: "extract_character_ids")
+    character_ids =
+      Axon.nx(
+        input,
+        fn x ->
+          Nx.slice_along_axis(x, continuous_size + num_action_ids, num_character_ids, axis: 1)
+          |> Nx.as_type(:s32)
+        end,
+        name: "extract_character_ids"
+      )
 
     # Embed actions
-    action_embeddings = Axon.embedding(action_ids, @num_actions, action_embed_size,
-      name: "action_embedding")
+    action_embeddings =
+      Axon.embedding(action_ids, @num_actions, action_embed_size, name: "action_embedding")
+
     flat_action_embeddings = Axon.flatten(action_embeddings, name: "flatten_action_embeds")
 
     # Embed characters
-    character_embeddings = Axon.embedding(character_ids, @num_characters, character_embed_size,
-      name: "character_embedding")
-    flat_character_embeddings = Axon.flatten(character_embeddings, name: "flatten_character_embeds")
+    character_embeddings =
+      Axon.embedding(character_ids, @num_characters, character_embed_size,
+        name: "character_embedding"
+      )
+
+    flat_character_embeddings =
+      Axon.flatten(character_embeddings, name: "flatten_character_embeds")
 
     # Concatenate all
     Axon.concatenate([continuous, flat_action_embeddings, flat_character_embeddings],
-      name: "concat_with_embeds")
+      name: "concat_with_embeds"
+    )
   end
 
   @doc """
@@ -231,27 +290,48 @@ defmodule ExPhil.Networks.Policy do
   Input: [batch, continuous_size + num_character_ids]
   Output: [batch, continuous_size + num_character_ids * character_embed_size]
   """
-  def build_character_embedding_layer(input, total_embed_size, character_embed_size, num_character_ids) do
+  def build_character_embedding_layer(
+        input,
+        total_embed_size,
+        character_embed_size,
+        num_character_ids
+      ) do
     continuous_size = total_embed_size - num_character_ids
 
     # Extract continuous features
-    continuous = Axon.nx(input, fn x ->
-      Nx.slice_along_axis(x, 0, continuous_size, axis: 1)
-    end, name: "extract_continuous")
+    continuous =
+      Axon.nx(
+        input,
+        fn x ->
+          Nx.slice_along_axis(x, 0, continuous_size, axis: 1)
+        end,
+        name: "extract_continuous"
+      )
 
     # Extract character IDs
-    character_ids = Axon.nx(input, fn x ->
-      Nx.slice_along_axis(x, continuous_size, num_character_ids, axis: 1)
-      |> Nx.as_type(:s32)
-    end, name: "extract_character_ids")
+    character_ids =
+      Axon.nx(
+        input,
+        fn x ->
+          Nx.slice_along_axis(x, continuous_size, num_character_ids, axis: 1)
+          |> Nx.as_type(:s32)
+        end,
+        name: "extract_character_ids"
+      )
 
     # Embed characters
-    character_embeddings = Axon.embedding(character_ids, @num_characters, character_embed_size,
-      name: "character_embedding")
-    flat_character_embeddings = Axon.flatten(character_embeddings, name: "flatten_character_embeds")
+    character_embeddings =
+      Axon.embedding(character_ids, @num_characters, character_embed_size,
+        name: "character_embedding"
+      )
+
+    flat_character_embeddings =
+      Axon.flatten(character_embeddings, name: "flatten_character_embeds")
 
     # Concatenate
-    Axon.concatenate([continuous, flat_character_embeddings], name: "concat_with_character_embeds")
+    Axon.concatenate([continuous, flat_character_embeddings],
+      name: "concat_with_character_embeds"
+    )
   end
 
   @doc """
@@ -267,26 +347,42 @@ defmodule ExPhil.Networks.Policy do
     - `action_embed_size` - Size of each action's learned embedding
     - `num_action_ids` - Number of action IDs (2 for players, 4 for players + Nana)
   """
-  @spec build_action_embedding_layer(Axon.t(), non_neg_integer(), non_neg_integer(), non_neg_integer()) :: Axon.t()
+  @spec build_action_embedding_layer(
+          Axon.t(),
+          non_neg_integer(),
+          non_neg_integer(),
+          non_neg_integer()
+        ) :: Axon.t()
   def build_action_embedding_layer(input, total_embed_size, action_embed_size, num_action_ids) do
     continuous_size = total_embed_size - num_action_ids
 
     # Split input into continuous features and action IDs
     # continuous_features: [batch, continuous_size]
     # action_ids: [batch, num_action_ids]
-    continuous = Axon.nx(input, fn x ->
-      Nx.slice_along_axis(x, 0, continuous_size, axis: 1)
-    end, name: "extract_continuous")
+    continuous =
+      Axon.nx(
+        input,
+        fn x ->
+          Nx.slice_along_axis(x, 0, continuous_size, axis: 1)
+        end,
+        name: "extract_continuous"
+      )
 
-    action_ids = Axon.nx(input, fn x ->
-      Nx.slice_along_axis(x, continuous_size, num_action_ids, axis: 1)
-      |> Nx.as_type(:s32)  # Convert to integers for embedding lookup
-    end, name: "extract_action_ids")
+    action_ids =
+      Axon.nx(
+        input,
+        fn x ->
+          Nx.slice_along_axis(x, continuous_size, num_action_ids, axis: 1)
+          # Convert to integers for embedding lookup
+          |> Nx.as_type(:s32)
+        end,
+        name: "extract_action_ids"
+      )
 
     # Create embedding layer for actions
     # Shape: [399, action_embed_size]
-    action_embeddings = Axon.embedding(action_ids, @num_actions, action_embed_size,
-      name: "action_embedding")
+    action_embeddings =
+      Axon.embedding(action_ids, @num_actions, action_embed_size, name: "action_embedding")
 
     # Flatten embeddings: [batch, num_action_ids, embed_size] -> [batch, num_action_ids * embed_size]
     flat_action_embeddings = Axon.flatten(action_embeddings, name: "flatten_action_embeds")
@@ -339,20 +435,24 @@ defmodule ExPhil.Networks.Policy do
 
     # Calculate effective embed size after embedding expansion
     continuous_size = embed_size - num_action_slots - num_char_slots
-    effective_embed_size = continuous_size +
-      (if action_embed_size, do: num_action_ids * action_embed_size, else: 0) +
-      (if character_embed_size, do: num_character_ids * character_embed_size, else: 0)
+
+    effective_embed_size =
+      continuous_size +
+        if(action_embed_size, do: num_action_ids * action_embed_size, else: 0) +
+        if character_embed_size, do: num_character_ids * character_embed_size, else: 0
 
     # Build temporal backbone based on type
     # Pass the effective embed size and embedding options
-    backbone_opts = Keyword.merge(opts, [
-      action_embed_size: action_embed_size,
-      character_embed_size: character_embed_size,
-      original_embed_size: embed_size,
-      effective_embed_size: effective_embed_size,
-      num_action_ids: num_action_ids,
-      num_character_ids: num_character_ids
-    ])
+    backbone_opts =
+      Keyword.merge(opts,
+        action_embed_size: action_embed_size,
+        character_embed_size: character_embed_size,
+        original_embed_size: embed_size,
+        effective_embed_size: effective_embed_size,
+        num_action_ids: num_action_ids,
+        num_character_ids: num_character_ids
+      )
+
     backbone = build_temporal_backbone(effective_embed_size, backbone_type, backbone_opts)
 
     # Build controller head on top
@@ -371,35 +471,36 @@ defmodule ExPhil.Networks.Policy do
     original_embed_size = Keyword.get(opts, :original_embed_size, embed_size)
 
     # Build the core backbone
-    backbone = case backbone_type do
-      :sliding_window ->
-        build_sliding_window_backbone(embed_size, opts)
+    backbone =
+      case backbone_type do
+        :sliding_window ->
+          build_sliding_window_backbone(embed_size, opts)
 
-      :attention ->
-        # Pure attention (alias for sliding_window)
-        build_sliding_window_backbone(embed_size, opts)
+        :attention ->
+          # Pure attention (alias for sliding_window)
+          build_sliding_window_backbone(embed_size, opts)
 
-      :lstm_hybrid ->
-        # LSTM + Attention hybrid
-        build_lstm_attention_backbone(embed_size, opts)
+        :lstm_hybrid ->
+          # LSTM + Attention hybrid
+          build_lstm_attention_backbone(embed_size, opts)
 
-      :jamba ->
-        # Recommended: Mamba + Attention hybrid
-        build_jamba_backbone(embed_size, opts)
+        :jamba ->
+          # Recommended: Mamba + Attention hybrid
+          build_jamba_backbone(embed_size, opts)
 
-      :lstm ->
-        build_lstm_backbone(embed_size, opts)
+        :lstm ->
+          build_lstm_backbone(embed_size, opts)
 
-      :gru ->
-        build_gru_backbone(embed_size, opts)
+        :gru ->
+          build_gru_backbone(embed_size, opts)
 
-      :mamba ->
-        build_mamba_backbone(embed_size, opts)
+        :mamba ->
+          build_mamba_backbone(embed_size, opts)
 
-      :mlp ->
-        # For MLP, expect single frame input, add sequence handling
-        build_mlp_temporal_backbone(embed_size, opts)
-    end
+        :mlp ->
+          # For MLP, expect single frame input, add sequence handling
+          build_mlp_temporal_backbone(embed_size, opts)
+      end
 
     # If using learned embeddings (action and/or character), wrap with preprocessing layer
     if action_embed_size || character_embed_size do
@@ -422,68 +523,102 @@ defmodule ExPhil.Networks.Policy do
     num_char_slots = if character_embed_size, do: num_character_ids, else: 0
     continuous_size = original_embed_size - num_action_slots - num_char_slots
 
-    effective_embed_size = continuous_size +
-      (if action_embed_size, do: num_action_ids * action_embed_size, else: 0) +
-      (if character_embed_size, do: num_character_ids * character_embed_size, else: 0)
+    effective_embed_size =
+      continuous_size +
+        if(action_embed_size, do: num_action_ids * action_embed_size, else: 0) +
+        if character_embed_size, do: num_character_ids * character_embed_size, else: 0
 
     # Input: [batch, seq_len, original_embed_size]
     input = Axon.input("state_sequence", shape: {nil, window_size, original_embed_size})
 
     # Extract continuous features: [batch, seq_len, continuous_size]
-    continuous = Axon.nx(input, fn x ->
-      Nx.slice_along_axis(x, 0, continuous_size, axis: 2)
-    end, name: "temporal_extract_continuous")
+    continuous =
+      Axon.nx(
+        input,
+        fn x ->
+          Nx.slice_along_axis(x, 0, continuous_size, axis: 2)
+        end,
+        name: "temporal_extract_continuous"
+      )
 
     # Build list of embeddings to concatenate
     embeddings = [continuous]
 
     # Extract and embed action IDs if using learned action embeddings
-    embeddings = if action_embed_size do
-      action_ids = Axon.nx(input, fn x ->
-        Nx.slice_along_axis(x, continuous_size, num_action_ids, axis: 2)
-        |> Nx.as_type(:s32)
-      end, name: "temporal_extract_action_ids")
+    embeddings =
+      if action_embed_size do
+        action_ids =
+          Axon.nx(
+            input,
+            fn x ->
+              Nx.slice_along_axis(x, continuous_size, num_action_ids, axis: 2)
+              |> Nx.as_type(:s32)
+            end,
+            name: "temporal_extract_action_ids"
+          )
 
-      action_embeddings = Axon.embedding(action_ids, @num_actions, action_embed_size,
-        name: "temporal_action_embedding")
+        action_embeddings =
+          Axon.embedding(action_ids, @num_actions, action_embed_size,
+            name: "temporal_action_embedding"
+          )
 
-      flat_action_embeddings = Axon.nx(action_embeddings, fn x ->
-        {batch, seq_len, num_ids, emb_size} = Nx.shape(x)
-        Nx.reshape(x, {batch, seq_len, num_ids * emb_size})
-      end, name: "temporal_flatten_action_embeds")
+        flat_action_embeddings =
+          Axon.nx(
+            action_embeddings,
+            fn x ->
+              {batch, seq_len, num_ids, emb_size} = Nx.shape(x)
+              Nx.reshape(x, {batch, seq_len, num_ids * emb_size})
+            end,
+            name: "temporal_flatten_action_embeds"
+          )
 
-      embeddings ++ [flat_action_embeddings]
-    else
-      embeddings
-    end
+        embeddings ++ [flat_action_embeddings]
+      else
+        embeddings
+      end
 
     # Extract and embed character IDs if using learned character embeddings
-    embeddings = if character_embed_size do
-      char_offset = continuous_size + num_action_slots
-      character_ids = Axon.nx(input, fn x ->
-        Nx.slice_along_axis(x, char_offset, num_character_ids, axis: 2)
-        |> Nx.as_type(:s32)
-      end, name: "temporal_extract_character_ids")
+    embeddings =
+      if character_embed_size do
+        char_offset = continuous_size + num_action_slots
 
-      character_embeddings = Axon.embedding(character_ids, @num_characters, character_embed_size,
-        name: "temporal_character_embedding")
+        character_ids =
+          Axon.nx(
+            input,
+            fn x ->
+              Nx.slice_along_axis(x, char_offset, num_character_ids, axis: 2)
+              |> Nx.as_type(:s32)
+            end,
+            name: "temporal_extract_character_ids"
+          )
 
-      flat_character_embeddings = Axon.nx(character_embeddings, fn x ->
-        {batch, seq_len, num_ids, emb_size} = Nx.shape(x)
-        Nx.reshape(x, {batch, seq_len, num_ids * emb_size})
-      end, name: "temporal_flatten_character_embeds")
+        character_embeddings =
+          Axon.embedding(character_ids, @num_characters, character_embed_size,
+            name: "temporal_character_embedding"
+          )
 
-      embeddings ++ [flat_character_embeddings]
-    else
-      embeddings
-    end
+        flat_character_embeddings =
+          Axon.nx(
+            character_embeddings,
+            fn x ->
+              {batch, seq_len, num_ids, emb_size} = Nx.shape(x)
+              Nx.reshape(x, {batch, seq_len, num_ids * emb_size})
+            end,
+            name: "temporal_flatten_character_embeds"
+          )
+
+        embeddings ++ [flat_character_embeddings]
+      else
+        embeddings
+      end
 
     # Concatenate all embeddings
-    combined = if length(embeddings) > 1 do
-      Axon.concatenate(embeddings, axis: 2, name: "temporal_concat_with_embeds")
-    else
-      hd(embeddings)
-    end
+    combined =
+      if length(embeddings) > 1 do
+        Axon.concatenate(embeddings, axis: 2, name: "temporal_concat_with_embeds")
+      else
+        hd(embeddings)
+      end
 
     # Now build the actual backbone on top of the preprocessed input
     build_temporal_backbone_on_processed(combined, effective_embed_size, backbone_type, opts)
@@ -507,59 +642,79 @@ defmodule ExPhil.Networks.Policy do
         projected = Axon.dense(processed_input, output_dim, name: "action_emb_project")
 
         # Apply attention layers
-        attended = Enum.reduce(1..num_layers, projected, fn i, acc ->
-          # Self-attention (simplified - just dense layers for now)
-          acc
-          |> Axon.dense(output_dim, name: "action_emb_attn_#{i}")
-          |> Axon.relu()
-          |> Axon.dropout(rate: dropout)
-        end)
+        attended =
+          Enum.reduce(1..num_layers, projected, fn i, acc ->
+            # Self-attention (simplified - just dense layers for now)
+            acc
+            |> Axon.dense(output_dim, name: "action_emb_attn_#{i}")
+            |> Axon.relu()
+            |> Axon.dropout(rate: dropout)
+          end)
 
         # Take last frame output
-        Axon.nx(attended, fn x ->
-          seq_len = Nx.axis_size(x, 1)
-          Nx.slice_along_axis(x, seq_len - 1, 1, axis: 1) |> Nx.squeeze(axes: [1])
-        end, name: "action_emb_last_frame")
+        Axon.nx(
+          attended,
+          fn x ->
+            seq_len = Nx.axis_size(x, 1)
+            Nx.slice_along_axis(x, seq_len - 1, 1, axis: 1) |> Nx.squeeze(axes: [1])
+          end,
+          name: "action_emb_last_frame"
+        )
 
       :mamba ->
         # Project and apply simple recurrent-like processing
         projected = Axon.dense(processed_input, hidden_size, name: "action_emb_mamba_project")
 
-        processed = Enum.reduce(1..num_layers, projected, fn i, acc ->
-          acc
-          |> Axon.dense(hidden_size, name: "action_emb_mamba_#{i}")
-          |> Axon.silu()
-          |> Axon.dropout(rate: dropout)
-        end)
+        processed =
+          Enum.reduce(1..num_layers, projected, fn i, acc ->
+            acc
+            |> Axon.dense(hidden_size, name: "action_emb_mamba_#{i}")
+            |> Axon.silu()
+            |> Axon.dropout(rate: dropout)
+          end)
 
         # Take last frame
-        Axon.nx(processed, fn x ->
-          seq_len = Nx.axis_size(x, 1)
-          Nx.slice_along_axis(x, seq_len - 1, 1, axis: 1) |> Nx.squeeze(axes: [1])
-        end, name: "action_emb_mamba_last_frame")
+        Axon.nx(
+          processed,
+          fn x ->
+            seq_len = Nx.axis_size(x, 1)
+            Nx.slice_along_axis(x, seq_len - 1, 1, axis: 1) |> Nx.squeeze(axes: [1])
+          end,
+          name: "action_emb_mamba_last_frame"
+        )
 
       :jamba ->
         # Similar to mamba but with attention every few layers
         projected = Axon.dense(processed_input, hidden_size, name: "action_emb_jamba_project")
 
-        processed = Enum.reduce(1..num_layers, projected, fn i, acc ->
-          acc
-          |> Axon.dense(hidden_size, name: "action_emb_jamba_#{i}")
-          |> Axon.silu()
-          |> Axon.dropout(rate: dropout)
-        end)
+        processed =
+          Enum.reduce(1..num_layers, projected, fn i, acc ->
+            acc
+            |> Axon.dense(hidden_size, name: "action_emb_jamba_#{i}")
+            |> Axon.silu()
+            |> Axon.dropout(rate: dropout)
+          end)
 
-        Axon.nx(processed, fn x ->
-          seq_len = Nx.axis_size(x, 1)
-          Nx.slice_along_axis(x, seq_len - 1, 1, axis: 1) |> Nx.squeeze(axes: [1])
-        end, name: "action_emb_jamba_last_frame")
+        Axon.nx(
+          processed,
+          fn x ->
+            seq_len = Nx.axis_size(x, 1)
+            Nx.slice_along_axis(x, seq_len - 1, 1, axis: 1) |> Nx.squeeze(axes: [1])
+          end,
+          name: "action_emb_jamba_last_frame"
+        )
 
       :mlp ->
         # Take last frame and apply MLP
-        last_frame = Axon.nx(processed_input, fn x ->
-          seq_len = Nx.axis_size(x, 1)
-          Nx.slice_along_axis(x, seq_len - 1, 1, axis: 1) |> Nx.squeeze(axes: [1])
-        end, name: "action_emb_mlp_last_frame")
+        last_frame =
+          Axon.nx(
+            processed_input,
+            fn x ->
+              seq_len = Nx.axis_size(x, 1)
+              Nx.slice_along_axis(x, seq_len - 1, 1, axis: 1) |> Nx.squeeze(axes: [1])
+            end,
+            name: "action_emb_mlp_last_frame"
+          )
 
         Enum.reduce(1..num_layers, last_frame, fn i, acc ->
           acc
@@ -616,7 +771,8 @@ defmodule ExPhil.Networks.Policy do
       num_heads: num_heads,
       head_dim: head_dim,
       dropout: dropout,
-      window_size: window_size  # For concrete seq_len (efficient JIT)
+      # For concrete seq_len (efficient JIT)
+      window_size: window_size
     )
   end
 
@@ -667,8 +823,10 @@ defmodule ExPhil.Networks.Policy do
       cell_type: :lstm,
       dropout: dropout,
       return_sequences: false,
-      window_size: window_size,  # For concrete seq_len (efficient JIT)
-      truncate_bptt: truncate_bptt  # Optional: limit gradient flow for faster training
+      # For concrete seq_len (efficient JIT)
+      window_size: window_size,
+      # Optional: limit gradient flow for faster training
+      truncate_bptt: truncate_bptt
     )
   end
 
@@ -739,19 +897,28 @@ defmodule ExPhil.Networks.Policy do
 
     # Take last frame: [batch, embed_size]
     # Use concrete index when available for efficient compilation
-    last_frame = Axon.nx(input, fn tensor ->
-      last_idx = if seq_len do
-        seq_len - 1
-      else
-        Nx.axis_size(tensor, 1) - 1
-      end
-      Nx.slice_along_axis(tensor, last_idx, 1, axis: 1)
-      |> Nx.squeeze(axes: [1])
-    end, name: "last_frame")
+    last_frame =
+      Axon.nx(
+        input,
+        fn tensor ->
+          last_idx =
+            if seq_len do
+              seq_len - 1
+            else
+              Nx.axis_size(tensor, 1) - 1
+            end
+
+          Nx.slice_along_axis(tensor, last_idx, 1, axis: 1)
+          |> Nx.squeeze(axes: [1])
+        end,
+        name: "last_frame"
+      )
 
     # Apply MLP backbone
     build_backbone(last_frame, hidden_sizes, activation, dropout,
-      layer_norm: layer_norm, residual: residual)
+      layer_norm: layer_norm,
+      residual: residual
+    )
   end
 
   @doc """
@@ -777,33 +944,38 @@ defmodule ExPhil.Networks.Policy do
 
     # Get input dimension for residual connections
     # We track the previous layer's size to know when we need projection
-    {final_layer, _} = hidden_sizes
-    |> Enum.with_index()
-    |> Enum.reduce({input, nil}, fn {size, idx}, {acc, prev_size} ->
-      # Build the main transformation path
-      layer = acc
-      |> Axon.dense(size, name: "backbone_dense_#{idx}")
+    {final_layer, _} =
+      hidden_sizes
+      |> Enum.with_index()
+      |> Enum.reduce({input, nil}, fn {size, idx}, {acc, prev_size} ->
+        # Build the main transformation path
+        layer =
+          acc
+          |> Axon.dense(size, name: "backbone_dense_#{idx}")
 
-      # Optional layer normalization (post-dense, pre-activation)
-      layer = if layer_norm do
-        Axon.layer_norm(layer, name: "backbone_ln_#{idx}")
-      else
-        layer
-      end
+        # Optional layer normalization (post-dense, pre-activation)
+        layer =
+          if layer_norm do
+            Axon.layer_norm(layer, name: "backbone_ln_#{idx}")
+          else
+            layer
+          end
 
-      layer = layer
-      |> Axon.activation(activation)
-      |> Axon.dropout(rate: dropout)
+        layer =
+          layer
+          |> Axon.activation(activation)
+          |> Axon.dropout(rate: dropout)
 
-      # Add residual connection if enabled
-      layer = if residual do
-        add_residual_connection(acc, layer, prev_size, size, idx)
-      else
-        layer
-      end
+        # Add residual connection if enabled
+        layer =
+          if residual do
+            add_residual_connection(acc, layer, prev_size, size, idx)
+          else
+            layer
+          end
 
-      {layer, size}
-    end)
+        {layer, size}
+      end)
 
     final_layer
   end
@@ -838,40 +1010,46 @@ defmodule ExPhil.Networks.Policy do
     shoulder_size = shoulder_buckets + 1
 
     # Button logits (8 independent Bernoulli distributions)
-    buttons = backbone
-    |> Axon.dense(64, name: "buttons_hidden")
-    |> Axon.relu()
-    |> Axon.dense(@num_buttons, name: "buttons_logits")
+    buttons =
+      backbone
+      |> Axon.dense(64, name: "buttons_hidden")
+      |> Axon.relu()
+      |> Axon.dense(@num_buttons, name: "buttons_logits")
 
     # Main stick X
-    main_x = backbone
-    |> Axon.dense(64, name: "main_x_hidden")
-    |> Axon.relu()
-    |> Axon.dense(axis_size, name: "main_x_logits")
+    main_x =
+      backbone
+      |> Axon.dense(64, name: "main_x_hidden")
+      |> Axon.relu()
+      |> Axon.dense(axis_size, name: "main_x_logits")
 
     # Main stick Y
-    main_y = backbone
-    |> Axon.dense(64, name: "main_y_hidden")
-    |> Axon.relu()
-    |> Axon.dense(axis_size, name: "main_y_logits")
+    main_y =
+      backbone
+      |> Axon.dense(64, name: "main_y_hidden")
+      |> Axon.relu()
+      |> Axon.dense(axis_size, name: "main_y_logits")
 
     # C-stick X
-    c_x = backbone
-    |> Axon.dense(64, name: "c_x_hidden")
-    |> Axon.relu()
-    |> Axon.dense(axis_size, name: "c_x_logits")
+    c_x =
+      backbone
+      |> Axon.dense(64, name: "c_x_hidden")
+      |> Axon.relu()
+      |> Axon.dense(axis_size, name: "c_x_logits")
 
     # C-stick Y
-    c_y = backbone
-    |> Axon.dense(64, name: "c_y_hidden")
-    |> Axon.relu()
-    |> Axon.dense(axis_size, name: "c_y_logits")
+    c_y =
+      backbone
+      |> Axon.dense(64, name: "c_y_hidden")
+      |> Axon.relu()
+      |> Axon.dense(axis_size, name: "c_y_logits")
 
     # Shoulder/trigger
-    shoulder = backbone
-    |> Axon.dense(32, name: "shoulder_hidden")
-    |> Axon.relu()
-    |> Axon.dense(shoulder_size, name: "shoulder_logits")
+    shoulder =
+      backbone
+      |> Axon.dense(32, name: "shoulder_hidden")
+      |> Axon.relu()
+      |> Axon.dense(shoulder_size, name: "shoulder_logits")
 
     # Combine into a container output
     Axon.container({buttons, main_x, main_y, c_x, c_y, shoulder})
@@ -908,49 +1086,70 @@ defmodule ExPhil.Networks.Policy do
     prev_c_y = Axon.input("prev_c_y", shape: {nil, axis_size})
 
     # Backbone
-    backbone = build_backbone(state_input, hidden_sizes, activation, dropout,
-      layer_norm: layer_norm, residual: residual)
+    backbone =
+      build_backbone(state_input, hidden_sizes, activation, dropout,
+        layer_norm: layer_norm,
+        residual: residual
+      )
 
     # Buttons head (no conditioning, first in sequence)
-    buttons = backbone
-    |> Axon.dense(64, name: "buttons_hidden")
-    |> Axon.relu()
-    |> Axon.dense(@num_buttons, name: "buttons_logits")
+    buttons =
+      backbone
+      |> Axon.dense(64, name: "buttons_hidden")
+      |> Axon.relu()
+      |> Axon.dense(@num_buttons, name: "buttons_logits")
 
     # Main X head (conditioned on buttons)
     main_x_input = Axon.concatenate([backbone, prev_buttons], name: "main_x_concat")
-    main_x = main_x_input
-    |> Axon.dense(64, name: "main_x_hidden")
-    |> Axon.relu()
-    |> Axon.dense(axis_size, name: "main_x_logits")
+
+    main_x =
+      main_x_input
+      |> Axon.dense(64, name: "main_x_hidden")
+      |> Axon.relu()
+      |> Axon.dense(axis_size, name: "main_x_logits")
 
     # Main Y head (conditioned on buttons + main_x)
     main_y_input = Axon.concatenate([backbone, prev_buttons, prev_main_x], name: "main_y_concat")
-    main_y = main_y_input
-    |> Axon.dense(64, name: "main_y_hidden")
-    |> Axon.relu()
-    |> Axon.dense(axis_size, name: "main_y_logits")
+
+    main_y =
+      main_y_input
+      |> Axon.dense(64, name: "main_y_hidden")
+      |> Axon.relu()
+      |> Axon.dense(axis_size, name: "main_y_logits")
 
     # C-stick X (conditioned on buttons + main stick)
-    c_x_input = Axon.concatenate([backbone, prev_buttons, prev_main_x, prev_main_y], name: "c_x_concat")
-    c_x = c_x_input
-    |> Axon.dense(64, name: "c_x_hidden")
-    |> Axon.relu()
-    |> Axon.dense(axis_size, name: "c_x_logits")
+    c_x_input =
+      Axon.concatenate([backbone, prev_buttons, prev_main_x, prev_main_y], name: "c_x_concat")
+
+    c_x =
+      c_x_input
+      |> Axon.dense(64, name: "c_x_hidden")
+      |> Axon.relu()
+      |> Axon.dense(axis_size, name: "c_x_logits")
 
     # C-stick Y
-    c_y_input = Axon.concatenate([backbone, prev_buttons, prev_main_x, prev_main_y, prev_c_x], name: "c_y_concat")
-    c_y = c_y_input
-    |> Axon.dense(64, name: "c_y_hidden")
-    |> Axon.relu()
-    |> Axon.dense(axis_size, name: "c_y_logits")
+    c_y_input =
+      Axon.concatenate([backbone, prev_buttons, prev_main_x, prev_main_y, prev_c_x],
+        name: "c_y_concat"
+      )
+
+    c_y =
+      c_y_input
+      |> Axon.dense(64, name: "c_y_hidden")
+      |> Axon.relu()
+      |> Axon.dense(axis_size, name: "c_y_logits")
 
     # Shoulder (conditioned on everything)
-    shoulder_input = Axon.concatenate([backbone, prev_buttons, prev_main_x, prev_main_y, prev_c_x, prev_c_y], name: "shoulder_concat")
-    shoulder = shoulder_input
-    |> Axon.dense(32, name: "shoulder_hidden")
-    |> Axon.relu()
-    |> Axon.dense(shoulder_size, name: "shoulder_logits")
+    shoulder_input =
+      Axon.concatenate([backbone, prev_buttons, prev_main_x, prev_main_y, prev_c_x, prev_c_y],
+        name: "shoulder_concat"
+      )
+
+    shoulder =
+      shoulder_input
+      |> Axon.dense(32, name: "shoulder_hidden")
+      |> Axon.relu()
+      |> Axon.dense(shoulder_size, name: "shoulder_logits")
 
     Axon.container({buttons, main_x, main_y, c_x, c_y, shoulder})
   end
@@ -1069,17 +1268,25 @@ defmodule ExPhil.Networks.Policy do
     compute_confidence(logits)
   end
 
-  def compute_confidence(%{buttons: buttons_logits, main_x: main_x_logits, main_y: main_y_logits,
-                          c_x: c_x_logits, c_y: c_y_logits, shoulder: shoulder_logits}) do
+  def compute_confidence(%{
+        buttons: buttons_logits,
+        main_x: main_x_logits,
+        main_y: main_y_logits,
+        c_x: c_x_logits,
+        c_y: c_y_logits,
+        shoulder: shoulder_logits
+      }) do
     # Button confidence: how far from 0.5 (uncertain) the probabilities are
     # Confidence = mean(|sigmoid(logit) - 0.5| * 2)
     button_probs = Nx.sigmoid(buttons_logits)
-    button_confidence = button_probs
-    |> Nx.subtract(0.5)
-    |> Nx.abs()
-    |> Nx.multiply(2)
-    |> Nx.mean()
-    |> Nx.to_number()
+
+    button_confidence =
+      button_probs
+      |> Nx.subtract(0.5)
+      |> Nx.abs()
+      |> Nx.multiply(2)
+      |> Nx.mean()
+      |> Nx.to_number()
 
     # Categorical confidence: max softmax probability
     main_x_conf = max_softmax_prob(main_x_logits)
@@ -1093,8 +1300,9 @@ defmodule ExPhil.Networks.Policy do
     shoulder_confidence = max_softmax_prob(shoulder_logits)
 
     # Overall: weighted average (buttons are most important for gameplay)
-    overall = (button_confidence * 0.4 + main_confidence * 0.3 +
-               c_confidence * 0.15 + shoulder_confidence * 0.15)
+    overall =
+      button_confidence * 0.4 + main_confidence * 0.3 +
+        c_confidence * 0.15 + shoulder_confidence * 0.15
 
     %{
       buttons: Float.round(button_confidence, 3),
@@ -1111,9 +1319,11 @@ defmodule ExPhil.Networks.Policy do
   defp max_softmax_prob(logits) do
     # Softmax then max
     probs = Axon.Activations.softmax(logits, axis: -1)
+
     probs
     |> Nx.reduce_max(axes: [-1])
-    |> Nx.mean()  # Average across batch if present
+    # Average across batch if present
+    |> Nx.mean()
     |> Nx.to_number()
   end
 
@@ -1159,14 +1369,19 @@ defmodule ExPhil.Networks.Policy do
     focal_gamma = Keyword.get(opts, :focal_gamma, 2.0)
 
     # Choose loss functions based on focal_loss flag
-    {button_loss_fn, cat_loss_fn} = if focal_loss do
-      {
-        fn logits, targets, smooth -> focal_binary_cross_entropy(logits, targets, smooth, focal_gamma) end,
-        fn logits, targets, smooth -> focal_categorical_cross_entropy(logits, targets, smooth, focal_gamma) end
-      }
-    else
-      {&binary_cross_entropy/3, &categorical_cross_entropy/3}
-    end
+    {button_loss_fn, cat_loss_fn} =
+      if focal_loss do
+        {
+          fn logits, targets, smooth ->
+            focal_binary_cross_entropy(logits, targets, smooth, focal_gamma)
+          end,
+          fn logits, targets, smooth ->
+            focal_categorical_cross_entropy(logits, targets, smooth, focal_gamma)
+          end
+        }
+      else
+        {&binary_cross_entropy/3, &categorical_cross_entropy/3}
+      end
 
     # Button loss (binary cross-entropy with optional label smoothing + focal)
     button_loss = button_loss_fn.(logits.buttons, targets.buttons, label_smoothing)
@@ -1181,11 +1396,19 @@ defmodule ExPhil.Networks.Policy do
     shoulder_loss = cat_loss_fn.(logits.shoulder, targets.shoulder, label_smoothing)
 
     # Combine losses
-    Nx.add(button_loss,
-      Nx.add(main_x_loss,
-        Nx.add(main_y_loss,
-          Nx.add(c_x_loss,
-            Nx.add(c_y_loss, shoulder_loss)))))
+    Nx.add(
+      button_loss,
+      Nx.add(
+        main_x_loss,
+        Nx.add(
+          main_y_loss,
+          Nx.add(
+            c_x_loss,
+            Nx.add(c_y_loss, shoulder_loss)
+          )
+        )
+      )
+    )
   end
 
   @doc """
@@ -1206,14 +1429,15 @@ defmodule ExPhil.Networks.Policy do
   def binary_cross_entropy(logits, targets, label_smoothing) do
     # Apply label smoothing to targets
     # Smoothed targets: t_smooth = t * (1 - ε) + (1 - t) * ε = t * (1 - 2ε) + ε
-    smoothed_targets = if label_smoothing > 0.0 do
-      Nx.add(
-        Nx.multiply(targets, 1.0 - 2.0 * label_smoothing),
-        label_smoothing
-      )
-    else
-      targets
-    end
+    smoothed_targets =
+      if label_smoothing > 0.0 do
+        Nx.add(
+          Nx.multiply(targets, 1.0 - 2.0 * label_smoothing),
+          label_smoothing
+        )
+      else
+        targets
+      end
 
     # Numerically stable BCE
     # loss = max(logits, 0) - logits * targets + log(1 + exp(-abs(logits)))
@@ -1252,28 +1476,30 @@ defmodule ExPhil.Networks.Policy do
     num_classes = Nx.axis_size(logits, 1)
 
     # Create one-hot targets
-    targets_one_hot = Nx.equal(
-      Nx.iota({batch_size, num_classes}, axis: 1),
-      Nx.reshape(targets, {batch_size, 1})
-    )
+    targets_one_hot =
+      Nx.equal(
+        Nx.iota({batch_size, num_classes}, axis: 1),
+        Nx.reshape(targets, {batch_size, 1})
+      )
 
     # Apply label smoothing if enabled
     # Smoothed one-hot: (1-ε) for target class, ε/(n-1) for others
-    smoothed_targets = if label_smoothing > 0.0 do
-      # off_value = ε / (n-1)
-      # on_value = 1 - ε
-      off_value = label_smoothing / (num_classes - 1)
-      on_value = 1.0 - label_smoothing
+    smoothed_targets =
+      if label_smoothing > 0.0 do
+        # off_value = ε / (n-1)
+        # on_value = 1 - ε
+        off_value = label_smoothing / (num_classes - 1)
+        on_value = 1.0 - label_smoothing
 
-      # Start with uniform ε/(n-1), then add (1-ε - ε/(n-1)) to target class
-      # = off_value + targets_one_hot * (on_value - off_value)
-      Nx.add(
-        off_value,
-        Nx.multiply(targets_one_hot, on_value - off_value)
-      )
-    else
-      targets_one_hot
-    end
+        # Start with uniform ε/(n-1), then add (1-ε - ε/(n-1)) to target class
+        # = off_value + targets_one_hot * (on_value - off_value)
+        Nx.add(
+          off_value,
+          Nx.multiply(targets_one_hot, on_value - off_value)
+        )
+      else
+        targets_one_hot
+      end
 
     # Cross-entropy with soft targets: -sum(p * log_q)
     nll = Nx.negate(Nx.sum(Nx.multiply(log_probs, smoothed_targets), axes: [1]))
@@ -1291,27 +1517,30 @@ defmodule ExPhil.Networks.Policy do
   This helps with rare button presses (Z, L, R are used <2% of the time)
   by preventing the model from ignoring them in favor of easy negatives.
   """
-  @spec focal_binary_cross_entropy(Nx.Tensor.t(), Nx.Tensor.t(), float(), float()) :: Nx.Tensor.t()
+  @spec focal_binary_cross_entropy(Nx.Tensor.t(), Nx.Tensor.t(), float(), float()) ::
+          Nx.Tensor.t()
   def focal_binary_cross_entropy(logits, targets, label_smoothing, gamma) do
     # Apply label smoothing to targets
-    smoothed_targets = if label_smoothing > 0.0 do
-      Nx.add(
-        Nx.multiply(targets, 1.0 - 2.0 * label_smoothing),
-        label_smoothing
-      )
-    else
-      targets
-    end
+    smoothed_targets =
+      if label_smoothing > 0.0 do
+        Nx.add(
+          Nx.multiply(targets, 1.0 - 2.0 * label_smoothing),
+          label_smoothing
+        )
+      else
+        targets
+      end
 
     # Compute probabilities via sigmoid
     probs = Nx.sigmoid(logits)
 
     # p_t = p if y=1, (1-p) if y=0
     # Using: p_t = p * y + (1-p) * (1-y) = y*(2p-1) + (1-p)
-    p_t = Nx.add(
-      Nx.multiply(smoothed_targets, Nx.subtract(Nx.multiply(probs, 2), 1)),
-      Nx.subtract(1, probs)
-    )
+    p_t =
+      Nx.add(
+        Nx.multiply(smoothed_targets, Nx.subtract(Nx.multiply(probs, 2), 1)),
+        Nx.subtract(1, probs)
+      )
 
     # Focal weight: (1 - p_t)^gamma
     focal_weight = Nx.pow(Nx.subtract(1.0, p_t), gamma)
@@ -1337,7 +1566,8 @@ defmodule ExPhil.Networks.Policy do
 
   This helps with rare stick positions and shoulder values.
   """
-  @spec focal_categorical_cross_entropy(Nx.Tensor.t(), Nx.Tensor.t(), float(), float()) :: Nx.Tensor.t()
+  @spec focal_categorical_cross_entropy(Nx.Tensor.t(), Nx.Tensor.t(), float(), float()) ::
+          Nx.Tensor.t()
   def focal_categorical_cross_entropy(logits, targets, label_smoothing, gamma) do
     # Compute log probabilities and probabilities
     log_probs = log_softmax(logits)
@@ -1347,22 +1577,26 @@ defmodule ExPhil.Networks.Policy do
     {batch_size, num_classes} = Nx.shape(logits)
 
     # Convert targets to one-hot
-    targets_one_hot = Nx.equal(
-      Nx.reshape(targets, {batch_size, 1}),
-      Nx.iota({1, num_classes})
-    ) |> Nx.as_type(:f32)
+    targets_one_hot =
+      Nx.equal(
+        Nx.reshape(targets, {batch_size, 1}),
+        Nx.iota({1, num_classes})
+      )
+      |> Nx.as_type(:f32)
 
     # Apply label smoothing
-    smoothed_targets = if label_smoothing > 0.0 do
-      off_value = label_smoothing / (num_classes - 1)
-      on_value = 1.0 - label_smoothing
-      Nx.add(
-        off_value,
-        Nx.multiply(targets_one_hot, on_value - off_value)
-      )
-    else
-      targets_one_hot
-    end
+    smoothed_targets =
+      if label_smoothing > 0.0 do
+        off_value = label_smoothing / (num_classes - 1)
+        on_value = 1.0 - label_smoothing
+
+        Nx.add(
+          off_value,
+          Nx.multiply(targets_one_hot, on_value - off_value)
+        )
+      else
+        targets_one_hot
+      end
 
     # p_t = sum(p * y) for each sample (probability of correct class)
     p_t = Nx.sum(Nx.multiply(probs, smoothed_targets), axes: [1])
@@ -1416,11 +1650,12 @@ defmodule ExPhil.Networks.Policy do
     [a, b, x, y, z, l, r, d_up] = Enum.map(button_list, &(&1 == 1))
 
     # Use K-means undiscretization if centers provided
-    undiscretize_axis = if kmeans_centers do
-      fn index -> ExPhil.Embeddings.KMeans.undiscretize(Nx.to_number(index), kmeans_centers) end
-    else
-      fn index -> ControllerEmbed.undiscretize_axis(Nx.to_number(index), axis_buckets) end
-    end
+    undiscretize_axis =
+      if kmeans_centers do
+        fn index -> ExPhil.Embeddings.KMeans.undiscretize(Nx.to_number(index), kmeans_centers) end
+      else
+        fn index -> ControllerEmbed.undiscretize_axis(Nx.to_number(index), axis_buckets) end
+      end
 
     %ExPhil.Bridge.ControllerState{
       main_stick: %{
@@ -1446,8 +1681,10 @@ defmodule ExPhil.Networks.Policy do
 
   defp squeeze_if_batched(tensor) do
     case Nx.shape(tensor) do
-      {} -> tensor  # Already scalar
-      {1} -> Nx.squeeze(tensor)  # Shape {1} -> scalar
+      # Already scalar
+      {} -> tensor
+      # Shape {1} -> scalar
+      {1} -> Nx.squeeze(tensor)
       {1, _} -> Nx.squeeze(tensor, axes: [0])
       {_, _} -> Nx.slice(tensor, [0, 0], [1, Nx.axis_size(tensor, 1)]) |> Nx.squeeze(axes: [0])
       _ -> tensor

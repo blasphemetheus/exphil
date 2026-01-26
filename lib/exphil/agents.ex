@@ -109,7 +109,7 @@ defmodule ExPhil.Agents do
     `{:ok, action}` with action map, or `{:error, reason}`.
   """
   @spec get_action(atom() | pid(), GameState.t(), keyword()) ::
-    {:ok, map()} | {:error, term()}
+          {:ok, map()} | {:error, term()}
   def get_action(name_or_pid, game_state, opts \\ [])
 
   def get_action(name, game_state, opts) when is_atom(name) do
@@ -129,7 +129,7 @@ defmodule ExPhil.Agents do
   Returns a ControllerState struct ready to send to the bridge.
   """
   @spec get_controller(atom() | pid(), GameState.t(), keyword()) ::
-    {:ok, ControllerState.t()} | {:error, term()}
+          {:ok, ControllerState.t()} | {:error, term()}
   def get_controller(name_or_pid, game_state, opts \\ [])
 
   def get_controller(name, game_state, opts) when is_atom(name) do
@@ -182,16 +182,20 @@ defmodule ExPhil.Agents do
 
     case get(agent_name) do
       {:ok, agent_pid} ->
-        ExPhil.Bridge.run_game(bridge, fn game_state ->
-          case Agent.get_controller(agent_pid, game_state, player_port: player_port) do
-            {:ok, input} ->
-              {:continue, controller_to_input(input)}
+        ExPhil.Bridge.run_game(
+          bridge,
+          fn game_state ->
+            case Agent.get_controller(agent_pid, game_state, player_port: player_port) do
+              {:ok, input} ->
+                {:continue, controller_to_input(input)}
 
-            {:error, reason} ->
-              Logger.warning("[Agents] Failed to get action: #{inspect(reason)}")
-              {:continue, ExPhil.Bridge.ControllerInput.neutral()}
-          end
-        end, opts)
+              {:error, reason} ->
+                Logger.warning("[Agents] Failed to get action: #{inspect(reason)}")
+                {:continue, ExPhil.Bridge.ControllerInput.neutral()}
+            end
+          end,
+          opts
+        )
 
       error ->
         error

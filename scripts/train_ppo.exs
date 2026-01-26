@@ -41,25 +41,26 @@ parse_hidden_sizes = fn
 end
 
 # Parse command line arguments
-{opts, _, _} = OptionParser.parse(System.argv(),
-  strict: [
-    pretrained: :string,
-    timesteps: :integer,
-    rollout_length: :integer,
-    num_epochs: :integer,
-    batch_size: :integer,
-    lr: :float,
-    checkpoint: :string,
-    dolphin: :string,
-    iso: :string,
-    character: :string,
-    opponent: :string,
-    stage: :string,
-    mock: :boolean,
-    mock_episodes: :integer,
-    hidden_sizes: :string
-  ]
-)
+{opts, _, _} =
+  OptionParser.parse(System.argv(),
+    strict: [
+      pretrained: :string,
+      timesteps: :integer,
+      rollout_length: :integer,
+      num_epochs: :integer,
+      batch_size: :integer,
+      lr: :float,
+      checkpoint: :string,
+      dolphin: :string,
+      iso: :string,
+      character: :string,
+      opponent: :string,
+      stage: :string,
+      mock: :boolean,
+      mock_episodes: :integer,
+      hidden_sizes: :string
+    ]
+  )
 
 # Configuration
 config = %{
@@ -98,32 +99,40 @@ defmodule PPOScript do
     log_probs = []
 
     # Collect steps
-    {final_env, final_states, final_actions, final_rewards, final_dones, final_values, final_log_probs} =
-      Enum.reduce(1..length, {env, states, actions, rewards, dones, values, log_probs},
-        fn _step, {env_acc, s_acc, a_acc, r_acc, d_acc, v_acc, lp_acc} ->
-          # Get current game state from environment
-          {:ok, game_state} = get_state(env_acc)
+    {final_env, final_states, final_actions, final_rewards, final_dones, final_values,
+     final_log_probs} =
+      Enum.reduce(1..length, {env, states, actions, rewards, dones, values, log_probs}, fn _step,
+                                                                                           {env_acc,
+                                                                                            s_acc,
+                                                                                            a_acc,
+                                                                                            r_acc,
+                                                                                            d_acc,
+                                                                                            v_acc,
+                                                                                            lp_acc} ->
+        # Get current game state from environment
+        {:ok, game_state} = get_state(env_acc)
 
-          # Embed state
-          embedded = Embeddings.Game.embed(game_state, embed_config)
+        # Embed state
+        embedded = Embeddings.Game.embed(game_state, embed_config)
 
-          # Get action and value from agent
-          {:ok, action, action_log_prob, value} = get_action_with_value(agent, trainer, game_state, embedded)
+        # Get action and value from agent
+        {:ok, action, action_log_prob, value} =
+          get_action_with_value(agent, trainer, game_state, embedded)
 
-          # Step environment
-          {:ok, next_env, reward, done} = step_env(env_acc, action)
+        # Step environment
+        {:ok, next_env, reward, done} = step_env(env_acc, action)
 
-          # Accumulate
-          {
-            next_env,
-            [embedded | s_acc],
-            [action | a_acc],
-            [reward | r_acc],
-            [done | d_acc],
-            [value | v_acc],
-            [action_log_prob | lp_acc]
-          }
-        end)
+        # Accumulate
+        {
+          next_env,
+          [embedded | s_acc],
+          [action | a_acc],
+          [reward | r_acc],
+          [done | d_acc],
+          [value | v_acc],
+          [action_log_prob | lp_acc]
+        }
+      end)
 
     # Convert to tensors (reverse to get correct order)
     %{
@@ -140,6 +149,7 @@ defmodule PPOScript do
   defp stack_actions(actions) do
     # Actions is a list of maps, need to convert to map of tensors
     keys = Map.keys(hd(actions))
+
     Map.new(keys, fn key ->
       values = Enum.map(actions, &Map.get(&1, key))
       {key, Nx.stack(values)}
@@ -158,7 +168,8 @@ defmodule PPOScript do
     action = sample_action(policy_logits)
 
     # Compute log prob of sampled action
-    log_prob = ExPhil.Networks.ActorCritic.compute_log_probs(policy_logits, tensorize_action(action))
+    log_prob =
+      ExPhil.Networks.ActorCritic.compute_log_probs(policy_logits, tensorize_action(action))
 
     {:ok, action, Nx.squeeze(log_prob), Nx.squeeze(value)}
   end
@@ -180,6 +191,7 @@ defmodule PPOScript do
     probs = Nx.sigmoid(logits) |> Nx.squeeze()
     # Sample each button independently
     buttons = [:a, :b, :x, :y, :z, :l, :r, :d_up]
+
     Map.new(Enum.with_index(buttons), fn {btn, i} ->
       prob = probs[i] |> Nx.to_number()
       {btn, :rand.uniform() < prob}
@@ -198,7 +210,12 @@ defmodule PPOScript do
 
   defp tensorize_action(action) do
     %{
-      buttons: Nx.tensor([Enum.map([:a, :b, :x, :y, :z, :l, :r, :d_up], fn b -> if action.buttons[b], do: 1.0, else: 0.0 end)]),
+      buttons:
+        Nx.tensor([
+          Enum.map([:a, :b, :x, :y, :z, :l, :r, :d_up], fn b ->
+            if action.buttons[b], do: 1.0, else: 0.0
+          end)
+        ]),
       main_x: Nx.tensor([[action.main_x]]),
       main_y: Nx.tensor([[action.main_y]]),
       c_x: Nx.tensor([[action.c_x]]),
@@ -220,12 +237,14 @@ defmodule PPOScript do
     Logger.info("Initializing Dolphin environment...")
 
     {:ok, port} = MeleePort.start_link()
-    :ok = MeleePort.init_console(port, %{
-      dolphin_path: config.dolphin,
-      iso_path: config.iso,
-      character: config.character,
-      stage: config.stage
-    })
+
+    :ok =
+      MeleePort.init_console(port, %{
+        dolphin_path: config.dolphin,
+        iso_path: config.iso,
+        character: config.character,
+        stage: config.stage
+      })
 
     {:ok, %{type: :dolphin, port: port, prev_state: nil}}
   end
@@ -241,7 +260,8 @@ defmodule PPOScript do
 
   def step_env(%{type: :mock} = env, _action) do
     new_step = env.step + 1
-    done = rem(new_step, 3600) == 0  # Episode ends every 60 seconds
+    # Episode ends every 60 seconds
+    done = rem(new_step, 3600) == 0
     episode = if done, do: env.episode + 1, else: env.episode
 
     # Random reward for testing
@@ -260,11 +280,12 @@ defmodule PPOScript do
     {:ok, next_state} = MeleePort.step(port)
 
     # Compute reward
-    reward = if prev do
-      Rewards.compute_reward(prev, next_state, player_port: 1)
-    else
-      0.0
-    end
+    reward =
+      if prev do
+        Rewards.compute_reward(prev, next_state, player_port: 1)
+      else
+        0.0
+      end
 
     # Check if episode done (stock lost or game over)
     done = episode_done?(next_state)
@@ -276,7 +297,8 @@ defmodule PPOScript do
   defp action_to_controller(action) do
     %ControllerState{
       buttons: action.buttons,
-      main_x: action.main_x / 16.0,  # Convert from bucket to 0-1
+      # Convert from bucket to 0-1
+      main_x: action.main_x / 16.0,
       main_y: action.main_y / 16.0,
       c_x: action.c_x / 16.0,
       c_y: action.c_y / 16.0,
@@ -288,14 +310,16 @@ defmodule PPOScript do
   defp episode_done?(game_state) do
     # Episode ends when player loses a stock or game ends
     player = game_state.players[1]
-    player.stock == 0 or game_state.frame > 8 * 60 * 60  # 8 minute timeout
+    # 8 minute timeout
+    player.stock == 0 or game_state.frame > 8 * 60 * 60
   end
 
   defp mock_game_state(env) do
     # Generate plausible game state for testing
     %GameState{
       frame: env.step,
-      stage: 2,  # Final Destination
+      # Final Destination
+      stage: 2,
       players: %{
         1 => %Player{
           x: :rand.uniform() * 100 - 50,
@@ -303,7 +327,8 @@ defmodule PPOScript do
           percent: :rand.uniform() * 100,
           stock: 4 - div(env.step, 3600),
           facing: Enum.random([1, -1]),
-          character: 9,  # Mewtwo
+          # Mewtwo
+          character: 9,
           action: Enum.random([0, 14, 20, 30]),
           action_frame: rem(env.step, 30),
           invulnerable: false,
@@ -317,7 +342,8 @@ defmodule PPOScript do
           percent: :rand.uniform() * 100,
           stock: 4,
           facing: Enum.random([1, -1]),
-          character: 2,  # Fox
+          # Fox
+          character: 2,
           action: Enum.random([0, 14, 20, 30]),
           action_frame: rem(env.step, 30),
           invulnerable: false,
@@ -338,6 +364,7 @@ import PPOScript
 # ============================================================================
 
 Output.banner("ExPhil PPO Training")
+
 Output.config([
   {"Pretrained", config.pretrained || "none (random init)"},
   {"Total Steps", config.timesteps},
@@ -357,7 +384,11 @@ if not config.mock do
     Output.error("Dolphin mode requires --dolphin and --iso paths.")
     Output.puts("")
     Output.puts("Either provide Dolphin paths:")
-    Output.puts("  mix run scripts/train_ppo.exs --dolphin /path/to/slippi --iso /path/to/melee.iso")
+
+    Output.puts(
+      "  mix run scripts/train_ppo.exs --dolphin /path/to/slippi --iso /path/to/melee.iso"
+    )
+
     Output.puts("")
     Output.puts("Or use mock mode for testing:")
     Output.puts("  mix run scripts/train_ppo.exs --mock --pretrained checkpoints/policy.bin")
@@ -375,17 +406,19 @@ trainer_opts = [
   rollout_length: config.rollout_length
 ]
 
-trainer_opts = if config.pretrained do
-  Keyword.put(trainer_opts, :pretrained_path, config.pretrained)
-else
-  trainer_opts
-end
+trainer_opts =
+  if config.pretrained do
+    Keyword.put(trainer_opts, :pretrained_path, config.pretrained)
+  else
+    trainer_opts
+  end
 
-trainer_opts = if config.hidden_sizes do
-  Keyword.put(trainer_opts, :hidden_sizes, config.hidden_sizes)
-else
-  trainer_opts
-end
+trainer_opts =
+  if config.hidden_sizes do
+    Keyword.put(trainer_opts, :hidden_sizes, config.hidden_sizes)
+  else
+    trainer_opts
+  end
 
 trainer = PPO.new(trainer_opts)
 Output.puts("  PPO trainer initialized")
@@ -404,36 +437,39 @@ Output.divider()
 num_updates = div(config.timesteps, config.rollout_length)
 start_time = System.monotonic_time(:millisecond)
 
-{final_trainer, final_env} = Enum.reduce(1..num_updates, {trainer, env}, fn update, {acc_trainer, acc_env} ->
-  # Collect rollout
-  rollout = collect_rollout(acc_env, nil, acc_trainer, config.rollout_length)
+{final_trainer, final_env} =
+  Enum.reduce(1..num_updates, {trainer, env}, fn update, {acc_trainer, acc_env} ->
+    # Collect rollout
+    rollout = collect_rollout(acc_env, nil, acc_trainer, config.rollout_length)
 
-  # PPO update
-  {new_trainer, metrics} = PPO.update(acc_trainer, rollout)
+    # PPO update
+    {new_trainer, metrics} = PPO.update(acc_trainer, rollout)
 
-  # Log progress
-  timesteps = update * config.rollout_length
-  pct = Float.round(timesteps / config.timesteps * 100, 1)
+    # Log progress
+    timesteps = update * config.rollout_length
+    pct = Float.round(timesteps / config.timesteps * 100, 1)
 
-  if rem(update, 10) == 0 or update == 1 do
-    elapsed = (System.monotonic_time(:millisecond) - start_time) / 1000
-    fps = timesteps / max(elapsed, 1)
+    if rem(update, 10) == 0 or update == 1 do
+      elapsed = (System.monotonic_time(:millisecond) - start_time) / 1000
+      fps = timesteps / max(elapsed, 1)
 
-    Output.puts("  Update #{update}/#{num_updates} (#{pct}%) | " <>
-            "policy_loss: #{Float.round(metrics.policy_loss || 0.0, 4)} | " <>
-            "value_loss: #{Float.round(metrics.value_loss || 0.0, 4)} | " <>
-            "entropy: #{Float.round(metrics.entropy || 0.0, 4)} | " <>
-            "#{Float.round(fps, 0)} steps/s")
-  end
+      Output.puts(
+        "  Update #{update}/#{num_updates} (#{pct}%) | " <>
+          "policy_loss: #{Float.round(metrics.policy_loss || 0.0, 4)} | " <>
+          "value_loss: #{Float.round(metrics.value_loss || 0.0, 4)} | " <>
+          "entropy: #{Float.round(metrics.entropy || 0.0, 4)} | " <>
+          "#{Float.round(fps, 0)} steps/s"
+      )
+    end
 
-  # Save checkpoint periodically
-  if rem(update, 50) == 0 do
-    PPO.save_checkpoint(new_trainer, config.checkpoint)
-    Logger.info("Saved checkpoint to #{config.checkpoint}")
-  end
+    # Save checkpoint periodically
+    if rem(update, 50) == 0 do
+      PPO.save_checkpoint(new_trainer, config.checkpoint)
+      Logger.info("Saved checkpoint to #{config.checkpoint}")
+    end
 
-  {new_trainer, rollout.env}
-end)
+    {new_trainer, rollout.env}
+  end)
 
 # Final save
 :ok = PPO.save_checkpoint(final_trainer, config.checkpoint)
@@ -444,17 +480,26 @@ elapsed = (System.monotonic_time(:millisecond) - start_time) / 1000
 Output.divider()
 Output.section("Training Complete!")
 Output.puts("")
+
 Output.training_summary(%{
   total_time_ms: elapsed * 1000,
   epochs_completed: num_updates,
   final_loss: 0.0,
   checkpoint_path: config.checkpoint
 })
+
 Output.puts("  Timesteps:      #{config.timesteps}")
 Output.puts("  Policy:         #{String.replace(config.checkpoint, ".axon", "_policy.bin")}")
 Output.puts("")
 Output.puts("To evaluate:")
-Output.puts("  mix run scripts/eval_model.exs --policy #{String.replace(config.checkpoint, ".axon", "_policy.bin")}")
+
+Output.puts(
+  "  mix run scripts/eval_model.exs --policy #{String.replace(config.checkpoint, ".axon", "_policy.bin")}"
+)
+
 Output.puts("")
 Output.puts("To play in Dolphin:")
-Output.puts("  mix run scripts/play_dolphin.exs --policy #{String.replace(config.checkpoint, ".axon", "_policy.bin")}")
+
+Output.puts(
+  "  mix run scripts/play_dolphin.exs --policy #{String.replace(config.checkpoint, ".axon", "_policy.bin")}"
+)

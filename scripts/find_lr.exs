@@ -32,39 +32,59 @@ opts = [
   player_port: 1
 ]
 
-opts = Enum.reduce(args, opts, fn arg, acc ->
-  case arg do
-    "--replays" -> acc
-    "--max-files" -> acc
-    "--min-lr" -> acc
-    "--max-lr" -> acc
-    "--num-steps" -> acc
-    "--batch-size" -> acc
-    "--hidden-sizes" -> acc
-    "--player" -> acc
-    value ->
-      # Get the previous flag
-      idx = Enum.find_index(args, &(&1 == value)) - 1
-      if idx >= 0 do
-        flag = Enum.at(args, idx)
-        case flag do
-          "--replays" -> Keyword.put(acc, :replays, value)
-          "--max-files" -> Keyword.put(acc, :max_files, String.to_integer(value))
-          "--min-lr" -> Keyword.put(acc, :min_lr, String.to_float(value))
-          "--max-lr" -> Keyword.put(acc, :max_lr, String.to_float(value))
-          "--num-steps" -> Keyword.put(acc, :num_steps, String.to_integer(value))
-          "--batch-size" -> Keyword.put(acc, :batch_size, String.to_integer(value))
-          "--hidden-sizes" -> Keyword.put(acc, :hidden_sizes, Config.parse_hidden_sizes(value))
-          "--player" -> Keyword.put(acc, :player_port, String.to_integer(value))
-          _ -> acc
-        end
-      else
+opts =
+  Enum.reduce(args, opts, fn arg, acc ->
+    case arg do
+      "--replays" ->
         acc
-      end
-  end
-end)
+
+      "--max-files" ->
+        acc
+
+      "--min-lr" ->
+        acc
+
+      "--max-lr" ->
+        acc
+
+      "--num-steps" ->
+        acc
+
+      "--batch-size" ->
+        acc
+
+      "--hidden-sizes" ->
+        acc
+
+      "--player" ->
+        acc
+
+      value ->
+        # Get the previous flag
+        idx = Enum.find_index(args, &(&1 == value)) - 1
+
+        if idx >= 0 do
+          flag = Enum.at(args, idx)
+
+          case flag do
+            "--replays" -> Keyword.put(acc, :replays, value)
+            "--max-files" -> Keyword.put(acc, :max_files, String.to_integer(value))
+            "--min-lr" -> Keyword.put(acc, :min_lr, String.to_float(value))
+            "--max-lr" -> Keyword.put(acc, :max_lr, String.to_float(value))
+            "--num-steps" -> Keyword.put(acc, :num_steps, String.to_integer(value))
+            "--batch-size" -> Keyword.put(acc, :batch_size, String.to_integer(value))
+            "--hidden-sizes" -> Keyword.put(acc, :hidden_sizes, Config.parse_hidden_sizes(value))
+            "--player" -> Keyword.put(acc, :player_port, String.to_integer(value))
+            _ -> acc
+          end
+        else
+          acc
+        end
+    end
+  end)
 
 Output.banner("Learning Rate Finder")
+
 Output.config([
   {"Replays", opts[:replays]},
   {"Max files", opts[:max_files]},
@@ -83,11 +103,12 @@ end
 # Load replay data
 Output.step(1, 3, "Loading replay data")
 
-{frames, _stats} = Data.load_replays(
-  opts[:replays],
-  max_files: opts[:max_files],
-  player_port: opts[:player_port]
-)
+{frames, _stats} =
+  Data.load_replays(
+    opts[:replays],
+    max_files: opts[:max_files],
+    player_port: opts[:player_port]
+  )
 
 Output.puts("  Loaded #{length(frames)} frames")
 
@@ -119,12 +140,12 @@ Output.puts("  ⏳ This may take a few minutes...")
 
 # Run LR finder
 case LRFinder.find(model_params, dataset,
-  min_lr: opts[:min_lr],
-  max_lr: opts[:max_lr],
-  num_steps: opts[:num_steps],
-  hidden_sizes: opts[:hidden_sizes],
-  embed_size: embed_size
-) do
+       min_lr: opts[:min_lr],
+       max_lr: opts[:max_lr],
+       num_steps: opts[:num_steps],
+       hidden_sizes: opts[:hidden_sizes],
+       embed_size: embed_size
+     ) do
   {:ok, results} ->
     Output.puts("")
     Output.puts(LRFinder.format_results(results))

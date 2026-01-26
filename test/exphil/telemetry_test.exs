@@ -39,7 +39,8 @@ defmodule ExPhil.TelemetryTest do
 
       Telemetry.training_epoch(%{avg_loss: 0.3, epoch: 1}, %{total_steps: 100})
 
-      assert_receive {:telemetry, [:exphil, :training, :epoch], %{avg_loss: 0.3, epoch: 1}, %{total_steps: 100}}
+      assert_receive {:telemetry, [:exphil, :training, :epoch], %{avg_loss: 0.3, epoch: 1},
+                      %{total_steps: 100}}
 
       :telemetry.detach("test-training-epoch")
     end
@@ -60,7 +61,8 @@ defmodule ExPhil.TelemetryTest do
 
       Telemetry.checkpoint_saved(%{step: 500}, %{path: "/tmp/checkpoint.axon"})
 
-      assert_receive {:telemetry, [:exphil, :training, :checkpoint], %{step: 500}, %{path: "/tmp/checkpoint.axon"}}
+      assert_receive {:telemetry, [:exphil, :training, :checkpoint], %{step: 500},
+                      %{path: "/tmp/checkpoint.axon"}}
 
       :telemetry.detach("test-checkpoint")
     end
@@ -102,7 +104,8 @@ defmodule ExPhil.TelemetryTest do
 
       Telemetry.agent_inference(%{duration_us: 1500}, %{agent: :mewtwo})
 
-      assert_receive {:telemetry, [:exphil, :agent, :inference], %{duration_us: 1500}, %{agent: :mewtwo}}
+      assert_receive {:telemetry, [:exphil, :agent, :inference], %{duration_us: 1500},
+                      %{agent: :mewtwo}}
 
       :telemetry.detach("test-agent-inference")
     end
@@ -144,7 +147,8 @@ defmodule ExPhil.TelemetryTest do
 
       Telemetry.game_end(%{total_frames: 3600}, %{winner: 1})
 
-      assert_receive {:telemetry, [:exphil, :bridge, :game_end], %{total_frames: 3600}, %{winner: 1}}
+      assert_receive {:telemetry, [:exphil, :bridge, :game_end], %{total_frames: 3600},
+                      %{winner: 1}}
 
       :telemetry.detach("test-game-end")
     end

@@ -70,7 +70,8 @@ defmodule ExPhil.Networks.Recurrent do
   @default_num_layers 1
   @default_cell_type :lstm
   @default_dropout 0.0
-  @default_truncate_bptt nil  # nil = full BPTT, integer = truncate to last N steps
+  # nil = full BPTT, integer = truncate to last N steps
+  @default_truncate_bptt nil
   # @default_bidirectional false  # Future: bidirectional support
 
   @type cell_type :: :lstm | :gru
@@ -147,11 +148,12 @@ defmodule ExPhil.Networks.Recurrent do
 
     # Apply gradient truncation if configured
     # This stops gradients from flowing back beyond the last N timesteps
-    processed_input = if truncate_bptt do
-      apply_gradient_truncation(input, truncate_bptt)
-    else
-      input
-    end
+    processed_input =
+      if truncate_bptt do
+        apply_gradient_truncation(input, truncate_bptt)
+      else
+        input
+      end
 
     # Build stacked recurrent layers
     output =
@@ -161,10 +163,11 @@ defmodule ExPhil.Networks.Recurrent do
         # Only return sequences for intermediate layers, or if explicitly requested
         layer_return_seq = not is_last_layer or return_sequences
 
-        layer = build_recurrent_layer(acc, hidden_size, cell_type,
-          name: "#{cell_type}_#{layer_idx}",
-          return_sequences: layer_return_seq
-        )
+        layer =
+          build_recurrent_layer(acc, hidden_size, cell_type,
+            name: "#{cell_type}_#{layer_idx}",
+            return_sequences: layer_return_seq
+          )
 
         # Add dropout between layers (not after last)
         if dropout > 0 and not is_last_layer do
@@ -193,20 +196,26 @@ defmodule ExPhil.Networks.Recurrent do
 
     # Axon.lstm/gru returns {output_sequence, hidden_state_tuple}
     # We need to extract just the output sequence using Axon.elem
-    {output_seq, _hidden} = case cell_type do
-      :lstm -> Axon.lstm(input, hidden_size, recurrent_opts)
-      :gru -> Axon.gru(input, hidden_size, recurrent_opts)
-    end
+    {output_seq, _hidden} =
+      case cell_type do
+        :lstm -> Axon.lstm(input, hidden_size, recurrent_opts)
+        :gru -> Axon.gru(input, hidden_size, recurrent_opts)
+      end
 
     if return_sequences do
       output_seq
     else
       # Take the last timestep: [batch, seq_len, hidden] -> [batch, hidden]
-      Axon.nx(output_seq, fn tensor ->
-        seq_len = Nx.axis_size(tensor, 1)
-        Nx.slice_along_axis(tensor, seq_len - 1, 1, axis: 1)
-        |> Nx.squeeze(axes: [1])
-      end, name: "#{name}_last")
+      Axon.nx(
+        output_seq,
+        fn tensor ->
+          seq_len = Nx.axis_size(tensor, 1)
+
+          Nx.slice_along_axis(tensor, seq_len - 1, 1, axis: 1)
+          |> Nx.squeeze(axes: [1])
+        end,
+        name: "#{name}_last"
+      )
     end
   end
 
@@ -242,24 +251,29 @@ defmodule ExPhil.Networks.Recurrent do
 
     # Build single recurrent layer
     # Axon.lstm/gru returns {output_sequence, hidden_state}
-    {output_seq, _hidden} = case cell_type do
-      :lstm ->
-        Axon.lstm(frame_input, hidden_size,
-          name: "lstm_stateful",
-          recurrent_initializer: :glorot_uniform
-        )
+    {output_seq, _hidden} =
+      case cell_type do
+        :lstm ->
+          Axon.lstm(frame_input, hidden_size,
+            name: "lstm_stateful",
+            recurrent_initializer: :glorot_uniform
+          )
 
-      :gru ->
-        Axon.gru(frame_input, hidden_size,
-          name: "gru_stateful",
-          recurrent_initializer: :glorot_uniform
-        )
-    end
+        :gru ->
+          Axon.gru(frame_input, hidden_size,
+            name: "gru_stateful",
+            recurrent_initializer: :glorot_uniform
+          )
+      end
 
     # Squeeze the sequence dimension (seq_len=1)
-    Axon.nx(output_seq, fn tensor ->
-      Nx.squeeze(tensor, axes: [1])
-    end, name: "stateful_output")
+    Axon.nx(
+      output_seq,
+      fn tensor ->
+        Nx.squeeze(tensor, axes: [1])
+      end,
+      name: "stateful_output"
+    )
   end
 
   @doc """
@@ -344,13 +358,14 @@ defmodule ExPhil.Networks.Recurrent do
     input = Axon.input("state_sequence", shape: {nil, nil, embed_size})
 
     # Recurrent backbone (outputs last timestep)
-    recurrent_output = build_backbone(input,
-      hidden_size: recurrent_size,
-      num_layers: num_recurrent_layers,
-      cell_type: cell_type,
-      dropout: dropout,
-      return_sequences: false
-    )
+    recurrent_output =
+      build_backbone(input,
+        hidden_size: recurrent_size,
+        num_layers: num_recurrent_layers,
+        cell_type: cell_type,
+        dropout: dropout,
+        return_sequences: false
+      )
 
     # MLP layers on top
     mlp_sizes
@@ -387,7 +402,8 @@ defmodule ExPhil.Networks.Recurrent do
     frames
     |> Enum.map(fn frame ->
       case Nx.shape(frame) do
-        {_embed} -> Nx.new_axis(frame, 0)  # Add batch dim
+        # Add batch dim
+        {_embed} -> Nx.new_axis(frame, 0)
         {_batch, _embed} -> frame
       end
     end)
@@ -453,28 +469,33 @@ defmodule ExPhil.Networks.Recurrent do
   - Recommended: start with window_size/2 or window_size/3
   """
   @spec apply_gradient_truncation(Axon.t(), pos_integer()) :: Axon.t()
-  def apply_gradient_truncation(input, keep_steps) when is_integer(keep_steps) and keep_steps > 0 do
-    Axon.nx(input, fn sequence ->
-      # sequence shape: [batch, seq_len, embed_size]
-      seq_len = Nx.axis_size(sequence, 1)
+  def apply_gradient_truncation(input, keep_steps)
+      when is_integer(keep_steps) and keep_steps > 0 do
+    Axon.nx(
+      input,
+      fn sequence ->
+        # sequence shape: [batch, seq_len, embed_size]
+        seq_len = Nx.axis_size(sequence, 1)
 
-      if seq_len <= keep_steps do
-        # No truncation needed if sequence is shorter than keep_steps
-        sequence
-      else
-        # Split into "frozen" (stop gradient) and "active" (keep gradient) parts
-        frozen_len = seq_len - keep_steps
+        if seq_len <= keep_steps do
+          # No truncation needed if sequence is shorter than keep_steps
+          sequence
+        else
+          # Split into "frozen" (stop gradient) and "active" (keep gradient) parts
+          frozen_len = seq_len - keep_steps
 
-        # Slice the frozen part (early frames) and stop its gradient
-        frozen_part = Nx.slice_along_axis(sequence, 0, frozen_len, axis: 1)
-        frozen_part = Nx.Defn.Kernel.stop_grad(frozen_part)
+          # Slice the frozen part (early frames) and stop its gradient
+          frozen_part = Nx.slice_along_axis(sequence, 0, frozen_len, axis: 1)
+          frozen_part = Nx.Defn.Kernel.stop_grad(frozen_part)
 
-        # Slice the active part (last keep_steps frames)
-        active_part = Nx.slice_along_axis(sequence, frozen_len, keep_steps, axis: 1)
+          # Slice the active part (last keep_steps frames)
+          active_part = Nx.slice_along_axis(sequence, frozen_len, keep_steps, axis: 1)
 
-        # Concatenate back together
-        Nx.concatenate([frozen_part, active_part], axis: 1)
-      end
-    end, name: "truncated_bptt_#{keep_steps}")
+          # Concatenate back together
+          Nx.concatenate([frozen_part, active_part], axis: 1)
+        end
+      end,
+      name: "truncated_bptt_#{keep_steps}"
+    )
   end
 end

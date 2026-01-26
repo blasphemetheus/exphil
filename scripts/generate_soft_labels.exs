@@ -42,6 +42,7 @@ defmodule SoftLabelGenerator do
     opts = parse_args(args)
 
     Output.banner("Soft Label Generation for Distillation")
+
     Output.config([
       {"Teacher", opts.teacher},
       {"Replays", opts.replays},
@@ -83,14 +84,21 @@ defmodule SoftLabelGenerator do
 
     # Generate soft labels
     Output.step(5, 6, "Generating soft labels (temperature=#{opts.temperature})")
-    soft_labels = generate_labels(
-      frames, policy, predict_fn,
-      is_temporal, window_size,
-      opts.temperature, opts.batch_size
-    )
+
+    soft_labels =
+      generate_labels(
+        frames,
+        policy,
+        predict_fn,
+        is_temporal,
+        window_size,
+        opts.temperature,
+        opts.batch_size
+      )
 
     # Save to file
     Output.step(6, 6, "Saving soft labels")
+
     save_soft_labels(soft_labels, opts.output, %{
       teacher_path: opts.teacher,
       teacher_config: policy.config,
@@ -113,15 +121,18 @@ defmodule SoftLabelGenerator do
   end
 
   defp parse_args(args) do
-    {parsed, _, _} = OptionParser.parse(args, strict: [
-      teacher: :string,
-      replays: :string,
-      output: :string,
-      temperature: :float,
-      batch_size: :integer,
-      max_files: :integer,
-      player_port: :integer
-    ])
+    {parsed, _, _} =
+      OptionParser.parse(args,
+        strict: [
+          teacher: :string,
+          replays: :string,
+          output: :string,
+          temperature: :float,
+          batch_size: :integer,
+          max_files: :integer,
+          player_port: :integer
+        ]
+      )
 
     %{
       teacher: Keyword.fetch!(parsed, :teacher),
@@ -148,6 +159,7 @@ defmodule SoftLabelGenerator do
       case ReplayParser.parse_replay(file) do
         {:ok, game} ->
           ReplayParser.extract_training_frames(game, player_port)
+
         {:error, _} ->
           []
       end
@@ -155,11 +167,27 @@ defmodule SoftLabelGenerator do
     |> tap(fn _ -> IO.puts("") end)
   end
 
-  defp generate_labels(frames, policy, predict_fn, is_temporal, window_size, temperature, batch_size) do
+  defp generate_labels(
+         frames,
+         policy,
+         predict_fn,
+         is_temporal,
+         window_size,
+         temperature,
+         batch_size
+       ) do
     total = length(frames)
 
     if is_temporal do
-      generate_temporal_labels(frames, policy, predict_fn, window_size, temperature, batch_size, total)
+      generate_temporal_labels(
+        frames,
+        policy,
+        predict_fn,
+        window_size,
+        temperature,
+        batch_size,
+        total
+      )
     else
       generate_single_frame_labels(frames, policy, predict_fn, temperature, batch_size, total)
     end
@@ -174,9 +202,10 @@ defmodule SoftLabelGenerator do
       IO.write("\r  Progress: #{progress}%")
 
       # Embed all frames in batch
-      states = batch
-      |> Enum.map(fn %{game_state: gs} -> GameEmbed.embed(gs) end)
-      |> Nx.stack()
+      states =
+        batch
+        |> Enum.map(fn %{game_state: gs} -> GameEmbed.embed(gs) end)
+        |> Nx.stack()
 
       # Run teacher model
       logits = predict_fn.(policy.params, states)
@@ -198,7 +227,15 @@ defmodule SoftLabelGenerator do
     |> tap(fn _ -> IO.puts("") end)
   end
 
-  defp generate_temporal_labels(frames, policy, predict_fn, window_size, temperature, batch_size, total) do
+  defp generate_temporal_labels(
+         frames,
+         policy,
+         predict_fn,
+         window_size,
+         temperature,
+         batch_size,
+         total
+       ) do
     # For temporal models, we need to create sequences
     # Generate labels only for the last frame of each sequence
     sequences = create_sequences(frames, window_size)
@@ -212,13 +249,14 @@ defmodule SoftLabelGenerator do
       IO.write("\r  Progress: #{progress}%")
 
       # Embed sequences [batch, window, embed]
-      states = batch
-      |> Enum.map(fn seq ->
-        seq
-        |> Enum.map(fn %{game_state: gs} -> GameEmbed.embed(gs) end)
+      states =
+        batch
+        |> Enum.map(fn seq ->
+          seq
+          |> Enum.map(fn %{game_state: gs} -> GameEmbed.embed(gs) end)
+          |> Nx.stack()
+        end)
         |> Nx.stack()
-      end)
-      |> Nx.stack()
 
       # Run teacher model
       logits = predict_fn.(policy.params, states)
@@ -231,6 +269,7 @@ defmodule SoftLabelGenerator do
       |> Enum.zip(unbatch_labels(soft_labels, length(batch)))
       |> Enum.map(fn {seq, labels} ->
         last_frame = List.last(seq)
+
         %{
           game_state: last_frame.game_state,
           controller: last_frame.controller,
@@ -291,17 +330,20 @@ defmodule SoftLabelGenerator do
 
   defp save_soft_labels(labels, path, config) do
     # Convert tensors to binary backend for serialization
-    labels_binary = Enum.map(labels, fn frame ->
-      %{frame |
-        soft_labels: Map.new(frame.soft_labels, fn {k, v} ->
-          {k, Nx.backend_copy(v, Nx.BinaryBackend)}
+    labels_binary =
+      Enum.map(labels, fn frame ->
+        %{
+          frame
+          | soft_labels:
+              Map.new(frame.soft_labels, fn {k, v} ->
+                {k, Nx.backend_copy(v, Nx.BinaryBackend)}
+              end)
+        }
+        |> Map.update(:sequence_states, nil, fn
+          nil -> nil
+          states -> Enum.map(states, &Nx.backend_copy(&1, Nx.BinaryBackend))
         end)
-      }
-      |> Map.update(:sequence_states, nil, fn
-        nil -> nil
-        states -> Enum.map(states, &Nx.backend_copy(&1, Nx.BinaryBackend))
       end)
-    end)
 
     data = %{
       config: config,

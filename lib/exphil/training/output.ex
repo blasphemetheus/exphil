@@ -42,6 +42,7 @@ defmodule ExPhil.Training.Output do
     Process.put(:exphil_verbosity, level)
     :ok
   end
+
   def set_verbosity(:quiet), do: set_verbosity(@quiet)
   def set_verbosity(:normal), do: set_verbosity(@normal)
   def set_verbosity(:verbose), do: set_verbosity(@verbose)
@@ -152,16 +153,17 @@ defmodule ExPhil.Training.Output do
   Apply color to text.
   """
   def colorize(text, color) do
-    color_code = case color do
-      :red -> @red
-      :green -> @green
-      :yellow -> @yellow
-      :blue -> @blue
-      :cyan -> @cyan
-      :bold -> @bold
-      :dim -> @dim
-      _ -> ""
-    end
+    color_code =
+      case color do
+        :red -> @red
+        :green -> @green
+        :yellow -> @yellow
+        :blue -> @blue
+        :cyan -> @cyan
+        :bold -> @bold
+        :dim -> @dim
+        _ -> ""
+      end
 
     "#{color_code}#{text}#{@reset}"
   end
@@ -356,13 +358,15 @@ defmodule ExPhil.Training.Output do
 
     # Extract loss values
     train_losses = Enum.map(history, & &1.train_loss)
-    val_losses = if show_val do
-      history
-      |> Enum.map(& &1[:val_loss])
-      |> Enum.reject(&is_nil/1)
-    else
-      []
-    end
+
+    val_losses =
+      if show_val do
+        history
+        |> Enum.map(& &1[:val_loss])
+        |> Enum.reject(&is_nil/1)
+      else
+        []
+      end
 
     all_losses = train_losses ++ val_losses
     min_loss = Enum.min(all_losses)
@@ -376,9 +380,12 @@ defmodule ExPhil.Training.Output do
     epochs = length(history)
 
     # Calculate dimensions
-    y_axis_width = 6  # Space for Y axis labels
-    plot_width = width - y_axis_width - 2  # -2 for borders
-    plot_height = height - 2  # -2 for borders
+    # Space for Y axis labels
+    y_axis_width = 6
+    # -2 for borders
+    plot_width = width - y_axis_width - 2
+    # -2 for borders
+    plot_height = height - 2
 
     # Scale function
     scale_y = fn loss ->
@@ -394,41 +401,50 @@ defmodule ExPhil.Training.Output do
     grid = :array.from_list(Enum.map(grid, &:array.from_list/1))
 
     # Plot train losses
-    grid = Enum.reduce(Enum.with_index(train_losses, 1), grid, fn {loss, epoch}, g ->
-      x = scale_x.(epoch)
-      y = scale_y.(loss)
-      y = min(max(y, 0), plot_height - 1)
-      row = :array.get(y, g)
-      row = :array.set(x, "●", row)
-      :array.set(y, row, g)
-    end)
-
-    # Plot validation losses
-    grid = if val_losses != [] do
-      val_with_idx = Enum.zip(val_losses, Enum.take(1..epochs, length(val_losses)))
-      Enum.reduce(val_with_idx, grid, fn {loss, epoch}, g ->
+    grid =
+      Enum.reduce(Enum.with_index(train_losses, 1), grid, fn {loss, epoch}, g ->
         x = scale_x.(epoch)
         y = scale_y.(loss)
         y = min(max(y, 0), plot_height - 1)
         row = :array.get(y, g)
-        # Don't overwrite train point
-        current = :array.get(x, row)
-        if current == " " do
-          row = :array.set(x, "○", row)
-          :array.set(y, row, g)
-        else
-          g
-        end
+        row = :array.set(x, "●", row)
+        :array.set(y, row, g)
       end)
-    else
-      grid
-    end
+
+    # Plot validation losses
+    grid =
+      if val_losses != [] do
+        val_with_idx = Enum.zip(val_losses, Enum.take(1..epochs, length(val_losses)))
+
+        Enum.reduce(val_with_idx, grid, fn {loss, epoch}, g ->
+          x = scale_x.(epoch)
+          y = scale_y.(loss)
+          y = min(max(y, 0), plot_height - 1)
+          row = :array.get(y, g)
+          # Don't overwrite train point
+          current = :array.get(x, row)
+
+          if current == " " do
+            row = :array.set(x, "○", row)
+            :array.set(y, row, g)
+          else
+            g
+          end
+        end)
+      else
+        grid
+      end
 
     # Build output
     # Title bar
     title_padding = div(width - String.length(title) - 4, 2)
-    title_bar = "┌" <> String.duplicate("─", title_padding) <> " #{title} " <>
-                String.duplicate("─", width - title_padding - String.length(title) - 4) <> "┐"
+
+    title_bar =
+      "┌" <>
+        String.duplicate("─", title_padding) <>
+        " #{title} " <>
+        String.duplicate("─", width - title_padding - String.length(title) - 4) <> "┐"
+
     puts_raw(title_bar)
 
     # Plot rows with Y axis
@@ -437,35 +453,48 @@ defmodule ExPhil.Training.Output do
       row_str = Enum.join(:array.to_list(row))
 
       # Y axis label (show a few key values)
-      y_val = max_y - (row_idx / (plot_height - 1)) * (max_y - min_y)
-      y_label = if rem(row_idx, max(div(plot_height, 4), 1)) == 0 do
-        :io_lib.format("~5.2f", [y_val]) |> IO.iodata_to_binary()
-      else
-        "     "
-      end
+      y_val = max_y - row_idx / (plot_height - 1) * (max_y - min_y)
+
+      y_label =
+        if rem(row_idx, max(div(plot_height, 4), 1)) == 0 do
+          :io_lib.format("~5.2f", [y_val]) |> IO.iodata_to_binary()
+        else
+          "     "
+        end
 
       separator = if rem(row_idx, max(div(plot_height, 4), 1)) == 0, do: "┤", else: "│"
       puts_raw("│#{y_label}#{separator}#{row_str}│")
     end
 
     # Bottom border with X axis
-    puts_raw("└" <> String.duplicate("─", y_axis_width) <> "┴" <>
-             String.duplicate("─", plot_width) <> "┘")
+    puts_raw(
+      "└" <>
+        String.duplicate("─", y_axis_width) <>
+        "┴" <>
+        String.duplicate("─", plot_width) <> "┘"
+    )
 
     # X axis epoch labels
     mid_epoch = div(epochs, 2)
     spacing = max(div(plot_width, 3) - 2, 1)
-    epoch_info = "  Epochs: 1" <> String.duplicate(" ", spacing) <>
-                 "#{mid_epoch}" <> String.duplicate(" ", spacing) <>
-                 "#{epochs}"
+
+    epoch_info =
+      "  Epochs: 1" <>
+        String.duplicate(" ", spacing) <>
+        "#{mid_epoch}" <>
+        String.duplicate(" ", spacing) <>
+        "#{epochs}"
+
     puts_raw(epoch_info)
 
     # Legend
-    legend = if val_losses != [] do
-      "  #{colorize("●", :green)} train  #{colorize("○", :cyan)} val"
-    else
-      "  #{colorize("●", :green)} train"
-    end
+    legend =
+      if val_losses != [] do
+        "  #{colorize("●", :green)} train  #{colorize("○", :cyan)} val"
+      else
+        "  #{colorize("●", :green)} train"
+      end
+
     puts_raw(legend)
   end
 
@@ -497,13 +526,14 @@ defmodule ExPhil.Training.Output do
     max_val = Enum.max(losses)
     range = max(max_val - min_val, 0.001)
 
-    sparkline = losses
-    |> Enum.map(fn val ->
-      idx = round((val - min_val) / range * 7)
-      idx = min(max(idx, 0), 7)
-      Enum.at(chars, idx)
-    end)
-    |> Enum.join()
+    sparkline =
+      losses
+      |> Enum.map(fn val ->
+        idx = round((val - min_val) / range * 7)
+        idx = min(max(idx, 0), 7)
+        Enum.at(chars, idx)
+      end)
+      |> Enum.join()
 
     current = List.last(losses)
     puts_raw("  #{label}: #{sparkline} (#{Float.round(current, 4)})")
@@ -524,7 +554,11 @@ defmodule ExPhil.Training.Output do
   """
   defmacro timed(label, do: block) do
     quote do
-      IO.write(:stderr, "[#{Calendar.strftime(DateTime.utc_now(), "%H:%M:%S")}] #{unquote(label)}...")
+      IO.write(
+        :stderr,
+        "[#{Calendar.strftime(DateTime.utc_now(), "%H:%M:%S")}] #{unquote(label)}..."
+      )
+
       start = System.monotonic_time(:millisecond)
       result = unquote(block)
       elapsed = System.monotonic_time(:millisecond) - start
@@ -542,19 +576,25 @@ defmodule ExPhil.Training.Output do
     quote do
       task = Task.async(fn -> unquote(block) end)
 
-      spinner_task = Task.async(fn ->
-        Stream.iterate(0, &(&1 + 1))
-        |> Enum.reduce_while(nil, fn frame, _ ->
-          ExPhil.Training.Output.spinner(frame, unquote(label))
-          Process.sleep(100)
-          if Task.yield(task, 0), do: {:halt, nil}, else: {:cont, nil}
+      spinner_task =
+        Task.async(fn ->
+          Stream.iterate(0, &(&1 + 1))
+          |> Enum.reduce_while(nil, fn frame, _ ->
+            ExPhil.Training.Output.spinner(frame, unquote(label))
+            Process.sleep(100)
+            if Task.yield(task, 0), do: {:halt, nil}, else: {:cont, nil}
+          end)
         end)
-      end)
 
       result = Task.await(task, :infinity)
       Task.shutdown(spinner_task, :brutal_kill)
       ExPhil.Training.Output.clear_line()
-      IO.puts(:stderr, "[#{Calendar.strftime(DateTime.utc_now(), "%H:%M:%S")}] #{unquote(label)}... done!")
+
+      IO.puts(
+        :stderr,
+        "[#{Calendar.strftime(DateTime.utc_now(), "%H:%M:%S")}] #{unquote(label)}... done!"
+      )
+
       result
     end
   end
@@ -580,13 +620,25 @@ defmodule ExPhil.Training.Output do
     puts_raw("")
     puts_raw("╔" <> String.duplicate("═", width) <> "╗")
     title_padding = div(width - String.length(title), 2)
-    puts_raw("║" <> String.duplicate(" ", title_padding) <> title <>
-             String.duplicate(" ", width - title_padding - String.length(title)) <> "║")
+
+    puts_raw(
+      "║" <>
+        String.duplicate(" ", title_padding) <>
+        title <>
+        String.duplicate(" ", width - title_padding - String.length(title)) <> "║"
+    )
+
     if subtitle do
       sub_padding = div(width - String.length(subtitle), 2)
-      puts_raw("║" <> String.duplicate(" ", sub_padding) <> colorize(subtitle, :dim) <>
-               String.duplicate(" ", width - sub_padding - String.length(subtitle)) <> "║")
+
+      puts_raw(
+        "║" <>
+          String.duplicate(" ", sub_padding) <>
+          colorize(subtitle, :dim) <>
+          String.duplicate(" ", width - sub_padding - String.length(subtitle)) <> "║"
+      )
     end
+
     puts_raw("╚" <> String.duplicate("═", width) <> "╝")
     puts_raw("")
   end
@@ -613,6 +665,7 @@ defmodule ExPhil.Training.Output do
     if stats[:characters] && map_size(stats[:characters]) > 0 do
       puts_raw("")
       puts_raw("  " <> colorize("Characters:", :bold))
+
       stats[:characters]
       |> Enum.sort_by(fn {_name, count} -> -count end)
       |> Enum.take(10)
@@ -620,20 +673,27 @@ defmodule ExPhil.Training.Output do
         pct = if stats[:total] > 0, do: Float.round(count / stats[:total] * 100, 1), else: 0
         bar_width = min(round(pct / 2), 25)
         bar = String.duplicate("█", bar_width)
-        puts_raw("    #{String.pad_trailing(name, 18)} #{colorize(bar, :green)} #{count} (#{pct}%)")
+
+        puts_raw(
+          "    #{String.pad_trailing(name, 18)} #{colorize(bar, :green)} #{count} (#{pct}%)"
+        )
       end)
     end
 
     if stats[:stages] && map_size(stats[:stages]) > 0 do
       puts_raw("")
       puts_raw("  " <> colorize("Stages:", :bold))
+
       stats[:stages]
       |> Enum.sort_by(fn {_name, count} -> -count end)
       |> Enum.each(fn {name, count} ->
         pct = if stats[:total] > 0, do: Float.round(count / stats[:total] * 100, 1), else: 0
         bar_width = min(round(pct / 2), 25)
         bar = String.duplicate("█", bar_width)
-        puts_raw("    #{String.pad_trailing(name, 22)} #{colorize(bar, :cyan)} #{count} (#{pct}%)")
+
+        puts_raw(
+          "    #{String.pad_trailing(name, 22)} #{colorize(bar, :cyan)} #{count} (#{pct}%)"
+        )
       end)
     end
 

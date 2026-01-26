@@ -100,7 +100,17 @@ defmodule ExPhil.Training.LRFinder do
     end
   end
 
-  defp run_finder(model_params, batches, min_lr, lr_mult, _num_steps, smooth_factor, stop_div, hidden_sizes, embed_size) do
+  defp run_finder(
+         model_params,
+         batches,
+         min_lr,
+         lr_mult,
+         _num_steps,
+         smooth_factor,
+         stop_div,
+         hidden_sizes,
+         embed_size
+       ) do
     # Create initial optimizer with min_lr
     config = %{
       learning_rate: min_lr,
@@ -135,14 +145,17 @@ defmodule ExPhil.Training.LRFinder do
           current_lr = min_lr * :math.pow(lr_mult, step)
 
           # Compute loss and gradients
-          {loss, gradients} = compute_loss_and_grads(state.params, states, actions, hidden_sizes, embed_size)
+          {loss, gradients} =
+            compute_loss_and_grads(state.params, states, actions, hidden_sizes, embed_size)
+
           loss_val = Nx.to_number(loss)
 
           # Update smoothed loss
-          smoothed = case state.smoothed_loss do
-            nil -> loss_val
-            prev -> smooth_factor * loss_val + (1 - smooth_factor) * prev
-          end
+          smoothed =
+            case state.smoothed_loss do
+              nil -> loss_val
+              prev -> smooth_factor * loss_val + (1 - smooth_factor) * prev
+            end
 
           # Check for divergence
           should_stop = state.best_loss != :infinity and smoothed > stop_div * state.best_loss
@@ -163,16 +176,17 @@ defmodule ExPhil.Training.LRFinder do
           scaled_gradients = scale_gradients(gradients, current_lr / min_lr)
 
           # Update parameters
-          {new_params, new_opt_state} = update_fn.(scaled_gradients, state.opt_state, state.params)
+          {new_params, new_opt_state} =
+            update_fn.(scaled_gradients, state.opt_state, state.params)
 
           new_state = %{
-            state |
-            params: new_params,
-            opt_state: new_opt_state,
-            history: [record | state.history],
-            best_loss: new_best,
-            smoothed_loss: smoothed,
-            stopped_early: should_stop
+            state
+            | params: new_params,
+              opt_state: new_opt_state,
+              history: [record | state.history],
+              best_loss: new_best,
+              smoothed_loss: smoothed,
+              stopped_early: should_stop
           }
 
           if should_stop do
@@ -189,13 +203,14 @@ defmodule ExPhil.Training.LRFinder do
 
     min_loss_record = Enum.min_by(history, & &1.loss)
 
-    {:ok, %{
-      history: history,
-      suggested_lr: suggested,
-      min_loss_lr: min_loss_record.lr,
-      min_loss: min_loss_record.loss,
-      stopped_early: final_state.stopped_early
-    }}
+    {:ok,
+     %{
+       history: history,
+       suggested_lr: suggested,
+       min_loss_lr: min_loss_record.lr,
+       min_loss: min_loss_record.loss,
+       stopped_early: final_state.stopped_early
+     }}
   end
 
   # Compute loss and gradients for a batch
@@ -213,11 +228,12 @@ defmodule ExPhil.Training.LRFinder do
   # Uses a basic MLP structure
   defp forward_policy(params, states, hidden_sizes, _embed_size) do
     # Flatten states if needed
-    x = case Nx.shape(states) do
-      {_batch, _} -> states
-      {batch, seq, feat} -> Nx.reshape(states, {batch * seq, feat})
-      _ -> states
-    end
+    x =
+      case Nx.shape(states) do
+        {_batch, _} -> states
+        {batch, seq, feat} -> Nx.reshape(states, {batch * seq, feat})
+        _ -> states
+      end
 
     # Apply MLP layers with ReLU activation
     Enum.reduce(0..(length(hidden_sizes) - 1), x, fn i, acc ->
@@ -231,7 +247,8 @@ defmodule ExPhil.Training.LRFinder do
         acc
         |> Nx.dot(w)
         |> Nx.add(b)
-        |> Nx.max(0)  # ReLU
+        # ReLU
+        |> Nx.max(0)
       else
         acc
       end
@@ -245,6 +262,7 @@ defmodule ExPhil.Training.LRFinder do
     case {Nx.shape(logits), Nx.shape(targets)} do
       {{n, d}, {n, d}} ->
         Nx.mean(Nx.pow(Nx.subtract(logits, targets), 2))
+
       _ ->
         # Fallback to simple loss
         Nx.mean(Nx.abs(logits))
@@ -325,7 +343,12 @@ defmodule ExPhil.Training.LRFinder do
   Returns a string showing the loss curve that can be printed to console.
   """
   @spec format_results(find_result()) :: String.t()
-  def format_results(%{history: history, suggested_lr: suggested, min_loss_lr: min_lr, min_loss: min_loss}) do
+  def format_results(%{
+        history: history,
+        suggested_lr: suggested,
+        min_loss_lr: min_lr,
+        min_loss: min_loss
+      }) do
     """
     === Learning Rate Finder Results ===
 

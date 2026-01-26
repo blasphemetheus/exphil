@@ -59,16 +59,18 @@ defmodule ExPhil.Training.ReplayValidation do
     end
 
     # Validate files
-    results = if parallel do
-      validate_parallel(paths, max_workers)
-    else
-      Enum.map(paths, &validate_file/1)
-    end
+    results =
+      if parallel do
+        validate_parallel(paths, max_workers)
+      else
+        Enum.map(paths, &validate_file/1)
+      end
 
     # Partition results
-    {valid, invalid} = Enum.split_with(results, fn {_path, result} ->
-      result == :ok
-    end)
+    {valid, invalid} =
+      Enum.split_with(results, fn {_path, result} ->
+        result == :ok
+      end)
 
     valid_paths = Enum.map(valid, fn {path, _} -> path end)
     errors = Enum.map(invalid, fn {path, {:error, reason}} -> {path, reason} end)
@@ -101,11 +103,12 @@ defmodule ExPhil.Training.ReplayValidation do
   """
   @spec validate_file(String.t()) :: {String.t(), :ok | {:error, atom()}}
   def validate_file(path) do
-    result = with :ok <- check_exists(path),
-                  :ok <- check_size(path),
-                  :ok <- check_format(path) do
-      :ok
-    end
+    result =
+      with :ok <- check_exists(path),
+           :ok <- check_size(path),
+           :ok <- check_format(path) do
+        :ok
+      end
 
     {path, result}
   end
@@ -158,13 +161,15 @@ defmodule ExPhil.Training.ReplayValidation do
   defp check_format(path) do
     case File.open(path, [:read, :binary]) do
       {:ok, file} ->
-        result = case IO.binread(file, 4) do
-          # SLP raw format starts with 0x7B 0x55 (ASCII "{U")
-          <<0x7B, 0x55, _, _>> -> :ok
-          :eof -> {:error, :empty_file}
-          {:error, reason} -> {:error, reason}
-          _other -> {:error, :invalid_format}
-        end
+        result =
+          case IO.binread(file, 4) do
+            # SLP raw format starts with 0x7B 0x55 (ASCII "{U")
+            <<0x7B, 0x55, _, _>> -> :ok
+            :eof -> {:error, :empty_file}
+            {:error, reason} -> {:error, reason}
+            _other -> {:error, :invalid_format}
+          end
+
         File.close(file)
         result
 
@@ -184,7 +189,8 @@ defmodule ExPhil.Training.ReplayValidation do
         Output.puts_raw("  Invalid files:")
 
         stats.errors
-        |> Enum.take(20)  # Show first 20
+        # Show first 20
+        |> Enum.take(20)
         |> Enum.each(fn {path, reason} ->
           Output.puts_raw("    - #{Path.basename(path)}: #{format_error(reason)}")
         end)

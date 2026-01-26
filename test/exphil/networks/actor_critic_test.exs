@@ -43,24 +43,28 @@ defmodule ExPhil.Networks.ActorCriticTest do
       # Policy logits should be a tuple of 6 tensors
       {buttons, main_x, main_y, c_x, c_y, shoulder} = policy_logits
 
-      assert Nx.shape(buttons) == {4, 8}      # 8 buttons
-      assert Nx.shape(main_x) == {4, 17}      # 16 buckets + 1
+      # 8 buttons
+      assert Nx.shape(buttons) == {4, 8}
+      # 16 buckets + 1
+      assert Nx.shape(main_x) == {4, 17}
       assert Nx.shape(main_y) == {4, 17}
       assert Nx.shape(c_x) == {4, 17}
       assert Nx.shape(c_y) == {4, 17}
-      assert Nx.shape(shoulder) == {4, 5}     # 4 buckets + 1
+      # 4 buckets + 1
+      assert Nx.shape(shoulder) == {4, 5}
 
       # Value should be [batch]
       assert Nx.shape(value) == {4}
     end
 
     test "accepts custom axis_buckets" do
-      model = ActorCritic.build_combined(
-        embed_size: 64,
-        hidden_sizes: [32],
-        axis_buckets: 8,
-        shoulder_buckets: 2
-      )
+      model =
+        ActorCritic.build_combined(
+          embed_size: 64,
+          hidden_sizes: [32],
+          axis_buckets: 8,
+          shoulder_buckets: 2
+        )
 
       assert %Axon{} = model
     end
@@ -69,12 +73,26 @@ defmodule ExPhil.Networks.ActorCriticTest do
   describe "compute_log_probs/2" do
     test "computes log probabilities for actions" do
       logits = {
-        Nx.tensor([[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]]),  # buttons
-        Nx.tensor([[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]]),  # main_x
-        Nx.tensor([[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]]),  # main_y
-        Nx.tensor([[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]]),  # c_x
-        Nx.tensor([[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]]),  # c_y
-        Nx.tensor([[0.0, 0.0, 1.0, 0.0, 0.0]])  # shoulder
+        # buttons
+        Nx.tensor([[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]]),
+        # main_x
+        Nx.tensor([
+          [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+        ]),
+        # main_y
+        Nx.tensor([
+          [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+        ]),
+        # c_x
+        Nx.tensor([
+          [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+        ]),
+        # c_y
+        Nx.tensor([
+          [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+        ]),
+        # shoulder
+        Nx.tensor([[0.0, 0.0, 1.0, 0.0, 0.0]])
       }
 
       actions = %{
@@ -97,7 +115,8 @@ defmodule ExPhil.Networks.ActorCriticTest do
       # Action at position 8
       logits_low = {
         Nx.tensor([[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]]),
-        Nx.broadcast(0.0, {1, 17}),  # Uniform logits
+        # Uniform logits
+        Nx.broadcast(0.0, {1, 17}),
         Nx.broadcast(0.0, {1, 17}),
         Nx.broadcast(0.0, {1, 17}),
         Nx.broadcast(0.0, {1, 17}),
@@ -128,8 +147,10 @@ defmodule ExPhil.Networks.ActorCriticTest do
   describe "compute_entropy/1" do
     test "returns positive entropy" do
       logits = {
-        Nx.broadcast(0.0, {4, 8}),   # Uniform buttons (max entropy)
-        Nx.broadcast(0.0, {4, 17}),  # Uniform stick
+        # Uniform buttons (max entropy)
+        Nx.broadcast(0.0, {4, 8}),
+        # Uniform stick
+        Nx.broadcast(0.0, {4, 17}),
         Nx.broadcast(0.0, {4, 17}),
         Nx.broadcast(0.0, {4, 17}),
         Nx.broadcast(0.0, {4, 17}),
@@ -246,10 +267,16 @@ defmodule ExPhil.Networks.ActorCriticTest do
       values = Nx.tensor([0.5, 0.5, 0.5, 0.5])
       returns = Nx.tensor([1.0, 0.0, 0.75, 0.25])
 
-      losses = ActorCritic.ppo_loss(
-        logits, logits, actions, advantages,
-        values, values, returns
-      )
+      losses =
+        ActorCritic.ppo_loss(
+          logits,
+          logits,
+          actions,
+          advantages,
+          values,
+          values,
+          returns
+        )
 
       assert Map.has_key?(losses, :total)
       assert Map.has_key?(losses, :policy)

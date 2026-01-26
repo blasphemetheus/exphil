@@ -52,11 +52,12 @@ defmodule Mix.Tasks.Exphil.Info do
       binary = File.read!(path)
       data = :erlang.binary_to_term(binary)
 
-      type = cond do
-        Map.has_key?(data, :policy_params) -> :checkpoint
-        Map.has_key?(data, :params) -> :policy
-        true -> :unknown
-      end
+      type =
+        cond do
+          Map.has_key?(data, :policy_params) -> :checkpoint
+          Map.has_key?(data, :params) -> :policy
+          true -> :unknown
+        end
 
       {:ok, data, type}
     rescue
@@ -82,6 +83,7 @@ defmodule Mix.Tasks.Exphil.Info do
     Output.puts_raw("  " <> Output.colorize("Architecture:", :bold))
 
     temporal = config[:temporal] || false
+
     if temporal do
       Output.kv("Mode", "Temporal (sequence)")
       Output.kv("Backbone", config[:backbone] || :sliding_window)
@@ -125,6 +127,7 @@ defmodule Mix.Tasks.Exphil.Info do
 
     # Parameter counts
     params = data[:params] || data[:policy_params]
+
     if params do
       Output.puts_raw("")
       Output.puts_raw("  " <> Output.colorize("Parameters:", :bold))
@@ -134,6 +137,7 @@ defmodule Mix.Tasks.Exphil.Info do
 
       # Layer breakdown
       layers = list_layers(params)
+
       if length(layers) <= 15 do
         Enum.each(layers, fn {name, count} ->
           Output.puts_raw("    #{String.pad_trailing(name, 25)} #{format_number(count)}")
@@ -173,10 +177,13 @@ defmodule Mix.Tasks.Exphil.Info do
       case value do
         %Axon.ModelState{data: data} ->
           list_layers(data)
+
         %{} = nested when not is_struct(nested, Nx.Tensor) ->
           Enum.map(list_layers(nested), fn {k, v} -> {"#{key}.#{k}", v} end)
+
         %Nx.Tensor{} = tensor ->
           [{to_string(key), Nx.size(tensor)}]
+
         _ ->
           []
       end

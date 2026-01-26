@@ -85,10 +85,12 @@ if opts[:policy] == nil or opts[:dolphin] == nil or opts[:iso] == nil do
       --character mewtwo \\
       --stage battlefield
   """)
+
   System.halt(1)
 end
 
 Output.banner("ExPhil Dolphin Play")
+
 Output.config([
   {"Policy", opts[:policy]},
   {"Dolphin", opts[:dolphin]},
@@ -105,20 +107,23 @@ Output.config([
 # Step 1: Load the agent
 Output.step(1, 5, "Loading agent")
 
-{:ok, agent} = Agent.start_link(
-  policy_path: opts[:policy],
-  deterministic: opts[:deterministic],
-  frame_delay: opts[:frame_delay],
-  action_repeat: opts[:action_repeat]
-)
+{:ok, agent} =
+  Agent.start_link(
+    policy_path: opts[:policy],
+    deterministic: opts[:deterministic],
+    frame_delay: opts[:frame_delay],
+    action_repeat: opts[:action_repeat]
+  )
 
 config = Agent.get_config(agent)
 Output.success("Agent loaded")
 Output.puts("    Temporal: #{config.temporal}")
+
 if config.temporal do
   Output.puts("    Backbone: #{config.backbone}")
   Output.puts("    Window:   #{config.window_size} frames")
 end
+
 if opts[:action_repeat] > 1 do
   Output.puts("    Action Repeat: every #{opts[:action_repeat]} frames")
 end
@@ -158,9 +163,11 @@ end
 
 # Step 4: JIT Warmup (run dummy inference during menu navigation)
 Output.step(4, 5, "JIT Warmup (this may take a minute for temporal models)")
+
 case Agent.warmup(agent) do
   {:ok, warmup_ms} ->
     Output.success("JIT warmup complete (#{warmup_ms}ms)")
+
   {:error, reason} ->
     Output.warning("Warmup failed: #{inspect(reason)} (will warmup on first game frame)")
 end
@@ -181,6 +188,7 @@ defmodule GameLoop do
   end
 
   defp elapsed_time(nil), do: "0s"
+
   defp elapsed_time(start_time) do
     elapsed_ms = System.monotonic_time(:millisecond) - start_time
     elapsed_s = div(elapsed_ms, 1000)
@@ -188,14 +196,16 @@ defmodule GameLoop do
   end
 
   def run(agent, bridge, player_port, opts \\ []) do
-    stats = Keyword.get(opts, :stats, %{
-      frames: 0,
-      errors: 0,
-      in_game: false,
-      game_ended: false,
-      last_stocks: nil,
-      start_time: nil
-    })
+    stats =
+      Keyword.get(opts, :stats, %{
+        frames: 0,
+        errors: 0,
+        in_game: false,
+        game_ended: false,
+        last_stocks: nil,
+        start_time: nil
+      })
+
     auto_menu = not Keyword.get(opts, :no_auto_menu, false)
 
     case MeleePort.step(bridge, auto_menu: auto_menu) do
@@ -204,7 +214,11 @@ defmodule GameLoop do
 
       {:postgame, game_state} ->
         elapsed = elapsed_time(stats.start_time)
-        IO.puts("\n[#{timestamp()}] 🏆 POSTGAME! Game ended at frame #{game_state.frame} (#{elapsed})")
+
+        IO.puts(
+          "\n[#{timestamp()}] 🏆 POSTGAME! Game ended at frame #{game_state.frame} (#{elapsed})"
+        )
+
         IO.puts("   Total agent frames: #{stats.frames}, Errors: #{stats.errors}")
         new_stats = %{stats | in_game: false, game_ended: true}
         run(agent, bridge, player_port, Keyword.put(opts, :stats, new_stats))
@@ -212,7 +226,11 @@ defmodule GameLoop do
       {:menu, game_state} ->
         if stats.in_game do
           elapsed = elapsed_time(stats.start_time)
-          IO.puts("\n[#{timestamp()}] 📋 Back to MENU (#{inspect(game_state.menu_state)}) after #{stats.frames} frames (#{elapsed})")
+
+          IO.puts(
+            "\n[#{timestamp()}] 📋 Back to MENU (#{inspect(game_state.menu_state)}) after #{stats.frames} frames (#{elapsed})"
+          )
+
           new_stats = %{stats | in_game: false}
           run(agent, bridge, player_port, Keyword.put(opts, :stats, new_stats))
         else
@@ -234,19 +252,27 @@ defmodule GameLoop do
 
   defp handle_in_game(agent, bridge, player_port, game_state, stats, opts) do
     # Log game start
-    stats = if not stats.in_game do
-      IO.puts("\n[#{timestamp()}] 🎮 IN GAME! Starting agent control at frame #{game_state.frame}")
-      %{stats | in_game: true, start_time: System.monotonic_time(:millisecond)}
-    else
-      stats
-    end
+    stats =
+      if not stats.in_game do
+        IO.puts(
+          "\n[#{timestamp()}] 🎮 IN GAME! Starting agent control at frame #{game_state.frame}"
+        )
+
+        %{stats | in_game: true, start_time: System.monotonic_time(:millisecond)}
+      else
+        stats
+      end
 
     # Check for stock changes and game end
     {stats, game_over} = check_stocks(game_state, stats, player_port)
 
     if game_over do
       elapsed = elapsed_time(stats.start_time)
-      IO.puts("\n[#{timestamp()}] 🏆 GAME OVER! Detected via stocks at frame #{game_state.frame} (#{elapsed})")
+
+      IO.puts(
+        "\n[#{timestamp()}] 🏆 GAME OVER! Detected via stocks at frame #{game_state.frame} (#{elapsed})"
+      )
+
       stats = %{stats | game_ended: true, in_game: false}
       run(agent, bridge, player_port, Keyword.put(opts, :stats, stats))
     else
@@ -262,12 +288,16 @@ defmodule GameLoop do
 
           case MeleePort.send_controller(bridge, input) do
             :ok ->
-              stats = if stats.frames == 0 do
-                IO.puts("[#{timestamp()}] 🕹️  First input sent at game frame #{game_state.frame}")
-                stats
-              else
-                stats
-              end
+              stats =
+                if stats.frames == 0 do
+                  IO.puts(
+                    "[#{timestamp()}] 🕹️  First input sent at game frame #{game_state.frame}"
+                  )
+
+                  stats
+                else
+                  stats
+                end
 
               stats = %{stats | frames: stats.frames + 1}
               run(agent, bridge, player_port, Keyword.put(opts, :stats, stats))
@@ -299,21 +329,25 @@ defmodule GameLoop do
     }
 
     # Log stock changes
-    stats = if stats.last_stocks && stats.last_stocks != current_stocks do
-      ts = Time.utc_now() |> Time.truncate(:second) |> Time.to_string()
-      if current_stocks.agent != stats.last_stocks.agent do
-        IO.puts("[#{ts}] 💀 Agent lost a stock! (#{current_stocks.agent} remaining)")
+    stats =
+      if stats.last_stocks && stats.last_stocks != current_stocks do
+        ts = Time.utc_now() |> Time.truncate(:second) |> Time.to_string()
+
+        if current_stocks.agent != stats.last_stocks.agent do
+          IO.puts("[#{ts}] 💀 Agent lost a stock! (#{current_stocks.agent} remaining)")
+        end
+
+        if current_stocks.opponent != stats.last_stocks.opponent do
+          IO.puts("[#{ts}] 💥 Opponent lost a stock! (#{current_stocks.opponent} remaining)")
+        end
+
+        %{stats | last_stocks: current_stocks}
+      else
+        %{stats | last_stocks: current_stocks}
       end
-      if current_stocks.opponent != stats.last_stocks.opponent do
-        IO.puts("[#{ts}] 💥 Opponent lost a stock! (#{current_stocks.opponent} remaining)")
-      end
-      %{stats | last_stocks: current_stocks}
-    else
-      %{stats | last_stocks: current_stocks}
-    end
 
     # Check for game over (someone at 0 stocks)
-    game_over = (current_stocks.agent == 0) || (current_stocks.opponent == 0)
+    game_over = current_stocks.agent == 0 || current_stocks.opponent == 0
 
     {stats, game_over}
   end
@@ -341,7 +375,10 @@ defmodule GameLoop do
     p2_info = if p2, do: "P2:#{round(p2.percent)}%/#{p2.stock}stk", else: "P2:?"
 
     elapsed = elapsed_time(start_time)
-    IO.puts("[#{timestamp()} +#{elapsed}] f#{frame_count} Stick:(#{stick_x},#{stick_y}) #{buttons_str} | #{p1_info} #{p2_info}")
+
+    IO.puts(
+      "[#{timestamp()} +#{elapsed}] f#{frame_count} Stick:(#{stick_x},#{stick_y}) #{buttons_str} | #{p1_info} #{p2_info}"
+    )
   end
 
   defp controller_to_input(%ControllerState{} = cs) do
@@ -376,11 +413,13 @@ end
 
 # Cleanup
 IO.puts("\nCleaning up...")
+
 try do
   MeleePort.stop(bridge)
 catch
   :exit, _ -> IO.puts("  (cleanup timed out, Dolphin may still be running)")
 end
+
 GenServer.stop(agent)
 
 IO.puts("""

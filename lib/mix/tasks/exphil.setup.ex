@@ -80,11 +80,12 @@ defmodule Mix.Tasks.Exphil.Setup do
     goal = ask_goal()
 
     # Step 2: Character selection (if applicable)
-    character = if goal in [:character, :production] do
-      ask_character()
-    else
-      nil
-    end
+    character =
+      if goal in [:character, :production] do
+        ask_character()
+      else
+        nil
+      end
 
     # Step 3: Hardware configuration
     hw_opts = ask_hardware(gpu_info)
@@ -96,11 +97,12 @@ defmodule Mix.Tasks.Exphil.Setup do
     advanced_opts = ask_advanced(goal)
 
     # Step 6: Fine-tuning (if applicable)
-    resume_opts = if goal == :finetune do
-      ask_finetune()
-    else
-      []
-    end
+    resume_opts =
+      if goal == :finetune do
+        ask_finetune()
+      else
+        []
+      end
 
     # Build the command
     opts = build_opts(goal, character, hw_opts, data_opts, advanced_opts, resume_opts)
@@ -112,8 +114,10 @@ defmodule Mix.Tasks.Exphil.Setup do
     # Ask to run
     if ask_yes_no("\nRun this command now?", false) do
       Output.puts_raw("\nStarting training...\n")
+
       System.cmd("mix", ["run", "scripts/train_from_replays.exs" | command_to_args(opts)],
-        into: IO.stream(:stdio, :line))
+        into: IO.stream(:stdio, :line)
+      )
     else
       Output.puts_raw("\nCommand saved. Run it anytime with:\n")
       Output.puts_raw("  #{command}\n")
@@ -127,10 +131,12 @@ defmodule Mix.Tasks.Exphil.Setup do
   defp detect_gpu do
     case GPUUtils.device_name() do
       {:ok, name} ->
-        memory = case GPUUtils.get_memory_info() do
-          {:ok, %{total_mb: total}} -> total
-          _ -> nil
-        end
+        memory =
+          case GPUUtils.get_memory_info() do
+            {:ok, %{total_mb: total}} -> total
+            _ -> nil
+          end
+
         %{available: true, name: name, memory_mb: memory}
 
       {:error, _} ->
@@ -140,12 +146,14 @@ defmodule Mix.Tasks.Exphil.Setup do
 
   defp show_hardware_info(gpu_info) do
     Output.puts_raw("Detected Hardware:")
+
     if gpu_info.available do
       mem_str = if gpu_info.memory_mb, do: " (#{div(gpu_info.memory_mb, 1024)} GB)", else: ""
       Output.puts_raw("  GPU: #{gpu_info.name}#{mem_str}")
     else
       Output.puts_raw("  GPU: None detected (will use CPU)")
     end
+
     Output.puts_raw("")
   end
 
@@ -214,9 +222,12 @@ defmodule Mix.Tasks.Exphil.Setup do
     end
   end
 
-  defp find_gpu_tier(nil), do: Enum.at(@gpu_tiers, 1)  # Default 8GB
+  # Default 8GB
+  defp find_gpu_tier(nil), do: Enum.at(@gpu_tiers, 1)
+
   defp find_gpu_tier(memory_mb) do
     memory_gb = div(memory_mb, 1024)
+
     Enum.find(@gpu_tiers, Enum.at(@gpu_tiers, 1), fn {threshold, _, _} ->
       memory_gb <= threshold
     end)
@@ -234,11 +245,12 @@ defmodule Mix.Tasks.Exphil.Setup do
     default_replays = System.get_env("EXPHIL_REPLAYS_DIR") || "./replays"
     replays = ask_string("Replay directory", default_replays)
 
-    max_files = if ask_yes_no("Limit number of replay files?", false) do
-      ask_int("Max files", 100)
-    else
-      nil
-    end
+    max_files =
+      if ask_yes_no("Limit number of replay files?", false) do
+        ask_int("Max files", 100)
+      else
+        nil
+      end
 
     [replays: replays, max_files: max_files]
   end
@@ -254,24 +266,26 @@ defmodule Mix.Tasks.Exphil.Setup do
         # Architecture options
         temporal = ask_yes_no("Enable temporal training (better quality, slower)?", true)
 
-        backbone = if temporal do
-          Output.puts_raw("""
+        backbone =
+          if temporal do
+            Output.puts_raw("""
 
-          Backbone architecture:
-            [1] Mamba (recommended - fast, good quality)
-            [2] Jamba (Mamba + Attention hybrid)
-            [3] LSTM (classic recurrent)
-            [4] Sliding Window Attention
-          """)
-          case ask_choice("Choice", 1, 1..4) do
-            1 -> :mamba
-            2 -> :jamba
-            3 -> :lstm
-            4 -> :sliding_window
+            Backbone architecture:
+              [1] Mamba (recommended - fast, good quality)
+              [2] Jamba (Mamba + Attention hybrid)
+              [3] LSTM (classic recurrent)
+              [4] Sliding Window Attention
+            """)
+
+            case ask_choice("Choice", 1, 1..4) do
+              1 -> :mamba
+              2 -> :jamba
+              3 -> :lstm
+              4 -> :sliding_window
+            end
+          else
+            :mlp
           end
-        else
-          :mlp
-        end
 
         # Data options
         augment = ask_yes_no("Enable data augmentation (better generalization)?", true)
@@ -282,13 +296,18 @@ defmodule Mix.Tasks.Exphil.Setup do
 
         lr = ask_float("Learning rate", 1.0e-4)
 
-        early_stopping = ask_yes_no("Enable early stopping (stop when validation loss plateaus)?", true)
-        val_split = if early_stopping do
-          ask_float("Validation split (0.0-0.5)", 0.1)
-        else
-          0.0
-        end
-        patience = if early_stopping, do: ask_int("Early stopping patience (epochs)", 5), else: nil
+        early_stopping =
+          ask_yes_no("Enable early stopping (stop when validation loss plateaus)?", true)
+
+        val_split =
+          if early_stopping do
+            ask_float("Validation split (0.0-0.5)", 0.1)
+          else
+            0.0
+          end
+
+        patience =
+          if early_stopping, do: ask_int("Early stopping patience (epochs)", 5), else: nil
 
         # Precision
         Output.puts_raw("""
@@ -297,13 +316,16 @@ defmodule Mix.Tasks.Exphil.Setup do
           [1] bf16 (recommended - 2x faster, minimal accuracy loss)
           [2] f32 (full precision, slower but more stable)
         """)
-        precision = case ask_choice("Choice", 1, 1..2) do
-          1 -> :bf16
-          2 -> :f32
-        end
+
+        precision =
+          case ask_choice("Choice", 1, 1..2) do
+            1 -> :bf16
+            2 -> :f32
+          end
 
         # Online play
-        online_robust = ask_yes_no("Train for online play (adds frame delay augmentation)?", false)
+        online_robust =
+          ask_yes_no("Train for online play (adds frame delay augmentation)?", false)
 
         # Monitoring
         wandb = ask_yes_no("Enable Weights & Biases logging?", false)
@@ -312,37 +334,46 @@ defmodule Mix.Tasks.Exphil.Setup do
         kmeans = ask_kmeans()
 
         # Reproducibility
-        seed = if ask_yes_no("Set random seed for reproducibility?", false) do
-          ask_int("Seed", :rand.uniform(1_000_000_000))
-        else
-          nil
-        end
+        seed =
+          if ask_yes_no("Set random seed for reproducibility?", false) do
+            ask_int("Seed", :rand.uniform(1_000_000_000))
+          else
+            nil
+          end
 
         # Batch checkpointing (recommended for streaming/large datasets)
-        save_every_batches = if ask_yes_no("Enable batch-interval checkpointing (protects against crashes)?", goal == :production) do
-          Output.puts_raw("  Saves checkpoint every N batches (useful for streaming mode or long epochs)")
-          ask_int("Save every N batches", 500)
-        else
-          nil
-        end
+        save_every_batches =
+          if ask_yes_no(
+               "Enable batch-interval checkpointing (protects against crashes)?",
+               goal == :production
+             ) do
+            Output.puts_raw(
+              "  Saves checkpoint every N batches (useful for streaming mode or long epochs)"
+            )
+
+            ask_int("Save every N batches", 500)
+          else
+            nil
+          end
 
         # Build options list
-        opts = [
-          temporal: temporal,
-          backbone: backbone,
-          augment: augment,
-          dual_port: dual_port,
-          learning_rate: lr,
-          early_stopping: early_stopping,
-          val_split: val_split,
-          patience: patience,
-          precision: precision,
-          online_robust: online_robust,
-          wandb: wandb,
-          seed: seed,
-          save_every_batches: save_every_batches
-        ]
-        |> Enum.reject(fn {_k, v} -> v == nil or v == false or v == 0.0 end)
+        opts =
+          [
+            temporal: temporal,
+            backbone: backbone,
+            augment: augment,
+            dual_port: dual_port,
+            learning_rate: lr,
+            early_stopping: early_stopping,
+            val_split: val_split,
+            patience: patience,
+            precision: precision,
+            online_robust: online_robust,
+            wandb: wandb,
+            seed: seed,
+            save_every_batches: save_every_batches
+          ]
+          |> Enum.reject(fn {_k, v} -> v == nil or v == false or v == 0.0 end)
 
         if kmeans, do: [{:kmeans_centers, kmeans} | opts], else: opts
       else
@@ -354,6 +385,7 @@ defmodule Mix.Tasks.Exphil.Setup do
 
   defp ask_float(prompt, default) do
     result = ask_string(prompt, to_string(default))
+
     case Float.parse(result) do
       {float, ""} -> float
       {float, _} -> float
@@ -368,6 +400,7 @@ defmodule Mix.Tasks.Exphil.Setup do
 
     if has_centers do
       Output.puts_raw("\n  Found K-means centers at #{default_path}")
+
       if ask_yes_no("Use K-means stick discretization (~5% better on precision inputs)?", true) do
         default_path
       else
@@ -381,6 +414,7 @@ defmodule Mix.Tasks.Exphil.Setup do
             mix run scripts/train_kmeans.exs --replays ./replays --k 21
 
         """)
+
         path = ask_string("Path to K-means centers file", default_path)
         if File.exists?(path), do: path, else: nil
       else
@@ -401,6 +435,7 @@ defmodule Mix.Tasks.Exphil.Setup do
       if resume != "", do: [resume: resume], else: []
     else
       Output.puts_raw("  Available checkpoints:\n")
+
       checkpoints
       |> Enum.with_index(1)
       |> Enum.each(fn {path, idx} ->
@@ -411,11 +446,12 @@ defmodule Mix.Tasks.Exphil.Setup do
 
       choice = ask_int("Choice", 1)
 
-      resume = if choice == 0 do
-        ask_string("Path to checkpoint", "")
-      else
-        Enum.at(checkpoints, choice - 1)
-      end
+      resume =
+        if choice == 0 do
+          ask_string("Path to checkpoint", "")
+        else
+          Enum.at(checkpoints, choice - 1)
+        end
 
       if resume && resume != "", do: [resume: resume], else: []
     end
@@ -426,20 +462,22 @@ defmodule Mix.Tasks.Exphil.Setup do
   # ============================================================================
 
   defp build_opts(goal, character, hw_opts, data_opts, advanced_opts, resume_opts) do
-    base_opts = case goal do
-      :quick -> [epochs: 1, max_files: 5]
-      :character -> [epochs: 20]
-      :production -> [epochs: 50, ema: true]
-      :finetune -> [epochs: 10]
-    end
+    base_opts =
+      case goal do
+        :quick -> [epochs: 1, max_files: 5]
+        :character -> [epochs: 20]
+        :production -> [epochs: 50, ema: true]
+        :finetune -> [epochs: 10]
+      end
 
-    character_opts = if character do
-      # Use character preset for window size tuning
-      preset_opts = Config.preset(character)
-      [character: character, window_size: preset_opts[:window_size] || 60]
-    else
-      []
-    end
+    character_opts =
+      if character do
+        # Use character preset for window size tuning
+        preset_opts = Config.preset(character)
+        [character: character, window_size: preset_opts[:window_size] || 60]
+      else
+        []
+      end
 
     # Merge all options (later overrides earlier)
     base_opts
@@ -460,48 +498,114 @@ defmodule Mix.Tasks.Exphil.Setup do
     opts
     |> Enum.flat_map(fn
       # Core
-      {:replays, v} -> ["--replays", v]
-      {:epochs, v} -> ["--epochs", to_string(v)]
-      {:batch_size, v} -> ["--batch-size", to_string(v)]
-      {:max_files, v} when not is_nil(v) -> ["--max-files", to_string(v)]
-      {:character, v} -> ["--train-character", to_string(v)]
-      {:dual_port, true} -> ["--dual-port"]
+      {:replays, v} ->
+        ["--replays", v]
+
+      {:epochs, v} ->
+        ["--epochs", to_string(v)]
+
+      {:batch_size, v} ->
+        ["--batch-size", to_string(v)]
+
+      {:max_files, v} when not is_nil(v) ->
+        ["--max-files", to_string(v)]
+
+      {:character, v} ->
+        ["--train-character", to_string(v)]
+
+      {:dual_port, true} ->
+        ["--dual-port"]
+
       # Architecture
-      {:temporal, true} -> ["--temporal"]
-      {:temporal, false} -> []
-      {:backbone, v} when v != :mlp -> ["--backbone", to_string(v)]
-      {:window_size, v} -> ["--window-size", to_string(v)]
-      {:hidden_sizes, v} -> ["--hidden-sizes", Enum.join(v, ",")]
+      {:temporal, true} ->
+        ["--temporal"]
+
+      {:temporal, false} ->
+        []
+
+      {:backbone, v} when v != :mlp ->
+        ["--backbone", to_string(v)]
+
+      {:window_size, v} ->
+        ["--window-size", to_string(v)]
+
+      {:hidden_sizes, v} ->
+        ["--hidden-sizes", Enum.join(v, ",")]
+
       # Training
-      {:learning_rate, v} when v != 1.0e-4 -> ["--lr", to_string(v)]
-      {:early_stopping, true} -> ["--early-stopping"]
-      {:val_split, v} when v > 0 -> ["--val-split", to_string(v)]
-      {:patience, v} when not is_nil(v) -> ["--patience", to_string(v)]
-      {:precision, :f32} -> ["--precision", "f32"]
-      {:precision, :bf16} -> []  # default
-      {:online_robust, true} -> ["--online-robust"]
+      {:learning_rate, v} when v != 1.0e-4 ->
+        ["--lr", to_string(v)]
+
+      {:early_stopping, true} ->
+        ["--early-stopping"]
+
+      {:val_split, v} when v > 0 ->
+        ["--val-split", to_string(v)]
+
+      {:patience, v} when not is_nil(v) ->
+        ["--patience", to_string(v)]
+
+      {:precision, :f32} ->
+        ["--precision", "f32"]
+
+      # default
+      {:precision, :bf16} ->
+        []
+
+      {:online_robust, true} ->
+        ["--online-robust"]
+
       # Augmentation
-      {:augment, true} -> ["--augment"]
-      {:augment, false} -> []
+      {:augment, true} ->
+        ["--augment"]
+
+      {:augment, false} ->
+        []
+
       # Regularization
-      {:label_smoothing, v} when v > 0 -> ["--label-smoothing", to_string(v)]
-      {:ema, true} -> ["--ema"]
-      {:ema, false} -> []
+      {:label_smoothing, v} when v > 0 ->
+        ["--label-smoothing", to_string(v)]
+
+      {:ema, true} ->
+        ["--ema"]
+
+      {:ema, false} ->
+        []
+
       # Memory
-      {:gradient_checkpoint, true} -> ["--gradient-checkpoint"]
-      {:gradient_checkpoint, false} -> []
+      {:gradient_checkpoint, true} ->
+        ["--gradient-checkpoint"]
+
+      {:gradient_checkpoint, false} ->
+        []
+
       # Monitoring
-      {:wandb, true} -> ["--wandb"]
-      {:wandb, false} -> []
+      {:wandb, true} ->
+        ["--wandb"]
+
+      {:wandb, false} ->
+        []
+
       # Checkpointing
-      {:resume, v} -> ["--resume", v]
-      {:save_best, true} -> ["--save-best"]
-      {:save_every_batches, v} when not is_nil(v) and v > 0 -> ["--save-every-batches", to_string(v)]
+      {:resume, v} ->
+        ["--resume", v]
+
+      {:save_best, true} ->
+        ["--save-best"]
+
+      {:save_every_batches, v} when not is_nil(v) and v > 0 ->
+        ["--save-every-batches", to_string(v)]
+
       # Discretization
-      {:kmeans_centers, v} when not is_nil(v) -> ["--kmeans-centers", v]
+      {:kmeans_centers, v} when not is_nil(v) ->
+        ["--kmeans-centers", v]
+
       # Reproducibility
-      {:seed, v} when not is_nil(v) -> ["--seed", to_string(v)]
-      _ -> []
+      {:seed, v} when not is_nil(v) ->
+        ["--seed", to_string(v)]
+
+      _ ->
+        []
     end)
   end
 
@@ -568,6 +672,7 @@ defmodule Mix.Tasks.Exphil.Setup do
 
   defp ask_int(prompt, default) do
     result = ask_string(prompt, to_string(default))
+
     case Integer.parse(result) do
       {int, ""} -> int
       _ -> default
@@ -581,7 +686,9 @@ defmodule Mix.Tasks.Exphil.Setup do
 
   defp ask_yes_no(prompt, default) do
     default_str = if default, do: "Y/n", else: "y/N"
-    result = Mix.shell().prompt("#{prompt} [#{default_str}]:") |> String.trim() |> String.downcase()
+
+    result =
+      Mix.shell().prompt("#{prompt} [#{default_str}]:") |> String.trim() |> String.downcase()
 
     case result do
       "" -> default

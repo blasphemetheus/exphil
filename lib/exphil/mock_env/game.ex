@@ -48,13 +48,13 @@ defmodule ExPhil.MockEnv.Game do
   ]
 
   @type t :: %__MODULE__{
-    p1: Player.t(),
-    p2: Player.t(),
-    frame: non_neg_integer(),
-    done: boolean(),
-    winner: nil | 1 | 2,
-    stage: map()
-  }
+          p1: Player.t(),
+          p2: Player.t(),
+          frame: non_neg_integer(),
+          done: boolean(),
+          winner: nil | 1 | 2,
+          stage: map()
+        }
 
   @doc """
   Create a new game with both players at starting positions.
@@ -114,15 +114,24 @@ defmodule ExPhil.MockEnv.Game do
   # ===========================================================================
 
   defp process_inputs(game, p1_action, p2_action) do
-    %{game |
-      p1: Player.process_input(game.p1, p1_action || neutral_action()),
-      p2: Player.process_input(game.p2, p2_action || neutral_action())
+    %{
+      game
+      | p1: Player.process_input(game.p1, p1_action || neutral_action()),
+        p2: Player.process_input(game.p2, p2_action || neutral_action())
     }
   end
 
   defp neutral_action do
-    %{stick_x: 0.0, stick_y: 0.0, button_a: false, button_b: false,
-      button_x: false, button_y: false, button_l: false, button_r: false}
+    %{
+      stick_x: 0.0,
+      stick_y: 0.0,
+      button_a: false,
+      button_b: false,
+      button_x: false,
+      button_y: false,
+      button_l: false,
+      button_r: false
+    }
   end
 
   # ===========================================================================
@@ -130,10 +139,7 @@ defmodule ExPhil.MockEnv.Game do
   # ===========================================================================
 
   defp apply_physics(game) do
-    %{game |
-      p1: Player.apply_physics(game.p1),
-      p2: Player.apply_physics(game.p2)
-    }
+    %{game | p1: Player.apply_physics(game.p1), p2: Player.apply_physics(game.p2)}
   end
 
   # ===========================================================================
@@ -141,9 +147,10 @@ defmodule ExPhil.MockEnv.Game do
   # ===========================================================================
 
   defp check_stage_collision(game) do
-    %{game |
-      p1: check_player_stage_collision(game.p1, game.stage),
-      p2: check_player_stage_collision(game.p2, game.stage)
+    %{
+      game
+      | p1: check_player_stage_collision(game.p1, game.stage),
+        p2: check_player_stage_collision(game.p2, game.stage)
     }
   end
 
@@ -161,8 +168,8 @@ defmodule ExPhil.MockEnv.Game do
 
       # Falling through ground level (must be close to ground, not in blast zone)
       player.y <= stage.ground_y and player.y > stage.blast_bottom and
-      player.vel_y <= 0 and
-      player.x >= stage.left_edge and player.x <= stage.right_edge ->
+        player.vel_y <= 0 and
+        player.x >= stage.left_edge and player.x <= stage.right_edge ->
         Player.land(player, stage.ground_y)
 
       true ->
@@ -198,9 +205,9 @@ defmodule ExPhil.MockEnv.Game do
 
   defp in_blast_zone?(player, stage) do
     player.x < stage.blast_left or
-    player.x > stage.blast_right or
-    player.y > stage.blast_top or
-    player.y < stage.blast_bottom
+      player.x > stage.blast_right or
+      player.y > stage.blast_top or
+      player.y < stage.blast_bottom
   end
 
   defp handle_blast_zone(game, _player_key, false), do: game
@@ -264,7 +271,8 @@ defmodule ExPhil.MockEnv.Game do
   def to_game_state(%__MODULE__{} = game) do
     %ExPhil.Bridge.GameState{
       frame: game.frame,
-      stage: 2,  # Final Destination
+      # Final Destination
+      stage: 2,
       menu_state: if(game.done, do: 0, else: 2),
       players: %{
         1 => Player.to_bridge_player(game.p1),

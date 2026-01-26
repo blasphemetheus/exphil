@@ -45,12 +45,18 @@ defmodule ExPhil.Test.ReplayFixtures do
   # @pokemon_stadium 3
 
   # Action states (common)
-  @wait 14            # Standing idle
-  @dash 20            # Dash start
-  @run 22             # Running
-  @jump_squat 24      # Jump squat
-  @jump_f 25          # Forward jump
-  @fall 30            # Falling
+  # Standing idle
+  @wait 14
+  # Dash start
+  @dash 20
+  # Running
+  @run 22
+  # Jump squat
+  @jump_squat 24
+  # Forward jump
+  @jump_f 25
+  # Falling
+  @fall 30
   # @landing 40       # Landing lag
   # @shield 178       # Shielding
   # @grabbed 223      # Being grabbed
@@ -159,7 +165,8 @@ defmodule ExPhil.Test.ReplayFixtures do
         2 => %Player{
           character: @sheik,
           x: 20.0,
-          y: 27.5,  # On side platform
+          # On side platform
+          y: 27.5,
           percent: 55.0,
           stock: 3,
           facing: -1,
@@ -264,7 +271,8 @@ defmodule ExPhil.Test.ReplayFixtures do
       players: %{
         1 => %Player{
           character: @marth,
-          x: -65.0,  # Near ledge
+          # Near ledge
+          x: -65.0,
           y: 0.0,
           percent: 45.0,
           stock: 3,
@@ -286,12 +294,15 @@ defmodule ExPhil.Test.ReplayFixtures do
         },
         2 => %Player{
           character: @fox,
-          x: -95.0,  # Offstage
-          y: -40.0,  # Below stage
+          # Offstage
+          x: -95.0,
+          # Below stage
+          y: -40.0,
           percent: 78.0,
           stock: 3,
           facing: 1,
-          action: 355,  # Firefox startup
+          # Firefox startup
+          action: 355,
           action_frame: 15,
           on_ground: false,
           jumps_left: 0,
@@ -329,7 +340,8 @@ defmodule ExPhil.Test.ReplayFixtures do
           action: @fall,
           action_frame: 8,
           on_ground: false,
-          jumps_left: 1,  # Has double jump
+          # Has double jump
+          jumps_left: 1,
           shield_strength: 60.0,
           invulnerable: false,
           hitstun_frames_left: 0,
@@ -400,39 +412,70 @@ defmodule ExPhil.Test.ReplayFixtures do
           players: %{
             1 => %Player{
               character: @fox,
-              x: 0.0, y: 0.0,
-              percent: 45.0, stock: 3, facing: 1,
-              action: 215,  # Throw release
+              x: 0.0,
+              y: 0.0,
+              percent: 45.0,
+              stock: 3,
+              facing: 1,
+              # Throw release
+              action: 215,
               action_frame: 18,
-              on_ground: true, jumps_left: 2, shield_strength: 60.0,
-              invulnerable: false, hitstun_frames_left: 0,
-              speed_air_x_self: 0.0, speed_ground_x_self: 0.0,
-              speed_y_self: 0.0, speed_x_attack: 0.0, speed_y_attack: 0.0,
-              nana: nil, controller_state: nil
+              on_ground: true,
+              jumps_left: 2,
+              shield_strength: 60.0,
+              invulnerable: false,
+              hitstun_frames_left: 0,
+              speed_air_x_self: 0.0,
+              speed_ground_x_self: 0.0,
+              speed_y_self: 0.0,
+              speed_x_attack: 0.0,
+              speed_y_attack: 0.0,
+              nana: nil,
+              controller_state: nil
             },
             2 => %Player{
               character: @marth,
-              x: 0.0, y: 25.0,
-              percent: 72.0, stock: 3, facing: -1,
-              action: 75,  # Damage fly top
+              x: 0.0,
+              y: 25.0,
+              percent: 72.0,
+              stock: 3,
+              facing: -1,
+              # Damage fly top
+              action: 75,
               action_frame: 2,
-              on_ground: false, jumps_left: 2, shield_strength: 60.0,
-              invulnerable: false, hitstun_frames_left: 12,
-              speed_air_x_self: 0.0, speed_ground_x_self: 0.0,
-              speed_y_self: 3.5, speed_x_attack: 0.0, speed_y_attack: 2.8,
-              nana: nil, controller_state: nil
+              on_ground: false,
+              jumps_left: 2,
+              shield_strength: 60.0,
+              invulnerable: false,
+              hitstun_frames_left: 12,
+              speed_air_x_self: 0.0,
+              speed_ground_x_self: 0.0,
+              speed_y_self: 3.5,
+              speed_x_attack: 0.0,
+              speed_y_attack: 2.8,
+              nana: nil,
+              controller_state: nil
             }
           },
-          projectiles: [], items: [], distance: 25.0
+          projectiles: [],
+          items: [],
+          distance: 25.0
         },
         %ControllerState{
-          main_stick: %{x: 0.5, y: 1.0},  # Holding up
+          # Holding up
+          main_stick: %{x: 0.5, y: 1.0},
           c_stick: %{x: 0.5, y: 0.5},
-          l_shoulder: 0.0, r_shoulder: 0.0,
-          button_a: false, button_b: false,
-          button_x: true,  # Jump input
-          button_y: false, button_z: false,
-          button_l: false, button_r: false, button_d_up: false
+          l_shoulder: 0.0,
+          r_shoulder: 0.0,
+          button_a: false,
+          button_b: false,
+          # Jump input
+          button_x: true,
+          button_y: false,
+          button_z: false,
+          button_l: false,
+          button_r: false,
+          button_d_up: false
         }
       },
       # Frame 2: Fox in jumpsquat
@@ -444,30 +487,52 @@ defmodule ExPhil.Test.ReplayFixtures do
           players: %{
             1 => %Player{
               character: @fox,
-              x: 0.0, y: 0.0,
-              percent: 45.0, stock: 3, facing: 1,
+              x: 0.0,
+              y: 0.0,
+              percent: 45.0,
+              stock: 3,
+              facing: 1,
               action: @jump_squat,
               action_frame: 1,
-              on_ground: true, jumps_left: 2, shield_strength: 60.0,
-              invulnerable: false, hitstun_frames_left: 0,
-              speed_air_x_self: 0.0, speed_ground_x_self: 0.0,
-              speed_y_self: 0.0, speed_x_attack: 0.0, speed_y_attack: 0.0,
-              nana: nil, controller_state: nil
+              on_ground: true,
+              jumps_left: 2,
+              shield_strength: 60.0,
+              invulnerable: false,
+              hitstun_frames_left: 0,
+              speed_air_x_self: 0.0,
+              speed_ground_x_self: 0.0,
+              speed_y_self: 0.0,
+              speed_x_attack: 0.0,
+              speed_y_attack: 0.0,
+              nana: nil,
+              controller_state: nil
             },
             2 => %Player{
               character: @marth,
-              x: 0.0, y: 28.0,
-              percent: 72.0, stock: 3, facing: -1,
+              x: 0.0,
+              y: 28.0,
+              percent: 72.0,
+              stock: 3,
+              facing: -1,
               action: 75,
               action_frame: 3,
-              on_ground: false, jumps_left: 2, shield_strength: 60.0,
-              invulnerable: false, hitstun_frames_left: 11,
-              speed_air_x_self: 0.0, speed_ground_x_self: 0.0,
-              speed_y_self: 3.2, speed_x_attack: 0.0, speed_y_attack: 2.5,
-              nana: nil, controller_state: nil
+              on_ground: false,
+              jumps_left: 2,
+              shield_strength: 60.0,
+              invulnerable: false,
+              hitstun_frames_left: 11,
+              speed_air_x_self: 0.0,
+              speed_ground_x_self: 0.0,
+              speed_y_self: 3.2,
+              speed_x_attack: 0.0,
+              speed_y_attack: 2.5,
+              nana: nil,
+              controller_state: nil
             }
           },
-          projectiles: [], items: [], distance: 28.0
+          projectiles: [],
+          items: [],
+          distance: 28.0
         },
         neutral_controller()
       },
@@ -480,38 +545,67 @@ defmodule ExPhil.Test.ReplayFixtures do
           players: %{
             1 => %Player{
               character: @fox,
-              x: 0.0, y: 12.0,
-              percent: 45.0, stock: 3, facing: 1,
+              x: 0.0,
+              y: 12.0,
+              percent: 45.0,
+              stock: 3,
+              facing: 1,
               action: @jump_f,
               action_frame: 2,
-              on_ground: false, jumps_left: 1, shield_strength: 60.0,
-              invulnerable: false, hitstun_frames_left: 0,
-              speed_air_x_self: 0.0, speed_ground_x_self: 0.0,
-              speed_y_self: 3.8, speed_x_attack: 0.0, speed_y_attack: 0.0,
-              nana: nil, controller_state: nil
+              on_ground: false,
+              jumps_left: 1,
+              shield_strength: 60.0,
+              invulnerable: false,
+              hitstun_frames_left: 0,
+              speed_air_x_self: 0.0,
+              speed_ground_x_self: 0.0,
+              speed_y_self: 3.8,
+              speed_x_attack: 0.0,
+              speed_y_attack: 0.0,
+              nana: nil,
+              controller_state: nil
             },
             2 => %Player{
               character: @marth,
-              x: 0.0, y: 35.0,
-              percent: 72.0, stock: 3, facing: -1,
+              x: 0.0,
+              y: 35.0,
+              percent: 72.0,
+              stock: 3,
+              facing: -1,
               action: 75,
               action_frame: 6,
-              on_ground: false, jumps_left: 2, shield_strength: 60.0,
-              invulnerable: false, hitstun_frames_left: 8,
-              speed_air_x_self: 0.0, speed_ground_x_self: 0.0,
-              speed_y_self: 2.5, speed_x_attack: 0.0, speed_y_attack: 2.0,
-              nana: nil, controller_state: nil
+              on_ground: false,
+              jumps_left: 2,
+              shield_strength: 60.0,
+              invulnerable: false,
+              hitstun_frames_left: 8,
+              speed_air_x_self: 0.0,
+              speed_ground_x_self: 0.0,
+              speed_y_self: 2.5,
+              speed_x_attack: 0.0,
+              speed_y_attack: 2.0,
+              nana: nil,
+              controller_state: nil
             }
           },
-          projectiles: [], items: [], distance: 23.0
+          projectiles: [],
+          items: [],
+          distance: 23.0
         },
         %ControllerState{
           main_stick: %{x: 0.5, y: 1.0},
-          c_stick: %{x: 0.5, y: 1.0},  # C-stick up for upair
-          l_shoulder: 0.0, r_shoulder: 0.0,
-          button_a: false, button_b: false,
-          button_x: false, button_y: false, button_z: false,
-          button_l: false, button_r: false, button_d_up: false
+          # C-stick up for upair
+          c_stick: %{x: 0.5, y: 1.0},
+          l_shoulder: 0.0,
+          r_shoulder: 0.0,
+          button_a: false,
+          button_b: false,
+          button_x: false,
+          button_y: false,
+          button_z: false,
+          button_l: false,
+          button_r: false,
+          button_d_up: false
         }
       }
     ]
@@ -547,16 +641,18 @@ defmodule ExPhil.Test.ReplayFixtures do
   def to_parsed_replay(game_states, opts \\ []) when is_list(game_states) do
     stage = Keyword.get(opts, :stage, @final_destination)
 
-    frames = game_states
-    |> Enum.with_index()
-    |> Enum.map(fn {gs, idx} ->
-      %Peppi.GameFrame{
-        frame_number: gs.frame || idx,
-        players: Map.new(gs.players, fn {port, player} ->
-          {port, player_to_peppi_frame(player)}
-        end)
-      }
-    end)
+    frames =
+      game_states
+      |> Enum.with_index()
+      |> Enum.map(fn {gs, idx} ->
+        %Peppi.GameFrame{
+          frame_number: gs.frame || idx,
+          players:
+            Map.new(gs.players, fn {port, player} ->
+              {port, player_to_peppi_frame(player)}
+            end)
+        }
+      end)
 
     %Peppi.ParsedReplay{
       frames: frames,

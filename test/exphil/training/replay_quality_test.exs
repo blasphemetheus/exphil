@@ -34,10 +34,14 @@ defmodule ExPhil.Training.ReplayQualityTest do
 
   defp deep_merge(base, overrides) when is_map(base) and is_map(overrides) do
     Map.merge(base, overrides, fn
-      _k, v1, v2 when is_map(v1) and is_map(v2) -> deep_merge(v1, v2)
+      _k, v1, v2 when is_map(v1) and is_map(v2) ->
+        deep_merge(v1, v2)
+
       _k, v1, v2 when is_list(v1) and is_list(v2) ->
         Enum.zip_with(v1, v2, &deep_merge/2)
-      _k, _v1, v2 -> v2
+
+      _k, _v1, v2 ->
+        v2
     end)
   end
 
@@ -64,10 +68,12 @@ defmodule ExPhil.Training.ReplayQualityTest do
 
     test "rejects replay with CPU player" do
       replay = good_replay()
+
       players = [
         %{damage_dealt: 100, damage_taken: 50, is_cpu: true},
         %{damage_dealt: 50, damage_taken: 100, is_cpu: false}
       ]
+
       replay = %{replay | players: players}
 
       assert ReplayQuality.score(replay) == :rejected
@@ -75,10 +81,12 @@ defmodule ExPhil.Training.ReplayQualityTest do
 
     test "rejects replay with zero engagement" do
       replay = good_replay()
+
       players = [
         %{damage_dealt: 0, damage_taken: 0},
         %{damage_dealt: 0, damage_taken: 0}
       ]
+
       replay = %{replay | players: players}
 
       assert ReplayQuality.score(replay) == :rejected
@@ -96,9 +104,12 @@ defmodule ExPhil.Training.ReplayQualityTest do
 
     test "gives lower score for low damage" do
       low_damage = good_replay()
-      players = Enum.map(low_damage.players, fn p ->
-        %{p | damage_dealt: 30, damage_taken: 30}
-      end)
+
+      players =
+        Enum.map(low_damage.players, fn p ->
+          %{p | damage_dealt: 30, damage_taken: 30}
+        end)
+
       low_damage = %{low_damage | players: players}
 
       high_damage = good_replay()
@@ -108,9 +119,13 @@ defmodule ExPhil.Training.ReplayQualityTest do
 
     test "gives lower score for low input activity" do
       low_activity = good_replay()
-      players = Enum.map(low_activity.players, fn p ->
-        %{p | input_frames: 200}  # 4% of 5000 frames
-      end)
+
+      players =
+        Enum.map(low_activity.players, fn p ->
+          # 4% of 5000 frames
+          %{p | input_frames: 200}
+        end)
+
       low_activity = %{low_activity | players: players}
 
       high_activity = good_replay()
@@ -120,9 +135,13 @@ defmodule ExPhil.Training.ReplayQualityTest do
 
     test "gives lower score for high SD rate" do
       high_sd = good_replay()
-      players = Enum.map(high_sd.players, fn p ->
-        %{p | sd_count: 3, stocks_lost: 4}  # 75% SD rate
-      end)
+
+      players =
+        Enum.map(high_sd.players, fn p ->
+          # 75% SD rate
+          %{p | sd_count: 3, stocks_lost: 4}
+        end)
+
       high_sd = %{high_sd | players: players}
 
       low_sd = good_replay()
@@ -132,9 +151,12 @@ defmodule ExPhil.Training.ReplayQualityTest do
 
     test "gives lower score for low action diversity" do
       low_diversity = good_replay()
-      players = Enum.map(low_diversity.players, fn p ->
-        %{p | unique_actions: 10}
-      end)
+
+      players =
+        Enum.map(low_diversity.players, fn p ->
+          %{p | unique_actions: 10}
+        end)
+
       low_diversity = %{low_diversity | players: players}
 
       high_diversity = good_replay()
@@ -194,9 +216,10 @@ defmodule ExPhil.Training.ReplayQualityTest do
       replay = good_replay()
       analysis = ReplayQuality.analyze(replay)
 
-      breakdown_sum = Enum.reduce(analysis.breakdown, 0, fn {_k, v}, acc ->
-        acc + v.score
-      end)
+      breakdown_sum =
+        Enum.reduce(analysis.breakdown, 0, fn {_k, v}, acc ->
+          acc + v.score
+        end)
 
       assert analysis.score == breakdown_sum
     end
@@ -206,8 +229,10 @@ defmodule ExPhil.Training.ReplayQualityTest do
     test "returns statistics for multiple replays" do
       replays = [
         good_replay(),
-        good_replay(%{frames: 500}),  # Will be rejected
-        good_replay(%{frames: 2500})   # Lower score
+        # Will be rejected
+        good_replay(%{frames: 500}),
+        # Lower score
+        good_replay(%{frames: 2500})
       ]
 
       stats = ReplayQuality.batch_score(replays)
@@ -234,9 +259,10 @@ defmodule ExPhil.Training.ReplayQualityTest do
     test "prints analysis for good replay" do
       replay = good_replay()
 
-      output = capture_io(:stderr, fn ->
-        ReplayQuality.print_analysis(replay)
-      end)
+      output =
+        capture_io(:stderr, fn ->
+          ReplayQuality.print_analysis(replay)
+        end)
 
       assert output =~ "Replay Quality:"
       assert output =~ "/100"
@@ -245,9 +271,10 @@ defmodule ExPhil.Training.ReplayQualityTest do
     test "prints rejection reason for bad replay" do
       replay = good_replay(%{frames: 500})
 
-      output = capture_io(:stderr, fn ->
-        ReplayQuality.print_analysis(replay)
-      end)
+      output =
+        capture_io(:stderr, fn ->
+          ReplayQuality.print_analysis(replay)
+        end)
 
       assert output =~ "REJECTED"
       assert output =~ "Too short"

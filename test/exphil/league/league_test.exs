@@ -22,11 +22,13 @@ defmodule ExPhil.LeagueTest do
 
     test "starts with custom configuration" do
       name = :"league_custom_#{System.unique_integer([:positive])}"
-      {:ok, _pid} = League.start_link(
-        name: name,
-        game_type: :mock,
-        stocks: 3
-      )
+
+      {:ok, _pid} =
+        League.start_link(
+          name: name,
+          game_type: :mock,
+          stocks: 3
+        )
 
       # Just verify it started
       assert GenServer.whereis(name) != nil
@@ -35,13 +37,16 @@ defmodule ExPhil.LeagueTest do
 
   describe "register_architecture/5" do
     test "registers a new architecture", %{league: league} do
-      result = League.register_architecture(
-        league,
-        :mamba_mewtwo,
-        nil,  # model
-        %{},  # params
-        %{architecture: :mamba}
-      )
+      result =
+        League.register_architecture(
+          league,
+          :mamba_mewtwo,
+          # model
+          nil,
+          # params
+          %{},
+          %{architecture: :mamba}
+        )
 
       assert result == :ok
     end
@@ -49,21 +54,29 @@ defmodule ExPhil.LeagueTest do
     test "rejects duplicate registration", %{league: league} do
       League.register_architecture(league, :mamba_mewtwo, nil, %{}, %{architecture: :mamba})
 
-      result = League.register_architecture(
-        league,
-        :mamba_mewtwo,
-        nil,
-        %{},
-        %{architecture: :mamba}
-      )
+      result =
+        League.register_architecture(
+          league,
+          :mamba_mewtwo,
+          nil,
+          %{},
+          %{architecture: :mamba}
+        )
 
       assert result == {:error, :already_registered}
     end
 
     test "allows multiple different architectures", %{league: league} do
-      assert :ok == League.register_architecture(league, :mamba_mewtwo, nil, %{}, %{architecture: :mamba})
-      assert :ok == League.register_architecture(league, :lstm_mewtwo, nil, %{}, %{architecture: :lstm})
-      assert :ok == League.register_architecture(league, :mlp_mewtwo, nil, %{}, %{architecture: :mlp})
+      assert :ok ==
+               League.register_architecture(league, :mamba_mewtwo, nil, %{}, %{
+                 architecture: :mamba
+               })
+
+      assert :ok ==
+               League.register_architecture(league, :lstm_mewtwo, nil, %{}, %{architecture: :lstm})
+
+      assert :ok ==
+               League.register_architecture(league, :mlp_mewtwo, nil, %{}, %{architecture: :mlp})
     end
   end
 
@@ -166,11 +179,13 @@ defmodule ExPhil.LeagueTest do
 
     test "respects limit parameter", %{league: league} do
       for i <- 1..10 do
-        {:ok, entry} = ArchitectureEntry.new(
-          id: :"arch_#{i}",
-          architecture: :mlp,
-          elo: 1000 + i * 10
-        )
+        {:ok, entry} =
+          ArchitectureEntry.new(
+            id: :"arch_#{i}",
+            architecture: :mlp,
+            elo: 1000 + i * 10
+          )
+
         League.register_entry(league, entry)
       end
 

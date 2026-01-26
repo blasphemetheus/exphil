@@ -40,28 +40,32 @@ defmodule ExPhil.Training.Plots do
     has_val = Enum.any?(history, &Map.has_key?(&1, :val_loss))
 
     # Transform data for VegaLite (long format for multi-line plot)
-    data = if has_val do
-      history
-      |> Enum.flat_map(fn entry ->
-        [
-          %{epoch: entry.epoch, loss: entry.train_loss, type: "train"},
-          %{epoch: entry.epoch, loss: entry[:val_loss], type: "val"}
-        ]
-      end)
-      |> Enum.reject(fn %{loss: l} -> is_nil(l) end)
-    else
-      Enum.map(history, fn entry ->
-        %{epoch: entry.epoch, loss: entry.train_loss, type: "train"}
-      end)
-    end
+    data =
+      if has_val do
+        history
+        |> Enum.flat_map(fn entry ->
+          [
+            %{epoch: entry.epoch, loss: entry.train_loss, type: "train"},
+            %{epoch: entry.epoch, loss: entry[:val_loss], type: "val"}
+          ]
+        end)
+        |> Enum.reject(fn %{loss: l} -> is_nil(l) end)
+      else
+        Enum.map(history, fn entry ->
+          %{epoch: entry.epoch, loss: entry.train_loss, type: "train"}
+        end)
+      end
 
     Vl.new(width: width, height: height, title: title)
     |> Vl.data_from_values(data)
     |> Vl.mark(:line, point: true)
     |> Vl.encode_field(:x, "epoch", type: :quantitative, title: "Epoch")
     |> Vl.encode_field(:y, "loss", type: :quantitative, title: "Loss", scale: [zero: false])
-    |> Vl.encode_field(:color, "type", type: :nominal, title: "Type",
-      scale: [domain: ["train", "val"], range: ["#1f77b4", "#ff7f0e"]])
+    |> Vl.encode_field(:color, "type",
+      type: :nominal,
+      title: "Type",
+      scale: [domain: ["train", "val"], range: ["#1f77b4", "#ff7f0e"]]
+    )
   end
 
   @doc """
@@ -86,19 +90,24 @@ defmodule ExPhil.Training.Plots do
 
     # Sample points (don't need every step)
     sample_rate = max(1, div(steps, 200))
-    data = 0..steps
-    |> Enum.take_every(sample_rate)
-    |> Enum.map(fn step ->
-      lr = schedule_fn.(Nx.tensor(step)) |> Nx.to_number()
-      %{step: step, learning_rate: lr}
-    end)
+
+    data =
+      0..steps
+      |> Enum.take_every(sample_rate)
+      |> Enum.map(fn step ->
+        lr = schedule_fn.(Nx.tensor(step)) |> Nx.to_number()
+        %{step: step, learning_rate: lr}
+      end)
 
     Vl.new(width: width, height: height, title: title)
     |> Vl.data_from_values(data)
     |> Vl.mark(:line)
     |> Vl.encode_field(:x, "step", type: :quantitative, title: "Step")
-    |> Vl.encode_field(:y, "learning_rate", type: :quantitative, title: "Learning Rate",
-      axis: [format: ".1e"])
+    |> Vl.encode_field(:y, "learning_rate",
+      type: :quantitative,
+      title: "Learning Rate",
+      axis: [format: ".1e"]
+    )
   end
 
   @doc """
@@ -132,7 +141,10 @@ defmodule ExPhil.Training.Plots do
         html = to_html(plot)
         File.write!(html_path, html)
         require Logger
-        Logger.warning("SVG export requires vega_lite_convert library, saved as HTML: #{html_path}")
+
+        Logger.warning(
+          "SVG export requires vega_lite_convert library, saved as HTML: #{html_path}"
+        )
 
       :png ->
         # PNG requires additional dependency, fall back to HTML
@@ -211,12 +223,13 @@ defmodule ExPhil.Training.Plots do
     loss_spec = Vl.to_spec(loss_plot) |> Jason.encode!()
 
     # Format metadata
-    metadata_html = if Enum.empty?(metadata) do
-      ""
-    else
-      items = Enum.map(metadata, fn {k, v} -> "<li><strong>#{k}:</strong> #{v}</li>" end)
-      "<ul>#{Enum.join(items)}</ul>"
-    end
+    metadata_html =
+      if Enum.empty?(metadata) do
+        ""
+      else
+        items = Enum.map(metadata, fn {k, v} -> "<li><strong>#{k}:</strong> #{v}</li>" end)
+        "<ul>#{Enum.join(items)}</ul>"
+      end
 
     # Get final metrics
     final = List.last(history) || %{}

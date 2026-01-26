@@ -88,42 +88,49 @@ defmodule ExPhil.Networks.ActorCritic do
     backbone = Policy.build_backbone(input, hidden_sizes, activation, dropout)
 
     # Policy heads
-    buttons = backbone
-    |> Axon.dense(64, name: "buttons_hidden")
-    |> Axon.relu()
-    |> Axon.dense(8, name: "buttons_logits")
+    buttons =
+      backbone
+      |> Axon.dense(64, name: "buttons_hidden")
+      |> Axon.relu()
+      |> Axon.dense(8, name: "buttons_logits")
 
-    main_x = backbone
-    |> Axon.dense(64, name: "main_x_hidden")
-    |> Axon.relu()
-    |> Axon.dense(axis_size, name: "main_x_logits")
+    main_x =
+      backbone
+      |> Axon.dense(64, name: "main_x_hidden")
+      |> Axon.relu()
+      |> Axon.dense(axis_size, name: "main_x_logits")
 
-    main_y = backbone
-    |> Axon.dense(64, name: "main_y_hidden")
-    |> Axon.relu()
-    |> Axon.dense(axis_size, name: "main_y_logits")
+    main_y =
+      backbone
+      |> Axon.dense(64, name: "main_y_hidden")
+      |> Axon.relu()
+      |> Axon.dense(axis_size, name: "main_y_logits")
 
-    c_x = backbone
-    |> Axon.dense(64, name: "c_x_hidden")
-    |> Axon.relu()
-    |> Axon.dense(axis_size, name: "c_x_logits")
+    c_x =
+      backbone
+      |> Axon.dense(64, name: "c_x_hidden")
+      |> Axon.relu()
+      |> Axon.dense(axis_size, name: "c_x_logits")
 
-    c_y = backbone
-    |> Axon.dense(64, name: "c_y_hidden")
-    |> Axon.relu()
-    |> Axon.dense(axis_size, name: "c_y_logits")
+    c_y =
+      backbone
+      |> Axon.dense(64, name: "c_y_hidden")
+      |> Axon.relu()
+      |> Axon.dense(axis_size, name: "c_y_logits")
 
-    shoulder = backbone
-    |> Axon.dense(32, name: "shoulder_hidden")
-    |> Axon.relu()
-    |> Axon.dense(shoulder_size, name: "shoulder_logits")
+    shoulder =
+      backbone
+      |> Axon.dense(32, name: "shoulder_hidden")
+      |> Axon.relu()
+      |> Axon.dense(shoulder_size, name: "shoulder_logits")
 
     # Value head
-    value = backbone
-    |> Axon.dense(128, name: "value_hidden")
-    |> Axon.relu()
-    |> Axon.dense(1, name: "value_output")
-    |> Axon.nx(fn x -> Nx.squeeze(x, axes: [-1]) end, name: "value_squeeze")
+    value =
+      backbone
+      |> Axon.dense(128, name: "value_hidden")
+      |> Axon.relu()
+      |> Axon.dense(1, name: "value_output")
+      |> Axon.nx(fn x -> Nx.squeeze(x, axes: [-1]) end, name: "value_squeeze")
 
     # Combined output
     policy_logits = Axon.container({buttons, main_x, main_y, c_x, c_y, shoulder})
@@ -150,8 +157,26 @@ defmodule ExPhil.Networks.ActorCritic do
   ## Returns
     Map with total loss and component losses.
   """
-  @spec ppo_loss(map(), map(), map(), Nx.Tensor.t(), Nx.Tensor.t(), Nx.Tensor.t(), Nx.Tensor.t(), keyword()) :: map()
-  def ppo_loss(new_logits, old_logits, actions, advantages, new_values, old_values, returns, opts \\ []) do
+  @spec ppo_loss(
+          map(),
+          map(),
+          map(),
+          Nx.Tensor.t(),
+          Nx.Tensor.t(),
+          Nx.Tensor.t(),
+          Nx.Tensor.t(),
+          keyword()
+        ) :: map()
+  def ppo_loss(
+        new_logits,
+        old_logits,
+        actions,
+        advantages,
+        new_values,
+        old_values,
+        returns,
+        opts \\ []
+      ) do
     clip_range = Keyword.get(opts, :clip_range, @default_clip_range)
     value_coef = Keyword.get(opts, :value_coef, @default_value_coef)
     entropy_coef = Keyword.get(opts, :entropy_coef, @default_entropy_coef)
@@ -186,7 +211,7 @@ defmodule ExPhil.Networks.ActorCritic do
   Compute clipped policy loss for PPO.
   """
   @spec policy_loss(map(), map(), map(), Nx.Tensor.t(), float()) ::
-    {Nx.Tensor.t(), Nx.Tensor.t(), Nx.Tensor.t()}
+          {Nx.Tensor.t(), Nx.Tensor.t(), Nx.Tensor.t()}
   def policy_loss(new_logits, old_logits, actions, advantages, clip_range) do
     # Compute log probabilities
     new_log_probs = compute_log_probs(new_logits, actions)
@@ -207,10 +232,14 @@ defmodule ExPhil.Networks.ActorCritic do
 
     # Diagnostics
     approx_kl = Nx.mean(Nx.subtract(old_log_probs, new_log_probs))
-    clip_fraction = Nx.mean(Nx.as_type(
-      Nx.not_equal(ratio, clipped_ratio),
-      :f32
-    ))
+
+    clip_fraction =
+      Nx.mean(
+        Nx.as_type(
+          Nx.not_equal(ratio, clipped_ratio),
+          :f32
+        )
+      )
 
     {policy_loss, approx_kl, clip_fraction}
   end
@@ -249,10 +278,11 @@ defmodule ExPhil.Networks.ActorCritic do
     log_one_minus_probs = log_sigmoid(Nx.negate(logits))
 
     # log p(action) = action * log(p) + (1 - action) * log(1 - p)
-    per_button = Nx.add(
-      Nx.multiply(actions, log_probs),
-      Nx.multiply(Nx.subtract(1, actions), log_one_minus_probs)
-    )
+    per_button =
+      Nx.add(
+        Nx.multiply(actions, log_probs),
+        Nx.multiply(Nx.subtract(1, actions), log_one_minus_probs)
+      )
 
     # Sum over buttons
     Nx.sum(per_button, axes: [1])
@@ -283,10 +313,11 @@ defmodule ExPhil.Networks.ActorCritic do
     num_classes = Nx.axis_size(logits, 1)
 
     # One-hot encode actions
-    actions_one_hot = Nx.equal(
-      Nx.iota({batch_size, num_classes}, axis: 1),
-      Nx.reshape(actions, {batch_size, 1})
-    )
+    actions_one_hot =
+      Nx.equal(
+        Nx.iota({batch_size, num_classes}, axis: 1),
+        Nx.reshape(actions, {batch_size, 1})
+      )
 
     # Extract selected log probs
     Nx.sum(Nx.multiply(log_probs, actions_one_hot), axes: [1])
@@ -308,10 +339,20 @@ defmodule ExPhil.Networks.ActorCritic do
 
     # Bernoulli entropy for buttons
     button_probs = Nx.sigmoid(buttons)
-    button_entropy = Nx.negate(Nx.sum(Nx.add(
-      Nx.multiply(button_probs, Nx.log(Nx.add(button_probs, 1.0e-10))),
-      Nx.multiply(Nx.subtract(1, button_probs), Nx.log(Nx.add(Nx.subtract(1, button_probs), 1.0e-10)))
-    ), axes: [1]))
+
+    button_entropy =
+      Nx.negate(
+        Nx.sum(
+          Nx.add(
+            Nx.multiply(button_probs, Nx.log(Nx.add(button_probs, 1.0e-10))),
+            Nx.multiply(
+              Nx.subtract(1, button_probs),
+              Nx.log(Nx.add(Nx.subtract(1, button_probs), 1.0e-10))
+            )
+          ),
+          axes: [1]
+        )
+      )
 
     # Categorical entropy for sticks/shoulder
     main_x_entropy = categorical_entropy(main_x)

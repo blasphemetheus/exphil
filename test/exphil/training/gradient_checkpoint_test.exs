@@ -31,6 +31,7 @@ defmodule ExPhil.Training.GradientCheckpointTest do
         |> Nx.add(1)
         |> Nx.pow(2)
       end
+
       input = Nx.tensor([1.0, 2.0])
 
       result = GradientCheckpoint.checkpoint(fun, input)
@@ -48,6 +49,7 @@ defmodule ExPhil.Training.GradientCheckpointTest do
         fn x -> Nx.multiply(x, 2) end,
         fn x -> Nx.subtract(x, 3) end
       ]
+
       input = Nx.tensor([5.0])
 
       result = GradientCheckpoint.checkpoint_sequence(funs, input)
@@ -64,6 +66,7 @@ defmodule ExPhil.Training.GradientCheckpointTest do
         fn x -> Nx.add(x, 3) end,
         fn x -> Nx.add(x, 4) end
       ]
+
       input = Nx.tensor([0.0])
 
       result = GradientCheckpoint.checkpoint_sequence(funs, input, checkpoint_every: 2)

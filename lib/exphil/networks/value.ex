@@ -107,7 +107,8 @@ defmodule ExPhil.Networks.Value do
     |> Axon.dense(128, name: "value_hidden")
     |> Axon.relu()
     |> Axon.dense(1, name: "value_output")
-    |> Axon.nx(fn x -> Nx.squeeze(x, axes: [-1]) end, name: "value_squeeze")  # [batch, 1] -> [batch]
+    # [batch, 1] -> [batch]
+    |> Axon.nx(fn x -> Nx.squeeze(x, axes: [-1]) end, name: "value_squeeze")
   end
 
   # ============================================================================
@@ -167,25 +168,28 @@ defmodule ExPhil.Networks.Value do
   @spec clipped_value_loss(Nx.Tensor.t(), Nx.Tensor.t(), Nx.Tensor.t(), float()) :: Nx.Tensor.t()
   def clipped_value_loss(new_values, old_values, targets, clip_range \\ 0.2) do
     # Clipped value estimate
-    clipped_values = Nx.add(
-      old_values,
-      Nx.clip(
-        Nx.subtract(new_values, old_values),
-        -clip_range,
-        clip_range
+    clipped_values =
+      Nx.add(
+        old_values,
+        Nx.clip(
+          Nx.subtract(new_values, old_values),
+          -clip_range,
+          clip_range
+        )
       )
-    )
 
     # Value losses
-    loss_unclipped = Nx.multiply(
-      Nx.subtract(new_values, targets),
-      Nx.subtract(new_values, targets)
-    )
+    loss_unclipped =
+      Nx.multiply(
+        Nx.subtract(new_values, targets),
+        Nx.subtract(new_values, targets)
+      )
 
-    loss_clipped = Nx.multiply(
-      Nx.subtract(clipped_values, targets),
-      Nx.subtract(clipped_values, targets)
-    )
+    loss_clipped =
+      Nx.multiply(
+        Nx.subtract(clipped_values, targets),
+        Nx.subtract(clipped_values, targets)
+      )
 
     # Take the maximum (pessimistic)
     loss = Nx.max(loss_unclipped, loss_clipped)
@@ -212,7 +216,7 @@ defmodule ExPhil.Networks.Value do
     Advantages [time_steps] and returns [time_steps]
   """
   @spec compute_gae(Nx.Tensor.t(), Nx.Tensor.t(), Nx.Tensor.t(), float(), float()) ::
-    {Nx.Tensor.t(), Nx.Tensor.t()}
+          {Nx.Tensor.t(), Nx.Tensor.t()}
   def compute_gae(rewards, values, dones, gamma \\ 0.99, lambda \\ 0.95) do
     # values has shape [time_steps + 1]
     # rewards, dones have shape [time_steps]
@@ -224,13 +228,14 @@ defmodule ExPhil.Networks.Value do
     current_values = Nx.slice(values, [0], [time_steps])
     not_dones = Nx.subtract(1, dones)
 
-    deltas = Nx.add(
-      rewards,
-      Nx.subtract(
-        Nx.multiply(gamma, Nx.multiply(next_values, not_dones)),
-        current_values
+    deltas =
+      Nx.add(
+        rewards,
+        Nx.subtract(
+          Nx.multiply(gamma, Nx.multiply(next_values, not_dones)),
+          current_values
+        )
       )
-    )
 
     # Compute GAE using reverse accumulation
     # This is done outside defn for now (would need Nx.while for proper implementation)

@@ -98,7 +98,8 @@ defmodule ExPhil.Training.ImitationTest do
       assert new_trainer.step == 1
       # Loss is returned as tensor to avoid blocking GPU→CPU transfer
       assert %Nx.Tensor{} = metrics.loss
-      assert Nx.shape(metrics.loss) == {}  # Scalar tensor
+      # Scalar tensor
+      assert Nx.shape(metrics.loss) == {}
     end
 
     @tag :slow
@@ -126,10 +127,11 @@ defmodule ExPhil.Training.ImitationTest do
       {_predict_fn, loss_fn} = Imitation.build_loss_fn(trainer.policy_model)
 
       # Simulate accumulating losses over multiple batches
-      {_trainer, losses} = Enum.reduce(1..5, {trainer, []}, fn _i, {t, ls} ->
-        {new_t, metrics} = Imitation.train_step(t, batch, loss_fn)
-        {new_t, [metrics.loss | ls]}
-      end)
+      {_trainer, losses} =
+        Enum.reduce(1..5, {trainer, []}, fn _i, {t, ls} ->
+          {new_t, metrics} = Imitation.train_step(t, batch, loss_fn)
+          {new_t, [metrics.loss | ls]}
+        end)
 
       # Should be able to stack and average without per-batch GPU sync
       assert length(losses) == 5
@@ -171,7 +173,8 @@ defmodule ExPhil.Training.ImitationTest do
 
       # Loss is returned as tensor to avoid blocking GPU→CPU transfer
       assert %Nx.Tensor{} = result.loss
-      assert Nx.shape(result.loss) == {}  # Scalar tensor
+      # Scalar tensor
+      assert Nx.shape(result.loss) == {}
     end
 
     @tag :slow
@@ -185,9 +188,10 @@ defmodule ExPhil.Training.ImitationTest do
       batches = [mock_batch(4, 64), mock_batch(4, 64), mock_batch(4, 64)]
 
       # Simulate validation loop accumulating tensor losses
-      losses = Enum.map(batches, fn batch ->
-        Imitation.evaluate_batch(trainer, batch).loss
-      end)
+      losses =
+        Enum.map(batches, fn batch ->
+          Imitation.evaluate_batch(trainer, batch).loss
+        end)
 
       # Should be able to stack and average without per-batch GPU sync
       assert length(losses) == 3
@@ -274,15 +278,17 @@ defmodule ExPhil.Training.ImitationTest do
 
     @tag :slow
     test "exports temporal config for inference" do
-      trainer = Imitation.new(
-        embed_size: 64,
-        hidden_sizes: [32],
-        temporal: true,
-        backbone: :sliding_window,
-        window_size: 30,
-        num_heads: 2,
-        head_dim: 16
-      )
+      trainer =
+        Imitation.new(
+          embed_size: 64,
+          hidden_sizes: [32],
+          temporal: true,
+          backbone: :sliding_window,
+          window_size: 30,
+          num_heads: 2,
+          head_dim: 16
+        )
+
       path = Path.join(System.tmp_dir!(), "test_temporal_policy_#{:rand.uniform(10_000)}.axon")
 
       try do
@@ -298,8 +304,10 @@ defmodule ExPhil.Training.ImitationTest do
         assert export.config.window_size == 30
         assert export.config.num_heads == 2
         assert export.config.head_dim == 16
-        assert export.config.hidden_size == 256  # default
-        assert export.config.num_layers == 2     # default
+        # default
+        assert export.config.hidden_size == 256
+        # default
+        assert export.config.num_layers == 2
         assert export.config.axis_buckets == 16
         assert export.config.shoulder_buckets == 4
       after
@@ -347,6 +355,7 @@ defmodule ExPhil.Training.ImitationTest do
       dataset = [mock_batch(4, 64)]
 
       test_pid = self()
+
       callback = fn metrics ->
         send(test_pid, {:callback, metrics})
         :ok
@@ -522,14 +531,32 @@ defmodule ExPhil.Training.ImitationTest do
           stage: 2,
           players: %{
             1 => %ExPhil.Bridge.Player{
-              x: 0.0, y: 0.0, percent: 0.0, stock: 4, facing: 1,
-              character: 9, action: 14, action_frame: 0, invulnerable: false,
-              jumps_left: 2, on_ground: true, shield_strength: 60.0
+              x: 0.0,
+              y: 0.0,
+              percent: 0.0,
+              stock: 4,
+              facing: 1,
+              character: 9,
+              action: 14,
+              action_frame: 0,
+              invulnerable: false,
+              jumps_left: 2,
+              on_ground: true,
+              shield_strength: 60.0
             },
             2 => %ExPhil.Bridge.Player{
-              x: 10.0, y: 0.0, percent: 0.0, stock: 4, facing: -1,
-              character: 9, action: 14, action_frame: 0, invulnerable: false,
-              jumps_left: 2, on_ground: true, shield_strength: 60.0
+              x: 10.0,
+              y: 0.0,
+              percent: 0.0,
+              stock: 4,
+              facing: -1,
+              character: 9,
+              action: 14,
+              action_frame: 0,
+              invulnerable: false,
+              jumps_left: 2,
+              on_ground: true,
+              shield_strength: 60.0
             }
           }
         }
@@ -617,32 +644,35 @@ defmodule ExPhil.Training.ImitationTest do
     end
 
     test "creates trainer with gradient checkpointing enabled" do
-      trainer = Imitation.new(
-        embed_size: 64,
-        hidden_sizes: [32],
-        gradient_checkpoint: true
-      )
+      trainer =
+        Imitation.new(
+          embed_size: 64,
+          hidden_sizes: [32],
+          gradient_checkpoint: true
+        )
 
       assert trainer.config.gradient_checkpoint == true
     end
 
     test "checkpoint_every defaults to 1" do
-      trainer = Imitation.new(
-        embed_size: 64,
-        hidden_sizes: [32],
-        gradient_checkpoint: true
-      )
+      trainer =
+        Imitation.new(
+          embed_size: 64,
+          hidden_sizes: [32],
+          gradient_checkpoint: true
+        )
 
       assert trainer.config.checkpoint_every == 1
     end
 
     test "checkpoint_every can be customized" do
-      trainer = Imitation.new(
-        embed_size: 64,
-        hidden_sizes: [32],
-        gradient_checkpoint: true,
-        checkpoint_every: 2
-      )
+      trainer =
+        Imitation.new(
+          embed_size: 64,
+          hidden_sizes: [32],
+          gradient_checkpoint: true,
+          checkpoint_every: 2
+        )
 
       assert trainer.config.checkpoint_every == 2
     end

@@ -49,13 +49,20 @@ defmodule ExPhil.Training.SelfPlay.ParallelCollector do
   require Logger
 
   defstruct [
-    :envs,              # List of SelfPlayEnv instances
-    :num_envs,          # Number of parallel environments
-    :policy,            # Current policy {model, params}
-    :opponent_pool,     # OpponentPool for opponent sampling
-    :rollout_length,    # Steps per rollout collection
-    :config,            # Additional configuration
-    :stats              # Collection statistics
+    # List of SelfPlayEnv instances
+    :envs,
+    # Number of parallel environments
+    :num_envs,
+    # Current policy {model, params}
+    :policy,
+    # OpponentPool for opponent sampling
+    :opponent_pool,
+    # Steps per rollout collection
+    :rollout_length,
+    # Additional configuration
+    :config,
+    # Collection statistics
+    :stats
   ]
 
   @type t :: %__MODULE__{}
@@ -64,8 +71,10 @@ defmodule ExPhil.Training.SelfPlay.ParallelCollector do
     game_type: :mock,
     p1_port: 1,
     p2_port: 2,
-    timeout: 60_000,     # Timeout per game step (ms)
-    async: true          # Use async collection (true) or sequential (false)
+    # Timeout per game step (ms)
+    timeout: 60_000,
+    # Use async collection (true) or sequential (false)
+    async: true
   }
 
   # ============================================================================
@@ -125,11 +134,12 @@ defmodule ExPhil.Training.SelfPlay.ParallelCollector do
     start_time = System.monotonic_time(:millisecond)
 
     # Collect from all environments
-    {results, updated_envs} = if collector.config.async do
-      collect_async(collector)
-    else
-      collect_sequential(collector)
-    end
+    {results, updated_envs} =
+      if collector.config.async do
+        collect_async(collector)
+      else
+        collect_sequential(collector)
+      end
 
     # Aggregate rollouts from all environments
     rollouts = aggregate_rollouts(results)
@@ -140,12 +150,11 @@ defmodule ExPhil.Training.SelfPlay.ParallelCollector do
 
     stats = update_stats(collector.stats, results, elapsed)
 
-    updated_collector = %{collector |
-      envs: updated_envs,
-      stats: stats
-    }
+    updated_collector = %{collector | envs: updated_envs, stats: stats}
 
-    Logger.debug("[ParallelCollector] Collected #{collector.rollout_length} steps from #{collector.num_envs} envs in #{elapsed}ms")
+    Logger.debug(
+      "[ParallelCollector] Collected #{collector.rollout_length} steps from #{collector.num_envs} envs in #{elapsed}ms"
+    )
 
     {:ok, updated_collector, rollouts}
   end
@@ -161,9 +170,10 @@ defmodule ExPhil.Training.SelfPlay.ParallelCollector do
     new_policy = {model, new_params}
 
     # Update all environments with new policy
-    updated_envs = Enum.map(collector.envs, fn env ->
-      SelfPlayEnv.update_p1_policy(env, new_policy)
-    end)
+    updated_envs =
+      Enum.map(collector.envs, fn env ->
+        SelfPlayEnv.update_p1_policy(env, new_policy)
+      end)
 
     {:ok, %{collector | policy: new_policy, envs: updated_envs}}
   end
@@ -175,10 +185,11 @@ defmodule ExPhil.Training.SelfPlay.ParallelCollector do
   """
   @spec resample_opponents(t()) :: {:ok, t()}
   def resample_opponents(%__MODULE__{} = collector) do
-    updated_envs = Enum.map(collector.envs, fn env ->
-      {_type, opponent} = OpponentPool.sample(collector.opponent_pool)
-      SelfPlayEnv.update_opponent(env, opponent)
-    end)
+    updated_envs =
+      Enum.map(collector.envs, fn env ->
+        {_type, opponent} = OpponentPool.sample(collector.opponent_pool)
+        SelfPlayEnv.update_opponent(env, opponent)
+      end)
 
     {:ok, %{collector | envs: updated_envs}}
   end
@@ -194,12 +205,13 @@ defmodule ExPhil.Training.SelfPlay.ParallelCollector do
   """
   @spec reset(t()) :: {:ok, t()}
   def reset(%__MODULE__{} = collector) do
-    updated_envs = Enum.map(collector.envs, fn env ->
-      case SelfPlayEnv.reset(env) do
-        {:ok, env} -> env
-        _error -> env
-      end
-    end)
+    updated_envs =
+      Enum.map(collector.envs, fn env ->
+        case SelfPlayEnv.reset(env) do
+          {:ok, env} -> env
+          _error -> env
+        end
+      end)
 
     {:ok, %{collector | envs: updated_envs, stats: init_stats()}}
   end
@@ -218,33 +230,35 @@ defmodule ExPhil.Training.SelfPlay.ParallelCollector do
   # ============================================================================
 
   defp create_environments(num_envs, policy, opponent_pool, config, dolphin_config) do
-    results = for i <- 1..num_envs do
-      # Sample opponent for this environment
-      {_type, opponent} = OpponentPool.sample(opponent_pool)
+    results =
+      for i <- 1..num_envs do
+        # Sample opponent for this environment
+        {_type, opponent} = OpponentPool.sample(opponent_pool)
 
-      # Determine P2 policy
-      {p2_policy, p2_cpu_level} = case opponent do
-        %{type: :cpu, level: level} -> {:cpu, level}
-        %{type: :current, params: params} -> {params, nil}
-        %{type: :historical, params: params} -> {params, nil}
-        _ -> {:cpu, 7}
+        # Determine P2 policy
+        {p2_policy, p2_cpu_level} =
+          case opponent do
+            %{type: :cpu, level: level} -> {:cpu, level}
+            %{type: :current, params: params} -> {params, nil}
+            %{type: :historical, params: params} -> {params, nil}
+            _ -> {:cpu, 7}
+          end
+
+        env_opts = [
+          p1_policy: policy,
+          p2_policy: p2_policy,
+          p2_cpu_level: p2_cpu_level,
+          game_type: config.game_type,
+          dolphin_config: Map.put(dolphin_config, :instance_id, i),
+          p1_port: config.p1_port,
+          p2_port: config.p2_port
+        ]
+
+        case SelfPlayEnv.new(env_opts) do
+          {:ok, env} -> {:ok, env}
+          error -> error
+        end
       end
-
-      env_opts = [
-        p1_policy: policy,
-        p2_policy: p2_policy,
-        p2_cpu_level: p2_cpu_level,
-        game_type: config.game_type,
-        dolphin_config: Map.put(dolphin_config, :instance_id, i),
-        p1_port: config.p1_port,
-        p2_port: config.p2_port
-      ]
-
-      case SelfPlayEnv.new(env_opts) do
-        {:ok, env} -> {:ok, env}
-        error -> error
-      end
-    end
 
     # Check for errors
     case Enum.find(results, fn {status, _} -> status == :error end) do
@@ -255,11 +269,12 @@ defmodule ExPhil.Training.SelfPlay.ParallelCollector do
 
   defp collect_async(%__MODULE__{} = collector) do
     # Use Task.async_stream for parallel collection
-    tasks = Enum.map(collector.envs, fn env ->
-      Task.async(fn ->
-        collect_from_env(env, collector.rollout_length)
+    tasks =
+      Enum.map(collector.envs, fn env ->
+        Task.async(fn ->
+          collect_from_env(env, collector.rollout_length)
+        end)
       end)
-    end)
 
     # Await all tasks with timeout
     results = Task.await_many(tasks, collector.config.timeout)
@@ -271,9 +286,10 @@ defmodule ExPhil.Training.SelfPlay.ParallelCollector do
   end
 
   defp collect_sequential(%__MODULE__{} = collector) do
-    results = Enum.map(collector.envs, fn env ->
-      collect_from_env(env, collector.rollout_length)
-    end)
+    results =
+      Enum.map(collector.envs, fn env ->
+        collect_from_env(env, collector.rollout_length)
+      end)
 
     {rollouts, updated_envs} = Enum.unzip(results)
     {rollouts, updated_envs}
@@ -288,6 +304,7 @@ defmodule ExPhil.Training.SelfPlay.ParallelCollector do
   end
 
   defp collect_trajectory(env, 0, acc), do: {env, Enum.reverse(acc)}
+
   defp collect_trajectory(env, remaining, acc) do
     case SelfPlayEnv.step(env) do
       {:ok, updated_env, experience} ->
@@ -296,6 +313,7 @@ defmodule ExPhil.Training.SelfPlay.ParallelCollector do
           case SelfPlayEnv.reset(updated_env) do
             {:ok, reset_env} ->
               collect_trajectory(reset_env, remaining - 1, [experience | acc])
+
             _error ->
               # Can't reset, return what we have
               {updated_env, Enum.reverse([experience | acc])}
@@ -303,7 +321,6 @@ defmodule ExPhil.Training.SelfPlay.ParallelCollector do
         else
           collect_trajectory(updated_env, remaining - 1, [experience | acc])
         end
-
     end
   end
 
@@ -327,14 +344,16 @@ defmodule ExPhil.Training.SelfPlay.ParallelCollector do
     log_probs = Enum.map(trajectory, & &1.log_prob)
 
     # Actions are maps with button/stick keys
-    actions = if length(trajectory) > 0 and is_map(hd(trajectory).action) do
-      action_keys = Map.keys(hd(trajectory).action)
-      Map.new(action_keys, fn key ->
-        {key, Enum.map(trajectory, fn exp -> Map.get(exp.action, key) end)}
-      end)
-    else
-      %{}
-    end
+    actions =
+      if length(trajectory) > 0 and is_map(hd(trajectory).action) do
+        action_keys = Map.keys(hd(trajectory).action)
+
+        Map.new(action_keys, fn key ->
+          {key, Enum.map(trajectory, fn exp -> Map.get(exp.action, key) end)}
+        end)
+      else
+        %{}
+      end
 
     %{
       states: states,
@@ -365,14 +384,16 @@ defmodule ExPhil.Training.SelfPlay.ParallelCollector do
       log_probs = Enum.flat_map(non_empty, & &1.log_probs)
 
       # Merge action maps
-      actions = if length(non_empty) > 0 do
-        action_keys = Map.keys(hd(non_empty).actions)
-        Map.new(action_keys, fn key ->
-          {key, Enum.flat_map(non_empty, fn r -> Map.get(r.actions, key, []) end)}
-        end)
-      else
-        %{}
-      end
+      actions =
+        if length(non_empty) > 0 do
+          action_keys = Map.keys(hd(non_empty).actions)
+
+          Map.new(action_keys, fn key ->
+            {key, Enum.flat_map(non_empty, fn r -> Map.get(r.actions, key, []) end)}
+          end)
+        else
+          %{}
+        end
 
       # Convert to tensors for PPO
       %{
@@ -398,6 +419,7 @@ defmodule ExPhil.Training.SelfPlay.ParallelCollector do
   end
 
   defp states_to_tensor([]), do: Nx.tensor([], type: :f32)
+
   defp states_to_tensor(states) when is_list(states) do
     # States are already embedded tensors, stack them
     if is_struct(hd(states), Nx.Tensor) do
@@ -411,6 +433,7 @@ defmodule ExPhil.Training.SelfPlay.ParallelCollector do
   end
 
   defp actions_to_tensors(actions) when map_size(actions) == 0, do: %{}
+
   defp actions_to_tensors(actions) do
     Map.new(actions, fn {key, values} ->
       {key, Nx.tensor(values, type: :s32)}
@@ -429,19 +452,24 @@ defmodule ExPhil.Training.SelfPlay.ParallelCollector do
 
   defp update_stats(stats, rollouts, elapsed_ms) do
     total_steps = Enum.reduce(rollouts, 0, fn r, acc -> acc + length(r.states) end)
-    episodes_completed = Enum.reduce(rollouts, 0, fn r, acc ->
-      acc + Enum.count(r.dones, & &1)
-    end)
-    total_reward = Enum.reduce(rollouts, 0.0, fn r, acc ->
-      acc + Enum.sum(r.rewards)
-    end)
 
-    %{stats |
-      total_steps: stats.total_steps + total_steps,
-      total_episodes: stats.total_episodes + episodes_completed,
-      total_rewards: stats.total_rewards + total_reward,
-      collection_time_ms: stats.collection_time_ms + elapsed_ms,
-      collections: stats.collections + 1
+    episodes_completed =
+      Enum.reduce(rollouts, 0, fn r, acc ->
+        acc + Enum.count(r.dones, & &1)
+      end)
+
+    total_reward =
+      Enum.reduce(rollouts, 0.0, fn r, acc ->
+        acc + Enum.sum(r.rewards)
+      end)
+
+    %{
+      stats
+      | total_steps: stats.total_steps + total_steps,
+        total_episodes: stats.total_episodes + episodes_completed,
+        total_rewards: stats.total_rewards + total_reward,
+        collection_time_ms: stats.collection_time_ms + elapsed_ms,
+        collections: stats.collections + 1
     }
   end
 end

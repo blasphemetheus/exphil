@@ -102,9 +102,27 @@ defmodule ExPhil.Networks do
   @doc """
   Compute PPO loss for training.
   """
-  @spec ppo_loss(map(), map(), map(), Nx.Tensor.t(), Nx.Tensor.t(), Nx.Tensor.t(), Nx.Tensor.t(), keyword()) :: map()
-  defdelegate ppo_loss(new_logits, old_logits, actions, advantages, new_values, old_values, returns, opts \\ []),
-    to: ActorCritic
+  @spec ppo_loss(
+          map(),
+          map(),
+          map(),
+          Nx.Tensor.t(),
+          Nx.Tensor.t(),
+          Nx.Tensor.t(),
+          Nx.Tensor.t(),
+          keyword()
+        ) :: map()
+  defdelegate ppo_loss(
+                new_logits,
+                old_logits,
+                actions,
+                advantages,
+                new_values,
+                old_values,
+                returns,
+                opts \\ []
+              ),
+              to: ActorCritic
 
   @doc """
   Compute imitation learning loss.
@@ -116,7 +134,7 @@ defmodule ExPhil.Networks do
   Compute Generalized Advantage Estimation.
   """
   @spec compute_gae(Nx.Tensor.t(), Nx.Tensor.t(), Nx.Tensor.t(), float(), float()) ::
-    {Nx.Tensor.t(), Nx.Tensor.t()}
+          {Nx.Tensor.t(), Nx.Tensor.t()}
   defdelegate compute_gae(rewards, values, dones, gamma \\ 0.99, lambda \\ 0.95), to: Value
 
   @doc """

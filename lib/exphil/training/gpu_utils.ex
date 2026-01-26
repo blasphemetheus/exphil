@@ -26,13 +26,19 @@ defmodule ExPhil.Training.GPUUtils do
     # Format: memory.used, memory.total, memory.free, utilization.gpu
     query = "memory.used,memory.total,memory.free,utilization.gpu"
 
-    case System.cmd("nvidia-smi", [
-      "--query-gpu=#{query}",
-      "--format=csv,noheader,nounits",
-      "-i", to_string(device_id)
-    ], stderr_to_stdout: true) do
+    case System.cmd(
+           "nvidia-smi",
+           [
+             "--query-gpu=#{query}",
+             "--format=csv,noheader,nounits",
+             "-i",
+             to_string(device_id)
+           ],
+           stderr_to_stdout: true
+         ) do
       {output, 0} ->
         parse_nvidia_smi_output(output)
+
       {_, _} ->
         {:error, :nvidia_smi_failed}
     end
@@ -47,12 +53,14 @@ defmodule ExPhil.Training.GPUUtils do
     |> Enum.map(&String.trim/1)
     |> case do
       [used, total, free, util] ->
-        {:ok, %{
-          used_mb: String.to_integer(used),
-          total_mb: String.to_integer(total),
-          free_mb: String.to_integer(free),
-          utilization: parse_utilization(util)
-        }}
+        {:ok,
+         %{
+           used_mb: String.to_integer(used),
+           total_mb: String.to_integer(total),
+           free_mb: String.to_integer(free),
+           utilization: parse_utilization(util)
+         }}
+
       _ ->
         {:error, :parse_failed}
     end
@@ -100,6 +108,7 @@ defmodule ExPhil.Training.GPUUtils do
       {:ok, %{used_mb: used, total_mb: total, utilization: util}} ->
         pct = round(used / total * 100)
         "GPU: #{format_mb(used)}/#{format_mb(total)} (#{pct}%) | Util: #{util}%"
+
       {:error, _} ->
         "GPU: N/A (CPU mode)"
     end
@@ -123,11 +132,16 @@ defmodule ExPhil.Training.GPUUtils do
   """
   @spec device_name(non_neg_integer()) :: {:ok, String.t()} | {:error, atom()}
   def device_name(device_id \\ 0) do
-    case System.cmd("nvidia-smi", [
-      "--query-gpu=name",
-      "--format=csv,noheader",
-      "-i", to_string(device_id)
-    ], stderr_to_stdout: true) do
+    case System.cmd(
+           "nvidia-smi",
+           [
+             "--query-gpu=name",
+             "--format=csv,noheader",
+             "-i",
+             to_string(device_id)
+           ],
+           stderr_to_stdout: true
+         ) do
       {name, 0} -> {:ok, String.trim(name)}
       _ -> {:error, :nvidia_smi_failed}
     end
@@ -150,11 +164,12 @@ defmodule ExPhil.Training.GPUUtils do
   def memory_status(device_id \\ 0) do
     case get_memory_info(device_id) do
       {:ok, %{used_mb: used, total_mb: total, utilization: util}} ->
-        {:ok, %{
-          used_mb: used,
-          total_mb: total,
-          utilization: util / 100
-        }}
+        {:ok,
+         %{
+           used_mb: used,
+           total_mb: total,
+           utilization: util / 100
+         }}
 
       error ->
         error
@@ -192,8 +207,8 @@ defmodule ExPhil.Training.GPUUtils do
           pct_str = round(usage_pct * 100)
 
           {:warning,
-            "GPU memory usage is high: #{used_str}/#{total_str} (#{pct_str}%). " <>
-            "Consider reducing batch size or using --gradient-checkpoint."}
+           "GPU memory usage is high: #{used_str}/#{total_str} (#{pct_str}%). " <>
+             "Consider reducing batch size or using --gradient-checkpoint."}
         else
           :ok
         end
@@ -224,8 +239,8 @@ defmodule ExPhil.Training.GPUUtils do
       {:ok, %{free_mb: free}} ->
         if free < required_mb do
           {:warning,
-            "Only #{format_mb(free)} free, may need #{format_mb(required_mb)}. " <>
-            "Consider closing other GPU processes or reducing model size."}
+           "Only #{format_mb(free)} free, may need #{format_mb(required_mb)}. " <>
+             "Consider closing other GPU processes or reducing model size."}
         else
           :ok
         end
@@ -333,9 +348,9 @@ defmodule ExPhil.Training.GPUUtils do
 
     if estimated_mb >= threshold_mb do
       {:warning,
-        "Estimated checkpoint size: #{estimated_mb} MB. " <>
-        "Large checkpoints slow down saving/loading. " <>
-        "Consider using smaller hidden sizes or fewer layers."}
+       "Estimated checkpoint size: #{estimated_mb} MB. " <>
+         "Large checkpoints slow down saving/loading. " <>
+         "Consider using smaller hidden sizes or fewer layers."}
     else
       :ok
     end
@@ -368,24 +383,32 @@ defmodule ExPhil.Training.GPUUtils do
   """
   @spec list_devices() :: {:ok, [map()]} | {:error, atom()}
   def list_devices do
-    case System.cmd("nvidia-smi", [
-      "--query-gpu=index,name,memory.total",
-      "--format=csv,noheader,nounits"
-    ], stderr_to_stdout: true) do
+    case System.cmd(
+           "nvidia-smi",
+           [
+             "--query-gpu=index,name,memory.total",
+             "--format=csv,noheader,nounits"
+           ],
+           stderr_to_stdout: true
+         ) do
       {output, 0} ->
-        devices = output
-        |> String.trim()
-        |> String.split("\n")
-        |> Enum.map(fn line ->
-          case String.split(line, ",") |> Enum.map(&String.trim/1) do
-            [idx, name, mem] ->
-              %{index: String.to_integer(idx), name: name, memory_mb: String.to_integer(mem)}
-            _ -> nil
-          end
-        end)
-        |> Enum.reject(&is_nil/1)
+        devices =
+          output
+          |> String.trim()
+          |> String.split("\n")
+          |> Enum.map(fn line ->
+            case String.split(line, ",") |> Enum.map(&String.trim/1) do
+              [idx, name, mem] ->
+                %{index: String.to_integer(idx), name: name, memory_mb: String.to_integer(mem)}
+
+              _ ->
+                nil
+            end
+          end)
+          |> Enum.reject(&is_nil/1)
 
         {:ok, devices}
+
       _ ->
         {:error, :nvidia_smi_failed}
     end

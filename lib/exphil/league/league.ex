@@ -69,12 +69,18 @@ defmodule ExPhil.League do
   require Logger
 
   defstruct [
-    :architectures,       # Map of arch_id => ArchitectureEntry
-    :match_history,       # List of MatchResult records
-    :experience_pool,     # Collected experiences for training
-    :generation,          # Current league generation
-    :config,              # League configuration
-    :stats                # Global statistics
+    # Map of arch_id => ArchitectureEntry
+    :architectures,
+    # List of MatchResult records
+    :match_history,
+    # Collected experiences for training
+    :experience_pool,
+    # Current league generation
+    :generation,
+    # League configuration
+    :config,
+    # Global statistics
+    :stats
   ]
 
   @type match_result :: %{
@@ -92,12 +98,18 @@ defmodule ExPhil.League do
   @type t :: %__MODULE__{}
 
   @default_config %{
-    game_type: :mock,             # :mock or :dolphin
-    dolphin_config: nil,          # Required if game_type == :dolphin
-    stocks: 4,                    # Stocks per game
-    time_limit: 8 * 60 * 60,      # 8 minutes in frames (at 60fps)
-    collect_experiences: true,    # Whether to collect experiences during matches
-    experience_pool_size: 100_000 # Max experiences to keep
+    # :mock or :dolphin
+    game_type: :mock,
+    # Required if game_type == :dolphin
+    dolphin_config: nil,
+    # Stocks per game
+    stocks: 4,
+    # 8 minutes in frames (at 60fps)
+    time_limit: 8 * 60 * 60,
+    # Whether to collect experiences during matches
+    collect_experiences: true,
+    # Max experiences to keep
+    experience_pool_size: 100_000
   }
 
   # ============================================================================
@@ -156,7 +168,8 @@ defmodule ExPhil.League do
   @doc """
   Get an architecture entry by ID.
   """
-  @spec get_architecture(GenServer.server(), atom()) :: {:ok, ArchitectureEntry.t()} | {:error, :not_found}
+  @spec get_architecture(GenServer.server(), atom()) ::
+          {:ok, ArchitectureEntry.t()} | {:error, :not_found}
   def get_architecture(league, arch_id) do
     GenServer.call(league, {:get_architecture, arch_id})
   end
@@ -313,9 +326,10 @@ defmodule ExPhil.League do
              config: config
            ) do
         {:ok, entry} ->
-          new_state = %{state |
-            architectures: Map.put(state.architectures, arch_id, entry),
-            stats: update_stats(state.stats, :architecture_registered)
+          new_state = %{
+            state
+            | architectures: Map.put(state.architectures, arch_id, entry),
+              stats: update_stats(state.stats, :architecture_registered)
           }
 
           Logger.info("[League] Registered architecture #{arch_id} (#{arch_config})")
@@ -332,9 +346,10 @@ defmodule ExPhil.League do
     if Map.has_key?(state.architectures, entry.id) do
       {:reply, {:error, :already_registered}, state}
     else
-      new_state = %{state |
-        architectures: Map.put(state.architectures, entry.id, entry),
-        stats: update_stats(state.stats, :architecture_registered)
+      new_state = %{
+        state
+        | architectures: Map.put(state.architectures, entry.id, entry),
+          stats: update_stats(state.stats, :architecture_registered)
       }
 
       Logger.info("[League] Registered architecture #{entry.id} (#{entry.architecture})")
@@ -374,23 +389,27 @@ defmodule ExPhil.League do
     # Generate round-robin pairs
     pairs = for p1 <- arch_ids, p2 <- arch_ids, p1 < p2, do: {p1, p2}
 
-    Logger.info("[League] Running tournament: #{length(pairs)} pairs, #{matches_per_pair} matches each")
+    Logger.info(
+      "[League] Running tournament: #{length(pairs)} pairs, #{matches_per_pair} matches each"
+    )
 
     # Run all matches
-    {results, new_state} = Enum.reduce(pairs, {[], state}, fn {p1_id, p2_id}, {results_acc, state_acc} ->
-      # Run multiple matches per pair
-      {pair_results, updated_state} = Enum.reduce(1..matches_per_pair, {[], state_acc}, fn _i, {pair_acc, s} ->
-        case do_run_match(s, p1_id, p2_id) do
-          {:ok, result, new_state} ->
-            {[result | pair_acc], new_state}
+    {results, new_state} =
+      Enum.reduce(pairs, {[], state}, fn {p1_id, p2_id}, {results_acc, state_acc} ->
+        # Run multiple matches per pair
+        {pair_results, updated_state} =
+          Enum.reduce(1..matches_per_pair, {[], state_acc}, fn _i, {pair_acc, s} ->
+            case do_run_match(s, p1_id, p2_id) do
+              {:ok, result, new_state} ->
+                {[result | pair_acc], new_state}
 
-          {:error, _reason} ->
-            {pair_acc, s}
-        end
+              {:error, _reason} ->
+                {pair_acc, s}
+            end
+          end)
+
+        {pair_results ++ results_acc, updated_state}
       end)
-
-      {pair_results ++ results_acc, updated_state}
-    end)
 
     Logger.info("[League] Tournament complete: #{length(results)} matches played")
 
@@ -407,33 +426,35 @@ defmodule ExPhil.League do
 
   @impl true
   def handle_call({:get_leaderboard, limit}, _from, state) do
-    leaderboard = state.architectures
-    |> Map.values()
-    |> Enum.map(fn entry ->
-      %{
-        id: entry.id,
-        architecture: entry.architecture,
-        character: entry.character,
-        elo: entry.elo,
-        generation: entry.generation,
-        wins: entry.stats.wins,
-        losses: entry.stats.losses,
-        draws: entry.stats.draws,
-        win_rate: ArchitectureEntry.win_rate(entry),
-        games_played: ArchitectureEntry.games_played(entry)
-      }
-    end)
-    |> Enum.sort_by(& &1.elo, :desc)
-    |> Enum.take(limit)
+    leaderboard =
+      state.architectures
+      |> Map.values()
+      |> Enum.map(fn entry ->
+        %{
+          id: entry.id,
+          architecture: entry.architecture,
+          character: entry.character,
+          elo: entry.elo,
+          generation: entry.generation,
+          wins: entry.stats.wins,
+          losses: entry.stats.losses,
+          draws: entry.stats.draws,
+          win_rate: ArchitectureEntry.win_rate(entry),
+          games_played: ArchitectureEntry.games_played(entry)
+        }
+      end)
+      |> Enum.sort_by(& &1.elo, :desc)
+      |> Enum.take(limit)
 
     {:reply, leaderboard, state}
   end
 
   @impl true
   def handle_call({:get_match_history, arch_id, limit}, _from, state) do
-    history = state.match_history
-    |> Enum.filter(fn m -> m.p1_id == arch_id or m.p2_id == arch_id end)
-    |> Enum.take(limit)
+    history =
+      state.match_history
+      |> Enum.filter(fn m -> m.p1_id == arch_id or m.p2_id == arch_id end)
+      |> Enum.take(limit)
 
     {:reply, history, state}
   end
@@ -475,12 +496,13 @@ defmodule ExPhil.League do
 
   @impl true
   def handle_call(:get_stats, _from, state) do
-    stats = Map.merge(state.stats, %{
-      num_architectures: map_size(state.architectures),
-      total_matches: length(state.match_history),
-      experience_pool_size: length(state.experience_pool),
-      generation: state.generation
-    })
+    stats =
+      Map.merge(state.stats, %{
+        num_architectures: map_size(state.architectures),
+        total_matches: length(state.match_history),
+        experience_pool_size: length(state.experience_pool),
+        generation: state.generation
+      })
 
     {:reply, stats, state}
   end
@@ -505,11 +527,13 @@ defmodule ExPhil.League do
 
     # Save league state
     league_state_path = Path.join(dir, "league_state.json")
+
     league_state = %{
       generation: state.generation,
       stats: state.stats,
       architecture_ids: Map.keys(state.architectures)
     }
+
     File.write!(league_state_path, Jason.encode!(league_state, pretty: true))
 
     Logger.info("[League] Saved #{map_size(state.architectures)} checkpoints to #{dir}")
@@ -522,43 +546,45 @@ defmodule ExPhil.League do
     # Load league state
     league_state_path = Path.join(dir, "league_state.json")
 
-    {generation, arch_ids} = if File.exists?(league_state_path) do
-      league_state = File.read!(league_state_path) |> Jason.decode!()
-      {league_state["generation"] || 0, league_state["architecture_ids"] || []}
-    else
-      # Discover from files
-      metadata_files = Path.wildcard(Path.join(dir, "*_metadata.json"))
-      ids = Enum.map(metadata_files, fn f ->
-        f
-        |> Path.basename()
-        |> String.replace("_metadata.json", "")
-        |> String.to_atom()
-      end)
-      {0, ids}
-    end
+    {generation, arch_ids} =
+      if File.exists?(league_state_path) do
+        league_state = File.read!(league_state_path) |> Jason.decode!()
+        {league_state["generation"] || 0, league_state["architecture_ids"] || []}
+      else
+        # Discover from files
+        metadata_files = Path.wildcard(Path.join(dir, "*_metadata.json"))
+
+        ids =
+          Enum.map(metadata_files, fn f ->
+            f
+            |> Path.basename()
+            |> String.replace("_metadata.json", "")
+            |> String.to_atom()
+          end)
+
+        {0, ids}
+      end
 
     # Load each architecture
-    {architectures, loaded_count} = Enum.reduce(arch_ids, {state.architectures, 0}, fn arch_id, {acc, count} ->
-      metadata_path = Path.join(dir, "#{arch_id}_metadata.json")
-      params_path = Path.join(dir, "#{arch_id}_params.bin")
+    {architectures, loaded_count} =
+      Enum.reduce(arch_ids, {state.architectures, 0}, fn arch_id, {acc, count} ->
+        metadata_path = Path.join(dir, "#{arch_id}_metadata.json")
+        params_path = Path.join(dir, "#{arch_id}_params.bin")
 
-      if File.exists?(metadata_path) and File.exists?(params_path) do
-        metadata = File.read!(metadata_path) |> Jason.decode!()
-        params = load_params(params_path)
+        if File.exists?(metadata_path) and File.exists?(params_path) do
+          metadata = File.read!(metadata_path) |> Jason.decode!()
+          params = load_params(params_path)
 
-        {:ok, entry} = ArchitectureEntry.from_metadata(metadata)
-        entry = %{entry | params: params}
-        {Map.put(acc, entry.id, entry), count + 1}
-      else
-        Logger.warning("[League] Missing files for #{arch_id}")
-        {acc, count}
-      end
-    end)
+          {:ok, entry} = ArchitectureEntry.from_metadata(metadata)
+          entry = %{entry | params: params}
+          {Map.put(acc, entry.id, entry), count + 1}
+        else
+          Logger.warning("[League] Missing files for #{arch_id}")
+          {acc, count}
+        end
+      end)
 
-    new_state = %{state |
-      architectures: architectures,
-      generation: generation
-    }
+    new_state = %{state | architectures: architectures, generation: generation}
 
     Logger.info("[League] Loaded #{loaded_count} architectures from #{dir}")
 
@@ -591,36 +617,47 @@ defmodule ExPhil.League do
         {result, experiences} = run_game(state.config, p1_entry, p2_entry)
 
         # Update Elo ratings
-        elo_result = case result.winner do
-          :p1 -> :win
-          :p2 -> :loss
-          :draw -> :draw
-        end
+        elo_result =
+          case result.winner do
+            :p1 -> :win
+            :p2 -> :loss
+            :draw -> :draw
+          end
 
         k1 = Elo.dynamic_k_factor(ArchitectureEntry.games_played(p1_entry))
         k2 = Elo.dynamic_k_factor(ArchitectureEntry.games_played(p2_entry))
 
-        {new_p1_elo, new_p2_elo} = Elo.update(
-          p1_entry.elo,
-          p2_entry.elo,
-          elo_result,
-          k_factor_a: k1,
-          k_factor_b: k2
-        )
+        {new_p1_elo, new_p2_elo} =
+          Elo.update(
+            p1_entry.elo,
+            p2_entry.elo,
+            elo_result,
+            k_factor_a: k1,
+            k_factor_b: k2
+          )
 
         elo_change = {new_p1_elo - p1_entry.elo, new_p2_elo - p2_entry.elo}
 
         # Update entries
-        p1_result = if result.winner == :p1, do: :win, else: if(result.winner == :p2, do: :loss, else: :draw)
-        p2_result = if result.winner == :p2, do: :win, else: if(result.winner == :p1, do: :loss, else: :draw)
+        p1_result =
+          if result.winner == :p1,
+            do: :win,
+            else: if(result.winner == :p2, do: :loss, else: :draw)
 
-        updated_p1 = p1_entry
-        |> ArchitectureEntry.update_elo(new_p1_elo)
-        |> ArchitectureEntry.record_result(p1_result, result.frames)
+        p2_result =
+          if result.winner == :p2,
+            do: :win,
+            else: if(result.winner == :p1, do: :loss, else: :draw)
 
-        updated_p2 = p2_entry
-        |> ArchitectureEntry.update_elo(new_p2_elo)
-        |> ArchitectureEntry.record_result(p2_result, result.frames)
+        updated_p1 =
+          p1_entry
+          |> ArchitectureEntry.update_elo(new_p1_elo)
+          |> ArchitectureEntry.record_result(p1_result, result.frames)
+
+        updated_p2 =
+          p2_entry
+          |> ArchitectureEntry.update_elo(new_p2_elo)
+          |> ArchitectureEntry.record_result(p2_result, result.frames)
 
         # Build match result
         match_result = %{
@@ -636,29 +673,32 @@ defmodule ExPhil.League do
         }
 
         # Update state
-        new_architectures = state.architectures
-        |> Map.put(p1_id, updated_p1)
-        |> Map.put(p2_id, updated_p2)
+        new_architectures =
+          state.architectures
+          |> Map.put(p1_id, updated_p1)
+          |> Map.put(p2_id, updated_p2)
 
         # Add experiences to pool (with size limit)
-        new_pool = if state.config.collect_experiences do
-          (experiences ++ state.experience_pool)
-          |> Enum.take(state.config.experience_pool_size)
-        else
-          state.experience_pool
-        end
+        new_pool =
+          if state.config.collect_experiences do
+            (experiences ++ state.experience_pool)
+            |> Enum.take(state.config.experience_pool_size)
+          else
+            state.experience_pool
+          end
 
-        new_state = %{state |
-          architectures: new_architectures,
-          match_history: [match_result | Enum.take(state.match_history, 999)],
-          experience_pool: new_pool,
-          stats: update_stats(state.stats, :match_completed)
+        new_state = %{
+          state
+          | architectures: new_architectures,
+            match_history: [match_result | Enum.take(state.match_history, 999)],
+            experience_pool: new_pool,
+            stats: update_stats(state.stats, :match_completed)
         }
 
         Logger.debug(
           "[League] Match: #{p1_id} vs #{p2_id} -> #{result.winner} " <>
-          "(stocks: #{result.p1_stocks}-#{result.p2_stocks}, " <>
-          "Elo: #{Float.round(elem(elo_change, 0), 1)}/#{Float.round(elem(elo_change, 1), 1)})"
+            "(stocks: #{result.p1_stocks}-#{result.p2_stocks}, " <>
+            "Elo: #{Float.round(elem(elo_change, 0), 1)}/#{Float.round(elem(elo_change, 1), 1)})"
         )
 
         {:ok, match_result, new_state}
@@ -677,34 +717,37 @@ defmodule ExPhil.League do
 
   defp run_mock_game(config, p1_entry, p2_entry) do
     # Initialize mock game
-    game = MockEnv.Game.new(
-      stocks: config.stocks,
-      p1_character: p1_entry.character,
-      p2_character: p2_entry.character
-    )
+    game =
+      MockEnv.Game.new(
+        stocks: config.stocks,
+        p1_character: p1_entry.character,
+        p2_character: p2_entry.character
+      )
 
     # Build policy functions
     p1_policy = build_policy_fn(p1_entry)
     p2_policy = build_policy_fn(p2_entry)
 
     # Run game loop
-    {final_game, experiences} = run_game_loop(
-      game,
-      p1_policy,
-      p2_policy,
-      config.time_limit,
-      []
-    )
+    {final_game, experiences} =
+      run_game_loop(
+        game,
+        p1_policy,
+        p2_policy,
+        config.time_limit,
+        []
+      )
 
     # Determine winner
     p1_stocks = MockEnv.Game.get_stocks(final_game, :p1)
     p2_stocks = MockEnv.Game.get_stocks(final_game, :p2)
 
-    winner = cond do
-      p1_stocks > p2_stocks -> :p1
-      p2_stocks > p1_stocks -> :p2
-      true -> :draw
-    end
+    winner =
+      cond do
+        p1_stocks > p2_stocks -> :p1
+        p2_stocks > p1_stocks -> :p2
+        true -> :draw
+      end
 
     result = %{
       winner: winner,
@@ -776,7 +819,8 @@ defmodule ExPhil.League do
       _ -> [0.0]
     end)
     |> Nx.tensor(type: :f32)
-    |> Nx.new_axis(0)  # Add batch dim
+    # Add batch dim
+    |> Nx.new_axis(0)
   end
 
   defp predict_action(model, params, state) do
@@ -804,6 +848,7 @@ defmodule ExPhil.League do
 
   defp sample_stick(output, key) do
     key_str = to_string(key)
+
     case output do
       %{^key_str => stick} -> Nx.argmax(stick, axis: -1) |> Nx.to_number() |> normalize_stick()
       _ -> 0.5
@@ -812,7 +857,7 @@ defmodule ExPhil.League do
 
   defp normalize_stick(bucket) do
     # Convert bucket index to -1..1 range
-    (bucket / 16) * 2 - 1
+    bucket / 16 * 2 - 1
   end
 
   defp random_action do
@@ -858,12 +903,13 @@ defmodule ExPhil.League do
 
   defp save_params(params, path) do
     # Convert to binary backend for serialization
-    params_binary = params
-    |> Enum.map(fn {k, v} ->
-      v_binary = Nx.backend_transfer(v, Nx.BinaryBackend)
-      {k, v_binary}
-    end)
-    |> Map.new()
+    params_binary =
+      params
+      |> Enum.map(fn {k, v} ->
+        v_binary = Nx.backend_transfer(v, Nx.BinaryBackend)
+        {k, v_binary}
+      end)
+      |> Map.new()
 
     binary = :erlang.term_to_binary(params_binary)
     File.write!(path, binary)

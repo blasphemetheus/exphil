@@ -16,7 +16,8 @@ defmodule ExPhil.TrainingTest do
       action: 14,
       action_frame: 0,
       shield_strength: 60.0,
-      character: 9,  # Mewtwo
+      # Mewtwo
+      character: 9,
       invulnerable: false,
       hitstun_frames_left: 0,
       jumps_left: 2,
@@ -39,7 +40,8 @@ defmodule ExPhil.TrainingTest do
       action: 14,
       action_frame: 0,
       shield_strength: 60.0,
-      character: 2,  # Fox
+      # Fox
+      character: 2,
       invulnerable: false,
       hitstun_frames_left: 0,
       jumps_left: 2,
@@ -86,10 +88,11 @@ defmodule ExPhil.TrainingTest do
     Enum.map(1..n, fn i ->
       %{
         game_state: mock_game_state(x: i * 1.0, percent: i * 0.5),
-        controller: mock_controller_state(
-          main_x: 0.5 + rem(i, 10) * 0.05,
-          a: rem(i, 5) == 0
-        )
+        controller:
+          mock_controller_state(
+            main_x: 0.5 + rem(i, 10) * 0.05,
+            a: rem(i, 5) == 0
+          )
       }
     end)
   end
@@ -138,7 +141,8 @@ defmodule ExPhil.TrainingTest do
 
     test "controller_to_action/2 discretizes correctly" do
       controller = %ControllerState{
-        main_stick: %{x: 0.0, y: 1.0},  # Full left, full up
+        # Full left, full up
+        main_stick: %{x: 0.0, y: 1.0},
         c_stick: %{x: 0.5, y: 0.5},
         l_shoulder: 0.5,
         r_shoulder: 0.0,
@@ -154,9 +158,12 @@ defmodule ExPhil.TrainingTest do
 
       action = Data.controller_to_action(controller, axis_buckets: 16, shoulder_buckets: 4)
 
-      assert action.main_x == 0  # 0.0 -> bucket 0
-      assert action.main_y == 15  # 1.0 -> bucket 15 (clamped)
-      assert action.shoulder == 2  # 0.5 -> bucket 2
+      # 0.0 -> bucket 0
+      assert action.main_x == 0
+      # 1.0 -> bucket 15 (clamped)
+      assert action.main_y == 15
+      # 0.5 -> bucket 2
+      assert action.shoulder == 2
       assert action.buttons.a == true
       assert action.buttons.x == true
       assert action.buttons.b == false
@@ -164,10 +171,40 @@ defmodule ExPhil.TrainingTest do
 
     test "actions_to_tensors/1 creates proper tensor shapes" do
       actions = [
-        %{buttons: %{a: true, b: false, x: false, y: false, z: false, l: false, r: false, d_up: false},
-          main_x: 8, main_y: 8, c_x: 8, c_y: 8, shoulder: 0},
-        %{buttons: %{a: false, b: true, x: false, y: false, z: false, l: false, r: false, d_up: false},
-          main_x: 0, main_y: 15, c_x: 8, c_y: 8, shoulder: 3}
+        %{
+          buttons: %{
+            a: true,
+            b: false,
+            x: false,
+            y: false,
+            z: false,
+            l: false,
+            r: false,
+            d_up: false
+          },
+          main_x: 8,
+          main_y: 8,
+          c_x: 8,
+          c_y: 8,
+          shoulder: 0
+        },
+        %{
+          buttons: %{
+            a: false,
+            b: true,
+            x: false,
+            y: false,
+            z: false,
+            l: false,
+            r: false,
+            d_up: false
+          },
+          main_x: 0,
+          main_y: 15,
+          c_x: 8,
+          c_y: 8,
+          shoulder: 3
+        }
       ]
 
       tensors = Data.actions_to_tensors(actions)
@@ -224,12 +261,13 @@ defmodule ExPhil.TrainingTest do
 
     @tag :slow
     test "new/1 accepts custom config" do
-      trainer = Imitation.new(
-        embed_size: 1024,
-        batch_size: 128,
-        learning_rate: 3.0e-4,
-        hidden_sizes: [256, 256]
-      )
+      trainer =
+        Imitation.new(
+          embed_size: 1024,
+          batch_size: 128,
+          learning_rate: 3.0e-4,
+          hidden_sizes: [256, 256]
+        )
 
       assert trainer.config.batch_size == 128
       assert trainer.config.learning_rate == 3.0e-4
@@ -248,12 +286,15 @@ defmodule ExPhil.TrainingTest do
       {states, _key} = Nx.Random.uniform(key, shape: {4, 512})
 
       # Forward pass
-      {buttons, main_x, _main_y, _c_x, _c_y, shoulder} = predict_fn.(trainer.policy_params, states)
+      {buttons, main_x, _main_y, _c_x, _c_y, shoulder} =
+        predict_fn.(trainer.policy_params, states)
 
       assert Nx.shape(buttons) == {4, 8}
       # axis_buckets + 1 because we discretize [0, 1] into bucket indices
-      assert Nx.shape(main_x) == {4, 17}  # axis_buckets + 1
-      assert Nx.shape(shoulder) == {4, 5}  # shoulder_buckets + 1
+      # axis_buckets + 1
+      assert Nx.shape(main_x) == {4, 17}
+      # shoulder_buckets + 1
+      assert Nx.shape(shoulder) == {4, 5}
 
       # Loss computation
       actions = %{
@@ -267,7 +308,8 @@ defmodule ExPhil.TrainingTest do
 
       loss = loss_fn.(trainer.policy_params, states, actions)
       assert is_struct(loss, Nx.Tensor)
-      assert Nx.shape(loss) == {}  # Scalar
+      # Scalar
+      assert Nx.shape(loss) == {}
     end
 
     @tag :slow
@@ -275,14 +317,15 @@ defmodule ExPhil.TrainingTest do
       trainer = Imitation.new(embed_size: 512)
 
       # Add some fake metrics
-      trainer = %{trainer |
-        step: 100,
-        metrics: %{
-          loss: [0.5, 0.4, 0.3],
-          button_loss: [],
-          stick_loss: [],
-          learning_rate: []
-        }
+      trainer = %{
+        trainer
+        | step: 100,
+          metrics: %{
+            loss: [0.5, 0.4, 0.3],
+            button_loss: [],
+            stick_loss: [],
+            learning_rate: []
+          }
       }
 
       summary = Imitation.metrics_summary(trainer)
@@ -336,12 +379,13 @@ defmodule ExPhil.TrainingTest do
 
     @tag :slow
     test "new/1 accepts custom config" do
-      trainer = PPO.new(
-        embed_size: 1024,
-        gamma: 0.995,
-        clip_range: 0.1,
-        entropy_coef: 0.05
-      )
+      trainer =
+        PPO.new(
+          embed_size: 1024,
+          gamma: 0.995,
+          clip_range: 0.1,
+          entropy_coef: 0.05
+        )
 
       assert trainer.config.gamma == 0.995
       assert trainer.config.clip_range == 0.1
@@ -383,17 +427,18 @@ defmodule ExPhil.TrainingTest do
     test "metrics_summary/1 computes summary" do
       trainer = PPO.new(embed_size: 512)
 
-      trainer = %{trainer |
-        step: 1000,
-        timesteps: 10_000,
-        metrics: %{
-          losses: [0.5, 0.4, 0.45],
-          policy_losses: [0.1, 0.2, 0.15],
-          value_losses: [0.5, 0.4, 0.45],
-          entropies: [0.3, 0.25, 0.28],
-          kls: [0.01, 0.02, 0.015],
-          clip_fractions: [0.1, 0.1, 0.1]
-        }
+      trainer = %{
+        trainer
+        | step: 1000,
+          timesteps: 10_000,
+          metrics: %{
+            losses: [0.5, 0.4, 0.45],
+            policy_losses: [0.1, 0.2, 0.15],
+            value_losses: [0.5, 0.4, 0.45],
+            entropies: [0.3, 0.25, 0.28],
+            kls: [0.01, 0.02, 0.015],
+            clip_fractions: [0.1, 0.1, 0.1]
+          }
       }
 
       summary = PPO.metrics_summary(trainer)
@@ -542,7 +587,8 @@ defmodule ExPhil.TrainingTest do
           "backbone_dense_0" => %{kernel: Nx.broadcast(0, {10, 10})},
           "backbone_dense_1" => %{kernel: Nx.broadcast(0, {10, 10})}
         },
-        config: %{temporal: false, hidden_sizes: [64, 64, 64]}  # 3 layers
+        # 3 layers
+        config: %{temporal: false, hidden_sizes: [64, 64, 64]}
       }
 
       {:error, msg} = Training.validate_policy(policy, "test.bin")
@@ -637,12 +683,13 @@ defmodule ExPhil.TrainingTest do
       frames = mock_frames(100)
       dataset = Data.from_frames(frames)
 
-      {:ok, trainer} = Training.train_imitation(dataset,
-        epochs: 1,
-        batch_size: 32,
-        hidden_sizes: [32],
-        validation_split: 0.1
-      )
+      {:ok, trainer} =
+        Training.train_imitation(dataset,
+          epochs: 1,
+          batch_size: 32,
+          hidden_sizes: [32],
+          validation_split: 0.1
+        )
 
       assert %Imitation{} = trainer
       assert trainer.step > 0
@@ -656,17 +703,19 @@ defmodule ExPhil.TrainingTest do
       dataset = Data.from_frames(frames)
 
       test_pid = self()
+
       callback = fn metrics ->
         send(test_pid, {:callback, metrics})
       end
 
-      {:ok, _trainer} = Training.train_imitation(dataset,
-        epochs: 1,
-        batch_size: 8,
-        hidden_sizes: [16],
-        callbacks: [callback],
-        validation_split: 0
-      )
+      {:ok, _trainer} =
+        Training.train_imitation(dataset,
+          epochs: 1,
+          batch_size: 8,
+          hidden_sizes: [16],
+          callbacks: [callback],
+          validation_split: 0
+        )
 
       # Should have received at least one callback
       assert_received {:callback, metrics}
@@ -678,12 +727,13 @@ defmodule ExPhil.TrainingTest do
       frames = mock_frames(50)
       dataset = Data.from_frames(frames)
 
-      {:ok, trainer} = Training.train_imitation(dataset,
-        epochs: 1,
-        batch_size: 16,
-        hidden_sizes: [32],
-        validation_split: 0
-      )
+      {:ok, trainer} =
+        Training.train_imitation(dataset,
+          epochs: 1,
+          batch_size: 16,
+          hidden_sizes: [32],
+          validation_split: 0
+        )
 
       assert %Imitation{} = trainer
     end
@@ -696,14 +746,15 @@ defmodule ExPhil.TrainingTest do
       File.mkdir_p!(checkpoint_dir)
 
       try do
-        {:ok, _trainer} = Training.train_imitation(dataset,
-          epochs: 1,
-          batch_size: 32,
-          hidden_sizes: [32],
-          checkpoint_dir: checkpoint_dir,
-          checkpoint_interval: 1,
-          validation_split: 0
-        )
+        {:ok, _trainer} =
+          Training.train_imitation(dataset,
+            epochs: 1,
+            batch_size: 32,
+            hidden_sizes: [32],
+            checkpoint_dir: checkpoint_dir,
+            checkpoint_interval: 1,
+            validation_split: 0
+          )
 
         # Should have saved final checkpoint
         final_path = Path.join(checkpoint_dir, "imitation_final.ckpt")
@@ -722,20 +773,22 @@ defmodule ExPhil.TrainingTest do
       checkpoint_path = Path.join(System.tmp_dir!(), "resume_test_#{:rand.uniform(10_000)}.ckpt")
 
       try do
-        {:ok, trainer1} = Training.train_imitation(dataset,
-          epochs: 1,
-          batch_size: 16,
-          hidden_sizes: [32],
-          validation_split: 0
-        )
+        {:ok, trainer1} =
+          Training.train_imitation(dataset,
+            epochs: 1,
+            batch_size: 16,
+            hidden_sizes: [32],
+            validation_split: 0
+          )
 
         :ok = Imitation.save_checkpoint(trainer1, checkpoint_path)
 
-        {:ok, trainer2} = Training.resume_imitation(checkpoint_path, dataset,
-          epochs: 1,
-          batch_size: 16,
-          hidden_sizes: [32]
-        )
+        {:ok, trainer2} =
+          Training.resume_imitation(checkpoint_path, dataset,
+            epochs: 1,
+            batch_size: 16,
+            hidden_sizes: [32]
+          )
 
         assert %Imitation{} = trainer2
         assert trainer2.step >= trainer1.step

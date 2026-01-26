@@ -99,28 +99,30 @@ defmodule ExPhil.Training.MambaIntegrationTest do
     Enum.map(1..n, fn i ->
       %{
         game_state: mock_game_state(frame: i, x: i * 1.0, percent: i * 0.5),
-        controller: mock_controller_state(
-          main_x: 0.5 + rem(i, 10) * 0.05,
-          a: rem(i, 5) == 0
-        )
+        controller:
+          mock_controller_state(
+            main_x: 0.5 + rem(i, 10) * 0.05,
+            a: rem(i, 5) == 0
+          )
       }
     end)
   end
 
   describe "Mamba trainer initialization" do
     test "creates temporal trainer with mamba backbone" do
-      trainer = Imitation.new(
-        embed_size: @embed_size,
-        hidden_sizes: [@hidden_size, @hidden_size],
-        temporal: true,
-        backbone: :mamba,
-        window_size: @window_size,
-        hidden_size: @hidden_size,
-        state_size: @state_size,
-        expand_factor: 2,
-        conv_size: 4,
-        num_layers: 2
-      )
+      trainer =
+        Imitation.new(
+          embed_size: @embed_size,
+          hidden_sizes: [@hidden_size, @hidden_size],
+          temporal: true,
+          backbone: :mamba,
+          window_size: @window_size,
+          hidden_size: @hidden_size,
+          state_size: @state_size,
+          expand_factor: 2,
+          conv_size: 4,
+          num_layers: 2
+        )
 
       assert %Imitation{} = trainer
       assert trainer.config[:temporal] == true
@@ -129,15 +131,16 @@ defmodule ExPhil.Training.MambaIntegrationTest do
     end
 
     test "builds policy model with correct output structure" do
-      trainer = Imitation.new(
-        embed_size: @embed_size,
-        hidden_sizes: [@hidden_size],
-        temporal: true,
-        backbone: :mamba,
-        window_size: @window_size,
-        hidden_size: @hidden_size,
-        state_size: @state_size
-      )
+      trainer =
+        Imitation.new(
+          embed_size: @embed_size,
+          hidden_sizes: [@hidden_size],
+          temporal: true,
+          backbone: :mamba,
+          window_size: @window_size,
+          hidden_size: @hidden_size,
+          state_size: @state_size
+        )
 
       # Verify model can be built and run
       {init_fn, predict_fn} = Axon.build(trainer.policy_model, mode: :inference)
@@ -157,10 +160,11 @@ defmodule ExPhil.Training.MambaIntegrationTest do
       frames = mock_frames(50)
       dataset = Data.from_frames(frames)
 
-      seq_dataset = Data.to_sequences(dataset,
-        window_size: @window_size,
-        stride: 1
-      )
+      seq_dataset =
+        Data.to_sequences(dataset,
+          window_size: @window_size,
+          stride: 1
+        )
 
       # 50 frames with window 10, stride 1 = 41 sequences
       expected_count = 50 - @window_size + 1
@@ -172,11 +176,12 @@ defmodule ExPhil.Training.MambaIntegrationTest do
       dataset = Data.from_frames(frames)
       seq_dataset = Data.to_sequences(dataset, window_size: @window_size, stride: 1)
 
-      batches = Data.batched_sequences(seq_dataset,
-        batch_size: @batch_size,
-        shuffle: false
-      )
-      |> Enum.to_list()
+      batches =
+        Data.batched_sequences(seq_dataset,
+          batch_size: @batch_size,
+          shuffle: false
+        )
+        |> Enum.to_list()
 
       assert length(batches) > 0
 
@@ -196,29 +201,32 @@ defmodule ExPhil.Training.MambaIntegrationTest do
       dataset = Data.from_frames(frames)
       seq_dataset = Data.to_sequences(dataset, window_size: @window_size, stride: 2)
 
-      trainer = Imitation.new(
-        embed_size: ExPhil.Embeddings.embedding_size(),
-        hidden_sizes: [@hidden_size],
-        temporal: true,
-        backbone: :mamba,
-        window_size: @window_size,
-        hidden_size: @hidden_size,
-        state_size: @state_size,
-        num_layers: 1
-      )
+      trainer =
+        Imitation.new(
+          embed_size: ExPhil.Embeddings.embedding_size(),
+          hidden_sizes: [@hidden_size],
+          temporal: true,
+          backbone: :mamba,
+          window_size: @window_size,
+          hidden_size: @hidden_size,
+          state_size: @state_size,
+          num_layers: 1
+        )
 
-      batches = Data.batched_sequences(seq_dataset,
-        batch_size: @batch_size,
-        shuffle: false,
-        drop_last: true
-      )
-      |> Enum.take(3)
+      batches =
+        Data.batched_sequences(seq_dataset,
+          batch_size: @batch_size,
+          shuffle: false,
+          drop_last: true
+        )
+        |> Enum.take(3)
 
       # Run a few training steps
-      {final_trainer, losses} = Enum.reduce(batches, {trainer, []}, fn batch, {t, losses} ->
-        {new_trainer, metrics} = Imitation.train_step(t, batch, nil)
-        {new_trainer, [metrics.loss | losses]}
-      end)
+      {final_trainer, losses} =
+        Enum.reduce(batches, {trainer, []}, fn batch, {t, losses} ->
+          {new_trainer, metrics} = Imitation.train_step(t, batch, nil)
+          {new_trainer, [metrics.loss | losses]}
+        end)
 
       assert length(losses) == 3
       assert final_trainer.step == 3
@@ -236,35 +244,37 @@ defmodule ExPhil.Training.MambaIntegrationTest do
       checkpoint_path = Path.join(System.tmp_dir!(), "mamba_ckpt_#{:rand.uniform(10_000)}.axon")
 
       try do
-        trainer1 = Imitation.new(
-          embed_size: @embed_size,
-          hidden_sizes: [@hidden_size],
-          temporal: true,
-          backbone: :mamba,
-          window_size: @window_size,
-          hidden_size: @hidden_size,
-          state_size: @state_size,
-          expand_factor: 2,
-          conv_size: 4,
-          num_layers: 2
-        )
+        trainer1 =
+          Imitation.new(
+            embed_size: @embed_size,
+            hidden_sizes: [@hidden_size],
+            temporal: true,
+            backbone: :mamba,
+            window_size: @window_size,
+            hidden_size: @hidden_size,
+            state_size: @state_size,
+            expand_factor: 2,
+            conv_size: 4,
+            num_layers: 2
+          )
 
         :ok = Imitation.save_checkpoint(trainer1, checkpoint_path)
         assert File.exists?(checkpoint_path)
 
         # Create a base trainer with same architecture to load into
-        base_trainer = Imitation.new(
-          embed_size: @embed_size,
-          hidden_sizes: [@hidden_size],
-          temporal: true,
-          backbone: :mamba,
-          window_size: @window_size,
-          hidden_size: @hidden_size,
-          state_size: @state_size,
-          expand_factor: 2,
-          conv_size: 4,
-          num_layers: 2
-        )
+        base_trainer =
+          Imitation.new(
+            embed_size: @embed_size,
+            hidden_sizes: [@hidden_size],
+            temporal: true,
+            backbone: :mamba,
+            window_size: @window_size,
+            hidden_size: @hidden_size,
+            state_size: @state_size,
+            expand_factor: 2,
+            conv_size: 4,
+            num_layers: 2
+          )
 
         {:ok, trainer2} = Imitation.load_checkpoint(base_trainer, checkpoint_path)
 
@@ -286,17 +296,19 @@ defmodule ExPhil.Training.MambaIntegrationTest do
       policy_path = Path.join(System.tmp_dir!(), "mamba_policy_#{:rand.uniform(10_000)}.bin")
 
       try do
-        trainer = Imitation.new(
-          embed_size: @embed_size,
-          hidden_sizes: [@hidden_size],
-          temporal: true,
-          backbone: :mamba,
-          window_size: @window_size,
-          hidden_size: @hidden_size,
-          state_size: 16,  # Use default to match export
-          expand_factor: 2,
-          conv_size: 4
-        )
+        trainer =
+          Imitation.new(
+            embed_size: @embed_size,
+            hidden_sizes: [@hidden_size],
+            temporal: true,
+            backbone: :mamba,
+            window_size: @window_size,
+            hidden_size: @hidden_size,
+            # Use default to match export
+            state_size: 16,
+            expand_factor: 2,
+            conv_size: 4
+          )
 
         :ok = Imitation.export_policy(trainer, policy_path)
         assert File.exists?(policy_path)
@@ -317,15 +329,16 @@ defmodule ExPhil.Training.MambaIntegrationTest do
 
   describe "Mamba inference" do
     test "model can run forward pass with tensor input" do
-      trainer = Imitation.new(
-        embed_size: @embed_size,
-        hidden_sizes: [@hidden_size],
-        temporal: true,
-        backbone: :mamba,
-        window_size: @window_size,
-        hidden_size: @hidden_size,
-        state_size: @state_size
-      )
+      trainer =
+        Imitation.new(
+          embed_size: @embed_size,
+          hidden_sizes: [@hidden_size],
+          temporal: true,
+          backbone: :mamba,
+          window_size: @window_size,
+          hidden_size: @hidden_size,
+          state_size: @state_size
+        )
 
       # Create tensor input directly (bypassing embedding)
       input = Nx.broadcast(0.5, {1, @window_size, @embed_size})
@@ -340,24 +353,26 @@ defmodule ExPhil.Training.MambaIntegrationTest do
 
   describe "Mamba vs LSTM comparison" do
     test "Mamba and LSTM models have similar structure" do
-      mamba_trainer = Imitation.new(
-        embed_size: @embed_size,
-        hidden_sizes: [@hidden_size],
-        temporal: true,
-        backbone: :mamba,
-        window_size: @window_size,
-        hidden_size: @hidden_size,
-        state_size: @state_size
-      )
+      mamba_trainer =
+        Imitation.new(
+          embed_size: @embed_size,
+          hidden_sizes: [@hidden_size],
+          temporal: true,
+          backbone: :mamba,
+          window_size: @window_size,
+          hidden_size: @hidden_size,
+          state_size: @state_size
+        )
 
-      lstm_trainer = Imitation.new(
-        embed_size: @embed_size,
-        hidden_sizes: [@hidden_size],
-        temporal: true,
-        backbone: :lstm,
-        window_size: @window_size,
-        hidden_size: @hidden_size
-      )
+      lstm_trainer =
+        Imitation.new(
+          embed_size: @embed_size,
+          hidden_sizes: [@hidden_size],
+          temporal: true,
+          backbone: :lstm,
+          window_size: @window_size,
+          hidden_size: @hidden_size
+        )
 
       # Both should be valid trainers
       assert %Imitation{} = mamba_trainer
@@ -387,13 +402,14 @@ defmodule ExPhil.Training.MambaIntegrationTest do
     test "builds checkpointed Mamba model" do
       alias ExPhil.Networks.Mamba
 
-      model = Mamba.build_checkpointed(
-        embed_size: @embed_size,
-        hidden_size: @hidden_size,
-        state_size: @state_size,
-        num_layers: 2,
-        window_size: @window_size
-      )
+      model =
+        Mamba.build_checkpointed(
+          embed_size: @embed_size,
+          hidden_size: @hidden_size,
+          state_size: @state_size,
+          num_layers: 2,
+          window_size: @window_size
+        )
 
       assert %Axon{} = model
     end
@@ -433,15 +449,16 @@ defmodule ExPhil.Training.MambaIntegrationTest do
 
     @tag :slow
     test "trainer can be created with gradient checkpointing enabled" do
-      trainer = Imitation.new(
-        embed_size: @embed_size,
-        temporal: true,
-        backbone: :mamba,
-        hidden_size: @hidden_size,
-        window_size: @window_size,
-        gradient_checkpoint: true,
-        checkpoint_every: 1
-      )
+      trainer =
+        Imitation.new(
+          embed_size: @embed_size,
+          temporal: true,
+          backbone: :mamba,
+          hidden_size: @hidden_size,
+          window_size: @window_size,
+          gradient_checkpoint: true,
+          checkpoint_every: 1
+        )
 
       assert %Imitation{} = trainer
       assert trainer.config.gradient_checkpoint == true
@@ -453,14 +470,15 @@ defmodule ExPhil.Training.MambaIntegrationTest do
       alias ExPhil.Networks.Mamba
 
       # Build with checkpoint_every: 2 (every other layer)
-      model = Mamba.build_checkpointed(
-        embed_size: @embed_size,
-        hidden_size: @hidden_size,
-        state_size: @state_size,
-        num_layers: 4,
-        window_size: @window_size,
-        checkpoint_every: 2
-      )
+      model =
+        Mamba.build_checkpointed(
+          embed_size: @embed_size,
+          hidden_size: @hidden_size,
+          state_size: @state_size,
+          num_layers: 4,
+          window_size: @window_size,
+          checkpoint_every: 2
+        )
 
       # Model should build successfully
       {init_fn, predict_fn} = Axon.build(model, mode: :inference)

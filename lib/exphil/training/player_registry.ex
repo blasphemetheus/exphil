@@ -47,7 +47,7 @@ defmodule ExPhil.Training.PlayerRegistry do
           tag_to_id: %{String.t() => non_neg_integer()},
           id_to_tag: %{non_neg_integer() => String.t()},
           max_players: pos_integer(),
-          unknown_strategy: :nil | :default | :hash
+          unknown_strategy: nil | :default | :hash
         }
 
   @doc """
@@ -66,7 +66,7 @@ defmodule ExPhil.Training.PlayerRegistry do
       tag_to_id: %{},
       id_to_tag: %{},
       max_players: Keyword.get(opts, :max_players, 112),
-      unknown_strategy: Keyword.get(opts, :unknown_strategy, :nil)
+      unknown_strategy: Keyword.get(opts, :unknown_strategy, nil)
     }
   end
 
@@ -151,7 +151,7 @@ defmodule ExPhil.Training.PlayerRegistry do
   @spec from_tags([String.t()], keyword()) :: t()
   def from_tags(tags, opts \\ []) do
     max_players = Keyword.get(opts, :max_players, 112)
-    unknown_strategy = Keyword.get(opts, :unknown_strategy, :nil)
+    unknown_strategy = Keyword.get(opts, :unknown_strategy, nil)
 
     tags = Enum.take(tags, max_players)
 
@@ -278,10 +278,10 @@ defmodule ExPhil.Training.PlayerRegistry do
          {:ok, data} <- Jason.decode(content) do
       unknown_strategy =
         case data["unknown_strategy"] do
-          "nil" -> :nil
+          "nil" -> nil
           "default" -> :default
           "hash" -> :hash
-          _ -> :nil
+          _ -> nil
         end
 
       registry =
@@ -297,7 +297,7 @@ defmodule ExPhil.Training.PlayerRegistry do
 
   # Private functions
 
-  defp handle_unknown(%__MODULE__{unknown_strategy: :nil}, _tag), do: nil
+  defp handle_unknown(%__MODULE__{unknown_strategy: nil}, _tag), do: nil
   defp handle_unknown(%__MODULE__{unknown_strategy: :default}, _tag), do: 0
 
   defp handle_unknown(%__MODULE__{unknown_strategy: :hash, max_players: max}, tag) do

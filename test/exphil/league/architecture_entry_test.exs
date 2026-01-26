@@ -5,14 +5,16 @@ defmodule ExPhil.League.ArchitectureEntryTest do
 
   describe "new/1" do
     test "creates entry with required fields" do
-      {:ok, entry} = ArchitectureEntry.new(
-        id: :mamba_mewtwo,
-        architecture: :mamba
-      )
+      {:ok, entry} =
+        ArchitectureEntry.new(
+          id: :mamba_mewtwo,
+          architecture: :mamba
+        )
 
       assert entry.id == :mamba_mewtwo
       assert entry.architecture == :mamba
-      assert entry.character == :mewtwo  # default
+      # default
+      assert entry.character == :mewtwo
       assert entry.generation == 0
       assert entry.elo == 1000.0
       assert entry.lineage == []
@@ -22,31 +24,34 @@ defmodule ExPhil.League.ArchitectureEntryTest do
     end
 
     test "accepts custom character" do
-      {:ok, entry} = ArchitectureEntry.new(
-        id: :lstm_ganon,
-        architecture: :lstm,
-        character: :ganondorf
-      )
+      {:ok, entry} =
+        ArchitectureEntry.new(
+          id: :lstm_ganon,
+          architecture: :lstm,
+          character: :ganondorf
+        )
 
       assert entry.character == :ganondorf
     end
 
     test "accepts custom config" do
-      {:ok, entry} = ArchitectureEntry.new(
-        id: :mlp_mewtwo,
-        architecture: :mlp,
-        config: %{hidden_sizes: [512, 512]}
-      )
+      {:ok, entry} =
+        ArchitectureEntry.new(
+          id: :mlp_mewtwo,
+          architecture: :mlp,
+          config: %{hidden_sizes: [512, 512]}
+        )
 
       assert entry.config.hidden_sizes == [512, 512]
     end
 
     test "accepts custom initial Elo" do
-      {:ok, entry} = ArchitectureEntry.new(
-        id: :attention_mewtwo,
-        architecture: :attention,
-        elo: 1500
-      )
+      {:ok, entry} =
+        ArchitectureEntry.new(
+          id: :attention_mewtwo,
+          architecture: :attention,
+          elo: 1500
+        )
 
       assert entry.elo == 1500.0
     end
@@ -195,11 +200,12 @@ defmodule ExPhil.League.ArchitectureEntryTest do
     end
 
     test "returns true with params" do
-      {:ok, entry} = ArchitectureEntry.new(
-        id: :mamba_mewtwo,
-        architecture: :mamba,
-        params: %{layer1: %{weight: :tensor}}
-      )
+      {:ok, entry} =
+        ArchitectureEntry.new(
+          id: :mamba_mewtwo,
+          architecture: :mamba,
+          params: %{layer1: %{weight: :tensor}}
+        )
 
       assert ArchitectureEntry.trained?(entry)
     end
@@ -259,16 +265,18 @@ defmodule ExPhil.League.ArchitectureEntryTest do
 
   describe "to_metadata/1 and from_metadata/1" do
     test "round-trips metadata" do
-      {:ok, entry} = ArchitectureEntry.new(
-        id: :mamba_mewtwo,
-        architecture: :mamba,
-        config: %{hidden_size: 512}
-      )
+      {:ok, entry} =
+        ArchitectureEntry.new(
+          id: :mamba_mewtwo,
+          architecture: :mamba,
+          config: %{hidden_size: 512}
+        )
 
-      entry = entry
-      |> ArchitectureEntry.update_elo(1200)
-      |> ArchitectureEntry.record_result(:win, 4500)
-      |> ArchitectureEntry.update_from_training(%{})
+      entry =
+        entry
+        |> ArchitectureEntry.update_elo(1200)
+        |> ArchitectureEntry.record_result(:win, 4500)
+        |> ArchitectureEntry.update_from_training(%{})
 
       metadata = ArchitectureEntry.to_metadata(entry)
       {:ok, restored} = ArchitectureEntry.from_metadata(metadata)

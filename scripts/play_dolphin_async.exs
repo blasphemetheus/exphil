@@ -93,10 +93,12 @@ if opts[:policy] == nil or opts[:dolphin] == nil or opts[:iso] == nil do
                         restart = auto-start next game
                         stop    = exit after one game
   """)
+
   System.halt(1)
 end
 
 Output.banner("ExPhil Dolphin Play (ASYNC)")
+
 Output.config([
   {"Policy", opts[:policy]},
   {"Dolphin", opts[:dolphin]},
@@ -114,15 +116,17 @@ Output.config([
 # Step 1: Load the agent
 Output.step(1, 5, "Loading agent")
 
-{:ok, agent} = Agent.start_link(
-  policy_path: opts[:policy],
-  deterministic: opts[:deterministic],
-  frame_delay: opts[:frame_delay]
-)
+{:ok, agent} =
+  Agent.start_link(
+    policy_path: opts[:policy],
+    deterministic: opts[:deterministic],
+    frame_delay: opts[:frame_delay]
+  )
 
 config = Agent.get_config(agent)
 Output.success("Agent loaded")
 Output.puts("    Temporal: #{config.temporal}")
+
 if config.temporal do
   Output.puts("    Backbone: #{config.backbone}")
   Output.puts("    Window:   #{config.window_size} frames")
@@ -163,9 +167,11 @@ end
 
 # Step 4: JIT Warmup
 Output.step(4, 5, "JIT Warmup (this may take a minute for temporal models)")
+
 case Agent.warmup(agent) do
   {:ok, warmup_ms} ->
     Output.success("JIT warmup complete (#{warmup_ms}ms)")
+
   {:error, reason} ->
     Output.warning("Warmup failed: #{inspect(reason)} (will warmup on first inference)")
 end
@@ -173,13 +179,14 @@ end
 # Step 5: Start async runner
 Output.step(5, 5, "Starting async game runner")
 
-{:ok, runner} = AsyncRunner.start_link(
-  agent: agent,
-  bridge: bridge,
-  player_port: opts[:port],
-  auto_menu: not opts[:no_auto_menu],
-  on_game_end: opts[:on_game_end]
-)
+{:ok, runner} =
+  AsyncRunner.start_link(
+    agent: agent,
+    bridge: bridge,
+    player_port: opts[:port],
+    auto_menu: not opts[:no_auto_menu],
+    on_game_end: opts[:on_game_end]
+  )
 
 Output.success("Async runner started")
 Output.divider()
@@ -212,18 +219,24 @@ defmodule StatsMonitor do
       # Confidence display
       conf_str = format_confidence(stats.latest_confidence, stats.avg_confidence)
 
-      IO.puts("[Stats] #{Float.round(elapsed_s, 1)}s | #{fps_str} | Inferences: #{stats.inferences_run}#{conf_str}#{games_str}")
+      IO.puts(
+        "[Stats] #{Float.round(elapsed_s, 1)}s | #{fps_str} | Inferences: #{stats.inferences_run}#{conf_str}#{games_str}"
+      )
     end
 
     run(runner, interval_ms)
   end
 
   # Color code based on FPS performance
-  defp fps_color_code(fps) when fps >= 58, do: IO.ANSI.green()      # Good (97%+ of target)
-  defp fps_color_code(fps) when fps >= 50, do: IO.ANSI.yellow()     # OK (83%+ of target)
-  defp fps_color_code(_fps), do: IO.ANSI.red()                       # Poor
+  # Good (97%+ of target)
+  defp fps_color_code(fps) when fps >= 58, do: IO.ANSI.green()
+  # OK (83%+ of target)
+  defp fps_color_code(fps) when fps >= 50, do: IO.ANSI.yellow()
+  # Poor
+  defp fps_color_code(_fps), do: IO.ANSI.red()
 
   defp format_confidence(nil, _avg), do: ""
+
   defp format_confidence(latest, avg) when is_map(latest) do
     overall = Map.get(latest, :overall, 0)
     avg_val = if is_number(avg), do: Float.round(avg, 2), else: 0
@@ -232,6 +245,7 @@ defmodule StatsMonitor do
     conf_color = confidence_color(overall)
     " | #{conf_color}Conf: #{Float.round(overall, 2)} (avg: #{avg_val})#{IO.ANSI.reset()}"
   end
+
   defp format_confidence(_, _), do: ""
 
   defp confidence_color(conf) when conf >= 0.7, do: IO.ANSI.green()
@@ -252,9 +266,13 @@ end
 
 # Cleanup
 Output.puts("Cleaning up...")
+
 case AsyncRunner.stop(runner) do
   {:ok, final_stats} ->
-    Output.puts("  Final stats: #{final_stats.frames} frames, #{final_stats.inferences} inferences, #{final_stats.games} games")
+    Output.puts(
+      "  Final stats: #{final_stats.frames} frames, #{final_stats.inferences} inferences, #{final_stats.games} games"
+    )
+
   _ ->
     :ok
 end
@@ -264,6 +282,7 @@ try do
 catch
   :exit, _ -> Output.puts("  (cleanup timed out, Dolphin may still be running)")
 end
+
 GenServer.stop(agent)
 
 Output.divider()

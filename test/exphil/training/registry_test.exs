@@ -16,6 +16,7 @@ defmodule ExPhil.Training.RegistryTest do
 
     on_exit(fn ->
       File.rm(@test_registry)
+
       if original_path do
         Application.put_env(:exphil, :registry_path, original_path)
       else
@@ -28,10 +29,11 @@ defmodule ExPhil.Training.RegistryTest do
 
   describe "register/1" do
     test "registers a model with required fields" do
-      {:ok, entry} = Registry.register(%{
-        checkpoint_path: "checkpoints/test.axon",
-        training_config: %{epochs: 10, backbone: :mamba}
-      })
+      {:ok, entry} =
+        Registry.register(%{
+          checkpoint_path: "checkpoints/test.axon",
+          training_config: %{epochs: 10, backbone: :mamba}
+        })
 
       assert entry.checkpoint_path == "checkpoints/test.axon"
       assert entry.training_config.epochs == 10
@@ -43,15 +45,16 @@ defmodule ExPhil.Training.RegistryTest do
     end
 
     test "registers with optional fields" do
-      {:ok, entry} = Registry.register(%{
-        checkpoint_path: "checkpoints/test.axon",
-        policy_path: "checkpoints/test_policy.bin",
-        config_path: "checkpoints/test_config.json",
-        training_config: %{epochs: 10},
-        metrics: %{final_loss: 1.234},
-        tags: ["mewtwo", "production"],
-        name: "custom_name"
-      })
+      {:ok, entry} =
+        Registry.register(%{
+          checkpoint_path: "checkpoints/test.axon",
+          policy_path: "checkpoints/test_policy.bin",
+          config_path: "checkpoints/test_config.json",
+          training_config: %{epochs: 10},
+          metrics: %{final_loss: 1.234},
+          tags: ["mewtwo", "production"],
+          name: "custom_name"
+        })
 
       assert entry.policy_path == "checkpoints/test_policy.bin"
       assert entry.config_path == "checkpoints/test_config.json"
@@ -61,39 +64,44 @@ defmodule ExPhil.Training.RegistryTest do
     end
 
     test "returns error without checkpoint_path" do
-      assert {:error, :missing_required_field} = Registry.register(%{
-        training_config: %{epochs: 10}
-      })
+      assert {:error, :missing_required_field} =
+               Registry.register(%{
+                 training_config: %{epochs: 10}
+               })
     end
 
     test "returns error without training_config" do
-      assert {:error, :missing_required_field} = Registry.register(%{
-        checkpoint_path: "checkpoints/test.axon"
-      })
+      assert {:error, :missing_required_field} =
+               Registry.register(%{
+                 checkpoint_path: "checkpoints/test.axon"
+               })
     end
 
     test "generates unique IDs" do
-      {:ok, entry1} = Registry.register(%{
-        checkpoint_path: "checkpoints/test1.axon",
-        training_config: %{}
-      })
+      {:ok, entry1} =
+        Registry.register(%{
+          checkpoint_path: "checkpoints/test1.axon",
+          training_config: %{}
+        })
 
-      {:ok, entry2} = Registry.register(%{
-        checkpoint_path: "checkpoints/test2.axon",
-        training_config: %{}
-      })
+      {:ok, entry2} =
+        Registry.register(%{
+          checkpoint_path: "checkpoints/test2.axon",
+          training_config: %{}
+        })
 
       assert entry1.id != entry2.id
     end
 
     test "sanitizes config by removing functions" do
-      {:ok, entry} = Registry.register(%{
-        checkpoint_path: "checkpoints/test.axon",
-        training_config: %{
-          epochs: 10,
-          callback: fn -> :ok end
-        }
-      })
+      {:ok, entry} =
+        Registry.register(%{
+          checkpoint_path: "checkpoints/test.axon",
+          training_config: %{
+            epochs: 10,
+            callback: fn -> :ok end
+          }
+        })
 
       assert entry.training_config[:epochs] == 10
       refute Map.has_key?(entry.training_config, :callback)
@@ -106,30 +114,36 @@ defmodule ExPhil.Training.RegistryTest do
     end
 
     test "returns all registered models" do
-      {:ok, _} = Registry.register(%{
-        checkpoint_path: "checkpoints/test1.axon",
-        training_config: %{}
-      })
-      {:ok, _} = Registry.register(%{
-        checkpoint_path: "checkpoints/test2.axon",
-        training_config: %{}
-      })
+      {:ok, _} =
+        Registry.register(%{
+          checkpoint_path: "checkpoints/test1.axon",
+          training_config: %{}
+        })
+
+      {:ok, _} =
+        Registry.register(%{
+          checkpoint_path: "checkpoints/test2.axon",
+          training_config: %{}
+        })
 
       {:ok, models} = Registry.list()
       assert length(models) == 2
     end
 
     test "filters by tags" do
-      {:ok, _} = Registry.register(%{
-        checkpoint_path: "checkpoints/test1.axon",
-        training_config: %{},
-        tags: ["mewtwo"]
-      })
-      {:ok, _} = Registry.register(%{
-        checkpoint_path: "checkpoints/test2.axon",
-        training_config: %{},
-        tags: ["ganondorf"]
-      })
+      {:ok, _} =
+        Registry.register(%{
+          checkpoint_path: "checkpoints/test1.axon",
+          training_config: %{},
+          tags: ["mewtwo"]
+        })
+
+      {:ok, _} =
+        Registry.register(%{
+          checkpoint_path: "checkpoints/test2.axon",
+          training_config: %{},
+          tags: ["ganondorf"]
+        })
 
       {:ok, models} = Registry.list(tags: ["mewtwo"])
       assert length(models) == 1
@@ -137,14 +151,17 @@ defmodule ExPhil.Training.RegistryTest do
     end
 
     test "filters by backbone" do
-      {:ok, _} = Registry.register(%{
-        checkpoint_path: "checkpoints/test1.axon",
-        training_config: %{backbone: :mamba}
-      })
-      {:ok, _} = Registry.register(%{
-        checkpoint_path: "checkpoints/test2.axon",
-        training_config: %{backbone: :mlp}
-      })
+      {:ok, _} =
+        Registry.register(%{
+          checkpoint_path: "checkpoints/test1.axon",
+          training_config: %{backbone: :mamba}
+        })
+
+      {:ok, _} =
+        Registry.register(%{
+          checkpoint_path: "checkpoints/test2.axon",
+          training_config: %{backbone: :mlp}
+        })
 
       {:ok, models} = Registry.list(backbone: :mamba)
       assert length(models) == 1
@@ -165,15 +182,20 @@ defmodule ExPhil.Training.RegistryTest do
     end
 
     test "sorts by created_at descending by default" do
-      {:ok, _first} = Registry.register(%{
-        checkpoint_path: "checkpoints/test1.axon",
-        training_config: %{}
-      })
-      Process.sleep(10)  # Ensure different timestamp
-      {:ok, second} = Registry.register(%{
-        checkpoint_path: "checkpoints/test2.axon",
-        training_config: %{}
-      })
+      {:ok, _first} =
+        Registry.register(%{
+          checkpoint_path: "checkpoints/test1.axon",
+          training_config: %{}
+        })
+
+      # Ensure different timestamp
+      Process.sleep(10)
+
+      {:ok, second} =
+        Registry.register(%{
+          checkpoint_path: "checkpoints/test2.axon",
+          training_config: %{}
+        })
 
       {:ok, models} = Registry.list()
       assert hd(models).id == second.id
@@ -182,21 +204,23 @@ defmodule ExPhil.Training.RegistryTest do
 
   describe "get/1" do
     test "returns model by ID" do
-      {:ok, entry} = Registry.register(%{
-        checkpoint_path: "checkpoints/test.axon",
-        training_config: %{}
-      })
+      {:ok, entry} =
+        Registry.register(%{
+          checkpoint_path: "checkpoints/test.axon",
+          training_config: %{}
+        })
 
       {:ok, found} = Registry.get(entry.id)
       assert found.id == entry.id
     end
 
     test "returns model by name" do
-      {:ok, _entry} = Registry.register(%{
-        checkpoint_path: "checkpoints/test.axon",
-        training_config: %{},
-        name: "my_model"
-      })
+      {:ok, _entry} =
+        Registry.register(%{
+          checkpoint_path: "checkpoints/test.axon",
+          training_config: %{},
+          name: "my_model"
+        })
 
       {:ok, found} = Registry.get("my_model")
       assert found.name == "my_model"
@@ -209,10 +233,11 @@ defmodule ExPhil.Training.RegistryTest do
 
   describe "tag/2 and untag/2" do
     test "adds tags to a model" do
-      {:ok, entry} = Registry.register(%{
-        checkpoint_path: "checkpoints/test.axon",
-        training_config: %{}
-      })
+      {:ok, entry} =
+        Registry.register(%{
+          checkpoint_path: "checkpoints/test.axon",
+          training_config: %{}
+        })
 
       :ok = Registry.tag(entry.id, ["production", "v1"])
 
@@ -222,11 +247,12 @@ defmodule ExPhil.Training.RegistryTest do
     end
 
     test "removes tags from a model" do
-      {:ok, entry} = Registry.register(%{
-        checkpoint_path: "checkpoints/test.axon",
-        training_config: %{},
-        tags: ["a", "b", "c"]
-      })
+      {:ok, entry} =
+        Registry.register(%{
+          checkpoint_path: "checkpoints/test.axon",
+          training_config: %{},
+          tags: ["a", "b", "c"]
+        })
 
       :ok = Registry.untag(entry.id, ["b"])
 
@@ -235,11 +261,12 @@ defmodule ExPhil.Training.RegistryTest do
     end
 
     test "deduplicates tags" do
-      {:ok, entry} = Registry.register(%{
-        checkpoint_path: "checkpoints/test.axon",
-        training_config: %{},
-        tags: ["a"]
-      })
+      {:ok, entry} =
+        Registry.register(%{
+          checkpoint_path: "checkpoints/test.axon",
+          training_config: %{},
+          tags: ["a"]
+        })
 
       :ok = Registry.tag(entry.id, ["a", "b"])
 
@@ -250,10 +277,11 @@ defmodule ExPhil.Training.RegistryTest do
 
   describe "delete/2" do
     test "removes model from registry" do
-      {:ok, entry} = Registry.register(%{
-        checkpoint_path: "checkpoints/test.axon",
-        training_config: %{}
-      })
+      {:ok, entry} =
+        Registry.register(%{
+          checkpoint_path: "checkpoints/test.axon",
+          training_config: %{}
+        })
 
       :ok = Registry.delete(entry.id)
 
@@ -267,27 +295,31 @@ defmodule ExPhil.Training.RegistryTest do
 
   describe "best/1" do
     test "returns model with lowest loss" do
-      {:ok, _} = Registry.register(%{
-        checkpoint_path: "checkpoints/high_loss.axon",
-        training_config: %{},
-        metrics: %{final_loss: 5.0}
-      })
-      {:ok, best_entry} = Registry.register(%{
-        checkpoint_path: "checkpoints/low_loss.axon",
-        training_config: %{},
-        metrics: %{final_loss: 1.0}
-      })
+      {:ok, _} =
+        Registry.register(%{
+          checkpoint_path: "checkpoints/high_loss.axon",
+          training_config: %{},
+          metrics: %{final_loss: 5.0}
+        })
+
+      {:ok, best_entry} =
+        Registry.register(%{
+          checkpoint_path: "checkpoints/low_loss.axon",
+          training_config: %{},
+          metrics: %{final_loss: 1.0}
+        })
 
       {:ok, best} = Registry.best()
       assert best.id == best_entry.id
     end
 
     test "returns error when no models have metric" do
-      {:ok, _} = Registry.register(%{
-        checkpoint_path: "checkpoints/test.axon",
-        training_config: %{},
-        metrics: %{}
-      })
+      {:ok, _} =
+        Registry.register(%{
+          checkpoint_path: "checkpoints/test.axon",
+          training_config: %{},
+          metrics: %{}
+        })
 
       assert {:error, :no_models_with_metric} = Registry.best()
     end
@@ -295,10 +327,11 @@ defmodule ExPhil.Training.RegistryTest do
 
   describe "exists?/1" do
     test "returns true for existing model" do
-      {:ok, entry} = Registry.register(%{
-        checkpoint_path: "checkpoints/test.axon",
-        training_config: %{}
-      })
+      {:ok, entry} =
+        Registry.register(%{
+          checkpoint_path: "checkpoints/test.axon",
+          training_config: %{}
+        })
 
       assert Registry.exists?(entry.id)
       assert Registry.exists?(entry.name)
@@ -327,6 +360,7 @@ defmodule ExPhil.Training.RegistryTest do
         training_config: %{},
         tags: ["production"]
       })
+
       Registry.register(%{
         checkpoint_path: "checkpoints/test2.axon",
         training_config: %{},
@@ -339,22 +373,25 @@ defmodule ExPhil.Training.RegistryTest do
 
   describe "lineage/1" do
     test "returns model lineage chain" do
-      {:ok, parent} = Registry.register(%{
-        checkpoint_path: "checkpoints/parent.axon",
-        training_config: %{}
-      })
+      {:ok, parent} =
+        Registry.register(%{
+          checkpoint_path: "checkpoints/parent.axon",
+          training_config: %{}
+        })
 
-      {:ok, child} = Registry.register(%{
-        checkpoint_path: "checkpoints/child.axon",
-        training_config: %{},
-        parent_id: parent.id
-      })
+      {:ok, child} =
+        Registry.register(%{
+          checkpoint_path: "checkpoints/child.axon",
+          training_config: %{},
+          parent_id: parent.id
+        })
 
-      {:ok, grandchild} = Registry.register(%{
-        checkpoint_path: "checkpoints/grandchild.axon",
-        training_config: %{},
-        parent_id: child.id
-      })
+      {:ok, grandchild} =
+        Registry.register(%{
+          checkpoint_path: "checkpoints/grandchild.axon",
+          training_config: %{},
+          parent_id: child.id
+        })
 
       {:ok, lineage} = Registry.lineage(grandchild.id)
 

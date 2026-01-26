@@ -97,7 +97,10 @@ defmodule ExPhil.Data.ParseStats do
     # Warn if no valid frames
     warnings =
       if stats.valid_frames == 0 and stats.total_frames > 0 do
-        ["No valid frames extracted - check player port (requested port #{player_port})" | warnings]
+        [
+          "No valid frames extracted - check player port (requested port #{player_port})"
+          | warnings
+        ]
       else
         warnings
       end

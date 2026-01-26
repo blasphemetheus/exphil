@@ -36,8 +36,10 @@ defmodule ExPhil.Training.EarlyStoppingTest do
     test "improvement resets counter" do
       state = EarlyStopping.init(patience: 3, min_delta: 0.01)
       {state, _} = EarlyStopping.check(state, 1.0)
-      {state, _} = EarlyStopping.check(state, 0.95)  # No improvement (0.05 < min_delta would be)
-      {state, _} = EarlyStopping.check(state, 0.5)   # Big improvement
+      # No improvement (0.05 < min_delta would be)
+      {state, _} = EarlyStopping.check(state, 0.95)
+      # Big improvement
+      {state, _} = EarlyStopping.check(state, 0.5)
 
       assert state.best_loss == 0.5
       assert state.epochs_without_improvement == 0
@@ -46,8 +48,10 @@ defmodule ExPhil.Training.EarlyStoppingTest do
     test "no improvement increments counter" do
       state = EarlyStopping.init(patience: 5)
       {state, _} = EarlyStopping.check(state, 1.0)
-      {state, _} = EarlyStopping.check(state, 1.1)  # Worse
-      {state, _} = EarlyStopping.check(state, 1.05) # Still worse than best
+      # Worse
+      {state, _} = EarlyStopping.check(state, 1.1)
+      # Still worse than best
+      {state, _} = EarlyStopping.check(state, 1.05)
 
       assert state.best_loss == 1.0
       assert state.epochs_without_improvement == 2

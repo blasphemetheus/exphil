@@ -30,7 +30,8 @@ defmodule ExPhil.Data.ParseStatsTest do
 
     test "tracks missing player" do
       frames = [
-        %{players: %{2 => %{controller: %{}}}},  # Missing port 1
+        # Missing port 1
+        %{players: %{2 => %{controller: %{}}}},
         %{players: %{1 => %{controller: %{}}, 2 => %{controller: %{}}}}
       ]
 
@@ -44,7 +45,8 @@ defmodule ExPhil.Data.ParseStatsTest do
 
     test "tracks missing opponent" do
       frames = [
-        %{players: %{1 => %{controller: %{}}}},  # Missing port 2
+        # Missing port 2
+        %{players: %{1 => %{controller: %{}}}},
         %{players: %{1 => %{controller: %{}}, 2 => %{controller: %{}}}}
       ]
 
@@ -80,13 +82,15 @@ defmodule ExPhil.Data.ParseStatsTest do
     end
 
     test "adds warning when majority missing player" do
-      frames = Enum.map(1..10, fn i ->
-        if i <= 6 do
-          %{players: %{2 => %{controller: %{}}}}  # Missing port 1
-        else
-          %{players: %{1 => %{controller: %{}}, 2 => %{controller: %{}}}}
-        end
-      end)
+      frames =
+        Enum.map(1..10, fn i ->
+          if i <= 6 do
+            # Missing port 1
+            %{players: %{2 => %{controller: %{}}}}
+          else
+            %{players: %{1 => %{controller: %{}}, 2 => %{controller: %{}}}}
+          end
+        end)
 
       {_valid, stats} = ParseStats.track_extraction(frames, 1, 2)
 

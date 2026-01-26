@@ -7,13 +7,15 @@ defmodule ExPhil.Training.DataTest do
   # Helper to create a mock frame
   defp mock_frame(opts) do
     player = %Player{
-      character: Keyword.get(opts, :character, 10),  # Mewtwo
+      # Mewtwo
+      character: Keyword.get(opts, :character, 10),
       x: Keyword.get(opts, :x, 0.0),
       y: Keyword.get(opts, :y, 0.0),
       percent: Keyword.get(opts, :percent, 0.0),
       stock: Keyword.get(opts, :stock, 4),
       facing: 1,
-      action: 14,  # WAIT
+      # WAIT
+      action: 14,
       action_frame: 0,
       invulnerable: false,
       jumps_left: 2,
@@ -46,8 +48,10 @@ defmodule ExPhil.Training.DataTest do
 
     game_state = %GameState{
       frame: Keyword.get(opts, :frame, 0),
-      stage: 32,  # FD
-      menu_state: 2,  # IN_GAME
+      # FD
+      stage: 32,
+      # IN_GAME
+      menu_state: 2,
       players: %{1 => player, 2 => player},
       projectiles: [],
       distance: 50.0
@@ -171,8 +175,10 @@ defmodule ExPhil.Training.DataTest do
   describe "controller_to_action/2" do
     test "discretizes stick positions" do
       controller = %ControllerState{
-        main_stick: %{x: 0.0, y: 1.0},  # Left, Up
-        c_stick: %{x: 0.5, y: 0.5},     # Neutral
+        # Left, Up
+        main_stick: %{x: 0.0, y: 1.0},
+        # Neutral
+        c_stick: %{x: 0.5, y: 0.5},
         l_shoulder: 0.0,
         r_shoulder: 0.0,
         button_a: false,
@@ -190,7 +196,8 @@ defmodule ExPhil.Training.DataTest do
       # x=0.0 -> bucket 0, y=1.0 -> bucket 15 (clamped from 16)
       assert action.main_x == 0
       assert action.main_y == 15
-      assert action.c_x == 8  # 0.5 * 16 = 8
+      # 0.5 * 16 = 8
+      assert action.c_x == 8
       assert action.c_y == 8
     end
 
@@ -245,12 +252,38 @@ defmodule ExPhil.Training.DataTest do
     test "converts actions list to tensor format" do
       actions = [
         %{
-          buttons: %{a: true, b: false, x: false, y: false, z: false, l: false, r: false, d_up: false},
-          main_x: 8, main_y: 8, c_x: 8, c_y: 8, shoulder: 0
+          buttons: %{
+            a: true,
+            b: false,
+            x: false,
+            y: false,
+            z: false,
+            l: false,
+            r: false,
+            d_up: false
+          },
+          main_x: 8,
+          main_y: 8,
+          c_x: 8,
+          c_y: 8,
+          shoulder: 0
         },
         %{
-          buttons: %{a: false, b: true, x: false, y: false, z: false, l: false, r: false, d_up: false},
-          main_x: 0, main_y: 15, c_x: 8, c_y: 8, shoulder: 3
+          buttons: %{
+            a: false,
+            b: true,
+            x: false,
+            y: false,
+            z: false,
+            l: false,
+            r: false,
+            d_up: false
+          },
+          main_x: 0,
+          main_y: 15,
+          c_x: 8,
+          c_y: 8,
+          shoulder: 3
         }
       ]
 
@@ -264,8 +297,10 @@ defmodule ExPhil.Training.DataTest do
 
       # Check values
       buttons_list = Nx.to_list(tensors.buttons)
-      assert Enum.at(buttons_list, 0) == [1, 0, 0, 0, 0, 0, 0, 0]  # a pressed
-      assert Enum.at(buttons_list, 1) == [0, 1, 0, 0, 0, 0, 0, 0]  # b pressed
+      # a pressed
+      assert Enum.at(buttons_list, 0) == [1, 0, 0, 0, 0, 0, 0, 0]
+      # b pressed
+      assert Enum.at(buttons_list, 1) == [0, 1, 0, 0, 0, 0, 0, 0]
 
       assert Nx.to_list(tensors.main_x) == [8, 0]
       assert Nx.to_list(tensors.main_y) == [8, 15]
@@ -294,10 +329,14 @@ defmodule ExPhil.Training.DataTest do
     test "computes stick distributions" do
       # Create frames with varied stick positions
       frames = [
-        mock_frame(stick_x: 0.0),   # bucket 0
-        mock_frame(stick_x: 0.25),  # bucket 4
-        mock_frame(stick_x: 0.5),   # bucket 8
-        mock_frame(stick_x: 0.75),  # bucket 12
+        # bucket 0
+        mock_frame(stick_x: 0.0),
+        # bucket 4
+        mock_frame(stick_x: 0.25),
+        # bucket 8
+        mock_frame(stick_x: 0.5),
+        # bucket 12
+        mock_frame(stick_x: 0.75)
       ]
 
       dataset = Data.from_frames(frames)
@@ -329,6 +368,7 @@ defmodule ExPhil.Training.DataTest do
             mock_frame(frame: 1)
           ]
         }
+
         File.write!(Path.join(dir, "game1.term"), :erlang.term_to_binary(mock_data))
 
         {:ok, dataset} = Data.load_dataset(dir)
@@ -368,7 +408,8 @@ defmodule ExPhil.Training.DataTest do
       batches = Data.batched(dataset, batch_size: 10, shuffle: false)
       batch_list = Enum.to_list(batches)
 
-      assert length(batch_list) == 10  # 100 / 10
+      # 100 / 10
+      assert length(batch_list) == 10
     end
 
     test "each batch has correct structure" do
@@ -395,8 +436,10 @@ defmodule ExPhil.Training.DataTest do
       batches_with = Data.batched(dataset, batch_size: 10, drop_last: false, shuffle: false)
       batches_without = Data.batched(dataset, batch_size: 10, drop_last: true, shuffle: false)
 
-      assert length(Enum.to_list(batches_with)) == 3   # 10 + 10 + 5
-      assert length(Enum.to_list(batches_without)) == 2 # 10 + 10 (5 dropped)
+      # 10 + 10 + 5
+      assert length(Enum.to_list(batches_with)) == 3
+      # 10 + 10 (5 dropped)
+      assert length(Enum.to_list(batches_without)) == 2
     end
 
     test "shuffle produces different orderings" do
@@ -463,8 +506,14 @@ defmodule ExPhil.Training.DataTest do
         c_stick: %{x: 0.0, y: 0.0},
         l_shoulder: 0.0,
         r_shoulder: 0.0,
-        button_a: false, button_b: false, button_x: false, button_y: false,
-        button_z: false, button_l: false, button_r: false, button_d_up: false
+        button_a: false,
+        button_b: false,
+        button_x: false,
+        button_y: false,
+        button_z: false,
+        button_l: false,
+        button_r: false,
+        button_d_up: false
       }
 
       controller_max = %ControllerState{
@@ -472,8 +521,14 @@ defmodule ExPhil.Training.DataTest do
         c_stick: %{x: 1.0, y: 1.0},
         l_shoulder: 1.0,
         r_shoulder: 0.0,
-        button_a: false, button_b: false, button_x: false, button_y: false,
-        button_z: false, button_l: false, button_r: false, button_d_up: false
+        button_a: false,
+        button_b: false,
+        button_x: false,
+        button_y: false,
+        button_z: false,
+        button_l: false,
+        button_r: false,
+        button_d_up: false
       }
 
       action_min = Data.controller_to_action(controller_min, axis_buckets: 16)
@@ -669,8 +724,9 @@ defmodule ExPhil.Training.DataTest do
       dataset = Data.from_frames(frames)
       seq_dataset = Data.to_sequences(dataset, window_size: 10, stride: 5)
 
-      [batch | _] = Data.batched_sequences(seq_dataset, batch_size: 4, shuffle: false)
-                    |> Enum.take(1)
+      [batch | _] =
+        Data.batched_sequences(seq_dataset, batch_size: 4, shuffle: false)
+        |> Enum.take(1)
 
       assert Map.has_key?(batch, :states)
       assert Map.has_key?(batch, :actions)
@@ -694,11 +750,16 @@ defmodule ExPhil.Training.DataTest do
       # seq_dataset.size = (50 - 10) / 5 + 1 = 9 sequences
       # With batch_size=4: 9 / 4 = 2 full + 1 partial
 
-      with_partial = Data.batched_sequences(seq_dataset, batch_size: 4, drop_last: false, shuffle: false)
-      without_partial = Data.batched_sequences(seq_dataset, batch_size: 4, drop_last: true, shuffle: false)
+      with_partial =
+        Data.batched_sequences(seq_dataset, batch_size: 4, drop_last: false, shuffle: false)
 
-      assert length(Enum.to_list(with_partial)) == 3   # 4 + 4 + 1
-      assert length(Enum.to_list(without_partial)) == 2 # 4 + 4 (1 dropped)
+      without_partial =
+        Data.batched_sequences(seq_dataset, batch_size: 4, drop_last: true, shuffle: false)
+
+      # 4 + 4 + 1
+      assert length(Enum.to_list(with_partial)) == 3
+      # 4 + 4 (1 dropped)
+      assert length(Enum.to_list(without_partial)) == 2
     end
 
     test "shuffle produces different orderings" do
@@ -756,8 +817,9 @@ defmodule ExPhil.Training.DataTest do
       dataset = Data.from_frames(frames)
       seq_dataset = Data.to_sequences(dataset, window_size: 10)
 
-      [batch | _] = Data.batched_sequences(seq_dataset, batch_size: 8, shuffle: false)
-                    |> Enum.take(1)
+      [batch | _] =
+        Data.batched_sequences(seq_dataset, batch_size: 8, shuffle: false)
+        |> Enum.take(1)
 
       # Button tensor should be [batch, 8]
       assert Nx.shape(batch.actions.buttons) == {8, 8}

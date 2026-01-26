@@ -145,8 +145,11 @@ defmodule ExPhil.League.ArchitectureEntry do
   @spec new!(keyword()) :: t()
   def new!(opts) do
     case new(opts) do
-      {:ok, entry} -> entry
-      {:error, reason} -> raise ArgumentError, "Failed to create ArchitectureEntry: #{inspect(reason)}"
+      {:ok, entry} ->
+        entry
+
+      {:error, reason} ->
+        raise ArgumentError, "Failed to create ArchitectureEntry: #{inspect(reason)}"
     end
   end
 
@@ -161,11 +164,12 @@ defmodule ExPhil.League.ArchitectureEntry do
   def update_from_training(%__MODULE__{} = entry, new_params) do
     version_id = "#{entry.id}_v#{entry.generation}"
 
-    %{entry |
-      params: new_params,
-      generation: entry.generation + 1,
-      lineage: entry.lineage ++ [version_id],
-      updated_at: System.system_time(:second)
+    %{
+      entry
+      | params: new_params,
+        generation: entry.generation + 1,
+        lineage: entry.lineage ++ [version_id],
+        updated_at: System.system_time(:second)
     }
   end
 
@@ -174,10 +178,7 @@ defmodule ExPhil.League.ArchitectureEntry do
   """
   @spec update_elo(t(), float()) :: t()
   def update_elo(%__MODULE__{} = entry, new_elo) do
-    %{entry |
-      elo: ensure_float(new_elo),
-      updated_at: System.system_time(:second)
-    }
+    %{entry | elo: ensure_float(new_elo), updated_at: System.system_time(:second)}
   end
 
   @doc """
@@ -185,18 +186,16 @@ defmodule ExPhil.League.ArchitectureEntry do
   """
   @spec record_result(t(), :win | :loss | :draw, non_neg_integer()) :: t()
   def record_result(%__MODULE__{} = entry, result, frames \\ 0) do
-    stats = case result do
-      :win -> %{entry.stats | wins: entry.stats.wins + 1}
-      :loss -> %{entry.stats | losses: entry.stats.losses + 1}
-      :draw -> %{entry.stats | draws: entry.stats.draws + 1}
-    end
+    stats =
+      case result do
+        :win -> %{entry.stats | wins: entry.stats.wins + 1}
+        :loss -> %{entry.stats | losses: entry.stats.losses + 1}
+        :draw -> %{entry.stats | draws: entry.stats.draws + 1}
+      end
 
     stats = %{stats | total_frames: stats.total_frames + frames}
 
-    %{entry |
-      stats: stats,
-      updated_at: System.system_time(:second)
-    }
+    %{entry | stats: stats, updated_at: System.system_time(:second)}
   end
 
   @doc """
@@ -204,10 +203,11 @@ defmodule ExPhil.League.ArchitectureEntry do
   """
   @spec set_model(t(), Axon.t(), map() | nil) :: t()
   def set_model(%__MODULE__{} = entry, model, params \\ nil) do
-    %{entry |
-      model: model,
-      params: params || entry.params,
-      updated_at: System.system_time(:second)
+    %{
+      entry
+      | model: model,
+        params: params || entry.params,
+        updated_at: System.system_time(:second)
     }
   end
 

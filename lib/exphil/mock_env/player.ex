@@ -25,14 +25,22 @@ defmodule ExPhil.MockEnv.Player do
   @fast_fall_velocity -3.4
 
   # Action states (simplified)
-  @action_wait 14          # Standing
-  @action_walk 15          # Walking
-  @action_dash 20          # Dashing
-  @action_jump_squat 24    # Jump startup (3 frames)
-  @action_jump 25          # Rising
-  @action_fall 26          # Falling
-  @action_land 27          # Landing lag (4 frames)
-  @action_hitstun 75       # In hitstun
+  # Standing
+  @action_wait 14
+  # Walking
+  @action_walk 15
+  # Dashing
+  @action_dash 20
+  # Jump startup (3 frames)
+  @action_jump_squat 24
+  # Rising
+  @action_jump 25
+  # Falling
+  @action_fall 26
+  # Landing lag (4 frames)
+  @action_land 27
+  # In hitstun
+  @action_hitstun 75
 
   @jump_squat_frames 3
   @land_lag_frames 4
@@ -46,9 +54,11 @@ defmodule ExPhil.MockEnv.Player do
     :vel_y,
     :percent,
     :stock,
-    :facing,           # 1 = right, -1 = left
+    # 1 = right, -1 = left
+    :facing,
     :on_ground,
-    :jumps_left,       # Air jumps remaining
+    # Air jumps remaining
+    :jumps_left,
     :action,
     :action_frame,
     :hitstun_left,
@@ -73,7 +83,8 @@ defmodule ExPhil.MockEnv.Player do
       stock: Keyword.get(opts, :stocks, 4),
       facing: if(port == 1, do: 1, else: -1),
       on_ground: true,
-      jumps_left: 1,  # Double jump available
+      # Double jump available
+      jumps_left: 1,
       action: @action_wait,
       action_frame: 0,
       hitstun_left: 0,
@@ -86,19 +97,21 @@ defmodule ExPhil.MockEnv.Player do
   """
   @spec respawn(t(), float()) :: t()
   def respawn(player, spawn_x) do
-    %{player |
-      x: spawn_x,
-      y: 50.0,  # Spawn above stage
-      vel_x: 0.0,
-      vel_y: 0.0,
-      percent: 0.0,
-      facing: if(spawn_x < 0, do: 1, else: -1),
-      on_ground: false,
-      jumps_left: 1,
-      action: @action_fall,
-      action_frame: 0,
-      hitstun_left: 0,
-      fastfalling: false
+    %{
+      player
+      | x: spawn_x,
+        # Spawn above stage
+        y: 50.0,
+        vel_x: 0.0,
+        vel_y: 0.0,
+        percent: 0.0,
+        facing: if(spawn_x < 0, do: 1, else: -1),
+        on_ground: false,
+        jumps_left: 1,
+        action: @action_fall,
+        action_frame: 0,
+        hitstun_left: 0,
+        fastfalling: false
     }
   end
 
@@ -123,6 +136,7 @@ defmodule ExPhil.MockEnv.Player do
   defp handle_hitstun(%{hitstun_left: h} = player) when h > 0 do
     %{player | hitstun_left: h - 1}
   end
+
   defp handle_hitstun(player), do: player
 
   defp handle_action_state(%{hitstun_left: h} = player, _action) when h > 0 do
@@ -134,12 +148,14 @@ defmodule ExPhil.MockEnv.Player do
        when f >= @jump_squat_frames do
     # Jump squat complete, perform jump
     jump_vel = if held_long?(action), do: @jump_velocity, else: @short_hop_velocity
-    %{player |
-      vel_y: jump_vel,
-      on_ground: false,
-      action: @action_jump,
-      action_frame: 0,
-      fastfalling: false
+
+    %{
+      player
+      | vel_y: jump_vel,
+        on_ground: false,
+        action: @action_jump,
+        action_frame: 0,
+        fastfalling: false
     }
   end
 
@@ -173,27 +189,27 @@ defmodule ExPhil.MockEnv.Player do
     cond do
       jump_pressed ->
         # Start jump squat
-        %{player |
-          action: @action_jump_squat,
-          action_frame: 0,
-          vel_x: 0.0  # Stop horizontal movement during jump squat
+        %{
+          player
+          | action: @action_jump_squat,
+            action_frame: 0,
+            # Stop horizontal movement during jump squat
+            vel_x: 0.0
         }
 
       abs(action.stick_x) > 0.3 ->
         # Walking/dashing
-        %{player |
-          vel_x: action.stick_x * @ground_speed,
-          facing: if(action.stick_x > 0, do: 1, else: -1),
-          action: @action_walk,
-          action_frame: 0
+        %{
+          player
+          | vel_x: action.stick_x * @ground_speed,
+            facing: if(action.stick_x > 0, do: 1, else: -1),
+            action: @action_walk,
+            action_frame: 0
         }
 
       true ->
         # Standing
-        %{player |
-          action: @action_wait,
-          action_frame: 0
-        }
+        %{player | action: @action_wait, action_frame: 0}
     end
   end
 
@@ -203,21 +219,23 @@ defmodule ExPhil.MockEnv.Player do
     cond do
       # Double jump
       (action.button_x or action.button_y) and player.jumps_left > 0 ->
-        %{player |
-          vel_y: @double_jump_velocity,
-          jumps_left: player.jumps_left - 1,
-          action: @action_jump,
-          action_frame: 0,
-          fastfalling: false
+        %{
+          player
+          | vel_y: @double_jump_velocity,
+            jumps_left: player.jumps_left - 1,
+            action: @action_jump,
+            action_frame: 0,
+            fastfalling: false
         }
 
       # Fast fall (tap down while falling)
       action.stick_y < -0.65 and player.vel_y < 0 and not player.fastfalling ->
-        %{player |
-          vel_y: @fast_fall_velocity,
-          fastfalling: true,
-          action: @action_fall,
-          action_frame: player.action_frame + 1
+        %{
+          player
+          | vel_y: @fast_fall_velocity,
+            fastfalling: true,
+            action: @action_fall,
+            action_frame: player.action_frame + 1
         }
 
       # Normal airborne
@@ -234,30 +252,33 @@ defmodule ExPhil.MockEnv.Player do
     target_vel = stick_x * @max_air_speed
     current_vel = player.vel_x
 
-    new_vel = cond do
-      stick_x > 0.3 and current_vel < target_vel ->
-        min(current_vel + @air_accel, target_vel)
+    new_vel =
+      cond do
+        stick_x > 0.3 and current_vel < target_vel ->
+          min(current_vel + @air_accel, target_vel)
 
-      stick_x < -0.3 and current_vel > target_vel ->
-        max(current_vel - @air_accel, target_vel)
+        stick_x < -0.3 and current_vel > target_vel ->
+          max(current_vel - @air_accel, target_vel)
 
-      true ->
-        # Apply air friction
-        apply_friction(current_vel, @air_friction)
-    end
+        true ->
+          # Apply air friction
+          apply_friction(current_vel, @air_friction)
+      end
 
     # Update facing based on drift
-    facing = cond do
-      stick_x > 0.3 -> 1
-      stick_x < -0.3 -> -1
-      true -> player.facing
-    end
+    facing =
+      cond do
+        stick_x > 0.3 -> 1
+        stick_x < -0.3 -> -1
+        true -> player.facing
+      end
 
     %{player | vel_x: new_vel, facing: facing}
   end
 
   # Helper to check if button held long enough for full hop
-  defp held_long?(_action), do: true  # Simplified: always full hop
+  # Simplified: always full hop
+  defp held_long?(_action), do: true
 
   @doc """
   Apply physics (gravity, friction, velocity).
@@ -303,10 +324,7 @@ defmodule ExPhil.MockEnv.Player do
   end
 
   defp apply_velocity(player) do
-    %{player |
-      x: player.x + player.vel_x,
-      y: player.y + player.vel_y
-    }
+    %{player | x: player.x + player.vel_x, y: player.y + player.vel_y}
   end
 
   @doc """
@@ -314,14 +332,16 @@ defmodule ExPhil.MockEnv.Player do
   """
   @spec land(t(), float()) :: t()
   def land(player, ground_y) do
-    %{player |
-      y: ground_y,
-      vel_y: 0.0,
-      on_ground: true,
-      jumps_left: 1,  # Reset double jump
-      fastfalling: false,
-      action: @action_land,
-      action_frame: 0
+    %{
+      player
+      | y: ground_y,
+        vel_y: 0.0,
+        on_ground: true,
+        # Reset double jump
+        jumps_left: 1,
+        fastfalling: false,
+        action: @action_land,
+        action_frame: 0
     }
   end
 
@@ -330,11 +350,7 @@ defmodule ExPhil.MockEnv.Player do
   """
   @spec fall_off(t()) :: t()
   def fall_off(player) do
-    %{player |
-      on_ground: false,
-      action: @action_fall,
-      action_frame: 0
-    }
+    %{player | on_ground: false, action: @action_fall, action_frame: 0}
   end
 
   @doc """
@@ -344,14 +360,15 @@ defmodule ExPhil.MockEnv.Player do
   def apply_knockback(player, kb_x, kb_y) do
     hitstun = trunc(abs(kb_x) + abs(kb_y)) * 2
 
-    %{player |
-      vel_x: kb_x,
-      vel_y: kb_y,
-      on_ground: false,
-      hitstun_left: hitstun,
-      action: @action_hitstun,
-      action_frame: 0,
-      fastfalling: false
+    %{
+      player
+      | vel_x: kb_x,
+        vel_y: kb_y,
+        on_ground: false,
+        hitstun_left: hitstun,
+        action: @action_hitstun,
+        action_frame: 0,
+        fastfalling: false
     }
   end
 
@@ -397,5 +414,6 @@ defmodule ExPhil.MockEnv.Player do
   defp character_id(:link), do: 6
   defp character_id(:game_and_watch), do: 24
   defp character_id(:zelda), do: 18
-  defp character_id(_), do: 2  # Default to Fox
+  # Default to Fox
+  defp character_id(_), do: 2
 end

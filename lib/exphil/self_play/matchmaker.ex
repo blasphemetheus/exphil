@@ -62,11 +62,15 @@ defmodule ExPhil.SelfPlay.Matchmaker do
   require Logger
 
   defstruct [
-    :ratings,              # Map of policy_id => rating info
-    :pending_matches,      # Map of match_id => match info
-    :completed_matches,    # List of completed match records
+    # Map of policy_id => rating info
+    :ratings,
+    # Map of match_id => match info
+    :pending_matches,
+    # List of completed match records
+    :completed_matches,
     :k_factor,
-    :elo_range,            # Range for skill-based matching
+    # Range for skill-based matching
+    :elo_range,
     :strategy_weights,
     :stats
   ]
@@ -76,7 +80,8 @@ defmodule ExPhil.SelfPlay.Matchmaker do
 
   @default_opts %{
     k_factor: 32,
-    elo_range: 100,  # Match within +/- this range for skill_based
+    # Match within +/- this range for skill_based
+    elo_range: 100,
     strategy_weights: %{
       self_play: 0.3,
       historical: 0.3,
@@ -237,8 +242,9 @@ defmodule ExPhil.SelfPlay.Matchmaker do
     }
 
     # Track pending match
-    new_state = %{new_state |
-      pending_matches: Map.put(new_state.pending_matches, match_id, match)
+    new_state = %{
+      new_state
+      | pending_matches: Map.put(new_state.pending_matches, match_id, match)
     }
 
     {:reply, {:ok, match}, new_state}
@@ -247,7 +253,10 @@ defmodule ExPhil.SelfPlay.Matchmaker do
   @impl true
   def handle_call({:report_result, p1_id, p2_id, result}, _from, state) do
     require Logger
-    Logger.debug("[Matchmaker] Reporting result: #{inspect(p1_id)} vs #{inspect(p2_id)} = #{inspect(result)}")
+
+    Logger.debug(
+      "[Matchmaker] Reporting result: #{inspect(p1_id)} vs #{inspect(p2_id)} = #{inspect(result)}"
+    )
 
     state = ensure_registered(state, p1_id)
     state = ensure_registered(state, p2_id)
@@ -264,9 +273,10 @@ defmodule ExPhil.SelfPlay.Matchmaker do
       timestamp: System.system_time(:second)
     }
 
-    new_state = %{new_state |
-      completed_matches: [match_record | Enum.take(new_state.completed_matches, 999)],
-      stats: update_stats(new_state.stats, result)
+    new_state = %{
+      new_state
+      | completed_matches: [match_record | Enum.take(new_state.completed_matches, 999)],
+        stats: update_stats(new_state.stats, result)
     }
 
     {:reply, :ok, new_state}
@@ -288,9 +298,10 @@ defmodule ExPhil.SelfPlay.Matchmaker do
       timestamp: System.system_time(:second)
     }
 
-    new_state = %{new_state |
-      completed_matches: [match_record | Enum.take(new_state.completed_matches, 999)],
-      stats: update_stats(new_state.stats, result)
+    new_state = %{
+      new_state
+      | completed_matches: [match_record | Enum.take(new_state.completed_matches, 999)],
+        stats: update_stats(new_state.stats, result)
     }
 
     {:reply, :ok, new_state}
@@ -311,21 +322,24 @@ defmodule ExPhil.SelfPlay.Matchmaker do
 
   @impl true
   def handle_call({:get_leaderboard, limit}, _from, state) do
-    leaderboard = state.ratings
-    |> Enum.map(fn {id, info} -> Map.put(info, :id, id) end)
-    |> Enum.sort_by(& &1.rating, :desc)
-    |> Enum.take(limit)
+    leaderboard =
+      state.ratings
+      |> Enum.map(fn {id, info} -> Map.put(info, :id, id) end)
+      |> Enum.sort_by(& &1.rating, :desc)
+      |> Enum.take(limit)
 
     {:reply, leaderboard, state}
   end
 
   @impl true
   def handle_call(:get_stats, _from, state) do
-    stats = Map.merge(state.stats, %{
-      num_policies: map_size(state.ratings),
-      pending_matches: map_size(state.pending_matches),
-      completed_matches: length(state.completed_matches)
-    })
+    stats =
+      Map.merge(state.stats, %{
+        num_policies: map_size(state.ratings),
+        pending_matches: map_size(state.pending_matches),
+        completed_matches: length(state.completed_matches)
+      })
+
     {:reply, stats, state}
   end
 
@@ -356,17 +370,20 @@ defmodule ExPhil.SelfPlay.Matchmaker do
     p1_key = normalize_id(p1_id)
     p2_key = normalize_id(p2_id)
 
-    matches = state.completed_matches
-    |> Enum.filter(fn m ->
-      (m.p1 == p1_key and m.p2 == p2_key) or (m.p1 == p2_key and m.p2 == p1_key)
-    end)
+    matches =
+      state.completed_matches
+      |> Enum.filter(fn m ->
+        (m.p1 == p1_key and m.p2 == p2_key) or (m.p1 == p2_key and m.p2 == p1_key)
+      end)
 
     if length(matches) == 0 do
-      {:reply, {:ok, 0.5}, state}  # Unknown, assume 50%
+      # Unknown, assume 50%
+      {:reply, {:ok, 0.5}, state}
     else
-      wins = Enum.count(matches, fn m ->
-        (m.p1 == p1_key and m.result == :win) or (m.p2 == p1_key and m.result == :loss)
-      end)
+      wins =
+        Enum.count(matches, fn m ->
+          (m.p1 == p1_key and m.result == :win) or (m.p2 == p1_key and m.result == :loss)
+        end)
 
       win_rate = wins / length(matches)
       {:reply, {:ok, win_rate}, state}
@@ -377,21 +394,24 @@ defmodule ExPhil.SelfPlay.Matchmaker do
   def handle_call({:get_match_history, policy_id, limit}, _from, state) do
     id = normalize_id(policy_id)
 
-    history = state.completed_matches
-    |> Enum.filter(fn m -> m.p1 == id or m.p2 == id end)
-    |> Enum.take(limit)
+    history =
+      state.completed_matches
+      |> Enum.filter(fn m -> m.p1 == id or m.p2 == id end)
+      |> Enum.take(limit)
 
     {:reply, history, state}
   end
 
   @impl true
   def handle_call(:reset, _from, state) do
-    new_state = %{state |
-      ratings: %{},
-      pending_matches: %{},
-      completed_matches: [],
-      stats: init_stats()
+    new_state = %{
+      state
+      | ratings: %{},
+        pending_matches: %{},
+        completed_matches: [],
+        stats: init_stats()
     }
+
     {:reply, :ok, new_state}
   end
 
@@ -425,6 +445,7 @@ defmodule ExPhil.SelfPlay.Matchmaker do
 
   defp get_policy_rating(state, policy_id) do
     id = normalize_id(policy_id)
+
     case Map.get(state.ratings, id) do
       nil -> Elo.initial_rating()
       info -> info.rating
@@ -443,6 +464,7 @@ defmodule ExPhil.SelfPlay.Matchmaker do
       weights
       |> Enum.reduce_while({0.0, :self_play}, fn {strategy, weight}, {cumsum, _} ->
         new_cumsum = cumsum + weight
+
         if r <= new_cumsum do
           {:halt, {new_cumsum, strategy}}
         else
@@ -462,9 +484,10 @@ defmodule ExPhil.SelfPlay.Matchmaker do
     # Find historical versions (not current)
     player_key = normalize_id(player_id)
 
-    historical = state.ratings
-    |> Map.keys()
-    |> Enum.filter(& &1 != player_key and String.starts_with?(&1, "v"))
+    historical =
+      state.ratings
+      |> Map.keys()
+      |> Enum.filter(&(&1 != player_key and String.starts_with?(&1, "v")))
 
     if length(historical) > 0 do
       {Enum.random(historical), state}
@@ -479,10 +502,11 @@ defmodule ExPhil.SelfPlay.Matchmaker do
     player_key = normalize_id(player_id)
 
     # Find policies within Elo range
-    candidates = state.ratings
-    |> Enum.filter(fn {id, info} ->
-      id != player_key and abs(info.rating - player_rating) <= state.elo_range
-    end)
+    candidates =
+      state.ratings
+      |> Enum.filter(fn {id, info} ->
+        id != player_key and abs(info.rating - player_rating) <= state.elo_range
+      end)
 
     if length(candidates) > 0 do
       {id, _info} = Enum.random(candidates)
@@ -498,46 +522,56 @@ defmodule ExPhil.SelfPlay.Matchmaker do
     player_key = normalize_id(player_id)
 
     # Get win rates against all opponents
-    opponents_with_rates = state.ratings
-    |> Map.keys()
-    |> Enum.filter(& &1 != player_key)
-    |> Enum.map(fn opp_id ->
-      matches = state.completed_matches
-      |> Enum.filter(fn m ->
-        (m.p1 == player_key and m.p2 == opp_id) or
-        (m.p2 == player_key and m.p1 == opp_id)
+    opponents_with_rates =
+      state.ratings
+      |> Map.keys()
+      |> Enum.filter(&(&1 != player_key))
+      |> Enum.map(fn opp_id ->
+        matches =
+          state.completed_matches
+          |> Enum.filter(fn m ->
+            (m.p1 == player_key and m.p2 == opp_id) or
+              (m.p2 == player_key and m.p1 == opp_id)
+          end)
+
+        win_rate =
+          if length(matches) > 0 do
+            wins =
+              Enum.count(matches, fn m ->
+                (m.p1 == player_key and m.result == :win) or
+                  (m.p2 == player_key and m.result == :loss)
+              end)
+
+            wins / length(matches)
+          else
+            # Unknown
+            0.5
+          end
+
+        {opp_id, win_rate}
       end)
-
-      win_rate = if length(matches) > 0 do
-        wins = Enum.count(matches, fn m ->
-          (m.p1 == player_key and m.result == :win) or
-          (m.p2 == player_key and m.result == :loss)
-        end)
-        wins / length(matches)
-      else
-        0.5  # Unknown
-      end
-
-      {opp_id, win_rate}
-    end)
 
     if length(opponents_with_rates) > 0 do
       # Weight by inverse win rate (prioritize hard opponents)
-      weighted = Enum.map(opponents_with_rates, fn {id, rate} ->
-        {id, 1.0 - rate + 0.1}  # +0.1 to avoid zero weight
-      end)
+      weighted =
+        Enum.map(opponents_with_rates, fn {id, rate} ->
+          # +0.1 to avoid zero weight
+          {id, 1.0 - rate + 0.1}
+        end)
 
       total = Enum.sum(Enum.map(weighted, &elem(&1, 1)))
       r = :rand.uniform() * total
 
-      {selected, _} = Enum.reduce_while(weighted, {nil, 0.0}, fn {id, w}, {_, cumsum} ->
-        new_cumsum = cumsum + w
-        if r <= new_cumsum do
-          {:halt, {id, new_cumsum}}
-        else
-          {:cont, {id, new_cumsum}}
-        end
-      end)
+      {selected, _} =
+        Enum.reduce_while(weighted, {nil, 0.0}, fn {id, w}, {_, cumsum} ->
+          new_cumsum = cumsum + w
+
+          if r <= new_cumsum do
+            {:halt, {id, new_cumsum}}
+          else
+            {:cont, {id, new_cumsum}}
+          end
+        end)
 
       {selected || player_id, state}
     else
@@ -548,9 +582,10 @@ defmodule ExPhil.SelfPlay.Matchmaker do
   defp find_opponent(state, player_id, :random) do
     player_key = normalize_id(player_id)
 
-    candidates = state.ratings
-    |> Map.keys()
-    |> Enum.filter(& &1 != player_key)
+    candidates =
+      state.ratings
+      |> Map.keys()
+      |> Enum.filter(&(&1 != player_key))
 
     if length(candidates) > 0 do
       {Enum.random(candidates), state}
@@ -562,9 +597,10 @@ defmodule ExPhil.SelfPlay.Matchmaker do
   defp find_closest_opponent(state, player_id, player_rating) do
     player_key = normalize_id(player_id)
 
-    closest = state.ratings
-    |> Enum.filter(fn {id, _} -> id != player_key end)
-    |> Enum.min_by(fn {_id, info} -> abs(info.rating - player_rating) end, fn -> nil end)
+    closest =
+      state.ratings
+      |> Enum.filter(fn {id, _} -> id != player_key end)
+      |> Enum.min_by(fn {_id, info} -> abs(info.rating - player_rating) end, fn -> nil end)
 
     case closest do
       {id, _info} -> {id, state}
@@ -584,38 +620,43 @@ defmodule ExPhil.SelfPlay.Matchmaker do
     k2 = Elo.dynamic_k_factor(p2_info.games_played)
 
     # Update ratings
-    {new_p1_rating, new_p2_rating} = Elo.update(
-      p1_info.rating,
-      p2_info.rating,
-      result,
-      k_factor_a: k1,
-      k_factor_b: k2
-    )
+    {new_p1_rating, new_p2_rating} =
+      Elo.update(
+        p1_info.rating,
+        p2_info.rating,
+        result,
+        k_factor_a: k1,
+        k_factor_b: k2
+      )
 
     # Update record counts
     {p1_wins, p1_losses, p1_draws} = update_record(p1_info, result, :p1)
     {p2_wins, p2_losses, p2_draws} = update_record(p2_info, result, :p2)
 
-    new_p1_info = %{p1_info |
-      rating: new_p1_rating,
-      wins: p1_wins,
-      losses: p1_losses,
-      draws: p1_draws,
-      games_played: p1_info.games_played + 1
+    new_p1_info = %{
+      p1_info
+      | rating: new_p1_rating,
+        wins: p1_wins,
+        losses: p1_losses,
+        draws: p1_draws,
+        games_played: p1_info.games_played + 1
     }
 
-    new_p2_info = %{p2_info |
-      rating: new_p2_rating,
-      wins: p2_wins,
-      losses: p2_losses,
-      draws: p2_draws,
-      games_played: p2_info.games_played + 1
+    new_p2_info = %{
+      p2_info
+      | rating: new_p2_rating,
+        wins: p2_wins,
+        losses: p2_losses,
+        draws: p2_draws,
+        games_played: p2_info.games_played + 1
     }
 
-    new_state = %{state |
-      ratings: state.ratings
-      |> Map.put(p1_key, new_p1_info)
-      |> Map.put(p2_key, new_p2_info)
+    new_state = %{
+      state
+      | ratings:
+          state.ratings
+          |> Map.put(p1_key, new_p1_info)
+          |> Map.put(p2_key, new_p2_info)
     }
 
     rating_changes = %{
@@ -636,8 +677,10 @@ defmodule ExPhil.SelfPlay.Matchmaker do
 
   defp update_record(info, result, :p2) do
     case result do
-      :win -> {info.wins, info.losses + 1, info.draws}  # P1 won, P2 lost
-      :loss -> {info.wins + 1, info.losses, info.draws}  # P1 lost, P2 won
+      # P1 won, P2 lost
+      :win -> {info.wins, info.losses + 1, info.draws}
+      # P1 lost, P2 won
+      :loss -> {info.wins + 1, info.losses, info.draws}
       :draw -> {info.wins, info.losses, info.draws + 1}
     end
   end

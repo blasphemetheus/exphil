@@ -30,12 +30,12 @@ defmodule ExPhil.Training.EarlyStopping do
   ]
 
   @type t :: %__MODULE__{
-    patience: pos_integer(),
-    min_delta: float(),
-    best_loss: float() | nil,
-    epochs_without_improvement: non_neg_integer(),
-    best_epoch: pos_integer() | nil
-  }
+          patience: pos_integer(),
+          min_delta: float(),
+          best_loss: float() | nil,
+          epochs_without_improvement: non_neg_integer(),
+          best_epoch: pos_integer() | nil
+        }
 
   @doc """
   Initialize early stopping state.
@@ -91,11 +91,7 @@ defmodule ExPhil.Training.EarlyStopping do
   @spec check(t(), float()) :: {t(), :continue | :stop}
   def check(%__MODULE__{best_loss: nil} = state, val_loss) do
     # First epoch - always continue, set baseline
-    new_state = %{state |
-      best_loss: val_loss,
-      best_epoch: 1,
-      epochs_without_improvement: 0
-    }
+    new_state = %{state | best_loss: val_loss, best_epoch: 1, epochs_without_improvement: 0}
     {new_state, :continue}
   end
 
@@ -104,11 +100,13 @@ defmodule ExPhil.Training.EarlyStopping do
 
     if improvement >= state.min_delta do
       # Significant improvement - reset counter
-      new_state = %{state |
-        best_loss: val_loss,
-        best_epoch: (state.best_epoch || 0) + state.epochs_without_improvement + 1,
-        epochs_without_improvement: 0
+      new_state = %{
+        state
+        | best_loss: val_loss,
+          best_epoch: (state.best_epoch || 0) + state.epochs_without_improvement + 1,
+          epochs_without_improvement: 0
       }
+
       {new_state, :continue}
     else
       # No significant improvement
@@ -189,6 +187,7 @@ defmodule ExPhil.Training.EarlyStopping do
   """
   @spec status_message(t()) :: String.t()
   def status_message(%__MODULE__{best_loss: nil}), do: "initializing..."
+
   def status_message(%__MODULE__{} = state) do
     if state.epochs_without_improvement == 0 do
       "new best loss: #{Float.round(state.best_loss, 4)}"

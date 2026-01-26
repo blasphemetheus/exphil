@@ -93,11 +93,13 @@ defmodule ExPhil.SelfPlay.Elo do
     k = Keyword.get(opts, :k_factor, @default_k_factor)
 
     expected = expected_score(player_rating, opponent_rating)
-    actual = case result do
-      :win -> 1.0
-      :loss -> 0.0
-      :draw -> 0.5
-    end
+
+    actual =
+      case result do
+        :win -> 1.0
+        :loss -> 0.0
+        :draw -> 0.5
+      end
 
     player_rating + k * (actual - expected)
   end

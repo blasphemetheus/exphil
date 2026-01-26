@@ -224,11 +224,15 @@ defmodule ExPhil.Training.GradientCheckpoint do
 
     # Wrap in a custom Axon layer that applies checkpointing during training
     # The checkpoint happens at the defn level during gradient computation
-    Axon.nx(layer_output, fn tensor ->
-      # During inference, just pass through
-      # Checkpointing only matters during training (grad computation)
-      tensor
-    end, name: "#{name}_checkpoint_wrapper")
+    Axon.nx(
+      layer_output,
+      fn tensor ->
+        # During inference, just pass through
+        # Checkpointing only matters during training (grad computation)
+        tensor
+      end,
+      name: "#{name}_checkpoint_wrapper"
+    )
   end
 
   @doc """

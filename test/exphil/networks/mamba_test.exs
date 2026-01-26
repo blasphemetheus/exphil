@@ -11,16 +11,19 @@ defmodule ExPhil.Networks.MambaTest do
 
   describe "build/1" do
     test "builds Mamba model with correct output shape" do
-      model = Mamba.build(
-        embed_size: @embed_size,
-        hidden_size: @hidden_size,
-        state_size: @state_size,
-        num_layers: 1,
-        window_size: @seq_len
-      )
+      model =
+        Mamba.build(
+          embed_size: @embed_size,
+          hidden_size: @hidden_size,
+          state_size: @state_size,
+          num_layers: 1,
+          window_size: @seq_len
+        )
 
       {init_fn, predict_fn} = Axon.build(model)
-      params = init_fn.(Nx.template({@batch_size, @seq_len, @embed_size}, :f32), Axon.ModelState.empty())
+
+      params =
+        init_fn.(Nx.template({@batch_size, @seq_len, @embed_size}, :f32), Axon.ModelState.empty())
 
       input = Nx.broadcast(0.5, {@batch_size, @seq_len, @embed_size})
       output = predict_fn.(params, input)
@@ -30,16 +33,19 @@ defmodule ExPhil.Networks.MambaTest do
     end
 
     test "builds stacked Mamba layers" do
-      model = Mamba.build(
-        embed_size: @embed_size,
-        hidden_size: @hidden_size,
-        state_size: @state_size,
-        num_layers: 3,
-        window_size: @seq_len
-      )
+      model =
+        Mamba.build(
+          embed_size: @embed_size,
+          hidden_size: @hidden_size,
+          state_size: @state_size,
+          num_layers: 3,
+          window_size: @seq_len
+        )
 
       {init_fn, predict_fn} = Axon.build(model)
-      params = init_fn.(Nx.template({@batch_size, @seq_len, @embed_size}, :f32), Axon.ModelState.empty())
+
+      params =
+        init_fn.(Nx.template({@batch_size, @seq_len, @embed_size}, :f32), Axon.ModelState.empty())
 
       input = Nx.broadcast(0.5, {@batch_size, @seq_len, @embed_size})
       output = predict_fn.(params, input)
@@ -49,13 +55,14 @@ defmodule ExPhil.Networks.MambaTest do
 
     test "handles different embed and hidden sizes" do
       # When embed_size != hidden_size, an input projection is added
-      model = Mamba.build(
-        embed_size: 128,
-        hidden_size: 64,
-        state_size: @state_size,
-        num_layers: 1,
-        window_size: @seq_len
-      )
+      model =
+        Mamba.build(
+          embed_size: 128,
+          hidden_size: 64,
+          state_size: @state_size,
+          num_layers: 1,
+          window_size: @seq_len
+        )
 
       {init_fn, predict_fn} = Axon.build(model)
       params = init_fn.(Nx.template({@batch_size, @seq_len, 128}, :f32), Axon.ModelState.empty())
@@ -68,17 +75,20 @@ defmodule ExPhil.Networks.MambaTest do
 
     test "respects expand_factor option" do
       # expand_factor controls the inner dimension of the Mamba block
-      model = Mamba.build(
-        embed_size: @embed_size,
-        hidden_size: @hidden_size,
-        state_size: @state_size,
-        expand_factor: 4,
-        num_layers: 1,
-        window_size: @seq_len
-      )
+      model =
+        Mamba.build(
+          embed_size: @embed_size,
+          hidden_size: @hidden_size,
+          state_size: @state_size,
+          expand_factor: 4,
+          num_layers: 1,
+          window_size: @seq_len
+        )
 
       {init_fn, predict_fn} = Axon.build(model)
-      params = init_fn.(Nx.template({@batch_size, @seq_len, @embed_size}, :f32), Axon.ModelState.empty())
+
+      params =
+        init_fn.(Nx.template({@batch_size, @seq_len, @embed_size}, :f32), Axon.ModelState.empty())
 
       input = Nx.broadcast(0.5, {@batch_size, @seq_len, @embed_size})
       output = predict_fn.(params, input)
@@ -87,17 +97,20 @@ defmodule ExPhil.Networks.MambaTest do
     end
 
     test "respects conv_size option" do
-      model = Mamba.build(
-        embed_size: @embed_size,
-        hidden_size: @hidden_size,
-        state_size: @state_size,
-        conv_size: 8,
-        num_layers: 1,
-        window_size: @seq_len
-      )
+      model =
+        Mamba.build(
+          embed_size: @embed_size,
+          hidden_size: @hidden_size,
+          state_size: @state_size,
+          conv_size: 8,
+          num_layers: 1,
+          window_size: @seq_len
+        )
 
       {init_fn, predict_fn} = Axon.build(model)
-      params = init_fn.(Nx.template({@batch_size, @seq_len, @embed_size}, :f32), Axon.ModelState.empty())
+
+      params =
+        init_fn.(Nx.template({@batch_size, @seq_len, @embed_size}, :f32), Axon.ModelState.empty())
 
       input = Nx.broadcast(0.5, {@batch_size, @seq_len, @embed_size})
       output = predict_fn.(params, input)
@@ -110,16 +123,22 @@ defmodule ExPhil.Networks.MambaTest do
     test "builds a single Mamba block with correct shape" do
       input = Axon.input("input", shape: {nil, @seq_len, @hidden_size})
 
-      block = Mamba.build_mamba_block(input,
-        hidden_size: @hidden_size,
-        state_size: @state_size,
-        expand_factor: 2,
-        conv_size: 4,
-        name: "test_block"
-      )
+      block =
+        Mamba.build_mamba_block(input,
+          hidden_size: @hidden_size,
+          state_size: @state_size,
+          expand_factor: 2,
+          conv_size: 4,
+          name: "test_block"
+        )
 
       {init_fn, predict_fn} = Axon.build(block)
-      params = init_fn.(Nx.template({@batch_size, @seq_len, @hidden_size}, :f32), Axon.ModelState.empty())
+
+      params =
+        init_fn.(
+          Nx.template({@batch_size, @seq_len, @hidden_size}, :f32),
+          Axon.ModelState.empty()
+        )
 
       input_data = Nx.broadcast(0.5, {@batch_size, @seq_len, @hidden_size})
       output = predict_fn.(params, input_data)
@@ -136,7 +155,12 @@ defmodule ExPhil.Networks.MambaTest do
       conv = Mamba.build_causal_conv1d(input, @hidden_size, 4, "test_conv")
 
       {init_fn, predict_fn} = Axon.build(conv)
-      params = init_fn.(Nx.template({@batch_size, @seq_len, @hidden_size}, :f32), Axon.ModelState.empty())
+
+      params =
+        init_fn.(
+          Nx.template({@batch_size, @seq_len, @hidden_size}, :f32),
+          Axon.ModelState.empty()
+        )
 
       input_data = Nx.broadcast(0.5, {@batch_size, @seq_len, @hidden_size})
       output = predict_fn.(params, input_data)
@@ -152,7 +176,12 @@ defmodule ExPhil.Networks.MambaTest do
         conv = Mamba.build_causal_conv1d(input, @hidden_size, kernel_size, "conv_k#{kernel_size}")
 
         {init_fn, predict_fn} = Axon.build(conv)
-        params = init_fn.(Nx.template({@batch_size, @seq_len, @hidden_size}, :f32), Axon.ModelState.empty())
+
+        params =
+          init_fn.(
+            Nx.template({@batch_size, @seq_len, @hidden_size}, :f32),
+            Axon.ModelState.empty()
+          )
 
         input_data = Nx.broadcast(0.5, {@batch_size, @seq_len, @hidden_size})
         output = predict_fn.(params, input_data)
@@ -166,14 +195,20 @@ defmodule ExPhil.Networks.MambaTest do
     test "produces correct output shape" do
       input = Axon.input("input", shape: {nil, @seq_len, @hidden_size})
 
-      ssm = Mamba.build_selective_ssm(input,
-        hidden_size: @hidden_size,
-        state_size: @state_size,
-        name: "test_ssm"
-      )
+      ssm =
+        Mamba.build_selective_ssm(input,
+          hidden_size: @hidden_size,
+          state_size: @state_size,
+          name: "test_ssm"
+        )
 
       {init_fn, predict_fn} = Axon.build(ssm)
-      params = init_fn.(Nx.template({@batch_size, @seq_len, @hidden_size}, :f32), Axon.ModelState.empty())
+
+      params =
+        init_fn.(
+          Nx.template({@batch_size, @seq_len, @hidden_size}, :f32),
+          Axon.ModelState.empty()
+        )
 
       input_data = Nx.broadcast(0.5, {@batch_size, @seq_len, @hidden_size})
       output = predict_fn.(params, input_data)
@@ -187,19 +222,21 @@ defmodule ExPhil.Networks.MambaTest do
     test "returns hidden_size" do
       assert Mamba.output_size(hidden_size: 128) == 128
       assert Mamba.output_size(hidden_size: 256) == 256
-      assert Mamba.output_size() == 256  # default
+      # default
+      assert Mamba.output_size() == 256
     end
   end
 
   describe "param_count/1" do
     test "returns approximate parameter count" do
-      count = Mamba.param_count(
-        embed_size: 1991,
-        hidden_size: 256,
-        state_size: 16,
-        expand_factor: 2,
-        num_layers: 2
-      )
+      count =
+        Mamba.param_count(
+          embed_size: 1991,
+          hidden_size: 256,
+          state_size: 16,
+          expand_factor: 2,
+          num_layers: 2
+        )
 
       # Should be a reasonable number (millions of params for production model)
       assert count > 1_000_000
@@ -207,21 +244,23 @@ defmodule ExPhil.Networks.MambaTest do
     end
 
     test "scales with num_layers" do
-      count_1 = Mamba.param_count(
-        embed_size: 64,
-        hidden_size: 32,
-        state_size: 8,
-        expand_factor: 2,
-        num_layers: 1
-      )
+      count_1 =
+        Mamba.param_count(
+          embed_size: 64,
+          hidden_size: 32,
+          state_size: 8,
+          expand_factor: 2,
+          num_layers: 1
+        )
 
-      count_2 = Mamba.param_count(
-        embed_size: 64,
-        hidden_size: 32,
-        state_size: 8,
-        expand_factor: 2,
-        num_layers: 2
-      )
+      count_2 =
+        Mamba.param_count(
+          embed_size: 64,
+          hidden_size: 32,
+          state_size: 8,
+          expand_factor: 2,
+          num_layers: 2
+        )
 
       # 2 layers should have roughly 2x params (plus input projection)
       assert count_2 > count_1
@@ -260,21 +299,23 @@ defmodule ExPhil.Networks.MambaTest do
     test "uses window_size as concrete seq_len by default" do
       window_size = 20
 
-      model = Mamba.build(
-        embed_size: @embed_size,
-        hidden_size: @hidden_size,
-        state_size: @state_size,
-        window_size: window_size
-        # NOTE: Not passing seq_len - should default to window_size
-      )
+      model =
+        Mamba.build(
+          embed_size: @embed_size,
+          hidden_size: @hidden_size,
+          state_size: @state_size,
+          window_size: window_size
+          # NOTE: Not passing seq_len - should default to window_size
+        )
 
       # Model should build and compile (would be slow with dynamic shapes)
       {init_fn, predict_fn} = Axon.build(model)
 
-      params = init_fn.(
-        Nx.template({@batch_size, window_size, @embed_size}, :f32),
-        Axon.ModelState.empty()
-      )
+      params =
+        init_fn.(
+          Nx.template({@batch_size, window_size, @embed_size}, :f32),
+          Axon.ModelState.empty()
+        )
 
       input = Nx.broadcast(0.5, {@batch_size, window_size, @embed_size})
       output = predict_fn.(params, input)
@@ -285,16 +326,19 @@ defmodule ExPhil.Networks.MambaTest do
 
   describe "numerical behavior" do
     test "produces finite outputs for normal inputs" do
-      model = Mamba.build(
-        embed_size: @embed_size,
-        hidden_size: @hidden_size,
-        state_size: @state_size,
-        num_layers: 2,
-        window_size: @seq_len
-      )
+      model =
+        Mamba.build(
+          embed_size: @embed_size,
+          hidden_size: @hidden_size,
+          state_size: @state_size,
+          num_layers: 2,
+          window_size: @seq_len
+        )
 
       {init_fn, predict_fn} = Axon.build(model)
-      params = init_fn.(Nx.template({@batch_size, @seq_len, @embed_size}, :f32), Axon.ModelState.empty())
+
+      params =
+        init_fn.(Nx.template({@batch_size, @seq_len, @embed_size}, :f32), Axon.ModelState.empty())
 
       # Normal input range
       key = Nx.Random.key(42)
@@ -307,16 +351,19 @@ defmodule ExPhil.Networks.MambaTest do
     end
 
     test "handles zero input" do
-      model = Mamba.build(
-        embed_size: @embed_size,
-        hidden_size: @hidden_size,
-        state_size: @state_size,
-        num_layers: 1,
-        window_size: @seq_len
-      )
+      model =
+        Mamba.build(
+          embed_size: @embed_size,
+          hidden_size: @hidden_size,
+          state_size: @state_size,
+          num_layers: 1,
+          window_size: @seq_len
+        )
 
       {init_fn, predict_fn} = Axon.build(model)
-      params = init_fn.(Nx.template({@batch_size, @seq_len, @embed_size}, :f32), Axon.ModelState.empty())
+
+      params =
+        init_fn.(Nx.template({@batch_size, @seq_len, @embed_size}, :f32), Axon.ModelState.empty())
 
       input = Nx.broadcast(0.0, {@batch_size, @seq_len, @embed_size})
       output = predict_fn.(params, input)
@@ -331,17 +378,20 @@ defmodule ExPhil.Networks.MambaTest do
     test "works as temporal backbone in Policy" do
       alias ExPhil.Networks.Policy
 
-      model = Policy.build_temporal(
-        embed_size: @embed_size,
-        backbone: :mamba,
-        hidden_size: @hidden_size,
-        state_size: @state_size,
-        num_layers: 1,
-        window_size: @seq_len
-      )
+      model =
+        Policy.build_temporal(
+          embed_size: @embed_size,
+          backbone: :mamba,
+          hidden_size: @hidden_size,
+          state_size: @state_size,
+          num_layers: 1,
+          window_size: @seq_len
+        )
 
       {init_fn, predict_fn} = Axon.build(model)
-      params = init_fn.(Nx.template({@batch_size, @seq_len, @embed_size}, :f32), Axon.ModelState.empty())
+
+      params =
+        init_fn.(Nx.template({@batch_size, @seq_len, @embed_size}, :f32), Axon.ModelState.empty())
 
       input = Nx.broadcast(0.5, {@batch_size, @seq_len, @embed_size})
       {buttons, main_x, main_y, c_x, c_y, shoulder} = predict_fn.(params, input)
@@ -362,14 +412,15 @@ defmodule ExPhil.Networks.MambaTest do
 
   describe "init_cache/1" do
     test "initializes cache with correct structure" do
-      cache = Mamba.init_cache(
-        batch_size: 2,
-        hidden_size: @hidden_size,
-        state_size: @state_size,
-        expand_factor: 2,
-        conv_size: 4,
-        num_layers: 2
-      )
+      cache =
+        Mamba.init_cache(
+          batch_size: 2,
+          hidden_size: @hidden_size,
+          state_size: @state_size,
+          expand_factor: 2,
+          conv_size: 4,
+          num_layers: 2
+        )
 
       assert Map.has_key?(cache, :layers)
       assert Map.has_key?(cache, :step)
@@ -381,17 +432,19 @@ defmodule ExPhil.Networks.MambaTest do
 
     test "layer cache has correct tensor shapes" do
       batch_size = 2
-      inner_size = @hidden_size * 2  # expand_factor = 2
+      # expand_factor = 2
+      inner_size = @hidden_size * 2
       conv_size = 4
 
-      cache = Mamba.init_cache(
-        batch_size: batch_size,
-        hidden_size: @hidden_size,
-        state_size: @state_size,
-        expand_factor: 2,
-        conv_size: conv_size,
-        num_layers: 1
-      )
+      cache =
+        Mamba.init_cache(
+          batch_size: batch_size,
+          hidden_size: @hidden_size,
+          state_size: @state_size,
+          expand_factor: 2,
+          conv_size: conv_size,
+          num_layers: 1
+        )
 
       layer_cache = cache.layers["layer_1"]
 
@@ -403,11 +456,12 @@ defmodule ExPhil.Networks.MambaTest do
     end
 
     test "initializes with zeros" do
-      cache = Mamba.init_cache(
-        batch_size: 1,
-        hidden_size: @hidden_size,
-        num_layers: 1
-      )
+      cache =
+        Mamba.init_cache(
+          batch_size: 1,
+          hidden_size: @hidden_size,
+          num_layers: 1
+        )
 
       layer_cache = cache.layers["layer_1"]
 
@@ -420,24 +474,27 @@ defmodule ExPhil.Networks.MambaTest do
   describe "step/4" do
     test "produces output with correct shape" do
       # Build model and get params
-      model = Mamba.build(
-        embed_size: @hidden_size,  # Same size to avoid projection complexity
-        hidden_size: @hidden_size,
-        state_size: @state_size,
-        num_layers: 1,
-        window_size: @seq_len
-      )
+      model =
+        Mamba.build(
+          # Same size to avoid projection complexity
+          embed_size: @hidden_size,
+          hidden_size: @hidden_size,
+          state_size: @state_size,
+          num_layers: 1,
+          window_size: @seq_len
+        )
 
       {init_fn, _predict_fn} = Axon.build(model)
       params = init_fn.(Nx.template({1, @seq_len, @hidden_size}, :f32), Axon.ModelState.empty())
 
       # Initialize cache
-      cache = Mamba.init_cache(
-        batch_size: 1,
-        hidden_size: @hidden_size,
-        state_size: @state_size,
-        num_layers: 1
-      )
+      cache =
+        Mamba.init_cache(
+          batch_size: 1,
+          hidden_size: @hidden_size,
+          state_size: @state_size,
+          num_layers: 1
+        )
 
       # Single frame input
       x = Nx.broadcast(0.5, {1, @hidden_size})
@@ -453,23 +510,25 @@ defmodule ExPhil.Networks.MambaTest do
     end
 
     test "updates cache state across multiple steps" do
-      model = Mamba.build(
-        embed_size: @hidden_size,
-        hidden_size: @hidden_size,
-        state_size: @state_size,
-        num_layers: 1,
-        window_size: @seq_len
-      )
+      model =
+        Mamba.build(
+          embed_size: @hidden_size,
+          hidden_size: @hidden_size,
+          state_size: @state_size,
+          num_layers: 1,
+          window_size: @seq_len
+        )
 
       {init_fn, _predict_fn} = Axon.build(model)
       params = init_fn.(Nx.template({1, @seq_len, @hidden_size}, :f32), Axon.ModelState.empty())
 
-      cache = Mamba.init_cache(
-        batch_size: 1,
-        hidden_size: @hidden_size,
-        state_size: @state_size,
-        num_layers: 1
-      )
+      cache =
+        Mamba.init_cache(
+          batch_size: 1,
+          hidden_size: @hidden_size,
+          state_size: @state_size,
+          num_layers: 1
+        )
 
       # Run multiple steps
       x1 = Nx.broadcast(0.5, {1, @hidden_size})
@@ -496,27 +555,29 @@ defmodule ExPhil.Networks.MambaTest do
       out3_sum = Nx.to_number(Nx.sum(out3))
 
       assert out1_sum != out2_sum or out2_sum != out3_sum,
-        "Outputs should vary with different inputs"
+             "Outputs should vary with different inputs"
     end
 
     test "accepts [batch, 1, hidden] input shape" do
-      model = Mamba.build(
-        embed_size: @hidden_size,
-        hidden_size: @hidden_size,
-        state_size: @state_size,
-        num_layers: 1,
-        window_size: @seq_len
-      )
+      model =
+        Mamba.build(
+          embed_size: @hidden_size,
+          hidden_size: @hidden_size,
+          state_size: @state_size,
+          num_layers: 1,
+          window_size: @seq_len
+        )
 
       {init_fn, _predict_fn} = Axon.build(model)
       params = init_fn.(Nx.template({1, @seq_len, @hidden_size}, :f32), Axon.ModelState.empty())
 
-      cache = Mamba.init_cache(
-        batch_size: 1,
-        hidden_size: @hidden_size,
-        state_size: @state_size,
-        num_layers: 1
-      )
+      cache =
+        Mamba.init_cache(
+          batch_size: 1,
+          hidden_size: @hidden_size,
+          state_size: @state_size,
+          num_layers: 1
+        )
 
       # Input with explicit seq_len=1 dimension
       x = Nx.broadcast(0.5, {1, 1, @hidden_size})
@@ -528,23 +589,25 @@ defmodule ExPhil.Networks.MambaTest do
     end
 
     test "produces finite outputs" do
-      model = Mamba.build(
-        embed_size: @hidden_size,
-        hidden_size: @hidden_size,
-        state_size: @state_size,
-        num_layers: 2,
-        window_size: @seq_len
-      )
+      model =
+        Mamba.build(
+          embed_size: @hidden_size,
+          hidden_size: @hidden_size,
+          state_size: @state_size,
+          num_layers: 2,
+          window_size: @seq_len
+        )
 
       {init_fn, _predict_fn} = Axon.build(model)
       params = init_fn.(Nx.template({1, @seq_len, @hidden_size}, :f32), Axon.ModelState.empty())
 
-      cache = Mamba.init_cache(
-        batch_size: 1,
-        hidden_size: @hidden_size,
-        state_size: @state_size,
-        num_layers: 2
-      )
+      cache =
+        Mamba.init_cache(
+          batch_size: 1,
+          hidden_size: @hidden_size,
+          state_size: @state_size,
+          num_layers: 2
+        )
 
       # Random input
       key = Nx.Random.key(42)
@@ -568,13 +631,14 @@ defmodule ExPhil.Networks.MambaTest do
 
       seq_len = 5
 
-      model = Mamba.build(
-        embed_size: @hidden_size,
-        hidden_size: @hidden_size,
-        state_size: @state_size,
-        num_layers: 1,
-        window_size: seq_len
-      )
+      model =
+        Mamba.build(
+          embed_size: @hidden_size,
+          hidden_size: @hidden_size,
+          state_size: @state_size,
+          num_layers: 1,
+          window_size: seq_len
+        )
 
       {init_fn, _predict_fn} = Axon.build(model)
       params = init_fn.(Nx.template({1, seq_len, @hidden_size}, :f32), Axon.ModelState.empty())
@@ -584,16 +648,18 @@ defmodule ExPhil.Networks.MambaTest do
       {frames, _} = Nx.Random.uniform(key, shape: {seq_len, @hidden_size}, type: :f32)
 
       # Run incremental inference
-      cache = Mamba.init_cache(
-        batch_size: 1,
-        hidden_size: @hidden_size,
-        state_size: @state_size,
-        num_layers: 1
-      )
+      cache =
+        Mamba.init_cache(
+          batch_size: 1,
+          hidden_size: @hidden_size,
+          state_size: @state_size,
+          num_layers: 1
+        )
 
       incremental_outputs =
         Enum.reduce(0..(seq_len - 1), {[], cache}, fn i, {outputs, cache} ->
-          x = frames[i] |> Nx.new_axis(0)  # [1, hidden_size]
+          # [1, hidden_size]
+          x = frames[i] |> Nx.new_axis(0)
           {out, new_cache} = Mamba.step(x, params, cache)
           {[out | outputs], new_cache}
         end)

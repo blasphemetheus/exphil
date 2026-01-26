@@ -90,13 +90,20 @@ defmodule ExPhil.Training.SelfPlay.LeagueTrainer do
   require Logger
 
   defstruct [
-    :mode,                 # :simple_mix or :league
-    :agents,               # Map of agent_id => agent_state
-    :opponent_pool,        # OpponentPool for opponent selection
-    :ppo_trainers,         # Map of agent_id => PPO trainer
-    :config,               # Training configuration
-    :metrics,              # Training metrics
-    :iteration             # Current training iteration
+    # :simple_mix or :league
+    :mode,
+    # Map of agent_id => agent_state
+    :agents,
+    # OpponentPool for opponent selection
+    :opponent_pool,
+    # Map of agent_id => PPO trainer
+    :ppo_trainers,
+    # Training configuration
+    :config,
+    # Training metrics
+    :metrics,
+    # Current training iteration
+    :iteration
   ]
 
   @type agent_type :: :main | :main_exploiter | :league_exploiter | :simple
@@ -107,7 +114,8 @@ defmodule ExPhil.Training.SelfPlay.LeagueTrainer do
     main: %{
       description: "Main agent - trains against entire league",
       opponent_selection: :league_wide,
-      pfsp_weight: 0.5  # Prioritized fictitious self-play weight
+      # Prioritized fictitious self-play weight
+      pfsp_weight: 0.5
     },
     main_exploiter: %{
       description: "Main exploiter - finds weaknesses in main agents",
@@ -139,17 +147,21 @@ defmodule ExPhil.Training.SelfPlay.LeagueTrainer do
     num_league_exploiters: 0,
 
     # Checkpointing
-    snapshot_interval: 10,      # Snapshot to pool every N iterations
-    checkpoint_interval: 50,    # Save full checkpoint every N iterations
+    # Snapshot to pool every N iterations
+    snapshot_interval: 10,
+    # Save full checkpoint every N iterations
+    checkpoint_interval: 50,
     checkpoint_dir: "checkpoints/league",
 
     # Parallel games
     num_parallel_games: 2,
 
     # Game environment
-    game_type: :mock,           # :mock or :dolphin
-    dolphin_config: nil,        # Required if game_type is :dolphin
-                                # %{dolphin_path: "...", iso_path: "...", character: "fox", stage: "final_destination"}
+    # :mock or :dolphin
+    game_type: :mock,
+    # Required if game_type is :dolphin
+    dolphin_config: nil,
+    # %{dolphin_path: "...", iso_path: "...", character: "fox", stage: "final_destination"}
 
     # Opponent mix (for simple_mix mode)
     opponent_mix: %{
@@ -203,12 +215,12 @@ defmodule ExPhil.Training.SelfPlay.LeagueTrainer do
   end
 
   defp do_new(mode, config, opts) do
-
     # Initialize opponent pool
-    {:ok, opponent_pool} = OpponentPool.new(
-      config: config.opponent_mix,
-      cpu_levels: [5, 6, 7, 8, 9]
-    )
+    {:ok, opponent_pool} =
+      OpponentPool.new(
+        config: config.opponent_mix,
+        cpu_levels: [5, 6, 7, 8, 9]
+      )
 
     # Create agents based on mode
     agents = create_agents(mode, config, opts)
@@ -253,19 +265,20 @@ defmodule ExPhil.Training.SelfPlay.LeagueTrainer do
       Parallel games: #{trainer.config.num_parallel_games}
     """)
 
-    final_trainer = Enum.reduce(1..num_iterations, trainer, fn iteration, acc ->
-      # Run one training iteration
-      {:ok, new_trainer, metrics} = train_iteration(acc)
+    final_trainer =
+      Enum.reduce(1..num_iterations, trainer, fn iteration, acc ->
+        # Run one training iteration
+        {:ok, new_trainer, metrics} = train_iteration(acc)
 
-      # Callback
-      callback.(new_trainer, metrics)
+        # Callback
+        callback.(new_trainer, metrics)
 
-      # Periodic snapshots and checkpoints
-      new_trainer = maybe_snapshot(new_trainer, iteration)
-      new_trainer = maybe_checkpoint(new_trainer, iteration)
+        # Periodic snapshots and checkpoints
+        new_trainer = maybe_snapshot(new_trainer, iteration)
+        new_trainer = maybe_checkpoint(new_trainer, iteration)
 
-      %{new_trainer | iteration: iteration}
-    end)
+        %{new_trainer | iteration: iteration}
+      end)
 
     {:ok, final_trainer}
   end
@@ -298,39 +311,48 @@ defmodule ExPhil.Training.SelfPlay.LeagueTrainer do
 
   defp train_iteration(%__MODULE__{} = trainer) do
     # For each agent, collect experience and update
-    {new_trainers, all_metrics} = trainer.agents
-    |> Enum.map(fn {agent_id, agent} ->
-      # Select opponent for this agent
-      opponent = select_opponent(trainer, agent)
+    {new_trainers, all_metrics} =
+      trainer.agents
+      |> Enum.map(fn {agent_id, agent} ->
+        # Select opponent for this agent
+        opponent = select_opponent(trainer, agent)
 
-      # Collect rollout
-      ppo_trainer = Map.get(trainer.ppo_trainers, agent_id)
-      rollout = collect_rollout(ppo_trainer, agent, opponent, trainer.config)
+        # Collect rollout
+        ppo_trainer = Map.get(trainer.ppo_trainers, agent_id)
+        rollout = collect_rollout(ppo_trainer, agent, opponent, trainer.config)
 
-      # Update PPO (returns {trainer, metrics} tuple)
-      {updated_ppo, metrics} = PPO.update(ppo_trainer, rollout)
+        # Update PPO (returns {trainer, metrics} tuple)
+        {updated_ppo, metrics} = PPO.update(ppo_trainer, rollout)
 
-      # Update Elo based on results
-      updated_agent = update_agent_elo(agent, rollout)
+        # Update Elo based on results
+        updated_agent = update_agent_elo(agent, rollout)
 
-      {agent_id, updated_ppo, updated_agent, metrics}
-    end)
-    |> Enum.reduce({%{}, %{}}, fn {id, ppo, _agent, metrics}, {ppo_acc, metrics_acc} ->
-      {
-        Map.put(ppo_acc, id, ppo),
-        Map.put(metrics_acc, id, metrics)
-      }
-    end)
+        {agent_id, updated_ppo, updated_agent, metrics}
+      end)
+      |> Enum.reduce({%{}, %{}}, fn {id, ppo, _agent, metrics}, {ppo_acc, metrics_acc} ->
+        {
+          Map.put(ppo_acc, id, ppo),
+          Map.put(metrics_acc, id, metrics)
+        }
+      end)
 
     # Update trainer state
-    new_agents = Enum.reduce(trainer.agents, %{}, fn {id, _}, acc ->
-      Map.put(acc, id, Enum.find_value(all_metrics, fn {aid, _} -> if aid == id, do: Map.get(trainer.agents, id) end) || Map.get(trainer.agents, id))
-    end)
+    new_agents =
+      Enum.reduce(trainer.agents, %{}, fn {id, _}, acc ->
+        Map.put(
+          acc,
+          id,
+          Enum.find_value(all_metrics, fn {aid, _} ->
+            if aid == id, do: Map.get(trainer.agents, id)
+          end) || Map.get(trainer.agents, id)
+        )
+      end)
 
-    new_trainer = %{trainer |
-      ppo_trainers: new_trainers,
-      agents: new_agents,
-      metrics: aggregate_metrics(all_metrics)
+    new_trainer = %{
+      trainer
+      | ppo_trainers: new_trainers,
+        agents: new_agents,
+        metrics: aggregate_metrics(all_metrics)
     }
 
     {:ok, new_trainer, new_trainer.metrics}
@@ -361,14 +383,15 @@ defmodule ExPhil.Training.SelfPlay.LeagueTrainer do
     pfsp_weight = type_config.pfsp_weight
 
     # Get eligible opponents
-    eligible = case selection_mode do
-      :main_agents_only ->
-        trainer.agents
-        |> Enum.filter(fn {_id, a} -> a.type == :main end)
+    eligible =
+      case selection_mode do
+        :main_agents_only ->
+          trainer.agents
+          |> Enum.filter(fn {_id, a} -> a.type == :main end)
 
-      :league_wide ->
-        Map.to_list(trainer.agents)
-    end
+        :league_wide ->
+          Map.to_list(trainer.agents)
+      end
 
     if length(eligible) == 0 do
       # Fallback to opponent pool
@@ -389,23 +412,26 @@ defmodule ExPhil.Training.SelfPlay.LeagueTrainer do
 
   defp prioritized_sample(eligible, _agent, trainer) do
     # Weight by inverse win rate (harder opponents get higher weight)
-    weights = Enum.map(eligible, fn {id, _opponent} ->
-      win_rate = OpponentPool.get_win_rate(trainer.opponent_pool, to_string(id))
-      # Inverse: lower win rate = higher weight
-      {id, 1.0 - win_rate + 0.1}
-    end)
+    weights =
+      Enum.map(eligible, fn {id, _opponent} ->
+        win_rate = OpponentPool.get_win_rate(trainer.opponent_pool, to_string(id))
+        # Inverse: lower win rate = higher weight
+        {id, 1.0 - win_rate + 0.1}
+      end)
 
     total = Enum.sum(Enum.map(weights, &elem(&1, 1)))
     r = :rand.uniform() * total
 
-    {selected_id, _} = Enum.reduce_while(weights, {nil, 0.0}, fn {id, w}, {_, cumsum} ->
-      new_cumsum = cumsum + w
-      if r <= new_cumsum do
-        {:halt, {id, new_cumsum}}
-      else
-        {:cont, {id, new_cumsum}}
-      end
-    end)
+    {selected_id, _} =
+      Enum.reduce_while(weights, {nil, 0.0}, fn {id, w}, {_, cumsum} ->
+        new_cumsum = cumsum + w
+
+        if r <= new_cumsum do
+          {:halt, {id, new_cumsum}}
+        else
+          {:cont, {id, new_cumsum}}
+        end
+      end)
 
     ppo = Map.get(trainer.ppo_trainers, selected_id)
     {:league, %{type: :league, params: ppo.params, id: selected_id}}
@@ -420,11 +446,12 @@ defmodule ExPhil.Training.SelfPlay.LeagueTrainer do
     ]
 
     # Add dolphin_config if using Dolphin
-    env_opts = if config.game_type == :dolphin do
-      Keyword.put(env_opts, :dolphin_config, config.dolphin_config)
-    else
-      env_opts
-    end
+    env_opts =
+      if config.game_type == :dolphin do
+        Keyword.put(env_opts, :dolphin_config, config.dolphin_config)
+      else
+        env_opts
+      end
 
     # Create environment with opponent
     {:ok, env} = SelfPlayEnv.new(env_opts)
@@ -445,7 +472,8 @@ defmodule ExPhil.Training.SelfPlay.LeagueTrainer do
 
   defp opponent_to_policy({:current, %{params: params}}) do
     # Need to get model - for now assume same architecture
-    {nil, params}  # Will be handled by SelfPlayEnv
+    # Will be handled by SelfPlayEnv
+    {nil, params}
   end
 
   defp opponent_to_policy({:historical, %{params: params}}) do
@@ -461,14 +489,19 @@ defmodule ExPhil.Training.SelfPlay.LeagueTrainer do
       states: experiences |> Enum.map(& &1.state) |> Nx.stack(),
       actions: stack_actions(Enum.map(experiences, & &1.action)),
       rewards: experiences |> Enum.map(& &1.reward) |> Nx.tensor(type: :f32),
-      dones: experiences |> Enum.map(& if(&1.done, do: 1.0, else: 0.0)) |> Nx.tensor(type: :f32),
-      values: experiences |> Enum.map(& Nx.to_number(&1.value)) |> Kernel.++([0.0]) |> Nx.tensor(type: :f32),
-      log_probs: experiences |> Enum.map(& Nx.to_number(&1.log_prob)) |> Nx.tensor(type: :f32)
+      dones: experiences |> Enum.map(&if(&1.done, do: 1.0, else: 0.0)) |> Nx.tensor(type: :f32),
+      values:
+        experiences
+        |> Enum.map(&Nx.to_number(&1.value))
+        |> Kernel.++([0.0])
+        |> Nx.tensor(type: :f32),
+      log_probs: experiences |> Enum.map(&Nx.to_number(&1.log_prob)) |> Nx.tensor(type: :f32)
     }
   end
 
   defp stack_actions(actions) do
     keys = [:buttons, :main_x, :main_y, :c_x, :c_y, :shoulder]
+
     Map.new(keys, fn key ->
       {key, actions |> Enum.map(&Map.get(&1, key)) |> Nx.stack()}
     end)
@@ -477,7 +510,8 @@ defmodule ExPhil.Training.SelfPlay.LeagueTrainer do
   defp update_agent_elo(agent, rollout) do
     # Simple Elo update based on episode rewards
     total_reward = Nx.sum(rollout.rewards) |> Nx.to_number()
-    elo_change = total_reward * 10  # Scale factor
+    # Scale factor
+    elo_change = total_reward * 10
 
     %{agent | elo: agent.elo + elo_change}
   end
@@ -501,30 +535,35 @@ defmodule ExPhil.Training.SelfPlay.LeagueTrainer do
     agents = %{}
 
     # Main agents
-    agents = Enum.reduce(1..config.num_main_agents, agents, fn i, acc ->
-      id = :"main_#{i}"
-      Map.put(acc, id, %{
-        id: id,
-        type: :main,
-        elo: 1000,
-        created_at: System.system_time(:second)
-      })
-    end)
+    agents =
+      Enum.reduce(1..config.num_main_agents, agents, fn i, acc ->
+        id = :"main_#{i}"
+
+        Map.put(acc, id, %{
+          id: id,
+          type: :main,
+          elo: 1000,
+          created_at: System.system_time(:second)
+        })
+      end)
 
     # Main exploiters
-    agents = Enum.reduce(1..config.num_main_exploiters, agents, fn i, acc ->
-      id = :"main_exploiter_#{i}"
-      Map.put(acc, id, %{
-        id: id,
-        type: :main_exploiter,
-        elo: 1000,
-        created_at: System.system_time(:second)
-      })
-    end)
+    agents =
+      Enum.reduce(1..config.num_main_exploiters, agents, fn i, acc ->
+        id = :"main_exploiter_#{i}"
+
+        Map.put(acc, id, %{
+          id: id,
+          type: :main_exploiter,
+          elo: 1000,
+          created_at: System.system_time(:second)
+        })
+      end)
 
     # League exploiters
     Enum.reduce(1..config.num_league_exploiters, agents, fn i, acc ->
       id = :"league_exploiter_#{i}"
+
       Map.put(acc, id, %{
         id: id,
         type: :league_exploiter,
@@ -559,10 +598,12 @@ defmodule ExPhil.Training.SelfPlay.LeagueTrainer do
       ppo = Map.get(trainer.ppo_trainers, agent_id)
 
       version = "v#{iteration}"
-      new_pool = OpponentPool.snapshot(
-        OpponentPool.set_current(trainer.opponent_pool, ppo.params),
-        version
-      )
+
+      new_pool =
+        OpponentPool.snapshot(
+          OpponentPool.set_current(trainer.opponent_pool, ppo.params),
+          version
+        )
 
       Logger.info("Snapshotted #{agent_id} as #{version}")
       %{trainer | opponent_pool: new_pool}
@@ -613,13 +654,13 @@ defmodule ExPhil.Training.SelfPlay.LeagueTrainer do
       n = length(values)
 
       %{
-        total_timesteps: Enum.sum(Enum.map(values, & &1[:timesteps] || 0)),
-        episodes: Enum.sum(Enum.map(values, & &1[:episodes] || 0)),
-        avg_reward: Enum.sum(Enum.map(values, & &1[:avg_reward] || 0)) / n,
-        avg_episode_length: Enum.sum(Enum.map(values, & &1[:avg_episode_length] || 0)) / n,
-        policy_loss: Enum.sum(Enum.map(values, & &1[:policy_loss] || 0)) / n,
-        value_loss: Enum.sum(Enum.map(values, & &1[:value_loss] || 0)) / n,
-        entropy: Enum.sum(Enum.map(values, & &1[:entropy] || 0)) / n
+        total_timesteps: Enum.sum(Enum.map(values, &(&1[:timesteps] || 0))),
+        episodes: Enum.sum(Enum.map(values, &(&1[:episodes] || 0))),
+        avg_reward: Enum.sum(Enum.map(values, &(&1[:avg_reward] || 0))) / n,
+        avg_episode_length: Enum.sum(Enum.map(values, &(&1[:avg_episode_length] || 0))) / n,
+        policy_loss: Enum.sum(Enum.map(values, &(&1[:policy_loss] || 0))) / n,
+        value_loss: Enum.sum(Enum.map(values, &(&1[:value_loss] || 0))) / n,
+        entropy: Enum.sum(Enum.map(values, &(&1[:entropy] || 0))) / n
       }
     end
   end

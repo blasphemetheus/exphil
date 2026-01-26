@@ -16,8 +16,10 @@ defmodule ExPhil.Training.AugmentationTest do
       stock: Keyword.get(opts, :stock, 4),
       facing: Keyword.get(opts, :facing, 1),
       invulnerable: Keyword.get(opts, :invulnerable, false),
-      character: Keyword.get(opts, :character, 9),  # Mewtwo
-      action: Keyword.get(opts, :action, 14),  # Wait
+      # Mewtwo
+      character: Keyword.get(opts, :character, 9),
+      # Wait
+      action: Keyword.get(opts, :action, 14),
       action_frame: Keyword.get(opts, :action_frame, 1),
       jumps_left: Keyword.get(opts, :jumps_left, 2),
       on_ground: Keyword.get(opts, :on_ground, true),
@@ -36,10 +38,11 @@ defmodule ExPhil.Training.AugmentationTest do
     %GameState{
       frame: Keyword.get(opts, :frame, 100),
       stage: Keyword.get(opts, :stage, :final_destination),
-      players: Keyword.get(opts, :players, %{
-        1 => sample_player(x: 10.0, facing: 1),
-        2 => sample_player(x: -15.0, facing: -1)
-      }),
+      players:
+        Keyword.get(opts, :players, %{
+          1 => sample_player(x: 10.0, facing: 1),
+          2 => sample_player(x: -15.0, facing: -1)
+        }),
       projectiles: Keyword.get(opts, :projectiles, []),
       items: Keyword.get(opts, :items, [])
     }
@@ -75,10 +78,14 @@ defmodule ExPhil.Training.AugmentationTest do
 
   describe "mirror/1" do
     test "flips player X positions" do
-      game_state = sample_game_state(players: %{
-        1 => sample_player(x: 10.0),
-        2 => sample_player(x: -15.0)
-      })
+      game_state =
+        sample_game_state(
+          players: %{
+            1 => sample_player(x: 10.0),
+            2 => sample_player(x: -15.0)
+          }
+        )
+
       frame = sample_frame(game_state: game_state)
 
       mirrored = Augmentation.mirror(frame)
@@ -88,10 +95,14 @@ defmodule ExPhil.Training.AugmentationTest do
     end
 
     test "flips player facing directions" do
-      game_state = sample_game_state(players: %{
-        1 => sample_player(facing: 1),
-        2 => sample_player(facing: -1)
-      })
+      game_state =
+        sample_game_state(
+          players: %{
+            1 => sample_player(facing: 1),
+            2 => sample_player(facing: -1)
+          }
+        )
+
       frame = sample_frame(game_state: game_state)
 
       mirrored = Augmentation.mirror(frame)
@@ -101,9 +112,14 @@ defmodule ExPhil.Training.AugmentationTest do
     end
 
     test "flips player X velocities" do
-      game_state = sample_game_state(players: %{
-        1 => sample_player(speed_air_x_self: 5.0, speed_ground_x_self: 3.0, speed_x_attack: 2.0)
-      })
+      game_state =
+        sample_game_state(
+          players: %{
+            1 =>
+              sample_player(speed_air_x_self: 5.0, speed_ground_x_self: 3.0, speed_x_attack: 2.0)
+          }
+        )
+
       frame = sample_frame(game_state: game_state)
 
       mirrored = Augmentation.mirror(frame)
@@ -122,9 +138,11 @@ defmodule ExPhil.Training.AugmentationTest do
       # Stick X is in [0, 1] range, so mirroring is 1.0 - x
       # Use assert_in_delta for floating-point comparisons
       assert_in_delta mirrored.controller.main_stick.x, 0.3, 0.0001
-      assert_in_delta mirrored.controller.main_stick.y, 0.3, 0.0001  # Y unchanged
+      # Y unchanged
+      assert_in_delta mirrored.controller.main_stick.y, 0.3, 0.0001
       assert_in_delta mirrored.controller.c_stick.x, 0.8, 0.0001
-      assert_in_delta mirrored.controller.c_stick.y, 0.8, 0.0001  # Y unchanged
+      # Y unchanged
+      assert_in_delta mirrored.controller.c_stick.y, 0.8, 0.0001
     end
 
     test "mirrors Nana position and facing for Ice Climbers" do
@@ -137,7 +155,8 @@ defmodule ExPhil.Training.AugmentationTest do
 
       assert mirrored.game_state.players[1].nana.x == -5.0
       assert mirrored.game_state.players[1].nana.facing == -1
-      assert mirrored.game_state.players[1].nana.y == 10.0  # Y unchanged
+      # Y unchanged
+      assert mirrored.game_state.players[1].nana.y == 10.0
     end
 
     test "handles nil Nana gracefully" do
@@ -151,7 +170,16 @@ defmodule ExPhil.Training.AugmentationTest do
     end
 
     test "mirrors projectile positions" do
-      projectile = %Projectile{x: 20.0, y: 5.0, speed_x: 10.0, speed_y: 2.0, owner: 1, type: 1, subtype: 0}
+      projectile = %Projectile{
+        x: 20.0,
+        y: 5.0,
+        speed_x: 10.0,
+        speed_y: 2.0,
+        owner: 1,
+        type: 1,
+        subtype: 0
+      }
+
       game_state = sample_game_state(projectiles: [projectile])
       frame = sample_frame(game_state: game_state)
 
@@ -159,12 +187,23 @@ defmodule ExPhil.Training.AugmentationTest do
 
       [mirrored_proj] = mirrored.game_state.projectiles
       assert mirrored_proj.x == -20.0
-      assert mirrored_proj.y == 5.0  # Y unchanged
+      # Y unchanged
+      assert mirrored_proj.y == 5.0
       assert mirrored_proj.speed_x == -10.0
     end
 
     test "mirrors item positions" do
-      item = %Item{x: -8.0, y: 3.0, type: 1, facing: 1, owner: 1, held_by: nil, spawn_id: 0, timer: 100}
+      item = %Item{
+        x: -8.0,
+        y: 3.0,
+        type: 1,
+        facing: 1,
+        owner: 1,
+        held_by: nil,
+        spawn_id: 0,
+        timer: 100
+      }
+
       game_state = sample_game_state(items: [item])
       frame = sample_frame(game_state: game_state)
 
@@ -172,7 +211,8 @@ defmodule ExPhil.Training.AugmentationTest do
 
       [mirrored_item] = mirrored.game_state.items
       assert mirrored_item.x == 8.0
-      assert mirrored_item.y == 3.0  # Y unchanged
+      # Y unchanged
+      assert mirrored_item.y == 3.0
     end
 
     test "handles frame without controller" do
@@ -185,7 +225,8 @@ defmodule ExPhil.Training.AugmentationTest do
     end
 
     test "preserves non-positional data" do
-      player = sample_player(percent: 75.0, stock: 3, action: 44, on_ground: false)  # 44 = some attack action
+      # 44 = some attack action
+      player = sample_player(percent: 75.0, stock: 3, action: 44, on_ground: false)
       game_state = sample_game_state(players: %{1 => player})
       frame = sample_frame(game_state: game_state)
 
@@ -203,9 +244,10 @@ defmodule ExPhil.Training.AugmentationTest do
       frame = sample_frame()
 
       # With probability 1.0, should always mirror
-      results = for _ <- 1..10 do
-        Augmentation.maybe_mirror(frame, probability: 1.0)
-      end
+      results =
+        for _ <- 1..10 do
+          Augmentation.maybe_mirror(frame, probability: 1.0)
+        end
 
       # All results should have flipped X
       assert Enum.all?(results, fn r -> r.game_state.players[1].x == -10.0 end)
@@ -215,9 +257,10 @@ defmodule ExPhil.Training.AugmentationTest do
       frame = sample_frame()
 
       # With probability 0.0, should never mirror
-      results = for _ <- 1..10 do
-        Augmentation.maybe_mirror(frame, probability: 0.0)
-      end
+      results =
+        for _ <- 1..10 do
+          Augmentation.maybe_mirror(frame, probability: 0.0)
+        end
 
       # All results should have original X
       assert Enum.all?(results, fn r -> r.game_state.players[1].x == 10.0 end)
@@ -227,9 +270,10 @@ defmodule ExPhil.Training.AugmentationTest do
       :rand.seed(:exsss, {12345, 12345, 12345})
       frame = sample_frame()
 
-      results = for _ <- 1..100 do
-        Augmentation.maybe_mirror(frame, probability: 0.5)
-      end
+      results =
+        for _ <- 1..100 do
+          Augmentation.maybe_mirror(frame, probability: 0.5)
+        end
 
       # Count how many were mirrored (x = -10.0)
       mirrored_count = Enum.count(results, fn r -> r.game_state.players[1].x == -10.0 end)
@@ -283,7 +327,8 @@ defmodule ExPhil.Training.AugmentationTest do
 
     test "ensures percent stays non-negative" do
       :rand.seed(:exsss, {99999, 99999, 99999})
-      player = sample_player(percent: 0.5)  # Low percent
+      # Low percent
+      player = sample_player(percent: 0.5)
       game_state = sample_game_state(players: %{1 => player})
       frame = sample_frame(game_state: game_state)
 
@@ -296,11 +341,14 @@ defmodule ExPhil.Training.AugmentationTest do
 
     test "adds noise to velocities" do
       :rand.seed(:exsss, {12345, 12345, 12345})
-      player = sample_player(
-        speed_air_x_self: 5.0,
-        speed_ground_x_self: 3.0,
-        speed_y_self: 2.0
-      )
+
+      player =
+        sample_player(
+          speed_air_x_self: 5.0,
+          speed_ground_x_self: 3.0,
+          speed_y_self: 2.0
+        )
+
       game_state = sample_game_state(players: %{1 => player})
       frame = sample_frame(game_state: game_state)
 
@@ -314,11 +362,13 @@ defmodule ExPhil.Training.AugmentationTest do
 
     test "does NOT add noise to discrete values" do
       :rand.seed(:exsss, {12345, 12345, 12345})
-      player = sample_player(stock: 3, action: 44, on_ground: true, facing: 1)  # 44 = some attack action
+      # 44 = some attack action
+      player = sample_player(stock: 3, action: 44, on_ground: true, facing: 1)
       game_state = sample_game_state(players: %{1 => player})
       frame = sample_frame(game_state: game_state)
 
-      noisy = Augmentation.add_noise(frame, scale: 1.0)  # Large scale
+      # Large scale
+      noisy = Augmentation.add_noise(frame, scale: 1.0)
 
       # Discrete values unchanged
       assert noisy.game_state.players[1].stock == 3
@@ -348,9 +398,10 @@ defmodule ExPhil.Training.AugmentationTest do
       frame = sample_frame()
       original_x = frame.game_state.players[1].x
 
-      results = for _ <- 1..10 do
-        Augmentation.maybe_add_noise(frame, probability: 1.0, scale: 0.1)
-      end
+      results =
+        for _ <- 1..10 do
+          Augmentation.maybe_add_noise(frame, probability: 1.0, scale: 0.1)
+        end
 
       # All should have different X values (noise added)
       assert Enum.all?(results, fn r -> r.game_state.players[1].x != original_x end)
@@ -360,9 +411,10 @@ defmodule ExPhil.Training.AugmentationTest do
       frame = sample_frame()
       original_x = frame.game_state.players[1].x
 
-      results = for _ <- 1..10 do
-        Augmentation.maybe_add_noise(frame, probability: 0.0, scale: 1.0)
-      end
+      results =
+        for _ <- 1..10 do
+          Augmentation.maybe_add_noise(frame, probability: 0.0, scale: 1.0)
+        end
 
       # All should have same X value (no noise)
       assert Enum.all?(results, fn r -> r.game_state.players[1].x == original_x end)
@@ -379,11 +431,12 @@ defmodule ExPhil.Training.AugmentationTest do
       frame = sample_frame()
 
       # With both at 1.0, both should apply
-      augmented = Augmentation.augment(frame,
-        mirror_prob: 1.0,
-        noise_prob: 1.0,
-        noise_scale: 0.1
-      )
+      augmented =
+        Augmentation.augment(frame,
+          mirror_prob: 1.0,
+          noise_prob: 1.0,
+          noise_scale: 0.1
+        )
 
       # Should be mirrored (negative X)
       assert augmented.game_state.players[1].x < 0
@@ -395,25 +448,28 @@ defmodule ExPhil.Training.AugmentationTest do
     test "only mirrors when noise_prob is 0" do
       frame = sample_frame()
 
-      augmented = Augmentation.augment(frame,
-        mirror_prob: 1.0,
-        noise_prob: 0.0,
-        noise_scale: 0.1
-      )
+      augmented =
+        Augmentation.augment(frame,
+          mirror_prob: 1.0,
+          noise_prob: 0.0,
+          noise_scale: 0.1
+        )
 
       # Should be mirrored
-      assert augmented.game_state.players[1].x == -10.0  # Exactly mirrored, no noise
+      # Exactly mirrored, no noise
+      assert augmented.game_state.players[1].x == -10.0
     end
 
     test "only adds noise when mirror_prob is 0" do
       :rand.seed(:exsss, {12345, 12345, 12345})
       frame = sample_frame()
 
-      augmented = Augmentation.augment(frame,
-        mirror_prob: 0.0,
-        noise_prob: 1.0,
-        noise_scale: 0.1
-      )
+      augmented =
+        Augmentation.augment(frame,
+          mirror_prob: 0.0,
+          noise_prob: 1.0,
+          noise_scale: 0.1
+        )
 
       # Should NOT be mirrored (positive X)
       assert augmented.game_state.players[1].x > 0
@@ -425,10 +481,11 @@ defmodule ExPhil.Training.AugmentationTest do
     test "returns unchanged when both probabilities are 0" do
       frame = sample_frame()
 
-      augmented = Augmentation.augment(frame,
-        mirror_prob: 0.0,
-        noise_prob: 0.0
-      )
+      augmented =
+        Augmentation.augment(frame,
+          mirror_prob: 0.0,
+          noise_prob: 0.0
+        )
 
       # Should be identical
       assert augmented.game_state.players[1].x == 10.0
@@ -491,12 +548,14 @@ defmodule ExPhil.Training.AugmentationTest do
         },
         frame: 100
       }
+
       frame = %{game_state: game_state}
 
       mirrored = Augmentation.mirror(frame)
 
       # Should still mirror plain maps
-      assert mirrored.game_state.players[1].x == -10.0 or mirrored.game_state.players[1][:x] == -10.0
+      assert mirrored.game_state.players[1].x == -10.0 or
+               mirrored.game_state.players[1][:x] == -10.0
     end
   end
 end

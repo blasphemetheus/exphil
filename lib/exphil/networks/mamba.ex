@@ -71,9 +71,12 @@ defmodule ExPhil.Networks.Mamba do
 
   # Default hyperparameters (from paper)
   @default_hidden_size 256
-  @default_state_size 16      # N in the paper (SSM state dimension)
-  @default_expand_factor 2    # E in the paper (expansion factor)
-  @default_conv_size 4        # Convolution kernel size
+  # N in the paper (SSM state dimension)
+  @default_state_size 16
+  # E in the paper (expansion factor)
+  @default_expand_factor 2
+  # Convolution kernel size
+  @default_conv_size 4
   @default_num_layers 2
   @default_dropout 0.0
   # Note: dt_rank is computed as hidden_size // state_size when needed
@@ -113,23 +116,25 @@ defmodule ExPhil.Networks.Mamba do
     input = Axon.input("state_sequence", shape: {nil, input_seq_dim, embed_size})
 
     # Project input to hidden dimension if different
-    x = if embed_size != hidden_size do
-      Axon.dense(input, hidden_size, name: "input_projection")
-    else
-      input
-    end
+    x =
+      if embed_size != hidden_size do
+        Axon.dense(input, hidden_size, name: "input_projection")
+      else
+        input
+      end
 
     # Stack Mamba blocks
     output =
       Enum.reduce(1..num_layers, x, fn layer_idx, acc ->
-        block = build_mamba_block(
-          acc,
-          hidden_size: hidden_size,
-          state_size: state_size,
-          expand_factor: expand_factor,
-          conv_size: conv_size,
-          name: "mamba_block_#{layer_idx}"
-        )
+        block =
+          build_mamba_block(
+            acc,
+            hidden_size: hidden_size,
+            state_size: state_size,
+            expand_factor: expand_factor,
+            conv_size: conv_size,
+            name: "mamba_block_#{layer_idx}"
+          )
 
         # Add residual connection + optional dropout
         residual = Axon.add(acc, block, name: "residual_#{layer_idx}")
@@ -142,11 +147,16 @@ defmodule ExPhil.Networks.Mamba do
       end)
 
     # Extract last timestep: [batch, seq_len, hidden] -> [batch, hidden]
-    Axon.nx(output, fn tensor ->
-      seq_len_actual = Nx.axis_size(tensor, 1)
-      Nx.slice_along_axis(tensor, seq_len_actual - 1, 1, axis: 1)
-      |> Nx.squeeze(axes: [1])
-    end, name: "last_timestep")
+    Axon.nx(
+      output,
+      fn tensor ->
+        seq_len_actual = Nx.axis_size(tensor, 1)
+
+        Nx.slice_along_axis(tensor, seq_len_actual - 1, 1, axis: 1)
+        |> Nx.squeeze(axes: [1])
+      end,
+      name: "last_timestep"
+    )
   end
 
   @doc """
@@ -186,13 +196,23 @@ defmodule ExPhil.Networks.Mamba do
     xz = Axon.dense(normalized, inner_size * 2, name: "#{name}_in_proj")
 
     # Split into x (SSM path) and z (gating path)
-    x_branch = Axon.nx(xz, fn tensor ->
-      Nx.slice_along_axis(tensor, 0, inner_size, axis: 2)
-    end, name: "#{name}_x_split")
+    x_branch =
+      Axon.nx(
+        xz,
+        fn tensor ->
+          Nx.slice_along_axis(tensor, 0, inner_size, axis: 2)
+        end,
+        name: "#{name}_x_split"
+      )
 
-    z_branch = Axon.nx(xz, fn tensor ->
-      Nx.slice_along_axis(tensor, inner_size, inner_size, axis: 2)
-    end, name: "#{name}_z_split")
+    z_branch =
+      Axon.nx(
+        xz,
+        fn tensor ->
+          Nx.slice_along_axis(tensor, inner_size, inner_size, axis: 2)
+        end,
+        name: "#{name}_z_split"
+      )
 
     # X branch: Conv1D -> SiLU -> SSM
     # Conv1D with causal padding (only look at past)
@@ -200,13 +220,14 @@ defmodule ExPhil.Networks.Mamba do
     x_activated = Axon.activation(x_conv, :silu, name: "#{name}_conv_silu")
 
     # Selective SSM
-    x_ssm = build_selective_ssm(
-      x_activated,
-      hidden_size: inner_size,
-      state_size: state_size,
-      dt_rank: dt_rank,
-      name: "#{name}_ssm"
-    )
+    x_ssm =
+      build_selective_ssm(
+        x_activated,
+        hidden_size: inner_size,
+        state_size: state_size,
+        dt_rank: dt_rank,
+        name: "#{name}_ssm"
+      )
 
     # Z branch: SiLU activation (gating)
     z_activated = Axon.activation(z_branch, :silu, name: "#{name}_gate_silu")
@@ -229,26 +250,30 @@ defmodule ExPhil.Networks.Mamba do
     # Causal padding: pad (kernel_size - 1) on the left, 0 on the right
     padding = kernel_size - 1
 
-    Axon.nx(input, fn tensor ->
-      # tensor: [batch, seq_len, channels]
-      batch = Nx.axis_size(tensor, 0)
-      _seq_len = Nx.axis_size(tensor, 1)
-      ch = Nx.axis_size(tensor, 2)
+    Axon.nx(
+      input,
+      fn tensor ->
+        # tensor: [batch, seq_len, channels]
+        batch = Nx.axis_size(tensor, 0)
+        _seq_len = Nx.axis_size(tensor, 1)
+        ch = Nx.axis_size(tensor, 2)
 
-      # Pad on the left side of sequence dimension
-      pad_shape = {batch, padding, ch}
-      pad_tensor = Nx.broadcast(0.0, pad_shape)
-      padded = Nx.concatenate([pad_tensor, tensor], axis: 1)
+        # Pad on the left side of sequence dimension
+        pad_shape = {batch, padding, ch}
+        pad_tensor = Nx.broadcast(0.0, pad_shape)
+        padded = Nx.concatenate([pad_tensor, tensor], axis: 1)
 
-      # Apply sliding window mean (simplified causal conv)
-      # Real Mamba uses learned depthwise conv weights
-      Nx.window_mean(
-        padded,
-        {1, kernel_size, 1},
-        strides: [1, 1, 1],
-        padding: :valid
-      )
-    end, name: "#{name}_causal")
+        # Apply sliding window mean (simplified causal conv)
+        # Real Mamba uses learned depthwise conv weights
+        Nx.window_mean(
+          padded,
+          {1, kernel_size, 1},
+          strides: [1, 1, 1],
+          padding: :valid
+        )
+      end,
+      name: "#{name}_causal"
+    )
     |> Axon.dense(channels, name: "#{name}_proj", use_bias: true)
   end
 
@@ -279,19 +304,31 @@ defmodule ExPhil.Networks.Mamba do
     # B and C projections
     bc_proj = Axon.dense(input, state_size * 2, name: "#{name}_bc_proj")
 
-    b_matrix = Axon.nx(bc_proj, fn tensor ->
-      Nx.slice_along_axis(tensor, 0, state_size, axis: 2)
-    end, name: "#{name}_B")
+    b_matrix =
+      Axon.nx(
+        bc_proj,
+        fn tensor ->
+          Nx.slice_along_axis(tensor, 0, state_size, axis: 2)
+        end,
+        name: "#{name}_B"
+      )
 
-    c_matrix = Axon.nx(bc_proj, fn tensor ->
-      Nx.slice_along_axis(tensor, state_size, state_size, axis: 2)
-    end, name: "#{name}_C")
+    c_matrix =
+      Axon.nx(
+        bc_proj,
+        fn tensor ->
+          Nx.slice_along_axis(tensor, state_size, state_size, axis: 2)
+        end,
+        name: "#{name}_C"
+      )
 
     # Delta projection (through low-rank bottleneck for efficiency)
-    dt_proj = input
-    |> Axon.dense(dt_rank, name: "#{name}_dt_rank")
-    |> Axon.dense(hidden_size, name: "#{name}_dt_proj")
-    |> Axon.activation(:softplus, name: "#{name}_dt_softplus")  # Ensure positive
+    dt_proj =
+      input
+      |> Axon.dense(dt_rank, name: "#{name}_dt_rank")
+      |> Axon.dense(hidden_size, name: "#{name}_dt_proj")
+      # Ensure positive
+      |> Axon.activation(:softplus, name: "#{name}_dt_softplus")
 
     # A matrix is fixed (not input-dependent), initialized as negative values
     # for stability. We use a simple diagonal approximation.
@@ -327,14 +364,17 @@ defmodule ExPhil.Networks.Mamba do
 
     # Compute gates from dt (discretization step)
     # Higher dt = more influence from current input
-    gate = Nx.sigmoid(Nx.mean(dt, axes: [2], keep_axes: true))  # [batch, seq_len, 1]
+    # [batch, seq_len, 1]
+    gate = Nx.sigmoid(Nx.mean(dt, axes: [2], keep_axes: true))
 
     # Compute BC interaction: project through state space
     # b: [batch, seq_len, state_size]
     # c: [batch, seq_len, state_size]
     # bc_gate = sum(b * c) gives a per-position gating value
-    bc_gate = Nx.sum(Nx.multiply(b, c), axes: [2], keep_axes: true)  # [batch, seq_len, 1]
-    bc_gate = Nx.sigmoid(bc_gate)  # Normalize to [0, 1]
+    # [batch, seq_len, 1]
+    bc_gate = Nx.sum(Nx.multiply(b, c), axes: [2], keep_axes: true)
+    # Normalize to [0, 1]
+    bc_gate = Nx.sigmoid(bc_gate)
 
     # Apply selective gating to input
     # output = gate * bc_gate * x + (1 - gate) * cumulative_context
@@ -342,7 +382,8 @@ defmodule ExPhil.Networks.Mamba do
 
     # Simple cumulative context (exponential moving average along sequence)
     # This approximates the hidden state recurrence
-    alpha = 0.9  # Decay factor
+    # Decay factor
+    alpha = 0.9
     context = cumulative_ema(gated_x, alpha, seq_len)
 
     # Combine gated input with context
@@ -360,7 +401,8 @@ defmodule ExPhil.Networks.Mamba do
     # Weights decay exponentially: alpha^(seq_len - 1 - pos)
     max_pos = seq_len - 1
     weights = Nx.pow(alpha, Nx.subtract(max_pos, positions))
-    weights = Nx.divide(weights, Nx.sum(weights))  # Normalize
+    # Normalize
+    weights = Nx.divide(weights, Nx.sum(weights))
 
     # Apply weighted cumulative sum (simplified)
     # For each position, take weighted sum of all previous positions
@@ -417,37 +459,44 @@ defmodule ExPhil.Networks.Mamba do
     input = Axon.input("state_sequence", shape: {nil, input_seq_dim, embed_size})
 
     # Project input to hidden dimension if different
-    x = if embed_size != hidden_size do
-      Axon.dense(input, hidden_size, name: "input_projection")
-    else
-      input
-    end
+    x =
+      if embed_size != hidden_size do
+        Axon.dense(input, hidden_size, name: "input_projection")
+      else
+        input
+      end
 
     # Stack Mamba blocks with checkpointing
     output =
       Enum.reduce(1..num_layers, x, fn layer_idx, acc ->
         # Build the block
-        block = build_mamba_block(
-          acc,
-          hidden_size: hidden_size,
-          state_size: state_size,
-          expand_factor: expand_factor,
-          conv_size: conv_size,
-          name: "mamba_block_#{layer_idx}"
-        )
+        block =
+          build_mamba_block(
+            acc,
+            hidden_size: hidden_size,
+            state_size: state_size,
+            expand_factor: expand_factor,
+            conv_size: conv_size,
+            name: "mamba_block_#{layer_idx}"
+          )
 
         # Apply checkpointing at specified intervals
         # Checkpointing wraps the block computation to save memory
-        block = if rem(layer_idx, checkpoint_every) == 0 do
-          # Mark this block for checkpointing
-          # The actual checkpointing happens during gradient computation
-          Axon.nx(block, fn tensor ->
-            # This is a marker - actual checkpoint logic is in training
-            tensor
-          end, name: "checkpoint_#{layer_idx}")
-        else
-          block
-        end
+        block =
+          if rem(layer_idx, checkpoint_every) == 0 do
+            # Mark this block for checkpointing
+            # The actual checkpointing happens during gradient computation
+            Axon.nx(
+              block,
+              fn tensor ->
+                # This is a marker - actual checkpoint logic is in training
+                tensor
+              end,
+              name: "checkpoint_#{layer_idx}"
+            )
+          else
+            block
+          end
 
         # Add residual connection + optional dropout
         residual = Axon.add(acc, block, name: "residual_#{layer_idx}")
@@ -460,11 +509,16 @@ defmodule ExPhil.Networks.Mamba do
       end)
 
     # Extract last timestep: [batch, seq_len, hidden] -> [batch, hidden]
-    Axon.nx(output, fn tensor ->
-      seq_len_actual = Nx.axis_size(tensor, 1)
-      Nx.slice_along_axis(tensor, seq_len_actual - 1, 1, axis: 1)
-      |> Nx.squeeze(axes: [1])
-    end, name: "last_timestep")
+    Axon.nx(
+      output,
+      fn tensor ->
+        seq_len_actual = Nx.axis_size(tensor, 1)
+
+        Nx.slice_along_axis(tensor, seq_len_actual - 1, 1, axis: 1)
+        |> Nx.squeeze(axes: [1])
+      end,
+      name: "last_timestep"
+    )
   end
 
   @doc """
@@ -496,15 +550,21 @@ defmodule ExPhil.Networks.Mamba do
     # - Output projection: inner * hidden
     dt_rank = div(hidden_size, state_size)
 
-    per_layer = hidden_size * (2 * inner_size) +  # in_proj
-                inner_size * 4 +                    # conv (simplified)
-                inner_size * (2 * state_size) +     # BC
-                inner_size * dt_rank + dt_rank * inner_size +  # dt
-                inner_size * hidden_size            # out_proj
+    # in_proj
+    # conv (simplified)
+    # BC
+    # dt
+    # out_proj
+    per_layer =
+      hidden_size * (2 * inner_size) +
+        inner_size * 4 +
+        inner_size * (2 * state_size) +
+        inner_size * dt_rank + dt_rank * inner_size +
+        inner_size * hidden_size
 
     input_proj = if embed_size != hidden_size, do: embed_size * hidden_size, else: 0
 
-    input_proj + (per_layer * num_layers)
+    input_proj + per_layer * num_layers
   end
 
   @doc """
@@ -623,24 +683,27 @@ defmodule ExPhil.Networks.Mamba do
     dt_rank = div(hidden_size, state_size)
 
     # Ensure input is [batch, hidden_size]
-    x = case Nx.shape(x) do
-      {_batch, 1, _hidden} -> Nx.squeeze(x, axes: [1])
-      {_batch, _hidden} -> x
-      _ -> raise "Expected input shape [batch, hidden_size] or [batch, 1, hidden_size]"
-    end
+    x =
+      case Nx.shape(x) do
+        {_batch, 1, _hidden} -> Nx.squeeze(x, axes: [1])
+        {_batch, _hidden} -> x
+        _ -> raise "Expected input shape [batch, hidden_size] or [batch, 1, hidden_size]"
+      end
 
     # Convert Axon.ModelState to plain map if needed
-    params_map = case params do
-      %Axon.ModelState{data: data} -> data
-      %{} -> params
-    end
+    params_map =
+      case params do
+        %Axon.ModelState{data: data} -> data
+        %{} -> params
+      end
 
     # Project input to hidden_size if needed
-    x = if Keyword.get(opts, :project_input, false) and Map.has_key?(params_map, "input_projection") do
-      dense_forward(x, params_map["input_projection"])
-    else
-      x
-    end
+    x =
+      if Keyword.get(opts, :project_input, false) and Map.has_key?(params_map, "input_projection") do
+        dense_forward(x, params_map["input_projection"])
+      else
+        x
+      end
 
     # Process through each layer with cached state
     {output, new_layers} =
@@ -653,15 +716,16 @@ defmodule ExPhil.Networks.Mamba do
         layer_params = get_layer_params(params_map, block_name)
 
         # Forward through block with cache
-        {block_out, new_layer_cache} = step_mamba_block(
-          acc,
-          layer_params,
-          layer_cache,
-          hidden_size: hidden_size,
-          state_size: state_size,
-          expand_factor: expand_factor,
-          dt_rank: dt_rank
-        )
+        {block_out, new_layer_cache} =
+          step_mamba_block(
+            acc,
+            layer_params,
+            layer_cache,
+            hidden_size: hidden_size,
+            state_size: state_size,
+            expand_factor: expand_factor,
+            dt_rank: dt_rank
+          )
 
         # Residual connection
         out = Nx.add(acc, block_out)
@@ -670,10 +734,7 @@ defmodule ExPhil.Networks.Mamba do
         {out, new_layers}
       end)
 
-    new_cache = %{cache |
-      layers: new_layers,
-      step: cache.step + 1
-    }
+    new_cache = %{cache | layers: new_layers, step: cache.step + 1}
 
     {output, new_cache}
   end
@@ -688,11 +749,12 @@ defmodule ExPhil.Networks.Mamba do
     inner_size = hidden_size * expand_factor
 
     # Layer norm
-    x = if Map.has_key?(params, :norm) do
-      layer_norm_forward(x, params.norm)
-    else
-      x
-    end
+    x =
+      if Map.has_key?(params, :norm) do
+        layer_norm_forward(x, params.norm)
+      else
+        x
+      end
 
     # Project to 2x inner_size
     xz = dense_forward(x, params.in_proj)
@@ -704,22 +766,25 @@ defmodule ExPhil.Networks.Mamba do
     # X branch: Conv1D with cached buffer -> SiLU -> SSM
 
     # Update conv buffer and compute convolution
-    {x_conv, new_conv_buffer} = step_causal_conv1d(
-      x_branch,
-      cache.conv_buffer,
-      params.conv
-    )
+    {x_conv, new_conv_buffer} =
+      step_causal_conv1d(
+        x_branch,
+        cache.conv_buffer,
+        params.conv
+      )
 
-    x_activated = Nx.sigmoid(x_conv) |> Nx.multiply(x_conv)  # SiLU
+    # SiLU
+    x_activated = Nx.sigmoid(x_conv) |> Nx.multiply(x_conv)
 
     # SSM step with cached hidden state
-    {x_ssm, new_h} = step_ssm(
-      x_activated,
-      cache.h,
-      params.ssm,
-      state_size: state_size,
-      dt_rank: dt_rank
-    )
+    {x_ssm, new_h} =
+      step_ssm(
+        x_activated,
+        cache.h,
+        params.ssm,
+        state_size: state_size,
+        dt_rank: dt_rank
+      )
 
     # Z branch: SiLU activation
     z_activated = Nx.sigmoid(z_branch) |> Nx.multiply(z_branch)
@@ -730,10 +795,7 @@ defmodule ExPhil.Networks.Mamba do
     # Project back
     output = dense_forward(gated, params.out_proj)
 
-    new_cache = %{cache |
-      h: new_h,
-      conv_buffer: new_conv_buffer
-    }
+    new_cache = %{cache | h: new_h, conv_buffer: new_conv_buffer}
 
     {output, new_cache}
   end
@@ -744,11 +806,14 @@ defmodule ExPhil.Networks.Mamba do
     # conv_buffer: [batch, conv_size-1, inner_size]
 
     # Append new input to buffer
-    x_expanded = Nx.new_axis(x, 1)  # [batch, 1, inner_size]
-    full_buffer = Nx.concatenate([conv_buffer, x_expanded], axis: 1)  # [batch, conv_size, inner_size]
+    # [batch, 1, inner_size]
+    x_expanded = Nx.new_axis(x, 1)
+    # [batch, conv_size, inner_size]
+    full_buffer = Nx.concatenate([conv_buffer, x_expanded], axis: 1)
 
     # Compute convolution (mean over window, then project)
-    conv_out = Nx.mean(full_buffer, axes: [1])  # [batch, inner_size]
+    # [batch, inner_size]
+    conv_out = Nx.mean(full_buffer, axes: [1])
     conv_out = dense_forward(conv_out, params)
 
     # Slide buffer: drop oldest, keep conv_size-1 newest
@@ -767,37 +832,48 @@ defmodule ExPhil.Networks.Mamba do
 
     # Compute B and C from input
     bc = dense_forward(x, params.bc_proj)
-    b = Nx.slice_along_axis(bc, 0, state_size, axis: 1)        # [batch, state_size]
-    c = Nx.slice_along_axis(bc, state_size, state_size, axis: 1)  # [batch, state_size]
+    # [batch, state_size]
+    b = Nx.slice_along_axis(bc, 0, state_size, axis: 1)
+    # [batch, state_size]
+    c = Nx.slice_along_axis(bc, state_size, state_size, axis: 1)
 
     # Compute discretization step dt
-    dt = x
-    |> dense_forward(params.dt_rank)
-    |> dense_forward(params.dt_proj)
-    dt = Nx.add(dt, Nx.log(Nx.add(Nx.exp(dt), 1.0)))  # softplus
+    dt =
+      x
+      |> dense_forward(params.dt_rank)
+      |> dense_forward(params.dt_proj)
+
+    # softplus
+    dt = Nx.add(dt, Nx.log(Nx.add(Nx.exp(dt), 1.0)))
 
     # SSM update: h_new = exp(dt * A) * h + dt * B * x
     # A is implicitly -1 (stable decay), so exp(dt * A) = exp(-dt)
 
     # Discretized A: exp(-dt), shape [batch, inner_size]
-    a_bar = Nx.exp(Nx.negate(Nx.mean(dt, axes: [1], keep_axes: true)))  # [batch, 1]
+    # [batch, 1]
+    a_bar = Nx.exp(Nx.negate(Nx.mean(dt, axes: [1], keep_axes: true)))
     a_bar = Nx.broadcast(a_bar, {Nx.axis_size(h, 0), Nx.axis_size(h, 1), state_size})
 
     # Discretized B * x: dt * B * x
     # b: [batch, state_size], x: [batch, inner_size]
     # We need [batch, inner_size, state_size]
-    b_expanded = Nx.new_axis(b, 1)  # [batch, 1, state_size]
-    x_expanded = Nx.new_axis(x, 2)  # [batch, inner_size, 1]
+    # [batch, 1, state_size]
+    b_expanded = Nx.new_axis(b, 1)
+    # [batch, inner_size, 1]
+    x_expanded = Nx.new_axis(x, 2)
     dt_mean = Nx.mean(dt)
-    bx = Nx.multiply(Nx.multiply(b_expanded, x_expanded), dt_mean)  # [batch, inner_size, state_size]
+    # [batch, inner_size, state_size]
+    bx = Nx.multiply(Nx.multiply(b_expanded, x_expanded), dt_mean)
 
     # Hidden state update
     h_new = Nx.add(Nx.multiply(a_bar, h), bx)
 
     # Output: y = C * h
     # c: [batch, state_size], h_new: [batch, inner_size, state_size]
-    c_expanded = Nx.new_axis(c, 1)  # [batch, 1, state_size]
-    y = Nx.sum(Nx.multiply(c_expanded, h_new), axes: [2])  # [batch, inner_size]
+    # [batch, 1, state_size]
+    c_expanded = Nx.new_axis(c, 1)
+    # [batch, inner_size]
+    y = Nx.sum(Nx.multiply(c_expanded, h_new), axes: [2])
 
     {y, h_new}
   end
@@ -828,10 +904,11 @@ defmodule ExPhil.Networks.Mamba do
   # Handles both plain maps and Axon.ModelState structs
   defp get_layer_params(params, block_name) do
     # Convert Axon.ModelState to plain map if needed
-    params_map = case params do
-      %Axon.ModelState{data: data} -> data
-      %{} -> params
-    end
+    params_map =
+      case params do
+        %Axon.ModelState{data: data} -> data
+        %{} -> params
+      end
 
     %{
       norm: params_map["#{block_name}_norm"] || %{},

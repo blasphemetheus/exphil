@@ -71,6 +71,7 @@ defmodule ExPhil.Training.EMATest do
           output: Nx.tensor([7.0])
         }
       }
+
       ema = EMA.new(params, decay: 0.5)
 
       new_params = %{
@@ -127,6 +128,7 @@ defmodule ExPhil.Training.EMATest do
           bias: Nx.tensor([5.0, 6.0])
         }
       }
+
       ema = EMA.new(params, decay: 0.95)
       ema = EMA.update(ema, params)
 

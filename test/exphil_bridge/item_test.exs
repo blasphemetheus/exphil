@@ -30,8 +30,10 @@ defmodule ExPhil.Bridge.ItemTest do
     end
 
     test "returns false for non-bomb items" do
-      refute Item.bomb?(mock_item(type: 0x32))  # Turnip
-      refute Item.bomb?(mock_item(type: 0x04))  # Beam Sword
+      # Turnip
+      refute Item.bomb?(mock_item(type: 0x32))
+      # Beam Sword
+      refute Item.bomb?(mock_item(type: 0x04))
     end
 
     test "returns false for nil" do
@@ -45,8 +47,10 @@ defmodule ExPhil.Bridge.ItemTest do
     end
 
     test "returns false for non-turnip items" do
-      refute Item.turnip?(mock_item(type: 0x2C))  # Link bomb
-      refute Item.turnip?(mock_item(type: 0x15))  # Mr. Saturn
+      # Link bomb
+      refute Item.turnip?(mock_item(type: 0x2C))
+      # Mr. Saturn
+      refute Item.turnip?(mock_item(type: 0x15))
     end
 
     test "returns false for nil" do
@@ -60,8 +64,10 @@ defmodule ExPhil.Bridge.ItemTest do
     end
 
     test "returns false for non-Mr. Saturn items" do
-      refute Item.mr_saturn?(mock_item(type: 0x2C))  # Link bomb
-      refute Item.mr_saturn?(mock_item(type: 0x32))  # Turnip
+      # Link bomb
+      refute Item.mr_saturn?(mock_item(type: 0x2C))
+      # Turnip
+      refute Item.mr_saturn?(mock_item(type: 0x32))
     end
 
     test "returns false for nil" do
@@ -99,31 +105,44 @@ defmodule ExPhil.Bridge.ItemTest do
 
   describe "item_category/1" do
     test "returns 1 for bombs" do
-      assert Item.item_category(mock_item(type: 0x2C)) == 1  # Link bomb
-      assert Item.item_category(mock_item(type: 0x2D)) == 1  # Young Link bomb
-      assert Item.item_category(mock_item(type: 0x13)) == 1  # Bob-omb
+      # Link bomb
+      assert Item.item_category(mock_item(type: 0x2C)) == 1
+      # Young Link bomb
+      assert Item.item_category(mock_item(type: 0x2D)) == 1
+      # Bob-omb
+      assert Item.item_category(mock_item(type: 0x13)) == 1
     end
 
     test "returns 2 for melee weapons" do
-      assert Item.item_category(mock_item(type: 0x04)) == 2  # Beam Sword
-      assert Item.item_category(mock_item(type: 0x05)) == 2  # Home Run Bat
-      assert Item.item_category(mock_item(type: 0x06)) == 2  # Fan
+      # Beam Sword
+      assert Item.item_category(mock_item(type: 0x04)) == 2
+      # Home Run Bat
+      assert Item.item_category(mock_item(type: 0x05)) == 2
+      # Fan
+      assert Item.item_category(mock_item(type: 0x06)) == 2
     end
 
     test "returns 3 for ranged weapons" do
-      assert Item.item_category(mock_item(type: 0x08)) == 3  # Ray Gun
-      assert Item.item_category(mock_item(type: 0x09)) == 3  # Super Scope
+      # Ray Gun
+      assert Item.item_category(mock_item(type: 0x08)) == 3
+      # Super Scope
+      assert Item.item_category(mock_item(type: 0x09)) == 3
     end
 
     test "returns 4 for containers" do
-      assert Item.item_category(mock_item(type: 0x00)) == 4  # Capsule
-      assert Item.item_category(mock_item(type: 0x01)) == 4  # Crate
-      assert Item.item_category(mock_item(type: 0x02)) == 4  # Barrel
+      # Capsule
+      assert Item.item_category(mock_item(type: 0x00)) == 4
+      # Crate
+      assert Item.item_category(mock_item(type: 0x01)) == 4
+      # Barrel
+      assert Item.item_category(mock_item(type: 0x02)) == 4
     end
 
     test "returns 5 for thrown/character-specific items" do
-      assert Item.item_category(mock_item(type: 0x32)) == 5  # Peach turnip
-      assert Item.item_category(mock_item(type: 0x15)) == 5  # Mr. Saturn
+      # Peach turnip
+      assert Item.item_category(mock_item(type: 0x32)) == 5
+      # Mr. Saturn
+      assert Item.item_category(mock_item(type: 0x15)) == 5
     end
 
     test "returns 5 for unknown items" do

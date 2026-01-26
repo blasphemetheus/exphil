@@ -54,7 +54,8 @@ defmodule ExPhil.Integrations.Wandb do
   require Logger
 
   @base_url "https://api.wandb.ai"
-  @batch_interval 5_000  # Batch logs every 5 seconds
+  # Batch logs every 5 seconds
+  @batch_interval 5_000
 
   defstruct [
     :api_key,
@@ -213,6 +214,7 @@ defmodule ExPhil.Integrations.Wandb do
       step: state.step,
       started_at: state.started_at
     }
+
     {:reply, info, state}
   end
 
@@ -236,9 +238,10 @@ defmodule ExPhil.Integrations.Wandb do
     step = Keyword.get(opts, :step, state.step)
     log_entry = %{step: step, metrics: metrics, timestamp: System.system_time(:millisecond)}
 
-    new_state = %{state |
-      pending_logs: [log_entry | state.pending_logs],
-      step: max(state.step, step + 1)
+    new_state = %{
+      state
+      | pending_logs: [log_entry | state.pending_logs],
+        step: max(state.step, step + 1)
     }
 
     {:noreply, new_state}
@@ -256,11 +259,13 @@ defmodule ExPhil.Integrations.Wandb do
     metrics = telemetry_to_metrics(event, measurements, metadata)
 
     if map_size(metrics) > 0 do
-      log_entry = %{step: state.step, metrics: metrics, timestamp: System.system_time(:millisecond)}
-      new_state = %{state |
-        pending_logs: [log_entry | state.pending_logs],
-        step: state.step + 1
+      log_entry = %{
+        step: state.step,
+        metrics: metrics,
+        timestamp: System.system_time(:millisecond)
       }
+
+      new_state = %{state | pending_logs: [log_entry | state.pending_logs], step: state.step + 1}
       {:noreply, new_state}
     else
       {:noreply, state}
@@ -317,7 +322,9 @@ defmodule ExPhil.Integrations.Wandb do
       }
 
       case api_post("/api/v1/run/#{state.run_id}/log", body, state.api_key) do
-        {:ok, _} -> :ok
+        {:ok, _} ->
+          :ok
+
         {:error, reason} ->
           Logger.debug("[Wandb] Log failed: #{inspect(reason)}")
       end
@@ -339,10 +346,10 @@ defmodule ExPhil.Integrations.Wandb do
     url = @base_url <> path
 
     case Req.post(url,
-      json: body,
-      headers: [{"Authorization", "Bearer #{api_key}"}],
-      receive_timeout: 10_000
-    ) do
+           json: body,
+           headers: [{"Authorization", "Bearer #{api_key}"}],
+           receive_timeout: 10_000
+         ) do
       {:ok, %{status: status} = response} when status in 200..299 ->
         {:ok, response}
 

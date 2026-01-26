@@ -128,6 +128,7 @@ defmodule ExPhil.Training.Stacktrace do
       end)
 
       hidden = length(stacktrace) - length(simplified)
+
       if hidden > 0 do
         Output.puts_raw(Output.colorize("  ... #{hidden} internal frames hidden", :dim))
         Output.puts_raw(Output.colorize("  (set EXPHIL_FULL_STACKTRACE=1 for full trace)", :dim))
@@ -154,7 +155,8 @@ defmodule ExPhil.Training.Stacktrace do
   def simplify_stacktrace(stacktrace) do
     stacktrace
     |> Enum.filter(&keep_frame?/1)
-    |> Enum.take(10)  # Limit to 10 most relevant frames
+    # Limit to 10 most relevant frames
+    |> Enum.take(10)
   end
 
   @doc """
@@ -183,16 +185,19 @@ defmodule ExPhil.Training.Stacktrace do
     message = Exception.message(exception)
     simplified = simplify_stacktrace(stacktrace)
 
-    frames_str = simplified
-    |> Enum.map(&format_frame/1)
-    |> Enum.join("\n    ")
+    frames_str =
+      simplified
+      |> Enum.map(&format_frame/1)
+      |> Enum.join("\n    ")
 
     hidden = length(stacktrace) - length(simplified)
-    hidden_note = if hidden > 0 do
-      "\n    ... #{hidden} internal frames hidden (set EXPHIL_FULL_STACKTRACE=1 for full trace)"
-    else
-      ""
-    end
+
+    hidden_note =
+      if hidden > 0 do
+        "\n    ... #{hidden} internal frames hidden (set EXPHIL_FULL_STACKTRACE=1 for full trace)"
+      else
+        ""
+      end
 
     """
     ** (#{inspect(exception.__struct__)}) #{message}
@@ -220,21 +225,16 @@ defmodule ExPhil.Training.Stacktrace do
     cond do
       # Always keep ExPhil modules
       String.starts_with?(module_str, "Elixir.ExPhil") -> true
-
       # Keep user scripts
       String.starts_with?(module_str, "Elixir.Mix.Tasks") -> true
-
       # Keep anonymous functions (usually user code)
       module_str =~ ~r/^Elixir\.-/ -> true
-
       # Filter known internal modules
       module in @filtered_modules -> false
-
       # Filter Nx.* and EXLA.* submodules
       String.starts_with?(module_str, "Elixir.Nx.") -> false
       String.starts_with?(module_str, "Elixir.EXLA.") -> false
       String.starts_with?(module_str, "Elixir.Axon.") -> false
-
       # Keep everything else
       true -> true
     end

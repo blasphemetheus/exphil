@@ -34,7 +34,11 @@ unless axon_onnx_available? do
   Output.warning("axon_onnx is not available (Nx 0.10+ compatibility issue)")
   Output.puts("")
   Output.puts("The axon_onnx library currently doesn't compile with Nx 0.10.")
-  Output.puts("See: https://elixirforum.com/t/error-using-axononnx-v0-4-0-undefined-function-transform-2/63326")
+
+  Output.puts(
+    "See: https://elixirforum.com/t/error-using-axononnx-v0-4-0-undefined-function-transform-2/63326"
+  )
+
   Output.puts("")
   Output.puts("WORKAROUNDS:")
   Output.puts("")
@@ -73,7 +77,11 @@ unless checkpoint_path || policy_path do
   Output.banner("ExPhil ONNX Export")
   Output.puts("")
   Output.puts("Usage:")
-  Output.puts("  mix run scripts/export_onnx.exs --policy checkpoints/imitation_latest_policy.bin")
+
+  Output.puts(
+    "  mix run scripts/export_onnx.exs --policy checkpoints/imitation_latest_policy.bin"
+  )
+
   Output.puts("  mix run scripts/export_onnx.exs --checkpoint checkpoints/imitation_latest.axon")
   Output.puts("")
   Output.puts("Options:")
@@ -87,6 +95,7 @@ unless checkpoint_path || policy_path do
 end
 
 Output.banner("ExPhil ONNX Export")
+
 Output.config([
   {"Checkpoint", checkpoint_path || "none"},
   {"Policy", policy_path || "none"},
@@ -96,107 +105,111 @@ Output.config([
 # Step 1: Load policy
 Output.step(1, 4, "Loading policy")
 
-{model, params, config} = cond do
-  policy_path ->
-    Output.puts("  Loading from policy: #{policy_path}")
+{model, params, config} =
+  cond do
+    policy_path ->
+      Output.puts("  Loading from policy: #{policy_path}")
 
-    case File.read(policy_path) do
-      {:ok, binary} ->
-        export = :erlang.binary_to_term(binary)
+      case File.read(policy_path) do
+        {:ok, binary} ->
+          export = :erlang.binary_to_term(binary)
 
-        config = export.config
-        Output.puts("  Config: #{inspect(config)}")
+          config = export.config
+          Output.puts("  Config: #{inspect(config)}")
 
-        # Rebuild the model architecture
-        model = if config[:temporal] do
-          Policy.build_temporal(
-            embed_size: config[:embed_size],
-            backbone: config[:backbone] || :sliding_window,
-            window_size: config[:window_size] || 60,
-            num_heads: config[:num_heads] || 4,
-            head_dim: config[:head_dim] || 64,
-            hidden_size: config[:hidden_size] || 256,
-            num_layers: config[:num_layers] || 2,
-            hidden_sizes: config[:hidden_sizes] || [512, 512],
-            dropout: config[:dropout] || 0.1,
-            axis_buckets: config[:axis_buckets] || 16,
-            shoulder_buckets: config[:shoulder_buckets] || 4,
-            # Mamba-specific
-            state_size: config[:state_size] || 16,
-            expand_factor: config[:expand_factor] || 2,
-            conv_size: config[:conv_size] || 4
-          )
-        else
-          Policy.build(
-            embed_size: config[:embed_size],
-            hidden_sizes: config[:hidden_sizes] || [512, 512],
-            dropout: config[:dropout] || 0.1,
-            axis_buckets: config[:axis_buckets] || 16,
-            shoulder_buckets: config[:shoulder_buckets] || 4
-          )
-        end
+          # Rebuild the model architecture
+          model =
+            if config[:temporal] do
+              Policy.build_temporal(
+                embed_size: config[:embed_size],
+                backbone: config[:backbone] || :sliding_window,
+                window_size: config[:window_size] || 60,
+                num_heads: config[:num_heads] || 4,
+                head_dim: config[:head_dim] || 64,
+                hidden_size: config[:hidden_size] || 256,
+                num_layers: config[:num_layers] || 2,
+                hidden_sizes: config[:hidden_sizes] || [512, 512],
+                dropout: config[:dropout] || 0.1,
+                axis_buckets: config[:axis_buckets] || 16,
+                shoulder_buckets: config[:shoulder_buckets] || 4,
+                # Mamba-specific
+                state_size: config[:state_size] || 16,
+                expand_factor: config[:expand_factor] || 2,
+                conv_size: config[:conv_size] || 4
+              )
+            else
+              Policy.build(
+                embed_size: config[:embed_size],
+                hidden_sizes: config[:hidden_sizes] || [512, 512],
+                dropout: config[:dropout] || 0.1,
+                axis_buckets: config[:axis_buckets] || 16,
+                shoulder_buckets: config[:shoulder_buckets] || 4
+              )
+            end
 
-        {model, export.params, config}
+          {model, export.params, config}
 
-      {:error, reason} ->
-        Output.error("Error loading policy: #{inspect(reason)}")
-        System.halt(1)
-    end
+        {:error, reason} ->
+          Output.error("Error loading policy: #{inspect(reason)}")
+          System.halt(1)
+      end
 
-  checkpoint_path ->
-    Output.puts("  Loading from checkpoint: #{checkpoint_path}")
+    checkpoint_path ->
+      Output.puts("  Loading from checkpoint: #{checkpoint_path}")
 
-    case File.read(checkpoint_path) do
-      {:ok, binary} ->
-        checkpoint = :erlang.binary_to_term(binary)
+      case File.read(checkpoint_path) do
+        {:ok, binary} ->
+          checkpoint = :erlang.binary_to_term(binary)
 
-        config = checkpoint.config
-        Output.puts("  Config: #{inspect(config)}")
+          config = checkpoint.config
+          Output.puts("  Config: #{inspect(config)}")
 
-        # Rebuild the model architecture
-        embed_size = config[:embed_size] || Embeddings.embedding_size()
+          # Rebuild the model architecture
+          embed_size = config[:embed_size] || Embeddings.embedding_size()
 
-        model = if config[:temporal] do
-          Policy.build_temporal(
-            embed_size: embed_size,
-            backbone: config[:backbone] || :sliding_window,
-            window_size: config[:window_size] || 60,
-            num_heads: config[:num_heads] || 4,
-            head_dim: config[:head_dim] || 64,
-            hidden_size: config[:hidden_size] || 256,
-            num_layers: config[:num_layers] || 2,
-            hidden_sizes: config[:hidden_sizes] || [512, 512],
-            dropout: config[:dropout] || 0.1,
-            axis_buckets: config[:axis_buckets] || 16,
-            shoulder_buckets: config[:shoulder_buckets] || 4,
-            # Mamba-specific
-            state_size: config[:state_size] || 16,
-            expand_factor: config[:expand_factor] || 2,
-            conv_size: config[:conv_size] || 4
-          )
-        else
-          Policy.build(
-            embed_size: embed_size,
-            hidden_sizes: config[:hidden_sizes] || [512, 512],
-            dropout: config[:dropout] || 0.1,
-            axis_buckets: config[:axis_buckets] || 16,
-            shoulder_buckets: config[:shoulder_buckets] || 4
-          )
-        end
+          model =
+            if config[:temporal] do
+              Policy.build_temporal(
+                embed_size: embed_size,
+                backbone: config[:backbone] || :sliding_window,
+                window_size: config[:window_size] || 60,
+                num_heads: config[:num_heads] || 4,
+                head_dim: config[:head_dim] || 64,
+                hidden_size: config[:hidden_size] || 256,
+                num_layers: config[:num_layers] || 2,
+                hidden_sizes: config[:hidden_sizes] || [512, 512],
+                dropout: config[:dropout] || 0.1,
+                axis_buckets: config[:axis_buckets] || 16,
+                shoulder_buckets: config[:shoulder_buckets] || 4,
+                # Mamba-specific
+                state_size: config[:state_size] || 16,
+                expand_factor: config[:expand_factor] || 2,
+                conv_size: config[:conv_size] || 4
+              )
+            else
+              Policy.build(
+                embed_size: embed_size,
+                hidden_sizes: config[:hidden_sizes] || [512, 512],
+                dropout: config[:dropout] || 0.1,
+                axis_buckets: config[:axis_buckets] || 16,
+                shoulder_buckets: config[:shoulder_buckets] || 4
+              )
+            end
 
-        {model, checkpoint.policy_params, config}
+          {model, checkpoint.policy_params, config}
 
-      {:error, reason} ->
-        Output.error("Error loading checkpoint: #{inspect(reason)}")
-        System.halt(1)
-    end
-end
+        {:error, reason} ->
+          Output.error("Error loading checkpoint: #{inspect(reason)}")
+          System.halt(1)
+      end
+  end
 
 # Extract params data if wrapped in ModelState
-params_data = case params do
-  %Axon.ModelState{data: data} -> data
-  data when is_map(data) -> data
-end
+params_data =
+  case params do
+    %Axon.ModelState{data: data} -> data
+    data when is_map(data) -> data
+  end
 
 Output.puts("  Model loaded successfully")
 
@@ -204,18 +217,19 @@ Output.puts("  Model loaded successfully")
 Output.step(2, 4, "Preparing model for ONNX export")
 
 # Determine input shape based on temporal mode
-{_input_shape, input_template} = if config[:temporal] do
-  embed_size = config[:embed_size] || Embeddings.embedding_size()
-  window_size = config[:window_size] || 60
-  shape = {1, window_size, embed_size}
-  Output.puts("  Input shape: #{inspect(shape)} (temporal)")
-  {shape, Nx.template(shape, :f32)}
-else
-  embed_size = config[:embed_size] || Embeddings.embedding_size()
-  shape = {1, embed_size}
-  Output.puts("  Input shape: #{inspect(shape)} (single-frame)")
-  {shape, Nx.template(shape, :f32)}
-end
+{_input_shape, input_template} =
+  if config[:temporal] do
+    embed_size = config[:embed_size] || Embeddings.embedding_size()
+    window_size = config[:window_size] || 60
+    shape = {1, window_size, embed_size}
+    Output.puts("  Input shape: #{inspect(shape)} (temporal)")
+    {shape, Nx.template(shape, :f32)}
+  else
+    embed_size = config[:embed_size] || Embeddings.embedding_size()
+    shape = {1, embed_size}
+    Output.puts("  Input shape: #{inspect(shape)} (single-frame)")
+    {shape, Nx.template(shape, :f32)}
+  end
 
 # Step 3: Export to ONNX
 Output.step(3, 4, "Exporting to ONNX format")
@@ -223,6 +237,7 @@ Output.puts("  Output: #{output_path}")
 
 # Ensure output directory exists
 output_dir = Path.dirname(output_path)
+
 if output_dir != "" and output_dir != "." do
   File.mkdir_p!(output_dir)
 end
@@ -260,7 +275,11 @@ Output.puts("1. Verify the model with ONNX Runtime:")
 Output.puts("   python -c \"import onnxruntime as ort; ort.InferenceSession('#{output_path}')\"")
 Output.puts("")
 Output.puts("2. Quantize to INT8 for 2-4x faster inference:")
-Output.puts("   python priv/python/quantize_onnx.py #{output_path} #{String.replace(output_path, ".onnx", "_int8.onnx")}")
+
+Output.puts(
+  "   python priv/python/quantize_onnx.py #{output_path} #{String.replace(output_path, ".onnx", "_int8.onnx")}"
+)
+
 Output.puts("")
 Output.puts("3. For Elixir inference with Ortex:")
 Output.puts("   {:ok, model} = Ortex.load(\"#{output_path}\")")

@@ -19,8 +19,9 @@ defmodule ExPhil.Training.ActionVizTest do
 
   describe "record/2" do
     test "records button presses from list" do
-      viz = ActionViz.new()
-      |> ActionViz.record(%{buttons: [:a, :b], main_x: 8, main_y: 8})
+      viz =
+        ActionViz.new()
+        |> ActionViz.record(%{buttons: [:a, :b], main_x: 8, main_y: 8})
 
       assert viz.total == 1
       assert viz.button_counts[:a] == 1
@@ -29,9 +30,10 @@ defmodule ExPhil.Training.ActionVizTest do
     end
 
     test "records button presses from bitmask" do
-      viz = ActionViz.new()
-      # Bitmask: bit 0 = A, bit 1 = B
-      |> ActionViz.record(%{buttons: 0b00000011, main_x: 8, main_y: 8})
+      viz =
+        ActionViz.new()
+        # Bitmask: bit 0 = A, bit 1 = B
+        |> ActionViz.record(%{buttons: 0b00000011, main_x: 8, main_y: 8})
 
       assert viz.button_counts[:a] == 1
       assert viz.button_counts[:b] == 1
@@ -39,25 +41,28 @@ defmodule ExPhil.Training.ActionVizTest do
     end
 
     test "records stick positions" do
-      viz = ActionViz.new()
-      |> ActionViz.record(%{main_x: 0, main_y: 16, c_x: 8, c_y: 8})
+      viz =
+        ActionViz.new()
+        |> ActionViz.record(%{main_x: 0, main_y: 16, c_x: 8, c_y: 8})
 
       assert viz.main_stick_counts == %{{0, 16} => 1}
       assert viz.c_stick_counts == %{{8, 8} => 1}
     end
 
     test "records shoulder position" do
-      viz = ActionViz.new()
-      |> ActionViz.record(%{shoulder: 3})
+      viz =
+        ActionViz.new()
+        |> ActionViz.record(%{shoulder: 3})
 
       assert viz.shoulder_counts == %{3 => 1}
     end
 
     test "accumulates multiple records" do
-      viz = ActionViz.new()
-      |> ActionViz.record(%{buttons: [:a], main_x: 8, main_y: 8})
-      |> ActionViz.record(%{buttons: [:a, :b], main_x: 8, main_y: 8})
-      |> ActionViz.record(%{buttons: [:b], main_x: 0, main_y: 0})
+      viz =
+        ActionViz.new()
+        |> ActionViz.record(%{buttons: [:a], main_x: 8, main_y: 8})
+        |> ActionViz.record(%{buttons: [:a, :b], main_x: 8, main_y: 8})
+        |> ActionViz.record(%{buttons: [:b], main_x: 0, main_y: 0})
 
       assert viz.total == 3
       assert viz.button_counts[:a] == 2
@@ -85,11 +90,12 @@ defmodule ExPhil.Training.ActionVizTest do
 
   describe "button_rates/1" do
     test "calculates button press rates" do
-      viz = ActionViz.new()
-      |> ActionViz.record(%{buttons: [:a]})
-      |> ActionViz.record(%{buttons: [:a]})
-      |> ActionViz.record(%{buttons: [:b]})
-      |> ActionViz.record(%{buttons: []})
+      viz =
+        ActionViz.new()
+        |> ActionViz.record(%{buttons: [:a]})
+        |> ActionViz.record(%{buttons: [:a]})
+        |> ActionViz.record(%{buttons: [:b]})
+        |> ActionViz.record(%{buttons: []})
 
       rates = ActionViz.button_rates(viz)
 
@@ -107,9 +113,10 @@ defmodule ExPhil.Training.ActionVizTest do
 
   describe "to_stats/1" do
     test "returns stats map" do
-      viz = ActionViz.new()
-      |> ActionViz.record(%{buttons: [:a], main_x: 8, main_y: 8})
-      |> ActionViz.record(%{buttons: [:a], main_x: 8, main_y: 8})
+      viz =
+        ActionViz.new()
+        |> ActionViz.record(%{buttons: [:a], main_x: 8, main_y: 8})
+        |> ActionViz.record(%{buttons: [:a], main_x: 8, main_y: 8})
 
       stats = ActionViz.to_stats(viz)
 
@@ -125,20 +132,23 @@ defmodule ExPhil.Training.ActionVizTest do
     test "handles empty visualizer" do
       viz = ActionViz.new()
 
-      output = capture_io(:stderr, fn ->
-        ActionViz.print_summary(viz)
-      end)
+      output =
+        capture_io(:stderr, fn ->
+          ActionViz.print_summary(viz)
+        end)
 
       assert output =~ "No actions recorded"
     end
 
     test "prints button distribution" do
-      viz = ActionViz.new()
-      |> ActionViz.record(%{buttons: [:a], main_x: 8, main_y: 8})
+      viz =
+        ActionViz.new()
+        |> ActionViz.record(%{buttons: [:a], main_x: 8, main_y: 8})
 
-      output = capture_io(:stderr, fn ->
-        ActionViz.print_summary(viz, show_sticks: false, show_shoulder: false)
-      end)
+      output =
+        capture_io(:stderr, fn ->
+          ActionViz.print_summary(viz, show_sticks: false, show_shoulder: false)
+        end)
 
       assert output =~ "Action Distribution"
       assert output =~ "Buttons:"
@@ -147,12 +157,14 @@ defmodule ExPhil.Training.ActionVizTest do
     end
 
     test "prints stick heatmaps" do
-      viz = ActionViz.new()
-      |> ActionViz.record(%{buttons: [], main_x: 8, main_y: 8})
+      viz =
+        ActionViz.new()
+        |> ActionViz.record(%{buttons: [], main_x: 8, main_y: 8})
 
-      output = capture_io(:stderr, fn ->
-        ActionViz.print_summary(viz, show_shoulder: false)
-      end)
+      output =
+        capture_io(:stderr, fn ->
+          ActionViz.print_summary(viz, show_shoulder: false)
+        end)
 
       assert output =~ "Main Stick:"
       assert output =~ "C-Stick:"

@@ -110,23 +110,33 @@ defmodule ExPhil.Training do
     callbacks = Keyword.get(opts, :callbacks, [])
 
     # Split dataset
-    {train_data, val_data} = if validation_split > 0 do
-      Data.split(dataset, ratio: 1.0 - validation_split)
-    else
-      {dataset, nil}
-    end
+    {train_data, val_data} =
+      if validation_split > 0 do
+        Data.split(dataset, ratio: 1.0 - validation_split)
+      else
+        {dataset, nil}
+      end
 
     # Create trainer
-    trainer_opts = Keyword.take(opts, [
-      :embed_size, :embed_config, :hidden_sizes,
-      :learning_rate, :batch_size, :max_grad_norm,
-      :weight_decay, :warmup_steps, :frame_stack,
-      :axis_buckets, :shoulder_buckets
-    ])
+    trainer_opts =
+      Keyword.take(opts, [
+        :embed_size,
+        :embed_config,
+        :hidden_sizes,
+        :learning_rate,
+        :batch_size,
+        :max_grad_norm,
+        :weight_decay,
+        :warmup_steps,
+        :frame_stack,
+        :axis_buckets,
+        :shoulder_buckets
+      ])
 
-    trainer_opts = Keyword.put_new_lazy(trainer_opts, :embed_config, fn ->
-      dataset.embed_config
-    end)
+    trainer_opts =
+      Keyword.put_new_lazy(trainer_opts, :embed_config, fn ->
+        dataset.embed_config
+      end)
 
     trainer = Imitation.new(trainer_opts)
 
@@ -180,10 +190,16 @@ defmodule ExPhil.Training do
   @spec resume_imitation(Path.t(), Data.t(), keyword()) :: {:ok, Imitation.t()} | {:error, term()}
   def resume_imitation(checkpoint_path, dataset, opts \\ []) do
     # Create base trainer
-    trainer = Imitation.new(Keyword.take(opts, [
-      :embed_size, :embed_config, :hidden_sizes,
-      :axis_buckets, :shoulder_buckets
-    ]))
+    trainer =
+      Imitation.new(
+        Keyword.take(opts, [
+          :embed_size,
+          :embed_config,
+          :hidden_sizes,
+          :axis_buckets,
+          :shoulder_buckets
+        ])
+      )
 
     # Load checkpoint
     case Imitation.load_checkpoint(trainer, checkpoint_path) do
@@ -241,29 +257,42 @@ defmodule ExPhil.Training do
     callbacks = Keyword.get(opts, :callbacks, [])
 
     # Create trainer
-    trainer_opts = Keyword.take(opts, [
-      :embed_size, :embed_config, :hidden_sizes,
-      :learning_rate, :gamma, :gae_lambda,
-      :clip_range, :vf_coef, :entropy_coef,
-      :max_grad_norm, :n_epochs, :batch_size,
-      :axis_buckets, :shoulder_buckets, :teacher_kl_coef
-    ])
+    trainer_opts =
+      Keyword.take(opts, [
+        :embed_size,
+        :embed_config,
+        :hidden_sizes,
+        :learning_rate,
+        :gamma,
+        :gae_lambda,
+        :clip_range,
+        :vf_coef,
+        :entropy_coef,
+        :max_grad_norm,
+        :n_epochs,
+        :batch_size,
+        :axis_buckets,
+        :shoulder_buckets,
+        :teacher_kl_coef
+      ])
 
     trainer = PPO.new(trainer_opts)
 
     # Load pretrained weights if provided
-    trainer = if pretrained do
-      case PPO.load_pretrained_policy(trainer, pretrained) do
-        {:ok, loaded} ->
-          Logger.info("Loaded pretrained policy from #{pretrained}")
-          loaded
-        {:error, reason} ->
-          Logger.warning("Failed to load pretrained: #{inspect(reason)}")
-          trainer
+    trainer =
+      if pretrained do
+        case PPO.load_pretrained_policy(trainer, pretrained) do
+          {:ok, loaded} ->
+            Logger.info("Loaded pretrained policy from #{pretrained}")
+            loaded
+
+          {:error, reason} ->
+            Logger.warning("Failed to load pretrained: #{inspect(reason)}")
+            trainer
+        end
+      else
+        trainer
       end
-    else
-      trainer
-    end
 
     Logger.info("Starting PPO training")
     Logger.info("  Total steps: #{total_steps}")
@@ -271,39 +300,44 @@ defmodule ExPhil.Training do
 
     # Training loop
     num_updates = div(total_steps, steps_per_update)
-    final_trainer = Enum.reduce_while(1..num_updates, trainer, fn update, acc ->
-      # Collect rollouts
-      rollout = collect_rollout(env_module, acc, steps_per_update)
 
-      # Update policy
-      {new_trainer, metrics} = PPO.update(acc, rollout)
+    final_trainer =
+      Enum.reduce_while(1..num_updates, trainer, fn update, acc ->
+        # Collect rollouts
+        rollout = collect_rollout(env_module, acc, steps_per_update)
 
-      # Add update info
-      full_metrics = Map.merge(metrics, %{
-        update: update,
-        total_steps: update * steps_per_update
-      })
+        # Update policy
+        {new_trainer, metrics} = PPO.update(acc, rollout)
 
-      # Callbacks
-      Enum.each(callbacks, fn cb -> cb.(full_metrics) end)
+        # Add update info
+        full_metrics =
+          Map.merge(metrics, %{
+            update: update,
+            total_steps: update * steps_per_update
+          })
 
-      # Checkpoint
-      if checkpoint_dir && rem(update, div(checkpoint_interval, steps_per_update)) == 0 do
-        step = update * steps_per_update
-        checkpoint_path = Path.join(checkpoint_dir, "ppo_step_#{step}.ckpt")
-        PPO.save_checkpoint(new_trainer, checkpoint_path)
-      end
+        # Callbacks
+        Enum.each(callbacks, fn cb -> cb.(full_metrics) end)
 
-      # Log progress
-      if rem(update, 10) == 0 do
-        Logger.info("Update #{update}/#{num_updates}: " <>
-          "policy_loss=#{Float.round(metrics.policy_loss, 4)}, " <>
-          "value_loss=#{Float.round(metrics.value_loss, 4)}, " <>
-          "entropy=#{Float.round(metrics.entropy, 4)}")
-      end
+        # Checkpoint
+        if checkpoint_dir && rem(update, div(checkpoint_interval, steps_per_update)) == 0 do
+          step = update * steps_per_update
+          checkpoint_path = Path.join(checkpoint_dir, "ppo_step_#{step}.ckpt")
+          PPO.save_checkpoint(new_trainer, checkpoint_path)
+        end
 
-      {:cont, new_trainer}
-    end)
+        # Log progress
+        if rem(update, 10) == 0 do
+          Logger.info(
+            "Update #{update}/#{num_updates}: " <>
+              "policy_loss=#{Float.round(metrics.policy_loss, 4)}, " <>
+              "value_loss=#{Float.round(metrics.value_loss, 4)}, " <>
+              "entropy=#{Float.round(metrics.entropy, 4)}"
+          )
+        end
+
+        {:cont, new_trainer}
+      end)
 
     # Save final checkpoint
     if checkpoint_dir do
@@ -319,6 +353,7 @@ defmodule ExPhil.Training do
     # This would interact with Dolphin/libmelee to collect experience
     # For now, return empty rollout structure
     Logger.warning("Rollout collection not implemented - requires environment")
+
     %{
       states: Nx.broadcast(0.0, {1, 1}),
       actions: %{},
@@ -370,7 +405,8 @@ defmodule ExPhil.Training do
       {:ok, :erlang.binary_to_term(binary)}
     rescue
       ArgumentError ->
-        {:error, "Failed to deserialize #{path}: file may be corrupted or not an ExPhil checkpoint"}
+        {:error,
+         "Failed to deserialize #{path}: file may be corrupted or not an ExPhil checkpoint"}
     end
   end
 
@@ -394,7 +430,8 @@ defmodule ExPhil.Training do
   defp validate_required_keys(policy, path) do
     cond do
       not is_map(policy) ->
-        {:error, "#{path}: Expected map with :params and :config, got #{inspect(policy.__struct__ || :map)}"}
+        {:error,
+         "#{path}: Expected map with :params and :config, got #{inspect(policy.__struct__ || :map)}"}
 
       # Check for exported policy format
       Map.has_key?(policy, :params) and Map.has_key?(policy, :config) ->
@@ -430,39 +467,43 @@ defmodule ExPhil.Training do
     cond do
       # Check if params look like temporal model but config says MLP
       temporal == false and has_temporal_layers?(actual_params) ->
-        {:error, """
-        #{path}: Architecture mismatch detected!
+        {:error,
+         """
+         #{path}: Architecture mismatch detected!
 
-        Config says: temporal=false (MLP model)
-        But params contain temporal layers (#{detected_backbone(actual_params)})
+         Config says: temporal=false (MLP model)
+         But params contain temporal layers (#{detected_backbone(actual_params)})
 
-        This checkpoint was likely saved with --temporal but you're trying to load it
-        without --temporal, or vice versa.
-        """}
+         This checkpoint was likely saved with --temporal but you're trying to load it
+         without --temporal, or vice versa.
+         """}
 
       # Check if params look like MLP but config says temporal
       temporal == true and not has_temporal_layers?(actual_params) ->
-        {:error, """
-        #{path}: Architecture mismatch detected!
+        {:error,
+         """
+         #{path}: Architecture mismatch detected!
 
-        Config says: temporal=true, backbone=#{backbone}
-        But params appear to be from a non-temporal MLP model.
+         Config says: temporal=true, backbone=#{backbone}
+         But params appear to be from a non-temporal MLP model.
 
-        This checkpoint was likely saved without --temporal but you're trying to load it
-        with --temporal.
-        """}
+         This checkpoint was likely saved without --temporal but you're trying to load it
+         with --temporal.
+         """}
 
       # Check hidden sizes match
       not hidden_sizes_match?(actual_params, config) ->
         expected = config[:hidden_sizes] || [512, 512]
-        {:error, """
-        #{path}: Hidden layer size mismatch!
 
-        Config specifies hidden_sizes: #{inspect(expected)}
-        But params have different layer dimensions.
+        {:error,
+         """
+         #{path}: Hidden layer size mismatch!
 
-        Make sure --hidden-sizes matches the checkpoint's architecture.
-        """}
+         Config specifies hidden_sizes: #{inspect(expected)}
+         But params have different layer dimensions.
+
+         Make sure --hidden-sizes matches the checkpoint's architecture.
+         """}
 
       true ->
         :ok
@@ -479,12 +520,13 @@ defmodule ExPhil.Training do
 
     Enum.any?(keys, fn key ->
       String.contains?(key, "lstm") or
-      String.contains?(key, "gru") or
-      String.contains?(key, "mamba") or
-      String.contains?(key, "attention") or
-      String.contains?(key, "sliding_window")
+        String.contains?(key, "gru") or
+        String.contains?(key, "mamba") or
+        String.contains?(key, "attention") or
+        String.contains?(key, "sliding_window")
     end)
   end
+
   defp has_temporal_layers?(_), do: false
 
   # Try to detect what backbone the params are from
@@ -499,6 +541,7 @@ defmodule ExPhil.Training do
       true -> "unknown temporal"
     end
   end
+
   defp detected_backbone(_), do: "unknown"
 
   # Check if hidden layer sizes match params
@@ -517,6 +560,7 @@ defmodule ExPhil.Training do
       length(backbone_layers) == length(hidden_sizes)
     end
   end
+
   defp hidden_sizes_match?(_, _), do: true
 
   @doc """
@@ -536,7 +580,8 @@ defmodule ExPhil.Training do
   @doc """
   Get controller state for game input.
   """
-  @spec get_controller_action(trainer(), Nx.Tensor.t(), keyword()) :: ExPhil.Bridge.ControllerState.t()
+  @spec get_controller_action(trainer(), Nx.Tensor.t(), keyword()) ::
+          ExPhil.Bridge.ControllerState.t()
   def get_controller_action(trainer, state, opts \\ [])
 
   def get_controller_action(%Imitation{} = trainer, state, opts) do

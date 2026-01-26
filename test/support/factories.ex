@@ -48,11 +48,12 @@ defmodule ExPhil.Test.Factories do
     seq_len = Keyword.get(opts, :seq_len, nil)
 
     # Build state tensor
-    state = if seq_len do
-      random_tensor({batch_size, seq_len, embed_size})
-    else
-      random_tensor({batch_size, embed_size})
-    end
+    state =
+      if seq_len do
+        random_tensor({batch_size, seq_len, embed_size})
+      else
+        random_tensor({batch_size, embed_size})
+      end
 
     # Build targets
     targets = build_targets(batch_size)
@@ -134,10 +135,11 @@ defmodule ExPhil.Test.Factories do
     frame = Keyword.get(opts, :frame, 0)
     stage = Keyword.get(opts, :stage, 2)
 
-    players = Keyword.get(opts, :players, %{
-      1 => build_player(),
-      2 => build_player(x: 20.0)
-    })
+    players =
+      Keyword.get(opts, :players, %{
+        1 => build_player(),
+        2 => build_player(x: 20.0)
+      })
 
     %GameState{
       frame: frame,
@@ -228,9 +230,7 @@ defmodule ExPhil.Test.Factories do
   """
   def build_training_frames(count, opts \\ []) do
     Enum.map(0..(count - 1), fn i ->
-      frame_opts = Keyword.put(opts, :game_state,
-        build_game_state(frame: i)
-      )
+      frame_opts = Keyword.put(opts, :game_state, build_game_state(frame: i))
       build_training_frame(frame_opts)
     end)
   end
@@ -247,9 +247,10 @@ defmodule ExPhil.Test.Factories do
 
     Enum.map(0..(length - 1), fn i ->
       # Slightly modify position over time
-      players = Map.new(base_state.players, fn {port, player} ->
-        {port, %{player | x: player.x + i * 0.5, action_frame: player.action_frame + i}}
-      end)
+      players =
+        Map.new(base_state.players, fn {port, player} ->
+          {port, %{player | x: player.x + i * 0.5, action_frame: player.action_frame + i}}
+        end)
 
       %{base_state | frame: base_state.frame + i, players: players}
     end)

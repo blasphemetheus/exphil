@@ -145,37 +145,100 @@ defmodule ExPhil.Training.Help do
     message_lower = String.downcase(message)
 
     cond do
-      message_lower =~ "temporal" -> :temporal
-      message_lower =~ "backbone" -> :backbone
-      message_lower =~ "mamba" -> :mamba
-      message_lower =~ "window" -> :window_size
-      message_lower =~ "batch" and message_lower =~ "checkpoint" -> :batch_checkpoint
-      message_lower =~ "save" and message_lower =~ "batch" -> :batch_checkpoint
-      message_lower =~ "batch" -> :batch_size
-      message_lower =~ "learning rate" or message_lower =~ "lr" -> :learning_rate
-      message_lower =~ "epoch" -> :epochs
-      message_lower =~ "replay" -> :replays
-      message_lower =~ "checkpoint" -> :checkpoint
-      message_lower =~ "wandb" or message_lower =~ "w&b" -> :wandb
-      message_lower =~ "augment" -> :augmentation
-      message_lower =~ "frame delay" or message_lower =~ "online" -> :frame_delay
-      message_lower =~ "precision" or message_lower =~ "bf16" or message_lower =~ "f32" -> :precision
-      message_lower =~ "hidden" -> :hidden_sizes
-      message_lower =~ "accumulation" -> :accumulation
-      message_lower =~ "label smooth" -> :label_smoothing
-      message_lower =~ "focal" -> :focal_loss
-      message_lower =~ "early stop" -> :early_stopping
-      message_lower =~ "stream" -> :streaming
-      message_lower =~ "stage" -> :stage_mode
-      message_lower =~ "preset" -> :presets
-      message_lower =~ "env" or message_lower =~ "environment" -> :env_vars
-      message_lower =~ "seed" -> :seed
-      message_lower =~ "verbose" or message_lower =~ "quiet" -> :verbosity
-      message_lower =~ "backup" or message_lower =~ "overwrite" -> :checkpoint_safety
-      message_lower =~ "kmeans" or message_lower =~ "k-means" or message_lower =~ "discretiz" -> :kmeans
-      message_lower =~ "interrupt" or message_lower =~ "sigterm" or message_lower =~ "sigint" or message_lower =~ "ctrl" -> :graceful_shutdown
-      message_lower =~ "player style" or message_lower =~ "player tag" or message_lower =~ "player registry" or message_lower =~ "style condition" -> :player_styles
-      true -> nil
+      message_lower =~ "temporal" ->
+        :temporal
+
+      message_lower =~ "backbone" ->
+        :backbone
+
+      message_lower =~ "mamba" ->
+        :mamba
+
+      message_lower =~ "window" ->
+        :window_size
+
+      message_lower =~ "batch" and message_lower =~ "checkpoint" ->
+        :batch_checkpoint
+
+      message_lower =~ "save" and message_lower =~ "batch" ->
+        :batch_checkpoint
+
+      message_lower =~ "batch" ->
+        :batch_size
+
+      message_lower =~ "learning rate" or message_lower =~ "lr" ->
+        :learning_rate
+
+      message_lower =~ "epoch" ->
+        :epochs
+
+      message_lower =~ "replay" ->
+        :replays
+
+      message_lower =~ "checkpoint" ->
+        :checkpoint
+
+      message_lower =~ "wandb" or message_lower =~ "w&b" ->
+        :wandb
+
+      message_lower =~ "augment" ->
+        :augmentation
+
+      message_lower =~ "frame delay" or message_lower =~ "online" ->
+        :frame_delay
+
+      message_lower =~ "precision" or message_lower =~ "bf16" or message_lower =~ "f32" ->
+        :precision
+
+      message_lower =~ "hidden" ->
+        :hidden_sizes
+
+      message_lower =~ "accumulation" ->
+        :accumulation
+
+      message_lower =~ "label smooth" ->
+        :label_smoothing
+
+      message_lower =~ "focal" ->
+        :focal_loss
+
+      message_lower =~ "early stop" ->
+        :early_stopping
+
+      message_lower =~ "stream" ->
+        :streaming
+
+      message_lower =~ "stage" ->
+        :stage_mode
+
+      message_lower =~ "preset" ->
+        :presets
+
+      message_lower =~ "env" or message_lower =~ "environment" ->
+        :env_vars
+
+      message_lower =~ "seed" ->
+        :seed
+
+      message_lower =~ "verbose" or message_lower =~ "quiet" ->
+        :verbosity
+
+      message_lower =~ "backup" or message_lower =~ "overwrite" ->
+        :checkpoint_safety
+
+      message_lower =~ "kmeans" or message_lower =~ "k-means" or message_lower =~ "discretiz" ->
+        :kmeans
+
+      message_lower =~ "interrupt" or message_lower =~ "sigterm" or message_lower =~ "sigint" or
+          message_lower =~ "ctrl" ->
+        :graceful_shutdown
+
+      message_lower =~ "player style" or message_lower =~ "player tag" or
+        message_lower =~ "player registry" or message_lower =~ "style condition" ->
+        :player_styles
+
+      true ->
+        nil
     end
   end
 

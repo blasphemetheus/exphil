@@ -5,7 +5,10 @@ defmodule ExPhil.Training.StacktraceTest do
 
   describe "keep_frame?/1" do
     test "keeps ExPhil module frames" do
-      frame = {ExPhil.Training.Imitation, :train_step, 3, [file: "lib/exphil/training/imitation.ex", line: 42]}
+      frame =
+        {ExPhil.Training.Imitation, :train_step, 3,
+         [file: "lib/exphil/training/imitation.ex", line: 42]}
+
       assert Stacktrace.keep_frame?(frame)
     end
 
@@ -15,7 +18,9 @@ defmodule ExPhil.Training.StacktraceTest do
     end
 
     test "filters Nx.Defn frames" do
-      frame = {Nx.Defn.Compiler, :__compile__, 4, [file: "deps/nx/lib/nx/defn/compiler.ex", line: 100]}
+      frame =
+        {Nx.Defn.Compiler, :__compile__, 4, [file: "deps/nx/lib/nx/defn/compiler.ex", line: 100]}
+
       refute Stacktrace.keep_frame?(frame)
     end
 
@@ -43,7 +48,8 @@ defmodule ExPhil.Training.StacktraceTest do
   describe "simplify_stacktrace/1" do
     test "filters internal frames" do
       stacktrace = [
-        {ExPhil.Training.Imitation, :train_step, 3, [file: "lib/exphil/training/imitation.ex", line: 42]},
+        {ExPhil.Training.Imitation, :train_step, 3,
+         [file: "lib/exphil/training/imitation.ex", line: 42]},
         {Nx.Defn.Compiler, :__compile__, 4, [file: "deps/nx/lib/nx/defn/compiler.ex", line: 100]},
         {EXLA.Defn, :__jit__, 5, [file: "deps/exla/lib/exla/defn.ex", line: 50]},
         {ExPhil.Networks.Policy, :forward, 2, [file: "lib/exphil/networks/policy.ex", line: 100]}
@@ -57,9 +63,10 @@ defmodule ExPhil.Training.StacktraceTest do
 
     test "limits to 10 frames" do
       # Create 15 ExPhil frames
-      stacktrace = for i <- 1..15 do
-        {ExPhil.Test, :func, 1, [file: "lib/exphil/test.ex", line: i]}
-      end
+      stacktrace =
+        for i <- 1..15 do
+          {ExPhil.Test, :func, 1, [file: "lib/exphil/test.ex", line: i]}
+        end
 
       simplified = Stacktrace.simplify_stacktrace(stacktrace)
 
@@ -74,8 +81,10 @@ defmodule ExPhil.Training.StacktraceTest do
   describe "format_exception/2" do
     test "formats exception with simplified trace" do
       exception = %RuntimeError{message: "test error"}
+
       stacktrace = [
-        {ExPhil.Training.Imitation, :train_step, 3, [file: "lib/exphil/training/imitation.ex", line: 42]},
+        {ExPhil.Training.Imitation, :train_step, 3,
+         [file: "lib/exphil/training/imitation.ex", line: 42]},
         {Nx.Defn.Compiler, :__compile__, 4, [file: "deps/nx/lib/nx/defn/compiler.ex", line: 100]}
       ]
 
@@ -92,13 +101,16 @@ defmodule ExPhil.Training.StacktraceTest do
 
     test "prints formatted exception" do
       exception = %RuntimeError{message: "something went wrong"}
+
       stacktrace = [
-        {ExPhil.Training.Imitation, :train_step, 3, [file: "lib/exphil/training/imitation.ex", line: 42]}
+        {ExPhil.Training.Imitation, :train_step, 3,
+         [file: "lib/exphil/training/imitation.ex", line: 42]}
       ]
 
-      output = capture_io(:stderr, fn ->
-        Stacktrace.print_exception(exception, stacktrace)
-      end)
+      output =
+        capture_io(:stderr, fn ->
+          Stacktrace.print_exception(exception, stacktrace)
+        end)
 
       assert output =~ "Error: something went wrong"
       assert output =~ "Stacktrace"
@@ -107,6 +119,7 @@ defmodule ExPhil.Training.StacktraceTest do
 
     test "shows hidden frame count" do
       exception = %RuntimeError{message: "error"}
+
       stacktrace = [
         {ExPhil.Test, :func, 1, [file: "lib/exphil/test.ex", line: 1]},
         {Nx.Defn.Compiler, :compile, 2, [file: "deps/nx/lib/nx/defn/compiler.ex", line: 50]},
@@ -114,9 +127,10 @@ defmodule ExPhil.Training.StacktraceTest do
         {Axon.Compiler, :build, 4, [file: "deps/axon/lib/axon/compiler.ex", line: 200]}
       ]
 
-      output = capture_io(:stderr, fn ->
-        Stacktrace.print_exception(exception, stacktrace)
-      end)
+      output =
+        capture_io(:stderr, fn ->
+          Stacktrace.print_exception(exception, stacktrace)
+        end)
 
       assert output =~ "internal frames hidden"
       assert output =~ "EXPHIL_FULL_STACKTRACE"

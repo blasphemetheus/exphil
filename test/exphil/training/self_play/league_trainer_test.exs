@@ -29,35 +29,38 @@ defmodule ExPhil.Training.SelfPlay.LeagueTrainerTest do
     end
 
     test "requires dolphin_path in dolphin_config" do
-      result = LeagueTrainer.new(
-        game_type: :dolphin,
-        dolphin_config: %{iso_path: "/path/to/iso"}
-      )
+      result =
+        LeagueTrainer.new(
+          game_type: :dolphin,
+          dolphin_config: %{iso_path: "/path/to/iso"}
+        )
 
       assert {:error, msg} = result
       assert msg =~ "dolphin_path is required"
     end
 
     test "requires iso_path in dolphin_config" do
-      result = LeagueTrainer.new(
-        game_type: :dolphin,
-        dolphin_config: %{dolphin_path: "/path/to/dolphin"}
-      )
+      result =
+        LeagueTrainer.new(
+          game_type: :dolphin,
+          dolphin_config: %{dolphin_path: "/path/to/dolphin"}
+        )
 
       assert {:error, msg} = result
       assert msg =~ "iso_path is required"
     end
 
     test "accepts valid dolphin_config" do
-      assert {:ok, trainer} = LeagueTrainer.new(
-        game_type: :dolphin,
-        dolphin_config: %{
-          dolphin_path: "/path/to/dolphin",
-          iso_path: "/path/to/melee.iso",
-          character: "mewtwo",
-          stage: "final_destination"
-        }
-      )
+      assert {:ok, trainer} =
+               LeagueTrainer.new(
+                 game_type: :dolphin,
+                 dolphin_config: %{
+                   dolphin_path: "/path/to/dolphin",
+                   iso_path: "/path/to/melee.iso",
+                   character: "mewtwo",
+                   stage: "final_destination"
+                 }
+               )
 
       assert trainer.config.game_type == :dolphin
       assert trainer.config.dolphin_config.dolphin_path == "/path/to/dolphin"
@@ -73,14 +76,16 @@ defmodule ExPhil.Training.SelfPlay.LeagueTrainerTest do
       assert Map.has_key?(trainer.agents, :main)
     end
 
-    @tag timeout: 180_000  # League mode creates multiple agents, slow on CPU
+    # League mode creates multiple agents, slow on CPU
+    @tag timeout: 180_000
     test "creates league trainer with multiple agents" do
-      assert {:ok, trainer} = LeagueTrainer.new(
-        mode: :league,
-        num_main_agents: 2,
-        num_main_exploiters: 1,
-        num_league_exploiters: 1
-      )
+      assert {:ok, trainer} =
+               LeagueTrainer.new(
+                 mode: :league,
+                 num_main_agents: 2,
+                 num_main_exploiters: 1,
+                 num_league_exploiters: 1
+               )
 
       assert trainer.mode == :league
       # 2 main + 1 main_exploiter + 1 league_exploiter = 4
@@ -126,12 +131,14 @@ defmodule ExPhil.Training.SelfPlay.LeagueTrainerTest do
       assert agent.type == :simple
     end
 
-    @tag timeout: 180_000  # League mode creates multiple agents, slow on CPU
+    # League mode creates multiple agents, slow on CPU
+    @tag timeout: 180_000
     test "returns highest elo agent for league mode" do
-      {:ok, trainer} = LeagueTrainer.new(
-        mode: :league,
-        num_main_agents: 2
-      )
+      {:ok, trainer} =
+        LeagueTrainer.new(
+          mode: :league,
+          num_main_agents: 2
+        )
 
       # Both agents start with same elo, so first one is returned
       {agent_id, agent} = LeagueTrainer.get_best_agent(trainer)
@@ -150,14 +157,16 @@ defmodule ExPhil.Training.SelfPlay.LeagueTrainerTest do
       assert trainer.agents.main.elo == 1000
     end
 
-    @tag timeout: 180_000  # League mode creates multiple agents, slow on CPU
+    # League mode creates multiple agents, slow on CPU
+    @tag timeout: 180_000
     test "league mode creates correct agent types" do
-      {:ok, trainer} = LeagueTrainer.new(
-        mode: :league,
-        num_main_agents: 2,
-        num_main_exploiters: 1,
-        num_league_exploiters: 1
-      )
+      {:ok, trainer} =
+        LeagueTrainer.new(
+          mode: :league,
+          num_main_agents: 2,
+          num_main_exploiters: 1,
+          num_league_exploiters: 1
+        )
 
       # Check main agents
       assert Map.has_key?(trainer.agents, :main_1)
@@ -175,12 +184,14 @@ defmodule ExPhil.Training.SelfPlay.LeagueTrainerTest do
   end
 
   describe "ppo_trainers" do
-    @tag timeout: 180_000  # League mode creates multiple agents, slow on CPU
+    # League mode creates multiple agents, slow on CPU
+    @tag timeout: 180_000
     test "creates ppo trainer for each agent" do
-      {:ok, trainer} = LeagueTrainer.new(
-        mode: :league,
-        num_main_agents: 2
-      )
+      {:ok, trainer} =
+        LeagueTrainer.new(
+          mode: :league,
+          num_main_agents: 2
+        )
 
       # Should have PPO trainer for each agent
       assert map_size(trainer.ppo_trainers) == map_size(trainer.agents)

@@ -23,7 +23,8 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
 
   @moduletag :gpu
   @moduletag :slow
-  @moduletag timeout: 600_000  # 10 min for GPU tests
+  # 10 min for GPU tests
+  @moduletag timeout: 600_000
 
   # Test parameters
   @embed_size 408
@@ -36,46 +37,52 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
   describe "JIT compilation timing" do
     @tag :gpu
     test "measures first-batch JIT compilation overhead" do
-      trainer = Imitation.new(
-        embed_size: @embed_size,
-        hidden_sizes: [256],
-        temporal: true,
-        backbone: :mamba,
-        window_size: @seq_len,
-        num_layers: 2,
-        learning_rate: 1.0e-4
-      )
+      trainer =
+        Imitation.new(
+          embed_size: @embed_size,
+          hidden_sizes: [256],
+          temporal: true,
+          backbone: :mamba,
+          window_size: @seq_len,
+          num_layers: 2,
+          learning_rate: 1.0e-4
+        )
 
       batch = generate_batch(8, @embed_size, temporal: true, seq_len: @seq_len)
 
       # First batch includes JIT compilation
-      {cold_time_us, {_, _}} = :timer.tc(fn ->
-        Imitation.train_step(trainer, batch, nil)
-      end)
+      {cold_time_us, {_, _}} =
+        :timer.tc(fn ->
+          Imitation.train_step(trainer, batch, nil)
+        end)
 
       cold_ms = cold_time_us / 1000
 
       # Second batch is warm (JIT cached)
-      {warm_time_us, _} = :timer.tc(fn ->
-        Imitation.train_step(trainer, batch, nil)
-      end)
+      {warm_time_us, _} =
+        :timer.tc(fn ->
+          Imitation.train_step(trainer, batch, nil)
+        end)
 
       warm_ms = warm_time_us / 1000
 
       # Log the timings
       IO.puts("\n  [INFO] JIT cold start: #{Float.round(cold_ms, 1)}ms")
       IO.puts("  [INFO] Warm batch: #{Float.round(warm_ms, 1)}ms")
-      IO.puts("  [INFO] JIT overhead: #{Float.round(cold_ms - warm_ms, 1)}ms (#{Float.round(cold_ms / warm_ms, 1)}x)")
+
+      IO.puts(
+        "  [INFO] JIT overhead: #{Float.round(cold_ms - warm_ms, 1)}ms (#{Float.round(cold_ms / warm_ms, 1)}x)"
+      )
 
       # Note: Cold might not be slower if JIT was cached from previous tests
       # Just verify both complete in reasonable time
       # The JIT overhead info is still useful for debugging
       assert cold_ms < 10000,
-        "Cold batch too slow: #{cold_ms}ms (expected <10000ms)"
+             "Cold batch too slow: #{cold_ms}ms (expected <10000ms)"
 
       # Warm batch should be reasonably fast
       assert warm_ms < 5000,
-        "Warm batch too slow: #{warm_ms}ms (expected <5000ms)"
+             "Warm batch too slow: #{warm_ms}ms (expected <5000ms)"
     end
   end
 
@@ -83,15 +90,16 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
     @tag :gpu
     test "single-frame inference meets 60fps budget (<16.6ms)" do
       # Build a temporal model
-      trainer = Imitation.new(
-        embed_size: @embed_size,
-        hidden_sizes: [256],
-        temporal: true,
-        backbone: :mamba,
-        window_size: @seq_len,
-        num_layers: 2,
-        learning_rate: 1.0e-4
-      )
+      trainer =
+        Imitation.new(
+          embed_size: @embed_size,
+          hidden_sizes: [256],
+          temporal: true,
+          backbone: :mamba,
+          window_size: @seq_len,
+          num_layers: 2,
+          learning_rate: 1.0e-4
+        )
 
       # Single frame batch
       batch = generate_batch(1, @embed_size, temporal: true, seq_len: @seq_len)
@@ -101,11 +109,13 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
 
       # Measure 100 inferences
       num_inferences = 100
-      {total_us, _} = :timer.tc(fn ->
-        for _ <- 1..num_inferences do
-          do_predict(trainer, batch.states)
-        end
-      end)
+
+      {total_us, _} =
+        :timer.tc(fn ->
+          for _ <- 1..num_inferences do
+            do_predict(trainer, batch.states)
+          end
+        end)
 
       avg_ms = total_us / 1000 / num_inferences
 
@@ -115,28 +125,30 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
       # Should meet 60fps budget (16.6ms per frame)
       # Allow some headroom for game logic
       assert avg_ms < 16.6,
-        "Inference too slow for 60fps: #{avg_ms}ms (budget: 16.6ms)"
+             "Inference too slow for 60fps: #{avg_ms}ms (budget: 16.6ms)"
     end
 
     @tag :gpu
     test "MLP inference is faster than Mamba" do
       # MLP should be fastest since no sequence processing
-      mlp_trainer = Imitation.new(
-        embed_size: @embed_size,
-        hidden_sizes: [256, 256],
-        temporal: false,
-        learning_rate: 1.0e-4
-      )
+      mlp_trainer =
+        Imitation.new(
+          embed_size: @embed_size,
+          hidden_sizes: [256, 256],
+          temporal: false,
+          learning_rate: 1.0e-4
+        )
 
-      mamba_trainer = Imitation.new(
-        embed_size: @embed_size,
-        hidden_sizes: [256],
-        temporal: true,
-        backbone: :mamba,
-        window_size: @seq_len,
-        num_layers: 2,
-        learning_rate: 1.0e-4
-      )
+      mamba_trainer =
+        Imitation.new(
+          embed_size: @embed_size,
+          hidden_sizes: [256],
+          temporal: true,
+          backbone: :mamba,
+          window_size: @seq_len,
+          num_layers: 2,
+          learning_rate: 1.0e-4
+        )
 
       mlp_batch = generate_batch(1, @embed_size, temporal: false)
       mamba_batch = generate_batch(1, @embed_size, temporal: true, seq_len: @seq_len)
@@ -148,13 +160,15 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
       # Measure
       num_inferences = 50
 
-      {mlp_us, _} = :timer.tc(fn ->
-        for _ <- 1..num_inferences, do: do_predict(mlp_trainer, mlp_batch.states)
-      end)
+      {mlp_us, _} =
+        :timer.tc(fn ->
+          for _ <- 1..num_inferences, do: do_predict(mlp_trainer, mlp_batch.states)
+        end)
 
-      {mamba_us, _} = :timer.tc(fn ->
-        for _ <- 1..num_inferences, do: do_predict(mamba_trainer, mamba_batch.states)
-      end)
+      {mamba_us, _} =
+        :timer.tc(fn ->
+          for _ <- 1..num_inferences, do: do_predict(mamba_trainer, mamba_batch.states)
+        end)
 
       mlp_ms = mlp_us / 1000 / num_inferences
       mamba_ms = mamba_us / 1000 / num_inferences
@@ -164,7 +178,7 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
 
       # MLP should be faster (or at least comparable)
       assert mlp_ms <= mamba_ms * 1.5,
-        "MLP slower than expected vs Mamba: #{mlp_ms}ms vs #{mamba_ms}ms"
+             "MLP slower than expected vs Mamba: #{mlp_ms}ms vs #{mamba_ms}ms"
     end
   end
 
@@ -175,31 +189,33 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
   describe "numerical stability" do
     @tag :gpu
     test "training produces no NaN or Inf for 100 batches" do
-      trainer = Imitation.new(
-        embed_size: @embed_size,
-        hidden_sizes: [256],
-        temporal: true,
-        backbone: :mamba,
-        window_size: @seq_len,
-        num_layers: 2,
-        learning_rate: 1.0e-4
-      )
+      trainer =
+        Imitation.new(
+          embed_size: @embed_size,
+          hidden_sizes: [256],
+          temporal: true,
+          backbone: :mamba,
+          window_size: @seq_len,
+          num_layers: 2,
+          learning_rate: 1.0e-4
+        )
 
       batches = generate_batches(100, 32, @embed_size, temporal: true, seq_len: @seq_len)
 
-      final_trainer = Enum.with_index(batches)
-      |> Enum.reduce(trainer, fn {batch, idx}, t ->
-        {new_t, metrics} = Imitation.train_step(t, batch, nil)
+      final_trainer =
+        Enum.with_index(batches)
+        |> Enum.reduce(trainer, fn {batch, idx}, t ->
+          {new_t, metrics} = Imitation.train_step(t, batch, nil)
 
-        loss = Nx.to_number(metrics.loss)
+          loss = Nx.to_number(metrics.loss)
 
-        assert is_float(loss), "Loss is not a float at batch #{idx}: #{inspect(loss)}"
-        refute is_nan(loss), "NaN loss detected at batch #{idx}"
-        refute is_infinite(loss), "Infinite loss detected at batch #{idx}"
-        assert loss < 1000, "Loss exploded at batch #{idx}: #{loss}"
+          assert is_float(loss), "Loss is not a float at batch #{idx}: #{inspect(loss)}"
+          refute is_nan(loss), "NaN loss detected at batch #{idx}"
+          refute is_infinite(loss), "Infinite loss detected at batch #{idx}"
+          assert loss < 1000, "Loss exploded at batch #{idx}: #{loss}"
 
-        new_t
-      end)
+          new_t
+        end)
 
       assert final_trainer.step == 100
       IO.puts("\n  [INFO] Completed 100 batches with no NaN/Inf")
@@ -207,12 +223,13 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
 
     @tag :gpu
     test "extreme input values don't cause NaN" do
-      trainer = Imitation.new(
-        embed_size: @embed_size,
-        hidden_sizes: [256],
-        temporal: false,
-        learning_rate: 1.0e-4
-      )
+      trainer =
+        Imitation.new(
+          embed_size: @embed_size,
+          hidden_sizes: [256],
+          temporal: false,
+          learning_rate: 1.0e-4
+        )
 
       # Test with various extreme values
       test_cases = [
@@ -242,13 +259,15 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
     @tag :gpu
     test "gradients stay bounded (no explosion)" do
       # Use a model without gradient clipping to test raw gradients
-      trainer = Imitation.new(
-        embed_size: @embed_size,
-        hidden_sizes: [256],
-        temporal: false,
-        max_grad_norm: nil,  # Disable clipping
-        learning_rate: 1.0e-4
-      )
+      trainer =
+        Imitation.new(
+          embed_size: @embed_size,
+          hidden_sizes: [256],
+          temporal: false,
+          # Disable clipping
+          max_grad_norm: nil,
+          learning_rate: 1.0e-4
+        )
 
       batches = generate_batches(20, 32, @embed_size, temporal: false)
 
@@ -259,10 +278,11 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
         new_params = get_sample_params(new_t)
 
         # Check parameter change isn't too large (proxy for gradient explosion)
-        param_diff = Nx.subtract(new_params, old_params) |> Nx.abs() |> Nx.reduce_max() |> Nx.to_number()
+        param_diff =
+          Nx.subtract(new_params, old_params) |> Nx.abs() |> Nx.reduce_max() |> Nx.to_number()
 
         assert param_diff < 10.0,
-          "Parameter change too large (possible gradient explosion): #{param_diff}"
+               "Parameter change too large (possible gradient explosion): #{param_diff}"
 
         new_t
       end)
@@ -278,22 +298,25 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
   describe "checkpoint roundtrip" do
     @tag :gpu
     test "save and load produces identical predictions" do
-      trainer = Imitation.new(
-        embed_size: @embed_size,
-        hidden_sizes: [256],
-        temporal: true,
-        backbone: :mamba,
-        window_size: @seq_len,
-        num_layers: 2,
-        learning_rate: 1.0e-4
-      )
+      trainer =
+        Imitation.new(
+          embed_size: @embed_size,
+          hidden_sizes: [256],
+          temporal: true,
+          backbone: :mamba,
+          window_size: @seq_len,
+          num_layers: 2,
+          learning_rate: 1.0e-4
+        )
 
       # Train a few steps to get non-initial weights
       batches = generate_batches(5, 16, @embed_size, temporal: true, seq_len: @seq_len)
-      trained = Enum.reduce(batches, trainer, fn batch, t ->
-        {new_t, _} = Imitation.train_step(t, batch, nil)
-        new_t
-      end)
+
+      trained =
+        Enum.reduce(batches, trainer, fn batch, t ->
+          {new_t, _} = Imitation.train_step(t, batch, nil)
+          new_t
+        end)
 
       # Test input
       test_batch = generate_batch(4, @embed_size, temporal: true, seq_len: @seq_len)
@@ -303,7 +326,7 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
 
       # Save and reload
       tmp_dir = System.tmp_dir!()
-      checkpoint_path = Path.join(tmp_dir, "test_checkpoint_#{:rand.uniform(100000)}.axon")
+      checkpoint_path = Path.join(tmp_dir, "test_checkpoint_#{:rand.uniform(100_000)}.axon")
 
       try do
         :ok = Imitation.save_checkpoint(trained, checkpoint_path)
@@ -323,31 +346,34 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
 
     @tag :gpu
     test "checkpoint preserves training state (step, optimizer)" do
-      trainer = Imitation.new(
-        embed_size: @embed_size,
-        hidden_sizes: [256],
-        temporal: false,
-        learning_rate: 1.0e-4
-      )
+      trainer =
+        Imitation.new(
+          embed_size: @embed_size,
+          hidden_sizes: [256],
+          temporal: false,
+          learning_rate: 1.0e-4
+        )
 
       # Train a few steps
       batches = generate_batches(10, 16, @embed_size, temporal: false)
-      trained = Enum.reduce(batches, trainer, fn batch, t ->
-        {new_t, _} = Imitation.train_step(t, batch, nil)
-        new_t
-      end)
+
+      trained =
+        Enum.reduce(batches, trainer, fn batch, t ->
+          {new_t, _} = Imitation.train_step(t, batch, nil)
+          new_t
+        end)
 
       original_step = trained.step
 
       tmp_dir = System.tmp_dir!()
-      checkpoint_path = Path.join(tmp_dir, "test_state_#{:rand.uniform(100000)}.axon")
+      checkpoint_path = Path.join(tmp_dir, "test_state_#{:rand.uniform(100_000)}.axon")
 
       try do
         :ok = Imitation.save_checkpoint(trained, checkpoint_path)
         {:ok, loaded} = Imitation.load_checkpoint(trained, checkpoint_path)
 
         assert loaded.step == original_step,
-          "Step not preserved: expected #{original_step}, got #{loaded.step}"
+               "Step not preserved: expected #{original_step}, got #{loaded.step}"
 
         IO.puts("\n  [INFO] Training state preserved (step=#{original_step})")
       after
@@ -367,12 +393,14 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
     test "no memory leak over 200 batches" do
       # Use MLP (faster) with smaller batches to test memory stability
       # The goal is to detect leaks, not stress test Mamba
-      trainer = Imitation.new(
-        embed_size: @embed_size,
-        hidden_sizes: [256],
-        temporal: false,  # MLP is much faster
-        learning_rate: 1.0e-4
-      )
+      trainer =
+        Imitation.new(
+          embed_size: @embed_size,
+          hidden_sizes: [256],
+          # MLP is much faster
+          temporal: false,
+          learning_rate: 1.0e-4
+        )
 
       # Force GC before starting
       :erlang.garbage_collect()
@@ -382,11 +410,12 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
       initial_memory = :erlang.memory(:total)
 
       # Train many batches (generate one at a time to avoid memory spike)
-      _final_trainer = Enum.reduce(1..200, trainer, fn _i, t ->
-        batch = generate_batch(32, @embed_size, temporal: false)
-        {new_t, _} = Imitation.train_step(t, batch, nil)
-        new_t
-      end)
+      _final_trainer =
+        Enum.reduce(1..200, trainer, fn _i, t ->
+          batch = generate_batch(32, @embed_size, temporal: false)
+          {new_t, _} = Imitation.train_step(t, batch, nil)
+          new_t
+        end)
 
       # Force GC after
       :erlang.garbage_collect()
@@ -402,7 +431,7 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
       # Allow some growth but catch major leaks
       # 300MB growth for 200 batches would indicate a leak
       assert memory_growth_mb < 300,
-        "Possible memory leak: #{memory_growth_mb}MB growth over 200 batches"
+             "Possible memory leak: #{memory_growth_mb}MB growth over 200 batches"
     end
   end
 
@@ -417,19 +446,21 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
       # 4 batches of 16 should ≈ 1 batch of 64 (with some numerical differences)
 
       # Create two identical trainers
-      trainer1 = Imitation.new(
-        embed_size: @embed_size,
-        hidden_sizes: [256],
-        temporal: false,
-        learning_rate: 1.0e-4
-      )
+      trainer1 =
+        Imitation.new(
+          embed_size: @embed_size,
+          hidden_sizes: [256],
+          temporal: false,
+          learning_rate: 1.0e-4
+        )
 
-      trainer2 = Imitation.new(
-        embed_size: @embed_size,
-        hidden_sizes: [256],
-        temporal: false,
-        learning_rate: 1.0e-4
-      )
+      trainer2 =
+        Imitation.new(
+          embed_size: @embed_size,
+          hidden_sizes: [256],
+          temporal: false,
+          learning_rate: 1.0e-4
+        )
 
       # Generate consistent data
       key = Nx.Random.key(42)
@@ -438,19 +469,20 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
       large_batch = %{states: large_states, actions: actions}
 
       # Split into 4 small batches
-      small_batches = for i <- 0..3 do
-        %{
-          states: Nx.slice(large_states, [i * 16, 0], [16, @embed_size]),
-          actions: %{
-            buttons: Nx.slice(actions.buttons, [i * 16, 0], [16, 8]),
-            main_x: Nx.slice(actions.main_x, [i * 16], [16]),
-            main_y: Nx.slice(actions.main_y, [i * 16], [16]),
-            c_x: Nx.slice(actions.c_x, [i * 16], [16]),
-            c_y: Nx.slice(actions.c_y, [i * 16], [16]),
-            shoulder: Nx.slice(actions.shoulder, [i * 16], [16])
+      small_batches =
+        for i <- 0..3 do
+          %{
+            states: Nx.slice(large_states, [i * 16, 0], [16, @embed_size]),
+            actions: %{
+              buttons: Nx.slice(actions.buttons, [i * 16, 0], [16, 8]),
+              main_x: Nx.slice(actions.main_x, [i * 16], [16]),
+              main_y: Nx.slice(actions.main_y, [i * 16], [16]),
+              c_x: Nx.slice(actions.c_x, [i * 16], [16]),
+              c_y: Nx.slice(actions.c_y, [i * 16], [16]),
+              shoulder: Nx.slice(actions.shoulder, [i * 16], [16])
+            }
           }
-        }
-      end
+        end
 
       # Method 1: Single large batch
       {_trained_large, metrics_large} = Imitation.train_step(trainer1, large_batch, nil)
@@ -459,18 +491,22 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
       # Method 2: 4 small batches (simulated accumulation)
       # Note: This isn't true gradient accumulation (which would average gradients),
       # but we're checking that 4 steps on 4x smaller batches produces similar loss
-      losses_small = Enum.map(small_batches, fn batch ->
-        {_, metrics} = Imitation.train_step(trainer2, batch, nil)
-        Nx.to_number(metrics.loss)
-      end)
+      losses_small =
+        Enum.map(small_batches, fn batch ->
+          {_, metrics} = Imitation.train_step(trainer2, batch, nil)
+          Nx.to_number(metrics.loss)
+        end)
+
       avg_loss_small = Enum.sum(losses_small) / 4
 
       IO.puts("\n  [INFO] Large batch loss: #{Float.round(loss_large, 4)}")
       IO.puts("  [INFO] Avg small batch loss: #{Float.round(avg_loss_small, 4)}")
 
       # Losses should be in similar range (not identical due to different batch statistics)
-      assert_in_delta loss_large, avg_loss_small, 1.0,
-        "Large batch loss (#{loss_large}) too different from small batches (#{avg_loss_small})"
+      assert_in_delta loss_large,
+                      avg_loss_small,
+                      1.0,
+                      "Large batch loss (#{loss_large}) too different from small batches (#{avg_loss_small})"
     end
   end
 
@@ -491,12 +527,13 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
         # Start with small batch, keep doubling
         Enum.reduce_while([32, 64, 128, 256, 512, 1024, 2048], 32, fn batch_size, last_good ->
           try do
-            trainer = Imitation.new(
-              embed_size: embed_size,
-              hidden_sizes: [256, 256],
-              temporal: false,
-              learning_rate: 1.0e-4
-            )
+            trainer =
+              Imitation.new(
+                embed_size: embed_size,
+                hidden_sizes: [256, 256],
+                temporal: false,
+                learning_rate: 1.0e-4
+              )
 
             batch = generate_batch(batch_size, embed_size, temporal: false)
             {_, _} = Imitation.train_step(trainer, batch, nil)
@@ -519,7 +556,7 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
 
       # Should support at least batch_size=128 on any reasonable GPU
       assert max_batch >= 128,
-        "GPU should support at least batch_size=128, got #{max_batch}"
+             "GPU should support at least batch_size=128, got #{max_batch}"
     end
 
     @tag :gpu
@@ -531,15 +568,16 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
       find_max_batch = fn ->
         Enum.reduce_while([8, 16, 32, 64, 128, 256], 8, fn batch_size, last_good ->
           try do
-            trainer = Imitation.new(
-              embed_size: embed_size,
-              hidden_sizes: [256],
-              temporal: true,
-              backbone: :mamba,
-              window_size: seq_len,
-              num_layers: 2,
-              learning_rate: 1.0e-4
-            )
+            trainer =
+              Imitation.new(
+                embed_size: embed_size,
+                hidden_sizes: [256],
+                temporal: true,
+                backbone: :mamba,
+                window_size: seq_len,
+                num_layers: 2,
+                learning_rate: 1.0e-4
+              )
 
             batch = generate_batch(batch_size, embed_size, temporal: true, seq_len: seq_len)
             {_, _} = Imitation.train_step(trainer, batch, nil)
@@ -560,7 +598,7 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
       IO.puts("\n  [INFO] Max Mamba batch size (seq_len=#{seq_len}): #{max_batch}")
 
       assert max_batch >= 16,
-        "GPU should support at least batch_size=16 for Mamba, got #{max_batch}"
+             "GPU should support at least batch_size=16 for Mamba, got #{max_batch}"
     end
   end
 
@@ -571,32 +609,37 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
   describe "batch size scaling" do
     @tag :gpu
     test "throughput scales with batch size" do
-      trainer = Imitation.new(
-        embed_size: @embed_size,
-        hidden_sizes: [256],
-        temporal: false,
-        learning_rate: 1.0e-4
-      )
+      trainer =
+        Imitation.new(
+          embed_size: @embed_size,
+          hidden_sizes: [256],
+          temporal: false,
+          learning_rate: 1.0e-4
+        )
 
       batch_sizes = [16, 32, 64, 128]
-      results = for bs <- batch_sizes do
-        batch = generate_batch(bs, @embed_size, temporal: false)
 
-        # Warmup
-        {_, _} = Imitation.train_step(trainer, batch, nil)
+      results =
+        for bs <- batch_sizes do
+          batch = generate_batch(bs, @embed_size, temporal: false)
 
-        # Measure
-        {time_us, _} = :timer.tc(fn ->
-          for _ <- 1..10 do
-            Imitation.train_step(trainer, batch, nil)
-          end
-        end)
+          # Warmup
+          {_, _} = Imitation.train_step(trainer, batch, nil)
 
-        samples_per_sec = bs * 10 / (time_us / 1_000_000)
-        {bs, samples_per_sec}
-      end
+          # Measure
+          {time_us, _} =
+            :timer.tc(fn ->
+              for _ <- 1..10 do
+                Imitation.train_step(trainer, batch, nil)
+              end
+            end)
+
+          samples_per_sec = bs * 10 / (time_us / 1_000_000)
+          {bs, samples_per_sec}
+        end
 
       IO.puts("\n  [INFO] Throughput scaling:")
+
       for {bs, throughput} <- results do
         IO.puts("    batch_size=#{bs}: #{Float.round(throughput, 1)} samples/sec")
       end
@@ -608,7 +651,7 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
 
       # Max should be at least 1.5x min (some scaling benefit)
       assert max_throughput > min_throughput * 1.2,
-        "Expected throughput to scale with batch size"
+             "Expected throughput to scale with batch size"
     end
   end
 
@@ -617,34 +660,38 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
     test "Mamba handles different sequence lengths" do
       seq_lengths = [16, 30, 60]
 
-      results = for seq_len <- seq_lengths do
-        trainer = Imitation.new(
-          embed_size: @embed_size,
-          hidden_sizes: [256],
-          temporal: true,
-          backbone: :mamba,
-          window_size: seq_len,
-          num_layers: 2,
-          learning_rate: 1.0e-4
-        )
+      results =
+        for seq_len <- seq_lengths do
+          trainer =
+            Imitation.new(
+              embed_size: @embed_size,
+              hidden_sizes: [256],
+              temporal: true,
+              backbone: :mamba,
+              window_size: seq_len,
+              num_layers: 2,
+              learning_rate: 1.0e-4
+            )
 
-        batch = generate_batch(32, @embed_size, temporal: true, seq_len: seq_len)
+          batch = generate_batch(32, @embed_size, temporal: true, seq_len: seq_len)
 
-        # Warmup
-        {_, _} = Imitation.train_step(trainer, batch, nil)
+          # Warmup
+          {_, _} = Imitation.train_step(trainer, batch, nil)
 
-        # Measure
-        {time_us, _} = :timer.tc(fn ->
-          for _ <- 1..5 do
-            Imitation.train_step(trainer, batch, nil)
-          end
-        end)
+          # Measure
+          {time_us, _} =
+            :timer.tc(fn ->
+              for _ <- 1..5 do
+                Imitation.train_step(trainer, batch, nil)
+              end
+            end)
 
-        avg_ms = time_us / 1000 / 5
-        {seq_len, avg_ms}
-      end
+          avg_ms = time_us / 1000 / 5
+          {seq_len, avg_ms}
+        end
 
       IO.puts("\n  [INFO] Mamba timing by sequence length:")
+
       for {seq_len, ms} <- results do
         IO.puts("    seq_len=#{seq_len}: #{Float.round(ms, 1)}ms/batch")
       end
@@ -664,22 +711,24 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
     @tag :gpu
     test "bf16 is faster than f32" do
       # bf16 trainer
-      bf16_trainer = Imitation.new(
-        embed_size: @embed_size,
-        hidden_sizes: [256],
-        temporal: false,
-        precision: :bf16,
-        learning_rate: 1.0e-4
-      )
+      bf16_trainer =
+        Imitation.new(
+          embed_size: @embed_size,
+          hidden_sizes: [256],
+          temporal: false,
+          precision: :bf16,
+          learning_rate: 1.0e-4
+        )
 
       # f32 trainer
-      f32_trainer = Imitation.new(
-        embed_size: @embed_size,
-        hidden_sizes: [256],
-        temporal: false,
-        precision: :f32,
-        learning_rate: 1.0e-4
-      )
+      f32_trainer =
+        Imitation.new(
+          embed_size: @embed_size,
+          hidden_sizes: [256],
+          temporal: false,
+          precision: :f32,
+          learning_rate: 1.0e-4
+        )
 
       batch = generate_batch(64, @embed_size, temporal: false)
 
@@ -688,18 +737,20 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
       {_, _} = Imitation.train_step(f32_trainer, batch, nil)
 
       # Measure bf16
-      {bf16_us, _} = :timer.tc(fn ->
-        for _ <- 1..20 do
-          Imitation.train_step(bf16_trainer, batch, nil)
-        end
-      end)
+      {bf16_us, _} =
+        :timer.tc(fn ->
+          for _ <- 1..20 do
+            Imitation.train_step(bf16_trainer, batch, nil)
+          end
+        end)
 
       # Measure f32
-      {f32_us, _} = :timer.tc(fn ->
-        for _ <- 1..20 do
-          Imitation.train_step(f32_trainer, batch, nil)
-        end
-      end)
+      {f32_us, _} =
+        :timer.tc(fn ->
+          for _ <- 1..20 do
+            Imitation.train_step(f32_trainer, batch, nil)
+          end
+        end)
 
       bf16_ms = bf16_us / 1000 / 20
       f32_ms = f32_us / 1000 / 20
@@ -711,7 +762,7 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
 
       # bf16 should be at least as fast (often 1.5-2x faster)
       assert bf16_ms <= f32_ms * 1.1,
-        "bf16 should not be slower than f32"
+             "bf16 should not be slower than f32"
     end
 
     @tag :gpu
@@ -719,32 +770,36 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
       # Same random seed for both
       batch = generate_batch(32, @embed_size, temporal: false)
 
-      bf16_trainer = Imitation.new(
-        embed_size: @embed_size,
-        hidden_sizes: [256],
-        temporal: false,
-        precision: :bf16,
-        learning_rate: 1.0e-4
-      )
+      bf16_trainer =
+        Imitation.new(
+          embed_size: @embed_size,
+          hidden_sizes: [256],
+          temporal: false,
+          precision: :bf16,
+          learning_rate: 1.0e-4
+        )
 
-      f32_trainer = Imitation.new(
-        embed_size: @embed_size,
-        hidden_sizes: [256],
-        temporal: false,
-        precision: :f32,
-        learning_rate: 1.0e-4
-      )
+      f32_trainer =
+        Imitation.new(
+          embed_size: @embed_size,
+          hidden_sizes: [256],
+          temporal: false,
+          precision: :f32,
+          learning_rate: 1.0e-4
+        )
 
       # Train both for a few steps
-      bf16_losses = for _ <- 1..10 do
-        {_, metrics} = Imitation.train_step(bf16_trainer, batch, nil)
-        Nx.to_number(metrics.loss)
-      end
+      bf16_losses =
+        for _ <- 1..10 do
+          {_, metrics} = Imitation.train_step(bf16_trainer, batch, nil)
+          Nx.to_number(metrics.loss)
+        end
 
-      f32_losses = for _ <- 1..10 do
-        {_, metrics} = Imitation.train_step(f32_trainer, batch, nil)
-        Nx.to_number(metrics.loss)
-      end
+      f32_losses =
+        for _ <- 1..10 do
+          {_, metrics} = Imitation.train_step(f32_trainer, batch, nil)
+          Nx.to_number(metrics.loss)
+        end
 
       bf16_avg = Enum.sum(bf16_losses) / 10
       f32_avg = Enum.sum(f32_losses) / 10
@@ -753,8 +808,10 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
       IO.puts("  [INFO] f32 avg loss: #{Float.round(f32_avg, 4)}")
 
       # Losses should be in similar range (within 20%)
-      assert_in_delta bf16_avg, f32_avg, max(bf16_avg, f32_avg) * 0.5,
-        "bf16 and f32 losses too different"
+      assert_in_delta bf16_avg,
+                      f32_avg,
+                      max(bf16_avg, f32_avg) * 0.5,
+                      "bf16 and f32 losses too different"
     end
   end
 
@@ -765,40 +822,44 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
   describe "long training stability" do
     @tag :gpu
     @tag :slow
-    @tag timeout: 600_000  # 10 min
+    # 10 min
+    @tag timeout: 600_000
     test "training remains stable for 500 batches" do
       # Use MLP for faster iteration - testing numerical stability, not Mamba
-      trainer = Imitation.new(
-        embed_size: @embed_size,
-        hidden_sizes: [256, 256],
-        temporal: false,
-        learning_rate: 1.0e-4
-      )
+      trainer =
+        Imitation.new(
+          embed_size: @embed_size,
+          hidden_sizes: [256, 256],
+          temporal: false,
+          learning_rate: 1.0e-4
+        )
 
       # Track loss over time to detect divergence
       losses = []
 
-      final_trainer = Enum.reduce(1..500, {trainer, losses}, fn idx, {t, loss_acc} ->
-        batch = generate_batch(64, @embed_size, temporal: false)
-        {new_t, metrics} = Imitation.train_step(t, batch, nil)
+      final_trainer =
+        Enum.reduce(1..500, {trainer, losses}, fn idx, {t, loss_acc} ->
+          batch = generate_batch(64, @embed_size, temporal: false)
+          {new_t, metrics} = Imitation.train_step(t, batch, nil)
 
-        loss = Nx.to_number(metrics.loss)
+          loss = Nx.to_number(metrics.loss)
 
-        # Check for problems
-        refute is_nan(loss), "NaN at batch #{idx}"
-        refute is_infinite(loss), "Inf at batch #{idx}"
-        assert loss < 100, "Loss exploded at batch #{idx}: #{loss}"
+          # Check for problems
+          refute is_nan(loss), "NaN at batch #{idx}"
+          refute is_infinite(loss), "Inf at batch #{idx}"
+          assert loss < 100, "Loss exploded at batch #{idx}: #{loss}"
 
-        # Track every 100th loss
-        new_losses = if rem(idx, 100) == 0 do
-          [{idx, loss} | loss_acc]
-        else
-          loss_acc
-        end
+          # Track every 100th loss
+          new_losses =
+            if rem(idx, 100) == 0 do
+              [{idx, loss} | loss_acc]
+            else
+              loss_acc
+            end
 
-        {new_t, new_losses}
-      end)
-      |> elem(0)
+          {new_t, new_losses}
+        end)
+        |> elem(0)
 
       assert final_trainer.step == 500
       IO.puts("\n  [INFO] Completed 500 batches without divergence")
@@ -813,24 +874,27 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
     @tag :gpu
     test "checkpoint saved on GPU loads correctly" do
       # Train on GPU
-      trainer = Imitation.new(
-        embed_size: @embed_size,
-        hidden_sizes: [256],
-        temporal: false,
-        learning_rate: 1.0e-4
-      )
+      trainer =
+        Imitation.new(
+          embed_size: @embed_size,
+          hidden_sizes: [256],
+          temporal: false,
+          learning_rate: 1.0e-4
+        )
 
       batches = generate_batches(5, 16, @embed_size, temporal: false)
-      trained = Enum.reduce(batches, trainer, fn batch, t ->
-        {new_t, _} = Imitation.train_step(t, batch, nil)
-        new_t
-      end)
+
+      trained =
+        Enum.reduce(batches, trainer, fn batch, t ->
+          {new_t, _} = Imitation.train_step(t, batch, nil)
+          new_t
+        end)
 
       test_batch = generate_batch(4, @embed_size, temporal: false)
       pred_before = do_predict(trained, test_batch.states)
 
       tmp_dir = System.tmp_dir!()
-      checkpoint_path = Path.join(tmp_dir, "cross_device_#{:rand.uniform(100000)}.axon")
+      checkpoint_path = Path.join(tmp_dir, "cross_device_#{:rand.uniform(100_000)}.axon")
 
       try do
         # Save
@@ -856,34 +920,38 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
     @tag :gpu
     test "handles corrupted checkpoint gracefully" do
       # Need a trainer to attempt loading
-      trainer = Imitation.new(
-        embed_size: @embed_size,
-        hidden_sizes: [256],
-        temporal: false,
-        learning_rate: 1.0e-4
-      )
+      trainer =
+        Imitation.new(
+          embed_size: @embed_size,
+          hidden_sizes: [256],
+          temporal: false,
+          learning_rate: 1.0e-4
+        )
 
       tmp_dir = System.tmp_dir!()
-      corrupt_path = Path.join(tmp_dir, "corrupt_#{:rand.uniform(100000)}.axon")
+      corrupt_path = Path.join(tmp_dir, "corrupt_#{:rand.uniform(100_000)}.axon")
 
       try do
         # Write garbage data
         File.write!(corrupt_path, "not a valid checkpoint file at all!!!")
 
         # Should raise or return error, not crash
-        result = try do
-          Imitation.load_checkpoint(trainer, corrupt_path)
-        rescue
-          e -> {:error, e}
-        catch
-          kind, reason -> {:caught, kind, reason}
-        end
+        result =
+          try do
+            Imitation.load_checkpoint(trainer, corrupt_path)
+          rescue
+            e -> {:error, e}
+          catch
+            kind, reason -> {:caught, kind, reason}
+          end
 
         case result do
           {:ok, _} ->
             flunk("Should not load corrupted checkpoint")
+
           {:error, _reason} ->
             IO.puts("\n  [INFO] Corrupted checkpoint correctly rejected with error")
+
           {:caught, _, _} ->
             IO.puts("\n  [INFO] Corrupted checkpoint correctly rejected with exception")
         end
@@ -901,22 +969,25 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
     @tag :gpu
     test "gradient clipping prevents explosion" do
       # Trainer WITH clipping
-      clipped_trainer = Imitation.new(
-        embed_size: @embed_size,
-        hidden_sizes: [256],
-        temporal: false,
-        max_grad_norm: 1.0,
-        learning_rate: 1.0e-2  # High LR to stress test
-      )
+      clipped_trainer =
+        Imitation.new(
+          embed_size: @embed_size,
+          hidden_sizes: [256],
+          temporal: false,
+          max_grad_norm: 1.0,
+          # High LR to stress test
+          learning_rate: 1.0e-2
+        )
 
       # Trainer WITHOUT clipping
-      unclipped_trainer = Imitation.new(
-        embed_size: @embed_size,
-        hidden_sizes: [256],
-        temporal: false,
-        max_grad_norm: nil,
-        learning_rate: 1.0e-2
-      )
+      unclipped_trainer =
+        Imitation.new(
+          embed_size: @embed_size,
+          hidden_sizes: [256],
+          temporal: false,
+          max_grad_norm: nil,
+          learning_rate: 1.0e-2
+        )
 
       # Use extreme input to generate large gradients
       extreme_batch = %{
@@ -925,8 +996,11 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
       }
 
       # Both should complete without NaN
-      {clipped_result, clipped_metrics} = Imitation.train_step(clipped_trainer, extreme_batch, nil)
-      {unclipped_result, unclipped_metrics} = Imitation.train_step(unclipped_trainer, extreme_batch, nil)
+      {clipped_result, clipped_metrics} =
+        Imitation.train_step(clipped_trainer, extreme_batch, nil)
+
+      {unclipped_result, unclipped_metrics} =
+        Imitation.train_step(unclipped_trainer, extreme_batch, nil)
 
       clipped_loss = Nx.to_number(clipped_metrics.loss)
       unclipped_loss = Nx.to_number(unclipped_metrics.loss)
@@ -951,12 +1025,13 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
     @tag :gpu
     test "GPU and CPU produce similar predictions" do
       # Build trainer (will use GPU via EXLA default)
-      trainer = Imitation.new(
-        embed_size: @embed_size,
-        hidden_sizes: [256],
-        temporal: false,
-        learning_rate: 1.0e-4
-      )
+      trainer =
+        Imitation.new(
+          embed_size: @embed_size,
+          hidden_sizes: [256],
+          temporal: false,
+          learning_rate: 1.0e-4
+        )
 
       # Generate test input
       batch = generate_batch(8, @embed_size, temporal: false)
@@ -965,7 +1040,8 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
       gpu_pred = do_predict(trainer, batch.states)
 
       # Flatten all tensors in the tuple to a single list of values
-      gpu_values = gpu_pred
+      gpu_values =
+        gpu_pred
         |> Tuple.to_list()
         |> Enum.flat_map(&Nx.to_flat_list/1)
 
@@ -980,12 +1056,13 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
 
     @tag :gpu
     test "same input produces deterministic output" do
-      trainer = Imitation.new(
-        embed_size: @embed_size,
-        hidden_sizes: [256],
-        temporal: false,
-        learning_rate: 1.0e-4
-      )
+      trainer =
+        Imitation.new(
+          embed_size: @embed_size,
+          hidden_sizes: [256],
+          temporal: false,
+          learning_rate: 1.0e-4
+        )
 
       # Fixed input
       key = Nx.Random.key(12345)
@@ -1013,35 +1090,41 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
     test "resumed training continues learning" do
       # Train for 20 batches, save, resume, train 20 more
       # Loss should decrease overall (model is learning)
-      trainer = Imitation.new(
-        embed_size: @embed_size,
-        hidden_sizes: [256],
-        temporal: false,
-        learning_rate: 1.0e-3  # Higher LR for faster convergence in test
-      )
+      trainer =
+        Imitation.new(
+          embed_size: @embed_size,
+          hidden_sizes: [256],
+          temporal: false,
+          # Higher LR for faster convergence in test
+          learning_rate: 1.0e-3
+        )
 
       # Use consistent random data so loss can actually decrease
       key = Nx.Random.key(42)
-      all_batches = for i <- 1..40 do
-        {states, key} = Nx.Random.uniform(key, shape: {32, @embed_size}, type: :f32)
-        actions = generate_actions(32, key)
-        %{states: states, actions: actions}
-      end
+
+      all_batches =
+        for i <- 1..40 do
+          {states, key} = Nx.Random.uniform(key, shape: {32, @embed_size}, type: :f32)
+          actions = generate_actions(32, key)
+          %{states: states, actions: actions}
+        end
 
       first_half = Enum.take(all_batches, 20)
       second_half = Enum.drop(all_batches, 20)
 
       # Train first 20 batches
-      {mid_trainer, mid_losses} = Enum.reduce(first_half, {trainer, []}, fn batch, {t, losses} ->
-        {new_t, metrics} = Imitation.train_step(t, batch, nil)
-        {new_t, [Nx.to_number(metrics.loss) | losses]}
-      end)
+      {mid_trainer, mid_losses} =
+        Enum.reduce(first_half, {trainer, []}, fn batch, {t, losses} ->
+          {new_t, metrics} = Imitation.train_step(t, batch, nil)
+          {new_t, [Nx.to_number(metrics.loss) | losses]}
+        end)
 
-      mid_avg_loss = Enum.sum(Enum.take(mid_losses, 5)) / 5  # Last 5 losses
+      # Last 5 losses
+      mid_avg_loss = Enum.sum(Enum.take(mid_losses, 5)) / 5
 
       # Save checkpoint
       tmp_dir = System.tmp_dir!()
-      checkpoint_path = Path.join(tmp_dir, "resume_test_#{:rand.uniform(100000)}.axon")
+      checkpoint_path = Path.join(tmp_dir, "resume_test_#{:rand.uniform(100_000)}.axon")
 
       try do
         :ok = Imitation.save_checkpoint(mid_trainer, checkpoint_path)
@@ -1051,10 +1134,11 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
         assert loaded.step == mid_trainer.step, "Step not preserved on load"
 
         # Train 20 more batches on loaded model
-        {final_trainer, final_losses} = Enum.reduce(second_half, {loaded, []}, fn batch, {t, losses} ->
-          {new_t, metrics} = Imitation.train_step(t, batch, nil)
-          {new_t, [Nx.to_number(metrics.loss) | losses]}
-        end)
+        {final_trainer, final_losses} =
+          Enum.reduce(second_half, {loaded, []}, fn batch, {t, losses} ->
+            {new_t, metrics} = Imitation.train_step(t, batch, nil)
+            {new_t, [Nx.to_number(metrics.loss) | losses]}
+          end)
 
         final_avg_loss = Enum.sum(Enum.take(final_losses, 5)) / 5
 
@@ -1090,12 +1174,13 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
 
       for i <- 1..30 do
         # Create model
-        trainer = Imitation.new(
-          embed_size: @embed_size,
-          hidden_sizes: [256],
-          temporal: false,
-          learning_rate: 1.0e-4
-        )
+        trainer =
+          Imitation.new(
+            embed_size: @embed_size,
+            hidden_sizes: [256],
+            temporal: false,
+            learning_rate: 1.0e-4
+          )
 
         # Train one batch
         batch = generate_batch(32, @embed_size, temporal: false)
@@ -1121,7 +1206,7 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
       # Allow some growth but catch major leaks
       # 200MB for 30 models would indicate a leak
       assert growth_mb < 200,
-        "Possible memory leak: #{growth_mb}MB growth after 30 model create/destroy cycles"
+             "Possible memory leak: #{growth_mb}MB growth after 30 model create/destroy cycles"
     end
 
     @tag :gpu
@@ -1129,23 +1214,26 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
       # Test with 2 seconds of gameplay (120 frames at 60fps)
       long_seq_len = 120
 
-      trainer = Imitation.new(
-        embed_size: @embed_size,
-        hidden_sizes: [128],  # Smaller for memory
-        temporal: true,
-        backbone: :mamba,
-        window_size: long_seq_len,
-        num_layers: 2,
-        learning_rate: 1.0e-4
-      )
+      trainer =
+        Imitation.new(
+          embed_size: @embed_size,
+          # Smaller for memory
+          hidden_sizes: [128],
+          temporal: true,
+          backbone: :mamba,
+          window_size: long_seq_len,
+          num_layers: 2,
+          learning_rate: 1.0e-4
+        )
 
       # Generate batch with long sequence
       batch = generate_batch(8, @embed_size, temporal: true, seq_len: long_seq_len)
 
       # Should complete without OOM or numerical issues
-      {time_us, {new_trainer, metrics}} = :timer.tc(fn ->
-        Imitation.train_step(trainer, batch, nil)
-      end)
+      {time_us, {new_trainer, metrics}} =
+        :timer.tc(fn ->
+          Imitation.train_step(trainer, batch, nil)
+        end)
 
       loss = Nx.to_number(metrics.loss)
       time_ms = time_us / 1000
@@ -1154,33 +1242,41 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
       refute is_infinite(loss), "Infinite loss with long sequence"
       assert new_trainer.step == 1
 
-      IO.puts("\n  [INFO] Long sequence (#{long_seq_len} frames) training: #{Float.round(time_ms, 1)}ms")
+      IO.puts(
+        "\n  [INFO] Long sequence (#{long_seq_len} frames) training: #{Float.round(time_ms, 1)}ms"
+      )
+
       IO.puts("  [INFO] Loss: #{Float.round(loss, 4)}")
     end
 
     @tag :gpu
     test "deep MLP network (6 layers) trains stably" do
       # Test with deeper than typical network
-      trainer = Imitation.new(
-        embed_size: @embed_size,
-        hidden_sizes: [256, 256, 128, 128, 64, 64],  # 6 layers
-        temporal: false,
-        learning_rate: 1.0e-4,
-        layer_norm: true,  # Helps with deep networks
-        residual: true     # Skip connections for stability
-      )
+      trainer =
+        Imitation.new(
+          embed_size: @embed_size,
+          # 6 layers
+          hidden_sizes: [256, 256, 128, 128, 64, 64],
+          temporal: false,
+          learning_rate: 1.0e-4,
+          # Helps with deep networks
+          layer_norm: true,
+          # Skip connections for stability
+          residual: true
+        )
 
       # Train 20 batches
-      final_trainer = Enum.reduce(1..20, trainer, fn i, t ->
-        batch = generate_batch(32, @embed_size, temporal: false)
-        {new_t, metrics} = Imitation.train_step(t, batch, nil)
+      final_trainer =
+        Enum.reduce(1..20, trainer, fn i, t ->
+          batch = generate_batch(32, @embed_size, temporal: false)
+          {new_t, metrics} = Imitation.train_step(t, batch, nil)
 
-        loss = Nx.to_number(metrics.loss)
-        refute is_nan(loss), "NaN at batch #{i}"
-        refute is_infinite(loss), "Infinite loss at batch #{i}"
+          loss = Nx.to_number(metrics.loss)
+          refute is_nan(loss), "NaN at batch #{i}"
+          refute is_infinite(loss), "Infinite loss at batch #{i}"
 
-        new_t
-      end)
+          new_t
+        end)
 
       assert final_trainer.step == 20
       IO.puts("\n  [INFO] Deep MLP (6 layers) completed 20 batches stably")
@@ -1195,26 +1291,30 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
     @tag :gpu
     test "bf16 handles small values without underflow" do
       # Test that bf16 can handle small gradients without underflowing to zero
-      trainer = Imitation.new(
-        embed_size: @embed_size,
-        hidden_sizes: [64],
-        temporal: false,
-        learning_rate: 1.0e-6,  # Very small LR to produce small gradients
-        precision: :bf16
-      )
+      trainer =
+        Imitation.new(
+          embed_size: @embed_size,
+          hidden_sizes: [64],
+          temporal: false,
+          # Very small LR to produce small gradients
+          learning_rate: 1.0e-6,
+          precision: :bf16
+        )
 
       # Create batch with small values (scaled down)
       key = Nx.Random.key(42)
       {states, key} = Nx.Random.uniform(key, shape: {16, @embed_size}, type: :f32)
-      states = Nx.multiply(states, 0.001)  # Scale down to small values
+      # Scale down to small values
+      states = Nx.multiply(states, 0.001)
       actions = generate_actions(16, key)
       batch = %{states: states, actions: actions}
 
       # Train a few steps - should not underflow
-      losses = for _ <- 1..5 do
-        {trainer, metrics} = Imitation.train_step(trainer, batch, nil)
-        Nx.to_number(metrics.loss)
-      end
+      losses =
+        for _ <- 1..5 do
+          {trainer, metrics} = Imitation.train_step(trainer, batch, nil)
+          Nx.to_number(metrics.loss)
+        end
 
       # All losses should be finite and not zero
       Enum.each(losses, fn loss ->
@@ -1229,26 +1329,29 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
     @tag :gpu
     test "bf16 handles large values without overflow" do
       # Test that bf16 can handle larger input values
-      trainer = Imitation.new(
-        embed_size: @embed_size,
-        hidden_sizes: [64],
-        temporal: false,
-        learning_rate: 1.0e-4,
-        precision: :bf16
-      )
+      trainer =
+        Imitation.new(
+          embed_size: @embed_size,
+          hidden_sizes: [64],
+          temporal: false,
+          learning_rate: 1.0e-4,
+          precision: :bf16
+        )
 
       # Create batch with larger values (but not extreme)
       key = Nx.Random.key(123)
       {states, key} = Nx.Random.uniform(key, shape: {16, @embed_size}, type: :f32)
-      states = Nx.multiply(states, 100.0)  # Scale up
+      # Scale up
+      states = Nx.multiply(states, 100.0)
       actions = generate_actions(16, key)
       batch = %{states: states, actions: actions}
 
       # Train a few steps
-      losses = for _ <- 1..5 do
-        {trainer, metrics} = Imitation.train_step(trainer, batch, nil)
-        Nx.to_number(metrics.loss)
-      end
+      losses =
+        for _ <- 1..5 do
+          {trainer, metrics} = Imitation.train_step(trainer, batch, nil)
+          Nx.to_number(metrics.loss)
+        end
 
       # All losses should be finite
       Enum.each(losses, fn loss ->
@@ -1268,23 +1371,25 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
     @tag :gpu
     test "warmup schedule increases LR over warmup steps" do
       # Create trainer with warmup
-      trainer = Imitation.new(
-        embed_size: @embed_size,
-        hidden_sizes: [128],
-        temporal: false,
-        learning_rate: 1.0e-3,
-        warmup_steps: 10
-      )
+      trainer =
+        Imitation.new(
+          embed_size: @embed_size,
+          hidden_sizes: [128],
+          temporal: false,
+          learning_rate: 1.0e-3,
+          warmup_steps: 10
+        )
 
       # Track LR over first 15 steps
-      lrs = for i <- 1..15, reduce: {trainer, []} do
-        {t, lr_list} ->
-          # Get current LR from optimizer state if available
-          batch = generate_batch(8, @embed_size, temporal: false)
-          {new_t, _metrics} = Imitation.train_step(t, batch, nil)
-          # LR is typically in optimizer state - for now just verify training works
-          {new_t, [i | lr_list]}
-      end
+      lrs =
+        for i <- 1..15, reduce: {trainer, []} do
+          {t, lr_list} ->
+            # Get current LR from optimizer state if available
+            batch = generate_batch(8, @embed_size, temporal: false)
+            {new_t, _metrics} = Imitation.train_step(t, batch, nil)
+            # LR is typically in optimizer state - for now just verify training works
+            {new_t, [i | lr_list]}
+        end
 
       {final_trainer, steps} = lrs
       assert final_trainer.step == 15
@@ -1295,24 +1400,28 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
 
     @tag :gpu
     test "cosine annealing decreases LR" do
-      trainer = Imitation.new(
-        embed_size: @embed_size,
-        hidden_sizes: [128],
-        temporal: false,
-        learning_rate: 1.0e-3,
-        scheduler: :cosine,
-        scheduler_steps: 100  # Total steps for schedule
-      )
+      trainer =
+        Imitation.new(
+          embed_size: @embed_size,
+          hidden_sizes: [128],
+          temporal: false,
+          learning_rate: 1.0e-3,
+          scheduler: :cosine,
+          # Total steps for schedule
+          scheduler_steps: 100
+        )
 
       # Train for 50 steps
-      batches = for _ <- 1..50 do
-        generate_batch(8, @embed_size, temporal: false)
-      end
+      batches =
+        for _ <- 1..50 do
+          generate_batch(8, @embed_size, temporal: false)
+        end
 
-      final_trainer = Enum.reduce(batches, trainer, fn batch, t ->
-        {new_t, _metrics} = Imitation.train_step(t, batch, nil)
-        new_t
-      end)
+      final_trainer =
+        Enum.reduce(batches, trainer, fn batch, t ->
+          {new_t, _metrics} = Imitation.train_step(t, batch, nil)
+          new_t
+        end)
 
       assert final_trainer.step == 50
       IO.puts("\n  [INFO] Cosine annealing: completed 50/100 steps")
@@ -1337,9 +1446,12 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
       {es, :continue} = EarlyStopping.check(es, 0.8)
 
       # Simulate plateau (no improvement)
-      {es, :continue} = EarlyStopping.check(es, 0.81)  # Worse, patience 1
-      {es, :continue} = EarlyStopping.check(es, 0.82)  # Worse, patience 2
-      {_es, result} = EarlyStopping.check(es, 0.83)    # Worse, patience 3 -> stop
+      # Worse, patience 1
+      {es, :continue} = EarlyStopping.check(es, 0.81)
+      # Worse, patience 2
+      {es, :continue} = EarlyStopping.check(es, 0.82)
+      # Worse, patience 3 -> stop
+      {_es, result} = EarlyStopping.check(es, 0.83)
 
       # Should trigger after patience exhausted
       assert result == :stop
@@ -1349,30 +1461,32 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
 
     @tag :gpu
     test "training respects early stopping" do
-      trainer = Imitation.new(
-        embed_size: @embed_size,
-        hidden_sizes: [64],
-        temporal: false,
-        learning_rate: 1.0e-4
-      )
+      trainer =
+        Imitation.new(
+          embed_size: @embed_size,
+          hidden_sizes: [64],
+          temporal: false,
+          learning_rate: 1.0e-4
+        )
 
       alias ExPhil.Training.EarlyStopping
       es = EarlyStopping.init(patience: 5, min_delta: 0.001)
 
       # Train until early stopping triggers or max 50 batches
-      {_final_trainer, stopped_at, _es} = Enum.reduce_while(1..50, {trainer, 0, es}, fn i, {t, _, es} ->
-        batch = generate_batch(16, @embed_size, temporal: false)
-        {new_t, metrics} = Imitation.train_step(t, batch, nil)
-        loss = Nx.to_number(metrics.loss)
+      {_final_trainer, stopped_at, _es} =
+        Enum.reduce_while(1..50, {trainer, 0, es}, fn i, {t, _, es} ->
+          batch = generate_batch(16, @embed_size, temporal: false)
+          {new_t, metrics} = Imitation.train_step(t, batch, nil)
+          loss = Nx.to_number(metrics.loss)
 
-        {new_es, result} = EarlyStopping.check(es, loss)
+          {new_es, result} = EarlyStopping.check(es, loss)
 
-        if result == :stop do
-          {:halt, {new_t, i, new_es}}
-        else
-          {:cont, {new_t, i, new_es}}
-        end
-      end)
+          if result == :stop do
+            {:halt, {new_t, i, new_es}}
+          else
+            {:cont, {new_t, i, new_es}}
+          end
+        end)
 
       IO.puts("\n  [INFO] Training ran for #{stopped_at} batches (early stop or max reached)")
       assert stopped_at > 0
@@ -1387,38 +1501,42 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
     @tag :gpu
     test "train and validation produce different losses" do
       # Create trainer
-      trainer = Imitation.new(
-        embed_size: @embed_size,
-        hidden_sizes: [128],
-        temporal: false,
-        learning_rate: 1.0e-3
-      )
+      trainer =
+        Imitation.new(
+          embed_size: @embed_size,
+          hidden_sizes: [128],
+          temporal: false,
+          learning_rate: 1.0e-3
+        )
 
       # Create distinct train and validation sets with different seeds
       train_key = Nx.Random.key(111)
       val_key = Nx.Random.key(999)
 
-      train_batches = for _ <- 1..20 do
-        {states, train_key} = Nx.Random.uniform(train_key, shape: {32, @embed_size}, type: :f32)
-        actions = generate_actions(32, train_key)
-        %{states: states, actions: actions}
-      end
+      train_batches =
+        for _ <- 1..20 do
+          {states, train_key} = Nx.Random.uniform(train_key, shape: {32, @embed_size}, type: :f32)
+          actions = generate_actions(32, train_key)
+          %{states: states, actions: actions}
+        end
 
-      val_batches = for _ <- 1..5 do
-        {states, val_key} = Nx.Random.uniform(val_key, shape: {32, @embed_size}, type: :f32)
-        actions = generate_actions(32, val_key)
-        %{states: states, actions: actions}
-      end
+      val_batches =
+        for _ <- 1..5 do
+          {states, val_key} = Nx.Random.uniform(val_key, shape: {32, @embed_size}, type: :f32)
+          actions = generate_actions(32, val_key)
+          %{states: states, actions: actions}
+        end
 
       # Get initial validation loss (evaluate takes a list of batches)
       initial_eval = Imitation.evaluate(trainer, val_batches)
       initial_val_loss = initial_eval.loss
 
       # Train on train set
-      trained_trainer = Enum.reduce(train_batches, trainer, fn batch, t ->
-        {new_t, _metrics} = Imitation.train_step(t, batch, nil)
-        new_t
-      end)
+      trained_trainer =
+        Enum.reduce(train_batches, trainer, fn batch, t ->
+          {new_t, _metrics} = Imitation.train_step(t, batch, nil)
+          new_t
+        end)
 
       # Get final validation loss
       final_eval = Imitation.evaluate(trained_trainer, val_batches)
@@ -1428,8 +1546,10 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
       IO.puts("  [INFO] Final val loss: #{Float.round(final_val_loss, 4)}")
 
       # Losses should be different (model changed)
-      refute_in_delta initial_val_loss, final_val_loss, 0.001,
-        "Validation loss unchanged after training"
+      refute_in_delta initial_val_loss,
+                      final_val_loss,
+                      0.001,
+                      "Validation loss unchanged after training"
     end
   end
 
@@ -1441,23 +1561,25 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
     @tag :gpu
     test "detects embedding dimension mismatch on load" do
       # Create and save a model with one embed_size
-      trainer_256 = Imitation.new(
-        embed_size: 256,
-        hidden_sizes: [64],
-        temporal: false
-      )
+      trainer_256 =
+        Imitation.new(
+          embed_size: 256,
+          hidden_sizes: [64],
+          temporal: false
+        )
 
-      tmp_path = Path.join(System.tmp_dir!(), "embed_mismatch_#{:rand.uniform(100000)}.axon")
+      tmp_path = Path.join(System.tmp_dir!(), "embed_mismatch_#{:rand.uniform(100_000)}.axon")
 
       try do
         :ok = Imitation.save_checkpoint(trainer_256, tmp_path)
 
         # Try to load with a different embed_size
-        trainer_512 = Imitation.new(
-          embed_size: 512,
-          hidden_sizes: [64],
-          temporal: false
-        )
+        trainer_512 =
+          Imitation.new(
+            embed_size: 512,
+            hidden_sizes: [64],
+            temporal: false
+          )
 
         # Loading should either:
         # 1. Raise an error about dimension mismatch, or
@@ -1470,14 +1592,16 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
           {:ok, loaded} ->
             # If load succeeded, verify we got a valid model
             # The loaded model should work (may have original or new dimensions)
-            batch = generate_batch(8, 256, temporal: false)  # Use checkpoint's size
+            # Use checkpoint's size
+            batch = generate_batch(8, 256, temporal: false)
             {_pred, loss} = Imitation.evaluate(loaded, batch)
             assert Nx.to_number(loss) > 0
             IO.puts("\n  [INFO] Load succeeded - model dimensions preserved from checkpoint")
 
           {:error, reason} ->
             IO.puts("\n  [INFO] Load correctly failed: #{inspect(reason)}")
-            assert true  # Expected behavior
+            # Expected behavior
+            assert true
         end
       after
         File.rm(tmp_path)
@@ -1487,12 +1611,13 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
     @tag :gpu
     test "validates backbone compatibility" do
       # Train with MLP, verify predict works
-      mlp_trainer = Imitation.new(
-        embed_size: @embed_size,
-        hidden_sizes: [128],
-        backbone: :mlp,
-        temporal: false
-      )
+      mlp_trainer =
+        Imitation.new(
+          embed_size: @embed_size,
+          hidden_sizes: [128],
+          backbone: :mlp,
+          temporal: false
+        )
 
       batch = generate_batch(8, @embed_size, temporal: false)
       {trained, _metrics} = Imitation.train_step(mlp_trainer, batch, nil)
@@ -1519,12 +1644,14 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
       # The fix: Use Nx.backend_transfer(tensor, EXLA.Backend) to explicitly
       # move tensors to GPU during training.
 
-      trainer = Imitation.new(
-        embed_size: @embed_size,
-        hidden_sizes: [256],
-        temporal: false,
-        learning_rate: 1.0e-3  # Higher LR to see faster convergence
-      )
+      trainer =
+        Imitation.new(
+          embed_size: @embed_size,
+          hidden_sizes: [256],
+          temporal: false,
+          # Higher LR to see faster convergence
+          learning_rate: 1.0e-3
+        )
 
       # Generate data and EXPLICITLY put on BinaryBackend (simulating pre-computed embeddings)
       key = Nx.Random.key(42)
@@ -1535,22 +1662,24 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
 
       # Verify it's actually on BinaryBackend (check backend via tensor.data.__struct__)
       assert states_cpu.data.__struct__ == Nx.BinaryBackend,
-        "States should be on BinaryBackend, got: #{inspect(states_cpu.data.__struct__)}"
+             "States should be on BinaryBackend, got: #{inspect(states_cpu.data.__struct__)}"
 
       actions = generate_actions(64, key)
       # Also put actions on CPU
-      actions_cpu = Map.new(actions, fn {k, v} ->
-        {k, Nx.backend_transfer(v, Nx.BinaryBackend)}
-      end)
+      actions_cpu =
+        Map.new(actions, fn {k, v} ->
+          {k, Nx.backend_transfer(v, Nx.BinaryBackend)}
+        end)
 
       batch = %{states: states_cpu, actions: actions_cpu}
 
       # Train multiple steps and verify loss decreases
       # This would NOT happen with 0% GPU utilization
-      losses = for _ <- 1..10 do
-        {_trainer, metrics} = Imitation.train_step(trainer, batch, nil)
-        Nx.to_number(metrics.loss)
-      end
+      losses =
+        for _ <- 1..10 do
+          {_trainer, metrics} = Imitation.train_step(trainer, batch, nil)
+          Nx.to_number(metrics.loss)
+        end
 
       # Verify training actually happened
       refute Enum.any?(losses, &is_nan/1), "Training produced NaN"
@@ -1570,32 +1699,37 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
       # training speed. If tensors aren't transferred to GPU, training would be
       # much slower (70s/batch vs sub-second).
 
-      trainer = Imitation.new(
-        embed_size: @embed_size,
-        hidden_sizes: [256, 256],
-        temporal: false,
-        learning_rate: 1.0e-4
-      )
+      trainer =
+        Imitation.new(
+          embed_size: @embed_size,
+          hidden_sizes: [256, 256],
+          temporal: false,
+          learning_rate: 1.0e-4
+        )
 
       # Create batch on CPU
       key = Nx.Random.key(123)
       {states_gpu, key} = Nx.Random.uniform(key, shape: {128, @embed_size}, type: :f32)
       states_cpu = Nx.backend_transfer(states_gpu, Nx.BinaryBackend)
       actions = generate_actions(128, key)
-      actions_cpu = Map.new(actions, fn {k, v} ->
-        {k, Nx.backend_transfer(v, Nx.BinaryBackend)}
-      end)
+
+      actions_cpu =
+        Map.new(actions, fn {k, v} ->
+          {k, Nx.backend_transfer(v, Nx.BinaryBackend)}
+        end)
+
       batch = %{states: states_cpu, actions: actions_cpu}
 
       # Warm up JIT
       {_, _} = Imitation.train_step(trainer, batch, nil)
 
       # Time 10 batches
-      {time_us, _} = :timer.tc(fn ->
-        for _ <- 1..10 do
-          Imitation.train_step(trainer, batch, nil)
-        end
-      end)
+      {time_us, _} =
+        :timer.tc(fn ->
+          for _ <- 1..10 do
+            Imitation.train_step(trainer, batch, nil)
+          end
+        end)
 
       time_per_batch_ms = time_us / 1000 / 10
 
@@ -1606,7 +1740,7 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
       # - BinaryBackend copy: 4-5s/batch
       # - JIT outer function: ~200ms/batch (optimal)
       assert time_per_batch_ms < 1000,
-        "Training too slow (#{time_per_batch_ms}ms/batch) - expected <1000ms with JIT optimization"
+             "Training too slow (#{time_per_batch_ms}ms/batch) - expected <1000ms with JIT optimization"
     end
   end
 
@@ -1622,25 +1756,27 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
     temporal = Keyword.get(opts, :temporal, false)
     seq_len = Keyword.get(opts, :seq_len, 30)
 
-    key = Nx.Random.key(:rand.uniform(100000))
+    key = Nx.Random.key(:rand.uniform(100_000))
 
-    {batches, _} = Enum.map_reduce(1..num_batches, key, fn _, k ->
-      {states, k} = if temporal do
-        Nx.Random.uniform(k, shape: {batch_size, seq_len, embed_size}, type: :f32)
-      else
-        Nx.Random.uniform(k, shape: {batch_size, embed_size}, type: :f32)
-      end
+    {batches, _} =
+      Enum.map_reduce(1..num_batches, key, fn _, k ->
+        {states, k} =
+          if temporal do
+            Nx.Random.uniform(k, shape: {batch_size, seq_len, embed_size}, type: :f32)
+          else
+            Nx.Random.uniform(k, shape: {batch_size, embed_size}, type: :f32)
+          end
 
-      actions = generate_actions(batch_size, k)
+        actions = generate_actions(batch_size, k)
 
-      {%{states: states, actions: actions}, k}
-    end)
+        {%{states: states, actions: actions}, k}
+      end)
 
     batches
   end
 
   defp generate_actions(batch_size, key \\ nil) do
-    key = key || Nx.Random.key(:rand.uniform(100000))
+    key = key || Nx.Random.key(:rand.uniform(100_000))
 
     {buttons_f, key} = Nx.Random.uniform(key, shape: {batch_size, 8}, type: :f32)
     buttons = buttons_f |> Nx.multiply(2) |> Nx.floor() |> Nx.as_type(:s32)
@@ -1674,6 +1810,7 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
     # Get a sample parameter tensor for comparison
     # Use the first dense layer weights
     params = trainer.policy_params
+
     case params do
       %Axon.ModelState{data: data} ->
         # Find first layer with weights
@@ -1689,6 +1826,7 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
           nil -> Nx.tensor([0.0])
           tensor -> Nx.flatten(tensor) |> Nx.slice([0], [min(100, Nx.size(Nx.flatten(tensor)))])
         end
+
       _ ->
         Nx.tensor([0.0])
     end
@@ -1718,21 +1856,24 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
     b_flat = flatten_predictions(b)
 
     assert length(a_flat) == length(b_flat),
-      "Prediction sizes don't match: #{length(a_flat)} vs #{length(b_flat)}"
+           "Prediction sizes don't match: #{length(a_flat)} vs #{length(b_flat)}"
 
     Enum.zip(a_flat, b_flat)
     |> Enum.with_index()
     |> Enum.each(fn {{av, bv}, idx} ->
       diff = abs(av - bv)
+
       assert diff < atol,
-        "Predictions differ at index #{idx}: #{av} vs #{bv} (diff: #{diff}, atol: #{atol})"
+             "Predictions differ at index #{idx}: #{av} vs #{bv} (diff: #{diff}, atol: #{atol})"
     end)
   end
 
   defp is_nan(x) when is_float(x), do: x != x
   defp is_nan(_), do: false
 
-  defp is_infinite(x) when is_float(x), do: x == :infinity or x == :neg_infinity or abs(x) > 1.0e38
+  defp is_infinite(x) when is_float(x),
+    do: x == :infinity or x == :neg_infinity or abs(x) > 1.0e38
+
   defp is_infinite(_), do: false
 
   # Helper to run prediction using the trainer's predict function

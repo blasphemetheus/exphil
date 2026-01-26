@@ -35,39 +35,45 @@ defmodule ExPhil.Embeddings.Player do
   @doc """
   Configuration for player embedding.
   """
-  defstruct [
-    xy_scale: 0.05,
-    shield_scale: 0.01,
-    speed_scale: 0.5,
-    with_speeds: true,  # Enabled for momentum/velocity info (+5 dims per player)
-    with_nana: true,
-    nana_mode: :compact,  # :full, :compact (39 dims), or :enhanced (14 dims + action ID)
-    with_frame_info: true,  # Hitstun frames + action frame (+2 dims per player)
-    with_stock: true,  # Stock count (+1 dim per player)
-    with_ledge_distance: true,  # Distance to nearest ledge (+1 dim per player)
-    jumps_normalized: true,  # Use 1-dim normalized float instead of 7-dim one-hot (saves 6 dims/player)
-    action_mode: :one_hot,  # :one_hot (399 dims) or :learned (action embedded in network, 0 dims here)
-    character_mode: :one_hot  # :one_hot (33 dims) or :learned (character embedded in network, 0 dims here)
-  ]
+  defstruct xy_scale: 0.05,
+            shield_scale: 0.01,
+            speed_scale: 0.5,
+            # Enabled for momentum/velocity info (+5 dims per player)
+            with_speeds: true,
+            with_nana: true,
+            # :full, :compact (39 dims), or :enhanced (14 dims + action ID)
+            nana_mode: :compact,
+            # Hitstun frames + action frame (+2 dims per player)
+            with_frame_info: true,
+            # Stock count (+1 dim per player)
+            with_stock: true,
+            # Distance to nearest ledge (+1 dim per player)
+            with_ledge_distance: true,
+            # Use 1-dim normalized float instead of 7-dim one-hot (saves 6 dims/player)
+            jumps_normalized: true,
+            # :one_hot (399 dims) or :learned (action embedded in network, 0 dims here)
+            action_mode: :one_hot,
+            # :one_hot (33 dims) or :learned (character embedded in network, 0 dims here)
+            character_mode: :one_hot
 
   @type nana_mode :: :full | :compact | :enhanced
   @type action_mode :: :one_hot | :learned
   @type character_mode :: :one_hot | :learned
 
   @type config :: %__MODULE__{
-    xy_scale: float(),
-    shield_scale: float(),
-    speed_scale: float(),
-    with_speeds: boolean(),
-    with_nana: boolean(),
-    nana_mode: nana_mode(),
-    with_frame_info: boolean(),
-    with_stock: boolean(),
-    with_ledge_distance: boolean(),
-    jumps_normalized: boolean(),
-    action_mode: action_mode(),
-    character_mode: character_mode()
-  }
+          xy_scale: float(),
+          shield_scale: float(),
+          speed_scale: float(),
+          with_speeds: boolean(),
+          with_nana: boolean(),
+          nana_mode: nana_mode(),
+          with_frame_info: boolean(),
+          with_stock: boolean(),
+          with_ledge_distance: boolean(),
+          jumps_normalized: boolean(),
+          action_mode: action_mode(),
+          character_mode: character_mode()
+        }
 
   # ==========================================================================
   # Action Categories for Compact Nana (25 categories)
@@ -83,82 +89,59 @@ defmodule ExPhil.Embeddings.Player do
     cond do
       # 0: DEAD - Dead, respawning (0x00-0x0A)
       action <= 0x0A -> 0
-
       # 1: ENTRY - Entry, rebirth (0x0B-0x0D)
       action <= 0x0D -> 1
-
       # 2: IDLE - Standing, waiting (0x0E-0x14)
       action <= 0x14 -> 2
-
       # 3: WALK - Walking (0x15-0x18)
       action <= 0x18 -> 3
-
       # 4: DASH_RUN - Dashing, running, turn (0x19-0x1E)
       action <= 0x1E -> 4
-
       # 5: JUMP_SQUAT - Jump startup (0x1F-0x22)
       action <= 0x22 -> 5
-
       # 6: JUMP_AERIAL - Jumping, double jump (0x23-0x2C)
       action <= 0x2C -> 6
-
       # 7: FALL - Falling, fast fall (0x2D-0x36)
       action <= 0x36 -> 7
-
       # 8: LAND - Landing, landing lag (0x37-0x3C)
       action <= 0x3C -> 8
-
       # 9: CROUCH - Crouching (0x3D-0x42)
       action <= 0x42 -> 9
-
       # 10: ATTACK_GROUND - Jab, tilts (0x43-0x54)
       action <= 0x54 -> 10
-
       # 11: ATTACK_SMASH - Smash attacks (0x55-0x60)
       action <= 0x60 -> 11
-
       # 12: ATTACK_AIR - Aerials: nair, fair, bair, uair, dair (0x61-0x6B)
       action <= 0x6B -> 12
-
       # 13: SPECIAL_N - Neutral special (0x6C-0x7F) - IC: Ice Shot
       action <= 0x7F -> 13
-
       # 14: SPECIAL_S - Side special (0x80-0x93) - IC: Squall Hammer
       action <= 0x93 -> 14
-
       # 15: SPECIAL_U - Up special (0x94-0xA7) - IC: Belay
       action <= 0xA7 -> 15
-
       # 16: SPECIAL_D - Down special (0xA8-0xBB) - IC: Blizzard
       action <= 0xBB -> 16
-
       # 17: GRAB - Grabbing, pummel (0xBC-0xC7)
       action <= 0xC7 -> 17
-
       # 18: THROW - Throws: fthrow, bthrow, uthrow, dthrow (0xC8-0xD3)
       action <= 0xD3 -> 18
-
       # 19: GRABBED - Being grabbed, pummeled (0xD4-0xDF)
       action <= 0xDF -> 19
-
       # 20: SHIELD - Shielding, shield stun (0xE0-0xED)
       action <= 0xED -> 20
-
       # 21: DODGE - Roll, spotdodge, airdodge (0xEE-0xFF)
       action <= 0xFF -> 21
-
       # 22: DAMAGE - Hitstun, knockback (0x100-0x130)
       action <= 0x130 -> 22
-
       # 23: DOWN_TECH - Lying down, getup, tech (0x131-0x160)
       action <= 0x160 -> 23
-
       # 24: LEDGE - Ledge grab, ledge actions, edge (0x161+)
       true -> 24
     end
   end
 
-  def action_to_category(_), do: 0  # Default to DEAD for nil/invalid
+  # Default to DEAD for nil/invalid
+  def action_to_category(_), do: 0
 
   @doc """
   Default player embedding configuration.
@@ -184,22 +167,27 @@ defmodule ExPhil.Embeddings.Player do
     # Distance to nearest ledge
     ledge_size = if config.with_ledge_distance, do: 1, else: 0
 
-    nana_size = if config.with_nana do
-      case config.nana_mode do
-        :compact -> compact_nana_embedding_size()
-        :enhanced -> enhanced_compact_nana_embedding_size()
-        :full ->
-          # Nana has base embedding + exists flag + optional speeds + optional frame info + stock
-          nana_base = base_embedding_size(config) + 1
-          nana_speeds = if config.with_speeds, do: 5, else: 0
-          nana_frames = if config.with_frame_info, do: 2, else: 0
-          nana_stock = if config.with_stock, do: 1, else: 0
-          # Nana doesn't need ledge_distance (shares with Popo)
-          nana_base + nana_speeds + nana_frames + nana_stock
+    nana_size =
+      if config.with_nana do
+        case config.nana_mode do
+          :compact ->
+            compact_nana_embedding_size()
+
+          :enhanced ->
+            enhanced_compact_nana_embedding_size()
+
+          :full ->
+            # Nana has base embedding + exists flag + optional speeds + optional frame info + stock
+            nana_base = base_embedding_size(config) + 1
+            nana_speeds = if config.with_speeds, do: 5, else: 0
+            nana_frames = if config.with_frame_info, do: 2, else: 0
+            nana_stock = if config.with_stock, do: 1, else: 0
+            # Nana doesn't need ledge_distance (shares with Popo)
+            nana_base + nana_speeds + nana_frames + nana_stock
+        end
+      else
+        0
       end
-    else
-      0
-    end
 
     base_size + speed_size + frame_info_size + stock_size + ledge_size + nana_size
   end
@@ -207,20 +195,34 @@ defmodule ExPhil.Embeddings.Player do
   # Compact Nana embedding size (~39 dims instead of 455)
   # Preserves all info needed for IC tech: handoffs, regrabs, desyncs
   defp compact_nana_embedding_size do
-    1 +   # exists
-    2 +   # x, y position
-    1 +   # facing
-    1 +   # on_ground
-    1 +   # percent
-    1 +   # stock
-    1 +   # hitstun_frames (normalized)
-    1 +   # action_frame (normalized)
-    1 +   # invulnerable
-    @nana_action_categories +  # action category one-hot (25)
-    1 +   # is_attacking (boolean)
-    1 +   # is_grabbing (boolean)
-    1 +   # can_act (boolean)
-    1     # is_synced_hint (boolean - same action category as Popo)
+    # exists
+    # x, y position
+    # facing
+    # on_ground
+    # percent
+    # stock
+    # hitstun_frames (normalized)
+    # action_frame (normalized)
+    # invulnerable
+    # action category one-hot (25)
+    # is_attacking (boolean)
+    # is_grabbing (boolean)
+    # can_act (boolean)
+    # is_synced_hint (boolean - same action category as Popo)
+    1 +
+      2 +
+      1 +
+      1 +
+      1 +
+      1 +
+      1 +
+      1 +
+      1 +
+      @nana_action_categories +
+      1 +
+      1 +
+      1 +
+      1
   end
 
   # Enhanced Compact Nana embedding size (14 dims continuous)
@@ -228,20 +230,34 @@ defmodule ExPhil.Embeddings.Player do
   # Critical for precise IC tech: dair vs fair timing, exact action frames
   # Note: Nana action ID is appended separately by GameEmbed
   defp enhanced_compact_nana_embedding_size do
-    1 +   # exists
-    2 +   # x, y position (scaled)
-    1 +   # facing
-    1 +   # on_ground
-    1 +   # percent (scaled)
-    1 +   # stock (normalized)
-    1 +   # hitstun_frames (normalized, REAL data when available)
-    1 +   # action_frame (normalized, REAL data - critical for hitbox timing!)
-    1 +   # invulnerable
+    # exists
+    # x, y position (scaled)
+    # facing
+    # on_ground
+    # percent (scaled)
+    # stock (normalized)
+    # hitstun_frames (normalized, REAL data when available)
+    # action_frame (normalized, REAL data - critical for hitbox timing!)
+    # invulnerable
     # IC tech flags (keep these for quick boolean checks)
-    1 +   # is_attacking (boolean)
-    1 +   # is_grabbing (boolean)
-    1 +   # can_act (boolean)
-    1     # is_synced_hint (boolean - same action as Popo)
+    # is_attacking (boolean)
+    # is_grabbing (boolean)
+    # can_act (boolean)
+    # is_synced_hint (boolean - same action as Popo)
+    1 +
+      2 +
+      1 +
+      1 +
+      1 +
+      1 +
+      1 +
+      1 +
+      1 +
+      1 +
+      1 +
+      1 +
+      1
+
     # = 14 dims total (action ID handled separately)
   end
 
@@ -249,27 +265,36 @@ defmodule ExPhil.Embeddings.Player do
     jumps_size = if config.jumps_normalized, do: 1, else: Primitives.embedding_size(:jumps_left)
 
     # Action: 399 dims for one-hot, 0 dims for learned (handled by network)
-    action_size = case config.action_mode do
-      :one_hot -> Primitives.embedding_size(:action)
-      :learned -> 0
-    end
+    action_size =
+      case config.action_mode do
+        :one_hot -> Primitives.embedding_size(:action)
+        :learned -> 0
+      end
 
     # Character: 33 dims for one-hot, 0 dims for learned (handled by network)
-    character_size = case config.character_mode do
-      :one_hot -> Primitives.embedding_size(:character)
-      :learned -> 0
-    end
+    character_size =
+      case config.character_mode do
+        :one_hot -> Primitives.embedding_size(:character)
+        :learned -> 0
+      end
 
-    1 +  # percent
-    1 +  # facing
-    1 +  # x
-    1 +  # y
-    action_size +
-    character_size +
-    1 +  # invulnerable
-    jumps_size +
-    1 +  # shield
-    1    # on_ground
+    # percent
+    # facing
+    # x
+    # y
+    # invulnerable
+    # shield
+    # on_ground
+    1 +
+      1 +
+      1 +
+      1 +
+      action_size +
+      character_size +
+      1 +
+      jumps_size +
+      1 +
+      1
   end
 
   @doc """
@@ -295,36 +320,41 @@ defmodule ExPhil.Embeddings.Player do
       embed_base(player, config)
     ]
 
-    embeddings = if config.with_speeds do
-      [embed_speeds(player, config) | embeddings]
-    else
-      embeddings
-    end
+    embeddings =
+      if config.with_speeds do
+        [embed_speeds(player, config) | embeddings]
+      else
+        embeddings
+      end
 
-    embeddings = if config.with_frame_info do
-      [embed_frame_info(player) | embeddings]
-    else
-      embeddings
-    end
+    embeddings =
+      if config.with_frame_info do
+        [embed_frame_info(player) | embeddings]
+      else
+        embeddings
+      end
 
-    embeddings = if config.with_stock do
-      [embed_stock(player) | embeddings]
-    else
-      embeddings
-    end
+    embeddings =
+      if config.with_stock do
+        [embed_stock(player) | embeddings]
+      else
+        embeddings
+      end
 
-    embeddings = if config.with_ledge_distance do
-      [embed_ledge_distance(player) | embeddings]
-    else
-      embeddings
-    end
+    embeddings =
+      if config.with_ledge_distance do
+        [embed_ledge_distance(player) | embeddings]
+      else
+        embeddings
+      end
 
-    embeddings = if config.with_nana do
-      # Pass Popo's action for desync detection in compact mode
-      [embed_nana(player.nana, config, player.action) | embeddings]
-    else
-      embeddings
-    end
+    embeddings =
+      if config.with_nana do
+        # Pass Popo's action for desync detection in compact mode
+        [embed_nana(player.nana, config, player.action) | embeddings]
+      else
+        embeddings
+      end
 
     # Reverse and concatenate (we prepended for efficiency)
     embeddings
@@ -372,122 +402,158 @@ defmodule ExPhil.Embeddings.Player do
     invuln_emb = Primitives.batch_bool_embed(invulnerables)
 
     # Jumps: normalized (1-dim) or one-hot (7-dim) based on config
-    jumps_emb = if config.jumps_normalized do
-      # Normalized: jumps/6 in [0, 1] range
-      Primitives.batch_float_embed(Enum.map(jumps, &(min(&1 / 6, 1.0))), scale: 1.0, lower: 0.0, upper: 1.0)
-    else
-      # One-hot: 7 dimensions
-      Primitives.batch_one_hot(Nx.tensor(jumps, type: :s32), size: 7, clamp: true)
-    end
+    jumps_emb =
+      if config.jumps_normalized do
+        # Normalized: jumps/6 in [0, 1] range
+        Primitives.batch_float_embed(Enum.map(jumps, &min(&1 / 6, 1.0)),
+          scale: 1.0,
+          lower: 0.0,
+          upper: 1.0
+        )
+      else
+        # One-hot: 7 dimensions
+        Primitives.batch_one_hot(Nx.tensor(jumps, type: :s32), size: 7, clamp: true)
+      end
 
     shield_emb = Primitives.batch_float_embed(shields, scale: 0.01, lower: 0.0, upper: 1.0)
     ground_emb = Primitives.batch_bool_embed(on_grounds)
 
     # Base embeddings - build list based on config
     base_embs = [
-      percent_emb,   # [batch, 1]
-      facing_emb,    # [batch, 1]
-      x_emb,         # [batch, 1]
-      y_emb          # [batch, 1]
+      # [batch, 1]
+      percent_emb,
+      # [batch, 1]
+      facing_emb,
+      # [batch, 1]
+      x_emb,
+      # [batch, 1]
+      y_emb
     ]
 
     # Add action one-hot only if not using learned embeddings
-    base_embs = case config.action_mode do
-      :one_hot ->
-        action_emb = Primitives.batch_one_hot(Nx.tensor(actions, type: :s32), size: 399, clamp: true)
-        base_embs ++ [action_emb]  # [batch, 399]
-      :learned ->
-        base_embs  # Action IDs handled separately by network
-    end
+    base_embs =
+      case config.action_mode do
+        :one_hot ->
+          action_emb =
+            Primitives.batch_one_hot(Nx.tensor(actions, type: :s32), size: 399, clamp: true)
+
+          # [batch, 399]
+          base_embs ++ [action_emb]
+
+        :learned ->
+          # Action IDs handled separately by network
+          base_embs
+      end
 
     # Add character one-hot only if not using learned embeddings
-    base_embs = case config.character_mode do
-      :one_hot ->
-        char_emb = Primitives.batch_one_hot(Nx.tensor(characters, type: :s32), size: 33, clamp: true)
-        base_embs ++ [char_emb]  # [batch, 33]
-      :learned ->
-        base_embs  # Character IDs handled separately by network
-    end
+    base_embs =
+      case config.character_mode do
+        :one_hot ->
+          char_emb =
+            Primitives.batch_one_hot(Nx.tensor(characters, type: :s32), size: 33, clamp: true)
+
+          # [batch, 33]
+          base_embs ++ [char_emb]
+
+        :learned ->
+          # Character IDs handled separately by network
+          base_embs
+      end
 
     # Continue with rest of features
-    base_embs = base_embs ++ [
-      invuln_emb,    # [batch, 1]
-      jumps_emb,     # [batch, 1] or [batch, 7]
-      shield_emb,    # [batch, 1]
-      ground_emb     # [batch, 1]
-    ]
+    base_embs =
+      base_embs ++
+        [
+          # [batch, 1]
+          invuln_emb,
+          # [batch, 1] or [batch, 7]
+          jumps_emb,
+          # [batch, 1]
+          shield_emb,
+          # [batch, 1]
+          ground_emb
+        ]
 
     # Add speeds if configured
-    embs_with_speeds = if config.with_speeds do
-      speed_air_x = Enum.map(players, fn p -> (p && p.speed_air_x_self) || 0.0 end)
-      speed_ground_x = Enum.map(players, fn p -> (p && p.speed_ground_x_self) || 0.0 end)
-      speed_y = Enum.map(players, fn p -> (p && p.speed_y_self) || 0.0 end)
-      speed_x_attack = Enum.map(players, fn p -> (p && p.speed_x_attack) || 0.0 end)
-      speed_y_attack = Enum.map(players, fn p -> (p && p.speed_y_attack) || 0.0 end)
+    embs_with_speeds =
+      if config.with_speeds do
+        speed_air_x = Enum.map(players, fn p -> (p && p.speed_air_x_self) || 0.0 end)
+        speed_ground_x = Enum.map(players, fn p -> (p && p.speed_ground_x_self) || 0.0 end)
+        speed_y = Enum.map(players, fn p -> (p && p.speed_y_self) || 0.0 end)
+        speed_x_attack = Enum.map(players, fn p -> (p && p.speed_x_attack) || 0.0 end)
+        speed_y_attack = Enum.map(players, fn p -> (p && p.speed_y_attack) || 0.0 end)
 
-      speed_embs = [
-        Primitives.batch_float_embed(speed_air_x, scale: 0.5),
-        Primitives.batch_float_embed(speed_ground_x, scale: 0.5),
-        Primitives.batch_float_embed(speed_y, scale: 0.5),
-        Primitives.batch_float_embed(speed_x_attack, scale: 0.5),
-        Primitives.batch_float_embed(speed_y_attack, scale: 0.5)
-      ]
+        speed_embs = [
+          Primitives.batch_float_embed(speed_air_x, scale: 0.5),
+          Primitives.batch_float_embed(speed_ground_x, scale: 0.5),
+          Primitives.batch_float_embed(speed_y, scale: 0.5),
+          Primitives.batch_float_embed(speed_x_attack, scale: 0.5),
+          Primitives.batch_float_embed(speed_y_attack, scale: 0.5)
+        ]
 
-      base_embs ++ speed_embs
-    else
-      base_embs
-    end
+        base_embs ++ speed_embs
+      else
+        base_embs
+      end
 
     # Add frame info (hitstun + action frame) if configured
-    embs_with_frame_info = if config.with_frame_info do
-      # Hitstun frames remaining (0-120ish, normalized to 0-1)
-      hitstun_frames = Enum.map(players, fn p -> (p && p.hitstun_frames_left) || 0 end)
-      # Action frame (how far into the animation, typically 0-100+, normalized)
-      action_frames = Enum.map(players, fn p -> (p && p.action_frame) || 0 end)
+    embs_with_frame_info =
+      if config.with_frame_info do
+        # Hitstun frames remaining (0-120ish, normalized to 0-1)
+        hitstun_frames = Enum.map(players, fn p -> (p && p.hitstun_frames_left) || 0 end)
+        # Action frame (how far into the animation, typically 0-100+, normalized)
+        action_frames = Enum.map(players, fn p -> (p && p.action_frame) || 0 end)
 
-      frame_embs = [
-        # Scale hitstun: 120 frames max is reasonable, clamp to 0-1
-        Primitives.batch_float_embed(hitstun_frames, scale: 1/120, lower: 0.0, upper: 1.0),
-        # Scale action_frame: most animations under 60 frames, but some longer
-        Primitives.batch_float_embed(action_frames, scale: 1/60, lower: 0.0, upper: 2.0)
-      ]
+        frame_embs = [
+          # Scale hitstun: 120 frames max is reasonable, clamp to 0-1
+          Primitives.batch_float_embed(hitstun_frames, scale: 1 / 120, lower: 0.0, upper: 1.0),
+          # Scale action_frame: most animations under 60 frames, but some longer
+          Primitives.batch_float_embed(action_frames, scale: 1 / 60, lower: 0.0, upper: 2.0)
+        ]
 
-      embs_with_speeds ++ frame_embs
-    else
-      embs_with_speeds
-    end
+        embs_with_speeds ++ frame_embs
+      else
+        embs_with_speeds
+      end
 
     # Add stock count if configured
-    embs_with_stock = if config.with_stock do
-      stocks = Enum.map(players, fn p -> (p && p.stock) || 0 end)
-      stock_emb = Primitives.batch_float_embed(stocks, scale: 1/4, lower: 0.0, upper: 1.0)
-      embs_with_frame_info ++ [stock_emb]
-    else
-      embs_with_frame_info
-    end
+    embs_with_stock =
+      if config.with_stock do
+        stocks = Enum.map(players, fn p -> (p && p.stock) || 0 end)
+        stock_emb = Primitives.batch_float_embed(stocks, scale: 1 / 4, lower: 0.0, upper: 1.0)
+        embs_with_frame_info ++ [stock_emb]
+      else
+        embs_with_frame_info
+      end
 
     # Add distance to ledge if configured
-    embs_with_ledge = if config.with_ledge_distance do
-      # Calculate distance to nearest ledge (simplified: stage_edge - |x|)
-      stage_edge = 85.0
-      ledge_distances = Enum.map(players, fn p ->
-        x = (p && p.x) || 0.0
-        (stage_edge - abs(x)) / stage_edge  # Normalize: 0 at edge, ~1 at center
-      end)
-      ledge_emb = Primitives.batch_float_embed(ledge_distances, scale: 1.0)
-      embs_with_stock ++ [ledge_emb]
-    else
-      embs_with_stock
-    end
+    embs_with_ledge =
+      if config.with_ledge_distance do
+        # Calculate distance to nearest ledge (simplified: stage_edge - |x|)
+        stage_edge = 85.0
+
+        ledge_distances =
+          Enum.map(players, fn p ->
+            x = (p && p.x) || 0.0
+            # Normalize: 0 at edge, ~1 at center
+            (stage_edge - abs(x)) / stage_edge
+          end)
+
+        ledge_emb = Primitives.batch_float_embed(ledge_distances, scale: 1.0)
+        embs_with_stock ++ [ledge_emb]
+      else
+        embs_with_stock
+      end
 
     # Add Nana (Ice Climbers partner) if configured
-    all_embs = if config.with_nana do
-      batch_size = length(players)
-      nana_embs = embed_batch_nana(players, config, batch_size)
-      embs_with_ledge ++ [nana_embs]
-    else
-      embs_with_ledge
-    end
+    all_embs =
+      if config.with_nana do
+        batch_size = length(players)
+        nana_embs = embed_batch_nana(players, config, batch_size)
+        embs_with_ledge ++ [nana_embs]
+      else
+        embs_with_ledge
+      end
 
     # Concatenate all embeddings: [batch, total_embed_size]
     Nx.concatenate(all_embs, axis: 1)
@@ -533,23 +599,44 @@ defmodule ExPhil.Embeddings.Player do
       on_ground = Enum.map(nana_ys, fn y -> y < 5.0 end)
 
       # Build embedding
-      Nx.concatenate([
-        Primitives.batch_bool_embed(nana_exists),                                    # [batch, 1]
-        Primitives.batch_float_embed(nana_xs, scale: 0.05),                          # [batch, 1]
-        Primitives.batch_float_embed(nana_ys, scale: 0.05),                          # [batch, 1]
-        Primitives.batch_bool_embed(nana_facings, on: 1.0, off: -1.0),              # [batch, 1]
-        Primitives.batch_bool_embed(on_ground),                                      # [batch, 1]
-        Primitives.batch_float_embed(nana_percents, scale: 0.01, lower: 0.0, upper: 5.0),  # [batch, 1]
-        Primitives.batch_float_embed(nana_stocks, scale: 1/4, lower: 0.0, upper: 1.0),     # [batch, 1]
-        Nx.broadcast(0.0, {batch_size, 1}),                                          # hitstun [batch, 1]
-        Nx.broadcast(0.0, {batch_size, 1}),                                          # action_frame [batch, 1]
-        Nx.broadcast(0.0, {batch_size, 1}),                                          # invulnerable [batch, 1]
-        Primitives.batch_one_hot(Nx.tensor(nana_categories, type: :s32), size: @nana_action_categories, clamp: true),  # [batch, 25]
-        Primitives.batch_bool_embed(is_attacking),                                   # [batch, 1]
-        Primitives.batch_bool_embed(is_grabbing),                                    # [batch, 1]
-        Primitives.batch_bool_embed(can_act),                                        # [batch, 1]
-        Primitives.batch_bool_embed(is_synced)                                       # [batch, 1]
-      ], axis: 1)
+      Nx.concatenate(
+        [
+          # [batch, 1]
+          Primitives.batch_bool_embed(nana_exists),
+          # [batch, 1]
+          Primitives.batch_float_embed(nana_xs, scale: 0.05),
+          # [batch, 1]
+          Primitives.batch_float_embed(nana_ys, scale: 0.05),
+          # [batch, 1]
+          Primitives.batch_bool_embed(nana_facings, on: 1.0, off: -1.0),
+          # [batch, 1]
+          Primitives.batch_bool_embed(on_ground),
+          # [batch, 1]
+          Primitives.batch_float_embed(nana_percents, scale: 0.01, lower: 0.0, upper: 5.0),
+          # [batch, 1]
+          Primitives.batch_float_embed(nana_stocks, scale: 1 / 4, lower: 0.0, upper: 1.0),
+          # hitstun [batch, 1]
+          Nx.broadcast(0.0, {batch_size, 1}),
+          # action_frame [batch, 1]
+          Nx.broadcast(0.0, {batch_size, 1}),
+          # invulnerable [batch, 1]
+          Nx.broadcast(0.0, {batch_size, 1}),
+          # [batch, 25]
+          Primitives.batch_one_hot(Nx.tensor(nana_categories, type: :s32),
+            size: @nana_action_categories,
+            clamp: true
+          ),
+          # [batch, 1]
+          Primitives.batch_bool_embed(is_attacking),
+          # [batch, 1]
+          Primitives.batch_bool_embed(is_grabbing),
+          # [batch, 1]
+          Primitives.batch_bool_embed(can_act),
+          # [batch, 1]
+          Primitives.batch_bool_embed(is_synced)
+        ],
+        axis: 1
+      )
     end
   end
 
@@ -581,22 +668,39 @@ defmodule ExPhil.Embeddings.Player do
       on_ground = Enum.map(nana_ys, fn y -> y < 5.0 end)
 
       # Build embedding (14 dims total - no action category one-hot)
-      Nx.concatenate([
-        Primitives.batch_bool_embed(nana_exists),                                    # [batch, 1]
-        Primitives.batch_float_embed(nana_xs, scale: 0.05),                          # [batch, 1]
-        Primitives.batch_float_embed(nana_ys, scale: 0.05),                          # [batch, 1]
-        Primitives.batch_bool_embed(nana_facings, on: 1.0, off: -1.0),              # [batch, 1]
-        Primitives.batch_bool_embed(on_ground),                                      # [batch, 1]
-        Primitives.batch_float_embed(nana_percents, scale: 0.01, lower: 0.0, upper: 5.0),  # [batch, 1]
-        Primitives.batch_float_embed(nana_stocks, scale: 1/4, lower: 0.0, upper: 1.0),     # [batch, 1]
-        Nx.broadcast(0.0, {batch_size, 1}),                                          # hitstun [batch, 1]
-        Nx.broadcast(0.0, {batch_size, 1}),                                          # action_frame [batch, 1]
-        Nx.broadcast(0.0, {batch_size, 1}),                                          # invulnerable [batch, 1]
-        Primitives.batch_bool_embed(is_attacking),                                   # [batch, 1]
-        Primitives.batch_bool_embed(is_grabbing),                                    # [batch, 1]
-        Primitives.batch_bool_embed(can_act),                                        # [batch, 1]
-        Primitives.batch_bool_embed(is_synced)                                       # [batch, 1]
-      ], axis: 1)
+      Nx.concatenate(
+        [
+          # [batch, 1]
+          Primitives.batch_bool_embed(nana_exists),
+          # [batch, 1]
+          Primitives.batch_float_embed(nana_xs, scale: 0.05),
+          # [batch, 1]
+          Primitives.batch_float_embed(nana_ys, scale: 0.05),
+          # [batch, 1]
+          Primitives.batch_bool_embed(nana_facings, on: 1.0, off: -1.0),
+          # [batch, 1]
+          Primitives.batch_bool_embed(on_ground),
+          # [batch, 1]
+          Primitives.batch_float_embed(nana_percents, scale: 0.01, lower: 0.0, upper: 5.0),
+          # [batch, 1]
+          Primitives.batch_float_embed(nana_stocks, scale: 1 / 4, lower: 0.0, upper: 1.0),
+          # hitstun [batch, 1]
+          Nx.broadcast(0.0, {batch_size, 1}),
+          # action_frame [batch, 1]
+          Nx.broadcast(0.0, {batch_size, 1}),
+          # invulnerable [batch, 1]
+          Nx.broadcast(0.0, {batch_size, 1}),
+          # [batch, 1]
+          Primitives.batch_bool_embed(is_attacking),
+          # [batch, 1]
+          Primitives.batch_bool_embed(is_grabbing),
+          # [batch, 1]
+          Primitives.batch_bool_embed(can_act),
+          # [batch, 1]
+          Primitives.batch_bool_embed(is_synced)
+        ],
+        axis: 1
+      )
     end
   end
 
@@ -624,50 +728,78 @@ defmodule ExPhil.Embeddings.Player do
       nana_exists = Enum.map(nanas, fn n -> n != nil end)
 
       # Batch embed Nana values
-      nana_percent_emb = Primitives.batch_float_embed(nana_percents, scale: 0.01, lower: 0.0, upper: 5.0)
+      nana_percent_emb =
+        Primitives.batch_float_embed(nana_percents, scale: 0.01, lower: 0.0, upper: 5.0)
+
       nana_facing_emb = Primitives.batch_bool_embed(nana_facings, on: 1.0, off: -1.0)
       nana_x_emb = Primitives.batch_float_embed(nana_xs, scale: config.xy_scale)
       nana_y_emb = Primitives.batch_float_embed(nana_ys, scale: config.xy_scale)
-      nana_action_emb = Primitives.batch_one_hot(Nx.tensor(nana_actions, type: :s32), size: 399, clamp: true)
+
+      nana_action_emb =
+        Primitives.batch_one_hot(Nx.tensor(nana_actions, type: :s32), size: 399, clamp: true)
 
       # Nana uses character 0, no jumps/shield/invuln/on_ground data
-      nana_char_emb = Primitives.batch_one_hot(Nx.tensor(List.duplicate(0, batch_size), type: :s32), size: 33, clamp: true)
+      nana_char_emb =
+        Primitives.batch_one_hot(Nx.tensor(List.duplicate(0, batch_size), type: :s32),
+          size: 33,
+          clamp: true
+        )
+
       nana_invuln_emb = Nx.broadcast(0.0, {batch_size, 1})
       # Jumps: normalized (1-dim) or one-hot (7-dim) based on config
-      nana_jumps_emb = if config.jumps_normalized do
-        Nx.broadcast(0.0, {batch_size, 1})
-      else
-        Primitives.batch_one_hot(Nx.tensor(List.duplicate(0, batch_size), type: :s32), size: 7, clamp: true)
-      end
+      nana_jumps_emb =
+        if config.jumps_normalized do
+          Nx.broadcast(0.0, {batch_size, 1})
+        else
+          Primitives.batch_one_hot(Nx.tensor(List.duplicate(0, batch_size), type: :s32),
+            size: 7,
+            clamp: true
+          )
+        end
+
       nana_shield_emb = Nx.broadcast(0.0, {batch_size, 1})
       nana_ground_emb = Nx.broadcast(0.0, {batch_size, 1})
       nana_exists_emb = Primitives.batch_bool_embed(nana_exists)
 
       base_nana_embs = [
-        nana_percent_emb, nana_facing_emb, nana_x_emb, nana_y_emb,
-        nana_action_emb, nana_char_emb, nana_invuln_emb, nana_jumps_emb,
-        nana_shield_emb, nana_ground_emb, nana_exists_emb
+        nana_percent_emb,
+        nana_facing_emb,
+        nana_x_emb,
+        nana_y_emb,
+        nana_action_emb,
+        nana_char_emb,
+        nana_invuln_emb,
+        nana_jumps_emb,
+        nana_shield_emb,
+        nana_ground_emb,
+        nana_exists_emb
       ]
 
-      nana_embs_with_speeds = if config.with_speeds do
-        base_nana_embs ++ [Nx.broadcast(0.0, {batch_size, 5})]
-      else
-        base_nana_embs
-      end
+      nana_embs_with_speeds =
+        if config.with_speeds do
+          base_nana_embs ++ [Nx.broadcast(0.0, {batch_size, 5})]
+        else
+          base_nana_embs
+        end
 
-      nana_embs_with_frame_info = if config.with_frame_info do
-        nana_embs_with_speeds ++ [Nx.broadcast(0.0, {batch_size, 2})]
-      else
-        nana_embs_with_speeds
-      end
+      nana_embs_with_frame_info =
+        if config.with_frame_info do
+          nana_embs_with_speeds ++ [Nx.broadcast(0.0, {batch_size, 2})]
+        else
+          nana_embs_with_speeds
+        end
 
-      nana_embs_with_stock = if config.with_stock do
-        nana_stocks = Enum.map(nanas, fn n -> (n && n.stock) || 0 end)
-        nana_stock_emb = Primitives.batch_float_embed(nana_stocks, scale: 1/4, lower: 0.0, upper: 1.0)
-        nana_embs_with_frame_info ++ [nana_stock_emb]
-      else
-        nana_embs_with_frame_info
-      end
+      nana_embs_with_stock =
+        if config.with_stock do
+          nana_stocks = Enum.map(nanas, fn n -> (n && n.stock) || 0 end)
+
+          nana_stock_emb =
+            Primitives.batch_float_embed(nana_stocks, scale: 1 / 4, lower: 0.0, upper: 1.0)
+
+          nana_embs_with_frame_info ++ [nana_stock_emb]
+        else
+          nana_embs_with_frame_info
+        end
 
       Nx.concatenate(nana_embs_with_stock, axis: 1)
     end
@@ -679,11 +811,12 @@ defmodule ExPhil.Embeddings.Player do
   @spec embed_base(PlayerState.t(), config()) :: Nx.Tensor.t()
   def embed_base(%PlayerState{} = player, config) do
     # Choose jumps embedding based on config
-    jumps_embed = if config.jumps_normalized do
-      Primitives.jumps_left_normalized_embed(player.jumps_left || 0)
-    else
-      Primitives.jumps_left_embed(player.jumps_left || 0)
-    end
+    jumps_embed =
+      if config.jumps_normalized do
+        Primitives.jumps_left_normalized_embed(player.jumps_left || 0)
+      else
+        Primitives.jumps_left_embed(player.jumps_left || 0)
+      end
 
     # Build base features (without action if using learned embeddings)
     base_features = [
@@ -699,28 +832,32 @@ defmodule ExPhil.Embeddings.Player do
     ]
 
     # Add action one-hot only if not using learned embeddings
-    base_features = case config.action_mode do
-      :one_hot -> base_features ++ [Primitives.action_embed(player.action || 0)]
-      :learned -> base_features  # Action ID handled separately by network
-    end
+    base_features =
+      case config.action_mode do
+        :one_hot -> base_features ++ [Primitives.action_embed(player.action || 0)]
+        # Action ID handled separately by network
+        :learned -> base_features
+      end
 
     # Continue with rest of features
-    all_features = base_features ++ [
-      # Character (one-hot)
-      Primitives.character_embed(player.character || 0),
+    all_features =
+      base_features ++
+        [
+          # Character (one-hot)
+          Primitives.character_embed(player.character || 0),
 
-      # Invulnerable flag
-      Primitives.bool_embed(player.invulnerable || false),
+          # Invulnerable flag
+          Primitives.bool_embed(player.invulnerable || false),
 
-      # Jumps remaining (1-dim normalized or 7-dim one-hot)
-      jumps_embed,
+          # Jumps remaining (1-dim normalized or 7-dim one-hot)
+          jumps_embed,
 
-      # Shield strength
-      Primitives.shield_embed(player.shield_strength || 0.0),
+          # Shield strength
+          Primitives.shield_embed(player.shield_strength || 0.0),
 
-      # On ground flag
-      Primitives.bool_embed(player.on_ground || false)
-    ]
+          # On ground flag
+          Primitives.bool_embed(player.on_ground || false)
+        ]
 
     Nx.concatenate(all_features)
   end
@@ -801,16 +938,22 @@ defmodule ExPhil.Embeddings.Player do
 
   def embed_nana(nil, config, _popo_action) do
     # Nana doesn't exist - return zeros
-    size = case config.nana_mode do
-      :compact -> compact_nana_embedding_size()
-      :enhanced -> enhanced_compact_nana_embedding_size()
-      :full ->
-        base_size = base_embedding_size(config) + 1
-        speed_size = if config.with_speeds, do: 5, else: 0
-        frame_size = if config.with_frame_info, do: 2, else: 0
-        stock_size = if config.with_stock, do: 1, else: 0
-        base_size + speed_size + frame_size + stock_size
-    end
+    size =
+      case config.nana_mode do
+        :compact ->
+          compact_nana_embedding_size()
+
+        :enhanced ->
+          enhanced_compact_nana_embedding_size()
+
+        :full ->
+          base_size = base_embedding_size(config) + 1
+          speed_size = if config.with_speeds, do: 5, else: 0
+          frame_size = if config.with_frame_info, do: 2, else: 0
+          stock_size = if config.with_stock, do: 1, else: 0
+          base_size + speed_size + frame_size + stock_size
+      end
+
     Nx.broadcast(0.0, {size})
   end
 
@@ -829,11 +972,15 @@ defmodule ExPhil.Embeddings.Player do
     popo_category = action_to_category(popo_action || 0)
 
     # Boolean flags for IC tech
-    is_attacking = nana_category in [10, 11, 12, 13, 14, 15, 16]  # Ground/air attacks, specials
-    is_grabbing = nana_category in [17, 18]  # Grab, throw
+    # Ground/air attacks, specials
+    is_attacking = nana_category in [10, 11, 12, 13, 14, 15, 16]
+    # Grab, throw
+    is_grabbing = nana_category in [17, 18]
     # can_act = not in hitstun/tumble/grab and in actionable state
-    can_act = nana_category in [2, 3, 4, 6, 7, 9]  # Idle, walk, run, jump, fall, crouch
-    is_synced = nana_category == popo_category  # Same action category = synced
+    # Idle, walk, run, jump, fall, crouch
+    can_act = nana_category in [2, 3, 4, 6, 7, 9]
+    # Same action category = synced
+    is_synced = nana_category == popo_category
 
     Nx.concatenate([
       # Exists
@@ -851,11 +998,14 @@ defmodule ExPhil.Embeddings.Player do
 
       # Combat state
       Primitives.percent_embed(nana.percent || 0.0),
-      Nx.tensor([min((nana.stock || 0) / 4, 1.0)], type: :f32),  # Stock
+      # Stock
+      Nx.tensor([min((nana.stock || 0) / 4, 1.0)], type: :f32),
 
       # Frame info (zeros since Nana struct doesn't have these)
-      Nx.tensor([0.0], type: :f32),  # hitstun_frames
-      Nx.tensor([0.0], type: :f32),  # action_frame
+      # hitstun_frames
+      Nx.tensor([0.0], type: :f32),
+      # action_frame
+      Nx.tensor([0.0], type: :f32),
 
       # Invulnerable (unknown, default false)
       Primitives.bool_embed(false),
@@ -903,14 +1053,17 @@ defmodule ExPhil.Embeddings.Player do
 
       # Combat state
       Primitives.percent_embed(nana.percent || 0.0),
-      Nx.tensor([min((nana.stock || 0) / 4, 1.0)], type: :f32),  # Stock normalized
+      # Stock normalized
+      Nx.tensor([min((nana.stock || 0) / 4, 1.0)], type: :f32),
 
       # Frame info - CRITICAL for IC tech timing
       # Note: Nana struct may not have these, so we approximate
       # action_frame: normalized by typical animation length (~60 frames)
       # TODO: Get real action_frame from libmelee if available
-      Nx.tensor([0.0], type: :f32),  # hitstun_frames (placeholder)
-      Nx.tensor([0.0], type: :f32),  # action_frame (placeholder)
+      # hitstun_frames (placeholder)
+      Nx.tensor([0.0], type: :f32),
+      # action_frame (placeholder)
+      Nx.tensor([0.0], type: :f32),
 
       # Invulnerable (unknown, default false)
       Primitives.bool_embed(false),
@@ -921,6 +1074,7 @@ defmodule ExPhil.Embeddings.Player do
       Primitives.bool_embed(can_act),
       Primitives.bool_embed(is_synced)
     ])
+
     # Note: Nana action ID is NOT included here - it's appended by GameEmbed
     # for the learned embedding layer to process
   end
@@ -934,7 +1088,8 @@ defmodule ExPhil.Embeddings.Player do
       x: nana.x,
       y: nana.y,
       action: nana.action,
-      character: 0,  # Nana is always same character as Popo
+      # Nana is always same character as Popo
+      character: 0,
       invulnerable: false,
       jumps_left: 0,
       shield_strength: 0.0,
@@ -957,26 +1112,30 @@ defmodule ExPhil.Embeddings.Player do
 
     # Add optional speeds (zeros for Nana since data not available)
     embs = [base, exists]
-    embs = if config.with_speeds do
-      embs ++ [Nx.broadcast(0.0, {5})]
-    else
-      embs
-    end
+
+    embs =
+      if config.with_speeds do
+        embs ++ [Nx.broadcast(0.0, {5})]
+      else
+        embs
+      end
 
     # Add optional frame info (zeros for Nana since data not available)
-    embs = if config.with_frame_info do
-      embs ++ [Nx.broadcast(0.0, {2})]
-    else
-      embs
-    end
+    embs =
+      if config.with_frame_info do
+        embs ++ [Nx.broadcast(0.0, {2})]
+      else
+        embs
+      end
 
     # Add stock (Nana has her own stock count)
-    embs = if config.with_stock do
-      stock = min((nana.stock || 0) / 4, 1.0)
-      embs ++ [Nx.tensor([stock], type: :f32)]
-    else
-      embs
-    end
+    embs =
+      if config.with_stock do
+        stock = min((nana.stock || 0) / 4, 1.0)
+        embs ++ [Nx.tensor([stock], type: :f32)]
+      else
+        embs
+      end
 
     Nx.concatenate(embs)
   end

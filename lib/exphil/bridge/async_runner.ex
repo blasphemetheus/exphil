@@ -50,11 +50,13 @@ defmodule ExPhil.Bridge.AsyncRunner do
     :agent,
     :bridge,
     :player_port,
-    :state_table,      # ETS table for shared state
+    # ETS table for shared state
+    :state_table,
     :frame_loop_pid,
     :inference_pid,
     :running,
-    :on_game_end,      # :restart or :stop
+    # :restart or :stop
+    :on_game_end,
     :stats
   ]
 
@@ -93,14 +95,17 @@ defmodule ExPhil.Bridge.AsyncRunner do
     :ets.insert(table, {:latest_game_state, nil})
     :ets.insert(table, {:latest_action, nil})
     :ets.insert(table, {:in_game, false})
-    :ets.insert(table, {:should_stop, false})        # Only true when stop() called or fatal error
-    :ets.insert(table, {:on_game_end, on_game_end})  # :restart or :stop
+    # Only true when stop() called or fatal error
+    :ets.insert(table, {:should_stop, false})
+    # :restart or :stop
+    :ets.insert(table, {:on_game_end, on_game_end})
     :ets.insert(table, {:frame_count, 0})
     :ets.insert(table, {:inference_count, 0})
     :ets.insert(table, {:games_played, 0})
     :ets.insert(table, {:start_time, nil})
     :ets.insert(table, {:latest_confidence, nil})
-    :ets.insert(table, {:confidence_sum, 0.0})  # For running average
+    # For running average
+    :ets.insert(table, {:confidence_sum, 0.0})
 
     state = %__MODULE__{
       agent: agent,
@@ -118,21 +123,22 @@ defmodule ExPhil.Bridge.AsyncRunner do
     }
 
     # Start the frame loop process
-    frame_loop_pid = spawn_link(fn ->
-      frame_loop(bridge, table, auto_menu, player_port, agent)
-    end)
+    frame_loop_pid =
+      spawn_link(fn ->
+        frame_loop(bridge, table, auto_menu, player_port, agent)
+      end)
 
     # Start the inference process
-    inference_pid = spawn_link(fn ->
-      inference_loop(agent, table, player_port)
-    end)
+    inference_pid =
+      spawn_link(fn ->
+        inference_loop(agent, table, player_port)
+      end)
 
-    state = %{state |
-      frame_loop_pid: frame_loop_pid,
-      inference_pid: inference_pid
-    }
+    state = %{state | frame_loop_pid: frame_loop_pid, inference_pid: inference_pid}
 
-    Logger.info("[AsyncRunner] Started with frame_loop=#{inspect(frame_loop_pid)}, inference=#{inspect(inference_pid)}")
+    Logger.info(
+      "[AsyncRunner] Started with frame_loop=#{inspect(frame_loop_pid)}, inference=#{inspect(inference_pid)}"
+    )
 
     {:ok, state}
   end
@@ -158,7 +164,8 @@ defmodule ExPhil.Bridge.AsyncRunner do
 
     :ets.delete(state.state_table)
 
-    {:reply, {:ok, %{frames: frames, inferences: inferences, games: games}}, %{state | running: false}}
+    {:reply, {:ok, %{frames: frames, inferences: inferences, games: games}},
+     %{state | running: false}}
   end
 
   @impl true
@@ -181,7 +188,8 @@ defmodule ExPhil.Bridge.AsyncRunner do
       elapsed_ms: elapsed,
       fps: fps,
       target_fps: 60,
-      fps_ratio: fps / 60,  # 1.0 = hitting target, <1.0 = falling behind
+      # 1.0 = hitting target, <1.0 = falling behind
+      fps_ratio: fps / 60,
       inference_rate: if(elapsed > 0, do: inferences * 1000 / elapsed, else: 0),
       # Confidence stats
       latest_confidence: latest_conf,
@@ -196,11 +204,14 @@ defmodule ExPhil.Bridge.AsyncRunner do
     cond do
       pid == state.frame_loop_pid ->
         Logger.warning("[AsyncRunner] Frame loop died: #{inspect(reason)}")
+
       pid == state.inference_pid ->
         Logger.warning("[AsyncRunner] Inference loop died: #{inspect(reason)}")
+
       true ->
         :ok
     end
+
     {:noreply, state}
   end
 
@@ -256,9 +267,14 @@ defmodule ExPhil.Bridge.AsyncRunner do
     case :ets.lookup(table, :in_game) do
       [{:in_game, false}] ->
         [{:games_played, games}] = :ets.lookup(table, :games_played)
-        Logger.info("[AsyncRunner:FrameLoop] GAME #{games + 1} START at frame #{game_state.frame}")
+
+        Logger.info(
+          "[AsyncRunner:FrameLoop] GAME #{games + 1} START at frame #{game_state.frame}"
+        )
+
         :ets.insert(table, {:in_game, true})
         :ets.insert(table, {:start_time, System.monotonic_time(:millisecond)})
+
       _ ->
         :ok
     end
@@ -288,7 +304,10 @@ defmodule ExPhil.Bridge.AsyncRunner do
       [{:in_game, true}] ->
         :ets.update_counter(table, :games_played, 1)
         [{:games_played, games}] = :ets.lookup(table, :games_played)
-        Logger.info("[AsyncRunner:FrameLoop] POSTGAME (game #{games}) at frame #{game_state.frame}")
+
+        Logger.info(
+          "[AsyncRunner:FrameLoop] POSTGAME (game #{games}) at frame #{game_state.frame}"
+        )
 
         # Check on_game_end setting
         case :ets.lookup(table, :on_game_end) do
@@ -321,7 +340,10 @@ defmodule ExPhil.Bridge.AsyncRunner do
 
     if agent_stocks == 0 or opponent_stocks == 0 do
       result = if agent_stocks == 0, do: "LOSS", else: "WIN"
-      Logger.info("[AsyncRunner:FrameLoop] Game over - #{result} (agent=#{agent_stocks}, opponent=#{opponent_stocks})")
+
+      Logger.info(
+        "[AsyncRunner:FrameLoop] Game over - #{result} (agent=#{agent_stocks}, opponent=#{opponent_stocks})"
+      )
 
       # Send neutral immediately when game ends
       send_neutral_controller(bridge)
@@ -457,6 +479,7 @@ defmodule ExPhil.Bridge.AsyncRunner do
         d_up: false
       }
     }
+
     MeleePort.send_controller(bridge, neutral)
   end
 end

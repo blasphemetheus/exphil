@@ -61,14 +61,20 @@ defmodule ExPhil.NetworksTest do
     @tag :slow
     test "supports layer normalization" do
       # Build model without layer norm
-      model_no_ln = Policy.build(embed_size: @embed_size, hidden_sizes: [64, 64], layer_norm: false)
+      model_no_ln =
+        Policy.build(embed_size: @embed_size, hidden_sizes: [64, 64], layer_norm: false)
+
       {init_fn_no_ln, _} = Axon.build(model_no_ln)
       params_no_ln = init_fn_no_ln.(Nx.template({1, @embed_size}, :f32), Axon.ModelState.empty())
 
       # Build model with layer norm
-      model_with_ln = Policy.build(embed_size: @embed_size, hidden_sizes: [64, 64], layer_norm: true)
+      model_with_ln =
+        Policy.build(embed_size: @embed_size, hidden_sizes: [64, 64], layer_norm: true)
+
       {init_fn_with_ln, _} = Axon.build(model_with_ln)
-      params_with_ln = init_fn_with_ln.(Nx.template({1, @embed_size}, :f32), Axon.ModelState.empty())
+
+      params_with_ln =
+        init_fn_with_ln.(Nx.template({1, @embed_size}, :f32), Axon.ModelState.empty())
 
       # Layer norm model should have additional parameters (gamma, beta per layer)
       # backbone_ln_0 and backbone_ln_1 should exist in layer norm model's data
@@ -85,7 +91,8 @@ defmodule ExPhil.NetworksTest do
       result = Policy.sample_buttons(logits, true)
 
       assert Nx.shape(result) == {1, 8}
-      assert Nx.type(result) == {:u, 8}  # Boolean type
+      # Boolean type
+      assert Nx.type(result) == {:u, 8}
     end
 
     test "deterministic mode uses threshold" do
@@ -100,7 +107,8 @@ defmodule ExPhil.NetworksTest do
 
   describe "Policy.sample_categorical/3" do
     test "returns indices" do
-      logits = Nx.tensor([[0.0, 0.0, 100.0, 0.0, 0.0]])  # Strong preference for index 2
+      # Strong preference for index 2
+      logits = Nx.tensor([[0.0, 0.0, 100.0, 0.0, 0.0]])
       result = Policy.sample_categorical(logits, 1.0, true)
 
       assert Nx.shape(result) == {1}
@@ -130,8 +138,13 @@ defmodule ExPhil.NetworksTest do
       }
 
       targets = %{
-        buttons: Nx.tensor([[1, 0, 0, 0, 0, 0, 0, 0], [0, 1, 0, 0, 0, 0, 0, 0],
-                           [0, 0, 1, 0, 0, 0, 0, 0], [0, 0, 0, 1, 0, 0, 0, 0]]),
+        buttons:
+          Nx.tensor([
+            [1, 0, 0, 0, 0, 0, 0, 0],
+            [0, 1, 0, 0, 0, 0, 0, 0],
+            [0, 0, 1, 0, 0, 0, 0, 0],
+            [0, 0, 0, 1, 0, 0, 0, 0]
+          ]),
         main_x: Nx.tensor([8, 8, 8, 8]),
         main_y: Nx.tensor([8, 8, 8, 8]),
         c_x: Nx.tensor([8, 8, 8, 8]),
@@ -149,9 +162,12 @@ defmodule ExPhil.NetworksTest do
   describe "Policy.to_controller_state/2" do
     test "converts samples to ControllerState" do
       samples = %{
-        buttons: Nx.tensor([1, 0, 0, 0, 0, 0, 0, 0]),  # A pressed
-        main_x: Nx.tensor(8),   # Center
-        main_y: Nx.tensor(16),  # Full up
+        # A pressed
+        buttons: Nx.tensor([1, 0, 0, 0, 0, 0, 0, 0]),
+        # Center
+        main_x: Nx.tensor(8),
+        # Full up
+        main_y: Nx.tensor(16),
         c_x: Nx.tensor(8),
         c_y: Nx.tensor(8),
         shoulder: Nx.tensor(0)
@@ -236,7 +252,8 @@ defmodule ExPhil.NetworksTest do
 
     test "uses linear loss for large errors" do
       predicted = Nx.tensor([1.0])
-      targets = Nx.tensor([3.0])  # Error of 2, > delta
+      # Error of 2, > delta
+      targets = Nx.tensor([3.0])
 
       loss = Value.huber_loss(predicted, targets, 1.0)
 
@@ -248,7 +265,8 @@ defmodule ExPhil.NetworksTest do
   describe "Value.compute_gae/5" do
     test "computes advantages and returns" do
       rewards = Nx.tensor([1.0, 1.0, 1.0, 1.0])
-      values = Nx.tensor([0.5, 0.5, 0.5, 0.5, 0.5])  # +1 for bootstrap
+      # +1 for bootstrap
+      values = Nx.tensor([0.5, 0.5, 0.5, 0.5, 0.5])
       dones = Nx.tensor([0.0, 0.0, 0.0, 1.0])
 
       {advantages, returns} = Value.compute_gae(rewards, values, dones, 0.99, 0.95)
@@ -312,12 +330,18 @@ defmodule ExPhil.NetworksTest do
     test "computes positive entropy" do
       # Uniform-ish logits should have high entropy
       logits = {
-        Nx.broadcast(0.0, {@batch_size, 8}),  # buttons
-        Nx.broadcast(0.0, {@batch_size, 17}), # main_x
-        Nx.broadcast(0.0, {@batch_size, 17}), # main_y
-        Nx.broadcast(0.0, {@batch_size, 17}), # c_x
-        Nx.broadcast(0.0, {@batch_size, 17}), # c_y
-        Nx.broadcast(0.0, {@batch_size, 5})   # shoulder
+        # buttons
+        Nx.broadcast(0.0, {@batch_size, 8}),
+        # main_x
+        Nx.broadcast(0.0, {@batch_size, 17}),
+        # main_y
+        Nx.broadcast(0.0, {@batch_size, 17}),
+        # c_x
+        Nx.broadcast(0.0, {@batch_size, 17}),
+        # c_y
+        Nx.broadcast(0.0, {@batch_size, 17}),
+        # shoulder
+        Nx.broadcast(0.0, {@batch_size, 5})
       }
 
       entropy = ActorCritic.compute_entropy(logits)
@@ -327,11 +351,15 @@ defmodule ExPhil.NetworksTest do
 
     test "peaked distribution has lower entropy" do
       # Very peaked logits
-      peaked_main_x = Nx.concatenate([
-        Nx.broadcast(-100.0, {@batch_size, 8}),
-        Nx.broadcast(100.0, {@batch_size, 1}),
-        Nx.broadcast(-100.0, {@batch_size, 8})
-      ], axis: 1)
+      peaked_main_x =
+        Nx.concatenate(
+          [
+            Nx.broadcast(-100.0, {@batch_size, 8}),
+            Nx.broadcast(100.0, {@batch_size, 1}),
+            Nx.broadcast(-100.0, {@batch_size, 8})
+          ],
+          axis: 1
+        )
 
       uniform_main_x = Nx.broadcast(0.0, {@batch_size, 17})
 
@@ -447,7 +475,8 @@ defmodule ExPhil.NetworksTest do
       samples1 = Networks.sample(params, predict_fn, state, deterministic: true)
       samples2 = Networks.sample(params, predict_fn, state, deterministic: true)
 
-      assert Nx.to_number(Nx.squeeze(samples1.main_x)) == Nx.to_number(Nx.squeeze(samples2.main_x))
+      assert Nx.to_number(Nx.squeeze(samples1.main_x)) ==
+               Nx.to_number(Nx.squeeze(samples2.main_x))
     end
   end
 

@@ -70,10 +70,11 @@ defmodule ExPhil.Training.ReplayValidationTest do
       File.write!(valid_path, header <> padding)
       File.write!(invalid_path, "too small")
 
-      {:ok, paths, stats} = ReplayValidation.validate(
-        [valid_path, invalid_path],
-        show_progress: false
-      )
+      {:ok, paths, stats} =
+        ReplayValidation.validate(
+          [valid_path, invalid_path],
+          show_progress: false
+        )
 
       assert paths == [valid_path]
       assert stats.total == 2
@@ -85,10 +86,11 @@ defmodule ExPhil.Training.ReplayValidationTest do
     test "handles non-existent files" do
       missing_path = Path.join(@test_dir, "missing.slp")
 
-      {:ok, paths, stats} = ReplayValidation.validate(
-        [missing_path],
-        show_progress: false
-      )
+      {:ok, paths, stats} =
+        ReplayValidation.validate(
+          [missing_path],
+          show_progress: false
+        )
 
       assert paths == []
       assert stats.invalid == 1
@@ -97,19 +99,21 @@ defmodule ExPhil.Training.ReplayValidationTest do
 
     test "runs in parallel by default" do
       # Create multiple valid files
-      paths = for i <- 1..10 do
-        path = Path.join(@test_dir, "valid_#{i}.slp")
-        header = <<0x7B, 0x55, 0x03, 0x36>>
-        padding = String.duplicate(<<0>>, 5000)
-        File.write!(path, header <> padding)
-        path
-      end
+      paths =
+        for i <- 1..10 do
+          path = Path.join(@test_dir, "valid_#{i}.slp")
+          header = <<0x7B, 0x55, 0x03, 0x36>>
+          padding = String.duplicate(<<0>>, 5000)
+          File.write!(path, header <> padding)
+          path
+        end
 
-      {:ok, valid_paths, stats} = ReplayValidation.validate(
-        paths,
-        show_progress: false,
-        parallel: true
-      )
+      {:ok, valid_paths, stats} =
+        ReplayValidation.validate(
+          paths,
+          show_progress: false,
+          parallel: true
+        )
 
       assert length(valid_paths) == 10
       assert stats.valid == 10
@@ -121,11 +125,12 @@ defmodule ExPhil.Training.ReplayValidationTest do
       padding = String.duplicate(<<0>>, 5000)
       File.write!(path, header <> padding)
 
-      {:ok, [^path], stats} = ReplayValidation.validate(
-        [path],
-        show_progress: false,
-        parallel: false
-      )
+      {:ok, [^path], stats} =
+        ReplayValidation.validate(
+          [path],
+          show_progress: false,
+          parallel: false
+        )
 
       assert stats.valid == 1
     end

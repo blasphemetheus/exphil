@@ -54,16 +54,26 @@ defmodule ExPhil.Training.PPO do
   require Logger
 
   defstruct [
-    :model,                # Combined actor-critic model
-    :params,               # Model parameters
-    :old_params,           # Parameters from previous iteration (for ratio)
-    :optimizer,            # Optimizer
-    :optimizer_state,      # Optimizer state
-    :embed_config,         # Embedding configuration
-    :config,               # Training configuration
-    :step,                 # Training step counter
-    :timesteps,            # Total timesteps collected
-    :metrics               # Training metrics
+    # Combined actor-critic model
+    :model,
+    # Model parameters
+    :params,
+    # Parameters from previous iteration (for ratio)
+    :old_params,
+    # Optimizer
+    :optimizer,
+    # Optimizer state
+    :optimizer_state,
+    # Embedding configuration
+    :embed_config,
+    # Training configuration
+    :config,
+    # Training step counter
+    :step,
+    # Total timesteps collected
+    :timesteps,
+    # Training metrics
+    :metrics
   ]
 
   @type t :: %__MODULE__{}
@@ -86,7 +96,8 @@ defmodule ExPhil.Training.PPO do
     rollout_length: 2048,
 
     # Regularization
-    teacher_kl_coef: 0.0,    # KL penalty to stay close to teacher policy
+    # KL penalty to stay close to teacher policy
+    teacher_kl_coef: 0.0,
     value_clip: true,
 
     # Discretization
@@ -120,33 +131,37 @@ defmodule ExPhil.Training.PPO do
   @spec new(keyword()) :: t()
   def new(opts \\ []) do
     # Get embedding configuration
-    embed_config = Keyword.get_lazy(opts, :embed_config, fn ->
-      Embeddings.config(Keyword.take(opts, [:with_speeds, :with_nana, :with_projectiles]))
-    end)
+    embed_config =
+      Keyword.get_lazy(opts, :embed_config, fn ->
+        Embeddings.config(Keyword.take(opts, [:with_speeds, :with_nana, :with_projectiles]))
+      end)
 
     embed_size = Keyword.get(opts, :embed_size, Embeddings.embedding_size(embed_config))
 
     # Build config - include embed_size for export
-    config = @default_config
-    |> Map.merge(Map.new(Keyword.take(opts, Map.keys(@default_config))))
-    |> Map.put(:embed_size, embed_size)
+    config =
+      @default_config
+      |> Map.merge(Map.new(Keyword.take(opts, Map.keys(@default_config))))
+      |> Map.put(:embed_size, embed_size)
 
     # Build combined actor-critic model
-    model = ActorCritic.build_combined(
-      embed_size: embed_size,
-      hidden_sizes: Keyword.get(opts, :hidden_sizes, [512, 512]),
-      axis_buckets: config.axis_buckets,
-      shoulder_buckets: config.shoulder_buckets
-    )
+    model =
+      ActorCritic.build_combined(
+        embed_size: embed_size,
+        hidden_sizes: Keyword.get(opts, :hidden_sizes, [512, 512]),
+        axis_buckets: config.axis_buckets,
+        shoulder_buckets: config.shoulder_buckets
+      )
 
     # Initialize or load parameters using newer Axon API
     {init_fn, _predict_fn} = Axon.build(model)
     initial_params = init_fn.(Nx.template({1, embed_size}, :f32), Axon.ModelState.empty())
 
-    params = case Keyword.get(opts, :pretrained_path) do
-      nil -> initial_params
-      path -> load_pretrained(initial_params, path)
-    end
+    params =
+      case Keyword.get(opts, :pretrained_path) do
+        nil -> initial_params
+        path -> load_pretrained(initial_params, path)
+      end
 
     # Create optimizer - initialize with just the parameter data (not full ModelState)
     {optimizer_init, optimizer_update} = create_optimizer(config)
@@ -174,6 +189,7 @@ defmodule ExPhil.Training.PPO do
         # Merge pretrained policy params with initial params
         # This handles cases where the architecture is slightly different
         merge_params(initial_params, checkpoint.policy_params || checkpoint.params)
+
       {:error, reason} ->
         Logger.warning("Could not load pretrained weights from #{path}: #{reason}")
         initial_params
@@ -211,6 +227,7 @@ defmodule ExPhil.Training.PPO do
     case params do
       %Axon.ModelState{} = state ->
         %{state | data: do_deep_copy(state.data)}
+
       data when is_map(data) ->
         do_deep_copy(data)
     end
@@ -263,13 +280,14 @@ defmodule ExPhil.Training.PPO do
     config = trainer.config
 
     # Compute advantages and returns
-    {advantages, returns} = compute_advantages(
-      rollout.rewards,
-      rollout.values,
-      rollout.dones,
-      config.gamma,
-      config.gae_lambda
-    )
+    {advantages, returns} =
+      compute_advantages(
+        rollout.rewards,
+        rollout.values,
+        rollout.dones,
+        config.gamma,
+        config.gae_lambda
+      )
 
     # Normalize advantages
     advantages = Value.normalize_advantages(advantages)
@@ -282,17 +300,18 @@ defmodule ExPhil.Training.PPO do
     old_values = rollout.values
 
     # Run multiple epochs of minibatch updates
-    {final_trainer, epoch_metrics} = run_ppo_epochs(
-      trainer,
-      rollout.states,
-      rollout.actions,
-      advantages,
-      returns,
-      old_log_probs,
-      old_values,
-      config.num_epochs,
-      config.num_minibatches
-    )
+    {final_trainer, epoch_metrics} =
+      run_ppo_epochs(
+        trainer,
+        rollout.states,
+        rollout.actions,
+        advantages,
+        returns,
+        old_log_probs,
+        old_values,
+        config.num_epochs,
+        config.num_minibatches
+      )
 
     # Update old params for next iteration
     final_trainer = %{final_trainer | old_params: old_params}
@@ -304,19 +323,31 @@ defmodule ExPhil.Training.PPO do
     {final_trainer, metrics}
   end
 
-  defp run_ppo_epochs(trainer, states, actions, advantages, returns, old_log_probs, old_values, num_epochs, num_minibatches) do
+  defp run_ppo_epochs(
+         trainer,
+         states,
+         actions,
+         advantages,
+         returns,
+         old_log_probs,
+         old_values,
+         num_epochs,
+         num_minibatches
+       ) do
     batch_size = Nx.axis_size(states, 0)
     minibatch_size = div(batch_size, num_minibatches)
 
     {final_trainer, all_metrics} =
       Enum.reduce(1..num_epochs, {trainer, []}, fn _epoch, {acc_trainer, acc_metrics} ->
         # Shuffle indices
-        indices = Nx.Random.shuffle(Nx.Random.key(System.system_time()), Nx.iota({batch_size}))
-        |> elem(0)
+        indices =
+          Nx.Random.shuffle(Nx.Random.key(System.system_time()), Nx.iota({batch_size}))
+          |> elem(0)
 
         # Run minibatch updates
         {epoch_trainer, epoch_metrics} =
-          Enum.reduce(0..(num_minibatches - 1), {acc_trainer, []}, fn mb_idx, {mb_trainer, mb_metrics} ->
+          Enum.reduce(0..(num_minibatches - 1), {acc_trainer, []}, fn mb_idx,
+                                                                      {mb_trainer, mb_metrics} ->
             start_idx = mb_idx * minibatch_size
             mb_indices = Nx.slice(indices, [start_idx], [minibatch_size])
 
@@ -329,15 +360,16 @@ defmodule ExPhil.Training.PPO do
             mb_old_values = Nx.take(old_values, mb_indices)
 
             # Single minibatch update
-            {new_trainer, metrics} = minibatch_update(
-              mb_trainer,
-              mb_states,
-              mb_actions,
-              mb_advantages,
-              mb_returns,
-              mb_old_log_probs,
-              mb_old_values
-            )
+            {new_trainer, metrics} =
+              minibatch_update(
+                mb_trainer,
+                mb_states,
+                mb_actions,
+                mb_advantages,
+                mb_returns,
+                mb_old_log_probs,
+                mb_old_values
+              )
 
             {new_trainer, [metrics | mb_metrics]}
           end)
@@ -378,7 +410,8 @@ defmodule ExPhil.Training.PPO do
     # Loss function that returns only the scalar loss (for gradient computation)
     # Uses the BinaryBackend copies to avoid EXLA tensor closure issues
     loss_fn = fn params ->
-      %{policy: policy_logits, value: values} = predict_fn.(Utils.ensure_model_state(params), states_bin)
+      %{policy: policy_logits, value: values} =
+        predict_fn.(Utils.ensure_model_state(params), states_bin)
 
       # Compute new log probs
       new_log_probs = ActorCritic.compute_log_probs(policy_logits, actions_bin)
@@ -392,11 +425,12 @@ defmodule ExPhil.Training.PPO do
       policy_loss = Nx.negate(Nx.mean(Nx.min(surr1, surr2)))
 
       # Value loss (optionally clipped)
-      value_loss = if config.value_clip do
-        Value.clipped_value_loss(values, old_values_bin, returns_bin, config.clip_range)
-      else
-        Value.value_loss(values, returns_bin)
-      end
+      value_loss =
+        if config.value_clip do
+          Value.clipped_value_loss(values, old_values_bin, returns_bin, config.clip_range)
+        else
+          Value.value_loss(values, returns_bin)
+        end
 
       # Entropy bonus
       entropy = ActorCritic.compute_entropy(policy_logits)
@@ -413,7 +447,9 @@ defmodule ExPhil.Training.PPO do
     {loss, grads} = grad_fn.(params_data)
 
     # Compute metrics in a separate forward pass (no gradients needed)
-    %{policy: policy_logits, value: values} = predict_fn.(Utils.ensure_model_state(trainer.params), states)
+    %{policy: policy_logits, value: values} =
+      predict_fn.(Utils.ensure_model_state(trainer.params), states)
+
     new_log_probs = ActorCritic.compute_log_probs(policy_logits, actions)
     ratio = Nx.exp(Nx.subtract(new_log_probs, old_log_probs))
 
@@ -422,21 +458,23 @@ defmodule ExPhil.Training.PPO do
     entropy = ActorCritic.compute_entropy(policy_logits)
 
     # Update parameters using Polaris
-    {updates, new_optimizer_state} = trainer.optimizer.(
-      grads,
-      trainer.optimizer_state,
-      params_data
-    )
+    {updates, new_optimizer_state} =
+      trainer.optimizer.(
+        grads,
+        trainer.optimizer_state,
+        params_data
+      )
 
     # Use jit wrapper to avoid Nx.LazyContainer nil issue with defn default params
     apply_updates_fn = Nx.Defn.jit(&Polaris.Updates.apply_updates/2)
     new_params_data = apply_updates_fn.(params_data, updates)
     new_params = put_params_data(trainer.params, new_params_data)
 
-    new_trainer = %{trainer |
-      params: new_params,
-      optimizer_state: new_optimizer_state,
-      step: trainer.step + 1
+    new_trainer = %{
+      trainer
+      | params: new_params,
+        optimizer_state: new_optimizer_state,
+        step: trainer.step + 1
     }
 
     metrics = %{
@@ -465,10 +503,12 @@ defmodule ExPhil.Training.PPO do
   end
 
   defp compute_clip_fraction(ratio, clip_range) do
-    clipped = Nx.logical_or(
-      Nx.less(ratio, 1.0 - clip_range),
-      Nx.greater(ratio, 1.0 + clip_range)
-    )
+    clipped =
+      Nx.logical_or(
+        Nx.less(ratio, 1.0 - clip_range),
+        Nx.greater(ratio, 1.0 + clip_range)
+      )
+
     Nx.to_number(Nx.mean(Nx.as_type(clipped, :f32)))
   end
 
@@ -507,7 +547,8 @@ defmodule ExPhil.Training.PPO do
         current_state = step_fn.(:get_state, state)
 
         # Get action from policy
-        %{policy: policy_logits, value: value} = predict_fn.(Utils.ensure_model_state(trainer.params), current_state)
+        %{policy: policy_logits, value: value} =
+          predict_fn.(Utils.ensure_model_state(trainer.params), current_state)
 
         # Sample action
         action = sample_action(policy_logits, trainer.config)
@@ -534,7 +575,8 @@ defmodule ExPhil.Training.PPO do
       actions: stack_actions(Enum.reverse(actions)),
       rewards: Nx.tensor(Enum.reverse(rewards), type: :f32),
       dones: Nx.tensor(Enum.reverse(dones), type: :f32),
-      values: Nx.tensor(Enum.reverse(values) ++ [0.0], type: :f32),  # Bootstrap value
+      # Bootstrap value
+      values: Nx.tensor(Enum.reverse(values) ++ [0.0], type: :f32),
       log_probs: Nx.tensor(Enum.reverse(log_probs), type: :f32)
     }
   end
@@ -591,6 +633,7 @@ defmodule ExPhil.Training.PPO do
       :ok ->
         Logger.info("Saved PPO checkpoint to #{path}")
         :ok
+
       error ->
         error
     end
@@ -633,13 +676,14 @@ defmodule ExPhil.Training.PPO do
       {:ok, binary} ->
         checkpoint = :erlang.binary_to_term(binary)
 
-        new_trainer = %{trainer |
-          params: checkpoint.params,
-          old_params: deep_copy_params(checkpoint.params),
-          optimizer_state: checkpoint.optimizer_state,
-          step: checkpoint.step,
-          timesteps: checkpoint.timesteps,
-          metrics: checkpoint.metrics
+        new_trainer = %{
+          trainer
+          | params: checkpoint.params,
+            old_params: deep_copy_params(checkpoint.params),
+            optimizer_state: checkpoint.optimizer_state,
+            step: checkpoint.step,
+            timesteps: checkpoint.timesteps,
+            metrics: checkpoint.metrics
         }
 
         Logger.info("Loaded PPO checkpoint from #{path}")
@@ -662,8 +706,9 @@ defmodule ExPhil.Training.PPO do
     File.mkdir_p!(dir)
 
     # Extract embed_size from config or compute from embed_config
-    embed_size = trainer.config[:embed_size] ||
-      (trainer.embed_config && Embeddings.embedding_size(trainer.embed_config))
+    embed_size =
+      trainer.config[:embed_size] ||
+        (trainer.embed_config && Embeddings.embedding_size(trainer.embed_config))
 
     export = %{
       # Convert params to BinaryBackend for serialization
@@ -707,10 +752,7 @@ defmodule ExPhil.Training.PPO do
         # Merge pretrained params into current params
         new_params = merge_params(trainer.params, pretrained_params)
 
-        new_trainer = %{trainer |
-          params: new_params,
-          old_params: deep_copy_params(new_params)
-        }
+        new_trainer = %{trainer | params: new_params, old_params: deep_copy_params(new_params)}
 
         {:ok, new_trainer}
 
@@ -731,7 +773,8 @@ defmodule ExPhil.Training.PPO do
     {_init_fn, predict_fn} = Axon.build(trainer.model)
     deterministic = Keyword.get(opts, :deterministic, false)
 
-    %{policy: policy_logits, value: value} = predict_fn.(Utils.ensure_model_state(trainer.params), state)
+    %{policy: policy_logits, value: value} =
+      predict_fn.(Utils.ensure_model_state(trainer.params), state)
 
     {buttons, main_x, main_y, c_x, c_y, shoulder} = policy_logits
 

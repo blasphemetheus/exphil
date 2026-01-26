@@ -36,22 +36,26 @@ defmodule ExPhil.Benchmarks.TrainingSpeedTest do
   @moduletag :gpu
   @moduletag :benchmark
   @moduletag :slow
-  @moduletag timeout: 600_000  # 10 minutes for GPU benchmarks
+  # 10 minutes for GPU benchmarks
+  @moduletag timeout: 600_000
 
   # Test parameters - sized for meaningful GPU benchmarks
   @batch_size 128
-  @embed_size 408  # Realistic embedding size with learned actions
+  # Realistic embedding size with learned actions
+  @embed_size 408
   @seq_len 30
-  @num_batches 10  # Number of batches to average over
+  # Number of batches to average over
+  @num_batches 10
 
   describe "MLP training speed" do
     setup do
-      trainer = Imitation.new(
-        embed_size: @embed_size,
-        hidden_sizes: [256, 256],
-        temporal: false,
-        learning_rate: 1.0e-4
-      )
+      trainer =
+        Imitation.new(
+          embed_size: @embed_size,
+          hidden_sizes: [256, 256],
+          temporal: false,
+          learning_rate: 1.0e-4
+        )
 
       batches = generate_training_batches(@num_batches, @batch_size, @embed_size, temporal: false)
 
@@ -64,17 +68,18 @@ defmodule ExPhil.Benchmarks.TrainingSpeedTest do
       {warmup_trainer, _} = Imitation.train_step(trainer, first_batch, nil)
 
       # Measure actual training speed
-      {total_time_us, _} = :timer.tc(fn ->
-        Enum.reduce(rest, warmup_trainer, fn batch, t ->
-          {new_t, _metrics} = Imitation.train_step(t, batch, nil)
-          new_t
+      {total_time_us, _} =
+        :timer.tc(fn ->
+          Enum.reduce(rest, warmup_trainer, fn batch, t ->
+            {new_t, _metrics} = Imitation.train_step(t, batch, nil)
+            new_t
+          end)
         end)
-      end)
 
-      avg_ms = total_time_us / 1000 / (length(rest))
+      avg_ms = total_time_us / 1000 / length(rest)
 
       assert avg_ms < 500,
-        "MLP training too slow: #{Float.round(avg_ms, 1)}ms/batch (expected <500ms)"
+             "MLP training too slow: #{Float.round(avg_ms, 1)}ms/batch (expected <500ms)"
     end
 
     @tag :regression
@@ -90,12 +95,14 @@ defmodule ExPhil.Benchmarks.TrainingSpeedTest do
       {warmup_trainer, _} = Imitation.train_step(trainer, first_batch, nil)
 
       # Method 1: Accumulate tensors (GOOD - single GPU→CPU transfer)
-      {time_tensor_us, {_, tensor_losses}} = :timer.tc(fn ->
-        Enum.reduce(rest, {warmup_trainer, []}, fn batch, {t, losses} ->
-          {new_t, metrics} = Imitation.train_step(t, batch, nil)
-          {new_t, [metrics.loss | losses]}  # Keep as tensor
+      {time_tensor_us, {_, tensor_losses}} =
+        :timer.tc(fn ->
+          Enum.reduce(rest, {warmup_trainer, []}, fn batch, {t, losses} ->
+            {new_t, metrics} = Imitation.train_step(t, batch, nil)
+            # Keep as tensor
+            {new_t, [metrics.loss | losses]}
+          end)
         end)
-      end)
 
       # Compute mean from tensors (single transfer)
       _avg_loss_tensor = tensor_losses |> Nx.stack() |> Nx.mean() |> Nx.to_number()
@@ -103,12 +110,13 @@ defmodule ExPhil.Benchmarks.TrainingSpeedTest do
       # Method 2: Convert each batch (potentially blocking)
       {warmup_trainer2, _} = Imitation.train_step(trainer, first_batch, nil)
 
-      {time_number_us, _} = :timer.tc(fn ->
-        Enum.reduce(rest, {warmup_trainer2, []}, fn batch, {t, losses} ->
-          {new_t, metrics} = Imitation.train_step(t, batch, nil)
-          {new_t, [Nx.to_number(metrics.loss) | losses]}
+      {time_number_us, _} =
+        :timer.tc(fn ->
+          Enum.reduce(rest, {warmup_trainer2, []}, fn batch, {t, losses} ->
+            {new_t, metrics} = Imitation.train_step(t, batch, nil)
+            {new_t, [Nx.to_number(metrics.loss) | losses]}
+          end)
         end)
-      end)
 
       tensor_ms = time_tensor_us / 1000
       number_ms = time_number_us / 1000
@@ -119,45 +127,54 @@ defmodule ExPhil.Benchmarks.TrainingSpeedTest do
       max_expected_ms = 5000
 
       assert tensor_ms < max_expected_ms,
-        """
-        Tensor accumulation too slow - possible GPU blocking!
-        Time: #{Float.round(tensor_ms, 1)}ms for #{num_batches} batches
-        (#{Float.round(tensor_ms / num_batches, 1)}ms/batch)
+             """
+             Tensor accumulation too slow - possible GPU blocking!
+             Time: #{Float.round(tensor_ms, 1)}ms for #{num_batches} batches
+             (#{Float.round(tensor_ms / num_batches, 1)}ms/batch)
 
-        If this is ~80s/batch, check for GPU→CPU sync issues.
-        See gotcha #18 in docs/GOTCHAS.md
-        """
+             If this is ~80s/batch, check for GPU→CPU sync issues.
+             See gotcha #18 in docs/GOTCHAS.md
+             """
 
       assert number_ms < max_expected_ms,
-        """
-        Per-batch Nx.to_number too slow - GPU blocking detected!
-        Time: #{Float.round(number_ms, 1)}ms for #{num_batches} batches
-        (#{Float.round(number_ms / num_batches, 1)}ms/batch)
+             """
+             Per-batch Nx.to_number too slow - GPU blocking detected!
+             Time: #{Float.round(number_ms, 1)}ms for #{num_batches} batches
+             (#{Float.round(number_ms / num_batches, 1)}ms/batch)
 
-        This is the gotcha #18 issue - Nx.to_number blocks GPU every batch.
-        See docs/GOTCHAS.md for the fix.
-        """
+             This is the gotcha #18 issue - Nx.to_number blocks GPU every batch.
+             See docs/GOTCHAS.md for the fix.
+             """
 
       # Log results for visibility
-      IO.puts("\n  [INFO] Tensor method: #{Float.round(tensor_ms, 1)}ms (#{Float.round(tensor_ms / num_batches, 1)}ms/batch)")
-      IO.puts("  [INFO] Number method: #{Float.round(number_ms, 1)}ms (#{Float.round(number_ms / num_batches, 1)}ms/batch)")
+      IO.puts(
+        "\n  [INFO] Tensor method: #{Float.round(tensor_ms, 1)}ms (#{Float.round(tensor_ms / num_batches, 1)}ms/batch)"
+      )
+
+      IO.puts(
+        "  [INFO] Number method: #{Float.round(number_ms, 1)}ms (#{Float.round(number_ms / num_batches, 1)}ms/batch)"
+      )
     end
   end
 
   describe "LSTM training speed" do
     setup do
       # Note: Use window_size, not seq_len - Imitation.new only recognizes window_size
-      trainer = Imitation.new(
-        embed_size: @embed_size,
-        hidden_sizes: [256],
-        temporal: true,
-        backbone: :lstm,
-        window_size: @seq_len,
-        learning_rate: 1.0e-4
-      )
+      trainer =
+        Imitation.new(
+          embed_size: @embed_size,
+          hidden_sizes: [256],
+          temporal: true,
+          backbone: :lstm,
+          window_size: @seq_len,
+          learning_rate: 1.0e-4
+        )
 
-      batches = generate_training_batches(@num_batches, @batch_size, @embed_size,
-        temporal: true, seq_len: @seq_len)
+      batches =
+        generate_training_batches(@num_batches, @batch_size, @embed_size,
+          temporal: true,
+          seq_len: @seq_len
+        )
 
       {:ok, trainer: trainer, batches: batches}
     end
@@ -169,34 +186,39 @@ defmodule ExPhil.Benchmarks.TrainingSpeedTest do
       [first_batch | rest] = batches
       {warmup_trainer, _} = Imitation.train_step(trainer, first_batch, nil)
 
-      {total_time_us, _} = :timer.tc(fn ->
-        Enum.reduce(rest, warmup_trainer, fn batch, t ->
-          {new_t, _metrics} = Imitation.train_step(t, batch, nil)
-          new_t
+      {total_time_us, _} =
+        :timer.tc(fn ->
+          Enum.reduce(rest, warmup_trainer, fn batch, t ->
+            {new_t, _metrics} = Imitation.train_step(t, batch, nil)
+            new_t
+          end)
         end)
-      end)
 
-      avg_ms = total_time_us / 1000 / (length(rest))
+      avg_ms = total_time_us / 1000 / length(rest)
 
       assert avg_ms < 15000,
-        "LSTM training too slow: #{Float.round(avg_ms, 1)}ms/batch (expected <15000ms)"
+             "LSTM training too slow: #{Float.round(avg_ms, 1)}ms/batch (expected <15000ms)"
     end
   end
 
   describe "GRU training speed" do
     setup do
       # Note: Use window_size, not seq_len - Imitation.new only recognizes window_size
-      trainer = Imitation.new(
-        embed_size: @embed_size,
-        hidden_sizes: [256],
-        temporal: true,
-        backbone: :gru,
-        window_size: @seq_len,
-        learning_rate: 1.0e-4
-      )
+      trainer =
+        Imitation.new(
+          embed_size: @embed_size,
+          hidden_sizes: [256],
+          temporal: true,
+          backbone: :gru,
+          window_size: @seq_len,
+          learning_rate: 1.0e-4
+        )
 
-      batches = generate_training_batches(@num_batches, @batch_size, @embed_size,
-        temporal: true, seq_len: @seq_len)
+      batches =
+        generate_training_batches(@num_batches, @batch_size, @embed_size,
+          temporal: true,
+          seq_len: @seq_len
+        )
 
       {:ok, trainer: trainer, batches: batches}
     end
@@ -208,37 +230,42 @@ defmodule ExPhil.Benchmarks.TrainingSpeedTest do
       [first_batch | rest] = batches
       {warmup_trainer, _} = Imitation.train_step(trainer, first_batch, nil)
 
-      {total_time_us, _} = :timer.tc(fn ->
-        Enum.reduce(rest, warmup_trainer, fn batch, t ->
-          {new_t, _metrics} = Imitation.train_step(t, batch, nil)
-          new_t
+      {total_time_us, _} =
+        :timer.tc(fn ->
+          Enum.reduce(rest, warmup_trainer, fn batch, t ->
+            {new_t, _metrics} = Imitation.train_step(t, batch, nil)
+            new_t
+          end)
         end)
-      end)
 
-      avg_ms = total_time_us / 1000 / (length(rest))
+      avg_ms = total_time_us / 1000 / length(rest)
 
       assert avg_ms < 15000,
-        "GRU training too slow: #{Float.round(avg_ms, 1)}ms/batch (expected <15000ms)"
+             "GRU training too slow: #{Float.round(avg_ms, 1)}ms/batch (expected <15000ms)"
     end
   end
 
   describe "Mamba training speed" do
     setup do
       # Note: Use window_size, not seq_len - Imitation.new only recognizes window_size
-      trainer = Imitation.new(
-        embed_size: @embed_size,
-        hidden_sizes: [256],
-        temporal: true,
-        backbone: :mamba,
-        window_size: @seq_len,
-        num_layers: 2,
-        state_size: 16,
-        learning_rate: 1.0e-4
-      )
+      trainer =
+        Imitation.new(
+          embed_size: @embed_size,
+          hidden_sizes: [256],
+          temporal: true,
+          backbone: :mamba,
+          window_size: @seq_len,
+          num_layers: 2,
+          state_size: 16,
+          learning_rate: 1.0e-4
+        )
 
       # Smaller batch size for Mamba (more memory intensive)
-      batches = generate_training_batches(@num_batches, 64, @embed_size,
-        temporal: true, seq_len: @seq_len)
+      batches =
+        generate_training_batches(@num_batches, 64, @embed_size,
+          temporal: true,
+          seq_len: @seq_len
+        )
 
       {:ok, trainer: trainer, batches: batches}
     end
@@ -247,41 +274,44 @@ defmodule ExPhil.Benchmarks.TrainingSpeedTest do
       [first_batch | rest] = batches
       {warmup_trainer, _} = Imitation.train_step(trainer, first_batch, nil)
 
-      {total_time_us, _} = :timer.tc(fn ->
-        Enum.reduce(rest, warmup_trainer, fn batch, t ->
-          {new_t, _metrics} = Imitation.train_step(t, batch, nil)
-          new_t
+      {total_time_us, _} =
+        :timer.tc(fn ->
+          Enum.reduce(rest, warmup_trainer, fn batch, t ->
+            {new_t, _metrics} = Imitation.train_step(t, batch, nil)
+            new_t
+          end)
         end)
-      end)
 
-      avg_ms = total_time_us / 1000 / (length(rest))
+      avg_ms = total_time_us / 1000 / length(rest)
 
       assert avg_ms < 2000,
-        "Mamba training too slow: #{Float.round(avg_ms, 1)}ms/batch (expected <2000ms)"
+             "Mamba training too slow: #{Float.round(avg_ms, 1)}ms/batch (expected <2000ms)"
     end
 
     test "Mamba is faster than LSTM for same sequence length" do
       # Build both trainers
       # Note: Use window_size, not seq_len - Imitation.new only recognizes window_size
-      mamba_trainer = Imitation.new(
-        embed_size: @embed_size,
-        hidden_sizes: [256],
-        temporal: true,
-        backbone: :mamba,
-        window_size: @seq_len,
-        num_layers: 2,
-        state_size: 16,
-        learning_rate: 1.0e-4
-      )
+      mamba_trainer =
+        Imitation.new(
+          embed_size: @embed_size,
+          hidden_sizes: [256],
+          temporal: true,
+          backbone: :mamba,
+          window_size: @seq_len,
+          num_layers: 2,
+          state_size: 16,
+          learning_rate: 1.0e-4
+        )
 
-      lstm_trainer = Imitation.new(
-        embed_size: @embed_size,
-        hidden_sizes: [256],
-        temporal: true,
-        backbone: :lstm,
-        window_size: @seq_len,
-        learning_rate: 1.0e-4
-      )
+      lstm_trainer =
+        Imitation.new(
+          embed_size: @embed_size,
+          hidden_sizes: [256],
+          temporal: true,
+          backbone: :lstm,
+          window_size: @seq_len,
+          learning_rate: 1.0e-4
+        )
 
       # Same batches for both
       batches = generate_training_batches(5, 32, @embed_size, temporal: true, seq_len: @seq_len)
@@ -292,50 +322,58 @@ defmodule ExPhil.Benchmarks.TrainingSpeedTest do
       {lstm_warmed, _} = Imitation.train_step(lstm_trainer, first, nil)
 
       # Time Mamba
-      {mamba_time_us, _} = :timer.tc(fn ->
-        Enum.reduce(rest, mamba_warmed, fn batch, t ->
-          {new_t, _} = Imitation.train_step(t, batch, nil)
-          new_t
+      {mamba_time_us, _} =
+        :timer.tc(fn ->
+          Enum.reduce(rest, mamba_warmed, fn batch, t ->
+            {new_t, _} = Imitation.train_step(t, batch, nil)
+            new_t
+          end)
         end)
-      end)
 
       # Time LSTM
-      {lstm_time_us, _} = :timer.tc(fn ->
-        Enum.reduce(rest, lstm_warmed, fn batch, t ->
-          {new_t, _} = Imitation.train_step(t, batch, nil)
-          new_t
+      {lstm_time_us, _} =
+        :timer.tc(fn ->
+          Enum.reduce(rest, lstm_warmed, fn batch, t ->
+            {new_t, _} = Imitation.train_step(t, batch, nil)
+            new_t
+          end)
         end)
-      end)
 
       mamba_ms = mamba_time_us / 1000 / length(rest)
       lstm_ms = lstm_time_us / 1000 / length(rest)
 
-      IO.puts("\n  [INFO] Mamba: #{Float.round(mamba_ms, 1)}ms/batch, LSTM: #{Float.round(lstm_ms, 1)}ms/batch")
+      IO.puts(
+        "\n  [INFO] Mamba: #{Float.round(mamba_ms, 1)}ms/batch, LSTM: #{Float.round(lstm_ms, 1)}ms/batch"
+      )
 
       # Mamba should be competitive with or faster than LSTM
       # (Allow 50% slower since Mamba has different characteristics)
       assert mamba_ms < lstm_ms * 1.5,
-        "Mamba significantly slower than LSTM: #{Float.round(mamba_ms, 1)}ms vs #{Float.round(lstm_ms, 1)}ms"
+             "Mamba significantly slower than LSTM: #{Float.round(mamba_ms, 1)}ms vs #{Float.round(lstm_ms, 1)}ms"
     end
   end
 
   describe "Jamba (Mamba + Attention) training speed" do
     setup do
       # Note: Use window_size, not seq_len - Imitation.new only recognizes window_size
-      trainer = Imitation.new(
-        embed_size: @embed_size,
-        hidden_sizes: [256],
-        temporal: true,
-        backbone: :jamba,
-        window_size: @seq_len,
-        num_layers: 3,
-        attention_every: 3,
-        learning_rate: 1.0e-4
-      )
+      trainer =
+        Imitation.new(
+          embed_size: @embed_size,
+          hidden_sizes: [256],
+          temporal: true,
+          backbone: :jamba,
+          window_size: @seq_len,
+          num_layers: 3,
+          attention_every: 3,
+          learning_rate: 1.0e-4
+        )
 
       # Smaller batch for Jamba (attention is memory intensive)
-      batches = generate_training_batches(@num_batches, 32, @embed_size,
-        temporal: true, seq_len: @seq_len)
+      batches =
+        generate_training_batches(@num_batches, 32, @embed_size,
+          temporal: true,
+          seq_len: @seq_len
+        )
 
       {:ok, trainer: trainer, batches: batches}
     end
@@ -344,38 +382,43 @@ defmodule ExPhil.Benchmarks.TrainingSpeedTest do
       [first_batch | rest] = batches
       {warmup_trainer, _} = Imitation.train_step(trainer, first_batch, nil)
 
-      {total_time_us, _} = :timer.tc(fn ->
-        Enum.reduce(rest, warmup_trainer, fn batch, t ->
-          {new_t, _metrics} = Imitation.train_step(t, batch, nil)
-          new_t
+      {total_time_us, _} =
+        :timer.tc(fn ->
+          Enum.reduce(rest, warmup_trainer, fn batch, t ->
+            {new_t, _metrics} = Imitation.train_step(t, batch, nil)
+            new_t
+          end)
         end)
-      end)
 
-      avg_ms = total_time_us / 1000 / (length(rest))
+      avg_ms = total_time_us / 1000 / length(rest)
 
       assert avg_ms < 3000,
-        "Jamba training too slow: #{Float.round(avg_ms, 1)}ms/batch (expected <3000ms)"
+             "Jamba training too slow: #{Float.round(avg_ms, 1)}ms/batch (expected <3000ms)"
     end
   end
 
   describe "Sliding Window (pure attention) training speed" do
     setup do
       # Note: Use window_size, not seq_len - Imitation.new only recognizes window_size
-      trainer = Imitation.new(
-        embed_size: @embed_size,
-        hidden_sizes: [256],
-        temporal: true,
-        backbone: :sliding_window,
-        window_size: @seq_len,
-        num_heads: 4,
-        head_dim: 64,
-        num_layers: 2,
-        learning_rate: 1.0e-4
-      )
+      trainer =
+        Imitation.new(
+          embed_size: @embed_size,
+          hidden_sizes: [256],
+          temporal: true,
+          backbone: :sliding_window,
+          window_size: @seq_len,
+          num_heads: 4,
+          head_dim: 64,
+          num_layers: 2,
+          learning_rate: 1.0e-4
+        )
 
       # Smaller batch for attention (memory intensive)
-      batches = generate_training_batches(@num_batches, 32, @embed_size,
-        temporal: true, seq_len: @seq_len)
+      batches =
+        generate_training_batches(@num_batches, 32, @embed_size,
+          temporal: true,
+          seq_len: @seq_len
+        )
 
       {:ok, trainer: trainer, batches: batches}
     end
@@ -384,38 +427,43 @@ defmodule ExPhil.Benchmarks.TrainingSpeedTest do
       [first_batch | rest] = batches
       {warmup_trainer, _} = Imitation.train_step(trainer, first_batch, nil)
 
-      {total_time_us, _} = :timer.tc(fn ->
-        Enum.reduce(rest, warmup_trainer, fn batch, t ->
-          {new_t, _metrics} = Imitation.train_step(t, batch, nil)
-          new_t
+      {total_time_us, _} =
+        :timer.tc(fn ->
+          Enum.reduce(rest, warmup_trainer, fn batch, t ->
+            {new_t, _metrics} = Imitation.train_step(t, batch, nil)
+            new_t
+          end)
         end)
-      end)
 
-      avg_ms = total_time_us / 1000 / (length(rest))
+      avg_ms = total_time_us / 1000 / length(rest)
 
       assert avg_ms < 3000,
-        "Sliding Window training too slow: #{Float.round(avg_ms, 1)}ms/batch (expected <3000ms)"
+             "Sliding Window training too slow: #{Float.round(avg_ms, 1)}ms/batch (expected <3000ms)"
     end
   end
 
   describe "LSTM+Attention (hybrid) training speed" do
     setup do
       # Note: Use window_size, not seq_len - Imitation.new only recognizes window_size
-      trainer = Imitation.new(
-        embed_size: @embed_size,
-        hidden_sizes: [256],
-        temporal: true,
-        backbone: :lstm_hybrid,
-        window_size: @seq_len,
-        num_heads: 4,
-        head_dim: 64,
-        num_layers: 1,
-        learning_rate: 1.0e-4
-      )
+      trainer =
+        Imitation.new(
+          embed_size: @embed_size,
+          hidden_sizes: [256],
+          temporal: true,
+          backbone: :lstm_hybrid,
+          window_size: @seq_len,
+          num_heads: 4,
+          head_dim: 64,
+          num_layers: 1,
+          learning_rate: 1.0e-4
+        )
 
       # Smaller batch for hybrid (attention + LSTM both use memory)
-      batches = generate_training_batches(@num_batches, 32, @embed_size,
-        temporal: true, seq_len: @seq_len)
+      batches =
+        generate_training_batches(@num_batches, 32, @embed_size,
+          temporal: true,
+          seq_len: @seq_len
+        )
 
       {:ok, trainer: trainer, batches: batches}
     end
@@ -425,17 +473,18 @@ defmodule ExPhil.Benchmarks.TrainingSpeedTest do
       [first_batch | rest] = batches
       {warmup_trainer, _} = Imitation.train_step(trainer, first_batch, nil)
 
-      {total_time_us, _} = :timer.tc(fn ->
-        Enum.reduce(rest, warmup_trainer, fn batch, t ->
-          {new_t, _metrics} = Imitation.train_step(t, batch, nil)
-          new_t
+      {total_time_us, _} =
+        :timer.tc(fn ->
+          Enum.reduce(rest, warmup_trainer, fn batch, t ->
+            {new_t, _metrics} = Imitation.train_step(t, batch, nil)
+            new_t
+          end)
         end)
-      end)
 
-      avg_ms = total_time_us / 1000 / (length(rest))
+      avg_ms = total_time_us / 1000 / length(rest)
 
       assert avg_ms < 10000,
-        "Hybrid training too slow: #{Float.round(avg_ms, 1)}ms/batch (expected <10000ms)"
+             "Hybrid training too slow: #{Float.round(avg_ms, 1)}ms/batch (expected <10000ms)"
     end
   end
 
@@ -443,17 +492,21 @@ defmodule ExPhil.Benchmarks.TrainingSpeedTest do
     setup do
       # Temporal MLP just takes last frame, so very fast
       # Note: Use window_size, not seq_len - Imitation.new only recognizes window_size
-      trainer = Imitation.new(
-        embed_size: @embed_size,
-        hidden_sizes: [256, 256],
-        temporal: true,
-        backbone: :mlp,
-        window_size: @seq_len,
-        learning_rate: 1.0e-4
-      )
+      trainer =
+        Imitation.new(
+          embed_size: @embed_size,
+          hidden_sizes: [256, 256],
+          temporal: true,
+          backbone: :mlp,
+          window_size: @seq_len,
+          learning_rate: 1.0e-4
+        )
 
-      batches = generate_training_batches(@num_batches, @batch_size, @embed_size,
-        temporal: true, seq_len: @seq_len)
+      batches =
+        generate_training_batches(@num_batches, @batch_size, @embed_size,
+          temporal: true,
+          seq_len: @seq_len
+        )
 
       {:ok, trainer: trainer, batches: batches}
     end
@@ -463,17 +516,18 @@ defmodule ExPhil.Benchmarks.TrainingSpeedTest do
       [first_batch | rest] = batches
       {warmup_trainer, _} = Imitation.train_step(trainer, first_batch, nil)
 
-      {total_time_us, _} = :timer.tc(fn ->
-        Enum.reduce(rest, warmup_trainer, fn batch, t ->
-          {new_t, _metrics} = Imitation.train_step(t, batch, nil)
-          new_t
+      {total_time_us, _} =
+        :timer.tc(fn ->
+          Enum.reduce(rest, warmup_trainer, fn batch, t ->
+            {new_t, _metrics} = Imitation.train_step(t, batch, nil)
+            new_t
+          end)
         end)
-      end)
 
-      avg_ms = total_time_us / 1000 / (length(rest))
+      avg_ms = total_time_us / 1000 / length(rest)
 
       assert avg_ms < 500,
-        "Temporal MLP training too slow: #{Float.round(avg_ms, 1)}ms/batch (expected <500ms)"
+             "Temporal MLP training too slow: #{Float.round(avg_ms, 1)}ms/batch (expected <500ms)"
     end
   end
 
@@ -481,52 +535,66 @@ defmodule ExPhil.Benchmarks.TrainingSpeedTest do
     @describetag :regression
 
     setup do
-      trainer = Imitation.new(
-        embed_size: @embed_size,
-        hidden_sizes: [256, 256],
-        temporal: false,
-        learning_rate: 1.0e-4
-      )
+      trainer =
+        Imitation.new(
+          embed_size: @embed_size,
+          hidden_sizes: [256, 256],
+          temporal: false,
+          learning_rate: 1.0e-4
+        )
 
       batches = generate_training_batches(20, @batch_size, @embed_size, temporal: false)
 
       {:ok, trainer: trainer, batches: batches}
     end
 
-    test "periodic conversion (every N batches) matches full tensor accumulation", %{trainer: trainer, batches: batches} do
+    test "periodic conversion (every N batches) matches full tensor accumulation", %{
+      trainer: trainer,
+      batches: batches
+    } do
       # This tests the pattern used in the progress display fix
       [first | rest] = batches
       {warmed, _} = Imitation.train_step(trainer, first, nil)
 
       # Method 1: Full tensor accumulation (gold standard)
-      {_, tensor_losses} = Enum.reduce(rest, {warmed, []}, fn batch, {t, losses} ->
-        {new_t, m} = Imitation.train_step(t, batch, nil)
-        {new_t, [m.loss | losses]}
-      end)
+      {_, tensor_losses} =
+        Enum.reduce(rest, {warmed, []}, fn batch, {t, losses} ->
+          {new_t, m} = Imitation.train_step(t, batch, nil)
+          {new_t, [m.loss | losses]}
+        end)
+
       gold_avg = tensor_losses |> Nx.stack() |> Nx.mean() |> Nx.to_number()
 
       # Method 2: Periodic conversion (every 5 batches) - matches progress display pattern
       {warmed2, _} = Imitation.train_step(trainer, first, nil)
-      {_, periodic_losses} = Enum.with_index(rest)
-      |> Enum.reduce({warmed2, []}, fn {batch, idx}, {t, losses} ->
-        {new_t, m} = Imitation.train_step(t, batch, nil)
-        # Store tuple like the progress display does
-        display = if rem(idx, 5) == 0, do: Nx.to_number(m.loss), else: 0.0
-        {new_t, [{display, m.loss} | losses]}
-      end)
 
-      periodic_avg = periodic_losses
-      |> Enum.map(fn {_, tensor} -> tensor end)
-      |> Nx.stack()
-      |> Nx.mean()
-      |> Nx.to_number()
+      {_, periodic_losses} =
+        Enum.with_index(rest)
+        |> Enum.reduce({warmed2, []}, fn {batch, idx}, {t, losses} ->
+          {new_t, m} = Imitation.train_step(t, batch, nil)
+          # Store tuple like the progress display does
+          display = if rem(idx, 5) == 0, do: Nx.to_number(m.loss), else: 0.0
+          {new_t, [{display, m.loss} | losses]}
+        end)
+
+      periodic_avg =
+        periodic_losses
+        |> Enum.map(fn {_, tensor} -> tensor end)
+        |> Nx.stack()
+        |> Nx.mean()
+        |> Nx.to_number()
 
       # Both methods should produce the same average loss
-      assert_in_delta gold_avg, periodic_avg, 0.0001,
-        "Periodic conversion produced different loss: #{gold_avg} vs #{periodic_avg}"
+      assert_in_delta gold_avg,
+                      periodic_avg,
+                      0.0001,
+                      "Periodic conversion produced different loss: #{gold_avg} vs #{periodic_avg}"
     end
 
-    test "GPU utilization stays high with tensor accumulation", %{trainer: trainer, batches: batches} do
+    test "GPU utilization stays high with tensor accumulation", %{
+      trainer: trainer,
+      batches: batches
+    } do
       # This is a proxy test - we can't directly measure GPU utilization,
       # but we can verify that training is fast (which implies GPU is being used)
 
@@ -534,25 +602,26 @@ defmodule ExPhil.Benchmarks.TrainingSpeedTest do
       {warmed, _} = Imitation.train_step(trainer, first, nil)
 
       # Time training with tensor accumulation
-      {time_us, _} = :timer.tc(fn ->
-        Enum.reduce(rest, {warmed, []}, fn batch, {t, losses} ->
-          {new_t, m} = Imitation.train_step(t, batch, nil)
-          {new_t, [m.loss | losses]}
+      {time_us, _} =
+        :timer.tc(fn ->
+          Enum.reduce(rest, {warmed, []}, fn batch, {t, losses} ->
+            {new_t, m} = Imitation.train_step(t, batch, nil)
+            {new_t, [m.loss | losses]}
+          end)
         end)
-      end)
 
       avg_ms = time_us / 1000 / length(rest)
 
       # If GPU is being utilized, each batch should be fast
       # If Nx.to_number is blocking, batches would be ~80s each
       assert avg_ms < 1000,
-        """
-        Training too slow - possible GPU blocking issue!
-        Average: #{Float.round(avg_ms, 1)}ms/batch
+             """
+             Training too slow - possible GPU blocking issue!
+             Average: #{Float.round(avg_ms, 1)}ms/batch
 
-        If this is ~80s/batch, check for Nx.to_number calls in the training loop.
-        See gotcha #18 in docs/GOTCHAS.md
-        """
+             If this is ~80s/batch, check for Nx.to_number calls in the training loop.
+             See gotcha #18 in docs/GOTCHAS.md
+             """
     end
   end
 
@@ -588,14 +657,16 @@ defmodule ExPhil.Benchmarks.TrainingSpeedTest do
         ]
 
         # Add backbone-specific options
-        opts = if temporal do
-          opts
-          |> Keyword.put(:backbone, backbone)
-          |> Keyword.put(:window_size, 16)  # Small for fast test
-          |> Keyword.put(:num_layers, 1)
-        else
-          opts
-        end
+        opts =
+          if temporal do
+            opts
+            |> Keyword.put(:backbone, backbone)
+            # Small for fast test
+            |> Keyword.put(:window_size, 16)
+            |> Keyword.put(:num_layers, 1)
+          else
+            opts
+          end
 
         # Add extra options for specific backbones
         opts = Keyword.merge(opts, backbone_specific_opts(backbone))
@@ -604,11 +675,12 @@ defmodule ExPhil.Benchmarks.TrainingSpeedTest do
         trainer = Imitation.new(opts)
 
         # Generate one batch
-        batch = if temporal do
-          generate_training_batches(1, 8, @embed_size, temporal: true, seq_len: 16) |> hd()
-        else
-          generate_training_batches(1, 8, @embed_size, temporal: false) |> hd()
-        end
+        batch =
+          if temporal do
+            generate_training_batches(1, 8, @embed_size, temporal: true, seq_len: 16) |> hd()
+          else
+            generate_training_batches(1, 8, @embed_size, temporal: false) |> hd()
+          end
 
         # Should complete without error
         {new_trainer, metrics} = Imitation.train_step(trainer, batch, nil)
@@ -628,7 +700,10 @@ defmodule ExPhil.Benchmarks.TrainingSpeedTest do
 
   # Helper to get backbone-specific options (avoids compile-time type warnings in generated tests)
   defp backbone_specific_opts(:mamba), do: [state_size: 8, num_layers: 1]
-  defp backbone_specific_opts(:jamba), do: [num_layers: 2, attention_every: 2, num_heads: 2, head_dim: 32]
+
+  defp backbone_specific_opts(:jamba),
+    do: [num_layers: 2, attention_every: 2, num_heads: 2, head_dim: 32]
+
   defp backbone_specific_opts(:sliding_window), do: [num_heads: 2, head_dim: 32]
   defp backbone_specific_opts(:lstm_hybrid), do: [num_heads: 2, head_dim: 32]
   defp backbone_specific_opts(_), do: []
@@ -638,7 +713,9 @@ defmodule ExPhil.Benchmarks.TrainingSpeedTest do
   defp is_nan(_), do: false
 
   # Helper to check if value is infinite
-  defp is_infinite(x) when is_float(x), do: x == :infinity or x == :neg_infinity or abs(x) > 1.0e38
+  defp is_infinite(x) when is_float(x),
+    do: x == :infinity or x == :neg_infinity or abs(x) > 1.0e38
+
   defp is_infinite(_), do: false
 
   # Helper to generate training batches
@@ -648,46 +725,48 @@ defmodule ExPhil.Benchmarks.TrainingSpeedTest do
 
     key = Nx.Random.key(42)
 
-    {batches, _final_key} = Enum.map_reduce(1..num_batches, key, fn _, k ->
-      {states, k} = if temporal do
-        Nx.Random.uniform(k, shape: {batch_size, seq_len, embed_size}, type: :f32)
-      else
-        Nx.Random.uniform(k, shape: {batch_size, embed_size}, type: :f32)
-      end
+    {batches, _final_key} =
+      Enum.map_reduce(1..num_batches, key, fn _, k ->
+        {states, k} =
+          if temporal do
+            Nx.Random.uniform(k, shape: {batch_size, seq_len, embed_size}, type: :f32)
+          else
+            Nx.Random.uniform(k, shape: {batch_size, embed_size}, type: :f32)
+          end
 
-      # Generate integer actions using uniform and floor
-      {buttons_f, k} = Nx.Random.uniform(k, shape: {batch_size, 8}, type: :f32)
-      buttons = buttons_f |> Nx.multiply(2) |> Nx.floor() |> Nx.as_type(:s32)
+        # Generate integer actions using uniform and floor
+        {buttons_f, k} = Nx.Random.uniform(k, shape: {batch_size, 8}, type: :f32)
+        buttons = buttons_f |> Nx.multiply(2) |> Nx.floor() |> Nx.as_type(:s32)
 
-      {main_x_f, k} = Nx.Random.uniform(k, shape: {batch_size}, type: :f32)
-      main_x = main_x_f |> Nx.multiply(17) |> Nx.floor() |> Nx.as_type(:s32)
+        {main_x_f, k} = Nx.Random.uniform(k, shape: {batch_size}, type: :f32)
+        main_x = main_x_f |> Nx.multiply(17) |> Nx.floor() |> Nx.as_type(:s32)
 
-      {main_y_f, k} = Nx.Random.uniform(k, shape: {batch_size}, type: :f32)
-      main_y = main_y_f |> Nx.multiply(17) |> Nx.floor() |> Nx.as_type(:s32)
+        {main_y_f, k} = Nx.Random.uniform(k, shape: {batch_size}, type: :f32)
+        main_y = main_y_f |> Nx.multiply(17) |> Nx.floor() |> Nx.as_type(:s32)
 
-      {c_x_f, k} = Nx.Random.uniform(k, shape: {batch_size}, type: :f32)
-      c_x = c_x_f |> Nx.multiply(17) |> Nx.floor() |> Nx.as_type(:s32)
+        {c_x_f, k} = Nx.Random.uniform(k, shape: {batch_size}, type: :f32)
+        c_x = c_x_f |> Nx.multiply(17) |> Nx.floor() |> Nx.as_type(:s32)
 
-      {c_y_f, k} = Nx.Random.uniform(k, shape: {batch_size}, type: :f32)
-      c_y = c_y_f |> Nx.multiply(17) |> Nx.floor() |> Nx.as_type(:s32)
+        {c_y_f, k} = Nx.Random.uniform(k, shape: {batch_size}, type: :f32)
+        c_y = c_y_f |> Nx.multiply(17) |> Nx.floor() |> Nx.as_type(:s32)
 
-      {shoulder_f, k} = Nx.Random.uniform(k, shape: {batch_size}, type: :f32)
-      shoulder = shoulder_f |> Nx.multiply(4) |> Nx.floor() |> Nx.as_type(:s32)
+        {shoulder_f, k} = Nx.Random.uniform(k, shape: {batch_size}, type: :f32)
+        shoulder = shoulder_f |> Nx.multiply(4) |> Nx.floor() |> Nx.as_type(:s32)
 
-      batch = %{
-        states: states,
-        actions: %{
-          buttons: buttons,
-          main_x: main_x,
-          main_y: main_y,
-          c_x: c_x,
-          c_y: c_y,
-          shoulder: shoulder
+        batch = %{
+          states: states,
+          actions: %{
+            buttons: buttons,
+            main_x: main_x,
+            main_y: main_y,
+            c_x: c_x,
+            c_y: c_y,
+            shoulder: shoulder
+          }
         }
-      }
 
-      {batch, k}
-    end)
+        {batch, k}
+      end)
 
     batches
   end

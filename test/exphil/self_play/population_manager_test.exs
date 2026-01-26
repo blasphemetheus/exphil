@@ -113,7 +113,8 @@ defmodule ExPhil.SelfPlay.PopulationManagerTest do
       PopulationManager.set_current(manager, mock_model(), mock_params())
 
       # Force current-only sampling
-      {:ok, {policy_id, _policy}} = PopulationManager.sample_opponent(manager, strategy: :current_only)
+      {:ok, {policy_id, _policy}} =
+        PopulationManager.sample_opponent(manager, strategy: :current_only)
 
       assert policy_id == :current
     end
@@ -123,7 +124,8 @@ defmodule ExPhil.SelfPlay.PopulationManagerTest do
       PopulationManager.snapshot(manager)
 
       # Force historical sampling
-      {:ok, {policy_id, _policy}} = PopulationManager.sample_opponent(manager, strategy: :historical_only)
+      {:ok, {policy_id, _policy}} =
+        PopulationManager.sample_opponent(manager, strategy: :historical_only)
 
       assert {:historical, _version} = policy_id
     end
@@ -178,9 +180,9 @@ defmodule ExPhil.SelfPlay.PopulationManagerTest do
       policies = PopulationManager.list_policies(manager)
 
       # Should have: current, 2 historical, 5 CPU levels
-      current_count = Enum.count(policies, & &1.type == :current)
-      historical_count = Enum.count(policies, & &1.type == :historical)
-      cpu_count = Enum.count(policies, & &1.type == :cpu)
+      current_count = Enum.count(policies, &(&1.type == :current))
+      historical_count = Enum.count(policies, &(&1.type == :historical))
+      cpu_count = Enum.count(policies, &(&1.type == :cpu))
 
       assert current_count == 1
       assert historical_count == 2
@@ -196,7 +198,8 @@ defmodule ExPhil.SelfPlay.PopulationManagerTest do
     end
 
     test "adds external policy to history", %{manager: manager} do
-      assert :ok = PopulationManager.add_policy(manager, "external_v1", mock_model(), mock_params())
+      assert :ok =
+               PopulationManager.add_policy(manager, "external_v1", mock_model(), mock_params())
 
       {:ok, {_model, _params}} = PopulationManager.get_policy(manager, "external_v1")
 

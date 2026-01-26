@@ -48,6 +48,7 @@ defmodule ExPhil.Training.Prefetcher do
       fun.(batch)
       nil
     end)
+
     :ok
   end
 
@@ -93,7 +94,8 @@ defmodule ExPhil.Training.Prefetcher do
     end)
   ```
   """
-  @spec reduce_indexed(Enumerable.t(), acc, (term(), non_neg_integer(), acc -> acc)) :: acc when acc: var
+  @spec reduce_indexed(Enumerable.t(), acc, (term(), non_neg_integer(), acc -> acc)) :: acc
+        when acc: var
   def reduce_indexed(batches, initial_acc, fun) do
     # Iterate lazily through stream - don't materialize all at once
     # This is essentially sequential processing with index tracking
@@ -139,9 +141,11 @@ defmodule ExPhil.Training.Prefetcher do
     Stream.resource(
       # Initialize: start prefetch tasks
       fn ->
-        tasks = for _ <- 1..buffer_size do
-          start_prefetch(generator_fn)
-        end
+        tasks =
+          for _ <- 1..buffer_size do
+            start_prefetch(generator_fn)
+          end
+
         {tasks, generator_fn}
       end,
 
@@ -255,7 +259,13 @@ defmodule ExPhil.Training.Prefetcher do
   )
   ```
   """
-  @spec reduce_stream_indexed(Enumerable.t(), acc, (term(), non_neg_integer(), acc -> acc), keyword()) :: acc when acc: var
+  @spec reduce_stream_indexed(
+          Enumerable.t(),
+          acc,
+          (term(), non_neg_integer(), acc -> acc),
+          keyword()
+        ) :: acc
+        when acc: var
   def reduce_stream_indexed(batch_stream, initial_acc, fun, opts \\ []) do
     buffer_size = Keyword.get(opts, :buffer_size, 2)
 
@@ -265,20 +275,22 @@ defmodule ExPhil.Training.Prefetcher do
     stream_pid = spawn_link(fn -> stream_producer(batch_stream, stream_ref) end)
 
     # Start initial prefetch tasks
-    initial_tasks = for _ <- 1..buffer_size do
-      start_prefetch_task(stream_pid, stream_ref)
-    end
-    |> Enum.reject(&is_nil/1)
+    initial_tasks =
+      for _ <- 1..buffer_size do
+        start_prefetch_task(stream_pid, stream_ref)
+      end
+      |> Enum.reject(&is_nil/1)
 
     # Process batches with prefetching
-    result = process_prefetched_batches(
-      initial_tasks,
-      stream_pid,
-      stream_ref,
-      0,
-      initial_acc,
-      fun
-    )
+    result =
+      process_prefetched_batches(
+        initial_tasks,
+        stream_pid,
+        stream_ref,
+        0,
+        initial_acc,
+        fun
+      )
 
     # Cleanup
     send(stream_pid, {:stop, stream_ref})
@@ -291,14 +303,17 @@ defmodule ExPhil.Training.Prefetcher do
   defp stream_producer(stream, ref) do
     # Start a separate process to eagerly iterate the stream
     parent = self()
-    iterator = spawn_link(fn ->
-      stream
-      |> Stream.each(fn batch ->
-        send(parent, {:batch_ready, ref, batch})
+
+    iterator =
+      spawn_link(fn ->
+        stream
+        |> Stream.each(fn batch ->
+          send(parent, {:batch_ready, ref, batch})
+        end)
+        |> Stream.run()
+
+        send(parent, {:stream_done, ref})
       end)
-      |> Stream.run()
-      send(parent, {:stream_done, ref})
-    end)
 
     # Buffer batches and serve requests
     stream_producer_loop(ref, iterator, :queue.new(), false)
@@ -322,15 +337,18 @@ defmodule ExPhil.Training.Prefetcher do
           {{:value, batch}, new_queue} ->
             send(pid, {:batch, ref, batch})
             stream_producer_loop(ref, iterator, new_queue, done)
+
           {:empty, _} when done ->
             send(pid, {:done, ref})
             stream_producer_loop(ref, iterator, queue, done)
+
           {:empty, _} ->
             # No batch ready yet, wait for one
             receive do
               {:batch_ready, ^ref, batch} ->
                 send(pid, {:batch, ref, batch})
                 stream_producer_loop(ref, iterator, queue, done)
+
               {:stream_done, ^ref} ->
                 send(pid, {:done, ref})
                 stream_producer_loop(ref, iterator, queue, true)
@@ -348,6 +366,7 @@ defmodule ExPhil.Training.Prefetcher do
   defp start_prefetch_task(stream_pid, stream_ref) do
     Task.async(fn ->
       send(stream_pid, {:next, stream_ref, self()})
+
       receive do
         {:batch, ^stream_ref, batch} -> {:ok, batch}
         {:done, ^stream_ref} -> :done
@@ -362,7 +381,14 @@ defmodule ExPhil.Training.Prefetcher do
     acc
   end
 
-  defp process_prefetched_batches([current_task | rest_tasks], stream_pid, stream_ref, idx, acc, fun) do
+  defp process_prefetched_batches(
+         [current_task | rest_tasks],
+         stream_pid,
+         stream_ref,
+         idx,
+         acc,
+         fun
+       ) do
     # Wait for current batch
     case Task.await(current_task, :infinity) do
       {:ok, batch} ->

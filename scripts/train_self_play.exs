@@ -52,43 +52,49 @@ defmodule SelfPlayHelpers do
 
   def experiences_to_rollout(experiences) do
     # Stack states
-    states = experiences
-    |> Enum.map(& &1.state)
-    |> Enum.map(fn t ->
-      case Nx.shape(t) do
-        {1, _n} -> Nx.squeeze(t, axes: [0])
-        _ -> t
-      end
-    end)
-    |> Nx.stack()
+    states =
+      experiences
+      |> Enum.map(& &1.state)
+      |> Enum.map(fn t ->
+        case Nx.shape(t) do
+          {1, _n} -> Nx.squeeze(t, axes: [0])
+          _ -> t
+        end
+      end)
+      |> Nx.stack()
 
     # Stack scalar values
-    rewards = experiences
-    |> Enum.map(& &1.reward)
-    |> Nx.tensor(type: :f32)
+    rewards =
+      experiences
+      |> Enum.map(& &1.reward)
+      |> Nx.tensor(type: :f32)
 
-    dones = experiences
-    |> Enum.map(& if(&1.done, do: 1.0, else: 0.0))
-    |> Nx.tensor(type: :f32)
+    dones =
+      experiences
+      |> Enum.map(&if(&1.done, do: 1.0, else: 0.0))
+      |> Nx.tensor(type: :f32)
 
-    values = experiences
-    |> Enum.map(fn exp ->
-      case exp.value do
-        %Nx.Tensor{} = t -> Nx.to_number(t)
-        n when is_number(n) -> n
-      end
-    end)
-    |> Kernel.++([0.0])  # Bootstrap value
-    |> Nx.tensor(type: :f32)
+    values =
+      experiences
+      |> Enum.map(fn exp ->
+        case exp.value do
+          %Nx.Tensor{} = t -> Nx.to_number(t)
+          n when is_number(n) -> n
+        end
+      end)
+      # Bootstrap value
+      |> Kernel.++([0.0])
+      |> Nx.tensor(type: :f32)
 
-    log_probs = experiences
-    |> Enum.map(fn exp ->
-      case exp.log_prob do
-        %Nx.Tensor{} = t -> Nx.to_number(t)
-        n when is_number(n) -> n
-      end
-    end)
-    |> Nx.tensor(type: :f32)
+    log_probs =
+      experiences
+      |> Enum.map(fn exp ->
+        case exp.log_prob do
+          %Nx.Tensor{} = t -> Nx.to_number(t)
+          n when is_number(n) -> n
+        end
+      end)
+      |> Nx.tensor(type: :f32)
 
     # Stack actions (map of tensors)
     actions = stack_actions(Enum.map(experiences, & &1.action))
@@ -109,13 +115,14 @@ defmodule SelfPlayHelpers do
     keys = Map.keys(hd(actions_list))
 
     Map.new(keys, fn key ->
-      values = Enum.map(actions_list, fn action ->
-        case Map.get(action, key) do
-          %Nx.Tensor{} = t -> t
-          n when is_number(n) -> Nx.tensor(n)
-          other -> Nx.tensor(other)
-        end
-      end)
+      values =
+        Enum.map(actions_list, fn action ->
+          case Map.get(action, key) do
+            %Nx.Tensor{} = t -> t
+            n when is_number(n) -> Nx.tensor(n)
+            other -> Nx.tensor(other)
+          end
+        end)
 
       {key, Nx.stack(values)}
     end)
@@ -241,6 +248,7 @@ if opts.help do
       --timesteps 500000 \\
       --track-elo
   """)
+
   System.halt(0)
 end
 
@@ -287,38 +295,40 @@ end
 
 Output.step(1, 6, "Initializing policy")
 
-{policy_model, policy_params, embed_size} = if opts.pretrained do
-  Output.puts("  Loading pretrained policy from #{opts.pretrained}...")
+{policy_model, policy_params, embed_size} =
+  if opts.pretrained do
+    Output.puts("  Loading pretrained policy from #{opts.pretrained}...")
 
-  case ExPhil.Training.load_policy(opts.pretrained) do
-    {:ok, policy} ->
-      embed_size = policy.config[:embed_size] || Embeddings.embedding_size()
-      Output.success("  Loaded policy (embed_size=#{embed_size})")
-      {policy.model, policy.params, embed_size}
+    case ExPhil.Training.load_policy(opts.pretrained) do
+      {:ok, policy} ->
+        embed_size = policy.config[:embed_size] || Embeddings.embedding_size()
+        Output.success("  Loaded policy (embed_size=#{embed_size})")
+        {policy.model, policy.params, embed_size}
 
-    {:error, reason} ->
-      Output.error("Failed to load policy: #{inspect(reason)}")
-      System.halt(1)
+      {:error, reason} ->
+        Output.error("Failed to load policy: #{inspect(reason)}")
+        System.halt(1)
+    end
+  else
+    Output.puts("  Creating random actor-critic policy...")
+    embed_size = Embeddings.embedding_size()
+    hidden_sizes = [256, 256]
+
+    # Use ActorCritic to get both policy and value heads
+    model =
+      ExPhil.Networks.ActorCritic.build_combined(
+        embed_size: embed_size,
+        hidden_sizes: hidden_sizes,
+        dropout: 0.0
+      )
+
+    {init_fn, _} = Axon.build(model)
+    template = Nx.template({1, embed_size}, :f32)
+    params = init_fn.(template, Axon.ModelState.empty())
+
+    Output.success("  Created random policy (embed_size=#{embed_size})")
+    {model, params, embed_size}
   end
-else
-  Output.puts("  Creating random actor-critic policy...")
-  embed_size = Embeddings.embedding_size()
-  hidden_sizes = [256, 256]
-
-  # Use ActorCritic to get both policy and value heads
-  model = ExPhil.Networks.ActorCritic.build_combined(
-    embed_size: embed_size,
-    hidden_sizes: hidden_sizes,
-    dropout: 0.0
-  )
-
-  {init_fn, _} = Axon.build(model)
-  template = Nx.template({1, embed_size}, :f32)
-  params = init_fn.(template, Axon.ModelState.empty())
-
-  Output.success("  Created random policy (embed_size=#{embed_size})")
-  {model, params, embed_size}
-end
 
 # ============================================================================
 # Step 2: Start Self-Play Supervisor
@@ -326,11 +336,12 @@ end
 
 Output.step(2, 6, "Starting self-play infrastructure")
 
-{:ok, _supervisor} = Supervisor.start_link(
-  batch_size: opts.batch_size,
-  max_history_size: 20,
-  start_matchmaker: opts.track_elo
-)
+{:ok, _supervisor} =
+  Supervisor.start_link(
+    batch_size: opts.batch_size,
+    max_history_size: 20,
+    start_matchmaker: opts.track_elo
+  )
 
 Output.puts("  ✓ Self-play supervisor started")
 
@@ -344,16 +355,17 @@ Output.puts("  ✓ Policy registered with population manager")
 
 Output.step(3, 6, "Initializing PPO trainer")
 
-ppo_trainer = PPO.new(
-  embed_size: embed_size,
-  pretrained_path: opts.pretrained,
-  gamma: opts.gamma,
-  gae_lambda: opts.gae_lambda,
-  clip_range: opts.ppo_clip,
-  num_epochs: opts.ppo_epochs,
-  learning_rate: opts.learning_rate,
-  batch_size: opts.batch_size
-)
+ppo_trainer =
+  PPO.new(
+    embed_size: embed_size,
+    pretrained_path: opts.pretrained,
+    gamma: opts.gamma,
+    gae_lambda: opts.gae_lambda,
+    clip_range: opts.ppo_clip,
+    num_epochs: opts.ppo_epochs,
+    learning_rate: opts.learning_rate,
+    batch_size: opts.batch_size
+  )
 
 Output.puts("  ✓ PPO trainer initialized")
 
@@ -363,16 +375,27 @@ Output.puts("  ✓ PPO trainer initialized")
 
 Output.step(4, 6, "Starting #{opts.num_games} parallel games")
 
-game_results = Supervisor.start_games(opts.num_games,
-  game_type: opts.game_type,
-  config: [max_episode_frames: opts.max_episode_frames]
-)
+game_results =
+  Supervisor.start_games(opts.num_games,
+    game_type: opts.game_type,
+    config: [max_episode_frames: opts.max_episode_frames]
+  )
 
-started_count = Enum.count(game_results, fn {:ok, _} -> true; _ -> false end)
+started_count =
+  Enum.count(game_results, fn
+    {:ok, _} -> true
+    _ -> false
+  end)
+
 Output.puts("  ✓ #{started_count}/#{opts.num_games} games started")
 
 if started_count < opts.num_games do
-  failed = Enum.filter(game_results, fn {:ok, _} -> false; _ -> true end)
+  failed =
+    Enum.filter(game_results, fn
+      {:ok, _} -> false
+      _ -> true
+    end)
+
   Output.warning("Some games failed to start: #{inspect(Enum.take(failed, 3))}")
 end
 
@@ -400,88 +423,99 @@ state = %{
   policy_model: policy_model
 }
 
-final_state = Enum.reduce_while(1..total_iterations, state, fn iter, state ->
-  iter_start = System.monotonic_time(:millisecond)
+final_state =
+  Enum.reduce_while(1..total_iterations, state, fn iter, state ->
+    iter_start = System.monotonic_time(:millisecond)
 
-  # Collect experience from all games
-  experiences = Supervisor.collect_steps(opts.rollout_length)
-  _collect_time = System.monotonic_time(:millisecond) - iter_start
+    # Collect experience from all games
+    experiences = Supervisor.collect_steps(opts.rollout_length)
+    _collect_time = System.monotonic_time(:millisecond) - iter_start
 
-  steps_collected = length(experiences)
+    steps_collected = length(experiences)
 
-  if steps_collected == 0 do
-    Output.warning("No experience collected in iteration #{iter}, skipping...")
-    {:cont, %{state | iteration: iter}}
-  else
-    # Convert experiences to rollout format for PPO
-    rollouts = SelfPlayHelpers.experiences_to_rollout(experiences)
-
-    # Update PPO with collected experience
-    update_start = System.monotonic_time(:millisecond)
-    {updated_ppo, ppo_metrics} = PPO.update(state.ppo_trainer, rollouts)
-    _update_time = System.monotonic_time(:millisecond) - update_start
-
-    # Update policy in population manager and sync to all games
-    Supervisor.update_policy_params(updated_ppo.params)
-
-    # Snapshot to historical periodically
-    if rem(iter, opts.snapshot_interval) == 0 do
-      Supervisor.snapshot_policy()
-    end
-
-    # Resample opponents periodically
-    if rem(iter, 5) == 0 do
-      Supervisor.resample_all_opponents()
-    end
-
-    # Calculate stats
-    new_total_steps = state.total_steps + steps_collected
-    collector_stats = ExperienceCollector.get_stats(Supervisor.experience_collector())
-
-    # Progress output
-    elapsed = System.monotonic_time(:second) - start_time
-    steps_per_sec = if elapsed > 0, do: Float.round(new_total_steps / elapsed, 1), else: 0.0
-    pct = round(iter / total_iterations * 100)
-
-    # Progress bar
-    bar_width = 20
-    filled = round(pct / 100 * bar_width)
-    bar = String.duplicate("█", filled) <> String.duplicate("░", bar_width - filled)
-
-    policy_loss = Map.get(ppo_metrics, :policy_loss, 0.0)
-    value_loss = Map.get(ppo_metrics, :value_loss, 0.0)
-
-    progress_line = "  #{bar} #{pct}% | iter #{iter}/#{total_iterations} | " <>
-                   "steps: #{new_total_steps} | " <>
-                   "policy_loss: #{Float.round(policy_loss, 4)} | " <>
-                   "value_loss: #{Float.round(value_loss, 4)} | " <>
-                   "#{steps_per_sec} steps/s"
-
-    # Use carriage return to overwrite line for live progress
-    IO.write(:stderr, "\r#{progress_line}\n")
-
-    # Save checkpoint periodically
-    if rem(iter, opts.save_interval) == 0 do
-      checkpoint_path = String.replace(opts.checkpoint, ".axon", "_iter#{iter}.axon")
-      SelfPlayHelpers.save_checkpoint(updated_ppo, state.policy_model, checkpoint_path, iter, new_total_steps, opts)
-    end
-
-    new_state = %{state |
-      ppo_trainer: updated_ppo,
-      iteration: iter,
-      total_steps: new_total_steps,
-      total_episodes: collector_stats.batches_produced,
-      metrics_history: [ppo_metrics | state.metrics_history]
-    }
-
-    # Check if we've reached target timesteps
-    if new_total_steps >= opts.timesteps do
-      {:halt, new_state}
+    if steps_collected == 0 do
+      Output.warning("No experience collected in iteration #{iter}, skipping...")
+      {:cont, %{state | iteration: iter}}
     else
-      {:cont, new_state}
+      # Convert experiences to rollout format for PPO
+      rollouts = SelfPlayHelpers.experiences_to_rollout(experiences)
+
+      # Update PPO with collected experience
+      update_start = System.monotonic_time(:millisecond)
+      {updated_ppo, ppo_metrics} = PPO.update(state.ppo_trainer, rollouts)
+      _update_time = System.monotonic_time(:millisecond) - update_start
+
+      # Update policy in population manager and sync to all games
+      Supervisor.update_policy_params(updated_ppo.params)
+
+      # Snapshot to historical periodically
+      if rem(iter, opts.snapshot_interval) == 0 do
+        Supervisor.snapshot_policy()
+      end
+
+      # Resample opponents periodically
+      if rem(iter, 5) == 0 do
+        Supervisor.resample_all_opponents()
+      end
+
+      # Calculate stats
+      new_total_steps = state.total_steps + steps_collected
+      collector_stats = ExperienceCollector.get_stats(Supervisor.experience_collector())
+
+      # Progress output
+      elapsed = System.monotonic_time(:second) - start_time
+      steps_per_sec = if elapsed > 0, do: Float.round(new_total_steps / elapsed, 1), else: 0.0
+      pct = round(iter / total_iterations * 100)
+
+      # Progress bar
+      bar_width = 20
+      filled = round(pct / 100 * bar_width)
+      bar = String.duplicate("█", filled) <> String.duplicate("░", bar_width - filled)
+
+      policy_loss = Map.get(ppo_metrics, :policy_loss, 0.0)
+      value_loss = Map.get(ppo_metrics, :value_loss, 0.0)
+
+      progress_line =
+        "  #{bar} #{pct}% | iter #{iter}/#{total_iterations} | " <>
+          "steps: #{new_total_steps} | " <>
+          "policy_loss: #{Float.round(policy_loss, 4)} | " <>
+          "value_loss: #{Float.round(value_loss, 4)} | " <>
+          "#{steps_per_sec} steps/s"
+
+      # Use carriage return to overwrite line for live progress
+      IO.write(:stderr, "\r#{progress_line}\n")
+
+      # Save checkpoint periodically
+      if rem(iter, opts.save_interval) == 0 do
+        checkpoint_path = String.replace(opts.checkpoint, ".axon", "_iter#{iter}.axon")
+
+        SelfPlayHelpers.save_checkpoint(
+          updated_ppo,
+          state.policy_model,
+          checkpoint_path,
+          iter,
+          new_total_steps,
+          opts
+        )
+      end
+
+      new_state = %{
+        state
+        | ppo_trainer: updated_ppo,
+          iteration: iter,
+          total_steps: new_total_steps,
+          total_episodes: collector_stats.batches_produced,
+          metrics_history: [ppo_metrics | state.metrics_history]
+      }
+
+      # Check if we've reached target timesteps
+      if new_total_steps >= opts.timesteps do
+        {:halt, new_state}
+      else
+        {:cont, new_state}
+      end
     end
-  end
-end)
+  end)
 
 # ============================================================================
 # Step 6: Save Final Checkpoint
@@ -498,7 +532,14 @@ Output.divider()
 
 Output.step(6, 6, "Saving final checkpoint")
 
-SelfPlayHelpers.save_checkpoint(final_state.ppo_trainer, final_state.policy_model, opts.checkpoint, final_state.iteration, final_state.total_steps, opts)
+SelfPlayHelpers.save_checkpoint(
+  final_state.ppo_trainer,
+  final_state.policy_model,
+  opts.checkpoint,
+  final_state.iteration,
+  final_state.total_steps,
+  opts
+)
 
 # Also export policy for inference
 policy_path = String.replace(opts.checkpoint, ".axon", "_policy.bin")
@@ -509,8 +550,12 @@ Output.puts("  ✓ Policy exported: #{policy_path}")
 if opts.track_elo do
   Output.section("Elo Leaderboard")
   leaderboard = Supervisor.get_leaderboard(10)
-  Enum.with_index(leaderboard, 1) |> Enum.each(fn {entry, rank} ->
-    Output.puts("  #{rank}. #{entry.id}: #{Float.round(entry.rating, 1)} (#{entry.wins}W/#{entry.losses}L)")
+
+  Enum.with_index(leaderboard, 1)
+  |> Enum.each(fn {entry, rank} ->
+    Output.puts(
+      "  #{rank}. #{entry.id}: #{Float.round(entry.rating, 1)} (#{entry.wins}W/#{entry.losses}L)"
+    )
   end)
 end
 
@@ -529,6 +574,9 @@ Output.puts_raw("")
 Output.puts_raw(Output.colorize("Next steps:", :bold))
 Output.puts_raw("  1. Evaluate: mix run scripts/eval_model.exs --policy #{policy_path}")
 Output.puts_raw("  2. Play: mix run scripts/play_dolphin.exs --policy #{policy_path} ...")
-Output.puts_raw("  3. Continue training: mix run scripts/train_self_play.exs --pretrained #{policy_path} ...")
-Output.puts_raw("")
 
+Output.puts_raw(
+  "  3. Continue training: mix run scripts/train_self_play.exs --pretrained #{policy_path} ..."
+)
+
+Output.puts_raw("")

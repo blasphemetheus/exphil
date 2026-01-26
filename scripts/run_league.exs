@@ -75,16 +75,19 @@ defmodule LeagueRunner do
 
     # Step 3: Imitation pretraining
     Output.step(3, 5, "Imitation pretraining")
-    {:ok, trained} = Pretraining.train_all(
-      architectures,
-      dataset,
-      target_loss: config.target_loss,
-      max_epochs: config.max_epochs,
-      batch_size: config.batch_size,
-      learning_rate: config.learning_rate,
-      checkpoint_dir: Path.join(config.checkpoint_dir, "pretrained"),
-      verbose: config.verbose
-    )
+
+    {:ok, trained} =
+      Pretraining.train_all(
+        architectures,
+        dataset,
+        target_loss: config.target_loss,
+        max_epochs: config.max_epochs,
+        batch_size: config.batch_size,
+        learning_rate: config.learning_rate,
+        checkpoint_dir: Path.join(config.checkpoint_dir, "pretrained"),
+        verbose: config.verbose
+      )
+
     Output.puts("")
 
     # Step 4: Register in league and run evolution
@@ -96,31 +99,35 @@ defmodule LeagueRunner do
       arch_spec = Enum.find(architectures, &(&1.id == arch_id))
 
       # Create entry
-      {:ok, entry} = ArchitectureEntry.new(
-        id: arch_id,
-        architecture: arch_spec.architecture,
-        config: arch_spec.config,
-        model: model,
-        params: params
-      )
+      {:ok, entry} =
+        ArchitectureEntry.new(
+          id: arch_id,
+          architecture: arch_spec.architecture,
+          config: arch_spec.config,
+          model: model,
+          params: params
+        )
 
       League.register_entry(LeagueProcess, entry)
 
-      Output.puts("  Registered #{arch_id} (loss: #{Float.round(final_loss, 4)}, epochs: #{epochs})")
+      Output.puts(
+        "  Registered #{arch_id} (loss: #{Float.round(final_loss, 4)}, epochs: #{epochs})"
+      )
     end)
 
     Output.puts("")
 
     # Run evolution
-    {:ok, final_metrics} = Evolution.run(LeagueProcess,
-      generations: config.generations,
-      matches_per_pair: config.matches_per_pair,
-      ppo_epochs: config.ppo_epochs,
-      ppo_batch_size: config.ppo_batch_size,
-      checkpoint_dir: config.checkpoint_dir,
-      checkpoint_every: 5,
-      verbose: config.verbose
-    )
+    {:ok, final_metrics} =
+      Evolution.run(LeagueProcess,
+        generations: config.generations,
+        matches_per_pair: config.matches_per_pair,
+        ppo_epochs: config.ppo_epochs,
+        ppo_batch_size: config.ppo_batch_size,
+        checkpoint_dir: config.checkpoint_dir,
+        checkpoint_every: 5,
+        verbose: config.verbose
+      )
 
     # Step 5: Generate report
     Output.step(5, 5, "Generating report")
@@ -139,34 +146,35 @@ defmodule LeagueRunner do
   # ============================================================================
 
   defp parse_args(args) do
-    {opts, _rest, _invalid} = OptionParser.parse(args,
-      strict: [
-        replays: :string,
-        architectures: :string,
-        target_loss: :float,
-        max_epochs: :integer,
-        generations: :integer,
-        matches_per_pair: :integer,
-        ppo_epochs: :integer,
-        batch_size: :integer,
-        learning_rate: :float,
-        checkpoint_dir: :string,
-        report_path: :string,
-        verbose: :boolean,
-        quiet: :boolean,
-        help: :boolean
-      ],
-      aliases: [
-        r: :replays,
-        a: :architectures,
-        g: :generations,
-        m: :matches_per_pair,
-        o: :checkpoint_dir,
-        v: :verbose,
-        q: :quiet,
-        h: :help
-      ]
-    )
+    {opts, _rest, _invalid} =
+      OptionParser.parse(args,
+        strict: [
+          replays: :string,
+          architectures: :string,
+          target_loss: :float,
+          max_epochs: :integer,
+          generations: :integer,
+          matches_per_pair: :integer,
+          ppo_epochs: :integer,
+          batch_size: :integer,
+          learning_rate: :float,
+          checkpoint_dir: :string,
+          report_path: :string,
+          verbose: :boolean,
+          quiet: :boolean,
+          help: :boolean
+        ],
+        aliases: [
+          r: :replays,
+          a: :architectures,
+          g: :generations,
+          m: :matches_per_pair,
+          o: :checkpoint_dir,
+          v: :verbose,
+          q: :quiet,
+          h: :help
+        ]
+      )
 
     if opts[:help] do
       print_help()
@@ -181,10 +189,11 @@ defmodule LeagueRunner do
     end
 
     # Parse architectures
-    architectures = case opts[:architectures] do
-      nil -> @default_architectures
-      str -> str |> String.split(",") |> Enum.map(&String.to_atom/1)
-    end
+    architectures =
+      case opts[:architectures] do
+        nil -> @default_architectures
+        str -> str |> String.split(",") |> Enum.map(&String.to_atom/1)
+      end
 
     [
       replays_dir: opts[:replays],
@@ -421,12 +430,13 @@ defmodule LeagueRunner do
     leaderboard
     |> Enum.with_index(1)
     |> Enum.map(fn {entry, rank} ->
-      rank_class = case rank do
-        1 -> "rank-1"
-        2 -> "rank-2"
-        3 -> "rank-3"
-        _ -> ""
-      end
+      rank_class =
+        case rank do
+          1 -> "rank-1"
+          2 -> "rank-2"
+          3 -> "rank-3"
+          _ -> ""
+        end
 
       """
       <tr class="#{rank_class}">
@@ -470,17 +480,21 @@ defmodule LeagueRunner do
     metrics.final_leaderboard
     |> Enum.with_index(1)
     |> Enum.each(fn {entry, rank} ->
-      medal = case rank do
-        1 -> "🥇"
-        2 -> "🥈"
-        3 -> "🥉"
-        _ -> "  "
-      end
+      medal =
+        case rank do
+          1 -> "🥇"
+          2 -> "🥈"
+          3 -> "🥉"
+          _ -> "  "
+        end
 
       Output.puts("#{medal} #{rank}. #{entry.id}")
-      Output.puts("      Elo: #{Float.round(entry.elo, 1)} | " <>
-                  "Win Rate: #{Float.round(entry.win_rate * 100, 1)}% | " <>
-                  "Games: #{entry.games_played}")
+
+      Output.puts(
+        "      Elo: #{Float.round(entry.elo, 1)} | " <>
+          "Win Rate: #{Float.round(entry.win_rate * 100, 1)}% | " <>
+          "Games: #{entry.games_played}"
+      )
     end)
 
     Output.puts("")

@@ -72,9 +72,11 @@ defmodule Commands do
           IO.puts(Jason.encode!(models, pretty: true))
         else
           Output.section("Registered models (#{length(models)})")
+
           Enum.each(models, fn model ->
             Output.puts(RegistryUI.format_model(model))
           end)
+
           Output.puts("")
           Output.puts("Use 'mix run scripts/registry.exs show NAME' for details.")
         end
@@ -88,6 +90,7 @@ defmodule Commands do
     case Registry.get(id) do
       {:ok, model} ->
         Output.banner("Model: #{model.name}")
+
         Output.puts("""
         ID:           #{model.id}
         Created:      #{model.created_at}
@@ -129,7 +132,10 @@ defmodule Commands do
 
     case Registry.best(opts) do
       {:ok, model} ->
-        Output.success("Best model: #{model.name} (loss=#{get_in(model, [:metrics, :final_loss])})")
+        Output.success(
+          "Best model: #{model.name} (loss=#{get_in(model, [:metrics, :final_loss])})"
+        )
+
         Output.puts("  Path: #{model.checkpoint_path}")
 
       {:error, :no_models_with_metric} ->
@@ -201,6 +207,7 @@ defmodule Commands do
     case Registry.lineage(id) do
       {:ok, models} ->
         Output.section("Lineage for '#{id}'")
+
         Enum.with_index(models)
         |> Enum.each(fn {model, idx} ->
           prefix = String.duplicate("  ", idx)
@@ -225,22 +232,25 @@ defmodule Commands do
     opts = []
 
     # Parse --tags
-    opts = case find_arg_value(args, "--tags") do
-      nil -> opts
-      tags_str -> Keyword.put(opts, :tags, String.split(tags_str, ","))
-    end
+    opts =
+      case find_arg_value(args, "--tags") do
+        nil -> opts
+        tags_str -> Keyword.put(opts, :tags, String.split(tags_str, ","))
+      end
 
     # Parse --backbone
-    opts = case find_arg_value(args, "--backbone") do
-      nil -> opts
-      backbone -> Keyword.put(opts, :backbone, String.to_atom(backbone))
-    end
+    opts =
+      case find_arg_value(args, "--backbone") do
+        nil -> opts
+        backbone -> Keyword.put(opts, :backbone, String.to_atom(backbone))
+      end
 
     # Parse --limit
-    opts = case find_arg_value(args, "--limit") do
-      nil -> opts
-      limit_str -> Keyword.put(opts, :limit, String.to_integer(limit_str))
-    end
+    opts =
+      case find_arg_value(args, "--limit") do
+        nil -> opts
+        limit_str -> Keyword.put(opts, :limit, String.to_integer(limit_str))
+      end
 
     opts
   end
@@ -254,6 +264,7 @@ defmodule Commands do
 
   defp format_time(nil), do: "?"
   defp format_time(seconds) when seconds < 60, do: "#{seconds}s"
+
   defp format_time(seconds) do
     min = div(seconds, 60)
     sec = rem(seconds, 60)
@@ -263,16 +274,33 @@ end
 
 # Main dispatch
 case args do
-  ["list" | rest] -> Commands.list(rest)
-  ["show" | rest] -> Commands.show(rest)
-  ["best" | rest] -> Commands.best(rest)
-  ["tag" | rest] -> Commands.tag(rest)
-  ["untag" | rest] -> Commands.untag(rest)
-  ["delete" | rest] -> Commands.delete(rest)
-  ["lineage" | rest] -> Commands.lineage(rest)
-  [] -> Commands.list([])
+  ["list" | rest] ->
+    Commands.list(rest)
+
+  ["show" | rest] ->
+    Commands.show(rest)
+
+  ["best" | rest] ->
+    Commands.best(rest)
+
+  ["tag" | rest] ->
+    Commands.tag(rest)
+
+  ["untag" | rest] ->
+    Commands.untag(rest)
+
+  ["delete" | rest] ->
+    Commands.delete(rest)
+
+  ["lineage" | rest] ->
+    Commands.lineage(rest)
+
+  [] ->
+    Commands.list([])
+
   [cmd | _] ->
     Output.error("Unknown command: #{cmd}")
+
     Output.puts("""
 
     Usage: mix run scripts/registry.exs [command] [options]

@@ -89,7 +89,8 @@ defmodule ExPhil.Training.LRScheduleTest do
         lr_schedule: :cosine_restarts,
         warmup_steps: 0,
         restart_period: 10,
-        restart_mult: 1,  # Fixed period for easier testing
+        # Fixed period for easier testing
+        restart_mult: 1,
         weight_decay: 0.01
       }
 
@@ -116,7 +117,8 @@ defmodule ExPhil.Training.LRScheduleTest do
         lr_schedule: :cosine_restarts,
         warmup_steps: 0,
         restart_period: 5,
-        restart_mult: 2,  # Periods: 5, 10, 20, ...
+        # Periods: 5, 10, 20, ...
+        restart_mult: 2,
         weight_decay: 0.01
       }
 
@@ -127,9 +129,10 @@ defmodule ExPhil.Training.LRScheduleTest do
       gradients = %{w: Nx.tensor([0.1])}
 
       # Run multiple steps to go through restarts
-      {params, _state} = Enum.reduce(1..20, {params, state}, fn _, {p, s} ->
-        update_fn.(gradients, s, p)
-      end)
+      {params, _state} =
+        Enum.reduce(1..20, {params, state}, fn _, {p, s} ->
+          update_fn.(gradients, s, p)
+        end)
 
       # Just verify it doesn't crash and produces valid output
       assert params.w |> Nx.squeeze() |> Nx.to_number() != 1.0

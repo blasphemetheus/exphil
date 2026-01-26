@@ -70,6 +70,7 @@ defmodule ExPhil.Training.CharacterBalance do
   end
 
   defp extract_character_from_game_state(nil), do: nil
+
   defp extract_character_from_game_state(game_state) do
     # game_state.players is a map like %{1 => %Player{character: :mewtwo}, 2 => %Player{...}}
     # We want player 0/1 (the agent's character)
@@ -164,9 +165,10 @@ defmodule ExPhil.Training.CharacterBalance do
     smoothing = Keyword.get(opts, :smoothing, 0)
 
     # Find the minimum count (rarest character)
-    min_count = character_counts
-    |> Map.values()
-    |> Enum.min(fn -> 1 end)
+    min_count =
+      character_counts
+      |> Map.values()
+      |> Enum.min(fn -> 1 end)
 
     # Compute inverse frequency weights
     # Rare characters get higher weights

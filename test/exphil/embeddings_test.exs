@@ -271,17 +271,19 @@ defmodule ExPhil.EmbeddingsTest do
         with_frame_info: false,
         with_stock: false,
         with_ledge_distance: false,
-        jumps_normalized: false  # Use classic 7-dim jumps
+        # Use classic 7-dim jumps
+        jumps_normalized: false
       }
+
       size = PlayerEmbed.embedding_size(config)
 
       # 1 (percent) + 1 (facing) + 1 (x) + 1 (y) + 399 (action) + 33 (char) +
       # 1 (invuln) + 7 (jumps) + 1 (shield) + 1 (ground) = 446
       expected =
         1 + 1 + 1 + 1 +
-        Primitives.embedding_size(:action) +
-        Primitives.embedding_size(:character) +
-        1 + Primitives.embedding_size(:jumps_left) + 1 + 1
+          Primitives.embedding_size(:action) +
+          Primitives.embedding_size(:character) +
+          1 + Primitives.embedding_size(:jumps_left) + 1 + 1
 
       assert size == expected
     end
@@ -294,17 +296,20 @@ defmodule ExPhil.EmbeddingsTest do
         with_frame_info: false,
         with_stock: false,
         with_ledge_distance: false,
-        jumps_normalized: true  # 1-dim instead of 7-dim
+        # 1-dim instead of 7-dim
+        jumps_normalized: true
       }
+
       size = PlayerEmbed.embedding_size(config)
 
       # 1 (percent) + 1 (facing) + 1 (x) + 1 (y) + 399 (action) + 33 (char) +
       # 1 (invuln) + 1 (jumps normalized) + 1 (shield) + 1 (ground) = 440
+      # jumps is now 1 dim
       expected =
         1 + 1 + 1 + 1 +
-        Primitives.embedding_size(:action) +
-        Primitives.embedding_size(:character) +
-        1 + 1 + 1 + 1  # jumps is now 1 dim
+          Primitives.embedding_size(:action) +
+          Primitives.embedding_size(:character) +
+          1 + 1 + 1 + 1
 
       assert size == expected
     end
@@ -322,7 +327,12 @@ defmodule ExPhil.EmbeddingsTest do
     test "adds nana dimensions when enabled (compact mode)" do
       # Compact nana mode is the default - adds 39 dims (preserves IC tech)
       base_config = %ExPhil.Embeddings.Player{with_speeds: false, with_nana: false}
-      nana_config = %ExPhil.Embeddings.Player{with_speeds: false, with_nana: true, nana_mode: :compact}
+
+      nana_config = %ExPhil.Embeddings.Player{
+        with_speeds: false,
+        with_nana: true,
+        nana_mode: :compact
+      }
 
       base_size = PlayerEmbed.embedding_size(base_config)
       nana_size = PlayerEmbed.embedding_size(nana_config)
@@ -340,6 +350,7 @@ defmodule ExPhil.EmbeddingsTest do
         with_stock: false,
         with_ledge_distance: false
       }
+
       nana_config = %ExPhil.Embeddings.Player{
         with_speeds: false,
         with_nana: true,
@@ -373,8 +384,10 @@ defmodule ExPhil.EmbeddingsTest do
         facing: true,
         x: 0.0,
         y: 0.0,
-        action: 14,  # Wait action
-        character: 10,  # Mewtwo
+        # Wait action
+        action: 14,
+        # Mewtwo
+        character: 10,
         invulnerable: false,
         jumps_left: 2,
         shield_strength: 60.0,
@@ -418,7 +431,8 @@ defmodule ExPhil.EmbeddingsTest do
         stock: 3
       }
 
-      config = PlayerEmbed.default_config()  # Uses compact mode by default
+      # Uses compact mode by default
+      config = PlayerEmbed.default_config()
       result = PlayerEmbed.embed_nana(nana, config)
 
       values = Nx.to_flat_list(result)
@@ -449,8 +463,9 @@ defmodule ExPhil.EmbeddingsTest do
       relative_pos_size = if config.with_relative_pos, do: 2, else: 0
       frame_count_size = if config.with_frame_count, do: 1, else: 0
 
-      expected = 2 * player_size + stage_size + prev_action_size + name_size +
-                 projectile_size + distance_size + relative_pos_size + frame_count_size
+      expected =
+        2 * player_size + stage_size + prev_action_size + name_size +
+          projectile_size + distance_size + relative_pos_size + frame_count_size
 
       assert size == expected
     end
@@ -525,11 +540,12 @@ defmodule ExPhil.EmbeddingsTest do
     end
 
     test "accepts custom options to override defaults" do
-      config = Embeddings.config(
-        with_speeds: false,
-        axis_buckets: 8,
-        with_projectiles: false
-      )
+      config =
+        Embeddings.config(
+          with_speeds: false,
+          axis_buckets: 8,
+          with_projectiles: false
+        )
 
       assert config.player.with_speeds == false
       assert config.controller.axis_buckets == 8
@@ -544,7 +560,7 @@ defmodule ExPhil.EmbeddingsTest do
       default_size = Embeddings.embedding_size(Embeddings.default_config())
 
       assert config_size == default_size,
-        "config() size (#{config_size}) must match default_config() size (#{default_size})"
+             "config() size (#{config_size}) must match default_config() size (#{default_size})"
     end
 
     test "embedding_size() with no args matches embedding_size(config())" do
@@ -552,7 +568,7 @@ defmodule ExPhil.EmbeddingsTest do
       with_config_size = Embeddings.embedding_size(Embeddings.config())
 
       assert no_args_size == with_config_size,
-        "embedding_size() (#{no_args_size}) must match embedding_size(config()) (#{with_config_size})"
+             "embedding_size() (#{no_args_size}) must match embedding_size(config()) (#{with_config_size})"
     end
 
     test "actual embedded tensor shape matches embedding_size()" do
@@ -563,8 +579,9 @@ defmodule ExPhil.EmbeddingsTest do
       expected_size = Embeddings.embedding_size(config)
 
       {actual_size} = Nx.shape(result)
+
       assert actual_size == expected_size,
-        "Embedded tensor size (#{actual_size}) must match embedding_size(config) (#{expected_size})"
+             "Embedded tensor size (#{actual_size}) must match embedding_size(config) (#{expected_size})"
     end
 
     test "config() fields match default_config() fields" do
@@ -664,6 +681,7 @@ defmodule ExPhil.EmbeddingsTest do
   describe "Embeddings.embed_batch/2" do
     test "embeds multiple states" do
       game_state = make_game_state()
+
       states = [
         {game_state, nil, 1},
         {game_state, nil, 1},
@@ -730,7 +748,8 @@ defmodule ExPhil.EmbeddingsTest do
     %GameState{
       frame: 1000,
       stage: 2,
-      menu_state: 2,  # IN_GAME
+      # IN_GAME
+      menu_state: 2,
       players: %{1 => player, 2 => opponent},
       projectiles: [],
       distance: 20.0

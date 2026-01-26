@@ -48,30 +48,37 @@ defmodule ExPhil.Training.Data do
   require Logger
 
   defstruct [
-    :frames,              # List of frame data
-    :metadata,            # Dataset metadata
-    :embed_config,        # Embedding configuration
-    :size,                # Number of frames
-    :embedded_sequences,  # Pre-computed embeddings (optional, for temporal training)
-    :embedded_frames,     # Pre-computed single-frame embeddings (optional, for MLP training)
-    :player_registry      # Player tag -> ID mapping for style-conditional training
+    # List of frame data
+    :frames,
+    # Dataset metadata
+    :metadata,
+    # Embedding configuration
+    :embed_config,
+    # Number of frames
+    :size,
+    # Pre-computed embeddings (optional, for temporal training)
+    :embedded_sequences,
+    # Pre-computed single-frame embeddings (optional, for MLP training)
+    :embedded_frames,
+    # Player tag -> ID mapping for style-conditional training
+    :player_registry
   ]
 
   @type frame :: %{
-    game_state: GameState.t(),
-    controller: ControllerState.t() | nil,
-    action: map() | nil,
-    player_tag: String.t() | nil,
-    name_id: non_neg_integer() | nil
-  }
+          game_state: GameState.t(),
+          controller: ControllerState.t() | nil,
+          action: map() | nil,
+          player_tag: String.t() | nil,
+          name_id: non_neg_integer() | nil
+        }
 
   @type t :: %__MODULE__{
-    frames: [frame()],
-    metadata: map(),
-    embed_config: map(),
-    size: non_neg_integer(),
-    player_registry: PlayerRegistry.t() | nil
-  }
+          frames: [frame()],
+          metadata: map(),
+          embed_config: map(),
+          size: non_neg_integer(),
+          player_registry: PlayerRegistry.t() | nil
+        }
 
   # ============================================================================
   # Dataset Loading
@@ -88,16 +95,18 @@ defmodule ExPhil.Training.Data do
   """
   @spec load_dataset(Path.t(), keyword()) :: {:ok, t()} | {:error, term()}
   def load_dataset(path, opts \\ []) do
-    embed_config = Keyword.get_lazy(opts, :embed_config, fn ->
-      Embeddings.config()
-    end)
+    embed_config =
+      Keyword.get_lazy(opts, :embed_config, fn ->
+        Embeddings.config()
+      end)
 
     try do
-      frames = path
-      |> list_replay_files()
-      |> maybe_limit(Keyword.get(opts, :max_files))
-      |> Enum.flat_map(&load_replay_file(&1, opts))
-      |> filter_frames(opts)
+      frames =
+        path
+        |> list_replay_files()
+        |> maybe_limit(Keyword.get(opts, :max_files))
+        |> Enum.flat_map(&load_replay_file(&1, opts))
+        |> filter_frames(opts)
 
       dataset = %__MODULE__{
         frames: frames,
@@ -128,9 +137,10 @@ defmodule ExPhil.Training.Data do
   """
   @spec from_frames([frame()], keyword()) :: t()
   def from_frames(frames, opts \\ []) do
-    embed_config = Keyword.get_lazy(opts, :embed_config, fn ->
-      Embeddings.config()
-    end)
+    embed_config =
+      Keyword.get_lazy(opts, :embed_config, fn ->
+        Embeddings.config()
+      end)
 
     player_registry = Keyword.get(opts, :player_registry)
 
@@ -198,6 +208,7 @@ defmodule ExPhil.Training.Data do
   end
 
   defp maybe_filter_port(frames, nil), do: frames
+
   defp maybe_filter_port(frames, port) do
     Enum.filter(frames, fn frame ->
       get_in(frame, [:metadata, :player_port]) == port
@@ -205,6 +216,7 @@ defmodule ExPhil.Training.Data do
   end
 
   defp maybe_filter_character(frames, nil), do: frames
+
   defp maybe_filter_character(frames, character) do
     Enum.filter(frames, fn frame ->
       get_in(frame, [:metadata, :character]) == character
@@ -213,7 +225,7 @@ defmodule ExPhil.Training.Data do
 
   defp valid_frame?(frame) do
     Map.has_key?(frame, :game_state) and
-    (Map.has_key?(frame, :controller) or Map.has_key?(frame, :action))
+      (Map.has_key?(frame, :controller) or Map.has_key?(frame, :action))
   end
 
   # ============================================================================
@@ -266,26 +278,28 @@ defmodule ExPhil.Training.Data do
     # Seed random number generator
     :rand.seed(:exsss, {seed, seed, seed})
 
-    indices = cond do
-      # Character-balanced sampling (weighted by inverse frequency)
-      character_weights != nil ->
-        alias ExPhil.Training.CharacterBalance
-        # Get weights only for valid indices
-        frame_weights = valid_indices
-        |> Enum.map(fn idx -> Enum.at(dataset.frames, idx) end)
-        |> CharacterBalance.frame_weights(character_weights)
+    indices =
+      cond do
+        # Character-balanced sampling (weighted by inverse frequency)
+        character_weights != nil ->
+          alias ExPhil.Training.CharacterBalance
+          # Get weights only for valid indices
+          frame_weights =
+            valid_indices
+            |> Enum.map(fn idx -> Enum.at(dataset.frames, idx) end)
+            |> CharacterBalance.frame_weights(character_weights)
 
-        # Weighted sampling with replacement to balance characters
-        CharacterBalance.balanced_indices(frame_weights, length(valid_indices))
+          # Weighted sampling with replacement to balance characters
+          CharacterBalance.balanced_indices(frame_weights, length(valid_indices))
 
-      # Standard shuffle
-      shuffle ->
-        Enum.shuffle(valid_indices)
+        # Standard shuffle
+        shuffle ->
+          Enum.shuffle(valid_indices)
 
-      # No shuffle
-      true ->
-        valid_indices
-    end
+        # No shuffle
+        true ->
+          valid_indices
+      end
 
     # Build delay config
     delay_config = %{
@@ -305,6 +319,7 @@ defmodule ExPhil.Training.Data do
   end
 
   defp maybe_drop_last(chunks, false, _batch_size), do: chunks
+
   defp maybe_drop_last(chunks, true, batch_size) do
     Enum.filter(chunks, &(length(&1) == batch_size))
   end
@@ -323,29 +338,32 @@ defmodule ExPhil.Training.Data do
   # Fast path: use precomputed embeddings
   defp create_batch_precomputed(dataset, indices, delay_config) do
     # Collect precomputed embeddings and actions
-    {embeddings, actions} = indices
-    |> Enum.map(fn idx ->
-      frame_delay = get_frame_delay(delay_config)
-      action_frame = Enum.at(dataset.frames, idx + frame_delay)
+    {embeddings, actions} =
+      indices
+      |> Enum.map(fn idx ->
+        frame_delay = get_frame_delay(delay_config)
+        action_frame = Enum.at(dataset.frames, idx + frame_delay)
 
-      # Get precomputed embedding for state frame
-      embedding = :array.get(idx, dataset.embedded_frames)
-      action = get_action(action_frame)
+        # Get precomputed embedding for state frame
+        embedding = :array.get(idx, dataset.embedded_frames)
+        action = get_action(action_frame)
 
-      {embedding, action}
-    end)
-    |> Enum.unzip()
+        {embedding, action}
+      end)
+      |> Enum.unzip()
 
     # Stack precomputed embeddings and transfer to GPU
     # Embeddings are stored on CPU (BinaryBackend) to avoid GPU OOM during storage
     # We transfer to GPU here for efficient training
-    states = embeddings
-    |> Nx.stack()
-    |> Nx.backend_transfer(EXLA.Backend)
+    states =
+      embeddings
+      |> Nx.stack()
+      |> Nx.backend_transfer(EXLA.Backend)
 
     # Convert actions to tensors and transfer to GPU
-    action_tensors = actions_to_tensors(actions)
-    |> transfer_actions_to_gpu()
+    action_tensors =
+      actions_to_tensors(actions)
+      |> transfer_actions_to_gpu()
 
     %{
       states: states,
@@ -363,29 +381,33 @@ defmodule ExPhil.Training.Data do
   # Standard path: embed on the fly (used when augmentation is enabled)
   defp create_batch_standard(dataset, indices, delay_config, augment_fn) do
     # Collect frames with name_ids for style-conditional training
-    frame_data = Enum.map(indices, fn idx ->
-      # Determine frame delay for this sample
-      frame_delay = get_frame_delay(delay_config)
+    frame_data =
+      Enum.map(indices, fn idx ->
+        # Determine frame delay for this sample
+        frame_delay = get_frame_delay(delay_config)
 
-      state_frame = Enum.at(dataset.frames, idx)
-      action_frame = Enum.at(dataset.frames, idx + frame_delay)
+        state_frame = Enum.at(dataset.frames, idx)
+        action_frame = Enum.at(dataset.frames, idx + frame_delay)
 
-      # Apply augmentation if provided
-      {state_frame, action_frame} = if augment_fn do
-        augmented = augment_fn.(%{
-          game_state: state_frame.game_state,
-          controller: action_frame[:controller] || action_frame[:action]
-        })
-        {%{state_frame | game_state: augmented.game_state},
-         Map.put(action_frame, :controller, augmented[:controller])}
-      else
-        {state_frame, action_frame}
-      end
+        # Apply augmentation if provided
+        {state_frame, action_frame} =
+          if augment_fn do
+            augmented =
+              augment_fn.(%{
+                game_state: state_frame.game_state,
+                controller: action_frame[:controller] || action_frame[:action]
+              })
 
-      # Include name_id for player embedding (defaults to 0 if not available)
-      name_id = state_frame[:name_id] || 0
-      {state_frame.game_state, get_action(action_frame), name_id}
-    end)
+            {%{state_frame | game_state: augmented.game_state},
+             Map.put(action_frame, :controller, augmented[:controller])}
+          else
+            {state_frame, action_frame}
+          end
+
+        # Include name_id for player embedding (defaults to 0 if not available)
+        name_id = state_frame[:name_id] || 0
+        {state_frame.game_state, get_action(action_frame), name_id}
+      end)
 
     # Embed states with name_ids
     {game_states, actions, name_ids} = unzip3(frame_data)
@@ -420,17 +442,20 @@ defmodule ExPhil.Training.Data do
     # Random delay uniformly distributed between min and max
     min_delay + :rand.uniform(max_delay - min_delay + 1) - 1
   end
+
   defp get_frame_delay(%{augment: false, fixed: fixed_delay}) do
     fixed_delay
   end
+
   # Handle legacy integer delay (backward compatibility)
   defp get_frame_delay(delay) when is_integer(delay), do: delay
 
   # Embed states with optional name_ids for style-conditional training
   defp embed_states(game_states, embed_config, nil) do
-    embeddings = Enum.map(game_states, fn gs ->
-      Embeddings.embed(gs, nil, embed_config: embed_config)
-    end)
+    embeddings =
+      Enum.map(game_states, fn gs ->
+        Embeddings.embed(gs, nil, embed_config: embed_config)
+      end)
 
     Nx.stack(embeddings)
   end
@@ -478,10 +503,11 @@ defmodule ExPhil.Training.Data do
       main_y: discretize_axis(controller.main_stick.y, axis_buckets),
       c_x: discretize_axis(controller.c_stick.x, axis_buckets),
       c_y: discretize_axis(controller.c_stick.y, axis_buckets),
-      shoulder: discretize_shoulder(
-        Kernel.max(controller.l_shoulder, controller.r_shoulder),
-        shoulder_buckets
-      )
+      shoulder:
+        discretize_shoulder(
+          Kernel.max(controller.l_shoulder, controller.r_shoulder),
+          shoulder_buckets
+        )
     }
   end
 
@@ -498,8 +524,18 @@ defmodule ExPhil.Training.Data do
 
   defp neutral_action do
     %{
-      buttons: %{a: false, b: false, x: false, y: false, z: false, l: false, r: false, d_up: false},
-      main_x: 8,  # Center bucket for 16 buckets
+      buttons: %{
+        a: false,
+        b: false,
+        x: false,
+        y: false,
+        z: false,
+        l: false,
+        r: false,
+        d_up: false
+      },
+      # Center bucket for 16 buckets
+      main_x: 8,
       main_y: 8,
       c_x: 8,
       c_y: 8,
@@ -513,13 +549,15 @@ defmodule ExPhil.Training.Data do
   @spec actions_to_tensors([map()]) :: map()
   def actions_to_tensors(actions) do
     # Button tensor [batch, 8]
-    buttons = actions
-    |> Enum.map(fn a ->
-      b = a.buttons
-      [b.a, b.b, b.x, b.y, b.z, b.l, b.r, b.d_up]
-      |> Enum.map(&if(&1, do: 1, else: 0))
-    end)
-    |> Nx.tensor(type: :s64)
+    buttons =
+      actions
+      |> Enum.map(fn a ->
+        b = a.buttons
+
+        [b.a, b.b, b.x, b.y, b.z, b.l, b.r, b.d_up]
+        |> Enum.map(&if(&1, do: 1, else: 0))
+      end)
+      |> Nx.tensor(type: :s64)
 
     # Axis tensors [batch]
     main_x = Nx.tensor(Enum.map(actions, & &1.main_x), type: :s64)
@@ -554,24 +592,19 @@ defmodule ExPhil.Training.Data do
     ratio = Keyword.get(opts, :ratio, 0.9)
     shuffle = Keyword.get(opts, :shuffle, true)
 
-    frames = if shuffle do
-      Enum.shuffle(dataset.frames)
-    else
-      dataset.frames
-    end
+    frames =
+      if shuffle do
+        Enum.shuffle(dataset.frames)
+      else
+        dataset.frames
+      end
 
     split_idx = floor(length(frames) * ratio)
     {train_frames, val_frames} = Enum.split(frames, split_idx)
 
-    train = %{dataset |
-      frames: train_frames,
-      size: length(train_frames)
-    }
+    train = %{dataset | frames: train_frames, size: length(train_frames)}
 
-    val = %{dataset |
-      frames: val_frames,
-      size: length(val_frames)
-    }
+    val = %{dataset | frames: val_frames, size: length(val_frames)}
 
     {train, val}
   end
@@ -584,10 +617,11 @@ defmodule ExPhil.Training.Data do
   """
   @spec empty(t()) :: t()
   def empty(dataset) do
-    %{dataset |
-      frames: [],
-      size: 0,
-      embedded_sequences: if(dataset.embedded_sequences, do: :array.new(), else: nil)
+    %{
+      dataset
+      | frames: [],
+        size: 0,
+        embedded_sequences: if(dataset.embedded_sequences, do: :array.new(), else: nil)
     }
   end
 
@@ -613,14 +647,12 @@ defmodule ExPhil.Training.Data do
   """
   @spec sample(t(), non_neg_integer()) :: t()
   def sample(dataset, n) do
-    sampled_frames = dataset.frames
-    |> Enum.shuffle()
-    |> Enum.take(n)
+    sampled_frames =
+      dataset.frames
+      |> Enum.shuffle()
+      |> Enum.take(n)
 
-    %{dataset |
-      frames: sampled_frames,
-      size: length(sampled_frames)
-    }
+    %{dataset | frames: sampled_frames, size: length(sampled_frames)}
   end
 
   # ============================================================================
@@ -653,15 +685,17 @@ defmodule ExPhil.Training.Data do
       # Create sequences
       sequences = create_sequences(dataset.frames, window_size, stride)
 
-      %{dataset |
-        frames: sequences,
-        size: length(sequences),
-        metadata: Map.merge(dataset.metadata, %{
-          temporal: true,
-          window_size: window_size,
-          stride: stride,
-          original_size: dataset.size
-        })
+      %{
+        dataset
+        | frames: sequences,
+          size: length(sequences),
+          metadata:
+            Map.merge(dataset.metadata, %{
+              temporal: true,
+              window_size: window_size,
+              stride: stride,
+              original_size: dataset.size
+            })
       }
     end
   end
@@ -673,16 +707,18 @@ defmodule ExPhil.Training.Data do
     0..max_start//stride
     |> Enum.map(fn start_idx ->
       # Get window of frames
-      window_frames = for i <- start_idx..(start_idx + window_size - 1) do
-        :array.get(i, frames_array)
-      end
+      window_frames =
+        for i <- start_idx..(start_idx + window_size - 1) do
+          :array.get(i, frames_array)
+        end
 
       # The action comes from the last frame
       last_frame = List.last(window_frames)
 
       %{
         sequence: window_frames,
-        game_state: last_frame.game_state,  # Keep for compatibility
+        # Keep for compatibility
+        game_state: last_frame.game_state,
         controller: Map.get(last_frame, :controller),
         action: get_action(last_frame)
       }
@@ -707,14 +743,22 @@ defmodule ExPhil.Training.Data do
   @spec precompute_embeddings(t(), keyword()) :: t()
   def precompute_embeddings(dataset, opts \\ []) do
     show_progress = Keyword.get(opts, :show_progress, true)
-    gc_every = Keyword.get(opts, :gc_every, 100)  # GC every N chunks
+    # GC every N chunks
+    gc_every = Keyword.get(opts, :gc_every, 100)
 
     total = dataset.size
 
     # Warn if dataset is very large - recommend streaming instead
     if total > 500_000 and show_progress do
-      IO.puts(:stderr, "  ⚠ Large dataset (#{total} sequences) - consider using --stream-chunk-size")
-      IO.puts(:stderr, "    Pre-computing will use ~#{Float.round(total * 60 * 400 * 4 / 1_000_000_000, 1)}GB RAM")
+      IO.puts(
+        :stderr,
+        "  ⚠ Large dataset (#{total} sequences) - consider using --stream-chunk-size"
+      )
+
+      IO.puts(
+        :stderr,
+        "    Pre-computing will use ~#{Float.round(total * 60 * 400 * 4 / 1_000_000_000, 1)}GB RAM"
+      )
     end
 
     if show_progress do
@@ -726,33 +770,34 @@ defmodule ExPhil.Training.Data do
     # Process in chunks to show progress and manage memory
     chunk_size = min(500, max(1, div(total, 10)))
 
-    embedded = dataset.frames
-    |> Enum.chunk_every(chunk_size)
-    |> Enum.with_index()
-    |> Enum.flat_map(fn {chunk, chunk_idx} ->
-      # Show progress
-      if show_progress do
-        processed = min((chunk_idx + 1) * chunk_size, total)
-        pct = round(processed / total * 100)
-        IO.write(:stderr, "\r  Embedding: #{pct}% (#{processed}/#{total})    ")
-      end
+    embedded =
+      dataset.frames
+      |> Enum.chunk_every(chunk_size)
+      |> Enum.with_index()
+      |> Enum.flat_map(fn {chunk, chunk_idx} ->
+        # Show progress
+        if show_progress do
+          processed = min((chunk_idx + 1) * chunk_size, total)
+          pct = round(processed / total * 100)
+          IO.write(:stderr, "\r  Embedding: #{pct}% (#{processed}/#{total})    ")
+        end
 
-      # Periodic garbage collection to prevent memory buildup
-      if gc_every > 0 and rem(chunk_idx, gc_every) == 0 and chunk_idx > 0 do
-        :erlang.garbage_collect()
-      end
+        # Periodic garbage collection to prevent memory buildup
+        if gc_every > 0 and rem(chunk_idx, gc_every) == 0 and chunk_idx > 0 do
+          :erlang.garbage_collect()
+        end
 
-      # Batch embed each sequence in this chunk
-      # For each sequence, we batch all frames together
-      # CRITICAL: Copy to CPU after embedding to avoid GPU OOM
-      # (175K sequences × 30 frames × 1204 dims × 4 bytes = 25GB, exceeds GPU memory)
-      Enum.map(chunk, fn frame ->
-        game_states = Enum.map(frame.sequence, & &1.game_state)
-        # Use batch embedding: all frames at once, then copy to CPU
-        Embeddings.Game.embed_states_fast(game_states, 1, config: embed_config)
-        |> Nx.backend_copy(Nx.BinaryBackend)
+        # Batch embed each sequence in this chunk
+        # For each sequence, we batch all frames together
+        # CRITICAL: Copy to CPU after embedding to avoid GPU OOM
+        # (175K sequences × 30 frames × 1204 dims × 4 bytes = 25GB, exceeds GPU memory)
+        Enum.map(chunk, fn frame ->
+          game_states = Enum.map(frame.sequence, & &1.game_state)
+          # Use batch embedding: all frames at once, then copy to CPU
+          Embeddings.Game.embed_states_fast(game_states, 1, config: embed_config)
+          |> Nx.backend_copy(Nx.BinaryBackend)
+        end)
       end)
-    end)
 
     if show_progress do
       IO.puts(:stderr, "\r  Embedding: 100% (#{total}/#{total}) - done!    ")
@@ -780,14 +825,19 @@ defmodule ExPhil.Training.Data do
   def precompute_frame_embeddings(dataset, opts \\ []) do
     show_progress = Keyword.get(opts, :show_progress, true)
     batch_size = Keyword.get(opts, :batch_size, 1000)
-    gc_every = Keyword.get(opts, :gc_every, 100)  # GC every N batches
+    # GC every N batches
+    gc_every = Keyword.get(opts, :gc_every, 100)
 
     total = dataset.size
 
     # Warn if dataset is very large - recommend streaming instead
     if total > 1_000_000 and show_progress do
       IO.puts(:stderr, "  ⚠ Large dataset (#{total} frames) - consider using --stream-chunk-size")
-      IO.puts(:stderr, "    Pre-computing will use ~#{Float.round(total * 400 * 4 / 1_000_000_000, 1)}GB RAM")
+
+      IO.puts(
+        :stderr,
+        "    Pre-computing will use ~#{Float.round(total * 400 * 4 / 1_000_000_000, 1)}GB RAM"
+      )
     end
 
     if show_progress do
@@ -797,36 +847,41 @@ defmodule ExPhil.Training.Data do
     embed_config = dataset.embed_config
 
     # Process in batches for GPU efficiency and memory management
-    embedded = dataset.frames
-    |> Enum.chunk_every(batch_size)
-    |> Enum.with_index()
-    |> Enum.flat_map(fn {chunk, chunk_idx} ->
-      # Show progress
-      if show_progress do
-        processed = min((chunk_idx + 1) * batch_size, total)
-        pct = round(processed / total * 100)
-        IO.write(:stderr, "\r  Embedding: #{pct}% (#{processed}/#{total})    ")
-      end
+    embedded =
+      dataset.frames
+      |> Enum.chunk_every(batch_size)
+      |> Enum.with_index()
+      |> Enum.flat_map(fn {chunk, chunk_idx} ->
+        # Show progress
+        if show_progress do
+          processed = min((chunk_idx + 1) * batch_size, total)
+          pct = round(processed / total * 100)
+          IO.write(:stderr, "\r  Embedding: #{pct}% (#{processed}/#{total})    ")
+        end
 
-      # Periodic garbage collection to prevent memory buildup
-      if gc_every > 0 and rem(chunk_idx, gc_every) == 0 and chunk_idx > 0 do
-        :erlang.garbage_collect()
-      end
+        # Periodic garbage collection to prevent memory buildup
+        if gc_every > 0 and rem(chunk_idx, gc_every) == 0 and chunk_idx > 0 do
+          :erlang.garbage_collect()
+        end
 
-      # Batch embed all frames in this chunk with name_ids for style-conditional training
-      game_states = Enum.map(chunk, & &1.game_state)
-      name_ids = Enum.map(chunk, fn f -> f[:name_id] || 0 end)
-      batch_embedded = Embeddings.Game.embed_states_fast(game_states, 1,
-        config: embed_config, name_id: name_ids)
+        # Batch embed all frames in this chunk with name_ids for style-conditional training
+        game_states = Enum.map(chunk, & &1.game_state)
+        name_ids = Enum.map(chunk, fn f -> f[:name_id] || 0 end)
 
-      # Convert to list of individual embeddings
-      # CRITICAL: Copy to CPU after embedding to avoid GPU OOM when dataset is large
-      batch_embedded
-      |> Nx.to_batched(1)
-      |> Enum.map(fn t ->
-        t |> Nx.squeeze(axes: [0]) |> Nx.backend_copy(Nx.BinaryBackend)
+        batch_embedded =
+          Embeddings.Game.embed_states_fast(game_states, 1,
+            config: embed_config,
+            name_id: name_ids
+          )
+
+        # Convert to list of individual embeddings
+        # CRITICAL: Copy to CPU after embedding to avoid GPU OOM when dataset is large
+        batch_embedded
+        |> Nx.to_batched(1)
+        |> Enum.map(fn t ->
+          t |> Nx.squeeze(axes: [0]) |> Nx.backend_copy(Nx.BinaryBackend)
+        end)
       end)
-    end)
 
     if show_progress do
       IO.puts(:stderr, "\r  Embedding: 100% (#{total}/#{total}) - done!    ")
@@ -869,11 +924,13 @@ defmodule ExPhil.Training.Data do
 
     # Convert lists to arrays for O(1) index access (vs O(n) for lists)
     frames_array = :array.from_list(dataset.frames)
-    embeddings_array = if dataset.embedded_sequences do
-      :array.from_list(dataset.embedded_sequences)
-    else
-      nil
-    end
+
+    embeddings_array =
+      if dataset.embedded_sequences do
+        :array.from_list(dataset.embedded_sequences)
+      else
+        nil
+      end
 
     # Prepare indices
     valid_indices = 0..(dataset.size - 1) |> Enum.to_list()
@@ -881,23 +938,24 @@ defmodule ExPhil.Training.Data do
     # Seed random number generator
     :rand.seed(:exsss, {seed, seed, seed})
 
-    indices = cond do
-      # Character-balanced sampling (weighted by inverse frequency)
-      character_weights != nil ->
-        alias ExPhil.Training.CharacterBalance
-        # Get weights for all sequences
-        frame_weights = CharacterBalance.frame_weights(dataset.frames, character_weights)
-        # Weighted sampling with replacement
-        CharacterBalance.balanced_indices(frame_weights, length(valid_indices))
+    indices =
+      cond do
+        # Character-balanced sampling (weighted by inverse frequency)
+        character_weights != nil ->
+          alias ExPhil.Training.CharacterBalance
+          # Get weights for all sequences
+          frame_weights = CharacterBalance.frame_weights(dataset.frames, character_weights)
+          # Weighted sampling with replacement
+          CharacterBalance.balanced_indices(frame_weights, length(valid_indices))
 
-      # Standard shuffle
-      shuffle ->
-        Enum.shuffle(valid_indices)
+        # Standard shuffle
+        shuffle ->
+          Enum.shuffle(valid_indices)
 
-      # No shuffle
-      true ->
-        valid_indices
-    end
+        # No shuffle
+        true ->
+          valid_indices
+      end
 
     # Create batch stream with array-backed lookup
     indices
@@ -909,25 +967,29 @@ defmodule ExPhil.Training.Data do
   end
 
   # Fast batch creation using arrays for O(1) lookup
-  defp create_sequence_batch_fast(frames_array, embeddings_array, indices) when embeddings_array != nil do
+  defp create_sequence_batch_fast(frames_array, embeddings_array, indices)
+       when embeddings_array != nil do
     # Fast path: use pre-computed embeddings with O(1) array access
-    batch_data = Enum.map(indices, fn idx ->
-      frame = :array.get(idx, frames_array)
-      embedding = :array.get(idx, embeddings_array)
-      {embedding, frame.action}
-    end)
+    batch_data =
+      Enum.map(indices, fn idx ->
+        frame = :array.get(idx, frames_array)
+        embedding = :array.get(idx, embeddings_array)
+        {embedding, frame.action}
+      end)
 
     {embeddings, actions} = Enum.unzip(batch_data)
 
     # Stack embeddings and transfer to GPU: [batch, seq_len, embed_size]
     # Embeddings are stored on CPU to avoid GPU OOM, transfer here for training
-    states = embeddings
-    |> Nx.stack()
-    |> Nx.backend_transfer(EXLA.Backend)
+    states =
+      embeddings
+      |> Nx.stack()
+      |> Nx.backend_transfer(EXLA.Backend)
 
     # Convert actions to tensors and transfer to GPU
-    action_tensors = actions_to_tensors(actions)
-    |> transfer_actions_to_gpu()
+    action_tensors =
+      actions_to_tensors(actions)
+      |> transfer_actions_to_gpu()
 
     %{
       states: states,
@@ -937,21 +999,23 @@ defmodule ExPhil.Training.Data do
 
   defp create_sequence_batch_fast(frames_array, nil, indices) do
     # Slow path: no pre-computed embeddings, embed on-the-fly
-    sequence_data = Enum.map(indices, fn idx ->
-      frame = :array.get(idx, frames_array)
-      # Extract name_id from first frame of sequence for style-conditional training
-      name_id = get_in(frame, [:sequence, Access.at(0), :name_id]) || 0
-      {frame.sequence, frame.action, name_id}
-    end)
+    sequence_data =
+      Enum.map(indices, fn idx ->
+        frame = :array.get(idx, frames_array)
+        # Extract name_id from first frame of sequence for style-conditional training
+        name_id = get_in(frame, [:sequence, Access.at(0), :name_id]) || 0
+        {frame.sequence, frame.action, name_id}
+      end)
 
     {sequences, actions, name_ids} = unzip3(sequence_data)
 
     # Embed sequences with name_ids
-    embedded = Enum.zip(sequences, name_ids)
-    |> Enum.map(fn {seq, name_id} ->
-      game_states = Enum.map(seq, & &1.game_state)
-      Embeddings.Game.embed_states_fast(game_states, 1, name_id: name_id)
-    end)
+    embedded =
+      Enum.zip(sequences, name_ids)
+      |> Enum.map(fn {seq, name_id} ->
+        game_states = Enum.map(seq, & &1.game_state)
+        Embeddings.Game.embed_states_fast(game_states, 1, name_id: name_id)
+      end)
 
     states = Nx.stack(embedded)
     action_tensors = actions_to_tensors(actions)
@@ -974,19 +1038,21 @@ defmodule ExPhil.Training.Data do
     actions = Enum.map(dataset.frames, &get_action/1)
 
     # Button press rates
-    button_counts = Enum.reduce(actions, %{}, fn action, acc ->
-      Enum.reduce(action.buttons, acc, fn {button, pressed}, inner_acc ->
-        if pressed do
-          Map.update(inner_acc, button, 1, &(&1 + 1))
-        else
-          inner_acc
-        end
+    button_counts =
+      Enum.reduce(actions, %{}, fn action, acc ->
+        Enum.reduce(action.buttons, acc, fn {button, pressed}, inner_acc ->
+          if pressed do
+            Map.update(inner_acc, button, 1, &(&1 + 1))
+          else
+            inner_acc
+          end
+        end)
       end)
-    end)
 
-    button_rates = Map.new(button_counts, fn {button, count} ->
-      {button, count / dataset.size}
-    end)
+    button_rates =
+      Map.new(button_counts, fn {button, count} ->
+        {button, count / dataset.size}
+      end)
 
     # Stick distributions
     main_x_dist = distribution(Enum.map(actions, & &1.main_x), 16)

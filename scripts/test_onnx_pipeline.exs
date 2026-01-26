@@ -22,6 +22,7 @@ seq_len = 10
 output_size = 16
 
 Output.step(1, 6, "Building ONNX-exportable LSTM model")
+
 Output.config([
   {"Embed size", embed_size},
   {"Hidden size", hidden_size},
@@ -32,7 +33,9 @@ Output.config([
 # Build model: LSTM -> sequence_last -> Dense
 input = Axon.input("input", shape: {1, seq_len, embed_size})
 {output_seq, _states} = Axon.lstm(input, hidden_size, name: "lstm")
-model = output_seq
+
+model =
+  output_seq
   |> OnnxLayers.sequence_last(name: "last_timestep")
   |> Axon.dense(output_size, name: "output")
 
@@ -74,23 +77,29 @@ end
 
 # Verify with ONNX Runtime
 Output.step(4, 6, "Verifying with ONNX Runtime")
-{cmd_output, exit_code} = System.cmd("python3", [
-  "-c",
-  """
-import onnxruntime as ort
-import numpy as np
 
-sess = ort.InferenceSession('#{onnx_path}', providers=['CPUExecutionProvider'])
-input_name = sess.get_inputs()[0].name
-input_shape = [d if isinstance(d, int) else 1 for d in sess.get_inputs()[0].shape]
-print(f"  Input: {input_name}, shape: {input_shape}")
+{cmd_output, exit_code} =
+  System.cmd(
+    "python3",
+    [
+      "-c",
+      """
+      import onnxruntime as ort
+      import numpy as np
 
-test_input = np.random.randn(*input_shape).astype(np.float32)
-outputs = sess.run(None, {input_name: test_input})
-print(f"  Output shape: {outputs[0].shape}")
-print("  Verification: OK")
-  """
-], stderr_to_stdout: true)
+      sess = ort.InferenceSession('#{onnx_path}', providers=['CPUExecutionProvider'])
+      input_name = sess.get_inputs()[0].name
+      input_shape = [d if isinstance(d, int) else 1 for d in sess.get_inputs()[0].shape]
+      print(f"  Input: {input_name}, shape: {input_shape}")
+
+      test_input = np.random.randn(*input_shape).astype(np.float32)
+      outputs = sess.run(None, {input_name: test_input})
+      print(f"  Output shape: {outputs[0].shape}")
+      print("  Verification: OK")
+      """
+    ],
+    stderr_to_stdout: true
+  )
 
 Output.puts(String.trim(cmd_output))
 
@@ -103,19 +112,24 @@ end
 Output.step(5, 6, "Quantizing to INT8")
 quantize_script = Path.join(File.cwd!(), "priv/python/quantize_onnx.py")
 
-{cmd_output, exit_code} = System.cmd("python3", [
-  quantize_script,
-  onnx_path,
-  int8_path
-], stderr_to_stdout: true)
+{cmd_output, exit_code} =
+  System.cmd(
+    "python3",
+    [
+      quantize_script,
+      onnx_path,
+      int8_path
+    ],
+    stderr_to_stdout: true
+  )
 
 # Parse output for key info
 cmd_output
 |> String.split("\n")
 |> Enum.filter(fn line ->
   String.contains?(line, "size:") or
-  String.contains?(line, "Compression") or
-  String.contains?(line, "successfully")
+    String.contains?(line, "Compression") or
+    String.contains?(line, "successfully")
 end)
 |> Enum.each(&Output.puts/1)
 
@@ -127,40 +141,46 @@ end
 
 # Benchmark inference
 Output.step(6, 6, "Benchmarking inference speed")
-{bench_output, _} = System.cmd("python3", [
-  "-c",
-  """
-import onnxruntime as ort
-import numpy as np
-import time
 
-def benchmark(model_path, name, warmup=10, iterations=100):
-    sess = ort.InferenceSession(model_path, providers=['CPUExecutionProvider'])
-    inp = sess.get_inputs()[0]
-    shape = [1 if d is None else d for d in inp.shape]
-    x = np.random.randn(*shape).astype(np.float32)
+{bench_output, _} =
+  System.cmd(
+    "python3",
+    [
+      "-c",
+      """
+      import onnxruntime as ort
+      import numpy as np
+      import time
 
-    # Warmup
-    for _ in range(warmup):
-        sess.run(None, {inp.name: x})
+      def benchmark(model_path, name, warmup=10, iterations=100):
+        sess = ort.InferenceSession(model_path, providers=['CPUExecutionProvider'])
+        inp = sess.get_inputs()[0]
+        shape = [1 if d is None else d for d in inp.shape]
+        x = np.random.randn(*shape).astype(np.float32)
 
-    # Benchmark
-    start = time.time()
-    for _ in range(iterations):
-        sess.run(None, {inp.name: x})
-    avg_ms = (time.time() - start) * 1000 / iterations
+        # Warmup
+        for _ in range(warmup):
+            sess.run(None, {inp.name: x})
 
-    return avg_ms
+        # Benchmark
+        start = time.time()
+        for _ in range(iterations):
+            sess.run(None, {inp.name: x})
+        avg_ms = (time.time() - start) * 1000 / iterations
 
-fp32_ms = benchmark('#{onnx_path}', 'FP32')
-int8_ms = benchmark('#{int8_path}', 'INT8')
-speedup = fp32_ms / int8_ms
+        return avg_ms
 
-print(f"  FP32 inference: {fp32_ms:.2f} ms")
-print(f"  INT8 inference: {int8_ms:.2f} ms")
-print(f"  Speedup: {speedup:.2f}x")
-  """
-], stderr_to_stdout: true)
+      fp32_ms = benchmark('#{onnx_path}', 'FP32')
+      int8_ms = benchmark('#{int8_path}', 'INT8')
+      speedup = fp32_ms / int8_ms
+
+      print(f"  FP32 inference: {fp32_ms:.2f} ms")
+      print(f"  INT8 inference: {int8_ms:.2f} ms")
+      print(f"  Speedup: {speedup:.2f}x")
+      """
+    ],
+    stderr_to_stdout: true
+  )
 
 Output.puts(String.trim(bench_output))
 

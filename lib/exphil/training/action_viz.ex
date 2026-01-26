@@ -69,13 +69,13 @@ defmodule ExPhil.Training.ActionViz do
   ]
 
   @type t :: %__MODULE__{
-    button_counts: %{atom() => non_neg_integer()},
-    main_stick_counts: %{{integer(), integer()} => non_neg_integer()},
-    c_stick_counts: %{{integer(), integer()} => non_neg_integer()},
-    shoulder_counts: %{integer() => non_neg_integer()},
-    total: non_neg_integer(),
-    grid_size: pos_integer()
-  }
+          button_counts: %{atom() => non_neg_integer()},
+          main_stick_counts: %{{integer(), integer()} => non_neg_integer()},
+          c_stick_counts: %{{integer(), integer()} => non_neg_integer()},
+          shoulder_counts: %{integer() => non_neg_integer()},
+          total: non_neg_integer(),
+          grid_size: pos_integer()
+        }
 
   @doc """
   Create a new action visualizer.
@@ -145,12 +145,13 @@ defmodule ExPhil.Training.ActionViz do
     # Update shoulder counts
     shoulder_counts = Map.update(viz.shoulder_counts, shoulder, 1, &(&1 + 1))
 
-    %{viz |
-      button_counts: button_counts,
-      main_stick_counts: main_stick_counts,
-      c_stick_counts: c_stick_counts,
-      shoulder_counts: shoulder_counts,
-      total: viz.total + 1
+    %{
+      viz
+      | button_counts: button_counts,
+        main_stick_counts: main_stick_counts,
+        c_stick_counts: c_stick_counts,
+        shoulder_counts: shoulder_counts,
+        total: viz.total + 1
     }
   end
 
@@ -162,10 +163,11 @@ defmodule ExPhil.Training.ActionViz do
     {button_vals, rest} = Enum.split(flat, 8)
     [main_x, main_y, c_x, c_y, shoulder | _] = rest
 
-    buttons = button_vals
-    |> Enum.with_index()
-    |> Enum.filter(fn {v, _} -> v > 0.5 end)
-    |> Enum.map(fn {_, i} -> Enum.at(@button_names, i) end)
+    buttons =
+      button_vals
+      |> Enum.with_index()
+      |> Enum.filter(fn {v, _} -> v > 0.5 end)
+      |> Enum.map(fn {_, i} -> Enum.at(@button_names, i) end)
 
     record(viz, %{
       buttons: buttons,
@@ -232,6 +234,7 @@ defmodule ExPhil.Training.ActionViz do
     # Record each sample
     Enum.reduce(0..(batch_size - 1), viz, fn i, acc ->
       button_values = Enum.at(buttons_list, i)
+
       action = %{
         buttons: button_values,
         main_x: bucket_to_grid(Enum.at(main_x_list, i), axis_buckets, acc.grid_size),
@@ -240,6 +243,7 @@ defmodule ExPhil.Training.ActionViz do
         c_y: bucket_to_grid(Enum.at(c_y_list, i), axis_buckets, acc.grid_size),
         shoulder: Enum.at(shoulder_list, i)
       }
+
       record(acc, action)
     end)
   end
@@ -313,6 +317,7 @@ defmodule ExPhil.Training.ActionViz do
   """
   @spec button_rates(t()) :: map()
   def button_rates(%__MODULE__{total: 0}), do: Map.new(@button_names, &{&1, 0.0})
+
   def button_rates(%__MODULE__{} = viz) do
     Map.new(viz.button_counts, fn {button, count} ->
       {button, count / viz.total}
@@ -356,12 +361,13 @@ defmodule ExPhil.Training.ActionViz do
       name_padded = String.pad_trailing(name, 5)
       pct_str = :io_lib.format("~5.1f%", [pct]) |> IO.iodata_to_binary()
 
-      color = cond do
-        pct >= 50 -> :green
-        pct >= 20 -> :yellow
-        pct >= 5 -> :cyan
-        true -> :dim
-      end
+      color =
+        cond do
+          pct >= 50 -> :green
+          pct >= 20 -> :yellow
+          pct >= 5 -> :cyan
+          true -> :dim
+        end
 
       Output.puts_raw("    #{name_padded} #{Output.colorize(bar, color)} #{pct_str}")
     end)
@@ -376,12 +382,13 @@ defmodule ExPhil.Training.ActionViz do
 
     # Print grid (Y axis is inverted for display)
     for y <- (grid_size - 1)..0 do
-      row = for x <- 0..(grid_size - 1) do
-        count = Map.get(counts, {x, y}, 0)
-        intensity = if max_count > 0, do: round(count / max_count * 7), else: 0
-        intensity = min(intensity, 7)
-        Enum.at(chars, intensity)
-      end
+      row =
+        for x <- 0..(grid_size - 1) do
+          count = Map.get(counts, {x, y}, 0)
+          intensity = if max_count > 0, do: round(count / max_count * 7), else: 0
+          intensity = min(intensity, 7)
+          Enum.at(chars, intensity)
+        end
 
       y_label = if y == div(grid_size, 2), do: "<-Y", else: "   "
       Output.puts_raw("    #{Enum.join(row)} #{y_label}")

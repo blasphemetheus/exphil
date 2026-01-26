@@ -56,7 +56,8 @@ defmodule ExPhil.Rewards.Standard do
     cond do
       opponent_lost and not player_lost -> 1.0
       player_lost and not opponent_lost -> -1.0
-      opponent_lost and player_lost -> 0.0  # Both died (rare, could be explosion)
+      # Both died (rare, could be explosion)
+      opponent_lost and player_lost -> 0.0
       true -> 0.0
     end
   end
@@ -69,18 +70,21 @@ defmodule ExPhil.Rewards.Standard do
   @spec compute_damage_reward(Player.t(), Player.t(), Player.t(), Player.t()) :: float()
   def compute_damage_reward(prev_player, curr_player, prev_opponent, curr_opponent) do
     # Handle stock resets (percent goes back to 0)
-    damage_taken = if stock_lost?(prev_player, curr_player) do
-      0.0  # Don't penalize damage on death frame
-    else
-      max(0.0, curr_player.percent - prev_player.percent)
-    end
+    damage_taken =
+      if stock_lost?(prev_player, curr_player) do
+        # Don't penalize damage on death frame
+        0.0
+      else
+        max(0.0, curr_player.percent - prev_player.percent)
+      end
 
-    damage_dealt = if stock_lost?(prev_opponent, curr_opponent) do
-      # Credit remaining damage needed to kill
-      prev_opponent.percent
-    else
-      max(0.0, curr_opponent.percent - prev_opponent.percent)
-    end
+    damage_dealt =
+      if stock_lost?(prev_opponent, curr_opponent) do
+        # Credit remaining damage needed to kill
+        prev_opponent.percent
+      else
+        max(0.0, curr_opponent.percent - prev_opponent.percent)
+      end
 
     # Return differential (positive = good)
     damage_dealt - damage_taken
@@ -94,9 +98,12 @@ defmodule ExPhil.Rewards.Standard do
   @spec compute_win_reward(Player.t(), Player.t()) :: float()
   def compute_win_reward(player, opponent) do
     cond do
-      opponent.stock <= 0 and player.stock > 0 -> 1.0   # Player won
-      player.stock <= 0 and opponent.stock > 0 -> -1.0  # Player lost
-      true -> 0.0  # Game ongoing or tie
+      # Player won
+      opponent.stock <= 0 and player.stock > 0 -> 1.0
+      # Player lost
+      player.stock <= 0 and opponent.stock > 0 -> -1.0
+      # Game ongoing or tie
+      true -> 0.0
     end
   end
 

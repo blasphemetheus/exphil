@@ -8,13 +8,15 @@ defmodule ExPhil.Embeddings.PlayerTest do
   # Helper to create a mock player state
   defp mock_player(opts \\ []) do
     %PlayerState{
-      character: Keyword.get(opts, :character, 10),  # Mewtwo
+      # Mewtwo
+      character: Keyword.get(opts, :character, 10),
       x: Keyword.get(opts, :x, 0.0),
       y: Keyword.get(opts, :y, 0.0),
       percent: Keyword.get(opts, :percent, 0.0),
       stock: Keyword.get(opts, :stock, 4),
       facing: Keyword.get(opts, :facing, 1),
-      action: Keyword.get(opts, :action, 14),  # Wait action
+      # Wait action
+      action: Keyword.get(opts, :action, 14),
       action_frame: 0,
       invulnerable: Keyword.get(opts, :invulnerable, false),
       jumps_left: Keyword.get(opts, :jumps_left, 2),
@@ -59,7 +61,8 @@ defmodule ExPhil.Embeddings.PlayerTest do
       assert config.with_frame_info == true
       assert config.with_stock == true
       assert config.with_ledge_distance == true
-      assert config.jumps_normalized == true  # Default to normalized (1-dim)
+      # Default to normalized (1-dim)
+      assert config.jumps_normalized == true
     end
   end
 
@@ -208,7 +211,8 @@ defmodule ExPhil.Embeddings.PlayerTest do
       percent2 = Nx.to_number(Nx.squeeze(Nx.slice(result2, [0], [1])))
 
       assert_in_delta percent1, 0.0, 0.001
-      assert_in_delta percent2, 1.5, 0.001  # 150 * 0.01
+      # 150 * 0.01
+      assert_in_delta percent2, 1.5, 0.001
     end
 
     test "encodes facing direction correctly" do
@@ -301,13 +305,15 @@ defmodule ExPhil.Embeddings.PlayerTest do
 
   describe "embed_speeds/2" do
     test "creates 5-dimensional speed embedding" do
-      player = mock_player(
-        speed_air_x_self: 2.0,
-        speed_ground_x_self: 1.5,
-        speed_y_self: -3.0,
-        speed_x_attack: 0.5,
-        speed_y_attack: -0.5
-      )
+      player =
+        mock_player(
+          speed_air_x_self: 2.0,
+          speed_ground_x_self: 1.5,
+          speed_y_self: -3.0,
+          speed_x_attack: 0.5,
+          speed_y_attack: -0.5
+        )
+
       config = PlayerEmbed.default_config()
 
       result = PlayerEmbed.embed_speeds(player, config)
@@ -316,7 +322,8 @@ defmodule ExPhil.Embeddings.PlayerTest do
     end
 
     test "scales speeds correctly" do
-      player = mock_player(speed_air_x_self: 4.0)  # * 0.5 = 2.0
+      # * 0.5 = 2.0
+      player = mock_player(speed_air_x_self: 4.0)
       config = PlayerEmbed.default_config()
 
       result = PlayerEmbed.embed_speeds(player, config)
@@ -341,7 +348,13 @@ defmodule ExPhil.Embeddings.PlayerTest do
 
     test "returns zeros with exists=0 for nil nana (full mode)" do
       # Use jumps_normalized: false to get classic 446 base size
-      config = %PlayerEmbed{nana_mode: :full, with_speeds: false, with_frame_info: false, with_stock: false, jumps_normalized: false}
+      config = %PlayerEmbed{
+        nana_mode: :full,
+        with_speeds: false,
+        with_frame_info: false,
+        with_stock: false,
+        jumps_normalized: false
+      }
 
       result = PlayerEmbed.embed_nana(nil, config, nil)
 
@@ -355,7 +368,12 @@ defmodule ExPhil.Embeddings.PlayerTest do
 
     test "returns zeros with exists=0 for nil nana (full mode, normalized jumps)" do
       # Default uses jumps_normalized: true
-      config = %PlayerEmbed{nana_mode: :full, with_speeds: false, with_frame_info: false, with_stock: false}
+      config = %PlayerEmbed{
+        nana_mode: :full,
+        with_speeds: false,
+        with_frame_info: false,
+        with_stock: false
+      }
 
       result = PlayerEmbed.embed_nana(nil, config, nil)
 
@@ -369,7 +387,8 @@ defmodule ExPhil.Embeddings.PlayerTest do
 
     test "embeds nana with exists=1 (compact mode)" do
       nana = mock_nana()
-      config = PlayerEmbed.default_config()  # Default is compact mode
+      # Default is compact mode
+      config = PlayerEmbed.default_config()
 
       result = PlayerEmbed.embed_nana(nana, config, nil)
 
@@ -380,7 +399,13 @@ defmodule ExPhil.Embeddings.PlayerTest do
 
     test "embeds nana with exists=1 (full mode)" do
       nana = mock_nana()
-      config = %PlayerEmbed{nana_mode: :full, with_speeds: false, with_frame_info: false, with_stock: false}
+
+      config = %PlayerEmbed{
+        nana_mode: :full,
+        with_speeds: false,
+        with_frame_info: false,
+        with_stock: false
+      }
 
       result = PlayerEmbed.embed_nana(nana, config, nil)
 
@@ -437,9 +462,12 @@ defmodule ExPhil.Embeddings.PlayerTest do
       # - 10-16: Attack categories (ground attacks, air attacks, specials) = 0x43-0xBB
       # - 17-18: Grab/throw categories = 0xBC-0xD3
       # - 2: Idle = 0x0E-0x14
-      nana_attacking = mock_nana(action: 0x50)  # Ground attack category 11
-      nana_grabbing = mock_nana(action: 0xC0)   # Grab category 17
-      nana_idle = mock_nana(action: 0x10)       # Idle category 2
+      # Ground attack category 11
+      nana_attacking = mock_nana(action: 0x50)
+      # Grab category 17
+      nana_grabbing = mock_nana(action: 0xC0)
+      # Idle category 2
+      nana_idle = mock_nana(action: 0x10)
       config = %PlayerEmbed{nana_mode: :enhanced}
 
       result_attacking = PlayerEmbed.embed_nana(nana_attacking, config, nil)
@@ -549,7 +577,8 @@ defmodule ExPhil.Embeddings.PlayerTest do
         y: nil,
         percent: nil,
         stock: nil,
-        facing: 1,  # Required - cannot be nil
+        # Required - cannot be nil
+        facing: 1,
         action: nil,
         action_frame: nil,
         invulnerable: nil,
@@ -565,6 +594,7 @@ defmodule ExPhil.Embeddings.PlayerTest do
         nana: nil,
         controller_state: nil
       }
+
       config = %PlayerEmbed{with_nana: false, with_speeds: false}
 
       # Should not raise
@@ -574,12 +604,14 @@ defmodule ExPhil.Embeddings.PlayerTest do
     end
 
     test "handles extreme values" do
-      player = mock_player(
-        percent: 999.0,
-        x: 1000.0,
-        y: -1000.0,
-        shield_strength: 100.0
-      )
+      player =
+        mock_player(
+          percent: 999.0,
+          x: 1000.0,
+          y: -1000.0,
+          shield_strength: 100.0
+        )
+
       config = %PlayerEmbed{with_nana: false, with_speeds: false}
 
       result = PlayerEmbed.embed(player, config)
@@ -598,7 +630,8 @@ defmodule ExPhil.Embeddings.PlayerTest do
 
   describe "get_character_id/1" do
     test "returns character from player state" do
-      player = mock_player(character: 10)  # Mewtwo
+      # Mewtwo
+      player = mock_player(character: 10)
 
       assert PlayerEmbed.get_character_id(player) == 10
     end
@@ -625,9 +658,12 @@ defmodule ExPhil.Embeddings.PlayerTest do
   describe "get_character_ids_batch/1" do
     test "returns tensor of character IDs" do
       players = [
-        mock_player(character: 10),  # Mewtwo
-        mock_player(character: 2),   # Fox
-        mock_player(character: 20)   # Falco
+        # Mewtwo
+        mock_player(character: 10),
+        # Fox
+        mock_player(character: 2),
+        # Falco
+        mock_player(character: 20)
       ]
 
       result = PlayerEmbed.get_character_ids_batch(players)
@@ -669,7 +705,8 @@ defmodule ExPhil.Embeddings.PlayerTest do
       config_base = %PlayerEmbed{character_mode: :one_hot, with_nana: false, with_speeds: true}
       config_learned = %PlayerEmbed{character_mode: :learned, with_nana: false, with_speeds: true}
 
-      assert PlayerEmbed.embedding_size(config_base) - PlayerEmbed.embedding_size(config_learned) == 33
+      assert PlayerEmbed.embedding_size(config_base) - PlayerEmbed.embedding_size(config_learned) ==
+               33
     end
   end
 end

@@ -202,7 +202,8 @@ defmodule ExPhil.Test.Generators do
       %GameState{
         frame: frame,
         stage: stage,
-        menu_state: 2,  # IN_GAME
+        # IN_GAME
+        menu_state: 2,
         players: %{1 => player1, 2 => player2},
         projectiles: [],
         items: [],
@@ -291,10 +292,13 @@ defmodule ExPhil.Test.Generators do
 
     size = Tuple.product(shape)
 
-    gen all values <- StreamData.list_of(
-      StreamData.float(min: min_val, max: max_val),
-      length: size
-    ) do
+    gen all(
+          values <-
+            StreamData.list_of(
+              StreamData.float(min: min_val, max: max_val),
+              length: size
+            )
+        ) do
       values
       |> Nx.tensor()
       |> Nx.reshape(shape)

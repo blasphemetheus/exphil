@@ -5,15 +5,18 @@ defmodule ExPhil.BridgeTest do
 
   describe "GameState" do
     test "in_game?/1 returns true for in-game states" do
-      gs = %GameState{menu_state: 2}  # IN_GAME
+      # IN_GAME
+      gs = %GameState{menu_state: 2}
       assert GameState.in_game?(gs)
 
-      gs = %GameState{menu_state: 3}  # SUDDEN_DEATH
+      # SUDDEN_DEATH
+      gs = %GameState{menu_state: 3}
       assert GameState.in_game?(gs)
     end
 
     test "in_game?/1 returns false for menu states" do
-      gs = %GameState{menu_state: 0}  # Some menu state
+      # Some menu state
+      gs = %GameState{menu_state: 0}
       refute GameState.in_game?(gs)
     end
 
@@ -56,10 +59,14 @@ defmodule ExPhil.BridgeTest do
     end
 
     test "shielding?/1 detects shield states" do
-      assert Player.shielding?(%Player{action: 178})  # SHIELD_START
-      assert Player.shielding?(%Player{action: 179})  # SHIELD
-      assert Player.shielding?(%Player{action: 180})  # SHIELD_RELEASE
-      refute Player.shielding?(%Player{action: 14})   # WAIT
+      # SHIELD_START
+      assert Player.shielding?(%Player{action: 178})
+      # SHIELD
+      assert Player.shielding?(%Player{action: 179})
+      # SHIELD_RELEASE
+      assert Player.shielding?(%Player{action: 180})
+      # WAIT
+      refute Player.shielding?(%Player{action: 14})
     end
   end
 

@@ -54,8 +54,10 @@ defmodule ExPhil.Embeddings.ControllerTest do
 
     test "embeds controller state" do
       cs = %ControllerState{
-        main_stick: %{x: 1.0, y: 0.0},  # Full right, neutral Y
-        c_stick: %{x: 0.5, y: 0.5},     # Neutral
+        # Full right, neutral Y
+        main_stick: %{x: 1.0, y: 0.0},
+        # Neutral
+        c_stick: %{x: 0.5, y: 0.5},
         l_shoulder: 0.5,
         r_shoulder: 0.0,
         button_a: true,
@@ -159,8 +161,10 @@ defmodule ExPhil.Embeddings.ControllerTest do
 
     test "creates one-hot encoded sticks" do
       cs = %ControllerState{
-        main_stick: %{x: 0.0, y: 1.0},  # Left, Up
-        c_stick: %{x: 0.5, y: 0.5},     # Neutral
+        # Left, Up
+        main_stick: %{x: 0.0, y: 1.0},
+        # Neutral
+        c_stick: %{x: 0.5, y: 0.5},
         l_shoulder: 0.0,
         r_shoulder: 0.0,
         button_a: false,
@@ -214,11 +218,16 @@ defmodule ExPhil.Embeddings.ControllerTest do
   describe "decode/2" do
     test "converts samples back to ControllerState" do
       samples = %{
-        main_x: 8,     # 0.5
-        main_y: 8,     # 0.5
-        c_x: 0,        # 0.0
-        c_y: 16,       # 1.0
-        shoulder: 2,   # 0.5
+        # 0.5
+        main_x: 8,
+        # 0.5
+        main_y: 8,
+        # 0.0
+        c_x: 0,
+        # 1.0
+        c_y: 16,
+        # 0.5
+        shoulder: 2,
         buttons: %{
           a: true,
           b: false,
@@ -243,12 +252,22 @@ defmodule ExPhil.Embeddings.ControllerTest do
 
     test "handles custom config" do
       samples = %{
-        main_x: 4,     # 0.5 with 8 buckets
+        # 0.5 with 8 buckets
+        main_x: 4,
         main_y: 4,
         c_x: 4,
         c_y: 4,
         shoulder: 1,
-        buttons: %{a: false, b: false, x: false, y: false, z: false, l: false, r: false, d_up: false}
+        buttons: %{
+          a: false,
+          b: false,
+          x: false,
+          y: false,
+          z: false,
+          l: false,
+          r: false,
+          d_up: false
+        }
       }
 
       config = %Controller{axis_buckets: 8, shoulder_buckets: 2}

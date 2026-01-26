@@ -71,11 +71,12 @@ defmodule ExPhil.Bridge.Supervisor do
     auto_init = Keyword.get(opts, :auto_init, false)
 
     # If name provided, register with Registry
-    child_opts = if name do
-      Keyword.put(opts, :name, {:via, Registry, {@registry, {:bridge, name}}})
-    else
-      opts
-    end
+    child_opts =
+      if name do
+        Keyword.put(opts, :name, {:via, Registry, {@registry, {:bridge, name}}})
+      else
+        opts
+      end
 
     case DynamicSupervisor.start_child(__MODULE__, {MeleePort, child_opts}) do
       {:ok, pid} = result ->

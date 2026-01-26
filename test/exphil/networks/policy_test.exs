@@ -30,11 +30,12 @@ defmodule ExPhil.Networks.PolicyTest do
     end
 
     test "accepts custom axis and shoulder buckets" do
-      model = Policy.build(
-        embed_size: @embed_size,
-        axis_buckets: 8,
-        shoulder_buckets: 2
-      )
+      model =
+        Policy.build(
+          embed_size: @embed_size,
+          axis_buckets: 8,
+          shoulder_buckets: 2
+        )
 
       assert %Axon{} = model
     end
@@ -79,21 +80,24 @@ defmodule ExPhil.Networks.PolicyTest do
     test "model with action embedding produces correct output shapes" do
       # Total embed_size includes 2 action IDs at the end
       continuous_size = 64
-      total_embed_size = continuous_size + 2  # 66
+      # 66
+      total_embed_size = continuous_size + 2
 
-      model = Policy.build(
-        embed_size: total_embed_size,
-        action_embed_size: 32,
-        axis_buckets: 16,
-        shoulder_buckets: 4
-      )
+      model =
+        Policy.build(
+          embed_size: total_embed_size,
+          action_embed_size: 32,
+          axis_buckets: 16,
+          shoulder_buckets: 4
+        )
 
       {init_fn, predict_fn} = Axon.build(model)
       params = init_fn.(Nx.template({1, total_embed_size}, :f32), Axon.ModelState.empty())
 
       # Create input with action IDs at the end (values 0-398 are valid)
       continuous_input = Nx.broadcast(0.5, {@batch_size, continuous_size})
-      action_ids = Nx.tensor([[50, 100], [60, 110], [70, 120], [80, 130]])  # Example action IDs
+      # Example action IDs
+      action_ids = Nx.tensor([[50, 100], [60, 110], [70, 120], [80, 130]])
       input = Nx.concatenate([continuous_input, action_ids], axis: 1)
 
       {buttons, main_x, main_y, c_x, c_y, shoulder} = predict_fn.(params, input)
@@ -110,24 +114,38 @@ defmodule ExPhil.Networks.PolicyTest do
 
   describe "build_action_embedding_layer/4" do
     test "builds action embedding layer with 2 action IDs" do
-      total_embed_size = 66  # 64 continuous + 2 action IDs
+      # 64 continuous + 2 action IDs
+      total_embed_size = 66
       action_embed_size = 32
       num_action_ids = 2
       input = Axon.input("state", shape: {nil, total_embed_size})
 
-      layer = Policy.build_action_embedding_layer(input, total_embed_size, action_embed_size, num_action_ids)
+      layer =
+        Policy.build_action_embedding_layer(
+          input,
+          total_embed_size,
+          action_embed_size,
+          num_action_ids
+        )
 
       assert %Axon{} = layer
     end
 
     test "builds action embedding layer with 4 action IDs (enhanced Nana)" do
       # Enhanced Nana mode: 2 player actions + 2 Nana actions
-      total_embed_size = 68  # 64 continuous + 4 action IDs
+      # 64 continuous + 4 action IDs
+      total_embed_size = 68
       action_embed_size = 32
       num_action_ids = 4
       input = Axon.input("state", shape: {nil, total_embed_size})
 
-      layer = Policy.build_action_embedding_layer(input, total_embed_size, action_embed_size, num_action_ids)
+      layer =
+        Policy.build_action_embedding_layer(
+          input,
+          total_embed_size,
+          action_embed_size,
+          num_action_ids
+        )
 
       assert %Axon{} = layer
     end
@@ -174,8 +192,9 @@ defmodule ExPhil.Networks.PolicyTest do
 
     test "builds backbone with residual and layer_norm" do
       input = Axon.input("state", shape: {nil, @embed_size})
-      backbone = Policy.build_backbone(input, [64, 64], :relu, 0.1,
-        residual: true, layer_norm: true)
+
+      backbone =
+        Policy.build_backbone(input, [64, 64], :relu, 0.1, residual: true, layer_norm: true)
 
       assert %Axon{} = backbone
     end
@@ -218,7 +237,9 @@ defmodule ExPhil.Networks.PolicyTest do
     @tag :slow
     test "residual model has more parameters than non-residual when projection needed" do
       # With varying hidden sizes, residual needs projection layers
-      non_residual = Policy.build(embed_size: @embed_size, hidden_sizes: [256, 128], residual: false)
+      non_residual =
+        Policy.build(embed_size: @embed_size, hidden_sizes: [256, 128], residual: false)
+
       residual = Policy.build(embed_size: @embed_size, hidden_sizes: [256, 128], residual: true)
 
       {init_fn_nr, _} = Axon.build(non_residual)
@@ -231,9 +252,11 @@ defmodule ExPhil.Networks.PolicyTest do
       count_params = fn model_state ->
         model_state.data
         |> Enum.reduce(0, fn {_layer, layer_params}, acc ->
-          layer_count = Enum.reduce(layer_params, 0, fn {_name, tensor}, acc2 ->
-            acc2 + Nx.size(tensor)
-          end)
+          layer_count =
+            Enum.reduce(layer_params, 0, fn {_name, tensor}, acc2 ->
+              acc2 + Nx.size(tensor)
+            end)
+
           acc + layer_count
         end)
       end
@@ -306,10 +329,11 @@ defmodule ExPhil.Networks.PolicyTest do
     end
 
     test "handles batched input" do
-      logits = Nx.tensor([
-        [2.0, -2.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-        [-2.0, 2.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-      ])
+      logits =
+        Nx.tensor([
+          [2.0, -2.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+          [-2.0, 2.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+        ])
 
       result = Policy.sample_buttons(logits, true)
 
@@ -352,10 +376,11 @@ defmodule ExPhil.Networks.PolicyTest do
     end
 
     test "handles batched input" do
-      logits = Nx.tensor([
-        [0.1, 0.9, 0.3],
-        [0.9, 0.1, 0.3]
-      ])
+      logits =
+        Nx.tensor([
+          [0.1, 0.9, 0.3],
+          [0.9, 0.1, 0.3]
+        ])
 
       result = Policy.sample_categorical(logits, 1.0, true)
 
@@ -403,8 +428,10 @@ defmodule ExPhil.Networks.PolicyTest do
 
       # High confidence for peaked distributions
       assert confidence.overall > 0.8
-      assert confidence.buttons > 0.9  # sigmoid(10) ≈ 1.0, far from 0.5
-      assert confidence.main > 0.9      # softmax([0,0,10,0,0]) peaks at ~1.0
+      # sigmoid(10) ≈ 1.0, far from 0.5
+      assert confidence.buttons > 0.9
+      # softmax([0,0,10,0,0]) peaks at ~1.0
+      assert confidence.main > 0.9
     end
 
     test "low confidence for uniform distributions" do
@@ -421,8 +448,10 @@ defmodule ExPhil.Networks.PolicyTest do
       confidence = Policy.compute_confidence(logits)
 
       # Low confidence for uniform distributions
-      assert confidence.buttons < 0.1   # sigmoid(0) = 0.5, no confidence
-      assert confidence.main < 0.3      # uniform softmax = 0.2 each
+      # sigmoid(0) = 0.5, no confidence
+      assert confidence.buttons < 0.1
+      # uniform softmax = 0.2 each
+      assert confidence.main < 0.3
       assert confidence.overall < 0.3
     end
 
@@ -525,10 +554,12 @@ defmodule ExPhil.Networks.PolicyTest do
     end
 
     test "handles batched input" do
-      logits = Nx.tensor([
-        [10.0, -10.0, -10.0],
-        [-10.0, 10.0, -10.0]
-      ])
+      logits =
+        Nx.tensor([
+          [10.0, -10.0, -10.0],
+          [-10.0, 10.0, -10.0]
+        ])
+
       targets = Nx.tensor([0, 1])
 
       loss = Policy.categorical_cross_entropy(logits, targets)
@@ -651,12 +682,20 @@ defmodule ExPhil.Networks.PolicyTest do
         shoulder: Nx.tensor([2])
       }
 
-      loss_gamma_1 = Nx.to_number(Policy.imitation_loss(uncertain_logits, targets,
-        focal_loss: true, focal_gamma: 1.0))
-      loss_gamma_2 = Nx.to_number(Policy.imitation_loss(uncertain_logits, targets,
-        focal_loss: true, focal_gamma: 2.0))
-      loss_gamma_5 = Nx.to_number(Policy.imitation_loss(uncertain_logits, targets,
-        focal_loss: true, focal_gamma: 5.0))
+      loss_gamma_1 =
+        Nx.to_number(
+          Policy.imitation_loss(uncertain_logits, targets, focal_loss: true, focal_gamma: 1.0)
+        )
+
+      loss_gamma_2 =
+        Nx.to_number(
+          Policy.imitation_loss(uncertain_logits, targets, focal_loss: true, focal_gamma: 2.0)
+        )
+
+      loss_gamma_5 =
+        Nx.to_number(
+          Policy.imitation_loss(uncertain_logits, targets, focal_loss: true, focal_gamma: 5.0)
+        )
 
       # With higher gamma, the loss is down-weighted more for confident predictions
       # But for uncertain predictions like these, the relationship is more complex
@@ -685,11 +724,12 @@ defmodule ExPhil.Networks.PolicyTest do
         shoulder: Nx.tensor([2])
       }
 
-      combined_loss = Policy.imitation_loss(logits, targets,
-        focal_loss: true,
-        focal_gamma: 2.0,
-        label_smoothing: 0.1
-      )
+      combined_loss =
+        Policy.imitation_loss(logits, targets,
+          focal_loss: true,
+          focal_gamma: 2.0,
+          label_smoothing: 0.1
+        )
 
       assert is_struct(combined_loss, Nx.Tensor)
       assert Nx.to_number(combined_loss) > 0
@@ -743,12 +783,18 @@ defmodule ExPhil.Networks.PolicyTest do
   describe "to_controller_state/2" do
     test "converts samples to ControllerState struct" do
       samples = %{
-        buttons: Nx.tensor([1, 0, 0, 0, 0, 0, 0, 0]),  # A pressed
-        main_x: Nx.tensor(8),   # Center (8 out of 16)
-        main_y: Nx.tensor(16),  # Up (16 out of 16)
-        c_x: Nx.tensor(0),      # Left (0 out of 16)
-        c_y: Nx.tensor(8),      # Center
-        shoulder: Nx.tensor(0)  # Not pressed
+        # A pressed
+        buttons: Nx.tensor([1, 0, 0, 0, 0, 0, 0, 0]),
+        # Center (8 out of 16)
+        main_x: Nx.tensor(8),
+        # Up (16 out of 16)
+        main_y: Nx.tensor(16),
+        # Left (0 out of 16)
+        c_x: Nx.tensor(0),
+        # Center
+        c_y: Nx.tensor(8),
+        # Not pressed
+        shoulder: Nx.tensor(0)
       }
 
       controller = Policy.to_controller_state(samples, axis_buckets: 16, shoulder_buckets: 4)
@@ -781,10 +827,14 @@ defmodule ExPhil.Networks.PolicyTest do
 
       samples = %{
         buttons: Nx.tensor([0, 0, 0, 0, 0, 0, 0, 0]),
-        main_x: Nx.tensor(2),   # Index 2 -> center value 0.5
-        main_y: Nx.tensor(4),   # Index 4 -> center value 1.0
-        c_x: Nx.tensor(1),      # Index 1 -> center value 0.25
-        c_y: Nx.tensor(3),      # Index 3 -> center value 0.75
+        # Index 2 -> center value 0.5
+        main_x: Nx.tensor(2),
+        # Index 4 -> center value 1.0
+        main_y: Nx.tensor(4),
+        # Index 1 -> center value 0.25
+        c_x: Nx.tensor(1),
+        # Index 3 -> center value 0.75
+        c_y: Nx.tensor(3),
         shoulder: Nx.tensor(0)
       }
 
@@ -832,19 +882,23 @@ defmodule ExPhil.Networks.PolicyTest do
     end
 
     test "sliding window model produces correct output shapes" do
-      model = Policy.build_temporal(
-        embed_size: @embed_size,
-        backbone: :sliding_window,
-        window_size: @seq_len,  # Match the test input seq_len
-        num_heads: 2,
-        head_dim: 16
-      )
+      model =
+        Policy.build_temporal(
+          embed_size: @embed_size,
+          backbone: :sliding_window,
+          # Match the test input seq_len
+          window_size: @seq_len,
+          num_heads: 2,
+          head_dim: 16
+        )
 
       {init_fn, predict_fn} = Axon.build(model)
-      params = init_fn.(
-        Nx.template({@batch_size, @seq_len, @embed_size}, :f32),
-        Axon.ModelState.empty()
-      )
+
+      params =
+        init_fn.(
+          Nx.template({@batch_size, @seq_len, @embed_size}, :f32),
+          Axon.ModelState.empty()
+        )
 
       input = Nx.broadcast(0.5, {@batch_size, @seq_len, @embed_size})
       {buttons, main_x, main_y, c_x, c_y, shoulder} = predict_fn.(params, input)
@@ -858,19 +912,22 @@ defmodule ExPhil.Networks.PolicyTest do
     end
 
     test "lstm_hybrid model produces correct output shapes" do
-      model = Policy.build_temporal(
-        embed_size: @embed_size,
-        backbone: :lstm_hybrid,
-        hidden_size: 64,
-        num_heads: 2,
-        head_dim: 16
-      )
+      model =
+        Policy.build_temporal(
+          embed_size: @embed_size,
+          backbone: :lstm_hybrid,
+          hidden_size: 64,
+          num_heads: 2,
+          head_dim: 16
+        )
 
       {init_fn, predict_fn} = Axon.build(model)
-      params = init_fn.(
-        Nx.template({@batch_size, @seq_len, @embed_size}, :f32),
-        Axon.ModelState.empty()
-      )
+
+      params =
+        init_fn.(
+          Nx.template({@batch_size, @seq_len, @embed_size}, :f32),
+          Axon.ModelState.empty()
+        )
 
       input = Nx.broadcast(0.5, {@batch_size, @seq_len, @embed_size})
       {buttons, main_x, _main_y, _c_x, _c_y, shoulder} = predict_fn.(params, input)
@@ -885,11 +942,12 @@ defmodule ExPhil.Networks.PolicyTest do
       continuous_size = 64
       total_embed_size = continuous_size + 2
 
-      model = Policy.build_temporal(
-        embed_size: total_embed_size,
-        backbone: :mamba,
-        action_embed_size: 32
-      )
+      model =
+        Policy.build_temporal(
+          embed_size: total_embed_size,
+          backbone: :mamba,
+          action_embed_size: 32
+        )
 
       assert %Axon{} = model
     end
@@ -898,11 +956,12 @@ defmodule ExPhil.Networks.PolicyTest do
       continuous_size = 64
       total_embed_size = continuous_size + 2
 
-      model = Policy.build_temporal(
-        embed_size: total_embed_size,
-        backbone: :mlp,
-        action_embed_size: 32
-      )
+      model =
+        Policy.build_temporal(
+          embed_size: total_embed_size,
+          backbone: :mlp,
+          action_embed_size: 32
+        )
 
       assert %Axon{} = model
     end
@@ -913,18 +972,21 @@ defmodule ExPhil.Networks.PolicyTest do
       total_embed_size = continuous_size + 2
       seq_len = 10
 
-      model = Policy.build_temporal(
-        embed_size: total_embed_size,
-        backbone: :mamba,
-        action_embed_size: 32,
-        hidden_size: 64
-      )
+      model =
+        Policy.build_temporal(
+          embed_size: total_embed_size,
+          backbone: :mamba,
+          action_embed_size: 32,
+          hidden_size: 64
+        )
 
       {init_fn, predict_fn} = Axon.build(model)
-      params = init_fn.(
-        Nx.template({@batch_size, seq_len, total_embed_size}, :f32),
-        Axon.ModelState.empty()
-      )
+
+      params =
+        init_fn.(
+          Nx.template({@batch_size, seq_len, total_embed_size}, :f32),
+          Axon.ModelState.empty()
+        )
 
       # Create input with action IDs at the end of each frame
       continuous_input = Nx.broadcast(0.5, {@batch_size, seq_len, continuous_size})
@@ -945,8 +1007,11 @@ defmodule ExPhil.Networks.PolicyTest do
 
   describe "temporal_backbone_output_size/2" do
     test "returns correct size for sliding_window" do
-      assert Policy.temporal_backbone_output_size(:sliding_window, num_heads: 4, head_dim: 64) == 256
-      assert Policy.temporal_backbone_output_size(:sliding_window, num_heads: 8, head_dim: 32) == 256
+      assert Policy.temporal_backbone_output_size(:sliding_window, num_heads: 4, head_dim: 64) ==
+               256
+
+      assert Policy.temporal_backbone_output_size(:sliding_window, num_heads: 8, head_dim: 32) ==
+               256
     end
 
     test "returns correct size for lstm_hybrid" do
@@ -955,12 +1020,14 @@ defmodule ExPhil.Networks.PolicyTest do
 
     test "returns correct size for lstm" do
       assert Policy.temporal_backbone_output_size(:lstm, hidden_size: 128) == 128
-      assert Policy.temporal_backbone_output_size(:lstm) == 256  # default
+      # default
+      assert Policy.temporal_backbone_output_size(:lstm) == 256
     end
 
     test "returns correct size for mlp" do
       assert Policy.temporal_backbone_output_size(:mlp, hidden_sizes: [256, 128]) == 128
-      assert Policy.temporal_backbone_output_size(:mlp) == 512  # default [512, 512]
+      # default [512, 512]
+      assert Policy.temporal_backbone_output_size(:mlp) == 512
     end
   end
 

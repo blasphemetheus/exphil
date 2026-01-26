@@ -16,6 +16,7 @@ defmodule ExPhil.Training.LRFinderTest do
         %{lr: 1.0e-6, loss: 1.0, smoothed_loss: 1.0, step: 0},
         %{lr: 1.0e-5, loss: 0.9, smoothed_loss: 0.9, step: 1}
       ]
+
       assert LRFinder.suggest_lr(history) == nil
     end
 

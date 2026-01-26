@@ -27,7 +27,8 @@ defmodule ExPhil.Training.DuplicateDetectorTest do
 
       assert hash1 == hash2
       assert is_binary(hash1)
-      assert byte_size(hash1) == 16  # MD5 is 16 bytes
+      # MD5 is 16 bytes
+      assert byte_size(hash1) == 16
     end
 
     test "computes different hashes for different content" do
@@ -119,15 +120,18 @@ defmodule ExPhil.Training.DuplicateDetectorTest do
       path3 = Path.join(@tmp_dir, "c.txt")
 
       File.write!(path1, "content")
-      File.write!(path2, "content")  # duplicate
+      # duplicate
+      File.write!(path2, "content")
       File.write!(path3, "different")
 
-      unique = [path1, path2, path3]
-      |> DuplicateDetector.filter_duplicates_stream()
-      |> Enum.to_list()
+      unique =
+        [path1, path2, path3]
+        |> DuplicateDetector.filter_duplicates_stream()
+        |> Enum.to_list()
 
       assert length(unique) == 2
-      assert path1 in unique or path2 in unique  # One of the duplicates
+      # One of the duplicates
+      assert path1 in unique or path2 in unique
       assert path3 in unique
     end
   end
@@ -146,9 +150,10 @@ defmodule ExPhil.Training.DuplicateDetectorTest do
         }
       }
 
-      output = capture_io(:stderr, fn ->
-        DuplicateDetector.print_summary(stats)
-      end)
+      output =
+        capture_io(:stderr, fn ->
+          DuplicateDetector.print_summary(stats)
+        end)
 
       assert output =~ "removed 3/10"
       assert output =~ "30.0%"
@@ -162,9 +167,10 @@ defmodule ExPhil.Training.DuplicateDetectorTest do
         duplicate_groups: %{}
       }
 
-      output = capture_io(:stderr, fn ->
-        DuplicateDetector.print_summary(stats)
-      end)
+      output =
+        capture_io(:stderr, fn ->
+          DuplicateDetector.print_summary(stats)
+        end)
 
       assert output =~ "no duplicates"
     end

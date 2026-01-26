@@ -37,10 +37,11 @@ base_config = [
 ]
 
 # Add seed only if explicitly set via environment variable
-config = case System.get_env("EXUNIT_SEED") do
-  nil -> base_config
-  val -> Keyword.put(base_config, :seed, String.to_integer(val))
-end
+config =
+  case System.get_env("EXUNIT_SEED") do
+    nil -> base_config
+    val -> Keyword.put(base_config, :seed, String.to_integer(val))
+  end
 
 # Configure ExUnit
 ExUnit.configure(config)

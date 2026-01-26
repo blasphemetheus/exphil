@@ -24,10 +24,12 @@ defmodule ExPhil.Embeddings.Primitives do
   # ============================================================================
 
   # Action state count (some Kirby states go beyond this, so we clamp)
-  @action_size 0x18F  # 399
+  # 399
+  @action_size 0x18F
 
   # Character count (one larger than SANDBAG)
-  @character_size 0x21  # 33
+  # 33
+  @character_size 0x21
 
   # Stage count (future-proofed for wacky stages)
   @stage_size 64
@@ -36,10 +38,12 @@ defmodule ExPhil.Embeddings.Primitives do
   @jumps_left_size 7
 
   # Item types (from Melee data)
-  @item_type_size 0xEC + 2  # +1 for zero, +1 for unknown
+  # +1 for zero, +1 for unknown
+  @item_type_size 0xEC + 2
 
   # Item states
-  @item_state_size 12 + 1  # empirically determined + unknown
+  # empirically determined + unknown
+  @item_state_size 12 + 1
 
   # ============================================================================
   # One-Hot Encoding
@@ -65,13 +69,14 @@ defmodule ExPhil.Embeddings.Primitives do
 
     value = if is_integer(value), do: Nx.tensor(value, type: :s32), else: value
 
-    value = if clamp do
-      value
-      |> Nx.max(0)
-      |> Nx.min(size - 1)
-    else
-      value
-    end
+    value =
+      if clamp do
+        value
+        |> Nx.max(0)
+        |> Nx.min(size - 1)
+      else
+        value
+      end
 
     Nx.equal(Nx.iota({size}), value)
     |> Nx.as_type(:f32)
@@ -91,11 +96,12 @@ defmodule ExPhil.Embeddings.Primitives do
     valid = Nx.logical_and(Nx.greater_equal(value, 0), Nx.less(value, size))
 
     # Create one-hot for valid values, zeros for invalid
-    one_hot_valid = Nx.select(
-      valid,
-      Nx.equal(Nx.iota({size}), value),
-      Nx.broadcast(0, {size})
-    )
+    one_hot_valid =
+      Nx.select(
+        valid,
+        Nx.equal(Nx.iota({size}), value),
+        Nx.broadcast(0, {size})
+      )
 
     # Add extra dimension for unknown
     unknown_flag = Nx.logical_not(valid) |> Nx.as_type(:f32) |> Nx.reshape({1})
@@ -117,11 +123,12 @@ defmodule ExPhil.Embeddings.Primitives do
     size = Keyword.fetch!(opts, :size)
     clamp = Keyword.get(opts, :clamp, true)
 
-    values = if clamp do
-      values |> Nx.max(0) |> Nx.min(size - 1)
-    else
-      values
-    end
+    values =
+      if clamp do
+        values |> Nx.max(0) |> Nx.min(size - 1)
+      else
+        values
+      end
 
     # Create indices tensor for comparison
     indices = Nx.iota({size})
@@ -247,11 +254,12 @@ defmodule ExPhil.Embeddings.Primitives do
     on = Keyword.get(opts, :on, 1.0)
     off = Keyword.get(opts, :off, 0.0)
 
-    value = cond do
-      is_boolean(value) -> if value, do: on, else: off
-      is_number(value) -> if value != 0, do: on, else: off
-      true -> Nx.select(value, on, off)
-    end
+    value =
+      cond do
+        is_boolean(value) -> if value, do: on, else: off
+        is_number(value) -> if value != 0, do: on, else: off
+        true -> Nx.select(value, on, off)
+      end
 
     Nx.tensor(value, type: :f32) |> ensure_trailing_dim()
   end

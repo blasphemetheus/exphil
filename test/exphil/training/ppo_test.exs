@@ -21,12 +21,13 @@ defmodule ExPhil.Training.PPOTest do
     end
 
     test "accepts custom PPO hyperparameters" do
-      trainer = PPO.new(
-        embed_size: 64,
-        clip_range: 0.1,
-        gamma: 0.95,
-        gae_lambda: 0.9
-      )
+      trainer =
+        PPO.new(
+          embed_size: 64,
+          clip_range: 0.1,
+          gamma: 0.95,
+          gae_lambda: 0.9
+        )
 
       assert trainer.config.clip_range == 0.1
       assert trainer.config.gamma == 0.95
@@ -203,10 +204,14 @@ defmodule ExPhil.Training.PPOTest do
       clipped = Nx.clip(ratio, 1.0 - clip_range, 1.0 + clip_range)
       clipped_list = Nx.to_flat_list(clipped)
 
-      assert_in_delta Enum.at(clipped_list, 0), 0.8, 0.001   # 0.5 clipped to 0.8
-      assert_in_delta Enum.at(clipped_list, 1), 1.0, 0.001   # 1.0 stays 1.0
-      assert_in_delta Enum.at(clipped_list, 2), 1.2, 0.001   # 1.5 clipped to 1.2
-      assert_in_delta Enum.at(clipped_list, 3), 1.2, 0.001   # 2.0 clipped to 1.2
+      # 0.5 clipped to 0.8
+      assert_in_delta Enum.at(clipped_list, 0), 0.8, 0.001
+      # 1.0 stays 1.0
+      assert_in_delta Enum.at(clipped_list, 1), 1.0, 0.001
+      # 1.5 clipped to 1.2
+      assert_in_delta Enum.at(clipped_list, 2), 1.2, 0.001
+      # 2.0 clipped to 1.2
+      assert_in_delta Enum.at(clipped_list, 3), 1.2, 0.001
     end
 
     test "advantage normalization centers around zero" do
@@ -234,7 +239,8 @@ defmodule ExPhil.Training.PPOTest do
         },
         rewards: Nx.broadcast(0.0, {10}),
         dones: Nx.broadcast(0.0, {10}),
-        values: Nx.broadcast(0.0, {11}),  # time_steps + 1
+        # time_steps + 1
+        values: Nx.broadcast(0.0, {11}),
         log_probs: Nx.broadcast(0.0, {10})
       }
 
@@ -286,12 +292,14 @@ defmodule ExPhil.Training.PPOTest do
 
     @tag :slow
     test "performs PPO update and returns metrics" do
-      trainer = PPO.new(
-        embed_size: 64,
-        hidden_sizes: [32],
-        num_epochs: 2,
-        num_minibatches: 2
-      )
+      trainer =
+        PPO.new(
+          embed_size: 64,
+          hidden_sizes: [32],
+          num_epochs: 2,
+          num_minibatches: 2
+        )
+
       rollout = mock_rollout(16, 64)
 
       {new_trainer, metrics} = PPO.update(trainer, rollout)
@@ -308,12 +316,13 @@ defmodule ExPhil.Training.PPOTest do
 
     @tag :slow
     test "updates parameters during training" do
-      trainer = PPO.new(
-        embed_size: 64,
-        hidden_sizes: [32],
-        num_epochs: 2,
-        num_minibatches: 2
-      )
+      trainer =
+        PPO.new(
+          embed_size: 64,
+          hidden_sizes: [32],
+          num_epochs: 2,
+          num_minibatches: 2
+        )
 
       # Add some non-zero rewards to create gradients
       rollout = %{mock_rollout(16, 64) | rewards: Nx.tensor(Enum.map(1..16, fn i -> i * 0.1 end))}
@@ -326,12 +335,13 @@ defmodule ExPhil.Training.PPOTest do
 
     @tag :slow
     test "handles episode boundaries in rollout" do
-      trainer = PPO.new(
-        embed_size: 64,
-        hidden_sizes: [32],
-        num_epochs: 1,
-        num_minibatches: 2
-      )
+      trainer =
+        PPO.new(
+          embed_size: 64,
+          hidden_sizes: [32],
+          num_epochs: 1,
+          num_minibatches: 2
+        )
 
       # Create rollout with episode done in the middle
       dones = Nx.tensor([0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0])
@@ -369,7 +379,8 @@ defmodule ExPhil.Training.PPOTest do
       assert Nx.shape(rollout.states) == {8, 64}
       assert Nx.shape(rollout.rewards) == {8}
       assert Nx.shape(rollout.dones) == {8}
-      assert Nx.shape(rollout.values) == {9}  # num_steps + 1
+      # num_steps + 1
+      assert Nx.shape(rollout.values) == {9}
       assert Nx.shape(rollout.log_probs) == {8}
     end
 
@@ -390,7 +401,8 @@ defmodule ExPhil.Training.PPOTest do
 
           next_state = Nx.broadcast(0.5, {1, 64})
           reward = 0.1
-          done = step == 4 or step == 8  # Episodes end at step 4 and 8
+          # Episodes end at step 4 and 8
+          done = step == 4 or step == 8
 
           {next_state, reward, done}
       end
@@ -408,7 +420,9 @@ defmodule ExPhil.Training.PPOTest do
     test "loads policy from imitation checkpoint" do
       # First save an imitation checkpoint
       imitation_trainer = ExPhil.Training.Imitation.new(embed_size: 64, hidden_sizes: [32])
-      imitation_path = Path.join(System.tmp_dir!(), "imitation_for_ppo_#{:rand.uniform(10_000)}.axon")
+
+      imitation_path =
+        Path.join(System.tmp_dir!(), "imitation_for_ppo_#{:rand.uniform(10_000)}.axon")
 
       try do
         :ok = ExPhil.Training.Imitation.export_policy(imitation_trainer, imitation_path)

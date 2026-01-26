@@ -46,17 +46,16 @@ defmodule ExPhil.Embeddings.Controller do
     - `:kmeans_centers` - Optional Nx.Tensor of K-means cluster centers for stick discretization.
                          If provided, uses K-means instead of uniform buckets.
   """
-  defstruct [
-    axis_buckets: @default_axis_buckets,
-    shoulder_buckets: @default_shoulder_buckets,
-    kmeans_centers: nil  # Optional: Nx.Tensor of cluster centers
-  ]
+  defstruct axis_buckets: @default_axis_buckets,
+            shoulder_buckets: @default_shoulder_buckets,
+            # Optional: Nx.Tensor of cluster centers
+            kmeans_centers: nil
 
   @type config :: %__MODULE__{
-    axis_buckets: non_neg_integer(),
-    shoulder_buckets: non_neg_integer(),
-    kmeans_centers: Nx.Tensor.t() | nil
-  }
+          axis_buckets: non_neg_integer(),
+          shoulder_buckets: non_neg_integer(),
+          kmeans_centers: Nx.Tensor.t() | nil
+        }
 
   @spec default_config() :: config()
   def default_config, do: %__MODULE__{}
@@ -66,10 +65,11 @@ defmodule ExPhil.Embeddings.Controller do
   """
   @spec kmeans_config(String.t(), keyword()) :: config()
   def kmeans_config(centers_path, opts \\ []) do
-    centers = case KMeans.load(centers_path) do
-      {:ok, c} -> c
-      {:error, _} -> nil
-    end
+    centers =
+      case KMeans.load(centers_path) do
+        {:ok, c} -> c
+        {:error, _} -> nil
+      end
 
     %__MODULE__{
       axis_buckets: Keyword.get(opts, :axis_buckets, @default_axis_buckets),
@@ -117,6 +117,7 @@ defmodule ExPhil.Embeddings.Controller do
   def axis_output_size(%__MODULE__{kmeans_centers: nil, axis_buckets: buckets}) do
     buckets + 1
   end
+
   def axis_output_size(%__MODULE__{kmeans_centers: centers}) do
     KMeans.k(centers)
   end
@@ -127,10 +128,14 @@ defmodule ExPhil.Embeddings.Controller do
   """
   @spec continuous_embedding_size() :: non_neg_integer()
   def continuous_embedding_size do
-    8 +  # buttons
-    2 +  # main stick
-    2 +  # c stick
-    1    # shoulder
+    # buttons
+    # main stick
+    # c stick
+    # shoulder
+    8 +
+      2 +
+      2 +
+      1
   end
 
   @doc """
@@ -201,8 +206,10 @@ defmodule ExPhil.Embeddings.Controller do
 
   def embed_discrete(%ControllerState{} = cs, config) do
     axis_size = axis_output_size(config)
+
     Nx.concatenate([
-      embed_buttons_continuous(cs),  # Buttons stay as 0/1
+      # Buttons stay as 0/1
+      embed_buttons_continuous(cs),
       embed_stick_discrete(cs.main_stick, config, axis_size),
       embed_stick_discrete(cs.c_stick, config, axis_size),
       embed_shoulder_discrete(cs.l_shoulder, config.shoulder_buckets)
@@ -221,10 +228,12 @@ defmodule ExPhil.Embeddings.Controller do
 
   defp embed_stick_discrete(nil, config, axis_size) do
     # Neutral stick (center)
-    center = case config.kmeans_centers do
-      nil -> div(config.axis_buckets, 2)
-      centers -> KMeans.discretize(0.5, centers)
-    end
+    center =
+      case config.kmeans_centers do
+        nil -> div(config.axis_buckets, 2)
+        centers -> KMeans.discretize(0.5, centers)
+      end
+
     Nx.concatenate([
       Primitives.one_hot(center, size: axis_size),
       Primitives.one_hot(center, size: axis_size)
@@ -247,9 +256,12 @@ defmodule ExPhil.Embeddings.Controller do
   def discretize_axis_with_config(value, %__MODULE__{kmeans_centers: nil, axis_buckets: buckets}) do
     discretize_axis(value, buckets)
   end
-  def discretize_axis_with_config(value, %__MODULE__{kmeans_centers: centers}) when is_number(value) do
+
+  def discretize_axis_with_config(value, %__MODULE__{kmeans_centers: centers})
+      when is_number(value) do
     KMeans.discretize(value, centers)
   end
+
   def discretize_axis_with_config(_, _), do: 0
 
   @doc """
@@ -272,6 +284,7 @@ defmodule ExPhil.Embeddings.Controller do
   def undiscretize_axis_with_config(index, %__MODULE__{kmeans_centers: nil, axis_buckets: buckets}) do
     undiscretize_axis(index, buckets)
   end
+
   def undiscretize_axis_with_config(index, %__MODULE__{kmeans_centers: centers}) do
     KMeans.undiscretize(index, centers)
   end

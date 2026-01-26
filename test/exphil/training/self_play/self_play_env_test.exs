@@ -13,22 +13,23 @@ defmodule ExPhil.Training.SelfPlay.SelfPlayEnvTest do
     embed_size = ExPhil.Embeddings.embedding_size()
 
     # Simple MLP that outputs the right shapes for policy
-    model = Axon.input("state", shape: {nil, embed_size})
-    |> Axon.dense(64, activation: :relu)
-    |> then(fn x ->
-      buttons = Axon.dense(x, 8, name: "buttons")
-      main_x = Axon.dense(x, 17, name: "main_x")
-      main_y = Axon.dense(x, 17, name: "main_y")
-      c_x = Axon.dense(x, 17, name: "c_x")
-      c_y = Axon.dense(x, 17, name: "c_y")
-      shoulder = Axon.dense(x, 5, name: "shoulder")
-      value = Axon.dense(x, 1, name: "value")
+    model =
+      Axon.input("state", shape: {nil, embed_size})
+      |> Axon.dense(64, activation: :relu)
+      |> then(fn x ->
+        buttons = Axon.dense(x, 8, name: "buttons")
+        main_x = Axon.dense(x, 17, name: "main_x")
+        main_y = Axon.dense(x, 17, name: "main_y")
+        c_x = Axon.dense(x, 17, name: "c_x")
+        c_y = Axon.dense(x, 17, name: "c_y")
+        shoulder = Axon.dense(x, 5, name: "shoulder")
+        value = Axon.dense(x, 1, name: "value")
 
-      Axon.container({
-        {buttons, main_x, main_y, c_x, c_y, shoulder},
-        value
-      })
-    end)
+        Axon.container({
+          {buttons, main_x, main_y, c_x, c_y, shoulder},
+          value
+        })
+      end)
 
     {init_fn, _predict_fn} = Axon.build(model)
     params = init_fn.(Nx.template({1, embed_size}, :f32), Axon.ModelState.empty())
@@ -40,11 +41,12 @@ defmodule ExPhil.Training.SelfPlay.SelfPlayEnvTest do
     test "creates environment with mock game type" do
       policy = mock_policy()
 
-      assert {:ok, env} = SelfPlayEnv.new(
-        p1_policy: policy,
-        p2_policy: :cpu,
-        game_type: :mock
-      )
+      assert {:ok, env} =
+               SelfPlayEnv.new(
+                 p1_policy: policy,
+                 p2_policy: :cpu,
+                 game_type: :mock
+               )
 
       assert env.game_type == :mock
       assert env.p2_policy == :cpu
@@ -54,10 +56,11 @@ defmodule ExPhil.Training.SelfPlay.SelfPlayEnvTest do
     test "creates environment with default config" do
       policy = mock_policy()
 
-      assert {:ok, env} = SelfPlayEnv.new(
-        p1_policy: policy,
-        p2_policy: :cpu
-      )
+      assert {:ok, env} =
+               SelfPlayEnv.new(
+                 p1_policy: policy,
+                 p2_policy: :cpu
+               )
 
       # Default is :mock
       assert env.game_type == :mock
@@ -67,11 +70,12 @@ defmodule ExPhil.Training.SelfPlay.SelfPlayEnvTest do
       policy = mock_policy()
       custom_reward = %{damage_dealt: 2.0, damage_taken: -1.5}
 
-      assert {:ok, env} = SelfPlayEnv.new(
-        p1_policy: policy,
-        p2_policy: :cpu,
-        reward_config: custom_reward
-      )
+      assert {:ok, env} =
+               SelfPlayEnv.new(
+                 p1_policy: policy,
+                 p2_policy: :cpu,
+                 reward_config: custom_reward
+               )
 
       assert env.reward_config == custom_reward
     end
@@ -79,11 +83,12 @@ defmodule ExPhil.Training.SelfPlay.SelfPlayEnvTest do
     test "accepts p2 as policy tuple" do
       policy = mock_policy()
 
-      assert {:ok, env} = SelfPlayEnv.new(
-        p1_policy: policy,
-        p2_policy: policy,
-        game_type: :mock
-      )
+      assert {:ok, env} =
+               SelfPlayEnv.new(
+                 p1_policy: policy,
+                 p2_policy: policy,
+                 game_type: :mock
+               )
 
       # P2 should be compiled (has predict_fn)
       assert is_tuple(env.p2_policy)
@@ -95,11 +100,12 @@ defmodule ExPhil.Training.SelfPlay.SelfPlayEnvTest do
     setup do
       policy = mock_policy()
 
-      {:ok, env} = SelfPlayEnv.new(
-        p1_policy: policy,
-        p2_policy: :cpu,
-        game_type: :mock
-      )
+      {:ok, env} =
+        SelfPlayEnv.new(
+          p1_policy: policy,
+          p2_policy: :cpu,
+          game_type: :mock
+        )
 
       %{env: env}
     end
@@ -129,11 +135,12 @@ defmodule ExPhil.Training.SelfPlay.SelfPlayEnvTest do
     setup do
       policy = mock_policy()
 
-      {:ok, env} = SelfPlayEnv.new(
-        p1_policy: policy,
-        p2_policy: :cpu,
-        game_type: :mock
-      )
+      {:ok, env} =
+        SelfPlayEnv.new(
+          p1_policy: policy,
+          p2_policy: :cpu,
+          game_type: :mock
+        )
 
       %{env: env}
     end
@@ -162,11 +169,12 @@ defmodule ExPhil.Training.SelfPlay.SelfPlayEnvTest do
     setup do
       policy = mock_policy()
 
-      {:ok, env} = SelfPlayEnv.new(
-        p1_policy: policy,
-        p2_policy: :cpu,
-        game_type: :mock
-      )
+      {:ok, env} =
+        SelfPlayEnv.new(
+          p1_policy: policy,
+          p2_policy: :cpu,
+          game_type: :mock
+        )
 
       # Run some steps
       {:ok, stepped_env, _} = SelfPlayEnv.collect_steps(env, 10)
@@ -196,10 +204,11 @@ defmodule ExPhil.Training.SelfPlay.SelfPlayEnvTest do
       policy1 = mock_policy()
       policy2 = mock_policy()
 
-      {:ok, env} = SelfPlayEnv.new(
-        p1_policy: policy1,
-        p2_policy: :cpu
-      )
+      {:ok, env} =
+        SelfPlayEnv.new(
+          p1_policy: policy1,
+          p2_policy: :cpu
+        )
 
       updated_env = SelfPlayEnv.update_p1_policy(env, policy2)
 
@@ -213,10 +222,11 @@ defmodule ExPhil.Training.SelfPlay.SelfPlayEnvTest do
     test "updates p2 to cpu" do
       policy = mock_policy()
 
-      {:ok, env} = SelfPlayEnv.new(
-        p1_policy: policy,
-        p2_policy: policy
-      )
+      {:ok, env} =
+        SelfPlayEnv.new(
+          p1_policy: policy,
+          p2_policy: policy
+        )
 
       updated_env = SelfPlayEnv.update_p2_policy(env, :cpu)
 
@@ -227,10 +237,11 @@ defmodule ExPhil.Training.SelfPlay.SelfPlayEnvTest do
       policy1 = mock_policy()
       policy2 = mock_policy()
 
-      {:ok, env} = SelfPlayEnv.new(
-        p1_policy: policy1,
-        p2_policy: :cpu
-      )
+      {:ok, env} =
+        SelfPlayEnv.new(
+          p1_policy: policy1,
+          p2_policy: :cpu
+        )
 
       updated_env = SelfPlayEnv.update_p2_policy(env, policy2)
 
@@ -243,11 +254,12 @@ defmodule ExPhil.Training.SelfPlay.SelfPlayEnvTest do
     test "shuts down mock environment" do
       policy = mock_policy()
 
-      {:ok, env} = SelfPlayEnv.new(
-        p1_policy: policy,
-        p2_policy: :cpu,
-        game_type: :mock
-      )
+      {:ok, env} =
+        SelfPlayEnv.new(
+          p1_policy: policy,
+          p2_policy: :cpu,
+          game_type: :mock
+        )
 
       assert :ok = SelfPlayEnv.shutdown(env)
     end

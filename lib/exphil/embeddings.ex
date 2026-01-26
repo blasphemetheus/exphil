@@ -65,17 +65,39 @@ defmodule ExPhil.Embeddings do
     # Start with struct defaults and merge any custom options
     base = default_config()
 
-    player_opts = Keyword.take(opts, [:with_speeds, :with_nana, :xy_scale, :shield_scale,
-                                      :speed_scale, :nana_mode, :with_frame_info, :with_stock,
-                                      :with_ledge_distance, :jumps_normalized, :action_mode])
+    player_opts =
+      Keyword.take(opts, [
+        :with_speeds,
+        :with_nana,
+        :xy_scale,
+        :shield_scale,
+        :speed_scale,
+        :nana_mode,
+        :with_frame_info,
+        :with_stock,
+        :with_ledge_distance,
+        :jumps_normalized,
+        :action_mode
+      ])
+
     player_config = struct(base.player, player_opts)
 
     controller_opts = Keyword.take(opts, [:axis_buckets, :shoulder_buckets])
     controller_config = struct(base.controller, controller_opts)
 
-    game_opts = Keyword.take(opts, [:with_projectiles, :max_projectiles, :with_items,
-                                    :max_items, :num_player_names, :with_distance,
-                                    :with_relative_pos, :with_frame_count, :stage_mode])
+    game_opts =
+      Keyword.take(opts, [
+        :with_projectiles,
+        :max_projectiles,
+        :with_items,
+        :max_items,
+        :num_player_names,
+        :with_distance,
+        :with_relative_pos,
+        :with_frame_count,
+        :stage_mode
+      ])
+
     struct(base, [{:player, player_config}, {:controller, controller_config} | game_opts])
   end
 
@@ -146,7 +168,7 @@ defmodule ExPhil.Embeddings do
   - Ganondorf: (Standard embedding is usually sufficient)
   """
   @spec embed_for_character(GameState.t(), ControllerState.t() | nil, atom(), keyword()) ::
-    Nx.Tensor.t()
+          Nx.Tensor.t()
   def embed_for_character(game_state, prev_action, character, opts \\ []) do
     base = embed(game_state, prev_action, opts)
 
@@ -154,7 +176,8 @@ defmodule ExPhil.Embeddings do
       :mewtwo -> add_mewtwo_features(base, game_state, opts)
       :game_and_watch -> add_gnw_features(base, game_state, opts)
       :link -> add_link_features(base, game_state, opts)
-      :ganondorf -> base  # Standard embedding
+      # Standard embedding
+      :ganondorf -> base
       _ -> base
     end
   end
@@ -168,16 +191,17 @@ defmodule ExPhil.Embeddings do
     player = GameState.get_player(game_state, own_port)
 
     if player do
-      features = Nx.concatenate([
-        # Is currently teleporting (action state check)
-        teleporting?(player),
+      features =
+        Nx.concatenate([
+          # Is currently teleporting (action state check)
+          teleporting?(player),
 
-        # Shadow Ball charge approximation (from action frame)
-        shadow_ball_charge(player),
+          # Shadow Ball charge approximation (from action frame)
+          shadow_ball_charge(player),
 
-        # Confusion active (side-B)
-        confusion_active?(player)
-      ])
+          # Confusion active (side-B)
+          confusion_active?(player)
+        ])
 
       Nx.concatenate([base, features])
     else
@@ -214,15 +238,16 @@ defmodule ExPhil.Embeddings do
     player = GameState.get_player(game_state, own_port)
 
     if player do
-      features = Nx.concatenate([
-        # Bucket fill level (0-3 projectiles absorbed)
-        # Would need to track this externally - placeholder
-        Primitives.float_embed(0.0),
+      features =
+        Nx.concatenate([
+          # Bucket fill level (0-3 projectiles absorbed)
+          # Would need to track this externally - placeholder
+          Primitives.float_embed(0.0),
 
-        # Judgment hammer number (RNG)
-        # Would need to track - placeholder
-        Primitives.float_embed(0.0)
-      ])
+          # Judgment hammer number (RNG)
+          # Would need to track - placeholder
+          Primitives.float_embed(0.0)
+        ])
 
       Nx.concatenate([base, features])
     else
@@ -238,13 +263,14 @@ defmodule ExPhil.Embeddings do
       # Count Link's projectiles
       own_projectiles = count_projectiles_by_owner(game_state.projectiles, own_port)
 
-      features = Nx.concatenate([
-        # Has bomb in hand (would need action state check)
-        holding_bomb?(player),
+      features =
+        Nx.concatenate([
+          # Has bomb in hand (would need action state check)
+          holding_bomb?(player),
 
-        # Number of active arrows/boomerangs
-        Primitives.float_embed(own_projectiles, scale: 0.5)
-      ])
+          # Number of active arrows/boomerangs
+          Primitives.float_embed(own_projectiles, scale: 0.5)
+        ])
 
       Nx.concatenate([base, features])
     else
@@ -259,6 +285,7 @@ defmodule ExPhil.Embeddings do
   end
 
   defp count_projectiles_by_owner(nil, _owner), do: 0
+
   defp count_projectiles_by_owner(projectiles, owner) do
     Enum.count(projectiles, fn p -> p.owner == owner end)
   end

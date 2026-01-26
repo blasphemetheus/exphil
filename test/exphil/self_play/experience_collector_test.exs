@@ -169,12 +169,13 @@ defmodule ExPhil.SelfPlay.ExperienceCollectorTest do
         send(test_pid, {:batch_ready, batch})
       end
 
-      {:ok, collector} = ExperienceCollector.start_link(
-        name: nil,
-        batch_size: 5,
-        auto_batch: true,
-        ready_callback: callback
-      )
+      {:ok, collector} =
+        ExperienceCollector.start_link(
+          name: nil,
+          batch_size: 5,
+          auto_batch: true,
+          ready_callback: callback
+        )
 
       experiences = for _ <- 1..6, do: mock_experience()
       ExperienceCollector.submit_batch(collector, experiences)

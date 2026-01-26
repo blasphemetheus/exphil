@@ -80,13 +80,18 @@ defmodule ExPhil.Training.ConfigTest do
     end
 
     test "parses multiple args together" do
-      opts = Config.parse_args([
-        "--epochs", "3",
-        "--batch-size", "32",
-        "--temporal",
-        "--backbone", "lstm",
-        "--window-size", "30"
-      ])
+      opts =
+        Config.parse_args([
+          "--epochs",
+          "3",
+          "--batch-size",
+          "32",
+          "--temporal",
+          "--backbone",
+          "lstm",
+          "--window-size",
+          "30"
+        ])
 
       assert opts[:epochs] == 3
       assert opts[:batch_size] == 32
@@ -96,12 +101,17 @@ defmodule ExPhil.Training.ConfigTest do
     end
 
     test "parses Mamba-specific options" do
-      opts = Config.parse_args([
-        "--backbone", "mamba",
-        "--state-size", "32",
-        "--expand-factor", "4",
-        "--conv-size", "8"
-      ])
+      opts =
+        Config.parse_args([
+          "--backbone",
+          "mamba",
+          "--state-size",
+          "32",
+          "--expand-factor",
+          "4",
+          "--conv-size",
+          "8"
+        ])
 
       assert opts[:backbone] == :mamba
       assert opts[:state_size] == 32
@@ -348,13 +358,14 @@ defmodule ExPhil.Training.ConfigTest do
     end
 
     test "uses temporal backbone name when temporal is true" do
-      opts = [
-        temporal: true,
-        backbone: :mamba,
-        hidden_sizes: [128],
-        replays: "/replays",
-        checkpoint: "test.axon"
-      ] ++ Config.defaults()
+      opts =
+        [
+          temporal: true,
+          backbone: :mamba,
+          hidden_sizes: [128],
+          replays: "/replays",
+          checkpoint: "test.axon"
+        ] ++ Config.defaults()
 
       config = Config.build_config_json(opts)
 
@@ -410,12 +421,15 @@ defmodule ExPhil.Training.ConfigTest do
     end
 
     test "parses args in any order" do
-      opts = Config.parse_args([
-        "--temporal",
-        "--epochs", "3",
-        "--wandb",
-        "--batch-size", "16"
-      ])
+      opts =
+        Config.parse_args([
+          "--temporal",
+          "--epochs",
+          "3",
+          "--wandb",
+          "--batch-size",
+          "16"
+        ])
 
       assert opts[:epochs] == 3
       assert opts[:batch_size] == 16
@@ -711,23 +725,32 @@ defmodule ExPhil.Training.ConfigTest do
     test "CLI args override preset values" do
       opts = Config.parse_args(["--preset", "quick", "--epochs", "3"])
 
-      assert opts[:epochs] == 3  # Overridden
-      assert opts[:max_files] == 5  # From preset
-      assert opts[:hidden_sizes] == [32, 32]  # From preset
+      # Overridden
+      assert opts[:epochs] == 3
+      # From preset
+      assert opts[:max_files] == 5
+      # From preset
+      assert opts[:hidden_sizes] == [32, 32]
     end
 
     test "multiple CLI args can override preset" do
-      opts = Config.parse_args([
-        "--preset", "quick",
-        "--epochs", "5",
-        "--batch-size", "128",
-        "--hidden-sizes", "64,64"
-      ])
+      opts =
+        Config.parse_args([
+          "--preset",
+          "quick",
+          "--epochs",
+          "5",
+          "--batch-size",
+          "128",
+          "--hidden-sizes",
+          "64,64"
+        ])
 
       assert opts[:epochs] == 5
       assert opts[:batch_size] == 128
       assert opts[:hidden_sizes] == [64, 64]
-      assert opts[:max_files] == 5  # Still from preset
+      # Still from preset
+      assert opts[:max_files] == 5
     end
 
     test "--temporal flag can override preset" do
@@ -810,7 +833,8 @@ defmodule ExPhil.Training.ConfigTest do
         policy_path: "checkpoints/mamba_20260119_123456_policy.bin",
         config_path: "checkpoints/mamba_20260119_123456_config.json",
         created_at: ~U[2026-01-19 12:34:56Z],
-        character: nil,  # or :mewtwo
+        # or :mewtwo
+        character: nil,
         backbone: :mamba,
         temporal: true,
         hidden_sizes: [256, 256],
@@ -818,7 +842,8 @@ defmodule ExPhil.Training.ConfigTest do
         epochs: 10,
         training_frames: 100_000,
         final_val_loss: 4.05,
-        parent_model: nil,  # or "lstm_20260118_000000" for fine-tuning
+        # or "lstm_20260118_000000" for fine-tuning
+        parent_model: nil,
         tags: ["production", "v1.0"]
       }
 
@@ -866,6 +891,7 @@ defmodule ExPhil.Training.ConfigTest do
   # Helper for lineage test
   defp get_lineage(models, id, acc \\ []) do
     model = models[id]
+
     if model[:parent] do
       get_lineage(models, model[:parent], [id | acc])
     else
@@ -885,7 +911,9 @@ defmodule ExPhil.Training.ConfigTest do
 
     test "returns {:ok, opts} for default configuration" do
       # Override replays to a valid temp directory since defaults use ./replays
-      tmp_dir = System.tmp_dir!() |> Path.join("defaults_test_#{:erlang.unique_integer([:positive])}")
+      tmp_dir =
+        System.tmp_dir!() |> Path.join("defaults_test_#{:erlang.unique_integer([:positive])}")
+
       File.mkdir_p!(tmp_dir)
       on_exit(fn -> File.rm_rf!(tmp_dir) end)
 
@@ -1033,6 +1061,7 @@ defmodule ExPhil.Training.ConfigTest do
 
     test "raises ArgumentError for invalid configuration" do
       opts = [epochs: -1, batch_size: 64]
+
       assert_raise ArgumentError, ~r/Invalid training configuration/, fn ->
         Config.validate!(opts)
       end
@@ -1051,43 +1080,58 @@ defmodule ExPhil.Training.ConfigTest do
 
     test "warns for large window_size" do
       opts = [epochs: 10, batch_size: 64, window_size: 150]
-      output = capture_io(:stderr, fn ->
-        Config.validate(opts)
-      end)
+
+      output =
+        capture_io(:stderr, fn ->
+          Config.validate(opts)
+        end)
+
       assert output =~ "window_size"
       assert output =~ "memory"
     end
 
     test "warns for large batch_size" do
       opts = [epochs: 10, batch_size: 512]
-      output = capture_io(:stderr, fn ->
-        Config.validate(opts)
-      end)
+
+      output =
+        capture_io(:stderr, fn ->
+          Config.validate(opts)
+        end)
+
       assert output =~ "batch_size"
       assert output =~ "memory"
     end
 
     test "warns for many epochs without wandb" do
       opts = [epochs: 25, batch_size: 64, wandb: false]
-      output = capture_io(:stderr, fn ->
-        Config.validate(opts)
-      end)
+
+      output =
+        capture_io(:stderr, fn ->
+          Config.validate(opts)
+        end)
+
       assert output =~ "wandb"
     end
 
     test "no warning for many epochs with wandb" do
       opts = [epochs: 25, batch_size: 64, wandb: true]
-      output = capture_io(:stderr, fn ->
-        Config.validate(opts)
-      end)
+
+      output =
+        capture_io(:stderr, fn ->
+          Config.validate(opts)
+        end)
+
       refute output =~ "wandb"
     end
 
     test "warns for small window_size with temporal" do
       opts = [epochs: 10, batch_size: 64, temporal: true, backbone: :lstm, window_size: 20]
-      output = capture_io(:stderr, fn ->
-        Config.validate(opts)
-      end)
+
+      output =
+        capture_io(:stderr, fn ->
+          Config.validate(opts)
+        end)
+
       assert output =~ "temporal"
       assert output =~ "window_size"
     end
@@ -1095,6 +1139,7 @@ defmodule ExPhil.Training.ConfigTest do
     test "warnings don't cause validation to fail" do
       # Large window (warning) but otherwise valid
       opts = [epochs: 10, batch_size: 64, window_size: 150]
+
       capture_io(:stderr, fn ->
         assert {:ok, _} = Config.validate(opts)
       end)
@@ -1104,7 +1149,9 @@ defmodule ExPhil.Training.ConfigTest do
   describe "validate/1 integration with parse_args" do
     setup do
       # Create a temp directory for replays to satisfy validation
-      tmp_dir = System.tmp_dir!() |> Path.join("config_test_#{:erlang.unique_integer([:positive])}")
+      tmp_dir =
+        System.tmp_dir!() |> Path.join("config_test_#{:erlang.unique_integer([:positive])}")
+
       File.mkdir_p!(tmp_dir)
       on_exit(fn -> File.rm_rf!(tmp_dir) end)
       %{tmp_dir: tmp_dir}
@@ -1116,12 +1163,33 @@ defmodule ExPhil.Training.ConfigTest do
     end
 
     test "parsed args with CLI overrides are valid", %{tmp_dir: tmp_dir} do
-      opts = Config.parse_args(["--preset", "quick", "--epochs", "5", "--batch-size", "128", "--replays", tmp_dir])
+      opts =
+        Config.parse_args([
+          "--preset",
+          "quick",
+          "--epochs",
+          "5",
+          "--batch-size",
+          "128",
+          "--replays",
+          tmp_dir
+        ])
+
       assert {:ok, _} = Config.validate(opts)
     end
 
     test "parsed temporal args are valid", %{tmp_dir: tmp_dir} do
-      opts = Config.parse_args(["--temporal", "--backbone", "mamba", "--window-size", "60", "--replays", tmp_dir])
+      opts =
+        Config.parse_args([
+          "--temporal",
+          "--backbone",
+          "mamba",
+          "--window-size",
+          "60",
+          "--replays",
+          tmp_dir
+        ])
+
       assert {:ok, _} = Config.validate(opts)
     end
   end
@@ -1223,6 +1291,7 @@ defmodule ExPhil.Training.ConfigTest do
         frame_delay: 0,
         checkpoint: "test.axon"
       ]
+
       results = %{epochs_completed: 7, stopped_early: true}
 
       json = Config.build_config_json(opts, results)
@@ -1237,10 +1306,11 @@ defmodule ExPhil.Training.ConfigTest do
 
   describe "build_config_json/2 with provenance" do
     test "includes character and stage filters" do
-      opts = Config.defaults()
-      |> Keyword.put(:checkpoint, "test.axon")
-      |> Keyword.put(:characters, [:mewtwo, :fox])
-      |> Keyword.put(:stages, [:battlefield, :fd])
+      opts =
+        Config.defaults()
+        |> Keyword.put(:checkpoint, "test.axon")
+        |> Keyword.put(:characters, [:mewtwo, :fox])
+        |> Keyword.put(:stages, [:battlefield, :fd])
 
       json = Config.build_config_json(opts)
 
@@ -1249,10 +1319,11 @@ defmodule ExPhil.Training.ConfigTest do
     end
 
     test "handles empty character/stage filters" do
-      opts = Config.defaults()
-      |> Keyword.put(:checkpoint, "test.axon")
-      |> Keyword.put(:characters, [])
-      |> Keyword.put(:stages, [])
+      opts =
+        Config.defaults()
+        |> Keyword.put(:checkpoint, "test.axon")
+        |> Keyword.put(:characters, [])
+        |> Keyword.put(:stages, [])
 
       json = Config.build_config_json(opts)
 
@@ -1263,6 +1334,7 @@ defmodule ExPhil.Training.ConfigTest do
 
     test "includes replay manifest fields" do
       opts = Config.defaults() |> Keyword.put(:checkpoint, "test.axon")
+
       results = %{
         replay_count: 150,
         replay_files: ["replay1.slp", "replay2.slp"],
@@ -1323,7 +1395,8 @@ defmodule ExPhil.Training.ConfigTest do
 
       assert String.starts_with?(hash, "sha256:")
       # SHA256 produces 64 hex characters
-      assert String.length(hash) == 7 + 64  # "sha256:" + 64 hex chars
+      # "sha256:" + 64 hex chars
+      assert String.length(hash) == 7 + 64
     end
   end
 
@@ -1356,12 +1429,12 @@ defmodule ExPhil.Training.ConfigTest do
   describe "derive_best_checkpoint_path/1" do
     test "derives best checkpoint path" do
       assert Config.derive_best_checkpoint_path("checkpoints/mlp_20260119.axon") ==
-        "checkpoints/mlp_20260119_best.axon"
+               "checkpoints/mlp_20260119_best.axon"
     end
 
     test "handles nested paths" do
       assert Config.derive_best_checkpoint_path("checkpoints/mewtwo/mamba_20260119.axon") ==
-        "checkpoints/mewtwo/mamba_20260119_best.axon"
+               "checkpoints/mewtwo/mamba_20260119_best.axon"
     end
 
     test "returns nil for nil" do
@@ -1372,12 +1445,12 @@ defmodule ExPhil.Training.ConfigTest do
   describe "derive_best_policy_path/1" do
     test "derives best policy path" do
       assert Config.derive_best_policy_path("checkpoints/mlp_20260119.axon") ==
-        "checkpoints/mlp_20260119_best_policy.bin"
+               "checkpoints/mlp_20260119_best_policy.bin"
     end
 
     test "handles nested paths" do
       assert Config.derive_best_policy_path("checkpoints/mewtwo/mamba_20260119.axon") ==
-        "checkpoints/mewtwo/mamba_20260119_best_policy.bin"
+               "checkpoints/mewtwo/mamba_20260119_best_policy.bin"
     end
 
     test "returns nil for nil" do
@@ -1451,12 +1524,17 @@ defmodule ExPhil.Training.ConfigTest do
     end
 
     test "parses full learning rate config" do
-      opts = Config.parse_args([
-        "--lr", "0.0005",
-        "--lr-schedule", "cosine",
-        "--warmup-steps", "500",
-        "--decay-steps", "5000"
-      ])
+      opts =
+        Config.parse_args([
+          "--lr",
+          "0.0005",
+          "--lr-schedule",
+          "cosine",
+          "--warmup-steps",
+          "500",
+          "--decay-steps",
+          "5000"
+        ])
 
       assert opts[:learning_rate] == 0.0005
       assert opts[:lr_schedule] == :cosine
@@ -1535,6 +1613,7 @@ defmodule ExPhil.Training.ConfigTest do
       # Create a temporary file to simulate an existing checkpoint
       path = Path.join(System.tmp_dir!(), "test_resume_#{:rand.uniform(10000)}.axon")
       File.write!(path, "test")
+
       try do
         opts = [epochs: 10, batch_size: 64, resume: path]
         assert {:ok, ^opts} = Config.validate(opts)
@@ -1896,6 +1975,7 @@ defmodule ExPhil.Training.ConfigTest do
 
     test "loads config from file" do
       path = Path.join(@test_dir, "config.yaml")
+
       File.write!(path, """
       epochs: 50
       temporal: true
@@ -1947,6 +2027,7 @@ defmodule ExPhil.Training.ConfigTest do
 
     test "loads config file and merges with CLI args" do
       path = Path.join(@test_dir, "config.yaml")
+
       File.write!(path, """
       epochs: 50
       batch_size: 256
@@ -1956,9 +2037,12 @@ defmodule ExPhil.Training.ConfigTest do
       # CLI args should override YAML
       opts = Config.parse_args(["--config", path, "--epochs", "10"])
 
-      assert opts[:epochs] == 10  # CLI override
-      assert opts[:batch_size] == 256  # From YAML
-      assert opts[:temporal] == true  # From YAML
+      # CLI override
+      assert opts[:epochs] == 10
+      # From YAML
+      assert opts[:batch_size] == 256
+      # From YAML
+      assert opts[:temporal] == true
     end
   end
 
@@ -2170,7 +2254,9 @@ defmodule ExPhil.Training.ConfigTest do
         assert opts[:replays] == "/custom/replays"
       after
         # Restore
-        if original, do: System.put_env("EXPHIL_REPLAYS_DIR", original), else: System.delete_env("EXPHIL_REPLAYS_DIR")
+        if original,
+          do: System.put_env("EXPHIL_REPLAYS_DIR", original),
+          else: System.delete_env("EXPHIL_REPLAYS_DIR")
       end
     end
 
@@ -2182,7 +2268,9 @@ defmodule ExPhil.Training.ConfigTest do
         opts = Config.defaults()
         assert opts[:wandb_project] == "my-project"
       after
-        if original, do: System.put_env("EXPHIL_WANDB_PROJECT", original), else: System.delete_env("EXPHIL_WANDB_PROJECT")
+        if original,
+          do: System.put_env("EXPHIL_WANDB_PROJECT", original),
+          else: System.delete_env("EXPHIL_WANDB_PROJECT")
       end
     end
 
@@ -2194,7 +2282,9 @@ defmodule ExPhil.Training.ConfigTest do
         opts = Config.parse_args(["--replays", "/cli/replays"])
         assert opts[:replays] == "/cli/replays"
       after
-        if original, do: System.put_env("EXPHIL_REPLAYS_DIR", original), else: System.delete_env("EXPHIL_REPLAYS_DIR")
+        if original,
+          do: System.put_env("EXPHIL_REPLAYS_DIR", original),
+          else: System.delete_env("EXPHIL_REPLAYS_DIR")
       end
     end
   end

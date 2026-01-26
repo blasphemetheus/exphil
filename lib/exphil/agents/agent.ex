@@ -90,11 +90,12 @@ defmodule ExPhil.Agents.Agent do
   def start_link(opts) do
     name = Keyword.get(opts, :name)
 
-    gen_opts = if name do
-      [name: {:via, Registry, {@registry, {:agent, name}}}]
-    else
-      []
-    end
+    gen_opts =
+      if name do
+        [name: {:via, Registry, {@registry, {:agent, name}}}]
+      else
+        []
+      end
 
     GenServer.start_link(__MODULE__, opts, gen_opts)
   end
@@ -105,7 +106,7 @@ defmodule ExPhil.Agents.Agent do
   Returns a map with button presses and stick positions.
   """
   @spec get_action(GenServer.server(), GameState.t(), keyword()) ::
-    {:ok, map()} | {:error, term()}
+          {:ok, map()} | {:error, term()}
   def get_action(agent, game_state, opts \\ []) do
     GenServer.call(agent, {:get_action, game_state, opts})
   end
@@ -121,7 +122,7 @@ defmodule ExPhil.Agents.Agent do
   - `:shoulder` - Shoulder confidence
   """
   @spec get_action_with_confidence(GenServer.server(), GameState.t(), keyword()) ::
-    {:ok, map(), map()} | {:error, term()}
+          {:ok, map(), map()} | {:error, term()}
   def get_action_with_confidence(agent, game_state, opts \\ []) do
     GenServer.call(agent, {:get_action_with_confidence, game_state, opts})
   end
@@ -132,7 +133,7 @@ defmodule ExPhil.Agents.Agent do
   Returns a ControllerState struct ready to send to the bridge.
   """
   @spec get_controller(GenServer.server(), GameState.t(), keyword()) ::
-    {:ok, ControllerState.t()} | {:error, term()}
+          {:ok, ControllerState.t()} | {:error, term()}
   def get_controller(agent, game_state, opts \\ []) do
     GenServer.call(agent, {:get_controller, game_state, opts})
   end
@@ -177,7 +178,8 @@ defmodule ExPhil.Agents.Agent do
   """
   @spec warmup(GenServer.server()) :: {:ok, non_neg_integer()} | {:error, term()}
   def warmup(agent) do
-    GenServer.call(agent, :warmup, 120_000)  # 2 minute timeout for JIT
+    # 2 minute timeout for JIT
+    GenServer.call(agent, :warmup, 120_000)
   end
 
   @doc """
@@ -224,26 +226,31 @@ defmodule ExPhil.Agents.Agent do
     }
 
     # Load policy if provided
-    state = cond do
-      Keyword.has_key?(opts, :policy_path) ->
-        case load_policy_internal(state, Keyword.fetch!(opts, :policy_path)) do
-          {:ok, new_state} -> new_state
-          {:error, reason} ->
-            Logger.warning("[Agent] Failed to load policy: #{inspect(reason)}")
-            state
-        end
+    state =
+      cond do
+        Keyword.has_key?(opts, :policy_path) ->
+          case load_policy_internal(state, Keyword.fetch!(opts, :policy_path)) do
+            {:ok, new_state} ->
+              new_state
 
-      Keyword.has_key?(opts, :policy) ->
-        case load_policy_internal(state, Keyword.fetch!(opts, :policy)) do
-          {:ok, new_state} -> new_state
-          {:error, reason} ->
-            Logger.warning("[Agent] Failed to load policy: #{inspect(reason)}")
-            state
-        end
+            {:error, reason} ->
+              Logger.warning("[Agent] Failed to load policy: #{inspect(reason)}")
+              state
+          end
 
-      true ->
-        state
-    end
+        Keyword.has_key?(opts, :policy) ->
+          case load_policy_internal(state, Keyword.fetch!(opts, :policy)) do
+            {:ok, new_state} ->
+              new_state
+
+            {:error, reason} ->
+              Logger.warning("[Agent] Failed to load policy: #{inspect(reason)}")
+              state
+          end
+
+        true ->
+          state
+      end
 
     {:ok, state}
   end
@@ -312,24 +319,28 @@ defmodule ExPhil.Agents.Agent do
       incremental_active: state.mamba_cache != nil,
       incremental_step: if(state.mamba_cache, do: state.mamba_cache.step, else: 0)
     }
+
     {:reply, config, state}
   end
 
   @impl true
   def handle_call(:reset_buffer, _from, state) do
     # Reset mamba cache if using incremental inference
-    new_mamba_cache = if state.backbone == :mamba and state.use_incremental do
-      init_mamba_cache(state)
-    else
-      state.mamba_cache
-    end
+    new_mamba_cache =
+      if state.backbone == :mamba and state.use_incremental do
+        init_mamba_cache(state)
+      else
+        state.mamba_cache
+      end
 
-    new_state = %{state |
-      frame_buffer: :queue.new(),
-      last_action: nil,
-      frames_since_inference: 0,
-      mamba_cache: new_mamba_cache
+    new_state = %{
+      state
+      | frame_buffer: :queue.new(),
+        last_action: nil,
+        frames_since_inference: 0,
+        mamba_cache: new_mamba_cache
     }
+
     {:reply, :ok, new_state}
   end
 
@@ -348,9 +359,11 @@ defmodule ExPhil.Agents.Agent do
       # Run inference to trigger JIT compilation
       if state.temporal do
         # For temporal models, we need a full window of dummy embeddings
-        dummy_sequence = List.duplicate(dummy_embedded, state.window_size)
-        |> Nx.stack()
-        |> Nx.new_axis(0)  # Add batch dimension
+        dummy_sequence =
+          List.duplicate(dummy_embedded, state.window_size)
+          |> Nx.stack()
+          # Add batch dimension
+          |> Nx.new_axis(0)
 
         _output = state.predict_fn.(Utils.ensure_model_state(state.policy_params), dummy_sequence)
       else
@@ -373,10 +386,11 @@ defmodule ExPhil.Agents.Agent do
 
   @impl true
   def handle_call({:configure, opts}, _from, state) do
-    state = state
-    |> maybe_update(:deterministic, opts)
-    |> maybe_update(:temperature, opts)
-    |> maybe_update(:frame_delay, opts)
+    state =
+      state
+      |> maybe_update(:deterministic, opts)
+      |> maybe_update(:temperature, opts)
+      |> maybe_update(:frame_delay, opts)
 
     {:reply, :ok, state}
   end
@@ -392,7 +406,7 @@ defmodule ExPhil.Agents.Agent do
   defp compute_action(state, game_state, opts) do
     # Action repeat: return cached action if we haven't hit the repeat interval
     if state.action_repeat > 1 and state.last_action != nil and
-       state.frames_since_inference < state.action_repeat do
+         state.frames_since_inference < state.action_repeat do
       # Return cached action with default confidence, increment counter
       new_state = %{state | frames_since_inference: state.frames_since_inference + 1}
       default_conf = %{overall: 0.0, buttons: 0.0, main: 0.0, c: 0.0, shoulder: 0.0}
@@ -410,25 +424,29 @@ defmodule ExPhil.Agents.Agent do
       embedded = embed_game_state(game_state, player_port, state.embed_config)
 
       # Route to appropriate inference mode
-      {action, confidence, new_state} = cond do
-        # Mamba with incremental inference (O(1) per frame)
-        state.temporal and state.backbone == :mamba and state.use_incremental and state.mamba_cache != nil ->
-          compute_incremental_mamba_action(state, embedded, opts)
+      {action, confidence, new_state} =
+        cond do
+          # Mamba with incremental inference (O(1) per frame)
+          state.temporal and state.backbone == :mamba and state.use_incremental and
+              state.mamba_cache != nil ->
+            compute_incremental_mamba_action(state, embedded, opts)
 
-        # Standard temporal inference (O(window_size) per frame)
-        state.temporal ->
-          compute_temporal_action(state, embedded, opts)
+          # Standard temporal inference (O(window_size) per frame)
+          state.temporal ->
+            compute_temporal_action(state, embedded, opts)
 
-        # Single-frame MLP inference
-        true ->
-          compute_single_frame_action(state, embedded, opts)
-      end
+          # Single-frame MLP inference
+          true ->
+            compute_single_frame_action(state, embedded, opts)
+        end
 
       # Cache action for action repeat
-      new_state = %{new_state |
-        last_action: action,
-        frames_since_inference: 1,
-        warmed_up: true  # Mark as warmed up after first successful inference
+      new_state = %{
+        new_state
+        | last_action: action,
+          frames_since_inference: 1,
+          # Mark as warmed up after first successful inference
+          warmed_up: true
       }
 
       {:ok, action, confidence, new_state}
@@ -447,13 +465,14 @@ defmodule ExPhil.Agents.Agent do
     deterministic = Keyword.get(opts, :deterministic, state.deterministic)
     temperature = Keyword.get(opts, :temperature, state.temperature)
 
-    action = Networks.Policy.sample(
-      state.policy_params,
-      state.predict_fn,
-      embedded_batch,
-      deterministic: deterministic,
-      temperature: temperature
-    )
+    action =
+      Networks.Policy.sample(
+        state.policy_params,
+        state.predict_fn,
+        embedded_batch,
+        deterministic: deterministic,
+        temperature: temperature
+      )
 
     # Compute confidence from logits
     confidence = Networks.Policy.compute_confidence(action)
@@ -473,14 +492,15 @@ defmodule ExPhil.Agents.Agent do
     buffer_len = :queue.len(buffer)
 
     # Build sequence tensor
-    sequence = if buffer_len < state.window_size do
-      # Pad with first frame until we have enough
-      # This allows inference to start immediately (warmup period)
-      pad_sequence(buffer, state.window_size)
-    else
-      # Full window available
-      buffer_to_tensor(buffer)
-    end
+    sequence =
+      if buffer_len < state.window_size do
+        # Pad with first frame until we have enough
+        # This allows inference to start immediately (warmup period)
+        pad_sequence(buffer, state.window_size)
+      else
+        # Full window available
+        buffer_to_tensor(buffer)
+      end
 
     # Reshape to [1, window_size, embed_size]
     embed_size = Nx.size(embedded)
@@ -489,13 +509,14 @@ defmodule ExPhil.Agents.Agent do
     deterministic = Keyword.get(opts, :deterministic, state.deterministic)
     temperature = Keyword.get(opts, :temperature, state.temperature)
 
-    action = Networks.Policy.sample(
-      state.policy_params,
-      state.predict_fn,
-      sequence_batch,
-      deterministic: deterministic,
-      temperature: temperature
-    )
+    action =
+      Networks.Policy.sample(
+        state.policy_params,
+        state.predict_fn,
+        sequence_batch,
+        deterministic: deterministic,
+        temperature: temperature
+      )
 
     # Compute confidence from logits
     confidence = Networks.Policy.compute_confidence(action)
@@ -520,47 +541,51 @@ defmodule ExPhil.Agents.Agent do
     x = Nx.reshape(embedded, {1, embed_size})
 
     # Project to hidden_size if needed (input projection layer)
-    x = if embed_size != hidden_size do
-      input_proj = state.policy_params["input_projection"] ||
-                   state.policy_params[:input_projection]
+    x =
+      if embed_size != hidden_size do
+        input_proj =
+          state.policy_params["input_projection"] ||
+            state.policy_params[:input_projection]
 
-      if input_proj do
-        kernel = input_proj["kernel"] || input_proj[:kernel]
-        bias = input_proj["bias"] || input_proj[:bias]
-        out = Nx.dot(x, kernel)
-        if bias, do: Nx.add(out, bias), else: out
-      else
-        # No projection params found, pad or truncate
-        if embed_size < hidden_size do
-          Nx.pad(x, 0.0, [{0, 0, 0}, {0, hidden_size - embed_size, 0}])
+        if input_proj do
+          kernel = input_proj["kernel"] || input_proj[:kernel]
+          bias = input_proj["bias"] || input_proj[:bias]
+          out = Nx.dot(x, kernel)
+          if bias, do: Nx.add(out, bias), else: out
         else
-          Nx.slice_along_axis(x, 0, hidden_size, axis: 1)
+          # No projection params found, pad or truncate
+          if embed_size < hidden_size do
+            Nx.pad(x, 0.0, [{0, 0, 0}, {0, hidden_size - embed_size, 0}])
+          else
+            Nx.slice_along_axis(x, 0, hidden_size, axis: 1)
+          end
         end
+      else
+        x
       end
-    else
-      x
-    end
 
     # Single step through Mamba with cached state
-    {backbone_output, new_cache} = Mamba.step(
-      x,
-      state.policy_params,
-      state.mamba_cache
-    )
+    {backbone_output, new_cache} =
+      Mamba.step(
+        x,
+        state.policy_params,
+        state.mamba_cache
+      )
 
     # backbone_output: [1, hidden_size]
     # Now run through policy heads (dense layers after backbone)
     deterministic = Keyword.get(opts, :deterministic, state.deterministic)
     temperature = Keyword.get(opts, :temperature, state.temperature)
 
-    action = sample_from_backbone_output(
-      backbone_output,
-      state.policy_params,
-      deterministic: deterministic,
-      temperature: temperature,
-      axis_buckets: state.embed_config[:axis_buckets] || 16,
-      shoulder_buckets: state.embed_config[:shoulder_buckets] || 4
-    )
+    action =
+      sample_from_backbone_output(
+        backbone_output,
+        state.policy_params,
+        deterministic: deterministic,
+        temperature: temperature,
+        axis_buckets: state.embed_config[:axis_buckets] || 16,
+        shoulder_buckets: state.embed_config[:shoulder_buckets] || 4
+      )
 
     confidence = Networks.Policy.compute_confidence(action)
 
@@ -621,7 +646,8 @@ defmodule ExPhil.Agents.Agent do
     else
       # Fallback: head not found, return zeros (will produce uniform sampling)
       Logger.warning("[Agent] Policy head #{head_name} not found in params")
-      Nx.broadcast(0.0, {1, 8})  # Default 8 outputs
+      # Default 8 outputs
+      Nx.broadcast(0.0, {1, 8})
     end
   end
 
@@ -670,13 +696,17 @@ defmodule ExPhil.Agents.Agent do
   # Trim buffer to max size, dropping oldest frames
   defp trim_buffer(buffer, max_size) do
     len = :queue.len(buffer)
+
     if len > max_size do
       # Drop oldest frames
       to_drop = len - max_size
-      {_dropped, trimmed} = Enum.reduce(1..to_drop, {[], buffer}, fn _, {dropped, buf} ->
-        {{:value, frame}, new_buf} = :queue.out(buf)
-        {[frame | dropped], new_buf}
-      end)
+
+      {_dropped, trimmed} =
+        Enum.reduce(1..to_drop, {[], buffer}, fn _, {dropped, buf} ->
+          {{:value, frame}, new_buf} = :queue.out(buf)
+          {[frame | dropped], new_buf}
+        end)
+
       {trimmed, to_drop}
     else
       {buffer, 0}
@@ -744,66 +774,77 @@ defmodule ExPhil.Agents.Agent do
     # Build appropriate model based on temporal flag
     # Note: dropout is included to match training architecture, but Axon
     # disables dropout during inference mode by default
-    model = if temporal do
-      Logger.info("[Agent] Loading temporal policy (backbone: #{backbone}, window: #{window_size})")
-      Networks.Policy.build_temporal(
-        embed_size: embed_size,
-        backbone: backbone,
-        window_size: window_size,
-        num_heads: Map.get(config, :num_heads, 4),
-        head_dim: Map.get(config, :head_dim, 64),
-        hidden_size: Map.get(config, :hidden_size, 256),
-        num_layers: Map.get(config, :num_layers, 2),
-        dropout: dropout,
-        axis_buckets: axis_buckets,
-        shoulder_buckets: shoulder_buckets
-      )
-    else
-      Networks.Policy.build(
-        embed_size: embed_size,
-        hidden_sizes: hidden_sizes,
-        dropout: dropout,
-        axis_buckets: axis_buckets,
-        shoulder_buckets: shoulder_buckets
-      )
-    end
+    model =
+      if temporal do
+        Logger.info(
+          "[Agent] Loading temporal policy (backbone: #{backbone}, window: #{window_size})"
+        )
+
+        Networks.Policy.build_temporal(
+          embed_size: embed_size,
+          backbone: backbone,
+          window_size: window_size,
+          num_heads: Map.get(config, :num_heads, 4),
+          head_dim: Map.get(config, :head_dim, 64),
+          hidden_size: Map.get(config, :hidden_size, 256),
+          num_layers: Map.get(config, :num_layers, 2),
+          dropout: dropout,
+          axis_buckets: axis_buckets,
+          shoulder_buckets: shoulder_buckets
+        )
+      else
+        Networks.Policy.build(
+          embed_size: embed_size,
+          hidden_sizes: hidden_sizes,
+          dropout: dropout,
+          axis_buckets: axis_buckets,
+          shoulder_buckets: shoulder_buckets
+        )
+      end
 
     {_init_fn, predict_fn} = Axon.build(model)
 
     # Build embed_config with all needed fields
-    full_embed_config = Map.merge(%{
-      embed_size: embed_size,
-      axis_buckets: axis_buckets,
-      shoulder_buckets: shoulder_buckets,
-      hidden_size: Map.get(config, :hidden_size, 256),
-      num_layers: Map.get(config, :num_layers, 2)
-    }, embed_config)
+    full_embed_config =
+      Map.merge(
+        %{
+          embed_size: embed_size,
+          axis_buckets: axis_buckets,
+          shoulder_buckets: shoulder_buckets,
+          hidden_size: Map.get(config, :hidden_size, 256),
+          num_layers: Map.get(config, :num_layers, 2)
+        },
+        embed_config
+      )
 
     # Initialize Mamba cache if using Mamba backbone with incremental inference
-    mamba_cache = if temporal and backbone == :mamba and state.use_incremental do
-      Logger.info("[Agent] Initializing Mamba incremental inference cache")
-      alias ExPhil.Networks.Mamba
-      Mamba.init_cache(
-        batch_size: 1,
-        hidden_size: full_embed_config.hidden_size,
-        num_layers: full_embed_config.num_layers
-      )
-    else
-      nil
-    end
+    mamba_cache =
+      if temporal and backbone == :mamba and state.use_incremental do
+        Logger.info("[Agent] Initializing Mamba incremental inference cache")
+        alias ExPhil.Networks.Mamba
 
-    new_state = %{state |
-      policy_params: params,
-      predict_fn: predict_fn,
-      embed_config: full_embed_config,
-      # Set temporal config
-      temporal: temporal,
-      backbone: backbone,
-      window_size: window_size,
-      # Reset frame buffer when loading new policy
-      frame_buffer: :queue.new(),
-      # Mamba cache for incremental inference
-      mamba_cache: mamba_cache
+        Mamba.init_cache(
+          batch_size: 1,
+          hidden_size: full_embed_config.hidden_size,
+          num_layers: full_embed_config.num_layers
+        )
+      else
+        nil
+      end
+
+    new_state = %{
+      state
+      | policy_params: params,
+        predict_fn: predict_fn,
+        embed_config: full_embed_config,
+        # Set temporal config
+        temporal: temporal,
+        backbone: backbone,
+        window_size: window_size,
+        # Reset frame buffer when loading new policy
+        frame_buffer: :queue.new(),
+        # Mamba cache for incremental inference
+        mamba_cache: mamba_cache
     }
 
     {:ok, new_state}
@@ -826,7 +867,8 @@ defmodule ExPhil.Agents.Agent do
     alias ExPhil.Bridge.{GameState, Player}
 
     dummy_player = %Player{
-      character: 25,  # Mewtwo
+      # Mewtwo
+      character: 25,
       x: 0.0,
       y: 0.0,
       percent: 0.0,
@@ -850,8 +892,10 @@ defmodule ExPhil.Agents.Agent do
 
     %GameState{
       frame: 0,
-      stage: 32,  # Final Destination
-      menu_state: 2,  # In-game
+      # Final Destination
+      stage: 32,
+      # In-game
+      menu_state: 2,
       players: %{1 => dummy_player, 2 => dummy_player},
       projectiles: [],
       distance: 50.0

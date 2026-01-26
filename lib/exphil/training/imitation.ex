@@ -66,18 +66,18 @@ defmodule ExPhil.Training.Imitation do
   ]
 
   @type t :: %__MODULE__{
-    policy_model: Axon.t(),
-    policy_params: map(),
-    optimizer: Polaris.Updates.t(),
-    optimizer_state: map(),
-    embed_config: map(),
-    config: map(),
-    step: non_neg_integer(),
-    metrics: map(),
-    predict_fn: function() | nil,
-    apply_updates_fn: function() | nil,
-    loss_and_grad_fn: function() | nil
-  }
+          policy_model: Axon.t(),
+          policy_params: map(),
+          optimizer: Polaris.Updates.t(),
+          optimizer_state: map(),
+          embed_config: map(),
+          config: map(),
+          step: non_neg_integer(),
+          metrics: map(),
+          predict_fn: function() | nil,
+          apply_updates_fn: function() | nil,
+          loss_and_grad_fn: function() | nil
+        }
 
   # Default training configuration
   @default_config %{
@@ -86,45 +86,68 @@ defmodule ExPhil.Training.Imitation do
     max_grad_norm: 1.0,
     weight_decay: 1.0e-5,
     warmup_steps: 1000,
-    frame_stack: 1,        # Number of frames to stack
-    frame_delay: 0,        # Frames between state and action
+    # Number of frames to stack
+    frame_stack: 1,
+    # Frames between state and action
+    frame_delay: 0,
     log_interval: 100,
     checkpoint_interval: 1000,
     axis_buckets: 16,
     shoulder_buckets: 4,
     # MLP architecture
-    hidden_sizes: [512, 512],     # MLP hidden layer sizes
-    dropout: 0.1,                 # Dropout rate
+    # MLP hidden layer sizes
+    hidden_sizes: [512, 512],
+    # Dropout rate
+    dropout: 0.1,
     # Precision (bf16 = ~2x faster, minimal accuracy loss)
     precision: :bf16,
     # Temporal training options
-    temporal: false,              # Enable temporal/sequence training
-    backbone: :sliding_window,    # :sliding_window, :hybrid, :lstm, :mlp
-    window_size: 60,              # Frames in attention window
-    num_heads: 4,                 # Attention heads
-    head_dim: 64,                 # Dimension per head
-    hidden_size: 256,             # LSTM/hybrid hidden size
-    num_layers: 2,                # Attention/recurrent layers
-    truncate_bptt: nil,           # nil = full BPTT, integer = truncate to last N steps
+    # Enable temporal/sequence training
+    temporal: false,
+    # :sliding_window, :hybrid, :lstm, :mlp
+    backbone: :sliding_window,
+    # Frames in attention window
+    window_size: 60,
+    # Attention heads
+    num_heads: 4,
+    # Dimension per head
+    head_dim: 64,
+    # LSTM/hybrid hidden size
+    hidden_size: 256,
+    # Attention/recurrent layers
+    num_layers: 2,
+    # nil = full BPTT, integer = truncate to last N steps
+    truncate_bptt: nil,
     # Mamba-specific options
-    state_size: 16,               # Mamba SSM state dimension
-    expand_factor: 2,             # Mamba expansion factor
-    conv_size: 4,                 # Mamba conv kernel size
+    # Mamba SSM state dimension
+    state_size: 16,
+    # Mamba expansion factor
+    expand_factor: 2,
+    # Mamba conv kernel size
+    conv_size: 4,
     # Jamba-specific (Mamba + Attention hybrid)
-    attention_every: 3,           # Insert attention layer every N layers
+    # Insert attention layer every N layers
+    attention_every: 3,
     # Gradient checkpointing (trade compute for memory)
-    gradient_checkpoint: false,   # Enable gradient checkpointing for memory efficiency
-    checkpoint_every: 1,          # Checkpoint every N layers (1 = every layer)
+    # Enable gradient checkpointing for memory efficiency
+    gradient_checkpoint: false,
+    # Checkpoint every N layers (1 = every layer)
+    checkpoint_every: 1,
     # Layer normalization for MLP backbone
-    layer_norm: false,            # Add layer norm after each dense layer
+    # Add layer norm after each dense layer
+    layer_norm: false,
     # Gradient accumulation
-    accumulation_steps: 1,        # 1 = no accumulation, N = effective batch = batch_size * N
+    # 1 = no accumulation, N = effective batch = batch_size * N
+    accumulation_steps: 1,
     # Label smoothing
-    label_smoothing: 0.0,         # 0.0 = no smoothing, 0.1 = typical value
+    # 0.0 = no smoothing, 0.1 = typical value
+    label_smoothing: 0.0,
     # Optimizer selection
-    optimizer: :adamw,            # :adam, :adamw, :lamb, :radam, :sgd, :rmsprop
+    # :adam, :adamw, :lamb, :radam, :sgd, :rmsprop
+    optimizer: :adamw,
     # K-means stick discretization
-    kmeans_centers: nil           # Path or tensor of K-means centers (nil = uniform buckets)
+    # Path or tensor of K-means centers (nil = uniform buckets)
+    kmeans_centers: nil
   }
 
   @doc """
@@ -146,63 +169,67 @@ defmodule ExPhil.Training.Imitation do
   @spec new(keyword()) :: t()
   def new(opts \\ []) do
     # Get embedding configuration
-    embed_config = Keyword.get_lazy(opts, :embed_config, fn ->
-      Embeddings.config(Keyword.take(opts, [:with_speeds, :with_nana, :with_projectiles]))
-    end)
+    embed_config =
+      Keyword.get_lazy(opts, :embed_config, fn ->
+        Embeddings.config(Keyword.take(opts, [:with_speeds, :with_nana, :with_projectiles]))
+      end)
 
     embed_size = Keyword.get(opts, :embed_size, Embeddings.embedding_size(embed_config))
 
     # Build config - include embed_size for export
-    config = @default_config
-    |> Map.merge(Map.new(Keyword.take(opts, Map.keys(@default_config))))
-    |> Map.put(:embed_size, embed_size)
+    config =
+      @default_config
+      |> Map.merge(Map.new(Keyword.take(opts, Map.keys(@default_config))))
+      |> Map.put(:embed_size, embed_size)
 
     # Load K-means centers if path provided
     config = load_kmeans_centers(config)
 
     # Build policy model - temporal or regular
-    policy_model = if config.temporal do
-      Policy.build_temporal(
-        embed_size: embed_size,
-        backbone: config.backbone,
-        window_size: config.window_size,
-        num_heads: config.num_heads,
-        head_dim: config.head_dim,
-        hidden_size: config.hidden_size,
-        num_layers: config.num_layers,
-        hidden_sizes: config.hidden_sizes,
-        dropout: config.dropout,
-        axis_buckets: config.axis_buckets,
-        shoulder_buckets: config.shoulder_buckets,
-        truncate_bptt: config.truncate_bptt,
-        layer_norm: config.layer_norm,
-        # Jamba-specific
-        attention_every: config.attention_every,
-        # Gradient checkpointing for memory efficiency
-        gradient_checkpoint: Map.get(config, :gradient_checkpoint, false),
-        checkpoint_every: Map.get(config, :checkpoint_every, 1)
-      )
-    else
-      Policy.build(
-        embed_size: embed_size,
-        hidden_sizes: config.hidden_sizes,
-        dropout: config.dropout,
-        axis_buckets: config.axis_buckets,
-        shoulder_buckets: config.shoulder_buckets,
-        layer_norm: config.layer_norm
-      )
-    end
+    policy_model =
+      if config.temporal do
+        Policy.build_temporal(
+          embed_size: embed_size,
+          backbone: config.backbone,
+          window_size: config.window_size,
+          num_heads: config.num_heads,
+          head_dim: config.head_dim,
+          hidden_size: config.hidden_size,
+          num_layers: config.num_layers,
+          hidden_sizes: config.hidden_sizes,
+          dropout: config.dropout,
+          axis_buckets: config.axis_buckets,
+          shoulder_buckets: config.shoulder_buckets,
+          truncate_bptt: config.truncate_bptt,
+          layer_norm: config.layer_norm,
+          # Jamba-specific
+          attention_every: config.attention_every,
+          # Gradient checkpointing for memory efficiency
+          gradient_checkpoint: Map.get(config, :gradient_checkpoint, false),
+          checkpoint_every: Map.get(config, :checkpoint_every, 1)
+        )
+      else
+        Policy.build(
+          embed_size: embed_size,
+          hidden_sizes: config.hidden_sizes,
+          dropout: config.dropout,
+          axis_buckets: config.axis_buckets,
+          shoulder_buckets: config.shoulder_buckets,
+          layer_norm: config.layer_norm
+        )
+      end
 
     # Initialize parameters using newer Axon API
     # Use mode: :train to ensure all parameters (including dropout state) are initialized
     {init_fn, _predict_fn} = Axon.build(policy_model, mode: :train)
 
     # Input shape depends on temporal mode
-    input_shape = if config.temporal do
-      {1, config.window_size, embed_size}
-    else
-      {1, embed_size}
-    end
+    input_shape =
+      if config.temporal do
+        {1, config.window_size, embed_size}
+      else
+        {1, embed_size}
+      end
 
     policy_params = init_fn.(Nx.template(input_shape, config.precision), Axon.ModelState.empty())
 
@@ -349,7 +376,14 @@ defmodule ExPhil.Training.Imitation do
     # Cosine restarts needs custom implementation regardless of warmup
     if warmup_steps > 0 or schedule_type == :cosine_restarts do
       # Use custom schedule with warmup and/or restarts
-      build_custom_schedule(base_lr, schedule_type, warmup_steps, decay_steps, restart_period, restart_mult)
+      build_custom_schedule(
+        base_lr,
+        schedule_type,
+        warmup_steps,
+        decay_steps,
+        restart_period,
+        restart_mult
+      )
     else
       # Use Polaris schedules directly (no warmup, no restarts)
       build_polaris_schedule(base_lr, schedule_type, decay_steps)
@@ -408,7 +442,14 @@ defmodule ExPhil.Training.Imitation do
 
   # Build a custom schedule function that implements warmup + decay
   # This is needed because Polaris schedules can't be composed
-  defp build_custom_schedule(base_lr, schedule_type, warmup_steps, decay_steps, restart_period, restart_mult) do
+  defp build_custom_schedule(
+         base_lr,
+         schedule_type,
+         warmup_steps,
+         decay_steps,
+         restart_period,
+         restart_mult
+       ) do
     # Pre-convert to tensors with Nx.BinaryBackend to avoid EXLA closure issues
     base_lr_t = Nx.tensor(base_lr, type: :f32, backend: Nx.BinaryBackend)
     warmup_steps_t = Nx.tensor(warmup_steps, type: :f32, backend: Nx.BinaryBackend)
@@ -431,50 +472,62 @@ defmodule ExPhil.Training.Imitation do
       post_warmup_step = Nx.max(Nx.subtract(step_f, warmup_steps_t), zero_t)
 
       # Decay phase based on schedule type
-      decay_lr = case schedule_type do
-        :constant ->
-          base_lr_t
+      decay_lr =
+        case schedule_type do
+          :constant ->
+            base_lr_t
 
-        :cosine ->
-          # Cosine decay: lr * (1 + cos(pi * step / decay_steps)) / 2
-          progress = Nx.divide(post_warmup_step, decay_steps_t)
-          clamped_progress = Nx.min(progress, one_t)
-          cosine_factor = Nx.divide(
-            Nx.add(one_t, Nx.cos(Nx.multiply(pi_t, clamped_progress))),
-            two_t
-          )
-          Nx.multiply(base_lr_t, cosine_factor)
+          :cosine ->
+            # Cosine decay: lr * (1 + cos(pi * step / decay_steps)) / 2
+            progress = Nx.divide(post_warmup_step, decay_steps_t)
+            clamped_progress = Nx.min(progress, one_t)
 
-        :cosine_restarts ->
-          # Cosine Annealing with Warm Restarts (SGDR)
-          # Periods: T_0, T_0*T_mult, T_0*T_mult^2, ...
-          # lr = 0.5 * lr_max * (1 + cos(pi * T_cur / T_i))
-          #
-          # To find current period and position within it:
-          # - If T_mult == 1: period_idx = floor(step / T_0), T_cur = step % T_0
-          # - If T_mult > 1: sum of geometric series = T_0 * (T_mult^n - 1) / (T_mult - 1)
-          #   Solve for n: n = log(step * (T_mult - 1) / T_0 + 1) / log(T_mult)
-          compute_cosine_restarts_lr(
-            post_warmup_step, base_lr_t, restart_period_t, restart_mult_t,
-            pi_t, one_t, two_t, zero_t
-          )
+            cosine_factor =
+              Nx.divide(
+                Nx.add(one_t, Nx.cos(Nx.multiply(pi_t, clamped_progress))),
+                two_t
+              )
 
-        :exponential ->
-          # Exponential decay: lr * rate^(step / transition_steps)
-          rate_t = Nx.tensor(0.95, type: :f32, backend: Nx.BinaryBackend)
-          exponent = Nx.divide(post_warmup_step, decay_steps_t)
-          decay_factor = Nx.pow(rate_t, exponent)
-          Nx.multiply(base_lr_t, decay_factor)
+            Nx.multiply(base_lr_t, cosine_factor)
 
-        :linear ->
-          # Linear decay: lr * max(0, 1 - step / decay_steps)
-          progress = Nx.divide(post_warmup_step, decay_steps_t)
-          decay_factor = Nx.max(Nx.subtract(one_t, progress), zero_t)
-          Nx.multiply(base_lr_t, decay_factor)
-      end
+          :cosine_restarts ->
+            # Cosine Annealing with Warm Restarts (SGDR)
+            # Periods: T_0, T_0*T_mult, T_0*T_mult^2, ...
+            # lr = 0.5 * lr_max * (1 + cos(pi * T_cur / T_i))
+            #
+            # To find current period and position within it:
+            # - If T_mult == 1: period_idx = floor(step / T_0), T_cur = step % T_0
+            # - If T_mult > 1: sum of geometric series = T_0 * (T_mult^n - 1) / (T_mult - 1)
+            #   Solve for n: n = log(step * (T_mult - 1) / T_0 + 1) / log(T_mult)
+            compute_cosine_restarts_lr(
+              post_warmup_step,
+              base_lr_t,
+              restart_period_t,
+              restart_mult_t,
+              pi_t,
+              one_t,
+              two_t,
+              zero_t
+            )
+
+          :exponential ->
+            # Exponential decay: lr * rate^(step / transition_steps)
+            rate_t = Nx.tensor(0.95, type: :f32, backend: Nx.BinaryBackend)
+            exponent = Nx.divide(post_warmup_step, decay_steps_t)
+            decay_factor = Nx.pow(rate_t, exponent)
+            Nx.multiply(base_lr_t, decay_factor)
+
+          :linear ->
+            # Linear decay: lr * max(0, 1 - step / decay_steps)
+            progress = Nx.divide(post_warmup_step, decay_steps_t)
+            decay_factor = Nx.max(Nx.subtract(one_t, progress), zero_t)
+            Nx.multiply(base_lr_t, decay_factor)
+        end
 
       # Select warmup or decay based on current step
-      in_warmup = Nx.greater(warmup_steps_t, zero_t) |> Nx.logical_and(Nx.less(step_f, warmup_steps_t))
+      in_warmup =
+        Nx.greater(warmup_steps_t, zero_t) |> Nx.logical_and(Nx.less(step_f, warmup_steps_t))
+
       Nx.select(in_warmup, warmup_lr, decay_lr)
     end
   end
@@ -496,7 +549,11 @@ defmodule ExPhil.Training.Imitation do
     #   n = log(step * (T_mult - 1) / T_0 + 1) / log(T_mult)
 
     # Handle T_mult == 1 vs T_mult > 1
-    mult_is_one = Nx.less_equal(Nx.abs(Nx.subtract(t_mult, one)), Nx.tensor(1.0e-6, type: :f32, backend: Nx.BinaryBackend))
+    mult_is_one =
+      Nx.less_equal(
+        Nx.abs(Nx.subtract(t_mult, one)),
+        Nx.tensor(1.0e-6, type: :f32, backend: Nx.BinaryBackend)
+      )
 
     # Case 1: T_mult == 1 (fixed period)
     period_idx_fixed = Nx.floor(Nx.divide(step, t0))
@@ -518,10 +575,12 @@ defmodule ExPhil.Training.Imitation do
 
     # Total steps through period_idx complete periods
     # sum = T_0 * (T_mult^n - 1) / (T_mult - 1)
-    completed_steps = Nx.divide(
-      Nx.multiply(t0, Nx.subtract(Nx.pow(t_mult, period_idx_grow), one)),
-      mult_minus_one
-    )
+    completed_steps =
+      Nx.divide(
+        Nx.multiply(t0, Nx.subtract(Nx.pow(t_mult, period_idx_grow), one)),
+        mult_minus_one
+      )
+
     t_cur_grow = Nx.subtract(step, completed_steps)
     t_i_grow = Nx.multiply(t0, Nx.pow(t_mult, period_idx_grow))
 
@@ -533,10 +592,13 @@ defmodule ExPhil.Training.Imitation do
     # lr = 0.5 * lr_max * (1 + cos(pi * T_cur / T_i))
     progress = Nx.divide(t_cur, Nx.max(t_i, one))
     clamped_progress = Nx.min(progress, one)
-    cosine_factor = Nx.divide(
-      Nx.add(one, Nx.cos(Nx.multiply(pi, clamped_progress))),
-      two
-    )
+
+    cosine_factor =
+      Nx.divide(
+        Nx.add(one, Nx.cos(Nx.multiply(pi, clamped_progress))),
+        two
+      )
+
     Nx.multiply(base_lr, cosine_factor)
   end
 
@@ -559,10 +621,11 @@ defmodule ExPhil.Training.Imitation do
     callback = Keyword.get(opts, :callback, fn _metrics -> :ok end)
 
     try do
-      final_trainer = Enum.reduce(1..epochs, trainer, fn epoch, acc ->
-        Logger.info("Starting epoch #{epoch}/#{epochs}")
-        train_epoch(acc, dataset, epoch, callback)
-      end)
+      final_trainer =
+        Enum.reduce(1..epochs, trainer, fn epoch, acc ->
+          Logger.info("Starting epoch #{epoch}/#{epochs}")
+          train_epoch(acc, dataset, epoch, callback)
+        end)
 
       {:ok, final_trainer}
     rescue
@@ -626,52 +689,57 @@ defmodule ExPhil.Training.Imitation do
       count: 0
     }
 
-    final_accum = Enum.reduce(dataset, init_accum, fn batch, accum ->
-      # Compute gradients without applying updates
-      {grads, loss} = compute_gradients(accum.trainer, batch)
+    final_accum =
+      Enum.reduce(dataset, init_accum, fn batch, accum ->
+        # Compute gradients without applying updates
+        {grads, loss} = compute_gradients(accum.trainer, batch)
 
-      # Accumulate gradients (sum them)
-      new_grads = if accum.grads == nil do
-        grads
-      else
-        add_gradients(accum.grads, grads)
-      end
+        # Accumulate gradients (sum them)
+        new_grads =
+          if accum.grads == nil do
+            grads
+          else
+            add_gradients(accum.grads, grads)
+          end
 
-      new_accum = %{accum |
-        grads: new_grads,
-        losses: [loss | accum.losses],
-        count: accum.count + 1
-      }
+        new_accum = %{
+          accum
+          | grads: new_grads,
+            losses: [loss | accum.losses],
+            count: accum.count + 1
+        }
 
-      # Check if we should apply update
-      if new_accum.count >= accumulation_steps do
-        # Average gradients and apply update
-        avg_grads = scale_gradients(new_accum.grads, 1.0 / accumulation_steps)
-        avg_loss = Enum.sum(new_accum.losses) / accumulation_steps
+        # Check if we should apply update
+        if new_accum.count >= accumulation_steps do
+          # Average gradients and apply update
+          avg_grads = scale_gradients(new_accum.grads, 1.0 / accumulation_steps)
+          avg_loss = Enum.sum(new_accum.losses) / accumulation_steps
 
-        new_trainer = apply_gradients(new_accum.trainer, avg_grads)
+          new_trainer = apply_gradients(new_accum.trainer, avg_grads)
 
-        # Call callback
-        metrics = %{loss: avg_loss, step: new_trainer.step}
-        full_metrics = Map.merge(metrics, %{epoch: epoch, step: new_trainer.step})
-        callback.(full_metrics)
+          # Call callback
+          metrics = %{loss: avg_loss, step: new_trainer.step}
+          full_metrics = Map.merge(metrics, %{epoch: epoch, step: new_trainer.step})
+          callback.(full_metrics)
 
-        # Log periodically
-        if rem(new_trainer.step, new_trainer.config.log_interval) == 0 do
-          Logger.info("Step #{new_trainer.step}: loss=#{Float.round(avg_loss, 4)} (accum=#{accumulation_steps})")
+          # Log periodically
+          if rem(new_trainer.step, new_trainer.config.log_interval) == 0 do
+            Logger.info(
+              "Step #{new_trainer.step}: loss=#{Float.round(avg_loss, 4)} (accum=#{accumulation_steps})"
+            )
+          end
+
+          # Periodic garbage collection to prevent memory buildup
+          if gc_every > 0 and rem(new_trainer.step, gc_every) == 0 do
+            :erlang.garbage_collect()
+          end
+
+          # Reset accumulation state
+          %{trainer: new_trainer, grads: nil, losses: [], count: 0}
+        else
+          new_accum
         end
-
-        # Periodic garbage collection to prevent memory buildup
-        if gc_every > 0 and rem(new_trainer.step, gc_every) == 0 do
-          :erlang.garbage_collect()
-        end
-
-        # Reset accumulation state
-        %{trainer: new_trainer, grads: nil, losses: [], count: 0}
-      else
-        new_accum
-      end
-    end)
+      end)
 
     # Handle remaining batches if dataset size isn't divisible by accumulation_steps
     if final_accum.count > 0 and final_accum.grads != nil do
@@ -681,7 +749,9 @@ defmodule ExPhil.Training.Imitation do
       new_trainer = apply_gradients(final_accum.trainer, avg_grads)
 
       # Log final partial accumulation
-      Logger.info("Step #{new_trainer.step}: loss=#{Float.round(avg_loss, 4)} (partial accum=#{final_accum.count})")
+      Logger.info(
+        "Step #{new_trainer.step}: loss=#{Float.round(avg_loss, 4)} (partial accum=#{final_accum.count})"
+      )
 
       new_trainer
     else
@@ -706,11 +776,18 @@ defmodule ExPhil.Training.Imitation do
     focal_gamma = trainer.config[:focal_gamma] || 2.0
 
     loss_fn = fn params ->
-      {buttons, main_x, main_y, c_x, c_y, shoulder} = predict_fn.(Utils.ensure_model_state(params), states)
+      {buttons, main_x, main_y, c_x, c_y, shoulder} =
+        predict_fn.(Utils.ensure_model_state(params), states)
+
       logits = %{
-        buttons: buttons, main_x: main_x, main_y: main_y,
-        c_x: c_x, c_y: c_y, shoulder: shoulder
+        buttons: buttons,
+        main_x: main_x,
+        main_y: main_y,
+        c_x: c_x,
+        c_y: c_y,
+        shoulder: shoulder
       }
+
       Policy.imitation_loss(logits, actions,
         label_smoothing: label_smoothing,
         focal_loss: focal_loss,
@@ -740,37 +817,43 @@ defmodule ExPhil.Training.Imitation do
   defp apply_gradients(trainer, grads) do
     params_data = get_params_data(trainer.policy_params)
 
-    {updates, new_optimizer_state} = trainer.optimizer.(
-      grads,
-      trainer.optimizer_state,
-      params_data
-    )
+    {updates, new_optimizer_state} =
+      trainer.optimizer.(
+        grads,
+        trainer.optimizer_state,
+        params_data
+      )
 
     new_params_data = trainer.apply_updates_fn.(params_data, updates)
     new_params = put_params_data(trainer.policy_params, new_params_data)
 
-    %{trainer |
-      policy_params: new_params,
-      optimizer_state: new_optimizer_state,
-      step: trainer.step + 1
+    %{
+      trainer
+      | policy_params: new_params,
+        optimizer_state: new_optimizer_state,
+        step: trainer.step + 1
     }
   end
 
   # Deep map over nested gradient structures
   defp deep_map(%Nx.Tensor{} = t, fun), do: fun.(t)
+
   defp deep_map(map, fun) when is_map(map) and not is_struct(map) do
     Map.new(map, fn {k, v} -> {k, deep_map(v, fun)} end)
   end
+
   defp deep_map(other, _fun), do: other
 
   # Deep map2 over two nested gradient structures
   defp deep_map2(%Nx.Tensor{} = t1, %Nx.Tensor{} = t2, fun), do: fun.(t1, t2)
+
   defp deep_map2(map1, map2, fun) when is_map(map1) and is_map(map2) and not is_struct(map1) do
     Map.new(map1, fn {k, v1} ->
       v2 = Map.fetch!(map2, k)
       {k, deep_map2(v1, v2, fun)}
     end)
   end
+
   defp deep_map2(other, _other2, _fun), do: other
 
   @doc """
@@ -792,11 +875,12 @@ defmodule ExPhil.Training.Imitation do
     params_data = get_params_data(trainer.policy_params)
 
     # Update parameters using the optimizer
-    {updates, new_optimizer_state} = trainer.optimizer.(
-      grads_data,
-      trainer.optimizer_state,
-      params_data
-    )
+    {updates, new_optimizer_state} =
+      trainer.optimizer.(
+        grads_data,
+        trainer.optimizer_state,
+        params_data
+      )
 
     # Use cached apply_updates_fn (built once in new/1, reused every step)
     new_params_data = trainer.apply_updates_fn.(params_data, updates)
@@ -804,10 +888,11 @@ defmodule ExPhil.Training.Imitation do
 
     # Update trainer state (metrics update deferred to avoid GPU sync)
     # Loss stays as tensor - caller should batch conversions at epoch end
-    new_trainer = %{trainer |
-      policy_params: new_params,
-      optimizer_state: new_optimizer_state,
-      step: trainer.step + 1
+    new_trainer = %{
+      trainer
+      | policy_params: new_params,
+        optimizer_state: new_optimizer_state,
+        step: trainer.step + 1
     }
 
     # Return loss as tensor to avoid blocking GPU→CPU transfer every batch
@@ -830,7 +915,8 @@ defmodule ExPhil.Training.Imitation do
 
     loss_fn = fn params, states, actions ->
       # Forward pass
-      {buttons, main_x, main_y, c_x, c_y, shoulder} = predict_fn.(Utils.ensure_model_state(params), states)
+      {buttons, main_x, main_y, c_x, c_y, shoulder} =
+        predict_fn.(Utils.ensure_model_state(params), states)
 
       logits = %{
         buttons: buttons,
@@ -888,7 +974,8 @@ defmodule ExPhil.Training.Imitation do
 
       # Build loss function - states/actions are already Defn.Expr from outer JIT
       loss_fn = fn p ->
-        {buttons, main_x, main_y, c_x, c_y, shoulder} = predict_fn.(Utils.ensure_model_state(p), states)
+        {buttons, main_x, main_y, c_x, c_y, shoulder} =
+          predict_fn.(Utils.ensure_model_state(p), states)
 
         logits = %{
           buttons: buttons,
@@ -926,19 +1013,21 @@ defmodule ExPhil.Training.Imitation do
 
     # Accumulate losses as tensors, convert only once at the end
     # This avoids blocking GPU→CPU transfer after every batch
-    {losses, count} = Enum.reduce(dataset, {[], 0}, fn batch, {acc_losses, acc_count} ->
-      %{states: states, actions: actions} = batch
-      loss = loss_fn.(trainer.policy_params, states, actions)
-      {[loss | acc_losses], acc_count + 1}
-    end)
+    {losses, count} =
+      Enum.reduce(dataset, {[], 0}, fn batch, {acc_losses, acc_count} ->
+        %{states: states, actions: actions} = batch
+        loss = loss_fn.(trainer.policy_params, states, actions)
+        {[loss | acc_losses], acc_count + 1}
+      end)
 
-    avg_loss = if count > 0 do
-      # Single GPU→CPU transfer at the end instead of per-batch
-      total = losses |> Nx.stack() |> Nx.sum() |> Nx.to_number()
-      total / count
-    else
-      0.0
-    end
+    avg_loss =
+      if count > 0 do
+        # Single GPU→CPU transfer at the end instead of per-batch
+        total = losses |> Nx.stack() |> Nx.sum() |> Nx.to_number()
+        total / count
+      else
+        0.0
+      end
 
     %{
       loss: avg_loss,
@@ -989,6 +1078,7 @@ defmodule ExPhil.Training.Imitation do
       :ok ->
         Logger.info("Saved checkpoint to #{path}")
         :ok
+
       error ->
         error
     end
@@ -1113,12 +1203,13 @@ defmodule ExPhil.Training.Imitation do
 
     case Checkpoint.load(path, current_embed_size: current_embed_size) do
       {:ok, checkpoint} ->
-        new_trainer = %{trainer |
-          policy_params: checkpoint.policy_params,
-          optimizer_state: checkpoint.optimizer_state,
-          config: checkpoint.config,
-          step: checkpoint.step,
-          metrics: checkpoint.metrics
+        new_trainer = %{
+          trainer
+          | policy_params: checkpoint.policy_params,
+            optimizer_state: checkpoint.optimizer_state,
+            config: checkpoint.config,
+            step: checkpoint.step,
+            metrics: checkpoint.metrics
         }
 
         # Validate optimizer step matches trainer step
@@ -1129,7 +1220,7 @@ defmodule ExPhil.Training.Imitation do
           opt_step when opt_step != new_trainer.step ->
             Logger.warning(
               "Optimizer step count (#{opt_step}) differs from trainer step (#{new_trainer.step}). " <>
-              "LR schedule may not continue correctly."
+                "LR schedule may not continue correctly."
             )
 
           _ ->
@@ -1156,8 +1247,9 @@ defmodule ExPhil.Training.Imitation do
     File.mkdir_p!(dir)
 
     # Extract embed_size from config or compute from embed_config
-    embed_size = trainer.config[:embed_size] ||
-      (trainer.embed_config && Embeddings.embedding_size(trainer.embed_config))
+    embed_size =
+      trainer.config[:embed_size] ||
+        (trainer.embed_config && Embeddings.embedding_size(trainer.embed_config))
 
     export = %{
       # Convert params to BinaryBackend for serialization
@@ -1203,10 +1295,13 @@ defmodule ExPhil.Training.Imitation do
       trainer.policy_params,
       predict_fn,
       state,
-      Keyword.merge([
-        axis_buckets: trainer.config.axis_buckets,
-        shoulder_buckets: trainer.config.shoulder_buckets
-      ], opts)
+      Keyword.merge(
+        [
+          axis_buckets: trainer.config.axis_buckets,
+          shoulder_buckets: trainer.config.shoulder_buckets
+        ],
+        opts
+      )
     )
   end
 
@@ -1287,7 +1382,8 @@ defmodule ExPhil.Training.Imitation do
         config
         |> Map.put(:kmeans_centers_tensor, centers)
         |> Map.put(:axis_size, k)
-        |> Map.put(:axis_buckets, k - 1)  # For compatibility with existing code
+        # For compatibility with existing code
+        |> Map.put(:axis_buckets, k - 1)
 
       {:error, reason} ->
         raise "Failed to load K-means centers from #{path}: #{inspect(reason)}"
@@ -1296,6 +1392,7 @@ defmodule ExPhil.Training.Imitation do
 
   defp load_kmeans_centers(%{kmeans_centers: %Nx.Tensor{} = centers} = config) do
     k = Nx.axis_size(centers, 0)
+
     config
     |> Map.put(:kmeans_centers_tensor, centers)
     |> Map.put(:axis_size, k)

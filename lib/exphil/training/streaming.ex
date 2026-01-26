@@ -44,8 +44,11 @@ defmodule ExPhil.Training.Streaming do
       iex> Streaming.chunk_files(["a.slp", "b.slp", "c.slp"], 2)
       [["a.slp", "b.slp"], ["c.slp"]]
   """
-  @spec chunk_files([String.t() | {String.t(), integer()}], pos_integer()) :: [[String.t() | {String.t(), integer()}]]
-  def chunk_files(files, chunk_size) when is_list(files) and is_integer(chunk_size) and chunk_size > 0 do
+  @spec chunk_files([String.t() | {String.t(), integer()}], pos_integer()) :: [
+          [String.t() | {String.t(), integer()}]
+        ]
+  def chunk_files(files, chunk_size)
+      when is_list(files) and is_integer(chunk_size) and chunk_size > 0 do
     Enum.chunk_every(files, chunk_size)
   end
 
@@ -75,48 +78,56 @@ defmodule ExPhil.Training.Streaming do
       Output.puts("    Parsing #{length(files)} files...")
     end
 
-    {all_frames, errors} = files
-    |> Task.async_stream(
-      fn path_or_tuple ->
-        # Handle both {path, port} tuples (from character filter) and plain paths
-        {path, target_port} = case path_or_tuple do
-          {p, port} -> {p, port}
-          p when is_binary(p) ->
-            if dual_port do
-              {p, nil}  # dual_port will parse both
-            else
-              {p, Map.get(port_map, p, player_port)}
+    {all_frames, errors} =
+      files
+      |> Task.async_stream(
+        fn path_or_tuple ->
+          # Handle both {path, port} tuples (from character filter) and plain paths
+          {path, target_port} =
+            case path_or_tuple do
+              {p, port} ->
+                {p, port}
+
+              p when is_binary(p) ->
+                if dual_port do
+                  # dual_port will parse both
+                  {p, nil}
+                else
+                  {p, Map.get(port_map, p, player_port)}
+                end
             end
-        end
 
-        if dual_port do
-          parse_dual_port(path, frame_delay)
-        else
-          case Peppi.parse(path, player_port: target_port) do
-            {:ok, replay} ->
-              frames = Peppi.to_training_frames(replay,
-                player_port: target_port,
-                frame_delay: frame_delay
-              )
-              {:ok, path, length(frames), frames}
-            {:error, reason} ->
-              {:error, path, reason}
+          if dual_port do
+            parse_dual_port(path, frame_delay)
+          else
+            case Peppi.parse(path, player_port: target_port) do
+              {:ok, replay} ->
+                frames =
+                  Peppi.to_training_frames(replay,
+                    player_port: target_port,
+                    frame_delay: frame_delay
+                  )
+
+                {:ok, path, length(frames), frames}
+
+              {:error, reason} ->
+                {:error, path, reason}
+            end
           end
-        end
-      end,
-      max_concurrency: System.schedulers_online(),
-      timeout: :infinity
-    )
-    |> Enum.reduce({[], []}, fn
-      {:ok, {:ok, _path, _count, frames}}, {all_frames, errors} ->
-        {[frames | all_frames], errors}
+        end,
+        max_concurrency: System.schedulers_online(),
+        timeout: :infinity
+      )
+      |> Enum.reduce({[], []}, fn
+        {:ok, {:ok, _path, _count, frames}}, {all_frames, errors} ->
+          {[frames | all_frames], errors}
 
-      {:ok, {:error, path, reason}}, {all_frames, errors} ->
-        {all_frames, [{path, reason} | errors]}
+        {:ok, {:error, path, reason}}, {all_frames, errors} ->
+          {all_frames, [{path, reason} | errors]}
 
-      {:exit, reason}, {all_frames, errors} ->
-        {all_frames, [{:unknown, {:exit, reason}} | errors]}
-    end)
+        {:exit, reason}, {all_frames, errors} ->
+          {all_frames, [{:unknown, {:exit, reason}} | errors]}
+      end)
 
     {:ok, List.flatten(all_frames), Enum.reverse(errors)}
   end
@@ -127,17 +138,19 @@ defmodule ExPhil.Training.Streaming do
       {:ok, meta} ->
         ports = Enum.map(meta.players, & &1.port)
 
-        all_frames = Enum.flat_map(ports, fn port ->
-          case Peppi.parse(path, player_port: port) do
-            {:ok, replay} ->
-              Peppi.to_training_frames(replay,
-                player_port: port,
-                frame_delay: frame_delay
-              )
-            {:error, _} ->
-              []
-          end
-        end)
+        all_frames =
+          Enum.flat_map(ports, fn port ->
+            case Peppi.parse(path, player_port: port) do
+              {:ok, replay} ->
+                Peppi.to_training_frames(replay,
+                  player_port: port,
+                  frame_delay: frame_delay
+                )
+
+              {:error, _} ->
+                []
+            end
+          end)
 
         {:ok, path, length(all_frames), all_frames}
 
@@ -171,8 +184,17 @@ defmodule ExPhil.Training.Streaming do
 
     # Build from_frames options with embed_config and player_registry if provided
     from_frames_opts = []
-    from_frames_opts = if embed_config, do: [{:embed_config, embed_config} | from_frames_opts], else: from_frames_opts
-    from_frames_opts = if player_registry, do: [{:player_registry, player_registry} | from_frames_opts], else: from_frames_opts
+
+    from_frames_opts =
+      if embed_config,
+        do: [{:embed_config, embed_config} | from_frames_opts],
+        else: from_frames_opts
+
+    from_frames_opts =
+      if player_registry,
+        do: [{:player_registry, player_registry} | from_frames_opts],
+        else: from_frames_opts
+
     dataset = Data.from_frames(frames, from_frames_opts)
 
     if temporal do
@@ -191,7 +213,8 @@ defmodule ExPhil.Training.Streaming do
   This is useful for progress tracking and should be called once at startup.
   Uses sampling to estimate if there are many files.
   """
-  @spec estimate_total_examples([String.t() | {String.t(), integer()}], keyword()) :: {:ok, integer()}
+  @spec estimate_total_examples([String.t() | {String.t(), integer()}], keyword()) ::
+          {:ok, integer()}
   def estimate_total_examples(files, opts \\ []) do
     sample_size = min(10, length(files))
 

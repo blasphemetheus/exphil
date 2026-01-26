@@ -68,27 +68,29 @@ defmodule ExPhil.SelfPlay.ExperienceCollector do
     :ready_callback,
     :total_submitted,
     :batches_produced,
-    :pending_requests,   # List of {from, size} for get_batch callers
-    :auto_batch          # Whether to auto-call callback when batch ready
+    # List of {from, size} for get_batch callers
+    :pending_requests,
+    # Whether to auto-call callback when batch ready
+    :auto_batch
   ]
 
   @type experience :: %{
-    state: Nx.Tensor.t(),
-    action: map(),
-    log_prob: Nx.Tensor.t(),
-    value: Nx.Tensor.t(),
-    reward: float(),
-    done: boolean()
-  }
+          state: Nx.Tensor.t(),
+          action: map(),
+          log_prob: Nx.Tensor.t(),
+          value: Nx.Tensor.t(),
+          reward: float(),
+          done: boolean()
+        }
 
   @type batch :: %{
-    states: Nx.Tensor.t(),
-    actions: map(),
-    log_probs: Nx.Tensor.t(),
-    values: Nx.Tensor.t(),
-    rewards: Nx.Tensor.t(),
-    dones: Nx.Tensor.t()
-  }
+          states: Nx.Tensor.t(),
+          actions: map(),
+          log_probs: Nx.Tensor.t(),
+          values: Nx.Tensor.t(),
+          rewards: Nx.Tensor.t(),
+          dones: Nx.Tensor.t()
+        }
 
   @default_opts %{
     batch_size: 2048,
@@ -197,7 +199,9 @@ defmodule ExPhil.SelfPlay.ExperienceCollector do
       auto_batch: auto_batch
     }
 
-    Logger.debug("[ExperienceCollector] Started with batch_size=#{batch_size}, max_buffer=#{max_buffer_size}")
+    Logger.debug(
+      "[ExperienceCollector] Started with batch_size=#{batch_size}, max_buffer=#{max_buffer_size}"
+    )
 
     {:ok, state}
   end
@@ -223,17 +227,12 @@ defmodule ExPhil.SelfPlay.ExperienceCollector do
       {batch_exps, remaining} = Enum.split(state.buffer, size)
       batch = experiences_to_batch(batch_exps)
 
-      new_state = %{state |
-        buffer: remaining,
-        batches_produced: state.batches_produced + 1
-      }
+      new_state = %{state | buffer: remaining, batches_produced: state.batches_produced + 1}
 
       {:reply, {:ok, batch}, new_state}
     else
       # Not enough, add to pending requests
-      new_state = %{state |
-        pending_requests: [{from, size} | state.pending_requests]
-      }
+      new_state = %{state | pending_requests: [{from, size} | state.pending_requests]}
       {:noreply, new_state}
     end
   end
@@ -242,10 +241,7 @@ defmodule ExPhil.SelfPlay.ExperienceCollector do
   def handle_call(:get_all, _from, state) do
     if length(state.buffer) > 0 do
       batch = experiences_to_batch(state.buffer)
-      new_state = %{state |
-        buffer: [],
-        batches_produced: state.batches_produced + 1
-      }
+      new_state = %{state | buffer: [], batches_produced: state.batches_produced + 1}
       {:reply, {:ok, batch}, new_state}
     else
       {:reply, {:ok, empty_batch()}, state}
@@ -255,15 +251,18 @@ defmodule ExPhil.SelfPlay.ExperienceCollector do
   @impl true
   def handle_call(:flush, _from, state) do
     remaining = state.buffer
-    batch = if length(remaining) > 0 do
-      experiences_to_batch(remaining)
-    else
-      empty_batch()
-    end
 
-    new_state = %{state |
-      buffer: [],
-      batches_produced: state.batches_produced + (if length(remaining) > 0, do: 1, else: 0)
+    batch =
+      if length(remaining) > 0 do
+        experiences_to_batch(remaining)
+      else
+        empty_batch()
+      end
+
+    new_state = %{
+      state
+      | buffer: [],
+        batches_produced: state.batches_produced + if(length(remaining) > 0, do: 1, else: 0)
     }
 
     {:reply, {:ok, batch}, new_state}
@@ -284,17 +283,20 @@ defmodule ExPhil.SelfPlay.ExperienceCollector do
       batches_produced: state.batches_produced,
       pending_requests: length(state.pending_requests)
     }
+
     {:reply, stats, state}
   end
 
   @impl true
   def handle_call(:reset, _from, state) do
-    new_state = %{state |
-      buffer: [],
-      total_submitted: 0,
-      batches_produced: 0,
-      pending_requests: []
+    new_state = %{
+      state
+      | buffer: [],
+        total_submitted: 0,
+        batches_produced: 0,
+        pending_requests: []
     }
+
     {:reply, :ok, new_state}
   end
 
@@ -307,18 +309,20 @@ defmodule ExPhil.SelfPlay.ExperienceCollector do
     new_total = state.total_submitted + length(experiences)
 
     # Trim if over max size (drop oldest)
-    trimmed_buffer = if length(new_buffer) > state.max_buffer_size do
-      excess = length(new_buffer) - state.max_buffer_size
-      Logger.warning("[ExperienceCollector] Buffer overflow, dropping #{excess} oldest experiences")
-      Enum.drop(new_buffer, excess)
-    else
-      new_buffer
-    end
+    trimmed_buffer =
+      if length(new_buffer) > state.max_buffer_size do
+        excess = length(new_buffer) - state.max_buffer_size
 
-    %{state |
-      buffer: trimmed_buffer,
-      total_submitted: new_total
-    }
+        Logger.warning(
+          "[ExperienceCollector] Buffer overflow, dropping #{excess} oldest experiences"
+        )
+
+        Enum.drop(new_buffer, excess)
+      else
+        new_buffer
+      end
+
+    %{state | buffer: trimmed_buffer, total_submitted: new_total}
   end
 
   defp maybe_process_batch(state) do
@@ -330,9 +334,10 @@ defmodule ExPhil.SelfPlay.ExperienceCollector do
   defp maybe_serve_pending_requests(state) do
     buffer_len = length(state.buffer)
 
-    {fulfilled, remaining_requests} = Enum.split_with(state.pending_requests, fn {_from, size} ->
-      buffer_len >= size
-    end)
+    {fulfilled, remaining_requests} =
+      Enum.split_with(state.pending_requests, fn {_from, size} ->
+        buffer_len >= size
+      end)
 
     if length(fulfilled) > 0 do
       # Serve the first fulfilled request (FIFO order)
@@ -343,10 +348,11 @@ defmodule ExPhil.SelfPlay.ExperienceCollector do
 
       GenServer.reply(from, {:ok, batch})
 
-      new_state = %{state |
-        buffer: remaining_buffer,
-        batches_produced: state.batches_produced + 1,
-        pending_requests: Enum.reverse(rest_fulfilled) ++ remaining_requests
+      new_state = %{
+        state
+        | buffer: remaining_buffer,
+          batches_produced: state.batches_produced + 1,
+          pending_requests: Enum.reverse(rest_fulfilled) ++ remaining_requests
       }
 
       # Recursively check if more requests can be served
@@ -369,10 +375,7 @@ defmodule ExPhil.SelfPlay.ExperienceCollector do
       callback = state.ready_callback
       Task.start(fn -> callback.(batch) end)
 
-      new_state = %{state |
-        buffer: remaining,
-        batches_produced: state.batches_produced + 1
-      }
+      new_state = %{state | buffer: remaining, batches_produced: state.batches_produced + 1}
 
       # Check if another batch can be produced
       maybe_auto_batch(new_state)
@@ -387,36 +390,41 @@ defmodule ExPhil.SelfPlay.ExperienceCollector do
 
   defp experiences_to_batch(experiences) do
     # Stack states
-    states = experiences
-    |> Enum.map(& &1.state)
-    |> stack_tensors()
+    states =
+      experiences
+      |> Enum.map(& &1.state)
+      |> stack_tensors()
 
     # Stack scalar values
-    rewards = experiences
-    |> Enum.map(& &1.reward)
-    |> Nx.tensor(type: :f32)
+    rewards =
+      experiences
+      |> Enum.map(& &1.reward)
+      |> Nx.tensor(type: :f32)
 
-    dones = experiences
-    |> Enum.map(& if(&1.done, do: 1.0, else: 0.0))
-    |> Nx.tensor(type: :f32)
+    dones =
+      experiences
+      |> Enum.map(&if(&1.done, do: 1.0, else: 0.0))
+      |> Nx.tensor(type: :f32)
 
-    values = experiences
-    |> Enum.map(fn exp ->
-      case exp.value do
-        %Nx.Tensor{} = t -> Nx.to_number(t)
-        n when is_number(n) -> n
-      end
-    end)
-    |> Nx.tensor(type: :f32)
+    values =
+      experiences
+      |> Enum.map(fn exp ->
+        case exp.value do
+          %Nx.Tensor{} = t -> Nx.to_number(t)
+          n when is_number(n) -> n
+        end
+      end)
+      |> Nx.tensor(type: :f32)
 
-    log_probs = experiences
-    |> Enum.map(fn exp ->
-      case exp.log_prob do
-        %Nx.Tensor{} = t -> Nx.to_number(t)
-        n when is_number(n) -> n
-      end
-    end)
-    |> Nx.tensor(type: :f32)
+    log_probs =
+      experiences
+      |> Enum.map(fn exp ->
+        case exp.log_prob do
+          %Nx.Tensor{} = t -> Nx.to_number(t)
+          n when is_number(n) -> n
+        end
+      end)
+      |> Nx.tensor(type: :f32)
 
     # Stack actions (map of tensors)
     actions = stack_actions(Enum.map(experiences, & &1.action))
@@ -435,12 +443,13 @@ defmodule ExPhil.SelfPlay.ExperienceCollector do
 
   defp stack_tensors(tensors) do
     # Handle both raw tensors and tensors that need squeezing
-    processed = Enum.map(tensors, fn t ->
-      case Nx.shape(t) do
-        {1, _n} -> Nx.squeeze(t, axes: [0])
-        _ -> t
-      end
-    end)
+    processed =
+      Enum.map(tensors, fn t ->
+        case Nx.shape(t) do
+          {1, _n} -> Nx.squeeze(t, axes: [0])
+          _ -> t
+        end
+      end)
 
     Nx.stack(processed)
   end
@@ -451,13 +460,14 @@ defmodule ExPhil.SelfPlay.ExperienceCollector do
     keys = Map.keys(hd(actions_list))
 
     Map.new(keys, fn key ->
-      values = Enum.map(actions_list, fn action ->
-        case Map.get(action, key) do
-          %Nx.Tensor{} = t -> t
-          n when is_number(n) -> Nx.tensor(n)
-          other -> Nx.tensor(other)
-        end
-      end)
+      values =
+        Enum.map(actions_list, fn action ->
+          case Map.get(action, key) do
+            %Nx.Tensor{} = t -> t
+            n when is_number(n) -> Nx.tensor(n)
+            other -> Nx.tensor(other)
+          end
+        end)
 
       {key, Nx.stack(values)}
     end)

@@ -43,56 +43,65 @@ defmodule ExPhil.Embeddings.SnapshotTest do
 
   describe "Player.embed/1 snapshots" do
     test "neutral standing player" do
-      player = build_player(
-        character: 10,  # Mewtwo
-        x: 0.0,
-        y: 0.0,
-        percent: 0.0,
-        stock: 4,
-        facing: 1,
-        action: 14,  # Wait
-        on_ground: true
-      )
+      player =
+        build_player(
+          # Mewtwo
+          character: 10,
+          x: 0.0,
+          y: 0.0,
+          percent: 0.0,
+          stock: 4,
+          facing: 1,
+          # Wait
+          action: 14,
+          on_ground: true
+        )
 
       embedding = Player.embed(player)
       assert_snapshot("player_neutral_standing", embedding)
     end
 
     test "player in hitstun airborne" do
-      player = build_player(
-        character: 2,  # Fox
-        x: 45.0,
-        y: 30.0,
-        percent: 85.0,
-        stock: 3,
-        facing: -1,
-        action: 75,  # Damage fly
-        action_frame: 8,
-        on_ground: false,
-        jumps_left: 1,
-        hitstun_frames_left: 15,
-        speed_air_x_self: 2.5,
-        speed_y_self: -1.2,
-        speed_x_attack: 1.8,
-        speed_y_attack: 2.0
-      )
+      player =
+        build_player(
+          # Fox
+          character: 2,
+          x: 45.0,
+          y: 30.0,
+          percent: 85.0,
+          stock: 3,
+          facing: -1,
+          # Damage fly
+          action: 75,
+          action_frame: 8,
+          on_ground: false,
+          jumps_left: 1,
+          hitstun_frames_left: 15,
+          speed_air_x_self: 2.5,
+          speed_y_self: -1.2,
+          speed_x_attack: 1.8,
+          speed_y_attack: 2.0
+        )
 
       embedding = Player.embed(player)
       assert_snapshot("player_hitstun_airborne", embedding)
     end
 
     test "player shielding low health" do
-      player = build_player(
-        character: 9,  # Marth
-        x: -20.0,
-        y: 0.0,
-        percent: 120.0,
-        stock: 1,
-        facing: 1,
-        action: 178,  # Shield
-        shield_strength: 35.0,
-        on_ground: true
-      )
+      player =
+        build_player(
+          # Marth
+          character: 9,
+          x: -20.0,
+          y: 0.0,
+          percent: 120.0,
+          stock: 1,
+          facing: 1,
+          # Shield
+          action: 178,
+          shield_strength: 35.0,
+          on_ground: true
+        )
 
       embedding = Player.embed(player)
       assert_snapshot("player_shielding_low", embedding)
@@ -139,20 +148,23 @@ defmodule ExPhil.Embeddings.SnapshotTest do
     end
 
     test "attack input" do
-      controller = build_controller_state(
-        button_a: true,
-        main_stick: %{x: 0.8, y: 0.5}  # Forward tilt
-      )
+      controller =
+        build_controller_state(
+          button_a: true,
+          # Forward tilt
+          main_stick: %{x: 0.8, y: 0.5}
+        )
 
       embedding = Controller.embed_continuous(controller)
       assert_snapshot("controller_attack", embedding)
     end
 
     test "shield input" do
-      controller = build_controller_state(
-        button_r: true,
-        l_shoulder: 0.9
-      )
+      controller =
+        build_controller_state(
+          button_r: true,
+          l_shoulder: 0.9
+        )
 
       embedding = Controller.embed_continuous(controller)
       assert_snapshot("controller_shield", embedding)
@@ -200,9 +212,10 @@ defmodule ExPhil.Embeddings.SnapshotTest do
         shape = List.to_tuple(data["shape"])
         type = String.to_atom(data["type"])
 
-        tensor = data["values"]
-        |> Nx.tensor(type: {type, 32})
-        |> Nx.reshape(shape)
+        tensor =
+          data["values"]
+          |> Nx.tensor(type: {type, 32})
+          |> Nx.reshape(shape)
 
         {:ok, tensor}
 

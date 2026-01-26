@@ -1,5 +1,6 @@
 defmodule ExPhil.Training.AsyncCheckpointTest do
-  use ExUnit.Case, async: false  # Not async because it uses a named GenServer
+  # Not async because it uses a named GenServer
+  use ExUnit.Case, async: false
 
   alias ExPhil.Training.AsyncCheckpoint
 
@@ -37,11 +38,12 @@ defmodule ExPhil.Training.AsyncCheckpointTest do
     end
 
     test "handles multiple concurrent saves" do
-      paths = for i <- 1..5 do
-        path = Path.join(System.tmp_dir!(), "async_multi_#{i}_#{System.unique_integer()}.axon")
-        on_exit(fn -> File.rm(path) end)
-        path
-      end
+      paths =
+        for i <- 1..5 do
+          path = Path.join(System.tmp_dir!(), "async_multi_#{i}_#{System.unique_integer()}.axon")
+          on_exit(fn -> File.rm(path) end)
+          path
+        end
 
       # Queue multiple saves
       for {path, i} <- Enum.with_index(paths, 1) do
@@ -74,7 +76,8 @@ defmodule ExPhil.Training.AsyncCheckpointTest do
 
       # Should show as pending
       count = AsyncCheckpoint.pending_count()
-      assert count >= 0  # Might already be done on fast systems
+      # Might already be done on fast systems
+      assert count >= 0
 
       AsyncCheckpoint.await_pending()
       assert AsyncCheckpoint.pending_count() == 0

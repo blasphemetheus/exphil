@@ -12,7 +12,8 @@ alias ExPhil.Data.Peppi
 defmodule ReplayAnalyzer do
   @default_opts [
     top_actions: 15,
-    player_port: nil,  # nil = auto-detect
+    # nil = auto-detect
+    player_port: nil,
     show_stages: true,
     show_positions: true
   ]
@@ -47,24 +48,25 @@ defmodule ReplayAnalyzer do
   end
 
   defp parse_args(args) do
-    {opts, _rest, _invalid} = OptionParser.parse(args,
-      strict: [
-        replays: :string,
-        player_port: :integer,
-        top_actions: :integer,
-        show_stages: :boolean,
-        show_positions: :boolean,
-        character: :string,
-        help: :boolean
-      ],
-      aliases: [
-        r: :replays,
-        p: :player_port,
-        n: :top_actions,
-        c: :character,
-        h: :help
-      ]
-    )
+    {opts, _rest, _invalid} =
+      OptionParser.parse(args,
+        strict: [
+          replays: :string,
+          player_port: :integer,
+          top_actions: :integer,
+          show_stages: :boolean,
+          show_positions: :boolean,
+          character: :string,
+          help: :boolean
+        ],
+        aliases: [
+          r: :replays,
+          p: :player_port,
+          n: :top_actions,
+          c: :character,
+          h: :help
+        ]
+      )
 
     if opts[:help] do
       print_help()
@@ -115,18 +117,19 @@ defmodule ReplayAnalyzer do
   defp parse_all_replays(files) do
     total = length(files)
 
-    results = files
-    |> Enum.with_index(1)
-    |> Enum.map(fn {file, idx} ->
-      if rem(idx, 10) == 0 or idx == total do
-        Output.progress_bar(idx, total, label: "Parsing")
-      end
+    results =
+      files
+      |> Enum.with_index(1)
+      |> Enum.map(fn {file, idx} ->
+        if rem(idx, 10) == 0 or idx == total do
+          Output.progress_bar(idx, total, label: "Parsing")
+        end
 
-      case parse_replay(file) do
-        {:ok, data} -> {:ok, data}
-        {:error, _} -> :error
-      end
-    end)
+        case parse_replay(file) do
+          {:ok, data} -> {:ok, data}
+          {:error, _} -> :error
+        end
+      end)
 
     Output.progress_done()
 
@@ -149,7 +152,10 @@ defmodule ReplayAnalyzer do
     # Extract player info from metadata
     players = replay.metadata.players
     p1 = Enum.find(players, &(&1.port == 1)) || Enum.at(players, 0)
-    p2 = Enum.find(players, &(&1.port == 2)) || Enum.find(players, &(&1.port == 3)) || Enum.at(players, 1)
+
+    p2 =
+      Enum.find(players, &(&1.port == 2)) || Enum.find(players, &(&1.port == 3)) ||
+        Enum.at(players, 1)
 
     %{
       file: replay.metadata.path,
@@ -186,11 +192,13 @@ defmodule ReplayAnalyzer do
 
     Enum.flat_map(replays, fn replay ->
       # Determine which port to use
-      port = cond do
-        player_port -> player_port
-        target_char -> find_character_port(replay, target_char)
-        true -> 1  # Default to port 1
-      end
+      port =
+        cond do
+          player_port -> player_port
+          target_char -> find_character_port(replay, target_char)
+          # Default to port 1
+          true -> 1
+        end
 
       extract_player_frames(replay, port)
     end)
@@ -214,23 +222,29 @@ defmodule ReplayAnalyzer do
       case frame do
         %Peppi.GameFrame{players: players} ->
           player = Map.get(players, port)
+
           if player do
             ctrl = player.controller || %{}
-            [%{
-              action_state: player.action,
-              position_x: player.x,
-              position_y: player.y,
-              buttons: extract_buttons(ctrl),
-              main_stick_x: (ctrl.main_stick_x || 0.5) - 0.5,  # Normalize to -0.5 to 0.5
-              main_stick_y: (ctrl.main_stick_y || 0.5) - 0.5,
-              c_stick_x: (ctrl.c_stick_x || 0.5) - 0.5,
-              c_stick_y: (ctrl.c_stick_y || 0.5) - 0.5,
-              stocks: player.stock,
-              percent: player.percent
-            }]
+
+            [
+              %{
+                action_state: player.action,
+                position_x: player.x,
+                position_y: player.y,
+                buttons: extract_buttons(ctrl),
+                # Normalize to -0.5 to 0.5
+                main_stick_x: (ctrl.main_stick_x || 0.5) - 0.5,
+                main_stick_y: (ctrl.main_stick_y || 0.5) - 0.5,
+                c_stick_x: (ctrl.c_stick_x || 0.5) - 0.5,
+                c_stick_y: (ctrl.c_stick_y || 0.5) - 0.5,
+                stocks: player.stock,
+                percent: player.percent
+              }
+            ]
           else
             []
           end
+
         _ ->
           []
       end
@@ -294,9 +308,10 @@ defmodule ReplayAnalyzer do
   defp safe_mean(list), do: Enum.sum(list) / length(list)
 
   defp safe_std([]), do: 0.0
+
   defp safe_std(list) do
     mean = safe_mean(list)
-    variance = list |> Enum.map(&(:math.pow(&1 - mean, 2))) |> safe_mean()
+    variance = list |> Enum.map(&:math.pow(&1 - mean, 2)) |> safe_mean()
     :math.sqrt(variance)
   end
 
@@ -310,7 +325,7 @@ defmodule ReplayAnalyzer do
 
   defp count_characters(replays) do
     (Enum.map(replays, &(&1[:p1_character] || &1["p1_character"])) ++
-     Enum.map(replays, &(&1[:p2_character] || &1["p2_character"])))
+       Enum.map(replays, &(&1[:p2_character] || &1["p2_character"])))
     |> Enum.reject(&is_nil/1)
     |> Enum.frequencies()
     |> Enum.sort_by(fn {_char, count} -> -count end)
@@ -341,18 +356,19 @@ defmodule ReplayAnalyzer do
   defp analyze_outcomes(replays, opts) do
     player_port = opts[:player_port] || 1
 
-    results = Enum.map(replays, fn replay ->
-      # Try to determine winner from final stocks
-      p1_stocks = get_final_stocks(replay, 1)
-      p2_stocks = get_final_stocks(replay, 2)
+    results =
+      Enum.map(replays, fn replay ->
+        # Try to determine winner from final stocks
+        p1_stocks = get_final_stocks(replay, 1)
+        p2_stocks = get_final_stocks(replay, 2)
 
-      cond do
-        is_nil(p1_stocks) or is_nil(p2_stocks) -> :unknown
-        p1_stocks > p2_stocks -> if player_port == 1, do: :win, else: :loss
-        p2_stocks > p1_stocks -> if player_port == 2, do: :win, else: :loss
-        true -> :draw
-      end
-    end)
+        cond do
+          is_nil(p1_stocks) or is_nil(p2_stocks) -> :unknown
+          p1_stocks > p2_stocks -> if player_port == 1, do: :win, else: :loss
+          p2_stocks > p1_stocks -> if player_port == 2, do: :win, else: :loss
+          true -> :draw
+        end
+      end)
 
     %{
       wins: Enum.count(results, &(&1 == :win)),
@@ -366,11 +382,15 @@ defmodule ReplayAnalyzer do
     frames = replay.frames || []
 
     case List.last(frames) do
-      nil -> nil
+      nil ->
+        nil
+
       %Peppi.GameFrame{players: players} ->
         player = Map.get(players, port)
         player && player.stock
-      _ -> nil
+
+      _ ->
+        nil
     end
   end
 
@@ -389,7 +409,11 @@ defmodule ReplayAnalyzer do
     Output.puts("Summary:")
     Output.puts("  Total replays: #{analysis.total_replays}")
     Output.puts("  Total frames: #{analysis.total_frames}")
-    Output.puts("  Avg frames/replay: #{div(analysis.total_frames, max(analysis.total_replays, 1))}")
+
+    Output.puts(
+      "  Avg frames/replay: #{div(analysis.total_frames, max(analysis.total_replays, 1))}"
+    )
+
     Output.puts("")
 
     # Game outcomes
@@ -400,9 +424,11 @@ defmodule ReplayAnalyzer do
       Output.puts("  Wins: #{analysis.game_outcomes.wins}")
       Output.puts("  Losses: #{analysis.game_outcomes.losses}")
       Output.puts("  Win Rate: #{Float.round(win_rate, 1)}%")
+
       if analysis.game_outcomes.unknown > 0 do
         Output.puts("  Unknown: #{analysis.game_outcomes.unknown}")
       end
+
       Output.puts("")
     end
 
@@ -418,8 +444,12 @@ defmodule ReplayAnalyzer do
       pct = count / total_actions * 100
       bar_len = round(pct / 2)
       bar = String.duplicate("█", bar_len)
-      Output.puts("  #{String.pad_trailing(to_string(action), 25)} #{String.pad_leading(Integer.to_string(count), 8)} (#{Float.round(pct, 1)}%) #{bar}")
+
+      Output.puts(
+        "  #{String.pad_trailing(to_string(action), 25)} #{String.pad_leading(Integer.to_string(count), 8)} (#{Float.round(pct, 1)}%) #{bar}"
+      )
     end)
+
     Output.puts("")
 
     # Check for problematic actions
@@ -441,11 +471,16 @@ defmodule ReplayAnalyzer do
       # Warn about bias
       if abs(stick.right_bias - stick.left_bias) > 0.1 do
         if stick.right_bias > stick.left_bias do
-          Output.warning("Right stick bias detected (#{Float.round((stick.right_bias - stick.left_bias) * 100, 1)}% more right)")
+          Output.warning(
+            "Right stick bias detected (#{Float.round((stick.right_bias - stick.left_bias) * 100, 1)}% more right)"
+          )
         else
-          Output.warning("Left stick bias detected (#{Float.round((stick.left_bias - stick.right_bias) * 100, 1)}% more left)")
+          Output.warning(
+            "Left stick bias detected (#{Float.round((stick.left_bias - stick.right_bias) * 100, 1)}% more left)"
+          )
         end
       end
+
       Output.puts("")
     end
 
@@ -460,26 +495,33 @@ defmodule ReplayAnalyzer do
       Output.puts("  Airborne: #{Float.round(pos.airborne, 1)}%")
 
       if pos.offstage_left + pos.offstage_right > 20 do
-        Output.warning("High offstage time (#{Float.round(pos.offstage_left + pos.offstage_right, 1)}%) - model may learn risky offstage behavior")
+        Output.warning(
+          "High offstage time (#{Float.round(pos.offstage_left + pos.offstage_right, 1)}%) - model may learn risky offstage behavior"
+        )
       end
+
       Output.puts("")
     end
 
     # Stage breakdown
     if opts[:show_stages] && length(analysis.stage_counts) > 0 do
       Output.puts("Stages:")
+
       Enum.each(analysis.stage_counts, fn {stage, count} ->
         Output.puts("  #{stage}: #{count}")
       end)
+
       Output.puts("")
     end
 
     # Character breakdown
     if length(analysis.character_counts) > 0 do
       Output.puts("Characters:")
+
       Enum.each(analysis.character_counts, fn {char, count} ->
         Output.puts("  #{char}: #{count}")
       end)
+
       Output.puts("")
     end
 
@@ -487,18 +529,30 @@ defmodule ReplayAnalyzer do
   end
 
   defp print_action_warnings(_action_counts, 0), do: Output.puts("")
+
   defp print_action_warnings(action_counts, total) do
     # Look for potentially problematic patterns
     action_map = Map.new(action_counts)
 
     # Check for high roll usage
-    roll_actions = [:roll_forward, :roll_backward, :ROLL_F, :ROLL_B,
-                    "RollForward", "RollBackward", 232, 233]
+    roll_actions = [
+      :roll_forward,
+      :roll_backward,
+      :ROLL_F,
+      :ROLL_B,
+      "RollForward",
+      "RollBackward",
+      232,
+      233
+    ]
+
     roll_count = roll_actions |> Enum.map(&Map.get(action_map, &1, 0)) |> Enum.sum()
     roll_pct = roll_count / total * 100
 
     if roll_pct > 5 do
-      Output.warning("High roll usage (#{Float.round(roll_pct, 1)}%) - may lead to predictable defensive patterns")
+      Output.warning(
+        "High roll usage (#{Float.round(roll_pct, 1)}%) - may lead to predictable defensive patterns"
+      )
     end
 
     # Check for high airdodge
@@ -511,9 +565,27 @@ defmodule ReplayAnalyzer do
     end
 
     # Check for dead/respawn states (indicates deaths)
-    dead_actions = [:dead_down, :dead_left, :dead_right, :dead_up, :rebirth, :rebirth_wait,
-                    :DEAD_DOWN, :DEAD_LEFT, :DEAD_RIGHT, :DEAD_UP, :REBIRTH, :REBIRTH_WAIT,
-                    0, 1, 2, 3, 4, 5]
+    dead_actions = [
+      :dead_down,
+      :dead_left,
+      :dead_right,
+      :dead_up,
+      :rebirth,
+      :rebirth_wait,
+      :DEAD_DOWN,
+      :DEAD_LEFT,
+      :DEAD_RIGHT,
+      :DEAD_UP,
+      :REBIRTH,
+      :REBIRTH_WAIT,
+      0,
+      1,
+      2,
+      3,
+      4,
+      5
+    ]
+
     dead_count = dead_actions |> Enum.map(&Map.get(action_map, &1, 0)) |> Enum.sum()
     dead_pct = dead_count / total * 100
 

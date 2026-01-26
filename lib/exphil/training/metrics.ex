@@ -100,35 +100,42 @@ defmodule ExPhil.Training.Metrics do
   """
   def compute_rare_action_accuracy(predictions, targets) do
     rare_buttons = [:z, :l, :r]
-    rare_indices = [4, 5, 6]  # Z=4, L=5, R=6 in button order
+    # Z=4, L=5, R=6 in button order
+    rare_indices = [4, 5, 6]
 
     if Map.has_key?(targets, :buttons) do
-      accuracies = Enum.zip(rare_buttons, rare_indices)
-      |> Enum.map(fn {name, idx} ->
-        pred_key = :"button_#{idx}"
+      accuracies =
+        Enum.zip(rare_buttons, rare_indices)
+        |> Enum.map(fn {name, idx} ->
+          pred_key = :"button_#{idx}"
 
-        if Map.has_key?(predictions, pred_key) do
-          pred = predictions[pred_key]
-          target = Nx.slice_along_axis(targets.buttons, idx, 1, axis: -1) |> Nx.squeeze(axes: [-1])
+          if Map.has_key?(predictions, pred_key) do
+            pred = predictions[pred_key]
 
-          # Only compute accuracy where target is pressed (positive examples)
-          target_pressed = Nx.greater(target, 0.5)
-          num_pressed = Nx.sum(target_pressed) |> Nx.to_number()
+            target =
+              Nx.slice_along_axis(targets.buttons, idx, 1, axis: -1) |> Nx.squeeze(axes: [-1])
 
-          if num_pressed > 0 do
-            pred_binary = Nx.greater(pred, 0)
-            correct_when_pressed = Nx.logical_and(Nx.equal(pred_binary, target_pressed), target_pressed)
-            recall = Nx.sum(correct_when_pressed) |> Nx.to_number() |> Kernel./(num_pressed)
-            {name, recall}
+            # Only compute accuracy where target is pressed (positive examples)
+            target_pressed = Nx.greater(target, 0.5)
+            num_pressed = Nx.sum(target_pressed) |> Nx.to_number()
+
+            if num_pressed > 0 do
+              pred_binary = Nx.greater(pred, 0)
+
+              correct_when_pressed =
+                Nx.logical_and(Nx.equal(pred_binary, target_pressed), target_pressed)
+
+              recall = Nx.sum(correct_when_pressed) |> Nx.to_number() |> Kernel./(num_pressed)
+              {name, recall}
+            else
+              {name, nil}
+            end
           else
             {name, nil}
           end
-        else
-          {name, nil}
-        end
-      end)
-      |> Enum.reject(fn {_, v} -> is_nil(v) end)
-      |> Map.new()
+        end)
+        |> Enum.reject(fn {_, v} -> is_nil(v) end)
+        |> Map.new()
 
       accuracies
     else
@@ -144,52 +151,68 @@ defmodule ExPhil.Training.Metrics do
     lines = []
 
     # Button accuracy
-    lines = if Map.has_key?(metrics, :button_accuracy) and map_size(metrics.button_accuracy) > 0 do
-      button_str = metrics.button_accuracy
-      |> Enum.map(fn {k, v} -> "#{k}=#{Float.round(v * 100, 1)}%" end)
-      |> Enum.join(" ")
-      ["Buttons: #{button_str}" | lines]
-    else
-      lines
-    end
+    lines =
+      if Map.has_key?(metrics, :button_accuracy) and map_size(metrics.button_accuracy) > 0 do
+        button_str =
+          metrics.button_accuracy
+          |> Enum.map(fn {k, v} -> "#{k}=#{Float.round(v * 100, 1)}%" end)
+          |> Enum.join(" ")
+
+        ["Buttons: #{button_str}" | lines]
+      else
+        lines
+      end
 
     # Stick MSE
-    lines = if Map.has_key?(metrics, :stick_mse) and map_size(metrics.stick_mse) > 0 do
-      stick_str = metrics.stick_mse
-      |> Enum.map(fn {k, v} -> "#{k}=#{Float.round(v, 4)}" end)
-      |> Enum.join(" ")
-      ["Sticks: #{stick_str}" | lines]
-    else
-      lines
-    end
+    lines =
+      if Map.has_key?(metrics, :stick_mse) and map_size(metrics.stick_mse) > 0 do
+        stick_str =
+          metrics.stick_mse
+          |> Enum.map(fn {k, v} -> "#{k}=#{Float.round(v, 4)}" end)
+          |> Enum.join(" ")
+
+        ["Sticks: #{stick_str}" | lines]
+      else
+        lines
+      end
 
     # Rare action accuracy
-    lines = if Map.has_key?(metrics, :rare_action_accuracy) and map_size(metrics.rare_action_accuracy) > 0 do
-      rare_str = metrics.rare_action_accuracy
-      |> Enum.map(fn {k, v} -> "#{k}=#{Float.round(v * 100, 1)}%" end)
-      |> Enum.join(" ")
-      ["Rare (recall): #{rare_str}" | lines]
-    else
-      lines
-    end
+    lines =
+      if Map.has_key?(metrics, :rare_action_accuracy) and
+           map_size(metrics.rare_action_accuracy) > 0 do
+        rare_str =
+          metrics.rare_action_accuracy
+          |> Enum.map(fn {k, v} -> "#{k}=#{Float.round(v * 100, 1)}%" end)
+          |> Enum.join(" ")
+
+        ["Rare (recall): #{rare_str}" | lines]
+      else
+        lines
+      end
 
     # Summary
     summary_parts = []
-    summary_parts = if Map.has_key?(metrics, :overall_button_accuracy) do
-      ["btn_acc=#{Float.round(metrics.overall_button_accuracy * 100, 1)}%" | summary_parts]
-    else
-      summary_parts
-    end
-    summary_parts = if Map.has_key?(metrics, :overall_stick_mse) do
-      ["stick_mse=#{Float.round(metrics.overall_stick_mse, 4)}" | summary_parts]
-    else
-      summary_parts
-    end
-    lines = if length(summary_parts) > 0 do
-      ["Summary: #{Enum.join(summary_parts, " ")}" | lines]
-    else
-      lines
-    end
+
+    summary_parts =
+      if Map.has_key?(metrics, :overall_button_accuracy) do
+        ["btn_acc=#{Float.round(metrics.overall_button_accuracy * 100, 1)}%" | summary_parts]
+      else
+        summary_parts
+      end
+
+    summary_parts =
+      if Map.has_key?(metrics, :overall_stick_mse) do
+        ["stick_mse=#{Float.round(metrics.overall_stick_mse, 4)}" | summary_parts]
+      else
+        summary_parts
+      end
+
+    lines =
+      if length(summary_parts) > 0 do
+        ["Summary: #{Enum.join(summary_parts, " ")}" | lines]
+      else
+        lines
+      end
 
     Enum.reverse(lines) |> Enum.join("\n")
   end
@@ -202,18 +225,21 @@ defmodule ExPhil.Training.Metrics do
   @spec action_distribution([map()]) :: map()
   def action_distribution(frames) when is_list(frames) do
     # Count button presses
-    button_counts = Enum.reduce(frames, %{}, fn frame, acc ->
-      buttons = frame.controller || %{}
-      @button_names
-      |> Enum.reduce(acc, fn btn, a ->
-        pressed = Map.get(buttons, btn, false)
-        if pressed do
-          Map.update(a, btn, 1, &(&1 + 1))
-        else
-          a
-        end
+    button_counts =
+      Enum.reduce(frames, %{}, fn frame, acc ->
+        buttons = frame.controller || %{}
+
+        @button_names
+        |> Enum.reduce(acc, fn btn, a ->
+          pressed = Map.get(buttons, btn, false)
+
+          if pressed do
+            Map.update(a, btn, 1, &(&1 + 1))
+          else
+            a
+          end
+        end)
       end)
-    end)
 
     total = length(frames)
 
@@ -225,12 +251,14 @@ defmodule ExPhil.Training.Metrics do
   end
 
   defp mean_accuracy(button_acc) when map_size(button_acc) == 0, do: 0.0
+
   defp mean_accuracy(button_acc) do
     values = Map.values(button_acc)
     Enum.sum(values) / length(values)
   end
 
   defp mean_mse(stick_mse) when map_size(stick_mse) == 0, do: 0.0
+
   defp mean_mse(stick_mse) do
     values = Map.values(stick_mse)
     Enum.sum(values) / length(values)

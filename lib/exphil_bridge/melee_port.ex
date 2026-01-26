@@ -117,18 +117,19 @@ defmodule ExPhil.Bridge.MeleePort do
     Logger.info("[MeleePort] Starting Python bridge: #{script_path}")
     Logger.info("[MeleePort] Using Python: #{python_path}")
 
-    port = Port.open(
-      {:spawn_executable, python_path},
-      [
-        :binary,
-        :exit_status,
-        :use_stdio,
-        # Don't merge stderr - keep JSON responses clean on stdout
-        # Logs go to stderr and we'll ignore them (they go to /tmp/melee_bridge.log)
-        {:args, ["-u", script_path]},
-        {:cd, File.cwd!()}
-      ]
-    )
+    port =
+      Port.open(
+        {:spawn_executable, python_path},
+        [
+          :binary,
+          :exit_status,
+          :use_stdio,
+          # Don't merge stderr - keep JSON responses clean on stdout
+          # Logs go to stderr and we'll ignore them (they go to /tmp/melee_bridge.log)
+          {:args, ["-u", script_path]},
+          {:cd, File.cwd!()}
+        ]
+      )
 
     state = %{
       port: port,
@@ -214,6 +215,7 @@ defmodule ExPhil.Bridge.MeleePort do
     if state.port do
       Port.close(state.port)
     end
+
     :ok
   end
 
@@ -257,7 +259,9 @@ defmodule ExPhil.Bridge.MeleePort do
     case String.split(buffer, "\n", parts: 2) do
       [line, remaining] when line != "" ->
         case Jason.decode(line) do
-          {:ok, response} -> {:ok, response, remaining}
+          {:ok, response} ->
+            {:ok, response, remaining}
+
           {:error, _} ->
             # Skip non-JSON lines (shouldn't happen now that stderr is separate)
             Logger.debug("[Python output] #{line}")
@@ -272,7 +276,10 @@ defmodule ExPhil.Bridge.MeleePort do
   defp handle_response(response, state) do
     case state.pending do
       nil ->
-        Logger.warning("[MeleePort] Received response with no pending request: #{inspect(response)}")
+        Logger.warning(
+          "[MeleePort] Received response with no pending request: #{inspect(response)}"
+        )
+
         state
 
       {type, from} ->
@@ -288,11 +295,14 @@ defmodule ExPhil.Bridge.MeleePort do
 
   defp format_reply(:step, %{"ok" => true} = response) do
     game_state = parse_game_state(response["game_state"])
+
     cond do
       response["is_postgame"] ->
         {:postgame, game_state}
+
       response["is_menu"] ->
         {:menu, game_state}
+
       true ->
         {:ok, game_state}
     end
@@ -335,6 +345,7 @@ defmodule ExPhil.Bridge.MeleePort do
   defp normalize_value(v), do: v
 
   defp parse_game_state(nil), do: nil
+
   defp parse_game_state(gs) when is_map(gs) do
     %ExPhil.Bridge.GameState{
       frame: gs["frame"],
@@ -347,6 +358,7 @@ defmodule ExPhil.Bridge.MeleePort do
   end
 
   defp parse_players(nil), do: %{}
+
   defp parse_players(players) when is_map(players) do
     players
     |> Enum.map(fn {port, player} ->
@@ -356,6 +368,7 @@ defmodule ExPhil.Bridge.MeleePort do
   end
 
   defp parse_player(nil), do: nil
+
   defp parse_player(p) when is_map(p) do
     %ExPhil.Bridge.Player{
       character: p["character"],
@@ -382,6 +395,7 @@ defmodule ExPhil.Bridge.MeleePort do
   end
 
   defp parse_nana(nil), do: nil
+
   defp parse_nana(n) do
     %ExPhil.Bridge.Nana{
       x: n["x"],
@@ -394,6 +408,7 @@ defmodule ExPhil.Bridge.MeleePort do
   end
 
   defp parse_controller_state(nil), do: nil
+
   defp parse_controller_state(cs) do
     %ExPhil.Bridge.ControllerState{
       main_stick: parse_stick(cs["main_stick"]),
@@ -415,6 +430,7 @@ defmodule ExPhil.Bridge.MeleePort do
   defp parse_stick(s), do: %{x: s["x"], y: s["y"]}
 
   defp parse_projectiles(nil), do: []
+
   defp parse_projectiles(projs) when is_list(projs) do
     Enum.map(projs, fn p ->
       %ExPhil.Bridge.Projectile{

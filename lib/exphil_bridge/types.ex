@@ -6,14 +6,14 @@ defmodule ExPhil.Bridge.GameState do
   """
 
   @type t :: %__MODULE__{
-    frame: integer(),
-    stage: integer(),
-    menu_state: integer(),
-    players: %{integer() => ExPhil.Bridge.Player.t()},
-    projectiles: [ExPhil.Bridge.Projectile.t()],
-    items: [ExPhil.Bridge.Item.t()],
-    distance: float()
-  }
+          frame: integer(),
+          stage: integer(),
+          menu_state: integer(),
+          players: %{integer() => ExPhil.Bridge.Player.t()},
+          projectiles: [ExPhil.Bridge.Projectile.t()],
+          items: [ExPhil.Bridge.Item.t()],
+          distance: float()
+        }
 
   defstruct [
     :frame,
@@ -56,27 +56,27 @@ defmodule ExPhil.Bridge.Player do
   """
 
   @type t :: %__MODULE__{
-    character: integer(),
-    x: float(),
-    y: float(),
-    percent: float(),
-    stock: integer(),
-    facing: integer(),
-    action: integer(),
-    action_frame: integer(),
-    invulnerable: boolean(),
-    jumps_left: integer(),
-    on_ground: boolean(),
-    shield_strength: float(),
-    hitstun_frames_left: integer(),
-    speed_air_x_self: float(),
-    speed_ground_x_self: float(),
-    speed_y_self: float(),
-    speed_x_attack: float(),
-    speed_y_attack: float(),
-    nana: ExPhil.Bridge.Nana.t() | nil,
-    controller_state: ExPhil.Bridge.ControllerState.t() | nil
-  }
+          character: integer(),
+          x: float(),
+          y: float(),
+          percent: float(),
+          stock: integer(),
+          facing: integer(),
+          action: integer(),
+          action_frame: integer(),
+          invulnerable: boolean(),
+          jumps_left: integer(),
+          on_ground: boolean(),
+          shield_strength: float(),
+          hitstun_frames_left: integer(),
+          speed_air_x_self: float(),
+          speed_ground_x_self: float(),
+          speed_y_self: float(),
+          speed_x_attack: float(),
+          speed_y_attack: float(),
+          nana: ExPhil.Bridge.Nana.t() | nil,
+          controller_state: ExPhil.Bridge.ControllerState.t() | nil
+        }
 
   defstruct [
     :character,
@@ -107,6 +107,7 @@ defmodule ExPhil.Bridge.Player do
   def dying?(%__MODULE__{action: action}) when is_integer(action) do
     action <= 0x0A
   end
+
   def dying?(_), do: false
 
   @doc """
@@ -122,6 +123,7 @@ defmodule ExPhil.Bridge.Player do
   def in_hitstun?(%__MODULE__{hitstun_frames_left: frames}) when is_integer(frames) do
     frames > 0
   end
+
   def in_hitstun?(_), do: false
 
   @doc """
@@ -131,6 +133,7 @@ defmodule ExPhil.Bridge.Player do
     # Action.SHIELD_START = 178, SHIELD = 179, SHIELD_RELEASE = 180
     action in [178, 179, 180]
   end
+
   def shielding?(_), do: false
 end
 
@@ -140,13 +143,13 @@ defmodule ExPhil.Bridge.Nana do
   """
 
   @type t :: %__MODULE__{
-    x: float(),
-    y: float(),
-    percent: float(),
-    stock: integer(),
-    action: integer(),
-    facing: integer()
-  }
+          x: float(),
+          y: float(),
+          percent: float(),
+          stock: integer(),
+          action: integer(),
+          facing: integer()
+        }
 
   defstruct [:x, :y, :percent, :stock, :action, :facing]
 end
@@ -160,19 +163,19 @@ defmodule ExPhil.Bridge.ControllerState do
   """
 
   @type t :: %__MODULE__{
-    main_stick: %{x: float(), y: float()},
-    c_stick: %{x: float(), y: float()},
-    l_shoulder: float(),
-    r_shoulder: float(),
-    button_a: boolean(),
-    button_b: boolean(),
-    button_x: boolean(),
-    button_y: boolean(),
-    button_z: boolean(),
-    button_l: boolean(),
-    button_r: boolean(),
-    button_d_up: boolean()
-  }
+          main_stick: %{x: float(), y: float()},
+          c_stick: %{x: float(), y: float()},
+          l_shoulder: float(),
+          r_shoulder: float(),
+          button_a: boolean(),
+          button_b: boolean(),
+          button_x: boolean(),
+          button_y: boolean(),
+          button_z: boolean(),
+          button_l: boolean(),
+          button_r: boolean(),
+          button_d_up: boolean()
+        }
 
   defstruct [
     :main_stick,
@@ -237,14 +240,14 @@ defmodule ExPhil.Bridge.Projectile do
   """
 
   @type t :: %__MODULE__{
-    owner: integer(),
-    x: float(),
-    y: float(),
-    type: integer(),
-    subtype: integer(),
-    speed_x: float(),
-    speed_y: float()
-  }
+          owner: integer(),
+          x: float(),
+          y: float(),
+          type: integer(),
+          subtype: integer(),
+          speed_x: float(),
+          speed_y: float()
+        }
 
   defstruct [:owner, :x, :y, :type, :subtype, :speed_x, :speed_y]
 end
@@ -270,15 +273,15 @@ defmodule ExPhil.Bridge.Item do
   """
 
   @type t :: %__MODULE__{
-    x: float(),
-    y: float(),
-    type: integer(),
-    facing: integer(),
-    owner: integer() | nil,
-    held_by: integer() | nil,
-    spawn_id: integer(),
-    timer: integer()
-  }
+          x: float(),
+          y: float(),
+          type: integer(),
+          facing: integer(),
+          owner: integer() | nil,
+          held_by: integer() | nil,
+          spawn_id: integer(),
+          timer: integer()
+        }
 
   defstruct [
     :x,
@@ -294,27 +297,40 @@ defmodule ExPhil.Bridge.Item do
   # Common item type constants (from libmelee)
   @item_types %{
     # Explosives/Bombs
-    link_bomb: 0x2C,         # Link's bomb
-    young_link_bomb: 0x2D,   # Young Link's bomb
-    bob_omb: 0x13,           # Bob-omb
+    # Link's bomb
+    link_bomb: 0x2C,
+    # Young Link's bomb
+    young_link_bomb: 0x2D,
+    # Bob-omb
+    bob_omb: 0x13,
 
     # Character-specific thrown items
-    peach_turnip: 0x32,      # Peach's turnip (50)
-    mr_saturn: 0x15,         # Mr. Saturn (21)
+    # Peach's turnip (50)
+    peach_turnip: 0x32,
+    # Mr. Saturn (21)
+    mr_saturn: 0x15,
 
     # Melee weapons
-    beam_sword: 0x04,        # Beam Sword
-    home_run_bat: 0x05,      # Home Run Bat
-    fan: 0x06,               # Fan
+    # Beam Sword
+    beam_sword: 0x04,
+    # Home Run Bat
+    home_run_bat: 0x05,
+    # Fan
+    fan: 0x06,
 
     # Ranged weapons
-    ray_gun: 0x08,           # Ray Gun
-    super_scope: 0x09,       # Super Scope
+    # Ray Gun
+    ray_gun: 0x08,
+    # Super Scope
+    super_scope: 0x09,
 
     # Containers
-    capsule: 0x00,           # Capsule
-    crate: 0x01,             # Crate
-    barrel: 0x02             # Barrel
+    # Capsule
+    capsule: 0x00,
+    # Crate
+    crate: 0x01,
+    # Barrel
+    barrel: 0x02
   }
 
   @doc """
@@ -323,6 +339,7 @@ defmodule ExPhil.Bridge.Item do
   def bomb?(%__MODULE__{type: type}) do
     type in [@item_types.link_bomb, @item_types.young_link_bomb, @item_types.bob_omb]
   end
+
   def bomb?(_), do: false
 
   @doc """
@@ -349,6 +366,7 @@ defmodule ExPhil.Bridge.Item do
   def owned_by?(%__MODULE__{owner: owner}, player_port) when is_integer(player_port) do
     owner == player_port
   end
+
   def owned_by?(_, _), do: false
 
   @doc """
@@ -369,9 +387,11 @@ defmodule ExPhil.Bridge.Item do
       type in [@item_types.ray_gun, @item_types.super_scope] -> 3
       type in [@item_types.capsule, @item_types.crate, @item_types.barrel] -> 4
       type in [@item_types.peach_turnip, @item_types.mr_saturn] -> 5
-      true -> 5  # Unknown items fall into "other/thrown" category
+      # Unknown items fall into "other/thrown" category
+      true -> 5
     end
   end
+
   def item_category(_), do: 0
 end
 

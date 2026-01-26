@@ -87,7 +87,8 @@ defmodule ExPhil.RewardsTest do
     test "clips reward to reasonable range" do
       # Create extreme scenario
       prev = mock_state(player_stock: 4, opponent_stock: 4)
-      curr = mock_state(player_stock: 4, opponent_stock: 0)  # Took all stocks
+      # Took all stocks
+      curr = mock_state(player_stock: 4, opponent_stock: 0)
 
       reward = Rewards.compute(prev, curr, player_port: 1)
 
@@ -155,7 +156,8 @@ defmodule ExPhil.RewardsTest do
       prev_opponent = %Player{stock: 4, percent: 150.0}
       curr_opponent = %Player{stock: 3, percent: 0.0}
 
-      reward = Standard.compute_stock_reward(prev_player, curr_player, prev_opponent, curr_opponent)
+      reward =
+        Standard.compute_stock_reward(prev_player, curr_player, prev_opponent, curr_opponent)
 
       assert reward == 1.0
     end
@@ -166,7 +168,8 @@ defmodule ExPhil.RewardsTest do
       prev_opponent = %Player{stock: 4, percent: 0.0}
       curr_opponent = %Player{stock: 4, percent: 0.0}
 
-      reward = Standard.compute_stock_reward(prev_player, curr_player, prev_opponent, curr_opponent)
+      reward =
+        Standard.compute_stock_reward(prev_player, curr_player, prev_opponent, curr_opponent)
 
       assert reward == -1.0
     end
@@ -177,7 +180,8 @@ defmodule ExPhil.RewardsTest do
       prev_opponent = %Player{stock: 4, percent: 30.0}
       curr_opponent = %Player{stock: 4, percent: 30.0}
 
-      reward = Standard.compute_stock_reward(prev_player, curr_player, prev_opponent, curr_opponent)
+      reward =
+        Standard.compute_stock_reward(prev_player, curr_player, prev_opponent, curr_opponent)
 
       assert reward == 0.0
     end
@@ -190,7 +194,8 @@ defmodule ExPhil.RewardsTest do
       prev_opponent = %Player{stock: 4, percent: 0.0}
       curr_opponent = %Player{stock: 4, percent: 20.0}
 
-      reward = Standard.compute_damage_reward(prev_player, curr_player, prev_opponent, curr_opponent)
+      reward =
+        Standard.compute_damage_reward(prev_player, curr_player, prev_opponent, curr_opponent)
 
       assert reward == 20.0
     end
@@ -201,7 +206,8 @@ defmodule ExPhil.RewardsTest do
       prev_opponent = %Player{stock: 4, percent: 0.0}
       curr_opponent = %Player{stock: 4, percent: 0.0}
 
-      reward = Standard.compute_damage_reward(prev_player, curr_player, prev_opponent, curr_opponent)
+      reward =
+        Standard.compute_damage_reward(prev_player, curr_player, prev_opponent, curr_opponent)
 
       assert reward == -15.0
     end
@@ -212,7 +218,8 @@ defmodule ExPhil.RewardsTest do
       prev_opponent = %Player{stock: 4, percent: 0.0}
       curr_opponent = %Player{stock: 4, percent: 25.0}
 
-      reward = Standard.compute_damage_reward(prev_player, curr_player, prev_opponent, curr_opponent)
+      reward =
+        Standard.compute_damage_reward(prev_player, curr_player, prev_opponent, curr_opponent)
 
       # Dealt 25, took 10, net +15
       assert reward == 15.0

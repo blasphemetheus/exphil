@@ -65,7 +65,8 @@ defmodule ExPhil.Networks.Attention do
   # Default hyperparameters
   @default_num_heads 4
   @default_head_dim 64
-  @default_window_size 60  # 1 second at 60fps
+  # 1 second at 60fps
+  @default_window_size 60
   @default_dropout 0.1
 
   # ============================================================================
@@ -99,23 +100,25 @@ defmodule ExPhil.Networks.Attention do
     scores = Nx.divide(scores, scale)
 
     # Apply mask if provided
-    scores = if mask do
-      # Broadcast mask to match scores shape if needed
-      mask = if tuple_size(Nx.shape(mask)) == 2 do
-        # Mask is [seq, seq], need to broadcast to [batch, seq, seq]
-        Nx.broadcast(Nx.new_axis(mask, 0), Nx.shape(scores))
-      else
-        mask
-      end
+    scores =
+      if mask do
+        # Broadcast mask to match scores shape if needed
+        mask =
+          if tuple_size(Nx.shape(mask)) == 2 do
+            # Mask is [seq, seq], need to broadcast to [batch, seq, seq]
+            Nx.broadcast(Nx.new_axis(mask, 0), Nx.shape(scores))
+          else
+            mask
+          end
 
-      Nx.select(
-        mask,
-        scores,
-        Nx.broadcast(-1.0e9, Nx.shape(scores))
-      )
-    else
-      scores
-    end
+        Nx.select(
+          mask,
+          scores,
+          Nx.broadcast(-1.0e9, Nx.shape(scores))
+        )
+      else
+        scores
+      end
 
     # Softmax
     max_scores = Nx.reduce_max(scores, axes: [-1], keep_axes: true)
@@ -183,22 +186,28 @@ defmodule ExPhil.Networks.Attention do
     qkv = Axon.dense(input, hidden_dim * 3, name: "#{name}_qkv")
 
     # Apply attention in a single Axon.nx call
-    attended = Axon.nx(qkv, fn qkv_tensor ->
-      {_batch, seq_len, _} = Nx.shape(qkv_tensor)
+    attended =
+      Axon.nx(
+        qkv,
+        fn qkv_tensor ->
+          {_batch, seq_len, _} = Nx.shape(qkv_tensor)
 
-      # Split into Q, K, V
-      query = Nx.slice_along_axis(qkv_tensor, 0, hidden_dim, axis: 2)
-      key = Nx.slice_along_axis(qkv_tensor, hidden_dim, hidden_dim, axis: 2)
-      value = Nx.slice_along_axis(qkv_tensor, hidden_dim * 2, hidden_dim, axis: 2)
+          # Split into Q, K, V
+          query = Nx.slice_along_axis(qkv_tensor, 0, hidden_dim, axis: 2)
+          key = Nx.slice_along_axis(qkv_tensor, hidden_dim, hidden_dim, axis: 2)
+          value = Nx.slice_along_axis(qkv_tensor, hidden_dim * 2, hidden_dim, axis: 2)
 
-      mask = if causal do
-        causal_mask(seq_len)
-      else
-        nil
-      end
+          mask =
+            if causal do
+              causal_mask(seq_len)
+            else
+              nil
+            end
 
-      scaled_dot_product_attention(query, key, value, mask: mask)
-    end, name: "#{name}_compute")
+          scaled_dot_product_attention(query, key, value, mask: mask)
+        end,
+        name: "#{name}_compute"
+      )
 
     # Output projection
     attended
@@ -245,23 +254,28 @@ defmodule ExPhil.Networks.Attention do
 
     # Apply windowed attention with pre-computed mask (captured from outer scope)
     # This avoids dynamic mask creation inside Axon.nx which causes XLA issues
-    Axon.nx(qkv, fn qkv_tensor ->
-      {_batch, seq_len, _} = Nx.shape(qkv_tensor)
+    Axon.nx(
+      qkv,
+      fn qkv_tensor ->
+        {_batch, seq_len, _} = Nx.shape(qkv_tensor)
 
-      # Split into Q, K, V
-      query = Nx.slice_along_axis(qkv_tensor, 0, hidden_dim, axis: 2)
-      key = Nx.slice_along_axis(qkv_tensor, hidden_dim, hidden_dim, axis: 2)
-      value = Nx.slice_along_axis(qkv_tensor, hidden_dim * 2, hidden_dim, axis: 2)
+        # Split into Q, K, V
+        query = Nx.slice_along_axis(qkv_tensor, 0, hidden_dim, axis: 2)
+        key = Nx.slice_along_axis(qkv_tensor, hidden_dim, hidden_dim, axis: 2)
+        value = Nx.slice_along_axis(qkv_tensor, hidden_dim * 2, hidden_dim, axis: 2)
 
-      # Use pre-computed mask if available, otherwise compute (slow path)
-      mask = if precomputed_mask != nil do
-        precomputed_mask
-      else
-        window_mask(seq_len, window_size)
-      end
+        # Use pre-computed mask if available, otherwise compute (slow path)
+        mask =
+          if precomputed_mask != nil do
+            precomputed_mask
+          else
+            window_mask(seq_len, window_size)
+          end
 
-      scaled_dot_product_attention(query, key, value, mask: mask)
-    end, name: "#{name}_compute")
+        scaled_dot_product_attention(query, key, value, mask: mask)
+      end,
+      name: "#{name}_compute"
+    )
   end
 
   # ============================================================================
@@ -280,33 +294,37 @@ defmodule ExPhil.Networks.Attention do
     name = Keyword.get(opts, :name, "pos_enc")
     scale = Keyword.get(opts, :scale, 0.01)
 
-    Axon.nx(input, fn tensor ->
-      # Get actual shape from tensor
-      shape = Nx.shape(tensor)
-      seq_len = elem(shape, 1)
-      embed_dim = elem(shape, 2)
+    Axon.nx(
+      input,
+      fn tensor ->
+        # Get actual shape from tensor
+        shape = Nx.shape(tensor)
+        seq_len = elem(shape, 1)
+        embed_dim = elem(shape, 2)
 
-      # Position indices [1, seq_len, 1] - will broadcast to [batch, seq_len, embed_dim]
-      pos = Nx.iota({1, seq_len, 1}, axis: 1) |> Nx.as_type(:f32)
+        # Position indices [1, seq_len, 1] - will broadcast to [batch, seq_len, embed_dim]
+        pos = Nx.iota({1, seq_len, 1}, axis: 1) |> Nx.as_type(:f32)
 
-      # Dimension indices [1, 1, embed_dim] - different frequency per dimension
-      dim = Nx.iota({1, 1, embed_dim}, axis: 2) |> Nx.as_type(:f32)
+        # Dimension indices [1, 1, embed_dim] - different frequency per dimension
+        dim = Nx.iota({1, 1, embed_dim}, axis: 2) |> Nx.as_type(:f32)
 
-      # Compute angles: combine position and dimension
-      # Higher dimensions get lower frequencies (standard positional encoding behavior)
-      # angle = pos * exp(-dim * log(10000) / embed_dim)
-      # Simplified: angle = pos / (1 + dim * scale_factor)
-      freq = Nx.divide(1.0, Nx.add(1.0, Nx.multiply(dim, scale)))
+        # Compute angles: combine position and dimension
+        # Higher dimensions get lower frequencies (standard positional encoding behavior)
+        # angle = pos * exp(-dim * log(10000) / embed_dim)
+        # Simplified: angle = pos / (1 + dim * scale_factor)
+        freq = Nx.divide(1.0, Nx.add(1.0, Nx.multiply(dim, scale)))
 
-      # angles shape: [1, seq_len, embed_dim] via broadcasting
-      angles = Nx.multiply(pos, freq)
+        # angles shape: [1, seq_len, embed_dim] via broadcasting
+        angles = Nx.multiply(pos, freq)
 
-      # Apply sin to create positional encoding
-      pe = Nx.sin(angles)
+        # Apply sin to create positional encoding
+        pe = Nx.sin(angles)
 
-      # Add to input (broadcasts over batch dimension)
-      Nx.add(tensor, pe)
-    end, name: name)
+        # Add to input (broadcasts over batch dimension)
+        Nx.add(tensor, pe)
+      end,
+      name: name
+    )
   end
 
   # ============================================================================
@@ -352,12 +370,14 @@ defmodule ExPhil.Networks.Attention do
     # This avoids creating masks inside Axon.nx which causes XLA compilation issues
     # IMPORTANT: Convert mask to BinaryBackend to avoid EXLA/Defn.Expr mismatch
     # when the mask is captured in Axon.nx closures during JIT compilation
-    {precomputed_mask, input_seq_dim} = if seq_len do
-      mask = window_mask(seq_len, window_size) |> Nx.backend_copy(Nx.BinaryBackend)
-      {mask, seq_len}
-    else
-      {nil, nil}  # Dynamic - mask computed at runtime (slow path)
-    end
+    {precomputed_mask, input_seq_dim} =
+      if seq_len do
+        mask = window_mask(seq_len, window_size) |> Nx.backend_copy(Nx.BinaryBackend)
+        {mask, seq_len}
+      else
+        # Dynamic - mask computed at runtime (slow path)
+        {nil, nil}
+      end
 
     # Input: [batch, seq_len, embed_size]
     input = Axon.input("state_sequence", shape: {nil, input_seq_dim, embed_size})
@@ -369,43 +389,52 @@ defmodule ExPhil.Networks.Attention do
     x = add_positional_encoding(x, name: "pos_encoding")
 
     # Stack of attention + FFN layers
-    x = Enum.reduce(1..num_layers, x, fn layer_idx, acc ->
-      # Sliding window attention with pre-computed mask for efficient compilation
-      attended = sliding_window_attention(acc,
-        window_size: window_size,
-        num_heads: num_heads,
-        head_dim: head_dim,
-        mask: precomputed_mask,
-        name: "layer_#{layer_idx}_attn"
-      )
+    x =
+      Enum.reduce(1..num_layers, x, fn layer_idx, acc ->
+        # Sliding window attention with pre-computed mask for efficient compilation
+        attended =
+          sliding_window_attention(acc,
+            window_size: window_size,
+            num_heads: num_heads,
+            head_dim: head_dim,
+            mask: precomputed_mask,
+            name: "layer_#{layer_idx}_attn"
+          )
 
-      # Residual + LayerNorm
-      acc = Axon.add(acc, attended, name: "layer_#{layer_idx}_residual1")
-      acc = Axon.layer_norm(acc, name: "layer_#{layer_idx}_norm1")
+        # Residual + LayerNorm
+        acc = Axon.add(acc, attended, name: "layer_#{layer_idx}_residual1")
+        acc = Axon.layer_norm(acc, name: "layer_#{layer_idx}_norm1")
 
-      # Feed-forward network
-      ffn = acc
-      |> Axon.dense(ffn_dim, name: "layer_#{layer_idx}_ffn1")
-      |> Axon.gelu()
-      |> Axon.dense(hidden_dim, name: "layer_#{layer_idx}_ffn2")
-      |> Axon.dropout(rate: dropout)
+        # Feed-forward network
+        ffn =
+          acc
+          |> Axon.dense(ffn_dim, name: "layer_#{layer_idx}_ffn1")
+          |> Axon.gelu()
+          |> Axon.dense(hidden_dim, name: "layer_#{layer_idx}_ffn2")
+          |> Axon.dropout(rate: dropout)
 
-      # Residual + LayerNorm
-      acc = Axon.add(acc, ffn, name: "layer_#{layer_idx}_residual2")
-      Axon.layer_norm(acc, name: "layer_#{layer_idx}_norm2")
-    end)
+        # Residual + LayerNorm
+        acc = Axon.add(acc, ffn, name: "layer_#{layer_idx}_residual2")
+        Axon.layer_norm(acc, name: "layer_#{layer_idx}_norm2")
+      end)
 
     # Take last position output: [batch, seq, hidden] -> [batch, hidden]
     # Use concrete seq_len if available for efficient compilation
-    Axon.nx(x, fn tensor ->
-      last_idx = if seq_len do
-        seq_len - 1
-      else
-        Nx.axis_size(tensor, 1) - 1
-      end
-      Nx.slice_along_axis(tensor, last_idx, 1, axis: 1)
-      |> Nx.squeeze(axes: [1])
-    end, name: "last_position")
+    Axon.nx(
+      x,
+      fn tensor ->
+        last_idx =
+          if seq_len do
+            seq_len - 1
+          else
+            Nx.axis_size(tensor, 1) - 1
+          end
+
+        Nx.slice_along_axis(tensor, last_idx, 1, axis: 1)
+        |> Nx.squeeze(axes: [1])
+      end,
+      name: "last_position"
+    )
   end
 
   # ============================================================================
@@ -453,40 +482,49 @@ defmodule ExPhil.Networks.Attention do
     input = Axon.input("state_sequence", shape: {nil, input_seq_dim, embed_size})
 
     # LSTM backbone (returns all timesteps)
-    lstm_output = Recurrent.build_backbone(input,
-      hidden_size: lstm_hidden,
-      num_layers: lstm_layers,
-      cell_type: :lstm,
-      dropout: dropout,
-      return_sequences: true  # Need all timesteps for attention
-    )
+    lstm_output =
+      Recurrent.build_backbone(input,
+        hidden_size: lstm_hidden,
+        num_layers: lstm_layers,
+        cell_type: :lstm,
+        dropout: dropout,
+        # Need all timesteps for attention
+        return_sequences: true
+      )
 
     # Project LSTM output to attention dimension
     x = Axon.dense(lstm_output, hidden_dim, name: "lstm_to_attn_proj")
 
     # Self-attention over LSTM hidden states
-    attended = multi_head_attention(x,
-      num_heads: num_heads,
-      head_dim: head_dim,
-      dropout: dropout,
-      causal: true,
-      name: "hybrid_attn"
-    )
+    attended =
+      multi_head_attention(x,
+        num_heads: num_heads,
+        head_dim: head_dim,
+        dropout: dropout,
+        causal: true,
+        name: "hybrid_attn"
+      )
 
     # Residual connection
     x = Axon.add(x, attended, name: "attn_residual")
     x = Axon.layer_norm(x, name: "attn_norm")
 
     # Take last position - use concrete seq_len if available
-    Axon.nx(x, fn tensor ->
-      last_idx = if seq_len do
-        seq_len - 1
-      else
-        Nx.axis_size(tensor, 1) - 1
-      end
-      Nx.slice_along_axis(tensor, last_idx, 1, axis: 1)
-      |> Nx.squeeze(axes: [1])
-    end, name: "hybrid_last")
+    Axon.nx(
+      x,
+      fn tensor ->
+        last_idx =
+          if seq_len do
+            seq_len - 1
+          else
+            Nx.axis_size(tensor, 1) - 1
+          end
+
+        Nx.slice_along_axis(tensor, last_idx, 1, axis: 1)
+        |> Nx.squeeze(axes: [1])
+      end,
+      name: "hybrid_last"
+    )
   end
 
   @doc """
@@ -533,9 +571,11 @@ defmodule ExPhil.Networks.Attention do
   @spec melee_defaults() :: keyword()
   def melee_defaults do
     [
-      window_size: 60,      # 1 second at 60fps
+      # 1 second at 60fps
+      window_size: 60,
       num_heads: 4,
-      head_dim: 64,         # 256 total dim
+      # 256 total dim
+      head_dim: 64,
       num_layers: 2,
       dropout: 0.1
     ]

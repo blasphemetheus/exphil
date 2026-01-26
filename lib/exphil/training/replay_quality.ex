@@ -43,10 +43,14 @@ defmodule ExPhil.Training.ReplayQuality do
   alias ExPhil.Training.Output
 
   # Frame counts
-  @min_frames 1000        # ~17 seconds, absolute minimum
-  @ideal_min_frames 3000  # ~50 seconds, ideal range start
-  @ideal_max_frames 8000  # ~133 seconds, ideal range end
-  @max_frames 15000       # ~4 minutes, timeout threshold
+  # ~17 seconds, absolute minimum
+  @min_frames 1000
+  # ~50 seconds, ideal range start
+  @ideal_min_frames 3000
+  # ~133 seconds, ideal range end
+  @ideal_max_frames 8000
+  # ~4 minutes, timeout threshold
+  @max_frames 15000
 
   # Quality thresholds
   @excellent_score 80
@@ -61,12 +65,16 @@ defmodule ExPhil.Training.ReplayQuality do
   @diversity_weight 20
 
   # Input activity thresholds
-  @min_input_activity 0.10    # At least 10% of frames have inputs
-  @good_input_activity 0.25   # 25% input activity is healthy
+  # At least 10% of frames have inputs
+  @min_input_activity 0.10
+  # 25% input activity is healthy
+  @good_input_activity 0.25
 
   # SD rate thresholds
-  @low_sd_rate 0.05           # < 5% is normal
-  @high_sd_rate 0.15          # > 15% is concerning
+  # < 5% is normal
+  @low_sd_rate 0.05
+  # > 15% is concerning
+  @high_sd_rate 0.15
 
   # Minimum damage for engagement
   @min_damage 20
@@ -156,9 +164,17 @@ defmodule ExPhil.Training.ReplayQuality do
           breakdown: %{
             length: %{score: length_score, max: @length_weight, frames: replay[:frames]},
             damage: %{score: damage_score, max: @damage_weight, details: damage_details(replay)},
-            activity: %{score: activity_score, max: @activity_weight, details: activity_details(replay)},
+            activity: %{
+              score: activity_score,
+              max: @activity_weight,
+              details: activity_details(replay)
+            },
             sd_rate: %{score: sd_score, max: @sd_weight, details: sd_details(replay)},
-            diversity: %{score: diversity_score, max: @diversity_weight, details: diversity_details(replay)}
+            diversity: %{
+              score: diversity_score,
+              max: @diversity_weight,
+              details: diversity_details(replay)
+            }
           }
         }
     end
@@ -180,7 +196,12 @@ defmodule ExPhil.Training.ReplayQuality do
       :passed ->
         color = score_color(analysis.score)
         Output.puts_raw("")
-        Output.puts_raw("  " <> Output.colorize("Replay Quality: #{analysis.score}/100 (#{analysis.quality})", color))
+
+        Output.puts_raw(
+          "  " <>
+            Output.colorize("Replay Quality: #{analysis.score}/100 (#{analysis.quality})", color)
+        )
+
         Output.puts_raw("")
 
         # Breakdown
@@ -190,7 +211,10 @@ defmodule ExPhil.Training.ReplayQuality do
           filled = round(pct / 100 * bar_width)
           bar = String.duplicate("█", filled) <> String.duplicate("░", bar_width - filled)
           name_str = name |> to_string() |> String.capitalize() |> String.pad_trailing(10)
-          Output.puts_raw("    #{name_str} #{Output.colorize(bar, score_color(pct))} #{data.score}/#{data.max}")
+
+          Output.puts_raw(
+            "    #{name_str} #{Output.colorize(bar, score_color(pct))} #{data.score}/#{data.max}"
+          )
         end
     end
 
@@ -230,13 +254,10 @@ defmodule ExPhil.Training.ReplayQuality do
       # Duration checks
       (replay[:frames] || 0) < @min_frames -> :reject
       (replay[:frames] || 0) > @max_frames -> :reject
-
       # CPU check
       has_cpu?(replay) -> :reject
-
       # Zero engagement check
       zero_engagement?(replay) -> :reject
-
       true -> :pass
     end
   end
@@ -286,7 +307,8 @@ defmodule ExPhil.Training.ReplayQuality do
 
     cond do
       frames >= @ideal_min_frames and frames <= @ideal_max_frames ->
-        @length_weight  # Full points for ideal range
+        # Full points for ideal range
+        @length_weight
 
       frames >= @min_frames and frames < @ideal_min_frames ->
         # Below ideal - partial points
@@ -305,9 +327,10 @@ defmodule ExPhil.Training.ReplayQuality do
   defp score_damage(replay) do
     players = replay[:players] || []
 
-    damages = Enum.map(players, fn p ->
-      max(p[:damage_dealt] || 0, p[:damage_taken] || 0)
-    end)
+    damages =
+      Enum.map(players, fn p ->
+        max(p[:damage_dealt] || 0, p[:damage_taken] || 0)
+      end)
 
     min_damage = Enum.min(damages, fn -> 0 end)
 
@@ -324,10 +347,11 @@ defmodule ExPhil.Training.ReplayQuality do
     players = replay[:players] || []
     frames = max(replay[:frames] || 1, 1)
 
-    activities = Enum.map(players, fn p ->
-      input_frames = p[:input_frames] || 0
-      input_frames / frames
-    end)
+    activities =
+      Enum.map(players, fn p ->
+        input_frames = p[:input_frames] || 0
+        input_frames / frames
+      end)
 
     min_activity = Enum.min(activities, fn -> 0 end)
 
@@ -343,11 +367,12 @@ defmodule ExPhil.Training.ReplayQuality do
   defp score_sd_rate(replay) do
     players = replay[:players] || []
 
-    sd_rates = Enum.map(players, fn p ->
-      stocks_lost = max(p[:stocks_lost] || 0, 1)
-      sd_count = p[:sd_count] || 0
-      sd_count / stocks_lost
-    end)
+    sd_rates =
+      Enum.map(players, fn p ->
+        stocks_lost = max(p[:stocks_lost] || 0, 1)
+        sd_count = p[:sd_count] || 0
+        sd_count / stocks_lost
+      end)
 
     max_sd_rate = Enum.max(sd_rates, fn -> 0 end)
 
@@ -362,9 +387,10 @@ defmodule ExPhil.Training.ReplayQuality do
   defp score_diversity(replay) do
     players = replay[:players] || []
 
-    diversities = Enum.map(players, fn p ->
-      p[:unique_actions] || 0
-    end)
+    diversities =
+      Enum.map(players, fn p ->
+        p[:unique_actions] || 0
+      end)
 
     min_diversity = Enum.min(diversities, fn -> 0 end)
 
@@ -386,7 +412,8 @@ defmodule ExPhil.Training.ReplayQuality do
     players
     |> Enum.with_index()
     |> Enum.map(fn {p, i} ->
-      {"P#{i + 1}", "dealt: #{round(p[:damage_dealt] || 0)}, taken: #{round(p[:damage_taken] || 0)}"}
+      {"P#{i + 1}",
+       "dealt: #{round(p[:damage_dealt] || 0)}, taken: #{round(p[:damage_taken] || 0)}"}
     end)
     |> Map.new()
   end
@@ -483,70 +510,84 @@ defmodule ExPhil.Training.ReplayQuality do
 
   defp do_compute_player_stats(frames, num_players, _players_meta) do
     # Track per-player metrics across all frames
-    initial = for i <- 0..(num_players - 1), into: %{} do
-      {i, %{
-        prev_percent: 0.0,
-        prev_stock: 4,
-        damage_dealt: 0.0,
-        damage_taken: 0.0,
-        stocks_lost: 0,
-        sd_count: 0,
-        input_frames: 0,
-        actions_seen: MapSet.new()
-      }}
-    end
+    initial =
+      for i <- 0..(num_players - 1), into: %{} do
+        {i,
+         %{
+           prev_percent: 0.0,
+           prev_stock: 4,
+           damage_dealt: 0.0,
+           damage_taken: 0.0,
+           stocks_lost: 0,
+           sd_count: 0,
+           input_frames: 0,
+           actions_seen: MapSet.new()
+         }}
+      end
 
     # Process each frame
-    final = Enum.reduce(frames, initial, fn frame, acc ->
-      players = frame.players || []
+    final =
+      Enum.reduce(frames, initial, fn frame, acc ->
+        players = frame.players || []
 
-      Enum.reduce(Enum.with_index(players), acc, fn {player_data, idx}, acc2 ->
-        # Handle both {port, player} tuples and bare player structs
-        player = case player_data do
-          {_port, p} -> p
-          p -> p
-        end
+        Enum.reduce(Enum.with_index(players), acc, fn {player_data, idx}, acc2 ->
+          # Handle both {port, player} tuples and bare player structs
+          player =
+            case player_data do
+              {_port, p} -> p
+              p -> p
+            end
 
-        if idx >= num_players do
-          acc2
-        else
-          prev = Map.get(acc2, idx, %{prev_percent: 0.0, prev_stock: 4, damage_dealt: 0.0,
-                                       damage_taken: 0.0, stocks_lost: 0, sd_count: 0,
-                                       input_frames: 0, actions_seen: MapSet.new()})
+          if idx >= num_players do
+            acc2
+          else
+            prev =
+              Map.get(acc2, idx, %{
+                prev_percent: 0.0,
+                prev_stock: 4,
+                damage_dealt: 0.0,
+                damage_taken: 0.0,
+                stocks_lost: 0,
+                sd_count: 0,
+                input_frames: 0,
+                actions_seen: MapSet.new()
+              })
 
-          current_percent = player.percent || 0.0
-          current_stock = player.stock || 4
-          action = player.action
+            current_percent = player.percent || 0.0
+            current_stock = player.stock || 4
+            action = player.action
 
-          # Damage taken = percent increase
-          damage_increase = max(0, current_percent - prev.prev_percent)
+            # Damage taken = percent increase
+            damage_increase = max(0, current_percent - prev.prev_percent)
 
-          # Stock lost detection (stock decreased and percent reset)
-          stock_lost = if current_stock < prev.prev_stock and current_percent < 30, do: 1, else: 0
+            # Stock lost detection (stock decreased and percent reset)
+            stock_lost =
+              if current_stock < prev.prev_stock and current_percent < 30, do: 1, else: 0
 
-          # SD detection: stock lost while near blast zone or in certain actions
-          # Simplified: count stock losses where opponent didn't deal recent damage
-          # For now, estimate SD as stock loss when percent was < 50
-          sd = if stock_lost > 0 and prev.prev_percent < 50, do: 1, else: 0
+            # SD detection: stock lost while near blast zone or in certain actions
+            # Simplified: count stock losses where opponent didn't deal recent damage
+            # For now, estimate SD as stock loss when percent was < 50
+            sd = if stock_lost > 0 and prev.prev_percent < 50, do: 1, else: 0
 
-          # Input activity: non-neutral stick or any button pressed
-          has_input = has_active_input?(player.controller)
+            # Input activity: non-neutral stick or any button pressed
+            has_input = has_active_input?(player.controller)
 
-          updated = %{
-            prev_percent: if(current_stock < prev.prev_stock, do: 0.0, else: current_percent),
-            prev_stock: current_stock,
-            damage_dealt: prev.damage_dealt,  # Updated from opponent's perspective
-            damage_taken: prev.damage_taken + damage_increase,
-            stocks_lost: prev.stocks_lost + stock_lost,
-            sd_count: prev.sd_count + sd,
-            input_frames: prev.input_frames + if(has_input, do: 1, else: 0),
-            actions_seen: MapSet.put(prev.actions_seen, action)
-          }
+            updated = %{
+              prev_percent: if(current_stock < prev.prev_stock, do: 0.0, else: current_percent),
+              prev_stock: current_stock,
+              # Updated from opponent's perspective
+              damage_dealt: prev.damage_dealt,
+              damage_taken: prev.damage_taken + damage_increase,
+              stocks_lost: prev.stocks_lost + stock_lost,
+              sd_count: prev.sd_count + sd,
+              input_frames: prev.input_frames + if(has_input, do: 1, else: 0),
+              actions_seen: MapSet.put(prev.actions_seen, action)
+            }
 
-          Map.put(acc2, idx, updated)
-        end
+            Map.put(acc2, idx, updated)
+          end
+        end)
       end)
-    end)
 
     # Cross-reference damage: P1's damage_dealt = P2's damage_taken
     for i <- 0..(num_players - 1) do
@@ -561,12 +602,14 @@ defmodule ExPhil.Training.ReplayQuality do
         sd_count: stats.sd_count,
         input_frames: stats.input_frames,
         unique_actions: MapSet.size(stats.actions_seen),
-        is_cpu: false  # Peppi metadata doesn't expose this directly
+        # Peppi metadata doesn't expose this directly
+        is_cpu: false
       }
     end
   end
 
   defp has_active_input?(nil), do: false
+
   defp has_active_input?(controller) do
     # Check for non-neutral stick
     main_x = controller.main_stick_x || 0.0
@@ -574,14 +617,16 @@ defmodule ExPhil.Training.ReplayQuality do
     c_x = controller.c_stick_x || 0.0
     c_y = controller.c_stick_y || 0.0
 
-    stick_active = abs(main_x) > 0.3 or abs(main_y) > 0.3 or
-                   abs(c_x) > 0.3 or abs(c_y) > 0.3
+    stick_active =
+      abs(main_x) > 0.3 or abs(main_y) > 0.3 or
+        abs(c_x) > 0.3 or abs(c_y) > 0.3
 
     # Check for button presses
-    button_active = controller.button_a or controller.button_b or
-                    controller.button_x or controller.button_y or
-                    controller.button_z or controller.button_l or
-                    controller.button_r
+    button_active =
+      controller.button_a or controller.button_b or
+        controller.button_x or controller.button_y or
+        controller.button_z or controller.button_l or
+        controller.button_r
 
     stick_active or button_active
   end

@@ -32,6 +32,7 @@ defmodule ExampleBot do
     character = Keyword.get(opts, :character, :mewtwo)
 
     Output.banner("ExPhil Example Bot")
+
     Output.config([
       {"Dolphin", dolphin_path},
       {"ISO", iso_path},
@@ -39,11 +40,11 @@ defmodule ExampleBot do
     ])
 
     case Bridge.start(
-      dolphin_path: dolphin_path,
-      iso_path: iso_path,
-      character: character,
-      stage: :final_destination
-    ) do
+           dolphin_path: dolphin_path,
+           iso_path: iso_path,
+           character: character,
+           stage: :final_destination
+         ) do
       {:ok, bridge} ->
         Output.success("Bridge started successfully!")
         run_loop(bridge)
@@ -91,9 +92,11 @@ defmodule ExampleBot do
       # Comfortable range - space with movement and pokes
       distance < @comfortable_range ->
         if should_face_right do
-          ControllerInput.main_stick(0.6, 0.5)  # Walk right
+          # Walk right
+          ControllerInput.main_stick(0.6, 0.5)
         else
-          ControllerInput.main_stick(0.4, 0.5)  # Walk left
+          # Walk left
+          ControllerInput.main_stick(0.4, 0.5)
         end
 
       # Far away - approach
@@ -155,26 +158,30 @@ defmodule ExampleBot do
 end
 
 # Parse command line arguments
-{opts, _, _} = OptionParser.parse(System.argv(),
-  strict: [
-    dolphin: :string,
-    iso: :string,
-    character: :string
-  ]
-)
+{opts, _, _} =
+  OptionParser.parse(System.argv(),
+    strict: [
+      dolphin: :string,
+      iso: :string,
+      character: :string
+    ]
+  )
 
-dolphin_path = opts[:dolphin] ||
-  System.get_env("SLIPPI_PATH") ||
-  raise "Missing --dolphin path or SLIPPI_PATH env var"
+dolphin_path =
+  opts[:dolphin] ||
+    System.get_env("SLIPPI_PATH") ||
+    raise "Missing --dolphin path or SLIPPI_PATH env var"
 
-iso_path = opts[:iso] ||
-  System.get_env("MELEE_ISO") ||
-  raise "Missing --iso path or MELEE_ISO env var"
+iso_path =
+  opts[:iso] ||
+    System.get_env("MELEE_ISO") ||
+    raise "Missing --iso path or MELEE_ISO env var"
 
-character = case opts[:character] do
-  nil -> :mewtwo
-  str -> String.to_atom(String.downcase(str))
-end
+character =
+  case opts[:character] do
+    nil -> :mewtwo
+    str -> String.to_atom(String.downcase(str))
+  end
 
 ExampleBot.run(
   dolphin_path: dolphin_path,

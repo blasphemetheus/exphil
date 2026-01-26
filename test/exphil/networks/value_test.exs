@@ -42,8 +42,9 @@ defmodule ExPhil.Networks.ValueTest do
 
   describe "build_from_backbone/1" do
     test "creates value head from existing backbone" do
-      backbone = Axon.input("state", shape: {nil, 64})
-      |> Axon.dense(32, activation: :relu)
+      backbone =
+        Axon.input("state", shape: {nil, 64})
+        |> Axon.dense(32, activation: :relu)
 
       model = Value.build_from_backbone(backbone)
 
@@ -144,7 +145,8 @@ defmodule ExPhil.Networks.ValueTest do
   describe "compute_gae/5" do
     test "computes advantages and returns" do
       rewards = Nx.tensor([1.0, 1.0, 1.0])
-      values = Nx.tensor([0.0, 0.5, 0.8, 1.0])  # time_steps + 1
+      # time_steps + 1
+      values = Nx.tensor([0.0, 0.5, 0.8, 1.0])
       dones = Nx.tensor([0.0, 0.0, 0.0])
 
       {advantages, returns} = Value.compute_gae(rewards, values, dones)
@@ -156,7 +158,8 @@ defmodule ExPhil.Networks.ValueTest do
     test "zeros advantages on episode end" do
       rewards = Nx.tensor([1.0, 1.0, 1.0])
       values = Nx.tensor([0.0, 0.5, 0.8, 1.0])
-      dones = Nx.tensor([0.0, 1.0, 0.0])  # Episode ends at step 2
+      # Episode ends at step 2
+      dones = Nx.tensor([0.0, 1.0, 0.0])
 
       {advantages, _returns} = Value.compute_gae(rewards, values, dones)
 
@@ -203,6 +206,7 @@ defmodule ExPhil.Networks.ValueTest do
 
       # Should return zeros (or near-zero with epsilon)
       values = Nx.to_flat_list(normalized)
+
       Enum.each(values, fn v ->
         assert_in_delta v, 0.0, 0.001
       end)

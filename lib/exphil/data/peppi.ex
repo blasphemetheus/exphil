@@ -49,23 +49,49 @@ defmodule ExPhil.Data.Peppi do
   defmodule Controller do
     @moduledoc "Controller state from Peppi NIF"
     defstruct [
-      :main_stick_x, :main_stick_y,
-      :c_stick_x, :c_stick_y,
-      :l_trigger, :r_trigger,
-      :button_a, :button_b, :button_x, :button_y,
-      :button_z, :button_l, :button_r, :button_start,
-      :button_d_up, :button_d_down, :button_d_left, :button_d_right
+      :main_stick_x,
+      :main_stick_y,
+      :c_stick_x,
+      :c_stick_y,
+      :l_trigger,
+      :r_trigger,
+      :button_a,
+      :button_b,
+      :button_x,
+      :button_y,
+      :button_z,
+      :button_l,
+      :button_r,
+      :button_start,
+      :button_d_up,
+      :button_d_down,
+      :button_d_left,
+      :button_d_right
     ]
   end
 
   defmodule PlayerFrame do
     @moduledoc "Player state for a single frame"
     defstruct [
-      :character, :x, :y, :percent, :stock, :facing,
-      :action, :action_frame, :invulnerable, :jumps_left,
-      :on_ground, :shield_strength, :hitstun_frames_left,
-      :speed_air_x_self, :speed_ground_x_self, :speed_y_self,
-      :speed_x_attack, :speed_y_attack, :controller
+      :character,
+      :x,
+      :y,
+      :percent,
+      :stock,
+      :facing,
+      :action,
+      :action_frame,
+      :invulnerable,
+      :jumps_left,
+      :on_ground,
+      :shield_strength,
+      :hitstun_frames_left,
+      :speed_air_x_self,
+      :speed_ground_x_self,
+      :speed_y_self,
+      :speed_x_attack,
+      :speed_y_attack,
+      :controller
     ]
   end
 
@@ -109,11 +135,12 @@ defmodule ExPhil.Data.Peppi do
   def parse(path, opts \\ []) do
     player_port = Keyword.get(opts, :player_port)
 
-    result = if player_port do
-      parse_replay_for_port(path, player_port)
-    else
-      parse_replay(path)
-    end
+    result =
+      if player_port do
+        parse_replay_for_port(path, player_port)
+      else
+        parse_replay(path)
+      end
 
     case result do
       {:ok, replay} -> {:ok, replay}
@@ -322,7 +349,9 @@ defmodule ExPhil.Data.Peppi do
       |> Enum.map(fn t ->
         # Delayed game state (what agent "sees")
         delayed_frame = :array.get(t - delay, frame_array)
-        delayed_state = build_game_state(delayed_frame, player_port, opponent_port, replay.metadata)
+
+        delayed_state =
+          build_game_state(delayed_frame, player_port, opponent_port, replay.metadata)
 
         # Current action (what was actually done)
         current_frame = :array.get(t, frame_array)
@@ -363,20 +392,24 @@ defmodule ExPhil.Data.Peppi do
 
     if player do
       players = %{player_port => build_player(player)}
-      players = if opponent, do: Map.put(players, opponent_port, build_player(opponent)), else: players
 
-      distance = if player && opponent do
-        dx = player.x - opponent.x
-        dy = player.y - opponent.y
-        :math.sqrt(dx * dx + dy * dy)
-      else
-        0.0
-      end
+      players =
+        if opponent, do: Map.put(players, opponent_port, build_player(opponent)), else: players
+
+      distance =
+        if player && opponent do
+          dx = player.x - opponent.x
+          dy = player.y - opponent.y
+          :math.sqrt(dx * dx + dy * dy)
+        else
+          0.0
+        end
 
       %GameState{
         frame: frame.frame_number,
         stage: metadata.stage,
-        menu_state: 2,  # IN_GAME
+        # IN_GAME
+        menu_state: 2,
         players: players,
         projectiles: [],
         distance: distance
@@ -413,6 +446,7 @@ defmodule ExPhil.Data.Peppi do
 
   defp build_controller_state(nil), do: nil
   defp build_controller_state(%PlayerFrame{controller: nil}), do: nil
+
   defp build_controller_state(%PlayerFrame{controller: c}) do
     %ControllerState{
       main_stick: %{x: c.main_stick_x, y: c.main_stick_y},

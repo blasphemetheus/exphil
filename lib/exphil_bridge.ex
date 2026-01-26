@@ -87,7 +87,8 @@ defmodule ExPhil.Bridge do
   `{:menu, game_state}` when in menus,
   or `{:error, reason}` on failure.
   """
-  @spec step(bridge(), keyword()) :: {:ok, GameState.t()} | {:menu, GameState.t()} | {:error, term()}
+  @spec step(bridge(), keyword()) ::
+          {:ok, GameState.t()} | {:menu, GameState.t()} | {:error, term()}
   def step(bridge, opts \\ []) do
     MeleePort.step(bridge, opts)
   end
@@ -179,22 +180,26 @@ defmodule ExPhil.Bridge do
 
   """
   @spec run_ai(bridge(), (map(), map(), GameState.t() -> map()), keyword()) ::
-    {:ok, term()} | {:error, term()}
+          {:ok, term()} | {:error, term()}
   def run_ai(bridge, decision_fn, opts \\ []) do
     own_port = Keyword.get(opts, :own_port, 1)
     opp_port = Keyword.get(opts, :opp_port, 2)
 
-    run_game(bridge, fn game_state ->
-      own = GameState.get_player(game_state, own_port)
-      opp = GameState.get_player(game_state, opp_port)
+    run_game(
+      bridge,
+      fn game_state ->
+        own = GameState.get_player(game_state, own_port)
+        opp = GameState.get_player(game_state, opp_port)
 
-      if own && opp do
-        input = decision_fn.(own, opp, game_state)
-        {:continue, input}
-      else
-        {:continue, ControllerInput.neutral()}
-      end
-    end, opts)
+        if own && opp do
+          input = decision_fn.(own, opp, game_state)
+          {:continue, input}
+        else
+          {:continue, ControllerInput.neutral()}
+        end
+      end,
+      opts
+    )
   end
 
   @doc """

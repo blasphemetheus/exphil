@@ -24,6 +24,7 @@ defmodule ExPhil.Integration.PipelineTest do
   defp to_num(tensor) when is_struct(tensor, Nx.Tensor) do
     tensor |> Nx.squeeze() |> Nx.to_number()
   end
+
   defp to_num(value), do: value
 
   # Helper to assert action values are in valid ranges
@@ -65,13 +66,14 @@ defmodule ExPhil.Integration.PipelineTest do
       # 3. Create and train model
       embed_size = Embeddings.embedding_size(@test_embed_config)
 
-      trainer = Imitation.new(
-        embed_size: embed_size,
-        hidden_sizes: [32, 32],
-        learning_rate: 1.0e-3,
-        temporal: false,
-        embed_config: @test_embed_config
-      )
+      trainer =
+        Imitation.new(
+          embed_size: embed_size,
+          hidden_sizes: [32, 32],
+          learning_rate: 1.0e-3,
+          temporal: false,
+          embed_config: @test_embed_config
+        )
 
       # Train for a few steps
       {trained_trainer, metrics} =
@@ -88,7 +90,8 @@ defmodule ExPhil.Integration.PipelineTest do
       Enum.each(metrics, fn m ->
         loss_value = if is_struct(m.loss, Nx.Tensor), do: Nx.to_number(m.loss), else: m.loss
         assert is_float(loss_value) or is_number(loss_value)
-        assert loss_value >= 0  # Loss should be non-negative
+        # Loss should be non-negative
+        assert loss_value >= 0
       end)
 
       # 4. Export policy
@@ -104,11 +107,12 @@ defmodule ExPhil.Integration.PipelineTest do
       assert stat.size > 1000, "Policy file too small: #{stat.size} bytes"
 
       # 5. Load policy and run inference
-      {:ok, agent} = Agent.start_link(
-        policy_path: policy_path,
-        embed_config: @test_embed_config,
-        name: :"test_agent_#{System.unique_integer([:positive])}"
-      )
+      {:ok, agent} =
+        Agent.start_link(
+          policy_path: policy_path,
+          embed_config: @test_embed_config,
+          name: :"test_agent_#{System.unique_integer([:positive])}"
+        )
 
       # Run inference on a game state
       game_state = Factories.build_game_state()
@@ -138,18 +142,21 @@ defmodule ExPhil.Integration.PipelineTest do
       batches = Data.batched(dataset, batch_size: 16, shuffle: false) |> Enum.take(2)
 
       embed_size = Embeddings.embedding_size(@test_embed_config)
-      trainer = Imitation.new(
-        embed_size: embed_size,
-        hidden_sizes: [32],
-        learning_rate: 1.0e-3,
-        temporal: false,
-        embed_config: @test_embed_config
-      )
 
-      {trained, _} = Enum.reduce(batches, {trainer, []}, fn batch, {t, m} ->
-        {new_t, metrics} = Imitation.train_step(t, batch, nil)
-        {new_t, [metrics | m]}
-      end)
+      trainer =
+        Imitation.new(
+          embed_size: embed_size,
+          hidden_sizes: [32],
+          learning_rate: 1.0e-3,
+          temporal: false,
+          embed_config: @test_embed_config
+        )
+
+      {trained, _} =
+        Enum.reduce(batches, {trainer, []}, fn batch, {t, m} ->
+          {new_t, metrics} = Imitation.train_step(t, batch, nil)
+          {new_t, [metrics | m]}
+        end)
 
       # Export and load
       tmp_dir = System.tmp_dir!()
@@ -158,26 +165,29 @@ defmodule ExPhil.Integration.PipelineTest do
 
       :ok = Imitation.export_policy(trained, policy_path)
 
-      {:ok, agent} = Agent.start_link(
-        policy_path: policy_path,
-        embed_config: @test_embed_config,
-        name: :"test_agent_diff_#{System.unique_integer([:positive])}"
-      )
+      {:ok, agent} =
+        Agent.start_link(
+          policy_path: policy_path,
+          embed_config: @test_embed_config,
+          name: :"test_agent_diff_#{System.unique_integer([:positive])}"
+        )
 
       # Create two different game states
-      state1 = Factories.build_game_state(
-        players: %{
-          1 => Factories.build_player(x: -50.0, y: 0.0, percent: 0.0),
-          2 => Factories.build_player(x: 50.0, y: 0.0, percent: 100.0)
-        }
-      )
+      state1 =
+        Factories.build_game_state(
+          players: %{
+            1 => Factories.build_player(x: -50.0, y: 0.0, percent: 0.0),
+            2 => Factories.build_player(x: 50.0, y: 0.0, percent: 100.0)
+          }
+        )
 
-      state2 = Factories.build_game_state(
-        players: %{
-          1 => Factories.build_player(x: 50.0, y: 50.0, percent: 150.0),
-          2 => Factories.build_player(x: -50.0, y: 0.0, percent: 0.0)
-        }
-      )
+      state2 =
+        Factories.build_game_state(
+          players: %{
+            1 => Factories.build_player(x: 50.0, y: 50.0, percent: 150.0),
+            2 => Factories.build_player(x: -50.0, y: 0.0, percent: 0.0)
+          }
+        )
 
       # Get actions for both states
       {:ok, action1} = Agent.get_action(agent, state1)
@@ -205,37 +215,43 @@ defmodule ExPhil.Integration.PipelineTest do
       embed_size = Embeddings.embedding_size(@test_embed_config)
 
       # Create trainer and train for 3 steps
-      trainer = Imitation.new(
-        embed_size: embed_size,
-        hidden_sizes: [32],
-        learning_rate: 1.0e-3,
-        temporal: false,
-        embed_config: @test_embed_config
-      )
+      trainer =
+        Imitation.new(
+          embed_size: embed_size,
+          hidden_sizes: [32],
+          learning_rate: 1.0e-3,
+          temporal: false,
+          embed_config: @test_embed_config
+        )
 
-      {trained_3, _} = Enum.reduce(Enum.take(batches, 3), {trainer, []}, fn batch, {t, m} ->
-        {new_t, metrics} = Imitation.train_step(t, batch, nil)
-        {new_t, [metrics | m]}
-      end)
+      {trained_3, _} =
+        Enum.reduce(Enum.take(batches, 3), {trainer, []}, fn batch, {t, m} ->
+          {new_t, metrics} = Imitation.train_step(t, batch, nil)
+          {new_t, [metrics | m]}
+        end)
 
       assert trained_3.step == 3
 
       # Save checkpoint
       tmp_dir = System.tmp_dir!()
-      checkpoint_path = Path.join(tmp_dir, "test_checkpoint_#{System.unique_integer([:positive])}.axon")
+
+      checkpoint_path =
+        Path.join(tmp_dir, "test_checkpoint_#{System.unique_integer([:positive])}.axon")
+
       on_exit(fn -> File.rm(checkpoint_path) end)
 
       :ok = Imitation.save_checkpoint(trained_3, checkpoint_path)
       assert File.exists?(checkpoint_path)
 
       # Create fresh trainer and load checkpoint
-      fresh_trainer = Imitation.new(
-        embed_size: embed_size,
-        hidden_sizes: [32],
-        learning_rate: 1.0e-3,
-        temporal: false,
-        embed_config: @test_embed_config
-      )
+      fresh_trainer =
+        Imitation.new(
+          embed_size: embed_size,
+          hidden_sizes: [32],
+          learning_rate: 1.0e-3,
+          temporal: false,
+          embed_config: @test_embed_config
+        )
 
       {:ok, loaded_trainer} = Imitation.load_checkpoint(fresh_trainer, checkpoint_path)
 
@@ -243,10 +259,11 @@ defmodule ExPhil.Integration.PipelineTest do
       assert loaded_trainer.step == 3
 
       # Continue training for 2 more steps
-      {continued_trainer, _} = Enum.reduce(Enum.take(batches, 2), {loaded_trainer, []}, fn batch, {t, m} ->
-        {new_t, metrics} = Imitation.train_step(t, batch, nil)
-        {new_t, [metrics | m]}
-      end)
+      {continued_trainer, _} =
+        Enum.reduce(Enum.take(batches, 2), {loaded_trainer, []}, fn batch, {t, m} ->
+          {new_t, metrics} = Imitation.train_step(t, batch, nil)
+          {new_t, [metrics | m]}
+        end)
 
       # Should now be at step 5
       assert continued_trainer.step == 5
@@ -257,11 +274,12 @@ defmodule ExPhil.Integration.PipelineTest do
 
       :ok = Imitation.export_policy(continued_trainer, policy_path)
 
-      {:ok, agent} = Agent.start_link(
-        policy_path: policy_path,
-        embed_config: @test_embed_config,
-        name: :"test_agent_continued_#{System.unique_integer([:positive])}"
-      )
+      {:ok, agent} =
+        Agent.start_link(
+          policy_path: policy_path,
+          embed_config: @test_embed_config,
+          name: :"test_agent_continued_#{System.unique_integer([:positive])}"
+        )
 
       game_state = Factories.build_game_state()
       {:ok, action} = Agent.get_action(agent, game_state)
@@ -281,13 +299,14 @@ defmodule ExPhil.Integration.PipelineTest do
       dataset = Data.from_frames(frames, embed_config: @test_embed_config)
 
       # Create batches with frame delay augmentation (like online play)
-      batches = Data.batched(dataset,
-        batch_size: 8,
-        shuffle: false,
-        frame_delay_augment: true,
-        frame_delay_min: 0,
-        frame_delay_max: 18
-      )
+      batches =
+        Data.batched(dataset,
+          batch_size: 8,
+          shuffle: false,
+          frame_delay_augment: true,
+          frame_delay_min: 0,
+          frame_delay_max: 18
+        )
 
       batch_list = Enum.take(batches, 3)
       assert length(batch_list) == 3
@@ -330,10 +349,11 @@ defmodule ExPhil.Integration.PipelineTest do
       # Create sequence batches
       embed_size = Embeddings.embedding_size(@test_embed_config)
 
-      batches = Data.batched_sequences(seq_dataset,
-        batch_size: 4,
-        embed_config: @test_embed_config
-      )
+      batches =
+        Data.batched_sequences(seq_dataset,
+          batch_size: 4,
+          embed_config: @test_embed_config
+        )
 
       batch_list = Enum.take(batches, 2)
       assert length(batch_list) == 2
@@ -346,21 +366,24 @@ defmodule ExPhil.Integration.PipelineTest do
       assert batch_embed_size == embed_size
 
       # Create and train temporal model (MLP with seq_len input)
-      trainer = Imitation.new(
-        embed_size: embed_size,
-        hidden_sizes: [32],
-        learning_rate: 1.0e-3,
-        temporal: true,
-        backbone: :mlp,  # MLP flattens temporal dimension
-        window_size: window_size,
-        embed_config: @test_embed_config
-      )
+      trainer =
+        Imitation.new(
+          embed_size: embed_size,
+          hidden_sizes: [32],
+          learning_rate: 1.0e-3,
+          temporal: true,
+          # MLP flattens temporal dimension
+          backbone: :mlp,
+          window_size: window_size,
+          embed_config: @test_embed_config
+        )
 
       # Train for a few steps
-      {trained, metrics} = Enum.reduce(batch_list, {trainer, []}, fn batch, {t, m} ->
-        {new_t, step_metrics} = Imitation.train_step(t, batch, nil)
-        {new_t, [step_metrics | m]}
-      end)
+      {trained, metrics} =
+        Enum.reduce(batch_list, {trainer, []}, fn batch, {t, m} ->
+          {new_t, step_metrics} = Imitation.train_step(t, batch, nil)
+          {new_t, [step_metrics | m]}
+        end)
 
       assert trained.step == 2
       assert length(metrics) == 2
@@ -425,11 +448,12 @@ defmodule ExPhil.Integration.PipelineTest do
     @tag :integration
     test "agent with non-existent policy returns error on get_action" do
       # Agent starts successfully but with no policy loaded (logs warning)
-      {:ok, agent} = Agent.start_link(
-        policy_path: "/nonexistent/path/to/policy.bin",
-        embed_config: @test_embed_config,
-        name: :"test_agent_error_#{System.unique_integer([:positive])}"
-      )
+      {:ok, agent} =
+        Agent.start_link(
+          policy_path: "/nonexistent/path/to/policy.bin",
+          embed_config: @test_embed_config,
+          name: :"test_agent_error_#{System.unique_integer([:positive])}"
+        )
 
       # get_action should return error when no policy is loaded
       game_state = Factories.build_game_state()
@@ -444,12 +468,13 @@ defmodule ExPhil.Integration.PipelineTest do
     test "loading non-existent checkpoint returns error" do
       embed_size = Embeddings.embedding_size(@test_embed_config)
 
-      trainer = Imitation.new(
-        embed_size: embed_size,
-        hidden_sizes: [32],
-        temporal: false,
-        embed_config: @test_embed_config
-      )
+      trainer =
+        Imitation.new(
+          embed_size: embed_size,
+          hidden_sizes: [32],
+          temporal: false,
+          embed_config: @test_embed_config
+        )
 
       result = Imitation.load_checkpoint(trainer, "/nonexistent/checkpoint.axon")
       assert match?({:error, _}, result)

@@ -6,11 +6,12 @@ defmodule ExPhil.Embeddings.KMeansTest do
   describe "fit/2" do
     test "fits k clusters to 1D data" do
       # Create data with 3 clear clusters
-      data = Nx.concatenate([
-        Nx.broadcast(0.1, {100}),
-        Nx.broadcast(0.5, {100}),
-        Nx.broadcast(0.9, {100})
-      ])
+      data =
+        Nx.concatenate([
+          Nx.broadcast(0.1, {100}),
+          Nx.broadcast(0.5, {100}),
+          Nx.broadcast(0.9, {100})
+        ])
 
       centers = KMeans.fit(data, k: 3)
 

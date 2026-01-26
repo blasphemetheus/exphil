@@ -55,11 +55,12 @@ defmodule ExPhil.Integrations.WandbTest do
       api_key = System.get_env("WANDB_API_KEY")
 
       if api_key do
-        assert {:ok, run_id} = Wandb.start_run(
-          project: "exphil-test",
-          name: "test-run-#{System.system_time(:second)}",
-          config: %{test: true}
-        )
+        assert {:ok, run_id} =
+                 Wandb.start_run(
+                   project: "exphil-test",
+                   name: "test-run-#{System.system_time(:second)}",
+                   config: %{test: true}
+                 )
 
         assert is_binary(run_id)
         assert Wandb.active?()
@@ -80,10 +81,11 @@ defmodule ExPhil.Integrations.WandbTest do
       api_key = System.get_env("WANDB_API_KEY")
 
       if api_key do
-        {:ok, _run_id} = Wandb.start_run(
-          project: "exphil-test",
-          name: "telemetry-test-#{System.system_time(:second)}"
-        )
+        {:ok, _run_id} =
+          Wandb.start_run(
+            project: "exphil-test",
+            name: "telemetry-test-#{System.system_time(:second)}"
+          )
 
         # Emit a training step event
         ExPhil.Telemetry.training_step(%{loss: 0.5, step: 1}, %{epoch: 1})

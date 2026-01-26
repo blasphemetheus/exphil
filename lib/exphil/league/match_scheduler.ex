@@ -161,11 +161,12 @@ defmodule ExPhil.League.MatchScheduler do
     target_size = next_power_of_2(n)
 
     # Add byes if needed
-    padded = if n < target_size do
-      arch_ids ++ List.duplicate(:bye, target_size - n)
-    else
-      arch_ids
-    end
+    padded =
+      if n < target_size do
+        arch_ids ++ List.duplicate(:bye, target_size - n)
+      else
+        arch_ids
+      end
 
     # Optionally shuffle
     seeded = if shuffle_seeds, do: Enum.shuffle(padded), else: padded
@@ -207,11 +208,12 @@ defmodule ExPhil.League.MatchScheduler do
       []
     else
       # Weight by inverse win rate (lower win rate = higher priority)
-      weighted = Enum.map(opponents, fn opp ->
-        # Win rate against this opponent (from our perspective)
-        weight = (1.0 - opp.win_rate) * exploit_factor + (1 - exploit_factor) * 0.5
-        {opp.id, max(weight, 0.01)}
-      end)
+      weighted =
+        Enum.map(opponents, fn opp ->
+          # Win rate against this opponent (from our perspective)
+          weight = (1.0 - opp.win_rate) * exploit_factor + (1 - exploit_factor) * 0.5
+          {opp.id, max(weight, 0.01)}
+        end)
 
       # Sample with replacement based on weights
       sample_weighted(weighted, num_matches)
@@ -243,20 +245,22 @@ defmodule ExPhil.League.MatchScheduler do
   def diverse(architectures, opts \\ []) do
     num_matches = Keyword.get(opts, :num_matches, 20)
 
-    weights = Keyword.get(opts, :strategy_weights, %{
-      round_robin: 0.3,
-      skill_based: 0.3,
-      random: 0.2,
-      exploiter: 0.2
-    })
+    weights =
+      Keyword.get(opts, :strategy_weights, %{
+        round_robin: 0.3,
+        skill_based: 0.3,
+        random: 0.2,
+        exploiter: 0.2
+      })
 
     arch_ids = Enum.map(architectures, & &1.id)
 
     # Generate matches using each strategy
-    schedule = Enum.flat_map(1..num_matches, fn _ ->
-      strategy = sample_strategy(weights)
-      generate_match(strategy, architectures, arch_ids)
-    end)
+    schedule =
+      Enum.flat_map(1..num_matches, fn _ ->
+        strategy = sample_strategy(weights)
+        generate_match(strategy, architectures, arch_ids)
+      end)
 
     Enum.take(schedule, num_matches)
   end
@@ -318,10 +322,11 @@ defmodule ExPhil.League.MatchScheduler do
     p1_elo = Map.get(elo_map, p1, 1000)
 
     # Find opponents within Elo range
-    candidates = arch_ids
-    |> Enum.filter(fn id ->
-      id != p1 and abs(Map.get(elo_map, id, 1000) - p1_elo) <= elo_range
-    end)
+    candidates =
+      arch_ids
+      |> Enum.filter(fn id ->
+        id != p1 and abs(Map.get(elo_map, id, 1000) - p1_elo) <= elo_range
+      end)
 
     if length(candidates) == 0 do
       # No one in range, pick random
@@ -329,7 +334,9 @@ defmodule ExPhil.League.MatchScheduler do
       match = if p1 < p2, do: {p1, p2}, else: {p2, p1}
 
       if allow_rematches or match not in acc do
-        generate_skill_matches(arch_ids, elo_map, elo_range, remaining - 1, allow_rematches, [match | acc])
+        generate_skill_matches(arch_ids, elo_map, elo_range, remaining - 1, allow_rematches, [
+          match | acc
+        ])
       else
         generate_skill_matches(arch_ids, elo_map, elo_range, remaining, allow_rematches, acc)
       end
@@ -338,7 +345,9 @@ defmodule ExPhil.League.MatchScheduler do
       match = if p1 < p2, do: {p1, p2}, else: {p2, p1}
 
       if allow_rematches or match not in acc do
-        generate_skill_matches(arch_ids, elo_map, elo_range, remaining - 1, allow_rematches, [match | acc])
+        generate_skill_matches(arch_ids, elo_map, elo_range, remaining - 1, allow_rematches, [
+          match | acc
+        ])
       else
         generate_skill_matches(arch_ids, elo_map, elo_range, remaining, allow_rematches, acc)
       end
@@ -349,10 +358,11 @@ defmodule ExPhil.League.MatchScheduler do
 
   defp generate_swiss_rounds(architectures, standings, remaining, rounds, played) do
     # Sort by record (wins - losses), then by Elo for tiebreaker
-    sorted = Enum.sort_by(architectures, fn arch ->
-      {wins, losses} = Map.get(standings, arch.id, {0, 0})
-      {-(wins - losses), -arch.elo}
-    end)
+    sorted =
+      Enum.sort_by(architectures, fn arch ->
+        {wins, losses} = Map.get(standings, arch.id, {0, 0})
+        {-(wins - losses), -arch.elo}
+      end)
 
     # Pair adjacent entries
     {round_matchups, new_played} = pair_swiss(sorted, played, [])
@@ -449,6 +459,7 @@ defmodule ExPhil.League.MatchScheduler do
 
       Enum.reduce_while(weighted, {nil, 0.0}, fn {id, w}, {_, cumsum} ->
         new_cumsum = cumsum + w
+
         if r <= new_cumsum do
           {:halt, {id, new_cumsum}}
         else
@@ -466,6 +477,7 @@ defmodule ExPhil.League.MatchScheduler do
     weights
     |> Enum.reduce_while({nil, 0.0}, fn {strategy, w}, {_, cumsum} ->
       new_cumsum = cumsum + w
+
       if r <= new_cumsum do
         {:halt, {strategy, new_cumsum}}
       else
@@ -493,13 +505,16 @@ defmodule ExPhil.League.MatchScheduler do
   defp generate_match(:exploiter, architectures, arch_ids) do
     # Pick random architecture and generate PFSP match
     arch = Enum.random(arch_ids)
-    candidates = Enum.map(architectures, fn a ->
-      %{id: a.id, win_rate: ArchitectureEntry.win_rate(a)}
-    end)
+
+    candidates =
+      Enum.map(architectures, fn a ->
+        %{id: a.id, win_rate: ArchitectureEntry.win_rate(a)}
+      end)
 
     case pfsp(arch, candidates, num_matches: 1) do
       [opponent] ->
         if arch < opponent, do: [{arch, opponent}], else: [{opponent, arch}]
+
       [] ->
         # Fallback to random
         [p1, p2 | _] = Enum.shuffle(arch_ids)

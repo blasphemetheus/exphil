@@ -98,9 +98,18 @@ defmodule ExPhil.MixProject do
 
       # Test aliases for running different test categories
       # See docs/TESTING.md for full documentation
-      "test.fast": ["test"],  # Default: fast unit tests only
+      # Default: fast unit tests only
+      "test.fast": ["test"],
       "test.slow": ["test", "--include", "slow"],
-      "test.all": ["test", "--include", "slow", "--include", "integration", "--include", "external"],
+      "test.all": [
+        "test",
+        "--include",
+        "slow",
+        "--include",
+        "integration",
+        "--include",
+        "external"
+      ],
       "test.integration": ["test", "--only", "integration"],
       "test.coverage": ["coveralls.html"],
 

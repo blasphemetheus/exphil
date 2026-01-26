@@ -64,7 +64,8 @@ defmodule ExPhil.Training.GPUUtilsTest do
       small = GPUUtils.estimate_checkpoint_size(param_count: 1_000_000)
       large = GPUUtils.estimate_checkpoint_size(param_count: 10_000_000)
       assert large > small
-      assert large > small * 5  # Should scale roughly linearly
+      # Should scale roughly linearly
+      assert large > small * 5
     end
 
     test "smaller without optimizer state" do
@@ -76,18 +77,23 @@ defmodule ExPhil.Training.GPUUtilsTest do
 
   describe "check_checkpoint_size_warning/1" do
     test "returns :ok for small models" do
-      result = GPUUtils.check_checkpoint_size_warning(
-        param_count: 1_000_000,
-        threshold_mb: 500
-      )
+      result =
+        GPUUtils.check_checkpoint_size_warning(
+          param_count: 1_000_000,
+          threshold_mb: 500
+        )
+
       assert result == :ok
     end
 
     test "returns warning for large models" do
-      result = GPUUtils.check_checkpoint_size_warning(
-        param_count: 100_000_000,  # 100M params
-        threshold_mb: 100
-      )
+      result =
+        GPUUtils.check_checkpoint_size_warning(
+          # 100M params
+          param_count: 100_000_000,
+          threshold_mb: 100
+        )
+
       assert {:warning, msg} = result
       assert msg =~ "checkpoint size"
     end
@@ -99,6 +105,7 @@ defmodule ExPhil.Training.GPUUtilsTest do
         kernel: Nx.iota({100, 50}),
         bias: Nx.iota({50})
       }
+
       assert GPUUtils.count_params(params) == 5050
     end
 
@@ -113,6 +120,7 @@ defmodule ExPhil.Training.GPUUtilsTest do
           bias: Nx.iota({10})
         }
       }
+
       assert GPUUtils.count_params(params) == 5050 + 510
     end
 
@@ -130,8 +138,10 @@ defmodule ExPhil.Training.GPUUtilsTest do
     test "returns error when nvidia-smi unavailable" do
       # If we're on a machine without nvidia-smi, this should return an error
       case GPUUtils.check_memory_warning() do
-        :ok -> assert true  # GPU available and memory fine
-        {:warning, msg} -> assert is_binary(msg)  # GPU available but high usage
+        # GPU available and memory fine
+        :ok -> assert true
+        # GPU available but high usage
+        {:warning, msg} -> assert is_binary(msg)
         {:error, reason} -> assert reason in [:nvidia_smi_not_found, :nvidia_smi_failed]
       end
     end
@@ -139,8 +149,9 @@ defmodule ExPhil.Training.GPUUtilsTest do
     test "threshold parameter works" do
       # Test that threshold can be set (even if we can't test the actual behavior)
       result = GPUUtils.check_memory_warning(threshold: 0.99)
+
       assert result in [:ok, {:error, :nvidia_smi_not_found}, {:error, :nvidia_smi_failed}] or
-             match?({:warning, _}, result)
+               match?({:warning, _}, result)
     end
   end
 
