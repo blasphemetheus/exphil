@@ -452,6 +452,27 @@ defmodule ExPhil.Training.Data do
   # Handle legacy integer delay (backward compatibility)
   defp get_frame_delay(delay) when is_integer(delay), do: delay
 
+  # Embed states with optional name_ids for style-conditional training
+  defp embed_states(game_states, embed_config, nil) do
+    embeddings =
+      Enum.map(game_states, fn gs ->
+        Embeddings.embed(gs, nil, embed_config: embed_config)
+      end)
+
+    Nx.stack(embeddings)
+  end
+
+  defp embed_states(game_states, embed_config, name_ids) when is_list(name_ids) do
+    embeddings =
+      Enum.zip(game_states, name_ids)
+      |> Enum.map(fn {gs, name_id} ->
+        # Pass name_id for player embedding (style-conditional training)
+        Embeddings.embed(gs, nil, embed_config: embed_config, name_id: name_id)
+      end)
+
+    Nx.stack(embeddings)
+  end
+
   # Parallel embedding for non-precompute path - uses multiple CPU cores
   # then transfers the result to GPU for efficient training
   defp embed_states_parallel(game_states, embed_config, nil) do
