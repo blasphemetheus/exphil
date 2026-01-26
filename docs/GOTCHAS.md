@@ -41,6 +41,7 @@ Hard-won knowledge from debugging ExPhil. Each section documents a specific issu
 35. [Prefetcher materializes all batches into memory](#35-prefetcher-materializes-all-batches-into-memory)
 36. [Embedding pre-computation exhausts RAM on large datasets](#36-embedding-pre-computation-exhausts-ram-on-large-datasets)
 37. [0% GPU utilization with pre-computed embeddings](#37-0-gpu-utilization-with-pre-computed-embeddings)
+38. [Streaming prefetcher timeout causes silent batch drops](#38-streaming-prefetcher-timeout-causes-silent-batch-drops)
 
 ---
 
@@ -1436,3 +1437,49 @@ Nx.Defn.value_and_grad(loss_fn, [0]).(params, states, actions)  # FunctionClause
 **Regression test:**
 - `test/exphil/benchmarks/gpu_integration_test.exs` - "CPU to GPU backend transfer" tests
 - `scripts/test_gpu_speed.exs` - Quick benchmark script
+
+---
+
+## 38. Streaming prefetcher timeout causes silent batch drops
+
+**Status:** FIXED
+
+**Symptom:** Training with `--stream-chunk-size` shows "No batches processed this epoch" after exactly 60 seconds, despite having valid replay data.
+
+**Output looked like:**
+```
+[07:26:04]   📦 Processing chunk 1/1 (108 files)...
+[07:26:04]     Parsing 108 files...
+[07:27:04] ⚠️  No batches processed this epoch - check replay data
+[07:27:04]   ✓ Epoch 1 complete: train_loss=0.0 (60s)
+```
+
+**Root cause:** The streaming prefetcher had a hardcoded 60-second timeout:
+
+```elixir
+receive do
+  {:batch, ^stream_ref, batch} -> {:ok, batch}
+  {:done, ^stream_ref} -> :done
+after
+  60_000 -> :timeout  # Too short for large chunk parsing!
+end
+```
+
+When parsing a large chunk of files took longer than 60 seconds, the prefetcher silently timed out and skipped all batches.
+
+**The fix:**
+1. Increased timeout from 60s to 5 minutes (300s)
+2. Added warning log when timeout occurs
+
+```elixir
+@prefetch_timeout_ms 300_000
+
+# ... and in timeout handler:
+:timeout ->
+  Logger.warning("[Prefetcher] Timeout waiting for batch #{idx}")
+  process_prefetched_batches(...)
+```
+
+**Code location:** `lib/exphil/training/prefetcher.ex:365-377`
+
+**Workaround (if timeout still occurs):** Use smaller `--stream-chunk-size` values (e.g., 5000 instead of 20000) to reduce per-chunk parsing time.
