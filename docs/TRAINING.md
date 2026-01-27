@@ -214,13 +214,31 @@ mix run scripts/train_from_replays.exs --dual-port
 | `--mirror-prob X` | 0.5 | Mirror augmentation probability |
 | `--noise-prob X` | 0.3 | Noise augmentation probability |
 | `--noise-scale X` | 0.01 | Noise magnitude |
+| `--cache-augmented` | false | Precompute augmented variants (~100x speedup) |
+| `--num-noisy-variants N` | 2 | Number of noisy variants to precompute |
 | `--label-smoothing X` | 0.0 | Label smoothing (0.1 = typical) |
 | `--focal-loss` | false | Enable focal loss for rare actions |
 | `--focal-gamma X` | 2.0 | Focal loss gamma (higher = focus on hard) |
 
-> **Warning:** `--augment` currently causes ~100x slower training (~100s/batch instead of <1s).
-> This is because augmentation modifies raw game states before embedding, which bypasses precomputed embeddings.
-> **Recommended alternative:** Use `--online-robust` for frame delay augmentation (no performance impact).
+**Augmented Embedding Cache (Recommended)**
+
+Use `--cache-augmented` to precompute augmented embedding variants for ~100x speedup:
+
+```bash
+# Fast augmented training (recommended)
+mix run scripts/train_from_replays.exs \
+  --augment --cache-augmented \
+  --num-noisy-variants 2
+
+# More variety with additional noisy variants
+mix run scripts/train_from_replays.exs \
+  --augment --cache-augmented \
+  --num-noisy-variants 4
+```
+
+This precomputes multiple versions of each frame (original, mirrored, noisy variants) and randomly selects among them during training, providing similar regularization to on-the-fly augmentation.
+
+> **Note:** Without `--cache-augmented`, `--augment` applies augmentation on-the-fly which is ~100x slower.
 > See [Gotcha #40](GOTCHAS.md#40---augment-flag-bypasses-precomputed-embeddings-100x-slower) for details.
 
 ### Online Play Training
@@ -558,7 +576,9 @@ Embedding precomputation can take 1+ hours for large datasets. Enable disk cachi
 | Flag | Default | Effect |
 |------|---------|--------|
 | `--cache-embeddings` | false | Enable disk caching of embeddings |
-| `--cache-dir PATH` | `cache/embeddings` (training) or `/workspace/cache/embeddings` (benchmark) | Cache directory |
+| `--cache-augmented` | false | Cache augmented variants (original + mirrored + noisy) |
+| `--num-noisy-variants N` | 2 | Number of noisy variants to cache |
+| `--cache-dir PATH` | `cache/embeddings` | Cache directory |
 | `--no-cache` | false | Ignore existing cache and recompute |
 
 #### Training Script Examples
@@ -569,6 +589,12 @@ mix run scripts/train_from_replays.exs \
   --replays /workspace/replays/mewtwo \
   --cache-embeddings \
   --temporal --backbone mlp
+
+# Enable AUGMENTED embedding cache (~100x speedup for --augment)
+mix run scripts/train_from_replays.exs \
+  --replays /workspace/replays/mewtwo \
+  --cache-augmented --augment \
+  --num-noisy-variants 2
 
 # Custom cache directory
 mix run scripts/train_from_replays.exs \
@@ -583,8 +609,12 @@ mix run scripts/train_from_replays.exs \
   --no-cache
 ```
 
+**Cache Types:**
+- `--cache-embeddings`: Caches single embedding per frame. Incompatible with `--augment`.
+- `--cache-augmented`: Caches multiple variants per frame (original, mirrored, noisy). **Compatible with `--augment`** - this is the recommended way to use augmentation.
+
 **Incompatible flags:**
-- `--cache-embeddings` + `--augment`: Augmentation randomizes data, invalidating cache
+- `--cache-embeddings` + `--augment`: Use `--cache-augmented` instead for fast augmentation
 - `--cache-embeddings` + `--no-precompute`: Nothing to cache without precomputation
 - `--cache-embeddings` + `--stream-chunk-size`: Streaming mode processes chunks on-the-fly, cache not used
 

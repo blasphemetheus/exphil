@@ -76,6 +76,7 @@ See [GOALS.md](docs/GOALS.md) for comprehensive roadmap. Current focus:
 - Projectile parsing (1204-dim embedding includes projectiles)
 - Focal loss (`--focal-loss --focal-gamma 2.0`)
 - Embedding caching (2-3x speedup, default)
+- Augmented embedding cache (`--cache-augmented`, ~100x speedup for `--augment`)
 - Self-play GenServer infrastructure
 
 **Next Phase:**
