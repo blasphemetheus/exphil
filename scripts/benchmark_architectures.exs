@@ -79,11 +79,11 @@ gpu_config =
       next_arg = Enum.at(early_args, idx + 1)
 
       fraction =
-        case next_arg do
-          nil -> 0.7
-          arg when arg =~ ~r/^0\.\d+$/ -> String.to_float(arg)
-          arg when arg =~ ~r/^--/ -> 0.7
-          _ -> 0.7
+        cond do
+          is_nil(next_arg) -> 0.7
+          String.starts_with?(next_arg || "", "--") -> 0.7
+          Regex.match?(~r/^0\.\d+$/, next_arg || "") -> String.to_float(next_arg)
+          true -> 0.7
         end
 
       IO.puts("[GPU] Pre-allocating #{round(fraction * 100)}% of VRAM (--gpu-prealloc)")
