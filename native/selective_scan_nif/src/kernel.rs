@@ -40,15 +40,16 @@ mod cuda_impl {
     static CUDA_CONTEXT: OnceCell<Arc<CudaDevice>> = OnceCell::new();
 
     fn get_cuda_device() -> Result<Arc<CudaDevice>, KernelError> {
-        CUDA_CONTEXT.get_or_try_init(|| {
+        let dev = CUDA_CONTEXT.get_or_try_init(|| {
             let dev = Arc::new(CudaDevice::new(0)?);
 
             // Compile and load PTX once
             let ptx = cudarc::nvrtc::compile_ptx(SELECTIVE_SCAN_KERNEL)?;
             dev.load_ptx(ptx, "selective_scan", &["selective_scan_kernel"])?;
 
-            Ok(dev)
-        }).map(|dev| Arc::clone(dev))
+            Ok::<_, KernelError>(dev)
+        })?;
+        Ok(Arc::clone(dev))
     }
 
     /// CUDA kernel source code (compiled at runtime via NVRTC)
