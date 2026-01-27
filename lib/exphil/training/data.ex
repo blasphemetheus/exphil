@@ -244,12 +244,21 @@ defmodule ExPhil.Training.Data do
     - `:frame_delay_min` - Minimum delay when augmenting (default: 0)
     - `:frame_delay_max` - Maximum delay when augmenting (default: 18)
     - `:seed` - Random seed for shuffling
+    - `:mirror_prob` - Mirror augmentation probability for augmented caches (default: 0.5)
+    - `:noise_prob` - Noise augmentation probability for augmented caches (default: 0.3)
+    - `:num_noisy_variants` - Number of noisy variants in augmented cache (default: 2)
 
   ## Frame Delay Augmentation
 
   When `frame_delay_augment: true`, each sample randomly uses a delay
   between `frame_delay_min` and `frame_delay_max`. This trains models
   to be robust to both local play (0 delay) and online play (18+ delay).
+
+  ## Augmented Embedding Support
+
+  If the dataset has augmented embeddings (from `precompute_augmented_frame_embeddings`),
+  and `augment_fn` is NOT provided, variant selection will be used automatically.
+  This provides ~100x speedup over on-the-fly augmentation.
 
   ## Returns
     Stream of batches, each containing:
@@ -268,6 +277,11 @@ defmodule ExPhil.Training.Data do
     seed = Keyword.get(opts, :seed, System.system_time())
     augment_fn = Keyword.get(opts, :augment_fn, nil)
     character_weights = Keyword.get(opts, :character_weights, nil)
+
+    # Augmentation options for augmented embedding caches
+    mirror_prob = Keyword.get(opts, :mirror_prob, 0.5)
+    noise_prob = Keyword.get(opts, :noise_prob, 0.3)
+    num_noisy_variants = Keyword.get(opts, :num_noisy_variants, 2)
 
     # Determine max delay for index bounds
     max_delay = if frame_delay_augment, do: frame_delay_max, else: frame_delay
@@ -309,12 +323,19 @@ defmodule ExPhil.Training.Data do
       max: frame_delay_max
     }
 
+    # Build augmentation config for variant selection
+    augment_config = %{
+      mirror_prob: mirror_prob,
+      noise_prob: noise_prob,
+      num_noisy_variants: num_noisy_variants
+    }
+
     # Create batch stream
     indices
     |> Enum.chunk_every(batch_size)
     |> maybe_drop_last(drop_last, batch_size)
     |> Stream.map(fn batch_indices ->
-      create_batch(dataset, batch_indices, delay_config, augment_fn)
+      create_batch(dataset, batch_indices, delay_config, augment_fn, augment_config)
     end)
   end
 
@@ -324,14 +345,26 @@ defmodule ExPhil.Training.Data do
     Enum.filter(chunks, &(length(&1) == batch_size))
   end
 
-  defp create_batch(dataset, indices, delay_config, augment_fn) do
-    # Check if we have precomputed embeddings (and no augmentation that modifies states)
-    use_precomputed = dataset.embedded_frames != nil and augment_fn == nil
+  defp create_batch(dataset, indices, delay_config, augment_fn, augment_config) do
+    # Check if we have precomputed embeddings
+    has_precomputed = dataset.embedded_frames != nil
 
-    if use_precomputed do
-      create_batch_precomputed(dataset, indices, delay_config)
-    else
-      create_batch_standard(dataset, indices, delay_config, augment_fn)
+    # Check if we have augmented embeddings (3D tensor)
+    has_augmented = has_precomputed and has_augmented_embeddings?(dataset)
+
+    cond do
+      # Fast path: augmented embeddings with variant selection
+      # Use this when we have augmented embeddings and no custom augment_fn
+      has_augmented and augment_fn == nil ->
+        create_batch_augmented(dataset, indices, delay_config, augment_config)
+
+      # Fast path: regular precomputed embeddings (no augmentation)
+      has_precomputed and augment_fn == nil ->
+        create_batch_precomputed(dataset, indices, delay_config)
+
+      # Slow path: on-the-fly embedding (with optional augmentation)
+      true ->
+        create_batch_standard(dataset, indices, delay_config, augment_fn)
     end
   end
 
@@ -376,6 +409,88 @@ defmodule ExPhil.Training.Data do
       states: states,
       actions: action_tensors
     }
+  end
+
+  # Fast path: use augmented precomputed embeddings with variant selection
+  # embedded_frames shape: {num_frames, num_variants, embed_size}
+  # Variant layout: 0=original, 1=mirrored, 2+=noisy
+  defp create_batch_augmented(dataset, indices, delay_config, augment_config) do
+    %{
+      mirror_prob: mirror_prob,
+      noise_prob: noise_prob,
+      num_noisy_variants: num_noisy_variants
+    } = augment_config
+
+    # Collect actions for each frame (still need frame delay logic)
+    actions =
+      Enum.map(indices, fn idx ->
+        frame_delay = get_frame_delay(delay_config)
+        action_frame = Enum.at(dataset.frames, idx + frame_delay)
+        get_action(action_frame)
+      end)
+
+    # Select variant for each sample in batch
+    # This provides stochasticity similar to on-the-fly augmentation
+    variant_indices =
+      Enum.map(indices, fn _idx ->
+        select_variant_index(
+          mirror_prob: mirror_prob,
+          noise_prob: noise_prob,
+          num_noisy_variants: num_noisy_variants
+        )
+      end)
+
+    # Get embeddings using efficient 2D tensor indexing
+    # embedded_frames is {num_frames, num_variants, embed_size}
+    tensor = dataset.embedded_frames
+
+    # Create indices for gather
+    frame_indices = Nx.tensor(indices, type: :s64)
+    variant_tensor = Nx.tensor(variant_indices, type: :s64)
+
+    # Index into augmented embeddings
+    # Two-step indexing: first select frames, then select variants per sample
+    # Step 1: Nx.take on axis 0 gives us {batch_size, num_variants, embed_size}
+    frames_all_variants = Nx.take(tensor, frame_indices, axis: 0)
+
+    # Step 2: For each sample, select its variant
+    states =
+      frames_all_variants
+      |> select_variants_from_batch(variant_tensor)
+      |> Nx.backend_transfer(EXLA.Backend)
+
+    # Convert actions to tensors and transfer to GPU
+    action_tensors =
+      actions_to_tensors(actions)
+      |> transfer_actions_to_gpu()
+
+    %{
+      states: states,
+      actions: action_tensors
+    }
+  end
+
+  # Select one variant per sample from a batch of all variants
+  # input: {batch_size, num_variants, embed_size}
+  # variant_indices: {batch_size} - which variant to select for each sample
+  # output: {batch_size, embed_size}
+  defp select_variants_from_batch(batch_all_variants, variant_indices) do
+    {batch_size, _num_variants, embed_size} = Nx.shape(batch_all_variants)
+
+    # Build indices for gather: for each sample i, select [i, variant_indices[i], :]
+    batch_indices = Nx.iota({batch_size, 1})
+
+    # Combine into {batch_size, 2} index array: [[0, v0], [1, v1], ...]
+    variant_indices_2d = Nx.reshape(variant_indices, {batch_size, 1})
+    gather_indices = Nx.concatenate([batch_indices, variant_indices_2d], axis: 1)
+
+    # Use Nx.gather to select elements
+    Nx.gather(
+      batch_all_variants,
+      gather_indices,
+      axes: [0, 1]
+    )
+    |> Nx.reshape({batch_size, embed_size})
   end
 
   # Transfer action tensors to GPU
@@ -984,13 +1099,21 @@ defmodule ExPhil.Training.Data do
     if cache_enabled and not force_recompute and length(replay_files) > 0 do
       cache_key = EmbeddingCache.cache_key(dataset.embed_config, replay_files, temporal: false)
 
+      Logger.info("[EmbeddingCache] Looking for cache key: #{cache_key} (frame embeddings)")
+
       case EmbeddingCache.load(cache_key, cache_dir: cache_dir) do
         {:ok, embedded_array} ->
           Logger.info("[EmbeddingCache] Using cached frame embeddings")
           %{dataset | embedded_frames: embedded_array}
 
         {:error, :not_found} ->
-          Logger.info("[EmbeddingCache] Cache miss, computing embeddings...")
+          available =
+            EmbeddingCache.list(cache_dir: cache_dir)
+            |> Enum.map(& &1.key)
+            |> Enum.join(", ")
+
+          Logger.info("[EmbeddingCache] Cache miss for #{cache_key}")
+          Logger.info("[EmbeddingCache] Available caches: #{available}")
           result = precompute_frame_embeddings(dataset, opts)
 
           # Save to cache
@@ -1010,6 +1133,270 @@ defmodule ExPhil.Training.Data do
     else
       precompute_frame_embeddings(dataset, opts)
     end
+  end
+
+  # ============================================================================
+  # Augmented Embedding Cache
+  # ============================================================================
+
+  @doc """
+  Pre-compute frame embeddings with augmented variants.
+
+  Creates multiple augmented versions of each frame and embeds them all,
+  resulting in a tensor of shape `{num_frames, num_variants, embed_size}`.
+
+  This enables ~100x speedup when using `--augment` during training, as
+  augmentation is precomputed rather than applied per-batch.
+
+  ## Variant Layout
+    - Index 0: Original (unaugmented)
+    - Index 1: Mirrored (X positions/velocities flipped)
+    - Index 2+: Noisy variants (Gaussian noise with deterministic seeds)
+
+  ## Options
+    - `:num_noisy_variants` - Number of noisy variants to generate (default: 2)
+    - `:noise_scale` - Standard deviation for noise (default: 0.01)
+    - `:show_progress` - Show progress bar (default: true)
+    - `:batch_size` - Embedding batch size for GPU efficiency (default: 500)
+    - `:gc_every` - Run GC every N batches (default: 50)
+
+  ## Returns
+
+  Updated dataset with `embedded_frames` of shape `{num_frames, num_variants, embed_size}`
+
+  ## Example
+
+      # Precompute with 2 noisy variants (total 4 variants: original, mirror, noisy1, noisy2)
+      dataset = Data.precompute_augmented_frame_embeddings(dataset,
+        num_noisy_variants: 2,
+        noise_scale: 0.01
+      )
+
+      # During training, randomly select variant per sample
+      variant_idx = select_variant(mirror_prob: 0.5, noise_prob: 0.3)
+      embedding = Nx.take(dataset.embedded_frames, indices) |> Nx.take(..., axis: 1, indices: variant_idx)
+  """
+  @spec precompute_augmented_frame_embeddings(t(), keyword()) :: t()
+  def precompute_augmented_frame_embeddings(dataset, opts \\ []) do
+    alias ExPhil.Training.Augmentation
+
+    num_noisy_variants = Keyword.get(opts, :num_noisy_variants, 2)
+    noise_scale = Keyword.get(opts, :noise_scale, 0.01)
+    show_progress = Keyword.get(opts, :show_progress, true)
+    batch_size = Keyword.get(opts, :batch_size, 500)
+    gc_every = Keyword.get(opts, :gc_every, 50)
+
+    # Total variants: 1 (original) + 1 (mirrored) + num_noisy_variants
+    num_variants = 2 + num_noisy_variants
+    total_frames = dataset.size
+
+    if show_progress do
+      IO.puts(:stderr, "  Pre-computing augmented embeddings for #{total_frames} frames...")
+      IO.puts(:stderr, "    Variants: original + mirrored + #{num_noisy_variants} noisy = #{num_variants} total")
+      estimated_mb = Float.round(total_frames * num_variants * 300 * 4 / 1_000_000_000, 2)
+      IO.puts(:stderr, "    Estimated size: ~#{estimated_mb} GB")
+    end
+
+    embed_config = dataset.embed_config
+
+    # Process frames in batches, generating all variants for each frame
+    batch_tensors =
+      dataset.frames
+      |> Enum.chunk_every(batch_size)
+      |> Enum.with_index()
+      |> Enum.map(fn {chunk, chunk_idx} ->
+        if show_progress do
+          processed = min((chunk_idx + 1) * batch_size, total_frames)
+          pct = round(processed / total_frames * 100)
+          IO.write(:stderr, "\r  Augmented embedding: #{pct}% (#{processed}/#{total_frames})    ")
+        end
+
+        # Periodic garbage collection
+        if gc_every > 0 and rem(chunk_idx, gc_every) == 0 and chunk_idx > 0 do
+          :erlang.garbage_collect()
+        end
+
+        # Generate all variants for this chunk
+        # For each frame, create: [original, mirrored, noisy1, noisy2, ...]
+        variants_per_frame =
+          Enum.map(chunk, fn frame ->
+            original = frame
+            mirrored = Augmentation.mirror(frame)
+
+            # Generate noisy variants with deterministic seeds based on frame index
+            # This ensures reproducibility across runs
+            noisy_variants =
+              for noise_idx <- 0..(num_noisy_variants - 1) do
+                # Use frame hash + noise_idx as seed for reproducibility
+                frame_hash = :erlang.phash2(frame.game_state)
+                seed = frame_hash + noise_idx * 12345
+                :rand.seed(:exsss, {seed, seed + 1, seed + 2})
+
+                Augmentation.add_noise(frame, scale: noise_scale)
+              end
+
+            [original, mirrored | noisy_variants]
+          end)
+
+        # Flatten to process all variants at once: chunk_size * num_variants frames
+        all_frames = List.flatten(variants_per_frame)
+        game_states = Enum.map(all_frames, & &1.game_state)
+
+        # Extract name_ids (same for all variants of a frame)
+        base_name_ids = Enum.map(chunk, fn f -> f[:name_id] || 0 end)
+        name_ids = Enum.flat_map(base_name_ids, fn id -> List.duplicate(id, num_variants) end)
+
+        # Embed all variants in one batch
+        all_embeddings =
+          Embeddings.Game.embed_states_fast(game_states, 1,
+            config: embed_config,
+            name_id: name_ids
+          )
+          |> Nx.backend_copy(Nx.BinaryBackend)
+
+        # Reshape from {chunk_size * num_variants, embed_size} to {chunk_size, num_variants, embed_size}
+        embed_size = Nx.axis_size(all_embeddings, 1)
+        chunk_size = length(chunk)
+
+        all_embeddings
+        |> Nx.reshape({chunk_size, num_variants, embed_size})
+      end)
+
+    if show_progress do
+      IO.puts(:stderr, "\r  Augmented embedding: 100% (#{total_frames}/#{total_frames}) - done!    ")
+    end
+
+    # Concatenate all batches: {total_frames, num_variants, embed_size}
+    stacked_embeddings = Nx.concatenate(batch_tensors, axis: 0)
+
+    %{dataset | embedded_frames: stacked_embeddings}
+  end
+
+  @doc """
+  Pre-compute augmented frame embeddings with optional disk caching.
+
+  ## Options
+    - `:cache` - Enable caching (default: false)
+    - `:cache_dir` - Cache directory (default: "cache/embeddings")
+    - `:force_recompute` - Ignore cache and recompute (default: false)
+    - `:replay_files` - List of replay file paths (required for cache key)
+    - `:num_noisy_variants` - Number of noisy variants (default: 2)
+    - `:noise_scale` - Noise scale (default: 0.01)
+    - All options from `precompute_augmented_frame_embeddings/2`
+
+  ## Example
+
+      dataset = Data.precompute_augmented_frame_embeddings_cached(dataset,
+        cache: true,
+        replay_files: replay_files,
+        num_noisy_variants: 2
+      )
+  """
+  @spec precompute_augmented_frame_embeddings_cached(t(), keyword()) :: t()
+  def precompute_augmented_frame_embeddings_cached(dataset, opts \\ []) do
+    cache_enabled = Keyword.get(opts, :cache, false)
+    force_recompute = Keyword.get(opts, :force_recompute, false)
+    replay_files = Keyword.get(opts, :replay_files, [])
+    cache_dir = Keyword.get(opts, :cache_dir, "cache/embeddings")
+    num_noisy_variants = Keyword.get(opts, :num_noisy_variants, 2)
+    noise_scale = Keyword.get(opts, :noise_scale, 0.01)
+
+    alias ExPhil.Training.EmbeddingCache
+
+    if cache_enabled and not force_recompute and length(replay_files) > 0 do
+      cache_key =
+        EmbeddingCache.cache_key(dataset.embed_config, replay_files,
+          temporal: false,
+          augmented: true,
+          num_noisy_variants: num_noisy_variants,
+          noise_scale: noise_scale
+        )
+
+      case EmbeddingCache.load(cache_key, cache_dir: cache_dir) do
+        {:ok, embedded_array} ->
+          Logger.info("[EmbeddingCache] Using cached augmented frame embeddings")
+          %{dataset | embedded_frames: embedded_array}
+
+        {:error, :not_found} ->
+          Logger.info("[EmbeddingCache] Cache miss, computing augmented embeddings...")
+          result = precompute_augmented_frame_embeddings(dataset, opts)
+
+          if result.embedded_frames do
+            EmbeddingCache.save(cache_key, result.embedded_frames, cache_dir: cache_dir)
+          end
+
+          result
+
+        {:error, reason} ->
+          Logger.warning(
+            "[EmbeddingCache] Failed to load cache: #{inspect(reason)}, recomputing..."
+          )
+
+          precompute_augmented_frame_embeddings(dataset, opts)
+      end
+    else
+      precompute_augmented_frame_embeddings(dataset, opts)
+    end
+  end
+
+  @doc """
+  Select variant index based on augmentation probabilities.
+
+  Used when batching from augmented embeddings to randomly select
+  which variant (original, mirrored, or noisy) to use for each sample.
+
+  ## Options
+    - `:mirror_prob` - Probability of selecting mirrored variant (default: 0.5)
+    - `:noise_prob` - Probability of selecting a noisy variant (default: 0.3)
+    - `:num_noisy_variants` - Number of noisy variants available (default: 2)
+
+  ## Returns
+
+  Integer index into the variant dimension:
+    - 0: Original
+    - 1: Mirrored
+    - 2+: Noisy variant
+
+  ## Selection Logic
+
+  1. First, decide augmentation type: original (1-mirror-noise), mirror, or noise
+  2. If noise selected, randomly pick which noisy variant
+  """
+  @spec select_variant_index(keyword()) :: non_neg_integer()
+  def select_variant_index(opts \\ []) do
+    mirror_prob = Keyword.get(opts, :mirror_prob, 0.5)
+    noise_prob = Keyword.get(opts, :noise_prob, 0.3)
+    num_noisy_variants = Keyword.get(opts, :num_noisy_variants, 2)
+
+    # Roll for augmentation type
+    roll = :rand.uniform()
+
+    cond do
+      # Noise takes priority (applied after mirror decision in original code)
+      roll < noise_prob ->
+        # Randomly select which noisy variant (indices 2, 3, ...)
+        2 + :rand.uniform(num_noisy_variants) - 1
+
+      roll < noise_prob + mirror_prob * (1 - noise_prob) ->
+        # Mirrored (index 1)
+        1
+
+      true ->
+        # Original (index 0)
+        0
+    end
+  end
+
+  @doc """
+  Check if dataset has augmented (multi-variant) frame embeddings.
+  """
+  @spec has_augmented_embeddings?(t()) :: boolean()
+  def has_augmented_embeddings?(%__MODULE__{embedded_frames: nil}), do: false
+
+  def has_augmented_embeddings?(%__MODULE__{embedded_frames: embeddings}) do
+    # Augmented embeddings have 3 dimensions: {frames, variants, embed_size}
+    # Regular embeddings have 2 dimensions: {frames, embed_size}
+    tuple_size(Nx.shape(embeddings)) == 3
   end
 
   @doc """
@@ -1046,6 +1433,10 @@ defmodule ExPhil.Training.Data do
           stride: stride
         )
 
+      Logger.info(
+        "[EmbeddingCache] Looking for cache key: #{cache_key} (temporal, window=#{window_size}, stride=#{stride})"
+      )
+
       case EmbeddingCache.load(cache_key, cache_dir: cache_dir) do
         {:ok, cached_dataset} when is_struct(cached_dataset, __MODULE__) ->
           # Full dataset was cached
@@ -1058,7 +1449,14 @@ defmodule ExPhil.Training.Data do
           %{dataset | embedded_sequences: embedded_seqs}
 
         {:error, :not_found} ->
-          Logger.info("[EmbeddingCache] Cache miss, computing embeddings...")
+          # Show available caches for debugging
+          available =
+            EmbeddingCache.list(cache_dir: cache_dir)
+            |> Enum.map(& &1.key)
+            |> Enum.join(", ")
+
+          Logger.info("[EmbeddingCache] Cache miss for #{cache_key}")
+          Logger.info("[EmbeddingCache] Available caches: #{available}")
           result = precompute_embeddings(dataset, opts)
 
           # Save to cache

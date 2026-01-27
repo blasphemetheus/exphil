@@ -1178,19 +1178,39 @@ player_registry =
         if opts[:precompute] do
           Output.puts("  Pre-computing embeddings (2-3x speedup)...")
 
-          # Use cached version if --cache-embeddings is enabled (saves ~1hr on re-runs)
-          if opts[:cache_embeddings] do
-            Output.puts("  Using embedding cache (#{opts[:cache_dir]})...")
+          cond do
+            # Augmented cache: precompute original + mirrored + noisy variants
+            # Enables ~100x speedup when using --augment during training
+            opts[:cache_augmented] ->
+              num_variants = 2 + opts[:num_noisy_variants]
+              Output.puts("  Using augmented embedding cache (#{num_variants} variants)...")
+              Output.puts("  Cache dir: #{opts[:cache_dir]}")
 
-            Data.precompute_frame_embeddings_cached(dataset,
-              cache: true,
-              cache_dir: opts[:cache_dir],
-              force_recompute: opts[:no_cache],
-              replay_files: replay_files,
-              show_progress: true
-            )
-          else
-            Data.precompute_frame_embeddings(dataset)
+              Data.precompute_augmented_frame_embeddings_cached(dataset,
+                cache: true,
+                cache_dir: opts[:cache_dir],
+                force_recompute: opts[:no_cache],
+                replay_files: replay_files,
+                num_noisy_variants: opts[:num_noisy_variants],
+                noise_scale: opts[:noise_scale],
+                show_progress: true
+              )
+
+            # Regular cache: precompute only original embeddings
+            opts[:cache_embeddings] ->
+              Output.puts("  Using embedding cache (#{opts[:cache_dir]})...")
+
+              Data.precompute_frame_embeddings_cached(dataset,
+                cache: true,
+                cache_dir: opts[:cache_dir],
+                force_recompute: opts[:no_cache],
+                replay_files: replay_files,
+                show_progress: true
+              )
+
+            # No cache: compute embeddings in memory only
+            true ->
+              Data.precompute_frame_embeddings(dataset)
           end
         else
           dataset
@@ -1427,17 +1447,34 @@ end
 
 # Step 4: Training loop
 # Create augmentation function if enabled
+# When using augmented caching (--cache-augmented), we use variant selection instead
+# which is ~100x faster than on-the-fly augmentation
+use_augmented_cache = opts[:cache_augmented] and Data.has_augmented_embeddings?(train_ds)
+
 augment_fn =
-  if opts[:augment] do
-    fn frame ->
-      Augmentation.augment(frame,
-        mirror_prob: opts[:mirror_prob],
-        noise_prob: opts[:noise_prob],
-        noise_scale: opts[:noise_scale]
-      )
-    end
-  else
-    nil
+  cond do
+    # Augmented cache: use fast variant selection instead of augment_fn
+    # The batched() function will detect augmented embeddings and use variant selection
+    use_augmented_cache ->
+      if opts[:augment] do
+        Output.puts("  Using augmented embedding cache (~100x speedup for --augment)")
+      end
+
+      nil
+
+    # Standard augmentation: create augment_fn for on-the-fly augmentation
+    opts[:augment] ->
+      fn frame ->
+        Augmentation.augment(frame,
+          mirror_prob: opts[:mirror_prob],
+          noise_prob: opts[:noise_prob],
+          noise_scale: opts[:noise_scale]
+        )
+      end
+
+    # No augmentation
+    true ->
+      nil
   end
 
 early_stopping_msg =
@@ -1691,6 +1728,10 @@ batch_checkpoint_path =
                 frame_delay_augment: opts[:frame_delay_augment],
                 frame_delay_min: opts[:frame_delay_min],
                 frame_delay_max: opts[:frame_delay_max],
+                # Augmentation probabilities for variant selection (when using augmented cache)
+                mirror_prob: opts[:mirror_prob],
+                noise_prob: opts[:noise_prob],
+                num_noisy_variants: opts[:num_noisy_variants],
                 character_weights: character_weights
               )
             end
@@ -1719,6 +1760,10 @@ batch_checkpoint_path =
               frame_delay_augment: opts[:frame_delay_augment],
               frame_delay_min: opts[:frame_delay_min],
               frame_delay_max: opts[:frame_delay_max],
+              # Augmentation probabilities for variant selection (when using augmented cache)
+              mirror_prob: opts[:mirror_prob],
+              noise_prob: opts[:noise_prob],
+              num_noisy_variants: opts[:num_noisy_variants],
               # Character-balanced sampling (if enabled)
               character_weights: character_weights
             )

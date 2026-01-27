@@ -337,6 +337,246 @@ defmodule ExPhil.Training.EmbeddingCacheTest do
     end
   end
 
+  # ============================================================================
+  # Augmented Embedding Cache Tests
+  # ============================================================================
+
+  describe "Data.precompute_augmented_frame_embeddings/2" do
+    test "returns 3D tensor with variants" do
+      dataset = ExPhil.Test.Factory.frame_dataset(num_frames: 10)
+
+      result =
+        Data.precompute_augmented_frame_embeddings(dataset,
+          num_noisy_variants: 2,
+          show_progress: false
+        )
+
+      # Should be 3D tensor: {num_frames, num_variants, embed_size}
+      assert is_struct(result.embedded_frames, Nx.Tensor)
+      shape = Nx.shape(result.embedded_frames)
+      assert tuple_size(shape) == 3
+
+      {num_frames, num_variants, embed_size} = shape
+      assert num_frames == 10
+      # 1 original + 1 mirrored + 2 noisy = 4 variants
+      assert num_variants == 4
+      assert embed_size > 0
+    end
+
+    test "variant count matches configuration" do
+      dataset = ExPhil.Test.Factory.frame_dataset(num_frames: 5)
+
+      # With 3 noisy variants
+      result =
+        Data.precompute_augmented_frame_embeddings(dataset,
+          num_noisy_variants: 3,
+          show_progress: false
+        )
+
+      {_frames, num_variants, _embed} = Nx.shape(result.embedded_frames)
+      # 1 original + 1 mirrored + 3 noisy = 5 variants
+      assert num_variants == 5
+    end
+  end
+
+  describe "Data.has_augmented_embeddings?/1" do
+    test "returns true for 3D embeddings" do
+      dataset = ExPhil.Test.Factory.frame_dataset(num_frames: 5)
+
+      augmented =
+        Data.precompute_augmented_frame_embeddings(dataset,
+          num_noisy_variants: 2,
+          show_progress: false
+        )
+
+      assert Data.has_augmented_embeddings?(augmented)
+    end
+
+    test "returns false for 2D embeddings" do
+      dataset = ExPhil.Test.Factory.frame_dataset(num_frames: 5)
+      regular = Data.precompute_frame_embeddings(dataset, show_progress: false)
+
+      refute Data.has_augmented_embeddings?(regular)
+    end
+
+    test "returns false for nil embeddings" do
+      dataset = ExPhil.Test.Factory.frame_dataset(num_frames: 5)
+      refute Data.has_augmented_embeddings?(dataset)
+    end
+  end
+
+  describe "Data.select_variant_index/1" do
+    test "returns indices in valid range" do
+      for _ <- 1..100 do
+        idx =
+          Data.select_variant_index(
+            mirror_prob: 0.5,
+            noise_prob: 0.3,
+            num_noisy_variants: 2
+          )
+
+        # With 2 noisy variants, valid indices are 0, 1, 2, 3
+        assert idx >= 0 and idx <= 3
+      end
+    end
+
+    test "zero probabilities return original (0)" do
+      for _ <- 1..20 do
+        idx =
+          Data.select_variant_index(
+            mirror_prob: 0.0,
+            noise_prob: 0.0,
+            num_noisy_variants: 2
+          )
+
+        assert idx == 0
+      end
+    end
+
+    test "mirror_prob 1.0 with noise_prob 0.0 returns mirrored (1)" do
+      # When noise_prob is 0, and mirror_prob is 1, should always mirror
+      for _ <- 1..20 do
+        idx =
+          Data.select_variant_index(
+            mirror_prob: 1.0,
+            noise_prob: 0.0,
+            num_noisy_variants: 2
+          )
+
+        assert idx == 1
+      end
+    end
+  end
+
+  describe "EmbeddingCache.cache_key/3 augmentation params" do
+    test "includes augmented flag in key" do
+      files = ["a.slp"]
+      config = %Game{player: %Player{action_mode: :learned}, stage_mode: :one_hot_compact}
+
+      key1 = EmbeddingCache.cache_key(config, files, augmented: false)
+      key2 = EmbeddingCache.cache_key(config, files, augmented: true)
+
+      assert key1 != key2
+    end
+
+    test "includes num_noisy_variants in key" do
+      files = ["a.slp"]
+      config = %Game{player: %Player{action_mode: :learned}, stage_mode: :one_hot_compact}
+
+      key1 = EmbeddingCache.cache_key(config, files, augmented: true, num_noisy_variants: 2)
+      key2 = EmbeddingCache.cache_key(config, files, augmented: true, num_noisy_variants: 4)
+
+      assert key1 != key2
+    end
+
+    test "includes noise_scale in key" do
+      files = ["a.slp"]
+      config = %Game{player: %Player{action_mode: :learned}, stage_mode: :one_hot_compact}
+
+      key1 = EmbeddingCache.cache_key(config, files, augmented: true, noise_scale: 0.01)
+      key2 = EmbeddingCache.cache_key(config, files, augmented: true, noise_scale: 0.05)
+
+      assert key1 != key2
+    end
+  end
+
+  describe "Data.precompute_augmented_frame_embeddings_cached/2" do
+    @tag :tmp_dir
+    test "saves and loads augmented cache correctly", %{tmp_dir: tmp_dir} do
+      dataset = ExPhil.Test.Factory.frame_dataset(num_frames: 10)
+      replay_files = ["test1.slp"]
+
+      opts = [
+        cache: true,
+        cache_dir: tmp_dir,
+        force_recompute: false,
+        replay_files: replay_files,
+        num_noisy_variants: 2,
+        noise_scale: 0.01,
+        show_progress: false
+      ]
+
+      # First call should compute and save
+      result1 = Data.precompute_augmented_frame_embeddings_cached(dataset, opts)
+      assert Data.has_augmented_embeddings?(result1)
+      {frames1, variants1, _embed1} = Nx.shape(result1.embedded_frames)
+      assert frames1 == 10
+      assert variants1 == 4
+
+      # Second call should load from cache
+      result2 = Data.precompute_augmented_frame_embeddings_cached(dataset, opts)
+      assert Nx.shape(result2.embedded_frames) == Nx.shape(result1.embedded_frames)
+    end
+
+    @tag :tmp_dir
+    test "different num_noisy_variants creates different cache", %{tmp_dir: tmp_dir} do
+      dataset = ExPhil.Test.Factory.frame_dataset(num_frames: 5)
+      replay_files = ["test1.slp"]
+
+      base_opts = [
+        cache: true,
+        cache_dir: tmp_dir,
+        force_recompute: false,
+        replay_files: replay_files,
+        noise_scale: 0.01,
+        show_progress: false
+      ]
+
+      # Cache with 2 noisy variants
+      _result1 =
+        Data.precompute_augmented_frame_embeddings_cached(
+          dataset,
+          Keyword.put(base_opts, :num_noisy_variants, 2)
+        )
+
+      # Cache with 4 noisy variants
+      _result2 =
+        Data.precompute_augmented_frame_embeddings_cached(
+          dataset,
+          Keyword.put(base_opts, :num_noisy_variants, 4)
+        )
+
+      # Should have 2 cache files
+      cache_files = Path.wildcard("#{tmp_dir}/*.emb")
+      assert length(cache_files) == 2
+    end
+  end
+
+  describe "batched with augmented embeddings" do
+    test "uses variant selection when augmented embeddings exist" do
+      dataset = ExPhil.Test.Factory.frame_dataset(num_frames: 20)
+
+      augmented =
+        Data.precompute_augmented_frame_embeddings(dataset,
+          num_noisy_variants: 2,
+          show_progress: false
+        )
+
+      # Create batches with augmentation options
+      batches =
+        Data.batched(augmented,
+          batch_size: 5,
+          shuffle: false,
+          # No augment_fn - should use variant selection
+          mirror_prob: 0.5,
+          noise_prob: 0.3,
+          num_noisy_variants: 2
+        )
+
+      # Should not crash and produce valid batches
+      batch_list = Enum.take(batches, 2)
+      assert length(batch_list) == 2
+
+      batch = hd(batch_list)
+      assert Map.has_key?(batch, :states)
+      assert Map.has_key?(batch, :actions)
+
+      # States should be 2D (batch_size, embed_size), not 3D
+      states_shape = Nx.shape(batch.states)
+      assert tuple_size(states_shape) == 2
+    end
+  end
+
   # Helper to identify type for error messages
   defp type_of(x) when is_list(x), do: :list
   defp type_of(x) when is_tuple(x), do: :tuple

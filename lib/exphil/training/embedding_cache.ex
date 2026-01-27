@@ -42,12 +42,26 @@ defmodule ExPhil.Training.EmbeddingCache do
   - Sorted replay file paths
   - Embedding config (serialized)
   - Optional: window_size, stride for temporal
+  - Optional: augmented, num_noisy_variants, noise_scale for augmented caches
+
+  ## Options
+    - `:temporal` - Whether this is temporal (sequence) data
+    - `:window_size` - Window size for temporal data
+    - `:stride` - Stride for temporal data
+    - `:augmented` - Whether this is an augmented cache (default: false)
+    - `:num_noisy_variants` - Number of noisy variants (for augmented)
+    - `:noise_scale` - Noise scale (for augmented)
   """
   @spec cache_key(map(), [String.t()], keyword()) :: String.t()
   def cache_key(embed_config, replay_files, opts \\ []) do
     window_size = Keyword.get(opts, :window_size)
     stride = Keyword.get(opts, :stride, 1)
     temporal = Keyword.get(opts, :temporal, false)
+
+    # Augmentation options
+    augmented = Keyword.get(opts, :augmented, false)
+    num_noisy_variants = Keyword.get(opts, :num_noisy_variants)
+    noise_scale = Keyword.get(opts, :noise_scale)
 
     # Sort files for deterministic hashing
     sorted_files = Enum.sort(replay_files)
@@ -61,7 +75,11 @@ defmodule ExPhil.Training.EmbeddingCache do
       config: config_data,
       temporal: temporal,
       window_size: window_size,
-      stride: stride
+      stride: stride,
+      # Include augmentation params so augmented caches have different keys
+      augmented: augmented,
+      num_noisy_variants: num_noisy_variants,
+      noise_scale: noise_scale
     }
 
     # Generate SHA256 hash

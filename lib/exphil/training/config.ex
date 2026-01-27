@@ -110,6 +110,10 @@ defmodule ExPhil.Training.Config do
     "--cache-embeddings",
     "--no-cache",
     "--cache-dir",
+    # Augmented embedding cache (precompute all variants for ~100x speedup with --augment)
+    "--cache-augmented",
+    # Number of noisy variants to precompute (default: 2)
+    "--num-noisy-variants",
     "--prefetch",
     "--no-prefetch",
     "--gradient-checkpoint",
@@ -311,6 +315,11 @@ defmodule ExPhil.Training.Config do
       no_cache: false,
       # Directory for embedding cache files
       cache_dir: "cache/embeddings",
+      # Augmented embedding cache (precompute original + mirrored + noisy variants)
+      # When true, enables ~100x speedup for --augment training
+      cache_augmented: false,
+      # Number of noisy variants to precompute (only used with cache_augmented)
+      num_noisy_variants: 2,
       # Data prefetching (load next batch while GPU trains)
       prefetch: true,
       # Number of batches to prefetch
@@ -1886,6 +1895,8 @@ defmodule ExPhil.Training.Config do
     |> parse_flag(args, "--cache-embeddings", :cache_embeddings)
     |> parse_flag(args, "--no-cache", :no_cache)
     |> parse_string_arg(args, "--cache-dir", :cache_dir)
+    |> parse_flag(args, "--cache-augmented", :cache_augmented)
+    |> parse_int_arg(args, "--num-noisy-variants", :num_noisy_variants)
     |> parse_flag(args, "--prefetch", :prefetch)
     |> parse_flag(args, "--no-prefetch", :no_prefetch)
     |> parse_flag(args, "--gradient-checkpoint", :gradient_checkpoint)
