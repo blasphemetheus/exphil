@@ -19,26 +19,30 @@ This document outlines our options and plan for implementing custom GPU kernels 
 
 ## Options Analysis
 
-### Option 1: Triton Kernel (Recommended)
+### Option 1: Triton Kernel (For Experimentation)
 
 **What:** Python DSL that compiles to optimized PTX/CUBIN
+
+**Purpose:** Rapid iteration and algorithm experimentation. **Not for production.**
 
 **Pros:**
 - 10x less code than raw CUDA
 - Automatic memory coalescing and tiling
 - `tl.associative_scan` built-in for parallel scans
 - Easy to iterate and experiment
-- Works on all NVIDIA GPUs (including 4090)
+- Quick feedback loop for kernel optimization
 
 **Cons:**
-- Python dependency at runtime (or compile to cubin)
-- Learning curve for Triton-specific patterns
+- Python dependency
+- IPC overhead makes it slow for production (~273ms vs ~5ms kernel time)
+- Not suitable for training or inference
 
-**Effort:** 1-2 days for working kernel, 1 week for optimized
+**Use case:** Prototype kernel optimizations, then port to Rust NIF or Custom XLA op.
 
 **Files:**
-- `priv/triton/selective_scan.py` - Kernel implementation
-- `lib/exphil/bridge/triton_port.ex` - Elixir Port wrapper
+- `priv/triton/selective_scan.py` - Kernel implementation + benchmark
+- `priv/python/pytorch_scan_server.py` - Port server (for testing only)
+- `lib/exphil/bridge/pytorch_port.ex` - Elixir Port wrapper (for testing only)
 
 ### Option 2: Custom XLA Operation
 
@@ -109,7 +113,57 @@ if SelectiveScan.available?() and SelectiveScan.cuda_available?() do
 end
 ```
 
-### Option 4: Pure CUDA with NIF
+### Option 4: Custom XLA Operation (Best for Performance)
+
+**What:** C++/CUDA code registered as XLA CustomCall, called from EXLA
+
+**Pros:**
+- **No data transfer** - tensor stays on GPU the entire time
+- Seamless Nx/Axon integration
+- XLA can fuse with surrounding operations
+- Works with existing training code
+
+**Cons:**
+- Complex build setup (XLA headers, CUDA toolkit)
+- Need to match XLA's tensor layout
+- Harder to debug
+
+**Effort:** 1-2 weeks
+
+**Why this is the best option:**
+```
+Nx/XLA current path:
+  [GPU Tensor] → XLA parallel scan (slow) → [GPU Tensor]
+
+Custom XLA op:
+  [GPU Tensor] → Our CUDA kernel (fast) → [GPU Tensor]
+
+No CPU involvement, no data transfer!
+```
+
+**Implementation approach:**
+```cpp
+// native/xla_selective_scan/selective_scan.cu
+__global__ void selective_scan_kernel(...) {
+  // Same kernel as Triton/Rust versions
+}
+
+// Register with XLA
+XLA_REGISTER_CUSTOM_CALL_TARGET(SelectiveScan, "CUDA");
+```
+
+```elixir
+# In Elixir
+defn selective_scan_custom(x, dt, a, b, c) do
+  custom_call(
+    &EXLA.Defn.custom_call/4,
+    ["SelectiveScan", {x, dt, a, b, c}],
+    result_shape: Nx.shape(x)
+  )
+end
+```
+
+### Option 5: Pure CUDA with NIF
 
 **What:** Raw CUDA kernel called via Erlang NIF
 
@@ -118,39 +172,62 @@ end
 - No Python dependency
 
 **Cons:**
-- Most complex option
+- Still has GPU↔CPU transfer overhead (tensor comes from EXLA)
+- Complex build
 - Manual memory management
-- Build complexity
 
 **Effort:** 1 week+
+
+**Note:** This is essentially what the Rust NIF does, just in C instead of Rust.
 
 ---
 
 ## Recommended Plan
 
 ```
-Phase 1: Triton Prototype (Current)
+Phase 1: Validate Algorithm ✅ COMPLETE
 ├── Write Triton kernel                     ✅ priv/triton/selective_scan.py
-├── Benchmark on GPU                        ⬜ Run python selective_scan.py
-├── Verify correctness                      ⬜ Run python selective_scan.py --test
-└── Measure speedup vs XLA                  ⬜ Compare to Nx benchmarks
+├── Benchmark on GPU                        ✅ PyTorch: 5ms (10x faster than XLA!)
+├── Verify correctness                      ✅ Matches reference implementation
+└── Test Elixir Port integration            ✅ Works but 273ms (IPC overhead)
 
-Phase 2: Elixir Integration
-├── Create Port-based bridge                ⬜ lib/exphil/bridge/triton_port.ex
-├── Add to MambaTriton module               ⬜ lib/exphil/networks/mamba_triton.ex
-├── Benchmark end-to-end                    ⬜ Add to benchmark scripts
-└── Test in training loop                   ⬜ Verify gradients work
+Key Finding: The scan itself is fast (~5ms). XLA overhead is the problem.
 
-Phase 3: Optimization
-├── Profile with Triton autotuner           ⬜ Find optimal block sizes
-├── Add backward pass kernel                ⬜ For training
-├── Tune for 4090 specifically              ⬜ Ada Lovelace optimizations
-└── Consider tensor core usage              ⬜ FP16/BF16 paths
+Phase 2: Choose Integration Path
+├── Option A: ONNX (works now)              ✅ 0.5ms, documented in INFERENCE.md
+├── Option B: Rust NIF                      ⬜ Build and benchmark
+└── Option C: Custom XLA Op                 ⬜ Best performance, most effort
 
-Phase 4: Production (Optional)
-├── Compile to standalone cubin             ⬜ Remove Python dependency
-├── Or: Port to custom XLA op               ⬜ Best long-term solution
-└── Package for distribution                ⬜ Hex package with native code
+Phase 3: Rust NIF Path (if chosen)
+├── Build the NIF                           ⬜ cd native/selective_scan_nif && cargo build
+├── Benchmark GPU↔CPU transfer              ⬜ Measure in-process overhead
+├── Add backward pass                       ⬜ For training support
+└── Integrate with MambaNIF module          ⬜ lib/exphil/networks/mamba_nif.ex
+
+Phase 4: Custom XLA Op Path (best performance)
+├── Set up XLA build environment            ⬜ XLA headers, CUDA toolkit
+├── Write CUDA kernel                       ⬜ native/xla_selective_scan/
+├── Register as XLA CustomCall              ⬜ XLA_REGISTER_CUSTOM_CALL_TARGET
+├── Create EXLA bindings                    ⬜ EXLA.Defn.custom_call
+└── Benchmark (should match PyTorch ~5ms)   ⬜ No data transfer!
+```
+
+## Why Data Transfer Matters
+
+```
+PyTorch benchmark (all on GPU):
+  Create tensors → Scan (5ms) → Done
+  Total: ~5ms ✅
+
+Elixir Port (crosses process boundary):
+  EXLA GPU → CPU copy (100ms) → msgpack (20ms) → Port IPC (5ms)
+  → Python decode (10ms) → CPU → PyTorch GPU (50ms) → Scan (5ms)
+  → PyTorch GPU → CPU (50ms) → msgpack → Port → Elixir → Nx
+  Total: ~273ms ❌
+
+Custom XLA Op (stays on GPU):
+  EXLA GPU tensor → Our CUDA kernel (5ms) → EXLA GPU tensor
+  Total: ~5ms ✅
 ```
 
 ---
@@ -341,17 +418,27 @@ The RTX 4090 is fully capable of running custom kernels:
 
 ## Comparison: All Options
 
-| Approach | Inference | Training | Effort | Dependencies | Status |
-|----------|-----------|----------|--------|--------------|--------|
-| Nx/XLA Blelloch | 55ms | Works | Done | None | ✅ Done |
-| ONNX INT8 | 0.5ms | No | Medium | ONNX Runtime | ✅ Documented |
-| **Triton** | ~2ms? | Needs backward | Medium | Python, Triton | ✅ **Starter created** |
-| **Rust NIF** | ~2ms? | Needs work | Medium | Rust, cudarc | ✅ **Starter created** |
-| Custom XLA | ~2ms? | Works | High | CUDA toolkit | ⬜ Future |
+| Approach | Inference | Training | Data Transfer | Effort | Status |
+|----------|-----------|----------|---------------|--------|--------|
+| Nx/XLA Blelloch | 55ms | Works | None (on GPU) | Done | ✅ Done |
+| ONNX INT8 | 0.5ms | No | None (on GPU) | Medium | ✅ Documented |
+| PyTorch Port | 273ms | No | **12MB IPC** | Done | ❌ Too slow |
+| **Rust NIF** | ~5-10ms? | Needs work | GPU↔CPU in-process | Medium | ⬜ **Build & test** |
+| **Custom XLA Op** | ~5ms? | Works | **None (on GPU)** | High | ⬜ **Best option** |
 
-**Both Paths Ready to Test:**
-1. **Triton** - `python priv/triton/selective_scan.py` - Quick iteration
-2. **Rust NIF** - `cd native/selective_scan_nif && cargo build --release` - Production path
+### Key Finding: Data Transfer is the Bottleneck
+
+PyTorch achieves ~5ms for the scan itself (proven via benchmark). But:
+
+- **PyTorch Port**: 273ms - IPC + msgpack + GPU transfers kill performance
+- **Rust NIF**: Would be faster (no IPC) but still has GPU↔CPU transfers
+- **Custom XLA Op**: Best - tensor stays on GPU, no transfers
+
+### Recommended Paths
+
+1. **For inference NOW**: Use ONNX export (~0.5ms) - already works
+2. **For training speedup**: Build Rust NIF or Custom XLA op
+3. **Long-term best**: Custom XLA op (tensor stays on GPU)
 
 ---
 
