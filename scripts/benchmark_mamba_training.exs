@@ -112,8 +112,8 @@ benchmark_training = fn backbone, seq_len ->
 
       # Force GPU sync by accessing a parameter value
       if match?({EXLA.Backend, _}, Nx.default_backend()) do
-        # Get first parameter tensor to force computation
-        params_data = Axon.ModelState.data(new_trainer.policy_params)
+        # Extract params data from ModelState struct
+        %Axon.ModelState{data: params_data} = new_trainer.policy_params
         {_name, first_param} = params_data |> Map.to_list() |> List.first()
         {_key, tensor} = first_param |> Map.to_list() |> List.first()
         _ = Nx.to_number(Nx.sum(tensor))
