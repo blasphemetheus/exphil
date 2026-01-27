@@ -23,6 +23,23 @@ defmodule ExPhil.Networks.MambaSSD do
   - Inter-chunk: O(L/C) sequential work (tiny)
   - Total: Much faster in practice due to tensor cores
 
+  ## Current Performance
+
+  **WARNING:** This implementation is ~10-15x slower than Blelloch scan in XLA.
+
+  Why it's slow:
+  - Each `Enum.map` creates separate XLA computation graphs (no fusion)
+  - Chunking creates many small tensor operations (high dispatch overhead)
+  - XLA can't optimize the inter-chunk recurrence loop
+  - The algorithm is designed for fused CUDA kernels, not XLA primitives
+
+  SSD would be fast with:
+  - A single fused Triton/CUDA kernel for the whole scan
+  - Custom XLA operation that handles chunking internally
+  - Tensor parallelism that XLA can fuse
+
+  This implementation exists for algorithmic correctness testing, not performance.
+
   ## Usage
 
       model = MambaSSD.build(embed_size: 287, hidden_size: 256, chunk_size: 16)
@@ -265,7 +282,9 @@ defmodule ExPhil.Networks.MambaSSD do
       end)
 
     # Compute cumulative products of A for inter-chunk state propagation
-    chunk_a_products =
+    # NOTE: Currently unused - the inter-chunk propagation recomputes A products inline
+    # TODO: Optimize by using precomputed chunk_a_products instead of recomputing
+    _chunk_a_products =
       Enum.map(0..(length(chunk_outputs) - 1), fn chunk_idx ->
         if chunk_idx == length(chunk_outputs) - 1 and remainder > 0 do
           start_idx = num_chunks * chunk_size

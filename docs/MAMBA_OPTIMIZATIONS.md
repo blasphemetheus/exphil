@@ -20,11 +20,13 @@ Comprehensive catalog of optimization opportunities for Mamba SSM in ExPhil, fro
 
 ### Implemented Variants
 
-| Variant | File | Algorithm | Training | Inference |
-|---------|------|-----------|----------|-----------|
-| **GatedSSM** | `gated_ssm.ex` | Simplified gating (no recurrence) | ~35ms | ~35ms |
-| **Mamba** | `mamba.ex` | Blelloch parallel scan | ~59ms | ~59ms |
-| **MambaCumsum** | `mamba_cumsum.ex` | Log-space cumsum trick | TBD | TBD |
+| Variant | File | Algorithm | Inference (GPU) | Notes |
+|---------|------|-----------|-----------------|-------|
+| **GatedSSM** | `gated_ssm.ex` | Simplified gating (no recurrence) | ~40ms | Fastest, less expressive |
+| **Mamba** | `mamba.ex` | Blelloch parallel scan | ~60ms | Current best balance |
+| **MambaCumsum** | `mamba_cumsum.ex` | Configurable scan algorithm | ~60ms | Experiment platform |
+| **MambaHillisSteele** | `mamba_hillis_steele.ex` | Hillis-Steele scan | ~57ms | Slightly faster than Blelloch |
+| **MambaSSD** | `mamba_ssd.ex` | Chunked SSD (Mamba-2 style) | ~800ms | **Slow** - needs optimization |
 
 ### Key Insight from Optimization Attempts
 
@@ -63,26 +65,173 @@ end
 
 These optimizations stay within Elixir and leverage XLA's existing primitives.
 
-### 1.1 Log-Space Cumsum (Implemented: MambaCumsum)
+### 1.1 Cumsum-Based Approaches
 
-**Status:** Implemented in `mamba_cumsum.ex`
+**Status:** Multiple variants implemented in `mamba_cumsum.ex` with `scan_algo` option
 
-**Idea:** Reformulate the SSM scan using cumulative sums instead of parallel prefix scan.
-
-The SSM recurrence `h[t] = A[t] * h[t-1] + Bx[t]` has closed form:
+The SSM recurrence `h[t] = A[t] * h[t-1] + Bx[t]` has a closed-form solution:
 ```
 h[t] = P[t] * cumsum(Bx / P)[t]
 where P[k] = prod_{j=0}^{k-1} A[j] = exp(cumsum(log(A)))
 ```
 
-**Why it might be faster:**
-- XLA's `cumulative_sum` is highly optimized (fused kernel)
-- Two cumsums replace O(log L) scan levels
-- Better memory access patterns
+This converts the O(log L) depth parallel scan into two O(1) depth cumsum operations.
 
-**Trade-offs:**
-- Numerical precision issues for very long sequences (P → 0)
-- May not capture all Mamba dynamics perfectly
+#### Why Cumsum Should Be Fast (But Isn't Always)
+
+**In theory:**
+- XLA's `cumulative_sum` is a highly optimized fused kernel
+- Two cumsums replace 6 scan levels (for L=60)
+- Single-pass memory access
+
+**In practice (observed):**
+- XLA's cumsum performance varies dramatically by tensor layout
+- 4D tensors `[batch, seq, hidden, state]` are problematic
+- The cumsum axis position matters significantly
+
+#### Implemented Cumsum Strategies
+
+| Strategy | Option | Memory Layout | Cumsum Axis |
+|----------|--------|---------------|-------------|
+| **Blelloch** (default) | `:blelloch` | Original | N/A (uses scan) |
+| **Transposed** | `:cumsum_transposed` | Transpose to `[B,H,S,L]` | 3 (trailing) |
+| **Logspace** | `:cumsum_logspace` | Original `[B,L,H,S]` | 1 |
+
+**Usage:**
+```elixir
+# Test different strategies
+MambaCumsum.build(embed_size: 287, scan_algo: :cumsum_transposed)
+MambaCumsum.build(embed_size: 287, scan_algo: :cumsum_logspace)
+MambaCumsum.build(embed_size: 287, scan_algo: :blelloch)  # default
+```
+
+#### Strategy Details
+
+**1. Transposed Cumsum (`:cumsum_transposed`)**
+```
+Hypothesis: XLA optimizes cumsum better on trailing dimensions
+(memory coalescing in row-major layout)
+
+Steps:
+1. Transpose [B, L, H, S] → [B, H, S, L]
+2. Run log-space cumsum on axis 3
+3. Transpose back [B, H, S, L] → [B, L, H, S]
+
+Trade-off: 2 transposes vs potentially faster cumsum
+```
+
+**2. Logspace Direct (`:cumsum_logspace`)**
+```
+Same algorithm as transposed but without transposing
+Cumsum runs on axis 1 directly
+Control: isolates whether transpose helps or hurts
+```
+
+#### Additional Cumsum Strategies to Try
+
+**3. Flattened 2D Cumsum**
+```elixir
+# Flatten batch and hidden dimensions, cumsum on seq
+# [B, L, H, S] → [B*H*S, L] → cumsum → reshape back
+# Hypothesis: 2D cumsum may have simpler kernel dispatch
+x_flat = Nx.reshape(x, {batch * hidden * state, seq_len})
+result_flat = Nx.cumulative_sum(x_flat, axis: 1)
+result = Nx.reshape(result_flat, {batch, seq_len, hidden, state})
+```
+
+**4. State-Wise Independent Cumsum**
+```elixir
+# Process each state dimension separately
+# Hypothesis: Multiple smaller cumsums may parallelize better
+for s <- 0..(state_size - 1) do
+  x_s = Nx.slice_along_axis(x, s, 1, axis: 3)
+  # x_s is [B, L, H, 1] - effectively 3D
+  Nx.cumulative_sum(x_s, axis: 1)
+end |> Nx.concatenate(axis: 3)
+```
+
+**5. Chunked Cumsum with Inter-Chunk Recurrence**
+```elixir
+# Run cumsum within chunks, scan across chunk boundaries
+# Combines fast cumsum for intra-chunk with minimal inter-chunk work
+
+chunk_size = 16
+num_chunks = div(seq_len, chunk_size)
+
+# Phase 1: Intra-chunk cumsum (parallel)
+chunk_results = for c <- 0..(num_chunks-1) do
+  chunk = slice(x, c * chunk_size, chunk_size)
+  Nx.cumulative_sum(chunk, axis: 1)  # Fast cumsum on small chunk
+end
+
+# Phase 2: Inter-chunk scan (tiny - only num_chunks elements)
+final_states = for c <- 0..(num_chunks-1), do: last(chunk_results[c])
+propagated = sequential_scan(final_states)  # ~4 elements for L=60
+
+# Phase 3: Add propagated states to each chunk
+for {chunk, propagated_state} <- Enum.zip(chunk_results, propagated) do
+  Nx.add(chunk, propagated_state)
+end
+```
+
+**6. Segmented Cumsum via Multiplication Reset**
+```elixir
+# Use multiplication to "reset" cumsum at segment boundaries
+# Avoids explicit chunking, may compile to single kernel
+
+# Create reset mask: 1.0 within segment, 0.0 at boundaries
+reset_mask = ...  # [B, L, H, S]
+
+# Cumsum that resets: uses cumsum of (x * mask)
+# This is a trick that lets cumsum act like segmented scan
+```
+
+**7. Double-Precision Intermediate**
+```elixir
+# Use F64 for cumsum to avoid numerical instability
+# Then cast result back to F32
+
+log_a_f64 = Nx.as_type(log_a, :f64)
+cum_log_a_f64 = Nx.cumulative_sum(log_a_f64, axis: 1)
+cum_log_a = Nx.as_type(cum_log_a_f64, :f32)
+```
+
+#### Numerical Considerations
+
+The log-space formulation `exp(cumsum(log(A)))` has numerical issues:
+
+1. **Underflow:** For long sequences, `prod(A)` can underflow to 0
+   - A values are typically in `[exp(-0.1), exp(-0.001)]` ≈ `[0.90, 0.999]`
+   - After 180 steps: `0.95^180 ≈ 1e-4` (still OK)
+   - After 1000 steps: `0.95^1000 ≈ 1e-22` (problematic)
+
+2. **Mitigation strategies:**
+   - Chunk the sequence (reset accumulator)
+   - Use double precision for accumulation
+   - Clip cumulative products to minimum value
+
+3. **When it matters:**
+   - Melee runs at 60 FPS, typical sequences L=60-180
+   - Underflow unlikely for our use case
+   - Long-term planning (L>500) would need mitigation
+
+#### Benchmarking Cumsum Strategies
+
+```bash
+# Run all cumsum variants
+mix run scripts/benchmark_mamba_vs_gated.exs
+
+# Look for these in output:
+# - Cumsum (transposed): Tests transpose hypothesis
+# - Cumsum (logspace): Control without transpose
+# - MambaCumsum (Blelloch): Current baseline
+```
+
+**Expected Results:**
+- If transposed >> logspace: Trailing axis matters
+- If transposed ≈ logspace: Neither helps (try other strategies)
+- If both >> Blelloch: Success! Cumsum works
+- If both << Blelloch: XLA cumsum is slow for this tensor structure
 
 ### 1.2 Hillis-Steele vs Blelloch Scan
 
