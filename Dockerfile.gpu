@@ -118,8 +118,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # Math libs
     libopenblas0 \
     liblapack3 \
-    # Python runtime
+    # Python runtime + dev headers (dev needed for Triton JIT compilation)
     python3.11 \
+    python3.11-dev \
     python3-pip \
     # Git needed for mix deps with git SCM
     git \
