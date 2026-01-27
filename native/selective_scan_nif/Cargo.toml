@@ -11,10 +11,10 @@ crate-type = ["cdylib"]
 
 [dependencies]
 # Elixir NIF bindings
-rustler = "0.34"
+rustler = "0.35"
 
-# CUDA bindings
-cudarc = { version = "0.12", features = ["driver", "nvrtc"] }
+# CUDA bindings (0.12.x has stable API)
+cudarc = { version = "0.12", features = ["driver", "nvrtc"], optional = true }
 
 # Error handling
 thiserror = "1.0"
@@ -22,11 +22,12 @@ thiserror = "1.0"
 # Serialization for tensor data
 bytemuck = { version = "1.14", features = ["derive"] }
 
+[features]
+default = []
+# Enable CUDA support - requires CUDA toolkit installed
+cuda = ["dep:cudarc"]
+
 [profile.release]
 lto = true
 codegen-units = 1
 opt-level = 3
-
-[features]
-# Enable this if you have CUDA installed
-cuda = []

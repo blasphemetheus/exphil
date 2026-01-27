@@ -87,6 +87,13 @@ RUN python3 -m pip install --no-cache-dir -r priv/python/requirements.txt
 # Compile Rust NIF and Elixir dependencies (EXLA will download CUDA-enabled XLA)
 RUN mix deps.compile
 
+# Build CUDA-enabled selective_scan NIF for fast Mamba inference
+# This requires CUDA toolkit (available in devel image)
+RUN cd native/selective_scan_nif && \
+    cargo build --release --features cuda && \
+    mkdir -p /app/priv/native && \
+    cp target/release/libselective_scan_nif.so /app/priv/native/
+
 # Copy application code
 COPY lib ./lib
 COPY scripts ./scripts
@@ -146,6 +153,7 @@ ENV PATH="${ASDF_DIR}/bin:${ASDF_DIR}/shims:${PATH}"
 RUN asdf global erlang 27.0 && asdf global elixir 1.18.1-otp-27
 
 # Note: Rust not needed in runtime - Rustler configured with skip_compilation?: true for prod
+# The selective_scan CUDA NIF is pre-built and copied to priv/native/
 
 # Copy Python packages from builder
 COPY --from=builder /usr/local/lib/python3.11/dist-packages /usr/local/lib/python3.11/dist-packages

@@ -19,7 +19,7 @@
 //! result = SelectiveScan.scan(x_binary, dt_binary, a_binary, b_binary, c_binary, shape)
 //! ```
 
-use rustler::{Binary, Env, NifResult, OwnedBinary, Error};
+use rustler::{Binary, NifResult, OwnedBinary, Error};
 use std::io::Write;
 
 mod kernel;
@@ -41,23 +41,22 @@ mod kernel;
 /// # Returns
 /// * Output tensor binary [batch, seq_len, hidden], f32
 #[rustler::nif(schedule = "DirtyCpu")]
-fn selective_scan<'a>(
-    env: Env<'a>,
-    x: Binary<'a>,
-    dt: Binary<'a>,
-    a: Binary<'a>,
-    b: Binary<'a>,
-    c: Binary<'a>,
+fn selective_scan(
+    x: Binary,
+    dt: Binary,
+    a: Binary,
+    b: Binary,
+    c: Binary,
     shape: (usize, usize, usize, usize),
 ) -> NifResult<OwnedBinary> {
     let (batch, seq_len, hidden, state) = shape;
 
-    // Convert binaries to f32 slices
-    let x_data = binary_to_f32_slice(&x)?;
-    let dt_data = binary_to_f32_slice(&dt)?;
-    let a_data = binary_to_f32_slice(&a)?;
-    let b_data = binary_to_f32_slice(&b)?;
-    let c_data = binary_to_f32_slice(&c)?;
+    // Convert binaries to f32 vectors (copies data)
+    let x_data = binary_to_f32_vec(&x)?;
+    let dt_data = binary_to_f32_vec(&dt)?;
+    let a_data = binary_to_f32_vec(&a)?;
+    let b_data = binary_to_f32_vec(&b)?;
+    let c_data = binary_to_f32_vec(&c)?;
 
     // Validate sizes
     let expected_x = batch * seq_len * hidden;
@@ -86,7 +85,7 @@ fn selective_scan<'a>(
 
     // Perform computation
     let result = kernel::selective_scan_cuda(
-        x_data, dt_data, a_data, b_data, c_data,
+        &x_data, &dt_data, &a_data, &b_data, &c_data,
         batch, seq_len, hidden, state
     ).map_err(|e| Error::Term(Box::new(e.to_string())))?;
 
@@ -121,23 +120,16 @@ fn ping() -> &'static str {
 // Helpers
 // =============================================================================
 
-fn binary_to_f32_slice(binary: &Binary) -> NifResult<&[f32]> {
+fn binary_to_f32_vec(binary: &Binary) -> NifResult<Vec<f32>> {
     if binary.len() % 4 != 0 {
         return Err(Error::Term(Box::new("Binary length not multiple of 4 (f32)")));
     }
-    Ok(bytemuck::cast_slice(binary.as_slice()))
+    let slice: &[f32] = bytemuck::cast_slice(binary.as_slice());
+    Ok(slice.to_vec())
 }
 
 // =============================================================================
 // NIF Registration
 // =============================================================================
 
-rustler::init!(
-    "Elixir.ExPhil.Native.SelectiveScan",
-    [
-        selective_scan,
-        cuda_available,
-        cuda_device_info,
-        ping
-    ]
-);
+rustler::init!("Elixir.ExPhil.Native.SelectiveScan");
