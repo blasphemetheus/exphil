@@ -170,7 +170,16 @@ cache_dir =
 all_architectures = [
   # Hidden sizes use 256 (multiple of GPU warp size 32) for better utilization
   {:mlp, "MLP (baseline)", [temporal: false, hidden_sizes: [256, 256], precompute: true]},
-  {:mamba, "Mamba SSM",
+  {:gated_ssm, "GatedSSM (simplified)",
+   [
+     temporal: true,
+     backbone: :gated_ssm,
+     window_size: 30,
+     num_layers: 2,
+     hidden_sizes: [256, 256],
+     batch_size: 64
+   ]},
+  {:mamba, "Mamba (parallel scan)",
    [
      temporal: true,
      backbone: :mamba,
@@ -587,7 +596,8 @@ results =
           :mlp -> "O(1)"
           :lstm -> "O(L) sequential"
           :gru -> "O(L) sequential"
-          :mamba -> "O(L) parallel"
+          :gated_ssm -> "O(L) sequential (simplified)"
+          :mamba -> "O(L) work, O(log L) depth (parallel scan)"
           :jamba -> "O(L) + O(L²) hybrid"
           :attention -> "O(L²)"
           _ -> "unknown"
@@ -771,9 +781,13 @@ theoretical_data =
         :gru ->
           {window_size * 3, window_size}
 
-        # O(L) parallel scan
+        # O(L) sequential (simplified SSM, no parallel scan)
+        :gated_ssm ->
+          {window_size * 3, window_size}
+
+        # O(L) work, O(log L) depth - parallel scan reduces effective latency
         :mamba ->
-          {window_size, window_size}
+          {round(:math.log2(window_size)) * 3, round(:math.log2(window_size))}
 
         # O(L²)
         :attention ->
