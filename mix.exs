@@ -70,8 +70,9 @@ defmodule ExPhil.MixProject do
       {:telemetry, "~> 1.2"},
       {:telemetry_metrics, "~> 1.0"},
 
-      # JSON & HTTP
+      # Serialization
       {:jason, "~> 1.4"},
+      {:msgpax, "~> 2.4"},  # For PyTorch Port communication
       {:req, "~> 0.5"},
 
       # Visualization (for training plots)
