@@ -15,6 +15,10 @@
 #   --cache-embeddings            Enable embedding disk cache (saves ~1hr on re-runs)
 #   --cache-dir PATH              Cache directory (default: /workspace/cache/embeddings)
 #   --no-cache                    Ignore cache and recompute embeddings
+#   --gpu-prealloc [FRACTION]     Pre-allocate GPU memory (default: 0.7 = 70%)
+#                                 Faster but can cause fragmentation OOM
+#   --gpu-on-demand               Allocate GPU memory on-demand (default)
+#                                 Slower (~5-10%) but prevents fragmentation
 #
 # Available architectures: mlp, mamba, mamba_nif, jamba, lstm, gru, attention
 #
@@ -33,6 +37,13 @@
 #
 #   # Force recompute even if cache exists
 #   mix run scripts/benchmark_architectures.exs --replays /workspace/replays --cache-embeddings --no-cache
+#
+#   # Use GPU pre-allocation for faster training (may fragment on multi-arch runs)
+#   mix run scripts/benchmark_architectures.exs --replays /workspace/replays --gpu-prealloc 0.7
+#
+#   # Compare allocation modes (A/B test)
+#   time mix run scripts/benchmark_architectures.exs --only mlp --epochs 1 --gpu-on-demand
+#   time mix run scripts/benchmark_architectures.exs --only mlp --epochs 1 --gpu-prealloc
 #
 # This script compares:
 # - Training loss convergence
@@ -55,11 +66,40 @@ Application.put_env(:elixir, :inspect, limit: 10, printable_limit: 100)
 # This helps prevent OOM when switching from MLP to Mamba/Jamba
 System.put_env("TF_GPU_ALLOCATOR", "cuda_malloc_async")
 
-# Disable XLA memory preallocation to allow true release between architectures
-# This prevents fragmentation within a fixed pool (the main cause of Jamba OOM)
-# Trade-off: slightly slower (~5-10%) due to on-demand allocation
-# Alternative: memory_fraction: 0.7 pre-allocates 70% and holds it forever
-Application.put_env(:exla, :clients, cuda: [platform: :cuda, preallocate: false])
+# Parse GPU memory flags early (before EXLA initializes)
+# --gpu-prealloc [0.7] = pre-allocate 70% (faster, but fragmentation risk)
+# --gpu-on-demand = allocate on-demand (default, slower but no fragmentation)
+early_args = System.argv()
+
+gpu_config =
+  cond do
+    "--gpu-prealloc" in early_args ->
+      # Check if a fraction was provided
+      idx = Enum.find_index(early_args, &(&1 == "--gpu-prealloc"))
+      next_arg = Enum.at(early_args, idx + 1)
+
+      fraction =
+        case next_arg do
+          nil -> 0.7
+          arg when arg =~ ~r/^0\.\d+$/ -> String.to_float(arg)
+          arg when arg =~ ~r/^--/ -> 0.7
+          _ -> 0.7
+        end
+
+      IO.puts("[GPU] Pre-allocating #{round(fraction * 100)}% of VRAM (--gpu-prealloc)")
+      [platform: :cuda, memory_fraction: fraction]
+
+    "--gpu-on-demand" in early_args ->
+      IO.puts("[GPU] On-demand allocation (--gpu-on-demand)")
+      [platform: :cuda, preallocate: false]
+
+    true ->
+      # Default: on-demand to prevent fragmentation
+      IO.puts("[GPU] On-demand allocation (default, use --gpu-prealloc for faster)")
+      [platform: :cuda, preallocate: false]
+  end
+
+Application.put_env(:exla, :clients, cuda: gpu_config)
 
 alias ExPhil.Data.Peppi
 alias ExPhil.Training.{Data, GPUUtils, Imitation, Output}
