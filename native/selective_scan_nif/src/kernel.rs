@@ -41,7 +41,8 @@ mod cuda_impl {
 
     fn get_cuda_device() -> Result<Arc<CudaDevice>, KernelError> {
         let dev = CUDA_CONTEXT.get_or_try_init(|| {
-            let dev = Arc::new(CudaDevice::new(0)?);
+            // CudaDevice::new already returns Arc<CudaDevice>
+            let dev = CudaDevice::new(0)?;
 
             // Compile and load PTX once
             let ptx = cudarc::nvrtc::compile_ptx(SELECTIVE_SCAN_KERNEL)?;
