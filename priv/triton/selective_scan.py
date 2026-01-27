@@ -322,30 +322,9 @@ def benchmark():
     ref_time = (time.perf_counter() - start) / 10 * 1000
     print(f"  PyTorch sequential: {ref_time:.2f} ms")
 
-    # Benchmark torch.compile version
-    print("Benchmarking torch.compile optimized...")
-    try:
-        compiled_scan = torch.compile(selective_scan_reference, mode="reduce-overhead")
-        # Warmup compiled version
-        for _ in range(3):
-            _ = compiled_scan(x, dt, A, B, C)
-            torch.cuda.synchronize()
-
-        torch.cuda.synchronize()
-        start = time.perf_counter()
-        for _ in range(10):
-            _ = compiled_scan(x, dt, A, B, C)
-            torch.cuda.synchronize()
-        compiled_time = (time.perf_counter() - start) / 10 * 1000
-        print(f"  torch.compile: {compiled_time:.2f} ms")
-        print(f"  Speedup vs sequential: {ref_time / compiled_time:.2f}x")
-    except Exception as e:
-        print(f"  torch.compile failed: {e}")
-        compiled_time = None
-
-    # Triton kernel (disabled due to segfault - needs debugging)
-    # print("Benchmarking Triton kernel...")
-    # triton_time = None
+    # torch.compile and Triton both segfault on some CUDA environments
+    # Skip for now - PyTorch sequential is already fast enough
+    compiled_time = None
 
     # Summary
     print("\n" + "=" * 60)
