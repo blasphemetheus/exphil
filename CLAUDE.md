@@ -42,7 +42,7 @@ ExPhil is an Elixir-based successor to slippi-ai, creating high-ELO playable bot
 
 ## Current Status
 
-**Test coverage:** 1576 tests passing
+**Test coverage:** 1855 tests passing
 
 **Completed:**
 - Stage embedding modes (full 64-dim, compact 7-dim, or learned embedding)
@@ -224,6 +224,7 @@ See [docs/GOTCHAS.md](docs/GOTCHAS.md) for detailed fixes. Most common issues:
 
 **Debugging tests:**
 - Never use `| tail` when investigating failures - it hides error details
+- Never pipe `mix test` output (`| head`, `| tail`, etc.) - it forces you to run the full ~100s test suite twice
 - Use `mix test --failed` to rerun only failing tests
 - For targeted debugging: `mix test path/to/test.exs:LINE_NUMBER`
 

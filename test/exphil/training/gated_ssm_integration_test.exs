@@ -1,8 +1,8 @@
-defmodule ExPhil.Training.MambaIntegrationTest do
+defmodule ExPhil.Training.GatedSSMIntegrationTest do
   @moduledoc """
-  Integration tests for Mamba backbone training.
+  Integration tests for GatedSSM backbone training.
 
-  These tests verify the full training pipeline works with the Mamba architecture,
+  These tests verify the full training pipeline works with the GatedSSM architecture,
   including temporal sequence handling, checkpoint persistence, and policy export.
   """
   use ExUnit.Case, async: false
@@ -399,11 +399,11 @@ defmodule ExPhil.Training.MambaIntegrationTest do
 
   describe "gradient checkpointing" do
     @tag :slow
-    test "builds checkpointed Mamba model" do
-      alias ExPhil.Networks.Mamba
+    test "builds checkpointed GatedSSM model" do
+      alias ExPhil.Networks.GatedSSM
 
       model =
-        Mamba.build_checkpointed(
+        GatedSSM.build_checkpointed(
           embed_size: @embed_size,
           hidden_size: @hidden_size,
           state_size: @state_size,
@@ -415,8 +415,8 @@ defmodule ExPhil.Training.MambaIntegrationTest do
     end
 
     @tag :slow
-    test "checkpointed Mamba produces same output shape as regular" do
-      alias ExPhil.Networks.Mamba
+    test "checkpointed GatedSSM produces same output shape as regular" do
+      alias ExPhil.Networks.GatedSSM
 
       opts = [
         embed_size: @embed_size,
@@ -426,8 +426,8 @@ defmodule ExPhil.Training.MambaIntegrationTest do
         window_size: @window_size
       ]
 
-      regular_model = Mamba.build(opts)
-      checkpointed_model = Mamba.build_checkpointed(opts)
+      regular_model = GatedSSM.build(opts)
+      checkpointed_model = GatedSSM.build_checkpointed(opts)
 
       # Initialize both
       {init_reg, predict_reg} = Axon.build(regular_model, mode: :inference)
@@ -467,11 +467,11 @@ defmodule ExPhil.Training.MambaIntegrationTest do
 
     @tag :slow
     test "checkpoint_every option is respected" do
-      alias ExPhil.Networks.Mamba
+      alias ExPhil.Networks.GatedSSM
 
       # Build with checkpoint_every: 2 (every other layer)
       model =
-        Mamba.build_checkpointed(
+        GatedSSM.build_checkpointed(
           embed_size: @embed_size,
           hidden_size: @hidden_size,
           state_size: @state_size,

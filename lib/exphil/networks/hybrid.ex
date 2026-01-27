@@ -59,7 +59,7 @@ defmodule ExPhil.Networks.Hybrid do
 
   require Axon
 
-  alias ExPhil.Networks.Mamba
+  alias ExPhil.Networks.GatedSSM
   alias ExPhil.Networks.Attention
 
   # Default hyperparameters
@@ -226,7 +226,7 @@ defmodule ExPhil.Networks.Hybrid do
 
     # Mamba block (includes internal normalization)
     block =
-      Mamba.build_mamba_block(
+      GatedSSM.build_mamba_block(
         input,
         hidden_size: hidden_size,
         state_size: state_size,

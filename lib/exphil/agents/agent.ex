@@ -527,10 +527,10 @@ defmodule ExPhil.Agents.Agent do
     {action, confidence, new_state}
   end
 
-  # Incremental Mamba inference with state caching (O(1) per frame)
+  # Incremental GatedSSM inference with state caching (O(1) per frame)
   # This is 60x faster than compute_temporal_action for window_size=60
   defp compute_incremental_mamba_action(state, embedded, opts) do
-    alias ExPhil.Networks.Mamba
+    alias ExPhil.Networks.GatedSSM
 
     # Project embedding to hidden size (matching what the model does)
     # embedded: [embed_size] -> need [1, embed_size] for batch
@@ -564,9 +564,9 @@ defmodule ExPhil.Agents.Agent do
         x
       end
 
-    # Single step through Mamba with cached state
+    # Single step through GatedSSM with cached state
     {backbone_output, new_cache} =
-      Mamba.step(
+      GatedSSM.step(
         x,
         state.policy_params,
         state.mamba_cache
@@ -679,14 +679,14 @@ defmodule ExPhil.Agents.Agent do
     end
   end
 
-  # Initialize Mamba cache from state config
+  # Initialize GatedSSM cache from state config
   defp init_mamba_cache(state) do
-    alias ExPhil.Networks.Mamba
+    alias ExPhil.Networks.GatedSSM
 
     hidden_size = state.embed_config[:hidden_size] || 256
     num_layers = state.embed_config[:num_layers] || 2
 
-    Mamba.init_cache(
+    GatedSSM.init_cache(
       batch_size: 1,
       hidden_size: hidden_size,
       num_layers: num_layers
@@ -817,13 +817,13 @@ defmodule ExPhil.Agents.Agent do
         embed_config
       )
 
-    # Initialize Mamba cache if using Mamba backbone with incremental inference
+    # Initialize GatedSSM cache if using GatedSSM/Mamba backbone with incremental inference
     mamba_cache =
-      if temporal and backbone == :mamba and state.use_incremental do
-        Logger.info("[Agent] Initializing Mamba incremental inference cache")
-        alias ExPhil.Networks.Mamba
+      if temporal and backbone in [:mamba, :gated_ssm] and state.use_incremental do
+        Logger.info("[Agent] Initializing GatedSSM incremental inference cache")
+        alias ExPhil.Networks.GatedSSM
 
-        Mamba.init_cache(
+        GatedSSM.init_cache(
           batch_size: 1,
           hidden_size: full_embed_config.hidden_size,
           num_layers: full_embed_config.num_layers

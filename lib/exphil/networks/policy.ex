@@ -59,6 +59,7 @@ defmodule ExPhil.Networks.Policy do
 
   alias ExPhil.Embeddings.Controller, as: ControllerEmbed
   alias ExPhil.Networks.Attention
+  alias ExPhil.Networks.GatedSSM
   alias ExPhil.Networks.Hybrid
   alias ExPhil.Networks.Mamba
   alias ExPhil.Networks.Recurrent
@@ -71,7 +72,9 @@ defmodule ExPhil.Networks.Policy do
 
   # Backbone types
   # :lstm_hybrid = LSTM + Attention, :jamba = Mamba + Attention (recommended)
-  @type backbone_type :: :mlp | :sliding_window | :lstm_hybrid | :lstm | :gru | :mamba | :jamba
+  # :gated_ssm = simplified gated temporal model (stable, not true Mamba)
+  # :mamba = true Mamba with parallel scan (use :gated_ssm until true Mamba is ready)
+  @type backbone_type :: :mlp | :sliding_window | :lstm_hybrid | :lstm | :gru | :mamba | :gated_ssm | :jamba
 
   # Controller output sizes
   @num_buttons 8
@@ -494,6 +497,9 @@ defmodule ExPhil.Networks.Policy do
         :gru ->
           build_gru_backbone(embed_size, opts)
 
+        :gated_ssm ->
+          build_gated_ssm_backbone(embed_size, opts)
+
         :mamba ->
           build_mamba_backbone(embed_size, opts)
 
@@ -661,8 +667,31 @@ defmodule ExPhil.Networks.Policy do
           name: "action_emb_last_frame"
         )
 
-      :mamba ->
+      :gated_ssm ->
         # Project and apply simple recurrent-like processing
+        projected = Axon.dense(processed_input, hidden_size, name: "action_emb_gated_ssm_project")
+
+        processed =
+          Enum.reduce(1..num_layers, projected, fn i, acc ->
+            acc
+            |> Axon.dense(hidden_size, name: "action_emb_gated_ssm_#{i}")
+            |> Axon.silu()
+            |> Axon.dropout(rate: dropout)
+          end)
+
+        # Take last frame
+        Axon.nx(
+          processed,
+          fn x ->
+            seq_len = Nx.axis_size(x, 1)
+            Nx.slice_along_axis(x, seq_len - 1, 1, axis: 1) |> Nx.squeeze(axes: [1])
+          end,
+          name: "action_emb_gated_ssm_last_frame"
+        )
+
+      :mamba ->
+        # TODO: Use true Mamba when implemented
+        # For now, same as gated_ssm
         projected = Axon.dense(processed_input, hidden_size, name: "action_emb_mamba_project")
 
         processed =
@@ -849,7 +878,9 @@ defmodule ExPhil.Networks.Policy do
     )
   end
 
-  defp build_mamba_backbone(embed_size, opts) do
+  # GatedSSM backbone (simplified gated temporal model, NOT true Mamba)
+  # Use :gated_ssm for this. :mamba will use true Mamba once implemented.
+  defp build_gated_ssm_backbone(embed_size, opts) do
     hidden_size = Keyword.get(opts, :hidden_size, 256)
     state_size = Keyword.get(opts, :state_size, 16)
     expand_factor = Keyword.get(opts, :expand_factor, 2)
@@ -860,7 +891,7 @@ defmodule ExPhil.Networks.Policy do
     gradient_checkpoint = Keyword.get(opts, :gradient_checkpoint, false)
     checkpoint_every = Keyword.get(opts, :checkpoint_every, 1)
 
-    mamba_opts = [
+    gated_ssm_opts = [
       embed_size: embed_size,
       hidden_size: hidden_size,
       state_size: state_size,
@@ -874,10 +905,34 @@ defmodule ExPhil.Networks.Policy do
 
     # Use checkpointed version for memory-efficient training
     if gradient_checkpoint do
-      Mamba.build_checkpointed(mamba_opts)
+      GatedSSM.build_checkpointed(gated_ssm_opts)
     else
-      Mamba.build(mamba_opts)
+      GatedSSM.build(gated_ssm_opts)
     end
+  end
+
+  # True Mamba backbone with parallel associative scan
+  defp build_mamba_backbone(embed_size, opts) do
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    state_size = Keyword.get(opts, :state_size, 16)
+    expand_factor = Keyword.get(opts, :expand_factor, 2)
+    conv_size = Keyword.get(opts, :conv_size, 4)
+    num_layers = Keyword.get(opts, :num_layers, 2)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+    window_size = Keyword.get(opts, :window_size, 60)
+
+    mamba_opts = [
+      embed_size: embed_size,
+      hidden_size: hidden_size,
+      state_size: state_size,
+      expand_factor: expand_factor,
+      conv_size: conv_size,
+      num_layers: num_layers,
+      dropout: dropout,
+      window_size: window_size
+    ]
+
+    Mamba.build(mamba_opts)
   end
 
   defp build_mlp_temporal_backbone(embed_size, opts) do
@@ -1745,6 +1800,9 @@ defmodule ExPhil.Networks.Policy do
         Keyword.get(opts, :hidden_size, 256)
 
       :gru ->
+        Keyword.get(opts, :hidden_size, 256)
+
+      :gated_ssm ->
         Keyword.get(opts, :hidden_size, 256)
 
       :mamba ->

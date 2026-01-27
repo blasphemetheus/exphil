@@ -25,7 +25,7 @@ defmodule ExPhil.Benchmarks.InferenceBenchmarkTest do
   import ExPhil.Test.Helpers
   import ExPhil.Test.Factories
 
-  alias ExPhil.Networks.{Policy, Mamba}
+  alias ExPhil.Networks.{Policy, GatedSSM}
   alias ExPhil.Embeddings
 
   # Tag all tests as benchmarks (excluded by default)
@@ -87,15 +87,15 @@ defmodule ExPhil.Benchmarks.InferenceBenchmarkTest do
     end
   end
 
-  # Mamba is very slow on CPU - requires GPU for reasonable benchmark times
-  describe "Mamba backbone inference" do
+  # GatedSSM is very slow on CPU - requires GPU for reasonable benchmark times
+  describe "GatedSSM backbone inference" do
     @describetag :gpu
     # 5 minutes for GPU benchmarks
     @describetag timeout: 300_000
 
     setup do
       model =
-        Mamba.build(
+        GatedSSM.build(
           embed_size: @embed_size,
           hidden_size: 64,
           state_size: 16,
@@ -117,9 +117,9 @@ defmodule ExPhil.Benchmarks.InferenceBenchmarkTest do
           predict_fn.(params, input)
         end
 
-      # Mamba should be fast enough for 60 FPS (< 16.67ms per frame)
+      # GatedSSM should be fast enough for 60 FPS (< 16.67ms per frame)
       # Allow some headroom for full pipeline
-      assert stats.mean < 50, "Mamba inference too slow for real-time: #{stats.mean}ms"
+      assert stats.mean < 50, "GatedSSM inference too slow for real-time: #{stats.mean}ms"
     end
 
     test "scales with sequence length", _context do
@@ -128,7 +128,7 @@ defmodule ExPhil.Benchmarks.InferenceBenchmarkTest do
 
       # Need to rebuild model for different seq_len
       model_10 =
-        Mamba.build(
+        GatedSSM.build(
           embed_size: @embed_size,
           hidden_size: 64,
           state_size: 16,
@@ -148,7 +148,7 @@ defmodule ExPhil.Benchmarks.InferenceBenchmarkTest do
       input_60 = random_tensor({@batch_size, 60, @embed_size})
 
       model_60 =
-        Mamba.build(
+        GatedSSM.build(
           embed_size: @embed_size,
           hidden_size: 64,
           state_size: 16,
@@ -164,12 +164,12 @@ defmodule ExPhil.Benchmarks.InferenceBenchmarkTest do
           predict_fn_60.(params_60, input_60)
         end
 
-      # Mamba should scale sub-linearly with sequence length (that's its advantage)
+      # GatedSSM should scale sub-linearly with sequence length (that's its advantage)
       # 6x longer sequence should take < 3.5x longer (with some overhead slack)
       scaling_factor = stats_60.mean / stats_10.mean
 
       assert scaling_factor < 3.5,
-             "Mamba not scaling well: #{scaling_factor}x slowdown for 6x sequence"
+             "GatedSSM not scaling well: #{scaling_factor}x slowdown for 6x sequence"
     end
   end
 

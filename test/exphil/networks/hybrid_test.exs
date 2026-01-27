@@ -17,7 +17,7 @@ defmodule ExPhil.Networks.HybridTest do
           hidden_size: @hidden_size,
           state_size: @state_size,
           num_layers: 3,
-          # 2 Mamba + 1 Attention
+          # 2 GatedSSM + 1 Attention
           attention_every: 3,
           window_size: @seq_len
         )
@@ -76,7 +76,7 @@ defmodule ExPhil.Networks.HybridTest do
       assert Nx.shape(output) == {@batch_size, @hidden_size}
     end
 
-    test "builds with alternating Mamba/Attention (attention_every: 2)" do
+    test "builds with alternating GatedSSM/Attention (attention_every: 2)" do
       model =
         Hybrid.build(
           embed_size: @embed_size,
@@ -147,7 +147,7 @@ defmodule ExPhil.Networks.HybridTest do
   end
 
   describe "build_mamba_layer/2" do
-    test "builds a single Mamba layer with correct shape" do
+    test "builds a single GatedSSM layer with correct shape" do
       input = Axon.input("input", shape: {nil, @seq_len, @hidden_size})
 
       layer =
@@ -262,9 +262,9 @@ defmodule ExPhil.Networks.HybridTest do
       assert count < 100_000_000
     end
 
-    test "has more params than pure Mamba due to attention layers" do
+    test "has more params than pure GatedSSM due to attention layers" do
       mamba_count =
-        ExPhil.Networks.Mamba.param_count(
+        ExPhil.Networks.GatedSSM.param_count(
           embed_size: 64,
           hidden_size: 32,
           state_size: 8,
@@ -409,17 +409,17 @@ defmodule ExPhil.Networks.HybridTest do
 
   describe "comparison with pure architectures" do
     @tag :benchmark
-    test "hybrid has more expressiveness than pure Mamba" do
+    test "hybrid has more expressiveness than pure GatedSSM" do
       # This test verifies that the hybrid architecture produces
-      # different outputs than pure Mamba, indicating the attention
+      # different outputs than pure GatedSSM, indicating the attention
       # layers are contributing to the computation.
 
       key = Nx.Random.key(123)
       {input, _} = Nx.Random.uniform(key, shape: {@batch_size, @seq_len, @embed_size}, type: :f32)
 
-      # Build pure Mamba
+      # Build pure GatedSSM
       mamba_model =
-        ExPhil.Networks.Mamba.build(
+        ExPhil.Networks.GatedSSM.build(
           embed_size: @embed_size,
           hidden_size: @hidden_size,
           state_size: @state_size,
@@ -464,7 +464,7 @@ defmodule ExPhil.Networks.HybridTest do
 
       # Outputs should be different (different architectures with different random init)
       diff = Nx.mean(Nx.abs(Nx.subtract(mamba_out, hybrid_out))) |> Nx.to_number()
-      assert diff > 0.01, "Expected different outputs from Mamba and Hybrid"
+      assert diff > 0.01, "Expected different outputs from GatedSSM and Hybrid"
     end
   end
 end
