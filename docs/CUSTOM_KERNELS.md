@@ -1,6 +1,19 @@
 # Custom GPU Kernels for Mamba SSM
 
-This document outlines our options and plan for implementing custom GPU kernels to achieve 60 FPS inference for the Mamba selective scan.
+This document outlines our custom GPU kernel implementation for the Mamba selective scan.
+
+## Summary
+
+**Mission accomplished!** The Rust NIF achieves 60 FPS inference (10.96ms on RTX 4090).
+
+After benchmarking all backbones, we found that **only Mamba needed optimization**:
+- Attention: 0.014ms (PyTorch SDPA already uses Flash Attention)
+- LSTM: 5.34ms (PyTorch already uses cuDNN)
+- Mamba (Nx/XLA): 55ms ❌ → **Mamba (Rust NIF): 10.96ms** ✅
+
+No additional kernel work is needed for 60 FPS inference.
+
+---
 
 ## Current Status
 
