@@ -78,6 +78,7 @@ See [GOALS.md](docs/GOALS.md) for comprehensive roadmap. Current focus:
 - Embedding caching (2-3x speedup, default)
 - Augmented embedding cache (`--cache-augmented`, ~100x speedup for `--augment`)
 - Self-play GenServer infrastructure
+- Precision benchmarking (FP32 now default - 2x faster than BF16 due to XLA issues)
 
 **Next Phase:**
 1. **Self-play Dolphin testing** - Run with real MeleePort games

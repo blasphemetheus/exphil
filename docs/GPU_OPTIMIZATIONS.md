@@ -56,22 +56,33 @@ ExPhil.Training.GPUUtils.memory_status()
 # => %{used_mb: 4521, total_mb: 24564, utilization: 0.18}
 ```
 
-### 5. Mixed Precision Training (BF16)
+### 5. Precision: FP32 is Actually Faster
 
-RTX 4090 has excellent BF16 tensor cores. Benefits:
-- ~2x throughput for matrix operations
-- ~50% memory reduction
-- Minimal accuracy loss for neural networks
+**Counterintuitive finding:** Benchmarks on RTX 4090 show FP32 is 2x faster than BF16.
+
+| Precision | ms/batch | Relative |
+|-----------|----------|----------|
+| FP32 | 123 ms | 1.0x |
+| BF16 | 256 ms | 2.1x slower |
+| Mixed | 223 ms | 1.8x slower |
+
+**Why BF16 is slower on EXLA/XLA:**
+- Embedding dimensions (287) not aligned to 16 (tensor cores need alignment)
+- Type casting overhead (FP32→BF16→FP32 every batch)
+- XLA may fall back to FP32 kernels internally
+- Non-matmul ops don't benefit from tensor cores
+- See: https://github.com/openxla/xla/issues/12429
 
 ```bash
-# BF16 is the default (--precision bf16)
+# FP32 is the default (fastest)
 mix run scripts/train_from_replays.exs --temporal --backbone mamba
 
-# For full precision (slower but exact)
-mix run scripts/train_from_replays.exs --precision f32
+# BF16 uses 50% less VRAM but is 2x slower
+# Only use if VRAM constrained
+mix run scripts/train_from_replays.exs --precision bf16
 ```
 
-**Status:** ✅ Implemented - default precision is BF16
+**Status:** ✅ Benchmarked - FP32 is default (Jan 2026)
 
 ### 6. JIT-Wrapped Training Step (300x Speedup)
 

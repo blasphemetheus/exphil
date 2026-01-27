@@ -200,8 +200,8 @@ mix run scripts/train_from_replays.exs --dual-port
 | `--save-every N` | nil | Save checkpoint every N epochs |
 | `--save-every-batches N` | nil | Save checkpoint every N batches (for streaming) |
 | `--resume PATH` | nil | Resume from checkpoint |
-| `--precision TYPE` | bf16 | bf16 or f32 |
-| `--mixed-precision` | false | FP32 master weights + BF16 compute (better stability) |
+| `--precision TYPE` | f32 | f32 or bf16 (FP32 is 2x faster due to XLA issues) |
+| `--mixed-precision` | false | FP32 master weights + BF16 compute (not recommended) |
 | `--frame-delay N` | 0 | Simulated online delay (for Slippi) |
 | `--stream-chunk-size N` | nil | Load N files at a time (memory-bounded) |
 | `--gc-every N` | 100 | Run garbage collection every N batches (0=disabled) |
@@ -553,7 +553,7 @@ The embedding step happens before training starts. If your terminal becomes unre
 | Symptom | Likely Cause | Solution |
 |---------|--------------|----------|
 | SSH freezes, can't connect | System RAM exhausted | Use `--stream-chunk-size`, reduce `--max-files` |
-| Training crashes with OOM | GPU VRAM exhausted | Reduce `--batch-size`, use `--precision bf16` |
+| Training crashes with OOM | GPU VRAM exhausted | Reduce `--batch-size` (BF16 saves VRAM but is slower) |
 | Training gets progressively slower | Memory leak / fragmentation | Use `--gc-every 50` |
 | Swap usage increasing | RAM pressure | Use streaming mode, reduce batch size |
 
@@ -564,7 +564,7 @@ The embedding step happens before training starts. If your terminal becomes unre
 | `--stream-chunk-size N` | nil | Load N files at a time instead of all |
 | `--gc-every N` | 100 | Run garbage collection every N batches |
 | `--batch-size N` | 64 | Smaller = less GPU memory |
-| `--precision bf16` | bf16 | Half precision uses ~50% less VRAM |
+| `--precision bf16` | f32 | Half precision uses ~50% less VRAM (but 2x slower) |
 | `--no-precompute` | false | Compute embeddings on-the-fly (saves RAM) |
 
 ### Embedding Disk Cache
@@ -670,8 +670,8 @@ mix run scripts/train_from_replays.exs \
   --temporal --backbone mamba \
   --stream-chunk-size 15 \
   --gc-every 50 \
-  --batch-size 32 \
-  --precision bf16
+  --batch-size 32
+# Add --precision bf16 if VRAM constrained (slower but uses 50% less memory)
 ```
 
 **CPU-only (32GB RAM):**
@@ -722,7 +722,7 @@ nvidia-smi -l 1
 
 **If training crashes with CUDA OOM:**
 1. Reduce `--batch-size` (try halving it)
-2. Ensure `--precision bf16` is set
+2. Try `--precision bf16` (uses 50% less VRAM, but 2x slower due to XLA issues)
 3. For temporal models, reduce `--window-size`
 
 **If memory grows over time:**
@@ -756,10 +756,9 @@ nvidia-smi -l 1
 Quick wins for GPU training:
 
 ```bash
-# Maximum speed - larger batch + mixed precision
+# Maximum speed - larger batch with prefetch
 mix run scripts/train_from_replays.exs \
   --batch-size 512 \
-  --precision bf16 \
   --prefetch
 
 # If GPU memory limited, use gradient accumulation
@@ -771,11 +770,12 @@ mix run scripts/train_from_replays.exs \
 
 | Optimization | Flag | Impact |
 |--------------|------|--------|
-| BF16 precision | `--precision bf16` | ~2x throughput |
-| Mixed precision | `--mixed-precision` | Better stability with BF16 speed |
 | Larger batch | `--batch-size 512` | Better GPU utilization |
 | Prefetching | `--prefetch` | Overlap data/compute |
 | Grad accumulation | `--accumulation-steps 4` | Effective larger batch |
+
+> **Note on BF16**: Benchmarks show BF16 is actually 2x SLOWER than FP32 on RTX 4090 due to XLA issues
+> (dimension misalignment, type casting overhead). FP32 is the default and recommended.
 
 **Training time (GPU):**
 

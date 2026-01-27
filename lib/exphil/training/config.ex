@@ -239,9 +239,13 @@ defmodule ExPhil.Training.Config do
       expand_factor: 2,
       conv_size: 4,
       truncate_bptt: nil,
-      precision: :bf16,
+      # FP32 is default - benchmarks show BF16 is 2x SLOWER on RTX 4090 due to
+      # XLA issues: dimension misalignment (287 dims not divisible by 16),
+      # type casting overhead, and fallback to FP32 kernels internally.
+      # See: https://github.com/openxla/xla/issues/12429
+      precision: :f32,
       # Mixed precision training (FP32 master weights + BF16 compute)
-      # More numerically stable than pure BF16 for small gradients
+      # Not recommended - adds overhead without tensor core benefits on current XLA
       mixed_precision: false,
       frame_delay: 0,
       # Frame delay augmentation for online robustness
