@@ -1118,7 +1118,15 @@ defmodule ExPhil.Training.Data do
 
           # Save to cache
           if result.embedded_frames do
-            EmbeddingCache.save(cache_key, result.embedded_frames, cache_dir: cache_dir)
+            Logger.info("[EmbeddingCache] Saving frame embeddings to #{cache_key}...")
+            case EmbeddingCache.save(cache_key, result.embedded_frames, cache_dir: cache_dir) do
+              :ok ->
+                Logger.info("[EmbeddingCache] Successfully saved frame cache")
+              {:error, reason} ->
+                Logger.error("[EmbeddingCache] Failed to save frame cache: #{inspect(reason)}")
+            end
+          else
+            Logger.warning("[EmbeddingCache] No embedded_frames to save (this is a bug)")
           end
 
           result
@@ -1461,7 +1469,15 @@ defmodule ExPhil.Training.Data do
 
           # Save to cache
           if result.embedded_sequences do
-            EmbeddingCache.save(cache_key, result, cache_dir: cache_dir)
+            Logger.info("[EmbeddingCache] Saving sequence embeddings to #{cache_key}...")
+            case EmbeddingCache.save(cache_key, result, cache_dir: cache_dir) do
+              :ok ->
+                Logger.info("[EmbeddingCache] Successfully saved sequence cache")
+              {:error, reason} ->
+                Logger.error("[EmbeddingCache] Failed to save sequence cache: #{inspect(reason)}")
+            end
+          else
+            Logger.warning("[EmbeddingCache] No embedded_sequences to save (this is a bug)")
           end
 
           result
