@@ -1006,6 +1006,9 @@ defmodule ExPhil.Training.Data do
   def sequences_from_frame_embeddings(dataset, frame_embeddings, opts \\ []) do
     window_size = Keyword.fetch!(opts, :window_size)
     show_progress = Keyword.get(opts, :show_progress, true)
+    # Process in chunks to avoid GPU OOM (default 50K sequences per chunk)
+    # 50K seqs × 30 frames × 287 dims × 4 bytes = 1.7GB per chunk
+    chunk_size = Keyword.get(opts, :chunk_size, 50_000)
 
     # frame_embeddings shape: {num_frames, embed_dim}
     {num_frames, embed_dim} = Nx.shape(frame_embeddings)
@@ -1013,48 +1016,69 @@ defmodule ExPhil.Training.Data do
 
     if show_progress do
       IO.puts(:stderr, "  Building #{num_sequences} sequence embeddings from #{num_frames} frame embeddings...")
-      IO.puts(:stderr, "    (slicing, not re-embedding - 30x faster)")
+      IO.puts(:stderr, "    (chunked tensor ops, not re-embedding - 30x faster)")
     end
 
     # Get stride from metadata (default 1)
     stride = get_in(dataset.metadata, [:stride]) || 1
 
-    # Pre-allocate output tensor: {num_sequences, window_size, embed_dim}
-    # Build all sequences at once using tensor operations
+    # Ensure frame embeddings are on CPU first
+    frame_embeddings_cpu = Nx.backend_copy(frame_embeddings, Nx.BinaryBackend)
 
-    # Create sequence start indices: [0, stride, 2*stride, ...]
-    start_indices = Nx.iota({num_sequences}) |> Nx.multiply(stride)
+    # Process sequences in chunks using batched tensor operations
+    num_chunks = ceil(num_sequences / chunk_size)
 
-    # For each sequence, we need frames [start, start+1, ..., start+window_size-1]
-    # Create offset tensor: [0, 1, 2, ..., window_size-1]
+    # Offset tensor for frame indices within each sequence: [0, 1, 2, ..., window_size-1]
     offsets = Nx.iota({window_size})
 
-    # Broadcast to get all frame indices: {num_sequences, window_size}
-    # indices[i, j] = start_indices[i] + offsets[j]
-    all_indices = Nx.add(
-      Nx.reshape(start_indices, {num_sequences, 1}),
-      Nx.reshape(offsets, {1, window_size})
-    )
+    embedded_chunks =
+      0..(num_chunks - 1)
+      |> Enum.map(fn chunk_idx ->
+        chunk_start = chunk_idx * chunk_size
+        chunk_end = min(chunk_start + chunk_size, num_sequences)
+        chunk_count = chunk_end - chunk_start
 
-    # Flatten indices for gather, then reshape result
-    flat_indices = Nx.reshape(all_indices, {num_sequences * window_size})
+        if show_progress do
+          pct = round((chunk_idx + 1) / num_chunks * 100)
+          IO.write(:stderr, "\r  Building sequences: #{pct}% (#{chunk_end}/#{num_sequences})    ")
+        end
 
-    # Gather all frame embeddings at once
-    gathered = Nx.take(frame_embeddings, flat_indices, axis: 0)
+        # Build all frame indices for this chunk using tensor ops
+        # start_indices: [chunk_start*stride, (chunk_start+1)*stride, ...]
+        start_indices =
+          Nx.iota({chunk_count})
+          |> Nx.add(chunk_start)
+          |> Nx.multiply(stride)
 
-    # Reshape to {num_sequences, window_size, embed_dim}
-    sequence_embeddings = Nx.reshape(gathered, {num_sequences, window_size, embed_dim})
+        # all_indices[i, j] = start_indices[i] + offsets[j]
+        # Shape: {chunk_count, window_size}
+        all_indices = Nx.add(
+          Nx.reshape(start_indices, {chunk_count, 1}),
+          Nx.reshape(offsets, {1, window_size})
+        )
 
-    # Copy to CPU to avoid GPU memory issues
-    sequence_embeddings = Nx.backend_copy(sequence_embeddings, Nx.BinaryBackend)
+        # Flatten for gather: {chunk_count * window_size}
+        flat_indices = Nx.reshape(all_indices, {chunk_count * window_size})
+
+        # Gather all frames for this chunk at once
+        gathered = Nx.take(frame_embeddings_cpu, flat_indices, axis: 0)
+
+        # Reshape to {chunk_count, window_size, embed_dim}
+        chunk_embeddings = Nx.reshape(gathered, {chunk_count, window_size, embed_dim})
+
+        # Already on CPU, just return
+        chunk_embeddings
+      end)
 
     if show_progress do
-      IO.puts(:stderr, "  Done! Shape: #{inspect(Nx.shape(sequence_embeddings))}")
+      IO.puts(:stderr, "\r  Building sequences: 100% (#{num_sequences}/#{num_sequences}) - done!    ")
     end
+
+    # Concatenate all chunks: {num_sequences, window_size, embed_dim}
+    sequence_embeddings = Nx.concatenate(embedded_chunks, axis: 0)
 
     # Convert to :array format for compatibility with existing batching code
     # Each element is a {window_size, embed_dim} tensor
-    # Use Nx.to_batched which is efficient for this operation
     embedded_list =
       sequence_embeddings
       |> Nx.to_batched(1)
