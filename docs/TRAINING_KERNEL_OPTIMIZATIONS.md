@@ -389,20 +389,23 @@ Checkpoints are interchangeable.
 3. ✅ Integrate fused_softmax into attention.ex
 4. ✅ Benchmark fused ops speedup
 
-**Benchmark Results (RTX 4090, batch=32, hidden=512):**
+**Benchmark Results (RTX 4090, batch=32, seq=60, hidden=512):**
 | Operation | Fused | Unfused | Speedup |
 |-----------|-------|---------|---------|
-| Dense + ReLU | 430μs | 398μs | 0.93x |
-| Dense + SiLU | 438μs | 384μs | 0.88x |
-| LayerNorm + ReLU | 13.9ms | 13.9ms | 1.0x |
-| FFN (GELU) | 2.5ms | 2.4ms | 0.94x |
-| Log-Softmax | 6.6ms | 7.4ms | **1.11x** |
-| SwiGLU | 2.5ms | 2.6ms | **1.06x** |
+| Dense + ReLU | 424μs | 400μs | 0.94x |
+| Dense + SiLU | 461μs | 413μs | 0.90x |
+| Dense + GELU | 821μs | 807μs | 0.98x |
+| LayerNorm + ReLU | 7.4ms | 7.5ms | 1.01x |
+| FFN (GELU) | 870μs | 791μs | 0.91x |
+| Softmax (stable) | 6.0ms | 6.1ms | 1.01x |
+| SwiGLU | 691μs | 658μs | 0.95x |
+
+**Average speedup: 0.96x** (slightly slower due to FP32 casting)
 
 **Key insight:** XLA already fuses simple operation chains automatically. The FusedOps module's
 value is primarily **numerical stability** (FP32 internal computation for BF16 training) rather
-than raw speed. The slight slowdowns on some operations are due to FP32 casting overhead, which
-is necessary for correct gradient computation in mixed precision training.
+than raw speed. The ~4% slowdown is from FP32 casting overhead, which prevents NaN/overflow
+in mixed precision training - a worthwhile tradeoff for correctness.
 
 5. ⬜ Integrate fused ops into more network code (policy heads, FFN layers) - Low priority given XLA auto-fusion
 
