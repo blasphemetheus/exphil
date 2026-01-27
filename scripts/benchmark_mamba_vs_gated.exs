@@ -131,19 +131,28 @@ Output.puts("\n" <> String.duplicate("=", 60))
 Output.puts("SUMMARY")
 Output.puts(String.duplicate("=", 60))
 
-# Find baseline (GatedSSM)
-{_, _, baseline_ms, _, _} = Enum.find(results, fn {id, _, _, _, _} -> id == :gated_ssm end)
+# Find baseline (first successful result, or GatedSSM if present)
+baseline_result = Enum.find(results, fn {id, _, _, _, _} -> id == :gated_ssm end) ||
+                  Enum.find(results, fn {_, _, _, _, status} -> status == :ok end)
+baseline_ms = case baseline_result do
+  {_, _, ms, _, :ok} -> ms
+  _ -> 1.0  # Avoid division by zero
+end
+baseline_name = case baseline_result do
+  {_, name, _, _, _} -> name
+  _ -> "N/A"
+end
 
-Output.puts("\n| Model | Time (ms) | vs GatedSSM | 60 FPS? |")
+Output.puts("\n| Model | Time (ms) | vs #{baseline_name} | 60 FPS? |")
 Output.puts("|-------|-----------|-------------|---------|")
 
 for {_id, name, mean, _std, status} <- results do
   if status == :ok and mean > 0 do
     ratio = if baseline_ms > 0, do: Float.round(mean / baseline_ms, 2), else: 0.0
     fps_ok = if mean < 16.67, do: "YES", else: "NO"
-    Output.puts("| #{String.pad_trailing(name, 16)} | #{String.pad_leading(Float.to_string(Float.round(mean, 1)), 9)} | #{String.pad_leading("#{ratio}x", 11)} | #{String.pad_leading(fps_ok, 7)} |")
+    Output.puts("| #{String.pad_trailing(name, 20)} | #{String.pad_leading(Float.to_string(Float.round(mean, 1)), 9)} | #{String.pad_leading("#{ratio}x", 11)} | #{String.pad_leading(fps_ok, 7)} |")
   else
-    Output.puts("| #{String.pad_trailing(name, 16)} | FAILED |")
+    Output.puts("| #{String.pad_trailing(name, 20)} | FAILED |")
   end
 end
 
