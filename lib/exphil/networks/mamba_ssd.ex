@@ -270,11 +270,11 @@ defmodule ExPhil.Networks.MambaSSD do
         if chunk_idx == length(chunk_outputs) - 1 and remainder > 0 do
           start_idx = num_chunks * chunk_size
           a_chunk = Nx.slice_along_axis(a, start_idx, remainder, axis: 1)
-          Nx.reduce_prod(a_chunk, axes: [1])
+          Nx.product(a_chunk, axes: [1])
         else
           start_idx = chunk_idx * chunk_size
           a_chunk = Nx.slice_along_axis(a, start_idx, chunk_size, axis: 1)
-          Nx.reduce_prod(a_chunk, axes: [1])
+          Nx.product(a_chunk, axes: [1])
         end
       end)
 
