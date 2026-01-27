@@ -57,7 +57,7 @@ create_batch = fn seq_len ->
   key = Nx.Random.key(42)
   {states, key} = Nx.Random.uniform(key, shape: {batch_size, seq_len, embed_size}, type: :f32)
 
-  # Labels (fake)
+  # Labels (fake) - must be nested under :actions key
   {buttons, key} = Nx.Random.randint(key, 0, 2, shape: {batch_size, 8}, type: :u8)
   {main_x, key} = Nx.Random.randint(key, 0, 17, shape: {batch_size}, type: :u8)
   {main_y, key} = Nx.Random.randint(key, 0, 17, shape: {batch_size}, type: :u8)
@@ -67,12 +67,14 @@ create_batch = fn seq_len ->
 
   %{
     states: states,
-    buttons: buttons,
-    main_x: main_x,
-    main_y: main_y,
-    c_x: c_x,
-    c_y: c_y,
-    shoulder: shoulder
+    actions: %{
+      buttons: buttons,
+      main_x: main_x,
+      main_y: main_y,
+      c_x: c_x,
+      c_y: c_y,
+      shoulder: shoulder
+    }
   }
 end
 
@@ -130,8 +132,6 @@ benchmark_training = fn backbone, seq_len ->
 end
 
 # Run benchmarks
-results = %{}
-
 for {backbone, name} <- architectures do
   Output.puts("\n" <> String.duplicate("=", 60))
   Output.puts("#{name}")
