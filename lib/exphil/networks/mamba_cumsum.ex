@@ -258,8 +258,10 @@ defmodule ExPhil.Networks.MambaCumsum do
 
     # Step 2: Exclusive cumulative sum of log(A) to get log(P)
     # P[k] = prod_{j=0}^{k-1} A[j], so log(P[k]) = sum_{j=0}^{k-1} log(A[j])
-    # This is cumsum shifted right by 1
-    log_p = exclusive_cumsum(log_a)
+    # Key insight: exclusive_cumsum(x) = inclusive_cumsum(x) - x
+    # This avoids dynamic slicing which kills XLA performance
+    log_p_inclusive = Nx.cumulative_sum(log_a, axis: 1)
+    log_p = log_p_inclusive - log_a
 
     # Step 3: P = exp(log_P)
     p = Nx.exp(log_p)
@@ -276,27 +278,6 @@ defmodule ExPhil.Networks.MambaCumsum do
     h = p * cumsum_scaled
 
     h
-  end
-
-  # Exclusive cumulative sum: result[i] = sum_{j=0}^{i-1} x[j]
-  # result[0] = 0
-  defnp exclusive_cumsum(x) do
-    # Inclusive cumsum
-    inclusive = Nx.cumulative_sum(x, axis: 1)
-
-    # Shift right by 1 and pad with 0
-    seq_len = Nx.axis_size(x, 1)
-    batch = Nx.axis_size(x, 0)
-    hidden = Nx.axis_size(x, 2)
-    state = Nx.axis_size(x, 3)
-
-    # Take all but the last element
-    shifted = Nx.slice_along_axis(inclusive, 0, seq_len - 1, axis: 1)
-
-    # Pad with zeros at the start
-    zeros = Nx.broadcast(0.0, {batch, 1, hidden, state})
-
-    Nx.concatenate([zeros, shifted], axis: 1)
   end
 
   # ============================================================================
