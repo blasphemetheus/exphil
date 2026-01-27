@@ -14,7 +14,8 @@ crate-type = ["cdylib"]
 rustler = "0.35"
 
 # CUDA bindings (0.12.x has stable API)
-cudarc = { version = "0.12", features = ["driver", "nvrtc"], optional = true }
+# cuda-12060 matches our Dockerfile's CUDA 12.6
+cudarc = { version = "0.12", features = ["driver", "nvrtc", "cuda-12060"], optional = true }
 
 # Error handling
 thiserror = "1.0"
