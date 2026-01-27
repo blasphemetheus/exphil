@@ -99,7 +99,8 @@ class ScanServer:
             return None
         length = struct.unpack(">I", header)[0]
         data = sys.stdin.buffer.read(length)
-        return msgpack.unpackb(data, raw=False)
+        # raw=True keeps binary data as bytes, strict_map_key=False for flexibility
+        return msgpack.unpackb(data, raw=True, strict_map_key=False)
 
     def write_message(self, msg):
         """Write length-prefixed msgpack message to stdout."""
@@ -111,18 +112,24 @@ class ScanServer:
     def handle_scan(self, msg):
         """Handle a scan request."""
         try:
+            # Helper to get value by key (handles both str and bytes keys)
+            def get(key):
+                if key.encode() in msg:
+                    return msg[key.encode()]
+                return msg.get(key)
+
             # Extract shapes
-            batch = msg["batch"]
-            seq_len = msg["seq_len"]
-            hidden = msg["hidden"]
-            state = msg["state"]
+            batch = get("batch")
+            seq_len = get("seq_len")
+            hidden = get("hidden")
+            state = get("state")
 
             # Convert bytes to tensors
-            x = torch.frombuffer(bytearray(msg["x"]), dtype=torch.float32).reshape(batch, seq_len, hidden).to(self.device)
-            dt = torch.frombuffer(bytearray(msg["dt"]), dtype=torch.float32).reshape(batch, seq_len, hidden).to(self.device)
-            A = torch.frombuffer(bytearray(msg["A"]), dtype=torch.float32).reshape(hidden, state).to(self.device)
-            B = torch.frombuffer(bytearray(msg["B"]), dtype=torch.float32).reshape(batch, seq_len, state).to(self.device)
-            C = torch.frombuffer(bytearray(msg["C"]), dtype=torch.float32).reshape(batch, seq_len, state).to(self.device)
+            x = torch.frombuffer(bytearray(get("x")), dtype=torch.float32).reshape(batch, seq_len, hidden).to(self.device)
+            dt = torch.frombuffer(bytearray(get("dt")), dtype=torch.float32).reshape(batch, seq_len, hidden).to(self.device)
+            A = torch.frombuffer(bytearray(get("A")), dtype=torch.float32).reshape(hidden, state).to(self.device)
+            B = torch.frombuffer(bytearray(get("B")), dtype=torch.float32).reshape(batch, seq_len, state).to(self.device)
+            C = torch.frombuffer(bytearray(get("C")), dtype=torch.float32).reshape(batch, seq_len, state).to(self.device)
 
             # Run scan
             result = selective_scan_pytorch(x, dt, A, B, C)
@@ -174,7 +181,10 @@ class ScanServer:
             if msg is None:
                 break
 
-            op = msg.get("op", "unknown")
+            # Handle both bytes and str keys
+            op = msg.get(b"op", msg.get("op", b"unknown"))
+            if isinstance(op, bytes):
+                op = op.decode()
 
             if op == "scan":
                 response = self.handle_scan(msg)
