@@ -2,16 +2,12 @@
 """
 Flash Attention implementation in Triton for ExPhil.
 
-This implements Flash Attention 2 (Dao et al., 2023) which computes exact
-attention without materializing the O(N²) attention matrix.
-
-Key insight: Softmax can be computed incrementally using the "online softmax"
-trick, allowing block-wise computation that fits in SRAM.
+Simplified implementation based on the official Triton tutorial.
+Computes exact attention without materializing the O(N²) attention matrix.
 
 Usage:
     python priv/triton/flash_attention.py              # Run benchmark
     python priv/triton/flash_attention.py --test       # Run correctness test
-    python priv/triton/flash_attention.py --profile    # Profile kernel
 
 References:
     - FlashAttention-2: https://arxiv.org/abs/2307.08691
@@ -26,120 +22,98 @@ import triton.language as tl
 
 
 # =============================================================================
-# Triton Kernel
+# Triton Kernel (Simplified)
 # =============================================================================
 
 @triton.jit
-def flash_attention_kernel(
+def _flash_attn_fwd(
     Q, K, V, Out,
-    stride_qb, stride_qh, stride_qm, stride_qk,
-    stride_kb, stride_kh, stride_kn, stride_kk,
-    stride_vb, stride_vh, stride_vn, stride_vk,
-    stride_ob, stride_oh, stride_om, stride_ok,
-    seq_len, head_dim,
-    scale,
+    sm_scale,
+    stride_qz, stride_qh, stride_qm, stride_qk,
+    stride_kz, stride_kh, stride_kn, stride_kk,
+    stride_vz, stride_vh, stride_vn, stride_vk,
+    stride_oz, stride_oh, stride_om, stride_ok,
+    Z, H, N_CTX,
     BLOCK_M: tl.constexpr,
     BLOCK_N: tl.constexpr,
-    BLOCK_K: tl.constexpr,
+    BLOCK_DMODEL: tl.constexpr,
 ):
     """
-    Flash Attention forward pass.
+    Flash Attention forward kernel.
 
-    Grid: (num_blocks_m, batch * num_heads)
-
-    Each block computes a BLOCK_M x head_dim tile of the output.
+    Grid: (cdiv(N_CTX, BLOCK_M), Z * H)
     """
-    # Program IDs
-    block_m = tl.program_id(0)
-    batch_head = tl.program_id(1)
-    batch = batch_head // (stride_qh // stride_qb) if stride_qh > stride_qb else batch_head
-    head = batch_head % (stride_qh // stride_qb) if stride_qh > stride_qb else 0
+    start_m = tl.program_id(0)
+    off_hz = tl.program_id(1)
+    off_z = off_hz // H
+    off_h = off_hz % H
 
-    # Compute batch and head indices
-    # Assuming layout: [batch, heads, seq, dim] with strides
-    batch = batch_head // tl.cdiv(stride_qb, stride_qh) if stride_qb > stride_qh else batch_head // 1
-
-    # Simpler: assume batch_head encodes both
-    # We'll handle this via strides
-
-    # Offsets for this block
-    offs_m = block_m * BLOCK_M + tl.arange(0, BLOCK_M)
+    # Initialize offsets
+    offs_m = start_m * BLOCK_M + tl.arange(0, BLOCK_M)
     offs_n = tl.arange(0, BLOCK_N)
-    offs_k = tl.arange(0, BLOCK_K)
+    offs_d = tl.arange(0, BLOCK_DMODEL)
 
-    # Base pointers for this batch/head
-    q_base = Q + batch_head * stride_qh
-    k_base = K + batch_head * stride_kh
-    v_base = V + batch_head * stride_vh
-    o_base = Out + batch_head * stride_oh
+    # Initialize pointers to Q, K, V
+    off_q = off_z * stride_qz + off_h * stride_qh
+    off_k = off_z * stride_kz + off_h * stride_kh
+    off_v = off_z * stride_vz + off_h * stride_vh
 
-    # Initialize output accumulator and softmax stats
-    # m_i: running max, l_i: running sum of exp
-    m_i = tl.full([BLOCK_M], float('-inf'), dtype=tl.float32)
+    q_ptrs = Q + off_q + offs_m[:, None] * stride_qm + offs_d[None, :] * stride_qk
+    k_ptrs = K + off_k + offs_n[:, None] * stride_kn + offs_d[None, :] * stride_kk
+    v_ptrs = V + off_v + offs_n[:, None] * stride_vn + offs_d[None, :] * stride_vk
+
+    # Initialize accumulator
+    m_i = tl.zeros([BLOCK_M], dtype=tl.float32) - float("inf")
     l_i = tl.zeros([BLOCK_M], dtype=tl.float32)
-    acc = tl.zeros([BLOCK_M, BLOCK_K], dtype=tl.float32)
+    acc = tl.zeros([BLOCK_M, BLOCK_DMODEL], dtype=tl.float32)
 
-    # Load Q block (stays in SRAM for entire computation)
-    q_ptrs = q_base + offs_m[:, None] * stride_qm + offs_k[None, :] * stride_qk
-    q_mask = offs_m[:, None] < seq_len
-    q = tl.load(q_ptrs, mask=q_mask, other=0.0)
+    # Load Q (stays in SRAM)
+    q = tl.load(q_ptrs, mask=offs_m[:, None] < N_CTX, other=0.0)
 
-    # Iterate over K, V blocks
-    num_blocks_n = tl.cdiv(seq_len, BLOCK_N)
-    for block_n in range(num_blocks_n):
-        start_n = block_n * BLOCK_N
-        offs_n_curr = start_n + tl.arange(0, BLOCK_N)
+    # Loop over K, V blocks
+    for start_n in range(0, N_CTX, BLOCK_N):
+        start_n = tl.multiple_of(start_n, BLOCK_N)
 
-        # Load K block
-        k_ptrs = k_base + offs_n_curr[:, None] * stride_kn + offs_k[None, :] * stride_kk
-        k_mask = offs_n_curr[:, None] < seq_len
-        k = tl.load(k_ptrs, mask=k_mask, other=0.0)
+        # Load K, V
+        k = tl.load(k_ptrs + start_n * stride_kn,
+                    mask=(start_n + offs_n[:, None]) < N_CTX, other=0.0)
+        v = tl.load(v_ptrs + start_n * stride_vn,
+                    mask=(start_n + offs_n[:, None]) < N_CTX, other=0.0)
 
-        # Compute QK^T for this block
-        # q: [BLOCK_M, BLOCK_K], k: [BLOCK_N, BLOCK_K]
-        # qk: [BLOCK_M, BLOCK_N]
+        # Compute QK^T
         qk = tl.zeros([BLOCK_M, BLOCK_N], dtype=tl.float32)
-        qk = tl.dot(q, tl.trans(k), qk)
-        qk *= scale
+        qk += tl.dot(q, tl.trans(k))
+        qk *= sm_scale
 
-        # Mask out invalid positions
-        qk_mask = (offs_m[:, None] < seq_len) & (offs_n_curr[None, :] < seq_len)
-        qk = tl.where(qk_mask, qk, float('-inf'))
+        # Mask out-of-bounds
+        qk = tl.where(
+            (offs_m[:, None] < N_CTX) & ((start_n + offs_n[None, :]) < N_CTX),
+            qk, float("-inf")
+        )
 
-        # Online softmax update
-        # m_ij: max of this block
-        m_ij = tl.max(qk, axis=1)
-        # New running max
+        # Online softmax
+        m_ij = tl.max(qk, 1)
         m_new = tl.maximum(m_i, m_ij)
-
-        # Correction factors
         alpha = tl.exp(m_i - m_new)
-        beta = tl.exp(m_ij - m_new)
-
-        # Update l_i (sum of exponentials)
-        l_i = alpha * l_i + beta * tl.sum(tl.exp(qk - m_ij[:, None]), axis=1)
-
-        # Compute attention weights for this block
         p = tl.exp(qk - m_new[:, None])
+        l_ij = tl.sum(p, 1)
+        l_new = alpha * l_i + l_ij
 
-        # Load V block
-        v_ptrs = v_base + offs_n_curr[:, None] * stride_vn + offs_k[None, :] * stride_vk
-        v_mask = offs_n_curr[:, None] < seq_len
-        v = tl.load(v_ptrs, mask=v_mask, other=0.0)
+        # Update accumulator
+        acc = acc * alpha[:, None]
+        acc += tl.dot(p.to(v.dtype), v)
 
-        # Update accumulator: scale old acc and add new contribution
-        acc = alpha[:, None] * acc + tl.dot(p.to(v.dtype), v)
-
-        # Update running max
+        # Update stats
+        l_i = l_new
         m_i = m_new
 
     # Final normalization
     acc = acc / l_i[:, None]
 
     # Store output
-    o_ptrs = o_base + offs_m[:, None] * stride_om + offs_k[None, :] * stride_ok
-    o_mask = offs_m[:, None] < seq_len
-    tl.store(o_ptrs, acc.to(Out.dtype.element_ty), mask=o_mask)
+    off_o = off_z * stride_oz + off_h * stride_oh
+    o_ptrs = Out + off_o + offs_m[:, None] * stride_om + offs_d[None, :] * stride_ok
+    tl.store(o_ptrs, acc.to(Out.dtype.element_ty), mask=offs_m[:, None] < N_CTX)
 
 
 # =============================================================================
@@ -158,7 +132,18 @@ def flash_attention_triton(q, k, v):
     Returns:
         Output tensor [batch, heads, seq_len, head_dim]
     """
+    # Input validation
+    assert q.dim() == 4, f"Expected 4D tensor, got {q.dim()}D"
     batch, heads, seq_len, head_dim = q.shape
+    assert k.shape == q.shape and v.shape == q.shape
+
+    # Head dim must be power of 2 and <= 128 for efficiency
+    assert head_dim in [16, 32, 64, 128], f"head_dim must be 16, 32, 64, or 128, got {head_dim}"
+
+    # Ensure contiguous
+    q = q.contiguous()
+    k = k.contiguous()
+    v = v.contiguous()
 
     # Allocate output
     out = torch.empty_like(q)
@@ -166,33 +151,26 @@ def flash_attention_triton(q, k, v):
     # Kernel config
     BLOCK_M = 64
     BLOCK_N = 64
-    BLOCK_K = head_dim  # Must match head_dim
+    BLOCK_DMODEL = head_dim
 
     # Scale factor
-    scale = 1.0 / math.sqrt(head_dim)
+    sm_scale = 1.0 / math.sqrt(head_dim)
 
-    # Grid: one block per (seq_chunk, batch*head)
-    num_blocks_m = triton.cdiv(seq_len, BLOCK_M)
-    grid = (num_blocks_m, batch * heads)
+    # Grid
+    grid = (triton.cdiv(seq_len, BLOCK_M), batch * heads)
 
-    # Get strides
-    stride_qb, stride_qh, stride_qm, stride_qk = q.stride()
-    stride_kb, stride_kh, stride_kn, stride_kk = k.stride()
-    stride_vb, stride_vh, stride_vn, stride_vk = v.stride()
-    stride_ob, stride_oh, stride_om, stride_ok = out.stride()
-
-    # Launch kernel
-    flash_attention_kernel[grid](
+    # Launch
+    _flash_attn_fwd[grid](
         q, k, v, out,
-        stride_qb, stride_qh, stride_qm, stride_qk,
-        stride_kb, stride_kh, stride_kn, stride_kk,
-        stride_vb, stride_vh, stride_vn, stride_vk,
-        stride_ob, stride_oh, stride_om, stride_ok,
-        seq_len, head_dim,
-        scale,
+        sm_scale,
+        q.stride(0), q.stride(1), q.stride(2), q.stride(3),
+        k.stride(0), k.stride(1), k.stride(2), k.stride(3),
+        v.stride(0), v.stride(1), v.stride(2), v.stride(3),
+        out.stride(0), out.stride(1), out.stride(2), out.stride(3),
+        batch, heads, seq_len,
         BLOCK_M=BLOCK_M,
         BLOCK_N=BLOCK_N,
-        BLOCK_K=BLOCK_K,
+        BLOCK_DMODEL=BLOCK_DMODEL,
     )
 
     return out
@@ -201,26 +179,22 @@ def flash_attention_triton(q, k, v):
 def attention_pytorch_reference(q, k, v):
     """
     Standard attention using PyTorch (O(N²) memory).
-
-    Args:
-        q, k, v: [batch, heads, seq_len, head_dim]
-
-    Returns:
-        Output tensor [batch, heads, seq_len, head_dim]
     """
     head_dim = q.shape[-1]
     scale = 1.0 / math.sqrt(head_dim)
 
-    # Compute attention scores
-    scores = torch.matmul(q, k.transpose(-2, -1)) * scale  # [B, H, N, N]
-
-    # Softmax
+    scores = torch.matmul(q, k.transpose(-2, -1)) * scale
     attn = torch.softmax(scores, dim=-1)
-
-    # Apply to values
     out = torch.matmul(attn, v)
 
     return out
+
+
+def attention_pytorch_sdpa(q, k, v):
+    """
+    PyTorch's built-in scaled_dot_product_attention (uses Flash Attention when available).
+    """
+    return torch.nn.functional.scaled_dot_product_attention(q, k, v)
 
 
 # =============================================================================
@@ -239,18 +213,27 @@ def benchmark_attention(batch=32, heads=4, seq_len=60, head_dim=64, iterations=1
 
     if device == "cpu":
         print("\nWARNING: Running on CPU. Install CUDA for meaningful benchmarks.")
-        return
+        return None, None, None
 
     # Create test data
     q = torch.randn(batch, heads, seq_len, head_dim, device=device, dtype=torch.float32)
     k = torch.randn(batch, heads, seq_len, head_dim, device=device, dtype=torch.float32)
     v = torch.randn(batch, heads, seq_len, head_dim, device=device, dtype=torch.float32)
 
-    # Warmup
+    results = {}
+
+    # Warmup all implementations
     print(f"\nWarming up ({warmup} iterations)...")
     for _ in range(warmup):
         _ = attention_pytorch_reference(q, k, v)
-        _ = flash_attention_triton(q, k, v)
+        try:
+            _ = flash_attention_triton(q, k, v)
+        except Exception as e:
+            print(f"  Triton warmup error: {e}")
+        try:
+            _ = attention_pytorch_sdpa(q, k, v)
+        except Exception:
+            pass
     torch.cuda.synchronize()
 
     # Benchmark PyTorch reference
@@ -266,39 +249,58 @@ def benchmark_attention(batch=32, heads=4, seq_len=60, head_dim=64, iterations=1
     torch.cuda.synchronize()
 
     pytorch_time = start.elapsed_time(end) / iterations
-    print(f"  PyTorch: {pytorch_time:.3f} ms")
+    print(f"  PyTorch reference: {pytorch_time:.3f} ms")
+    results['pytorch'] = pytorch_time
+
+    # Benchmark PyTorch SDPA (built-in Flash Attention)
+    try:
+        print(f"\nBenchmarking PyTorch SDPA ({iterations} iterations)...")
+        torch.cuda.synchronize()
+        start.record()
+        for _ in range(iterations):
+            _ = attention_pytorch_sdpa(q, k, v)
+        end.record()
+        torch.cuda.synchronize()
+
+        sdpa_time = start.elapsed_time(end) / iterations
+        print(f"  PyTorch SDPA: {sdpa_time:.3f} ms")
+        results['sdpa'] = sdpa_time
+    except Exception as e:
+        print(f"  PyTorch SDPA not available: {e}")
+        sdpa_time = None
 
     # Benchmark Triton Flash Attention
-    print(f"\nBenchmarking Triton Flash Attention ({iterations} iterations)...")
-    torch.cuda.synchronize()
+    try:
+        print(f"\nBenchmarking Triton Flash Attention ({iterations} iterations)...")
+        torch.cuda.synchronize()
+        start.record()
+        for _ in range(iterations):
+            _ = flash_attention_triton(q, k, v)
+        end.record()
+        torch.cuda.synchronize()
 
-    start.record()
-    for _ in range(iterations):
-        _ = flash_attention_triton(q, k, v)
-    end.record()
-    torch.cuda.synchronize()
+        triton_time = start.elapsed_time(end) / iterations
+        print(f"  Triton: {triton_time:.3f} ms")
+        results['triton'] = triton_time
+    except Exception as e:
+        print(f"  Triton error: {e}")
+        triton_time = None
 
-    triton_time = start.elapsed_time(end) / iterations
-    print(f"  Triton: {triton_time:.3f} ms")
+    # Summary
+    print("\n" + "=" * 60)
+    print("SUMMARY")
+    print("=" * 60)
 
-    # Speedup
-    speedup = pytorch_time / triton_time
-    print(f"\nSpeedup: {speedup:.2f}x")
-
-    # 60 FPS check
     target = 16.67
-    print(f"\n60 FPS threshold: {target:.2f} ms")
-    print(f"PyTorch meets 60 FPS: {'YES' if pytorch_time < target else 'NO'}")
-    print(f"Triton meets 60 FPS: {'YES' if triton_time < target else 'NO'}")
+    print(f"\n60 FPS threshold: {target:.2f} ms\n")
 
-    # Memory comparison
-    print(f"\nMemory comparison (theoretical):")
-    n2_memory = batch * heads * seq_len * seq_len * 4  # float32
-    linear_memory = batch * heads * seq_len * head_dim * 4 * 3  # Q, K, V only
-    print(f"  Standard attention: {n2_memory / 1024:.1f} KB (O(N²) for scores)")
-    print(f"  Flash attention: ~{linear_memory / 1024:.1f} KB (O(N) working memory)")
+    for name, time in results.items():
+        if time:
+            meets = "✓ YES" if time < target else "✗ NO"
+            speedup = pytorch_time / time if name != 'pytorch' else 1.0
+            print(f"  {name:20s}: {time:6.3f} ms  ({speedup:.2f}x)  60 FPS: {meets}")
 
-    return pytorch_time, triton_time
+    return results
 
 
 def test_correctness():
@@ -308,8 +310,9 @@ def test_correctness():
     print("=" * 60)
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
+    print(f"Device: {device}\n")
 
-    # Test configurations
+    # Test configurations (head_dim must be power of 2)
     configs = [
         (1, 1, 16, 32),   # Tiny
         (2, 4, 32, 64),   # Small
@@ -319,28 +322,33 @@ def test_correctness():
 
     all_passed = True
     for batch, heads, seq_len, head_dim in configs:
-        print(f"\nTesting batch={batch}, heads={heads}, seq={seq_len}, dim={head_dim}...")
+        print(f"Testing batch={batch}, heads={heads}, seq={seq_len}, dim={head_dim}...", end=" ")
 
-        q = torch.randn(batch, heads, seq_len, head_dim, device=device, dtype=torch.float32)
-        k = torch.randn(batch, heads, seq_len, head_dim, device=device, dtype=torch.float32)
-        v = torch.randn(batch, heads, seq_len, head_dim, device=device, dtype=torch.float32)
+        try:
+            q = torch.randn(batch, heads, seq_len, head_dim, device=device, dtype=torch.float32)
+            k = torch.randn(batch, heads, seq_len, head_dim, device=device, dtype=torch.float32)
+            v = torch.randn(batch, heads, seq_len, head_dim, device=device, dtype=torch.float32)
 
-        # Reference
-        ref = attention_pytorch_reference(q, k, v)
+            # Reference
+            ref = attention_pytorch_reference(q, k, v)
 
-        # Flash attention
-        out = flash_attention_triton(q, k, v)
+            # Flash attention
+            out = flash_attention_triton(q, k, v)
 
-        # Compare
-        max_diff = (ref - out).abs().max().item()
-        mean_diff = (ref - out).abs().mean().item()
+            # Compare
+            max_diff = (ref - out).abs().max().item()
+            mean_diff = (ref - out).abs().mean().item()
 
-        # Tolerance (Flash Attention has slight numerical differences due to reordering)
-        passed = max_diff < 1e-2
-        status = "PASS" if passed else "FAIL"
-        all_passed = all_passed and passed
+            # Tolerance (Flash Attention has slight numerical differences)
+            passed = max_diff < 0.01
+            status = "PASS" if passed else "FAIL"
+            all_passed = all_passed and passed
 
-        print(f"  Max diff: {max_diff:.6f}, Mean diff: {mean_diff:.6f} [{status}]")
+            print(f"max_diff={max_diff:.6f} [{status}]")
+
+        except Exception as e:
+            print(f"ERROR: {e}")
+            all_passed = False
 
     print("\n" + "=" * 60)
     if all_passed:
@@ -359,7 +367,6 @@ def test_correctness():
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Flash Attention benchmark")
     parser.add_argument("--test", action="store_true", help="Run correctness test")
-    parser.add_argument("--profile", action="store_true", help="Profile kernel")
     parser.add_argument("--batch", type=int, default=32, help="Batch size")
     parser.add_argument("--heads", type=int, default=4, help="Number of heads")
     parser.add_argument("--seq", type=int, default=60, help="Sequence length")
@@ -369,8 +376,6 @@ if __name__ == "__main__":
 
     if args.test:
         test_correctness()
-    elif args.profile:
-        print("Profiling not yet implemented. Use nsys or ncu.")
     else:
         benchmark_attention(
             batch=args.batch,
