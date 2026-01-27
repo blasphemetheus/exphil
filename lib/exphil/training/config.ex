@@ -71,6 +71,7 @@ defmodule ExPhil.Training.Config do
     "--conv-size",
     "--truncate-bptt",
     "--precision",
+    "--mixed-precision",
     "--frame-delay",
     "--frame-delay-augment",
     "--frame-delay-min",
@@ -235,6 +236,9 @@ defmodule ExPhil.Training.Config do
       conv_size: 4,
       truncate_bptt: nil,
       precision: :bf16,
+      # Mixed precision training (FP32 master weights + BF16 compute)
+      # More numerically stable than pure BF16 for small gradients
+      mixed_precision: false,
       frame_delay: 0,
       # Frame delay augmentation for online robustness
       # Enable with --frame-delay-augment or --online-robust
@@ -1843,6 +1847,7 @@ defmodule ExPhil.Training.Config do
     |> parse_int_arg(args, "--conv-size", :conv_size)
     |> parse_optional_int_arg(args, "--truncate-bptt", :truncate_bptt)
     |> parse_precision_arg(args)
+    |> parse_flag(args, "--mixed-precision", :mixed_precision)
     |> parse_int_arg(args, "--frame-delay", :frame_delay)
     |> parse_flag(args, "--frame-delay-augment", :frame_delay_augment)
     |> parse_int_arg(args, "--frame-delay-min", :frame_delay_min)

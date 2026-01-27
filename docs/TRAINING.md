@@ -201,6 +201,7 @@ mix run scripts/train_from_replays.exs --dual-port
 | `--save-every-batches N` | nil | Save checkpoint every N batches (for streaming) |
 | `--resume PATH` | nil | Resume from checkpoint |
 | `--precision TYPE` | bf16 | bf16 or f32 |
+| `--mixed-precision` | false | FP32 master weights + BF16 compute (better stability) |
 | `--frame-delay N` | 0 | Simulated online delay (for Slippi) |
 | `--stream-chunk-size N` | nil | Load N files at a time (memory-bounded) |
 | `--gc-every N` | 100 | Run garbage collection every N batches (0=disabled) |
@@ -740,7 +741,8 @@ mix run scripts/train_from_replays.exs \
 
 | Optimization | Flag | Impact |
 |--------------|------|--------|
-| Mixed precision | `--precision bf16` | ~2x throughput |
+| BF16 precision | `--precision bf16` | ~2x throughput |
+| Mixed precision | `--mixed-precision` | Better stability with BF16 speed |
 | Larger batch | `--batch-size 512` | Better GPU utilization |
 | Prefetching | `--prefetch` | Overlap data/compute |
 | Grad accumulation | `--accumulation-steps 4` | Effective larger batch |

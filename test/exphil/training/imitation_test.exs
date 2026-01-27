@@ -59,6 +59,38 @@ defmodule ExPhil.Training.ImitationTest do
 
       assert trainer.metrics.loss == []
     end
+
+    test "mixed_precision: true initializes FP32 master weights" do
+      trainer = Imitation.new(embed_size: 64, hidden_sizes: [32], mixed_precision: true)
+
+      assert trainer.mixed_precision_state != nil
+
+      # Master params should be FP32
+      master_params = ExPhil.Training.MixedPrecision.get_master_params(trainer.mixed_precision_state)
+      first_tensor = get_first_tensor(master_params)
+      assert Nx.type(first_tensor) == {:f, 32}
+
+      # Compute params should be BF16
+      compute_params = ExPhil.Training.MixedPrecision.get_compute_params(trainer.mixed_precision_state)
+      first_compute_tensor = get_first_tensor(compute_params)
+      assert Nx.type(first_compute_tensor) == {:bf, 16}
+    end
+
+    test "mixed_precision: false has nil mixed_precision_state" do
+      trainer = Imitation.new(embed_size: 64, hidden_sizes: [32], mixed_precision: false)
+
+      assert trainer.mixed_precision_state == nil
+    end
+  end
+
+  # Helper to get first tensor from nested params
+  defp get_first_tensor(params) when is_struct(params, Nx.Tensor), do: params
+
+  defp get_first_tensor(params) when is_map(params) do
+    params
+    |> Map.values()
+    |> List.first()
+    |> get_first_tensor()
   end
 
   describe "create_optimizer/1" do
@@ -113,6 +145,27 @@ defmodule ExPhil.Training.ImitationTest do
       # Parameters should be different after update
       # (Can't easily compare nested maps, but at least check they exist)
       assert new_trainer.policy_params != nil
+    end
+
+    @tag :slow
+    test "mixed precision training step maintains FP32 master weights" do
+      trainer = Imitation.new(embed_size: 64, hidden_sizes: [32], mixed_precision: true)
+      batch = mock_batch(4, 64)
+      {_predict_fn, loss_fn} = Imitation.build_loss_fn(trainer.policy_model)
+
+      {new_trainer, metrics} = Imitation.train_step(trainer, batch, loss_fn)
+
+      # Training step should complete
+      assert new_trainer.step == 1
+      assert %Nx.Tensor{} = metrics.loss
+
+      # Mixed precision state should be updated
+      assert new_trainer.mixed_precision_state != nil
+
+      # Master weights should still be FP32
+      master_params = ExPhil.Training.MixedPrecision.get_master_params(new_trainer.mixed_precision_state)
+      first_tensor = get_first_tensor(master_params)
+      assert Nx.type(first_tensor) == {:f, 32}
     end
 
     @tag :slow

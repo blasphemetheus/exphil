@@ -45,7 +45,7 @@ defmodule ExPhil.Training.Imitation do
 
   alias ExPhil.Networks.Policy
   alias ExPhil.Embeddings
-  alias ExPhil.Training.{Checkpoint, Utils}
+  alias ExPhil.Training.{Checkpoint, MixedPrecision, Utils}
 
   require Logger
 
@@ -62,7 +62,9 @@ defmodule ExPhil.Training.Imitation do
     :predict_fn,
     :apply_updates_fn,
     # Compiled loss+grad function - avoids closure creation and deep_backend_copy every batch
-    :loss_and_grad_fn
+    :loss_and_grad_fn,
+    # Mixed precision state (FP32 master weights + BF16 compute params)
+    :mixed_precision_state
   ]
 
   @type t :: %__MODULE__{
@@ -76,7 +78,8 @@ defmodule ExPhil.Training.Imitation do
           metrics: map(),
           predict_fn: function() | nil,
           apply_updates_fn: function() | nil,
-          loss_and_grad_fn: function() | nil
+          loss_and_grad_fn: function() | nil,
+          mixed_precision_state: MixedPrecision.t() | nil
         }
 
   # Default training configuration
@@ -101,6 +104,9 @@ defmodule ExPhil.Training.Imitation do
     dropout: 0.1,
     # Precision (bf16 = ~2x faster, minimal accuracy loss)
     precision: :bf16,
+    # Mixed precision training (FP32 master weights + BF16 compute)
+    # More numerically stable than pure BF16 - preserves small gradients
+    mixed_precision: false,
     # Temporal training options
     # Enable temporal/sequence training
     temporal: false,
@@ -231,14 +237,33 @@ defmodule ExPhil.Training.Imitation do
         {1, embed_size}
       end
 
-    policy_params = init_fn.(Nx.template(input_shape, config.precision), Axon.ModelState.empty())
+    # When using mixed precision, initialize params in FP32 (master weights)
+    # Otherwise use configured precision
+    init_precision = if config.mixed_precision, do: :f32, else: config.precision
+    policy_params = init_fn.(Nx.template(input_shape, init_precision), Axon.ModelState.empty())
+
+    # Initialize mixed precision state if enabled
+    # This maintains FP32 master weights while computing in BF16
+    mixed_precision_state =
+      if config.mixed_precision do
+        compute_precision = config.precision || :bf16
+        MixedPrecision.init(get_params_data(policy_params), precision: compute_precision)
+      else
+        nil
+      end
 
     # Create optimizer with gradient clipping
     {optimizer_init, optimizer_update} = create_optimizer(config)
 
     # Initialize optimizer state with just the parameter data (not full ModelState)
-    # This ensures consistency when calling optimizer during training
-    params_data = get_params_data(policy_params)
+    # For mixed precision, use FP32 master weights; otherwise use policy_params
+    params_data =
+      if mixed_precision_state do
+        MixedPrecision.get_master_params(mixed_precision_state)
+      else
+        get_params_data(policy_params)
+      end
+
     optimizer_state = optimizer_init.(params_data)
 
     # Pre-build cached functions for performance
@@ -266,7 +291,8 @@ defmodule ExPhil.Training.Imitation do
       },
       predict_fn: predict_fn,
       apply_updates_fn: apply_updates_fn,
-      loss_and_grad_fn: loss_and_grad_fn
+      loss_and_grad_fn: loss_and_grad_fn,
+      mixed_precision_state: mixed_precision_state
     }
   end
 
@@ -861,13 +887,28 @@ defmodule ExPhil.Training.Imitation do
 
   Uses cached loss_and_grad_fn built in new/1 to avoid per-batch overhead.
   No more deep_backend_copy or closure creation every batch.
+
+  When mixed precision is enabled:
+  - Forward/backward pass uses BF16 compute params for speed
+  - Gradients are cast to FP32 before accumulation (preserves small updates)
+  - FP32 master weights maintain full precision across many steps
   """
   @spec train_step(t(), map(), function()) :: {t(), map()}
-  def train_step(trainer, batch, _loss_fn) do
+  def train_step(%{mixed_precision_state: nil} = trainer, batch, _loss_fn) do
+    # Standard training path (no mixed precision)
+    train_step_standard(trainer, batch)
+  end
+
+  def train_step(%{mixed_precision_state: mp_state} = trainer, batch, _loss_fn) do
+    # Mixed precision training path
+    train_step_mixed_precision(trainer, batch, mp_state)
+  end
+
+  # Standard training without mixed precision
+  defp train_step_standard(trainer, batch) do
     %{states: states, actions: actions} = batch
 
     # Use cached loss+grad function (built once in new/1)
-    # This avoids deep_backend_copy and closure creation every batch
     {loss, grads} = trainer.loss_and_grad_fn.(trainer.policy_params, states, actions)
 
     # Extract data for optimizer (grads has same structure as ModelState)
@@ -886,8 +927,6 @@ defmodule ExPhil.Training.Imitation do
     new_params_data = trainer.apply_updates_fn.(params_data, updates)
     new_params = put_params_data(trainer.policy_params, new_params_data)
 
-    # Update trainer state (metrics update deferred to avoid GPU sync)
-    # Loss stays as tensor - caller should batch conversions at epoch end
     new_trainer = %{
       trainer
       | policy_params: new_params,
@@ -895,8 +934,52 @@ defmodule ExPhil.Training.Imitation do
         step: trainer.step + 1
     }
 
-    # Return loss as tensor to avoid blocking GPU→CPU transfer every batch
-    # Caller accumulates tensors and converts to number once per epoch
+    {new_trainer, %{loss: loss, step: new_trainer.step}}
+  end
+
+  # Mixed precision training with FP32 master weights
+  defp train_step_mixed_precision(trainer, batch, mp_state) do
+    %{states: states, actions: actions} = batch
+
+    # Get BF16 compute params for forward/backward pass (fast on tensor cores)
+    compute_params = MixedPrecision.get_compute_params(mp_state)
+    compute_model_state = put_params_data(trainer.policy_params, compute_params)
+
+    # Forward + backward in BF16 (compute precision)
+    {loss, grads} = trainer.loss_and_grad_fn.(compute_model_state, states, actions)
+    grads_data = get_params_data(grads)
+
+    # Cast gradients to FP32 (preserves small gradient updates)
+    grads_f32 = MixedPrecision.cast_grads_to_f32(mp_state, grads_data)
+
+    # Get FP32 master weights for optimizer
+    master_params = MixedPrecision.get_master_params(mp_state)
+
+    # Apply optimizer to FP32 master weights (same call pattern as non-mixed precision)
+    {updates, new_optimizer_state} =
+      trainer.optimizer.(
+        grads_f32,
+        trainer.optimizer_state,
+        master_params
+      )
+
+    # Apply updates to FP32 master weights
+    new_params_data = trainer.apply_updates_fn.(master_params, updates)
+
+    # Update mixed precision state with new master params
+    new_mp_state = MixedPrecision.set_master_params(mp_state, new_params_data)
+
+    # Also update policy_params (for checkpointing)
+    new_params = put_params_data(trainer.policy_params, new_params_data)
+
+    new_trainer = %{
+      trainer
+      | policy_params: new_params,
+        optimizer_state: new_optimizer_state,
+        mixed_precision_state: new_mp_state,
+        step: trainer.step + 1
+    }
+
     {new_trainer, %{loss: loss, step: new_trainer.step}}
   end
 

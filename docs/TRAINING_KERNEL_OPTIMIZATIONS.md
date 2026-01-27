@@ -6,8 +6,8 @@ This document outlines GPU kernel optimizations to speed up **training** (not ju
 
 | Optimization | Effort | Speedup | Backbones | Status |
 |--------------|--------|---------|-----------|--------|
-| **BF16 mixed precision** | Low | ~1.5-2x | All | ⬜ Planned |
-| **Mamba backward kernel** | Medium | ~5x | Mamba | 🚧 In Progress |
+| **BF16 mixed precision** | Low | ~1.5-2x | All | ✅ Done |
+| **Mamba backward kernel** | Medium | ~5x | Mamba | ✅ Done |
 | **XLA Custom Call** | High | ~10x | Mamba | ⬜ Future |
 | **Fused LayerNorm+Act** | Medium | ~1.2x | All | ⬜ Future |
 | **Fused optimizer** | Low | ~1.1x | All | ⬜ Future |
@@ -362,9 +362,9 @@ EXLA may already do some fusion. Custom kernel would help for large models.
 6. ⬜ Benchmark training speed
 
 ### Phase 2: BF16 Mixed Precision
-1. ⬜ Add `--mixed-precision` flag
-2. ⬜ Implement BF16 casting in training loop
-3. ⬜ Handle numerical stability (softmax, layernorm)
+1. ✅ Add `--mixed-precision` flag
+2. ✅ Implement BF16 casting in training loop (FP32 master weights)
+3. ✅ Handle numerical stability (stable_softmax, stable_layer_norm, stable_cross_entropy)
 4. ⬜ Benchmark speedup across backbones
 
 ### Phase 3: Fused Operations
