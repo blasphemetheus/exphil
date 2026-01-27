@@ -60,11 +60,13 @@ ExPhil.Training.GPUUtils.memory_status()
 
 **Counterintuitive finding:** Benchmarks on RTX 4090 show FP32 is 2x faster than BF16.
 
-| Precision | ms/batch | Relative |
-|-----------|----------|----------|
-| FP32 | 123 ms | 1.0x |
-| BF16 | 256 ms | 2.1x slower |
-| Mixed | 223 ms | 1.8x slower |
+| Precision | ms/batch | samples/sec | Relative |
+|-----------|----------|-------------|----------|
+| FP32 | 116.3 ms | 2201 | 1.0x |
+| Mixed | 225.1 ms | 1137 | 1.9x slower |
+| BF16 | 243.7 ms | 1050 | 2.1x slower |
+
+*Benchmark: 5000 frames, batch size 256, 20 batches, RTX 4090 on RunPod*
 
 **Why BF16 is slower on EXLA/XLA:**
 - Embedding dimensions (287) not aligned to 16 (tensor cores need alignment)
