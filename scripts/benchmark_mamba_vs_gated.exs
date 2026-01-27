@@ -2,14 +2,20 @@
 # Benchmark: Mamba variants inference speed
 #
 # Run:  mix run scripts/benchmark_mamba_vs_gated.exs
+#       mix run scripts/benchmark_mamba_vs_gated.exs --only cumsum_t,cumsum_l
+#       mix run scripts/benchmark_mamba_vs_gated.exs --only mamba,mamba_hs
 #
-# Compares:
-# - GatedSSM: Simplified gated approximation (fastest)
-# - Mamba: True parallel scan with Blelloch algorithm
-# - MambaCumsum: Cumsum-based optimization
+# Available IDs: gated_ssm, mamba, mamba_cumsum, cumsum_t, cumsum_l, mamba_hs, mamba_ssd
 
 alias ExPhil.Networks.{Mamba, GatedSSM, MambaCumsum, MambaHillisSteele, MambaSSD}
 alias ExPhil.Training.Output
+
+# Parse --only flag
+{opts, _, _} = OptionParser.parse(System.argv(), strict: [only: :string])
+only_filter = case opts[:only] do
+  nil -> nil
+  str -> str |> String.split(",") |> Enum.map(&String.trim/1) |> MapSet.new()
+end
 
 Output.banner("Mamba Variants Inference Benchmark")
 
@@ -39,16 +45,31 @@ else
   Output.warning("CPU only - results will be slow")
 end
 
-# Models to benchmark
-models = [
+# All available models
+all_models = [
   {:gated_ssm, "GatedSSM", fn opts -> GatedSSM.build(opts) end},
   {:mamba, "Mamba (Blelloch)", fn opts -> Mamba.build(opts) end},
   {:mamba_cumsum, "MambaCumsum (Blelloch)", fn opts -> MambaCumsum.build(opts) end},
-  {:mamba_cumsum_t, "Cumsum (transposed)", fn opts -> MambaCumsum.build(Keyword.put(opts, :scan_algo, :cumsum_transposed)) end},
-  {:mamba_cumsum_l, "Cumsum (logspace)", fn opts -> MambaCumsum.build(Keyword.put(opts, :scan_algo, :cumsum_logspace)) end},
+  {:cumsum_t, "Cumsum (transposed)", fn opts -> MambaCumsum.build(Keyword.put(opts, :scan_algo, :cumsum_transposed)) end},
+  {:cumsum_l, "Cumsum (logspace)", fn opts -> MambaCumsum.build(Keyword.put(opts, :scan_algo, :cumsum_logspace)) end},
   {:mamba_hs, "Mamba (Hillis-Steele)", fn opts -> MambaHillisSteele.build(opts) end},
   {:mamba_ssd, "Mamba (SSD)", fn opts -> MambaSSD.build(opts) end}
 ]
+
+# Filter models if --only specified
+models = case only_filter do
+  nil -> all_models
+  filter ->
+    filtered = Enum.filter(all_models, fn {id, _, _} -> MapSet.member?(filter, Atom.to_string(id)) end)
+    if filtered == [] do
+      Output.error("No models matched filter: #{Enum.join(filter, ", ")}")
+      Output.puts("Available IDs: #{Enum.map_join(all_models, ", ", fn {id, _, _} -> id end)}")
+      System.halt(1)
+    end
+    filtered
+end
+
+Output.puts("Testing #{length(models)} model(s): #{Enum.map_join(models, ", ", fn {id, _, _} -> id end)}")
 
 model_opts = [
   embed_size: embed_size,

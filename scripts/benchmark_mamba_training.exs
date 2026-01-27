@@ -3,15 +3,23 @@
 #
 # Run on GPU pod:
 #   mix run scripts/benchmark_mamba_training.exs
+#   mix run scripts/benchmark_mamba_training.exs --only mamba_hs
+#   mix run scripts/benchmark_mamba_training.exs --only gated_ssm,mamba --seq 60,120
 #
-# Compares training speed (batches/sec including backward pass) for:
-# - GatedSSM (simplified gated approximation)
-# - Mamba (true parallel scan)
-# - MambaCumsum (cumsum-based optimization)
-#
-# Also tests longer sequences (L=60, L=120, L=180) to show scaling
+# Available IDs: gated_ssm, mamba, mamba_cumsum, mamba_hillis_steele, mamba_ssd
 
 alias ExPhil.Training.{Imitation, Output}
+
+# Parse flags
+{opts, _, _} = OptionParser.parse(System.argv(), strict: [only: :string, seq: :string])
+only_filter = case opts[:only] do
+  nil -> nil
+  str -> str |> String.split(",") |> Enum.map(&String.trim/1) |> MapSet.new()
+end
+seq_filter = case opts[:seq] do
+  nil -> nil
+  str -> str |> String.split(",") |> Enum.map(&String.trim/1) |> Enum.map(&String.to_integer/1)
+end
 
 Output.banner("Mamba Training Speed Benchmark")
 
@@ -24,7 +32,7 @@ warmup = 2
 iterations = 5
 
 # Test different sequence lengths
-seq_lengths = [60, 120, 180]
+seq_lengths = seq_filter || [60, 120, 180]
 
 Output.config([
   {"Embed size", embed_size},
@@ -44,14 +52,29 @@ else
   Output.warning("Not using EXLA - results will be CPU-only")
 end
 
-# Architectures to benchmark
-architectures = [
+# All available architectures
+all_architectures = [
   {:gated_ssm, "GatedSSM (simplified)"},
   {:mamba, "Mamba (Blelloch)"},
   {:mamba_cumsum, "MambaCumsum (Blelloch)"},
   {:mamba_hillis_steele, "Mamba (Hillis-Steele)"},
   {:mamba_ssd, "Mamba (SSD)"}
 ]
+
+# Filter architectures if --only specified
+architectures = case only_filter do
+  nil -> all_architectures
+  filter ->
+    filtered = Enum.filter(all_architectures, fn {id, _} -> MapSet.member?(filter, Atom.to_string(id)) end)
+    if filtered == [] do
+      Output.error("No architectures matched filter: #{Enum.join(filter, ", ")}")
+      Output.puts("Available IDs: #{Enum.map_join(all_architectures, ", ", fn {id, _} -> id end)}")
+      System.halt(1)
+    end
+    filtered
+end
+
+Output.puts("Testing #{length(architectures)} architecture(s): #{Enum.map_join(architectures, ", ", fn {id, _} -> id end)}")
 
 # Create fake training batch
 create_batch = fn seq_len ->
@@ -159,8 +182,13 @@ end
 Output.puts("\n" <> String.duplicate("=", 60))
 Output.puts("SUMMARY: Training Speed (batches/sec)")
 Output.puts(String.duplicate("=", 60))
-Output.puts("\n| Architecture | L=60 | L=120 | L=180 | Scaling |")
-Output.puts("|--------------|------|-------|-------|---------|")
+
+# Build dynamic header based on seq_lengths
+header_cols = Enum.map(seq_lengths, fn l -> "L=#{l}" end) ++ ["Scaling"]
+header = "| Architecture | " <> Enum.join(header_cols, " | ") <> " |"
+separator = "|" <> String.duplicate("-", 14) <> "|" <> Enum.map_join(1..length(header_cols), "|", fn _ -> "------" end) <> "|"
+Output.puts("\n" <> header)
+Output.puts(separator)
 
 # Re-run to collect data for table
 for {backbone, name} <- architectures do
@@ -174,10 +202,12 @@ for {backbone, name} <- architectures do
       end
     end
 
-  [l60, l120, l180] = results_row
-  scaling = if l60 > 0 and l180 > 0, do: Float.round(l60 / l180, 2), else: 0.0
+  first = List.first(results_row) || 0.0
+  last = List.last(results_row) || 0.0
+  scaling = if first > 0 and last > 0 and length(results_row) > 1, do: Float.round(first / last, 2), else: 0.0
 
-  Output.puts("| #{String.pad_trailing(name, 12)} | #{l60} | #{l120} | #{l180} | #{scaling}x |")
+  row_data = Enum.map(results_row, &to_string/1) ++ ["#{scaling}x"]
+  Output.puts("| #{String.pad_trailing(name, 12)} | " <> Enum.join(row_data, " | ") <> " |")
 end
 
 Output.puts("")
