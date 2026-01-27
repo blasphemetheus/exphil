@@ -219,8 +219,10 @@ defmodule ExPhil.Bridge.PyTorchPort do
   # ==========================================================================
 
   defp tensor_to_binary(tensor) do
+    # Force evaluation and copy to avoid "donated buffer" errors
+    # when EXLA tensors get garbage collected
     tensor
-    |> Nx.backend_transfer(Nx.BinaryBackend)
+    |> Nx.backend_copy(Nx.BinaryBackend)
     |> Nx.as_type(:f32)
     |> Nx.to_binary()
   end
