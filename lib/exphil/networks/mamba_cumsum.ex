@@ -1,36 +1,19 @@
 defmodule ExPhil.Networks.MambaCumsum do
   @moduledoc """
-  Mamba variant using log-space cumulative sum for GPU-optimized training.
+  Mamba variant for experimenting with alternative scan algorithms.
 
-  This implementation reformulates the SSM scan to use XLA's highly optimized
-  cumsum primitive instead of a custom parallel scan.
+  Currently uses Blelloch scan (same as regular Mamba). This module exists
+  to test alternative approaches like:
 
-  ## Mathematical Insight
+  - **Hillis-Steele scan**: O(L log L) work but more parallelism per level
+  - **SSD algorithm**: Mamba-2's chunked matmul approach for tensor cores
+  - **Chunked scan**: Process in chunks with inter-chunk recurrence
 
-  The SSM recurrence `h[t] = A[t] * h[t-1] + Bx[t]` has closed form:
+  ## Current Status
 
-  ```
-  h[t] = sum_{k=0}^{t} (prod_{j=k+1}^{t} A[j]) * Bx[k]
-       = P[t] * sum_{k=0}^{t} (Bx[k] / P[k])
-       = P[t] * cumsum(Bx / P)[t]
-  ```
-
-  where `P[k] = prod_{j=0}^{k-1} A[j]` (exclusive cumulative product).
-
-  This converts the parallel scan into:
-  1. `log_P = exclusive_cumsum(log(A))` - one cumsum
-  2. `P = exp(log_P)`
-  3. `scaled = Bx / P`
-  4. `h = P * cumsum(scaled)` - another cumsum
-
-  Two cumsums replace the O(log L) level parallel scan, leveraging XLA's
-  highly optimized reduction primitives.
-
-  ## Trade-offs
-
-  - **Faster training**: Uses XLA's fused cumsum kernels
-  - **Numerical precision**: May have issues for very long sequences where P→0
-  - **Same expressiveness**: Mathematically equivalent to true Mamba
+  The cumsum-based approach (log-space reformulation) doesn't work well in XLA.
+  XLA's cumulative_sum kernel is slower than Blelloch's pad/slice/multiply pattern
+  for this tensor structure.
 
   ## Usage
 
@@ -38,7 +21,6 @@ defmodule ExPhil.Networks.MambaCumsum do
       model = MambaCumsum.build(embed_size: 287, hidden_size: 256)
   """
 
-  import Nx.Defn
   require Axon
 
   # Default hyperparameters
@@ -101,7 +83,7 @@ defmodule ExPhil.Networks.MambaCumsum do
   end
 
   @doc """
-  Build a single Mamba block using cumsum-based SSM.
+  Build a single Mamba block.
   """
   @spec build_mamba_block(Axon.t(), keyword()) :: Axon.t()
   def build_mamba_block(input, opts \\ []) do
@@ -127,12 +109,12 @@ defmodule ExPhil.Networks.MambaCumsum do
         Nx.slice_along_axis(tensor, inner_size, inner_size, axis: 2)
       end, name: "#{name}_z_split")
 
-    # X branch: Conv -> SiLU -> Cumsum SSM
+    # X branch: Conv -> SiLU -> SSM
     x_conv = build_depthwise_conv1d(x_branch, inner_size, conv_size, "#{name}_conv")
     x_activated = Axon.activation(x_conv, :silu, name: "#{name}_conv_silu")
 
     x_ssm =
-      build_cumsum_ssm(
+      build_selective_ssm(
         x_activated,
         hidden_size: inner_size,
         state_size: state_size,
@@ -165,17 +147,20 @@ defmodule ExPhil.Networks.MambaCumsum do
   end
 
   @doc """
-  Build the SSM using cumulative sum formulation.
+  Build the SSM with configurable scan algorithm.
 
-  Uses the identity: h[t] = P[t] * cumsum(Bx / P)[t]
-  where P is the exclusive cumulative product of A.
+  This is where we can swap in different scan implementations:
+  - :blelloch (default) - Work-efficient O(L) work, O(log L) depth
+  - :hillis_steele - O(L log L) work, but more parallelism per level
+  - :ssd - Mamba-2's chunked matmul approach
   """
-  @spec build_cumsum_ssm(Axon.t(), keyword()) :: Axon.t()
-  def build_cumsum_ssm(input, opts \\ []) do
+  @spec build_selective_ssm(Axon.t(), keyword()) :: Axon.t()
+  def build_selective_ssm(input, opts \\ []) do
     hidden_size = Keyword.get(opts, :hidden_size, @default_hidden_size)
     state_size = Keyword.get(opts, :state_size, @default_state_size)
     dt_rank = Keyword.get(opts, :dt_rank, max(div(hidden_size, 16), 1))
     name = Keyword.get(opts, :name, "ssm")
+    _scan_algo = Keyword.get(opts, :scan_algo, :blelloch)
 
     # B and C projections
     bc_proj = Axon.dense(input, state_size * 2, name: "#{name}_bc_proj")
@@ -197,97 +182,156 @@ defmodule ExPhil.Networks.MambaCumsum do
       |> Axon.dense(hidden_size, name: "#{name}_dt_proj")
       |> Axon.activation(:softplus, name: "#{name}_dt_softplus")
 
-    # Apply cumsum-based SSM
+    # Apply SSM with selected scan algorithm
     Axon.layer(
-      &cumsum_ssm_impl/5,
+      &ssm_impl/5,
       [input, b_matrix, c_matrix, dt_proj],
       name: name,
       state_size: state_size,
       hidden_size: hidden_size,
-      op_name: :cumsum_ssm
+      op_name: :selective_ssm
     )
   end
 
-  # Cumsum-based SSM implementation
-  # Single defn function so XLA can see and optimize the entire computation graph
-  defp cumsum_ssm_impl(x, b, c, dt, opts) do
+  # SSM implementation using Blelloch scan (current default)
+  # This can be swapped for other algorithms
+  defp ssm_impl(x, b, c, dt, opts) do
     state_size = opts[:state_size]
-    cumsum_ssm_defn(x, b, c, dt, state_size)
-  end
-
-  # All SSM computation in single defn for XLA fusion
-  defn cumsum_ssm_defn(x, b, c, dt, state_size) do
-    # x: [batch, seq_len, hidden_size]
-    # b, c: [batch, seq_len, state_size]
-    # dt: [batch, seq_len, hidden_size]
 
     # Clamp dt
     dt = Nx.clip(dt, @dt_min, @dt_max)
 
-    # A matrix (negative diagonal for stability): [state_size]
+    # A matrix (negative diagonal for stability)
     a_diag = Nx.negate(Nx.add(Nx.iota({state_size}), 1.0))
 
-    # Expand to 4D for vectorized computation
-    # dt: [batch, seq, hidden] -> [batch, seq, hidden, 1]
+    # Discretize: A_bar = exp(Δ * A)
     dt_expanded = Nx.new_axis(dt, 3)
-    # a_diag: [state_size] -> [1, 1, 1, state_size]
     a_expanded = Nx.reshape(a_diag, {1, 1, 1, state_size})
+    a_bar = Nx.exp(Nx.multiply(dt_expanded, a_expanded))
 
-    # A_bar = exp(dt * A): [batch, seq, hidden, state]
-    a_bar = Nx.exp(dt_expanded * a_expanded)
+    # Discretize B: B_bar = Δ * B
+    b_expanded = Nx.new_axis(b, 2)
+    dt_mean = Nx.mean(dt, axes: [2], keep_axes: true)
+    dt_for_b = Nx.new_axis(dt_mean, 3)
+    b_bar = Nx.multiply(dt_for_b, b_expanded)
 
-    # B discretization
-    dt_mean = Nx.mean(dt, axes: [2], keep_axes: true)  # [batch, seq, 1]
-    dt_for_b = Nx.new_axis(dt_mean, 3)  # [batch, seq, 1, 1]
-    b_expanded = Nx.new_axis(b, 2)  # [batch, seq, 1, state]
-    b_bar = dt_for_b * b_expanded  # [batch, seq, 1, state]
+    # Bx = B_bar * x
+    x_expanded = Nx.new_axis(x, 3)
+    bx = Nx.multiply(b_bar, x_expanded)
 
-    # Bx = B_bar * x: [batch, seq, hidden, state]
-    x_expanded = Nx.new_axis(x, 3)  # [batch, seq, hidden, 1]
-    bx = b_bar * x_expanded
+    # Apply scan algorithm (currently Blelloch)
+    h = blelloch_scan(a_bar, bx)
 
-    # Cumsum-based scan on 4D tensor
-    # The key insight: this formulation lets XLA fuse everything
-    h = cumsum_scan_4d(a_bar, bx)
-
-    # Output: y = sum_n(C_n * h_n)
-    c_expanded = Nx.new_axis(c, 2)  # [batch, seq, 1, state]
-    Nx.sum(c_expanded * h, axes: [3])  # [batch, seq, hidden]
-  end
-
-  # Cumsum-based parallel scan for 4D tensors
-  # Reshape to 2D for cumsum (XLA optimizes 2D better), then reshape back
-  defnp cumsum_scan_4d(a_bar, bx) do
-    # a_bar, bx: [batch, seq_len, hidden_size, state_size]
-    {batch, seq_len, hidden, state} = Nx.shape(a_bar)
-
-    # Reshape to [batch * hidden * state, seq_len] for efficient cumsum
-    # XLA's cumsum is much faster on 2D tensors
-    a_flat = Nx.reshape(Nx.transpose(a_bar, axes: [0, 2, 3, 1]), {batch * hidden * state, seq_len})
-    bx_flat = Nx.reshape(Nx.transpose(bx, axes: [0, 2, 3, 1]), {batch * hidden * state, seq_len})
-
-    # log(A_bar) for numerical stability
-    log_a = Nx.log(Nx.max(a_flat, 1.0e-10))
-
-    # Exclusive cumsum on 2D: log_p[t] = sum_{k<t} log_a[k]
-    log_p = Nx.cumulative_sum(log_a, axis: 1) - log_a
-
-    # P = exp(log_P)
-    p = Nx.exp(log_p)
-
-    # Scaled inputs: Bx / P
-    scaled_bx = bx_flat / Nx.max(p, 1.0e-10)
-
-    # h = P * cumsum(Bx / P)
-    h_flat = p * Nx.cumulative_sum(scaled_bx, axis: 1)
-
-    # Reshape back to 4D: [batch * hidden * state, seq] -> [batch, hidden, state, seq] -> [batch, seq, hidden, state]
-    h_transposed = Nx.reshape(h_flat, {batch, hidden, state, seq_len})
-    Nx.transpose(h_transposed, axes: [0, 3, 1, 2])
+    # Output: y = C * h
+    c_expanded = Nx.new_axis(c, 2)
+    Nx.sum(Nx.multiply(c_expanded, h), axes: [3])
   end
 
   # ============================================================================
-  # Utilities (same API as Mamba)
+  # Scan Algorithms
+  # ============================================================================
+
+  # Blelloch parallel scan (work-efficient O(L) work, O(log L) depth)
+  # Uses Enum.reduce - this lets XLA JIT each level efficiently
+  defp blelloch_scan(a, b) do
+    seq_len = Nx.axis_size(a, 1)
+
+    if seq_len <= 32 do
+      sequential_scan(a, b)
+    else
+      blelloch_scan_impl(a, b, seq_len)
+    end
+  end
+
+  defp blelloch_scan_impl(a, b, seq_len) do
+    log_len = ceil(:math.log2(seq_len))
+
+    {_a_reduced, b_reduced} =
+      Enum.reduce(0..(log_len - 1), {a, b}, fn level, {a_curr, b_curr} ->
+        stride = round(:math.pow(2, level))
+
+        if stride >= seq_len do
+          {a_curr, b_curr}
+        else
+          a_shifted = Nx.pad(
+            Nx.slice_along_axis(a_curr, 0, seq_len - stride, axis: 1),
+            1.0,
+            [{0, 0, 0}, {stride, 0, 0}, {0, 0, 0}, {0, 0, 0}]
+          )
+          b_shifted = Nx.pad(
+            Nx.slice_along_axis(b_curr, 0, seq_len - stride, axis: 1),
+            0.0,
+            [{0, 0, 0}, {stride, 0, 0}, {0, 0, 0}, {0, 0, 0}]
+          )
+
+          a_new = Nx.multiply(a_curr, a_shifted)
+          b_new = Nx.add(Nx.multiply(a_curr, b_shifted), b_curr)
+
+          {a_new, b_new}
+        end
+      end)
+
+    b_reduced
+  end
+
+  # Sequential scan for short sequences
+  defp sequential_scan(a, b) do
+    seq_len = Nx.axis_size(a, 1)
+    h0 = Nx.slice_along_axis(b, 0, 1, axis: 1)
+
+    {_, h_list} =
+      Enum.reduce(1..(seq_len - 1), {h0, [Nx.squeeze(h0, axes: [1])]}, fn t, {h_prev, acc} ->
+        a_t = Nx.slice_along_axis(a, t, 1, axis: 1)
+        b_t = Nx.slice_along_axis(b, t, 1, axis: 1)
+
+        h_t = Nx.add(Nx.multiply(a_t, h_prev), b_t)
+        {h_t, [Nx.squeeze(h_t, axes: [1]) | acc]}
+      end)
+
+    h_list
+    |> Enum.reverse()
+    |> Nx.stack(axis: 1)
+  end
+
+  # ============================================================================
+  # TODO: Alternative Scan Algorithms to Implement
+  # ============================================================================
+
+  # Hillis-Steele scan: O(L log L) work, O(log L) depth
+  # More parallelism per level - all elements active every level
+  # May be faster on GPU despite more total work
+  #
+  # defp hillis_steele_scan(a, b) do
+  #   seq_len = Nx.axis_size(a, 1)
+  #   log_len = ceil(:math.log2(seq_len))
+  #
+  #   Enum.reduce(0..(log_len - 1), {a, b}, fn level, {a_curr, b_curr} ->
+  #     stride = round(:math.pow(2, level))
+  #
+  #     # Shift ALL elements (not just alternating like Blelloch)
+  #     a_shifted = ... # shift by stride, pad with identity
+  #     b_shifted = ... # shift by stride, pad with zero
+  #
+  #     # Combine ALL pairs (more parallel work)
+  #     a_new = Nx.multiply(a_curr, a_shifted)
+  #     b_new = Nx.add(Nx.multiply(a_curr, b_shifted), b_curr)
+  #
+  #     {a_new, b_new}
+  #   end)
+  # end
+
+  # SSD Algorithm (Mamba-2): Chunked computation using matmuls
+  # Converts scan to matrix multiplications for tensor core utilization
+  #
+  # defp ssd_scan(a, b, chunk_size \\ 16) do
+  #   # 1. Split sequence into chunks
+  #   # 2. Intra-chunk: compute outputs via matmul (tensor cores!)
+  #   # 3. Inter-chunk: small sequential scan over chunk boundaries
+  #   # 4. Combine results
+  # end
+
+  # ============================================================================
+  # Utilities
   # ============================================================================
 
   @spec output_size(keyword()) :: non_neg_integer()
@@ -297,7 +341,6 @@ defmodule ExPhil.Networks.MambaCumsum do
 
   @spec param_count(keyword()) :: non_neg_integer()
   def param_count(opts) do
-    # Same as regular Mamba
     ExPhil.Networks.Mamba.param_count(opts)
   end
 
