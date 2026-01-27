@@ -49,12 +49,13 @@ defmodule ExPhil.Native.SelectiveScan do
   Check if the NIF is loaded and working.
   """
   def available? do
-    case ping() do
-      "pong from selective_scan_nif" -> true
+    try do
+      ping() == "pong from selective_scan_nif"
+    rescue
+      _ -> false
+    catch
       _ -> false
     end
-  rescue
-    _ -> false
   end
 
   @doc """
@@ -115,16 +116,17 @@ defmodule ExPhil.Native.SelectiveScan do
   end
 
   # NIF stubs - these get replaced when the NIF loads
+  # Using :erlang.nif_error ensures proper NIF behavior
 
   @doc false
-  def ping, do: raise("NIF not loaded")
+  def ping, do: :erlang.nif_error(:nif_not_loaded)
 
   @doc false
-  def cuda_available, do: raise("NIF not loaded")
+  def cuda_available, do: :erlang.nif_error(:nif_not_loaded)
 
   @doc false
-  def cuda_device_info, do: raise("NIF not loaded")
+  def cuda_device_info, do: :erlang.nif_error(:nif_not_loaded)
 
   @doc false
-  def selective_scan(_x, _dt, _a, _b, _c, _shape), do: raise("NIF not loaded")
+  def selective_scan(_x, _dt, _a, _b, _c, _shape), do: :erlang.nif_error(:nif_not_loaded)
 end
