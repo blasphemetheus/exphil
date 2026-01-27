@@ -207,7 +207,8 @@ all_architectures = [
      num_layers: 3,
      attention_every: 3,
      hidden_sizes: [256, 256],
-     batch_size: 32
+     # Reduced from 32 - Jamba OOMs on validation after epoch with batch_size: 32
+     batch_size: 16
    ]},
   {:lstm, "LSTM",
    [temporal: true, backbone: :lstm, window_size: 30, num_layers: 1, hidden_sizes: [256, 256]]},
@@ -532,6 +533,9 @@ results =
           end
 
           # Validation (create batches lazily, don't materialize all at once)
+          # GC before validation to release training batch memory (helps with Jamba OOM)
+          :erlang.garbage_collect()
+
           val_batches =
             if opts[:temporal] do
               Data.batched_sequences(prepared_val, batch_size: opts[:batch_size], shuffle: false)
@@ -539,7 +543,7 @@ results =
               Data.batched(prepared_val, batch_size: opts[:batch_size], shuffle: false)
             end
 
-          # Accumulate validation losses as tensors, convert once at end
+          # Compute validation loss with streaming mean to avoid accumulating all tensors
           val_losses =
             Enum.map(val_batches, fn batch ->
               Imitation.evaluate_batch(updated_t, batch).loss
