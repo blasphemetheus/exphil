@@ -33,7 +33,23 @@ pub enum KernelError {
 mod cuda_impl {
     use super::*;
     use cudarc::driver::{CudaDevice, CudaSlice, LaunchAsync, LaunchConfig};
+    use once_cell::sync::OnceCell;
     use std::sync::Arc;
+
+    /// Cached CUDA device and compiled module (initialized once, reused across calls)
+    static CUDA_CONTEXT: OnceCell<Arc<CudaDevice>> = OnceCell::new();
+
+    fn get_cuda_device() -> Result<Arc<CudaDevice>, KernelError> {
+        CUDA_CONTEXT.get_or_try_init(|| {
+            let dev = Arc::new(CudaDevice::new(0)?);
+
+            // Compile and load PTX once
+            let ptx = cudarc::nvrtc::compile_ptx(SELECTIVE_SCAN_KERNEL)?;
+            dev.load_ptx(ptx, "selective_scan", &["selective_scan_kernel"])?;
+
+            Ok(dev)
+        }).map(|dev| Arc::clone(dev))
+    }
 
     /// CUDA kernel source code (compiled at runtime via NVRTC)
     const SELECTIVE_SCAN_KERNEL: &str = r#"
@@ -127,12 +143,8 @@ extern "C" __global__ void selective_scan_kernel(
         hidden: usize,
         state: usize,
     ) -> Result<Vec<f32>, KernelError> {
-        // Initialize CUDA device
-        let dev = Arc::new(CudaDevice::new(0)?);
-
-        // Compile PTX from CUDA source at runtime
-        let ptx = cudarc::nvrtc::compile_ptx(SELECTIVE_SCAN_KERNEL)?;
-        dev.load_ptx(ptx, "selective_scan", &["selective_scan_kernel"])?;
+        // Get cached CUDA device (compiles kernel on first call only)
+        let dev = get_cuda_device()?;
 
         // Copy input tensors to GPU
         let x_dev = dev.htod_sync_copy(x)?;

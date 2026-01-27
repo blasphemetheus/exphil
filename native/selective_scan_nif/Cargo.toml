@@ -20,6 +20,9 @@ cudarc = { version = "0.12", features = ["driver", "nvrtc", "cuda-12060"], optio
 # Error handling
 thiserror = "1.0"
 
+# Lazy initialization for kernel caching
+once_cell = "1.19"
+
 # Serialization for tensor data
 bytemuck = { version = "1.14", features = ["derive"] }
 
