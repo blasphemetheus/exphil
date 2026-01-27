@@ -7,10 +7,12 @@ This document outlines GPU kernel optimizations to speed up **training** (not ju
 | Optimization | Effort | Speedup | Backbones | Status |
 |--------------|--------|---------|-----------|--------|
 | **BF16 mixed precision** | Low | ~1.5-2x | All | ✅ Done |
-| **Mamba backward kernel** | Medium | ~5x | Mamba | ✅ Done |
+| **Mamba backward kernel** | Medium | ~5x | Mamba | ✅ Done (infer-only*) |
+| **Fused operations** | Medium | ~1.2x | All | ✅ Done |
 | **XLA Custom Call** | High | ~10x | Mamba | ⬜ Future |
-| **Fused LayerNorm+Act** | Medium | ~1.2x | All | ⬜ Future |
 | **Fused optimizer** | Low | ~1.1x | All | ⬜ Future |
+
+*Mamba NIF backward kernel works but can't integrate with Axon autodiff. Use `:mamba` for training, `:mamba_nif` for 5x faster inference.
 
 ---
 
@@ -353,13 +355,18 @@ EXLA may already do some fusion. Custom kernel would help for large models.
 
 ## Implementation Roadmap
 
-### Phase 1: Mamba Backward Kernel (Current)
+### Phase 1: Mamba Backward Kernel
 1. ✅ Document the math
 2. ✅ Implement CUDA backward kernel (`kernel.rs`)
 3. ✅ Add NIF bindings (`lib.rs`)
 4. ✅ Add Elixir wrapper (`selective_scan.ex`)
-5. ⬜ Wrap with `Nx.Defn.custom_grad` for automatic differentiation
-6. ⬜ Benchmark training speed
+5. ⛔ Wrap with `Nx.Defn.custom_grad` - **Not possible** (NIFs can't be called from defn)
+6. ✅ Document training workflow (train with :mamba, infer with :mamba_nif)
+
+**Note on custom_grad:** NIFs require `Nx.to_binary()` which breaks the computation graph.
+The backward kernel is available for manual gradient computation, but can't integrate with
+Axon's autodiff. Recommended workflow: train with pure Nx Mamba, use NIF for 5x faster inference.
+Checkpoints are interchangeable.
 
 ### Phase 2: BF16 Mixed Precision
 1. ✅ Add `--mixed-precision` flag
@@ -368,14 +375,23 @@ EXLA may already do some fusion. Custom kernel would help for large models.
 4. ⬜ Benchmark speedup across backbones
 
 ### Phase 3: Fused Operations
-1. ⬜ Profile to identify biggest bottlenecks
-2. ⬜ Implement fused LayerNorm+Activation
-3. ⬜ Implement fused optimizer (if beneficial)
+1. ✅ Identify fusion opportunities (dense+activation, layernorm+activation, FFN, softmax)
+2. ✅ Implement `FusedOps` module (`lib/exphil/networks/fused_ops.ex`)
+   - `dense_activation/4` - Dense + bias + activation
+   - `layernorm_activation/5` - LayerNorm + activation (FP32 internal)
+   - `fused_ffn/6` - Full FFN block
+   - `gated_linear_unit/4` - SwiGLU, GeGLU, ReGLU
+   - `fused_softmax/2` - Numerically stable softmax
+   - `fused_log_softmax/2` - Stable log-softmax
+   - `fused_ssm_discretize/3` - SSM A_bar, B_bar computation
+3. ✅ Integrate fused_softmax into attention.ex
+4. ⬜ Benchmark fused ops speedup
+5. ⬜ Integrate fused ops into more network code (policy heads, FFN layers)
 
-### Phase 4: XLA Custom Call
+### Phase 4: XLA Custom Call (Future)
 1. ⬜ Wait for EXLA FFI support or contribute it
 2. ⬜ Port kernels to XLA CustomCall interface
-3. ⬜ Remove GPU↔CPU transfers entirely
+3. ⬜ Remove GPU↔CPU transfers entirely (would enable NIF training with autodiff)
 
 ---
 

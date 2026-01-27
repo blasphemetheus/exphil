@@ -24,6 +24,50 @@ defmodule ExPhil.Native.SelectiveScan do
   result = ExPhil.Native.SelectiveScan.scan(x, dt, a, b, c)
   ```
 
+  ## Training Support
+
+  **Important:** The NIF breaks the Nx/Axon computation graph because it uses
+  `Nx.to_binary()` to transfer data. This means gradients cannot flow through
+  the NIF automatically.
+
+  ### Recommended Workflow: Train with Pure Nx, Infer with NIF
+
+  Both `ExPhil.Networks.Mamba` (pure Nx) and `ExPhil.Networks.MambaNIF` (this NIF)
+  use identical layer names, so checkpoints are interchangeable:
+
+  ```elixir
+  # Train with pure Mamba (correct gradients via autodiff)
+  mix run scripts/train_from_replays.exs --temporal --backbone mamba \\
+    --checkpoint model.axon
+
+  # Infer/play with MambaNIF (5x faster, same checkpoint!)
+  mix run scripts/play_dolphin_async.exs --policy model.axon \\
+    --backbone mamba_nif
+  ```
+
+  ### Manual Gradient Computation
+
+  For advanced users who need to train with the NIF (e.g., for benchmarking),
+  the backward kernel is available:
+
+  ```elixir
+  # Forward pass (saves hidden states for backward)
+  {output, h_all} = SelectiveScan.scan_with_states(x, dt, a, b, c)
+
+  # After computing loss and dy (output gradient)...
+  # Backward pass
+  {dx, d_dt, dB, dC} = SelectiveScan.backward(dy, x, h_all, dt, a, b, c)
+
+  # Apply gradients manually (not compatible with Axon.Loop)
+  ```
+
+  ### Why Not Nx.Defn.custom_grad?
+
+  `Nx.Defn.custom_grad` requires the forward function to be a `defn`, but NIFs
+  cannot be called from inside `defn` (they require `Nx.to_binary()` which is
+  not a valid defn operation). Future XLA custom call integration could solve
+  this by keeping tensors on GPU throughout.
+
   ## Fallback
 
   If the NIF is not available, functions will raise. Use `available?/0` to check
@@ -220,6 +264,91 @@ defmodule ExPhil.Native.SelectiveScan do
       |> Nx.reshape({batch, seq_len, state})
 
     {dx, d_dt, d_b, d_c}
+  end
+
+  # ==========================================================================
+  # Training Helpers
+  # ==========================================================================
+
+  @doc """
+  Returns guidance for the recommended training workflow.
+
+  The NIF is optimized for inference (5x faster than pure Nx), but doesn't
+  support Axon's automatic differentiation. Use this to understand the
+  recommended workflow.
+
+  ## Returns
+
+  A map with:
+  - `:train_backbone` - Backbone to use for training (`:mamba`)
+  - `:infer_backbone` - Backbone to use for inference (`:mamba_nif`)
+  - `:checkpoint_compatible` - Whether checkpoints are interchangeable (true)
+  - `:speedup` - Approximate inference speedup from NIF ("5x")
+  - `:reason` - Why this workflow is recommended
+  """
+  @spec training_workflow_info() :: map()
+  def training_workflow_info do
+    %{
+      train_backbone: :mamba,
+      infer_backbone: :mamba_nif,
+      checkpoint_compatible: true,
+      speedup: "5x",
+      reason: """
+      The NIF uses Nx.to_binary() which breaks the computation graph.
+      Gradients cannot flow through the NIF automatically.
+      Train with pure Nx Mamba (:mamba), then switch to NIF (:mamba_nif) for inference.
+      Both use identical layer names, so checkpoints work with either.
+      """
+    }
+  end
+
+  @doc """
+  Check if the current context is suitable for training.
+
+  Returns `false` because the NIF breaks the gradient computation graph.
+  Use `ExPhil.Networks.Mamba` for training instead.
+  """
+  @spec supports_training?() :: boolean()
+  def supports_training?, do: false
+
+  @doc """
+  Validates that the user is using the correct backbone for their use case.
+
+  Raises if using NIF for training (which won't work correctly).
+
+  ## Arguments
+
+  - `mode` - `:training` or `:inference`
+
+  ## Examples
+
+      # In training script
+      SelectiveScan.validate_mode!(:training)  # Raises with guidance
+
+      # In inference script
+      SelectiveScan.validate_mode!(:inference)  # OK
+  """
+  @spec validate_mode!(atom()) :: :ok
+  def validate_mode!(:inference), do: :ok
+
+  def validate_mode!(:training) do
+    raise ArgumentError, """
+    SelectiveScan NIF does not support training mode!
+
+    The NIF breaks the Nx/Axon computation graph, so gradients cannot
+    flow through it automatically.
+
+    Recommended workflow:
+    1. Train with --backbone mamba (pure Nx, supports autodiff)
+    2. Infer with --backbone mamba_nif (5x faster)
+
+    Checkpoints are compatible between both backbones.
+
+    If you need to benchmark training with the NIF, use:
+    - scan_with_states/5 for forward pass
+    - backward/7 for gradient computation
+    - Apply gradients manually (not with Axon.Loop)
+    """
   end
 
   # NIF stubs - these get replaced when the NIF loads

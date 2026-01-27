@@ -60,6 +60,7 @@ defmodule ExPhil.Networks.Attention do
 
   require Axon
 
+  alias ExPhil.Networks.FusedOps
   alias ExPhil.Networks.Recurrent
 
   # Default hyperparameters
@@ -120,10 +121,8 @@ defmodule ExPhil.Networks.Attention do
         scores
       end
 
-    # Softmax
-    max_scores = Nx.reduce_max(scores, axes: [-1], keep_axes: true)
-    weights = Nx.exp(Nx.subtract(scores, max_scores))
-    weights = Nx.divide(weights, Nx.sum(weights, axes: [-1], keep_axes: true))
+    # Numerically stable softmax (fused for better performance)
+    weights = FusedOps.fused_softmax(scores)
 
     # Batched: weights @ value
     Nx.dot(weights, [2], [0], value, [1], [0])
