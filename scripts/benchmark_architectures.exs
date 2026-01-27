@@ -55,10 +55,11 @@ Application.put_env(:elixir, :inspect, limit: 10, printable_limit: 100)
 # This helps prevent OOM when switching from MLP to Mamba/Jamba
 System.put_env("TF_GPU_ALLOCATOR", "cuda_malloc_async")
 
-# Limit XLA memory preallocation to 70% (default: 90% of VRAM)
-# This leaves 30% headroom for memory spikes during architecture transitions
-# More stable than preallocate: false, less fragmentation, ~5% slower than default
-Application.put_env(:exla, :clients, cuda: [platform: :cuda, memory_fraction: 0.7])
+# Disable XLA memory preallocation to allow true release between architectures
+# This prevents fragmentation within a fixed pool (the main cause of Jamba OOM)
+# Trade-off: slightly slower (~5-10%) due to on-demand allocation
+# Alternative: memory_fraction: 0.7 pre-allocates 70% and holds it forever
+Application.put_env(:exla, :clients, cuda: [platform: :cuda, preallocate: false])
 
 alias ExPhil.Data.Peppi
 alias ExPhil.Training.{Data, GPUUtils, Imitation, Output}
@@ -381,11 +382,13 @@ results =
   |> Enum.with_index(1)
   |> Enum.flat_map(fn {{arch_id, arch_name, arch_opts}, arch_idx} ->
     # Force garbage collection between architectures to free GPU memory
+    # With preallocate: false, this actually releases memory back to CUDA
     if arch_idx > 1 do
       Output.puts("Clearing memory before next architecture...")
-      :erlang.garbage_collect()
-      # Give GPU time to release memory
-      Process.sleep(1000)
+      # GC all processes to release any tensor references
+      for pid <- Process.list(), do: :erlang.garbage_collect(pid)
+      # Give CUDA async allocator time to actually free memory
+      Process.sleep(2000)
     end
 
     Output.section("[#{arch_idx}/#{num_archs}] #{arch_name}")
