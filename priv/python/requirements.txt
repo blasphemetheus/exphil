@@ -11,3 +11,12 @@ py-slippi>=1.6.0
 onnx>=1.14.0
 onnxruntime>=1.16.0
 numpy>=1.24.0
+
+# Triton custom GPU kernels (for fast selective scan)
+# torch is a triton dependency
+--extra-index-url https://download.pytorch.org/whl/cu124
+torch>=2.4.0
+triton>=3.0.0
+
+# Msgpack for Triton-Elixir communication
+msgpack>=1.0.0
