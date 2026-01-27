@@ -1006,8 +1006,6 @@ defmodule ExPhil.Training.Data do
   def sequences_from_frame_embeddings(dataset, frame_embeddings, opts \\ []) do
     window_size = Keyword.fetch!(opts, :window_size)
     show_progress = Keyword.get(opts, :show_progress, true)
-    # Process in chunks (default 20K sequences per chunk for safety)
-    chunk_size = Keyword.get(opts, :chunk_size, 20_000)
 
     # frame_embeddings shape: {num_frames, embed_dim}
     {num_frames, embed_dim} = Nx.shape(frame_embeddings)
@@ -1015,59 +1013,31 @@ defmodule ExPhil.Training.Data do
 
     if show_progress do
       IO.puts(:stderr, "  Building #{num_sequences} sequence embeddings from #{num_frames} frame embeddings...")
-      IO.puts(:stderr, "    (CPU tensor ops, not re-embedding - 30x faster)")
+      IO.puts(:stderr, "    (pure Elixir slicing, not re-embedding - 30x faster)")
     end
 
     # Get stride from metadata (default 1)
     stride = get_in(dataset.metadata, [:stride]) || 1
 
-    # Ensure frame embeddings are on CPU
+    # Ensure frame embeddings are on CPU as a stacked tensor
     frame_embeddings_cpu = Nx.backend_copy(frame_embeddings, Nx.BinaryBackend)
 
-    # Process sequences in chunks, building the list directly (no concatenate at end)
-    num_chunks = ceil(num_sequences / chunk_size)
-
+    # Pure Elixir approach: slice directly using Nx.slice (no JIT compilation)
+    # This is simpler and guaranteed to stay on CPU
     embedded_list =
-      0..(num_chunks - 1)
-      |> Enum.flat_map(fn chunk_idx ->
-        chunk_start = chunk_idx * chunk_size
-        chunk_end = min(chunk_start + chunk_size, num_sequences)
-        chunk_count = chunk_end - chunk_start
-
-        if show_progress do
-          pct = round((chunk_idx + 1) / num_chunks * 100)
-          IO.write(:stderr, "\r  Building sequences: #{pct}% (#{chunk_end}/#{num_sequences})    ")
+      0..(num_sequences - 1)
+      |> Enum.map(fn seq_idx ->
+        if show_progress and rem(seq_idx, 50_000) == 0 do
+          pct = round(seq_idx / num_sequences * 100)
+          IO.write(:stderr, "\r  Building sequences: #{pct}% (#{seq_idx}/#{num_sequences})    ")
         end
 
-        # Build all frame indices for this chunk using CPU tensor ops
-        # Force CPU backend for all intermediate tensors
-        start_indices =
-          Nx.iota({chunk_count}, backend: Nx.BinaryBackend)
-          |> Nx.add(chunk_start)
-          |> Nx.multiply(stride)
+        # Frame range for this sequence
+        frame_start = seq_idx * stride
 
-        offsets = Nx.iota({window_size}, backend: Nx.BinaryBackend)
-
-        # all_indices[i, j] = start_indices[i] + offsets[j]
-        all_indices = Nx.add(
-          Nx.reshape(start_indices, {chunk_count, 1}),
-          Nx.reshape(offsets, {1, window_size})
-        )
-
-        # Flatten for gather
-        flat_indices = Nx.reshape(all_indices, {chunk_count * window_size})
-
-        # Gather all frames for this chunk (CPU operation)
-        gathered = Nx.take(frame_embeddings_cpu, flat_indices, axis: 0)
-
-        # Reshape to {chunk_count, window_size, embed_dim}
-        chunk_embeddings = Nx.reshape(gathered, {chunk_count, window_size, embed_dim})
-
-        # Convert this chunk to list of individual sequence tensors
-        # Each element is {window_size, embed_dim}
-        chunk_embeddings
-        |> Nx.to_batched(1)
-        |> Enum.map(fn batch -> Nx.squeeze(batch, axes: [0]) end)
+        # Slice window_size frames starting at frame_start
+        # Nx.slice is a simple operation that won't trigger GPU JIT
+        Nx.slice(frame_embeddings_cpu, [frame_start, 0], [window_size, embed_dim])
       end)
 
     if show_progress do
