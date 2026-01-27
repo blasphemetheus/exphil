@@ -89,10 +89,12 @@ RUN mix deps.compile
 
 # Build CUDA-enabled selective_scan NIF for fast Mamba inference
 # This requires CUDA toolkit (available in devel image)
+# Note: Must copy to _build/prod/lib/exphil/priv/native/ because that's where
+# Application.app_dir(:exphil, "priv/native/...") resolves to in prod mode
 RUN cd native/selective_scan_nif && \
     cargo build --release --features cuda && \
-    mkdir -p /app/priv/native && \
-    cp target/release/libselective_scan_nif.so /app/priv/native/
+    mkdir -p /app/_build/prod/lib/exphil/priv/native && \
+    cp target/release/libselective_scan_nif.so /app/_build/prod/lib/exphil/priv/native/
 
 # Copy application code
 COPY lib ./lib
