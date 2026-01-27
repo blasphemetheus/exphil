@@ -90,7 +90,8 @@ defmodule ExPhil.Networks.MambaNIF do
     # Stack Mamba blocks
     output =
       Enum.reduce(1..num_layers, x, fn layer_idx, acc ->
-        block = build_mamba_block(acc, Keyword.merge(opts, name: "mamba_nif_block_#{layer_idx}"))
+        # Use same layer names as pure Mamba for checkpoint compatibility
+        block = build_mamba_block(acc, Keyword.merge(opts, name: "mamba_block_#{layer_idx}"))
 
         residual = Axon.add(acc, block, name: "residual_#{layer_idx}")
 
@@ -123,7 +124,8 @@ defmodule ExPhil.Networks.MambaNIF do
     state_size = Keyword.get(opts, :state_size, @default_state_size)
     expand_factor = Keyword.get(opts, :expand_factor, @default_expand_factor)
     conv_size = Keyword.get(opts, :conv_size, @default_conv_size)
-    name = Keyword.get(opts, :name, "mamba_nif_block")
+    # Use same default name as pure Mamba for checkpoint compatibility
+    name = Keyword.get(opts, :name, "mamba_block")
 
     inner_size = hidden_size * expand_factor
     dt_rank = max(div(hidden_size, 16), 1)
@@ -214,7 +216,8 @@ defmodule ExPhil.Networks.MambaNIF do
     hidden_size = Keyword.get(opts, :hidden_size, @default_hidden_size)
     state_size = Keyword.get(opts, :state_size, @default_state_size)
     dt_rank = Keyword.get(opts, :dt_rank, max(div(hidden_size, 16), 1))
-    name = Keyword.get(opts, :name, "ssm_nif")
+    # Use same default name as pure Mamba for checkpoint compatibility
+    name = Keyword.get(opts, :name, "ssm")
 
     # B and C projections: [batch, seq_len, state_size] each
     bc_proj = Axon.dense(input, state_size * 2, name: "#{name}_bc_proj")
