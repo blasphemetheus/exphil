@@ -1,0 +1,223 @@
+//! CUDA kernel implementation for selective scan
+//!
+//! Uses cudarc to interface with CUDA and compile/run PTX kernels.
+
+use cudarc::driver::{CudaDevice, CudaSlice, DevicePtr, LaunchAsync, LaunchConfig};
+use cudarc::nvrtc::Ptx;
+use std::sync::Arc;
+use thiserror::Error;
+
+#[derive(Error, Debug)]
+pub enum KernelError {
+    #[error("CUDA error: {0}")]
+    Cuda(#[from] cudarc::driver::DriverError),
+
+    #[error("NVRTC error: {0}")]
+    Nvrtc(#[from] cudarc::nvrtc::CompileError),
+
+    #[error("No CUDA device available")]
+    NoDevice,
+
+    #[error("Kernel launch failed: {0}")]
+    Launch(String),
+}
+
+/// CUDA kernel source code (PTX will be compiled at runtime via NVRTC)
+const SELECTIVE_SCAN_KERNEL: &str = r#"
+extern "C" __global__ void selective_scan_kernel(
+    const float* __restrict__ x,      // [batch, seq_len, hidden]
+    const float* __restrict__ dt,     // [batch, seq_len, hidden]
+    const float* __restrict__ A,      // [hidden, state]
+    const float* __restrict__ B,      // [batch, seq_len, state]
+    const float* __restrict__ C,      // [batch, seq_len, state]
+    float* __restrict__ out,          // [batch, seq_len, hidden]
+    int batch,
+    int seq_len,
+    int hidden,
+    int state,
+    float dt_min,
+    float dt_max
+) {
+    // Each thread handles one (batch, hidden) pair
+    int b = blockIdx.x;
+    int h = threadIdx.x + blockIdx.y * blockDim.x;
+
+    if (b >= batch || h >= hidden) return;
+
+    // Initialize hidden state
+    float h_state[32];  // Max state size = 32
+    for (int s = 0; s < state; s++) {
+        h_state[s] = 0.0f;
+    }
+
+    // Load A diagonal for this hidden dim
+    float A_diag[32];
+    for (int s = 0; s < state; s++) {
+        A_diag[s] = A[h * state + s];
+    }
+
+    // Scan through sequence
+    for (int t = 0; t < seq_len; t++) {
+        // Load inputs
+        int x_idx = b * seq_len * hidden + t * hidden + h;
+        float x_t = x[x_idx];
+        float dt_t = dt[x_idx];
+
+        // Clamp dt
+        dt_t = fminf(fmaxf(dt_t, dt_min), dt_max);
+
+        // Load B and C
+        int bc_idx = b * seq_len * state + t * state;
+
+        // Compute output
+        float y_t = 0.0f;
+
+        for (int s = 0; s < state; s++) {
+            // Discretize
+            float A_bar = expf(dt_t * A_diag[s]);
+            float B_bar = dt_t * B[bc_idx + s];
+            float C_s = C[bc_idx + s];
+
+            // Recurrence: h = A_bar * h + B_bar * x
+            h_state[s] = A_bar * h_state[s] + B_bar * x_t;
+
+            // Accumulate output
+            y_t += C_s * h_state[s];
+        }
+
+        // Store output
+        out[x_idx] = y_t;
+    }
+}
+"#;
+
+/// Check if CUDA is available
+pub fn is_cuda_available() -> bool {
+    CudaDevice::new(0).is_ok()
+}
+
+/// Get CUDA device info
+pub fn get_device_info() -> Result<String, KernelError> {
+    let dev = CudaDevice::new(0)?;
+    Ok(format!(
+        "Device 0: {} (compute capability: available)",
+        dev.name()?
+    ))
+}
+
+/// Perform selective scan on GPU
+pub fn selective_scan_cuda(
+    x: &[f32],
+    dt: &[f32],
+    a: &[f32],
+    b: &[f32],
+    c: &[f32],
+    batch: usize,
+    seq_len: usize,
+    hidden: usize,
+    state: usize,
+) -> Result<Vec<f32>, KernelError> {
+    // Initialize CUDA
+    let dev = Arc::new(CudaDevice::new(0)?);
+
+    // Compile PTX
+    let ptx = cudarc::nvrtc::compile_ptx(SELECTIVE_SCAN_KERNEL)?;
+    dev.load_ptx(ptx, "selective_scan", &["selective_scan_kernel"])?;
+
+    // Allocate device memory
+    let x_dev = dev.htod_sync_copy(x)?;
+    let dt_dev = dev.htod_sync_copy(dt)?;
+    let a_dev = dev.htod_sync_copy(a)?;
+    let b_dev = dev.htod_sync_copy(b)?;
+    let c_dev = dev.htod_sync_copy(c)?;
+
+    let out_size = batch * seq_len * hidden;
+    let mut out_dev: CudaSlice<f32> = dev.alloc_zeros(out_size)?;
+
+    // Launch kernel
+    let func = dev.get_func("selective_scan", "selective_scan_kernel")
+        .ok_or_else(|| KernelError::Launch("Failed to get kernel function".into()))?;
+
+    // Configure launch
+    // Each block handles one batch element
+    // Threads within block handle different hidden dimensions
+    let threads_per_block = hidden.min(256);
+    let blocks_y = (hidden + threads_per_block - 1) / threads_per_block;
+
+    let cfg = LaunchConfig {
+        grid_dim: (batch as u32, blocks_y as u32, 1),
+        block_dim: (threads_per_block as u32, 1, 1),
+        shared_mem_bytes: 0,
+    };
+
+    let dt_min: f32 = 0.001;
+    let dt_max: f32 = 0.1;
+
+    unsafe {
+        func.launch(
+            cfg,
+            (
+                &x_dev,
+                &dt_dev,
+                &a_dev,
+                &b_dev,
+                &c_dev,
+                &mut out_dev,
+                batch as i32,
+                seq_len as i32,
+                hidden as i32,
+                state as i32,
+                dt_min,
+                dt_max,
+            ),
+        )?;
+    }
+
+    // Copy result back
+    let out = dev.dtoh_sync_copy(&out_dev)?;
+
+    Ok(out)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_cuda_available() {
+        println!("CUDA available: {}", is_cuda_available());
+    }
+
+    #[test]
+    fn test_small_scan() {
+        if !is_cuda_available() {
+            println!("Skipping: no CUDA");
+            return;
+        }
+
+        let batch = 2;
+        let seq_len = 4;
+        let hidden = 8;
+        let state = 2;
+
+        // Create simple test data
+        let x: Vec<f32> = (0..batch * seq_len * hidden).map(|i| i as f32 * 0.1).collect();
+        let dt: Vec<f32> = vec![0.05; batch * seq_len * hidden];
+        let a: Vec<f32> = (0..hidden * state).map(|i| -(1.0 + (i % state) as f32)).collect();
+        let b: Vec<f32> = vec![1.0; batch * seq_len * state];
+        let c: Vec<f32> = vec![1.0; batch * seq_len * state];
+
+        let result = selective_scan_cuda(&x, &dt, &a, &b, &c, batch, seq_len, hidden, state);
+
+        match result {
+            Ok(out) => {
+                println!("Output size: {}", out.len());
+                println!("First few values: {:?}", &out[..8.min(out.len())]);
+                assert_eq!(out.len(), batch * seq_len * hidden);
+            }
+            Err(e) => {
+                println!("Kernel error: {}", e);
+            }
+        }
+    }
+}

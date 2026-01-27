@@ -1,0 +1,32 @@
+[package]
+name = "selective_scan_nif"
+version = "0.1.0"
+edition = "2021"
+authors = ["ExPhil Team"]
+description = "CUDA-accelerated selective scan for Mamba SSM"
+
+[lib]
+name = "selective_scan_nif"
+crate-type = ["cdylib"]
+
+[dependencies]
+# Elixir NIF bindings
+rustler = "0.34"
+
+# CUDA bindings
+cudarc = { version = "0.12", features = ["driver", "nvrtc"] }
+
+# Error handling
+thiserror = "1.0"
+
+# Serialization for tensor data
+bytemuck = { version = "1.14", features = ["derive"] }
+
+[profile.release]
+lto = true
+codegen-units = 1
+opt-level = 3
+
+[features]
+# Enable this if you have CUDA installed
+cuda = []

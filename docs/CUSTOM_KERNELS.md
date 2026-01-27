@@ -65,20 +65,49 @@ native/
 └── Makefile
 ```
 
-### Option 3: Rust NIF with cudarc
+### Option 3: Rust NIF with cudarc (Also Implemented)
 
 **What:** Rust FFI to CUDA via cudarc crate
 
 **Pros:**
 - Memory-safe CUDA wrapper
+- No Python dependency at runtime
+- Compiles into release (single binary)
 - Good Elixir integration via Rustler
-- Can load pre-compiled PTX
+- Runtime PTX compilation via NVRTC
 
 **Cons:**
-- Another language in the stack
+- Requires Rust toolchain + CUDA toolkit to build
 - cudarc is less mature than direct CUDA
 
 **Effort:** 2-3 days
+
+**Files (created):**
+```
+native/selective_scan_nif/
+├── Cargo.toml              # Rust dependencies
+├── src/
+│   ├── lib.rs              # NIF entry points
+│   └── kernel.rs           # CUDA kernel + cudarc interface
+lib/exphil/native/
+└── selective_scan.ex       # Elixir wrapper
+```
+
+**Building:**
+```bash
+cd native/selective_scan_nif
+cargo build --release --features cuda
+cp target/release/libselective_scan_nif.so ../../priv/native/
+```
+
+**Usage:**
+```elixir
+alias ExPhil.Native.SelectiveScan
+
+if SelectiveScan.available?() and SelectiveScan.cuda_available?() do
+  result = SelectiveScan.scan(x, dt, a, b, c)
+end
+```
 
 ### Option 4: Pure CUDA with NIF
 
@@ -312,15 +341,17 @@ The RTX 4090 is fully capable of running custom kernels:
 
 ## Comparison: All Options
 
-| Approach | Inference | Training | Effort | Dependencies | Long-term |
-|----------|-----------|----------|--------|--------------|-----------|
-| Nx/XLA Blelloch | 55ms | Works | Done | None | Good |
-| ONNX INT8 | 0.5ms | No | Medium | ONNX Runtime | Export-only |
-| **Triton** | ~2ms? | Needs backward | Medium | Python, Triton | Good |
-| Custom XLA | ~2ms? | Works | High | CUDA toolkit | Best |
-| Rust NIF | ~2ms? | Needs work | Medium | Rust, cudarc | Good |
+| Approach | Inference | Training | Effort | Dependencies | Status |
+|----------|-----------|----------|--------|--------------|--------|
+| Nx/XLA Blelloch | 55ms | Works | Done | None | ✅ Done |
+| ONNX INT8 | 0.5ms | No | Medium | ONNX Runtime | ✅ Documented |
+| **Triton** | ~2ms? | Needs backward | Medium | Python, Triton | ✅ **Starter created** |
+| **Rust NIF** | ~2ms? | Needs work | Medium | Rust, cudarc | ✅ **Starter created** |
+| Custom XLA | ~2ms? | Works | High | CUDA toolkit | ⬜ Future |
 
-**Recommendation:** Start with Triton to validate speedup, then consider XLA op for production.
+**Both Paths Ready to Test:**
+1. **Triton** - `python priv/triton/selective_scan.py` - Quick iteration
+2. **Rust NIF** - `cd native/selective_scan_nif && cargo build --release` - Production path
 
 ---
 
