@@ -256,25 +256,34 @@ defmodule ExPhil.Networks.MambaCumsum do
   end
 
   # Cumsum-based parallel scan for 4D tensors
-  # All in defn so XLA can fuse the operations
+  # Reshape to 2D for cumsum (XLA optimizes 2D better), then reshape back
   defnp cumsum_scan_4d(a_bar, bx) do
     # a_bar, bx: [batch, seq_len, hidden_size, state_size]
+    {batch, seq_len, hidden, state} = Nx.shape(a_bar)
+
+    # Reshape to [batch * hidden * state, seq_len] for efficient cumsum
+    # XLA's cumsum is much faster on 2D tensors
+    a_flat = Nx.reshape(Nx.transpose(a_bar, axes: [0, 2, 3, 1]), {batch * hidden * state, seq_len})
+    bx_flat = Nx.reshape(Nx.transpose(bx, axes: [0, 2, 3, 1]), {batch * hidden * state, seq_len})
 
     # log(A_bar) for numerical stability
-    log_a = Nx.log(Nx.max(a_bar, 1.0e-10))
+    log_a = Nx.log(Nx.max(a_flat, 1.0e-10))
 
-    # Exclusive cumsum: log_p[t] = sum_{k<t} log_a[k]
-    # = inclusive_cumsum[t] - log_a[t]
+    # Exclusive cumsum on 2D: log_p[t] = sum_{k<t} log_a[k]
     log_p = Nx.cumulative_sum(log_a, axis: 1) - log_a
 
     # P = exp(log_P)
     p = Nx.exp(log_p)
 
     # Scaled inputs: Bx / P
-    scaled_bx = bx / Nx.max(p, 1.0e-10)
+    scaled_bx = bx_flat / Nx.max(p, 1.0e-10)
 
     # h = P * cumsum(Bx / P)
-    p * Nx.cumulative_sum(scaled_bx, axis: 1)
+    h_flat = p * Nx.cumulative_sum(scaled_bx, axis: 1)
+
+    # Reshape back to 4D: [batch * hidden * state, seq] -> [batch, hidden, state, seq] -> [batch, seq, hidden, state]
+    h_transposed = Nx.reshape(h_flat, {batch, hidden, state, seq_len})
+    Nx.transpose(h_transposed, axes: [0, 3, 1, 2])
   end
 
   # ============================================================================
