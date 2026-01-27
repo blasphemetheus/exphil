@@ -8,7 +8,7 @@
 # - Mamba: True parallel scan with Blelloch algorithm
 # - MambaCumsum: Cumsum-based optimization
 
-alias ExPhil.Networks.{Mamba, GatedSSM, MambaCumsum}
+alias ExPhil.Networks.{Mamba, GatedSSM, MambaCumsum, MambaHillisSteele, MambaSSD}
 alias ExPhil.Training.Output
 
 Output.banner("Mamba Variants Inference Benchmark")
@@ -43,7 +43,9 @@ end
 models = [
   {:gated_ssm, "GatedSSM", fn opts -> GatedSSM.build(opts) end},
   {:mamba, "Mamba (Blelloch)", fn opts -> Mamba.build(opts) end},
-  {:mamba_cumsum, "MambaCumsum", fn opts -> MambaCumsum.build(opts) end}
+  {:mamba_cumsum, "MambaCumsum", fn opts -> MambaCumsum.build(opts) end},
+  {:mamba_hs, "Mamba (Hillis-Steele)", fn opts -> MambaHillisSteele.build(opts) end},
+  {:mamba_ssd, "Mamba (SSD)", fn opts -> MambaSSD.build(opts) end}
 ]
 
 model_opts = [

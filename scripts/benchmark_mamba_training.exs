@@ -47,8 +47,10 @@ end
 # Architectures to benchmark
 architectures = [
   {:gated_ssm, "GatedSSM (simplified)"},
-  {:mamba, "Mamba (parallel scan)"},
-  {:mamba_cumsum, "MambaCumsum (cumsum)"}
+  {:mamba, "Mamba (Blelloch)"},
+  {:mamba_cumsum, "MambaCumsum (Blelloch)"},
+  {:mamba_hillis_steele, "Mamba (Hillis-Steele)"},
+  {:mamba_ssd, "Mamba (SSD)"}
 ]
 
 # Create fake training batch

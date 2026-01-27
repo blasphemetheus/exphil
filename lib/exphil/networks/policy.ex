@@ -507,6 +507,12 @@ defmodule ExPhil.Networks.Policy do
         :mamba_cumsum ->
           build_mamba_cumsum_backbone(embed_size, opts)
 
+        :mamba_hillis_steele ->
+          build_mamba_hillis_steele_backbone(embed_size, opts)
+
+        :mamba_ssd ->
+          build_mamba_ssd_backbone(embed_size, opts)
+
         :mlp ->
           # For MLP, expect single frame input, add sequence handling
           build_mlp_temporal_backbone(embed_size, opts)
@@ -961,6 +967,54 @@ defmodule ExPhil.Networks.Policy do
     ]
 
     MambaCumsum.build(mamba_opts)
+  end
+
+  defp build_mamba_hillis_steele_backbone(embed_size, opts) do
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    state_size = Keyword.get(opts, :state_size, 16)
+    expand_factor = Keyword.get(opts, :expand_factor, 2)
+    conv_size = Keyword.get(opts, :conv_size, 4)
+    num_layers = Keyword.get(opts, :num_layers, 2)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+    window_size = Keyword.get(opts, :window_size, 60)
+
+    mamba_opts = [
+      embed_size: embed_size,
+      hidden_size: hidden_size,
+      state_size: state_size,
+      expand_factor: expand_factor,
+      conv_size: conv_size,
+      num_layers: num_layers,
+      dropout: dropout,
+      window_size: window_size
+    ]
+
+    ExPhil.Networks.MambaHillisSteele.build(mamba_opts)
+  end
+
+  defp build_mamba_ssd_backbone(embed_size, opts) do
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    state_size = Keyword.get(opts, :state_size, 16)
+    expand_factor = Keyword.get(opts, :expand_factor, 2)
+    conv_size = Keyword.get(opts, :conv_size, 4)
+    num_layers = Keyword.get(opts, :num_layers, 2)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+    window_size = Keyword.get(opts, :window_size, 60)
+    chunk_size = Keyword.get(opts, :chunk_size, 16)
+
+    mamba_opts = [
+      embed_size: embed_size,
+      hidden_size: hidden_size,
+      state_size: state_size,
+      expand_factor: expand_factor,
+      conv_size: conv_size,
+      num_layers: num_layers,
+      dropout: dropout,
+      window_size: window_size,
+      chunk_size: chunk_size
+    ]
+
+    ExPhil.Networks.MambaSSD.build(mamba_opts)
   end
 
   defp build_mlp_temporal_backbone(embed_size, opts) do
@@ -1837,6 +1891,12 @@ defmodule ExPhil.Networks.Policy do
         Keyword.get(opts, :hidden_size, 256)
 
       :mamba_cumsum ->
+        Keyword.get(opts, :hidden_size, 256)
+
+      :mamba_hillis_steele ->
+        Keyword.get(opts, :hidden_size, 256)
+
+      :mamba_ssd ->
         Keyword.get(opts, :hidden_size, 256)
 
       :mlp ->
