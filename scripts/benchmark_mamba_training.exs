@@ -110,10 +110,13 @@ benchmark_training = fn backbone, seq_len ->
     Enum.reduce(1..iterations, trainer, fn _, t ->
       {new_trainer, _metrics} = Imitation.train_step(t, batch, nil)
 
-      # Force GPU sync
+      # Force GPU sync by accessing a parameter value
       if match?({EXLA.Backend, _}, Nx.default_backend()) do
-        # Access a value to force computation
-        _ = Nx.to_number(Nx.sum(new_trainer.policy_params["input_projection"]["kernel"]))
+        # Get first parameter tensor to force computation
+        params_data = Axon.ModelState.data(new_trainer.policy_params)
+        {_name, first_param} = params_data |> Map.to_list() |> List.first()
+        {_key, tensor} = first_param |> Map.to_list() |> List.first()
+        _ = Nx.to_number(Nx.sum(tensor))
       end
 
       new_trainer
