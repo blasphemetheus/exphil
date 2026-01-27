@@ -113,12 +113,15 @@ defmodule ExPhil.Networks.MambaCumsum do
     x_conv = build_depthwise_conv1d(x_branch, inner_size, conv_size, "#{name}_conv")
     x_activated = Axon.activation(x_conv, :silu, name: "#{name}_conv_silu")
 
+    scan_algo = Keyword.get(opts, :scan_algo, :blelloch)
+
     x_ssm =
       build_selective_ssm(
         x_activated,
         hidden_size: inner_size,
         state_size: state_size,
         dt_rank: dt_rank,
+        scan_algo: scan_algo,
         name: "#{name}_ssm"
       )
 
@@ -160,7 +163,7 @@ defmodule ExPhil.Networks.MambaCumsum do
     state_size = Keyword.get(opts, :state_size, @default_state_size)
     dt_rank = Keyword.get(opts, :dt_rank, max(div(hidden_size, 16), 1))
     name = Keyword.get(opts, :name, "ssm")
-    _scan_algo = Keyword.get(opts, :scan_algo, :blelloch)
+    scan_algo = Keyword.get(opts, :scan_algo, :blelloch)
 
     # B and C projections
     bc_proj = Axon.dense(input, state_size * 2, name: "#{name}_bc_proj")
@@ -189,14 +192,15 @@ defmodule ExPhil.Networks.MambaCumsum do
       name: name,
       state_size: state_size,
       hidden_size: hidden_size,
+      scan_algo: scan_algo,
       op_name: :selective_ssm
     )
   end
 
-  # SSM implementation using Blelloch scan (current default)
-  # This can be swapped for other algorithms
+  # SSM implementation - selects scan algorithm based on opts
   defp ssm_impl(x, b, c, dt, opts) do
     state_size = opts[:state_size]
+    scan_algo = opts[:scan_algo] || :blelloch
 
     # Clamp dt
     dt = Nx.clip(dt, @dt_min, @dt_max)
@@ -219,8 +223,12 @@ defmodule ExPhil.Networks.MambaCumsum do
     x_expanded = Nx.new_axis(x, 3)
     bx = Nx.multiply(b_bar, x_expanded)
 
-    # Apply scan algorithm (currently Blelloch)
-    h = blelloch_scan(a_bar, bx)
+    # Apply selected scan algorithm
+    h = case scan_algo do
+      :cumsum_transposed -> cumsum_transposed_scan(a_bar, bx)
+      :cumsum_logspace -> cumsum_logspace_scan(a_bar, bx)
+      _ -> blelloch_scan(a_bar, bx)
+    end
 
     # Output: y = C * h
     c_expanded = Nx.new_axis(c, 2)
@@ -294,41 +302,66 @@ defmodule ExPhil.Networks.MambaCumsum do
   end
 
   # ============================================================================
-  # TODO: Alternative Scan Algorithms to Implement
+  # Experimental: Transposed Cumsum Scan
   # ============================================================================
+  #
+  # Hypothesis: XLA's cumsum may be faster when operating on trailing dimensions.
+  # We transpose [batch, seq, hidden, state] → [batch, hidden, state, seq]
+  # then run cumsum on axis 3, then transpose back.
+  #
+  # The SSM recurrence h_t = a_t * h_{t-1} + b_t can be computed via:
+  #   h_t = sum_{i=0}^{t} (prod_{j=i+1}^{t} a_j) * b_i
+  #
+  # Using log-space: log(prod a) = cumsum(log(a))
 
-  # Hillis-Steele scan: O(L log L) work, O(log L) depth
-  # More parallelism per level - all elements active every level
-  # May be faster on GPU despite more total work
-  #
-  # defp hillis_steele_scan(a, b) do
-  #   seq_len = Nx.axis_size(a, 1)
-  #   log_len = ceil(:math.log2(seq_len))
-  #
-  #   Enum.reduce(0..(log_len - 1), {a, b}, fn level, {a_curr, b_curr} ->
-  #     stride = round(:math.pow(2, level))
-  #
-  #     # Shift ALL elements (not just alternating like Blelloch)
-  #     a_shifted = ... # shift by stride, pad with identity
-  #     b_shifted = ... # shift by stride, pad with zero
-  #
-  #     # Combine ALL pairs (more parallel work)
-  #     a_new = Nx.multiply(a_curr, a_shifted)
-  #     b_new = Nx.add(Nx.multiply(a_curr, b_shifted), b_curr)
-  #
-  #     {a_new, b_new}
-  #   end)
-  # end
+  defp cumsum_transposed_scan(a, b) do
+    # a, b: [batch, seq, hidden, state]
+    # Transpose to put seq last: [batch, hidden, state, seq]
+    a_t = Nx.transpose(a, [0, 2, 3, 1])
+    b_t = Nx.transpose(b, [0, 2, 3, 1])
 
-  # SSD Algorithm (Mamba-2): Chunked computation using matmuls
-  # Converts scan to matrix multiplications for tensor core utilization
+    # Work in log-space for numerical stability
+    # log_a = log(a) which are negative since 0 < a < 1
+    log_a = Nx.log(Nx.clip(a_t, 1.0e-8, 1.0))
+
+    # Cumulative sum of log(a) gives log of cumulative product
+    cum_log_a = Nx.cumulative_sum(log_a, axis: 3)
+
+    # For each position t, we need sum_{i=0}^{t} exp(cum_log_a[t] - cum_log_a[i]) * b[i]
+    # This is: exp(cum_log_a[t]) * sum_{i=0}^{t} exp(-cum_log_a[i]) * b[i]
+    # The inner sum is a cumsum of exp(-cum_log_a) * b
+
+    # exp(-cum_log_a[i]) * b[i]
+    scaled_b = Nx.multiply(Nx.exp(Nx.negate(cum_log_a)), b_t)
+
+    # Cumsum of scaled_b
+    cum_scaled_b = Nx.cumulative_sum(scaled_b, axis: 3)
+
+    # Multiply by exp(cum_log_a) to get h
+    h_t = Nx.multiply(Nx.exp(cum_log_a), cum_scaled_b)
+
+    # Transpose back to [batch, seq, hidden, state]
+    Nx.transpose(h_t, [0, 3, 1, 2])
+  end
+
+  # ============================================================================
+  # Experimental: Log-space Cumsum (original axis ordering)
+  # ============================================================================
   #
-  # defp ssd_scan(a, b, chunk_size \\ 16) do
-  #   # 1. Split sequence into chunks
-  #   # 2. Intra-chunk: compute outputs via matmul (tensor cores!)
-  #   # 3. Inter-chunk: small sequential scan over chunk boundaries
-  #   # 4. Combine results
-  # end
+  # Same algorithm as transposed but without transposing - for comparison
+
+  defp cumsum_logspace_scan(a, b) do
+    # a, b: [batch, seq, hidden, state]
+    # Work directly on axis 1
+
+    log_a = Nx.log(Nx.clip(a, 1.0e-8, 1.0))
+    cum_log_a = Nx.cumulative_sum(log_a, axis: 1)
+
+    scaled_b = Nx.multiply(Nx.exp(Nx.negate(cum_log_a)), b)
+    cum_scaled_b = Nx.cumulative_sum(scaled_b, axis: 1)
+
+    Nx.multiply(Nx.exp(cum_log_a), cum_scaled_b)
+  end
 
   # ============================================================================
   # Utilities

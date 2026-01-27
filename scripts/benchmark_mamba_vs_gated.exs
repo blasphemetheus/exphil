@@ -43,7 +43,9 @@ end
 models = [
   {:gated_ssm, "GatedSSM", fn opts -> GatedSSM.build(opts) end},
   {:mamba, "Mamba (Blelloch)", fn opts -> Mamba.build(opts) end},
-  {:mamba_cumsum, "MambaCumsum", fn opts -> MambaCumsum.build(opts) end},
+  {:mamba_cumsum, "MambaCumsum (Blelloch)", fn opts -> MambaCumsum.build(opts) end},
+  {:mamba_cumsum_t, "Cumsum (transposed)", fn opts -> MambaCumsum.build(Keyword.put(opts, :scan_algo, :cumsum_transposed)) end},
+  {:mamba_cumsum_l, "Cumsum (logspace)", fn opts -> MambaCumsum.build(Keyword.put(opts, :scan_algo, :cumsum_logspace)) end},
   {:mamba_hs, "Mamba (Hillis-Steele)", fn opts -> MambaHillisSteele.build(opts) end},
   {:mamba_ssd, "Mamba (SSD)", fn opts -> MambaSSD.build(opts) end}
 ]
