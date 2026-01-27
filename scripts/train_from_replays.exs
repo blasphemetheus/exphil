@@ -1449,7 +1449,7 @@ end
 # Create augmentation function if enabled
 # When using augmented caching (--cache-augmented), we use variant selection instead
 # which is ~100x faster than on-the-fly augmentation
-use_augmented_cache = opts[:cache_augmented] and Data.has_augmented_embeddings?(train_ds)
+use_augmented_cache = opts[:cache_augmented] and train_dataset != nil and Data.has_augmented_embeddings?(train_dataset)
 
 augment_fn =
   cond do
