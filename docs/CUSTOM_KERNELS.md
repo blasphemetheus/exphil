@@ -6,14 +6,15 @@ This document outlines our options and plan for implementing custom GPU kernels 
 
 | Implementation | Inference Time | 60 FPS? | Notes |
 |----------------|----------------|---------|-------|
-| Blelloch (Nx/XLA) | ~55ms | No | Current best in pure Elixir |
+| **Rust NIF (CUDA)** | **10.96ms** | **Yes** | ✅ Production ready, no Python |
+| ONNX INT8 | ~0.5ms | **Yes** | Requires export, inference only |
+| XLA Custom Call | ~5ms (est.) | **Yes** | 🚧 Requires EXLA FFI support |
+| Blelloch (Nx/XLA) | ~55ms | No | Current default in pure Elixir |
 | Hillis-Steele (Nx/XLA) | ~56ms | No | Slightly slower |
+| PyTorch Port | ~273ms | No | IPC overhead too high |
 | Cumsum (Nx/XLA) | ~2500ms | No | XLA cumsum is pathologically slow |
-| SSD (Nx/XLA) | ~800ms | No | Too many separate XLA ops |
-| ONNX INT8 | ~0.5ms | **Yes** | Requires export, less flexible |
-| **Custom Triton** | TBD | Target | Goal of this effort |
 
-**Target:** <16.67ms for 60 FPS real-time play
+**Target:** <16.67ms for 60 FPS real-time play ✅ **ACHIEVED with Rust NIF**
 
 ---
 
