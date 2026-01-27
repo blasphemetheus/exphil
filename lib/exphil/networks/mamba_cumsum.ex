@@ -209,76 +209,72 @@ defmodule ExPhil.Networks.MambaCumsum do
   end
 
   # Cumsum-based SSM implementation
-  # Process each state dimension separately with 3D tensors (much faster than 4D cumsum)
-  # Uses Elixir-level loop like Blelloch uses for scan levels
+  # Single defn function so XLA can see and optimize the entire computation graph
   defp cumsum_ssm_impl(x, b, c, dt, opts) do
     state_size = opts[:state_size]
+    cumsum_ssm_defn(x, b, c, dt, state_size)
+  end
+
+  # All SSM computation in single defn for XLA fusion
+  defn cumsum_ssm_defn(x, b, c, dt, state_size) do
+    # x: [batch, seq_len, hidden_size]
+    # b, c: [batch, seq_len, state_size]
+    # dt: [batch, seq_len, hidden_size]
 
     # Clamp dt
     dt = Nx.clip(dt, @dt_min, @dt_max)
 
-    # A matrix (negative diagonal for stability)
+    # A matrix (negative diagonal for stability): [state_size]
     a_diag = Nx.negate(Nx.add(Nx.iota({state_size}), 1.0))
 
-    # dt_mean for B discretization: [batch, seq_len]
-    dt_mean = Nx.mean(dt, axes: [2])
+    # Expand to 4D for vectorized computation
+    # dt: [batch, seq, hidden] -> [batch, seq, hidden, 1]
+    dt_expanded = Nx.new_axis(dt, 3)
+    # a_diag: [state_size] -> [1, 1, 1, state_size]
+    a_expanded = Nx.reshape(a_diag, {1, 1, 1, state_size})
 
-    # Process each state dimension separately (3D tensors are much faster)
-    # This is the key optimization - Elixir-level loop keeps tensors small
-    h_states =
-      Enum.map(0..(state_size - 1), fn n ->
-        # A_bar for this state: exp(dt * a_diag[n])
-        # dt: [batch, seq, hidden], a_diag[n]: scalar
-        a_n = Nx.slice_along_axis(a_diag, n, 1, axis: 0) |> Nx.squeeze(axes: [0])
-        a_bar_n = Nx.exp(Nx.multiply(dt, a_n))  # [batch, seq, hidden]
+    # A_bar = exp(dt * A): [batch, seq, hidden, state]
+    a_bar = Nx.exp(dt_expanded * a_expanded)
 
-        # B for this state: [batch, seq]
-        b_n = Nx.slice_along_axis(b, n, 1, axis: 2) |> Nx.squeeze(axes: [2])
+    # B discretization
+    dt_mean = Nx.mean(dt, axes: [2], keep_axes: true)  # [batch, seq, 1]
+    dt_for_b = Nx.new_axis(dt_mean, 3)  # [batch, seq, 1, 1]
+    b_expanded = Nx.new_axis(b, 2)  # [batch, seq, 1, state]
+    b_bar = dt_for_b * b_expanded  # [batch, seq, 1, state]
 
-        # B_bar * x: (dt_mean * b_n) * x broadcasted to [batch, seq, hidden]
-        b_bar_n = Nx.multiply(dt_mean, b_n)  # [batch, seq]
-        bx_n = Nx.multiply(Nx.new_axis(b_bar_n, 2), x)  # [batch, seq, hidden]
+    # Bx = B_bar * x: [batch, seq, hidden, state]
+    x_expanded = Nx.new_axis(x, 3)  # [batch, seq, hidden, 1]
+    bx = b_bar * x_expanded
 
-        # Cumsum-based scan on 3D tensor (fast!)
-        h_n = cumsum_scan_3d(a_bar_n, bx_n)  # [batch, seq, hidden]
+    # Cumsum-based scan on 4D tensor
+    # The key insight: this formulation lets XLA fuse everything
+    h = cumsum_scan_4d(a_bar, bx)
 
-        # C for this state: [batch, seq]
-        c_n = Nx.slice_along_axis(c, n, 1, axis: 2) |> Nx.squeeze(axes: [2])
-
-        # Weighted by C: [batch, seq, hidden]
-        Nx.multiply(Nx.new_axis(c_n, 2), h_n)
-      end)
-
-    # Sum contributions from all states
-    Enum.reduce(h_states, fn h, acc -> Nx.add(h, acc) end)
+    # Output: y = sum_n(C_n * h_n)
+    c_expanded = Nx.new_axis(c, 2)  # [batch, seq, 1, state]
+    Nx.sum(c_expanded * h, axes: [3])  # [batch, seq, hidden]
   end
 
-  # Cumsum-based scan for 3D tensors: h[t] = P[t] * cumsum(Bx / P)[t]
-  # Much faster than 4D version because XLA optimizes 3D cumsum well
-  defp cumsum_scan_3d(a_bar, bx) do
-    # a_bar: [batch, seq_len, hidden_size]
-    # bx: [batch, seq_len, hidden_size]
+  # Cumsum-based parallel scan for 4D tensors
+  # All in defn so XLA can fuse the operations
+  defnp cumsum_scan_4d(a_bar, bx) do
+    # a_bar, bx: [batch, seq_len, hidden_size, state_size]
 
-    # Step 1: log(A_bar) for numerical stability
-    a_safe = Nx.max(a_bar, 1.0e-10)
-    log_a = Nx.log(a_safe)
+    # log(A_bar) for numerical stability
+    log_a = Nx.log(Nx.max(a_bar, 1.0e-10))
 
-    # Step 2: Exclusive cumsum via inclusive - x
-    log_p_inclusive = Nx.cumulative_sum(log_a, axis: 1)
-    log_p = Nx.subtract(log_p_inclusive, log_a)
+    # Exclusive cumsum: log_p[t] = sum_{k<t} log_a[k]
+    # = inclusive_cumsum[t] - log_a[t]
+    log_p = Nx.cumulative_sum(log_a, axis: 1) - log_a
 
-    # Step 3: P = exp(log_P)
+    # P = exp(log_P)
     p = Nx.exp(log_p)
 
-    # Step 4: Scaled inputs: Bx / P
-    p_safe = Nx.max(p, 1.0e-10)
-    scaled_bx = Nx.divide(bx, p_safe)
+    # Scaled inputs: Bx / P
+    scaled_bx = bx / Nx.max(p, 1.0e-10)
 
-    # Step 5: Cumulative sum of scaled inputs
-    cumsum_scaled = Nx.cumulative_sum(scaled_bx, axis: 1)
-
-    # Step 6: h = P * cumsum(Bx / P)
-    Nx.multiply(p, cumsum_scaled)
+    # h = P * cumsum(Bx / P)
+    p * Nx.cumulative_sum(scaled_bx, axis: 1)
   end
 
   # ============================================================================
