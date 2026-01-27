@@ -301,10 +301,11 @@ embed_config = Embeddings.config()
 has_temporal = Enum.any?(architectures, fn {_id, _name, opts} -> opts[:temporal] end)
 has_non_temporal = Enum.any?(architectures, fn {_id, _name, opts} -> !opts[:temporal] end)
 
-# Precompute frame embeddings for non-temporal architectures
+# Always precompute frame embeddings first (needed for both MLP and temporal)
+# Temporal architectures can build sequence embeddings from these (30x faster)
 {precomputed_train_frames, precomputed_val_frames} =
-  if has_non_temporal do
-    Output.puts("Precomputing frame embeddings (reused for non-temporal architectures)...")
+  if has_non_temporal or has_temporal do
+    Output.puts("Precomputing frame embeddings (reused for ALL architectures)...")
 
     cache_opts = [
       cache: cache_enabled,
@@ -332,34 +333,34 @@ has_non_temporal = Enum.any?(architectures, fn {_id, _name, opts} -> !opts[:temp
     {nil, nil}
   end
 
-# Precompute sequence embeddings for temporal architectures (all use window_size=30)
+# Build sequence embeddings from frame embeddings (30x faster than re-embedding!)
+# This reuses the frame embeddings computed above via tensor slicing
 {precomputed_train_seqs, precomputed_val_seqs} =
   if has_temporal do
-    Output.puts("Precomputing sequence embeddings (reused for all temporal architectures)...")
+    Output.puts("Building sequence embeddings from frame embeddings (30x faster)...")
 
-    seq_cache_opts = [
-      cache: cache_enabled,
-      cache_dir: cache_dir,
-      force_recompute: force_recompute,
-      replay_files: replay_files,
-      window_size: 30,
-      stride: 1,
-      show_progress: true
-    ]
+    window_size = 30
+    stride = 1
 
     train_seq =
-      Output.timed "Embedding train sequences" do
-        seq_ds = Data.to_sequences(train_dataset, window_size: 30, stride: 1)
-        Data.precompute_embeddings_cached(seq_ds, seq_cache_opts)
+      Output.timed "Building train sequences" do
+        seq_ds = Data.to_sequences(train_dataset, window_size: window_size, stride: stride)
+        Data.sequences_from_frame_embeddings(
+          seq_ds,
+          precomputed_train_frames.embedded_frames,
+          window_size: window_size,
+          show_progress: true
+        )
       end
 
     val_seq =
-      Output.timed "Embedding val sequences" do
-        seq_ds = Data.to_sequences(val_dataset, window_size: 30, stride: 1)
-
-        Data.precompute_embeddings_cached(
+      Output.timed "Building val sequences" do
+        seq_ds = Data.to_sequences(val_dataset, window_size: window_size, stride: stride)
+        Data.sequences_from_frame_embeddings(
           seq_ds,
-          Keyword.put(seq_cache_opts, :show_progress, false)
+          precomputed_val_frames.embedded_frames,
+          window_size: window_size,
+          show_progress: false
         )
       end
 

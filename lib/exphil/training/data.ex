@@ -970,6 +970,102 @@ defmodule ExPhil.Training.Data do
   end
 
   @doc """
+  Build sequence embeddings from precomputed frame embeddings (30x faster).
+
+  Instead of re-embedding all frames in each sequence, this function slices
+  into the precomputed frame embeddings tensor. For window_size=30 and stride=1,
+  this avoids 30x redundant embedding work.
+
+  ## Requirements
+
+  - `frame_embeddings` must be a stacked tensor of shape `{num_frames, embed_dim}`
+  - The dataset must have been created with `to_sequences/2` (has `:sequence` in frames)
+
+  ## Example
+
+      # First, compute frame embeddings for the base dataset
+      frame_embeddings = Data.precompute_frame_embeddings(base_dataset).embedded_frames
+
+      # Then create sequences (just stores frame indices, no embedding)
+      seq_dataset = Data.to_sequences(base_dataset, window_size: 30, stride: 1)
+
+      # Build sequence embeddings by slicing (30x faster than re-embedding)
+      seq_dataset = Data.sequences_from_frame_embeddings(seq_dataset, frame_embeddings,
+        window_size: 30
+      )
+
+  ## Options
+    - `:window_size` - Must match the window_size used in `to_sequences/2` (required)
+    - `:show_progress` - Show progress bar (default: true)
+
+  ## Returns
+
+  Updated dataset with `embedded_sequences` populated.
+  """
+  @spec sequences_from_frame_embeddings(t(), Nx.Tensor.t(), keyword()) :: t()
+  def sequences_from_frame_embeddings(dataset, frame_embeddings, opts \\ []) do
+    window_size = Keyword.fetch!(opts, :window_size)
+    show_progress = Keyword.get(opts, :show_progress, true)
+
+    # frame_embeddings shape: {num_frames, embed_dim}
+    {num_frames, embed_dim} = Nx.shape(frame_embeddings)
+    num_sequences = dataset.size
+
+    if show_progress do
+      IO.puts(:stderr, "  Building #{num_sequences} sequence embeddings from #{num_frames} frame embeddings...")
+      IO.puts(:stderr, "    (slicing, not re-embedding - 30x faster)")
+    end
+
+    # Get stride from metadata (default 1)
+    stride = get_in(dataset.metadata, [:stride]) || 1
+
+    # Pre-allocate output tensor: {num_sequences, window_size, embed_dim}
+    # Build all sequences at once using tensor operations
+
+    # Create sequence start indices: [0, stride, 2*stride, ...]
+    start_indices = Nx.iota({num_sequences}) |> Nx.multiply(stride)
+
+    # For each sequence, we need frames [start, start+1, ..., start+window_size-1]
+    # Create offset tensor: [0, 1, 2, ..., window_size-1]
+    offsets = Nx.iota({window_size})
+
+    # Broadcast to get all frame indices: {num_sequences, window_size}
+    # indices[i, j] = start_indices[i] + offsets[j]
+    all_indices = Nx.add(
+      Nx.reshape(start_indices, {num_sequences, 1}),
+      Nx.reshape(offsets, {1, window_size})
+    )
+
+    # Flatten indices for gather, then reshape result
+    flat_indices = Nx.reshape(all_indices, {num_sequences * window_size})
+
+    # Gather all frame embeddings at once
+    gathered = Nx.take(frame_embeddings, flat_indices, axis: 0)
+
+    # Reshape to {num_sequences, window_size, embed_dim}
+    sequence_embeddings = Nx.reshape(gathered, {num_sequences, window_size, embed_dim})
+
+    # Copy to CPU to avoid GPU memory issues
+    sequence_embeddings = Nx.backend_copy(sequence_embeddings, Nx.BinaryBackend)
+
+    if show_progress do
+      IO.puts(:stderr, "  Done! Shape: #{inspect(Nx.shape(sequence_embeddings))}")
+    end
+
+    # Convert to :array format for compatibility with existing batching code
+    # Each element is a {window_size, embed_dim} tensor
+    # Use Nx.to_batched which is efficient for this operation
+    embedded_list =
+      sequence_embeddings
+      |> Nx.to_batched(1)
+      |> Enum.map(fn batch -> Nx.squeeze(batch, axes: [0]) end)
+
+    embedded_array = :array.from_list(embedded_list)
+
+    %{dataset | embedded_sequences: embedded_array}
+  end
+
+  @doc """
   Pre-compute embeddings for all frames in the dataset (single-frame MLP training).
 
   This significantly speeds up MLP training by embedding frames once
