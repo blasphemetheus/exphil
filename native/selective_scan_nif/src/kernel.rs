@@ -15,9 +15,7 @@ pub enum KernelError {
     #[error("NVRTC error: {0}")]
     Nvrtc(#[from] cudarc::nvrtc::CompileError),
 
-    #[error("No CUDA device available")]
-    NoDevice,
-
+    #[cfg(feature = "cuda")]
     #[error("Kernel launch failed: {0}")]
     Launch(String),
 
