@@ -1149,30 +1149,41 @@ player_registry =
           "  Converting to sequences (window=#{opts[:window_size]}, stride=#{opts[:stride]})..."
         )
 
+        # OPTIMIZED: Precompute frame embeddings ONCE, then slice into sequences (30x faster)
+        # Old approach re-embedded every frame in every sequence (frame N embedded 30 times!)
+        # New approach: embed frames once, slice windows from the tensor
+
+        # Step 1: Precompute frame embeddings for the base dataset
+        Output.puts("  Pre-computing frame embeddings...")
+        frame_embedded_dataset =
+          if opts[:cache_embeddings] do
+            Output.puts("    Using embedding cache (#{opts[:cache_dir]})...")
+            Data.precompute_frame_embeddings_cached(dataset,
+              cache: true,
+              cache_dir: opts[:cache_dir],
+              force_recompute: opts[:no_cache],
+              replay_files: replay_files,
+              show_progress: true
+            )
+          else
+            Data.precompute_frame_embeddings(dataset, show_progress: true)
+          end
+
+        # Step 2: Create sequences (just stores frame indices, no embedding work)
         seq_dataset =
-          Data.to_sequences(dataset,
+          Data.to_sequences(frame_embedded_dataset,
             window_size: opts[:window_size],
             stride: opts[:stride]
           )
 
-        # Pre-compute embeddings to avoid slow per-batch embedding
-        # This embeds all frames ONCE instead of on every batch
-        # Use cached version if --cache-embeddings is enabled (saves ~1hr on re-runs)
-        if opts[:cache_embeddings] do
-          Output.puts("  Using embedding cache (#{opts[:cache_dir]})...")
-
-          Data.precompute_embeddings_cached(seq_dataset,
-            cache: true,
-            cache_dir: opts[:cache_dir],
-            force_recompute: opts[:no_cache],
-            replay_files: replay_files,
-            window_size: opts[:window_size],
-            stride: opts[:stride],
-            show_progress: true
-          )
-        else
-          Data.precompute_embeddings(seq_dataset)
-        end
+        # Step 3: Build sequence embeddings by slicing (30x faster than re-embedding)
+        Output.puts("  Building sequence embeddings from frame embeddings (30x faster)...")
+        Data.sequences_from_frame_embeddings(
+          seq_dataset,
+          frame_embedded_dataset.embedded_frames,
+          window_size: opts[:window_size],
+          show_progress: true
+        )
       else
         # For MLP training, optionally precompute frame embeddings
         if opts[:precompute] do
