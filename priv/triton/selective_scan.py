@@ -118,7 +118,6 @@ def selective_scan_fused_kernel(
     # Output
     out_ptr,        # [batch, seq_len, hidden]
     # Dimensions
-    batch,
     seq_len,
     hidden,
     state,
@@ -128,51 +127,57 @@ def selective_scan_fused_kernel(
     stride_B_batch, stride_B_seq, stride_B_state,
     stride_C_batch, stride_C_seq, stride_C_state,
     stride_out_batch, stride_out_seq, stride_out_hidden,
-    # Constants
-    dt_min: tl.constexpr,
-    dt_max: tl.constexpr,
+    # Block size
+    BLOCK_STATE: tl.constexpr,
 ):
     """
     Fused selective scan kernel.
 
-    Each block handles one (batch, hidden_dim) pair.
+    Each program handles one (batch, hidden_dim) pair.
     Scans sequentially but fuses all operations (discretization, scan, output).
     """
     pid_batch = tl.program_id(0)
     pid_hidden = tl.program_id(1)
 
-    # Initialize hidden state: h = [state] zeros
-    h = tl.zeros([state], dtype=tl.float32)
+    # State indices
+    state_offs = tl.arange(0, BLOCK_STATE)
+    state_mask = state_offs < state
+
+    # Initialize hidden state: h = [BLOCK_STATE] zeros
+    h = tl.zeros([BLOCK_STATE], dtype=tl.float32)
 
     # Load A diagonal for this hidden dim (shared across batch/seq)
     # A is [hidden, state]
-    A_diag = tl.load(A_ptr + pid_hidden * state + tl.arange(0, state))
+    A_diag = tl.load(A_ptr + pid_hidden * state + state_offs, mask=state_mask, other=-1.0)
 
     # Scan through sequence
     for t in range(seq_len):
         # Load inputs for this timestep
-        x_t = tl.load(x_ptr + pid_batch * stride_x_batch + t * stride_x_seq + pid_hidden * stride_x_hidden)
-        dt_t = tl.load(dt_ptr + pid_batch * stride_dt_batch + t * stride_dt_seq + pid_hidden * stride_dt_hidden)
+        x_idx = pid_batch * stride_x_batch + t * stride_x_seq + pid_hidden * stride_x_hidden
+        x_t = tl.load(x_ptr + x_idx)
+        dt_t = tl.load(dt_ptr + x_idx)
 
         # Clamp dt
-        dt_t = tl.minimum(tl.maximum(dt_t, dt_min), dt_max)
+        dt_t = tl.minimum(tl.maximum(dt_t, 0.001), 0.1)
 
         # Load B and C for this timestep: [state] vectors
-        B_t = tl.load(B_ptr + pid_batch * stride_B_batch + t * stride_B_seq + tl.arange(0, state) * stride_B_state)
-        C_t = tl.load(C_ptr + pid_batch * stride_C_batch + t * stride_C_seq + tl.arange(0, state) * stride_C_state)
+        bc_base = pid_batch * stride_B_batch + t * stride_B_seq
+        B_t = tl.load(B_ptr + bc_base + state_offs, mask=state_mask, other=0.0)
+        C_t = tl.load(C_ptr + bc_base + state_offs, mask=state_mask, other=0.0)
 
         # Discretize
-        A_bar = tl.exp(dt_t * A_diag)  # [state]
-        B_bar = dt_t * B_t             # [state]
+        A_bar = tl.exp(dt_t * A_diag)  # [BLOCK_STATE]
+        B_bar = dt_t * B_t             # [BLOCK_STATE]
 
         # SSM recurrence: h = A_bar * h + B_bar * x
         h = A_bar * h + B_bar * x_t
 
-        # Output: y = C * h
-        y_t = tl.sum(C_t * h)
+        # Output: y = C * h (masked sum)
+        y_t = tl.sum(tl.where(state_mask, C_t * h, 0.0))
 
         # Store output
-        tl.store(out_ptr + pid_batch * stride_out_batch + t * stride_out_seq + pid_hidden * stride_out_hidden, y_t)
+        out_idx = pid_batch * stride_out_batch + t * stride_out_seq + pid_hidden * stride_out_hidden
+        tl.store(out_ptr + out_idx, y_t)
 
 
 # =============================================================================
@@ -196,15 +201,25 @@ def selective_scan_triton(x, dt, A, B, C, dt_min=0.001, dt_max=0.1):
     batch, seq_len, hidden = x.shape
     state = A.shape[1]
 
+    # Ensure contiguous
+    x = x.contiguous()
+    dt = dt.contiguous()
+    A = A.contiguous()
+    B = B.contiguous()
+    C = C.contiguous()
+
     # Allocate output
     out = torch.empty_like(x)
 
-    # Launch kernel
+    # Block size must be power of 2 and >= state
+    BLOCK_STATE = triton.next_power_of_2(state)
+
+    # Launch kernel: one program per (batch, hidden) pair
     grid = (batch, hidden)
 
     selective_scan_fused_kernel[grid](
         x, dt, A, B, C, out,
-        batch, seq_len, hidden, state,
+        seq_len, hidden, state,
         # Strides for x
         x.stride(0), x.stride(1), x.stride(2),
         # Strides for dt
@@ -215,9 +230,8 @@ def selective_scan_triton(x, dt, A, B, C, dt_min=0.001, dt_max=0.1):
         C.stride(0), C.stride(1), C.stride(2),
         # Strides for out
         out.stride(0), out.stride(1), out.stride(2),
-        # Constants
-        dt_min=dt_min,
-        dt_max=dt_max,
+        # Block size
+        BLOCK_STATE=BLOCK_STATE,
     )
 
     return out
