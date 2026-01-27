@@ -12,16 +12,27 @@ defmodule ExPhil.Networks.MambaNIF do
   - Pure Nx Mamba: ~55ms inference
   - MambaNIF: ~10.96ms inference (5x faster, 60 FPS capable)
 
-  ## Usage
+  ## Recommended Workflow: Train with Mamba, Infer with MambaNIF
+
+  The NIF breaks the computation graph (gradients can't flow through
+  `Nx.to_binary`), so use pure Mamba for training. Both modules use
+  identical layer names, so checkpoints are interchangeable:
+
+      # Train with pure Mamba (correct gradients)
+      mix run scripts/train_from_replays.exs --temporal --backbone mamba \\
+        --checkpoint model.axon
+
+      # Infer/play with MambaNIF (5x faster, same checkpoint!)
+      mix run scripts/play_dolphin_async.exs --policy model.axon \\
+        --backbone mamba_nif
+
+  ## Direct Usage
 
       # Check if NIF is available
       MambaNIF.available?()
 
       # Build model (same API as Mamba)
       model = MambaNIF.build(embed_size: 287, hidden_size: 256)
-
-      # Use via --backbone mamba_nif
-      mix run scripts/train_from_replays.exs --backbone mamba_nif
 
   ## Fallback
 

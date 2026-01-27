@@ -6,7 +6,15 @@ This document outlines our custom GPU kernel implementation for the Mamba select
 
 **Mission accomplished!** The Rust NIF achieves 60 FPS inference (10.96ms on RTX 4090).
 
-**Now integrated!** Use `--backbone mamba_nif` in training scripts to use the fast CUDA kernel.
+**Now integrated!** Use `--backbone mamba_nif` for fast inference. Train with `--backbone mamba` (correct gradients), then infer with `--backbone mamba_nif` (5x faster) using the same checkpoint.
+
+```bash
+# Train with pure Mamba (gradients work correctly)
+mix run scripts/train_from_replays.exs --temporal --backbone mamba --checkpoint model.axon
+
+# Infer/play with MambaNIF (5x faster, same checkpoint!)
+mix run scripts/play_dolphin_async.exs --policy model.axon --backbone mamba_nif
+```
 
 After benchmarking all backbones, we found that **only Mamba needed optimization**:
 - Attention: 0.014ms (PyTorch SDPA already uses Flash Attention)

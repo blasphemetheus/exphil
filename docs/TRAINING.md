@@ -56,6 +56,17 @@ mix run scripts/train_from_replays.exs --temporal --backbone hybrid
 **Note:** `mamba_nif` requires the Rust NIF to be compiled (see `native/selective_scan_nif/`).
 It's 5x faster than pure Mamba (~11ms vs ~55ms inference).
 
+**Recommended workflow:** Train with `mamba`, infer with `mamba_nif`:
+```bash
+# Training (mamba has correct gradients)
+mix run scripts/train_from_replays.exs --temporal --backbone mamba --checkpoint model.axon
+
+# Inference/playing (mamba_nif is 5x faster, uses same checkpoint!)
+mix run scripts/play_dolphin_async.exs --policy model.axon --backbone mamba_nif
+```
+
+The NIF breaks the computation graph (can't backprop through `Nx.to_binary`), so use pure Mamba for training. Both use identical layer names, so checkpoints are interchangeable.
+
 **Tradeoffs:**
 - Slower per-epoch (sequences larger than single frames)
 - Better at learning temporal patterns
