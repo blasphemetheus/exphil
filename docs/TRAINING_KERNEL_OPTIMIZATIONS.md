@@ -8,11 +8,13 @@ This document outlines GPU kernel optimizations to speed up **training** (not ju
 |--------------|--------|---------|-----------|--------|
 | **BF16 mixed precision** | Low | ~1.5-2x | All | ✅ Done |
 | **Mamba backward kernel** | Medium | ~5x | Mamba | ✅ Done (infer-only*) |
-| **Fused operations** | Medium | ~1.2x | All | ✅ Done |
+| **Fused operations** | Medium | ~1.0x** | All | ✅ Done |
 | **XLA Custom Call** | High | ~10x | Mamba | ⬜ Future |
 | **Fused optimizer** | Low | ~1.1x | All | ⬜ Future |
 
 *Mamba NIF backward kernel works but can't integrate with Axon autodiff. Use `:mamba` for training, `:mamba_nif` for 5x faster inference.
+
+**XLA already fuses simple ops; value is numerical stability for BF16, not speed.
 
 ---
 
@@ -385,8 +387,24 @@ Checkpoints are interchangeable.
    - `fused_log_softmax/2` - Stable log-softmax
    - `fused_ssm_discretize/3` - SSM A_bar, B_bar computation
 3. ✅ Integrate fused_softmax into attention.ex
-4. ⬜ Benchmark fused ops speedup
-5. ⬜ Integrate fused ops into more network code (policy heads, FFN layers)
+4. ✅ Benchmark fused ops speedup
+
+**Benchmark Results (RTX 4090, batch=32, hidden=512):**
+| Operation | Fused | Unfused | Speedup |
+|-----------|-------|---------|---------|
+| Dense + ReLU | 430μs | 398μs | 0.93x |
+| Dense + SiLU | 438μs | 384μs | 0.88x |
+| LayerNorm + ReLU | 13.9ms | 13.9ms | 1.0x |
+| FFN (GELU) | 2.5ms | 2.4ms | 0.94x |
+| Log-Softmax | 6.6ms | 7.4ms | **1.11x** |
+| SwiGLU | 2.5ms | 2.6ms | **1.06x** |
+
+**Key insight:** XLA already fuses simple operation chains automatically. The FusedOps module's
+value is primarily **numerical stability** (FP32 internal computation for BF16 training) rather
+than raw speed. The slight slowdowns on some operations are due to FP32 casting overhead, which
+is necessary for correct gradient computation in mixed precision training.
+
+5. ⬜ Integrate fused ops into more network code (policy heads, FFN layers) - Low priority given XLA auto-fusion
 
 ### Phase 4: XLA Custom Call (Future)
 1. ⬜ Wait for EXLA FFI support or contribute it
