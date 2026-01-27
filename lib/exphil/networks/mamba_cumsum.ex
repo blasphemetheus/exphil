@@ -317,8 +317,8 @@ defmodule ExPhil.Networks.MambaCumsum do
   defp cumsum_transposed_scan(a, b) do
     # a, b: [batch, seq, hidden, state]
     # Transpose to put seq last: [batch, hidden, state, seq]
-    a_t = Nx.transpose(a, [0, 2, 3, 1])
-    b_t = Nx.transpose(b, [0, 2, 3, 1])
+    a_t = Nx.transpose(a, axes: [0, 2, 3, 1])
+    b_t = Nx.transpose(b, axes: [0, 2, 3, 1])
 
     # Work in log-space for numerical stability
     # log_a = log(a) which are negative since 0 < a < 1
@@ -341,7 +341,7 @@ defmodule ExPhil.Networks.MambaCumsum do
     h_t = Nx.multiply(Nx.exp(cum_log_a), cum_scaled_b)
 
     # Transpose back to [batch, seq, hidden, state]
-    Nx.transpose(h_t, [0, 3, 1, 2])
+    Nx.transpose(h_t, axes: [0, 3, 1, 2])
   end
 
   # ============================================================================
