@@ -115,6 +115,113 @@ defmodule ExPhil.Native.SelectiveScan do
     |> Nx.reshape({batch, seq_len, hidden})
   end
 
+  @doc """
+  Forward pass that saves hidden states for backward pass (training mode).
+
+  Returns `{output, hidden_states}` where hidden_states can be passed to `backward/7`.
+  """
+  @spec scan_with_states(Nx.Tensor.t(), Nx.Tensor.t(), Nx.Tensor.t(), Nx.Tensor.t(), Nx.Tensor.t()) ::
+          {Nx.Tensor.t(), Nx.Tensor.t()}
+  def scan_with_states(x, dt, a, b, c) do
+    {batch, seq_len, hidden} = Nx.shape(x)
+    {^hidden, state} = Nx.shape(a)
+
+    x_bin = x |> Nx.as_type(:f32) |> Nx.to_binary()
+    dt_bin = dt |> Nx.as_type(:f32) |> Nx.to_binary()
+    a_bin = a |> Nx.as_type(:f32) |> Nx.to_binary()
+    b_bin = b |> Nx.as_type(:f32) |> Nx.to_binary()
+    c_bin = c |> Nx.as_type(:f32) |> Nx.to_binary()
+
+    # NIF returns packed binary: [out, h_all]
+    packed_bin =
+      selective_scan_forward_with_states(x_bin, dt_bin, a_bin, b_bin, c_bin, {batch, seq_len, hidden, state})
+
+    # Split the packed binary
+    out_bytes = batch * seq_len * hidden * 4
+    <<out_bin::binary-size(out_bytes), h_all_bin::binary>> = packed_bin
+
+    out =
+      Nx.from_binary(out_bin, :f32)
+      |> Nx.reshape({batch, seq_len, hidden})
+
+    h_all =
+      Nx.from_binary(h_all_bin, :f32)
+      |> Nx.reshape({batch, seq_len, hidden, state})
+
+    {out, h_all}
+  end
+
+  @doc """
+  Backward pass - computes gradients given output gradient and saved states.
+
+  ## Arguments
+
+  * `dy` - Gradient w.r.t. output `[batch, seq_len, hidden]`
+  * `x` - Saved input from forward pass
+  * `h_all` - Saved hidden states from `scan_with_states/5`
+  * `dt` - Saved dt from forward pass
+  * `a` - State transition tensor `[hidden, state]`
+  * `b` - Saved B from forward pass
+  * `c` - Saved C from forward pass
+
+  ## Returns
+
+  Tuple of `{dx, d_dt, dB, dC}` gradients.
+  """
+  @spec backward(
+          Nx.Tensor.t(),
+          Nx.Tensor.t(),
+          Nx.Tensor.t(),
+          Nx.Tensor.t(),
+          Nx.Tensor.t(),
+          Nx.Tensor.t(),
+          Nx.Tensor.t()
+        ) :: {Nx.Tensor.t(), Nx.Tensor.t(), Nx.Tensor.t(), Nx.Tensor.t()}
+  def backward(dy, x, h_all, dt, a, b, c) do
+    {batch, seq_len, hidden} = Nx.shape(x)
+    {^hidden, state} = Nx.shape(a)
+
+    dy_bin = dy |> Nx.as_type(:f32) |> Nx.to_binary()
+    x_bin = x |> Nx.as_type(:f32) |> Nx.to_binary()
+    h_all_bin = h_all |> Nx.as_type(:f32) |> Nx.to_binary()
+    dt_bin = dt |> Nx.as_type(:f32) |> Nx.to_binary()
+    a_bin = a |> Nx.as_type(:f32) |> Nx.to_binary()
+    b_bin = b |> Nx.as_type(:f32) |> Nx.to_binary()
+    c_bin = c |> Nx.as_type(:f32) |> Nx.to_binary()
+
+    # NIF returns packed binary: [dx, d_dt, dB, dC]
+    packed_bin =
+      selective_scan_backward(dy_bin, x_bin, h_all_bin, dt_bin, a_bin, b_bin, c_bin, {batch, seq_len, hidden, state})
+
+    # Split the packed binary
+    dx_bytes = batch * seq_len * hidden * 4
+    d_dt_bytes = batch * seq_len * hidden * 4
+    d_b_bytes = batch * seq_len * state * 4
+
+    <<dx_bin::binary-size(dx_bytes),
+      d_dt_bin::binary-size(d_dt_bytes),
+      d_b_bin::binary-size(d_b_bytes),
+      d_c_bin::binary>> = packed_bin
+
+    dx =
+      Nx.from_binary(dx_bin, :f32)
+      |> Nx.reshape({batch, seq_len, hidden})
+
+    d_dt =
+      Nx.from_binary(d_dt_bin, :f32)
+      |> Nx.reshape({batch, seq_len, hidden})
+
+    d_b =
+      Nx.from_binary(d_b_bin, :f32)
+      |> Nx.reshape({batch, seq_len, state})
+
+    d_c =
+      Nx.from_binary(d_c_bin, :f32)
+      |> Nx.reshape({batch, seq_len, state})
+
+    {dx, d_dt, d_b, d_c}
+  end
+
   # NIF stubs - these get replaced when the NIF loads
   # Using :erlang.nif_error ensures proper NIF behavior
 
@@ -129,4 +236,12 @@ defmodule ExPhil.Native.SelectiveScan do
 
   @doc false
   def selective_scan(_x, _dt, _a, _b, _c, _shape), do: :erlang.nif_error(:nif_not_loaded)
+
+  @doc false
+  # Returns packed binary: [out, h_all]
+  def selective_scan_forward_with_states(_x, _dt, _a, _b, _c, _shape), do: :erlang.nif_error(:nif_not_loaded)
+
+  @doc false
+  # Returns packed binary: [dx, d_dt, dB, dC]
+  def selective_scan_backward(_dy, _x, _h_all, _dt, _a, _b, _c, _shape), do: :erlang.nif_error(:nif_not_loaded)
 end

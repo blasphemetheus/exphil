@@ -142,9 +142,26 @@ mix run scripts/benchmark_architectures.exs --only mamba,mamba_nif
 alias ExPhil.Native.SelectiveScan
 
 if SelectiveScan.available?() and SelectiveScan.cuda_available?() do
+  # Forward pass (inference)
   result = SelectiveScan.scan(x, dt, a, b, c)
+
+  # Forward pass with hidden state saving (for training)
+  {out, h_all} = SelectiveScan.scan_with_states(x, dt, a, b, c)
+
+  # Backward pass (computes gradients)
+  {dx, d_dt, dB, dC} = SelectiveScan.backward(dy, x, h_all, dt, a, b, c)
 end
 ```
+
+**Training Backward Kernel:**
+
+The backward kernel is now implemented in CUDA (with CPU fallback). It computes:
+- `dx` - gradient w.r.t. input x
+- `d_dt` - gradient w.r.t. delta/timestep
+- `dB` - gradient w.r.t. input projection B
+- `dC` - gradient w.r.t. output projection C
+
+The backward pass uses a reverse scan that mirrors the forward pass structure. See `docs/TRAINING_KERNEL_OPTIMIZATIONS.md` for the mathematical derivation.
 
 ### Option 4: Custom XLA Operation (Best for Performance)
 
@@ -228,14 +245,14 @@ Key Finding: The scan itself is fast (~5ms). XLA overhead is the problem.
 
 Phase 2: Choose Integration Path
 ├── Option A: ONNX (works now)              ✅ 0.5ms, documented in INFERENCE.md
-├── Option B: Rust NIF                      ⬜ Build and benchmark
+├── Option B: Rust NIF                      ✅ Built and tested
 └── Option C: Custom XLA Op                 ⬜ Best performance, most effort
 
-Phase 3: Rust NIF Path (if chosen)
-├── Build the NIF                           ⬜ cd native/selective_scan_nif && cargo build
-├── Benchmark GPU↔CPU transfer              ⬜ Measure in-process overhead
-├── Add backward pass                       ⬜ For training support
-└── Integrate with MambaNIF module          ⬜ lib/exphil/networks/mamba_nif.ex
+Phase 3: Rust NIF Path ✅ COMPLETE
+├── Build the NIF                           ✅ cd native/selective_scan_nif && cargo build --release --features cuda
+├── Benchmark GPU↔CPU transfer              ✅ ~11ms on RTX 4090
+├── Add backward pass                       ✅ CUDA + CPU kernels, NIF bindings, Elixir wrapper
+└── Integrate with MambaNIF module          ✅ lib/exphil/networks/mamba_nif.ex
 
 Phase 4: Custom XLA Op Path (best performance)
 ├── Set up XLA build environment            ⬜ XLA headers, CUDA toolkit
