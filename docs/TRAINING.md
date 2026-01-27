@@ -37,7 +37,10 @@ mix run scripts/train_from_replays.exs --epochs 10 --max-files 100
 Uses sequences of frames to learn temporal patterns (combos, reactions).
 
 ```bash
-# With Mamba backbone (fastest inference, recommended)
+# With Mamba NIF (CUDA-accelerated, fastest inference, recommended)
+mix run scripts/train_from_replays.exs --temporal --backbone mamba_nif
+
+# With Mamba (pure Nx/XLA, no NIF needed)
 mix run scripts/train_from_replays.exs --temporal --backbone mamba
 
 # With LSTM
@@ -49,6 +52,9 @@ mix run scripts/train_from_replays.exs --temporal --backbone sliding_window
 # With hybrid LSTM + attention
 mix run scripts/train_from_replays.exs --temporal --backbone hybrid
 ```
+
+**Note:** `mamba_nif` requires the Rust NIF to be compiled (see `native/selective_scan_nif/`).
+It's 5x faster than pure Mamba (~11ms vs ~55ms inference).
 
 **Tradeoffs:**
 - Slower per-epoch (sequences larger than single frames)
@@ -133,7 +139,7 @@ mix run scripts/train_from_replays.exs --dual-port
 | Option | Default | Description |
 |--------|---------|-------------|
 | `--temporal` | false | Enable temporal training |
-| `--backbone TYPE` | lstm | lstm, gru, mamba, sliding_window, hybrid |
+| `--backbone TYPE` | lstm | lstm, gru, mamba, mamba_nif, sliding_window, hybrid |
 | `--window-size N` | 60 | Frames per sequence |
 | `--stride N` | 1 | Step between sequences |
 | `--truncate-bptt N` | nil | Truncated backprop (faster training) |

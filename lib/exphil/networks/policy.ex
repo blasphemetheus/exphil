@@ -63,6 +63,7 @@ defmodule ExPhil.Networks.Policy do
   alias ExPhil.Networks.Hybrid
   alias ExPhil.Networks.Mamba
   alias ExPhil.Networks.MambaCumsum
+  alias ExPhil.Networks.MambaNIF
   alias ExPhil.Networks.Recurrent
   alias ExPhil.Training.Utils
 
@@ -74,8 +75,9 @@ defmodule ExPhil.Networks.Policy do
   # Backbone types
   # :lstm_hybrid = LSTM + Attention, :jamba = Mamba + Attention (recommended)
   # :gated_ssm = simplified gated temporal model (stable, not true Mamba)
-  # :mamba = true Mamba with parallel scan (use :gated_ssm until true Mamba is ready)
-  @type backbone_type :: :mlp | :sliding_window | :lstm_hybrid | :lstm | :gru | :mamba | :gated_ssm | :jamba
+  # :mamba = true Mamba with parallel scan (pure Nx/XLA)
+  # :mamba_nif = Mamba with CUDA-accelerated scan via Rust NIF (5x faster!)
+  @type backbone_type :: :mlp | :sliding_window | :lstm_hybrid | :lstm | :gru | :mamba | :mamba_nif | :gated_ssm | :jamba
 
   # Controller output sizes
   @num_buttons 8
@@ -503,6 +505,9 @@ defmodule ExPhil.Networks.Policy do
 
         :mamba ->
           build_mamba_backbone(embed_size, opts)
+
+        :mamba_nif ->
+          build_mamba_nif_backbone(embed_size, opts)
 
         :mamba_cumsum ->
           build_mamba_cumsum_backbone(embed_size, opts)
@@ -943,6 +948,30 @@ defmodule ExPhil.Networks.Policy do
     ]
 
     Mamba.build(mamba_opts)
+  end
+
+  # Mamba with CUDA-accelerated selective scan via Rust NIF (5x faster!)
+  defp build_mamba_nif_backbone(embed_size, opts) do
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    state_size = Keyword.get(opts, :state_size, 16)
+    expand_factor = Keyword.get(opts, :expand_factor, 2)
+    conv_size = Keyword.get(opts, :conv_size, 4)
+    num_layers = Keyword.get(opts, :num_layers, 2)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+    window_size = Keyword.get(opts, :window_size, 60)
+
+    mamba_opts = [
+      embed_size: embed_size,
+      hidden_size: hidden_size,
+      state_size: state_size,
+      expand_factor: expand_factor,
+      conv_size: conv_size,
+      num_layers: num_layers,
+      dropout: dropout,
+      window_size: window_size
+    ]
+
+    MambaNIF.build(mamba_opts)
   end
 
   # Mamba with cumsum-based scan (optimized for training speed)
@@ -1888,6 +1917,9 @@ defmodule ExPhil.Networks.Policy do
         Keyword.get(opts, :hidden_size, 256)
 
       :mamba ->
+        Keyword.get(opts, :hidden_size, 256)
+
+      :mamba_nif ->
         Keyword.get(opts, :hidden_size, 256)
 
       :mamba_cumsum ->

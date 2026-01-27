@@ -217,6 +217,15 @@ is_nan? = fn
   _ -> false
 end
 
+# Helper to check if a value is a special atom from Nx.to_number
+# EXLA returns :nan, :infinity, :neg_infinity atoms for special float values
+is_special_atom? = fn
+  :nan -> true
+  :infinity -> true
+  :neg_infinity -> true
+  _ -> false
+end
+
 # Helper function for dual-port training - parses both players from a replay
 parse_dual_port = fn path, frame_delay, min_quality ->
   # Get metadata to find which ports have players
@@ -1832,10 +1841,14 @@ batch_checkpoint_path =
           raw = Nx.to_number(metrics.loss)
           # Exponential moving average: smoothed = alpha * new + (1 - alpha) * old
           # alpha = 0.1 gives smooth display while still responding to changes
+          # NOTE: Nx.to_number can return atoms (:nan, :infinity, :neg_infinity)
+          # for special values - skip EMA arithmetic in those cases
           smoothed =
-            case smoothed_loss do
-              nil -> raw
-              prev -> 0.1 * raw + 0.9 * prev
+            cond do
+              is_special_atom?.(raw) -> raw
+              smoothed_loss == nil -> raw
+              is_special_atom?.(smoothed_loss) -> raw
+              true -> 0.1 * raw + 0.9 * smoothed_loss
             end
 
           {raw, smoothed}

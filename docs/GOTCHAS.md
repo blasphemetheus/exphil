@@ -45,6 +45,7 @@ Hard-won knowledge from debugging ExPhil. Each section documents a specific issu
 39. [XLA preallocates 90% GPU memory and never releases it](#39-xla-preallocates-90-gpu-memory-and-never-releases-it)
 40. [--augment flag bypasses precomputed embeddings (100x slower)](#40---augment-flag-bypasses-precomputed-embeddings-100x-slower)
 41. [--cache-embeddings flag parsed but not used](#41---cache-embeddings-flag-parsed-but-not-used-train_from_replaysexs)
+42. [Nx.to_number returns atoms for special float values](#42-nxto_number-returns-atoms-for-special-float-values-nan-infinity)
 
 ---
 
@@ -1726,3 +1727,49 @@ end
 - `scripts/train_from_replays.exs:524-530` - Added streaming mode warning
 
 **RunPod note:** Ensure `source /app/scripts/runpod_entrypoint.sh` is run to create `/app/cache -> /workspace/cache` symlink. Without this, cache may be written to ephemeral storage and lost on pod restart.
+
+---
+
+## 42. Nx.to_number returns atoms for special float values (NaN, Infinity)
+
+**Symptoms:**
+```
+** (ArithmeticError) bad argument in arithmetic expression
+    scripts/train_from_replays.exs:1799: anonymous fn/10 in ...
+```
+
+Training crashes mid-epoch with `ArithmeticError` during loss EMA calculation.
+
+**Root cause:** `Nx.to_number/1` returns **atoms** (`:nan`, `:infinity`, `:neg_infinity`) for special floating-point values, not floats. When you then try to do arithmetic like:
+
+```elixir
+raw = Nx.to_number(metrics.loss)  # Returns :nan atom
+smoothed = 0.1 * raw + 0.9 * prev  # ArithmeticError! Can't multiply atoms
+```
+
+**The fix:** Check for special atoms before doing arithmetic:
+
+```elixir
+is_special_atom? = fn
+  :nan -> true
+  :infinity -> true
+  :neg_infinity -> true
+  _ -> false
+end
+
+smoothed =
+  cond do
+    is_special_atom?.(raw) -> raw  # Propagate atom, skip arithmetic
+    smoothed_loss == nil -> raw
+    is_special_atom?.(smoothed_loss) -> raw
+    true -> 0.1 * raw + 0.9 * smoothed_loss
+  end
+```
+
+**Why this happens:** Loss becomes NaN when training diverges (usually due to learning rate too high, gradient explosion, or numerical instability). The NaN propagates to `Nx.to_number`, which returns `:nan` atom.
+
+**Prevention:** Use `--max-grad-norm 1.0` and conservative learning rates (`--lr 1e-5`) for large models like Jamba. The NaN check downstream will catch it and provide a helpful error message.
+
+**Code locations:**
+- `scripts/train_from_replays.exs:226-231` - `is_special_atom?` helper
+- `scripts/train_from_replays.exs:1847-1852` - Fixed EMA calculation with cond guard

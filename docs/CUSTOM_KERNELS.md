@@ -6,6 +6,8 @@ This document outlines our custom GPU kernel implementation for the Mamba select
 
 **Mission accomplished!** The Rust NIF achieves 60 FPS inference (10.96ms on RTX 4090).
 
+**Now integrated!** Use `--backbone mamba_nif` in training scripts to use the fast CUDA kernel.
+
 After benchmarking all backbones, we found that **only Mamba needed optimization**:
 - Attention: 0.014ms (PyTorch SDPA already uses Flash Attention)
 - LSTM: 5.34ms (PyTorch already uses cuDNN)
@@ -118,7 +120,16 @@ cargo build --release --features cuda
 cp target/release/libselective_scan_nif.so ../../priv/native/
 ```
 
-**Usage:**
+**Usage (integrated backbone):**
+```bash
+# Use the fast NIF-backed Mamba in training
+mix run scripts/train_from_replays.exs --temporal --backbone mamba_nif
+
+# Benchmark it against pure Nx Mamba
+mix run scripts/benchmark_architectures.exs --only mamba,mamba_nif
+```
+
+**Direct API:**
 ```elixir
 alias ExPhil.Native.SelectiveScan
 

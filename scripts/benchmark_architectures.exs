@@ -16,7 +16,7 @@
 #   --cache-dir PATH              Cache directory (default: /workspace/cache/embeddings)
 #   --no-cache                    Ignore cache and recompute embeddings
 #
-# Available architectures: mlp, mamba, jamba, lstm, gru, attention
+# Available architectures: mlp, mamba, mamba_nif, jamba, lstm, gru, attention
 #
 # Examples:
 #   # Quick test with just MLP and Mamba
@@ -69,32 +69,34 @@ require Output
 
 # Safe rounding that handles :nan, :infinity, and integers
 # Nx.to_number() returns atoms for special values, which Float.round/2 rejects
-defmodule BenchmarkHelpers do
-  def safe_round(value, precision) when is_float(value), do: safe_round(value, precision)
-  def safe_round(value, precision) when is_integer(value), do: safe_round(value / 1, precision)
-  def safe_round(:nan, _precision), do: :nan
-  def safe_round(:infinity, _precision), do: :infinity
-  def safe_round(:neg_infinity, _precision), do: :neg_infinity
-  def safe_round(value, _precision), do: value
+safe_round = fn
+  value, precision when is_float(value) -> Float.round(value, precision)
+  value, precision when is_integer(value) -> Float.round(value / 1, precision)
+  :nan, _precision -> :nan
+  :infinity, _precision -> :infinity
+  :neg_infinity, _precision -> :neg_infinity
+  value, _precision -> value
 end
-
-import BenchmarkHelpers, only: [safe_round: 2]
 
 # Detect GPU model
 gpu_info =
-  case System.cmd(
-         "nvidia-smi",
-         ["--query-gpu=name,memory.total", "--format=csv,noheader,nounits"],
-         stderr_to_stdout: true
-       ) do
-    {output, 0} ->
-      case String.split(String.trim(output), ", ") do
-        [name, memory_mb] -> %{name: name, memory_gb: String.to_integer(memory_mb) / 1024}
-        _ -> %{name: "Unknown GPU", memory_gb: 0.0}
-      end
+  try do
+    case System.cmd(
+           "nvidia-smi",
+           ["--query-gpu=name,memory.total", "--format=csv,noheader,nounits"],
+           stderr_to_stdout: true
+         ) do
+      {output, 0} ->
+        case String.split(String.trim(output), ", ") do
+          [name, memory_mb] -> %{name: name, memory_gb: String.to_integer(memory_mb) / 1024}
+          _ -> %{name: "Unknown GPU", memory_gb: 0.0}
+        end
 
-    _ ->
-      %{name: "CPU only", memory_gb: 0.0}
+      _ ->
+        %{name: "CPU only", memory_gb: 0.0}
+    end
+  rescue
+    _ -> %{name: "CPU only", memory_gb: 0.0}
   end
 
 # Parse args
@@ -188,6 +190,15 @@ all_architectures = [
      hidden_sizes: [256, 256],
      batch_size: 64
    ]},
+  {:mamba_nif, "Mamba NIF (CUDA)",
+   [
+     temporal: true,
+     backbone: :mamba_nif,
+     window_size: 30,
+     num_layers: 2,
+     hidden_sizes: [256, 256],
+     batch_size: 64
+   ]},
   {:jamba, "Jamba (Mamba+Attn)",
    [
      temporal: true,
@@ -241,7 +252,7 @@ Output.config([
    "#{length(architectures)} (#{Enum.map(architectures, fn {id, _, _} -> id end) |> Enum.join(", ")})"},
   {"Continue on error", continue_on_error},
   {"Embedding cache", if(cache_enabled, do: "enabled (#{cache_dir})", else: "disabled")},
-  {"GPU", "#{gpu_info.name} (#{safe_round(gpu_info.memory_gb, 1)} GB)"},
+  {"GPU", "#{gpu_info.name} (#{safe_round.(gpu_info.memory_gb, 1)} GB)"},
   {"Memory", GPUUtils.memory_status_string()}
 ])
 
@@ -541,7 +552,7 @@ results =
             end
 
           Output.puts(
-            "  Epoch #{epoch}: loss=#{safe_round(avg_loss, 4)} val=#{safe_round(val_loss, 4)} (#{safe_round(batches_per_sec, 1)} batch/s)"
+            "  Epoch #{epoch}: loss=#{safe_round.(avg_loss, 4)} val=#{safe_round.(val_loss, 4)} (#{safe_round.(batches_per_sec, 1)} batch/s)"
           )
 
           epoch_entry = %{
@@ -564,7 +575,7 @@ results =
       avg_speed = Enum.sum(Enum.map(epoch_metrics, & &1.batches_per_sec)) / length(epoch_metrics)
 
       Output.success(
-        "Complete: val=#{safe_round(final_val, 4)}, speed=#{safe_round(avg_speed, 1)} batch/s, time=#{safe_round(total_time / 1000, 1)}s"
+        "Complete: val=#{safe_round.(final_val, 4)}, speed=#{safe_round.(avg_speed, 1)} batch/s, time=#{safe_round.(total_time / 1000, 1)}s"
       )
 
       # Inference benchmarking - measure single batch latency
@@ -587,7 +598,7 @@ results =
       per_sample_us = avg_inference_us / inference_batch_size
 
       Output.puts(
-        "  Inference: #{safe_round(avg_inference_us / 1000, 2)}ms/batch, #{safe_round(per_sample_us, 1)}μs/sample"
+        "  Inference: #{safe_round.(avg_inference_us / 1000, 2)}ms/batch, #{safe_round.(per_sample_us, 1)}μs/sample"
       )
 
       # Theoretical complexity (for documentation)
@@ -598,6 +609,7 @@ results =
           :gru -> "O(L) sequential"
           :gated_ssm -> "O(L) sequential (simplified)"
           :mamba -> "O(L) work, O(log L) depth (parallel scan)"
+          :mamba_nif -> "O(L) CUDA kernel (5x faster)"
           :jamba -> "O(L) + O(L²) hybrid"
           :attention -> "O(L²)"
           _ -> "unknown"
@@ -662,10 +674,10 @@ sorted_results
 |> Enum.with_index(1)
 |> Enum.each(fn {r, rank} ->
   name = String.pad_trailing(r.name, 15)
-  val = safe_round(r.final_val_loss, 4) |> to_string() |> String.pad_leading(8)
-  train = safe_round(r.final_train_loss, 4) |> to_string() |> String.pad_leading(10)
-  speed = safe_round(r.avg_batches_per_sec, 1) |> to_string() |> String.pad_leading(11)
-  inference = "#{safe_round(r.inference_us_per_batch / 1000, 1)}ms" |> String.pad_leading(9)
+  val = safe_round.(r.final_val_loss, 4) |> to_string() |> String.pad_leading(8)
+  train = safe_round.(r.final_train_loss, 4) |> to_string() |> String.pad_leading(10)
+  speed = safe_round.(r.avg_batches_per_sec, 1) |> to_string() |> String.pad_leading(11)
+  inference = "#{safe_round.(r.inference_us_per_batch / 1000, 1)}ms" |> String.pad_leading(9)
   complexity = String.pad_trailing(r.theoretical_complexity, 10)
 
   Output.puts(
@@ -678,7 +690,7 @@ best = List.first(sorted_results)
 Output.puts("")
 
 Output.success(
-  "Best architecture: #{best.name} (val_loss=#{safe_round(best.final_val_loss, 4)})"
+  "Best architecture: #{best.name} (val_loss=#{safe_round.(best.final_val_loss, 4)})"
 )
 
 # Save results with timestamp in filename
@@ -692,7 +704,7 @@ json_results = %{
   timestamp: DateTime.to_iso8601(timestamp),
   machine: %{
     gpu: gpu_info.name,
-    gpu_memory_gb: safe_round(gpu_info.memory_gb, 1)
+    gpu_memory_gb: safe_round.(gpu_info.memory_gb, 1)
   },
   config: %{
     replay_dir: replay_dir,
@@ -789,6 +801,10 @@ theoretical_data =
         :mamba ->
           {round(:math.log2(window_size)) * 3, round(:math.log2(window_size))}
 
+        # O(L) CUDA kernel - faster than XLA parallel scan
+        :mamba_nif ->
+          {round(:math.log2(window_size)), round(:math.log2(window_size)) / 2}
+
         # O(L²)
         :attention ->
           {window_size * window_size * 3, window_size * window_size}
@@ -877,7 +893,7 @@ html = """
 
   <div class="summary">
     <h3>Configuration</h3>
-    <p><strong>Machine:</strong> #{gpu_info.name} (#{safe_round(gpu_info.memory_gb, 1)} GB)</p>
+    <p><strong>Machine:</strong> #{gpu_info.name} (#{safe_round.(gpu_info.memory_gb, 1)} GB)</p>
     <p><strong>Replays:</strong> #{max_files} files (#{train_dataset.size} train / #{val_dataset.size} val frames)</p>
     <p><strong>Epochs:</strong> #{epochs}</p>
     <p><strong>Batch size:</strong> #{batch_size}</p>
@@ -887,7 +903,7 @@ html = """
   <h2>Results (ranked by validation loss)</h2>
   <table>
     <tr><th>Rank</th><th>Architecture</th><th>Val Loss</th><th>Train Loss</th><th>Speed</th><th>Inference</th><th>Complexity</th><th>Time</th></tr>
-    #{sorted_results |> Enum.with_index(1) |> Enum.map(fn {r, rank} -> "<tr><td>#{rank}</td><td>#{r.name}</td><td>#{safe_round(r.final_val_loss, 4)}</td><td>#{safe_round(r.final_train_loss, 4)}</td><td>#{safe_round(r.avg_batches_per_sec, 1)} b/s</td><td>#{safe_round(r.inference_us_per_batch / 1000, 2)} ms</td><td><span class=\"complexity\">#{r.theoretical_complexity}</span></td><td>#{safe_round(r.total_time_ms / 1000, 1)}s</td></tr>" end) |> Enum.join("\n")}
+    #{sorted_results |> Enum.with_index(1) |> Enum.map(fn {r, rank} -> "<tr><td>#{rank}</td><td>#{r.name}</td><td>#{safe_round.(r.final_val_loss, 4)}</td><td>#{safe_round.(r.final_train_loss, 4)}</td><td>#{safe_round.(r.avg_batches_per_sec, 1)} b/s</td><td>#{safe_round.(r.inference_us_per_batch / 1000, 2)} ms</td><td><span class=\"complexity\">#{r.theoretical_complexity}</span></td><td>#{safe_round.(r.total_time_ms / 1000, 1)}s</td></tr>" end) |> Enum.join("\n")}
   </table>
 
   <p class="winner">Best: #{best.name}</p>
@@ -922,6 +938,7 @@ html = """
     <li><strong>MLP:</strong> O(1) - constant time, no temporal context</li>
     <li><strong>LSTM/GRU:</strong> O(L) - sequential, cannot parallelize</li>
     <li><strong>Mamba:</strong> O(L) - parallel scan, GPU-friendly</li>
+    <li><strong>Mamba NIF:</strong> O(L) - CUDA kernel, 5x faster than XLA</li>
     <li><strong>Attention:</strong> O(L²) - quadratic, but highly parallel</li>
     <li><strong>Jamba:</strong> O(L) + O(L²/3) - hybrid, attention every 3 layers</li>
   </ul>
