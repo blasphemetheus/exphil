@@ -14,6 +14,7 @@ This document summarizes research relevant to ExPhil, including lessons learned 
 - [Lessons for ExPhil](#lessons-for-exphil)
 - [Research Roadmap](#research-roadmap)
 - [Compute Scaling & The Bitter Lesson](#compute-scaling--the-bitter-lesson)
+- [Transformer Paper Insights](#attention-is-all-you-need---transformer-paper-insights)
 
 ---
 
@@ -488,6 +489,132 @@ The key is **not** to over-engineer the BC stage with domain knowledge that won'
 
 ---
 
+## "Attention Is All You Need" - Transformer Paper Insights
+
+The 2017 paper by Vaswani et al. introduced the Transformer architecture, fundamentally changing machine learning. This section documents key lessons applicable to ExPhil.
+
+**Reference:** [Attention Is All You Need](https://arxiv.org/abs/1706.03762)
+
+### Core Architecture Insights
+
+The original Transformer uses:
+- **d_model = 512** (embedding dimension throughout)
+- **6 encoder layers, 6 decoder layers**
+- **8 attention heads** (d_k = d_v = 64 per head)
+- **d_ff = 2048** (inner dimension of feed-forward network, 4× d_model)
+
+**Key design principle:** All layers produce outputs of the same dimension (d_model = 512) to enable residual connections. This is why ExPhil's learned embeddings project to a consistent hidden dimension.
+
+### Training Techniques That Worked
+
+| Technique | Value | Effect |
+|-----------|-------|--------|
+| **Dropout** | P_drop = 0.1 | Applied to attention weights, FFN outputs, and embeddings |
+| **Label Smoothing** | ε_ls = 0.1 | Hurts perplexity but improves accuracy (BLEU) |
+| **LR Warmup** | 4000 steps | Linear increase, then inverse sqrt decay |
+| **Adam β values** | β₁=0.9, β₂=0.98, ε=10⁻⁹ | Different from defaults (β₂=0.999) |
+| **Model Averaging** | Last 5-20 checkpoints | Base=5 (at 10-min intervals), Big=20 |
+
+**Training stability requires all four:**
+1. Adaptive optimizer (Adam)
+2. Residual connections
+3. Layer normalization
+4. Label smoothing
+
+Removing any one can cause training failures.
+
+### √d_k Scaling - A Critical Detail
+
+Attention scores are computed as: `Attention(Q,K,V) = softmax(QK^T / √d_k) * V`
+
+**Why √d_k matters:**
+- Dot products grow with dimension (e.g., [2,2,2,2,2]·[2,2,2,2,2] = 20 vs [2,2]·[2,2] = 8)
+- Large values push softmax into saturation regions
+- Saturated softmax → vanishing gradients → training collapse
+- Scaling by √d_k normalizes variance regardless of dimension
+
+**ExPhil implication:** When implementing attention layers, always scale by √d_k. This is built into Axon's attention layers but worth verifying.
+
+### Multi-Head Attention Findings
+
+The ablation study found:
+- Single-head attention was **0.9 BLEU worse** than 8-head
+- Too many heads (16+) also degraded quality
+- **8 heads with d_k=64** was the sweet spot for d_model=512
+
+**Why multiple heads help:**
+- Each head learns different attention patterns (syntax, long-range refs, topics)
+- Better disambiguation and more stable training
+- Concatenating heads captures diverse relationships
+
+**ExPhil implication:** For our attention backbone, 4-8 heads is reasonable. With d_model=256, try 4 heads × 64 dimensions.
+
+### Positional Encoding: Learned vs Sinusoidal
+
+The paper tested both approaches with **nearly identical results** on their benchmarks.
+
+| Approach | Pros | Cons |
+|----------|------|------|
+| **Sinusoidal** | No parameters, theoretically generalizes to longer sequences | May struggle with true length extrapolation |
+| **Learned** | Adapts to task, slightly better on some benchmarks | Fixed max length, no extrapolation |
+
+**Reality check:** Subsequent research (Shaw et al. 2018, Press et al. 2021) found neither generalizes well to much longer sequences. Modern approaches (RoPE, ALiBi) address this.
+
+**ExPhil implication:** For game AI with fixed-length context windows (e.g., 90 frames), learned positional embeddings are fine. We're not extrapolating to longer sequences at inference.
+
+### Decision Transformer - Sequence Modeling for RL
+
+A key descendant of the Transformer for game AI is the Decision Transformer (Chen et al. 2021).
+
+**Core insight:** Frame RL as sequence modeling by conditioning on desired returns.
+
+```
+Input: (R₁, s₁, a₁, R₂, s₂, a₂, ..., Rₜ, sₜ)
+Output: aₜ (action to achieve return Rₜ)
+```
+
+**Why this matters for ExPhil:**
+1. **No TD learning required** - Avoids the deadly triad (function approximation + bootstrapping + off-policy)
+2. **No reward discounting** - Avoids short-sighted behaviors
+3. **Direct credit assignment** - Self-attention can propagate rewards across long sequences
+4. **Trajectory stitching** - Can combine optimal subsequences from different replays
+
+**Performance:** Matches or exceeds offline RL baselines on Atari. On some games (Qbert, Seaquest), actually extrapolates beyond dataset performance.
+
+**Potential ExPhil experiment:** Train a Decision Transformer variant conditioned on desired damage output or stock lead. Feed (desired_outcome, state₁, action₁, ..., stateₜ) and predict actionₜ.
+
+### Pre-Norm vs Post-Norm
+
+The original paper used **post-norm**: `LayerNorm(x + Sublayer(x))`
+
+Subsequent research found **pre-norm** is more stable: `x + Sublayer(LayerNorm(x))`
+
+Pre-norm allows scaling to much deeper networks. Modern Transformers almost universally use pre-norm.
+
+**ExPhil implication:** Our attention backbone should use pre-norm for stability, especially if stacking many layers.
+
+### Practical Lessons for ExPhil
+
+1. **Learning rate warmup is critical** - Start low, ramp up over ~4000 steps, then decay
+2. **Label smoothing helps generalization** - Already implemented in ExPhil with `--label-smoothing 0.1`
+3. **Checkpoint averaging is free performance** - Average last N checkpoints for evaluation
+4. **β₂=0.98 in Adam** - Lower than default 0.999, helps with spiky gradients
+5. **Dropout everywhere** - Not just in dense layers, also on attention weights
+6. **Consistent dimensions** - Keep d_model constant for easy residual connections
+7. **Pre-norm for depth** - Use pre-normalization if going beyond 2-3 attention layers
+
+### Experiment Ideas from Transformer Paper
+
+| Experiment | Hypothesis | Implementation |
+|------------|-----------|----------------|
+| **β₂=0.98** | More stable training | Change Adam config in training |
+| **Checkpoint averaging** | Better evaluation | Average last 5 model weights |
+| **Attention head count** | 4-8 heads optimal | Compare 2, 4, 8 heads on attention backbone |
+| **Decision Transformer** | Return conditioning helps | Add return-to-go embedding, condition policy |
+| **Pre-norm vs post-norm** | Pre-norm more stable | Compare on deep attention models |
+
+---
+
 ## References
 
 ### Papers
@@ -501,6 +628,10 @@ The key is **not** to over-engineer the BC stage with domain knowledge that won'
 7. **Silver et al. (2017)** - [Mastering Chess and Shogi by Self-Play (AlphaZero)](https://arxiv.org/abs/1712.01815)
 8. **OpenAI (2019)** - [Dota 2 with Large Scale Deep RL](https://arxiv.org/abs/1912.06680)
 9. **Sutton (2019)** - [The Bitter Lesson](http://www.incompleteideas.net/IncIdeas/BitterLesson.html)
+10. **Vaswani et al. (2017)** - [Attention Is All You Need](https://arxiv.org/abs/1706.03762) - The original Transformer paper
+11. **Chen et al. (2021)** - [Decision Transformer: RL via Sequence Modeling](https://arxiv.org/abs/2106.01345) - RL as next-token prediction
+12. **Shaw et al. (2018)** - [Self-Attention with Relative Position Representations](https://arxiv.org/abs/1803.02155) - Relative positional encoding
+13. **Lee et al. (2022)** - [Multi-Game Decision Transformers](https://arxiv.org/abs/2205.15241) - Generalist game-playing agents
 
 ### Code Repositories
 
