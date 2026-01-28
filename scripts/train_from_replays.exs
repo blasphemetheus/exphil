@@ -2258,7 +2258,13 @@ character_distribution =
     nil
   end
 
-final_loss_avg = Enum.sum(Enum.take(final_trainer.metrics.loss, 10)) / 10
+# Get final loss from training_history (trainer.metrics.loss is never populated)
+# History is in reverse order (most recent first), so take the first entry
+final_loss_avg =
+  case training_history do
+    [%{train_loss: loss} | _] when is_number(loss) -> loss
+    _ -> 0.0
+  end
 
 training_results = %{
   embed_size: embed_size,
