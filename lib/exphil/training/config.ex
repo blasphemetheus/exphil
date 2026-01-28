@@ -314,7 +314,8 @@ defmodule ExPhil.Training.Config do
       # Override for explicitly disabling precomputation
       no_precompute: false,
       # Embedding disk caching (save precomputed embeddings to disk for reuse)
-      cache_embeddings: false,
+      # Default: true - caches embeddings to disk for faster subsequent runs
+      cache_embeddings: true,
       # Force recompute even if cache exists
       no_cache: false,
       # Directory for embedding cache files
