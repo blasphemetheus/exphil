@@ -1844,3 +1844,73 @@ Embedding tensor: shape={1234567, 287}, backend=Nx.BinaryBackend
 Transferring embeddings to GPU (1416.2 MB)...
 ```
 If you see `BinaryBackend` in the logs followed by "Transferring embeddings to GPU", the fix is working. If you don't see the transfer message, check the diagnostic output to understand why.
+
+## 44. Optimizer not JIT compiled with EXLA causes 0% GPU utilization
+
+**Status:** FIXED
+
+**Symptom:** Training runs but GPU utilization shows 0% in `nvidia-smi` despite GPU memory being allocated (90%). Training speed is ~35s/batch instead of expected <1s/batch.
+
+**Example output:**
+```
+[08:32:30]   GPU: 21.57 GB/23.99 GB (90%) | Util: 0%
+Epoch 1: ... | 28.94s/it
+```
+
+**Root cause:** The optimizer and `apply_updates_fn` were JIT compiled without specifying `compiler: EXLA`:
+
+```elixir
+# BAD - defaults to CPU Evaluator
+apply_updates_fn = Nx.Defn.jit(&Polaris.Updates.apply_updates/2)
+
+# GOOD - uses GPU
+apply_updates_fn = Nx.Defn.jit(&Polaris.Updates.apply_updates/2, compiler: EXLA)
+```
+
+Without `compiler: EXLA`, `Nx.Defn.jit` uses the default Evaluator which runs on CPU. The forward/backward pass used GPU (via `build_loss_and_grad_fn` which did specify EXLA), but the optimizer step ran on CPU.
+
+**The fix:** Add `compiler: EXLA` to all JIT calls in `imitation.ex`:
+
+```elixir
+optimizer_fn = Nx.Defn.jit(optimizer_update, compiler: EXLA)
+apply_updates_fn = Nx.Defn.jit(&Polaris.Updates.apply_updates/2, compiler: EXLA)
+```
+
+**Code location:** `lib/exphil/training/imitation.ex:272-275`
+
+**Verification:** Run `nvidia-smi dmon -s u -d 1` while training. You should see GPU utilization spikes (37-100%) instead of constant 0%.
+
+## 45. O(n) list traversal for action collection causes ~28s/batch
+
+**Status:** FIXED
+
+**Symptom:** Training is slow (~28s/batch) even with embeddings on GPU and optimizer using EXLA. GPU utilization shows brief spikes but overall throughput is poor.
+
+**Root cause:** The `create_batch_precomputed` function used `Enum.at` to access frames:
+
+```elixir
+# BAD - O(n) per access, 238K frames × 1024 batch = 244M traversals/batch!
+action_frame = Enum.at(dataset.frames, idx + frame_delay)
+```
+
+Elixir lists are linked lists. `Enum.at(list, n)` traverses from head to index n, which is O(n). With 238K frames and batch_size 1024, each batch requires ~244 million list node traversals.
+
+**The fix:** Use Erlang `:array` for O(1) random access:
+
+```elixir
+# Convert list to array once (cached in process dictionary)
+frames_array = get_or_create_frames_array(dataset)
+
+# O(1) access
+action_frame = :array.get(idx + frame_delay, frames_array)
+```
+
+**Performance impact:**
+| Approach | Time/batch | Complexity |
+|----------|------------|------------|
+| `Enum.at` (bug) | ~28s | O(batch_size × dataset_size) |
+| **`:array.get` (fixed)** | **<1s** | O(batch_size) |
+
+**Code location:** `lib/exphil/training/data.ex` - `create_batch_precomputed`, `create_batch_augmented`, `create_batch_standard`
+
+**Key insight:** Always use `:array` or maps for random access in hot paths. Elixir lists are great for sequential access and prepending, but terrible for random access.
