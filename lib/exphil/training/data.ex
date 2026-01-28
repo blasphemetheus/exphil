@@ -50,6 +50,9 @@ defmodule ExPhil.Training.Data do
   defstruct [
     # List of frame data
     :frames,
+    # Erlang array of frames for O(1) random access during batching
+    # Created lazily when needed (list traversal is O(n) per access)
+    :frames_array,
     # Dataset metadata
     :metadata,
     # Embedding configuration
@@ -371,11 +374,15 @@ defmodule ExPhil.Training.Data do
   # Fast path: use precomputed embeddings (stacked tensor format)
   # Performance: O(1) slice vs O(batch_size) stack of individual tensors
   defp create_batch_precomputed(dataset, indices, delay_config) do
+    # Ensure we have an array for O(1) frame access
+    # Enum.at on a list is O(n) which is ~28s/batch for 238K frames!
+    frames_array = get_or_create_frames_array(dataset)
+
     # Collect actions for each frame (still need frame delay logic)
     actions =
       Enum.map(indices, fn idx ->
         frame_delay = get_frame_delay(delay_config)
-        action_frame = Enum.at(dataset.frames, idx + frame_delay)
+        action_frame = :array.get(idx + frame_delay, frames_array)
         get_action(action_frame)
       end)
 
@@ -450,11 +457,14 @@ defmodule ExPhil.Training.Data do
       num_noisy_variants: num_noisy_variants
     } = augment_config
 
+    # Ensure we have an array for O(1) frame access
+    frames_array = get_or_create_frames_array(dataset)
+
     # Collect actions for each frame (still need frame delay logic)
     actions =
       Enum.map(indices, fn idx ->
         frame_delay = get_frame_delay(delay_config)
-        action_frame = Enum.at(dataset.frames, idx + frame_delay)
+        action_frame = :array.get(idx + frame_delay, frames_array)
         get_action(action_frame)
       end)
 
@@ -552,14 +562,17 @@ defmodule ExPhil.Training.Data do
 
   # Standard path: embed on the fly (used when augmentation is enabled)
   defp create_batch_standard(dataset, indices, delay_config, augment_fn) do
+    # Ensure we have an array for O(1) frame access
+    frames_array = get_or_create_frames_array(dataset)
+
     # Collect frames with name_ids for style-conditional training
     frame_data =
       Enum.map(indices, fn idx ->
         # Determine frame delay for this sample
         frame_delay = get_frame_delay(delay_config)
 
-        state_frame = Enum.at(dataset.frames, idx)
-        action_frame = Enum.at(dataset.frames, idx + frame_delay)
+        state_frame = :array.get(idx, frames_array)
+        action_frame = :array.get(idx + frame_delay, frames_array)
 
         # Apply augmentation if provided
         {state_frame, action_frame} =
@@ -601,6 +614,22 @@ defmodule ExPhil.Training.Data do
       Map.has_key?(frame, :action) -> frame.action
       Map.has_key?(frame, :controller) -> controller_to_action(frame.controller)
       true -> neutral_action()
+    end
+  end
+
+  # Get or create an Erlang array from the frames list for O(1) random access
+  # This is cached in the process dictionary to avoid rebuilding every batch
+  # List traversal via Enum.at is O(n) per access = ~28s/batch for 238K frames!
+  defp get_or_create_frames_array(dataset) do
+    case Process.get(:frames_array_cache) do
+      nil ->
+        # Convert list to array (one-time O(n) cost)
+        array = :array.from_list(dataset.frames)
+        Process.put(:frames_array_cache, array)
+        array
+
+      cached ->
+        cached
     end
   end
 
