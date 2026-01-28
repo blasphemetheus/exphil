@@ -165,7 +165,6 @@ alias ExPhil.Training.{
   DuplicateDetector,
   EarlyStopping,
   EMA,
-  EmbeddingCache,
   GPUUtils,
   Imitation,
   Plots,
