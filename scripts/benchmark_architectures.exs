@@ -20,8 +20,9 @@
 #   --gpu-on-demand               Allocate GPU memory on-demand (default)
 #                                 Slower (~5-10%) but prevents fragmentation
 #
-# Available architectures: mlp, gated_ssm, mamba, jamba, lstm, gru, attention
+# Available architectures: mlp, gated_ssm, mamba, jamba, lstm, gru, lstm_hybrid, sliding_window
 # Note: mamba_nif excluded (inference-only, can't train - gradients don't flow through NIF)
+# Note: "attention" is an alias for "sliding_window" (same implementation)
 #
 # Examples:
 #   # Quick test with just MLP and Mamba
@@ -250,10 +251,19 @@ all_architectures = [
    [temporal: true, backbone: :lstm, window_size: 30, num_layers: 1, hidden_sizes: [256, 256]]},
   {:gru, "GRU",
    [temporal: true, backbone: :gru, window_size: 30, num_layers: 1, hidden_sizes: [256, 256]]},
-  {:attention, "Attention",
+  {:lstm_hybrid, "LSTM+Attention",
    [
      temporal: true,
-     backbone: :attention,
+     backbone: :lstm_hybrid,
+     window_size: 30,
+     num_layers: 1,
+     num_heads: 4,
+     hidden_sizes: [256, 256]
+   ]},
+  {:sliding_window, "Sliding Window",
+   [
+     temporal: true,
+     backbone: :sliding_window,
      window_size: 30,
      num_layers: 1,
      num_heads: 4,
