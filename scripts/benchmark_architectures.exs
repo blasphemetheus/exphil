@@ -923,12 +923,12 @@ theoretical_data =
     ]
   end)
 
-# Use linear scale since log(1) = 0 renders as empty bar
-# Normalize so MLP = 1 is visible as a baseline reference
+# Use log scale for theoretical complexity comparison
+# Faceted bar chart - one column per phase (Training/Inference)
 theoretical_plot =
   VegaLite.new(
-    width: 700,
-    height: 350,
+    width: 300,
+    height: 300,
     title: "Theoretical Complexity (relative to MLP baseline, L=30)"
   )
   |> VegaLite.data_from_values(theoretical_data)
@@ -941,14 +941,10 @@ theoretical_plot =
   |> VegaLite.encode_field(:y, "ops",
     type: :quantitative,
     title: "Relative Operations (log scale)",
-    scale: [type: :log, domain: [0.5, 3000]]
+    scale: [type: :log]
   )
-  |> VegaLite.encode_field(:color, "type",
-    type: :nominal,
-    title: "Phase",
-    scale: [range: ["#4e79a7", "#f28e2b"]]
-  )
-  |> VegaLite.encode_field(:x_offset, "type", type: :nominal)
+  |> VegaLite.encode_field(:color, "architecture", type: :nominal, legend: nil)
+  |> VegaLite.encode_field(:column, "type", type: :nominal, title: "Phase")
 
 # Build training loss bar chart (final val loss comparison)
 loss_bar_data =
