@@ -259,14 +259,17 @@ all_architectures = [
      temporal: true,
      backbone: :jamba,
      window_size: 30,
-     num_layers: 3,
-     attention_every: 3,
+     num_layers: 2,
+     attention_every: 2,
      hidden_sizes: [256, 256],
      # Reduced from 32 - Jamba OOMs on validation after epoch with batch_size: 32
      batch_size: 16,
-     # Jamba needs lower LR and gradient clipping to avoid NaN (attention + Mamba can explode)
-     learning_rate: 3.0e-5,
-     max_grad_norm: 1.0
+     # Jamba needs very conservative settings to avoid NaN (attention + Mamba can explode)
+     # - Very low LR (1e-5)
+     # - Strict gradient clipping (0.5)
+     # - Reduced layers (2 instead of 3)
+     learning_rate: 1.0e-5,
+     max_grad_norm: 0.5
    ]},
   {:lstm, "LSTM",
    [temporal: true, backbone: :lstm, window_size: 30, num_layers: 1, hidden_sizes: [256, 256]]},
