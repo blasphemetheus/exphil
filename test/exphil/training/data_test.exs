@@ -832,4 +832,59 @@ defmodule ExPhil.Training.DataTest do
       assert Nx.shape(batch.actions.shoulder) == {8}
     end
   end
+
+  describe "batching performance" do
+    @tag :benchmark
+    test "batch creation uses O(1) array access, not O(n) list traversal" do
+      # Create a large dataset to test performance
+      # With O(n) list traversal (Enum.at), this would take ~28s for 100K frames
+      # With O(1) array access (:array.get), this should take <1s
+      num_frames = 50_000
+      batch_size = 512
+
+      frames = for i <- 0..(num_frames - 1), do: mock_frame(frame: i)
+      dataset = Data.from_frames(frames)
+
+      # Precompute embeddings (required for fast batch path)
+      dataset = Data.precompute_frame_embeddings(dataset)
+
+      # Time multiple batch creations
+      batches = Data.batched(dataset, batch_size: batch_size, shuffle: true)
+
+      {time_us, batches_taken} =
+        :timer.tc(fn ->
+          batches |> Enum.take(10) |> length()
+        end)
+
+      time_ms = time_us / 1000
+
+      # With O(1) array access, 10 batches of 512 from 50K frames should take <500ms
+      # With O(n) list access, it would take ~14 seconds (28s * 50K/100K * 10/233)
+      assert batches_taken == 10
+      assert time_ms < 2000, "Batch creation too slow: #{time_ms}ms for 10 batches. " <>
+        "Expected <2000ms with O(1) array access. " <>
+        "If >10000ms, likely using O(n) Enum.at instead of :array.get"
+
+      # Log actual time for debugging
+      IO.puts("\n  [Benchmark] 10 batches of #{batch_size} from #{num_frames} frames: #{Float.round(time_ms, 1)}ms")
+    end
+
+    @tag :benchmark
+    test "frames_array is cached in process dictionary" do
+      frames = for i <- 0..999, do: mock_frame(frame: i)
+      dataset = Data.from_frames(frames)
+      dataset = Data.precompute_frame_embeddings(dataset)
+
+      # Clear any cached array
+      Process.delete(:frames_array_cache)
+
+      # First batch creation should cache the array
+      _ = Data.batched(dataset, batch_size: 64, shuffle: false) |> Enum.take(1)
+
+      # Array should now be cached
+      cached = Process.get(:frames_array_cache)
+      assert cached != nil, "frames_array should be cached in process dictionary"
+      assert :array.size(cached) == 1000
+    end
+  end
 end
