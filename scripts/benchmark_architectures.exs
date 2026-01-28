@@ -895,11 +895,20 @@ theoretical_data =
         :mamba_nif ->
           {round(:math.log2(window_size)), round(:math.log2(window_size)) / 2}
 
-        # O(L²)
+        # O(L²) - pure attention
         :attention ->
           {window_size * window_size * 3, window_size * window_size}
 
-        # O(L) + O(L²/3)
+        # O(L²) - sliding window attention (same as pure attention)
+        :sliding_window ->
+          {window_size * window_size * 3, window_size * window_size}
+
+        # O(L) + O(L²) - LSTM sequential + attention quadratic
+        :lstm_hybrid ->
+          {window_size * 3 + window_size * window_size * 3,
+           window_size + window_size * window_size}
+
+        # O(L) + O(L²/3) - Mamba + sparse attention
         :jamba ->
           {window_size + div(window_size * window_size, 3),
            window_size + div(window_size * window_size, 3)}
