@@ -675,6 +675,8 @@ results =
           :mamba_nif -> "O(L) CUDA kernel (5x faster)"
           :jamba -> "O(L) + O(L²) hybrid"
           :attention -> "O(L²)"
+          :sliding_window -> "O(L²) parallel"
+          :lstm_hybrid -> "O(L) + O(L²)"
           _ -> "unknown"
         end
 
