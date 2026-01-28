@@ -20,7 +20,8 @@
 #   --gpu-on-demand               Allocate GPU memory on-demand (default)
 #                                 Slower (~5-10%) but prevents fragmentation
 #
-# Available architectures: mlp, mamba, mamba_nif, jamba, lstm, gru, attention
+# Available architectures: mlp, gated_ssm, mamba, jamba, lstm, gru, attention
+# Note: mamba_nif excluded (inference-only, can't train - gradients don't flow through NIF)
 #
 # Examples:
 #   # Quick test with just MLP and Mamba
@@ -231,15 +232,9 @@ all_architectures = [
      hidden_sizes: [256, 256],
      batch_size: 64
    ]},
-  {:mamba_nif, "Mamba NIF (CUDA)",
-   [
-     temporal: true,
-     backbone: :mamba_nif,
-     window_size: 30,
-     num_layers: 2,
-     hidden_sizes: [256, 256],
-     batch_size: 64
-   ]},
+  # NOTE: mamba_nif excluded from training benchmark - gradients don't flow through NIF
+  # Use for inference-only comparison: train with :mamba, infer with :mamba_nif
+  # {:mamba_nif, "Mamba NIF (CUDA)", [temporal: true, backbone: :mamba_nif, ...]},
   {:jamba, "Jamba (Mamba+Attn)",
    [
      temporal: true,
