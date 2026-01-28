@@ -154,8 +154,11 @@ ENV PATH="${ASDF_DIR}/bin:${ASDF_DIR}/shims:${PATH}"
 # Set asdf versions for runtime
 RUN asdf global erlang 27.0 && asdf global elixir 1.18.1-otp-27
 
-# Note: Rust not needed in runtime - Rustler configured with skip_compilation?: true for prod
-# The selective_scan CUDA NIF is pre-built and copied to priv/native/
+# Copy Rust from builder (for NIF development/recompilation)
+# The selective_scan CUDA NIF is pre-built, but having Rust allows rebuilding after code changes
+COPY --from=builder /root/.cargo /root/.cargo
+COPY --from=builder /root/.rustup /root/.rustup
+ENV PATH="/root/.cargo/bin:${PATH}"
 
 # Copy Python packages from builder
 COPY --from=builder /usr/local/lib/python3.11/dist-packages /usr/local/lib/python3.11/dist-packages
