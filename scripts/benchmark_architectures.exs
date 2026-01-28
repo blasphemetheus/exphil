@@ -61,6 +61,12 @@
 #     1. Use --skip mamba,jamba to skip memory-heavy architectures
 #     2. Reduce --max-files to use less data
 #   Note: TF_GPU_ALLOCATOR=cuda_malloc_async is set automatically by this script
+#
+# Quiet Mode:
+#   --quiet suppresses XLA/CUDA warnings but keeps errors visible.
+#   To capture warnings to a file while keeping terminal clean:
+#     mix run scripts/benchmark_architectures.exs --quiet ... 2>warnings.log
+#   This lets you review warnings later if something goes wrong.
 
 # Limit inspect output to prevent overwhelming logs with tensor dumps
 Application.put_env(:elixir, :inspect, limit: 10, printable_limit: 100)
