@@ -19,6 +19,7 @@
 #                                 Faster but can cause fragmentation OOM
 #   --gpu-on-demand               Allocate GPU memory on-demand (default)
 #                                 Slower (~5-10%) but prevents fragmentation
+#   --quiet, -q                   Suppress XLA/CUDA warnings and Logger noise
 #
 # Available architectures: mlp, gated_ssm, mamba, jamba, lstm, gru, lstm_hybrid, sliding_window
 # Note: mamba_nif excluded (inference-only, can't train - gradients don't flow through NIF)
@@ -67,6 +68,17 @@ Application.put_env(:elixir, :inspect, limit: 10, printable_limit: 100)
 # Use async CUDA allocator to reduce memory fragmentation between architectures
 # This helps prevent OOM when switching from MLP to Mamba/Jamba
 System.put_env("TF_GPU_ALLOCATOR", "cuda_malloc_async")
+
+# Quiet mode: suppress Logger warnings and XLA/CUDA noise
+# Parse early before any modules are loaded
+if "--quiet" in System.argv() or "-q" in System.argv() do
+  # Suppress Elixir Logger warnings (XLA config warnings, etc.)
+  Logger.configure(level: :error)
+  # Suppress XLA/JAX warnings
+  System.put_env("TF_CPP_MIN_LOG_LEVEL", "2")
+  # Suppress ptxas warnings
+  System.put_env("PTXAS_OPTIONS", "--warning-level 0")
+end
 
 # Parse GPU memory flags early (before EXLA initializes)
 # --gpu-prealloc [0.7] = pre-allocate 70% (faster, but fragmentation risk)
