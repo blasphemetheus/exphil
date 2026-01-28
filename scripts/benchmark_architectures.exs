@@ -320,15 +320,21 @@ if length(replay_files) == 0 do
   System.halt(1)
 end
 
-# Step 2: Parse all replays
-Output.step(2, 3, "Parsing replays")
-total_files = length(replay_files)
+# Split by REPLAY FILES (not frames) to prevent data leakage for temporal models
+# If we split frames, sequences near the boundary share frames between train/val
+# Splitting by replay ensures train and val come from completely different games
+{train_files, val_files} = Enum.split(replay_files, trunc(length(replay_files) * 0.9))
+Output.puts("Split: #{length(train_files)} train replays, #{length(val_files)} val replays")
 
-all_frames =
-  replay_files
+# Step 2: Parse replays (separately for train and val)
+Output.step(2, 3, "Parsing replays")
+
+Output.puts("Parsing train replays...")
+train_frames =
+  train_files
   |> Enum.with_index(1)
   |> Enum.flat_map(fn {path, idx} ->
-    Output.progress_bar(idx, total_files, label: "Parsing")
+    Output.progress_bar(idx, length(train_files), label: "Train")
 
     case Peppi.parse(path) do
       {:ok, replay} -> Peppi.to_training_frames(replay)
@@ -338,10 +344,23 @@ all_frames =
 
 Output.progress_done()
 
-Output.puts("Total frames: #{length(all_frames)}")
+Output.puts("Parsing val replays...")
+val_frames =
+  val_files
+  |> Enum.with_index(1)
+  |> Enum.flat_map(fn {path, idx} ->
+    Output.progress_bar(idx, length(val_files), label: "Val")
 
-# Split train/val
-{train_frames, val_frames} = Enum.split(all_frames, trunc(length(all_frames) * 0.9))
+    case Peppi.parse(path) do
+      {:ok, replay} -> Peppi.to_training_frames(replay)
+      {:error, _} -> []
+    end
+  end)
+
+Output.progress_done()
+
+Output.puts("Total frames: #{length(train_frames) + length(val_frames)}")
+
 train_dataset = Data.from_frames(train_frames)
 val_dataset = Data.from_frames(val_frames)
 
@@ -361,25 +380,31 @@ has_non_temporal = Enum.any?(architectures, fn {_id, _name, opts} -> !opts[:temp
   if has_non_temporal or has_temporal do
     Output.puts("Precomputing frame embeddings (reused for ALL architectures)...")
 
-    cache_opts = [
+    # Use separate cache keys for train and val (different replay files)
+    train_cache_opts = [
       cache: cache_enabled,
       cache_dir: cache_dir,
       force_recompute: force_recompute,
-      replay_files: replay_files,
+      replay_files: train_files,
       show_progress: true
+    ]
+
+    val_cache_opts = [
+      cache: cache_enabled,
+      cache_dir: cache_dir,
+      force_recompute: force_recompute,
+      replay_files: val_files,
+      show_progress: false
     ]
 
     train_emb =
       Output.timed "Embedding train frames" do
-        Data.precompute_frame_embeddings_cached(train_dataset, cache_opts)
+        Data.precompute_frame_embeddings_cached(train_dataset, train_cache_opts)
       end
 
     val_emb =
       Output.timed "Embedding val frames" do
-        Data.precompute_frame_embeddings_cached(
-          val_dataset,
-          Keyword.put(cache_opts, :show_progress, false)
-        )
+        Data.precompute_frame_embeddings_cached(val_dataset, val_cache_opts)
       end
 
     {train_emb, val_emb}
