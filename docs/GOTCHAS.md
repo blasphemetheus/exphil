@@ -46,6 +46,7 @@ Hard-won knowledge from debugging ExPhil. Each section documents a specific issu
 40. [--augment flag bypasses precomputed embeddings (100x slower)](#40---augment-flag-bypasses-precomputed-embeddings-100x-slower)
 41. [--cache-embeddings flag parsed but not used](#41---cache-embeddings-flag-parsed-but-not-used-train_from_replaysexs)
 42. [Nx.to_number returns atoms for special float values](#42-nxto_number-returns-atoms-for-special-float-values-nan-infinity)
+43. [Precomputed embeddings on CPU cause slow Nx.take (~17s/batch)](#43-precomputed-embeddings-on-cpu-cause-slow-nxtake-17sbatch)
 
 ---
 
@@ -1773,3 +1774,73 @@ smoothed =
 **Code locations:**
 - `scripts/train_from_replays.exs:226-231` - `is_special_atom?` helper
 - `scripts/train_from_replays.exs:1847-1852` - Fixed EMA calculation with cond guard
+
+---
+
+## 43. Precomputed embeddings on CPU cause slow Nx.take (~17s/batch)
+
+**Status:** FIXED
+
+**Symptom:** Training with `--cache-embeddings` is extremely slow (~17s/batch instead of ~0.2s/batch) despite JIT compilation working correctly. GPU shows 90% memory usage but 0% utilization.
+
+**Example output:**
+```
+[22:42:49] GPU: 21.57 GB/23.99 GB (90%) | Util: 0%
+Epoch 1: █░░░░░░░░░░░░░░░░░░░   5% | 133/2556 | loss: 14.5466 | 17.24s/it | ETA: 696m 9s
+```
+
+**Root cause:** Precomputed embeddings loaded from cache are stored on CPU (BinaryBackend). Every batch does:
+
+```elixir
+# In create_batch (data.ex:392-393):
+indices_tensor = Nx.tensor(indices, type: :s64)
+Nx.take(tensor, indices_tensor, axis: 0)  # SLOW! tensor is on CPU
+|> Nx.backend_transfer(EXLA.Backend)
+```
+
+`Nx.take` runs on whatever backend the source tensor is on. With 1.45M frames × 287 dims on CPU, extracting 512 scattered rows is slow (random memory access pattern).
+
+**The fix:** Transfer embeddings to GPU once after loading, before training starts:
+
+```elixir
+# In train_from_replays.exs, after precomputation:
+base_dataset =
+  if base_dataset.embedded_frames != nil do
+    Output.puts("  Transferring embeddings to GPU...")
+    gpu_embeddings = Nx.backend_transfer(base_dataset.embedded_frames, EXLA.Backend)
+    %{base_dataset | embedded_frames: gpu_embeddings}
+  else
+    base_dataset
+  end
+```
+
+Now `Nx.take` runs on GPU - O(1) gather operation instead of scattered CPU reads.
+
+**Performance impact:**
+| Approach | Time/batch | Notes |
+|----------|------------|-------|
+| CPU embeddings (bug) | ~17s | Random CPU memory access |
+| **GPU embeddings (fixed)** | **~0.2s** | Fast GPU gather |
+
+**Memory requirements:**
+- 1.45M frames × 287 dims × 4 bytes (f32) = ~1.67 GB
+- RTX 4090 with 24GB VRAM easily accommodates this
+- For larger datasets, may need to use streaming mode instead
+
+**Code location:** `scripts/train_from_replays.exs:1231-1254` - GPU transfer after precomputation
+
+**Fallback safeguard:** If for some reason the GPU transfer in the training script fails (e.g., stale code), `create_batch_precomputed` in `data.ex` has a fallback that:
+1. Detects CPU embeddings on first batch
+2. Logs a warning
+3. Transfers to GPU once (cached in process dictionary)
+4. Subsequent batches use the cached GPU tensor
+
+This ensures fast training even if the primary GPU transfer fails. Look for "Embeddings on CPU - Nx.take will be slow!" in logs to detect this condition.
+
+**Debugging:** The training script now shows diagnostic output before GPU transfer:
+```
+GPU transfer check: has_embeddings=true, streaming_mode=false
+Embedding tensor: shape={1234567, 287}, backend=Nx.BinaryBackend
+Transferring embeddings to GPU (1416.2 MB)...
+```
+If you see `BinaryBackend` in the logs followed by "Transferring embeddings to GPU", the fix is working. If you don't see the transfer message, check the diagnostic output to understand why.

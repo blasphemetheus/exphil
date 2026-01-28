@@ -1228,6 +1228,31 @@ player_registry =
         end
       end
 
+    # Transfer precomputed embeddings to GPU for fast Nx.take during batching
+    # This is critical for training speed - without it, Nx.take runs on CPU (~17s/batch)
+    # With GPU embeddings, Nx.take runs on GPU (~0.2s/batch)
+    #
+    # Debug: Show state before GPU transfer check
+    has_embeddings = base_dataset.embedded_frames != nil
+    Output.puts("  GPU transfer check: has_embeddings=#{has_embeddings}, streaming_mode=#{streaming_mode}")
+
+    if has_embeddings do
+      backend = base_dataset.embedded_frames.data.__struct__
+      shape = Nx.shape(base_dataset.embedded_frames)
+      Output.puts("  Embedding tensor: shape=#{inspect(shape)}, backend=#{inspect(backend)}")
+    end
+
+    base_dataset =
+      if has_embeddings and not streaming_mode do
+        embedding_size_mb = Nx.byte_size(base_dataset.embedded_frames) / 1_000_000
+        Output.puts("  Transferring embeddings to GPU (#{Float.round(embedding_size_mb, 1)} MB)...")
+
+        gpu_embeddings = Nx.backend_transfer(base_dataset.embedded_frames, EXLA.Backend)
+        %{base_dataset | embedded_frames: gpu_embeddings}
+      else
+        base_dataset
+      end
+
     # Split into train/val based on val_split option
     # val_split = 0.0 means no validation set, val_split = 0.1 means 10% validation
     {train_ds, val_ds} =

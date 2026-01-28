@@ -388,6 +388,35 @@ defmodule ExPhil.Training.Data do
         tensor when is_struct(tensor, Nx.Tensor) ->
           # NEW: Fast path - gather by indices from stacked tensor
           # This is O(1) on GPU vs O(batch_size) for stacking individual tensors
+          #
+          # IMPORTANT: For fast Nx.take, embeddings SHOULD already be on GPU
+          # If they're on CPU (BinaryBackend), Nx.take will be slow (~17s/batch)
+          # The training script should transfer embeddings to GPU before training starts
+          #
+          # Fallback: Cache GPU-transferred tensor in process dictionary to avoid
+          # re-transferring on every batch (which would be slow)
+          tensor =
+            if tensor.data.__struct__ == Nx.BinaryBackend do
+              # Embeddings on CPU - check for cached GPU tensor first
+              case Process.get(:gpu_embedded_frames) do
+                nil ->
+                  Logger.warning(
+                    "[Data] Embeddings on CPU - Nx.take will be slow! " <>
+                      "This is a bug - embeddings should be on GPU. " <>
+                      "Transferring to GPU now (one-time cost)..."
+                  )
+
+                  gpu_tensor = Nx.backend_transfer(tensor, EXLA.Backend)
+                  Process.put(:gpu_embedded_frames, gpu_tensor)
+                  gpu_tensor
+
+                cached ->
+                  cached
+              end
+            else
+              tensor
+            end
+
           indices_tensor = Nx.tensor(indices, type: :s64)
           Nx.take(tensor, indices_tensor, axis: 0)
           |> Nx.backend_transfer(EXLA.Backend)
@@ -442,7 +471,28 @@ defmodule ExPhil.Training.Data do
 
     # Get embeddings using efficient 2D tensor indexing
     # embedded_frames is {num_frames, num_variants, embed_size}
-    tensor = dataset.embedded_frames
+    #
+    # IMPORTANT: For fast Nx.take, embeddings SHOULD already be on GPU
+    # Fallback: Cache GPU-transferred tensor in process dictionary
+    tensor =
+      if dataset.embedded_frames.data.__struct__ == Nx.BinaryBackend do
+        case Process.get(:gpu_augmented_frames) do
+          nil ->
+            Logger.warning(
+              "[Data] Augmented embeddings on CPU - Nx.take will be slow! " <>
+                "Transferring to GPU now (one-time cost)..."
+            )
+
+            gpu_tensor = Nx.backend_transfer(dataset.embedded_frames, EXLA.Backend)
+            Process.put(:gpu_augmented_frames, gpu_tensor)
+            gpu_tensor
+
+          cached ->
+            cached
+        end
+      else
+        dataset.embedded_frames
+      end
 
     # Create indices for gather
     frame_indices = Nx.tensor(indices, type: :s64)
