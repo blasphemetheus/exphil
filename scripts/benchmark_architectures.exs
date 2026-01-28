@@ -245,7 +245,10 @@ all_architectures = [
      attention_every: 3,
      hidden_sizes: [256, 256],
      # Reduced from 32 - Jamba OOMs on validation after epoch with batch_size: 32
-     batch_size: 16
+     batch_size: 16,
+     # Jamba needs lower LR and gradient clipping to avoid NaN (attention + Mamba can explode)
+     learning_rate: 3.0e-5,
+     max_grad_norm: 1.0
    ]},
   {:lstm, "LSTM",
    [temporal: true, backbone: :lstm, window_size: 30, num_layers: 1, hidden_sizes: [256, 256]]},
@@ -258,7 +261,9 @@ all_architectures = [
      window_size: 30,
      num_layers: 1,
      num_heads: 4,
-     hidden_sizes: [256, 256]
+     hidden_sizes: [256, 256],
+     # Attention models benefit from gradient clipping
+     max_grad_norm: 1.0
    ]},
   {:sliding_window, "Sliding Window",
    [
@@ -267,7 +272,9 @@ all_architectures = [
      window_size: 30,
      num_layers: 1,
      num_heads: 4,
-     hidden_sizes: [256, 256]
+     hidden_sizes: [256, 256],
+     # Attention models benefit from gradient clipping
+     max_grad_norm: 1.0
    ]}
 ]
 
@@ -481,7 +488,10 @@ results =
           window_size: opts[:window_size],
           num_layers: opts[:num_layers],
           num_heads: opts[:num_heads],
-          attention_every: opts[:attention_every]
+          attention_every: opts[:attention_every],
+          # Training hyperparameters (per-architecture overrides)
+          learning_rate: opts[:learning_rate],
+          max_grad_norm: opts[:max_grad_norm]
         ]
         |> Enum.reject(fn {_k, v} -> is_nil(v) end)
 
