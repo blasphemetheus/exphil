@@ -269,7 +269,11 @@ defmodule ExPhil.Training.Imitation do
     # Pre-build cached functions for performance
     # These are reused every training step instead of being rebuilt
     {_init_fn, predict_fn} = Axon.build(policy_model, mode: :inference)
-    apply_updates_fn = Nx.Defn.jit(&Polaris.Updates.apply_updates/2)
+
+    # JIT compile optimizer and update functions with EXLA for GPU execution
+    # Without compiler: EXLA, these default to CPU which causes 0% GPU utilization
+    optimizer_fn = Nx.Defn.jit(optimizer_update, compiler: EXLA)
+    apply_updates_fn = Nx.Defn.jit(&Polaris.Updates.apply_updates/2, compiler: EXLA)
 
     # Build compiled loss+grad function (avoids deep_backend_copy every batch)
     # This function is JITted once and reused for all training steps
@@ -278,7 +282,7 @@ defmodule ExPhil.Training.Imitation do
     %__MODULE__{
       policy_model: policy_model,
       policy_params: policy_params,
-      optimizer: optimizer_update,
+      optimizer: optimizer_fn,
       optimizer_state: optimizer_state,
       embed_config: embed_config,
       config: config,
