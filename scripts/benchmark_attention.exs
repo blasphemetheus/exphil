@@ -32,6 +32,10 @@ args = System.argv()
 # Quiet mode - suppress warnings
 if "--quiet" in args do
   Logger.configure(level: :error)
+  # Suppress XLA/TensorFlow C++ warnings
+  System.put_env("TF_CPP_MIN_LOG_LEVEL", "3")
+  # Suppress XLA command buffer warnings
+  System.put_env("XLA_FLAGS", "--xla_gpu_enable_command_buffer=")
 end
 
 Output.banner("Attention Implementation Benchmark")
