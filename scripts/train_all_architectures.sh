@@ -157,7 +157,7 @@ RNN_GRAD_CLIP="0.5"  # Aggressive gradient clipping for RNNs
 # 1. MLP (no temporal)
 echo ""
 echo "=== 1/6: MLP (Single-Frame Baseline) ==="
-if run_training "mlp" "--learning-rate $LR_MLP"; then
+if run_training "mlp" "--lr $LR_MLP"; then
     RESULTS["mlp"]="success"
 else
     RESULTS["mlp"]="failed"
@@ -166,7 +166,7 @@ fi
 # 2. LSTM
 echo ""
 echo "=== 2/6: LSTM ==="
-if run_training "lstm" "--temporal --backbone lstm --window-size $WINDOW_SIZE --learning-rate $LR_LSTM --max-grad-norm $RNN_GRAD_CLIP"; then
+if run_training "lstm" "--temporal --backbone lstm --window-size $WINDOW_SIZE --lr $LR_LSTM --max-grad-norm $RNN_GRAD_CLIP"; then
     RESULTS["lstm"]="success"
 else
     RESULTS["lstm"]="failed"
@@ -175,7 +175,7 @@ fi
 # 3. GRU
 echo ""
 echo "=== 3/6: GRU ==="
-if run_training "gru" "--temporal --backbone gru --window-size $WINDOW_SIZE --learning-rate $LR_GRU --max-grad-norm $RNN_GRAD_CLIP"; then
+if run_training "gru" "--temporal --backbone gru --window-size $WINDOW_SIZE --lr $LR_GRU --max-grad-norm $RNN_GRAD_CLIP"; then
     RESULTS["gru"]="success"
 else
     RESULTS["gru"]="failed"
@@ -184,7 +184,7 @@ fi
 # 4. Mamba (recommended for real-time play)
 echo ""
 echo "=== 4/6: Mamba (Recommended) ==="
-if run_training "mamba" "--temporal --backbone mamba --window-size $WINDOW_SIZE --num-layers $NUM_LAYERS --learning-rate $LR_MAMBA"; then
+if run_training "mamba" "--temporal --backbone mamba --window-size $WINDOW_SIZE --num-layers $NUM_LAYERS --lr $LR_MAMBA"; then
     RESULTS["mamba"]="success"
 else
     RESULTS["mamba"]="failed"
@@ -193,7 +193,7 @@ fi
 # 5. Sliding Window Attention
 echo ""
 echo "=== 5/6: Sliding Window Attention ==="
-if run_training "attention" "--temporal --backbone sliding_window --window-size $WINDOW_SIZE --num-heads 4 --learning-rate $LR_ATTENTION"; then
+if run_training "attention" "--temporal --backbone sliding_window --window-size $WINDOW_SIZE --num-heads 4 --lr $LR_ATTENTION"; then
     RESULTS["attention"]="success"
 else
     RESULTS["attention"]="failed"
@@ -202,7 +202,7 @@ fi
 # 6. Jamba (Mamba + Attention Hybrid)
 echo ""
 echo "=== 6/6: Jamba (Hybrid) ==="
-if run_training "jamba" "--temporal --backbone jamba --window-size $WINDOW_SIZE --num-layers 6 --learning-rate $LR_JAMBA"; then
+if run_training "jamba" "--temporal --backbone jamba --window-size $WINDOW_SIZE --num-layers 6 --lr $LR_JAMBA"; then
     RESULTS["jamba"]="success"
 else
     RESULTS["jamba"]="failed"
