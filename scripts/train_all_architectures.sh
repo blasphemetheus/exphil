@@ -13,6 +13,7 @@
 # Results saved to checkpoints/ with architecture prefix
 
 set -e
+set -o pipefail  # Ensure pipeline returns exit code of failed command, not tee
 
 # Default values
 CHARACTER="mewtwo"
