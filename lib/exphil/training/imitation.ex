@@ -1339,7 +1339,7 @@ defmodule ExPhil.Training.Imitation do
               new_count = Agent.get_and_update(counter, fn c -> {c + 1, c + 1} end)
 
               # Record first batch timing
-              if debug_jit and first_batch_agent and new_count <= max_concurrency do
+              if debug_jit && first_batch_agent != nil && new_count <= max_concurrency do
                 Agent.update(first_batch_agent, fn times ->
                   times = times || []
                   [{new_count, batch_us / 1000} | times]
