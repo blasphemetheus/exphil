@@ -5,6 +5,10 @@
 #   ./scripts/train_all_architectures.sh --character mewtwo --replays /workspace/replays/mewtwo
 #   ./scripts/train_all_architectures.sh --character ganondorf --replays /workspace/replays/ganondorf --epochs 30
 #
+# Options:
+#   --dry-run     Show commands without running
+#   --quick       Smoke test: 1 epoch, small model, verifies pipeline works
+#
 # Runs: MLP, LSTM, GRU, Mamba, Attention, Jamba
 # Results saved to checkpoints/ with architecture prefix
 
@@ -57,12 +61,28 @@ while [[ $# -gt 0 ]]; do
             DRY_RUN=1
             shift
             ;;
+        --quick)
+            QUICK=1
+            shift
+            ;;
         *)
             echo "Unknown option: $1"
             exit 1
             ;;
     esac
 done
+
+# Quick mode: minimal settings for smoke testing
+if [[ -n "$QUICK" ]]; then
+    EPOCHS=1
+    BATCH_SIZE=32
+    HIDDEN_SIZES="64,64"
+    WINDOW_SIZE=30
+    NUM_LAYERS=2
+    PATIENCE=1
+    WARMUP_STEPS=10
+    echo "⚡ Quick mode: 1 epoch, small model (smoke test)"
+fi
 
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 LOG_DIR="logs/architecture_comparison_${TIMESTAMP}"
