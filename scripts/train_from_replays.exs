@@ -952,7 +952,7 @@ streaming_mode = opts[:stream_chunk_size] != nil
 # Prefetching: load next batch while GPU trains on current
 # Now enabled for both streaming and non-streaming modes
 # Disable with --no-prefetch if it causes issues
-prefetch_enabled = not opts[:no_prefetch]
+prefetch_enabled = opts[:no_prefetch] != true
 
 if prefetch_enabled do
   mode_str = if streaming_mode, do: "streaming", else: "standard"
