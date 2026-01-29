@@ -380,8 +380,18 @@ defmodule ExPhil.Training.Imitation do
     # Default to 4 which matches evaluate/3 default
     max_concurrency = Keyword.get(opts, :max_concurrency, 4)
 
-    # Take enough batches to exercise the parallel path (at least max_concurrency batches)
-    warmup_batches = Enum.take(validation_batches, max(2, max_concurrency))
+    # full: true processes ALL validation batches, which warms up not just JIT but also
+    # whatever GPU state/memory effects occur after training JIT compilation.
+    # This moves the ~3.5s overhead from first validation to warmup phase.
+    full = Keyword.get(opts, :full, false)
+
+    warmup_batches =
+      if full do
+        validation_batches
+      else
+        # Take enough batches to exercise the parallel path (at least max_concurrency batches)
+        Enum.take(validation_batches, max(2, max_concurrency))
+      end
 
     {time_ms, _result} = :timer.tc(fn ->
       evaluate(trainer, warmup_batches, show_progress: false, max_concurrency: max_concurrency)
@@ -1267,19 +1277,7 @@ defmodule ExPhil.Training.Imitation do
     # Default to 4 concurrent batches - good balance for GPU utilization
     # Set to 1 to disable parallelism (sequential mode)
     max_concurrency = Keyword.get(opts, :max_concurrency, 4)
-
-    # Sync GPU before validation to flush pending training operations
-    # This prevents the first validation batch from waiting on training ops
     debug_jit = System.get_env("EXPHIL_DEBUG_JIT") == "1"
-
-    {sync_us, _} = :timer.tc(fn ->
-      # Create and immediately evaluate a small tensor to force GPU sync
-      Nx.tensor(0.0, backend: EXLA.Backend) |> Nx.backend_transfer()
-    end)
-
-    if debug_jit do
-      IO.write(:stderr, "    [DEBUG] GPU sync before validation: #{Float.round(sync_us / 1000, 1)}ms\n")
-    end
 
     # Use cached eval_loss_fn if available (JIT-compiled once in new/1)
     # Falls back to building fresh for backwards compatibility
@@ -1333,38 +1331,24 @@ defmodule ExPhil.Training.Imitation do
         # Process batches concurrently for better GPU utilization
         # Counter for progress tracking (use Agent for thread-safe updates)
         {:ok, counter} = Agent.start_link(fn -> 0 end)
-        # Track first batch timing for JIT debugging
-        {:ok, first_batch_agent} = if debug_jit, do: Agent.start_link(fn -> nil end), else: {:ok, nil}
 
         {stream_us, losses} = :timer.tc(fn ->
           dataset_list
           |> Task.async_stream(
             fn batch ->
               %{states: states, actions: actions} = batch
-
-              # Time first batch in each worker for JIT debugging
-              {batch_us, loss} = :timer.tc(fn -> loss_fn.(states, actions) end)
+              loss = loss_fn.(states, actions)
 
               # Update progress counter
               new_count = Agent.get_and_update(counter, fn c -> {c + 1, c + 1} end)
-
-              # Record first batch timing (including Nx.to_number which forces GPU sync)
-              {to_num_us, loss_num} = :timer.tc(fn -> Nx.to_number(loss) end)
-
-              if debug_jit && first_batch_agent != nil && new_count <= max_concurrency do
-                Agent.update(first_batch_agent, fn times ->
-                  times = times || []
-                  [{new_count, {batch_us / 1000, to_num_us / 1000}} | times]
-                end)
-              end
 
               if show_progress and total_batches && total_batches > 0 and rem(new_count, progress_interval) == 0 do
                 pct = round(new_count / total_batches * 100)
                 IO.write(:stderr, "\r    Validating: #{new_count}/#{total_batches} batches (#{pct}%)...\e[K")
               end
 
-              # Return scalar loss
-              loss_num
+              # Return scalar loss to avoid GPU memory accumulation
+              Nx.to_number(loss)
             end,
             max_concurrency: max_concurrency,
             ordered: false,
@@ -1374,21 +1358,10 @@ defmodule ExPhil.Training.Imitation do
         end)
 
         if debug_jit do
-          first_times = if first_batch_agent, do: Agent.get(first_batch_agent, & &1), else: []
           IO.write(:stderr, "    [DEBUG] Task.async_stream total: #{Float.round(stream_us / 1000, 1)}ms\n")
-          if first_times && first_times != [] do
-            formatted = first_times
-              |> Enum.reverse()
-              |> Enum.map(fn {n, {loss_ms, to_num_ms}} ->
-                "w#{n}: loss=#{Float.round(loss_ms, 1)}ms, to_num=#{Float.round(to_num_ms, 1)}ms"
-              end)
-              |> Enum.join(", ")
-            IO.write(:stderr, "    [DEBUG] First batch per worker: #{formatted}\n")
-          end
         end
 
         Agent.stop(counter)
-        if first_batch_agent, do: Agent.stop(first_batch_agent)
 
         # Sum losses on CPU (already converted to numbers)
         total = Enum.sum(losses)
