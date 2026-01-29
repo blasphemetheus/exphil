@@ -1268,6 +1268,19 @@ defmodule ExPhil.Training.Imitation do
     # Set to 1 to disable parallelism (sequential mode)
     max_concurrency = Keyword.get(opts, :max_concurrency, 4)
 
+    # Sync GPU before validation to flush pending training operations
+    # This prevents the first validation batch from waiting on training ops
+    debug_jit = System.get_env("EXPHIL_DEBUG_JIT") == "1"
+
+    {sync_us, _} = :timer.tc(fn ->
+      # Create and immediately evaluate a small tensor to force GPU sync
+      Nx.tensor(0.0, backend: EXLA.Backend) |> Nx.backend_transfer()
+    end)
+
+    if debug_jit do
+      IO.write(:stderr, "    [DEBUG] GPU sync before validation: #{Float.round(sync_us / 1000, 1)}ms\n")
+    end
+
     # Use cached eval_loss_fn if available (JIT-compiled once in new/1)
     # Falls back to building fresh for backwards compatibility
     loss_fn =
@@ -1296,9 +1309,6 @@ defmodule ExPhil.Training.Imitation do
     # Training steps may have evicted eval_loss_fn from XLA cache
     # Running one batch in main process ensures function is compiled and cached
     dataset_list = if is_list(dataset), do: dataset, else: Enum.to_list(dataset)
-
-    # Debug timing for JIT investigation
-    debug_jit = System.get_env("EXPHIL_DEBUG_JIT") == "1"
 
     case dataset_list do
       [%{states: states, actions: actions} | _] ->
@@ -1338,11 +1348,13 @@ defmodule ExPhil.Training.Imitation do
               # Update progress counter
               new_count = Agent.get_and_update(counter, fn c -> {c + 1, c + 1} end)
 
-              # Record first batch timing
+              # Record first batch timing (including Nx.to_number which forces GPU sync)
+              {to_num_us, loss_num} = :timer.tc(fn -> Nx.to_number(loss) end)
+
               if debug_jit && first_batch_agent != nil && new_count <= max_concurrency do
                 Agent.update(first_batch_agent, fn times ->
                   times = times || []
-                  [{new_count, batch_us / 1000} | times]
+                  [{new_count, {batch_us / 1000, to_num_us / 1000}} | times]
                 end)
               end
 
@@ -1351,8 +1363,8 @@ defmodule ExPhil.Training.Imitation do
                 IO.write(:stderr, "\r    Validating: #{new_count}/#{total_batches} batches (#{pct}%)...\e[K")
               end
 
-              # Return scalar loss to avoid GPU memory accumulation
-              Nx.to_number(loss)
+              # Return scalar loss
+              loss_num
             end,
             max_concurrency: max_concurrency,
             ordered: false,
@@ -1364,8 +1376,14 @@ defmodule ExPhil.Training.Imitation do
         if debug_jit do
           first_times = if first_batch_agent, do: Agent.get(first_batch_agent, & &1), else: []
           IO.write(:stderr, "    [DEBUG] Task.async_stream total: #{Float.round(stream_us / 1000, 1)}ms\n")
-          if first_times do
-            IO.write(:stderr, "    [DEBUG] First batch times per worker: #{inspect(Enum.reverse(first_times || []))}ms\n")
+          if first_times && first_times != [] do
+            formatted = first_times
+              |> Enum.reverse()
+              |> Enum.map(fn {n, {loss_ms, to_num_ms}} ->
+                "w#{n}: loss=#{Float.round(loss_ms, 1)}ms, to_num=#{Float.round(to_num_ms, 1)}ms"
+              end)
+              |> Enum.join(", ")
+            IO.write(:stderr, "    [DEBUG] First batch per worker: #{formatted}\n")
           end
         end
 
