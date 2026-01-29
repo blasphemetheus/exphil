@@ -203,7 +203,35 @@ end
 
 - **JAX**: Has `jax.nn.dot_product_attention` with `implementation="cudnn"`
 - **XLA**: Supports cuDNN FMHA via `--xla_gpu_enable_cudnn_fmha=true`
-- **EXLA**: No direct exposure yet (tracking needed)
+- **EXLA**: No direct exposure yet (see Nx Ecosystem Status below)
+
+### JAX cuDNN Flash Attention Known Issues (2025)
+
+JAX's cuDNN implementation has several reported problems:
+
+| Issue | Description | Workaround |
+|-------|-------------|------------|
+| [#25986](https://github.com/jax-ml/jax/issues/25986) | Tensor stride errors during JIT | Use `implementation="xla"` |
+| [#29605](https://github.com/jax-ml/jax/issues/29605) | Incompatible with `jax.vmap` | Avoid vmap with cudnn |
+| [#30593](https://github.com/jax-ml/jax/issues/30593) | Bias gradient only works batch=1 | Use batch=1 or xla |
+| [#32430](https://github.com/jax-ml/jax/issues/32430) | Fails on CUDA 13 | Use CUDA 12 |
+| [#27599](https://github.com/jax-ml/jax/issues/27599) | Multi-GPU graph capture fails | Use single GPU |
+
+These issues suggest cuDNN FMHA is still maturing. The Nx team may be wise to wait for stability.
+
+### Nx Ecosystem Status
+
+**Issue [#1461](https://github.com/elixir-nx/nx/issues/1461) (closed March 2024)** explored "Special node acceleration via metadata" for custom operations like flash attention.
+
+Key quotes from the discussion:
+
+> "Axon marks each layer with `:op` as `:metadata`, which means that a compiler could replace operations with a better one depending on what it is." - @seanmor5
+
+> "I struggle to see how it would work in practice. If EXLA has to match on the metadata, then it requires EXLA itself to know about the operation... we would need to make EXLA itself extensible. Custom calls are one mechanism to achieve this." - @josevalim
+
+> "Let's experiment a bit... so we can start exploring this domain" - @polvalente
+
+The issue was closed as experimental/exploratory rather than actionable.
 
 ### Advantages
 
@@ -214,7 +242,55 @@ end
 
 ### Effort Estimate: 1 week (once EXLA supports it)
 
-**Action Item**: Monitor [elixir-nx/nx](https://github.com/elixir-nx/nx) for cuDNN attention support.
+**Action Items**:
+1. Monitor [elixir-nx/nx](https://github.com/elixir-nx/nx) for cuDNN attention support
+2. Consider opening feature request for real-time inference use case
+3. Explore EXLA's `c_src/exla/custom_calls/` for contribution path
+
+### EXLA Custom Calls Analysis (Jan 2026)
+
+Explored `exla/c_src/exla/custom_calls/` to understand the contribution pattern:
+
+**CPU Custom Calls (QR, LU, Eigh):**
+```cpp
+// Pattern: Type-specific wrappers around templated implementation
+XLA_FFI_DEFINE_HANDLER_SYMBOL(qr_cpu_custom_call_f32,
+                              qr_cpu_custom_call_f32_impl,
+                              ffi::Ffi::Bind()
+                                  .Arg<ffi::Buffer<ffi::F32>>()
+                                  .Ret<ffi::Buffer<ffi::F32>>()
+                                  .Ret<ffi::Buffer<ffi::F32>>());
+
+XLA_FFI_REGISTER_HANDLER(ffi::GetXlaFfiApi(), "qr_cpu_custom_call_f32", "Host",
+                         qr_cpu_custom_call_f32);
+```
+
+**Runtime Callback Bridge:**
+- Allows calling Elixir functions from XLA computations
+- Used for operations that need dynamic behavior
+
+**GPU Custom Calls:**
+- **Not currently supported** - no `.cu` files in custom_calls
+- GPU operations go through XLA's standard compilation path
+- EXLA's `exla_cuda.cc` only handles IPC memory handles
+
+**Gap Analysis:**
+
+| Feature | PyTorch | EXLA |
+|---------|---------|------|
+| CPU custom ops | `torch.utils.cpp_extension` | XLA FFI custom calls |
+| GPU custom ops | `torch.utils.cpp_extension` (CUDA) | **Not available** |
+| cuDNN integration | Built-in | XLA backend only |
+| User-provided kernels | Easy via extension API | Not supported |
+
+**Contribution Path:**
+Adding GPU custom calls to EXLA would require:
+1. Modifying `Makefile` to compile `.cu` files
+2. Adding GPU device handler registration (`"CUDA"` instead of `"Host"`)
+3. Managing CUDA stream synchronization with XLA
+4. Handling device memory allocation/deallocation
+
+This is non-trivial but feasible - similar to how Candle does it.
 
 ---
 
@@ -480,3 +556,49 @@ If conversion is needed, overhead is O(n) memory copy.
 - [Nx Documentation](https://hexdocs.pm/nx/)
 - [EXLA Documentation](https://hexdocs.pm/exla/)
 - [elixir-nx/nx GitHub](https://github.com/elixir-nx/nx)
+
+---
+
+## Implementation Status (Jan 2026)
+
+### What's Complete
+
+| Component | Status | Location |
+|-----------|--------|----------|
+| Pure Nx memory-efficient attention | ✓ Done | `lib/exphil/networks/attention.ex` |
+| Python bridge (flash_attn) | ✓ Done | `priv/python/flash_attention_server.py` |
+| Forward-only NIF (CPU) | ✓ Done | `native/flash_attention_nif/` |
+| Forward-only NIF (CUDA) | Written, untested | `native/flash_attention_nif/cuda/` |
+| Benchmark script | ✓ Done | `scripts/benchmark_attention.exs` |
+
+### Benchmark Results (CPU)
+
+```
+Sequence Length: 64
+Standard (O(n²))            | 1829μs  | 1.0x baseline
+Chunked (chunk=32)          | 3321μs  | 1.82x slower
+Memory-Efficient (O(n))     | 4291μs  | 2.35x slower
+NIF FlashAttention (CPU)    | 12690μs | 6.94x slower (data copy overhead)
+```
+
+The NIF is slower on CPU due to Elixir↔Rust data marshalling. It's designed for CUDA acceleration.
+
+### Next Steps
+
+1. **Test CUDA kernel on GPU** - Deploy to RunPod with Ampere+ GPU
+2. **Wire up training CLI** - Add `--flash-attention-nif` flag for inference
+3. **Add memory profiling** - Demonstrate O(n) vs O(n²) in benchmark
+4. **Open Nx feature request** - Request cuDNN FMHA or custom kernel support
+5. **Explore EXLA contribution** - Review `custom_calls/` directory pattern
+
+### Integration with Dolphin
+
+For real-time play at 60 FPS (16.67ms per frame):
+- CPU attention: ~2-5ms (acceptable)
+- NIF with CUDA: Expected <1ms (optimal)
+- Target: Leave headroom for embedding, policy network, action sampling
+
+The NIF integration path:
+1. Check `ExPhil.Native.FlashAttention.cuda_available?()`
+2. If true, use NIF for attention in inference loop
+3. If false, fall back to Pure Nx memory-efficient attention

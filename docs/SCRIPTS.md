@@ -90,6 +90,29 @@ mix run scripts/benchmark_architectures.exs
 
 Compares: MLP, LSTM, GRU, Mamba, Sliding Window, Attention
 
+### benchmark_attention.exs
+**Benchmark attention implementation variants for choosing effective defaults.**
+
+```bash
+# Default: test seq_lens 32, 64, 128, 256 with 50 iterations
+mix run scripts/benchmark_attention.exs
+
+# Custom sequence lengths and iterations
+mix run scripts/benchmark_attention.exs --seq-lens 64,128,256,512 --iterations 100
+```
+
+Compares:
+- **Standard**: O(n²) memory, fastest for short sequences
+- **Chunked**: Lower peak memory, same algorithm
+- **Memory-Efficient**: O(n) memory using online softmax
+- **NIF FlashAttention**: Native Rust/CUDA, forward-only
+
+Results help choose the right implementation:
+- Short sequences (≤64): Standard attention
+- Medium sequences (64-256): Memory-efficient if constrained
+- Long sequences (512+): Memory-efficient or NIF with CUDA
+- Real-time inference: NIF FlashAttention with GPU
+
 ## Dolphin Integration
 
 ### play_dolphin.exs
@@ -247,6 +270,7 @@ Filter options:
 | train_ppo.exs | RL training | `--policy policy.bin` |
 | train_self_play.exs | Self-play | `--game-type mock` |
 | eval_model.exs | Evaluate model | `--checkpoint model.axon` |
+| benchmark_attention.exs | Compare attention impls | `--seq-lens 64,128,256` |
 | play_dolphin.exs | Live play (sync) | `--policy --dolphin --iso` |
 | play_dolphin_async.exs | Live play (async) | Same as above |
 | export_onnx.exs | ONNX export | `--policy policy.bin` |
