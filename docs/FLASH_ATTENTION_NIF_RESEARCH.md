@@ -583,25 +583,70 @@ NIF FlashAttention (CPU)    | 12690μs | 6.94x slower (data copy overhead)
 
 The NIF is slower on CPU due to Elixir↔Rust data marshalling. It's designed for CUDA acceleration.
 
+### Benchmark Results (GPU - RTX 4090, Jan 2026)
+
+**Key Finding:** The NIF is slower than EXLA even on GPU due to host↔device memory transfers.
+
+```
+Sequence Length: 32
+Standard (O(n²))            | 713μs   | 1.0x baseline
+Chunked (chunk=32)          | 555μs   | 1.28x faster
+Memory-Efficient (O(n))     | 1131μs  | 1.59x slower
+NIF FlashAttention (CUDA)   | 1185μs  | 1.66x slower
+
+Sequence Length: 64
+Standard (O(n²))            | 897μs   | 1.0x baseline
+NIF FlashAttention (CUDA)   | 2591μs  | 2.89x slower
+
+Sequence Length: 128
+Standard (O(n²))            | 1545μs  | 1.0x baseline
+NIF FlashAttention (CUDA)   | 6356μs  | 4.11x slower
+
+Sequence Length: 256
+Standard (O(n²))            | 2373μs  | 1.0x baseline
+NIF FlashAttention (CUDA)   | 14584μs | 6.14x slower
+```
+
+**Why is the NIF slower?**
+
+The NIF approach requires:
+1. `Nx.backend_copy(Nx.BinaryBackend)` - GPU→CPU transfer
+2. `Nx.to_binary()` - Convert to raw bytes
+3. `cudaMemcpy(..., HostToDevice)` - CPU→GPU transfer
+4. Run CUDA kernel
+5. `cudaMemcpy(..., DeviceToHost)` - GPU→CPU transfer
+6. `Nx.from_binary()` - Reconstruct tensor
+
+EXLA's standard attention stays entirely on GPU - no host transfers. This makes EXLA dramatically faster despite not using FlashAttention's O(n) memory algorithm.
+
+**Conclusion:** The NIF approach is not viable for GPU performance. For true FlashAttention benefits, we need:
+1. **XLA custom calls** - Stay on GPU, no host transfers (see EXLA_GPU_CUSTOM_CALLS.md)
+2. **cuDNN FMHA** - Wait for EXLA to expose `--xla_gpu_enable_cudnn_fmha`
+3. **Accept EXLA standard attention** - Already fast enough for our seq lengths (≤256)
+
+For ExPhil's use case (seq_len=60 frames), EXLA's standard attention at ~900μs is acceptable for 60 FPS gameplay (16.67ms budget).
+
 ### Next Steps
 
-1. **Test CUDA kernel on GPU** - Deploy to RunPod with Ampere+ GPU
-2. **Wire up training CLI** - Add `--flash-attention-nif` flag for inference
-3. **Add memory profiling** - Demonstrate O(n) vs O(n²) in benchmark
-4. **Open Nx feature request** - Request cuDNN FMHA or custom kernel support
-5. **Explore EXLA contribution** - Review `custom_calls/` directory pattern
+1. ~~**Test CUDA kernel on GPU**~~ ✓ Done - NIF works but is slower than EXLA (see GPU benchmarks above)
+2. ~~**Wire up training CLI**~~ ✓ Done - `--flash-attention-nif` flag added
+3. ~~**Add memory profiling**~~ ✓ Done - Peak memory shown in benchmark
+4. **Explore XLA custom calls** - GPU-to-GPU path without host transfers (see EXLA_GPU_CUSTOM_CALLS.md)
+5. **Monitor EXLA cuDNN support** - `--xla_gpu_enable_cudnn_fmha` would give native FlashAttention
 
 ### Integration with Dolphin
 
 For real-time play at 60 FPS (16.67ms per frame):
-- CPU attention: ~2-5ms (acceptable)
-- NIF with CUDA: Expected <1ms (optimal)
+- EXLA standard attention (GPU): ~0.9ms for seq=64 ✓ **Best option**
+- EXLA standard attention (CPU): ~2-5ms (acceptable)
+- NIF with CUDA: ~2.5ms for seq=64 (slower due to host transfers)
 - Target: Leave headroom for embedding, policy network, action sampling
 
-The NIF integration path:
-1. Check `ExPhil.Native.FlashAttention.cuda_available?()`
-2. If true, use NIF for attention in inference loop
-3. If false, fall back to Pure Nx memory-efficient attention
+**Updated recommendation:** Use EXLA's standard attention on GPU. The NIF approach is not beneficial due to host↔device memory transfer overhead. For seq_len=60 (1 second of Melee frames), EXLA achieves ~900μs which leaves plenty of headroom in the 16.67ms frame budget.
+
+The NIF may still be useful for:
+- CPU-only deployments where EXLA isn't available
+- Future XLA custom call integration (GPU-to-GPU, no transfers)
 
 ---
 
