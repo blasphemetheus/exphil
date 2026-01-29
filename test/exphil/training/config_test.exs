@@ -15,7 +15,8 @@ defmodule ExPhil.Training.ConfigTest do
       assert opts[:batch_size] == 64
       assert opts[:hidden_sizes] == [512, 256]
       assert opts[:temporal] == false
-      assert opts[:precision] == :bf16
+      # FP32 is default - BF16 is 2x slower on RTX 4090 due to XLA issues
+      assert opts[:precision] == :f32
     end
 
     test "parses --epochs" do
@@ -396,7 +397,8 @@ defmodule ExPhil.Training.ConfigTest do
       assert defaults[:temporal] == false
       assert defaults[:backbone] == :sliding_window
       assert defaults[:window_size] == 60
-      assert defaults[:precision] == :bf16
+      # FP32 is default - BF16 is 2x slower on RTX 4090 due to XLA issues
+      assert defaults[:precision] == :f32
       assert defaults[:frame_delay] == 0
       assert defaults[:checkpoint] == nil
       assert defaults[:max_files] == nil
