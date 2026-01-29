@@ -141,6 +141,33 @@ Slippi Dolphin may need environment flags:
 ./Slippi-Launcher.AppImage --ozone-platform=wayland
 ```
 
+## FlashAttention NIF (Experimental)
+
+For attention-based models (sliding_window, jamba), you can enable the FlashAttention NIF for potentially faster inference on Ampere+ GPUs (RTX 30xx/40xx, A100, H100).
+
+```bash
+mix run scripts/play_dolphin_async.exs \
+  --policy checkpoints/attention_policy.bin \
+  --dolphin ~/.config/Slippi\ Launcher/netplay \
+  --iso ~/path/to/melee.iso \
+  --flash-attention-nif
+```
+
+**Current Status:**
+- ✅ NIF implemented with CPU fallback
+- ✅ CUDA kernel written (untested on GPU)
+- ⚠️ Integration with Axon models pending (flag parsed but not fully wired)
+
+**When to use:**
+- Attention backbone with Ampere+ GPU
+- Need lowest possible latency (<1ms attention)
+
+**When NOT to use:**
+- MLP/Mamba backbones (no attention)
+- CPU-only (NIF has copy overhead, Pure Nx is faster)
+
+See [INFERENCE.md](INFERENCE.md#flashattention-nif) for details.
+
 ## Troubleshooting
 
 ### libmelee import error
