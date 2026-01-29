@@ -75,6 +75,9 @@ defmodule ExPhil.Training.Config do
     "--chunked-attention",
     "--no-chunked-attention",
     "--chunk-size",
+    # Memory-efficient attention (true O(n) memory via online softmax)
+    "--memory-efficient-attention",
+    "--no-memory-efficient-attention",
     "--state-size",
     "--expand-factor",
     "--conv-size",
@@ -254,6 +257,9 @@ defmodule ExPhil.Training.Config do
       # Processes queries in chunks against all keys - same results, lower peak memory
       chunked_attention: false,
       chunk_size: 32,
+      # Memory-efficient attention (true O(n) memory via online softmax)
+      # Slower than chunked but uses less memory for very long sequences
+      memory_efficient_attention: false,
       truncate_bptt: nil,
       # FP32 is default - benchmarks show BF16 is 2x SLOWER on RTX 4090 due to
       # XLA issues: dimension misalignment (287 dims not divisible by 16),
@@ -1893,6 +1899,12 @@ defmodule ExPhil.Training.Config do
       if opts[:no_chunked_attention], do: Keyword.put(opts, :chunked_attention, false), else: opts
     end)
     |> parse_int_arg(args, "--chunk-size", :chunk_size)
+    # Memory-efficient attention (true O(n) memory)
+    |> parse_flag(args, "--memory-efficient-attention", :memory_efficient_attention)
+    |> parse_flag(args, "--no-memory-efficient-attention", :no_memory_efficient_attention)
+    |> then(fn opts ->
+      if opts[:no_memory_efficient_attention], do: Keyword.put(opts, :memory_efficient_attention, false), else: opts
+    end)
     |> parse_int_arg(args, "--state-size", :state_size)
     |> parse_int_arg(args, "--expand-factor", :expand_factor)
     |> parse_int_arg(args, "--conv-size", :conv_size)

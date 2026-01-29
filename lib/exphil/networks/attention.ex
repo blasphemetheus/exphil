@@ -225,6 +225,131 @@ defmodule ExPhil.Networks.Attention do
   end
 
   @doc """
+  Memory-efficient attention using online softmax normalization.
+
+  Achieves true O(n) memory by processing key/value in chunks with online
+  softmax, never materializing the full attention matrix. This is based on
+  the algorithm from "Self-attention Does Not Need O(n²) Memory" (Rabe & Staats, 2021).
+
+  ## Algorithm
+
+  Instead of computing the full attention matrix, we:
+  1. Process K/V in chunks
+  2. For each chunk, compute partial attention scores
+  3. Use online softmax to combine results: track running max and sum
+  4. Update output with proper normalization
+
+  ## Parameters
+    - `query` - Query tensor [batch, seq_q, dim]
+    - `key` - Key tensor [batch, seq_k, dim]
+    - `value` - Value tensor [batch, seq_k, dim]
+    - `opts` - Options:
+      - `:chunk_size` - Size of K/V chunks (default: 32)
+      - `:causal` - Use causal masking (default: false)
+
+  ## Returns
+    Attention output [batch, seq_q, dim]
+
+  ## Memory Comparison
+    For seq_len=128, batch=32, dim=256:
+    - Standard: 32 × 128 × 128 × 4 bytes = 2MB (full attention matrix)
+    - Memory-efficient: 32 × 128 × 32 × 4 bytes = 512KB (one chunk at a time)
+
+  ## Notes
+    - Slightly slower than standard attention due to online softmax overhead
+    - Output may have minor numerical differences (< 1e-5) due to different
+      summation order in softmax
+    - Causal masking is applied per-chunk
+  """
+  @spec memory_efficient_attention(Nx.Tensor.t(), Nx.Tensor.t(), Nx.Tensor.t(), keyword()) ::
+          Nx.Tensor.t()
+  def memory_efficient_attention(query, key, value, opts \\ []) do
+    chunk_size = Keyword.get(opts, :chunk_size, 32)
+    causal = Keyword.get(opts, :causal, false)
+
+    {batch, seq_q, dim} = Nx.shape(query)
+    seq_k = Nx.axis_size(key, 1)
+    scale = Nx.sqrt(dim) |> Nx.as_type(Nx.type(query))
+
+    # Number of K/V chunks
+    num_kv_chunks = div(seq_k + chunk_size - 1, chunk_size)
+
+    # Initialize accumulators for online softmax
+    # We track:
+    # - acc_output: unnormalized weighted sum of values (will divide by exp(lse) at end)
+    # - acc_max: running max of scores (for numerical stability)
+    # - acc_sum: running sum of exp(scores - max) (for normalization)
+    tensor_type = Nx.type(query)
+    neg_inf = Nx.Constants.neg_infinity() |> Nx.as_type(tensor_type)
+
+    init_output = Nx.broadcast(Nx.tensor(0.0, type: tensor_type), {batch, seq_q, dim})
+    init_max = Nx.broadcast(neg_inf, {batch, seq_q})
+    init_sum = Nx.broadcast(Nx.tensor(0.0, type: tensor_type), {batch, seq_q})
+
+    # Process each K/V chunk with online softmax
+    {final_output, _final_max, final_sum} =
+      Enum.reduce(0..(num_kv_chunks - 1), {init_output, init_max, init_sum}, fn chunk_idx, {acc_output, acc_max, acc_sum} ->
+        # Extract K/V chunk
+        k_start = chunk_idx * chunk_size
+        actual_chunk_size = min(chunk_size, seq_k - k_start)
+
+        k_chunk = Nx.slice_along_axis(key, k_start, actual_chunk_size, axis: 1)
+        v_chunk = Nx.slice_along_axis(value, k_start, actual_chunk_size, axis: 1)
+
+        # Compute attention scores for this chunk: [batch, seq_q, chunk_size]
+        scores = Nx.dot(query, [2], [0], k_chunk, [2], [0])
+        scores = Nx.divide(scores, scale)
+
+        # Apply causal masking if needed
+        scores =
+          if causal do
+            # Create causal mask for this chunk
+            q_positions = Nx.iota({seq_q, 1}, axis: 0)
+            k_positions = Nx.iota({1, actual_chunk_size}, axis: 1) |> Nx.add(k_start)
+
+            # Valid if key_pos <= query_pos
+            causal_mask = Nx.greater_equal(q_positions, k_positions)
+            causal_mask = Nx.broadcast(Nx.new_axis(causal_mask, 0), {batch, seq_q, actual_chunk_size})
+
+            Nx.select(causal_mask, scores, Nx.broadcast(neg_inf, Nx.shape(scores)))
+          else
+            scores
+          end
+
+        # Online softmax update (numerically stable)
+        # 1. Find new max
+        chunk_max = Nx.reduce_max(scores, axes: [-1])
+        new_max = Nx.max(acc_max, chunk_max)
+
+        # 2. Rescale old accumulator to new max
+        old_scale = Nx.exp(Nx.subtract(acc_max, new_max))
+
+        # 3. Compute exp(scores - new_max) for this chunk
+        exp_scores = Nx.exp(Nx.subtract(scores, Nx.new_axis(new_max, -1)))
+
+        # 4. Sum of exp for this chunk
+        chunk_sum = Nx.sum(exp_scores, axes: [-1])
+
+        # 5. Update running sum
+        new_sum = Nx.add(Nx.multiply(acc_sum, old_scale), chunk_sum)
+
+        # 6. Compute weighted values for this chunk
+        chunk_output = Nx.dot(exp_scores, [2], [0], v_chunk, [1], [0])
+
+        # 7. Update output (rescale old output and add new)
+        new_output = Nx.add(
+          Nx.multiply(acc_output, Nx.new_axis(old_scale, -1)),
+          chunk_output
+        )
+
+        {new_output, new_max, new_sum}
+      end)
+
+    # Final normalization: divide accumulated output by total sum
+    Nx.divide(final_output, Nx.new_axis(final_sum, -1))
+  end
+
+  @doc """
   Create a causal (autoregressive) attention mask.
 
   Each position can only attend to itself and previous positions.
@@ -270,7 +395,8 @@ defmodule ExPhil.Networks.Attention do
     - `:causal` - Use causal masking (default: true)
     - `:qk_layernorm` - Normalize Q and K before attention (stabilizes training, default: false)
     - `:chunked` - Use chunked attention for lower memory (default: false)
-    - `:chunk_size` - Query chunk size when chunked (default: 32)
+    - `:memory_efficient` - Use memory-efficient attention with online softmax for true O(n) memory (default: false)
+    - `:chunk_size` - Chunk size for chunked/memory-efficient attention (default: 32)
     - `:name` - Layer name prefix
   """
   @spec self_attention(Axon.t(), keyword()) :: Axon.t()
@@ -280,6 +406,7 @@ defmodule ExPhil.Networks.Attention do
     causal = Keyword.get(opts, :causal, true)
     qk_layernorm = Keyword.get(opts, :qk_layernorm, false)
     chunked = Keyword.get(opts, :chunked, false)
+    memory_efficient = Keyword.get(opts, :memory_efficient, false)
     chunk_size = Keyword.get(opts, :chunk_size, 32)
     name = Keyword.get(opts, :name, "self_attn")
 
@@ -306,18 +433,21 @@ defmodule ExPhil.Networks.Attention do
               {query, key}
             end
 
-          mask =
-            if causal do
-              causal_mask(seq_len)
-            else
-              nil
-            end
+          # Choose attention implementation
+          cond do
+            memory_efficient ->
+              # Memory-efficient attention with online softmax (true O(n) memory)
+              memory_efficient_attention(query, key, value, chunk_size: chunk_size, causal: causal)
 
-          # Use chunked or standard attention
-          if chunked do
-            chunked_attention(query, key, value, mask: mask, chunk_size: chunk_size)
-          else
-            scaled_dot_product_attention(query, key, value, mask: mask)
+            chunked ->
+              # Chunked attention (lower peak memory, same results as standard)
+              mask = if causal, do: causal_mask(seq_len), else: nil
+              chunked_attention(query, key, value, mask: mask, chunk_size: chunk_size)
+
+            true ->
+              # Standard attention
+              mask = if causal, do: causal_mask(seq_len), else: nil
+              scaled_dot_product_attention(query, key, value, mask: mask)
           end
         end,
         name: "#{name}_compute"
@@ -356,7 +486,8 @@ defmodule ExPhil.Networks.Attention do
     - `:mask` - Pre-computed attention mask (recommended for efficient compilation)
     - `:qk_layernorm` - Normalize Q and K before attention (stabilizes training, default: false)
     - `:chunked` - Use chunked attention for lower memory (default: false)
-    - `:chunk_size` - Query chunk size when chunked (default: 32)
+    - `:memory_efficient` - Use memory-efficient attention with online softmax for true O(n) memory (default: false)
+    - `:chunk_size` - Chunk size for chunked/memory-efficient attention (default: 32)
     - `:name` - Layer name prefix
   """
   @spec sliding_window_attention(Axon.t(), keyword()) :: Axon.t()
@@ -367,6 +498,7 @@ defmodule ExPhil.Networks.Attention do
     precomputed_mask = Keyword.get(opts, :mask, nil)
     qk_layernorm = Keyword.get(opts, :qk_layernorm, false)
     chunked = Keyword.get(opts, :chunked, false)
+    memory_efficient = Keyword.get(opts, :memory_efficient, false)
     chunk_size = Keyword.get(opts, :chunk_size, 32)
     name = Keyword.get(opts, :name, "window_attn")
 
@@ -396,19 +528,24 @@ defmodule ExPhil.Networks.Attention do
             {query, key}
           end
 
-        # Use pre-computed mask if available, otherwise compute (slow path)
-        mask =
-          if precomputed_mask != nil do
-            precomputed_mask
-          else
-            window_mask(seq_len, window_size)
-          end
+        # Choose attention implementation
+        # Note: memory_efficient uses causal masking internally, not window masking
+        # For true windowed + memory-efficient, would need custom implementation
+        cond do
+          memory_efficient ->
+            # Memory-efficient attention with online softmax (true O(n) memory)
+            # NOTE: This uses causal masking, not sliding window masking
+            memory_efficient_attention(query, key, value, chunk_size: chunk_size, causal: true)
 
-        # Use chunked or standard attention
-        if chunked do
-          chunked_attention(query, key, value, mask: mask, chunk_size: chunk_size)
-        else
-          scaled_dot_product_attention(query, key, value, mask: mask)
+          chunked ->
+            # Chunked attention with window mask
+            mask = if precomputed_mask != nil, do: precomputed_mask, else: window_mask(seq_len, window_size)
+            chunked_attention(query, key, value, mask: mask, chunk_size: chunk_size)
+
+          true ->
+            # Standard attention with window mask
+            mask = if precomputed_mask != nil, do: precomputed_mask, else: window_mask(seq_len, window_size)
+            scaled_dot_product_attention(query, key, value, mask: mask)
         end
       end,
       name: "#{name}_compute"

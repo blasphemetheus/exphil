@@ -174,7 +174,9 @@ mix run scripts/train_from_replays.exs --dual-port
 | `--no-qk-layernorm` | - | Disable QK LayerNorm |
 | `--chunked-attention` | off | Use chunked attention for 20-30% memory reduction |
 | `--no-chunked-attention` | - | Disable chunked attention |
-| `--chunk-size N` | 32 | Query chunk size when using chunked attention |
+| `--memory-efficient-attention` | off | Use memory-efficient attention (true O(n) memory via online softmax) |
+| `--no-memory-efficient-attention` | - | Disable memory-efficient attention |
+| `--chunk-size N` | 32 | Chunk size for chunked/memory-efficient attention |
 
 ### Model Architecture
 

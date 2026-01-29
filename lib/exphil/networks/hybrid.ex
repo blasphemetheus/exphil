@@ -143,6 +143,7 @@ defmodule ExPhil.Networks.Hybrid do
     use_sliding_window = Keyword.get(opts, :use_sliding_window, true)
     qk_layernorm = Keyword.get(opts, :qk_layernorm, @default_qk_layernorm)
     chunked_attention = Keyword.get(opts, :chunked_attention, false)
+    memory_efficient_attention = Keyword.get(opts, :memory_efficient_attention, false)
     chunk_size = Keyword.get(opts, :chunk_size, 32)
 
     # Stability options
@@ -195,6 +196,7 @@ defmodule ExPhil.Networks.Hybrid do
             pre_norm: pre_norm,
             qk_layernorm: qk_layernorm,
             chunked: chunked_attention,
+            memory_efficient: memory_efficient_attention,
             chunk_size: chunk_size,
             name: "layer_#{layer_idx}_attn"
           )
@@ -291,7 +293,8 @@ defmodule ExPhil.Networks.Hybrid do
     - `:pre_norm` - If true, apply LayerNorm before block (Pre-LN, more stable).
     - `:qk_layernorm` - If true, normalize Q and K before attention (stabilizes training).
     - `:chunked` - If true, use chunked attention for lower memory usage (default: false).
-    - `:chunk_size` - Query chunk size when using chunked attention (default: 32).
+    - `:memory_efficient` - If true, use memory-efficient attention with online softmax for true O(n) memory (default: false).
+    - `:chunk_size` - Chunk size when using chunked or memory-efficient attention (default: 32).
   """
   @spec build_attention_layer(Axon.t(), keyword()) :: Axon.t()
   def build_attention_layer(input, opts) do
@@ -306,6 +309,7 @@ defmodule ExPhil.Networks.Hybrid do
     pre_norm = Keyword.get(opts, :pre_norm, @default_pre_norm)
     qk_layernorm = Keyword.get(opts, :qk_layernorm, @default_qk_layernorm)
     chunked = Keyword.get(opts, :chunked, false)
+    memory_efficient = Keyword.get(opts, :memory_efficient, false)
     chunk_size = Keyword.get(opts, :chunk_size, 32)
     name = Keyword.get(opts, :name, "attn_layer")
 
@@ -339,6 +343,7 @@ defmodule ExPhil.Networks.Hybrid do
           mask: precomputed_mask,
           qk_layernorm: qk_layernorm,
           chunked: chunked,
+          memory_efficient: memory_efficient,
           chunk_size: chunk_size,
           name: name
         )
@@ -350,6 +355,7 @@ defmodule ExPhil.Networks.Hybrid do
           causal: true,
           qk_layernorm: qk_layernorm,
           chunked: chunked,
+          memory_efficient: memory_efficient,
           chunk_size: chunk_size,
           name: name
         )

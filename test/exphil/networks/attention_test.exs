@@ -95,6 +95,83 @@ defmodule ExPhil.Networks.AttentionTest do
     end
   end
 
+  describe "memory_efficient_attention/4" do
+    test "produces correct output shape" do
+      query = Nx.iota({@batch_size, @seq_len, 32}, axis: 0) |> Nx.divide(10) |> Nx.as_type(:f32)
+      key = Nx.iota({@batch_size, @seq_len, 32}, axis: 1) |> Nx.divide(10) |> Nx.as_type(:f32)
+      value = Nx.iota({@batch_size, @seq_len, 32}, axis: 2) |> Nx.divide(10) |> Nx.as_type(:f32)
+
+      output = Attention.memory_efficient_attention(query, key, value, chunk_size: 4)
+
+      assert Nx.shape(output) == {@batch_size, @seq_len, 32}
+    end
+
+    test "produces results close to standard attention without mask" do
+      # Memory-efficient attention uses online softmax which may have minor
+      # numerical differences due to different summation order
+      query = Nx.iota({@batch_size, @seq_len, 32}, axis: 2) |> Nx.divide(32) |> Nx.as_type(:f32)
+      key = Nx.iota({@batch_size, @seq_len, 32}, axis: 1) |> Nx.divide(@seq_len) |> Nx.as_type(:f32)
+      value = Nx.iota({@batch_size, @seq_len, 32}) |> Nx.divide(100) |> Nx.as_type(:f32)
+
+      standard = Attention.scaled_dot_product_attention(query, key, value)
+      mea = Attention.memory_efficient_attention(query, key, value, chunk_size: 4)
+
+      # Should be close but not necessarily identical due to online softmax
+      diff = Nx.abs(Nx.subtract(standard, mea))
+      max_diff = Nx.reduce_max(diff) |> Nx.to_number()
+      assert max_diff < 1.0e-4, "Max difference: #{max_diff}"
+    end
+
+    test "produces results close to standard attention with causal mask" do
+      query = Nx.iota({@batch_size, @seq_len, 32}, axis: 2) |> Nx.divide(32) |> Nx.as_type(:f32)
+      key = Nx.iota({@batch_size, @seq_len, 32}, axis: 1) |> Nx.divide(@seq_len) |> Nx.as_type(:f32)
+      value = Nx.iota({@batch_size, @seq_len, 32}) |> Nx.divide(100) |> Nx.as_type(:f32)
+      mask = Attention.causal_mask(@seq_len)
+
+      standard = Attention.scaled_dot_product_attention(query, key, value, mask: mask)
+      mea = Attention.memory_efficient_attention(query, key, value, chunk_size: 4, causal: true)
+
+      diff = Nx.abs(Nx.subtract(standard, mea))
+      max_diff = Nx.reduce_max(diff) |> Nx.to_number()
+      assert max_diff < 1.0e-4, "Max difference with causal: #{max_diff}"
+    end
+
+    test "handles non-divisible sequence lengths" do
+      # seq_len=10 is not divisible by chunk_size=3
+      query = Nx.iota({@batch_size, @seq_len, 32}, axis: 0) |> Nx.divide(10) |> Nx.as_type(:f32)
+      key = Nx.iota({@batch_size, @seq_len, 32}, axis: 1) |> Nx.divide(10) |> Nx.as_type(:f32)
+      value = Nx.iota({@batch_size, @seq_len, 32}, axis: 2) |> Nx.divide(10) |> Nx.as_type(:f32)
+
+      output = Attention.memory_efficient_attention(query, key, value, chunk_size: 3)
+
+      assert Nx.shape(output) == {@batch_size, @seq_len, 32}
+    end
+
+    test "handles chunk_size larger than sequence length" do
+      query = Nx.iota({@batch_size, @seq_len, 32}, axis: 0) |> Nx.divide(10) |> Nx.as_type(:f32)
+      key = Nx.iota({@batch_size, @seq_len, 32}, axis: 1) |> Nx.divide(10) |> Nx.as_type(:f32)
+      value = Nx.iota({@batch_size, @seq_len, 32}, axis: 2) |> Nx.divide(10) |> Nx.as_type(:f32)
+
+      # chunk_size=100 > seq_len=10, should still work (single chunk)
+      output = Attention.memory_efficient_attention(query, key, value, chunk_size: 100)
+
+      assert Nx.shape(output) == {@batch_size, @seq_len, 32}
+    end
+
+    test "numerical stability with large values" do
+      # Test that online softmax handles large scores without overflow
+      query = Nx.iota({@batch_size, @seq_len, 32}, axis: 2) |> Nx.multiply(10) |> Nx.as_type(:f32)
+      key = Nx.iota({@batch_size, @seq_len, 32}, axis: 1) |> Nx.multiply(10) |> Nx.as_type(:f32)
+      value = Nx.iota({@batch_size, @seq_len, 32}) |> Nx.divide(100) |> Nx.as_type(:f32)
+
+      output = Attention.memory_efficient_attention(query, key, value, chunk_size: 4)
+
+      # Should not produce NaN or Inf
+      assert Nx.all(Nx.is_nan(output) |> Nx.logical_not()) |> Nx.to_number() == 1
+      assert Nx.all(Nx.is_infinity(output) |> Nx.logical_not()) |> Nx.to_number() == 1
+    end
+  end
+
   describe "causal_mask/1" do
     test "creates lower triangular mask" do
       mask = Attention.causal_mask(4)

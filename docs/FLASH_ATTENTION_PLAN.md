@@ -309,11 +309,11 @@ end
 - [ ] Create test suite for attention output equivalence
 
 ### Phase 2: Pure Nx MEA
-- [ ] Implement `memory_efficient_attention/4` in attention.ex
-- [ ] Add `--attention-impl` flag (standard, chunked, memory_efficient)
-- [ ] Verify output matches standard attention
+- [x] Implement `memory_efficient_attention/4` in attention.ex
+- [x] Add `--memory-efficient-attention` flag
+- [x] Verify output matches standard attention (6 tests passing)
 - [ ] Benchmark memory and speed
-- [ ] Update documentation
+- [x] Update documentation
 
 ### Phase 3: Production Optimization (If Needed)
 - [ ] Evaluate EXLA flash attention when available
