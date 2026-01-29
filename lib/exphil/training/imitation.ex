@@ -1292,6 +1292,19 @@ defmodule ExPhil.Training.Imitation do
       IO.write(:stderr, "    Validating: 0/#{total_batches} batches...\e[K")
     end
 
+    # Refresh JIT cache before parallel execution
+    # Training steps may have evicted eval_loss_fn from XLA cache
+    # Running one batch in main process ensures function is compiled and cached
+    dataset_list = if is_list(dataset), do: dataset, else: Enum.to_list(dataset)
+
+    case dataset_list do
+      [%{states: states, actions: actions} | _] ->
+        _warmup = loss_fn.(states, actions)
+
+      _ ->
+        :ok
+    end
+
     # Choose between parallel and sequential validation
     {total_loss, count} =
       if max_concurrency > 1 do
@@ -1301,7 +1314,7 @@ defmodule ExPhil.Training.Imitation do
         {:ok, counter} = Agent.start_link(fn -> 0 end)
 
         losses =
-          dataset
+          dataset_list
           |> Task.async_stream(
             fn batch ->
               %{states: states, actions: actions} = batch
@@ -1332,7 +1345,7 @@ defmodule ExPhil.Training.Imitation do
       else
         # Sequential validation (original behavior)
         # Accumulate loss with running sum tensor (avoids Nx.stack overhead)
-        Enum.reduce(dataset, {Nx.tensor(0.0), 0}, fn batch, {acc_loss, acc_count} ->
+        Enum.reduce(dataset_list, {Nx.tensor(0.0), 0}, fn batch, {acc_loss, acc_count} ->
           %{states: states, actions: actions} = batch
           loss = loss_fn.(states, actions)
           new_count = acc_count + 1
