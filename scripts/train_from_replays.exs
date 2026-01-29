@@ -594,6 +594,32 @@ if opts[:cache_embeddings] and opts[:stream_chunk_size] do
   )
 end
 
+# Info about memory-mapped embeddings for very large datasets
+if opts[:mmap_embeddings] do
+  alias ExPhil.Training.MmapEmbeddings
+
+  mmap_path =
+    opts[:mmap_path] ||
+      Path.join(opts[:cache_dir] || "cache/embeddings", "embeddings.mmap")
+
+  Output.puts("")
+  Output.puts("📁 Memory-mapped embeddings enabled")
+  Output.puts("   Path: #{mmap_path}")
+
+  if MmapEmbeddings.exists?(mmap_path) do
+    {:ok, handle} = MmapEmbeddings.open(mmap_path)
+    info = MmapEmbeddings.info(handle)
+    MmapEmbeddings.close(handle)
+
+    Output.puts(
+      "   Found existing: #{info.num_frames} frames × #{info.embed_size} dims (#{Float.round(info.size_mb, 1)} MB)"
+    )
+  else
+    Output.puts("   File not found - will be created during embedding precomputation")
+    Output.puts("   Note: Full mmap integration coming soon. For now, use MmapEmbeddings API directly.")
+  end
+end
+
 # Warn about BPTT truncation without temporal mode
 if opts[:truncate_bptt] != nil and not opts[:temporal] do
   Output.warning("--truncate-bptt has no effect without --temporal")
@@ -1466,6 +1492,62 @@ require Output
       end
 
     {trainer, 0}
+  end
+
+# Auto-tune batch size if requested
+opts =
+  if opts[:auto_batch_size] do
+    alias ExPhil.Training.BatchTuner
+
+    Output.puts("")
+    Output.puts("🔧 Auto-tuning batch size...")
+
+    # Get sample data for testing
+    sample_size = min(opts[:auto_batch_max], 1024)
+
+    sample_data =
+      if opts[:temporal] do
+        # Get sample sequences
+        train_dataset
+        |> Data.batched_sequences(batch_size: sample_size, shuffle: false)
+        |> Enum.take(1)
+        |> List.first()
+      else
+        # Get sample frames
+        train_dataset
+        |> Data.batched(batch_size: sample_size, shuffle: false)
+        |> Enum.take(1)
+        |> List.first()
+      end
+
+    case sample_data do
+      nil ->
+        Output.warning("No sample data available for batch tuning, using default batch size")
+        opts
+
+      %{states: states, actions: actions} ->
+        case BatchTuner.find_optimal(trainer, states, actions,
+               initial: opts[:auto_batch_min],
+               max: opts[:auto_batch_max],
+               backoff: opts[:auto_batch_backoff],
+               show_progress: true
+             ) do
+          {:ok, optimal_size} ->
+            if optimal_size != opts[:batch_size] do
+              Output.puts("  ✓ Updated batch size: #{opts[:batch_size]} → #{optimal_size}")
+              Keyword.put(opts, :batch_size, optimal_size)
+            else
+              Output.puts("  ✓ Batch size #{opts[:batch_size]} is already optimal")
+              opts
+            end
+
+          {:error, reason} ->
+            Output.warning("Batch tuning failed: #{inspect(reason)}, using default")
+            opts
+        end
+    end
+  else
+    opts
   end
 
 if opts[:temporal] do

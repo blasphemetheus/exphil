@@ -298,6 +298,12 @@ This precomputes multiple versions of each frame (original, mirrored, noisy vari
 | `--gradient-checkpoint` | false | Trade memory for compute |
 | `--val-concurrency N` | 4 | Parallel validation batches (1=sequential) |
 | `--profile` | false | Enable timing profiler (report at end) |
+| `--mmap-embeddings` | false | Use memory-mapped embeddings (for datasets > RAM) |
+| `--mmap-path PATH` | nil | Custom path for mmap file (auto-generated if not set) |
+| `--auto-batch-size` | false | Auto-tune batch size for optimal GPU utilization |
+| `--auto-batch-min N` | 32 | Minimum batch size to test |
+| `--auto-batch-max N` | 4096 | Maximum batch size to test |
+| `--auto-batch-backoff X` | 0.8 | Safety factor (0.8 = 20% headroom) |
 
 > **Note:** `--prefetch` only has effect when used with `--stream-chunk-size`. In standard (non-streaming) mode, prefetching is disabled due to EXLA tensor process limitations. A warning is shown if you use `--prefetch` without streaming mode.
 | `--checkpoint-every N` | 1 | Checkpoint every N layers |

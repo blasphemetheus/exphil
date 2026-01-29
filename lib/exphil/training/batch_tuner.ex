@@ -166,7 +166,7 @@ defmodule ExPhil.Training.BatchTuner do
   defp test_batch_size(model_or_trainer, sample_states, sample_actions, batch_size) do
     # Get a subset of the samples
     states_subset = Nx.slice_along_axis(sample_states, 0, batch_size, axis: 0)
-    actions_subset = Nx.slice_along_axis(sample_actions, 0, batch_size, axis: 0)
+    _actions_subset = Nx.slice_along_axis(sample_actions, 0, batch_size, axis: 0)
 
     try do
       # Run forward pass (this will allocate GPU memory)

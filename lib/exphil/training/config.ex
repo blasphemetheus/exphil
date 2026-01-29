@@ -216,7 +216,15 @@ defmodule ExPhil.Training.Config do
     # Enable detailed timing profiler
     "--profile",
     # Parallel validation concurrency (number of concurrent batches)
-    "--val-concurrency"
+    "--val-concurrency",
+    # Memory-mapped embeddings (for datasets larger than RAM)
+    "--mmap-embeddings",
+    "--mmap-path",
+    # Batch size auto-tuning
+    "--auto-batch-size",
+    "--auto-batch-min",
+    "--auto-batch-max",
+    "--auto-batch-backoff"
   ]
 
   @doc """
@@ -442,7 +450,20 @@ defmodule ExPhil.Training.Config do
       profile: false,
       # Parallel validation
       # Number of concurrent batches during validation (1 = sequential)
-      val_concurrency: 4
+      val_concurrency: 4,
+      # Memory-mapped embeddings for datasets larger than RAM
+      # false = disabled, true = auto path, string = custom path
+      mmap_embeddings: false,
+      # Explicit path for mmap file (overrides auto-generated path)
+      mmap_path: nil,
+      # Batch size auto-tuning (find optimal batch size for GPU)
+      auto_batch_size: false,
+      # Minimum batch size to test
+      auto_batch_min: 32,
+      # Maximum batch size to test
+      auto_batch_max: 4096,
+      # Safety factor after finding largest working size (0.8 = 20% headroom)
+      auto_batch_backoff: 0.8
     ]
     |> apply_env_defaults()
   end
@@ -2049,6 +2070,14 @@ defmodule ExPhil.Training.Config do
     |> parse_flag(args, "--profile", :profile)
     # Parallel validation
     |> parse_optional_int_arg(args, "--val-concurrency", :val_concurrency)
+    # Memory-mapped embeddings
+    |> parse_flag_or_string(args, "--mmap-embeddings", :mmap_embeddings)
+    |> parse_string_arg(args, "--mmap-path", :mmap_path)
+    # Batch size auto-tuning
+    |> parse_flag(args, "--auto-batch-size", :auto_batch_size)
+    |> parse_optional_int_arg(args, "--auto-batch-min", :auto_batch_min)
+    |> parse_optional_int_arg(args, "--auto-batch-max", :auto_batch_max)
+    |> parse_float_arg(args, "--auto-batch-backoff", :auto_batch_backoff)
     |> then(fn opts ->
       # --no-overwrite makes overwrite explicitly false
       if opts[:no_overwrite], do: Keyword.put(opts, :overwrite, false), else: opts
@@ -2539,6 +2568,28 @@ defmodule ExPhil.Training.Config do
   defp parse_flag(opts, args, flag, key) do
     if has_flag?(args, flag) do
       Keyword.put(opts, key, true)
+    else
+      opts
+    end
+  end
+
+  # Parse a flag that can be either a boolean (--flag) or a string (--flag value)
+  # If next arg starts with --, treat as boolean flag
+  defp parse_flag_or_string(opts, args, flag, key) do
+    if has_flag?(args, flag) do
+      case get_arg_value(args, flag) do
+        nil ->
+          # No next arg, treat as boolean
+          Keyword.put(opts, key, true)
+
+        value when is_binary(value) ->
+          # If next arg is another flag, treat as boolean
+          if String.starts_with?(value, "--") do
+            Keyword.put(opts, key, true)
+          else
+            Keyword.put(opts, key, value)
+          end
+      end
     else
       opts
     end

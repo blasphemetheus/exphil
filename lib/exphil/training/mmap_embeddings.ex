@@ -96,7 +96,8 @@ defmodule ExPhil.Training.MmapEmbeddings do
         # Get dtype from tensor or options
         tensor_type = Nx.type(embeddings)
         dtype = Keyword.get(opts, :dtype, nx_type_to_dtype(tensor_type))
-        bytes_per_value = dtype_to_bytes(dtype)
+        # bytes_per_value used for header, but header uses dtype_to_code directly
+        _bytes_per_value = dtype_to_bytes(dtype)
 
         if show_progress do
           Logger.info("[MmapEmbeddings] Saving #{num_frames} frames (#{embed_size} dims) to #{path}")
