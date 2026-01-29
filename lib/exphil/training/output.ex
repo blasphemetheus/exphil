@@ -127,12 +127,14 @@ defmodule ExPhil.Training.Output do
   def success(line), do: puts("✓ #{line}", :green)
 
   @doc """
-  Print a warning message (yellow). Always shown (even in quiet mode).
+  Print a warning message (yellow). Suppressed in quiet mode (--quiet).
   """
   def warning(line) do
-    # Warnings always show
-    timestamp = DateTime.utc_now() |> Calendar.strftime("%H:%M:%S")
-    IO.puts(:stderr, "[#{timestamp}] #{colorize("⚠️  #{line}", :yellow)}")
+    # Warnings respect quiet mode (verbosity 0)
+    if should_output?(@normal) do
+      timestamp = DateTime.utc_now() |> Calendar.strftime("%H:%M:%S")
+      IO.puts(:stderr, "[#{timestamp}] #{colorize("⚠️  #{line}", :yellow)}")
+    end
   end
 
   @doc """

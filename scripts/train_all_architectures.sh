@@ -140,10 +140,24 @@ run_training() {
 # Track results
 declare -A RESULTS
 
+# Architecture-specific learning rates
+# RNNs (LSTM, GRU) are prone to gradient explosion and need lower LR
+# Transformers/attention can handle higher LR due to layer norm
+# Mamba is stable with moderate LR due to selective state spaces
+LR_MLP="1e-4"
+LR_LSTM="1e-5"      # 10x lower - RNNs explode easily
+LR_GRU="1e-5"       # 10x lower - RNNs explode easily
+LR_MAMBA="5e-5"     # Slightly lower - SSMs are sensitive
+LR_ATTENTION="1e-4" # Standard - layer norm stabilizes
+LR_JAMBA="5e-5"     # Hybrid needs balanced LR
+
+# Additional stabilization for RNNs
+RNN_GRAD_CLIP="0.5"  # Aggressive gradient clipping for RNNs
+
 # 1. MLP (no temporal)
 echo ""
 echo "=== 1/6: MLP (Single-Frame Baseline) ==="
-if run_training "mlp" ""; then
+if run_training "mlp" "--learning-rate $LR_MLP"; then
     RESULTS["mlp"]="success"
 else
     RESULTS["mlp"]="failed"
@@ -152,7 +166,7 @@ fi
 # 2. LSTM
 echo ""
 echo "=== 2/6: LSTM ==="
-if run_training "lstm" "--temporal --backbone lstm --window-size $WINDOW_SIZE"; then
+if run_training "lstm" "--temporal --backbone lstm --window-size $WINDOW_SIZE --learning-rate $LR_LSTM --max-grad-norm $RNN_GRAD_CLIP"; then
     RESULTS["lstm"]="success"
 else
     RESULTS["lstm"]="failed"
@@ -161,7 +175,7 @@ fi
 # 3. GRU
 echo ""
 echo "=== 3/6: GRU ==="
-if run_training "gru" "--temporal --backbone gru --window-size $WINDOW_SIZE"; then
+if run_training "gru" "--temporal --backbone gru --window-size $WINDOW_SIZE --learning-rate $LR_GRU --max-grad-norm $RNN_GRAD_CLIP"; then
     RESULTS["gru"]="success"
 else
     RESULTS["gru"]="failed"
@@ -170,7 +184,7 @@ fi
 # 4. Mamba (recommended for real-time play)
 echo ""
 echo "=== 4/6: Mamba (Recommended) ==="
-if run_training "mamba" "--temporal --backbone mamba --window-size $WINDOW_SIZE --num-layers $NUM_LAYERS"; then
+if run_training "mamba" "--temporal --backbone mamba --window-size $WINDOW_SIZE --num-layers $NUM_LAYERS --learning-rate $LR_MAMBA"; then
     RESULTS["mamba"]="success"
 else
     RESULTS["mamba"]="failed"
@@ -179,7 +193,7 @@ fi
 # 5. Sliding Window Attention
 echo ""
 echo "=== 5/6: Sliding Window Attention ==="
-if run_training "attention" "--temporal --backbone sliding_window --window-size $WINDOW_SIZE --num-heads 4"; then
+if run_training "attention" "--temporal --backbone sliding_window --window-size $WINDOW_SIZE --num-heads 4 --learning-rate $LR_ATTENTION"; then
     RESULTS["attention"]="success"
 else
     RESULTS["attention"]="failed"
@@ -188,7 +202,7 @@ fi
 # 6. Jamba (Mamba + Attention Hybrid)
 echo ""
 echo "=== 6/6: Jamba (Hybrid) ==="
-if run_training "jamba" "--temporal --backbone jamba --window-size $WINDOW_SIZE --num-layers 6"; then
+if run_training "jamba" "--temporal --backbone jamba --window-size $WINDOW_SIZE --num-layers 6 --learning-rate $LR_JAMBA"; then
     RESULTS["jamba"]="success"
 else
     RESULTS["jamba"]="failed"

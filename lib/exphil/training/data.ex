@@ -984,6 +984,8 @@ defmodule ExPhil.Training.Data do
     show_progress = Keyword.get(opts, :show_progress, true)
     # GC every N chunks
     gc_every = Keyword.get(opts, :gc_every, 100)
+    # Progress update interval (in chunks) - higher = less log spam
+    progress_interval = Keyword.get(opts, :progress_interval, 10)
 
     total = dataset.size
 
@@ -1014,8 +1016,8 @@ defmodule ExPhil.Training.Data do
       |> Enum.chunk_every(chunk_size)
       |> Enum.with_index()
       |> Enum.flat_map(fn {chunk, chunk_idx} ->
-        # Show progress
-        if show_progress do
+        # Show progress at interval (reduces log spam)
+        if show_progress and rem(chunk_idx, progress_interval) == 0 do
           processed = min((chunk_idx + 1) * chunk_size, total)
           pct = round(processed / total * 100)
           IO.write(:stderr, "\r  Embedding: #{pct}% (#{processed}/#{total})    ")
@@ -1085,6 +1087,8 @@ defmodule ExPhil.Training.Data do
   def sequences_from_frame_embeddings(dataset, frame_embeddings, opts \\ []) do
     window_size = Keyword.fetch!(opts, :window_size)
     show_progress = Keyword.get(opts, :show_progress, true)
+    # Progress update interval (in sequences) - higher = less log spam
+    progress_interval = Keyword.get(opts, :progress_interval, 50_000)
 
     # frame_embeddings shape: {num_frames, embed_dim}
     {num_frames, embed_dim} = Nx.shape(frame_embeddings)
@@ -1106,7 +1110,7 @@ defmodule ExPhil.Training.Data do
     embedded_list =
       0..(num_sequences - 1)
       |> Enum.map(fn seq_idx ->
-        if show_progress and rem(seq_idx, 50_000) == 0 do
+        if show_progress and rem(seq_idx, progress_interval) == 0 do
           pct = round(seq_idx / num_sequences * 100)
           IO.write(:stderr, "\r  Building sequences: #{pct}% (#{seq_idx}/#{num_sequences})    ")
         end
@@ -1149,6 +1153,8 @@ defmodule ExPhil.Training.Data do
     batch_size = Keyword.get(opts, :batch_size, 1000)
     # GC every N batches
     gc_every = Keyword.get(opts, :gc_every, 100)
+    # Progress update interval (in batches) - higher = less log spam
+    progress_interval = Keyword.get(opts, :progress_interval, 10)
 
     total = dataset.size
 
@@ -1175,8 +1181,8 @@ defmodule ExPhil.Training.Data do
       |> Enum.chunk_every(batch_size)
       |> Enum.with_index()
       |> Enum.map(fn {chunk, chunk_idx} ->
-        # Show progress
-        if show_progress do
+        # Show progress at interval (reduces log spam)
+        if show_progress and rem(chunk_idx, progress_interval) == 0 do
           processed = min((chunk_idx + 1) * batch_size, total)
           pct = round(processed / total * 100)
           IO.write(:stderr, "\r  Embedding: #{pct}% (#{processed}/#{total})    ")
@@ -1352,6 +1358,8 @@ defmodule ExPhil.Training.Data do
     show_progress = Keyword.get(opts, :show_progress, true)
     batch_size = Keyword.get(opts, :batch_size, 500)
     gc_every = Keyword.get(opts, :gc_every, 50)
+    # Progress update interval (in batches) - higher = less log spam
+    progress_interval = Keyword.get(opts, :progress_interval, 10)
 
     # Total variants: 1 (original) + 1 (mirrored) + num_noisy_variants
     num_variants = 2 + num_noisy_variants
@@ -1372,7 +1380,8 @@ defmodule ExPhil.Training.Data do
       |> Enum.chunk_every(batch_size)
       |> Enum.with_index()
       |> Enum.map(fn {chunk, chunk_idx} ->
-        if show_progress do
+        # Show progress at interval (reduces log spam)
+        if show_progress and rem(chunk_idx, progress_interval) == 0 do
           processed = min((chunk_idx + 1) * batch_size, total_frames)
           pct = round(processed / total_frames * 100)
           IO.write(:stderr, "\r  Augmented embedding: #{pct}% (#{processed}/#{total_frames})    ")

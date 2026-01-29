@@ -47,6 +47,9 @@ Hard-won knowledge from debugging ExPhil. Each section documents a specific issu
 41. [--cache-embeddings flag parsed but not used](#41---cache-embeddings-flag-parsed-but-not-used-train_from_replaysexs)
 42. [Nx.to_number returns atoms for special float values](#42-nxto_number-returns-atoms-for-special-float-values-nan-infinity)
 43. [Precomputed embeddings on CPU cause slow Nx.take (~17s/batch)](#43-precomputed-embeddings-on-cpu-cause-slow-nxtake-17sbatch)
+44. [Optimizer not JIT compiled with EXLA causes 0% GPU utilization](#44-optimizer-not-jit-compiled-with-exla-causes-0-gpu-utilization)
+45. [O(n) list traversal for action collection causes ~28s/batch](#45-on-list-traversal-for-action-collection-causes-28sbatch)
+46. [LSTM/GRU gradient explosion causes NaN loss mid-training](#46-lstmgru-gradient-explosion-causes-nan-loss-mid-training)
 
 ---
 
@@ -1914,3 +1917,60 @@ action_frame = :array.get(idx + frame_delay, frames_array)
 **Code location:** `lib/exphil/training/data.ex` - `create_batch_precomputed`, `create_batch_augmented`, `create_batch_standard`
 
 **Key insight:** Always use `:array` or maps for random access in hot paths. Elixir lists are great for sequential access and prepending, but terrible for random access.
+
+## 46. LSTM/GRU gradient explosion causes NaN loss mid-training
+
+**Status:** FIXED
+
+**Symptom:** LSTM or GRU training starts well, loss decreases steadily, then suddenly goes NaN partway through the first epoch:
+
+```
+loss: 3.1073 → NaN at batch 5951
+```
+
+**Root cause:** Multiple factors contribute to RNN gradient explosion:
+
+1. **Initialization:** Using `glorot_uniform` for recurrent weights allows gradient magnitudes to grow exponentially through time. Standard recommendation is `orthogonal` initialization which preserves gradient norms.
+
+2. **No layer normalization:** Unlike Mamba and Transformer which have built-in normalization, vanilla LSTM/GRU hidden states can grow unbounded.
+
+3. **Input scale:** Raw embeddings with varying magnitudes compound through timesteps.
+
+4. **Learning rate too high:** RNNs need lower LR (1e-5) compared to feedforward networks (1e-4).
+
+**The fix:** Multiple stabilization techniques in `lib/exphil/networks/recurrent.ex`:
+
+```elixir
+# 1. Orthogonal initialization for recurrent weights
+recurrent_opts = [
+  recurrent_initializer: :orthogonal,  # NOT :glorot_uniform
+  ...
+]
+
+# 2. Input layer normalization
+normalized_input = Axon.layer_norm(input, name: "input_ln")
+
+# 3. Layer norm after each RNN layer
+Axon.layer_norm(output_seq, name: "#{name}_ln")
+```
+
+Plus architecture-specific learning rates in `scripts/train_all_architectures.sh`:
+
+```bash
+LR_LSTM="1e-5"      # 10x lower than MLP
+LR_GRU="1e-5"       # 10x lower than MLP
+RNN_GRAD_CLIP="0.5" # Aggressive gradient clipping
+```
+
+**Comparison of stability:**
+
+| Architecture | Gradient Flow | Built-in Normalization | Recommended LR |
+|--------------|---------------|------------------------|----------------|
+| MLP | Direct | Optional | 1e-4 |
+| LSTM/GRU | Through gates | Now added | 1e-5 |
+| Mamba | Selective | Yes (via gates) | 5e-5 |
+| Attention | Skip connections | Layer norm | 1e-4 |
+
+**References:**
+- Saxe et al. (2013) - "Exact solutions to nonlinear dynamics of learning in deep linear networks" (orthogonal init)
+- Ba et al. (2016) - "Layer Normalization"

@@ -136,6 +136,8 @@ defmodule ExPhil.Networks.Recurrent do
     - `:return_sequences` - Return all timesteps or just last (default: false)
     - `:truncate_bptt` - Truncate gradients to last N steps (default: nil = full BPTT)
                          Set to e.g. 15-20 for 2-3x faster training with some accuracy loss
+    - `:input_layer_norm` - Apply layer norm to input for stability (default: true)
+    - `:use_layer_norm` - Apply layer norm after each RNN layer (default: true)
   """
   @spec build_backbone(Axon.t(), keyword()) :: Axon.t()
   def build_backbone(input, opts \\ []) do
@@ -145,14 +147,25 @@ defmodule ExPhil.Networks.Recurrent do
     dropout = Keyword.get(opts, :dropout, @default_dropout)
     return_sequences = Keyword.get(opts, :return_sequences, false)
     truncate_bptt = Keyword.get(opts, :truncate_bptt, @default_truncate_bptt)
+    input_layer_norm = Keyword.get(opts, :input_layer_norm, true)
+    use_layer_norm = Keyword.get(opts, :use_layer_norm, true)
+
+    # Normalize input embeddings for stable gradient flow
+    # This prevents large activation magnitudes from compounding through time
+    normalized_input =
+      if input_layer_norm do
+        Axon.layer_norm(input, name: "input_ln", epsilon: 1.0e-6)
+      else
+        input
+      end
 
     # Apply gradient truncation if configured
     # This stops gradients from flowing back beyond the last N timesteps
     processed_input =
       if truncate_bptt do
-        apply_gradient_truncation(input, truncate_bptt)
+        apply_gradient_truncation(normalized_input, truncate_bptt)
       else
-        input
+        normalized_input
       end
 
     # Build stacked recurrent layers
@@ -166,7 +179,8 @@ defmodule ExPhil.Networks.Recurrent do
         layer =
           build_recurrent_layer(acc, hidden_size, cell_type,
             name: "#{cell_type}_#{layer_idx}",
-            return_sequences: layer_return_seq
+            return_sequences: layer_return_seq,
+            use_layer_norm: use_layer_norm
           )
 
         # Add dropout between layers (not after last)
@@ -182,15 +196,34 @@ defmodule ExPhil.Networks.Recurrent do
 
   @doc """
   Build a single recurrent layer (LSTM or GRU).
+
+  ## Options
+    - `:name` - Layer name prefix
+    - `:return_sequences` - Whether to return all timesteps or just the last (default: true)
+    - `:use_layer_norm` - Add layer normalization after RNN for stability (default: true)
+    - `:recurrent_initializer` - Initializer for recurrent weights (default: :orthogonal)
+
+  ## Stability Notes
+
+  RNNs are prone to gradient explosion/vanishing. This implementation uses:
+  1. **Orthogonal initialization** for recurrent weights (preserves gradient magnitude)
+  2. **Layer normalization** after each RNN layer (stabilizes hidden state magnitudes)
+  3. Standard glorot for input weights (via Axon defaults)
+
+  If training still diverges, reduce learning rate to 1e-5 and use gradient clipping 0.5.
   """
   @spec build_recurrent_layer(Axon.t(), non_neg_integer(), cell_type(), keyword()) :: Axon.t()
   def build_recurrent_layer(input, hidden_size, cell_type, opts \\ []) do
     name = Keyword.get(opts, :name, "recurrent")
     return_sequences = Keyword.get(opts, :return_sequences, true)
+    use_layer_norm = Keyword.get(opts, :use_layer_norm, true)
+    recurrent_init = Keyword.get(opts, :recurrent_initializer, :orthogonal)
 
+    # Use orthogonal initialization for recurrent weights (prevents gradient explosion)
+    # This is the recommended initialization for RNNs per Saxe et al. (2013)
     recurrent_opts = [
       name: name,
-      recurrent_initializer: :glorot_uniform,
+      recurrent_initializer: recurrent_init,
       use_bias: true
     ]
 
@@ -202,12 +235,21 @@ defmodule ExPhil.Networks.Recurrent do
         :gru -> Axon.gru(input, hidden_size, recurrent_opts)
       end
 
+    # Apply layer normalization for stability (normalizes across hidden dimension)
+    # This helps prevent activation explosion in long sequences
+    normalized_output =
+      if use_layer_norm do
+        Axon.layer_norm(output_seq, name: "#{name}_ln", epsilon: 1.0e-6)
+      else
+        output_seq
+      end
+
     if return_sequences do
-      output_seq
+      normalized_output
     else
       # Take the last timestep: [batch, seq_len, hidden] -> [batch, hidden]
       Axon.nx(
-        output_seq,
+        normalized_output,
         fn tensor ->
           seq_len = Nx.axis_size(tensor, 1)
 

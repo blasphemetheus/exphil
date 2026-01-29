@@ -271,8 +271,9 @@ This precomputes multiple versions of each frame (original, mirrored, noisy vari
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `--quiet` | false | Minimal output (errors only) |
+| `--quiet` | false | Minimal output (errors only), suppresses XLA/ptxas logs |
 | `--verbose` | false | Debug output (timing, memory) |
+| `--log-interval N` | 100 | Progress bar update frequency (every N batches) |
 | `--seed N` | random | Random seed for reproducibility |
 
 ### Checkpoint Safety
@@ -1114,18 +1115,34 @@ Control output verbosity with `--quiet` or `--verbose`:
 
 | Flag | Level | Output |
 |------|-------|--------|
-| `--quiet` | 0 | Errors and warnings only, no progress bars |
+| `--quiet` | 0 | Errors only, suppresses warnings and XLA/ptxas logs |
 | (default) | 1 | Normal output with progress bars |
 | `--verbose` | 2 | Debug info: timing, memory, gradients |
 
+**Progress Bar Frequency:**
+```bash
+# Default is 100 batches between updates (keeps logs readable)
+# For more frequent updates during debugging:
+mix run scripts/train_from_replays.exs --log-interval 10
+
+# For minimal log output (updates ~5 times per epoch on large datasets):
+mix run scripts/train_from_replays.exs --log-interval 1000 --preset standard
+```
+
 **Examples:**
 ```bash
-# Quiet mode for CI/scripted runs
+# Quiet mode for CI/scripted runs (suppresses XLA warnings like ptxas register spills)
 mix run scripts/train_from_replays.exs --quiet --preset quick
 
 # Verbose mode for debugging
 mix run scripts/train_from_replays.exs --verbose --preset quick
 ```
+
+**What `--quiet` suppresses:**
+- Progress bar output (use `--log-interval N` for reduced updates)
+- Warnings from Output module
+- XLA/EXLA info logs (ptxas register spills, JIT compilation notices)
+- Logger `:info` level messages
 
 **Verbose output includes:**
 - Per-batch timing breakdown
@@ -1134,6 +1151,28 @@ mix run scripts/train_from_replays.exs --verbose --preset quick
 - Data loading vs training time
 - Cache hit rates
 - Debug messages marked with `[DEBUG]`
+
+### Progress Intervals (Programmatic)
+
+Data processing functions accept a `:progress_interval` option to control update frequency:
+
+```elixir
+# Default: update every 10 batches
+Data.precompute_frame_embeddings(dataset, show_progress: true)
+
+# Custom: update every 50 batches (less log spam)
+Data.precompute_frame_embeddings(dataset,
+  show_progress: true,
+  progress_interval: 50
+)
+```
+
+| Function | Default Interval | Unit |
+|----------|-----------------|------|
+| `precompute_frame_embeddings` | 10 | batches (1000 frames each) |
+| `precompute_embeddings` | 10 | chunks |
+| `precompute_augmented_frame_embeddings` | 10 | batches |
+| `sequences_from_frame_embeddings` | 50,000 | sequences |
 
 ## Reproducibility
 

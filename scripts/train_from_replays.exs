@@ -42,6 +42,14 @@ unless String.contains?(xla_flags, "xla_cpu_multi_thread_eigen") do
   System.put_env("XLA_FLAGS", new_flags)
 end
 
+# Suppress XLA/ptxas info logs in quiet mode (must be done early, before EXLA loads)
+# These warnings come from the XLA compiler and can spam logs:
+#   - "ptxas warning : Registers are spilled to local memory..."
+#   - Various JIT compilation info messages
+if "--quiet" in System.argv() do
+  Logger.configure(level: :warning)
+end
+
 #   --replays PATH    - Path to replay directory (default: ../replays)
 #   --epochs N        - Number of training epochs (default: 10)
 #   --batch-size N    - Batch size (default: 64)
@@ -280,8 +288,19 @@ opts =
   |> Config.ensure_checkpoint_name()
   |> Config.validate!()
 
+# Apply smart defaults based on flag combinations
+# This auto-enables temporal for recurrent backbones, val_split for early_stopping, etc.
+{opts, inferences} = Config.infer_smart_defaults(opts)
+
 # Set verbosity level (affects all Output calls)
 Output.set_verbosity(opts[:verbosity])
+
+# Show any smart defaults that were applied (helps users understand what happened)
+if inferences != [] and opts[:verbosity] > 0 do
+  for inference <- inferences do
+    Output.puts("  → #{inference}", :cyan)
+  end
+end
 
 # Initialize random seed for reproducibility
 seed = Config.init_seed(opts[:seed])
@@ -1970,7 +1989,17 @@ batch_checkpoint_path =
 
       # Use carriage return to overwrite line (no newline until epoch complete)
       # Write directly to stderr to bypass Output module's timestamp
-      IO.write(:stderr, "\r#{progress_line}")
+      # log_interval controls update frequency: higher = less log spam, cleaner logs
+      log_interval = opts[:log_interval] || 1
+
+      should_log =
+        log_interval == 1 or
+          rem(batch_idx, log_interval) == 0 or
+          batch_idx + 1 == display_total
+
+      if should_log and opts[:verbosity] > 0 do
+        IO.write(:stderr, "\r#{progress_line}")
+      end
 
       # Accumulate tensor loss (keep as tensor, convert at epoch end)
       # Store tuple of {display_loss, tensor} so we can show loss but compute mean from tensors

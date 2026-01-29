@@ -309,6 +309,34 @@ Output.puts("   (subsequent batches will be fast)")
 IO.write(:stderr, "\r#{progress_line}")  # Carriage return to overwrite
 ```
 
+**Progress interval standards** - Avoid log spam with intervals:
+```elixir
+# BAD: Updates every iteration (spams logs)
+Enum.each(items, fn {item, idx} ->
+  IO.write(:stderr, "\r  Progress: #{idx}/#{total}")
+  process(item)
+end)
+
+# GOOD: Updates at intervals (clean logs for post-run analysis)
+progress_interval = Keyword.get(opts, :progress_interval, 10)
+Enum.each(items, fn {item, idx} ->
+  if rem(idx, progress_interval) == 0 do
+    IO.write(:stderr, "\r  Progress: #{idx}/#{total}")
+  end
+  process(item)
+end)
+```
+
+Standard intervals by operation type:
+| Operation | Default Interval | Rationale |
+|-----------|-----------------|-----------|
+| Training batches | 100 | ~500 updates/epoch is plenty |
+| Embedding batches | 10 | ~20-30 updates total |
+| Sequence building | 50,000 | Large counts, few updates |
+| File hashing | 100 | Moderate update frequency |
+
+All functions accepting `:show_progress` should also accept `:progress_interval`.
+
 **GPU memory status** - Show at startup and each epoch:
 ```elixir
 Output.puts(GPUUtils.memory_status_string())  # "GPU: 4.2/8.0 GB (52%)"
@@ -323,6 +351,43 @@ Output.training_summary(%{
   checkpoint_path: path
 })
 ```
+
+## Verbosity & Quiet Mode Standards
+
+Scripts should support three verbosity levels via `--quiet` and `--verbose` flags:
+
+| Flag | Level | Behavior |
+|------|-------|----------|
+| `--quiet` | 0 | Errors only, suppress warnings, XLA logs, progress bars |
+| (default) | 1 | Normal output with progress bars at intervals |
+| `--verbose` | 2 | Debug output: timing, memory, gradients |
+
+**Implementing quiet mode:**
+```elixir
+# At script start (BEFORE any EXLA operations)
+if "--quiet" in System.argv() do
+  Logger.configure(level: :warning)  # Suppresses XLA [info] logs
+end
+
+# After parsing opts
+Output.set_verbosity(opts[:verbosity])
+
+# Progress bars respect verbosity
+if opts[:verbosity] > 0 do
+  IO.write(:stderr, "\r#{progress_line}")
+end
+```
+
+**Key flags for log cleanliness:**
+- `--quiet` - Suppresses warnings, XLA/ptxas logs, most output
+- `--log-interval N` - Training progress updates every N batches (default: 100)
+- `:progress_interval` option - Embedding/processing updates (default: 10)
+
+**When adding new CLI flags:**
+1. Add to `@valid_flags` in `lib/exphil/training/config.ex`
+2. Add default in `defaults/0`
+3. Add parsing logic
+4. Document in `docs/TRAINING.md` table: `| --flag-name | default | Description |`
 
 ## References
 
