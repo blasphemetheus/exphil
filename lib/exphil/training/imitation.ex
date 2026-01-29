@@ -374,13 +374,17 @@ defmodule ExPhil.Training.Imitation do
 
   Equivalent to `warmup(trainer, sample_batch, only: [:validation])`.
   """
-  @spec warmup_validation(t(), list()) :: {:ok, map()} | {:error, term()}
-  def warmup_validation(trainer, validation_batches) when is_list(validation_batches) do
-    # Take first 2 batches to warm up both loss computation and Nx.add accumulation
-    warmup_batches = Enum.take(validation_batches, 2)
+  @spec warmup_validation(t(), list(), keyword()) :: {:ok, map()} | {:error, term()}
+  def warmup_validation(trainer, validation_batches, opts \\ []) when is_list(validation_batches) do
+    # Use same max_concurrency as actual validation to warm up the right code path
+    # Default to 4 which matches evaluate/3 default
+    max_concurrency = Keyword.get(opts, :max_concurrency, 4)
+
+    # Take enough batches to exercise the parallel path (at least max_concurrency batches)
+    warmup_batches = Enum.take(validation_batches, max(2, max_concurrency))
 
     {time_ms, _result} = :timer.tc(fn ->
-      evaluate(trainer, warmup_batches, show_progress: false, max_concurrency: 1)
+      evaluate(trainer, warmup_batches, show_progress: false, max_concurrency: max_concurrency)
     end, :millisecond)
 
     {:ok, %{validation: time_ms}}

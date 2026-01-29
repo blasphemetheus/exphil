@@ -1721,7 +1721,8 @@ precomputed_val_batches =
 if precomputed_val_batches != nil and length(precomputed_val_batches) > 0 do
   IO.write(:stderr, "  ⏳ JIT compiling validation function...\e[K")
 
-  case Imitation.warmup_validation(trainer, precomputed_val_batches) do
+  val_concurrency = opts[:val_concurrency] || 4
+  case Imitation.warmup_validation(trainer, precomputed_val_batches, max_concurrency: val_concurrency) do
     {:ok, %{validation: time_ms}} ->
       IO.write(:stderr, "\r  ✓ Validation JIT compiled (#{Float.round(time_ms / 1000, 1)}s)\n\e[K")
 

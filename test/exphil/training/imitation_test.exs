@@ -772,7 +772,7 @@ defmodule ExPhil.Training.ImitationTest do
     end
   end
 
-  describe "warmup_validation/2" do
+  describe "warmup_validation/3" do
     @tag :slow
     test "warms up validation code path" do
       trainer = Imitation.new(embed_size: 64, hidden_sizes: [32])
@@ -792,6 +792,20 @@ defmodule ExPhil.Training.ImitationTest do
       {:ok, timings} = Imitation.warmup_validation(trainer, batches)
 
       assert timings.validation >= 0
+    end
+
+    @tag :slow
+    test "respects max_concurrency option" do
+      trainer = Imitation.new(embed_size: 64, hidden_sizes: [32])
+      batches = for _ <- 1..4, do: mock_batch(4, 64)
+
+      # Sequential warmup
+      {:ok, timings1} = Imitation.warmup_validation(trainer, batches, max_concurrency: 1)
+      assert timings1.validation >= 0
+
+      # Parallel warmup (default)
+      {:ok, timings2} = Imitation.warmup_validation(trainer, batches, max_concurrency: 4)
+      assert timings2.validation >= 0
     end
   end
 end
