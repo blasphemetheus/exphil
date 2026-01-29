@@ -142,6 +142,8 @@ defmodule ExPhil.Networks.Hybrid do
     head_dim = Keyword.get(opts, :head_dim, @default_head_dim)
     use_sliding_window = Keyword.get(opts, :use_sliding_window, true)
     qk_layernorm = Keyword.get(opts, :qk_layernorm, @default_qk_layernorm)
+    chunked_attention = Keyword.get(opts, :chunked_attention, false)
+    chunk_size = Keyword.get(opts, :chunk_size, 32)
 
     # Stability options
     pre_norm = Keyword.get(opts, :pre_norm, @default_pre_norm)
@@ -192,6 +194,8 @@ defmodule ExPhil.Networks.Hybrid do
             precomputed_mask: precomputed_mask,
             pre_norm: pre_norm,
             qk_layernorm: qk_layernorm,
+            chunked: chunked_attention,
+            chunk_size: chunk_size,
             name: "layer_#{layer_idx}_attn"
           )
         else
@@ -286,6 +290,8 @@ defmodule ExPhil.Networks.Hybrid do
   ## Options
     - `:pre_norm` - If true, apply LayerNorm before block (Pre-LN, more stable).
     - `:qk_layernorm` - If true, normalize Q and K before attention (stabilizes training).
+    - `:chunked` - If true, use chunked attention for lower memory usage (default: false).
+    - `:chunk_size` - Query chunk size when using chunked attention (default: 32).
   """
   @spec build_attention_layer(Axon.t(), keyword()) :: Axon.t()
   def build_attention_layer(input, opts) do
@@ -299,6 +305,8 @@ defmodule ExPhil.Networks.Hybrid do
     precomputed_mask = Keyword.get(opts, :precomputed_mask, nil)
     pre_norm = Keyword.get(opts, :pre_norm, @default_pre_norm)
     qk_layernorm = Keyword.get(opts, :qk_layernorm, @default_qk_layernorm)
+    chunked = Keyword.get(opts, :chunked, false)
+    chunk_size = Keyword.get(opts, :chunk_size, 32)
     name = Keyword.get(opts, :name, "attn_layer")
 
     # =========================================================================
@@ -321,7 +329,7 @@ defmodule ExPhil.Networks.Hybrid do
         attn_input
       end
 
-    # Attention (with optional QK LayerNorm)
+    # Attention (with optional QK LayerNorm and chunked attention)
     attended =
       if use_sliding_window do
         Attention.sliding_window_attention(attn_input,
@@ -330,6 +338,8 @@ defmodule ExPhil.Networks.Hybrid do
           head_dim: head_dim,
           mask: precomputed_mask,
           qk_layernorm: qk_layernorm,
+          chunked: chunked,
+          chunk_size: chunk_size,
           name: name
         )
       else
@@ -339,6 +349,8 @@ defmodule ExPhil.Networks.Hybrid do
           dropout: dropout,
           causal: true,
           qk_layernorm: qk_layernorm,
+          chunked: chunked,
+          chunk_size: chunk_size,
           name: name
         )
       end

@@ -107,6 +107,27 @@ For 60 FPS Melee gameplay:
 | Attention | 17.0ms | <15ms | Reduce window_size or num_layers |
 | LSTM | 228.8ms | - | Not recommended for real-time |
 
+### FAQ: Is Flash Attention a Separate Architecture?
+
+**No.** Flash Attention is an **optimization technique**, not a backbone architecture.
+
+It optimizes how attention is computed without changing what is computed:
+- **Standard attention**: Materializes full n×n attention matrix → O(n²) memory
+- **Flash attention**: Computes in tiles without full matrix → O(n) memory
+
+Flash attention would be an option for the existing `Attention` backbone:
+```bash
+# Future flag (not yet implemented)
+mix run scripts/train_from_replays.exs --backbone attention --flash-attention
+```
+
+Benefits for Attention backbone:
+- Enable 120+ frame sequences (vs ~90 currently)
+- 30-50% memory reduction
+- Same accuracy (mathematically equivalent)
+
+See [GPU_OPTIMIZATIONS.md](../GPU_OPTIMIZATIONS.md#flash-attention-medium-priority) for implementation status.
+
 ## CLI Usage
 
 ```bash

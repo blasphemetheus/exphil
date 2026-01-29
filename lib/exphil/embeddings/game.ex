@@ -28,6 +28,11 @@ defmodule ExPhil.Embeddings.Game do
   alias ExPhil.Embeddings.Controller, as: ControllerEmbed
   alias ExPhil.Bridge.{GameState, Projectile, Item, ControllerState}
 
+  # Tensor core alignment for GPU efficiency
+  # Dimensions should be multiples of 8 for FP16/BF16 tensor cores
+  # Without alignment, GPU may fall back to slower non-tensor-core kernels
+  @tensor_core_alignment 8
+
   # ============================================================================
   # Configuration
   # ============================================================================
@@ -316,6 +321,71 @@ defmodule ExPhil.Embeddings.Game do
     # Stage ID appended at very end when using learned stage embeddings
     stage_ids_size = num_stage_ids(config)
 
+    # Raw embedding size before alignment
+    raw_size =
+      players_size + stage_size + prev_action_size + name_size +
+        projectile_size + item_size +
+        distance_size + relative_pos_size + frame_count_size +
+        action_ids_size + character_ids_size + stage_ids_size
+
+    # Add padding for tensor core alignment (multiples of 8 for GPU efficiency)
+    # Without this, 287 dims falls back to slower non-tensor-core kernels
+    padding_size = padding_for_alignment(raw_size)
+
+    raw_size + padding_size
+  end
+
+  @doc """
+  Calculate padding needed to align to tensor core boundary.
+
+  Returns 0 if already aligned, otherwise the number of dims to add.
+  """
+  @spec padding_for_alignment(non_neg_integer()) :: non_neg_integer()
+  def padding_for_alignment(size) do
+    remainder = rem(size, @tensor_core_alignment)
+
+    if remainder == 0 do
+      0
+    else
+      @tensor_core_alignment - remainder
+    end
+  end
+
+  @doc """
+  Get the raw embedding size before tensor core alignment padding.
+
+  Useful for debugging or when you need to know the "semantic" size.
+  """
+  @spec raw_embedding_size(config()) :: non_neg_integer()
+  def raw_embedding_size(config \\ default_config()) do
+    # Same calculation as embedding_size but without padding
+    player_size = PlayerEmbed.embedding_size(config.player)
+    players_size = 2 * player_size
+    stage_size = stage_embedding_size(config)
+    prev_action_size = ControllerEmbed.continuous_embedding_size()
+    name_size = config.num_player_names
+
+    projectile_size =
+      if config.with_projectiles do
+        config.max_projectiles * projectile_embedding_size()
+      else
+        0
+      end
+
+    item_size =
+      if config.with_items do
+        config.max_items * item_embedding_size()
+      else
+        0
+      end
+
+    distance_size = if config.with_distance, do: 1, else: 0
+    relative_pos_size = if config.with_relative_pos, do: 2, else: 0
+    frame_count_size = if config.with_frame_count, do: 1, else: 0
+    action_ids_size = num_action_ids(config)
+    character_ids_size = num_character_ids(config)
+    stage_ids_size = num_stage_ids(config)
+
     players_size + stage_size + prev_action_size + name_size +
       projectile_size + item_size +
       distance_size + relative_pos_size + frame_count_size +
@@ -563,6 +633,18 @@ defmodule ExPhil.Embeddings.Game do
         embeddings
       end
 
+    # Add padding for tensor core alignment (multiples of 8 for GPU efficiency)
+    raw_size = raw_embedding_size(config)
+    padding_size = padding_for_alignment(raw_size)
+
+    embeddings =
+      if padding_size > 0 do
+        padding = Nx.broadcast(0.0, {padding_size}) |> Nx.as_type(:f32)
+        [padding | embeddings]
+      else
+        embeddings
+      end
+
     Nx.concatenate(Enum.reverse(embeddings))
   end
 
@@ -763,13 +845,26 @@ defmodule ExPhil.Embeddings.Game do
 
       # Append stage ID at very end when using learned stage embeddings
       # Shape: [batch, 1] with stage_id as float
-      all_embs =
+      embs_with_stage =
         if config.stage_mode == :learned do
           # Stage IDs as [batch, 1] tensor
           stage_ids = Nx.tensor(stages, type: :f32) |> Nx.reshape({:auto, 1})
           embs_with_chars ++ [stage_ids]
         else
           embs_with_chars
+        end
+
+      # Add padding for tensor core alignment (multiples of 8 for GPU efficiency)
+      # Without this, 287 dims falls back to slower non-tensor-core kernels
+      raw_size = raw_embedding_size(config)
+      padding_size = padding_for_alignment(raw_size)
+
+      all_embs =
+        if padding_size > 0 do
+          padding = Nx.broadcast(0.0, {batch_size, padding_size}) |> Nx.as_type(:f32)
+          embs_with_stage ++ [padding]
+        else
+          embs_with_stage
         end
 
       # Concatenate all: [batch, total_embed_size]

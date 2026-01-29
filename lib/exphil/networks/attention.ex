@@ -129,6 +129,102 @@ defmodule ExPhil.Networks.Attention do
   end
 
   @doc """
+  Chunked attention for reduced peak memory usage.
+
+  Processes query in chunks, computing attention for each chunk against all keys.
+  This reduces peak memory from O(seq²) to O(seq × chunk_size) while producing
+  identical results to standard attention.
+
+  ## Parameters
+    - `query` - Query tensor [batch, seq_q, dim]
+    - `key` - Key tensor [batch, seq_k, dim]
+    - `value` - Value tensor [batch, seq_k, dim]
+    - `opts` - Options:
+      - `:chunk_size` - Size of query chunks (default: 32)
+      - `:mask` - Attention mask (will be chunked automatically)
+
+  ## Returns
+    Attention output [batch, seq_q, dim] - identical to scaled_dot_product_attention
+
+  ## Memory Comparison
+    For seq_len=128, batch=32, dim=256:
+    - Standard: 32 × 128 × 128 × 4 bytes = 2MB peak for scores
+    - Chunked (chunk=32): 32 × 32 × 128 × 4 bytes = 512KB peak (4x reduction)
+  """
+  @spec chunked_attention(Nx.Tensor.t(), Nx.Tensor.t(), Nx.Tensor.t(), keyword()) ::
+          Nx.Tensor.t()
+  def chunked_attention(query, key, value, opts \\ []) do
+    chunk_size = Keyword.get(opts, :chunk_size, 32)
+    mask = Keyword.get(opts, :mask)
+
+    {batch, seq_q, dim} = Nx.shape(query)
+    seq_k = Nx.axis_size(key, 1)
+    d_k = dim
+    scale = Nx.sqrt(d_k) |> Nx.as_type(Nx.type(query))
+
+    # Calculate number of chunks
+    num_chunks = div(seq_q + chunk_size - 1, chunk_size)
+
+    # Process each chunk
+    # Note: We use Nx.concatenate at the end rather than building a list
+    # because XLA needs static shapes during tracing
+    chunk_results =
+      for chunk_idx <- 0..(num_chunks - 1) do
+        # Calculate chunk boundaries
+        start_idx = chunk_idx * chunk_size
+        # Handle last chunk which may be smaller
+        actual_chunk_size = min(chunk_size, seq_q - start_idx)
+
+        # Extract query chunk: [batch, chunk_size, dim]
+        q_chunk = Nx.slice_along_axis(query, start_idx, actual_chunk_size, axis: 1)
+
+        # Compute attention scores for this chunk against all keys
+        # scores: [batch, chunk_size, seq_k]
+        scores = Nx.dot(q_chunk, [2], [0], key, [2], [0])
+        scores = Nx.divide(scores, scale)
+
+        # Apply mask for this chunk if provided
+        scores =
+          if mask do
+            # Extract mask chunk: [chunk_size, seq_k] or [batch, chunk_size, seq_k]
+            chunk_mask =
+              case Nx.shape(mask) do
+                {^seq_q, ^seq_k} ->
+                  # 2D mask: [seq_q, seq_k] -> slice and broadcast
+                  Nx.slice_along_axis(mask, start_idx, actual_chunk_size, axis: 0)
+                  |> Nx.new_axis(0)
+                  |> Nx.broadcast({batch, actual_chunk_size, seq_k})
+
+                {^batch, ^seq_q, ^seq_k} ->
+                  # 3D mask: [batch, seq_q, seq_k] -> slice
+                  Nx.slice_along_axis(mask, start_idx, actual_chunk_size, axis: 1)
+
+                _ ->
+                  # Unexpected shape, try to broadcast
+                  Nx.broadcast(mask, Nx.shape(scores))
+              end
+
+            Nx.select(
+              chunk_mask,
+              scores,
+              Nx.broadcast(-1.0e9, Nx.shape(scores))
+            )
+          else
+            scores
+          end
+
+        # Softmax over keys (last axis)
+        weights = FusedOps.fused_softmax(scores)
+
+        # Compute output: [batch, chunk_size, dim]
+        Nx.dot(weights, [2], [0], value, [1], [0])
+      end
+
+    # Concatenate all chunks along sequence axis
+    Nx.concatenate(chunk_results, axis: 1)
+  end
+
+  @doc """
   Create a causal (autoregressive) attention mask.
 
   Each position can only attend to itself and previous positions.
@@ -173,6 +269,8 @@ defmodule ExPhil.Networks.Attention do
     - `:dropout` - Dropout rate (default: 0.1)
     - `:causal` - Use causal masking (default: true)
     - `:qk_layernorm` - Normalize Q and K before attention (stabilizes training, default: false)
+    - `:chunked` - Use chunked attention for lower memory (default: false)
+    - `:chunk_size` - Query chunk size when chunked (default: 32)
     - `:name` - Layer name prefix
   """
   @spec self_attention(Axon.t(), keyword()) :: Axon.t()
@@ -181,6 +279,8 @@ defmodule ExPhil.Networks.Attention do
     dropout = Keyword.get(opts, :dropout, @default_dropout)
     causal = Keyword.get(opts, :causal, true)
     qk_layernorm = Keyword.get(opts, :qk_layernorm, false)
+    chunked = Keyword.get(opts, :chunked, false)
+    chunk_size = Keyword.get(opts, :chunk_size, 32)
     name = Keyword.get(opts, :name, "self_attn")
 
     # Project to Q, K, V and concatenate for single layer call
@@ -213,7 +313,12 @@ defmodule ExPhil.Networks.Attention do
               nil
             end
 
-          scaled_dot_product_attention(query, key, value, mask: mask)
+          # Use chunked or standard attention
+          if chunked do
+            chunked_attention(query, key, value, mask: mask, chunk_size: chunk_size)
+          else
+            scaled_dot_product_attention(query, key, value, mask: mask)
+          end
         end,
         name: "#{name}_compute"
       )
@@ -250,6 +355,8 @@ defmodule ExPhil.Networks.Attention do
     - `:hidden_dim` - Hidden dimension (default: 256)
     - `:mask` - Pre-computed attention mask (recommended for efficient compilation)
     - `:qk_layernorm` - Normalize Q and K before attention (stabilizes training, default: false)
+    - `:chunked` - Use chunked attention for lower memory (default: false)
+    - `:chunk_size` - Query chunk size when chunked (default: 32)
     - `:name` - Layer name prefix
   """
   @spec sliding_window_attention(Axon.t(), keyword()) :: Axon.t()
@@ -259,6 +366,8 @@ defmodule ExPhil.Networks.Attention do
     head_dim = Keyword.get(opts, :head_dim, @default_head_dim)
     precomputed_mask = Keyword.get(opts, :mask, nil)
     qk_layernorm = Keyword.get(opts, :qk_layernorm, false)
+    chunked = Keyword.get(opts, :chunked, false)
+    chunk_size = Keyword.get(opts, :chunk_size, 32)
     name = Keyword.get(opts, :name, "window_attn")
 
     hidden_dim = num_heads * head_dim
@@ -295,7 +404,12 @@ defmodule ExPhil.Networks.Attention do
             window_mask(seq_len, window_size)
           end
 
-        scaled_dot_product_attention(query, key, value, mask: mask)
+        # Use chunked or standard attention
+        if chunked do
+          chunked_attention(query, key, value, mask: mask, chunk_size: chunk_size)
+        else
+          scaled_dot_product_attention(query, key, value, mask: mask)
+        end
       end,
       name: "#{name}_compute"
     )

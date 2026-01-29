@@ -32,6 +32,69 @@ defmodule ExPhil.Networks.AttentionTest do
     end
   end
 
+  describe "chunked_attention/4" do
+    test "produces same output shape as standard attention" do
+      query = Nx.iota({@batch_size, @seq_len, 32}, axis: 0) |> Nx.divide(10) |> Nx.as_type(:f32)
+      key = Nx.iota({@batch_size, @seq_len, 32}, axis: 1) |> Nx.divide(10) |> Nx.as_type(:f32)
+      value = Nx.iota({@batch_size, @seq_len, 32}, axis: 2) |> Nx.divide(10) |> Nx.as_type(:f32)
+
+      output = Attention.chunked_attention(query, key, value, chunk_size: 4)
+
+      assert Nx.shape(output) == {@batch_size, @seq_len, 32}
+    end
+
+    test "produces identical results to standard attention without mask" do
+      # Use deterministic tensors for exact comparison
+      query = Nx.iota({@batch_size, @seq_len, 32}, axis: 2) |> Nx.divide(32) |> Nx.as_type(:f32)
+      key = Nx.iota({@batch_size, @seq_len, 32}, axis: 1) |> Nx.divide(@seq_len) |> Nx.as_type(:f32)
+      value = Nx.iota({@batch_size, @seq_len, 32}) |> Nx.divide(100) |> Nx.as_type(:f32)
+
+      standard = Attention.scaled_dot_product_attention(query, key, value)
+      chunked = Attention.chunked_attention(query, key, value, chunk_size: 4)
+
+      # Should be numerically identical (within floating point tolerance)
+      diff = Nx.abs(Nx.subtract(standard, chunked))
+      max_diff = Nx.reduce_max(diff) |> Nx.to_number()
+      assert max_diff < 1.0e-5, "Max difference: #{max_diff}"
+    end
+
+    test "produces identical results to standard attention with causal mask" do
+      query = Nx.iota({@batch_size, @seq_len, 32}, axis: 2) |> Nx.divide(32) |> Nx.as_type(:f32)
+      key = Nx.iota({@batch_size, @seq_len, 32}, axis: 1) |> Nx.divide(@seq_len) |> Nx.as_type(:f32)
+      value = Nx.iota({@batch_size, @seq_len, 32}) |> Nx.divide(100) |> Nx.as_type(:f32)
+      mask = Attention.causal_mask(@seq_len)
+
+      standard = Attention.scaled_dot_product_attention(query, key, value, mask: mask)
+      chunked = Attention.chunked_attention(query, key, value, mask: mask, chunk_size: 4)
+
+      diff = Nx.abs(Nx.subtract(standard, chunked))
+      max_diff = Nx.reduce_max(diff) |> Nx.to_number()
+      assert max_diff < 1.0e-5, "Max difference with causal mask: #{max_diff}"
+    end
+
+    test "handles non-divisible sequence lengths" do
+      # seq_len=10 is not divisible by chunk_size=3
+      query = Nx.iota({@batch_size, @seq_len, 32}, axis: 0) |> Nx.divide(10) |> Nx.as_type(:f32)
+      key = Nx.iota({@batch_size, @seq_len, 32}, axis: 1) |> Nx.divide(10) |> Nx.as_type(:f32)
+      value = Nx.iota({@batch_size, @seq_len, 32}, axis: 2) |> Nx.divide(10) |> Nx.as_type(:f32)
+
+      output = Attention.chunked_attention(query, key, value, chunk_size: 3)
+
+      assert Nx.shape(output) == {@batch_size, @seq_len, 32}
+    end
+
+    test "handles chunk_size larger than sequence length" do
+      query = Nx.iota({@batch_size, @seq_len, 32}, axis: 0) |> Nx.divide(10) |> Nx.as_type(:f32)
+      key = Nx.iota({@batch_size, @seq_len, 32}, axis: 1) |> Nx.divide(10) |> Nx.as_type(:f32)
+      value = Nx.iota({@batch_size, @seq_len, 32}, axis: 2) |> Nx.divide(10) |> Nx.as_type(:f32)
+
+      # chunk_size=100 > seq_len=10, should still work
+      output = Attention.chunked_attention(query, key, value, chunk_size: 100)
+
+      assert Nx.shape(output) == {@batch_size, @seq_len, 32}
+    end
+  end
+
   describe "causal_mask/1" do
     test "creates lower triangular mask" do
       mask = Attention.causal_mask(4)

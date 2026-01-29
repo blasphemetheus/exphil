@@ -170,6 +170,11 @@ mix run scripts/train_from_replays.exs --dual-port
 |--------|---------|-------------|
 | `--num-heads N` | 4 | Number of attention heads |
 | `--attention-every N` | 2 | Add attention every N layers (hybrid) |
+| `--qk-layernorm` | on | Normalize Q/K before attention (stabilizes training) |
+| `--no-qk-layernorm` | - | Disable QK LayerNorm |
+| `--chunked-attention` | off | Use chunked attention for 20-30% memory reduction |
+| `--no-chunked-attention` | - | Disable chunked attention |
+| `--chunk-size N` | 32 | Query chunk size when using chunked attention |
 
 ### Model Architecture
 

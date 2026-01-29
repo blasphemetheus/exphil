@@ -120,12 +120,34 @@ defmodule ExPhil.Embeddings.GameTest do
       assert size > 0
     end
 
+    test "embedding size is aligned to 8 for tensor core efficiency" do
+      # Default config should be aligned
+      default_config = GameEmbed.default_config()
+      default_size = GameEmbed.embedding_size(default_config)
+      assert rem(default_size, 8) == 0, "Default config embedding size #{default_size} is not aligned to 8"
+
+      # Various configs should all be aligned
+      configs = [
+        %GameEmbed{with_projectiles: false},
+        %GameEmbed{with_projectiles: true, max_projectiles: 3},
+        %GameEmbed{stage_mode: :one_hot_full},
+        %GameEmbed{stage_mode: :one_hot_compact},
+        %GameEmbed{stage_mode: :learned}
+      ]
+
+      for config <- configs do
+        size = GameEmbed.embedding_size(config)
+        assert rem(size, 8) == 0, "Embedding size #{size} is not aligned to 8 for config #{inspect(config)}"
+      end
+    end
+
     test "size increases with projectiles enabled" do
       base_config = %GameEmbed{with_projectiles: false, max_projectiles: 5}
       proj_config = %GameEmbed{with_projectiles: true, max_projectiles: 5}
 
-      base_size = GameEmbed.embedding_size(base_config)
-      proj_size = GameEmbed.embedding_size(proj_config)
+      # Use raw_embedding_size to check semantic size difference (before padding)
+      base_size = GameEmbed.raw_embedding_size(base_config)
+      proj_size = GameEmbed.raw_embedding_size(proj_config)
 
       # Each projectile adds 7 dimensions
       assert proj_size == base_size + 5 * 7
@@ -135,8 +157,9 @@ defmodule ExPhil.Embeddings.GameTest do
       config5 = %GameEmbed{with_projectiles: true, max_projectiles: 5}
       config10 = %GameEmbed{with_projectiles: true, max_projectiles: 10}
 
-      size5 = GameEmbed.embedding_size(config5)
-      size10 = GameEmbed.embedding_size(config10)
+      # Use raw_embedding_size to check semantic size difference (before padding)
+      size5 = GameEmbed.raw_embedding_size(config5)
+      size10 = GameEmbed.raw_embedding_size(config10)
 
       assert size10 == size5 + 5 * 7
     end
@@ -413,9 +436,16 @@ defmodule ExPhil.Embeddings.GameTest do
 
       assert Nx.shape(result) == {total_size}
 
-      # Last 2 values should be action IDs (own=50, opponent=100)
-      last_two = Nx.slice(result, [total_size - 2], [2])
-      [own_action, opp_action] = Nx.to_list(last_two)
+      # Action IDs are placed before padding (at end of semantic content)
+      # Order: [continuous..., action_ids, padding]
+      # With one-hot characters and one_hot_full stage, only action IDs are appended as IDs
+      raw_size = GameEmbed.raw_embedding_size(config)
+      padding_size = GameEmbed.padding_for_alignment(raw_size)
+
+      # Action IDs are the last 2 values before padding
+      action_ids_start = total_size - padding_size - 2
+      action_ids = Nx.slice(result, [action_ids_start], [2])
+      [own_action, opp_action] = Nx.to_list(action_ids)
 
       # Action IDs are cast to f32 in the tensor
       assert trunc(own_action) == 50
@@ -883,8 +913,9 @@ defmodule ExPhil.Embeddings.GameTest do
       full_config = %{GameEmbed.default_config() | stage_mode: :one_hot_full}
       compact_config = %{GameEmbed.default_config() | stage_mode: :one_hot_compact}
 
-      full_size = GameEmbed.embedding_size(full_config)
-      compact_size = GameEmbed.embedding_size(compact_config)
+      # Use raw_embedding_size to check semantic size difference (before padding)
+      full_size = GameEmbed.raw_embedding_size(full_config)
+      compact_size = GameEmbed.raw_embedding_size(compact_config)
 
       # Compact saves 64 - 7 = 57 dimensions
       assert full_size - compact_size == 57
@@ -894,8 +925,9 @@ defmodule ExPhil.Embeddings.GameTest do
       full_config = %{GameEmbed.default_config() | stage_mode: :one_hot_full}
       learned_config = %{GameEmbed.default_config() | stage_mode: :learned}
 
-      full_size = GameEmbed.embedding_size(full_config)
-      learned_size = GameEmbed.embedding_size(learned_config)
+      # Use raw_embedding_size to check semantic size difference (before padding)
+      full_size = GameEmbed.raw_embedding_size(full_config)
+      learned_size = GameEmbed.raw_embedding_size(learned_config)
 
       # Learned saves 64 dims, adds 1 ID = net savings of 63 dims
       assert full_size - learned_size == 63

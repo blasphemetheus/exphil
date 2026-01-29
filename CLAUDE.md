@@ -5,13 +5,14 @@ ExPhil is an Elixir-based successor to slippi-ai, creating high-ELO playable bot
 ## Quick Reference
 
 **Embedding dimensions:**
-- **Default (learned)**: ~287 dims (with `action_mode: :learned`, `character_mode: :learned`, `stage_mode: :one_hot_compact`)
+- **Default (learned)**: 288 dims (287 raw + 1 padding for tensor core alignment)
 - Player: 488 dims (base 440 + speeds 5 + frame_info 2 + stock 1 + ledge_dist 1 + compact Nana 39)
 - Player (learned actions): 91 dims (base 41 + speeds 5 + frame_info 2 + stock 1 + ledge_dist 1 + compact Nana 39 + action IDs in network)
 - Player (learned actions + chars): 58 dims (excludes 33-dim character one-hot)
-- Game (one_hot, legacy): 1204 dims (2 players + stage + spatial features + projectiles)
+- Game (one_hot, legacy): 1208 dims (1204 raw + 4 padding for alignment)
 - Game (learned actions): 408 dims + 2 action IDs
 - Game (learned actions + chars): 344 dims + 4 IDs (saves 64 dims net: 2×33 one-hot → 2 char IDs)
+- **Note:** All embedding sizes are auto-aligned to multiples of 8 for GPU tensor core efficiency
 - **512-dim target**: 254 continuous + 4 action IDs × 64 embedding (use `action_mode: :learned, nana_mode: :enhanced`)
 - Nana modes:
   - `:compact` (default): 39 dims (preserves IC tech: handoffs, regrabs, desyncs)
@@ -225,8 +226,8 @@ See [docs/GOTCHAS.md](docs/GOTCHAS.md) for detailed fixes. Most common issues:
 - Use Read before Write to ensure you have current content
 
 **Debugging tests:**
+- CRITICAL: Never pipe `mix test` output (`| head`, `| tail`, etc.) - this kills streaming output and forces a full ~100s test suite rerun to see failures. Run `mix test` without piping, then use `grep -A` on visible output if needed.
 - Never use `| tail` when investigating failures - it hides error details
-- Never pipe `mix test` output (`| head`, `| tail`, etc.) - it forces you to run the full ~100s test suite twice
 - Use `mix test --failed` to rerun only failing tests
 - For targeted debugging: `mix test path/to/test.exs:LINE_NUMBER`
 

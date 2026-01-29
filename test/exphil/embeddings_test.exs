@@ -481,12 +481,18 @@ defmodule ExPhil.EmbeddingsTest do
       character_ids_size = GameEmbed.num_character_ids(config)
       stage_ids_size = GameEmbed.num_stage_ids(config)
 
-      expected =
+      raw_size =
         2 * player_size + stage_size + prev_action_size + name_size +
           projectile_size + item_size + distance_size + relative_pos_size + frame_count_size +
           action_ids_size + character_ids_size + stage_ids_size
 
+      # Add padding for tensor core alignment (multiples of 8)
+      padding_size = GameEmbed.padding_for_alignment(raw_size)
+      expected = raw_size + padding_size
+
       assert size == expected
+      # Also verify alignment is correct
+      assert rem(size, 8) == 0
     end
   end
 

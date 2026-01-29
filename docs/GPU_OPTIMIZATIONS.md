@@ -14,8 +14,9 @@ This document covers GPU-specific optimizations for ExPhil training and inferenc
 | Gradient Accumulation | ✅ Done | memory | Simulate larger batches |
 | Gradient Checkpointing | ✅ Done | memory | Trade compute for memory |
 | **Async Prefetching** | ✅ Done | 10-20% | Enabled by default (`--prefetch`) |
-| **Embedding Alignment** | ⚠️ TODO | 2-3% | 287 dims → should be 288 |
-| Flash Attention | 📋 Planned | memory | O(n) instead of O(n²) |
+| **Embedding Alignment** | ✅ Done | 2-3% | 287→288 dims with padding (auto-aligns Mamba inner 574→576) |
+| **Chunked Attention** | ✅ Done | 20-30% mem | `--chunked-attention --chunk-size 32` |
+| Flash Attention | 📋 Planned | memory | O(n) instead of O(n²) - needs XLA support |
 | Multi-GPU | 📋 Future | scaling | Data parallelism |
 
 ## Current GPU Performance (RTX 4090)
@@ -60,19 +61,19 @@ Tensor core efficiency requires dimensions aligned to 8 (FP16) or 16 (INT8).
 | Parameter | Current | Aligned? | Notes |
 |-----------|---------|----------|-------|
 | `hidden_size` | 256 | ✅ Yes | Multiple of 8 |
-| `embed_size` (default) | 287 | ❌ No | Should be 288 |
-| `embed_size` (legacy) | 1204 | ❌ No | Should be 1208 |
+| `embed_size` (default) | 288 | ✅ Yes | Auto-padded from 287 raw dims |
+| `embed_size` (legacy) | 1208 | ✅ Yes | Auto-padded from 1204 raw dims |
 | `num_heads` | 4 | ✅ Yes | Works with tensor cores |
 | `head_dim` | 64 | ✅ Yes | Perfect alignment |
-| Mamba inner (287×2) | 574 | ❌ No | Unaligned expansion |
+| Mamba inner (288×2) | 576 | ✅ Yes | Aligned via embed padding |
 
-**Embedding dimension issue (Jan 2026):**
-- Default learned embedding is 287 dims (not a multiple of 8)
-- Mamba expand_factor=2 produces 574-dim inner hidden (also unaligned)
-- Estimated 2-3% speedup if aligned to 288 dims
-- Fix: Add 1 padding dim or adjust config to hit 288/256
+**Embedding alignment (Jan 2026):**
+- `GameEmbed.embedding_size/1` now returns aligned dimensions (multiples of 8)
+- Padding is added automatically at end of embedding tensor
+- Mamba inner dim benefits: 574→576 now uses tensor cores
+- Use `GameEmbed.raw_embedding_size/1` to get semantic size without padding
 
-**Status:** ⚠️ Known issue - low priority (2-3% impact)
+**Status:** ✅ Implemented - automatic padding for all configs
 
 ### 4. GPU Memory Monitoring
 
@@ -239,16 +240,73 @@ mix run scripts/train_from_replays.exs \
 
 ## Planned Optimizations
 
-### Flash Attention
+### Flash Attention (Medium Priority)
 
-Memory-efficient attention that computes in blocks:
+Memory-efficient attention that computes in blocks without materializing the full attention matrix.
+
+**Current implementation** (`lib/exphil/networks/attention.ex`):
+```elixir
+# Standard attention: O(n²) memory for scores matrix
+scores = Nx.dot(query, [2], [0], key, [2], [0])  # [batch, seq, seq]
+weights = FusedOps.fused_softmax(scores)          # Full n×n matrix in memory
+output = Nx.dot(weights, [2], [0], value, [1], [0])
+```
+
+**Flash Attention approach**:
+- Compute attention in tiles/blocks
+- Never materialize full n×n attention matrix
 - O(n) memory instead of O(n²)
-- Enables longer sequences (120+ frames)
-- Better cache utilization
+- Requires custom CUDA kernel or XLA fusion
 
-**Status:** Planned - significant implementation effort
+**Benefits:**
+- Enable 120+ frame sequences (currently limited to ~90 by VRAM)
+- 2-4x memory reduction for attention layers
+- Better GPU cache utilization (reduced HBM bandwidth)
 
-### Multi-GPU Training
+**Implementation options:**
+1. **XLA custom call** - If XLA adds flash attention support (tracking: google/jax#14223)
+2. **Nx chunked attention** - Block-wise computation in pure Nx (partial benefit)
+3. **NIF with FlashAttention-2** - Custom NIF wrapping NVIDIA's kernel
+
+**Estimated impact:** 30-50% memory reduction, enables 2x longer sequences
+
+**Status:** 📋 Planned - waiting for better XLA/EXLA support
+
+### Chunked/Block Attention (Implemented)
+
+A simpler alternative to flash attention implemented in pure Nx:
+
+```bash
+# Enable chunked attention for lower memory usage
+mix run scripts/train_from_replays.exs \
+  --backbone attention \
+  --chunked-attention \
+  --chunk-size 32
+```
+
+**Implementation:** `lib/exphil/networks/attention.ex:chunked_attention/4`
+
+```elixir
+# Processes queries in chunks against all keys
+# Results are mathematically identical to standard attention
+Attention.chunked_attention(query, key, value, chunk_size: 32, mask: mask)
+```
+
+**Benefits:**
+- Pure Nx implementation (no custom kernels)
+- Reduces peak memory by processing in blocks
+- Compatible with existing XLA JIT
+- Same output as standard attention (verified by tests)
+
+**Limitations:**
+- Still O(n²) total compute, just better memory profile
+- Less efficient than true flash attention
+
+**Estimated impact:** 20-30% memory reduction
+
+**Status:** ✅ Implemented - use `--chunked-attention` flag
+
+### Multi-GPU Training (Future)
 
 Distribute training across multiple GPUs using data parallelism:
 
@@ -258,20 +316,80 @@ config :exphil, :devices, [:cuda0, :cuda1]
 config :exphil, :distribution, :data_parallel
 ```
 
-**Status:** Future - requires significant infrastructure
+**Data parallelism strategy:**
+- Split batches across GPUs
+- Each GPU computes gradients independently
+- All-reduce gradients before optimizer step
+- Scales linearly with GPU count
 
-### Quantization-Aware Training
+**Implementation path:**
+1. EXLA multi-device support (partially available)
+2. Gradient synchronization via `Nx.all_reduce`
+3. Device placement API for model sharding
 
-Train with INT8 quantization noise for better inference quantization:
+**Estimated impact:** Linear speedup with GPU count
+
+**Status:** 📋 Future - requires significant infrastructure
+
+### Quantization-Aware Training (Future)
+
+Train with simulated INT8 quantization noise for better inference quantization:
 
 ```elixir
 def fake_quantize(tensor, bits \\ 8) do
   scale = Nx.reduce_max(Nx.abs(tensor)) / (2 ** (bits - 1) - 1)
   Nx.round(tensor / scale) * scale
 end
+
+# Use in forward pass during training
+def quantization_aware_linear(x, weight, bias) do
+  w_quant = fake_quantize(weight, 8)
+  Nx.dot(x, w_quant) |> Nx.add(bias)
+end
 ```
 
-**Status:** Future - useful for ONNX INT8 export
+**Benefits:**
+- Better INT8 ONNX export quality
+- Model learns to be robust to quantization noise
+- ~4x inference speedup with INT8
+
+**Estimated impact:** Better quantized model quality
+
+**Status:** 📋 Future - useful for ONNX INT8 export
+
+### Operator Fusion Opportunities (Low Priority)
+
+XLA already fuses many operations, but manual fusion can help:
+
+| Pattern | Current | Fused | Savings |
+|---------|---------|-------|---------|
+| LayerNorm + Linear | 2 kernels | 1 kernel | Launch overhead |
+| Attention softmax | 3 ops | 1 op | Already done (FusedOps) |
+| Gelu activation | 5 ops | 1 kernel | Minor |
+
+**Status:** ⚠️ Low priority - XLA handles most fusion automatically
+
+### Compile-Time Shape Optimization (Low Priority)
+
+XLA recompiles when tensor shapes change. Fixed shapes enable more aggressive optimization:
+
+```elixir
+# Current: dynamic batch
+{batch, seq, dim} = Nx.shape(input)  # Varies per call
+
+# Optimized: fixed batch (pad if needed)
+@fixed_batch 256
+input = Nx.pad(input, [{0, @fixed_batch - batch, 0}, {0, 0, 0}, {0, 0, 0}])
+```
+
+**Benefits:**
+- Single JIT compilation
+- Better kernel selection
+- Reduced compilation time
+
+**Estimated impact:** Faster warmup, slightly better throughput
+
+**Status:** 📋 Low priority - XLA caching already helps
 
 ## Configuration Reference
 

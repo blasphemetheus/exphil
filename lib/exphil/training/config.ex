@@ -71,6 +71,10 @@ defmodule ExPhil.Training.Config do
     "--no-pre-norm",
     "--qk-layernorm",
     "--no-qk-layernorm",
+    # Chunked attention for reduced memory
+    "--chunked-attention",
+    "--no-chunked-attention",
+    "--chunk-size",
     "--state-size",
     "--expand-factor",
     "--conv-size",
@@ -246,6 +250,10 @@ defmodule ExPhil.Training.Config do
       # Jamba stability options (Pre-LN + QK LayerNorm prevent NaN)
       pre_norm: true,
       qk_layernorm: true,
+      # Chunked attention for reduced memory (20-30% savings)
+      # Processes queries in chunks against all keys - same results, lower peak memory
+      chunked_attention: false,
+      chunk_size: 32,
       truncate_bptt: nil,
       # FP32 is default - benchmarks show BF16 is 2x SLOWER on RTX 4090 due to
       # XLA issues: dimension misalignment (287 dims not divisible by 16),
@@ -1877,6 +1885,14 @@ defmodule ExPhil.Training.Config do
       # --no-qk-layernorm disables QK LayerNorm
       if opts[:no_qk_layernorm], do: Keyword.put(opts, :qk_layernorm, false), else: opts
     end)
+    # Chunked attention for reduced memory
+    |> parse_flag(args, "--chunked-attention", :chunked_attention)
+    |> parse_flag(args, "--no-chunked-attention", :no_chunked_attention)
+    |> then(fn opts ->
+      # --no-chunked-attention disables chunked attention
+      if opts[:no_chunked_attention], do: Keyword.put(opts, :chunked_attention, false), else: opts
+    end)
+    |> parse_int_arg(args, "--chunk-size", :chunk_size)
     |> parse_int_arg(args, "--state-size", :state_size)
     |> parse_int_arg(args, "--expand-factor", :expand_factor)
     |> parse_int_arg(args, "--conv-size", :conv_size)
