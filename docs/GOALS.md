@@ -1110,6 +1110,48 @@ Based on [Nx.Serving](https://hexdocs.pm/nx/Nx.Serving.html) and [Nx.Defn](https
 
 ---
 
+### 5. Upstream Contributions
+
+**Impact: Medium | Benefits entire Nx ecosystem**
+
+| Task | Target | Effort | Status |
+|------|--------|--------|--------|
+| **Fix orthogonal initializer for RNN shapes** | elixir-nx/axon | Medium | Planned |
+| IC Tech Feature Block | ExPhil | Medium | Planned |
+
+#### Axon Orthogonal Initializer Fix
+
+**Problem:** Axon's `orthogonal` initializer fails with LSTM/GRU weight shapes (`[hidden, 4*hidden]`) due to QR decomposition constraints.
+
+**Why it matters:** Orthogonal initialization is the recommended approach for RNNs (Saxe et al., 2013) - preserves gradient norms through time, preventing explosion/vanishing.
+
+**Proposed solutions (in order of preference):**
+
+1. **Pad-and-Slice (recommended):** Generate larger square orthogonal matrix, slice to needed shape
+   - Simple, covers common failure case
+   - Minimal API change
+
+2. **Block-Orthogonal:** Initialize each LSTM gate separately as orthogonal
+   - Most theoretically correct for RNNs
+   - Could be `orthogonal_block(num_blocks: 4)`
+
+3. **SVD-Based:** Use SVD instead of QR for arbitrary shapes
+   - Most general but more expensive
+   - Overkill for most cases
+
+4. **Newton Iteration:** Iteratively orthogonalize random matrix
+   - Approximate, non-standard
+   - Doesn't require QR/SVD
+
+**Implementation plan:**
+1. Open issue on elixir-nx/axon with reproduction case
+2. Submit PR for Option 1 (pad-and-slice)
+3. Follow up with Option 2 if maintainers interested
+
+**See:** [docs/AXON_ORTHOGONAL_INIT_FIX.md](AXON_ORTHOGONAL_INIT_FIX.md) for full design doc.
+
+---
+
 ## References
 
 - [BITTER_LESSON_PLAN.md](BITTER_LESSON_PLAN.md) - **Scaling vs hand-engineering tradeoffs**
