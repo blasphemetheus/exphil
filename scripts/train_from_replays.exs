@@ -217,6 +217,24 @@ safe_round = fn
     inspect(x)
 end
 
+# Format float with fixed decimal places (preserves trailing zeros)
+# e.g., format_fixed.(0.003, 2) => "0.00", format_fixed.(1.5, 2) => "1.50"
+format_fixed = fn
+  x, decimals when is_float(x) ->
+    cond do
+      x != x -> "NaN"
+      x == :infinity or x > 1.0e38 -> "Inf"
+      x == :neg_infinity or x < -1.0e38 -> "-Inf"
+      true -> :erlang.float_to_binary(x, decimals: decimals)
+    end
+
+  x, decimals when is_integer(x) ->
+    :erlang.float_to_binary(x * 1.0, decimals: decimals)
+
+  x, _decimals ->
+    inspect(x)
+end
+
 # Helper to check if a number is NaN
 is_nan? = fn
   x when is_float(x) -> x != x
@@ -1984,8 +2002,9 @@ batch_checkpoint_path =
       end
 
       # Use safe_round to handle edge cases (NaN, Inf) gracefully
+      # Use format_fixed for s/it to always show 2 decimal places (avoids "0.0s/it" when fast)
       progress_line =
-        "  Epoch #{epoch}: #{bar} #{pct_str}% | #{batch_idx + 1}/#{total_str} | loss: #{safe_round.(display_loss, 4)} | #{safe_round.(avg_batch_ms / 1000, 2)}s/it | ETA: #{eta_min}m #{eta_sec_rem}s"
+        "  Epoch #{epoch}: #{bar} #{pct_str}% | #{batch_idx + 1}/#{total_str} | loss: #{safe_round.(display_loss, 4)} | #{format_fixed.(avg_batch_ms / 1000, 2)}s/it | ETA: #{eta_min}m #{eta_sec_rem}s"
 
       # Use carriage return to overwrite line (no newline until epoch complete)
       # Write directly to stderr to bypass Output module's timestamp
