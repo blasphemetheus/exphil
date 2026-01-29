@@ -122,7 +122,7 @@ gpu_config =
 Application.put_env(:exla, :clients, cuda: gpu_config)
 
 alias ExPhil.Data.Peppi
-alias ExPhil.Training.{Data, GPUUtils, Imitation, Output}
+alias ExPhil.Training.{Data, GPUUtils, Imitation, Output, Prefetcher}
 alias ExPhil.Embeddings
 
 # For timed macro
@@ -602,26 +602,33 @@ results =
 
           # Train epoch with progress
           # Losses are now tensors (not numbers) to avoid blocking GPU→CPU transfers
+          # Use Prefetcher to overlap CPU→GPU transfer with GPU compute (~10-20% speedup)
           {updated_t, losses} =
-            batches
-            |> Enum.with_index(1)
-            |> Enum.reduce({t, []}, fn {batch, batch_idx}, {tr, ls} ->
-              # Update progress bar
-              Output.progress_bar(batch_idx, num_batches, label: "Epoch #{epoch}/#{num_epochs}")
+            Prefetcher.reduce_stream_indexed(
+              batches,
+              {t, []},
+              fn batch, batch_idx, {tr, ls} ->
+                # batch_idx is 0-based from Prefetcher, add 1 for display
+                display_idx = batch_idx + 1
 
-              # Wrap train_step with error handling to see actual error
-              try do
-                {new_tr, m} = Imitation.train_step(tr, batch, nil)
-                {new_tr, [m.loss | ls]}
-              rescue
-                e ->
-                  Output.progress_done()
-                  Output.error("Train step failed at batch #{batch_idx}")
-                  Output.error("Batch states shape: #{inspect(Nx.shape(batch.states))}")
-                  Output.error("Error: #{Exception.message(e)}")
-                  reraise e, __STACKTRACE__
-              end
-            end)
+                # Update progress bar
+                Output.progress_bar(display_idx, num_batches, label: "Epoch #{epoch}/#{num_epochs}")
+
+                # Wrap train_step with error handling to see actual error
+                try do
+                  {new_tr, m} = Imitation.train_step(tr, batch, nil)
+                  {new_tr, [m.loss | ls]}
+                rescue
+                  e ->
+                    Output.progress_done()
+                    Output.error("Train step failed at batch #{display_idx}")
+                    Output.error("Batch states shape: #{inspect(Nx.shape(batch.states))}")
+                    Output.error("Error: #{Exception.message(e)}")
+                    reraise e, __STACKTRACE__
+                end
+              end,
+              buffer_size: 2
+            )
 
           Output.progress_done()
 

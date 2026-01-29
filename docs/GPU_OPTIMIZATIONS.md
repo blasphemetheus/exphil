@@ -2,6 +2,22 @@
 
 This document covers GPU-specific optimizations for ExPhil training and inference.
 
+## Optimization Status Summary (Jan 2026)
+
+| Optimization | Status | Impact | Notes |
+|--------------|--------|--------|-------|
+| JIT Compilation | ✅ Done | 300x | Critical - without it, 0% GPU utilization |
+| Loss+Grad Caching | ✅ Done | 10x | Avoids per-batch closure creation |
+| O(1) Batch Access | ✅ Done | 28s→0s | Erlang :array instead of Enum.at |
+| GPU Transfer Batching | ✅ Done | - | Transfer at batch level, not per-frame |
+| FP32 Default | ✅ Done | 2x vs BF16 | BF16 slower due to XLA issues |
+| Gradient Accumulation | ✅ Done | memory | Simulate larger batches |
+| Gradient Checkpointing | ✅ Done | memory | Trade compute for memory |
+| **Async Prefetching** | ✅ Done | 10-20% | Enabled by default (`--prefetch`) |
+| **Embedding Alignment** | ⚠️ TODO | 2-3% | 287 dims → should be 288 |
+| Flash Attention | 📋 Planned | memory | O(n) instead of O(n²) |
+| Multi-GPU | 📋 Future | scaling | Data parallelism |
+
 ## Current GPU Performance (RTX 4090)
 
 | Operation | Time | Notes |
@@ -41,11 +57,22 @@ RTX 4090 (24GB) can handle batch sizes up to 512 for single-frame, 256 for tempo
 
 Tensor core efficiency requires dimensions aligned to 8 (FP16) or 16 (INT8).
 
-| Parameter | Old | Aligned | Reason |
-|-----------|-----|---------|--------|
-| `hidden_size` | 256 | 256 | Already aligned |
-| `embed_size` | varies | padded | Pad to multiple of 8 |
-| `num_heads` | 4/8 | 8 | Multiple of 8 |
+| Parameter | Current | Aligned? | Notes |
+|-----------|---------|----------|-------|
+| `hidden_size` | 256 | ✅ Yes | Multiple of 8 |
+| `embed_size` (default) | 287 | ❌ No | Should be 288 |
+| `embed_size` (legacy) | 1204 | ❌ No | Should be 1208 |
+| `num_heads` | 4 | ✅ Yes | Works with tensor cores |
+| `head_dim` | 64 | ✅ Yes | Perfect alignment |
+| Mamba inner (287×2) | 574 | ❌ No | Unaligned expansion |
+
+**Embedding dimension issue (Jan 2026):**
+- Default learned embedding is 287 dims (not a multiple of 8)
+- Mamba expand_factor=2 produces 574-dim inner hidden (also unaligned)
+- Estimated 2-3% speedup if aligned to 288 dims
+- Fix: Add 1 padding dim or adjust config to hit 288/256
+
+**Status:** ⚠️ Known issue - low priority (2-3% impact)
 
 ### 4. GPU Memory Monitoring
 
@@ -155,12 +182,22 @@ mix run scripts/train_from_replays.exs \
 Overlap data loading with GPU compute:
 
 ```
+Without prefetching:
+Time:     |--transfer 1--|--GPU train 1--|--transfer 2--|--GPU train 2--|
+          GPU idle →    ↑               GPU idle →    ↑
+
+With prefetching (current default):
 Time:     |--GPU train 1--|--GPU train 2--|--GPU train 3--|
-CPU:      |--compute 1--|--compute 2--|--compute 3--|--compute 4--|
-                        ↑              ↑
-                     batch 2        batch 3
-                     ready          ready
+Transfer: |--batch 2--|--batch 3--|--batch 4--|
+                      ↑              ↑
+                   batch 2        batch 3
+                   ready          ready
 ```
+
+Prefetching is **enabled by default** with a 2-batch buffer. The next batch is loaded
+asynchronously while the GPU trains on the current batch.
+
+**Impact:** 10-20% speedup by hiding CPU→GPU transfer latency.
 
 ```bash
 # Enabled by default with 2-buffer prefetch
@@ -170,10 +207,14 @@ mix run scripts/train_from_replays.exs --prefetch --prefetch-buffer 2
 mix run scripts/train_from_replays.exs --no-prefetch
 ```
 
+**Implementation:**
+- `train_from_replays.exs`: Uses `Prefetcher.reduce_stream_indexed()` for streaming mode
+- `benchmark_architectures.exs`: Uses `Prefetcher.reduce_stream_indexed()` with buffer_size: 2
+
 **Sources:**
 - [NVIDIA Data Loading Best Practices](https://developer.nvidia.com/blog/how-optimize-data-transfers-cuda-cc/)
 
-**Status:** ✅ Implemented - uses streaming prefetcher with configurable buffer
+**Status:** ✅ Implemented - enabled by default (Jan 2026)
 
 ### 10. Gradient Checkpointing
 
