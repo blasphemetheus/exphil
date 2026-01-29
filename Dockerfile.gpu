@@ -60,6 +60,8 @@ ENV HEX_HTTP_CONCURRENCY=4
 ENV HEX_HTTP_TIMEOUT=120
 ENV XLA_TARGET=cuda12
 ENV EXLA_TARGET=cuda
+# Enable CUDA for FlashAttention NIF (compiles CUDA kernels with nvcc)
+ENV FLASH_ATTENTION_CUDA=1
 # Add CUDA stubs to library path for EXLA NIF loading during compilation
 # (actual libcuda.so.1 is provided by GPU driver at runtime)
 ENV LD_LIBRARY_PATH=/usr/local/cuda/lib64/stubs:${LD_LIBRARY_PATH}
@@ -171,6 +173,8 @@ ENV XLA_TARGET=cuda12
 ENV EXLA_TARGET=cuda
 ENV CUDA_VISIBLE_DEVICES=0
 ENV JAX_COMPILATION_CACHE_DIR=/workspace/jax_cache
+# Enable CUDA for FlashAttention NIF recompilation
+ENV FLASH_ATTENTION_CUDA=1
 
 # Entrypoint handles rclone config from env vars
 ENTRYPOINT ["/app/scripts/runpod_entrypoint.sh"]

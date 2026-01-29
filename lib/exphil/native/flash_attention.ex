@@ -43,10 +43,15 @@ defmodule ExPhil.Native.FlashAttention do
   `ExPhil.Networks.Attention.memory_efficient_attention/4` as a fallback.
   """
 
+  # Enable CUDA feature when FLASH_ATTENTION_CUDA=1 environment variable is set
+  # This requires: CUDA toolkit, nvcc, and Ampere+ GPU (RTX 30xx/40xx, A100, H100)
+  @cuda_enabled System.get_env("FLASH_ATTENTION_CUDA") == "1"
+
   use Rustler,
     otp_app: :exphil,
     crate: "flash_attention_nif",
-    path: "native/flash_attention_nif"
+    path: "native/flash_attention_nif",
+    features: if(@cuda_enabled, do: ["cuda"], else: [])
 
   @doc """
   Check if CUDA flash attention is available.
