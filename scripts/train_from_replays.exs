@@ -236,6 +236,19 @@ format_fixed = fn
     inspect(x)
 end
 
+# Format time per iteration - adapts unit based on speed
+# Fast: "5.2ms/it", Medium: "1.23s/it", Slow: "45.6s/it"
+format_time_per_it = fn ms ->
+  cond do
+    ms < 0.01 -> "0ms/it"
+    ms < 10 -> "#{:erlang.float_to_binary(ms, decimals: 1)}ms/it"
+    ms < 100 -> "#{round(ms)}ms/it"
+    ms < 1000 -> "#{:erlang.float_to_binary(ms / 1000, decimals: 2)}s/it"
+    ms < 10000 -> "#{:erlang.float_to_binary(ms / 1000, decimals: 1)}s/it"
+    true -> "#{round(ms / 1000)}s/it"
+  end
+end
+
 # Helper to check if a number is NaN
 is_nan? = fn
   x when is_float(x) -> x != x
@@ -1981,16 +1994,17 @@ batch_checkpoint_path =
         end
 
       # Batch-interval checkpointing (for streaming mode resilience)
+      # Uses async saving to avoid blocking training on disk I/O
       if save_every_batches && rem(new_global_idx, save_every_batches) == 0 do
         IO.write(:stderr, "\n")
-        Output.puts("  💾 Saving batch checkpoint (batch #{new_global_idx})...")
+        Output.puts("  💾 Saving batch checkpoint async (batch #{new_global_idx})...")
 
-        case Imitation.save_checkpoint(new_trainer, batch_checkpoint_path) do
+        case Imitation.save_checkpoint_async(new_trainer, batch_checkpoint_path) do
           :ok ->
-            Output.puts("  ✓ Saved to #{batch_checkpoint_path}")
+            Output.puts("  ✓ Queued save to #{batch_checkpoint_path}")
 
           {:error, reason} ->
-            Output.warning("Failed to save batch checkpoint: #{inspect(reason)}")
+            Output.warning("Failed to queue batch checkpoint: #{inspect(reason)}")
         end
       end
 
@@ -2068,9 +2082,9 @@ batch_checkpoint_path =
       end
 
       # Use safe_round to handle edge cases (NaN, Inf) gracefully
-      # Use format_fixed for s/it to always show 2 decimal places (avoids "0.0s/it" when fast)
+      # Use format_time_per_it for adaptive time display (ms/it for fast, s/it for slow)
       progress_line =
-        "  Epoch #{epoch}: #{bar} #{pct_str}% | #{batch_idx + 1}/#{total_str} | loss: #{safe_round.(display_loss, 4)} | #{format_fixed.(avg_batch_ms / 1000, 2)}s/it | ETA: #{eta_min}m #{eta_sec_rem}s"
+        "  Epoch #{epoch}: #{bar} #{pct_str}% | #{batch_idx + 1}/#{total_str} | loss: #{safe_round.(display_loss, 4)} | #{format_time_per_it.(avg_batch_ms)} | ETA: #{eta_min}m #{eta_sec_rem}s"
 
       # Use carriage return to overwrite line (no newline until epoch complete)
       # Write directly to stderr to bypass Output module's timestamp
@@ -2257,13 +2271,14 @@ batch_checkpoint_path =
     end
 
     # Save periodic checkpoint if configured and track for pruning
+    # Uses async saving to avoid blocking training on disk I/O
     updated_pruner =
       if opts[:save_every] && rem(epoch, opts[:save_every]) == 0 do
         epoch_checkpoint = String.replace(opts[:checkpoint], ".axon", "_epoch#{epoch}.axon")
 
-        case Imitation.save_checkpoint(updated_trainer, epoch_checkpoint) do
+        case Imitation.save_checkpoint_async(updated_trainer, epoch_checkpoint) do
           :ok ->
-            Output.puts("    📁 Epoch #{epoch} checkpoint saved")
+            Output.puts("    📁 Epoch #{epoch} checkpoint queued (async)")
 
             # Track and prune if pruner is configured
             if current_pruner do

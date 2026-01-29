@@ -332,18 +332,18 @@ defmodule ExPhil.Training.Data do
         indices = Enum.shuffle(Enum.to_list(0..(valid_size - 1)))
         create_frame_batch_stream(indices, batch_size, drop_last, dataset, delay_config, augment_fn, augment_config)
 
-      # No shuffle
+      # No shuffle - use Range directly (no list allocation)
       true ->
-        indices = Enum.to_list(0..(valid_size - 1))
-        create_frame_batch_stream(indices, batch_size, drop_last, dataset, delay_config, augment_fn, augment_config)
+        create_frame_batch_stream(0..(valid_size - 1), batch_size, drop_last, dataset, delay_config, augment_fn, augment_config)
     end
   end
 
-  # Helper to create frame batch stream from indices
+  # Helper to create frame batch stream from indices (works with Range or List)
+  # Uses Stream.chunk_every for lazy iteration - avoids materializing full index list
   defp create_frame_batch_stream(indices, batch_size, drop_last, dataset, delay_config, augment_fn, augment_config) do
     indices
-    |> Enum.chunk_every(batch_size)
-    |> maybe_drop_last(drop_last, batch_size)
+    |> Stream.chunk_every(batch_size)
+    |> maybe_drop_last_stream(drop_last, batch_size)
     |> Stream.map(fn batch_indices ->
       create_batch(dataset, batch_indices, delay_config, augment_fn, augment_config)
     end)
@@ -373,6 +373,13 @@ defmodule ExPhil.Training.Data do
 
   defp maybe_drop_last(chunks, true, batch_size) do
     Enum.filter(chunks, &(length(&1) == batch_size))
+  end
+
+  # Stream version of maybe_drop_last for lazy pipelines
+  defp maybe_drop_last_stream(stream, false, _batch_size), do: stream
+
+  defp maybe_drop_last_stream(stream, true, batch_size) do
+    Stream.reject(stream, &(length(&1) < batch_size))
   end
 
   defp create_batch(dataset, indices, delay_config, augment_fn, augment_config) do
@@ -1927,18 +1934,18 @@ defmodule ExPhil.Training.Data do
         indices = Enum.shuffle(Enum.to_list(0..(dataset.size - 1)))
         create_batch_stream(indices, batch_size, drop_last, frames_array, embeddings_array)
 
-      # No shuffle
+      # No shuffle - use Range directly (no list allocation)
       true ->
-        indices = Enum.to_list(0..(dataset.size - 1))
-        create_batch_stream(indices, batch_size, drop_last, frames_array, embeddings_array)
+        create_batch_stream(0..(dataset.size - 1), batch_size, drop_last, frames_array, embeddings_array)
     end
   end
 
-  # Helper to create batch stream from pre-computed indices
+  # Helper to create batch stream from pre-computed indices (works with Range or List)
+  # Uses Stream.chunk_every for lazy iteration - avoids materializing full index list
   defp create_batch_stream(indices, batch_size, drop_last, frames_array, embeddings_array) do
     indices
-    |> Enum.chunk_every(batch_size)
-    |> maybe_drop_last(drop_last, batch_size)
+    |> Stream.chunk_every(batch_size)
+    |> maybe_drop_last_stream(drop_last, batch_size)
     |> Stream.map(fn batch_indices ->
       create_sequence_batch_fast(frames_array, embeddings_array, batch_indices)
     end)

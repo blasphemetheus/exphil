@@ -309,67 +309,109 @@ Optimizations identified for reducing per-epoch overhead on large datasets (1.6M
   - `--no-prefetch` - Disable prefetching
 - **Note:** Previously only worked in streaming mode, now enabled for standard mode too
 
-#### Memory-mapped embedding cache
-- **Status:** TODO
-- **Current:** Embeddings stored in RAM, may exceed available memory for large datasets
-- **Proposed:** Use `:file.open/2` with `:raw` mode for memory-mapped access
-- **Benefit:** Train on datasets larger than RAM
-- **Trade-off:** Slower random access, but sequential access remains fast
-- **Implementation:**
+#### Memory-mapped embedding cache ✅
+- **Status:** COMPLETED (2026-01-29)
+- **Module:** `ExPhil.Training.MmapEmbeddings`
+- **Usage:**
   ```elixir
-  # Save embeddings to disk in contiguous format
-  File.write!("embeddings.bin", Nx.to_binary(embeddings))
+  # Save embeddings to disk
+  MmapEmbeddings.save(embeddings_tensor, "embeddings.bin")
 
-  # Memory-map for training
-  {:ok, fd} = :file.open("embeddings.bin", [:read, :raw, :binary])
-  # Read specific batch by offset
-  :file.pread(fd, batch_offset * embedding_bytes, batch_size * embedding_bytes)
+  # Open for reading (doesn't load into RAM)
+  {:ok, handle} = MmapEmbeddings.open("embeddings.bin")
+
+  # Read batches on-demand
+  batch = MmapEmbeddings.read_batch(handle, [0, 5, 10, 15])
+
+  MmapEmbeddings.close(handle)
   ```
+- **File format:** Custom binary with 32-byte header (magic, version, dims, dtype)
+- **Benefit:** Train on datasets larger than RAM
+- **Performance:** ~1-2ms per batch read (SSD), ~10-20ms (HDD)
 
-#### Batch size auto-tuning
-- **Status:** TODO
-- **Current:** Fixed batch size, may OOM or underutilize GPU
-- **Proposed:** Start small, increase until OOM, back off 20%
+#### Batch size auto-tuning ✅
+- **Status:** COMPLETED (2026-01-29)
+- **Module:** `ExPhil.Training.BatchTuner`
+- **Usage:**
+  ```elixir
+  # Find optimal batch size by testing
+  {:ok, optimal} = BatchTuner.find_optimal(trainer, sample_states, sample_actions)
+
+  # Quick heuristic based on VRAM
+  suggested = BatchTuner.suggest(embed_size, hidden_sizes, vram_gb: 24)
+  ```
+- **How it works:**
+  1. Start with small batch (32)
+  2. Double until OOM
+  3. Back off 20% for safety
+  4. Round to power of 2
 - **Benefit:** Automatic optimal GPU utilization
+
+#### Async checkpoint saving ✅
+- **Status:** COMPLETED (2026-01-29)
+- **Usage:** Batch and epoch checkpoints now use `save_checkpoint_async/3`
+- **Benefit:** ~1-5s savings per checkpoint (doesn't block training)
+
+#### Reduce Enum.to_list calls ✅
+- **Status:** COMPLETED (2026-01-29)
+- **Changes:**
+  - Use Range directly with Stream.chunk_every (no list allocation)
+  - Added `maybe_drop_last_stream/3` for lazy pipelines
+- **Benefit:** Lower memory allocation for large datasets
+
+#### Adaptive time display ✅
+- **Status:** COMPLETED (2026-01-29)
+- **Change:** Progress bar now shows ms/it for fast training, s/it for slow
+- **Example:** "5.2ms/it" instead of "0.01s/it"
+
+### Future Optimizations (TODO)
+
+#### Validation sampling
+- **Status:** TODO
+- **Current:** Full validation every epoch
+- **Proposed:** Randomly sample 10-20% of validation set per epoch, full validation every N epochs
+- **Benefit:** ~5-10x faster validation feedback
+- **Trade-off:** Noisier loss estimates (but converges to same result)
 - **Implementation:**
   ```elixir
-  def find_optimal_batch_size(model, initial \\ 32, max \\ 2048) do
-    batch_size = initial
-    while batch_size <= max do
-      try do
-        # Test batch
-        test_batch(model, batch_size)
-        batch_size = batch_size * 2
-      rescue
-        _ -> return div(batch_size, 2) * 0.8  # Back off 20%
-      end
-    end
-    batch_size
+  # Quick validation: sample 10%
+  sample_indices = Enum.take_random(0..val_size, div(val_size, 10))
+  quick_val_loss = evaluate_subset(trainer, val_batches, sample_indices)
+
+  # Full validation every 5 epochs
+  if rem(epoch, 5) == 0 do
+    full_val_loss = evaluate(trainer, val_batches)
   end
   ```
 
-#### Gradient accumulation micro-batching
+#### Warm restart JIT cache
 - **Status:** TODO
-- **Current:** `--gradient-accumulation N` accumulates gradients over N batches
-- **Proposed:** Micro-batch within GPU memory, accumulate for effective larger batch
-- **Benefit:** Better gradient estimates without OOM
-- **Note:** Already partially supported, could be more automatic
+- **Current:** JIT compilation happens fresh each run (~2-5 minutes)
+- **Proposed:** Save compiled XLA functions to disk, reload on resume
+- **Benefit:** Skip JIT on resume, instant training start
+- **Blocker:** EXLA doesn't expose compiled function serialization
+- **Workaround:** Could save a "warmed up" checkpoint after first batch
 
-#### Async checkpoint saving
+#### CPU/GPU pipelining for embeddings
 - **Status:** TODO
-- **Current:** Checkpoint saving blocks training
-- **Proposed:** Save checkpoints in background task
-- **Benefit:** ~1-5s savings per checkpoint (depending on model size)
-- **Implementation:**
-  ```elixir
-  # Fire and forget checkpoint save
-  Task.start(fn ->
-    params = Nx.backend_copy(trainer.params, Nx.BinaryBackend)
-    save_checkpoint(params, path)
-  end)
-  # Continue training immediately
-  ```
-- **Caveat:** Must copy params to BinaryBackend before async save
+- **Current:** All embedding lookups happen on GPU
+- **Proposed:** Embedding lookup on CPU, transfer to GPU while previous batch trains
+- **Benefit:** Better CPU utilization, overlap CPU/GPU work
+- **Trade-off:** More complex pipeline, PCIe bandwidth becomes bottleneck
+- **Note:** May not be beneficial with pre-computed embeddings
+
+#### Fused optimizer kernels
+- **Status:** TODO
+- **Current:** Optimizer update is multiple separate operations
+- **Proposed:** Single CUDA kernel for AdamW update (momentum + weight decay + LR in one pass)
+- **Benefit:** Fewer kernel launches, better memory locality
+- **Implementation:** Custom NIF using CUDA, similar to flash_attention_nif
+
+#### Gradient accumulation micro-optimization
+- **Status:** TODO
+- **Current:** `--gradient-accumulation N` accumulates over N full batches
+- **Proposed:** Auto-compute micro-batch size based on VRAM, accumulate transparently
+- **Benefit:** Simpler UX - just specify effective batch size, let system figure out micro-batches
 
 #### Mixed precision training
 - **Status:** TODO (partially supported)
@@ -377,6 +419,17 @@ Optimizations identified for reducing per-epoch overhead on large datasets (1.6M
 - **Proposed:** Forward pass in FP16/BF16, gradients in FP32
 - **Benefit:** 2x faster forward pass, half memory usage
 - **Blocker:** EXLA/XLA BF16 matmul performance issues on some GPUs
+
+#### Skip validation on plateau
+- **Status:** TODO
+- **Current:** Full validation every epoch
+- **Proposed:** After N epochs without improvement, run validation less frequently
+- **Benefit:** Save validation time when model is plateaued
+- **Implementation:**
+  ```elixir
+  val_interval = if epochs_without_improvement > 5, do: 3, else: 1
+  if rem(epoch, val_interval) == 0, do: run_validation()
+  ```
 
 ### Completed (2026-01-29)
 
@@ -393,6 +446,11 @@ Optimizations identified for reducing per-epoch overhead on large datasets (1.6M
 - [x] Parallel validation batches with `Task.async_stream` (--val-concurrency flag)
 - [x] Pre-compute validation batches once before training loop
 - [x] Enable prefetching for standard (non-streaming) mode
+- [x] Memory-mapped embedding cache (MmapEmbeddings module)
+- [x] Batch size auto-tuning (BatchTuner module)
+- [x] Async checkpoint saving for batch/epoch checkpoints
+- [x] Reduce Enum.to_list calls with lazy streams
+- [x] Adaptive time display (ms/it for fast training)
 
 ## Completed
 
