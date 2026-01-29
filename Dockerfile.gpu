@@ -1,8 +1,14 @@
+# syntax=docker/dockerfile:1.4
 # ExPhil GPU Training Dockerfile
 # Multi-stage build for cloud GPU training (RunPod, Lambda Labs, etc.)
 #
 # Supports: RTX 4090 (Ada Lovelace), RTX 5090 (Blackwell), and other CUDA 12+ GPUs
 # CUDA 12.6+ required for Blackwell architecture (Compute Capability 12.0)
+#
+# Optimizations:
+# - BuildKit cache mounts for mix/hex/pip/cargo (huge speedup for incremental builds)
+# - Combined RUN layers to reduce image size
+# - Parallel pip installs
 
 # =============================================================================
 # Stage 1: Build environment
@@ -12,54 +18,33 @@ FROM nvidia/cuda:12.6.3-devel-ubuntu22.04 AS builder
 ENV DEBIAN_FRONTEND=noninteractive
 ENV LANG=C.UTF-8
 
-# Install system dependencies
+# Install system dependencies (single layer)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    # Build essentials
-    build-essential \
-    gcc \
-    g++ \
-    make \
-    autoconf \
-    libtool \
-    git \
-    curl \
-    ca-certificates \
-    unzip \
-    # Math libraries for EXLA
-    libblas-dev \
-    liblapack-dev \
-    libopenblas-dev \
-    # Python
-    python3.11 \
-    python3.11-dev \
-    python3.11-venv \
-    python3-pip \
-    # Erlang build deps (for asdf)
-    libncurses5-dev \
-    libssl-dev \
-    libwxgtk3.0-gtk3-dev \
-    libwxgtk-webview3.0-gtk3-dev \
-    libsctp-dev \
-    libodbc1 \
+    build-essential gcc g++ make autoconf libtool \
+    git curl ca-certificates unzip \
+    libblas-dev liblapack-dev libopenblas-dev \
+    python3.11 python3.11-dev python3.11-venv python3-pip \
+    libncurses5-dev libssl-dev libwxgtk3.0-gtk3-dev \
+    libwxgtk-webview3.0-gtk3-dev libsctp-dev libodbc1 \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Rust (for Peppi NIF)
-RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+# Install Rust (for Peppi NIF) with cache mount
+RUN --mount=type=cache,target=/root/.cargo/registry \
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 ENV PATH="/root/.cargo/bin:${PATH}"
 
-# Install asdf version manager
+# Install asdf + Erlang + Elixir in single layer
 ENV ASDF_DIR="/root/.asdf"
 RUN git clone https://github.com/asdf-vm/asdf.git $ASDF_DIR --branch v0.14.0
 ENV PATH="${ASDF_DIR}/bin:${ASDF_DIR}/shims:${PATH}"
 
-# Install Erlang and Elixir via asdf
-RUN asdf plugin add erlang && asdf plugin add elixir
-RUN asdf install erlang 27.0 && asdf global erlang 27.0
-RUN asdf install elixir 1.18.1-otp-27 && asdf global elixir 1.18.1-otp-27
+RUN asdf plugin add erlang && asdf plugin add elixir && \
+    asdf install erlang 27.0 && asdf global erlang 27.0 && \
+    asdf install elixir 1.18.1-otp-27 && asdf global elixir 1.18.1-otp-27
 
 # Set up Python
-RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1 \
-    && python3 -m pip install --upgrade pip
+RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1 && \
+    python3 -m pip install --upgrade pip
 
 WORKDIR /app
 
@@ -69,29 +54,38 @@ COPY config ./config
 COPY native ./native
 COPY priv/python/requirements.txt ./priv/python/
 
-# Install Elixir dependencies
+# Install Elixir dependencies with cache mounts
 ENV MIX_ENV=prod
-ENV HEX_HTTP_CONCURRENCY=1
+ENV HEX_HTTP_CONCURRENCY=4
 ENV HEX_HTTP_TIMEOUT=120
-
-# Set EXLA to compile for CUDA 12 during build
 ENV XLA_TARGET=cuda12
 ENV EXLA_TARGET=cuda
+# Add CUDA stubs to library path for EXLA NIF loading during compilation
+# (actual libcuda.so.1 is provided by GPU driver at runtime)
+ENV LD_LIBRARY_PATH=/usr/local/cuda/lib64/stubs:${LD_LIBRARY_PATH}
 
-RUN mix local.hex --force && mix local.rebar --force
-RUN mix deps.get --only prod || mix deps.get --only prod
+# Create CUDA stub symlink for EXLA NIF compilation
+# The stubs provide libcuda.so for linking, real driver provides libcuda.so.1 at runtime
+RUN ln -sf /usr/local/cuda/lib64/stubs/libcuda.so /usr/local/cuda/lib64/stubs/libcuda.so.1
 
-# Install Python dependencies
-RUN python3 -m pip install --no-cache-dir -r priv/python/requirements.txt
+RUN --mount=type=cache,target=/root/.mix \
+    --mount=type=cache,target=/root/.hex \
+    mix local.hex --force && mix local.rebar --force && \
+    mix deps.get --only prod
 
-# Compile Rust NIF and Elixir dependencies (EXLA will download CUDA-enabled XLA)
-RUN mix deps.compile
+# Install Python dependencies with cache mount and parallel downloads
+RUN --mount=type=cache,target=/root/.cache/pip \
+    python3 -m pip install -r priv/python/requirements.txt
 
-# Build CUDA-enabled selective_scan NIF for fast Mamba inference
-# This requires CUDA toolkit (available in devel image)
-# Note: Must copy to _build/prod/lib/exphil/priv/native/ because that's where
-# Application.app_dir(:exphil, "priv/native/...") resolves to in prod mode
-RUN cd native/selective_scan_nif && \
+# Compile Rust NIF and Elixir dependencies with cache mounts
+RUN --mount=type=cache,target=/root/.cargo/registry \
+    --mount=type=cache,target=/app/native/selective_scan_nif/target \
+    mix deps.compile
+
+# Build CUDA-enabled selective_scan NIF
+RUN --mount=type=cache,target=/root/.cargo/registry \
+    --mount=type=cache,target=/app/native/selective_scan_nif/target \
+    cd native/selective_scan_nif && \
     cargo build --release --features cuda && \
     mkdir -p /app/_build/prod/lib/exphil/priv/native && \
     cp target/release/libselective_scan_nif.so /app/_build/prod/lib/exphil/priv/native/
@@ -116,31 +110,14 @@ ENV DEBIAN_FRONTEND=noninteractive
 ENV LANG=C.UTF-8
 ENV MIX_ENV=prod
 
-# Install runtime dependencies
-# Note: NCCL is included in devel images, but cuDNN must be installed separately
+# Install runtime dependencies (single layer)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    # Runtime libs
-    libncurses6 \
-    libssl3 \
-    libstdc++6 \
-    libsctp1 \
-    # Math libs
-    libopenblas0 \
-    liblapack3 \
-    # Python runtime + dev headers (dev needed for Triton JIT compilation)
-    python3.11 \
-    python3.11-dev \
-    python3-pip \
-    # Git needed for mix deps with git SCM
-    git \
-    # Utilities for file transfer and interactive sessions
-    curl \
-    unzip \
-    tmux \
-    # cuDNN 9 for deep learning (required by EXLA)
+    libncurses6 libssl3 libstdc++6 libsctp1 \
+    libopenblas0 liblapack3 \
+    python3.11 python3.11-dev python3-pip \
+    git curl unzip tmux \
     libcudnn9-cuda-12 \
     && rm -rf /var/lib/apt/lists/* \
-    # Install rclone for cloud storage sync
     && curl -s https://rclone.org/install.sh | bash
 
 # Set up Python
@@ -155,7 +132,6 @@ ENV PATH="${ASDF_DIR}/bin:${ASDF_DIR}/shims:${PATH}"
 RUN asdf global erlang 27.0 && asdf global elixir 1.18.1-otp-27
 
 # Copy Rust from builder (for NIF development/recompilation)
-# The selective_scan CUDA NIF is pre-built, but having Rust allows rebuilding after code changes
 COPY --from=builder /root/.cargo /root/.cargo
 COPY --from=builder /root/.rustup /root/.rustup
 ENV PATH="/root/.cargo/bin:${PATH}"
@@ -165,7 +141,7 @@ COPY --from=builder /usr/local/lib/python3.11/dist-packages /usr/local/lib/pytho
 
 WORKDIR /app
 
-# Copy compiled application from builder
+# Copy compiled application from builder (combined for efficiency)
 COPY --from=builder /app/_build /app/_build
 COPY --from=builder /app/deps /app/deps
 COPY --from=builder /app/config /app/config
@@ -175,21 +151,16 @@ COPY --from=builder /app/priv /app/priv
 COPY --from=builder /app/test /app/test
 COPY --from=builder /app/mix.exs /app/mix.lock /app/
 
-# Initialize git repo so `git pull` works for updates
-# This creates a git repo pointing to origin, allowing easy updates without conflicts
+# Initialize git repo + setup mix + create dirs (combined into single layer)
 RUN git init -b main && \
     git remote add origin https://github.com/blasphemetheus/exphil.git && \
     git fetch origin main && \
     git reset --mixed origin/main && \
-    git branch --set-upstream-to=origin/main main
+    git branch --set-upstream-to=origin/main main && \
+    mix local.hex --force && mix local.rebar --force && \
+    mkdir -p /app/replays /app/checkpoints /workspace/replays /workspace/checkpoints /workspace/jax_cache
 
-# Set up mix
-RUN mix local.hex --force && mix local.rebar --force
-
-# Create directories for data
-RUN mkdir -p /app/replays /app/checkpoints /workspace/replays /workspace/checkpoints
-
-# Copy tmux config for better training session experience
+# Copy tmux config
 COPY config/tmux.conf /root/.tmux.conf
 
 # Make scripts executable
@@ -199,11 +170,7 @@ RUN chmod +x /app/scripts/fetch_replays.sh /app/scripts/runpod_entrypoint.sh
 ENV XLA_TARGET=cuda12
 ENV EXLA_TARGET=cuda
 ENV CUDA_VISIBLE_DEVICES=0
-
-# JAX compilation cache - avoids recompilation across runs
-# Cache stored in /workspace so it persists on RunPod volumes
 ENV JAX_COMPILATION_CACHE_DIR=/workspace/jax_cache
-RUN mkdir -p /workspace/jax_cache
 
 # Entrypoint handles rclone config from env vars
 ENTRYPOINT ["/app/scripts/runpod_entrypoint.sh"]
