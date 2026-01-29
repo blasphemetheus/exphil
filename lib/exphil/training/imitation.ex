@@ -1299,7 +1299,9 @@ defmodule ExPhil.Training.Imitation do
 
     case dataset_list do
       [%{states: states, actions: actions} | _] ->
-        _warmup = loss_fn.(states, actions)
+        # Force computation with backend_transfer to ensure JIT actually runs
+        # (Nx tensors are lazy - just calling loss_fn doesn't execute)
+        _ = loss_fn.(states, actions) |> Nx.backend_transfer()
 
       _ ->
         :ok
