@@ -20,7 +20,7 @@ This document tracks the major goals and roadmap for ExPhil development.
 - GitHub Actions CI (test, format, dialyzer)
 - **Self-play RL infrastructure** (GenServer architecture, PPO integration, Elo matchmaking)
 - Mock environment with physics (for fast self-play testing)
-- 1576 tests passing
+- 1933 tests passing
 
 ### Next Step
 
@@ -93,7 +93,7 @@ mix run scripts/train_self_play.exs \
 | Embedding caching | Medium | 2-3x speedup by precomputing embeddings | **Done** |
 | K-means stick discretization | Medium | Research shows 21 clusters beats uniform grid | **Done** |
 | **Embedding disk caching** | Medium | Save precomputed embeddings to disk for reuse across runs | **Done** |
-| **Augmented embedding caching** | Medium | Pre-cache multiple augmented versions per state | Planned |
+| **Augmented embedding caching** | Medium | Pre-cache multiple augmented versions per state | **Done** |
 
 **Embedding Disk Caching (Done):**
 - Use `--cache-embeddings` to save precomputed embeddings to disk
@@ -101,45 +101,34 @@ mix run scripts/train_self_play.exs \
 - Cache key includes embedding config hash (action_mode, character_mode, stage_mode, etc.)
 - Cache is invalidated when replay files change
 
-**Augmented Embedding Caching (Planned):**
+**Augmented Embedding Caching (Done):**
 
-**Problem:** The `--augment` flag enables mirror flipping and noise injection for better generalization. However, augmentation modifies raw game states (X positions, velocities, facing directions) which must happen BEFORE embedding. This means precomputed embeddings cannot be used with `--augment`, causing ~100x slowdown (from <1s/batch to ~100s/batch).
+Pre-computes multiple augmented versions of each state for ~100x faster training with augmentation.
 
-**Current behavior (data.ex:329):**
-```elixir
-use_precomputed = dataset.embedded_frames != nil and augment_fn == nil
+**Usage:**
+```bash
+# Use --cache-augmented to pre-compute original + mirrored + noisy variants
+mix run scripts/train_from_replays.exs \
+  --cache-augmented \
+  --augment \
+  --num-noisy-variants 2 \
+  --noise-scale 0.01
 ```
 
-When augmentation is enabled, every batch re-embeds 512 states on-the-fly, running on CPU with 0% GPU utilization.
+**How it works:**
+- Pre-computes: 1 original + 1 mirrored + N noisy variants per frame
+- Stores as 3D tensor: `{num_frames, num_variants, embed_size}`
+- During training, randomly selects variant per sample (stochastic like online augmentation)
+- Cache key includes augmented flag, num_noisy_variants, and noise_scale
 
-**Proposed solution:** Pre-compute multiple augmented versions of each state:
-
-1. **Original embedding** - the unmodified game state
-2. **Mirrored embedding** - X positions, velocities, and stick X values negated
-3. **Noisy variants** (optional) - 2-3 versions with different noise seeds
-
-**Implementation approach:**
-```elixir
-# For each game state, pre-compute:
-# - embed(state)                     # Original
-# - embed(mirror(state))             # Mirrored (50% of time)
-# - embed(add_noise(state, seed: 1)) # Noisy variant (30% of time)
-
-# During training, randomly select which embedding to use
-# This gives augmentation benefits with precomputed speed
-```
-
-*Benefits:*
-- ~100x faster training with augmentation
+**Benefits:**
+- ~100x faster training with augmentation (GPU utilization stays high)
 - Same generalization benefits as online augmentation
-- Compatible with embedding disk caching
+- Compatible with disk caching (`--cache-dir`)
 
-*Trade-offs:*
-- 2-4x more embeddings to store (disk and memory)
-- More complex batch selection logic
-- Noise augmentation requires fixed seeds (slightly less random)
-
-*Workaround (current):* Don't use `--augment`. Use frame delay augmentation (`--online-robust`) instead, which operates at the temporal level and doesn't require re-embedding
+**Trade-offs:**
+- 2-4x more memory/disk for embeddings
+- Noise uses deterministic seeds (reproducible but slightly less random)
 
 **Projectile Parsing Details:**
 - py-slippi's `Frame.items` contains projectiles (Fox lasers, Sheik needles, etc.)

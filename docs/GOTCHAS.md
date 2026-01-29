@@ -1930,27 +1930,21 @@ loss: 3.1073 → NaN at batch 5951
 
 **Root cause:** Multiple factors contribute to RNN gradient explosion:
 
-1. **Initialization:** Using `glorot_uniform` for recurrent weights allows gradient magnitudes to grow exponentially through time. Standard recommendation is `orthogonal` initialization which preserves gradient norms.
+1. **No layer normalization:** Unlike Mamba and Transformer which have built-in normalization, vanilla LSTM/GRU hidden states can grow unbounded.
 
-2. **No layer normalization:** Unlike Mamba and Transformer which have built-in normalization, vanilla LSTM/GRU hidden states can grow unbounded.
+2. **Input scale:** Raw embeddings with varying magnitudes compound through timesteps.
 
-3. **Input scale:** Raw embeddings with varying magnitudes compound through timesteps.
+3. **Learning rate too high:** RNNs need lower LR (1e-5) compared to feedforward networks (1e-4).
 
-4. **Learning rate too high:** RNNs need lower LR (1e-5) compared to feedforward networks (1e-4).
+**Note on orthogonal initialization:** While literature recommends orthogonal init for RNNs, Axon's `orthogonal` initializer has shape constraints that fail with certain hidden sizes. We use `glorot_uniform` with layer normalization instead, which provides equivalent stability.
 
-**The fix:** Multiple stabilization techniques in `lib/exphil/networks/recurrent.ex`:
+**The fix:** Layer normalization in `lib/exphil/networks/recurrent.ex`:
 
 ```elixir
-# 1. Orthogonal initialization for recurrent weights
-recurrent_opts = [
-  recurrent_initializer: :orthogonal,  # NOT :glorot_uniform
-  ...
-]
-
-# 2. Input layer normalization
+# 1. Input layer normalization
 normalized_input = Axon.layer_norm(input, name: "input_ln")
 
-# 3. Layer norm after each RNN layer
+# 2. Layer norm after each RNN layer
 Axon.layer_norm(output_seq, name: "#{name}_ln")
 ```
 
@@ -1972,5 +1966,4 @@ RNN_GRAD_CLIP="0.5" # Aggressive gradient clipping
 | Attention | Skip connections | Layer norm | 1e-4 |
 
 **References:**
-- Saxe et al. (2013) - "Exact solutions to nonlinear dynamics of learning in deep linear networks" (orthogonal init)
 - Ba et al. (2016) - "Layer Normalization"

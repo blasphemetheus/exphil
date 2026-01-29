@@ -2152,17 +2152,23 @@ batch_checkpoint_path =
 
       loss_type = if has_validation, do: "val_loss", else: "train_loss"
 
+      # Show progress indicator during checkpoint save (can take several seconds)
+      IO.write(:stderr, "    Saving best model...\e[K")
+
       case Imitation.save_checkpoint(updated_trainer, best_checkpoint_path) do
         :ok ->
           case Imitation.export_policy(updated_trainer, best_policy_path) do
             :ok ->
+              IO.write(:stderr, "\r\e[K")
               Output.puts("    ★ New best model saved (#{loss_type}=#{safe_round.(val_loss, 4)})")
 
             {:error, _} ->
+              IO.write(:stderr, "\r\e[K")
               Output.puts("    ★ Best checkpoint saved, policy export failed")
           end
 
         {:error, reason} ->
+          IO.write(:stderr, "\r\e[K")
           Output.puts("    ⚠ Failed to save best model: #{inspect(reason)}")
       end
     end

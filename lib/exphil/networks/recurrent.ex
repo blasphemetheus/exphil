@@ -201,7 +201,7 @@ defmodule ExPhil.Networks.Recurrent do
     - `:name` - Layer name prefix
     - `:return_sequences` - Whether to return all timesteps or just the last (default: true)
     - `:use_layer_norm` - Add layer normalization after RNN for stability (default: true)
-    - `:recurrent_initializer` - Initializer for recurrent weights (default: :orthogonal)
+    - `:recurrent_initializer` - Initializer for recurrent weights (default: :glorot_uniform)
 
   ## Stability Notes
 
@@ -217,9 +217,10 @@ defmodule ExPhil.Networks.Recurrent do
     name = Keyword.get(opts, :name, "recurrent")
     return_sequences = Keyword.get(opts, :return_sequences, true)
     use_layer_norm = Keyword.get(opts, :use_layer_norm, true)
-    recurrent_init = Keyword.get(opts, :recurrent_initializer, :orthogonal)
+    recurrent_init = Keyword.get(opts, :recurrent_initializer, :glorot_uniform)
 
-    # Use orthogonal initialization for recurrent weights (prevents gradient explosion)
+    # RNN stability comes from layer normalization (below) + lower learning rates
+    # Orthogonal init can help but has shape constraints that fail with small hidden sizes
     # This is the recommended initialization for RNNs per Saxe et al. (2013)
     recurrent_opts = [
       name: name,
