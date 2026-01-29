@@ -113,7 +113,6 @@ COMMON_FLAGS="--replays $REPLAYS_DIR \
   --early-stopping --patience $PATIENCE \
   --val-split 0.1 \
   --focal-loss --focal-gamma $FOCAL_GAMMA \
-  --no-prefetch \
   --save-best"
 
 run_training() {

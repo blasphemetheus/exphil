@@ -457,7 +457,11 @@ Configuration:
   Precision:   #{precision_str}
   Frame Delay: #{format_frame_delay.(opts)}
   Augment:     #{if opts[:augment], do: "enabled (mirror=#{opts[:mirror_prob]}, noise=#{opts[:noise_prob]})", else: "disabled"}
-  Prefetch:    #{if opts[:prefetch], do: "enabled (buffer=#{opts[:prefetch_buffer]})", else: "disabled"}
+  Prefetch:    #{cond do
+    opts[:no_prefetch] -> "disabled (--no-prefetch)"
+    opts[:stream_chunk_size] -> "auto (streaming mode, buffer=#{opts[:prefetch_buffer]})"
+    true -> "disabled (only with --stream-chunk-size)"
+  end}
   Grad Ckpt:   #{if opts[:gradient_checkpoint], do: "enabled (every #{opts[:checkpoint_every]} layers)", else: "disabled"}
   GPU:         #{gpu_info}
   Streaming:   #{if opts[:stream_chunk_size], do: "enabled (#{opts[:stream_chunk_size]} files/chunk)", else: "disabled"}
@@ -868,11 +872,19 @@ end
 # Data will be loaded chunk-by-chunk during training
 streaming_mode = opts[:stream_chunk_size] != nil
 
-# Warn if prefetch is enabled without streaming mode (it's a no-op)
-if opts[:prefetch] and not streaming_mode do
-  Output.warning("--prefetch has no effect without --stream-chunk-size")
-  Output.puts("    Prefetching requires streaming mode due to EXLA tensor process limitations")
-  Output.puts("    Either add --stream-chunk-size N or remove --prefetch to silence this warning")
+# Auto-enable prefetch in streaming mode (unless explicitly disabled with --no-prefetch)
+# Prefetching loads the next batch while GPU trains on current - only useful with streaming
+prefetch_enabled =
+  if streaming_mode do
+    # In streaming mode, enable prefetch unless user passed --no-prefetch
+    not opts[:no_prefetch]
+  else
+    # In non-streaming mode, prefetch does nothing
+    false
+  end
+
+if streaming_mode and prefetch_enabled do
+  Output.puts("  Prefetching: enabled (use --no-prefetch to disable)")
 end
 
 file_chunks =
@@ -1972,24 +1984,14 @@ batch_checkpoint_path =
 
     {updated_trainer, epoch_losses, _, updated_global_batch_idx, _final_smoothed} =
       cond do
-        opts[:prefetch] and streaming_mode ->
-          # Streaming mode: use stream-based prefetcher for lazy iteration
-          # This avoids materializing all chunks at once
+        prefetch_enabled ->
+          # Streaming mode with prefetch: use stream-based prefetcher for lazy iteration
+          # This avoids materializing all chunks at once and loads next batch while GPU trains
           Prefetcher.reduce_stream_indexed(
             batch_stream,
             initial_state,
             process_batch,
             buffer_size: opts[:prefetch_buffer]
-          )
-
-        opts[:prefetch] ->
-          # Non-streaming mode: use list-based prefetcher
-          # reduce_indexed materializes the stream first (safe for EXLA tensors)
-          # then does simple Task-based prefetching
-          Prefetcher.reduce_indexed(
-            batch_stream,
-            initial_state,
-            process_batch
           )
 
         true ->
