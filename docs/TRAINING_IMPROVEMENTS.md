@@ -200,6 +200,83 @@ Based on impact/effort ratio:
 6. **Residual MLP** - Try if hitting accuracy ceiling
 7. **Focal loss** - Try if rare actions aren't learned
 
+## Performance Optimizations (2026-01)
+
+Optimizations identified for reducing per-epoch overhead on large datasets (1.6M+ frames).
+
+### High Impact
+
+#### Cache JIT-compiled loss function in validation ✅
+- **Status:** COMPLETED (2026-01-29)
+- **Current:** `build_loss_fn` called every `evaluate()` call, may re-JIT
+- **Solution:** Added `eval_loss_fn` field to trainer struct, built once in `new/1`
+- **Benefit:** Avoid re-JIT overhead during validation (~5-10s savings)
+- **Implementation:** `build_eval_loss_fn/2` creates JIT-compiled loss function, reused in `evaluate/3`
+
+#### Lazy index shuffling ✅
+- **Status:** COMPLETED (2026-01-29)
+- **Current:** `Enum.shuffle(0..1_600_000)` takes ~2s every epoch
+- **Solution:** Chunked lazy shuffle for datasets >100K - shuffle within 10K chunks, shuffle chunk order
+- **Benefit:** ~2s savings per epoch, O(10K) memory instead of O(n)
+- **Implementation:** `lazy_shuffled_batches/5` and `lazy_shuffled_frame_batches/7` in Data module
+
+#### Parallel validation batches
+- **Status:** TODO
+- **Current:** Sequential `Enum.reduce` over validation batches
+- **Proposed:** `Task.async_stream` for parallel batch processing
+- **Benefit:** ~2-3x faster validation if GPU memory allows concurrent batches
+- **Caveat:** May increase GPU memory pressure
+
+#### Pre-embed validation data
+- **Status:** TODO
+- **Current:** Validation data embedded during batch creation
+- **Proposed:** Pre-compute validation embeddings like training data
+- **Benefit:** Faster validation, especially with complex embeddings
+
+### Medium Impact
+
+#### Reduce Enum.to_list calls
+- **Status:** TODO
+- **Current:** Several places convert ranges to lists unnecessarily
+- **Proposed:** Use Streams where possible
+- **Benefit:** Lower memory allocation overhead
+
+#### Batch tensor stacking optimization
+- **Status:** TODO
+- **Current:** In `evaluate/3`, losses collected as list then stacked
+- **Proposed:** Accumulate directly with running sum tensor
+- **Benefit:** Avoid final Nx.stack allocation
+
+#### Skip validation on non-improvement epochs
+- **Status:** TODO
+- **Current:** Full validation every epoch
+- **Proposed:** After N epochs without improvement, run validation less frequently
+- **Benefit:** Save validation time when model is plateaued
+
+### Lower Priority
+
+#### ONNX inference for validation
+- Use quantized INT8 model for approximate validation loss
+- Much faster but introduces approximation error
+
+#### Custom CUDA kernels
+- Already have flash attention NIF
+- Could add custom kernels for specific bottlenecks
+
+#### Gradient checkpointing tuning
+- Trade compute for memory more aggressively
+- Already supported via `--gradient-checkpoint`
+
+### Completed (2026-01-29)
+
+- [x] Cache array conversions with `prepare_for_batching/1`
+- [x] Cache character weights to avoid recomputing every epoch
+- [x] Add validation progress indicator
+- [x] Add batch preparation timing visibility
+- [x] Central time timestamps with tz library
+- [x] Cache JIT-compiled eval loss function in trainer struct
+- [x] Lazy chunked shuffle for large datasets (>100K samples)
+
 ## Completed
 
 - [x] Timestamps in training output (2025-01-20)

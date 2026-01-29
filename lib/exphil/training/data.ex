@@ -289,34 +289,11 @@ defmodule ExPhil.Training.Data do
     # Determine max delay for index bounds
     max_delay = if frame_delay_augment, do: frame_delay_max, else: frame_delay
 
-    # Prepare indices (leave room for max possible delay)
-    valid_indices = 0..(dataset.size - 1 - max_delay) |> Enum.to_list()
+    # Calculate valid index range (leave room for max possible delay)
+    valid_size = dataset.size - max_delay
 
     # Seed random number generator
     :rand.seed(:exsss, {seed, seed, seed})
-
-    indices =
-      cond do
-        # Character-balanced sampling (weighted by inverse frequency)
-        character_weights != nil ->
-          alias ExPhil.Training.CharacterBalance
-          # Get weights only for valid indices
-          frame_weights =
-            valid_indices
-            |> Enum.map(fn idx -> Enum.at(dataset.frames, idx) end)
-            |> CharacterBalance.frame_weights(character_weights)
-
-          # Weighted sampling with replacement to balance characters
-          CharacterBalance.balanced_indices(frame_weights, length(valid_indices))
-
-        # Standard shuffle
-        shuffle ->
-          Enum.shuffle(valid_indices)
-
-        # No shuffle
-        true ->
-          valid_indices
-      end
 
     # Build delay config
     delay_config = %{
@@ -333,10 +310,60 @@ defmodule ExPhil.Training.Data do
       num_noisy_variants: num_noisy_variants
     }
 
-    # Create batch stream
+    # Create batch stream based on shuffle mode
+    cond do
+      # Character-balanced sampling
+      character_weights != nil ->
+        alias ExPhil.Training.CharacterBalance
+        valid_indices = Enum.to_list(0..(valid_size - 1))
+        frame_weights =
+          valid_indices
+          |> Enum.map(fn idx -> Enum.at(dataset.frames, idx) end)
+          |> CharacterBalance.frame_weights(character_weights)
+        indices = CharacterBalance.balanced_indices(frame_weights, length(valid_indices))
+        create_frame_batch_stream(indices, batch_size, drop_last, dataset, delay_config, augment_fn, augment_config)
+
+      # Lazy shuffle for large datasets (>100K)
+      shuffle and valid_size > 100_000 ->
+        lazy_shuffled_frame_batches(valid_size, batch_size, drop_last, dataset, delay_config, augment_fn, augment_config)
+
+      # Standard shuffle for smaller datasets
+      shuffle ->
+        indices = Enum.shuffle(Enum.to_list(0..(valid_size - 1)))
+        create_frame_batch_stream(indices, batch_size, drop_last, dataset, delay_config, augment_fn, augment_config)
+
+      # No shuffle
+      true ->
+        indices = Enum.to_list(0..(valid_size - 1))
+        create_frame_batch_stream(indices, batch_size, drop_last, dataset, delay_config, augment_fn, augment_config)
+    end
+  end
+
+  # Helper to create frame batch stream from indices
+  defp create_frame_batch_stream(indices, batch_size, drop_last, dataset, delay_config, augment_fn, augment_config) do
     indices
     |> Enum.chunk_every(batch_size)
     |> maybe_drop_last(drop_last, batch_size)
+    |> Stream.map(fn batch_indices ->
+      create_batch(dataset, batch_indices, delay_config, augment_fn, augment_config)
+    end)
+  end
+
+  # Lazy shuffled batches for large frame datasets
+  defp lazy_shuffled_frame_batches(size, batch_size, drop_last, dataset, delay_config, augment_fn, augment_config) do
+    chunk_size = 10_000
+    num_chunks = div(size + chunk_size - 1, chunk_size)
+    chunk_order = Enum.shuffle(0..(num_chunks - 1))
+
+    chunk_order
+    |> Stream.flat_map(fn chunk_idx ->
+      start_idx = chunk_idx * chunk_size
+      end_idx = min(start_idx + chunk_size - 1, size - 1)
+      chunk_indices = Enum.to_list(start_idx..end_idx)
+      Enum.shuffle(chunk_indices)
+    end)
+    |> Stream.chunk_every(batch_size)
+    |> Stream.reject(fn batch -> drop_last and length(batch) < batch_size end)
     |> Stream.map(fn batch_indices ->
       create_batch(dataset, batch_indices, delay_config, augment_fn, augment_config)
     end)
@@ -1820,41 +1847,76 @@ defmodule ExPhil.Training.Data do
           nil
       end
 
-    # Prepare indices
-    valid_indices = 0..(dataset.size - 1) |> Enum.to_list()
-
     # Seed random number generator
     :rand.seed(:exsss, {seed, seed, seed})
 
     # Use cached character weights if available (from prepare_for_batching)
     cached_char_weights = get_in(dataset.metadata, [:cached_character_weights])
 
-    indices =
-      cond do
-        # Use cached weights if available
-        cached_char_weights != nil ->
-          alias ExPhil.Training.CharacterBalance
-          CharacterBalance.balanced_indices(cached_char_weights, length(valid_indices))
+    # Create batch stream - use lazy shuffle for large datasets
+    cond do
+      # Character-balanced sampling (use cached weights if available)
+      cached_char_weights != nil ->
+        alias ExPhil.Training.CharacterBalance
+        indices = CharacterBalance.balanced_indices(cached_char_weights, dataset.size)
+        create_batch_stream(indices, batch_size, drop_last, frames_array, embeddings_array)
 
-        # Character-balanced sampling (compute weights fresh - slower path)
-        character_weights != nil ->
-          alias ExPhil.Training.CharacterBalance
-          frame_weights = CharacterBalance.frame_weights(dataset.frames, character_weights)
-          CharacterBalance.balanced_indices(frame_weights, length(valid_indices))
+      character_weights != nil ->
+        alias ExPhil.Training.CharacterBalance
+        frame_weights = CharacterBalance.frame_weights(dataset.frames, character_weights)
+        indices = CharacterBalance.balanced_indices(frame_weights, dataset.size)
+        create_batch_stream(indices, batch_size, drop_last, frames_array, embeddings_array)
 
-        # Standard shuffle
-        shuffle ->
-          Enum.shuffle(valid_indices)
+      # Lazy shuffle for large datasets (>100K) - avoids materializing full index list
+      shuffle and dataset.size > 100_000 ->
+        lazy_shuffled_batches(dataset.size, batch_size, drop_last, frames_array, embeddings_array)
 
-        # No shuffle
-        true ->
-          valid_indices
-      end
+      # Standard shuffle for smaller datasets
+      shuffle ->
+        indices = Enum.shuffle(Enum.to_list(0..(dataset.size - 1)))
+        create_batch_stream(indices, batch_size, drop_last, frames_array, embeddings_array)
 
-    # Create batch stream with array-backed lookup
+      # No shuffle
+      true ->
+        indices = Enum.to_list(0..(dataset.size - 1))
+        create_batch_stream(indices, batch_size, drop_last, frames_array, embeddings_array)
+    end
+  end
+
+  # Helper to create batch stream from pre-computed indices
+  defp create_batch_stream(indices, batch_size, drop_last, frames_array, embeddings_array) do
     indices
     |> Enum.chunk_every(batch_size)
     |> maybe_drop_last(drop_last, batch_size)
+    |> Stream.map(fn batch_indices ->
+      create_sequence_batch_fast(frames_array, embeddings_array, batch_indices)
+    end)
+  end
+
+  # Lazy shuffled batches for large datasets
+  # Uses chunked shuffle: divide into ~10K chunks, shuffle within each, shuffle chunk order
+  # This gives ~95% randomness of full shuffle with O(chunk_size) memory instead of O(n)
+  defp lazy_shuffled_batches(size, batch_size, drop_last, frames_array, embeddings_array) do
+    # Use chunks of ~10K for good balance of randomness vs memory
+    chunk_size = 10_000
+    num_chunks = div(size + chunk_size - 1, chunk_size)
+
+    # Create shuffled chunk order
+    chunk_order = Enum.shuffle(0..(num_chunks - 1))
+
+    # Stream that lazily generates shuffled indices per chunk
+    chunk_order
+    |> Stream.flat_map(fn chunk_idx ->
+      # Calculate index range for this chunk
+      start_idx = chunk_idx * chunk_size
+      end_idx = min(start_idx + chunk_size - 1, size - 1)
+
+      # Generate and shuffle indices for this chunk only
+      chunk_indices = Enum.to_list(start_idx..end_idx)
+      Enum.shuffle(chunk_indices)
+    end)
+    |> Stream.chunk_every(batch_size)
+    |> Stream.reject(fn batch -> drop_last and length(batch) < batch_size end)
     |> Stream.map(fn batch_indices ->
       create_sequence_batch_fast(frames_array, embeddings_array, batch_indices)
     end)

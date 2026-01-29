@@ -63,6 +63,8 @@ defmodule ExPhil.Training.Imitation do
     :apply_updates_fn,
     # Compiled loss+grad function - avoids closure creation and deep_backend_copy every batch
     :loss_and_grad_fn,
+    # Compiled eval loss function - for validation without gradient computation
+    :eval_loss_fn,
     # Mixed precision state (FP32 master weights + BF16 compute params)
     :mixed_precision_state
   ]
@@ -78,6 +80,7 @@ defmodule ExPhil.Training.Imitation do
           metrics: map(),
           predict_fn: function() | nil,
           apply_updates_fn: function() | nil,
+          eval_loss_fn: function() | nil,
           loss_and_grad_fn: function() | nil,
           mixed_precision_state: MixedPrecision.t() | nil
         }
@@ -282,6 +285,10 @@ defmodule ExPhil.Training.Imitation do
     # This function is JITted once and reused for all training steps
     loss_and_grad_fn = build_loss_and_grad_fn(predict_fn, config)
 
+    # Build compiled eval loss function (for validation - no gradients needed)
+    # JITted once and reused for all validation batches
+    eval_loss_fn = build_eval_loss_fn(predict_fn, config)
+
     %__MODULE__{
       policy_model: policy_model,
       policy_params: policy_params,
@@ -299,6 +306,7 @@ defmodule ExPhil.Training.Imitation do
       predict_fn: predict_fn,
       apply_updates_fn: apply_updates_fn,
       loss_and_grad_fn: loss_and_grad_fn,
+      eval_loss_fn: eval_loss_fn,
       mixed_precision_state: mixed_precision_state
     }
   end
@@ -1093,6 +1101,49 @@ defmodule ExPhil.Training.Imitation do
   end
 
   @doc """
+  Build a compiled loss function for evaluation (no gradients).
+
+  Similar to `build_loss_and_grad_fn/2` but without gradient computation.
+  This function is built ONCE in `new/1` and reused for all validation batches,
+  avoiding JIT recompilation overhead on each epoch.
+
+  The returned function takes `(params, states, actions)` and returns the loss tensor.
+  """
+  @spec build_eval_loss_fn(function(), map()) :: function()
+  def build_eval_loss_fn(predict_fn, config) do
+    label_smoothing = config[:label_smoothing] || 0.0
+    focal_loss = config[:focal_loss] || false
+    focal_gamma = config[:focal_gamma] || 2.0
+    precision = config[:precision] || :bf16
+
+    inner_fn = fn params, states, actions ->
+      # Convert states to eval precision
+      states = Nx.as_type(states, precision)
+
+      {buttons, main_x, main_y, c_x, c_y, shoulder} =
+        predict_fn.(Utils.ensure_model_state(params), states)
+
+      logits = %{
+        buttons: buttons,
+        main_x: main_x,
+        main_y: main_y,
+        c_x: c_x,
+        c_y: c_y,
+        shoulder: shoulder
+      }
+
+      Policy.imitation_loss(logits, actions,
+        label_smoothing: label_smoothing,
+        focal_loss: focal_loss,
+        focal_gamma: focal_gamma
+      )
+    end
+
+    # JIT compile for fast repeated evaluation
+    Nx.Defn.jit(inner_fn, compiler: EXLA)
+  end
+
+  @doc """
   Evaluate on a validation dataset.
 
   ## Options
@@ -1104,9 +1155,18 @@ defmodule ExPhil.Training.Imitation do
     show_progress = Keyword.get(opts, :show_progress, true)
     progress_interval = Keyword.get(opts, :progress_interval, 10)
 
-    # Use same label smoothing as training for consistent loss comparison
-    label_smoothing = trainer.config[:label_smoothing] || 0.0
-    {_predict_fn, loss_fn} = build_loss_fn(trainer.policy_model, label_smoothing: label_smoothing)
+    # Use cached eval_loss_fn if available (JIT-compiled once in new/1)
+    # Falls back to building fresh for backwards compatibility
+    loss_fn =
+      if trainer.eval_loss_fn do
+        # Cached JIT function: takes (params, states, actions)
+        fn states, actions -> trainer.eval_loss_fn.(trainer.policy_params, states, actions) end
+      else
+        # Fallback: build fresh (will JIT on first use)
+        label_smoothing = trainer.config[:label_smoothing] || 0.0
+        {_predict_fn, built_loss_fn} = build_loss_fn(trainer.policy_model, label_smoothing: label_smoothing)
+        fn states, actions -> built_loss_fn.(trainer.policy_params, states, actions) end
+      end
 
     # Try to get total count for progress bar (works for lists, not all enumerables)
     total_batches =
@@ -1124,7 +1184,7 @@ defmodule ExPhil.Training.Imitation do
     {losses, count} =
       Enum.reduce(dataset, {[], 0}, fn batch, {acc_losses, acc_count} ->
         %{states: states, actions: actions} = batch
-        loss = loss_fn.(trainer.policy_params, states, actions)
+        loss = loss_fn.(states, actions)
         new_count = acc_count + 1
 
         # Show progress
@@ -1162,11 +1222,18 @@ defmodule ExPhil.Training.Imitation do
   """
   @spec evaluate_batch(t(), map()) :: %{loss: Nx.Tensor.t()}
   def evaluate_batch(trainer, batch) do
-    label_smoothing = trainer.config[:label_smoothing] || 0.0
-    {_predict_fn, loss_fn} = build_loss_fn(trainer.policy_model, label_smoothing: label_smoothing)
-
     %{states: states, actions: actions} = batch
-    loss = loss_fn.(trainer.policy_params, states, actions)
+
+    # Use cached eval_loss_fn if available
+    loss =
+      if trainer.eval_loss_fn do
+        trainer.eval_loss_fn.(trainer.policy_params, states, actions)
+      else
+        # Fallback for backwards compatibility
+        label_smoothing = trainer.config[:label_smoothing] || 0.0
+        {_predict_fn, loss_fn} = build_loss_fn(trainer.policy_model, label_smoothing: label_smoothing)
+        loss_fn.(trainer.policy_params, states, actions)
+      end
 
     %{loss: loss}
   end
