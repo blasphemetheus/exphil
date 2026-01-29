@@ -78,6 +78,9 @@ defmodule ExPhil.Training.Config do
     # Memory-efficient attention (true O(n) memory via online softmax)
     "--memory-efficient-attention",
     "--no-memory-efficient-attention",
+    # FlashAttention NIF for inference (forward-only, requires Ampere+ GPU)
+    "--flash-attention-nif",
+    "--no-flash-attention-nif",
     "--state-size",
     "--expand-factor",
     "--conv-size",
@@ -260,6 +263,10 @@ defmodule ExPhil.Training.Config do
       # Memory-efficient attention (true O(n) memory via online softmax)
       # Slower than chunked but uses less memory for very long sequences
       memory_efficient_attention: false,
+      # FlashAttention NIF for inference (forward-only, no gradients)
+      # Requires Ampere+ GPU (RTX 30xx/40xx, A100, H100) for CUDA acceleration
+      # Falls back to CPU if CUDA unavailable (slower than Pure Nx due to copy overhead)
+      flash_attention_nif: false,
       truncate_bptt: nil,
       # FP32 is default - benchmarks show BF16 is 2x SLOWER on RTX 4090 due to
       # XLA issues: dimension misalignment (287 dims not divisible by 16),
@@ -1904,6 +1911,12 @@ defmodule ExPhil.Training.Config do
     |> parse_flag(args, "--no-memory-efficient-attention", :no_memory_efficient_attention)
     |> then(fn opts ->
       if opts[:no_memory_efficient_attention], do: Keyword.put(opts, :memory_efficient_attention, false), else: opts
+    end)
+    # FlashAttention NIF for inference (forward-only, requires Ampere+ GPU)
+    |> parse_flag(args, "--flash-attention-nif", :flash_attention_nif)
+    |> parse_flag(args, "--no-flash-attention-nif", :no_flash_attention_nif)
+    |> then(fn opts ->
+      if opts[:no_flash_attention_nif], do: Keyword.put(opts, :flash_attention_nif, false), else: opts
     end)
     |> parse_int_arg(args, "--state-size", :state_size)
     |> parse_int_arg(args, "--expand-factor", :expand_factor)

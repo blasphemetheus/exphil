@@ -177,6 +177,8 @@ mix run scripts/train_from_replays.exs --dual-port
 | `--memory-efficient-attention` | off | Use memory-efficient attention (true O(n) memory via online softmax) |
 | `--no-memory-efficient-attention` | - | Disable memory-efficient attention |
 | `--chunk-size N` | 32 | Chunk size for chunked/memory-efficient attention |
+| `--flash-attention-nif` | off | Use FlashAttention NIF for inference (forward-only, Ampere+ GPU) |
+| `--no-flash-attention-nif` | - | Disable FlashAttention NIF |
 
 ### Model Architecture
 
