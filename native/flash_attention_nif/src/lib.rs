@@ -57,6 +57,8 @@ extern "C" {
         softmax_scale: f32,
     ) -> i32;
 
+    // Reserved for future f16 support
+    #[allow(dead_code)]
     fn flash_attention_forward_f16(
         q: *const u16,  // f16 as u16
         k: *const u16,
@@ -773,15 +775,5 @@ fn benchmark_forward(
     Ok((atoms::ok(), avg_us, backend.to_string()))
 }
 
-// Register NIFs
-rustler::init!(
-    "Elixir.ExPhil.Native.FlashAttention",
-    [
-        cuda_available,
-        backend_info,
-        forward_f32,
-        forward_with_logsumexp,
-        backward_f32,
-        benchmark_forward
-    ]
-);
+// Register NIFs (Rustler auto-detects #[rustler::nif] functions)
+rustler::init!("Elixir.ExPhil.Native.FlashAttention");
