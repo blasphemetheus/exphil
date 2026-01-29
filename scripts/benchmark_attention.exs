@@ -2,7 +2,12 @@
 # Benchmark attention implementations for choosing effective defaults
 #
 # Usage:
-#   mix run scripts/benchmark_attention.exs [--seq-lens 32,64,128,256] [--iterations 50]
+#   mix run scripts/benchmark_attention.exs [--seq-lens 32,64,128,256] [--iterations 50] [--quiet]
+#
+# Options:
+#   --quiet       Suppress warnings and info logs (only show errors)
+#   --seq-lens    Comma-separated sequence lengths to test
+#   --iterations  Number of benchmark iterations per implementation
 #
 # This compares:
 # - Standard scaled dot-product attention (O(n²) memory)
@@ -21,10 +26,15 @@ alias ExPhil.Training.Output
 
 require Output
 
-Output.banner("Attention Implementation Benchmark")
-
 # Parse CLI arguments
 args = System.argv()
+
+# Quiet mode - suppress warnings
+if "--quiet" in args do
+  Logger.configure(level: :error)
+end
+
+Output.banner("Attention Implementation Benchmark")
 
 default_seq_lens = [32, 64, 128, 256]
 seq_lens =
