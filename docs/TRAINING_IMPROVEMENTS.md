@@ -213,27 +213,28 @@ Optimizations identified for reducing per-epoch overhead on large datasets (1.6M
 - **Benefit:** Avoid re-JIT overhead during validation (~5-10s savings)
 - **Implementation:** `build_eval_loss_fn/2` creates JIT-compiled loss function, reused in `evaluate/3`
 
-#### Validation JIT warmup ✅
-- **Status:** COMPLETED (2026-01-29)
-- **Problem:** First epoch validation was 5-10x slower (~3.5s vs ~15ms) due to JIT compilation
-- **Root causes discovered:**
-  1. Training steps (hundreds) may evict `eval_loss_fn` from XLA JIT cache
-  2. Parallel validation uses `Task.async_stream` (different code path than sequential)
-  3. Nx tensors are lazy - calling `loss_fn.(...)` doesn't execute until result is used
-- **Solution:** Multi-layer warmup approach:
-  ```elixir
-  # 1. Pre-training warmup with matching concurrency
-  {:ok, timings} = Imitation.warmup_validation(trainer, val_batches, max_concurrency: 4)
-
-  # 2. Inline refresh at start of each evaluate() call
-  # Forces JIT with Nx.backend_transfer() to ensure lazy tensors execute
-  _ = loss_fn.(states, actions) |> Nx.backend_transfer()
+#### Validation JIT warmup ✅ (partial)
+- **Status:** PARTIALLY COMPLETED (2026-01-29)
+- **Problem:** First epoch validation ~3.5s slower than subsequent (~20ms)
+- **What works:**
+  - Pre-training warmup successfully caches validation JIT (~4s JIT → 0.9ms inline warmup)
+  - Inline refresh at start of each `evaluate()` ensures JIT function is cached
+  - Individual batch times are fast (~1ms loss, ~0.1ms to_num)
+- **What doesn't work:**
+  - First validation after training JIT still has ~3.5s overhead
+  - This overhead is NOT in any timed operation (GPU sync, loss_fn, Nx.to_number all fast)
+  - Same overhead with sequential validation (`--val-concurrency 1`)
+  - GPU sync before validation doesn't help (only 0.1ms)
+- **Investigation findings (EXPHIL_DEBUG_JIT=1):**
   ```
-- **Key insights:**
-  - `warmup_validation/3` must use same `max_concurrency` as actual validation (parallel vs sequential are different JIT paths)
-  - Must force lazy tensor evaluation with `Nx.backend_transfer()` or `Nx.to_number()`
-  - XLA may evict cached functions during heavy training, so inline refresh before each validation helps
-- **Benefit:** Consistent ~15ms validation time across all epochs
+  Pre-training warmup:   inline=4208ms (JIT), stream=2ms
+  Epoch 1 validation:    inline=0.9ms ✓, stream=3459ms ✗
+  Epoch 2 validation:    inline=0.9ms, stream=20ms ✓
+  ```
+- **Conclusion:** Unexplained XLA/EXLA artifact (~3.5s) occurs once after training JIT.
+  Cannot be eliminated with warmup, GPU sync, or concurrency changes.
+  The overhead happens "around" timed operations, not within them.
+- **Current state:** First validation ~3.5s, subsequent validations ~20ms. Acceptable for now.
 
 #### Lazy index shuffling ✅
 - **Status:** COMPLETED (2026-01-29)
