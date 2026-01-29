@@ -172,6 +172,7 @@ defmodule ExPhil.Networks.Attention do
     - `:hidden_dim` - Hidden dimension (default: 256)
     - `:dropout` - Dropout rate (default: 0.1)
     - `:causal` - Use causal masking (default: true)
+    - `:qk_layernorm` - Normalize Q and K before attention (stabilizes training, default: false)
     - `:name` - Layer name prefix
   """
   @spec self_attention(Axon.t(), keyword()) :: Axon.t()
@@ -179,6 +180,7 @@ defmodule ExPhil.Networks.Attention do
     hidden_dim = Keyword.get(opts, :hidden_dim, 256)
     dropout = Keyword.get(opts, :dropout, @default_dropout)
     causal = Keyword.get(opts, :causal, true)
+    qk_layernorm = Keyword.get(opts, :qk_layernorm, false)
     name = Keyword.get(opts, :name, "self_attn")
 
     # Project to Q, K, V and concatenate for single layer call
@@ -195,6 +197,14 @@ defmodule ExPhil.Networks.Attention do
           query = Nx.slice_along_axis(qkv_tensor, 0, hidden_dim, axis: 2)
           key = Nx.slice_along_axis(qkv_tensor, hidden_dim, hidden_dim, axis: 2)
           value = Nx.slice_along_axis(qkv_tensor, hidden_dim * 2, hidden_dim, axis: 2)
+
+          # QK LayerNorm: normalize Q and K to prevent attention explosion
+          {query, key} =
+            if qk_layernorm do
+              {qk_layer_norm(query), qk_layer_norm(key)}
+            else
+              {query, key}
+            end
 
           mask =
             if causal do
@@ -217,6 +227,8 @@ defmodule ExPhil.Networks.Attention do
   # Keep multi_head_attention as alias for compatibility
   @doc """
   Alias for self_attention with configurable dimension.
+
+  Passes through all options including `:qk_layernorm`.
   """
   @spec multi_head_attention(Axon.t(), keyword()) :: Axon.t()
   def multi_head_attention(input, opts \\ []) do
@@ -224,6 +236,7 @@ defmodule ExPhil.Networks.Attention do
     head_dim = Keyword.get(opts, :head_dim, @default_head_dim)
     hidden_dim = num_heads * head_dim
 
+    # Pass all options (including qk_layernorm) to self_attention
     self_attention(input, Keyword.put(opts, :hidden_dim, hidden_dim))
   end
 
@@ -236,6 +249,7 @@ defmodule ExPhil.Networks.Attention do
     - `:window_size` - Attention window size (default: 60)
     - `:hidden_dim` - Hidden dimension (default: 256)
     - `:mask` - Pre-computed attention mask (recommended for efficient compilation)
+    - `:qk_layernorm` - Normalize Q and K before attention (stabilizes training, default: false)
     - `:name` - Layer name prefix
   """
   @spec sliding_window_attention(Axon.t(), keyword()) :: Axon.t()
@@ -244,6 +258,7 @@ defmodule ExPhil.Networks.Attention do
     num_heads = Keyword.get(opts, :num_heads, @default_num_heads)
     head_dim = Keyword.get(opts, :head_dim, @default_head_dim)
     precomputed_mask = Keyword.get(opts, :mask, nil)
+    qk_layernorm = Keyword.get(opts, :qk_layernorm, false)
     name = Keyword.get(opts, :name, "window_attn")
 
     hidden_dim = num_heads * head_dim
@@ -263,6 +278,15 @@ defmodule ExPhil.Networks.Attention do
         key = Nx.slice_along_axis(qkv_tensor, hidden_dim, hidden_dim, axis: 2)
         value = Nx.slice_along_axis(qkv_tensor, hidden_dim * 2, hidden_dim, axis: 2)
 
+        # QK LayerNorm: normalize Q and K to prevent attention explosion
+        # This is used in modern transformers like ViT-22B and PaLM-2
+        {query, key} =
+          if qk_layernorm do
+            {qk_layer_norm(query), qk_layer_norm(key)}
+          else
+            {query, key}
+          end
+
         # Use pre-computed mask if available, otherwise compute (slow path)
         mask =
           if precomputed_mask != nil do
@@ -275,6 +299,24 @@ defmodule ExPhil.Networks.Attention do
       end,
       name: "#{name}_compute"
     )
+  end
+
+  @doc """
+  Apply layer normalization to Q or K tensors.
+
+  QK LayerNorm normalizes across the feature dimension to prevent
+  attention score explosion in deep networks.
+  """
+  @spec qk_layer_norm(Nx.Tensor.t()) :: Nx.Tensor.t()
+  def qk_layer_norm(tensor) do
+    # Normalize across the last axis (feature dimension)
+    # Mean and variance over last axis
+    mean = Nx.mean(tensor, axes: [-1], keep_axes: true)
+    variance = Nx.variance(tensor, axes: [-1], keep_axes: true)
+    eps = 1.0e-6
+
+    # Normalize
+    Nx.divide(Nx.subtract(tensor, mean), Nx.sqrt(Nx.add(variance, eps)))
   end
 
   # ============================================================================

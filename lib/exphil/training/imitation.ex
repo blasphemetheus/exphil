@@ -210,6 +210,9 @@ defmodule ExPhil.Training.Imitation do
           layer_norm: config.layer_norm,
           # Jamba-specific
           attention_every: config.attention_every,
+          # Jamba stability options (Pre-LN + QK LayerNorm prevent NaN)
+          pre_norm: Map.get(config, :pre_norm, true),
+          qk_layernorm: Map.get(config, :qk_layernorm, true),
           # Gradient checkpointing for memory efficiency
           gradient_checkpoint: Map.get(config, :gradient_checkpoint, false),
           checkpoint_every: Map.get(config, :checkpoint_every, 1)

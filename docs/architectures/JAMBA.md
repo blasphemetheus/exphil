@@ -243,6 +243,72 @@ end
 
 Named after AI21's [Jamba architecture](https://www.ai21.com/jamba) which pioneered interleaving Mamba with attention layers for efficient long-context modeling.
 
+## Training Stability (NaN Prevention)
+
+Jamba can be prone to NaN loss during training due to the interaction between Mamba and attention layers. If you encounter NaN losses, try these fixes in order:
+
+### Implemented Fixes
+
+| Fix | Status | Description | Flag/Option |
+|-----|--------|-------------|-------------|
+| **1. Pre-LayerNorm** | ✅ | Move norm before blocks (more stable gradients) | `--pre-norm` |
+| **2. LR Warmup** | ✅ | Linear warmup for first N steps | `--warmup-steps 500` |
+| **3. Gradient Clipping** | ✅ | Clip gradients to prevent explosion | `--max-grad-norm 0.5` |
+| **4. Lower LR** | ✅ | Jamba needs lower LR than pure Mamba | `--learning-rate 1e-5` |
+| **5. QK LayerNorm** | ✅ | Normalize Q/K before attention | `--qk-layernorm` |
+
+### Recommended Jamba Settings
+
+```bash
+# Stable Jamba training (recommended)
+mix run scripts/train_from_replays.exs \
+  --temporal \
+  --backbone jamba \
+  --num-layers 4 \
+  --attention-every 2 \
+  --learning-rate 1e-5 \
+  --max-grad-norm 0.5 \
+  --warmup-steps 500 \
+  --pre-norm \
+  --qk-layernorm
+```
+
+### Potential Future Fixes
+
+If training still diverges, these additional techniques may help:
+
+| Fix | Complexity | Description |
+|-----|------------|-------------|
+| **6. Separate LRs** | Medium | Lower LR for attention layers vs Mamba (10x difference) |
+| **7. Attention Dropout** | Easy | Increase dropout specifically in attention (0.2-0.3) |
+| **8. Weight Init** | Medium | Xavier/Glorot for attention, smaller scale for Mamba |
+| **9. Mixed Precision Off** | Easy | BF16/FP16 can destabilize attention; try FP32 |
+| **10. Gradient Accumulation** | Easy | Smaller effective batch through accumulation |
+| **11. Reduce Model Size** | Easy | Train smaller model first, then scale up |
+| **12. Remove Attention** | Diagnostic | Test pure Mamba stack, add attention back incrementally |
+
+### Why Jamba is Unstable
+
+1. **Gradient scale mismatch**: Mamba layers have O(L) gradients, attention has O(L²)
+2. **Interaction effects**: Mamba's selective scan + attention's softmax can amplify errors
+3. **Initialization**: Default init may not be optimal for hybrid architectures
+4. **Learning dynamics**: Attention converges faster than Mamba, causing imbalance
+
+### Debugging NaN
+
+```bash
+# Enable gradient debugging (very verbose)
+mix run scripts/train_from_replays.exs --backbone jamba --debug-gradients
+
+# Check which layer causes NaN
+mix run scripts/train_from_replays.exs --backbone jamba --epochs 1 --batch-size 1
+```
+
+If NaN occurs:
+- First batch → initialization issue (try `--pre-norm`)
+- After N steps → gradient explosion (reduce LR, add clipping)
+- After epoch → learning rate too high (reduce by 10x)
+
 ## See Also
 
 - [ARCHITECTURES.md](ARCHITECTURES.md) - Overview of all backbones

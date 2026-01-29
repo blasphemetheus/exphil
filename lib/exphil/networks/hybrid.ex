@@ -74,6 +74,10 @@ defmodule ExPhil.Networks.Hybrid do
   @default_head_dim 64
   @default_window_size 60
   @default_dropout 0.1
+  # Pre-LayerNorm is more stable for training (norm before block, not after)
+  @default_pre_norm true
+  # QK LayerNorm normalizes Q and K before attention (prevents explosion)
+  @default_qk_layernorm true
 
   @doc """
   Build a hybrid Mamba+Attention model.
@@ -96,10 +100,12 @@ defmodule ExPhil.Networks.Hybrid do
     - `:head_dim` - Dimension per attention head (default: 64)
     - `:window_size` - Attention window size (default: 60)
     - `:use_sliding_window` - Use sliding window vs full attention (default: true)
+    - `:qk_layernorm` - Normalize Q and K before attention (default: true, stabilizes training)
 
   **General:**
     - `:dropout` - Dropout rate (default: 0.1)
     - `:seq_len` - Fixed sequence length for JIT optimization (default: window_size)
+    - `:pre_norm` - Use Pre-LayerNorm (default: true, more stable than Post-LayerNorm)
 
   ## Returns
 
@@ -135,6 +141,10 @@ defmodule ExPhil.Networks.Hybrid do
     num_heads = Keyword.get(opts, :num_heads, @default_num_heads)
     head_dim = Keyword.get(opts, :head_dim, @default_head_dim)
     use_sliding_window = Keyword.get(opts, :use_sliding_window, true)
+    qk_layernorm = Keyword.get(opts, :qk_layernorm, @default_qk_layernorm)
+
+    # Stability options
+    pre_norm = Keyword.get(opts, :pre_norm, @default_pre_norm)
 
     # Use concrete seq_len for efficient JIT compilation
     input_seq_dim = if seq_len, do: seq_len, else: nil
@@ -180,6 +190,8 @@ defmodule ExPhil.Networks.Hybrid do
             use_sliding_window: use_sliding_window,
             window_size: window_size,
             precomputed_mask: precomputed_mask,
+            pre_norm: pre_norm,
+            qk_layernorm: qk_layernorm,
             name: "layer_#{layer_idx}_attn"
           )
         else
@@ -191,6 +203,7 @@ defmodule ExPhil.Networks.Hybrid do
             expand_factor: expand_factor,
             conv_size: conv_size,
             dropout: dropout,
+            pre_norm: pre_norm,
             name: "layer_#{layer_idx}_mamba"
           )
         end
@@ -214,6 +227,10 @@ defmodule ExPhil.Networks.Hybrid do
 
   @doc """
   Build a Mamba layer with residual connection.
+
+  ## Options
+    - `:pre_norm` - If true, apply LayerNorm before block (Pre-LN, more stable).
+                    If false, apply after residual (Post-LN, original transformer style).
   """
   @spec build_mamba_layer(Axon.t(), keyword()) :: Axon.t()
   def build_mamba_layer(input, opts) do
@@ -222,12 +239,21 @@ defmodule ExPhil.Networks.Hybrid do
     expand_factor = Keyword.get(opts, :expand_factor, @default_expand_factor)
     conv_size = Keyword.get(opts, :conv_size, @default_conv_size)
     dropout = Keyword.get(opts, :dropout, @default_dropout)
+    pre_norm = Keyword.get(opts, :pre_norm, @default_pre_norm)
     name = Keyword.get(opts, :name, "mamba_layer")
 
-    # Mamba block (includes internal normalization)
+    # Pre-LayerNorm: normalize input before block (more stable gradients)
+    normalized_input =
+      if pre_norm do
+        Axon.layer_norm(input, name: "#{name}_pre_norm")
+      else
+        input
+      end
+
+    # Mamba block
     block =
       GatedSSM.build_mamba_block(
-        input,
+        normalized_input,
         hidden_size: hidden_size,
         state_size: state_size,
         expand_factor: expand_factor,
@@ -235,18 +261,31 @@ defmodule ExPhil.Networks.Hybrid do
         name: name
       )
 
-    # Residual connection + dropout
+    # Apply dropout to block output
+    block =
+      if dropout > 0 do
+        Axon.dropout(block, rate: dropout, name: "#{name}_dropout")
+      else
+        block
+      end
+
+    # Residual connection (always with original input, not normalized)
     residual = Axon.add(input, block, name: "#{name}_residual")
 
-    if dropout > 0 do
-      Axon.dropout(residual, rate: dropout, name: "#{name}_dropout")
-    else
+    # Post-LayerNorm: normalize after residual (original style, less stable)
+    if pre_norm do
       residual
+    else
+      Axon.layer_norm(residual, name: "#{name}_post_norm")
     end
   end
 
   @doc """
   Build an attention layer with residual connection and FFN.
+
+  ## Options
+    - `:pre_norm` - If true, apply LayerNorm before block (Pre-LN, more stable).
+    - `:qk_layernorm` - If true, normalize Q and K before attention (stabilizes training).
   """
   @spec build_attention_layer(Axon.t(), keyword()) :: Axon.t()
   def build_attention_layer(input, opts) do
@@ -258,35 +297,48 @@ defmodule ExPhil.Networks.Hybrid do
     use_sliding_window = Keyword.get(opts, :use_sliding_window, true)
     window_size = Keyword.get(opts, :window_size, @default_window_size)
     precomputed_mask = Keyword.get(opts, :precomputed_mask, nil)
+    pre_norm = Keyword.get(opts, :pre_norm, @default_pre_norm)
+    qk_layernorm = Keyword.get(opts, :qk_layernorm, @default_qk_layernorm)
     name = Keyword.get(opts, :name, "attn_layer")
 
-    # Pre-attention normalization
-    normalized = Axon.layer_norm(input, name: "#{name}_pre_norm")
+    # =========================================================================
+    # Attention sub-block
+    # =========================================================================
 
-    # Project to attention dimension if needed
-    x =
-      if hidden_size != attn_hidden_dim do
-        Axon.dense(normalized, attn_hidden_dim, name: "#{name}_attn_proj_in")
+    # Pre-LayerNorm: normalize before attention (more stable)
+    attn_input =
+      if pre_norm do
+        Axon.layer_norm(input, name: "#{name}_pre_norm")
       else
-        normalized
+        input
       end
 
-    # Attention
+    # Project to attention dimension if needed
+    attn_input =
+      if hidden_size != attn_hidden_dim do
+        Axon.dense(attn_input, attn_hidden_dim, name: "#{name}_attn_proj_in")
+      else
+        attn_input
+      end
+
+    # Attention (with optional QK LayerNorm)
     attended =
       if use_sliding_window do
-        Attention.sliding_window_attention(x,
+        Attention.sliding_window_attention(attn_input,
           window_size: window_size,
           num_heads: num_heads,
           head_dim: head_dim,
           mask: precomputed_mask,
+          qk_layernorm: qk_layernorm,
           name: name
         )
       else
-        Attention.multi_head_attention(x,
+        Attention.multi_head_attention(attn_input,
           num_heads: num_heads,
           head_dim: head_dim,
           dropout: dropout,
           causal: true,
+          qk_layernorm: qk_layernorm,
           name: name
         )
       end
@@ -299,16 +351,42 @@ defmodule ExPhil.Networks.Hybrid do
         attended
       end
 
-    # Residual + post-norm
-    x = Axon.add(input, attended, name: "#{name}_residual1")
-    x = Axon.layer_norm(x, name: "#{name}_post_norm1")
+    # Apply dropout to attention output
+    attended =
+      if dropout > 0 do
+        Axon.dropout(attended, rate: dropout, name: "#{name}_attn_dropout")
+      else
+        attended
+      end
 
-    # Feed-forward network
-    # Standard 4x expansion
+    # Residual connection with original input
+    x = Axon.add(input, attended, name: "#{name}_residual1")
+
+    # Post-LayerNorm (only if not using pre_norm)
+    x =
+      if pre_norm do
+        x
+      else
+        Axon.layer_norm(x, name: "#{name}_post_norm1")
+      end
+
+    # =========================================================================
+    # FFN sub-block
+    # =========================================================================
+
+    # Pre-LayerNorm for FFN (if using pre_norm style)
+    ffn_input =
+      if pre_norm do
+        Axon.layer_norm(x, name: "#{name}_ffn_pre_norm")
+      else
+        x
+      end
+
+    # Feed-forward network (4x expansion)
     ffn_dim = hidden_size * 4
 
     ffn =
-      x
+      ffn_input
       |> Axon.dense(ffn_dim, name: "#{name}_ffn1")
       |> Axon.gelu()
       |> Axon.dense(hidden_size, name: "#{name}_ffn2")
@@ -320,9 +398,14 @@ defmodule ExPhil.Networks.Hybrid do
         ffn
       end
 
-    # Final residual + norm
+    # Final residual + optional post-norm
     x = Axon.add(x, ffn, name: "#{name}_residual2")
-    Axon.layer_norm(x, name: "#{name}_post_norm2")
+
+    if pre_norm do
+      x
+    else
+      Axon.layer_norm(x, name: "#{name}_post_norm2")
+    end
   end
 
   # ============================================================================
@@ -397,6 +480,7 @@ defmodule ExPhil.Networks.Hybrid do
   - Real-time inference (~10ms budget)
   - 1-second context window
   - Balance between local patterns (Mamba) and reaction timing (Attention)
+  - Training stability (pre-norm + QK LayerNorm)
   """
   @spec melee_defaults() :: keyword()
   def melee_defaults do
@@ -412,7 +496,10 @@ defmodule ExPhil.Networks.Hybrid do
       head_dim: 64,
       window_size: 60,
       use_sliding_window: true,
-      dropout: 0.1
+      dropout: 0.1,
+      # Stability options (prevent NaN)
+      pre_norm: true,
+      qk_layernorm: true
     ]
   end
 

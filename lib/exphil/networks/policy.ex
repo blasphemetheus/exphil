@@ -835,6 +835,9 @@ defmodule ExPhil.Networks.Policy do
     use_sliding_window = Keyword.get(opts, :use_sliding_window, true)
     # seq_len must be passed through for concrete mask shapes (avoids shape mismatch)
     seq_len = Keyword.get(opts, :seq_len, window_size)
+    # Stability options (Pre-LN + QK LayerNorm prevent NaN in Jamba)
+    pre_norm = Keyword.get(opts, :pre_norm, true)
+    qk_layernorm = Keyword.get(opts, :qk_layernorm, true)
 
     Hybrid.build(
       embed_size: embed_size,
@@ -849,7 +852,9 @@ defmodule ExPhil.Networks.Policy do
       dropout: dropout,
       window_size: window_size,
       seq_len: seq_len,
-      use_sliding_window: use_sliding_window
+      use_sliding_window: use_sliding_window,
+      pre_norm: pre_norm,
+      qk_layernorm: qk_layernorm
     )
   end
 

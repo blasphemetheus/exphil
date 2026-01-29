@@ -66,6 +66,11 @@ defmodule ExPhil.Training.Config do
     "--num-layers",
     "--attention-every",
     "--num-heads",
+    # Jamba stability options (prevent NaN)
+    "--pre-norm",
+    "--no-pre-norm",
+    "--qk-layernorm",
+    "--no-qk-layernorm",
     "--state-size",
     "--expand-factor",
     "--conv-size",
@@ -238,6 +243,9 @@ defmodule ExPhil.Training.Config do
       state_size: 16,
       expand_factor: 2,
       conv_size: 4,
+      # Jamba stability options (Pre-LN + QK LayerNorm prevent NaN)
+      pre_norm: true,
+      qk_layernorm: true,
       truncate_bptt: nil,
       # FP32 is default - benchmarks show BF16 is 2x SLOWER on RTX 4090 due to
       # XLA issues: dimension misalignment (287 dims not divisible by 16),
@@ -1856,6 +1864,19 @@ defmodule ExPhil.Training.Config do
     |> parse_int_arg(args, "--stride", :stride)
     |> parse_int_arg(args, "--num-layers", :num_layers)
     |> parse_int_arg(args, "--attention-every", :attention_every)
+    # Jamba stability options
+    |> parse_flag(args, "--pre-norm", :pre_norm)
+    |> parse_flag(args, "--no-pre-norm", :no_pre_norm)
+    |> then(fn opts ->
+      # --no-pre-norm disables Pre-LayerNorm
+      if opts[:no_pre_norm], do: Keyword.put(opts, :pre_norm, false), else: opts
+    end)
+    |> parse_flag(args, "--qk-layernorm", :qk_layernorm)
+    |> parse_flag(args, "--no-qk-layernorm", :no_qk_layernorm)
+    |> then(fn opts ->
+      # --no-qk-layernorm disables QK LayerNorm
+      if opts[:no_qk_layernorm], do: Keyword.put(opts, :qk_layernorm, false), else: opts
+    end)
     |> parse_int_arg(args, "--state-size", :state_size)
     |> parse_int_arg(args, "--expand-factor", :expand_factor)
     |> parse_int_arg(args, "--conv-size", :conv_size)
