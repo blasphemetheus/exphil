@@ -1716,6 +1716,24 @@ precomputed_val_batches =
     nil
   end
 
+# JIT warmup for validation (avoids 5-10s delay on first epoch validation)
+if precomputed_val_batches != nil and length(precomputed_val_batches) > 0 do
+  IO.write(:stderr, "  ⏳ JIT compiling validation function...\e[K")
+  warmup_start = System.monotonic_time(:millisecond)
+
+  # Take first batch and run a dummy eval to trigger JIT
+  [first_batch | _] = precomputed_val_batches
+  %{states: states, actions: actions} = first_batch
+
+  # Run the eval loss function to trigger JIT compilation
+  if trainer.eval_loss_fn do
+    _warmup_loss = trainer.eval_loss_fn.(trainer.policy_params, states, actions)
+  end
+
+  warmup_time_ms = System.monotonic_time(:millisecond) - warmup_start
+  IO.write(:stderr, "\r  ✓ Validation JIT compiled (#{Float.round(warmup_time_ms / 1000, 1)}s)\n\e[K")
+end
+
 # Create incomplete marker for crash recovery
 Recovery.mark_started(opts[:checkpoint], opts)
 
