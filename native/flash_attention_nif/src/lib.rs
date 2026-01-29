@@ -355,12 +355,11 @@ fn attention_forward_cpu_f32(
 }
 
 // ============================================================================
-// NIF Functions
+// Helper Functions
 // ============================================================================
 
-/// Check if CUDA flash attention is available
-#[rustler::nif]
-fn cuda_available() -> bool {
+/// Internal helper to check CUDA availability (callable from other functions)
+fn is_cuda_available_impl() -> bool {
     #[cfg(feature = "cuda")]
     {
         if !CUDA_CHECKED.load(Ordering::SeqCst) {
@@ -380,12 +379,22 @@ fn cuda_available() -> bool {
     }
 }
 
+// ============================================================================
+// NIF Functions
+// ============================================================================
+
+/// Check if CUDA flash attention is available
+#[rustler::nif]
+fn cuda_available() -> bool {
+    is_cuda_available_impl()
+}
+
 /// Get backend info
 #[rustler::nif]
 fn backend_info() -> String {
     #[cfg(feature = "cuda")]
     {
-        if cuda_available() {
+        if is_cuda_available_impl() {
             "cuda".to_string()
         } else {
             "cpu (cuda feature enabled but unavailable)".to_string()
