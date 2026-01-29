@@ -884,7 +884,7 @@ inference_plot =
 # Build theoretical complexity chart data
 # For training: includes backward pass, so multiply by ~3x
 # For inference: just forward pass
-# Normalized to MLP = 1 (baseline)
+# Use absolute operation counts (not normalized) for clearer comparison
 window_size = 30
 
 theoretical_data =
@@ -892,9 +892,9 @@ theoretical_data =
   |> Enum.flat_map(fn r ->
     {train_ops, inference_ops} =
       case r.id do
-        # O(1) baseline
+        # O(1) baseline - constant, but still some ops
         :mlp ->
-          {1, 1}
+          {10, 10}
 
         # O(L) sequential, 3x for backprop
         :lstm ->
@@ -935,22 +935,22 @@ theoretical_data =
            window_size + div(window_size * window_size, 3)}
 
         _ ->
-          {1, 1}
+          {10, 10}
       end
 
     [
-      %{architecture: r.name, type: "Training (relative)", ops: train_ops},
-      %{architecture: r.name, type: "Inference (relative)", ops: inference_ops}
+      %{architecture: r.name, type: "Training", ops: train_ops},
+      %{architecture: r.name, type: "Inference", ops: inference_ops}
     ]
   end)
 
-# Use log scale for theoretical complexity comparison
-# Faceted bar chart - one column per phase (Training/Inference)
+# Grouped bar chart with color encoding for phase
+# Using xOffset for side-by-side bars within each architecture
 theoretical_plot =
   VegaLite.new(
-    width: 300,
-    height: 300,
-    title: "Theoretical Complexity (relative to MLP baseline, L=30)"
+    width: 600,
+    height: 350,
+    title: "Theoretical Complexity (L=30)"
   )
   |> VegaLite.data_from_values(theoretical_data)
   |> VegaLite.mark(:bar, tooltip: true)
@@ -962,10 +962,10 @@ theoretical_plot =
   |> VegaLite.encode_field(:y, "ops",
     type: :quantitative,
     title: "Relative Operations (log scale)",
-    scale: [type: :log]
+    scale: [type: :log, domain: [5, 5000]]
   )
-  |> VegaLite.encode_field(:color, "architecture", type: :nominal, legend: nil)
-  |> VegaLite.encode_field(:column, "type", type: :nominal, title: "Phase")
+  |> VegaLite.encode_field(:color, "type", type: :nominal, title: "Phase")
+  |> VegaLite.encode_field(:xOffset, "type", type: :nominal)
 
 # Build training loss bar chart (final val loss comparison)
 loss_bar_data =
@@ -1023,7 +1023,7 @@ html = """
     <p><strong>Replays:</strong> #{max_files} files (#{train_dataset.size} train / #{val_dataset.size} val frames)</p>
     <p><strong>Epochs:</strong> #{epochs}</p>
     <p><strong>Batch size:</strong> #{batch_size}</p>
-    <p><strong>Generated:</strong> #{DateTime.utc_now() |> Calendar.strftime("%Y-%m-%d %H:%M:%S UTC")}</p>
+    <p><strong>Generated:</strong> #{DateTime.utc_now() |> DateTime.add(-6 * 3600, :second) |> Calendar.strftime("%Y-%m-%d %H:%M:%S")} CT</p>
   </div>
 
   <h2>Results (ranked by validation loss)</h2>
