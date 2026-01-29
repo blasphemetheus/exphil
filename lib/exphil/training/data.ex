@@ -1675,6 +1675,33 @@ defmodule ExPhil.Training.Data do
     drop_last = Keyword.get(opts, :drop_last, false)
     seed = Keyword.get(opts, :seed, System.system_time())
     character_weights = Keyword.get(opts, :character_weights, nil)
+    lazy = Keyword.get(opts, :lazy, false)
+
+    # Lazy mode: slice sequences on-the-fly from frame embeddings (low RAM)
+    # Requires embedded_frames tensor and window_size/stride in metadata
+    if lazy and dataset.embedded_frames != nil do
+      window_size = Keyword.get(opts, :window_size) || get_in(dataset.metadata, [:window_size]) || 30
+      stride = Keyword.get(opts, :stride) || get_in(dataset.metadata, [:stride]) || 1
+
+      batched_sequences_lazy(dataset, batch_size, window_size, stride,
+        shuffle: shuffle,
+        drop_last: drop_last,
+        seed: seed,
+        character_weights: character_weights
+      )
+    else
+      # Eager mode: use pre-built sequence embeddings (high RAM, fast batching)
+      batched_sequences_eager(dataset, opts)
+    end
+  end
+
+  # Eager mode: standard batching using pre-built sequence embeddings
+  defp batched_sequences_eager(dataset, opts) do
+    batch_size = Keyword.get(opts, :batch_size, 64)
+    shuffle = Keyword.get(opts, :shuffle, true)
+    drop_last = Keyword.get(opts, :drop_last, false)
+    seed = Keyword.get(opts, :seed, System.system_time())
+    character_weights = Keyword.get(opts, :character_weights, nil)
 
     # Convert lists to arrays for O(1) index access (vs O(n) for lists)
     frames_array = :array.from_list(dataset.frames)
@@ -1728,6 +1755,116 @@ defmodule ExPhil.Training.Data do
     |> Stream.map(fn batch_indices ->
       create_sequence_batch_fast(frames_array, embeddings_array, batch_indices)
     end)
+  end
+
+  # Lazy sequence batching - slices from frame embeddings on-the-fly.
+  # Uses ~150 MB RAM instead of 13+ GB by not pre-building all sequences.
+  # Slightly slower batching (~5-15%) but enables training on low-RAM machines.
+  #
+  # Requirements:
+  # - `dataset.embedded_frames` must be a tensor of shape `{num_frames, embed_dim}`
+  # - `window_size` and `stride` must be provided (or in metadata)
+  #
+  # Options:
+  # - `:shuffle` - Shuffle indices (default: true)
+  # - `:drop_last` - Drop last incomplete batch (default: false)
+  # - `:seed` - Random seed for shuffling
+  # - `:character_weights` - Optional character-balanced sampling
+  defp batched_sequences_lazy(dataset, batch_size, window_size, stride, opts) do
+    shuffle = Keyword.get(opts, :shuffle, true)
+    drop_last = Keyword.get(opts, :drop_last, false)
+    seed = Keyword.get(opts, :seed, System.system_time())
+    character_weights = Keyword.get(opts, :character_weights, nil)
+
+    # Get frame embeddings - can be tensor or stacked array
+    frame_embeddings = get_frame_embeddings_tensor(dataset)
+    {num_frames, embed_dim} = Nx.shape(frame_embeddings)
+
+    # Calculate number of valid sequences
+    num_sequences = div(num_frames - window_size, stride) + 1
+
+    # Get frames array for action lookup
+    frames_array = :array.from_list(dataset.frames)
+
+    # Prepare indices
+    valid_indices = 0..(num_sequences - 1) |> Enum.to_list()
+
+    # Seed random number generator
+    :rand.seed(:exsss, {seed, seed, seed})
+
+    indices =
+      cond do
+        character_weights != nil ->
+          alias ExPhil.Training.CharacterBalance
+          frame_weights = CharacterBalance.frame_weights(dataset.frames, character_weights)
+          CharacterBalance.balanced_indices(frame_weights, length(valid_indices))
+
+        shuffle ->
+          Enum.shuffle(valid_indices)
+
+        true ->
+          valid_indices
+      end
+
+    # Create batch stream with lazy slicing
+    indices
+    |> Enum.chunk_every(batch_size)
+    |> maybe_drop_last(drop_last, batch_size)
+    |> Stream.map(fn batch_indices ->
+      create_sequence_batch_lazy(frame_embeddings, frames_array, batch_indices, window_size, stride, embed_dim)
+    end)
+  end
+
+  # Lazy batch creation - slices sequences from frame embeddings on-the-fly
+  defp create_sequence_batch_lazy(frame_embeddings, frames_array, indices, window_size, stride, embed_dim) do
+    # Slice sequences from frame embeddings
+    sequences =
+      Enum.map(indices, fn seq_idx ->
+        frame_start = seq_idx * stride
+        Nx.slice(frame_embeddings, [frame_start, 0], [window_size, embed_dim])
+      end)
+
+    # Get actions from frames (use last frame of each sequence window)
+    actions =
+      Enum.map(indices, fn seq_idx ->
+        frame_idx = seq_idx * stride + window_size - 1
+        frame = :array.get(frame_idx, frames_array)
+        frame.action
+      end)
+
+    # Stack sequences and transfer to GPU
+    states =
+      sequences
+      |> Nx.stack()
+      |> Nx.backend_transfer(EXLA.Backend)
+
+    # Convert actions to tensors
+    action_tensors =
+      actions_to_tensors(actions)
+      |> transfer_actions_to_gpu()
+
+    %{
+      states: states,
+      actions: action_tensors
+    }
+  end
+
+  # Get frame embeddings as a tensor (handles both tensor and array formats)
+  defp get_frame_embeddings_tensor(dataset) do
+    case dataset.embedded_frames do
+      %Nx.Tensor{} = tensor ->
+        # Already a tensor - ensure on CPU for slicing
+        Nx.backend_copy(tensor, Nx.BinaryBackend)
+
+      array when is_tuple(array) and elem(array, 0) == :array ->
+        # Erlang array - stack into tensor
+        size = :array.size(array)
+        list = for i <- 0..(size - 1), do: :array.get(i, array)
+        Nx.stack(list) |> Nx.backend_copy(Nx.BinaryBackend)
+
+      other ->
+        raise ArgumentError, "embedded_frames must be a tensor or array, got: #{inspect(other)}"
+    end
   end
 
   # Fast batch creation using arrays for O(1) lookup

@@ -166,13 +166,23 @@ mix run scripts/train_from_replays.exs --preset production
 | Backbone | VRAM | RAM | Complexity | Parallelizable |
 |----------|------|-----|------------|----------------|
 | MLP | 50MB | 1GB | O(1) | Yes |
-| LSTM | 500MB | 2GB | O(L) | No |
-| GRU | 400MB | 2GB | O(L) | No |
-| Attention | 2.5GB | 4GB | O(K²) | Yes |
-| Mamba | 800MB | 2GB | O(L) | Partial |
-| Jamba | 1.2GB | 3GB | O(L) | Partial |
+| LSTM | 500MB | **13GB+** | O(L) | No |
+| GRU | 400MB | **13GB+** | O(L) | No |
+| Attention | 2.5GB | **13GB+** | O(K²) | Yes |
+| Mamba | 800MB | **13GB+** | O(L) | Partial |
+| Jamba | 1.2GB | **15GB+** | O(L) | Partial |
 
 L = sequence length, K = window size (typically 60)
+
+**⚠️ RAM Warning for Temporal Architectures:**
+
+The benchmark script pre-builds all sequence embeddings for efficiency. With 50 replays (~380K sequences):
+- Each sequence: 30 frames × 287 dims × 4 bytes = 34 KB
+- Total: 380K × 34 KB ≈ **13 GB RAM**
+
+If your machine has <16 GB RAM, use `--max-files 25` or fewer replays.
+
+MLP avoids this by using frame embeddings directly (no sequence pre-building).
 
 ## Individual Architecture Docs
 

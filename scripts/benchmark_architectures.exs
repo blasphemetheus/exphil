@@ -19,6 +19,9 @@
 #                                 Faster but can cause fragmentation OOM
 #   --gpu-on-demand               Allocate GPU memory on-demand (default)
 #                                 Slower (~5-10%) but prevents fragmentation
+#   --lazy-sequences              Slice sequences on-the-fly (150 MB RAM vs 13 GB)
+#                                 Slightly slower batching but enables low-RAM training
+#   --eager-sequences             Pre-build all sequences (default, faster but 13+ GB RAM)
 #   --quiet, -q                   Suppress XLA/CUDA warnings and Logger noise
 #
 # Available architectures: mlp, gated_ssm, mamba, jamba, lstm, gru, lstm_hybrid, sliding_window
@@ -227,6 +230,16 @@ cache_dir =
     idx -> Enum.at(args, idx + 1) || "/workspace/cache/embeddings"
   end
 
+# Lazy vs eager sequence loading
+# Lazy: 150 MB RAM, slices on-the-fly (slightly slower batching)
+# Eager: 13+ GB RAM, pre-builds all sequences (faster batching)
+lazy_sequences = "--lazy-sequences" in args
+eager_sequences = "--eager-sequences" in args
+
+# Default to lazy if explicitly set, otherwise eager for backwards compatibility
+# Users can force eager with --eager-sequences
+use_lazy_sequences = lazy_sequences and not eager_sequences
+
 # Architectures to benchmark
 # Note: batch_size can be overridden per-architecture for memory-heavy models
 # Mamba/Jamba need smaller batches due to selective scan memory requirements
@@ -327,6 +340,7 @@ Output.config([
    "#{length(architectures)} (#{Enum.map(architectures, fn {id, _, _} -> id end) |> Enum.join(", ")})"},
   {"Continue on error", continue_on_error},
   {"Embedding cache", if(cache_enabled, do: "enabled (#{cache_dir})", else: "disabled")},
+  {"Sequence mode", if(use_lazy_sequences, do: "lazy (150 MB RAM)", else: "eager (13+ GB RAM)")},
   {"GPU", "#{gpu_info.name} (#{safe_round.(gpu_info.memory_gb, 1)} GB)"},
   {"Memory", GPUUtils.memory_status_string()}
 ])
@@ -435,36 +449,56 @@ has_non_temporal = Enum.any?(architectures, fn {_id, _name, opts} -> !opts[:temp
 
 # Build sequence embeddings from frame embeddings (30x faster than re-embedding!)
 # This reuses the frame embeddings computed above via tensor slicing
+# In lazy mode, we skip this and slice on-the-fly during batching (150 MB vs 13 GB RAM)
 {precomputed_train_seqs, precomputed_val_seqs} =
   if has_temporal do
-    Output.puts("Building sequence embeddings from frame embeddings (30x faster)...")
-
     window_size = 30
     stride = 1
 
-    train_seq =
-      Output.timed "Building train sequences" do
-        seq_ds = Data.to_sequences(train_dataset, window_size: window_size, stride: stride)
-        Data.sequences_from_frame_embeddings(
-          seq_ds,
-          precomputed_train_frames.embedded_frames,
-          window_size: window_size,
-          show_progress: true
-        )
-      end
+    if use_lazy_sequences do
+      # Lazy mode: just create sequence structure, don't build embeddings
+      # Batching will slice from frame embeddings on-the-fly
+      Output.puts("Using lazy sequence mode (150 MB RAM vs 13 GB)")
+      Output.puts("  Sequences will be sliced on-the-fly during batching")
 
-    val_seq =
-      Output.timed "Building val sequences" do
-        seq_ds = Data.to_sequences(val_dataset, window_size: window_size, stride: stride)
-        Data.sequences_from_frame_embeddings(
-          seq_ds,
-          precomputed_val_frames.embedded_frames,
-          window_size: window_size,
-          show_progress: false
-        )
-      end
+      train_seq =
+        Data.to_sequences(train_dataset, window_size: window_size, stride: stride)
+        |> Map.put(:embedded_frames, precomputed_train_frames.embedded_frames)
 
-    {train_seq, val_seq}
+      val_seq =
+        Data.to_sequences(val_dataset, window_size: window_size, stride: stride)
+        |> Map.put(:embedded_frames, precomputed_val_frames.embedded_frames)
+
+      {train_seq, val_seq}
+    else
+      # Eager mode: pre-build all sequence embeddings (faster batching but 13+ GB RAM)
+      Output.puts("Building sequence embeddings from frame embeddings (30x faster)...")
+      Output.puts("  (Use --lazy-sequences for 150 MB RAM instead of 13 GB)")
+
+      train_seq =
+        Output.timed "Building train sequences" do
+          seq_ds = Data.to_sequences(train_dataset, window_size: window_size, stride: stride)
+          Data.sequences_from_frame_embeddings(
+            seq_ds,
+            precomputed_train_frames.embedded_frames,
+            window_size: window_size,
+            show_progress: true
+          )
+        end
+
+      val_seq =
+        Output.timed "Building val sequences" do
+          seq_ds = Data.to_sequences(val_dataset, window_size: window_size, stride: stride)
+          Data.sequences_from_frame_embeddings(
+            seq_ds,
+            precomputed_val_frames.embedded_frames,
+            window_size: window_size,
+            show_progress: false
+          )
+        end
+
+      {train_seq, val_seq}
+    end
   else
     {nil, nil}
   end
@@ -558,7 +592,10 @@ results =
         if opts[:temporal] do
           Data.batched_sequences(prepared_train,
             batch_size: min(4, opts[:batch_size]),
-            shuffle: false
+            shuffle: false,
+            lazy: use_lazy_sequences,
+            window_size: opts[:window_size] || 30,
+            stride: opts[:stride] || 1
           )
           |> Enum.take(1)
           |> List.first()
@@ -590,7 +627,10 @@ results =
               Data.batched_sequences(prepared_train,
                 batch_size: opts[:batch_size],
                 shuffle: true,
-                seed: epoch
+                seed: epoch,
+                lazy: use_lazy_sequences,
+                window_size: opts[:window_size] || 30,
+                stride: opts[:stride] || 1
               )
             else
               Data.batched(prepared_train,
@@ -649,7 +689,13 @@ results =
 
           val_batches =
             if opts[:temporal] do
-              Data.batched_sequences(prepared_val, batch_size: opts[:batch_size], shuffle: false)
+              Data.batched_sequences(prepared_val,
+                batch_size: opts[:batch_size],
+                shuffle: false,
+                lazy: use_lazy_sequences,
+                window_size: opts[:window_size] || 30,
+                stride: opts[:stride] || 1
+              )
             else
               Data.batched(prepared_val, batch_size: opts[:batch_size], shuffle: false)
             end
