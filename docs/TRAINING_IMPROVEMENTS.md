@@ -215,19 +215,25 @@ Optimizations identified for reducing per-epoch overhead on large datasets (1.6M
 
 #### Validation JIT warmup ✅
 - **Status:** COMPLETED (2026-01-29)
-- **Problem:** First epoch validation was 5-10x slower (~8s vs ~15ms) due to JIT compilation
-- **Root cause:** Validation code path includes closure wrappers and `Nx.add` operations not warmed up by training JIT
-- **Solution:** Added dedicated warmup functions in `Imitation` module:
+- **Problem:** First epoch validation was 5-10x slower (~3.5s vs ~15ms) due to JIT compilation
+- **Root causes discovered:**
+  1. Training steps (hundreds) may evict `eval_loss_fn` from XLA JIT cache
+  2. Parallel validation uses `Task.async_stream` (different code path than sequential)
+  3. Nx tensors are lazy - calling `loss_fn.(...)` doesn't execute until result is used
+- **Solution:** Multi-layer warmup approach:
   ```elixir
-  # Warm up all JIT paths (training, validation, inference)
-  {:ok, timings} = Imitation.warmup(trainer, sample_batch)
+  # 1. Pre-training warmup with matching concurrency
+  {:ok, timings} = Imitation.warmup_validation(trainer, val_batches, max_concurrency: 4)
 
-  # Warm up just validation (used in training script)
-  {:ok, timings} = Imitation.warmup_validation(trainer, val_batches)
+  # 2. Inline refresh at start of each evaluate() call
+  # Forces JIT with Nx.backend_transfer() to ensure lazy tensors execute
+  _ = loss_fn.(states, actions) |> Nx.backend_transfer()
   ```
-- **How it works:** Runs actual `evaluate/3` on 2 batches before training loop
-- **Benefit:** Eliminates first-epoch validation delay, consistent ~15ms validation time
-- **Key insight:** Calling just the loss function directly doesn't warm up the full code path - must call the actual `evaluate()` function with its closure wrappers and accumulator operations
+- **Key insights:**
+  - `warmup_validation/3` must use same `max_concurrency` as actual validation (parallel vs sequential are different JIT paths)
+  - Must force lazy tensor evaluation with `Nx.backend_transfer()` or `Nx.to_number()`
+  - XLA may evict cached functions during heavy training, so inline refresh before each validation helps
+- **Benefit:** Consistent ~15ms validation time across all epochs
 
 #### Lazy index shuffling ✅
 - **Status:** COMPLETED (2026-01-29)
