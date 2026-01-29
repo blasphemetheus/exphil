@@ -4,8 +4,11 @@
 # Usage:
 #   mix run scripts/benchmark_attention.exs [--seq-lens 32,64,128,256] [--iterations 50] [--quiet]
 #
+#   # Full quiet mode (suppresses XLA C++ warnings too):
+#   TF_CPP_MIN_LOG_LEVEL=3 mix run scripts/benchmark_attention.exs --quiet
+#
 # Options:
-#   --quiet       Suppress warnings and info logs (only show errors)
+#   --quiet       Suppress Elixir warnings/info logs
 #   --seq-lens    Comma-separated sequence lengths to test
 #   --iterations  Number of benchmark iterations per implementation
 #
@@ -32,10 +35,8 @@ args = System.argv()
 # Quiet mode - suppress warnings
 if "--quiet" in args do
   Logger.configure(level: :error)
-  # Suppress XLA/TensorFlow C++ warnings
-  System.put_env("TF_CPP_MIN_LOG_LEVEL", "3")
-  # Suppress XLA command buffer warnings
-  System.put_env("XLA_FLAGS", "--xla_gpu_enable_command_buffer=")
+  # Note: XLA C++ warnings require env vars set BEFORE process starts:
+  #   TF_CPP_MIN_LOG_LEVEL=3 mix run scripts/benchmark_attention.exs --quiet
 end
 
 Output.banner("Attention Implementation Benchmark")
