@@ -1179,10 +1179,10 @@ defmodule ExPhil.Training.Imitation do
       IO.write(:stderr, "    Validating: 0/#{total_batches} batches...\e[K")
     end
 
-    # Accumulate losses as tensors, convert only once at the end
-    # This avoids blocking GPU→CPU transfer after every batch
-    {losses, count} =
-      Enum.reduce(dataset, {[], 0}, fn batch, {acc_losses, acc_count} ->
+    # Accumulate loss with running sum tensor (avoids Nx.stack overhead)
+    # Single GPU→CPU transfer at the end
+    {total_loss, count} =
+      Enum.reduce(dataset, {Nx.tensor(0.0), 0}, fn batch, {acc_loss, acc_count} ->
         %{states: states, actions: actions} = batch
         loss = loss_fn.(states, actions)
         new_count = acc_count + 1
@@ -1193,7 +1193,8 @@ defmodule ExPhil.Training.Imitation do
           IO.write(:stderr, "\r    Validating: #{new_count}/#{total_batches} batches (#{pct}%)...\e[K")
         end
 
-        {[loss | acc_losses], new_count}
+        # Running sum on GPU (no intermediate list allocation)
+        {Nx.add(acc_loss, loss), new_count}
       end)
 
     # Clear progress line
@@ -1203,9 +1204,7 @@ defmodule ExPhil.Training.Imitation do
 
     avg_loss =
       if count > 0 do
-        # Single GPU→CPU transfer at the end instead of per-batch
-        total = losses |> Nx.stack() |> Nx.sum() |> Nx.to_number()
-        total / count
+        Nx.to_number(total_loss) / count
       else
         0.0
       end

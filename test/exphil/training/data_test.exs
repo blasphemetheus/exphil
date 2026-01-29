@@ -128,6 +128,77 @@ defmodule ExPhil.Training.DataTest do
       # Without shuffling, splits should be identical
       assert train1.frames == train2.frames
     end
+
+    test "maintains correspondence between frames and embedded_sequences after split" do
+      # Regression test: split was shuffling frames but not embedded_sequences,
+      # breaking the index correspondence needed for batching
+      frames = mock_frames(20)
+      dataset = Data.from_frames(frames)
+
+      # Create sequences and embed them
+      seq_dataset = Data.to_sequences(dataset, window_size: 5, stride: 2)
+      embedded_dataset = Data.precompute_embeddings(seq_dataset)
+
+      # Verify embeddings exist
+      assert embedded_dataset.embedded_sequences != nil
+      assert embedded_dataset.size > 0
+
+      # Split with shuffle enabled (the problematic case)
+      {train, val} = Data.split(embedded_dataset, ratio: 0.8, shuffle: true)
+
+      # Both should have embedded_sequences that correspond to their frames
+      assert train.embedded_sequences != nil
+      assert val.embedded_sequences != nil
+
+      # Sizes should match
+      train_embed_size = :array.size(train.embedded_sequences)
+      val_embed_size = :array.size(val.embedded_sequences)
+
+      assert train_embed_size == train.size,
+        "Train embedded_sequences size (#{train_embed_size}) should match frames size (#{train.size})"
+
+      assert val_embed_size == val.size,
+        "Val embedded_sequences size (#{val_embed_size}) should match frames size (#{val.size})"
+
+      # Verify the embeddings actually correspond to the frames by checking
+      # that we can create valid batches (would fail with mismatched indices)
+      train_batches = Data.batched_sequences(train, batch_size: 2, shuffle: false)
+      val_batches = Data.batched_sequences(val, batch_size: 2, shuffle: false)
+
+      # Should be able to enumerate without error
+      assert Enum.count(train_batches) > 0
+      assert Enum.count(val_batches) > 0
+    end
+
+    test "maintains correspondence between frames and embedded_frames after split" do
+      # Regression test for single-frame (MLP) training with precomputed embeddings
+      frames = mock_frames(20)
+      dataset = Data.from_frames(frames)
+
+      # Precompute frame embeddings
+      embedded_dataset = Data.precompute_frame_embeddings(dataset)
+
+      # Verify embeddings exist
+      assert embedded_dataset.embedded_frames != nil
+      {num_frames, _embed_dim} = Nx.shape(embedded_dataset.embedded_frames)
+      assert num_frames == embedded_dataset.size
+
+      # Split with shuffle enabled
+      {train, val} = Data.split(embedded_dataset, ratio: 0.8, shuffle: true)
+
+      # Both should have embedded_frames tensors of correct size
+      assert train.embedded_frames != nil
+      assert val.embedded_frames != nil
+
+      {train_embed_size, _} = Nx.shape(train.embedded_frames)
+      {val_embed_size, _} = Nx.shape(val.embedded_frames)
+
+      assert train_embed_size == train.size,
+        "Train embedded_frames rows (#{train_embed_size}) should match frames size (#{train.size})"
+
+      assert val_embed_size == val.size,
+        "Val embedded_frames rows (#{val_embed_size}) should match frames size (#{val.size})"
+    end
   end
 
   describe "sample/2" do

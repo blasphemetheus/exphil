@@ -241,11 +241,11 @@ Optimizations identified for reducing per-epoch overhead on large datasets (1.6M
 - **Proposed:** Use Streams where possible
 - **Benefit:** Lower memory allocation overhead
 
-#### Batch tensor stacking optimization
-- **Status:** TODO
+#### Batch tensor stacking optimization ✅
+- **Status:** COMPLETED (2026-01-29)
 - **Current:** In `evaluate/3`, losses collected as list then stacked
-- **Proposed:** Accumulate directly with running sum tensor
-- **Benefit:** Avoid final Nx.stack allocation
+- **Solution:** Use running sum tensor `Nx.add(acc_loss, loss)` instead of list accumulation
+- **Benefit:** Avoid final Nx.stack allocation, single GPU→CPU transfer
 
 #### Skip validation on non-improvement epochs
 - **Status:** TODO
@@ -276,6 +276,8 @@ Optimizations identified for reducing per-epoch overhead on large datasets (1.6M
 - [x] Central time timestamps with tz library
 - [x] Cache JIT-compiled eval loss function in trainer struct
 - [x] Lazy chunked shuffle for large datasets (>100K samples)
+- [x] Running sum for validation loss (avoid Nx.stack allocation)
+- [x] Fix Data.split to maintain correspondence with embedded_sequences/embedded_frames
 
 ## Completed
 

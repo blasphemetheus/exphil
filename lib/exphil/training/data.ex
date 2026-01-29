@@ -858,19 +858,70 @@ defmodule ExPhil.Training.Data do
     ratio = Keyword.get(opts, :ratio, 0.9)
     shuffle = Keyword.get(opts, :shuffle, true)
 
-    frames =
-      if shuffle do
-        Enum.shuffle(dataset.frames)
-      else
-        dataset.frames
+    # Create indices and optionally shuffle
+    indices = Enum.to_list(0..(dataset.size - 1))
+    indices = if shuffle, do: Enum.shuffle(indices), else: indices
+
+    split_idx = floor(length(indices) * ratio)
+    {train_indices, val_indices} = Enum.split(indices, split_idx)
+
+    # Split frames using indices
+    train_frames = Enum.map(train_indices, &Enum.at(dataset.frames, &1))
+    val_frames = Enum.map(val_indices, &Enum.at(dataset.frames, &1))
+
+    # Split embedded_sequences if present (must maintain correspondence with frames)
+    {train_embedded_seqs, val_embedded_seqs} =
+      case dataset.embedded_sequences do
+        nil ->
+          {nil, nil}
+
+        seqs when is_tuple(seqs) and elem(seqs, 0) == :array ->
+          # Erlang array - convert to list, split, convert back
+          train_seqs = Enum.map(train_indices, &:array.get(&1, seqs)) |> :array.from_list()
+          val_seqs = Enum.map(val_indices, &:array.get(&1, seqs)) |> :array.from_list()
+          {train_seqs, val_seqs}
+
+        seqs when is_list(seqs) ->
+          train_seqs = Enum.map(train_indices, &Enum.at(seqs, &1))
+          val_seqs = Enum.map(val_indices, &Enum.at(seqs, &1))
+          {train_seqs, val_seqs}
+
+        _ ->
+          {nil, nil}
       end
 
-    split_idx = floor(length(frames) * ratio)
-    {train_frames, val_frames} = Enum.split(frames, split_idx)
+    # Split embedded_frames if present (tensor - need to gather by indices)
+    {train_embedded_frames, val_embedded_frames} =
+      case dataset.embedded_frames do
+        nil ->
+          {nil, nil}
 
-    train = %{dataset | frames: train_frames, size: length(train_frames)}
+        tensor when is_struct(tensor, Nx.Tensor) ->
+          # Use Nx.take to gather rows by indices
+          train_idx_tensor = Nx.tensor(train_indices, type: :s64)
+          val_idx_tensor = Nx.tensor(val_indices, type: :s64)
+          {Nx.take(tensor, train_idx_tensor), Nx.take(tensor, val_idx_tensor)}
 
-    val = %{dataset | frames: val_frames, size: length(val_frames)}
+        _ ->
+          {nil, nil}
+      end
+
+    train = %{dataset |
+      frames: train_frames,
+      size: length(train_frames),
+      embedded_sequences: train_embedded_seqs,
+      embedded_frames: train_embedded_frames,
+      # Clear cached arrays since we've re-split
+      frames_array: nil
+    }
+
+    val = %{dataset |
+      frames: val_frames,
+      size: length(val_frames),
+      embedded_sequences: val_embedded_seqs,
+      embedded_frames: val_embedded_frames,
+      frames_array: nil
+    }
 
     {train, val}
   end
