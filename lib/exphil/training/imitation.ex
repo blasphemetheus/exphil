@@ -1297,11 +1297,20 @@ defmodule ExPhil.Training.Imitation do
     # Running one batch in main process ensures function is compiled and cached
     dataset_list = if is_list(dataset), do: dataset, else: Enum.to_list(dataset)
 
+    # Debug timing for JIT investigation
+    debug_jit = System.get_env("EXPHIL_DEBUG_JIT") == "1"
+
     case dataset_list do
       [%{states: states, actions: actions} | _] ->
         # Force computation with backend_transfer to ensure JIT actually runs
         # (Nx tensors are lazy - just calling loss_fn doesn't execute)
-        _ = loss_fn.(states, actions) |> Nx.backend_transfer()
+        {warmup_us, _} = :timer.tc(fn ->
+          _ = loss_fn.(states, actions) |> Nx.backend_transfer()
+        end)
+
+        if debug_jit do
+          IO.write(:stderr, "\n    [DEBUG] Inline warmup: #{Float.round(warmup_us / 1000, 1)}ms\n")
+        end
 
       _ ->
         :ok
@@ -1314,16 +1323,28 @@ defmodule ExPhil.Training.Imitation do
         # Process batches concurrently for better GPU utilization
         # Counter for progress tracking (use Agent for thread-safe updates)
         {:ok, counter} = Agent.start_link(fn -> 0 end)
+        # Track first batch timing for JIT debugging
+        {:ok, first_batch_agent} = if debug_jit, do: Agent.start_link(fn -> nil end), else: {:ok, nil}
 
-        losses =
+        {stream_us, losses} = :timer.tc(fn ->
           dataset_list
           |> Task.async_stream(
             fn batch ->
               %{states: states, actions: actions} = batch
-              loss = loss_fn.(states, actions)
+
+              # Time first batch in each worker for JIT debugging
+              {batch_us, loss} = :timer.tc(fn -> loss_fn.(states, actions) end)
 
               # Update progress counter
               new_count = Agent.get_and_update(counter, fn c -> {c + 1, c + 1} end)
+
+              # Record first batch timing
+              if debug_jit and first_batch_agent and new_count <= max_concurrency do
+                Agent.update(first_batch_agent, fn times ->
+                  times = times || []
+                  [{new_count, batch_us / 1000} | times]
+                end)
+              end
 
               if show_progress and total_batches && total_batches > 0 and rem(new_count, progress_interval) == 0 do
                 pct = round(new_count / total_batches * 100)
@@ -1338,8 +1359,18 @@ defmodule ExPhil.Training.Imitation do
             timeout: :infinity
           )
           |> Enum.map(fn {:ok, loss} -> loss end)
+        end)
+
+        if debug_jit do
+          first_times = if first_batch_agent, do: Agent.get(first_batch_agent, & &1), else: []
+          IO.write(:stderr, "    [DEBUG] Task.async_stream total: #{Float.round(stream_us / 1000, 1)}ms\n")
+          if first_times do
+            IO.write(:stderr, "    [DEBUG] First batch times per worker: #{inspect(Enum.reverse(first_times || []))}ms\n")
+          end
+        end
 
         Agent.stop(counter)
+        if first_batch_agent, do: Agent.stop(first_batch_agent)
 
         # Sum losses on CPU (already converted to numbers)
         total = Enum.sum(losses)
