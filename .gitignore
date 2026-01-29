@@ -56,3 +56,6 @@ cover/
 
 # Log files
 *.log
+
+# Test artifacts
+tmp/
