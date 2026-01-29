@@ -1227,6 +1227,88 @@ defmodule ExPhil.Training.Data do
   def has_precomputed_embeddings?(%__MODULE__{embedded_frames: nil}), do: false
   def has_precomputed_embeddings?(%__MODULE__{embedded_frames: _}), do: true
 
+  @doc """
+  Prepare dataset for efficient batching across multiple epochs.
+
+  Converts lists to Erlang arrays for O(1) random access (instead of O(n) list traversal).
+  Call this once before the training loop to avoid repeated conversion overhead.
+
+  Also pre-computes character weights if `character_weights` option is provided,
+  avoiding recomputation every epoch.
+
+  ## Options
+    - `:character_weights` - Character weight map for balanced sampling (optional)
+
+  ## Example
+
+      # Before training loop
+      dataset = Data.prepare_for_batching(dataset, character_weights: weights)
+
+      # Now batched_sequences will use cached arrays
+      for epoch <- 1..10 do
+        batches = Data.batched_sequences(dataset, batch_size: 64)
+        # ...
+      end
+
+  """
+  @spec prepare_for_batching(t(), keyword()) :: t()
+  def prepare_for_batching(dataset, opts \\ []) do
+    character_weights = Keyword.get(opts, :character_weights)
+
+    # Convert frames list to array for O(1) access
+    frames_array =
+      if dataset.frames_array do
+        dataset.frames_array
+      else
+        :array.from_list(dataset.frames)
+      end
+
+    # Convert embedded_sequences to array if it's a list
+    embedded_sequences_array =
+      cond do
+        is_nil(dataset.embedded_sequences) ->
+          nil
+
+        # Already an array
+        is_tuple(dataset.embedded_sequences) and elem(dataset.embedded_sequences, 0) == :array ->
+          dataset.embedded_sequences
+
+        # List that needs conversion
+        is_list(dataset.embedded_sequences) ->
+          :array.from_list(dataset.embedded_sequences)
+
+        true ->
+          dataset.embedded_sequences
+      end
+
+    # Pre-compute character weights if provided
+    cached_char_weights =
+      if character_weights do
+        alias ExPhil.Training.CharacterBalance
+        CharacterBalance.frame_weights(dataset.frames, character_weights)
+      else
+        nil
+      end
+
+    # Store in metadata for later use
+    updated_metadata =
+      dataset.metadata
+      |> Map.put(:cached_character_weights, cached_char_weights)
+
+    %{dataset |
+      frames_array: frames_array,
+      embedded_sequences: embedded_sequences_array,
+      metadata: updated_metadata
+    }
+  end
+
+  @doc """
+  Check if dataset has been prepared for batching.
+  """
+  @spec prepared_for_batching?(t()) :: boolean()
+  def prepared_for_batching?(%__MODULE__{frames_array: nil}), do: false
+  def prepared_for_batching?(%__MODULE__{frames_array: _}), do: true
+
   # ============================================================================
   # Embedding Cache Integration
   # ============================================================================
@@ -1712,15 +1794,21 @@ defmodule ExPhil.Training.Data do
     seed = Keyword.get(opts, :seed, System.system_time())
     character_weights = Keyword.get(opts, :character_weights, nil)
 
-    # Convert lists to arrays for O(1) index access (vs O(n) for lists)
-    frames_array = :array.from_list(dataset.frames)
+    # Use cached arrays if available (from prepare_for_batching), otherwise convert
+    # This avoids O(n) list->array conversion every epoch
+    frames_array =
+      if dataset.frames_array do
+        dataset.frames_array
+      else
+        :array.from_list(dataset.frames)
+      end
 
     embeddings_array =
       cond do
         is_nil(dataset.embedded_sequences) ->
           nil
 
-        # Already an array (from precompute_embeddings or cache load)
+        # Already an array (from prepare_for_batching or precompute_embeddings)
         is_tuple(dataset.embedded_sequences) and elem(dataset.embedded_sequences, 0) == :array ->
           dataset.embedded_sequences
 
@@ -1738,14 +1826,20 @@ defmodule ExPhil.Training.Data do
     # Seed random number generator
     :rand.seed(:exsss, {seed, seed, seed})
 
+    # Use cached character weights if available (from prepare_for_batching)
+    cached_char_weights = get_in(dataset.metadata, [:cached_character_weights])
+
     indices =
       cond do
-        # Character-balanced sampling (weighted by inverse frequency)
+        # Use cached weights if available
+        cached_char_weights != nil ->
+          alias ExPhil.Training.CharacterBalance
+          CharacterBalance.balanced_indices(cached_char_weights, length(valid_indices))
+
+        # Character-balanced sampling (compute weights fresh - slower path)
         character_weights != nil ->
           alias ExPhil.Training.CharacterBalance
-          # Get weights for all sequences
           frame_weights = CharacterBalance.frame_weights(dataset.frames, character_weights)
-          # Weighted sampling with replacement
           CharacterBalance.balanced_indices(frame_weights, length(valid_indices))
 
         # Standard shuffle

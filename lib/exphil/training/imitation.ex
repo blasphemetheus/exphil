@@ -1094,12 +1094,30 @@ defmodule ExPhil.Training.Imitation do
 
   @doc """
   Evaluate on a validation dataset.
+
+  ## Options
+    - `:show_progress` - Show progress bar during evaluation (default: true)
+    - `:progress_interval` - Update progress every N batches (default: 10)
   """
-  @spec evaluate(t(), Enumerable.t()) :: map()
-  def evaluate(trainer, dataset) do
+  @spec evaluate(t(), Enumerable.t(), keyword()) :: map()
+  def evaluate(trainer, dataset, opts \\ []) do
+    show_progress = Keyword.get(opts, :show_progress, true)
+    progress_interval = Keyword.get(opts, :progress_interval, 10)
+
     # Use same label smoothing as training for consistent loss comparison
     label_smoothing = trainer.config[:label_smoothing] || 0.0
     {_predict_fn, loss_fn} = build_loss_fn(trainer.policy_model, label_smoothing: label_smoothing)
+
+    # Try to get total count for progress bar (works for lists, not all enumerables)
+    total_batches =
+      case Enumerable.count(dataset) do
+        {:ok, count} -> count
+        {:error, _} -> nil
+      end
+
+    if show_progress and total_batches && total_batches > 0 do
+      IO.write(:stderr, "    Validating: 0/#{total_batches} batches...\e[K")
+    end
 
     # Accumulate losses as tensors, convert only once at the end
     # This avoids blocking GPU→CPU transfer after every batch
@@ -1107,8 +1125,21 @@ defmodule ExPhil.Training.Imitation do
       Enum.reduce(dataset, {[], 0}, fn batch, {acc_losses, acc_count} ->
         %{states: states, actions: actions} = batch
         loss = loss_fn.(trainer.policy_params, states, actions)
-        {[loss | acc_losses], acc_count + 1}
+        new_count = acc_count + 1
+
+        # Show progress
+        if show_progress and total_batches && total_batches > 0 and rem(new_count, progress_interval) == 0 do
+          pct = round(new_count / total_batches * 100)
+          IO.write(:stderr, "\r    Validating: #{new_count}/#{total_batches} batches (#{pct}%)...\e[K")
+        end
+
+        {[loss | acc_losses], new_count}
       end)
+
+    # Clear progress line
+    if show_progress and total_batches && total_batches > 0 do
+      IO.write(:stderr, "\r\e[K")
+    end
 
     avg_loss =
       if count > 0 do

@@ -72,6 +72,9 @@ defmodule ExPhil.MixProject do
 
       # Serialization
       {:jason, "~> 1.4"},
+
+      # Timezone support (for Central time timestamps)
+      {:tz, "~> 0.28"},
       {:msgpax, "~> 2.4"},  # For PyTorch Port communication
       {:req, "~> 0.5"},
 

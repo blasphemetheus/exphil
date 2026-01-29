@@ -1,5 +1,8 @@
 import Config
 
+# Configure timezone database for Central time timestamps
+config :elixir, :time_zone_database, Tz.TimeZoneDatabase
+
 # Configure Nx backend - use EXLA for multi-core CPU acceleration
 config :nx, default_backend: EXLA.Backend
 

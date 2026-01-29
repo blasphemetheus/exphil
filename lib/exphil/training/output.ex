@@ -28,6 +28,9 @@ defmodule ExPhil.Training.Output do
   @normal 1
   @verbose 2
 
+  # Default timezone for timestamps (Central Time)
+  @default_timezone "America/Chicago"
+
   @doc """
   Set the output verbosity level.
 
@@ -74,11 +77,41 @@ defmodule ExPhil.Training.Output do
   def verbose?, do: get_verbosity() >= @verbose
 
   @doc """
+  Set the timezone for timestamps.
+
+  Defaults to "America/Chicago" (Central Time).
+  """
+  @spec set_timezone(String.t()) :: :ok
+  def set_timezone(tz) do
+    Process.put(:exphil_timezone, tz)
+    :ok
+  end
+
+  @doc """
+  Get the current timezone for timestamps.
+  """
+  @spec get_timezone() :: String.t()
+  def get_timezone do
+    Process.get(:exphil_timezone, @default_timezone)
+  end
+
+  @doc """
+  Get current timestamp string in the configured timezone.
+  """
+  @spec local_timestamp() :: String.t()
+  def local_timestamp do
+    case DateTime.shift_zone(DateTime.utc_now(), get_timezone()) do
+      {:ok, local} -> Calendar.strftime(local, "%H:%M:%S")
+      {:error, _} -> Calendar.strftime(DateTime.utc_now(), "%H:%M:%S")
+    end
+  end
+
+  @doc """
   Print a line with timestamp (respects verbosity).
   """
   def puts(line) do
     if should_output?(@normal) do
-      timestamp = DateTime.utc_now() |> Calendar.strftime("%H:%M:%S")
+      timestamp = local_timestamp()
       IO.puts(:stderr, "[#{timestamp}] #{line}")
     end
   end
@@ -97,7 +130,7 @@ defmodule ExPhil.Training.Output do
   """
   def puts(line, color) when is_atom(color) do
     if should_output?(@normal) do
-      timestamp = DateTime.utc_now() |> Calendar.strftime("%H:%M:%S")
+      timestamp = local_timestamp()
       IO.puts(:stderr, "[#{timestamp}] #{colorize(line, color)}")
     end
   end
@@ -116,7 +149,7 @@ defmodule ExPhil.Training.Output do
   """
   def debug(line) do
     if verbose?() do
-      timestamp = DateTime.utc_now() |> Calendar.strftime("%H:%M:%S")
+      timestamp = local_timestamp()
       IO.puts(:stderr, "[#{timestamp}] #{colorize("[DEBUG] #{line}", :dim)}")
     end
   end
@@ -132,7 +165,7 @@ defmodule ExPhil.Training.Output do
   def warning(line) do
     # Warnings respect quiet mode (verbosity 0)
     if should_output?(@normal) do
-      timestamp = DateTime.utc_now() |> Calendar.strftime("%H:%M:%S")
+      timestamp = local_timestamp()
       IO.puts(:stderr, "[#{timestamp}] #{colorize("⚠️  #{line}", :yellow)}")
     end
   end
@@ -142,7 +175,7 @@ defmodule ExPhil.Training.Output do
   """
   def error(line) do
     # Errors always show
-    timestamp = DateTime.utc_now() |> Calendar.strftime("%H:%M:%S")
+    timestamp = local_timestamp()
     IO.puts(:stderr, "[#{timestamp}] #{colorize("❌ #{line}", :red)}")
   end
 
@@ -559,7 +592,7 @@ defmodule ExPhil.Training.Output do
     quote do
       IO.write(
         :stderr,
-        "[#{Calendar.strftime(DateTime.utc_now(), "%H:%M:%S")}] #{unquote(label)}..."
+        "[#{ExPhil.Training.Output.local_timestamp()}] #{unquote(label)}..."
       )
 
       start = System.monotonic_time(:millisecond)
@@ -595,7 +628,7 @@ defmodule ExPhil.Training.Output do
 
       IO.puts(
         :stderr,
-        "[#{Calendar.strftime(DateTime.utc_now(), "%H:%M:%S")}] #{unquote(label)}... done!"
+        "[#{ExPhil.Training.Output.local_timestamp()}] #{unquote(label)}... done!"
       )
 
       result

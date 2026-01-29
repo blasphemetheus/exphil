@@ -833,6 +833,58 @@ defmodule ExPhil.Training.DataTest do
     end
   end
 
+  describe "prepare_for_batching/2" do
+    test "converts frames list to array" do
+      frames = mock_frames(100)
+      dataset = Data.from_frames(frames)
+
+      # Before: no frames_array
+      assert dataset.frames_array == nil
+
+      # After: frames_array is populated
+      prepared = Data.prepare_for_batching(dataset)
+      assert prepared.frames_array != nil
+      assert is_tuple(prepared.frames_array)
+      assert elem(prepared.frames_array, 0) == :array
+    end
+
+    test "caches character weights in metadata" do
+      frames = mock_frames(100)
+      dataset = Data.from_frames(frames)
+      weights = %{fox: 1.0, falco: 2.0}
+
+      prepared = Data.prepare_for_batching(dataset, character_weights: weights)
+
+      assert is_list(prepared.metadata.cached_character_weights)
+      assert length(prepared.metadata.cached_character_weights) == dataset.size
+    end
+
+    test "prepared_for_batching? returns correct status" do
+      frames = mock_frames(50)
+      dataset = Data.from_frames(frames)
+
+      refute Data.prepared_for_batching?(dataset)
+
+      prepared = Data.prepare_for_batching(dataset)
+      assert Data.prepared_for_batching?(prepared)
+    end
+
+    test "batched_sequences uses cached arrays when available" do
+      frames = mock_frames(100)
+      dataset = Data.from_frames(frames)
+      seq_dataset = Data.to_sequences(dataset, window_size: 10, stride: 5)
+
+      # Prepare for batching
+      prepared = Data.prepare_for_batching(seq_dataset)
+
+      # Should work the same but use cached arrays internally
+      batches = Data.batched_sequences(prepared, batch_size: 4, shuffle: false)
+      batch_list = Enum.to_list(batches)
+
+      assert length(batch_list) > 0
+    end
+  end
+
   describe "batching performance" do
     @tag :benchmark
     test "batch creation uses O(1) array access, not O(n) list traversal" do

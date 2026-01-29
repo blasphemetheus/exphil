@@ -1571,6 +1571,30 @@ early_stopping_msg =
 Output.puts("\nStep 4: Training for #{opts[:epochs]} epochs#{early_stopping_msg}...", :cyan)
 Output.divider()
 
+# Prepare datasets for efficient batching (converts lists to arrays once, not every epoch)
+# This saves ~30-60s per epoch on large datasets
+{train_dataset, val_dataset} =
+  if train_dataset != nil do
+    prep_start = System.monotonic_time(:millisecond)
+    IO.write(:stderr, "  Preparing datasets for batching...\e[K")
+
+    prepared_train = Data.prepare_for_batching(train_dataset, character_weights: character_weights)
+
+    prepared_val =
+      if val_dataset != nil and val_dataset.size > 0 do
+        Data.prepare_for_batching(val_dataset)
+      else
+        val_dataset
+      end
+
+    prep_time_ms = System.monotonic_time(:millisecond) - prep_start
+    IO.write(:stderr, "\r  Preparing datasets for batching... done (#{div(prep_time_ms, 1000)}s)\n\e[K")
+
+    {prepared_train, prepared_val}
+  else
+    {train_dataset, val_dataset}
+  end
+
 # Create incomplete marker for crash recovery
 Recovery.mark_started(opts[:checkpoint], opts)
 
@@ -1753,6 +1777,9 @@ batch_checkpoint_path =
     # Note: augmentation is only applied to non-temporal (single-frame) batches
     # Temporal batches use pre-computed embeddings, so augmentation happens at sequence creation
     # Create batch stream (kept lazy for true async prefetching)
+    batch_prep_start = System.monotonic_time(:millisecond)
+    if epoch > 1, do: IO.write(:stderr, "    Preparing batches...\e[K")
+
     {batch_stream, num_batches} =
       if streaming_mode do
         # Streaming mode: process each chunk and chain batches together
@@ -1858,6 +1885,13 @@ batch_checkpoint_path =
         batches = div(train_dataset.size, opts[:batch_size])
         {stream, batches}
       end
+
+    batch_prep_time_ms = System.monotonic_time(:millisecond) - batch_prep_start
+    if epoch > 1 and batch_prep_time_ms > 1000 do
+      IO.write(:stderr, "\r    Preparing batches... done (#{div(batch_prep_time_ms, 1000)}s)\n\e[K")
+    else
+      if epoch > 1, do: IO.write(:stderr, "\r\e[K")
+    end
 
     # Epoch start message with GPU memory status
     gpu_status = GPUUtils.memory_status_string()
