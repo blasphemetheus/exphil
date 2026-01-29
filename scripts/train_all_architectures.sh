@@ -82,7 +82,8 @@ if [[ -n "$QUICK" ]]; then
     NUM_LAYERS=2
     PATIENCE=1
     WARMUP_STEPS=10
-    echo "⚡ Quick mode: 1 epoch, small model (smoke test)"
+    MAX_FILES=10
+    echo "⚡ Quick mode: 1 epoch, small model, 10 files (smoke test)"
 fi
 
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
@@ -113,7 +114,13 @@ COMMON_FLAGS="--replays $REPLAYS_DIR \
   --early-stopping --patience $PATIENCE \
   --val-split 0.1 \
   --focal-loss --focal-gamma $FOCAL_GAMMA \
+  --log-interval 500 \
   --save-best"
+
+# Add max-files limit if set (used by --quick mode)
+if [[ -n "$MAX_FILES" ]]; then
+    COMMON_FLAGS="$COMMON_FLAGS --max-files $MAX_FILES"
+fi
 
 run_training() {
     local arch=$1
