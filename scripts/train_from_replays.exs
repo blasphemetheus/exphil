@@ -168,6 +168,7 @@ alias ExPhil.Training.{
   Augmentation,
   CharacterBalance,
   CheckpointPruning,
+  Profiler,
   Config,
   Data,
   DuplicateDetector,
@@ -496,8 +497,8 @@ Configuration:
   Augment:     #{if opts[:augment], do: "enabled (mirror=#{opts[:mirror_prob]}, noise=#{opts[:noise_prob]})", else: "disabled"}
   Prefetch:    #{cond do
     opts[:no_prefetch] -> "disabled (--no-prefetch)"
-    opts[:stream_chunk_size] -> "auto (streaming mode, buffer=#{opts[:prefetch_buffer]})"
-    true -> "disabled (only with --stream-chunk-size)"
+    opts[:stream_chunk_size] -> "enabled (streaming, buffer=#{opts[:prefetch_buffer]})"
+    true -> "enabled (standard, buffer=#{opts[:prefetch_buffer]})"
   end}
   Grad Ckpt:   #{if opts[:gradient_checkpoint], do: "enabled (every #{opts[:checkpoint_every]} layers)", else: "disabled"}
   GPU:         #{gpu_info}
@@ -909,19 +910,14 @@ end
 # Data will be loaded chunk-by-chunk during training
 streaming_mode = opts[:stream_chunk_size] != nil
 
-# Auto-enable prefetch in streaming mode (unless explicitly disabled with --no-prefetch)
-# Prefetching loads the next batch while GPU trains on current - only useful with streaming
-prefetch_enabled =
-  if streaming_mode do
-    # In streaming mode, enable prefetch unless user passed --no-prefetch
-    not opts[:no_prefetch]
-  else
-    # In non-streaming mode, prefetch does nothing
-    false
-  end
+# Prefetching: load next batch while GPU trains on current
+# Now enabled for both streaming and non-streaming modes
+# Disable with --no-prefetch if it causes issues
+prefetch_enabled = not opts[:no_prefetch]
 
-if streaming_mode and prefetch_enabled do
-  Output.puts("  Prefetching: enabled (use --no-prefetch to disable)")
+if prefetch_enabled do
+  mode_str = if streaming_mode, do: "streaming", else: "standard"
+  Output.puts("  Prefetching: enabled (#{mode_str} mode, buffer=#{opts[:prefetch_buffer]}, use --no-prefetch to disable)")
 end
 
 file_chunks =
@@ -1571,6 +1567,13 @@ early_stopping_msg =
 Output.puts("\nStep 4: Training for #{opts[:epochs]} epochs#{early_stopping_msg}...", :cyan)
 Output.divider()
 
+# Initialize profiler if enabled
+if opts[:profile] do
+  Profiler.start()
+  Profiler.set_enabled(true)
+  Output.puts("  📊 Profiling enabled - detailed timing report will be shown at end")
+end
+
 # Prepare datasets for efficient batching (converts lists to arrays once, not every epoch)
 # This saves ~30-60s per epoch on large datasets
 {train_dataset, val_dataset} =
@@ -1593,6 +1596,29 @@ Output.divider()
     {prepared_train, prepared_val}
   else
     {train_dataset, val_dataset}
+  end
+
+# Pre-compute validation batches once (reused every epoch)
+# This avoids recreating batches each epoch (~2-5s savings per epoch for large val sets)
+precomputed_val_batches =
+  if val_dataset != nil and val_dataset.size > 0 and not streaming_mode do
+    IO.write(:stderr, "  Pre-computing validation batches...\e[K")
+    val_start = System.monotonic_time(:millisecond)
+
+    val_batches =
+      if opts[:temporal] do
+        Data.batched_sequences(val_dataset, batch_size: opts[:batch_size], shuffle: false)
+      else
+        Data.batched(val_dataset, batch_size: opts[:batch_size], shuffle: false)
+      end
+      |> Enum.to_list()  # Materialize into list for reuse
+
+    val_time_ms = System.monotonic_time(:millisecond) - val_start
+    IO.write(:stderr, "\r  Pre-computing validation batches... done (#{length(val_batches)} batches, #{div(val_time_ms, 1000)}s)\n\e[K")
+
+    val_batches
+  else
+    nil
   end
 
 # Create incomplete marker for crash recovery
@@ -1887,6 +1913,9 @@ batch_checkpoint_path =
       end
 
     batch_prep_time_ms = System.monotonic_time(:millisecond) - batch_prep_start
+    # Record batch prep time to profiler (if enabled)
+    Profiler.record(:batch_prep, batch_prep_time_ms)
+
     if epoch > 1 and batch_prep_time_ms > 1000 do
       IO.write(:stderr, "\r    Preparing batches... done (#{div(batch_prep_time_ms, 1000)}s)\n\e[K")
     else
@@ -1930,7 +1959,10 @@ batch_checkpoint_path =
     process_batch = fn batch, batch_idx, {t, losses, jit_shown, curr_global_idx, smoothed_loss} ->
       batch_start = System.monotonic_time(:millisecond)
       # Note: loss_fn is ignored by train_step (it uses cached predict_fn internally)
-      {new_trainer, metrics} = Imitation.train_step(t, batch, nil)
+      # Profiler.time wraps the train step to collect timing statistics when --profile is enabled
+      {new_trainer, metrics} = Profiler.time(:train_step, fn ->
+        Imitation.train_step(t, batch, nil)
+      end)
       batch_time_ms = System.monotonic_time(:millisecond) - batch_start
 
       # Increment global batch index
@@ -2078,8 +2110,9 @@ batch_checkpoint_path =
     {updated_trainer, epoch_losses, _, updated_global_batch_idx, _final_smoothed} =
       cond do
         prefetch_enabled ->
-          # Streaming mode with prefetch: use stream-based prefetcher for lazy iteration
-          # This avoids materializing all chunks at once and loads next batch while GPU trains
+          # Prefetch mode: use stream-based prefetcher for async batch loading
+          # Loads next batch while GPU trains on current - works for both streaming and standard modes
+          # The prefetcher uses a producer process to buffer batches and overlap CPU/GPU work
           Prefetcher.reduce_stream_indexed(
             batch_stream,
             initial_state,
@@ -2121,15 +2154,31 @@ batch_checkpoint_path =
           # (validation would require holding extra data in memory)
           {avg_loss, %{loss: avg_loss}}
 
-        val_dataset != nil and val_dataset.size > 0 ->
-          val_batches =
-            if opts[:temporal] do
-              Data.batched_sequences(val_dataset, batch_size: opts[:batch_size], shuffle: false)
-            else
-              Data.batched(val_dataset, batch_size: opts[:batch_size], shuffle: false)
-            end
+        precomputed_val_batches != nil ->
+          # Use pre-computed validation batches (computed once before training loop)
+          # This saves ~2-5s per epoch by avoiding batch recreation
+          # Parallel validation with configurable concurrency (default: 4)
+          metrics = Profiler.time(:validation, fn ->
+            Imitation.evaluate(updated_trainer, precomputed_val_batches,
+              max_concurrency: opts[:val_concurrency] || 4)
+          end)
+          {metrics.loss, metrics}
 
-          metrics = Imitation.evaluate(updated_trainer, val_batches)
+        val_dataset != nil and val_dataset.size > 0 ->
+          # Fallback: create batches on-the-fly (shouldn't happen in normal flow)
+          val_batches =
+            Profiler.time(:val_batch_prep, fn ->
+              if opts[:temporal] do
+                Data.batched_sequences(val_dataset, batch_size: opts[:batch_size], shuffle: false)
+              else
+                Data.batched(val_dataset, batch_size: opts[:batch_size], shuffle: false)
+              end
+            end)
+
+          metrics = Profiler.time(:validation, fn ->
+            Imitation.evaluate(updated_trainer, val_batches,
+              max_concurrency: opts[:val_concurrency] || 4)
+          end)
           {metrics.loss, metrics}
 
         true ->
@@ -2291,7 +2340,11 @@ Output.puts_raw("─" |> String.duplicate(60))
 # Step 5: Save checkpoint
 Output.puts("\nStep 5: Saving checkpoint...", :cyan)
 
-case Imitation.save_checkpoint(final_trainer, opts[:checkpoint]) do
+result = Profiler.time(:checkpoint_save, fn ->
+  Imitation.save_checkpoint(final_trainer, opts[:checkpoint])
+end)
+
+case result do
   :ok -> Output.puts("  ✓ Saved to #{opts[:checkpoint]}")
   {:error, reason} -> Output.puts("  ✗ Failed: #{inspect(reason)}")
 end
@@ -2524,6 +2577,13 @@ end
 if opts[:save_best] do
   best_policy = Config.derive_best_policy_path(opts[:checkpoint])
   Output.kv("Best policy", best_policy)
+end
+
+# Print profiler report if enabled
+if opts[:profile] do
+  Output.puts_raw("")
+  Profiler.print_report()
+  Profiler.stop()
 end
 
 Output.puts_raw("")

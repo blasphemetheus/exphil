@@ -1154,6 +1154,10 @@ defmodule ExPhil.Training.Imitation do
   def evaluate(trainer, dataset, opts \\ []) do
     show_progress = Keyword.get(opts, :show_progress, true)
     progress_interval = Keyword.get(opts, :progress_interval, 10)
+    # Parallel validation: process multiple batches concurrently
+    # Default to 4 concurrent batches - good balance for GPU utilization
+    # Set to 1 to disable parallelism (sequential mode)
+    max_concurrency = Keyword.get(opts, :max_concurrency, 4)
 
     # Use cached eval_loss_fn if available (JIT-compiled once in new/1)
     # Falls back to building fresh for backwards compatibility
@@ -1179,23 +1183,61 @@ defmodule ExPhil.Training.Imitation do
       IO.write(:stderr, "    Validating: 0/#{total_batches} batches...\e[K")
     end
 
-    # Accumulate loss with running sum tensor (avoids Nx.stack overhead)
-    # Single GPU→CPU transfer at the end
+    # Choose between parallel and sequential validation
     {total_loss, count} =
-      Enum.reduce(dataset, {Nx.tensor(0.0), 0}, fn batch, {acc_loss, acc_count} ->
-        %{states: states, actions: actions} = batch
-        loss = loss_fn.(states, actions)
-        new_count = acc_count + 1
+      if max_concurrency > 1 do
+        # Parallel validation with Task.async_stream
+        # Process batches concurrently for better GPU utilization
+        # Counter for progress tracking (use Agent for thread-safe updates)
+        {:ok, counter} = Agent.start_link(fn -> 0 end)
 
-        # Show progress
-        if show_progress and total_batches && total_batches > 0 and rem(new_count, progress_interval) == 0 do
-          pct = round(new_count / total_batches * 100)
-          IO.write(:stderr, "\r    Validating: #{new_count}/#{total_batches} batches (#{pct}%)...\e[K")
-        end
+        losses =
+          dataset
+          |> Task.async_stream(
+            fn batch ->
+              %{states: states, actions: actions} = batch
+              loss = loss_fn.(states, actions)
 
-        # Running sum on GPU (no intermediate list allocation)
-        {Nx.add(acc_loss, loss), new_count}
-      end)
+              # Update progress counter
+              new_count = Agent.get_and_update(counter, fn c -> {c + 1, c + 1} end)
+
+              if show_progress and total_batches && total_batches > 0 and rem(new_count, progress_interval) == 0 do
+                pct = round(new_count / total_batches * 100)
+                IO.write(:stderr, "\r    Validating: #{new_count}/#{total_batches} batches (#{pct}%)...\e[K")
+              end
+
+              # Return scalar loss to avoid GPU memory accumulation
+              Nx.to_number(loss)
+            end,
+            max_concurrency: max_concurrency,
+            ordered: false,
+            timeout: :infinity
+          )
+          |> Enum.map(fn {:ok, loss} -> loss end)
+
+        Agent.stop(counter)
+
+        # Sum losses on CPU (already converted to numbers)
+        total = Enum.sum(losses)
+        {Nx.tensor(total), length(losses)}
+      else
+        # Sequential validation (original behavior)
+        # Accumulate loss with running sum tensor (avoids Nx.stack overhead)
+        Enum.reduce(dataset, {Nx.tensor(0.0), 0}, fn batch, {acc_loss, acc_count} ->
+          %{states: states, actions: actions} = batch
+          loss = loss_fn.(states, actions)
+          new_count = acc_count + 1
+
+          # Show progress
+          if show_progress and total_batches && total_batches > 0 and rem(new_count, progress_interval) == 0 do
+            pct = round(new_count / total_batches * 100)
+            IO.write(:stderr, "\r    Validating: #{new_count}/#{total_batches} batches (#{pct}%)...\e[K")
+          end
+
+          # Running sum on GPU (no intermediate list allocation)
+          {Nx.add(acc_loss, loss), new_count}
+        end)
+      end
 
     # Clear progress line
     if show_progress and total_batches && total_batches > 0 do

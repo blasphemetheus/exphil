@@ -220,18 +220,18 @@ Optimizations identified for reducing per-epoch overhead on large datasets (1.6M
 - **Benefit:** ~2s savings per epoch, O(10K) memory instead of O(n)
 - **Implementation:** `lazy_shuffled_batches/5` and `lazy_shuffled_frame_batches/7` in Data module
 
-#### Parallel validation batches
-- **Status:** TODO
-- **Current:** Sequential `Enum.reduce` over validation batches
-- **Proposed:** `Task.async_stream` for parallel batch processing
+#### Parallel validation batches ✅
+- **Status:** COMPLETED (2026-01-29)
+- **Usage:** `--val-concurrency N` (default: 4, set to 1 for sequential)
+- **Implementation:** `Task.async_stream` in `Imitation.evaluate/3` for parallel batch processing
 - **Benefit:** ~2-3x faster validation if GPU memory allows concurrent batches
-- **Caveat:** May increase GPU memory pressure
+- **Caveat:** May increase GPU memory pressure; reduce `--val-concurrency` if OOM
 
-#### Pre-embed validation data
-- **Status:** TODO
-- **Current:** Validation data embedded during batch creation
-- **Proposed:** Pre-compute validation embeddings like training data
-- **Benefit:** Faster validation, especially with complex embeddings
+#### Pre-embed validation data ✅
+- **Status:** COMPLETED (2026-01-29)
+- **Implementation:** Validation batches materialized once before training loop, reused every epoch
+- **Benefit:** ~2-5s savings per epoch by avoiding batch recreation
+- **Note:** Works automatically when not in streaming mode
 
 ### Medium Impact
 
@@ -267,6 +267,117 @@ Optimizations identified for reducing per-epoch overhead on large datasets (1.6M
 - Trade compute for memory more aggressively
 - Already supported via `--gradient-checkpoint`
 
+### Profiler for Performance Analysis ✅
+- **Status:** COMPLETED (2026-01-29)
+- **Module:** `ExPhil.Training.Profiler`
+- **Usage:** `mix run scripts/train_from_replays.exs --profile --epochs 1`
+- **Features:**
+  - Times key operations: batch_prep, forward, backward, optimizer, validation, checkpoint
+  - Tracks min/max/avg/total for each phase
+  - Generates formatted report at training end
+  - Stores last 1000 samples for percentile calculations
+- **Implementation:**
+  ```elixir
+  # Wrap operations to time them
+  Profiler.time(:batch_prep, fn -> prepare_batch() end)
+  Profiler.time(:forward, fn -> forward_pass() end)
+
+  # Get report at end
+  Profiler.print_report()
+  ```
+- **Report format:**
+  ```
+  ╔══════════════════════════════════════════════════════════════════════════════╗
+  ║                           TRAINING PROFILE REPORT                            ║
+  ╠══════════════════════════════════════════════════════════════════════════════╣
+  ║ Phase              │ Count   │ Total (s) │ Avg (ms) │ Min (ms) │ Max (ms) │ % ║
+  ╟────────────────────┼─────────┼───────────┼──────────┼──────────┼──────────┼───╢
+  ║ forward            │    1606 │     45.23 │    28.16 │    25.12 │    42.31 │ 45║
+  ║ backward           │    1606 │     38.92 │    24.23 │    22.01 │    35.18 │ 39║
+  ╚══════════════════════════════════════════════════════════════════════════════╝
+  ```
+
+### Future Optimizations (TODO)
+
+#### Double-buffered batch prefetching ✅
+- **Status:** COMPLETED (2026-01-29)
+- **Usage:** Enabled by default. Disable with `--no-prefetch`
+- **How it works:** Uses `Prefetcher.reduce_stream_indexed` with a producer process that buffers batches while GPU trains
+- **Benefit:** Hide batch prep latency (~50-100ms per batch), ~10-20% speedup
+- **Options:**
+  - `--prefetch-buffer N` - Number of batches to prefetch (default: 2)
+  - `--no-prefetch` - Disable prefetching
+- **Note:** Previously only worked in streaming mode, now enabled for standard mode too
+
+#### Memory-mapped embedding cache
+- **Status:** TODO
+- **Current:** Embeddings stored in RAM, may exceed available memory for large datasets
+- **Proposed:** Use `:file.open/2` with `:raw` mode for memory-mapped access
+- **Benefit:** Train on datasets larger than RAM
+- **Trade-off:** Slower random access, but sequential access remains fast
+- **Implementation:**
+  ```elixir
+  # Save embeddings to disk in contiguous format
+  File.write!("embeddings.bin", Nx.to_binary(embeddings))
+
+  # Memory-map for training
+  {:ok, fd} = :file.open("embeddings.bin", [:read, :raw, :binary])
+  # Read specific batch by offset
+  :file.pread(fd, batch_offset * embedding_bytes, batch_size * embedding_bytes)
+  ```
+
+#### Batch size auto-tuning
+- **Status:** TODO
+- **Current:** Fixed batch size, may OOM or underutilize GPU
+- **Proposed:** Start small, increase until OOM, back off 20%
+- **Benefit:** Automatic optimal GPU utilization
+- **Implementation:**
+  ```elixir
+  def find_optimal_batch_size(model, initial \\ 32, max \\ 2048) do
+    batch_size = initial
+    while batch_size <= max do
+      try do
+        # Test batch
+        test_batch(model, batch_size)
+        batch_size = batch_size * 2
+      rescue
+        _ -> return div(batch_size, 2) * 0.8  # Back off 20%
+      end
+    end
+    batch_size
+  end
+  ```
+
+#### Gradient accumulation micro-batching
+- **Status:** TODO
+- **Current:** `--gradient-accumulation N` accumulates gradients over N batches
+- **Proposed:** Micro-batch within GPU memory, accumulate for effective larger batch
+- **Benefit:** Better gradient estimates without OOM
+- **Note:** Already partially supported, could be more automatic
+
+#### Async checkpoint saving
+- **Status:** TODO
+- **Current:** Checkpoint saving blocks training
+- **Proposed:** Save checkpoints in background task
+- **Benefit:** ~1-5s savings per checkpoint (depending on model size)
+- **Implementation:**
+  ```elixir
+  # Fire and forget checkpoint save
+  Task.start(fn ->
+    params = Nx.backend_copy(trainer.params, Nx.BinaryBackend)
+    save_checkpoint(params, path)
+  end)
+  # Continue training immediately
+  ```
+- **Caveat:** Must copy params to BinaryBackend before async save
+
+#### Mixed precision training
+- **Status:** TODO (partially supported)
+- **Current:** Training uses FP32 (BF16 has XLA issues)
+- **Proposed:** Forward pass in FP16/BF16, gradients in FP32
+- **Benefit:** 2x faster forward pass, half memory usage
+- **Blocker:** EXLA/XLA BF16 matmul performance issues on some GPUs
+
 ### Completed (2026-01-29)
 
 - [x] Cache array conversions with `prepare_for_batching/1`
@@ -278,6 +389,10 @@ Optimizations identified for reducing per-epoch overhead on large datasets (1.6M
 - [x] Lazy chunked shuffle for large datasets (>100K samples)
 - [x] Running sum for validation loss (avoid Nx.stack allocation)
 - [x] Fix Data.split to maintain correspondence with embedded_sequences/embedded_frames
+- [x] Profile-guided optimization infrastructure (Profiler module)
+- [x] Parallel validation batches with `Task.async_stream` (--val-concurrency flag)
+- [x] Pre-compute validation batches once before training loop
+- [x] Enable prefetching for standard (non-streaming) mode
 
 ## Completed
 

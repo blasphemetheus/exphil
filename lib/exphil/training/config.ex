@@ -211,7 +211,12 @@ defmodule ExPhil.Training.Config do
     "--show-quality-stats",
     # Memory management
     # Run garbage collection every N batches (0 = disabled)
-    "--gc-every"
+    "--gc-every",
+    # Profiling
+    # Enable detailed timing profiler
+    "--profile",
+    # Parallel validation concurrency (number of concurrent batches)
+    "--val-concurrency"
   ]
 
   @doc """
@@ -431,7 +436,13 @@ defmodule ExPhil.Training.Config do
       show_quality_stats: false,
       # Memory management
       # Run garbage collection every N batches (0 = disabled)
-      gc_every: 100
+      gc_every: 100,
+      # Profiling
+      # Enable detailed timing profiler
+      profile: false,
+      # Parallel validation
+      # Number of concurrent batches during validation (1 = sequential)
+      val_concurrency: 4
     ]
     |> apply_env_defaults()
   end
@@ -2034,6 +2045,10 @@ defmodule ExPhil.Training.Config do
     |> parse_flag(args, "--show-quality-stats", :show_quality_stats)
     # Memory management
     |> parse_optional_int_arg(args, "--gc-every", :gc_every)
+    # Profiling
+    |> parse_flag(args, "--profile", :profile)
+    # Parallel validation
+    |> parse_optional_int_arg(args, "--val-concurrency", :val_concurrency)
     |> then(fn opts ->
       # --no-overwrite makes overwrite explicitly false
       if opts[:no_overwrite], do: Keyword.put(opts, :overwrite, false), else: opts
