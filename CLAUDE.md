@@ -306,22 +306,38 @@ Output.puts("   (subsequent batches will be fast)")
 **Training epoch progress:**
 ```elixir
 # Inline progress: Epoch 1: ████████░░ 40% | 642/1606 | loss: 0.1234 | 0.5s/it | ETA: 8m 12s
-IO.write(:stderr, "\r#{progress_line}")  # Carriage return to overwrite
+# ALWAYS use \e[K to clear line (prevents artifacts in narrow terminals)
+IO.write(:stderr, "\r#{progress_line}\e[K")
+```
+
+**Terminal width awareness** - For long progress lines that may wrap:
+```elixir
+# Truncate to terminal width to prevent line wrapping in narrow terminals (e.g., split-screen)
+terminal_width = case :io.columns() do
+  {:ok, cols} -> cols
+  _ -> 120  # Fallback for non-TTY
+end
+truncated_line = if String.length(progress_line) > terminal_width - 1 do
+  String.slice(progress_line, 0, terminal_width - 4) <> "..."
+else
+  progress_line
+end
+IO.write(:stderr, "\r#{truncated_line}\e[K")
 ```
 
 **Progress interval standards** - Avoid log spam with intervals:
 ```elixir
-# BAD: Updates every iteration (spams logs)
+# BAD: Updates every iteration (spams logs, no clear line escape)
 Enum.each(items, fn {item, idx} ->
   IO.write(:stderr, "\r  Progress: #{idx}/#{total}")
   process(item)
 end)
 
-# GOOD: Updates at intervals (clean logs for post-run analysis)
+# GOOD: Updates at intervals with clear line escape
 progress_interval = Keyword.get(opts, :progress_interval, 10)
 Enum.each(items, fn {item, idx} ->
   if rem(idx, progress_interval) == 0 do
-    IO.write(:stderr, "\r  Progress: #{idx}/#{total}")
+    IO.write(:stderr, "\r  Progress: #{idx}/#{total}\e[K")
   end
   process(item)
 end)

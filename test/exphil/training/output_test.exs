@@ -343,8 +343,19 @@ defmodule ExPhil.Training.OutputTest do
       Output.set_verbosity(1)
     end
 
-    test "warning/1 always shown even in quiet mode" do
+    test "warning/1 suppressed in quiet mode (verbosity 0)" do
       Output.set_verbosity(0)
+
+      output =
+        capture_io(:stderr, fn ->
+          Output.warning("warning message")
+        end)
+
+      # Warnings ARE suppressed in quiet mode for cleaner log output
+      refute output =~ "warning message"
+
+      # But shown in normal mode
+      Output.set_verbosity(1)
 
       output =
         capture_io(:stderr, fn ->

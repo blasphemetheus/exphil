@@ -89,14 +89,14 @@ defmodule TrainKMeans do
     # Progress callbacks
     init_progress_fn = fn step, total ->
       if rem(step, 5) == 0 or step == total do
-        IO.write("\r  K-means++ init: #{step}/#{total} centers selected")
+        IO.write("\r  K-means++ init: #{step}/#{total} centers selected\e[K")
       end
     end
 
     iter_progress_fn = fn iter, max_iters, diff ->
       if rem(iter, 5) == 0 or iter == 1 do
         IO.write(
-          "\r  Iteration #{iter}/#{max_iters} | max center shift: #{Float.round(diff, 6)}    "
+          "\r  Iteration #{iter}/#{max_iters} | max center shift: #{Float.round(diff, 6)}\e[K"
         )
       end
     end

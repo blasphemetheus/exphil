@@ -154,7 +154,7 @@ defmodule SoftLabelGenerator do
     files
     |> Enum.with_index(1)
     |> Enum.flat_map(fn {file, idx} ->
-      IO.write("\r  Parsing file #{idx}/#{length(files)}...")
+      IO.write("\r  Parsing file #{idx}/#{length(files)}...\e[K")
 
       case ReplayParser.parse_replay(file) do
         {:ok, game} ->
@@ -199,7 +199,7 @@ defmodule SoftLabelGenerator do
     |> Enum.with_index()
     |> Enum.flat_map(fn {batch, batch_idx} ->
       progress = min(100, round((batch_idx + 1) * batch_size / total * 100))
-      IO.write("\r  Progress: #{progress}%")
+      IO.write("\r  Progress: #{progress}%\e[K")
 
       # Embed all frames in batch
       states =
@@ -246,7 +246,7 @@ defmodule SoftLabelGenerator do
     |> Enum.with_index()
     |> Enum.flat_map(fn {batch, batch_idx} ->
       progress = min(100, round((batch_idx + 1) * batch_size / seq_total * 100))
-      IO.write("\r  Progress: #{progress}%")
+      IO.write("\r  Progress: #{progress}%\e[K")
 
       # Embed sequences [batch, window, embed]
       states =

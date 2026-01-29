@@ -1998,7 +1998,18 @@ batch_checkpoint_path =
           batch_idx + 1 == display_total
 
       if should_log and opts[:verbosity] > 0 do
-        IO.write(:stderr, "\r#{progress_line}")
+        # Truncate to terminal width to prevent line wrapping in narrow terminals
+        # ANSI escape \e[K clears from cursor to end of line
+        terminal_width = case :io.columns() do
+          {:ok, cols} -> cols
+          _ -> 120  # Fallback for non-TTY
+        end
+        truncated_line = if String.length(progress_line) > terminal_width - 1 do
+          String.slice(progress_line, 0, terminal_width - 4) <> "..."
+        else
+          progress_line
+        end
+        IO.write(:stderr, "\r#{truncated_line}\e[K")
       end
 
       # Accumulate tensor loss (keep as tensor, convert at epoch end)

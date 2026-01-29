@@ -1020,7 +1020,7 @@ defmodule ExPhil.Training.Data do
         if show_progress and rem(chunk_idx, progress_interval) == 0 do
           processed = min((chunk_idx + 1) * chunk_size, total)
           pct = round(processed / total * 100)
-          IO.write(:stderr, "\r  Embedding: #{pct}% (#{processed}/#{total})    ")
+          IO.write(:stderr, "\r  Embedding: #{pct}% (#{processed}/#{total})\e[K")
         end
 
         # Periodic garbage collection to prevent memory buildup
@@ -1112,7 +1112,7 @@ defmodule ExPhil.Training.Data do
       |> Enum.map(fn seq_idx ->
         if show_progress and rem(seq_idx, progress_interval) == 0 do
           pct = round(seq_idx / num_sequences * 100)
-          IO.write(:stderr, "\r  Building sequences: #{pct}% (#{seq_idx}/#{num_sequences})    ")
+          IO.write(:stderr, "\r  Building sequences: #{pct}% (#{seq_idx}/#{num_sequences})\e[K")
         end
 
         # Frame range for this sequence
@@ -1185,7 +1185,7 @@ defmodule ExPhil.Training.Data do
         if show_progress and rem(chunk_idx, progress_interval) == 0 do
           processed = min((chunk_idx + 1) * batch_size, total)
           pct = round(processed / total * 100)
-          IO.write(:stderr, "\r  Embedding: #{pct}% (#{processed}/#{total})    ")
+          IO.write(:stderr, "\r  Embedding: #{pct}% (#{processed}/#{total})\e[K")
         end
 
         # Periodic garbage collection to prevent memory buildup
@@ -1384,7 +1384,7 @@ defmodule ExPhil.Training.Data do
         if show_progress and rem(chunk_idx, progress_interval) == 0 do
           processed = min((chunk_idx + 1) * batch_size, total_frames)
           pct = round(processed / total_frames * 100)
-          IO.write(:stderr, "\r  Augmented embedding: #{pct}% (#{processed}/#{total_frames})    ")
+          IO.write(:stderr, "\r  Augmented embedding: #{pct}% (#{processed}/#{total_frames})\e[K")
         end
 
         # Periodic garbage collection

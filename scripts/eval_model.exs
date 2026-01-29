@@ -378,7 +378,7 @@ evaluate_model = fn model_path ->
       # Show progress every 100 batches or on first batch
       if batch_idx == 1 or rem(batch_idx, 100) == 0 or batch_idx == num_batches do
         pct = round(batch_idx / num_batches * 100)
-        IO.write(:stderr, "\r  Progress: #{batch_idx}/#{num_batches} (#{pct}%)    ")
+        IO.write(:stderr, "\r  Progress: #{batch_idx}/#{num_batches} (#{pct}%)\e[K")
       end
 
       %{states: states, actions: actions} = batch

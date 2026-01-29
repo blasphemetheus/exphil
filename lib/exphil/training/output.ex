@@ -212,7 +212,8 @@ defmodule ExPhil.Training.Output do
     line = Enum.join(parts)
 
     # Use carriage return to overwrite the line
-    IO.write(:stderr, "\r#{line}")
+    # \e[K clears from cursor to end of line (prevents artifacts in narrow terminals)
+    IO.write(:stderr, "\r#{line}\e[K")
   end
 
   @doc """
@@ -303,7 +304,7 @@ defmodule ExPhil.Training.Output do
   def spinner(frame, label \\ "Loading") do
     frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
     char = Enum.at(frames, rem(frame, length(frames)))
-    IO.write(:stderr, "\r#{colorize(char, :cyan)} #{label}...")
+    IO.write(:stderr, "\r#{colorize(char, :cyan)} #{label}...\e[K")
   end
 
   @doc """
