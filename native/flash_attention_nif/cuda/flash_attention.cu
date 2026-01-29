@@ -253,24 +253,4 @@ int flash_attention_forward_f32(
     return 0;
 }
 
-/**
- * Flash attention forward pass (f16)
- * TODO: Implement when needed
- */
-int flash_attention_forward_f16(
-    const unsigned short* q,
-    const unsigned short* k,
-    const unsigned short* v,
-    unsigned short* output,
-    int batch,
-    int seq_len,
-    int num_heads,
-    int head_dim,
-    int causal,
-    float softmax_scale
-) {
-    // Not yet implemented - fall back to f32
-    return -1;
-}
-
 }  // extern "C"

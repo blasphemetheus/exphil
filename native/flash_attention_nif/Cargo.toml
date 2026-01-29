@@ -19,9 +19,6 @@ cuda = []
 # Rustler for NIF bindings
 rustler = "0.35"
 
-# Half-precision floats (f16)
-half = "2.4"
-
 # Error handling
 thiserror = "2"
 

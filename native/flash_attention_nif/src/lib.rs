@@ -56,21 +56,6 @@ extern "C" {
         causal: i32,
         softmax_scale: f32,
     ) -> i32;
-
-    // Reserved for future f16 support
-    #[allow(dead_code)]
-    fn flash_attention_forward_f16(
-        q: *const u16,  // f16 as u16
-        k: *const u16,
-        v: *const u16,
-        output: *mut u16,
-        batch: i32,
-        seq_len: i32,
-        num_heads: i32,
-        head_dim: i32,
-        causal: i32,
-        softmax_scale: f32,
-    ) -> i32;
 }
 
 // ============================================================================
