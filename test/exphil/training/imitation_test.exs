@@ -730,4 +730,68 @@ defmodule ExPhil.Training.ImitationTest do
       assert trainer.config.checkpoint_every == 2
     end
   end
+
+  describe "warmup/3" do
+    @tag :slow
+    test "warms up all JIT functions by default" do
+      trainer = Imitation.new(embed_size: 64, hidden_sizes: [32])
+      batch = mock_batch(4, 64)
+
+      {:ok, timings} = Imitation.warmup(trainer, batch, show_progress: false)
+
+      assert Map.has_key?(timings, :training)
+      assert Map.has_key?(timings, :validation)
+      assert Map.has_key?(timings, :inference)
+      assert timings.training >= 0
+      assert timings.validation >= 0
+      assert timings.inference >= 0
+    end
+
+    @tag :slow
+    test "can warm up only specific targets" do
+      trainer = Imitation.new(embed_size: 64, hidden_sizes: [32])
+      batch = mock_batch(4, 64)
+
+      {:ok, timings} = Imitation.warmup(trainer, batch, only: [:validation], show_progress: false)
+
+      assert Map.has_key?(timings, :validation)
+      refute Map.has_key?(timings, :training)
+      refute Map.has_key?(timings, :inference)
+    end
+
+    @tag :slow
+    test "returns timing in milliseconds" do
+      trainer = Imitation.new(embed_size: 64, hidden_sizes: [32])
+      batch = mock_batch(4, 64)
+
+      {:ok, timings} = Imitation.warmup(trainer, batch, only: [:inference], show_progress: false)
+
+      # Should be a positive number (milliseconds)
+      assert is_integer(timings.inference)
+      assert timings.inference >= 0
+    end
+  end
+
+  describe "warmup_validation/2" do
+    @tag :slow
+    test "warms up validation code path" do
+      trainer = Imitation.new(embed_size: 64, hidden_sizes: [32])
+      batches = [mock_batch(4, 64), mock_batch(4, 64)]
+
+      {:ok, timings} = Imitation.warmup_validation(trainer, batches)
+
+      assert Map.has_key?(timings, :validation)
+      assert timings.validation >= 0
+    end
+
+    @tag :slow
+    test "works with single batch" do
+      trainer = Imitation.new(embed_size: 64, hidden_sizes: [32])
+      batches = [mock_batch(4, 64)]
+
+      {:ok, timings} = Imitation.warmup_validation(trainer, batches)
+
+      assert timings.validation >= 0
+    end
+  end
 end

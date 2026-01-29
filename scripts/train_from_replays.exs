@@ -1717,26 +1717,17 @@ precomputed_val_batches =
   end
 
 # JIT warmup for validation (avoids 5-10s delay on first epoch validation)
-# We call the actual evaluate() function with a small subset to warm up the entire code path:
-# - The closure wrapper around eval_loss_fn
-# - The Nx.add for loss accumulation
-# - The Nx.to_number conversion
+# Uses dedicated warmup function that warms up entire validation code path
 if precomputed_val_batches != nil and length(precomputed_val_batches) > 0 do
   IO.write(:stderr, "  ⏳ JIT compiling validation function...\e[K")
-  warmup_start = System.monotonic_time(:millisecond)
 
-  # Take first 2 batches to warm up both loss_fn and Nx.add operations
-  warmup_batches = Enum.take(precomputed_val_batches, 2)
+  case Imitation.warmup_validation(trainer, precomputed_val_batches) do
+    {:ok, %{validation: time_ms}} ->
+      IO.write(:stderr, "\r  ✓ Validation JIT compiled (#{Float.round(time_ms / 1000, 1)}s)\n\e[K")
 
-  # Run actual evaluate() to warm up the entire validation code path
-  # Use sequential mode (max_concurrency: 1) to avoid Task overhead during warmup
-  _warmup_result = Imitation.evaluate(trainer, warmup_batches,
-    show_progress: false,
-    max_concurrency: 1
-  )
-
-  warmup_time_ms = System.monotonic_time(:millisecond) - warmup_start
-  IO.write(:stderr, "\r  ✓ Validation JIT compiled (#{Float.round(warmup_time_ms / 1000, 1)}s)\n\e[K")
+    {:error, reason} ->
+      IO.write(:stderr, "\r  ⚠ Validation warmup failed: #{reason}\n\e[K")
+  end
 end
 
 # Create incomplete marker for crash recovery

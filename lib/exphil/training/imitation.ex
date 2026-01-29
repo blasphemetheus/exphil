@@ -312,6 +312,111 @@ defmodule ExPhil.Training.Imitation do
   end
 
   @doc """
+  Warm up JIT-compiled functions to avoid latency during training/inference.
+
+  EXLA/XLA compiles functions lazily on first use with specific tensor shapes.
+  This can cause 5-15 second delays during training when a new code path is hit.
+  Calling warmup/2 before training triggers all JIT compilations upfront.
+
+  ## What gets warmed up
+
+  - `:all` (default) - All functions below
+  - `:training` - loss_and_grad_fn (forward + backward pass)
+  - `:validation` - eval_loss_fn via evaluate() (forward pass + accumulation)
+  - `:inference` - predict_fn (forward pass only)
+
+  ## Example
+
+      trainer = Imitation.new(opts)
+      sample_batch = Enum.take(dataset, 1) |> hd()
+
+      # Warm up everything before training
+      {:ok, warmup_times} = Imitation.warmup(trainer, sample_batch)
+      # => {:ok, %{training: 8500, validation: 5200, inference: 1200}}
+
+      # Or warm up specific functions
+      {:ok, _} = Imitation.warmup(trainer, sample_batch, only: [:validation])
+
+  ## Returns
+
+  `{:ok, timing_map}` where timing_map has milliseconds for each warmed function.
+  """
+  @spec warmup(t(), map(), keyword()) :: {:ok, map()} | {:error, term()}
+  def warmup(trainer, sample_batch, opts \\ []) do
+    only = Keyword.get(opts, :only, [:all])
+    show_progress = Keyword.get(opts, :show_progress, true)
+
+    targets =
+      if :all in only do
+        [:training, :validation, :inference]
+      else
+        only
+      end
+
+    timings =
+      Enum.reduce(targets, %{}, fn target, acc ->
+        {time_ms, _result} = :timer.tc(fn -> warmup_target(trainer, sample_batch, target) end, :millisecond)
+
+        if show_progress do
+          IO.write(:stderr, "    ✓ #{target} JIT compiled (#{Float.round(time_ms / 1000, 1)}s)\n")
+        end
+
+        Map.put(acc, target, time_ms)
+      end)
+
+    {:ok, timings}
+  rescue
+    e -> {:error, Exception.message(e)}
+  end
+
+  @doc """
+  Quick warmup with just validation (most common use case).
+
+  Equivalent to `warmup(trainer, sample_batch, only: [:validation])`.
+  """
+  @spec warmup_validation(t(), list()) :: {:ok, map()} | {:error, term()}
+  def warmup_validation(trainer, validation_batches) when is_list(validation_batches) do
+    # Take first 2 batches to warm up both loss computation and Nx.add accumulation
+    warmup_batches = Enum.take(validation_batches, 2)
+
+    {time_ms, _result} = :timer.tc(fn ->
+      evaluate(trainer, warmup_batches, show_progress: false, max_concurrency: 1)
+    end, :millisecond)
+
+    {:ok, %{validation: time_ms}}
+  end
+
+  # Private warmup implementations for each target
+  defp warmup_target(trainer, batch, :training) do
+    %{states: states, actions: actions} = batch
+
+    if trainer.loss_and_grad_fn do
+      # Run one forward+backward pass
+      {_loss, _grads} = trainer.loss_and_grad_fn.(trainer.policy_params, states, actions)
+    end
+
+    :ok
+  end
+
+  defp warmup_target(trainer, batch, :validation) do
+    # Run through evaluate() with 1 batch to warm up entire validation path
+    # including closure wrapper, Nx.add accumulation, Nx.to_number
+    evaluate(trainer, [batch], show_progress: false, max_concurrency: 1)
+    :ok
+  end
+
+  defp warmup_target(trainer, batch, :inference) do
+    %{states: states} = batch
+
+    if trainer.predict_fn do
+      # Run one forward pass
+      _predictions = trainer.predict_fn.(trainer.policy_params, states)
+    end
+
+    :ok
+  end
+
+  @doc """
   Create optimizer with learning rate schedule and gradient clipping.
 
   Supports multiple optimizers:
