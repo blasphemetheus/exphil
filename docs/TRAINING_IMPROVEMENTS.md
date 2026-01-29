@@ -213,6 +213,22 @@ Optimizations identified for reducing per-epoch overhead on large datasets (1.6M
 - **Benefit:** Avoid re-JIT overhead during validation (~5-10s savings)
 - **Implementation:** `build_eval_loss_fn/2` creates JIT-compiled loss function, reused in `evaluate/3`
 
+#### Validation JIT warmup ✅
+- **Status:** COMPLETED (2026-01-29)
+- **Problem:** First epoch validation was 5-10x slower (~8s vs ~15ms) due to JIT compilation
+- **Root cause:** Validation code path includes closure wrappers and `Nx.add` operations not warmed up by training JIT
+- **Solution:** Added dedicated warmup functions in `Imitation` module:
+  ```elixir
+  # Warm up all JIT paths (training, validation, inference)
+  {:ok, timings} = Imitation.warmup(trainer, sample_batch)
+
+  # Warm up just validation (used in training script)
+  {:ok, timings} = Imitation.warmup_validation(trainer, val_batches)
+  ```
+- **How it works:** Runs actual `evaluate/3` on 2 batches before training loop
+- **Benefit:** Eliminates first-epoch validation delay, consistent ~15ms validation time
+- **Key insight:** Calling just the loss function directly doesn't warm up the full code path - must call the actual `evaluate()` function with its closure wrappers and accumulator operations
+
 #### Lazy index shuffling ✅
 - **Status:** COMPLETED (2026-01-29)
 - **Current:** `Enum.shuffle(0..1_600_000)` takes ~2s every epoch
@@ -451,6 +467,7 @@ Optimizations identified for reducing per-epoch overhead on large datasets (1.6M
 - [x] Async checkpoint saving for batch/epoch checkpoints
 - [x] Reduce Enum.to_list calls with lazy streams
 - [x] Adaptive time display (ms/it for fast training)
+- [x] Validation JIT warmup (warmup/3, warmup_validation/2 in Imitation module)
 
 ## Completed
 
