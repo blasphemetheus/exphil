@@ -8,6 +8,65 @@ Training plan to explore ExPhil's capabilities using 129 Mewtwo replays.
 
 ---
 
+## Quick Start: Automated Comparison
+
+Run all architectures with one command:
+
+```bash
+# On RunPod
+./scripts/train_all_architectures.sh --character mewtwo --replays /workspace/replays/mewtwo
+```
+
+This runs MLP, LSTM, GRU, Mamba, Attention, and Jamba with identical hyperparameters for fair comparison.
+
+---
+
+## Key Training Features
+
+### Learned Embeddings (Default)
+New default embeddings (~287 dims) vs old (1204 dims). Enables 2x larger networks at same speed.
+
+```bash
+# Explicit (already default):
+--action-mode learned --character-mode learned --stage-mode compact
+```
+
+### Focal Loss for Rare Actions
+Mewtwo relies on rare buttons: Z (teleport cancel), L/R (wavedash, teching).
+Focal loss upweights hard-to-predict actions.
+
+```bash
+--focal-loss --focal-gamma 2.0
+```
+
+### Label Smoothing
+Prevents overconfidence, improves generalization.
+
+```bash
+--label-smoothing 0.1
+```
+
+### Online Robustness
+Frame delay augmentation for netplay (handles 2-4 frame input delay).
+
+```bash
+--online-robust
+```
+
+---
+
+## Data Expectations
+
+| Replay Count | Expected Outcome |
+|--------------|------------------|
+| 129 (current) | Basic movement, some combos, inconsistent neutral |
+| 500+ | Solid neutral game, better recovery decisions |
+| 2000+ | Tournament-viable, matchup-aware, consistent |
+
+**TODO:** Sync more Mewtwo replays from slippi.gg archives when available.
+
+---
+
 ## Phase 1: Baseline Models (Quick Validation)
 
 Verify the training pipeline works with fast experiments.
@@ -61,6 +120,8 @@ Train identical configs across all backbones to compare architectures.
 - Window: 60 frames
 - LR: cosine schedule with warmup
 - Early stopping: patience=7
+- **Focal loss: gamma=2.0** (better rare action learning)
+- **Learned embeddings** (default, ~287 dims)
 
 ### 2.1 MLP (No Temporal)
 ```bash
@@ -73,7 +134,7 @@ mix run scripts/train_from_replays.exs \
   --lr-schedule cosine \
   --warmup-steps 500 \
   --early-stopping --patience 7 \
-  --augment \
+  --focal-loss --focal-gamma 2.0 \
   --name mlp_mewtwo_full
 ```
 
@@ -91,7 +152,7 @@ mix run scripts/train_from_replays.exs \
   --lr-schedule cosine \
   --warmup-steps 500 \
   --early-stopping --patience 7 \
-  --augment \
+  --focal-loss --focal-gamma 2.0 \
   --name lstm_mewtwo_full
 ```
 
@@ -109,7 +170,7 @@ mix run scripts/train_from_replays.exs \
   --lr-schedule cosine \
   --warmup-steps 500 \
   --early-stopping --patience 7 \
-  --augment \
+  --focal-loss --focal-gamma 2.0 \
   --name gru_mewtwo_full
 ```
 
@@ -128,7 +189,7 @@ mix run scripts/train_from_replays.exs \
   --lr-schedule cosine \
   --warmup-steps 500 \
   --early-stopping --patience 7 \
-  --augment \
+  --focal-loss --focal-gamma 2.0 \
   --name mamba_mewtwo_full
 ```
 
@@ -148,7 +209,7 @@ mix run scripts/train_from_replays.exs \
   --lr-schedule cosine \
   --warmup-steps 500 \
   --early-stopping --patience 7 \
-  --augment \
+  --focal-loss --focal-gamma 2.0 \
   --name attention_mewtwo_full
 ```
 
@@ -167,7 +228,7 @@ mix run scripts/train_from_replays.exs \
   --lr-schedule cosine \
   --warmup-steps 500 \
   --early-stopping --patience 7 \
-  --augment \
+  --focal-loss --focal-gamma 2.0 \
   --name jamba_mewtwo_full
 ```
 

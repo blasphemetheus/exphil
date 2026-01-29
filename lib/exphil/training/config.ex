@@ -2273,12 +2273,12 @@ defmodule ExPhil.Training.Config do
       residual: opts[:residual],
       kmeans_centers: opts[:kmeans_centers],
 
-      # Embedding options
-      stage_mode: opts[:stage_mode] && to_string(opts[:stage_mode]),
-      action_mode: opts[:action_mode] && to_string(opts[:action_mode]),
-      character_mode: opts[:character_mode] && to_string(opts[:character_mode]),
-      nana_mode: opts[:nana_mode] && to_string(opts[:nana_mode]),
-      jumps_normalized: opts[:jumps_normalized],
+      # Embedding options (always capture effective value, not just explicit CLI args)
+      stage_mode: get_embedding_mode(opts, :stage_mode),
+      action_mode: get_embedding_mode(opts, :action_mode),
+      character_mode: get_embedding_mode(opts, :character_mode),
+      nana_mode: get_embedding_mode(opts, :nana_mode),
+      jumps_normalized: Keyword.get(opts, :jumps_normalized, defaults()[:jumps_normalized]),
 
       # Temporal options
       window_size: opts[:window_size],
@@ -2379,6 +2379,17 @@ defmodule ExPhil.Training.Config do
 
   defp format_atom_list(atoms) when is_list(atoms) do
     Enum.map(atoms, &to_string/1)
+  end
+
+  # Get embedding mode with default fallback, converting to string for JSON
+  defp get_embedding_mode(opts, key) do
+    value = Keyword.get(opts, key, defaults()[key])
+
+    case value do
+      nil -> nil
+      atom when is_atom(atom) -> to_string(atom)
+      other -> other
+    end
   end
 
   @doc """
