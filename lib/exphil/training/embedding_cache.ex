@@ -69,10 +69,16 @@ defmodule ExPhil.Training.EmbeddingCache do
     # Serialize config to stable format
     config_data = serialize_config(embed_config)
 
+    # Compute actual embedding size (includes padding logic)
+    # This ensures cache invalidates if embedding_size() implementation changes
+    actual_embed_size = ExPhil.Embeddings.Game.embedding_size(embed_config)
+
     # Build hash input
     hash_input = %{
       files: sorted_files,
       config: config_data,
+      # Include computed embedding size to catch padding/alignment changes
+      embedding_size: actual_embed_size,
       temporal: temporal,
       window_size: window_size,
       stride: stride,
