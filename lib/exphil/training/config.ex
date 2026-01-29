@@ -355,7 +355,8 @@ defmodule ExPhil.Training.Config do
       # Number of noisy variants to precompute (only used with cache_augmented)
       num_noisy_variants: 2,
       # Data prefetching (load next batch while GPU trains)
-      prefetch: true,
+      # Only effective with --stream-chunk-size (streaming mode)
+      prefetch: false,
       # Number of batches to prefetch
       prefetch_buffer: 2,
       # Layer normalization for MLP backbone
