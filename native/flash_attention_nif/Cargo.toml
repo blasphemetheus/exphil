@@ -1,0 +1,34 @@
+[package]
+name = "flash_attention_nif"
+version = "0.1.0"
+edition = "2021"
+authors = ["ExPhil Team"]
+description = "FlashAttention-2 forward pass NIF for inference"
+
+[lib]
+name = "flash_attention_nif"
+path = "src/lib.rs"
+crate-type = ["cdylib"]
+
+[features]
+default = []
+# Enable CUDA support - requires CUDA toolkit and Ampere+ GPU
+cuda = []
+
+[dependencies]
+# Rustler for NIF bindings
+rustler = "0.35"
+
+# Half-precision floats (f16)
+half = "2.4"
+
+# Error handling
+thiserror = "2"
+
+[build-dependencies]
+# For CUDA compilation
+cc = "1.0"
+
+[profile.release]
+opt-level = 3
+lto = true
