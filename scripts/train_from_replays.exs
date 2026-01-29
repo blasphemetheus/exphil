@@ -219,8 +219,8 @@ safe_round = fn
 end
 
 # Format float with fixed decimal places (preserves trailing zeros)
-# e.g., format_fixed.(0.003, 2) => "0.00", format_fixed.(1.5, 2) => "1.50"
-format_fixed = fn
+# e.g., _format_fixed.(0.003, 2) => "0.00", _format_fixed.(1.5, 2) => "1.50"
+_format_fixed = fn
   x, decimals when is_float(x) ->
     cond do
       x != x -> "NaN"
