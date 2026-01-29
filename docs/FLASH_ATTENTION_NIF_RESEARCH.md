@@ -602,3 +602,40 @@ The NIF integration path:
 1. Check `ExPhil.Native.FlashAttention.cuda_available?()`
 2. If true, use NIF for attention in inference loop
 3. If false, fall back to Pure Nx memory-efficient attention
+
+---
+
+## Future Work
+
+### Half-Precision (f16) Support
+
+The current CUDA kernel only supports f32. Adding f16 support would provide:
+
+- **2x memory reduction** - f16 uses half the memory of f32
+- **2x compute throughput** - Tensor cores operate on f16 natively
+- **Better cache utilization** - More values fit in shared memory
+
+Implementation requires:
+1. Add f16 kernel variant in `cuda/flash_attention.cu`
+2. Add FFI declaration in `lib.rs` with `#[cfg(feature = "cuda")]`
+3. Add Elixir binding `forward_f16/4` in `flash_attention.ex`
+4. Convert tensors with `Nx.as_type(tensor, :f16)` before calling
+
+Reference: The official [FlashAttention-2](https://github.com/Dao-AILab/flash-attention) primarily targets f16/bf16 for maximum Tensor Core utilization.
+
+### Backward Pass CUDA Kernel
+
+The backward pass currently uses CPU fallback. A CUDA implementation would:
+
+- Enable GPU-accelerated training with FlashAttention
+- Require implementing Algorithm 4 from the FlashAttention-2 paper
+- Need ~3x more code than forward pass
+
+See `docs/FLASH_ATTENTION_BACKWARD.md` for algorithm details.
+
+### bf16 Support
+
+For Ampere+ GPUs, bf16 offers better numerical stability than f16 for training:
+- Same memory footprint as f16
+- Larger dynamic range (same exponent bits as f32)
+- Native Tensor Core support on Ampere+
