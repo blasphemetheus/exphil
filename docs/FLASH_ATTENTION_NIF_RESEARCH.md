@@ -684,3 +684,76 @@ For Ampere+ GPUs, bf16 offers better numerical stability than f16 for training:
 - Same memory footprint as f16
 - Larger dynamic range (same exponent bits as f32)
 - Native Tensor Core support on Ampere+
+
+---
+
+## Advocating for cuDNN FMHA in EXLA
+
+### Where to Post
+
+1. **GitHub Issues** - [elixir-nx/nx](https://github.com/elixir-nx/nx/issues) - Best for feature requests
+2. **Elixir Forum** - [Machine Learning section](https://elixirforum.com/c/elixir-chat/machine-learning/92) - Community discussion
+3. **Related Issues**:
+   - [#1461](https://github.com/elixir-nx/nx/issues/1461) - "Special node acceleration via metadata" (closed, exploratory)
+   - [Bumblebee #147](https://github.com/elixir-nx/bumblebee/issues/147) - StableDiffusion memory (flash attention marked complete via pure Elixir)
+
+### Draft Feature Request
+
+**Title:** Support cuDNN Fused Multi-Head Attention (FMHA) in EXLA
+
+**Body:**
+
+```markdown
+## Summary
+
+Request to expose XLA's cuDNN FMHA (Flash Attention) support in EXLA for GPU-accelerated attention operations.
+
+## Motivation
+
+JAX provides `jax.nn.dot_product_attention(q, k, v, implementation="cudnn")` which uses cuDNN's fused multi-head attention. This is enabled via `--xla_gpu_enable_cudnn_fmha=true` in XLA.
+
+Benefits:
+- **O(n) memory** vs O(n²) for standard attention
+- **2-4x speedup** on Ampere+ GPUs via Tensor Cores
+- **No custom kernels needed** - maintained by Google/NVIDIA
+
+## Use Case
+
+I'm building a real-time game AI (Super Smash Bros. Melee bot) that needs attention inference at 60 FPS. Currently using Mamba for O(n) memory, but attention-based architectures would benefit from cuDNN FMHA for:
+- Longer context windows without OOM
+- Faster training on temporal sequences
+- Lower inference latency
+
+## Current Workarounds Tried
+
+1. **Pure Nx memory-efficient attention** - Works but slower than cuDNN
+2. **Rust NIF with CUDA kernel** - Host↔device transfers make it slower than EXLA standard attention
+3. **XLA custom calls** - Prototyped GPU custom call in EXLA fork, but requires C++ contribution
+
+## Proposed Solution
+
+Expose cuDNN FMHA through one of:
+1. XLA flag configuration in EXLA client options
+2. New `EXLA.fused_attention/4` function
+3. Nx.Defn compiler optimization that pattern-matches attention operations
+
+## Environment
+
+- EXLA 0.9.x
+- CUDA 12.6
+- cuDNN 9.x
+- RTX 4090 (Ampere+)
+
+## References
+
+- [JAX dot_product_attention docs](https://jax.readthedocs.io/en/latest/_autosummary/jax.nn.dot_product_attention.html)
+- [XLA cuDNN FMHA flag](https://github.com/openxla/xla/blob/main/xla/debug_options_flags.cc) (search `xla_gpu_enable_cudnn_fmha`)
+- [FlashAttention-2 paper](https://arxiv.org/abs/2307.08691)
+```
+
+### When to Post
+
+Consider posting after:
+1. Confirming the feature doesn't exist in latest EXLA
+2. Testing that `XLA_FLAGS=--xla_gpu_enable_cudnn_fmha=true` doesn't already work
+3. Having a concrete benchmark showing the need
