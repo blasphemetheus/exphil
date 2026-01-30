@@ -46,7 +46,7 @@ defmodule ExPhil.MixProject do
 
   defp docs do
     [
-      main: "readme",
+      main: "ExPhil",
       extras: [
         "README.md",
         # Core Guides
