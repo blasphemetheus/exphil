@@ -1327,13 +1327,23 @@ player_registry =
       Output.puts("  Embedding tensor: shape=#{inspect(shape)}, backend=#{inspect(backend)}")
     end
 
+    # GPU transfer threshold - don't bulk transfer very large tensors (>2GB)
+    # For large augmented caches, batch-wise transfer during training is more efficient
+    gpu_transfer_threshold_mb = 2000
+
     base_dataset =
       if has_embeddings and not streaming_mode do
         embedding_size_mb = Nx.byte_size(base_dataset.embedded_frames) / 1_000_000
-        Output.puts("  Transferring embeddings to GPU (#{Float.round(embedding_size_mb, 1)} MB)...")
 
-        gpu_embeddings = Nx.backend_transfer(base_dataset.embedded_frames, EXLA.Backend)
-        %{base_dataset | embedded_frames: gpu_embeddings}
+        if embedding_size_mb <= gpu_transfer_threshold_mb do
+          Output.puts("  Transferring embeddings to GPU (#{Float.round(embedding_size_mb, 1)} MB)...")
+          gpu_embeddings = Nx.backend_transfer(base_dataset.embedded_frames, EXLA.Backend)
+          %{base_dataset | embedded_frames: gpu_embeddings}
+        else
+          Output.puts("  Keeping embeddings on CPU (#{Float.round(embedding_size_mb, 1)} MB > 2GB threshold)")
+          Output.puts("  Batches will be transferred to GPU during training")
+          base_dataset
+        end
       else
         base_dataset
       end
