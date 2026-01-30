@@ -49,13 +49,13 @@ Once the AI can play at a basic level, it plays against itself millions of times
 ### Architecture
 
 ```
-Game State → Embedding (1991 dims) → Temporal Backbone → Policy Head → Controller Output
+Game State → Embedding (288 dims) → Temporal Backbone → Policy Head → Controller Output
                                           ↓
                                     Mamba SSM / Attention
                                     (60-frame context)
 ```
 
-**State Embedding**: Player positions, velocities, action states, damage, stocks, stage, projectiles (~1991 dimensions for full game state)
+**State Embedding**: Player positions, velocities, action states, damage, stocks, stage, projectiles (288 dims with learned embeddings, ~1204 dims with one-hot)
 
 **Temporal Backbone**: [Mamba](https://arxiv.org/abs/2312.00752) state-space model processes 60 frames of context. Achieves 8.9ms inference (vs 220ms for LSTM) while maintaining temporal reasoning.
 

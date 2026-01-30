@@ -33,15 +33,17 @@ defmodule ExPhil do
 
   ### Training from Replays
 
+      # Load replay data (parsed .slp files)
+      dataset = ExPhil.Training.Data.load_dataset("./parsed_replays")
+
       # Create a trainer
       trainer = ExPhil.Training.Imitation.new(
-        embed_size: 287,
+        embed_size: 288,
         hidden_sizes: [512, 512],
         learning_rate: 1.0e-4
       )
 
-      # Load and train on replay data
-      dataset = ExPhil.Training.Data.from_replays("./replays", character: :mewtwo)
+      # Train on the dataset
       {:ok, trained} = ExPhil.Training.Imitation.train(trainer, dataset, epochs: 10)
 
       # Save checkpoint
@@ -55,7 +57,8 @@ defmodule ExPhil do
         policy_path: "checkpoints/mewtwo_v1.axon"
       )
 
-      # Get action for a game state
+      # Get action for a game state (from MeleePort or test data)
+      game_state = %ExPhil.Bridge.GameState{frame: 0, stage: 32, players: %{}}
       {:ok, action} = ExPhil.Agents.Agent.get_action(agent, game_state)
 
   ### CLI Training

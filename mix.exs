@@ -66,14 +66,19 @@ defmodule ExPhil.MixProject do
         "docs/SELF_PLAY_ARCHITECTURE.md",
         # Deployment
         "docs/docker-workflow.md",
-        "docs/REPLAY_STORAGE.md"
+        "docs/REPLAY_STORAGE.md",
+        "docs/RUNPOD_FILTER.md",
+        # Meta
+        "CHANGELOG.md",
+        "LICENSE"
       ],
       groups_for_extras: [
         "Getting Started": ~r/README/,
         "Core Guides": ~r/(ARCHITECTURE|TRAINING|INFERENCE|DOLPHIN|SCRIPTS)/,
         Reference: ~r/(GOTCHAS|TESTING|GOALS)/,
         "Advanced Topics": ~r/(EMBEDDING|GPU|MAMBA|SELF_PLAY)/,
-        Deployment: ~r/(docker|REPLAY_STORAGE)/
+        Deployment: ~r/(docker|REPLAY_STORAGE|RUNPOD)/,
+        Meta: ~r/(CHANGELOG|LICENSE)/
       ],
       groups_for_modules: [
         Training: [
