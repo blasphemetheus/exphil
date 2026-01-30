@@ -1009,5 +1009,40 @@ defmodule ExPhil.Training.DataTest do
       assert cached != nil, "frames_array should be cached in process dictionary"
       assert :array.size(cached) == 1000
     end
+
+    @tag :benchmark
+    @tag timeout: 30_000
+    test "Data.split completes in reasonable time for 100K frames (regression for O(n²) bug)" do
+      # This test guards against regression of the O(n²) bug in Data.split
+      # where Enum.at on list caused 1.8M frames to take 10+ minutes.
+      # With the fix (Erlang :array), 100K frames should complete in < 5s.
+      #
+      # See GOTCHAS.md #48: Data.split O(n²) causes multi-minute hangs
+
+      num_frames = 100_000
+      frames = for i <- 0..(num_frames - 1), do: mock_frame(frame: i)
+      dataset = Data.from_frames(frames)
+
+      # Measure split time
+      {time_us, {train_ds, val_ds}} = :timer.tc(fn ->
+        Data.split(dataset, ratio: 0.9, shuffle: true)
+      end)
+
+      time_ms = time_us / 1000
+      time_s = time_ms / 1000
+
+      # Should complete in under 5 seconds (with fix it's ~100ms)
+      # The old O(n²) implementation would take ~10s for 100K frames
+      assert time_s < 5.0,
+        "Data.split took #{Float.round(time_s, 2)}s for #{num_frames} frames. " <>
+        "This suggests O(n²) regression. Expected < 5s with O(n log n) implementation."
+
+      # Verify correctness
+      assert train_ds.size == 90_000
+      assert val_ds.size == 10_000
+      assert train_ds.size + val_ds.size == num_frames
+
+      IO.puts("\n  [Regression] Data.split for #{num_frames} frames: #{Float.round(time_ms, 1)}ms")
+    end
   end
 end

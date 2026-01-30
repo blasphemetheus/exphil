@@ -51,6 +51,7 @@ Hard-won knowledge from debugging ExPhil. Each section documents a specific issu
 45. [O(n) list traversal for action collection causes ~28s/batch](#45-on-list-traversal-for-action-collection-causes-28sbatch)
 46. [LSTM/GRU gradient explosion causes NaN loss mid-training](#46-lstmgru-gradient-explosion-causes-nan-loss-mid-training)
 47. [--cache-augmented with large datasets causes GPU OOM and CPU bottlenecks](#47---cache-augmented-with-large-datasets-causes-gpu-oom-and-cpu-bottlenecks)
+48. [Data.split O(n²) causes multi-minute hangs on large datasets](#48-datasplit-on²-causes-multi-minute-hangs-on-large-datasets)
 
 ---
 
@@ -2024,3 +2025,49 @@ On-the-fly augmentation keeps base embeddings small and applies augmentation per
 | <100K frames | <1GB | `--cache-augmented` works fine |
 | 100K-500K frames | 1-5GB | `--cache-augmented` works but slow startup |
 | >500K frames | >5GB | Use `--augment` (on-the-fly) instead |
+
+## 48. Data.split O(n²) causes multi-minute hangs on large datasets
+
+**Status:** FIXED
+
+**Symptom:** Training appears stuck after "Transferring embeddings to GPU" message. GPU shows 90% VRAM allocated but only 11% utilization. CPU is at 100% but no progress output.
+
+**Example timeline:**
+```
+[01:26:15]   Transferring embeddings to GPU (2104.4 MB)...
+# ... nothing for 10+ minutes, CPU at 100%
+```
+
+**Root cause:** `Data.split/2` used `Enum.at/2` to gather elements by shuffled indices:
+
+```elixir
+# BAD - O(n) per lookup × n lookups = O(n²)
+train_frames = Enum.map(train_indices, &Enum.at(dataset.frames, &1))
+```
+
+For 1.8M frames: 1.8M × average 900K traversal = **1.6 trillion operations**.
+
+`Enum.at/2` on a linked list must traverse from the head to reach each index. This is O(n) per access, making the gather operation O(n²) overall.
+
+**The fix:** Convert list to Erlang `:array` (functional array with O(log n) lookups):
+
+```elixir
+# GOOD - O(log n) per lookup × n lookups = O(n log n)
+frames_array = :array.from_list(dataset.frames)
+train_frames = Enum.map(train_indices, &:array.get(&1, frames_array))
+```
+
+**Performance impact:**
+| Dataset Size | Before (O(n²)) | After (O(n log n)) |
+|--------------|----------------|-------------------|
+| 10K frames | ~100ms | ~10ms |
+| 100K frames | ~10s | ~100ms |
+| 1.8M frames | **10+ minutes** | **~2s** |
+
+**Code location:** `lib/exphil/training/data.ex:864` - `split/2` function
+
+**Why this wasn't caught earlier:** Small test datasets (< 10K frames) don't exhibit noticeable slowdown. The O(n²) only becomes catastrophic at scale.
+
+**Lesson learned:** Always benchmark data pipeline operations with production-scale datasets, not just unit test sizes. Add performance regression tests for critical paths.
+
+**Regression test:** `test/exphil/training/data_test.exs` includes a `@tag :benchmark` test that verifies split completes in < 5s for 100K frames.
