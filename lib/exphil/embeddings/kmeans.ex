@@ -309,6 +309,95 @@ defmodule ExPhil.Embeddings.KMeans do
   end
 
   @doc """
+  Load K-means centers from a config map/keyword if kmeans_centers path is present.
+
+  This is a convenience function for scripts that need to load K-means centers
+  from a model config or training opts.
+
+  ## Options
+    - `:key` - Config key to look for (default: :kmeans_centers or "kmeans_centers")
+    - `:warn_missing` - Log warning if path exists but file not found (default: false)
+    - `:logger` - Function to call for warnings: `fn msg -> ... end`
+
+  ## Examples
+
+      # From model config (supports both atom and string keys)
+      centers = KMeans.load_from_config(model_config)
+
+      # From training opts
+      centers = KMeans.load_from_config(opts, warn_missing: true)
+
+  ## Returns
+    - `{:ok, centers}` if loaded successfully
+    - `:not_configured` if no kmeans_centers path in config
+    - `{:error, :file_not_found, path}` if path configured but file missing
+  """
+  @spec load_from_config(map() | keyword(), keyword()) ::
+          {:ok, Nx.Tensor.t()} | :not_configured | {:error, :file_not_found, String.t()}
+  def load_from_config(config, opts \\ []) do
+    warn_missing = Keyword.get(opts, :warn_missing, false)
+    logger = Keyword.get(opts, :logger)
+
+    # Support both atom and string keys
+    path = cond do
+      is_map(config) -> Map.get(config, :kmeans_centers) || Map.get(config, "kmeans_centers")
+      is_list(config) -> Keyword.get(config, :kmeans_centers)
+      true -> nil
+    end
+
+    cond do
+      is_nil(path) or path == "" ->
+        :not_configured
+
+      File.exists?(path) ->
+        load(path)
+
+      true ->
+        if warn_missing and logger do
+          logger.("K-means centers not found at #{path}, using uniform buckets")
+        end
+        {:error, :file_not_found, path}
+    end
+  end
+
+  @doc """
+  Load K-means centers from config, returning tensor or nil.
+
+  Simpler version of `load_from_config/2` that returns the tensor directly
+  or nil if not configured/not found.
+
+  ## Examples
+
+      centers = KMeans.load_from_config!(model_config)
+      # Returns Nx.Tensor or nil
+  """
+  @spec load_from_config!(map() | keyword(), keyword()) :: Nx.Tensor.t() | nil
+  def load_from_config!(config, opts \\ []) do
+    case load_from_config(config, opts) do
+      {:ok, centers} -> centers
+      _ -> nil
+    end
+  end
+
+  @doc """
+  Return a summary string describing the K-means centers.
+
+  Useful for logging configuration.
+
+  ## Examples
+
+      iex> KMeans.info_string(centers)
+      "21 clusters, range [0.003, 0.996]"
+  """
+  @spec info_string(Nx.Tensor.t()) :: String.t()
+  def info_string(centers) do
+    k = Nx.axis_size(centers, 0)
+    min_val = Nx.reduce_min(centers) |> Nx.to_number() |> Float.round(3)
+    max_val = Nx.reduce_max(centers) |> Nx.to_number() |> Float.round(3)
+    "#{k} clusters, range [#{min_val}, #{max_val}]"
+  end
+
+  @doc """
   Generate default cluster centers using uniform spacing.
 
   This is a fallback when K-means has not been trained. Uses the same

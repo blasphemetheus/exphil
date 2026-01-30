@@ -222,4 +222,78 @@ defmodule ExPhil.Embeddings.KMeansTest do
       assert nil == KMeans.load!("/nonexistent/path/centers.nx")
     end
   end
+
+  describe "load_from_config/2" do
+    @tag :tmp_dir
+    test "loads centers when path exists in config", %{tmp_dir: tmp_dir} do
+      centers = Nx.tensor([0.0, 0.5, 1.0])
+      path = Path.join(tmp_dir, "centers.nx")
+      KMeans.save(centers, path)
+
+      config = %{kmeans_centers: path}
+      assert {:ok, loaded} = KMeans.load_from_config(config)
+      assert Nx.to_flat_list(loaded) == Nx.to_flat_list(centers)
+    end
+
+    test "returns :not_configured when no path in config" do
+      assert :not_configured = KMeans.load_from_config(%{})
+      assert :not_configured = KMeans.load_from_config([])
+      assert :not_configured = KMeans.load_from_config(%{kmeans_centers: nil})
+    end
+
+    test "returns error when path configured but file missing" do
+      config = %{kmeans_centers: "/nonexistent/path.nx"}
+      assert {:error, :file_not_found, "/nonexistent/path.nx"} = KMeans.load_from_config(config)
+    end
+
+    test "supports string keys in map" do
+      config = %{"kmeans_centers" => "/nonexistent/path.nx"}
+      assert {:error, :file_not_found, "/nonexistent/path.nx"} = KMeans.load_from_config(config)
+    end
+
+    test "supports keyword list config" do
+      config = [kmeans_centers: "/nonexistent/path.nx"]
+      assert {:error, :file_not_found, "/nonexistent/path.nx"} = KMeans.load_from_config(config)
+    end
+  end
+
+  describe "load_from_config!/2" do
+    @tag :tmp_dir
+    test "returns tensor when found", %{tmp_dir: tmp_dir} do
+      centers = Nx.tensor([0.0, 0.5, 1.0])
+      path = Path.join(tmp_dir, "centers.nx")
+      KMeans.save(centers, path)
+
+      config = %{kmeans_centers: path}
+      loaded = KMeans.load_from_config!(config)
+      assert Nx.to_flat_list(loaded) == Nx.to_flat_list(centers)
+    end
+
+    test "returns nil when not configured" do
+      assert nil == KMeans.load_from_config!(%{})
+    end
+
+    test "returns nil when file missing" do
+      config = %{kmeans_centers: "/nonexistent/path.nx"}
+      assert nil == KMeans.load_from_config!(config)
+    end
+  end
+
+  describe "info_string/1" do
+    test "returns summary of centers" do
+      centers = Nx.tensor([0.0, 0.25, 0.5, 0.75, 1.0])
+      info = KMeans.info_string(centers)
+
+      assert info =~ "5 clusters"
+      assert info =~ "0.0"
+      assert info =~ "1.0"
+    end
+
+    test "formats range correctly" do
+      centers = Nx.tensor([0.003, 0.5, 0.996])
+      info = KMeans.info_string(centers)
+
+      assert info == "3 clusters, range [0.003, 0.996]"
+    end
+  end
 end
