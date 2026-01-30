@@ -1538,6 +1538,9 @@ defmodule ExPhil.Networks.Policy do
     label_smoothing = Keyword.get(opts, :label_smoothing, 0.0)
     focal_loss = Keyword.get(opts, :focal_loss, false)
     focal_gamma = Keyword.get(opts, :focal_gamma, 2.0)
+    # Button weight: multiply button loss to balance against 5 categorical losses
+    # Default 1.0 = no change; try 3.0-5.0 to boost button learning
+    button_weight = Keyword.get(opts, :button_weight, 1.0)
 
     # Choose loss functions based on focal_loss flag
     {button_loss_fn, cat_loss_fn} =
@@ -1555,7 +1558,11 @@ defmodule ExPhil.Networks.Policy do
       end
 
     # Button loss (binary cross-entropy with optional label smoothing + focal)
-    button_loss = button_loss_fn.(logits.buttons, targets.buttons, label_smoothing)
+    # Apply button_weight to boost button loss relative to stick/shoulder losses
+    button_loss = Nx.multiply(
+      button_loss_fn.(logits.buttons, targets.buttons, label_smoothing),
+      button_weight
+    )
 
     # Stick losses (categorical cross-entropy with optional label smoothing + focal)
     main_x_loss = cat_loss_fn.(logits.main_x, targets.main_x, label_smoothing)

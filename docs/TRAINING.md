@@ -228,6 +228,7 @@ mix run scripts/train_from_replays.exs --dual-port
 | `--label-smoothing X` | 0.0 | Label smoothing (0.1 = typical) |
 | `--focal-loss` | false | Enable focal loss for rare actions |
 | `--focal-gamma X` | 2.0 | Focal loss gamma (higher = focus on hard) |
+| `--button-weight X` | 1.0 | Multiply button loss (try 3.0-5.0 to boost buttons) |
 
 **Augmented Embedding Cache (Recommended)**
 

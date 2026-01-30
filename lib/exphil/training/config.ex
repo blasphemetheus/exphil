@@ -118,6 +118,7 @@ defmodule ExPhil.Training.Config do
     "--dropout",
     "--focal-loss",
     "--focal-gamma",
+    "--button-weight",
     "--no-register",
     "--keep-best",
     "--ema",
@@ -349,6 +350,9 @@ defmodule ExPhil.Training.Config do
       focal_loss: false,
       # Higher = more focus on hard examples
       focal_gamma: 2.0,
+      # Button loss weight: multiply button loss to balance vs 5 stick/shoulder losses
+      # Default 1.0 = equal weight; try 3.0-5.0 to boost button learning
+      button_weight: 1.0,
       # Registry
       no_register: false,
       # Checkpoint pruning
@@ -2014,6 +2018,7 @@ defmodule ExPhil.Training.Config do
     |> parse_float_arg(args, "--dropout", :dropout)
     |> parse_flag(args, "--focal-loss", :focal_loss)
     |> parse_float_arg(args, "--focal-gamma", :focal_gamma)
+    |> parse_float_arg(args, "--button-weight", :button_weight)
     |> parse_flag(args, "--no-register", :no_register)
     |> parse_optional_int_arg(args, "--keep-best", :keep_best)
     |> parse_flag(args, "--ema", :ema)
@@ -2402,6 +2407,7 @@ defmodule ExPhil.Training.Config do
       dropout: opts[:dropout],
       focal_loss: opts[:focal_loss],
       focal_gamma: opts[:focal_gamma],
+      button_weight: opts[:button_weight],
       ema: opts[:ema],
       ema_decay: opts[:ema_decay],
 
