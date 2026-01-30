@@ -1,6 +1,6 @@
 # ExPhil - Elixir Phil
 
-ExPhil is an Elixir-based successor to slippi-ai, creating high-ELO playable bots for lower-tier Melee characters (Mewtwo, G&W, Link, Ganondorf, Zelda).
+ExPhil is an Elixir-based successor to slippi-ai, creating high-ELO playable bots for lower-tier Melee characters (Mewtwo, G&W, Link, Ganondorf, Zelda, Ice Climbers).
 
 ## Quick Reference
 

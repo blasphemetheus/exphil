@@ -1,6 +1,6 @@
 # ExPhil - AI for Melee's Forgotten Characters
 
-**Teaching neural networks to play Mewtwo, Ganondorf, Link, Zelda, and Game & Watch at a high level.**
+**Teaching neural networks to play Mewtwo, Ganondorf, Link, Zelda, Ice Climbers, and Game & Watch at a high level.**
 
 ExPhil is building competitive AI agents for Melee's lower-tier characters using imitation learning from human replays, followed by reinforcement learning refinement. The goal: bots that play these characters *well*, not just bots that play them.
 
@@ -16,6 +16,7 @@ ExPhil is building competitive AI agents for Melee's lower-tier characters using
 | **Ganondorf** | Punish optimization, spacing, stomp setups |
 | **Link** | Projectile zoning, bomb recovery, zair |
 | **Zelda** | Transform decisions, lightning kick spacing |
+| **Ice Climbers** | Desync tech, wobbling, handoffs, dual-character control |
 | **Game & Watch** | Bucket, only fair/dair L-cancels, hammer RNG |
 
 ### How to Donate Replays

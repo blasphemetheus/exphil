@@ -27,6 +27,7 @@ defmodule ExPhil do
   | Link | Projectiles, tether recovery, bomb tech |
   | Ganondorf | Slow but powerful, spacing emphasis |
   | Zelda | Transform mechanics, sweetspot spacing |
+  | Ice Climbers | Desync tech, wobbling, handoffs, dual-character control |
 
   ## Quick Start
 
