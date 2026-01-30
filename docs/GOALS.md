@@ -255,6 +255,27 @@ Current embedding size is **1204 dimensions** with all optimizations enabled.
 
 ### 4.1 UX Improvement Ideas
 
+**Script Standardization (CLI Module)**
+
+Created `ExPhil.CLI` module for standardized argument parsing across scripts.
+
+| Task | Effort | Status |
+|------|--------|--------|
+| Create CLI module with flag groups | Medium | **Done** |
+| Migrate eval_model.exs | Low | **Done** |
+| Migrate benchmark_architectures.exs | Low | Todo |
+| Migrate play_dolphin.exs | Low | Todo |
+| Migrate train_ppo.exs | Low | Todo |
+| Migrate analyze_replays.exs | Low | Todo |
+| Add `:benchmark` flag group | Low | Todo |
+| Add `:dolphin` flag group | Low | Todo |
+
+**Benefits:**
+- Consistent verbosity handling (`--quiet`/`--verbose`) across all scripts
+- Reusable flag groups (`:verbosity`, `:replay`, `:checkpoint`, `:training`)
+- Auto-generated help text from flag definitions
+- Testable parsing logic (31 tests in `cli_test.exs`)
+
 **Training Feedback & Progress**
 
 | Idea | Effort | Description | Status |
