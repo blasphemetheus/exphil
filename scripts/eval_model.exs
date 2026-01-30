@@ -116,8 +116,8 @@ Output.config([
   {"Player port", opts[:player_port]},
   {"Character filter", opts[:character] || "none"},
   {"Temporal", opts[:temporal]},
-  {"Backbone", if(opts[:temporal], do: opts[:backbone], else: "n/a")},
-  {"Window size", if(opts[:temporal], do: opts[:window_size], else: "n/a")},
+  {"Backbone", if(opts[:temporal], do: opts[:backbone], else: "mlp")},
+  {"Window size", if(opts[:temporal], do: opts[:window_size], else: "-")},
   {"Models to evaluate", length(model_paths)}
 ])
 
