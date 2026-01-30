@@ -14,7 +14,9 @@ defmodule ExPhil.MixProject do
       # Docs
       name: "ExPhil",
       description: "Elixir-based Melee AI for lower-tier characters",
-      source_url: "https://github.com/yourusername/exphil",
+      source_url: "https://github.com/blasphemetheus/exphil",
+      homepage_url: "https://github.com/blasphemetheus/exphil",
+      docs: docs(),
 
       # Test coverage
       test_coverage: [tool: ExCoveralls],
@@ -41,6 +43,103 @@ defmodule ExPhil.MixProject do
 
   defp elixirc_paths(:test), do: ["lib", "test/support"]
   defp elixirc_paths(_), do: ["lib"]
+
+  defp docs do
+    [
+      main: "readme",
+      extras: [
+        "README.md",
+        # Core Guides
+        "docs/ARCHITECTURE.md",
+        "docs/TRAINING.md",
+        "docs/INFERENCE.md",
+        "docs/DOLPHIN.md",
+        "docs/SCRIPTS.md",
+        # Reference
+        "docs/GOTCHAS.md",
+        "docs/TESTING.md",
+        "docs/GOALS.md",
+        # Advanced Topics
+        "docs/EMBEDDING_DIMENSIONS.md",
+        "docs/GPU_OPTIMIZATIONS.md",
+        "docs/MAMBA_OPTIMIZATIONS.md",
+        "docs/SELF_PLAY_ARCHITECTURE.md",
+        # Deployment
+        "docs/docker-workflow.md",
+        "docs/REPLAY_STORAGE.md"
+      ],
+      groups_for_extras: [
+        "Getting Started": ~r/README/,
+        "Core Guides": ~r/(ARCHITECTURE|TRAINING|INFERENCE|DOLPHIN|SCRIPTS)/,
+        Reference: ~r/(GOTCHAS|TESTING|GOALS)/,
+        "Advanced Topics": ~r/(EMBEDDING|GPU|MAMBA|SELF_PLAY)/,
+        Deployment: ~r/(docker|REPLAY_STORAGE)/
+      ],
+      groups_for_modules: [
+        Training: [
+          ExPhil.Training.Imitation,
+          ExPhil.Training.Config,
+          ExPhil.Training.Data,
+          ExPhil.Training.PPO,
+          ExPhil.Training.Output,
+          ExPhil.Training.EarlyStopping,
+          ExPhil.Training.Checkpoint,
+          ExPhil.Training.EMA,
+          ExPhil.Training.LRFinder,
+          ExPhil.Training.Augmentation
+        ],
+        Embeddings: [
+          ExPhil.Embeddings,
+          ExPhil.Embeddings.Game,
+          ExPhil.Embeddings.Player,
+          ExPhil.Embeddings.Controller,
+          ExPhil.Embeddings.Primitives,
+          ExPhil.Embeddings.KMeans
+        ],
+        Networks: [
+          ExPhil.Networks.Policy,
+          ExPhil.Networks.Value,
+          ExPhil.Networks.ActorCritic,
+          ExPhil.Networks.GatedSSM,
+          ExPhil.Networks.Mamba,
+          ExPhil.Networks.Attention,
+          ExPhil.Networks.Recurrent,
+          ExPhil.Networks.Hybrid
+        ],
+        Bridge: [
+          ExPhil.Bridge.MeleePort,
+          ExPhil.Bridge.AsyncRunner,
+          ExPhil.Bridge.GameState,
+          ExPhil.Bridge.Player,
+          ExPhil.Bridge.ControllerState,
+          ExPhil.Bridge.ControllerInput
+        ],
+        Agents: [
+          ExPhil.Agents.Agent,
+          ExPhil.Agents.Supervisor
+        ],
+        "Self-Play": [
+          ExPhil.Training.SelfPlay.SelfPlayEnv,
+          ExPhil.Training.SelfPlay.OpponentPool,
+          ExPhil.Training.SelfPlay.LeagueTrainer
+        ],
+        Utilities: [
+          ExPhil.Training.Utils,
+          ExPhil.Training.GPUUtils,
+          ExPhil.Training.Metrics,
+          ExPhil.Training.Registry,
+          ExPhil.Training.Help
+        ]
+      ],
+      nest_modules_by_prefix: [
+        ExPhil.Training,
+        ExPhil.Embeddings,
+        ExPhil.Networks,
+        ExPhil.Bridge,
+        ExPhil.Agents
+      ]
+    ]
+  end
 
   defp deps do
     [
