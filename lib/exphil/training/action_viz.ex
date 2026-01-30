@@ -339,7 +339,25 @@ defmodule ExPhil.Training.ActionViz do
   end
 
   defp update_button_counts_list(counts, buttons) when is_list(buttons) do
-    Enum.reduce(buttons, counts, fn button, acc ->
+    # Handle both list of atoms [:a, :b] and list of 0/1 values [0, 1, 0, ...]
+    button_atoms =
+      case buttons do
+        [first | _] when is_atom(first) ->
+          # Already atoms
+          buttons
+
+        [first | _] when is_number(first) ->
+          # Convert 0/1 values to button atoms
+          buttons
+          |> Enum.with_index()
+          |> Enum.filter(fn {v, _} -> v > 0.5 end)
+          |> Enum.map(fn {_, i} -> Enum.at(@button_names, i) end)
+
+        [] ->
+          []
+      end
+
+    Enum.reduce(button_atoms, counts, fn button, acc ->
       if Map.has_key?(acc, button) do
         Map.update!(acc, button, &(&1 + 1))
       else
