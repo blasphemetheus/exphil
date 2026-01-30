@@ -99,6 +99,7 @@ defmodule ExPhil.Training.Config do
     "--save-every",
     "--save-every-batches",
     "--lr",
+    "--learning-rate",
     "--lr-schedule",
     "--warmup-steps",
     "--decay-steps",
@@ -114,6 +115,7 @@ defmodule ExPhil.Training.Config do
     "--noise-prob",
     "--noise-scale",
     "--label-smoothing",
+    "--dropout",
     "--focal-loss",
     "--focal-gamma",
     "--no-register",
@@ -340,6 +342,9 @@ defmodule ExPhil.Training.Config do
       # Label smoothing
       # 0.0 = no smoothing, 0.1 = typical value
       label_smoothing: 0.0,
+      # Dropout rate (0.0 = no dropout, 0.1 = typical)
+      # Note: MLP backbone defaults to 0.1 if not specified
+      dropout: nil,
       # Focal loss for rare actions (Z, L, R buttons)
       focal_loss: false,
       # Higher = more focus on hard examples
@@ -1743,11 +1748,26 @@ defmodule ExPhil.Training.Config do
   end
 
   defp warn_large_batch_size(warnings, opts) do
-    if opts[:batch_size] && opts[:batch_size] > 256 do
+    # Only warn about large batch sizes on CPU - GPUs handle large batches fine
+    if opts[:batch_size] && opts[:batch_size] > 256 && not gpu_available?() do
       msg = "batch_size #{opts[:batch_size]} > 256 may cause memory issues on CPU"
       [Help.warning_with_help(msg, :batch_size) | warnings]
     else
       warnings
+    end
+  end
+
+  defp gpu_available? do
+    # Check if EXLA with CUDA is available
+    case System.get_env("EXLA_TARGET") do
+      "cuda" -> true
+      _ ->
+        # Also check if EXLA detected a GPU
+        try do
+          ExPhil.Training.GPUUtils.gpu_available?()
+        rescue
+          _ -> false
+        end
     end
   end
 
@@ -1975,6 +1995,7 @@ defmodule ExPhil.Training.Config do
     |> parse_optional_int_arg(args, "--save-every", :save_every)
     |> parse_optional_int_arg(args, "--save-every-batches", :save_every_batches)
     |> parse_float_arg(args, "--lr", :learning_rate)
+    |> parse_float_arg(args, "--learning-rate", :learning_rate)
     |> parse_atom_arg(args, "--lr-schedule", :lr_schedule)
     |> parse_optional_int_arg(args, "--warmup-steps", :warmup_steps)
     |> parse_optional_int_arg(args, "--decay-steps", :decay_steps)
@@ -1990,6 +2011,7 @@ defmodule ExPhil.Training.Config do
     |> parse_float_arg(args, "--noise-prob", :noise_prob)
     |> parse_float_arg(args, "--noise-scale", :noise_scale)
     |> parse_float_arg(args, "--label-smoothing", :label_smoothing)
+    |> parse_float_arg(args, "--dropout", :dropout)
     |> parse_flag(args, "--focal-loss", :focal_loss)
     |> parse_float_arg(args, "--focal-gamma", :focal_gamma)
     |> parse_flag(args, "--no-register", :no_register)
@@ -2256,20 +2278,33 @@ defmodule ExPhil.Training.Config do
 
       timestamp = generate_timestamp()
       backbone = if opts[:temporal], do: opts[:backbone], else: :mlp
-      name = opts[:name] || Naming.generate()
+      auto_name = Naming.generate()
+      user_name = opts[:name]
       character = opts[:character]
 
+      # If user provided a name, use it directly without backbone prefix
+      # If auto-generated, include backbone for clarity
       checkpoint_name =
-        if character do
-          "checkpoints/#{character}_#{backbone}_#{name}_#{timestamp}.axon"
-        else
-          "checkpoints/#{backbone}_#{name}_#{timestamp}.axon"
+        cond do
+          user_name && character ->
+            "checkpoints/#{character}_#{user_name}_#{timestamp}.axon"
+
+          user_name ->
+            "checkpoints/#{user_name}_#{timestamp}.axon"
+
+          character ->
+            "checkpoints/#{character}_#{backbone}_#{auto_name}_#{timestamp}.axon"
+
+          true ->
+            "checkpoints/#{backbone}_#{auto_name}_#{timestamp}.axon"
         end
 
-      # Store the generated name in opts for display
+      # Store the effective name in opts for display
+      display_name = user_name || auto_name
+
       opts
       |> Keyword.put(:checkpoint, checkpoint_name)
-      |> Keyword.put(:name, name)
+      |> Keyword.put(:name, display_name)
     end
   end
 
@@ -2347,7 +2382,6 @@ defmodule ExPhil.Training.Config do
       attention_every: opts[:attention_every],
       num_heads: opts[:num_heads],
       head_dim: opts[:head_dim],
-      dropout: opts[:dropout],
 
       # Training parameters
       epochs: opts[:epochs],
@@ -2365,6 +2399,7 @@ defmodule ExPhil.Training.Config do
 
       # Regularization
       label_smoothing: opts[:label_smoothing],
+      dropout: opts[:dropout],
       focal_loss: opts[:focal_loss],
       focal_gamma: opts[:focal_gamma],
       ema: opts[:ema],

@@ -571,9 +571,11 @@ if opts[:early_stopping] and opts[:val_split] == 0.0 do
 end
 
 # Warn about caching with augmentation (cache would be invalid)
-if opts[:cache_embeddings] and opts[:augment] do
+# But NOT if using --cache-augmented, which is designed for this case
+if opts[:cache_embeddings] and opts[:augment] and not opts[:cache_augmented] do
   Output.warning("--cache-embeddings with --augment is not recommended")
   Output.puts("    Augmentation randomizes data each run, making cached embeddings invalid")
+  Output.puts("    Use --cache-augmented instead to precompute augmented variants")
 end
 
 # Warn about caching without precompute (nothing to cache)

@@ -222,6 +222,25 @@ defmodule ExPhil.Training.ConfigTest do
 
       assert result[:checkpoint] == "models/v2/policy.axon"
     end
+
+    test "user-provided --name does not get backbone prefix" do
+      # When user provides --name mlp_mewtwo_prod, it should NOT become mlp_mlp_mewtwo_prod
+      opts = [checkpoint: nil, temporal: false, backbone: :mlp, name: "mlp_mewtwo_prod"]
+      result = Config.ensure_checkpoint_name(opts)
+
+      # Format: checkpoints/name_timestamp.axon (no backbone prefix)
+      assert result[:checkpoint] =~ ~r/checkpoints\/mlp_mewtwo_prod_\d{8}_\d{6}\.axon/
+      assert result[:name] == "mlp_mewtwo_prod"
+    end
+
+    test "user-provided --name with character does not get backbone prefix" do
+      opts = [checkpoint: nil, temporal: false, backbone: :mlp, name: "my_model", character: :mewtwo]
+      result = Config.ensure_checkpoint_name(opts)
+
+      # Format: checkpoints/character_name_timestamp.axon (no backbone prefix)
+      assert result[:checkpoint] =~ ~r/checkpoints\/mewtwo_my_model_\d{8}_\d{6}\.axon/
+      assert result[:name] == "my_model"
+    end
   end
 
   describe "generate_timestamp/1" do

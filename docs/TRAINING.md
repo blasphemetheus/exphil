@@ -116,7 +116,7 @@ mix run scripts/train_from_replays.exs --dual-port
 | `--train-character CHAR` | nil | Auto-select port with this character |
 | `--dual-port` | false | Train on BOTH players (2x data) |
 | `--hidden N,N` | 512,512 | Hidden layer sizes |
-| `--lr X` | 1e-4 | Learning rate |
+| `--lr X` | 1e-4 | Learning rate (alias: `--learning-rate`) |
 | `--dropout X` | 0.1 | Dropout rate |
 | `--name NAME` | nil | Custom checkpoint name |
 | `--preset NAME` | nil | Training preset (quick, standard, full, mewtwo) |
