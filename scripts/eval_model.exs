@@ -6,85 +6,40 @@
 #   mix run scripts/eval_model.exs --policy checkpoints/model_policy.bin --replays ~/replays
 #   mix run scripts/eval_model.exs --compare model1.axon model2.axon --replays ~/replays
 #
-# Options:
-#   --checkpoint PATH   - Full checkpoint (.axon) for evaluation
-#   --policy PATH       - Exported policy (.bin) for evaluation
-#   --replays PATH      - Path to test replays (default: ../replays)
-#   --max-files N       - Maximum replay files to use (default: 20)
-#   --batch-size N      - Evaluation batch size (default: 64)
-#   --player PORT       - Player port to evaluate (1-4, default: 1)
-#   --character NAME    - Filter replays by character (optional)
-#   --compare P1 P2 ... - Compare multiple checkpoints/policies
-#   --detailed          - Show detailed per-component metrics
-#   --output PATH       - Save results to JSON file
-#   --quiet, -q         - Suppress all non-essential output
-#   --verbose, -v       - Show debug output including XLA logs
-#
 # Metrics Computed:
 #   - Average loss (cross-entropy)
 #   - Per-component accuracy (buttons, main_x, main_y, c_x, c_y, shoulder)
 #   - Top-3 accuracy for stick axes
 #   - Overall weighted accuracy
 
-require Logger
-
+alias ExPhil.CLI
 alias ExPhil.Training.Output
 alias ExPhil.Data.Peppi
 alias ExPhil.Training.{ActionViz, Checkpoint, Data}
 alias ExPhil.Networks.Policy
 alias ExPhil.Embeddings
 
-# Parse command line arguments
-args = System.argv()
+# Parse command line arguments using CLI module
+opts = CLI.parse_args(System.argv(),
+  flags: [:verbosity, :replay, :checkpoint, :evaluation],
+  extra: [
+    compare: :boolean,
+    temporal: :boolean,
+    backbone: :string,
+    window_size: :integer
+  ],
+  defaults: [
+    max_files: 20,
+    batch_size: 64
+  ]
+)
 
-{opts, positional, _} =
-  OptionParser.parse(args,
-    strict: [
-      checkpoint: :string,
-      policy: :string,
-      replays: :string,
-      max_files: :integer,
-      batch_size: :integer,
-      player: :integer,
-      character: :string,
-      compare: :boolean,
-      detailed: :boolean,
-      output: :string,
-      help: :boolean,
-      quiet: :boolean,
-      verbose: :boolean,
-      # Temporal model options
-      temporal: :boolean,
-      backbone: :string,
-      window_size: :integer
-    ],
-    aliases: [
-      c: :checkpoint,
-      p: :policy,
-      r: :replays,
-      m: :max_files,
-      b: :batch_size,
-      h: :help,
-      t: :temporal,
-      q: :quiet,
-      v: :verbose
-    ]
-  )
+# Setup verbosity BEFORE any EXLA operations
+CLI.setup_verbosity(opts)
 
-# Configure verbosity - suppress XLA noise by default
-if opts[:quiet] do
-  Logger.configure(level: :error)
-  Output.set_verbosity(0)
-elsif opts[:verbose] do
-  Output.set_verbosity(2)
-else
-  # Default: suppress XLA info logs but show warnings
-  Logger.configure(level: :warning)
-  Output.set_verbosity(1)
-end
-
+# Handle help
 if opts[:help] do
-  Output.puts("""
+  IO.puts("""
   Model Evaluation Script
 
   Usage:
@@ -93,18 +48,11 @@ if opts[:help] do
     mix run scripts/eval_model.exs --compare model1.axon model2.axon
 
   Options:
-    --checkpoint, -c PATH   Full checkpoint (.axon) to evaluate
-    --policy, -p PATH       Exported policy (.bin) to evaluate
-    --replays, -r PATH      Path to test replays (default: ../replays)
-    --max-files, -m N       Max replay files (default: 20)
-    --batch-size, -b N      Batch size (default: 64)
-    --player PORT           Player port (1-4, default: 1)
-    --character NAME        Filter by character
+#{CLI.help_text([:verbosity, :replay, :checkpoint, :evaluation])}
     --compare               Compare multiple models (pass paths as positional args)
-    --detailed              Show per-component metrics
-    --output PATH           Save results to JSON
-    --quiet, -q             Suppress all non-essential output
-    --verbose, -v           Show debug output including XLA logs
+    --temporal              Enable temporal model evaluation
+    --backbone NAME         Backbone architecture (for temporal)
+    --window-size N         Window size for temporal models
 
   Examples:
     # Evaluate a single model
@@ -118,6 +66,10 @@ if opts[:help] do
   """)
 
   System.halt(0)
+end
+
+# Get positional args for --compare mode
+positional = opts[:_positional] || []
 end
 
 # Defaults
@@ -160,7 +112,7 @@ Output.config([
   {"Replays", opts[:replays]},
   {"Max files", opts[:max_files]},
   {"Batch size", opts[:batch_size]},
-  {"Player port", opts[:player]},
+  {"Player port", opts[:player_port]},
   {"Character filter", opts[:character] || "none"},
   {"Temporal", opts[:temporal]},
   {"Backbone", if(opts[:temporal], do: opts[:backbone], else: "n/a")},
@@ -192,7 +144,7 @@ Output.puts("  Found #{length(replay_files)} replay files")
 Output.step(2, 4, "Parsing replays")
 
 parse_opts = [
-  player_port: opts[:player],
+  player_port: opts[:player_port],
   include_speeds: true
 ]
 
@@ -209,7 +161,7 @@ parsed_replays = Peppi.parse_many(replay_files, parse_opts)
 frames =
   parsed_replays
   |> Enum.flat_map(fn
-    {:ok, replay} -> Peppi.to_training_frames(replay, player_port: opts[:player])
+    {:ok, replay} -> Peppi.to_training_frames(replay, player_port: opts[:player_port])
     {:error, _} -> []
   end)
 
