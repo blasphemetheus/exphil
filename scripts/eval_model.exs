@@ -527,7 +527,10 @@ evaluate_model = fn model_path ->
 
     # Softmax cross entropy - handles both sparse indices and one-hot targets
     softmax_ce = fn logits_t, targets_t ->
-      log_softmax = Nx.log_softmax(logits_t, axis: -1)
+      # log_softmax = log(softmax(x)) = x - log(sum(exp(x)))
+      max_logits = Nx.reduce_max(logits_t, axes: [-1], keep_axes: true)
+      shifted = Nx.subtract(logits_t, max_logits)
+      log_softmax = Nx.subtract(shifted, Nx.log(Nx.sum(Nx.exp(shifted), axes: [-1], keep_axes: true)))
       # Convert sparse indices to one-hot if needed
       targets_oh = if tuple_size(Nx.shape(targets_t)) == 1 do
         num_classes = elem(Nx.shape(logits_t), -1)
