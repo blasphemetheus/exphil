@@ -706,56 +706,63 @@ evaluate_model = fn model_path ->
   frames_per_batch = opts[:batch_size]
   ms_per_frame = if frames_per_batch > 0, do: avg_inference_ms / frames_per_batch, else: 0.0
 
-  # Display results (always show, even in quiet mode)
-  IO.puts("")
-  IO.puts("  Loss (cross-entropy): #{Float.round(avg_loss, 4)}")
+  # Display results
+  Output.puts("")
+  Output.puts("  Loss (cross-entropy): #{Float.round(avg_loss, 4)}")
 
   # Loss component breakdown
-  IO.puts("")
-  IO.puts("  Loss Components:")
-  IO.puts("    Buttons:      #{Float.round(avg_loss_components.buttons, 4)}")
-  IO.puts("    Main Stick X: #{Float.round(avg_loss_components.main_x, 4)}")
-  IO.puts("    Main Stick Y: #{Float.round(avg_loss_components.main_y, 4)}")
-  IO.puts("    C-Stick X:    #{Float.round(avg_loss_components.c_x, 4)}")
-  IO.puts("    C-Stick Y:    #{Float.round(avg_loss_components.c_y, 4)}")
-  IO.puts("    Shoulder:     #{Float.round(avg_loss_components.shoulder, 4)}")
+  Output.puts("")
+  Output.puts("  Loss Components:")
+  Output.puts("    Buttons:      #{Float.round(avg_loss_components.buttons, 4)}")
+  Output.puts("    Main Stick X: #{Float.round(avg_loss_components.main_x, 4)}")
+  Output.puts("    Main Stick Y: #{Float.round(avg_loss_components.main_y, 4)}")
+  Output.puts("    C-Stick X:    #{Float.round(avg_loss_components.c_x, 4)}")
+  Output.puts("    C-Stick Y:    #{Float.round(avg_loss_components.c_y, 4)}")
+  Output.puts("    Shoulder:     #{Float.round(avg_loss_components.shoulder, 4)}")
 
-  IO.puts("")
-  IO.puts("  Component Accuracy:")
-  IO.puts("    Buttons:      #{Float.round(avg_metrics.button_acc * 100, 1)}%")
-  IO.puts("    Main Stick X: #{Float.round(avg_metrics.main_x_acc * 100, 1)}% (top-3: #{Float.round(avg_metrics.main_x_top3 * 100, 1)}%)")
-  IO.puts("    Main Stick Y: #{Float.round(avg_metrics.main_y_acc * 100, 1)}% (top-3: #{Float.round(avg_metrics.main_y_top3 * 100, 1)}%)")
-  IO.puts("    C-Stick X:    #{Float.round(avg_metrics.c_x_acc * 100, 1)}%")
-  IO.puts("    C-Stick Y:    #{Float.round(avg_metrics.c_y_acc * 100, 1)}%")
-  IO.puts("    Shoulder:     #{Float.round(avg_metrics.shoulder_acc * 100, 1)}%")
+  Output.puts("")
+  Output.puts("  Component Accuracy:")
+  Output.puts("    Buttons:      #{Float.round(avg_metrics.button_acc * 100, 1)}%")
+
+  Output.puts(
+    "    Main Stick X: #{Float.round(avg_metrics.main_x_acc * 100, 1)}% (top-3: #{Float.round(avg_metrics.main_x_top3 * 100, 1)}%)"
+  )
+
+  Output.puts(
+    "    Main Stick Y: #{Float.round(avg_metrics.main_y_acc * 100, 1)}% (top-3: #{Float.round(avg_metrics.main_y_top3 * 100, 1)}%)"
+  )
+
+  Output.puts("    C-Stick X:    #{Float.round(avg_metrics.c_x_acc * 100, 1)}%")
+  Output.puts("    C-Stick Y:    #{Float.round(avg_metrics.c_y_acc * 100, 1)}%")
+  Output.puts("    Shoulder:     #{Float.round(avg_metrics.shoulder_acc * 100, 1)}%")
 
   # Per-button accuracy
-  IO.puts("")
-  IO.puts("  Per-Button Accuracy:")
+  Output.puts("")
+  Output.puts("  Per-Button Accuracy:")
   for {btn, acc} <- Enum.sort_by(avg_per_button, fn {k, _} -> Enum.find_index(button_labels, &(&1 == k)) end) do
     btn_str = btn |> to_string() |> String.upcase() |> String.pad_trailing(5)
-    IO.puts("    #{btn_str} #{Float.round(acc * 100, 1)}%")
+    Output.puts("    #{btn_str} #{Float.round(acc * 100, 1)}%")
   end
 
   # Button prediction rates comparison
-  IO.puts("")
-  IO.puts("  Button Press Rates (Predicted vs Actual):")
+  Output.puts("")
+  Output.puts("  Button Press Rates (Predicted vs Actual):")
   for {btn, _} <- Enum.sort_by(avg_per_button, fn {k, _} -> Enum.find_index(button_labels, &(&1 == k)) end) do
     pred = avg_pred_rates[btn] || 0.0
     actual = avg_actual_rates[btn] || 0.0
     diff = pred - actual
     diff_str = if diff >= 0, do: "+#{Float.round(diff * 100, 1)}", else: "#{Float.round(diff * 100, 1)}"
     btn_str = btn |> to_string() |> String.upcase() |> String.pad_trailing(5)
-    IO.puts("    #{btn_str} pred=#{Float.round(pred * 100, 1)}%  actual=#{Float.round(actual * 100, 1)}%  (#{diff_str}%)")
+    Output.puts("    #{btn_str} pred=#{Float.round(pred * 100, 1)}%  actual=#{Float.round(actual * 100, 1)}%  (#{diff_str}%)")
   end
 
   # Inference timing
-  IO.puts("")
-  IO.puts("  Inference Timing:")
-  IO.puts("    Avg batch time: #{Float.round(avg_inference_ms, 2)} ms")
-  IO.puts("    Per-frame time: #{Float.round(ms_per_frame, 3)} ms")
+  Output.puts("")
+  Output.puts("  Inference Timing:")
+  Output.puts("    Avg batch time: #{Float.round(avg_inference_ms, 2)} ms")
+  Output.puts("    Per-frame time: #{Float.round(ms_per_frame, 3)} ms")
   realtime_ready = if ms_per_frame < 16.67, do: "✓ Yes", else: "✗ No (need <16.67ms)"
-  IO.puts("    60 FPS capable: #{realtime_ready}")
+  Output.puts("    60 FPS capable: #{realtime_ready}")
 
   # Overall weighted accuracy
   overall_acc =
@@ -766,12 +773,12 @@ evaluate_model = fn model_path ->
       avg_metrics.c_y_acc * 0.1 +
       avg_metrics.shoulder_acc * 0.1
 
-  IO.puts("")
-  IO.puts("  Overall Weighted Accuracy: #{Float.round(overall_acc * 100, 1)}%")
+  Output.puts("")
+  Output.puts("  Overall Weighted Accuracy: #{Float.round(overall_acc * 100, 1)}%")
 
   # Stick confusion analysis (show top errors)
-  IO.puts("")
-  IO.puts("  Stick Confusion Analysis (top prediction errors):")
+  Output.puts("")
+  Output.puts("  Stick Confusion Analysis (top prediction errors):")
 
   # Helper to format bucket as direction
   format_bucket = fn bucket, num_buckets ->
@@ -794,11 +801,11 @@ evaluate_model = fn model_path ->
       |> Enum.take(5)
 
     if length(top_x_errors) > 0 do
-      IO.puts("    Main X errors:")
+      Output.puts("    Main X errors:")
       for {{pred, actual}, count} <- top_x_errors do
         pred_dir = format_bucket.(pred, axis_buckets)
         actual_dir = format_bucket.(actual, axis_buckets)
-        IO.puts("      #{actual_dir} → #{pred_dir}: #{count} frames")
+        Output.puts("      #{actual_dir} → #{pred_dir}: #{count} frames")
       end
     end
   end
@@ -811,17 +818,17 @@ evaluate_model = fn model_path ->
       |> Enum.take(5)
 
     if length(top_y_errors) > 0 do
-      IO.puts("    Main Y errors:")
+      Output.puts("    Main Y errors:")
       for {{pred, actual}, count} <- top_y_errors do
         pred_dir = format_bucket.(pred, axis_buckets)
         actual_dir = format_bucket.(actual, axis_buckets)
-        IO.puts("      #{actual_dir} → #{pred_dir}: #{count} frames")
+        Output.puts("      #{actual_dir} → #{pred_dir}: #{count} frames")
       end
     end
   end
 
-  # Show action distribution visualization (uses IO.puts internally)
-  IO.puts("")
+  # Show action distribution visualization
+  Output.puts("")
   ActionViz.print_summary(action_viz)
 
   %{
