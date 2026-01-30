@@ -284,30 +284,31 @@ defmodule ExPhil.Training.EmbeddingCache do
 
       sorted_chunks = Enum.sort_by(chunks, & &1.index)
 
-      # Load all chunks to CPU first (fast), then concatenate on CPU
-      # CPU concat is slower but doesn't have memory issues
-      chunk_tensors =
-        sorted_chunks
-        |> Enum.with_index()
-        |> Enum.map(fn {chunk_info, idx} ->
-          if rem(idx, 5) == 0 do
-            Logger.info("[EmbeddingCache] Loading chunk #{idx + 1}/#{num_chunks}...")
-          end
+      # Force all operations to use CPU (BinaryBackend) to avoid GPU OOM
+      # EXLA may be the default backend which would try to allocate 10GB+ on GPU
+      tensor = Nx.with_default_backend(Nx.BinaryBackend, fn ->
+        # Load all chunks to CPU first (fast), then concatenate on CPU
+        chunk_tensors =
+          sorted_chunks
+          |> Enum.with_index()
+          |> Enum.map(fn {chunk_info, idx} ->
+            if rem(idx, 5) == 0 do
+              Logger.info("[EmbeddingCache] Loading chunk #{idx + 1}/#{num_chunks}...")
+            end
 
-          chunk_file = chunk_path(cache_key, chunk_info.index, cache_dir)
-          {:ok, binary} = File.read(chunk_file)
+            chunk_file = chunk_path(cache_key, chunk_info.index, cache_dir)
+            {:ok, binary} = File.read(chunk_file)
 
-          # Reconstruct chunk shape: {chunk_frames, ...rest}
-          [_total_frames | rest] = shape_list
-          chunk_shape = List.to_tuple([chunk_info.frames | rest])
+            # Reconstruct chunk shape: {chunk_frames, ...rest}
+            [_total_frames | rest] = shape_list
+            chunk_shape = List.to_tuple([chunk_info.frames | rest])
 
-          Nx.from_binary(binary, dtype) |> Nx.reshape(chunk_shape)
-        end)
+            Nx.from_binary(binary, dtype) |> Nx.reshape(chunk_shape)
+          end)
 
-      Logger.info("[EmbeddingCache] Concatenating #{num_chunks} chunks on CPU...")
-
-      # Single concatenation is faster than incremental
-      tensor = Nx.concatenate(chunk_tensors, axis: 0)
+        Logger.info("[EmbeddingCache] Concatenating #{num_chunks} chunks on CPU...")
+        Nx.concatenate(chunk_tensors, axis: 0)
+      end)
 
       Logger.info(
         "[EmbeddingCache] Loaded #{cache_key} (#{Float.round(total_mb, 1)} MB from #{num_chunks} chunks)"
