@@ -21,7 +21,7 @@ alias ExPhil.Embeddings
 
 # Parse command line arguments using CLI module
 opts = CLI.parse_args(System.argv(),
-  flags: [:verbosity, :replay, :checkpoint, :evaluation],
+  flags: [:verbosity, :replay, :checkpoint, :evaluation, :common],
   extra: [
     compare: :boolean,
     temporal: :boolean,
@@ -70,21 +70,13 @@ end
 
 # Get positional args for --compare mode
 positional = opts[:_positional] || []
-end
 
-# Defaults
-defaults = %{
-  replays: System.get_env("REPLAYS_PATH") || Path.expand("../replays"),
-  max_files: 20,
-  batch_size: 64,
-  player: 1,
-  detailed: false,
-  temporal: false,
-  backbone: "mlp",
-  window_size: 60
-}
-
-opts = Map.merge(defaults, Map.new(opts))
+# Convert to map for easier access, with defaults for script-specific options
+opts = opts
+  |> Keyword.put_new(:temporal, false)
+  |> Keyword.put_new(:backbone, "mlp")
+  |> Keyword.put_new(:window_size, 60)
+  |> Map.new()
 
 # Determine evaluation mode
 model_paths =
