@@ -5,11 +5,6 @@
 #   mix run scripts/regenerate_benchmark_html.exs --json checkpoints/benchmark_results_20260130_002013.json
 #
 
-Mix.install([
-  {:jason, "~> 1.4"},
-  {:vega_lite, "~> 0.1.11"}
-])
-
 alias VegaLite
 
 # Parse args
@@ -58,7 +53,7 @@ val_loss_data = results
     end)
   end)
 
-all_loss_data = loss_curve_data ++ val_loss_data
+_all_loss_data = loss_curve_data ++ val_loss_data
 
 # Training loss curves
 comparison_plot =
