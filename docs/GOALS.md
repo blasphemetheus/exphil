@@ -1180,10 +1180,42 @@ This pattern suggests the model defaults to neutral (center) too often. Solution
 | **Online hard example mining** | Focus training on samples with high stick loss | Medium |
 | **Action-conditional batching** | Batch by action state (aerial, grounded, etc.) | Medium |
 
+#### K-means Discretization Experiment (2026-01-30)
+
+**Experiment:** Train with 21 K-means clusters + larger network (1024,512,256) for 76 epochs.
+
+**Results:**
+- K-means-trained model: **79.9% overall accuracy**
+- Non-K-means baseline: **~81% accuracy**
+- Main Stick X: 54.9%, Main Stick Y: 61.2% (no improvement)
+
+**Key Finding:** K-means didn't improve stick accuracy because the problem isn't bucket placement.
+
+**Why K-means Didn't Help:**
+
+| Factor | Explanation |
+|--------|-------------|
+| **Adjacent bucket errors** | Confusion is `neg → far_neg` (adjacent), not `neutral → far` (distant) |
+| **Temporal context missing** | Model finds right region but lacks timing info for exact values |
+| **Non-uniform ≠ more accurate** | 21 clusters vs 17 buckets = same ~55-61% accuracy |
+
+**K-means Cluster Distribution (Mewtwo Data):**
+- 8 clusters negative side (0.0-0.44)
+- 12 clusters positive side (0.50-1.0)
+- Reflects Mewtwo's rightward/forward-biased playstyle
+- Asymmetric clusters don't help because errors are timing-based, not resolution-based
+
+**Conclusion:** Stick prediction bottleneck is upstream (feature representation, temporal context) not downstream (output discretization). Focus effort on:
+1. Temporal backbones (Mamba, LSTM)
+2. Augmentation for more diverse training data
+3. Residual connections for deeper networks
+
 #### Files Changed
 
-- `scripts/eval_model.exs` - Added 6 new evaluation metrics
-- `lib/exphil/training/action_viz.ex` - Fixed button list parsing bug
+- `scripts/eval_model.exs` - Added K-means center loading from model config
+- `lib/exphil/embeddings/kmeans.ex` - Added `load_from_config/2`, `load_from_config!/2`, `info_string/1`
+- `lib/exphil/training/action_viz.ex` - Side-by-side stick heatmaps
+- `test/exphil/embeddings/kmeans_test.exs` - Added 6 tests for new helpers
 - `docs/GOALS.md` - Added this analysis section
 
 ---
