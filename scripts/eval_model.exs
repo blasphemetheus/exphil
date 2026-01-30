@@ -17,6 +17,8 @@
 #   --compare P1 P2 ... - Compare multiple checkpoints/policies
 #   --detailed          - Show detailed per-component metrics
 #   --output PATH       - Save results to JSON file
+#   --quiet, -q         - Suppress all non-essential output
+#   --verbose, -v       - Show debug output including XLA logs
 #
 # Metrics Computed:
 #   - Average loss (cross-entropy)
@@ -28,7 +30,7 @@ require Logger
 
 alias ExPhil.Training.Output
 alias ExPhil.Data.Peppi
-alias ExPhil.Training.{ActionViz, Checkpoint, Config, Data, Imitation}
+alias ExPhil.Training.{ActionViz, Checkpoint, Data}
 alias ExPhil.Networks.Policy
 alias ExPhil.Embeddings
 
@@ -49,6 +51,8 @@ args = System.argv()
       detailed: :boolean,
       output: :string,
       help: :boolean,
+      quiet: :boolean,
+      verbose: :boolean,
       # Temporal model options
       temporal: :boolean,
       backbone: :string,
@@ -61,9 +65,23 @@ args = System.argv()
       m: :max_files,
       b: :batch_size,
       h: :help,
-      t: :temporal
+      t: :temporal,
+      q: :quiet,
+      v: :verbose
     ]
   )
+
+# Configure verbosity - suppress XLA noise by default
+if opts[:quiet] do
+  Logger.configure(level: :error)
+  Output.set_verbosity(0)
+elsif opts[:verbose] do
+  Output.set_verbosity(2)
+else
+  # Default: suppress XLA info logs but show warnings
+  Logger.configure(level: :warning)
+  Output.set_verbosity(1)
+end
 
 if opts[:help] do
   Output.puts("""
@@ -85,6 +103,8 @@ if opts[:help] do
     --compare               Compare multiple models (pass paths as positional args)
     --detailed              Show per-component metrics
     --output PATH           Save results to JSON
+    --quiet, -q             Suppress all non-essential output
+    --verbose, -v           Show debug output including XLA logs
 
   Examples:
     # Evaluate a single model

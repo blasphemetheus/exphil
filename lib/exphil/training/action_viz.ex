@@ -381,7 +381,7 @@ defmodule ExPhil.Training.ActionViz do
     chars = [" ", "░", "▒", "▓", "█", "█", "█", "█"]
 
     # Print grid (Y axis is inverted for display)
-    for y <- (grid_size - 1)..0 do
+    for y <- (grid_size - 1)..0//-1 do
       row =
         for x <- 0..(grid_size - 1) do
           count = Map.get(counts, {x, y}, 0)
