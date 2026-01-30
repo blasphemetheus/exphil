@@ -50,6 +50,7 @@ Hard-won knowledge from debugging ExPhil. Each section documents a specific issu
 44. [Optimizer not JIT compiled with EXLA causes 0% GPU utilization](#44-optimizer-not-jit-compiled-with-exla-causes-0-gpu-utilization)
 45. [O(n) list traversal for action collection causes ~28s/batch](#45-on-list-traversal-for-action-collection-causes-28sbatch)
 46. [LSTM/GRU gradient explosion causes NaN loss mid-training](#46-lstmgru-gradient-explosion-causes-nan-loss-mid-training)
+47. [--cache-augmented with large datasets causes GPU OOM and CPU bottlenecks](#47---cache-augmented-with-large-datasets-causes-gpu-oom-and-cpu-bottlenecks)
 
 ---
 
@@ -1967,3 +1968,59 @@ RNN_GRAD_CLIP="0.5" # Aggressive gradient clipping
 
 **References:**
 - Ba et al. (2016) - "Layer Normalization"
+
+## 47. --cache-augmented with large datasets causes GPU OOM and CPU bottlenecks
+
+**Symptoms:**
+- GPU OOM when loading cached augmented embeddings
+- 7+ minute hangs during "Transferring embeddings to GPU"
+- 100% CPU usage stuck on Data.split() after loading
+- Training never starts
+
+**Example error:**
+```
+RuntimeError: Out of memory while trying to allocate 10522166400 bytes.
+```
+
+**Root cause:** `--cache-augmented` with large datasets creates huge tensors:
+- 1.8M frames × 5 variants × 288 dims × 4 bytes = **10.5 GB**
+
+Multiple operations fail on tensors this large:
+
+1. **Erlang term_to_binary limit (~2GB):** Fixed by chunking cache into ~500MB files
+2. **GPU OOM during concatenation:** Concatenating chunks needs 2x memory (old + new + result)
+3. **GPU OOM during bulk transfer:** Can't fit 10GB + model + activations in 24GB
+4. **CPU operations are slow:** Data.split() on 10GB BinaryBackend tensor takes minutes
+
+**The fix (partial):**
+- Chunk large caches into ~500MB files (implemented)
+- Force BinaryBackend for cache loading (implemented)
+- Skip bulk GPU transfer for >2GB embeddings (implemented)
+- Per-batch GPU transfer during training (implemented)
+
+**Still slow:** Even with fixes, CPU operations (split, stats) on 10GB tensors are slow.
+
+**Recommended workaround:** Don't use `--cache-augmented` with large datasets (>500K frames):
+
+```bash
+# Instead of this (10GB+ tensor):
+--augment --cache-augmented --num-noisy-variants 3
+
+# Use on-the-fly augmentation (~2GB tensor):
+--augment
+```
+
+On-the-fly augmentation keeps base embeddings small and applies augmentation per-batch on GPU.
+
+**Future improvements needed:**
+- Lazy/streaming Data.split() that doesn't materialize full tensor
+- Keep augmented variants as separate tensors, not stacked
+- Memory-mapped cache files for zero-copy loading
+- Batch sampling directly from chunked cache without full concatenation
+
+**Thresholds:**
+| Dataset Size | Augmented Tensor Size | Recommended Approach |
+|--------------|----------------------|---------------------|
+| <100K frames | <1GB | `--cache-augmented` works fine |
+| 100K-500K frames | 1-5GB | `--cache-augmented` works but slow startup |
+| >500K frames | >5GB | Use `--augment` (on-the-fly) instead |
