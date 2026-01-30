@@ -327,11 +327,11 @@ Created `ExPhil.CLI` module for standardized argument parsing across scripts.
 | FPS counter in play mode | Low | Show actual vs target FPS | **Done** |
 | **Action distribution viz** | Medium | Show what buttons/sticks model is using | **Done** |
 | Confidence display | Low | Show model's confidence in its predictions | **Done** |
-| Per-button accuracy | Low | Break down button accuracy per button (A, B, X, Y, Z, L, R) | Todo |
-| Inference timing | Low | Show ms/frame to assess real-time playability (need <16.7ms) | Todo |
-| Button prediction rates | Low | Compare model's predicted vs actual button press rates | Todo |
-| Loss component breakdown | Low | Show individual loss terms (buttons, stick_x, stick_y, etc.) | Todo |
-| Stick confusion analysis | Medium | Show common stick prediction errors (e.g., neutral→up) | Todo |
+| Per-button accuracy | Low | Break down button accuracy per button (A, B, X, Y, Z, L, R) | **Done** |
+| Inference timing | Low | Show ms/frame to assess real-time playability (need <16.7ms) | **Done** |
+| Button prediction rates | Low | Compare model's predicted vs actual button press rates | **Done** |
+| Loss component breakdown | Low | Show individual loss terms (buttons, stick_x, stick_y, etc.) | **Done** |
+| Stick confusion analysis | Medium | Show common stick prediction errors (e.g., neutral→up) | **Done** |
 | Export predictions | Low | Save predicted vs actual for Livebook analysis | Todo |
 | Frame delay testing | Medium | Test accuracy at different frame delays for online robustness | Todo |
 
