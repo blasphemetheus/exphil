@@ -93,11 +93,13 @@ Detailed guides in `docs/`:
 | Doc | Contents |
 |-----|----------|
 | [GOALS.md](docs/GOALS.md) | **Big picture goals, priorities, implementation log** |
-| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design, network structure, training pipeline |
+| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design, network structure, embedding dimensions |
 | [architectures/](docs/architectures/ARCHITECTURES.md) | **Backbone docs: MLP, LSTM, GRU, Attention, Mamba, Jamba** |
-| [TRAINING.md](docs/TRAINING.md) | Training commands, options, performance tips |
+| [TRAINING.md](docs/TRAINING.md) | Training commands, all CLI options, performance tips |
+| [SCRIPTS.md](docs/SCRIPTS.md) | **All scripts: training, evaluation, benchmarks, play, export** |
 | [INFERENCE.md](docs/INFERENCE.md) | ONNX export, quantization, optimization |
-| [DOLPHIN.md](docs/DOLPHIN.md) | Dolphin setup, running agents |
+| [DOLPHIN.md](docs/DOLPHIN.md) | Dolphin setup, MeleePort, running agents |
+| [SELF_PLAY_ARCHITECTURE.md](docs/SELF_PLAY_ARCHITECTURE.md) | Self-play GenServer infrastructure, Elo system |
 | [GOTCHAS.md](docs/GOTCHAS.md) | Technical pitfalls and fixes |
 | [TRAINING_FEATURES.md](docs/TRAINING_FEATURES.md) | Feature roadmap, presets |
 | [RESEARCH.md](docs/RESEARCH.md) | Prior art, papers, lessons learned, research roadmap |
@@ -105,11 +107,10 @@ Detailed guides in `docs/`:
 | [REPLAY_STORAGE.md](docs/REPLAY_STORAGE.md) | Cloud storage for replays & checkpoints (B2/R2), sync commands |
 | [RUNPOD_FILTER.md](docs/RUNPOD_FILTER.md) | Filter low-tier replays from large archives on RunPod |
 | [RCLONE_GDRIVE.md](docs/RCLONE_GDRIVE.md) | Download large files from Google Drive with rclone |
-| [TRAINING_IMPROVEMENTS.md](docs/TRAINING_IMPROVEMENTS.md) | Training-specific optimizations |
-| [PROJECT_ROADMAP.md](docs/PROJECT_ROADMAP.md) | Comprehensive project improvement roadmap |
-| [TESTING.md](docs/TESTING.md) | Test harness, tags, factories, coverage |
+| [TESTING.md](docs/TESTING.md) | Test harness, tags, factories, coverage (1933 tests) |
 | [GPU_OPTIMIZATIONS.md](docs/GPU_OPTIMIZATIONS.md) | GPU training: JIT wrapping, BF16, gradient accumulation |
 | [MAMBA_OPTIMIZATIONS.md](docs/MAMBA_OPTIMIZATIONS.md) | Mamba-specific: parallel scan, SSD, state caching |
+| [EMBEDDING_DIMENSIONS.md](docs/EMBEDDING_DIMENSIONS.md) | Detailed embedding dimension calculations |
 
 ## Quick Start
 

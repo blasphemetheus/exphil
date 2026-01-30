@@ -2,7 +2,13 @@
 
 ## Overview
 
-ExPhil reimplements slippi-ai's architecture in Elixir, with enhancements from modern ML research. This document details the technical architecture and key design decisions.
+ExPhil reimplements slippi-ai's architecture in Elixir, with modern enhancements including learned embeddings (6x dimension reduction), multiple temporal backbones (Mamba, Attention, LSTM, GRU), and async inference for real-time play. This document details the technical architecture and key design decisions.
+
+**Key architectural choices:**
+- **Default 287 dims** (learned embeddings) vs legacy 1204 dims (one-hot) - enables 6x larger networks
+- **6 backbone architectures**: MLP, LSTM, GRU, Mamba, Attention, Jamba (hybrid)
+- **AsyncRunner**: Decouples 60fps frame reading from variable-latency inference
+- **Self-play infrastructure**: GenServer-based with Elo matchmaking and opponent pools
 
 ## System Architecture
 
@@ -14,9 +20,9 @@ ExPhil reimplements slippi-ai's architecture in Elixir, with enhancements from m
 │  │                         Training Pipeline                               │ │
 │  │                                                                        │ │
 │  │   ┌──────────┐    ┌──────────────┐    ┌──────────────┐                │ │
-│  │   │  Replay  │───→│   Parser     │───→│   Dataset    │                │ │
-│  │   │  Files   │    │ (Peppi/SLP)  │    │  (Tensors)   │                │ │
-│  │   │  (.slp)  │    │              │    │              │                │ │
+│  │   │  Replay  │───→│   Parser     │───→│  Embedding   │                │ │
+│  │   │  Files   │    │ (Peppi/SLP)  │    │   Cache      │                │ │
+│  │   │  (.slp)  │    │              │    │  (2-3x fast) │                │ │
 │  │   └──────────┘    └──────────────┘    └──────┬───────┘                │ │
 │  │                                              │                         │ │
 │  │                    ┌─────────────────────────┴──────────────────┐      │ │
@@ -25,10 +31,10 @@ ExPhil reimplements slippi-ai's architecture in Elixir, with enhancements from m
 │  │   ┌────────────────────────────┐    ┌────────────────────────────┐    │ │
 │  │   │    Imitation Learning      │    │    Reinforcement Learning   │    │ │
 │  │   │                            │    │                             │    │ │
-│  │   │  • Behavioral Cloning      │    │  • PPO Updates              │    │ │
-│  │   │  • Teacher Forcing         │    │  • V-Trace Correction       │    │ │
-│  │   │  • Value Pretraining       │    │  • Teacher KL Regularization│    │ │
-│  │   │                            │    │  • Self-Play                │    │ │
+│  │   │  • Behavioral Cloning      │    │  • PPO with Clipped Obj     │    │ │
+│  │   │  • Focal Loss (rare acts)  │    │  • Self-Play GenServer      │    │ │
+│  │   │  • Embedding Caching       │    │  • Elo Matchmaking          │    │ │
+│  │   │  • Data Augmentation       │    │  • Opponent Pool Sampling   │    │ │
 │  │   └─────────────┬──────────────┘    └──────────────┬──────────────┘    │ │
 │  │                 │                                   │                  │ │
 │  │                 └───────────────┬───────────────────┘                  │ │
@@ -46,11 +52,11 @@ ExPhil reimplements slippi-ai's architecture in Elixir, with enhancements from m
 │  │                                │                                      │ │
 │  │                                ▼                                      │ │
 │  │   ┌────────────────────────────────────────────────────────────────┐ │ │
-│  │   │                        Agent                                    │ │ │
+│  │   │                      AsyncRunner                                │ │ │
 │  │   │                                                                 │ │ │
 │  │   │  ┌─────────────┐   ┌────────────┐   ┌─────────────────────┐   │ │ │
-│  │   │  │   State     │──→│   Policy   │──→│   Controller        │   │ │ │
-│  │   │  │  Embedding  │   │   Network  │   │   Output            │   │ │ │
+│  │   │  │ FrameLoop   │   │  SharedETS │   │  InferenceLoop      │   │ │ │
+│  │   │  │ (60 FPS)    │──→│  (state)   │←──│  (async)            │   │ │ │
 │  │   │  │             │   │            │   │                     │   │ │ │
 │  │   │  └─────────────┘   └────────────┘   └──────────┬──────────┘   │ │ │
 │  │   │                                                │              │ │ │
@@ -60,11 +66,11 @@ ExPhil reimplements slippi-ai's architecture in Elixir, with enhancements from m
 │  │                           │                                         │ │
 │  │                           ▼                                         │ │
 │  │   ┌────────────────────────────────────────────────────────────┐   │ │
-│  │   │                  Python Bridge                              │   │ │
+│  │   │                  MeleePort (GenServer)                      │   │ │
 │  │   │                                                             │   │ │
 │  │   │   ┌─────────────┐        ┌────────────────────────────┐    │   │ │
-│  │   │   │   Elixir    │◀──────▶│   libmelee                 │    │   │ │
-│  │   │   │   Port/NIF  │        │   (Python)                 │    │   │ │
+│  │   │   │   Elixir    │◀──────▶│   libmelee (Python)        │    │   │ │
+│  │   │   │   Port      │  JSON  │   melee_bridge.py          │    │   │ │
 │  │   │   │             │        │                            │    │   │ │
 │  │   │   └─────────────┘        └─────────────┬──────────────┘    │   │ │
 │  │   │                                        │                   │   │ │
@@ -83,52 +89,78 @@ ExPhil reimplements slippi-ai's architecture in Elixir, with enhancements from m
 
 ## Neural Network Architecture
 
-### Comparison: slippi-ai vs ExPhil
+### Backbone Comparison
 
-| Component | slippi-ai | ExPhil | Rationale |
-|-----------|-----------|--------|-----------|
-| Framework | TensorFlow + Sonnet | Nx + Axon | Elixir-native, GPU via EXLA |
-| Backbone | LSTM/GRU | Transformer-LSTM Hybrid | Better long-range dependencies |
-| Attention | None | Temporal Self-Attention | Captures multi-frame patterns |
-| Training | Single GPU | Distributed (planned) | BEAM concurrency |
-| Inference | Python | Elixir | Lower latency, better scheduling |
+| Backbone | Inference | 60 FPS Ready | Val Loss | Memory | Best For |
+|----------|-----------|--------------|----------|--------|----------|
+| MLP | 2-5ms | Yes | 3.11 | 50MB | Fast iteration, baseline |
+| LSTM | 220ms | No | **2.95** | 500MB | Best accuracy (offline only) |
+| GRU | ~150ms | No | ~3.0 | 400MB | Faster recurrent alternative |
+| Mamba | 8.9ms | **Yes** | 3.00 | 800MB | Real-time temporal |
+| Attention | 17ms | Borderline | 3.07 | 2.5GB | Long-range patterns |
+| Jamba | ~20ms | Borderline | 3.0 | 1.2GB | Hybrid approach |
+
+**Recommended:** Mamba for real-time play (8.9ms inference, 60 FPS capable). ONNX INT8 export achieves 0.55ms.
+
+### Embedding Dimensions
+
+ExPhil uses two embedding modes:
+
+| Mode | Total Dims | Per Player | Stage | Controller | Notes |
+|------|------------|------------|-------|------------|-------|
+| **Learned (default)** | 287 | 56 | 7 | 13 | 6x smaller, modern |
+| One-hot (legacy) | 1204 | 488 | 64 | 13 | slippi-ai compatible |
+
+**Learned embedding breakdown (287 dims):**
+```
+Player 0:           56 dims (8 base + 9 optional + 39 Nana compact)
+Player 1:           56 dims
+Stage (compact):    7 dims (6 competitive + "other")
+Prev action:        13 dims (8 buttons + 4 sticks + 1 shoulder)
+Player names:       112 dims (tag identification)
+Spatial:            4 dims (distance, relative pos, frame)
+Projectiles:        35 dims (5 slots × 7 dims)
+Action IDs:         2 dims (appended for network embedding)
+Character IDs:      2 dims (appended for network embedding)
+Padding:            1 dim (alignment to 8 for tensor cores)
+─────────────────────────────────────────────────────────
+Total:              288 dims (287 raw + 1 padding)
+```
 
 ### Network Structure
 
 ```
-Input: Game State (t-N to t)
+Input: Game State (t-N to t) or single frame
            │
            ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                    State Embedding Layer                     │
 │                                                              │
-│  Player0: [pos, action, damage, char, shield, jumps, ...]   │
-│  Player1: [pos, action, damage, char, shield, jumps, ...]   │
-│  Stage:   [id, platform_positions, randall]                 │
-│  Items:   [type, pos, state] × N                            │
-│  Prev Action: [buttons, sticks, shoulder]                   │
+│  Player0: [pos, facing, percent, jumps, shield, speeds, ...] │
+│  Player1: [same as Player0]                                  │
+│  Nana:    [compact 39 dims or enhanced 14 dims + action ID]  │
+│  Stage:   [compact 7-dim or learned ID]                      │
+│  Prev:    [buttons(8), sticks(4), shoulder(1)]               │
 │                                                              │
-│  Total: ~400-600 dimensional embedding                      │
+│  Learned IDs appended: [action_p0, action_p1, char_p0, ...]  │
+│                                                              │
+│  Total: 287 dims (learned) or 1204 dims (one-hot)           │
 └─────────────────────────────────────────────────────────────┘
            │
            ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                    Temporal Encoder                          │
+│                    Backbone Network                          │
 │                                                              │
-│  Option A: Pure LSTM (slippi-ai default)                    │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │  LSTM(hidden=128) → LayerNorm → ResidualConnection  │   │
-│  └─────────────────────────────────────────────────────┘   │
+│  MLP:       Dense → ReLU → Dropout (single-frame)           │
+│  LSTM/GRU:  Recurrent → LayerNorm (sequential)              │
+│  Mamba:     Selective SSM with parallel scan (O(L))         │
+│  Attention: Multi-head self-attention (O(L²))               │
+│  Jamba:     Mamba blocks + Attention every N layers         │
 │                                                              │
-│  Option B: Transformer-Like (ExPhil enhancement)            │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │  for layer in 1..N:                                  │   │
-│  │    x = x + LSTM(LayerNorm(x))      # Recurrence     │   │
-│  │    x = x + MLP(LayerNorm(x))       # FFW            │   │
-│  │  # Optional: add self-attention over last K frames  │   │
-│  └─────────────────────────────────────────────────────┘   │
+│  Learned embeddings: IDs extracted, embedded via lookup,    │
+│  then concatenated with continuous features                  │
 │                                                              │
-│  Output: 128-256 dimensional hidden state                   │
+│  Output: 256-512 dimensional hidden state                    │
 └─────────────────────────────────────────────────────────────┘
            │
            ├──────────────────────┐
@@ -136,13 +168,13 @@ Input: Game State (t-N to t)
 ┌─────────────────────┐  ┌─────────────────────┐
 │    Policy Head      │  │    Value Head       │
 │                     │  │                     │
-│  Autoregressive:    │  │  Linear(hidden, 1)  │
-│  1. Buttons (8)     │  │                     │
-│  2. Main X (16)     │  │  Output: V(s)       │
-│  3. Main Y (16)     │  │                     │
-│  4. C-Stick X (16)  │  └─────────────────────┘
-│  5. C-Stick Y (16)  │
-│  6. Shoulder (4)    │
+│  Autoregressive:    │  │  Dense(hidden, 128) │
+│  1. Buttons (8)     │  │  ReLU               │
+│  2. Main X (17)     │  │  Dense(128, 1)      │
+│  3. Main Y (17)     │  │                     │
+│  4. C-Stick X (17)  │  │  Output: V(s)       │
+│  5. C-Stick Y (17)  │  │                     │
+│  6. Shoulder (5)    │  └─────────────────────┘
 │                     │
 │  Each conditioned   │
 │  on previous        │
@@ -151,215 +183,251 @@ Input: Game State (t-N to t)
 
 ### Autoregressive Controller Head
 
-slippi-ai uses autoregressive sampling for the controller output. Each component is conditioned on previous samples:
+The policy outputs 6 heads sequentially, each conditioned on previous samples:
 
 ```elixir
-defmodule ExPhil.Networks.ControllerHead do
-  @moduledoc """
-  Autoregressive controller head.
-  Samples: buttons → main_x → main_y → c_x → c_y → shoulder
-  """
+# Sampling sequence:
+# 1. Sample 8 buttons (independent Bernoulli, sigmoid logits)
+# 2. Concat buttons embedding, sample main_x (17-way categorical)
+# 3. Concat main_x embedding, sample main_y
+# 4. Concat main_y embedding, sample c_x
+# 5. Concat c_x embedding, sample c_y
+# 6. Concat c_y embedding, sample shoulder (5-way categorical)
 
-  def sample(hidden, prev_action, temperature \\ 1.0) do
-    # Sample buttons (8 independent Bernoulli)
-    buttons_logits = button_mlp(hidden)
-    buttons = sample_bernoulli(buttons_logits, temperature)
-
-    # Condition on buttons, sample main stick X
-    main_x_input = concat([hidden, embed(buttons)])
-    main_x_logits = main_x_mlp(main_x_input)
-    main_x = sample_categorical(main_x_logits, temperature)
-
-    # Continue for remaining components...
-    # Each subsequent sample is conditioned on all previous
-  end
-end
+# Output sizes:
+# - Buttons: 8 logits (binary per button: A, B, X, Y, Z, L, R, D_UP)
+# - Stick axes: 17 values each (discretized -1.0 to +1.0)
+# - Shoulder: 5 values (discretized 0.0 to 1.0)
 ```
 
 ## Training Pipeline
 
-### Phase 1: Imitation Learning
+### Phase 1: Imitation Learning (Behavioral Cloning)
 
-Goal: Learn to mimic human play from replay data
+Learn to mimic human play from Slippi replay data:
 
 ```
-Loss = CrossEntropy(predicted_action, human_action) + β * MSE(predicted_value, discounted_return)
+Loss = Button_BCE + Stick_CE + Shoulder_CE
+
+With enhancements:
+  - Focal loss: (1 - p_t)^γ × CE  (γ=2.0 focuses on hard examples)
+  - Label smoothing: Prevents overconfidence
+  - K-means discretization: ~5% better stick accuracy
 ```
 
-Key considerations:
-- **Frame Delay**: Train with same delay as online play (18+ frames)
-- **Action Space**: Discretize continuous sticks to ~16 positions per axis
-- **Value Pretraining**: Bootstrap value function for faster RL
+**Key features:**
+- **Embedding caching**: 2-3x speedup by precomputing embeddings
+- **Augmented caching**: ~100x speedup with `--cache-augmented --augment`
+- **Frame delay training**: `--online-robust` for Slippi online (18+ frame delay)
+- **Early stopping**: Monitor validation loss with patience
 
 ### Phase 2: Reinforcement Learning (PPO)
 
-Goal: Improve beyond human level through self-play
+Improve beyond human level through self-play:
 
 ```
-L_clip = min(r_t * A_t, clip(r_t, 1-ε, 1+ε) * A_t)
-L_value = (V(s) - V_target)²
-L_teacher_kl = KL(π_policy || π_teacher)  # Stay close to imitation policy
+L_total = -L_clip + c1 × L_value + c2 × entropy
 
-Loss = -L_clip + c1 * L_value + c2 * L_teacher_kl
+Where:
+  L_clip = min(r × A, clip(r, 1±ε) × A)  # Clipped surrogate
+  L_value = (V - V_target)²               # Value loss
+  entropy = H(π)                          # Exploration bonus
 ```
 
-Key differences from slippi-ai:
-- Consider **Decision Transformer** framing: condition on desired return
-- Consider **World Model**: predict next state for imagination-based training
+**Self-play infrastructure (complete):**
+- `lib/exphil/self_play/supervisor.ex` - Top-level supervisor
+- `lib/exphil/self_play/game_runner.ex` - Per-game GenServer
+- `lib/exphil/self_play/population_manager.ex` - Policy versioning
+- `lib/exphil/self_play/matchmaker.ex` - Elo ratings
+- `lib/exphil/self_play/experience_collector.ex` - Batched experience
 
 ## Reward Design
 
-### Standard Rewards (from slippi-ai)
+### Standard Rewards
 
 ```elixir
-defmodule ExPhil.Rewards.Standard do
-  @damage_ratio 0.01
-
-  def compute(game_state, prev_state) do
-    # KO difference (primary signal)
-    ko_diff = count_kos(game_state.p1) - count_kos(game_state.p0)
-
-    # Damage dealt/received (secondary signal)
-    damage_dealt = max(game_state.p1.percent - prev_state.p1.percent, 0)
-    damage_taken = max(game_state.p0.percent - prev_state.p0.percent, 0)
-    damage_diff = @damage_ratio * (damage_dealt - damage_taken)
-
-    ko_diff + damage_diff
-  end
-end
+# Primary: Stock differential (+1 KO, -1 death)
+# Secondary: Damage differential (0.01 × net damage)
+reward = stock_diff + 0.01 × (damage_dealt - damage_taken)
 ```
 
-### Character-Specific Shaped Rewards
+### Shaped Rewards
 
-For lower-tier characters, we may need additional reward shaping:
+| Reward | Formula | Range | Purpose |
+|--------|---------|-------|---------|
+| Approach | (prev_dist - curr_dist) / 3 | -1 to +1 | Encourage engagement |
+| Combo | min(hitstun/30, 1) | 0 to 1 | Reward combos |
+| Edge guard | +1.0 | 0 or 1 | Punish recovery |
+| Recovery risk | horizontal + vertical | 0 to 2 | Penalize offstage |
 
-```elixir
-defmodule ExPhil.Rewards.Mewtwo do
-  @moduledoc "Mewtwo-specific reward shaping"
+**Weights (default):**
+- Stock: 1.0 (primary signal)
+- Damage: 0.01 (frame-by-frame)
+- Approach: 0.001 (avoid turtling)
+- Combo: 0.05 (encourage offense)
+- Edge guard: 0.1 (punish recovery)
+- Recovery: 0.02 (weak penalty)
 
-  # Reward successful teleport recoveries
-  def teleport_recovery_bonus(state, prev_state) do
-    if recovering?(prev_state) and on_stage?(state) do
-      0.05
-    else
-      0.0
-    end
-  end
+## Inference Architecture
 
-  # Reward confusion → aerial combos
-  def confusion_combo_bonus(state) do
-    if opponent_confused?(state) and following_up?(state) do
-      0.02
-    else
-      0.0
-    end
-  end
-end
+### AsyncRunner (Real-Time Play)
+
+Decouples frame reading from inference to maintain 60 FPS gameplay:
+
+```
+┌─────────────────────┐    ┌───────────────────┐    ┌──────────────────┐
+│   FrameLoop         │───▶│  SharedState      │◀───│  InferenceLoop   │
+│   (60fps, reads)    │    │  (ETS table)      │    │  (async, slow)   │
+└─────────────────────┘    │                   │    └──────────────────┘
+         │                 │  :latest_state    │             │
+         │                 │  :latest_action   │             │
+         │                 │  :in_game         │             │
+         └────────────────▶│  :frame_count     │◀────────────┘
+                           └───────────────────┘
 ```
 
-## Python Bridge Design
+**Key benefits:**
+- FrameLoop never blocks waiting for inference
+- InferenceLoop uses latest state, updates latest action
+- ETS provides lock-free concurrent access
+- Game maintains 60 FPS even with 200ms LSTM inference
 
-### Option 1: Erlang Port (Simple, Isolated)
+### Agent State Management
 
 ```elixir
-defmodule ExPhil.Bridge.LibmeleePort do
-  use GenServer
-
-  def start_link(opts) do
-    GenServer.start_link(__MODULE__, opts, name: __MODULE__)
-  end
-
-  def init(_opts) do
-    port = Port.open({:spawn, "python3 priv/python/melee_bridge.py"}, [:binary, :exit_status])
-    {:ok, %{port: port}}
-  end
-
-  def get_game_state(port_pid) do
-    GenServer.call(port_pid, :get_game_state)
-  end
-
-  def send_controller(port_pid, controller) do
-    GenServer.cast(port_pid, {:send_controller, controller})
-  end
-end
+%Agent{
+  policy_params: map(),        # Trained model weights
+  predict_fn: fun(),           # Compiled inference function
+  frame_buffer: queue(),       # Temporal window (60 frames)
+  mamba_cache: map() | nil,    # Incremental Mamba state
+  deterministic: boolean(),    # Argmax vs sampling
+  temperature: float(),        # Softmax temperature
+  action_repeat: integer()     # Cache action for N frames
+}
 ```
 
-### Option 2: Pythonx (In-Process, Lower Latency)
+### Inference Optimization
+
+| Strategy | Speedup | Use Case |
+|----------|---------|----------|
+| JIT warmup | Avoids first-frame latency | Before game start |
+| Incremental Mamba | 60x for Mamba | Real-time temporal |
+| Action repeat | N× | Fast models |
+| ONNX INT8 | ~5x | Production deployment |
+
+## Python Bridge (MeleePort)
+
+### Communication Protocol
+
+- **Transport**: Erlang Port with line-delimited JSON on stdin/stdout
+- **Python**: `priv/python/melee_bridge.py` (498 lines)
+- **Commands**: `init`, `step`, `send_controller`, `ping`, `stop`
+
+### Game State Structure
 
 ```elixir
-defmodule ExPhil.Bridge.Pythonx do
-  def init do
-    Pythonx.init()
-    # Execute Python code to set up libmelee
-    Pythonx.execute("""
-    import melee
-    console = melee.Console(path="/path/to/slippi")
-    controller = melee.Controller(console=console, port=1)
-    """)
-  end
-
-  def get_game_state do
-    Pythonx.execute("console.step()")
-    |> parse_game_state()
-  end
-end
-```
-
-## Inference Optimization
-
-Target: < 2ms per frame for 60 FPS play
-
-### Strategies
-
-1. **Model Quantization**: INT8 inference with EXLA
-2. **Batching**: Process multiple potential futures in parallel
-3. **JIT Compilation**: Nx.Defn compiles to optimized XLA
-
-```elixir
-defmodule ExPhil.Agent.Optimized do
-  import Nx.Defn
-
-  # JIT-compiled inference
-  defn predict(model, state) do
-    Axon.predict(model, state)
-  end
-
-  # Warm up compilation before game starts
-  def warmup(model) do
-    dummy_state = create_dummy_state()
-    predict(model, dummy_state)
-  end
-end
+%GameState{
+  frame: integer(),
+  stage: integer(),           # Stage ID
+  menu_state: integer(),      # 2=IN_GAME
+  players: %{
+    1 => %Player{
+      character: integer(),
+      x: float(), y: float(),
+      percent: float(),
+      stock: integer(),
+      action: integer(),      # Action state ID
+      action_frame: integer(),
+      jumps_left: integer(),
+      on_ground: boolean(),
+      nana: %Nana{} | nil     # Ice Climbers partner
+    }
+  },
+  projectiles: [%Projectile{}],
+  distance: float()
+}
 ```
 
 ## Testing Strategy
 
-### Unit Tests
-- Embedding correctness (compare with slippi-ai outputs)
-- Network forward pass shapes
-- Reward computation edge cases
+### Test Organization (1933 tests)
 
-### Integration Tests
-- Full training loop on small dataset
-- Python bridge communication
-- Checkpoint save/load
+| Category | Files | Coverage |
+|----------|-------|----------|
+| Embeddings | 7 | Continuous/discrete encoding, shapes |
+| Networks | 10 | All 6 backbones, policy, value |
+| Training | 37+ | Config, data, imitation, PPO |
+| Self-Play | 6 | Elo, matchmaking, population |
+| Integration | 2 | Full pipeline, Dolphin |
 
-### Evaluation Tests
-- Play against Level 9 CPU
-- Self-play ELO tracking
-- Regression tests (don't get worse)
+### Test Tags
+
+- `:slow` - Tests >1s (excluded by default)
+- `:integration` - External dependencies
+- `:gpu` - Requires CUDA
+- `:benchmark` - Performance regression
+- `:snapshot` - Embedding output stability
+
+```bash
+mix test                    # Fast unit tests
+mix test.slow               # Include slow tests
+mix test.all                # Everything
+mix test.benchmark          # Performance tests
+```
 
 ## Monitoring & Observability
 
-### Training Metrics (Wandb)
-- Imitation loss
-- Value loss
-- PPO objective
-- KL divergence from teacher
-- Reward statistics
+### Training Metrics (W&B)
 
-### Inference Metrics (Telemetry)
-- Inference latency (p50, p95, p99)
-- Frame drops
-- Memory usage
-- GPU utilization
+- Loss: total, button, stick, shoulder
+- Per-action accuracy: buttons, rare actions (Z, L, R)
+- Learning rate, gradient norm
+- GPU memory utilization
+
+### Inference Metrics
+
+- Inference latency (ms/frame)
+- FPS achieved vs target (60)
+- Confidence scores
+- Frame buffer depth
+
+## File Organization
+
+```
+lib/exphil/
+├── networks/           # Policy, Value, all backbones
+│   ├── policy.ex       # Main policy network
+│   ├── mamba.ex        # Selective SSM
+│   ├── attention.ex    # Multi-head attention
+│   ├── recurrent.ex    # LSTM/GRU
+│   └── hybrid.ex       # Jamba (Mamba+Attention)
+├── embeddings/         # State → tensor conversion
+│   ├── player.ex       # Player embedding
+│   ├── game.ex         # Full game state
+│   └── controller.ex   # Controller I/O
+├── training/           # Training infrastructure
+│   ├── imitation.ex    # Behavioral cloning
+│   ├── ppo.ex          # PPO algorithm
+│   ├── data.ex         # Dataset handling
+│   └── config.ex       # CLI parsing
+├── agents/             # Inference agents
+│   ├── agent.ex        # Policy inference
+│   └── supervisor.ex   # Agent management
+├── bridge/             # Dolphin integration
+│   ├── melee_port.ex   # Python bridge
+│   └── async_runner.ex # Real-time play
+├── self_play/          # RL infrastructure
+│   ├── supervisor.ex   # Self-play supervisor
+│   ├── game_runner.ex  # Per-game GenServer
+│   └── matchmaker.ex   # Elo system
+└── rewards/            # Reward computation
+    ├── standard.ex     # Stock/damage rewards
+    └── shaped.ex       # Approach/combo/edge
+```
+
+## References
+
+- [slippi-ai](https://github.com/vladfi1/slippi-ai) - Original TensorFlow implementation
+- [libmelee](https://github.com/altf4/libmelee) - Python game state API
+- [Mamba paper](https://arxiv.org/abs/2312.00752) - Selective state space models
+- [Nx](https://github.com/elixir-nx/nx) / [Axon](https://github.com/elixir-nx/axon) - Elixir ML
