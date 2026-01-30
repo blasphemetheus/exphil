@@ -22,11 +22,14 @@ if "--quiet" in System.argv() or "-q" in System.argv() do
 end
 
 alias ExPhil.CLI
-alias ExPhil.Training.Output
+alias ExPhil.Training.{Config, Output}
 alias ExPhil.Data.Peppi
 alias ExPhil.Training.{ActionViz, Checkpoint, Data}
 alias ExPhil.Networks.Policy
 alias ExPhil.Embeddings
+
+# Get shared defaults from Config module
+training_defaults = Config.defaults()
 
 # Parse command line arguments using CLI module
 opts = CLI.parse_args(System.argv(),
@@ -80,11 +83,11 @@ end
 # Get positional args for --compare mode
 positional = opts[:_positional] || []
 
-# Convert to map for easier access, with defaults for script-specific options
+# Convert to map for easier access, with defaults from Config module
 opts = opts
-  |> Keyword.put_new(:temporal, false)
-  |> Keyword.put_new(:backbone, "mlp")
-  |> Keyword.put_new(:window_size, 60)
+  |> Keyword.put_new(:temporal, training_defaults[:temporal])
+  |> Keyword.put_new(:backbone, to_string(training_defaults[:backbone]))
+  |> Keyword.put_new(:window_size, training_defaults[:window_size])
   |> Map.new()
 
 # Determine evaluation mode
