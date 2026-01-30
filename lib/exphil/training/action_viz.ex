@@ -279,12 +279,12 @@ defmodule ExPhil.Training.ActionViz do
 
     if show_sticks do
       Output.puts_raw("")
-      Output.puts_raw("  " <> Output.colorize("Main Stick:", :bold))
-      print_stick_heatmap(viz.main_stick_counts, viz.grid_size, viz.total)
-
-      Output.puts_raw("")
-      Output.puts_raw("  " <> Output.colorize("C-Stick:", :bold))
-      print_stick_heatmap(viz.c_stick_counts, viz.grid_size, viz.total)
+      print_stick_heatmaps_side_by_side(
+        viz.main_stick_counts,
+        viz.c_stick_counts,
+        viz.grid_size,
+        viz.total
+      )
     end
 
     if show_shoulder && map_size(viz.shoulder_counts) > 0 do
@@ -391,39 +391,80 @@ defmodule ExPhil.Training.ActionViz do
     end)
   end
 
-  defp print_stick_heatmap(counts, grid_size, total) when total > 0 do
-    # Find max count for scaling
-    max_count = counts |> Map.values() |> Enum.max(fn -> 1 end)
+  defp print_stick_heatmaps_side_by_side(main_counts, c_counts, grid_size, total) when total > 0 do
+    # Find max counts for scaling (use shared max for comparable intensity)
+    main_max = main_counts |> Map.values() |> Enum.max(fn -> 1 end)
+    c_max = c_counts |> Map.values() |> Enum.max(fn -> 1 end)
 
     # Heatmap characters (8 intensity levels)
     chars = [" ", "░", "▒", "▓", "█", "█", "█", "█"]
 
-    # Print grid (Y axis is inverted for display)
+    center = div(grid_size, 2)
+    gap = "      "  # Gap between the two heatmaps
+
+    # Header row
+    main_header = String.pad_leading("Main Stick", div(grid_size, 2) + 6)
+    c_header = String.pad_leading("C-Stick", div(grid_size, 2) + 6)
+    Output.puts_raw("    " <> Output.colorize(main_header, :bold) <> gap <> Output.colorize(c_header, :bold))
+
+    # X-axis labels (top) - bucket numbers
+    x_labels = Enum.map(0..(grid_size - 1), fn x ->
+      cond do
+        x == 0 -> "0"
+        x == center -> "8"
+        x == grid_size - 1 -> "F"
+        rem(x, 4) == 0 -> Integer.to_string(x, 16)
+        true -> " "
+      end
+    end) |> Enum.join("")
+    Output.puts_raw("    X: #{x_labels}#{gap}X: #{x_labels}")
+
+    # Print grid rows (Y axis is inverted for display: top = high Y)
     for y <- (grid_size - 1)..0//-1 do
-      row =
+      # Y label
+      y_label = cond do
+        y == grid_size - 1 -> "F"
+        y == center -> "8"
+        y == 0 -> "0"
+        true -> " "
+      end
+
+      # Main stick row
+      main_row =
         for x <- 0..(grid_size - 1) do
-          count = Map.get(counts, {x, y}, 0)
-          intensity = if max_count > 0, do: round(count / max_count * 7), else: 0
-          intensity = min(intensity, 7)
-          Enum.at(chars, intensity)
+          count = Map.get(main_counts, {x, y}, 0)
+          intensity = if main_max > 0, do: round(count / main_max * 7), else: 0
+          Enum.at(chars, min(intensity, 7))
         end
 
-      y_label = if y == div(grid_size, 2), do: "<-Y", else: "   "
-      Output.puts_raw("    #{Enum.join(row)} #{y_label}")
+      # C-stick row
+      c_row =
+        for x <- 0..(grid_size - 1) do
+          count = Map.get(c_counts, {x, y}, 0)
+          intensity = if c_max > 0, do: round(count / c_max * 7), else: 0
+          Enum.at(chars, min(intensity, 7))
+        end
+
+      Output.puts_raw("    #{y_label}: #{Enum.join(main_row)}#{gap}#{y_label}: #{Enum.join(c_row)}")
     end
 
-    Output.puts_raw("    " <> String.duplicate(" ", div(grid_size, 2)) <> "X->")
+    # Legend
+    Output.puts_raw("")
+    Output.puts_raw("    Legend: X=left(0)→right(F)  Y=down(0)→up(F)  8=neutral")
+    Output.puts_raw("    Intensity: #{Enum.join(chars, "")} (sparse → dense)")
 
-    # Show center concentration
-    center = div(grid_size, 2)
-    center_count = Map.get(counts, {center, center}, 0)
-    center_pct = Float.round(center_count / total * 100, 1)
-    Output.puts_raw("    (center: #{center_pct}%)")
+    # Stats
+    main_center_count = Map.get(main_counts, {center, center}, 0)
+    main_center_pct = Float.round(main_center_count / total * 100, 1)
+    c_center_count = Map.get(c_counts, {center, center}, 0)
+    c_center_pct = Float.round(c_center_count / total * 100, 1)
+    Output.puts_raw("    Neutral: Main=#{main_center_pct}%  C=#{c_center_pct}%")
   end
 
-  defp print_stick_heatmap(_counts, _grid_size, 0) do
+  defp print_stick_heatmaps_side_by_side(_main_counts, _c_counts, _grid_size, 0) do
     Output.puts_raw("    (no data)")
   end
+
 
   defp print_shoulder_distribution(%__MODULE__{total: total, shoulder_counts: counts}) do
     max_val = counts |> Map.keys() |> Enum.max(fn -> 0 end)

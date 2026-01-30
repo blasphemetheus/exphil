@@ -166,9 +166,11 @@ defmodule ExPhil.Training.ActionVizTest do
           ActionViz.print_summary(viz, show_shoulder: false)
         end)
 
-      assert output =~ "Main Stick:"
-      assert output =~ "C-Stick:"
-      assert output =~ "center:"
+      # Side-by-side headers
+      assert output =~ "Main Stick"
+      assert output =~ "C-Stick"
+      # Neutral percentage
+      assert output =~ "Neutral:"
     end
   end
 end
