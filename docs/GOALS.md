@@ -269,6 +269,12 @@ Created `ExPhil.CLI` module for standardized argument parsing across scripts.
 | Migrate analyze_replays.exs | Low | Todo |
 | Add `:benchmark` flag group | Low | Todo |
 | Add `:dolphin` flag group | Low | Todo |
+| Add button press analysis to analyze_replays.exs | Low | Todo |
+
+**analyze_replays.exs improvements needed:**
+- Add button press rate analysis (A, B, X, Y, Z, L, R, D-Up percentages)
+- Migrate to CLI module for consistent flag handling
+- Add `:analysis` flag group with common analysis options
 
 **Benefits:**
 - Consistent verbosity handling (`--quiet`/`--verbose`) across all scripts
