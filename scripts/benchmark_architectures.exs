@@ -253,7 +253,8 @@ all_architectures = [
      window_size: 30,
      num_layers: 2,
      hidden_sizes: [256, 256],
-     batch_size: 64
+     batch_size: 64,
+     dropout: 0.1
    ]},
   {:mamba, "Mamba (parallel scan)",
    [
@@ -262,7 +263,10 @@ all_architectures = [
      window_size: 30,
      num_layers: 2,
      hidden_sizes: [256, 256],
-     batch_size: 64
+     batch_size: 64,
+     # NOTE: Mamba defaults to dropout: 0.0 which causes severe overfitting!
+     # Must explicitly set dropout for fair comparison with MLP (which uses 0.1)
+     dropout: 0.1
    ]},
   # NOTE: mamba_nif excluded from training benchmark - gradients don't flow through NIF
   # Use for inference-only comparison: train with :mamba, infer with :mamba_nif
@@ -285,9 +289,9 @@ all_architectures = [
      max_grad_norm: 0.5
    ]},
   {:lstm, "LSTM",
-   [temporal: true, backbone: :lstm, window_size: 30, num_layers: 1, hidden_sizes: [256, 256]]},
+   [temporal: true, backbone: :lstm, window_size: 30, num_layers: 1, hidden_sizes: [256, 256], dropout: 0.1]},
   {:gru, "GRU",
-   [temporal: true, backbone: :gru, window_size: 30, num_layers: 1, hidden_sizes: [256, 256]]},
+   [temporal: true, backbone: :gru, window_size: 30, num_layers: 1, hidden_sizes: [256, 256], dropout: 0.1]},
   {:lstm_hybrid, "LSTM+Attention",
    [
      temporal: true,
