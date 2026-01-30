@@ -177,17 +177,17 @@ Output.step(3, 5, "Loading model configuration")
 # Load first model to get its config (used for embedding setup)
 first_model_path = hd(model_paths)
 
+# Try to find companion config file
+config_paths = [
+  String.replace(first_model_path, ~r/\.(axon|bin)$/, "_config.json"),
+  String.replace(first_model_path, "_policy.bin", "_config.json"),
+  String.replace(first_model_path, "_best_policy.bin", "_config.json"),
+  String.replace(first_model_path, ".axon", "_config.json")
+] |> Enum.uniq()
+
+config_path = Enum.find(config_paths, &File.exists?/1)
+
 model_config =
-  # Try to find companion config file
-  config_paths = [
-    String.replace(first_model_path, ~r/\.(axon|bin)$/, "_config.json"),
-    String.replace(first_model_path, "_policy.bin", "_config.json"),
-    String.replace(first_model_path, "_best_policy.bin", "_config.json"),
-    String.replace(first_model_path, ".axon", "_config.json")
-  ] |> Enum.uniq()
-
-  config_path = Enum.find(config_paths, &File.exists?/1)
-
   if config_path do
     case File.read(config_path) do
       {:ok, json} ->
