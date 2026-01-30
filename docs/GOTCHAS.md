@@ -1558,6 +1558,17 @@ elixir -e "System.cmd(\"mix\", [\"run\", \"script.exs\", \"--arch\", \"mamba\"])
 | `:erlang.garbage_collect()` | Frees BEAM memory only |
 | Process termination | **Only way to fully release XLA memory pool** |
 
+**Training script warning:**
+
+The training script shows a GPU memory warning at high usage. Since preallocation reserves 90% immediately, this warning used a 95% threshold to avoid false positives:
+
+```
+[04:12:50]   GPU: 21.59 GB/23.99 GB (90%) | Util: 18%
+# No warning at 90% - this is normal preallocation, not actual memory pressure
+```
+
+The warning only triggers at 95%+ which indicates actual memory exhaustion beyond the preallocated pool.
+
 **References:**
 - [Elixir Forum: GPU RAM deallocation issue](https://elixirforum.com/t/possible-graphic-ram-deallocation-issue-noticed-when-using-nx-with-exla/47629)
 - [Elixir Forum: Axon memory usage high](https://elixirforum.com/t/axon-memory-usage-high/63304)

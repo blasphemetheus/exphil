@@ -2052,7 +2052,9 @@ batch_checkpoint_path =
       Output.puts("  #{gpu_status}")
 
       # Check for high memory usage and warn
-      case GPUUtils.check_memory_warning(threshold: 0.90) do
+      # Note: EXLA preallocates ~90% of VRAM by default (XLA_PYTHON_CLIENT_MEM_FRACTION)
+      # so we only warn at 95%+ which indicates actual memory pressure
+      case GPUUtils.check_memory_warning(threshold: 0.95) do
         {:warning, msg} -> Output.warning(msg)
         _ -> :ok
       end
