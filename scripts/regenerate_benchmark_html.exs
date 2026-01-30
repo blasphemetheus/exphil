@@ -25,17 +25,35 @@ end
 IO.puts("Loading results from: #{json_path}")
 
 # Load JSON
-results = json_path |> File.read!() |> Jason.decode!(keys: :atoms)
+raw_data = json_path |> File.read!() |> Jason.decode!(keys: :atoms)
 
-# Sort by validation loss
+# Handle both list format and map format with "results" key
+results = cond do
+  is_list(raw_data) ->
+    # Filter to only actual results (have :name and :final_val_loss keys)
+    Enum.filter(raw_data, fn r ->
+      is_map(r) && Map.has_key?(r, :name) && Map.has_key?(r, :final_val_loss)
+    end)
+  is_map(raw_data) && Map.has_key?(raw_data, :results) ->
+    raw_data.results
+  true ->
+    IO.puts("Warning: Unexpected JSON format")
+    []
+end
+
+# Sort by validation loss (filter out NaN)
 sorted_results = results
-  |> Enum.filter(fn r -> r.final_val_loss && !is_nil(r.final_val_loss) && r.final_val_loss != :nan end)
+  |> Enum.filter(fn r ->
+    val = r[:final_val_loss]
+    val && is_number(val) && not (is_float(val) and (val != val))  # NaN check: NaN != NaN
+  end)
   |> Enum.sort_by(& &1.final_val_loss)
 
 IO.puts("Loaded #{length(results)} results, #{length(sorted_results)} with valid val_loss")
 
 # Build loss curve data for line chart
 loss_curve_data = results
+  |> Enum.filter(&Map.has_key?(&1, :loss_history))
   |> Enum.flat_map(fn r ->
     r.loss_history
     |> Enum.with_index(1)
@@ -45,6 +63,7 @@ loss_curve_data = results
   end)
 
 val_loss_data = results
+  |> Enum.filter(&Map.has_key?(&1, :name))
   |> Enum.flat_map(fn r ->
     (r[:val_loss_history] || [])
     |> Enum.with_index(1)
@@ -65,8 +84,10 @@ comparison_plot =
   |> VegaLite.encode_field(:color, "architecture", type: :nominal, title: "Architecture")
   |> VegaLite.encode_field(:stroke_dash, "architecture", type: :nominal)
 
-# Speed comparison
-speed_data = results |> Enum.map(fn r -> %{architecture: r.name, speed: r.batches_per_sec} end)
+# Speed comparison (filter to valid results only)
+speed_data = results
+  |> Enum.filter(&Map.has_key?(&1, :name))
+  |> Enum.map(fn r -> %{architecture: r.name, speed: r[:batches_per_sec] || 0} end)
 
 speed_plot =
   VegaLite.new(width: 700, height: 300, title: "Training Speed (batches/sec, higher is better)")
@@ -77,9 +98,11 @@ speed_plot =
   |> VegaLite.encode_field(:color, "architecture", type: :nominal, legend: nil)
 
 # Inference time comparison
-inference_data = results |> Enum.map(fn r ->
-  %{architecture: r.name, inference_ms: r.inference_time_ms || 0}
-end)
+inference_data = results
+  |> Enum.filter(&Map.has_key?(&1, :name))
+  |> Enum.map(fn r ->
+    %{architecture: r.name, inference_ms: r[:inference_time_ms] || 0}
+  end)
 
 inference_plot =
   VegaLite.new(width: 700, height: 300, title: "Inference Time (ms, lower is better)")
