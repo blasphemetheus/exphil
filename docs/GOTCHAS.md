@@ -2064,10 +2064,24 @@ train_frames = Enum.map(train_indices, &:array.get(&1, frames_array))
 | 100K frames | ~10s | ~100ms |
 | 1.8M frames | **10+ minutes** | **~2s** |
 
-**Code location:** `lib/exphil/training/data.ex:864` - `split/2` function
+**Code locations fixed:**
+| Location | Function | Issue |
+|----------|----------|-------|
+| `data.ex:864` | `split/2` | Frame list splitting |
+| `data.ex:880` | `split/2` | Embedded sequences splitting |
+| `data.ex:321` | `batched/2` | Character-balanced sampling |
 
 **Why this wasn't caught earlier:** Small test datasets (< 10K frames) don't exhibit noticeable slowdown. The O(n²) only becomes catastrophic at scale.
 
 **Lesson learned:** Always benchmark data pipeline operations with production-scale datasets, not just unit test sizes. Add performance regression tests for critical paths.
 
-**Regression test:** `test/exphil/training/data_test.exs` includes a `@tag :benchmark` test that verifies split completes in < 5s for 100K frames.
+**Regression tests:** `test/exphil/training/data_test.exs` includes `@tag :benchmark` tests:
+
+| Test | Dataset Size | Threshold | Actual |
+|------|--------------|-----------|--------|
+| Data.split | 100K frames | < 5s | ~200ms |
+| Data.to_sequences | 50K frames | < 10s | ~550ms |
+| Data.stats | 100K frames | < 5s | ~190ms |
+| Batch creation | 100K frames | < 500ms/batch | ~28ms |
+
+Run with: `mix test test/exphil/training/data_test.exs --include benchmark`
