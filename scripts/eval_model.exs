@@ -12,8 +12,10 @@
 #   - Top-3 accuracy for stick axes
 #   - Overall weighted accuracy
 
-# Suppress XLA/CUDA noise BEFORE any modules are loaded
-# Must happen before any EXLA operations
+# Suppress XLA/CUDA noise
+# Note: TF_CPP_MIN_LOG_LEVEL must be set BEFORE running the script:
+#   TF_CPP_MIN_LOG_LEVEL=3 mix run scripts/eval_model.exs --quiet ...
+# Setting it here is too late as EXLA is already loaded by `mix run`
 if "--quiet" in System.argv() or "-q" in System.argv() do
   System.put_env("TF_CPP_MIN_LOG_LEVEL", "3")
   System.put_env("XLA_FLAGS", "--xla_gpu_autotune_level=0")
@@ -533,8 +535,10 @@ evaluate_model = fn model_path ->
       log_softmax = Nx.subtract(shifted, Nx.log(Nx.sum(Nx.exp(shifted), axes: [-1], keep_axes: true)))
       # Convert sparse indices to one-hot if needed
       targets_oh = if tuple_size(Nx.shape(targets_t)) == 1 do
-        num_classes = elem(Nx.shape(logits_t), -1)
-        Nx.equal(Nx.iota({elem(Nx.shape(targets_t), 0), num_classes}, axis: 1), Nx.reshape(targets_t, {:auto, 1}))
+        logits_shape = Nx.shape(logits_t)
+        num_classes = elem(logits_shape, tuple_size(logits_shape) - 1)
+        batch_size = elem(Nx.shape(targets_t), 0)
+        Nx.equal(Nx.iota({batch_size, num_classes}, axis: 1), Nx.reshape(targets_t, {:auto, 1}))
       else
         targets_t
       end
