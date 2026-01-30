@@ -119,6 +119,7 @@ defmodule ExPhil.Training.Config do
     "--focal-loss",
     "--focal-gamma",
     "--button-weight",
+    "--stick-edge-weight",
     "--no-register",
     "--keep-best",
     "--ema",
@@ -353,6 +354,10 @@ defmodule ExPhil.Training.Config do
       # Button loss weight: multiply button loss to balance vs 5 stick/shoulder losses
       # Default 1.0 = equal weight; try 3.0-5.0 to boost button learning
       button_weight: 1.0,
+      # Stick edge bucket weight: weight edge buckets (0, 16) higher than center (8)
+      # Addresses neutral↔far confusion by penalizing edge mistakes more
+      # nil = disabled, 2.0 = edges weighted 2x, linearly interpolated to center
+      stick_edge_weight: nil,
       # Registry
       no_register: false,
       # Checkpoint pruning
@@ -2019,6 +2024,7 @@ defmodule ExPhil.Training.Config do
     |> parse_flag(args, "--focal-loss", :focal_loss)
     |> parse_float_arg(args, "--focal-gamma", :focal_gamma)
     |> parse_float_arg(args, "--button-weight", :button_weight)
+    |> parse_float_arg(args, "--stick-edge-weight", :stick_edge_weight)
     |> parse_flag(args, "--no-register", :no_register)
     |> parse_optional_int_arg(args, "--keep-best", :keep_best)
     |> parse_flag(args, "--ema", :ema)
@@ -2408,6 +2414,7 @@ defmodule ExPhil.Training.Config do
       focal_loss: opts[:focal_loss],
       focal_gamma: opts[:focal_gamma],
       button_weight: opts[:button_weight],
+      stick_edge_weight: opts[:stick_edge_weight],
       ema: opts[:ema],
       ema_decay: opts[:ema_decay],
 

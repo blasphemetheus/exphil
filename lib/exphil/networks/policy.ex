@@ -1541,6 +1541,9 @@ defmodule ExPhil.Networks.Policy do
     # Button weight: multiply button loss to balance against 5 categorical losses
     # Default 1.0 = no change; try 3.0-5.0 to boost button learning
     button_weight = Keyword.get(opts, :button_weight, 1.0)
+    # Stick edge weight: weight edge buckets higher than center
+    # nil = disabled, 2.0 = edges weighted 2x center
+    stick_edge_weight = Keyword.get(opts, :stick_edge_weight, nil)
 
     # Choose loss functions based on focal_loss flag
     {button_loss_fn, cat_loss_fn} =
@@ -1557,6 +1560,17 @@ defmodule ExPhil.Networks.Policy do
         {&binary_cross_entropy/3, &categorical_cross_entropy/3}
       end
 
+    # Choose main stick loss function based on stick_edge_weight
+    # Only apply edge weighting to main stick (most important for movement)
+    main_stick_loss_fn =
+      if stick_edge_weight && stick_edge_weight > 1.0 do
+        fn logits, targets, smooth ->
+          weighted_categorical_cross_entropy(logits, targets, smooth, stick_edge_weight)
+        end
+      else
+        cat_loss_fn
+      end
+
     # Button loss (binary cross-entropy with optional label smoothing + focal)
     # Apply button_weight to boost button loss relative to stick/shoulder losses
     button_loss = Nx.multiply(
@@ -1564,13 +1578,13 @@ defmodule ExPhil.Networks.Policy do
       button_weight
     )
 
-    # Stick losses (categorical cross-entropy with optional label smoothing + focal)
-    main_x_loss = cat_loss_fn.(logits.main_x, targets.main_x, label_smoothing)
-    main_y_loss = cat_loss_fn.(logits.main_y, targets.main_y, label_smoothing)
+    # Main stick losses (with optional edge weighting)
+    main_x_loss = main_stick_loss_fn.(logits.main_x, targets.main_x, label_smoothing)
+    main_y_loss = main_stick_loss_fn.(logits.main_y, targets.main_y, label_smoothing)
+
+    # C-stick and shoulder losses (standard categorical CE)
     c_x_loss = cat_loss_fn.(logits.c_x, targets.c_x, label_smoothing)
     c_y_loss = cat_loss_fn.(logits.c_y, targets.c_y, label_smoothing)
-
-    # Shoulder loss
     shoulder_loss = cat_loss_fn.(logits.shoulder, targets.shoulder, label_smoothing)
 
     # Combine losses
@@ -1682,6 +1696,78 @@ defmodule ExPhil.Networks.Policy do
     # Cross-entropy with soft targets: -sum(p * log_q)
     nll = Nx.negate(Nx.sum(Nx.multiply(log_probs, smoothed_targets), axes: [1]))
     Nx.mean(nll)
+  end
+
+  @doc """
+  Categorical cross-entropy with per-bucket weighting for stick inputs.
+
+  Edge buckets (0, num_buckets-1) are weighted higher than center buckets,
+  with linear interpolation between. This addresses the neutral↔far confusion
+  where the model defaults to neutral and misses important edge positions.
+
+  ## Arguments
+    - `logits` - Raw model output [batch, num_classes]
+    - `targets` - Target bucket indices [batch]
+    - `label_smoothing` - Label smoothing factor (0.0 = none)
+    - `edge_weight` - Weight for edge buckets (e.g., 2.0 = 2x weight for edges)
+
+  ## Weight Calculation
+  For a 17-bucket system (0-16, center at 8):
+    - Bucket 8 (center): weight = 1.0
+    - Bucket 0 or 16 (edges): weight = edge_weight
+    - Intermediate buckets: linear interpolation
+
+  Formula: weight[i] = 1.0 + (edge_weight - 1.0) * |i - center| / center
+  """
+  @spec weighted_categorical_cross_entropy(Nx.Tensor.t(), Nx.Tensor.t(), float(), float()) ::
+          Nx.Tensor.t()
+  def weighted_categorical_cross_entropy(logits, targets, label_smoothing, edge_weight) do
+    # targets are indices, logits are [batch, num_classes]
+    log_probs = log_softmax(logits)
+
+    batch_size = Nx.axis_size(logits, 0)
+    num_classes = Nx.axis_size(logits, 1)
+    center = div(num_classes - 1, 2)
+
+    # Create one-hot targets
+    targets_one_hot =
+      Nx.equal(
+        Nx.iota({batch_size, num_classes}, axis: 1),
+        Nx.reshape(targets, {batch_size, 1})
+      )
+
+    # Apply label smoothing if enabled
+    smoothed_targets =
+      if label_smoothing > 0.0 do
+        off_value = label_smoothing / (num_classes - 1)
+        on_value = 1.0 - label_smoothing
+
+        Nx.add(
+          off_value,
+          Nx.multiply(targets_one_hot, on_value - off_value)
+        )
+      else
+        targets_one_hot
+      end
+
+    # Compute per-sample weights based on target bucket
+    # weight = 1.0 + (edge_weight - 1.0) * distance_from_center / center
+    # targets: [batch], we need to compute weight for each target
+    distance_from_center = Nx.abs(Nx.subtract(targets, center))
+
+    # Normalize by center to get 0.0 at center, 1.0 at edges
+    normalized_distance = Nx.divide(distance_from_center, center)
+
+    # Interpolate: 1.0 at center, edge_weight at edges
+    sample_weights = Nx.add(1.0, Nx.multiply(edge_weight - 1.0, normalized_distance))
+
+    # Cross-entropy with soft targets: -sum(p * log_q)
+    nll = Nx.negate(Nx.sum(Nx.multiply(log_probs, smoothed_targets), axes: [1]))
+
+    # Apply per-sample weights
+    weighted_nll = Nx.multiply(nll, sample_weights)
+
+    Nx.mean(weighted_nll)
   end
 
   @doc """

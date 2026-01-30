@@ -934,6 +934,8 @@ defmodule ExPhil.Training.Imitation do
     label_smoothing = trainer.config[:label_smoothing] || 0.0
     focal_loss = trainer.config[:focal_loss] || false
     focal_gamma = trainer.config[:focal_gamma] || 2.0
+    button_weight = trainer.config[:button_weight] || 1.0
+    stick_edge_weight = trainer.config[:stick_edge_weight]
 
     loss_fn = fn params ->
       {buttons, main_x, main_y, c_x, c_y, shoulder} =
@@ -951,7 +953,9 @@ defmodule ExPhil.Training.Imitation do
       Policy.imitation_loss(logits, actions,
         label_smoothing: label_smoothing,
         focal_loss: focal_loss,
-        focal_gamma: focal_gamma
+        focal_gamma: focal_gamma,
+        button_weight: button_weight,
+        stick_edge_weight: stick_edge_weight
       )
     end
 
@@ -1128,6 +1132,8 @@ defmodule ExPhil.Training.Imitation do
     label_smoothing = Keyword.get(opts, :label_smoothing, 0.0)
     focal_loss = Keyword.get(opts, :focal_loss, false)
     focal_gamma = Keyword.get(opts, :focal_gamma, 2.0)
+    button_weight = Keyword.get(opts, :button_weight, 1.0)
+    stick_edge_weight = Keyword.get(opts, :stick_edge_weight)
     {_init_fn, predict_fn} = Axon.build(policy_model)
 
     loss_fn = fn params, states, actions ->
@@ -1148,7 +1154,9 @@ defmodule ExPhil.Training.Imitation do
       Policy.imitation_loss(logits, actions,
         label_smoothing: label_smoothing,
         focal_loss: focal_loss,
-        focal_gamma: focal_gamma
+        focal_gamma: focal_gamma,
+        button_weight: button_weight,
+        stick_edge_weight: stick_edge_weight
       )
     end
 
@@ -1174,6 +1182,7 @@ defmodule ExPhil.Training.Imitation do
     focal_loss = config[:focal_loss] || false
     focal_gamma = config[:focal_gamma] || 2.0
     button_weight = config[:button_weight] || 1.0
+    stick_edge_weight = config[:stick_edge_weight]
     precision = config[:precision] || :bf16
 
     # Build the loss+grad function using JIT compilation
@@ -1208,7 +1217,8 @@ defmodule ExPhil.Training.Imitation do
           label_smoothing: label_smoothing,
           focal_loss: focal_loss,
           focal_gamma: focal_gamma,
-          button_weight: button_weight
+          button_weight: button_weight,
+          stick_edge_weight: stick_edge_weight
         )
       end
 
@@ -1236,6 +1246,7 @@ defmodule ExPhil.Training.Imitation do
     focal_loss = config[:focal_loss] || false
     focal_gamma = config[:focal_gamma] || 2.0
     button_weight = config[:button_weight] || 1.0
+    stick_edge_weight = config[:stick_edge_weight]
     precision = config[:precision] || :bf16
 
     inner_fn = fn params, states, actions ->
@@ -1258,7 +1269,8 @@ defmodule ExPhil.Training.Imitation do
         label_smoothing: label_smoothing,
         focal_loss: focal_loss,
         focal_gamma: focal_gamma,
-        button_weight: button_weight
+        button_weight: button_weight,
+        stick_edge_weight: stick_edge_weight
       )
     end
 

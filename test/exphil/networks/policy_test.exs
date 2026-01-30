@@ -736,6 +736,127 @@ defmodule ExPhil.Networks.PolicyTest do
     end
   end
 
+  describe "weighted_categorical_cross_entropy/4" do
+    test "weights edge buckets higher than center" do
+      # 17-bucket system (0-16), center at 8
+      num_classes = 17
+      center = 8
+
+      # Uniform logits (model equally uncertain)
+      logits = Nx.broadcast(0.0, {1, num_classes})
+
+      # Edge target (bucket 0) should have higher loss than center target (bucket 8)
+      edge_target = Nx.tensor([0])
+      center_target = Nx.tensor([center])
+
+      edge_weight = 2.0
+
+      # Regular CE (no weighting)
+      edge_loss_regular = Policy.categorical_cross_entropy(logits, edge_target, 0.0)
+      center_loss_regular = Policy.categorical_cross_entropy(logits, center_target, 0.0)
+
+      # They should be equal without weighting (model is uniformly uncertain)
+      assert_in_delta Nx.to_number(edge_loss_regular), Nx.to_number(center_loss_regular), 0.01
+
+      # Weighted CE - edge should have 2x loss
+      edge_loss_weighted = Policy.weighted_categorical_cross_entropy(logits, edge_target, 0.0, edge_weight)
+      center_loss_weighted = Policy.weighted_categorical_cross_entropy(logits, center_target, 0.0, edge_weight)
+
+      # Edge loss should be ~2x center loss
+      assert_in_delta(
+        Nx.to_number(edge_loss_weighted) / Nx.to_number(center_loss_weighted),
+        edge_weight,
+        0.01
+      )
+    end
+
+    test "intermediate buckets have interpolated weights" do
+      num_classes = 17
+      center = 8
+
+      logits = Nx.broadcast(0.0, {1, num_classes})
+      edge_weight = 3.0
+
+      # Bucket 4 is halfway between center (8) and edge (0)
+      # Expected weight: 1.0 + (3.0 - 1.0) * 4/8 = 1.0 + 1.0 = 2.0
+      halfway_target = Nx.tensor([4])
+      center_target = Nx.tensor([center])
+
+      halfway_loss = Policy.weighted_categorical_cross_entropy(logits, halfway_target, 0.0, edge_weight)
+      center_loss = Policy.weighted_categorical_cross_entropy(logits, center_target, 0.0, edge_weight)
+
+      # Halfway bucket should have weight 2.0 (halfway between 1.0 and 3.0)
+      assert_in_delta(
+        Nx.to_number(halfway_loss) / Nx.to_number(center_loss),
+        2.0,
+        0.01
+      )
+    end
+
+    test "works with label smoothing" do
+      num_classes = 17
+      logits = Nx.broadcast(0.0, {1, num_classes})
+      targets = Nx.tensor([0])
+
+      loss_no_smooth = Policy.weighted_categorical_cross_entropy(logits, targets, 0.0, 2.0)
+      loss_with_smooth = Policy.weighted_categorical_cross_entropy(logits, targets, 0.1, 2.0)
+
+      # Both should be positive and different
+      assert Nx.to_number(loss_no_smooth) > 0
+      assert Nx.to_number(loss_with_smooth) > 0
+      assert Nx.to_number(loss_no_smooth) != Nx.to_number(loss_with_smooth)
+    end
+  end
+
+  describe "imitation_loss with stick_edge_weight" do
+    test "applies edge weighting only to main stick" do
+      # Create logits where main stick predictions are for edge buckets
+      logits = %{
+        buttons: Nx.tensor([[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]]),
+        main_x: Nx.broadcast(0.0, {1, 17}),  # 17 buckets
+        main_y: Nx.broadcast(0.0, {1, 17}),
+        c_x: Nx.broadcast(0.0, {1, 17}),
+        c_y: Nx.broadcast(0.0, {1, 17}),
+        shoulder: Nx.tensor([[0.0, 0.0, 0.0, 0.0]])
+      }
+
+      # Targets: main stick at edges, c-stick at center
+      targets_edge = %{
+        buttons: Nx.tensor([[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]]),
+        main_x: Nx.tensor([0]),   # Edge
+        main_y: Nx.tensor([16]),  # Edge
+        c_x: Nx.tensor([8]),      # Center
+        c_y: Nx.tensor([8]),      # Center
+        shoulder: Nx.tensor([0])
+      }
+
+      targets_center = %{
+        buttons: Nx.tensor([[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]]),
+        main_x: Nx.tensor([8]),   # Center
+        main_y: Nx.tensor([8]),   # Center
+        c_x: Nx.tensor([8]),      # Center
+        c_y: Nx.tensor([8]),      # Center
+        shoulder: Nx.tensor([0])
+      }
+
+      # Without edge weighting
+      loss_edge_no_weight = Policy.imitation_loss(logits, targets_edge, stick_edge_weight: nil)
+      loss_center_no_weight = Policy.imitation_loss(logits, targets_center, stick_edge_weight: nil)
+
+      # With edge weighting
+      loss_edge_weighted = Policy.imitation_loss(logits, targets_edge, stick_edge_weight: 2.0)
+      loss_center_weighted = Policy.imitation_loss(logits, targets_center, stick_edge_weight: 2.0)
+
+      # Without weighting, losses should be similar (uniform logits)
+      # With weighting, edge loss should be higher
+      edge_diff_no_weight = Nx.to_number(loss_edge_no_weight) - Nx.to_number(loss_center_no_weight)
+      edge_diff_weighted = Nx.to_number(loss_edge_weighted) - Nx.to_number(loss_center_weighted)
+
+      # The weighted edge loss should increase more than the weighted center loss
+      assert edge_diff_weighted > edge_diff_no_weight
+    end
+  end
+
   # ============================================================================
   # Utility Function Tests
   # ============================================================================

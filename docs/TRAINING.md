@@ -229,6 +229,7 @@ mix run scripts/train_from_replays.exs --dual-port
 | `--focal-loss` | false | Enable focal loss for rare actions |
 | `--focal-gamma X` | 2.0 | Focal loss gamma (higher = focus on hard) |
 | `--button-weight X` | 1.0 | Multiply button loss (try 3.0-5.0 to boost buttons) |
+| `--stick-edge-weight X` | nil | Weight edge stick buckets higher (try 2.0-3.0) |
 
 **Augmented Embedding Cache (Recommended)**
 
