@@ -1044,5 +1044,93 @@ defmodule ExPhil.Training.DataTest do
 
       IO.puts("\n  [Regression] Data.split for #{num_frames} frames: #{Float.round(time_ms, 1)}ms")
     end
+
+    @tag :benchmark
+    @tag timeout: 30_000
+    test "Data.to_sequences completes in reasonable time for 50K frames (regression test)" do
+      # Tests sequence building performance
+      # With :array optimization it should be O(n), not O(n²)
+      num_frames = 50_000
+      window_size = 60
+      frames = for i <- 0..(num_frames - 1), do: mock_frame(frame: i)
+      dataset = Data.from_frames(frames)
+
+      {time_us, seq_ds} = :timer.tc(fn ->
+        Data.to_sequences(dataset, window_size: window_size, stride: 1)
+      end)
+
+      time_ms = time_us / 1000
+      time_s = time_ms / 1000
+
+      # Should complete in under 10 seconds
+      assert time_s < 10.0,
+        "Data.to_sequences took #{Float.round(time_s, 2)}s for #{num_frames} frames. " <>
+        "Expected < 10s with O(n) implementation."
+
+      expected_sequences = num_frames - window_size + 1
+      assert seq_ds.size == expected_sequences
+
+      IO.puts("\n  [Regression] Data.to_sequences for #{num_frames} frames: #{Float.round(time_ms, 1)}ms")
+    end
+
+    @tag :benchmark
+    @tag timeout: 30_000
+    test "Data.stats completes in reasonable time for 100K frames (regression test)" do
+      # Tests stats calculation performance - should be O(n)
+      num_frames = 100_000
+      frames = for i <- 0..(num_frames - 1), do: mock_frame(frame: i, button_a: rem(i, 10) == 0)
+      dataset = Data.from_frames(frames)
+
+      {time_us, stats} = :timer.tc(fn ->
+        Data.stats(dataset)
+      end)
+
+      time_ms = time_us / 1000
+      time_s = time_ms / 1000
+
+      # Should complete in under 5 seconds
+      assert time_s < 5.0,
+        "Data.stats took #{Float.round(time_s, 2)}s for #{num_frames} frames. " <>
+        "Expected < 5s with O(n) implementation."
+
+      # Verify correctness - 10% of frames have button_a pressed
+      assert_in_delta stats.button_rates[:a], 0.1, 0.01
+
+      IO.puts("\n  [Regression] Data.stats for #{num_frames} frames: #{Float.round(time_ms, 1)}ms")
+    end
+
+    @tag :benchmark
+    @tag timeout: 60_000
+    test "batched with precomputed embeddings is fast for 100K frames (regression test)" do
+      # Tests that batch creation uses O(1) Nx.take, not O(n) list traversal
+      # This guards against regression of the batch creation optimization
+      num_frames = 100_000
+      batch_size = 512
+      frames = for i <- 0..(num_frames - 1), do: mock_frame(frame: i)
+      dataset = Data.from_frames(frames)
+
+      # Precompute embeddings (this is O(n) and expected to take time)
+      dataset = Data.precompute_frame_embeddings(dataset)
+
+      # Measure time to create and consume 10 batches
+      {time_us, batches} = :timer.tc(fn ->
+        dataset
+        |> Data.batched(batch_size: batch_size, shuffle: true)
+        |> Enum.take(10)
+      end)
+
+      time_ms = time_us / 1000
+      avg_ms_per_batch = time_ms / 10
+
+      # Each batch should take < 500ms (with O(1) Nx.take it's ~10-50ms)
+      # O(n) list traversal would be ~1-5s per batch for 100K frames
+      assert avg_ms_per_batch < 500,
+        "Batch creation averaged #{Float.round(avg_ms_per_batch, 1)}ms/batch. " <>
+        "This suggests O(n) regression. Expected < 500ms with Nx.take optimization."
+
+      assert length(batches) == 10
+
+      IO.puts("\n  [Regression] Batch creation for #{num_frames} frames: #{Float.round(avg_ms_per_batch, 1)}ms/batch avg")
+    end
   end
 end

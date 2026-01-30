@@ -316,9 +316,12 @@ defmodule ExPhil.Training.Data do
       character_weights != nil ->
         alias ExPhil.Training.CharacterBalance
         valid_indices = Enum.to_list(0..(valid_size - 1))
+        # OPTIMIZATION: Use :array for O(log n) lookups instead of O(n) Enum.at
+        # For 1.8M frames, this changes from O(n²) to O(n log n)
+        frames_array = :array.from_list(dataset.frames)
         frame_weights =
           valid_indices
-          |> Enum.map(fn idx -> Enum.at(dataset.frames, idx) end)
+          |> Enum.map(fn idx -> :array.get(idx, frames_array) end)
           |> CharacterBalance.frame_weights(character_weights)
         indices = CharacterBalance.balanced_indices(frame_weights, length(valid_indices))
         create_frame_batch_stream(indices, batch_size, drop_last, dataset, delay_config, augment_fn, augment_config)
