@@ -12,6 +12,13 @@
 #   - Top-3 accuracy for stick axes
 #   - Overall weighted accuracy
 
+# Suppress XLA/CUDA noise BEFORE any modules are loaded
+# Must happen before any EXLA operations
+if "--quiet" in System.argv() or "-q" in System.argv() do
+  System.put_env("TF_CPP_MIN_LOG_LEVEL", "3")
+  System.put_env("XLA_FLAGS", "--xla_gpu_autotune_level=0")
+end
+
 alias ExPhil.CLI
 alias ExPhil.Training.Output
 alias ExPhil.Data.Peppi
@@ -164,12 +171,84 @@ end
 
 Output.puts("  Extracted #{length(frames)} frames")
 
-# Get embedding config
-embed_config = Embeddings.config(with_speeds: true)
+# Step 3: Load model config to determine embedding configuration
+Output.step(3, 5, "Loading model configuration")
+
+# Load first model to get its config (used for embedding setup)
+first_model_path = hd(model_paths)
+
+model_config =
+  # Try to find companion config file
+  config_paths = [
+    String.replace(first_model_path, ~r/\.(axon|bin)$/, "_config.json"),
+    String.replace(first_model_path, "_policy.bin", "_config.json"),
+    String.replace(first_model_path, "_best_policy.bin", "_config.json"),
+    String.replace(first_model_path, ".axon", "_config.json")
+  ] |> Enum.uniq()
+
+  config_path = Enum.find(config_paths, &File.exists?/1)
+
+  if config_path do
+    case File.read(config_path) do
+      {:ok, json} ->
+        case Jason.decode(json) do
+          {:ok, cfg} ->
+            Output.puts("  Loaded config from #{Path.basename(config_path)}")
+            cfg
+          _ ->
+            Output.warning("Could not parse config JSON, using current defaults")
+            %{}
+        end
+      _ ->
+        Output.warning("Could not read config file, using current defaults")
+        %{}
+    end
+  else
+    Output.warning("No config file found (tried: #{Enum.map(config_paths, &Path.basename/1) |> Enum.join(", ")})")
+    Output.puts("  Using current embedding defaults")
+    %{}
+  end
+
+# Build embedding config from model config
+embed_opts = [with_speeds: true]
+
+# Map config keys (could be strings or atoms after JSON round-trip)
+get_cfg = fn cfg, key, default ->
+  Map.get(cfg, key, Map.get(cfg, to_string(key), default))
+end
+
+embed_opts = if action_mode = get_cfg.(model_config, :action_mode, nil) do
+  Keyword.put(embed_opts, :action_mode, if(is_binary(action_mode), do: String.to_atom(action_mode), else: action_mode))
+else
+  embed_opts
+end
+
+embed_opts = if char_mode = get_cfg.(model_config, :character_mode, nil) do
+  Keyword.put(embed_opts, :character_mode, if(is_binary(char_mode), do: String.to_atom(char_mode), else: char_mode))
+else
+  embed_opts
+end
+
+embed_opts = if stage_mode = get_cfg.(model_config, :stage_mode, nil) do
+  Keyword.put(embed_opts, :stage_mode, if(is_binary(stage_mode), do: String.to_atom(stage_mode), else: stage_mode))
+else
+  embed_opts
+end
+
+embed_opts = if nana_mode = get_cfg.(model_config, :nana_mode, nil) do
+  Keyword.put(embed_opts, :nana_mode, if(is_binary(nana_mode), do: String.to_atom(nana_mode), else: nana_mode))
+else
+  embed_opts
+end
+
+embed_config = Embeddings.config(embed_opts)
 embed_size = Embeddings.embedding_size(embed_config)
 
+Output.puts("  Embedding config: #{inspect(Keyword.take(embed_opts, [:action_mode, :character_mode, :stage_mode, :nana_mode]))}")
+Output.puts("  Embedding size: #{embed_size} dims")
+
 # Create dataset
-Output.step(3, 4, "Creating evaluation dataset")
+Output.step(4, 5, "Creating evaluation dataset")
 
 dataset =
   if opts[:temporal] do
@@ -765,7 +844,7 @@ evaluate_model = fn model_path ->
 end
 
 # Evaluate all models
-Output.step(4, 4, "Evaluating models")
+Output.step(5, 5, "Evaluating models")
 results = Enum.map(model_paths, evaluate_model)
 
 # Show comparison if multiple models
