@@ -29,6 +29,7 @@ defmodule ExPhil.CLI do
   - `:checkpoint` - `--checkpoint`, `--policy` flags
   - `:training` - `--batch-size`, `--epochs`, `--lr` flags
   - `:evaluation` - `--batch-size`, `--player`, `--detailed` flags
+  - `:analysis` - `--top-actions`, `--show-stages`, `--show-positions`, `--show-buttons` flags
   """
 
   require Logger
@@ -87,7 +88,17 @@ defmodule ExPhil.CLI do
 
     # Common flags
     %{name: :help, flag: "--help", type: :boolean, short: "h", default: false,
-      desc: "Show help message", group: [:common]}
+      desc: "Show help message", group: [:common]},
+
+    # Analysis flags (for analyze_replays.exs)
+    %{name: :top_actions, flag: "--top-actions", type: :integer, short: "n", default: 15,
+      desc: "Show top N actions in report", group: [:analysis]},
+    %{name: :show_stages, flag: "--show-stages", type: :boolean, short: nil, default: true,
+      desc: "Show stage breakdown", group: [:analysis]},
+    %{name: :show_positions, flag: "--show-positions", type: :boolean, short: nil, default: true,
+      desc: "Show position analysis", group: [:analysis]},
+    %{name: :show_buttons, flag: "--show-buttons", type: :boolean, short: nil, default: true,
+      desc: "Show button press analysis", group: [:analysis]}
   ]
 
   @doc "Get all flag definitions"

@@ -266,15 +266,11 @@ Created `ExPhil.CLI` module for standardized argument parsing across scripts.
 | Migrate benchmark_architectures.exs | Low | Todo |
 | Migrate play_dolphin.exs | Low | Todo |
 | Migrate train_ppo.exs | Low | Todo |
-| Migrate analyze_replays.exs | Low | Todo |
+| Migrate analyze_replays.exs | Low | **Done** |
 | Add `:benchmark` flag group | Low | Todo |
 | Add `:dolphin` flag group | Low | Todo |
-| Add button press analysis to analyze_replays.exs | Low | Todo |
-
-**analyze_replays.exs improvements needed:**
-- Add button press rate analysis (A, B, X, Y, Z, L, R, D-Up percentages)
-- Migrate to CLI module for consistent flag handling
-- Add `:analysis` flag group with common analysis options
+| Add button press analysis to analyze_replays.exs | Low | **Done** |
+| Add `:analysis` flag group | Low | **Done** |
 
 **Benefits:**
 - Consistent verbosity handling (`--quiet`/`--verbose`) across all scripts
@@ -331,6 +327,13 @@ Created `ExPhil.CLI` module for standardized argument parsing across scripts.
 | FPS counter in play mode | Low | Show actual vs target FPS | **Done** |
 | **Action distribution viz** | Medium | Show what buttons/sticks model is using | **Done** |
 | Confidence display | Low | Show model's confidence in its predictions | **Done** |
+| Per-button accuracy | Low | Break down button accuracy per button (A, B, X, Y, Z, L, R) | Todo |
+| Inference timing | Low | Show ms/frame to assess real-time playability (need <16.7ms) | Todo |
+| Button prediction rates | Low | Compare model's predicted vs actual button press rates | Todo |
+| Loss component breakdown | Low | Show individual loss terms (buttons, stick_x, stick_y, etc.) | Todo |
+| Stick confusion analysis | Medium | Show common stick prediction errors (e.g., neutral→up) | Todo |
+| Export predictions | Low | Save predicted vs actual for Livebook analysis | Todo |
+| Frame delay testing | Medium | Test accuracy at different frame delays for online robustness | Todo |
 
 **Configuration**
 

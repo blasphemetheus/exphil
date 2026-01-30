@@ -3,30 +3,46 @@
 #
 # USAGE:
 #   mix run scripts/analyze_replays.exs --replays ~/replays/mewtwo
-#   mix run scripts/analyze_replays.exs --replays ~/replays/mewtwo --player-port 1
+#   mix run scripts/analyze_replays.exs --replays ~/replays/mewtwo --player 1
 #   mix run scripts/analyze_replays.exs --replays ~/replays/mewtwo --top-actions 20
 
+alias ExPhil.CLI
 alias ExPhil.Training.Output
 alias ExPhil.Data.Peppi
 
 defmodule ReplayAnalyzer do
-  @default_opts [
-    top_actions: 15,
-    # nil = auto-detect
-    player_port: nil,
-    show_stages: true,
-    show_positions: true
-  ]
+  @flag_groups [:verbosity, :replay, :analysis, :common]
 
   def run(args) do
-    opts = parse_args(args)
+    # Parse with CLI module
+    opts = CLI.parse_args(args,
+      flags: @flag_groups,
+      defaults: [player_port: nil]  # Override default to auto-detect
+    )
+
+    # Setup verbosity early (before any EXLA ops)
+    CLI.setup_verbosity(opts)
+
+    # Handle help
+    CLI.maybe_show_help(opts, "analyze_replays.exs", @flag_groups, fn ->
+      IO.puts("""
+
+      EXAMPLES:
+        mix run scripts/analyze_replays.exs -r ~/replays/mewtwo
+        mix run scripts/analyze_replays.exs -r ~/replays --character mewtwo -n 20
+        mix run scripts/analyze_replays.exs -r ~/replays --no-show-buttons
+      """)
+    end)
+
+    # Validate required args
+    CLI.require_options!(opts, [:replays])
 
     Output.banner("Replay Data Analyzer")
     Output.puts("")
 
     # Find replays
     Output.step(1, 4, "Finding replays")
-    replay_files = find_replays(opts[:replays])
+    replay_files = find_replays(opts[:replays], opts[:max_files])
     Output.puts("  Found #{length(replay_files)} replay files")
     Output.puts("")
 
@@ -47,71 +63,19 @@ defmodule ReplayAnalyzer do
     print_report(analysis, opts)
   end
 
-  defp parse_args(args) do
-    {opts, _rest, _invalid} =
-      OptionParser.parse(args,
-        strict: [
-          replays: :string,
-          player_port: :integer,
-          top_actions: :integer,
-          show_stages: :boolean,
-          show_positions: :boolean,
-          character: :string,
-          help: :boolean
-        ],
-        aliases: [
-          r: :replays,
-          p: :player_port,
-          n: :top_actions,
-          c: :character,
-          h: :help
-        ]
-      )
-
-    if opts[:help] do
-      print_help()
-      System.halt(0)
-    end
-
-    unless opts[:replays] do
-      Output.error("Missing required --replays argument")
-      print_help()
-      System.halt(1)
-    end
-
-    Keyword.merge(@default_opts, opts)
-  end
-
-  defp print_help do
-    IO.puts("""
-    Replay Data Analyzer
-
-    Analyze action distributions and data characteristics for training.
-
-    USAGE:
-      mix run scripts/analyze_replays.exs --replays <path> [options]
-
-    OPTIONS:
-      -r, --replays <path>       Path to replay directory (required)
-      -p, --player-port <1|2>    Analyze specific port (default: auto-detect character)
-      -c, --character <name>     Filter to specific character (e.g., mewtwo, ganondorf)
-      -n, --top-actions <N>      Show top N actions (default: 15)
-      --no-show-stages           Hide stage breakdown
-      --no-show-positions        Hide position analysis
-
-    EXAMPLES:
-      mix run scripts/analyze_replays.exs -r ~/replays/mewtwo
-      mix run scripts/analyze_replays.exs -r ~/replays -c mewtwo -n 20
-    """)
-  end
-
-  defp find_replays(dir) do
+  defp find_replays(dir, max_files) do
     unless File.dir?(dir) do
       Output.error("Directory not found: #{dir}")
       System.halt(1)
     end
 
-    Path.wildcard(Path.join(dir, "**/*.slp"))
+    files = Path.wildcard(Path.join(dir, "**/*.slp"))
+
+    if max_files && max_files > 0 do
+      Enum.take(files, max_files)
+    else
+      files
+    end
   end
 
   defp parse_all_replays(files) do
@@ -172,12 +136,15 @@ defmodule ReplayAnalyzer do
   defp analyze_replays(replays, opts) do
     # Collect all frame data
     all_frames = collect_frames(replays, opts)
+    button_counts = count_buttons(all_frames)
 
     %{
       total_replays: length(replays),
       total_frames: length(all_frames),
       action_counts: count_actions(all_frames),
-      button_counts: count_buttons(all_frames),
+      button_counts: button_counts,
+      button_rates: calculate_button_rates(button_counts, length(all_frames)),
+      frames_with_buttons: count_frames_with_buttons(all_frames),
       stick_positions: analyze_stick_positions(all_frames),
       stage_counts: count_stages(replays),
       character_counts: count_characters(replays),
@@ -285,6 +252,25 @@ defmodule ReplayAnalyzer do
     end)
     |> Enum.frequencies()
     |> Enum.sort_by(fn {_button, count} -> -count end)
+  end
+
+  # Calculate button press rates (% of frames with each button pressed)
+  defp calculate_button_rates(button_counts, total_frames) do
+    button_counts
+    |> Enum.map(fn {button, count} ->
+      {button, count / max(total_frames, 1) * 100}
+    end)
+  end
+
+  # Count frames with any button pressed
+  defp count_frames_with_buttons(frames) do
+    Enum.count(frames, fn frame ->
+      case frame.buttons do
+        buttons when is_list(buttons) -> length(buttons) > 0
+        buttons when is_map(buttons) -> Enum.any?(buttons, fn {_, v} -> v end)
+        _ -> false
+      end
+    end)
   end
 
   defp analyze_stick_positions(frames) do
@@ -455,6 +441,11 @@ defmodule ReplayAnalyzer do
     # Check for problematic actions
     print_action_warnings(analysis.action_counts, total_actions)
 
+    # Button press analysis
+    if opts[:show_buttons] && length(analysis.button_rates) > 0 do
+      print_button_analysis(analysis, opts)
+    end
+
     # Stick analysis
     if map_size(analysis.stick_positions) > 0 do
       Output.puts("Stick Position Analysis:")
@@ -526,6 +517,91 @@ defmodule ReplayAnalyzer do
     end
 
     Output.puts("=" |> String.duplicate(60))
+  end
+
+  defp print_button_analysis(analysis, _opts) do
+    Output.puts("Button Press Analysis:")
+    Output.puts("-" |> String.duplicate(40))
+
+    # Overall button press rate
+    overall_rate = analysis.frames_with_buttons / max(analysis.total_frames, 1) * 100
+    Output.puts("  Overall: #{Float.round(overall_rate, 1)}% of frames have button input")
+    Output.puts("")
+
+    # Individual button rates
+    Output.puts("  Per-button rates (% of frames):")
+
+    button_map = Map.new(analysis.button_rates)
+
+    # Attack buttons
+    Output.puts("    Attack:  " <>
+      "A=#{format_rate(button_map[:A])}%  " <>
+      "B=#{format_rate(button_map[:B])}%")
+
+    # Jump buttons
+    Output.puts("    Jump:    " <>
+      "X=#{format_rate(button_map[:X])}%  " <>
+      "Y=#{format_rate(button_map[:Y])}%")
+
+    # Trigger/grab buttons
+    Output.puts("    Trigger: " <>
+      "Z=#{format_rate(button_map[:Z])}%  " <>
+      "L=#{format_rate(button_map[:L])}%  " <>
+      "R=#{format_rate(button_map[:R])}%")
+
+    # Analog triggers (if present)
+    if button_map[:L_ANALOG] || button_map[:R_ANALOG] do
+      Output.puts("    Analog:  " <>
+        "L_ANALOG=#{format_rate(button_map[:L_ANALOG])}%  " <>
+        "R_ANALOG=#{format_rate(button_map[:R_ANALOG])}%")
+    end
+
+    Output.puts("")
+
+    # Warnings for button imbalance
+    print_button_warnings(button_map, overall_rate)
+
+    Output.puts("")
+  end
+
+  defp format_rate(nil), do: "0.0"
+  defp format_rate(rate), do: Float.round(rate, 1) |> to_string()
+
+  defp print_button_warnings(button_map, overall_rate) do
+    # Warn if overall button usage is very low (might indicate controller issues)
+    if overall_rate < 3.0 do
+      Output.warning("Very low button usage (#{Float.round(overall_rate, 1)}%) - check if replays have controller data")
+    end
+
+    # Warn if there's a significant A/B imbalance (>3x difference)
+    a_rate = button_map[:A] || 0
+    b_rate = button_map[:B] || 0
+
+    if a_rate > 0 and b_rate > 0 do
+      if a_rate > b_rate * 3 do
+        Output.puts("  Note: Heavy A button bias (#{Float.round(a_rate / b_rate, 1)}x more than B)")
+      end
+      if b_rate > a_rate * 3 do
+        Output.puts("  Note: Heavy B button bias (#{Float.round(b_rate / a_rate, 1)}x more than A)")
+      end
+    end
+
+    # Warn if no jump buttons used
+    x_rate = button_map[:X] || 0
+    y_rate = button_map[:Y] || 0
+
+    if x_rate + y_rate < 0.1 do
+      Output.puts("  Note: Very low X/Y button usage - player may use tap jump")
+    end
+
+    # Check for shield usage patterns
+    l_rate = button_map[:L] || 0
+    r_rate = button_map[:R] || 0
+    z_rate = button_map[:Z] || 0
+
+    if l_rate + r_rate < 0.5 and z_rate > 2.0 do
+      Output.puts("  Note: Z-grab dominant (low L/R shield, high Z) - consider shield training data")
+    end
   end
 
   defp print_action_warnings(_action_counts, 0), do: Output.puts("")
