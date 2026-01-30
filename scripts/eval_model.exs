@@ -246,10 +246,30 @@ else
   embed_opts
 end
 
+# Load K-means centers if the model was trained with them
+kmeans_centers = if kmeans_path = get_cfg.(model_config, :kmeans_centers, nil) do
+  if File.exists?(kmeans_path) do
+    Output.puts("  Loading K-means centers from #{kmeans_path}")
+    ExPhil.Embeddings.KMeans.load(kmeans_path)
+  else
+    Output.warning("K-means centers not found at #{kmeans_path}, using uniform buckets")
+    nil
+  end
+else
+  nil
+end
+
+embed_opts = if kmeans_centers do
+  Keyword.put(embed_opts, :kmeans_centers, kmeans_centers)
+else
+  embed_opts
+end
+
 embed_config = Embeddings.config(embed_opts)
 embed_size = Embeddings.embedding_size(embed_config)
 
 Output.puts("  Embedding config: #{inspect(Keyword.take(embed_opts, [:action_mode, :character_mode, :stage_mode, :nana_mode]))}")
+if kmeans_centers, do: Output.puts("  K-means: enabled (#{Nx.axis_size(kmeans_centers, 0)} clusters)")
 Output.puts("  Embedding size: #{embed_size} dims")
 
 # Create dataset
