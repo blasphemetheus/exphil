@@ -192,6 +192,12 @@ results_table = sorted_results
   |> Enum.with_index(1)
   |> Enum.map(fn {r, rank} ->
     overfit_ratio = if r.final_train_loss > 0, do: Float.round(r.final_val_loss / r.final_train_loss, 2), else: "N/A"
+    speed = r[:avg_batches_per_sec] || r[:batches_per_sec] || 0
+    inference_ms = cond do
+      r[:inference_time_ms] -> r[:inference_time_ms]
+      r[:inference_us_per_batch] -> r[:inference_us_per_batch] / 1000.0
+      true -> 0
+    end
     """
     <tr>
       <td>#{rank}</td>
@@ -199,8 +205,8 @@ results_table = sorted_results
       <td>#{Float.round(r.final_val_loss, 4)}</td>
       <td>#{Float.round(r.final_train_loss, 4)}</td>
       <td>#{overfit_ratio}x</td>
-      <td>#{Float.round(r.batches_per_sec, 1)}</td>
-      <td>#{Float.round(r.inference_time_ms || 0, 1)}ms</td>
+      <td>#{Float.round(speed, 1)}</td>
+      <td>#{Float.round(inference_ms, 1)}ms</td>
     </tr>
     """
   end)
@@ -236,8 +242,8 @@ html = """
   <div class="summary">
     <span class="winner">Winner: #{best.name}</span><br>
     <strong>Validation Loss:</strong> #{Float.round(best.final_val_loss, 4)} |
-    <strong>Speed:</strong> #{Float.round(best.batches_per_sec, 1)} batches/sec |
-    <strong>Inference:</strong> #{Float.round(best.inference_time_ms || 0, 1)}ms
+    <strong>Speed:</strong> #{Float.round(best[:avg_batches_per_sec] || best[:batches_per_sec] || 0, 1)} batches/sec |
+    <strong>Inference:</strong> #{Float.round((best[:inference_time_ms] || (best[:inference_us_per_batch] || 0) / 1000.0), 1)}ms
   </div>
 
   <h2>📊 Results Table</h2>
