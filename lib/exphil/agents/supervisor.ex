@@ -38,6 +38,7 @@ defmodule ExPhil.Agents.Supervisor do
   @doc """
   Starts the Agent supervisor.
   """
+  @spec start_link(keyword()) :: Supervisor.on_start()
   def start_link(opts \\ []) do
     DynamicSupervisor.start_link(__MODULE__, opts, name: __MODULE__)
   end

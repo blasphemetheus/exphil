@@ -75,6 +75,18 @@ defmodule ExPhil.Agents.Agent do
   # Client API
   # ============================================================================
 
+  @typedoc "Start link options for Agent"
+  @type start_option ::
+          {:name, atom()}
+          | {:policy_path, Path.t()}
+          | {:policy, map()}
+          | {:frame_delay, non_neg_integer()}
+          | {:deterministic, boolean()}
+          | {:temperature, float()}
+          | {:embed_config, map()}
+          | {:action_repeat, pos_integer()}
+          | {:use_incremental, boolean()}
+
   @doc """
   Start an Agent GenServer.
 
@@ -87,6 +99,7 @@ defmodule ExPhil.Agents.Agent do
     - `:temperature` - Sampling temperature (default: 1.0)
     - `:embed_config` - Embedding configuration (auto-detected from policy)
   """
+  @spec start_link([start_option()]) :: GenServer.on_start()
   def start_link(opts) do
     name = Keyword.get(opts, :name)
 

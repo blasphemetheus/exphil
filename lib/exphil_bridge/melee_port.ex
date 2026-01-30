@@ -34,7 +34,61 @@ defmodule ExPhil.Bridge.MeleePort do
   use GenServer
   require Logger
 
+  alias ExPhil.Bridge.GameState
+
   @default_timeout 30_000
+
+  # ============================================================================
+  # Types
+  # ============================================================================
+
+  @typedoc "GenServer reference (pid, name, or via tuple)"
+  @type server :: GenServer.server()
+
+  @typedoc "Timeout in milliseconds"
+  @type timeout_ms :: non_neg_integer()
+
+  @typedoc "Controller input for sending to the game"
+  @type controller_input :: %{
+          optional(:main_stick) => %{x: float(), y: float()},
+          optional(:c_stick) => %{x: float(), y: float()},
+          optional(:shoulder) => float(),
+          optional(:buttons) => %{
+            optional(:a) => boolean(),
+            optional(:b) => boolean(),
+            optional(:x) => boolean(),
+            optional(:y) => boolean(),
+            optional(:z) => boolean(),
+            optional(:l) => boolean(),
+            optional(:r) => boolean(),
+            optional(:d_up) => boolean()
+          }
+        }
+
+  @typedoc "Console initialization config"
+  @type init_config :: %{
+          required(:dolphin_path) => String.t(),
+          required(:iso_path) => String.t(),
+          optional(:controller_port) => pos_integer(),
+          optional(:opponent_port) => pos_integer(),
+          optional(:character) => atom() | pos_integer(),
+          optional(:stage) => atom() | pos_integer(),
+          optional(:online_delay) => non_neg_integer()
+        }
+
+  @typedoc "Start link options"
+  @type start_option ::
+          {:python_path, String.t()}
+          | {:script_path, String.t()}
+          | {:name, GenServer.name()}
+
+  @typedoc "Result of a step operation"
+  @type step_result ::
+          {:ok, GameState.t()}
+          | {:menu, GameState.t()}
+          | {:postgame, GameState.t()}
+          | {:game_ended, String.t()}
+          | {:error, term()}
 
   # ============================================================================
   # Client API
@@ -47,6 +101,7 @@ defmodule ExPhil.Bridge.MeleePort do
     - `:python_path` - Path to Python executable (default: "python3")
     - `:script_path` - Path to melee_bridge.py (default: priv/python/melee_bridge.py)
   """
+  @spec start_link([start_option()]) :: GenServer.on_start()
   def start_link(opts \\ []) do
     GenServer.start_link(__MODULE__, opts, name: opts[:name])
   end
@@ -63,6 +118,8 @@ defmodule ExPhil.Bridge.MeleePort do
     - `:stage` - Stage to select (atom or integer)
     - `:online_delay` - Simulate online delay frames (default: 0)
   """
+  @spec init_console(server(), init_config() | keyword(), timeout_ms()) ::
+          {:ok, %{controller_port: pos_integer()}} | {:error, term()}
   def init_console(server, config, timeout \\ @default_timeout) do
     GenServer.call(server, {:init_console, config}, timeout)
   end
@@ -72,6 +129,7 @@ defmodule ExPhil.Bridge.MeleePort do
 
   Returns `{:ok, game_state}` when in game, or `{:menu, game_state}` during menus.
   """
+  @spec step(server(), keyword(), timeout_ms()) :: step_result()
   def step(server, opts \\ [], timeout \\ @default_timeout) do
     GenServer.call(server, {:step, opts}, timeout)
   end
@@ -87,6 +145,8 @@ defmodule ExPhil.Bridge.MeleePort do
         buttons: %{a: bool, b: bool, x: bool, y: bool, z: bool, l: bool, r: bool, d_up: bool}
       }
   """
+  @spec send_controller(server(), controller_input(), timeout_ms()) ::
+          :ok | {:game_ended, String.t()} | {:error, term()}
   def send_controller(server, input, timeout \\ @default_timeout) do
     GenServer.call(server, {:send_controller, input}, timeout)
   end
@@ -94,6 +154,7 @@ defmodule ExPhil.Bridge.MeleePort do
   @doc """
   Ping the Python bridge to check if it's alive.
   """
+  @spec ping(server(), timeout_ms()) :: :pong | {:error, term()}
   def ping(server, timeout \\ 5_000) do
     GenServer.call(server, :ping, timeout)
   end
@@ -101,6 +162,7 @@ defmodule ExPhil.Bridge.MeleePort do
   @doc """
   Stop the console and close the bridge.
   """
+  @spec stop(server()) :: :ok | {:error, term()}
   def stop(server) do
     GenServer.call(server, :stop)
   end

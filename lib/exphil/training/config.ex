@@ -234,11 +234,13 @@ defmodule ExPhil.Training.Config do
   @doc """
   List of available preset names.
   """
+  @spec available_presets() :: [atom()]
   def available_presets, do: @valid_presets
 
   @doc """
   Default training options.
   """
+  @spec defaults() :: keyword()
   def defaults do
     [
       replays: @default_replays_dir,
@@ -816,6 +818,7 @@ defmodule ExPhil.Training.Config do
       [character: :mewtwo, epochs: 100, window_size: 90, ...]
 
   """
+  @spec preset(atom() | String.t()) :: keyword() | no_return()
 
   # ============================================================================
   # CPU Presets (No GPU Required)
@@ -1408,6 +1411,7 @@ defmodule ExPhil.Training.Config do
       {:error, ["epochs must be positive, got: -1"]}
 
   """
+  @spec validate(keyword()) :: {:ok, keyword()} | {:error, [String.t()]}
   def validate(opts) do
     errors = collect_errors(opts)
     warnings = collect_warnings(opts)
@@ -1436,6 +1440,7 @@ defmodule ExPhil.Training.Config do
       ** (ArgumentError) Invalid training configuration...
 
   """
+  @spec validate!(keyword()) :: keyword()
   def validate!(opts) do
     case validate(opts) do
       {:ok, opts} ->
@@ -1890,6 +1895,7 @@ defmodule ExPhil.Training.Config do
       [epochs: 3, max_files: 5, hidden_sizes: [32, 32], ...]  # epochs overridden
 
   """
+  @spec parse_args([String.t()]) :: keyword()
   def parse_args(args) when is_list(args) do
     # Check if config file is specified first
     base_opts =
@@ -2676,6 +2682,7 @@ defmodule ExPhil.Training.Config do
   @doc """
   List of valid CLI flags.
   """
+  @spec valid_flags() :: [String.t()]
   def valid_flags, do: @valid_flags
 
   @doc """

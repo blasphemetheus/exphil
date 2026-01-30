@@ -44,7 +44,41 @@ defmodule ExPhil.Bridge.AsyncRunner do
   alias ExPhil.Agents.Agent
   alias ExPhil.Bridge.MeleePort
 
+  # ============================================================================
+  # Types
+  # ============================================================================
+
+  @typedoc "Behavior when a game ends"
   @type on_game_end :: :restart | :stop
+
+  @typedoc "Start link options"
+  @type start_option ::
+          {:agent, pid()}
+          | {:bridge, pid()}
+          | {:player_port, pos_integer()}
+          | {:auto_menu, boolean()}
+          | {:on_game_end, on_game_end()}
+
+  @typedoc "Statistics returned by get_stats/1"
+  @type stats :: %{
+          frames_read: non_neg_integer(),
+          inferences_run: non_neg_integer(),
+          games_played: non_neg_integer(),
+          elapsed_ms: non_neg_integer(),
+          fps: float(),
+          target_fps: pos_integer(),
+          fps_ratio: float(),
+          inference_rate: float(),
+          latest_confidence: map() | nil,
+          avg_confidence: float()
+        }
+
+  @typedoc "Stop result with final counts"
+  @type stop_result :: %{
+          frames: non_neg_integer(),
+          inferences: non_neg_integer(),
+          games: non_neg_integer()
+        }
 
   defstruct [
     :agent,
@@ -64,14 +98,49 @@ defmodule ExPhil.Bridge.AsyncRunner do
   # Client API
   # ============================================================================
 
+  @doc """
+  Starts the async runner process.
+
+  ## Options
+
+    * `:agent` - PID of the ExPhil.Agents.Agent process (required)
+    * `:bridge` - PID of the MeleePort process (required)
+    * `:player_port` - Controller port for the agent (default: 1)
+    * `:auto_menu` - Whether to auto-navigate menus (default: true)
+    * `:on_game_end` - `:restart` to play another game, `:stop` to exit (default: `:restart`)
+
+  ## Examples
+
+      {:ok, runner} = AsyncRunner.start_link(
+        agent: agent_pid,
+        bridge: bridge_pid,
+        player_port: 1
+      )
+
+  """
+  @spec start_link([start_option()]) :: GenServer.on_start()
   def start_link(opts) do
     GenServer.start_link(__MODULE__, opts)
   end
 
+  @doc """
+  Stops the async runner and returns final statistics.
+
+  Returns `{:ok, stats}` where stats contains the total frames read,
+  inferences run, and games played.
+  """
+  @spec stop(GenServer.server()) :: {:ok, stop_result()}
   def stop(runner) do
     GenServer.call(runner, :stop)
   end
 
+  @doc """
+  Gets current runtime statistics.
+
+  Returns a map with performance metrics including FPS, inference rate,
+  and confidence statistics.
+  """
+  @spec get_stats(GenServer.server()) :: stats()
   def get_stats(runner) do
     GenServer.call(runner, :get_stats)
   end
