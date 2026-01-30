@@ -1018,7 +1018,7 @@ theoretical_plot =
     scale: [type: :log, domain: [5, 5000]]
   )
   |> VegaLite.encode_field(:color, "type", type: :nominal, title: "Phase")
-  |> VegaLite.encode_field(:xOffset, "type", type: :nominal)
+  |> VegaLite.encode_field(:x_offset, "type", type: :nominal)
 
 # Build training loss bar chart (final val loss comparison)
 loss_bar_data =
