@@ -1081,6 +1081,113 @@ mix run scripts/benchmark_architectures.exs \
 }
 ```
 
+### 2026-01-30: Model Evaluation Insights & Training Analysis
+
+**Status:** COMPLETE
+
+Comprehensive evaluation metrics added to `scripts/eval_model.exs` revealed actionable training insights.
+
+#### Evaluation Metrics Added
+
+| Metric | Purpose |
+|--------|---------|
+| **Per-button accuracy** | Break down overall accuracy by button (A, B, X, Y, Z, L, R, D-Up) |
+| **Inference timing** | Measure ms/frame to verify real-time playability (<16.7ms for 60 FPS) |
+| **Button prediction rates** | Compare model's predicted vs actual button press rates |
+| **Loss component breakdown** | Show individual loss terms (buttons BCE, stick_x CE, stick_y CE) |
+| **Stick confusion analysis** | Top N most common stick prediction errors |
+| **Action distribution viz** | Show what buttons/sticks the model is using (via ActionViz) |
+
+#### Training Insights from MLP Model (81.7% accuracy)
+
+**Strengths:**
+- Button accuracy high (86-99% per button)
+- Inference fast (0.038 ms/frame = 26,315 FPS theoretical)
+- Button head dominates prediction (very confident)
+
+**Weaknesses:**
+- **Stick accuracy is the main weakness** (56-68% per axis)
+- **Neutral↔far confusion** is the primary stick error pattern
+  - Model predicts center (8) but truth was edge (0 or 16)
+  - Model predicts edge but truth was center
+- **Button under-prediction** (~2% gap between predicted and actual rates)
+  - Model more conservative than human players
+  - Especially noticeable on rare buttons (Z, L, R)
+
+#### Recommended Training Improvements
+
+Based on evaluation analysis:
+
+| Improvement | Rationale | CLI |
+|-------------|-----------|-----|
+| **Higher button_weight** | Address under-prediction of rare buttons | `--button-weight 2.0` |
+| **Data augmentation** | Expose model to more stick positions | `--augment --mirror` |
+| **K-means stick discretization** | Better bucket placement for common positions | `--kmeans-centers priv/kmeans.nx` |
+| **Focal loss** | Weight rare button predictions higher | `--focal-loss --focal-gamma 2.0` |
+| **Larger network** | More capacity for stick patterns | `--hidden-sizes 512,512,512` |
+| **More epochs** | Allow convergence on harder patterns | `--epochs 20` |
+| **Label smoothing** | Reduce overconfidence on sticks | `--label-smoothing 0.1` |
+
+#### Stick Confusion Analysis Example
+
+From evaluation output:
+```
+Top 5 Main Stick X Confusions:
+  Predicted 8 → Actual 0    (12.3%)  # Neutral when should go left
+  Predicted 8 → Actual 16   (10.7%)  # Neutral when should go right
+  Predicted 0 → Actual 8    (8.2%)   # Left when should be neutral
+  Predicted 16 → Actual 8   (7.1%)   # Right when should be neutral
+  Predicted 8 → Actual 4    (5.4%)   # Neutral when should go slight left
+```
+
+This pattern suggests the model defaults to neutral (center) too often. Solutions:
+1. **Focal loss on sticks** - Higher weight for non-center predictions
+2. **Temporal context** - Use LSTM/Mamba to understand when movement is needed
+3. **Augmentation** - Mirror states to balance left/right training data
+
+#### Additional Training Ideas (Future Exploration)
+
+**Stick-Focused Improvements:**
+
+| Idea | Rationale | Effort |
+|------|-----------|--------|
+| **Per-bucket loss weighting** | Weight edge buckets (0, 16) higher than center (8) | Low |
+| **Stick histogram equalization** | Augment dataset to flatten stick distribution | Medium |
+| **Curriculum on stick complexity** | Start with cardinal directions, add diagonals | Medium |
+| **Separate stick head** | Dedicated network branch for stick prediction | High |
+
+**Calibration & Confidence:**
+
+| Idea | Rationale | Effort |
+|------|-----------|--------|
+| **Temperature scaling** | Post-training calibration of confidence | Low |
+| **Prediction entropy tracking** | Monitor when model is uncertain | Low |
+| **Monte Carlo dropout** | Uncertainty estimation during inference | Medium |
+
+**Architecture:**
+
+| Idea | Rationale | Effort |
+|------|-----------|--------|
+| **Multi-scale temporal** | Combine MLP + LSTM heads (immediate + long-term) | High |
+| **Auxiliary action prediction** | Predict next Melee action state as regularizer | Medium |
+| **Cross-attention to opponent** | Explicit opponent modeling in attention | High |
+
+**Data & Sampling:**
+
+| Idea | Rationale | Effort |
+|------|-----------|--------|
+| **Class-balanced sampling** | Oversample rare stick positions in batch creation | Medium |
+| **Online hard example mining** | Focus training on samples with high stick loss | Medium |
+| **Action-conditional batching** | Batch by action state (aerial, grounded, etc.) | Medium |
+
+#### Files Changed
+
+- `scripts/eval_model.exs` - Added 6 new evaluation metrics
+- `lib/exphil/training/action_viz.ex` - Fixed button list parsing bug
+- `docs/GOALS.md` - Added this analysis section
+
+---
+
 ### 2026-01-25: Batch Embedding Optimization for --no-precompute
 
 **Status:** COMPLETE
