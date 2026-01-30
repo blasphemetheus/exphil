@@ -52,24 +52,43 @@ sorted_results = results
 IO.puts("Loaded #{length(results)} results, #{length(sorted_results)} with valid val_loss")
 
 # Build loss curve data for line chart
+# Handle both old format (loss_history list) and new format (epochs array with train_loss)
 loss_curve_data = results
-  |> Enum.filter(&Map.has_key?(&1, :loss_history))
+  |> Enum.filter(&Map.has_key?(&1, :name))
   |> Enum.flat_map(fn r ->
-    r.loss_history
-    |> Enum.with_index(1)
-    |> Enum.map(fn {loss, epoch} ->
-      %{architecture: r.name, epoch: epoch, loss: loss, type: "train"}
-    end)
+    cond do
+      r[:loss_history] ->
+        r.loss_history
+        |> Enum.with_index(1)
+        |> Enum.map(fn {loss, epoch} ->
+          %{architecture: r.name, epoch: epoch, loss: loss, type: "train"}
+        end)
+      r[:epochs] ->
+        r.epochs
+        |> Enum.map(fn e ->
+          %{architecture: r.name, epoch: e.epoch, loss: e.train_loss, type: "train"}
+        end)
+      true -> []
+    end
   end)
 
 val_loss_data = results
   |> Enum.filter(&Map.has_key?(&1, :name))
   |> Enum.flat_map(fn r ->
-    (r[:val_loss_history] || [])
-    |> Enum.with_index(1)
-    |> Enum.map(fn {loss, epoch} ->
-      %{architecture: r.name, epoch: epoch, loss: loss, type: "val"}
-    end)
+    cond do
+      r[:val_loss_history] ->
+        r.val_loss_history
+        |> Enum.with_index(1)
+        |> Enum.map(fn {loss, epoch} ->
+          %{architecture: r.name, epoch: epoch, loss: loss, type: "val"}
+        end)
+      r[:epochs] ->
+        r.epochs
+        |> Enum.map(fn e ->
+          %{architecture: r.name, epoch: e.epoch, loss: e.val_loss, type: "val"}
+        end)
+      true -> []
+    end
   end)
 
 _all_loss_data = loss_curve_data ++ val_loss_data
@@ -87,7 +106,7 @@ comparison_plot =
 # Speed comparison (filter to valid results only)
 speed_data = results
   |> Enum.filter(&Map.has_key?(&1, :name))
-  |> Enum.map(fn r -> %{architecture: r.name, speed: r[:batches_per_sec] || 0} end)
+  |> Enum.map(fn r -> %{architecture: r.name, speed: r[:avg_batches_per_sec] || r[:batches_per_sec] || 0} end)
 
 speed_plot =
   VegaLite.new(width: 700, height: 300, title: "Training Speed (batches/sec, higher is better)")
@@ -97,11 +116,17 @@ speed_plot =
   |> VegaLite.encode_field(:y, "speed", type: :quantitative, title: "Batches/sec")
   |> VegaLite.encode_field(:color, "architecture", type: :nominal, legend: nil)
 
-# Inference time comparison
+# Inference time comparison (inference_us_per_batch -> convert to ms)
 inference_data = results
   |> Enum.filter(&Map.has_key?(&1, :name))
   |> Enum.map(fn r ->
-    %{architecture: r.name, inference_ms: r[:inference_time_ms] || 0}
+    # Handle both old format (inference_time_ms) and new format (inference_us_per_batch)
+    inference_ms = cond do
+      r[:inference_time_ms] -> r[:inference_time_ms]
+      r[:inference_us_per_batch] -> r[:inference_us_per_batch] / 1000.0
+      true -> 0
+    end
+    %{architecture: r.name, inference_ms: inference_ms}
   end)
 
 inference_plot =
