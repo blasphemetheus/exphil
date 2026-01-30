@@ -271,11 +271,32 @@ defmodule ExPhil.Training.EmbeddingCache do
 
       Logger.info("[EmbeddingCache] Loading #{cache_key} from #{num_chunks} chunks...")
 
-      # Load and concatenate chunks
-      chunk_tensors =
+      total_mb =
         chunks
-        |> Enum.sort_by(& &1.index)
-        |> Enum.map(fn chunk_info ->
+        |> Enum.map(& &1.size_bytes)
+        |> Enum.sum()
+        |> Kernel./(1_000_000)
+
+      # Check if GPU is available for fast concatenation
+      use_gpu = gpu_available_for_concat?()
+
+      if use_gpu do
+        Logger.info("[EmbeddingCache] Using GPU for fast chunk concatenation")
+      end
+
+      # Load chunks one at a time to avoid memory spike
+      # Transfer each to GPU before concatenating (GPU concat is much faster)
+      sorted_chunks = Enum.sort_by(chunks, & &1.index)
+
+      tensor =
+        sorted_chunks
+        |> Enum.with_index()
+        |> Enum.reduce(nil, fn {chunk_info, idx}, acc ->
+          # Progress indicator for large loads
+          if rem(idx, 5) == 0 do
+            Logger.info("[EmbeddingCache] Loading chunk #{idx + 1}/#{num_chunks}...")
+          end
+
           chunk_file = chunk_path(cache_key, chunk_info.index, cache_dir)
           {:ok, binary} = File.read(chunk_file)
 
@@ -283,23 +304,46 @@ defmodule ExPhil.Training.EmbeddingCache do
           [_total_frames | rest] = shape_list
           chunk_shape = List.to_tuple([chunk_info.frames | rest])
 
-          Nx.from_binary(binary, dtype) |> Nx.reshape(chunk_shape)
+          chunk_tensor =
+            binary
+            |> Nx.from_binary(dtype)
+            |> Nx.reshape(chunk_shape)
+
+          # Transfer to GPU if available (makes concatenation fast)
+          chunk_tensor =
+            if use_gpu do
+              Nx.backend_transfer(chunk_tensor, EXLA.Backend)
+            else
+              chunk_tensor
+            end
+
+          # Concatenate incrementally
+          case acc do
+            nil -> chunk_tensor
+            _ -> Nx.concatenate([acc, chunk_tensor], axis: 0)
+          end
         end)
-
-      # Concatenate along first axis
-      tensor = Nx.concatenate(chunk_tensors, axis: 0)
-
-      total_mb =
-        chunks
-        |> Enum.map(& &1.size_bytes)
-        |> Enum.sum()
-        |> Kernel./(1_000_000)
 
       Logger.info(
         "[EmbeddingCache] Loaded #{cache_key} (#{Float.round(total_mb, 1)} MB from #{num_chunks} chunks)"
       )
 
       {:ok, tensor}
+    end
+  end
+
+  # Check if GPU is available for fast operations
+  defp gpu_available_for_concat? do
+    case System.get_env("EXLA_TARGET") do
+      "cuda" -> true
+      "rocm" -> true
+      _ ->
+        # Also check if EXLA detected a GPU
+        try do
+          ExPhil.Training.GPUUtils.gpu_available?()
+        rescue
+          _ -> false
+        end
     end
   end
 
