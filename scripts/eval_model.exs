@@ -243,13 +243,25 @@ button_labels = [:a, :b, :x, :y, :z, :l, :r, :d_up]
 # Helper functions for metrics
 compute_accuracy = fn logits, targets, _num_classes ->
   predictions = Nx.argmax(logits, axis: -1)
-  correct = Nx.equal(predictions, targets)
+  # Handle both sparse indices and one-hot targets
+  target_indices = if tuple_size(Nx.shape(targets)) > 1 do
+    Nx.argmax(targets, axis: -1)
+  else
+    targets
+  end
+  correct = Nx.equal(predictions, target_indices)
   Nx.mean(correct) |> Nx.to_number()
 end
 
 compute_top_k_accuracy = fn logits, targets, k ->
   {_, top_k_indices} = Nx.top_k(logits, k: k)
-  expanded_targets = Nx.reshape(targets, {:auto, 1})
+  # Handle both sparse indices and one-hot targets
+  target_indices = if tuple_size(Nx.shape(targets)) > 1 do
+    Nx.argmax(targets, axis: -1)
+  else
+    targets
+  end
+  expanded_targets = Nx.reshape(target_indices, {:auto, 1})
   matches = Nx.equal(top_k_indices, expanded_targets)
   any_match = Nx.any(matches, axes: [-1])
   Nx.mean(any_match) |> Nx.to_number()
@@ -310,8 +322,14 @@ end
 # Stick confusion tracking (returns map of {predicted, actual} -> count)
 update_stick_confusion = fn confusion, logits, targets, axis_buckets ->
   predictions = Nx.argmax(logits, axis: -1)
+  # Handle both sparse indices and one-hot targets
+  target_indices = if tuple_size(Nx.shape(targets)) > 1 do
+    Nx.argmax(targets, axis: -1)
+  else
+    targets
+  end
   pred_flat = Nx.to_flat_list(predictions)
-  target_flat = Nx.to_flat_list(targets)
+  target_flat = Nx.to_flat_list(target_indices)
 
   # Only track non-neutral predictions/targets for readability
   neutral = div(axis_buckets, 2)
@@ -429,13 +447,32 @@ evaluate_model = fn model_path ->
     )) |> Nx.to_number()
 
     # Categorical cross-entropy for sticks/shoulder
-    main_x_loss = Axon.Losses.categorical_cross_entropy(logits.main_x, actions.main_x, sparse: true, reduction: :mean) |> Nx.to_number()
-    main_y_loss = Axon.Losses.categorical_cross_entropy(logits.main_y, actions.main_y, sparse: true, reduction: :mean) |> Nx.to_number()
-    c_x_loss = Axon.Losses.categorical_cross_entropy(logits.c_x, actions.c_x, sparse: true, reduction: :mean) |> Nx.to_number()
-    c_y_loss = Axon.Losses.categorical_cross_entropy(logits.c_y, actions.c_y, sparse: true, reduction: :mean) |> Nx.to_number()
-    shoulder_loss = Axon.Losses.categorical_cross_entropy(logits.shoulder, actions.shoulder, sparse: true, reduction: :mean) |> Nx.to_number()
+    # actions.main_x etc are sparse indices {batch_size}, need sparse: true
+    # But if they're one-hot {batch_size, num_classes}, don't use sparse
+    main_x_shape = Nx.shape(actions.main_x)
+    use_sparse = tuple_size(main_x_shape) == 1
 
-    %{buttons: button_loss, main_x: main_x_loss, main_y: main_y_loss, c_x: c_x_loss, c_y: c_y_loss, shoulder: shoulder_loss}
+    if use_sparse do
+      main_x_loss = Axon.Losses.categorical_cross_entropy(logits.main_x, actions.main_x, sparse: true, reduction: :mean) |> Nx.to_number()
+      main_y_loss = Axon.Losses.categorical_cross_entropy(logits.main_y, actions.main_y, sparse: true, reduction: :mean) |> Nx.to_number()
+      c_x_loss = Axon.Losses.categorical_cross_entropy(logits.c_x, actions.c_x, sparse: true, reduction: :mean) |> Nx.to_number()
+      c_y_loss = Axon.Losses.categorical_cross_entropy(logits.c_y, actions.c_y, sparse: true, reduction: :mean) |> Nx.to_number()
+      shoulder_loss = Axon.Losses.categorical_cross_entropy(logits.shoulder, actions.shoulder, sparse: true, reduction: :mean) |> Nx.to_number()
+      %{buttons: button_loss, main_x: main_x_loss, main_y: main_y_loss, c_x: c_x_loss, c_y: c_y_loss, shoulder: shoulder_loss}
+    else
+      # One-hot targets - use softmax cross entropy manually
+      softmax_ce = fn logits_t, targets_t ->
+        log_softmax = Nx.log_softmax(logits_t, axis: -1)
+        Nx.mean(Nx.negate(Nx.sum(Nx.multiply(targets_t, log_softmax), axes: [-1]))) |> Nx.to_number()
+      end
+
+      main_x_loss = softmax_ce.(logits.main_x, actions.main_x)
+      main_y_loss = softmax_ce.(logits.main_y, actions.main_y)
+      c_x_loss = softmax_ce.(logits.c_x, actions.c_x)
+      c_y_loss = softmax_ce.(logits.c_y, actions.c_y)
+      shoulder_loss = softmax_ce.(logits.shoulder, actions.shoulder)
+      %{buttons: button_loss, main_x: main_x_loss, main_y: main_y_loss, c_x: c_x_loss, c_y: c_y_loss, shoulder: shoulder_loss}
+    end
   end
 
   final_state =
