@@ -873,8 +873,21 @@ defmodule ExPhil.Training.Data do
     {train_indices, val_indices} = Enum.split(indices, split_idx)
 
     # Split frames using indices
-    train_frames = Enum.map(train_indices, &Enum.at(dataset.frames, &1))
-    val_frames = Enum.map(val_indices, &Enum.at(dataset.frames, &1))
+    # OPTIMIZATION: Use Erlang array for O(log n) lookups instead of O(n) list traversal
+    # For 1.8M frames, this changes from O(n²) to O(n log n)
+    {train_frames, val_frames} =
+      if dataset.size > 10_000 do
+        # Convert list to array once, then do O(log n) lookups
+        frames_array = :array.from_list(dataset.frames)
+        train = Enum.map(train_indices, &:array.get(&1, frames_array))
+        val = Enum.map(val_indices, &:array.get(&1, frames_array))
+        {train, val}
+      else
+        # For small datasets, direct list access is fine
+        train = Enum.map(train_indices, &Enum.at(dataset.frames, &1))
+        val = Enum.map(val_indices, &Enum.at(dataset.frames, &1))
+        {train, val}
+      end
 
     # Split embedded_sequences if present (must maintain correspondence with frames)
     {train_embedded_seqs, val_embedded_seqs} =
@@ -883,15 +896,23 @@ defmodule ExPhil.Training.Data do
           {nil, nil}
 
         seqs when is_tuple(seqs) and elem(seqs, 0) == :array ->
-          # Erlang array - convert to list, split, convert back
+          # Erlang array - O(log n) lookups already
           train_seqs = Enum.map(train_indices, &:array.get(&1, seqs)) |> :array.from_list()
           val_seqs = Enum.map(val_indices, &:array.get(&1, seqs)) |> :array.from_list()
           {train_seqs, val_seqs}
 
         seqs when is_list(seqs) ->
-          train_seqs = Enum.map(train_indices, &Enum.at(seqs, &1))
-          val_seqs = Enum.map(val_indices, &Enum.at(seqs, &1))
-          {train_seqs, val_seqs}
+          # OPTIMIZATION: Convert to array for O(log n) lookups on large datasets
+          if length(seqs) > 10_000 do
+            seqs_array = :array.from_list(seqs)
+            train_seqs = Enum.map(train_indices, &:array.get(&1, seqs_array)) |> :array.from_list()
+            val_seqs = Enum.map(val_indices, &:array.get(&1, seqs_array)) |> :array.from_list()
+            {train_seqs, val_seqs}
+          else
+            train_seqs = Enum.map(train_indices, &Enum.at(seqs, &1))
+            val_seqs = Enum.map(val_indices, &Enum.at(seqs, &1))
+            {train_seqs, val_seqs}
+          end
 
         _ ->
           {nil, nil}
