@@ -34,6 +34,8 @@ defmodule ExPhil.Training.EmbeddingCache do
   require Logger
 
   @default_cache_dir "cache/embeddings"
+  # Max bytes per chunk (~500MB) - well under Erlang's term_to_binary limit
+  @max_chunk_bytes 500_000_000
 
   @doc """
   Generate a cache key from embedding config and replay files.
@@ -101,15 +103,47 @@ defmodule ExPhil.Training.EmbeddingCache do
 
   For frame embeddings: saves an :array of tensors
   For sequence embeddings: saves a %Data{} struct with embedded_sequences
+
+  Large tensors are automatically chunked to avoid Erlang's term_to_binary limits.
   """
   @spec save(String.t(), term(), keyword()) :: :ok | {:error, term()}
   def save(cache_key, embeddings, opts \\ []) do
     cache_dir = get_cache_dir(opts)
-    path = cache_path(cache_key, cache_dir)
-
     File.mkdir_p!(cache_dir)
 
-    # Convert to binary-safe format
+    # Check if we need chunked saving for large stacked tensors
+    case embeddings do
+      tensor when is_struct(tensor, Nx.Tensor) ->
+        save_tensor(cache_key, tensor, cache_dir, opts)
+
+      other ->
+        save_single_file(cache_key, other, cache_dir)
+    end
+  end
+
+  # Save a tensor, chunking if necessary
+  defp save_tensor(cache_key, tensor, cache_dir, _opts) do
+    {num_frames, _rest} = shape_head_rest(Nx.shape(tensor))
+    bytes_per_frame = Nx.byte_size(tensor) / num_frames
+    frames_per_chunk = max(1, floor(@max_chunk_bytes / bytes_per_frame))
+
+    if num_frames <= frames_per_chunk do
+      # Small enough for single file
+      save_single_file(cache_key, tensor, cache_dir)
+    else
+      # Need to chunk
+      save_chunked(cache_key, tensor, cache_dir, frames_per_chunk)
+    end
+  end
+
+  defp shape_head_rest(shape) do
+    [head | rest] = Tuple.to_list(shape)
+    {head, List.to_tuple(rest)}
+  end
+
+  # Save as single file (original behavior)
+  defp save_single_file(cache_key, embeddings, cache_dir) do
+    path = cache_path(cache_key, cache_dir)
     data = prepare_for_save(embeddings)
 
     case File.write(path, :erlang.term_to_binary(data, [:compressed])) do
@@ -123,78 +157,269 @@ defmodule ExPhil.Training.EmbeddingCache do
     end
   end
 
+  # Save large tensor in chunks
+  defp save_chunked(cache_key, tensor, cache_dir, frames_per_chunk) do
+    {num_frames, _} = shape_head_rest(Nx.shape(tensor))
+    num_chunks = ceil(num_frames / frames_per_chunk)
+    shape = Nx.shape(tensor)
+    type = Nx.type(tensor)
+
+    Logger.info("[EmbeddingCache] Saving #{cache_key} in #{num_chunks} chunks...")
+
+    # Save each chunk
+    chunk_info =
+      for chunk_idx <- 0..(num_chunks - 1) do
+        start_idx = chunk_idx * frames_per_chunk
+        end_idx = min((chunk_idx + 1) * frames_per_chunk, num_frames)
+        chunk_frames = end_idx - start_idx
+
+        # Slice the tensor
+        chunk_tensor = Nx.slice_along_axis(tensor, start_idx, chunk_frames, axis: 0)
+        chunk_binary = Nx.to_binary(chunk_tensor)
+
+        # Save chunk file
+        chunk_path = chunk_path(cache_key, chunk_idx, cache_dir)
+        File.write!(chunk_path, chunk_binary)
+
+        %{
+          index: chunk_idx,
+          start: start_idx,
+          frames: chunk_frames,
+          size_bytes: byte_size(chunk_binary)
+        }
+      end
+
+    # Save manifest
+    manifest = %{
+      type: :chunked_stacked_embeddings,
+      shape: Tuple.to_list(shape),
+      dtype: type,
+      num_frames: num_frames,
+      num_chunks: num_chunks,
+      frames_per_chunk: frames_per_chunk,
+      chunks: chunk_info
+    }
+
+    manifest_path = manifest_path(cache_key, cache_dir)
+    File.write!(manifest_path, :erlang.term_to_binary(manifest, [:compressed]))
+
+    total_mb =
+      chunk_info
+      |> Enum.map(& &1.size_bytes)
+      |> Enum.sum()
+      |> Kernel./(1_000_000)
+
+    Logger.info(
+      "[EmbeddingCache] Saved #{cache_key} (#{Float.round(total_mb, 1)} MB in #{num_chunks} chunks)"
+    )
+
+    :ok
+  end
+
   @doc """
   Load embeddings from cache.
+
+  Automatically handles both single-file and chunked formats.
   """
   @spec load(String.t(), keyword()) :: {:ok, term()} | {:error, :not_found | term()}
   def load(cache_key, opts \\ []) do
     cache_dir = get_cache_dir(opts)
     path = cache_path(cache_key, cache_dir)
+    manifest = manifest_path(cache_key, cache_dir)
 
-    if File.exists?(path) do
-      case File.read(path) do
-        {:ok, binary} ->
-          data = :erlang.binary_to_term(binary)
-          embeddings = restore_from_load(data)
-          size_mb = byte_size(binary) / 1_000_000
-          Logger.info("[EmbeddingCache] Loaded #{cache_key} (#{Float.round(size_mb, 1)} MB)")
-          {:ok, embeddings}
+    cond do
+      # Check for chunked format first (manifest file)
+      File.exists?(manifest) ->
+        load_chunked(cache_key, cache_dir)
 
-        {:error, reason} ->
-          {:error, reason}
-      end
-    else
-      {:error, :not_found}
+      # Fall back to single file
+      File.exists?(path) ->
+        load_single_file(cache_key, cache_dir)
+
+      true ->
+        {:error, :not_found}
+    end
+  end
+
+  defp load_single_file(cache_key, cache_dir) do
+    path = cache_path(cache_key, cache_dir)
+
+    case File.read(path) do
+      {:ok, binary} ->
+        data = :erlang.binary_to_term(binary)
+        embeddings = restore_from_load(data)
+        size_mb = byte_size(binary) / 1_000_000
+        Logger.info("[EmbeddingCache] Loaded #{cache_key} (#{Float.round(size_mb, 1)} MB)")
+        {:ok, embeddings}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp load_chunked(cache_key, cache_dir) do
+    manifest_file = manifest_path(cache_key, cache_dir)
+
+    with {:ok, manifest_binary} <- File.read(manifest_file),
+         manifest <- :erlang.binary_to_term(manifest_binary) do
+      %{
+        shape: shape_list,
+        dtype: dtype,
+        num_chunks: num_chunks,
+        chunks: chunks
+      } = manifest
+
+      Logger.info("[EmbeddingCache] Loading #{cache_key} from #{num_chunks} chunks...")
+
+      # Load and concatenate chunks
+      chunk_tensors =
+        chunks
+        |> Enum.sort_by(& &1.index)
+        |> Enum.map(fn chunk_info ->
+          chunk_file = chunk_path(cache_key, chunk_info.index, cache_dir)
+          {:ok, binary} = File.read(chunk_file)
+
+          # Reconstruct chunk shape: {chunk_frames, ...rest}
+          [_total_frames | rest] = shape_list
+          chunk_shape = List.to_tuple([chunk_info.frames | rest])
+
+          Nx.from_binary(binary, dtype) |> Nx.reshape(chunk_shape)
+        end)
+
+      # Concatenate along first axis
+      tensor = Nx.concatenate(chunk_tensors, axis: 0)
+
+      total_mb =
+        chunks
+        |> Enum.map(& &1.size_bytes)
+        |> Enum.sum()
+        |> Kernel./(1_000_000)
+
+      Logger.info(
+        "[EmbeddingCache] Loaded #{cache_key} (#{Float.round(total_mb, 1)} MB from #{num_chunks} chunks)"
+      )
+
+      {:ok, tensor}
     end
   end
 
   @doc """
   Check if cache exists for a key.
+
+  Checks for both single-file and chunked formats.
   """
   @spec exists?(String.t(), keyword()) :: boolean()
   def exists?(cache_key, opts \\ []) do
     cache_dir = get_cache_dir(opts)
     path = cache_path(cache_key, cache_dir)
-    File.exists?(path)
+    manifest = manifest_path(cache_key, cache_dir)
+
+    File.exists?(path) or File.exists?(manifest)
   end
 
   @doc """
   Delete a cached embedding.
+
+  Handles both single-file and chunked formats.
   """
   @spec invalidate(String.t(), keyword()) :: :ok | {:error, term()}
   def invalidate(cache_key, opts \\ []) do
     cache_dir = get_cache_dir(opts)
-    path = cache_path(cache_key, cache_dir)
 
-    case File.rm(path) do
-      :ok -> :ok
-      {:error, :enoent} -> :ok
-      {:error, reason} -> {:error, reason}
+    # Delete single file if exists
+    path = cache_path(cache_key, cache_dir)
+    File.rm(path)
+
+    # Delete chunked files if exist
+    manifest_file = manifest_path(cache_key, cache_dir)
+
+    if File.exists?(manifest_file) do
+      case File.read(manifest_file) do
+        {:ok, binary} ->
+          manifest = :erlang.binary_to_term(binary)
+
+          # Delete all chunk files
+          for chunk <- manifest.chunks do
+            File.rm(chunk_path(cache_key, chunk.index, cache_dir))
+          end
+
+          # Delete manifest
+          File.rm(manifest_file)
+
+        _ ->
+          :ok
+      end
     end
+
+    :ok
   end
 
   @doc """
   List all cached embeddings.
+
+  Shows both single-file and chunked caches with total size.
   """
-  @spec list(keyword()) :: [%{key: String.t(), size_mb: float(), mtime: NaiveDateTime.t()}]
+  @spec list(keyword()) :: [%{key: String.t(), size_mb: float(), mtime: NaiveDateTime.t(), chunked: boolean()}]
   def list(opts \\ []) do
     cache_dir = get_cache_dir(opts)
 
     if File.exists?(cache_dir) do
-      cache_dir
-      |> File.ls!()
-      |> Enum.filter(&String.ends_with?(&1, ".emb"))
-      |> Enum.map(fn filename ->
-        path = Path.join(cache_dir, filename)
-        stat = File.stat!(path)
-        key = String.replace_suffix(filename, ".emb", "")
+      files = File.ls!(cache_dir)
 
-        %{
-          key: key,
-          size_mb: Float.round(stat.size / 1_000_000, 1),
-          mtime: NaiveDateTime.from_erl!(stat.mtime)
-        }
-      end)
+      # Find single-file caches (.emb files without corresponding .manifest)
+      single_file_caches =
+        files
+        |> Enum.filter(&String.ends_with?(&1, ".emb"))
+        |> Enum.map(fn filename ->
+          key = String.replace_suffix(filename, ".emb", "")
+          manifest_exists = "#{key}.manifest" in files
+
+          unless manifest_exists do
+            path = Path.join(cache_dir, filename)
+            stat = File.stat!(path)
+
+            %{
+              key: key,
+              size_mb: Float.round(stat.size / 1_000_000, 1),
+              mtime: NaiveDateTime.from_erl!(stat.mtime),
+              chunked: false
+            }
+          end
+        end)
+        |> Enum.reject(&is_nil/1)
+
+      # Find chunked caches (.manifest files)
+      chunked_caches =
+        files
+        |> Enum.filter(&String.ends_with?(&1, ".manifest"))
+        |> Enum.map(fn filename ->
+          key = String.replace_suffix(filename, ".manifest", "")
+          manifest_file = Path.join(cache_dir, filename)
+          stat = File.stat!(manifest_file)
+
+          # Calculate total size from chunks
+          total_size =
+            case File.read(manifest_file) do
+              {:ok, binary} ->
+                manifest = :erlang.binary_to_term(binary)
+
+                manifest.chunks
+                |> Enum.map(& &1.size_bytes)
+                |> Enum.sum()
+
+              _ ->
+                0
+            end
+
+          %{
+            key: key,
+            size_mb: Float.round(total_size / 1_000_000, 1),
+            mtime: NaiveDateTime.from_erl!(stat.mtime),
+            chunked: true
+          }
+        end)
+
+      (single_file_caches ++ chunked_caches)
       |> Enum.sort_by(& &1.mtime, {:desc, NaiveDateTime})
     else
       []
@@ -203,6 +428,8 @@ defmodule ExPhil.Training.EmbeddingCache do
 
   @doc """
   Clear all cached embeddings.
+
+  Removes both single-file (.emb) and chunked (.manifest + _chunk_*.bin) formats.
   """
   @spec clear(keyword()) :: :ok
   def clear(opts \\ []) do
@@ -211,7 +438,11 @@ defmodule ExPhil.Training.EmbeddingCache do
     if File.exists?(cache_dir) do
       cache_dir
       |> File.ls!()
-      |> Enum.filter(&String.ends_with?(&1, ".emb"))
+      |> Enum.filter(fn filename ->
+        String.ends_with?(filename, ".emb") or
+          String.ends_with?(filename, ".manifest") or
+          String.contains?(filename, "_chunk_")
+      end)
       |> Enum.each(fn filename ->
         File.rm!(Path.join(cache_dir, filename))
       end)
@@ -224,6 +455,14 @@ defmodule ExPhil.Training.EmbeddingCache do
 
   defp cache_path(cache_key, cache_dir) do
     Path.join(cache_dir, "#{cache_key}.emb")
+  end
+
+  defp manifest_path(cache_key, cache_dir) do
+    Path.join(cache_dir, "#{cache_key}.manifest")
+  end
+
+  defp chunk_path(cache_key, chunk_index, cache_dir) do
+    Path.join(cache_dir, "#{cache_key}_chunk_#{chunk_index}.bin")
   end
 
   defp get_cache_dir(opts) do

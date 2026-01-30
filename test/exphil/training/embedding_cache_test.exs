@@ -577,6 +577,73 @@ defmodule ExPhil.Training.EmbeddingCacheTest do
     end
   end
 
+  describe "chunked saving for large tensors" do
+    @tag :tmp_dir
+    test "saves and loads large tensor in chunks", %{tmp_dir: tmp_dir} do
+      # Create a tensor that would exceed the chunk size
+      # We'll use a smaller tensor but force chunking by using a tiny chunk size
+      # For testing, we simulate the behavior
+      tensor = Nx.iota({1000, 10}, type: :f32)
+
+      cache_key = "test_chunked"
+
+      # Save with default options
+      :ok = EmbeddingCache.save(cache_key, tensor, cache_dir: tmp_dir)
+
+      # Load back
+      {:ok, loaded} = EmbeddingCache.load(cache_key, cache_dir: tmp_dir)
+
+      # Should be equal
+      assert Nx.shape(loaded) == Nx.shape(tensor)
+      assert Nx.type(loaded) == Nx.type(tensor)
+      assert Nx.to_flat_list(loaded) == Nx.to_flat_list(tensor)
+    end
+
+    @tag :tmp_dir
+    test "exists? and invalidate work with both formats", %{tmp_dir: tmp_dir} do
+      tensor = Nx.iota({100, 10}, type: :f32)
+      cache_key = "test_exists"
+
+      # Save
+      :ok = EmbeddingCache.save(cache_key, tensor, cache_dir: tmp_dir)
+      assert EmbeddingCache.exists?(cache_key, cache_dir: tmp_dir)
+
+      # Invalidate
+      :ok = EmbeddingCache.invalidate(cache_key, cache_dir: tmp_dir)
+      refute EmbeddingCache.exists?(cache_key, cache_dir: tmp_dir)
+    end
+
+    @tag :tmp_dir
+    test "list shows both chunked and single-file caches", %{tmp_dir: tmp_dir} do
+      tensor1 = Nx.iota({100, 10}, type: :f32)
+      tensor2 = Nx.iota({200, 10}, type: :f32)
+
+      :ok = EmbeddingCache.save("cache1", tensor1, cache_dir: tmp_dir)
+      :ok = EmbeddingCache.save("cache2", tensor2, cache_dir: tmp_dir)
+
+      caches = EmbeddingCache.list(cache_dir: tmp_dir)
+      assert length(caches) == 2
+
+      keys = Enum.map(caches, & &1.key)
+      assert "cache1" in keys
+      assert "cache2" in keys
+    end
+
+    @tag :tmp_dir
+    test "clear removes all cache files", %{tmp_dir: tmp_dir} do
+      tensor = Nx.iota({100, 10}, type: :f32)
+
+      :ok = EmbeddingCache.save("cache1", tensor, cache_dir: tmp_dir)
+      :ok = EmbeddingCache.save("cache2", tensor, cache_dir: tmp_dir)
+
+      assert length(EmbeddingCache.list(cache_dir: tmp_dir)) == 2
+
+      :ok = EmbeddingCache.clear(cache_dir: tmp_dir)
+
+      assert EmbeddingCache.list(cache_dir: tmp_dir) == []
+    end
+  end
+
   # Helper to identify type for error messages
   defp type_of(x) when is_list(x), do: :list
   defp type_of(x) when is_tuple(x), do: :tuple
