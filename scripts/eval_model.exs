@@ -27,6 +27,7 @@ alias ExPhil.Data.Peppi
 alias ExPhil.Training.{ActionViz, Checkpoint, Data}
 alias ExPhil.Networks.Policy
 alias ExPhil.Embeddings
+alias ExPhil.Evaluation.Metrics
 
 # Get shared defaults from Config module
 training_defaults = Config.defaults()
@@ -347,114 +348,8 @@ batches =
 
 num_batches = length(batches)
 
-# Button labels (matches @legal_buttons in Controller)
-button_labels = [:a, :b, :x, :y, :z, :l, :r, :d_up]
-
-# Helper functions for metrics
-compute_accuracy = fn logits, targets, _num_classes ->
-  predictions = Nx.argmax(logits, axis: -1)
-  # Handle both sparse indices and one-hot targets
-  target_indices = if tuple_size(Nx.shape(targets)) > 1 do
-    Nx.argmax(targets, axis: -1)
-  else
-    targets
-  end
-  correct = Nx.equal(predictions, target_indices)
-  Nx.mean(correct) |> Nx.to_number()
-end
-
-compute_top_k_accuracy = fn logits, targets, k ->
-  {_, top_k_indices} = Nx.top_k(logits, k: k)
-  # Handle both sparse indices and one-hot targets
-  target_indices = if tuple_size(Nx.shape(targets)) > 1 do
-    Nx.argmax(targets, axis: -1)
-  else
-    targets
-  end
-  expanded_targets = Nx.reshape(target_indices, {:auto, 1})
-  matches = Nx.equal(top_k_indices, expanded_targets)
-  any_match = Nx.any(matches, axes: [-1])
-  Nx.mean(any_match) |> Nx.to_number()
-end
-
-compute_button_accuracy = fn logits, targets ->
-  probs = Nx.sigmoid(logits)
-  predictions = Nx.greater(probs, 0.5)
-  correct = Nx.equal(predictions, targets)
-  Nx.mean(correct) |> Nx.to_number()
-end
-
-# Per-button accuracy (returns map of button -> accuracy)
-compute_per_button_accuracy = fn logits, targets ->
-  probs = Nx.sigmoid(logits)
-  predictions = Nx.greater(probs, 0.5)
-  correct = Nx.equal(predictions, targets)
-
-  # Compute accuracy for each button column
-  button_labels
-  |> Enum.with_index()
-  |> Enum.map(fn {label, idx} ->
-    col_correct = Nx.slice_along_axis(correct, idx, 1, axis: -1)
-    acc = Nx.mean(col_correct) |> Nx.to_number()
-    {label, acc}
-  end)
-  |> Map.new()
-end
-
-# Button prediction rates (returns {predicted_rates, actual_rates})
-compute_button_rates = fn logits, targets ->
-  probs = Nx.sigmoid(logits)
-  predictions = Nx.greater(probs, 0.5)
-
-  predicted_rates =
-    button_labels
-    |> Enum.with_index()
-    |> Enum.map(fn {label, idx} ->
-      col = Nx.slice_along_axis(predictions, idx, 1, axis: -1)
-      rate = Nx.mean(col) |> Nx.to_number()
-      {label, rate}
-    end)
-    |> Map.new()
-
-  actual_rates =
-    button_labels
-    |> Enum.with_index()
-    |> Enum.map(fn {label, idx} ->
-      col = Nx.slice_along_axis(targets, idx, 1, axis: -1)
-      rate = Nx.mean(col) |> Nx.to_number()
-      {label, rate}
-    end)
-    |> Map.new()
-
-  {predicted_rates, actual_rates}
-end
-
-# Stick confusion tracking (returns map of {predicted, actual} -> count)
-update_stick_confusion = fn confusion, logits, targets, axis_buckets ->
-  predictions = Nx.argmax(logits, axis: -1)
-  # Handle both sparse indices and one-hot targets
-  target_indices = if tuple_size(Nx.shape(targets)) > 1 do
-    Nx.argmax(targets, axis: -1)
-  else
-    targets
-  end
-  pred_flat = Nx.to_flat_list(predictions)
-  target_flat = Nx.to_flat_list(target_indices)
-
-  # Only track non-neutral predictions/targets for readability
-  neutral = div(axis_buckets, 2)
-
-  Enum.zip(pred_flat, target_flat)
-  |> Enum.reduce(confusion, fn {pred, actual}, acc ->
-    # Only track errors (and skip neutral->neutral)
-    if pred != actual and (pred != neutral or actual != neutral) do
-      key = {pred, actual}
-      Map.update(acc, key, 1, &(&1 + 1))
-    else
-      acc
-    end
-  end)
-end
+# Button labels from Metrics module
+button_labels = Metrics.button_labels()
 
 # Evaluate a single model
 evaluate_model = fn model_path ->
@@ -531,9 +426,8 @@ evaluate_model = fn model_path ->
   # Initialize action visualizer and tracking state
   initial_viz = ActionViz.new()
 
-  # Calibration bins: 10 bins from 0-100% confidence
-  # Each bin tracks {correct_count, total_count}
-  empty_calibration_bins = Map.new(0..9, fn i -> {i, {0, 0}} end)
+  # Calibration bins: 10 bins from 0-100% confidence (using Metrics module)
+  empty_calibration_bins = Metrics.empty_calibration_bins()
 
   initial_state = %{
     total_loss: 0.0,
@@ -560,12 +454,9 @@ evaluate_model = fn model_path ->
     export_rows: []
   }
 
-  # Random baseline accuracies for reference
-  # Buttons: ~50% per button (binary), but weighted by actual press rate
-  # Sticks: 1/num_buckets for uniform random
-  # Shoulder: 1/num_buckets
-  random_stick_acc = 1.0 / (axis_buckets + 1)
-  random_shoulder_acc = 1.0 / (shoulder_buckets + 1)
+  # Random baseline accuracies for reference (using Metrics module)
+  random_stick_acc = Metrics.random_baseline(axis_buckets + 1)
+  random_shoulder_acc = Metrics.random_baseline(shoulder_buckets + 1)
 
   # Helper to compute individual loss components
   compute_loss_components = fn logits, actions ->
@@ -637,66 +528,42 @@ evaluate_model = fn model_path ->
       # Compute loss components
       batch_loss_components = compute_loss_components.(logits, actions)
 
-      # Basic accuracy metrics
+      # Basic accuracy metrics (using Metrics module)
       batch_metrics = %{
-        button_acc: compute_button_accuracy.(buttons, actions.buttons),
-        main_x_acc: compute_accuracy.(main_x, actions.main_x, axis_buckets + 1),
-        main_y_acc: compute_accuracy.(main_y, actions.main_y, axis_buckets + 1),
-        c_x_acc: compute_accuracy.(c_x, actions.c_x, axis_buckets + 1),
-        c_y_acc: compute_accuracy.(c_y, actions.c_y, axis_buckets + 1),
-        shoulder_acc: compute_accuracy.(shoulder, actions.shoulder, shoulder_buckets + 1),
-        main_x_top3: compute_top_k_accuracy.(main_x, actions.main_x, 3),
-        main_y_top3: compute_top_k_accuracy.(main_y, actions.main_y, 3)
+        button_acc: Metrics.button_accuracy(buttons, actions.buttons),
+        main_x_acc: Metrics.accuracy(main_x, actions.main_x),
+        main_y_acc: Metrics.accuracy(main_y, actions.main_y),
+        c_x_acc: Metrics.accuracy(c_x, actions.c_x),
+        c_y_acc: Metrics.accuracy(c_y, actions.c_y),
+        shoulder_acc: Metrics.accuracy(shoulder, actions.shoulder),
+        main_x_top3: Metrics.top_k_accuracy(main_x, actions.main_x, 3),
+        main_y_top3: Metrics.top_k_accuracy(main_y, actions.main_y, 3)
       }
 
       # Per-button accuracy
-      batch_per_button = compute_per_button_accuracy.(buttons, actions.buttons)
+      batch_per_button = Metrics.per_button_accuracy(buttons, actions.buttons)
 
       # Button prediction rates
-      {batch_pred_rates, batch_actual_rates} = compute_button_rates.(buttons, actions.buttons)
+      {batch_pred_rates, batch_actual_rates} = Metrics.button_rates(buttons, actions.buttons)
 
       # Stick confusion tracking
-      main_x_confusion = update_stick_confusion.(state.main_x_confusion, main_x, actions.main_x, axis_buckets)
-      main_y_confusion = update_stick_confusion.(state.main_y_confusion, main_y, actions.main_y, axis_buckets)
+      main_x_confusion = Metrics.update_stick_confusion(state.main_x_confusion, main_x, actions.main_x, axis_buckets)
+      main_y_confusion = Metrics.update_stick_confusion(state.main_y_confusion, main_y, actions.main_y, axis_buckets)
 
-      # Confidence tracking (average max softmax probability)
-      compute_probs = fn logits_tensor ->
-        probs = Nx.exp(Nx.subtract(logits_tensor, Nx.reduce_max(logits_tensor, axes: [-1], keep_axes: true)))
-        Nx.divide(probs, Nx.sum(probs, axes: [-1], keep_axes: true))
-      end
+      # Confidence tracking (using Metrics module for softmax)
+      main_x_probs = Metrics.softmax(main_x)
+      main_y_probs = Metrics.softmax(main_y)
+      c_x_probs = Metrics.softmax(c_x)
+      c_y_probs = Metrics.softmax(c_y)
 
-      main_x_probs = compute_probs.(main_x)
-      main_y_probs = compute_probs.(main_y)
-      c_x_probs = compute_probs.(c_x)
-      c_y_probs = compute_probs.(c_y)
+      batch_main_x_conf = Metrics.avg_confidence(main_x)
+      batch_main_y_conf = Metrics.avg_confidence(main_y)
+      batch_c_x_conf = Metrics.avg_confidence(c_x)
+      batch_c_y_conf = Metrics.avg_confidence(c_y)
 
-      batch_main_x_conf = main_x_probs |> Nx.reduce_max(axes: [-1]) |> Nx.mean() |> Nx.to_number()
-      batch_main_y_conf = main_y_probs |> Nx.reduce_max(axes: [-1]) |> Nx.mean() |> Nx.to_number()
-      batch_c_x_conf = c_x_probs |> Nx.reduce_max(axes: [-1]) |> Nx.mean() |> Nx.to_number()
-      batch_c_y_conf = c_y_probs |> Nx.reduce_max(axes: [-1]) |> Nx.mean() |> Nx.to_number()
-
-      # Calibration tracking: bin predictions by confidence and track accuracy
-      update_calibration = fn calibration_bins, probs_tensor, targets ->
-        max_probs = Nx.reduce_max(probs_tensor, axes: [-1]) |> Nx.to_flat_list()
-        predictions = Nx.argmax(probs_tensor, axis: -1) |> Nx.to_flat_list()
-        target_indices = if tuple_size(Nx.shape(targets)) > 1 do
-          Nx.argmax(targets, axis: -1) |> Nx.to_flat_list()
-        else
-          Nx.to_flat_list(targets)
-        end
-
-        Enum.zip([max_probs, predictions, target_indices])
-        |> Enum.reduce(calibration_bins, fn {conf, pred, actual}, bins ->
-          # Bin index: 0 = 0-10%, 1 = 10-20%, ..., 9 = 90-100%
-          bin_idx = min(floor(conf * 10), 9)
-          correct = if pred == actual, do: 1, else: 0
-          {prev_correct, prev_total} = Map.get(bins, bin_idx, {0, 0})
-          Map.put(bins, bin_idx, {prev_correct + correct, prev_total + 1})
-        end)
-      end
-
-      new_main_x_calibration = update_calibration.(state.main_x_calibration, main_x_probs, actions.main_x)
-      new_main_y_calibration = update_calibration.(state.main_y_calibration, main_y_probs, actions.main_y)
+      # Calibration tracking (using Metrics module)
+      new_main_x_calibration = Metrics.update_calibration(state.main_x_calibration, main_x_probs, actions.main_x)
+      new_main_y_calibration = Metrics.update_calibration(state.main_y_calibration, main_y_probs, actions.main_y)
 
       # Merge metrics
       new_metrics =
@@ -975,20 +842,7 @@ evaluate_model = fn model_path ->
   Output.puts("")
   Output.puts("  Stick Confusion Analysis (top prediction errors):")
 
-  # Helper to format bucket as direction
-  format_bucket = fn bucket, num_buckets ->
-    neutral = div(num_buckets, 2)
-    cond do
-      bucket == neutral -> "neutral"
-      bucket < neutral - 2 -> "far_neg"
-      bucket < neutral -> "neg"
-      bucket > neutral + 2 -> "far_pos"
-      bucket > neutral -> "pos"
-      true -> "~neutral"
-    end
-  end
-
-  # Main X confusion
+  # Main X confusion (using Metrics.format_bucket for direction names)
   if map_size(final_state.main_x_confusion) > 0 do
     top_x_errors =
       final_state.main_x_confusion
@@ -998,8 +852,8 @@ evaluate_model = fn model_path ->
     if length(top_x_errors) > 0 do
       Output.puts("    Main X errors:")
       for {{pred, actual}, count} <- top_x_errors do
-        pred_dir = format_bucket.(pred, axis_buckets)
-        actual_dir = format_bucket.(actual, axis_buckets)
+        pred_dir = Metrics.format_bucket(pred, axis_buckets)
+        actual_dir = Metrics.format_bucket(actual, axis_buckets)
         Output.puts("      #{actual_dir} → #{pred_dir}: #{count} frames")
       end
     end
@@ -1015,8 +869,8 @@ evaluate_model = fn model_path ->
     if length(top_y_errors) > 0 do
       Output.puts("    Main Y errors:")
       for {{pred, actual}, count} <- top_y_errors do
-        pred_dir = format_bucket.(pred, axis_buckets)
-        actual_dir = format_bucket.(actual, axis_buckets)
+        pred_dir = Metrics.format_bucket(pred, axis_buckets)
+        actual_dir = Metrics.format_bucket(actual, axis_buckets)
         Output.puts("      #{actual_dir} → #{pred_dir}: #{count} frames")
       end
     end
