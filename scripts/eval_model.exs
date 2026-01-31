@@ -536,8 +536,20 @@ evaluate_model = fn model_path ->
     main_y_confusion: %{},
     total_inference_time_ms: 0.0,
     inference_count: 0,
-    viz: initial_viz
+    viz: initial_viz,
+    # Confidence tracking (average max probability for stick predictions)
+    main_x_confidence: 0.0,
+    main_y_confidence: 0.0,
+    c_x_confidence: 0.0,
+    c_y_confidence: 0.0
   }
+
+  # Random baseline accuracies for reference
+  # Buttons: ~50% per button (binary), but weighted by actual press rate
+  # Sticks: 1/num_buckets for uniform random
+  # Shoulder: 1/num_buckets
+  random_stick_acc = 1.0 / (axis_buckets + 1)
+  random_shoulder_acc = 1.0 / (shoulder_buckets + 1)
 
   # Helper to compute individual loss components
   compute_loss_components = fn logits, actions ->
@@ -631,6 +643,19 @@ evaluate_model = fn model_path ->
       main_x_confusion = update_stick_confusion.(state.main_x_confusion, main_x, actions.main_x, axis_buckets)
       main_y_confusion = update_stick_confusion.(state.main_y_confusion, main_y, actions.main_y, axis_buckets)
 
+      # Confidence tracking (average max softmax probability)
+      compute_avg_confidence = fn logits_tensor ->
+        probs = Nx.exp(Nx.subtract(logits_tensor, Nx.reduce_max(logits_tensor, axes: [-1], keep_axes: true)))
+        probs = Nx.divide(probs, Nx.sum(probs, axes: [-1], keep_axes: true))
+        max_probs = Nx.reduce_max(probs, axes: [-1])
+        Nx.mean(max_probs) |> Nx.to_number()
+      end
+
+      batch_main_x_conf = compute_avg_confidence.(main_x)
+      batch_main_y_conf = compute_avg_confidence.(main_y)
+      batch_c_x_conf = compute_avg_confidence.(c_x)
+      batch_c_y_conf = compute_avg_confidence.(c_y)
+
       # Merge metrics
       new_metrics =
         if map_size(state.component_metrics) == 0 do
@@ -698,7 +723,11 @@ evaluate_model = fn model_path ->
         main_y_confusion: main_y_confusion,
         total_inference_time_ms: new_inference_time,
         inference_count: new_inference_count,
-        viz: viz
+        viz: viz,
+        main_x_confidence: state.main_x_confidence + batch_main_x_conf,
+        main_y_confidence: state.main_y_confidence + batch_main_y_conf,
+        c_x_confidence: state.c_x_confidence + batch_c_x_conf,
+        c_y_confidence: state.c_y_confidence + batch_c_y_conf
       }
     end)
 
@@ -798,6 +827,33 @@ evaluate_model = fn model_path ->
 
   Output.puts("")
   Output.puts("  Overall Weighted Accuracy: #{Float.round(overall_acc * 100, 1)}%")
+
+  # Model confidence (average max probability)
+  avg_main_x_conf = final_state.main_x_confidence / total_batches
+  avg_main_y_conf = final_state.main_y_confidence / total_batches
+  avg_c_x_conf = final_state.c_x_confidence / total_batches
+  avg_c_y_conf = final_state.c_y_confidence / total_batches
+
+  Output.puts("")
+  Output.puts("  Model Confidence (avg max probability):")
+  # Show confidence vs accuracy - if confidence >> accuracy, model is overconfident
+  main_x_calibration = avg_metrics.main_x_acc - avg_main_x_conf
+  main_y_calibration = avg_metrics.main_y_acc - avg_main_y_conf
+  cal_str = fn diff -> if diff >= 0, do: "under", else: "over" end
+  Output.puts("    Main X: #{Float.round(avg_main_x_conf * 100, 1)}% conf vs #{Float.round(avg_metrics.main_x_acc * 100, 1)}% acc (#{cal_str.(main_x_calibration)}confident)")
+  Output.puts("    Main Y: #{Float.round(avg_main_y_conf * 100, 1)}% conf vs #{Float.round(avg_metrics.main_y_acc * 100, 1)}% acc (#{cal_str.(main_y_calibration)}confident)")
+  Output.puts("    C-X:    #{Float.round(avg_c_x_conf * 100, 1)}% conf vs #{Float.round(avg_metrics.c_x_acc * 100, 1)}% acc")
+  Output.puts("    C-Y:    #{Float.round(avg_c_y_conf * 100, 1)}% conf vs #{Float.round(avg_metrics.c_y_acc * 100, 1)}% acc")
+
+  # Random baseline comparison
+  Output.puts("")
+  Output.puts("  vs Random Baseline:")
+  main_x_lift = avg_metrics.main_x_acc / random_stick_acc
+  main_y_lift = avg_metrics.main_y_acc / random_stick_acc
+  shoulder_lift = avg_metrics.shoulder_acc / random_shoulder_acc
+  Output.puts("    Main X: #{Float.round(avg_metrics.main_x_acc * 100, 1)}% vs #{Float.round(random_stick_acc * 100, 1)}% random (#{Float.round(main_x_lift, 1)}x better)")
+  Output.puts("    Main Y: #{Float.round(avg_metrics.main_y_acc * 100, 1)}% vs #{Float.round(random_stick_acc * 100, 1)}% random (#{Float.round(main_y_lift, 1)}x better)")
+  Output.puts("    Shoulder: #{Float.round(avg_metrics.shoulder_acc * 100, 1)}% vs #{Float.round(random_shoulder_acc * 100, 1)}% random (#{Float.round(shoulder_lift, 1)}x better)")
 
   # Stick confusion analysis (show top errors)
   Output.puts("")
