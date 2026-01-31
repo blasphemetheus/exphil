@@ -7,6 +7,12 @@ defmodule ExPhil.Training.Config do
   - Command-line argument parsing
   - Timestamped checkpoint name generation
   - Training config JSON structure
+
+  ## See Also
+
+  - `ExPhil.Training.Imitation` - The main training module that uses this config
+  - `ExPhil.Training.Data` - Data loading and batching
+  - `ExPhil.Training.Help` - CLI help text generation
   """
 
   alias ExPhil.Training.Help
@@ -233,12 +239,34 @@ defmodule ExPhil.Training.Config do
 
   @doc """
   List of available preset names.
+
+  ## Examples
+
+      iex> presets = ExPhil.Training.Config.available_presets()
+      iex> :quick in presets
+      true
+      iex> :production in presets
+      true
+      iex> :mewtwo in presets
+      true
+
   """
   @spec available_presets() :: [atom()]
   def available_presets, do: @valid_presets
 
   @doc """
   Default training options.
+
+  ## Examples
+
+      iex> opts = ExPhil.Training.Config.defaults()
+      iex> opts[:epochs]
+      10
+      iex> opts[:batch_size]
+      64
+      iex> opts[:temporal]
+      false
+
   """
   @spec defaults() :: keyword()
   def defaults do
@@ -636,11 +664,14 @@ defmodule ExPhil.Training.Config do
 
   ## Examples
 
-      iex> Config.load_yaml("config/training.yaml")
-      {:ok, [epochs: 20, batch_size: 128, ...]}
-
-      iex> Config.load_yaml("missing.yaml")
+      iex> ExPhil.Training.Config.load_yaml("missing.yaml")
       {:error, :file_not_found}
+
+  For existing YAML files:
+
+      {:ok, opts} = Config.load_yaml("config/training.yaml")
+      opts[:epochs]  # => value from YAML
+
   """
   @spec load_yaml(String.t()) :: {:ok, keyword()} | {:error, atom() | String.t()}
   def load_yaml(path) do
@@ -661,10 +692,13 @@ defmodule ExPhil.Training.Config do
 
   CLI args take precedence over YAML config, which takes precedence over defaults.
 
-  ## Examples
+  ## Example
 
-      iex> Config.load_with_yaml("config.yaml", ["--epochs", "5"])
-      {:ok, [epochs: 5, batch_size: 128, ...]}  # CLI overrides YAML
+      # With a YAML file containing `batch_size: 128`:
+      {:ok, opts} = Config.load_with_yaml("config.yaml", ["--epochs", "5"])
+      opts[:epochs]     # => 5 (from CLI, overrides YAML)
+      opts[:batch_size] # => 128 (from YAML)
+
   """
   @spec load_with_yaml(String.t(), [String.t()]) :: {:ok, keyword()} | {:error, any()}
   def load_with_yaml(yaml_path, cli_args) do
@@ -808,14 +842,27 @@ defmodule ExPhil.Training.Config do
 
   ## Examples
 
-      iex> Config.preset(:quick)
-      [epochs: 1, max_files: 5, hidden_sizes: [32, 32], ...]
+      iex> opts = ExPhil.Training.Config.preset(:quick)
+      iex> opts[:epochs]
+      1
+      iex> opts[:max_files]
+      5
+      iex> opts[:temporal]
+      false
 
-      iex> Config.preset(:production)
-      [epochs: 100, hidden_sizes: [256, 256], ema: true, lr_schedule: :cosine_restarts, ...]
+      iex> opts = ExPhil.Training.Config.preset(:production)
+      iex> opts[:epochs]
+      100
+      iex> opts[:ema]
+      true
+      iex> opts[:lr_schedule]
+      :cosine_restarts
 
-      iex> Config.preset(:mewtwo)
-      [character: :mewtwo, epochs: 100, window_size: 90, ...]
+      iex> opts = ExPhil.Training.Config.preset(:mewtwo)
+      iex> opts[:character]
+      :mewtwo
+      iex> opts[:window_size]
+      90
 
   """
   @spec preset(atom() | String.t()) :: keyword() | no_return()
@@ -1327,11 +1374,13 @@ defmodule ExPhil.Training.Config do
 
   ## Examples
 
-      iex> Config.diff_from_defaults(epochs: 20, batch_size: 64)
+      iex> ExPhil.Training.Config.diff_from_defaults(epochs: 20, batch_size: 64)
       [{:epochs, 20, 10}]
 
-      iex> Config.diff_from_defaults(defaults())
+      iex> defaults = ExPhil.Training.Config.defaults()
+      iex> ExPhil.Training.Config.diff_from_defaults(defaults)
       []
+
   """
   @spec diff_from_defaults(keyword(), keyword()) :: [{atom(), any(), any()}]
   def diff_from_defaults(opts, diff_opts \\ []) do
@@ -1359,11 +1408,16 @@ defmodule ExPhil.Training.Config do
   Format config diff as a human-readable string.
 
   Returns a string showing changed settings, or nil if no changes.
+  Output is sorted alphabetically by key.
 
   ## Examples
 
-      iex> Config.format_diff(epochs: 20, batch_size: 128)
-      "  epochs: 20 (default: 10)\\n  batch_size: 128 (default: 64)"
+      iex> result = ExPhil.Training.Config.format_diff(epochs: 20, batch_size: 128)
+      iex> result =~ "epochs: 20 (default: 10)"
+      true
+      iex> result =~ "batch_size: 128 (default: 64)"
+      true
+
   """
   @spec format_diff(keyword()) :: String.t() | nil
   def format_diff(opts) do
@@ -1433,11 +1487,13 @@ defmodule ExPhil.Training.Config do
 
   ## Examples
 
-      iex> Config.validate!(epochs: 10, batch_size: 64)
+      iex> ExPhil.Training.Config.validate!(epochs: 10, batch_size: 64)
       [epochs: 10, batch_size: 64]
 
-      iex> Config.validate!(epochs: -1)
-      ** (ArgumentError) Invalid training configuration...
+  Invalid configurations raise an ArgumentError:
+
+      Config.validate!(epochs: -1)
+      # => raises ArgumentError with "Invalid training configuration..."
 
   """
   @spec validate!(keyword()) :: keyword()
@@ -1885,14 +1941,23 @@ defmodule ExPhil.Training.Config do
 
   ## Examples
 
-      iex> Config.parse_args(["--epochs", "5", "--temporal"])
-      [epochs: 5, temporal: true, ...]
+      iex> opts = ExPhil.Training.Config.parse_args(["--epochs", "5", "--temporal"])
+      iex> opts[:epochs]
+      5
+      iex> opts[:temporal]
+      true
 
-      iex> Config.parse_args(["--preset", "quick"])
-      [epochs: 1, max_files: 5, hidden_sizes: [32, 32], ...]
+      iex> opts = ExPhil.Training.Config.parse_args(["--preset", "quick"])
+      iex> opts[:epochs]
+      1
+      iex> opts[:max_files]
+      5
 
-      iex> Config.parse_args(["--preset", "quick", "--epochs", "3"])
-      [epochs: 3, max_files: 5, hidden_sizes: [32, 32], ...]  # epochs overridden
+      iex> opts = ExPhil.Training.Config.parse_args(["--preset", "quick", "--epochs", "3"])
+      iex> opts[:epochs]
+      3
+      iex> opts[:max_files]
+      5
 
   """
   @spec parse_args([String.t()]) :: keyword()
@@ -2270,20 +2335,24 @@ defmodule ExPhil.Training.Config do
 
   ## Examples
 
+  Auto-generated names use random words and timestamps:
+
       iex> opts = [checkpoint: nil, temporal: false, character: nil, name: nil]
-      iex> Config.ensure_checkpoint_name(opts) |> Keyword.get(:checkpoint)
-      "checkpoints/mlp_cosmic_falcon_20260119_123456.axon"
+      iex> path = ExPhil.Training.Config.ensure_checkpoint_name(opts) |> Keyword.get(:checkpoint)
+      iex> String.starts_with?(path, "checkpoints/") and String.ends_with?(path, ".axon")
+      true
+
+  Character and backbone are included in auto-generated names:
 
       iex> opts = [checkpoint: nil, temporal: true, backbone: :mamba, character: :mewtwo, name: nil]
-      iex> Config.ensure_checkpoint_name(opts) |> Keyword.get(:checkpoint)
-      "checkpoints/mewtwo_mamba_brave_phoenix_20260119_123456.axon"
+      iex> path = ExPhil.Training.Config.ensure_checkpoint_name(opts) |> Keyword.get(:checkpoint)
+      iex> String.contains?(path, "mewtwo_mamba_") and String.ends_with?(path, ".axon")
+      true
 
-      iex> opts = [checkpoint: nil, temporal: false, name: "my_custom_name"]
-      iex> Config.ensure_checkpoint_name(opts) |> Keyword.get(:checkpoint)
-      "checkpoints/mlp_my_custom_name_20260119_123456.axon"
+  Explicit checkpoints are preserved:
 
       iex> opts = [checkpoint: "my_model.axon"]
-      iex> Config.ensure_checkpoint_name(opts) |> Keyword.get(:checkpoint)
+      iex> ExPhil.Training.Config.ensure_checkpoint_name(opts) |> Keyword.get(:checkpoint)
       "my_model.axon"
 
   """
@@ -2681,6 +2750,17 @@ defmodule ExPhil.Training.Config do
 
   @doc """
   List of valid CLI flags.
+
+  ## Examples
+
+      iex> flags = ExPhil.Training.Config.valid_flags()
+      iex> "--epochs" in flags
+      true
+      iex> "--batch-size" in flags
+      true
+      iex> "--preset" in flags
+      true
+
   """
   @spec valid_flags() :: [String.t()]
   def valid_flags, do: @valid_flags
@@ -2693,11 +2773,12 @@ defmodule ExPhil.Training.Config do
 
   ## Examples
 
-      iex> Config.validate_args(["--epochs", "10", "--batch-size", "32"])
+      iex> ExPhil.Training.Config.validate_args(["--epochs", "10", "--batch-size", "32"])
       {:ok, []}
 
-      iex> Config.validate_args(["--ephocs", "10"])
-      {:ok, ["Unknown flag '--ephocs'. Did you mean '--epochs'?"]}
+      iex> {:ok, [warning]} = ExPhil.Training.Config.validate_args(["--ephocs", "10"])
+      iex> warning =~ "Did you mean '--epochs'"
+      true
 
   """
   @spec validate_args(list(String.t())) :: {:ok, list(String.t())}
@@ -2730,12 +2811,14 @@ defmodule ExPhil.Training.Config do
 
   ## Examples
 
-      iex> Config.validate_args!(["--epochs", "10"])
+      iex> ExPhil.Training.Config.validate_args!(["--epochs", "10"])
       :ok
 
-      iex> Config.validate_args!(["--ephocs", "10"])
+  Note: Invalid flags print warnings to stderr but still return `:ok`:
+
+      ExPhil.Training.Config.validate_args!(["--ephocs", "10"])
       # Prints: "⚠️  Unknown flag '--ephocs'. Did you mean '--epochs'?"
-      :ok
+      # Returns: :ok
 
   """
   @spec validate_args!(list(String.t())) :: :ok
@@ -3015,8 +3098,10 @@ defmodule ExPhil.Training.Config do
 
   ## Example
 
-      iex> format_file_info(%{path: "model.axon", size: 45_200_000, modified: {{2026, 1, 23}, {14, 30, 0}}})
-      "Size: 45.2 MB, Modified: 2026-01-23 14:30:00"
+      iex> info = %{path: "model.axon", size: 45_200_000, modified: {{2026, 1, 23}, {14, 30, 0}}}
+      iex> ExPhil.Training.Config.format_file_info(info)
+      "Size: 43.1 MB, Modified: 2026-01-23 14:30:00"
+
   """
   @spec format_file_info(map()) :: String.t()
   def format_file_info(info) do

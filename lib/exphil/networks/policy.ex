@@ -53,6 +53,12 @@ defmodule ExPhil.Networks.Policy do
       # Sampling (inference)
       actions = ExPhil.Networks.Policy.sample(model, params, embedded_state)
 
+  ## See Also
+
+  - `ExPhil.Networks.Mamba` - Mamba SSM backbone for temporal modeling
+  - `ExPhil.Networks.Attention` - Attention layers for hybrid architectures
+  - `ExPhil.Networks.Recurrent` - LSTM/GRU backbones
+  - `ExPhil.Embeddings.Controller` - Controller action embedding
   """
 
   require Axon

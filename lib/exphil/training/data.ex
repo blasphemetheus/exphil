@@ -39,6 +39,13 @@ defmodule ExPhil.Training.Data do
         # batch.states: [batch_size, embed_size]
         # batch.actions: %{buttons: ..., main_x: ..., etc.}
       end
+
+  ## See Also
+
+  - `ExPhil.Training.Imitation` - Uses this data for behavioral cloning
+  - `ExPhil.Training.Config` - Configuration for data loading options
+  - `ExPhil.Data.Peppi` - Low-level Slippi replay parsing
+  - `ExPhil.Embeddings.Game` - Game state embedding
   """
 
   alias ExPhil.Embeddings

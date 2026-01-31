@@ -52,6 +52,8 @@ defmodule ExPhil.MixProject do
         # Core Guides
         "docs/ARCHITECTURE.md",
         "docs/TRAINING.md",
+        "docs/TRAINING_CHEATSHEET.md",
+        "docs/TRAINING_FEATURES.md",
         "docs/INFERENCE.md",
         "docs/DOLPHIN.md",
         "docs/SCRIPTS.md",
@@ -59,26 +61,39 @@ defmodule ExPhil.MixProject do
         "docs/GOTCHAS.md",
         "docs/TESTING.md",
         "docs/GOALS.md",
+        "docs/PROJECT_ROADMAP.md",
+        # Research & Planning
+        "docs/RESEARCH.md",
+        "docs/BITTER_LESSON_PLAN.md",
+        "docs/MEWTWO_TRAINING_PLAN.md",
         # Advanced Topics
         "docs/EMBEDDING_DIMENSIONS.md",
         "docs/GPU_OPTIMIZATIONS.md",
         "docs/MAMBA_OPTIMIZATIONS.md",
         "docs/SELF_PLAY_ARCHITECTURE.md",
+        "docs/IC_TECH_FEATURE_BLOCK.md",
+        # Implementation Notes
+        "docs/AXON_ORTHOGONAL_INIT_FIX.md",
+        "docs/TRAINING_IMPROVEMENTS.md",
         # Deployment
         "docs/docker-workflow.md",
         "docs/REPLAY_STORAGE.md",
         "docs/RUNPOD_FILTER.md",
+        "docs/RCLONE_GDRIVE.md",
         # Meta
         "CHANGELOG.md",
-        "LICENSE"
+        "LICENSE",
+        "docs/HEX_PUBLISHING.md"
       ],
       groups_for_extras: [
         "Getting Started": ~r/README/,
         "Core Guides": ~r/(ARCHITECTURE|TRAINING|INFERENCE|DOLPHIN|SCRIPTS)/,
-        Reference: ~r/(GOTCHAS|TESTING|GOALS)/,
-        "Advanced Topics": ~r/(EMBEDDING|GPU|MAMBA|SELF_PLAY)/,
-        Deployment: ~r/(docker|REPLAY_STORAGE|RUNPOD)/,
-        Meta: ~r/(CHANGELOG|LICENSE)/
+        Reference: ~r/(GOTCHAS|TESTING|GOALS|PROJECT_ROADMAP)/,
+        "Research & Planning": ~r/(RESEARCH|BITTER_LESSON|MEWTWO_TRAINING)/,
+        "Advanced Topics": ~r/(EMBEDDING|GPU|MAMBA|SELF_PLAY|IC_TECH)/,
+        "Implementation Notes": ~r/(AXON_ORTHOGONAL|TRAINING_IMPROVEMENTS)/,
+        Deployment: ~r/(docker|REPLAY_STORAGE|RUNPOD|RCLONE)/,
+        Meta: ~r/(CHANGELOG|LICENSE|HEX_PUBLISHING)/
       ],
       groups_for_modules: [
         Training: [

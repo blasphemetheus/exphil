@@ -3,6 +3,9 @@ defmodule ExPhil.Training.ConfigTest do
 
   alias ExPhil.Training.Config
 
+  # Run doctests for this module
+  doctest ExPhil.Training.Config
+
   # ============================================================================
   # Argument Parsing Tests
   # ============================================================================

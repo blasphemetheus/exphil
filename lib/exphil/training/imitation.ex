@@ -41,6 +41,13 @@ defmodule ExPhil.Training.Imitation do
   Melee has inherent frame delay (reaction time + network latency). During
   training, we can optionally unroll multiple frames to help the model learn
   to predict actions that will be executed several frames in the future.
+
+  ## See Also
+
+  - `ExPhil.Training.Config` - Configuration parsing and presets
+  - `ExPhil.Training.Data` - Data loading and preprocessing
+  - `ExPhil.Networks.Policy` - The policy network architecture
+  - `ExPhil.Embeddings.Game` - Game state embedding
   """
 
   alias ExPhil.Networks.Policy

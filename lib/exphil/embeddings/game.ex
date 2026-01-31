@@ -21,6 +21,13 @@ defmodule ExPhil.Embeddings.Game do
   The embedding always puts the agent's own player first, regardless
   of which port they're actually on. This simplifies learning since
   the network always sees a consistent "self vs opponent" structure.
+
+  ## See Also
+
+  - `ExPhil.Embeddings.Player` - Per-player state embedding
+  - `ExPhil.Embeddings.Controller` - Controller input embedding
+  - `ExPhil.Embeddings.Primitives` - Low-level encoding utilities
+  - `ExPhil.Networks.Policy` - The network that consumes these embeddings
   """
 
   alias ExPhil.Embeddings.Primitives
