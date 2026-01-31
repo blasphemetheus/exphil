@@ -500,4 +500,129 @@ defmodule ExPhil.Evaluation.Metrics do
       _ -> :other
     end
   end
+
+  # =============================================================================
+  # Action Transition Analysis
+  # =============================================================================
+
+  @doc """
+  Analyze prediction transitions (how often predictions change frame-to-frame).
+
+  Returns a map with transition statistics:
+  - :transition_rate - Fraction of frames where prediction changed
+  - :stable_streak_avg - Average length of stable prediction runs
+  - :jitter_score - Measure of prediction instability (0=stable, 1=chaotic)
+
+  ## Parameters
+    - `predictions` - List of prediction values (bucket indices)
+
+  ## Examples
+
+      iex> Metrics.analyze_transitions([8, 8, 8, 7, 7, 8, 8])
+      %{transition_rate: 0.33, stable_streak_avg: 2.33, jitter_score: 0.33}
+  """
+  @spec analyze_transitions([integer()]) :: %{
+    transition_rate: float(),
+    stable_streak_avg: float(),
+    jitter_score: float()
+  }
+  def analyze_transitions(predictions) when length(predictions) < 2 do
+    %{transition_rate: 0.0, stable_streak_avg: 0.0, jitter_score: 0.0}
+  end
+
+  def analyze_transitions(predictions) do
+    pairs = Enum.zip(predictions, tl(predictions))
+    transitions = Enum.count(pairs, fn {a, b} -> a != b end)
+    total_pairs = length(pairs)
+
+    transition_rate = if total_pairs > 0, do: transitions / total_pairs, else: 0.0
+
+    # Calculate stable streaks
+    streaks = calculate_streaks(predictions)
+    stable_streak_avg = if length(streaks) > 0 do
+      Enum.sum(streaks) / length(streaks)
+    else
+      0.0
+    end
+
+    # Jitter score: consider single-frame changes as jitter
+    # A transition followed immediately by another transition is jittery
+    jitter_count =
+      predictions
+      |> Enum.chunk_every(3, 1, :discard)
+      |> Enum.count(fn [a, b, c] -> a == c and a != b end)  # A-B-A pattern
+
+    jitter_score = if total_pairs > 1 do
+      jitter_count / (total_pairs - 1)
+    else
+      0.0
+    end
+
+    %{
+      transition_rate: Float.round(transition_rate, 4),
+      stable_streak_avg: Float.round(stable_streak_avg, 2),
+      jitter_score: Float.round(jitter_score, 4)
+    }
+  end
+
+  @doc """
+  Calculate lengths of consecutive runs of the same value.
+
+  ## Examples
+
+      iex> Metrics.calculate_streaks([1, 1, 1, 2, 2, 1])
+      [3, 2, 1]
+  """
+  @spec calculate_streaks([any()]) :: [pos_integer()]
+  def calculate_streaks([]), do: []
+  def calculate_streaks([_single]), do: [1]
+  def calculate_streaks(list) do
+    list
+    |> Enum.chunk_by(& &1)
+    |> Enum.map(&length/1)
+  end
+
+  @doc """
+  Track transition patterns between bucket values.
+
+  Returns a map of `{from, to} => count` for common transitions.
+
+  ## Parameters
+    - `predictions` - List of prediction values
+    - `opts` - Options:
+      - `:min_count` - Minimum count to include (default: 1)
+
+  ## Examples
+
+      iex> Metrics.transition_patterns([8, 7, 8, 7, 8])
+      %{{8, 7} => 2, {7, 8} => 2}
+  """
+  @spec transition_patterns([integer()], keyword()) :: %{{integer(), integer()} => pos_integer()}
+  def transition_patterns(predictions, opts \\ []) do
+    min_count = Keyword.get(opts, :min_count, 1)
+
+    predictions
+    |> Enum.zip(tl(predictions))
+    |> Enum.filter(fn {a, b} -> a != b end)  # Only track actual transitions
+    |> Enum.frequencies()
+    |> Enum.filter(fn {_, count} -> count >= min_count end)
+    |> Map.new()
+  end
+
+  @doc """
+  Compute transition statistics for a batch of predictions.
+
+  Takes a tensor of predictions (shape {batch}) and returns aggregate stats.
+
+  ## Parameters
+    - `predictions` - Nx tensor of predicted bucket indices, shape {batch}
+
+  ## Returns
+    Map with :transition_rate, :stable_streak_avg, :jitter_score
+  """
+  @spec batch_transition_stats(Nx.Tensor.t()) :: map()
+  def batch_transition_stats(predictions) do
+    pred_list = Nx.to_flat_list(predictions)
+    analyze_transitions(pred_list)
+  end
 end

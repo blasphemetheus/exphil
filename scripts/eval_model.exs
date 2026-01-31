@@ -22,7 +22,7 @@ if "--quiet" in System.argv() or "-q" in System.argv() do
 end
 
 alias ExPhil.CLI
-alias ExPhil.Training.{Config, Output}
+alias ExPhil.Training.{Config, Output, GPUUtils}
 alias ExPhil.Data.Peppi
 alias ExPhil.Training.{ActionViz, Checkpoint, Data}
 alias ExPhil.Networks.Policy
@@ -41,12 +41,15 @@ opts = CLI.parse_args(System.argv(),
     backbone: :string,
     window_size: :integer,
     export_csv: :string,
+    export_sequences: :string,
+    sequence_length: :integer,
     show_calibration: :boolean
   ],
   defaults: [
     max_files: 20,
     batch_size: 64,
-    show_calibration: true
+    show_calibration: true,
+    sequence_length: 60
   ]
 )
 
@@ -70,6 +73,8 @@ if opts[:help] do
     --backbone NAME         Backbone architecture (for temporal)
     --window-size N         Window size for temporal models
     --export-csv PATH       Export predictions to CSV for analysis
+    --export-sequences PATH Export frame sequences for pattern analysis (JSON)
+    --sequence-length N     Frames per sequence for export (default: 60)
     --show-calibration      Show calibration curve (default: true)
     --no-show-calibration   Hide calibration curve
 
@@ -131,6 +136,14 @@ Output.config([
   {"Models to evaluate", length(model_paths)}
 ])
 
+# Show GPU status at startup
+Output.puts("")
+Output.puts("  #{GPUUtils.memory_status_string()}")
+
+# Initialize timing map for phase breakdown
+timing = %{}
+total_start = System.monotonic_time(:millisecond)
+
 # Step 1: Load test replays
 Output.step(1, 4, "Loading test replays")
 replay_dir = opts[:replays]
@@ -140,9 +153,11 @@ unless File.dir?(replay_dir) do
   System.halt(1)
 end
 
+load_start = System.monotonic_time(:millisecond)
 replay_files =
   Path.wildcard(Path.join(replay_dir, "**/*.slp"))
   |> Enum.take(opts[:max_files])
+timing = Map.put(timing, :file_discovery, System.monotonic_time(:millisecond) - load_start)
 
 if Enum.empty?(replay_files) do
   Output.error("No .slp files found in #{replay_dir}")
@@ -166,15 +181,28 @@ parse_opts =
     parse_opts
   end
 
+parse_start = System.monotonic_time(:millisecond)
 parsed_replays = Peppi.parse_many(replay_files, parse_opts)
+timing = Map.put(timing, :replay_parsing, System.monotonic_time(:millisecond) - parse_start)
 
-# Convert to training frames format (parse_many returns list of {:ok, replay} tuples)
-frames =
+# Convert to training frames format and track per-replay stats
+frame_start = System.monotonic_time(:millisecond)
+{frames, replay_stats} =
   parsed_replays
-  |> Enum.flat_map(fn
-    {:ok, replay} -> Peppi.to_training_frames(replay, player_port: opts[:player_port])
-    {:error, _} -> []
+  |> Enum.zip(replay_files)
+  |> Enum.reduce({[], []}, fn
+    {{:ok, replay}, path}, {all_frames, stats} ->
+      replay_frames = Peppi.to_training_frames(replay, player_port: opts[:player_port])
+      new_stats = %{
+        path: path,
+        frame_count: length(replay_frames),
+        duration_sec: length(replay_frames) / 60.0
+      }
+      {all_frames ++ replay_frames, stats ++ [new_stats]}
+    {{:error, _}, _path}, acc ->
+      acc
   end)
+timing = Map.put(timing, :frame_extraction, System.monotonic_time(:millisecond) - frame_start)
 
 if Enum.empty?(frames) do
   Output.error("No frames extracted from replays")
@@ -182,6 +210,28 @@ if Enum.empty?(frames) do
 end
 
 Output.puts("  Extracted #{length(frames)} frames")
+
+# Show per-replay frame statistics
+if length(replay_stats) > 0 do
+  frame_counts = Enum.map(replay_stats, & &1.frame_count)
+  avg_frames = Enum.sum(frame_counts) / length(frame_counts)
+  min_frames = Enum.min(frame_counts)
+  max_frames = Enum.max(frame_counts)
+
+  Output.puts("  Replay statistics:")
+  Output.puts("    Replays parsed:    #{length(replay_stats)}")
+  Output.puts("    Frames/replay:     avg=#{round(avg_frames)}, min=#{min_frames}, max=#{max_frames}")
+  Output.puts("    Avg duration:      #{Float.round(avg_frames / 60, 1)}s")
+
+  # Show shortest and longest replays if verbose
+  if opts[:verbosity] >= 2 do
+    sorted_by_frames = Enum.sort_by(replay_stats, & &1.frame_count)
+    shortest = hd(sorted_by_frames)
+    longest = List.last(sorted_by_frames)
+    Output.puts("    Shortest replay:   #{Path.basename(shortest.path)} (#{shortest.frame_count} frames)")
+    Output.puts("    Longest replay:    #{Path.basename(longest.path)} (#{longest.frame_count} frames)")
+  end
+end
 
 # Show action state distribution in evaluation data
 action_dist = Metrics.action_state_distribution(frames)
@@ -296,6 +346,7 @@ Output.puts("  Embedding size: #{embed_size} dims")
 # Create dataset
 Output.step(4, 5, "Creating evaluation dataset")
 
+dataset_start = System.monotonic_time(:millisecond)
 dataset =
   if opts[:temporal] do
     # Temporal mode: create sequences
@@ -315,6 +366,7 @@ dataset =
       temporal: false
     )
   end
+timing = Map.put(timing, :dataset_creation, System.monotonic_time(:millisecond) - dataset_start)
 
 num_examples = dataset.size
 example_type = if opts[:temporal], do: "sequences", else: "frames"
@@ -342,18 +394,24 @@ batches =
   |> Enum.to_list()
 
 batch_time = System.monotonic_time(:millisecond) - batch_start
+timing = Map.put(timing, :batching, batch_time)
 
 num_batches = length(batches)
 Output.puts("  ✓ Created #{num_batches} batches in #{Float.round(batch_time / 1000, 1)}s")
 
-# Sample batches for faster evaluation (max 100 batches = 6400 frames)
+# Memory-bounded evaluation: limit to max_eval_batches to avoid OOM
+# This provides implicit "streaming" by not processing the full dataset
+# For truly large datasets (100K+ frames), increase max_eval_batches or use sampling
 max_eval_batches = 100
+effective_batch_size = opts[:batch_size]
+max_eval_frames = max_eval_batches * effective_batch_size
 
 batches =
   if num_batches > max_eval_batches do
     Output.puts(
-      "  Sampling #{max_eval_batches} batches for evaluation (use --batch-size to adjust)"
+      "  Sampling #{max_eval_batches} batches (~#{max_eval_frames} frames) for memory-bounded evaluation"
     )
+    Output.puts("  (Full dataset: #{num_batches} batches, use --batch-size to adjust coverage)")
 
     Enum.take_random(batches, max_eval_batches)
   else
@@ -364,6 +422,20 @@ num_batches = length(batches)
 
 # Button labels from Metrics module
 button_labels = Metrics.button_labels()
+
+# Helper to find longest streak of a value in a list
+find_longest_streak = fn list, target_value ->
+  list
+  |> Enum.reduce({0, 0}, fn value, {current, max} ->
+    if value == target_value do
+      new_current = current + 1
+      {new_current, max(new_current, max)}
+    else
+      {0, max}
+    end
+  end)
+  |> elem(1)
+end
 
 # Evaluate a single model
 evaluate_model = fn model_path ->
@@ -464,6 +536,11 @@ evaluate_model = fn model_path ->
     # Calibration tracking (binned confidence vs accuracy)
     main_x_calibration: empty_calibration_bins,
     main_y_calibration: empty_calibration_bins,
+    # Entropy tracking (for uncertainty analysis)
+    main_x_entropy_sum: 0.0,
+    main_y_entropy_sum: 0.0,
+    # Entropy histogram bins (0-max_entropy in 10 bins)
+    entropy_histogram: %{},
     # Export data collection (when --export-csv is set)
     export_rows: []
   }
@@ -510,14 +587,37 @@ evaluate_model = fn model_path ->
     %{buttons: button_loss, main_x: main_x_loss, main_y: main_y_loss, c_x: c_x_loss, c_y: c_y_loss, shoulder: shoulder_loss}
   end
 
+  # Track eval start time for ETA calculation
+  eval_start_time = System.monotonic_time(:millisecond)
+
   final_state =
     batches
     |> Enum.with_index(1)
     |> Enum.reduce(initial_state, fn {batch, batch_idx}, state ->
-      # Show progress every 100 batches or on first batch
-      if batch_idx == 1 or rem(batch_idx, 100) == 0 or batch_idx == num_batches do
+      # Show progress with ETA every 10 batches or on first/last batch
+      if batch_idx == 1 or rem(batch_idx, 10) == 0 or batch_idx == num_batches do
         pct = round(batch_idx / num_batches * 100)
-        IO.write(:stderr, "\r  Progress: #{batch_idx}/#{num_batches} (#{pct}%)\e[K")
+        # Calculate ETA after first batch (skip JIT time)
+        eta_str = if batch_idx > 1 do
+          elapsed_ms = System.monotonic_time(:millisecond) - eval_start_time
+          batches_done = batch_idx - 1  # Exclude first batch from timing
+          batches_remaining = num_batches - batch_idx
+          if batches_done > 0 do
+            ms_per_batch = elapsed_ms / batches_done
+            eta_ms = batches_remaining * ms_per_batch
+            eta_secs = trunc(eta_ms / 1000)
+            if eta_secs > 60 do
+              " | ETA: #{div(eta_secs, 60)}m #{rem(eta_secs, 60)}s"
+            else
+              " | ETA: #{eta_secs}s"
+            end
+          else
+            ""
+          end
+        else
+          " | (JIT compiling...)"
+        end
+        IO.write(:stderr, "\r  Progress: #{batch_idx}/#{num_batches} (#{pct}%)#{eta_str}\e[K")
       end
 
       %{states: states, actions: actions} = batch
@@ -574,6 +674,27 @@ evaluate_model = fn model_path ->
       batch_main_y_conf = Metrics.avg_confidence(main_y)
       batch_c_x_conf = Metrics.avg_confidence(c_x)
       batch_c_y_conf = Metrics.avg_confidence(c_y)
+
+      # Entropy tracking (using Metrics module)
+      batch_main_x_entropy = Metrics.avg_entropy(main_x)
+      batch_main_y_entropy = Metrics.avg_entropy(main_y)
+
+      # Per-sample entropy for histogram (binned into 10 buckets)
+      # Entropy range is 0 to ln(num_classes), so for 17 buckets it's 0-2.83
+      max_entropy = :math.log(axis_buckets + 1)
+      main_x_sample_entropies =
+        main_x_probs
+        |> Nx.add(1.0e-10)  # Avoid log(0)
+        |> then(fn p -> Nx.negate(Nx.sum(Nx.multiply(p, Nx.log(p)), axes: [-1])) end)
+        |> Nx.to_flat_list()
+
+      # Bin the entropies into histogram (0-10%, 10-20%, ... of max entropy)
+      new_entropy_histogram =
+        main_x_sample_entropies
+        |> Enum.reduce(state.entropy_histogram, fn entropy, hist ->
+          bin = min(9, trunc(entropy / max_entropy * 10))
+          Map.update(hist, bin, 1, &(&1 + 1))
+        end)
 
       # Calibration tracking (using Metrics module)
       new_main_x_calibration = Metrics.update_calibration(state.main_x_calibration, main_x_probs, actions.main_x)
@@ -682,6 +803,9 @@ evaluate_model = fn model_path ->
         c_y_confidence: state.c_y_confidence + batch_c_y_conf,
         main_x_calibration: new_main_x_calibration,
         main_y_calibration: new_main_y_calibration,
+        main_x_entropy_sum: state.main_x_entropy_sum + batch_main_x_entropy,
+        main_y_entropy_sum: state.main_y_entropy_sum + batch_main_y_entropy,
+        entropy_histogram: new_entropy_histogram,
         export_rows: new_export_rows
       }
     end)
@@ -850,6 +974,45 @@ evaluate_model = fn model_path ->
     Output.puts("")
     Output.puts("    Calibration Guide: gap = accuracy - expected_from_confidence")
     Output.puts("      +gap = underconfident (good), -gap = overconfident (bad)")
+
+    # Expected Calibration Error (ECE) - single number summary of calibration
+    main_x_ece = Metrics.expected_calibration_error(final_state.main_x_calibration)
+    main_y_ece = Metrics.expected_calibration_error(final_state.main_y_calibration)
+    Output.puts("")
+    Output.puts("    Expected Calibration Error (ECE):")
+    Output.puts("      Main X: #{Float.round(main_x_ece * 100, 2)}% (lower is better, 0% = perfectly calibrated)")
+    Output.puts("      Main Y: #{Float.round(main_y_ece * 100, 2)}%")
+  end
+
+  # Entropy analysis (model uncertainty)
+  avg_main_x_entropy = final_state.main_x_entropy_sum / total_batches
+  avg_main_y_entropy = final_state.main_y_entropy_sum / total_batches
+  max_entropy = :math.log(axis_buckets + 1)
+
+  Output.puts("")
+  Output.puts("  Entropy Analysis (model uncertainty):")
+  Output.puts("    Avg Main X entropy: #{Float.round(avg_main_x_entropy, 3)} / #{Float.round(max_entropy, 3)} (#{Float.round(avg_main_x_entropy / max_entropy * 100, 1)}% of max)")
+  Output.puts("    Avg Main Y entropy: #{Float.round(avg_main_y_entropy, 3)} / #{Float.round(max_entropy, 3)} (#{Float.round(avg_main_y_entropy / max_entropy * 100, 1)}% of max)")
+  Output.puts("    (Low entropy = confident predictions, high entropy = uncertain)")
+
+  # Entropy histogram (distribution of prediction confidence)
+  if map_size(final_state.entropy_histogram) > 0 do
+    Output.puts("")
+    Output.puts("    Entropy Histogram (Main X predictions):")
+    total_samples = Enum.sum(Map.values(final_state.entropy_histogram))
+    max_bar_width = 30
+
+    for bin <- 0..9 do
+      count = Map.get(final_state.entropy_histogram, bin, 0)
+      pct = if total_samples > 0, do: count / total_samples * 100, else: 0.0
+      bar_width = round(pct / 100 * max_bar_width)
+      bar = String.duplicate("█", bar_width) <> String.duplicate("░", max_bar_width - bar_width)
+      range_start = bin * 10
+      range_end = (bin + 1) * 10
+      range_str = "#{range_start}-#{range_end}%" |> String.pad_leading(8)
+      Output.puts("      #{range_str} |#{bar}| #{Float.round(pct, 1)}% (n=#{count})")
+    end
+    Output.puts("      (0-10% = highly confident, 90-100% = maximum uncertainty)")
   end
 
   # Stick confusion analysis (show top errors)
@@ -915,6 +1078,74 @@ evaluate_model = fn model_path ->
     end
   end
 
+  # Export frame sequences for pattern analysis (JSON format)
+  if opts[:export_sequences] && length(final_state.export_rows) > 0 do
+    seq_path = opts[:export_sequences]
+    seq_length = opts[:sequence_length] || 60
+    Output.puts("")
+    Output.puts("  Exporting sequences (length=#{seq_length}) to #{seq_path}...")
+
+    # Split into sequences and compute per-sequence accuracy
+    sequences =
+      final_state.export_rows
+      |> Enum.chunk_every(seq_length)
+      |> Enum.with_index()
+      |> Enum.map(fn {frames, seq_idx} ->
+        # Compute sequence-level stats
+        main_x_correct = Enum.count(frames, &(&1.main_x_pred == &1.main_x_actual))
+        main_y_correct = Enum.count(frames, &(&1.main_y_pred == &1.main_y_actual))
+        avg_conf_x = Enum.map(frames, & &1.main_x_conf) |> then(&(Enum.sum(&1) / length(&1)))
+        avg_conf_y = Enum.map(frames, & &1.main_y_conf) |> then(&(Enum.sum(&1) / length(&1)))
+
+        # Find error streaks (consecutive wrong predictions)
+        x_errors = frames |> Enum.map(&(&1.main_x_pred != &1.main_x_actual))
+        longest_x_streak = find_longest_streak(x_errors, true)
+
+        %{
+          sequence_idx: seq_idx,
+          frame_count: length(frames),
+          main_x_accuracy: main_x_correct / length(frames),
+          main_y_accuracy: main_y_correct / length(frames),
+          avg_confidence_x: avg_conf_x,
+          avg_confidence_y: avg_conf_y,
+          longest_error_streak_x: longest_x_streak,
+          frames: Enum.map(frames, fn f ->
+            %{
+              mx_pred: f.main_x_pred, mx_act: f.main_x_actual, mx_conf: Float.round(f.main_x_conf, 4),
+              my_pred: f.main_y_pred, my_act: f.main_y_actual, my_conf: Float.round(f.main_y_conf, 4)
+            }
+          end)
+        }
+      end)
+
+    # Summary stats
+    accuracies = Enum.map(sequences, & &1.main_x_accuracy)
+    worst_seq = Enum.min_by(sequences, & &1.main_x_accuracy)
+    best_seq = Enum.max_by(sequences, & &1.main_x_accuracy)
+
+    json_data = %{
+      model: Path.basename(model_path),
+      total_sequences: length(sequences),
+      sequence_length: seq_length,
+      summary: %{
+        avg_accuracy_x: Enum.sum(accuracies) / length(accuracies),
+        worst_sequence_idx: worst_seq.sequence_idx,
+        worst_sequence_acc: worst_seq.main_x_accuracy,
+        best_sequence_idx: best_seq.sequence_idx,
+        best_sequence_acc: best_seq.main_x_accuracy
+      },
+      sequences: sequences
+    }
+
+    case File.write(seq_path, Jason.encode!(json_data, pretty: true)) do
+      :ok ->
+        Output.puts("  ✓ Exported #{length(sequences)} sequences to #{seq_path}")
+        Output.puts("    Worst sequence: ##{worst_seq.sequence_idx} (#{Float.round(worst_seq.main_x_accuracy * 100, 1)}%)")
+        Output.puts("    Best sequence:  ##{best_seq.sequence_idx} (#{Float.round(best_seq.main_x_accuracy * 100, 1)}%)")
+      {:error, reason} -> Output.error("Failed to export sequences: #{inspect(reason)}")
+    end
+  end
+
   %{
     path: model_path,
     loss: avg_loss,
@@ -930,7 +1161,10 @@ end
 
 # Evaluate all models
 Output.step(5, 5, "Evaluating models")
+eval_start = System.monotonic_time(:millisecond)
 results = Enum.map(model_paths, evaluate_model)
+timing = Map.put(timing, :model_evaluation, System.monotonic_time(:millisecond) - eval_start)
+timing = Map.put(timing, :total, System.monotonic_time(:millisecond) - total_start)
 
 # Show comparison if multiple models
 if length(results) > 1 do
@@ -939,21 +1173,51 @@ if length(results) > 1 do
 
   sorted = Enum.sort_by(results, & &1.loss)
 
-  Output.puts("Ranked by Loss (lower is better):")
+  # Create comparison table header
   Output.puts("")
+  header = "  #  Model                          Loss     Acc%    Btn%    MX%     MY%     ms/f"
+  Output.puts(header)
+  Output.puts("  " <> String.duplicate("─", String.length(header) - 2))
 
+  # Table rows
   Enum.with_index(sorted, 1)
   |> Enum.each(fn {result, rank} ->
-    name = Path.basename(result.path)
-    loss_str = Float.round(result.loss, 4) |> to_string()
-    acc_str = Float.round(result.overall_acc * 100, 1) |> to_string()
-    Output.puts("  #{rank}. #{name}")
-    Output.puts("     Loss: #{loss_str} | Accuracy: #{acc_str}%")
+    name = Path.basename(result.path) |> String.slice(0, 28) |> String.pad_trailing(28)
+    loss = Float.round(result.loss, 4) |> to_string() |> String.pad_leading(6)
+    acc = Float.round(result.overall_acc * 100, 1) |> to_string() |> String.pad_leading(6)
+    btn = Float.round(result.metrics.button_acc * 100, 1) |> to_string() |> String.pad_leading(6)
+    mx = Float.round(result.metrics.main_x_acc * 100, 1) |> to_string() |> String.pad_leading(6)
+    my = Float.round(result.metrics.main_y_acc * 100, 1) |> to_string() |> String.pad_leading(6)
+    ms_f = Float.round(result.inference_ms_per_frame, 3) |> to_string() |> String.pad_leading(6)
+
+    rank_str = to_string(rank) |> String.pad_leading(2)
+    Output.puts("  #{rank_str}  #{name} #{loss}  #{acc}  #{btn}  #{mx}  #{my}  #{ms_f}")
   end)
 
+  Output.puts("  " <> String.duplicate("─", String.length(header) - 2))
+
+  # Summary
   best = hd(sorted)
+  worst = List.last(sorted)
   Output.puts("")
-  Output.puts("Best Model: #{Path.basename(best.path)}")
+  Output.puts("  Best:  #{Path.basename(best.path)} (loss: #{Float.round(best.loss, 4)})")
+  if length(sorted) > 1 do
+    improvement = (worst.loss - best.loss) / worst.loss * 100
+    Output.puts("  Δ vs worst: #{Float.round(improvement, 1)}% lower loss")
+  end
+
+  # Component accuracy comparison (which model wins each)
+  if length(results) > 1 do
+    Output.puts("")
+    Output.puts("  Component Winners:")
+    components = [:button_acc, :main_x_acc, :main_y_acc, :c_x_acc, :c_y_acc, :shoulder_acc]
+    for comp <- components do
+      comp_sorted = Enum.sort_by(results, &(-Map.get(&1.metrics, comp)))
+      winner = hd(comp_sorted)
+      comp_name = comp |> to_string() |> String.replace("_acc", "") |> String.pad_trailing(10)
+      Output.puts("    #{comp_name} #{Path.basename(winner.path)} (#{Float.round(winner.metrics[comp] * 100, 1)}%)")
+    end
+  end
 end
 
 # Save to JSON if requested
@@ -973,6 +1237,41 @@ if opts[:output] do
     {:error, reason} -> Output.puts("\nFailed to save results: #{inspect(reason)}")
   end
 end
+
+# Display timing breakdown and GPU status
+Output.divider()
+Output.puts("Timing Breakdown:")
+Output.puts("")
+
+format_ms = fn ms ->
+  cond do
+    ms < 1000 -> "#{round(ms)}ms"
+    ms < 60_000 -> "#{Float.round(ms / 1000, 1)}s"
+    true -> "#{div(round(ms), 60_000)}m #{rem(div(round(ms), 1000), 60)}s"
+  end
+end
+
+timing_order = [
+  {:file_discovery, "File discovery"},
+  {:replay_parsing, "Replay parsing"},
+  {:frame_extraction, "Frame extraction"},
+  {:dataset_creation, "Dataset creation"},
+  {:batching, "Batching"},
+  {:model_evaluation, "Model evaluation"},
+  {:total, "Total"}
+]
+
+for {key, label} <- timing_order do
+  if ms = Map.get(timing, key) do
+    pct = if key != :total and timing[:total], do: " (#{Float.round(ms / timing[:total] * 100, 1)}%)", else: ""
+    label_str = String.pad_trailing(label, 20)
+    Output.puts("  #{label_str} #{format_ms.(ms)}#{pct}")
+  end
+end
+
+# Show final GPU memory status
+Output.puts("")
+Output.puts("GPU Status (after eval): #{GPUUtils.memory_status_string()}")
 
 Output.puts("""
 

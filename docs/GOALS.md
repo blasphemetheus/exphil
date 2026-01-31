@@ -738,7 +738,7 @@ Completed:
 - [x] Config file support (YAML) - **Done**
   - `--config config/training.yaml` loads YAML config
   - CLI args override YAML, YAML overrides defaults
-  - `Config.load_yaml/1`, `Config.parse_yaml/1`, `Config.save_yaml/2`
+  - `ExPhil.Training.Config.load_yaml/1`, `ExPhil.Training.Config.parse_yaml/1`, `ExPhil.Training.Config.save_yaml/2`
   - Sample config: `config/training.example.yaml`
 
 ### 2026-01-20: Residual MLP Connections (Complete)

@@ -136,10 +136,21 @@ defmodule ExPhil.Data.Peppi do
     player_port = Keyword.get(opts, :player_port)
 
     result =
-      if player_port do
-        parse_replay_for_port(path, player_port)
-      else
-        parse_replay(path)
+      try do
+        if player_port do
+          parse_replay_for_port(path, player_port)
+        else
+          parse_replay(path)
+        end
+      rescue
+        # Catch NIF panics (corrupted/malformed replay files)
+        e in ErlangError ->
+          case e do
+            %ErlangError{original: :nif_panicked} ->
+              {:error, {:corrupted_replay, path, "NIF panic - likely malformed frame data"}}
+            _ ->
+              reraise e, __STACKTRACE__
+          end
       end
 
     case result do
@@ -162,7 +173,17 @@ defmodule ExPhil.Data.Peppi do
   """
   @spec metadata(Path.t()) :: {:ok, ReplayMeta.t()} | {:error, term()}
   def metadata(path) do
-    get_replay_metadata(path)
+    try do
+      get_replay_metadata(path)
+    rescue
+      e in ErlangError ->
+        case e do
+          %ErlangError{original: :nif_panicked} ->
+            {:error, {:corrupted_replay, path, "NIF panic in metadata"}}
+          _ ->
+            reraise e, __STACKTRACE__
+        end
+    end
   end
 
   @doc """

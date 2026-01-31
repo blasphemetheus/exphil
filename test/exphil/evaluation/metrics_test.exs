@@ -385,4 +385,67 @@ defmodule ExPhil.Evaluation.MetricsTest do
       assert Metrics.simplify_action_category(:grabbing) == :grab_related
     end
   end
+
+  describe "analyze_transitions/1" do
+    test "returns zeros for single element" do
+      result = Metrics.analyze_transitions([8])
+      assert result.transition_rate == 0.0
+      assert result.stable_streak_avg == 0.0
+      assert result.jitter_score == 0.0
+    end
+
+    test "computes transition rate correctly" do
+      # 2 transitions out of 4 pairs = 0.5
+      result = Metrics.analyze_transitions([8, 8, 7, 7, 8])
+      assert result.transition_rate == 0.5
+    end
+
+    test "detects stable predictions" do
+      result = Metrics.analyze_transitions([8, 8, 8, 8, 8])
+      assert result.transition_rate == 0.0
+      assert result.stable_streak_avg == 5.0
+      assert result.jitter_score == 0.0
+    end
+
+    test "detects jittery predictions (A-B-A patterns)" do
+      # A-B-A-B-A pattern: very jittery
+      result = Metrics.analyze_transitions([8, 7, 8, 7, 8])
+      assert result.jitter_score > 0.5
+    end
+  end
+
+  describe "calculate_streaks/1" do
+    test "returns empty for empty list" do
+      assert Metrics.calculate_streaks([]) == []
+    end
+
+    test "returns [1] for single element" do
+      assert Metrics.calculate_streaks([5]) == [1]
+    end
+
+    test "calculates streak lengths" do
+      assert Metrics.calculate_streaks([1, 1, 1, 2, 2, 1]) == [3, 2, 1]
+      assert Metrics.calculate_streaks([1, 2, 3, 4]) == [1, 1, 1, 1]
+      assert Metrics.calculate_streaks([5, 5, 5, 5]) == [4]
+    end
+  end
+
+  describe "transition_patterns/2" do
+    test "tracks transition patterns" do
+      patterns = Metrics.transition_patterns([8, 7, 8, 7, 8])
+      assert patterns[{8, 7}] == 2
+      assert patterns[{7, 8}] == 2
+    end
+
+    test "excludes self-transitions" do
+      patterns = Metrics.transition_patterns([8, 8, 8, 7, 7])
+      assert patterns[{8, 7}] == 1
+      assert patterns[{8, 8}] == nil
+    end
+
+    test "respects min_count option" do
+      patterns = Metrics.transition_patterns([8, 7, 6, 5], min_count: 2)
+      assert map_size(patterns) == 0
+    end
+  end
 end

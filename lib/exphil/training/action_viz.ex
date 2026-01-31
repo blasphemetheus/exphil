@@ -491,4 +491,113 @@ defmodule ExPhil.Training.ActionViz do
   end
 
   defp stick_entropy(_, _), do: 0.0
+
+  @doc """
+  Print a confusion matrix heatmap for stick predictions.
+
+  Takes a confusion map of `{predicted, actual} => count` and displays
+  it as an ASCII heatmap.
+
+  ## Options
+  - `:title` - Title for the heatmap (default: "Confusion Matrix")
+  - `:max_display` - Max buckets to display on each axis (default: 17)
+  - `:show_totals` - Show row/column totals (default: true)
+
+  ## Example Output
+
+      Confusion Matrix (Main X)
+               Predicted →
+             0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F 10
+          ┌───────────────────────────────────────────────────
+        0 │░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
+        1 │░░▓▓░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
+        2 │░░░░██░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
+        ...
+      A ↑
+      c |
+      t |
+      u |
+      a |
+      l |
+  """
+  @spec print_confusion_heatmap(map(), keyword()) :: :ok
+  def print_confusion_heatmap(confusion_map, opts \\ []) when is_map(confusion_map) do
+    title = Keyword.get(opts, :title, "Confusion Matrix")
+    max_display = Keyword.get(opts, :max_display, 17)
+    show_totals = Keyword.get(opts, :show_totals, true)
+
+    if map_size(confusion_map) == 0 do
+      Output.puts_raw("  #{title}: No data")
+    else
+      # Find the range of values
+      all_predicted = confusion_map |> Map.keys() |> Enum.map(&elem(&1, 0))
+      all_actual = confusion_map |> Map.keys() |> Enum.map(&elem(&1, 1))
+
+      min_val = min(Enum.min(all_predicted, fn -> 0 end), Enum.min(all_actual, fn -> 0 end))
+      max_val = max(Enum.max(all_predicted, fn -> 16 end), Enum.max(all_actual, fn -> 16 end))
+      max_val = min(max_val, min_val + max_display - 1)
+
+      # Find max count for intensity scaling
+      max_count = confusion_map |> Map.values() |> Enum.max(fn -> 1 end)
+
+      # Intensity characters (low to high)
+      chars = [" ", "░", "▒", "▓", "█"]
+
+      Output.puts_raw("")
+      Output.puts_raw("  #{title}")
+      Output.puts_raw("           Predicted →")
+
+      # Header row with bucket indices
+      header_parts = for i <- min_val..max_val, do: format_bucket_idx(i)
+      header = "         " <> Enum.join(header_parts, " ")
+      header = if show_totals, do: header <> "  Σ", else: header
+      Output.puts_raw(header)
+      Output.puts_raw("        ┌" <> String.duplicate("──", max_val - min_val + 1) <> "──")
+
+      # Each row (actual values)
+      for actual <- min_val..max_val do
+        row_counts = for pred <- min_val..max_val do
+          Map.get(confusion_map, {pred, actual}, 0)
+        end
+
+        row_chars = Enum.map(row_counts, fn count ->
+          intensity = if max_count > 0, do: round(count / max_count * 4), else: 0
+          intensity = min(intensity, 4)
+          Enum.at(chars, intensity)
+        end)
+
+        row_str = Enum.join(row_chars, " ")
+        label = format_bucket_idx(actual) |> String.pad_leading(6)
+
+        if show_totals do
+          total = Enum.sum(row_counts)
+          Output.puts_raw("  #{label}  │ #{row_str}  #{total}")
+        else
+          Output.puts_raw("  #{label}  │ #{row_str}")
+        end
+      end
+
+      # Column totals
+      if show_totals do
+        col_totals = for pred <- min_val..max_val do
+          Enum.sum(for actual <- min_val..max_val, do: Map.get(confusion_map, {pred, actual}, 0))
+        end
+        total_str = col_totals |> Enum.map(&to_string/1) |> Enum.join(" ")
+        Output.puts_raw("        Σ  " <> total_str)
+      end
+
+      Output.puts_raw("  A ↑")
+      Output.puts_raw("  c │  Intensity: ' '=0  ░=low  ▒=med  ▓=high  █=max")
+      Output.puts_raw("  t │")
+      Output.puts_raw("  u │")
+      Output.puts_raw("  a │")
+      Output.puts_raw("  l │")
+    end
+
+    :ok
+  end
+
+  defp format_bucket_idx(i) when i < 10, do: to_string(i)
+  defp format_bucket_idx(i) when i < 16, do: <<65 + i - 10>>  # A-F
+  defp format_bucket_idx(i), do: Integer.to_string(i, 16)
 end
