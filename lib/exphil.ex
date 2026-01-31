@@ -160,7 +160,7 @@ defmodule ExPhil do
   """
 
   @doc """
-  Returns the ExPhil version.
+  Returns the ExPhil version from mix.exs.
 
   ## Examples
 
@@ -169,7 +169,9 @@ defmodule ExPhil do
 
   """
   @spec version() :: String.t()
-  def version, do: "0.1.0"
+  def version do
+    Application.spec(:exphil, :vsn) |> to_string()
+  end
 
   @doc """
   Returns the default embedding configuration.
