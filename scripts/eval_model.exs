@@ -38,11 +38,14 @@ opts = CLI.parse_args(System.argv(),
     compare: :boolean,
     temporal: :boolean,
     backbone: :string,
-    window_size: :integer
+    window_size: :integer,
+    export_csv: :string,
+    show_calibration: :boolean
   ],
   defaults: [
     max_files: 20,
-    batch_size: 64
+    batch_size: 64,
+    show_calibration: true
   ]
 )
 
@@ -65,6 +68,9 @@ if opts[:help] do
     --temporal              Enable temporal model evaluation
     --backbone NAME         Backbone architecture (for temporal)
     --window-size N         Window size for temporal models
+    --export-csv PATH       Export predictions to CSV for analysis
+    --show-calibration      Show calibration curve (default: true)
+    --no-show-calibration   Hide calibration curve
 
   Examples:
     # Evaluate a single model
@@ -524,6 +530,11 @@ evaluate_model = fn model_path ->
 
   # Initialize action visualizer and tracking state
   initial_viz = ActionViz.new()
+
+  # Calibration bins: 10 bins from 0-100% confidence
+  # Each bin tracks {correct_count, total_count}
+  empty_calibration_bins = Map.new(0..9, fn i -> {i, {0, 0}} end)
+
   initial_state = %{
     total_loss: 0.0,
     loss_components: %{buttons: 0.0, main_x: 0.0, main_y: 0.0, c_x: 0.0, c_y: 0.0, shoulder: 0.0},
@@ -541,7 +552,12 @@ evaluate_model = fn model_path ->
     main_x_confidence: 0.0,
     main_y_confidence: 0.0,
     c_x_confidence: 0.0,
-    c_y_confidence: 0.0
+    c_y_confidence: 0.0,
+    # Calibration tracking (binned confidence vs accuracy)
+    main_x_calibration: empty_calibration_bins,
+    main_y_calibration: empty_calibration_bins,
+    # Export data collection (when --export-csv is set)
+    export_rows: []
   }
 
   # Random baseline accuracies for reference
@@ -644,17 +660,43 @@ evaluate_model = fn model_path ->
       main_y_confusion = update_stick_confusion.(state.main_y_confusion, main_y, actions.main_y, axis_buckets)
 
       # Confidence tracking (average max softmax probability)
-      compute_avg_confidence = fn logits_tensor ->
+      compute_probs = fn logits_tensor ->
         probs = Nx.exp(Nx.subtract(logits_tensor, Nx.reduce_max(logits_tensor, axes: [-1], keep_axes: true)))
-        probs = Nx.divide(probs, Nx.sum(probs, axes: [-1], keep_axes: true))
-        max_probs = Nx.reduce_max(probs, axes: [-1])
-        Nx.mean(max_probs) |> Nx.to_number()
+        Nx.divide(probs, Nx.sum(probs, axes: [-1], keep_axes: true))
       end
 
-      batch_main_x_conf = compute_avg_confidence.(main_x)
-      batch_main_y_conf = compute_avg_confidence.(main_y)
-      batch_c_x_conf = compute_avg_confidence.(c_x)
-      batch_c_y_conf = compute_avg_confidence.(c_y)
+      main_x_probs = compute_probs.(main_x)
+      main_y_probs = compute_probs.(main_y)
+      c_x_probs = compute_probs.(c_x)
+      c_y_probs = compute_probs.(c_y)
+
+      batch_main_x_conf = main_x_probs |> Nx.reduce_max(axes: [-1]) |> Nx.mean() |> Nx.to_number()
+      batch_main_y_conf = main_y_probs |> Nx.reduce_max(axes: [-1]) |> Nx.mean() |> Nx.to_number()
+      batch_c_x_conf = c_x_probs |> Nx.reduce_max(axes: [-1]) |> Nx.mean() |> Nx.to_number()
+      batch_c_y_conf = c_y_probs |> Nx.reduce_max(axes: [-1]) |> Nx.mean() |> Nx.to_number()
+
+      # Calibration tracking: bin predictions by confidence and track accuracy
+      update_calibration = fn calibration_bins, probs_tensor, targets ->
+        max_probs = Nx.reduce_max(probs_tensor, axes: [-1]) |> Nx.to_flat_list()
+        predictions = Nx.argmax(probs_tensor, axis: -1) |> Nx.to_flat_list()
+        target_indices = if tuple_size(Nx.shape(targets)) > 1 do
+          Nx.argmax(targets, axis: -1) |> Nx.to_flat_list()
+        else
+          Nx.to_flat_list(targets)
+        end
+
+        Enum.zip([max_probs, predictions, target_indices])
+        |> Enum.reduce(calibration_bins, fn {conf, pred, actual}, bins ->
+          # Bin index: 0 = 0-10%, 1 = 10-20%, ..., 9 = 90-100%
+          bin_idx = min(floor(conf * 10), 9)
+          correct = if pred == actual, do: 1, else: 0
+          {prev_correct, prev_total} = Map.get(bins, bin_idx, {0, 0})
+          Map.put(bins, bin_idx, {prev_correct + correct, prev_total + 1})
+        end)
+      end
+
+      new_main_x_calibration = update_calibration.(state.main_x_calibration, main_x_probs, actions.main_x)
+      new_main_y_calibration = update_calibration.(state.main_y_calibration, main_y_probs, actions.main_y)
 
       # Merge metrics
       new_metrics =
@@ -711,6 +753,35 @@ evaluate_model = fn model_path ->
           {state.total_inference_time_ms, state.inference_count}
         end
 
+      # Collect export rows if --export-csv is set
+      new_export_rows =
+        if opts[:export_csv] do
+          main_x_preds = Nx.argmax(main_x, axis: -1) |> Nx.to_flat_list()
+          main_y_preds = Nx.argmax(main_y, axis: -1) |> Nx.to_flat_list()
+          main_x_confs = main_x_probs |> Nx.reduce_max(axes: [-1]) |> Nx.to_flat_list()
+          main_y_confs = main_y_probs |> Nx.reduce_max(axes: [-1]) |> Nx.to_flat_list()
+          main_x_actuals = if tuple_size(Nx.shape(actions.main_x)) > 1 do
+            Nx.argmax(actions.main_x, axis: -1) |> Nx.to_flat_list()
+          else
+            Nx.to_flat_list(actions.main_x)
+          end
+          main_y_actuals = if tuple_size(Nx.shape(actions.main_y)) > 1 do
+            Nx.argmax(actions.main_y, axis: -1) |> Nx.to_flat_list()
+          else
+            Nx.to_flat_list(actions.main_y)
+          end
+
+          batch_rows = Enum.zip([main_x_preds, main_x_actuals, main_x_confs, main_y_preds, main_y_actuals, main_y_confs])
+          |> Enum.map(fn {mx_pred, mx_act, mx_conf, my_pred, my_act, my_conf} ->
+            %{main_x_pred: mx_pred, main_x_actual: mx_act, main_x_conf: mx_conf,
+              main_y_pred: my_pred, main_y_actual: my_act, main_y_conf: my_conf}
+          end)
+
+          state.export_rows ++ batch_rows
+        else
+          state.export_rows
+        end
+
       %{state |
         total_loss: state.total_loss + loss_val,
         loss_components: new_loss_components,
@@ -727,7 +798,10 @@ evaluate_model = fn model_path ->
         main_x_confidence: state.main_x_confidence + batch_main_x_conf,
         main_y_confidence: state.main_y_confidence + batch_main_y_conf,
         c_x_confidence: state.c_x_confidence + batch_c_x_conf,
-        c_y_confidence: state.c_y_confidence + batch_c_y_conf
+        c_y_confidence: state.c_y_confidence + batch_c_y_conf,
+        main_x_calibration: new_main_x_calibration,
+        main_y_calibration: new_main_y_calibration,
+        export_rows: new_export_rows
       }
     end)
 
@@ -855,6 +929,48 @@ evaluate_model = fn model_path ->
   Output.puts("    Main Y: #{Float.round(avg_metrics.main_y_acc * 100, 1)}% vs #{Float.round(random_stick_acc * 100, 1)}% random (#{Float.round(main_y_lift, 1)}x better)")
   Output.puts("    Shoulder: #{Float.round(avg_metrics.shoulder_acc * 100, 1)}% vs #{Float.round(random_shoulder_acc * 100, 1)}% random (#{Float.round(shoulder_lift, 1)}x better)")
 
+  # Calibration curve (binned confidence vs accuracy)
+  if opts[:show_calibration] do
+    Output.puts("")
+    Output.puts("  Calibration Curve (confidence bin → accuracy):")
+    Output.puts("    Main Stick X:")
+
+    format_calibration_row = fn bins ->
+      0..9
+      |> Enum.map(fn bin_idx ->
+        {correct, total} = Map.get(bins, bin_idx, {0, 0})
+        if total > 0 do
+          acc = correct / total * 100
+          expected = (bin_idx * 10 + 5)  # Midpoint of bin (e.g., bin 0 = 5%, bin 9 = 95%)
+          gap = acc - expected
+          gap_str = if gap >= 0, do: "+#{Float.round(gap, 0)}", else: "#{Float.round(gap, 0)}"
+          "#{bin_idx * 10}-#{(bin_idx + 1) * 10}%: #{Float.round(acc, 1)}% (#{gap_str}, n=#{total})"
+        else
+          "#{bin_idx * 10}-#{(bin_idx + 1) * 10}%: - (n=0)"
+        end
+      end)
+    end
+
+    # Only show bins with data
+    for row <- format_calibration_row.(final_state.main_x_calibration) do
+      unless String.contains?(row, "n=0") do
+        Output.puts("      #{row}")
+      end
+    end
+
+    Output.puts("    Main Stick Y:")
+    for row <- format_calibration_row.(final_state.main_y_calibration) do
+      unless String.contains?(row, "n=0") do
+        Output.puts("      #{row}")
+      end
+    end
+
+    # Visual calibration bar (shows over/under confidence at a glance)
+    Output.puts("")
+    Output.puts("    Calibration Guide: gap = accuracy - expected_from_confidence")
+    Output.puts("      +gap = underconfident (good), -gap = overconfident (bad)")
+  end
+
   # Stick confusion analysis (show top errors)
   Output.puts("")
   Output.puts("  Stick Confusion Analysis (top prediction errors):")
@@ -910,6 +1026,27 @@ evaluate_model = fn model_path ->
   Output.puts("")
   ActionViz.print_summary(action_viz)
 
+  # Export to CSV if requested
+  if opts[:export_csv] && length(final_state.export_rows) > 0 do
+    csv_path = opts[:export_csv]
+    Output.puts("")
+    Output.puts("  Exporting #{length(final_state.export_rows)} predictions to #{csv_path}...")
+
+    header = "main_x_pred,main_x_actual,main_x_conf,main_y_pred,main_y_actual,main_y_conf,main_x_correct,main_y_correct\n"
+    rows = final_state.export_rows
+    |> Enum.map(fn row ->
+      mx_correct = if row.main_x_pred == row.main_x_actual, do: 1, else: 0
+      my_correct = if row.main_y_pred == row.main_y_actual, do: 1, else: 0
+      "#{row.main_x_pred},#{row.main_x_actual},#{Float.round(row.main_x_conf, 4)},#{row.main_y_pred},#{row.main_y_actual},#{Float.round(row.main_y_conf, 4)},#{mx_correct},#{my_correct}"
+    end)
+    |> Enum.join("\n")
+
+    case File.write(csv_path, header <> rows) do
+      :ok -> Output.puts("  ✓ Exported to #{csv_path}")
+      {:error, reason} -> Output.error("Failed to export: #{inspect(reason)}")
+    end
+  end
+
   %{
     path: model_path,
     loss: avg_loss,
@@ -918,7 +1055,8 @@ evaluate_model = fn model_path ->
     per_button_acc: avg_per_button,
     button_rates: %{predicted: avg_pred_rates, actual: avg_actual_rates},
     inference_ms_per_frame: ms_per_frame,
-    overall_acc: overall_acc
+    overall_acc: overall_acc,
+    calibration: %{main_x: final_state.main_x_calibration, main_y: final_state.main_y_calibration}
   }
 end
 
