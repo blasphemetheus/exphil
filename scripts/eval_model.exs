@@ -183,6 +183,20 @@ end
 
 Output.puts("  Extracted #{length(frames)} frames")
 
+# Show action state distribution in evaluation data
+action_dist = Metrics.action_state_distribution(frames)
+total_frames = Enum.sum(Map.values(action_dist))
+if total_frames > 0 do
+  Output.puts("  Action state distribution:")
+  action_dist
+  |> Enum.sort_by(fn {_, count} -> -count end)
+  |> Enum.each(fn {state, count} ->
+    pct = Float.round(count / total_frames * 100, 1)
+    state_str = state |> to_string() |> String.pad_trailing(15)
+    Output.puts("    #{state_str} #{count} (#{pct}%)")
+  end)
+end
+
 # Step 3: Load model config to determine embedding configuration
 Output.step(3, 5, "Loading model configuration")
 

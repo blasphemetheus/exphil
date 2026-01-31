@@ -324,4 +324,65 @@ defmodule ExPhil.Evaluation.MetricsTest do
       assert_in_delta averaged.loss, 2.0, 0.001
     end
   end
+
+  describe "categorize_action_state/1" do
+    test "categorizes hitstun when frames remaining" do
+      player = %{action: 0x10, on_ground: true, hitstun_frames_left: 10}
+      assert Metrics.categorize_action_state(player) == :hitstun
+    end
+
+    test "categorizes grounded standing" do
+      player = %{action: 0x0E, on_ground: true, hitstun_frames_left: 0}
+      assert Metrics.categorize_action_state(player) == :grounded
+    end
+
+    test "categorizes aerial movement" do
+      player = %{action: 0x2D, on_ground: false, hitstun_frames_left: 0}
+      assert Metrics.categorize_action_state(player) == :aerial
+    end
+
+    test "categorizes shielding" do
+      player = %{action: 0xB2, on_ground: true, hitstun_frames_left: 0}
+      assert Metrics.categorize_action_state(player) == :shielding
+    end
+
+    test "falls back to on_ground flag for unknown actions" do
+      player = %{action: 0x999, on_ground: true, hitstun_frames_left: 0}
+      assert Metrics.categorize_action_state(player) == :grounded
+
+      player = %{action: 0x999, on_ground: false, hitstun_frames_left: 0}
+      assert Metrics.categorize_action_state(player) == :aerial
+    end
+  end
+
+  describe "action_state_distribution/1" do
+    test "counts action states in frames" do
+      frames = [
+        %{game_state: %{players: %{1 => %{action: 0x10, on_ground: true, hitstun_frames_left: 0}}}},
+        %{game_state: %{players: %{1 => %{action: 0x10, on_ground: true, hitstun_frames_left: 0}}}},
+        %{game_state: %{players: %{1 => %{action: 0x2D, on_ground: false, hitstun_frames_left: 0}}}}
+      ]
+
+      dist = Metrics.action_state_distribution(frames)
+
+      assert dist[:grounded] == 2
+      assert dist[:aerial] == 1
+    end
+
+    test "handles missing player data" do
+      frames = [%{game_state: %{players: %{}}}]
+      dist = Metrics.action_state_distribution(frames)
+      assert dist == %{}
+    end
+  end
+
+  describe "simplify_action_category/1" do
+    test "groups related categories" do
+      assert Metrics.simplify_action_category(:landing) == :grounded
+      assert Metrics.simplify_action_category(:attacking) == :grounded
+      assert Metrics.simplify_action_category(:aerial_attack) == :aerial
+      assert Metrics.simplify_action_category(:shielding) == :defensive
+      assert Metrics.simplify_action_category(:grabbing) == :grab_related
+    end
+  end
 end

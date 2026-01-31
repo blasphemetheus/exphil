@@ -395,4 +395,109 @@ defmodule ExPhil.Evaluation.Metrics do
       targets
     end
   end
+
+  # ============================================================================
+  # Action State Categories
+  # ============================================================================
+
+  @doc """
+  Categorize a player's action state into high-level categories.
+
+  Returns one of:
+  - :grounded - Standing, walking, crouching, etc.
+  - :aerial - Jumping, falling, aerials
+  - :hitstun - In hitstun or tumble
+  - :shielding - Shielding or shield-related states
+  - :grabbing - Grabbing or being grabbed
+  - :ledge - On ledge or ledge actions
+  - :special - Special moves (B moves)
+  - :other - Uncategorized states
+
+  ## Parameters
+    - `player` - Player struct with :action, :on_ground, :hitstun_frames_left fields
+
+  ## Returns
+    Action state category atom
+  """
+  @spec categorize_action_state(map()) :: atom()
+  def categorize_action_state(player) when is_map(player) do
+    action = player[:action] || 0
+    on_ground = player[:on_ground] || false
+    hitstun = player[:hitstun_frames_left] || 0
+
+    cond do
+      # Hitstun takes priority
+      hitstun > 0 -> :hitstun
+
+      # Check action ID ranges (Melee action state IDs)
+      action in 0x00..0x0A -> :dead_or_entry  # Dead, entry, rebirth
+      action in 0x0E..0x18 -> :grounded       # Standing, walking
+      action in 0x19..0x1C -> :grounded       # Turn, dash, run
+      action in 0x1D..0x26 -> :grounded       # Crouch, slide
+      action in 0x27..0x2C -> :aerial         # Jump squat, jump
+      action in 0x2D..0x3A -> :aerial         # Aerial movement, fall
+      action in 0x3B..0x45 -> :landing        # Landing
+      action in 0x46..0x52 -> :attacking      # Ground attacks
+      action in 0x53..0x5F -> :attacking      # More ground attacks
+      action in 0x60..0x6F -> :aerial_attack  # Aerial attacks
+      action in 0xB2..0xC3 -> :shielding      # Shield
+      action in 0xC4..0xD3 -> :grabbing       # Grab, throw
+      action in 0xD4..0xE3 -> :grabbed        # Being grabbed
+      action in 0xFC..0xFF -> :ledge          # Ledge actions
+      action in 0x112..0x140 -> :special      # B moves
+
+      # Fallback to ground/air based on on_ground flag
+      on_ground -> :grounded
+      true -> :aerial
+    end
+  end
+
+  @doc """
+  Extract action state statistics from a list of frames.
+
+  ## Parameters
+    - `frames` - List of frame maps with :game_state containing player data
+
+  ## Returns
+    Map of category -> count
+  """
+  @spec action_state_distribution(list(map())) :: %{atom() => non_neg_integer()}
+  def action_state_distribution(frames) do
+    frames
+    |> Enum.reduce(%{}, fn frame, acc ->
+      player = get_in(frame, [:game_state, :players, 1]) ||
+               get_in(frame, [:game_state, :players, "1"])
+
+      if player do
+        category = categorize_action_state(player)
+        Map.update(acc, category, 1, &(&1 + 1))
+      else
+        acc
+      end
+    end)
+  end
+
+  @doc """
+  Get simplified action state category (fewer categories for clearer analysis).
+
+  Maps detailed categories to broader groups:
+  - :grounded (includes landing, attacking)
+  - :aerial (includes aerial_attack)
+  - :hitstun
+  - :defensive (shielding, ledge)
+  - :grab_related (grabbing, grabbed)
+  - :other
+  """
+  @spec simplify_action_category(atom()) :: atom()
+  def simplify_action_category(category) do
+    case category do
+      cat when cat in [:grounded, :landing, :attacking] -> :grounded
+      cat when cat in [:aerial, :aerial_attack] -> :aerial
+      :hitstun -> :hitstun
+      cat when cat in [:shielding, :ledge] -> :defensive
+      cat when cat in [:grabbing, :grabbed] -> :grab_related
+      :special -> :special
+      _ -> :other
+    end
+  end
 end
