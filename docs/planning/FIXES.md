@@ -321,14 +321,18 @@ The Rust NIF in `native/flash_attention_nif/` has unused code warnings:
 
 Total: 8 submodules extracted, main config.ex now serves as orchestration facade.
 
-### Planned
+### Completed (policy.ex decomposition - 2026-02-03)
 
-**policy.ex maintainability plan**:
-1. Extract backbone selection logic to `policy/backbone.ex`
-2. Extract controller heads to `policy/heads.ex` (buttons, sticks, shoulder)
-3. Extract sampling logic to `policy/sampling.ex`
-4. Extract loss computation to `policy/loss.ex`
-5. Keep main `policy.ex` as orchestrator with `new/2`, `forward/3` public API
+- [x] Split `policy.ex` into submodules (**74% reduction: 2,060 → 544 lines**)
+  - [x] `policy/backbone.ex` (731 lines) - All temporal/non-temporal backbone builders
+  - [x] `policy/loss.ex` (429 lines) - BCE, CE, focal, weighted loss functions
+  - [x] `policy/embeddings.ex` (450 lines) - Action/character embedding preprocessing
+  - [x] `policy/heads.ex` (297 lines) - Controller output heads
+  - [x] `policy/sampling.ex` (198 lines) - Action sampling functions
+
+Total: 5 submodules extracted, main policy.ex delegates to submodules.
+
+### Planned
 
 **imitation.ex maintainability plan**:
 1. Extract epoch/batch loop to `imitation/train_loop.ex`
