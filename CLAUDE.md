@@ -88,29 +88,40 @@ See [GOALS.md](docs/GOALS.md) for comprehensive roadmap. Current focus:
 
 ## Documentation
 
-Detailed guides in `docs/`:
+Documentation is organized into categories in `docs/`:
 
-| Doc | Contents |
-|-----|----------|
-| [GOALS.md](docs/GOALS.md) | **Big picture goals, priorities, implementation log** |
-| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design, network structure, embedding dimensions |
-| [architectures/](docs/architectures/ARCHITECTURES.md) | **Backbone docs: MLP, LSTM, GRU, Attention, Mamba, Jamba** |
-| [TRAINING.md](docs/TRAINING.md) | Training commands, all CLI options, performance tips |
-| [SCRIPTS.md](docs/SCRIPTS.md) | **All scripts: training, evaluation, benchmarks, play, export** |
-| [INFERENCE.md](docs/INFERENCE.md) | ONNX export, quantization, optimization |
-| [DOLPHIN.md](docs/DOLPHIN.md) | Dolphin setup, MeleePort, running agents |
-| [SELF_PLAY_ARCHITECTURE.md](docs/SELF_PLAY_ARCHITECTURE.md) | Self-play GenServer infrastructure, Elo system |
-| [GOTCHAS.md](docs/GOTCHAS.md) | Technical pitfalls and fixes |
-| [TRAINING_FEATURES.md](docs/TRAINING_FEATURES.md) | Feature roadmap, presets |
-| [RESEARCH.md](docs/RESEARCH.md) | Prior art, papers, lessons learned, research roadmap |
-| [docker-workflow.md](docs/docker-workflow.md) | Docker build, push, cloud GPU deployment |
-| [REPLAY_STORAGE.md](docs/REPLAY_STORAGE.md) | Cloud storage for replays & checkpoints (B2/R2), sync commands |
-| [RUNPOD_FILTER.md](docs/RUNPOD_FILTER.md) | Filter low-tier replays from large archives on RunPod |
-| [RCLONE_GDRIVE.md](docs/RCLONE_GDRIVE.md) | Download large files from Google Drive with rclone |
-| [TESTING.md](docs/TESTING.md) | Test harness, tags, factories, coverage (1933 tests) |
-| [GPU_OPTIMIZATIONS.md](docs/GPU_OPTIMIZATIONS.md) | GPU training: JIT wrapping, BF16, gradient accumulation |
-| [MAMBA_OPTIMIZATIONS.md](docs/MAMBA_OPTIMIZATIONS.md) | Mamba-specific: parallel scan, SSD, state caching |
-| [EMBEDDING_DIMENSIONS.md](docs/EMBEDDING_DIMENSIONS.md) | Detailed embedding dimension calculations |
+```
+docs/
+├── guides/       # How-to (training, inference, scripts)
+├── reference/    # Technical specs (architecture, embeddings)
+├── operations/   # DevOps (docker, runpod, cloud)
+├── research/     # Research notes, case studies
+├── planning/     # Project tracking (goals, fixes, roadmaps)
+└── internals/    # Deep implementation (GPU, kernels)
+```
+
+**Key docs by category:**
+
+| Category | Doc | Contents |
+|----------|-----|----------|
+| **planning** | [GOALS.md](docs/planning/GOALS.md) | Big picture goals, priorities |
+| **planning** | [FIXES.md](docs/planning/FIXES.md) | Technical debt tracking |
+| **guides** | [TRAINING.md](docs/guides/TRAINING.md) | Training commands, CLI options |
+| **guides** | [SCRIPTS.md](docs/guides/SCRIPTS.md) | All scripts reference |
+| **guides** | [INFERENCE.md](docs/guides/INFERENCE.md) | ONNX export, quantization |
+| **guides** | [DOLPHIN.md](docs/guides/DOLPHIN.md) | Dolphin setup, running agents |
+| **guides** | [TESTING.md](docs/guides/TESTING.md) | Test harness, coverage |
+| **reference** | [ARCHITECTURE.md](docs/reference/ARCHITECTURE.md) | System design, network structure |
+| **reference** | [architectures/](docs/reference/architectures/ARCHITECTURES.md) | Backbone docs (MLP, LSTM, Mamba) |
+| **reference** | [EMBEDDING_DIMENSIONS.md](docs/reference/EMBEDDING_DIMENSIONS.md) | Tensor shape calculations |
+| **reference** | [GOTCHAS.md](docs/reference/GOTCHAS.md) | Technical pitfalls and fixes |
+| **operations** | [docker-workflow.md](docs/operations/docker-workflow.md) | Docker, cloud GPU deployment |
+| **operations** | [REPLAY_STORAGE.md](docs/operations/REPLAY_STORAGE.md) | Cloud storage (B2/R2) |
+| **research** | [RESEARCH.md](docs/research/RESEARCH.md) | Prior art, papers, lessons |
+| **internals** | [GPU_OPTIMIZATIONS.md](docs/internals/GPU_OPTIMIZATIONS.md) | GPU training optimizations |
+| **internals** | [MAMBA_OPTIMIZATIONS.md](docs/internals/MAMBA_OPTIMIZATIONS.md) | Mamba-specific optimizations |
+
+**Generated API docs:** Run `mix docs` to generate ExDoc HTML in `doc/` (gitignored).
 
 ## Quick Start
 

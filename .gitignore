@@ -59,3 +59,7 @@ cover/
 
 # Test artifacts
 tmp/
+
+# Generated ExDoc HTML documentation
+# Regenerate with: mix docs
+doc/

@@ -1,5 +1,9 @@
 # ExPhil - AI for Melee's Forgotten Characters
 
+[![Hex.pm](https://img.shields.io/hexpm/v/exphil.svg)](https://hex.pm/packages/exphil)
+[![Docs](https://img.shields.io/badge/docs-hexdocs-blue.svg)](https://hexdocs.pm/exphil)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 **Teaching neural networks to play Mewtwo, Ganondorf, Link, Zelda, Ice Climbers, and Game & Watch at a high level.**
 
 ExPhil is building competitive AI agents for Melee's lower-tier characters using imitation learning from human replays, followed by reinforcement learning refinement. The goal: bots that play these characters *well*, not just bots that play them.
