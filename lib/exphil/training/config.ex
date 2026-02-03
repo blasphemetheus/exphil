@@ -22,6 +22,7 @@ defmodule ExPhil.Training.Config do
   alias ExPhil.Training.Config.Inference
   alias ExPhil.Training.Config.Presets
   alias ExPhil.Training.Config.Validator
+  alias ExPhil.Training.Config.Yaml
 
   # Default replays directory - relative path for portability
   # Can be overridden with --replays or --replay-dir
@@ -625,75 +626,21 @@ defmodule ExPhil.Training.Config do
   # Config File Loading (YAML)
   # ============================================================================
 
+  # Delegated to ExPhil.Training.Config.Yaml
+  # See that module for implementation details
+
   @doc """
   Load training configuration from a YAML file.
-
-  Returns `{:ok, opts}` on success, or `{:error, reason}` on failure.
-
-  ## File Format
-
-  The YAML file should contain training options as key-value pairs.
-  Keys can use either snake_case or kebab-case.
-
-  ## Example config.yaml
-
-      # Basic training settings
-      epochs: 20
-      batch_size: 128
-      hidden_sizes: [256, 256]
-
-      # Model architecture
-      temporal: true
-      backbone: mamba
-      window_size: 60
-      num_layers: 2
-
-      # Regularization
-      augment: true
-      label_smoothing: 0.1
-
-      # LR schedule
-      learning_rate: 0.0001
-      lr_schedule: cosine
-      warmup_steps: 500
-
-  ## Examples
-
-      iex> ExPhil.Training.Config.load_yaml("missing.yaml")
-      {:error, :file_not_found}
-
-  For existing YAML files:
-
-      {:ok, opts} = Config.load_yaml("config/training.yaml")
-      opts[:epochs]  # => value from YAML
-
+  Delegates to `ExPhil.Training.Config.Yaml.load/2`.
   """
   @spec load_yaml(String.t()) :: {:ok, keyword()} | {:error, atom() | String.t()}
   def load_yaml(path) do
-    case File.read(path) do
-      {:ok, content} ->
-        parse_yaml(content)
-
-      {:error, :enoent} ->
-        {:error, :file_not_found}
-
-      {:error, reason} ->
-        {:error, reason}
-    end
+    Yaml.load(path, yaml_context())
   end
 
   @doc """
   Load and merge YAML config with CLI args.
-
-  CLI args take precedence over YAML config, which takes precedence over defaults.
-
-  ## Example
-
-      # With a YAML file containing `batch_size: 128`:
-      {:ok, opts} = Config.load_with_yaml("config.yaml", ["--epochs", "5"])
-      opts[:epochs]     # => 5 (from CLI, overrides YAML)
-      opts[:batch_size] # => 128 (from YAML)
-
+  CLI args take precedence over YAML config.
   """
   @spec load_with_yaml(String.t(), [String.t()]) :: {:ok, keyword()} | {:error, any()}
   def load_with_yaml(yaml_path, cli_args) do
@@ -707,116 +654,34 @@ defmodule ExPhil.Training.Config do
 
   @doc """
   Parse YAML content into training options.
+  Delegates to `ExPhil.Training.Config.Yaml.parse/2`.
   """
   @spec parse_yaml(String.t()) :: {:ok, keyword()} | {:error, any()}
   def parse_yaml(content) do
-    case YamlElixir.read_from_string(content) do
-      {:ok, map} when is_map(map) ->
-        opts = convert_yaml_map(map)
-        {:ok, opts}
-
-      {:ok, _other} ->
-        {:error, :invalid_yaml_format}
-
-      {:error, reason} ->
-        {:error, reason}
-    end
+    Yaml.parse(content, yaml_context())
   end
 
   @doc """
   Save current configuration to a YAML file.
-
-  Useful for saving the effective configuration after a training run.
+  Delegates to `ExPhil.Training.Config.Yaml.save/2`.
   """
   @spec save_yaml(keyword(), String.t()) :: :ok | {:error, any()}
   def save_yaml(opts, path) do
-    yaml = opts_to_yaml(opts)
-    File.write(path, yaml)
+    Yaml.save(opts, path)
   end
 
-  # Convert YAML map to keyword list with proper atom/type conversion
-  defp convert_yaml_map(map) do
-    map
-    |> Enum.map(fn {key, value} ->
-      atom_key = normalize_key(key)
-      converted_value = convert_value(atom_key, value)
-      {atom_key, converted_value}
-    end)
-    |> Keyword.new()
+  # Build context for YAML parsing with allowlists
+  defp yaml_context do
+    %{
+      valid_backbones: @valid_backbones,
+      valid_optimizers: @valid_optimizers,
+      valid_lr_schedules: @valid_lr_schedules,
+      valid_precision_modes: @valid_precision_modes,
+      valid_presets: Presets.valid_presets(),
+      valid_characters: Map.keys(@character_map),
+      valid_stages: Map.keys(@stage_map)
+    }
   end
-
-  # Normalize key from string (handles kebab-case and snake_case)
-  # Uses safe_to_existing_atom to prevent atom table exhaustion from untrusted YAML
-  defp normalize_key(key) when is_binary(key) do
-    normalized = String.replace(key, "-", "_")
-
-    case AtomSafety.safe_to_existing_atom(normalized) do
-      {:ok, atom} -> atom
-      # Fall back to known config keys or raise for unknown keys
-      {:error, :not_existing} ->
-        raise ArgumentError, "Unknown config key: #{inspect(key)}"
-    end
-  end
-
-  defp normalize_key(key) when is_atom(key), do: key
-
-  # Convert values based on expected types using safe atom conversion
-  defp convert_value(:backbone, value) when is_binary(value) do
-    AtomSafety.safe_to_atom!(value, @valid_backbones ++ [:mlp])
-  end
-
-  defp convert_value(:lr_schedule, value) when is_binary(value) do
-    AtomSafety.safe_to_atom!(value, @valid_lr_schedules)
-  end
-
-  defp convert_value(:optimizer, value) when is_binary(value) do
-    AtomSafety.safe_to_atom!(value, @valid_optimizers)
-  end
-
-  defp convert_value(:precision, value) when is_binary(value) do
-    AtomSafety.safe_to_atom!(value, @valid_precision_modes)
-  end
-
-  defp convert_value(:preset, value) when is_binary(value) do
-    AtomSafety.safe_to_atom!(value, Presets.valid_presets())
-  end
-
-  defp convert_value(:character, value) when is_binary(value) do
-    AtomSafety.safe_to_atom!(value, Map.keys(@character_map))
-  end
-
-  defp convert_value(:characters, values) when is_list(values) do
-    valid_chars = Map.keys(@character_map)
-    Enum.map(values, &AtomSafety.safe_to_atom!(&1, valid_chars))
-  end
-
-  defp convert_value(:stages, values) when is_list(values) do
-    valid_stages = Map.keys(@stage_map)
-    Enum.map(values, &AtomSafety.safe_to_atom!(&1, valid_stages))
-  end
-
-  defp convert_value(:hidden_sizes, values) when is_list(values), do: values
-  defp convert_value(_key, value), do: value
-
-  # Convert opts to YAML string
-  defp opts_to_yaml(opts) do
-    opts
-    |> Enum.map(fn {key, value} ->
-      yaml_key = key |> to_string() |> String.replace("_", "-")
-      yaml_value = format_yaml_value(value)
-      "#{yaml_key}: #{yaml_value}"
-    end)
-    |> Enum.join("\n")
-  end
-
-  defp format_yaml_value(value) when is_list(value) do
-    items = Enum.map(value, &to_string/1) |> Enum.join(", ")
-    "[#{items}]"
-  end
-
-  defp format_yaml_value(value) when is_atom(value), do: to_string(value)
-  defp format_yaml_value(value) when is_binary(value), do: "\"#{value}\""
-  defp format_yaml_value(value), do: to_string(value)
 
   # ============================================================================
   # Training Presets
