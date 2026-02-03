@@ -2312,4 +2312,292 @@ defmodule ExPhil.Training.ConfigTest do
       end
     end
   end
+
+  # ============================================================================
+  # Negative Path Tests - YAML Parsing
+  # ============================================================================
+
+  describe "YAML parsing errors" do
+    test "load_yaml returns error for non-existent file" do
+      assert {:error, :file_not_found} = Config.load_yaml("/nonexistent/config.yaml")
+    end
+
+    test "parse_yaml handles malformed YAML" do
+      malformed = """
+      epochs: 10
+      batch_size: [unclosed
+      """
+
+      assert {:error, _reason} = Config.parse_yaml(malformed)
+    end
+
+    test "parse_yaml handles empty string" do
+      assert {:ok, []} = Config.parse_yaml("")
+    end
+
+    test "parse_yaml handles non-map YAML" do
+      # YAML that parses to a list instead of map
+      list_yaml = """
+      - item1
+      - item2
+      """
+
+      assert {:error, :invalid_yaml_format} = Config.parse_yaml(list_yaml)
+    end
+
+    test "parse_yaml handles scalar YAML" do
+      scalar_yaml = "just a string"
+      assert {:error, :invalid_yaml_format} = Config.parse_yaml(scalar_yaml)
+    end
+  end
+
+  # ============================================================================
+  # Negative Path Tests - Argument Validation
+  # ============================================================================
+
+  describe "validate_args/1 error cases" do
+    test "detects typos and suggests corrections" do
+      {:ok, warnings} = Config.validate_args(["--ephocs", "10"])
+      assert length(warnings) == 1
+      assert hd(warnings) =~ "Did you mean '--epochs'"
+    end
+
+    test "detects multiple typos" do
+      {:ok, warnings} = Config.validate_args(["--ephocs", "10", "--bach-size", "32"])
+      assert length(warnings) == 2
+    end
+
+    test "suggests closest flag for near-matches" do
+      {:ok, warnings} = Config.validate_args(["--batchsize", "32"])
+      assert hd(warnings) =~ "--batch-size"
+    end
+
+    test "returns empty warnings for valid flags" do
+      {:ok, warnings} = Config.validate_args(["--epochs", "10", "--batch-size", "32"])
+      assert warnings == []
+    end
+
+    test "ignores flag values, only validates flags" do
+      {:ok, warnings} = Config.validate_args(["--epochs", "invalid_number"])
+      # The flag --epochs is valid, parsing the value happens elsewhere
+      assert warnings == []
+    end
+  end
+
+  # ============================================================================
+  # Negative Path Tests - Frame Delay Validation
+  # ============================================================================
+
+  describe "validate/1 frame delay range" do
+    test "returns error when frame_delay_min > frame_delay_max" do
+      opts = [epochs: 10, batch_size: 64, frame_delay_min: 20, frame_delay_max: 10]
+      {:error, errors} = Config.validate(opts)
+      assert Enum.any?(errors, &String.contains?(&1, "frame_delay_min"))
+    end
+
+    test "returns error for unusually high frame_delay_max" do
+      opts = [epochs: 10, batch_size: 64, frame_delay_max: 100]
+      {:error, errors} = Config.validate(opts)
+      assert Enum.any?(errors, &String.contains?(&1, "frame_delay_max"))
+    end
+
+    test "accepts valid frame_delay range" do
+      opts = [epochs: 10, batch_size: 64, frame_delay_min: 0, frame_delay_max: 18]
+      assert {:ok, _} = Config.validate(opts)
+    end
+  end
+
+  # ============================================================================
+  # Negative Path Tests - Optimizer Validation
+  # ============================================================================
+
+  describe "validate/1 optimizer" do
+    test "returns error for invalid optimizer" do
+      opts = [epochs: 10, batch_size: 64, optimizer: :invalid_optimizer]
+      {:error, errors} = Config.validate(opts)
+      assert Enum.any?(errors, &String.contains?(&1, "optimizer"))
+    end
+
+    test "accepts all valid optimizers" do
+      for optimizer <- [:adam, :adamw, :lamb, :radam, :sgd, :rmsprop] do
+        opts = [epochs: 10, batch_size: 64, optimizer: optimizer]
+        assert {:ok, _} = Config.validate(opts), "optimizer #{optimizer} should be valid"
+      end
+    end
+  end
+
+  # ============================================================================
+  # Negative Path Tests - Regularization Validation
+  # ============================================================================
+
+  describe "validate/1 regularization options" do
+    test "returns error for label_smoothing out of range" do
+      opts = [epochs: 10, batch_size: 64, label_smoothing: 1.5]
+      {:error, errors} = Config.validate(opts)
+      assert Enum.any?(errors, &String.contains?(&1, "label_smoothing"))
+    end
+
+    test "returns error for negative label_smoothing" do
+      opts = [epochs: 10, batch_size: 64, label_smoothing: -0.1]
+      {:error, errors} = Config.validate(opts)
+      assert Enum.any?(errors, &String.contains?(&1, "label_smoothing"))
+    end
+
+    test "returns error for ema_decay out of range (too high)" do
+      opts = [epochs: 10, batch_size: 64, ema_decay: 1.5]
+      {:error, errors} = Config.validate(opts)
+      assert Enum.any?(errors, &String.contains?(&1, "ema_decay"))
+    end
+
+    test "returns error for ema_decay out of range (too low)" do
+      opts = [epochs: 10, batch_size: 64, ema_decay: -0.1]
+      {:error, errors} = Config.validate(opts)
+      assert Enum.any?(errors, &String.contains?(&1, "ema_decay"))
+    end
+
+    test "returns error for mirror_prob out of range" do
+      opts = [epochs: 10, batch_size: 64, mirror_prob: 1.5]
+      {:error, errors} = Config.validate(opts)
+      assert Enum.any?(errors, &String.contains?(&1, "mirror_prob"))
+    end
+
+    test "returns error for noise_prob out of range" do
+      opts = [epochs: 10, batch_size: 64, noise_prob: -0.5]
+      {:error, errors} = Config.validate(opts)
+      assert Enum.any?(errors, &String.contains?(&1, "noise_prob"))
+    end
+  end
+
+  # ============================================================================
+  # Negative Path Tests - Cosine Restarts Validation
+  # ============================================================================
+
+  describe "validate/1 cosine restarts" do
+    test "returns error for restart_mult less than 1" do
+      opts = [epochs: 10, batch_size: 64, restart_mult: 0.5]
+      {:error, errors} = Config.validate(opts)
+      assert Enum.any?(errors, &String.contains?(&1, "restart_mult"))
+    end
+
+    test "accepts restart_mult of exactly 1" do
+      opts = [epochs: 10, batch_size: 64, restart_mult: 1.0]
+      assert {:ok, _} = Config.validate(opts)
+    end
+
+    test "accepts restart_mult greater than 1" do
+      opts = [epochs: 10, batch_size: 64, restart_mult: 2.0]
+      assert {:ok, _} = Config.validate(opts)
+    end
+  end
+
+  # ============================================================================
+  # Negative Path Tests - Gradient Clipping Validation
+  # ============================================================================
+
+  describe "validate/1 gradient clipping" do
+    test "returns error for negative max_grad_norm" do
+      opts = [epochs: 10, batch_size: 64, max_grad_norm: -1.0]
+      {:error, errors} = Config.validate(opts)
+      assert Enum.any?(errors, &String.contains?(&1, "max_grad_norm"))
+    end
+
+    test "accepts zero max_grad_norm (disables clipping)" do
+      opts = [epochs: 10, batch_size: 64, max_grad_norm: 0.0]
+      assert {:ok, _} = Config.validate(opts)
+    end
+
+    test "accepts positive max_grad_norm" do
+      opts = [epochs: 10, batch_size: 64, max_grad_norm: 1.0]
+      assert {:ok, _} = Config.validate(opts)
+    end
+  end
+
+  # ============================================================================
+  # Negative Path Tests - Streaming Validation
+  # ============================================================================
+
+  describe "validate/1 streaming options" do
+    test "returns error for invalid stream_chunk_size" do
+      opts = [epochs: 10, batch_size: 64, stream_chunk_size: -5]
+      {:error, errors} = Config.validate(opts)
+      assert Enum.any?(errors, &String.contains?(&1, "stream_chunk_size"))
+    end
+
+    test "accepts nil stream_chunk_size" do
+      opts = [epochs: 10, batch_size: 64, stream_chunk_size: nil]
+      assert {:ok, _} = Config.validate(opts)
+    end
+
+    test "accepts positive stream_chunk_size" do
+      opts = [epochs: 10, batch_size: 64, stream_chunk_size: 100]
+      assert {:ok, _} = Config.validate(opts)
+    end
+  end
+
+  # ============================================================================
+  # Smart Defaults Inference Tests
+  # ============================================================================
+
+  describe "infer_smart_defaults/1" do
+    test "auto-enables temporal for LSTM backbone" do
+      opts = [backbone: :lstm, temporal: false]
+      {new_opts, inferences} = Config.infer_smart_defaults(opts)
+
+      assert new_opts[:temporal] == true
+      assert length(inferences) == 1
+      assert hd(inferences) =~ "LSTM"
+    end
+
+    test "auto-enables temporal for Mamba backbone" do
+      opts = [backbone: :mamba, temporal: false]
+      {new_opts, inferences} = Config.infer_smart_defaults(opts)
+
+      assert new_opts[:temporal] == true
+      assert Enum.any?(inferences, &(&1 =~ "MAMBA"))
+    end
+
+    test "auto-sets val_split for early_stopping when val_split not specified" do
+      # Don't include val_split - let the function see it as unset
+      opts = [early_stopping: true]
+      {new_opts, inferences} = Config.infer_smart_defaults(opts)
+
+      assert new_opts[:val_split] == 0.1
+      assert Enum.any?(inferences, &(&1 =~ "val-split"))
+    end
+
+    test "respects explicit val_split of 0 (no auto-set)" do
+      # When user explicitly includes val_split in opts, respect it
+      # even if it's 0.0 - the key's presence indicates intent
+      opts = [early_stopping: true, val_split: 0.0]
+      {new_opts, inferences} = Config.infer_smart_defaults(opts)
+
+      # val_split key is present, so treated as explicit user choice
+      assert new_opts[:val_split] == 0.0
+      refute Enum.any?(inferences, &(&1 =~ "val-split"))
+    end
+
+    test "disables cache with augmentation" do
+      opts = [augment: true, cache_embeddings: true, cache_augmented: false]
+      {new_opts, inferences} = Config.infer_smart_defaults(opts)
+
+      assert new_opts[:cache_embeddings] == false
+      assert Enum.any?(inferences, &(&1 =~ "cache"))
+    end
+
+    test "does not disable cache when cache_augmented is true" do
+      opts = [augment: true, cache_embeddings: true, cache_augmented: true]
+      {_new_opts, inferences} = Config.infer_smart_defaults(opts)
+
+      # Should not disable cache since cache_augmented handles it
+      refute Enum.any?(inferences, &(&1 =~ "cache-embeddings"))
+    end
+
+    test "returns empty inferences when no changes needed" do
+      opts = [backbone: :mlp, temporal: false]
+      {new_opts, inferences} = Config.infer_smart_defaults(opts)
+
+      assert new_opts[:temporal] == false
+      assert inferences == []
+    end
+  end
 end

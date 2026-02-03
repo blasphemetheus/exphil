@@ -15,12 +15,27 @@ defmodule ExPhil.Training.Config do
   - `ExPhil.Training.Help` - CLI help text generation
   """
 
+  alias ExPhil.Constants
   alias ExPhil.Training.Help
+  alias ExPhil.Training.Config.AtomSafety
 
   # Default replays directory - relative path for portability
   # Can be overridden with --replays or --replay-dir
   @default_replays_dir "./replays"
   @default_hidden_sizes [512, 256]
+
+  # Mode allowlists for safe atom conversion
+  @valid_action_modes [:one_hot, :learned]
+  @valid_character_modes [:one_hot, :learned]
+  @valid_stage_modes [:one_hot_full, :one_hot_compact, :learned]
+  @valid_nana_modes [:compact, :enhanced, :full]
+  @valid_precision_modes [:f32, :bf16, :f16]
+
+  # Training option allowlists (used in convert_value and parse_atom_arg)
+  # Note: :hybrid is an alias for :lstm_hybrid (kept for backwards compatibility)
+  @valid_backbones [:lstm, :gru, :mamba, :attention, :sliding_window, :lstm_hybrid, :hybrid, :jamba]
+  @valid_optimizers [:adam, :adamw, :lamb, :radam, :sgd, :rmsprop]
+  @valid_lr_schedules [:constant, :cosine, :cosine_restarts, :exponential, :linear]
 
   @valid_presets [
     :quick,
@@ -331,8 +346,8 @@ defmodule ExPhil.Training.Config do
       frame_delay_augment: false,
       # Local play - no delay
       frame_delay_min: 0,
-      # Online play - typical Slippi delay
-      frame_delay_max: 18,
+      # Online play - typical Slippi delay (uses Constants.online_frame_delay())
+      frame_delay_max: Constants.online_frame_delay(),
       preset: nil,
       character: nil,
       # Early stopping
@@ -534,12 +549,9 @@ defmodule ExPhil.Training.Config do
         opts
 
       value ->
-        preset = String.to_atom(value)
-
-        if preset in @valid_presets do
-          Keyword.put_new(opts, :preset, preset)
-        else
-          opts
+        case AtomSafety.safe_to_atom(value, @valid_presets) do
+          {:ok, preset} -> Keyword.put_new(opts, :preset, preset)
+          {:error, _} -> opts
         end
     end
   end
@@ -751,28 +763,53 @@ defmodule ExPhil.Training.Config do
   end
 
   # Normalize key from string (handles kebab-case and snake_case)
+  # Uses safe_to_existing_atom to prevent atom table exhaustion from untrusted YAML
   defp normalize_key(key) when is_binary(key) do
-    key
-    |> String.replace("-", "_")
-    |> String.to_atom()
+    normalized = String.replace(key, "-", "_")
+
+    case AtomSafety.safe_to_existing_atom(normalized) do
+      {:ok, atom} -> atom
+      # Fall back to known config keys or raise for unknown keys
+      {:error, :not_existing} ->
+        raise ArgumentError, "Unknown config key: #{inspect(key)}"
+    end
   end
 
   defp normalize_key(key) when is_atom(key), do: key
 
-  # Convert values based on expected types
-  defp convert_value(:backbone, value) when is_binary(value), do: String.to_atom(value)
-  defp convert_value(:lr_schedule, value) when is_binary(value), do: String.to_atom(value)
-  defp convert_value(:optimizer, value) when is_binary(value), do: String.to_atom(value)
-  defp convert_value(:precision, value) when is_binary(value), do: String.to_atom(value)
-  defp convert_value(:preset, value) when is_binary(value), do: String.to_atom(value)
-  defp convert_value(:character, value) when is_binary(value), do: String.to_atom(value)
+  # Convert values based on expected types using safe atom conversion
+  defp convert_value(:backbone, value) when is_binary(value) do
+    AtomSafety.safe_to_atom!(value, @valid_backbones ++ [:mlp])
+  end
+
+  defp convert_value(:lr_schedule, value) when is_binary(value) do
+    AtomSafety.safe_to_atom!(value, @valid_lr_schedules)
+  end
+
+  defp convert_value(:optimizer, value) when is_binary(value) do
+    AtomSafety.safe_to_atom!(value, @valid_optimizers)
+  end
+
+  defp convert_value(:precision, value) when is_binary(value) do
+    AtomSafety.safe_to_atom!(value, @valid_precision_modes)
+  end
+
+  defp convert_value(:preset, value) when is_binary(value) do
+    AtomSafety.safe_to_atom!(value, @valid_presets)
+  end
+
+  defp convert_value(:character, value) when is_binary(value) do
+    AtomSafety.safe_to_atom!(value, Map.keys(@character_map))
+  end
 
   defp convert_value(:characters, values) when is_list(values) do
-    Enum.map(values, &String.to_atom/1)
+    valid_chars = Map.keys(@character_map)
+    Enum.map(values, &AtomSafety.safe_to_atom!(&1, valid_chars))
   end
 
   defp convert_value(:stages, values) when is_list(values) do
-    Enum.map(values, &String.to_atom/1)
+    valid_stages = Map.keys(@stage_map)
+    Enum.map(values, &AtomSafety.safe_to_atom!(&1, valid_stages))
   end
 
   defp convert_value(:hidden_sizes, values) when is_list(values), do: values
@@ -1329,7 +1366,7 @@ defmodule ExPhil.Training.Config do
   end
 
   def preset(name) when is_binary(name) do
-    preset(String.to_atom(name))
+    preset(AtomSafety.safe_to_atom!(name, @valid_presets))
   end
 
   def preset(invalid) do
@@ -1446,9 +1483,6 @@ defmodule ExPhil.Training.Config do
   # ============================================================================
   # Validation
   # ============================================================================
-
-  @valid_backbones [:lstm, :gru, :mamba, :attention, :sliding_window, :lstm_hybrid, :jamba]
-  @valid_optimizers [:adam, :adamw, :lamb, :radam, :sgd, :rmsprop]
 
   @doc """
   Validate training options and return errors/warnings.
@@ -1635,7 +1669,7 @@ defmodule ExPhil.Training.Config do
 
   defp validate_frame_delay_range(errors, opts) do
     min_delay = opts[:frame_delay_min] || 0
-    max_delay = opts[:frame_delay_max] || 18
+    max_delay = opts[:frame_delay_max] || Constants.online_frame_delay()
 
     cond do
       min_delay > max_delay ->
@@ -1645,7 +1679,10 @@ defmodule ExPhil.Training.Config do
         ]
 
       max_delay > 60 ->
-        ["frame_delay_max > 60 is unusually high (online play is typically 18 frames)" | errors]
+        [
+          "frame_delay_max > 60 is unusually high (online play is typically #{Constants.online_frame_delay()} frames)"
+          | errors
+        ]
 
       true ->
         errors
@@ -1709,8 +1746,6 @@ defmodule ExPhil.Training.Config do
       errors
     end
   end
-
-  @valid_lr_schedules [:constant, :cosine, :cosine_restarts, :exponential, :linear]
 
   defp validate_lr_schedule(errors, opts) do
     schedule = opts[:lr_schedule]
@@ -1901,13 +1936,15 @@ defmodule ExPhil.Training.Config do
 
   # Get only the options that were explicitly provided via CLI
   defp get_cli_overrides(args) do
+    valid_backbones = @valid_backbones ++ [:mlp]
+
     []
     |> maybe_add_override(args, "--epochs", :epochs, &String.to_integer/1)
     |> maybe_add_override(args, "--batch-size", :batch_size, &String.to_integer/1)
     |> maybe_add_override(args, "--max-files", :max_files, &String.to_integer/1)
     |> maybe_add_override(args, "--hidden-sizes", :hidden_sizes, &parse_hidden_sizes/1)
     |> maybe_add_override(args, "--window-size", :window_size, &String.to_integer/1)
-    |> maybe_add_override(args, "--backbone", :backbone, &String.to_atom/1)
+    |> maybe_add_override(args, "--backbone", :backbone, &AtomSafety.safe_to_atom!(&1, valid_backbones))
     |> maybe_add_override(args, "--num-layers", :num_layers, &String.to_integer/1)
     |> maybe_add_override(args, "--attention-every", :attention_every, &String.to_integer/1)
     |> maybe_add_override(args, "--frame-delay", :frame_delay, &String.to_integer/1)
@@ -2012,14 +2049,14 @@ defmodule ExPhil.Training.Config do
     end)
     |> parse_string_arg(args, "--checkpoint", :checkpoint)
     |> parse_int_arg(args, "--player", :player_port)
-    |> parse_atom_arg(args, "--train-character", :train_character)
+    |> parse_atom_arg(args, "--train-character", :train_character, Map.keys(@character_map))
     |> parse_flag(args, "--dual-port", :dual_port)
     |> parse_flag(args, "--balance-characters", :balance_characters)
     |> parse_flag(args, "--wandb", :wandb)
     |> parse_string_arg(args, "--wandb-project", :wandb_project)
     |> parse_string_arg(args, "--wandb-name", :wandb_name)
     |> parse_flag(args, "--temporal", :temporal)
-    |> parse_atom_arg(args, "--backbone", :backbone)
+    |> parse_atom_arg(args, "--backbone", :backbone, @valid_backbones ++ [:mlp])
     |> parse_int_arg(args, "--window-size", :window_size)
     |> parse_int_arg(args, "--stride", :stride)
     |> parse_int_arg(args, "--num-layers", :num_layers)
@@ -2076,7 +2113,7 @@ defmodule ExPhil.Training.Config do
     |> parse_optional_int_arg(args, "--save-every-batches", :save_every_batches)
     |> parse_float_arg(args, "--lr", :learning_rate)
     |> parse_float_arg(args, "--learning-rate", :learning_rate)
-    |> parse_atom_arg(args, "--lr-schedule", :lr_schedule)
+    |> parse_atom_arg(args, "--lr-schedule", :lr_schedule, @valid_lr_schedules)
     |> parse_optional_int_arg(args, "--warmup-steps", :warmup_steps)
     |> parse_optional_int_arg(args, "--decay-steps", :decay_steps)
     |> parse_int_arg(args, "--restart-period", :restart_period)
@@ -2132,12 +2169,12 @@ defmodule ExPhil.Training.Config do
       # --no-residual disables residual connections
       if opts[:no_residual], do: Keyword.put(opts, :residual, false), else: opts
     end)
-    |> parse_atom_arg(args, "--optimizer", :optimizer)
+    |> parse_atom_arg(args, "--optimizer", :optimizer, @valid_optimizers)
     |> parse_flag(args, "--dry-run", :dry_run)
-    |> parse_atom_list_arg(args, "--character", :characters)
-    |> parse_atom_list_arg(args, "--characters", :characters)
-    |> parse_atom_list_arg(args, "--stage", :stages)
-    |> parse_atom_list_arg(args, "--stages", :stages)
+    |> parse_atom_list_arg(args, "--character", :characters, Map.keys(@character_map))
+    |> parse_atom_list_arg(args, "--characters", :characters, Map.keys(@character_map))
+    |> parse_atom_list_arg(args, "--stage", :stages, Map.keys(@stage_map))
+    |> parse_atom_list_arg(args, "--stages", :stages, Map.keys(@stage_map))
     |> parse_string_arg(args, "--kmeans-centers", :kmeans_centers)
     |> parse_optional_int_arg(args, "--stream-chunk-size", :stream_chunk_size)
     |> parse_stage_mode_arg(args)
@@ -2212,25 +2249,39 @@ defmodule ExPhil.Training.Config do
   end
 
   # Parse stage mode with alias support (full, compact, learned -> atoms)
+  # Stage mode aliases for user convenience
+  @stage_mode_aliases %{
+    "full" => :one_hot_full,
+    "one_hot_full" => :one_hot_full,
+    "compact" => :one_hot_compact,
+    "one_hot_compact" => :one_hot_compact,
+    "learned" => :learned
+  }
+
   defp parse_stage_mode_arg(opts, args) do
     case get_arg_value(args, "--stage-mode") do
       nil ->
         opts
 
       value ->
+        downcased = String.downcase(value)
+
         mode =
-          case String.downcase(value) do
-            "full" -> :one_hot_full
-            "one_hot_full" -> :one_hot_full
-            "compact" -> :one_hot_compact
-            "one_hot_compact" -> :one_hot_compact
-            "learned" -> :learned
-            other -> String.to_atom(other)
+          case Map.fetch(@stage_mode_aliases, downcased) do
+            {:ok, atom} -> atom
+            :error -> AtomSafety.safe_to_atom!(downcased, @valid_stage_modes)
           end
 
         Keyword.put(opts, :stage_mode, mode)
     end
   end
+
+  # Action mode aliases for user convenience
+  @action_mode_aliases %{
+    "one_hot" => :one_hot,
+    "onehot" => :one_hot,
+    "learned" => :learned
+  }
 
   # Parse action mode: one_hot or learned
   defp parse_action_mode_arg(opts, args) do
@@ -2239,17 +2290,24 @@ defmodule ExPhil.Training.Config do
         opts
 
       value ->
+        downcased = String.downcase(value)
+
         mode =
-          case String.downcase(value) do
-            "one_hot" -> :one_hot
-            "onehot" -> :one_hot
-            "learned" -> :learned
-            other -> String.to_atom(other)
+          case Map.fetch(@action_mode_aliases, downcased) do
+            {:ok, atom} -> atom
+            :error -> AtomSafety.safe_to_atom!(downcased, @valid_action_modes)
           end
 
         Keyword.put(opts, :action_mode, mode)
     end
   end
+
+  # Character mode aliases for user convenience
+  @character_mode_aliases %{
+    "one_hot" => :one_hot,
+    "onehot" => :one_hot,
+    "learned" => :learned
+  }
 
   # Parse character mode: one_hot or learned
   defp parse_character_mode_arg(opts, args) do
@@ -2258,12 +2316,12 @@ defmodule ExPhil.Training.Config do
         opts
 
       value ->
+        downcased = String.downcase(value)
+
         mode =
-          case String.downcase(value) do
-            "one_hot" -> :one_hot
-            "onehot" -> :one_hot
-            "learned" -> :learned
-            other -> String.to_atom(other)
+          case Map.fetch(@character_mode_aliases, downcased) do
+            {:ok, atom} -> atom
+            :error -> AtomSafety.safe_to_atom!(downcased, @valid_character_modes)
           end
 
         Keyword.put(opts, :character_mode, mode)
@@ -2277,13 +2335,8 @@ defmodule ExPhil.Training.Config do
         opts
 
       value ->
-        mode =
-          case String.downcase(value) do
-            "compact" -> :compact
-            "enhanced" -> :enhanced
-            "full" -> :full
-            other -> String.to_atom(other)
-          end
+        # All nana modes are direct matches, no aliases needed
+        mode = AtomSafety.safe_to_atom!(String.downcase(value), @valid_nana_modes)
 
         Keyword.put(opts, :nana_mode, mode)
     end
@@ -2299,7 +2352,8 @@ defmodule ExPhil.Training.Config do
   end
 
   # Parse comma-separated list of atoms (e.g., "mewtwo,fox,falco" -> [:mewtwo, :fox, :falco])
-  defp parse_atom_list_arg(opts, args, flag, key) do
+  # Uses safe atom conversion with an allowlist to prevent atom table exhaustion
+  defp parse_atom_list_arg(opts, args, flag, key, allowed) do
     case get_arg_value(args, flag) do
       nil ->
         opts
@@ -2309,7 +2363,7 @@ defmodule ExPhil.Training.Config do
           value
           |> String.split(",")
           |> Enum.map(&String.trim/1)
-          |> Enum.map(&String.to_atom/1)
+          |> Enum.map(&AtomSafety.safe_to_atom!(&1, allowed))
 
         # Merge with existing list (allows both --character and --characters)
         existing = Keyword.get(opts, key, [])
@@ -2681,10 +2735,10 @@ defmodule ExPhil.Training.Config do
     end
   end
 
-  defp parse_atom_arg(opts, args, flag, key) do
+  defp parse_atom_arg(opts, args, flag, key, allowed) do
     case get_arg_value(args, flag) do
       nil -> opts
-      value -> Keyword.put(opts, key, String.to_atom(value))
+      value -> Keyword.put(opts, key, AtomSafety.safe_to_atom!(value, allowed))
     end
   end
 
@@ -3163,7 +3217,7 @@ defmodule ExPhil.Training.Config do
     File.rm(oldest)
 
     # Rotate .bak.N -> .bak.N+1 (from highest to lowest)
-    Enum.each((count - 2)..0, fn n ->
+    Enum.each((count - 2)..0//-1, fn n ->
       src = if n == 0, do: "#{path}.bak", else: "#{path}.bak.#{n}"
       dst = "#{path}.bak.#{n + 1}"
       if File.exists?(src), do: File.rename(src, dst)
