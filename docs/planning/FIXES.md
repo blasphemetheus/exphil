@@ -309,17 +309,20 @@ The Rust NIF in `native/flash_attention_nif/` has unused code warnings:
 
 ### In Progress
 
-- [ ] Split `config.ex` into submodules (planned structure documented above)
+- [x] Split `config.ex` into submodules (31% reduction: 3,270 → 2,245 lines)
+  - [x] `config/presets.ex` (617 lines) - Training preset definitions
+  - [x] `config/validator.ex` (475 lines) - Validation rules with context passing
+  - [x] `config/inference.ex` (199 lines) - Smart flag inference logic
+  - [x] `config/atom_safety.ex` (188 lines) - Safe atom conversion with allowlists
+  - [ ] `config/yaml.ex` - YAML loading and conversion (tightly coupled to allowlists)
+  - [ ] `config/parser.ex` - CLI argument parsing (~800 lines remaining)
 
 ### Planned
 
-**config.ex split** (next priority):
-1. Create `lib/exphil/training/config/` directory
-2. Extract presets to `config/presets.ex`
-3. Extract YAML handling to `config/yaml.ex`
-4. Extract validation to `config/validator.ex`
-5. Extract smart defaults to `config/inference.ex`
-6. Main `config.ex` becomes a facade that delegates
+**config.ex remaining work** (lower priority):
+1. Extract YAML handling to `config/yaml.ex` (requires careful handling of allowlists)
+2. Extract CLI parsing to `config/parser.ex` (largest remaining section)
+3. Main `config.ex` becomes a thin facade
 
 **policy.ex maintainability plan**:
 1. Extract backbone selection logic to `policy/backbone.ex`
@@ -374,5 +377,5 @@ The Rust NIF in `native/flash_attention_nif/` has unused code warnings:
 
 ---
 
-*Last updated: 2026-01-31*
+*Last updated: 2026-02-03*
 *Review triggered by: Codebase critical analysis*
