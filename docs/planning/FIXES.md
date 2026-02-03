@@ -307,9 +307,10 @@ The Rust NIF in `native/flash_attention_nif/` has unused code warnings:
 - [x] Fixed Range.new/2 deprecation warning in `config.ex:3220` (rotate_backups function)
   - Changed `(count - 2)..0` to `(count - 2)..0//-1` for explicit step direction
 
-### In Progress
+### Completed (config.ex decomposition)
 
-- [x] Split `config.ex` into submodules (40% reduction: 3,270 → 1,960 lines)
+- [x] Split `config.ex` into submodules (**60% reduction: 3,270 → 1,297 lines**)
+  - [x] `config/parser.ex` (652 lines) - CLI argument parsing with context pattern
   - [x] `config/presets.ex` (617 lines) - Training preset definitions
   - [x] `config/validator.ex` (475 lines) - Validation rules with context passing
   - [x] `config/yaml.ex` (258 lines) - YAML loading/saving with context map pattern
@@ -317,14 +318,10 @@ The Rust NIF in `native/flash_attention_nif/` has unused code warnings:
   - [x] `config/atom_safety.ex` (188 lines) - Safe atom conversion with allowlists
   - [x] `config/checkpoint.ex` (172 lines) - Checkpoint safety and backup rotation
   - [x] `config/diff.ex` (120 lines) - Config diff display using function reference pattern
-  - [ ] `config/parser.ex` - CLI argument parsing (~800 lines remaining)
+
+Total: 8 submodules extracted, main config.ex now serves as orchestration facade.
 
 ### Planned
-
-**config.ex remaining work** (lower priority):
-1. Extract YAML handling to `config/yaml.ex` (requires careful handling of allowlists)
-2. Extract CLI parsing to `config/parser.ex` (largest remaining section)
-3. Main `config.ex` becomes a thin facade
 
 **policy.ex maintainability plan**:
 1. Extract backbone selection logic to `policy/backbone.ex`
@@ -381,3 +378,4 @@ The Rust NIF in `native/flash_attention_nif/` has unused code warnings:
 
 *Last updated: 2026-02-03*
 *Review triggered by: Codebase critical analysis*
+*config.ex decomposition completed: 2026-02-03*
