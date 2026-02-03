@@ -18,6 +18,7 @@ defmodule ExPhil.Training.Config do
   alias ExPhil.Constants
   alias ExPhil.Training.Config.AtomSafety
   alias ExPhil.Training.Config.Checkpoint
+  alias ExPhil.Training.Config.Diff
   alias ExPhil.Training.Config.Inference
   alias ExPhil.Training.Config.Presets
   alias ExPhil.Training.Config.Validator
@@ -891,87 +892,26 @@ defmodule ExPhil.Training.Config do
   # Config Diff Display
   # ============================================================================
 
+  # Delegated to ExPhil.Training.Config.Diff
+  # See that module for implementation details
+
   @doc """
   Get a list of options that differ from defaults.
-
-  Useful for displaying at training start to verify configuration.
-  Returns a list of `{key, current_value, default_value}` tuples.
-
-  ## Options
-
-  - `:skip` - List of keys to skip (default: [:replays, :checkpoint, :name, :wandb_name])
-  - `:include_nil` - Include keys where current is nil but default is not (default: false)
-
-  ## Examples
-
-      iex> ExPhil.Training.Config.diff_from_defaults(epochs: 20, batch_size: 64)
-      [{:epochs, 20, 10}]
-
-      iex> defaults = ExPhil.Training.Config.defaults()
-      iex> ExPhil.Training.Config.diff_from_defaults(defaults)
-      []
-
+  Delegates to `ExPhil.Training.Config.Diff.from_defaults/3`.
   """
   @spec diff_from_defaults(keyword(), keyword()) :: [{atom(), any(), any()}]
   def diff_from_defaults(opts, diff_opts \\ []) do
-    defaults = defaults()
-
-    skip_keys =
-      Keyword.get(diff_opts, :skip, [:replays, :checkpoint, :name, :wandb_name, :wandb_project])
-
-    include_nil = Keyword.get(diff_opts, :include_nil, false)
-
-    opts
-    |> Enum.filter(fn {key, value} ->
-      key not in skip_keys and
-        Keyword.has_key?(defaults, key) and
-        value != Keyword.get(defaults, key) and
-        (include_nil or value != nil)
-    end)
-    |> Enum.map(fn {key, value} ->
-      {key, value, Keyword.get(defaults, key)}
-    end)
-    |> Enum.sort_by(fn {key, _, _} -> key end)
+    Diff.from_defaults(opts, &defaults/0, diff_opts)
   end
 
   @doc """
   Format config diff as a human-readable string.
-
-  Returns a string showing changed settings, or nil if no changes.
-  Output is sorted alphabetically by key.
-
-  ## Examples
-
-      iex> result = ExPhil.Training.Config.format_diff(epochs: 20, batch_size: 128)
-      iex> result =~ "epochs: 20 (default: 10)"
-      true
-      iex> result =~ "batch_size: 128 (default: 64)"
-      true
-
+  Delegates to `ExPhil.Training.Config.Diff.format/2`.
   """
   @spec format_diff(keyword()) :: String.t() | nil
   def format_diff(opts) do
-    diff = diff_from_defaults(opts)
-
-    if Enum.empty?(diff) do
-      nil
-    else
-      diff
-      |> Enum.map(fn {key, current, default} ->
-        "  #{key}: #{format_value(current)} (default: #{format_value(default)})"
-      end)
-      |> Enum.join("\n")
-    end
+    Diff.format(opts, &defaults/0)
   end
-
-  defp format_value(value) when is_list(value), do: inspect(value, charlists: :as_lists)
-  defp format_value(value) when is_atom(value), do: ":#{value}"
-
-  defp format_value(value) when is_float(value),
-    do: :erlang.float_to_binary(value, [:compact, decimals: 6])
-
-  defp format_value(nil), do: "nil"
-  defp format_value(value), do: "#{value}"
 
   # ============================================================================
   # Validation
