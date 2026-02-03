@@ -309,11 +309,13 @@ The Rust NIF in `native/flash_attention_nif/` has unused code warnings:
 
 ### In Progress
 
-- [x] Split `config.ex` into submodules (31% reduction: 3,270 → 2,245 lines)
+- [x] Split `config.ex` into submodules (36% reduction: 3,270 → 2,095 lines)
   - [x] `config/presets.ex` (617 lines) - Training preset definitions
   - [x] `config/validator.ex` (475 lines) - Validation rules with context passing
   - [x] `config/inference.ex` (199 lines) - Smart flag inference logic
   - [x] `config/atom_safety.ex` (188 lines) - Safe atom conversion with allowlists
+  - [x] `config/checkpoint.ex` (172 lines) - Checkpoint safety and backup rotation
+  - [x] `config/diff.ex` (120 lines) - Config diff display using function reference pattern
   - [ ] `config/yaml.ex` - YAML loading and conversion (tightly coupled to allowlists)
   - [ ] `config/parser.ex` - CLI argument parsing (~800 lines remaining)
 
