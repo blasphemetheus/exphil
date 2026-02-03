@@ -28,6 +28,7 @@ defmodule ExPhil.Embeddings.Player do
   """
 
   # Uses Nx with module prefix
+  alias ExPhil.Constants
   alias ExPhil.Embeddings.Primitives
   alias ExPhil.Bridge.Player, as: PlayerState
   alias ExPhil.Bridge.Nana
@@ -435,9 +436,12 @@ defmodule ExPhil.Embeddings.Player do
       case config.action_mode do
         :one_hot ->
           action_emb =
-            Primitives.batch_one_hot(Nx.tensor(actions, type: :s32), size: 399, clamp: true)
+            Primitives.batch_one_hot(Nx.tensor(actions, type: :s32),
+              size: Constants.num_actions(),
+              clamp: true
+            )
 
-          # [batch, 399]
+          # [batch, num_actions]
           base_embs ++ [action_emb]
 
         :learned ->
@@ -450,9 +454,12 @@ defmodule ExPhil.Embeddings.Player do
       case config.character_mode do
         :one_hot ->
           char_emb =
-            Primitives.batch_one_hot(Nx.tensor(characters, type: :s32), size: 33, clamp: true)
+            Primitives.batch_one_hot(Nx.tensor(characters, type: :s32),
+              size: Constants.num_characters(),
+              clamp: true
+            )
 
-          # [batch, 33]
+          # [batch, num_characters]
           base_embs ++ [char_emb]
 
         :learned ->
@@ -505,10 +512,18 @@ defmodule ExPhil.Embeddings.Player do
         action_frames = Enum.map(players, fn p -> (p && p.action_frame) || 0 end)
 
         frame_embs = [
-          # Scale hitstun: 120 frames max is reasonable, clamp to 0-1
-          Primitives.batch_float_embed(hitstun_frames, scale: 1 / 120, lower: 0.0, upper: 1.0),
-          # Scale action_frame: most animations under 60 frames, but some longer
-          Primitives.batch_float_embed(action_frames, scale: 1 / 60, lower: 0.0, upper: 2.0)
+          # Scale hitstun by max hitstun frames, clamp to 0-1
+          Primitives.batch_float_embed(hitstun_frames,
+            scale: 1 / Constants.max_hitstun_frames(),
+            lower: 0.0,
+            upper: 1.0
+          ),
+          # Scale action_frame by standard animation length, allow overflow for long animations
+          Primitives.batch_float_embed(action_frames,
+            scale: 1 / Constants.standard_action_frames(),
+            lower: 0.0,
+            upper: 2.0
+          )
         ]
 
         embs_with_speeds ++ frame_embs
@@ -736,12 +751,15 @@ defmodule ExPhil.Embeddings.Player do
       nana_y_emb = Primitives.batch_float_embed(nana_ys, scale: config.xy_scale)
 
       nana_action_emb =
-        Primitives.batch_one_hot(Nx.tensor(nana_actions, type: :s32), size: 399, clamp: true)
+        Primitives.batch_one_hot(Nx.tensor(nana_actions, type: :s32),
+          size: Constants.num_actions(),
+          clamp: true
+        )
 
       # Nana uses character 0, no jumps/shield/invuln/on_ground data
       nana_char_emb =
         Primitives.batch_one_hot(Nx.tensor(List.duplicate(0, batch_size), type: :s32),
-          size: 33,
+          size: Constants.num_characters(),
           clamp: true
         )
 
@@ -887,10 +905,10 @@ defmodule ExPhil.Embeddings.Player do
   """
   @spec embed_frame_info(PlayerState.t()) :: Nx.Tensor.t()
   def embed_frame_info(%PlayerState{} = player) do
-    # Hitstun frames: typically 0-120, normalize to 0-1
-    hitstun = min((player.hitstun_frames_left || 0) / 120, 1.0)
-    # Action frame: how far into animation (0-60+ typically), normalize
-    action_frame = min((player.action_frame || 0) / 60, 2.0)
+    # Hitstun frames: normalize by max hitstun (120 frames)
+    hitstun = min((player.hitstun_frames_left || 0) / Constants.max_hitstun_frames(), 1.0)
+    # Action frame: normalize by standard animation length, allow overflow
+    action_frame = min((player.action_frame || 0) / Constants.standard_action_frames(), 2.0)
 
     Nx.tensor([hitstun, action_frame], type: :f32)
   end

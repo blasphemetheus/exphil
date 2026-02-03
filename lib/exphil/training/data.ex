@@ -28,6 +28,7 @@ defmodule ExPhil.Training.Data do
 
   ## Usage
 
+
       # Load dataset from directory
       {:ok, dataset} = Data.load_dataset("replays/parsed/")
 
@@ -48,6 +49,7 @@ defmodule ExPhil.Training.Data do
   - `ExPhil.Embeddings.Game` - Game state embedding
   """
 
+  alias ExPhil.Constants
   alias ExPhil.Embeddings
   alias ExPhil.Bridge.{GameState, ControllerState}
   alias ExPhil.Training.PlayerRegistry
@@ -252,7 +254,7 @@ defmodule ExPhil.Training.Data do
     - `:frame_delay` - Fixed frames between state and action (default: 0)
     - `:frame_delay_augment` - Enable variable frame delay (default: false)
     - `:frame_delay_min` - Minimum delay when augmenting (default: 0)
-    - `:frame_delay_max` - Maximum delay when augmenting (default: 18)
+    - `:frame_delay_max` - Maximum delay when augmenting (default: #{Constants.online_frame_delay()})
     - `:seed` - Random seed for shuffling
     - `:mirror_prob` - Mirror augmentation probability for augmented caches (default: 0.5)
     - `:noise_prob` - Noise augmentation probability for augmented caches (default: 0.3)
@@ -262,7 +264,7 @@ defmodule ExPhil.Training.Data do
 
   When `frame_delay_augment: true`, each sample randomly uses a delay
   between `frame_delay_min` and `frame_delay_max`. This trains models
-  to be robust to both local play (0 delay) and online play (18+ delay).
+  to be robust to both local play (0 delay) and online play (#{Constants.online_frame_delay()}+ delay).
 
   ## Augmented Embedding Support
 
@@ -283,7 +285,7 @@ defmodule ExPhil.Training.Data do
     frame_delay = Keyword.get(opts, :frame_delay, 0)
     frame_delay_augment = Keyword.get(opts, :frame_delay_augment, false)
     frame_delay_min = Keyword.get(opts, :frame_delay_min, 0)
-    frame_delay_max = Keyword.get(opts, :frame_delay_max, 18)
+    frame_delay_max = Keyword.get(opts, :frame_delay_max, Constants.online_frame_delay())
     seed = Keyword.get(opts, :seed, System.system_time())
     augment_fn = Keyword.get(opts, :augment_fn, nil)
     character_weights = Keyword.get(opts, :character_weights, nil)

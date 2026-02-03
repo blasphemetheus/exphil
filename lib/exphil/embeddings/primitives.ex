@@ -17,25 +17,23 @@ defmodule ExPhil.Embeddings.Primitives do
   parameters at this level (those live in the neural network).
   """
 
-  # We use Nx directly with module prefix
+  alias ExPhil.Constants
 
   # ============================================================================
-  # Constants (from slippi-ai)
+  # Constants - sourced from ExPhil.Constants for single source of truth
   # ============================================================================
 
-  # Action state count (some Kirby states go beyond this, so we clamp)
-  # 399
-  @action_size 0x18F
+  # Action state count (Melee has 399 distinct action states)
+  @action_size Constants.num_actions()
 
-  # Character count (one larger than SANDBAG)
-  # 33
-  @character_size 0x21
+  # Character count (33 characters including Zelda/Sheik as separate)
+  @character_size Constants.num_characters()
 
-  # Stage count (future-proofed for wacky stages)
-  @stage_size 64
+  # Stage count (64 slots, competitive stages use specific IDs)
+  @stage_size Constants.num_stages()
 
-  # Max jumps (Puff and Kirby have 6, +1 for 0)
-  @jumps_left_size 7
+  # Max jumps (Puff and Kirby have 6, +1 for 0 = 7 total categories)
+  @jumps_left_size Constants.max_jumps() + 1
 
   # Item types (from Melee data)
   # +1 for zero, +1 for unknown
@@ -301,7 +299,9 @@ defmodule ExPhil.Embeddings.Primitives do
   # ============================================================================
 
   @doc """
-  Embed action state (one-hot, 399 dimensions).
+  Embed action state as one-hot vector.
+
+  Uses `Constants.num_actions()` dimensions (#{Constants.num_actions()}).
   """
   @spec action_embed(integer() | Nx.Tensor.t()) :: Nx.Tensor.t()
   def action_embed(action) do
@@ -309,7 +309,9 @@ defmodule ExPhil.Embeddings.Primitives do
   end
 
   @doc """
-  Embed character (one-hot, 33 dimensions).
+  Embed character as one-hot vector.
+
+  Uses `Constants.num_characters()` dimensions (#{Constants.num_characters()}).
   """
   @spec character_embed(integer() | Nx.Tensor.t()) :: Nx.Tensor.t()
   def character_embed(character) do
@@ -317,7 +319,9 @@ defmodule ExPhil.Embeddings.Primitives do
   end
 
   @doc """
-  Embed stage (one-hot, 64 dimensions).
+  Embed stage as one-hot vector.
+
+  Uses `Constants.num_stages()` dimensions (#{Constants.num_stages()}).
   """
   @spec stage_embed(integer() | Nx.Tensor.t()) :: Nx.Tensor.t()
   def stage_embed(stage) do
