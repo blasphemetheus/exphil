@@ -99,9 +99,12 @@ defmodule ExPhil.SelfPlay.GameRunner do
     :experience_collector
   ]
 
+  # Use Constants for game timing
+  @max_game_frames ExPhil.Constants.max_game_frames()
+
   @default_config %{
     # 8 minutes at 60fps
-    max_episode_frames: 28800,
+    max_episode_frames: @max_game_frames,
     frame_skip: 1,
     deterministic_opponent: true,
     # Auto-reset episode on done

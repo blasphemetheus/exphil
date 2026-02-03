@@ -34,11 +34,12 @@ defmodule ExPhil.Embeddings.Game do
   alias ExPhil.Embeddings.Player, as: PlayerEmbed
   alias ExPhil.Embeddings.Controller, as: ControllerEmbed
   alias ExPhil.Bridge.{GameState, Projectile, Item, ControllerState}
+  alias ExPhil.Constants
 
   # Tensor core alignment for GPU efficiency
   # Dimensions should be multiples of 8 for FP16/BF16 tensor cores
   # Without alignment, GPU may fall back to slower non-tensor-core kernels
-  @tensor_core_alignment 8
+  @tensor_core_alignment Constants.tensor_alignment()
 
   # ============================================================================
   # Configuration
@@ -771,7 +772,7 @@ defmodule ExPhil.Embeddings.Game do
       # Add frame count if configured
       embs_with_frame =
         if config.with_frame_count do
-          frames = Enum.map(game_states, fn gs -> (gs.frame || 0) / 28800.0 end)
+          frames = Enum.map(game_states, fn gs -> Constants.normalize_frame(gs.frame || 0) end)
           frame_emb = Primitives.batch_float_embed(frames, scale: 1.0, lower: 0.0, upper: 1.0)
           embs_with_rel_pos ++ [frame_emb]
         else
@@ -965,11 +966,9 @@ defmodule ExPhil.Embeddings.Game do
   end
 
   # Embed game frame count (useful for time pressure awareness)
-  # Melee runs at 60 FPS, typical match is 8 minutes = 28800 frames
   defp embed_frame_count(game_state) do
     frame = game_state.frame || 0
-    # Normalize: 8 minutes = 28800 frames, cap at 1.0
-    normalized = min(frame / 28800.0, 1.0)
+    normalized = Constants.normalize_frame(frame)
     Nx.tensor([normalized], type: :f32)
   end
 

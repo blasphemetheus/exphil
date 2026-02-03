@@ -85,9 +85,12 @@ defmodule ExPhil.Training.SelfPlay.SelfPlayEnv do
 
   @type t :: %__MODULE__{}
 
+  # Use Constants for game timing
+  @max_game_frames ExPhil.Constants.max_game_frames()
+
   @default_config %{
     # 8 minutes at 60fps
-    max_episode_frames: 28800,
+    max_episode_frames: @max_game_frames,
     # Act every N frames
     frame_skip: 1,
     # Opponent uses argmax vs sampling

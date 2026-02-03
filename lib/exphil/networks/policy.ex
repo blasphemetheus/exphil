@@ -87,20 +87,20 @@ defmodule ExPhil.Networks.Policy do
 
   # Controller output sizes
   @num_buttons 8
+  alias ExPhil.Constants
+
   # 0-16 = 17 values
   @axis_buckets 16
   # 0-4 = 5 values
   @shoulder_buckets 4
 
-  # Action embedding constants
-  # Melee action state count
-  @num_actions 399
+  # Action embedding constants (from Constants module)
+  @num_actions Constants.num_actions()
   # Default: own + opponent player actions
   @default_num_action_ids 2
 
-  # Character embedding constants
-  # Melee character count
-  @num_characters 33
+  # Character embedding constants (from Constants module)
+  @num_characters Constants.num_characters()
   # Default: own + opponent characters
   @default_num_character_ids 2
 

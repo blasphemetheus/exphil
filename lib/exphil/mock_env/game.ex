@@ -24,6 +24,7 @@ defmodule ExPhil.MockEnv.Game do
   """
 
   alias ExPhil.MockEnv.Player
+  alias ExPhil.Constants
 
   # Stage geometry (Final Destination approximation)
   @stage %{
@@ -250,8 +251,8 @@ defmodule ExPhil.MockEnv.Game do
       game.p2.stock <= 0 ->
         %{game | done: true, winner: 1}
 
-      # Timeout at 8 minutes (28800 frames)
-      game.frame >= 28800 ->
+      # Timeout at 8 minutes
+      game.frame >= Constants.max_game_frames() ->
         # Winner by percent (lower wins)
         winner = if game.p1.percent <= game.p2.percent, do: 1, else: 2
         %{game | done: true, winner: winner}
