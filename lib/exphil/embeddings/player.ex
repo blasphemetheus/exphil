@@ -30,6 +30,7 @@ defmodule ExPhil.Embeddings.Player do
   # Uses Nx with module prefix
   alias ExPhil.Constants
   alias ExPhil.Embeddings.Primitives
+  alias ExPhil.Embeddings.Nana, as: NanaEmbed
   alias ExPhil.Bridge.Player, as: PlayerState
   alias ExPhil.Bridge.Nana
 
@@ -584,52 +585,35 @@ defmodule ExPhil.Embeddings.Player do
     end
   end
 
-  # Compact Nana batch embedding (~45 dims)
+  # Compact Nana batch embedding (~39 dims)
   defp embed_batch_nana_compact(players, batch_size) do
-    nanas = Enum.map(players, fn p -> p && p.nana end)
-    popo_actions = Enum.map(players, fn p -> (p && p.action) || 0 end)
-    has_any_nana = Enum.any?(nanas, & &1)
-
-    if not has_any_nana do
+    if not NanaEmbed.any_nana_exists?(players) do
       Nx.broadcast(0.0, {batch_size, compact_nana_embedding_size()})
     else
-      # Extract Nana values
-      nana_exists = Enum.map(nanas, fn n -> n != nil end)
-      nana_xs = Enum.map(nanas, fn n -> (n && n.x) || 0.0 end)
-      nana_ys = Enum.map(nanas, fn n -> (n && n.y) || 0.0 end)
-      nana_facings = Enum.map(nanas, fn n -> (n && n.facing) || false end)
-      nana_percents = Enum.map(nanas, fn n -> (n && n.percent) || 0.0 end)
-      nana_stocks = Enum.map(nanas, fn n -> (n && n.stock) || 0 end)
-      nana_actions = Enum.map(nanas, fn n -> (n && n.action) || 0 end)
+      # Extract values using helper
+      values = NanaEmbed.extract_batch_values(players)
+      popo_actions = Enum.map(players, fn p -> (p && p.action) || 0 end)
 
-      # Calculate action categories and flags
-      nana_categories = Enum.map(nana_actions, &action_to_category/1)
-      popo_categories = Enum.map(popo_actions, &action_to_category/1)
-
-      # Boolean flags for IC tech
-      is_attacking = Enum.map(nana_categories, fn c -> c in [10, 11, 12, 13, 14, 15, 16] end)
-      is_grabbing = Enum.map(nana_categories, fn c -> c in [17, 18] end)
-      can_act = Enum.map(nana_categories, fn c -> c in [2, 3, 4, 6, 7, 9] end)
-      is_synced = Enum.zip(nana_categories, popo_categories) |> Enum.map(fn {n, p} -> n == p end)
-      on_ground = Enum.map(nana_ys, fn y -> y < 5.0 end)
+      # Compute IC tech flags (compact uses category-based sync)
+      flags = NanaEmbed.compute_batch_flags(values, popo_actions, sync_mode: :category)
 
       # Build embedding
       Nx.concatenate(
         [
           # [batch, 1]
-          Primitives.batch_bool_embed(nana_exists),
+          Primitives.batch_bool_embed(values.exists),
           # [batch, 1]
-          Primitives.batch_float_embed(nana_xs, scale: 0.05),
+          Primitives.batch_float_embed(values.xs, scale: 0.05),
           # [batch, 1]
-          Primitives.batch_float_embed(nana_ys, scale: 0.05),
+          Primitives.batch_float_embed(values.ys, scale: 0.05),
           # [batch, 1]
-          Primitives.batch_bool_embed(nana_facings, on: 1.0, off: -1.0),
+          Primitives.batch_bool_embed(values.facings, on: 1.0, off: -1.0),
           # [batch, 1]
-          Primitives.batch_bool_embed(on_ground),
+          Primitives.batch_bool_embed(flags.on_ground),
           # [batch, 1]
-          Primitives.batch_float_embed(nana_percents, scale: 0.01, lower: 0.0, upper: 5.0),
+          Primitives.batch_float_embed(values.percents, scale: 0.01, lower: 0.0, upper: 5.0),
           # [batch, 1]
-          Primitives.batch_float_embed(nana_stocks, scale: 1 / 4, lower: 0.0, upper: 1.0),
+          Primitives.batch_float_embed(values.stocks, scale: 1 / 4, lower: 0.0, upper: 1.0),
           # hitstun [batch, 1]
           Nx.broadcast(0.0, {batch_size, 1}),
           # action_frame [batch, 1]
@@ -637,18 +621,18 @@ defmodule ExPhil.Embeddings.Player do
           # invulnerable [batch, 1]
           Nx.broadcast(0.0, {batch_size, 1}),
           # [batch, 25]
-          Primitives.batch_one_hot(Nx.tensor(nana_categories, type: :s32),
+          Primitives.batch_one_hot(Nx.tensor(flags.categories, type: :s32),
             size: @nana_action_categories,
             clamp: true
           ),
           # [batch, 1]
-          Primitives.batch_bool_embed(is_attacking),
+          Primitives.batch_bool_embed(flags.is_attacking),
           # [batch, 1]
-          Primitives.batch_bool_embed(is_grabbing),
+          Primitives.batch_bool_embed(flags.is_grabbing),
           # [batch, 1]
-          Primitives.batch_bool_embed(can_act),
+          Primitives.batch_bool_embed(flags.can_act),
           # [batch, 1]
-          Primitives.batch_bool_embed(is_synced)
+          Primitives.batch_bool_embed(flags.is_synced)
         ],
         axis: 1
       )
@@ -657,48 +641,33 @@ defmodule ExPhil.Embeddings.Player do
 
   # Enhanced Nana batch embedding (14 dims - action ID handled separately by GameEmbed)
   defp embed_batch_nana_enhanced(players, batch_size) do
-    nanas = Enum.map(players, fn p -> p && p.nana end)
-    popo_actions = Enum.map(players, fn p -> (p && p.action) || 0 end)
-    has_any_nana = Enum.any?(nanas, & &1)
-
-    if not has_any_nana do
+    if not NanaEmbed.any_nana_exists?(players) do
       Nx.broadcast(0.0, {batch_size, enhanced_compact_nana_embedding_size()})
     else
-      # Extract Nana values
-      nana_exists = Enum.map(nanas, fn n -> n != nil end)
-      nana_xs = Enum.map(nanas, fn n -> (n && n.x) || 0.0 end)
-      nana_ys = Enum.map(nanas, fn n -> (n && n.y) || 0.0 end)
-      nana_facings = Enum.map(nanas, fn n -> (n && n.facing) || false end)
-      nana_percents = Enum.map(nanas, fn n -> (n && n.percent) || 0.0 end)
-      nana_stocks = Enum.map(nanas, fn n -> (n && n.stock) || 0 end)
-      nana_actions = Enum.map(nanas, fn n -> (n && n.action) || 0 end)
+      # Extract values using helper
+      values = NanaEmbed.extract_batch_values(players)
+      popo_actions = Enum.map(players, fn p -> (p && p.action) || 0 end)
 
-      # Calculate action categories and IC tech flags
-      nana_categories = Enum.map(nana_actions, &action_to_category/1)
-      is_attacking = Enum.map(nana_categories, fn c -> c in [10, 11, 12, 13, 14, 15, 16] end)
-      is_grabbing = Enum.map(nana_categories, fn c -> c in [17, 18] end)
-      can_act = Enum.map(nana_categories, fn c -> c in [2, 3, 4, 6, 7, 9] end)
-      # Enhanced mode uses exact action comparison for sync (more precise than category)
-      is_synced = Enum.zip(nana_actions, popo_actions) |> Enum.map(fn {n, p} -> n == p end)
-      on_ground = Enum.map(nana_ys, fn y -> y < 5.0 end)
+      # Compute IC tech flags (enhanced uses exact action comparison for sync)
+      flags = NanaEmbed.compute_batch_flags(values, popo_actions, sync_mode: :exact)
 
       # Build embedding (14 dims total - no action category one-hot)
       Nx.concatenate(
         [
           # [batch, 1]
-          Primitives.batch_bool_embed(nana_exists),
+          Primitives.batch_bool_embed(values.exists),
           # [batch, 1]
-          Primitives.batch_float_embed(nana_xs, scale: 0.05),
+          Primitives.batch_float_embed(values.xs, scale: 0.05),
           # [batch, 1]
-          Primitives.batch_float_embed(nana_ys, scale: 0.05),
+          Primitives.batch_float_embed(values.ys, scale: 0.05),
           # [batch, 1]
-          Primitives.batch_bool_embed(nana_facings, on: 1.0, off: -1.0),
+          Primitives.batch_bool_embed(values.facings, on: 1.0, off: -1.0),
           # [batch, 1]
-          Primitives.batch_bool_embed(on_ground),
+          Primitives.batch_bool_embed(flags.on_ground),
           # [batch, 1]
-          Primitives.batch_float_embed(nana_percents, scale: 0.01, lower: 0.0, upper: 5.0),
+          Primitives.batch_float_embed(values.percents, scale: 0.01, lower: 0.0, upper: 5.0),
           # [batch, 1]
-          Primitives.batch_float_embed(nana_stocks, scale: 1 / 4, lower: 0.0, upper: 1.0),
+          Primitives.batch_float_embed(values.stocks, scale: 1 / 4, lower: 0.0, upper: 1.0),
           # hitstun [batch, 1]
           Nx.broadcast(0.0, {batch_size, 1}),
           # action_frame [batch, 1]
@@ -706,13 +675,13 @@ defmodule ExPhil.Embeddings.Player do
           # invulnerable [batch, 1]
           Nx.broadcast(0.0, {batch_size, 1}),
           # [batch, 1]
-          Primitives.batch_bool_embed(is_attacking),
+          Primitives.batch_bool_embed(flags.is_attacking),
           # [batch, 1]
-          Primitives.batch_bool_embed(is_grabbing),
+          Primitives.batch_bool_embed(flags.is_grabbing),
           # [batch, 1]
-          Primitives.batch_bool_embed(can_act),
+          Primitives.batch_bool_embed(flags.can_act),
           # [batch, 1]
-          Primitives.batch_bool_embed(is_synced)
+          Primitives.batch_bool_embed(flags.is_synced)
         ],
         axis: 1
       )
@@ -988,22 +957,13 @@ defmodule ExPhil.Embeddings.Player do
     end
   end
 
-  # Compact Nana embedding (~45 dims) - preserves IC tech learning
+  # Compact Nana embedding (~39 dims) - preserves IC tech learning
   defp embed_nana_compact(%Nana{} = nana, popo_action) do
+    nana_y = nana.y || 0.0
     nana_action = nana.action || 0
-    nana_category = action_to_category(nana_action)
-    popo_category = action_to_category(popo_action || 0)
 
-    # Boolean flags for IC tech
-    # Ground/air attacks, specials
-    is_attacking = nana_category in [10, 11, 12, 13, 14, 15, 16]
-    # Grab, throw
-    is_grabbing = nana_category in [17, 18]
-    # can_act = not in hitstun/tumble/grab and in actionable state
-    # Idle, walk, run, jump, fall, crouch
-    can_act = nana_category in [2, 3, 4, 6, 7, 9]
-    # Same action category = synced
-    is_synced = nana_category == popo_category
+    # Compute IC tech flags using helper (compact uses category-based sync)
+    flags = NanaEmbed.compute_flags(nana_action, popo_action || 0, nana_y, sync_mode: :category)
 
     Nx.concatenate([
       # Exists
@@ -1011,13 +971,13 @@ defmodule ExPhil.Embeddings.Player do
 
       # Position
       Primitives.xy_embed(nana.x || 0.0, scale: 0.05),
-      Primitives.xy_embed(nana.y || 0.0, scale: 0.05),
+      Primitives.xy_embed(nana_y, scale: 0.05),
 
       # Facing
       Primitives.facing_embed(nana.facing),
 
-      # On ground (approximate from y position)
-      Primitives.bool_embed((nana.y || 0.0) < 5.0),
+      # On ground (from flags)
+      Primitives.bool_embed(flags.on_ground),
 
       # Combat state
       Primitives.percent_embed(nana.percent || 0.0),
@@ -1034,13 +994,13 @@ defmodule ExPhil.Embeddings.Player do
       Primitives.bool_embed(false),
 
       # Action category (25-dim one-hot)
-      Primitives.one_hot(nana_category, size: @nana_action_categories, clamp: true),
+      Primitives.one_hot(flags.category, size: @nana_action_categories, clamp: true),
 
       # IC tech flags
-      Primitives.bool_embed(is_attacking),
-      Primitives.bool_embed(is_grabbing),
-      Primitives.bool_embed(can_act),
-      Primitives.bool_embed(is_synced)
+      Primitives.bool_embed(flags.is_attacking),
+      Primitives.bool_embed(flags.is_grabbing),
+      Primitives.bool_embed(flags.can_act),
+      Primitives.bool_embed(flags.is_synced)
     ])
   end
 
@@ -1048,17 +1008,11 @@ defmodule ExPhil.Embeddings.Player do
   # Provides precise action info via separate action ID, not 25-dim category
   # Critical for IC tech: guarantees network knows exact action (dair vs fair vs ftilt)
   defp embed_nana_enhanced(%Nana{} = nana, popo_action) do
+    nana_y = nana.y || 0.0
     nana_action = nana.action || 0
-    popo_action = popo_action || 0
 
-    # Boolean flags for IC tech (same logic as compact)
-    nana_category = action_to_category(nana_action)
-
-    is_attacking = nana_category in [10, 11, 12, 13, 14, 15, 16]
-    is_grabbing = nana_category in [17, 18]
-    can_act = nana_category in [2, 3, 4, 6, 7, 9]
-    # For enhanced mode, compare exact actions for sync (more precise than category)
-    is_synced = nana_action == popo_action
+    # Compute IC tech flags using helper (enhanced uses exact action comparison)
+    flags = NanaEmbed.compute_flags(nana_action, popo_action || 0, nana_y, sync_mode: :exact)
 
     Nx.concatenate([
       # Exists
@@ -1066,13 +1020,13 @@ defmodule ExPhil.Embeddings.Player do
 
       # Position (scaled for ~[-200, 200] stage range)
       Primitives.xy_embed(nana.x || 0.0, scale: 0.05),
-      Primitives.xy_embed(nana.y || 0.0, scale: 0.05),
+      Primitives.xy_embed(nana_y, scale: 0.05),
 
       # Facing (-1 left, +1 right)
       Primitives.facing_embed(nana.facing),
 
-      # On ground (approximate from y position - below platform height)
-      Primitives.bool_embed((nana.y || 0.0) < 5.0),
+      # On ground (from flags)
+      Primitives.bool_embed(flags.on_ground),
 
       # Combat state
       Primitives.percent_embed(nana.percent || 0.0),
@@ -1081,7 +1035,6 @@ defmodule ExPhil.Embeddings.Player do
 
       # Frame info - CRITICAL for IC tech timing
       # Note: Nana struct may not have these, so we approximate
-      # action_frame: normalized by typical animation length (~60 frames)
       # TODO: Get real action_frame from libmelee if available
       # hitstun_frames (placeholder)
       Nx.tensor([0.0], type: :f32),
@@ -1091,11 +1044,11 @@ defmodule ExPhil.Embeddings.Player do
       # Invulnerable (unknown, default false)
       Primitives.bool_embed(false),
 
-      # IC tech flags (quick boolean checks for common situations)
-      Primitives.bool_embed(is_attacking),
-      Primitives.bool_embed(is_grabbing),
-      Primitives.bool_embed(can_act),
-      Primitives.bool_embed(is_synced)
+      # IC tech flags (from helper)
+      Primitives.bool_embed(flags.is_attacking),
+      Primitives.bool_embed(flags.is_grabbing),
+      Primitives.bool_embed(flags.can_act),
+      Primitives.bool_embed(flags.is_synced)
     ])
 
     # Note: Nana action ID is NOT included here - it's appended by GameEmbed

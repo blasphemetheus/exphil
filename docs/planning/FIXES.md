@@ -357,10 +357,30 @@ Common.build_model(opts, &build_mamba_block/2)
 Common.build_block(input, opts, &build_selective_ssm/2)
 ```
 
+### Completed (Nana helpers extraction - 2026-02-03)
+
+- [x] Extracted Nana embedding helpers to `lib/exphil/embeddings/nana.ex`
+  - `extract_batch_values/1` - Extracts common Nana values from player list
+  - `compute_batch_flags/3` - Computes IC tech flags with sync_mode option
+  - `extract_values/1` - Single Nana value extraction
+  - `compute_flags/4` - Single Nana flag computation
+  - `any_nana_exists?/1` - Optimization check for zero tensor shortcut
+  - `get_action_id/1` - Gets Nana action ID for learned embedding
+
+Updated `player.ex` to use helpers in:
+- `embed_batch_nana_compact/2`
+- `embed_batch_nana_enhanced/2`
+- `embed_nana_compact/2`
+- `embed_nana_enhanced/2`
+
+IC tech flag logic now centralized (was duplicated 4 times):
+- `:sync_mode` option: `:category` (compact) vs `:exact` (enhanced)
+- Attack, grab, can_act detection by action category
+- on_ground detection from Y position
+
 ### Planned
 
 **Other planned work**:
-- [ ] Extract Nana embedding helpers
 - [ ] Add property-based tests
 - [ ] Update outdated documentation
 - [ ] Create shared script template
@@ -402,3 +422,4 @@ Common.build_block(input, opts, &build_selective_ssm/2)
 *policy.ex decomposition completed: 2026-02-03*
 *imitation.ex decomposition completed: 2026-02-03*
 *Mamba unification completed: 2026-02-03*
+*Nana helpers extraction completed: 2026-02-03*
