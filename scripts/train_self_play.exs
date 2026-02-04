@@ -302,24 +302,41 @@ Output.step(1, 6, "Initializing policy")
     case ExPhil.Training.load_policy(opts.pretrained) do
       {:ok, policy} ->
         embed_size = policy.config[:embed_size] || Embeddings.embedding_size()
+        hidden_sizes = policy.config[:hidden_sizes] || [256, 256]
         Output.success("  Loaded policy (embed_size=#{embed_size})")
 
-        # Policy .bin files don't include model - rebuild from config
+        # Build ActorCritic model (self-play needs value head for PPO)
+        Output.puts("  Building ActorCritic model (hidden=#{inspect(hidden_sizes)})...")
+
         model =
-          if policy[:model] do
-            policy.model
-          else
-            hidden_sizes = policy.config[:hidden_sizes] || [256, 256]
-            Output.puts("  Rebuilding model from config (hidden=#{inspect(hidden_sizes)})...")
+          ExPhil.Networks.ActorCritic.build_combined(
+            embed_size: embed_size,
+            hidden_sizes: hidden_sizes,
+            dropout: policy.config[:dropout] || 0.0
+          )
 
-            ExPhil.Networks.ActorCritic.build_combined(
-              embed_size: embed_size,
-              hidden_sizes: hidden_sizes,
-              dropout: policy.config[:dropout] || 0.0
-            )
-          end
+        # Initialize fresh ActorCritic params
+        {init_fn, _} = Axon.build(model)
+        template = Nx.template({1, embed_size}, :f32)
+        fresh_params = init_fn.(template, Axon.ModelState.empty())
 
-        {model, policy.params, embed_size}
+        # Transfer matching weights from pretrained Policy to ActorCritic
+        # Policy layers: backbone_*, buttons_*, main_x_*, etc.
+        # ActorCritic adds: value_hidden_*, value_output_*
+        pretrained_params = policy.params
+        pretrained_data = if is_struct(pretrained_params, Axon.ModelState), do: pretrained_params.data, else: pretrained_params
+        fresh_data = if is_struct(fresh_params, Axon.ModelState), do: fresh_params.data, else: fresh_params
+
+        merged_data =
+          Map.merge(fresh_data, pretrained_data, fn _key, _fresh, pretrained -> pretrained end)
+
+        transferred = map_size(pretrained_data)
+        total = map_size(merged_data)
+        Output.puts("  Transferred #{transferred}/#{total} layer weights from pretrained policy")
+        Output.puts("  (Value head initialized randomly)")
+
+        final_params = %Axon.ModelState{data: merged_data, parameters: merged_data, state: %{}}
+        {model, final_params, embed_size}
 
       {:error, reason} ->
         Output.error("Failed to load policy: #{inspect(reason)}")
