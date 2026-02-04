@@ -421,9 +421,10 @@ defmodule ExPhil.Evaluation.Metrics do
   """
   @spec categorize_action_state(map()) :: atom()
   def categorize_action_state(player) when is_map(player) do
-    action = player[:action] || 0
-    on_ground = player[:on_ground] || false
-    hitstun = player[:hitstun_frames_left] || 0
+    # Use Map.get to handle both structs and maps
+    action = Map.get(player, :action, 0)
+    on_ground = Map.get(player, :on_ground, false)
+    hitstun = Map.get(player, :hitstun_frames_left, 0)
 
     cond do
       # Hitstun takes priority
