@@ -23,6 +23,7 @@ defmodule ExPhil.Networks.Policy.Backbone do
   | `:hawk` | Pure RG-LRU | Fastest recurrent, simpler than Mamba |
   | `:xlstm` | Extended LSTM (mixed) | Exponential gating, matrix memory |
   | `:retnet` | Retentive Network | O(1) inference, decay-based attention |
+  | `:kan` | Kolmogorov-Arnold Networks | Learnable activations, interpretable |
 
   ## Usage
 
@@ -82,6 +83,7 @@ defmodule ExPhil.Networks.Policy.Backbone do
           | :s5
           | :decision_transformer
           | :liquid
+          | :kan
 
   @doc """
   Build a temporal backbone that processes frame sequences.
@@ -170,6 +172,10 @@ defmodule ExPhil.Networks.Policy.Backbone do
       :liquid ->
         # Liquid Neural Networks - Continuous-time adaptive dynamics
         build_liquid_backbone(embed_size, opts)
+
+      :kan ->
+        # KAN: Kolmogorov-Arnold Networks with learnable activations
+        build_kan_backbone(embed_size, opts)
 
       :lstm ->
         build_lstm_backbone(embed_size, opts)
@@ -325,6 +331,10 @@ defmodule ExPhil.Networks.Policy.Backbone do
 
       :liquid ->
         # Liquid Neural Networks
+        Keyword.get(opts, :hidden_size, 256)
+
+      :kan ->
+        # KAN: Kolmogorov-Arnold Networks
         Keyword.get(opts, :hidden_size, 256)
 
       :lstm ->
@@ -738,6 +748,29 @@ defmodule ExPhil.Networks.Policy.Backbone do
       seq_len: seq_len,
       integration_steps: integration_steps,
       solver: solver
+    )
+  end
+
+  defp build_kan_backbone(embed_size, opts) do
+    alias ExPhil.Networks.KAN
+
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    num_layers = Keyword.get(opts, :num_layers, 4)
+    grid_size = Keyword.get(opts, :grid_size, 8)
+    basis = Keyword.get(opts, :basis, :sine)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+    window_size = Keyword.get(opts, :window_size, 60)
+    seq_len = Keyword.get(opts, :seq_len, window_size)
+
+    KAN.build(
+      embed_size: embed_size,
+      hidden_size: hidden_size,
+      num_layers: num_layers,
+      grid_size: grid_size,
+      basis: basis,
+      dropout: dropout,
+      window_size: window_size,
+      seq_len: seq_len
     )
   end
 
