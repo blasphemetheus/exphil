@@ -2,6 +2,7 @@ defmodule ExPhil.Training.ReplayValidationTest do
   use ExUnit.Case, async: true
 
   alias ExPhil.Training.ReplayValidation
+  alias ExPhil.Error.ValidationError
 
   @test_dir Path.join(System.tmp_dir!(), "replay_validation_test_#{:erlang.unique_integer()}")
 
@@ -18,7 +19,7 @@ defmodule ExPhil.Training.ReplayValidationTest do
   describe "validate_file/1" do
     test "returns error for non-existent file" do
       path = Path.join(@test_dir, "missing.slp")
-      {^path, {:error, :not_found}} = ReplayValidation.validate_file(path)
+      {^path, {:error, %ValidationError{reason: :not_found}}} = ReplayValidation.validate_file(path)
     end
 
     test "returns error for file too small" do
@@ -26,7 +27,7 @@ defmodule ExPhil.Training.ReplayValidationTest do
       # Write a file that's too small
       File.write!(path, "small")
 
-      {^path, {:error, :file_too_small}} = ReplayValidation.validate_file(path)
+      {^path, {:error, %ValidationError{reason: :file_too_small}}} = ReplayValidation.validate_file(path)
     end
 
     test "returns error for invalid format" do
@@ -35,7 +36,7 @@ defmodule ExPhil.Training.ReplayValidationTest do
       content = String.duplicate("X", 5000)
       File.write!(path, content)
 
-      {^path, {:error, :invalid_format}} = ReplayValidation.validate_file(path)
+      {^path, {:error, %ValidationError{reason: :invalid_format}}} = ReplayValidation.validate_file(path)
     end
 
     test "returns ok for valid SLP format" do
@@ -94,7 +95,7 @@ defmodule ExPhil.Training.ReplayValidationTest do
 
       assert paths == []
       assert stats.invalid == 1
-      assert [{^missing_path, :not_found}] = stats.errors
+      assert [{^missing_path, %ValidationError{reason: :not_found}}] = stats.errors
     end
 
     test "runs in parallel by default" do

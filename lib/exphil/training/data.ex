@@ -53,6 +53,7 @@ defmodule ExPhil.Training.Data do
   alias ExPhil.Embeddings
   alias ExPhil.Bridge.{GameState, ControllerState}
   alias ExPhil.Training.PlayerRegistry
+  alias ExPhil.Error.CacheError
 
   require Logger
 
@@ -1471,7 +1472,7 @@ defmodule ExPhil.Training.Data do
           Logger.info("[EmbeddingCache] Using cached frame embeddings")
           %{dataset | embedded_frames: embedded_array}
 
-        {:error, :not_found} ->
+        {:error, %CacheError{}} ->
           available =
             EmbeddingCache.list(cache_dir: cache_dir)
             |> Enum.map(& &1.key)
@@ -1693,7 +1694,7 @@ defmodule ExPhil.Training.Data do
           Logger.info("[EmbeddingCache] Using cached augmented frame embeddings")
           %{dataset | embedded_frames: embedded_array}
 
-        {:error, :not_found} ->
+        {:error, %CacheError{}} ->
           Logger.info("[EmbeddingCache] Cache miss, computing augmented embeddings...")
           result = precompute_augmented_frame_embeddings(dataset, opts)
 
@@ -1824,7 +1825,7 @@ defmodule ExPhil.Training.Data do
           Logger.info("[EmbeddingCache] Using cached sequence embeddings")
           %{dataset | embedded_sequences: embedded_seqs}
 
-        {:error, :not_found} ->
+        {:error, %CacheError{}} ->
           # Show available caches for debugging
           available =
             EmbeddingCache.list(cache_dir: cache_dir)

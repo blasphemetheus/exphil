@@ -31,7 +31,7 @@ defmodule ExPhil.Training.GPUUtils do
       {:ok, %{used_mb: 2048, total_mb: 8192, free_mb: 6144, utilization: 45}}
 
       iex> GPUUtils.get_memory_info()
-      {:error, :nvidia_smi_not_found}
+      {:error, %GPUError{reason: :not_found}}
   """
   @spec get_memory_info(non_neg_integer()) :: {:ok, map()} | {:error, GPUError.t()}
   def get_memory_info(device_id \\ 0) do

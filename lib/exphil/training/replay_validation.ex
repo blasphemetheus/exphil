@@ -13,6 +13,7 @@ defmodule ExPhil.Training.ReplayValidation do
   """
 
   alias ExPhil.Training.Output
+  alias ExPhil.Error.ValidationError
 
   # Minimum valid SLP file size (header + some frames)
   # A completely empty game with no frames is still ~8KB
@@ -135,7 +136,7 @@ defmodule ExPhil.Training.ReplayValidation do
     )
     |> Enum.map(fn
       {:ok, result} -> result
-      {:exit, _reason} -> {nil, {:error, :timeout}}
+      {:exit, _reason} -> {nil, {:error, ValidationError.new(:timeout)}}
     end)
     |> Enum.reject(fn {path, _} -> is_nil(path) end)
   end
@@ -143,9 +144,9 @@ defmodule ExPhil.Training.ReplayValidation do
   defp check_exists(path) do
     case File.stat(path) do
       {:ok, %{type: :regular}} -> :ok
-      {:ok, %{type: _other}} -> {:error, :not_regular_file}
-      {:error, :enoent} -> {:error, :not_found}
-      {:error, :eacces} -> {:error, :permission_denied}
+      {:ok, %{type: _other}} -> {:error, ValidationError.new(:not_regular_file, path: path)}
+      {:error, :enoent} -> {:error, ValidationError.new(:not_found, path: path)}
+      {:error, :eacces} -> {:error, ValidationError.new(:permission_denied, path: path)}
       {:error, reason} -> {:error, reason}
     end
   end
@@ -153,7 +154,7 @@ defmodule ExPhil.Training.ReplayValidation do
   defp check_size(path) do
     case File.stat(path) do
       {:ok, %{size: size}} when size >= @min_file_size -> :ok
-      {:ok, %{size: size}} when size < @min_file_size -> {:error, :file_too_small}
+      {:ok, %{size: size}} when size < @min_file_size -> {:error, ValidationError.new(:file_too_small, path: path, context: %{min_size: @min_file_size, actual_size: size})}
       {:error, reason} -> {:error, reason}
     end
   end
@@ -165,9 +166,9 @@ defmodule ExPhil.Training.ReplayValidation do
           case IO.binread(file, 4) do
             # SLP raw format starts with 0x7B 0x55 (ASCII "{U")
             <<0x7B, 0x55, _, _>> -> :ok
-            :eof -> {:error, :empty_file}
+            :eof -> {:error, ValidationError.new(:empty_file, path: path)}
             {:error, reason} -> {:error, reason}
-            _other -> {:error, :invalid_format}
+            _other -> {:error, ValidationError.new(:invalid_format, path: path, context: %{expected_magic: "0x7B55"})}
           end
 
         File.close(file)
@@ -202,6 +203,7 @@ defmodule ExPhil.Training.ReplayValidation do
     end
   end
 
+  defp format_error(%ValidationError{reason: reason}), do: format_error(reason)
   defp format_error(:not_found), do: "file not found"
   defp format_error(:permission_denied), do: "permission denied"
   defp format_error(:file_too_small), do: "file too small (< #{div(@min_file_size, 1024)} KB)"
