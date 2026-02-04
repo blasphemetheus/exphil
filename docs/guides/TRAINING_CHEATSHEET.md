@@ -25,10 +25,16 @@ mix run scripts/train_from_replays.exs --epochs 10 --val-split 0.1 --save-best
 
 ### Temporal Training (Recommended)
 ```bash
-# Mamba backbone (best quality)
+# Mamba backbone (recommended - best speed/accuracy)
 mix run scripts/train_from_replays.exs --temporal --backbone mamba
 
-# LSTM (simpler, still good)
+# Liquid Neural Networks (adaptive dynamics)
+mix run scripts/train_from_replays.exs --temporal --backbone liquid
+
+# RWKV-7 (O(1) memory inference)
+mix run scripts/train_from_replays.exs --temporal --backbone rwkv
+
+# LSTM (best accuracy, but slow)
 mix run scripts/train_from_replays.exs --temporal --backbone lstm
 
 # With K-means stick discretization (better precision)
@@ -64,7 +70,7 @@ mix run scripts/train_from_replays.exs \
 |------|--------------|
 | `--preset NAME` | Load preset (quick, standard, full, mewtwo, ganondorf) |
 | `--temporal` | Enable temporal training (sequences) |
-| `--backbone TYPE` | lstm, gru, mamba, mamba_nif, sliding_window |
+| `--backbone TYPE` | mamba, lstm, liquid, rwkv, gla, zamba, + 9 more (see TRAINING.md) |
 | `--train-character CHAR` | Auto-select port with character |
 | `--dual-port` | Train on both players (2x data) |
 | `--augment` | Enable data augmentation |
@@ -158,4 +164,5 @@ export EXPHIL_WANDB_PROJECT=my-project      # W&B project name
 
 - [TRAINING.md](TRAINING.md) - Full documentation
 - [TRAINING_FEATURES.md](TRAINING_FEATURES.md) - Feature details
-- [GOTCHAS.md](GOTCHAS.md) - Common pitfalls
+- [Architecture Guide](../reference/architectures/ARCHITECTURE_GUIDE.md) - Backbone explanations
+- [GOTCHAS.md](../reference/GOTCHAS.md) - Common pitfalls
