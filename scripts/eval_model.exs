@@ -667,8 +667,8 @@ evaluate_model = fn model_path ->
       # Confidence tracking (using Metrics module for softmax)
       main_x_probs = Metrics.softmax(main_x)
       main_y_probs = Metrics.softmax(main_y)
-      c_x_probs = Metrics.softmax(c_x)
-      c_y_probs = Metrics.softmax(c_y)
+      _c_x_probs = Metrics.softmax(c_x)
+      _c_y_probs = Metrics.softmax(c_y)
 
       batch_main_x_conf = Metrics.avg_confidence(main_x)
       batch_main_y_conf = Metrics.avg_confidence(main_y)
