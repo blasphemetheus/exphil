@@ -982,6 +982,21 @@ file_chunks =
 # Standard mode: parse all files upfront
 {parse_time, {all_frames, errors}} =
   if not streaming_mode do
+    total_files_to_parse = length(replay_files)
+    Output.puts("\n  Parsing #{total_files_to_parse} replay files...")
+
+    # Progress tracking - update every 10 files or 5% of total, whichever is larger
+    progress_interval = max(10, div(total_files_to_parse, 20))
+
+    # Helper to show parsing progress (inline, overwrites line)
+    show_parse_progress = fn completed, total ->
+      pct = div(completed * 100, max(total, 1))
+      filled = div(pct, 4)
+      empty = 25 - filled
+      bar = String.duplicate("█", filled) <> String.duplicate("░", empty)
+      IO.write(:stderr, "\r  Parsing: [#{bar}] #{pct}% (#{completed}/#{total})\e[K")
+    end
+
     :timer.tc(fn ->
       replay_files
       |> Task.async_stream(
@@ -1042,24 +1057,43 @@ file_chunks =
         max_concurrency: System.schedulers_online(),
         timeout: :infinity
       )
-      |> Enum.reduce({0, 0, [], [], 0, []}, fn
+      |> Enum.reduce({0, 0, [], [], 0, [], 0}, fn
         {:ok, {:ok, _path, frame_count, frames, quality_score}},
-        {total_files, total_frames, all_frames, errors, rejected, scores} ->
+        {total_files, total_frames, all_frames, errors, rejected, scores, completed} ->
           scores = if quality_score, do: [quality_score | scores], else: scores
+          completed = completed + 1
+
+          # Show progress at intervals
+          if rem(completed, progress_interval) == 0 or completed == total_files_to_parse do
+            show_parse_progress.(completed, total_files_to_parse)
+          end
 
           {total_files + 1, total_frames + frame_count, [frames | all_frames], errors, rejected,
-           scores}
+           scores, completed}
 
         {:ok, {:quality_rejected, _path, _score}},
-        {total_files, total_frames, all_frames, errors, rejected, scores} ->
-          {total_files, total_frames, all_frames, errors, rejected + 1, scores}
+        {total_files, total_frames, all_frames, errors, rejected, scores, completed} ->
+          completed = completed + 1
+
+          if rem(completed, progress_interval) == 0 or completed == total_files_to_parse do
+            show_parse_progress.(completed, total_files_to_parse)
+          end
+
+          {total_files, total_frames, all_frames, errors, rejected + 1, scores, completed}
 
         {:ok, {:error, path, reason}},
-        {total_files, total_frames, all_frames, errors, rejected, scores} ->
+        {total_files, total_frames, all_frames, errors, rejected, scores, completed} ->
           error = %{path: path, reason: reason}
+          completed = completed + 1
 
-          # Show error if enabled
+          # Show progress (clear line first for error message)
+          if rem(completed, progress_interval) == 0 do
+            show_parse_progress.(completed, total_files_to_parse)
+          end
+
+          # Show error if enabled (on new line)
           if show_errors do
+            IO.write(:stderr, "\n")
             Output.puts("  ⚠ Failed: #{Path.basename(path)}")
             Output.puts("    Reason: #{inspect(reason)}")
           end
@@ -1077,14 +1111,22 @@ file_chunks =
             System.halt(1)
           end
 
-          {total_files, total_frames, all_frames, [error | errors], rejected, scores}
+          {total_files, total_frames, all_frames, [error | errors], rejected, scores, completed}
 
-        {:exit, reason}, {total_files, total_frames, all_frames, errors, rejected, scores} ->
+        {:exit, reason}, {total_files, total_frames, all_frames, errors, rejected, scores, completed} ->
           # Task crashed - treat as error
           error = %{path: "unknown", reason: {:exit, reason}}
-          {total_files, total_frames, all_frames, [error | errors], rejected, scores}
+          completed = completed + 1
+
+          if rem(completed, progress_interval) == 0 do
+            show_parse_progress.(completed, total_files_to_parse)
+          end
+
+          {total_files, total_frames, all_frames, [error | errors], rejected, scores, completed}
       end)
-      |> then(fn {files, frames, frame_lists, errors, quality_rejected, quality_scores} ->
+      |> then(fn {files, frames, frame_lists, errors, quality_rejected, quality_scores, _completed} ->
+        # Move to new line after progress bar
+        IO.write(:stderr, "\n")
         Output.puts("  Parsed #{files} files, #{frames} total frames")
 
         if quality_rejected > 0 do
