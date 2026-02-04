@@ -436,9 +436,17 @@ state = %{
   policy_model: policy_model
 }
 
+Output.puts("")
+Output.puts("  Collecting first rollout from #{opts.num_games} games...")
+
 final_state =
   Enum.reduce_while(1..total_iterations, state, fn iter, state ->
     iter_start = System.monotonic_time(:millisecond)
+
+    # Show collection status for first few iterations
+    if iter <= 3 do
+      IO.write(:stderr, "\r  [iter #{iter}/#{total_iterations}] Collecting #{opts.rollout_length} steps...\e[K")
+    end
 
     # Collect experience from all games
     experiences = Supervisor.collect_steps(opts.rollout_length)
