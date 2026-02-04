@@ -40,6 +40,7 @@ defmodule ExPhil.Training.Config.Yaml do
   """
 
   alias ExPhil.Training.Config.AtomSafety
+  alias ExPhil.Error.{YamlError, ConfigError}
 
   @type yaml_context :: %{
           valid_backbones: [atom()],
@@ -80,18 +81,17 @@ defmodule ExPhil.Training.Config.Yaml do
 
   ## Examples
 
-      iex> Yaml.load("missing.yaml", %{})
-      {:error, :file_not_found}
+      iex> {:error, %ExPhil.Error.YamlError{reason: :file_not_found}} = Yaml.load("missing.yaml", %{})
 
   """
-  @spec load(String.t(), yaml_context()) :: {:ok, keyword()} | {:error, atom() | String.t()}
+  @spec load(String.t(), yaml_context()) :: {:ok, keyword()} | {:error, YamlError.t() | term()}
   def load(path, context) do
     case File.read(path) do
       {:ok, content} ->
         parse(content, context)
 
       {:error, :enoent} ->
-        {:error, :file_not_found}
+        {:error, YamlError.new(:file_not_found, path: path)}
 
       {:error, reason} ->
         {:error, reason}
@@ -120,7 +120,7 @@ defmodule ExPhil.Training.Config.Yaml do
         {:ok, opts}
 
       {:ok, _other} ->
-        {:error, :invalid_yaml_format}
+        {:error, YamlError.new(:invalid_format, context: %{details: "expected YAML map"})}
 
       {:error, reason} ->
         {:error, reason}
@@ -186,7 +186,7 @@ defmodule ExPhil.Training.Config.Yaml do
     case AtomSafety.safe_to_existing_atom(normalized) do
       {:ok, atom} -> atom
       # Fall back to known config keys or raise for unknown keys
-      {:error, :not_existing} ->
+      {:error, %ConfigError{}} ->
         raise ArgumentError, "Unknown config key: #{inspect(key)}"
     end
   end

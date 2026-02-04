@@ -2,6 +2,7 @@ defmodule ExPhil.Training.ConfigTest do
   use ExUnit.Case, async: true
 
   alias ExPhil.Training.Config
+  alias ExPhil.Error.YamlError
 
   # Run doctests for this module
   doctest ExPhil.Training.Config
@@ -2014,7 +2015,7 @@ defmodule ExPhil.Training.ConfigTest do
     end
 
     test "returns error for missing file" do
-      {:error, :file_not_found} = Config.load_yaml("/nonexistent/config.yaml")
+      {:error, %YamlError{reason: :file_not_found}} = Config.load_yaml("/nonexistent/config.yaml")
     end
   end
 
@@ -2319,7 +2320,7 @@ defmodule ExPhil.Training.ConfigTest do
 
   describe "YAML parsing errors" do
     test "load_yaml returns error for non-existent file" do
-      assert {:error, :file_not_found} = Config.load_yaml("/nonexistent/config.yaml")
+      assert {:error, %YamlError{reason: :file_not_found}} = Config.load_yaml("/nonexistent/config.yaml")
     end
 
     test "parse_yaml handles malformed YAML" do
@@ -2342,12 +2343,12 @@ defmodule ExPhil.Training.ConfigTest do
       - item2
       """
 
-      assert {:error, :invalid_yaml_format} = Config.parse_yaml(list_yaml)
+      assert {:error, %YamlError{reason: :invalid_format}} = Config.parse_yaml(list_yaml)
     end
 
     test "parse_yaml handles scalar YAML" do
       scalar_yaml = "just a string"
-      assert {:error, :invalid_yaml_format} = Config.parse_yaml(scalar_yaml)
+      assert {:error, %YamlError{reason: :invalid_format}} = Config.parse_yaml(scalar_yaml)
     end
   end
 

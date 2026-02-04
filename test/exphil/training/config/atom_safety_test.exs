@@ -2,6 +2,7 @@ defmodule ExPhil.Training.Config.AtomSafetyTest do
   use ExUnit.Case, async: true
 
   alias ExPhil.Training.Config.AtomSafety
+  alias ExPhil.Error.ConfigError
 
   describe "safe_to_atom/2" do
     test "converts valid string to atom" do
@@ -16,26 +17,26 @@ defmodule ExPhil.Training.Config.AtomSafetyTest do
     test "returns error for invalid string" do
       allowed = [:lstm, :gru, :mamba]
 
-      assert {:error, :invalid_value} = AtomSafety.safe_to_atom("invalid", allowed)
-      assert {:error, :invalid_value} = AtomSafety.safe_to_atom("transformer", allowed)
+      assert {:error, %ConfigError{reason: :invalid_value}} = AtomSafety.safe_to_atom("invalid", allowed)
+      assert {:error, %ConfigError{reason: :invalid_value}} = AtomSafety.safe_to_atom("transformer", allowed)
     end
 
     test "is case-sensitive" do
       allowed = [:lstm, :gru, :mamba]
 
-      assert {:error, :invalid_value} = AtomSafety.safe_to_atom("LSTM", allowed)
-      assert {:error, :invalid_value} = AtomSafety.safe_to_atom("Mamba", allowed)
-      assert {:error, :invalid_value} = AtomSafety.safe_to_atom("GRU", allowed)
+      assert {:error, %ConfigError{reason: :invalid_value}} = AtomSafety.safe_to_atom("LSTM", allowed)
+      assert {:error, %ConfigError{reason: :invalid_value}} = AtomSafety.safe_to_atom("Mamba", allowed)
+      assert {:error, %ConfigError{reason: :invalid_value}} = AtomSafety.safe_to_atom("GRU", allowed)
     end
 
     test "handles empty string" do
       allowed = [:lstm, :gru]
 
-      assert {:error, :invalid_value} = AtomSafety.safe_to_atom("", allowed)
+      assert {:error, %ConfigError{reason: :invalid_value}} = AtomSafety.safe_to_atom("", allowed)
     end
 
     test "handles empty allowlist" do
-      assert {:error, :invalid_value} = AtomSafety.safe_to_atom("anything", [])
+      assert {:error, %ConfigError{reason: :invalid_value}} = AtomSafety.safe_to_atom("anything", [])
     end
 
     test "does not create new atoms for invalid input" do
@@ -43,7 +44,7 @@ defmodule ExPhil.Training.Config.AtomSafetyTest do
       random_string = "definitely_not_an_atom_#{:rand.uniform(1_000_000)}"
       allowed = [:valid]
 
-      {:error, :invalid_value} = AtomSafety.safe_to_atom(random_string, allowed)
+      {:error, %ConfigError{reason: :invalid_value}} = AtomSafety.safe_to_atom(random_string, allowed)
 
       # The atom should not exist
       assert_raise ArgumentError, fn ->
@@ -72,7 +73,7 @@ defmodule ExPhil.Training.Config.AtomSafetyTest do
     test "returns error for invalid string even with case conversion" do
       allowed = [:lstm, :gru]
 
-      assert {:error, :invalid_value} = AtomSafety.safe_to_atom_downcase("INVALID", allowed)
+      assert {:error, %ConfigError{reason: :invalid_value}} = AtomSafety.safe_to_atom_downcase("INVALID", allowed)
     end
   end
 
@@ -118,7 +119,7 @@ defmodule ExPhil.Training.Config.AtomSafetyTest do
     test "returns error for non-existing atom" do
       random = "definitely_not_existing_#{:rand.uniform(1_000_000)}"
 
-      assert {:error, :not_existing} = AtomSafety.safe_to_existing_atom(random)
+      assert {:error, %ConfigError{reason: :invalid_value}} = AtomSafety.safe_to_existing_atom(random)
     end
   end
 
@@ -162,13 +163,13 @@ defmodule ExPhil.Training.Config.AtomSafetyTest do
     test "returns error for invalid atom" do
       allowed = [:lstm, :gru]
 
-      assert {:error, :invalid_value} = AtomSafety.validate(:mamba, allowed)
+      assert {:error, %ConfigError{reason: :invalid_value}} = AtomSafety.validate(:mamba, allowed)
     end
 
     test "returns error for invalid string" do
       allowed = [:lstm, :gru]
 
-      assert {:error, :invalid_value} = AtomSafety.validate("mamba", allowed)
+      assert {:error, %ConfigError{reason: :invalid_value}} = AtomSafety.validate("mamba", allowed)
     end
   end
 
@@ -179,7 +180,7 @@ defmodule ExPhil.Training.Config.AtomSafetyTest do
 
       for i <- 1..100 do
         input = "malicious_input_#{i}_#{:rand.uniform(1_000_000)}"
-        {:error, :invalid_value} = AtomSafety.safe_to_atom(input, allowed)
+        {:error, %ConfigError{reason: :invalid_value}} = AtomSafety.safe_to_atom(input, allowed)
       end
 
       # If we got here without crashing, atoms weren't created
