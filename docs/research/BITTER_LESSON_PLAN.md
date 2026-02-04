@@ -10,15 +10,14 @@ This document outlines concrete changes to ExPhil based on the Bitter Lesson's i
 ## What We're Currently Doing Wrong (By Bitter Lesson Standards)
 
 ### 1. Hand-Crafted Embeddings
-**Current:** 1991-dimensional vector with specific fields:
-- Player positions (x, y)
-- 5 velocity components (carefully chosen from libmelee)
-- Action state one-hot (400+ actions)
-- Character one-hot (26 characters)
-- ECB collision boxes
-- Projectile tracking
+**Previous:** 1204-dimensional vector with specific fields (one-hot actions, characters)
 
-**Problem:** We're encoding our understanding of what matters. The model should learn this.
+**Updated (2026-02):** Now using ~287-dimensional learned embeddings by default:
+- Action IDs → 64-dim trainable embedding (saves ~670 dims)
+- Character IDs → 64-dim trainable embedding (saves ~64 dims)
+- Compact stage mode (7 dims vs 64)
+
+**Remaining concern:** Still hand-picking which features to include (positions, velocities, etc.). The model could potentially learn relevant features from raw game memory.
 
 ### 2. Fixed Stick Discretization
 **Current:** 9 buckets per axis = 81 positions (uniform grid)
@@ -39,21 +38,21 @@ This document outlines concrete changes to ExPhil based on the Bitter Lesson's i
 
 ## What to Change (Prioritized)
 
-### Phase 1: Low-Hanging Fruit (Do Now)
+### Phase 1: Low-Hanging Fruit — COMPLETE
 
-#### 1A. Learned Stick Discretization
-**Current:** Uniform 9-bucket grid
-**Change to:** K-means clustering on replay action data
+#### 1A. Learned Stick Discretization — DONE
+**Previous:** Uniform 9-bucket grid
+**Implemented:** K-means clustering on replay action data
 
-```elixir
-# scripts/train_kmeans.exs already exists
-# Experiment: Compare uniform vs K-means discretization
+```bash
+# Train K-means centers
+mix run scripts/train_kmeans.exs --replays ./replays --k 21 --output priv/kmeans_centers.nx
 
-# Hypothesis: K-means will match game engine's internal discretization better
-# Metric: BC loss, action prediction accuracy
+# Use in training
+mix run scripts/train_from_replays.exs --kmeans-centers priv/kmeans_centers.nx
 ```
 
-**Why this helps:** Let data determine optimal binning instead of us guessing.
+**Result (2026-01-30):** K-means didn't significantly improve accuracy because stick errors are timing-based (when to move), not resolution-based (where to move). See GOALS.md for full analysis.
 
 #### 1B. Larger Models (Scale Up)
 **Current:** 512×512 MLP, 256-dim Mamba
@@ -81,23 +80,21 @@ mix run scripts/train_from_replays.exs --hidden 1024,1024 --temporal --backbone 
 
 ### Phase 2: Reduce Hand-Engineering (Next Month)
 
-#### 2A. Simplified Embeddings Experiment
-**Current:** Carefully crafted 1991-dim vector
-**Experiment:** Compare against simpler representations:
+#### 2A. Simplified Embeddings Experiment — PARTIALLY COMPLETE
 
-| Variant | Description | Dims |
-|---------|-------------|------|
-| Full | Current embedding | 1991 |
-| Minimal | Just (x, y, action, percent, stocks) × 2 players | ~50 |
-| Flat | All libmelee fields concatenated (no design) | ~200 |
-| Learned | Embed raw action IDs, let model learn meaning | ~100 + embed layer |
+**Previous:** Carefully crafted 1204-dim vector (one-hot everything)
+**Now default:** ~287-dim learned embeddings
 
-```elixir
-# New module: lib/exphil/embeddings/minimal.ex
-# Compare BC loss convergence curves for each
-```
+| Variant | Description | Dims | Status |
+|---------|-------------|------|--------|
+| Full (one-hot) | Original embedding | 1204 | Available (`--action-mode one_hot`) |
+| **Learned** | Embed action/char IDs in network | ~287 | **Default since Jan 2026** |
+| Minimal | Just (x, y, action, percent, stocks) × 2 players | ~50 | Not implemented |
+| Flat | All libmelee fields concatenated (no design) | ~200 | Not implemented |
 
-**Hypothesis:** With enough data, Minimal or Flat may match Full.
+**Result so far:** Learned embeddings allow 6x larger networks at same training speed.
+
+**Remaining experiment:** Compare Minimal/Flat against Learned to test if we're still over-engineering.
 
 #### 2B. Single Sparse Reward
 **Current plan:** Character-specific shaped rewards
@@ -176,11 +173,13 @@ Options:
 | Memory MB | ? | ? | ? |
 
 ### Experiment 3: Embedding Ablation
-| Metric | Full (1991) | Minimal (50) | Flat (200) |
-|--------|-------------|--------------|------------|
-| BC loss | baseline | ? | ? |
-| Training time | baseline | faster | faster |
-| Win rate | ? | ? | ? |
+| Metric | One-hot (1204) | Learned (287) | Minimal (50) | Flat (200) |
+|--------|----------------|---------------|--------------|------------|
+| BC loss | baseline | ✓ similar | ? | ? |
+| Training time | baseline | ✓ 6x faster networks | faster | faster |
+| Win rate | ? | ? | ? | ? |
+
+**Note:** Learned embeddings (287 dims) are now the default. One-hot available via `--action-mode one_hot --character-mode one_hot`.
 
 ### Experiment 4: BC vs Pure RL
 | Metric | BC+RL | Pure RL (10M samples) |
