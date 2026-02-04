@@ -138,7 +138,7 @@ mix run scripts/train_from_replays.exs --dual-port
 | `--player-port N` | 1 | Which player to learn from (1 or 2) |
 | `--train-character CHAR` | nil | Auto-select port with this character |
 | `--dual-port` | false | Train on BOTH players (2x data) |
-| `--hidden N,N` | 512,512 | Hidden layer sizes |
+| `--hidden N,N,N` | 512,512,256 | Hidden layer sizes |
 | `--lr X` | 1e-4 | Learning rate (alias: `--learning-rate`) |
 | `--dropout X` | 0.1 | Dropout rate |
 | `--name NAME` | nil | Custom checkpoint name |
@@ -319,7 +319,7 @@ These options apply to multiple new architectures:
 | `--stream-chunk-size N` | nil | Load N files at a time (memory-bounded) |
 | `--pipeline-chunks` | true | Prepare next chunk while training (overlaps CPU/GPU) |
 | `--no-pipeline-chunks` | - | Disable chunk pipelining (sequential processing) |
-| `--cache-streaming` | false | Cache chunk embeddings to disk (reuse across epochs) |
+| `--cache-streaming` | true | Cache chunk embeddings to disk (reuse across epochs) |
 | `--no-cache-streaming` | - | Disable streaming cache |
 | `--gc-every N` | 100 | Run garbage collection every N batches (0=disabled) |
 
@@ -333,10 +333,10 @@ These options apply to multiple new architectures:
 | `--noise-scale X` | 0.01 | Noise magnitude |
 | `--cache-augmented` | false | Precompute augmented variants (~100x speedup) |
 | `--num-noisy-variants N` | 2 | Number of noisy variants to precompute |
-| `--label-smoothing X` | 0.0 | Label smoothing (0.1 = typical) |
+| `--label-smoothing X` | 0.1 | Label smoothing (prevents overconfidence) |
 | `--focal-loss` | false | Enable focal loss for rare actions |
 | `--focal-gamma X` | 2.0 | Focal loss gamma (higher = focus on hard) |
-| `--button-weight X` | 1.0 | Multiply button loss (try 3.0-5.0 to boost buttons) |
+| `--button-weight X` | 2.0 | Multiply button loss (fixes under-prediction) |
 | `--stick-edge-weight X` | nil | Weight edge stick buckets higher (try 2.0-3.0) |
 
 **Augmented Embedding Cache (Recommended)**

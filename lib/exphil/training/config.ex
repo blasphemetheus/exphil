@@ -28,7 +28,8 @@ defmodule ExPhil.Training.Config do
   # Default replays directory - relative path for portability
   # Can be overridden with --replays or --replay-dir
   @default_replays_dir "./replays"
-  @default_hidden_sizes [512, 256]
+  # Larger network - modern GPUs handle this easily, better capacity
+  @default_hidden_sizes [512, 512, 256]
 
   # Mode allowlists for safe atom conversion (used by YAML module)
   @valid_precision_modes [:f32, :bf16, :f16]
@@ -390,14 +391,15 @@ defmodule ExPhil.Training.Config do
       accumulation_steps: 1,
       # Validation split
       val_split: 0.0,
-      # Data augmentation
+      # Data augmentation - mirror states doubles effective data
+      # Off by default since it disables precompute; use --augment for serious training
       augment: false,
       mirror_prob: 0.5,
       noise_prob: 0.3,
       noise_scale: 0.01,
-      # Label smoothing
+      # Label smoothing - prevents overconfidence, standard best practice
       # 0.0 = no smoothing, 0.1 = typical value
-      label_smoothing: 0.0,
+      label_smoothing: 0.1,
       # Dropout rate (0.0 = no dropout, 0.1 = typical)
       # Note: MLP backbone defaults to 0.1 if not specified
       dropout: nil,
@@ -406,8 +408,8 @@ defmodule ExPhil.Training.Config do
       # Higher = more focus on hard examples
       focal_gamma: 2.0,
       # Button loss weight: multiply button loss to balance vs 5 stick/shoulder losses
-      # Default 1.0 = equal weight; try 3.0-5.0 to boost button learning
-      button_weight: 1.0,
+      # 2.0 fixes typical under-prediction of buttons; use 3.0+ for action-heavy characters
+      button_weight: 2.0,
       # Stick edge bucket weight: weight edge buckets (0, 16) higher than center (8)
       # Addresses neutral↔far confusion by penalizing edge mistakes more
       # nil = disabled, 2.0 = edges weighted 2x, linearly interpolated to center
@@ -469,7 +471,8 @@ defmodule ExPhil.Training.Config do
       # Pipeline chunk preparation (prepare N+1 while training on N)
       pipeline_chunks: true,
       # Cache streaming embeddings to disk (reuse across epochs)
-      cache_streaming: false,
+      # No downside, massive speedup on epoch 2+
+      cache_streaming: true,
       # Embedding options
       # Stage: :one_hot_full (64 dims), :one_hot_compact (7 dims), :learned (1 ID)
       stage_mode: :one_hot_compact,

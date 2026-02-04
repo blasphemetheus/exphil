@@ -17,7 +17,7 @@ defmodule ExPhil.Training.ConfigTest do
 
       assert opts[:epochs] == 10
       assert opts[:batch_size] == 64
-      assert opts[:hidden_sizes] == [512, 256]
+      assert opts[:hidden_sizes] == [512, 512, 256]
       assert opts[:temporal] == false
       # FP32 is default - BF16 is 2x slower on RTX 4090 due to XLA issues
       assert opts[:precision] == :f32
@@ -416,7 +416,7 @@ defmodule ExPhil.Training.ConfigTest do
 
       assert defaults[:epochs] == 10
       assert defaults[:batch_size] == 64
-      assert defaults[:hidden_sizes] == [512, 256]
+      assert defaults[:hidden_sizes] == [512, 512, 256]
       assert defaults[:temporal] == false
       assert defaults[:backbone] == :sliding_window
       assert defaults[:window_size] == 60
@@ -1740,9 +1740,9 @@ defmodule ExPhil.Training.ConfigTest do
   end
 
   describe "parse_args/1 with label_smoothing" do
-    test "defaults label_smoothing to 0.0" do
+    test "defaults label_smoothing to 0.1" do
       opts = Config.parse_args([])
-      assert opts[:label_smoothing] == 0.0
+      assert opts[:label_smoothing] == 0.1
     end
 
     test "parses --label-smoothing" do
