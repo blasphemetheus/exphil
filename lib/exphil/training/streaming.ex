@@ -177,10 +177,12 @@ defmodule ExPhil.Training.Streaming do
     stride = Keyword.get(opts, :stride, 1)
     embed_config = Keyword.get(opts, :embed_config)
     player_registry = Keyword.get(opts, :player_registry)
-    # NOTE: In streaming mode, precompute is wasteful since embeddings are
-    # discarded after each chunk. Force precompute=false for streaming.
-    # Embeddings will be computed on-the-fly during training instead.
-    _precompute = Keyword.get(opts, :precompute, true)
+    # Precompute embeddings per-chunk for efficient GPU utilization.
+    # This is NOT wasteful - it's much faster than on-the-fly computation:
+    # - Precompute: one batched GPU operation per chunk
+    # - On-the-fly: embedding computed every batch (CPU-bound, slow)
+    precompute = Keyword.get(opts, :precompute, true)
+    show_progress = Keyword.get(opts, :show_progress, false)
 
     # Build from_frames options with embed_config and player_registry if provided
     from_frames_opts = []
@@ -197,11 +199,33 @@ defmodule ExPhil.Training.Streaming do
 
     dataset = Data.from_frames(frames, from_frames_opts)
 
-    if temporal do
-      Data.to_sequences(dataset,
-        window_size: window_size,
-        stride: stride
-      )
+    dataset =
+      if temporal do
+        Data.to_sequences(dataset,
+          window_size: window_size,
+          stride: stride
+        )
+      else
+        dataset
+      end
+
+    # Precompute embeddings for this chunk if enabled
+    if precompute do
+      if temporal do
+        # For temporal: build sequence embeddings from frame embeddings (30x faster)
+        # 1. Precompute frame embeddings
+        frame_embedded = Data.precompute_frame_embeddings(dataset, show_progress: show_progress)
+        # 2. Build sequence embeddings by slicing frame embeddings
+        Data.sequences_from_frame_embeddings(
+          dataset,
+          frame_embedded.embedded_frames,
+          window_size: window_size,
+          show_progress: show_progress
+        )
+      else
+        # For single-frame: just precompute frame embeddings
+        Data.precompute_frame_embeddings(dataset, show_progress: show_progress)
+      end
     else
       dataset
     end
