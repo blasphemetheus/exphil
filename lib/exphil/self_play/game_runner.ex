@@ -155,9 +155,12 @@ defmodule ExPhil.SelfPlay.GameRunner do
 
   @doc """
   Collects N steps of experience.
+
+  Note: Timeout is set high (5 min) to accommodate first-batch JIT compilation.
+  Use warmup_policy/1 before starting games to avoid this delay during gameplay.
   """
   def collect_steps(runner, n) do
-    GenServer.call(runner, {:collect_steps, n}, 60_000)
+    GenServer.call(runner, {:collect_steps, n}, 300_000)
   end
 
   @doc """

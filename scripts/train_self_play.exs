@@ -330,6 +330,19 @@ Output.step(1, 6, "Initializing policy")
     {model, params, embed_size}
   end
 
+# JIT warmup: Pre-compile model to avoid timeout during first game step
+Output.puts("  ⏳ JIT compiling policy (first inference may take 2-5 min)...")
+warmup_start = System.monotonic_time(:millisecond)
+
+# Build predict function and run a dummy batch to trigger JIT compilation
+{_init_fn, predict_fn} = Axon.build(policy_model, mode: :inference)
+dummy_input = Nx.broadcast(0.0, {1, embed_size})
+# Force evaluation on GPU to ensure EXLA compiles
+_warmup_output = predict_fn.(policy_params, dummy_input) |> Nx.backend_transfer()
+
+warmup_time = System.monotonic_time(:millisecond) - warmup_start
+Output.success("  JIT compilation complete (#{Float.round(warmup_time / 1000, 1)}s)")
+
 # ============================================================================
 # Step 2: Start Self-Play Supervisor
 # ============================================================================
