@@ -1129,6 +1129,8 @@ defmodule ExPhil.Training.Data do
 
     # Process in chunks to show progress and manage memory
     chunk_size = min(500, max(1, div(total, 10)))
+    total_chunks = div(total + chunk_size - 1, chunk_size)
+    start_time = System.monotonic_time(:millisecond)
 
     embedded =
       dataset.frames
@@ -1138,8 +1140,27 @@ defmodule ExPhil.Training.Data do
         # Show progress at interval (reduces log spam)
         if show_progress and rem(chunk_idx, progress_interval) == 0 do
           processed = min((chunk_idx + 1) * chunk_size, total)
-          pct = round(processed / total * 100)
-          IO.write(:stderr, "\r  Embedding: #{pct}% (#{processed}/#{total})\e[K")
+          pct = div(processed * 100, max(total, 1))
+          filled = div(pct, 4)
+          empty = 25 - filled
+
+          # Calculate ETA
+          elapsed_ms = System.monotonic_time(:millisecond) - start_time
+          eta_str =
+            if chunk_idx > 0 do
+              chunks_done = chunk_idx + 1
+              ms_per_chunk = elapsed_ms / chunks_done
+              remaining_chunks = total_chunks - chunks_done
+              eta_ms = remaining_chunks * ms_per_chunk
+              eta_min = div(trunc(eta_ms), 60_000)
+              eta_sec = rem(div(trunc(eta_ms), 1000), 60)
+              " | ETA: #{eta_min}m #{eta_sec}s"
+            else
+              ""
+            end
+
+          bar = String.duplicate("█", filled) <> String.duplicate("░", empty)
+          IO.write(:stderr, "\r  Embedding: [#{bar}] #{pct}% (#{processed}/#{total})#{eta_str}\e[K")
         end
 
         # Periodic garbage collection to prevent memory buildup
@@ -1160,7 +1181,10 @@ defmodule ExPhil.Training.Data do
       end)
 
     if show_progress do
-      IO.puts(:stderr, "\r  Embedding: 100% (#{total}/#{total}) - done!    ")
+      elapsed_ms = System.monotonic_time(:millisecond) - start_time
+      elapsed_sec = Float.round(elapsed_ms / 1000, 1)
+      bar = String.duplicate("█", 25)
+      IO.puts(:stderr, "\r  Embedding: [#{bar}] 100% (#{total}/#{total}) - done in #{elapsed_sec}s\e[K")
     end
 
     # Convert to array for O(1) access during batching and cache compatibility
@@ -1293,6 +1317,10 @@ defmodule ExPhil.Training.Data do
 
     embed_config = dataset.embed_config
 
+    # Calculate total batches for progress tracking
+    total_batches = div(total + batch_size - 1, batch_size)
+    start_time = System.monotonic_time(:millisecond)
+
     # Process in batches for GPU efficiency and memory management
     # Collect batch tensors (each is {batch_size, embed_size})
     batch_tensors =
@@ -1303,8 +1331,27 @@ defmodule ExPhil.Training.Data do
         # Show progress at interval (reduces log spam)
         if show_progress and rem(chunk_idx, progress_interval) == 0 do
           processed = min((chunk_idx + 1) * batch_size, total)
-          pct = round(processed / total * 100)
-          IO.write(:stderr, "\r  Embedding: #{pct}% (#{processed}/#{total})\e[K")
+          pct = div(processed * 100, max(total, 1))
+          filled = div(pct, 4)
+          empty = 25 - filled
+
+          # Calculate ETA
+          elapsed_ms = System.monotonic_time(:millisecond) - start_time
+          eta_str =
+            if chunk_idx > 0 do
+              batches_done = chunk_idx + 1
+              ms_per_batch = elapsed_ms / batches_done
+              remaining_batches = total_batches - batches_done
+              eta_ms = remaining_batches * ms_per_batch
+              eta_min = div(trunc(eta_ms), 60_000)
+              eta_sec = rem(div(trunc(eta_ms), 1000), 60)
+              " | ETA: #{eta_min}m #{eta_sec}s"
+            else
+              ""
+            end
+
+          bar = String.duplicate("█", filled) <> String.duplicate("░", empty)
+          IO.write(:stderr, "\r  Embedding: [#{bar}] #{pct}% (#{processed}/#{total})#{eta_str}\e[K")
         end
 
         # Periodic garbage collection to prevent memory buildup
@@ -1326,7 +1373,10 @@ defmodule ExPhil.Training.Data do
       end)
 
     if show_progress do
-      IO.puts(:stderr, "\r  Embedding: 100% (#{total}/#{total}) - done!    ")
+      elapsed_ms = System.monotonic_time(:millisecond) - start_time
+      elapsed_sec = Float.round(elapsed_ms / 1000, 1)
+      bar = String.duplicate("█", 25)
+      IO.puts(:stderr, "\r  Embedding: [#{bar}] 100% (#{total}/#{total}) - done in #{elapsed_sec}s\e[K")
     end
 
     # Concatenate all batch tensors into a single tensor {num_frames, embed_size}
