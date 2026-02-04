@@ -2,7 +2,7 @@
 
 This document tracks the major goals and roadmap for ExPhil development.
 
-**Last Updated:** 2026-01-23
+**Last Updated:** 2026-02-03
 
 ---
 
@@ -20,7 +20,11 @@ This document tracks the major goals and roadmap for ExPhil development.
 - GitHub Actions CI (test, format, dialyzer)
 - **Self-play RL infrastructure** (GenServer architecture, PPO integration, Elo matchmaking)
 - Mock environment with physics (for fast self-play testing)
-- 1933 tests passing
+- **Major refactoring** (config.ex, policy.ex, imitation.ex, game.ex decomposition)
+- **Mamba unification** (shared Common module across 5 variants)
+- **Structured error types** (11 error modules: AgentError, BridgeError, CacheError, etc.)
+- **ScriptTemplate module** for script boilerplate reduction
+- 2292 tests (up from 1933)
 
 ### Next Step
 

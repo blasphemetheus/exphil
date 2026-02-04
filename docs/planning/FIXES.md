@@ -13,59 +13,72 @@ This document tracks identified issues and planned improvements from the January
 
 ## 1. Architecture & Module Organization
 
-### 1.1 Giant Modules Need Decomposition [P1]
+### 1.1 Giant Modules Need Decomposition [P1] - MOSTLY COMPLETE
 
-| Module | Lines | Issue |
-|--------|-------|-------|
-| `config.ex` | 3,216 | Mixing parsing, validation, presets, YAML, smart inference |
-| `policy.ex` | 2,060 | Backbone selection, sampling, loss computation mixed |
-| `imitation.ex` | ~~1,801~~ 583 | **DONE** - Decomposed to 5 submodules |
-| `game.ex` (embedding) | 1,156 | All embedding logic in one file |
-| `player.ex` (embedding) | 1,290 | All embedding logic in one file |
+| Module | Original | Current | Status |
+|--------|----------|---------|--------|
+| `config.ex` | 3,216 | 1,297 | **DONE** - 8 submodules extracted (60% reduction) |
+| `policy.ex` | 2,060 | 544 | **DONE** - 5 submodules extracted (74% reduction) |
+| `imitation.ex` | 1,801 | 583 | **DONE** - 5 submodules extracted (68% reduction) |
+| `game.ex` (embedding) | 1,156 | 576 | **DONE** - 5 submodules extracted (50% reduction) |
+| `player.ex` (embedding) | 1,290 | 1,146 | **IN PROGRESS** - 2 submodules, needs more extraction |
 
-**config.ex Split Plan:**
-```
-lib/exphil/training/config/
-├── parser.ex          # CLI argument parsing
-├── validator.ex       # Validation rules and error collection
-├── presets.ex         # Training presets (quick, standard, production, etc.)
-├── defaults.ex        # Default values and env var handling
-├── yaml.ex            # YAML loading and conversion
-├── inference.ex       # Smart flag inference (infer_smart_defaults)
-├── json_builder.ex    # Config JSON for model provenance
-└── config.ex          # Main module, delegates to submodules
-```
+**config.ex submodules (DONE):**
+- `config/parser.ex` (652 lines) - CLI argument parsing
+- `config/presets.ex` (617 lines) - Training preset definitions
+- `config/validator.ex` (475 lines) - Validation rules
+- `config/yaml.ex` (258 lines) - YAML loading/saving
+- `config/inference.ex` (199 lines) - Smart flag inference
+- `config/atom_safety.ex` (188 lines) - Safe atom conversion
+- `config/checkpoint.ex` (172 lines) - Checkpoint safety
+- `config/diff.ex` (120 lines) - Config diff display
 
-**policy.ex Split Plan:**
-```
-lib/exphil/networks/policy/
-├── backbone.ex        # Backbone selection and building
-├── heads.ex           # Controller output heads (buttons, sticks, shoulder)
-├── sampling.ex        # Action sampling logic
-├── loss.ex            # Loss computation (cross-entropy, focal)
-├── embeddings.ex      # Action/character embedding handling
-└── policy.ex          # Main module, orchestrates above
-```
+**policy.ex submodules (DONE):**
+- `policy/backbone.ex` (731 lines) - Temporal/non-temporal backbone builders
+- `policy/loss.ex` (429 lines) - BCE, CE, focal, weighted loss
+- `policy/embeddings.ex` (450 lines) - Action/character embedding
+- `policy/heads.ex` (297 lines) - Controller output heads
+- `policy/sampling.ex` (198 lines) - Action sampling
 
-### 1.2 Multiple Mamba Implementations [P2]
+**game.ex submodules (DONE):**
+- `game/config.ex` (290 lines) - Embedding configuration
+- `game/stage.ex` (195 lines) - Stage embedding
+- `game/spatial.ex` (159 lines) - Spatial features
+- `game/projectiles.ex` (155 lines) - Projectile embedding
+- `game/items.ex` (135 lines) - Item embedding
 
-Five separate Mamba variants with no shared abstraction:
-- `mamba.ex` - Standard Mamba
-- `mamba_ssd.ex` - SSD variant
-- `mamba_nif.ex` - NIF-accelerated
-- `mamba_cumsum.ex` - Cumsum-based scan
-- `mamba_hillis_steele.ex` - Parallel scan variant
+**player.ex submodules (IN PROGRESS):**
+- `player/action.ex` (189 lines) - Action embedding helpers
+- `player/ids.ex` (143 lines) - ID extraction
+- `nana.ex` (241 lines) - Nana embedding helpers (separate module)
+- **Remaining:** ~800 lines in main player.ex need extraction
 
-**Plan:** Create `MambaBehaviour` module defining common interface, extract shared logic into helpers.
+### 1.2 Multiple Mamba Implementations [P2] - DONE
 
-### 1.3 Embedding Logic Duplication [P2]
+~~Five separate Mamba variants with no shared abstraction.~~
 
-Three Nana embedding functions share ~60% code:
-- `embed_batch_nana_compact/2`
-- `embed_batch_nana_enhanced/2`
-- `embed_batch_nana_full/2`
+**Completed:** Unified with shared `Mamba.Common` module (580 lines):
+- Default hyperparameters, model builder, block builder
+- Depthwise convolution, SSM projections, discretization
+- Scan algorithms (sequential, blelloch)
 
-**Plan:** Extract common `extract_nana_values/1` and `compute_nana_flags/1` helpers.
+All variants now use higher-order functions for scan injection:
+- `mamba.ex` (200 lines, 65% reduction) - Blelloch scan
+- `mamba_hillis_steele.ex` (139 lines, 48% reduction)
+- `mamba_cumsum.ex` (179 lines, 55% reduction)
+- `mamba_ssd.ex` (286 lines, 39% reduction)
+- `mamba_nif.ex` (172 lines, 48% reduction)
+
+### 1.3 Embedding Logic Duplication [P2] - DONE
+
+~~Three Nana embedding functions share ~60% code.~~
+
+**Completed:** Extracted to `lib/exphil/embeddings/nana.ex`:
+- `extract_batch_values/1`, `compute_batch_flags/3`
+- `extract_values/1`, `compute_flags/4`
+- `any_nana_exists?/1`, `get_action_id/1`
+
+IC tech flag logic now centralized (was duplicated 4 times).
 
 ---
 
@@ -378,12 +391,45 @@ IC tech flag logic now centralized (was duplicated 4 times):
 - Attack, grab, can_act detection by action category
 - on_ground detection from Y position
 
+### Completed (Structured error types - 2026-02-03)
+
+- [x] Added 11 new error types to `lib/exphil/error.ex`:
+  - `AgentError` - policy loading, agent lookup failures
+  - `ValidationError` - file validation (not_found, permission, size, format)
+  - `LeagueError` - agent registration and lookup in leagues
+  - `SelfPlayError` - game state and policy errors
+  - `RegistryError` - model registry operations
+  - `WandBError` - Weights & Biases integration
+  - `TelemetryError` - metrics collection
+  - `CacheError` - embedding/mmap cache operations
+  - `RecoveryError` - training recovery markers
+  - `YamlError` - YAML config parsing
+
+- [x] Extended existing error types:
+  - `CheckpointError` - added `:queue_full` reason
+  - `BridgeError` - added `:port_closed` reason
+
+- [x] Updated all modules to use structured errors instead of bare atoms
+  - Agents, Bridge, Training, Config, Data, League, SelfPlay, Integrations
+
+### Completed (ScriptTemplate module - 2026-02-03)
+
+- [x] Created `lib/exphil/script_template.ex` for script boilerplate reduction
+  - `setup_environment/1` - Configure Logger, EXLA before operations
+  - `validate_replay_directory/1` - Check directory exists and has .slp files
+  - `validate_checkpoint/1` - Verify checkpoint file exists
+
+- [x] Added character filter scripts:
+  - `scripts/filter_by_character.exs` - Copy replays containing specific characters
+  - `scripts/organize_by_character.exs` - Sort replays into character-named folders
+
 ### Planned
 
-**Other planned work**:
+**Remaining work**:
+- [ ] Complete player.ex decomposition (~800 lines remaining)
+- [ ] Fix 65 test failures from structured error migration
 - [ ] Add property-based tests
-- [ ] Update outdated documentation
-- [ ] Create shared script template
+- [ ] Update research documentation
 
 ---
 
@@ -421,5 +467,7 @@ IC tech flag logic now centralized (was duplicated 4 times):
 *config.ex decomposition completed: 2026-02-03*
 *policy.ex decomposition completed: 2026-02-03*
 *imitation.ex decomposition completed: 2026-02-03*
+*game.ex decomposition completed: 2026-02-03*
 *Mamba unification completed: 2026-02-03*
 *Nana helpers extraction completed: 2026-02-03*
+*Structured error types completed: 2026-02-03*
