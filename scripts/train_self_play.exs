@@ -303,7 +303,23 @@ Output.step(1, 6, "Initializing policy")
       {:ok, policy} ->
         embed_size = policy.config[:embed_size] || Embeddings.embedding_size()
         Output.success("  Loaded policy (embed_size=#{embed_size})")
-        {policy.model, policy.params, embed_size}
+
+        # Policy .bin files don't include model - rebuild from config
+        model =
+          if policy[:model] do
+            policy.model
+          else
+            hidden_sizes = policy.config[:hidden_sizes] || [256, 256]
+            Output.puts("  Rebuilding model from config (hidden=#{inspect(hidden_sizes)})...")
+
+            ExPhil.Networks.ActorCritic.build_combined(
+              embed_size: embed_size,
+              hidden_sizes: hidden_sizes,
+              dropout: policy.config[:dropout] || 0.0
+            )
+          end
+
+        {model, policy.params, embed_size}
 
       {:error, reason} ->
         Output.error("Failed to load policy: #{inspect(reason)}")
