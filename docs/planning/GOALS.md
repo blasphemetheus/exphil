@@ -569,7 +569,7 @@ Originally, this was ExPhil's differentiator. However, the Bitter Lesson suggest
 
 | Task | Effort | Why | Status |
 |------|--------|-----|--------|
-| Self-play training guide | Low | Document when it's built | Blocked |
+| Self-play training guide | Low | Document when it's built | **Done** |
 | Inference optimization guide | Low | Decision tree for optimization choices | **Done** |
 
 ---
