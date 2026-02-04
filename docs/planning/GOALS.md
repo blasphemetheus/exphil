@@ -520,34 +520,28 @@ checkpoints/
 
 ### 6. Character Specialization
 
-**Impact: Uncertain | Status: Reconsidering**
+**Impact: Uncertain | Status: Not Pursuing**
 
-> **Note:** See [BITTER_LESSON_PLAN.md](BITTER_LESSON_PLAN.md) for why we're reconsidering this approach.
+> **Note:** See [BITTER_LESSON_PLAN.md](BITTER_LESSON_PLAN.md) for why we're not pursuing this approach.
 
-Originally, this was ExPhil's differentiator. However, the Bitter Lesson suggests that character-specific engineering may be outperformed by simply scaling a general model. We should run experiments before committing to character-specific code paths.
+Originally, this was ExPhil's differentiator. However, the Bitter Lesson suggests that character-specific engineering is outperformed by simply scaling a general model. We're focusing on scale and general approaches instead.
 
-**Original Plan (Now Experimental):**
+**Not Pursuing:**
 
 | Task | Effort | Bitter Lesson Concern | Status |
 |------|--------|----------------------|--------|
-| Character-specific rewards | Medium | Model should discover what matters | Experiment first |
-| Per-character models | High | Single model + scale may beat specialists | Experiment first |
-| Character-specific context windows | Medium | Let model learn optimal window | Experiment first |
+| Character-specific rewards | Medium | Model should discover what matters | **Not pursuing** |
+| Per-character models | High | Single model + scale may beat specialists | **Not pursuing** |
+| Character-specific context windows | Medium | Let model learn optimal window | **Not pursuing** |
 
-**Bitter Lesson Alternative:**
+**Preferred Approach (Bitter Lesson):**
 
 | Task | Effort | Why | Status |
 |------|--------|-----|--------|
-| Single multi-character model | Medium | Scale > specialization | **Preferred approach** |
-| Character ID as input feature | Low | Let model learn differences | **Preferred approach** |
-| Sparse win/loss reward | Low | Don't encode "good play" | Experiment needed |
-| Larger model + more data | High | Scale beats engineering | **Preferred approach** |
-
-**Experiments to Run:**
-
-1. **Character-specific vs general rewards:** Train with shaped rewards vs sparse (win/loss only). Measure strategy diversity.
-2. **Specialist vs generalist:** Train Mewtwo-only model vs all-character model. Compare win rates.
-3. **Context window ablation:** Try 30, 60, 90 frame windows. Let data determine optimal.
+| Single multi-character model | Medium | Scale > specialization | **Current approach** |
+| Character ID as input feature | Low | Let model learn differences | **Implemented** |
+| Sparse win/loss reward | Low | Don't encode "good play" | Default for self-play |
+| Larger model + more data | High | Scale beats engineering | **Next priority** |
 
 **Character-Specific Context Windows (For Reference Only):**
 | Character | Original Hypothesis | Experiment Status |

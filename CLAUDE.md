@@ -84,9 +84,9 @@ See [GOALS.md](docs/GOALS.md) for comprehensive roadmap. Current focus:
 - Precision benchmarking (FP32 now default - 2x faster than BF16 due to XLA issues)
 
 **Next Phase:**
-1. **Self-play Dolphin testing** - Run with real MeleePort games
+1. **Self-play Dolphin testing** - Run with real MeleePort games ✓
 2. **Large-scale self-play training** - GPU cluster deployment
-3. **Character-specific rewards** - Mewtwo recovery, Ganon spacing, etc.
+3. **Scaling experiments** - Larger models, more data, sparse rewards
 
 ## Documentation
 
