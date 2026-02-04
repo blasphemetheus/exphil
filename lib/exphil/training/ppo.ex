@@ -188,7 +188,9 @@ defmodule ExPhil.Training.PPO do
         checkpoint = :erlang.binary_to_term(binary)
         # Merge pretrained policy params with initial params
         # This handles cases where the architecture is slightly different
-        merge_params(initial_params, checkpoint.policy_params || checkpoint.params)
+        # Use bracket notation to avoid KeyError when key doesn't exist
+        pretrained = checkpoint[:policy_params] || checkpoint[:params]
+        merge_params(initial_params, pretrained)
 
       {:error, reason} ->
         Logger.warning("Could not load pretrained weights from #{path}: #{reason}")
