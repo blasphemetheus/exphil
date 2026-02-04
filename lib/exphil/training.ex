@@ -48,6 +48,7 @@ defmodule ExPhil.Training do
   """
 
   alias ExPhil.Training.{Imitation, PPO, Data}
+  alias ExPhil.Error.CheckpointError
 
   require Logger
 
@@ -405,8 +406,7 @@ defmodule ExPhil.Training do
       {:ok, :erlang.binary_to_term(binary)}
     rescue
       ArgumentError ->
-        {:error,
-         "Failed to deserialize #{path}: file may be corrupted or not an ExPhil checkpoint"}
+        {:error, CheckpointError.new(:corrupted, path: path)}
     end
   end
 
@@ -431,7 +431,10 @@ defmodule ExPhil.Training do
     cond do
       not is_map(policy) ->
         {:error,
-         "#{path}: Expected map with :params and :config, got #{inspect(policy.__struct__ || :map)}"}
+         CheckpointError.new(:corrupted,
+           path: path,
+           context: %{details: "Expected map, got #{inspect(policy.__struct__ || :map)}"}
+         )}
 
       # Check for exported policy format
       Map.has_key?(policy, :params) and Map.has_key?(policy, :config) ->
@@ -442,14 +445,23 @@ defmodule ExPhil.Training do
         :ok
 
       Map.has_key?(policy, :params) ->
-        {:error, "#{path}: Missing :config key. This may be an old checkpoint format."}
+        {:error,
+         CheckpointError.new(:version_mismatch,
+           path: path,
+           context: %{details: "Missing :config key, may be old checkpoint format"}
+         )}
 
       Map.has_key?(policy, :config) ->
-        {:error, "#{path}: Missing :params key. File may be corrupted."}
+        {:error, CheckpointError.new(:corrupted, path: path, context: %{details: "Missing :params key"})}
 
       true ->
         keys = Map.keys(policy) |> Enum.take(5) |> Enum.join(", ")
-        {:error, "#{path}: Unrecognized checkpoint format. Found keys: #{keys}"}
+
+        {:error,
+         CheckpointError.new(:corrupted,
+           path: path,
+           context: %{details: "Unrecognized format, found keys: #{keys}"}
+         )}
     end
   end
 
@@ -468,42 +480,37 @@ defmodule ExPhil.Training do
       # Check if params look like temporal model but config says MLP
       temporal == false and has_temporal_layers?(actual_params) ->
         {:error,
-         """
-         #{path}: Architecture mismatch detected!
-
-         Config says: temporal=false (MLP model)
-         But params contain temporal layers (#{detected_backbone(actual_params)})
-
-         This checkpoint was likely saved with --temporal but you're trying to load it
-         without --temporal, or vice versa.
-         """}
+         CheckpointError.new(:incompatible,
+           path: path,
+           context: %{
+             expected: "MLP (temporal=false)",
+             actual: "temporal model (#{detected_backbone(actual_params)})"
+           }
+         )}
 
       # Check if params look like MLP but config says temporal
       temporal == true and not has_temporal_layers?(actual_params) ->
         {:error,
-         """
-         #{path}: Architecture mismatch detected!
-
-         Config says: temporal=true, backbone=#{backbone}
-         But params appear to be from a non-temporal MLP model.
-
-         This checkpoint was likely saved without --temporal but you're trying to load it
-         with --temporal.
-         """}
+         CheckpointError.new(:incompatible,
+           path: path,
+           context: %{
+             expected: "temporal (backbone=#{backbone})",
+             actual: "MLP (non-temporal)"
+           }
+         )}
 
       # Check hidden sizes match
       not hidden_sizes_match?(actual_params, config) ->
         expected = config[:hidden_sizes] || [512, 512]
 
         {:error,
-         """
-         #{path}: Hidden layer size mismatch!
-
-         Config specifies hidden_sizes: #{inspect(expected)}
-         But params have different layer dimensions.
-
-         Make sure --hidden-sizes matches the checkpoint's architecture.
-         """}
+         CheckpointError.new(:incompatible,
+           path: path,
+           context: %{
+             expected: "hidden_sizes #{inspect(expected)}",
+             actual: "different layer dimensions"
+           }
+         )}
 
       true ->
         :ok

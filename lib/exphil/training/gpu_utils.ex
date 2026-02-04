@@ -4,7 +4,20 @@ defmodule ExPhil.Training.GPUUtils do
 
   Uses nvidia-smi for NVIDIA GPU information since EXLA doesn't expose
   memory APIs directly.
+
+  ## Error Handling
+
+  Returns structured `ExPhil.Error.GPUError` on failure:
+
+      case GPUUtils.get_memory_info() do
+        {:ok, info} -> info.used_mb
+        {:error, %GPUError{reason: :not_found}} ->
+          Logger.warning("No GPU detected, using CPU")
+      end
+
   """
+
+  alias ExPhil.Error.GPUError
 
   @doc """
   Get GPU memory usage information via nvidia-smi.
@@ -20,7 +33,7 @@ defmodule ExPhil.Training.GPUUtils do
       iex> GPUUtils.get_memory_info()
       {:error, :nvidia_smi_not_found}
   """
-  @spec get_memory_info(non_neg_integer()) :: {:ok, map()} | {:error, atom()}
+  @spec get_memory_info(non_neg_integer()) :: {:ok, map()} | {:error, GPUError.t()}
   def get_memory_info(device_id \\ 0) do
     # Query nvidia-smi for memory info
     # Format: memory.used, memory.total, memory.free, utilization.gpu
@@ -40,10 +53,10 @@ defmodule ExPhil.Training.GPUUtils do
         parse_nvidia_smi_output(output)
 
       {_, _} ->
-        {:error, :nvidia_smi_failed}
+        {:error, GPUError.new(:nvidia_smi_failed)}
     end
   rescue
-    ErlangError -> {:error, :nvidia_smi_not_found}
+    ErlangError -> {:error, GPUError.new(:not_found)}
   end
 
   defp parse_nvidia_smi_output(output) do
@@ -62,10 +75,10 @@ defmodule ExPhil.Training.GPUUtils do
          }}
 
       _ ->
-        {:error, :parse_failed}
+        {:error, GPUError.new(:nvidia_smi_failed, context: %{details: "parse failed"})}
     end
   rescue
-    _ -> {:error, :parse_failed}
+    _ -> {:error, GPUError.new(:nvidia_smi_failed, context: %{details: "parse failed"})}
   end
 
   defp parse_utilization(util) do
@@ -130,7 +143,7 @@ defmodule ExPhil.Training.GPUUtils do
   @doc """
   Get GPU device name if available.
   """
-  @spec device_name(non_neg_integer()) :: {:ok, String.t()} | {:error, atom()}
+  @spec device_name(non_neg_integer()) :: {:ok, String.t()} | {:error, GPUError.t()}
   def device_name(device_id \\ 0) do
     case System.cmd(
            "nvidia-smi",
@@ -143,10 +156,10 @@ defmodule ExPhil.Training.GPUUtils do
            stderr_to_stdout: true
          ) do
       {name, 0} -> {:ok, String.trim(name)}
-      _ -> {:error, :nvidia_smi_failed}
+      _ -> {:error, GPUError.new(:nvidia_smi_failed)}
     end
   rescue
-    _ -> {:error, :nvidia_smi_not_found}
+    _ -> {:error, GPUError.new(:not_found)}
   end
 
   @doc """
@@ -160,7 +173,7 @@ defmodule ExPhil.Training.GPUUtils do
       iex> GPUUtils.memory_status()
       {:ok, %{used_mb: 4521, total_mb: 24564, utilization: 0.18}}
   """
-  @spec memory_status(non_neg_integer()) :: {:ok, map()} | {:error, atom()}
+  @spec memory_status(non_neg_integer()) :: {:ok, map()} | {:error, GPUError.t()}
   def memory_status(device_id \\ 0) do
     case get_memory_info(device_id) do
       {:ok, %{used_mb: used, total_mb: total, utilization: util}} ->
@@ -193,7 +206,7 @@ defmodule ExPhil.Training.GPUUtils do
       iex> GPUUtils.check_memory_warning(threshold: 0.8)
       {:warning, "GPU memory usage is high: 7.2/8.0 GB (90%). Consider reducing batch size."}
   """
-  @spec check_memory_warning(keyword()) :: :ok | {:warning, String.t()} | {:error, atom()}
+  @spec check_memory_warning(keyword()) :: :ok | {:warning, String.t()} | {:error, GPUError.t()}
   def check_memory_warning(opts \\ []) do
     threshold = Keyword.get(opts, :threshold, 0.85)
 
@@ -231,7 +244,7 @@ defmodule ExPhil.Training.GPUUtils do
       iex> GPUUtils.check_free_memory(required_mb: 4000)
       {:warning, "Only 2.5 GB free, may need 4.0 GB. Consider closing other GPU processes."}
   """
-  @spec check_free_memory(keyword()) :: :ok | {:warning, String.t()} | {:error, atom()}
+  @spec check_free_memory(keyword()) :: :ok | {:warning, String.t()} | {:error, GPUError.t()}
   def check_free_memory(opts \\ []) do
     required_mb = Keyword.get(opts, :required_mb, 0)
 
@@ -381,7 +394,7 @@ defmodule ExPhil.Training.GPUUtils do
   @doc """
   Get all GPU devices with their info.
   """
-  @spec list_devices() :: {:ok, [map()]} | {:error, atom()}
+  @spec list_devices() :: {:ok, [map()]} | {:error, GPUError.t()}
   def list_devices do
     case System.cmd(
            "nvidia-smi",
@@ -410,9 +423,9 @@ defmodule ExPhil.Training.GPUUtils do
         {:ok, devices}
 
       _ ->
-        {:error, :nvidia_smi_failed}
+        {:error, GPUError.new(:nvidia_smi_failed)}
     end
   rescue
-    _ -> {:error, :nvidia_smi_not_found}
+    _ -> {:error, GPUError.new(:not_found)}
   end
 end

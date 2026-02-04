@@ -142,7 +142,9 @@ defmodule ExPhil.Training.GPUUtilsTest do
         :ok -> assert true
         # GPU available but high usage
         {:warning, msg} -> assert is_binary(msg)
-        {:error, reason} -> assert reason in [:nvidia_smi_not_found, :nvidia_smi_failed]
+        # Structured error with GPUError
+        {:error, %ExPhil.Error.GPUError{reason: reason}} ->
+          assert reason in [:not_found, :nvidia_smi_failed]
       end
     end
 
@@ -150,8 +152,8 @@ defmodule ExPhil.Training.GPUUtilsTest do
       # Test that threshold can be set (even if we can't test the actual behavior)
       result = GPUUtils.check_memory_warning(threshold: 0.99)
 
-      assert result in [:ok, {:error, :nvidia_smi_not_found}, {:error, :nvidia_smi_failed}] or
-               match?({:warning, _}, result)
+      assert result == :ok or match?({:warning, _}, result) or
+               match?({:error, %ExPhil.Error.GPUError{}}, result)
     end
   end
 
@@ -160,14 +162,16 @@ defmodule ExPhil.Training.GPUUtilsTest do
       case GPUUtils.check_free_memory(required_mb: 1000) do
         :ok -> assert true
         {:warning, msg} -> assert is_binary(msg)
-        {:error, reason} -> assert reason in [:nvidia_smi_not_found, :nvidia_smi_failed]
+        # Structured error with GPUError
+        {:error, %ExPhil.Error.GPUError{reason: reason}} ->
+          assert reason in [:not_found, :nvidia_smi_failed]
       end
     end
 
     test "works with zero required memory" do
       result = GPUUtils.check_free_memory(required_mb: 0)
       # Should be :ok or error if no GPU
-      assert result == :ok or match?({:error, _}, result)
+      assert result == :ok or match?({:error, %ExPhil.Error.GPUError{}}, result)
     end
   end
 

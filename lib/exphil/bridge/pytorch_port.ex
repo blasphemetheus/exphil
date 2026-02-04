@@ -34,6 +34,8 @@ defmodule ExPhil.Bridge.PyTorchPort do
   use GenServer
   require Logger
 
+  alias ExPhil.Error.BridgeError
+
   @timeout 30_000
 
   # ==========================================================================
@@ -63,21 +65,21 @@ defmodule ExPhil.Bridge.PyTorchPort do
   @doc """
   Ping the server to check connectivity.
   """
-  @spec ping() :: {:ok, map()} | {:error, term()}
+  @spec ping() :: {:ok, map()} | {:error, BridgeError.t()}
   def ping do
     GenServer.call(__MODULE__, :ping, @timeout)
   catch
-    :exit, _ -> {:error, :not_running}
+    :exit, _ -> {:error, BridgeError.new(:not_running, bridge: :pytorch_port)}
   end
 
   @doc """
   Get server info (device, CUDA availability, etc).
   """
-  @spec info() :: {:ok, map()} | {:error, term()}
+  @spec info() :: {:ok, map()} | {:error, BridgeError.t()}
   def info do
     GenServer.call(__MODULE__, :info, @timeout)
   catch
-    :exit, _ -> {:error, :not_running}
+    :exit, _ -> {:error, BridgeError.new(:not_running, bridge: :pytorch_port)}
   end
 
   @doc """
@@ -96,11 +98,11 @@ defmodule ExPhil.Bridge.PyTorchPort do
   Output tensor `[batch, seq_len, hidden]`, f32
   """
   @spec selective_scan(Nx.Tensor.t(), Nx.Tensor.t(), Nx.Tensor.t(), Nx.Tensor.t(), Nx.Tensor.t()) ::
-          {:ok, Nx.Tensor.t()} | {:error, term()}
+          {:ok, Nx.Tensor.t()} | {:error, BridgeError.t()}
   def selective_scan(x, dt, a, b, c) do
     GenServer.call(__MODULE__, {:scan, x, dt, a, b, c}, @timeout)
   catch
-    :exit, _ -> {:error, :not_running}
+    :exit, _ -> {:error, BridgeError.new(:not_running, bridge: :pytorch_port, context: %{operation: :selective_scan})}
   end
 
   @doc """

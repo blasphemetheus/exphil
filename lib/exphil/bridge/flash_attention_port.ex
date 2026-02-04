@@ -40,6 +40,8 @@ defmodule ExPhil.Bridge.FlashAttentionPort do
   use GenServer
   require Logger
 
+  alias ExPhil.Error.BridgeError
+
   @timeout 30_000
 
   # ==========================================================================
@@ -82,21 +84,21 @@ defmodule ExPhil.Bridge.FlashAttentionPort do
   @doc """
   Ping the server to check connectivity.
   """
-  @spec ping() :: {:ok, map()} | {:error, term()}
+  @spec ping() :: {:ok, map()} | {:error, BridgeError.t()}
   def ping do
     GenServer.call(__MODULE__, :ping, @timeout)
   catch
-    :exit, _ -> {:error, :not_running}
+    :exit, _ -> {:error, BridgeError.new(:not_running, bridge: :flash_attention)}
   end
 
   @doc """
   Get server info (device, CUDA availability, flash_attn status).
   """
-  @spec info() :: {:ok, map()} | {:error, term()}
+  @spec info() :: {:ok, map()} | {:error, BridgeError.t()}
   def info do
     GenServer.call(__MODULE__, :info, @timeout)
   catch
-    :exit, _ -> {:error, :not_running}
+    :exit, _ -> {:error, BridgeError.new(:not_running, bridge: :flash_attention)}
   end
 
   @doc """
@@ -117,11 +119,11 @@ defmodule ExPhil.Bridge.FlashAttentionPort do
   Output tensor `[batch, seq_len, dim]`, f32
   """
   @spec forward(Nx.Tensor.t(), Nx.Tensor.t(), Nx.Tensor.t(), keyword()) ::
-          {:ok, Nx.Tensor.t()} | {:error, term()}
+          {:ok, Nx.Tensor.t()} | {:error, BridgeError.t()}
   def forward(query, key, value, opts \\ []) do
     GenServer.call(__MODULE__, {:forward, query, key, value, opts}, @timeout)
   catch
-    :exit, _ -> {:error, :not_running}
+    :exit, _ -> {:error, BridgeError.new(:not_running, bridge: :flash_attention, context: %{operation: :forward})}
   end
 
   @doc """
@@ -149,11 +151,11 @@ defmodule ExPhil.Bridge.FlashAttentionPort do
 
   Map with timing results in milliseconds.
   """
-  @spec benchmark(keyword()) :: {:ok, map()} | {:error, term()}
+  @spec benchmark(keyword()) :: {:ok, map()} | {:error, BridgeError.t()}
   def benchmark(opts \\ []) do
     GenServer.call(__MODULE__, {:benchmark, opts}, @timeout * 2)
   catch
-    :exit, _ -> {:error, :not_running}
+    :exit, _ -> {:error, BridgeError.new(:not_running, bridge: :flash_attention, context: %{operation: :benchmark})}
   end
 
   # ==========================================================================

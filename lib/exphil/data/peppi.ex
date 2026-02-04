@@ -22,6 +22,16 @@ defmodule ExPhil.Data.Peppi do
       # Convert to training format
       frames = Peppi.to_training_frames(replay)
 
+  ## Error Handling
+
+  Returns structured `ExPhil.Error.ReplayError` on failure:
+
+      case Peppi.parse("game.slp") do
+        {:ok, replay} -> process(replay)
+        {:error, %ReplayError{reason: :nif_panic}} ->
+          Logger.warning("Corrupted replay, skipping")
+      end
+
   ## Struct Types
 
   The NIF returns data in these struct types:
@@ -35,6 +45,7 @@ defmodule ExPhil.Data.Peppi do
   """
 
   alias ExPhil.Bridge.{GameState, Player, ControllerState}
+  alias ExPhil.Error.ReplayError
 
   use Rustler,
     otp_app: :exphil,
@@ -131,7 +142,7 @@ defmodule ExPhil.Data.Peppi do
       {:ok, replay} = Peppi.parse("game.slp", player_port: 1)
 
   """
-  @spec parse(Path.t(), keyword()) :: {:ok, ParsedReplay.t()} | {:error, term()}
+  @spec parse(Path.t(), keyword()) :: {:ok, ParsedReplay.t()} | {:error, ReplayError.t() | term()}
   def parse(path, opts \\ []) do
     player_port = Keyword.get(opts, :player_port)
 
@@ -147,7 +158,8 @@ defmodule ExPhil.Data.Peppi do
         e in ErlangError ->
           case e do
             %ErlangError{original: :nif_panicked} ->
-              {:error, {:corrupted_replay, path, "NIF panic - likely malformed frame data"}}
+              {:error, ReplayError.new(:nif_panic, path: path)}
+
             _ ->
               reraise e, __STACKTRACE__
           end
@@ -171,7 +183,7 @@ defmodule ExPhil.Data.Peppi do
       #=> 5400
 
   """
-  @spec metadata(Path.t()) :: {:ok, ReplayMeta.t()} | {:error, term()}
+  @spec metadata(Path.t()) :: {:ok, ReplayMeta.t()} | {:error, ReplayError.t() | term()}
   def metadata(path) do
     try do
       get_replay_metadata(path)
@@ -179,7 +191,8 @@ defmodule ExPhil.Data.Peppi do
       e in ErlangError ->
         case e do
           %ErlangError{original: :nif_panicked} ->
-            {:error, {:corrupted_replay, path, "NIF panic in metadata"}}
+            {:error, ReplayError.new(:nif_panic, path: path)}
+
           _ ->
             reraise e, __STACKTRACE__
         end
