@@ -132,6 +132,7 @@ gpu_config =
 
 Application.put_env(:exla, :clients, cuda: gpu_config)
 
+alias ExPhil.CLI
 alias ExPhil.Data.Peppi
 alias ExPhil.Training.{Data, GPUUtils, Imitation, Output, Prefetcher}
 alias ExPhil.Embeddings
@@ -171,82 +172,47 @@ gpu_info =
     _ -> %{name: "CPU only", memory_gb: 0.0}
   end
 
-# Parse args
-args = System.argv()
+# Parse args using CLI module
+# Note: GPU config and quiet mode already parsed early (before EXLA loads)
+opts = CLI.parse_args(System.argv(),
+  flags: [:verbosity, :replay, :training, :benchmark, :common],
+  defaults: [
+    replays: "./replays",
+    max_files: 30,
+    epochs: 3,
+    # Auto-detect batch size based on GPU availability
+    batch_size: (if System.get_env("EXLA_TARGET") == "cuda", do: 128, else: 64)
+  ]
+)
 
-replay_dir =
-  case Enum.find_index(args, &(&1 in ["--replay-dir", "--replays"])) do
-    nil -> "./replays"
-    idx -> Enum.at(args, idx + 1) || "./replays"
-  end
+# Extract options to variables for easier use in rest of script
+replay_dir = opts[:replays]
+max_files = opts[:max_files]
+epochs = opts[:epochs]
+batch_size = opts[:batch_size]
+continue_on_error = opts[:continue_on_error]
+cache_enabled = opts[:cache_embeddings]
+force_recompute = opts[:no_cache]
+cache_dir = opts[:cache_dir]
 
-max_files =
-  case Enum.find_index(args, &(&1 == "--max-files")) do
-    nil -> 30
-    idx -> String.to_integer(Enum.at(args, idx + 1) || "30")
-  end
-
-epochs =
-  case Enum.find_index(args, &(&1 == "--epochs")) do
-    nil -> 3
-    idx -> String.to_integer(Enum.at(args, idx + 1) || "3")
-  end
-
-batch_size =
-  case Enum.find_index(args, &(&1 == "--batch-size")) do
-    nil ->
-      # Auto-detect: use 128 for GPU (safer for temporal models), 64 for CPU
-      if System.get_env("EXLA_TARGET") == "cuda", do: 128, else: 64
-
-    idx ->
-      String.to_integer(Enum.at(args, idx + 1) || "128")
-  end
-
-# Filter architectures
+# Parse comma-separated architecture lists
 only_archs =
-  case Enum.find_index(args, &(&1 == "--only")) do
-    nil ->
-      nil
-
-    idx ->
-      (Enum.at(args, idx + 1) || "")
-      |> String.split(",")
-      |> Enum.map(&String.to_atom/1)
+  case opts[:only] do
+    nil -> nil
+    str -> str |> String.split(",") |> Enum.map(&String.to_atom(String.trim(&1)))
   end
 
 skip_archs =
-  case Enum.find_index(args, &(&1 == "--skip")) do
-    nil ->
-      []
-
-    idx ->
-      (Enum.at(args, idx + 1) || "")
-      |> String.split(",")
-      |> Enum.map(&String.to_atom/1)
-  end
-
-# Continue on error? (useful for benchmarking when some archs might fail)
-continue_on_error = "--continue-on-error" in args
-
-# Embedding cache options (consistent with train_from_replays.exs)
-cache_enabled = "--cache-embeddings" in args
-force_recompute = "--no-cache" in args
-
-cache_dir =
-  case Enum.find_index(args, &(&1 == "--cache-dir")) do
-    nil -> "/workspace/cache/embeddings"
-    idx -> Enum.at(args, idx + 1) || "/workspace/cache/embeddings"
+  case opts[:skip] do
+    nil -> []
+    str -> str |> String.split(",") |> Enum.map(&String.to_atom(String.trim(&1)))
   end
 
 # Lazy vs eager sequence loading
 # Lazy: 150 MB RAM, slices on-the-fly (slightly slower batching)
 # Eager: 13+ GB RAM, pre-builds all sequences (faster batching)
-lazy_sequences = "--lazy-sequences" in args
-eager_sequences = "--eager-sequences" in args
-
-# Default to lazy if explicitly set, otherwise eager for backwards compatibility
-# Users can force eager with --eager-sequences
-use_lazy_sequences = lazy_sequences and not eager_sequences
+# Default to eager for backwards compatibility; use --lazy-sequences for low RAM
+use_lazy_sequences = opts[:lazy_sequences] and not opts[:eager_sequences]
 
 # Architectures to benchmark
 # Note: batch_size can be overridden per-architecture for memory-heavy models

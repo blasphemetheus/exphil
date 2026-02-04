@@ -20,82 +20,65 @@
 
 require Logger
 
+alias ExPhil.CLI
 alias ExPhil.Bridge.MeleePort
 alias ExPhil.Bridge.AsyncRunner
 alias ExPhil.Agents.Agent
 alias ExPhil.Training.Output
 
-# Parse command line arguments
-args = System.argv()
+# Parse command line arguments using CLI module
+@flag_groups [:verbosity, :checkpoint, :replay, :dolphin, :common]
 
-get_arg = fn flag, default ->
-  case Enum.find_index(args, &(&1 == flag)) do
-    nil -> default
-    idx -> Enum.at(args, idx + 1) || default
-  end
-end
+opts = CLI.parse_args(System.argv(),
+  flags: @flag_groups,
+  defaults: [character: "mewtwo"]
+)
 
-has_flag = fn flag -> Enum.member?(args, flag) end
+# Setup verbosity early
+CLI.setup_verbosity(opts)
 
-parse_on_game_end = fn str ->
-  case str do
-    "restart" -> :restart
-    "stop" -> :stop
-    _ -> :restart
-  end
-end
+# Convert character and stage to atoms if strings
+opts = Keyword.update(opts, :character, :mewtwo, fn
+  c when is_binary(c) -> String.to_atom(c)
+  c -> c
+end)
 
-opts = [
-  policy: get_arg.("--policy", nil),
-  dolphin: get_arg.("--dolphin", nil),
-  iso: get_arg.("--iso", nil),
-  port: String.to_integer(get_arg.("--port", "1")),
-  opponent_port: String.to_integer(get_arg.("--opponent-port", "2")),
-  character: String.to_atom(get_arg.("--character", "mewtwo")),
-  stage: String.to_atom(get_arg.("--stage", "final_destination")),
-  frame_delay: String.to_integer(get_arg.("--frame-delay", "0")),
-  deterministic: has_flag.("--deterministic"),
-  no_auto_menu: has_flag.("--no-auto-menu"),
-  on_game_end: parse_on_game_end.(get_arg.("--on-game-end", "restart"))
-]
+opts = Keyword.update(opts, :stage, :final_destination, fn
+  s when is_binary(s) -> String.to_atom(s)
+  s -> s
+end)
+
+# Convert on_game_end to atom
+opts = Keyword.update(opts, :on_game_end, :restart, fn
+  "restart" -> :restart
+  "stop" -> :stop
+  :restart -> :restart
+  :stop -> :stop
+  _ -> :restart
+end)
+
+# Handle help
+CLI.maybe_show_help(opts, "play_dolphin_async.exs", @flag_groups, fn ->
+  IO.puts("""
+
+  ASYNC VERSION - Separates frame reading from inference for smooth gameplay.
+
+  EXAMPLES:
+    mix run scripts/play_dolphin_async.exs \\
+      --policy checkpoints/imitation_latest_policy.bin \\
+      --dolphin ~/.local/share/Slippi\\ Launcher/netplay \\
+      --iso ~/Games/SSBM.iso \\
+      --character mewtwo \\
+      --stage battlefield
+
+  On game end modes:
+    --on-game-end restart   Auto-start next game (default)
+    --on-game-end stop      Exit after one game
+  """)
+end)
 
 # Validate required args
-if opts[:policy] == nil or opts[:dolphin] == nil or opts[:iso] == nil do
-  Output.puts("""
-
-  ExPhil Dolphin Play Script (ASYNC VERSION)
-  ==========================================
-
-  Play against a trained agent in Dolphin/Slippi!
-
-  This async version separates frame reading from inference,
-  allowing the game to run smoothly even with slow LSTM models.
-
-  Usage:
-    mix run scripts/play_dolphin_async.exs \\
-      --policy checkpoints/policy.bin \\
-      --dolphin /path/to/slippi \\
-      --iso /path/to/melee.iso
-
-  Required:
-    --policy PATH       Path to exported policy file
-    --dolphin PATH      Path to Slippi/Dolphin folder
-    --iso PATH          Path to Melee 1.02 ISO
-
-  Options:
-    --port N            Agent controller port (default: 1)
-    --opponent-port N   Your controller port (default: 2)
-    --character NAME    Agent character (default: mewtwo)
-    --stage NAME        Stage (default: final_destination)
-    --frame-delay N     Simulated online delay (default: 0)
-    --deterministic     Use deterministic actions (no sampling)
-    --on-game-end MODE  What to do after game ends (default: restart)
-                        restart = auto-start next game
-                        stop    = exit after one game
-  """)
-
-  System.halt(1)
-end
+CLI.require_options!(opts, [:policy, :dolphin, :iso])
 
 Output.banner("ExPhil Dolphin Play (ASYNC)")
 

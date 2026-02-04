@@ -29,55 +29,65 @@
 
 require Logger
 
+alias ExPhil.CLI
 alias ExPhil.Training.{PPO, Output}
 alias ExPhil.Bridge.{MeleePort, GameState, Player, ControllerState}
 alias ExPhil.{Embeddings, Rewards}
 alias ExPhil.Agents.Agent
 
+# Parse command line arguments using CLI module
+@flag_groups [:verbosity, :training, :checkpoint, :replay, :dolphin, :ppo, :common]
+
+opts = CLI.parse_args(System.argv(),
+  flags: @flag_groups,
+  defaults: [
+    checkpoint: "checkpoints/ppo_latest.axon",
+    character: "mewtwo",
+    learning_rate: 3.0e-4
+  ]
+)
+
+# Setup verbosity early
+CLI.setup_verbosity(opts)
+
+# Handle help
+CLI.maybe_show_help(opts, "train_ppo.exs", @flag_groups, fn ->
+  IO.puts("""
+
+  EXAMPLES:
+    # With pretrained policy
+    mix run scripts/train_ppo.exs --pretrained checkpoints/imitation_policy.bin --timesteps 100000
+
+    # Mock mode (no Dolphin required)
+    mix run scripts/train_ppo.exs --mock --timesteps 10000
+
+    # Against Dolphin CPU
+    mix run scripts/train_ppo.exs --pretrained policy.bin --dolphin /path/to/slippi --iso melee.iso
+  """)
+end)
+
 # Helper to parse hidden sizes
 parse_hidden_sizes = fn
   nil -> nil
-  str -> str |> String.split(",") |> Enum.map(&String.to_integer/1)
+  str when is_binary(str) -> str |> String.split(",") |> Enum.map(&String.to_integer/1)
 end
 
-# Parse command line arguments
-{opts, _, _} =
-  OptionParser.parse(System.argv(),
-    strict: [
-      pretrained: :string,
-      timesteps: :integer,
-      rollout_length: :integer,
-      num_epochs: :integer,
-      batch_size: :integer,
-      lr: :float,
-      checkpoint: :string,
-      dolphin: :string,
-      iso: :string,
-      character: :string,
-      opponent: :string,
-      stage: :string,
-      mock: :boolean,
-      mock_episodes: :integer,
-      hidden_sizes: :string
-    ]
-  )
-
-# Configuration
+# Configuration (convert to map for backwards compatibility with rest of script)
 config = %{
   pretrained: opts[:pretrained],
-  timesteps: opts[:timesteps] || 100_000,
-  rollout_length: opts[:rollout_length] || 2048,
-  num_epochs: opts[:num_epochs] || 10,
-  batch_size: opts[:batch_size] || 64,
-  lr: opts[:lr] || 3.0e-4,
-  checkpoint: opts[:checkpoint] || "checkpoints/ppo_latest.axon",
+  timesteps: opts[:timesteps],
+  rollout_length: opts[:rollout_length],
+  num_epochs: opts[:num_epochs],
+  batch_size: opts[:batch_size],
+  lr: opts[:learning_rate],
+  checkpoint: opts[:checkpoint],
   dolphin: opts[:dolphin],
   iso: opts[:iso],
-  character: opts[:character] || "mewtwo",
-  opponent: opts[:opponent] || "cpu3",
+  character: opts[:character],
+  opponent: opts[:opponent],
   stage: opts[:stage] || "final_destination",
-  mock: opts[:mock] || false,
-  mock_episodes: opts[:mock_episodes] || 4,
+  mock: opts[:mock],
+  mock_episodes: opts[:mock_episodes],
   hidden_sizes: parse_hidden_sizes.(opts[:hidden_sizes])
 }
 

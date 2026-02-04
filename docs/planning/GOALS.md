@@ -271,12 +271,12 @@ Created `ExPhil.CLI` module for standardized argument parsing across scripts.
 |------|--------|--------|
 | Create CLI module with flag groups | Medium | **Done** |
 | Migrate eval_model.exs | Low | **Done** |
-| Migrate benchmark_architectures.exs | Low | Todo |
-| Migrate play_dolphin.exs | Low | Todo |
-| Migrate train_ppo.exs | Low | Todo |
+| Migrate benchmark_architectures.exs | Low | **Done** |
+| Migrate play_dolphin.exs | Low | **Done** |
+| Migrate train_ppo.exs | Low | **Done** |
 | Migrate analyze_replays.exs | Low | **Done** |
-| Add `:benchmark` flag group | Low | Todo |
-| Add `:dolphin` flag group | Low | Todo |
+| Add `:benchmark` flag group | Low | **Done** |
+| Add `:dolphin` flag group | Low | **Done** |
 | Add button press analysis to analyze_replays.exs | Low | **Done** |
 | Add `:analysis` flag group | Low | **Done** |
 

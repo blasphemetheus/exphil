@@ -30,6 +30,9 @@ defmodule ExPhil.CLI do
   - `:training` - `--batch-size`, `--epochs`, `--lr` flags
   - `:evaluation` - `--batch-size`, `--player`, `--detailed` flags
   - `:analysis` - `--top-actions`, `--show-stages`, `--show-positions`, `--show-buttons` flags
+  - `:benchmark` - `--only`, `--skip`, `--continue-on-error`, `--cache-embeddings`, GPU flags
+  - `:dolphin` - `--dolphin`, `--iso`, `--port`, `--stage`, `--frame-delay`, etc.
+  - `:ppo` - `--pretrained`, `--timesteps`, `--rollout-length`, `--opponent`, `--mock`, etc.
   """
 
   require Logger
@@ -98,7 +101,69 @@ defmodule ExPhil.CLI do
     %{name: :show_positions, flag: "--show-positions", type: :boolean, short: nil, default: true,
       desc: "Show position analysis", group: [:analysis]},
     %{name: :show_buttons, flag: "--show-buttons", type: :boolean, short: nil, default: true,
-      desc: "Show button press analysis", group: [:analysis]}
+      desc: "Show button press analysis", group: [:analysis]},
+
+    # Benchmark flags (for benchmark_architectures.exs)
+    %{name: :only, flag: "--only", type: :string, short: nil, default: nil,
+      desc: "Only run specified architectures (comma-separated)", group: [:benchmark]},
+    %{name: :skip, flag: "--skip", type: :string, short: nil, default: nil,
+      desc: "Skip specified architectures (comma-separated)", group: [:benchmark]},
+    %{name: :continue_on_error, flag: "--continue-on-error", type: :boolean, short: nil, default: false,
+      desc: "Continue if an architecture fails", group: [:benchmark]},
+    %{name: :cache_embeddings, flag: "--cache-embeddings", type: :boolean, short: nil, default: false,
+      desc: "Enable embedding disk cache", group: [:benchmark, :training]},
+    %{name: :no_cache, flag: "--no-cache", type: :boolean, short: nil, default: false,
+      desc: "Force recompute even if cache exists", group: [:benchmark, :training]},
+    %{name: :cache_dir, flag: "--cache-dir", type: :string, short: nil, default: "/workspace/cache/embeddings",
+      desc: "Cache directory for embeddings", group: [:benchmark, :training]},
+    %{name: :lazy_sequences, flag: "--lazy-sequences", type: :boolean, short: nil, default: false,
+      desc: "Slice sequences on-the-fly (150 MB RAM vs 13 GB)", group: [:benchmark]},
+    %{name: :eager_sequences, flag: "--eager-sequences", type: :boolean, short: nil, default: false,
+      desc: "Pre-build all sequences (faster but 13+ GB RAM)", group: [:benchmark]},
+    %{name: :gpu_prealloc, flag: "--gpu-prealloc", type: :string, short: nil, default: nil,
+      desc: "Pre-allocate GPU memory (fraction, e.g., 0.7)", group: [:benchmark]},
+    %{name: :gpu_on_demand, flag: "--gpu-on-demand", type: :boolean, short: nil, default: false,
+      desc: "Allocate GPU memory on-demand", group: [:benchmark]},
+
+    # Dolphin/play flags (for play_dolphin.exs)
+    %{name: :dolphin, flag: "--dolphin", type: :string, short: nil, default: nil,
+      desc: "Path to Slippi/Dolphin folder", group: [:dolphin]},
+    %{name: :iso, flag: "--iso", type: :string, short: nil, default: nil,
+      desc: "Path to Melee 1.02 ISO", group: [:dolphin]},
+    %{name: :port, flag: "--port", type: :integer, short: nil, default: 1,
+      desc: "Agent controller port (1-4)", group: [:dolphin]},
+    %{name: :opponent_port, flag: "--opponent-port", type: :integer, short: nil, default: 2,
+      desc: "Your controller port (1-4)", group: [:dolphin]},
+    %{name: :stage, flag: "--stage", type: :string, short: nil, default: "final_destination",
+      desc: "Stage name", group: [:dolphin]},
+    %{name: :frame_delay, flag: "--frame-delay", type: :integer, short: nil, default: 0,
+      desc: "Simulated online delay in frames", group: [:dolphin]},
+    %{name: :deterministic, flag: "--deterministic", type: :boolean, short: nil, default: false,
+      desc: "Use deterministic action selection (no sampling)", group: [:dolphin]},
+    %{name: :no_auto_menu, flag: "--no-auto-menu", type: :boolean, short: nil, default: false,
+      desc: "Don't auto-navigate menus", group: [:dolphin]},
+    %{name: :action_repeat, flag: "--action-repeat", type: :integer, short: nil, default: 1,
+      desc: "Only compute new action every N frames", group: [:dolphin]},
+    %{name: :on_game_end, flag: "--on-game-end", type: :string, short: nil, default: "restart",
+      desc: "Action on game end: restart or stop", group: [:dolphin]},
+
+    # PPO training flags (for train_ppo.exs)
+    %{name: :pretrained, flag: "--pretrained", type: :string, short: nil, default: nil,
+      desc: "Path to pretrained imitation policy", group: [:ppo]},
+    %{name: :timesteps, flag: "--timesteps", type: :integer, short: nil, default: 100_000,
+      desc: "Total timesteps to train", group: [:ppo]},
+    %{name: :rollout_length, flag: "--rollout-length", type: :integer, short: nil, default: 2048,
+      desc: "Steps per rollout", group: [:ppo]},
+    %{name: :num_epochs, flag: "--num-epochs", type: :integer, short: nil, default: 10,
+      desc: "PPO epochs per update", group: [:ppo]},
+    %{name: :opponent, flag: "--opponent", type: :string, short: nil, default: "cpu3",
+      desc: "Opponent type: cpu1-9 or self", group: [:ppo]},
+    %{name: :mock, flag: "--mock", type: :boolean, short: nil, default: false,
+      desc: "Use mock environment (no Dolphin required)", group: [:ppo]},
+    %{name: :mock_episodes, flag: "--mock-episodes", type: :integer, short: nil, default: 4,
+      desc: "Episodes per rollout in mock mode", group: [:ppo]},
+    %{name: :hidden_sizes, flag: "--hidden-sizes", type: :string, short: nil, default: nil,
+      desc: "Hidden layer sizes (comma-separated)", group: [:ppo, :training]}
   ]
 
   @doc "Get all flag definitions"
