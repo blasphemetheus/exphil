@@ -28,7 +28,7 @@ This document tracks the major goals and roadmap for ExPhil development.
 - **Mamba unification** (shared Common module across 5 variants)
 - **Structured error types** (11 error modules: AgentError, BridgeError, CacheError, etc.)
 - **ScriptTemplate module** for script boilerplate reduction
-- ~2380+ tests (added 90 tests for new architectures)
+- 2506 tests + 25 doctests + 36 property tests
 
 ### Next Step
 

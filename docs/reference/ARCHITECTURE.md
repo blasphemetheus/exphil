@@ -2,11 +2,11 @@
 
 ## Overview
 
-ExPhil reimplements slippi-ai's architecture in Elixir, with modern enhancements including learned embeddings (6x dimension reduction), multiple temporal backbones (Mamba, Attention, LSTM, GRU), and async inference for real-time play. This document details the technical architecture and key design decisions.
+ExPhil reimplements slippi-ai's architecture in Elixir, with modern enhancements including learned embeddings (6x dimension reduction), 15 temporal backbones (Mamba, Attention, LSTM, Liquid, RWKV, and more), and async inference for real-time play. This document details the technical architecture and key design decisions.
 
 **Key architectural choices:**
 - **Default 287 dims** (learned embeddings) vs legacy 1204 dims (one-hot) - enables 6x larger networks
-- **6 backbone architectures**: MLP, LSTM, GRU, Mamba, Attention, Jamba (hybrid)
+- **15 backbone architectures**: See [Architecture Guide](architectures/ARCHITECTURE_GUIDE.md) for details
 - **AsyncRunner**: Decouples 60fps frame reading from variable-latency inference
 - **Self-play infrastructure**: GenServer-based with Elo matchmaking and opponent pools
 
