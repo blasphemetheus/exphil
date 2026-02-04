@@ -401,10 +401,23 @@ Output.puts("  ✓ Policy registered with population manager")
 
 Output.step(3, 6, "Initializing PPO trainer")
 
+# Get hidden_sizes from loaded policy config, or use default
+ppo_hidden_sizes =
+  if opts.pretrained do
+    case ExPhil.Training.load_policy(opts.pretrained) do
+      {:ok, policy} -> policy.config[:hidden_sizes] || [256, 256]
+      _ -> [256, 256]
+    end
+  else
+    [256, 256]
+  end
+
 ppo_trainer =
   PPO.new(
     embed_size: embed_size,
-    pretrained_path: opts.pretrained,
+    hidden_sizes: ppo_hidden_sizes,
+    # Don't pass pretrained_path - we already transferred weights to games via Supervisor.set_policy
+    # PPO will use fresh params but sync to games after first update
     gamma: opts.gamma,
     gae_lambda: opts.gae_lambda,
     clip_range: opts.ppo_clip,
