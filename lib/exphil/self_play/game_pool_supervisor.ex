@@ -202,6 +202,9 @@ defmodule ExPhil.SelfPlay.GamePoolSupervisor do
     end)
   end
 
+  # Match GameRunner.collect_steps timeout (5 min) for JIT/reset edge cases
+  @collect_timeout 300_000
+
   @doc """
   Collects N steps from all games in parallel.
   """
@@ -211,12 +214,17 @@ defmodule ExPhil.SelfPlay.GamePoolSupervisor do
       fn pid ->
         GameRunner.collect_steps(pid, n)
       end,
-      timeout: 120_000,
+      timeout: @collect_timeout,
       ordered: false
     )
     |> Enum.flat_map(fn
       {:ok, {:ok, experiences}} -> experiences
-      _ -> []
+      {:exit, :timeout} ->
+        Logger.warning("[GamePoolSupervisor] Timeout collecting steps from a game runner")
+        []
+      {:exit, reason} ->
+        Logger.warning("[GamePoolSupervisor] Game runner error: #{inspect(reason)}")
+        []
     end)
   end
 
