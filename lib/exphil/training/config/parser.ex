@@ -301,6 +301,11 @@ defmodule ExPhil.Training.Config.Parser do
     |> then(fn opts ->
       if opts[:no_pipeline_chunks], do: Keyword.put(opts, :pipeline_chunks, false), else: opts
     end)
+    |> parse_flag(args, "--cache-streaming", :cache_streaming)
+    |> parse_flag(args, "--no-cache-streaming", :no_cache_streaming)
+    |> then(fn opts ->
+      if opts[:no_cache_streaming], do: Keyword.put(opts, :cache_streaming, false), else: opts
+    end)
     |> parse_stage_mode_arg(args)
     |> parse_action_mode_arg(args)
     |> parse_character_mode_arg(args)

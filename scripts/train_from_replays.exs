@@ -515,7 +515,7 @@ Configuration:
   end}
   Grad Ckpt:   #{if opts[:gradient_checkpoint], do: "enabled (every #{opts[:checkpoint_every]} layers)", else: "disabled"}
   GPU:         #{gpu_info}
-  Streaming:   #{if opts[:stream_chunk_size], do: "enabled (#{opts[:stream_chunk_size]} files/chunk#{if opts[:pipeline_chunks], do: ", pipelined", else: ""})", else: "disabled"}
+  Streaming:   #{if opts[:stream_chunk_size], do: "enabled (#{opts[:stream_chunk_size]} files/chunk#{if opts[:pipeline_chunks], do: ", pipelined", else: ""}#{if opts[:cache_streaming], do: ", cached", else: ""})", else: "disabled"}
   Batch Save:  #{if opts[:save_every_batches], do: "every #{opts[:save_every_batches]} batches", else: "disabled"}
   K-means:     #{if opts[:kmeans_centers], do: "enabled (#{opts[:kmeans_centers]})", else: "disabled (uniform 17 buckets)"}
   Verbosity:   #{verbosity_str}
@@ -2014,7 +2014,10 @@ batch_checkpoint_path =
               chunk_opts: streaming_chunk_opts,
               dataset_opts: streaming_dataset_opts,
               buffer_size: 1,
-              show_progress: true
+              show_progress: true,
+              cache_embeddings: opts[:cache_streaming],
+              cache_dir: opts[:cache_dir] || "cache/embeddings",
+              embed_config: embed_config
             )
             |> Stream.flat_map(fn {chunk_dataset, _chunk_idx, _errors} ->
               if chunk_dataset.size == 0 do

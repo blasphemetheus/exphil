@@ -174,6 +174,9 @@ defmodule ExPhil.Training.Config do
     # Prepare next chunk while training (overlaps prep with GPU)
     "--pipeline-chunks",
     "--no-pipeline-chunks",
+    # Cache embeddings to disk in streaming mode (reuse across epochs)
+    "--cache-streaming",
+    "--no-cache-streaming",
     # Auto-select port based on character
     "--train-character",
     # Train on both players per replay
@@ -465,6 +468,8 @@ defmodule ExPhil.Training.Config do
       stream_chunk_size: nil,
       # Pipeline chunk preparation (prepare N+1 while training on N)
       pipeline_chunks: true,
+      # Cache streaming embeddings to disk (reuse across epochs)
+      cache_streaming: false,
       # Embedding options
       # Stage: :one_hot_full (64 dims), :one_hot_compact (7 dims), :learned (1 ID)
       stage_mode: :one_hot_compact,

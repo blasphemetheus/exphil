@@ -319,6 +319,8 @@ These options apply to multiple new architectures:
 | `--stream-chunk-size N` | nil | Load N files at a time (memory-bounded) |
 | `--pipeline-chunks` | true | Prepare next chunk while training (overlaps CPU/GPU) |
 | `--no-pipeline-chunks` | - | Disable chunk pipelining (sequential processing) |
+| `--cache-streaming` | false | Cache chunk embeddings to disk (reuse across epochs) |
+| `--no-cache-streaming` | - | Disable streaming cache |
 | `--gc-every N` | 100 | Run garbage collection every N batches (0=disabled) |
 
 ### Data Augmentation
