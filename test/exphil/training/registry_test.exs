@@ -64,14 +64,14 @@ defmodule ExPhil.Training.RegistryTest do
     end
 
     test "returns error without checkpoint_path" do
-      assert {:error, :missing_required_field} =
+      assert {:error, %ExPhil.Error.RegistryError{reason: :missing_required_field}} =
                Registry.register(%{
                  training_config: %{epochs: 10}
                })
     end
 
     test "returns error without training_config" do
-      assert {:error, :missing_required_field} =
+      assert {:error, %ExPhil.Error.RegistryError{reason: :missing_required_field}} =
                Registry.register(%{
                  checkpoint_path: "checkpoints/test.axon"
                })
@@ -227,7 +227,8 @@ defmodule ExPhil.Training.RegistryTest do
     end
 
     test "returns error for unknown model" do
-      assert {:error, :not_found} = Registry.get("nonexistent")
+      assert {:error, %ExPhil.Error.RegistryError{reason: :not_found}} =
+               Registry.get("nonexistent")
     end
   end
 
@@ -285,11 +286,13 @@ defmodule ExPhil.Training.RegistryTest do
 
       :ok = Registry.delete(entry.id)
 
-      assert {:error, :not_found} = Registry.get(entry.id)
+      assert {:error, %ExPhil.Error.RegistryError{reason: :not_found}} =
+               Registry.get(entry.id)
     end
 
     test "returns error for unknown model" do
-      assert {:error, :not_found} = Registry.delete("nonexistent")
+      assert {:error, %ExPhil.Error.RegistryError{reason: :not_found}} =
+               Registry.delete("nonexistent")
     end
   end
 
@@ -321,7 +324,8 @@ defmodule ExPhil.Training.RegistryTest do
           metrics: %{}
         })
 
-      assert {:error, :no_models_with_metric} = Registry.best()
+      assert {:error, %ExPhil.Error.RegistryError{reason: :no_models_with_metric}} =
+               Registry.best()
     end
   end
 

@@ -51,6 +51,8 @@ defmodule ExPhil.Training.MmapEmbeddings do
   - **Best for**: Datasets > 50% of available RAM
   """
 
+  alias ExPhil.Error.CacheError
+
   require Logger
 
   @magic "EMBD"
@@ -335,7 +337,7 @@ defmodule ExPhil.Training.MmapEmbeddings do
     end
   end
 
-  defp parse_header(_), do: {:error, :invalid_header}
+  defp parse_header(_), do: {:error, CacheError.new(:invalid_header)}
 
   defp dtype_to_code(:f32), do: 1
   defp dtype_to_code(:f16), do: 2

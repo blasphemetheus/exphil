@@ -30,6 +30,8 @@ defmodule ExPhil.Training.AsyncCheckpoint do
   use GenServer
   require Logger
 
+  alias ExPhil.Error.CheckpointError
+
   @type checkpoint :: map()
 
   # Client API
@@ -50,7 +52,7 @@ defmodule ExPhil.Training.AsyncCheckpoint do
   ## Options
     - `:timeout` - Max time to wait if queue is full (default: 5000ms)
   """
-  @spec save_async(checkpoint(), Path.t(), keyword()) :: :ok | {:error, :queue_full}
+  @spec save_async(checkpoint(), Path.t(), keyword()) :: :ok | {:error, CheckpointError.t()}
   def save_async(checkpoint, path, opts \\ []) do
     timeout = Keyword.get(opts, :timeout, 5000)
 
@@ -62,7 +64,7 @@ defmodule ExPhil.Training.AsyncCheckpoint do
     catch
       :exit, {:timeout, _} ->
         Logger.warning("Async checkpoint queue timeout - save may be delayed")
-        {:error, :queue_full}
+        {:error, CheckpointError.new(:queue_full, path: path)}
     end
   end
 

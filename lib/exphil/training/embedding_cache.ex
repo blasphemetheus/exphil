@@ -18,7 +18,7 @@ defmodule ExPhil.Training.EmbeddingCache do
           # Use cached embeddings
           embeddings
 
-        {:error, :not_found} ->
+        {:error, %CacheError{reason: :not_found}} ->
           # Compute and cache
           embeddings = compute_embeddings(...)
           EmbeddingCache.save(cache_key, embeddings)
@@ -30,6 +30,8 @@ defmodule ExPhil.Training.EmbeddingCache do
   Default: `cache/embeddings/`
   Override with `EXPHIL_CACHE_DIR` env var or `:cache_dir` option.
   """
+
+  alias ExPhil.Error.CacheError
 
   require Logger
 
@@ -237,7 +239,7 @@ defmodule ExPhil.Training.EmbeddingCache do
         load_single_file(cache_key, cache_dir)
 
       true ->
-        {:error, :not_found}
+        {:error, CacheError.new(:not_found, context: %{details: "cache key #{cache_key}"})}
     end
   end
 

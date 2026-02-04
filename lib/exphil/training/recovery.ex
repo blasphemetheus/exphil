@@ -7,6 +7,8 @@ defmodule ExPhil.Training.Recovery do
   and resumption.
   """
 
+  alias ExPhil.Error.RecoveryError
+
   @marker_suffix ".incomplete"
 
   @doc """
@@ -90,7 +92,7 @@ defmodule ExPhil.Training.Recovery do
             write_marker(marker, updated)
 
           _ ->
-            {:error, :invalid_marker}
+            {:error, RecoveryError.new(:invalid_marker)}
         end
 
       error ->

@@ -50,6 +50,7 @@ defmodule ExPhil.Training.Registry do
   """
 
   alias ExPhil.Training.Naming
+  alias ExPhil.Error.RegistryError
 
   @default_registry_file "checkpoints/registry.json"
   @version "1.0"
@@ -118,7 +119,7 @@ defmodule ExPhil.Training.Registry do
         error -> error
       end
     else
-      :error -> {:error, :missing_required_field}
+      :error -> {:error, RegistryError.new(:missing_required_field, context: %{field: :checkpoint_path})}
       error -> error
     end
   end
@@ -151,7 +152,7 @@ defmodule ExPhil.Training.Registry do
   @doc """
   Get a specific model by ID or name.
   """
-  @spec get(String.t()) :: {:ok, model_entry()} | {:error, :not_found}
+  @spec get(String.t()) :: {:ok, model_entry()} | {:error, RegistryError.t()}
   def get(id_or_name) do
     with {:ok, registry} <- load_or_create() do
       model =
@@ -160,7 +161,7 @@ defmodule ExPhil.Training.Registry do
         end)
 
       case model do
-        nil -> {:error, :not_found}
+        nil -> {:error, RegistryError.new(:not_found, model_id: id_or_name)}
         m -> {:ok, m}
       end
     end
@@ -185,7 +186,7 @@ defmodule ExPhil.Training.Registry do
       if found do
         save(%{registry | models: models})
       else
-        {:error, :not_found}
+        {:error, RegistryError.new(:not_found, model_id: id_or_name)}
       end
     end
   end
@@ -209,7 +210,7 @@ defmodule ExPhil.Training.Registry do
       if found do
         save(%{registry | models: models})
       else
-        {:error, :not_found}
+        {:error, RegistryError.new(:not_found, model_id: id_or_name)}
       end
     end
   end
@@ -230,7 +231,7 @@ defmodule ExPhil.Training.Registry do
 
       case deleted do
         [] ->
-          {:error, :not_found}
+          {:error, RegistryError.new(:not_found, model_id: id_or_name)}
 
         [model] ->
           if Keyword.get(opts, :delete_files, false) do
@@ -265,7 +266,7 @@ defmodule ExPhil.Training.Registry do
 
       case models_with_metric do
         [] ->
-          {:error, :no_models_with_metric}
+          {:error, RegistryError.new(:no_models_with_metric, context: %{metric: metric_key})}
 
         _ ->
           best =

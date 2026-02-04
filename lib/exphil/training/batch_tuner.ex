@@ -37,6 +37,7 @@ defmodule ExPhil.Training.BatchTuner do
 
   require Logger
   alias ExPhil.Training.Output
+  alias ExPhil.Error.GPUError
 
   @default_initial 32
   @default_max 4096
@@ -132,7 +133,7 @@ defmodule ExPhil.Training.BatchTuner do
                 :erlang.garbage_collect()
                 {:cont, {batch_size, false}}
 
-              {:error, :oom} ->
+              {:error, %GPUError{reason: :oom}} ->
                 if show_progress do
                   IO.write(:stderr, " OOM\n")
                 end
@@ -194,7 +195,7 @@ defmodule ExPhil.Training.BatchTuner do
         if String.contains?(Exception.message(e), "out of memory") or
              String.contains?(Exception.message(e), "OOM") or
              String.contains?(Exception.message(e), "CUDA") do
-          {:error, :oom}
+          {:error, GPUError.new(:oom)}
         else
           {:error, Exception.message(e)}
         end
@@ -204,7 +205,7 @@ defmodule ExPhil.Training.BatchTuner do
     catch
       :exit, reason ->
         if is_tuple(reason) and elem(reason, 0) == :noproc do
-          {:error, :oom}
+          {:error, GPUError.new(:oom)}
         else
           {:error, {:exit, reason}}
         end
