@@ -545,6 +545,26 @@ has_non_temporal = Enum.any?(architectures, fn {_id, _name, opts} -> !opts[:temp
         Data.precompute_frame_embeddings_cached(val_dataset, val_cache_opts)
       end
 
+    # Transfer embeddings to GPU once (cache loads as CPU/BinaryBackend)
+    # This avoids the "Embeddings on CPU" warning during training
+    # Only transfer if under 2GB threshold - larger tensors transfer batch-wise
+    gpu_threshold_mb = 2000
+    train_size_mb = Nx.byte_size(train_emb.embedded_frames) / 1_000_000
+    val_size_mb = Nx.byte_size(val_emb.embedded_frames) / 1_000_000
+
+    {train_emb, val_emb} =
+      if train_size_mb <= gpu_threshold_mb do
+        Output.puts("Transferring embeddings to GPU (#{Float.round(train_size_mb, 1)} MB train, #{Float.round(val_size_mb, 1)} MB val)...")
+        train_emb = Map.update!(train_emb, :embedded_frames, &Nx.backend_transfer(&1, EXLA.Backend))
+        val_emb = Map.update!(val_emb, :embedded_frames, &Nx.backend_transfer(&1, EXLA.Backend))
+        Output.success("Embeddings on GPU")
+        {train_emb, val_emb}
+      else
+        Output.puts("Keeping embeddings on CPU (#{Float.round(train_size_mb, 1)} MB > 2GB threshold)")
+        Output.puts("  Batches will be transferred during training (expect per-epoch warning)")
+        {train_emb, val_emb}
+      end
+
     {train_emb, val_emb}
   else
     {nil, nil}
