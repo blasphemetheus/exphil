@@ -37,21 +37,44 @@ mix run scripts/train_from_replays.exs --epochs 10 --max-files 100
 Uses sequences of frames to learn temporal patterns (combos, reactions).
 
 ```bash
-# With Mamba NIF (CUDA-accelerated, fastest inference, recommended)
-mix run scripts/train_from_replays.exs --temporal --backbone mamba_nif
+# === Recommended Backbones ===
 
-# With Mamba (pure Nx/XLA, no NIF needed)
+# Mamba (recommended default - best speed/accuracy balance)
 mix run scripts/train_from_replays.exs --temporal --backbone mamba
 
-# With LSTM
+# Mamba NIF (CUDA-accelerated, fastest inference)
+mix run scripts/train_from_replays.exs --temporal --backbone mamba_nif
+
+# LSTM (best accuracy, but slow - offline only)
 mix run scripts/train_from_replays.exs --temporal --backbone lstm
 
-# With sliding window attention
+# === New Architectures (2026-02) ===
+
+# Liquid Neural Networks (ODE-based, adaptive dynamics)
+mix run scripts/train_from_replays.exs --temporal --backbone liquid
+
+# RWKV-7 (O(1) memory inference)
+mix run scripts/train_from_replays.exs --temporal --backbone rwkv
+
+# Decision Transformer (goal-conditioned)
+mix run scripts/train_from_replays.exs --temporal --backbone decision_transformer
+
+# Zamba (shared attention + Mamba hybrid)
+mix run scripts/train_from_replays.exs --temporal --backbone zamba
+
+# GLA (Gated Linear Attention - fast on short sequences)
+mix run scripts/train_from_replays.exs --temporal --backbone gla
+
+# === Other Options ===
+
+# Sliding window attention
 mix run scripts/train_from_replays.exs --temporal --backbone sliding_window
 
-# With hybrid LSTM + attention
-mix run scripts/train_from_replays.exs --temporal --backbone hybrid
+# Jamba (Mamba + interleaved attention)
+mix run scripts/train_from_replays.exs --temporal --backbone jamba
 ```
+
+See [Architecture Guide](../reference/architectures/ARCHITECTURE_GUIDE.md) for detailed explanations of each backbone.
 
 **Note:** `mamba_nif` requires the Rust NIF to be compiled (see `native/selective_scan_nif/`).
 It's 5x faster than pure Mamba (~11ms vs ~55ms inference).
@@ -150,10 +173,31 @@ mix run scripts/train_from_replays.exs --dual-port
 | Option | Default | Description |
 |--------|---------|-------------|
 | `--temporal` | false | Enable temporal training |
-| `--backbone TYPE` | lstm | lstm, gru, mamba, mamba_nif, sliding_window, hybrid |
+| `--backbone TYPE` | lstm | See backbone list below |
 | `--window-size N` | 60 | Frames per sequence |
 | `--stride N` | 1 | Step between sequences |
 | `--truncate-bptt N` | nil | Truncated backprop (faster training) |
+
+**Available backbones (15 total):**
+
+| Backbone | Type | 60 FPS Ready | Notes |
+|----------|------|--------------|-------|
+| `mamba` | SSM | Yes | Recommended default |
+| `mamba_nif` | SSM | Yes | Fastest inference (requires NIF) |
+| `lstm` | Recurrent | No | Best accuracy, slow |
+| `gru` | Recurrent | No | Faster than LSTM |
+| `attention` | Transformer | Borderline | Also: `sliding_window` |
+| `jamba` | Hybrid | Borderline | Mamba + Attention |
+| `zamba` | Hybrid | Yes | Shared attention + Mamba |
+| `mamba_ssd` | SSM | Yes | Mamba-2 with SSD algorithm |
+| `rwkv` | Linear RNN | Yes | O(1) memory inference |
+| `gla` | Linear Attn | Yes | Fast on short sequences |
+| `hgrn` | Gated RNN | Yes | Hierarchical patterns |
+| `decision_transformer` | Transformer | Borderline | Goal-conditioned |
+| `s5` | SSM | Yes | Simplified state space |
+| `liquid` | Neural ODE | Yes | Adaptive dynamics |
+
+See [Architecture Guide](../reference/architectures/ARCHITECTURE_GUIDE.md) for detailed explanations.
 
 ### Mamba-Specific Options
 
@@ -179,6 +223,30 @@ mix run scripts/train_from_replays.exs --dual-port
 | `--chunk-size N` | 32 | Chunk size for chunked/memory-efficient attention |
 | `--flash-attention-nif` | off | Use FlashAttention NIF for inference (forward-only, Ampere+ GPU) |
 | `--no-flash-attention-nif` | - | Disable FlashAttention NIF |
+
+### Liquid Neural Network Options
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--solver TYPE` | rk4 | ODE solver: euler, midpoint, rk4, dopri5 |
+| `--integration-steps N` | 1 | ODE sub-steps per frame |
+
+**Solver choice:**
+- `euler` - Fastest, least accurate
+- `midpoint` - Good balance for speed
+- `rk4` - **Default**, good accuracy
+- `dopri5` - Best accuracy, adaptive step size
+
+See [ODE Solver Reference](../reference/ODE_SOLVER.md) for details.
+
+### Other New Architecture Options
+
+These options apply to multiple new architectures:
+
+| Option | Default | Applies To | Description |
+|--------|---------|------------|-------------|
+| `--expand-ratio N` | 2 | hgrn, gla | State expansion ratio |
+| `--attention-interval N` | 3 | zamba | Mamba blocks between attention |
 
 ### Model Architecture
 
