@@ -27,10 +27,10 @@ alias ExPhil.Agents.Agent
 alias ExPhil.Training.Output
 
 # Parse command line arguments using CLI module
-@flag_groups [:verbosity, :checkpoint, :replay, :dolphin, :common]
+flag_groups = [:verbosity, :checkpoint, :replay, :dolphin, :common]
 
 opts = CLI.parse_args(System.argv(),
-  flags: @flag_groups,
+  flags: flag_groups,
   defaults: [character: "mewtwo"]
 )
 
@@ -58,7 +58,7 @@ opts = Keyword.update(opts, :on_game_end, :restart, fn
 end)
 
 # Handle help
-CLI.maybe_show_help(opts, "play_dolphin_async.exs", @flag_groups, fn ->
+CLI.maybe_show_help(opts, "play_dolphin_async.exs", flag_groups, fn ->
   IO.puts("""
 
   ASYNC VERSION - Separates frame reading from inference for smooth gameplay.
