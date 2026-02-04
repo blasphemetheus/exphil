@@ -2,6 +2,7 @@ defmodule ExPhil.Integrations.WandbTest do
   use ExUnit.Case, async: false
 
   alias ExPhil.Integrations.Wandb
+  alias ExPhil.Error.WandBError
 
   # Most tests require API key, so we mock/skip accordingly
   # These tests verify the module structure without hitting the API
@@ -20,13 +21,13 @@ defmodule ExPhil.Integrations.WandbTest do
 
   describe "log/2" do
     test "returns error when no run active" do
-      assert {:error, :no_active_run} = Wandb.log(%{loss: 0.5})
+      assert {:error, %WandBError{reason: :no_active_run}} = Wandb.log(%{loss: 0.5})
     end
   end
 
   describe "finish_run/0" do
     test "returns error when no run active" do
-      assert {:error, :no_active_run} = Wandb.finish_run()
+      assert {:error, %WandBError{reason: :no_active_run}} = Wandb.finish_run()
     end
   end
 

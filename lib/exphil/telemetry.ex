@@ -36,6 +36,8 @@ defmodule ExPhil.Telemetry do
 
   """
 
+  alias ExPhil.Error.TelemetryError
+
   require Logger
 
   # ============================================================================
@@ -205,7 +207,7 @@ defmodule ExPhil.Telemetry do
     if Process.whereis(__MODULE__.Collector) do
       GenServer.call(__MODULE__.Collector, :get_metrics)
     else
-      {:error, :collector_not_started}
+      {:error, TelemetryError.new(:collector_not_started)}
     end
   end
 
@@ -216,7 +218,7 @@ defmodule ExPhil.Telemetry do
     if Process.whereis(__MODULE__.Collector) do
       GenServer.call(__MODULE__.Collector, :flush)
     else
-      {:error, :collector_not_started}
+      {:error, TelemetryError.new(:collector_not_started)}
     end
   end
 end

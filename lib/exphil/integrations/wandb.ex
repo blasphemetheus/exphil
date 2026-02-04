@@ -51,6 +51,8 @@ defmodule ExPhil.Integrations.Wandb do
 
   use GenServer
 
+  alias ExPhil.Error.WandBError
+
   require Logger
 
   @base_url "https://api.wandb.ai"
@@ -94,7 +96,7 @@ defmodule ExPhil.Integrations.Wandb do
         GenServer.call(__MODULE__, :get_run_id)
 
       {:error, {:already_started, _pid}} ->
-        {:error, :run_already_active}
+        {:error, WandBError.new(:run_already_active)}
 
       error ->
         error
@@ -115,7 +117,7 @@ defmodule ExPhil.Integrations.Wandb do
     if Process.whereis(__MODULE__) do
       GenServer.cast(__MODULE__, {:log, metrics, opts})
     else
-      {:error, :no_active_run}
+      {:error, WandBError.new(:no_active_run)}
     end
   end
 
@@ -127,7 +129,7 @@ defmodule ExPhil.Integrations.Wandb do
     if Process.whereis(__MODULE__) do
       GenServer.call(__MODULE__, :finish)
     else
-      {:error, :no_active_run}
+      {:error, WandBError.new(:no_active_run)}
     end
   end
 
@@ -160,7 +162,7 @@ defmodule ExPhil.Integrations.Wandb do
     api_key = Keyword.get(opts, :api_key) || System.get_env("WANDB_API_KEY")
 
     unless api_key do
-      {:stop, {:error, :no_api_key}}
+      {:stop, {:error, WandBError.new(:no_api_key)}}
     else
       project = Keyword.fetch!(opts, :project)
       run_name = Keyword.get(opts, :name, generate_run_name())

@@ -10,6 +10,7 @@ defmodule ExPhil.Integration.PipelineTest do
 
   alias ExPhil.Agents.Agent
   alias ExPhil.Embeddings
+  alias ExPhil.Error.AgentError
   alias ExPhil.Training.{Data, Imitation}
   alias ExPhil.Test.Factories
 
@@ -459,7 +460,7 @@ defmodule ExPhil.Integration.PipelineTest do
       game_state = Factories.build_game_state()
       result = Agent.get_action(agent, game_state)
 
-      assert match?({:error, :no_policy_loaded}, result)
+      assert match?({:error, %AgentError{reason: :no_policy_loaded}}, result)
 
       GenServer.stop(agent)
     end
