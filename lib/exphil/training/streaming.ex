@@ -216,15 +216,21 @@ defmodule ExPhil.Training.Streaming do
         # 1. Precompute frame embeddings
         frame_embedded = Data.precompute_frame_embeddings(dataset, show_progress: show_progress)
         # 2. Build sequence embeddings by slicing frame embeddings
-        Data.sequences_from_frame_embeddings(
+        seq_dataset = Data.sequences_from_frame_embeddings(
           dataset,
           frame_embedded.embedded_frames,
           window_size: window_size,
           show_progress: show_progress
         )
+        # 3. Transfer sequence embeddings to GPU for fast Nx.take during batching
+        gpu_embeddings = Nx.backend_transfer(seq_dataset.sequence_embeddings, EXLA.Backend)
+        %{seq_dataset | sequence_embeddings: gpu_embeddings}
       else
         # For single-frame: just precompute frame embeddings
-        Data.precompute_frame_embeddings(dataset, show_progress: show_progress)
+        embedded_dataset = Data.precompute_frame_embeddings(dataset, show_progress: show_progress)
+        # Transfer to GPU for fast Nx.take during batching
+        gpu_embeddings = Nx.backend_transfer(embedded_dataset.embedded_frames, EXLA.Backend)
+        %{embedded_dataset | embedded_frames: gpu_embeddings}
       end
     else
       dataset
