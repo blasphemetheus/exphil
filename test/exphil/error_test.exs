@@ -2,7 +2,7 @@ defmodule ExPhil.ErrorTest do
   use ExUnit.Case, async: true
 
   alias ExPhil.Error
-  alias ExPhil.Error.{CheckpointError, ReplayError, ConfigError, GPUError, BridgeError, EmbeddingError, DataError}
+  alias ExPhil.Error.{CheckpointError, ReplayError, ConfigError, GPUError, BridgeError, EmbeddingError, DataError, AgentError, ValidationError, LeagueError, SelfPlayError, RegistryError}
 
   # ============================================================================
   # CheckpointError Tests
@@ -266,6 +266,155 @@ defmodule ExPhil.ErrorTest do
   end
 
   # ============================================================================
+  # AgentError Tests
+  # ============================================================================
+
+  describe "AgentError" do
+    test "creates no_policy_loaded error" do
+      error = AgentError.new(:no_policy_loaded)
+      assert error.reason == :no_policy_loaded
+      assert error.message =~ "No policy loaded"
+    end
+
+    test "creates error with agent name" do
+      error = AgentError.new(:not_found, agent: :player1)
+      assert error.agent == :player1
+      assert error.message =~ "not found"
+      assert error.message =~ "player1"
+    end
+
+    test "creates initialization_failed error with details" do
+      error = AgentError.new(:initialization_failed,
+        agent: :main_agent,
+        context: %{details: "missing model weights"}
+      )
+      assert error.message =~ "initialization failed"
+      assert error.message =~ "missing model weights"
+    end
+  end
+
+  # ============================================================================
+  # ValidationError Tests
+  # ============================================================================
+
+  describe "ValidationError" do
+    test "creates not_found error with path" do
+      error = ValidationError.new(:not_found, path: "/path/to/file.slp")
+      assert error.reason == :not_found
+      assert error.message =~ "not found"
+      assert error.message =~ "/path/to/file.slp"
+    end
+
+    test "creates permission_denied error" do
+      error = ValidationError.new(:permission_denied, path: "/protected/file.slp")
+      assert error.message =~ "Permission denied"
+      assert error.message =~ "/protected/file.slp"
+    end
+
+    test "creates file_too_small error with size info" do
+      error = ValidationError.new(:file_too_small,
+        path: "small.slp",
+        context: %{min_size: 1024, actual_size: 100}
+      )
+      assert error.message =~ "too small"
+      assert error.message =~ "minimum 1024 bytes"
+      assert error.message =~ "got 100"
+    end
+
+    test "creates timeout error" do
+      error = ValidationError.new(:timeout)
+      assert error.message =~ "timed out"
+    end
+  end
+
+  # ============================================================================
+  # LeagueError Tests
+  # ============================================================================
+
+  describe "LeagueError" do
+    test "creates not_found error with agent_id" do
+      error = LeagueError.new(:not_found, agent_id: "agent_123")
+      assert error.reason == :not_found
+      assert error.agent_id == "agent_123"
+      assert error.message =~ "not found"
+      assert error.message =~ "agent_123"
+    end
+
+    test "creates already_registered error" do
+      error = LeagueError.new(:already_registered, agent_id: "mewtwo_v2")
+      assert error.message =~ "already registered"
+      assert error.message =~ "mewtwo_v2"
+    end
+
+    test "creates no_model error" do
+      error = LeagueError.new(:no_model, agent_id: "new_agent")
+      assert error.message =~ "No model available"
+    end
+  end
+
+  # ============================================================================
+  # SelfPlayError Tests
+  # ============================================================================
+
+  describe "SelfPlayError" do
+    test "creates game_not_started error" do
+      error = SelfPlayError.new(:game_not_started)
+      assert error.reason == :game_not_started
+      assert error.message =~ "Game not started"
+    end
+
+    test "creates game_finished error with game_id" do
+      error = SelfPlayError.new(:game_finished, game_id: "game_456")
+      assert error.game_id == "game_456"
+      assert error.message =~ "already finished"
+      assert error.message =~ "game_456"
+    end
+
+    test "creates no_current_policy error" do
+      error = SelfPlayError.new(:no_current_policy)
+      assert error.message =~ "No current policy"
+    end
+
+    test "creates dolphin_failed error with exit code" do
+      error = SelfPlayError.new(:dolphin_failed,
+        context: %{exit_code: 1}
+      )
+      assert error.message =~ "Dolphin"
+      assert error.message =~ "exit code 1"
+    end
+  end
+
+  # ============================================================================
+  # RegistryError Tests
+  # ============================================================================
+
+  describe "RegistryError" do
+    test "creates not_found error with model_id" do
+      error = RegistryError.new(:not_found, model_id: "model_v1")
+      assert error.reason == :not_found
+      assert error.model_id == "model_v1"
+      assert error.message =~ "not found"
+      assert error.message =~ "model_v1"
+    end
+
+    test "creates missing_required_field error" do
+      error = RegistryError.new(:missing_required_field,
+        context: %{field: :checkpoint_path}
+      )
+      assert error.message =~ "Missing required field"
+      assert error.message =~ "checkpoint_path"
+    end
+
+    test "creates no_models_with_metric error" do
+      error = RegistryError.new(:no_models_with_metric,
+        context: %{metric: :val_loss}
+      )
+      assert error.message =~ "No models with"
+      assert error.message =~ "val_loss"
+    end
+  end
+
+  # ============================================================================
   # Error Module Functions
   # ============================================================================
 
@@ -278,6 +427,11 @@ defmodule ExPhil.ErrorTest do
       assert Error.error?(%BridgeError{reason: :timeout, message: ""})
       assert Error.error?(%EmbeddingError{reason: :shape_mismatch, message: ""})
       assert Error.error?(%DataError{reason: :insufficient_data, message: ""})
+      assert Error.error?(%AgentError{reason: :no_policy_loaded, message: ""})
+      assert Error.error?(%ValidationError{reason: :not_found, message: ""})
+      assert Error.error?(%LeagueError{reason: :not_found, message: ""})
+      assert Error.error?(%SelfPlayError{reason: :game_not_started, message: ""})
+      assert Error.error?(%RegistryError{reason: :not_found, message: ""})
     end
 
     test "returns false for non-errors" do
@@ -318,6 +472,41 @@ defmodule ExPhil.ErrorTest do
       assert %DataError{reason: :python_not_found} = Error.wrap(:python_not_found, :data)
       assert %DataError{reason: :script_failed} = Error.wrap(:script_failed, :data)
       assert %DataError{reason: :empty_dataset} = Error.wrap(:empty_dataset, :data)
+    end
+
+    test "wraps agent errors" do
+      assert %AgentError{reason: :no_policy_loaded} = Error.wrap(:no_policy_loaded, :agent)
+      assert %AgentError{reason: :not_found} = Error.wrap(:not_found, :agent)
+      assert %AgentError{reason: :initialization_failed} = Error.wrap(:initialization_failed, :agent)
+    end
+
+    test "wraps validation errors" do
+      assert %ValidationError{reason: :not_found} = Error.wrap(:not_found, :validation)
+      assert %ValidationError{reason: :not_regular_file} = Error.wrap(:not_regular_file, :validation)
+      assert %ValidationError{reason: :permission_denied} = Error.wrap(:permission_denied, :validation)
+      assert %ValidationError{reason: :file_too_small} = Error.wrap(:file_too_small, :validation)
+      # Also wraps common POSIX errors
+      assert %ValidationError{reason: :not_found} = Error.wrap(:enoent, :validation)
+      assert %ValidationError{reason: :permission_denied} = Error.wrap(:eacces, :validation)
+    end
+
+    test "wraps league errors" do
+      assert %LeagueError{reason: :not_found} = Error.wrap(:not_found, :league)
+      assert %LeagueError{reason: :already_registered} = Error.wrap(:already_registered, :league)
+      assert %LeagueError{reason: :no_model} = Error.wrap(:no_model, :league)
+    end
+
+    test "wraps self_play errors" do
+      assert %SelfPlayError{reason: :game_not_started} = Error.wrap(:game_not_started, :self_play)
+      assert %SelfPlayError{reason: :game_finished} = Error.wrap(:game_finished, :self_play)
+      assert %SelfPlayError{reason: :no_current_policy} = Error.wrap(:no_current_policy, :self_play)
+      assert %SelfPlayError{reason: :not_found} = Error.wrap(:not_found, :self_play)
+    end
+
+    test "wraps registry errors" do
+      assert %RegistryError{reason: :not_found} = Error.wrap(:not_found, :registry)
+      assert %RegistryError{reason: :missing_required_field} = Error.wrap(:missing_required_field, :registry)
+      assert %RegistryError{reason: :no_models_with_metric} = Error.wrap(:no_models_with_metric, :registry)
     end
 
     test "preserves options in wrapped error" do

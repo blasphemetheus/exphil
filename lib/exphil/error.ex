@@ -15,6 +15,17 @@ defmodule ExPhil.Error do
   | `GPUError` | GPU/hardware detection and OOM |
   | `BridgeError` | Python/NIF port communication |
   | `EmbeddingError` | Tensor shape mismatches |
+  | `DataError` | Data loading and processing |
+  | `AgentError` | Agent/policy runtime issues |
+  | `ValidationError` | File validation errors |
+  | `LeagueError` | League/matchmaking operations |
+  | `SelfPlayError` | Self-play game management |
+  | `RegistryError` | Model registry operations |
+  | `WandBError` | Weights & Biases integration |
+  | `TelemetryError` | Metrics collection |
+  | `CacheError` | Embedding/mmap cache operations |
+  | `RecoveryError` | Training recovery/checkpointing |
+  | `YamlError` | YAML configuration parsing |
 
   ## Usage
 
@@ -59,6 +70,7 @@ defmodule ExPhil.Error do
             | :incompatible
             | :version_mismatch
             | :write_failed
+            | :queue_full
 
     @type t :: %__MODULE__{
             reason: reason(),
@@ -76,6 +88,7 @@ defmodule ExPhil.Error do
           :incompatible -> "Checkpoint incompatible with current model"
           :version_mismatch -> "Checkpoint from incompatible ExPhil version"
           :write_failed -> "Failed to write checkpoint"
+          :queue_full -> "Checkpoint save queue full"
         end
 
       parts = [base]
@@ -393,7 +406,7 @@ defmodule ExPhil.Error do
     
     defexception [:reason, :bridge, :context, :message]
 
-    @type reason :: :not_running | :timeout | :crashed | :protocol_error
+    @type reason :: :not_running | :timeout | :crashed | :protocol_error | :port_closed
 
     @type t :: %__MODULE__{
             reason: reason(),
@@ -410,6 +423,7 @@ defmodule ExPhil.Error do
           :timeout -> "Bridge call timed out"
           :crashed -> "Bridge process crashed"
           :protocol_error -> "Invalid response from bridge"
+          :port_closed -> "Bridge port closed unexpectedly"
         end
 
       parts = [base]
@@ -609,6 +623,734 @@ defmodule ExPhil.Error do
   end
 
   # ============================================================================
+  # Agent Errors
+  # ============================================================================
+
+  defmodule AgentError do
+    @moduledoc """
+    Errors in agent operations.
+
+    ## Reasons
+
+    - `:no_policy_loaded` - Agent has no policy loaded
+    - `:not_found` - Agent not found
+    - `:initialization_failed` - Agent failed to initialize
+    - `:inference_failed` - Policy inference failed
+    """
+
+    defexception [:reason, :agent, :context, :message]
+
+    @type reason :: :no_policy_loaded | :not_found | :initialization_failed | :inference_failed
+
+    @type t :: %__MODULE__{
+            reason: reason(),
+            agent: atom() | nil,
+            context: map() | nil,
+            message: String.t()
+          }
+
+    @doc false
+    def message(%__MODULE__{} = error) do
+      base =
+        case error.reason do
+          :no_policy_loaded -> "No policy loaded"
+          :not_found -> "Agent not found"
+          :initialization_failed -> "Agent initialization failed"
+          :inference_failed -> "Policy inference failed"
+        end
+
+      parts = [base]
+      parts = if error.agent, do: parts ++ ["(#{error.agent})"], else: parts
+
+      parts =
+        if error.context do
+          case error.context do
+            %{details: details} ->
+              parts ++ ["- #{details}"]
+
+            _ ->
+              parts
+          end
+        else
+          parts
+        end
+
+      Enum.join(parts, " ")
+    end
+
+    @doc """
+    Create a new agent error.
+    """
+    @spec new(reason(), keyword()) :: t()
+    def new(reason, opts \\ []) do
+      error = %__MODULE__{
+        reason: reason,
+        agent: Keyword.get(opts, :agent),
+        context: Keyword.get(opts, :context),
+        message: ""
+      }
+
+      %{error | message: message(error)}
+    end
+  end
+
+  # ============================================================================
+  # Validation Errors
+  # ============================================================================
+
+  defmodule ValidationError do
+    @moduledoc """
+    Errors during file/data validation.
+
+    ## Reasons
+
+    - `:not_found` - File does not exist
+    - `:not_regular_file` - Path is not a regular file
+    - `:permission_denied` - No permission to access file
+    - `:file_too_small` - File below minimum size
+    - `:empty_file` - File is empty
+    - `:invalid_format` - File format is invalid
+    - `:timeout` - Validation timed out
+    """
+
+    defexception [:reason, :path, :context, :message]
+
+    @type reason ::
+            :not_found
+            | :not_regular_file
+            | :permission_denied
+            | :file_too_small
+            | :empty_file
+            | :invalid_format
+            | :timeout
+
+    @type t :: %__MODULE__{
+            reason: reason(),
+            path: String.t() | nil,
+            context: map() | nil,
+            message: String.t()
+          }
+
+    @doc false
+    def message(%__MODULE__{} = error) do
+      base =
+        case error.reason do
+          :not_found -> "File not found"
+          :not_regular_file -> "Not a regular file"
+          :permission_denied -> "Permission denied"
+          :file_too_small -> "File too small"
+          :empty_file -> "File is empty"
+          :invalid_format -> "Invalid file format"
+          :timeout -> "Validation timed out"
+        end
+
+      parts = [base]
+      parts = if error.path, do: parts ++ ["at #{error.path}"], else: parts
+
+      parts =
+        if error.context do
+          case error.context do
+            %{min_size: min, actual_size: actual} ->
+              parts ++ ["(minimum #{min} bytes, got #{actual})"]
+
+            %{expected_magic: exp} ->
+              parts ++ ["(expected #{exp} magic bytes)"]
+
+            _ ->
+              parts
+          end
+        else
+          parts
+        end
+
+      Enum.join(parts, " ")
+    end
+
+    @doc """
+    Create a new validation error.
+    """
+    @spec new(reason(), keyword()) :: t()
+    def new(reason, opts \\ []) do
+      error = %__MODULE__{
+        reason: reason,
+        path: Keyword.get(opts, :path),
+        context: Keyword.get(opts, :context),
+        message: ""
+      }
+
+      %{error | message: message(error)}
+    end
+  end
+
+  # ============================================================================
+  # League Errors
+  # ============================================================================
+
+  defmodule LeagueError do
+    @moduledoc """
+    Errors in league/matchmaking operations.
+
+    ## Reasons
+
+    - `:not_found` - Agent or entry not found
+    - `:already_registered` - Agent already registered
+    - `:no_model` - No model available for agent
+    - `:match_failed` - Match creation failed
+    """
+
+    defexception [:reason, :agent_id, :context, :message]
+
+    @type reason :: :not_found | :already_registered | :no_model | :match_failed
+
+    @type t :: %__MODULE__{
+            reason: reason(),
+            agent_id: String.t() | nil,
+            context: map() | nil,
+            message: String.t()
+          }
+
+    @doc false
+    def message(%__MODULE__{} = error) do
+      base =
+        case error.reason do
+          :not_found -> "Agent not found in league"
+          :already_registered -> "Agent already registered"
+          :no_model -> "No model available"
+          :match_failed -> "Match creation failed"
+        end
+
+      parts = [base]
+      parts = if error.agent_id, do: parts ++ ["(#{error.agent_id})"], else: parts
+
+      parts =
+        if error.context do
+          case error.context do
+            %{details: details} ->
+              parts ++ ["- #{details}"]
+
+            _ ->
+              parts
+          end
+        else
+          parts
+        end
+
+      Enum.join(parts, " ")
+    end
+
+    @doc """
+    Create a new league error.
+    """
+    @spec new(reason(), keyword()) :: t()
+    def new(reason, opts \\ []) do
+      error = %__MODULE__{
+        reason: reason,
+        agent_id: Keyword.get(opts, :agent_id),
+        context: Keyword.get(opts, :context),
+        message: ""
+      }
+
+      %{error | message: message(error)}
+    end
+  end
+
+  # ============================================================================
+  # Self-Play Errors
+  # ============================================================================
+
+  defmodule SelfPlayError do
+    @moduledoc """
+    Errors in self-play game management.
+
+    ## Reasons
+
+    - `:game_not_started` - Game has not started yet
+    - `:game_finished` - Game is already finished
+    - `:no_current_policy` - No current policy available
+    - `:not_found` - Game or resource not found
+    - `:dolphin_failed` - Dolphin process failed
+    """
+
+    defexception [:reason, :game_id, :context, :message]
+
+    @type reason ::
+            :game_not_started
+            | :game_finished
+            | :no_current_policy
+            | :not_found
+            | :dolphin_failed
+
+    @type t :: %__MODULE__{
+            reason: reason(),
+            game_id: String.t() | nil,
+            context: map() | nil,
+            message: String.t()
+          }
+
+    @doc false
+    def message(%__MODULE__{} = error) do
+      base =
+        case error.reason do
+          :game_not_started -> "Game not started"
+          :game_finished -> "Game already finished"
+          :no_current_policy -> "No current policy available"
+          :not_found -> "Game not found"
+          :dolphin_failed -> "Dolphin process failed"
+        end
+
+      parts = [base]
+      parts = if error.game_id, do: parts ++ ["(game #{error.game_id})"], else: parts
+
+      parts =
+        if error.context do
+          case error.context do
+            %{details: details} ->
+              parts ++ ["- #{details}"]
+
+            %{exit_code: code} ->
+              parts ++ ["(exit code #{code})"]
+
+            _ ->
+              parts
+          end
+        else
+          parts
+        end
+
+      Enum.join(parts, " ")
+    end
+
+    @doc """
+    Create a new self-play error.
+    """
+    @spec new(reason(), keyword()) :: t()
+    def new(reason, opts \\ []) do
+      error = %__MODULE__{
+        reason: reason,
+        game_id: Keyword.get(opts, :game_id),
+        context: Keyword.get(opts, :context),
+        message: ""
+      }
+
+      %{error | message: message(error)}
+    end
+  end
+
+  # ============================================================================
+  # Registry Errors
+  # ============================================================================
+
+  defmodule RegistryError do
+    @moduledoc """
+    Errors in model registry operations.
+
+    ## Reasons
+
+    - `:not_found` - Model not found
+    - `:missing_required_field` - Required field missing from entry
+    - `:no_models_with_metric` - No models have requested metric
+    - `:write_failed` - Failed to write registry file
+    """
+
+    defexception [:reason, :model_id, :context, :message]
+
+    @type reason :: :not_found | :missing_required_field | :no_models_with_metric | :write_failed
+
+    @type t :: %__MODULE__{
+            reason: reason(),
+            model_id: String.t() | nil,
+            context: map() | nil,
+            message: String.t()
+          }
+
+    @doc false
+    def message(%__MODULE__{} = error) do
+      base =
+        case error.reason do
+          :not_found -> "Model not found in registry"
+          :missing_required_field -> "Missing required field"
+          :no_models_with_metric -> "No models with requested metric"
+          :write_failed -> "Failed to write registry"
+        end
+
+      parts = [base]
+      parts = if error.model_id, do: parts ++ ["(#{error.model_id})"], else: parts
+
+      parts =
+        if error.context do
+          case error.context do
+            %{field: field} ->
+              parts ++ ["'#{field}'"]
+
+            %{metric: metric} ->
+              parts ++ ["'#{metric}'"]
+
+            _ ->
+              parts
+          end
+        else
+          parts
+        end
+
+      Enum.join(parts, " ")
+    end
+
+    @doc """
+    Create a new registry error.
+    """
+    @spec new(reason(), keyword()) :: t()
+    def new(reason, opts \\ []) do
+      error = %__MODULE__{
+        reason: reason,
+        model_id: Keyword.get(opts, :model_id),
+        context: Keyword.get(opts, :context),
+        message: ""
+      }
+
+      %{error | message: message(error)}
+    end
+  end
+
+  # ============================================================================
+  # WandB Errors
+  # ============================================================================
+
+  defmodule WandBError do
+    @moduledoc """
+    Errors in Weights & Biases integration.
+
+    ## Reasons
+
+    - `:no_api_key` - WANDB_API_KEY not set
+    - `:run_already_active` - Tried to start run when one is active
+    - `:no_active_run` - Tried to log without active run
+    - `:initialization_failed` - Failed to initialize WandB
+    """
+
+    defexception [:reason, :context, :message]
+
+    @type reason :: :no_api_key | :run_already_active | :no_active_run | :initialization_failed
+
+    @type t :: %__MODULE__{
+            reason: reason(),
+            context: map() | nil,
+            message: String.t()
+          }
+
+    @doc false
+    def message(%__MODULE__{} = error) do
+      base =
+        case error.reason do
+          :no_api_key -> "WANDB_API_KEY environment variable not set"
+          :run_already_active -> "WandB run already active"
+          :no_active_run -> "No active WandB run"
+          :initialization_failed -> "Failed to initialize WandB"
+        end
+
+      parts = [base]
+
+      parts =
+        if error.context do
+          case error.context do
+            %{details: details} -> parts ++ ["(#{details})"]
+            _ -> parts
+          end
+        else
+          parts
+        end
+
+      Enum.join(parts, " ")
+    end
+
+    @doc """
+    Create a new WandB error.
+    """
+    @spec new(reason(), keyword()) :: t()
+    def new(reason, opts \\ []) do
+      error = %__MODULE__{
+        reason: reason,
+        context: Keyword.get(opts, :context),
+        message: ""
+      }
+
+      %{error | message: message(error)}
+    end
+  end
+
+  # ============================================================================
+  # Telemetry Errors
+  # ============================================================================
+
+  defmodule TelemetryError do
+    @moduledoc """
+    Errors in telemetry/metrics collection.
+
+    ## Reasons
+
+    - `:collector_not_started` - Telemetry collector not running
+    - `:invalid_metric` - Invalid metric name or value
+    """
+
+    defexception [:reason, :context, :message]
+
+    @type reason :: :collector_not_started | :invalid_metric
+
+    @type t :: %__MODULE__{
+            reason: reason(),
+            context: map() | nil,
+            message: String.t()
+          }
+
+    @doc false
+    def message(%__MODULE__{} = error) do
+      base =
+        case error.reason do
+          :collector_not_started -> "Telemetry collector not started"
+          :invalid_metric -> "Invalid metric"
+        end
+
+      parts = [base]
+
+      parts =
+        if error.context do
+          case error.context do
+            %{metric: metric} -> parts ++ ["'#{metric}'"]
+            _ -> parts
+          end
+        else
+          parts
+        end
+
+      Enum.join(parts, " ")
+    end
+
+    @doc """
+    Create a new telemetry error.
+    """
+    @spec new(reason(), keyword()) :: t()
+    def new(reason, opts \\ []) do
+      error = %__MODULE__{
+        reason: reason,
+        context: Keyword.get(opts, :context),
+        message: ""
+      }
+
+      %{error | message: message(error)}
+    end
+  end
+
+  # ============================================================================
+  # Cache Errors
+  # ============================================================================
+
+  defmodule CacheError do
+    @moduledoc """
+    Errors in embedding/mmap cache operations.
+
+    ## Reasons
+
+    - `:not_found` - Cache entry not found
+    - `:invalid_header` - Invalid cache file header
+    - `:corrupted` - Cache file corrupted
+    - `:write_failed` - Failed to write cache
+    """
+
+    defexception [:reason, :path, :context, :message]
+
+    @type reason :: :not_found | :invalid_header | :corrupted | :write_failed
+
+    @type t :: %__MODULE__{
+            reason: reason(),
+            path: String.t() | nil,
+            context: map() | nil,
+            message: String.t()
+          }
+
+    @doc false
+    def message(%__MODULE__{} = error) do
+      base =
+        case error.reason do
+          :not_found -> "Cache entry not found"
+          :invalid_header -> "Invalid cache header"
+          :corrupted -> "Cache file corrupted"
+          :write_failed -> "Failed to write cache"
+        end
+
+      parts = [base]
+      parts = if error.path, do: parts ++ ["at #{error.path}"], else: parts
+
+      parts =
+        if error.context do
+          case error.context do
+            %{details: details} -> parts ++ ["(#{details})"]
+            _ -> parts
+          end
+        else
+          parts
+        end
+
+      Enum.join(parts, " ")
+    end
+
+    @doc """
+    Create a new cache error.
+    """
+    @spec new(reason(), keyword()) :: t()
+    def new(reason, opts \\ []) do
+      error = %__MODULE__{
+        reason: reason,
+        path: Keyword.get(opts, :path),
+        context: Keyword.get(opts, :context),
+        message: ""
+      }
+
+      %{error | message: message(error)}
+    end
+  end
+
+  # ============================================================================
+  # Recovery Errors
+  # ============================================================================
+
+  defmodule RecoveryError do
+    @moduledoc """
+    Errors in training recovery operations.
+
+    ## Reasons
+
+    - `:invalid_marker` - Invalid recovery marker file
+    - `:no_checkpoint` - No checkpoint to recover from
+    - `:state_mismatch` - Recovery state doesn't match current training
+    """
+
+    defexception [:reason, :path, :context, :message]
+
+    @type reason :: :invalid_marker | :no_checkpoint | :state_mismatch
+
+    @type t :: %__MODULE__{
+            reason: reason(),
+            path: String.t() | nil,
+            context: map() | nil,
+            message: String.t()
+          }
+
+    @doc false
+    def message(%__MODULE__{} = error) do
+      base =
+        case error.reason do
+          :invalid_marker -> "Invalid recovery marker"
+          :no_checkpoint -> "No checkpoint to recover from"
+          :state_mismatch -> "Recovery state mismatch"
+        end
+
+      parts = [base]
+      parts = if error.path, do: parts ++ ["at #{error.path}"], else: parts
+
+      parts =
+        if error.context do
+          case error.context do
+            %{expected: exp, actual: act} ->
+              parts ++ ["(expected #{inspect(exp)}, got #{inspect(act)})"]
+            %{details: details} ->
+              parts ++ ["(#{details})"]
+            _ ->
+              parts
+          end
+        else
+          parts
+        end
+
+      Enum.join(parts, " ")
+    end
+
+    @doc """
+    Create a new recovery error.
+    """
+    @spec new(reason(), keyword()) :: t()
+    def new(reason, opts \\ []) do
+      error = %__MODULE__{
+        reason: reason,
+        path: Keyword.get(opts, :path),
+        context: Keyword.get(opts, :context),
+        message: ""
+      }
+
+      %{error | message: message(error)}
+    end
+  end
+
+  # ============================================================================
+  # YAML Errors
+  # ============================================================================
+
+  defmodule YamlError do
+    @moduledoc """
+    Errors in YAML configuration parsing.
+
+    ## Reasons
+
+    - `:file_not_found` - YAML file not found
+    - `:invalid_format` - Invalid YAML syntax
+    - `:invalid_value` - Valid YAML but invalid config value
+    - `:missing_field` - Required field missing
+    """
+
+    defexception [:reason, :path, :context, :message]
+
+    @type reason :: :file_not_found | :invalid_format | :invalid_value | :missing_field
+
+    @type t :: %__MODULE__{
+            reason: reason(),
+            path: String.t() | nil,
+            context: map() | nil,
+            message: String.t()
+          }
+
+    @doc false
+    def message(%__MODULE__{} = error) do
+      base =
+        case error.reason do
+          :file_not_found -> "YAML file not found"
+          :invalid_format -> "Invalid YAML format"
+          :invalid_value -> "Invalid configuration value"
+          :missing_field -> "Missing required field"
+        end
+
+      parts = [base]
+      parts = if error.path, do: parts ++ ["at #{error.path}"], else: parts
+
+      parts =
+        if error.context do
+          case error.context do
+            %{field: field} -> parts ++ ["'#{field}'"]
+            %{line: line} -> parts ++ ["(line #{line})"]
+            %{details: details} -> parts ++ ["(#{details})"]
+            _ -> parts
+          end
+        else
+          parts
+        end
+
+      Enum.join(parts, " ")
+    end
+
+    @doc """
+    Create a new YAML error.
+    """
+    @spec new(reason(), keyword()) :: t()
+    def new(reason, opts \\ []) do
+      error = %__MODULE__{
+        reason: reason,
+        path: Keyword.get(opts, :path),
+        context: Keyword.get(opts, :context),
+        message: ""
+      }
+
+      %{error | message: message(error)}
+    end
+  end
+
+  # ============================================================================
   # Convenience Functions
   # ============================================================================
 
@@ -631,6 +1373,16 @@ defmodule ExPhil.Error do
   def error?(%BridgeError{}), do: true
   def error?(%EmbeddingError{}), do: true
   def error?(%DataError{}), do: true
+  def error?(%AgentError{}), do: true
+  def error?(%ValidationError{}), do: true
+  def error?(%LeagueError{}), do: true
+  def error?(%SelfPlayError{}), do: true
+  def error?(%RegistryError{}), do: true
+  def error?(%WandBError{}), do: true
+  def error?(%TelemetryError{}), do: true
+  def error?(%CacheError{}), do: true
+  def error?(%RecoveryError{}), do: true
+  def error?(%YamlError{}), do: true
   def error?(_), do: false
 
   @doc """
@@ -653,6 +1405,7 @@ defmodule ExPhil.Error do
   def wrap(:corrupted, :checkpoint, opts), do: CheckpointError.new(:corrupted, opts)
   def wrap(:incompatible, :checkpoint, opts), do: CheckpointError.new(:incompatible, opts)
   def wrap(:write_failed, :checkpoint, opts), do: CheckpointError.new(:write_failed, opts)
+  def wrap(:queue_full, :checkpoint, opts), do: CheckpointError.new(:queue_full, opts)
 
   def wrap(:not_found, :replay, opts), do: ReplayError.new(:not_found, opts)
   def wrap(:nif_panic, :replay, opts), do: ReplayError.new(:nif_panic, opts)
@@ -668,12 +1421,73 @@ defmodule ExPhil.Error do
   def wrap(:not_running, :bridge, opts), do: BridgeError.new(:not_running, opts)
   def wrap(:timeout, :bridge, opts), do: BridgeError.new(:timeout, opts)
   def wrap(:queue_full, :bridge, opts), do: BridgeError.new(:timeout, opts)
+  def wrap(:port_closed, :bridge, opts), do: BridgeError.new(:port_closed, opts)
+  def wrap(:protocol_error, :bridge, opts), do: BridgeError.new(:protocol_error, opts)
+  def wrap(:unexpected_response, :bridge, opts), do: BridgeError.new(:protocol_error, opts)
 
   def wrap(:insufficient_data, :data, opts), do: DataError.new(:insufficient_data, opts)
   def wrap(:parse_failed, :data, opts), do: DataError.new(:parse_failed, opts)
   def wrap(:python_not_found, :data, opts), do: DataError.new(:python_not_found, opts)
   def wrap(:script_failed, :data, opts), do: DataError.new(:script_failed, opts)
   def wrap(:empty_dataset, :data, opts), do: DataError.new(:empty_dataset, opts)
+
+  def wrap(:no_policy_loaded, :agent, opts), do: AgentError.new(:no_policy_loaded, opts)
+  def wrap(:not_found, :agent, opts), do: AgentError.new(:not_found, opts)
+  def wrap(:initialization_failed, :agent, opts), do: AgentError.new(:initialization_failed, opts)
+  def wrap(:inference_failed, :agent, opts), do: AgentError.new(:inference_failed, opts)
+
+  def wrap(:not_found, :validation, opts), do: ValidationError.new(:not_found, opts)
+  def wrap(:not_regular_file, :validation, opts), do: ValidationError.new(:not_regular_file, opts)
+  def wrap(:permission_denied, :validation, opts), do: ValidationError.new(:permission_denied, opts)
+  def wrap(:file_too_small, :validation, opts), do: ValidationError.new(:file_too_small, opts)
+  def wrap(:empty_file, :validation, opts), do: ValidationError.new(:empty_file, opts)
+  def wrap(:invalid_format, :validation, opts), do: ValidationError.new(:invalid_format, opts)
+  def wrap(:timeout, :validation, opts), do: ValidationError.new(:timeout, opts)
+  def wrap(:enoent, :validation, opts), do: ValidationError.new(:not_found, opts)
+  def wrap(:eacces, :validation, opts), do: ValidationError.new(:permission_denied, opts)
+
+  def wrap(:not_found, :league, opts), do: LeagueError.new(:not_found, opts)
+  def wrap(:already_registered, :league, opts), do: LeagueError.new(:already_registered, opts)
+  def wrap(:no_model, :league, opts), do: LeagueError.new(:no_model, opts)
+  def wrap(:match_failed, :league, opts), do: LeagueError.new(:match_failed, opts)
+
+  def wrap(:game_not_started, :self_play, opts), do: SelfPlayError.new(:game_not_started, opts)
+  def wrap(:game_finished, :self_play, opts), do: SelfPlayError.new(:game_finished, opts)
+  def wrap(:no_current_policy, :self_play, opts), do: SelfPlayError.new(:no_current_policy, opts)
+  def wrap(:not_found, :self_play, opts), do: SelfPlayError.new(:not_found, opts)
+  def wrap(:dolphin_failed, :self_play, opts), do: SelfPlayError.new(:dolphin_failed, opts)
+
+  def wrap(:not_found, :registry, opts), do: RegistryError.new(:not_found, opts)
+  def wrap(:missing_required_field, :registry, opts), do: RegistryError.new(:missing_required_field, opts)
+  def wrap(:no_models_with_metric, :registry, opts), do: RegistryError.new(:no_models_with_metric, opts)
+  def wrap(:write_failed, :registry, opts), do: RegistryError.new(:write_failed, opts)
+
+  def wrap(:no_api_key, :wandb, opts), do: WandBError.new(:no_api_key, opts)
+  def wrap(:run_already_active, :wandb, opts), do: WandBError.new(:run_already_active, opts)
+  def wrap(:no_active_run, :wandb, opts), do: WandBError.new(:no_active_run, opts)
+  def wrap(:initialization_failed, :wandb, opts), do: WandBError.new(:initialization_failed, opts)
+
+  def wrap(:collector_not_started, :telemetry, opts), do: TelemetryError.new(:collector_not_started, opts)
+  def wrap(:invalid_metric, :telemetry, opts), do: TelemetryError.new(:invalid_metric, opts)
+
+  def wrap(:not_found, :cache, opts), do: CacheError.new(:not_found, opts)
+  def wrap(:invalid_header, :cache, opts), do: CacheError.new(:invalid_header, opts)
+  def wrap(:corrupted, :cache, opts), do: CacheError.new(:corrupted, opts)
+  def wrap(:write_failed, :cache, opts), do: CacheError.new(:write_failed, opts)
+
+  def wrap(:invalid_marker, :recovery, opts), do: RecoveryError.new(:invalid_marker, opts)
+  def wrap(:no_checkpoint, :recovery, opts), do: RecoveryError.new(:no_checkpoint, opts)
+  def wrap(:state_mismatch, :recovery, opts), do: RecoveryError.new(:state_mismatch, opts)
+
+  def wrap(:file_not_found, :yaml, opts), do: YamlError.new(:file_not_found, opts)
+  def wrap(:invalid_format, :yaml, opts), do: YamlError.new(:invalid_format, opts)
+  def wrap(:invalid_yaml_format, :yaml, opts), do: YamlError.new(:invalid_format, opts)
+  def wrap(:invalid_value, :yaml, opts), do: YamlError.new(:invalid_value, opts)
+  def wrap(:missing_field, :yaml, opts), do: YamlError.new(:missing_field, opts)
+
+  # ConfigError can also handle validation errors from atom_safety
+  def wrap(:invalid_value, :config, opts), do: ConfigError.new(:invalid_value, opts)
+  def wrap(:not_existing, :config, opts), do: ConfigError.new(:invalid_value, opts)
 
   def wrap(error, _category, _opts), do: error
 end
