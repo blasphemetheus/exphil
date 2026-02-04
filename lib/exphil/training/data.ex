@@ -2140,8 +2140,15 @@ defmodule ExPhil.Training.Data do
         # Guard against out-of-bounds indices returning :undefined
         case frame do
           :undefined ->
-            # Return a default action (neutral state)
-            %{buttons: 0, main_x: 0.5, main_y: 0.5, c_x: 0.5, c_y: 0.5, shoulder: 0.0}
+            # Return a default action (neutral state, all buttons false, sticks centered)
+            %{
+              buttons: %{a: false, b: false, x: false, y: false, z: false, l: false, r: false, d_up: false},
+              main_x: 8,
+              main_y: 8,
+              c_x: 8,
+              c_y: 8,
+              shoulder: 0
+            }
 
           _ ->
             frame.action
