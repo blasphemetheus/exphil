@@ -353,3 +353,80 @@ mix run scripts/train_from_replays.exs --backbone liquid --solver dopri5
 ```
 
 Available solvers: `:euler`, `:midpoint`, `:rk4`, `:dopri5`
+
+## Advanced Features
+
+### HybridBuilder - Custom Hybrid Architectures
+
+Flexible builder for combining different layer types in arbitrary patterns.
+
+```elixir
+alias ExPhil.Networks.HybridBuilder
+
+# Custom pattern
+pattern = [:mamba, :mamba, :attention, :gla, :mamba, :ffn]
+model = HybridBuilder.build(pattern, embed_size: 287)
+
+# Predefined patterns
+model = HybridBuilder.build_pattern(:mamba_gla, 6, embed_size: 287)
+```
+
+See [HYBRID_BUILDER.md](HYBRID_BUILDER.md) for full documentation.
+
+### Speculative Decoding - Fast Inference
+
+Use a fast draft model to propose actions, verify with accurate target model.
+
+```elixir
+alias ExPhil.Networks.SpeculativeDecoding
+
+decoder = SpeculativeDecoding.create(
+  draft_fn: &mlp_predict/2,
+  target_fn: &mamba_batch_predict/2,
+  lookahead: 4
+)
+
+{actions, count, decoder} = SpeculativeDecoding.generate(...)
+```
+
+See [SPECULATIVE_DECODING.md](SPECULATIVE_DECODING.md) for full documentation.
+
+### Mixture of Experts (MoE) - Adaptive Expert Selection
+
+Route inputs to specialized expert networks for increased capacity.
+
+```elixir
+alias ExPhil.Networks.MoE
+
+# Replace FFN layers with MoE
+model = MoE.build_moe_backbone(
+  embed_size: 287,
+  num_layers: 6,
+  moe_every: 2,
+  num_experts: 8,
+  top_k: 2,
+  backbone: :mamba
+)
+```
+
+See [MOE.md](MOE.md) for full documentation.
+
+### World Model - Planning & Imagination
+
+Predict future states for model-based planning.
+
+```elixir
+alias ExPhil.Networks.WorldModel
+
+model = WorldModel.build(
+  state_dim: 287,
+  action_dim: 13,
+  predict_reward: true,
+  residual_prediction: true
+)
+
+# Model predictive control
+actions = WorldModel.mpc(world_model, state, goal, horizon: 10)
+```
+
+See [WORLD_MODEL.md](WORLD_MODEL.md) for full documentation.
