@@ -3,8 +3,8 @@ defmodule ExPhil.Networks.Liquid do
   Liquid Neural Networks (LNN) - Continuous-time adaptive neural networks.
 
   LNNs use differential equations to model temporal dynamics, enabling
-  continuous adaptation during inference. This implementation uses Euler
-  or Runge-Kutta discretization to avoid requiring a full ODE solver library.
+  continuous adaptation during inference. Uses the ODE solvers from
+  `ExPhil.Numerics.ODESolver` including adaptive Dormand-Prince 4/5.
 
   ## Key Innovation
 
@@ -19,15 +19,16 @@ defmodule ExPhil.Networks.Liquid do
   - I is the input
   - f is a neural network
 
-  ## Discretization Methods
+  ## Available Solvers
 
-  1. **Euler** (fast, less accurate):
-     ```
-     x_new = x + dt * dx/dt
-     ```
+  | Solver | Order | Adaptive | Speed | Accuracy |
+  |--------|-------|----------|-------|----------|
+  | `:euler` | 1 | No | Fastest | Low |
+  | `:midpoint` | 2 | No | Fast | Medium |
+  | `:rk4` | 4 | No | Medium | Good |
+  | `:dopri5` | 4/5 | Yes | Slower | Best |
 
-  2. **RK4** (slower, more accurate):
-     Uses 4 intermediate evaluations per step
+  See `ExPhil.Numerics.ODESolver` for implementation details.
 
   ## Architecture
 
@@ -72,7 +73,7 @@ defmodule ExPhil.Networks.Liquid do
   @default_dropout 0.1
   @default_window_size 60
   @default_integration_steps 1
-  @default_solver :euler
+  @default_solver :rk4
 
   @doc """
   Build a Liquid Neural Network model.
@@ -85,7 +86,7 @@ defmodule ExPhil.Networks.Liquid do
     - `:dropout` - Dropout rate (default: 0.1)
     - `:window_size` - Expected sequence length (default: 60)
     - `:integration_steps` - ODE sub-steps per frame (default: 1)
-    - `:solver` - ODE solver: `:euler` or `:rk4` (default: :euler)
+    - `:solver` - ODE solver: `:euler`, `:midpoint`, `:rk4`, `:dopri5` (default: :rk4)
 
   ## Returns
 
@@ -234,58 +235,11 @@ defmodule ExPhil.Networks.Liquid do
     Nx.concatenate(final_outputs, axis: 1)
   end
 
-  # Integrate the ODE: dx/dt = -x/τ + f/τ
-  defp integrate_ode(h, _x, tau, f, dt, steps, solver) do
-    Enum.reduce(1..steps, h, fn _step, h_current ->
-      case solver do
-        :euler ->
-          euler_step(h_current, tau, f, dt)
-
-        :rk4 ->
-          rk4_step(h_current, tau, f, dt)
-
-        _ ->
-          euler_step(h_current, tau, f, dt)
-      end
-    end)
-  end
-
-  # Euler integration step
-  defp euler_step(h, tau, f, dt) do
-    # dx/dt = (-h + f) / τ
-    # h_new = h + dt * dx/dt
-    dh = Nx.divide(Nx.subtract(f, h), tau)
-    Nx.add(h, Nx.multiply(dt, dh))
-  end
-
-  # Runge-Kutta 4 integration step
-  defp rk4_step(h, tau, f, dt) do
-    # For the LTC ODE: dx/dt = (-x + f) / τ
-    # We treat f as constant over the sub-step (quasi-static approximation)
-
-    # k1 = f(h)
-    k1 = Nx.divide(Nx.subtract(f, h), tau)
-
-    # k2 = f(h + dt/2 * k1)
-    h_mid1 = Nx.add(h, Nx.multiply(dt / 2, k1))
-    k2 = Nx.divide(Nx.subtract(f, h_mid1), tau)
-
-    # k3 = f(h + dt/2 * k2)
-    h_mid2 = Nx.add(h, Nx.multiply(dt / 2, k2))
-    k3 = Nx.divide(Nx.subtract(f, h_mid2), tau)
-
-    # k4 = f(h + dt * k3)
-    h_end = Nx.add(h, Nx.multiply(dt, k3))
-    k4 = Nx.divide(Nx.subtract(f, h_end), tau)
-
-    # h_new = h + dt/6 * (k1 + 2*k2 + 2*k3 + k4)
-    weighted_sum =
-      k1
-      |> Nx.add(Nx.multiply(2.0, k2))
-      |> Nx.add(Nx.multiply(2.0, k3))
-      |> Nx.add(k4)
-
-    Nx.add(h, Nx.multiply(dt / 6, weighted_sum))
+  # Integrate the ODE using the ODESolver module
+  # LTC ODE: dx/dt = (activation - x) / tau
+  defp integrate_ode(h, _x, tau, activation, _dt, steps, solver) do
+    alias ExPhil.Numerics.ODESolver
+    ODESolver.solve_ltc(h, activation, tau, solver: solver, steps: steps)
   end
 
   # Softplus activation: log(1 + exp(x))
@@ -430,15 +384,15 @@ defmodule ExPhil.Networks.Liquid do
       window_size: 60,
       dropout: 0.1,
       integration_steps: 1,
-      solver: :euler
+      solver: :rk4
     ]
   end
 
   @doc """
-  Get high-accuracy configuration using RK4.
+  Get high-accuracy configuration using Dormand-Prince 4/5.
 
-  Uses Runge-Kutta 4 with multiple integration steps for more accurate
-  ODE solving. Slower but more precise continuous-time dynamics.
+  Uses adaptive stepsize ODE solver for best accuracy.
+  Slower but more precise continuous-time dynamics.
   """
   @spec high_accuracy_defaults() :: keyword()
   def high_accuracy_defaults do
@@ -447,8 +401,8 @@ defmodule ExPhil.Networks.Liquid do
       num_layers: 4,
       window_size: 60,
       dropout: 0.1,
-      integration_steps: 4,
-      solver: :rk4
+      integration_steps: 1,  # DOPRI5 uses adaptive stepping
+      solver: :dopri5
     ]
   end
 

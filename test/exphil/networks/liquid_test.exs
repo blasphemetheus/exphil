@@ -226,16 +226,19 @@ defmodule ExPhil.Networks.LiquidTest do
       assert Keyword.get(defaults, :hidden_size) == 256
       assert Keyword.get(defaults, :num_layers) == 4
       assert Keyword.get(defaults, :window_size) == 60
-      assert Keyword.get(defaults, :solver) == :euler
+      # Default uses RK4 for balance of speed and accuracy
+      assert Keyword.get(defaults, :solver) == :rk4
     end
   end
 
   describe "high_accuracy_defaults/0" do
-    test "returns RK4 configuration" do
+    test "returns DOPRI5 configuration" do
       defaults = Liquid.high_accuracy_defaults()
 
-      assert Keyword.get(defaults, :solver) == :rk4
-      assert Keyword.get(defaults, :integration_steps) == 4
+      # DOPRI5 uses adaptive stepping for best accuracy
+      assert Keyword.get(defaults, :solver) == :dopri5
+      # Only 1 integration step needed - DOPRI5 handles sub-stepping adaptively
+      assert Keyword.get(defaults, :integration_steps) == 1
     end
   end
 
