@@ -21,6 +21,7 @@ defmodule ExPhil.Networks.Policy.Backbone do
   | `:jamba` | Mamba + Attention | Best quality, moderate speed |
   | `:griffin` | RG-LRU + Local Attention | Simpler recurrence, good quality |
   | `:hawk` | Pure RG-LRU | Fastest recurrent, simpler than Mamba |
+  | `:xlstm` | Extended LSTM (mixed) | Exponential gating, matrix memory |
 
   ## Usage
 
@@ -70,6 +71,9 @@ defmodule ExPhil.Networks.Policy.Backbone do
           | :zamba
           | :griffin
           | :hawk
+          | :xlstm
+          | :xlstm_slstm
+          | :xlstm_mlstm
           | :rwkv
           | :gla
           | :hgrn
@@ -124,6 +128,18 @@ defmodule ExPhil.Networks.Policy.Backbone do
       :hawk ->
         # Hawk: Pure RG-LRU (no local attention, simpler/faster than Griffin)
         build_hawk_backbone(embed_size, opts)
+
+      :xlstm ->
+        # xLSTM: Mixed sLSTM/mLSTM (alternating)
+        build_xlstm_backbone(embed_size, Keyword.put(opts, :variant, :mixed))
+
+      :xlstm_slstm ->
+        # xLSTM: Pure sLSTM (scalar memory, state tracking)
+        build_xlstm_backbone(embed_size, Keyword.put(opts, :variant, :slstm))
+
+      :xlstm_mlstm ->
+        # xLSTM: Pure mLSTM (matrix memory, memorization)
+        build_xlstm_backbone(embed_size, Keyword.put(opts, :variant, :mlstm))
 
       :rwkv ->
         # RWKV-7 "Goose" - O(1) space complexity linear attention
@@ -271,6 +287,10 @@ defmodule ExPhil.Networks.Policy.Backbone do
 
       :hawk ->
         # Hawk: Pure RG-LRU
+        Keyword.get(opts, :hidden_size, 256)
+
+      type when type in [:xlstm, :xlstm_slstm, :xlstm_mlstm] ->
+        # xLSTM variants
         Keyword.get(opts, :hidden_size, 256)
 
       :rwkv ->
@@ -512,6 +532,34 @@ defmodule ExPhil.Networks.Policy.Backbone do
       hidden_size: hidden_size,
       num_layers: num_layers,
       expand_factor: expand_factor,
+      dropout: dropout,
+      window_size: window_size,
+      seq_len: seq_len
+    )
+  end
+
+  # xLSTM: Extended LSTM with exponential gating (Hochreiter et al., 2024)
+  defp build_xlstm_backbone(embed_size, opts) do
+    alias ExPhil.Networks.XLSTM
+
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    num_layers = Keyword.get(opts, :num_layers, 4)
+    num_heads = Keyword.get(opts, :num_heads, 4)
+    head_dim = Keyword.get(opts, :head_dim, 64)
+    expand_factor = Keyword.get(opts, :expand_factor, 2)
+    variant = Keyword.get(opts, :variant, :mixed)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+    window_size = Keyword.get(opts, :window_size, 60)
+    seq_len = Keyword.get(opts, :seq_len, window_size)
+
+    XLSTM.build(
+      embed_size: embed_size,
+      hidden_size: hidden_size,
+      num_layers: num_layers,
+      num_heads: num_heads,
+      head_dim: head_dim,
+      expand_factor: expand_factor,
+      variant: variant,
       dropout: dropout,
       window_size: window_size,
       seq_len: seq_len
