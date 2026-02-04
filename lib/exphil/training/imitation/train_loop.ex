@@ -29,8 +29,7 @@ defmodule ExPhil.Training.Imitation.TrainLoop do
   - `ExPhil.Training.MixedPrecision` - Mixed precision state management
   """
 
-  alias ExPhil.Networks.Policy
-  alias ExPhil.Training.{MixedPrecision, Utils}
+  alias ExPhil.Training.MixedPrecision
   alias ExPhil.Training.Imitation.Loss
 
   require Logger
@@ -253,9 +252,12 @@ defmodule ExPhil.Training.Imitation.TrainLoop do
   # Standard training without mixed precision
   defp train_step_standard(trainer, batch) do
     %{states: states, actions: actions} = batch
+    policy_type = trainer.config[:policy_type] || :autoregressive
 
-    # Use cached loss+grad function (built once in new/1)
-    {loss, grads} = trainer.loss_and_grad_fn.(trainer.policy_params, states, actions)
+    # Compute loss and gradients based on policy type
+    {loss, grads} = compute_policy_loss_and_grad(
+      policy_type, trainer, states, actions
+    )
 
     # Extract data for optimizer (grads has same structure as ModelState)
     grads_data = get_params_data(grads)
@@ -286,13 +288,16 @@ defmodule ExPhil.Training.Imitation.TrainLoop do
   # Mixed precision training with FP32 master weights
   defp train_step_mixed_precision(trainer, batch, mp_state) do
     %{states: states, actions: actions} = batch
+    policy_type = trainer.config[:policy_type] || :autoregressive
 
     # Get BF16 compute params for forward/backward pass (fast on tensor cores)
     compute_params = MixedPrecision.get_compute_params(mp_state)
     compute_model_state = put_params_data(trainer.policy_params, compute_params)
 
     # Forward + backward in BF16 (compute precision)
-    {loss, grads} = trainer.loss_and_grad_fn.(compute_model_state, states, actions)
+    {loss, grads} = compute_policy_loss_and_grad(
+      policy_type, %{trainer | policy_params: compute_model_state}, states, actions
+    )
     grads_data = get_params_data(grads)
 
     # Cast gradients to FP32 (preserves small gradient updates)
@@ -336,44 +341,9 @@ defmodule ExPhil.Training.Imitation.TrainLoop do
   # Compute gradients for a batch without applying updates
   defp compute_gradients(trainer, batch) do
     %{states: states, actions: actions} = batch
+    policy_type = trainer.config[:policy_type] || :autoregressive
 
-    states = Nx.backend_copy(states)
-    actions = Map.new(actions, fn {k, v} -> {k, Nx.backend_copy(v)} end)
-
-    # Convert states to training precision (bf16 for ~2x speedup)
-    states = Nx.as_type(states, trainer.config.precision)
-
-    predict_fn = trainer.predict_fn
-    model_state = deep_backend_copy(trainer.policy_params)
-    label_smoothing = trainer.config[:label_smoothing] || 0.0
-    focal_loss = trainer.config[:focal_loss] || false
-    focal_gamma = trainer.config[:focal_gamma] || 2.0
-    button_weight = trainer.config[:button_weight] || 1.0
-    stick_edge_weight = trainer.config[:stick_edge_weight]
-
-    loss_fn = fn params ->
-      {buttons, main_x, main_y, c_x, c_y, shoulder} =
-        predict_fn.(Utils.ensure_model_state(params), states)
-
-      logits = %{
-        buttons: buttons,
-        main_x: main_x,
-        main_y: main_y,
-        c_x: c_x,
-        c_y: c_y,
-        shoulder: shoulder
-      }
-
-      Policy.imitation_loss(logits, actions,
-        label_smoothing: label_smoothing,
-        focal_loss: focal_loss,
-        focal_gamma: focal_gamma,
-        button_weight: button_weight,
-        stick_edge_weight: stick_edge_weight
-      )
-    end
-
-    {loss, grads} = Nx.Defn.value_and_grad(loss_fn).(model_state)
+    {loss, grads} = compute_policy_loss_and_grad(policy_type, trainer, states, actions)
     grads_data = get_params_data(grads)
     loss_val = Nx.to_number(loss)
 
@@ -438,21 +408,6 @@ defmodule ExPhil.Training.Imitation.TrainLoop do
 
   defp deep_map2(other, _other2, _fun), do: other
 
-  # Deep copy all tensors in a nested map/ModelState to avoid EXLA/Expr mismatch
-  # NOTE: Clause order matters! Nx.Tensor and Axon.ModelState are structs (i.e. maps),
-  # so they must be pattern-matched BEFORE the generic is_map guard clause.
-  defp deep_backend_copy(%Nx.Tensor{} = tensor), do: Nx.backend_copy(tensor)
-
-  defp deep_backend_copy(%Axon.ModelState{data: data} = state) do
-    %{state | data: deep_backend_copy(data)}
-  end
-
-  defp deep_backend_copy(map) when is_map(map) and not is_struct(map) do
-    Map.new(map, fn {k, v} -> {k, deep_backend_copy(v)} end)
-  end
-
-  defp deep_backend_copy(other), do: other
-
   # ============================================================================
   # Private - Axon.ModelState Helpers
   # ============================================================================
@@ -462,4 +417,65 @@ defmodule ExPhil.Training.Imitation.TrainLoop do
 
   defp put_params_data(%Axon.ModelState{} = state, data), do: %{state | data: data}
   defp put_params_data(_original, data), do: data
+
+  # ============================================================================
+  # Private - Policy-Type-Aware Loss and Gradient Computation
+  # ============================================================================
+
+  # Dispatch loss computation based on policy type
+  # For autoregressive and ACT: uses cached loss_and_grad_fn with 3 args
+  # For diffusion and flow_matching: samples noise/timestep and uses 5 args
+  defp compute_policy_loss_and_grad(:autoregressive, trainer, states, actions) do
+    trainer.loss_and_grad_fn.(trainer.policy_params, states, actions)
+  end
+
+  defp compute_policy_loss_and_grad(:act, trainer, states, actions) do
+    trainer.loss_and_grad_fn.(trainer.policy_params, states, actions)
+  end
+
+  defp compute_policy_loss_and_grad(:diffusion, trainer, states, actions) do
+    # Sample random noise and timesteps for diffusion training
+    {noise, timestep} = sample_noise_and_timestep(trainer, actions)
+    trainer.loss_and_grad_fn.(trainer.policy_params, states, actions, noise, timestep)
+  end
+
+  defp compute_policy_loss_and_grad(:flow_matching, trainer, states, actions) do
+    # Sample random noise and timesteps for flow matching training
+    {noise, timestep} = sample_noise_and_timestep(trainer, actions)
+    trainer.loss_and_grad_fn.(trainer.policy_params, states, actions, noise, timestep)
+  end
+
+  # Sample noise and timesteps for generative policy training
+  # Returns {noise, timestep} tensors matching action shape
+  defp sample_noise_and_timestep(trainer, actions) do
+    # Get action shape from first action tensor (for diffusion/flow, actions should be continuous)
+    action_shape = get_action_shape(actions)
+    batch_size = elem(action_shape, 0)
+
+    # Get number of diffusion timesteps from config
+    num_timesteps = trainer.config[:num_inference_steps] || 20
+
+    # Sample random noise with same shape as actions
+    noise_key = Nx.Random.key(:erlang.unique_integer())
+    {noise, _new_key} = Nx.Random.normal(noise_key, shape: action_shape, type: :f32)
+
+    # Sample random timesteps in [0, num_timesteps-1]
+    timestep_key = Nx.Random.key(:erlang.unique_integer())
+    {timestep_f, _new_key} = Nx.Random.uniform(timestep_key, shape: {batch_size}, type: :f32)
+    timestep = Nx.floor(Nx.multiply(timestep_f, num_timesteps)) |> Nx.as_type(:s32)
+
+    {noise, timestep}
+  end
+
+  # Get action shape - handles both map format and tensor format
+  defp get_action_shape(actions) when is_map(actions) do
+    # For autoregressive-style actions, we need to convert to continuous
+    # This shouldn't happen for diffusion/flow, but handle gracefully
+    first_tensor = actions |> Map.values() |> List.first()
+    Nx.shape(first_tensor)
+  end
+
+  defp get_action_shape(actions) when is_struct(actions, Nx.Tensor) do
+    Nx.shape(actions)
+  end
 end

@@ -5,6 +5,13 @@ defmodule ExPhil.Training.Imitation.Loss do
   This module provides functions to build loss and gradient computation functions
   that are JIT-compiled once and reused for all training/validation batches.
 
+  ## Supported Policy Types
+
+  - `:autoregressive` - 6-head cross-entropy (buttons, sticks, shoulder)
+  - `:diffusion` - MSE noise prediction loss
+  - `:act` - CVAE reconstruction + KL divergence loss
+  - `:flow_matching` - MSE velocity field loss
+
   ## Key Functions
 
   - `build_loss_fn/2` - Build basic loss function for training
@@ -27,6 +34,9 @@ defmodule ExPhil.Training.Imitation.Loss do
   """
 
   alias ExPhil.Networks.Policy
+  alias ExPhil.Networks.DiffusionPolicy
+  alias ExPhil.Networks.ActionChunking
+  alias ExPhil.Networks.FlowMatching
   alias ExPhil.Training.Utils
 
   @doc """
@@ -96,7 +106,8 @@ defmodule ExPhil.Training.Imitation.Loss do
 
   ## Returns
 
-  A JIT-compiled function that takes `(params, states, actions)` and returns `{loss, grads}`.
+  A JIT-compiled function that takes `(params, states, actions, ...)` and returns `{loss, grads}`.
+  For :diffusion and :flow_matching, additional inputs (noise, timestep) are required.
 
   ## Technical Notes
 
@@ -109,6 +120,18 @@ defmodule ExPhil.Training.Imitation.Loss do
   """
   @spec build_loss_and_grad_fn(function(), map()) :: function()
   def build_loss_and_grad_fn(predict_fn, config) do
+    policy_type = config[:policy_type] || :autoregressive
+
+    case policy_type do
+      :autoregressive -> build_autoregressive_loss_and_grad_fn(predict_fn, config)
+      :diffusion -> build_diffusion_loss_and_grad_fn(predict_fn, config)
+      :act -> build_act_loss_and_grad_fn(predict_fn, config)
+      :flow_matching -> build_flow_matching_loss_and_grad_fn(predict_fn, config)
+    end
+  end
+
+  # Autoregressive: cross-entropy loss on 6 controller heads
+  defp build_autoregressive_loss_and_grad_fn(predict_fn, config) do
     # Extract config options that affect loss computation
     # These are captured once when building the function, not every batch
     label_smoothing = config[:label_smoothing] || 0.0
@@ -156,6 +179,87 @@ defmodule ExPhil.Training.Imitation.Loss do
     Nx.Defn.jit(inner_fn, compiler: EXLA)
   end
 
+  # Diffusion: MSE noise prediction loss
+  # Takes additional inputs: noise [batch, horizon, dim], timestep [batch]
+  defp build_diffusion_loss_and_grad_fn(predict_fn, config) do
+    precision = config[:precision] || :bf16
+
+    inner_fn = fn params, states, actions, noise, timestep ->
+      states = Nx.as_type(states, precision)
+      actions = Nx.as_type(actions, precision)
+      noise = Nx.as_type(noise, precision)
+
+      loss_fn = fn p ->
+        # Add noise to actions at timestep t
+        noisy_actions = DiffusionPolicy.q_sample(actions, noise, timestep, p.schedule)
+
+        # Predict noise
+        predicted_noise = predict_fn.(Utils.ensure_model_state(p), %{
+          "noisy_actions" => noisy_actions,
+          "timestep" => timestep,
+          "observations" => states
+        })
+
+        DiffusionPolicy.compute_loss(noise, predicted_noise)
+      end
+
+      Nx.Defn.value_and_grad(loss_fn).(params)
+    end
+
+    Nx.Defn.jit(inner_fn, compiler: EXLA)
+  end
+
+  # ACT (Action Chunking Transformer): CVAE loss = reconstruction + KL divergence
+  defp build_act_loss_and_grad_fn(predict_fn, config) do
+    precision = config[:precision] || :bf16
+    kl_weight = config[:kl_weight] || 10.0
+
+    inner_fn = fn params, states, actions ->
+      states = Nx.as_type(states, precision)
+      actions = Nx.as_type(actions, precision)
+
+      loss_fn = fn p ->
+        # ACT model outputs: %{actions: predicted, mu: mu, log_var: log_var}
+        outputs = predict_fn.(Utils.ensure_model_state(p), %{
+          "observations" => states,
+          "target_actions" => actions
+        })
+
+        ActionChunking.cvae_loss(
+          actions,
+          outputs.actions,
+          outputs.mu,
+          outputs.log_var,
+          kl_weight
+        )
+      end
+
+      Nx.Defn.value_and_grad(loss_fn).(params)
+    end
+
+    Nx.Defn.jit(inner_fn, compiler: EXLA)
+  end
+
+  # Flow Matching: MSE velocity loss
+  # Takes additional inputs: noise [batch, horizon, dim], timestep [batch]
+  defp build_flow_matching_loss_and_grad_fn(predict_fn, config) do
+    precision = config[:precision] || :bf16
+
+    inner_fn = fn params, states, actions, noise, timestep ->
+      states = Nx.as_type(states, precision)
+      actions = Nx.as_type(actions, precision)
+      noise = Nx.as_type(noise, precision)
+
+      loss_fn = fn p ->
+        FlowMatching.compute_loss(p, predict_fn, states, actions, noise, timestep)
+      end
+
+      Nx.Defn.value_and_grad(loss_fn).(params)
+    end
+
+    Nx.Defn.jit(inner_fn, compiler: EXLA)
+  end
+
   @doc """
   Build a compiled loss function for evaluation (no gradients).
 
@@ -170,10 +274,22 @@ defmodule ExPhil.Training.Imitation.Loss do
 
   ## Returns
 
-  A JIT-compiled function that takes `(params, states, actions)` and returns the loss tensor.
+  A JIT-compiled function that takes `(params, states, actions, ...)` and returns the loss tensor.
+  For :diffusion and :flow_matching, additional inputs (noise, timestep) are required.
   """
   @spec build_eval_loss_fn(function(), map()) :: function()
   def build_eval_loss_fn(predict_fn, config) do
+    policy_type = config[:policy_type] || :autoregressive
+
+    case policy_type do
+      :autoregressive -> build_autoregressive_eval_loss_fn(predict_fn, config)
+      :diffusion -> build_diffusion_eval_loss_fn(predict_fn, config)
+      :act -> build_act_eval_loss_fn(predict_fn, config)
+      :flow_matching -> build_flow_matching_eval_loss_fn(predict_fn, config)
+    end
+  end
+
+  defp build_autoregressive_eval_loss_fn(predict_fn, config) do
     label_smoothing = config[:label_smoothing] || 0.0
     focal_loss = config[:focal_loss] || false
     focal_gamma = config[:focal_gamma] || 2.0
@@ -208,5 +324,91 @@ defmodule ExPhil.Training.Imitation.Loss do
 
     # JIT compile for fast repeated evaluation
     Nx.Defn.jit(inner_fn, compiler: EXLA)
+  end
+
+  defp build_diffusion_eval_loss_fn(predict_fn, config) do
+    precision = config[:precision] || :bf16
+
+    inner_fn = fn params, states, actions, noise, timestep ->
+      states = Nx.as_type(states, precision)
+      actions = Nx.as_type(actions, precision)
+      noise = Nx.as_type(noise, precision)
+
+      noisy_actions = DiffusionPolicy.q_sample(actions, noise, timestep, params.schedule)
+
+      predicted_noise = predict_fn.(Utils.ensure_model_state(params), %{
+        "noisy_actions" => noisy_actions,
+        "timestep" => timestep,
+        "observations" => states
+      })
+
+      DiffusionPolicy.compute_loss(noise, predicted_noise)
+    end
+
+    Nx.Defn.jit(inner_fn, compiler: EXLA)
+  end
+
+  defp build_act_eval_loss_fn(predict_fn, config) do
+    precision = config[:precision] || :bf16
+    kl_weight = config[:kl_weight] || 10.0
+
+    inner_fn = fn params, states, actions ->
+      states = Nx.as_type(states, precision)
+      actions = Nx.as_type(actions, precision)
+
+      outputs = predict_fn.(Utils.ensure_model_state(params), %{
+        "observations" => states,
+        "target_actions" => actions
+      })
+
+      ActionChunking.cvae_loss(
+        actions,
+        outputs.actions,
+        outputs.mu,
+        outputs.log_var,
+        kl_weight
+      )
+    end
+
+    Nx.Defn.jit(inner_fn, compiler: EXLA)
+  end
+
+  defp build_flow_matching_eval_loss_fn(predict_fn, config) do
+    precision = config[:precision] || :bf16
+
+    inner_fn = fn params, states, actions, noise, timestep ->
+      states = Nx.as_type(states, precision)
+      actions = Nx.as_type(actions, precision)
+      noise = Nx.as_type(noise, precision)
+
+      FlowMatching.compute_loss(params, predict_fn, states, actions, noise, timestep)
+    end
+
+    Nx.Defn.jit(inner_fn, compiler: EXLA)
+  end
+
+  # ============================================================================
+  # Helper: Get policy type from config
+  # ============================================================================
+
+  @doc """
+  Check if a policy type requires noise and timestep inputs for training.
+  """
+  @spec requires_noise_inputs?(atom()) :: boolean()
+  def requires_noise_inputs?(policy_type) do
+    policy_type in [:diffusion, :flow_matching]
+  end
+
+  @doc """
+  Get the number of inputs required for the loss function.
+  """
+  @spec loss_fn_arity(atom()) :: pos_integer()
+  def loss_fn_arity(policy_type) do
+    case policy_type do
+      :autoregressive -> 3  # params, states, actions
+      :act -> 3             # params, states, actions
+      :diffusion -> 5       # params, states, actions, noise, timestep
+      :flow_matching -> 5   # params, states, actions, noise, timestep
+    end
   end
 end

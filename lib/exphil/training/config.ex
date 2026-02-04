@@ -38,6 +38,12 @@ defmodule ExPhil.Training.Config do
   @valid_backbones [:lstm, :gru, :mamba, :attention, :sliding_window, :lstm_hybrid, :hybrid, :jamba]
   @valid_optimizers [:adam, :adamw, :lamb, :radam, :sgd, :rmsprop]
   @valid_lr_schedules [:constant, :cosine, :cosine_restarts, :exponential, :linear]
+  # Policy types: how actions are predicted
+  # - :autoregressive - Standard 6-head sequential prediction (current default)
+  # - :diffusion - DDPM-based iterative denoising (slow but high quality)
+  # - :act - Action Chunking with Transformers (fast, predicts sequences)
+  # - :flow_matching - ODE-based continuous normalizing flow (fast, simpler than diffusion)
+  @valid_policy_types [:autoregressive, :diffusion, :act, :flow_matching]
 
   # Presets are now defined in ExPhil.Training.Config.Presets
   # Use Presets.valid_presets() to get the list
@@ -63,6 +69,14 @@ defmodule ExPhil.Training.Config do
     "--wandb-name",
     "--temporal",
     "--backbone",
+    # Policy type options
+    "--policy-type",
+    # Action horizon for ACT and generative policies
+    "--action-horizon",
+    # Number of diffusion/flow steps for inference
+    "--num-inference-steps",
+    # KL weight for ACT (CVAE regularization)
+    "--kl-weight",
     "--window-size",
     "--stride",
     "--num-layers",
@@ -292,6 +306,14 @@ defmodule ExPhil.Training.Config do
       wandb_name: nil,
       temporal: false,
       backbone: :sliding_window,
+      # Policy type: :autoregressive, :diffusion, :act, :flow_matching
+      policy_type: :autoregressive,
+      # Action horizon for ACT/generative policies (frames to predict at once)
+      action_horizon: 8,
+      # Number of steps for diffusion/flow inference (more = higher quality, slower)
+      num_inference_steps: 20,
+      # KL weight (β) for ACT CVAE regularization
+      kl_weight: 10.0,
       window_size: 60,
       stride: 1,
       num_layers: 2,
@@ -827,7 +849,8 @@ defmodule ExPhil.Training.Config do
     %{
       valid_backbones: @valid_backbones,
       valid_optimizers: @valid_optimizers,
-      valid_lr_schedules: @valid_lr_schedules
+      valid_lr_schedules: @valid_lr_schedules,
+      valid_policy_types: @valid_policy_types
     }
   end
 
@@ -988,6 +1011,21 @@ defmodule ExPhil.Training.Config do
   def valid_flags, do: @valid_flags
 
   @doc """
+  List of valid policy types.
+
+  ## Examples
+
+      iex> types = ExPhil.Training.Config.valid_policy_types()
+      iex> :autoregressive in types
+      true
+      iex> :diffusion in types
+      true
+
+  """
+  @spec valid_policy_types() :: [atom()]
+  def valid_policy_types, do: @valid_policy_types
+
+  @doc """
   Validate command-line arguments for unrecognized flags.
   Delegates to `ExPhil.Training.Config.Parser.validate_args/2`.
   """
@@ -1139,6 +1177,10 @@ defmodule ExPhil.Training.Config do
       character_distribution: results[:character_distribution],
       temporal: opts[:temporal],
       backbone: if(opts[:temporal], do: to_string(opts[:backbone]), else: "mlp"),
+      policy_type: to_string(opts[:policy_type] || :autoregressive),
+      action_horizon: opts[:action_horizon],
+      num_inference_steps: opts[:num_inference_steps],
+      kl_weight: opts[:kl_weight],
       hidden_sizes: opts[:hidden_sizes],
       embed_size: results[:embed_size],
       layer_norm: opts[:layer_norm],

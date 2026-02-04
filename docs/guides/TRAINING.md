@@ -199,6 +199,42 @@ mix run scripts/train_from_replays.exs --dual-port
 
 See [Architecture Guide](../reference/architectures/ARCHITECTURE_GUIDE.md) for detailed explanations.
 
+### Policy Type Options
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--policy-type TYPE` | autoregressive | Policy architecture type |
+| `--action-horizon N` | 8 | Action prediction horizon (for chunked policies) |
+| `--num-inference-steps N` | 20 | Diffusion/flow matching inference steps |
+| `--kl-weight N` | 10.0 | KL divergence weight for ACT (CVAE) |
+
+**Available policy types (4 total):**
+
+| Policy Type | Output Format | Loss Function | Notes |
+|-------------|---------------|---------------|-------|
+| `autoregressive` | 6 discrete heads | Cross-entropy | Default, fastest inference |
+| `diffusion` | Continuous actions | MSE noise prediction | Denoising diffusion |
+| `act` | Action chunks | L1 + KL (CVAE) | Temporal ensembling |
+| `flow_matching` | Continuous actions | MSE velocity | ODE-based generation |
+
+**Example: Training with Diffusion Policy:**
+```bash
+mix run scripts/train_from_replays.exs \
+  --policy-type diffusion \
+  --action-horizon 16 \
+  --num-inference-steps 20 \
+  --temporal --backbone mamba
+```
+
+**Example: Training with Action Chunking (ACT):**
+```bash
+mix run scripts/train_from_replays.exs \
+  --policy-type act \
+  --action-horizon 8 \
+  --kl-weight 10.0 \
+  --temporal --backbone mamba
+```
+
 ### Mamba-Specific Options
 
 | Option | Default | Description |

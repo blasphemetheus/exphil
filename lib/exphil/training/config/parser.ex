@@ -174,6 +174,11 @@ defmodule ExPhil.Training.Config.Parser do
     |> parse_string_arg(args, "--wandb-name", :wandb_name)
     |> parse_flag(args, "--temporal", :temporal)
     |> parse_atom_arg(args, "--backbone", :backbone, (ctx[:valid_backbones] || []) ++ [:mlp])
+    # Policy type options
+    |> parse_atom_arg(args, "--policy-type", :policy_type, ctx[:valid_policy_types] || [:autoregressive])
+    |> parse_int_arg(args, "--action-horizon", :action_horizon)
+    |> parse_int_arg(args, "--num-inference-steps", :num_inference_steps)
+    |> parse_float_arg(args, "--kl-weight", :kl_weight)
     |> parse_int_arg(args, "--window-size", :window_size)
     |> parse_int_arg(args, "--stride", :stride)
     |> parse_int_arg(args, "--num-layers", :num_layers)

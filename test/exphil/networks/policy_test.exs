@@ -110,6 +110,61 @@ defmodule ExPhil.Networks.PolicyTest do
       assert Nx.shape(c_y) == {@batch_size, 17}
       assert Nx.shape(shoulder) == {@batch_size, 5}
     end
+
+    test "builds autoregressive policy by default" do
+      model = Policy.build(embed_size: @embed_size)
+      assert %Axon{} = model
+    end
+
+    test "builds autoregressive policy when explicitly specified" do
+      model = Policy.build(embed_size: @embed_size, policy_type: :autoregressive)
+      assert %Axon{} = model
+    end
+
+    test "builds diffusion policy" do
+      # DiffusionPolicy returns an Axon model
+      # Uses obs_size instead of embed_size
+      model = Policy.build(
+        embed_size: @embed_size,
+        obs_size: @embed_size,
+        policy_type: :diffusion,
+        action_horizon: 8,
+        action_dim: 13
+      )
+      assert %Axon{} = model
+    end
+
+    test "builds ACT (action chunking) policy" do
+      # Uses obs_size instead of embed_size
+      model = Policy.build(
+        embed_size: @embed_size,
+        obs_size: @embed_size,
+        policy_type: :act,
+        action_horizon: 8,
+        action_dim: 13
+      )
+      assert is_map(model)
+      assert Map.has_key?(model, :encoder)
+      assert Map.has_key?(model, :decoder)
+    end
+
+    test "builds flow matching policy" do
+      # Uses obs_size instead of embed_size
+      model = Policy.build(
+        embed_size: @embed_size,
+        obs_size: @embed_size,
+        policy_type: :flow_matching,
+        action_horizon: 8,
+        action_dim: 13
+      )
+      assert %Axon{} = model
+    end
+
+    test "raises on unknown policy type" do
+      assert_raise ArgumentError, ~r/Unknown policy type/, fn ->
+        Policy.build(embed_size: @embed_size, policy_type: :unknown)
+      end
+    end
   end
 
   describe "build_action_embedding_layer/4" do
