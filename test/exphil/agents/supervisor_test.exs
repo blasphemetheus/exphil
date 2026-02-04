@@ -2,6 +2,7 @@ defmodule ExPhil.Agents.SupervisorTest do
   use ExUnit.Case, async: false
 
   alias ExPhil.Agents.Supervisor
+  alias ExPhil.Error.AgentError
 
   # Supervisor is already started by Application
 
@@ -54,7 +55,7 @@ defmodule ExPhil.Agents.SupervisorTest do
     end
 
     test "returns error for non-existent agent" do
-      assert {:error, :not_found} = Supervisor.stop_agent(:nonexistent)
+      assert {:error, %AgentError{reason: :not_found}} = Supervisor.stop_agent(:nonexistent)
     end
   end
 
@@ -68,7 +69,7 @@ defmodule ExPhil.Agents.SupervisorTest do
     end
 
     test "returns error for non-existent agent" do
-      assert {:error, :not_found} = Supervisor.get_agent(:not_there)
+      assert {:error, %AgentError{reason: :not_found}} = Supervisor.get_agent(:not_there)
     end
   end
 

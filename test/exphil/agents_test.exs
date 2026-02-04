@@ -77,7 +77,8 @@ defmodule ExPhil.AgentsTest do
       {:ok, _pid} = Agents.start_empty(:no_policy_agent)
 
       game_state = mock_game_state()
-      assert {:error, :no_policy_loaded} = Agents.get_action(:no_policy_agent, game_state)
+      assert {:error, %ExPhil.Error.AgentError{reason: :no_policy_loaded}} =
+               Agents.get_action(:no_policy_agent, game_state)
 
       Agents.stop(:no_policy_agent)
     end
@@ -91,11 +92,11 @@ defmodule ExPhil.AgentsTest do
       assert :ok = Agents.stop(:stop_test)
       # Small wait for Registry to clean up after process termination
       Process.sleep(10)
-      assert {:error, :not_found} = Agents.get(:stop_test)
+      assert {:error, %ExPhil.Error.AgentError{reason: :not_found}} = Agents.get(:stop_test)
     end
 
     test "returns error for non-existent agent" do
-      assert {:error, :not_found} = Agents.stop(:nonexistent)
+      assert {:error, %ExPhil.Error.AgentError{reason: :not_found}} = Agents.stop(:nonexistent)
     end
   end
 
@@ -107,7 +108,7 @@ defmodule ExPhil.AgentsTest do
     end
 
     test "returns error for non-existent agent" do
-      assert {:error, :not_found} = Agents.get(:not_there)
+      assert {:error, %ExPhil.Error.AgentError{reason: :not_found}} = Agents.get(:not_there)
     end
   end
 
@@ -252,7 +253,8 @@ defmodule ExPhil.Agents.AgentTest do
       {:ok, pid} = Agent.start_link([])
 
       game_state = mock_game_state()
-      assert {:error, :no_policy_loaded} = Agent.get_action(pid, game_state)
+      assert {:error, %ExPhil.Error.AgentError{reason: :no_policy_loaded}} =
+               Agent.get_action(pid, game_state)
 
       GenServer.stop(pid)
     end
@@ -263,7 +265,8 @@ defmodule ExPhil.Agents.AgentTest do
       {:ok, pid} = Agent.start_link([])
 
       game_state = mock_game_state()
-      assert {:error, :no_policy_loaded} = Agent.get_controller(pid, game_state)
+      assert {:error, %ExPhil.Error.AgentError{reason: :no_policy_loaded}} =
+               Agent.get_controller(pid, game_state)
 
       GenServer.stop(pid)
     end

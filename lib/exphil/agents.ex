@@ -26,6 +26,7 @@ defmodule ExPhil.Agents do
 
   alias ExPhil.Agents.{Agent, Supervisor}
   alias ExPhil.Bridge.{GameState, ControllerState}
+  alias ExPhil.Error.AgentError
 
   require Logger
 
@@ -76,7 +77,7 @@ defmodule ExPhil.Agents do
   @doc """
   Get an agent process by name.
   """
-  @spec get(atom()) :: {:ok, pid()} | {:error, :not_found}
+  @spec get(atom()) :: {:ok, pid()} | {:error, AgentError.t()}
   def get(name) do
     Supervisor.get_agent(name)
   end

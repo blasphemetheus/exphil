@@ -28,6 +28,7 @@ defmodule ExPhil.Agents.Supervisor do
   use DynamicSupervisor
 
   alias ExPhil.Agents.Agent
+  alias ExPhil.Error.AgentError
 
   @registry ExPhil.Registry
 
@@ -74,11 +75,11 @@ defmodule ExPhil.Agents.Supervisor do
   @doc """
   Get an agent by its registered name.
   """
-  @spec get_agent(atom()) :: {:ok, pid()} | {:error, :not_found}
+  @spec get_agent(atom()) :: {:ok, pid()} | {:error, AgentError.t()}
   def get_agent(name) do
     case Registry.lookup(@registry, {:agent, name}) do
       [{pid, _}] -> {:ok, pid}
-      [] -> {:error, :not_found}
+      [] -> {:error, AgentError.new(:not_found, agent: name)}
     end
   end
 

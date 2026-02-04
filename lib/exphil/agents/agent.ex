@@ -40,6 +40,7 @@ defmodule ExPhil.Agents.Agent do
   alias ExPhil.{Embeddings, Networks, Training}
   alias ExPhil.Bridge.{GameState, ControllerState}
   alias ExPhil.Training.Utils
+  alias ExPhil.Error.AgentError
 
   require Logger
 
@@ -360,7 +361,7 @@ defmodule ExPhil.Agents.Agent do
   @impl true
   def handle_call(:warmup, _from, state) do
     if state.policy_params == nil do
-      {:reply, {:error, :no_policy_loaded}, state}
+      {:reply, {:error, AgentError.new(:no_policy_loaded, agent: state.name)}, state}
     else
       Logger.info("[Agent] Starting JIT warmup...")
       start_time = System.monotonic_time(:millisecond)
@@ -413,7 +414,7 @@ defmodule ExPhil.Agents.Agent do
   # ============================================================================
 
   defp compute_action(state, _game_state, _opts) when state.policy_params == nil do
-    {:error, :no_policy_loaded}
+    {:error, AgentError.new(:no_policy_loaded, agent: state.name)}
   end
 
   defp compute_action(state, game_state, opts) do
