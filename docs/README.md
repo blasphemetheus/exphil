@@ -21,7 +21,9 @@
 ### Reference
 - [Architecture](reference/ARCHITECTURE.md) - System design
 - [Embedding Dimensions](reference/EMBEDDING_DIMENSIONS.md) - Tensor shapes
-- [Backbones](reference/architectures/ARCHITECTURES.md) - MLP, LSTM, Mamba, etc.
+- [Backbones](reference/architectures/ARCHITECTURES.md) - 15 backbone architectures
+- [Architecture Guide](reference/architectures/ARCHITECTURE_GUIDE.md) - Beginner-friendly explanations
+- [ODE Solver](reference/ODE_SOLVER.md) - Numerical integration for Liquid Networks
 
 ### Project Status
 - [Goals](planning/GOALS.md) - Big picture priorities
