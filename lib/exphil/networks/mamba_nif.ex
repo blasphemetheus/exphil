@@ -51,15 +51,9 @@ defmodule ExPhil.Networks.MambaNIF do
 
   require Axon
 
+  alias ExPhil.Networks.Mamba.Common
   alias ExPhil.Native.SelectiveScan
 
-  # Default hyperparameters (same as Mamba)
-  @default_hidden_size 256
-  @default_state_size 16
-  @default_expand_factor 2
-  @default_conv_size 4
-  @default_num_layers 2
-  @default_dropout 0.0
   @dt_min 0.001
   @dt_max 0.1
 
@@ -78,52 +72,7 @@ defmodule ExPhil.Networks.MambaNIF do
   """
   @spec build(keyword()) :: Axon.t()
   def build(opts \\ []) do
-    embed_size = Keyword.fetch!(opts, :embed_size)
-    hidden_size = Keyword.get(opts, :hidden_size, @default_hidden_size)
-    num_layers = Keyword.get(opts, :num_layers, @default_num_layers)
-    dropout = Keyword.get(opts, :dropout, @default_dropout)
-    window_size = Keyword.get(opts, :window_size, 60)
-    seq_len = Keyword.get(opts, :seq_len, window_size)
-
-    input_seq_dim = if seq_len, do: seq_len, else: nil
-
-    # Input: [batch, seq_len, embed_size]
-    input = Axon.input("state_sequence", shape: {nil, input_seq_dim, embed_size})
-
-    # Project input to hidden dimension if different
-    x =
-      if embed_size != hidden_size do
-        Axon.dense(input, hidden_size, name: "input_projection")
-      else
-        input
-      end
-
-    # Stack Mamba blocks
-    output =
-      Enum.reduce(1..num_layers, x, fn layer_idx, acc ->
-        # Use same layer names as pure Mamba for checkpoint compatibility
-        block = build_mamba_block(acc, Keyword.merge(opts, name: "mamba_block_#{layer_idx}"))
-
-        residual = Axon.add(acc, block, name: "residual_#{layer_idx}")
-
-        if dropout > 0 and layer_idx < num_layers do
-          Axon.dropout(residual, rate: dropout, name: "dropout_#{layer_idx}")
-        else
-          residual
-        end
-      end)
-
-    # Extract last timestep: [batch, seq_len, hidden] -> [batch, hidden]
-    Axon.nx(
-      output,
-      fn tensor ->
-        seq_len_actual = Nx.axis_size(tensor, 1)
-
-        Nx.slice_along_axis(tensor, seq_len_actual - 1, 1, axis: 1)
-        |> Nx.squeeze(axes: [1])
-      end,
-      name: "last_timestep"
-    )
+    Common.build_model(opts, &build_mamba_block/2)
   end
 
   @doc """
@@ -131,91 +80,19 @@ defmodule ExPhil.Networks.MambaNIF do
   """
   @spec build_mamba_block(Axon.t(), keyword()) :: Axon.t()
   def build_mamba_block(input, opts \\ []) do
-    hidden_size = Keyword.get(opts, :hidden_size, @default_hidden_size)
-    state_size = Keyword.get(opts, :state_size, @default_state_size)
-    expand_factor = Keyword.get(opts, :expand_factor, @default_expand_factor)
-    conv_size = Keyword.get(opts, :conv_size, @default_conv_size)
-    # Use same default name as pure Mamba for checkpoint compatibility
-    name = Keyword.get(opts, :name, "mamba_block")
+    layer_idx = Keyword.get(opts, :layer_idx, 1)
+    # Use same layer names as pure Mamba for checkpoint compatibility
+    name = Keyword.get(opts, :name, "mamba_block_#{layer_idx}")
+    opts = Keyword.put(opts, :name, name)
 
-    inner_size = hidden_size * expand_factor
-    dt_rank = max(div(hidden_size, 16), 1)
-
-    # Input normalization
-    normalized = Axon.layer_norm(input, name: "#{name}_norm")
-
-    # Project to 2x inner_size (for x and z branches)
-    xz = Axon.dense(normalized, inner_size * 2, name: "#{name}_in_proj")
-
-    # Split into x (SSM path) and z (gating path)
-    x_branch =
-      Axon.nx(
-        xz,
-        fn tensor ->
-          Nx.slice_along_axis(tensor, 0, inner_size, axis: 2)
-        end,
-        name: "#{name}_x_split"
-      )
-
-    z_branch =
-      Axon.nx(
-        xz,
-        fn tensor ->
-          Nx.slice_along_axis(tensor, inner_size, inner_size, axis: 2)
-        end,
-        name: "#{name}_z_split"
-      )
-
-    # X branch: Depthwise Conv1D -> SiLU -> NIF Selective Scan
-    x_conv = build_depthwise_conv1d(x_branch, inner_size, conv_size, "#{name}_conv")
-    x_activated = Axon.activation(x_conv, :silu, name: "#{name}_conv_silu")
-
-    # Selective SSM with NIF
-    x_ssm =
-      build_selective_ssm_nif(
-        x_activated,
-        hidden_size: inner_size,
-        state_size: state_size,
-        dt_rank: dt_rank,
-        name: "#{name}_ssm"
-      )
-
-    # Z branch: SiLU activation (gating)
-    z_activated = Axon.activation(z_branch, :silu, name: "#{name}_gate_silu")
-
-    # Multiply x_ssm * z (gated output)
-    gated = Axon.multiply(x_ssm, z_activated, name: "#{name}_gated")
-
-    # Project back to hidden_size
-    Axon.dense(gated, hidden_size, name: "#{name}_out_proj")
+    Common.build_block(input, opts, &build_selective_ssm_nif/2)
   end
 
   @doc """
-  Build depthwise separable 1D convolution layer (same as Mamba).
+  Build depthwise separable 1D convolution layer.
   """
   @spec build_depthwise_conv1d(Axon.t(), pos_integer(), pos_integer(), String.t()) :: Axon.t()
-  def build_depthwise_conv1d(input, channels, kernel_size, name) do
-    Axon.nx(
-      input,
-      fn x ->
-        batch = Nx.axis_size(x, 0)
-        ch = Nx.axis_size(x, 2)
-
-        padding = kernel_size - 1
-        pad_shape = {batch, padding, ch}
-        padded = Nx.concatenate([Nx.broadcast(0.0, pad_shape), x], axis: 1)
-
-        Nx.window_mean(
-          padded,
-          {1, kernel_size, 1},
-          strides: [1, 1, 1],
-          padding: :valid
-        )
-      end,
-      name: "#{name}_causal"
-    )
-    |> Axon.dense(channels, name: "#{name}_proj", use_bias: true)
-  end
+  defdelegate build_depthwise_conv1d(input, channels, kernel_size, name), to: Common
 
   @doc """
   Build the Selective SSM using the NIF-accelerated scan.
@@ -224,39 +101,12 @@ defmodule ExPhil.Networks.MambaNIF do
   """
   @spec build_selective_ssm_nif(Axon.t(), keyword()) :: Axon.t()
   def build_selective_ssm_nif(input, opts \\ []) do
-    hidden_size = Keyword.get(opts, :hidden_size, @default_hidden_size)
-    state_size = Keyword.get(opts, :state_size, @default_state_size)
-    dt_rank = Keyword.get(opts, :dt_rank, max(div(hidden_size, 16), 1))
+    hidden_size = Keyword.get(opts, :hidden_size, Common.default_hidden_size())
+    state_size = Keyword.get(opts, :state_size, Common.default_state_size())
     # Use same default name as pure Mamba for checkpoint compatibility
     name = Keyword.get(opts, :name, "ssm")
 
-    # B and C projections: [batch, seq_len, state_size] each
-    bc_proj = Axon.dense(input, state_size * 2, name: "#{name}_bc_proj")
-
-    b_matrix =
-      Axon.nx(
-        bc_proj,
-        fn tensor ->
-          Nx.slice_along_axis(tensor, 0, state_size, axis: 2)
-        end,
-        name: "#{name}_B"
-      )
-
-    c_matrix =
-      Axon.nx(
-        bc_proj,
-        fn tensor ->
-          Nx.slice_along_axis(tensor, state_size, state_size, axis: 2)
-        end,
-        name: "#{name}_C"
-      )
-
-    # Delta (Δ) projection through low-rank bottleneck
-    dt_proj =
-      input
-      |> Axon.dense(dt_rank, name: "#{name}_dt_rank")
-      |> Axon.dense(hidden_size, name: "#{name}_dt_proj")
-      |> Axon.activation(:softplus, name: "#{name}_dt_softplus")
+    {b_matrix, c_matrix, dt_proj} = Common.build_ssm_projections(input, opts)
 
     # Apply the NIF-accelerated scan
     Axon.layer(
@@ -297,36 +147,25 @@ defmodule ExPhil.Networks.MambaNIF do
     SelectiveScan.scan(x, dt, a_matrix, b, c)
   end
 
+  # ============================================================================
+  # Utilities (delegated to Common)
+  # ============================================================================
+
   @doc """
   Get the output size of a MambaNIF model.
   """
   @spec output_size(keyword()) :: non_neg_integer()
-  def output_size(opts \\ []) do
-    Keyword.get(opts, :hidden_size, @default_hidden_size)
-  end
+  defdelegate output_size(opts \\ []), to: Common
 
   @doc """
   Calculate approximate parameter count for a MambaNIF model.
   """
   @spec param_count(keyword()) :: non_neg_integer()
-  def param_count(opts) do
-    # Same as Mamba - the NIF only affects the scan, not the parameters
-    ExPhil.Networks.Mamba.param_count(opts)
-  end
+  defdelegate param_count(opts), to: Common
 
   @doc """
   Get recommended defaults for Melee gameplay (60fps).
   """
   @spec melee_defaults() :: keyword()
-  def melee_defaults do
-    [
-      hidden_size: 256,
-      state_size: 16,
-      expand_factor: 2,
-      conv_size: 4,
-      num_layers: 2,
-      window_size: 60,
-      dropout: 0.1
-    ]
-  end
+  defdelegate melee_defaults(), to: Common
 end

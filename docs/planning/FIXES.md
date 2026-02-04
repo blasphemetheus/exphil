@@ -332,10 +332,34 @@ Total: 5 submodules extracted, main policy.ex delegates to submodules.
 
 Total: 5 submodules extracted, main imitation.ex now serves as orchestration facade.
 
+### Completed (Mamba unification - 2026-02-03)
+
+- [x] Unified 5 Mamba implementations with shared `Mamba.Common` module
+  - [x] `mamba/common.ex` (580 lines) - Shared components:
+    - Default hyperparameters (`default_hidden_size/0`, `default_state_size/0`, etc.)
+    - Model builder (`build_model/2` with higher-order function for block injection)
+    - Block builder (`build_block/3` with higher-order function for SSM injection)
+    - Depthwise convolution (`build_depthwise_conv1d/4`)
+    - SSM projections (`build_ssm_projections/2`)
+    - SSM discretization (`discretize_ssm/4`, `compute_ssm_output/2`)
+    - Scan algorithms (`sequential_scan/2`, `blelloch_scan/2`)
+    - Utilities (`output_size/1`, `param_count/1`, `melee_defaults/0`)
+  - [x] `mamba.ex` (200 lines, **65% reduction** from 563) - Blelloch scan variant
+  - [x] `mamba_hillis_steele.ex` (139 lines, **48% reduction** from 270) - Hillis-Steele scan
+  - [x] `mamba_cumsum.ex` (179 lines, **55% reduction** from 393) - Cumsum log-space variants
+  - [x] `mamba_ssd.ex` (286 lines, **39% reduction** from 466) - SSD chunked algorithm
+  - [x] `mamba_nif.ex` (172 lines, **48% reduction** from 333) - CUDA NIF-accelerated
+
+**Pattern**: Higher-order functions for scan algorithm injection:
+```elixir
+# Each variant passes its scan implementation as a function argument
+Common.build_model(opts, &build_mamba_block/2)
+Common.build_block(input, opts, &build_selective_ssm/2)
+```
+
 ### Planned
 
 **Other planned work**:
-- [ ] Unify Mamba implementations with shared behavior
 - [ ] Extract Nana embedding helpers
 - [ ] Add property-based tests
 - [ ] Update outdated documentation
@@ -377,3 +401,4 @@ Total: 5 submodules extracted, main imitation.ex now serves as orchestration fac
 *config.ex decomposition completed: 2026-02-03*
 *policy.ex decomposition completed: 2026-02-03*
 *imitation.ex decomposition completed: 2026-02-03*
+*Mamba unification completed: 2026-02-03*
