@@ -1174,7 +1174,7 @@ theoretical_plot =
   |> VegaLite.encode_field(:y, "ops",
     type: :quantitative,
     title: "Relative Operations (log scale)",
-    scale: [type: :log, domain: [5, 5000]]
+    scale: [type: :log, domain: [1, 5000]]
   )
   |> VegaLite.encode_field(:color, "type", type: :nominal, title: "Phase")
   |> VegaLite.encode_field(:x_offset, "type", type: :nominal)
