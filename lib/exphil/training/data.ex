@@ -2136,7 +2136,16 @@ defmodule ExPhil.Training.Data do
       Enum.map(indices, fn seq_idx ->
         frame_idx = seq_idx * stride + window_size - 1
         frame = :array.get(frame_idx, frames_array)
-        frame.action
+
+        # Guard against out-of-bounds indices returning :undefined
+        case frame do
+          :undefined ->
+            # Return a default action (neutral state)
+            %{buttons: 0, main_x: 0.5, main_y: 0.5, c_x: 0.5, c_y: 0.5, shoulder: 0.0}
+
+          _ ->
+            frame.action
+        end
       end)
 
     # Stack sequences and transfer to GPU
