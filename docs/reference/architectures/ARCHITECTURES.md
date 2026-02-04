@@ -2,6 +2,8 @@
 
 ExPhil supports 15 backbone architectures for policy networks, ranging from simple MLPs to state-of-the-art sequence models.
 
+> **New to neural network architectures?** See [ARCHITECTURE_GUIDE.md](ARCHITECTURE_GUIDE.md) for beginner-friendly explanations of what each architecture is, why it's named that way, and when to use it.
+
 ## Quick Comparison
 
 ### Production Backbones (Benchmarked)
