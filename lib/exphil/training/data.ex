@@ -667,17 +667,40 @@ defmodule ExPhil.Training.Data do
   # Get or create an Erlang array from the frames list for O(1) random access
   # This is cached in the process dictionary to avoid rebuilding every batch
   # List traversal via Enum.at is O(n) per access = ~28s/batch for 238K frames!
+  #
+  # IMPORTANT: Cache is invalidated when dataset size changes (streaming mode
+  # creates new datasets for each chunk with different sizes).
   defp get_or_create_frames_array(dataset) do
-    case Process.get(:frames_array_cache) do
+    cache_key = {:frames_array_cache, dataset.size}
+
+    case Process.get(cache_key) do
       nil ->
+        # Clear any stale cache from previous dataset
+        clear_frames_array_cache()
+
         # Convert list to array (one-time O(n) cost)
         array = :array.from_list(dataset.frames)
-        Process.put(:frames_array_cache, array)
+        Process.put(cache_key, array)
         array
 
       cached ->
         cached
     end
+  end
+
+  # Clear dataset caches (called when switching datasets in streaming mode)
+  # Clears both frames array cache and GPU embeddings cache
+  defp clear_frames_array_cache do
+    # Clear frames array caches
+    Process.get_keys()
+    |> Enum.filter(fn
+      {:frames_array_cache, _} -> true
+      _ -> false
+    end)
+    |> Enum.each(&Process.delete/1)
+
+    # Also clear GPU embeddings cache (stale across streaming chunks)
+    Process.delete(:gpu_embedded_frames)
   end
 
   # Unzip a list of 3-tuples into three lists
