@@ -23,6 +23,7 @@ defmodule ExPhil.Training.Imitation.Checkpointing do
 
   alias ExPhil.Training.Checkpoint
   alias ExPhil.Embeddings
+  alias ExPhil.Error.CheckpointError
 
   require Logger
 
@@ -90,7 +91,7 @@ defmodule ExPhil.Training.Imitation.Checkpointing do
   ## Returns
 
   - `:ok` if queued successfully
-  - `{:error, :queue_full}` if save queue is full
+  - `{:error, %CheckpointError{reason: :queue_full}}` if save queue is full
 
   ## Example
 
@@ -106,7 +107,7 @@ defmodule ExPhil.Training.Imitation.Checkpointing do
       # At end of training, wait for pending saves:
       :ok = ExPhil.Training.AsyncCheckpoint.await_pending()
   """
-  @spec save_checkpoint_async(struct(), Path.t(), keyword()) :: :ok | {:error, :queue_full}
+  @spec save_checkpoint_async(struct(), Path.t(), keyword()) :: :ok | {:error, CheckpointError.t()}
   def save_checkpoint_async(trainer, path, opts \\ []) do
     # Build checkpoint map (no need to convert to BinaryBackend here,
     # AsyncCheckpoint does that internally to handle cross-process access)
