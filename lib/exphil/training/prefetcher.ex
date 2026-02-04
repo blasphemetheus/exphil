@@ -363,8 +363,9 @@ defmodule ExPhil.Training.Prefetcher do
   end
 
   # Start an async task to fetch the next batch
-  # Timeout is 5 minutes to allow for large chunk parsing in streaming mode
-  @prefetch_timeout_ms 300_000
+  # Timeout is 1 hour to allow for large chunk embedding in streaming mode
+  # (1M+ frames can take 10-15 minutes to embed)
+  @prefetch_timeout_ms 3_600_000
 
   defp start_prefetch_task(stream_pid, stream_ref) do
     Task.async(fn ->
