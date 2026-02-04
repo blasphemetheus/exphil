@@ -24,7 +24,15 @@
 #   --eager-sequences             Pre-build all sequences (default, faster but 13+ GB RAM)
 #   --quiet, -q                   Suppress XLA/CUDA warnings and Logger noise
 #
-# Available architectures: mlp, gated_ssm, mamba, jamba, lstm, gru, lstm_hybrid, sliding_window
+# Available architectures:
+#   Basic: mlp, gated_ssm
+#   Recurrent: lstm, gru, lstm_hybrid
+#   SSM: mamba, mamba_ssd, s5
+#   Linear Attention: rwkv, gla, hgrn
+#   Hybrid: jamba, zamba
+#   Transformer: sliding_window (also: attention)
+#   Other: liquid, decision_transformer
+#
 # Note: mamba_nif excluded (inference-only, can't train - gradients don't flow through NIF)
 # Note: "attention" is an alias for "sliding_window" (same implementation)
 #
@@ -313,6 +321,97 @@ all_architectures = [
      hidden_sizes: [256, 256],
      # Attention models benefit from gradient clipping
      max_grad_norm: 1.0
+   ]},
+
+  # === New SSM Architectures ===
+  {:zamba, "Zamba (Shared Attn)",
+   [
+     temporal: true,
+     backbone: :zamba,
+     window_size: 30,
+     num_layers: 4,
+     # Shared attention every 2 layers (applied 2x total)
+     attention_every: 2,
+     hidden_sizes: [256, 256],
+     batch_size: 64,
+     dropout: 0.1
+   ]},
+  {:mamba_ssd, "Mamba-2 (SSD)",
+   [
+     temporal: true,
+     backbone: :mamba_ssd,
+     window_size: 30,
+     num_layers: 2,
+     hidden_sizes: [256, 256],
+     batch_size: 64,
+     dropout: 0.1
+   ]},
+  {:s5, "S5 (Simplified SSM)",
+   [
+     temporal: true,
+     backbone: :s5,
+     window_size: 30,
+     num_layers: 2,
+     hidden_sizes: [256, 256],
+     batch_size: 64,
+     dropout: 0.1
+   ]},
+
+  # === Linear Attention Architectures ===
+  {:rwkv, "RWKV (Linear RNN)",
+   [
+     temporal: true,
+     backbone: :rwkv,
+     window_size: 30,
+     num_layers: 2,
+     hidden_sizes: [256, 256],
+     batch_size: 64,
+     dropout: 0.1
+   ]},
+  {:gla, "GLA (Gated Linear)",
+   [
+     temporal: true,
+     backbone: :gla,
+     window_size: 30,
+     num_layers: 2,
+     hidden_sizes: [256, 256],
+     batch_size: 64,
+     dropout: 0.1
+   ]},
+  {:hgrn, "HGRN (Hierarchical)",
+   [
+     temporal: true,
+     backbone: :hgrn,
+     window_size: 30,
+     num_layers: 2,
+     hidden_sizes: [256, 256],
+     batch_size: 64,
+     dropout: 0.1
+   ]},
+
+  # === Other Architectures ===
+  {:liquid, "Liquid (Neural ODE)",
+   [
+     temporal: true,
+     backbone: :liquid,
+     window_size: 30,
+     num_layers: 2,
+     hidden_sizes: [256, 256],
+     batch_size: 64,
+     dropout: 0.1
+   ]},
+  {:decision_transformer, "Decision Transformer",
+   [
+     temporal: true,
+     backbone: :decision_transformer,
+     window_size: 30,
+     num_layers: 2,
+     num_heads: 4,
+     hidden_sizes: [256, 256],
+     batch_size: 32,
+     # Transformer-based, needs gradient clipping
+     max_grad_norm: 1.0,
+     learning_rate: 1.0e-4
    ]}
 ]
 
@@ -770,16 +869,31 @@ results =
       # Theoretical complexity (for documentation)
       theoretical_complexity =
         case arch_id do
+          # Basic
           :mlp -> "O(1)"
+          :gated_ssm -> "O(L) sequential"
+          # Recurrent
           :lstm -> "O(L) sequential"
           :gru -> "O(L) sequential"
-          :gated_ssm -> "O(L) sequential (simplified)"
-          :mamba -> "O(L) work, O(log L) depth (parallel scan)"
-          :mamba_nif -> "O(L) CUDA kernel (5x faster)"
+          :lstm_hybrid -> "O(L) + O(L²)"
+          # SSM
+          :mamba -> "O(L) work, O(log L) depth"
+          :mamba_nif -> "O(L) CUDA kernel"
+          :mamba_ssd -> "O(L) work, O(log L) depth"
+          :s5 -> "O(L) work, O(log L) depth"
+          # Linear Attention
+          :rwkv -> "O(L) linear RNN"
+          :gla -> "O(L) linear attn"
+          :hgrn -> "O(L) hierarchical"
+          # Hybrid
           :jamba -> "O(L) + O(L²) hybrid"
+          :zamba -> "O(L) + O(L²/N) shared"
+          # Transformer
           :attention -> "O(L²)"
           :sliding_window -> "O(L²) parallel"
-          :lstm_hybrid -> "O(L) + O(L²)"
+          :decision_transformer -> "O(L²) goal-cond"
+          # Other
+          :liquid -> "O(L) adaptive ODE"
           _ -> "unknown"
         end
 
@@ -949,10 +1063,16 @@ theoretical_data =
   |> Enum.flat_map(fn r ->
     {train_ops, inference_ops} =
       case r.id do
+        # === Basic ===
         # O(1) baseline - constant, but still some ops
         :mlp ->
           {10, 10}
 
+        # O(L) sequential (simplified SSM, no parallel scan)
+        :gated_ssm ->
+          {window_size * 3, window_size}
+
+        # === Recurrent ===
         # O(L) sequential, 3x for backprop
         :lstm ->
           {window_size * 3, window_size}
@@ -961,10 +1081,12 @@ theoretical_data =
         :gru ->
           {window_size * 3, window_size}
 
-        # O(L) sequential (simplified SSM, no parallel scan)
-        :gated_ssm ->
-          {window_size * 3, window_size}
+        # O(L) + O(L²) - LSTM sequential + attention quadratic
+        :lstm_hybrid ->
+          {window_size * 3 + window_size * window_size * 3,
+           window_size + window_size * window_size}
 
+        # === SSM ===
         # O(L) work, O(log L) depth - parallel scan reduces effective latency
         :mamba ->
           {round(:math.log2(window_size)) * 3, round(:math.log2(window_size))}
@@ -973,6 +1095,40 @@ theoretical_data =
         :mamba_nif ->
           {round(:math.log2(window_size)), round(:math.log2(window_size)) / 2}
 
+        # O(L) work, O(log L) depth - Mamba-2 with SSD algorithm
+        :mamba_ssd ->
+          {round(:math.log2(window_size)) * 3, round(:math.log2(window_size))}
+
+        # O(L) work, O(log L) depth - simplified state space
+        :s5 ->
+          {round(:math.log2(window_size)) * 3, round(:math.log2(window_size))}
+
+        # === Linear Attention ===
+        # O(L) - linear RNN with channel mixing
+        :rwkv ->
+          {window_size * 2, window_size}
+
+        # O(L) - gated linear attention
+        :gla ->
+          {window_size * 2, window_size}
+
+        # O(L) - hierarchical gated RNN
+        :hgrn ->
+          {window_size * 2, window_size}
+
+        # === Hybrid ===
+        # O(L) + O(L²/3) - Mamba + sparse attention
+        :jamba ->
+          {window_size + div(window_size * window_size, 3),
+           window_size + div(window_size * window_size, 3)}
+
+        # O(L) + O(L²/N) - Mamba + shared attention (N = attention_every)
+        # Much cheaper than Jamba since attention weights are reused
+        :zamba ->
+          {window_size + div(window_size * window_size, 6),
+           window_size + div(window_size * window_size, 6)}
+
+        # === Transformer ===
         # O(L²) - pure attention
         :attention ->
           {window_size * window_size * 3, window_size * window_size}
@@ -981,15 +1137,14 @@ theoretical_data =
         :sliding_window ->
           {window_size * window_size * 3, window_size * window_size}
 
-        # O(L) + O(L²) - LSTM sequential + attention quadratic
-        :lstm_hybrid ->
-          {window_size * 3 + window_size * window_size * 3,
-           window_size + window_size * window_size}
+        # O(L²) - goal-conditioned transformer
+        :decision_transformer ->
+          {window_size * window_size * 3, window_size * window_size}
 
-        # O(L) + O(L²/3) - Mamba + sparse attention
-        :jamba ->
-          {window_size + div(window_size * window_size, 3),
-           window_size + div(window_size * window_size, 3)}
+        # === Other ===
+        # O(L) - adaptive ODE dynamics
+        :liquid ->
+          {window_size * 4, window_size * 2}
 
         _ ->
           {10, 10}
@@ -1120,10 +1275,12 @@ html = """
   <ul>
     <li><strong>MLP:</strong> O(1) - constant time, no temporal context</li>
     <li><strong>LSTM/GRU:</strong> O(L) - sequential, cannot parallelize</li>
-    <li><strong>Mamba:</strong> O(L) - parallel scan, GPU-friendly</li>
-    <li><strong>Mamba NIF:</strong> O(L) - CUDA kernel, 5x faster than XLA</li>
+    <li><strong>Mamba/S5:</strong> O(L) work, O(log L) depth - parallel scan, GPU-friendly</li>
+    <li><strong>RWKV/GLA/HGRN:</strong> O(L) - linear attention variants, O(1) inference memory</li>
     <li><strong>Attention:</strong> O(L²) - quadratic, but highly parallel</li>
-    <li><strong>Jamba:</strong> O(L) + O(L²/3) - hybrid, attention every 3 layers</li>
+    <li><strong>Zamba:</strong> O(L) + O(L²/N) - Mamba + shared attention (10x KV cache reduction vs Jamba)</li>
+    <li><strong>Jamba:</strong> O(L) + O(L²/3) - Mamba + multiple attention layers</li>
+    <li><strong>Liquid:</strong> O(L) - adaptive ODE dynamics</li>
   </ul>
   <div id="theoretical_plot" class="plot"></div>
 
