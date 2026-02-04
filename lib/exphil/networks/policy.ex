@@ -122,8 +122,40 @@ defmodule ExPhil.Networks.Policy do
   ## Returns
     An Axon model that outputs a map of logits for each controller component.
   """
-  @spec build(keyword()) :: Axon.t()
+  @spec build(keyword()) :: Axon.t() | map()
   def build(opts \\ []) do
+    policy_type = Keyword.get(opts, :policy_type, :autoregressive)
+
+    case policy_type do
+      :autoregressive ->
+        build_autoregressive(opts)
+
+      :diffusion ->
+        alias ExPhil.Networks.DiffusionPolicy
+        DiffusionPolicy.build(opts)
+
+      :act ->
+        alias ExPhil.Networks.ActionChunking
+        ActionChunking.build(opts)
+
+      :flow_matching ->
+        alias ExPhil.Networks.FlowMatching
+        FlowMatching.build(opts)
+
+      other ->
+        raise ArgumentError, "Unknown policy type: #{inspect(other)}. " <>
+          "Valid types: :autoregressive, :diffusion, :act, :flow_matching"
+    end
+  end
+
+  @doc """
+  Build an autoregressive policy (the default policy type).
+
+  This is the original policy architecture with 6-head autoregressive
+  controller prediction.
+  """
+  @spec build_autoregressive(keyword()) :: Axon.t()
+  def build_autoregressive(opts \\ []) do
     embed_size = Keyword.fetch!(opts, :embed_size)
     hidden_sizes = Keyword.get(opts, :hidden_sizes, @default_hidden_sizes)
     activation = Keyword.get(opts, :activation, @default_activation)
@@ -189,8 +221,43 @@ defmodule ExPhil.Networks.Policy do
   ## Output
     Map of logits for each controller component (same as `build/1`)
   """
-  @spec build_temporal(keyword()) :: Axon.t()
+  @spec build_temporal(keyword()) :: Axon.t() | map()
   def build_temporal(opts \\ []) do
+    policy_type = Keyword.get(opts, :policy_type, :autoregressive)
+
+    case policy_type do
+      :autoregressive ->
+        build_temporal_autoregressive(opts)
+
+      :diffusion ->
+        # DiffusionPolicy is inherently temporal, just pass temporal options
+        alias ExPhil.Networks.DiffusionPolicy
+        DiffusionPolicy.build(opts)
+
+      :act ->
+        # ActionChunking is inherently temporal with transformer
+        alias ExPhil.Networks.ActionChunking
+        ActionChunking.build(opts)
+
+      :flow_matching ->
+        # FlowMatching can work temporally
+        alias ExPhil.Networks.FlowMatching
+        FlowMatching.build(opts)
+
+      other ->
+        raise ArgumentError, "Unknown policy type: #{inspect(other)}. " <>
+          "Valid types: :autoregressive, :diffusion, :act, :flow_matching"
+    end
+  end
+
+  @doc """
+  Build a temporal autoregressive policy network.
+
+  This is the original temporal policy with attention/recurrent backbones
+  and 6-head autoregressive controller prediction.
+  """
+  @spec build_temporal_autoregressive(keyword()) :: Axon.t()
+  def build_temporal_autoregressive(opts \\ []) do
     embed_size = Keyword.fetch!(opts, :embed_size)
     backbone_type = Keyword.get(opts, :backbone, :sliding_window)
     axis_buckets = Keyword.get(opts, :axis_buckets, @axis_buckets)
@@ -362,11 +429,8 @@ defmodule ExPhil.Networks.Policy do
   defdelegate build_controller_head(backbone, axis_buckets \\ 16, shoulder_buckets \\ 4),
     to: Heads
 
-  @doc """
-  Build the full autoregressive policy with conditioning.
-  See `ExPhil.Networks.Policy.Heads.build_autoregressive/1`.
-  """
-  defdelegate build_autoregressive(opts \\ []), to: Heads
+  # NOTE: build_autoregressive is now defined locally above (not delegated)
+  # since it was extended to support policy_type dispatch.
 
   @doc """
   Get the output sizes for each controller component.

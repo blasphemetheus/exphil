@@ -1880,6 +1880,7 @@ ema =
       window_size: opts[:window_size],
       stride: opts[:stride],
       precompute: opts[:precompute],
+      show_progress: true,
       embed_config: embed_config,
       player_registry: player_registry
     ]
