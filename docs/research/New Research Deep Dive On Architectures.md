@@ -20,9 +20,11 @@
 
 ## Executive Summary
 
-ExPhil implements **7 backbone architectures** (MLP, LSTM, GRU, Attention, Mamba, Jamba, GatedSSM) with strong coverage of 2023-era approaches. However, **significant gaps exist** in the 2024-2026 research landscape:
+> **UPDATE (2026-02-04):** All recommended architectures from this deep dive have been implemented! ExPhil now has **15 backbone architectures** with comprehensive coverage of 2024-2026 research.
 
-### What ExPhil Has
+ExPhil implements **15 backbone architectures** covering both classic approaches and cutting-edge 2024-2026 research:
+
+### Original Architectures (7)
 | Architecture | Status | Inference | Production Ready |
 |--------------|--------|-----------|------------------|
 | MLP | Complete | 9.4ms | Yes |
@@ -33,21 +35,28 @@ ExPhil implements **7 backbone architectures** (MLP, LSTM, GRU, Attention, Mamba
 | Jamba (Mamba + Attention) | Complete | ~12ms | Yes |
 | GatedSSM | Complete | - | Research only |
 
-### What's Missing
-| Architecture | Priority | Estimated Effort | Impact |
-|--------------|----------|------------------|--------|
-| **RWKV-7** | High | Medium | O(1) space, shipped to 1.5B devices |
-| **Zamba (Single Shared Attention)** | High | Low | 10x KV cache reduction |
-| **Mamba-2 SSD** | High | Medium | 2-8x training speedup |
-| **GLA/HGRN-2** | Medium | Medium | Faster than FlashAttention on short seqs |
-| **Liquid Neural Networks** | Medium | High | Continuous adaptation |
-| **Decision Transformer** | Medium | Medium | Return-conditioned policy |
-| **S5 (Simplified State Space)** | Low | Medium | Simpler than Mamba |
-| **DreamerV3** | Low | Very High | World model (different paradigm) |
+### New Architectures (8) - Implemented Feb 2026
+| Architecture | Status | Notes |
+|--------------|--------|-------|
+| **RWKV-7** | **Complete** | O(1) memory inference |
+| **Zamba** | **Complete** | Shared attention + Mamba hybrid |
+| **Mamba-2 SSD** | **Complete** | Training mode with tensor core optimization |
+| **GLA** | **Complete** | Gated Linear Attention |
+| **HGRN-2** | **Complete** | Hierarchical Gated RNN |
+| **Liquid Neural Networks** | **Complete** | With custom ODE solver (Euler, Midpoint, RK4, DOPRI5) |
+| **Decision Transformer** | **Complete** | Return-conditioned policy |
+| **S5** | **Complete** | Simplified State Space |
 
-### Key Insight
-ExPhil's architecture diversity is **good for 2023-era approaches** but lacks:
-1. **Linear attention variants** (RWKV, GLA, RetNet)
+See [Architecture Guide](../reference/architectures/ARCHITECTURE_GUIDE.md) for beginner-friendly explanations.
+
+### Remaining Gap
+| Architecture | Priority | Status | Notes |
+|--------------|----------|--------|-------|
+| **DreamerV3** | Low | Not planned | World model - different paradigm |
+
+### Key Achievement
+ExPhil now has **comprehensive architecture coverage** including:
+1. **Linear attention variants** (RWKV, GLA)
 2. **Minimal attention hybrids** (Zamba's single-shared-attention pattern)
 3. **Continuous-time/adaptive models** (Liquid Neural Networks)
 4. **Return-conditioned RL** (Decision Transformer)
