@@ -31,6 +31,7 @@ defmodule ExPhil.Embeddings.Player do
   alias ExPhil.Constants
   alias ExPhil.Embeddings.Primitives
   alias ExPhil.Embeddings.Nana, as: NanaEmbed
+  alias ExPhil.Embeddings.Player.{Action, Ids}
   alias ExPhil.Bridge.Player, as: PlayerState
   alias ExPhil.Bridge.Nana
 
@@ -78,72 +79,18 @@ defmodule ExPhil.Embeddings.Player do
         }
 
   # ==========================================================================
-  # Action Categories for Compact Nana (25 categories)
-  # Maps Melee's 399 action states to meaningful groups for IC tech
+  # Action Categories (delegated to Action module)
   # ==========================================================================
 
-  @nana_action_categories 25
+  @nana_action_categories Action.num_categories()
 
-  # Action state ranges (based on Melee internal IDs)
-  # Reference: https://github.com/altf4/libmelee/blob/main/melee/enums.py
-  @doc false
-  def action_to_category(action) when is_integer(action) do
-    cond do
-      # 0: DEAD - Dead, respawning (0x00-0x0A)
-      action <= 0x0A -> 0
-      # 1: ENTRY - Entry, rebirth (0x0B-0x0D)
-      action <= 0x0D -> 1
-      # 2: IDLE - Standing, waiting (0x0E-0x14)
-      action <= 0x14 -> 2
-      # 3: WALK - Walking (0x15-0x18)
-      action <= 0x18 -> 3
-      # 4: DASH_RUN - Dashing, running, turn (0x19-0x1E)
-      action <= 0x1E -> 4
-      # 5: JUMP_SQUAT - Jump startup (0x1F-0x22)
-      action <= 0x22 -> 5
-      # 6: JUMP_AERIAL - Jumping, double jump (0x23-0x2C)
-      action <= 0x2C -> 6
-      # 7: FALL - Falling, fast fall (0x2D-0x36)
-      action <= 0x36 -> 7
-      # 8: LAND - Landing, landing lag (0x37-0x3C)
-      action <= 0x3C -> 8
-      # 9: CROUCH - Crouching (0x3D-0x42)
-      action <= 0x42 -> 9
-      # 10: ATTACK_GROUND - Jab, tilts (0x43-0x54)
-      action <= 0x54 -> 10
-      # 11: ATTACK_SMASH - Smash attacks (0x55-0x60)
-      action <= 0x60 -> 11
-      # 12: ATTACK_AIR - Aerials: nair, fair, bair, uair, dair (0x61-0x6B)
-      action <= 0x6B -> 12
-      # 13: SPECIAL_N - Neutral special (0x6C-0x7F) - IC: Ice Shot
-      action <= 0x7F -> 13
-      # 14: SPECIAL_S - Side special (0x80-0x93) - IC: Squall Hammer
-      action <= 0x93 -> 14
-      # 15: SPECIAL_U - Up special (0x94-0xA7) - IC: Belay
-      action <= 0xA7 -> 15
-      # 16: SPECIAL_D - Down special (0xA8-0xBB) - IC: Blizzard
-      action <= 0xBB -> 16
-      # 17: GRAB - Grabbing, pummel (0xBC-0xC7)
-      action <= 0xC7 -> 17
-      # 18: THROW - Throws: fthrow, bthrow, uthrow, dthrow (0xC8-0xD3)
-      action <= 0xD3 -> 18
-      # 19: GRABBED - Being grabbed, pummeled (0xD4-0xDF)
-      action <= 0xDF -> 19
-      # 20: SHIELD - Shielding, shield stun (0xE0-0xED)
-      action <= 0xED -> 20
-      # 21: DODGE - Roll, spotdodge, airdodge (0xEE-0xFF)
-      action <= 0xFF -> 21
-      # 22: DAMAGE - Hitstun, knockback (0x100-0x130)
-      action <= 0x130 -> 22
-      # 23: DOWN_TECH - Lying down, getup, tech (0x131-0x160)
-      action <= 0x160 -> 23
-      # 24: LEDGE - Ledge grab, ledge actions, edge (0x161+)
-      true -> 24
-    end
-  end
+  @doc """
+  Map a Melee action state ID to its category (0-24).
 
-  # Default to DEAD for nil/invalid
-  def action_to_category(_), do: 0
+  Delegates to `ExPhil.Embeddings.Player.Action.to_category/1`.
+  See that module for the full category mapping.
+  """
+  defdelegate action_to_category(action), to: Action, as: :to_category
 
   @doc """
   Default player embedding configuration.
@@ -1117,101 +1064,39 @@ defmodule ExPhil.Embeddings.Player do
   end
 
   # ============================================================================
-  # Action ID Extraction (for learned embeddings)
+  # Action/Character ID Extraction (delegated to Ids module)
   # ============================================================================
 
   @doc """
   Get the action ID from a player state.
-
-  Used when `action_mode: :learned` - the action ID is passed to the network
-  which has a learned embedding layer.
-
-  ## Returns
-    Integer action ID (0-398), or 0 if player is nil.
+  Delegates to `ExPhil.Embeddings.Player.Ids`.
   """
-  @spec get_action_id(PlayerState.t() | nil) :: non_neg_integer()
-  def get_action_id(nil), do: 0
-  def get_action_id(%PlayerState{} = player), do: player.action || 0
+  defdelegate get_action_id(player), to: Ids
 
   @doc """
   Get action IDs from a list of players as a tensor.
-
-  ## Returns
-    Tensor of shape [batch_size] with action IDs as integers.
   """
-  @spec get_action_ids_batch([PlayerState.t() | nil]) :: Nx.Tensor.t()
-  def get_action_ids_batch(players) when is_list(players) do
-    players
-    |> Enum.map(&get_action_id/1)
-    |> Nx.tensor(type: :s32)
-  end
+  defdelegate get_action_ids_batch(players), to: Ids
 
   @doc """
   Get Nana's action ID from a player state.
-
-  Returns 0 if player is nil, has no Nana, or Nana has no action.
-
-  ## Examples
-
-      iex> get_nana_action_id(%PlayerState{nana: %Nana{action: 50}})
-      50
-
-      iex> get_nana_action_id(%PlayerState{nana: nil})
-      0
-
-      iex> get_nana_action_id(nil)
-      0
   """
-  @spec get_nana_action_id(PlayerState.t() | nil) :: non_neg_integer()
-  def get_nana_action_id(nil), do: 0
-  def get_nana_action_id(%PlayerState{nana: nil}), do: 0
-  def get_nana_action_id(%PlayerState{nana: %Nana{action: action}}), do: action || 0
+  defdelegate get_nana_action_id(player), to: Ids
 
   @doc """
   Get Nana action IDs from a list of players as a tensor.
-
-  ## Returns
-    Tensor of shape [batch_size] with Nana action IDs as integers.
-    Returns 0 for players without Nana.
   """
-  @spec get_nana_action_ids_batch([PlayerState.t() | nil]) :: Nx.Tensor.t()
-  def get_nana_action_ids_batch(players) when is_list(players) do
-    players
-    |> Enum.map(&get_nana_action_id/1)
-    |> Nx.tensor(type: :s32)
-  end
+  defdelegate get_nana_action_ids_batch(players), to: Ids
 
   @doc """
   Get a player's character ID for learned embedding.
-
-  Returns the integer character ID (0-32 for Melee's 33 characters).
-  Returns 0 if player is nil.
-
-  ## Examples
-
-      iex> get_character_id(%PlayerState{character: 10})
-      10
-
-      iex> get_character_id(nil)
-      0
-
   """
-  @spec get_character_id(PlayerState.t() | nil) :: non_neg_integer()
-  def get_character_id(nil), do: 0
-  def get_character_id(%PlayerState{} = player), do: player.character || 0
+  defdelegate get_character_id(player), to: Ids
 
   @doc """
   Get character IDs from a list of players as a tensor.
-
-  ## Returns
-    Tensor of shape [batch_size] with character IDs as integers.
   """
-  @spec get_character_ids_batch([PlayerState.t() | nil]) :: Nx.Tensor.t()
-  def get_character_ids_batch(players) when is_list(players) do
-    players
-    |> Enum.map(&get_character_id/1)
-    |> Nx.tensor(type: :s32)
-  end
+  defdelegate get_character_ids_batch(players), to: Ids
 
   @doc """
   Check if learned character embeddings are being used.
