@@ -16,7 +16,7 @@ This document covers GPU-specific optimizations for ExPhil training and inferenc
 | **Async Prefetching** | ✅ Done | 10-20% | Enabled by default (`--prefetch`) |
 | **Embedding Alignment** | ✅ Done | 2-3% | 287→288 dims with padding (auto-aligns Mamba inner 574→576) |
 | **Chunked Attention** | ✅ Done | 20-30% mem | `--chunked-attention --chunk-size 32` |
-| Flash Attention | 📋 Planned | memory | O(n) instead of O(n²) - needs XLA support |
+| Flash Attention | 📦 Archived | memory | O(n) instead of O(n²) - see `docs/archive/flash_attention/` |
 | Multi-GPU | 📋 Future | scaling | Data parallelism |
 
 ## Current GPU Performance (RTX 4090)
@@ -240,37 +240,17 @@ mix run scripts/train_from_replays.exs \
 
 ## Planned Optimizations
 
-### Flash Attention (Medium Priority)
+### Flash Attention (Archived)
 
 Memory-efficient attention that computes in blocks without materializing the full attention matrix.
 
-**Current implementation** (`lib/exphil/networks/attention.ex`):
-```elixir
-# Standard attention: O(n²) memory for scores matrix
-scores = Nx.dot(query, [2], [0], key, [2], [0])  # [batch, seq, seq]
-weights = FusedOps.fused_softmax(scores)          # Full n×n matrix in memory
-output = Nx.dot(weights, [2], [0], value, [1], [0])
-```
+**Status:** 📦 Archived (Feb 2026)
 
-**Flash Attention approach**:
-- Compute attention in tiles/blocks
-- Never materialize full n×n attention matrix
-- O(n) memory instead of O(n²)
-- Requires custom CUDA kernel or XLA fusion
+Flash Attention was deprioritized because ExPhil now has 15 backbone architectures, many of which are fundamentally O(n) in both memory AND compute (Mamba, RWKV, GLA, HGRN-2, S5). These attention-free architectures make Flash Attention optimization less relevant.
 
-**Benefits:**
-- Enable 120+ frame sequences (currently limited to ~90 by VRAM)
-- 2-4x memory reduction for attention layers
-- Better GPU cache utilization (reduced HBM bandwidth)
+**Archive location:** `docs/archive/flash_attention/`
 
-**Implementation options:**
-1. **XLA custom call** - If XLA adds flash attention support (tracking: google/jax#14223)
-2. **Nx chunked attention** - Block-wise computation in pure Nx (partial benefit)
-3. **NIF with FlashAttention-2** - Custom NIF wrapping NVIDIA's kernel
-
-**Estimated impact:** 30-50% memory reduction, enables 2x longer sequences
-
-**Status:** 📋 Planned - waiting for better XLA/EXLA support
+The archive contains detailed research and implementation plans if this work is ever revived.
 
 ### Chunked/Block Attention (Implemented)
 

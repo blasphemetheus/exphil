@@ -562,7 +562,7 @@ has_non_temporal = Enum.any?(architectures, fn {_id, _name, opts} -> !opts[:temp
     else
       # Eager mode: pre-build all sequence embeddings (faster batching but 13+ GB RAM)
       Output.puts("Building sequence embeddings from frame embeddings (30x faster)...")
-      Output.puts("  (Use --lazy-sequences for 150 MB RAM instead of 13 GB)")
+      Output.puts("  (Use --lazy-sequences for 150 MB RAM and better GPU efficiency)")
 
       train_seq =
         Output.timed "Building train sequences" do
@@ -585,6 +585,11 @@ has_non_temporal = Enum.any?(architectures, fn {_id, _name, opts} -> !opts[:temp
             show_progress: false
           )
         end
+
+      # NOTE: Eager sequence mode stores embeddings as an array of individual tensors.
+      # GPU transfer happens per-batch during training (stack + transfer).
+      # For better GPU efficiency, use --lazy-sequences which keeps frame embeddings
+      # as a single GPU tensor and slices on-the-fly.
 
       {train_seq, val_seq}
     end
