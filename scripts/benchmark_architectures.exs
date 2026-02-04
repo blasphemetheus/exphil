@@ -1158,6 +1158,8 @@ theoretical_data =
 
 # Grouped bar chart with color encoding for phase
 # Using xOffset for side-by-side bars within each architecture
+# Use rect mark with explicit y2 baseline - bar mark doesn't work with log scale
+# because bar tries to draw from 0, but log(0) = -∞
 theoretical_plot =
   VegaLite.new(
     width: 600,
@@ -1165,7 +1167,7 @@ theoretical_plot =
     title: "Theoretical Complexity (L=30)"
   )
   |> VegaLite.data_from_values(theoretical_data)
-  |> VegaLite.mark(:bar, tooltip: true)
+  |> VegaLite.mark(:rect, tooltip: true)
   |> VegaLite.encode_field(:x, "architecture",
     type: :nominal,
     title: "Architecture",
@@ -1176,6 +1178,7 @@ theoretical_plot =
     title: "Relative Operations (log scale)",
     scale: [type: :log, domain: [1, 5000]]
   )
+  |> VegaLite.encode(:y2, datum: 1)
   |> VegaLite.encode_field(:color, "type", type: :nominal, title: "Phase")
   |> VegaLite.encode_field(:x_offset, "type", type: :nominal)
 
