@@ -1,8 +1,10 @@
 # ExPhil Backbone Architectures
 
-ExPhil supports 7 backbone architectures for policy networks, ranging from simple MLPs to state-of-the-art sequence models.
+ExPhil supports 15 backbone architectures for policy networks, ranging from simple MLPs to state-of-the-art sequence models.
 
 ## Quick Comparison
+
+### Production Backbones (Benchmarked)
 
 | Backbone | Type | Inference | 60 FPS | Val Loss* | Best For |
 |----------|------|-----------|--------|-----------|----------|
@@ -12,6 +14,19 @@ ExPhil supports 7 backbone architectures for policy networks, ranging from simpl
 | [Attention](ATTENTION.md) | Transformer | 17ms | ⚠️ Borderline | 3.07 | Accuracy + parallelism |
 | [Mamba](MAMBA.md) | State Space | **24ms** | ⚠️ Needs opt | 3.00 | Balance (after optimization) |
 | [Jamba](JAMBA.md) | Hybrid | ~20ms | ⚠️ Needs opt | ~3.0 | Hybrid approach |
+
+### New Architectures (2026-02)
+
+| Backbone | Type | Complexity | Best For |
+|----------|------|------------|----------|
+| Zamba | Hybrid SSM | O(L) | Shared attention efficiency |
+| Mamba-2 SSD | State Space | O(L) | Tensor core training |
+| RWKV-7 | Linear RNN | O(L) | O(1) memory inference |
+| GLA | Linear Attention | O(L) | Short sequence speed |
+| HGRN-2 | Gated RNN | O(L) | Hierarchical patterns |
+| Decision Transformer | Return-conditioned | O(L²) | Goal-directed behavior |
+| S5 | Simplified SSM | O(L) | MIMO state space |
+| Liquid | Neural ODE | O(L×steps) | Adaptive dynamics |
 
 *Val loss from 3-epoch benchmark on RTX 4090, batch_size=256, 50 replays (lower is better)
 
@@ -62,8 +77,16 @@ Full benchmark on RTX 4090, 50 replays, 3 epochs, batch_size=256:
 | Mamba | O(L × d) | O(L × d) | Parallel selective scan |
 | Attention | O(L² × d) | O(L² × d) | Self-attention matrix |
 | Jamba | O(L × d + L²/k) | O(L × d + L²/k) | Hybrid (attn every k layers) |
+| Zamba | O(L × d + L²) | O(L × d + L²) | Shared attention reuse |
+| Mamba-2 SSD | O(L × d) | O(L × d) | SSD matmul / Blelloch scan |
+| RWKV-7 | O(L × d) | O(d) per step | WKV linear attention |
+| GLA | O(L × d) | O(L × d) | Gated linear attention |
+| HGRN-2 | O(L × d) | O(L × d) | Hierarchical gating |
+| Decision Transformer | O(L² × d) | O(L² × d) | Causal self-attention |
+| S5 | O(L × N²) | O(L × N²) | MIMO state space |
+| Liquid | O(L × d × s) | O(L × d × s) | ODE integration (s=steps) |
 
-Where: d=hidden_size (256), L=sequence_length (30), k=attention_every (3)
+Where: d=hidden_size (256), L=sequence_length (30), k=attention_every (3), N=state_size, s=integration_steps
 
 ### Why Observed Speeds Differ from Theory
 
@@ -138,14 +161,25 @@ mix run scripts/train_from_replays.exs \
   --window-size 60 \
   --num-layers 2
 
-# Available backbones
---backbone mlp           # MLP (temporal extracts last frame)
---backbone lstm          # LSTM recurrent
---backbone gru           # GRU recurrent
---backbone attention     # Sliding window attention
---backbone sliding_window # Same as attention
---backbone mamba         # Mamba SSM (recommended)
---backbone jamba         # Hybrid Mamba + Attention
+# Available backbones (15 total)
+# --- Production (benchmarked) ---
+--backbone mlp              # MLP (temporal extracts last frame)
+--backbone lstm             # LSTM recurrent
+--backbone gru              # GRU recurrent
+--backbone attention        # Sliding window attention
+--backbone sliding_window   # Same as attention
+--backbone mamba            # Mamba SSM (recommended)
+--backbone jamba            # Hybrid Mamba + Attention
+
+# --- New architectures (2026-02) ---
+--backbone zamba            # Shared attention + Mamba hybrid
+--backbone mamba_ssd        # Mamba-2 with SSD algorithm
+--backbone rwkv             # RWKV-7 linear RNN
+--backbone gla              # Gated Linear Attention
+--backbone hgrn             # Hierarchical Gated RNN
+--backbone decision_transformer  # Return-conditioned transformer
+--backbone s5               # Simplified State Space
+--backbone liquid           # Liquid Neural Networks (ODE-based)
 ```
 
 ## Training Presets
@@ -171,8 +205,16 @@ mix run scripts/train_from_replays.exs --preset production
 | Attention | 2.5GB | **13GB+** | O(K²) | Yes |
 | Mamba | 800MB | **13GB+** | O(L) | Partial |
 | Jamba | 1.2GB | **15GB+** | O(L) | Partial |
+| Zamba | 1.0GB | **13GB+** | O(L) | Partial |
+| Mamba-2 SSD | 800MB | **13GB+** | O(L) | Yes (training) |
+| RWKV-7 | 600MB | **13GB+** | O(L) | Partial |
+| GLA | 700MB | **13GB+** | O(L) | Yes |
+| HGRN-2 | 600MB | **13GB+** | O(L) | Partial |
+| Decision Transformer | 1.5GB | **13GB+** | O(L²) | Yes |
+| S5 | 500MB | **13GB+** | O(L) | Yes |
+| Liquid | 800MB | **13GB+** | O(L×s) | Partial |
 
-L = sequence length, K = window size (typically 60)
+L = sequence length, K = window size (typically 60), s = ODE integration steps
 
 **⚠️ RAM Warning for Temporal Architectures:**
 
@@ -186,6 +228,7 @@ MLP avoids this by using frame embeddings directly (no sequence pre-building).
 
 ## Individual Architecture Docs
 
+### Production Backbones
 - [MLP](MLP.md) - Simple feedforward, single-frame processing
 - [LSTM](LSTM.md) - Long Short-Term Memory recurrent
 - [GRU](GRU.md) - Gated Recurrent Unit
@@ -193,15 +236,112 @@ MLP avoids this by using frame embeddings directly (no sequence pre-building).
 - [Mamba](MAMBA.md) - Selective State Space Model
 - [Jamba](JAMBA.md) - Hybrid Mamba + Attention
 
+### New Architectures (2026-02)
+
+| Architecture | Description | Key Innovation |
+|--------------|-------------|----------------|
+| **Zamba** | Mamba + shared attention | One attention layer reused across all positions |
+| **Mamba-2 SSD** | Structured State Space Duality | Tensor core optimization via matmul formulation |
+| **RWKV-7** | Linear RNN with WKV attention | O(1) memory during inference |
+| **GLA** | Gated Linear Attention | Faster than FlashAttention on short sequences |
+| **HGRN-2** | Hierarchical Gated RNN | Multi-scale temporal patterns |
+| **Decision Transformer** | Return-conditioned GPT | Goal-directed via return-to-go conditioning |
+| **S5** | Simplified State Space | Single MIMO SSM (ablation baseline) |
+| **Liquid** | Neural ODE networks | Continuous-time dynamics with adaptive ODE solver |
+
 ## Implementation Files
 
 | Backbone | Primary File | Policy Integration |
 |----------|-------------|-------------------|
-| MLP | `policy.ex:552-582` | `build_backbone/5` |
-| LSTM | `recurrent.ex:183-211` | `build_recurrent_backbone/3` |
-| GRU | `recurrent.ex:502-519` | `build_recurrent_backbone/3` |
-| Attention | `attention.ex:333-409` | `build_sliding_window_backbone/2` |
-| Mamba | `mamba.ex:97-150` | `build_mamba_backbone/2` |
-| Jamba | `hybrid.ex:118-204` | `build_jamba_backbone/2` |
+| MLP | `policy.ex` | `build_backbone/5` |
+| LSTM | `recurrent.ex` | `build_recurrent_backbone/3` |
+| GRU | `recurrent.ex` | `build_recurrent_backbone/3` |
+| Attention | `attention.ex` | `build_sliding_window_backbone/2` |
+| Mamba | `mamba.ex` | `build_mamba_backbone/2` |
+| Jamba | `hybrid.ex` | `build_jamba_backbone/2` |
+| Zamba | `zamba.ex` | `build_zamba_backbone/2` |
+| Mamba-2 SSD | `mamba_ssd.ex` | `build_mamba_ssd_backbone/2` |
+| RWKV-7 | `rwkv.ex` | `build_rwkv_backbone/2` |
+| GLA | `gla.ex` | `build_gla_backbone/2` |
+| HGRN-2 | `hgrn.ex` | `build_hgrn_backbone/2` |
+| Decision Transformer | `decision_transformer.ex` | `build_decision_transformer_backbone/2` |
+| S5 | `s5.ex` | `build_s5_backbone/2` |
+| Liquid | `liquid.ex` | `build_liquid_backbone/2` |
 
 All in `lib/exphil/networks/`.
+
+## New Architecture Details
+
+### Zamba - Shared Attention Hybrid
+
+Uses 6 Mamba blocks with a single shared attention layer called at configurable intervals.
+
+```bash
+mix run scripts/train_from_replays.exs --backbone zamba --attention-interval 3
+```
+
+### Mamba-2 SSD - Training Optimized
+
+Dual-mode operation: SSD matmul for training (tensor cores), Blelloch scan for inference.
+
+```bash
+# Training mode (automatic)
+mix run scripts/train_from_replays.exs --backbone mamba_ssd
+
+# Inference uses fast scan automatically
+```
+
+### RWKV-7 - Linear Complexity RNN
+
+Time-mixing + channel-mixing blocks with O(1) memory inference.
+
+```bash
+mix run scripts/train_from_replays.exs --backbone rwkv --num-layers 4
+```
+
+### GLA - Gated Linear Attention
+
+Data-dependent gating on linear attention for short-sequence efficiency.
+
+```bash
+mix run scripts/train_from_replays.exs --backbone gla --num-heads 4
+```
+
+### HGRN-2 - Hierarchical Gating
+
+Multi-resolution temporal modeling with state expansion.
+
+```bash
+mix run scripts/train_from_replays.exs --backbone hgrn --expand-ratio 2
+```
+
+### Decision Transformer - Goal-Conditioned
+
+Return-conditioned transformer for target-driven behavior.
+
+```bash
+mix run scripts/train_from_replays.exs --backbone decision_transformer
+# Note: Requires return-to-go in training data for full functionality
+```
+
+### S5 - Simplified State Space
+
+Single MIMO SSM for ablation studies comparing to Mamba's SISO approach.
+
+```bash
+mix run scripts/train_from_replays.exs --backbone s5 --state-size 64
+```
+
+### Liquid - Neural ODE
+
+Continuous-time dynamics with multiple ODE solvers.
+
+```bash
+# Default (RK4 solver)
+mix run scripts/train_from_replays.exs --backbone liquid
+
+# High accuracy (DOPRI5 adaptive)
+mix run scripts/train_from_replays.exs --backbone liquid --solver dopri5
+```
+
+Available solvers: `:euler`, `:midpoint`, `:rk4`, `:dopri5`
