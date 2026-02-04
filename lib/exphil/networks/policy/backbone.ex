@@ -19,6 +19,8 @@ defmodule ExPhil.Networks.Policy.Backbone do
   | `:sliding_window` | Windowed attention | Fixed-length sequences |
   | `:mamba` | State space model | Long sequences, fast training |
   | `:jamba` | Mamba + Attention | Best quality, moderate speed |
+  | `:griffin` | RG-LRU + Local Attention | Simpler recurrence, good quality |
+  | `:hawk` | Pure RG-LRU | Fastest recurrent, simpler than Mamba |
 
   ## Usage
 
@@ -39,6 +41,7 @@ defmodule ExPhil.Networks.Policy.Backbone do
 
   alias ExPhil.Networks.Attention
   alias ExPhil.Networks.GatedSSM
+  alias ExPhil.Networks.Griffin
   alias ExPhil.Networks.Hybrid
   alias ExPhil.Networks.Mamba
   alias ExPhil.Networks.MambaCumsum
@@ -65,6 +68,8 @@ defmodule ExPhil.Networks.Policy.Backbone do
           | :gated_ssm
           | :jamba
           | :zamba
+          | :griffin
+          | :hawk
           | :rwkv
           | :gla
           | :hgrn
@@ -111,6 +116,14 @@ defmodule ExPhil.Networks.Policy.Backbone do
       :zamba ->
         # Mamba + Single Shared Attention (more efficient than Jamba)
         build_zamba_backbone(embed_size, opts)
+
+      :griffin ->
+        # Griffin: RG-LRU + Local Attention hybrid (2:1 pattern)
+        build_griffin_backbone(embed_size, opts)
+
+      :hawk ->
+        # Hawk: Pure RG-LRU (no local attention, simpler/faster than Griffin)
+        build_hawk_backbone(embed_size, opts)
 
       :rwkv ->
         # RWKV-7 "Goose" - O(1) space complexity linear attention
@@ -250,6 +263,14 @@ defmodule ExPhil.Networks.Policy.Backbone do
 
       :zamba ->
         # Mamba + Single Shared Attention
+        Keyword.get(opts, :hidden_size, 256)
+
+      :griffin ->
+        # Griffin: RG-LRU + Local Attention
+        Keyword.get(opts, :hidden_size, 256)
+
+      :hawk ->
+        # Hawk: Pure RG-LRU
         Keyword.get(opts, :hidden_size, 256)
 
       :rwkv ->
@@ -442,6 +463,55 @@ defmodule ExPhil.Networks.Policy.Backbone do
       attention_every: attention_every,
       num_heads: num_heads,
       head_dim: head_dim,
+      dropout: dropout,
+      window_size: window_size,
+      seq_len: seq_len
+    )
+  end
+
+  # Griffin: RG-LRU + Local Attention hybrid (2:1 pattern)
+  defp build_griffin_backbone(embed_size, opts) do
+    alias ExPhil.Networks.Griffin
+
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    num_layers = Keyword.get(opts, :num_layers, 6)
+    expand_factor = Keyword.get(opts, :expand_factor, 3)
+    local_attn_window = Keyword.get(opts, :local_attn_window, 32)
+    num_heads = Keyword.get(opts, :num_heads, 4)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+    window_size = Keyword.get(opts, :window_size, 60)
+    seq_len = Keyword.get(opts, :seq_len, window_size)
+
+    Griffin.build(
+      embed_size: embed_size,
+      hidden_size: hidden_size,
+      num_layers: num_layers,
+      expand_factor: expand_factor,
+      local_attn_window: local_attn_window,
+      num_heads: num_heads,
+      dropout: dropout,
+      window_size: window_size,
+      seq_len: seq_len,
+      use_local_attention: true
+    )
+  end
+
+  # Hawk: Pure RG-LRU (no local attention, simpler/faster than Griffin)
+  defp build_hawk_backbone(embed_size, opts) do
+    alias ExPhil.Networks.Griffin
+
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    num_layers = Keyword.get(opts, :num_layers, 6)
+    expand_factor = Keyword.get(opts, :expand_factor, 3)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+    window_size = Keyword.get(opts, :window_size, 60)
+    seq_len = Keyword.get(opts, :seq_len, window_size)
+
+    Griffin.build_hawk(
+      embed_size: embed_size,
+      hidden_size: hidden_size,
+      num_layers: num_layers,
+      expand_factor: expand_factor,
       dropout: dropout,
       window_size: window_size,
       seq_len: seq_len
