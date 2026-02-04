@@ -43,7 +43,7 @@ ExPhil is an Elixir-based successor to slippi-ai, creating high-ELO playable bot
 
 ## Current Status
 
-**Test coverage:** 1933 tests passing
+**Test coverage:** 2469 tests passing
 
 **Completed:**
 - Stage embedding modes (full 64-dim, compact 7-dim, or learned embedding)
