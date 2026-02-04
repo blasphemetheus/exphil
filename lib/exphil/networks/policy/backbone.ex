@@ -22,6 +22,7 @@ defmodule ExPhil.Networks.Policy.Backbone do
   | `:griffin` | RG-LRU + Local Attention | Simpler recurrence, good quality |
   | `:hawk` | Pure RG-LRU | Fastest recurrent, simpler than Mamba |
   | `:xlstm` | Extended LSTM (mixed) | Exponential gating, matrix memory |
+  | `:retnet` | Retentive Network | O(1) inference, decay-based attention |
 
   ## Usage
 
@@ -74,6 +75,7 @@ defmodule ExPhil.Networks.Policy.Backbone do
           | :xlstm
           | :xlstm_slstm
           | :xlstm_mlstm
+          | :retnet
           | :rwkv
           | :gla
           | :hgrn
@@ -140,6 +142,10 @@ defmodule ExPhil.Networks.Policy.Backbone do
       :xlstm_mlstm ->
         # xLSTM: Pure mLSTM (matrix memory, memorization)
         build_xlstm_backbone(embed_size, Keyword.put(opts, :variant, :mlstm))
+
+      :retnet ->
+        # RetNet: Retentive Network with multi-scale retention
+        build_retnet_backbone(embed_size, opts)
 
       :rwkv ->
         # RWKV-7 "Goose" - O(1) space complexity linear attention
@@ -291,6 +297,10 @@ defmodule ExPhil.Networks.Policy.Backbone do
 
       type when type in [:xlstm, :xlstm_slstm, :xlstm_mlstm] ->
         # xLSTM variants
+        Keyword.get(opts, :hidden_size, 256)
+
+      :retnet ->
+        # RetNet: Retentive Network
         Keyword.get(opts, :hidden_size, 256)
 
       :rwkv ->
@@ -560,6 +570,30 @@ defmodule ExPhil.Networks.Policy.Backbone do
       head_dim: head_dim,
       expand_factor: expand_factor,
       variant: variant,
+      dropout: dropout,
+      window_size: window_size,
+      seq_len: seq_len
+    )
+  end
+
+  # RetNet: Retentive Network with multi-scale retention (Microsoft, 2023)
+  defp build_retnet_backbone(embed_size, opts) do
+    alias ExPhil.Networks.RetNet
+
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    num_layers = Keyword.get(opts, :num_layers, 6)
+    num_heads = Keyword.get(opts, :num_heads, 4)
+    expand_factor = Keyword.get(opts, :expand_factor, 2)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+    window_size = Keyword.get(opts, :window_size, 60)
+    seq_len = Keyword.get(opts, :seq_len, window_size)
+
+    RetNet.build(
+      embed_size: embed_size,
+      hidden_size: hidden_size,
+      num_layers: num_layers,
+      num_heads: num_heads,
+      expand_factor: expand_factor,
       dropout: dropout,
       window_size: window_size,
       seq_len: seq_len
