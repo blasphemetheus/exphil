@@ -171,6 +171,9 @@ defmodule ExPhil.Training.Config do
     "--kmeans-centers",
     # Process files in chunks for memory efficiency
     "--stream-chunk-size",
+    # Prepare next chunk while training (overlaps prep with GPU)
+    "--pipeline-chunks",
+    "--no-pipeline-chunks",
     # Auto-select port based on character
     "--train-character",
     # Train on both players per replay
@@ -460,6 +463,8 @@ defmodule ExPhil.Training.Config do
       # Streaming data loading (process files in chunks to bound memory)
       # nil = load all at once, N = process N files per chunk
       stream_chunk_size: nil,
+      # Pipeline chunk preparation (prepare N+1 while training on N)
+      pipeline_chunks: true,
       # Embedding options
       # Stage: :one_hot_full (64 dims), :one_hot_compact (7 dims), :learned (1 ID)
       stage_mode: :one_hot_compact,

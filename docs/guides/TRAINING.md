@@ -317,6 +317,8 @@ These options apply to multiple new architectures:
 | `--mixed-precision` | false | FP32 master weights + BF16 compute (not recommended) |
 | `--frame-delay N` | 0 | Simulated online delay (for Slippi) |
 | `--stream-chunk-size N` | nil | Load N files at a time (memory-bounded) |
+| `--pipeline-chunks` | true | Prepare next chunk while training (overlaps CPU/GPU) |
+| `--no-pipeline-chunks` | - | Disable chunk pipelining (sequential processing) |
 | `--gc-every N` | 100 | Run garbage collection every N batches (0=disabled) |
 
 ### Data Augmentation

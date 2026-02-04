@@ -515,7 +515,7 @@ Configuration:
   end}
   Grad Ckpt:   #{if opts[:gradient_checkpoint], do: "enabled (every #{opts[:checkpoint_every]} layers)", else: "disabled"}
   GPU:         #{gpu_info}
-  Streaming:   #{if opts[:stream_chunk_size], do: "enabled (#{opts[:stream_chunk_size]} files/chunk)", else: "disabled"}
+  Streaming:   #{if opts[:stream_chunk_size], do: "enabled (#{opts[:stream_chunk_size]} files/chunk#{if opts[:pipeline_chunks], do: ", pipelined", else: ""})", else: "disabled"}
   Batch Save:  #{if opts[:save_every_batches], do: "every #{opts[:save_every_batches]} batches", else: "disabled"}
   K-means:     #{if opts[:kmeans_centers], do: "enabled (#{opts[:kmeans_centers]})", else: "disabled (uniform 17 buckets)"}
   Verbosity:   #{verbosity_str}
@@ -1978,66 +1978,89 @@ batch_checkpoint_path =
         # (chunk_opts, dataset_opts, and batch estimate computed once before epoch loop)
         num_chunks = length(file_chunks)
 
+        # Build batch options for both pipelined and non-pipelined modes
+        batch_opts =
+          if opts[:temporal] do
+            [
+              batch_size: opts[:batch_size],
+              shuffle: true,
+              drop_last: false,
+              character_weights: character_weights
+            ]
+          else
+            [
+              batch_size: opts[:batch_size],
+              shuffle: true,
+              drop_last: false,
+              augment_fn: augment_fn,
+              frame_delay: opts[:frame_delay],
+              frame_delay_augment: opts[:frame_delay_augment],
+              frame_delay_min: opts[:frame_delay_min],
+              frame_delay_max: opts[:frame_delay_max],
+              mirror_prob: opts[:mirror_prob],
+              noise_prob: opts[:noise_prob],
+              num_noisy_variants: opts[:num_noisy_variants],
+              character_weights: character_weights
+            ]
+          end
+
         stream =
-          file_chunks
-          |> Enum.with_index(1)
-          |> Stream.flat_map(fn {chunk, chunk_idx} ->
-            # Show chunk progress (helps user understand streaming progress)
-            IO.write(:stderr, "\n")
+          if opts[:pipeline_chunks] do
+            # Pipelined mode: prepare chunk N+1 while training on chunk N
+            # This overlaps CPU embedding with GPU training for significant speedup
+            alias ExPhil.Training.ChunkPipeline
 
-            Output.puts(
-              "  📦 Processing chunk #{chunk_idx}/#{num_chunks} (#{length(chunk)} files)..."
+            ChunkPipeline.stream_prepared_chunks(file_chunks,
+              chunk_opts: streaming_chunk_opts,
+              dataset_opts: streaming_dataset_opts,
+              buffer_size: 1,
+              show_progress: true
             )
-
-            # Parse and create dataset for this chunk
-            {:ok, chunk_frames, errors} = Streaming.parse_chunk(chunk, streaming_chunk_opts)
-
-            # Debug: show chunk stats
-            if length(chunk_frames) == 0 do
-              Output.warning("Chunk produced 0 frames from #{length(chunk)} files")
-
-              if errors != [] do
-                Output.puts("    Errors: #{inspect(Enum.take(errors, 3))}")
+            |> Stream.flat_map(fn {chunk_dataset, _chunk_idx, _errors} ->
+              if chunk_dataset.size == 0 do
+                []
+              else
+                if opts[:temporal] do
+                  Data.batched_sequences(chunk_dataset, batch_opts)
+                else
+                  Data.batched(chunk_dataset, batch_opts)
+                end
               end
-            end
-
-            chunk_dataset = Streaming.create_dataset(chunk_frames, streaming_dataset_opts)
-
-            # Debug: show dataset size after sequence conversion
-            if chunk_dataset.size == 0 and length(chunk_frames) > 0 do
-              Output.warning(
-                "Dataset has 0 sequences (frames: #{length(chunk_frames)}, window: #{opts[:window_size]})"
+            end)
+          else
+            # Non-pipelined mode: process chunks sequentially (original behavior)
+            file_chunks
+            |> Enum.with_index(1)
+            |> Stream.flat_map(fn {chunk, chunk_idx} ->
+              IO.write(:stderr, "\n")
+              Output.puts(
+                "  📦 Processing chunk #{chunk_idx}/#{num_chunks} (#{length(chunk)} files)..."
               )
-            end
 
-            # Create batches from this chunk
-            # Note: character_weights is nil in streaming mode (computed per-chunk would be less effective)
-            if opts[:temporal] do
-              Data.batched_sequences(chunk_dataset,
-                batch_size: opts[:batch_size],
-                shuffle: true,
-                # Don't drop - small chunks may lose data
-                drop_last: false,
-                character_weights: character_weights
-              )
-            else
-              Data.batched(chunk_dataset,
-                batch_size: opts[:batch_size],
-                shuffle: true,
-                drop_last: false,
-                augment_fn: augment_fn,
-                frame_delay: opts[:frame_delay],
-                frame_delay_augment: opts[:frame_delay_augment],
-                frame_delay_min: opts[:frame_delay_min],
-                frame_delay_max: opts[:frame_delay_max],
-                # Augmentation probabilities for variant selection (when using augmented cache)
-                mirror_prob: opts[:mirror_prob],
-                noise_prob: opts[:noise_prob],
-                num_noisy_variants: opts[:num_noisy_variants],
-                character_weights: character_weights
-              )
-            end
-          end)
+              {:ok, chunk_frames, errors} = Streaming.parse_chunk(chunk, streaming_chunk_opts)
+
+              if length(chunk_frames) == 0 do
+                Output.warning("Chunk produced 0 frames from #{length(chunk)} files")
+                if errors != [] do
+                  Output.puts("    Errors: #{inspect(Enum.take(errors, 3))}")
+                end
+              end
+
+              chunk_dataset = Streaming.create_dataset(chunk_frames, streaming_dataset_opts)
+
+              if chunk_dataset.size == 0 and length(chunk_frames) > 0 do
+                Output.warning(
+                  "Dataset has 0 sequences (frames: #{length(chunk_frames)}, window: #{opts[:window_size]})"
+                )
+              end
+
+              if opts[:temporal] do
+                Data.batched_sequences(chunk_dataset, batch_opts)
+              else
+                Data.batched(chunk_dataset, batch_opts)
+              end
+            end)
+          end
 
         {stream, estimated_streaming_batches}
       else

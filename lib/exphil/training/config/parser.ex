@@ -296,6 +296,11 @@ defmodule ExPhil.Training.Config.Parser do
     |> parse_atom_list_arg(args, "--stages", :stages, ctx[:valid_stages] || [])
     |> parse_string_arg(args, "--kmeans-centers", :kmeans_centers)
     |> parse_optional_int_arg(args, "--stream-chunk-size", :stream_chunk_size)
+    |> parse_flag(args, "--pipeline-chunks", :pipeline_chunks)
+    |> parse_flag(args, "--no-pipeline-chunks", :no_pipeline_chunks)
+    |> then(fn opts ->
+      if opts[:no_pipeline_chunks], do: Keyword.put(opts, :pipeline_chunks, false), else: opts
+    end)
     |> parse_stage_mode_arg(args)
     |> parse_action_mode_arg(args)
     |> parse_character_mode_arg(args)
