@@ -51,6 +51,7 @@ ExPhil is an Elixir-based successor to slippi-ai, creating high-ELO playable bot
 - Imitation learning (single-frame + temporal)
 - All backbones: MLP, LSTM, GRU, Mamba, Griffin/Hawk, xLSTM, RetNet, RWKV, KAN, Liquid, Jamba, attention
 - Policy types: Standard (autoregressive heads), Diffusion (DDPM action generation), ACT (action chunking with CVAE)
+- Test-time compute scaling: Best-of-N, beam search, ensemble inference, temperature sweep, adaptive scaling
 - PPO trainer with clipped objective
 - Dolphin integration (sync + async runners)
 - Training features: early stopping, LR scheduling, gradient accumulation, validation split, checkpointing
