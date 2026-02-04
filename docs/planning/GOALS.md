@@ -11,7 +11,11 @@ This document tracks the major goals and roadmap for ExPhil development.
 ### Completed
 
 - Behavioral cloning pipeline (single-frame + temporal)
-- All backbones: MLP, LSTM, GRU, Mamba, Attention, Jamba (Mamba+Attention hybrid)
+- **15 backbone architectures:**
+  - Original 7: MLP, LSTM, GRU, Mamba, Attention, Jamba, GatedSSM
+  - New 8 (Feb 2026): Zamba, Mamba-2 SSD, RWKV-7, GLA, HGRN-2, Decision Transformer, S5, Liquid
+  - See [Architecture Guide](../reference/architectures/ARCHITECTURE_GUIDE.md)
+- **Custom ODE solver** for Liquid Neural Networks (Euler, Midpoint, RK4, DOPRI5)
 - Dolphin integration (sync + async runners)
 - Full training features: EMA, LR scheduling, gradient accumulation, checkpointing
 - GPU optimizations: XLA caching, BF16, async prefetching, gradient checkpointing
@@ -24,7 +28,7 @@ This document tracks the major goals and roadmap for ExPhil development.
 - **Mamba unification** (shared Common module across 5 variants)
 - **Structured error types** (11 error modules: AgentError, BridgeError, CacheError, etc.)
 - **ScriptTemplate module** for script boilerplate reduction
-- 2292 tests (up from 1933)
+- ~2380+ tests (added 90 tests for new architectures)
 
 ### Next Step
 
