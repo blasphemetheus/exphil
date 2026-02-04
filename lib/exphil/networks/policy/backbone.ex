@@ -64,6 +64,13 @@ defmodule ExPhil.Networks.Policy.Backbone do
           | :mamba_ssd
           | :gated_ssm
           | :jamba
+          | :zamba
+          | :rwkv
+          | :gla
+          | :hgrn
+          | :s5
+          | :decision_transformer
+          | :liquid
 
   @doc """
   Build a temporal backbone that processes frame sequences.
@@ -100,6 +107,34 @@ defmodule ExPhil.Networks.Policy.Backbone do
       :jamba ->
         # Recommended: Mamba + Attention hybrid
         build_jamba_backbone(embed_size, opts)
+
+      :zamba ->
+        # Mamba + Single Shared Attention (more efficient than Jamba)
+        build_zamba_backbone(embed_size, opts)
+
+      :rwkv ->
+        # RWKV-7 "Goose" - O(1) space complexity linear attention
+        build_rwkv_backbone(embed_size, opts)
+
+      :gla ->
+        # GLA (Gated Linear Attention) - O(L) with data-dependent gating
+        build_gla_backbone(embed_size, opts)
+
+      :hgrn ->
+        # HGRN-2 - Hierarchically Gated Linear RNN with state expansion
+        build_hgrn_backbone(embed_size, opts)
+
+      :s5 ->
+        # S5 - Simplified State Space (MIMO SSM)
+        build_s5_backbone(embed_size, opts)
+
+      :decision_transformer ->
+        # Decision Transformer - Return-conditioned sequence modeling
+        build_decision_transformer_backbone(embed_size, opts)
+
+      :liquid ->
+        # Liquid Neural Networks - Continuous-time adaptive dynamics
+        build_liquid_backbone(embed_size, opts)
 
       :lstm ->
         build_lstm_backbone(embed_size, opts)
@@ -211,6 +246,34 @@ defmodule ExPhil.Networks.Policy.Backbone do
 
       :jamba ->
         # New Mamba + Attention hybrid
+        Keyword.get(opts, :hidden_size, 256)
+
+      :zamba ->
+        # Mamba + Single Shared Attention
+        Keyword.get(opts, :hidden_size, 256)
+
+      :rwkv ->
+        # RWKV-7 "Goose"
+        Keyword.get(opts, :hidden_size, 256)
+
+      :gla ->
+        # Gated Linear Attention
+        Keyword.get(opts, :hidden_size, 256)
+
+      :hgrn ->
+        # HGRN-2 Hierarchically Gated RNN
+        Keyword.get(opts, :hidden_size, 256)
+
+      :s5 ->
+        # S5 Simplified State Space
+        Keyword.get(opts, :hidden_size, 256)
+
+      :decision_transformer ->
+        # Decision Transformer
+        Keyword.get(opts, :hidden_size, 256)
+
+      :liquid ->
+        # Liquid Neural Networks
         Keyword.get(opts, :hidden_size, 256)
 
       :lstm ->
@@ -350,6 +413,179 @@ defmodule ExPhil.Networks.Policy.Backbone do
       use_sliding_window: use_sliding_window,
       pre_norm: pre_norm,
       qk_layernorm: qk_layernorm
+    )
+  end
+
+  # Zamba: Mamba + Single Shared Attention (more efficient than Jamba)
+  defp build_zamba_backbone(embed_size, opts) do
+    alias ExPhil.Networks.Zamba
+
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    state_size = Keyword.get(opts, :state_size, 16)
+    expand_factor = Keyword.get(opts, :expand_factor, 2)
+    conv_size = Keyword.get(opts, :conv_size, 4)
+    num_layers = Keyword.get(opts, :num_layers, 6)
+    attention_every = Keyword.get(opts, :attention_every, 3)
+    num_heads = Keyword.get(opts, :num_heads, 4)
+    head_dim = Keyword.get(opts, :head_dim, 64)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+    window_size = Keyword.get(opts, :window_size, 60)
+    seq_len = Keyword.get(opts, :seq_len, window_size)
+
+    Zamba.build(
+      embed_size: embed_size,
+      hidden_size: hidden_size,
+      state_size: state_size,
+      expand_factor: expand_factor,
+      conv_size: conv_size,
+      num_layers: num_layers,
+      attention_every: attention_every,
+      num_heads: num_heads,
+      head_dim: head_dim,
+      dropout: dropout,
+      window_size: window_size,
+      seq_len: seq_len
+    )
+  end
+
+  # RWKV-7 "Goose": O(1) space complexity linear attention
+  defp build_rwkv_backbone(embed_size, opts) do
+    alias ExPhil.Networks.RWKV
+
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    num_layers = Keyword.get(opts, :num_layers, 6)
+    head_size = Keyword.get(opts, :head_size, 64)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+    window_size = Keyword.get(opts, :window_size, 60)
+    seq_len = Keyword.get(opts, :seq_len, window_size)
+
+    RWKV.build(
+      embed_size: embed_size,
+      hidden_size: hidden_size,
+      num_layers: num_layers,
+      head_size: head_size,
+      dropout: dropout,
+      window_size: window_size,
+      seq_len: seq_len
+    )
+  end
+
+  # GLA: Gated Linear Attention with data-dependent gating
+  defp build_gla_backbone(embed_size, opts) do
+    alias ExPhil.Networks.GLA
+
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    num_layers = Keyword.get(opts, :num_layers, 6)
+    num_heads = Keyword.get(opts, :num_heads, 4)
+    head_dim = Keyword.get(opts, :head_dim, 64)
+    expand_factor = Keyword.get(opts, :expand_factor, 2)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+    window_size = Keyword.get(opts, :window_size, 60)
+    seq_len = Keyword.get(opts, :seq_len, window_size)
+
+    GLA.build(
+      embed_size: embed_size,
+      hidden_size: hidden_size,
+      num_layers: num_layers,
+      num_heads: num_heads,
+      head_dim: head_dim,
+      expand_factor: expand_factor,
+      dropout: dropout,
+      window_size: window_size,
+      seq_len: seq_len
+    )
+  end
+
+  # HGRN-2: Hierarchically Gated Linear RNN with state expansion
+  defp build_hgrn_backbone(embed_size, opts) do
+    alias ExPhil.Networks.HGRN
+
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    num_layers = Keyword.get(opts, :num_layers, 6)
+    state_expansion = Keyword.get(opts, :state_expansion, 2)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+    window_size = Keyword.get(opts, :window_size, 60)
+    seq_len = Keyword.get(opts, :seq_len, window_size)
+
+    HGRN.build(
+      embed_size: embed_size,
+      hidden_size: hidden_size,
+      num_layers: num_layers,
+      state_expansion: state_expansion,
+      dropout: dropout,
+      window_size: window_size,
+      seq_len: seq_len
+    )
+  end
+
+  # S5: Simplified State Space (MIMO SSM)
+  defp build_s5_backbone(embed_size, opts) do
+    alias ExPhil.Networks.S5
+
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    state_size = Keyword.get(opts, :state_size, 64)
+    num_layers = Keyword.get(opts, :num_layers, 4)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+    window_size = Keyword.get(opts, :window_size, 60)
+    seq_len = Keyword.get(opts, :seq_len, window_size)
+
+    S5.build(
+      embed_size: embed_size,
+      hidden_size: hidden_size,
+      state_size: state_size,
+      num_layers: num_layers,
+      dropout: dropout,
+      window_size: window_size,
+      seq_len: seq_len
+    )
+  end
+
+  # Decision Transformer: Return-conditioned sequence modeling
+  defp build_decision_transformer_backbone(embed_size, opts) do
+    alias ExPhil.Networks.DecisionTransformer
+
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    num_layers = Keyword.get(opts, :num_layers, 6)
+    num_heads = Keyword.get(opts, :num_heads, 8)
+    head_dim = Keyword.get(opts, :head_dim, 32)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+    window_size = Keyword.get(opts, :window_size, 60)
+    seq_len = Keyword.get(opts, :seq_len, window_size)
+
+    # Use the simplified build for backbone integration
+    DecisionTransformer.build_simple(
+      embed_size: embed_size,
+      hidden_size: hidden_size,
+      num_layers: num_layers,
+      num_heads: num_heads,
+      head_dim: head_dim,
+      dropout: dropout,
+      window_size: window_size,
+      seq_len: seq_len
+    )
+  end
+
+  # Liquid Neural Networks: Continuous-time adaptive dynamics
+  defp build_liquid_backbone(embed_size, opts) do
+    alias ExPhil.Networks.Liquid
+
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    num_layers = Keyword.get(opts, :num_layers, 4)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+    window_size = Keyword.get(opts, :window_size, 60)
+    seq_len = Keyword.get(opts, :seq_len, window_size)
+    integration_steps = Keyword.get(opts, :integration_steps, 1)
+    solver = Keyword.get(opts, :solver, :euler)
+
+    Liquid.build(
+      embed_size: embed_size,
+      hidden_size: hidden_size,
+      num_layers: num_layers,
+      dropout: dropout,
+      window_size: window_size,
+      seq_len: seq_len,
+      integration_steps: integration_steps,
+      solver: solver
     )
   end
 
