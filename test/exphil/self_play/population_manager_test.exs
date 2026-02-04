@@ -89,7 +89,8 @@ defmodule ExPhil.SelfPlay.PopulationManagerTest do
     test "fails without current policy" do
       {:ok, pid} = PopulationManager.start_link(name: nil)
 
-      assert {:error, :no_current_policy} = PopulationManager.snapshot(pid)
+      assert {:error, %ExPhil.Error.SelfPlayError{reason: :no_current_policy}} =
+               PopulationManager.snapshot(pid)
 
       GenServer.stop(pid)
     end
@@ -160,7 +161,8 @@ defmodule ExPhil.SelfPlay.PopulationManagerTest do
     end
 
     test "returns error for unknown policy", %{manager: manager} do
-      assert {:error, :not_found} = PopulationManager.get_policy(manager, {:historical, "v999"})
+      assert {:error, %ExPhil.Error.SelfPlayError{reason: :not_found}} =
+               PopulationManager.get_policy(manager, {:historical, "v999"})
     end
   end
 

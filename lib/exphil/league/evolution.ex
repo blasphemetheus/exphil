@@ -58,6 +58,7 @@ defmodule ExPhil.League.Evolution do
   alias ExPhil.League
   alias ExPhil.League.{ArchitectureEntry, MatchScheduler}
   alias ExPhil.Training.Output
+  alias ExPhil.Error.LeagueError
 
   require Logger
 
@@ -342,7 +343,7 @@ defmodule ExPhil.League.Evolution do
     learning_rate = Keyword.get(opts, :learning_rate, 3.0e-4)
 
     if not ArchitectureEntry.has_model?(arch) do
-      {:error, :no_model}
+      {:error, LeagueError.new(:no_model, agent_id: arch.id)}
     else
       # Prepare rollout data
       rollout = experiences_to_rollout(experiences)

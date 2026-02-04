@@ -62,6 +62,7 @@ defmodule ExPhil.SelfPlay.GameRunner do
   alias ExPhil.MockEnv.Game, as: MockGame
   alias ExPhil.SelfPlay.PopulationManager
   alias ExPhil.Training.Utils
+  alias ExPhil.Error.SelfPlayError
 
   require Logger
 
@@ -264,7 +265,7 @@ defmodule ExPhil.SelfPlay.GameRunner do
 
   @impl true
   def handle_call(:step, _from, %{status: :waiting} = state) do
-    {:reply, {:error, :game_not_started}, state}
+    {:reply, {:error, SelfPlayError.new(:game_not_started, game_id: state.game_id)}, state}
   end
 
   @impl true
@@ -273,7 +274,7 @@ defmodule ExPhil.SelfPlay.GameRunner do
       {:ok, reset_state} = do_reset(state)
       do_step(reset_state)
     else
-      {:reply, {:error, :game_finished}, state}
+      {:reply, {:error, SelfPlayError.new(:game_finished, game_id: state.game_id)}, state}
     end
   end
 

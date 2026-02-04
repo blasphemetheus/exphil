@@ -65,6 +65,7 @@ defmodule ExPhil.League do
   alias ExPhil.League.ArchitectureEntry
   alias ExPhil.SelfPlay.Elo
   alias ExPhil.MockEnv
+  alias ExPhil.Error.LeagueError
 
   require Logger
 
@@ -169,7 +170,7 @@ defmodule ExPhil.League do
   Get an architecture entry by ID.
   """
   @spec get_architecture(GenServer.server(), atom()) ::
-          {:ok, ArchitectureEntry.t()} | {:error, :not_found}
+          {:ok, ArchitectureEntry.t()} | {:error, LeagueError.t()}
   def get_architecture(league, arch_id) do
     GenServer.call(league, {:get_architecture, arch_id})
   end
@@ -312,7 +313,7 @@ defmodule ExPhil.League do
   @impl true
   def handle_call({:register_architecture, arch_id, model, params, config}, _from, state) do
     if Map.has_key?(state.architectures, arch_id) do
-      {:reply, {:error, :already_registered}, state}
+      {:reply, {:error, LeagueError.new(:already_registered, agent_id: to_string(arch_id))}, state}
     else
       arch_config = Map.get(config, :architecture, :mlp)
       character = Map.get(config, :character, :mewtwo)
@@ -344,7 +345,7 @@ defmodule ExPhil.League do
   @impl true
   def handle_call({:register_entry, %ArchitectureEntry{} = entry}, _from, state) do
     if Map.has_key?(state.architectures, entry.id) do
-      {:reply, {:error, :already_registered}, state}
+      {:reply, {:error, LeagueError.new(:already_registered, agent_id: to_string(entry.id))}, state}
     else
       new_state = %{
         state
@@ -364,14 +365,14 @@ defmodule ExPhil.League do
       Logger.info("[League] Unregistered architecture #{arch_id}")
       {:reply, :ok, new_state}
     else
-      {:reply, {:error, :not_found}, state}
+      {:reply, {:error, LeagueError.new(:not_found, agent_id: to_string(arch_id))}, state}
     end
   end
 
   @impl true
   def handle_call({:get_architecture, arch_id}, _from, state) do
     case Map.get(state.architectures, arch_id) do
-      nil -> {:reply, {:error, :not_found}, state}
+      nil -> {:reply, {:error, LeagueError.new(:not_found, agent_id: to_string(arch_id))}, state}
       entry -> {:reply, {:ok, entry}, state}
     end
   end
@@ -473,7 +474,7 @@ defmodule ExPhil.League do
   def handle_call({:update_params, arch_id, new_params}, _from, state) do
     case Map.get(state.architectures, arch_id) do
       nil ->
-        {:reply, {:error, :not_found}, state}
+        {:reply, {:error, LeagueError.new(:not_found, agent_id: to_string(arch_id))}, state}
 
       entry ->
         updated_entry = ArchitectureEntry.update_from_training(entry, new_params)

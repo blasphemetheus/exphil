@@ -63,6 +63,8 @@ defmodule ExPhil.SelfPlay.PopulationManager do
 
   use GenServer
 
+  alias ExPhil.Error.SelfPlayError
+
   require Logger
 
   defstruct [
@@ -259,14 +261,14 @@ defmodule ExPhil.SelfPlay.PopulationManager do
     if state.model && state.current_params do
       {:reply, {:ok, {state.model, state.current_params}}, state}
     else
-      {:reply, {:error, :no_current_policy}, state}
+      {:reply, {:error, SelfPlayError.new(:no_current_policy)}, state}
     end
   end
 
   @impl true
   def handle_call(:snapshot, _from, %{current_params: nil} = state) do
     Logger.warning("[PopulationManager] Cannot snapshot: no current policy")
-    {:reply, {:error, :no_current_policy}, state}
+    {:reply, {:error, SelfPlayError.new(:no_current_policy)}, state}
   end
 
   @impl true
@@ -316,7 +318,7 @@ defmodule ExPhil.SelfPlay.PopulationManager do
     if state.model && state.current_params do
       {:reply, {:ok, {state.model, state.current_params}}, state}
     else
-      {:reply, {:error, :not_found}, state}
+      {:reply, {:error, SelfPlayError.new(:not_found, context: %{details: "no current policy"})}, state}
     end
   end
 
@@ -330,7 +332,7 @@ defmodule ExPhil.SelfPlay.PopulationManager do
   def handle_call({:get_policy, {:historical, version}}, _from, state) do
     case Enum.find(state.historical_policies, fn {v, _, _, _} -> v == version end) do
       {_v, model, params, _ts} -> {:reply, {:ok, {model, params}}, state}
-      nil -> {:reply, {:error, :not_found}, state}
+      nil -> {:reply, {:error, SelfPlayError.new(:not_found, context: %{details: "historical version #{version}"})}, state}
     end
   end
 
@@ -338,7 +340,7 @@ defmodule ExPhil.SelfPlay.PopulationManager do
   def handle_call({:get_policy, version_id}, _from, state) when is_binary(version_id) do
     case Enum.find(state.historical_policies, fn {v, _, _, _} -> v == version_id end) do
       {_v, model, params, _ts} -> {:reply, {:ok, {model, params}}, state}
-      nil -> {:reply, {:error, :not_found}, state}
+      nil -> {:reply, {:error, SelfPlayError.new(:not_found, context: %{details: "policy version #{version_id}"})}, state}
     end
   end
 
@@ -428,7 +430,7 @@ defmodule ExPhil.SelfPlay.PopulationManager do
           {:reply, error, state}
       end
     else
-      {:reply, {:error, :no_current_policy}, state}
+      {:reply, {:error, SelfPlayError.new(:no_current_policy)}, state}
     end
   end
 

@@ -58,6 +58,7 @@ defmodule ExPhil.SelfPlay.Matchmaker do
   use GenServer
 
   alias ExPhil.SelfPlay.Elo
+  alias ExPhil.Error.LeagueError
 
   require Logger
 
@@ -310,7 +311,7 @@ defmodule ExPhil.SelfPlay.Matchmaker do
   @impl true
   def handle_call({:get_rating, policy_id}, _from, state) do
     case Map.get(state.ratings, normalize_id(policy_id)) do
-      nil -> {:reply, {:error, :not_found}, state}
+      nil -> {:reply, {:error, LeagueError.new(:not_found, agent_id: to_string(policy_id))}, state}
       rating_info -> {:reply, {:ok, rating_info}, state}
     end
   end
@@ -349,7 +350,7 @@ defmodule ExPhil.SelfPlay.Matchmaker do
     rating = initial_rating || Elo.initial_rating()
 
     if Map.has_key?(state.ratings, id) do
-      {:reply, {:error, :already_registered}, state}
+      {:reply, {:error, LeagueError.new(:already_registered, agent_id: to_string(policy_id))}, state}
     else
       rating_info = %{
         rating: rating,

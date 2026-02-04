@@ -45,6 +45,7 @@ defmodule ExPhil.SelfPlay.GamePoolSupervisor do
   use DynamicSupervisor
 
   alias ExPhil.SelfPlay.GameRunner
+  alias ExPhil.Error.SelfPlayError
 
   require Logger
 
@@ -119,7 +120,7 @@ defmodule ExPhil.SelfPlay.GamePoolSupervisor do
   def stop_game(pool, game_id) do
     case GameRunner.whereis(game_id) do
       nil ->
-        {:error, :not_found}
+        {:error, SelfPlayError.new(:not_found, game_id: game_id)}
 
       pid ->
         DynamicSupervisor.terminate_child(pool, pid)

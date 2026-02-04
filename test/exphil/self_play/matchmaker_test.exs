@@ -2,6 +2,7 @@ defmodule ExPhil.SelfPlay.MatchmakerTest do
   use ExUnit.Case, async: true
 
   alias ExPhil.SelfPlay.Matchmaker
+  alias ExPhil.Error.LeagueError
 
   setup do
     # Start a fresh matchmaker for each test
@@ -38,7 +39,7 @@ defmodule ExPhil.SelfPlay.MatchmakerTest do
 
     test "rejects duplicate registration", %{mm: mm} do
       :ok = Matchmaker.register_policy(mm, "policy_1")
-      assert {:error, :already_registered} = Matchmaker.register_policy(mm, "policy_1")
+      assert {:error, %LeagueError{reason: :already_registered}} = Matchmaker.register_policy(mm, "policy_1")
     end
 
     test "accepts atom policy ids", %{mm: mm} do

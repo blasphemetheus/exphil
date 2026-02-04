@@ -63,7 +63,7 @@ defmodule ExPhil.LeagueTest do
           %{architecture: :mamba}
         )
 
-      assert result == {:error, :already_registered}
+      assert {:error, %ExPhil.Error.LeagueError{reason: :already_registered}} = result
     end
 
     test "allows multiple different architectures", %{league: league} do
@@ -95,7 +95,7 @@ defmodule ExPhil.LeagueTest do
       League.register_entry(league, entry)
       result = League.register_entry(league, entry)
 
-      assert result == {:error, :already_registered}
+      assert {:error, %ExPhil.Error.LeagueError{reason: :already_registered}} = result
     end
   end
 
@@ -106,13 +106,14 @@ defmodule ExPhil.LeagueTest do
       result = League.unregister_architecture(league, :mamba_mewtwo)
 
       assert result == :ok
-      assert {:error, :not_found} == League.get_architecture(league, :mamba_mewtwo)
+      assert {:error, %ExPhil.Error.LeagueError{reason: :not_found}} =
+               League.get_architecture(league, :mamba_mewtwo)
     end
 
     test "returns error for unknown architecture", %{league: league} do
       result = League.unregister_architecture(league, :unknown)
 
-      assert result == {:error, :not_found}
+      assert {:error, %ExPhil.Error.LeagueError{reason: :not_found}} = result
     end
   end
 
@@ -129,7 +130,7 @@ defmodule ExPhil.LeagueTest do
     test "returns error for unknown architecture", %{league: league} do
       result = League.get_architecture(league, :unknown)
 
-      assert result == {:error, :not_found}
+      assert {:error, %ExPhil.Error.LeagueError{reason: :not_found}} = result
     end
   end
 
@@ -226,7 +227,7 @@ defmodule ExPhil.LeagueTest do
     test "returns error for unknown architecture", %{league: league} do
       result = League.update_params(league, :unknown, %{})
 
-      assert result == {:error, :not_found}
+      assert {:error, %ExPhil.Error.LeagueError{reason: :not_found}} = result
     end
   end
 
