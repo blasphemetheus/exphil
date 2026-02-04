@@ -237,10 +237,10 @@ defmodule ExPhil.Bridge.PyTorchPort do
       {^port, {:data, data}} ->
         case Msgpax.unpack(data) do
           {:ok, response} -> {:ok, response}
-          {:error, reason} -> {:error, {:decode_error, reason}}
+          {:error, reason} -> {:error, BridgeError.new(:protocol_error, bridge: :pytorch_port, context: %{details: "decode error: #{inspect(reason)}"})}
         end
     after
-      @timeout -> {:error, :timeout}
+      @timeout -> {:error, BridgeError.new(:timeout, bridge: :pytorch_port, context: %{timeout_ms: @timeout})}
     end
   end
 end

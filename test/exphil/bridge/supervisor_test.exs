@@ -2,6 +2,7 @@ defmodule ExPhil.Bridge.SupervisorTest do
   use ExUnit.Case, async: false
 
   alias ExPhil.Bridge.Supervisor
+  alias ExPhil.Error.BridgeError
 
   # Supervisor is already started by Application
 
@@ -13,13 +14,13 @@ defmodule ExPhil.Bridge.SupervisorTest do
 
   describe "get_bridge/1" do
     test "returns error for non-existent bridge" do
-      assert {:error, :not_found} = Supervisor.get_bridge(:nonexistent)
+      assert {:error, %BridgeError{reason: :not_running}} = Supervisor.get_bridge(:nonexistent)
     end
   end
 
   describe "stop_bridge/1" do
     test "returns error for non-existent bridge" do
-      assert {:error, :not_found} = Supervisor.stop_bridge(:nonexistent)
+      assert {:error, %BridgeError{reason: :not_running}} = Supervisor.stop_bridge(:nonexistent)
     end
   end
 

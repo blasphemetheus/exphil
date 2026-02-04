@@ -29,6 +29,7 @@ defmodule ExPhil.Bridge.Supervisor do
   use DynamicSupervisor
 
   alias ExPhil.Bridge.MeleePort
+  alias ExPhil.Error.BridgeError
 
   @registry ExPhil.Registry
 
@@ -107,11 +108,11 @@ defmodule ExPhil.Bridge.Supervisor do
   @doc """
   Get a bridge by its registered name.
   """
-  @spec get_bridge(atom()) :: {:ok, pid()} | {:error, :not_found}
+  @spec get_bridge(atom()) :: {:ok, pid()} | {:error, BridgeError.t()}
   def get_bridge(name) do
     case Registry.lookup(@registry, {:bridge, name}) do
       [{pid, _}] -> {:ok, pid}
-      [] -> {:error, :not_found}
+      [] -> {:error, BridgeError.new(:not_running, bridge: name)}
     end
   end
 

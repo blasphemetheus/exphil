@@ -35,6 +35,7 @@ defmodule ExPhil.Bridge.MeleePort do
   require Logger
 
   alias ExPhil.Bridge.GameState
+  alias ExPhil.Error.BridgeError
 
   @default_timeout 30_000
 
@@ -260,7 +261,7 @@ defmodule ExPhil.Bridge.MeleePort do
 
     if state.pending do
       {_type, from} = state.pending
-      GenServer.reply(from, {:error, :port_closed})
+      GenServer.reply(from, {:error, BridgeError.new(:port_closed, bridge: :melee_port, context: %{exit_status: status})})
     end
 
     {:stop, :normal, state}
@@ -391,7 +392,7 @@ defmodule ExPhil.Bridge.MeleePort do
 
   defp format_reply(type, response) do
     Logger.warning("[MeleePort] Unexpected response for #{type}: #{inspect(response)}")
-    {:error, :unexpected_response}
+    {:error, BridgeError.new(:protocol_error, bridge: :melee_port, context: %{operation: type, response: inspect(response)})}
   end
 
   defp normalize_config(config) when is_map(config) do
