@@ -6,13 +6,15 @@
 #   :gpu         - Tests requiring GPU/CUDA
 #   :external    - Tests needing external files (replays, models)
 #   :benchmark   - Performance regression tests (excluded by default)
+#   :property    - Property-based tests with StreamData (excluded by default)
 #
 # Examples:
 #   mix test                           # Fast tests only (default)
 #   mix test --include slow            # Include slow tests
+#   mix test --include property        # Include property tests
 #   mix test --only integration        # Only integration tests
 #   mix test --only benchmark          # Only benchmark tests
-#   mix test --include slow --include integration  # Everything
+#   mix test --include slow --include integration --include property  # Everything
 #
 # Quick aliases (defined in mix.exs):
 #   mix test.fast      # Same as: mix test
@@ -23,8 +25,8 @@
 
 # Build base configuration
 base_config = [
-  # Exclude slow, integration, benchmark, and snapshot tests by default for fast feedback
-  exclude: [:slow, :integration, :external, :gpu, :benchmark, :snapshot],
+  # Exclude slow, integration, benchmark, property and snapshot tests by default for fast feedback
+  exclude: [:slow, :integration, :external, :gpu, :benchmark, :snapshot, :property],
 
   # Timeout for individual tests (2 minutes default, can override with @tag timeout: N)
   timeout: 120_000,
