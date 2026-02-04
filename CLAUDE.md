@@ -50,6 +50,7 @@ ExPhil is an Elixir-based successor to slippi-ai, creating high-ELO playable bot
 - Learned character embeddings (33 chars → 64-dim trainable, saves 64 dims)
 - Imitation learning (single-frame + temporal)
 - All backbones: MLP, LSTM, GRU, Mamba, Griffin/Hawk, xLSTM, RetNet, RWKV, KAN, Liquid, Jamba, attention
+- Policy types: Standard (autoregressive heads), Diffusion (DDPM action generation)
 - PPO trainer with clipped objective
 - Dolphin integration (sync + async runners)
 - Training features: early stopping, LR scheduling, gradient accumulation, validation split, checkpointing
