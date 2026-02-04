@@ -1099,7 +1099,7 @@ evaluate_model = fn model_path ->
 
         # Find error streaks (consecutive wrong predictions)
         x_errors = frames |> Enum.map(&(&1.main_x_pred != &1.main_x_actual))
-        longest_x_streak = find_longest_streak(x_errors, true)
+        longest_x_streak = find_longest_streak.(x_errors, true)
 
         %{
           sequence_idx: seq_idx,
