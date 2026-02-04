@@ -24,6 +24,7 @@ defmodule ExPhil.Networks.Policy.Backbone do
   | `:xlstm` | Extended LSTM (mixed) | Exponential gating, matrix memory |
   | `:retnet` | Retentive Network | O(1) inference, decay-based attention |
   | `:kan` | Kolmogorov-Arnold Networks | Learnable activations, interpretable |
+  | `:liquid` | Liquid Neural Networks | Continuous-time ODE dynamics |
 
   ## Usage
 
