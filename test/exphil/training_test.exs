@@ -506,8 +506,7 @@ defmodule ExPhil.TrainingTest do
       on_exit(fn -> File.rm(path) end)
 
       result = Training.load_policy(path)
-      assert {:error, msg} = result
-      assert msg =~ "corrupted"
+      assert {:error, %ExPhil.Error.CheckpointError{reason: :corrupted}} = result
     end
 
     test "validate_policy/1 accepts valid exported policy format" do
@@ -531,22 +530,28 @@ defmodule ExPhil.TrainingTest do
     test "validate_policy/1 returns error for missing params" do
       policy = %{config: %{temporal: false}}
 
-      {:error, msg} = Training.validate_policy(policy, "test.bin")
-      assert msg =~ "Missing :params"
+      {:error, %ExPhil.Error.CheckpointError{reason: :corrupted} = err} =
+        Training.validate_policy(policy, "test.bin")
+
+      assert err.message =~ "Missing :params"
     end
 
     test "validate_policy/1 returns error for missing config" do
       policy = %{params: %{}}
 
-      {:error, msg} = Training.validate_policy(policy, "test.bin")
-      assert msg =~ "Missing :config"
+      {:error, %ExPhil.Error.CheckpointError{reason: :version_mismatch} = err} =
+        Training.validate_policy(policy, "test.bin")
+
+      assert err.message =~ "Missing :config"
     end
 
     test "validate_policy/1 returns error for unrecognized format" do
       policy = %{something_else: true}
 
-      {:error, msg} = Training.validate_policy(policy, "test.bin")
-      assert msg =~ "Unrecognized checkpoint format"
+      {:error, %ExPhil.Error.CheckpointError{reason: :corrupted} = err} =
+        Training.validate_policy(policy, "test.bin")
+
+      assert err.message =~ "Unrecognized"
     end
 
     test "validate_policy/1 detects temporal/MLP mismatch - temporal params but MLP config" do
@@ -559,10 +564,12 @@ defmodule ExPhil.TrainingTest do
         config: %{temporal: false, hidden_sizes: [64]}
       }
 
-      {:error, msg} = Training.validate_policy(policy, "test.bin")
-      assert msg =~ "Architecture mismatch"
-      assert msg =~ "temporal=false"
-      assert msg =~ "LSTM"
+      {:error, %ExPhil.Error.CheckpointError{reason: :incompatible} = err} =
+        Training.validate_policy(policy, "test.bin")
+
+      # Check context has expected/actual describing the mismatch
+      assert err.context.expected =~ "MLP"
+      assert err.context.actual =~ "LSTM"
     end
 
     test "validate_policy/1 detects temporal/MLP mismatch - MLP params but temporal config" do
@@ -575,9 +582,12 @@ defmodule ExPhil.TrainingTest do
         config: %{temporal: true, backbone: :mamba, hidden_sizes: [64]}
       }
 
-      {:error, msg} = Training.validate_policy(policy, "test.bin")
-      assert msg =~ "Architecture mismatch"
-      assert msg =~ "temporal=true"
+      {:error, %ExPhil.Error.CheckpointError{reason: :incompatible} = err} =
+        Training.validate_policy(policy, "test.bin")
+
+      # Check context has expected/actual describing the mismatch
+      assert err.context.expected =~ "temporal"
+      assert err.context.actual =~ "MLP"
     end
 
     test "validate_policy/1 detects hidden size layer count mismatch" do
@@ -591,8 +601,10 @@ defmodule ExPhil.TrainingTest do
         config: %{temporal: false, hidden_sizes: [64, 64, 64]}
       }
 
-      {:error, msg} = Training.validate_policy(policy, "test.bin")
-      assert msg =~ "Hidden layer size mismatch"
+      {:error, %ExPhil.Error.CheckpointError{reason: :incompatible} = err} =
+        Training.validate_policy(policy, "test.bin")
+
+      assert err.context.expected =~ "hidden_sizes"
     end
 
     test "load_policy/2 with validate: false skips validation" do

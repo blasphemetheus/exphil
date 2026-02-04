@@ -29,6 +29,7 @@ defmodule ExPhil.Training.LRFinder do
   """
 
   alias ExPhil.Training.Imitation
+  alias ExPhil.Error.DataError
 
   @default_min_lr 1.0e-7
   @default_max_lr 1.0
@@ -84,7 +85,7 @@ defmodule ExPhil.Training.LRFinder do
     batches = dataset |> Enum.take(num_steps)
 
     if length(batches) < num_steps do
-      {:error, "Dataset has fewer than #{num_steps} batches"}
+      {:error, DataError.new(:insufficient_data, context: %{required: num_steps, actual: length(batches)})}
     else
       run_finder(
         model_params,

@@ -86,6 +86,7 @@ defmodule ExPhil.Training.SelfPlay.LeagueTrainer do
 
   alias ExPhil.Training.PPO
   alias ExPhil.Training.SelfPlay.{OpponentPool, SelfPlayEnv}
+  alias ExPhil.Error.ConfigError
 
   require Logger
 
@@ -198,13 +199,13 @@ defmodule ExPhil.Training.SelfPlay.LeagueTrainer do
     if config.game_type == :dolphin do
       cond do
         is_nil(config.dolphin_config) ->
-          {:error, "dolphin_config is required when game_type is :dolphin"}
+          {:error, ConfigError.new(:missing_required, field: :dolphin_config)}
 
         is_nil(config.dolphin_config[:dolphin_path]) ->
-          {:error, "dolphin_config.dolphin_path is required"}
+          {:error, ConfigError.new(:missing_required, field: "dolphin_config.dolphin_path")}
 
         is_nil(config.dolphin_config[:iso_path]) ->
-          {:error, "dolphin_config.iso_path is required"}
+          {:error, ConfigError.new(:missing_required, field: "dolphin_config.iso_path")}
 
         true ->
           do_new(mode, config, opts)

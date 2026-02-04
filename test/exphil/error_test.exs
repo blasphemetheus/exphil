@@ -2,7 +2,7 @@ defmodule ExPhil.ErrorTest do
   use ExUnit.Case, async: true
 
   alias ExPhil.Error
-  alias ExPhil.Error.{CheckpointError, ReplayError, ConfigError, GPUError, BridgeError, EmbeddingError}
+  alias ExPhil.Error.{CheckpointError, ReplayError, ConfigError, GPUError, BridgeError, EmbeddingError, DataError}
 
   # ============================================================================
   # CheckpointError Tests
@@ -221,6 +221,51 @@ defmodule ExPhil.ErrorTest do
   end
 
   # ============================================================================
+  # DataError Tests
+  # ============================================================================
+
+  describe "DataError" do
+    test "creates insufficient data error" do
+      error = DataError.new(:insufficient_data,
+        context: %{required: 100, actual: 50}
+      )
+      assert error.reason == :insufficient_data
+      assert error.message =~ "Insufficient data"
+      assert error.message =~ "need 100"
+      assert error.message =~ "got 50"
+    end
+
+    test "creates python not found error" do
+      error = DataError.new(:python_not_found)
+      assert error.message =~ "Python not found"
+    end
+
+    test "creates script failed error with exit code" do
+      error = DataError.new(:script_failed,
+        context: %{exit_code: 1}
+      )
+      assert error.message =~ "script failed"
+      assert error.message =~ "exit code 1"
+    end
+
+    test "creates empty dataset error" do
+      error = DataError.new(:empty_dataset,
+        context: %{path: "/data/train.bin"}
+      )
+      assert error.message =~ "empty"
+      assert error.message =~ "/data/train.bin"
+    end
+
+    test "creates parse failed error with details" do
+      error = DataError.new(:parse_failed,
+        context: %{details: "invalid JSON"}
+      )
+      assert error.message =~ "parse"
+      assert error.message =~ "invalid JSON"
+    end
+  end
+
+  # ============================================================================
   # Error Module Functions
   # ============================================================================
 
@@ -232,6 +277,7 @@ defmodule ExPhil.ErrorTest do
       assert Error.error?(%GPUError{reason: :oom, message: ""})
       assert Error.error?(%BridgeError{reason: :timeout, message: ""})
       assert Error.error?(%EmbeddingError{reason: :shape_mismatch, message: ""})
+      assert Error.error?(%DataError{reason: :insufficient_data, message: ""})
     end
 
     test "returns false for non-errors" do
@@ -265,6 +311,13 @@ defmodule ExPhil.ErrorTest do
       assert %BridgeError{reason: :not_running} = Error.wrap(:not_running, :bridge)
       assert %BridgeError{reason: :timeout} = Error.wrap(:timeout, :bridge)
       assert %BridgeError{reason: :timeout} = Error.wrap(:queue_full, :bridge)
+    end
+
+    test "wraps data errors" do
+      assert %DataError{reason: :insufficient_data} = Error.wrap(:insufficient_data, :data)
+      assert %DataError{reason: :python_not_found} = Error.wrap(:python_not_found, :data)
+      assert %DataError{reason: :script_failed} = Error.wrap(:script_failed, :data)
+      assert %DataError{reason: :empty_dataset} = Error.wrap(:empty_dataset, :data)
     end
 
     test "preserves options in wrapped error" do

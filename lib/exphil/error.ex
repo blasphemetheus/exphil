@@ -524,6 +524,91 @@ defmodule ExPhil.Error do
   end
 
   # ============================================================================
+  # Data/Dataset Errors
+  # ============================================================================
+
+  defmodule DataError do
+    @moduledoc """
+    Errors during data loading and processing.
+
+    ## Reasons
+
+    - `:insufficient_data` - Not enough data for operation
+    - `:parse_failed` - Failed to parse data file
+    - `:python_not_found` - Python interpreter not found
+    - `:script_failed` - External script failed
+    - `:empty_dataset` - Dataset contains no valid samples
+    """
+
+    defexception [:reason, :context, :message]
+
+    @type reason ::
+            :insufficient_data
+            | :parse_failed
+            | :python_not_found
+            | :script_failed
+            | :empty_dataset
+
+    @type t :: %__MODULE__{
+            reason: reason(),
+            context: map() | nil,
+            message: String.t()
+          }
+
+    @doc false
+    def message(%__MODULE__{} = error) do
+      base =
+        case error.reason do
+          :insufficient_data -> "Insufficient data"
+          :parse_failed -> "Failed to parse data"
+          :python_not_found -> "Python not found in PATH"
+          :script_failed -> "External script failed"
+          :empty_dataset -> "Dataset is empty"
+        end
+
+      parts = [base]
+
+      parts =
+        if error.context do
+          case error.context do
+            %{required: req, actual: act} ->
+              parts ++ ["(need #{req}, got #{act})"]
+
+            %{exit_code: code} ->
+              parts ++ ["(exit code #{code})"]
+
+            %{path: path} ->
+              parts ++ ["at #{path}"]
+
+            %{details: details} ->
+              parts ++ ["(#{details})"]
+
+            _ ->
+              parts
+          end
+        else
+          parts
+        end
+
+      Enum.join(parts, " ")
+    end
+
+    @doc """
+    Create a new data error.
+    """
+    @spec new(reason(), keyword()) :: t()
+    def new(reason, opts \\ []) do
+      error = %__MODULE__{
+        reason: reason,
+        context: Keyword.get(opts, :context),
+        message: ""
+      }
+
+      %{error | message: message(error)}
+    end
+  end
+
+  # ============================================================================
   # Convenience Functions
   # ============================================================================
 
@@ -545,6 +630,7 @@ defmodule ExPhil.Error do
   def error?(%GPUError{}), do: true
   def error?(%BridgeError{}), do: true
   def error?(%EmbeddingError{}), do: true
+  def error?(%DataError{}), do: true
   def error?(_), do: false
 
   @doc """
@@ -582,6 +668,12 @@ defmodule ExPhil.Error do
   def wrap(:not_running, :bridge, opts), do: BridgeError.new(:not_running, opts)
   def wrap(:timeout, :bridge, opts), do: BridgeError.new(:timeout, opts)
   def wrap(:queue_full, :bridge, opts), do: BridgeError.new(:timeout, opts)
+
+  def wrap(:insufficient_data, :data, opts), do: DataError.new(:insufficient_data, opts)
+  def wrap(:parse_failed, :data, opts), do: DataError.new(:parse_failed, opts)
+  def wrap(:python_not_found, :data, opts), do: DataError.new(:python_not_found, opts)
+  def wrap(:script_failed, :data, opts), do: DataError.new(:script_failed, opts)
+  def wrap(:empty_dataset, :data, opts), do: DataError.new(:empty_dataset, opts)
 
   def wrap(error, _category, _opts), do: error
 end

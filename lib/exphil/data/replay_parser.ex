@@ -29,6 +29,7 @@ defmodule ExPhil.Data.ReplayParser do
   """
 
   alias ExPhil.Bridge.{GameState, Player, ControllerState, Projectile}
+  alias ExPhil.Error.DataError
 
   require Logger
 
@@ -258,7 +259,7 @@ defmodule ExPhil.Data.ReplayParser do
     python = System.find_executable("python3") || System.find_executable("python")
 
     if is_nil(python) do
-      {:error, "Python not found in PATH"}
+      {:error, DataError.new(:python_not_found)}
     else
       case System.cmd(python, [@python_script | args], stderr_to_stdout: true) do
         {output, 0} ->
@@ -266,7 +267,7 @@ defmodule ExPhil.Data.ReplayParser do
 
         {output, code} ->
           Logger.warning("Parser exited with code #{code}: #{output}")
-          {:error, "Parser failed with code #{code}"}
+          {:error, DataError.new(:script_failed, context: %{exit_code: code})}
       end
     end
   end
