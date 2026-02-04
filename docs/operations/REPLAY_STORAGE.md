@@ -177,45 +177,61 @@ services:
 └── checkpoints/       # Training outputs (keep on pod or sync back)
 ```
 
-## Checkpoint Syncing
+## Bucket Structure
 
-Checkpoints are organized by date on B2 to keep different training sessions separate:
+We use two B2 buckets to separate concerns:
 
 ```
-b2:exphil-replays-blewfargs/checkpoints/
-├── registry.json
-├── 2026-01-23/
-│   └── jamba_* files
-├── 2026-01-24/
-│   └── mlp_* files
-└── 2026-01-25/
-    └── (future training)
+exphil-replays-blewfargs/       # Replay files (read-mostly)
+├── greg/                       # Replays by player/character
+└── mewtwo/
+
+exphil-artifacts/               # Training outputs (read/write)
+├── checkpoints/                # Current model checkpoints (flat)
+├── logs/                       # Training logs (flat)
+├── cache/                      # Embedding caches (flat)
+└── snapshots/                  # Historical archives (by type)
+    ├── checkpoints/            # 408 archived checkpoints
+    ├── logs/                   # 85 archived logs
+    ├── embeddings/             # 11 archived embeddings
+    └── benchmarks/             # 15 archived benchmark reports
 ```
+
+**Key design:**
+- Flat structure for active files (no date folders) - timestamps are in filenames
+- `rclone copy` skips identical files automatically (deduplication)
+- Snapshots for intentional point-in-time backups
 
 ### Helper Commands
 
 The entrypoint script (`/app/scripts/runpod_entrypoint.sh`) creates these commands:
 
-**Upload checkpoints:**
+**Upload (flat structure):**
 ```bash
-sync-checkpoints-up              # Upload to today's date folder
-sync-checkpoints-up --date 2026-01-24  # Upload to specific date
-sync-checkpoints-up --flat       # Upload to root (no date folders)
+sync-all-up              # Upload checkpoints + logs + cache
+sync-checkpoints-up      # Upload checkpoints only
+sync-logs-up             # Upload logs only
+sync-cache-up            # Upload embedding cache
 ```
 
-**Download checkpoints:**
+**Download:**
 ```bash
-sync-checkpoints-down            # Show available dates
-sync-checkpoints-down 2026-01-24 # Download from specific date
-sync-checkpoints-down --latest   # Download most recent date
-sync-checkpoints-down --all      # Download everything
+sync-checkpoints-down                     # Download from checkpoints/
+sync-checkpoints-down --snapshot 2026-02-01  # Download from snapshot
+sync-cache-down                           # Download embedding cache
 ```
 
-**List checkpoints:**
+**Snapshots (dated backups):**
 ```bash
-list-checkpoints                 # List dates on B2
-list-checkpoints 2026-01-24      # List files in date folder
-list-checkpoints --local         # List local checkpoints
+sync-snapshot                  # Create snapshot with today's date
+sync-snapshot 2026-02-01       # Create snapshot with specific date
+list-snapshots                 # List available snapshots
+```
+
+**List:**
+```bash
+list-checkpoints              # List checkpoints on B2
+list-checkpoints --local      # List local checkpoints
 ```
 
 ### Workflow
@@ -223,34 +239,40 @@ list-checkpoints --local         # List local checkpoints
 **On pod startup (if continuing training):**
 ```bash
 source /app/scripts/runpod_entrypoint.sh  # If commands not available
-sync-checkpoints-down --latest
+sync-checkpoints-down         # Pull current checkpoints
+sync-cache-down               # Pull embedding cache (saves compute)
 ```
 
 **After training / before pod shutdown:**
 ```bash
-sync-checkpoints-up
+sync-all-up                   # Upload everything
+# Or create a dated snapshot:
+sync-snapshot
 ```
 
 **To pull to local machine:**
 ```bash
-rclone copy b2:exphil-replays-blewfargs/checkpoints/ ~/git/melee/exphil/checkpoints/ --progress
+rclone copy b2:exphil-artifacts/checkpoints/ ~/git/melee/exphil/checkpoints/ --progress
 ```
 
 ### Important Notes
 
 - Uses `rclone copy` (not sync) to avoid deleting files
-- Multiple pods can upload simultaneously without conflicts (date-based organization)
+- Identical files are skipped automatically (no duplicates)
 - The `--copy-links` flag is used automatically to handle symlinks
 - If commands aren't available, run `source /app/scripts/runpod_entrypoint.sh`
 
 ### Manual rclone (if helper commands unavailable)
 
 ```bash
-# Upload
-rclone copy /app/checkpoints/ "b2:exphil-replays-blewfargs/checkpoints/$(date +%Y-%m-%d)/" --copy-links --progress
+# Upload checkpoints
+rclone copy /app/checkpoints/ b2:exphil-artifacts/checkpoints/ --copy-links --progress
 
-# Download
-rclone copy b2:exphil-replays-blewfargs/checkpoints/2026-01-24/ /workspace/checkpoints/ --progress
+# Download checkpoints
+rclone copy b2:exphil-artifacts/checkpoints/ /workspace/checkpoints/ --progress
+
+# Create a snapshot
+rclone copy /workspace/checkpoints/ "b2:exphil-artifacts/snapshots/$(date +%Y-%m-%d)/checkpoints/" --progress
 ```
 
 ## Quick Reference
@@ -259,10 +281,10 @@ rclone copy b2:exphil-replays-blewfargs/checkpoints/2026-01-24/ /workspace/check
 # === LOCAL MACHINE ===
 
 # Upload replays to B2
-rclone sync ~/git/melee/slp b2:exphil-replays --progress
+rclone sync ~/git/melee/slp b2:exphil-replays-blewfargs --progress
 
 # Download checkpoints from B2
-rclone sync b2:exphil-replays/checkpoints ~/git/melee/exphil/checkpoints --progress
+rclone copy b2:exphil-artifacts/checkpoints/ ~/git/melee/exphil/checkpoints/ --progress
 
 # === ON POD ===
 
@@ -270,7 +292,10 @@ rclone sync b2:exphil-replays/checkpoints ~/git/melee/exphil/checkpoints --progr
 /app/scripts/fetch_replays.sh
 
 # Or manual rclone
-rclone sync b2:$B2_BUCKET /workspace/replays --progress
+rclone copy b2:$B2_REPLAYS /workspace/replays --progress
+
+# Sync all artifacts
+sync-all-up
 ```
 
 ## Storage Comparison

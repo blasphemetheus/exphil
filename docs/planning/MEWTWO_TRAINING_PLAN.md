@@ -372,10 +372,10 @@ mix run scripts/train_from_replays.exs \
 ### 1. Sync Checkpoints from RunPod
 ```bash
 # On RunPod, after training
-rclone copy checkpoints/ b2:exphil-replays-blewfargs/checkpoints/ --progress
+sync-all-up  # Or: rclone copy checkpoints/ b2:exphil-artifacts/checkpoints/ --progress
 
 # On local machine
-rclone copy b2:exphil-replays-blewfargs/checkpoints/ ~/git/melee/exphil/checkpoints/ --progress
+rclone copy b2:exphil-artifacts/checkpoints/ ~/git/melee/exphil/checkpoints/ --progress
 ```
 
 ### 2. Evaluate Models Locally

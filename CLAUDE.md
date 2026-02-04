@@ -175,7 +175,8 @@ export EXPHIL_WANDB_PROJECT=my-project
 cd /app
 git pull origin main                    # Get latest code
 source /app/scripts/runpod_entrypoint.sh  # Load helper commands
-sync-checkpoints-down --latest          # Optional: pull previous checkpoints
+sync-checkpoints-down                   # Optional: pull previous checkpoints
+sync-cache-down                         # Optional: pull embedding cache
 ```
 
 **Start training (in tmux):**
@@ -196,13 +197,14 @@ mix run scripts/train_from_replays.exs \
 
 **Before pod shutdown:**
 ```bash
-sync-checkpoints-up   # Upload to B2 (organized by date)
+sync-all-up           # Upload checkpoints + logs + cache to B2
 ```
 
-**Checkpoint sync commands** (see [REPLAY_STORAGE.md](docs/REPLAY_STORAGE.md)):
-- `sync-checkpoints-up` - Upload to today's date folder
-- `sync-checkpoints-down --latest` - Download most recent
-- `list-checkpoints` - List dates on B2
+**Checkpoint sync commands** (see [REPLAY_STORAGE.md](docs/operations/REPLAY_STORAGE.md)):
+- `sync-all-up` - Upload checkpoints + logs + cache (flat structure)
+- `sync-checkpoints-down` - Download checkpoints
+- `sync-snapshot` - Create dated backup
+- `list-checkpoints` - List checkpoints on B2
 
 ## Project Structure
 

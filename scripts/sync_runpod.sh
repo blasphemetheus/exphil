@@ -5,7 +5,8 @@
 set -e
 
 # Configuration
-B2_BUCKET="b2:exphil-replays-blewfargs"
+# Artifacts bucket for checkpoints, logs, cache (NOT replays bucket)
+B2_BUCKET="b2:exphil-artifacts"
 LOCAL_DIR="${EXPHIL_DIR:-$(dirname "$(dirname "$(realpath "$0")")")}"
 RUNPOD_CHECKPOINTS="/workspace/checkpoints"
 RUNPOD_LOGS="/workspace/logs"
