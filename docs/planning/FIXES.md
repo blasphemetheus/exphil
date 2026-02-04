@@ -19,7 +19,7 @@ This document tracks identified issues and planned improvements from the January
 |--------|-------|-------|
 | `config.ex` | 3,216 | Mixing parsing, validation, presets, YAML, smart inference |
 | `policy.ex` | 2,060 | Backbone selection, sampling, loss computation mixed |
-| `imitation.ex` | 1,801 | Training loop, metrics, checkpointing mixed |
+| `imitation.ex` | ~~1,801~~ 583 | **DONE** - Decomposed to 5 submodules |
 | `game.ex` (embedding) | 1,156 | All embedding logic in one file |
 | `player.ex` (embedding) | 1,290 | All embedding logic in one file |
 
@@ -45,17 +45,6 @@ lib/exphil/networks/policy/
 ├── loss.ex            # Loss computation (cross-entropy, focal)
 ├── embeddings.ex      # Action/character embedding handling
 └── policy.ex          # Main module, orchestrates above
-```
-
-**imitation.ex Split Plan:**
-```
-lib/exphil/training/imitation/
-├── train_loop.ex      # Main epoch/batch loop
-├── metrics.ex         # Loss tracking, accuracy computation
-├── checkpoint.ex      # Saving/loading/pruning
-├── validation.ex      # Validation pass logic
-├── progress.ex        # Progress display and logging
-└── imitation.ex       # Main module, orchestrates above
 ```
 
 ### 1.2 Multiple Mamba Implementations [P2]
@@ -332,15 +321,18 @@ Total: 8 submodules extracted, main config.ex now serves as orchestration facade
 
 Total: 5 submodules extracted, main policy.ex delegates to submodules.
 
-### Planned
+### Completed (imitation.ex decomposition - 2026-02-03)
 
-**imitation.ex maintainability plan**:
-1. Extract epoch/batch loop to `imitation/train_loop.ex`
-2. Extract metrics tracking to `imitation/metrics.ex`
-3. Extract checkpoint logic to `imitation/checkpoint.ex`
-4. Extract validation pass to `imitation/validation.ex`
-5. Extract progress display to `imitation/progress.ex`
-6. Keep main `imitation.ex` with `train/3` as entry point
+- [x] Split `imitation.ex` into submodules (**68% reduction: 1,801 → 583 lines**)
+  - [x] `imitation/optimizer.ex` (409 lines) - Optimizer creation and LR schedules
+  - [x] `imitation/loss.ex` (212 lines) - Loss function builders (build_loss_fn, build_loss_and_grad_fn, build_eval_loss_fn)
+  - [x] `imitation/train_loop.ex` (465 lines) - Training loop, gradient handling, mixed precision
+  - [x] `imitation/validation.ex` (226 lines) - Evaluation functions (evaluate, evaluate_batch)
+  - [x] `imitation/checkpoint.ex` (313 lines) - Save/load/export functions
+
+Total: 5 submodules extracted, main imitation.ex now serves as orchestration facade.
+
+### Planned
 
 **Other planned work**:
 - [ ] Unify Mamba implementations with shared behavior
@@ -383,3 +375,5 @@ Total: 5 submodules extracted, main policy.ex delegates to submodules.
 *Last updated: 2026-02-03*
 *Review triggered by: Codebase critical analysis*
 *config.ex decomposition completed: 2026-02-03*
+*policy.ex decomposition completed: 2026-02-03*
+*imitation.ex decomposition completed: 2026-02-03*
