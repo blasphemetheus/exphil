@@ -465,8 +465,10 @@ defmodule ExPhil.Evaluation.Metrics do
   def action_state_distribution(frames) do
     frames
     |> Enum.reduce(%{}, fn frame, acc ->
-      player = get_in(frame, [:game_state, :players, 1]) ||
-               get_in(frame, [:game_state, :players, "1"])
+      # Handle both struct and map access patterns
+      game_state = frame[:game_state] || frame.game_state
+      players = if is_struct(game_state), do: game_state.players, else: game_state[:players]
+      player = players[1] || players["1"]
 
       if player do
         category = categorize_action_state(player)
