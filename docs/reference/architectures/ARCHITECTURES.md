@@ -21,14 +21,21 @@ ExPhil supports 15 backbone architectures for policy networks, ranging from simp
 
 | Backbone | Type | Complexity | Best For |
 |----------|------|------------|----------|
-| Zamba | Hybrid SSM | O(L) | Shared attention efficiency |
-| Mamba-2 SSD | State Space | O(L) | Tensor core training |
-| RWKV-7 | Linear RNN | O(L) | O(1) memory inference |
-| GLA | Linear Attention | O(L) | Short sequence speed |
-| HGRN-2 | Gated RNN | O(L) | Hierarchical patterns |
-| Decision Transformer | Return-conditioned | O(L²) | Goal-directed behavior |
-| S5 | Simplified SSM | O(L) | MIMO state space |
-| Liquid | Neural ODE | O(L×steps) | Adaptive dynamics |
+| [Zamba](ZAMBA.md) | Hybrid SSM | O(L) | Shared attention efficiency |
+| [Mamba-2 SSD](MAMBA2_SSD.md) | State Space | O(L) | Tensor core training |
+| [RWKV-7](RWKV.md) | Linear RNN | O(L) | O(1) memory inference |
+| [GLA](GLA.md) | Linear Attention | O(L) | Short sequence speed |
+| [HGRN-2](HGRN.md) | Gated RNN | O(L) | Hierarchical patterns |
+| [Griffin](GRIFFIN.md) | RG-LRU + Attention | O(L) | Simple gating, stable training |
+| [xLSTM](XLSTM.md) | Extended LSTM | O(L) | Exponential gating, matrix memory |
+| [RetNet](RETNET.md) | Retention | O(L²)/O(1) | Parallel training, O(1) inference |
+| [KAN](KAN.md) | Learnable activations | O(L) | Interpretable, symbolic patterns |
+| [Decision Transformer](DECISION_TRANSFORMER.md) | Return-conditioned | O(L²) | Goal-directed behavior |
+| [S5](S5.md) | Simplified SSM | O(L) | MIMO state space |
+| [Liquid](LIQUID.md) | Neural ODE | O(L×steps) | Adaptive dynamics |
+| [GatedSSM](GATED_SSM.md) | Simple SSM | O(L) | Fast baseline |
+
+See also: [Policy Types](../POLICY_TYPES.md) for non-backbone policy architectures (Diffusion, ACT, Flow Matching).
 
 *Val loss from 3-epoch benchmark on RTX 4090, batch_size=256, 50 replays (lower is better)
 
@@ -240,16 +247,15 @@ MLP avoids this by using frame embeddings directly (no sequence pre-building).
 
 ### New Architectures (2026-02)
 
-| Architecture | Description | Key Innovation |
-|--------------|-------------|----------------|
-| **Zamba** | Mamba + shared attention | One attention layer reused across all positions |
-| **Mamba-2 SSD** | Structured State Space Duality | Tensor core optimization via matmul formulation |
-| **RWKV-7** | Linear RNN with WKV attention | O(1) memory during inference |
-| **GLA** | Gated Linear Attention | Faster than FlashAttention on short sequences |
-| **HGRN-2** | Hierarchical Gated RNN | Multi-scale temporal patterns |
-| **Decision Transformer** | Return-conditioned GPT | Goal-directed via return-to-go conditioning |
-| **S5** | Simplified State Space | Single MIMO SSM (ablation baseline) |
-| **Liquid** | Neural ODE networks | Continuous-time dynamics with adaptive ODE solver |
+- [Zamba](ZAMBA.md) - Shared attention Mamba hybrid
+- [Mamba-2 SSD](MAMBA2_SSD.md) - State Space Duality for tensor cores
+- [RWKV-7](RWKV.md) - Linear RNN with O(1) inference memory
+- [GLA](GLA.md) - Gated Linear Attention
+- [HGRN-2](HGRN.md) - Hierarchical Gated RNN
+- [Decision Transformer](DECISION_TRANSFORMER.md) - Return-conditioned transformer
+- [S5](S5.md) - Simplified State Space
+- [Liquid](LIQUID.md) - Neural ODE with adaptive dynamics
+- [GatedSSM](GATED_SSM.md) - Simple gated state space (baseline)
 
 ## Implementation Files
 
