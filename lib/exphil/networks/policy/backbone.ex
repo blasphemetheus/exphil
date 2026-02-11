@@ -43,14 +43,17 @@ defmodule ExPhil.Networks.Policy.Backbone do
 
   require Axon
 
-  alias ExPhil.Networks.Attention
-  alias ExPhil.Networks.GatedSSM
-  alias ExPhil.Networks.Griffin
-  alias ExPhil.Networks.Hybrid
-  alias ExPhil.Networks.Mamba
-  alias ExPhil.Networks.MambaCumsum
+  # Use Edifice library for generic ML architectures
+  alias Edifice.Attention.MultiHead, as: Attention
+  alias Edifice.SSM.GatedSSM
+  alias Edifice.Attention.Griffin
+  alias Edifice.SSM.Hybrid
+  alias Edifice.SSM.Mamba
+  alias Edifice.SSM.MambaCumsum
+  alias Edifice.Recurrent
+
+  # MambaNIF uses Rust NIF - stays in ExPhil
   alias ExPhil.Networks.MambaNIF
-  alias ExPhil.Networks.Recurrent
 
   # Default architecture hyperparameters
   @default_hidden_sizes [512, 512]
@@ -480,7 +483,7 @@ defmodule ExPhil.Networks.Policy.Backbone do
 
   # Zamba: Mamba + Single Shared Attention (more efficient than Jamba)
   defp build_zamba_backbone(embed_size, opts) do
-    alias ExPhil.Networks.Zamba
+    alias Edifice.SSM.Zamba
 
     hidden_size = Keyword.get(opts, :hidden_size, 256)
     state_size = Keyword.get(opts, :state_size, 16)
@@ -512,7 +515,7 @@ defmodule ExPhil.Networks.Policy.Backbone do
 
   # Griffin: RG-LRU + Local Attention hybrid (2:1 pattern)
   defp build_griffin_backbone(embed_size, opts) do
-    alias ExPhil.Networks.Griffin
+    alias Edifice.Attention.Griffin
 
     hidden_size = Keyword.get(opts, :hidden_size, 256)
     num_layers = Keyword.get(opts, :num_layers, 6)
@@ -539,7 +542,7 @@ defmodule ExPhil.Networks.Policy.Backbone do
 
   # Hawk: Pure RG-LRU (no local attention, simpler/faster than Griffin)
   defp build_hawk_backbone(embed_size, opts) do
-    alias ExPhil.Networks.Griffin
+    alias Edifice.Attention.Griffin
 
     hidden_size = Keyword.get(opts, :hidden_size, 256)
     num_layers = Keyword.get(opts, :num_layers, 6)
@@ -561,7 +564,7 @@ defmodule ExPhil.Networks.Policy.Backbone do
 
   # xLSTM: Extended LSTM with exponential gating (Hochreiter et al., 2024)
   defp build_xlstm_backbone(embed_size, opts) do
-    alias ExPhil.Networks.XLSTM
+    alias Edifice.Recurrent.XLSTM
 
     hidden_size = Keyword.get(opts, :hidden_size, 256)
     num_layers = Keyword.get(opts, :num_layers, 4)
@@ -589,7 +592,7 @@ defmodule ExPhil.Networks.Policy.Backbone do
 
   # RetNet: Retentive Network with multi-scale retention (Microsoft, 2023)
   defp build_retnet_backbone(embed_size, opts) do
-    alias ExPhil.Networks.RetNet
+    alias Edifice.Attention.RetNet
 
     hidden_size = Keyword.get(opts, :hidden_size, 256)
     num_layers = Keyword.get(opts, :num_layers, 6)
@@ -613,7 +616,7 @@ defmodule ExPhil.Networks.Policy.Backbone do
 
   # RWKV-7 "Goose": O(1) space complexity linear attention
   defp build_rwkv_backbone(embed_size, opts) do
-    alias ExPhil.Networks.RWKV
+    alias Edifice.Attention.RWKV
 
     hidden_size = Keyword.get(opts, :hidden_size, 256)
     num_layers = Keyword.get(opts, :num_layers, 6)
@@ -635,7 +638,7 @@ defmodule ExPhil.Networks.Policy.Backbone do
 
   # GLA: Gated Linear Attention with data-dependent gating
   defp build_gla_backbone(embed_size, opts) do
-    alias ExPhil.Networks.GLA
+    alias Edifice.Attention.GLA
 
     hidden_size = Keyword.get(opts, :hidden_size, 256)
     num_layers = Keyword.get(opts, :num_layers, 6)
@@ -661,7 +664,7 @@ defmodule ExPhil.Networks.Policy.Backbone do
 
   # HGRN-2: Hierarchically Gated Linear RNN with state expansion
   defp build_hgrn_backbone(embed_size, opts) do
-    alias ExPhil.Networks.HGRN
+    alias Edifice.Attention.HGRN
 
     hidden_size = Keyword.get(opts, :hidden_size, 256)
     num_layers = Keyword.get(opts, :num_layers, 6)
@@ -683,7 +686,7 @@ defmodule ExPhil.Networks.Policy.Backbone do
 
   # S5: Simplified State Space (MIMO SSM)
   defp build_s5_backbone(embed_size, opts) do
-    alias ExPhil.Networks.S5
+    alias Edifice.SSM.S5
 
     hidden_size = Keyword.get(opts, :hidden_size, 256)
     state_size = Keyword.get(opts, :state_size, 64)
@@ -730,7 +733,7 @@ defmodule ExPhil.Networks.Policy.Backbone do
 
   # Liquid Neural Networks: Continuous-time adaptive dynamics
   defp build_liquid_backbone(embed_size, opts) do
-    alias ExPhil.Networks.Liquid
+    alias Edifice.Liquid
 
     hidden_size = Keyword.get(opts, :hidden_size, 256)
     num_layers = Keyword.get(opts, :num_layers, 4)
@@ -753,7 +756,7 @@ defmodule ExPhil.Networks.Policy.Backbone do
   end
 
   defp build_kan_backbone(embed_size, opts) do
-    alias ExPhil.Networks.KAN
+    alias Edifice.Feedforward.KAN
 
     hidden_size = Keyword.get(opts, :hidden_size, 256)
     num_layers = Keyword.get(opts, :num_layers, 4)
@@ -940,7 +943,7 @@ defmodule ExPhil.Networks.Policy.Backbone do
       window_size: window_size
     ]
 
-    ExPhil.Networks.MambaHillisSteele.build(mamba_opts)
+    Edifice.SSM.MambaHillisSteele.build(mamba_opts)
   end
 
   defp build_mamba_ssd_backbone(embed_size, opts) do
@@ -965,7 +968,7 @@ defmodule ExPhil.Networks.Policy.Backbone do
       chunk_size: chunk_size
     ]
 
-    ExPhil.Networks.MambaSSD.build(mamba_opts)
+    Edifice.SSM.MambaSSD.build(mamba_opts)
   end
 
   defp build_mlp_temporal_backbone(embed_size, opts) do

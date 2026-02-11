@@ -169,6 +169,9 @@ defmodule ExPhil.MixProject do
       {:exla, "~> 0.9"},
       {:polaris, "~> 0.1"},
 
+      # ML Architecture Library (extracted generic architectures)
+      {:edifice, path: "../edifice"},
+
       # Data Processing
       {:explorer, "~> 0.9"},
       {:yaml_elixir, "~> 2.9"},
