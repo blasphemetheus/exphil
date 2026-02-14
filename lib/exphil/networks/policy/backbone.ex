@@ -530,7 +530,7 @@ defmodule ExPhil.Networks.Policy.Backbone do
     dropout = Keyword.get(opts, :dropout, @default_dropout)
 
     Attention.build_sliding_window(
-      embed_size: embed_size,
+      embed_dim: embed_size,
       window_size: window_size,
       num_heads: num_heads,
       head_dim: head_dim,
@@ -549,7 +549,7 @@ defmodule ExPhil.Networks.Policy.Backbone do
     window_size = Keyword.get(opts, :window_size, 60)
 
     Attention.build_hybrid(
-      embed_size: embed_size,
+      embed_dim: embed_size,
       lstm_hidden: hidden_size,
       lstm_layers: lstm_layers,
       num_heads: num_heads,
@@ -580,7 +580,7 @@ defmodule ExPhil.Networks.Policy.Backbone do
     qk_layernorm = Keyword.get(opts, :qk_layernorm, true)
 
     Hybrid.build(
-      embed_size: embed_size,
+      embed_dim: embed_size,
       hidden_size: hidden_size,
       state_size: state_size,
       expand_factor: expand_factor,
@@ -615,7 +615,7 @@ defmodule ExPhil.Networks.Policy.Backbone do
     seq_len = Keyword.get(opts, :seq_len, window_size)
 
     Zamba.build(
-      embed_size: embed_size,
+      embed_dim: embed_size,
       hidden_size: hidden_size,
       state_size: state_size,
       expand_factor: expand_factor,
@@ -644,7 +644,7 @@ defmodule ExPhil.Networks.Policy.Backbone do
     seq_len = Keyword.get(opts, :seq_len, window_size)
 
     Griffin.build(
-      embed_size: embed_size,
+      embed_dim: embed_size,
       hidden_size: hidden_size,
       num_layers: num_layers,
       expand_factor: expand_factor,
@@ -669,7 +669,7 @@ defmodule ExPhil.Networks.Policy.Backbone do
     seq_len = Keyword.get(opts, :seq_len, window_size)
 
     Griffin.build_hawk(
-      embed_size: embed_size,
+      embed_dim: embed_size,
       hidden_size: hidden_size,
       num_layers: num_layers,
       expand_factor: expand_factor,
@@ -694,7 +694,7 @@ defmodule ExPhil.Networks.Policy.Backbone do
     seq_len = Keyword.get(opts, :seq_len, window_size)
 
     XLSTM.build(
-      embed_size: embed_size,
+      embed_dim: embed_size,
       hidden_size: hidden_size,
       num_layers: num_layers,
       num_heads: num_heads,
@@ -720,7 +720,7 @@ defmodule ExPhil.Networks.Policy.Backbone do
     seq_len = Keyword.get(opts, :seq_len, window_size)
 
     RetNet.build(
-      embed_size: embed_size,
+      embed_dim: embed_size,
       hidden_size: hidden_size,
       num_layers: num_layers,
       num_heads: num_heads,
@@ -743,7 +743,7 @@ defmodule ExPhil.Networks.Policy.Backbone do
     seq_len = Keyword.get(opts, :seq_len, window_size)
 
     RWKV.build(
-      embed_size: embed_size,
+      embed_dim: embed_size,
       hidden_size: hidden_size,
       num_layers: num_layers,
       head_size: head_size,
@@ -767,7 +767,7 @@ defmodule ExPhil.Networks.Policy.Backbone do
     seq_len = Keyword.get(opts, :seq_len, window_size)
 
     GLA.build(
-      embed_size: embed_size,
+      embed_dim: embed_size,
       hidden_size: hidden_size,
       num_layers: num_layers,
       num_heads: num_heads,
@@ -791,7 +791,7 @@ defmodule ExPhil.Networks.Policy.Backbone do
     seq_len = Keyword.get(opts, :seq_len, window_size)
 
     HGRN.build(
-      embed_size: embed_size,
+      embed_dim: embed_size,
       hidden_size: hidden_size,
       num_layers: num_layers,
       state_expansion: state_expansion,
@@ -813,7 +813,7 @@ defmodule ExPhil.Networks.Policy.Backbone do
     seq_len = Keyword.get(opts, :seq_len, window_size)
 
     S5.build(
-      embed_size: embed_size,
+      embed_dim: embed_size,
       hidden_size: hidden_size,
       state_size: state_size,
       num_layers: num_layers,
@@ -835,7 +835,7 @@ defmodule ExPhil.Networks.Policy.Backbone do
     seq_len = Keyword.get(opts, :seq_len, window_size)
 
     S4.build(
-      embed_size: embed_size,
+      embed_dim: embed_size,
       hidden_size: hidden_size,
       state_size: state_size,
       num_layers: num_layers,
@@ -857,7 +857,7 @@ defmodule ExPhil.Networks.Policy.Backbone do
     seq_len = Keyword.get(opts, :seq_len, window_size)
 
     S4D.build(
-      embed_size: embed_size,
+      embed_dim: embed_size,
       hidden_size: hidden_size,
       state_size: state_size,
       num_layers: num_layers,
@@ -880,7 +880,7 @@ defmodule ExPhil.Networks.Policy.Backbone do
     seq_len = Keyword.get(opts, :seq_len, window_size)
 
     H3.build(
-      embed_size: embed_size,
+      embed_dim: embed_size,
       hidden_size: hidden_size,
       state_size: state_size,
       conv_size: conv_size,
@@ -903,7 +903,7 @@ defmodule ExPhil.Networks.Policy.Backbone do
     window_size = Keyword.get(opts, :window_size, 60)
 
     Performer.build(
-      embed_size: embed_size,
+      embed_dim: embed_size,
       hidden_size: hidden_size,
       num_features: num_features,
       num_layers: num_layers,
@@ -925,7 +925,7 @@ defmodule ExPhil.Networks.Policy.Backbone do
     seq_len = Keyword.get(opts, :seq_len, window_size)
 
     DeltaNet.build(
-      embed_size: embed_size,
+      embed_dim: embed_size,
       hidden_size: hidden_size,
       num_heads: num_heads,
       num_layers: num_layers,
@@ -945,7 +945,7 @@ defmodule ExPhil.Networks.Policy.Backbone do
     window_size = Keyword.get(opts, :window_size, 60)
 
     FNet.build(
-      embed_size: embed_size,
+      embed_dim: embed_size,
       hidden_size: hidden_size,
       num_layers: num_layers,
       dropout: dropout,
@@ -987,7 +987,7 @@ defmodule ExPhil.Networks.Policy.Backbone do
     seq_len = Keyword.get(opts, :seq_len, window_size)
 
     TTT.build(
-      embed_size: embed_size,
+      embed_dim: embed_size,
       hidden_size: hidden_size,
       inner_size: inner_size,
       num_layers: num_layers,
@@ -1125,10 +1125,10 @@ defmodule ExPhil.Networks.Policy.Backbone do
     window_size = Keyword.get(opts, :window_size, 60)
     seq_len = Keyword.get(opts, :seq_len, window_size)
     integration_steps = Keyword.get(opts, :integration_steps, 1)
-    solver = Keyword.get(opts, :solver, :euler)
+    solver = Keyword.get(opts, :solver, :exact)
 
     Liquid.build(
-      embed_size: embed_size,
+      embed_dim: embed_size,
       hidden_size: hidden_size,
       num_layers: num_layers,
       dropout: dropout,
@@ -1151,7 +1151,7 @@ defmodule ExPhil.Networks.Policy.Backbone do
     seq_len = Keyword.get(opts, :seq_len, window_size)
 
     KAN.build(
-      embed_size: embed_size,
+      embed_dim: embed_size,
       hidden_size: hidden_size,
       num_layers: num_layers,
       grid_size: grid_size,
@@ -1170,7 +1170,7 @@ defmodule ExPhil.Networks.Policy.Backbone do
     truncate_bptt = Keyword.get(opts, :truncate_bptt, nil)
 
     Recurrent.build(
-      embed_size: embed_size,
+      embed_dim: embed_size,
       hidden_size: hidden_size,
       num_layers: num_layers,
       cell_type: :lstm,
@@ -1191,7 +1191,7 @@ defmodule ExPhil.Networks.Policy.Backbone do
     truncate_bptt = Keyword.get(opts, :truncate_bptt, nil)
 
     Recurrent.build(
-      embed_size: embed_size,
+      embed_dim: embed_size,
       hidden_size: hidden_size,
       num_layers: num_layers,
       cell_type: :gru,
@@ -1216,7 +1216,7 @@ defmodule ExPhil.Networks.Policy.Backbone do
     checkpoint_every = Keyword.get(opts, :checkpoint_every, 1)
 
     gated_ssm_opts = [
-      embed_size: embed_size,
+      embed_dim: embed_size,
       hidden_size: hidden_size,
       state_size: state_size,
       expand_factor: expand_factor,
@@ -1246,7 +1246,7 @@ defmodule ExPhil.Networks.Policy.Backbone do
     window_size = Keyword.get(opts, :window_size, 60)
 
     mamba_opts = [
-      embed_size: embed_size,
+      embed_dim: embed_size,
       hidden_size: hidden_size,
       state_size: state_size,
       expand_factor: expand_factor,
@@ -1270,7 +1270,7 @@ defmodule ExPhil.Networks.Policy.Backbone do
     window_size = Keyword.get(opts, :window_size, 60)
 
     mamba_opts = [
-      embed_size: embed_size,
+      embed_dim: embed_size,
       hidden_size: hidden_size,
       state_size: state_size,
       expand_factor: expand_factor,
@@ -1294,7 +1294,7 @@ defmodule ExPhil.Networks.Policy.Backbone do
     window_size = Keyword.get(opts, :window_size, 60)
 
     mamba_opts = [
-      embed_size: embed_size,
+      embed_dim: embed_size,
       hidden_size: hidden_size,
       state_size: state_size,
       expand_factor: expand_factor,
@@ -1317,7 +1317,7 @@ defmodule ExPhil.Networks.Policy.Backbone do
     window_size = Keyword.get(opts, :window_size, 60)
 
     mamba_opts = [
-      embed_size: embed_size,
+      embed_dim: embed_size,
       hidden_size: hidden_size,
       state_size: state_size,
       expand_factor: expand_factor,
@@ -1341,7 +1341,7 @@ defmodule ExPhil.Networks.Policy.Backbone do
     chunk_size = Keyword.get(opts, :chunk_size, 16)
 
     mamba_opts = [
-      embed_size: embed_size,
+      embed_dim: embed_size,
       hidden_size: hidden_size,
       state_size: state_size,
       expand_factor: expand_factor,

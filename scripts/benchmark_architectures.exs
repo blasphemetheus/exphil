@@ -131,7 +131,12 @@ gpu_config =
       [platform: :cuda, preallocate: false]
   end
 
-Application.put_env(:exla, :clients, cuda: gpu_config)
+# Only override EXLA config if CUDA target is set; otherwise use app default (:host CPU)
+if System.get_env("EXLA_TARGET") == "cuda" do
+  Application.put_env(:exla, :clients, cuda: gpu_config)
+else
+  IO.puts("[GPU] No EXLA_TARGET=cuda, using CPU (host) backend")
+end
 
 alias ExPhil.CLI
 alias ExPhil.Data.Peppi
