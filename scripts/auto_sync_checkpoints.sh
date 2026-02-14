@@ -49,7 +49,7 @@ check_rclone_config() {
 
     # Check if rclone already has a remote configured
     if rclone listremotes | grep -q "^b2:$"; then
-        REMOTE="b2:${B2_BUCKET:-exphil-replays}/checkpoints"
+        REMOTE="b2:${B2_BUCKET:-your-replays-bucket}/checkpoints"
         return 0
     fi
 

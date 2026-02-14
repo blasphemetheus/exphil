@@ -1,9 +1,0 @@
-{
-  "started_at": "2026-01-22T05:18:42.508760Z",
-  "last_update": "2026-01-22T05:18:42.508764Z",
-  "checkpoint": "checkpoints/mlp_modded_rollback_20260122_051825.axon",
-  "preset": "quick",
-  "epochs_completed": 0,
-  "epochs_target": 2,
-  "last_epoch_loss": null
-}

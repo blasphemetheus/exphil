@@ -50,40 +50,40 @@ defmodule ExPhil.MixProject do
       extras: [
         "README.md",
         # Core Guides
-        "docs/ARCHITECTURE.md",
-        "docs/TRAINING.md",
-        "docs/TRAINING_CHEATSHEET.md",
-        "docs/TRAINING_FEATURES.md",
-        "docs/INFERENCE.md",
-        "docs/DOLPHIN.md",
-        "docs/SCRIPTS.md",
+        "docs/reference/ARCHITECTURE.md",
+        "docs/guides/TRAINING.md",
+        "docs/guides/TRAINING_CHEATSHEET.md",
+        "docs/guides/TRAINING_FEATURES.md",
+        "docs/guides/INFERENCE.md",
+        "docs/guides/DOLPHIN.md",
+        "docs/guides/SCRIPTS.md",
         # Reference
-        "docs/GOTCHAS.md",
-        "docs/TESTING.md",
-        "docs/GOALS.md",
-        "docs/PROJECT_ROADMAP.md",
+        "docs/reference/GOTCHAS.md",
+        "docs/guides/TESTING.md",
+        "docs/planning/GOALS.md",
+        "docs/planning/PROJECT_ROADMAP.md",
         # Research & Planning
-        "docs/RESEARCH.md",
-        "docs/BITTER_LESSON_PLAN.md",
-        "docs/MEWTWO_TRAINING_PLAN.md",
+        "docs/research/RESEARCH.md",
+        "docs/research/BITTER_LESSON_PLAN.md",
+        "docs/planning/MEWTWO_TRAINING_PLAN.md",
         # Advanced Topics
-        "docs/EMBEDDING_DIMENSIONS.md",
-        "docs/GPU_OPTIMIZATIONS.md",
-        "docs/MAMBA_OPTIMIZATIONS.md",
-        "docs/SELF_PLAY_ARCHITECTURE.md",
-        "docs/IC_TECH_FEATURE_BLOCK.md",
+        "docs/reference/EMBEDDING_DIMENSIONS.md",
+        "docs/internals/GPU_OPTIMIZATIONS.md",
+        "docs/internals/MAMBA_OPTIMIZATIONS.md",
+        "docs/reference/SELF_PLAY_ARCHITECTURE.md",
+        "docs/research/IC_TECH_FEATURE_BLOCK.md",
         # Implementation Notes
-        "docs/AXON_ORTHOGONAL_INIT_FIX.md",
-        "docs/TRAINING_IMPROVEMENTS.md",
+        "docs/internals/AXON_ORTHOGONAL_INIT_FIX.md",
+        "docs/planning/TRAINING_IMPROVEMENTS.md",
         # Deployment
-        "docs/docker-workflow.md",
-        "docs/REPLAY_STORAGE.md",
-        "docs/RUNPOD_FILTER.md",
-        "docs/RCLONE_GDRIVE.md",
+        "docs/operations/docker-workflow.md",
+        "docs/operations/REPLAY_STORAGE.md",
+        "docs/operations/RUNPOD_FILTER.md",
+        "docs/operations/RCLONE_GDRIVE.md",
         # Meta
         "CHANGELOG.md",
         "LICENSE",
-        "docs/HEX_PUBLISHING.md"
+        "docs/guides/HEX_PUBLISHING.md"
       ],
       groups_for_extras: [
         "Getting Started": ~r/README/,
@@ -170,7 +170,8 @@ defmodule ExPhil.MixProject do
       {:polaris, "~> 0.1"},
 
       # ML Architecture Library (extracted generic architectures)
-      {:edifice, path: "../edifice"},
+      # Uses local path for dev, GitHub for Docker builds
+      {:edifice, edifice_dep()},
 
       # Data Processing
       {:explorer, "~> 0.9"},
@@ -197,7 +198,8 @@ defmodule ExPhil.MixProject do
 
       # Timezone support (for Central time timestamps)
       {:tz, "~> 0.28"},
-      {:msgpax, "~> 2.4"},  # For PyTorch Port communication
+      # For PyTorch Port communication
+      {:msgpax, "~> 2.4"},
       {:req, "~> 0.5"},
 
       # Visualization (for training plots)
@@ -213,6 +215,14 @@ defmodule ExPhil.MixProject do
       {:stream_data, "~> 1.1", only: [:dev, :test]},
       {:muzak, "~> 1.1", only: :test}
     ]
+  end
+
+  defp edifice_dep do
+    if System.get_env("DOCKER_BUILD") do
+      [github: "blasphemetheus/edifice"]
+    else
+      [path: "../edifice"]
+    end
   end
 
   defp aliases do

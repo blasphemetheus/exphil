@@ -3,7 +3,7 @@
 #
 # Usage:
 #   # Set env vars then run:
-#   export B2_KEY_ID="..." B2_APP_KEY="..." B2_BUCKET="exphil-replays"
+#   export B2_KEY_ID="..." B2_APP_KEY="..." B2_BUCKET="your-replays-bucket"
 #   ./scripts/fetch_replays.sh
 #
 #   # Or with R2:

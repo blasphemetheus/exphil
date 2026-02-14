@@ -44,7 +44,7 @@ mix deps.get
 # Download replays from B2
 echo "Downloading Mewtwo replays..."
 mkdir -p /workspace/replays
-rclone copy b2:exphil-replays-blewfargs/mewtwo/ /workspace/replays/mewtwo/ --progress
+rclone copy "b2:${B2_REPLAYS:-your-replays-bucket}/mewtwo/" /workspace/replays/mewtwo/ --progress
 
 # Create checkpoint dir
 mkdir -p /workspace/checkpoints

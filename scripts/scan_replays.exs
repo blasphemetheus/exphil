@@ -255,7 +255,7 @@ args = System.argv()
 
 replays_dir =
   case Enum.find_index(args, &(&1 == "--replays")) do
-    nil -> "/home/dori/git/melee/replays"
+    nil -> "./replays"
     idx -> Enum.at(args, idx + 1)
   end
 

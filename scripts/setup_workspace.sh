@@ -59,7 +59,7 @@ check_cloud_storage() {
 
     # Check existing rclone config
     if rclone listremotes 2>/dev/null | grep -q "^b2:$"; then
-        REMOTE="b2:${B2_BUCKET:-exphil-replays}"
+        REMOTE="b2:${B2_BUCKET:-your-replays-bucket}"
         REMOTE_TYPE="B2 (existing)"
         return 0
     fi

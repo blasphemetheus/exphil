@@ -1,9 +1,0 @@
-{
-  "checkpoint": "checkpoints/mlp_moonwalking_fthrow_20260122_052616.axon",
-  "epochs_completed": 2,
-  "epochs_target": 2,
-  "last_epoch_loss": 2.4155157818641837,
-  "last_update": "2026-01-22T05:29:44.229712Z",
-  "preset": "quick",
-  "started_at": "2026-01-22T05:26:33.838727Z"
-}

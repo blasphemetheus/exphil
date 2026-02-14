@@ -9,7 +9,6 @@ erl_crash.dump
 
 # Mix artifacts
 /.fetch
-/mix.lock
 
 # Python
 __pycache__/
@@ -23,6 +22,7 @@ venv/
 # IDE
 .idea/
 .vscode/
+.elixir_ls/
 *.swp
 *.swo
 *~
@@ -30,6 +30,7 @@ venv/
 # OS
 .DS_Store
 Thumbs.db
+.env
 
 # Livebook
 .livebook/
@@ -53,6 +54,7 @@ cover/
 *.axon
 *.bin
 *.onnx
+*.axon.incomplete
 
 # Log files
 *.log

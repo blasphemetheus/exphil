@@ -10,7 +10,7 @@ This document tracks our work on adding GPU custom call support to EXLA,
 enabling native CUDA kernel integration for FlashAttention and other
 GPU-accelerated operations.
 
-The EXLA fork is located at: `/home/dori/git/melee/nx/exla`
+The EXLA fork is located at: `../nx/exla` (relative to project root)
 
 ---
 
@@ -224,7 +224,7 @@ static ffi::Error impl_function(
 
 ```bash
 # On machine with CUDA
-cd ~/git/melee/nx/exla
+cd /path/to/nx/exla
 
 # Ensure CUDA is detected
 which nvcc

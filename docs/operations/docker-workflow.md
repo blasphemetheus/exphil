@@ -14,7 +14,7 @@ Quick reference for building, testing, and deploying ExPhil Docker images.
 ## Building
 
 ```bash
-cd ~/git/melee/exphil
+cd /path/to/exphil
 
 # Build GPU image (for cloud deployment)
 docker buildx build -f Dockerfile.gpu -t exphil:gpu .
@@ -42,8 +42,8 @@ docker run --rm exphil:cpu mix run -e "IO.inspect(Nx.default_backend())"
 
 # Test with replays (mount specific subfolder)
 docker run --rm \
-  -v ~/git/melee/replays/2025-02:/app/replays:ro \
-  -v ~/git/melee/exphil/checkpoints:/app/checkpoints \
+  -v /path/to/replays/2025-02:/app/replays:ro \
+  -v /path/to/exphil/checkpoints:/app/checkpoints \
   exphil:cpu \
   mix run scripts/train_from_replays.exs --epochs 1 --max-files 1 --replays /app/replays
 ```
@@ -55,24 +55,24 @@ docker run --rm \
 ### Login
 ```bash
 docker login
-# Username: bradleyfargo
+# Username: YOUR_DOCKERHUB_USER
 # Password: <your password or access token>
 ```
 
 ### Push Images
 ```bash
 # Tag for Docker Hub
-docker tag exphil:gpu bradleyfargo/exphil:gpu
-docker tag exphil:cpu bradleyfargo/exphil:cpu
+docker tag exphil:gpu YOUR_DOCKERHUB_USER/exphil:gpu
+docker tag exphil:cpu YOUR_DOCKERHUB_USER/exphil:cpu
 
 # Push (overwrites existing tags)
-docker push bradleyfargo/exphil:gpu
-docker push bradleyfargo/exphil:cpu
+docker push YOUR_DOCKERHUB_USER/exphil:gpu
+docker push YOUR_DOCKERHUB_USER/exphil:cpu
 ```
 
 ### Pull Images (on cloud instance)
 ```bash
-docker pull bradleyfargo/exphil:gpu
+docker pull YOUR_DOCKERHUB_USER/exphil:gpu
 ```
 
 ## Cloud Deployment
@@ -140,7 +140,7 @@ Treat every pod as disposable. State lives in B2/R2, synced automatically.
    ```
    B2_KEY_ID=your_key_id
    B2_APP_KEY=your_app_key
-   B2_BUCKET=exphil-replays
+   B2_BUCKET=your-replays-bucket
    ```
 
 2. Set **Start Command** to auto-fetch:
@@ -227,20 +227,20 @@ rclone config
 # → (leave rest as defaults)
 
 # 3. Upload your replays to B2
-rclone sync ~/git/melee/slp b2:exphil-replays --progress
+rclone sync /path/to/slp b2:your-replays-bucket --progress
 ```
 
 **One-Time Setup (RunPod Dashboard):**
 
 1. Go to **Templates** → **New Template** (or edit your existing one)
 
-2. Set **Container Image:** `bradleyfargo/exphil:gpu`
+2. Set **Container Image:** `YOUR_DOCKERHUB_USER/exphil:gpu`
 
 3. Add **Environment Variables:**
    ```
    B2_KEY_ID=your_key_id_here
    B2_APP_KEY=your_app_key_here
-   B2_BUCKET=exphil-replays
+   B2_BUCKET=your-replays-bucket
    ```
 
 4. Set **Start Command:**
@@ -410,7 +410,7 @@ See [scripts/auto_sync_checkpoints.sh](../scripts/auto_sync_checkpoints.sh) for 
 Go to **Pods** → **+ Deploy**
 
 **For Community Cloud (recommended):**
-- **Container Image:** `bradleyfargo/exphil:gpu`
+- **Container Image:** `YOUR_DOCKERHUB_USER/exphil:gpu`
 - **Container Disk:** 20GB (temporary, lost on terminate)
 - **Volume Mount Path:** `/workspace`
 - **Expose HTTP/TCP Ports:** Leave empty (SSH is automatic)
@@ -464,13 +464,13 @@ Best for frequent pod restarts. Upload once, fetch automatically. See [REPLAY_ST
 rclone config  # Add b2 remote with your credentials
 
 # 3. Upload replays:
-rclone sync ~/git/melee/slp b2:exphil-replays --progress
+rclone sync /path/to/slp b2:your-replays-bucket --progress
 
 # === ON EACH POD ===
 # Set env vars in RunPod pod config, or export manually:
 export B2_KEY_ID="your_key_id"
 export B2_APP_KEY="your_app_key"
-export B2_BUCKET="exphil-replays"
+export B2_BUCKET="your-replays-bucket"
 
 # Fetch replays:
 /app/scripts/fetch_replays.sh
@@ -489,7 +489,7 @@ From your **local machine**, using SSH over exposed TCP:
 # Replace IP and PORT with your pod's SSH details (from Connect → SSH over exposed TCP)
 rsync -avz --progress \
   -e "ssh -p PORT" \
-  ~/git/melee/replays/ \
+  /path/to/replays/ \
   root@IP:/workspace/replays/
 ```
 
@@ -499,7 +499,7 @@ RunPod's SSH proxy doesn't support rsync/scp subsystems. Use a file sharing serv
 
 ```bash
 # Local: create archive and upload
-cd ~/git/melee/replays
+cd /path/to/replays
 tar czf replays.tar.gz mewtwo/
 curl -F "file=@replays.tar.gz" https://0x0.st
 # Returns URL like https://0x0.st/Hxyz.tar.gz
@@ -620,7 +620,7 @@ From your **local machine**:
 rsync -avz --progress \
   -e "ssh -p PORT" \
   root@IP:/workspace/checkpoints/ \
-  ~/git/melee/exphil/checkpoints/
+  /path/to/exphil/checkpoints/
 ```
 
 #### Stop the Pod (Important!)
@@ -658,7 +658,7 @@ Training 235 replays, 10 epochs on RTX 4090:
    sudo systemctl restart docker
 
    # Pull image
-   docker pull bradleyfargo/exphil:gpu
+   docker pull YOUR_DOCKERHUB_USER/exphil:gpu
    ```
 
 3. **Run with mounted volumes**:
@@ -666,7 +666,7 @@ Training 235 replays, 10 epochs on RTX 4090:
    docker run --gpus all \
      -v ~/replays:/app/replays:ro \
      -v ~/checkpoints:/app/checkpoints:rw \
-     bradleyfargo/exphil:gpu \
+     YOUR_DOCKERHUB_USER/exphil:gpu \
      mix run scripts/train_from_replays.exs --epochs 10 --replays /app/replays
    ```
 
@@ -706,7 +706,7 @@ Training 235 replays, 10 epochs on RTX 4090:
 │  CLOUD GPU                                                    │
 │  ┌─────────────────┐    ┌─────────────────────────────────┐  │
 │  │ docker build or │───→│ docker run --gpus all           │  │
-│  │ docker pull     │    │ bradleyfargo/exphil:gpu         │  │
+│  │ docker pull     │    │ YOUR_DOCKERHUB_USER/exphil:gpu         │  │
 │  └─────────────────┘    └─────────────────────────────────┘  │
 │           │                                                   │
 │           ▼                                                   │
@@ -903,16 +903,16 @@ Use this checklist when deploying code changes to GPU for testing/training.
 ### 1. Build, Tag, Push (Local Machine)
 
 ```bash
-cd ~/git/melee/exphil
+cd /path/to/exphil
 
 # Build GPU image
 docker buildx build -f Dockerfile.gpu -t exphil:gpu .
 
 # Tag for Docker Hub
-docker tag exphil:gpu bradleyfargo/exphil:gpu
+docker tag exphil:gpu YOUR_DOCKERHUB_USER/exphil:gpu
 
 # Push to registry
-docker push bradleyfargo/exphil:gpu
+docker push YOUR_DOCKERHUB_USER/exphil:gpu
 ```
 
 ### 2. Restart Pod (RunPod Dashboard)
@@ -1083,14 +1083,14 @@ mix run scripts/train_from_replays.exs --temporal --backbone mamba --max-files 5
 
 # Build and push
 docker buildx build -f Dockerfile.gpu -t exphil:gpu .
-docker tag exphil:gpu bradleyfargo/exphil:gpu
-docker push bradleyfargo/exphil:gpu
+docker tag exphil:gpu YOUR_DOCKERHUB_USER/exphil:gpu
+docker push YOUR_DOCKERHUB_USER/exphil:gpu
 
 # Upload replays to cloud storage (one-time)
-rclone sync ~/git/melee/slp b2:exphil-replays --progress
+rclone sync /path/to/slp b2:your-replays-bucket --progress
 
 # Download checkpoints from cloud storage
-rclone sync b2:exphil-replays/checkpoints ~/git/melee/exphil/checkpoints --progress
+rclone sync b2:your-replays-bucket/checkpoints /path/to/exphil/checkpoints --progress
 
 
 # === RUNPOD POD CONFIG ===
@@ -1098,7 +1098,7 @@ rclone sync b2:exphil-replays/checkpoints ~/git/melee/exphil/checkpoints --progr
 # Environment Variables (set in RunPod dashboard):
 # B2_KEY_ID=your_key_id
 # B2_APP_KEY=your_app_key
-# B2_BUCKET=exphil-replays
+# B2_BUCKET=your-replays-bucket
 
 # Start Command (auto-fetch replays on pod start):
 # /app/scripts/fetch_replays.sh && sleep infinity
@@ -1112,7 +1112,7 @@ rclone sync b2:exphil-replays/checkpoints ~/git/melee/exphil/checkpoints --progr
 # Or manual setup:
 # nvidia-smi                    # Check GPU
 # mkdir -p /workspace/{replays,checkpoints,logs}
-# export B2_KEY_ID="..." B2_APP_KEY="..." B2_BUCKET="exphil-replays"
+# export B2_KEY_ID="..." B2_APP_KEY="..." B2_BUCKET="your-replays-bucket"
 # /app/scripts/fetch_replays.sh
 
 # Quick GPU validation (~5 min)

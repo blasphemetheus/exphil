@@ -174,7 +174,7 @@ Before we can understand the model, we need to understand the **training data**.
 
 ```elixir
 replay_dir = Kino.Input.text("Replay Directory",
-  default: "/home/dori/git/melee/replays")
+  default: "./replays")
 |> Kino.render()
 
 max_files = Kino.Input.number("Max Files to Parse", default: 5)

@@ -18,7 +18,7 @@ How to store and sync replay files for RunPod/cloud GPU training.
 
 2. **Create a bucket:**
    - B2 Cloud Storage → Buckets → Create a Bucket
-   - Name: `exphil-replays` (must be globally unique, add random suffix if needed)
+   - Name: `your-replays-bucket` (must be globally unique, add random suffix if needed)
    - Files in Bucket: **Private**
 
 3. **Create application key:**
@@ -43,15 +43,15 @@ How to store and sync replay files for RunPod/cloud GPU training.
 5. **Upload your replays:**
    ```bash
    # Upload Mewtwo replays
-   rclone sync ~/git/melee/slp/mewtwo b2:exphil-replays/mewtwo --progress
+   rclone sync /path/to/slp/mewtwo b2:your-replays-bucket/mewtwo --progress
 
    # Upload all characters (when you have more)
-   rclone sync ~/git/melee/slp b2:exphil-replays --progress
+   rclone sync /path/to/slp b2:your-replays-bucket --progress
    ```
 
 6. **Verify:**
    ```bash
-   rclone ls b2:exphil-replays
+   rclone ls b2:your-replays-bucket
    ```
 
 ### Environment Variables for Pod
@@ -61,7 +61,7 @@ Set these in RunPod pod config or export before running:
 ```bash
 export B2_KEY_ID="your_key_id"
 export B2_APP_KEY="your_application_key"
-export B2_BUCKET="exphil-replays"
+export B2_BUCKET="your-replays-bucket"
 ```
 
 ## Alternative: Cloudflare R2
@@ -75,7 +75,7 @@ export B2_BUCKET="exphil-replays"
 ### Setup
 
 1. Create Cloudflare account, enable R2
-2. Create bucket: `exphil-replays`
+2. Create bucket: `your-replays-bucket`
 3. Create R2 API token with read/write access
 4. Configure rclone:
    ```bash
@@ -92,7 +92,7 @@ export B2_BUCKET="exphil-replays"
 export R2_ACCESS_KEY="your_access_key"
 export R2_SECRET_KEY="your_secret_key"
 export R2_ENDPOINT="https://YOUR_ACCOUNT_ID.r2.cloudflarestorage.com"
-export R2_BUCKET="exphil-replays"
+export R2_BUCKET="your-replays-bucket"
 ```
 
 ## Quick Setup on New Pod
@@ -100,7 +100,7 @@ export R2_BUCKET="exphil-replays"
 If rclone isn't configured, create config and sync in one command:
 
 ```bash
-rclone config create b2 b2 account="$B2_KEY_ID" key="$B2_APP_KEY" && rclone sync b2:exphil-replays /workspace/replays --progress
+rclone config create b2 b2 account="$B2_KEY_ID" key="$B2_APP_KEY" && rclone sync b2:your-replays-bucket /workspace/replays --progress
 ```
 
 Or with credentials inline (not recommended for shared environments):
@@ -159,7 +159,7 @@ services:
     environment:
       - B2_KEY_ID=${B2_KEY_ID}
       - B2_APP_KEY=${B2_APP_KEY}
-      - B2_BUCKET=exphil-replays
+      - B2_BUCKET=your-replays-bucket
     command: >
       bash -c "/app/scripts/fetch_replays.sh &&
                mix run scripts/train_from_replays.exs --preset production --replays /workspace/replays"
@@ -182,11 +182,11 @@ services:
 We use two B2 buckets to separate concerns:
 
 ```
-exphil-replays-blewfargs/       # Replay files (read-mostly)
+your-replays-bucket/       # Replay files (read-mostly)
 ├── greg/                       # Replays by player/character
 └── mewtwo/
 
-exphil-artifacts/               # Training outputs (read/write)
+your-artifacts-bucket/               # Training outputs (read/write)
 ├── checkpoints/                # Current model checkpoints (flat)
 ├── logs/                       # Training logs (flat)
 ├── cache/                      # Embedding caches (flat)
@@ -252,7 +252,7 @@ sync-snapshot
 
 **To pull to local machine:**
 ```bash
-rclone copy b2:exphil-artifacts/checkpoints/ ~/git/melee/exphil/checkpoints/ --progress
+rclone copy b2:your-artifacts-bucket/checkpoints/ /path/to/exphil/checkpoints/ --progress
 ```
 
 ### Important Notes
@@ -266,13 +266,13 @@ rclone copy b2:exphil-artifacts/checkpoints/ ~/git/melee/exphil/checkpoints/ --p
 
 ```bash
 # Upload checkpoints
-rclone copy /app/checkpoints/ b2:exphil-artifacts/checkpoints/ --copy-links --progress
+rclone copy /app/checkpoints/ b2:your-artifacts-bucket/checkpoints/ --copy-links --progress
 
 # Download checkpoints
-rclone copy b2:exphil-artifacts/checkpoints/ /workspace/checkpoints/ --progress
+rclone copy b2:your-artifacts-bucket/checkpoints/ /workspace/checkpoints/ --progress
 
 # Create a snapshot
-rclone copy /workspace/checkpoints/ "b2:exphil-artifacts/snapshots/$(date +%Y-%m-%d)/checkpoints/" --progress
+rclone copy /workspace/checkpoints/ "b2:your-artifacts-bucket/snapshots/$(date +%Y-%m-%d)/checkpoints/" --progress
 ```
 
 ## Quick Reference
@@ -281,10 +281,10 @@ rclone copy /workspace/checkpoints/ "b2:exphil-artifacts/snapshots/$(date +%Y-%m
 # === LOCAL MACHINE ===
 
 # Upload replays to B2
-rclone sync ~/git/melee/slp b2:exphil-replays-blewfargs --progress
+rclone sync /path/to/slp b2:your-replays-bucket --progress
 
 # Download checkpoints from B2
-rclone copy b2:exphil-artifacts/checkpoints/ ~/git/melee/exphil/checkpoints/ --progress
+rclone copy b2:your-artifacts-bucket/checkpoints/ /path/to/exphil/checkpoints/ --progress
 
 # === ON POD ===
 

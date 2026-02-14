@@ -73,7 +73,7 @@ From your local machine:
 ```bash
 rsync -avz --progress -e "ssh -p PORT" \
   root@IP:/workspace/lowtier/ \
-  ~/git/melee/replays/lowtier/
+  /path/to/replays/lowtier/
 ```
 
 ## Expected Output Structure

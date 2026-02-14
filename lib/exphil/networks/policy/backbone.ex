@@ -25,6 +25,19 @@ defmodule ExPhil.Networks.Policy.Backbone do
   | `:retnet` | Retentive Network | O(1) inference, decay-based attention |
   | `:kan` | Kolmogorov-Arnold Networks | Learnable activations, interpretable |
   | `:liquid` | Liquid Neural Networks | Continuous-time ODE dynamics |
+  | `:s4` | Structured State Spaces | Long-range dependencies |
+  | `:s4d` | S4 Diagonal | Faster S4 variant |
+  | `:h3` | Hungry Hungry Hippos | SSM + shift + convolution |
+  | `:performer` | FAVOR+ Linear Attention | O(n) attention approximation |
+  | `:deltanet` | Delta Rule Linear Attention | Associative memory updates |
+  | `:fnet` | Fourier Token Mixing | No attention params, very fast |
+  | `:perceiver` | Perceiver IO | Latent bottleneck cross-attention |
+  | `:ttt` | Test-Time Training | Self-supervised inner loop |
+  | `:hopfield` | Hopfield Networks | Associative memory retrieval |
+  | `:ntm` | Neural Turing Machine | External addressable memory |
+  | `:reservoir` | Echo State Network | Fixed random weights, fast |
+  | `:snn` | Spiking Neural Network | Biologically-inspired, temporal |
+  | `:bayesian` | Bayesian NN | Weight uncertainty estimation |
 
   ## Usage
 
@@ -85,6 +98,19 @@ defmodule ExPhil.Networks.Policy.Backbone do
           | :gla
           | :hgrn
           | :s5
+          | :s4
+          | :s4d
+          | :h3
+          | :performer
+          | :deltanet
+          | :fnet
+          | :perceiver
+          | :ttt
+          | :hopfield
+          | :ntm
+          | :reservoir
+          | :snn
+          | :bayesian
           | :decision_transformer
           | :liquid
           | :kan
@@ -168,6 +194,58 @@ defmodule ExPhil.Networks.Policy.Backbone do
       :s5 ->
         # S5 - Simplified State Space (MIMO SSM)
         build_s5_backbone(embed_size, opts)
+
+      :s4 ->
+        # S4 - Structured State Spaces (Blelloch parallel scan)
+        build_s4_backbone(embed_size, opts)
+
+      :s4d ->
+        # S4D - S4 with diagonal state matrix (faster, simpler)
+        build_s4d_backbone(embed_size, opts)
+
+      :h3 ->
+        # H3 - Hungry Hungry Hippos (SSM + shift + conv)
+        build_h3_backbone(embed_size, opts)
+
+      :performer ->
+        # Performer - FAVOR+ linear attention approximation
+        build_performer_backbone(embed_size, opts)
+
+      :deltanet ->
+        # DeltaNet - Linear attention with delta rule updates
+        build_deltanet_backbone(embed_size, opts)
+
+      :fnet ->
+        # FNet - Fourier transform token mixing (no attention)
+        build_fnet_backbone(embed_size, opts)
+
+      :perceiver ->
+        # Perceiver IO - Latent bottleneck cross-attention
+        build_perceiver_backbone(embed_size, opts)
+
+      :ttt ->
+        # TTT - Test-Time Training (self-supervised inner loop)
+        build_ttt_backbone(embed_size, opts)
+
+      :hopfield ->
+        # Hopfield - Modern continuous Hopfield associative memory
+        build_hopfield_backbone(embed_size, opts)
+
+      :ntm ->
+        # NTM - Neural Turing Machine (external memory)
+        build_ntm_backbone(embed_size, opts)
+
+      :reservoir ->
+        # Reservoir - Echo State Network (fixed random weights)
+        build_reservoir_backbone(embed_size, opts)
+
+      :snn ->
+        # SNN - Spiking Neural Network with surrogate gradients
+        build_snn_backbone(embed_size, opts)
+
+      :bayesian ->
+        # Bayesian NN - Weight uncertainty via reparameterization
+        build_bayesian_backbone(embed_size, opts)
 
       :decision_transformer ->
         # Decision Transformer - Return-conditioned sequence modeling
@@ -327,6 +405,45 @@ defmodule ExPhil.Networks.Policy.Backbone do
 
       :s5 ->
         # S5 Simplified State Space
+        Keyword.get(opts, :hidden_size, 256)
+
+      :s4 ->
+        Keyword.get(opts, :hidden_size, 256)
+
+      :s4d ->
+        Keyword.get(opts, :hidden_size, 256)
+
+      :h3 ->
+        Keyword.get(opts, :hidden_size, 256)
+
+      :performer ->
+        Keyword.get(opts, :hidden_size, 256)
+
+      :deltanet ->
+        Keyword.get(opts, :hidden_size, 256)
+
+      :fnet ->
+        Keyword.get(opts, :hidden_size, 256)
+
+      :perceiver ->
+        Keyword.get(opts, :latent_dim, 256)
+
+      :ttt ->
+        Keyword.get(opts, :hidden_size, 256)
+
+      :hopfield ->
+        Keyword.get(opts, :hidden_size, 256)
+
+      :ntm ->
+        Keyword.get(opts, :hidden_size, 256)
+
+      :reservoir ->
+        Keyword.get(opts, :hidden_size, 256)
+
+      :snn ->
+        Keyword.get(opts, :hidden_size, 256)
+
+      :bayesian ->
         Keyword.get(opts, :hidden_size, 256)
 
       :decision_transformer ->
@@ -703,6 +820,273 @@ defmodule ExPhil.Networks.Policy.Backbone do
       dropout: dropout,
       window_size: window_size,
       seq_len: seq_len
+    )
+  end
+
+  # S4: Structured State Spaces for Sequences (Blelloch parallel scan)
+  defp build_s4_backbone(embed_size, opts) do
+    alias Edifice.SSM.S4
+
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    state_size = Keyword.get(opts, :state_size, 64)
+    num_layers = Keyword.get(opts, :num_layers, 4)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+    window_size = Keyword.get(opts, :window_size, 60)
+    seq_len = Keyword.get(opts, :seq_len, window_size)
+
+    S4.build(
+      embed_size: embed_size,
+      hidden_size: hidden_size,
+      state_size: state_size,
+      num_layers: num_layers,
+      dropout: dropout,
+      window_size: window_size,
+      seq_len: seq_len
+    )
+  end
+
+  # S4D: S4 with diagonal state matrix (faster, simpler)
+  defp build_s4d_backbone(embed_size, opts) do
+    alias Edifice.SSM.S4D
+
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    state_size = Keyword.get(opts, :state_size, 64)
+    num_layers = Keyword.get(opts, :num_layers, 4)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+    window_size = Keyword.get(opts, :window_size, 60)
+    seq_len = Keyword.get(opts, :seq_len, window_size)
+
+    S4D.build(
+      embed_size: embed_size,
+      hidden_size: hidden_size,
+      state_size: state_size,
+      num_layers: num_layers,
+      dropout: dropout,
+      window_size: window_size,
+      seq_len: seq_len
+    )
+  end
+
+  # H3: Hungry Hungry Hippos (SSM + shift + convolution)
+  defp build_h3_backbone(embed_size, opts) do
+    alias Edifice.SSM.H3
+
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    state_size = Keyword.get(opts, :state_size, 64)
+    conv_size = Keyword.get(opts, :conv_size, 4)
+    num_layers = Keyword.get(opts, :num_layers, 4)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+    window_size = Keyword.get(opts, :window_size, 60)
+    seq_len = Keyword.get(opts, :seq_len, window_size)
+
+    H3.build(
+      embed_size: embed_size,
+      hidden_size: hidden_size,
+      state_size: state_size,
+      conv_size: conv_size,
+      num_layers: num_layers,
+      dropout: dropout,
+      window_size: window_size,
+      seq_len: seq_len
+    )
+  end
+
+  # Performer: FAVOR+ linear attention approximation
+  defp build_performer_backbone(embed_size, opts) do
+    alias Edifice.Attention.Performer
+
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    num_features = Keyword.get(opts, :num_features, 64)
+    num_layers = Keyword.get(opts, :num_layers, 4)
+    num_heads = Keyword.get(opts, :num_heads, 4)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+    window_size = Keyword.get(opts, :window_size, 60)
+
+    Performer.build(
+      embed_size: embed_size,
+      hidden_size: hidden_size,
+      num_features: num_features,
+      num_layers: num_layers,
+      num_heads: num_heads,
+      dropout: dropout,
+      window_size: window_size
+    )
+  end
+
+  # DeltaNet: Linear attention with delta rule updates
+  defp build_deltanet_backbone(embed_size, opts) do
+    alias Edifice.Recurrent.DeltaNet
+
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    num_heads = Keyword.get(opts, :num_heads, 4)
+    num_layers = Keyword.get(opts, :num_layers, 4)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+    window_size = Keyword.get(opts, :window_size, 60)
+    seq_len = Keyword.get(opts, :seq_len, window_size)
+
+    DeltaNet.build(
+      embed_size: embed_size,
+      hidden_size: hidden_size,
+      num_heads: num_heads,
+      num_layers: num_layers,
+      dropout: dropout,
+      window_size: window_size,
+      seq_len: seq_len
+    )
+  end
+
+  # FNet: Fourier transform token mixing (no attention parameters)
+  defp build_fnet_backbone(embed_size, opts) do
+    alias Edifice.Attention.FNet
+
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    num_layers = Keyword.get(opts, :num_layers, 4)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+    window_size = Keyword.get(opts, :window_size, 60)
+
+    FNet.build(
+      embed_size: embed_size,
+      hidden_size: hidden_size,
+      num_layers: num_layers,
+      dropout: dropout,
+      window_size: window_size
+    )
+  end
+
+  # Perceiver IO: Latent bottleneck with cross-attention
+  defp build_perceiver_backbone(embed_size, opts) do
+    alias Edifice.Attention.Perceiver
+
+    latent_dim = Keyword.get(opts, :latent_dim, 256)
+    num_latents = Keyword.get(opts, :num_latents, 64)
+    num_layers = Keyword.get(opts, :num_layers, 4)
+    num_cross_layers = Keyword.get(opts, :num_cross_layers, 1)
+    num_heads = Keyword.get(opts, :num_heads, 4)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+
+    Perceiver.build(
+      input_dim: embed_size,
+      latent_dim: latent_dim,
+      num_latents: num_latents,
+      num_layers: num_layers,
+      num_cross_layers: num_cross_layers,
+      num_heads: num_heads,
+      dropout: dropout
+    )
+  end
+
+  # TTT: Test-Time Training with self-supervised inner loop
+  defp build_ttt_backbone(embed_size, opts) do
+    alias Edifice.Recurrent.TTT
+
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    inner_size = Keyword.get(opts, :inner_size, 64)
+    num_layers = Keyword.get(opts, :num_layers, 4)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+    window_size = Keyword.get(opts, :window_size, 60)
+    seq_len = Keyword.get(opts, :seq_len, window_size)
+
+    TTT.build(
+      embed_size: embed_size,
+      hidden_size: hidden_size,
+      inner_size: inner_size,
+      num_layers: num_layers,
+      dropout: dropout,
+      window_size: window_size,
+      seq_len: seq_len
+    )
+  end
+
+  # Hopfield: Modern continuous Hopfield associative memory
+  defp build_hopfield_backbone(embed_size, opts) do
+    alias Edifice.Energy.Hopfield
+
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    num_patterns = Keyword.get(opts, :num_patterns, 64)
+    num_heads = Keyword.get(opts, :num_heads, 4)
+    num_layers = Keyword.get(opts, :num_layers, 4)
+
+    Hopfield.build_associative_memory(
+      input_dim: embed_size,
+      hidden_dim: hidden_size,
+      num_patterns: num_patterns,
+      num_heads: num_heads,
+      num_layers: num_layers
+    )
+  end
+
+  # NTM: Neural Turing Machine with external memory
+  defp build_ntm_backbone(embed_size, opts) do
+    alias Edifice.Memory.NTM
+
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    memory_size = Keyword.get(opts, :memory_size, 128)
+    memory_dim = Keyword.get(opts, :memory_dim, 32)
+    num_heads = Keyword.get(opts, :num_heads, 1)
+
+    NTM.build(
+      input_size: embed_size,
+      memory_size: memory_size,
+      memory_dim: memory_dim,
+      controller_size: hidden_size,
+      num_heads: num_heads,
+      output_size: hidden_size
+    )
+  end
+
+  # Reservoir: Echo State Network with fixed random reservoir weights
+  defp build_reservoir_backbone(embed_size, opts) do
+    alias Edifice.Recurrent.Reservoir
+
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    spectral_radius = Keyword.get(opts, :spectral_radius, 0.9)
+    sparsity = Keyword.get(opts, :sparsity, 0.9)
+    window_size = Keyword.get(opts, :window_size, 60)
+    seq_len = Keyword.get(opts, :seq_len, window_size)
+
+    Reservoir.build(
+      input_size: embed_size,
+      reservoir_size: hidden_size,
+      output_size: hidden_size,
+      spectral_radius: spectral_radius,
+      sparsity: sparsity,
+      seq_len: seq_len
+    )
+  end
+
+  # SNN: Spiking Neural Network with surrogate gradient LIF neurons
+  defp build_snn_backbone(embed_size, opts) do
+    alias Edifice.Neuromorphic.SNN
+
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    num_timesteps = Keyword.get(opts, :num_timesteps, 25)
+    tau = Keyword.get(opts, :tau, 2.0)
+    threshold = Keyword.get(opts, :threshold, 1.0)
+
+    SNN.build(
+      input_size: embed_size,
+      output_size: hidden_size,
+      hidden_sizes: [hidden_size, hidden_size],
+      num_timesteps: num_timesteps,
+      tau: tau,
+      threshold: threshold
+    )
+  end
+
+  # Bayesian NN: Weight uncertainty via reparameterization trick
+  defp build_bayesian_backbone(embed_size, opts) do
+    alias Edifice.Probabilistic.Bayesian
+
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    prior_sigma = Keyword.get(opts, :prior_sigma, 1.0)
+    activation = Keyword.get(opts, :activation, @default_activation)
+
+    Bayesian.build(
+      input_size: embed_size,
+      output_size: hidden_size,
+      hidden_sizes: [hidden_size, hidden_size],
+      activation: activation,
+      prior_sigma: prior_sigma
     )
   end
 

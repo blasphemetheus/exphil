@@ -45,8 +45,8 @@ EOF
   # Set default buckets if not specified
   # B2_REPLAYS = source replay files (read mostly)
   # B2_ARTIFACTS = checkpoints, logs, cache (write frequently)
-  B2_REPLAYS="${B2_REPLAYS:-exphil-replays-blewfargs}"
-  B2_ARTIFACTS="${B2_ARTIFACTS:-exphil-artifacts}"
+  B2_REPLAYS="${B2_REPLAYS:-your-replays-bucket}"
+  B2_ARTIFACTS="${B2_ARTIFACTS:-your-artifacts-bucket}"
   export B2_REPLAYS B2_ARTIFACTS
 
   echo "  Replays bucket:   b2:$B2_REPLAYS"
@@ -183,7 +183,7 @@ cat > /usr/local/bin/sync-checkpoints-up << 'SCRIPT'
 # rclone skips identical files automatically.
 # Use sync-snapshot for dated backups.
 
-B2_ARTIFACTS="${B2_ARTIFACTS:-exphil-artifacts}"
+B2_ARTIFACTS="${B2_ARTIFACTS:-your-artifacts-bucket}"
 
 if [ -d "/app/checkpoints" ] && [ "$(ls -A /app/checkpoints 2>/dev/null)" ]; then
   CKPT_DIR="/app/checkpoints"
@@ -204,7 +204,7 @@ cat > /usr/local/bin/sync-logs-up << 'SCRIPT'
 #!/bin/bash
 # Upload local logs to B2 (flat structure)
 
-B2_ARTIFACTS="${B2_ARTIFACTS:-exphil-artifacts}"
+B2_ARTIFACTS="${B2_ARTIFACTS:-your-artifacts-bucket}"
 
 if [ -d "/app/logs" ] && [ "$(ls -A /app/logs 2>/dev/null)" ]; then
   LOGS_DIR="/app/logs"
@@ -225,7 +225,7 @@ cat > /usr/local/bin/sync-cache-up << 'SCRIPT'
 #!/bin/bash
 # Upload local cache to B2 (flat structure)
 
-B2_ARTIFACTS="${B2_ARTIFACTS:-${B2_BUCKET:-exphil-artifacts}}"
+B2_ARTIFACTS="${B2_ARTIFACTS:-${B2_BUCKET:-your-artifacts-bucket}}"
 
 if [ -d "/workspace/cache" ] && [ "$(ls -A /workspace/cache 2>/dev/null)" ]; then
   CACHE_DIR="/workspace/cache"
@@ -248,7 +248,7 @@ cat > /usr/local/bin/sync-cache-down << 'SCRIPT'
 # Download cache from B2
 # Usage: sync-cache-down [--snapshot YYYY-MM-DD]
 
-B2_ARTIFACTS="${B2_ARTIFACTS:-exphil-artifacts}"
+B2_ARTIFACTS="${B2_ARTIFACTS:-your-artifacts-bucket}"
 mkdir -p /workspace/cache
 
 if [ "$1" = "--snapshot" ] && [ -n "$2" ]; then
@@ -291,7 +291,7 @@ cat > /usr/local/bin/sync-snapshot << 'SCRIPT'
 #
 # Creates point-in-time backups in snapshots/YYYY-MM-DD/
 
-B2_ARTIFACTS="${B2_ARTIFACTS:-exphil-artifacts}"
+B2_ARTIFACTS="${B2_ARTIFACTS:-your-artifacts-bucket}"
 DATE="${1:-$(date +%Y-%m-%d)}"
 
 echo "Creating snapshot for $DATE..."
@@ -318,7 +318,7 @@ chmod +x /usr/local/bin/sync-snapshot
 # List snapshots
 cat > /usr/local/bin/list-snapshots << 'SCRIPT'
 #!/bin/bash
-B2_ARTIFACTS="${B2_ARTIFACTS:-exphil-artifacts}"
+B2_ARTIFACTS="${B2_ARTIFACTS:-your-artifacts-bucket}"
 echo "Snapshots on B2:"
 rclone lsd "b2:$B2_ARTIFACTS/snapshots/" 2>/dev/null | awk '{print "  " $NF}' || echo "  (none)"
 SCRIPT
@@ -333,7 +333,7 @@ cat > /usr/local/bin/sync-checkpoints-down << 'SCRIPT'
 # Default: download from checkpoints/ (flat)
 # --snapshot YYYY-MM-DD: download from a specific snapshot
 
-B2_ARTIFACTS="${B2_ARTIFACTS:-exphil-artifacts}"
+B2_ARTIFACTS="${B2_ARTIFACTS:-your-artifacts-bucket}"
 mkdir -p /workspace/checkpoints
 
 if [ "$1" = "--snapshot" ] && [ -n "$2" ]; then
@@ -352,7 +352,7 @@ cat > /usr/local/bin/list-checkpoints << 'SCRIPT'
 # List checkpoints on B2 or locally
 # Usage: list-checkpoints [--local | --remote]
 
-B2_ARTIFACTS="${B2_ARTIFACTS:-exphil-artifacts}"
+B2_ARTIFACTS="${B2_ARTIFACTS:-your-artifacts-bucket}"
 
 if [ "$1" = "--local" ]; then
   echo "Local checkpoints (/workspace/checkpoints/):"
@@ -385,7 +385,7 @@ echo ""
 echo "  list-checkpoints              # List checkpoints on B2"
 echo "  list-checkpoints --local      # List local checkpoints"
 echo ""
-echo "Buckets: B2_REPLAYS=${B2_REPLAYS:-exphil-replays-blewfargs} B2_ARTIFACTS=${B2_ARTIFACTS:-exphil-artifacts}"
+echo "Buckets: B2_REPLAYS=${B2_REPLAYS:-your-replays-bucket} B2_ARTIFACTS=${B2_ARTIFACTS:-your-artifacts-bucket}"
 echo ""
 
 # Run whatever command was passed (or default to bash)
