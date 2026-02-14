@@ -1,0 +1,19 @@
+# PyTorch + Triton GPU Acceleration
+# Used by ExPhil.Bridge.PyTorchPort (selective scan) and
+# ExPhil.Bridge.FlashAttentionPort (flash attention)
+#
+# These provide ~10x speedup for selective scan (5ms vs 55ms)
+# but are NOT required for training -- pure Axon/EXLA works fine.
+#
+# Install with: pip install -r requirements-gpu-accel.txt
+# Requires: CUDA 12.4+ and ~6GB disk space
+
+# Base dependencies first
+-r requirements.txt
+
+# PyTorch with CUDA 12.4 support
+--extra-index-url https://download.pytorch.org/whl/cu124
+torch>=2.4.0
+
+# Triton for custom GPU kernels
+triton>=3.0.0

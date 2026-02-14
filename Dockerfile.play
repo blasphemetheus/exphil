@@ -1,22 +1,28 @@
 # syntax=docker/dockerfile:1.4
-# ExPhil GPU Training Dockerfile
-# Multi-stage build for cloud GPU training (RunPod, Lambda Labs, etc.)
+# ExPhil Dolphin Play Dockerfile
+# Full environment for live Melee play via Dolphin/Slippi with GPU acceleration.
 #
-# Supports: RTX 4090 (Ada Lovelace), RTX 5090 (Blackwell), and other CUDA 12+ GPUs
-# CUDA 12.6+ required for Blackwell architecture (Compute Capability 12.0)
+# Includes everything from Dockerfile.gpu PLUS:
+# - PyTorch + Triton for GPU-accelerated selective scan and FlashAttention bridges
+# - FlashAttention CUDA NIF support
+# - Full Python stack for libmelee/Dolphin integration
 #
 # Build:
-#   docker buildx build -f Dockerfile.gpu -t exphil:gpu .
+#   docker buildx build -f Dockerfile.play -t exphil:play .
 #
 # Override defaults for your fork:
-#   docker buildx build -f Dockerfile.gpu \
+#   docker buildx build -f Dockerfile.play \
 #     --build-arg GIT_REPO=https://github.com/YOUR_USER/exphil.git \
-#     -t exphil:gpu .
+#     -t exphil:play .
 #
-# Optimizations:
-# - BuildKit cache mounts for mix/hex/pip/cargo (huge speedup for incremental builds)
-# - Combined RUN layers to reduce image size
-# - Parallel pip installs
+# Run with Dolphin:
+#   docker run --gpus all -it \
+#     -v /path/to/dolphin:/dolphin:ro \
+#     -v /path/to/melee.iso:/melee.iso:ro \
+#     exphil:play \
+#     mix run scripts/play_dolphin_async.exs \
+#       --policy /app/checkpoints/policy.bin \
+#       --dolphin /dolphin --iso /melee.iso
 
 # =============================================================================
 # Stage 1: Build environment
@@ -60,7 +66,7 @@ WORKDIR /app
 COPY mix.exs mix.lock ./
 COPY config ./config
 COPY native ./native
-COPY priv/python/requirements.txt ./priv/python/
+COPY priv/python/requirements.txt priv/python/requirements-gpu-accel.txt ./priv/python/
 
 # Install Elixir dependencies with cache mounts
 ENV MIX_ENV=prod
@@ -69,12 +75,12 @@ ENV HEX_HTTP_CONCURRENCY=4
 ENV HEX_HTTP_TIMEOUT=120
 ENV XLA_TARGET=cuda12
 ENV EXLA_TARGET=cuda
+# Enable CUDA for FlashAttention NIF (compiles CUDA kernels with nvcc)
+ENV FLASH_ATTENTION_CUDA=1
 # Add CUDA stubs to library path for EXLA NIF loading during compilation
-# (actual libcuda.so.1 is provided by GPU driver at runtime)
 ENV LD_LIBRARY_PATH=/usr/local/cuda/lib64/stubs:${LD_LIBRARY_PATH}
 
 # Create CUDA stub symlink for EXLA NIF compilation
-# The stubs provide libcuda.so for linking, real driver provides libcuda.so.1 at runtime
 RUN ln -sf /usr/local/cuda/lib64/stubs/libcuda.so /usr/local/cuda/lib64/stubs/libcuda.so.1
 
 RUN --mount=type=cache,target=/root/.mix \
@@ -82,9 +88,9 @@ RUN --mount=type=cache,target=/root/.mix \
     mix local.hex --force && mix local.rebar --force && \
     mix deps.get --only prod
 
-# Install Python dependencies with cache mount and parallel downloads
+# Install FULL Python dependencies including PyTorch + Triton (~6GB)
 RUN --mount=type=cache,target=/root/.cache/pip \
-    python3 -m pip install -r priv/python/requirements.txt
+    python3 -m pip install -r priv/python/requirements-gpu-accel.txt
 
 # Compile Rust NIF and Elixir dependencies with cache mounts
 RUN --mount=type=cache,target=/root/.cargo/registry \
@@ -111,8 +117,6 @@ RUN mix compile
 # =============================================================================
 # Stage 2: Runtime environment
 # =============================================================================
-# Use devel image (not runtime) to include ptxas/nvlink for JIT compilation
-# Required for newer GPUs like RTX 5090 (Blackwell) where XLA needs runtime PTX compilation
 FROM nvidia/cuda:12.6.3-devel-ubuntu22.04 AS runtime
 
 ENV DEBIAN_FRONTEND=noninteractive
@@ -145,12 +149,12 @@ COPY --from=builder /root/.cargo /root/.cargo
 COPY --from=builder /root/.rustup /root/.rustup
 ENV PATH="/root/.cargo/bin:${PATH}"
 
-# Copy Python packages from builder
+# Copy Python packages from builder (includes PyTorch + Triton)
 COPY --from=builder /usr/local/lib/python3.11/dist-packages /usr/local/lib/python3.11/dist-packages
 
 WORKDIR /app
 
-# Copy compiled application from builder (combined for efficiency)
+# Copy compiled application from builder
 COPY --from=builder /app/_build /app/_build
 COPY --from=builder /app/deps /app/deps
 COPY --from=builder /app/config /app/config
@@ -163,7 +167,7 @@ COPY --from=builder /app/mix.exs /app/mix.lock /app/
 # Git repo URL for `git pull` support inside container (override with --build-arg)
 ARG GIT_REPO=https://github.com/blasphemetheus/exphil.git
 
-# Initialize git repo + setup mix + create dirs (combined into single layer)
+# Initialize git repo + setup mix + create dirs
 RUN git init -b main && \
     git remote add origin ${GIT_REPO} && \
     git fetch origin main && \
@@ -183,8 +187,8 @@ ENV XLA_TARGET=cuda12
 ENV EXLA_TARGET=cuda
 ENV CUDA_VISIBLE_DEVICES=0
 ENV JAX_COMPILATION_CACHE_DIR=/workspace/jax_cache
-# Entrypoint handles rclone config from env vars
-ENTRYPOINT ["/app/scripts/runpod_entrypoint.sh"]
+# Enable CUDA for FlashAttention NIF recompilation
+ENV FLASH_ATTENTION_CUDA=1
 
-# Keep container running for interactive use
-CMD ["sleep", "infinity"]
+# Default: interactive shell (mount Dolphin + ISO to play)
+CMD ["bash"]
