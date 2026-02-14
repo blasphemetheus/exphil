@@ -21,7 +21,7 @@ defmodule ExPhil.Training.Utils do
       iex> Utils.ensure_model_state(%{"layer" => %{"kernel" => tensor}})
       %Axon.ModelState{data: %{"layer" => %{"kernel" => tensor}}, state: %{}}
   """
-  @spec ensure_model_state(Axon.ModelState.t() | map()) :: Axon.ModelState.t()
+  @spec ensure_model_state(%Axon.ModelState{} | map()) :: %Axon.ModelState{}
   def ensure_model_state(%Axon.ModelState{} = state), do: state
 
   def ensure_model_state(map) when is_map(map) do

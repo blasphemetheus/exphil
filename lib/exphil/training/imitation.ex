@@ -90,7 +90,7 @@ defmodule ExPhil.Training.Imitation do
   @type t :: %__MODULE__{
           policy_model: Axon.t(),
           policy_params: map(),
-          optimizer: Polaris.Updates.t(),
+          optimizer: term(),
           optimizer_state: map(),
           embed_config: map(),
           config: map(),

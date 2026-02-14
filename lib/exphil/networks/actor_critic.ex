@@ -404,7 +404,7 @@ defmodule ExPhil.Networks.ActorCritic do
   @doc """
   Create an optimizer for training.
   """
-  @spec create_optimizer(keyword()) :: Polaris.Updates.t()
+  @spec create_optimizer(keyword()) :: term()
   def create_optimizer(opts \\ []) do
     learning_rate = Keyword.get(opts, :learning_rate, 3.0e-4)
     max_grad_norm = Keyword.get(opts, :max_grad_norm, 0.5)

@@ -119,11 +119,13 @@ defmodule ExPhil.Data.Peppi do
   defmodule ReplayMeta do
     @moduledoc "Replay metadata"
     defstruct [:path, :stage, :duration_frames, :players]
+    @type t :: %__MODULE__{}
   end
 
   defmodule ParsedReplay do
     @moduledoc "Complete parsed replay"
     defstruct [:frames, :metadata]
+    @type t :: %__MODULE__{}
   end
 
   # ============================================================================
