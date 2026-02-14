@@ -36,7 +36,49 @@ defmodule ExPhil.Training.Config do
 
   # Training option allowlists (used by Parser and YAML modules)
   # Note: :hybrid is an alias for :lstm_hybrid (kept for backwards compatibility)
-  @valid_backbones [:lstm, :gru, :mamba, :attention, :sliding_window, :lstm_hybrid, :hybrid, :jamba]
+  @valid_backbones [
+    :mlp,
+    :lstm,
+    :gru,
+    :mamba,
+    :mamba_nif,
+    :mamba_cumsum,
+    :mamba_hillis_steele,
+    :mamba_ssd,
+    :gated_ssm,
+    :attention,
+    :sliding_window,
+    :lstm_hybrid,
+    :hybrid,
+    :jamba,
+    :zamba,
+    :griffin,
+    :hawk,
+    :xlstm,
+    :xlstm_slstm,
+    :xlstm_mlstm,
+    :retnet,
+    :rwkv,
+    :gla,
+    :hgrn,
+    :s5,
+    :s4,
+    :s4d,
+    :h3,
+    :performer,
+    :deltanet,
+    :fnet,
+    :perceiver,
+    :ttt,
+    :hopfield,
+    :ntm,
+    :reservoir,
+    :snn,
+    :bayesian,
+    :decision_transformer,
+    :liquid,
+    :kan
+  ]
   @valid_optimizers [:adam, :adamw, :lamb, :radam, :sgd, :rmsprop]
   @valid_lr_schedules [:constant, :cosine, :cosine_restarts, :exponential, :linear]
   # Policy types: how actions are predicted
@@ -903,7 +945,7 @@ defmodule ExPhil.Training.Config do
 
   # Get only the options that were explicitly provided via CLI
   defp get_cli_overrides(args) do
-    valid_backbones = @valid_backbones ++ [:mlp]
+    valid_backbones = @valid_backbones
 
     []
     |> maybe_add_override(args, "--epochs", :epochs, &String.to_integer/1)

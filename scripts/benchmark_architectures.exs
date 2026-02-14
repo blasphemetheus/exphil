@@ -25,13 +25,14 @@
 #   --quiet, -q                   Suppress XLA/CUDA warnings and Logger noise
 #
 # Available architectures:
-#   Basic: mlp, gated_ssm
-#   Recurrent: lstm, gru, lstm_hybrid
-#   SSM: mamba, mamba_ssd, s5
-#   Linear Attention: rwkv, gla, hgrn
-#   Hybrid: jamba, zamba
-#   Transformer: sliding_window (also: attention)
-#   Other: liquid, decision_transformer
+#   Basic: mlp, gated_ssm, kan
+#   Recurrent: lstm, gru, lstm_hybrid, reservoir, deltanet, ttt
+#   SSM: mamba, mamba_ssd, s4, s4d, s5, h3
+#   Linear Attention: rwkv, gla, hgrn, retnet, performer, fnet
+#   Hybrid: jamba, zamba, griffin, hawk, xlstm
+#   Transformer: sliding_window (also: attention), perceiver
+#   Memory: hopfield, ntm
+#   Other: liquid, decision_transformer, snn, bayesian
 #
 # Note: mamba_nif excluded (inference-only, can't train - gradients don't flow through NIF)
 # Note: "attention" is an alias for "sliding_window" (same implementation)
@@ -355,6 +356,170 @@ all_architectures = [
      dropout: 0.1
    ]},
 
+  # === SSM Architectures (classic) ===
+  {:s4, "S4 (Blelloch Scan)",
+   [
+     temporal: true,
+     backbone: :s4,
+     window_size: 30,
+     num_layers: 2,
+     hidden_sizes: [256, 256],
+     batch_size: 64,
+     dropout: 0.1
+   ]},
+  {:s4d, "S4D (Diagonal SSM)",
+   [
+     temporal: true,
+     backbone: :s4d,
+     window_size: 30,
+     num_layers: 2,
+     hidden_sizes: [256, 256],
+     batch_size: 64,
+     dropout: 0.1
+   ]},
+  {:h3, "H3 (Hungry Hippos)",
+   [
+     temporal: true,
+     backbone: :h3,
+     window_size: 30,
+     num_layers: 2,
+     hidden_sizes: [256, 256],
+     batch_size: 64,
+     dropout: 0.1
+   ]},
+
+  # === Hybrid RNN+Attention ===
+  {:griffin, "Griffin (RG-LRU+Attn)",
+   [
+     temporal: true,
+     backbone: :griffin,
+     window_size: 30,
+     num_layers: 2,
+     num_heads: 4,
+     hidden_sizes: [256, 256],
+     batch_size: 64,
+     dropout: 0.1
+   ]},
+  {:hawk, "Hawk (Pure RG-LRU)",
+   [
+     temporal: true,
+     backbone: :hawk,
+     window_size: 30,
+     num_layers: 2,
+     hidden_sizes: [256, 256],
+     batch_size: 64,
+     dropout: 0.1
+   ]},
+  {:xlstm, "xLSTM (Mixed sLSTM+mLSTM)",
+   [
+     temporal: true,
+     backbone: :xlstm,
+     window_size: 30,
+     num_layers: 2,
+     num_heads: 4,
+     hidden_sizes: [256, 256],
+     batch_size: 64,
+     dropout: 0.1
+   ]},
+
+  # === Linear Attention (additional) ===
+  {:retnet, "RetNet (Multi-Scale Decay)",
+   [
+     temporal: true,
+     backbone: :retnet,
+     window_size: 30,
+     num_layers: 2,
+     num_heads: 4,
+     hidden_sizes: [256, 256],
+     batch_size: 64,
+     dropout: 0.1
+   ]},
+  {:performer, "Performer (FAVOR+)",
+   [
+     temporal: true,
+     backbone: :performer,
+     window_size: 30,
+     num_layers: 2,
+     num_heads: 4,
+     hidden_sizes: [256, 256],
+     batch_size: 64,
+     dropout: 0.1
+   ]},
+  {:deltanet, "DeltaNet (Delta Rule)",
+   [
+     temporal: true,
+     backbone: :deltanet,
+     window_size: 30,
+     num_layers: 2,
+     num_heads: 4,
+     hidden_sizes: [256, 256],
+     batch_size: 64,
+     dropout: 0.1
+   ]},
+  {:fnet, "FNet (Fourier Mixing)",
+   [
+     temporal: true,
+     backbone: :fnet,
+     window_size: 30,
+     num_layers: 2,
+     hidden_sizes: [256, 256],
+     batch_size: 64,
+     dropout: 0.1
+   ]},
+
+  # === Attention Variants ===
+  {:perceiver, "Perceiver IO (Latent Bottleneck)",
+   [
+     temporal: true,
+     backbone: :perceiver,
+     window_size: 30,
+     num_layers: 2,
+     num_heads: 4,
+     hidden_sizes: [256, 256],
+     batch_size: 64,
+     dropout: 0.1
+   ]},
+
+  # === Recurrent (additional) ===
+  {:ttt, "TTT (Test-Time Training)",
+   [
+     temporal: true,
+     backbone: :ttt,
+     window_size: 30,
+     num_layers: 2,
+     hidden_sizes: [256, 256],
+     batch_size: 64,
+     dropout: 0.1
+   ]},
+  {:reservoir, "Reservoir (Echo State)",
+   [
+     temporal: true,
+     backbone: :reservoir,
+     window_size: 30,
+     hidden_sizes: [256, 256],
+     batch_size: 64
+   ]},
+
+  # === Memory Architectures ===
+  {:hopfield, "Hopfield (Associative Memory)",
+   [
+     temporal: true,
+     backbone: :hopfield,
+     window_size: 30,
+     num_layers: 2,
+     num_heads: 4,
+     hidden_sizes: [256, 256],
+     batch_size: 64
+   ]},
+  {:ntm, "NTM (Neural Turing Machine)",
+   [
+     temporal: true,
+     backbone: :ntm,
+     window_size: 30,
+     hidden_sizes: [256, 256],
+     batch_size: 32
+   ]},
+
   # === Other Architectures ===
   {:liquid, "Liquid (Neural ODE)",
    [
@@ -378,6 +543,32 @@ all_architectures = [
      # Transformer-based, needs gradient clipping
      max_grad_norm: 1.0,
      learning_rate: 1.0e-4
+   ]},
+  {:kan, "KAN (Kolmogorov-Arnold)",
+   [
+     temporal: true,
+     backbone: :kan,
+     window_size: 30,
+     num_layers: 2,
+     hidden_sizes: [256, 256],
+     batch_size: 64,
+     dropout: 0.1
+   ]},
+  {:snn, "SNN (Spiking Neural Network)",
+   [
+     temporal: true,
+     backbone: :snn,
+     window_size: 30,
+     hidden_sizes: [256, 256],
+     batch_size: 64
+   ]},
+  {:bayesian, "Bayesian NN (Weight Uncertainty)",
+   [
+     temporal: true,
+     backbone: :bayesian,
+     window_size: 30,
+     hidden_sizes: [256, 256],
+     batch_size: 64
    ]}
 ]
 
