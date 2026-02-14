@@ -1,15 +1,24 @@
+# syntax=docker/dockerfile:1.4
 # ExPhil CPU Training Dockerfile
 # For local testing without GPU
 #
 # Build:
 #   docker buildx build -f Dockerfile.cpu -t exphil:cpu .
+#
+# Override defaults for your fork:
+#   docker buildx build -f Dockerfile.cpu \
+#     --build-arg GIT_REPO=https://github.com/YOUR_USER/exphil.git \
+#     -t exphil:cpu .
 
+# =============================================================================
+# Stage 1: Build environment
+# =============================================================================
 FROM ubuntu:22.04 AS builder
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV LANG=C.UTF-8
 
-# Install system dependencies
+# Install system dependencies (single layer)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential gcc g++ make autoconf libtool git curl ca-certificates unzip \
     libblas-dev liblapack-dev libopenblas-dev \
@@ -17,32 +26,33 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libncurses5-dev libssl-dev libwxgtk3.0-gtk3-dev libsctp-dev libodbc1 \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Rust
-RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+# Install Rust (for Peppi NIF) with cache mount
+RUN --mount=type=cache,target=/root/.cargo/registry \
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 ENV PATH="/root/.cargo/bin:${PATH}"
 
-# Install asdf
+# Install asdf + Erlang + Elixir in single layer
 ENV ASDF_DIR="/root/.asdf"
 RUN git clone https://github.com/asdf-vm/asdf.git $ASDF_DIR --branch v0.14.0
 ENV PATH="${ASDF_DIR}/bin:${ASDF_DIR}/shims:${PATH}"
 
-# Install Erlang and Elixir
-RUN asdf plugin add erlang && asdf plugin add elixir
-RUN asdf install erlang 27.0 && asdf global erlang 27.0
-RUN asdf install elixir 1.18.1-otp-27 && asdf global elixir 1.18.1-otp-27
+RUN asdf plugin add erlang && asdf plugin add elixir && \
+    asdf install erlang 27.0 && asdf global erlang 27.0 && \
+    asdf install elixir 1.18.1-otp-27 && asdf global elixir 1.18.1-otp-27
 
 # Set up Python
-RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1 \
-    && python3 -m pip install --upgrade pip
+RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1 && \
+    python3 -m pip install --upgrade pip
 
 WORKDIR /app
 
-# Copy and build deps
+# Copy dependency files first (for layer caching)
 COPY mix.exs mix.lock ./
 COPY config ./config
 COPY native ./native
 COPY priv/python/requirements.txt ./priv/python/
 
+# Install Elixir dependencies with cache mounts
 ENV MIX_ENV=prod
 ENV DOCKER_BUILD=1
 ENV XLA_TARGET=cpu
@@ -50,18 +60,31 @@ ENV EXLA_TARGET=host
 ENV HEX_HTTP_CONCURRENCY=1
 ENV HEX_HTTP_TIMEOUT=120
 
-RUN mix local.hex --force && mix local.rebar --force
-RUN mix deps.get --only prod || mix deps.get --only prod
-RUN python3 -m pip install --no-cache-dir -r priv/python/requirements.txt
-RUN mix deps.compile
+RUN --mount=type=cache,target=/root/.mix \
+    --mount=type=cache,target=/root/.hex \
+    mix local.hex --force && mix local.rebar --force && \
+    mix deps.get --only prod
 
+# Install Python dependencies with cache mount
+RUN --mount=type=cache,target=/root/.cache/pip \
+    python3 -m pip install -r priv/python/requirements.txt
+
+# Compile Rust NIF and Elixir dependencies with cache mounts
+RUN --mount=type=cache,target=/root/.cargo/registry \
+    mix deps.compile
+
+# Copy application code
 COPY lib ./lib
 COPY scripts ./scripts
 COPY priv ./priv
+COPY test ./test
 
+# Compile application
 RUN mix compile
 
-# Runtime stage
+# =============================================================================
+# Stage 2: Runtime environment
+# =============================================================================
 FROM ubuntu:22.04 AS runtime
 
 ENV DEBIAN_FRONTEND=noninteractive
@@ -69,31 +92,50 @@ ENV LANG=C.UTF-8
 ENV MIX_ENV=prod
 ENV EXLA_TARGET=host
 
+# Install runtime dependencies (single layer)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libncurses6 libssl3 libstdc++6 libsctp1 \
     libopenblas0 liblapack3 \
     python3.11 python3-pip \
+    git curl \
     && rm -rf /var/lib/apt/lists/*
 
+# Set up Python
 RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1
 
+# Copy asdf and installed versions from builder
 ENV ASDF_DIR="/root/.asdf"
 COPY --from=builder /root/.asdf /root/.asdf
 ENV PATH="${ASDF_DIR}/bin:${ASDF_DIR}/shims:${PATH}"
+
+# Set asdf versions for runtime
 RUN asdf global erlang 27.0 && asdf global elixir 1.18.1-otp-27
 
+# Copy Python packages from builder
 COPY --from=builder /usr/local/lib/python3.11/dist-packages /usr/local/lib/python3.11/dist-packages
 
 WORKDIR /app
+
+# Copy compiled application from builder
 COPY --from=builder /app/_build /app/_build
 COPY --from=builder /app/deps /app/deps
 COPY --from=builder /app/config /app/config
 COPY --from=builder /app/lib /app/lib
 COPY --from=builder /app/scripts /app/scripts
 COPY --from=builder /app/priv /app/priv
+COPY --from=builder /app/test /app/test
 COPY --from=builder /app/mix.exs /app/mix.lock /app/
 
-RUN mix local.hex --force && mix local.rebar --force
-RUN mkdir -p /app/replays /app/checkpoints
+# Git repo URL for `git pull` support inside container (override with --build-arg)
+ARG GIT_REPO=https://github.com/blasphemetheus/exphil.git
+
+# Initialize git repo + setup mix + create dirs
+RUN git init -b main && \
+    git remote add origin ${GIT_REPO} && \
+    git fetch origin main && \
+    git reset --mixed origin/main && \
+    git branch --set-upstream-to=origin/main main && \
+    mix local.hex --force && mix local.rebar --force && \
+    mkdir -p /app/replays /app/checkpoints
 
 CMD ["mix", "run", "scripts/train_from_replays.exs", "--help"]

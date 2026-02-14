@@ -134,7 +134,7 @@ def serialize_player(player_frame, port: int) -> Dict[str, Any]:
         "speed_y_self": float(post.speed_y_self) if post.speed_y_self is not None else 0.0,
         "speed_x_attack": float(post.speed_x_attack) if post.speed_x_attack is not None else 0.0,
         "speed_y_attack": float(post.speed_y_attack) if post.speed_y_attack is not None else 0.0,
-        "nana": None,  # TODO: Handle Ice Climbers
+        "nana": None,  # Nana state handled in Elixir embedding layer
         "controller_state": serialize_controller(pre) if pre else None,
     }
 
