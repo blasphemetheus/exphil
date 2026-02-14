@@ -218,10 +218,19 @@ defmodule ExPhil.MixProject do
   end
 
   defp edifice_dep do
-    if System.get_env("DOCKER_BUILD") do
-      [github: "blasphemetheus/edifice"]
-    else
-      [path: "../edifice"]
+    cond do
+      # Explicit override via EDIFICE_PATH (for custom local checkouts)
+      path = System.get_env("EDIFICE_PATH") ->
+        [path: path]
+
+      # Docker builds pull from GitHub (override repo with EDIFICE_REPO env var)
+      System.get_env("DOCKER_BUILD") ->
+        repo = System.get_env("EDIFICE_REPO") || "blasphemetheus/edifice"
+        [github: repo]
+
+      # Local development: sibling directory
+      true ->
+        [path: "../edifice"]
     end
   end
 

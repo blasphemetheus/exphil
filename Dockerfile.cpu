@@ -1,5 +1,8 @@
 # ExPhil CPU Training Dockerfile
 # For local testing without GPU
+#
+# Build:
+#   docker buildx build -f Dockerfile.cpu -t exphil:cpu .
 
 FROM ubuntu:22.04 AS builder
 
@@ -41,6 +44,7 @@ COPY native ./native
 COPY priv/python/requirements.txt ./priv/python/
 
 ENV MIX_ENV=prod
+ENV DOCKER_BUILD=1
 ENV XLA_TARGET=cpu
 ENV EXLA_TARGET=host
 ENV HEX_HTTP_CONCURRENCY=1

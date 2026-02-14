@@ -5,6 +5,14 @@
 # Supports: RTX 4090 (Ada Lovelace), RTX 5090 (Blackwell), and other CUDA 12+ GPUs
 # CUDA 12.6+ required for Blackwell architecture (Compute Capability 12.0)
 #
+# Build:
+#   docker buildx build -f Dockerfile.gpu -t exphil:gpu .
+#
+# Override defaults for your fork:
+#   docker buildx build -f Dockerfile.gpu \
+#     --build-arg GIT_REPO=https://github.com/YOUR_USER/exphil.git \
+#     -t exphil:gpu .
+#
 # Optimizations:
 # - BuildKit cache mounts for mix/hex/pip/cargo (huge speedup for incremental builds)
 # - Combined RUN layers to reduce image size
@@ -56,6 +64,7 @@ COPY priv/python/requirements.txt ./priv/python/
 
 # Install Elixir dependencies with cache mounts
 ENV MIX_ENV=prod
+ENV DOCKER_BUILD=1
 ENV HEX_HTTP_CONCURRENCY=4
 ENV HEX_HTTP_TIMEOUT=120
 ENV XLA_TARGET=cuda12
@@ -153,9 +162,12 @@ COPY --from=builder /app/priv /app/priv
 COPY --from=builder /app/test /app/test
 COPY --from=builder /app/mix.exs /app/mix.lock /app/
 
+# Git repo URL for `git pull` support inside container (override with --build-arg)
+ARG GIT_REPO=https://github.com/blasphemetheus/exphil.git
+
 # Initialize git repo + setup mix + create dirs (combined into single layer)
 RUN git init -b main && \
-    git remote add origin https://github.com/blasphemetheus/exphil.git && \
+    git remote add origin ${GIT_REPO} && \
     git fetch origin main && \
     git reset --mixed origin/main && \
     git branch --set-upstream-to=origin/main main && \
