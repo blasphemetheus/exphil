@@ -1,6 +1,6 @@
-# ExPhil - Elixir Phil
+# ExPhil - Neural Network Architecture Lab for Melee AI
 
-ExPhil is an Elixir-based successor to slippi-ai, creating high-ELO playable bots for lower-tier Melee characters (Mewtwo, G&W, Link, Ganondorf, Zelda, Ice Climbers).
+ExPhil is an Elixir-based platform for experimenting with neural network architectures for Super Smash Bros. Melee AI agents. It supports 30+ backbone architectures (via the [Edifice](https://github.com/blasphemetheus/edifice) companion library), all implemented in Elixir using Nx/Axon. The long-term goal is competitive bots for lower-tier characters (Mewtwo, Ganondorf, Link, Zelda, Ice Climbers, G&W), but high-tier replay data drives current architecture iteration.
 
 ## Quick Reference
 
@@ -46,11 +46,10 @@ ExPhil is an Elixir-based successor to slippi-ai, creating high-ELO playable bot
 **Test coverage:** 2469 tests passing
 
 **Completed:**
-- Stage embedding modes (full 64-dim, compact 7-dim, or learned embedding)
-- Learned character embeddings (33 chars → 64-dim trainable, saves 64 dims)
+- 30+ backbone architectures: MLP, LSTM, GRU, Mamba, Griffin, xLSTM, RetNet, RWKV, KAN, Liquid, Jamba, Attention, Zamba, Mamba-2, GatedSSM, S4, S4D, S5, H3, Performer, DeltaNet, FNet, Perceiver, TTT, Hopfield, NTM, Reservoir, SNN, Bayesian, GLA, HGRN, Decision Transformer
+- 4 policy types: Standard (autoregressive heads), Diffusion (DDPM), ACT (CVAE chunking), Flow Matching (ODE-based)
+- Learned embeddings: action/character/stage (288 dims default, 6x more efficient than one-hot)
 - Imitation learning (single-frame + temporal)
-- All backbones: MLP, LSTM, GRU, Mamba, Griffin/Hawk, xLSTM, RetNet, RWKV, KAN, Liquid, Jamba, attention
-- Policy types: Standard (autoregressive heads), Diffusion (DDPM), ACT (CVAE chunking), Flow Matching (ODE-based)
 - Test-time compute scaling: Best-of-N, beam search, ensemble inference, temperature sweep, adaptive scaling
 - PPO trainer with clipped objective
 - Dolphin integration (sync + async runners)
@@ -73,20 +72,15 @@ ExPhil is an Elixir-based successor to slippi-ai, creating high-ELO playable bot
 
 ## Immediate Priorities
 
-See [GOALS.md](docs/GOALS.md) for comprehensive roadmap. Current focus:
+See [GOALS.md](docs/planning/GOALS.md) for comprehensive roadmap. Current focus:
 
-**Completed:**
-- Projectile parsing (1204-dim embedding includes projectiles)
-- Focal loss (`--focal-loss --focal-gamma 2.0`)
-- Embedding caching (2-3x speedup, default)
-- Augmented embedding cache (`--cache-augmented`, ~100x speedup for `--augment`)
-- Self-play GenServer infrastructure
-- Precision benchmarking (FP32 now default - 2x faster than BF16 due to XLA issues)
+**Architecture iteration** — comparing backbones on high-tier replay data (more abundant) to find the best speed/accuracy tradeoff for 60 FPS inference.
 
 **Next Phase:**
-1. **Self-play Dolphin testing** - Run with real MeleePort games ✓
-2. **Large-scale self-play training** - GPU cluster deployment
+1. **Architecture benchmarking** - Systematic comparison of 30+ backbones on same dataset
+2. **Large-scale self-play training** - GPU cluster deployment (PPO infrastructure complete)
 3. **Scaling experiments** - Larger models, more data, sparse rewards
+4. **Low-tier specialization** - Transfer best architecture to Mewtwo/Ganondorf/etc.
 
 ## Documentation
 
@@ -127,36 +121,28 @@ docs/
 
 ## Quick Start
 
-**New defaults (Jan 2026):** Training now uses learned embeddings by default (~287 dims vs 1204). This allows 6x larger networks at the same training speed. Use `--action-mode one_hot --character-mode one_hot --stage-mode full` for legacy 1204-dim behavior.
+Training uses learned embeddings by default (~288 dims vs 1204 one-hot). This allows 6x larger networks at the same speed. Use `--action-mode one_hot --character-mode one_hot --stage-mode full` for legacy behavior.
 
 ```bash
-# Install dependencies
 mix deps.get
 
-# NEW: Interactive setup wizard (recommended for beginners)
+# Interactive setup wizard
 mix exphil.setup
 
-# Using presets
-mix run scripts/train_from_replays.exs --preset quick     # Fast iteration (~5 min)
-mix run scripts/train_from_replays.exs --preset mewtwo    # Character-specific
-mix run scripts/train_from_replays.exs --preset full      # Maximum quality
+# Train with presets
+mix run scripts/train_from_replays.exs --preset quick --replays ./replays
+mix run scripts/train_from_replays.exs --preset production --online-robust
 
-# Manual configuration (uses learned embeddings by default)
-mix run scripts/train_from_replays.exs --temporal --backbone mamba --epochs 5
-
-# Optional: Train K-means stick discretization for ~5% better precision inputs
-mix run scripts/train_kmeans.exs --replays ./replays --k 21 --output priv/kmeans_centers.nx
-mix run scripts/train_from_replays.exs --kmeans-centers priv/kmeans_centers.nx --temporal --backbone mamba
+# Swap architectures with --backbone
+mix run scripts/train_from_replays.exs --backbone mamba --temporal --replays ./replays
+mix run scripts/train_from_replays.exs --backbone attention --temporal --replays ./replays
+mix run scripts/train_from_replays.exs --backbone griffin --temporal --replays ./replays
 
 # Evaluate a trained model
 mix run scripts/eval_model.exs --checkpoint checkpoints/model.axon
 
 # Play against Dolphin
-source .venv/bin/activate
-mix run scripts/play_dolphin_async.exs \
-  --policy checkpoints/policy.bin \
-  --dolphin ~/.config/Slippi\ Launcher/netplay \
-  --iso ~/melee.iso
+mix run scripts/play_dolphin_async.exs --policy checkpoints/model_policy.bin
 ```
 
 **Environment variables** (optional):
@@ -227,7 +213,7 @@ exphil/
 
 ## Key Technical Notes
 
-See [docs/GOTCHAS.md](docs/GOTCHAS.md) for detailed fixes. Most common issues:
+See [GOTCHAS.md](docs/reference/GOTCHAS.md) for detailed fixes. Most common issues:
 
 1. **EXLA tensor serialization** - Convert to BinaryBackend before saving checkpoints
 2. **Dynamic shapes cause infinite JIT** - Use concrete seq_len for attention
@@ -431,7 +417,8 @@ end
 
 **Key Papers:**
 - [Beating the World's Best at SSBM](https://arxiv.org/abs/1702.06230) - Phillip paper
-- [Mamba: Linear-Time Sequence Modeling](https://arxiv.org/abs/2312.00752) - Our backbone
+- [Mamba: Linear-Time Sequence Modeling](https://arxiv.org/abs/2312.00752) - Primary backbone
 
 **ML Framework:**
 - [Nx](https://github.com/elixir-nx/nx) / [Axon](https://github.com/elixir-nx/axon) - Elixir ML
+- [Edifice](https://github.com/blasphemetheus/edifice) - 92+ architecture implementations (companion library)
