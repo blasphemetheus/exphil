@@ -711,14 +711,21 @@ has_non_temporal = Enum.any?(architectures, fn {_id, _name, opts} -> !opts[:temp
     # This avoids the "Embeddings on CPU" warning during training
     # Only transfer if under 2GB threshold - larger tensors transfer batch-wise
     gpu_threshold_mb = 2000
+
+    # Handle empty val set (0 frames parsed from val replays)
+    has_val_embeddings = val_emb.embedded_frames != nil
     train_size_mb = Nx.byte_size(train_emb.embedded_frames) / 1_000_000
-    val_size_mb = Nx.byte_size(val_emb.embedded_frames) / 1_000_000
+    val_size_mb = if has_val_embeddings, do: Nx.byte_size(val_emb.embedded_frames) / 1_000_000, else: 0.0
 
     {train_emb, val_emb} =
       if train_size_mb <= gpu_threshold_mb do
         Output.puts("Transferring embeddings to GPU (#{Float.round(train_size_mb, 1)} MB train, #{Float.round(val_size_mb, 1)} MB val)...")
         train_emb = Map.update!(train_emb, :embedded_frames, &Nx.backend_transfer(&1, EXLA.Backend))
-        val_emb = Map.update!(val_emb, :embedded_frames, &Nx.backend_transfer(&1, EXLA.Backend))
+        val_emb = if has_val_embeddings do
+          Map.update!(val_emb, :embedded_frames, &Nx.backend_transfer(&1, EXLA.Backend))
+        else
+          val_emb
+        end
         Output.success("Embeddings on GPU")
         {train_emb, val_emb}
       else

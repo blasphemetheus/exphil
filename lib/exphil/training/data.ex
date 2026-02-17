@@ -1408,9 +1408,13 @@ defmodule ExPhil.Training.Data do
     # Performance impact:
     #   OLD: 512 individual tensors → Nx.stack() = ~50 seconds/batch
     #   NEW: Single tensor → Nx.take() = ~50 milliseconds/batch (1000x faster)
-    stacked_embeddings = Nx.concatenate(batch_tensors, axis: 0)
-
-    %{dataset | embedded_frames: stacked_embeddings}
+    if batch_tensors == [] do
+      # No frames to embed (e.g., empty validation set with 0 frames)
+      dataset
+    else
+      stacked_embeddings = Nx.concatenate(batch_tensors, axis: 0)
+      %{dataset | embedded_frames: stacked_embeddings}
+    end
   end
 
   @doc """
