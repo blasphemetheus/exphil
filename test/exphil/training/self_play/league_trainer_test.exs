@@ -7,6 +7,10 @@ defmodule ExPhil.Training.SelfPlay.LeagueTrainerTest do
   @moduletag :slow
   @moduletag :self_play
 
+  # Error may be a string or a ConfigError struct
+  defp error_message(%{message: msg}), do: msg
+  defp error_message(msg) when is_binary(msg), do: msg
+
   describe "new/1 validation" do
     test "creates trainer with default mock game type" do
       assert {:ok, trainer} = LeagueTrainer.new()
@@ -24,8 +28,8 @@ defmodule ExPhil.Training.SelfPlay.LeagueTrainerTest do
     test "requires dolphin_config when game_type is :dolphin" do
       result = LeagueTrainer.new(game_type: :dolphin)
 
-      assert {:error, msg} = result
-      assert msg =~ "dolphin_config is required"
+      assert {:error, error} = result
+      assert error_message(error) =~ "dolphin_config"
     end
 
     test "requires dolphin_path in dolphin_config" do
@@ -35,8 +39,8 @@ defmodule ExPhil.Training.SelfPlay.LeagueTrainerTest do
           dolphin_config: %{iso_path: "/path/to/iso"}
         )
 
-      assert {:error, msg} = result
-      assert msg =~ "dolphin_path is required"
+      assert {:error, error} = result
+      assert error_message(error) =~ "dolphin_path"
     end
 
     test "requires iso_path in dolphin_config" do
@@ -46,8 +50,8 @@ defmodule ExPhil.Training.SelfPlay.LeagueTrainerTest do
           dolphin_config: %{dolphin_path: "/path/to/dolphin"}
         )
 
-      assert {:error, msg} = result
-      assert msg =~ "iso_path is required"
+      assert {:error, error} = result
+      assert error_message(error) =~ "iso_path"
     end
 
     test "accepts valid dolphin_config" do

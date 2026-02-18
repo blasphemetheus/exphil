@@ -231,9 +231,12 @@ defmodule ExPhil.Training.GatedSSMIntegrationTest do
       assert length(losses) == 3
       assert final_trainer.step == 3
 
-      # All losses should be finite
+      # All losses should be finite and positive
+      # Loss may be a float or Nx tensor depending on backend
       Enum.each(losses, fn loss ->
-        assert is_float(loss) and loss > 0
+        loss_val = if is_number(loss), do: loss, else: Nx.to_number(loss)
+        assert is_float(loss_val) and loss_val > 0,
+               "Expected positive loss, got: #{inspect(loss_val)}"
       end)
     end
   end

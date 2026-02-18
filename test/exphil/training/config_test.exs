@@ -1115,16 +1115,30 @@ defmodule ExPhil.Training.ConfigTest do
       assert output =~ "memory"
     end
 
-    test "warns for large batch_size" do
-      opts = [epochs: 10, batch_size: 512]
+    test "warns for large batch_size on CPU" do
+      # Only warns on CPU (GPU handles large batches fine)
+      # Skip if EXLA_TARGET=cuda is set
+      if System.get_env("EXLA_TARGET") == "cuda" do
+        opts = [epochs: 10, batch_size: 512]
 
-      output =
-        capture_io(:stderr, fn ->
-          Config.validate(opts)
-        end)
+        output =
+          capture_io(:stderr, fn ->
+            Config.validate(opts)
+          end)
 
-      assert output =~ "batch_size"
-      assert output =~ "memory"
+        # GPU: no warning expected
+        refute output =~ "batch_size"
+      else
+        opts = [epochs: 10, batch_size: 512]
+
+        output =
+          capture_io(:stderr, fn ->
+            Config.validate(opts)
+          end)
+
+        assert output =~ "batch_size"
+        assert output =~ "memory"
+      end
     end
 
     test "warns for many epochs without wandb" do

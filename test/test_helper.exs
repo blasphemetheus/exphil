@@ -7,6 +7,8 @@
 #   :external    - Tests needing external files (replays, models)
 #   :benchmark   - Performance regression tests (excluded by default)
 #   :property    - Property-based tests with StreamData (excluded by default)
+#   :nif         - Tests requiring compiled Rust NIF (excluded by default)
+#   :cuda        - Tests requiring CUDA device + NIF (excluded by default)
 #
 # Examples:
 #   mix test                           # Fast tests only (default)
@@ -26,7 +28,7 @@
 # Build base configuration
 base_config = [
   # Exclude slow, integration, benchmark, property and snapshot tests by default for fast feedback
-  exclude: [:slow, :integration, :external, :gpu, :benchmark, :snapshot, :property],
+  exclude: [:slow, :integration, :external, :gpu, :benchmark, :snapshot, :property, :nif, :cuda],
 
   # Timeout for individual tests (2 minutes default, can override with @tag timeout: N)
   timeout: 120_000,

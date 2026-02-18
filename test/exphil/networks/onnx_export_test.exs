@@ -213,11 +213,14 @@ defmodule ExPhil.Networks.OnnxExportTest do
       identity_weights = Nx.tensor([[1.0, 0.0], [0.0, 1.0]])
       params = put_in(params, [Access.key(:data), "dense", "kernel"], identity_weights)
 
-      # Test input
+      # Test input — keep a BinaryBackend copy for assertions
+      # (EXLA buffers may be donated/consumed by Ortex.run)
       test_input = Nx.tensor([[3.0, 7.0]])
+      test_input_copy = Nx.backend_copy(test_input, Nx.BinaryBackend)
 
       # Axon output (should be identity transform)
       axon_output = predict_fn.(Utils.ensure_model_state(params), test_input)
+      axon_output_copy = Nx.backend_copy(axon_output, Nx.BinaryBackend)
 
       # Export and load
       tmp_path = Path.join(System.tmp_dir!(), "test_weights_#{:rand.uniform(100_000)}.onnx")
@@ -227,13 +230,13 @@ defmodule ExPhil.Networks.OnnxExportTest do
         File.write!(tmp_path, IO.iodata_to_binary(iodata))
 
         ort_model = Ortex.load(tmp_path)
-        # Run inference with Ortex
-        {ort_output} = Ortex.run(ort_model, test_input)
+        # Run inference with Ortex (may consume EXLA buffers)
+        {ort_output} = Ortex.run(ort_model, Nx.backend_copy(test_input, Nx.BinaryBackend))
         ort_tensor = Nx.backend_transfer(ort_output)
 
         # Both should output [3.0, 7.0] (identity transform)
-        assert_all_close(axon_output, ort_tensor)
-        assert_all_close(ort_tensor, test_input)
+        assert_all_close(axon_output_copy, ort_tensor)
+        assert_all_close(ort_tensor, test_input_copy)
       after
         File.rm(tmp_path)
       end

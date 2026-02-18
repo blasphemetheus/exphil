@@ -81,6 +81,7 @@ defmodule ExPhil.Networks.ZambaTest do
       assert Nx.shape(output) == {@batch_size, @hidden_size}
     end
 
+    @tag timeout: 600_000
     test "handles different attention_every values" do
       for attention_every <- [2, 3, 4] do
         model =

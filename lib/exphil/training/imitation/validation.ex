@@ -179,7 +179,7 @@ defmodule ExPhil.Training.Imitation.Validation do
           # Update progress counter
           new_count = Agent.get_and_update(counter, fn c -> {c + 1, c + 1} end)
 
-          if show_progress and total_batches && total_batches > 0 and rem(new_count, progress_interval) == 0 do
+          if show_progress and is_integer(total_batches) and total_batches > 0 and rem(new_count, progress_interval) == 0 do
             pct = round(new_count / total_batches * 100)
             IO.write(:stderr, "\r    Validating: #{new_count}/#{total_batches} batches (#{pct}%)...\e[K")
           end

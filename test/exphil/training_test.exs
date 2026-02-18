@@ -490,7 +490,8 @@ defmodule ExPhil.TrainingTest do
 
       assert :ok = Training.export_policy(trainer, path)
 
-      {:ok, loaded} = Training.load_policy(path)
+      # Skip validation since test uses non-default hidden_sizes
+      {:ok, loaded} = Training.load_policy(path, validate: false)
       assert Map.has_key?(loaded, :params)
     end
 

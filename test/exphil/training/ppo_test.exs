@@ -165,8 +165,9 @@ defmodule ExPhil.Training.PPOTest do
       action2 = PPO.get_action(trainer, state, deterministic: true)
 
       # Main stick positions should be identical in deterministic mode
-      assert action1.main_x == action2.main_x
-      assert action1.main_y == action2.main_y
+      # Use Nx.equal for cross-backend comparison (EXLA vs BinaryBackend)
+      assert Nx.equal(action1.main_x, action2.main_x) |> Nx.to_number() == 1
+      assert Nx.equal(action1.main_y, action2.main_y) |> Nx.to_number() == 1
     end
   end
 

@@ -2,7 +2,7 @@
 
 This document tracks the major goals and roadmap for ExPhil development.
 
-**Last Updated:** 2026-02-03
+**Last Updated:** 2026-02-18
 
 ---
 
@@ -11,10 +11,17 @@ This document tracks the major goals and roadmap for ExPhil development.
 ### Completed
 
 - Behavioral cloning pipeline (single-frame + temporal)
-- **15 backbone architectures:**
-  - Original 7: MLP, LSTM, GRU, Mamba, Attention, Jamba, GatedSSM
-  - New 8 (Feb 2026): Zamba, Mamba-2 SSD, RWKV-7, GLA, HGRN-2, Decision Transformer, S5, Liquid
+- **41 backbone architectures** via [Edifice](https://github.com/blasphemetheus/edifice) companion library:
+  - Basic: MLP, GatedSSM, KAN
+  - Recurrent: LSTM, GRU, LSTM Hybrid, Liquid
+  - SSM: Mamba, Mamba-2 SSD, S4, S4D, S5, H3
+  - Hybrid SSM+Attention: Jamba, Zamba, Griffin, Hawk, xLSTM (sLSTM + mLSTM)
+  - Linear Attention: RetNet, RWKV, GLA, HGRN, Performer, DeltaNet, FNet
+  - Attention: Sliding Window, Perceiver, Decision Transformer
+  - Memory: Hopfield, NTM, Reservoir
+  - Other: TTT, SNN, Bayesian
   - See [Architecture Guide](../reference/architectures/ARCHITECTURE_GUIDE.md)
+- **Edifice library integration** — 92+ architectures with unified `Edifice.build(:name, opts)` API
 - **Custom ODE solver** for Liquid Neural Networks (Euler, Midpoint, RK4, DOPRI5)
 - Dolphin integration (sync + async runners)
 - Full training features: EMA, LR scheduling, gradient accumulation, checkpointing
@@ -28,11 +35,14 @@ This document tracks the major goals and roadmap for ExPhil development.
 - **Mamba unification** (shared Common module across 5 variants)
 - **Structured error types** (11 error modules: AgentError, BridgeError, CacheError, etc.)
 - **ScriptTemplate module** for script boilerplate reduction
-- 2506 tests + 25 doctests + 36 property tests
+- **CLI module** with standardized flag groups across all scripts
+- **Benchmark script** covering 34 architectures with HTML reports
+- **Publication readiness cleanup** (ExDoc, Docker parity, README rewrite)
+- 2666 tests + 26 doctests + 36 property tests
 
 ### Next Step
 
-Large-scale self-play training (train on GPU cluster, tune hyperparameters)
+**Architecture benchmarking** — systematic comparison of 34 backbones on GPU to find the best speed/accuracy tradeoff for 60 FPS gameplay. Previous run (5 architectures on RTX 4090) showed Attention winning on val loss with Jamba as the speed/quality sweet spot. Full 34-architecture benchmark pending.
 
 ---
 
@@ -580,17 +590,18 @@ Originally, this was ExPhil's differentiator. However, the Bitter Lesson suggest
 
 ### Current Focus
 
-6. **Self-play infrastructure** - BEAM parallel games
-7. **Historical sampling** - Avoid policy collapse
-8. **PPO + self-play integration**
+6. **Full architecture benchmark on GPU** - 34 backbones, same dataset, compare val loss + inference latency
+7. **Identify 60 FPS-capable architectures** - inference must be <16.7ms per frame
+8. **Scale winners** - larger models + more data for top architectures
 
 ### Future (Bitter Lesson-Aligned)
 
 > See [BITTER_LESSON_PLAN.md](BITTER_LESSON_PLAN.md) for rationale.
 
-9. **Scale up:** Larger models (1024+ hidden), more data (100k+ replays)
-10. **Simplify:** Minimal embeddings experiment, sparse rewards experiment
-11. **Validate assumptions:** Character-specific vs general model comparison
+9. **Large-scale self-play training** - GPU cluster deployment (PPO infrastructure complete)
+10. **Scale up:** Larger models (1024+ hidden), more data (100k+ replays)
+11. **Simplify:** Minimal embeddings experiment, sparse rewards experiment
+12. **Validate assumptions:** Character-specific vs general model comparison
 
 ---
 
@@ -598,19 +609,31 @@ Originally, this was ExPhil's differentiator. However, the Bitter Lesson suggest
 
 ### Architecture Benchmarking
 
-Compare Jamba, Mamba, LSTM, GRU, and Attention on real replay data:
+Compare 34 backbone architectures on real replay data (mamba_nif excluded — inference-only, gradients don't flow through NIF):
 
 ```bash
-# Replay files are at ./replays/mewtwo
+# Full benchmark (34 architectures, needs GPU)
 mix run scripts/benchmark_architectures.exs \
   --replay-dir ./replays/mewtwo \
   --max-files 100 \
   --epochs 5
 
 # Results saved to:
-# - checkpoints/benchmark_results.json
-# - checkpoints/benchmark_report.html (open in browser)
+# - checkpoints/benchmark_results.json (with machine info)
+# - checkpoints/benchmark_report.html (charts + tables)
 ```
+
+**Previous results (5 architectures, RTX 4090):**
+
+| Rank | Architecture | Val Loss | Batch/s | Notes |
+|------|-------------|----------|---------|-------|
+| 1 | Attention | 3.68 | 1.0 | Best val loss |
+| 2 | Jamba | 3.87 | 1.7 | Speed/quality sweet spot |
+| 3 | GRU | 4.48 | 0.2 | Slow but reliable |
+| 4 | LSTM | 4.75 | 0.2 | Similar to GRU |
+| 5 | Mamba | 8.22 | 1.3 | Needs tuning |
+
+**Pending:** Full 34-architecture benchmark with inference latency measurements.
 
 ### Train K-Means Stick Centers
 
@@ -933,27 +956,17 @@ Keep uniform buckets for now. K-means is a micro-optimization best explored afte
 2. Character specialization is in progress (can do character-specific clusters)
 3. Current accuracy plateau is reached (need to measure first)
 
-### 2026-01-22: Architecture Benchmark Results & Fixes
+### 2026-01-22: Initial Architecture Benchmark (5 Architectures)
 
-**Status:** COMPLETE
+**Status:** COMPLETE (superseded by full 34-architecture benchmark — pending GPU run)
 
-Ran comprehensive benchmarks on RunPod GPU pod (RTX 4090, 64GB RAM) comparing backbone architectures.
-
-#### Benchmark Results
-
-| Rank | Architecture | Val Loss | Batch/s | Training Time | Notes |
-|------|-------------|----------|---------|---------------|-------|
-| 1 | **Attention** | **3.68** | 1.0 | 31min | Best val loss, 5x faster than GRU |
-| 2 | Jamba | 3.87 | 1.7 | 72min | Hybrid Mamba+Attention, fast convergence |
-| 3 | GRU | 4.48 | 0.2 | 2.6h | Slow but reliable |
-| 4 | LSTM | 4.75 | 0.2 | 3h | Similar to GRU |
-| 5 | Mamba | 8.22 | 1.3 | 48min | Fast but struggles with temporal patterns |
+Initial benchmarks on RunPod GPU pod (RTX 4090, 64GB RAM) comparing 5 backbone architectures. Results summarized in "Architecture Benchmarking" section above.
 
 **Key findings:**
-- **Attention wins:** Pure attention achieved the best val loss (3.68) while being 5x faster than GRU. Global attention captures Melee's temporal patterns better than recurrent processing.
-- **Jamba is the sweet spot:** Hybrid Mamba+Attention (3.87) is nearly as good as pure attention but 70% faster per batch. Good balance of speed and accuracy.
-- **Mamba needs work:** The 8.22 val loss suggests Mamba alone struggles with Melee's temporal patterns. May need more epochs or architectural tuning.
-- **Recurrent is reliable but slow:** GRU/LSTM achieve decent loss but are 5x slower than attention-based approaches.
+- **Attention wins:** Best val loss (3.68) while 5x faster than GRU
+- **Jamba is the sweet spot:** Nearly as good (3.87) but 70% faster per batch
+- **Mamba needs work:** 8.22 val loss suggests it struggles with Melee's temporal patterns alone
+- **Recurrent is reliable but slow:** GRU/LSTM decent loss but 5x slower
 
 #### Fixes Made
 
