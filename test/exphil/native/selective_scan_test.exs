@@ -171,7 +171,6 @@ defmodule ExPhil.Native.SelectiveScanTest do
     end
 
     @tag :requires_nif
-    @tag :slow
     test "backward gradient numerical check" do
       # Numerical gradient check: compare backward kernel to finite differences
       skip_unless_nif_available()
@@ -182,11 +181,17 @@ defmodule ExPhil.Native.SelectiveScanTest do
       state = 2
       eps = 1.0e-4
 
-      x = Nx.Random.uniform(Nx.Random.key(42), shape: {batch, seq_len, hidden}, type: :f32) |> elem(1)
-      dt = Nx.broadcast(0.05, {batch, seq_len, hidden}) |> Nx.as_type(:f32)
-      a = Nx.broadcast(-1.0, {hidden, state}) |> Nx.as_type(:f32)
-      b = Nx.Random.uniform(Nx.Random.key(43), shape: {batch, seq_len, state}, type: :f32) |> elem(1)
-      c = Nx.Random.uniform(Nx.Random.key(44), shape: {batch, seq_len, state}, type: :f32) |> elem(1)
+      # Use explicit pattern matching (not |> elem(1)) and transfer to BinaryBackend
+      # because: 1) EXLA may return {key, tensor} differently in JIT context
+      #          2) NIF calls Nx.to_binary() which needs CPU tensors
+      {_, x} = Nx.Random.uniform(Nx.Random.key(42), shape: {batch, seq_len, hidden}, type: :f32)
+      x = Nx.backend_transfer(x, Nx.BinaryBackend)
+      dt = Nx.broadcast(0.05, {batch, seq_len, hidden}) |> Nx.as_type(:f32) |> Nx.backend_transfer(Nx.BinaryBackend)
+      a = Nx.broadcast(-1.0, {hidden, state}) |> Nx.as_type(:f32) |> Nx.backend_transfer(Nx.BinaryBackend)
+      {_, b} = Nx.Random.uniform(Nx.Random.key(43), shape: {batch, seq_len, state}, type: :f32)
+      b = Nx.backend_transfer(b, Nx.BinaryBackend)
+      {_, c} = Nx.Random.uniform(Nx.Random.key(44), shape: {batch, seq_len, state}, type: :f32)
+      c = Nx.backend_transfer(c, Nx.BinaryBackend)
 
       # Compute analytical gradient
       {out, h_all} = SelectiveScan.scan_with_states(x, dt, a, b, c)
