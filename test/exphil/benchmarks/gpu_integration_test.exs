@@ -1316,7 +1316,7 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
       # Train a few steps - should not underflow
       losses =
         for _ <- 1..5 do
-          {trainer, metrics} = Imitation.train_step(trainer, batch, nil)
+          {_trainer, metrics} = Imitation.train_step(trainer, batch, nil)
           Nx.to_number(metrics.loss)
         end
 
@@ -1353,7 +1353,7 @@ defmodule ExPhil.Benchmarks.GpuIntegrationTest do
       # Train a few steps
       losses =
         for _ <- 1..5 do
-          {trainer, metrics} = Imitation.train_step(trainer, batch, nil)
+          {_trainer, metrics} = Imitation.train_step(trainer, batch, nil)
           Nx.to_number(metrics.loss)
         end
 

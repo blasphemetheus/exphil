@@ -5,7 +5,7 @@ defmodule ExPhil.Training.StreamingTest do
   alias ExPhil.Bridge.{GameState, Player, ControllerState}
 
   # Test helper for creating mock player
-  defp mock_player(opts \\ []) do
+  defp mock_player(opts) do
     %Player{
       character: Keyword.get(opts, :character, 18),
       x: Keyword.get(opts, :x, 0.0),
@@ -30,7 +30,7 @@ defmodule ExPhil.Training.StreamingTest do
     }
   end
 
-  defp mock_game_state(opts \\ []) do
+  defp mock_game_state(opts) do
     player1 = Keyword.get(opts, :player1, mock_player(x: -30.0))
     player2 = Keyword.get(opts, :player2, mock_player(x: 30.0, facing: 0))
 
@@ -45,7 +45,7 @@ defmodule ExPhil.Training.StreamingTest do
     }
   end
 
-  defp mock_controller_state(opts \\ []) do
+  defp mock_controller_state(opts) do
     %ControllerState{
       main_stick: %{x: Keyword.get(opts, :main_x, 0.5), y: Keyword.get(opts, :main_y, 0.5)},
       c_stick: %{x: 0.5, y: 0.5},
