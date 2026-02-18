@@ -182,7 +182,28 @@ Multiple locations create atoms from untrusted input before validation:
 
 **Plan:** Create GitHub issues to track these.
 
-### 4.2 List Access in Hot Paths [P3]
+### 4.2 SSM/Hybrid Training Instability (NaN Loss) [P2]
+
+Architecture benchmark (Feb 2026, RTX 4090) showed several architectures diverging to NaN during training with default hyperparameters:
+
+| Architecture | Epoch | Symptom |
+|---|---|---|
+| GatedSSM | 2 | loss=nan after epoch 1 converges normally |
+| Jamba | 1-3 | val=nan throughout |
+| Zamba | 1-3 | val=nan throughout |
+
+All use the same learning rate (1e-4) and no per-architecture gradient clipping. Likely causes:
+- SSM recurrence amplifies gradients over seq_len=30 without clipping
+- Gated architectures with sigmoid/tanh saturation causing vanishing/exploding gradients
+- No warmup or per-architecture LR tuning in benchmark script
+
+**Potential fixes:**
+- [ ] Add `--max-grad-norm` to benchmark script (default 1.0 for SSM architectures)
+- [ ] Per-architecture default hyperparams (lower LR for SSMs, higher for MLPs)
+- [ ] NaN detection with early stopping in benchmark loop (skip remaining epochs)
+- [ ] Log gradient norms per architecture to identify which layers explode
+
+### 4.3 List Access in Hot Paths [P3]
 
 `data.ex:897-898` uses `Enum.at` which is O(n) for small datasets. The optimization path exists for large datasets but threshold may be too high.
 
