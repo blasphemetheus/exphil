@@ -393,29 +393,32 @@ defmodule ExPhil.Test.Helpers do
       stddev: stddev(times)
     }
 
-    # Check against baseline
-    baselines = load_baselines()
-    baseline = Map.get(baselines, name)
-
-    if baseline do
-      regression = (stats.mean - baseline["mean"]) / baseline["mean"]
-
-      if regression > tolerance do
-        flunk("""
-        Performance regression detected for '#{name}'!
-
-        Baseline: #{Float.round(baseline["mean"], 2)}ms (±#{Float.round(baseline["stddev"], 2)}ms)
-        Current:  #{Float.round(stats.mean, 2)}ms (±#{Float.round(stats.stddev, 2)}ms)
-        Regression: #{Float.round(regression * 100, 1)}% (tolerance: #{Float.round(tolerance * 100, 1)}%)
-
-        Run with BENCHMARK_UPDATE=1 to update baselines if this is expected.
-        """)
-      end
-    end
-
-    # Update baseline if requested
+    # Update baseline FIRST if requested (before regression check,
+    # otherwise flunk() prevents the update from ever running)
     if System.get_env("BENCHMARK_UPDATE") do
       update_baseline(name, stats)
+    end
+
+    # Check against baseline (skip if we just updated)
+    unless System.get_env("BENCHMARK_UPDATE") do
+      baselines = load_baselines()
+      baseline = Map.get(baselines, name)
+
+      if baseline do
+        regression = (stats.mean - baseline["mean"]) / baseline["mean"]
+
+        if regression > tolerance do
+          flunk("""
+          Performance regression detected for '#{name}'!
+
+          Baseline: #{Float.round(baseline["mean"], 2)}ms (±#{Float.round(baseline["stddev"], 2)}ms)
+          Current:  #{Float.round(stats.mean, 2)}ms (±#{Float.round(stats.stddev, 2)}ms)
+          Regression: #{Float.round(regression * 100, 1)}% (tolerance: #{Float.round(tolerance * 100, 1)}%)
+
+          Run with BENCHMARK_UPDATE=1 to update baselines if this is expected.
+          """)
+        end
+      end
     end
 
     {:ok, stats}

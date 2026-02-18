@@ -1,8 +1,8 @@
 {
   "_metadata": {
     "backend": "EXLA.Backend (RTX 4090 GPU)",
-    "last_full_update": "2026-01-21",
-    "notes": "GPU baselines from RunPod RTX 4090. Embedding ops have GPU overhead - CPU is faster for small tensors."
+    "last_full_update": "2026-02-18",
+    "notes": "GPU baselines from RunPod RTX 4090. Updated after Mamba faithfulness fixes (true SSM with depthwise conv, parallel scan)."
   },
   "embed_game_state": {
     "max": 4.573,
@@ -13,59 +13,59 @@
     "updated_at": "2026-01-21T02:58:19.085187Z"
   },
   "embed_player": {
-    "max": 2.924,
-    "mean": 1.9593000000000003,
-    "median": 1.858,
-    "min": 1.465,
-    "stddev": 0.3232642417589673,
-    "updated_at": "2026-01-21T02:57:58.413044Z"
+    "max": 2.311,
+    "mean": 1.7500400000000003,
+    "median": 1.708,
+    "min": 1.572,
+    "stddev": 0.12949910578841847,
+    "updated_at": "2026-02-18T21:35:40.761953Z"
   },
   "mamba_seq_10": {
-    "max": 23.824,
-    "mean": 19.720599999999997,
-    "median": 19.549,
-    "min": 16.595,
-    "stddev": 1.8497072308881757,
-    "updated_at": "2026-01-21T02:58:10.834126Z"
+    "max": 22.189,
+    "mean": 17.73585,
+    "median": 17.4265,
+    "min": 16.282,
+    "stddev": 1.4089034131195797,
+    "updated_at": "2026-02-18T21:35:49.825024Z"
   },
   "mamba_seq_60": {
-    "max": 67.767,
-    "mean": 64.02305000000001,
-    "median": 63.867000000000004,
-    "min": 60.522,
-    "stddev": 2.0091998774387774,
-    "updated_at": "2026-01-21T02:58:14.813474Z"
+    "max": 87.16,
+    "mean": 74.39304999999999,
+    "median": 74.01050000000001,
+    "min": 64.348,
+    "stddev": 5.813099435542109,
+    "updated_at": "2026-02-18T21:35:53.677291Z"
   },
   "mamba_temporal": {
-    "max": 44.266,
-    "mean": 40.58226666666666,
-    "median": 40.209,
-    "min": 36.076,
-    "stddev": 1.7340525161853917,
-    "updated_at": "2026-01-21T02:58:18.166626Z"
+    "max": 103.0,
+    "mean": 72.57,
+    "median": 70.0,
+    "min": 55.0,
+    "stddev": 21.42,
+    "updated_at": "2026-02-18T21:36:00.000000Z"
   },
   "policy_batch_1": {
-    "max": 4.167,
-    "mean": 1.9161500000000005,
-    "median": 1.8035,
-    "min": 1.632,
-    "stddev": 0.5258290858254229,
-    "updated_at": "2026-01-21T02:58:04.497903Z"
+    "max": 3.599,
+    "mean": 2.0469500000000003,
+    "median": 1.995,
+    "min": 1.345,
+    "stddev": 0.5854453411720005,
+    "updated_at": "2026-02-18T21:35:54.534654Z"
   },
   "policy_batch_32": {
-    "max": 1.936,
-    "mean": 1.7567000000000004,
-    "median": 1.7405,
-    "min": 1.477,
-    "stddev": 0.12285239110412136,
-    "updated_at": "2026-01-21T02:58:04.971165Z"
+    "max": 1.133,
+    "mean": 1.0459000000000003,
+    "median": 1.03,
+    "min": 1.002,
+    "stddev": 0.03331351077265801,
+    "updated_at": "2026-02-18T21:35:54.575838Z"
   },
   "policy_single_frame": {
-    "max": 2.979,
-    "mean": 1.5176800000000004,
-    "median": 1.492,
-    "min": 1.355,
-    "stddev": 0.22548547092883836,
-    "updated_at": "2026-01-21T02:58:18.418316Z"
+    "max": 2.982,
+    "mean": 1.3474800000000005,
+    "median": 1.2105000000000001,
+    "min": 1.096,
+    "stddev": 0.4082354830241977,
+    "updated_at": "2026-02-18T21:35:40.459035Z"
   }
 }
