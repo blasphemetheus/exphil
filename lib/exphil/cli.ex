@@ -124,6 +124,8 @@ defmodule ExPhil.CLI do
       desc: "Pre-allocate GPU memory (fraction, e.g., 0.7)", group: [:benchmark]},
     %{name: :gpu_on_demand, flag: "--gpu-on-demand", type: :boolean, short: nil, default: false,
       desc: "Allocate GPU memory on-demand", group: [:benchmark]},
+    %{name: :grad_norms, flag: "--grad-norms", type: :boolean, short: nil, default: false,
+      desc: "Log per-layer gradient norms (diagnose NaN/exploding gradients)", group: [:benchmark]},
 
     # Dolphin/play flags (for play_dolphin.exs)
     %{name: :dolphin, flag: "--dolphin", type: :string, short: nil, default: nil,

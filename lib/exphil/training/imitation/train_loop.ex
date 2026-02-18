@@ -409,6 +409,55 @@ defmodule ExPhil.Training.Imitation.TrainLoop do
   defp deep_map2(other, _other2, _fun), do: other
 
   # ============================================================================
+  # Gradient Norm Diagnostics
+  # ============================================================================
+
+  @doc """
+  Compute per-layer gradient L2 norms for a single batch.
+
+  Returns a list of `{layer_name, norm}` tuples sorted by norm descending,
+  useful for diagnosing which layers have exploding or vanishing gradients.
+
+  ## Parameters
+
+  - `trainer` - The imitation trainer struct
+  - `batch` - Map with `:states` and `:actions` keys
+
+  ## Returns
+
+  List of `{layer_name, l2_norm}` sorted by norm descending.
+  """
+  @spec compute_grad_norms(struct(), map()) :: [{String.t(), float()}]
+  def compute_grad_norms(trainer, batch) do
+    %{states: states, actions: actions} = batch
+    policy_type = trainer.config[:policy_type] || :autoregressive
+
+    {_loss, grads} = compute_policy_loss_and_grad(policy_type, trainer, states, actions)
+    grads_data = get_params_data(grads)
+
+    flatten_grad_norms(grads_data, "")
+    |> Enum.sort_by(fn {_name, norm} -> norm end, :desc)
+  end
+
+  # Recursively flatten nested gradient maps into {path, l2_norm} pairs
+  defp flatten_grad_norms(grads, prefix) when is_map(grads) and not is_struct(grads) do
+    Enum.flat_map(grads, fn {key, value} ->
+      path = if prefix == "", do: key, else: "#{prefix}.#{key}"
+      flatten_grad_norms(value, path)
+    end)
+  end
+
+  defp flatten_grad_norms(tensor, path) do
+    norm =
+      tensor
+      |> Nx.flatten()
+      |> Nx.LinAlg.norm()
+      |> Nx.to_number()
+
+    [{path, norm}]
+  end
+
+  # ============================================================================
   # Private - Axon.ModelState Helpers
   # ============================================================================
 

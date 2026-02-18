@@ -22,6 +22,7 @@
 #   --lazy-sequences              Slice sequences on-the-fly (150 MB RAM vs 13 GB)
 #                                 Slightly slower batching but enables low-RAM training
 #   --eager-sequences             Pre-build all sequences (default, faster but 13+ GB RAM)
+#   --grad-norms                   Log per-layer gradient norms (diagnose NaN)
 #   --quiet, -q                   Suppress XLA/CUDA warnings and Logger noise
 #
 # Available architectures:
@@ -203,6 +204,7 @@ max_files = opts[:max_files]
 epochs = opts[:epochs]
 batch_size = opts[:batch_size]
 continue_on_error = opts[:continue_on_error]
+grad_norms_enabled = opts[:grad_norms]
 cache_enabled = opts[:cache_embeddings]
 force_recompute = opts[:no_cache]
 cache_dir = opts[:cache_dir]
@@ -610,6 +612,7 @@ Output.config([
   {"Architectures",
    "#{length(architectures)} (#{Enum.map(architectures, fn {id, _, _} -> id end) |> Enum.join(", ")})"},
   {"Continue on error", continue_on_error},
+  {"Gradient norms", if(grad_norms_enabled, do: "enabled (per-epoch)", else: "disabled")},
   {"Embedding cache", if(cache_enabled, do: "enabled (#{cache_dir})", else: "disabled")},
   {"Sequence mode", if(use_lazy_sequences, do: "lazy (150 MB RAM)", else: "eager (13+ GB RAM)")},
   {"GPU", "#{gpu_info.name} (#{safe_round.(gpu_info.memory_gb, 1)} GB)"},
@@ -916,11 +919,13 @@ results =
       end
 
       # Training loop with timing
+      # Uses reduce_while for NaN early stopping — no point training more epochs
+      # once gradients have exploded
       start_time = System.monotonic_time(:millisecond)
       num_epochs = opts[:epochs]
 
       {_final_trainer, epoch_metrics} =
-        Enum.reduce(1..num_epochs, {trainer, []}, fn epoch, {t, metrics} ->
+        Enum.reduce_while(1..num_epochs, {trainer, []}, fn epoch, {t, metrics} ->
           epoch_start = System.monotonic_time(:millisecond)
 
           # Create fresh batch stream each epoch (lazy, memory efficient)
@@ -981,44 +986,82 @@ results =
           avg_loss = losses |> Nx.stack() |> Nx.mean() |> Nx.to_number()
           batches_per_sec = num_losses / (epoch_time / 1000)
 
-          # Detect NaN/infinity early and warn
-          if avg_loss in [:nan, :infinity, :neg_infinity] do
+          # NaN early stopping — detect and skip remaining epochs
+          nan_detected = avg_loss in [:nan, :infinity, :neg_infinity]
+
+          if nan_detected do
             Output.warning("Loss became #{avg_loss} - numeric instability detected")
+
+            # Log gradient norms on NaN to diagnose which layers exploded
+            if grad_norms_enabled do
+              Output.puts("  Computing gradient norms to diagnose instability...")
+              try do
+                sample_batch = test_batch
+                norms = Imitation.compute_grad_norms(updated_t, sample_batch)
+                top_norms = Enum.take(norms, 10)
+                Output.puts("  Top gradient norms (L2):")
+                Enum.each(top_norms, fn {layer, norm} ->
+                  marker = if norm > 100.0, do: " <<<", else: ""
+                  Output.puts("    #{safe_round.(norm, 4)}\t#{layer}#{marker}")
+                end)
+              rescue
+                _ -> Output.puts("  (gradient norm computation failed — model may be in bad state)")
+              end
+            end
           end
 
           # Validation (create batches lazily, don't materialize all at once)
           # GC before validation to release training batch memory (helps with Jamba OOM)
           :erlang.garbage_collect()
 
-          val_batches =
-            if opts[:temporal] do
-              Data.batched_sequences(prepared_val,
-                batch_size: opts[:batch_size],
-                shuffle: false,
-                lazy: use_lazy_sequences,
-                window_size: opts[:window_size] || 30,
-                stride: opts[:stride] || 1
-              )
-            else
-              Data.batched(prepared_val, batch_size: opts[:batch_size], shuffle: false)
-            end
-
-          # Compute validation loss with streaming mean to avoid accumulating all tensors
-          val_losses =
-            Enum.map(val_batches, fn batch ->
-              Imitation.evaluate_batch(updated_t, batch).loss
-            end)
-
+          # Skip validation if loss is NaN (pointless and wastes time)
           val_loss =
-            if length(val_losses) > 0 do
-              val_losses |> Nx.stack() |> Nx.mean() |> Nx.to_number()
+            if nan_detected do
+              :nan
             else
-              avg_loss
+              val_batches =
+                if opts[:temporal] do
+                  Data.batched_sequences(prepared_val,
+                    batch_size: opts[:batch_size],
+                    shuffle: false,
+                    lazy: use_lazy_sequences,
+                    window_size: opts[:window_size] || 30,
+                    stride: opts[:stride] || 1
+                  )
+                else
+                  Data.batched(prepared_val, batch_size: opts[:batch_size], shuffle: false)
+                end
+
+              val_losses =
+                Enum.map(val_batches, fn batch ->
+                  Imitation.evaluate_batch(updated_t, batch).loss
+                end)
+
+              if length(val_losses) > 0 do
+                val_losses |> Nx.stack() |> Nx.mean() |> Nx.to_number()
+              else
+                avg_loss
+              end
             end
 
           Output.puts(
             "  Epoch #{epoch}: loss=#{safe_round.(avg_loss, 4)} val=#{safe_round.(val_loss, 4)} (#{safe_round.(batches_per_sec, 1)} batch/s)"
           )
+
+          # Log gradient norms at end of epoch 1 (if enabled and not NaN)
+          if grad_norms_enabled and epoch == 1 and not nan_detected do
+            Output.puts("  Gradient norms (L2, top 5 layers):")
+            try do
+              sample_batch = test_batch
+              norms = Imitation.compute_grad_norms(updated_t, sample_batch)
+              Enum.take(norms, 5)
+              |> Enum.each(fn {layer, norm} ->
+                Output.puts("    #{safe_round.(norm, 4)}\t#{layer}")
+              end)
+            rescue
+              _ -> Output.puts("    (gradient norm computation failed)")
+            end
+          end
 
           epoch_entry = %{
             epoch: epoch,
@@ -1028,7 +1071,13 @@ results =
             time_ms: epoch_time
           }
 
-          {updated_t, [epoch_entry | metrics]}
+          # Early stop on NaN — no point training further
+          if nan_detected do
+            Output.warning("Stopping early — loss is #{avg_loss}, remaining epochs would be wasted")
+            {:halt, {updated_t, [epoch_entry | metrics]}}
+          else
+            {:cont, {updated_t, [epoch_entry | metrics]}}
+          end
         end)
 
       total_time = System.monotonic_time(:millisecond) - start_time

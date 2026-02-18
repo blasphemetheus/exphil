@@ -456,6 +456,7 @@ defmodule ExPhil.Training.Imitation do
   defdelegate train_epoch(trainer, dataset, epoch, callback), to: TrainLoop
 
   defdelegate train_step(trainer, batch, loss_fn), to: TrainLoop
+  defdelegate compute_grad_norms(trainer, batch), to: TrainLoop
 
   # Delegate loss function builders to Loss submodule
   # Note: build_loss_fn has optional opts argument
