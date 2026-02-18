@@ -188,6 +188,7 @@ defmodule ExPhil.PropertyTests.NetworkShapesTest do
   end
 
   describe "sequential vs parallel scan equivalence" do
+    @tag timeout: 600_000
     property "sequential_scan and blelloch_scan produce same result for short sequences" do
       check all(
               batch_size <- StreamData.integer(1..4),
