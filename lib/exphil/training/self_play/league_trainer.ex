@@ -537,7 +537,7 @@ defmodule ExPhil.Training.SelfPlay.LeagueTrainer do
 
     # Main agents
     agents =
-      Enum.reduce(1..config.num_main_agents, agents, fn i, acc ->
+      Enum.reduce(1..max(config.num_main_agents, 1)//1, agents, fn i, acc ->
         id = :"main_#{i}"
 
         Map.put(acc, id, %{
@@ -548,30 +548,38 @@ defmodule ExPhil.Training.SelfPlay.LeagueTrainer do
         })
       end)
 
-    # Main exploiters
+    # Main exploiters (may be 0)
     agents =
-      Enum.reduce(1..config.num_main_exploiters, agents, fn i, acc ->
-        id = :"main_exploiter_#{i}"
+      if config.num_main_exploiters > 0 do
+        Enum.reduce(1..config.num_main_exploiters, agents, fn i, acc ->
+          id = :"main_exploiter_#{i}"
+
+          Map.put(acc, id, %{
+            id: id,
+            type: :main_exploiter,
+            elo: 1000,
+            created_at: System.system_time(:second)
+          })
+        end)
+      else
+        agents
+      end
+
+    # League exploiters (may be 0)
+    if config.num_league_exploiters > 0 do
+      Enum.reduce(1..config.num_league_exploiters, agents, fn i, acc ->
+        id = :"league_exploiter_#{i}"
 
         Map.put(acc, id, %{
           id: id,
-          type: :main_exploiter,
+          type: :league_exploiter,
           elo: 1000,
           created_at: System.system_time(:second)
         })
       end)
-
-    # League exploiters
-    Enum.reduce(1..config.num_league_exploiters, agents, fn i, acc ->
-      id = :"league_exploiter_#{i}"
-
-      Map.put(acc, id, %{
-        id: id,
-        type: :league_exploiter,
-        elo: 1000,
-        created_at: System.system_time(:second)
-      })
-    end)
+    else
+      agents
+    end
   end
 
   defp create_ppo_trainers(agents, config, opts) do
