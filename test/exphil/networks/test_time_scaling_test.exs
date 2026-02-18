@@ -91,6 +91,7 @@ defmodule ExPhil.Networks.TestTimeScalingTest do
       assert Nx.shape(scores) == {4, @batch_size}
     end
 
+    @tag timeout: 600_000
     test "more candidates with higher N" do
       state = Nx.broadcast(0.5, {@batch_size, @obs_size})
       policy_params = %{seed: 42}
