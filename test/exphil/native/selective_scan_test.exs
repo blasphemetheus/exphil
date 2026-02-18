@@ -181,17 +181,13 @@ defmodule ExPhil.Native.SelectiveScanTest do
       state = 2
       eps = 1.0e-4
 
-      # Use explicit pattern matching (not |> elem(1)) and transfer to BinaryBackend
-      # because: 1) EXLA may return {key, tensor} differently in JIT context
-      #          2) NIF calls Nx.to_binary() which needs CPU tensors
-      {_, x} = Nx.Random.uniform(Nx.Random.key(42), shape: {batch, seq_len, hidden}, type: :f32)
-      x = Nx.backend_transfer(x, Nx.BinaryBackend)
-      dt = Nx.broadcast(0.05, {batch, seq_len, hidden}) |> Nx.as_type(:f32) |> Nx.backend_transfer(Nx.BinaryBackend)
-      a = Nx.broadcast(-1.0, {hidden, state}) |> Nx.as_type(:f32) |> Nx.backend_transfer(Nx.BinaryBackend)
-      {_, b} = Nx.Random.uniform(Nx.Random.key(43), shape: {batch, seq_len, state}, type: :f32)
-      b = Nx.backend_transfer(b, Nx.BinaryBackend)
-      {_, c} = Nx.Random.uniform(Nx.Random.key(44), shape: {batch, seq_len, state}, type: :f32)
-      c = Nx.backend_transfer(c, Nx.BinaryBackend)
+      # Use deterministic tensors on BinaryBackend — Nx.Random.uniform with EXLA
+      # produces shape {2} (PRNG key) instead of the requested shape in some contexts
+      x = Nx.iota({batch, seq_len, hidden}, type: :f32) |> Nx.divide(16) |> Nx.add(0.1)
+      dt = Nx.broadcast(0.05, {batch, seq_len, hidden}) |> Nx.as_type(:f32)
+      a = Nx.broadcast(-1.0, {hidden, state}) |> Nx.as_type(:f32)
+      b = Nx.iota({batch, seq_len, state}, type: :f32) |> Nx.divide(8) |> Nx.add(0.5)
+      c = Nx.iota({batch, seq_len, state}, type: :f32) |> Nx.divide(8) |> Nx.add(0.3)
 
       # Compute analytical gradient
       {out, h_all} = SelectiveScan.scan_with_states(x, dt, a, b, c)
