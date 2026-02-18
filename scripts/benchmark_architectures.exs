@@ -87,6 +87,12 @@ Application.put_env(:elixir, :inspect, limit: 10, printable_limit: 100)
 # This helps prevent OOM when switching from MLP to Mamba/Jamba
 System.put_env("TF_GPU_ALLOCATOR", "cuda_malloc_async")
 
+# Use platform allocator so CUDA actually frees memory between architectures.
+# The default BFC allocator grows a pool that never shrinks, so by architecture #25+
+# the GPU is saturated with stale JIT caches. Platform allocator uses cudaMalloc/cudaFree
+# directly — slightly slower per-allocation but essential for multi-architecture runs.
+System.put_env("XLA_PYTHON_CLIENT_ALLOCATOR", "platform")
+
 # Quiet mode: suppress Logger warnings and XLA/CUDA noise
 # Parse early before any modules are loaded
 if "--quiet" in System.argv() or "-q" in System.argv() do
