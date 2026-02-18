@@ -469,7 +469,7 @@ defmodule ExPhil.Networks.XLSTMTest do
         init_fn.(Nx.template({@batch_size, @seq_len, @embed_size}, :f32), Axon.ModelState.empty())
 
       input = Nx.broadcast(0.5, {@batch_size, @seq_len, @embed_size})
-      {buttons, main_x, main_y, c_x, c_y, shoulder} = predict_fn.(params, input)
+      {buttons, _main_x, _main_y, _c_x, _c_y, _shoulder} = predict_fn.(params, input)
 
       assert Nx.shape(buttons) == {@batch_size, 8}
     end
@@ -494,7 +494,7 @@ defmodule ExPhil.Networks.XLSTMTest do
         init_fn.(Nx.template({@batch_size, @seq_len, @embed_size}, :f32), Axon.ModelState.empty())
 
       input = Nx.broadcast(0.5, {@batch_size, @seq_len, @embed_size})
-      {buttons, main_x, main_y, c_x, c_y, shoulder} = predict_fn.(params, input)
+      {buttons, _main_x, _main_y, _c_x, _c_y, _shoulder} = predict_fn.(params, input)
 
       assert Nx.shape(buttons) == {@batch_size, 8}
     end

@@ -222,7 +222,7 @@ defmodule ExPhil.Native.SelectiveScanTest do
     end
   end
 
-  defp assert_all_close(a, b, opts \\ []) do
+  defp assert_all_close(a, b, opts) do
     atol = Keyword.get(opts, :atol, 1.0e-5)
 
     diff = Nx.subtract(a, b) |> Nx.abs() |> Nx.reduce_max() |> Nx.to_number()
