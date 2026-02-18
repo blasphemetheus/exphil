@@ -1141,28 +1141,6 @@ defmodule ExPhil.Training.ConfigTest do
       end
     end
 
-    test "warns for many epochs without wandb" do
-      opts = [epochs: 25, batch_size: 64, wandb: false]
-
-      output =
-        capture_io(:stderr, fn ->
-          Config.validate(opts)
-        end)
-
-      assert output =~ "wandb"
-    end
-
-    test "no warning for many epochs with wandb" do
-      opts = [epochs: 25, batch_size: 64, wandb: true]
-
-      output =
-        capture_io(:stderr, fn ->
-          Config.validate(opts)
-        end)
-
-      refute output =~ "wandb"
-    end
-
     test "warns for small window_size with temporal" do
       opts = [epochs: 10, batch_size: 64, temporal: true, backbone: :lstm, window_size: 20]
 

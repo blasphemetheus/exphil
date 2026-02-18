@@ -143,7 +143,6 @@ defmodule ExPhil.Training.Config.Validator do
     []
     |> warn_large_window_size(opts)
     |> warn_large_batch_size(opts)
-    |> warn_many_epochs_without_wandb(opts)
     |> warn_temporal_without_window(opts)
   end
 
@@ -446,18 +445,6 @@ defmodule ExPhil.Training.Config.Validator do
         rescue
           _ -> false
         end
-    end
-  end
-
-  defp warn_many_epochs_without_wandb(warnings, opts) do
-    epochs = opts[:epochs] || 0
-    wandb = opts[:wandb] || false
-
-    if epochs >= 20 and not wandb do
-      msg = "training #{epochs} epochs without --wandb; consider enabling for metrics tracking"
-      [Help.warning_with_help(msg, :wandb) | warnings]
-    else
-      warnings
     end
   end
 
