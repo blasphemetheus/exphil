@@ -6,9 +6,9 @@
 
 ---
 
-## 1. TTT — NaN (Edifice-level init fix required) [P1]
+## 1. TTT — NaN (Edifice fix applied, needs verification) [P1]
 
-**Status:** Still NaN at LR=5e-7 / clip=0.1. Needs Edifice source fix, not just hyperparams.
+**Status:** Edifice fix pushed (commit 8a67d79). Needs `mix deps.update edifice` on pod + rerun.
 **File:** `edifice/lib/edifice/recurrent/ttt.ex`
 **Paper:** "Learning to (Learn at Test Time)" (Sun et al., 2024) — https://arxiv.org/abs/2407.04620
 
@@ -112,18 +112,19 @@ eta = Nx.divide(Nx.multiply(Nx.sigmoid(eta_pre), Nx.abs(base_lr)), inner_size)
 
 ### Testing
 
-After applying fixes in Edifice:
+Edifice tests all pass (14 correctness + 32 gradient smoke). On next pod run:
 ```bash
-cd edifice && mix test test/edifice/recurrent/ttt_test.exs
-```
-
-Then in ExPhil:
-```bash
+cd /app
+git pull origin main
 mix deps.update edifice && mix compile --force
 ./scripts/benchmark_isolated.sh --replays /workspace/replays/greg/zelda --only ttt --epochs 3 --cache-embeddings
 ```
 
 Expected: should converge at LR=5e-7 with no NaN. If stable, try relaxing to LR=1e-5.
+
+**Note:** Fix 3 from original TODO (V-K reconstruction target) was WRONG. The official TTT code
+uses raw V as the target, not V-K. The "delta rule" equivalence is a property of the gradient
+math, not a different target. This fix was NOT applied.
 
 ---
 
@@ -311,14 +312,14 @@ These 5 architectures are within 0.12 of each other (2.82-2.94). 10 epochs will 
 
 | Architecture | Issue | Fix Location | Complexity | Priority |
 |---|---|---|---|---|
-| TTT | NaN | Edifice `ttt.ex` | High (5 changes) | P1 |
-| FNet | Complex grad | Already fixed | Verify only | P1 |
+| TTT | NaN | Edifice `ttt.ex` (8a67d79) | DONE (4 fixes) | P1 |
+| FNet | Complex grad | Edifice `fnet.ex` (fc5c852) | DONE, verify | P1 |
 | KAN | OOM | N/A | Skip | P3 |
 | H3 | Underfitting | ExPhil benchmark config | Low (1 line) | P2 |
 | Hopfield | Overfitting | ExPhil benchmark config | Low (1 line) | P2 |
 
 **Quick wins (next pod session):**
-1. Verify FNet (just `mix deps.update edifice`)
-2. Try H3 at LR=1e-6
-3. Add dropout=0.2 to Hopfield
-4. Start TTT Edifice fixes (eta scaling first)
+1. `mix deps.update edifice && mix compile --force` (picks up TTT + FNet fixes)
+2. Verify FNet and TTT: `--only fnet,ttt --epochs 3`
+3. Try H3 at LR=1e-6
+4. Add dropout=0.2 to Hopfield
