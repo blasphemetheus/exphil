@@ -270,11 +270,11 @@ all_architectures = [
      # Reduced from 32 - Jamba OOMs on validation after epoch with batch_size: 32
      batch_size: 16,
      # Jamba needs very conservative settings to avoid NaN (attention + Mamba can explode)
-     # - Very low LR (1e-5)
-     # - Strict gradient clipping (0.5)
+     # - Ultra-low LR (5e-6) - diverged at epoch 3 with 1e-5
+     # - Strict gradient clipping (0.25)
      # - Reduced layers (2 instead of 3)
-     learning_rate: 1.0e-5,
-     max_grad_norm: 0.5
+     learning_rate: 5.0e-6,
+     max_grad_norm: 0.25
    ]},
   {:lstm, "LSTM",
    [temporal: true, backbone: :lstm, window_size: 30, num_layers: 1, hidden_sizes: [256, 256], dropout: 0.1]},
@@ -313,8 +313,11 @@ all_architectures = [
      # Shared attention every 2 layers (applied 2x total)
      attention_every: 2,
      hidden_sizes: [256, 256],
-     batch_size: 64,
-     dropout: 0.1
+     batch_size: 32,
+     dropout: 0.1,
+     # Shared attention + Mamba needs conservative settings to avoid NaN
+     learning_rate: 1.0e-5,
+     max_grad_norm: 0.5
    ]},
   {:mamba_ssd, "Mamba-2 (SSD)",
    [
@@ -398,7 +401,10 @@ all_architectures = [
      num_layers: 2,
      hidden_sizes: [256, 256],
      batch_size: 64,
-     dropout: 0.1
+     dropout: 0.1,
+     # H3 SSM learnable a_log/dt_log are numerically sensitive
+     learning_rate: 1.0e-5,
+     max_grad_norm: 0.5
    ]},
 
   # === Hybrid RNN+Attention ===
@@ -502,7 +508,10 @@ all_architectures = [
      num_layers: 2,
      hidden_sizes: [256, 256],
      batch_size: 64,
-     dropout: 0.1
+     dropout: 0.1,
+     # TTT inner-loop weight updates are numerically sensitive
+     learning_rate: 1.0e-5,
+     max_grad_norm: 0.5
    ]},
   {:reservoir, "Reservoir (Echo State)",
    [
@@ -522,7 +531,8 @@ all_architectures = [
      num_layers: 2,
      num_heads: 4,
      hidden_sizes: [256, 256],
-     batch_size: 64
+     batch_size: 64,
+     max_grad_norm: 1.0
    ]},
   {:ntm, "NTM (Neural Turing Machine)",
    [
@@ -530,7 +540,8 @@ all_architectures = [
      backbone: :ntm,
      window_size: 30,
      hidden_sizes: [256, 256],
-     batch_size: 32
+     batch_size: 64,
+     max_grad_norm: 1.0
    ]},
 
   # === Other Architectures ===
@@ -540,9 +551,11 @@ all_architectures = [
      backbone: :liquid,
      window_size: 30,
      num_layers: 2,
-     hidden_sizes: [256, 256],
-     batch_size: 64,
-     dropout: 0.1
+     hidden_sizes: [128, 128],
+     batch_size: 16,
+     dropout: 0.1,
+     # Liquid ODE creates massive JIT graphs — reduce everything to fit GPU
+     max_grad_norm: 1.0
    ]},
   {:decision_transformer, "Decision Transformer",
    [
@@ -551,9 +564,9 @@ all_architectures = [
      window_size: 30,
      num_layers: 2,
      num_heads: 4,
-     hidden_sizes: [256, 256],
-     batch_size: 32,
-     # Transformer-based, needs gradient clipping
+     hidden_sizes: [128, 128],
+     batch_size: 16,
+     # Transformer-based, massive JIT graph — reduce batch/hidden to fit GPU
      max_grad_norm: 1.0,
      learning_rate: 1.0e-4
    ]},
@@ -563,9 +576,11 @@ all_architectures = [
      backbone: :kan,
      window_size: 30,
      num_layers: 2,
-     hidden_sizes: [256, 256],
-     batch_size: 64,
-     dropout: 0.1
+     hidden_sizes: [128, 128],
+     batch_size: 16,
+     dropout: 0.1,
+     # KAN basis expansions create large intermediate tensors — reduce to fit GPU
+     max_grad_norm: 1.0
    ]},
   {:snn, "SNN (Spiking Neural Network)",
    [
@@ -573,7 +588,8 @@ all_architectures = [
      backbone: :snn,
      window_size: 30,
      hidden_sizes: [256, 256],
-     batch_size: 64
+     batch_size: 64,
+     max_grad_norm: 1.0
    ]},
   {:bayesian, "Bayesian NN (Weight Uncertainty)",
    [
@@ -581,7 +597,8 @@ all_architectures = [
      backbone: :bayesian,
      window_size: 30,
      hidden_sizes: [256, 256],
-     batch_size: 64
+     batch_size: 64,
+     max_grad_norm: 1.0
    ]}
 ]
 
