@@ -402,9 +402,10 @@ all_architectures = [
      hidden_sizes: [256, 256],
      batch_size: 64,
      dropout: 0.1,
-     # H3 SSM learnable a_log/dt_log are numerically sensitive
-     learning_rate: 1.0e-5,
-     max_grad_norm: 0.5
+     # H3 SSM learnable a_log/dt_log are numerically sensitive —
+     # exp() gradient is self-reinforcing, needs very conservative LR
+     learning_rate: 5.0e-7,
+     max_grad_norm: 0.1
    ]},
 
   # === Hybrid RNN+Attention ===
@@ -509,9 +510,10 @@ all_architectures = [
      hidden_sizes: [256, 256],
      batch_size: 64,
      dropout: 0.1,
-     # TTT inner-loop weight updates are numerically sensitive
-     learning_rate: 1.0e-5,
-     max_grad_norm: 0.5
+     # TTT inner-loop weight updates are numerically sensitive —
+     # self-supervised gradient-within-gradient can explode
+     learning_rate: 5.0e-7,
+     max_grad_norm: 0.1
    ]},
   {:reservoir, "Reservoir (Echo State)",
    [
@@ -529,9 +531,12 @@ all_architectures = [
      backbone: :hopfield,
      window_size: 30,
      num_layers: 2,
-     num_heads: 4,
-     hidden_sizes: [256, 256],
-     batch_size: 64,
+     num_heads: 2,
+     hidden_sizes: [128, 128],
+     hidden_size: 128,
+     batch_size: 4,
+     # Multi-head Hopfield creates head_dim*num_heads dense layers per layer —
+     # OOMs at 256/4 heads on 24GB, reduce everything
      max_grad_norm: 1.0
    ]},
   {:ntm, "NTM (Neural Turing Machine)",
@@ -579,10 +584,13 @@ all_architectures = [
      backbone: :kan,
      window_size: 30,
      num_layers: 2,
-     hidden_sizes: [128, 128],
-     batch_size: 16,
+     hidden_sizes: [64, 64],
+     hidden_size: 64,
+     grid_size: 4,
+     batch_size: 4,
      dropout: 0.1,
-     # KAN basis expansions create large intermediate tensors — reduce to fit GPU
+     # KAN basis expansions create hidden*grid_size intermediates per layer —
+     # OOMs at 128/batch=16, reduce to 64/grid=4/batch=4
      max_grad_norm: 1.0
    ]},
   {:snn, "SNN (Spiking Neural Network)",
