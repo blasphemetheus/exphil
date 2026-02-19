@@ -403,8 +403,9 @@ all_architectures = [
      batch_size: 64,
      dropout: 0.1,
      # H3 SSM learnable a_log/dt_log are numerically sensitive —
-     # exp() gradient is self-reinforcing, needs very conservative LR
-     learning_rate: 5.0e-7,
+     # exp() gradient is self-reinforcing. NaN at 1e-5, stable at 5e-7 but
+     # underfitting (val=3.62, train still dropping at epoch 3). Try 1e-6.
+     learning_rate: 1.0e-6,
      max_grad_norm: 0.1
    ]},
 
@@ -535,8 +536,10 @@ all_architectures = [
      hidden_sizes: [128, 128],
      hidden_size: 128,
      batch_size: 4,
+     dropout: 0.2,
      # Multi-head Hopfield creates head_dim*num_heads dense layers per layer —
-     # OOMs at 256/4 heads on 24GB, reduce everything
+     # OOMs at 256/4 heads on 24GB, reduce everything.
+     # Overfits by epoch 3 (val 2.95→3.13), dropout helps regularize.
      max_grad_norm: 1.0
    ]},
   {:ntm, "NTM (Neural Turing Machine)",
