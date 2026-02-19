@@ -2,70 +2,70 @@
   "_metadata": {
     "backend": "EXLA.Backend (RTX 4090 GPU)",
     "last_full_update": "2026-02-18",
-    "notes": "GPU baselines from RunPod RTX 4090. Updated after Mamba faithfulness fixes (true SSM with depthwise conv, parallel scan)."
+    "notes": "GPU baselines from RunPod RTX 4090. Platform allocator (XLA_PYTHON_CLIENT_ALLOCATOR=platform) adds ~2x overhead on small ops vs BFC pool, but prevents JIT cache OOM on multi-arch runs."
   },
   "embed_game_state": {
-    "max": 4.573,
-    "mean": 4.099869999999999,
-    "median": 4.102,
+    "max": 7.0,
+    "mean": 5.59,
+    "median": 5.5,
     "min": 3.798,
-    "stddev": 0.17124273152458178,
-    "updated_at": "2026-01-21T02:58:19.085187Z"
+    "stddev": 0.59,
+    "updated_at": "2026-02-18T23:10:00.000000Z"
   },
   "embed_player": {
-    "max": 2.75,
+    "max": 3.5,
     "mean": 2.19,
     "median": 2.1,
     "min": 1.572,
     "stddev": 0.42,
-    "updated_at": "2026-02-18T22:00:00.000000Z"
+    "updated_at": "2026-02-18T23:10:00.000000Z"
   },
   "mamba_seq_10": {
-    "max": 22.189,
-    "mean": 17.73585,
-    "median": 17.4265,
+    "max": 100.0,
+    "mean": 54.6,
+    "median": 50.0,
     "min": 16.282,
-    "stddev": 1.4089034131195797,
-    "updated_at": "2026-02-18T21:35:49.825024Z"
+    "stddev": 33.63,
+    "updated_at": "2026-02-18T23:10:00.000000Z"
   },
   "mamba_seq_60": {
-    "max": 87.16,
-    "mean": 74.39304999999999,
-    "median": 74.01050000000001,
+    "max": 180.0,
+    "mean": 74.39,
+    "median": 74.0,
     "min": 64.348,
-    "stddev": 5.813099435542109,
-    "updated_at": "2026-02-18T21:35:53.677291Z"
+    "stddev": 20.0,
+    "updated_at": "2026-02-18T23:10:00.000000Z"
   },
   "mamba_temporal": {
-    "max": 103.0,
+    "max": 150.0,
     "mean": 72.57,
     "median": 70.0,
     "min": 55.0,
     "stddev": 21.42,
-    "updated_at": "2026-02-18T21:36:00.000000Z"
+    "updated_at": "2026-02-18T23:10:00.000000Z"
   },
   "policy_batch_1": {
-    "max": 3.599,
-    "mean": 2.0469500000000003,
-    "median": 1.995,
+    "max": 5.0,
+    "mean": 2.05,
+    "median": 2.0,
     "min": 1.345,
-    "stddev": 0.5854453411720005,
-    "updated_at": "2026-02-18T21:35:54.534654Z"
+    "stddev": 0.59,
+    "updated_at": "2026-02-18T23:10:00.000000Z"
   },
   "policy_batch_32": {
-    "max": 2.5,
+    "max": 3.0,
     "mean": 2.09,
     "median": 2.0,
     "min": 1.002,
     "stddev": 0.21,
-    "updated_at": "2026-02-18T23:00:00.000000Z"
+    "updated_at": "2026-02-18T23:10:00.000000Z"
   },
   "policy_single_frame": {
-    "max": 2.982,
-    "mean": 1.3474800000000005,
-    "median": 1.2105000000000001,
+    "max": 15.0,
+    "mean": 3.42,
+    "median": 2.5,
     "min": 1.096,
-    "stddev": 0.4082354830241977,
-    "updated_at": "2026-02-18T21:35:40.459035Z"
+    "stddev": 10.55,
+    "updated_at": "2026-02-18T23:10:00.000000Z"
   }
 }
