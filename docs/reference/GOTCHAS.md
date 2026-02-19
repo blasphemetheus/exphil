@@ -38,6 +38,10 @@ Hard-won knowledge from debugging ExPhil. Each section documents a specific issu
 32. [Prefetcher deadlock with EXLA tensors in spawned processes](#32-prefetcher-deadlock-with-exla-tensors-in-spawned-processes)
 33. [LSTM/GRU training is inherently slow (not a bug)](#33-lstmgru-training-is-inherently-slow-not-a-bug)
 34. [Imitation.new uses window_size, not seq_len](#34-imitationnew-uses-window_size-not-seq_len)
+37. [XLA_PYTHON_CLIENT_ALLOCATOR must be set in shell, not Elixir](#37-xla_python_client_allocator-must-be-set-in-shell-not-elixir)
+38. [Nx.fft backward pass produces complex gradients](#38-nxfft-backward-pass-produces-complex-gradients-breaks-layernorm)
+39. [Non-temporal Edifice models need last-frame extraction](#39-non-temporal-edifice-models-need-last-frame-extraction-for-temporal-benchmark)
+40. [Exponential parameterization causes NaN training](#40-exponential-parameterization-causes-nan-training-h3-ttt-zamba)
 35. [Prefetcher materializes all batches into memory](#35-prefetcher-materializes-all-batches-into-memory)
 36. [Embedding pre-computation exhausts RAM on large datasets](#36-embedding-pre-computation-exhausts-ram-on-large-datasets)
 37. [0% GPU utilization with pre-computed embeddings](#37-0-gpu-utilization-with-pre-computed-embeddings)
@@ -2096,3 +2100,84 @@ train_frames = Enum.map(train_indices, &:array.get(&1, frames_array))
 | Batch creation | 100K frames | < 500ms/batch | ~28ms |
 
 Run with: `mix test test/exphil/training/data_test.exs --include benchmark`
+
+---
+
+## 37. XLA_PYTHON_CLIENT_ALLOCATOR must be set in shell, not Elixir
+
+**Symptoms:** GPU shows 95% memory used before any training starts. `I0000 ... Using BFC allocator. XLA backend will use up to 22725564825 bytes`.
+
+**Root cause:** `System.put_env("XLA_PYTHON_CLIENT_ALLOCATOR", "platform")` in your Elixir script runs **too late** — EXLA's native library reads the env var at load time (during `mix compile` or first use), before your script code executes.
+
+**Fix:** Export in the shell before running mix:
+```bash
+export XLA_PYTHON_CLIENT_ALLOCATOR=platform
+mix run scripts/benchmark_architectures.exs ...
+```
+
+**Why it matters:** BFC allocator pre-grabs ~95% of GPU memory and **never releases it**. Platform allocator allocates on demand and frees on process exit — essential for isolated benchmark mode where each architecture runs in its own BEAM process.
+
+**Code location:** `scripts/benchmark_isolated.sh` line 22.
+
+---
+
+## 38. Nx.fft backward pass produces complex gradients (breaks LayerNorm)
+
+**Symptoms:** `Nx.less/2 does not support complex inputs` during training (not inference). Happens at batch 1 during JIT compilation of the backward pass.
+
+**Root cause:** Even with `Nx.real()` after `Nx.fft()` in the forward pass, EXLA's autodiff through `Nx.real(Nx.fft(x))` produces complex intermediate gradients. When these flow backward into LayerNorm (which uses `Nx.less` internally), it crashes.
+
+**Fix:** Replace `Nx.fft` with real-valued DFT matrix multiply:
+```elixir
+# Before (crashes on backward pass):
+x = Nx.fft(x) |> Nx.real()
+
+# After (all-real operations):
+dft_matrix = Nx.cos(Nx.multiply(Nx.multiply(row, col), 2.0 * :math.pi() / n))
+x = Nx.dot(x, dft_matrix)
+```
+
+For real input: `Real(FFT(x))_k = sum_n x_n * cos(2pi*n*k/N)` — a standard matrix multiply. O(N^2) instead of O(N log N), but negligible at typical sizes (seq_len=30, hidden=256).
+
+**Code location:** `Edifice.Attention.FNet.fourier_mixing_real/3`, commit fc5c852.
+
+---
+
+## 39. Non-temporal Edifice models need last-frame extraction for temporal benchmark
+
+**Symptoms:** Shape mismatch errors like `{64, 30, 8} vs {64, 8}` when benchmarking architectures like Hopfield, Bayesian, SNN, NTM with temporal (sequence) inputs.
+
+**Root cause:** These Edifice models expect 2D `{batch, features}` input, but the temporal benchmark provides 3D `{batch, seq_len, embed}` sequences. They can't process sequences natively.
+
+**Fix:** Add last-frame extraction in the backbone builder:
+```elixir
+input = Axon.input("state_sequence", shape: {nil, window_size, embed_size})
+last_frame = Axon.nx(input, fn tensor ->
+  seq = Nx.axis_size(tensor, 1)
+  Nx.slice_along_axis(tensor, seq - 1, 1, axis: 1) |> Nx.squeeze(axes: [1])
+end, name: "last_frame")
+# Then feed last_frame into the non-temporal model
+```
+
+**Code location:** `lib/exphil/networks/policy/backbone.ex` — `build_hopfield_backbone`, `build_snn_backbone`, `build_bayesian_backbone`, `build_ntm_backbone`.
+
+---
+
+## 40. Exponential parameterization causes NaN training (H3, TTT, Zamba)
+
+**Symptoms:** Loss becomes NaN within the first epoch or first few batches. No OOM — the model runs but produces garbage.
+
+**Root cause:** Architectures with learnable parameters in **exponential space** (e.g., H3's `a_log`/`dt_log` where the actual parameter is `exp(a_log)`) create gradient feedback loops. The gradient of `exp(x)` is `exp(x)` itself — if the parameter starts too large, gradients explode exponentially. TTT has similar issues with inner-loop weight updates (gradient-within-gradient). Zamba's shared QKV parameters concentrate gradient signal.
+
+**Fix:** Much lower learning rate + tight gradient clipping:
+
+| Architecture | Default LR | Stable LR | Grad Clip | Result |
+|-------------|-----------|-----------|-----------|--------|
+| Zamba | 1e-4 | 1e-5 | 0.5 | 2.8769 (top 3!) |
+| Jamba | 1e-4 | 5e-6 | 0.25 | 3.0623 |
+| H3 | 1e-4 | 5e-7 | 0.1 | 3.6215 (still underfitting) |
+| TTT | 1e-4 | 5e-7 | 0.1 | pending |
+
+Better long-term fix: LR warmup schedule (start at 5e-7, ramp to 1e-5 over epoch 1).
+
+**Code location:** Per-architecture configs in `scripts/benchmark_architectures.exs`.

@@ -42,7 +42,13 @@ This document tracks the major goals and roadmap for ExPhil development.
 
 ### Next Step
 
-**Architecture benchmarking** — systematic comparison of 34 backbones on GPU to find the best speed/accuracy tradeoff for 60 FPS gameplay. Previous run (5 architectures on RTX 4090) showed Attention winning on val loss with Jamba as the speed/quality sweet spot. Full 34-architecture benchmark pending.
+**Architecture benchmarking** — COMPLETE (see [Benchmark Results](../research/BENCHMARK_RESULTS.md)).
+
+Full 34-architecture benchmark on RTX 4090 with Zelda replays: 30/34 converged, S4 won (val=2.82), SSMs dominate top-10. Key findings:
+- Top-5: S4, xLSTM, Zamba, S4D, GRU (all within val 2.82–2.94)
+- Temporal architectures beat non-temporal by ~0.15 val loss
+- 4 architectures needed special handling: KAN (permanent OOM), H3/TTT (need very low LR), FNet (needed real DFT matrix)
+- Next: longer training runs (10+ epochs) for top-5, inference latency benchmarks for 60fps viability
 
 ---
 
