@@ -17,6 +17,10 @@
 
 set -euo pipefail
 
+# Use platform allocator so each process can reclaim GPU memory on exit
+# (BFC allocator never releases memory back to the OS)
+export XLA_PYTHON_CLIENT_ALLOCATOR=platform
+
 # All 34 architectures in default order
 ALL_ARCHS="mlp gated_ssm mamba jamba lstm gru lstm_hybrid sliding_window zamba mamba_ssd s5 rwkv gla hgrn s4 s4d h3 griffin hawk xlstm retnet performer deltanet fnet perceiver ttt reservoir hopfield ntm liquid decision_transformer kan snn bayesian"
 

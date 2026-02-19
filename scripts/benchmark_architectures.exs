@@ -550,11 +550,14 @@ all_architectures = [
      temporal: true,
      backbone: :liquid,
      window_size: 30,
-     num_layers: 2,
+     num_layers: 1,
      hidden_sizes: [128, 128],
-     batch_size: 16,
+     hidden_size: 64,
+     batch_size: 4,
      dropout: 0.1,
-     # Liquid ODE creates massive JIT graphs — reduce everything to fit GPU
+     # Liquid ODE creates massive JIT graphs — minimize everything to fit GPU
+     # Uses hidden_size: 64 (backbone) vs hidden_sizes: [128,128] (policy heads)
+     integration_steps: 1,
      max_grad_norm: 1.0
    ]},
   {:decision_transformer, "Decision Transformer",
