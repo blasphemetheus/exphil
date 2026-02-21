@@ -58,6 +58,10 @@ cover/
 
 # Log files
 *.log
+/logs/
+
+# Cache directories
+/cache/
 
 # Test artifacts
 tmp/
