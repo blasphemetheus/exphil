@@ -18,6 +18,21 @@ defmodule ExPhil.Training.GPUUtils do
   """
 
   alias ExPhil.Error.GPUError
+  alias ExPhil.Training.Output
+
+  # Maps library name prefixes to Nix package / fix suggestions
+  @library_fixes %{
+    "libnccl" => "cudaPackages.nccl",
+    "libcudart" => "cudaPackages.cudatoolkit",
+    "libcudnn" => "cudaPackages.cudnn",
+    "libnvJitLink" => "cudaPackages.libnvjitlink",
+    "libcuda.so" => "NVIDIA driver (WSL2: add /usr/lib/wsl/lib to LD_LIBRARY_PATH)",
+    "libcublas" => "cudaPackages.cudatoolkit",
+    "libcufft" => "cudaPackages.cudatoolkit",
+    "libcusolver" => "cudaPackages.cudatoolkit",
+    "libcusparse" => "cudaPackages.cudatoolkit",
+    "libnvrtc" => "cudaPackages.cudatoolkit"
+  }
 
   @doc """
   Get GPU memory usage information via nvidia-smi.
@@ -427,5 +442,167 @@ defmodule ExPhil.Training.GPUUtils do
     end
   rescue
     _ -> {:error, GPUError.new(:not_found)}
+  end
+
+  @doc """
+  Run CUDA diagnostics and print results.
+
+  Checks:
+  1. EXLA_TARGET environment variable
+  2. nvidia-smi GPU access
+  3. Shared library dependencies (ldd on libexla.so)
+  4. libdevice.10.bc for XLA GPU compilation
+
+  Returns `:ok` if all checks pass, or `{:error, count}` with the number of failures.
+
+  ## Options
+  - `:verbose` - Print passing checks too (default: true)
+  """
+  @spec diagnose_cuda(keyword()) :: :ok | {:error, non_neg_integer()}
+  def diagnose_cuda(opts \\ []) do
+    verbose = Keyword.get(opts, :verbose, true)
+
+    Output.banner("CUDA Diagnostics")
+
+    results = [
+      check_exla_target(verbose),
+      check_nvidia_smi(verbose),
+      check_shared_libraries(verbose),
+      check_libdevice(verbose)
+    ]
+
+    errors = Enum.count(results, &(&1 == :error))
+
+    IO.write(:stderr, "\n")
+
+    if errors == 0 do
+      Output.success("All CUDA checks passed")
+      :ok
+    else
+      Output.error("#{errors} CUDA check(s) failed — see above for fixes")
+      {:error, errors}
+    end
+  end
+
+  defp check_exla_target(verbose) do
+    case System.get_env("EXLA_TARGET") do
+      "cuda" ->
+        if verbose, do: Output.success("EXLA_TARGET=cuda")
+        :ok
+
+      other ->
+        Output.error("EXLA_TARGET=#{inspect(other)} (expected \"cuda\")")
+        Output.puts("  Fix: export EXLA_TARGET=cuda")
+        :error
+    end
+  end
+
+  defp check_nvidia_smi(verbose) do
+    if gpu_available?() do
+      case device_name() do
+        {:ok, name} ->
+          if verbose, do: Output.success("nvidia-smi OK: #{name}")
+
+        _ ->
+          if verbose, do: Output.success("nvidia-smi OK")
+      end
+
+      :ok
+    else
+      Output.error("nvidia-smi not found or GPU not accessible")
+      Output.puts("  Fix (WSL2): ensure NVIDIA GPU drivers are installed on Windows host")
+      :error
+    end
+  end
+
+  defp check_shared_libraries(verbose) do
+    libexla_path = find_libexla()
+
+    case libexla_path do
+      nil ->
+        Output.warning("libexla.so not found — skipping shared library check")
+        Output.puts("  Run 'mix compile' to build EXLA first")
+        :ok
+
+      path ->
+        case System.cmd("ldd", [path], stderr_to_stdout: true) do
+          {output, 0} ->
+            missing =
+              output
+              |> String.split("\n")
+              |> Enum.filter(&String.contains?(&1, "not found"))
+              |> Enum.map(fn line ->
+                line |> String.trim() |> String.split(" ") |> List.first()
+              end)
+
+            if missing == [] do
+              if verbose, do: Output.success("All shared libraries found")
+              :ok
+            else
+              Output.error("#{length(missing)} missing shared libraries:")
+
+              for lib <- missing do
+                fix = find_fix_suggestion(lib)
+                Output.puts("  #{lib} → #{fix}")
+              end
+
+              :error
+            end
+
+          {_, _} ->
+            Output.warning("ldd failed on #{path}")
+            :ok
+        end
+    end
+  rescue
+    _ ->
+      Output.warning("ldd not available — skipping shared library check")
+      :ok
+  end
+
+  defp check_libdevice(verbose) do
+    cuda_path = System.get_env("CUDA_PATH")
+
+    cond do
+      is_nil(cuda_path) or cuda_path == "" ->
+        Output.error("CUDA_PATH not set")
+        Output.puts("  Fix: export CUDA_PATH=$(dirname $(which nvcc))/..")
+        :error
+
+      true ->
+        libdevice = Path.join([cuda_path, "nvvm", "libdevice", "libdevice.10.bc"])
+
+        if File.exists?(libdevice) do
+          if verbose, do: Output.success("libdevice.10.bc found")
+          :ok
+        else
+          Output.error("libdevice.10.bc not found at #{libdevice}")
+          Output.puts("  Fix: ensure cudatoolkit is in buildInputs and CUDA_PATH is correct")
+          Output.puts("  Also set: export XLA_FLAGS=\"--xla_gpu_cuda_data_dir=$CUDA_PATH\"")
+          :error
+        end
+    end
+  end
+
+  defp find_libexla do
+    # EXLA NIF is typically at _build/dev/lib/exla/priv/libexla.so
+    candidates = [
+      Path.join([Mix.Project.build_path(), "lib", "exla", "priv", "libexla.so"]),
+      Path.join(["_build", "dev", "lib", "exla", "priv", "libexla.so"]),
+      Path.join(["_build", "prod", "lib", "exla", "priv", "libexla.so"])
+    ]
+
+    Enum.find(candidates, &File.exists?/1)
+  rescue
+    # Mix.Project may not be available in all contexts
+    _ ->
+      ["_build/dev/lib/exla/priv/libexla.so", "_build/prod/lib/exla/priv/libexla.so"]
+      |> Enum.find(&File.exists?/1)
+  end
+
+  defp find_fix_suggestion(lib_name) do
+    Enum.find_value(@library_fixes, "unknown package", fn {prefix, fix} ->
+      if String.starts_with?(lib_name, prefix), do: fix
+    end)
   end
 end

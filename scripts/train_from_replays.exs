@@ -698,6 +698,16 @@ if opts[:wandb] do
   end
 end
 
+# CUDA preflight check
+if System.get_env("EXLA_TARGET") == "cuda" do
+  case GPUUtils.diagnose_cuda() do
+    :ok -> :ok
+    {:error, _} ->
+      Output.error("Fix CUDA issues above before training. Use EXLA_TARGET=host for CPU.")
+      System.halt(1)
+  end
+end
+
 # Step 1: Find and validate replays
 Output.puts("Step 1: Finding replays...", :cyan)
 

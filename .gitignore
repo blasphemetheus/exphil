@@ -69,3 +69,7 @@ tmp/
 # Generated ExDoc HTML documentation
 # Regenerate with: mix docs
 doc/
+
+# Nix shell artifacts
+.nix-mix/
+.nix-hex/

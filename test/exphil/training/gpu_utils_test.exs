@@ -181,4 +181,16 @@ defmodule ExPhil.Training.GPUUtilsTest do
       assert is_boolean(GPUUtils.gpu_available?())
     end
   end
+
+  describe "diagnose_cuda/1" do
+    test "returns :ok or {:error, count} without crashing" do
+      result = GPUUtils.diagnose_cuda(verbose: false)
+      assert result == :ok or match?({:error, n} when is_integer(n) and n > 0, result)
+    end
+
+    test "accepts verbose option" do
+      result = GPUUtils.diagnose_cuda(verbose: true)
+      assert result == :ok or match?({:error, _}, result)
+    end
+  end
 end
