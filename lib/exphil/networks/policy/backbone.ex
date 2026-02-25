@@ -38,6 +38,13 @@ defmodule ExPhil.Networks.Policy.Backbone do
   | `:reservoir` | Echo State Network | Fixed random weights, fast |
   | `:snn` | Spiking Neural Network | Biologically-inspired, temporal |
   | `:bayesian` | Bayesian NN | Weight uncertainty estimation |
+  | `:min_gru` | Minimal GRU | Parallel-scannable, faster GRU |
+  | `:min_lstm` | Minimal LSTM | Parallel-scannable, faster LSTM |
+  | `:tcn` | Temporal Conv Net | Dilated causal convolutions |
+  | `:mamba3` | Mamba-3 | Complex states, MIMO SSM |
+  | `:hyena` | Hyena | Long convolution hierarchy |
+  | `:titans` | Titans | Surprise-gated long-term memory |
+  | `:gated_deltanet` | Gated DeltaNet | Delta rule with data-dependent gating |
 
   ## Usage
 
@@ -116,6 +123,13 @@ defmodule ExPhil.Networks.Policy.Backbone do
           | :kan
           | :transformer_like
           | :deep_res_lstm
+          | :min_gru
+          | :min_lstm
+          | :tcn
+          | :mamba3
+          | :hyena
+          | :titans
+          | :gated_deltanet
 
   @doc """
   Build a temporal backbone that processes frame sequences.
@@ -268,6 +282,34 @@ defmodule ExPhil.Networks.Policy.Backbone do
       :deep_res_lstm ->
         # DeepResLSTM: Stacked residual LSTM blocks (slippi-ai's res_lstm)
         build_deep_res_lstm_backbone(embed_size, opts)
+
+      :min_gru ->
+        # MinGRU: Minimal GRU, parallel-scannable (faster than standard GRU)
+        build_min_gru_backbone(embed_size, opts)
+
+      :min_lstm ->
+        # MinLSTM: Minimal LSTM, parallel-scannable (faster than standard LSTM)
+        build_min_lstm_backbone(embed_size, opts)
+
+      :tcn ->
+        # TCN: Temporal Convolutional Network (dilated causal convolutions)
+        build_tcn_backbone(embed_size, opts)
+
+      :mamba3 ->
+        # Mamba-3: Complex states, trapezoidal discretization, MIMO
+        build_mamba3_backbone(embed_size, opts)
+
+      :hyena ->
+        # Hyena: Long convolution hierarchy with implicit filters
+        build_hyena_backbone(embed_size, opts)
+
+      :titans ->
+        # Titans: Neural long-term memory with surprise gating
+        build_titans_backbone(embed_size, opts)
+
+      :gated_deltanet ->
+        # Gated DeltaNet: Linear attention with data-dependent gating
+        build_gated_deltanet_backbone(embed_size, opts)
 
       :lstm ->
         build_lstm_backbone(embed_size, opts)
@@ -475,6 +517,28 @@ defmodule ExPhil.Networks.Policy.Backbone do
       :deep_res_lstm ->
         # DeepResLSTM (slippi-ai's res_lstm): defaults to 512 to match slippi-ai
         Keyword.get(opts, :hidden_size, 512)
+
+      :min_gru ->
+        Keyword.get(opts, :hidden_size, 256)
+
+      :min_lstm ->
+        Keyword.get(opts, :hidden_size, 256)
+
+      :tcn ->
+        channels = Keyword.get(opts, :channels, [64, 64, 64, 64])
+        List.last(channels)
+
+      :mamba3 ->
+        Keyword.get(opts, :hidden_size, 256)
+
+      :hyena ->
+        Keyword.get(opts, :hidden_size, 256)
+
+      :titans ->
+        Keyword.get(opts, :hidden_size, 256)
+
+      :gated_deltanet ->
+        Keyword.get(opts, :hidden_size, 256)
 
       :lstm ->
         Keyword.get(opts, :hidden_size, 256)
@@ -1265,6 +1329,163 @@ defmodule ExPhil.Networks.Policy.Backbone do
       num_layers: num_layers,
       dropout: dropout,
       norm: norm,
+      window_size: window_size,
+      seq_len: seq_len
+    )
+  end
+
+  # MinGRU: Minimal GRU with parallel scan (Feng et al., 2024)
+  defp build_min_gru_backbone(embed_size, opts) do
+    alias Edifice.Recurrent.MinGRU
+
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    num_layers = Keyword.get(opts, :num_layers, 4)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+    window_size = Keyword.get(opts, :window_size, 60)
+    seq_len = Keyword.get(opts, :seq_len, window_size)
+
+    MinGRU.build(
+      embed_dim: embed_size,
+      hidden_size: hidden_size,
+      num_layers: num_layers,
+      dropout: dropout,
+      window_size: window_size,
+      seq_len: seq_len
+    )
+  end
+
+  # MinLSTM: Minimal LSTM with parallel scan (Feng et al., 2024)
+  defp build_min_lstm_backbone(embed_size, opts) do
+    alias Edifice.Recurrent.MinLSTM
+
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    num_layers = Keyword.get(opts, :num_layers, 4)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+    window_size = Keyword.get(opts, :window_size, 60)
+    seq_len = Keyword.get(opts, :seq_len, window_size)
+
+    MinLSTM.build(
+      embed_dim: embed_size,
+      hidden_size: hidden_size,
+      num_layers: num_layers,
+      dropout: dropout,
+      window_size: window_size,
+      seq_len: seq_len
+    )
+  end
+
+  # TCN: Temporal Convolutional Network with dilated causal convolutions
+  defp build_tcn_backbone(embed_size, opts) do
+    alias Edifice.Convolutional.TCN
+
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    num_layers = Keyword.get(opts, :num_layers, 4)
+    channels = Keyword.get(opts, :channels, List.duplicate(hidden_size, num_layers))
+    kernel_size = Keyword.get(opts, :kernel_size, 3)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+    window_size = Keyword.get(opts, :window_size, 60)
+    seq_len = Keyword.get(opts, :seq_len, window_size)
+
+    TCN.build(
+      input_size: embed_size,
+      channels: channels,
+      kernel_size: kernel_size,
+      dropout: dropout,
+      seq_len: seq_len
+    )
+  end
+
+  # Mamba-3: Complex states, trapezoidal discretization, MIMO
+  defp build_mamba3_backbone(embed_size, opts) do
+    alias Edifice.SSM.Mamba3
+
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    state_size = Keyword.get(opts, :state_size, 16)
+    expand_factor = Keyword.get(opts, :expand_factor, 2)
+    conv_size = Keyword.get(opts, :conv_size, 4)
+    num_layers = Keyword.get(opts, :num_layers, 2)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+    window_size = Keyword.get(opts, :window_size, 60)
+
+    Mamba3.build(
+      embed_dim: embed_size,
+      hidden_size: hidden_size,
+      state_size: state_size,
+      expand_factor: expand_factor,
+      conv_size: conv_size,
+      num_layers: num_layers,
+      dropout: dropout,
+      window_size: window_size
+    )
+  end
+
+  # Hyena: Long convolution hierarchy with implicit filters
+  defp build_hyena_backbone(embed_size, opts) do
+    alias Edifice.SSM.Hyena
+
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    order = Keyword.get(opts, :order, 2)
+    filter_size = Keyword.get(opts, :filter_size, 64)
+    num_layers = Keyword.get(opts, :num_layers, 4)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+    window_size = Keyword.get(opts, :window_size, 60)
+    seq_len = Keyword.get(opts, :seq_len, window_size)
+
+    Hyena.build(
+      embed_dim: embed_size,
+      hidden_size: hidden_size,
+      order: order,
+      filter_size: filter_size,
+      num_layers: num_layers,
+      dropout: dropout,
+      window_size: window_size,
+      seq_len: seq_len
+    )
+  end
+
+  # Titans: Neural long-term memory with surprise-gated updates
+  defp build_titans_backbone(embed_size, opts) do
+    alias Edifice.Recurrent.Titans
+
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    memory_size = Keyword.get(opts, :memory_size, 64)
+    num_layers = Keyword.get(opts, :num_layers, 4)
+    momentum = Keyword.get(opts, :momentum, 0.9)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+    window_size = Keyword.get(opts, :window_size, 60)
+    seq_len = Keyword.get(opts, :seq_len, window_size)
+
+    Titans.build(
+      embed_dim: embed_size,
+      hidden_size: hidden_size,
+      memory_size: memory_size,
+      num_layers: num_layers,
+      momentum: momentum,
+      dropout: dropout,
+      window_size: window_size,
+      seq_len: seq_len
+    )
+  end
+
+  # Gated DeltaNet: Linear attention with data-dependent gating
+  defp build_gated_deltanet_backbone(embed_size, opts) do
+    alias Edifice.Recurrent.GatedDeltaNet
+
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    num_heads = Keyword.get(opts, :num_heads, 4)
+    num_layers = Keyword.get(opts, :num_layers, 4)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+    conv_size = Keyword.get(opts, :conv_size, 4)
+    window_size = Keyword.get(opts, :window_size, 60)
+    seq_len = Keyword.get(opts, :seq_len, window_size)
+
+    GatedDeltaNet.build(
+      embed_dim: embed_size,
+      hidden_size: hidden_size,
+      num_heads: num_heads,
+      num_layers: num_layers,
+      dropout: dropout,
+      conv_size: conv_size,
       window_size: window_size,
       seq_len: seq_len
     )

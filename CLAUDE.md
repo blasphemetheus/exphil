@@ -46,7 +46,7 @@ ExPhil is an Elixir-based platform for experimenting with neural network archite
 **Test coverage:** ~2700 tests passing
 
 **Completed:**
-- 30+ backbone architectures: MLP, LSTM, GRU, Mamba, Griffin, xLSTM, RetNet, RWKV, KAN, Liquid, Jamba, Attention, Zamba, Mamba-2, GatedSSM, S4, S4D, S5, H3, Performer, DeltaNet, FNet, Perceiver, TTT, Hopfield, NTM, Reservoir, SNN, Bayesian, GLA, HGRN, Decision Transformer
+- 30+ backbone architectures: MLP, LSTM, GRU, Mamba, Griffin, xLSTM, RetNet, RWKV, KAN, Liquid, Jamba, Attention, Zamba, Mamba-2, GatedSSM, S4, S4D, S5, H3, Performer, DeltaNet, FNet, Perceiver, TTT, Hopfield, NTM, Reservoir, SNN, Bayesian, GLA, HGRN, Decision Transformer, MinGRU, MinLSTM, TCN, Mamba-3, Hyena, Titans, GatedDeltaNet
 - 4 policy types: Standard (autoregressive heads), Diffusion (DDPM), ACT (CVAE chunking), Flow Matching (ODE-based)
 - Learned embeddings: action/character/stage (288 dims default, 6x more efficient than one-hot)
 - Imitation learning (single-frame + temporal)

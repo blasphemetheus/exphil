@@ -79,7 +79,14 @@ defmodule ExPhil.Training.Config do
     :liquid,
     :kan,
     :transformer_like,
-    :deep_res_lstm
+    :deep_res_lstm,
+    :min_gru,
+    :min_lstm,
+    :tcn,
+    :mamba3,
+    :hyena,
+    :titans,
+    :gated_deltanet
   ]
   @valid_optimizers [:adam, :adamw, :lamb, :radam, :sgd, :rmsprop]
   @valid_lr_schedules [:constant, :cosine, :cosine_restarts, :exponential, :linear]

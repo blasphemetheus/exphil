@@ -22,10 +22,14 @@ This document summarizes research relevant to ExPhil, including lessons learned 
 
 ### slippi-ai (Active, Primary Reference)
 - **Repository:** https://github.com/vladfi1/slippi-ai
+- **Twitch:** [twitch.tv/x_pilot](https://twitch.tv/x_pilot) (live netplay vs viewers)
 - **Approach:** Behavioral cloning from Slippi replays + RL self-play refinement
-- **Architecture:** GRU core + autoregressive action heads
+- **Architecture:** DeepResLSTM (residual LSTM + layer norm) + autoregressive action heads
+- **Alt backbone:** TransformerLike (LSTM/GRU + FFN interleaved, transformer-style without attention)
 - **Results:** Competitive with top professionals (Moky 10-3, Zain 5-3)
 - **Delay:** 18+ frames (designed for online play feel)
+- **Characters:** 12 supported, strongest agent is `fox_d18_ditto_v3`
+- **Data:** altf4's public dataset v3 (~200GB uncompressed)
 
 ### Phillip (Original, Deprecated)
 - **Repository:** https://github.com/vladfi1/phillip
@@ -33,6 +37,7 @@ This document summarizes research relevant to ExPhil, including lessons learned 
 - **Approach:** Pure deep RL (no imitation learning)
 - **Architecture:** Actor-Critic with frame stacking
 - **Results:** Beat professionals at tournaments (2017)
+- **Note:** "Phillip v2" on Twitch refers to slippi-ai (above), not this project
 
 ### Project Nabla
 - **Blog Post:** https://bycn.github.io/2022/08/19/project-nabla-writeup.html
@@ -98,10 +103,32 @@ Stage 2: RL Self-Play
 
 | Project | Core Architecture | Temporal Handling | Action Head |
 |---------|------------------|-------------------|-------------|
-| slippi-ai | Dense + GRU (256) | 1-layer recurrent | Autoregressive |
+| slippi-ai | DeepResLSTM (128-256) | Multi-layer residual recurrent | Autoregressive |
 | Phillip | MLP + frame stack | Concatenated frames | Independent heads |
-| Eric Gu | Decoder Transformer | Causal attention | Next-token prediction |
-| **ExPhil** | MLP/Mamba/LSTM | Configurable backbone | Autoregressive (6 heads) |
+| Eric Gu | Decoder Transformer (20M) | Causal attention | Next-token prediction |
+| **ExPhil** | 48 configurable backbones | Mamba/LSTM/GRU/Attention/SSM/etc. | Autoregressive (6 heads) |
+
+### slippi-ai Architecture Details
+
+The strongest slippi-ai agents use **DeepResLSTM** (`res_lstm`), not a simple GRU. Available backbone options in their `slippi_ai/networks.py`:
+
+| Architecture | Key Config | Description |
+|---|---|---|
+| `mlp` | depth=2, width=128 | Basic feedforward, stateless |
+| `lstm` | hidden_size=128, num_res_blocks=0 | Standard LSTM |
+| `gru` | hidden_size=128 | Gated Recurrent Unit |
+| `res_lstm` | hidden_size=128, num_layers=1 | **Primary.** Residual LSTM blocks with layer norm |
+| `tx_like` | hidden_size=128, num_layers=1, ffw_multiplier=4 | Transformer-style: alternates recurrent + FFN layers |
+
+**DeepResLSTM key design:**
+Each `ResLSTMBlock` applies: LayerNorm → LSTM → Residual connection with learned decoder projection **initialized as identity**. This means the network starts as a pass-through and learns incrementally. This identity initialization is a critical stability trick for training deeper networks.
+
+**TransformerLike (`tx_like`) design:**
+Alternates between a recurrent layer (LSTM or GRU, configurable) and a ResBlock FFN (with 4× expansion by default, GELU activation). This gives transformer-style depth without quadratic attention cost — O(1) per-step inference.
+
+**Embedding:** One-hot actions (399 dims), one-hot characters (33 dims), 16 stick buckets per axis, 4-level shoulder discretization. No learned embeddings — ExPhil's learned embedding approach (64-dim) is more parameter-efficient.
+
+**Reward discount (RL stage):** `0.5 ^ (1 / (reward_halflife * 60))` with default halflife of 4 frames.
 
 ### Why Mamba for ExPhil?
 
@@ -299,15 +326,18 @@ PPO with self-play achieved 62% win rate vs professionals in Blade & Soul:
 
 1. **Two-stage training** - BC then RL matches best practices
 2. **Autoregressive action heads** - Proper multi-button coordination
-3. **Mamba backbone** - Novel, efficient, enables long context
+3. **Mamba backbone** - Novel, efficient, enables long context (untested by slippi-ai)
 4. **Comprehensive state embedding** - All 5 velocities, ECB, etc.
+5. **Learned embeddings** - 64-dim trainable vs slippi-ai's 399-dim one-hot (saves ~670 dims)
+6. **Architecture diversity** - 48 backbones vs slippi-ai's 5
 
 ### What We Should Add
 
 1. **Population-based self-play** - Avoid policy collapse
-2. **Frame delay augmentation** - Train with variable delays
-3. **K-means stick discretization** - May improve over uniform grid
-4. **DAgger or similar** - Better than pure BC for distributional shift
+2. **K-means stick discretization** - May improve over uniform grid
+3. **DAgger or similar** - Better than pure BC for distributional shift
+4. **Residual recurrent blocks with identity init** - slippi-ai's key training stability trick for DeepResLSTM; our LSTM/GRU backbones don't have this yet
+5. **TransformerLike hybrid** - slippi-ai's tx_like alternates recurrent + FFN layers; similar to our Jamba but with recurrence instead of SSM
 
 ### Low-Tier Specific Considerations
 
