@@ -77,7 +77,8 @@ defmodule ExPhil.Training.Config do
     :bayesian,
     :decision_transformer,
     :liquid,
-    :kan
+    :kan,
+    :transformer_like
   ]
   @valid_optimizers [:adam, :adamw, :lamb, :radam, :sgd, :rmsprop]
   @valid_lr_schedules [:constant, :cosine, :cosine_restarts, :exponential, :linear]

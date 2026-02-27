@@ -114,6 +114,7 @@ defmodule ExPhil.Networks.Policy.Backbone do
           | :decision_transformer
           | :liquid
           | :kan
+          | :transformer_like
 
   @doc """
   Build a temporal backbone that processes frame sequences.
@@ -258,6 +259,10 @@ defmodule ExPhil.Networks.Policy.Backbone do
       :kan ->
         # KAN: Kolmogorov-Arnold Networks with learnable activations
         build_kan_backbone(embed_size, opts)
+
+      :transformer_like ->
+        # TransformerLike: Alternating LSTM/GRU + FFN residual blocks (slippi-ai's tx_like)
+        build_transformer_like_backbone(embed_size, opts)
 
       :lstm ->
         build_lstm_backbone(embed_size, opts)
@@ -457,6 +462,10 @@ defmodule ExPhil.Networks.Policy.Backbone do
       :kan ->
         # KAN: Kolmogorov-Arnold Networks
         Keyword.get(opts, :hidden_size, 256)
+
+      :transformer_like ->
+        # TransformerLike (slippi-ai's tx_like): defaults to 512 to match slippi-ai
+        Keyword.get(opts, :hidden_size, 512)
 
       :lstm ->
         Keyword.get(opts, :hidden_size, 256)
@@ -1195,6 +1204,36 @@ defmodule ExPhil.Networks.Policy.Backbone do
       grid_size: grid_size,
       basis: basis,
       dropout: dropout,
+      window_size: window_size,
+      seq_len: seq_len
+    )
+  end
+
+  # TransformerLike: Alternating LSTM/GRU + FFN residual blocks (slippi-ai's tx_like)
+  defp build_transformer_like_backbone(embed_size, opts) do
+    alias Edifice.Recurrent.TransformerLike
+
+    hidden_size = Keyword.get(opts, :hidden_size, 512)
+    num_layers = Keyword.get(opts, :num_layers, 3)
+    cell_type = Keyword.get(opts, :cell_type, :lstm)
+    ffn_multiplier = Keyword.get(opts, :ffn_multiplier, 2)
+    activation = Keyword.get(opts, :activation, :gelu)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+    norm = Keyword.get(opts, :norm, :layer_norm)
+    recurrent_norm = Keyword.get(opts, :recurrent_norm, false)
+    window_size = Keyword.get(opts, :window_size, 60)
+    seq_len = Keyword.get(opts, :seq_len, window_size)
+
+    TransformerLike.build(
+      embed_dim: embed_size,
+      hidden_size: hidden_size,
+      num_layers: num_layers,
+      cell_type: cell_type,
+      ffn_multiplier: ffn_multiplier,
+      activation: activation,
+      dropout: dropout,
+      norm: norm,
+      recurrent_norm: recurrent_norm,
       window_size: window_size,
       seq_len: seq_len
     )
