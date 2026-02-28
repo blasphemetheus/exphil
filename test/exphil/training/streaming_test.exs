@@ -1,5 +1,6 @@
 defmodule ExPhil.Training.StreamingTest do
   use ExUnit.Case, async: true
+  @moduletag :training
 
   alias ExPhil.Training.{Data, Streaming}
   alias ExPhil.Bridge.{GameState, Player, ControllerState}

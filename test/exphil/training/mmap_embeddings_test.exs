@@ -1,5 +1,6 @@
 defmodule ExPhil.Training.MmapEmbeddingsTest do
   use ExUnit.Case, async: true
+  @moduletag :training
 
   alias ExPhil.Training.MmapEmbeddings
 

@@ -3,6 +3,7 @@ defmodule ExPhil.Networks.S5Test do
   Tests for S5 (Simplified State Space) backbone.
   """
   use ExUnit.Case, async: true
+  @moduletag :backbone
 
   alias ExPhil.Networks.S5
 

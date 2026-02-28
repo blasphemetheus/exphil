@@ -3,6 +3,7 @@ defmodule ExPhil.Networks.HGRNTest do
   Tests for HGRN-2 (Hierarchically Gated Linear RNN) backbone.
   """
   use ExUnit.Case, async: true
+  @moduletag :backbone
 
   alias ExPhil.Networks.HGRN
 

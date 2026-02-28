@@ -7,6 +7,7 @@ defmodule ExPhil.Training.CheckpointRoundtripTest do
   """
 
   use ExUnit.Case, async: true
+  @moduletag :training
 
   alias ExPhil.Training.Imitation
 

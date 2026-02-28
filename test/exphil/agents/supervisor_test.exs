@@ -1,5 +1,6 @@
 defmodule ExPhil.Agents.SupervisorTest do
   use ExUnit.Case, async: false
+  @moduletag :agents
 
   alias ExPhil.Agents.Supervisor
   alias ExPhil.Error.AgentError

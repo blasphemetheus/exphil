@@ -8,6 +8,7 @@ defmodule ExPhil.Networks.OnnxExportTest do
   3. Produce outputs that match the original Axon model
   """
   use ExUnit.Case, async: false
+  @moduletag :backbone
 
   alias ExPhil.Networks.{OnnxLayers, Policy}
   alias ExPhil.Training.Utils

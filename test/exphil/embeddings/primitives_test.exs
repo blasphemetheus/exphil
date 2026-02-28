@@ -1,5 +1,6 @@
 defmodule ExPhil.Embeddings.PrimitivesTest do
   use ExUnit.Case, async: true
+  @moduletag :embedding
 
   alias ExPhil.Embeddings.Primitives
 

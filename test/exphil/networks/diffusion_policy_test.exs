@@ -6,6 +6,7 @@ defmodule ExPhil.Networks.DiffusionPolicyTest do
   "Diffusion Policy: Visuomotor Policy Learning via Action Diffusion" (Chi et al., 2023).
   """
   use ExUnit.Case, async: true
+  @moduletag :backbone
 
   alias ExPhil.Networks.DiffusionPolicy
 

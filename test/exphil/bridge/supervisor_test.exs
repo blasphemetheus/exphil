@@ -1,5 +1,6 @@
 defmodule ExPhil.Bridge.SupervisorTest do
   use ExUnit.Case, async: false
+  @moduletag :bridge
 
   alias ExPhil.Bridge.Supervisor
   alias ExPhil.Error.BridgeError

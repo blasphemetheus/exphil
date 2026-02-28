@@ -1,5 +1,6 @@
 defmodule ExPhil.League.EvolutionTest do
   use ExUnit.Case
+  @moduletag :league
 
   alias ExPhil.League
   alias ExPhil.League.{Evolution, ArchitectureEntry}

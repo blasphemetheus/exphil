@@ -1,5 +1,6 @@
 defmodule ExPhil.Training.OutputTest do
   use ExUnit.Case, async: true
+  @moduletag :training
 
   alias ExPhil.Training.Output
 

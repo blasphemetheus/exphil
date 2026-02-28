@@ -6,6 +6,7 @@ defmodule ExPhil.Networks.TransformerLikeTest do
   the backbone integration (via ExPhil.Networks.Policy.Backbone).
   """
   use ExUnit.Case, async: true
+  @moduletag :backbone
 
   alias ExPhil.Networks.TransformerLike
 

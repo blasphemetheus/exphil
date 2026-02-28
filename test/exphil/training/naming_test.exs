@@ -1,5 +1,6 @@
 defmodule ExPhil.Training.NamingTest do
   use ExUnit.Case, async: true
+  @moduletag :training
 
   alias ExPhil.Training.Naming
 

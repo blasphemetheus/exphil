@@ -1,5 +1,6 @@
 defmodule ExPhil.League.PretrainingTest do
   use ExUnit.Case, async: true
+  @moduletag :league
 
   alias ExPhil.League.Pretraining
   alias ExPhil.League.ArchitectureEntry

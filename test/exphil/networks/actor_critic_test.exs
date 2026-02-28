@@ -1,5 +1,6 @@
 defmodule ExPhil.Networks.ActorCriticTest do
   use ExUnit.Case, async: true
+  @moduletag :backbone
 
   alias ExPhil.Networks.ActorCritic
 

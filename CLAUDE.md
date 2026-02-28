@@ -227,11 +227,22 @@ See [GOTCHAS.md](docs/reference/GOTCHAS.md) for detailed fixes. Most common issu
 - Use the Edit tool for modifying existing files
 - Use Read before Write to ensure you have current content
 
-**Debugging tests:**
-- CRITICAL: Never pipe `mix test` output (`| head`, `| tail`, etc.) - this kills streaming output and forces a full ~100s test suite rerun to see failures. Run `mix test` without piping, then use `grep -A` on visible output if needed.
-- Never use `| tail` when investigating failures - it hides error details
-- Use `mix test --failed` to rerun only failing tests
+**Testing — CRITICAL:**
+- **NEVER run the full test suite after editing 1-2 files.** It takes ~100s. Use targeted runs:
+
+| Changed File(s) | Run |
+|-----------------|-----|
+| `lib/exphil/networks/<arch>.ex` | `mix test test/exphil/networks/<arch>_test.exs` |
+| `lib/exphil/embeddings/<module>.ex` | `mix test test/exphil/embeddings/<module>_test.exs` |
+| `lib/exphil/training/config.ex` | `mix test test/exphil/training/config_test.exs` |
+| Multiple files / unsure | `mix test --stale` (alias: `mix test.changed`) |
+| Pre-commit / full validation | `mix test` |
+
+- `mix test --stale` tracks module dependencies transitively — only reruns tests whose deps changed
+- `mix test --failed` reruns only tests that failed last time
 - For targeted debugging: `mix test path/to/test.exs:LINE_NUMBER`
+- CRITICAL: Never pipe `mix test` output (`| head`, `| tail`, etc.) — this kills streaming output and forces a full rerun to see failures
+- See `docs/guides/TESTING.md` for full test documentation
 
 **When something unexpected happens:**
 - Document the finding in GOTCHAS.md or relevant docs

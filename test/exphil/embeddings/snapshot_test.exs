@@ -27,6 +27,7 @@ defmodule ExPhil.Embeddings.SnapshotTest do
   """
 
   use ExUnit.Case, async: true
+  @moduletag :embedding
   import ExPhil.Test.Helpers
   import ExPhil.Test.Factories
   import ExPhil.Test.ReplayFixtures

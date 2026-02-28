@@ -13,6 +13,7 @@ defmodule ExPhil.Training.BenchmarkFlowTest do
     mix test test/exphil/training/benchmark_flow_test.exs
   """
   use ExUnit.Case, async: false
+  @moduletag :training
 
   alias ExPhil.Training.{Data, Imitation}
   alias ExPhil.Embeddings

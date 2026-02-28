@@ -6,6 +6,7 @@ defmodule ExPhil.Networks.KANTest do
   from "KAN: Kolmogorov-Arnold Networks" (Liu et al., 2024).
   """
   use ExUnit.Case, async: true
+  @moduletag :backbone
 
   alias ExPhil.Networks.KAN
 

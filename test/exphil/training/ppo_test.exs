@@ -1,5 +1,6 @@
 defmodule ExPhil.Training.PPOTest do
   use ExUnit.Case, async: true
+  @moduletag :training
 
   alias ExPhil.Training.PPO
   alias ExPhil.Networks.Value

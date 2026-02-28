@@ -6,6 +6,7 @@ defmodule ExPhil.Networks.GriffinTest do
   with Local Attention for Efficient Language Models" (De et al., 2024).
   """
   use ExUnit.Case, async: true
+  @moduletag :backbone
 
   alias ExPhil.Networks.Griffin
 

@@ -1,5 +1,6 @@
 defmodule ExPhil.Evaluation.MetricsTest do
   use ExUnit.Case, async: true
+  @moduletag :evaluation
 
   alias ExPhil.Evaluation.Metrics
 

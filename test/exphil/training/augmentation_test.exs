@@ -1,5 +1,6 @@
 defmodule ExPhil.Training.AugmentationTest do
   use ExUnit.Case, async: true
+  @moduletag :training
 
   alias ExPhil.Training.Augmentation
   alias ExPhil.Bridge.{GameState, Player, ControllerState, Projectile, Item, Nana}

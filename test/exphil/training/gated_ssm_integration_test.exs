@@ -6,6 +6,7 @@ defmodule ExPhil.Training.GatedSSMIntegrationTest do
   including temporal sequence handling, checkpoint persistence, and policy export.
   """
   use ExUnit.Case, async: false
+  @moduletag :training
 
   alias ExPhil.Training
   alias ExPhil.Training.{Imitation, Data}

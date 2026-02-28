@@ -1,5 +1,6 @@
 defmodule ExPhil.Networks.PolicyTest do
   use ExUnit.Case, async: true
+  @moduletag :backbone
 
   alias ExPhil.Networks.Policy
 

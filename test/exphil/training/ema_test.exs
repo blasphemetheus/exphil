@@ -1,5 +1,6 @@
 defmodule ExPhil.Training.EMATest do
   use ExUnit.Case, async: true
+  @moduletag :training
 
   alias ExPhil.Training.EMA
 

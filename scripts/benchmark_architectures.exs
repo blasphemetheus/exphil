@@ -5,6 +5,8 @@
 #   mix run scripts/benchmark_architectures.exs --replays /path/to/replays [options]
 #
 # Options:
+#   --quick                       Quick validation mode (3 archs, 1 epoch, 5 files)
+#   --dry-run                     Parse args and show config, but don't train
 #   --replays, --replay-dir PATH  Path to replay directory (default: ./replays)
 #   --max-files N                 Max replay files to use (default: 30)
 #   --epochs N                    Training epochs per architecture (default: 3)
@@ -39,6 +41,12 @@
 # Note: "attention" is an alias for "sliding_window" (same implementation)
 #
 # Examples:
+#   # Quick validation (~60s): 3 archs, 1 epoch, 5 files
+#   mix run scripts/benchmark_architectures.exs --replays /workspace/replays --quick
+#
+#   # Dry run: parse args, show config, exit (no training)
+#   mix run scripts/benchmark_architectures.exs --replays /workspace/replays --dry-run
+#
 #   # Quick test with just MLP and Mamba
 #   mix run scripts/benchmark_architectures.exs --replays /workspace/replays --only mlp,mamba
 #
@@ -198,9 +206,23 @@ opts = CLI.parse_args(System.argv(),
   ]
 )
 
+# --quick preset: 3 archs, 1 epoch, 5 files (validates script works end-to-end in ~60s)
+quick_mode = "--quick" in System.argv()
+dry_run = "--dry-run" in System.argv()
+
+opts =
+  if quick_mode do
+    opts
+    |> Keyword.put(:max_files, opts[:max_files] || 5)
+    |> Keyword.put(:epochs, 1)
+    |> Keyword.put(:only, opts[:only] || "mlp,mamba,lstm")
+  else
+    opts
+  end
+
 # Extract options to variables for easier use in rest of script
 replay_dir = opts[:replays]
-max_files = opts[:max_files]
+max_files = if quick_mode and opts[:max_files] == 30, do: 5, else: opts[:max_files]
 epochs = opts[:epochs]
 batch_size = opts[:batch_size]
 continue_on_error = opts[:continue_on_error]
@@ -635,6 +657,8 @@ end
 
 Output.banner("ExPhil Architecture Benchmark")
 
+if quick_mode, do: Output.warning("Quick mode: 3 architectures, 1 epoch, 5 files")
+
 Output.config([
   {"Replay dir", replay_dir},
   {"Max files", max_files},
@@ -649,6 +673,11 @@ Output.config([
   {"GPU", "#{gpu_info.name} (#{safe_round.(gpu_info.memory_gb, 1)} GB)"},
   {"Memory", GPUUtils.memory_status_string()}
 ])
+
+if dry_run do
+  Output.success("Dry run complete — config validated, exiting without training")
+  System.halt(0)
+end
 
 # Step 1: Load replays
 Output.step(1, 3, "Loading replays")

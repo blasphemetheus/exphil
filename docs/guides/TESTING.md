@@ -8,6 +8,12 @@ This document describes the test harness, how to run tests efficiently, and best
 # Fast tests only (default - excludes slow/integration)
 mix test
 
+# Run only tests affected by recent changes (RECOMMENDED after editing code)
+mix test --stale
+
+# Run only tests that failed last time
+mix test --failed
+
 # Include slow tests
 mix test --include slow
 
@@ -20,8 +26,16 @@ mix test test/exphil/training/config_test.exs
 # Run specific test by line number
 mix test test/exphil/training/config_test.exs:42
 
-# Run tests matching a pattern
+# Run by domain tag
+mix test --only backbone
+mix test --only embedding
+mix test --only training
+
+# Run tests matching a describe block
 mix test --only describe:"parse_args"
+
+# Smoke test (one test per subsystem, ~30s)
+mix test.smoke
 
 # Run with coverage
 mix test --cover
@@ -33,9 +47,66 @@ EXUNIT_VERBOSE=1 mix test
 mix test --seed 12345
 ```
 
+## Test Targeting: "I Changed X, Run Y"
+
+**Do NOT run the full test suite after targeted changes.** Use this guide:
+
+| Changed File(s) | Run |
+|-----------------|-----|
+| `lib/exphil/networks/<arch>.ex` | `mix test test/exphil/networks/<arch>_test.exs` |
+| `lib/exphil/networks/policy/backbone.ex` | `mix test test/exphil/networks/policy_test.exs test/exphil/networks/<affected_arch>_test.exs` |
+| `lib/exphil/networks/policy.ex` | `mix test test/exphil/networks/policy_test.exs` |
+| `lib/exphil/training/config.ex` | `mix test test/exphil/training/config_test.exs` |
+| `lib/exphil/training/imitation.ex` | `mix test test/exphil/training/imitation_test.exs` |
+| `lib/exphil/embeddings/*.ex` | `mix test --only embedding` or `mix test test/exphil/embeddings/` |
+| `lib/exphil/bridge/*.ex` | `mix test test/exphil/bridge/ test/exphil_bridge/` |
+| Multiple files / unsure | `mix test --stale` |
+| Pre-commit / CI validation | `mix test` (full default suite) |
+
+### Using `--stale` (Recommended)
+
+`mix test --stale` only reruns tests whose source modules changed since the last
+`--stale` run. It tracks dependencies transitively — if module A depends on B depends
+on C, changing C reruns A's tests.
+
+```bash
+# After editing lib/exphil/networks/deep_res_lstm.ex:
+mix test --stale
+# Only runs deep_res_lstm_test.exs and tests that import/alias it
+
+# After editing backbone.ex (many tests depend on it):
+mix test --stale
+# Runs all backbone-dependent tests, skips unrelated ones
+```
+
+The first `--stale` run builds a manifest and runs everything. Subsequent runs are fast.
+Running `mix test` without `--stale` resets the manifest.
+
+## Mix Aliases
+
+Aliases defined in `mix.exs` for common test commands:
+
+| Alias | Equivalent | Description |
+|-------|-----------|-------------|
+| `mix test.fast` | `mix test` | Default fast unit tests |
+| `mix test.changed` | `mix test --stale` | Only tests affected by changes |
+| `mix test.slow` | `mix test --include slow` | Include slow tests |
+| `mix test.all` | `mix test --include slow --include integration --include external` | Everything except GPU |
+| `mix test.integration` | `mix test --only integration` | Only integration tests |
+| `mix test.benchmark` | `mix test --only benchmark` | Only benchmark tests |
+| `mix test.benchmark.update` | `BENCHMARK_UPDATE=1 mix test --only benchmark` | Update benchmark baselines |
+| `mix test.snapshot` | `mix test --only snapshot` | Only snapshot tests |
+| `mix test.snapshot.update` | `SNAPSHOT_UPDATE=1 mix test --only snapshot` | Update snapshots |
+| `mix test.smoke` | *(curated subset)* | One test per subsystem (~30s) |
+| `mix test.coverage` | `mix coveralls.html` | Coverage report |
+| `mix test.mutate` | `mix muzak` | Mutation testing |
+| `mix test.mutate.quick` | `mix muzak --profile quick` | Quick mutation test |
+
 ## Test Categories (Tags)
 
 Tests are organized using ExUnit tags. By default, only fast unit tests run.
+
+### Speed/Environment Tags
 
 | Tag | Description | Default |
 |-----|-------------|---------|
@@ -43,7 +114,38 @@ Tests are organized using ExUnit tags. By default, only fast unit tests run.
 | `:integration` | Tests with external dependencies | Excluded |
 | `:external` | Tests needing external files (replays) | Excluded |
 | `:gpu` | Tests requiring GPU/CUDA | Excluded |
+| `:benchmark` | Performance regression tests | Excluded |
+| `:snapshot` | Embedding snapshot comparison tests | Excluded |
+| `:property` | Property-based tests with StreamData | Excluded |
+| `:nif` | Tests requiring compiled Rust NIF | Excluded |
+| `:cuda` | Tests requiring CUDA device + NIF | Excluded |
 | (none) | Fast unit tests | Included |
+
+### Domain Tags
+
+Domain tags group tests by subsystem. Use `--only <tag>` to run a specific domain:
+
+| Tag | Applies To | Description |
+|-----|-----------|-------------|
+| `:backbone` | `test/exphil/networks/*_test.exs` | Backbone architecture tests |
+| `:embedding` | `test/exphil/embeddings/*_test.exs` | Player/game/controller embedding tests |
+| `:training` | `test/exphil/training/*_test.exs` | Training pipeline tests |
+| `:policy` | `test/exphil/networks/policy_test.exs` | Policy network tests |
+| `:config` | `test/exphil/training/config_test.exs` | Config parsing/validation tests |
+| `:bridge` | `test/exphil/bridge/`, `test/exphil_bridge/` | Dolphin bridge tests |
+| `:self_play` | `test/exphil/self_play/` | Self-play infrastructure tests |
+| `:checkpoint` | Checkpoint save/load tests | Checkpoint roundtrip tests |
+
+```bash
+# Run only backbone tests
+mix test --only backbone
+
+# Run backbone + embedding tests
+mix test --only backbone --include embedding
+
+# Run training tests including slow ones
+mix test --only training --include slow
+```
 
 ### Running Different Test Categories
 
@@ -285,8 +387,8 @@ test:
     - uses: actions/checkout@v4
     - uses: erlef/setup-beam@v1
       with:
-        elixir-version: '1.16'
-        otp-version: '26'
+        elixir-version: '1.18'
+        otp-version: '27'
 
     - run: mix deps.get
     - run: mix compile --warnings-as-errors
@@ -311,8 +413,13 @@ jobs:
 
   slow-tests:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        partition: [1, 2, 3, 4]
+    env:
+      MIX_TEST_PARTITION: ${{ matrix.partition }}
     steps:
-      - run: mix test --include slow --exclude integration
+      - run: mix test --include slow --exclude integration --partitions 4
 
   integration-tests:
     runs-on: ubuntu-latest
@@ -324,6 +431,12 @@ jobs:
     steps:
       - run: mix test --only gpu
 ```
+
+### Test Partitioning
+
+`mix test --partitions N` splits test files round-robin across N workers.
+Each worker runs independently with `MIX_TEST_PARTITION` set to its partition number.
+This parallelizes the slow test suite across CI matrix jobs.
 
 ## Debugging Tests
 
@@ -1113,3 +1226,74 @@ parsed_replay = to_parsed_replay(game_states, stage: 32)
 - **Small**: No large binary files in repo
 - **Fast**: No file I/O or parsing
 - **Targeted**: Test specific scenarios
+
+## Edifice Testing
+
+Edifice is a separate repo (`/edifice`) with its own test suite (~1100+ tests, ~251 files).
+
+### Running Edifice Tests
+
+```bash
+cd /path/to/edifice
+
+# Default (excludes slow/integration/exla_only/known_issue)
+mix test
+
+# Stale only (after editing one architecture)
+mix test --stale
+
+# Run tests for a specific architecture family
+mix test --only recurrent
+mix test --only ssm
+mix test --only attention
+
+# Run a specific architecture's tests
+mix test test/edifice/recurrent/deep_res_lstm_test.exs
+```
+
+### Edifice Tags
+
+| Tag | Description | Default |
+|-----|-------------|---------|
+| `:slow` | Slow tests (e.g., conv-heavy on BinaryBackend) | Excluded |
+| `:integration` | Integration tests | Excluded |
+| `:external` | External dependency tests | Excluded |
+| `:exla_only` | Tests requiring EXLA backend | Excluded |
+| `:known_issue` | Known failing tests | Excluded |
+
+### Edifice Domain Tags
+
+| Tag | Applies To |
+|-----|-----------|
+| `:recurrent` | `test/edifice/recurrent/*_test.exs` |
+| `:ssm` | `test/edifice/ssm/*_test.exs` |
+| `:attention` | `test/edifice/attention/*_test.exs` |
+| `:vision` | `test/edifice/vision/*_test.exs` |
+| `:generative` | `test/edifice/generative/*_test.exs` |
+| `:feedforward` | `test/edifice/feedforward/*_test.exs` |
+| `:graph` | `test/edifice/graph/*_test.exs` |
+| `:meta` | `test/edifice/meta/*_test.exs` |
+
+### Edifice Timing Note
+
+The full Edifice suite takes ~9 minutes on BinaryBackend (CPU). **Never run it
+reflexively after small changes.** Use `mix test --stale` or target the specific
+test file.
+
+## Script Testing
+
+Scripts in `scripts/` are standalone and don't have matching test files. To validate
+scripts without running full workloads:
+
+```bash
+# Use --quick flag (where supported) for fast validation
+mix run scripts/benchmark_architectures.exs --quick
+
+# Use --dry-run to validate arg parsing without execution
+mix run scripts/train_from_replays.exs --dry-run --backbone mamba --replays ./replays
+
+# Test a specific script's arg parsing
+mix run scripts/train_from_replays.exs --help
+```
+
+Scripts that support `--quick` mode run 1 epoch on 1 architecture to validate setup.

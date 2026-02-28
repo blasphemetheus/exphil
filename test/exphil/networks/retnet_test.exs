@@ -6,6 +6,7 @@ defmodule ExPhil.Networks.RetNetTest do
   "Retentive Network: A Successor to Transformer" (Sun et al., Microsoft 2023).
   """
   use ExUnit.Case, async: true
+  @moduletag :backbone
 
   alias ExPhil.Networks.RetNet
 

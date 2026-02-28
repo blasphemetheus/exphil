@@ -1,5 +1,6 @@
 defmodule ExPhil.Training.ImitationTest do
   use ExUnit.Case, async: true
+  @moduletag :training
 
   alias ExPhil.Training.Imitation
   alias ExPhil.Bridge.ControllerState

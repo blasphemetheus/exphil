@@ -273,6 +273,7 @@ defmodule ExPhil.MixProject do
       # Test aliases for running different test categories
       # See docs/TESTING.md for full documentation
       # Default: fast unit tests only
+      "test.changed": ["test", "--stale"],
       "test.fast": ["test"],
       "test.slow": ["test", "--include", "slow"],
       "test.all": [
@@ -286,6 +287,15 @@ defmodule ExPhil.MixProject do
       ],
       "test.integration": ["test", "--only", "integration"],
       "test.coverage": ["coveralls.html"],
+
+      # Smoke test — one test per domain (~30-60s)
+      "test.smoke": ["test", "--only", "smoke"],
+
+      # Domain-specific test runs
+      "test.backbone": ["test", "--only", "backbone"],
+      "test.embedding": ["test", "--only", "embedding"],
+      "test.training": ["test", "--only", "training"],
+      "test.self_play": ["test", "--only", "self_play"],
 
       # Benchmark tests
       "test.benchmark": ["test", "--only", "benchmark"],

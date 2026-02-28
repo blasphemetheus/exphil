@@ -1,5 +1,6 @@
 defmodule ExPhil.Training.EarlyStoppingTest do
   use ExUnit.Case, async: true
+  @moduletag :training
   doctest ExPhil.Training.EarlyStopping
 
   alias ExPhil.Training.EarlyStopping

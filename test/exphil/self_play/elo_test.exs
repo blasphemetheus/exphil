@@ -1,5 +1,6 @@
 defmodule ExPhil.SelfPlay.EloTest do
   use ExUnit.Case, async: true
+  @moduletag :self_play
 
   alias ExPhil.SelfPlay.Elo
 

@@ -1,5 +1,6 @@
 defmodule ExPhil.Training.ProfilerTest do
   use ExUnit.Case, async: false
+  @moduletag :training
 
   alias ExPhil.Training.Profiler
 

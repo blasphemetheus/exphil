@@ -5,6 +5,7 @@ defmodule ExPhil.Networks.LiquidTest do
   Tests both Euler and RK4 solvers, as well as different integration step counts.
   """
   use ExUnit.Case, async: true
+  @moduletag :backbone
 
   alias ExPhil.Networks.Liquid
 

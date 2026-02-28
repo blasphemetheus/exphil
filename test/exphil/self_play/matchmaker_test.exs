@@ -1,5 +1,6 @@
 defmodule ExPhil.SelfPlay.MatchmakerTest do
   use ExUnit.Case, async: true
+  @moduletag :self_play
 
   alias ExPhil.SelfPlay.Matchmaker
   alias ExPhil.Error.LeagueError

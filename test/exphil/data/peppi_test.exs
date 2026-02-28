@@ -1,5 +1,6 @@
 defmodule ExPhil.Data.PeppiTest do
   use ExUnit.Case, async: true
+  @moduletag :data
 
   alias ExPhil.Data.Peppi
 

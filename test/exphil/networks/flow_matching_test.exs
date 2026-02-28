@@ -6,6 +6,7 @@ defmodule ExPhil.Networks.FlowMatchingTest do
   "Flow Matching for Generative Modeling" (Lipman et al., ICLR 2023).
   """
   use ExUnit.Case, async: true
+  @moduletag :backbone
 
   alias ExPhil.Networks.FlowMatching
 

@@ -6,6 +6,7 @@ defmodule ExPhil.Networks.XLSTMTest do
   from "xLSTM: Extended Long Short-Term Memory" (Beck et al., NeurIPS 2024).
   """
   use ExUnit.Case, async: true
+  @moduletag :backbone
 
   alias ExPhil.Networks.XLSTM
 

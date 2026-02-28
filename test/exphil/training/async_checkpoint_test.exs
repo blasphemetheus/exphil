@@ -1,6 +1,7 @@
 defmodule ExPhil.Training.AsyncCheckpointTest do
   # Not async because it uses a named GenServer
   use ExUnit.Case, async: false
+  @moduletag :training
 
   alias ExPhil.Training.AsyncCheckpoint
 

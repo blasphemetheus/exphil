@@ -1,5 +1,6 @@
 defmodule ExPhil.Embeddings.PlayerTest do
   use ExUnit.Case, async: true
+  @moduletag :embedding
 
   alias ExPhil.Embeddings.Player, as: PlayerEmbed
   alias ExPhil.Bridge.Player, as: PlayerState
@@ -49,6 +50,7 @@ defmodule ExPhil.Embeddings.PlayerTest do
   # ============================================================================
 
   describe "default_config/0" do
+    @tag :smoke
     test "returns default configuration" do
       config = PlayerEmbed.default_config()
 

@@ -1,5 +1,6 @@
 defmodule ExPhil.Embeddings.GameTest do
   use ExUnit.Case, async: true
+  @moduletag :embedding
 
   alias ExPhil.Embeddings.Game, as: GameEmbed
   alias ExPhil.Embeddings.Player, as: PlayerEmbed

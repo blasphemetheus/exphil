@@ -3,6 +3,7 @@ defmodule ExPhil.Networks.MoETest do
   Tests for the Mixture of Experts (MoE) module.
   """
   use ExUnit.Case, async: true
+  @moduletag :backbone
 
   alias ExPhil.Networks.MoE
 

@@ -6,6 +6,7 @@ defmodule ExPhil.Networks.DeepResLSTMTest do
   the backbone integration (via ExPhil.Networks.Policy.Backbone).
   """
   use ExUnit.Case, async: true
+  @moduletag :backbone
 
   alias ExPhil.Networks.DeepResLSTM
 
@@ -15,6 +16,7 @@ defmodule ExPhil.Networks.DeepResLSTMTest do
   @batch_size 4
 
   describe "build/1" do
+    @tag :smoke
     test "builds model with correct output shape" do
       model =
         DeepResLSTM.build(

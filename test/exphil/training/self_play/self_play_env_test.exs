@@ -1,5 +1,6 @@
 defmodule ExPhil.Training.SelfPlay.SelfPlayEnvTest do
   use ExUnit.Case, async: true
+  @moduletag :training
 
   alias ExPhil.Training.SelfPlay.SelfPlayEnv
 

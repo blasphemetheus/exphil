@@ -6,6 +6,7 @@ defmodule ExPhil.Networks.ActionChunkingTest do
   "Learning Fine-Grained Bimanual Manipulation with Low-Cost Hardware" (Zhao et al., RSS 2023).
   """
   use ExUnit.Case, async: true
+  @moduletag :backbone
 
   alias ExPhil.Networks.ActionChunking
 

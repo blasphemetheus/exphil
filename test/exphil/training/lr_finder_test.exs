@@ -3,6 +3,7 @@ defmodule ExPhil.Training.LRFinderTest do
   Tests for the Learning Rate Finder module.
   """
   use ExUnit.Case, async: true
+  @moduletag :training
 
   alias ExPhil.Training.LRFinder
 

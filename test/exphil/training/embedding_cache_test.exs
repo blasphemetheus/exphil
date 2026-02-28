@@ -1,5 +1,6 @@
 defmodule ExPhil.Training.EmbeddingCacheTest do
   use ExUnit.Case, async: true
+  @moduletag :training
 
   alias ExPhil.Training.{Data, EmbeddingCache}
   alias ExPhil.Embeddings.{Game, Player}

@@ -3,6 +3,7 @@ defmodule ExPhil.Networks.RWKVTest do
   Tests for RWKV-7 "Goose" backbone.
   """
   use ExUnit.Case, async: true
+  @moduletag :backbone
 
   alias ExPhil.Networks.RWKV
 

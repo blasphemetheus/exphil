@@ -1,5 +1,6 @@
 defmodule ExPhil.Training.GradientCheckpointTest do
   use ExUnit.Case, async: true
+  @moduletag :training
 
   alias ExPhil.Training.GradientCheckpoint
 

@@ -3,6 +3,7 @@ defmodule ExPhil.Networks.SpeculativeDecodingTest do
   Tests for the Speculative Decoding module.
   """
   use ExUnit.Case, async: true
+  @moduletag :backbone
 
   alias ExPhil.Networks.SpeculativeDecoding
 

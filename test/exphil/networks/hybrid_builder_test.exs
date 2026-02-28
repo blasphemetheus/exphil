@@ -3,6 +3,7 @@ defmodule ExPhil.Networks.HybridBuilderTest do
   Tests for the flexible HybridBuilder module.
   """
   use ExUnit.Case, async: true
+  @moduletag :backbone
 
   alias ExPhil.Networks.HybridBuilder
 

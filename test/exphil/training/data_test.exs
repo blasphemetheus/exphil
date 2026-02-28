@@ -1,5 +1,6 @@
 defmodule ExPhil.Training.DataTest do
   use ExUnit.Case, async: true
+  @moduletag :training
 
   alias ExPhil.Training.Data
   alias ExPhil.Bridge.{GameState, Player, ControllerState}

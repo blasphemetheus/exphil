@@ -1,5 +1,6 @@
 defmodule ExPhil.Training.GPUUtilsTest do
   use ExUnit.Case, async: true
+  @moduletag :training
 
   alias ExPhil.Training.GPUUtils
 

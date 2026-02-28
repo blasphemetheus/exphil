@@ -1,5 +1,6 @@
 defmodule ExPhil.LeagueTest do
   use ExUnit.Case
+  @moduletag :league
 
   alias ExPhil.League
   alias ExPhil.League.ArchitectureEntry

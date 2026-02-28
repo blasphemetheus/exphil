@@ -3,6 +3,7 @@ defmodule ExPhil.Networks.ZambaTest do
   Tests for Zamba (Mamba + Single Shared Attention) backbone.
   """
   use ExUnit.Case, async: true
+  @moduletag :backbone
 
   alias ExPhil.Networks.Zamba
 

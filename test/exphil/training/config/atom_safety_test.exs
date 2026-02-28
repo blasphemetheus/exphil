@@ -1,5 +1,6 @@
 defmodule ExPhil.Training.Config.AtomSafetyTest do
   use ExUnit.Case, async: true
+  @moduletag :training
 
   alias ExPhil.Training.Config.AtomSafety
   alias ExPhil.Error.ConfigError

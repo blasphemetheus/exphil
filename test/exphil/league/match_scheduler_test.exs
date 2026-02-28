@@ -1,5 +1,6 @@
 defmodule ExPhil.League.MatchSchedulerTest do
   use ExUnit.Case, async: true
+  @moduletag :league
 
   alias ExPhil.League.{MatchScheduler, ArchitectureEntry}
 

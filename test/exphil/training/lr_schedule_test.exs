@@ -3,6 +3,7 @@ defmodule ExPhil.Training.LRScheduleTest do
   Tests for learning rate scheduling in the Imitation module.
   """
   use ExUnit.Case, async: true
+  @moduletag :training
 
   alias ExPhil.Training.Imitation
 

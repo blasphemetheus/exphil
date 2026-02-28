@@ -6,6 +6,7 @@ defmodule ExPhil.Networks.MambaTest do
   with Selective State Spaces" (Gu & Dao, 2023).
   """
   use ExUnit.Case, async: true
+  @moduletag :backbone
 
   alias ExPhil.Networks.Mamba
 

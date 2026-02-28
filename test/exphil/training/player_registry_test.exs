@@ -1,5 +1,6 @@
 defmodule ExPhil.Training.PlayerRegistryTest do
   use ExUnit.Case, async: true
+  @moduletag :training
 
   alias ExPhil.Training.PlayerRegistry
 

@@ -1,5 +1,6 @@
 defmodule ExPhil.Training.DuplicateDetectorTest do
   use ExUnit.Case, async: true
+  @moduletag :training
 
   alias ExPhil.Training.DuplicateDetector
 

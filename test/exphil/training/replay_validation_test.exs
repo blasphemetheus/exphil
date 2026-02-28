@@ -1,5 +1,6 @@
 defmodule ExPhil.Training.ReplayValidationTest do
   use ExUnit.Case, async: true
+  @moduletag :training
 
   alias ExPhil.Training.ReplayValidation
   alias ExPhil.Error.ValidationError

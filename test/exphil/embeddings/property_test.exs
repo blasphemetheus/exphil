@@ -6,6 +6,7 @@ defmodule ExPhil.Embeddings.PropertyTest do
   work correctly for a wide range of inputs.
   """
   use ExUnit.Case, async: true
+  @moduletag :embedding
   use ExUnitProperties
 
   import ExPhil.Test.Generators

@@ -6,6 +6,7 @@ defmodule ExPhil.Networks.TestTimeScalingTest do
   at inference time, including best-of-N, beam search, and ensemble methods.
   """
   use ExUnit.Case, async: true
+  @moduletag :backbone
 
   alias ExPhil.Networks.TestTimeScaling
 

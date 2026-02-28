@@ -1,5 +1,6 @@
 defmodule ExPhil.Embeddings.ControllerTest do
   use ExUnit.Case, async: true
+  @moduletag :embedding
 
   alias ExPhil.Embeddings.Controller
   alias ExPhil.Bridge.ControllerState

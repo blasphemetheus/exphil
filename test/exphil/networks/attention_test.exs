@@ -1,5 +1,6 @@
 defmodule ExPhil.Networks.AttentionTest do
   use ExUnit.Case, async: true
+  @moduletag :backbone
 
   alias ExPhil.Networks.Attention
 

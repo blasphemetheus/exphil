@@ -1,5 +1,6 @@
 defmodule ExPhil.Data.ReplayParserTest do
   use ExUnit.Case, async: true
+  @moduletag :data
 
   alias ExPhil.Data.ReplayParser
   alias ExPhil.Bridge.{GameState, Player, ControllerState}

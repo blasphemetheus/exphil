@@ -1,5 +1,6 @@
 defmodule ExPhil.Training.SelfPlay.LeagueTrainerTest do
   use ExUnit.Case, async: true
+  @moduletag :training
 
   alias ExPhil.Training.SelfPlay.LeagueTrainer
 

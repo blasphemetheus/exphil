@@ -5,6 +5,7 @@ defmodule ExPhil.Networks.MambaSSDTest do
   Tests both inference mode (scan-based) and training mode (matmul-based).
   """
   use ExUnit.Case, async: true
+  @moduletag :backbone
 
   alias ExPhil.Networks.MambaSSD
 

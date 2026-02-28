@@ -3,6 +3,7 @@ defmodule ExPhil.Networks.GLATest do
   Tests for GLA (Gated Linear Attention) backbone.
   """
   use ExUnit.Case, async: true
+  @moduletag :backbone
 
   alias ExPhil.Networks.GLA
 

@@ -3,6 +3,7 @@ defmodule ExPhil.Networks.DecisionTransformerTest do
   Tests for Decision Transformer backbone.
   """
   use ExUnit.Case, async: true
+  @moduletag :backbone
 
   alias ExPhil.Networks.DecisionTransformer
 

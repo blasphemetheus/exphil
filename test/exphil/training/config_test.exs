@@ -1,5 +1,6 @@
 defmodule ExPhil.Training.ConfigTest do
   use ExUnit.Case, async: true
+  @moduletag :training
 
   alias ExPhil.Training.Config
   alias ExPhil.Error.YamlError
@@ -12,6 +13,7 @@ defmodule ExPhil.Training.ConfigTest do
   # ============================================================================
 
   describe "parse_args/1" do
+    @tag :smoke
     test "returns defaults for empty args" do
       opts = Config.parse_args([])
 

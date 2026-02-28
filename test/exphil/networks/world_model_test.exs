@@ -3,6 +3,7 @@ defmodule ExPhil.Networks.WorldModelTest do
   Tests for the World Model network.
   """
   use ExUnit.Case, async: true
+  @moduletag :backbone
 
   alias ExPhil.Networks.WorldModel
 
