@@ -2,7 +2,7 @@
 
 This document tracks the major goals and roadmap for ExPhil development.
 
-**Last Updated:** 2026-02-18
+**Last Updated:** 2026-02-28
 
 ---
 
@@ -11,9 +11,9 @@ This document tracks the major goals and roadmap for ExPhil development.
 ### Completed
 
 - Behavioral cloning pipeline (single-frame + temporal)
-- **41 backbone architectures** via [Edifice](https://github.com/blasphemetheus/edifice) companion library:
+- **43 backbone architectures** via [Edifice](https://github.com/blasphemetheus/edifice) companion library:
   - Basic: MLP, GatedSSM, KAN
-  - Recurrent: LSTM, GRU, LSTM Hybrid, Liquid
+  - Recurrent: LSTM, GRU, LSTM Hybrid, Liquid, TransformerLike, DeepResLSTM
   - SSM: Mamba, Mamba-2 SSD, S4, S4D, S5, H3
   - Hybrid SSM+Attention: Jamba, Zamba, Griffin, Hawk, xLSTM (sLSTM + mLSTM)
   - Linear Attention: RetNet, RWKV, GLA, HGRN, Performer, DeltaNet, FNet
@@ -21,14 +21,14 @@ This document tracks the major goals and roadmap for ExPhil development.
   - Memory: Hopfield, NTM, Reservoir
   - Other: TTT, SNN, Bayesian
   - See [Architecture Guide](../reference/architectures/ARCHITECTURE_GUIDE.md)
-- **Edifice library integration** — 92+ architectures with unified `Edifice.build(:name, opts)` API
+- **Edifice library integration** — 232 registered architectures with unified `Edifice.build(:name, opts)` API
 - **Custom ODE solver** for Liquid Neural Networks (Euler, Midpoint, RK4, DOPRI5)
 - Dolphin integration (sync + async runners)
 - Full training features: EMA, LR scheduling, gradient accumulation, checkpointing
 - GPU optimizations: XLA caching, BF16, async prefetching, gradient checkpointing
 - UX improvements: colored output, progress bars, dry-run, validation, YAML config
 - Frame delay augmentation for online play robustness
-- GitHub Actions CI (test, format, dialyzer)
+- GitHub Actions CI (smoke → test → slow-tests pipeline, format, dialyzer)
 - **Self-play RL infrastructure** (GenServer architecture, PPO integration, Elo matchmaking)
 - Mock environment with physics (for fast self-play testing)
 - **Major refactoring** (config.ex, policy.ex, imitation.ex, game.ex decomposition)
@@ -36,9 +36,10 @@ This document tracks the major goals and roadmap for ExPhil development.
 - **Structured error types** (11 error modules: AgentError, BridgeError, CacheError, etc.)
 - **ScriptTemplate module** for script boilerplate reduction
 - **CLI module** with standardized flag groups across all scripts
-- **Benchmark script** covering 34 architectures with HTML reports
+- **Benchmark script** covering 43 architectures with HTML reports
 - **Publication readiness cleanup** (ExDoc, Docker parity, README rewrite)
-- 2666 tests + 26 doctests + 36 property tests
+- ~2700 tests + 26 doctests + 36 property tests
+- **Testing infrastructure**: domain @moduletag system, smoke tests, `mix test --stale` aliases
 
 ### Next Step
 
@@ -524,11 +525,17 @@ checkpoints/
 
 ### 5. Testing & CI
 
-**Impact: Medium | Status: CI Complete**
+**Impact: Medium | Status: Complete**
 
 | Task | Effort | Why | Status |
 |------|--------|-----|--------|
-| **GitHub Actions CI** | Medium | Auto-run tests on PR | **Done** |
+| **GitHub Actions CI** | Medium | Auto-run tests on PR | **Done** — smoke → test → slow-tests pipeline |
+| **CI smoke gate** | Low | Fail fast on obvious breakage (~30s) | **Done** — `mix test --only smoke` |
+| **Slow test partitioning** | Low | Parallelize slow tests in CI | **Done** — 4 partitions with `MIX_TEST_PARTITION` |
+| **Domain @moduletag system** | Medium | Run tests by domain (`:backbone`, `:training`, etc.) | **Done** — 9 domain tags across 90+ test files |
+| **Smoke test tags** | Low | One representative test per family | **Done** — 3 smoke tests in ExPhil, 12 in Edifice |
+| **Mix test aliases** | Low | Convenient domain test commands | **Done** — `test.backbone`, `test.embedding`, `test.training`, `test.smoke`, `test.changed` |
+| **Benchmark --quick/--dry-run** | Low | Fast benchmark validation | **Done** — `--quick` (3 archs, 1 epoch), `--dry-run` |
 | Full pipeline integration test | Medium | Data -> train -> inference round-trip | **Done** |
 | ONNX export/load test | Low | Verify export doesn't break | **Done** |
 

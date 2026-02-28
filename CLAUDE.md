@@ -43,7 +43,7 @@ ExPhil is an Elixir-based platform for experimenting with neural network archite
 
 ## Current Status
 
-**Test coverage:** 2469 tests passing
+**Test coverage:** ~2700 tests passing
 
 **Completed:**
 - 30+ backbone architectures: MLP, LSTM, GRU, Mamba, Griffin, xLSTM, RetNet, RWKV, KAN, Liquid, Jamba, Attention, Zamba, Mamba-2, GatedSSM, S4, S4D, S5, H3, Performer, DeltaNet, FNet, Perceiver, TTT, Hopfield, NTM, Reservoir, SNN, Bayesian, GLA, HGRN, Decision Transformer
@@ -432,4 +432,4 @@ end
 
 **ML Framework:**
 - [Nx](https://github.com/elixir-nx/nx) / [Axon](https://github.com/elixir-nx/axon) - Elixir ML
-- [Edifice](https://github.com/blasphemetheus/edifice) - 92+ architecture implementations (companion library)
+- [Edifice](https://github.com/blasphemetheus/edifice) - 232 architecture implementations (companion library)
