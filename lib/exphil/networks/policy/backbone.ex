@@ -115,6 +115,7 @@ defmodule ExPhil.Networks.Policy.Backbone do
           | :liquid
           | :kan
           | :transformer_like
+          | :deep_res_lstm
 
   @doc """
   Build a temporal backbone that processes frame sequences.
@@ -263,6 +264,10 @@ defmodule ExPhil.Networks.Policy.Backbone do
       :transformer_like ->
         # TransformerLike: Alternating LSTM/GRU + FFN residual blocks (slippi-ai's tx_like)
         build_transformer_like_backbone(embed_size, opts)
+
+      :deep_res_lstm ->
+        # DeepResLSTM: Stacked residual LSTM blocks (slippi-ai's res_lstm)
+        build_deep_res_lstm_backbone(embed_size, opts)
 
       :lstm ->
         build_lstm_backbone(embed_size, opts)
@@ -465,6 +470,10 @@ defmodule ExPhil.Networks.Policy.Backbone do
 
       :transformer_like ->
         # TransformerLike (slippi-ai's tx_like): defaults to 512 to match slippi-ai
+        Keyword.get(opts, :hidden_size, 512)
+
+      :deep_res_lstm ->
+        # DeepResLSTM (slippi-ai's res_lstm): defaults to 512 to match slippi-ai
         Keyword.get(opts, :hidden_size, 512)
 
       :lstm ->
@@ -1234,6 +1243,28 @@ defmodule ExPhil.Networks.Policy.Backbone do
       dropout: dropout,
       norm: norm,
       recurrent_norm: recurrent_norm,
+      window_size: window_size,
+      seq_len: seq_len
+    )
+  end
+
+  # DeepResLSTM: Stacked residual LSTM blocks (slippi-ai's res_lstm)
+  defp build_deep_res_lstm_backbone(embed_size, opts) do
+    alias Edifice.Recurrent.DeepResLSTM
+
+    hidden_size = Keyword.get(opts, :hidden_size, 512)
+    num_layers = Keyword.get(opts, :num_layers, 3)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+    norm = Keyword.get(opts, :norm, :layer_norm)
+    window_size = Keyword.get(opts, :window_size, 60)
+    seq_len = Keyword.get(opts, :seq_len, window_size)
+
+    DeepResLSTM.build(
+      embed_dim: embed_size,
+      hidden_size: hidden_size,
+      num_layers: num_layers,
+      dropout: dropout,
+      norm: norm,
       window_size: window_size,
       seq_len: seq_len
     )
