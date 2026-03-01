@@ -193,9 +193,9 @@ defmodule ExPhil.MixProject do
   defp deps do
     [
       # ML Core
-      {:nx, "~> 0.9"},
-      {:axon, "~> 0.7"},
-      {:exla, "~> 0.9"},
+      {:nx, "~> 0.11"},
+      {:axon, "~> 0.8"},
+      {:exla, "~> 0.11"},
       {:polaris, "~> 0.1"},
 
       # ML Architecture Library (extracted generic architectures)

@@ -462,7 +462,7 @@ defmodule ExPhil.Training.GPUUtils do
   def diagnose_cuda(opts \\ []) do
     verbose = Keyword.get(opts, :verbose, true)
 
-    Output.banner("CUDA Diagnostics")
+    if verbose, do: Output.banner("CUDA Diagnostics")
 
     results = [
       check_exla_target(verbose),
@@ -473,15 +473,17 @@ defmodule ExPhil.Training.GPUUtils do
 
     errors = Enum.count(results, &(&1 == :error))
 
-    IO.write(:stderr, "\n")
+    if verbose do
+      IO.write(:stderr, "\n")
 
-    if errors == 0 do
-      Output.success("All CUDA checks passed")
-      :ok
-    else
-      Output.error("#{errors} CUDA check(s) failed — see above for fixes")
-      {:error, errors}
+      if errors == 0 do
+        Output.success("All CUDA checks passed")
+      else
+        Output.error("#{errors} CUDA check(s) failed — see above for fixes")
+      end
     end
+
+    if errors == 0, do: :ok, else: {:error, errors}
   end
 
   defp check_exla_target(verbose) do

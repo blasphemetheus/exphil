@@ -189,8 +189,14 @@ defmodule ExPhil.Training.GPUUtilsTest do
     end
 
     test "accepts verbose option" do
-      result = GPUUtils.diagnose_cuda(verbose: true)
-      assert result == :ok or match?({:error, _}, result)
+      result =
+        ExUnit.CaptureIO.capture_io(:stderr, fn ->
+          send(self(), {:result, GPUUtils.diagnose_cuda(verbose: true)})
+        end)
+
+      assert is_binary(result)
+      assert_received {:result, diag_result}
+      assert diag_result == :ok or match?({:error, _}, diag_result)
     end
   end
 end

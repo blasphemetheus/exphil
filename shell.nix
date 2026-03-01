@@ -36,7 +36,13 @@ pkgs.mkShell {
 
     # CUDA/GPU support via WSL2 passthrough
     export CUDA_PATH="$(dirname $(which nvcc))/.."
-    export LD_LIBRARY_PATH="$CUDA_PATH/lib:${pkgs.cudaPackages.nccl}/lib:${pkgs.cudaPackages.cudnn.lib}/lib:${pkgs.cudaPackages.libnvjitlink.lib}/lib:/usr/lib/wsl/lib:''${LD_LIBRARY_PATH:-}"
+    # XLA 0.10+ needs NCCL 2.27+ and NVSHMEM 3.x (newer than nixpkgs provides)
+    # Downloaded from PyPI wheels: nvidia-nccl-cu12, nvidia-nvshmem-cu12
+    # CUDA compat symlinks bridge minor version gaps (nixpkgs 12.8 vs XLA 12.9)
+    export NCCL_LIB="$PWD/.nccl/nvidia/nccl/lib"
+    export NVSHMEM_LIB="$PWD/.nvshmem/nvidia/nvshmem/lib"
+    export CUDA_COMPAT="$PWD/.cuda-compat"
+    export LD_LIBRARY_PATH="$NCCL_LIB:$CUDA_PATH/lib:${pkgs.cudaPackages.cudnn.lib}/lib:${pkgs.cudaPackages.libnvjitlink.lib}/lib:${pkgs.stdenv.cc.cc.lib}/lib:$NVSHMEM_LIB:$CUDA_COMPAT:/usr/lib/wsl/lib:''${LD_LIBRARY_PATH:-}"
     export EXLA_TARGET=cuda
     export XLA_FLAGS="''${XLA_FLAGS:-} --xla_gpu_cuda_data_dir=$CUDA_PATH"
 
@@ -47,6 +53,10 @@ pkgs.mkShell {
     if [ ! -f "$MIX_HOME/elixir/"*"/rebar3" ] 2>/dev/null; then
       mix local.rebar --force --if-missing
     fi
+
+    # EXLA 0.11+ CallbackServer spawns many processes during JIT compilation.
+    # Default Erlang limit (262144) is too low for the full test suite (~2700 tests).
+    export ERL_FLAGS="''${ERL_FLAGS:-} +P 4000000"
 
     echo "ExPhil dev shell ready (CUDA enabled). Run 'mix deps.get && mix compile' to get started."
   '';

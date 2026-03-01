@@ -26,5 +26,8 @@ nx_backend =
 
 config :nx, default_backend: nx_backend
 
+# Suppress info/debug logs in tests (show warnings and errors only)
+config :logger, level: :warning
+
 # Disable telemetry in tests
 config :telemetry, :enabled, false

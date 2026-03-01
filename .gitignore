@@ -73,3 +73,9 @@ doc/
 # Nix shell artifacts
 .nix-mix/
 .nix-hex/
+
+# CUDA libs downloaded from PyPI wheels (too large for git)
+# Reinstall with: pip download nvidia-nccl-cu12 nvidia-nvshmem-cu12
+.nccl/
+.nvshmem/
+.cuda-compat/

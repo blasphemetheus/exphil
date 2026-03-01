@@ -1642,11 +1642,35 @@ estimated_mem_mb =
     window_size: opts[:window_size]
   )
 
-case GPUUtils.check_free_memory(required_mb: estimated_mem_mb) do
-  {:warning, msg} -> Output.warning(msg)
-  :ok -> :ok
-  # No GPU, skip check
-  {:error, _} -> :ok
+case GPUUtils.get_memory_info() do
+  {:ok, %{free_mb: free}} when free < estimated_mem_mb ->
+    deficit_pct = round((1 - free / estimated_mem_mb) * 100)
+
+    if free < estimated_mem_mb * 0.75 do
+      Output.error(
+        "GPU OOM likely: #{GPUUtils.format_mb(free)} free, need ~#{GPUUtils.format_mb(estimated_mem_mb)} " <>
+          "(#{deficit_pct}% short). WSL2 may be killed."
+      )
+
+      Output.puts("  Options:")
+      Output.puts("    1. Close other GPU processes (check nvidia-smi)")
+      Output.puts("    2. Reduce --batch-size (current: #{opts[:batch_size]})")
+      Output.puts("    3. Use smaller --hidden-sizes")
+      Output.puts("    4. Use EXLA_TARGET=host for CPU training")
+      System.halt(1)
+    else
+      Output.warning(
+        "Low GPU memory: #{GPUUtils.format_mb(free)} free, need ~#{GPUUtils.format_mb(estimated_mem_mb)}. " <>
+          "Training may OOM. Consider reducing batch size."
+      )
+    end
+
+  {:ok, _} ->
+    :ok
+
+  {:error, _} ->
+    # No GPU, skip check
+    :ok
 end
 
 if opts[:accumulation_steps] > 1 do
@@ -1750,7 +1774,7 @@ end
       end
 
     prep_time_ms = System.monotonic_time(:millisecond) - prep_start
-    IO.write(:stderr, "\r  Preparing datasets for batching... done (#{div(prep_time_ms, 1000)}s)\n\e[K")
+    IO.write(:stderr, "\r  Preparing datasets for batching... done (#{div(prep_time_ms, 1000)}s)\e[K\n")
 
     {prepared_train, prepared_val}
   else
@@ -1773,7 +1797,7 @@ precomputed_val_batches =
       |> Enum.to_list()  # Materialize into list for reuse
 
     val_time_ms = System.monotonic_time(:millisecond) - val_start
-    IO.write(:stderr, "\r  Pre-computing validation batches... done (#{length(val_batches)} batches, #{div(val_time_ms, 1000)}s)\n\e[K")
+    IO.write(:stderr, "\r  Pre-computing validation batches... done (#{length(val_batches)} batches, #{div(val_time_ms, 1000)}s)\e[K\n")
 
     val_batches
   else
@@ -1788,10 +1812,10 @@ if precomputed_val_batches != nil and length(precomputed_val_batches) > 0 do
   val_concurrency = opts[:val_concurrency] || 4
   case Imitation.warmup_validation(trainer, precomputed_val_batches, max_concurrency: val_concurrency) do
     {:ok, %{validation: time_ms}} ->
-      IO.write(:stderr, "\r  ✓ Validation JIT compiled (#{Float.round(time_ms / 1000, 1)}s)\n\e[K")
+      IO.write(:stderr, "\r  ✓ Validation JIT compiled (#{Float.round(time_ms / 1000, 1)}s)\e[K\n")
 
     {:error, reason} ->
-      IO.write(:stderr, "\r  ⚠ Validation warmup failed: #{reason}\n\e[K")
+      IO.write(:stderr, "\r  ⚠ Validation warmup failed: #{reason}\e[K\n")
   end
 end
 
@@ -2118,7 +2142,7 @@ batch_checkpoint_path =
     Profiler.record(:batch_prep, batch_prep_time_ms)
 
     if epoch > 1 and batch_prep_time_ms > 1000 do
-      IO.write(:stderr, "\r    Preparing batches... done (#{div(batch_prep_time_ms, 1000)}s)\n\e[K")
+      IO.write(:stderr, "\r    Preparing batches... done (#{div(batch_prep_time_ms, 1000)}s)\e[K\n")
     else
       if epoch > 1, do: IO.write(:stderr, "\r\e[K")
     end
@@ -2146,7 +2170,13 @@ batch_checkpoint_path =
       if epoch == 1 do
         Output.puts("  ─── Epoch 1/#{opts[:epochs]} ───")
         Output.puts("  #{gpu_status}")
-        Output.puts("  ⏳ JIT compiling model (first batch)... this may take 2-5 minutes")
+        jit_estimate = cond do
+          param_count > 10_000_000 -> "5-15 minutes"
+          param_count > 1_000_000 -> "2-5 minutes"
+          param_count > 100_000 -> "1-3 minutes"
+          true -> "30-90 seconds"
+        end
+        Output.puts("  ⏳ JIT compiling model (first batch)... this may take #{jit_estimate}")
         Output.puts("     (subsequent batches will be fast)")
         true
       else

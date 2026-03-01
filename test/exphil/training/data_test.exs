@@ -138,7 +138,7 @@ defmodule ExPhil.Training.DataTest do
 
       # Create sequences and embed them
       seq_dataset = Data.to_sequences(dataset, window_size: 5, stride: 2)
-      embedded_dataset = Data.precompute_embeddings(seq_dataset)
+      embedded_dataset = Data.precompute_embeddings(seq_dataset, show_progress: false)
 
       # Verify embeddings exist
       assert embedded_dataset.embedded_sequences != nil
@@ -177,7 +177,7 @@ defmodule ExPhil.Training.DataTest do
       dataset = Data.from_frames(frames)
 
       # Precompute frame embeddings
-      embedded_dataset = Data.precompute_frame_embeddings(dataset)
+      embedded_dataset = Data.precompute_frame_embeddings(dataset, show_progress: false)
 
       # Verify embeddings exist
       assert embedded_dataset.embedded_frames != nil
@@ -970,7 +970,7 @@ defmodule ExPhil.Training.DataTest do
       dataset = Data.from_frames(frames)
 
       # Precompute embeddings (required for fast batch path)
-      dataset = Data.precompute_frame_embeddings(dataset)
+      dataset = Data.precompute_frame_embeddings(dataset, show_progress: false)
 
       # Time multiple batch creations
       batches = Data.batched(dataset, batch_size: batch_size, shuffle: true)
@@ -997,7 +997,7 @@ defmodule ExPhil.Training.DataTest do
     test "frames_array is cached in process dictionary" do
       frames = for i <- 0..999, do: mock_frame(frame: i)
       dataset = Data.from_frames(frames)
-      dataset = Data.precompute_frame_embeddings(dataset)
+      dataset = Data.precompute_frame_embeddings(dataset, show_progress: false)
 
       # Clear any cached array
       Process.delete(:frames_array_cache)
@@ -1111,7 +1111,7 @@ defmodule ExPhil.Training.DataTest do
       dataset = Data.from_frames(frames)
 
       # Precompute embeddings (this is O(n) and expected to take time)
-      dataset = Data.precompute_frame_embeddings(dataset)
+      dataset = Data.precompute_frame_embeddings(dataset, show_progress: false)
 
       # Measure time to create and consume 10 batches
       {time_us, batches} = :timer.tc(fn ->
