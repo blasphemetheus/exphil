@@ -130,6 +130,27 @@ defmodule ExPhil.Networks.Policy.Backbone do
           | :hyena
           | :titans
           | :gated_deltanet
+          | :native_recurrence
+          | :longhorn
+          | :samba
+          | :hymba
+          | :gss
+          | :delta_product
+          | :gla_v2
+          | :hgrn_v2
+          | :ttt_e2e
+          | :gsa
+          | :rla
+          | :nha
+          | :fox
+          | :log_linear
+          | :laser
+          | :moba
+          | :tnn
+          | :miras
+          | :mixture_of_mamba
+          | :huginn
+          | :coconut
 
   @doc """
   Build a temporal backbone that processes frame sequences.
@@ -310,6 +331,90 @@ defmodule ExPhil.Networks.Policy.Backbone do
       :gated_deltanet ->
         # Gated DeltaNet: Linear attention with data-dependent gating
         build_gated_deltanet_backbone(embed_size, opts)
+
+      :native_recurrence ->
+        # NativeRecurrence: Efficient GRU variants (elu_gru, real_gru, diag_linear)
+        build_native_recurrence_backbone(embed_size, opts)
+
+      :longhorn ->
+        # Longhorn: Drop-in Mamba replacement, no forget gate
+        build_longhorn_backbone(embed_size, opts)
+
+      :samba ->
+        # Samba: Hybrid Mamba + Sliding Window Attention + MLP
+        build_samba_backbone(embed_size, opts)
+
+      :hymba ->
+        # Hymba: Parallel Mamba + Attention with meta tokens
+        build_hymba_backbone(embed_size, opts)
+
+      :gss ->
+        # GSS: Gated State Space model
+        build_gss_backbone(embed_size, opts)
+
+      :delta_product ->
+        # DeltaProduct: Multi-step DeltaNet via Householder products
+        build_delta_product_backbone(embed_size, opts)
+
+      :gla_v2 ->
+        # GLAv2: Gated Linear Attention v2 (improved GLA)
+        build_gla_v2_backbone(embed_size, opts)
+
+      :hgrn_v2 ->
+        # HGRNv2: HGRN v2 with outer product state expansion
+        build_hgrn_v2_backbone(embed_size, opts)
+
+      :ttt_e2e ->
+        # TTT-E2E: End-to-end Test-Time Training
+        build_ttt_e2e_backbone(embed_size, opts)
+
+      :gsa ->
+        # GSA: Gated Slot Attention (linear time, fixed slots)
+        build_gsa_backbone(embed_size, opts)
+
+      :rla ->
+        # RLA: Residual Linear Attention
+        build_rla_backbone(embed_size, opts)
+
+      :nha ->
+        # NHA: Native Hybrid Attention (per-layer linear vs full)
+        build_nha_backbone(embed_size, opts)
+
+      :fox ->
+        # FoX: Forgetting Transformer with learnable forget on softmax
+        build_fox_backbone(embed_size, opts)
+
+      :log_linear ->
+        # LogLinear: O(log T) space hierarchical attention
+        build_log_linear_backbone(embed_size, opts)
+
+      :laser ->
+        # LASER: Log-exponential attention for larger gradients
+        build_laser_backbone(embed_size, opts)
+
+      :moba ->
+        # MoBA: Mixture of Block Attention (production-proven)
+        build_moba_backbone(embed_size, opts)
+
+      :tnn ->
+        # TNN: Toeplitz Neural Network, O(n log n) with good extrapolation
+        build_tnn_backbone(embed_size, opts)
+
+      :miras ->
+        # MIRAS: Memory as Iterative Reasoning (Moneta, Yaad, Memora)
+        build_miras_backbone(embed_size, opts)
+
+      :mixture_of_mamba ->
+        # MixtureOfMamba: Modality-aware Mamba with sparse routing
+        build_mixture_of_mamba_backbone(embed_size, opts)
+
+      :huginn ->
+        # Huginn: Depth-recurrent transformer with adaptive iteration
+        build_huginn_backbone(embed_size, opts)
+
+      :coconut ->
+        # Coconut: Continuous chain of thought (latent reasoning)
+        build_coconut_backbone(embed_size, opts)
 
       :lstm ->
         build_lstm_backbone(embed_size, opts)
@@ -538,6 +643,32 @@ defmodule ExPhil.Networks.Policy.Backbone do
         Keyword.get(opts, :hidden_size, 256)
 
       :gated_deltanet ->
+        Keyword.get(opts, :hidden_size, 256)
+
+      type
+      when type in [
+             :native_recurrence,
+             :longhorn,
+             :samba,
+             :hymba,
+             :gss,
+             :delta_product,
+             :gla_v2,
+             :hgrn_v2,
+             :ttt_e2e,
+             :gsa,
+             :rla,
+             :nha,
+             :fox,
+             :log_linear,
+             :laser,
+             :moba,
+             :tnn,
+             :miras,
+             :mixture_of_mamba,
+             :huginn,
+             :coconut
+           ] ->
         Keyword.get(opts, :hidden_size, 256)
 
       :lstm ->
@@ -1486,6 +1617,466 @@ defmodule ExPhil.Networks.Policy.Backbone do
       num_layers: num_layers,
       dropout: dropout,
       conv_size: conv_size,
+      window_size: window_size,
+      seq_len: seq_len
+    )
+  end
+
+  # NativeRecurrence: Efficient GRU variants from NativeRecurrence paper
+  defp build_native_recurrence_backbone(embed_size, opts) do
+    alias Edifice.Recurrent.NativeRecurrence
+
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    num_layers = Keyword.get(opts, :num_layers, 4)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+    window_size = Keyword.get(opts, :window_size, 60)
+    seq_len = Keyword.get(opts, :seq_len, window_size)
+
+    NativeRecurrence.build(
+      embed_dim: embed_size,
+      hidden_size: hidden_size,
+      num_layers: num_layers,
+      dropout: dropout,
+      window_size: window_size,
+      seq_len: seq_len
+    )
+  end
+
+  # Longhorn: Drop-in Mamba replacement, closed-form online recall
+  defp build_longhorn_backbone(embed_size, opts) do
+    alias Edifice.SSM.Longhorn
+
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    state_size = Keyword.get(opts, :state_size, 16)
+    num_layers = Keyword.get(opts, :num_layers, 2)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+    window_size = Keyword.get(opts, :window_size, 60)
+    seq_len = Keyword.get(opts, :seq_len, window_size)
+
+    Longhorn.build(
+      embed_dim: embed_size,
+      hidden_size: hidden_size,
+      state_size: state_size,
+      num_layers: num_layers,
+      dropout: dropout,
+      window_size: window_size,
+      seq_len: seq_len
+    )
+  end
+
+  # Samba: Hybrid Mamba + Sliding Window Attention + MLP
+  defp build_samba_backbone(embed_size, opts) do
+    alias Edifice.SSM.Samba
+
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    num_layers = Keyword.get(opts, :num_layers, 2)
+    num_heads = Keyword.get(opts, :num_heads, 4)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+    window_size = Keyword.get(opts, :window_size, 60)
+    seq_len = Keyword.get(opts, :seq_len, window_size)
+
+    Samba.build(
+      embed_dim: embed_size,
+      hidden_size: hidden_size,
+      num_layers: num_layers,
+      num_heads: num_heads,
+      dropout: dropout,
+      window_size: window_size,
+      seq_len: seq_len
+    )
+  end
+
+  # Hymba: Parallel Mamba + Attention with meta tokens
+  defp build_hymba_backbone(embed_size, opts) do
+    alias Edifice.SSM.Hymba
+
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    num_layers = Keyword.get(opts, :num_layers, 2)
+    num_heads = Keyword.get(opts, :num_heads, 4)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+    window_size = Keyword.get(opts, :window_size, 60)
+    seq_len = Keyword.get(opts, :seq_len, window_size)
+
+    Hymba.build(
+      embed_dim: embed_size,
+      hidden_size: hidden_size,
+      num_layers: num_layers,
+      num_heads: num_heads,
+      dropout: dropout,
+      window_size: window_size,
+      seq_len: seq_len
+    )
+  end
+
+  # GSS: Gated State Space model
+  defp build_gss_backbone(embed_size, opts) do
+    alias Edifice.SSM.GSS
+
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    state_size = Keyword.get(opts, :state_size, 16)
+    num_layers = Keyword.get(opts, :num_layers, 2)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+    window_size = Keyword.get(opts, :window_size, 60)
+    seq_len = Keyword.get(opts, :seq_len, window_size)
+
+    GSS.build(
+      embed_dim: embed_size,
+      hidden_size: hidden_size,
+      state_size: state_size,
+      num_layers: num_layers,
+      dropout: dropout,
+      window_size: window_size,
+      seq_len: seq_len
+    )
+  end
+
+  # DeltaProduct: Multi-step DeltaNet via Householder products
+  defp build_delta_product_backbone(embed_size, opts) do
+    alias Edifice.Recurrent.DeltaProduct
+
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    num_heads = Keyword.get(opts, :num_heads, 4)
+    num_layers = Keyword.get(opts, :num_layers, 4)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+    window_size = Keyword.get(opts, :window_size, 60)
+    seq_len = Keyword.get(opts, :seq_len, window_size)
+
+    DeltaProduct.build(
+      embed_dim: embed_size,
+      hidden_size: hidden_size,
+      num_heads: num_heads,
+      num_layers: num_layers,
+      dropout: dropout,
+      window_size: window_size,
+      seq_len: seq_len
+    )
+  end
+
+  # GLAv2: Gated Linear Attention v2
+  defp build_gla_v2_backbone(embed_size, opts) do
+    alias Edifice.Attention.GLAv2
+
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    num_heads = Keyword.get(opts, :num_heads, 4)
+    num_layers = Keyword.get(opts, :num_layers, 4)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+    window_size = Keyword.get(opts, :window_size, 60)
+    seq_len = Keyword.get(opts, :seq_len, window_size)
+
+    GLAv2.build(
+      embed_dim: embed_size,
+      hidden_size: hidden_size,
+      num_heads: num_heads,
+      num_layers: num_layers,
+      dropout: dropout,
+      window_size: window_size,
+      seq_len: seq_len
+    )
+  end
+
+  # HGRNv2: Hierarchically Gated RNN v2 with outer product state
+  defp build_hgrn_v2_backbone(embed_size, opts) do
+    alias Edifice.Attention.HGRNv2
+
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    num_heads = Keyword.get(opts, :num_heads, 4)
+    num_layers = Keyword.get(opts, :num_layers, 4)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+    window_size = Keyword.get(opts, :window_size, 60)
+    seq_len = Keyword.get(opts, :seq_len, window_size)
+
+    HGRNv2.build(
+      embed_dim: embed_size,
+      hidden_size: hidden_size,
+      num_heads: num_heads,
+      num_layers: num_layers,
+      dropout: dropout,
+      window_size: window_size,
+      seq_len: seq_len
+    )
+  end
+
+  # TTT-E2E: End-to-end Test-Time Training
+  defp build_ttt_e2e_backbone(embed_size, opts) do
+    alias Edifice.Recurrent.TTTE2E
+
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    num_heads = Keyword.get(opts, :num_heads, 4)
+    num_layers = Keyword.get(opts, :num_layers, 2)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+    window_size = Keyword.get(opts, :window_size, 60)
+    seq_len = Keyword.get(opts, :seq_len, window_size)
+
+    TTTE2E.build(
+      embed_dim: embed_size,
+      hidden_size: hidden_size,
+      num_heads: num_heads,
+      num_layers: num_layers,
+      dropout: dropout,
+      window_size: window_size,
+      seq_len: seq_len
+    )
+  end
+
+  # GSA: Gated Slot Attention (linear time, fixed slots)
+  defp build_gsa_backbone(embed_size, opts) do
+    alias Edifice.Attention.GSA
+
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    num_heads = Keyword.get(opts, :num_heads, 4)
+    num_layers = Keyword.get(opts, :num_layers, 4)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+    window_size = Keyword.get(opts, :window_size, 60)
+    seq_len = Keyword.get(opts, :seq_len, window_size)
+
+    GSA.build(
+      embed_dim: embed_size,
+      hidden_size: hidden_size,
+      num_heads: num_heads,
+      num_layers: num_layers,
+      dropout: dropout,
+      window_size: window_size,
+      seq_len: seq_len
+    )
+  end
+
+  # RLA: Residual Linear Attention
+  defp build_rla_backbone(embed_size, opts) do
+    alias Edifice.Attention.RLA
+
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    num_heads = Keyword.get(opts, :num_heads, 4)
+    num_layers = Keyword.get(opts, :num_layers, 4)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+    window_size = Keyword.get(opts, :window_size, 60)
+    seq_len = Keyword.get(opts, :seq_len, window_size)
+
+    RLA.build(
+      embed_dim: embed_size,
+      hidden_size: hidden_size,
+      num_heads: num_heads,
+      num_layers: num_layers,
+      dropout: dropout,
+      window_size: window_size,
+      seq_len: seq_len
+    )
+  end
+
+  # NHA: Native Hybrid Attention (per-layer linear vs full selection)
+  defp build_nha_backbone(embed_size, opts) do
+    alias Edifice.Attention.NHA
+
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    num_heads = Keyword.get(opts, :num_heads, 4)
+    num_layers = Keyword.get(opts, :num_layers, 4)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+    window_size = Keyword.get(opts, :window_size, 60)
+    seq_len = Keyword.get(opts, :seq_len, window_size)
+
+    NHA.build(
+      embed_dim: embed_size,
+      hidden_size: hidden_size,
+      num_heads: num_heads,
+      num_layers: num_layers,
+      dropout: dropout,
+      window_size: window_size,
+      seq_len: seq_len
+    )
+  end
+
+  # FoX: Forgetting Transformer with learnable forget on softmax
+  defp build_fox_backbone(embed_size, opts) do
+    alias Edifice.Attention.FoX
+
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    num_heads = Keyword.get(opts, :num_heads, 4)
+    num_layers = Keyword.get(opts, :num_layers, 4)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+    window_size = Keyword.get(opts, :window_size, 60)
+    seq_len = Keyword.get(opts, :seq_len, window_size)
+
+    FoX.build(
+      embed_dim: embed_size,
+      hidden_size: hidden_size,
+      num_heads: num_heads,
+      num_layers: num_layers,
+      dropout: dropout,
+      window_size: window_size,
+      seq_len: seq_len
+    )
+  end
+
+  # LogLinear: O(log T) space hierarchical attention
+  defp build_log_linear_backbone(embed_size, opts) do
+    alias Edifice.Attention.LogLinear
+
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    num_heads = Keyword.get(opts, :num_heads, 4)
+    num_layers = Keyword.get(opts, :num_layers, 4)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+    window_size = Keyword.get(opts, :window_size, 60)
+    seq_len = Keyword.get(opts, :seq_len, window_size)
+
+    LogLinear.build(
+      embed_dim: embed_size,
+      hidden_size: hidden_size,
+      num_heads: num_heads,
+      num_layers: num_layers,
+      dropout: dropout,
+      window_size: window_size,
+      seq_len: seq_len
+    )
+  end
+
+  # LASER: Log-exponential attention for larger gradients
+  defp build_laser_backbone(embed_size, opts) do
+    alias Edifice.Attention.LASER
+
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    num_heads = Keyword.get(opts, :num_heads, 4)
+    num_layers = Keyword.get(opts, :num_layers, 4)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+    window_size = Keyword.get(opts, :window_size, 60)
+    seq_len = Keyword.get(opts, :seq_len, window_size)
+
+    LASER.build(
+      embed_dim: embed_size,
+      hidden_size: hidden_size,
+      num_heads: num_heads,
+      num_layers: num_layers,
+      dropout: dropout,
+      window_size: window_size,
+      seq_len: seq_len
+    )
+  end
+
+  # MoBA: Mixture of Block Attention (production-proven, Kimi)
+  defp build_moba_backbone(embed_size, opts) do
+    alias Edifice.Attention.MoBA
+
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    num_heads = Keyword.get(opts, :num_heads, 4)
+    num_layers = Keyword.get(opts, :num_layers, 4)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+    window_size = Keyword.get(opts, :window_size, 60)
+    seq_len = Keyword.get(opts, :seq_len, window_size)
+
+    MoBA.build(
+      embed_dim: embed_size,
+      hidden_size: hidden_size,
+      num_heads: num_heads,
+      num_layers: num_layers,
+      dropout: dropout,
+      window_size: window_size,
+      seq_len: seq_len
+    )
+  end
+
+  # TNN: Toeplitz Neural Network, O(n log n) with good extrapolation
+  defp build_tnn_backbone(embed_size, opts) do
+    alias Edifice.Attention.TNN
+
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    num_heads = Keyword.get(opts, :num_heads, 4)
+    num_layers = Keyword.get(opts, :num_layers, 4)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+    window_size = Keyword.get(opts, :window_size, 60)
+    seq_len = Keyword.get(opts, :seq_len, window_size)
+
+    TNN.build(
+      embed_dim: embed_size,
+      hidden_size: hidden_size,
+      num_heads: num_heads,
+      num_layers: num_layers,
+      dropout: dropout,
+      window_size: window_size,
+      seq_len: seq_len
+    )
+  end
+
+  # MIRAS: Memory as Iterative Reasoning (Moneta, Yaad, Memora variants)
+  defp build_miras_backbone(embed_size, opts) do
+    alias Edifice.Recurrent.MIRAS
+
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    num_heads = Keyword.get(opts, :num_heads, 4)
+    num_layers = Keyword.get(opts, :num_layers, 2)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+    window_size = Keyword.get(opts, :window_size, 60)
+    seq_len = Keyword.get(opts, :seq_len, window_size)
+
+    MIRAS.build(
+      embed_dim: embed_size,
+      hidden_size: hidden_size,
+      num_heads: num_heads,
+      num_layers: num_layers,
+      dropout: dropout,
+      window_size: window_size,
+      seq_len: seq_len
+    )
+  end
+
+  # MixtureOfMamba: Modality-aware Mamba with sparse routing
+  defp build_mixture_of_mamba_backbone(embed_size, opts) do
+    alias Edifice.SSM.MixtureOfMamba
+
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    state_size = Keyword.get(opts, :state_size, 16)
+    num_layers = Keyword.get(opts, :num_layers, 2)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+    window_size = Keyword.get(opts, :window_size, 60)
+    seq_len = Keyword.get(opts, :seq_len, window_size)
+
+    MixtureOfMamba.build(
+      embed_dim: embed_size,
+      hidden_size: hidden_size,
+      state_size: state_size,
+      num_layers: num_layers,
+      dropout: dropout,
+      window_size: window_size,
+      seq_len: seq_len
+    )
+  end
+
+  # Huginn: Depth-recurrent transformer with adaptive iteration
+  defp build_huginn_backbone(embed_size, opts) do
+    alias Edifice.Recurrent.Huginn
+
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    num_heads = Keyword.get(opts, :num_heads, 4)
+    num_layers = Keyword.get(opts, :num_layers, 2)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+    window_size = Keyword.get(opts, :window_size, 60)
+    seq_len = Keyword.get(opts, :seq_len, window_size)
+
+    Huginn.build(
+      embed_dim: embed_size,
+      hidden_size: hidden_size,
+      num_heads: num_heads,
+      num_layers: num_layers,
+      dropout: dropout,
+      window_size: window_size,
+      seq_len: seq_len
+    )
+  end
+
+  # Coconut: Continuous chain of thought (latent reasoning)
+  defp build_coconut_backbone(embed_size, opts) do
+    alias Edifice.Meta.Coconut
+
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    num_heads = Keyword.get(opts, :num_heads, 4)
+    num_layers = Keyword.get(opts, :num_layers, 2)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+    window_size = Keyword.get(opts, :window_size, 60)
+    seq_len = Keyword.get(opts, :seq_len, window_size)
+
+    Coconut.build(
+      embed_dim: embed_size,
+      hidden_size: hidden_size,
+      num_heads: num_heads,
+      num_layers: num_layers,
+      dropout: dropout,
       window_size: window_size,
       seq_len: seq_len
     )

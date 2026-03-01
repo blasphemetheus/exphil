@@ -86,7 +86,28 @@ defmodule ExPhil.Training.Config do
     :mamba3,
     :hyena,
     :titans,
-    :gated_deltanet
+    :gated_deltanet,
+    :native_recurrence,
+    :longhorn,
+    :samba,
+    :hymba,
+    :gss,
+    :delta_product,
+    :gla_v2,
+    :hgrn_v2,
+    :ttt_e2e,
+    :gsa,
+    :rla,
+    :nha,
+    :fox,
+    :log_linear,
+    :laser,
+    :moba,
+    :tnn,
+    :miras,
+    :mixture_of_mamba,
+    :huginn,
+    :coconut
   ]
   @valid_optimizers [:adam, :adamw, :lamb, :radam, :sgd, :rmsprop]
   @valid_lr_schedules [:constant, :cosine, :cosine_restarts, :exponential, :linear]
