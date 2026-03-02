@@ -33,7 +33,7 @@ defmodule ExPhil.League.Pretraining do
 
   """
 
-  alias ExPhil.Training.{Imitation, Output, GPUUtils}
+  alias ExPhil.Training.{Imitation, Output, GPUUtils, Utils}
   alias ExPhil.Networks.Policy
   alias ExPhil.Embeddings
 
@@ -210,7 +210,7 @@ defmodule ExPhil.League.Pretraining do
 
     # Initialize params using Axon.build
     sample_input = create_sample_input(embed_config, batch_size)
-    {init_fn, _predict_fn} = Axon.build(model, mode: :train)
+    {init_fn, _predict_fn} = Utils.build_compiled(model, mode: :train)
     params = init_fn.(sample_input, Axon.ModelState.empty())
 
     # Training loop

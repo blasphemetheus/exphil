@@ -499,7 +499,8 @@ evaluate_model = fn model_path ->
       )
     end
 
-  {_init_fn, predict_fn} = Axon.build(policy_model)
+  eval_build_opts = if Code.ensure_loaded?(EXLA), do: [compiler: EXLA], else: []
+{_init_fn, predict_fn} = Axon.build(policy_model, eval_build_opts)
 
   # Evaluate
   axis_buckets = config[:axis_buckets] || 16

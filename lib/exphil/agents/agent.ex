@@ -816,7 +816,7 @@ defmodule ExPhil.Agents.Agent do
         )
       end
 
-    {_init_fn, predict_fn} = Axon.build(model)
+    {_init_fn, predict_fn} = Utils.build_compiled(model)
 
     # Build embed_config with all needed fields
     full_embed_config =

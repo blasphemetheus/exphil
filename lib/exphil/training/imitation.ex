@@ -62,7 +62,7 @@ defmodule ExPhil.Training.Imitation do
 
   alias ExPhil.Networks.Policy
   alias ExPhil.Embeddings
-  alias ExPhil.Training.MixedPrecision
+  alias ExPhil.Training.{MixedPrecision, Utils}
   alias ExPhil.Training.Imitation.{Checkpointing, Loss, Optimizer, TrainLoop, Validation}
 
   require Logger
@@ -251,7 +251,7 @@ defmodule ExPhil.Training.Imitation do
 
     # Initialize parameters using newer Axon API
     # Use mode: :train to ensure all parameters (including dropout state) are initialized
-    {init_fn, _predict_fn} = Axon.build(policy_model, mode: :train)
+    {init_fn, _predict_fn} = Utils.build_compiled(policy_model, mode: :train)
 
     # Input shape depends on temporal mode
     input_shape =
@@ -292,7 +292,7 @@ defmodule ExPhil.Training.Imitation do
 
     # Pre-build cached functions for performance
     # These are reused every training step instead of being rebuilt
-    {_init_fn, predict_fn} = Axon.build(policy_model, mode: :inference)
+    {_init_fn, predict_fn} = Utils.build_compiled(policy_model, mode: :inference)
 
     # JIT compile optimizer and update functions with EXLA for GPU execution
     # Without compiler: EXLA, these default to CPU which causes 0% GPU utilization
@@ -488,7 +488,7 @@ defmodule ExPhil.Training.Imitation do
   """
   @spec get_action(t(), Nx.Tensor.t(), keyword()) :: map()
   def get_action(trainer, state, opts \\ []) do
-    {_init_fn, predict_fn} = Axon.build(trainer.policy_model)
+    {_init_fn, predict_fn} = Utils.build_compiled(trainer.policy_model)
 
     Policy.sample(
       trainer.policy_params,

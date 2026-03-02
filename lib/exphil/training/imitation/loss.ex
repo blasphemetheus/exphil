@@ -60,7 +60,7 @@ defmodule ExPhil.Training.Imitation.Loss do
     focal_gamma = Keyword.get(opts, :focal_gamma, 2.0)
     button_weight = Keyword.get(opts, :button_weight, 1.0)
     stick_edge_weight = Keyword.get(opts, :stick_edge_weight)
-    {_init_fn, predict_fn} = Axon.build(policy_model)
+    {_init_fn, predict_fn} = Utils.build_compiled(policy_model)
 
     loss_fn = fn params, states, actions ->
       # Forward pass

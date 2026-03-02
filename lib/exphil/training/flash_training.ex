@@ -41,7 +41,7 @@ defmodule ExPhil.Training.FlashTraining do
   """
 
   alias ExPhil.Native.FlashAttention
-  alias ExPhil.Training.Output
+  alias ExPhil.Training.{Output, Utils}
 
   require Logger
 
@@ -104,7 +104,7 @@ defmodule ExPhil.Training.FlashTraining do
     # Build simple QKV projection for demonstration
     # In practice, this would be extracted from the full model
     qkv_model = build_qkv_projection(hidden_dim, num_heads, head_dim)
-    {qkv_init_fn, qkv_fn} = Axon.build(qkv_model)
+    {qkv_init_fn, qkv_fn} = Utils.build_compiled(qkv_model)
 
     # Initialize QKV params using Axon.ModelState
     dummy_input = Nx.broadcast(0.0, {1, 1, hidden_dim})

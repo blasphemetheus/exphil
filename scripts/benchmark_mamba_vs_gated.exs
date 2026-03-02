@@ -94,7 +94,8 @@ results =
     try do
       Output.puts("  Building...")
       model = builder.(model_opts)
-      {init_fn, pred_fn} = Axon.build(model, mode: :inference)
+      build_opts = if Code.ensure_loaded?(EXLA), do: [mode: :inference, compiler: EXLA], else: [mode: :inference]
+      {init_fn, pred_fn} = Axon.build(model, build_opts)
       params = init_fn.(Nx.template({batch_size, seq_len, embed_size}, :f32), Axon.ModelState.empty())
 
       Output.puts("  Warmup (#{warmup} iterations)...")

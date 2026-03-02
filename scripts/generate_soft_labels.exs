@@ -79,7 +79,8 @@ defmodule SoftLabelGenerator do
 
     # Build predict function
     Output.step(4, 6, "Building inference function")
-    {_init_fn, predict_fn} = Axon.build(policy.model, mode: :inference)
+    sl_build_opts = if Code.ensure_loaded?(EXLA), do: [mode: :inference, compiler: EXLA], else: [mode: :inference]
+    {_init_fn, predict_fn} = Axon.build(policy.model, sl_build_opts)
     Output.puts("  Model compiled")
 
     # Generate soft labels

@@ -76,7 +76,7 @@ defmodule DistillationTrainer do
       )
 
     # Count parameters
-    {init_fn, _} = Axon.build(student_model, mode: :inference)
+    {init_fn, _} = Axon.build(student_model, if(Code.ensure_loaded?(EXLA), do: [mode: :inference, compiler: EXLA], else: [mode: :inference]))
     dummy_input = Nx.broadcast(0.0, {1, embed_size})
     params = init_fn.(dummy_input, Axon.ModelState.empty())
     param_count = count_params(params)
@@ -94,7 +94,7 @@ defmodule DistillationTrainer do
     optimizer_state = Polaris.Updates.init(optimizer)
 
     # Build training functions
-    {_, predict_fn} = Axon.build(student_model, mode: :inference)
+    {_, predict_fn} = Axon.build(student_model, if(Code.ensure_loaded?(EXLA), do: [mode: :inference, compiler: EXLA], else: [mode: :inference]))
 
     # Training loop
     Output.step(5, 7, "Training")
@@ -439,7 +439,7 @@ defmodule DistillationTrainer do
   end
 
   defp benchmark_inference(model, params, embed_size) do
-    {_, predict_fn} = Axon.build(model, mode: :inference)
+    {_, predict_fn} = Axon.build(model, if(Code.ensure_loaded?(EXLA), do: [mode: :inference, compiler: EXLA], else: [mode: :inference]))
 
     # Warmup
     dummy = Nx.broadcast(0.5, {1, embed_size})

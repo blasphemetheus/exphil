@@ -116,7 +116,8 @@ defmodule BenchInference do
     # Build + init + warmup inside a timeout task
     task = Task.async(fn ->
       model = Backbone.build_temporal_backbone(embed_size, arch, arch_opts)
-      {init_fn, pred_fn} = Axon.build(model, mode: :inference)
+      build_opts = if Code.ensure_loaded?(EXLA), do: [mode: :inference, compiler: EXLA], else: [mode: :inference]
+      {init_fn, pred_fn} = Axon.build(model, build_opts)
 
       template = Nx.template({1, window_size, embed_size}, :f32)
       params = init_fn.(template, Axon.ModelState.empty())
@@ -468,7 +469,7 @@ tier_thorough = [
 
 tier_only = [
   :jamba, :zamba, :lstm_hybrid, :perceiver, :ttt, :hopfield,
-  :ntm, :liquid, :decision_transformer
+  :ntm, :liquid, :decision_transformer, :min_lstm, :min_gru
 ]
 
 all_known = tier_default ++ tier_thorough ++ tier_only

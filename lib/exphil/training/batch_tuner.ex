@@ -36,7 +36,7 @@ defmodule ExPhil.Training.BatchTuner do
   """
 
   require Logger
-  alias ExPhil.Training.Output
+  alias ExPhil.Training.{Output, Utils}
   alias ExPhil.Error.GPUError
 
   @default_initial 32
@@ -179,7 +179,7 @@ defmodule ExPhil.Training.BatchTuner do
 
         %Axon{} = model ->
           # Initialize params if needed and run forward pass
-          {init_fn, predict_fn} = Axon.build(model)
+          {init_fn, predict_fn} = Utils.build_compiled(model)
           params = init_fn.(states_subset, %{})
           _output = predict_fn.(params, states_subset)
 

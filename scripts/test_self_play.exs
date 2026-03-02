@@ -335,7 +335,8 @@ if test_ppo do
     IO.puts("  Creating mock rollout (128 steps)...")
     num_steps = 128
     {model, params} = H.create_test_policy(embed_size)
-    {_init_fn, predict_fn} = Axon.build(model, mode: :inference)
+    tsp_build_opts = if Code.ensure_loaded?(EXLA), do: [mode: :inference, compiler: EXLA], else: [mode: :inference]
+    {_init_fn, predict_fn} = Axon.build(model, tsp_build_opts)
 
     # Generate fake experiences
     states = Nx.broadcast(0.0, {num_steps, embed_size})

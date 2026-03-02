@@ -368,7 +368,8 @@ Output.puts("  ⏳ JIT compiling policy (first inference may take 2-5 min)...")
 warmup_start = System.monotonic_time(:millisecond)
 
 # Build predict function and run a dummy batch to trigger JIT compilation
-{_init_fn, predict_fn} = Axon.build(policy_model, mode: :inference)
+sp_build_opts = if Code.ensure_loaded?(EXLA), do: [mode: :inference, compiler: EXLA], else: [mode: :inference]
+{_init_fn, predict_fn} = Axon.build(policy_model, sp_build_opts)
 dummy_input = Nx.broadcast(0.0, {1, embed_size})
 # Force evaluation on GPU to ensure EXLA compiles
 _warmup_output = predict_fn.(policy_params, dummy_input) |> Nx.backend_transfer()

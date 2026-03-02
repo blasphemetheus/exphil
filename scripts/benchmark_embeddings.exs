@@ -153,7 +153,8 @@ defmodule EmbeddingBenchmark do
         num_action_ids: num_action_ids
       )
 
-    {init_fn, predict_fn} = Axon.build(policy)
+    be_build_opts = if Code.ensure_loaded?(EXLA), do: [compiler: EXLA], else: []
+    {init_fn, predict_fn} = Axon.build(policy, be_build_opts)
     params = init_fn.(Nx.template({1, embed_size}, :f32), Axon.ModelState.empty())
 
     # Benchmark inference

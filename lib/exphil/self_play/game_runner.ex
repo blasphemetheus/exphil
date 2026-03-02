@@ -572,7 +572,7 @@ defmodule ExPhil.SelfPlay.GameRunner do
   end
 
   defp compile_policy({model, params}) do
-    {_init_fn, predict_fn} = Axon.build(model, mode: :inference)
+    {_init_fn, predict_fn} = Utils.build_compiled(model, mode: :inference)
     {model, params, predict_fn}
   end
 

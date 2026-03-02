@@ -154,7 +154,7 @@ defmodule ExPhil.Training.PPO do
       )
 
     # Initialize or load parameters using newer Axon API
-    {init_fn, _predict_fn} = Axon.build(model)
+    {init_fn, _predict_fn} = Utils.build_compiled(model)
     initial_params = init_fn.(Nx.template({1, embed_size}, :f32), Axon.ModelState.empty())
 
     params =
@@ -393,7 +393,7 @@ defmodule ExPhil.Training.PPO do
   end
 
   defp minibatch_update(trainer, states, actions, advantages, returns, old_log_probs, old_values) do
-    {_init_fn, predict_fn} = Axon.build(trainer.model)
+    {_init_fn, predict_fn} = Utils.build_compiled(trainer.model)
     config = trainer.config
 
     # Extract params data from ModelState for gradient computation
@@ -539,7 +539,7 @@ defmodule ExPhil.Training.PPO do
   """
   @spec collect_rollout(t(), function(), non_neg_integer()) :: map()
   def collect_rollout(trainer, step_fn, num_steps) do
-    {_init_fn, predict_fn} = Axon.build(trainer.model)
+    {_init_fn, predict_fn} = Utils.build_compiled(trainer.model)
 
     {states, actions, rewards, dones, values, log_probs, _final_state} =
       Enum.reduce(1..num_steps, {[], [], [], [], [], [], nil}, fn _step, acc ->
@@ -772,7 +772,7 @@ defmodule ExPhil.Training.PPO do
   """
   @spec get_action(t(), Nx.Tensor.t(), keyword()) :: map()
   def get_action(trainer, state, opts \\ []) do
-    {_init_fn, predict_fn} = Axon.build(trainer.model)
+    {_init_fn, predict_fn} = Utils.build_compiled(trainer.model)
     deterministic = Keyword.get(opts, :deterministic, false)
 
     %{policy: policy_logits, value: value} =
@@ -809,7 +809,7 @@ defmodule ExPhil.Training.PPO do
   """
   @spec get_value(t(), Nx.Tensor.t()) :: float()
   def get_value(trainer, state) do
-    {_init_fn, predict_fn} = Axon.build(trainer.model)
+    {_init_fn, predict_fn} = Utils.build_compiled(trainer.model)
     %{value: value} = predict_fn.(Utils.ensure_model_state(trainer.params), state)
 
     value

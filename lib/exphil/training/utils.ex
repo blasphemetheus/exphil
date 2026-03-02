@@ -27,4 +27,30 @@ defmodule ExPhil.Training.Utils do
   def ensure_model_state(map) when is_map(map) do
     %Axon.ModelState{data: map, state: %{}}
   end
+
+  @doc """
+  Build an Axon model with EXLA graph compilation when available.
+
+  Without `compiler: EXLA`, each `pred_fn.(params, input)` call re-traces
+  all Axon layer callbacks (~700-2800ms for typical models). With graph
+  compilation, XLA compiles the graph once and caches it (~2-4ms per call).
+
+  Falls back gracefully to uncompiled build when EXLA is not loaded.
+
+  ## Examples
+
+      {init_fn, pred_fn} = Utils.build_compiled(model)
+      {init_fn, pred_fn} = Utils.build_compiled(model, mode: :inference)
+  """
+  @spec build_compiled(Axon.t(), keyword()) :: {function(), function()}
+  def build_compiled(model, opts \\ []) do
+    opts =
+      if Code.ensure_loaded?(EXLA) do
+        Keyword.put_new(opts, :compiler, EXLA)
+      else
+        opts
+      end
+
+    Axon.build(model, opts)
+  end
 end

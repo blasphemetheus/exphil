@@ -168,7 +168,8 @@ defmodule PPOScript do
 
   defp get_action_with_value(agent, trainer, game_state, embedded) do
     # Use trainer's model to get action, log_prob, and value
-    {_init_fn, predict_fn} = Axon.build(trainer.model)
+    ppo_build_opts = if Code.ensure_loaded?(EXLA), do: [compiler: EXLA], else: []
+    {_init_fn, predict_fn} = Axon.build(trainer.model, ppo_build_opts)
     params = trainer.params
 
     # Forward pass

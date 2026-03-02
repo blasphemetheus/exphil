@@ -49,6 +49,7 @@ defmodule ExPhil.Training.SelfPlay.SelfPlayEnv do
 
   alias ExPhil.Bridge.{MeleePort, GameState, ControllerState}
   alias ExPhil.{Embeddings, Rewards}
+  alias ExPhil.Training.Utils
 
   require Logger
 
@@ -328,7 +329,7 @@ defmodule ExPhil.Training.SelfPlay.SelfPlayEnv do
   # ============================================================================
 
   defp compile_policy({model, params}) do
-    {_init_fn, predict_fn} = Axon.build(model, mode: :inference)
+    {_init_fn, predict_fn} = Utils.build_compiled(model, mode: :inference)
     {model, params, predict_fn}
   end
 
