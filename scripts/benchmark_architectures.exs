@@ -27,18 +27,22 @@
 #   --grad-norms                   Log per-layer gradient norms (diagnose NaN)
 #   --quiet, -q                   Suppress XLA/CUDA warnings and Logger noise
 #
-# Available architectures:
+# Available architectures (63 total):
 #   Basic: mlp, gated_ssm, kan
-#   Recurrent: lstm, gru, min_gru, min_lstm, lstm_hybrid, reservoir, deltanet, ttt
-#   SSM: mamba, mamba_ssd, s4, s4d, s5, h3
-#   Linear Attention: rwkv, gla, hgrn, retnet, performer, fnet
-#   Hybrid: jamba, zamba, griffin, hawk, xlstm
-#   Transformer: sliding_window (also: attention), perceiver
-#   Memory: hopfield, ntm
-#   Other: liquid, decision_transformer, snn, bayesian
+#   Recurrent: lstm, gru, min_gru, min_lstm, lstm_hybrid, reservoir, native_recurrence
+#   SSM: mamba, mamba_ssd, mamba3, s4, s4d, s5, h3, longhorn, gss
+#   Long Conv: hyena, tcn
+#   Linear Attention: rwkv, gla, gla_v2, hgrn, hgrn_v2, retnet, performer, deltanet,
+#     gated_deltanet, delta_product, fnet, gsa, rla, log_linear, laser
+#   Hybrid: jamba, zamba, griffin, hawk, xlstm, xlstm_slstm, xlstm_mlstm,
+#     samba, hymba, mixture_of_mamba, nha
+#   Transformer: attention, sliding_window, decision_transformer, perceiver,
+#     fox, moba, huginn, coconut
+#   Reference: transformer_like, deep_res_lstm (slippi-ai architectures)
+#   Memory: hopfield, ntm, titans, ttt, ttt_e2e, miras
+#   Other: liquid, snn, bayesian, tnn
 #
 # Note: mamba_nif excluded (inference-only, can't train - gradients don't flow through NIF)
-# Note: "attention" is an alias for "sliding_window" (same implementation)
 #
 # Examples:
 #   # Quick validation (~60s): 3 archs, 1 epoch, 5 files
@@ -657,6 +661,385 @@ all_architectures = [
      hidden_sizes: [256, 256],
      batch_size: 64,
      max_grad_norm: 1.0
+   ]},
+
+  # === Full Attention ===
+  {:attention, "Full Attention",
+   [
+     temporal: true,
+     backbone: :attention,
+     window_size: 30,
+     num_layers: 1,
+     num_heads: 4,
+     hidden_sizes: [256, 256],
+     batch_size: 64,
+     max_grad_norm: 1.0
+   ]},
+
+  # === xLSTM variants ===
+  {:xlstm_slstm, "xLSTM (Pure sLSTM)",
+   [
+     temporal: true,
+     backbone: :xlstm_slstm,
+     window_size: 30,
+     num_layers: 2,
+     num_heads: 4,
+     hidden_sizes: [256, 256],
+     batch_size: 64,
+     dropout: 0.1
+   ]},
+  {:xlstm_mlstm, "xLSTM (Pure mLSTM)",
+   [
+     temporal: true,
+     backbone: :xlstm_mlstm,
+     window_size: 30,
+     num_layers: 2,
+     num_heads: 4,
+     hidden_sizes: [256, 256],
+     batch_size: 64,
+     dropout: 0.1
+   ]},
+
+  # === Slippi-AI reference architectures ===
+  {:transformer_like, "TransformerLike (slippi-ai)",
+   [
+     temporal: true,
+     backbone: :transformer_like,
+     window_size: 30,
+     num_layers: 3,
+     hidden_sizes: [256, 256],
+     hidden_size: 256,
+     batch_size: 64,
+     dropout: 0.1,
+     # LSTM+FFN residual blocks diverge at 1e-4 (NaN by epoch 1)
+     learning_rate: 1.0e-5,
+     max_grad_norm: 1.0
+   ]},
+  {:deep_res_lstm, "DeepResLSTM (slippi-ai)",
+   [
+     temporal: true,
+     backbone: :deep_res_lstm,
+     window_size: 30,
+     num_layers: 3,
+     hidden_sizes: [256, 256],
+     hidden_size: 256,
+     batch_size: 64,
+     dropout: 0.1
+   ]},
+
+  # === Convolutional ===
+  {:tcn, "TCN (Temporal Conv)",
+   [
+     temporal: true,
+     backbone: :tcn,
+     window_size: 30,
+     num_layers: 4,
+     hidden_sizes: [256, 256],
+     hidden_size: 256,
+     kernel_size: 3,
+     batch_size: 64,
+     dropout: 0.1
+   ]},
+
+  # === SSM (next-gen) ===
+  {:mamba3, "Mamba-3 (MIMO SSM)",
+   [
+     temporal: true,
+     backbone: :mamba3,
+     window_size: 30,
+     num_layers: 2,
+     hidden_sizes: [256, 256],
+     # MIMO SSM OOMs at batch=64 on 4GB (851MB alloc)
+     batch_size: 16,
+     dropout: 0.1
+   ]},
+  {:longhorn, "Longhorn (Closed-Form Recall)",
+   [
+     temporal: true,
+     backbone: :longhorn,
+     window_size: 30,
+     num_layers: 2,
+     hidden_sizes: [256, 256],
+     # Closed-form recall OOMs at batch=64 on 4GB (376MB alloc)
+     batch_size: 16,
+     dropout: 0.1
+   ]},
+  {:gss, "GSS (Gated State Space)",
+   [
+     temporal: true,
+     backbone: :gss,
+     window_size: 30,
+     num_layers: 2,
+     hidden_sizes: [256, 256],
+     # OOMs at batch=64 after prior OOMs fragment GPU memory
+     batch_size: 16,
+     dropout: 0.1
+   ]},
+
+  # === Long Convolution ===
+  {:hyena, "Hyena (Long Conv Hierarchy)",
+   [
+     temporal: true,
+     backbone: :hyena,
+     window_size: 30,
+     num_layers: 4,
+     hidden_sizes: [256, 256],
+     # Long conv hierarchy with 4 layers — conservative for 4GB
+     batch_size: 16,
+     dropout: 0.1
+   ]},
+
+  # === Neural Memory ===
+  {:titans, "Titans (Neural Long-Term Memory)",
+   [
+     temporal: true,
+     backbone: :titans,
+     window_size: 30,
+     num_layers: 4,
+     hidden_sizes: [256, 256],
+     # Neural memory with surprise gates — conservative for 4GB
+     batch_size: 16,
+     dropout: 0.1
+   ]},
+
+  # === Linear Attention v2 ===
+  {:gated_deltanet, "GatedDeltaNet (Gated Delta Rule)",
+   [
+     temporal: true,
+     backbone: :gated_deltanet,
+     window_size: 30,
+     num_layers: 4,
+     num_heads: 4,
+     hidden_sizes: [256, 256],
+     batch_size: 32,
+     dropout: 0.1
+   ]},
+  {:gla_v2, "GLA v2 (Improved Gated Linear)",
+   [
+     temporal: true,
+     backbone: :gla_v2,
+     window_size: 30,
+     num_layers: 4,
+     num_heads: 4,
+     hidden_sizes: [256, 256],
+     batch_size: 32,
+     dropout: 0.1
+   ]},
+  {:hgrn_v2, "HGRN v2 (Outer Product State)",
+   [
+     temporal: true,
+     backbone: :hgrn_v2,
+     window_size: 30,
+     num_layers: 4,
+     num_heads: 4,
+     hidden_sizes: [256, 256],
+     batch_size: 32,
+     dropout: 0.1
+   ]},
+  {:delta_product, "DeltaProduct (Householder)",
+   [
+     temporal: true,
+     backbone: :delta_product,
+     window_size: 30,
+     num_layers: 4,
+     num_heads: 4,
+     hidden_sizes: [256, 256],
+     batch_size: 32,
+     dropout: 0.1
+   ]},
+  {:gsa, "GSA (Gated Slot Attention)",
+   [
+     temporal: true,
+     backbone: :gsa,
+     window_size: 30,
+     num_layers: 4,
+     num_heads: 4,
+     hidden_sizes: [256, 256],
+     batch_size: 32,
+     dropout: 0.1
+   ]},
+  {:rla, "RLA (Residual Linear Attention)",
+   [
+     temporal: true,
+     backbone: :rla,
+     window_size: 30,
+     num_layers: 4,
+     num_heads: 4,
+     hidden_sizes: [256, 256],
+     batch_size: 32,
+     dropout: 0.1
+   ]},
+  {:nha, "NHA (Native Hybrid Attention)",
+   [
+     temporal: true,
+     backbone: :nha,
+     window_size: 30,
+     num_layers: 4,
+     num_heads: 4,
+     hidden_sizes: [256, 256],
+     batch_size: 32,
+     dropout: 0.1
+   ]},
+
+  # === Transformer variants ===
+  {:fox, "Fox (Forgetting Transformer)",
+   [
+     temporal: true,
+     backbone: :fox,
+     window_size: 30,
+     num_layers: 4,
+     num_heads: 4,
+     hidden_sizes: [256, 256],
+     # Full attention — conservative for 4GB
+     batch_size: 16,
+     dropout: 0.1,
+     max_grad_norm: 1.0
+   ]},
+  {:log_linear, "LogLinear (Hierarchical Attn)",
+   [
+     temporal: true,
+     backbone: :log_linear,
+     window_size: 30,
+     num_layers: 4,
+     num_heads: 4,
+     hidden_sizes: [256, 256],
+     batch_size: 32,
+     dropout: 0.1
+   ]},
+  {:laser, "LASER (Log-Exp Attention)",
+   [
+     temporal: true,
+     backbone: :laser,
+     window_size: 30,
+     num_layers: 4,
+     num_heads: 4,
+     hidden_sizes: [256, 256],
+     # Full attention variant — conservative for 4GB
+     batch_size: 16,
+     dropout: 0.1
+   ]},
+  {:moba, "MoBA (Mixture of Block Attn)",
+   [
+     temporal: true,
+     backbone: :moba,
+     window_size: 30,
+     num_layers: 4,
+     num_heads: 4,
+     hidden_sizes: [256, 256],
+     batch_size: 32,
+     dropout: 0.1
+   ]},
+
+  # === TTT variant ===
+  {:ttt_e2e, "TTT-E2E (End-to-End TTT)",
+   [
+     temporal: true,
+     backbone: :ttt_e2e,
+     window_size: 30,
+     num_layers: 2,
+     num_heads: 4,
+     hidden_sizes: [256, 256],
+     batch_size: 64,
+     dropout: 0.1,
+     learning_rate: 5.0e-7,
+     max_grad_norm: 0.1
+   ]},
+
+  # === Native Recurrence ===
+  {:native_recurrence, "NativeRecurrence (Efficient GRU)",
+   [
+     temporal: true,
+     backbone: :native_recurrence,
+     window_size: 30,
+     num_layers: 4,
+     hidden_sizes: [256, 256],
+     batch_size: 64,
+     dropout: 0.1
+   ]},
+
+  # === Hybrid (next-gen) ===
+  {:samba, "Samba (Mamba+SWA+MLP)",
+   [
+     temporal: true,
+     backbone: :samba,
+     window_size: 30,
+     num_layers: 2,
+     num_heads: 4,
+     hidden_sizes: [256, 256],
+     batch_size: 32,
+     dropout: 0.1,
+     max_grad_norm: 1.0
+   ]},
+  {:hymba, "Hymba (Parallel Mamba+Attn)",
+   [
+     temporal: true,
+     backbone: :hymba,
+     window_size: 30,
+     num_layers: 2,
+     num_heads: 4,
+     hidden_sizes: [256, 256],
+     batch_size: 32,
+     dropout: 0.1,
+     max_grad_norm: 1.0
+   ]},
+  {:mixture_of_mamba, "MoM (Mixture of Mamba)",
+   [
+     temporal: true,
+     backbone: :mixture_of_mamba,
+     window_size: 30,
+     num_layers: 2,
+     hidden_sizes: [256, 256],
+     batch_size: 32,
+     dropout: 0.1
+   ]},
+
+  # === Advanced architectures ===
+  {:tnn, "TNN (Toeplitz Neural Net)",
+   [
+     temporal: true,
+     backbone: :tnn,
+     window_size: 30,
+     num_layers: 4,
+     num_heads: 4,
+     hidden_sizes: [256, 256],
+     batch_size: 32,
+     dropout: 0.1
+   ]},
+  {:miras, "MIRAS (Memory as Reasoning)",
+   [
+     temporal: true,
+     backbone: :miras,
+     window_size: 30,
+     num_layers: 4,
+     hidden_sizes: [256, 256],
+     batch_size: 32,
+     dropout: 0.1
+   ]},
+  {:huginn, "Huginn (Depth-Recurrent Transformer)",
+   [
+     temporal: true,
+     backbone: :huginn,
+     window_size: 30,
+     num_layers: 4,
+     num_heads: 4,
+     hidden_sizes: [256, 256],
+     # Depth-recurrent transformer — full attention per iteration
+     batch_size: 16,
+     dropout: 0.1,
+     max_grad_norm: 1.0
+   ]},
+  {:coconut, "Coconut (Continuous CoT)",
+   [
+     temporal: true,
+     backbone: :coconut,
+     window_size: 30,
+     num_layers: 4,
+     num_heads: 4,
+     hidden_sizes: [256, 256],
+     # Continuous chain-of-thought — full attention
+     batch_size: 16,
+     dropout: 0.1,
+     max_grad_norm: 1.0
    ]}
 ]
 
@@ -1254,6 +1637,38 @@ results =
           :snn -> "O(L) spiking dynamics"
           :bayesian -> "O(1) weight sampling"
           :reservoir -> "O(L) fixed dynamics"
+          # New architectures
+          :attention -> "O(L²) full attention"
+          :xlstm_slstm -> "O(L) scalar exp-gated"
+          :xlstm_mlstm -> "O(L) matrix exp-gated"
+          :transformer_like -> "O(L) LSTM+FFN residual"
+          :deep_res_lstm -> "O(L) residual LSTM"
+          :tcn -> "O(L) dilated causal conv"
+          :mamba3 -> "O(L) MIMO SSM"
+          :longhorn -> "O(L) closed-form recall"
+          :gss -> "O(L) gated state space"
+          :hyena -> "O(L log L) long conv"
+          :titans -> "O(L) surprise-gated memory"
+          :gated_deltanet -> "O(L) gated delta rule"
+          :gla_v2 -> "O(L) gated linear v2"
+          :hgrn_v2 -> "O(L) hierarchical v2"
+          :delta_product -> "O(L) Householder products"
+          :gsa -> "O(L) gated slot attention"
+          :rla -> "O(L) residual linear attn"
+          :nha -> "O(L) native hybrid attn"
+          :fox -> "O(L²) forgetting softmax"
+          :log_linear -> "O(log L) hierarchical"
+          :laser -> "O(L²) log-exp attention"
+          :moba -> "O(L²/K) block attention"
+          :ttt_e2e -> "O(L) end-to-end TTT"
+          :native_recurrence -> "O(L) efficient GRU"
+          :samba -> "O(L) + O(L²) Mamba+SWA"
+          :hymba -> "O(L) + O(L²) parallel"
+          :mixture_of_mamba -> "O(L) sparse Mamba"
+          :tnn -> "O(L log L) Toeplitz"
+          :miras -> "O(L) iterative memory"
+          :huginn -> "O(L²) depth-recurrent"
+          :coconut -> "O(L²) continuous CoT"
           _ -> "unknown"
         end
 
@@ -1594,6 +2009,132 @@ theoretical_data =
         # O(L) - fixed random reservoir
         :reservoir ->
           {window_size, window_size}
+
+        # === New architectures ===
+        # O(L²) - full attention (same as sliding_window)
+        :attention ->
+          {window_size * window_size * 3, window_size * window_size}
+
+        # O(L) - xLSTM variants (scalar/matrix memory)
+        :xlstm_slstm ->
+          {window_size * 3, window_size}
+
+        :xlstm_mlstm ->
+          {window_size * 3, window_size}
+
+        # O(L) - slippi-ai reference architectures (LSTM+FFN blocks)
+        :transformer_like ->
+          {window_size * 3, window_size}
+
+        :deep_res_lstm ->
+          {window_size * 3, window_size}
+
+        # O(L) - temporal convolution (dilated causal)
+        :tcn ->
+          {window_size * 3, window_size}
+
+        # O(L) work, O(log L) depth - Mamba-3 MIMO SSM
+        :mamba3 ->
+          {round(:math.log2(window_size)) * 3, round(:math.log2(window_size))}
+
+        # O(L) - Longhorn closed-form online recall
+        :longhorn ->
+          {round(:math.log2(window_size)) * 3, round(:math.log2(window_size))}
+
+        # O(L) - Gated State Space
+        :gss ->
+          {round(:math.log2(window_size)) * 3, round(:math.log2(window_size))}
+
+        # O(L log L) - Hyena long convolution hierarchy
+        :hyena ->
+          {round(window_size * :math.log2(window_size)) * 3,
+           round(window_size * :math.log2(window_size))}
+
+        # O(L) - Titans surprise-gated memory
+        :titans ->
+          {window_size * 4, window_size * 2}
+
+        # O(L) - GatedDeltaNet (linear attention with gating)
+        :gated_deltanet ->
+          {window_size * 2, window_size}
+
+        # O(L) - GLA v2, HGRN v2, DeltaProduct (improved linear attention)
+        :gla_v2 ->
+          {window_size * 2, window_size}
+
+        :hgrn_v2 ->
+          {window_size * 2, window_size}
+
+        :delta_product ->
+          {window_size * 2, window_size}
+
+        # O(L) - GSA gated slot attention (fixed slots)
+        :gsa ->
+          {window_size * 2, window_size}
+
+        # O(L) - RLA residual linear attention
+        :rla ->
+          {window_size * 2, window_size}
+
+        # O(L) - NHA native hybrid (per-layer linear vs full)
+        :nha ->
+          {window_size * 2 + div(window_size * window_size, 4),
+           window_size + div(window_size * window_size, 4)}
+
+        # O(L²) - Fox forgetting transformer
+        :fox ->
+          {window_size * window_size * 3, window_size * window_size}
+
+        # O(log L) - LogLinear hierarchical attention
+        :log_linear ->
+          {round(:math.log2(window_size)) * 3, round(:math.log2(window_size))}
+
+        # O(L²) - LASER log-exp attention
+        :laser ->
+          {window_size * window_size * 3, window_size * window_size}
+
+        # O(L²/K) - MoBA mixture of block attention
+        :moba ->
+          {div(window_size * window_size, 4) * 3, div(window_size * window_size, 4)}
+
+        # O(L) - TTT end-to-end variant
+        :ttt_e2e ->
+          {window_size * 4, window_size * 2}
+
+        # O(L) - NativeRecurrence efficient GRU variants
+        :native_recurrence ->
+          {window_size * 2, window_size}
+
+        # O(L) + O(L²) - Samba (Mamba + sliding window attention + MLP)
+        :samba ->
+          {window_size * 2 + div(window_size * window_size, 4),
+           window_size + div(window_size * window_size, 4)}
+
+        # O(L) + O(L²) - Hymba (parallel Mamba + attention)
+        :hymba ->
+          {window_size * 2 + div(window_size * window_size, 4),
+           window_size + div(window_size * window_size, 4)}
+
+        # O(L) - Mixture of Mamba (sparse routing)
+        :mixture_of_mamba ->
+          {round(:math.log2(window_size)) * 3, round(:math.log2(window_size))}
+
+        # O(L log L) - TNN Toeplitz neural network
+        :tnn ->
+          {round(window_size * :math.log2(window_size)) * 3,
+           round(window_size * :math.log2(window_size))}
+
+        # O(L) - MIRAS iterative memory reasoning
+        :miras ->
+          {window_size * 4, window_size * 2}
+
+        # O(L²) - Huginn depth-recurrent transformer
+        :huginn ->
+          {window_size * window_size * 3, window_size * window_size}
+
+        # O(L²) - Coconut continuous chain of thought
+        :coconut ->
+          {window_size * window_size * 3, window_size * window_size}
 
         _ ->
           {10, 10}

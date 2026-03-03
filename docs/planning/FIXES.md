@@ -222,7 +222,48 @@ All use the same learning rate (1e-4) and no per-architecture gradient clipping.
 - **TTT/NTM**: No longer reproduce — likely fixed by benchmark empty-dataset guards and validation skip logic
 - All three verified working with `--only ttt,ntm,reservoir` on T400 4GB
 
-### 4.5 List Access in Hot Paths [P3]
+### 4.5 New Architecture Benchmark Issues (March 2026) [P2]
+
+First run of 31 newly-added architectures on T400 4GB. Crashed at architecture 9/31 (GSS) due to accumulated OOM corrupting the CUDA context (exit code 134 / SIGABRT).
+
+#### Completed (5/31)
+
+| Architecture | Val Loss | Train Loss | Speed | Inference | Notes |
+|---|---|---|---|---|---|
+| Full Attention | 3.3219 | 5.9592 | 13.2 b/s | 1.6ms (390μs/sample) | Fast, good val |
+| xLSTM sLSTM | 3.422 | 9.5671 | 5.1 b/s | 12.0ms (3008μs/sample) | **Slow inference (12ms)** — borderline 60 FPS at batch=1 |
+| xLSTM mLSTM | 3.5167 | 6.6106 | 10.4 b/s | 2.75ms (687μs/sample) | Good |
+| DeepResLSTM (slippi-ai) | 3.4831 | 6.8717 | 7.0 b/s | 24.2ms (6038μs/sample) | **Very slow inference (24ms)** — unusable for 60 FPS |
+| TransformerLike (slippi-ai) | NaN | NaN | 6.4 b/s | 19.0ms (4738μs/sample) | **NaN loss** — needs lower LR or grad clipping. Also **slow inference (19ms)** |
+
+#### Failed (4/31)
+
+| Architecture | Error | Cause | Fix |
+|---|---|---|---|
+| **TCN** | `cannot broadcast {64, 30, 8} to {64, 8}` | Backbone outputs `{batch, seq_len, features}` but policy heads expect `{batch, features}` — missing last-timestep extraction | Add `Axon.nx` layer to extract last frame from TCN output in `build_tcn_backbone` |
+| **Mamba-3** | OOM (851MB alloc) at batch 24 | batch_size=64 too large for MIMO SSM on 4GB | Reduce to batch_size=16 |
+| **Longhorn** | OOM (376MB alloc) at batch 21 | batch_size=64 too large on 4GB | Reduce to batch_size=16 |
+| **GSS** | OOM → CUDA context crash (SIGABRT) | Accumulated GPU memory fragmentation from prior OOMs | Reduce to batch_size=16; run OOM-prone archs last or in separate process |
+
+#### Not reached (22/31)
+
+hyena, titans, gated_deltanet, gla_v2, hgrn_v2, delta_product, gsa, rla, nha, fox, log_linear, laser, moba, ttt_e2e, native_recurrence, samba, hymba, mixture_of_mamba, tnn, miras, huginn, coconut
+
+#### Observations
+
+- **DeepResLSTM inference is 24ms** — 3-layer residual LSTM has sequential dependency that prevents parallelism. Unusable at 60 FPS.
+- **TransformerLike NaN** — slippi-ai's LSTM+FFN architecture diverges at default LR (1e-4). Needs `learning_rate: 1e-5` and `max_grad_norm: 1.0`.
+- **xLSTM sLSTM 12ms inference** — scalar exponential gating is compute-heavy. The mLSTM variant is 4x faster (2.75ms) due to matrix-level parallelism.
+- **OOM cascade** — after Mamba-3 and Longhorn OOM, GPU memory is fragmented. GSS allocation of just 2.1MB fails, corrupting the CUDA context. Need to either: (a) reduce batch sizes preemptively, or (b) run each architecture in a separate OS process.
+
+**TODO:**
+- [ ] Fix TCN shape bug — add last-timestep extraction in `build_tcn_backbone`
+- [ ] Reduce batch_size to 16 for: mamba3, longhorn, gss, and any other SSM/attention hybrids
+- [ ] Add `learning_rate: 1e-5, max_grad_norm: 1.0` for transformer_like
+- [ ] Re-run all 31 architectures with fixed configs
+- [ ] Consider running OOM-prone architectures in isolated subprocesses
+
+### 4.6 List Access in Hot Paths [P3]
 
 `data.ex:897-898` uses `Enum.at` which is O(n) for small datasets. The optimization path exists for large datasets but threshold may be too high.
 

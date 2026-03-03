@@ -1517,13 +1517,20 @@ defmodule ExPhil.Networks.Policy.Backbone do
     window_size = Keyword.get(opts, :window_size, 60)
     seq_len = Keyword.get(opts, :seq_len, window_size)
 
-    TCN.build(
-      input_size: embed_size,
-      channels: channels,
-      kernel_size: kernel_size,
-      dropout: dropout,
-      seq_len: seq_len
-    )
+    tcn_output =
+      TCN.build(
+        input_size: embed_size,
+        channels: channels,
+        kernel_size: kernel_size,
+        dropout: dropout,
+        seq_len: seq_len
+      )
+
+    # TCN outputs [batch, seq_len, channels] — extract last timestep for policy heads
+    Axon.nx(tcn_output, fn x ->
+      seq = Nx.axis_size(x, 1)
+      Nx.slice_along_axis(x, seq - 1, 1, axis: 1) |> Nx.squeeze(axes: [1])
+    end, name: "tcn_last_frame")
   end
 
   # Mamba-3: Complex states, trapezoidal discretization, MIMO
