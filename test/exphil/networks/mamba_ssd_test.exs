@@ -175,7 +175,7 @@ defmodule ExPhil.Networks.MambaSSDTest do
       defaults = MambaSSD.melee_defaults()
 
       assert Keyword.get(defaults, :hidden_size) == 256
-      assert Keyword.get(defaults, :chunk_size) == 16
+      assert Keyword.get(defaults, :chunk_size) == 32
       assert Keyword.get(defaults, :training_mode) == false
     end
   end

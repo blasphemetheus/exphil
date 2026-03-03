@@ -2258,7 +2258,7 @@ defmodule ExPhil.Networks.Policy.Backbone do
     num_layers = Keyword.get(opts, :num_layers, 2)
     dropout = Keyword.get(opts, :dropout, @default_dropout)
     window_size = Keyword.get(opts, :window_size, 60)
-    chunk_size = Keyword.get(opts, :chunk_size, 16)
+    chunk_size = Keyword.get(opts, :chunk_size, 32)
 
     mamba_opts = [
       embed_dim: embed_size,

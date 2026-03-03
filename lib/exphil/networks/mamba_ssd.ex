@@ -56,7 +56,7 @@ defmodule ExPhil.Networks.MambaSSD do
 
   alias ExPhil.Networks.Mamba.Common
 
-  @default_chunk_size 16
+  @default_chunk_size 32
 
   @doc """
   Build an SSD Mamba model.
@@ -64,7 +64,7 @@ defmodule ExPhil.Networks.MambaSSD do
   ## Options
 
     - `:training_mode` - If true, uses matmul formulation for tensor cores (default: false)
-    - `:chunk_size` - Size of chunks for SSD algorithm (default: 16)
+    - `:chunk_size` - Size of chunks for SSD algorithm (default: 32)
     - All common Mamba options (see `ExPhil.Networks.Mamba.Common`)
   """
   @spec build(keyword()) :: Axon.t()
@@ -109,12 +109,21 @@ defmodule ExPhil.Networks.MambaSSD do
     # Discretize SSM parameters
     {a_bar, bx} = Common.discretize_ssm(x, b, dt, state_size)
 
-    # Use SSD algorithm (training or inference mode)
-    h = if training_mode do
-      ssd_matmul_scan(a_bar, bx, c, chunk_size)
-    else
-      ssd_scan(a_bar, bx, chunk_size)
-    end
+    # Use SSD algorithm — short sequences skip chunking entirely
+    seq_len = Nx.axis_size(a_bar, 1)
+
+    h =
+      cond do
+        seq_len <= chunk_size ->
+          # Sequence fits in one chunk: direct matmul, no chunking overhead
+          ssd_matmul_chunk(a_bar, bx)
+
+        training_mode ->
+          ssd_matmul_scan(a_bar, bx, c, chunk_size)
+
+        true ->
+          ssd_scan(a_bar, bx, chunk_size)
+      end
 
     # Compute output
     Common.compute_ssm_output(h, c)
@@ -152,6 +161,17 @@ defmodule ExPhil.Networks.MambaSSD do
   defp ssd_matmul_chunk(a_chunk, bx_chunk) do
     # a_chunk: [batch, chunk_len, hidden, state]
     # bx_chunk: [batch, chunk_len, hidden, state]
+    chunk_len = Nx.axis_size(a_chunk, 1)
+
+    if chunk_len == 1 do
+      # Single position: output is just bx (no accumulation needed)
+      bx_chunk
+    else
+      ssd_matmul_chunk_impl(a_chunk, bx_chunk)
+    end
+  end
+
+  defp ssd_matmul_chunk_impl(a_chunk, bx_chunk) do
     batch = Nx.axis_size(a_chunk, 0)
     chunk_len = Nx.axis_size(a_chunk, 1)
     hidden = Nx.axis_size(a_chunk, 2)
@@ -200,7 +220,8 @@ defmodule ExPhil.Networks.MambaSSD do
     s_indices = Nx.iota({1, chunk_len})
     mask = Nx.greater_equal(t_indices, s_indices)
     # Broadcast mask to full shape: [batch, chunk_len, chunk_len, hidden, state]
-    mask = Nx.broadcast(mask, {batch, chunk_len, chunk_len, hidden, state})
+    # Explicit axes needed: mask dims are (seq_t, seq_s) mapping to axes 1 and 2
+    mask = Nx.broadcast(mask, {batch, chunk_len, chunk_len, hidden, state}, axes: [1, 2])
 
     # Apply mask
     transfer = Nx.select(mask, transfer, Nx.broadcast(0.0, Nx.shape(transfer)))
@@ -398,22 +419,6 @@ defmodule ExPhil.Networks.MambaSSD do
         Nx.slice_along_axis(chunk_h, chunk_len - 1, 1, axis: 1)
       end)
 
-    # Compute cumulative products of A for inter-chunk state propagation
-    # NOTE: Currently unused - the inter-chunk propagation recomputes A products inline
-    # TODO: Optimize by using precomputed chunk_a_products instead of recomputing
-    _chunk_a_products =
-      Enum.map(0..(length(chunk_outputs) - 1), fn chunk_idx ->
-        if chunk_idx == length(chunk_outputs) - 1 and remainder > 0 do
-          start_idx = num_chunks * chunk_size
-          a_chunk = Nx.slice_along_axis(a, start_idx, remainder, axis: 1)
-          Nx.product(a_chunk, axes: [1])
-        else
-          start_idx = chunk_idx * chunk_size
-          a_chunk = Nx.slice_along_axis(a, start_idx, chunk_size, axis: 1)
-          Nx.product(a_chunk, axes: [1])
-        end
-      end)
-
     # Inter-chunk state propagation
     # h_chunk[i] = h_intra[i] + A_prod[i] * h_final[i-1] + A_prod[i] * A_prod[i-1] * h_final[i-2] + ...
     # This is a small scan over chunk boundaries
@@ -483,23 +488,7 @@ defmodule ExPhil.Networks.MambaSSD do
   # Compute cumulative product along sequence dimension
   # Returns tensor where position t contains prod(a[0..t])
   defp compute_cumulative_products(a) do
-    seq_len = Nx.axis_size(a, 1)
-
-    {_, cumprods} =
-      Enum.reduce(0..(seq_len - 1), {nil, []}, fn t, {prev_prod, acc} ->
-        a_t = Nx.slice_along_axis(a, t, 1, axis: 1)
-
-        new_prod =
-          if prev_prod == nil do
-            a_t
-          else
-            Nx.multiply(prev_prod, a_t)
-          end
-
-        {new_prod, acc ++ [new_prod]}
-      end)
-
-    Nx.concatenate(cumprods, axis: 1)
+    Nx.cumulative_product(a, axis: 1)
   end
 
   # ============================================================================
@@ -520,7 +509,7 @@ defmodule ExPhil.Networks.MambaSSD do
   @spec melee_defaults() :: keyword()
   def melee_defaults do
     Common.melee_defaults()
-    |> Keyword.put(:chunk_size, 16)
+    |> Keyword.put(:chunk_size, 32)
     |> Keyword.put(:training_mode, false)
   end
 
