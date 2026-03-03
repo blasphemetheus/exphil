@@ -200,6 +200,7 @@ Architecture benchmark (Feb 2026, RTX 4090) showed several architectures divergi
 | Jamba | 1-3 | val=nan throughout |
 | Zamba | 1-3 | val=nan throughout |
 | TransformerLike | 1 | loss=nan even at LR 1e-5 with max_grad_norm 1.0 |
+| Titans | 1 | loss=nan at default LR 1e-4 with batch_size 16 |
 
 All use the same learning rate (1e-4) and no per-architecture gradient clipping. Likely causes:
 - SSM recurrence amplifies gradients over seq_len=30 without clipping
@@ -213,6 +214,7 @@ All use the same learning rate (1e-4) and no per-architecture gradient clipping.
 - [ ] Log gradient norms per architecture to identify which layers explode
 - [x] Investigate TransformerLike NaN — root cause: bare residual addition (`x + LSTM(x)`) without zero-init gate. Fixed in Edifice (commit c284818): added `Dense_zeros` decoder matching DeepResLSTM's stable pattern
 - [ ] Verify TransformerLike fix — re-run `--only transformer_like` and confirm NaN is gone, then bump LR back to 1e-4 in benchmark config
+- [ ] Investigate Titans NaN — surprise-gated neural memory diverges at default hyperparams. Try lower LR (1e-5/1e-6) and max_grad_norm 0.5
 
 ### ~~4.3 Benchmark Segfaults on T400 4GB [P1]~~ RESOLVED
 
@@ -225,46 +227,50 @@ All use the same learning rate (1e-4) and no per-architecture gradient clipping.
 - **TTT/NTM**: No longer reproduce — likely fixed by benchmark empty-dataset guards and validation skip logic
 - All three verified working with `--only ttt,ntm,reservoir` on T400 4GB
 
-### 4.5 New Architecture Benchmark Issues (March 2026) [P2]
+### 4.5 New Architecture Benchmark Sweep (March 2026) [P2]
 
-First run of 31 newly-added architectures on T400 4GB. Crashed at architecture 9/31 (GSS) due to accumulated OOM corrupting the CUDA context (exit code 134 / SIGABRT).
+Benchmarking 28 newly-added architectures on T400 4GB. Run in small batches (6 per process) to avoid GPU memory corruption from OOM cascades.
 
-#### Completed (5/31)
+#### Completed results (across all runs)
 
-| Architecture | Val Loss | Train Loss | Speed | Inference | Notes |
-|---|---|---|---|---|---|
-| Full Attention | 3.3219 | 5.9592 | 13.2 b/s | 1.6ms (390μs/sample) | Fast, good val |
-| xLSTM sLSTM | 3.422 | 9.5671 | 5.1 b/s | 12.0ms (3008μs/sample) | **Slow inference (12ms)** — borderline 60 FPS at batch=1 |
-| xLSTM mLSTM | 3.5167 | 6.6106 | 10.4 b/s | 2.75ms (687μs/sample) | Good |
-| DeepResLSTM (slippi-ai) | 3.4831 | 6.8717 | 7.0 b/s | 24.2ms (6038μs/sample) | **Very slow inference (24ms)** — unusable for 60 FPS |
-| TransformerLike (slippi-ai) | NaN | NaN | 6.4 b/s | 19.0ms (4738μs/sample) | **NaN loss** — needs lower LR or grad clipping. Also **slow inference (19ms)** |
+| Architecture | Val Loss | Speed | Inference | 60 FPS? |
+|---|---|---|---|---|
+| Full Attention | 3.32 | 13.2 b/s | 1.6ms | Yes |
+| xLSTM sLSTM | 3.42 | 5.1 b/s | 12.0ms | Borderline |
+| xLSTM mLSTM | 3.52 | 10.4 b/s | 2.75ms | Yes |
+| DeepResLSTM (slippi-ai) | 3.48 | 7.0 b/s | 24.2ms | No |
+| TransformerLike (slippi-ai) | NaN | 6.8 b/s | 20.3ms | No (fix applied, needs retest) |
+| TCN | 6.17 | 4.9 b/s | 31.5ms | No |
+| Mamba-3 | 5.94 | 15.2 b/s | 18.8ms | No |
+| Longhorn | 4.91 | 25.7 b/s | 18.4ms | No |
+| GSS | **3.15** | 30.5 b/s | 12.1ms | Borderline |
+| Hyena | 3.42 | 19.7 b/s | **3.5ms** | Yes |
+| Titans | NaN | 18.6 b/s | 17.4ms | No (needs LR fix) |
+| GatedDeltaNet | 3.39 | 3.2 b/s | 23.4ms | No |
+| HGRN v2 | 3.44 | 13.0 b/s | 9.8ms | Yes |
+| DeltaProduct | 3.57 | 3.0 b/s | 34.5ms | No |
+| GSA | 3.29 | 8.7 b/s | 26.6ms | No |
 
-#### Failed (4/31)
+#### Failed
 
-| Architecture | Error | Cause | Fix |
-|---|---|---|---|
-| **TCN** | `cannot broadcast {64, 30, 8} to {64, 8}` | Backbone outputs `{batch, seq_len, features}` but policy heads expect `{batch, features}` — missing last-timestep extraction | Add `Axon.nx` layer to extract last frame from TCN output in `build_tcn_backbone` |
-| **Mamba-3** | OOM (851MB alloc) at batch 24 | batch_size=64 too large for MIMO SSM on 4GB | Reduce to batch_size=16 |
-| **Longhorn** | OOM (376MB alloc) at batch 21 | batch_size=64 too large on 4GB | Reduce to batch_size=16 |
-| **GSS** | OOM → CUDA context crash (SIGABRT) | Accumulated GPU memory fragmentation from prior OOMs | Reduce to batch_size=16; run OOM-prone archs last or in separate process |
+| Architecture | Error | Fix |
+|---|---|---|
+| **GLA v2** | Stale compile (`Validation` module unavailable) | Re-run after `mix compile --force` |
 
-#### Not reached (22/31)
+#### Not yet tested (12 remaining)
 
-hyena, titans, gated_deltanet, gla_v2, hgrn_v2, delta_product, gsa, rla, nha, fox, log_linear, laser, moba, ttt_e2e, native_recurrence, samba, hymba, mixture_of_mamba, tnn, miras, huginn, coconut
+rla, nha, fox, log_linear, laser, moba, ttt_e2e, native_recurrence, samba, hymba, mixture_of_mamba, tnn, miras, huginn, coconut
 
-#### Observations
+#### Fixes applied
 
-- **DeepResLSTM inference is 24ms** — 3-layer residual LSTM has sequential dependency that prevents parallelism. Unusable at 60 FPS.
-- **TransformerLike NaN** — slippi-ai's LSTM+FFN architecture diverges at default LR (1e-4). Needs `learning_rate: 1e-5` and `max_grad_norm: 1.0`.
-- **xLSTM sLSTM 12ms inference** — scalar exponential gating is compute-heavy. The mLSTM variant is 4x faster (2.75ms) due to matrix-level parallelism.
-- **OOM cascade** — after Mamba-3 and Longhorn OOM, GPU memory is fragmented. GSS allocation of just 2.1MB fails, corrupting the CUDA context. Need to either: (a) reduce batch sizes preemptively, or (b) run each architecture in a separate OS process.
-
-**TODO:**
-- [ ] Fix TCN shape bug — add last-timestep extraction in `build_tcn_backbone`
-- [ ] Reduce batch_size to 16 for: mamba3, longhorn, gss, and any other SSM/attention hybrids
-- [ ] Add `learning_rate: 1e-5, max_grad_norm: 1.0` for transformer_like
-- [ ] Re-run all 31 architectures with fixed configs
-- [ ] Consider running OOM-prone architectures in isolated subprocesses
+- [x] TCN shape bug — added last-timestep extraction in `build_tcn_backbone`
+- [x] Batch sizes reduced to 16-32 for OOM-prone architectures
+- [x] TransformerLike NaN — zero-init decoder added in Edifice (commit c284818)
+- [ ] Verify TransformerLike fix — re-run and confirm NaN gone, bump LR to 1e-4
+- [ ] Titans NaN — needs lower LR or grad clipping investigation
+- [ ] Run remaining 12 architectures in batches of 6 (rla+nha+fox+log_linear+laser+moba, then ttt_e2e+native_recurrence+samba+hymba+mixture_of_mamba+tnn+miras+huginn+coconut)
+- [ ] Re-run GLA v2 after clean compile
+- [ ] Consider running each architecture in isolated subprocess to prevent OOM cascades
 
 ### 4.6 List Access in Hot Paths [P3]
 
