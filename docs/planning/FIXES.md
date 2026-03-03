@@ -199,6 +199,7 @@ Architecture benchmark (Feb 2026, RTX 4090) showed several architectures divergi
 | GatedSSM | 2 | loss=nan after epoch 1 converges normally |
 | Jamba | 1-3 | val=nan throughout |
 | Zamba | 1-3 | val=nan throughout |
+| TransformerLike | 1 | loss=nan even at LR 1e-5 with max_grad_norm 1.0 |
 
 All use the same learning rate (1e-4) and no per-architecture gradient clipping. Likely causes:
 - SSM recurrence amplifies gradients over seq_len=30 without clipping
@@ -210,6 +211,8 @@ All use the same learning rate (1e-4) and no per-architecture gradient clipping.
 - [ ] Per-architecture default hyperparams (lower LR for SSMs, higher for MLPs)
 - [ ] NaN detection with early stopping in benchmark loop (skip remaining epochs)
 - [ ] Log gradient norms per architecture to identify which layers explode
+- [x] Investigate TransformerLike NaN — root cause: bare residual addition (`x + LSTM(x)`) without zero-init gate. Fixed in Edifice (commit c284818): added `Dense_zeros` decoder matching DeepResLSTM's stable pattern
+- [ ] Verify TransformerLike fix — re-run `--only transformer_like` and confirm NaN is gone, then bump LR back to 1e-4 in benchmark config
 
 ### ~~4.3 Benchmark Segfaults on T400 4GB [P1]~~ RESOLVED
 
