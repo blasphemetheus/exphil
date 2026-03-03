@@ -29,7 +29,7 @@
 #
 # Available architectures:
 #   Basic: mlp, gated_ssm, kan
-#   Recurrent: lstm, gru, lstm_hybrid, reservoir, deltanet, ttt
+#   Recurrent: lstm, gru, min_gru, min_lstm, lstm_hybrid, reservoir, deltanet, ttt
 #   SSM: mamba, mamba_ssd, s4, s4d, s5, h3
 #   Linear Attention: rwkv, gla, hgrn, retnet, performer, fnet
 #   Hybrid: jamba, zamba, griffin, hawk, xlstm
@@ -302,6 +302,26 @@ all_architectures = [
    [temporal: true, backbone: :lstm, window_size: 30, num_layers: 1, hidden_sizes: [256, 256], dropout: 0.1]},
   {:gru, "GRU",
    [temporal: true, backbone: :gru, window_size: 30, num_layers: 1, hidden_sizes: [256, 256], dropout: 0.1]},
+  {:min_gru, "MinGRU (Parallel Scan)",
+   [
+     temporal: true,
+     backbone: :min_gru,
+     window_size: 30,
+     num_layers: 2,
+     hidden_sizes: [256, 256],
+     batch_size: 64,
+     dropout: 0.1
+   ]},
+  {:min_lstm, "MinLSTM (Parallel Scan)",
+   [
+     temporal: true,
+     backbone: :min_lstm,
+     window_size: 30,
+     num_layers: 2,
+     hidden_sizes: [256, 256],
+     batch_size: 64,
+     dropout: 0.1
+   ]},
   {:lstm_hybrid, "LSTM+Attention",
    [
      temporal: true,
@@ -348,8 +368,10 @@ all_architectures = [
      window_size: 30,
      num_layers: 2,
      hidden_sizes: [256, 256],
-     batch_size: 64,
-     dropout: 0.1
+     # SSD matmul path creates O(L²) 5D transfer matrix — needs smaller batch on <8GB GPUs
+     batch_size: 16,
+     dropout: 0.1,
+     chunk_size: 32
    ]},
   {:s5, "S5 (Simplified SSM)",
    [
@@ -692,7 +714,8 @@ end
 # Split by REPLAY FILES (not frames) to prevent data leakage for temporal models
 # If we split frames, sequences near the boundary share frames between train/val
 # Splitting by replay ensures train and val come from completely different games
-{train_files, val_files} = Enum.split(replay_files, trunc(length(replay_files) * 0.9))
+train_count = max(1, trunc(length(replay_files) * 0.9))
+{train_files, val_files} = Enum.split(replay_files, train_count)
 Output.puts("Split: #{length(train_files)} train replays, #{length(val_files)} val replays")
 
 # Step 2: Parse replays (separately for train and val)
@@ -781,8 +804,15 @@ has_non_temporal = Enum.any?(architectures, fn {_id, _name, opts} -> !opts[:temp
     # Only transfer if under 2GB threshold - larger tensors transfer batch-wise
     gpu_threshold_mb = 2000
 
-    # Handle empty val set (0 frames parsed from val replays)
+    # Handle empty train/val sets (0 frames parsed from replays)
+    has_train_embeddings = train_emb.embedded_frames != nil
     has_val_embeddings = val_emb.embedded_frames != nil
+
+    if not has_train_embeddings do
+      Output.error("No training frames were embedded - check replay files")
+      System.halt(1)
+    end
+
     train_size_mb = Nx.byte_size(train_emb.embedded_frames) / 1_000_000
     val_size_mb = if has_val_embeddings, do: Nx.byte_size(val_emb.embedded_frames) / 1_000_000, else: 0.0
 
@@ -948,7 +978,7 @@ results =
 
       # Calculate batch count without materializing (memory efficient)
       num_train_samples = if opts[:temporal], do: prepared_train.size, else: prepared_train.size
-      num_batches = div(num_train_samples, opts[:batch_size])
+      num_batches = ceil(num_train_samples / opts[:batch_size])
       Output.puts("#{num_batches} train batches (streaming, not pre-materialized)")
 
       Output.warning("First batch triggers JIT compilation (may take 2-5 min)")
@@ -1074,10 +1104,10 @@ results =
           # GC before validation to release training batch memory (helps with Jamba OOM)
           :erlang.garbage_collect()
 
-          # Skip validation if loss is NaN (pointless and wastes time)
+          # Skip validation if loss is NaN or no val data (pointless and wastes time)
           val_loss =
-            if nan_detected do
-              :nan
+            if nan_detected or prepared_val.size == 0 do
+              if nan_detected, do: :nan, else: avg_loss
             else
               val_batches =
                 if opts[:temporal] do
@@ -1184,25 +1214,46 @@ results =
           # Recurrent
           :lstm -> "O(L) sequential"
           :gru -> "O(L) sequential"
+          :min_gru -> "O(L) work, O(log L) depth"
+          :min_lstm -> "O(L) work, O(log L) depth"
           :lstm_hybrid -> "O(L) + O(L²)"
           # SSM
           :mamba -> "O(L) work, O(log L) depth"
           :mamba_nif -> "O(L) CUDA kernel"
           :mamba_ssd -> "O(L) work, O(log L) depth"
+          :s4 -> "O(L) work, O(log L) depth"
+          :s4d -> "O(L) work, O(log L) depth"
           :s5 -> "O(L) work, O(log L) depth"
+          :h3 -> "O(L log L) FFT conv"
           # Linear Attention
           :rwkv -> "O(L) linear RNN"
           :gla -> "O(L) linear attn"
           :hgrn -> "O(L) hierarchical"
+          :retnet -> "O(L) multi-scale decay"
+          :deltanet -> "O(L) delta rule"
+          :performer -> "O(L) FAVOR+ kernel"
+          :fnet -> "O(L log L) FFT mixing"
           # Hybrid
+          :griffin -> "O(L) RG-LRU + O(L²) local attn"
+          :hawk -> "O(L) RG-LRU gated"
           :jamba -> "O(L) + O(L²) hybrid"
           :zamba -> "O(L) + O(L²/N) shared"
+          :xlstm -> "O(L) sLSTM + O(L) mLSTM"
           # Transformer
           :attention -> "O(L²)"
           :sliding_window -> "O(L²) parallel"
           :decision_transformer -> "O(L²) goal-cond"
+          :perceiver -> "O(L·M) latent bottleneck"
+          # Associative / Memory
+          :hopfield -> "O(L²) associative"
+          :ntm -> "O(L·M) memory addressing"
+          :ttt -> "O(L) test-time gradient"
           # Other
           :liquid -> "O(L) adaptive ODE"
+          :kan -> "O(L) learnable activations"
+          :snn -> "O(L) spiking dynamics"
+          :bayesian -> "O(1) weight sampling"
+          :reservoir -> "O(L) fixed dynamics"
           _ -> "unknown"
         end
 
@@ -1228,6 +1279,7 @@ results =
     rescue
       e ->
         Output.error("Architecture #{arch_name} failed: #{Exception.message(e)}")
+        IO.puts(Exception.format(:error, e, __STACKTRACE__))
 
         if continue_on_error do
           Output.warning("Continuing with next architecture (--continue-on-error)")
@@ -1412,6 +1464,22 @@ theoretical_data =
         :s5 ->
           {round(:math.log2(window_size)) * 3, round(:math.log2(window_size))}
 
+        # === SSM (scan-based) ===
+        # O(L log L) - S4 uses FFT convolution
+        :s4 ->
+          {round(window_size * :math.log2(window_size)) * 3,
+           round(window_size * :math.log2(window_size))}
+
+        # O(L log L) - diagonal variant of S4
+        :s4d ->
+          {round(window_size * :math.log2(window_size)) * 3,
+           round(window_size * :math.log2(window_size))}
+
+        # O(L log L) - FFT convolution + SSM
+        :h3 ->
+          {round(window_size * :math.log2(window_size)) * 3,
+           round(window_size * :math.log2(window_size))}
+
         # === Linear Attention ===
         # O(L) - linear RNN with channel mixing
         :rwkv ->
@@ -1425,7 +1493,33 @@ theoretical_data =
         :hgrn ->
           {window_size * 2, window_size}
 
+        # O(L) - multi-scale exponential decay
+        :retnet ->
+          {window_size * 2, window_size}
+
+        # O(L) - delta rule linear attention
+        :deltanet ->
+          {window_size * 2, window_size}
+
+        # O(L) - random feature approximation (FAVOR+)
+        :performer ->
+          {window_size * 2, window_size}
+
+        # O(L log L) - FFT-based token mixing
+        :fnet ->
+          {round(window_size * :math.log2(window_size)) * 3,
+           round(window_size * :math.log2(window_size))}
+
         # === Hybrid ===
+        # O(L) RG-LRU + O(L²) local attention
+        :griffin ->
+          {window_size * 2 + div(window_size * window_size, 4),
+           window_size + div(window_size * window_size, 4)}
+
+        # O(L) - pure RG-LRU (no attention)
+        :hawk ->
+          {window_size * 2, window_size}
+
         # O(L) + O(L²/3) - Mamba + sparse attention
         :jamba ->
           {window_size + div(window_size * window_size, 3),
@@ -1436,6 +1530,19 @@ theoretical_data =
         :zamba ->
           {window_size + div(window_size * window_size, 6),
            window_size + div(window_size * window_size, 6)}
+
+        # O(L) sLSTM + O(L) mLSTM (both linear)
+        :xlstm ->
+          {window_size * 3, window_size}
+
+        # === Recurrent (parallel scan) ===
+        # O(L) work, O(log L) depth - minimal GRU with parallel scan
+        :min_gru ->
+          {round(:math.log2(window_size)) * 3, round(:math.log2(window_size))}
+
+        # O(L) work, O(log L) depth - minimal LSTM with parallel scan
+        :min_lstm ->
+          {round(:math.log2(window_size)) * 3, round(:math.log2(window_size))}
 
         # === Transformer ===
         # O(L²) - pure attention
@@ -1450,10 +1557,43 @@ theoretical_data =
         :decision_transformer ->
           {window_size * window_size * 3, window_size * window_size}
 
+        # O(L·M) - cross-attention to M latent tokens (M << L)
+        :perceiver ->
+          {window_size * 16 * 3, window_size * 16}
+
+        # === Associative / Memory ===
+        # O(L²) - Hopfield energy-based associative retrieval
+        :hopfield ->
+          {window_size * window_size * 3, window_size * window_size}
+
+        # O(L·M) - memory addressing with M memory slots
+        :ntm ->
+          {window_size * 32 * 3, window_size * 32}
+
+        # O(L) - inner gradient descent per token
+        :ttt ->
+          {window_size * 4, window_size * 2}
+
         # === Other ===
         # O(L) - adaptive ODE dynamics
         :liquid ->
           {window_size * 4, window_size * 2}
+
+        # O(1) - KAN uses learnable activation functions, no temporal
+        :kan ->
+          {10, 10}
+
+        # O(L) - spiking neural network dynamics
+        :snn ->
+          {window_size * 2, window_size}
+
+        # O(1) - weight sampling (no temporal, 2x forward for mean + variance)
+        :bayesian ->
+          {20, 20}
+
+        # O(L) - fixed random reservoir
+        :reservoir ->
+          {window_size, window_size}
 
         _ ->
           {10, 10}

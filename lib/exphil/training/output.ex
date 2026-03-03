@@ -226,7 +226,7 @@ defmodule ExPhil.Training.Output do
     show_count = Keyword.get(opts, :show_count, true)
     color = Keyword.get(opts, :color, :green)
 
-    percent = if total > 0, do: current / total, else: 0
+    percent = if total > 0, do: min(current / total, 1.0), else: 0
     filled = round(percent * width)
     empty = width - filled
 

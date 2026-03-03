@@ -191,11 +191,20 @@ defmodule ExPhil.MixProject do
   end
 
   defp deps do
+    # Set EDIFICE_LOCAL_NX=1 to use local nx/exla forks (for fused CUDA scan kernels)
+    local_nx? = System.get_env("EDIFICE_LOCAL_NX") == "1"
+
     [
       # ML Core
-      {:nx, "~> 0.11"},
+      if(local_nx?,
+        do: {:nx, path: "../nx/nx", override: true},
+        else: {:nx, "~> 0.11"}
+      ),
       {:axon, "~> 0.8"},
-      {:exla, "~> 0.11"},
+      if(local_nx?,
+        do: {:exla, path: "../nx/exla", override: true},
+        else: {:exla, "~> 0.11"}
+      ),
       {:polaris, "~> 0.1"},
 
       # ML Architecture Library (extracted generic architectures)

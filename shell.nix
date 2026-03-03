@@ -1,14 +1,27 @@
 { pkgs ? import <nixpkgs> { config.allowUnfree = true; } }:
 
+# Pin nixpkgs-unstable for newer Rust (1.87+, needed for bend-lang)
+let
+  unstableTarball = builtins.fetchTarball {
+    url = "https://github.com/NixOS/nixpkgs/archive/nixpkgs-unstable.tar.gz";
+  };
+  unstable = import unstableTarball { config.allowUnfree = true; };
+in
+
 pkgs.mkShell {
   buildInputs = with pkgs; [
     # Elixir/Erlang
     elixir
     erlang
 
-    # Rust (for NIF compilation: selective_scan, flash_attention, ortex)
-    cargo
-    rustc
+    # Rust (from unstable for 1.87+ — needed for bend-lang, also used by NIFs)
+    unstable.cargo
+    unstable.rustc
+
+    # GPU kernel language exploration (see docs/research/KERNEL_LANGUAGE_COMPARISON.md)
+    julia
+    futhark
+    (python3.withPackages (ps: with ps; [ msgpack numpy ]))  # For Mojo/NumPy benchmark
 
     # Build tools
     gcc
@@ -32,7 +45,7 @@ pkgs.mkShell {
     export MIX_HOME="$PWD/.nix-mix"
     export HEX_HOME="$PWD/.nix-hex"
     mkdir -p "$MIX_HOME" "$HEX_HOME"
-    export PATH="$MIX_HOME/bin:$MIX_HOME/escripts:$HEX_HOME/bin:$PATH"
+    export PATH="$MIX_HOME/bin:$MIX_HOME/escripts:$HEX_HOME/bin:/usr/lib/wsl/lib:$PATH"
 
     # CUDA/GPU support via WSL2 passthrough
     export CUDA_PATH="$(dirname $(which nvcc))/.."

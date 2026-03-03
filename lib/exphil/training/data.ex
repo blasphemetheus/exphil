@@ -1983,6 +1983,8 @@ defmodule ExPhil.Training.Data do
   end
 
   # Eager mode: standard batching using pre-built sequence embeddings
+  defp batched_sequences_eager(%{size: 0}, _opts), do: []
+
   defp batched_sequences_eager(dataset, opts) do
     batch_size = Keyword.get(opts, :batch_size, 64)
     shuffle = Keyword.get(opts, :shuffle, true)

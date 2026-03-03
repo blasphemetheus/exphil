@@ -110,6 +110,9 @@ defmodule ExPhil.Networks.MambaSSD do
     {a_bar, bx} = Common.discretize_ssm(x, b, dt, state_size)
 
     # Use SSD algorithm — short sequences skip chunking entirely
+    # The matmul fast path uses O(L²) memory (5D transfer matrix) but replaces
+    # ~60 individual Nx ops with ~7 vectorized XLA ops. On small GPUs, reduce
+    # batch_size to compensate (e.g., batch=16 for 4GB VRAM).
     seq_len = Nx.axis_size(a_bar, 1)
 
     h =
