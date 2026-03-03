@@ -211,43 +211,16 @@ All use the same learning rate (1e-4) and no per-architecture gradient clipping.
 - [ ] NaN detection with early stopping in benchmark loop (skip remaining epochs)
 - [ ] Log gradient norms per architecture to identify which layers explode
 
-### 4.3 Benchmark Segfaults on T400 4GB [P1]
+### ~~4.3 Benchmark Segfaults on T400 4GB [P1]~~ RESOLVED
 
-Architecture sweep (March 2026, T400 4GB, 5.8 GB RAM) segfaults on two architectures:
+~~Perceiver IO and Liquid segfaulted during JIT compilation.~~ Resolved as of March 2026 — both architectures now train and evaluate successfully. Likely fixed by benchmark robustness improvements (empty dataset guards, `--continue-on-error`, smaller batch sizes). Verified with `--only liquid,perceiver` on T400 4GB.
 
-| Architecture | When | GPU Usage | Likely Cause |
-|---|---|---|---|
-| Perceiver IO | JIT compile (batch 1, "Merging Dots: main.139") | 81% (3.26/4.00 GB) | GPU memory fragmentation after 26 prior architectures |
-| Liquid | JIT compile (batch 1, "Merging Dots: main.69") | 8% (321 MB/4.00 GB) | XLA compiler crash on model graph (not memory) |
+### ~~4.4 Benchmark Training Failures (TTT, NTM, Reservoir) [P1]~~ RESOLVED
 
-Perceiver crashes after 26 architectures have run and leaked/fragmented GPU memory. Runs fine-ish when started fresh but only on a machine with more RAM.
-
-Liquid crashes even with a fresh process and only 8% GPU used — the XLA compiler itself segfaults trying to lower the Liquid Neural ODE graph. This suggests the Axon graph generates invalid or unsupported XLA HLO.
-
-**TODO:**
-- [ ] Investigate Perceiver segfault — try reducing model size or adding explicit `EXLA.Backend.deallocate/1` between architectures in benchmark script
-- [ ] Investigate Liquid segfault — reproduce with `--only liquid`, check if the Edifice Liquid layer generates valid XLA graph (try CPU-only to isolate GPU vs compiler issue)
-- [ ] Add `try/rescue` around JIT compilation in benchmark loop so segfaults in one arch don't kill the process (may not be catchable — BEAM crashes on SIGSEGV)
-
-### 4.4 Benchmark Training Failures (TTT, NTM, Reservoir) [P1]
-
-Architecture sweep (March 2026) found three architectures that error during training:
-
-| Architecture | Error | Phase | Details |
-|---|---|---|---|
-| TTT (Test-Time Training) | `2nd argument: out of range` | After training, during validation | Completes all training batches then crashes on eval |
-| NTM (Neural Turing Machine) | `2nd argument: out of range` | After training, during validation | Same error as TTT — likely shared root cause in output indexing |
-| Reservoir (Echo State) | `FunctionClauseError` in `Nx.Defn.Expr.parameter/2` | Model compilation | Passes a concrete (materialized) tensor where Nx expects a parameter placeholder |
-
-**TTT/NTM "out of range":** Both architectures train successfully but crash during validation/metric collection. The "2nd argument: out of range" is an Erlang-level error, likely from `Nx.tensor` indexing or `Enum.at` on model outputs. May be a shape mismatch between training and eval code paths.
-
-**Reservoir:** The Edifice `Reservoir` layer creates a random reservoir weight matrix as a concrete tensor and passes it into a `defn` block. `Nx.Defn.Expr.parameter/2` expects a parameter spec (integer), not a materialized tensor. The fix is to make the reservoir weights a proper Axon parameter or use `Nx.Defn.Kernel.stop_grad` on a parameter instead of a captured tensor.
-
-**TODO:**
-- [ ] Fix TTT "out of range" — add debug logging to identify which tensor access fails during eval, check output shape matches expected head dimensions
-- [ ] Fix NTM "out of range" — likely same root cause as TTT, fix one and check the other
-- [ ] Fix Reservoir `parameter/2` — change Edifice reservoir_forward to accept weights as a parameter rather than a captured concrete tensor (or use `Nx.Defn.jit` with explicit args)
-- [ ] Add regression tests for all three architectures in the benchmark test suite
+~~TTT/NTM crashed with "out of range" during validation; Reservoir failed with EXLA/Expr backend mismatch.~~
+- **Reservoir**: Fixed by `Nx.backend_copy(weights, Nx.BinaryBackend)` before closure capture in Edifice (commit bdfa6ac)
+- **TTT/NTM**: No longer reproduce — likely fixed by benchmark empty-dataset guards and validation skip logic
+- All three verified working with `--only ttt,ntm,reservoir` on T400 4GB
 
 ### 4.5 List Access in Hot Paths [P3]
 
