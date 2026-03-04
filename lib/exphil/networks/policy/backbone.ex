@@ -45,6 +45,32 @@ defmodule ExPhil.Networks.Policy.Backbone do
   | `:hyena` | Hyena | Long convolution hierarchy |
   | `:titans` | Titans | Surprise-gated long-term memory |
   | `:gated_deltanet` | Gated DeltaNet | Delta rule with data-dependent gating |
+  | `:mega` | MEGA | Multi-scale EMA + gated attention |
+  | `:based` | Based | Taylor-expansion linear attention |
+  | `:infini_attention` | InfiniAttention | Compressive memory, long sequences |
+  | `:conformer` | Conformer | Conv + Attention, temporal patterns |
+  | `:mla` | Multi-head Latent Attention | DeepSeek KV compression |
+  | `:diff_transformer` | Diff Transformer | Differential attention, noise cancel |
+  | `:megalodon` | Megalodon | Chunk attention + complex EMA |
+  | `:lightning_attention` | Lightning Attention | O(n) linear attention, very fast |
+  | `:flash_linear_attention` | Flash Linear Attention | Hardware-efficient linear attn |
+  | `:kda` | KDA | Key-driven channel-decay attention |
+  | `:sigmoid_attention` | Sigmoid Attention | Sigmoid instead of softmax |
+  | `:spla` | SPLA | Sparse block-selection attention |
+  | `:retnet_v2` | RetNet V2 | Improved retentive network |
+  | `:rnope_swa` | RNoPE-SWA | Sliding window, no pos encoding |
+  | `:nsa` | NSA | Native sparse attention (3-branch) |
+  | `:infllm_v2` | InfLLM V2 | Dense-to-sparse block attention |
+  | `:dual_chunk_attention` | Dual Chunk | Intra + inter chunk attention |
+  | `:gated_attention` | Gated Attention | Per-dim gating on attention |
+  | `:mta` | MTA | Multi-token attention (depthwise conv) |
+  | `:slstm` | sLSTM | Scalar LSTM, exponential gating |
+  | `:xlstm_v2` | xLSTM V2 | Block-diagonal memory xLSTM |
+  | `:bimamba` | BiMamba | Bidirectional Mamba (offline only) |
+  | `:hyena_v2` | Hyena V2 | Improved long convolution |
+  | `:ss_transformer` | SS-Transformer | Parallel SSM + Attention + gate |
+  | `:ssmax` | SSMax | State-space softmax alternative |
+  | `:softpick` | SoftPick | Interpolation-based attention |
 
   ## Usage
 
@@ -151,6 +177,32 @@ defmodule ExPhil.Networks.Policy.Backbone do
           | :mixture_of_mamba
           | :huginn
           | :coconut
+          | :mega
+          | :based
+          | :infini_attention
+          | :conformer
+          | :mla
+          | :diff_transformer
+          | :megalodon
+          | :lightning_attention
+          | :flash_linear_attention
+          | :kda
+          | :sigmoid_attention
+          | :spla
+          | :retnet_v2
+          | :rnope_swa
+          | :nsa
+          | :infllm_v2
+          | :dual_chunk_attention
+          | :gated_attention
+          | :mta
+          | :slstm
+          | :xlstm_v2
+          | :bimamba
+          | :hyena_v2
+          | :ss_transformer
+          | :ssmax
+          | :softpick
 
   @doc """
   Build a temporal backbone that processes frame sequences.
@@ -416,6 +468,110 @@ defmodule ExPhil.Networks.Policy.Backbone do
         # Coconut: Continuous chain of thought (latent reasoning)
         build_coconut_backbone(embed_size, opts)
 
+      :mega ->
+        # MEGA: Multi-scale EMA + gated attention
+        build_mega_backbone(embed_size, opts)
+
+      :based ->
+        # Based: Taylor-expansion linear attention
+        build_based_backbone(embed_size, opts)
+
+      :infini_attention ->
+        # InfiniAttention: Compressive memory for long sequences
+        build_infini_attention_backbone(embed_size, opts)
+
+      :conformer ->
+        # Conformer: Conv + Attention (audio/temporal patterns)
+        build_conformer_backbone(embed_size, opts)
+
+      :mla ->
+        # MLA: Multi-head Latent Attention (DeepSeek-style KV compression)
+        build_mla_backbone(embed_size, opts)
+
+      :diff_transformer ->
+        # DiffTransformer: Differential attention (noise cancellation)
+        build_diff_transformer_backbone(embed_size, opts)
+
+      :megalodon ->
+        # Megalodon: Chunk-wise attention with complex EMA
+        build_megalodon_backbone(embed_size, opts)
+
+      :lightning_attention ->
+        # LightningAttention: O(n) linear attention, very fast
+        build_lightning_attention_backbone(embed_size, opts)
+
+      :flash_linear_attention ->
+        # FlashLinearAttention: Hardware-efficient chunked linear attention
+        build_flash_linear_attention_backbone(embed_size, opts)
+
+      :kda ->
+        # KDA: Key-Driven channel-decay Attention
+        build_kda_backbone(embed_size, opts)
+
+      :sigmoid_attention ->
+        # SigmoidAttention: Sigmoid instead of softmax (no normalization)
+        build_sigmoid_attention_backbone(embed_size, opts)
+
+      :spla ->
+        # SPLA: Sparse attention with block selection
+        build_spla_backbone(embed_size, opts)
+
+      :retnet_v2 ->
+        # RetNet V2: Improved retentive network
+        build_retnet_v2_backbone(embed_size, opts)
+
+      :rnope_swa ->
+        # RNoPE-SWA: Sliding window attention without positional encoding
+        build_rnope_swa_backbone(embed_size, opts)
+
+      :nsa ->
+        # NSA: Native Sparse Attention (compression + selection + sliding)
+        build_nsa_backbone(embed_size, opts)
+
+      :infllm_v2 ->
+        # InfLLM V2: Dense-to-sparse block attention for long contexts
+        build_infllm_v2_backbone(embed_size, opts)
+
+      :dual_chunk_attention ->
+        # DualChunkAttention: Intra-chunk + inter-chunk attention
+        build_dual_chunk_attention_backbone(embed_size, opts)
+
+      :gated_attention ->
+        # GatedAttention: Per-dimension gating on attention output
+        build_gated_attention_backbone(embed_size, opts)
+
+      :mta ->
+        # MTA: Multi-Token Attention with depthwise convolutions
+        build_mta_backbone(embed_size, opts)
+
+      :slstm ->
+        # sLSTM: Scalar LSTM with exponential gating (standalone)
+        build_slstm_backbone(embed_size, opts)
+
+      :xlstm_v2 ->
+        # xLSTM V2: Updated xLSTM with block-diagonal memory
+        build_xlstm_v2_backbone(embed_size, opts)
+
+      :bimamba ->
+        # BiMamba: Bidirectional Mamba (offline analysis only)
+        build_bimamba_backbone(embed_size, opts)
+
+      :hyena_v2 ->
+        # Hyena V2: Improved long convolution hierarchy
+        build_hyena_v2_backbone(embed_size, opts)
+
+      :ss_transformer ->
+        # SSTransformer: Parallel SSM + Attention with gating
+        build_ss_transformer_backbone(embed_size, opts)
+
+      :ssmax ->
+        # SSMax: State-space inspired softmax alternative
+        build_ssmax_backbone(embed_size, opts)
+
+      :softpick ->
+        # SoftPick: Interpolation-based attention (between softmax and hardmax)
+        build_softpick_backbone(embed_size, opts)
+
       :lstm ->
         build_lstm_backbone(embed_size, opts)
 
@@ -667,7 +823,33 @@ defmodule ExPhil.Networks.Policy.Backbone do
              :miras,
              :mixture_of_mamba,
              :huginn,
-             :coconut
+             :coconut,
+             :mega,
+             :based,
+             :infini_attention,
+             :conformer,
+             :mla,
+             :diff_transformer,
+             :megalodon,
+             :lightning_attention,
+             :flash_linear_attention,
+             :kda,
+             :sigmoid_attention,
+             :spla,
+             :retnet_v2,
+             :rnope_swa,
+             :nsa,
+             :infllm_v2,
+             :dual_chunk_attention,
+             :gated_attention,
+             :mta,
+             :slstm,
+             :xlstm_v2,
+             :bimamba,
+             :hyena_v2,
+             :ss_transformer,
+             :ssmax,
+             :softpick
            ] ->
         Keyword.get(opts, :hidden_size, 256)
 
@@ -2086,6 +2268,548 @@ defmodule ExPhil.Networks.Policy.Backbone do
       dropout: dropout,
       window_size: window_size,
       seq_len: seq_len
+    )
+  end
+
+  # MEGA: Multi-scale EMA + gated attention
+  defp build_mega_backbone(embed_size, opts) do
+    alias Edifice.Attention.MEGA
+
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    num_layers = Keyword.get(opts, :num_layers, 2)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+    window_size = Keyword.get(opts, :window_size, 60)
+    seq_len = Keyword.get(opts, :seq_len, window_size)
+
+    MEGA.build(
+      embed_dim: embed_size,
+      hidden_size: hidden_size,
+      num_layers: num_layers,
+      dropout: dropout,
+      window_size: window_size,
+      seq_len: seq_len
+    )
+  end
+
+  # Based: Taylor-expansion linear attention
+  defp build_based_backbone(embed_size, opts) do
+    alias Edifice.Attention.Based
+
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    num_heads = Keyword.get(opts, :num_heads, 4)
+    num_layers = Keyword.get(opts, :num_layers, 2)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+    window_size = Keyword.get(opts, :window_size, 60)
+
+    Based.build(
+      embed_dim: embed_size,
+      hidden_size: hidden_size,
+      num_heads: num_heads,
+      num_layers: num_layers,
+      dropout: dropout,
+      window_size: window_size
+    )
+  end
+
+  # InfiniAttention: Compressive memory for long sequences
+  defp build_infini_attention_backbone(embed_size, opts) do
+    alias Edifice.Attention.InfiniAttention
+
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    num_heads = Keyword.get(opts, :num_heads, 4)
+    num_layers = Keyword.get(opts, :num_layers, 2)
+    segment_size = Keyword.get(opts, :segment_size, 32)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+    window_size = Keyword.get(opts, :window_size, 60)
+
+    InfiniAttention.build(
+      embed_dim: embed_size,
+      hidden_size: hidden_size,
+      num_heads: num_heads,
+      segment_size: segment_size,
+      num_layers: num_layers,
+      dropout: dropout,
+      window_size: window_size
+    )
+  end
+
+  # Conformer: Conv + Attention (good for temporal patterns)
+  defp build_conformer_backbone(embed_size, opts) do
+    alias Edifice.Attention.Conformer
+
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    num_heads = Keyword.get(opts, :num_heads, 4)
+    num_layers = Keyword.get(opts, :num_layers, 2)
+    conv_kernel_size = Keyword.get(opts, :conv_kernel_size, 31)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+    window_size = Keyword.get(opts, :window_size, 60)
+
+    Conformer.build(
+      embed_dim: embed_size,
+      hidden_size: hidden_size,
+      num_heads: num_heads,
+      conv_kernel_size: conv_kernel_size,
+      num_layers: num_layers,
+      dropout: dropout,
+      window_size: window_size
+    )
+  end
+
+  # MLA: Multi-head Latent Attention (DeepSeek-style KV compression)
+  defp build_mla_backbone(embed_size, opts) do
+    alias Edifice.Attention.MLA
+
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    num_heads = Keyword.get(opts, :num_heads, 4)
+    num_layers = Keyword.get(opts, :num_layers, 2)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+    window_size = Keyword.get(opts, :window_size, 60)
+    seq_len = Keyword.get(opts, :seq_len, window_size)
+
+    MLA.build(
+      embed_dim: embed_size,
+      hidden_size: hidden_size,
+      num_heads: num_heads,
+      num_layers: num_layers,
+      dropout: dropout,
+      window_size: window_size,
+      seq_len: seq_len
+    )
+  end
+
+  # DiffTransformer: Differential attention (noise cancellation)
+  defp build_diff_transformer_backbone(embed_size, opts) do
+    alias Edifice.Attention.DiffTransformer
+
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    num_heads = Keyword.get(opts, :num_heads, 4)
+    num_layers = Keyword.get(opts, :num_layers, 2)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+    window_size = Keyword.get(opts, :window_size, 60)
+
+    DiffTransformer.build(
+      embed_dim: embed_size,
+      hidden_size: hidden_size,
+      num_heads: num_heads,
+      num_layers: num_layers,
+      dropout: dropout,
+      window_size: window_size
+    )
+  end
+
+  # Megalodon: Chunk-wise attention with complex EMA
+  defp build_megalodon_backbone(embed_size, opts) do
+    alias Edifice.Attention.Megalodon
+
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    num_layers = Keyword.get(opts, :num_layers, 2)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+    window_size = Keyword.get(opts, :window_size, 60)
+    seq_len = Keyword.get(opts, :seq_len, window_size)
+
+    Megalodon.build(
+      embed_dim: embed_size,
+      hidden_size: hidden_size,
+      num_layers: num_layers,
+      dropout: dropout,
+      window_size: window_size,
+      seq_len: seq_len
+    )
+  end
+
+  # LightningAttention: O(n) linear attention, very fast
+  defp build_lightning_attention_backbone(embed_size, opts) do
+    alias Edifice.Attention.LightningAttention
+
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    num_heads = Keyword.get(opts, :num_heads, 4)
+    num_layers = Keyword.get(opts, :num_layers, 2)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+    window_size = Keyword.get(opts, :window_size, 60)
+    seq_len = Keyword.get(opts, :seq_len, window_size)
+
+    LightningAttention.build(
+      embed_dim: embed_size,
+      hidden_size: hidden_size,
+      num_heads: num_heads,
+      num_layers: num_layers,
+      dropout: dropout,
+      window_size: window_size,
+      seq_len: seq_len
+    )
+  end
+
+  # FlashLinearAttention: Hardware-efficient chunked linear attention
+  defp build_flash_linear_attention_backbone(embed_size, opts) do
+    alias Edifice.Attention.FlashLinearAttention
+
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    num_heads = Keyword.get(opts, :num_heads, 4)
+    num_layers = Keyword.get(opts, :num_layers, 2)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+    window_size = Keyword.get(opts, :window_size, 60)
+    seq_len = Keyword.get(opts, :seq_len, window_size)
+
+    FlashLinearAttention.build(
+      embed_dim: embed_size,
+      hidden_size: hidden_size,
+      num_heads: num_heads,
+      num_layers: num_layers,
+      dropout: dropout,
+      window_size: window_size,
+      seq_len: seq_len
+    )
+  end
+
+  # KDA: Key-Driven channel-decay Attention
+  defp build_kda_backbone(embed_size, opts) do
+    alias Edifice.Attention.KDA
+
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    num_heads = Keyword.get(opts, :num_heads, 4)
+    num_layers = Keyword.get(opts, :num_layers, 2)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+    window_size = Keyword.get(opts, :window_size, 60)
+    seq_len = Keyword.get(opts, :seq_len, window_size)
+
+    KDA.build(
+      embed_dim: embed_size,
+      hidden_size: hidden_size,
+      num_heads: num_heads,
+      num_layers: num_layers,
+      dropout: dropout,
+      window_size: window_size,
+      seq_len: seq_len
+    )
+  end
+
+  # SigmoidAttention: Sigmoid instead of softmax (no normalization)
+  defp build_sigmoid_attention_backbone(embed_size, opts) do
+    alias Edifice.Attention.SigmoidAttention
+
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    num_heads = Keyword.get(opts, :num_heads, 4)
+    num_layers = Keyword.get(opts, :num_layers, 2)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+    window_size = Keyword.get(opts, :window_size, 60)
+
+    SigmoidAttention.build(
+      embed_dim: embed_size,
+      hidden_size: hidden_size,
+      num_heads: num_heads,
+      num_layers: num_layers,
+      dropout: dropout,
+      window_size: window_size
+    )
+  end
+
+  # SPLA: Sparse attention with block selection
+  defp build_spla_backbone(embed_size, opts) do
+    alias Edifice.Attention.SPLA
+
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    num_heads = Keyword.get(opts, :num_heads, 4)
+    num_layers = Keyword.get(opts, :num_layers, 2)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+    seq_len = Keyword.get(opts, :seq_len, Keyword.get(opts, :window_size, 60))
+
+    SPLA.build(
+      embed_dim: embed_size,
+      hidden_size: hidden_size,
+      num_heads: num_heads,
+      num_layers: num_layers,
+      dropout: dropout,
+      seq_len: seq_len
+    )
+  end
+
+  # RetNet V2: Improved retentive network
+  defp build_retnet_v2_backbone(embed_size, opts) do
+    alias Edifice.Attention.RetNetV2
+
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    num_heads = Keyword.get(opts, :num_heads, 4)
+    num_layers = Keyword.get(opts, :num_layers, 2)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+    window_size = Keyword.get(opts, :window_size, 60)
+    seq_len = Keyword.get(opts, :seq_len, window_size)
+
+    RetNetV2.build(
+      embed_dim: embed_size,
+      hidden_size: hidden_size,
+      num_heads: num_heads,
+      num_layers: num_layers,
+      dropout: dropout,
+      window_size: window_size,
+      seq_len: seq_len
+    )
+  end
+
+  # RNoPE-SWA: Sliding window attention without positional encoding
+  defp build_rnope_swa_backbone(embed_size, opts) do
+    alias Edifice.Attention.RNoPESWA
+
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    num_heads = Keyword.get(opts, :num_heads, 4)
+    num_layers = Keyword.get(opts, :num_layers, 2)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+    window_size = Keyword.get(opts, :window_size, 60)
+
+    RNoPESWA.build(
+      embed_dim: embed_size,
+      hidden_size: hidden_size,
+      num_heads: num_heads,
+      num_layers: num_layers,
+      dropout: dropout,
+      window_size: window_size
+    )
+  end
+
+  # NSA: Native Sparse Attention (compression + selection + sliding)
+  defp build_nsa_backbone(embed_size, opts) do
+    alias Edifice.Attention.NSA
+
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    num_heads = Keyword.get(opts, :num_heads, 4)
+    num_layers = Keyword.get(opts, :num_layers, 2)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+    window_size = Keyword.get(opts, :window_size, 60)
+    seq_len = Keyword.get(opts, :seq_len, window_size)
+
+    NSA.build(
+      embed_dim: embed_size,
+      hidden_size: hidden_size,
+      num_heads: num_heads,
+      num_layers: num_layers,
+      dropout: dropout,
+      window_size: window_size,
+      seq_len: seq_len
+    )
+  end
+
+  # InfLLM V2: Dense-to-sparse block attention for long contexts
+  defp build_infllm_v2_backbone(embed_size, opts) do
+    alias Edifice.Attention.InfLLMV2
+
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    num_heads = Keyword.get(opts, :num_heads, 4)
+    num_layers = Keyword.get(opts, :num_layers, 2)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+    seq_len = Keyword.get(opts, :seq_len, Keyword.get(opts, :window_size, 60))
+
+    InfLLMV2.build(
+      embed_dim: embed_size,
+      hidden_size: hidden_size,
+      num_heads: num_heads,
+      num_layers: num_layers,
+      dropout: dropout,
+      seq_len: seq_len
+    )
+  end
+
+  # DualChunkAttention: Intra-chunk + inter-chunk attention
+  defp build_dual_chunk_attention_backbone(embed_size, opts) do
+    alias Edifice.Attention.DualChunk
+
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    num_heads = Keyword.get(opts, :num_heads, 4)
+    num_layers = Keyword.get(opts, :num_layers, 2)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+
+    DualChunk.build(
+      embed_dim: embed_size,
+      hidden_size: hidden_size,
+      num_heads: num_heads,
+      num_layers: num_layers,
+      dropout: dropout
+    )
+  end
+
+  # GatedAttention: Per-dimension gating on attention output
+  defp build_gated_attention_backbone(embed_size, opts) do
+    alias Edifice.Attention.GatedAttention
+
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    num_heads = Keyword.get(opts, :num_heads, 4)
+    num_layers = Keyword.get(opts, :num_layers, 2)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+    window_size = Keyword.get(opts, :window_size, 60)
+
+    GatedAttention.build(
+      embed_dim: embed_size,
+      hidden_size: hidden_size,
+      num_heads: num_heads,
+      num_layers: num_layers,
+      dropout: dropout,
+      window_size: window_size
+    )
+  end
+
+  # MTA: Multi-Token Attention with depthwise convolutions on Q/K/heads
+  defp build_mta_backbone(embed_size, opts) do
+    alias Edifice.Attention.MTA
+
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    num_heads = Keyword.get(opts, :num_heads, 4)
+    num_layers = Keyword.get(opts, :num_layers, 2)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+    window_size = Keyword.get(opts, :window_size, 60)
+
+    MTA.build(
+      embed_dim: embed_size,
+      hidden_size: hidden_size,
+      num_heads: num_heads,
+      num_layers: num_layers,
+      dropout: dropout,
+      window_size: window_size
+    )
+  end
+
+  # sLSTM: Scalar LSTM with exponential gating (standalone)
+  defp build_slstm_backbone(embed_size, opts) do
+    alias Edifice.Recurrent.SLSTM
+
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    num_layers = Keyword.get(opts, :num_layers, 2)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+    window_size = Keyword.get(opts, :window_size, 60)
+    seq_len = Keyword.get(opts, :seq_len, window_size)
+
+    SLSTM.build(
+      embed_dim: embed_size,
+      hidden_size: hidden_size,
+      num_layers: num_layers,
+      dropout: dropout,
+      window_size: window_size,
+      seq_len: seq_len
+    )
+  end
+
+  # xLSTM V2: Updated xLSTM with block-diagonal memory
+  defp build_xlstm_v2_backbone(embed_size, opts) do
+    alias Edifice.Recurrent.XLSTMv2
+
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    num_heads = Keyword.get(opts, :num_heads, 4)
+    num_layers = Keyword.get(opts, :num_layers, 2)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+    window_size = Keyword.get(opts, :window_size, 60)
+    seq_len = Keyword.get(opts, :seq_len, window_size)
+
+    XLSTMv2.build(
+      embed_dim: embed_size,
+      hidden_size: hidden_size,
+      num_heads: num_heads,
+      num_layers: num_layers,
+      dropout: dropout,
+      window_size: window_size,
+      seq_len: seq_len
+    )
+  end
+
+  # BiMamba: Bidirectional Mamba (offline analysis / replay processing only)
+  defp build_bimamba_backbone(embed_size, opts) do
+    alias Edifice.SSM.BiMamba
+
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    state_size = Keyword.get(opts, :state_size, 16)
+    num_layers = Keyword.get(opts, :num_layers, 2)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+    window_size = Keyword.get(opts, :window_size, 60)
+    seq_len = Keyword.get(opts, :seq_len, window_size)
+
+    BiMamba.build(
+      embed_dim: embed_size,
+      hidden_size: hidden_size,
+      state_size: state_size,
+      num_layers: num_layers,
+      dropout: dropout,
+      window_size: window_size,
+      seq_len: seq_len
+    )
+  end
+
+  # Hyena V2: Improved long convolution hierarchy
+  defp build_hyena_v2_backbone(embed_size, opts) do
+    alias Edifice.SSM.HyenaV2
+
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    num_layers = Keyword.get(opts, :num_layers, 2)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+    window_size = Keyword.get(opts, :window_size, 60)
+    seq_len = Keyword.get(opts, :seq_len, window_size)
+
+    HyenaV2.build(
+      embed_dim: embed_size,
+      hidden_size: hidden_size,
+      num_layers: num_layers,
+      dropout: dropout,
+      window_size: window_size,
+      seq_len: seq_len
+    )
+  end
+
+  # SSTransformer: Parallel SSM + Attention with gating
+  defp build_ss_transformer_backbone(embed_size, opts) do
+    alias Edifice.SSM.SSTransformer
+
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    state_size = Keyword.get(opts, :state_size, 16)
+    num_heads = Keyword.get(opts, :num_heads, 4)
+    num_layers = Keyword.get(opts, :num_layers, 2)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+    window_size = Keyword.get(opts, :window_size, 60)
+    seq_len = Keyword.get(opts, :seq_len, window_size)
+
+    SSTransformer.build(
+      embed_dim: embed_size,
+      hidden_size: hidden_size,
+      state_size: state_size,
+      num_heads: num_heads,
+      num_layers: num_layers,
+      dropout: dropout,
+      window_size: window_size,
+      seq_len: seq_len
+    )
+  end
+
+  # SSMax: State-space inspired softmax alternative
+  defp build_ssmax_backbone(embed_size, opts) do
+    alias Edifice.Blocks.SSMax
+
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    num_heads = Keyword.get(opts, :num_heads, 4)
+    num_layers = Keyword.get(opts, :num_layers, 2)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+    window_size = Keyword.get(opts, :window_size, 60)
+
+    SSMax.build(
+      embed_dim: embed_size,
+      hidden_size: hidden_size,
+      num_heads: num_heads,
+      num_layers: num_layers,
+      dropout: dropout,
+      window_size: window_size
+    )
+  end
+
+  # SoftPick: Interpolation-based attention (between softmax and hardmax)
+  defp build_softpick_backbone(embed_size, opts) do
+    alias Edifice.Blocks.Softpick
+
+    hidden_size = Keyword.get(opts, :hidden_size, 256)
+    num_heads = Keyword.get(opts, :num_heads, 4)
+    num_layers = Keyword.get(opts, :num_layers, 2)
+    dropout = Keyword.get(opts, :dropout, @default_dropout)
+    window_size = Keyword.get(opts, :window_size, 60)
+
+    Softpick.build(
+      embed_dim: embed_size,
+      hidden_size: hidden_size,
+      num_heads: num_heads,
+      num_layers: num_layers,
+      dropout: dropout,
+      window_size: window_size
     )
   end
 
