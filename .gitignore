@@ -44,6 +44,17 @@ Thumbs.db
 # Compiled NIFs (rebuilt from source)
 /priv/native/
 
+# Native build artifacts (rebuilt with make/cargo)
+native/**/*.so
+native/**/*.o
+native/**/*.cubin
+native/**/linear_scan_kernel_meta.h
+native/futhark_scan/linear_scan.c
+native/futhark_scan/linear_scan.h
+native/futhark_scan/linear_scan.json
+native/julia_scan/Manifest.toml
+native/rust_linear_scan_nif/Cargo.lock
+
 # Replay files (too large for git)
 /replays/
 *.slp
