@@ -1,0 +1,7 @@
+[project]
+name = "mojo_scan"
+version = "0.1.0"
+description = "Mojo GPU linear scan kernel for ExPhil"
+authors = ["ExPhil"]
+
+[dependencies]
