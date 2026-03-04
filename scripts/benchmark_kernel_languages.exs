@@ -125,6 +125,23 @@ mojo_available =
 
 if mojo_available, do: Output.success("Mojo/NumPy: available"), else: Output.puts("  Mojo/NumPy: not available")
 
+# CuPy/CCCL (Port)
+cupy_available =
+  case ExPhil.Bridge.CudaComputePort.start_link() do
+    {:ok, _} ->
+      case ExPhil.Bridge.CudaComputePort.ping() do
+        {:ok, _} -> true
+        _ -> false
+      end
+    _ -> false
+  end
+
+if cupy_available, do: Output.success("CuPy/CCCL: available"), else: Output.puts("  CuPy/CCCL: not available")
+
+# ThunderKittens (CUDA NIF)
+tk_available = ExPhil.Native.ThunderKittensScan.available?()
+if tk_available, do: Output.success("ThunderKittens NIF: available"), else: Output.puts("  ThunderKittens: not available")
+
 # Bend
 bend_available = ExPhil.Bridge.BendPort.available?()
 if bend_available, do: Output.success("Bend: available"), else: Output.puts("  Bend: not available (learning exercise only)")
@@ -268,6 +285,34 @@ all_results =
         Map.put(results, :mojo_e2e, nil)
       end
 
+    # CuPy/CCCL (end-to-end via Port)
+    results =
+      if cupy_available do
+        case UnifiedBench.try_bench(fn -> ExPhil.Bridge.CudaComputePort.linear_scan!(a_vals, b_vals, h0) end, warmup, iterations) do
+          {:ok, med} ->
+            IO.puts("  CuPy/CCCL:  #{med} us")
+            Map.put(results, :cupy_e2e, med)
+          {:error, _} ->
+            Map.put(results, :cupy_e2e, nil)
+        end
+      else
+        Map.put(results, :cupy_e2e, nil)
+      end
+
+    # ThunderKittens (NIF)
+    results =
+      if tk_available do
+        case UnifiedBench.try_bench(fn -> ExPhil.Native.ThunderKittensScan.linear_scan(a_vals, b_vals, h0) end, warmup, iterations) do
+          {:ok, med} ->
+            IO.puts("  TK NIF:     #{med} us")
+            Map.put(results, :tk_nif, med)
+          {:error, _} ->
+            Map.put(results, :tk_nif, nil)
+        end
+      else
+        Map.put(results, :tk_nif, nil)
+      end
+
     # Pure Nx fallback
     nx_fn = fn ->
       Enum.reduce(0..(seq_len - 1), {h0, []}, fn t, {h_state, acc} ->
@@ -308,6 +353,8 @@ for result <- all_results do
         {"CUDA C (FusedScan)", :cuda_c},
         {"Rust-CUDA (NIF)", :rust_nif},
         {"Triton AOT (NIF)", :triton_aot},
+        {"ThunderKittens (NIF)", :tk_nif},
+        {"CuPy/CCCL (e2e)", :cupy_e2e},
         {"Julia CUDA.jl (e2e)", :julia_e2e},
         {"Futhark (NIF)", :futhark},
         {"Mojo/NumPy (e2e)", :mojo_e2e},
@@ -353,6 +400,8 @@ IO.puts(String.duplicate("-", 70))
 IO.puts("CUDA C      |  ~20   |      ~130        |  ~150 | nvcc, CUDA toolkit")
 IO.puts("Rust-CUDA   |  ~20   |      ~295        |  ~315 | cargo, rustler, cudarc")
 IO.puts("Triton AOT  |  ~15   |      ~370        |  ~385 | Triton (build), gcc, CUDA")
+IO.puts("TK (CUDA)   |  ~50   |      ~160        |  ~210 | nvcc, gcc, CUDA (+ TK headers)")
+IO.puts("CuPy/CCCL   |  ~65   |      ~200        |  ~265 | CuPy, msgpack, Python")
 IO.puts("Julia       |  ~25   |      ~250        |  ~275 | Julia, CUDA.jl, MsgPack.jl")
 IO.puts("Futhark     |  ~15   |      ~190        |  ~205 | futhark compiler")
 IO.puts("Mojo        |  ~30   |      ~245        |  ~275 | Mojo SDK (or NumPy fallback)")
@@ -368,6 +417,8 @@ IO.puts(String.duplicate("-", 70))
 IO.puts("CUDA C      | Medium      | Good (nsight) | Excellent | Stable")
 IO.puts("Rust-CUDA   | Medium      | Good (cudarc) | Good      | Stable")
 IO.puts("Triton AOT  | High        | Good (Python) | Excellent | Stable")
+IO.puts("TK (CUDA)   | Medium      | Good (nsight) | Medium    | Stable (sm_80+)")
+IO.puts("CuPy/CCCL   | High        | Good (Python) | Good      | Stable")
 IO.puts("Julia       | High        | Good (REPL)   | Good      | Stable")
 IO.puts("Futhark     | High        | Limited       | Tiny      | Stable")
 IO.puts("Mojo        | High        | Poor          | Growing   | Pre-1.0")

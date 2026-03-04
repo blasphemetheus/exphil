@@ -124,17 +124,15 @@ These work but don't offer compelling advantages over Triton + CUDA C for `fused
 | Priority | Tool | Integration | Effort | Expected Outcome |
 |----------|------|-------------|--------|-----------------|
 | ~~**P0**~~ | ~~Triton~~ | ~~AOT cubin → C NIF~~ | ~~Medium~~ | **DONE** — works, ~2-3x CUDA C (NIF overhead) |
-| **P1** | cuda.compute | Python Port or AOT | Low | Optimized parallel scan with custom assoc operator |
-| **P2** | ThunderKittens | Header-only C++ → XLA CC | Medium | Potentially faster than raw CUDA C for SSM/attention |
+| ~~**P1**~~ | ~~cuda.compute~~ | ~~Python Port~~ | ~~Low~~ | **DONE** — CuPy sequential + parallel prefix scan, Port overhead same as Mojo |
+| ~~**P2**~~ | ~~ThunderKittens~~ | ~~CUDA NIF (dlopen)~~ | ~~Medium~~ | **DONE** — works on sm_75 fallback, TK needs sm_80+ for tile primitives |
 | ~~**P3**~~ | ~~Rust-CUDA + Rustler~~ | ~~Rustler NIF~~ | ~~High~~ | **DONE** — works, ~2.5x CUDA C (NIF overhead) |
 | **P4** | CUTLASS/CuTe | C++ headers | Medium | Only if fusing scan + matmul (Mamba-2 SSD) |
 
 ## Future TODOs
 
-- **P1: cuda.compute** — NVIDIA CCCL parallel scan with custom associative operator `(a1,b1)*(a2,b2) = (a1*a2, a1*b2+b1)`. Least custom code of any option (~10 lines). Quick to test via existing Port pattern.
-- **P2: ThunderKittens** — Stanford Hazy Research tile-level C++ DSL for AI kernels. Built by the Mamba/SSM group. Tile abstractions reduce boilerplate 3-5x. Tensor core usage is automatic.
 - **P4: CUTLASS/CuTe** — Only if fusing scan+matmul for Mamba-2 SSD. CUTLASS shines at matmul-heavy kernels, not simple recurrences.
-- **XLA custom call integration** — The real performance win. All NIF approaches have ~2-3x overhead from data transfer. Integrating Triton/Rust kernels as XLA custom calls would keep tensors on GPU and eliminate this bottleneck.
+- **XLA custom call integration** — The real performance win. All NIF approaches have ~2-3x overhead from data transfer. Integrating Triton/Rust kernels as XLA custom calls would keep tensors on GPU and eliminate this bottleneck. See [XLA_CUSTOM_CALL_INTEGRATION.md](XLA_CUSTOM_CALL_INTEGRATION.md) for detailed roadmap.
 
 ---
 
@@ -143,8 +141,11 @@ These work but don't offer compelling advantages over Triton + CUDA C for `fused
 | Doc | Contents |
 |-----|----------|
 | [KERNEL_LANGUAGE_COMPARISON.md](KERNEL_LANGUAGE_COMPARISON.md) | Benchmark results and synthesis |
+| [XLA_CUSTOM_CALL_INTEGRATION.md](XLA_CUSTOM_CALL_INTEGRATION.md) | XLA custom call roadmap (highest impact) |
 | [RUST_CUDA_KERNEL_EXPLORATION.md](RUST_CUDA_KERNEL_EXPLORATION.md) | Rust-CUDA Rustler NIF findings |
 | [TRITON_KERNEL_EXPLORATION.md](TRITON_KERNEL_EXPLORATION.md) | Triton AOT C NIF findings |
+| [CUDA_COMPUTE_EXPLORATION.md](CUDA_COMPUTE_EXPLORATION.md) | CuPy/CCCL parallel scan findings |
+| [THUNDERKITTENS_EXPLORATION.md](THUNDERKITTENS_EXPLORATION.md) | ThunderKittens (HazyResearch) findings |
 | [JULIA_KERNEL_EXPLORATION.md](JULIA_KERNEL_EXPLORATION.md) | Julia CUDA.jl detailed findings |
 | [FUTHARK_KERNEL_EXPLORATION.md](FUTHARK_KERNEL_EXPLORATION.md) | Futhark parallel prefix scan |
 | [MOJO_KERNEL_EXPLORATION.md](MOJO_KERNEL_EXPLORATION.md) | Mojo/NumPy findings |

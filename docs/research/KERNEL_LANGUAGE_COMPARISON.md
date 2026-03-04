@@ -197,16 +197,16 @@ Learning exercise only — fundamentally wrong architecture for tensor ops.
 
 ## Decision Matrix
 
-| Criterion | CUDA C | Rust-CUDA | Triton AOT | Julia | Futhark | Mojo | Bend |
-|-----------|--------|-----------|-----------|-------|---------|------|------|
-| Performance | +++++ | +++ | +++ | ++++ | ++++ | +++ | + |
-| DX (readability) | ++ | ++ | +++++ | ++++ | +++++ | ++++ | +++ |
-| DX (debugging) | ++++ | +++ | +++ | ++++ | ++ | + | + |
-| Integration effort | + (existing) | ++ | ++ | ++ | +++ | ++ | +++++ |
-| Portability | + (CUDA only) | + | +++ | ++++ | ++ | +++ | ++ |
-| Stability | +++++ | ++++ | ++++ | ++++ | +++ | + | + |
-| Community | +++++ | +++ | ++++ | +++ | + | ++ | + |
-| **Overall** | **Best** | **Good** | **Good** | **Good** | **Niche** | **Wait** | **No** |
+| Criterion | CUDA C | Rust-CUDA | Triton AOT | CuPy/CCCL | TK | Julia | Futhark | Mojo | Bend |
+|-----------|--------|-----------|-----------|-----------|-----|-------|---------|------|------|
+| Performance | +++++ | +++ | +++ | +++ | +++ | ++++ | ++++ | +++ | + |
+| DX (readability) | ++ | ++ | +++++ | ++++ | +++ | ++++ | +++++ | ++++ | +++ |
+| DX (debugging) | ++++ | +++ | +++ | +++ | +++ | ++++ | ++ | + | + |
+| Integration effort | + (existing) | ++ | ++ | ++ | ++ | ++ | +++ | ++ | +++++ |
+| Portability | + (CUDA only) | + | +++ | ++ | + | ++++ | ++ | +++ | ++ |
+| Stability | +++++ | ++++ | ++++ | +++ | +++ | ++++ | +++ | + | + |
+| Community | +++++ | +++ | ++++ | ++++ | ++ | +++ | + | ++ | + |
+| **Overall** | **Best** | **Good** | **Good** | **Good** | **Niche** | **Good** | **Niche** | **Wait** | **No** |
 
 ## Recommendations
 
@@ -224,12 +224,20 @@ Learning exercise only — fundamentally wrong architecture for tensor ops.
 
 7. **Revisit Mojo in 12-18 months.** Bend is fundamentally wrong for tensor ops.
 
+8. **CuPy/CCCL is good for parallel scan experimentation.** Blelloch parallel prefix scan via CuPy RawKernel, but Port serialization overhead makes it uncompetitive for production.
+
+9. **ThunderKittens shines for attention, not scans.** TK's tile primitives (16x16 min) add no value for element-wise sequential scan. Its value would be for FlashAttention or Mamba-2 SSD matmul on sm_80+ GPUs.
+
+10. **XLA custom calls are the highest-impact optimization.** See [XLA_CUSTOM_CALL_INTEGRATION.md](XLA_CUSTOM_CALL_INTEGRATION.md) for the detailed roadmap.
+
 ## Running the Benchmarks
 
 ```bash
 # Individual language benchmarks
 mix run scripts/benchmark_rust_scan.exs
 mix run scripts/benchmark_triton_scan.exs
+mix run scripts/benchmark_cuda_compute_scan.exs
+mix run scripts/benchmark_thunderkittens_scan.exs
 mix run scripts/benchmark_julia_scan.exs
 mix run scripts/benchmark_futhark_scan.exs
 mix run scripts/benchmark_mojo_scan.exs
@@ -246,6 +254,9 @@ mix run scripts/benchmark_kernel_languages.exs --size training
 |------|-------------|
 | [RUST_CUDA_KERNEL_EXPLORATION.md](RUST_CUDA_KERNEL_EXPLORATION.md) | Rust-CUDA Rustler NIF findings |
 | [TRITON_KERNEL_EXPLORATION.md](TRITON_KERNEL_EXPLORATION.md) | Triton AOT findings |
+| [CUDA_COMPUTE_EXPLORATION.md](CUDA_COMPUTE_EXPLORATION.md) | CuPy/CCCL parallel scan findings |
+| [THUNDERKITTENS_EXPLORATION.md](THUNDERKITTENS_EXPLORATION.md) | ThunderKittens (HazyResearch) findings |
+| [XLA_CUSTOM_CALL_INTEGRATION.md](XLA_CUSTOM_CALL_INTEGRATION.md) | XLA custom call roadmap |
 | [JULIA_KERNEL_EXPLORATION.md](JULIA_KERNEL_EXPLORATION.md) | Julia detailed findings |
 | [FUTHARK_KERNEL_EXPLORATION.md](FUTHARK_KERNEL_EXPLORATION.md) | Futhark detailed findings |
 | [MOJO_KERNEL_EXPLORATION.md](MOJO_KERNEL_EXPLORATION.md) | Mojo detailed findings |
@@ -253,6 +264,8 @@ mix run scripts/benchmark_kernel_languages.exs --size training
 | `scripts/benchmark_kernel_languages.exs` | Unified benchmark |
 | `native/rust_linear_scan_nif/` | Rust-CUDA implementation |
 | `native/triton_scan/` | Triton AOT implementation |
+| `native/cuda_compute_scan/` | CuPy/CCCL implementation |
+| `native/thunderkittens_scan/` | ThunderKittens implementation |
 | `native/julia_scan/` | Julia implementation |
 | `native/futhark_scan/` | Futhark implementation |
 | `native/mojo_scan/` | Mojo implementation |

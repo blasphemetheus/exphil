@@ -21,7 +21,7 @@ pkgs.mkShell {
     # GPU kernel language exploration (see docs/research/KERNEL_LANGUAGE_COMPARISON.md)
     julia
     futhark
-    (python3.withPackages (ps: with ps; [ msgpack numpy triton ]))  # For Mojo/NumPy benchmark + Triton AOT
+    (python3.withPackages (ps: with ps; [ msgpack numpy triton cupy ]))  # For benchmarks: Mojo/NumPy, Triton AOT, CuPy/CCCL
 
     # Build tools
     gcc
