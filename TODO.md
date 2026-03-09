@@ -1,8 +1,10 @@
 # TODO
 
-## EXLA Fork
-- [ ] PR to elixir-nx/nx: expose `:allocator` option (`:bfc` / `:cuda_async` / `:default`), default `:default` for upstream
-- [ ] PR to elixir-nx/nx: fix CallbackServer process leak — lazy-start only when `:runtime_call` nodes exist in graph
+## EXLA Upstream
+- [x] PR to elixir-nx/nx: fix CallbackServer process leak — lazy-start only when `:runtime_call` nodes exist in graph (PR #1682)
+- [ ] PR to elixir-nx/nx: expose `:allocator` option (`:bfc` / `:cuda_async` / `:default`), default `:bfc` for upstream
+      Branch ready on fork: `feat/edifice-lazy-callback-allocator`
+      After merge, update exphil/edifice configs to set `allocator: :cuda_async` explicitly
 
 ## Training Infrastructure
 - [ ] Save full training config JSON alongside checkpoints so eval/resume don't need architecture flags
@@ -10,21 +12,12 @@
 
 ## Fused CUDA Kernels
 - [x] Run fused kernel A/B benchmark (`scripts/benchmark_fused_ab.sh`)
-- [ ] Fix fused selective_scan kernel crash — Mamba segfaults with `EDIFICE_DISABLE_FUSED=0` (batch_size 64+128)
+- [x] Fix fused selective_scan kernel crash — replaced 128KB/thread stack array with cudaMallocAsync workspace + fixed grad_B/grad_C bf16 type mismatch
 - [ ] Fix fused delta_rule_scan perf — DeltaNet 65% slower with fused kernel (40 vs 115 batch/s)
       Likely: wrong block size, uncoalesced memory, or missing shared mem optimization
-- [~] Per-kernel fused dispatch via runtime auto-tune (`Edifice.CUDA.AutoTune`)
-      **Done:** `auto_tune.ex` written (use_fused?/2, warmup/1, report/0, disk cache, env var overrides)
-      **Remaining — execute plan next session:**
-      1. Modify `custom_call_available?/0` in `fused_scan.ex` — add `Process.get(:__edifice_force_fallback__)` check
-      2. Replace `custom_call_available?()` with `AutoTune.use_fused?(:kernel_name, tensor)` in 29 dispatch functions
-         - Lines 55,69,83,97,111,125,148,169,190,214,234,255,277,300,323,348,381 (scan kernels)
-         - Lines 3344,3539,3736 (attention variants — replace `*_custom_call_available?()`)
-         - Lines 3943,4037,4144,4261 (reservoir, titans, miras, gsa)
-         - Lines 4392,4515,4650,4772,4914 (block scans — replace `block_custom_call_available?()` etc.)
-      3. Write `test/edifice/cuda/auto_tune_test.exs` — cache, disk persistence, env var overrides
-      4. Compile + run targeted tests in edifice
-      5. Smoke test with ExPhil training (verify per-kernel log output)
+- [x] Per-kernel fused dispatch via runtime auto-tune (`Edifice.CUDA.AutoTune`)
+      `auto_tune.ex` + 29 dispatch functions wired + 20 tests passing + smoke tested
+      Note: benchmark can't run inside JIT — call `AutoTune.warmup()` before training, or defaults to fused
 - [ ] Test remaining kernel variants (attention, flash_attention, liquid, lstm, etc.)
 
 ## Architecture Evaluation
