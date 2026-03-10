@@ -5,6 +5,38 @@
 - [ ] PR to elixir-nx/nx: expose `:allocator` option (`:bfc` / `:cuda_async` / `:default`), default `:bfc` for upstream
       Branch ready on fork: `feat/edifice-lazy-callback-allocator`
       After merge, update exphil/edifice configs to set `allocator: :cuda_async` explicitly
+- [ ] PR to elixir-nx/nx: fused selective scan XLA custom call
+      Branch: `feat/edifice-lazy-callback-allocator` (commit `aeddcda4`)
+      Likely split from allocator PR into its own branch/PR
+
+## XLA Selective Scan Integration
+Status: Forward pass fully wired, backward pass implemented, all tests passing.
+
+Branch `feat/edifice-lazy-callback-allocator` in blasphemetheus/nx fork contains:
+- `exla/c_src/exla/custom_calls/fused_selective_scan.cu` — CUDA kernel + XLA FFI handler
+- `exla/Makefile` — .cu compilation pattern rule
+- `exla/lib/exla/mlir/value.ex` — `Value.fused_selective_scan/6` MLIR emitter
+- `exla/lib/exla/defn.ex` — `:optional` handler for `:fused_selective_scan` on CUDA
+- `exla/test/exla/defn/fused_selective_scan_test.exs` — 11 tests (forward, backward, CUDA, gradients)
+
+Consumer in exphil: `lib/exphil/native/xla_selective_scan.ex`
+- `selective_scan/5` — forward + custom_grad (differentiable, for training)
+- `selective_scan_forward/5` — forward only (inference)
+- Backward pass is pure-Nx (no CUDA backward kernel yet)
+
+### Next Steps
+- [x] Benchmark: compare XLA custom call vs NIF vs pure-Nx on RTX 5090
+      Results (RTX 5090, large B=1 T=512 H=768 S=16):
+      Custom call 0.97ms, CUDA fallback 3.85ms (3.95x slower), Host 5.90ms (6.1x slower)
+- [ ] Wire exphil training to use `XLASelectiveScan.selective_scan/5` instead of NIF path
+      Replace `ExPhil.Native.SelectiveScan.scan(x, dt, a, b, c)` calls with
+      `ExPhil.Native.XLASelectiveScan.selective_scan(x, dt, a, b, c)` in the training loop.
+      The new path is differentiable (custom_grad) so it works with value_and_grad directly.
+- [x] CUDA backward kernel (in progress on nx fork branch)
+- [x] bf16 support via precision.cuh (in progress on nx fork branch)
+- [ ] Consider splitting into its own PR branch (separate from allocator changes)
+- [ ] Upstream viability: discuss with elixir-nx maintainers whether custom call pattern
+      is appropriate for nx repo or better as an external package
 
 ## Training Infrastructure
 - [ ] Save full training config JSON alongside checkpoints so eval/resume don't need architecture flags
