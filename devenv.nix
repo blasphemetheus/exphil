@@ -26,6 +26,7 @@ in
     package = pkgs.python3.withPackages (ps: with ps; [
       msgpack
       numpy
+      huggingface-hub
     ]);
   };
 
