@@ -28,10 +28,9 @@ Consumer in exphil: `lib/exphil/native/xla_selective_scan.ex`
 - [x] Benchmark: compare XLA custom call vs NIF vs pure-Nx on RTX 5090
       Results (RTX 5090, large B=1 T=512 H=768 S=16):
       Custom call 0.97ms, CUDA fallback 3.85ms (3.95x slower), Host 5.90ms (6.1x slower)
-- [ ] Wire exphil training to use `XLASelectiveScan.selective_scan/5` instead of NIF path
-      Replace `ExPhil.Native.SelectiveScan.scan(x, dt, a, b, c)` calls with
-      `ExPhil.Native.XLASelectiveScan.selective_scan(x, dt, a, b, c)` in the training loop.
-      The new path is differentiable (custom_grad) so it works with value_and_grad directly.
+- [x] Wire exphil training to use XLA custom call for selective scan
+      Already done — Edifice.CUDA.FusedScan.selective_scan dispatches via Nx.Shared.optional.
+      EXLA_EXTRA_CUDA_DIR compiles the kernel into libexla.so. No ExPhil wrapper needed.
 - [x] CUDA backward kernel (in progress on nx fork branch)
 - [x] bf16 support via precision.cuh (in progress on nx fork branch)
 - [ ] Consider splitting into its own PR branch (separate from allocator changes)
