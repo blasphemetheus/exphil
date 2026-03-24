@@ -2,6 +2,20 @@
 
 ExPhil is an Elixir-based platform for experimenting with neural network architectures for Super Smash Bros. Melee AI agents. It supports 30+ backbone architectures (via the [Edifice](https://github.com/blasphemetheus/edifice) companion library), all implemented in Elixir using Nx/Axon. The long-term goal is competitive bots for lower-tier characters (Mewtwo, Ganondorf, Link, Zelda, Ice Climbers, G&W), but high-tier replay data drives current architecture iteration.
 
+## Environment
+- Development platform: NixOS (native, hostname `nixos_slanka`)
+- GPU: NVIDIA RTX 5090 with proprietary drivers
+- Dev environment: devenv (replaces old shell.nix / nix-shell workflow)
+- Target: Elixir ~> 1.18, Erlang/OTP 27
+- Project location: `/home/blewf/git/exphil`
+
+## Running Commands
+- Enter dev shell: `cd ~/git/exphil && devenv shell`
+- Inside devenv shell, run `mix`, `elixir`, `erl`, `cargo`, `python3` etc. directly — no wrappers needed.
+- CUDA, Rust (for NIFs), Python (for libmelee), Elixir, and Erlang are all provided by devenv.
+- Sibling deps: `../edifice` (auto-detected), `../nx/nx` + `../nx/exla` (set `EDIFICE_LOCAL_NX=1`)
+- Example: `mix test`, `mix compile`, `iex -S mix`
+
 ## Quick Reference
 
 **Embedding dimensions:**
@@ -425,6 +439,13 @@ end
 - [Phillip](https://github.com/vladfi1/phillip) - Original pure RL approach
 - [libmelee](https://github.com/altf4/libmelee) - Python game state API
 - [SmashBot](https://github.com/altf4/SmashBot) - Rule-based baseline
+
+**Datasets:**
+- [slippi-public-dataset-v3.7](https://huggingface.co/datasets/erickfm/slippi-public-dataset-v3.7) - altf4's raw .slp replays (~95k, CC0) — feeds directly into Peppi pipeline
+- [mimic-melee](https://huggingface.co/datasets/erickfm/mimic-melee) - Pre-processed PyTorch .pt shards (1.81B frames, 2.59TB) — baked for MIMIC, not directly ExPhil-compatible
+- [mimic-melee-subset](https://huggingface.co/datasets/erickfm/mimic-melee-subset) - Subset (18.7M frames, 26.7GB)
+- [slippi-frame-extractor](https://github.com/erickfm/slippi-frame-extractor) - Tool to convert .slp → raw parquet (best for ExPhil second ingestion path)
+- See [HUGGINGFACE_DATASET_MAPPING.md](docs/reference/HUGGINGFACE_DATASET_MAPPING.md) for column mapping and TODO.md for integration plan
 
 **Key Papers:**
 - [Beating the World's Best at SSBM](https://arxiv.org/abs/1702.06230) - Phillip paper

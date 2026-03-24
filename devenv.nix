@@ -69,6 +69,10 @@ in
     ERL_FLAGS = "+P 4000000";
     # Use local nx/exla forks (required for fused CUDA kernel custom calls)
     EDIFICE_LOCAL_NX = "1";
+
+    # Compile Edifice CUDA kernels directly into libexla.so (no symlinks needed)
+    EXLA_EXTRA_CUDA_DIR = "${toString ../edifice}/native/cuda";
+    EXLA_GPU_ARCH = "sm_120";
   };
 
   # Library path for CUDA

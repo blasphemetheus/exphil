@@ -1488,12 +1488,17 @@ hidden_size =
     _ -> 256
   end
 
-# Resolve auto button_pos_weight from training data
+# Resolve auto button_pos_weight from training data stats
+# Uses the button_rates already computed by Data.stats (no GPU access needed)
 opts =
   if opts[:button_pos_weight] == :auto and train_dataset != nil do
-    Output.puts("  Computing per-button pos_weight from training data...")
-    button_labels = train_dataset.actions.buttons
-    pos_weight = ExPhil.Networks.Policy.Loss.compute_pos_weights(button_labels)
+    Output.puts("  Computing per-button pos_weight from press rates...")
+    stats = Data.stats(train_dataset)
+    # Build [8] tensor in canonical order: A, B, X, Y, Z, L, R, D-Up
+    button_order = [:a, :b, :x, :y, :z, :l, :r, :d_up]
+    rates = Enum.map(button_order, fn btn -> Map.get(stats.button_rates, btn, 0.0) end)
+    rates_tensor = Nx.tensor(rates, type: :f32)
+    pos_weight = ExPhil.Networks.Policy.Loss.compute_pos_weights_from_rates(rates_tensor)
     weight_list = Nx.to_flat_list(pos_weight) |> Enum.map(&Float.round(&1, 1))
     Output.puts("  Per-button pos_weight: #{inspect(weight_list)}")
     Output.puts("  (A, B, X, Y, Z, L, R, D-Up)")
@@ -2478,6 +2483,41 @@ batch_checkpoint_path =
       Output.puts(
         "  ✓ Epoch #{epoch} complete: train_loss=#{safe_round.(avg_loss, 4)} (#{epoch_time}s)#{es_message}"
       )
+    end
+
+    # Per-button press-rate diagnostic (detects mode collapse)
+    if has_validation and precomputed_val_batches != nil and opts[:verbosity] >= 1 do
+      try do
+        sample_batches = Enum.take(precomputed_val_batches, 10)
+        button_names = ~w(A B X Y Z L R D-Up)
+
+        {pred_counts, actual_counts, total} =
+          Enum.reduce(sample_batches, {Nx.tensor(List.duplicate(0.0, 8)), Nx.tensor(List.duplicate(0.0, 8)), 0}, fn batch, {pred_acc, actual_acc, n} ->
+            {buttons_logits, _mx, _my, _cx, _cy, _sh} =
+              updated_trainer.predict_fn.(updated_trainer.policy_params, batch.states)
+            preds = Nx.greater(Nx.sigmoid(buttons_logits), 0.5) |> Nx.as_type(:f32)
+            actuals = Nx.greater(batch.actions.buttons, 0.5) |> Nx.as_type(:f32)
+            batch_size = elem(Nx.shape(preds), 0)
+            {Nx.add(pred_acc, Nx.sum(preds, axes: [0])),
+             Nx.add(actual_acc, Nx.sum(actuals, axes: [0])),
+             n + batch_size}
+          end)
+
+        pred_rates = Nx.divide(pred_counts, total) |> Nx.multiply(100) |> Nx.to_flat_list()
+        actual_rates = Nx.divide(actual_counts, total) |> Nx.multiply(100) |> Nx.to_flat_list()
+
+        Output.puts("  Button press rates (predicted vs actual):")
+        Enum.zip([button_names, pred_rates, actual_rates])
+        |> Enum.each(fn {name, pred, actual} ->
+          pred_s = Float.round(pred, 1) |> to_string() |> String.pad_leading(5)
+          actual_s = Float.round(actual, 1) |> to_string() |> String.pad_leading(5)
+          collapse = if actual > 1.0 and pred < 0.1, do: " ← COLLAPSE", else: ""
+          Output.puts("    #{String.pad_trailing(name, 5)} pred=#{pred_s}%  actual=#{actual_s}%#{collapse}")
+        end)
+      rescue
+        e ->
+          Output.puts("  [press-rate diagnostic failed: #{Exception.message(e)}]")
+      end
     end
 
     # Update incomplete marker for crash recovery

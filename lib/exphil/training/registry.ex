@@ -391,10 +391,14 @@ defmodule ExPhil.Training.Registry do
   end
 
   defp sanitize_config(config) when is_map(config) do
-    # Remove function values that can't be serialized
+    # Remove or convert values that can't be JSON-serialized
     config
     |> Enum.reject(fn {_k, v} -> is_function(v) end)
     |> Enum.reject(fn {_k, v} -> is_pid(v) end)
+    |> Enum.map(fn
+      {k, %Nx.Tensor{} = t} -> {k, Nx.to_flat_list(t)}
+      kv -> kv
+    end)
     |> Enum.into(%{})
   end
 

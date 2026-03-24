@@ -1392,7 +1392,10 @@ defmodule ExPhil.Training.Config do
       focal_loss: opts[:focal_loss],
       focal_gamma: opts[:focal_gamma],
       button_weight: opts[:button_weight],
-      button_pos_weight: opts[:button_pos_weight],
+      button_pos_weight: case opts[:button_pos_weight] do
+        %Nx.Tensor{} = t -> Nx.to_flat_list(t)
+        other -> other
+      end,
       stick_edge_weight: opts[:stick_edge_weight],
       ema: opts[:ema],
       ema_decay: opts[:ema_decay],
