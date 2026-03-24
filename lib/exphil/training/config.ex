@@ -515,7 +515,7 @@ defmodule ExPhil.Training.Config do
       # Enabled by default to prevent mode collapse on button predictions
       focal_loss: true,
       # Higher = more focus on hard examples
-      focal_gamma: 2.0,
+      focal_gamma: 3.0,
       # Button loss weight: multiply button loss to balance vs 5 stick/shoulder losses
       # 2.0 fixes typical under-prediction of buttons; use 3.0+ for action-heavy characters
       button_weight: 2.0,
