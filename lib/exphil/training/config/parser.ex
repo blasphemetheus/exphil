@@ -414,6 +414,14 @@ defmodule ExPhil.Training.Config.Parser do
     end
   end
 
+  @doc "Parse a string to float, raising on failure."
+  def parse_float!(value) do
+    case Float.parse(value) do
+      {float, ""} -> float
+      _ -> raise ArgumentError, "Invalid float: #{value}"
+    end
+  end
+
   defp parse_float_arg(opts, args, flag, key) do
     case get_arg_value(args, flag) do
       nil ->

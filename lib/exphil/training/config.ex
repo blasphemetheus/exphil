@@ -1037,8 +1037,31 @@ defmodule ExPhil.Training.Config do
     |> maybe_add_override(args, "--replays", :replays, & &1)
     |> maybe_add_override(args, "--replay-dir", :replays, & &1)
     |> maybe_add_override(args, "--checkpoint", :checkpoint, & &1)
+    |> maybe_add_override(args, "--lr", :learning_rate, &Parser.parse_float!/1)
+    |> maybe_add_override(args, "--label-smoothing", :label_smoothing, &Parser.parse_float!/1)
+    |> maybe_add_override(args, "--focal-gamma", :focal_gamma, &Parser.parse_float!/1)
+    |> maybe_add_override(args, "--button-weight", :button_weight, &Parser.parse_float!/1)
+    |> maybe_add_override(args, "--stick-edge-weight", :stick_edge_weight, &Parser.parse_float!/1)
+    |> maybe_add_override(args, "--action-oversample", :action_oversample, &Parser.parse_float!/1)
+    |> maybe_add_override(args, "--name", :name, & &1)
+    |> maybe_add_override(args, "--seed", :seed, &String.to_integer/1)
+    |> maybe_add_button_pos_weight_override(args)
     |> maybe_add_flag_override(args, "--temporal", :temporal)
     |> maybe_add_flag_override(args, "--wandb", :wandb)
+    |> maybe_add_neg_flag_override(args, "--no-focal-loss", :focal_loss)
+    |> maybe_add_flag_override(args, "--lazy-sequences", :lazy_sequences)
+    |> maybe_add_verbosity_override(args)
+  end
+
+  # Special handling for --button-pos-weight (can be "auto" or comma-separated floats)
+  defp maybe_add_button_pos_weight_override(opts, args) do
+    case Parser.get_arg_value(args, "--button-pos-weight") do
+      nil -> opts
+      "auto" -> Keyword.put(opts, :button_pos_weight, :auto)
+      value ->
+        weights = value |> String.split(",") |> Enum.map(&Parser.parse_float!/1)
+        Keyword.put(opts, :button_pos_weight, weights)
+    end
   end
 
   defp maybe_add_override(opts, args, flag, key, parser) do
@@ -1053,6 +1076,22 @@ defmodule ExPhil.Training.Config do
       Keyword.put(opts, key, true)
     else
       opts
+    end
+  end
+
+  defp maybe_add_neg_flag_override(opts, args, flag, key) do
+    if Parser.has_flag?(args, flag) do
+      Keyword.put(opts, key, false)
+    else
+      opts
+    end
+  end
+
+  defp maybe_add_verbosity_override(opts, args) do
+    cond do
+      Parser.has_flag?(args, "--quiet") -> Keyword.put(opts, :verbosity, 0)
+      Parser.has_flag?(args, "--verbose") -> Keyword.put(opts, :verbosity, 2)
+      true -> opts
     end
   end
 
