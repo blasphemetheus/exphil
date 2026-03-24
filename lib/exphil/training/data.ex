@@ -2093,13 +2093,43 @@ defmodule ExPhil.Training.Data do
   end
 
   # Compute per-frame weights for action-conditional oversampling.
-  # Frames where any button is pressed get `factor` weight, others get 1.0.
-  # This causes frames with button activity to appear ~factor× more often in batches.
+  # Weight scales by the rarity of the rarest pressed button in each frame.
+  # A frame with Z pressed (0.4% rate) gets a much higher weight than one
+  # with just L pressed (12.5% rate). Frames with no buttons get weight 1.0.
+  #
+  # Weight formula: max(sqrt(1/rate)) across pressed buttons, capped at `factor`.
+  # This naturally concentrates sampling on the rarest actions.
   defp action_oversample_weights(frames, factor) do
+    # Pre-compute button press rates from the frames themselves
+    total = length(frames)
+    if total == 0, do: throw(:empty_frames)
+
+    button_counts =
+      Enum.reduce(frames, %{}, fn frame, acc ->
+        action = get_action(frame)
+        Enum.reduce(action.buttons, acc, fn {btn, pressed}, inner ->
+          if pressed, do: Map.update(inner, btn, 1, &(&1 + 1)), else: inner
+        end)
+      end)
+
+    # Per-button rarity weight: sqrt(1/rate), capped at factor
+    button_rarity =
+      Map.new(button_counts, fn {btn, count} ->
+        rate = max(count / total, 1.0e-4)
+        {btn, min(:math.sqrt(1.0 / rate), factor)}
+      end)
+
     Enum.map(frames, fn frame ->
       action = get_action(frame)
-      any_pressed = Enum.any?(action.buttons, fn {_btn, pressed} -> pressed end)
-      if any_pressed, do: factor, else: 1.0
+      pressed_weights =
+        action.buttons
+        |> Enum.filter(fn {_btn, pressed} -> pressed end)
+        |> Enum.map(fn {btn, _} -> Map.get(button_rarity, btn, 1.0) end)
+
+      case pressed_weights do
+        [] -> 1.0
+        ws -> Enum.max(ws)
+      end
     end)
   end
 
