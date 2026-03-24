@@ -212,6 +212,7 @@ defmodule ExPhil.Training.Config do
     "--button-pos-weight",
     "--stick-edge-weight",
     "--action-oversample",
+    "--lazy-sequences",
     "--no-register",
     "--keep-best",
     "--ema",
@@ -529,6 +530,9 @@ defmodule ExPhil.Training.Config do
       # Action-conditional oversampling: frames with button presses appear N× more often
       # nil = disabled, 3.0 = button-press frames sampled 3× more often
       action_oversample: 3.0,
+      # Lazy sequence batching: slice from frame embeddings on-the-fly instead of
+      # pre-building all sequences in RAM. Trades ~10-20% speed for massive RAM savings.
+      lazy_sequences: false,
       # Registry
       no_register: false,
       # Checkpoint pruning

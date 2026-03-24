@@ -1313,14 +1313,21 @@ player_registry =
             stride: opts[:stride]
           )
 
-        # Step 3: Build sequence embeddings by slicing (30x faster than re-embedding)
-        Output.puts("  Building sequence embeddings from frame embeddings (30x faster)...")
-        Data.sequences_from_frame_embeddings(
-          seq_dataset,
-          frame_embedded_dataset.embedded_frames,
-          window_size: opts[:window_size],
-          show_progress: true
-        )
+        # Step 3: Build sequence embeddings (or skip if lazy mode)
+        if opts[:lazy_sequences] do
+          Output.puts("  Lazy sequence mode: skipping eager sequence building (low RAM)")
+          Output.puts("  Sequences will be sliced from frame embeddings on-the-fly during batching")
+          # Keep frame embeddings + sequence metadata, skip eager materialization
+          seq_dataset
+        else
+          Output.puts("  Building sequence embeddings from frame embeddings (30x faster)...")
+          Data.sequences_from_frame_embeddings(
+            seq_dataset,
+            frame_embedded_dataset.embedded_frames,
+            window_size: opts[:window_size],
+            show_progress: true
+          )
+        end
       else
         # For MLP training, optionally precompute frame embeddings
         if opts[:precompute] do
@@ -2050,7 +2057,11 @@ batch_checkpoint_path =
               batch_size: opts[:batch_size],
               shuffle: true,
               drop_last: false,
-              character_weights: character_weights
+              character_weights: character_weights,
+              action_oversample: opts[:action_oversample],
+              lazy: opts[:lazy_sequences],
+              window_size: opts[:window_size],
+              stride: opts[:stride]
             ]
           else
             [
@@ -2142,7 +2153,11 @@ batch_checkpoint_path =
               # Character-balanced sampling (if enabled)
               character_weights: character_weights,
               # Action-conditional oversampling (if enabled)
-              action_oversample: opts[:action_oversample]
+              action_oversample: opts[:action_oversample],
+              # Lazy mode: slice from frame embeddings on-the-fly (low RAM)
+              lazy: opts[:lazy_sequences],
+              window_size: opts[:window_size],
+              stride: opts[:stride]
             )
           else
             Data.batched(train_dataset,
