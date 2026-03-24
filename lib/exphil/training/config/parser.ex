@@ -253,8 +253,10 @@ defmodule ExPhil.Training.Config.Parser do
     |> parse_float_arg(args, "--label-smoothing", :label_smoothing)
     |> parse_float_arg(args, "--dropout", :dropout)
     |> parse_flag(args, "--focal-loss", :focal_loss)
+    |> parse_neg_flag(args, "--no-focal-loss", :focal_loss)
     |> parse_float_arg(args, "--focal-gamma", :focal_gamma)
     |> parse_float_arg(args, "--button-weight", :button_weight)
+    |> parse_button_pos_weight(args)
     |> parse_float_arg(args, "--stick-edge-weight", :stick_edge_weight)
     |> parse_flag(args, "--no-register", :no_register)
     |> parse_optional_int_arg(args, "--keep-best", :keep_best)
@@ -435,6 +437,43 @@ defmodule ExPhil.Training.Config.Parser do
       Keyword.put(opts, key, true)
     else
       opts
+    end
+  end
+
+  defp parse_neg_flag(opts, args, flag, key) do
+    if has_flag?(args, flag) do
+      Keyword.put(opts, key, false)
+    else
+      opts
+    end
+  end
+
+  defp parse_button_pos_weight(opts, args) do
+    case get_arg_value(args, "--button-pos-weight") do
+      nil ->
+        opts
+
+      "auto" ->
+        Keyword.put(opts, :button_pos_weight, :auto)
+
+      value ->
+        weights =
+          value
+          |> String.split(",")
+          |> Enum.map(fn s ->
+            case Float.parse(String.trim(s)) do
+              {f, ""} -> f
+              _ -> raise ArgumentError, "Invalid float in --button-pos-weight: #{s}"
+            end
+          end)
+
+        if length(weights) != 8 do
+          raise ArgumentError,
+                "--button-pos-weight requires exactly 8 values (got #{length(weights)}). " <>
+                  "Order: A, B, X, Y, Z, L, R, D-Up"
+        end
+
+        Keyword.put(opts, :button_pos_weight, weights)
     end
   end
 

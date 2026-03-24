@@ -206,8 +206,10 @@ defmodule ExPhil.Training.Config do
     "--label-smoothing",
     "--dropout",
     "--focal-loss",
+    "--no-focal-loss",
     "--focal-gamma",
     "--button-weight",
+    "--button-pos-weight",
     "--stick-edge-weight",
     "--no-register",
     "--keep-best",
@@ -344,6 +346,38 @@ defmodule ExPhil.Training.Config do
   def available_presets, do: Presets.valid_presets()
 
   @doc """
+  Per-backbone training defaults for architectures that need non-standard settings.
+
+  These are applied as defaults — CLI args always take priority. Only architectures
+  known to diverge or OOM with standard settings are listed here.
+
+  Source of truth: benchmark_architectures.exs per-architecture configs, validated
+  across hundreds of training runs.
+  """
+  @spec backbone_defaults(atom()) :: keyword()
+  def backbone_defaults(backbone) do
+    case backbone do
+      :jamba ->
+        [learning_rate: 5.0e-6, max_grad_norm: 0.25, batch_size: 16]
+
+      :zamba ->
+        [learning_rate: 1.0e-5, max_grad_norm: 0.5]
+
+      :h3 ->
+        [learning_rate: 5.0e-7, max_grad_norm: 0.1]
+
+      :ttt ->
+        [learning_rate: 5.0e-7, max_grad_norm: 0.1]
+
+      :ttt_e2e ->
+        [learning_rate: 5.0e-7, max_grad_norm: 0.1]
+
+      _ ->
+        []
+    end
+  end
+
+  @doc """
   Default training options.
 
   ## Examples
@@ -461,8 +495,8 @@ defmodule ExPhil.Training.Config do
       name: nil,
       # Gradient accumulation
       accumulation_steps: 1,
-      # Validation split
-      val_split: 0.0,
+      # Validation split (10% held out by default for generalization tracking)
+      val_split: 0.1,
       # Data augmentation - mirror states doubles effective data
       # Off by default since it disables precompute; use --augment for serious training
       augment: false,
@@ -476,12 +510,17 @@ defmodule ExPhil.Training.Config do
       # Note: MLP backbone defaults to 0.1 if not specified
       dropout: nil,
       # Focal loss for rare actions (Z, L, R buttons)
-      focal_loss: false,
+      # Enabled by default to prevent mode collapse on button predictions
+      focal_loss: true,
       # Higher = more focus on hard examples
       focal_gamma: 2.0,
       # Button loss weight: multiply button loss to balance vs 5 stick/shoulder losses
       # 2.0 fixes typical under-prediction of buttons; use 3.0+ for action-heavy characters
       button_weight: 2.0,
+      # Per-button positive class weights for BCE loss (addresses mode collapse)
+      # :auto = compute from training data (recommended), nil = equal weights, or [8] float list
+      # e.g., [9,19,15,33,49,8,19,99] for manual inverse-frequency weighting
+      button_pos_weight: :auto,
       # Stick edge bucket weight: weight edge buckets (0, 16) higher than center (8)
       # Addresses neutral↔far confusion by penalizing edge mistakes more
       # nil = disabled, 2.0 = edges weighted 2x, linearly interpolated to center
@@ -1057,11 +1096,63 @@ defmodule ExPhil.Training.Config do
       end
 
     # Check if preset is specified - if so, use apply_preset flow
-    if Parser.has_flag_value?(args, "--preset") do
-      apply_preset(base_opts, args)
+    opts =
+      if Parser.has_flag_value?(args, "--preset") do
+        apply_preset(base_opts, args)
+      else
+        # No preset - standard parsing flow
+        Parser.parse(args, base_opts, parser_context())
+      end
+
+    # Apply per-backbone safe defaults for values the user didn't explicitly set.
+    # E.g., Jamba auto-gets lr=5e-6 and grad_clip=0.25 unless you passed --learning-rate.
+    apply_backbone_defaults(opts, args)
+  end
+
+  # Map from backbone_defaults keys to their CLI flag names
+  @backbone_default_flags %{
+    learning_rate: "--learning-rate",
+    max_grad_norm: "--max-grad-norm",
+    batch_size: "--batch-size"
+  }
+
+  # Apply per-backbone training defaults for values the user didn't explicitly pass via CLI.
+  # This prevents NaN/OOM for sensitive architectures (Jamba, H3, TTT, Zamba) while
+  # still letting explicit CLI args take priority.
+  defp apply_backbone_defaults(opts, args) do
+    backbone = opts[:backbone]
+    overrides = backbone_defaults(backbone)
+
+    if overrides == [] do
+      opts
     else
-      # No preset - standard parsing flow
-      Parser.parse(args, base_opts, parser_context())
+      # Only apply defaults for keys the user didn't explicitly set
+      applied =
+        Enum.reduce(overrides, opts, fn {key, value}, acc ->
+          cli_flag = @backbone_default_flags[key]
+
+          if cli_flag && Parser.has_flag_value?(args, cli_flag) do
+            # User explicitly set this — don't override
+            acc
+          else
+            Keyword.put(acc, key, value)
+          end
+        end)
+
+      # Log what we changed so the user knows
+      changed =
+        Enum.filter(overrides, fn {key, _} ->
+          cli_flag = @backbone_default_flags[key]
+          !(cli_flag && Parser.has_flag_value?(args, cli_flag))
+        end)
+
+      if changed != [] do
+        changes = Enum.map_join(changed, ", ", fn {k, v} -> "#{k}=#{v}" end)
+        IO.puts(:stderr, "  [#{backbone}] Auto-applied safe defaults: #{changes}")
+        IO.puts(:stderr, "    (override with explicit CLI flags)")
+      end
+
+      applied
     end
   end
 
@@ -1301,6 +1392,7 @@ defmodule ExPhil.Training.Config do
       focal_loss: opts[:focal_loss],
       focal_gamma: opts[:focal_gamma],
       button_weight: opts[:button_weight],
+      button_pos_weight: opts[:button_pos_weight],
       stick_edge_weight: opts[:stick_edge_weight],
       ema: opts[:ema],
       ema_decay: opts[:ema_decay],

@@ -70,6 +70,9 @@ defmodule ExPhil.Networks.Policy.Loss do
     - `:focal_loss` - Enable focal loss (default: false)
     - `:focal_gamma` - Focal loss gamma parameter (default: 2.0)
     - `:button_weight` - Multiply button loss to balance against stick losses (default: 1.0)
+    - `:button_pos_weight` - Per-button positive class weights [8] tensor (default: nil)
+      Scales loss for pressed buttons by per-button factors (inverse frequency).
+      Fixes mode collapse where model predicts all buttons as "not pressed".
     - `:stick_edge_weight` - Weight edge buckets higher than center (default: nil)
   """
   @spec imitation_loss(map(), map(), keyword()) :: Nx.Tensor.t()
@@ -80,6 +83,9 @@ defmodule ExPhil.Networks.Policy.Loss do
     # Button weight: multiply button loss to balance against 5 categorical losses
     # Default 1.0 = no change; try 3.0-5.0 to boost button learning
     button_weight = Keyword.get(opts, :button_weight, 1.0)
+    # Per-button positive class weights: [8] tensor or nil
+    # Scales BCE loss for pressed buttons by per-button factors
+    button_pos_weight = Keyword.get(opts, :button_pos_weight, nil)
     # Stick edge weight: weight edge buckets higher than center
     # nil = disabled, 2.0 = edges weighted 2x center
     stick_edge_weight = Keyword.get(opts, :stick_edge_weight, nil)
@@ -89,14 +95,21 @@ defmodule ExPhil.Networks.Policy.Loss do
       if focal_loss do
         {
           fn logits, targets, smooth ->
-            focal_binary_cross_entropy(logits, targets, smooth, focal_gamma)
+            focal_binary_cross_entropy(logits, targets, smooth, focal_gamma,
+              pos_weight: button_pos_weight
+            )
           end,
           fn logits, targets, smooth ->
             focal_categorical_cross_entropy(logits, targets, smooth, focal_gamma)
           end
         }
       else
-        {&binary_cross_entropy/3, &categorical_cross_entropy/3}
+        {
+          fn logits, targets, smooth ->
+            binary_cross_entropy(logits, targets, smooth, pos_weight: button_pos_weight)
+          end,
+          &categorical_cross_entropy/3
+        }
       end
 
     # Choose main stick loss function based on stick_edge_weight
@@ -154,11 +167,13 @@ defmodule ExPhil.Networks.Policy.Loss do
   """
   @spec binary_cross_entropy(Nx.Tensor.t(), Nx.Tensor.t()) :: Nx.Tensor.t()
   def binary_cross_entropy(logits, targets) do
-    binary_cross_entropy(logits, targets, 0.0)
+    binary_cross_entropy(logits, targets, 0.0, [])
   end
 
-  @spec binary_cross_entropy(Nx.Tensor.t(), Nx.Tensor.t(), float()) :: Nx.Tensor.t()
-  def binary_cross_entropy(logits, targets, label_smoothing) do
+  @spec binary_cross_entropy(Nx.Tensor.t(), Nx.Tensor.t(), float(), keyword()) :: Nx.Tensor.t()
+  def binary_cross_entropy(logits, targets, label_smoothing, opts \\ []) do
+    pos_weight = Keyword.get(opts, :pos_weight, nil)
+
     # Apply label smoothing to targets
     # Smoothed targets: t_smooth = t * (1 - ε) + (1 - t) * ε = t * (1 - 2ε) + ε
     smoothed_targets =
@@ -171,15 +186,25 @@ defmodule ExPhil.Networks.Policy.Loss do
         targets
       end
 
-    # Numerically stable BCE
-    # loss = max(logits, 0) - logits * targets + log(1 + exp(-abs(logits)))
-    max_val = Nx.max(logits, 0)
-    abs_logits = Nx.abs(logits)
+    if pos_weight do
+      # Weighted BCE: -w*t*log(σ(x)) - (1-t)*log(1-σ(x))
+      # Stable form: (1 + (w-1)*t) * (max(x,0) + log(1+exp(-|x|))) - w*t*x
+      max_val = Nx.max(logits, 0)
+      abs_logits = Nx.abs(logits)
+      base = Nx.add(max_val, Nx.log(Nx.add(1, Nx.exp(Nx.negate(abs_logits)))))
 
-    loss = Nx.subtract(max_val, Nx.multiply(logits, smoothed_targets))
-    loss = Nx.add(loss, Nx.log(Nx.add(1, Nx.exp(Nx.negate(abs_logits)))))
+      scale = Nx.add(1.0, Nx.multiply(Nx.subtract(pos_weight, 1.0), smoothed_targets))
+      loss = Nx.subtract(Nx.multiply(base, scale), Nx.multiply(pos_weight, Nx.multiply(smoothed_targets, logits)))
+      Nx.mean(loss)
+    else
+      # Standard BCE: max(x,0) - x*t + log(1+exp(-|x|))
+      max_val = Nx.max(logits, 0)
+      abs_logits = Nx.abs(logits)
 
-    Nx.mean(loss)
+      loss = Nx.subtract(max_val, Nx.multiply(logits, smoothed_targets))
+      loss = Nx.add(loss, Nx.log(Nx.add(1, Nx.exp(Nx.negate(abs_logits)))))
+      Nx.mean(loss)
+    end
   end
 
   @doc """
@@ -321,9 +346,11 @@ defmodule ExPhil.Networks.Policy.Loss do
   This helps with rare button presses (Z, L, R are used <2% of the time)
   by preventing the model from ignoring them in favor of easy negatives.
   """
-  @spec focal_binary_cross_entropy(Nx.Tensor.t(), Nx.Tensor.t(), float(), float()) ::
+  @spec focal_binary_cross_entropy(Nx.Tensor.t(), Nx.Tensor.t(), float(), float(), keyword()) ::
           Nx.Tensor.t()
-  def focal_binary_cross_entropy(logits, targets, label_smoothing, gamma) do
+  def focal_binary_cross_entropy(logits, targets, label_smoothing, gamma, opts \\ []) do
+    pos_weight = Keyword.get(opts, :pos_weight, nil)
+
     # Apply label smoothing to targets
     smoothed_targets =
       if label_smoothing > 0.0 do
@@ -349,15 +376,23 @@ defmodule ExPhil.Networks.Policy.Loss do
     # Focal weight: (1 - p_t)^gamma
     focal_weight = Nx.pow(Nx.subtract(1.0, p_t), gamma)
 
-    # Standard BCE (numerically stable)
-    max_val = Nx.max(logits, 0)
-    abs_logits = Nx.abs(logits)
-    bce = Nx.subtract(max_val, Nx.multiply(logits, smoothed_targets))
-    bce = Nx.add(bce, Nx.log(Nx.add(1, Nx.exp(Nx.negate(abs_logits)))))
+    if pos_weight do
+      # Weighted focal BCE: focal_weight * [(1+(w-1)*t) * base - w*t*x]
+      max_val = Nx.max(logits, 0)
+      abs_logits = Nx.abs(logits)
+      base = Nx.add(max_val, Nx.log(Nx.add(1, Nx.exp(Nx.negate(abs_logits)))))
 
-    # Apply focal weight
-    focal_bce = Nx.multiply(focal_weight, bce)
-    Nx.mean(focal_bce)
+      scale = Nx.add(1.0, Nx.multiply(Nx.subtract(pos_weight, 1.0), smoothed_targets))
+      bce = Nx.subtract(Nx.multiply(base, scale), Nx.multiply(pos_weight, Nx.multiply(smoothed_targets, logits)))
+      Nx.mean(Nx.multiply(focal_weight, bce))
+    else
+      # Standard focal BCE
+      max_val = Nx.max(logits, 0)
+      abs_logits = Nx.abs(logits)
+      bce = Nx.subtract(max_val, Nx.multiply(logits, smoothed_targets))
+      bce = Nx.add(bce, Nx.log(Nx.add(1, Nx.exp(Nx.negate(abs_logits)))))
+      Nx.mean(Nx.multiply(focal_weight, bce))
+    end
   end
 
   @doc """
@@ -414,6 +449,46 @@ defmodule ExPhil.Networks.Policy.Loss do
     # Apply focal weight
     focal_ce = Nx.multiply(focal_weight, ce)
     Nx.mean(focal_ce)
+  end
+
+  @doc """
+  Compute per-button press rates for predictions and targets.
+
+  Returns a map with `:predicted` and `:actual` keys, each containing
+  a list of 8 floats (press rate per button). Use to detect mode collapse:
+  if predicted rates are near 0 but actual rates are >0, the model has collapsed.
+
+  Button order: A, B, X, Y, Z, L, R, D-Up
+  """
+  @spec button_press_rates(Nx.Tensor.t(), Nx.Tensor.t()) :: %{
+          predicted: [float()],
+          actual: [float()]
+        }
+  def button_press_rates(button_logits, button_targets) do
+    probs = Nx.sigmoid(button_logits)
+    predicted = probs |> Nx.greater(0.5) |> Nx.mean(axes: [0]) |> Nx.to_flat_list()
+    actual = button_targets |> Nx.mean(axes: [0]) |> Nx.to_flat_list()
+    %{predicted: predicted, actual: actual}
+  end
+
+  @doc """
+  Compute button positive class weights from training data.
+
+  For each button, weight = (1 - press_rate) / press_rate, clamped to [1, max_weight].
+  Buttons pressed rarely get higher weights to counteract class imbalance.
+
+  ## Parameters
+    - `button_targets` - All button labels [N, 8] binary
+    - `max_weight` - Cap to prevent extreme weights (default: 100.0)
+  """
+  @spec compute_pos_weights(Nx.Tensor.t(), float()) :: Nx.Tensor.t()
+  def compute_pos_weights(button_targets, max_weight \\ 100.0) do
+    # press_rate per button: [8]
+    press_rate = Nx.mean(button_targets, axes: [0])
+    # Clamp to avoid division by zero
+    press_rate = Nx.max(press_rate, 1.0e-4)
+    weights = Nx.divide(Nx.subtract(1.0, press_rate), press_rate)
+    weights |> Nx.min(max_weight) |> Nx.max(1.0)
   end
 
   @doc """

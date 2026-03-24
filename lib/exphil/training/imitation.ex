@@ -169,6 +169,12 @@ defmodule ExPhil.Training.Imitation do
     # Label smoothing
     # 0.0 = no smoothing, 0.1 = typical value
     label_smoothing: 0.0,
+    # Loss options (overridden by CLI flags via trainer_opts)
+    focal_loss: true,
+    focal_gamma: 2.0,
+    button_weight: 2.0,
+    button_pos_weight: :auto,
+    stick_edge_weight: nil,
     # Optimizer selection
     # :adam, :adamw, :lamb, :radam, :sgd, :rmsprop
     optimizer: :adamw,

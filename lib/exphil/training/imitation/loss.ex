@@ -51,6 +51,7 @@ defmodule ExPhil.Training.Imitation.Loss do
     - `:focal_loss` - Enable focal loss for hard examples (default: false)
     - `:focal_gamma` - Focal loss gamma parameter (default: 2.0)
     - `:button_weight` - Weight for button loss component (default: 1.0)
+    - `:button_pos_weight` - Per-button positive class weights [8] tensor (default: nil)
     - `:stick_edge_weight` - Extra weight for stick edge values (default: nil)
   """
   @spec build_loss_fn(Axon.t(), keyword()) :: {function(), function()}
@@ -59,6 +60,7 @@ defmodule ExPhil.Training.Imitation.Loss do
     focal_loss = Keyword.get(opts, :focal_loss, false)
     focal_gamma = Keyword.get(opts, :focal_gamma, 2.0)
     button_weight = Keyword.get(opts, :button_weight, 1.0)
+    button_pos_weight = Keyword.get(opts, :button_pos_weight)
     stick_edge_weight = Keyword.get(opts, :stick_edge_weight)
     {_init_fn, predict_fn} = Utils.build_compiled(policy_model)
 
@@ -82,6 +84,7 @@ defmodule ExPhil.Training.Imitation.Loss do
         focal_loss: focal_loss,
         focal_gamma: focal_gamma,
         button_weight: button_weight,
+        button_pos_weight: button_pos_weight,
         stick_edge_weight: stick_edge_weight
       )
     end
@@ -138,6 +141,7 @@ defmodule ExPhil.Training.Imitation.Loss do
     focal_loss = config[:focal_loss] || false
     focal_gamma = config[:focal_gamma] || 2.0
     button_weight = config[:button_weight] || 1.0
+    button_pos_weight = config[:button_pos_weight]
     stick_edge_weight = config[:stick_edge_weight]
     precision = config[:precision] || :bf16
 
@@ -166,6 +170,7 @@ defmodule ExPhil.Training.Imitation.Loss do
           focal_loss: focal_loss,
           focal_gamma: focal_gamma,
           button_weight: button_weight,
+          button_pos_weight: button_pos_weight,
           stick_edge_weight: stick_edge_weight
         )
       end
@@ -294,6 +299,7 @@ defmodule ExPhil.Training.Imitation.Loss do
     focal_loss = config[:focal_loss] || false
     focal_gamma = config[:focal_gamma] || 2.0
     button_weight = config[:button_weight] || 1.0
+    button_pos_weight = config[:button_pos_weight]
     stick_edge_weight = config[:stick_edge_weight]
     precision = config[:precision] || :bf16
 
@@ -318,6 +324,7 @@ defmodule ExPhil.Training.Imitation.Loss do
         focal_loss: focal_loss,
         focal_gamma: focal_gamma,
         button_weight: button_weight,
+        button_pos_weight: button_pos_weight,
         stick_edge_weight: stick_edge_weight
       )
     end

@@ -1488,6 +1488,26 @@ hidden_size =
     _ -> 256
   end
 
+# Resolve auto button_pos_weight from training data
+opts =
+  if opts[:button_pos_weight] == :auto and train_dataset != nil do
+    Output.puts("  Computing per-button pos_weight from training data...")
+    button_labels = train_dataset.actions.buttons
+    pos_weight = ExPhil.Networks.Policy.Loss.compute_pos_weights(button_labels)
+    weight_list = Nx.to_flat_list(pos_weight) |> Enum.map(&Float.round(&1, 1))
+    Output.puts("  Per-button pos_weight: #{inspect(weight_list)}")
+    Output.puts("  (A, B, X, Y, Z, L, R, D-Up)")
+    Keyword.put(opts, :button_pos_weight, pos_weight)
+  else
+    # Convert list to tensor if provided as list
+    case opts[:button_pos_weight] do
+      weights when is_list(weights) ->
+        Keyword.put(opts, :button_pos_weight, Nx.tensor(weights, type: :f32))
+      _ ->
+        opts
+    end
+  end
+
 trainer_opts = [
   embed_config: embed_config,
   embed_size: embed_size,
@@ -1525,7 +1545,13 @@ trainer_opts = [
   gradient_checkpoint: opts[:gradient_checkpoint],
   checkpoint_every: opts[:checkpoint_every],
   # K-means stick discretization
-  kmeans_centers: opts[:kmeans_centers]
+  kmeans_centers: opts[:kmeans_centers],
+  # Loss options
+  focal_loss: opts[:focal_loss],
+  focal_gamma: opts[:focal_gamma],
+  button_weight: opts[:button_weight],
+  button_pos_weight: opts[:button_pos_weight],
+  stick_edge_weight: opts[:stick_edge_weight]
 ]
 
 # Create trainer (or load from checkpoint for resumption)
