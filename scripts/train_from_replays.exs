@@ -2140,7 +2140,9 @@ batch_checkpoint_path =
               shuffle: true,
               drop_last: true,
               # Character-balanced sampling (if enabled)
-              character_weights: character_weights
+              character_weights: character_weights,
+              # Action-conditional oversampling (if enabled)
+              action_oversample: opts[:action_oversample]
             )
           else
             Data.batched(train_dataset,

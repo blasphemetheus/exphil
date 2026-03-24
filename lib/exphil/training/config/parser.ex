@@ -258,6 +258,7 @@ defmodule ExPhil.Training.Config.Parser do
     |> parse_float_arg(args, "--button-weight", :button_weight)
     |> parse_button_pos_weight(args)
     |> parse_float_arg(args, "--stick-edge-weight", :stick_edge_weight)
+    |> parse_float_arg(args, "--action-oversample", :action_oversample)
     |> parse_flag(args, "--no-register", :no_register)
     |> parse_optional_int_arg(args, "--keep-best", :keep_best)
     |> parse_flag(args, "--ema", :ema)

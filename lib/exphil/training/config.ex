@@ -211,6 +211,7 @@ defmodule ExPhil.Training.Config do
     "--button-weight",
     "--button-pos-weight",
     "--stick-edge-weight",
+    "--action-oversample",
     "--no-register",
     "--keep-best",
     "--ema",
@@ -525,6 +526,9 @@ defmodule ExPhil.Training.Config do
       # Addresses neutral↔far confusion by penalizing edge mistakes more
       # nil = disabled, 2.0 = edges weighted 2x, linearly interpolated to center
       stick_edge_weight: nil,
+      # Action-conditional oversampling: frames with button presses appear N× more often
+      # nil = disabled, 3.0 = button-press frames sampled 3× more often
+      action_oversample: 3.0,
       # Registry
       no_register: false,
       # Checkpoint pruning

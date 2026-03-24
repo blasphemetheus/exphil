@@ -340,6 +340,13 @@ defmodule ExPhil.Training.Data do
       shuffle and valid_size > 100_000 ->
         lazy_shuffled_frame_batches(valid_size, batch_size, drop_last, dataset, delay_config, augment_fn, augment_config)
 
+      # Action-conditional oversampling
+      shuffle and (Keyword.get(opts, :action_oversample, nil) || 0) > 1.0 ->
+        oversample_factor = Keyword.get(opts, :action_oversample)
+        weights = action_oversample_weights(Enum.take(dataset.frames, valid_size), oversample_factor)
+        indices = ExPhil.Training.CharacterBalance.weighted_sample(weights, valid_size)
+        create_frame_batch_stream(indices, batch_size, drop_last, dataset, delay_config, augment_fn, augment_config)
+
       # Standard shuffle for smaller datasets
       shuffle ->
         indices = Enum.shuffle(Enum.to_list(0..(valid_size - 1)))
@@ -1260,6 +1267,31 @@ defmodule ExPhil.Training.Data do
     {num_frames, embed_dim} = Nx.shape(frame_embeddings)
     num_sequences = dataset.size
 
+    # RAM safety check: estimate memory for eager sequence materialization
+    # Each sequence is a {window_size, embed_dim} f32 tensor = window_size * embed_dim * 4 bytes
+    # Plus Erlang term overhead (~64 bytes per list element + ~128 bytes per tensor struct)
+    bytes_per_seq = window_size * embed_dim * 4 + 200
+    estimated_ram_gb = num_sequences * bytes_per_seq / (1024 * 1024 * 1024)
+
+    if estimated_ram_gb > 8.0 do
+      IO.puts(:stderr, "")
+      IO.puts(:stderr, "  ⚠️  WARNING: Eager sequence building will use ~#{Float.round(estimated_ram_gb, 1)} GB RAM")
+      IO.puts(:stderr, "     (#{num_sequences} sequences × #{window_size} frames × #{embed_dim} dims × 4 bytes)")
+
+      if estimated_ram_gb > 30.0 do
+        IO.puts(:stderr, "  ❌ This will likely OOM your system. Use --max-files to reduce dataset size or enable lazy batching in training config.")
+        IO.puts(:stderr, "     Aborting to prevent system crash. (Override with --force-eager)")
+
+        unless Keyword.get(opts, :force_eager, false) do
+          raise "Sequence materialization would use ~#{Float.round(estimated_ram_gb, 1)} GB RAM. " <>
+                "Use --max-files N to limit data, or --force-eager to override this safety check."
+        end
+      else
+        IO.puts(:stderr, "     Consider using --max-files to reduce dataset size.")
+        IO.puts(:stderr, "")
+      end
+    end
+
     if show_progress do
       IO.puts(:stderr, "  Building #{num_sequences} sequence embeddings from #{num_frames} frame embeddings...")
       IO.puts(:stderr, "    (pure Elixir slicing, not re-embedding - 30x faster)")
@@ -2042,6 +2074,13 @@ defmodule ExPhil.Training.Data do
       shuffle and dataset.size > 100_000 ->
         lazy_shuffled_batches(dataset.size, batch_size, drop_last, frames_array, embeddings_array)
 
+      # Action-conditional oversampling: weight frames with button presses higher
+      shuffle and (Keyword.get(opts, :action_oversample, nil) || 0) > 1.0 ->
+        oversample_factor = Keyword.get(opts, :action_oversample)
+        weights = action_oversample_weights(dataset.frames, oversample_factor)
+        indices = ExPhil.Training.CharacterBalance.weighted_sample(weights, dataset.size)
+        create_batch_stream(indices, batch_size, drop_last, frames_array, embeddings_array)
+
       # Standard shuffle for smaller datasets
       shuffle ->
         indices = Enum.shuffle(Enum.to_list(0..(dataset.size - 1)))
@@ -2051,6 +2090,17 @@ defmodule ExPhil.Training.Data do
       true ->
         create_batch_stream(0..(dataset.size - 1), batch_size, drop_last, frames_array, embeddings_array)
     end
+  end
+
+  # Compute per-frame weights for action-conditional oversampling.
+  # Frames where any button is pressed get `factor` weight, others get 1.0.
+  # This causes frames with button activity to appear ~factor× more often in batches.
+  defp action_oversample_weights(frames, factor) do
+    Enum.map(frames, fn frame ->
+      action = get_action(frame)
+      any_pressed = Enum.any?(action.buttons, fn {_btn, pressed} -> pressed end)
+      if any_pressed, do: factor, else: 1.0
+    end)
   end
 
   # Helper to create batch stream from pre-computed indices (works with Range or List)
