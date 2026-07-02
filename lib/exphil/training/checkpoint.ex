@@ -63,7 +63,7 @@ defmodule ExPhil.Training.Checkpoint do
   def load(path, opts \\ []) do
     case File.read(path) do
       {:ok, binary} ->
-        checkpoint = :erlang.binary_to_term(binary, [:safe])
+        checkpoint = deserialize_trusted(binary, path)
         validate_and_return(checkpoint, :checkpoint, opts)
 
       {:error, reason} ->
@@ -82,12 +82,30 @@ defmodule ExPhil.Training.Checkpoint do
   def load_policy(path, opts \\ []) do
     case File.read(path) do
       {:ok, binary} ->
-        export = :erlang.binary_to_term(binary, [:safe])
+        export = deserialize_trusted(binary, path)
         validate_and_return(export, :policy, opts)
 
       {:error, reason} ->
         {:error, {:file_read, reason}}
     end
+  end
+
+  # Checkpoints/policies are local artifacts we produced ourselves. Prefer
+  # :safe deserialization, but older exports contain terms :safe rejects
+  # (e.g. funs) — fall back to an unrestricted load with a warning rather
+  # than misreporting the file as corrupted.
+  defp deserialize_trusted(binary, path) do
+    :erlang.binary_to_term(binary, [:safe])
+  rescue
+    ArgumentError ->
+      require Logger
+
+      Logger.warning(
+        "#{path} contains terms rejected by :safe deserialization (likely an older export); " <>
+          "falling back to unrestricted load. Only load checkpoints from trusted sources."
+      )
+
+      :erlang.binary_to_term(binary)
   end
 
   @doc """

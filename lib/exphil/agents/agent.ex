@@ -440,8 +440,10 @@ defmodule ExPhil.Agents.Agent do
       # Route to appropriate inference mode
       {action, confidence, new_state} =
         cond do
-          # Mamba with incremental inference (O(1) per frame)
-          state.temporal and state.backbone == :mamba and state.use_incremental and
+          # GatedSSM with incremental inference (O(1) per frame).
+          # Only :gated_ssm — the step/param-extraction code assumes GatedSSM
+          # layer names; Mamba checkpoints (mamba_block_*) must use predict_fn.
+          state.temporal and state.backbone == :gated_ssm and state.use_incremental and
               state.mamba_cache != nil ->
             compute_incremental_mamba_action(state, embedded, opts)
 
@@ -546,6 +548,10 @@ defmodule ExPhil.Agents.Agent do
   defp compute_incremental_mamba_action(state, embedded, opts) do
     alias ExPhil.Networks.GatedSSM
 
+    # This path indexes the raw params map directly (predict_fn is bypassed),
+    # so unwrap %Axon.ModelState{} exports to their data map.
+    params = raw_policy_params(state.policy_params)
+
     # Project embedding to hidden size (matching what the model does)
     # embedded: [embed_size] -> need [1, embed_size] for batch
     hidden_size = state.embed_config[:hidden_size] || 256
@@ -558,8 +564,8 @@ defmodule ExPhil.Agents.Agent do
     x =
       if embed_size != hidden_size do
         input_proj =
-          state.policy_params["input_projection"] ||
-            state.policy_params[:input_projection]
+          params["input_projection"] ||
+            params[:input_projection]
 
         if input_proj do
           kernel = input_proj["kernel"] || input_proj[:kernel]
@@ -582,7 +588,7 @@ defmodule ExPhil.Agents.Agent do
     {backbone_output, new_cache} =
       GatedSSM.step(
         x,
-        state.policy_params,
+        params,
         state.mamba_cache
       )
 
@@ -594,7 +600,7 @@ defmodule ExPhil.Agents.Agent do
     action =
       sample_from_backbone_output(
         backbone_output,
-        state.policy_params,
+        params,
         deterministic: deterministic,
         temperature: temperature,
         axis_buckets: state.embed_config[:axis_buckets] || 16,
@@ -607,6 +613,9 @@ defmodule ExPhil.Agents.Agent do
 
     {action, confidence, new_state}
   end
+
+  defp raw_policy_params(%Axon.ModelState{data: data}), do: data
+  defp raw_policy_params(params), do: params
 
   # Sample action from backbone output (run through policy heads)
   defp sample_from_backbone_output(backbone_output, params, opts) do
@@ -831,9 +840,11 @@ defmodule ExPhil.Agents.Agent do
         embed_config
       )
 
-    # Initialize GatedSSM cache if using GatedSSM/Mamba backbone with incremental inference
+    # Initialize GatedSSM cache when using incremental inference.
+    # :gated_ssm only — see compute_action dispatch; Mamba param names don't
+    # match the hand-rolled GatedSSM.step extraction.
     mamba_cache =
-      if temporal and backbone in [:mamba, :gated_ssm] and state.use_incremental do
+      if temporal and backbone == :gated_ssm and state.use_incremental do
         Logger.info("[Agent] Initializing GatedSSM incremental inference cache")
         alias ExPhil.Networks.GatedSSM
 

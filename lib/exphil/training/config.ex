@@ -396,11 +396,11 @@ defmodule ExPhil.Training.Config do
         [temporal: true, precision: :f32, dropout: 0.0, lr_schedule: :cosine_restarts,
          window_size: 60, num_layers: 2]
 
-      :gated_delta_net ->
+      :gated_deltanet ->
         [temporal: true, precision: :f32, dropout: 0.0, lr_schedule: :cosine_restarts,
          window_size: 60, num_layers: 2]
 
-      :delta_net ->
+      :deltanet ->
         [temporal: true, precision: :f32, dropout: 0.0, window_size: 60, num_layers: 2]
 
       :rwkv ->

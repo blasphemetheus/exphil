@@ -353,8 +353,10 @@ class MeleeBridge:
                 elif isinstance(stage, str):
                     stage = melee.Stage[stage.upper()]
 
-                # Note: menu_helper_simple is effectively static (no self param)
-                melee.MenuHelper.menu_helper_simple(
+                # MenuHelper is a stateful class in libmelee >= 0.40 —
+                # call on the instance created in init (static call shifts
+                # every argument into the wrong slot via self).
+                self.menu_helper.menu_helper_simple(
                     gamestate,
                     self.controller,
                     character,
