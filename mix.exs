@@ -202,7 +202,11 @@ defmodule ExPhil.MixProject do
       ),
       {:axon, "~> 0.8"},
       if(local_nx?,
-        do: {:exla, path: "../nx/exla", override: true},
+        # env: :dev keeps Mix.env() in sync with the Makefile's MIX_ENV check —
+        # exla's test-only NIFs (e.g. write_to_pointer) are gated on both, and
+        # deps default to env: :prod while make sees the (empty) shell MIX_ENV,
+        # which desyncs the .so from the beam and fails NIF load.
+        do: {:exla, path: "../nx/exla", override: true, env: :dev},
         else: {:exla, "~> 0.11"}
       ),
       {:polaris, "~> 0.1"},

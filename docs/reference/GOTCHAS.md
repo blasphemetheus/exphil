@@ -56,6 +56,7 @@ Hard-won knowledge from debugging ExPhil. Each section documents a specific issu
 46. [LSTM/GRU gradient explosion causes NaN loss mid-training](#46-lstmgru-gradient-explosion-causes-nan-loss-mid-training)
 47. [--cache-augmented with large datasets causes GPU OOM and CPU bottlenecks](#47---cache-augmented-with-large-datasets-causes-gpu-oom-and-cpu-bottlenecks)
 48. [Data.split O(n²) causes multi-minute hangs on large datasets](#48-datasplit-on²-causes-multi-minute-hangs-on-large-datasets)
+49. [Eager sequence building OOMs system RAM on large datasets](#49-eager-sequence-building-ooms-system-ram-on-large-datasets)
 
 ---
 
@@ -2181,3 +2182,59 @@ end, name: "last_frame")
 Better long-term fix: LR warmup schedule (start at 5e-7, ramp to 1e-5 over epoch 1).
 
 **Code location:** Per-architecture configs in `scripts/benchmark_architectures.exs`.
+
+## 49. Eager sequence building OOMs system RAM on large datasets
+
+**Symptom:** Linux OOM killer terminates `beam.smp` during training with full replay datasets (100+ files). System becomes unresponsive, SSH drops, machine reboots. No Elixir error — process is SIGKILL'd by kernel.
+
+**Root cause:** `Data.sequences_from_frame_embeddings/3` uses `Enum.map` to eagerly materialize ALL sequences as a list of Nx tensors. Each sequence is `{window_size, embed_dim}` f32. For a full Mewtwo dataset (129 files, 1.575M frames):
+
+```
+1,575,000 sequences × 30 frames × 288 dims × 4 bytes = ~52 GB RAM
+```
+
+Plus Erlang term overhead, this exceeds 62 GB system RAM.
+
+**The crash happened because:**
+- Benchmark scripts use `--max-files 30` (~167K frames, fits in ~6 GB)
+- Direct training without `--max-files` loads ALL replays
+- The user assumed benchmark performance → full training would work
+
+**Fix:** A RAM safety check was added to `sequences_from_frame_embeddings` that:
+- Warns at >8 GB estimated usage
+- Aborts at >30 GB with a message to use `--lazy-sequences` or `--max-files`
+- Can be overridden with `--force-eager`
+
+**Prevention:**
+- Use `--max-files N` to limit data size for initial experiments
+- Lazy batching mode exists internally (slices on-the-fly, ~150 MB vs 52 GB) but isn't exposed as CLI flag yet
+- Monitor `htop` during sequence building phase — if RSS climbs past 50%, stop early
+
+**Code location:** `lib/exphil/training/data.ex`, `sequences_from_frame_embeddings/3`
+
+## 50. Local exla path dep fails NIF load: "Function not found EXLA.NIF:write_to_pointer/3"
+
+**Symptom:** With `EDIFICE_LOCAL_NX=1`, any `mix run` dies at startup with
+`:bad_lib / Function not found 'Elixir.EXLA.NIF':write_to_pointer/3` (the exact
+function may differ — any test-only NIF).
+
+**Root cause:** Mix compiles dependencies with `Mix.env() == :prod` (the dep
+`:env` option defaults to `:prod`), so exla's `nif.ex` skips declaring
+test-only stubs gated on `if Mix.env() != :prod`. But exla's Makefile gates the
+C++ side on the `MIX_ENV` **shell variable**, which is empty in a normal dev
+shell — so the `.so` registers the NIF. `load_nif` fails when the `.so`
+provides a function the module doesn't declare (the reverse — a declared stub
+with no native impl — is harmless).
+
+**Fix:** Declare the local exla dep with `env: :dev` in `mix.exs` so both
+sides agree:
+```elixir
+{:exla, path: "../nx/exla", override: true, env: :dev}
+```
+Then `mix deps.get && mix deps.compile exla --force`.
+
+**Related:** `nx/exla/cache/` (objects + `libexla.so`) is shared across build
+environments and across projects using the same fork checkout — a build from a
+different MIX_ENV or branch poisons the cache. When in doubt:
+`rm ../nx/exla/cache/<version>/objs/*.o ../nx/exla/cache/libexla.so` (keep
+`cache/xla_extension/`, it's the large precompiled XLA download).

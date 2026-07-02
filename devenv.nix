@@ -21,9 +21,10 @@ in
   languages.rust.enable = true;
 
   # Python (for libmelee bridge, Triton, benchmarks)
+  # Pinned to 3.12: libmelee's pyenet does not build on Python >= 3.13
   languages.python = {
     enable = true;
-    package = pkgs.python3.withPackages (ps: with ps; [
+    package = pkgs.python312.withPackages (ps: with ps; [
       msgpack
       numpy
       huggingface-hub
@@ -41,6 +42,7 @@ in
     pkgs.curl
     pkgs.unzip
     pkgs.rclone
+    pkgs.enet # pyenet build dep (libmelee)
 
     # GPU kernel exploration
     pkgs.julia

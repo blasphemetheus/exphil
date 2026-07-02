@@ -143,14 +143,16 @@ mix deps.get
 # Interactive setup wizard
 mix exphil.setup
 
-# Train with presets
-mix run scripts/train_from_replays.exs --preset quick --replays ./replays
-mix run scripts/train_from_replays.exs --preset production --online-robust
+# New training script (callback-based architecture, 190 lines)
+mix run scripts/train.exs --backbone mamba --replays ./replays/huggingface
+mix run scripts/train.exs --backbone mamba --max-files 200 --epochs 30
+mix run scripts/train.exs --help  # see all options
 
-# Swap architectures with --backbone
-mix run scripts/train_from_replays.exs --backbone mamba --temporal --replays ./replays
-mix run scripts/train_from_replays.exs --backbone attention --temporal --replays ./replays
-mix run scripts/train_from_replays.exs --backbone griffin --temporal --replays ./replays
+# Backbone defaults auto-applied (temporal, precision, lr_schedule, etc.)
+# No need to pass --temporal --precision etc. — backbone handles it
+
+# Legacy script (deprecated, kept for reference)
+# mix run scripts/train_from_replays.exs --preset quick --replays ./replays
 
 # Evaluate a trained model
 mix run scripts/eval_model.exs --checkpoint checkpoints/model.axon
@@ -240,6 +242,12 @@ See [GOTCHAS.md](docs/reference/GOTCHAS.md) for detailed fixes. Most common issu
 - Use the Write tool for creating new files, not Bash with cat/heredoc
 - Use the Edit tool for modifying existing files
 - Use Read before Write to ensure you have current content
+
+**CRITICAL: NEVER run mix commands while training is active.**
+- `mix compile`, `mix test`, or ANY `mix run` triggers recompilation of changed `.ex` files
+- This replaces EXLA's NIF shared library, killing any running training process with SIGSEGV/SIGBUS
+- Edit files freely — only running `mix` commands is dangerous
+- This applies to ALL repos sharing EXLA (nx, exphil, edifice)
 
 **Testing — CRITICAL:**
 - **NEVER run the full test suite after editing 1-2 files.** It takes ~100s. Use targeted runs:
