@@ -2238,3 +2238,33 @@ environments and across projects using the same fork checkout — a build from a
 different MIX_ENV or branch poisons the cache. When in doubt:
 `rm ../nx/exla/cache/<version>/objs/*.o ../nx/exla/cache/libexla.so` (keep
 `cache/xla_extension/`, it's the large precompiled XLA download).
+
+## 51. Embedding cache poisoning caused the phantom "200-file scaling collapse"
+
+**Symptom:** Every 200-file training run from 2026-03-26 through 2026-07-02
+showed identical "mode collapse": action diversity pinned at exactly 1/36,
+val_loss plateaued, invariant to backbone/optimizer/LR/loss recipe.
+
+**Root cause:** Stale cache entry `7a750396eb70e99b` held the embedded **train
+split only** (1,260,918 rows) from a run made just before the pipeline was
+reordered to embed-the-full-dataset-then-split. The cache key
+(`embedding_cache.ex`) hashes file paths + embed config but **not row count**,
+so later runs loaded it as the full 1,401,020-frame dataset. `Data.split` then
+built val indices past the tensor's end; XLA gather **clamps out-of-bounds
+indices silently**, so every val sample became the same last-row vector.
+All val-based diagnostics (diversity, press rates, val_loss) were artifacts.
+
+**Detection:** chunk bytes ÷ (embed_dim × 4) ≠ dataset frame count.
+Healthy-vs-collapsed correlated 1:1 with cache-hit on that entry.
+
+**Fixes:**
+- Validate row count on cache load — treat mismatch as a cache miss
+  (`data.ex` `precompute_frame_embeddings_cached`)
+- Include frame count in the cache key/manifest (`embedding_cache.ex`)
+- Bounds-check indices before `Nx.take` in `Data.split` (`data.ex`)
+- Quarantined entry lives in `cache/quarantine/`
+
+**Lesson:** silent clamping of out-of-bounds gathers turns hard failures into
+subtle statistical corruption. Validate tensor shapes at every cache/IO
+boundary. When a phenomenon is invariant to *everything* you change, suspect
+the data pipeline, not the model.

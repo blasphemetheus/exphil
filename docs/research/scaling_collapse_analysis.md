@@ -1,5 +1,30 @@
 # Scaling Collapse: Why 200 Files Collapses but 100 Doesn't
 
+> ## ⚠️ RESOLVED 2026-07-02: The collapse was never real — poisoned embedding cache
+>
+> A forensic audit traced every "collapsed" 200-file run (March 26 onward and the
+> 2026-07-02 candidate sweep) to a single stale cache entry, `7a750396eb70e99b`,
+> created 2026-03-25 when the pipeline still split-then-embedded. It contains only
+> the **train split** (1,260,918 rows) of the 200-file dataset. That night the code
+> was reordered to embed-full-then-split, but the entry stayed valid under the same
+> cache key (the key hashes file paths + embed config, **not row count**). Every
+> subsequent 200-file run loaded it as the full dataset (1,401,020 frames):
+> validation indices 1,260,918..1,401,019 were all out of bounds, XLA `gather`
+> clamps them to the last row, so **every validation state was the same vector** —
+> "diversity 1/36", flat val_loss, and all collapse phenomenology were artifacts of
+> a degenerate val set. Proof: perfect correlation between cache-hit-on-this-entry
+> and "collapse" across 4 months, two training code paths, 4 backbones, and every
+> hyperparameter tried; chunk byte-arithmetic (1,452,577,536 B ÷ 1152 B/row =
+> exactly the train-split row count); and the run that *created* the entry trained
+> healthy (val_loss 3.09, diversity 22.8% — the best 200-file result on record).
+>
+> **200 files trains fine.** The threshold table below tracks cache-hit validity,
+> not file count. The "70% neutral" root-cause below was already falsified
+> 2026-05-19 (~20% real). Everything else in this doc is retained for history but
+> should not guide decisions. Entry quarantined to `cache/quarantine/`.
+> Follow-up fixes: row-count validation on cache load, frame count in the cache
+> key, bounds-check in `Data.split`. See GOTCHAS.md #51.
+
 ## Problem
 
 A 3.7M param Mamba SSM trains fine on 100 replay files (action diversity 16/35 by epoch 5) but collapses to predicting "neutral/do nothing" on 200 files. Every hyperparameter combination fails:
