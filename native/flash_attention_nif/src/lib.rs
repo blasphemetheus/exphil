@@ -18,7 +18,6 @@
 //! mathematically equivalent but slower.
 
 use rustler::{Atom, Binary, Env, NifResult, OwnedBinary};
-use std::sync::atomic::{AtomicBool, Ordering};
 
 mod atoms {
     rustler::atoms! {
@@ -32,7 +31,11 @@ mod atoms {
 }
 
 // Track if CUDA is initialized and available
+#[cfg(feature = "cuda")]
+use std::sync::atomic::{AtomicBool, Ordering};
+#[cfg(feature = "cuda")]
 static CUDA_AVAILABLE: AtomicBool = AtomicBool::new(false);
+#[cfg(feature = "cuda")]
 static CUDA_CHECKED: AtomicBool = AtomicBool::new(false);
 
 // ============================================================================

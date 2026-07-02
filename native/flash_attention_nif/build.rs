@@ -3,10 +3,6 @@
 //! When the `cuda` feature is enabled, this compiles the CUDA kernels
 //! using nvcc and links them with the Rust NIF.
 
-use std::env;
-use std::path::PathBuf;
-use std::process::Command;
-
 fn main() {
     // Only compile CUDA when the feature is enabled
     #[cfg(feature = "cuda")]
@@ -19,13 +15,17 @@ fn main() {
 
 #[cfg(feature = "cuda")]
 fn compile_cuda() {
+    use std::env;
+    use std::path::PathBuf;
+    use std::process::Command;
+
     let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
 
     // Detect CUDA compute capability
     let compute_cap = detect_compute_cap().unwrap_or_else(|| {
-        // Default to Ampere (RTX 30xx)
-        eprintln!("Warning: Could not detect GPU compute capability, defaulting to sm_86");
-        "86".to_string()
+        // Default to Blackwell (RTX 5090)
+        eprintln!("Warning: Could not detect GPU compute capability, defaulting to sm_120");
+        "120".to_string()
     });
 
     let cuda_file = "cuda/flash_attention.cu";
@@ -88,6 +88,9 @@ fn compile_cuda() {
 
 #[cfg(feature = "cuda")]
 fn detect_compute_cap() -> Option<String> {
+    use std::env;
+    use std::process::Command;
+
     // Try environment variable first
     if let Ok(cap) = env::var("CUDA_COMPUTE_CAP") {
         return Some(cap);

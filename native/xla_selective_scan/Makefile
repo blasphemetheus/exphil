@@ -9,8 +9,8 @@ NVCC = nvcc
 CFLAGS = -shared -Xcompiler -fPIC -O3
 
 # Detect CUDA compute capability
-# Default to sm_89 for RTX 4090 (Ada Lovelace)
-CUDA_ARCH ?= sm_89
+# Default to sm_120 for RTX 5090 (Blackwell)
+CUDA_ARCH ?= sm_120
 
 TARGET = libxla_selective_scan.so
 SRC = selective_scan_kernel.cu
@@ -36,4 +36,5 @@ portable:
 		-gencode arch=compute_80,code=sm_80 \
 		-gencode arch=compute_86,code=sm_86 \
 		-gencode arch=compute_89,code=sm_89 \
+		-gencode arch=compute_120,code=sm_120 \
 		-o $(TARGET) $(SRC)

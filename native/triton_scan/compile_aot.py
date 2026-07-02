@@ -24,7 +24,7 @@ from triton.backends.nvidia.compiler import GPUTarget
 from linear_scan_kernel import linear_scan_kernel
 
 
-def compile_kernel(sm: int = 75):
+def compile_kernel(sm: int = 120):
     """AOT compile linear_scan_kernel to cubin targeting sm_{sm}."""
 
     print(f"Compiling linear_scan_kernel for sm_{sm}...")
@@ -92,7 +92,7 @@ def compile_kernel(sm: int = 75):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="AOT compile Triton linear scan kernel")
-    parser.add_argument("--sm", type=int, default=75, help="Target SM version (default: 75 for T400)")
+    parser.add_argument("--sm", type=int, default=120, help="Target SM version (default: 120 for RTX 5090)")
     args = parser.parse_args()
 
     compile_kernel(sm=args.sm)

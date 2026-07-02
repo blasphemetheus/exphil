@@ -16,8 +16,8 @@ ERL_INCLUDE := $(shell erl -noshell -eval 'io:format("~s/erts-~s/include", [code
 CUDA_PATH ?= $(shell dirname $$(which nvcc 2>/dev/null || echo /usr/local/cuda/bin/nvcc))/..
 WSL_LIB ?= /usr/lib/wsl/lib
 
-# CUDA architecture (sm_75 = T400/Turing, sm_80+ for actual ThunderKittens)
-CUDA_ARCH ?= sm_75
+# CUDA architecture (sm_120 = RTX 5090/Blackwell, sm_80+ for actual ThunderKittens)
+CUDA_ARCH ?= sm_120
 
 # Compilers
 NVCC := nvcc
