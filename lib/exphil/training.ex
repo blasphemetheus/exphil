@@ -400,13 +400,29 @@ defmodule ExPhil.Training do
     end
   end
 
-  # Safely deserialize binary term with helpful error messages
+  # Safely deserialize binary term with helpful error messages.
+  #
+  # Prefer :safe, but fall back to an unrestricted load with a warning:
+  # policy exports are local artifacts we produced, and :safe rejects terms
+  # like funs — worse, it rejects atoms not yet in THIS VM's atom table, so
+  # whether a given file loads under :safe varies run-to-run with module
+  # load order. Mirrors Checkpoint.deserialize_trusted/2.
   defp safe_deserialize(binary, path) do
     try do
       {:ok, :erlang.binary_to_term(binary, [:safe])}
     rescue
       ArgumentError ->
-        {:error, CheckpointError.new(:corrupted, path: path)}
+        Logger.warning(
+          "#{path} contains terms rejected by :safe deserialization; " <>
+            "falling back to unrestricted load. Only load checkpoints from trusted sources."
+        )
+
+        try do
+          {:ok, :erlang.binary_to_term(binary)}
+        rescue
+          ArgumentError ->
+            {:error, CheckpointError.new(:corrupted, path: path)}
+        end
     end
   end
 
