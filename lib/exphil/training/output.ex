@@ -96,6 +96,27 @@ defmodule ExPhil.Training.Output do
   end
 
   @doc """
+  Set a log file path. Output will be written to both stderr and the file.
+  ANSI codes are stripped when writing to the file.
+  """
+  def set_log_file(path) do
+    File.mkdir_p!(Path.dirname(path))
+    Process.put(:exphil_log_file, path)
+    :ok
+  end
+
+  @doc "Get current log file path, if set."
+  def get_log_file, do: Process.get(:exphil_log_file)
+
+  defp maybe_log_to_file(line) do
+    if path = get_log_file() do
+      # Strip ANSI escape codes for clean log files
+      clean = Regex.replace(~r/\e\[[0-9;]*[a-zA-Z]/, line, "")
+      File.write!(path, clean <> "\n", [:append])
+    end
+  end
+
+  @doc """
   Get current timestamp string in the configured timezone.
   """
   @spec local_timestamp() :: String.t()
@@ -112,7 +133,9 @@ defmodule ExPhil.Training.Output do
   def puts(line) do
     if should_output?(@normal) do
       timestamp = local_timestamp()
-      IO.puts(:stderr, "[#{timestamp}] #{line}")
+      full = "[#{timestamp}] #{line}"
+      IO.puts(:stderr, full)
+      maybe_log_to_file(full)
     end
   end
 
@@ -122,6 +145,7 @@ defmodule ExPhil.Training.Output do
   def puts_raw(line) do
     if should_output?(@normal) do
       IO.puts(:stderr, line)
+      maybe_log_to_file(line)
     end
   end
 
@@ -839,5 +863,180 @@ defmodule ExPhil.Training.Output do
       ExPhil.Training.Output.warmup_done(elapsed)
       result
     end
+  end
+
+  # ============================================================================
+  # Visualization Helpers
+  # ============================================================================
+
+  @doc """
+  Color-coded comparison bar for predicted vs actual rates.
+
+  Shows side-by-side bars with color indicating how close the prediction is.
+  Green = close (within threshold), yellow = off, red = collapse.
+
+  ## Options
+    - `:bar_width` - Width of each bar in chars (default: 20)
+    - `:threshold` - Delta % for green vs yellow (default: 3.0)
+    - `:collapse_threshold` - Actual % below which 0 pred = collapse (default: 1.0)
+
+  ## Examples
+
+      comparison_bar("A", 5.9, 6.3)
+      # "    A     ████░░░░░░░░░░░░░░░░  5.9%  vs  ██████░░░░░░░░░░░░░░  6.3%  ✓"
+  """
+  def comparison_bar(label, pred_pct, actual_pct, opts \\ []) do
+    bar_width = Keyword.get(opts, :bar_width, 20)
+    threshold = Keyword.get(opts, :threshold, 3.0)
+    collapse_threshold = Keyword.get(opts, :collapse_threshold, 1.0)
+
+    delta = abs(pred_pct - actual_pct)
+
+    {color, indicator} =
+      cond do
+        actual_pct > collapse_threshold and pred_pct < 0.1 -> {@red, " COLLAPSE"}
+        delta <= threshold -> {@green, ""}
+        delta <= threshold * 2 -> {@yellow, ""}
+        pred_pct > actual_pct -> {@yellow, " ↑"}
+        true -> {@yellow, " ↓"}
+      end
+
+    pred_bar = make_bar(pred_pct, bar_width)
+    actual_bar = make_bar(actual_pct, bar_width)
+    pred_s = pred_pct |> Float.round(1) |> to_string() |> String.pad_leading(5)
+    actual_s = actual_pct |> Float.round(1) |> to_string() |> String.pad_leading(5)
+    label_s = String.pad_trailing(to_string(label), 5)
+
+    "    #{color}#{label_s} #{pred_bar} #{pred_s}%  vs  #{actual_bar} #{actual_s}%#{indicator}#{@reset}"
+  end
+
+  defp make_bar(pct, width) do
+    # Scale: 0-100% maps to 0-width filled chars
+    filled = round(pct / 100 * width) |> min(width) |> max(0)
+    empty = width - filled
+    String.duplicate("█", filled) <> String.duplicate("░", empty)
+  end
+
+  @doc """
+  Render a summary box with box-drawing characters.
+
+  ## Examples
+
+      summary_box("Epoch 3/30", [
+        {"train_loss", "2.545"},
+        {"val_loss", "2.581"},
+        {"time", "67s"},
+        {"GPU", "29.75/31.84 GB (93%)"}
+      ])
+  """
+  def summary_box(title, entries, opts \\ []) do
+    highlight = Keyword.get(opts, :highlight, nil)
+    min_width = Keyword.get(opts, :min_width, 50)
+
+    lines = Enum.map(entries, fn {k, v} -> "  #{k}  #{v}" end)
+    content_width = Enum.map(lines, &String.length/1) |> Enum.max(fn -> 0 end)
+    title_width = String.length(title) + 4
+    width = max(max(content_width + 2, title_width + 2), min_width)
+
+    top = "╭─── #{title} " <> String.duplicate("─", max(width - String.length(title) - 6, 0)) <> "╮"
+    bottom = "╰" <> String.duplicate("─", width) <> "╯"
+
+    body = Enum.map(lines, fn line ->
+      padding = width - String.length(line) - 1
+      "│#{line}#{String.duplicate(" ", max(padding, 0))}│"
+    end)
+
+    output = [top | body] ++ [bottom]
+
+    highlight_line = if highlight, do: "│  #{@green}#{highlight}#{@reset}#{String.duplicate(" ", max(width - String.length(highlight) - 3, 0))}│", else: nil
+
+    if highlight_line do
+      [top | body] ++ [highlight_line, bottom]
+    else
+      output
+    end
+    |> Enum.join("\n")
+  end
+
+  @doc """
+  Render a sparkline from a list of values using Unicode block chars.
+
+  ## Examples
+
+      sparkline([3.3, 2.6, 2.5, 2.4, 2.3, 2.2])
+      # "▇▃▂▂▁▁"
+
+      sparkline_with_label("Loss", [3.3, 2.6, 2.5])
+      # "  Loss: ▇▃▂ (3.3 → 2.5)"
+  """
+  def sparkline(values) when length(values) < 2, do: ""
+
+  def sparkline(values) do
+    min_val = Enum.min(values)
+    max_val = Enum.max(values)
+    range = max_val - min_val
+
+    blocks = ~w(▁ ▂ ▃ ▄ ▅ ▆ ▇ █)
+
+    if range == 0 do
+      String.duplicate("▄", length(values))
+    else
+      values
+      |> Enum.map(fn v ->
+        idx = round((v - min_val) / range * 7) |> min(7) |> max(0)
+        Enum.at(blocks, idx)
+      end)
+      |> Enum.join()
+    end
+  end
+
+  def sparkline_with_label(_label, values) when length(values) < 2, do: ""
+
+  def sparkline_with_label(label, values) do
+    spark = sparkline(values)
+    first = Float.round(hd(values) * 1.0, 4)
+    last = Float.round(List.last(values) * 1.0, 4)
+    "  #{label}: #{spark} (#{first} → #{last})"
+  end
+
+  @doc """
+  Render a formatted table with aligned columns.
+
+  ## Examples
+
+      table(
+        ["Head", "Loss", "Delta"],
+        [
+          ["buttons", "0.285", "-0.02"],
+          ["main_x", "1.582", "-0.15"],
+        ]
+      )
+  """
+  def table(headers, rows, opts \\ []) do
+    indent = Keyword.get(opts, :indent, "    ")
+    all_rows = [headers | rows]
+
+    # Calculate column widths
+    widths = Enum.reduce(all_rows, List.duplicate(0, length(headers)), fn row, acc ->
+      Enum.zip(row, acc)
+      |> Enum.map(fn {cell, w} -> max(String.length(to_string(cell)), w) end)
+    end)
+
+    # Format header
+    header_line = Enum.zip(headers, widths)
+      |> Enum.map(fn {h, w} -> String.pad_trailing(to_string(h), w) end)
+      |> Enum.join("  ")
+
+    separator = Enum.map(widths, fn w -> String.duplicate("─", w) end) |> Enum.join("──")
+
+    # Format body rows
+    body_lines = Enum.map(rows, fn row ->
+      Enum.zip(row, widths)
+      |> Enum.map(fn {cell, w} -> String.pad_trailing(to_string(cell), w) end)
+      |> Enum.join("  ")
+    end)
+
+    ([indent <> header_line, indent <> separator] ++ Enum.map(body_lines, &(indent <> &1)))
+    |> Enum.join("\n")
   end
 end
