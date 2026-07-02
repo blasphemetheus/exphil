@@ -175,6 +175,9 @@ defmodule ExPhil.Training.Imitation do
     button_weight: 2.0,
     button_pos_weight: :auto,
     stick_edge_weight: nil,
+    # Entropy regularization
+    # Prevents mode collapse by penalizing collapsed output distributions
+    entropy_weight: 0.0,
     # Optimizer selection
     # :adam, :adamw, :lamb, :radam, :sgd, :rmsprop
     optimizer: :adamw,
@@ -209,10 +212,12 @@ defmodule ExPhil.Training.Imitation do
 
     embed_size = Keyword.get(opts, :embed_size, Embeddings.embedding_size(embed_config))
 
-    # Build config - include embed_size for export
+    # Build config — merge ALL opts into defaults (don't whitelist)
+    # Previously used Keyword.take which silently dropped unknown keys,
+    # causing entropy_weight and other new options to never reach the loss function
     config =
       @default_config
-      |> Map.merge(Map.new(Keyword.take(opts, Map.keys(@default_config))))
+      |> Map.merge(Map.new(opts))
       |> Map.put(:embed_size, embed_size)
 
     # Load K-means centers if path provided
@@ -253,6 +258,24 @@ defmodule ExPhil.Training.Imitation do
           shoulder_buckets: config.shoulder_buckets,
           layer_norm: config.layer_norm
         )
+      end
+
+    # Apply mixed precision policy if precision is bf16
+    # Uses Axon.MixedPrecision: params stay f32, compute in bf16, output f32
+    # Conv layers are handled separately — build_depthwise_conv1d casts to f32
+    # internally to avoid XLA's depthwise conv gradient SIGBUS with bf16
+    policy_model =
+      if config.precision == :bf16 do
+        mp_policy = Axon.MixedPrecision.create_policy(
+          params: {:f, 32},
+          compute: {:bf, 16},
+          output: {:f, 32}
+        )
+        Axon.MixedPrecision.apply_policy(policy_model, mp_policy,
+          except: [:batch_norm, :layer_norm, :group_norm]
+        )
+      else
+        policy_model
       end
 
     # Initialize parameters using newer Axon API
@@ -302,8 +325,8 @@ defmodule ExPhil.Training.Imitation do
 
     # JIT compile optimizer and update functions with EXLA for GPU execution
     # Without compiler: EXLA, these default to CPU which causes 0% GPU utilization
-    optimizer_fn = Nx.Defn.jit(optimizer_update, compiler: EXLA)
-    apply_updates_fn = Nx.Defn.jit(&Polaris.Updates.apply_updates/2, compiler: EXLA)
+    optimizer_fn = Nx.Defn.jit(optimizer_update, compiler: EXLA, on_conflict: :reuse)
+    apply_updates_fn = Nx.Defn.jit(&Polaris.Updates.apply_updates/2, compiler: EXLA, on_conflict: :reuse)
 
     # Build compiled loss+grad function (avoids deep_backend_copy every batch)
     # This function is JITted once and reused for all training steps
@@ -427,10 +450,20 @@ defmodule ExPhil.Training.Imitation do
   # Private warmup implementations for each target
   defp warmup_target(trainer, batch, :training) do
     %{states: states, actions: actions} = batch
+    batch_size = elem(Nx.shape(states), 0)
+    frame_weights = Map.get(batch, :frame_weights) || Nx.broadcast(Nx.tensor(1.0, type: :f32), {batch_size})
 
     if trainer.loss_and_grad_fn do
-      # Run one forward+backward pass
-      {_loss, _grads} = trainer.loss_and_grad_fn.(trainer.policy_params, states, actions)
+      policy_type = trainer.config[:policy_type] || :autoregressive
+
+      case policy_type do
+        pt when pt in [:autoregressive, :act] ->
+          {_loss, _grads} = trainer.loss_and_grad_fn.(trainer.policy_params, states, actions, frame_weights)
+
+        _generative ->
+          # Diffusion/flow_matching need noise+timestep, skip warmup of loss_and_grad_fn
+          :ok
+      end
     end
 
     :ok

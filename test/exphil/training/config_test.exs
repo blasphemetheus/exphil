@@ -1687,9 +1687,9 @@ defmodule ExPhil.Training.ConfigTest do
   # ============================================================================
 
   describe "parse_args/1 with val_split" do
-    test "defaults val_split to 0.0" do
+    test "defaults val_split to 0.1" do
       opts = Config.parse_args([])
-      assert opts[:val_split] == 0.0
+      assert opts[:val_split] == 0.1
     end
 
     test "parses --val-split" do

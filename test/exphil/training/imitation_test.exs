@@ -321,7 +321,7 @@ defmodule ExPhil.Training.ImitationTest do
 
         # Verify file contents
         {:ok, binary} = File.read(path)
-        export = :erlang.binary_to_term(binary)
+        export = :erlang.binary_to_term(binary, [:safe])
 
         assert is_map(export.params)
         assert is_map(export.config)
@@ -349,7 +349,7 @@ defmodule ExPhil.Training.ImitationTest do
         :ok = Imitation.export_policy(trainer, path)
 
         {:ok, binary} = File.read(path)
-        export = :erlang.binary_to_term(binary)
+        export = :erlang.binary_to_term(binary, [:safe])
 
         # Verify temporal config is included
         assert export.config.embed_size == 64
@@ -378,7 +378,7 @@ defmodule ExPhil.Training.ImitationTest do
         :ok = Imitation.export_policy(trainer, path)
 
         {:ok, binary} = File.read(path)
-        export = :erlang.binary_to_term(binary)
+        export = :erlang.binary_to_term(binary, [:safe])
 
         # Non-temporal should have temporal: false
         assert export.config.temporal == false
@@ -469,7 +469,7 @@ defmodule ExPhil.Training.ImitationTest do
 
         # Load and verify tensors are readable (not stale EXLA buffers)
         {:ok, binary} = File.read(path)
-        checkpoint = :erlang.binary_to_term(binary)
+        checkpoint = :erlang.binary_to_term(binary, [:safe])
 
         # Verify we can actually read tensor data
         kernel = get_in(checkpoint.policy_params.data, ["backbone_dense_0", "kernel"])

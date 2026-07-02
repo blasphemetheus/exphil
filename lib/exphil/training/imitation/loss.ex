@@ -141,13 +141,18 @@ defmodule ExPhil.Training.Imitation.Loss do
     focal_loss = config[:focal_loss] || false
     focal_gamma = config[:focal_gamma] || 2.0
     button_weight = config[:button_weight] || 1.0
-    button_pos_weight = config[:button_pos_weight]
+    button_pos_weight = case config[:button_pos_weight] do
+      :auto -> nil  # Not resolved — Pipeline resolves :auto from data stats
+      other -> other
+    end
     stick_edge_weight = config[:stick_edge_weight]
+    entropy_weight = config[:entropy_weight] || 0.0
+    head_normalize = config[:head_normalize] || false
     precision = config[:precision] || :bf16
 
     # Build the loss+grad function using JIT compilation
     # predict_fn is captured here (once), not in train_step (every batch)
-    inner_fn = fn params, states, actions ->
+    inner_fn = fn params, states, actions, frame_weights ->
       # Convert states to training precision
       states = Nx.as_type(states, precision)
 
@@ -171,7 +176,10 @@ defmodule ExPhil.Training.Imitation.Loss do
           focal_gamma: focal_gamma,
           button_weight: button_weight,
           button_pos_weight: button_pos_weight,
-          stick_edge_weight: stick_edge_weight
+          stick_edge_weight: stick_edge_weight,
+          entropy_weight: entropy_weight,
+          head_normalize: head_normalize,
+          frame_weights: frame_weights
         )
       end
 
@@ -181,7 +189,7 @@ defmodule ExPhil.Training.Imitation.Loss do
 
     # JIT compile the entire function - this makes states/actions flow as Defn.Expr
     # during tracing, avoiding the EXLA/Defn.Expr conflict
-    Nx.Defn.jit(inner_fn, compiler: EXLA)
+    Nx.Defn.jit(inner_fn, compiler: EXLA, on_conflict: :reuse)
   end
 
   # Diffusion: MSE noise prediction loss
@@ -211,7 +219,7 @@ defmodule ExPhil.Training.Imitation.Loss do
       Nx.Defn.value_and_grad(loss_fn).(params)
     end
 
-    Nx.Defn.jit(inner_fn, compiler: EXLA)
+    Nx.Defn.jit(inner_fn, compiler: EXLA, on_conflict: :reuse)
   end
 
   # ACT (Action Chunking Transformer): CVAE loss = reconstruction + KL divergence
@@ -219,7 +227,7 @@ defmodule ExPhil.Training.Imitation.Loss do
     precision = config[:precision] || :bf16
     kl_weight = config[:kl_weight] || 10.0
 
-    inner_fn = fn params, states, actions ->
+    inner_fn = fn params, states, actions, _frame_weights ->
       states = Nx.as_type(states, precision)
       actions = Nx.as_type(actions, precision)
 
@@ -242,7 +250,7 @@ defmodule ExPhil.Training.Imitation.Loss do
       Nx.Defn.value_and_grad(loss_fn).(params)
     end
 
-    Nx.Defn.jit(inner_fn, compiler: EXLA)
+    Nx.Defn.jit(inner_fn, compiler: EXLA, on_conflict: :reuse)
   end
 
   # Flow Matching: MSE velocity loss
@@ -262,7 +270,7 @@ defmodule ExPhil.Training.Imitation.Loss do
       Nx.Defn.value_and_grad(loss_fn).(params)
     end
 
-    Nx.Defn.jit(inner_fn, compiler: EXLA)
+    Nx.Defn.jit(inner_fn, compiler: EXLA, on_conflict: :reuse)
   end
 
   @doc """
@@ -299,7 +307,10 @@ defmodule ExPhil.Training.Imitation.Loss do
     focal_loss = config[:focal_loss] || false
     focal_gamma = config[:focal_gamma] || 2.0
     button_weight = config[:button_weight] || 1.0
-    button_pos_weight = config[:button_pos_weight]
+    button_pos_weight = case config[:button_pos_weight] do
+      :auto -> nil  # Not resolved — Pipeline resolves :auto from data stats
+      other -> other
+    end
     stick_edge_weight = config[:stick_edge_weight]
     precision = config[:precision] || :bf16
 
@@ -330,7 +341,7 @@ defmodule ExPhil.Training.Imitation.Loss do
     end
 
     # JIT compile for fast repeated evaluation
-    Nx.Defn.jit(inner_fn, compiler: EXLA)
+    Nx.Defn.jit(inner_fn, compiler: EXLA, on_conflict: :reuse)
   end
 
   defp build_diffusion_eval_loss_fn(predict_fn, config) do
@@ -352,7 +363,7 @@ defmodule ExPhil.Training.Imitation.Loss do
       DiffusionPolicy.compute_loss(noise, predicted_noise)
     end
 
-    Nx.Defn.jit(inner_fn, compiler: EXLA)
+    Nx.Defn.jit(inner_fn, compiler: EXLA, on_conflict: :reuse)
   end
 
   defp build_act_eval_loss_fn(predict_fn, config) do
@@ -377,7 +388,7 @@ defmodule ExPhil.Training.Imitation.Loss do
       )
     end
 
-    Nx.Defn.jit(inner_fn, compiler: EXLA)
+    Nx.Defn.jit(inner_fn, compiler: EXLA, on_conflict: :reuse)
   end
 
   defp build_flow_matching_eval_loss_fn(predict_fn, config) do
@@ -391,7 +402,7 @@ defmodule ExPhil.Training.Imitation.Loss do
       FlowMatching.compute_loss(params, predict_fn, states, actions, noise, timestep)
     end
 
-    Nx.Defn.jit(inner_fn, compiler: EXLA)
+    Nx.Defn.jit(inner_fn, compiler: EXLA, on_conflict: :reuse)
   end
 
   # ============================================================================
@@ -412,8 +423,8 @@ defmodule ExPhil.Training.Imitation.Loss do
   @spec loss_fn_arity(atom()) :: pos_integer()
   def loss_fn_arity(policy_type) do
     case policy_type do
-      :autoregressive -> 3  # params, states, actions
-      :act -> 3             # params, states, actions
+      :autoregressive -> 4  # params, states, actions, frame_weights
+      :act -> 4             # params, states, actions, frame_weights
       :diffusion -> 5       # params, states, actions, noise, timestep
       :flow_matching -> 5   # params, states, actions, noise, timestep
     end

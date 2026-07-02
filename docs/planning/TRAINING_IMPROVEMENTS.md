@@ -170,6 +170,16 @@ Ideas for improving training speed, effectiveness, and developer experience. Pri
 - Format: `Epoch 1: ████████████░░░░░░░░  60% | 642/1606 | loss: 0.1234 | 0.5s/it | ETA: 8m 12s`
 - Updates in-place using carriage return for cleaner output
 
+### Temporal Consistency Diagnostic (Architecture-Specific)
+- Frame-to-frame agreement metric: % of adjacent frames with same predicted action
+- Shows whether sequence models (Mamba, LSTM, etc.) are learning temporal coherence vs jittering
+- MLP has no temporal context so this baseline comparison validates the temporal architecture
+- **Extend to other architecture-specific metrics:**
+  - Mamba: SSM state utilization (how much state capacity is used)
+  - Attention: attention entropy (concentrated vs diffuse)
+  - LSTM: gate activation distributions (forget gate saturation)
+- **Why:** Validates that temporal backbones are actually leveraging sequence context
+
 ### Checkpoint Compression
 - Compress checkpoint files with `:zlib`
 - Reduces storage for many checkpoints

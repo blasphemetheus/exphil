@@ -199,7 +199,7 @@ defmodule ExPhil.Training.Data do
     case File.read(path) do
       {:ok, binary} ->
         try do
-          data = :erlang.binary_to_term(binary)
+          data = :erlang.binary_to_term(binary, [:safe])
           Map.get(data, :frames, [])
         rescue
           _ ->
@@ -2006,7 +2006,8 @@ defmodule ExPhil.Training.Data do
         shuffle: shuffle,
         drop_last: drop_last,
         seed: seed,
-        character_weights: character_weights
+        character_weights: character_weights,
+        neutral_weight: Keyword.get(opts, :neutral_weight, 0.25)
       )
     else
       # Eager mode: use pre-built sequence embeddings (high RAM, fast batching)
@@ -2192,9 +2193,8 @@ defmodule ExPhil.Training.Data do
     seed = Keyword.get(opts, :seed, System.system_time())
     character_weights = Keyword.get(opts, :character_weights, nil)
 
-    # Get frame embeddings - can be tensor or stacked array
-    frame_embeddings = get_frame_embeddings_tensor(dataset)
-    {num_frames, embed_dim} = Nx.shape(frame_embeddings)
+    # Get frame embeddings as chunked structure for fast slicing
+    {chunks_array, chunk_size, num_frames, embed_dim} = get_frame_embeddings_chunked(dataset)
 
     # Calculate number of valid sequences
     num_sequences = div(num_frames - window_size, stride) + 1
@@ -2222,22 +2222,30 @@ defmodule ExPhil.Training.Data do
           valid_indices
       end
 
+    # Options for batch assembly:
+    # gpu: true = eagerly transfer to GPU (default for training)
+    # gpu: false = keep on CPU (for val batch precomputation)
+    # use_batch: true = use Nx.Batch for lazy materialization at JIT boundary
+    gpu = Keyword.get(opts, :gpu, true)
+    use_batch = Keyword.get(opts, :use_batch, false)
+    neutral_weight = Keyword.get(opts, :neutral_weight, 0.25)
+
     # Create batch stream with lazy slicing
     indices
     |> Enum.chunk_every(batch_size)
     |> maybe_drop_last(drop_last, batch_size)
     |> Stream.map(fn batch_indices ->
-      create_sequence_batch_lazy(frame_embeddings, frames_array, batch_indices, window_size, stride, embed_dim)
+      create_sequence_batch_lazy(chunks_array, chunk_size, frames_array, batch_indices, window_size, stride, embed_dim, gpu, use_batch, neutral_weight)
     end)
   end
 
-  # Lazy batch creation - slices sequences from frame embeddings on-the-fly
-  defp create_sequence_batch_lazy(frame_embeddings, frames_array, indices, window_size, stride, embed_dim) do
-    # Slice sequences from frame embeddings
+  # Lazy batch creation - slices sequences from chunked frame embeddings on-the-fly
+  defp create_sequence_batch_lazy(chunks_array, chunk_size, frames_array, indices, window_size, stride, embed_dim, gpu, use_batch, neutral_weight) do
+    # Slice sequences from chunked embeddings (fast: 16K-row chunks vs 1.26M-row tensor)
     sequences =
       Enum.map(indices, fn seq_idx ->
         frame_start = seq_idx * stride
-        Nx.slice(frame_embeddings, [frame_start, 0], [window_size, embed_dim])
+        slice_from_chunks(chunks_array, chunk_size, frame_start, window_size, embed_dim)
       end)
 
     # Get actions from frames (use last frame of each sequence window)
@@ -2260,42 +2268,108 @@ defmodule ExPhil.Training.Data do
             }
 
           _ ->
-            frame.action
+            get_action(frame)
         end
       end)
 
-    # Stack sequences and transfer to GPU
-    states =
-      sequences
-      |> Nx.stack()
-      |> Nx.backend_transfer(EXLA.Backend)
+    # Assemble batch — two modes:
+    # 1. Eager (default): Nx.stack + backend_transfer now, JIT receives ready tensors
+    # 2. Nx.Batch: lazy struct, materialized at JIT boundary (better for prefetching)
+    if use_batch do
+      # Nx.Batch mode: defer concatenation to JIT boundary
+      # JIT function sees regular tensors via LazyContainer protocol
+      states_batch = Nx.Batch.stack(sequences)
+      action_tensors = actions_to_tensors(actions)
+      # Action tensors stay eager (small, not worth deferring)
+      frame_weights = compute_frame_weights(actions, neutral_weight: neutral_weight)
 
-    # Convert actions to tensors
-    action_tensors =
-      actions_to_tensors(actions)
-      |> transfer_actions_to_gpu()
+      %{states: states_batch, actions: action_tensors, frame_weights: frame_weights}
+    else
+      # Eager mode: stack and optionally transfer to GPU
+      states = Nx.stack(sequences)
+      states = if gpu, do: Nx.backend_transfer(states, EXLA.Backend), else: states
 
-    %{
-      states: states,
-      actions: action_tensors
-    }
+      action_tensors = actions_to_tensors(actions)
+      action_tensors = if gpu, do: transfer_actions_to_gpu(action_tensors), else: action_tensors
+
+      # Per-frame loss weights: action frames get 1.0, neutral frames get neutral_weight
+      # This prevents mode collapse on large datasets where neutral dominates
+      frame_weights = compute_frame_weights(actions, neutral_weight: neutral_weight)
+      frame_weights = if gpu, do: Nx.backend_transfer(frame_weights, EXLA.Backend), else: frame_weights
+
+      %{states: states, actions: action_tensors, frame_weights: frame_weights}
+    end
   end
 
-  # Get frame embeddings as a tensor (handles both tensor and array formats)
-  defp get_frame_embeddings_tensor(dataset) do
-    case dataset.embedded_frames do
-      %Nx.Tensor{} = tensor ->
-        # Already a tensor - ensure on CPU for slicing
-        Nx.backend_copy(tensor, Nx.BinaryBackend)
+  @doc """
+  Compute per-frame loss weights based on action content.
+  Action frames (any button pressed or stick non-center) get weight 1.0.
+  Neutral frames get `neutral_weight` (default 0.25).
 
+  ## Options
+    - `:neutral_weight` - Weight for neutral/idle frames (default: 0.25).
+      Lower values penalize neutral frames more. Use 0.0 to skip them entirely.
+  """
+  def compute_frame_weights(actions, opts \\ []) when is_list(actions) do
+    neutral_w = Keyword.get(opts, :neutral_weight, 0.25)
+    weights = Enum.map(actions, fn action ->
+      buttons = action[:buttons] || %{}
+      any_button = Enum.any?(buttons, fn {_k, v} -> v == true end)
+      stick_moved = (action[:main_x] || 8) != 8 or (action[:main_y] || 8) != 8
+      if any_button or stick_moved, do: 1.0, else: neutral_w
+    end)
+    Nx.tensor(weights, type: :f32)
+  end
+
+  # Get frame embeddings as a chunked structure for fast slicing.
+  # Returns {chunks_array, chunk_size, num_frames, embed_dim} where chunks_array
+  # is an Erlang array of smaller tensors. Slicing from a 12K-row tensor is much
+  # faster than from a 1.26M-row tensor on BinaryBackend.
+  @embed_chunk_rows 16_384  # ~4.5MB per chunk at 288 dims × f32
+
+  defp get_frame_embeddings_chunked(dataset) do
+    tensor = case dataset.embedded_frames do
+      %Nx.Tensor{} = t -> Nx.backend_copy(t, Nx.BinaryBackend)
       array when is_tuple(array) and elem(array, 0) == :array ->
-        # Erlang array - stack into tensor
         size = :array.size(array)
         list = for i <- 0..(size - 1), do: :array.get(i, array)
         Nx.stack(list) |> Nx.backend_copy(Nx.BinaryBackend)
-
       other ->
         raise ArgumentError, "embedded_frames must be a tensor or array, got: #{inspect(other)}"
+    end
+
+    {num_frames, embed_dim} = Nx.shape(tensor)
+    chunk_size = @embed_chunk_rows
+    num_chunks = div(num_frames + chunk_size - 1, chunk_size)
+
+    chunks =
+      for i <- 0..(num_chunks - 1) do
+        start = i * chunk_size
+        len = min(chunk_size, num_frames - start)
+        Nx.slice(tensor, [start, 0], [len, embed_dim])
+      end
+
+    chunks_array = :array.from_list(chunks)
+    {chunks_array, chunk_size, num_frames, embed_dim}
+  end
+
+  # Slice a window from chunked embeddings, handling cross-boundary cases
+  defp slice_from_chunks(chunks_array, chunk_size, frame_start, window_size, embed_dim) do
+    chunk_idx = div(frame_start, chunk_size)
+    offset = rem(frame_start, chunk_size)
+    chunk = :array.get(chunk_idx, chunks_array)
+    chunk_rows = elem(Nx.shape(chunk), 0)
+
+    if offset + window_size <= chunk_rows do
+      # Fast path: window fits within one chunk
+      Nx.slice(chunk, [offset, 0], [window_size, embed_dim])
+    else
+      # Cross-boundary: concatenate from two adjacent chunks
+      remaining = chunk_rows - offset
+      part1 = Nx.slice(chunk, [offset, 0], [remaining, embed_dim])
+      next_chunk = :array.get(chunk_idx + 1, chunks_array)
+      part2 = Nx.slice(next_chunk, [0, 0], [window_size - remaining, embed_dim])
+      Nx.concatenate([part1, part2], axis: 0)
     end
   end
 

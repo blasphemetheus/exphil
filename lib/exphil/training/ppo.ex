@@ -185,7 +185,7 @@ defmodule ExPhil.Training.PPO do
   defp load_pretrained(initial_params, path) do
     case File.read(path) do
       {:ok, binary} ->
-        checkpoint = :erlang.binary_to_term(binary)
+        checkpoint = :erlang.binary_to_term(binary, [:safe])
         # Merge pretrained policy params with initial params
         # This handles cases where the architecture is slightly different
         # Use bracket notation to avoid KeyError when key doesn't exist
@@ -676,7 +676,7 @@ defmodule ExPhil.Training.PPO do
   def load_checkpoint(trainer, path) do
     case File.read(path) do
       {:ok, binary} ->
-        checkpoint = :erlang.binary_to_term(binary)
+        checkpoint = :erlang.binary_to_term(binary, [:safe])
 
         new_trainer = %{
           trainer
@@ -748,7 +748,7 @@ defmodule ExPhil.Training.PPO do
   def load_pretrained_policy(trainer, path) do
     case File.read(path) do
       {:ok, binary} ->
-        checkpoint = :erlang.binary_to_term(binary)
+        checkpoint = :erlang.binary_to_term(binary, [:safe])
         pretrained_params = Map.get(checkpoint, :policy_params) || Map.get(checkpoint, :params)
 
         # Merge pretrained params into current params

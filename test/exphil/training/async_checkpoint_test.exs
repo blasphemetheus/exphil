@@ -33,7 +33,7 @@ defmodule ExPhil.Training.AsyncCheckpointTest do
 
       # Verify file exists and content is correct
       assert File.exists?(path)
-      loaded = :erlang.binary_to_term(File.read!(path))
+      loaded = :erlang.binary_to_term(File.read!(path), [:safe])
       assert loaded.step == 42
       assert Nx.to_number(Nx.sum(loaded.params.layer)) == 100.0
     end
@@ -58,7 +58,7 @@ defmodule ExPhil.Training.AsyncCheckpointTest do
       # Verify all files exist with correct content
       for {path, i} <- Enum.with_index(paths, 1) do
         assert File.exists?(path), "File #{path} should exist"
-        loaded = :erlang.binary_to_term(File.read!(path))
+        loaded = :erlang.binary_to_term(File.read!(path), [:safe])
         assert loaded.step == i
       end
     end

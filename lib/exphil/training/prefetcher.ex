@@ -193,30 +193,72 @@ defmodule ExPhil.Training.Prefetcher do
   end
 
   @doc """
-  Wrap an enumerable to add prefetching with a specified buffer size.
+  Wrap an enumerable with async prefetching.
 
-  More flexible than `reduce/3` - allows multiple batches in flight.
+  Returns a new stream that eagerly computes batches in a background process,
+  buffering `buffer_size` batches ahead. When the consumer takes a batch,
+  the next one is already ready.
 
-  ## Example
+  This is the primary way to overlap CPU batch creation with GPU training:
 
-  ```elixir
-  batches = Data.batched_frames(dataset, batch_size: 128)
+      batch_stream = Data.batched_sequences(dataset, lazy: true, ...)
+      prefetched = Prefetcher.wrap(batch_stream, buffer_size: 4)
 
-  # Prefetch 2 batches ahead
-  prefetched = Prefetcher.wrap(batches, buffer_size: 2)
+      Enum.reduce(prefetched, trainer, fn batch, t ->
+        {new_t, _} = Imitation.train_step(t, batch, nil)
+        new_t
+      end)
 
-  Enum.reduce(prefetched, trainer, fn batch, t ->
-    {new_t, _} = Imitation.train_step(t, batch, nil)
-    new_t
-  end)
-  ```
+  ## Options
+  - `:buffer_size` — Number of batches to prefetch ahead (default: 4)
   """
   @spec wrap(Enumerable.t(), keyword()) :: Enumerable.t()
-  def wrap(enumerable, _opts \\ []) do
-    # MEMORY FIX: Simply return the enumerable as a lazy stream
-    # Avoid Enum.to_list which materializes ALL batches into memory
-    # The caller can iterate lazily
-    Stream.map(enumerable, & &1)
+  def wrap(enumerable, opts \\ []) do
+    buffer_size = Keyword.get(opts, :buffer_size, 4)
+
+    Stream.resource(
+      fn ->
+        # Start producer that eagerly pulls from the stream
+        ref = make_ref()
+        parent = self()
+
+        producer = spawn_link(fn ->
+          enumerable
+          |> Stream.each(fn batch ->
+            send(parent, {:prefetch_batch, ref, batch})
+            # Flow control: wait for consumer to signal readiness
+            receive do
+              {:prefetch_ack, ^ref} -> :ok
+            end
+          end)
+          |> Stream.run()
+
+          send(parent, {:prefetch_done, ref})
+        end)
+
+        # Pre-fill the buffer
+        for _ <- 1..buffer_size do
+          send(producer, {:prefetch_ack, ref})
+        end
+
+        {ref, producer, buffer_size}
+      end,
+      fn {ref, producer, buf} ->
+        receive do
+          {:prefetch_batch, ^ref, batch} ->
+            # Signal producer to prepare next batch
+            send(producer, {:prefetch_ack, ref})
+            {[batch], {ref, producer, buf}}
+
+          {:prefetch_done, ^ref} ->
+            {:halt, {ref, producer, buf}}
+        end
+      end,
+      fn {_ref, producer, _buf} ->
+        Process.unlink(producer)
+        Process.exit(producer, :kill)
+      end
+    )
   end
 
   @doc """

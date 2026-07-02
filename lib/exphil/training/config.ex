@@ -109,7 +109,7 @@ defmodule ExPhil.Training.Config do
     :huginn,
     :coconut
   ]
-  @valid_optimizers [:adam, :adamw, :lamb, :radam, :sgd, :rmsprop]
+  @valid_optimizers [:adam, :adamw, :lamb, :radam, :sgd, :rmsprop, :adabelief, :yogi]
   @valid_lr_schedules [:constant, :cosine, :cosine_restarts, :exponential, :linear]
   # Policy types: how actions are predicted
   # - :autoregressive - Standard 6-head sequential prediction (current default)
@@ -211,8 +211,13 @@ defmodule ExPhil.Training.Config do
     "--button-weight",
     "--button-pos-weight",
     "--stick-edge-weight",
+    "--entropy-weight",
+    "--neutral-weight",
+    "--head-normalize",
+    "--no-head-normalize",
     "--action-oversample",
     "--lazy-sequences",
+    "--use-batch",
     "--no-register",
     "--keep-best",
     "--ema",
@@ -359,21 +364,89 @@ defmodule ExPhil.Training.Config do
   @spec backbone_defaults(atom()) :: keyword()
   def backbone_defaults(backbone) do
     case backbone do
+      # SSM-based (Mamba family) — fast inference, good temporal modeling
+      :mamba ->
+        # f32 — bf16 MixedPrecision causes mode collapse on large datasets
+        [temporal: true, precision: :f32, dropout: 0.0, lr_schedule: :cosine_restarts,
+         window_size: 60, num_layers: 2, state_size: 16, expand_factor: 2, conv_size: 4]
+
+      :mamba_2 ->
+        [temporal: true, precision: :f32, dropout: 0.0, lr_schedule: :cosine_restarts,
+         window_size: 60, num_layers: 2, state_size: 16, expand_factor: 2]
+
+      :mamba_3 ->
+        [temporal: true, precision: :f32, dropout: 0.0, lr_schedule: :cosine_restarts,
+         window_size: 60, num_layers: 2]
+
+      # Recurrent (LSTM/GRU family) — precision f32 for gate stability
+      :lstm ->
+        [temporal: true, precision: :f32, dropout: 0.1, window_size: 60, num_layers: 2]
+
+      :gru ->
+        [temporal: true, precision: :f32, dropout: 0.1, window_size: 60, num_layers: 2]
+
+      :min_gru ->
+        [temporal: true, precision: :f32, dropout: 0.0, window_size: 60, num_layers: 2]
+
+      :min_lstm ->
+        [temporal: true, precision: :f32, dropout: 0.0, window_size: 60, num_layers: 2]
+
+      # Linear attention / gated (fast, GPU-friendly)
+      :griffin ->
+        [temporal: true, precision: :f32, dropout: 0.0, lr_schedule: :cosine_restarts,
+         window_size: 60, num_layers: 2]
+
+      :gated_delta_net ->
+        [temporal: true, precision: :f32, dropout: 0.0, lr_schedule: :cosine_restarts,
+         window_size: 60, num_layers: 2]
+
+      :delta_net ->
+        [temporal: true, precision: :f32, dropout: 0.0, window_size: 60, num_layers: 2]
+
+      :rwkv ->
+        [temporal: true, precision: :f32, dropout: 0.0, window_size: 60, num_layers: 2]
+
+      :gla ->
+        [temporal: true, precision: :f32, dropout: 0.0, window_size: 60, num_layers: 2]
+
+      :hgrn ->
+        [temporal: true, precision: :f32, dropout: 0.0, window_size: 60, num_layers: 2]
+
+      :ret_net ->
+        [temporal: true, precision: :f32, dropout: 0.0, window_size: 60, num_layers: 2]
+
+      # Attention-based (high quality, slower)
+      :attention ->
+        [temporal: true, precision: :f32, dropout: 0.1, window_size: 60,
+         num_layers: 2, num_heads: 4, head_dim: 64, chunked_attention: true]
+
+      :performer ->
+        [temporal: true, precision: :f32, dropout: 0.1, window_size: 60, num_layers: 2]
+
+      # Hybrid (SSM + attention)
       :jamba ->
-        [learning_rate: 5.0e-6, max_grad_norm: 0.25, batch_size: 16]
+        [temporal: true, precision: :f32, dropout: 0.0, lr_schedule: :cosine_restarts,
+         learning_rate: 5.0e-6, max_grad_norm: 0.25, batch_size: 16]
 
       :zamba ->
-        [learning_rate: 1.0e-5, max_grad_norm: 0.5]
+        [temporal: true, precision: :bf16, dropout: 0.0,
+         learning_rate: 1.0e-5, max_grad_norm: 0.5]
 
+      # Unstable architectures — need very low LR
       :h3 ->
-        [learning_rate: 5.0e-7, max_grad_norm: 0.1]
+        [temporal: true, learning_rate: 5.0e-7, max_grad_norm: 0.1]
 
       :ttt ->
-        [learning_rate: 5.0e-7, max_grad_norm: 0.1]
+        [temporal: true, learning_rate: 5.0e-7, max_grad_norm: 0.1]
 
       :ttt_e2e ->
-        [learning_rate: 5.0e-7, max_grad_norm: 0.1]
+        [temporal: true, learning_rate: 5.0e-7, max_grad_norm: 0.1]
 
+      # MLP (non-temporal)
+      :mlp ->
+        [temporal: false, dropout: 0.1, precision: :f32]
+
+      # Default for unknown backbones
       _ ->
         []
     end
@@ -430,7 +503,7 @@ defmodule ExPhil.Training.Config do
       # KL weight (β) for ACT CVAE regularization
       kl_weight: 10.0,
       window_size: 60,
-      stride: 1,
+      stride: 5,
       num_layers: 2,
       state_size: 16,
       expand_factor: 2,
@@ -509,8 +582,7 @@ defmodule ExPhil.Training.Config do
       # 0.0 = no smoothing, 0.1 = typical value
       label_smoothing: 0.1,
       # Dropout rate (0.0 = no dropout, 0.1 = typical)
-      # Note: MLP backbone defaults to 0.1 if not specified
-      dropout: nil,
+      dropout: 0.0,
       # Focal loss for rare actions (Z, L, R buttons)
       # Enabled by default to prevent mode collapse on button predictions
       focal_loss: true,
@@ -524,15 +596,26 @@ defmodule ExPhil.Training.Config do
       # e.g., [9,19,15,33,49,8,19,99] for manual inverse-frequency weighting
       button_pos_weight: :auto,
       # Stick edge bucket weight: weight edge buckets (0, 16) higher than center (8)
-      # Addresses neutral↔far confusion by penalizing edge mistakes more
-      # nil = disabled, 2.0 = edges weighted 2x, linearly interpolated to center
-      stick_edge_weight: nil,
+      # Addresses center-bias where model predicts neutral 95%+ of the time
+      # 2.0 = edges weighted 2x center, linearly interpolated
+      stick_edge_weight: 2.0,
+      # Entropy regularization: penalize collapsed output distributions
+      # Prevents mode collapse on large datasets (200+ files) where the model
+      # defaults to predicting neutral for everything. 0.01 is the tested value.
+      entropy_weight: 0.01,
+      # Per-frame neutral weight: action frames get 1.0, neutral frames get this value
+      # Lower = stronger anti-collapse signal. 0.0 = skip neutral frames entirely.
+      neutral_weight: 0.25,
+      # Per-head loss normalization: equalize gradient contribution from each head
+      head_normalize: false,
       # Action-conditional oversampling: frames with button presses appear N× more often
       # nil = disabled, 3.0 = button-press frames sampled 3× more often
       action_oversample: 3.0,
       # Lazy sequence batching: slice from frame embeddings on-the-fly instead of
       # pre-building all sequences in RAM. Trades ~10-20% speed for massive RAM savings.
-      lazy_sequences: false,
+      lazy_sequences: true,
+      # Use Nx.Batch for lazy batch assembly (defers concat to JIT boundary)
+      use_batch: false,
       # Registry
       no_register: false,
       # Checkpoint pruning
@@ -1011,8 +1094,9 @@ defmodule ExPhil.Training.Config do
         preset_opts = preset(preset_name)
 
         # Merge: defaults < preset < CLI args
-        # We need to identify which opts were explicitly set via CLI
-        cli_overrides = get_cli_overrides(args)
+        # Use parse_args_standard with empty base to get only CLI-specified values.
+        # This is the single source of truth for all CLI flag parsing — no duplication.
+        cli_overrides = Parser.parse(args, [], parser_context())
 
         defaults()
         |> Keyword.merge(preset_opts)
@@ -1020,80 +1104,6 @@ defmodule ExPhil.Training.Config do
     end
   end
 
-  # Get only the options that were explicitly provided via CLI
-  defp get_cli_overrides(args) do
-    valid_backbones = @valid_backbones
-
-    []
-    |> maybe_add_override(args, "--epochs", :epochs, &String.to_integer/1)
-    |> maybe_add_override(args, "--batch-size", :batch_size, &String.to_integer/1)
-    |> maybe_add_override(args, "--max-files", :max_files, &String.to_integer/1)
-    |> maybe_add_override(args, "--hidden-sizes", :hidden_sizes, &Parser.parse_hidden_sizes/1)
-    |> maybe_add_override(args, "--window-size", :window_size, &String.to_integer/1)
-    |> maybe_add_override(args, "--backbone", :backbone, &AtomSafety.safe_to_atom!(&1, valid_backbones))
-    |> maybe_add_override(args, "--num-layers", :num_layers, &String.to_integer/1)
-    |> maybe_add_override(args, "--attention-every", :attention_every, &String.to_integer/1)
-    |> maybe_add_override(args, "--frame-delay", :frame_delay, &String.to_integer/1)
-    |> maybe_add_override(args, "--replays", :replays, & &1)
-    |> maybe_add_override(args, "--replay-dir", :replays, & &1)
-    |> maybe_add_override(args, "--checkpoint", :checkpoint, & &1)
-    |> maybe_add_override(args, "--lr", :learning_rate, &Parser.parse_float!/1)
-    |> maybe_add_override(args, "--label-smoothing", :label_smoothing, &Parser.parse_float!/1)
-    |> maybe_add_override(args, "--focal-gamma", :focal_gamma, &Parser.parse_float!/1)
-    |> maybe_add_override(args, "--button-weight", :button_weight, &Parser.parse_float!/1)
-    |> maybe_add_override(args, "--stick-edge-weight", :stick_edge_weight, &Parser.parse_float!/1)
-    |> maybe_add_override(args, "--action-oversample", :action_oversample, &Parser.parse_float!/1)
-    |> maybe_add_override(args, "--name", :name, & &1)
-    |> maybe_add_override(args, "--seed", :seed, &String.to_integer/1)
-    |> maybe_add_button_pos_weight_override(args)
-    |> maybe_add_flag_override(args, "--temporal", :temporal)
-    |> maybe_add_flag_override(args, "--wandb", :wandb)
-    |> maybe_add_neg_flag_override(args, "--no-focal-loss", :focal_loss)
-    |> maybe_add_flag_override(args, "--lazy-sequences", :lazy_sequences)
-    |> maybe_add_verbosity_override(args)
-  end
-
-  # Special handling for --button-pos-weight (can be "auto" or comma-separated floats)
-  defp maybe_add_button_pos_weight_override(opts, args) do
-    case Parser.get_arg_value(args, "--button-pos-weight") do
-      nil -> opts
-      "auto" -> Keyword.put(opts, :button_pos_weight, :auto)
-      value ->
-        weights = value |> String.split(",") |> Enum.map(&Parser.parse_float!/1)
-        Keyword.put(opts, :button_pos_weight, weights)
-    end
-  end
-
-  defp maybe_add_override(opts, args, flag, key, parser) do
-    case Parser.get_arg_value(args, flag) do
-      nil -> opts
-      value -> Keyword.put(opts, key, parser.(value))
-    end
-  end
-
-  defp maybe_add_flag_override(opts, args, flag, key) do
-    if Parser.has_flag?(args, flag) do
-      Keyword.put(opts, key, true)
-    else
-      opts
-    end
-  end
-
-  defp maybe_add_neg_flag_override(opts, args, flag, key) do
-    if Parser.has_flag?(args, flag) do
-      Keyword.put(opts, key, false)
-    else
-      opts
-    end
-  end
-
-  defp maybe_add_verbosity_override(opts, args) do
-    cond do
-      Parser.has_flag?(args, "--quiet") -> Keyword.put(opts, :verbosity, 0)
-      Parser.has_flag?(args, "--verbose") -> Keyword.put(opts, :verbosity, 2)
-      true -> opts
-    end
-  end
 
   @doc """
   Parse command-line arguments into a keyword list of options.
@@ -1153,14 +1163,58 @@ defmodule ExPhil.Training.Config do
 
     # Apply per-backbone safe defaults for values the user didn't explicitly set.
     # E.g., Jamba auto-gets lr=5e-6 and grad_clip=0.25 unless you passed --learning-rate.
-    apply_backbone_defaults(opts, args)
+    opts = apply_backbone_defaults(opts, args)
+
+    # Apply scale-dependent adjustments based on dataset size
+    adjust_for_scale(opts, args)
+  end
+
+  # Adjust defaults based on dataset scale (max_files).
+  # Larger datasets need different hyperparameters to avoid mode collapse.
+  defp adjust_for_scale(opts, args) do
+    max_files = opts[:max_files]
+
+    if max_files && max_files > 100 do
+      overrides = [
+        # Entropy regularization prevents mode collapse on large datasets
+        entropy_weight: 0.01
+      ]
+
+      Enum.reduce(overrides, opts, fn {key, value}, acc ->
+        cli_flag = %{entropy_weight: "--entropy-weight"}[key]
+        if cli_flag && ExPhil.Training.Config.Parser.has_flag_value?(args, cli_flag) do
+          acc  # User explicitly set — don't override
+        else
+          if acc[key] == 0.0 or acc[key] == nil do
+            Keyword.put(acc, key, value)
+          else
+            acc
+          end
+        end
+      end)
+    else
+      opts
+    end
   end
 
   # Map from backbone_defaults keys to their CLI flag names
+  # Keys listed here can be overridden by explicit CLI args
   @backbone_default_flags %{
     learning_rate: "--learning-rate",
     max_grad_norm: "--max-grad-norm",
-    batch_size: "--batch-size"
+    batch_size: "--batch-size",
+    temporal: "--temporal",
+    precision: "--precision",
+    dropout: "--dropout",
+    lr_schedule: "--lr-schedule",
+    window_size: "--window-size",
+    num_layers: "--num-layers",
+    state_size: "--state-size",
+    expand_factor: "--expand-factor",
+    conv_size: "--conv-size",
+    num_heads: "--num-heads",
+    head_dim: "--head-dim",
+    chunked_attention: "--chunked-attention"
   }
 
   # Apply per-backbone training defaults for values the user didn't explicitly pass via CLI.
@@ -1178,11 +1232,13 @@ defmodule ExPhil.Training.Config do
         Enum.reduce(overrides, opts, fn {key, value}, acc ->
           cli_flag = @backbone_default_flags[key]
 
-          if cli_flag && Parser.has_flag_value?(args, cli_flag) do
-            # User explicitly set this — don't override
-            acc
-          else
-            Keyword.put(acc, key, value)
+          cond do
+            # User explicitly set via CLI — don't override
+            cli_flag && Parser.has_flag_value?(args, cli_flag) -> acc
+            # Preset already set a non-default value — don't override
+            acc[key] != nil && acc[key] != defaults()[key] -> acc
+            # Apply backbone default
+            true -> Keyword.put(acc, key, value)
           end
         end)
 
@@ -1444,6 +1500,7 @@ defmodule ExPhil.Training.Config do
         other -> other
       end,
       stick_edge_weight: opts[:stick_edge_weight],
+  entropy_weight: opts[:entropy_weight] || 0.0,
       ema: opts[:ema],
       ema_decay: opts[:ema_decay],
       train_character: opts[:train_character] && to_string(opts[:train_character]),

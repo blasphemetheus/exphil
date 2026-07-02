@@ -2273,7 +2273,7 @@ defmodule ExPhil.Networks.Policy.Backbone do
 
   # MEGA: Multi-scale EMA + gated attention
   defp build_mega_backbone(embed_size, opts) do
-    alias Edifice.Attention.MEGA
+    alias Edifice.Attention.Mega
 
     hidden_size = Keyword.get(opts, :hidden_size, 256)
     num_layers = Keyword.get(opts, :num_layers, 2)
@@ -2281,7 +2281,7 @@ defmodule ExPhil.Networks.Policy.Backbone do
     window_size = Keyword.get(opts, :window_size, 60)
     seq_len = Keyword.get(opts, :seq_len, window_size)
 
-    MEGA.build(
+    Mega.build(
       embed_dim: embed_size,
       hidden_size: hidden_size,
       num_layers: num_layers,

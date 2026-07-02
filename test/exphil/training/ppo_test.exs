@@ -97,7 +97,7 @@ defmodule ExPhil.Training.PPOTest do
         assert File.exists?(path)
 
         {:ok, binary} = File.read(path)
-        export = :erlang.binary_to_term(binary)
+        export = :erlang.binary_to_term(binary, [:safe])
 
         assert is_map(export.params)
         assert export.config.axis_buckets == 16
@@ -115,7 +115,7 @@ defmodule ExPhil.Training.PPOTest do
         :ok = PPO.export_policy(trainer, path)
 
         {:ok, binary} = File.read(path)
-        export = :erlang.binary_to_term(binary)
+        export = :erlang.binary_to_term(binary, [:safe])
 
         # Verify temporal config is included with defaults
         assert export.config.embed_size == 64

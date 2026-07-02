@@ -39,6 +39,13 @@ defmodule ExPhil.Networks.Policy.Loss do
   - `ExPhil.Networks.Policy.Sampling` - Action sampling
   """
 
+  # Apply reduction to per-sample loss tensor
+  # Follows Axon.Losses convention: :mean (default), :sum, :none
+  defp apply_reduction(loss, :mean), do: Nx.mean(loss)
+  defp apply_reduction(loss, :sum), do: Nx.sum(loss)
+  defp apply_reduction(loss, :none), do: loss
+  defp apply_reduction(loss, nil), do: Nx.mean(loss)
+
   @doc """
   Compute policy loss (cross-entropy) for imitation learning.
 
@@ -74,12 +81,21 @@ defmodule ExPhil.Networks.Policy.Loss do
       Scales loss for pressed buttons by per-button factors (inverse frequency).
       Fixes mode collapse where model predicts all buttons as "not pressed".
     - `:stick_edge_weight` - Weight edge buckets higher than center (default: nil)
+    - `:entropy_weight` - Entropy regularization weight (default: 0.0)
+      Adds -weight * entropy(predictions) to encourage diverse outputs.
+      Prevents mode collapse by penalizing collapsed output distributions.
+    - `:frame_weights` - Per-frame loss weights tensor [batch] (default: nil)
+      Action frames get higher weight than neutral frames to prevent
+      the model from collapsing to "predict neutral" on large datasets.
   """
   @spec imitation_loss(map(), map(), keyword()) :: Nx.Tensor.t()
   def imitation_loss(logits, targets, opts) do
     label_smoothing = Keyword.get(opts, :label_smoothing, 0.0)
     focal_loss = Keyword.get(opts, :focal_loss, false)
     focal_gamma = Keyword.get(opts, :focal_gamma, 2.0)
+    entropy_weight = Keyword.get(opts, :entropy_weight, 0.0)
+    frame_weights = Keyword.get(opts, :frame_weights, nil)
+    head_normalize = Keyword.get(opts, :head_normalize, false)
     # Button weight: multiply button loss to balance against 5 categorical losses
     # Default 1.0 = no change; try 3.0-5.0 to boost button learning
     button_weight = Keyword.get(opts, :button_weight, 1.0)
@@ -128,37 +144,180 @@ defmodule ExPhil.Networks.Policy.Loss do
         cat_loss_fn
       end
 
-    # Button loss (binary cross-entropy with optional label smoothing + focal)
-    # Apply button_weight to boost button loss relative to stick/shoulder losses
-    button_loss =
-      Nx.multiply(
-        button_loss_fn.(logits.buttons, targets.buttons, label_smoothing),
-        button_weight
-      )
+    # Compute per-sample losses (reduction: :none) for frame weighting
+    # Then combine, weight, and reduce
+    use_frame_weights = frame_weights != nil
 
-    # Main stick losses (with optional edge weighting)
-    main_x_loss = main_stick_loss_fn.(logits.main_x, targets.main_x, label_smoothing)
-    main_y_loss = main_stick_loss_fn.(logits.main_y, targets.main_y, label_smoothing)
+    total_loss =
+      if use_frame_weights do
+        # Per-sample path: get per-sample loss from each head, weight, then mean
+        btn_ps = compute_button_loss_per_sample(logits.buttons, targets.buttons, label_smoothing,
+          focal_loss, focal_gamma, button_pos_weight)
+        btn_ps = Nx.multiply(btn_ps, button_weight)
 
-    # C-stick and shoulder losses (standard categorical CE)
-    c_x_loss = cat_loss_fn.(logits.c_x, targets.c_x, label_smoothing)
-    c_y_loss = cat_loss_fn.(logits.c_y, targets.c_y, label_smoothing)
-    shoulder_loss = cat_loss_fn.(logits.shoulder, targets.shoulder, label_smoothing)
+        mx_ps = compute_cat_loss_per_sample(logits.main_x, targets.main_x, label_smoothing, stick_edge_weight)
+        my_ps = compute_cat_loss_per_sample(logits.main_y, targets.main_y, label_smoothing, stick_edge_weight)
+        cx_ps = compute_cat_loss_per_sample(logits.c_x, targets.c_x, label_smoothing, nil)
+        cy_ps = compute_cat_loss_per_sample(logits.c_y, targets.c_y, label_smoothing, nil)
+        sh_ps = compute_cat_loss_per_sample(logits.shoulder, targets.shoulder, label_smoothing, nil)
 
-    # Combine losses
-    Nx.add(
-      button_loss,
-      Nx.add(
-        main_x_loss,
-        Nx.add(
-          main_y_loss,
-          Nx.add(
-            c_x_loss,
-            Nx.add(c_y_loss, shoulder_loss)
+        # Per-head normalization: normalize each head's per-sample loss by its
+        # stop_gradient mean so each head contributes ~1.0 to the total gradient.
+        # Prevents easy heads (buttons=0.4) from being ignored while hard heads (mx=1.8) dominate.
+        {btn_ps, mx_ps, my_ps, cx_ps, cy_ps, sh_ps} =
+          if head_normalize do
+            normalize_per_sample = fn ps ->
+              # Clamp denominator to min 0.1 — caps max amplification at 10x
+              head_mean = Nx.mean(ps) |> Nx.max(0.1)
+              Nx.divide(ps, Nx.Defn.Kernel.stop_grad(head_mean))
+            end
+            {normalize_per_sample.(btn_ps), normalize_per_sample.(mx_ps),
+             normalize_per_sample.(my_ps), normalize_per_sample.(cx_ps),
+             normalize_per_sample.(cy_ps), normalize_per_sample.(sh_ps)}
+          else
+            {btn_ps, mx_ps, my_ps, cx_ps, cy_ps, sh_ps}
+          end
+
+        # Total per-sample loss: {batch}
+        total_per_sample = btn_ps |> Nx.add(mx_ps) |> Nx.add(my_ps) |> Nx.add(cx_ps) |> Nx.add(cy_ps) |> Nx.add(sh_ps)
+
+        # Apply frame weights and compute weighted mean
+        weighted = Nx.multiply(total_per_sample, frame_weights)
+        Nx.sum(weighted) |> Nx.divide(Nx.sum(frame_weights))
+      else
+        # Standard path: mean reduction per head, sum across heads
+        button_loss =
+          Nx.multiply(
+            button_loss_fn.(logits.buttons, targets.buttons, label_smoothing),
+            button_weight
           )
+
+        main_x_loss = main_stick_loss_fn.(logits.main_x, targets.main_x, label_smoothing)
+        main_y_loss = main_stick_loss_fn.(logits.main_y, targets.main_y, label_smoothing)
+        c_x_loss = cat_loss_fn.(logits.c_x, targets.c_x, label_smoothing)
+        c_y_loss = cat_loss_fn.(logits.c_y, targets.c_y, label_smoothing)
+        shoulder_loss = cat_loss_fn.(logits.shoulder, targets.shoulder, label_smoothing)
+
+        if head_normalize do
+          # Normalize each head loss by stop_gradient(loss) so each contributes ~1.0
+          # Clamp denominator to min 0.1 — caps max amplification at 10x
+          normalize = fn loss ->
+            Nx.divide(loss, Nx.max(Nx.Defn.Kernel.stop_grad(loss), 0.1))
+          end
+          normalize.(button_loss)
+          |> Nx.add(normalize.(main_x_loss))
+          |> Nx.add(normalize.(main_y_loss))
+          |> Nx.add(normalize.(c_x_loss))
+          |> Nx.add(normalize.(c_y_loss))
+          |> Nx.add(normalize.(shoulder_loss))
+        else
+          Nx.add(
+            button_loss,
+            Nx.add(
+              main_x_loss,
+              Nx.add(
+                main_y_loss,
+                Nx.add(
+                  c_x_loss,
+                  Nx.add(c_y_loss, shoulder_loss)
+                )
+              )
+            )
+          )
+        end
+      end
+
+    # Entropy regularization: penalize collapsed output distributions
+    # Encourages the model to maintain diverse predictions, preventing mode collapse
+    # H(p) = -sum(p * log(p)), we SUBTRACT entropy_weight * H to maximize entropy
+    if entropy_weight > 0.0 do
+      # Button entropy: sigmoid → per-element binary entropy
+      btn_probs = Nx.sigmoid(logits.buttons)
+      btn_entropy = Nx.negate(
+        Nx.add(
+          Nx.multiply(btn_probs, Nx.log(Nx.max(btn_probs, 1.0e-7))),
+          Nx.multiply(Nx.subtract(1.0, btn_probs), Nx.log(Nx.max(Nx.subtract(1.0, btn_probs), 1.0e-7)))
         )
-      )
+      ) |> Nx.mean()
+
+      # Stick entropy: softmax → categorical entropy per head
+      stick_entropy = Enum.map([logits.main_x, logits.main_y, logits.c_x, logits.c_y, logits.shoulder], fn head_logits ->
+        probs = Nx.exp(log_softmax(head_logits))
+        Nx.negate(Nx.sum(Nx.multiply(probs, Nx.log(Nx.max(probs, 1.0e-7))), axes: [-1])) |> Nx.mean()
+      end) |> Enum.reduce(&Nx.add/2)
+
+      total_entropy = Nx.add(btn_entropy, stick_entropy)
+
+      # Subtract weighted entropy from loss (lower loss = higher entropy = more diverse)
+      Nx.subtract(total_loss, Nx.multiply(entropy_weight, total_entropy))
+    else
+      total_loss
+    end
+  end
+
+  # Per-sample loss helpers for frame weighting
+  # Returns {batch} tensor (one loss value per sample)
+
+  defp compute_button_loss_per_sample(logits, targets, label_smoothing, focal_loss, focal_gamma, pos_weight) do
+    smoothed = if label_smoothing > 0.0 do
+      Nx.add(Nx.multiply(targets, 1.0 - 2.0 * label_smoothing), label_smoothing)
+    else
+      targets
+    end
+
+    max_val = Nx.max(logits, 0)
+    abs_logits = Nx.abs(logits)
+
+    bce = if pos_weight do
+      scale = Nx.add(1.0, Nx.multiply(Nx.subtract(pos_weight, 1.0), smoothed))
+      base = Nx.add(max_val, Nx.log(Nx.add(1, Nx.exp(Nx.negate(abs_logits)))))
+      Nx.subtract(Nx.multiply(base, scale), Nx.multiply(pos_weight, Nx.multiply(smoothed, logits)))
+    else
+      loss = Nx.subtract(max_val, Nx.multiply(logits, smoothed))
+      Nx.add(loss, Nx.log(Nx.add(1, Nx.exp(Nx.negate(abs_logits)))))
+    end
+
+    per_sample = if focal_loss do
+      probs = Nx.sigmoid(logits)
+      p_t = Nx.add(Nx.multiply(smoothed, Nx.subtract(Nx.multiply(probs, 2), 1)), Nx.subtract(1, probs))
+      focal_weight = Nx.pow(Nx.subtract(1.0, p_t), focal_gamma)
+      Nx.mean(Nx.multiply(focal_weight, bce), axes: [-1])
+    else
+      Nx.mean(bce, axes: [-1])  # mean over 8 buttons → {batch}
+    end
+
+    per_sample
+  end
+
+  defp compute_cat_loss_per_sample(logits, targets, label_smoothing, edge_weight) do
+    log_probs = log_softmax(logits)
+    batch_size = Nx.axis_size(logits, 0)
+    num_classes = Nx.axis_size(logits, 1)
+
+    targets_one_hot = Nx.equal(
+      Nx.iota({batch_size, num_classes}, axis: 1),
+      Nx.reshape(targets, {batch_size, 1})
     )
+
+    smoothed = if label_smoothing > 0.0 do
+      off_value = label_smoothing / (num_classes - 1)
+      on_value = 1.0 - label_smoothing
+      Nx.add(off_value, Nx.multiply(targets_one_hot, on_value - off_value))
+    else
+      targets_one_hot
+    end
+
+    nll = Nx.negate(Nx.sum(Nx.multiply(log_probs, smoothed), axes: [1]))  # {batch}
+
+    if edge_weight && edge_weight > 1.0 do
+      center = div(num_classes - 1, 2)
+      distance = Nx.abs(Nx.subtract(targets, center))
+      normalized = Nx.divide(distance, center)
+      sample_weights = Nx.add(1.0, Nx.multiply(edge_weight - 1.0, normalized))
+      Nx.multiply(nll, sample_weights)
+    else
+      nll
+    end
   end
 
   @doc """
@@ -178,9 +337,9 @@ defmodule ExPhil.Networks.Policy.Loss do
   @spec binary_cross_entropy(Nx.Tensor.t(), Nx.Tensor.t(), float(), keyword()) :: Nx.Tensor.t()
   def binary_cross_entropy(logits, targets, label_smoothing, opts \\ []) do
     pos_weight = Keyword.get(opts, :pos_weight, nil)
+    reduction = Keyword.get(opts, :reduction, :mean)
 
     # Apply label smoothing to targets
-    # Smoothed targets: t_smooth = t * (1 - ε) + (1 - t) * ε = t * (1 - 2ε) + ε
     smoothed_targets =
       if label_smoothing > 0.0 do
         Nx.add(
@@ -191,25 +350,21 @@ defmodule ExPhil.Networks.Policy.Loss do
         targets
       end
 
-    if pos_weight do
-      # Weighted BCE: -w*t*log(σ(x)) - (1-t)*log(1-σ(x))
-      # Stable form: (1 + (w-1)*t) * (max(x,0) + log(1+exp(-|x|))) - w*t*x
-      max_val = Nx.max(logits, 0)
-      abs_logits = Nx.abs(logits)
-      base = Nx.add(max_val, Nx.log(Nx.add(1, Nx.exp(Nx.negate(abs_logits)))))
+    per_sample_loss =
+      if pos_weight do
+        max_val = Nx.max(logits, 0)
+        abs_logits = Nx.abs(logits)
+        base = Nx.add(max_val, Nx.log(Nx.add(1, Nx.exp(Nx.negate(abs_logits)))))
+        scale = Nx.add(1.0, Nx.multiply(Nx.subtract(pos_weight, 1.0), smoothed_targets))
+        Nx.subtract(Nx.multiply(base, scale), Nx.multiply(pos_weight, Nx.multiply(smoothed_targets, logits)))
+      else
+        max_val = Nx.max(logits, 0)
+        abs_logits = Nx.abs(logits)
+        loss = Nx.subtract(max_val, Nx.multiply(logits, smoothed_targets))
+        Nx.add(loss, Nx.log(Nx.add(1, Nx.exp(Nx.negate(abs_logits)))))
+      end
 
-      scale = Nx.add(1.0, Nx.multiply(Nx.subtract(pos_weight, 1.0), smoothed_targets))
-      loss = Nx.subtract(Nx.multiply(base, scale), Nx.multiply(pos_weight, Nx.multiply(smoothed_targets, logits)))
-      Nx.mean(loss)
-    else
-      # Standard BCE: max(x,0) - x*t + log(1+exp(-|x|))
-      max_val = Nx.max(logits, 0)
-      abs_logits = Nx.abs(logits)
-
-      loss = Nx.subtract(max_val, Nx.multiply(logits, smoothed_targets))
-      loss = Nx.add(loss, Nx.log(Nx.add(1, Nx.exp(Nx.negate(abs_logits)))))
-      Nx.mean(loss)
-    end
+    apply_reduction(per_sample_loss, reduction)
   end
 
   @doc """
@@ -226,46 +381,32 @@ defmodule ExPhil.Networks.Policy.Loss do
     categorical_cross_entropy(logits, targets, 0.0)
   end
 
-  @spec categorical_cross_entropy(Nx.Tensor.t(), Nx.Tensor.t(), float()) :: Nx.Tensor.t()
-  def categorical_cross_entropy(logits, targets, label_smoothing) do
-    # targets are indices, logits are [batch, num_classes]
-    # Use log_softmax for numerical stability
+  @spec categorical_cross_entropy(Nx.Tensor.t(), Nx.Tensor.t(), float(), keyword()) :: Nx.Tensor.t()
+  def categorical_cross_entropy(logits, targets, label_smoothing, opts \\ []) do
+    reduction = Keyword.get(opts, :reduction, :mean)
+
     log_probs = log_softmax(logits)
 
-    # Gather the log probability of the target class
-    # targets: [batch], log_probs: [batch, num_classes]
     batch_size = Nx.axis_size(logits, 0)
     num_classes = Nx.axis_size(logits, 1)
 
-    # Create one-hot targets
     targets_one_hot =
       Nx.equal(
         Nx.iota({batch_size, num_classes}, axis: 1),
         Nx.reshape(targets, {batch_size, 1})
       )
 
-    # Apply label smoothing if enabled
-    # Smoothed one-hot: (1-ε) for target class, ε/(n-1) for others
     smoothed_targets =
       if label_smoothing > 0.0 do
-        # off_value = ε / (n-1)
-        # on_value = 1 - ε
         off_value = label_smoothing / (num_classes - 1)
         on_value = 1.0 - label_smoothing
-
-        # Start with uniform ε/(n-1), then add (1-ε - ε/(n-1)) to target class
-        # = off_value + targets_one_hot * (on_value - off_value)
-        Nx.add(
-          off_value,
-          Nx.multiply(targets_one_hot, on_value - off_value)
-        )
+        Nx.add(off_value, Nx.multiply(targets_one_hot, on_value - off_value))
       else
         targets_one_hot
       end
 
-    # Cross-entropy with soft targets: -sum(p * log_q)
-    nll = Nx.negate(Nx.sum(Nx.multiply(log_probs, smoothed_targets), axes: [1]))
-    Nx.mean(nll)
+    per_sample = Nx.negate(Nx.sum(Nx.multiply(log_probs, smoothed_targets), axes: [1]))
+    apply_reduction(per_sample, reduction)
   end
 
   @doc """
@@ -337,7 +478,7 @@ defmodule ExPhil.Networks.Policy.Loss do
     # Apply per-sample weights
     weighted_nll = Nx.multiply(nll, sample_weights)
 
-    Nx.mean(weighted_nll)
+    apply_reduction(weighted_nll, :mean)
   end
 
   @doc """
@@ -355,6 +496,7 @@ defmodule ExPhil.Networks.Policy.Loss do
           Nx.Tensor.t()
   def focal_binary_cross_entropy(logits, targets, label_smoothing, gamma, opts \\ []) do
     pos_weight = Keyword.get(opts, :pos_weight, nil)
+    reduction = Keyword.get(opts, :reduction, :mean)
 
     # Apply label smoothing to targets
     smoothed_targets =
@@ -389,14 +531,14 @@ defmodule ExPhil.Networks.Policy.Loss do
 
       scale = Nx.add(1.0, Nx.multiply(Nx.subtract(pos_weight, 1.0), smoothed_targets))
       bce = Nx.subtract(Nx.multiply(base, scale), Nx.multiply(pos_weight, Nx.multiply(smoothed_targets, logits)))
-      Nx.mean(Nx.multiply(focal_weight, bce))
+      apply_reduction(Nx.multiply(focal_weight, bce), reduction)
     else
       # Standard focal BCE
       max_val = Nx.max(logits, 0)
       abs_logits = Nx.abs(logits)
       bce = Nx.subtract(max_val, Nx.multiply(logits, smoothed_targets))
       bce = Nx.add(bce, Nx.log(Nx.add(1, Nx.exp(Nx.negate(abs_logits)))))
-      Nx.mean(Nx.multiply(focal_weight, bce))
+      apply_reduction(Nx.multiply(focal_weight, bce), reduction)
     end
   end
 
@@ -453,7 +595,7 @@ defmodule ExPhil.Networks.Policy.Loss do
 
     # Apply focal weight
     focal_ce = Nx.multiply(focal_weight, ce)
-    Nx.mean(focal_ce)
+    apply_reduction(focal_ce, :mean)
   end
 
   @doc """

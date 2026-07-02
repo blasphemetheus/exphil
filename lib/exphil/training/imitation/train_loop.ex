@@ -252,11 +252,12 @@ defmodule ExPhil.Training.Imitation.TrainLoop do
   # Standard training without mixed precision
   defp train_step_standard(trainer, batch) do
     %{states: states, actions: actions} = batch
+    frame_weights = Map.get(batch, :frame_weights) || default_frame_weights(states)
     policy_type = trainer.config[:policy_type] || :autoregressive
 
     # Compute loss and gradients based on policy type
     {loss, grads} = compute_policy_loss_and_grad(
-      policy_type, trainer, states, actions
+      policy_type, trainer, states, actions, frame_weights
     )
 
     # Extract data for optimizer (grads has same structure as ModelState)
@@ -294,9 +295,11 @@ defmodule ExPhil.Training.Imitation.TrainLoop do
     compute_params = MixedPrecision.get_compute_params(mp_state)
     compute_model_state = put_params_data(trainer.policy_params, compute_params)
 
+    frame_weights = Map.get(batch, :frame_weights) || default_frame_weights(states)
+
     # Forward + backward in BF16 (compute precision)
     {loss, grads} = compute_policy_loss_and_grad(
-      policy_type, %{trainer | policy_params: compute_model_state}, states, actions
+      policy_type, %{trainer | policy_params: compute_model_state}, states, actions, frame_weights
     )
     grads_data = get_params_data(grads)
 
@@ -339,30 +342,32 @@ defmodule ExPhil.Training.Imitation.TrainLoop do
   # ============================================================================
 
   # Compute gradients for a batch without applying updates
-  defp compute_gradients(trainer, batch) do
+  @doc "Compute gradients for a batch without applying updates. Returns {grads_data, loss_number}."
+  def compute_gradients(trainer, batch) do
     %{states: states, actions: actions} = batch
+    frame_weights = Map.get(batch, :frame_weights) || default_frame_weights(states)
     policy_type = trainer.config[:policy_type] || :autoregressive
 
-    {loss, grads} = compute_policy_loss_and_grad(policy_type, trainer, states, actions)
+    {loss, grads} = compute_policy_loss_and_grad(policy_type, trainer, states, actions, frame_weights)
     grads_data = get_params_data(grads)
     loss_val = Nx.to_number(loss)
 
     {grads_data, loss_val}
   end
 
-  # Add two gradient maps element-wise
-  defp add_gradients(grads1, grads2) do
+  @doc "Add two gradient maps element-wise."
+  def add_gradients(grads1, grads2) do
     deep_map2(grads1, grads2, fn t1, t2 -> Nx.add(t1, t2) end)
   end
 
-  # Scale gradients by a factor
-  defp scale_gradients(grads, factor) do
+  @doc "Scale gradients by a factor."
+  def scale_gradients(grads, factor) do
     factor_t = Nx.tensor(factor, type: :f32)
     deep_map(grads, fn t -> Nx.multiply(t, factor_t) end)
   end
 
-  # Apply averaged gradients to update parameters
-  defp apply_gradients(trainer, grads) do
+  @doc "Apply averaged gradients to update parameters."
+  def apply_gradients(trainer, grads) do
     params_data = get_params_data(trainer.policy_params)
 
     {updates, new_optimizer_state} =
@@ -430,9 +435,10 @@ defmodule ExPhil.Training.Imitation.TrainLoop do
   @spec compute_grad_norms(struct(), map()) :: [{String.t(), float()}]
   def compute_grad_norms(trainer, batch) do
     %{states: states, actions: actions} = batch
+    frame_weights = Map.get(batch, :frame_weights) || default_frame_weights(states)
     policy_type = trainer.config[:policy_type] || :autoregressive
 
-    {_loss, grads} = compute_policy_loss_and_grad(policy_type, trainer, states, actions)
+    {_loss, grads} = compute_policy_loss_and_grad(policy_type, trainer, states, actions, frame_weights)
     grads_data = get_params_data(grads)
 
     flatten_grad_norms(grads_data, "")
@@ -461,34 +467,43 @@ defmodule ExPhil.Training.Imitation.TrainLoop do
   # Private - Axon.ModelState Helpers
   # ============================================================================
 
-  defp get_params_data(%Axon.ModelState{data: data}), do: data
-  defp get_params_data(params) when is_map(params), do: params
+  @doc "Extract raw parameter data from ModelState or raw map."
+  def get_params_data(%Axon.ModelState{data: data}), do: data
+  def get_params_data(params) when is_map(params), do: params
 
-  defp put_params_data(%Axon.ModelState{} = state, data), do: %{state | data: data}
-  defp put_params_data(_original, data), do: data
+  @doc "Wrap parameter data back into the original container format."
+  def put_params_data(%Axon.ModelState{} = state, data), do: %{state | data: data}
+  def put_params_data(_original, data), do: data
+
+  # Default frame weights: uniform 1.0 for all frames in the batch
+  # Used when batch doesn't include pre-computed frame_weights
+  defp default_frame_weights(states) do
+    batch_size = elem(Nx.shape(states), 0)
+    Nx.broadcast(Nx.tensor(1.0, type: :f32), {batch_size})
+  end
 
   # ============================================================================
   # Private - Policy-Type-Aware Loss and Gradient Computation
   # ============================================================================
 
   # Dispatch loss computation based on policy type
-  # For autoregressive and ACT: uses cached loss_and_grad_fn with 3 args
+  # For autoregressive and ACT: uses cached loss_and_grad_fn with 4 args (includes frame_weights)
   # For diffusion and flow_matching: samples noise/timestep and uses 5 args
-  defp compute_policy_loss_and_grad(:autoregressive, trainer, states, actions) do
-    trainer.loss_and_grad_fn.(trainer.policy_params, states, actions)
+  defp compute_policy_loss_and_grad(:autoregressive, trainer, states, actions, frame_weights) do
+    trainer.loss_and_grad_fn.(trainer.policy_params, states, actions, frame_weights)
   end
 
-  defp compute_policy_loss_and_grad(:act, trainer, states, actions) do
-    trainer.loss_and_grad_fn.(trainer.policy_params, states, actions)
+  defp compute_policy_loss_and_grad(:act, trainer, states, actions, frame_weights) do
+    trainer.loss_and_grad_fn.(trainer.policy_params, states, actions, frame_weights)
   end
 
-  defp compute_policy_loss_and_grad(:diffusion, trainer, states, actions) do
+  defp compute_policy_loss_and_grad(:diffusion, trainer, states, actions, _frame_weights) do
     # Sample random noise and timesteps for diffusion training
     {noise, timestep} = sample_noise_and_timestep(trainer, actions)
     trainer.loss_and_grad_fn.(trainer.policy_params, states, actions, noise, timestep)
   end
 
-  defp compute_policy_loss_and_grad(:flow_matching, trainer, states, actions) do
+  defp compute_policy_loss_and_grad(:flow_matching, trainer, states, actions, _frame_weights) do
     # Sample random noise and timesteps for flow matching training
     {noise, timestep} = sample_noise_and_timestep(trainer, actions)
     trainer.loss_and_grad_fn.(trainer.policy_params, states, actions, noise, timestep)

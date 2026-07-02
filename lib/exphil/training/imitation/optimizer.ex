@@ -129,6 +129,24 @@ defmodule ExPhil.Training.Imitation.Optimizer do
     )
   end
 
+  def build_base_optimizer(:adabelief, lr_schedule, _config) do
+    Polaris.Optimizers.adabelief(
+      learning_rate: lr_schedule,
+      b1: 0.9,
+      b2: 0.999,
+      eps: 1.0e-16
+    )
+  end
+
+  def build_base_optimizer(:yogi, lr_schedule, _config) do
+    Polaris.Optimizers.yogi(
+      learning_rate: lr_schedule,
+      b1: 0.9,
+      b2: 0.999,
+      eps: 1.0e-3
+    )
+  end
+
   @doc """
   Build a learning rate schedule function based on config.
 

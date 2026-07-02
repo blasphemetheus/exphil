@@ -409,7 +409,7 @@ defmodule ExPhil.Integration.PipelineTest do
       assert stat.size > 1000, "Policy file too small: #{stat.size} bytes"
 
       # Verify config was saved correctly
-      loaded = :erlang.binary_to_term(File.read!(policy_path))
+      loaded = :erlang.binary_to_term(File.read!(policy_path), [:safe])
       assert loaded.config.temporal == true
       assert loaded.config.backbone == :mlp
       assert loaded.config.window_size == window_size
