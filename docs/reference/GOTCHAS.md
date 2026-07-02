@@ -2268,3 +2268,24 @@ Healthy-vs-collapsed correlated 1:1 with cache-hit on that entry.
 subtle statistical corruption. Validate tensor shapes at every cache/IO
 boundary. When a phenomenon is invariant to *everything* you change, suspect
 the data pipeline, not the model.
+
+## 52. Bare defn/eager Nx sampling cost 116ms per live inference (evaluator fallback)
+
+**Symptom:** Live bot made ~6 decisions/sec. Profiling (`scripts/profile_agent_inference.exs`)
+showed the EXLA-compiled forward pass at 1ms but `Policy.sample` at ~116ms.
+
+**Two stacked causes:**
+1. Per-head sampling ran as dozens of eager Nx ops (each a separate dispatch).
+2. Fusing them into one `defn` didn't help — **Nx's default defn options are
+   empty**, so a bare defn call runs on the pure-Elixir evaluator. This is
+   gotcha #NX-defaults all over again (see test_fused_kernels.exs note): you
+   MUST `Nx.Defn.jit(fun, compiler: EXLA)` explicitly (cache the closure in
+   `:persistent_term`).
+
+**Fix:** `lib/exphil/networks/policy/sampling.ex` — all six heads + confidence
+scalars sampled in one explicitly-jitted program. 116ms → 2ms; live decision
+loop 125ms → 4.8ms (under the 16.67ms frame budget).
+
+**Lesson:** any per-frame Nx code in the play path must be inside ONE
+explicitly-compiled defn. Watch for this in new inference features (value
+heads, beam search, ensembles).

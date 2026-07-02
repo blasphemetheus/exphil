@@ -52,17 +52,23 @@ defmodule ExPhil.Networks.Policy.Sampling do
 
     # Forward pass to get all logits
     {buttons_logits, main_x_logits, main_y_logits, c_x_logits, c_y_logits, shoulder_logits} =
-      predict_fn.(Utils.ensure_model_state(params), state)
+      logits_tuple = predict_fn.(Utils.ensure_model_state(params), state)
 
-    # Sample buttons (independent Bernoulli)
-    buttons = sample_buttons(buttons_logits, deterministic)
+    # Sample ALL heads (+ confidence) in ONE compiled program. Doing this with
+    # per-head eager Nx ops costs >100ms per decision (dozens of separate XLA
+    # dispatches); fused it is ~1ms. See scripts/profile_agent_inference.exs.
+    {buttons, main_x, main_y, c_x, c_y, shoulder, conf} =
+      if deterministic do
+        jitted(:fused_det, &fused_sample_deterministic/1).(logits_tuple)
+      else
+        key = Nx.Random.key(:erlang.unique_integer([:positive]))
 
-    # Sample stick and shoulder (categorical)
-    main_x = sample_categorical(main_x_logits, temperature, deterministic)
-    main_y = sample_categorical(main_y_logits, temperature, deterministic)
-    c_x = sample_categorical(c_x_logits, temperature, deterministic)
-    c_y = sample_categorical(c_y_logits, temperature, deterministic)
-    shoulder = sample_categorical(shoulder_logits, temperature, deterministic)
+        jitted(:fused_stoch, &fused_sample_stochastic/3).(
+          logits_tuple,
+          key,
+          Nx.tensor(temperature, type: :f32)
+        )
+      end
 
     %{
       buttons: buttons,
@@ -71,6 +77,8 @@ defmodule ExPhil.Networks.Policy.Sampling do
       c_x: c_x,
       c_y: c_y,
       shoulder: shoulder,
+      # Precomputed confidence scalars (tensors) — see compute_confidence/1
+      confidence_raw: conf,
       # Also include logits for loss computation
       logits: %{
         buttons: buttons_logits,
@@ -81,6 +89,80 @@ defmodule ExPhil.Networks.Policy.Sampling do
         shoulder: shoulder_logits
       }
     }
+  end
+
+  import Nx.Defn
+
+  # Nx's default defn options are EMPTY, so a bare defn call runs on the
+  # pure-Elixir evaluator (~120ms here). Jit explicitly with EXLA and cache
+  # the compiled closure. (Same gotcha as scripts/test_fused_kernels.exs.)
+  defp jitted(name, fun) do
+    pt_key = {__MODULE__, name}
+
+    case :persistent_term.get(pt_key, nil) do
+      nil ->
+        compiled =
+          if Code.ensure_loaded?(EXLA) do
+            Nx.Defn.jit(fun, compiler: EXLA)
+          else
+            Nx.Defn.jit(fun)
+          end
+
+        :persistent_term.put(pt_key, compiled)
+        compiled
+
+      compiled ->
+        compiled
+    end
+  end
+
+  # --- Fused sampling: one XLA program for all six heads + confidence ---
+
+  defnp fused_sample_stochastic({b_l, mx_l, my_l, cx_l, cy_l, sh_l}, key, temperature) do
+    probs = Nx.sigmoid(b_l)
+    {u, key} = Nx.Random.uniform(key, shape: Nx.shape(probs))
+    buttons = Nx.less(u, probs)
+
+    {mx, key} = gumbel_argmax(mx_l, key, temperature)
+    {my, key} = gumbel_argmax(my_l, key, temperature)
+    {cx, key} = gumbel_argmax(cx_l, key, temperature)
+    {cy, key} = gumbel_argmax(cy_l, key, temperature)
+    {sh, _key} = gumbel_argmax(sh_l, key, temperature)
+
+    {buttons, mx, my, cx, cy, sh, confidence_scalars(b_l, mx_l, my_l, cx_l, cy_l, sh_l)}
+  end
+
+  defnp fused_sample_deterministic({b_l, mx_l, my_l, cx_l, cy_l, sh_l}) do
+    buttons = Nx.greater(Nx.sigmoid(b_l), 0.5)
+    mx = Nx.argmax(mx_l, axis: -1)
+    my = Nx.argmax(my_l, axis: -1)
+    cx = Nx.argmax(cx_l, axis: -1)
+    cy = Nx.argmax(cy_l, axis: -1)
+    sh = Nx.argmax(sh_l, axis: -1)
+
+    {buttons, mx, my, cx, cy, sh, confidence_scalars(b_l, mx_l, my_l, cx_l, cy_l, sh_l)}
+  end
+
+  defnp gumbel_argmax(logits, key, temperature) do
+    scaled = logits / temperature
+    {u, key} = Nx.Random.uniform(key, shape: Nx.shape(scaled))
+    gumbel = -Nx.log(-Nx.log(u + 1.0e-10))
+    {Nx.argmax(scaled + gumbel, axis: -1), key}
+  end
+
+  defnp confidence_scalars(b_l, mx_l, my_l, cx_l, cy_l, sh_l) do
+    buttons = Nx.mean(Nx.abs(Nx.sigmoid(b_l) - 0.5) * 2)
+    main = (max_softmax(mx_l) + max_softmax(my_l)) / 2
+    c = (max_softmax(cx_l) + max_softmax(cy_l)) / 2
+    shoulder = max_softmax(sh_l)
+    overall = buttons * 0.4 + main * 0.3 + c * 0.15 + shoulder * 0.15
+    %{buttons: buttons, main: main, c: c, shoulder: shoulder, overall: overall}
+  end
+
+  defnp max_softmax(logits) do
+    Nx.exp(logits - Nx.logsumexp(logits, axes: [-1], keep_axes: true))
+    |> Nx.reduce_max(axes: [-1])
+    |> Nx.mean()
   end
 
   @doc """
@@ -133,6 +215,17 @@ defmodule ExPhil.Networks.Policy.Sampling do
   Higher values = more confident predictions.
   """
   @spec compute_confidence(map()) :: map()
+  def compute_confidence(%{confidence_raw: raw}) do
+    # Precomputed inside the fused sampling program — just read the scalars.
+    %{
+      buttons: raw.buttons |> Nx.to_number() |> Float.round(3),
+      main: raw.main |> Nx.to_number() |> Float.round(3),
+      c: raw.c |> Nx.to_number() |> Float.round(3),
+      shoulder: raw.shoulder |> Nx.to_number() |> Float.round(3),
+      overall: raw.overall |> Nx.to_number() |> Float.round(3)
+    }
+  end
+
   def compute_confidence(%{logits: logits}) do
     compute_confidence(logits)
   end
