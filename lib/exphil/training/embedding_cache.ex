@@ -39,6 +39,12 @@ defmodule ExPhil.Training.EmbeddingCache do
   # Max bytes per chunk (~500MB) - well under Erlang's term_to_binary limit
   @max_chunk_bytes 500_000_000
 
+  # Bump whenever the SEMANTICS of what gets cached change (e.g. the 2026-03
+  # embed-split reorder), even if config/files are identical — stale entries
+  # under an unchanged key silently corrupt training (GOTCHAS.md #51).
+  # v2: added version + frame_count to the key (2026-07-02).
+  @cache_format_version 2
+
   @doc """
   Generate a cache key from embedding config and replay files.
 
@@ -79,6 +85,7 @@ defmodule ExPhil.Training.EmbeddingCache do
 
     # Build hash input
     hash_input = %{
+      version: @cache_format_version,
       files: sorted_files,
       config: config_data,
       # Include computed embedding size to catch padding/alignment changes
@@ -86,6 +93,10 @@ defmodule ExPhil.Training.EmbeddingCache do
       temporal: temporal,
       window_size: window_size,
       stride: stride,
+      # Frame count of the dataset the tensor must cover (nil where the
+      # caller doesn't know it) — a subset tensor can't hide under the
+      # full dataset's key (GOTCHAS.md #51)
+      frame_count: Keyword.get(opts, :frame_count),
       # Include augmentation params so augmented caches have different keys
       augmented: augmented,
       num_noisy_variants: num_noisy_variants,

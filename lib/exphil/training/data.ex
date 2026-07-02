@@ -968,6 +968,19 @@ defmodule ExPhil.Training.Data do
           {nil, nil}
 
         tensor when is_struct(tensor, Nx.Tensor) ->
+          # XLA gather CLAMPS out-of-bounds indices instead of raising, which
+          # turns a size mismatch into silent data corruption (every gathered
+          # row becomes the last row). Guard explicitly. See GOTCHAS.md #51.
+          rows = Nx.axis_size(tensor, 0)
+          max_index = Enum.max(train_indices ++ val_indices, fn -> -1 end)
+
+          if max_index >= rows do
+            raise ArgumentError,
+                  "split indices go up to #{max_index} but embedded_frames has only " <>
+                    "#{rows} rows — the embedding tensor does not cover this dataset " <>
+                    "(stale cache entry? see GOTCHAS.md #51)"
+          end
+
           # Use Nx.take to gather rows by indices
           train_idx_tensor = Nx.tensor(train_indices, type: :s64)
           val_idx_tensor = Nx.tensor(val_indices, type: :s64)
@@ -1572,14 +1585,34 @@ defmodule ExPhil.Training.Data do
     alias ExPhil.Training.EmbeddingCache
 
     if cache_enabled and not force_recompute and length(replay_files) > 0 do
-      cache_key = EmbeddingCache.cache_key(dataset.embed_config, replay_files, temporal: false)
+      cache_key =
+        EmbeddingCache.cache_key(dataset.embed_config, replay_files,
+          temporal: false,
+          frame_count: dataset.size
+        )
 
       Logger.info("[EmbeddingCache] Looking for cache key: #{cache_key} (frame embeddings)")
 
       case EmbeddingCache.load(cache_key, cache_dir: cache_dir) do
         {:ok, embedded_array} ->
-          Logger.info("[EmbeddingCache] Using cached frame embeddings")
-          %{dataset | embedded_frames: embedded_array}
+          # Row count MUST match the dataset. A stale entry cached under the
+          # same key but covering a different subset (e.g. a pre-reorder
+          # train-split-only tensor) silently corrupts the train/val split:
+          # out-of-bounds Nx.take indices clamp instead of raising, making
+          # every val sample identical. See GOTCHAS.md #51.
+          cached_rows = Nx.axis_size(embedded_array, 0)
+
+          if cached_rows == dataset.size do
+            Logger.info("[EmbeddingCache] Using cached frame embeddings")
+            %{dataset | embedded_frames: embedded_array}
+          else
+            Logger.warning(
+              "[EmbeddingCache] Cached tensor has #{cached_rows} rows but dataset has " <>
+                "#{dataset.size} frames — stale entry #{cache_key}; recomputing and overwriting"
+            )
+
+            recompute_and_save_frame_embeddings(dataset, cache_key, cache_dir, opts)
+          end
 
         {:error, %CacheError{}} ->
           available =
@@ -1589,22 +1622,7 @@ defmodule ExPhil.Training.Data do
 
           Logger.info("[EmbeddingCache] Cache miss for #{cache_key}")
           Logger.info("[EmbeddingCache] Available caches: #{available}")
-          result = precompute_frame_embeddings(dataset, opts)
-
-          # Save to cache
-          if result.embedded_frames do
-            Logger.info("[EmbeddingCache] Saving frame embeddings to #{cache_key}...")
-            case EmbeddingCache.save(cache_key, result.embedded_frames, cache_dir: cache_dir) do
-              :ok ->
-                Logger.info("[EmbeddingCache] Successfully saved frame cache")
-              {:error, reason} ->
-                Logger.error("[EmbeddingCache] Failed to save frame cache: #{inspect(reason)}")
-            end
-          else
-            Logger.warning("[EmbeddingCache] No embedded_frames to save (this is a bug)")
-          end
-
-          result
+          recompute_and_save_frame_embeddings(dataset, cache_key, cache_dir, opts)
 
         {:error, reason} ->
           Logger.warning(
@@ -1616,6 +1634,28 @@ defmodule ExPhil.Training.Data do
     else
       precompute_frame_embeddings(dataset, opts)
     end
+  end
+
+  defp recompute_and_save_frame_embeddings(dataset, cache_key, cache_dir, opts) do
+    alias ExPhil.Training.EmbeddingCache
+
+    result = precompute_frame_embeddings(dataset, opts)
+
+    if result.embedded_frames do
+      Logger.info("[EmbeddingCache] Saving frame embeddings to #{cache_key}...")
+
+      case EmbeddingCache.save(cache_key, result.embedded_frames, cache_dir: cache_dir) do
+        :ok ->
+          Logger.info("[EmbeddingCache] Successfully saved frame cache")
+
+        {:error, reason} ->
+          Logger.error("[EmbeddingCache] Failed to save frame cache: #{inspect(reason)}")
+      end
+    else
+      Logger.warning("[EmbeddingCache] No embedded_frames to save (this is a bug)")
+    end
+
+    result
   end
 
   # ============================================================================
