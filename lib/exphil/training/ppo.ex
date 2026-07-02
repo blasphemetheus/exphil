@@ -353,13 +353,13 @@ defmodule ExPhil.Training.PPO do
             start_idx = mb_idx * minibatch_size
             mb_indices = Nx.slice(indices, [start_idx], [minibatch_size])
 
-            # Gather minibatch data
+            # Gather minibatch data (bounds-checked — GOTCHAS.md #51)
             mb_states = gather_batch(states, mb_indices)
             mb_actions = gather_actions(actions, mb_indices)
-            mb_advantages = Nx.take(advantages, mb_indices)
-            mb_returns = Nx.take(returns, mb_indices)
-            mb_old_log_probs = Nx.take(old_log_probs, mb_indices)
-            mb_old_values = Nx.take(old_values, mb_indices)
+            mb_advantages = ExPhil.NxSafe.take(advantages, mb_indices, label: "PPO advantages")
+            mb_returns = ExPhil.NxSafe.take(returns, mb_indices, label: "PPO returns")
+            mb_old_log_probs = ExPhil.NxSafe.take(old_log_probs, mb_indices, label: "PPO log_probs")
+            mb_old_values = ExPhil.NxSafe.take(old_values, mb_indices, label: "PPO values")
 
             # Single minibatch update
             {new_trainer, metrics} =
@@ -383,12 +383,12 @@ defmodule ExPhil.Training.PPO do
   end
 
   defp gather_batch(tensor, indices) do
-    Nx.take(tensor, indices)
+    ExPhil.NxSafe.take(tensor, indices, label: "PPO states")
   end
 
   defp gather_actions(actions, indices) do
     Map.new(actions, fn {k, v} ->
-      {k, Nx.take(v, indices)}
+      {k, ExPhil.NxSafe.take(v, indices, label: "PPO action #{k}")}
     end)
   end
 

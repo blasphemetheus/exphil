@@ -25,7 +25,7 @@ defmodule ExPhil.Training.CachePoisoningRegressionTest do
         embed_config: %{}
       }
 
-      assert_raise ArgumentError, ~r/only 7 rows/, fn ->
+      assert_raise ArgumentError, ~r/out of bounds.*7 entries/s, fn ->
         Data.split(dataset, shuffle: false)
       end
     end
@@ -46,6 +46,58 @@ defmodule ExPhil.Training.CachePoisoningRegressionTest do
       assert val.size == 2
       assert Nx.axis_size(train.embedded_frames, 0) == 8
       assert Nx.axis_size(val.embedded_frames, 0) == 2
+    end
+  end
+
+  describe "NxSafe.take/3" do
+    test "raises on out-of-bounds indices instead of clamping" do
+      tensor = Nx.iota({5, 3})
+
+      assert_raise ArgumentError, ~r/out of bounds.*5 entries/s, fn ->
+        ExPhil.NxSafe.take(tensor, [0, 2, 7], label: "test")
+      end
+
+      assert_raise ArgumentError, ~r/out of bounds/, fn ->
+        ExPhil.NxSafe.take(tensor, Nx.tensor([-1, 0]), label: "test")
+      end
+    end
+
+    test "matches Nx.take for valid indices (list and tensor)" do
+      tensor = Nx.iota({5, 3})
+
+      assert Nx.to_flat_list(ExPhil.NxSafe.take(tensor, [4, 0, 2])) ==
+               Nx.to_flat_list(Nx.take(tensor, Nx.tensor([4, 0, 2], type: :s64)))
+
+      idx = Nx.tensor([1, 3])
+
+      assert Nx.to_flat_list(ExPhil.NxSafe.take(tensor, idx)) ==
+               Nx.to_flat_list(Nx.take(tensor, idx))
+    end
+
+    test "rejects empty index lists with a clear error" do
+      tensor = Nx.iota({5, 3})
+
+      assert_raise ArgumentError, ~r/empty index list/, fn ->
+        ExPhil.NxSafe.take(tensor, [])
+      end
+    end
+  end
+
+  describe "EmbeddingCache.load/2 :expected_frames" do
+    @tag :tmp_dir
+    test "rejects an entry whose row count doesn't match", %{tmp_dir: tmp_dir} do
+      # Simulate the poisoned entry: 7-row tensor cached, 10 rows expected
+      tensor = Nx.broadcast(0.0, {7, 4})
+      :ok = EmbeddingCache.save("poisoned", tensor, cache_dir: tmp_dir)
+
+      assert {:error, %ExPhil.Error.CacheError{reason: :stale}} =
+               EmbeddingCache.load("poisoned", cache_dir: tmp_dir, expected_frames: 10)
+
+      # Matching expectation loads fine
+      assert {:ok, loaded} =
+               EmbeddingCache.load("poisoned", cache_dir: tmp_dir, expected_frames: 7)
+
+      assert Nx.axis_size(loaded, 0) == 7
     end
   end
 

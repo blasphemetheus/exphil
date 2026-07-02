@@ -1153,11 +1153,12 @@ defmodule ExPhil.Error do
     - `:invalid_header` - Invalid cache file header
     - `:corrupted` - Cache file corrupted
     - `:write_failed` - Failed to write cache
+    - `:stale` - Entry exists but does not cover the expected data (treat as miss)
     """
 
     defexception [:reason, :path, :context, :message]
 
-    @type reason :: :not_found | :invalid_header | :corrupted | :write_failed
+    @type reason :: :not_found | :invalid_header | :corrupted | :write_failed | :stale
 
     @type t :: %__MODULE__{
             reason: reason(),
@@ -1174,6 +1175,7 @@ defmodule ExPhil.Error do
           :invalid_header -> "Invalid cache header"
           :corrupted -> "Cache file corrupted"
           :write_failed -> "Failed to write cache"
+          :stale -> "Cache entry stale (does not cover the expected data)"
         end
 
       parts = [base]

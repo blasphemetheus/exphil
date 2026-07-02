@@ -233,6 +233,14 @@ defmodule ExPhil.Training.EmbeddingCache do
   Load embeddings from cache.
 
   Automatically handles both single-file and chunked formats.
+
+  ## Options
+    * `:cache_dir` - cache directory
+    * `:expected_frames` - if given and the loaded value is a tensor, its
+      axis-0 size must match or the entry is rejected as `:stale`. Guards
+      against entries cached under the same key but covering a different
+      subset of the dataset (GOTCHAS.md #51) — callers should treat the
+      `:stale` error like a miss and recompute.
   """
   @spec load(String.t(), keyword()) :: {:ok, term()} | {:error, :not_found | term()}
   def load(cache_key, opts \\ []) do
@@ -240,19 +248,44 @@ defmodule ExPhil.Training.EmbeddingCache do
     path = cache_path(cache_key, cache_dir)
     manifest = manifest_path(cache_key, cache_dir)
 
-    cond do
-      # Check for chunked format first (manifest file)
-      File.exists?(manifest) ->
-        load_chunked(cache_key, cache_dir)
+    result =
+      cond do
+        # Check for chunked format first (manifest file)
+        File.exists?(manifest) ->
+          load_chunked(cache_key, cache_dir)
 
-      # Fall back to single file
-      File.exists?(path) ->
-        load_single_file(cache_key, cache_dir)
+        # Fall back to single file
+        File.exists?(path) ->
+          load_single_file(cache_key, cache_dir)
 
-      true ->
-        {:error, CacheError.new(:not_found, context: %{details: "cache key #{cache_key}"})}
+        true ->
+          {:error, CacheError.new(:not_found, context: %{details: "cache key #{cache_key}"})}
+      end
+
+    validate_expected_frames(result, cache_key, Keyword.get(opts, :expected_frames))
+  end
+
+  defp validate_expected_frames(result, _cache_key, nil), do: result
+
+  defp validate_expected_frames({:ok, %Nx.Tensor{} = tensor} = ok, cache_key, expected) do
+    rows = Nx.axis_size(tensor, 0)
+
+    if rows == expected do
+      ok
+    else
+      Logger.warning(
+        "[EmbeddingCache] Entry #{cache_key} has #{rows} rows but #{expected} were " <>
+          "expected — stale entry (covers a different dataset subset), rejecting"
+      )
+
+      {:error,
+       CacheError.new(:stale,
+         context: %{details: "#{cache_key}: #{rows} rows cached, #{expected} expected"}
+       )}
     end
   end
+
+  defp validate_expected_frames(result, _cache_key, _expected), do: result
 
   defp load_single_file(cache_key, cache_dir) do
     path = cache_path(cache_key, cache_dir)

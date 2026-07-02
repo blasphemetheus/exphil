@@ -54,6 +54,7 @@ defmodule ExPhil.Training.Data do
   alias ExPhil.Bridge.{GameState, ControllerState}
   alias ExPhil.Training.PlayerRegistry
   alias ExPhil.Error.CacheError
+  alias ExPhil.NxSafe
 
   require Logger
 
@@ -478,8 +479,7 @@ defmodule ExPhil.Training.Data do
               tensor
             end
 
-          indices_tensor = Nx.tensor(indices, type: :s64)
-          Nx.take(tensor, indices_tensor, axis: 0)
+          NxSafe.take(tensor, indices, axis: 0, label: "Data batch gather")
           |> Nx.backend_transfer(EXLA.Backend)
 
         array when is_tuple(array) and elem(array, 0) == :array ->
@@ -559,13 +559,13 @@ defmodule ExPhil.Training.Data do
       end
 
     # Create indices for gather
-    frame_indices = Nx.tensor(indices, type: :s64)
     variant_tensor = Nx.tensor(variant_indices, type: :s64)
 
     # Index into augmented embeddings
     # Two-step indexing: first select frames, then select variants per sample
-    # Step 1: Nx.take on axis 0 gives us {batch_size, num_variants, embed_size}
-    frames_all_variants = Nx.take(tensor, frame_indices, axis: 0)
+    # Step 1: take on axis 0 gives us {batch_size, num_variants, embed_size}
+    frames_all_variants =
+      NxSafe.take(tensor, indices, axis: 0, label: "Data augmented batch gather")
 
     # Step 2: For each sample, select its variant
     states =
@@ -968,23 +968,10 @@ defmodule ExPhil.Training.Data do
           {nil, nil}
 
         tensor when is_struct(tensor, Nx.Tensor) ->
-          # XLA gather CLAMPS out-of-bounds indices instead of raising, which
-          # turns a size mismatch into silent data corruption (every gathered
-          # row becomes the last row). Guard explicitly. See GOTCHAS.md #51.
-          rows = Nx.axis_size(tensor, 0)
-          max_index = Enum.max(train_indices ++ val_indices, fn -> -1 end)
-
-          if max_index >= rows do
-            raise ArgumentError,
-                  "split indices go up to #{max_index} but embedded_frames has only " <>
-                    "#{rows} rows — the embedding tensor does not cover this dataset " <>
-                    "(stale cache entry? see GOTCHAS.md #51)"
-          end
-
-          # Use Nx.take to gather rows by indices
-          train_idx_tensor = Nx.tensor(train_indices, type: :s64)
-          val_idx_tensor = Nx.tensor(val_indices, type: :s64)
-          {Nx.take(tensor, train_idx_tensor), Nx.take(tensor, val_idx_tensor)}
+          # Bounds-checked: XLA gather clamps out-of-bounds indices instead of
+          # raising, silently corrupting the split (GOTCHAS.md #51).
+          {NxSafe.take(tensor, train_indices, label: "Data.split train"),
+           NxSafe.take(tensor, val_indices, label: "Data.split val")}
 
         _ ->
           {nil, nil}
@@ -1593,26 +1580,13 @@ defmodule ExPhil.Training.Data do
 
       Logger.info("[EmbeddingCache] Looking for cache key: #{cache_key} (frame embeddings)")
 
-      case EmbeddingCache.load(cache_key, cache_dir: cache_dir) do
+      # expected_frames rejects stale entries covering a different dataset
+      # subset (GOTCHAS.md #51) — the :stale error lands in the miss branch
+      # below, recomputing and overwriting the bad entry.
+      case EmbeddingCache.load(cache_key, cache_dir: cache_dir, expected_frames: dataset.size) do
         {:ok, embedded_array} ->
-          # Row count MUST match the dataset. A stale entry cached under the
-          # same key but covering a different subset (e.g. a pre-reorder
-          # train-split-only tensor) silently corrupts the train/val split:
-          # out-of-bounds Nx.take indices clamp instead of raising, making
-          # every val sample identical. See GOTCHAS.md #51.
-          cached_rows = Nx.axis_size(embedded_array, 0)
-
-          if cached_rows == dataset.size do
-            Logger.info("[EmbeddingCache] Using cached frame embeddings")
-            %{dataset | embedded_frames: embedded_array}
-          else
-            Logger.warning(
-              "[EmbeddingCache] Cached tensor has #{cached_rows} rows but dataset has " <>
-                "#{dataset.size} frames — stale entry #{cache_key}; recomputing and overwriting"
-            )
-
-            recompute_and_save_frame_embeddings(dataset, cache_key, cache_dir, opts)
-          end
+          Logger.info("[EmbeddingCache] Using cached frame embeddings")
+          %{dataset | embedded_frames: embedded_array}
 
         {:error, %CacheError{}} ->
           available =
@@ -1838,7 +1812,7 @@ defmodule ExPhil.Training.Data do
           noise_scale: noise_scale
         )
 
-      case EmbeddingCache.load(cache_key, cache_dir: cache_dir) do
+      case EmbeddingCache.load(cache_key, cache_dir: cache_dir, expected_frames: dataset.size) do
         {:ok, embedded_array} ->
           Logger.info("[EmbeddingCache] Using cached augmented frame embeddings")
           %{dataset | embedded_frames: embedded_array}

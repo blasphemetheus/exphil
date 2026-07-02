@@ -2289,3 +2289,13 @@ loop 125ms → 4.8ms (under the 16.67ms frame budget).
 **Lesson:** any per-frame Nx code in the play path must be inside ONE
 explicitly-compiled defn. Watch for this in new inference features (value
 heads, beam search, ensembles).
+
+**Addendum (#51 hardening, 2026-07-02):** systematic guards now in place —
+`ExPhil.NxSafe.take/3` (bounds-checked gather, raises instead of clamping;
+used at all data-boundary call sites: Data.split, batch assembly, PPO
+minibatching, league evolution rollouts), `EmbeddingCache.load/2
+expected_frames:` option (rejects wrong-row-count entries as `:stale`, which
+callers treat as a miss), and cache keys carrying a format version + frame
+count. Policy: any NEW index-driven gather where indices and tensor come from
+different sources must go through NxSafe; structurally-bounded gathers
+(argmax outputs, constant index lists) are exempt.

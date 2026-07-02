@@ -516,23 +516,26 @@ defmodule ExPhil.League.Evolution do
   end
 
   defp get_batch(rollout, advantages, returns, indices) do
-    idx_tensor = Nx.tensor(indices)
+    # Bounds-checked gathers — GOTCHAS.md #51
+    alias ExPhil.NxSafe
 
     %{
-      states: Nx.take(rollout.states, idx_tensor),
-      actions: take_actions(rollout.actions, idx_tensor),
-      old_log_probs: Nx.take(rollout.log_probs, idx_tensor),
-      advantages: Nx.take(advantages, idx_tensor),
-      returns: Nx.take(returns, idx_tensor)
+      states: NxSafe.take(rollout.states, indices, label: "evolution states"),
+      actions: take_actions(rollout.actions, indices),
+      old_log_probs: NxSafe.take(rollout.log_probs, indices, label: "evolution log_probs"),
+      advantages: NxSafe.take(advantages, indices, label: "evolution advantages"),
+      returns: NxSafe.take(returns, indices, label: "evolution returns")
     }
   end
 
   defp take_actions(actions, indices) when is_map(actions) do
-    Map.new(actions, fn {k, v} -> {k, Nx.take(v, indices)} end)
+    Map.new(actions, fn {k, v} ->
+      {k, ExPhil.NxSafe.take(v, indices, label: "evolution action #{k}")}
+    end)
   end
 
   defp take_actions(actions, indices) do
-    Nx.take(actions, indices)
+    ExPhil.NxSafe.take(actions, indices, label: "evolution actions")
   end
 
   defp compute_ppo_loss_and_grad(model, params, batch, config) do
