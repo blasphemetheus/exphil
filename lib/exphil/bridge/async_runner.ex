@@ -462,10 +462,15 @@ defmodule ExPhil.Bridge.AsyncRunner do
             # Check if we're in game
             case :ets.lookup(table, :in_game) do
               [{:in_game, true}] ->
-                # Run inference with confidence
-                case Agent.get_action_with_confidence(agent, game_state, player_port: player_port) do
-                  {:ok, action, confidence} ->
-                    :ets.insert(table, {:latest_action, action})
+                # Run inference with confidence. Must use the controller API:
+                # the raw action map holds bucket INDICES (0..axis_buckets),
+                # not analog values — sending those to libmelee clamps the
+                # sticks to full deflection (the "drifts right forever" bug).
+                case Agent.get_controller_with_confidence(agent, game_state,
+                       player_port: player_port
+                     ) do
+                  {:ok, controller, confidence} ->
+                    :ets.insert(table, {:latest_action, controller})
                     :ets.insert(table, {:latest_confidence, confidence})
                     :ets.update_counter(table, :inference_count, 1)
                     # Update running sum for average
@@ -491,45 +496,27 @@ defmodule ExPhil.Bridge.AsyncRunner do
   # Helpers
   # ============================================================================
 
-  defp action_to_input(action, _player_port) do
-    # Convert action map to controller input format
-    # Need to convert Nx tensors to plain Elixir values
+  # Convert a fully-decoded ControllerState (sticks/shoulder undiscretized to
+  # 0..1, buttons boolean — see Networks.Policy.to_controller_state/2) into
+  # the bridge input map. Intentionally accepts ONLY %ControllerState{}: raw
+  # action maps carry bucket indices and must never reach the bridge.
+  defp action_to_input(%ExPhil.Bridge.ControllerState{} = cs, _player_port) do
     %{
-      main_stick: %{
-        x: to_float(Map.get(action, :main_x, 0.5)),
-        y: to_float(Map.get(action, :main_y, 0.5))
-      },
-      c_stick: %{
-        x: to_float(Map.get(action, :c_x, 0.5)),
-        y: to_float(Map.get(action, :c_y, 0.5))
-      },
-      shoulder: to_float(Map.get(action, :shoulder, 0.0)),
+      main_stick: %{x: cs.main_stick.x, y: cs.main_stick.y},
+      c_stick: %{x: cs.c_stick.x, y: cs.c_stick.y},
+      shoulder: cs.l_shoulder + cs.r_shoulder,
       buttons: %{
-        a: to_bool(Map.get(action, :button_a, false)),
-        b: to_bool(Map.get(action, :button_b, false)),
-        x: to_bool(Map.get(action, :button_x, false)),
-        y: to_bool(Map.get(action, :button_y, false)),
-        z: to_bool(Map.get(action, :button_z, false)),
-        l: to_bool(Map.get(action, :button_l, false)),
-        r: to_bool(Map.get(action, :button_r, false)),
-        d_up: to_bool(Map.get(action, :button_d_up, false))
+        a: cs.button_a,
+        b: cs.button_b,
+        x: cs.button_x,
+        y: cs.button_y,
+        z: cs.button_z,
+        l: cs.button_l,
+        r: cs.button_r,
+        d_up: cs.button_d_up
       }
     }
   end
-
-  # Convert Nx tensor or value to float
-  defp to_float(%Nx.Tensor{} = t), do: t |> Nx.squeeze() |> Nx.to_number() |> convert_to_float()
-  defp to_float(v) when is_number(v), do: v / 1.0
-  defp to_float(_), do: 0.5
-
-  defp convert_to_float(v) when is_integer(v), do: v / 1.0
-  defp convert_to_float(v), do: v
-
-  # Convert Nx tensor or value to bool
-  defp to_bool(%Nx.Tensor{} = t), do: t |> Nx.squeeze() |> Nx.to_number() > 0.5
-  defp to_bool(v) when is_boolean(v), do: v
-  defp to_bool(v) when is_number(v), do: v > 0.5
-  defp to_bool(_), do: false
 
   # Send neutral controller state (all centered, no buttons)
   defp send_neutral_controller(bridge) do

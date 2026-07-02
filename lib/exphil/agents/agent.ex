@@ -153,6 +153,20 @@ defmodule ExPhil.Agents.Agent do
   end
 
   @doc """
+  Like `get_controller/3` but also returns the confidence map.
+
+  Returns `{:ok, controller_state, confidence}` with sticks/shoulder already
+  undiscretized to the 0..1 analog range and buttons as booleans — the raw
+  action map from `get_action_with_confidence/3` contains bucket INDICES,
+  which must never be sent to the bridge directly.
+  """
+  @spec get_controller_with_confidence(GenServer.server(), GameState.t(), keyword()) ::
+          {:ok, ControllerState.t(), map()} | {:error, term()}
+  def get_controller_with_confidence(agent, game_state, opts \\ []) do
+    GenServer.call(agent, {:get_controller_with_confidence, game_state, opts})
+  end
+
+  @doc """
   Load a new policy, hot-swapping the current one.
   """
   @spec load_policy(GenServer.server(), Path.t() | map()) :: :ok | {:error, term()}
@@ -297,6 +311,18 @@ defmodule ExPhil.Agents.Agent do
       {:ok, action, _confidence, new_state} ->
         controller = action_to_controller(action, state)
         {:reply, {:ok, controller}, new_state}
+
+      {:error, _} = error ->
+        {:reply, error, state}
+    end
+  end
+
+  @impl true
+  def handle_call({:get_controller_with_confidence, game_state, opts}, _from, state) do
+    case compute_action(state, game_state, opts) do
+      {:ok, action, confidence, new_state} ->
+        controller = action_to_controller(action, state)
+        {:reply, {:ok, controller, confidence}, new_state}
 
       {:error, _} = error ->
         {:reply, error, state}
