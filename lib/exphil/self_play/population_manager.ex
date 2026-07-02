@@ -583,7 +583,7 @@ defmodule ExPhil.SelfPlay.PopulationManager do
       Enum.flat_map(checkpoints, fn path ->
         case File.read(path) do
           {:ok, binary} ->
-            case :erlang.binary_to_term(binary) do
+            case :erlang.binary_to_term(binary, [:safe]) do
               %{model: model, params: params} ->
                 version = Path.basename(path, ".bin")
 

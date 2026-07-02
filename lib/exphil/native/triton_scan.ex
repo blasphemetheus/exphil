@@ -38,7 +38,7 @@ defmodule ExPhil.Native.TritonScan do
       :ok -> :ok
       {:error, {:reload, _}} -> :ok
       {:error, reason} ->
-        IO.warn("Failed to load triton_scan_nif: #{inspect(reason)}")
+        require Logger; Logger.debug("Optional NIF triton_scan_nif not available: #{inspect(reason)}")
         :ok
     end
   end

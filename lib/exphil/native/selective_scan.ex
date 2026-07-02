@@ -84,7 +84,7 @@ defmodule ExPhil.Native.SelectiveScan do
       :ok -> :ok
       {:error, {:reload, _}} -> :ok
       {:error, reason} ->
-        IO.warn("Failed to load selective_scan_nif: #{inspect(reason)}")
+        require Logger; Logger.debug("Optional NIF selective_scan_nif not available: #{inspect(reason)}")
         :ok  # Don't fail app startup
     end
   end

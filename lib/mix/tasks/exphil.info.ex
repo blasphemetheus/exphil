@@ -50,7 +50,7 @@ defmodule Mix.Tasks.Exphil.Info do
   defp load_checkpoint(path) do
     try do
       binary = File.read!(path)
-      data = :erlang.binary_to_term(binary)
+      data = :erlang.binary_to_term(binary, [:safe])
 
       type =
         cond do

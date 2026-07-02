@@ -233,7 +233,7 @@ defmodule Mix.Tasks.Exphil.Compare do
     else
       try do
         binary = File.read!(path)
-        data = :erlang.binary_to_term(binary)
+        data = :erlang.binary_to_term(binary, [:safe])
 
         type =
           cond do

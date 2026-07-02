@@ -1,5 +1,13 @@
 #!/usr/bin/env elixir
-# Training script: Parse replays and run imitation learning
+# DEPRECATED: Use scripts/train.exs instead.
+#
+# This script is kept for reference but is no longer maintained.
+# The new script uses a callback-based architecture with modular Pipeline/Trainer/Callbacks.
+#
+# Equivalent command:
+#   mix run scripts/train.exs --backbone mamba --replays ./replays/huggingface
+#
+# Original training script: Parse replays and run imitation learning
 #
 # Usage:
 #   mix run scripts/train_from_replays.exs [options]
@@ -40,6 +48,12 @@ xla_flags = System.get_env("XLA_FLAGS", "")
 unless String.contains?(xla_flags, "xla_cpu_multi_thread_eigen") do
   new_flags = "#{xla_flags} --xla_cpu_multi_thread_eigen=true" |> String.trim()
   System.put_env("XLA_FLAGS", new_flags)
+end
+
+# Disable XLA memory preallocation — training manages its own memory
+# and preallocation causes OOMs with large datasets
+unless System.get_env("XLA_PYTHON_CLIENT_PREALLOCATE") do
+  System.put_env("XLA_PYTHON_CLIENT_PREALLOCATE", "false")
 end
 
 # Suppress XLA/ptxas info logs in quiet mode (must be done early, before EXLA loads)
@@ -263,6 +277,25 @@ is_special_atom? = fn
   :infinity -> true
   :neg_infinity -> true
   _ -> false
+end
+
+# Categorical cross-entropy for a single head (logits + integer targets) → scalar float
+categorical_ce_scalar = fn logits, targets ->
+  n_classes = elem(Nx.shape(logits), 1)
+  one_hot = Nx.equal(Nx.iota({1, n_classes}), Nx.reshape(targets, {:auto, 1})) |> Nx.as_type(:f32)
+  log_probs = Axon.Activations.log_softmax(logits)
+  loss = Nx.negate(Nx.sum(Nx.multiply(one_hot, log_probs), axes: [-1])) |> Nx.mean()
+  Nx.to_number(loss)
+end
+
+# VRAM debug helper — snapshots GPU memory at key points
+vram_snap = fn label ->
+  :erlang.garbage_collect()
+  Process.sleep(100)
+  case GPUUtils.get_memory_info() do
+    {:ok, info} -> Output.puts("[VRAM] #{label}: #{info.used_mb} MB / #{info.total_mb} MB")
+    _ -> :ok
+  end
 end
 
 # Helper function for dual-port training - parses both players from a replay
@@ -1268,6 +1301,8 @@ player_registry =
     nil
   end
 
+vram_snap.("before step 2 (dataset)")
+
 # Step 2: Create dataset (skipped in streaming mode - data loaded per-chunk)
 {train_dataset, val_dataset} =
   if not streaming_mode do
@@ -1306,20 +1341,20 @@ player_registry =
             Data.precompute_frame_embeddings(dataset, show_progress: true)
           end
 
-        # Step 2: Create sequences (just stores frame indices, no embedding work)
-        seq_dataset =
-          Data.to_sequences(frame_embedded_dataset,
-            window_size: opts[:window_size],
-            stride: opts[:stride]
-          )
-
-        # Step 3: Build sequence embeddings (or skip if lazy mode)
+        # Step 2+3: Build sequences
         if opts[:lazy_sequences] do
-          Output.puts("  Lazy sequence mode: skipping eager sequence building (low RAM)")
-          Output.puts("  Sequences will be sliced from frame embeddings on-the-fly during batching")
-          # Keep frame embeddings + sequence metadata, skip eager materialization
-          seq_dataset
+          Output.puts("  Lazy sequence mode: slicing from frame embeddings on-the-fly")
+          # Skip to_sequences — lazy batching generates its own sequences
+          # from frame_embeddings + raw frames (for action lookup)
+          frame_embedded_dataset
         else
+          # Eager mode: materialize all sequences
+          seq_dataset =
+            Data.to_sequences(frame_embedded_dataset,
+              window_size: opts[:window_size],
+              stride: opts[:stride]
+            )
+
           Output.puts("  Building sequence embeddings from frame embeddings (30x faster)...")
           Data.sequences_from_frame_embeddings(
             seq_dataset,
@@ -1394,14 +1429,22 @@ player_registry =
       if has_embeddings and not streaming_mode do
         embedding_size_mb = Nx.byte_size(base_dataset.embedded_frames) / 1_000_000
 
-        if embedding_size_mb <= gpu_transfer_threshold_mb do
-          Output.puts("  Transferring embeddings to GPU (#{Float.round(embedding_size_mb, 1)} MB)...")
-          gpu_embeddings = Nx.backend_transfer(base_dataset.embedded_frames, EXLA.Backend)
-          %{base_dataset | embedded_frames: gpu_embeddings}
-        else
-          Output.puts("  Keeping embeddings on CPU (#{Float.round(embedding_size_mb, 1)} MB > 2GB threshold)")
-          Output.puts("  Batches will be transferred to GPU during training")
-          base_dataset
+        cond do
+          # Lazy sequences: keep on CPU — lazy batching slices per-batch and transfers then
+          # Bulk GPU transfer wastes 1.6GB+ of the preallocated VRAM pool
+          opts[:lazy_sequences] and opts[:temporal] ->
+            Output.puts("  Keeping embeddings on CPU (lazy sequence mode)")
+            base_dataset
+
+          embedding_size_mb <= gpu_transfer_threshold_mb ->
+            Output.puts("  Transferring embeddings to GPU (#{Float.round(embedding_size_mb, 1)} MB)...")
+            gpu_embeddings = Nx.backend_transfer(base_dataset.embedded_frames, EXLA.Backend)
+            %{base_dataset | embedded_frames: gpu_embeddings}
+
+          true ->
+            Output.puts("  Keeping embeddings on CPU (#{Float.round(embedding_size_mb, 1)} MB > 2GB threshold)")
+            Output.puts("  Batches will be transferred to GPU during training")
+            base_dataset
         end
       else
         base_dataset
@@ -1475,6 +1518,8 @@ character_weights =
   else
     nil
   end
+
+vram_snap.("after step 2 (dataset + embeddings)")
 
 # Step 3: Initialize trainer
 Output.puts("\nStep 3: Initializing model...", :cyan)
@@ -1726,7 +1771,14 @@ end
 # Time estimation
 # Based on empirical measurements: ~0.1s per batch after JIT, 3-5min for JIT compilation
 if not streaming_mode and train_dataset != nil do
-  batches_per_epoch = div(train_dataset.size, opts[:batch_size])
+  batches_per_epoch =
+    if opts[:temporal] and opts[:lazy_sequences] and train_dataset.embedded_frames != nil do
+      {num_frames, _} = Nx.shape(train_dataset.embedded_frames)
+      num_seqs = div(num_frames - opts[:window_size], opts[:stride]) + 1
+      div(num_seqs, opts[:batch_size])
+    else
+      div(train_dataset.size, opts[:batch_size])
+    end
   # ~5 minutes for first JIT compilation
   jit_overhead_sec = 300
   # Temporal is slower
@@ -1745,6 +1797,8 @@ else
   Output.puts("")
   Output.puts("  ⏱  Streaming mode: time estimate not available")
 end
+
+vram_snap.("after step 3 (trainer init)")
 
 # Step 4: Training loop
 # Create augmentation function if enabled
@@ -1826,13 +1880,27 @@ precomputed_val_batches =
     IO.write(:stderr, "  Pre-computing validation batches...\e[K")
     val_start = System.monotonic_time(:millisecond)
 
-    val_batches =
+    # Keep val batches on CPU — saves ~900MB VRAM, transferred per-batch during validation
+    val_stream =
       if opts[:temporal] do
-        Data.batched_sequences(val_dataset, batch_size: opts[:batch_size], shuffle: false)
+        Data.batched_sequences(val_dataset,
+          batch_size: opts[:batch_size], shuffle: false, gpu: false,
+          lazy: opts[:lazy_sequences],
+          window_size: opts[:window_size], stride: opts[:stride])
       else
         Data.batched(val_dataset, batch_size: opts[:batch_size], shuffle: false)
       end
-      |> Enum.to_list()  # Materialize into list for reuse
+
+    # Materialize with progress indicator
+    val_batches =
+      val_stream
+      |> Stream.with_index()
+      |> Enum.map(fn {batch, idx} ->
+        if rem(idx, 50) == 0 do
+          IO.write(:stderr, "\r  Pre-computing validation batches... #{idx}\e[K")
+        end
+        batch
+      end)
 
     val_time_ms = System.monotonic_time(:millisecond) - val_start
     IO.write(:stderr, "\r  Pre-computing validation batches... done (#{length(val_batches)} batches, #{div(val_time_ms, 1000)}s)\e[K\n")
@@ -1856,6 +1924,8 @@ if precomputed_val_batches != nil and length(precomputed_val_batches) > 0 do
       IO.write(:stderr, "\r  ⚠ Validation warmup failed: #{reason}\e[K\n")
   end
 end
+
+vram_snap.("after val batch precompute + JIT warmup")
 
 # Create incomplete marker for crash recovery
 Recovery.mark_started(opts[:checkpoint], opts)
@@ -2180,8 +2250,15 @@ batch_checkpoint_path =
           end
 
         # Calculate number of batches for progress display
-        # (we count without materializing to keep the stream lazy)
-        batches = div(train_dataset.size, opts[:batch_size])
+        # With lazy sequences, dataset.size is raw frame count — compute sequence count
+        num_sequences =
+          if opts[:temporal] and opts[:lazy_sequences] and train_dataset.embedded_frames != nil do
+            {num_frames, _} = Nx.shape(train_dataset.embedded_frames)
+            div(num_frames - opts[:window_size], opts[:stride]) + 1
+          else
+            train_dataset.size
+          end
+        batches = div(num_sequences, opts[:batch_size])
         {stream, batches}
       end
 
@@ -2255,6 +2332,7 @@ batch_checkpoint_path =
           Output.puts(
             "\n  ✓ JIT compilation complete (took #{Float.round(batch_time_ms / 1000, 1)}s)"
           )
+          vram_snap.("after JIT + first train step")
 
           true
         else
@@ -2277,9 +2355,12 @@ batch_checkpoint_path =
       end
 
       # Update trainer state agent for graceful shutdown (Ctrl+C)
-      # Only update every 10 batches to minimize overhead
+      # Stores full trainer (including GPU tensors) — GC the Agent process
+      # to free previous-generation weight references from VRAM
       if rem(new_global_idx, 10) == 0 do
         Agent.update(:trainer_state, fn _ -> {new_trainer, epoch, batch_idx} end)
+        agent_pid = Process.whereis(:trainer_state)
+        if agent_pid, do: :erlang.garbage_collect(agent_pid)
       end
 
       # Live progress bar - updates in place using carriage return
@@ -2297,11 +2378,25 @@ batch_checkpoint_path =
       eta_min = div(eta_sec, 60)
       eta_sec_rem = rem(eta_sec, 60)
 
+      # Convert loss to number every batch — the GPU→CPU sync cost for a single scalar
+      # is negligible vs step time. Previous approach accumulated GPU tensors and leaked VRAM.
+      raw_loss = Nx.to_number(metrics.loss)
+
       # Format: Epoch 1: ████████░░ 40% | 642/1606 | loss: 0.1234 | 0.5s/it | ETA: 8m 12s
       bar_width = 20
       # Clamp to avoid overflow
       filled = min(round(pct / 100 * bar_width), bar_width)
-      bar = String.duplicate("█", filled) <> String.duplicate("░", bar_width - filled)
+      # Color: green if loss decreasing, yellow if flat, red if increasing
+      bar_color =
+        cond do
+          smoothed_loss == nil or is_special_atom?.(raw_loss) -> ""
+          is_special_atom?.(smoothed_loss) -> "\e[31m"
+          raw_loss < smoothed_loss * 0.999 -> "\e[32m"  # green — improving
+          raw_loss > smoothed_loss * 1.001 -> "\e[31m"  # red — worsening
+          true -> "\e[33m"  # yellow — flat
+        end
+      bar_reset = if bar_color != "", do: "\e[0m", else: ""
+      bar = bar_color <> String.duplicate("█", filled) <> String.duplicate("░", bar_width - filled) <> bar_reset
 
       # Pad percentage to fixed width for stable display
       pct_str = pct |> Integer.to_string() |> String.pad_leading(3)
@@ -2310,29 +2405,12 @@ batch_checkpoint_path =
       total_str =
         if batch_idx + 1 > num_batches, do: "~#{display_total}", else: "#{display_total}"
 
-      # IMPORTANT: Only convert loss to number periodically to avoid GPU→CPU sync every batch
-      # (See gotcha #18: Nx.to_number blocks GPU utilization)
-      # Convert every 50 batches for display, but accumulate tensor for epoch-end averaging
-      {raw_loss, new_smoothed_loss} =
-        if rem(batch_idx, 50) == 0 or batch_idx == 0 do
-          raw = Nx.to_number(metrics.loss)
-          # Exponential moving average: smoothed = alpha * new + (1 - alpha) * old
-          # alpha = 0.1 gives smooth display while still responding to changes
-          # NOTE: Nx.to_number can return atoms (:nan, :infinity, :neg_infinity)
-          # for special values - skip EMA arithmetic in those cases
-          smoothed =
-            cond do
-              is_special_atom?.(raw) -> raw
-              smoothed_loss == nil -> raw
-              is_special_atom?.(smoothed_loss) -> raw
-              true -> 0.1 * raw + 0.9 * smoothed_loss
-            end
-
-          {raw, smoothed}
-        else
-          # Use previous smoothed loss for display
-          prev_smoothed = smoothed_loss || 0.0
-          {prev_smoothed, prev_smoothed}
+      new_smoothed_loss =
+        cond do
+          is_special_atom?.(raw_loss) -> raw_loss
+          smoothed_loss == nil -> raw_loss
+          is_special_atom?.(smoothed_loss) -> raw_loss
+          true -> 0.1 * raw_loss + 0.9 * smoothed_loss
         end
 
       # Display the smoothed loss for stable progress bar
@@ -2357,7 +2435,7 @@ batch_checkpoint_path =
       # Use carriage return to overwrite line (no newline until epoch complete)
       # Write directly to stderr to bypass Output module's timestamp
       # log_interval controls update frequency: higher = less log spam, cleaner logs
-      log_interval = opts[:log_interval] || 1
+      log_interval = opts[:log_interval] || 10
 
       should_log =
         log_interval == 1 or
@@ -2379,9 +2457,11 @@ batch_checkpoint_path =
         IO.write(:stderr, "\r#{truncated_line}\e[K")
       end
 
-      # Accumulate tensor loss (keep as tensor, convert at epoch end)
-      # Store tuple of {display_loss, tensor} so we can show loss but compute mean from tensors
-      {new_trainer, [{raw_loss, metrics.loss} | losses], new_jit_shown, new_global_idx,
+      # Periodic GC to free intermediate GPU tensors (every 100 batches)
+      if rem(batch_idx, 100) == 0, do: :erlang.garbage_collect()
+
+      # Accumulate scalar losses (no GPU tensors retained)
+      {new_trainer, [raw_loss | losses], new_jit_shown, new_global_idx,
        new_smoothed_loss}
     end
 
@@ -2412,20 +2492,13 @@ batch_checkpoint_path =
       end
 
     epoch_time = System.monotonic_time(:second) - epoch_start
-    # epoch_losses is a list of {display_loss, tensor} tuples
-    # Extract tensors and compute mean (single GPU→CPU transfer at epoch end)
+    # epoch_losses is a list of scalar floats (already converted from GPU tensors)
     avg_loss =
       if epoch_losses == [] do
         Output.warning("No batches processed this epoch - check replay data")
         0.0
       else
-        # Extract tensor losses, stack, and compute mean
-        tensor_losses = Enum.map(epoch_losses, fn {_display, tensor} -> tensor end)
-
-        tensor_losses
-        |> Nx.stack()
-        |> Nx.mean()
-        |> Nx.to_number()
+        Enum.sum(epoch_losses) / length(epoch_losses)
       end
 
     # Validation - only if we have validation data (not in streaming mode)
@@ -2439,11 +2512,14 @@ batch_checkpoint_path =
         precomputed_val_batches != nil ->
           # Use pre-computed validation batches (computed once before training loop)
           # This saves ~2-5s per epoch by avoiding batch recreation
-          # Parallel validation with configurable concurrency (default: 4)
+          # Sequential validation (max_concurrency: 1) — parallel validation spawns
+          # concurrent GPU tasks that compete for VRAM with training allocations
           metrics = Profiler.time(:validation, fn ->
             Imitation.evaluate(updated_trainer, precomputed_val_batches,
-              max_concurrency: opts[:val_concurrency] || 4)
+              max_concurrency: 1)
           end)
+          # GC after validation to free forward-pass activation tensors
+          :erlang.garbage_collect()
           {metrics.loss, metrics}
 
         val_dataset != nil and val_dataset.size > 0 ->
@@ -2492,14 +2568,28 @@ batch_checkpoint_path =
 
     Output.puts("")
 
-    if has_validation do
-      Output.puts(
-        "  ✓ Epoch #{epoch} complete: train_loss=#{safe_round.(avg_loss, 4)} val_loss=#{safe_round.(val_loss, 4)} (#{epoch_time}s)#{es_message}"
-      )
-    else
-      Output.puts(
-        "  ✓ Epoch #{epoch} complete: train_loss=#{safe_round.(avg_loss, 4)} (#{epoch_time}s)#{es_message}"
-      )
+    # Epoch summary box
+    gpu_status = GPUUtils.memory_status_string()
+    summary_entries = [
+      {"train_loss", safe_round.(avg_loss, 4)},
+      {"val_loss", if(has_validation, do: safe_round.(val_loss, 4), else: "n/a")},
+      {"time", "#{epoch_time}s"},
+      {"GPU", gpu_status}
+    ]
+
+    is_new_best_for_display = has_validation and (best_val_loss == nil or val_loss <= best_val_loss)
+    highlight = if is_new_best_for_display, do: "★ New best model#{es_message}", else: es_message
+
+    Output.puts_raw(Output.summary_box(
+      "Epoch #{epoch}/#{opts[:epochs]}",
+      summary_entries,
+      highlight: if(highlight != "", do: highlight, else: nil)
+    ))
+
+    # Loss sparkline (shows trend across all completed epochs)
+    all_train_losses = Enum.map(Enum.reverse(updated_history), & &1.train_loss)
+    if length(all_train_losses) >= 2 do
+      Output.puts_raw(Output.sparkline_with_label("  Loss", all_train_losses))
     end
 
     # Per-button press-rate diagnostic (detects mode collapse)
@@ -2523,18 +2613,173 @@ batch_checkpoint_path =
         pred_rates = Nx.divide(pred_counts, total) |> Nx.multiply(100) |> Nx.to_flat_list()
         actual_rates = Nx.divide(actual_counts, total) |> Nx.multiply(100) |> Nx.to_flat_list()
 
-        Output.puts("  Button press rates (predicted vs actual):")
+        Output.puts("  Button press rates (pred vs actual):")
         Enum.zip([button_names, pred_rates, actual_rates])
         |> Enum.each(fn {name, pred, actual} ->
-          pred_s = Float.round(pred, 1) |> to_string() |> String.pad_leading(5)
-          actual_s = Float.round(actual, 1) |> to_string() |> String.pad_leading(5)
-          collapse = if actual > 1.0 and pred < 0.1, do: " ← COLLAPSE", else: ""
-          Output.puts("    #{String.pad_trailing(name, 5)} pred=#{pred_s}%  actual=#{actual_s}%#{collapse}")
+          Output.puts_raw(Output.comparison_bar(name, pred, actual))
         end)
       rescue
         e ->
           Output.puts("  [press-rate diagnostic failed: #{Exception.message(e)}]")
       end
+
+      # Stick position diagnostics (detects center bias / edge collapse)
+      try do
+        sample_batches = Enum.take(precomputed_val_batches, 10)
+
+        # Accumulate per-head stats across batches
+        init_stick_acc = %{
+          main_x: {0.0, 0.0, 0}, main_y: {0.0, 0.0, 0},
+          c_x: {0.0, 0.0, 0}, c_y: {0.0, 0.0, 0},
+          shoulder: {0.0, 0.0, 0}
+        }
+
+        # Also accumulate per-head losses and action diversity
+        init_diag_acc = %{
+          sticks: init_stick_acc,
+          head_losses: %{buttons: 0.0, main_x: 0.0, main_y: 0.0, c_x: 0.0, c_y: 0.0, shoulder: 0.0},
+          # Track unique predicted action combos (button_pattern, mx, my) as MapSet
+          pred_combos: MapSet.new(),
+          actual_combos: MapSet.new(),
+          total: 0
+        }
+
+        diag =
+          Enum.reduce(sample_batches, init_diag_acc, fn batch, acc ->
+            {buttons_logits, mx_logits, my_logits, cx_logits, cy_logits, sh_logits} =
+              updated_trainer.predict_fn.(updated_trainer.policy_params, batch.states)
+
+            batch_size = elem(Nx.shape(mx_logits), 0)
+
+            # --- Stick diagnostics ---
+            # For each stick axis, compute predicted vs actual center/edge rates
+            stick_heads = [
+              {:main_x, mx_logits, batch.actions.main_x},
+              {:main_y, my_logits, batch.actions.main_y},
+              {:c_x, cx_logits, batch.actions.c_x},
+              {:c_y, cy_logits, batch.actions.c_y},
+              {:shoulder, sh_logits, batch.actions.shoulder}
+            ]
+
+            new_sticks =
+              Enum.reduce(stick_heads, acc.sticks, fn {name, logits, targets}, stick_acc ->
+                pred_bucket = Nx.argmax(logits, axis: -1)
+                actual_bucket = targets
+
+                n_buckets = elem(Nx.shape(logits), 1)
+                center = div(n_buckets, 2)
+
+                # Count non-center predictions and actuals
+                pred_edge = Nx.not_equal(pred_bucket, center) |> Nx.sum() |> Nx.to_number()
+                actual_edge = Nx.not_equal(actual_bucket, center) |> Nx.sum() |> Nx.to_number()
+
+                {pe, ae, n} = Map.get(stick_acc, name)
+                Map.put(stick_acc, name, {pe + pred_edge, ae + actual_edge, n + batch_size})
+              end)
+
+            # --- Per-head loss breakdown ---
+            # Compute individual losses (cheap, just CE on existing logits)
+            # Proper BCE: -[t*log(σ(x)) + (1-t)*log(1-σ(x))]
+            button_targets = batch.actions.buttons |> Nx.as_type(:f32)
+            pos_term = Nx.multiply(button_targets, Axon.Activations.log_sigmoid(buttons_logits))
+            neg_term = Nx.multiply(Nx.subtract(1.0, button_targets), Axon.Activations.log_sigmoid(Nx.negate(buttons_logits)))
+            button_l = Nx.negate(Nx.add(pos_term, neg_term)) |> Nx.mean() |> Nx.to_number()
+            mx_l = categorical_ce_scalar.(mx_logits, batch.actions.main_x)
+            my_l = categorical_ce_scalar.(my_logits, batch.actions.main_y)
+            cx_l = categorical_ce_scalar.(cx_logits, batch.actions.c_x)
+            cy_l = categorical_ce_scalar.(cy_logits, batch.actions.c_y)
+            sh_l = categorical_ce_scalar.(sh_logits, batch.actions.shoulder)
+
+            head_losses = %{
+              buttons: acc.head_losses.buttons + button_l,
+              main_x: acc.head_losses.main_x + mx_l,
+              main_y: acc.head_losses.main_y + my_l,
+              c_x: acc.head_losses.c_x + cx_l,
+              c_y: acc.head_losses.c_y + cy_l,
+              shoulder: acc.head_losses.shoulder + sh_l
+            }
+
+            # --- Action diversity ---
+            # Hash predicted combos: (button_pattern, main_x_bucket, main_y_bucket)
+            pred_buttons = Nx.greater(Nx.sigmoid(buttons_logits), 0.5) |> Nx.as_type(:u8)
+            pred_mx = Nx.argmax(mx_logits, axis: -1)
+            pred_my = Nx.argmax(my_logits, axis: -1)
+            actual_mx = batch.actions.main_x
+            actual_my = batch.actions.main_y
+            actual_buttons = Nx.greater(batch.actions.buttons, 0.5) |> Nx.as_type(:u8)
+
+            # Sample up to 64 per batch for diversity counting (avoid huge MapSets)
+            sample_n = min(batch_size, 64)
+            pred_combos =
+              for i <- 0..(sample_n - 1), reduce: acc.pred_combos do
+                set ->
+                  btn = Nx.to_flat_list(pred_buttons[i])
+                  mx = Nx.to_number(pred_mx[i])
+                  my = Nx.to_number(pred_my[i])
+                  MapSet.put(set, {btn, mx, my})
+              end
+
+            actual_combos =
+              for i <- 0..(sample_n - 1), reduce: acc.actual_combos do
+                set ->
+                  btn = Nx.to_flat_list(actual_buttons[i])
+                  mx = Nx.to_number(actual_mx[i])
+                  my = Nx.to_number(actual_my[i])
+                  MapSet.put(set, {btn, mx, my})
+              end
+
+            %{acc |
+              sticks: new_sticks,
+              head_losses: head_losses,
+              pred_combos: pred_combos,
+              actual_combos: actual_combos,
+              total: acc.total + batch_size
+            }
+          end)
+
+        n_batches = length(sample_batches)
+
+        # Display stick diagnostics with comparison bars
+        Output.puts("  Stick edge % (pred vs actual):")
+        stick_labels = [main_x: "Main X", main_y: "Main Y", c_x: "C-X", c_y: "C-Y", shoulder: "Shldr"]
+        for {key, label} <- stick_labels do
+          {pred_edge, actual_edge, n} = Map.get(diag.sticks, key)
+          if n > 0 do
+            pe = Float.round(pred_edge / n * 100, 1)
+            ae = Float.round(actual_edge / n * 100, 1)
+            Output.puts_raw(Output.comparison_bar(label, pe, ae))
+          end
+        end
+
+        # Display per-head losses as table
+        Output.puts("  Per-head losses:")
+        head_order = [:buttons, :main_x, :main_y, :c_x, :c_y, :shoulder]
+        head_names = %{buttons: "buttons", main_x: "main_x", main_y: "main_y", c_x: "c_x", c_y: "c_y", shoulder: "shoulder"}
+        head_rows = Enum.map(head_order, fn h ->
+          v = Float.round(Map.get(diag.head_losses, h) / n_batches, 3)
+          [Map.get(head_names, h), to_string(v)]
+        end)
+        Output.puts_raw(Output.table(["Head", "Loss"], head_rows))
+
+        # Display action diversity
+        pred_unique = MapSet.size(diag.pred_combos)
+        actual_unique = MapSet.size(diag.actual_combos)
+        coverage = if actual_unique > 0, do: Float.round(pred_unique / actual_unique * 100, 1), else: 0.0
+        coverage_bar = Output.comparison_bar("cover", coverage, 100.0, bar_width: 15, threshold: 50.0)
+        Output.puts("  Action diversity: #{pred_unique}/#{actual_unique} unique combos (#{coverage}%)")
+        Output.puts_raw(coverage_bar)
+
+      rescue
+        e ->
+          Output.puts("  [extended diagnostics failed: #{Exception.message(e)}]")
+      end
+
+      # Force GC on all processes to free GPU tensor references before next epoch
+      # The main process, Agent, and any lingering Task processes may hold EXLA tensor refs
+      :erlang.garbage_collect()
+      if pid = Process.whereis(:trainer_state), do: :erlang.garbage_collect(pid)
+      # Give EXLA a moment to actually free the GPU memory
+      Process.sleep(100)
     end
 
     # Update incomplete marker for crash recovery

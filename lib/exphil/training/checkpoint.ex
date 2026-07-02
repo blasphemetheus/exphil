@@ -63,7 +63,7 @@ defmodule ExPhil.Training.Checkpoint do
   def load(path, opts \\ []) do
     case File.read(path) do
       {:ok, binary} ->
-        checkpoint = :erlang.binary_to_term(binary)
+        checkpoint = :erlang.binary_to_term(binary, [:safe])
         validate_and_return(checkpoint, :checkpoint, opts)
 
       {:error, reason} ->
@@ -82,7 +82,7 @@ defmodule ExPhil.Training.Checkpoint do
   def load_policy(path, opts \\ []) do
     case File.read(path) do
       {:ok, binary} ->
-        export = :erlang.binary_to_term(binary)
+        export = :erlang.binary_to_term(binary, [:safe])
         validate_and_return(export, :policy, opts)
 
       {:error, reason} ->

@@ -403,7 +403,7 @@ defmodule ExPhil.Training do
   # Safely deserialize binary term with helpful error messages
   defp safe_deserialize(binary, path) do
     try do
-      {:ok, :erlang.binary_to_term(binary)}
+      {:ok, :erlang.binary_to_term(binary, [:safe])}
     rescue
       ArgumentError ->
         {:error, CheckpointError.new(:corrupted, path: path)}

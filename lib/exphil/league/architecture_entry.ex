@@ -387,12 +387,27 @@ defmodule ExPhil.League.ArchitectureEntry do
   defp ensure_float(value), do: value
 
   defp to_atom(value) when is_atom(value), do: value
-  defp to_atom(value) when is_binary(value), do: String.to_atom(value)
+
+  defp to_atom(value) when is_binary(value) do
+    String.to_existing_atom(value)
+  rescue
+    ArgumentError -> raise ArgumentError, "unknown atom value: #{inspect(value)}"
+  end
 
   defp to_atom_keys(map) when is_map(map) do
     Map.new(map, fn
-      {k, v} when is_binary(k) -> {String.to_atom(k), v}
-      {k, v} -> {k, v}
+      {k, v} when is_binary(k) ->
+        atom_key =
+          try do
+            String.to_existing_atom(k)
+          rescue
+            ArgumentError -> k
+          end
+
+        {atom_key, v}
+
+      {k, v} ->
+        {k, v}
     end)
   end
 end

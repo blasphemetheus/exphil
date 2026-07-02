@@ -75,7 +75,7 @@ Output.step(1, 5, "Loading policy")
 
       case File.read(policy_path) do
         {:ok, binary} ->
-          export = :erlang.binary_to_term(binary)
+          export = :erlang.binary_to_term(binary, [:safe])
           {export.params, export.config}
 
         {:error, reason} ->
@@ -88,7 +88,7 @@ Output.step(1, 5, "Loading policy")
 
       case File.read(checkpoint_path) do
         {:ok, binary} ->
-          checkpoint = :erlang.binary_to_term(binary)
+          checkpoint = :erlang.binary_to_term(binary, [:safe])
           {checkpoint.policy_params, checkpoint.config}
 
         {:error, reason} ->

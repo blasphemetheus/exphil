@@ -144,7 +144,7 @@ defmodule ExPhil.Training.EMA do
   """
   @spec deserialize(binary()) :: t()
   def deserialize(binary) when is_binary(binary) do
-    state = :erlang.binary_to_term(binary)
+    state = :erlang.binary_to_term(binary, [:safe])
 
     %__MODULE__{
       params: state.params,

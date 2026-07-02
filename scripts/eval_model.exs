@@ -40,6 +40,7 @@ opts = CLI.parse_args(System.argv(),
     temporal: :boolean,
     backbone: :string,
     window_size: :integer,
+    hidden_sizes: :string,
     export_csv: :string,
     export_sequences: :string,
     sequence_length: :integer,
@@ -468,7 +469,12 @@ evaluate_model = fn model_path ->
 
   # Build policy model based on temporal mode
   model_embed_size = config[:embed_size] || embed_size
-  hidden_sizes = config[:hidden_sizes] || [512, 512]
+  hidden_sizes =
+    if opts[:hidden_sizes] do
+      opts[:hidden_sizes] |> String.split(",") |> Enum.map(&String.to_integer/1)
+    else
+      config[:hidden_sizes] || [512, 512]
+    end
 
   policy_model =
     if opts[:temporal] do

@@ -195,7 +195,7 @@ Self-play checkpoints contain:
 
 Load a checkpoint:
 ```elixir
-checkpoint = :erlang.binary_to_term(File.read!("checkpoints/self_play.axon"))
+checkpoint = :erlang.binary_to_term(File.read!("checkpoints/self_play.axon"), [:safe])
 params = checkpoint.params
 ```
 

@@ -41,7 +41,7 @@ defmodule ExPhil.Native.FutharkScan do
       :ok -> :ok
       {:error, {:reload, _}} -> :ok
       {:error, reason} ->
-        IO.warn("Failed to load futhark_scan_nif: #{inspect(reason)}")
+        require Logger; Logger.debug("Optional NIF futhark_scan_nif not available: #{inspect(reason)}")
         :ok
     end
   end

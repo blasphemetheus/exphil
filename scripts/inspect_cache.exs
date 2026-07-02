@@ -22,7 +22,7 @@ if File.exists?(cache_dir) do
     # Try to peek at the structure
     case File.read(path) do
       {:ok, binary} ->
-        data = :erlang.binary_to_term(binary)
+        data = :erlang.binary_to_term(binary, [:safe])
 
         case data do
           {:stacked_frame_embeddings, %{shape: shape, type: type}} ->

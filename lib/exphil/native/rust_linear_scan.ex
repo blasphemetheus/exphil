@@ -33,7 +33,7 @@ defmodule ExPhil.Native.RustLinearScan do
       :ok -> :ok
       {:error, {:reload, _}} -> :ok
       {:error, reason} ->
-        IO.warn("Failed to load rust_linear_scan_nif: #{inspect(reason)}")
+        require Logger; Logger.debug("Optional NIF rust_linear_scan_nif not available: #{inspect(reason)}")
         :ok
     end
   end

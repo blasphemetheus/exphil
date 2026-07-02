@@ -114,7 +114,7 @@ defmodule ExPhil.CLI do
       desc: "Enable embedding disk cache", group: [:benchmark, :training]},
     %{name: :no_cache, flag: "--no-cache", type: :boolean, short: nil, default: false,
       desc: "Force recompute even if cache exists", group: [:benchmark, :training]},
-    %{name: :cache_dir, flag: "--cache-dir", type: :string, short: nil, default: "/workspace/cache/embeddings",
+    %{name: :cache_dir, flag: "--cache-dir", type: :string, short: nil, default: "cache/embeddings",
       desc: "Cache directory for embeddings", group: [:benchmark, :training]},
     %{name: :lazy_sequences, flag: "--lazy-sequences", type: :boolean, short: nil, default: false,
       desc: "Slice sequences on-the-fly (150 MB RAM vs 13 GB)", group: [:benchmark]},

@@ -557,11 +557,21 @@ defmodule ExPhil.League do
 
         ids =
           Enum.map(metadata_files, fn f ->
-            f
-            |> Path.basename()
-            |> String.replace("_metadata.json", "")
-            |> String.to_atom()
+            name =
+              f
+              |> Path.basename()
+              |> String.replace("_metadata.json", "")
+
+            try do
+              String.to_existing_atom(name)
+            rescue
+              ArgumentError ->
+                require Logger
+                Logger.warning("Skipping unknown architecture checkpoint: #{name}")
+                nil
+            end
           end)
+          |> Enum.reject(&is_nil/1)
 
         {0, ids}
       end
@@ -918,6 +928,6 @@ defmodule ExPhil.League do
 
   defp load_params(path) do
     binary = File.read!(path)
-    :erlang.binary_to_term(binary)
+    :erlang.binary_to_term(binary, [:safe])
   end
 end

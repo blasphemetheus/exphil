@@ -180,7 +180,7 @@ defmodule DistillationTrainer do
   defp load_soft_labels(path) do
     path
     |> File.read!()
-    |> :erlang.binary_to_term()
+    |> :erlang.binary_to_term([:safe])
   end
 
   defp prepare_dataset(labels, val_split) do

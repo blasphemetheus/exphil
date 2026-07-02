@@ -248,7 +248,7 @@ defmodule ExPhil.Training.EmbeddingCache do
 
     case File.read(path) do
       {:ok, binary} ->
-        data = :erlang.binary_to_term(binary)
+        data = :erlang.binary_to_term(binary, [:safe])
         embeddings = restore_from_load(data)
         size_mb = byte_size(binary) / 1_000_000
         Logger.info("[EmbeddingCache] Loaded #{cache_key} (#{Float.round(size_mb, 1)} MB)")
@@ -263,7 +263,7 @@ defmodule ExPhil.Training.EmbeddingCache do
     manifest_file = manifest_path(cache_key, cache_dir)
 
     with {:ok, manifest_binary} <- File.read(manifest_file),
-         manifest <- :erlang.binary_to_term(manifest_binary) do
+         manifest <- :erlang.binary_to_term(manifest_binary, [:safe]) do
       %{
         shape: shape_list,
         dtype: dtype,
@@ -353,7 +353,7 @@ defmodule ExPhil.Training.EmbeddingCache do
     if File.exists?(manifest_file) do
       case File.read(manifest_file) do
         {:ok, binary} ->
-          manifest = :erlang.binary_to_term(binary)
+          manifest = :erlang.binary_to_term(binary, [:safe])
 
           # Delete all chunk files
           for chunk <- manifest.chunks do
@@ -418,7 +418,7 @@ defmodule ExPhil.Training.EmbeddingCache do
           total_size =
             case File.read(manifest_file) do
               {:ok, binary} ->
-                manifest = :erlang.binary_to_term(binary)
+                manifest = :erlang.binary_to_term(binary, [:safe])
 
                 manifest.chunks
                 |> Enum.map(& &1.size_bytes)

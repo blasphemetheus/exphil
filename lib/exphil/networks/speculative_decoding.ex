@@ -416,7 +416,7 @@ defmodule ExPhil.Networks.SpeculativeDecoding do
   defp load_checkpoint(path) do
     case File.read(path) do
       {:ok, binary} ->
-        :erlang.binary_to_term(binary)
+        :erlang.binary_to_term(binary, [:safe])
 
       {:error, _reason} ->
         # Return empty params for testing

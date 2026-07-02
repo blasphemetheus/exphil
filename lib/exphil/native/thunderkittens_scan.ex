@@ -26,7 +26,7 @@ defmodule ExPhil.Native.ThunderKittensScan do
       :ok -> :ok
       {:error, {:reload, _}} -> :ok
       {:error, reason} ->
-        IO.warn("Failed to load ThunderKittens NIF: #{inspect(reason)}")
+        require Logger; Logger.debug("Optional NIF thunderkittens_scan_nif not available: #{inspect(reason)}")
         :ok
     end
   end
