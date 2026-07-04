@@ -243,11 +243,15 @@ See [GOTCHAS.md](docs/reference/GOTCHAS.md) for detailed fixes. Most common issu
 - Use the Edit tool for modifying existing files
 - Use Read before Write to ensure you have current content
 
-**CRITICAL: NEVER run mix commands while training is active.**
-- `mix compile`, `mix test`, or ANY `mix run` triggers recompilation of changed `.ex` files
-- This replaces EXLA's NIF shared library, killing any running training process with SIGSEGV/SIGBUS
-- Edit files freely — only running `mix` commands is dangerous
-- This applies to ALL repos sharing EXLA (nx, exphil, edifice)
+**Running `mix`: safe by default, dangerous only next to a live training run.**
+- The hazard is narrow: `mix compile`, `mix test`, or any `mix run` recompiles changed `.ex`
+  files, which replaces EXLA's NIF shared library and kills any **currently running** training
+  process with SIGSEGV/SIGBUS (affects all repos sharing EXLA: nx, exphil, edifice).
+- **On the dev machine (`nixos_slanka`) with training active:** do NOT run `mix`. Edit files
+  freely; just don't invoke `mix` until the run finishes.
+- **In cloud / CI / any session with no training running:** run `mix` freely — there's no live
+  process to kill, and running the tests is exactly what you want. This rule does not apply here.
+- Rule of thumb: if a GPU training job is in flight, hold off on `mix`; otherwise go ahead.
 
 **Testing — CRITICAL:**
 - **NEVER run the full test suite after editing 1-2 files.** It takes ~100s. Use targeted runs:
