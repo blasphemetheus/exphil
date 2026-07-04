@@ -5,7 +5,7 @@ defmodule ExPhil.Training.Callbacks.Checkpoint do
 
   use ExPhil.Training.Callback
 
-  alias ExPhil.Training.{Imitation, Output}
+  alias ExPhil.Training.{Config, Imitation, Output}
 
   @impl true
   def init(opts) do
@@ -63,6 +63,17 @@ defmodule ExPhil.Training.Callbacks.Checkpoint do
           case Imitation.save_checkpoint(state.trainer, best_path) do
             :ok ->
               Output.puts("    * New best model saved (val_loss=#{Float.round(val_loss, 4)})")
+              # Also export a runnable policy from the SAME (best) weights, so the
+              # model you ship/play is the best one — not the final-epoch weights
+              # that PolicyExport captures at train end. Without this, --save-best
+              # + --early-stopping silently ships your second-best model.
+              best_policy_path = Config.derive_policy_path(best_path)
+
+              case Imitation.export_policy(state.trainer, best_policy_path) do
+                :ok -> Output.puts("      Best policy exported to #{best_policy_path}")
+                {:error, reason} -> Output.warning("Failed to export best policy: #{inspect(reason)}")
+              end
+
               %{cb | best_val_loss: val_loss}
 
             {:error, reason} ->
