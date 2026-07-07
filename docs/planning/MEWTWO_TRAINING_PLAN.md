@@ -92,6 +92,14 @@ so you don't re-specify architecture flags. Confirm val loss matches training an
 per-head breakdown isn't degenerate (buttons head near-constant = collapse). A good number here is
 necessary but **not** sufficient — a bot with great val loss can still crouch in the corner.
 
+**Correctness gate between eval and Dolphin:** the overfit-replication test
+(`mix test test/exphil/training/overfit_replication_test.exs --include slow`) proves the
+train→embed→discretize→decode pipeline can memorize and reproduce a known behavior
+(Fox multishine, ~30s on GPU). If Step 3 looks broken, run this FIRST — it separates
+"pipeline bug" from "model isn't good enough" categorically. A real recorded fixture
+also exists at `test/fixtures/replays/fox_multishine.slp` (made by
+`scripts/record_multishine.exs`) for Tier-2/Peppi-path checks.
+
 ---
 
 ## Step 3 — Drive it in Dolphin (the moment of truth)
