@@ -275,7 +275,10 @@ defmodule ExPhil.Bridge.MeleePort do
 
   @impl true
   def terminate(_reason, state) do
-    if state.port do
+    # The Python bridge usually exits on its own after a :stop command, in
+    # which case the port is already closed — Port.close on a dead port
+    # raises ArgumentError and would crash whoever linked to us mid-teardown.
+    if state.port && Port.info(state.port) != nil do
       Port.close(state.port)
     end
 

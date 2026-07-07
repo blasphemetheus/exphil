@@ -90,3 +90,6 @@ doc/
 .nccl/
 .nvshmem/
 .cuda-compat/
+
+# Test fixtures are the exception to the global .slp ignore
+!test/fixtures/replays/*.slp
