@@ -16,7 +16,7 @@ alias ExPhil.Training.{Data, Imitation, Output}
 alias ExPhil.Data.Peppi
 alias ExPhil.Embeddings
 
-fixture = "test/fixtures/replays/fox_multishine.slp"
+fixture = "test/fixtures/replays/fox_multishine_closed.slp"
 out_path = "checkpoints/multishine_probe_policy.bin"
 window = 16
 
