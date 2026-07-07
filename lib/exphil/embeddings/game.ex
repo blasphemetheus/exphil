@@ -173,52 +173,41 @@ defmodule ExPhil.Embeddings.Game do
     {own, opponent} = get_players_ego(game_state, own_port)
 
     # Base embeddings (players, action, name)
-    base_embeddings = [
-      # Players (ego-centric)
+    # CRITICAL: component order below must match embed_states_fast/3 exactly —
+    # that batched path is what training precomputes, so it defines the layout
+    # every checkpoint expects. This function is the LIVE AGENT's path. A
+    # previous version built this list with prepends + one global reverse,
+    # which reversed the base block: the deployed policy received
+    # [name, prev, stage, OPPONENT, OWN, ...] where it had trained on
+    # [OWN, OPPONENT, stage, prev, name, ...] — scrambled features invisible
+    # to val_loss. Pinned by test/exphil/embeddings/embed_path_parity_test.exs.
+    embeddings = [
+      # Players (ego-centric: own first)
       PlayerEmbed.embed(own, config.player),
-      PlayerEmbed.embed(opponent, config.player),
-
-      # Previous action
-      ControllerEmbed.embed_continuous(prev_action),
-
-      # Player name/tag ID (for style learning)
-      Primitives.one_hot(name_id, size: config.num_player_names, clamp: true)
+      PlayerEmbed.embed(opponent, config.player)
     ]
 
     # Stage embedding (only when using one-hot modes, not learned)
     embeddings =
       if config.stage_mode in [:one_hot_full, :one_hot_compact] do
-        stage_emb = embed_stage(game_state.stage, config)
-        # Insert stage after players, before prev_action
+        embeddings ++ [embed_stage(game_state.stage, config)]
+      else
+        embeddings
+      end
+
+    embeddings =
+      embeddings ++
         [
-          Enum.at(base_embeddings, 0),
-          Enum.at(base_embeddings, 1),
-          stage_emb | Enum.drop(base_embeddings, 2)
+          # Previous action
+          ControllerEmbed.embed_continuous(prev_action),
+          # Player name/tag ID (for style learning)
+          Primitives.one_hot(name_id, size: config.num_player_names, clamp: true)
         ]
-      else
-        base_embeddings
-      end
-
-    # Optional: projectiles
-    embeddings =
-      if config.with_projectiles do
-        [Projectiles.embed(game_state.projectiles, config.max_projectiles) | embeddings]
-      else
-        embeddings
-      end
-
-    # Optional: items (Link bombs, etc.)
-    embeddings =
-      if config.with_items do
-        [Items.embed(game_state.items, own_port, config.max_items) | embeddings]
-      else
-        embeddings
-      end
 
     # Optional: distance between players
     embeddings =
       if config.with_distance do
-        [Spatial.embed_distance(game_state, own, opponent) | embeddings]
+        embeddings ++ [Spatial.embed_distance(game_state, own, opponent)]
       else
         embeddings
       end
@@ -226,7 +215,7 @@ defmodule ExPhil.Embeddings.Game do
     # Optional: relative position (dx, dy from own to opponent)
     embeddings =
       if config.with_relative_pos do
-        [Spatial.embed_relative_pos(own, opponent) | embeddings]
+        embeddings ++ [Spatial.embed_relative_pos(own, opponent)]
       else
         embeddings
       end
@@ -234,7 +223,25 @@ defmodule ExPhil.Embeddings.Game do
     # Optional: frame count (game timer)
     embeddings =
       if config.with_frame_count do
-        [Spatial.embed_frame_count(game_state) | embeddings]
+        embeddings ++ [Spatial.embed_frame_count(game_state)]
+      else
+        embeddings
+      end
+
+    # Optional: projectiles
+    embeddings =
+      if config.with_projectiles do
+        embeddings ++ [Projectiles.embed(game_state.projectiles, config.max_projectiles)]
+      else
+        embeddings
+      end
+
+    # Optional: items (Link bombs, etc.)
+    # NOTE: embed_states_fast has NO items support — enabling with_items would
+    # desync the two paths (and their sizes). The parity test will catch it.
+    embeddings =
+      if config.with_items do
+        embeddings ++ [Items.embed(game_state.items, own_port, config.max_items)]
       else
         embeddings
       end
@@ -244,8 +251,7 @@ defmodule ExPhil.Embeddings.Game do
       if config.player.action_mode == :learned do
         own_action = PlayerEmbed.get_action_id(own)
         opp_action = PlayerEmbed.get_action_id(opponent)
-        action_ids = Nx.tensor([own_action, opp_action], type: :f32)
-        [action_ids | embeddings]
+        embeddings ++ [Nx.tensor([own_action, opp_action], type: :f32)]
       else
         embeddings
       end
@@ -255,8 +261,7 @@ defmodule ExPhil.Embeddings.Game do
       if config.player.nana_mode == :enhanced and config.player.with_nana do
         own_nana_action = PlayerEmbed.get_nana_action_id(own)
         opp_nana_action = PlayerEmbed.get_nana_action_id(opponent)
-        nana_action_ids = Nx.tensor([own_nana_action, opp_nana_action], type: :f32)
-        [nana_action_ids | embeddings]
+        embeddings ++ [Nx.tensor([own_nana_action, opp_nana_action], type: :f32)]
       else
         embeddings
       end
@@ -266,8 +271,7 @@ defmodule ExPhil.Embeddings.Game do
       if config.player.character_mode == :learned do
         own_char = PlayerEmbed.get_character_id(own)
         opp_char = PlayerEmbed.get_character_id(opponent)
-        char_ids = Nx.tensor([own_char, opp_char], type: :f32)
-        [char_ids | embeddings]
+        embeddings ++ [Nx.tensor([own_char, opp_char], type: :f32)]
       else
         embeddings
       end
@@ -275,8 +279,7 @@ defmodule ExPhil.Embeddings.Game do
     # Append stage ID at very end when using learned stage embeddings
     embeddings =
       if config.stage_mode == :learned do
-        stage_id = Nx.tensor([game_state.stage || 0], type: :f32)
-        [stage_id | embeddings]
+        embeddings ++ [Nx.tensor([game_state.stage || 0], type: :f32)]
       else
         embeddings
       end
@@ -287,13 +290,12 @@ defmodule ExPhil.Embeddings.Game do
 
     embeddings =
       if padding_size > 0 do
-        padding = Nx.broadcast(0.0, {padding_size}) |> Nx.as_type(:f32)
-        [padding | embeddings]
+        embeddings ++ [Nx.broadcast(0.0, {padding_size}) |> Nx.as_type(:f32)]
       else
         embeddings
       end
 
-    Nx.concatenate(Enum.reverse(embeddings))
+    Nx.concatenate(embeddings)
   end
 
   @doc """

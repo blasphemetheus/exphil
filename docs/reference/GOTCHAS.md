@@ -2299,3 +2299,30 @@ callers treat as a miss), and cache keys carrying a format version + frame
 count. Policy: any NEW index-driven gather where indices and tensor come from
 different sources must go through NxSafe; structurally-bounded gathers
 (argmax outputs, constant index lists) are exempt.
+
+## 53. Live agent fed the policy a SCRAMBLED feature layout (embed vs embed_states_fast)
+
+**Symptom:** Every live bot session ran a policy on features it never trained
+on. Training precomputes embeddings with `Embeddings.Game.embed_states_fast/3`
+(layout `[own, opp, stage, prev_action, name, ...]`); the live agent embeds
+per frame with `Embeddings.Game.embed/4`, which built its base components in
+forward order, prepended optional components, then did ONE global
+`Enum.reverse` — reversing the base block. The deployed model received
+`[name_onehot, prev_action, stage, OPPONENT, OWN, ...]`: the opponent where it
+learned "self", a one-hot where it learned percent. 48/288 dims misplaced.
+Invisible to val_loss (training is self-consistent); only visible live.
+
+**Found by:** the train/inference parity test
+(`test/exphil/embeddings/embed_path_parity_test.exs`), written as Hunt #1 of
+the end-to-end failure sweep after the overfit gate certified the training
+pipeline internally consistent.
+
+**Fix:** `Game.embed/4` rebuilt in explicit forward order matching
+`embed_states_fast` exactly. After the fix the overfit-replication gate
+passes `:exact` strictness (was `:periodic`-only). Existing checkpoints play
+correctly live WITHOUT retraining — they always trained on the canonical
+layout.
+
+**Lesson:** any dual implementation (fast/slow, batched/single) needs a pinned
+parity test from day one. Prepend-then-reverse list building is exactly how
+partial reorderings sneak in.
