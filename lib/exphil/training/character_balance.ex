@@ -86,36 +86,43 @@ defmodule ExPhil.Training.CharacterBalance do
     end
   end
 
-  # Convert Melee internal character ID to atom
-  # Based on libmelee character IDs
+  # Convert a character ID to an atom, using the ID space that BOTH the
+  # Peppi parser and the live libmelee bridge emit (libmelee's Character
+  # enum, "internal" IDs: MARIO=0, FOX=1, ... — see melee/enums.py).
+  #
+  # The previous table here used the CSS/external ID ordering
+  # (falcon=0, dk=1, fox=2, ...), which mislabeled EVERY character —
+  # fox(1) reported as donkey_kong, game_and_watch(24) as pichu — silently
+  # corrupting character-balance weights and distribution reports.
   defp character_id_to_atom(id) when is_integer(id) do
     case id do
-      0 -> :captain_falcon
-      1 -> :donkey_kong
-      2 -> :fox
-      3 -> :game_and_watch
+      0 -> :mario
+      1 -> :fox
+      2 -> :captain_falcon
+      3 -> :donkey_kong
       4 -> :kirby
       5 -> :bowser
       6 -> :link
-      7 -> :luigi
-      8 -> :mario
-      9 -> :marth
-      10 -> :mewtwo
-      11 -> :ness
-      12 -> :peach
-      13 -> :pikachu
-      14 -> :ice_climbers
+      7 -> :sheik
+      8 -> :ness
+      9 -> :peach
+      10 -> :popo
+      11 -> :nana
+      12 -> :pikachu
+      13 -> :samus
+      14 -> :yoshi
       15 -> :jigglypuff
-      16 -> :samus
-      17 -> :yoshi
-      18 -> :zelda
-      19 -> :sheik
-      20 -> :falco
-      21 -> :young_link
-      22 -> :dr_mario
-      23 -> :roy
-      24 -> :pichu
+      16 -> :mewtwo
+      17 -> :luigi
+      18 -> :marth
+      19 -> :zelda
+      20 -> :young_link
+      21 -> :dr_mario
+      22 -> :falco
+      23 -> :pichu
+      24 -> :game_and_watch
       25 -> :ganondorf
+      26 -> :roy
       _ -> :unknown
     end
   end

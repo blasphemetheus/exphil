@@ -74,16 +74,15 @@ defmodule ExPhil.Training.CharacterBalanceTest do
     end
 
     test "handles integer character IDs" do
-      frame = %{
-        game_state: %{
-          players: %{
-            # Mewtwo ID
-            0 => %{character: 10}
-          }
-        }
-      }
-
-      assert CharacterBalance.extract_character(frame) == :mewtwo
+      # IDs are libmelee's Character enum values (the space both Peppi and
+      # the live bridge emit): MEWTWO=16, FOX=1, GAMEANDWATCH=24. The old
+      # expectation (10 => :mewtwo) pinned the WRONG (CSS-order) table that
+      # mislabeled every character — verified against real fox-vs-G&W
+      # replays and melee/enums.py.
+      for {id, char} <- [{16, :mewtwo}, {1, :fox}, {24, :game_and_watch}] do
+        frame = %{game_state: %{players: %{0 => %{character: id}}}}
+        assert CharacterBalance.extract_character(frame) == char
+      end
     end
   end
 

@@ -293,6 +293,7 @@ defmodule ExPhil.Training.Pipeline do
       {:error, "No frames parsed from #{length(replay_files)} files"}
     else
       Output.puts("  #{length(frames)} frames from #{length(replay_files)} files")
+      log_character_distribution(frames)
 
       # Build embed config
       embed_config = Embeddings.config(
@@ -664,5 +665,42 @@ defmodule ExPhil.Training.Pipeline do
       {:ok, total} -> div(total, opts[:batch_size] || 32)
       _ -> div(length(files) * 3000, opts[:batch_size] || 32)
     end
+  end
+
+  # Data visibility: what the model actually trains on. The July-2026 sweeps
+  # were run without knowing the character mix ("did it even train on Fox?" —
+  # nobody could answer). Logs the trained player's character distribution
+  # and the opponent mix, sorted by share.
+  defp log_character_distribution(frames) do
+    alias ExPhil.Training.CharacterBalance
+
+    total = length(frames)
+    self_counts = CharacterBalance.count_characters(frames)
+
+    opp_counts =
+      frames
+      |> Enum.map(fn frame ->
+        players = (frame[:game_state] && frame.game_state.players) || %{}
+        # extract_character reads port 0/1 (self); the opponent is the other
+        opp = Map.get(players, 2) || Map.get(players, 1)
+        CharacterBalance.extract_character(%{game_state: %{players: %{1 => opp}}})
+      end)
+      |> Enum.reject(&is_nil/1)
+      |> Enum.frequencies()
+
+    fmt = fn counts ->
+      counts
+      |> Enum.sort_by(fn {_, n} -> -n end)
+      |> Enum.take(8)
+      |> Enum.map_join(", ", fn {char, n} ->
+        "#{char} #{Float.round(n / max(total, 1) * 100, 1)}%"
+      end)
+    end
+
+    Output.puts("  Trained player: #{fmt.(self_counts)}")
+    Output.puts("  Opponents:      #{fmt.(opp_counts)}")
+  rescue
+    # Diagnostics must never kill training
+    e -> Output.puts("  (character distribution unavailable: #{Exception.message(e)})")
   end
 end
