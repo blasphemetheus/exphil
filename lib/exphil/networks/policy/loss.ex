@@ -112,11 +112,14 @@ defmodule ExPhil.Networks.Policy.Loss do
     stick_edge_weight = Keyword.get(opts, :stick_edge_weight, nil)
 
     # Choose loss functions based on focal_loss flag
+    # Buttons are NEVER label-smoothed (pass 0.0 regardless of the option):
+    # smoothing × pos_weight moves the BCE optimum above the press threshold
+    # for rare buttons — see compute_button_loss_per_sample for the math.
     {button_loss_fn, cat_loss_fn} =
       if focal_loss do
         {
-          fn logits, targets, smooth ->
-            focal_binary_cross_entropy(logits, targets, smooth, focal_gamma,
+          fn logits, targets, _smooth ->
+            focal_binary_cross_entropy(logits, targets, 0.0, focal_gamma,
               pos_weight: button_pos_weight
             )
           end,
@@ -126,8 +129,8 @@ defmodule ExPhil.Networks.Policy.Loss do
         }
       else
         {
-          fn logits, targets, smooth ->
-            binary_cross_entropy(logits, targets, smooth, pos_weight: button_pos_weight)
+          fn logits, targets, _smooth ->
+            binary_cross_entropy(logits, targets, 0.0, pos_weight: button_pos_weight)
           end,
           &categorical_cross_entropy/3
         }
@@ -258,12 +261,16 @@ defmodule ExPhil.Networks.Policy.Loss do
   # Per-sample loss helpers for frame weighting
   # Returns {batch} tensor (one loss value per sample)
 
-  defp compute_button_loss_per_sample(logits, targets, label_smoothing, focal_loss, focal_gamma, pos_weight) do
-    smoothed = if label_smoothing > 0.0 do
-      Nx.add(Nx.multiply(targets, 1.0 - 2.0 * label_smoothing), label_smoothing)
-    else
-      targets
-    end
+  defp compute_button_loss_per_sample(logits, targets, _label_smoothing, focal_loss, focal_gamma, pos_weight) do
+    # NEVER smooth the button targets: smoothing composes catastrophically
+    # with per-button pos_weight. A soft target ε on a never-pressed button,
+    # scaled by pos_weight w, moves the BCE optimum to p* = wε/(wε + 1-ε) —
+    # for w=30, ε=0.1 that's p*=0.77, ABOVE the press threshold: the loss
+    # minimum instructs the model to hold rare buttons (taunt at w=30,
+    # Z-grab at w=12) on every frame. Observed live as constant taunts and
+    # shine-grabs; offline as training 'flatlining' at the (pathological)
+    # loss floor. Categorical heads keep smoothing — softmax renormalizes.
+    smoothed = targets
 
     max_val = Nx.max(logits, 0)
     abs_logits = Nx.abs(logits)

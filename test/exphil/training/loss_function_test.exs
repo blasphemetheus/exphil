@@ -120,4 +120,59 @@ defmodule ExPhil.Training.LossFunctionTest do
         "more than hard (ratio=#{Float.round(hard_ratio, 4)})"
     end
   end
+
+  describe "label smoothing × pos_weight pathology (regression)" do
+    # Smoothing a pos-weighted binary target moves the BCE optimum to
+    # p* = wε/(wε + 1−ε). For w=30, ε=0.1: p* = 0.77 — ABOVE the press
+    # threshold, training models to hold rare buttons (live symptom:
+    # constant taunts and shine-grabs from every default-config model).
+    # Buttons must therefore NEVER be smoothed: for an all-negative button
+    # target, confidently-off logits must always beat above-threshold ones.
+    test "never-pressed high-pos-weight button: 'off' prediction beats 'pressed'" do
+      batch = 4
+
+      targets = %{
+        buttons: Nx.broadcast(0.0, {batch, 8}),
+        main_x: Nx.broadcast(8, {batch}),
+        main_y: Nx.broadcast(8, {batch}),
+        c_x: Nx.broadcast(8, {batch}),
+        c_y: Nx.broadcast(8, {batch}),
+        shoulder: Nx.broadcast(0, {batch})
+      }
+
+      neutral_cat = Nx.broadcast(0.0, {batch, 17})
+      neutral_sh = Nx.broadcast(0.0, {batch, 5})
+
+      base = %{
+        main_x: neutral_cat,
+        main_y: neutral_cat,
+        c_x: neutral_cat,
+        c_y: neutral_cat,
+        shoulder: neutral_sh
+      }
+
+      logits_off = Map.put(base, :buttons, Nx.broadcast(-4.0, {batch, 8}))
+      # sigmoid(0.5) ≈ 0.62 — the old pathological optimum region
+      logits_pressed = Map.put(base, :buttons, Nx.broadcast(0.5, {batch, 8}))
+
+      pos_weight = Nx.tensor([4.5, 4.8, 6.7, 4.0, 11.7, 3.4, 4.5, 30.0])
+
+      for frame_weights <- [nil, Nx.broadcast(1.0, {batch})] do
+        opts = [
+          label_smoothing: 0.1,
+          focal_loss: false,
+          button_pos_weight: pos_weight,
+          frame_weights: frame_weights
+        ]
+
+        loss_off = Loss.imitation_loss(logits_off, targets, opts) |> Nx.to_number()
+        loss_pressed = Loss.imitation_loss(logits_pressed, targets, opts) |> Nx.to_number()
+
+        assert loss_off < loss_pressed,
+               "smoothing leaked into the pos-weighted button BCE " <>
+                 "(frame_weights=#{inspect(frame_weights != nil)}): " <>
+                 "'off' #{loss_off} should beat 'pressed' #{loss_pressed}"
+      end
+    end
+  end
 end
