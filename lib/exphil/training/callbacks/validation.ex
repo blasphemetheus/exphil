@@ -5,7 +5,7 @@ defmodule ExPhil.Training.Callbacks.Validation do
 
   use ExPhil.Training.Callback
 
-  alias ExPhil.Training.Imitation
+  alias ExPhil.Training.{Imitation, Output}
 
   @impl true
   def init(_opts), do: %{}
@@ -22,6 +22,17 @@ defmodule ExPhil.Training.Callbacks.Validation do
       else
         state.train_loss
       end
+
+    # Nx.to_number returns :nan/:infinity ATOMS for non-finite losses. The
+    # trainer halts on non-finite TRAIN loss, but a val-only NaN would
+    # otherwise flow through silently (Checkpoint skips it via is_number,
+    # EarlyStopping counts it as no-improvement) — make it loud.
+    if not is_number(val_loss) do
+      Output.warning(
+        "Validation loss is non-finite (#{inspect(val_loss)}) at epoch #{state.epoch} — " <>
+          "model may be diverging; best-checkpoint saving is suspended for this epoch"
+      )
+    end
 
     state = %{state | val_loss: val_loss}
     {:cont, state, cb}

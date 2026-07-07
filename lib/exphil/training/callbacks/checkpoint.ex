@@ -62,7 +62,7 @@ defmodule ExPhil.Training.Callbacks.Checkpoint do
 
           case Imitation.save_checkpoint(state.trainer, best_path) do
             :ok ->
-              Output.puts("    * New best model saved (val_loss=#{Float.round(val_loss, 4)})")
+              Output.puts("    * New best model saved (val_loss=#{Float.round(val_loss * 1.0, 4)})")
               # Also export a runnable policy from the SAME (best) weights, so the
               # model you ship/play is the best one — not the final-epoch weights
               # that PolicyExport captures at train end. Without this, --save-best

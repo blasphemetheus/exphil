@@ -38,6 +38,37 @@ defmodule ExPhil.Training.Callbacks.CheckpointTest do
 
       {:cont, _state, _cb} = Checkpoint.on_epoch_end(state, cb)
     end
+
+    test "non-finite val_loss never becomes best and never crashes" do
+      # Nx.to_number returns ATOMS (:nan/:infinity) for non-finite losses.
+      # Elixir term ordering makes :nan < 1.0 FALSE (atoms sort above numbers),
+      # so without the is_number guard a first-epoch NaN would be saved as
+      # 'best' and Float.round(:nan) would crash the callback.
+      cb = Checkpoint.init(save_best: true, checkpoint_path: "/nonexistent/x.axon")
+
+      for bad_loss <- [:nan, :infinity, :neg_infinity] do
+        state = %TrainingState{val_loss: bad_loss, epoch: 1, opts: [], trainer: nil}
+        {:cont, state, cb_after} = Checkpoint.on_epoch_end(state, cb)
+
+        assert cb_after.best_val_loss == nil,
+               "#{inspect(bad_loss)} must not be recorded as best_val_loss"
+
+        assert state.best_val_loss == nil
+      end
+    end
+
+    test "recovers to real best tracking after a NaN epoch" do
+      cb = Checkpoint.init(save_best: false)
+
+      nan_state = %TrainingState{val_loss: :nan, epoch: 1, opts: []}
+      {:cont, _state, cb} = Checkpoint.on_epoch_end(nan_state, cb)
+      assert cb.best_val_loss == nil
+
+      ok_state = %TrainingState{val_loss: 2.5, epoch: 2, opts: []}
+      {:cont, _state, cb} = Checkpoint.on_epoch_end(ok_state, cb)
+      # save_best false → still not tracked, but no crash and no atom leakage
+      assert cb.best_val_loss == nil
+    end
   end
 
   describe "on_batch_end/2" do
