@@ -28,7 +28,8 @@ alias ExPhil.Training.Output
       mode: :string,
       stage: :string,
       port: :integer,
-      slippi_dir: :string
+      slippi_dir: :string,
+      out: :string
     ]
   )
 
@@ -39,7 +40,7 @@ mode = String.to_atom(opts[:mode] || "multishine")
 stage = String.to_atom(opts[:stage] || "final_destination")
 player_port = opts[:port] || 1
 slippi_dir = opts[:slippi_dir] || Path.expand("~/Slippi")
-fixture_path = "test/fixtures/replays/fox_multishine.slp"
+fixture_path = opts[:out] || "test/fixtures/replays/fox_multishine.slp"
 
 defmodule Multishine do
   @moduledoc false
@@ -60,6 +61,289 @@ defmodule Multishine do
       7 -> controller(b: true)
       _ -> controller([])
     end
+  end
+
+  # CLOSED-LOOP multishine: inputs are a PURE FUNCTION OF FOX'S STATE, not
+  # the wall clock. This is what makes the recording fully learnable — every
+  # frame's correct input is recoverable from the game state, so a policy
+  # memorizing it acquires transferable "in state X do Y" rules and the
+  # Tier-2 gate ambiguity disappears.
+  #
+  # Fox reflector action states occupy 360..369 (observed 365/366 in parsed
+  # recordings); KNEE_BEND (jumpsquat) = 24. Shine is jump-cancelable from
+  # action_frame 4 onward while grounded.
+  @reflector_range 360..369
+  @jumpsquat 24
+
+  def input(:closed_loop, _frame, player) do
+    in_reflector = player.action in @reflector_range
+    af = max(player.action_frame || 0, 0)
+
+    # Melee registers button EDGES, not levels — a B held continuously (e.g.
+    # from the entry platform onward) never triggers anything. Alternating on
+    # action_frame parity guarantees a fresh edge within 2 frames while
+    # remaining a pure function of observable state (af ticks every frame).
+    b_edge = rem(trunc(af), 2) == 0
+
+    cond do
+      # Grounded reflector, too early to JC: hold B (keep it out).
+      # Window shifted 1 early vs the true JC frame (4): the bridge applies
+      # inputs one frame late, so pressing at af 3 lands at af 4.
+      in_reflector and player.on_ground and af <= 2 ->
+        controller(b: true)
+
+      # Grounded reflector, JC window (af 3..4, arrives 4..5): X pressed and
+      # B RELEASED — the release is what makes the jumpsquat branch's B a
+      # fresh edge. X false in the af<=2 branch → crisp jump edge too.
+      in_reflector and player.on_ground and af <= 4 ->
+        controller(x: true)
+
+      # af 6..8: JC should have taken; keep the reflector out while the
+      # state transition lands.
+      in_reflector and player.on_ground and af <= 8 ->
+        controller(b: true)
+
+      # Grounded reflector, af 5..8: transition guard with X RELEASED — this
+      # gap guarantees the af>8 branch below always opens with a fresh X edge.
+      in_reflector and player.on_ground and af <= 8 ->
+        controller(b: true)
+
+      # Grounded reflector with LARGE af: only reachable by landing from an
+      # aerial shine (af carries over from the air; ground shines get JC'd
+      # by af 5). X held here — the air branch keeps X false, so the landing
+      # transition itself is the edge → instant JC out of the landed shine.
+      # This is the frame the real multishine loop pivots on.
+      in_reflector and player.on_ground ->
+        controller(b: true, x: true)
+
+      # Aerial shine startup (365, "stun" frames): B released, stick NEUTRAL
+      # — deliberately, so the 366 branch below constitutes a FRESH downward
+      # flick. Fastfall requires the stick to cross into down while falling;
+      # a stick held down since the ground never triggers it (measured: the
+      # un-fastfallen aerial reflector falls at ~0.027/frame² — 10x weaker
+      # than Fox's real gravity — turning the canonical 5 airborne frames
+      # into 17).
+      player.action == 365 ->
+        %{
+          main_stick: %{x: 0.5, y: 0.5},
+          c_stick: %{x: 0.5, y: 0.5},
+          shoulder: 0.0,
+          buttons: %{a: false, b: false, x: false, y: false, z: false, l: false, r: false, d_up: false}
+        }
+
+      # Aerial reflector out (366+): slam the stick DOWN — fresh flick →
+      # FASTFALL → land within a couple of frames, reflector persisting into
+      # the grounded state where the JC branch takes over.
+      in_reflector ->
+        controller([])
+
+      # Special fall (helpless, post-reflector-release): no inputs — pressing
+      # B here did nothing but destroy the next shine's edge.
+      player.action == 85 ->
+        controller([])
+
+      # Jumpsquat: B released frames 1-2, PRESSED when af>=2 is observed.
+      # Latency calibration (take-5 trace): observations are 1 frame stale
+      # and inputs apply 1 frame later, so the af2 observation lands B on
+      # frame 4 — the jumpsquat-exit frame. A frame-perfect down-B there is
+      # the actual multishine: the shine comes out GROUNDED, zero airborne
+      # frames ("one frame of airborne Fox" is the documented FAILURE mode).
+      # This edge is real because the JC window above releases B. If the
+      # timing slips a frame, the airborne branch below still delivers an
+      # aerial shine + fastfall recovery instead of an empty hop.
+      player.action == @jumpsquat ->
+        # take-6 trace: af>=2 landed the edge on jumpsquat frame 3 (consumed
+        # no-op) — live af leads the recording by one. af>=3 puts it on the
+        # exit frame.
+        controller(b: af >= 3)
+
+      # Airborne without reflector (just left the ground from the JC):
+      # aerial shine IMMEDIATELY — B was released during jumpsquat, so this
+      # is always a fresh edge; no alternation delay.
+      not player.on_ground ->
+        controller(b: true)
+
+      # Grounded and anything else (wait/crouch/landing): start a shine,
+      # edge-safe.
+      true ->
+        controller(b: b_edge)
+    end
+  end
+
+  # JC-UPSMASH out of shield, on repeat: shield → X (jump out of shield) →
+  # up+A during jumpsquat (the upsmash CANCELS the jump — same
+  # act-during-jumpsquat mechanic the multishine's timing depends on) →
+  # upsmash finishes → shield again. Visually unambiguous validation of the
+  # bridge hitting 3-frame cancel windows: an upsmash with NO jump means the
+  # window was hit; a jump means it was missed.
+  @shield_states 178..181
+  # AttackHi4 (upsmash) start/charge/release
+  @upsmash_states [62, 63, 64]
+
+  def input(:jc_upsmash, _frame, player) do
+    af = max(player.action_frame || 0, 0)
+
+    cond do
+      # Jumpsquat: up + A → jump-cancel upsmash. A was false in the shield
+      # branch, so this is always a fresh edge.
+      player.action == @jumpsquat ->
+        %{
+          main_stick: %{x: 0.5, y: 1.0},
+          c_stick: %{x: 0.5, y: 0.5},
+          shoulder: 0.0,
+          buttons: %{a: true, b: false, x: false, y: false, z: false, l: false, r: false, d_up: false}
+        }
+
+      # Upsmash in progress: release everything, let it play out.
+      player.action in @upsmash_states ->
+        neutral()
+
+      # Shielding: jump out of shield (X edge-alternated on af parity).
+      player.action in @shield_states ->
+        %{
+          main_stick: %{x: 0.5, y: 0.5},
+          c_stick: %{x: 0.5, y: 0.5},
+          shoulder: 0.8,
+          buttons: %{a: false, b: false, x: rem(trunc(af), 2) == 0, y: false, z: false, l: false, r: false, d_up: false}
+        }
+
+      # Grounded and actionable: raise shield.
+      player.on_ground ->
+        %{
+          main_stick: %{x: 0.5, y: 0.5},
+          c_stick: %{x: 0.5, y: 0.5},
+          shoulder: 0.8,
+          buttons: %{a: false, b: false, x: false, y: false, z: false, l: false, r: false, d_up: false}
+        }
+
+      # Airborne (missed cancel → we jumped): wait to land.
+      true ->
+        neutral()
+    end
+  end
+
+  # CAPABILITY SUITE: choreographed routine exercising every validated
+  # mechanic in sequence —
+  #   visible shield (~20f) → JC upsmash → lightshield blip (1f) →
+  #   5× multishine (shine-JC loop) → visible shield → repeat.
+  # Macro-sequencing uses explicit phase state (script memory); each phase's
+  # inputs remain state-reactive. Returns {input, new_state}.
+  def capability(player, st) do
+    af = max(player.action_frame || 0, 0)
+    st = Map.merge(%{phase: :shield, t: 20, reps: 0, prev_action: nil}, st)
+    entered_jumpsquat = player.action == @jumpsquat and st.prev_action != @jumpsquat
+    st2 = %{st | prev_action: player.action}
+
+    {input, st3} =
+      case st2.phase do
+        :shield ->
+          if st2.t > 0 do
+            {shield_input(false), %{st2 | t: st2.t - 1}}
+          else
+            {shield_input(false), %{st2 | phase: :upsmash}}
+          end
+
+        :upsmash ->
+          cond do
+            player.action == @jumpsquat ->
+              {upsmash_input(), st2}
+
+            player.action in @upsmash_states ->
+              # riding the upsmash; move on once it ends
+              {neutral(), %{st2 | phase: :upsmash_end}}
+
+            player.action in @shield_states ->
+              {shield_jump_input(af), st2}
+
+            player.on_ground ->
+              {shield_input(false), st2}
+
+            true ->
+              {neutral(), st2}
+          end
+
+        :upsmash_end ->
+          if player.action in @upsmash_states or player.action == @jumpsquat do
+            {neutral(), st2}
+          else
+            # upsmash done → 1-frame lightshield blip
+            {shield_input(true), %{st2 | phase: :multishine, reps: 5}}
+          end
+
+        :multishine ->
+          st2 = if entered_jumpsquat, do: %{st2 | reps: st2.reps - 1}, else: st2
+
+          cond do
+            # Shield still up/dropping from the blip: stick-down now would
+            # spotdodge (down + shoulder). Wait it out at neutral.
+            player.action in @shield_states ->
+              {neutral(), st2}
+
+            # Done with reps but the perfect multishine never leaves
+            # reflector/jumpsquat — release everything and let the reflector
+            # drop before moving on (the loop is otherwise unexitable).
+            st2.reps <= 0 and
+                (player.action in @reflector_range or player.action == @jumpsquat) ->
+              {neutral(), st2}
+
+            st2.reps <= 0 and player.on_ground and
+                player.action not in @upsmash_states ->
+              {shield_input(false), %{st2 | phase: :shield, t: 20}}
+
+            true ->
+              {input(:closed_loop, 0, player), st2}
+          end
+      end
+
+    {input, st3}
+  end
+
+  # Full shield = DIGITAL L press (unambiguous — the analog shoulder has
+  # thresholds: below ~0.3 nothing, mid-range LIGHT shield, and only the top
+  # of the range/digital press gives full shield). Light shield = analog.
+  defp shield_input(light) do
+    %{
+      main_stick: %{x: 0.5, y: 0.5},
+      c_stick: %{x: 0.5, y: 0.5},
+      shoulder: if(light, do: 0.35, else: 0.0),
+      buttons: %{
+        a: false,
+        b: false,
+        x: false,
+        y: false,
+        z: false,
+        l: not light,
+        r: false,
+        d_up: false
+      }
+    }
+  end
+
+  defp shield_jump_input(af) do
+    %{
+      main_stick: %{x: 0.5, y: 0.5},
+      c_stick: %{x: 0.5, y: 0.5},
+      shoulder: 0.0,
+      buttons: %{
+        a: false,
+        b: false,
+        x: rem(trunc(af), 2) == 0,
+        y: false,
+        z: false,
+        l: true,
+        r: false,
+        d_up: false
+      }
+    }
+  end
+
+  defp upsmash_input do
+    %{
+      main_stick: %{x: 0.5, y: 1.0},
+      c_stick: %{x: 0.5, y: 0.5},
+      shoulder: 0.0,
+      buttons: %{a: true, b: false, x: false, y: false, z: false, l: false, r: false, d_up: false}
+    }
   end
 
   # Fallback: plain repeated ground shine (shine, release, wait). Less cool,
@@ -118,28 +402,59 @@ defmodule RecordLoop do
   @moduledoc false
   alias ExPhil.Bridge.MeleePort
 
-  def run(bridge, mode, target_frames, frame \\ 0, in_game_frames \\ 0) do
+  def run(bridge, mode, target_frames, frame \\ 0, in_game_frames \\ 0, mstate \\ %{}) do
     case MeleePort.step(bridge, auto_menu: true) do
       {:ok, _game_state} when in_game_frames >= target_frames ->
         # Enough footage recorded
         {:ok, in_game_frames}
 
-      {:ok, _game_state} ->
+      {:ok, game_state} ->
         if in_game_frames == 0 do
           IO.puts("[record] In game — starting #{mode} input loop")
         end
 
-        input = Multishine.input(mode, in_game_frames)
+        {input, mstate} =
+          case {mode, game_state.players[1]} do
+            {m, nil} when m in [:closed_loop, :jc_upsmash, :capability] ->
+              if rem(in_game_frames, 60) == 0, do: IO.puts("[#{mode}] P1 is nil!")
+              {Multishine.neutral(), mstate}
+
+            {:capability, player} ->
+              {input, mstate} = Multishine.capability(player, mstate)
+
+              if rem(in_game_frames, 60) == 0 do
+                IO.puts(
+                  "[capability] f#{in_game_frames} phase=#{mstate[:phase]} reps=#{mstate[:reps]} " <>
+                    "action=#{inspect(player.action)}"
+                )
+              end
+
+              {input, mstate}
+
+            {m, player} when m in [:closed_loop, :jc_upsmash] ->
+              if rem(in_game_frames, 60) == 0 do
+                IO.puts(
+                  "[#{mode}] f#{in_game_frames} action=#{inspect(player.action)} " <>
+                    "af=#{inspect(player.action_frame)} ground=#{inspect(player.on_ground)}"
+                )
+              end
+
+              {Multishine.input(m, in_game_frames, player), mstate}
+
+            {m, _} ->
+              {Multishine.input(m, in_game_frames), mstate}
+          end
+
         MeleePort.send_controller(bridge, input)
 
         if rem(in_game_frames, 300) == 299 do
           IO.puts("[record] #{div(in_game_frames + 1, 60)}s recorded...")
         end
 
-        run(bridge, mode, target_frames, frame + 1, in_game_frames + 1)
+        run(bridge, mode, target_frames, frame + 1, in_game_frames + 1, mstate)
 
       {:menu, _game_state} ->
-        run(bridge, mode, target_frames, frame + 1, in_game_frames)
+        run(bridge, mode, target_frames, frame + 1, in_game_frames, mstate)
 
       {:postgame, _game_state} ->
         # Game ended before we hit the target (e.g. someone died a lot) —
