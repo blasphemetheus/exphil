@@ -57,6 +57,11 @@ defmodule ExPhil.Test.ReplayFixtures do
   @jump_f 25
   # Falling
   @fall 30
+  # Fox grounded Reflector / shine cycle (approximate — the precise Reflector
+  # action-state ids live in the Melee action-state table; the multishine
+  # fixture only relies on the state *changing* across the cycle, not on the
+  # exact numeric ids, so these are safe placeholders for a synthetic test).
+  @fox_shine 360
   # @landing 40       # Landing lag
   # @shield 178       # Shielding
   # @grabbed 223      # Being grabbed
@@ -609,6 +614,133 @@ defmodule ExPhil.Test.ReplayFixtures do
         }
       }
     ]
+  end
+
+  # ============================================================================
+  # Tech Fixtures (overfit-replication tests — see docs/planning/HANDOFF.md)
+  # ============================================================================
+
+  @doc """
+  Deterministic tech-execution fixture for overfit-replication correctness tests.
+
+  Returns a list of `{%GameState{}, %ControllerState{}}` tuples (same shape as
+  `combo_sequence_fixture/1`) representing a repeating tech pattern. The point of
+  this fixture is Vlad Firoiu's advice: train a model to *memorize* a short,
+  legible behavior, then check it can reproduce it. If a memorized behavior can't
+  be replicated, the bug is categorically in the pipeline (embedding / discretize
+  / decode / sampling), not the model — collapsing the "underfitting vs bug?"
+  ambiguity that famously cost Phillip ~2 years.
+
+  ## CRITICAL correctness property
+
+  The game **state varies in lockstep with the controller phase**. Multishine is a
+  *periodic* output; if every frame fed the model an identical state, no correct
+  model could produce a periodic controller sequence from constant input, and the
+  test would fail a perfectly good pipeline. Real replays don't have this problem
+  (Fox's action-state genuinely cycles shine → jumpsquat → airborne → shine), so
+  the synthetic fixture cycles Fox's `action` and `y` with the shine phase too.
+
+  ## Scenarios
+    - `:multishine` — Fox (port 2) grounded multishine vs a static Marth (port 1)
+
+  ## Options
+    - `:frames` — total frames (default 64)
+    - `:period` — frames per shine cycle (default 8); shine input lands on phase 0
+    - `:stage`  — stage id (default Final Destination)
+
+  The shine input is encoded as **B held + main stick down** (`button_b: true`,
+  `main_stick.y < 0.5`), which is exactly how `ExPhil.Test.ReplicationCheck`
+  detects a shine event, so the fixture and the checker agree by construction.
+  """
+  def tech_fixture(scenario \\ :multishine, opts \\ [])
+
+  def tech_fixture(:multishine, opts) do
+    frames = Keyword.get(opts, :frames, 64)
+    period = Keyword.get(opts, :period, 8)
+    stage = Keyword.get(opts, :stage, @final_destination)
+
+    for i <- 0..(frames - 1) do
+      phase = rem(i, period)
+      {fox_action, fox_y, controller} = multishine_phase(phase)
+
+      gs = %GameState{
+        frame: i,
+        stage: stage,
+        menu_state: 2,
+        players: %{
+          # Static opponent — its constancy is fine; only Fox needs phase variation.
+          1 => multishine_opponent(),
+          2 => %Player{
+            character: @fox,
+            x: 0.0,
+            y: fox_y,
+            percent: 0.0,
+            stock: 4,
+            facing: 1,
+            action: fox_action,
+            action_frame: phase + 1,
+            on_ground: fox_y == 0.0,
+            jumps_left: 2,
+            shield_strength: 60.0,
+            invulnerable: false,
+            hitstun_frames_left: 0,
+            speed_air_x_self: 0.0,
+            speed_ground_x_self: 0.0,
+            speed_y_self: 0.0,
+            speed_x_attack: 0.0,
+            speed_y_attack: 0.0,
+            nana: nil,
+            controller_state: nil
+          }
+        },
+        projectiles: [],
+        items: [],
+        distance: 40.0
+      }
+
+      {gs, controller}
+    end
+  end
+
+  # Phase 0 = shine (B + down), phase 1 = jump-cancel (X), phases 2+ = airborne
+  # rising between shines. State (action + y) tracks the phase so the sequence is
+  # actually determinable — see the fixture's CRITICAL correctness note.
+  defp multishine_phase(0) do
+    {@fox_shine, 0.0, %{neutral_controller() | main_stick: %{x: 0.5, y: 0.0}, button_b: true}}
+  end
+
+  defp multishine_phase(1) do
+    {@jump_squat, 0.0, %{neutral_controller() | button_x: true}}
+  end
+
+  defp multishine_phase(phase) do
+    # Small upward bounce so consecutive airborne frames aren't identical either.
+    {@jump_f, phase * 1.5, neutral_controller()}
+  end
+
+  defp multishine_opponent do
+    %Player{
+      character: @marth,
+      x: 40.0,
+      y: 0.0,
+      percent: 0.0,
+      stock: 4,
+      facing: -1,
+      action: @wait,
+      action_frame: 1,
+      on_ground: true,
+      jumps_left: 2,
+      shield_strength: 60.0,
+      invulnerable: false,
+      hitstun_frames_left: 0,
+      speed_air_x_self: 0.0,
+      speed_ground_x_self: 0.0,
+      speed_y_self: 0.0,
+      speed_x_attack: 0.0,
+      speed_y_attack: 0.0,
+      nana: nil,
+      controller_state: nil
+    }
   end
 
   # ============================================================================
