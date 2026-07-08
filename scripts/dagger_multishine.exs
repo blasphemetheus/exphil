@@ -38,7 +38,8 @@ alias ExPhil.Embeddings
       prev_action: :boolean,
       action_delay: :integer,
       prev_action_dropout: :float,
-      port: :integer
+      port: :integer,
+      lr: :float
     ]
   )
 
@@ -48,6 +49,10 @@ prev_action = Keyword.get(opts, :prev_action, true)
 prev_action_dropout = opts[:prev_action_dropout] || 0.1
 action_delay = Keyword.get(opts, :action_delay, 2)
 port = opts[:port] || 1
+# 2e-4 (not the probe trainer's 5e-4): the aggregate grows each DAgger
+# iteration, and more optimizer steps per epoch at high LR eventually
+# blew up (loss 0.0084 at epoch 150 → NaN at 178 on a 73k-frame pool)
+learning_rate = opts[:lr] || 2.0e-4
 window = 16
 
 rollout_paths =
@@ -179,7 +184,7 @@ trainer =
     window_size: window,
     hidden_size: 256,
     num_layers: 1,
-    learning_rate: 5.0e-4,
+    learning_rate: learning_rate,
     max_grad_norm: 0.5,
     label_smoothing: 0.0,
     dropout: 0.0
@@ -193,8 +198,13 @@ trainer =
 memorized_loss = 2.0e-3
 max_epochs = 1000
 
-{trainer, final_loss, epochs_used} =
-  Enum.reduce_while(1..max_epochs, {trainer, nil, 0, []}, fn epoch, {tr, _, _, history} ->
+# Track the best epoch's trainer so a late divergence (loss → NaN after
+# converging most of the way) still exports a usable policy — essential for
+# unattended dagger_loop.sh runs. Holding one extra trainer reference costs
+# one extra param set on the GPU.
+{best, final_loss, epochs_used} =
+  Enum.reduce_while(1..max_epochs, {trainer, nil, 0, [], nil}, fn epoch,
+                                                                  {tr, _, _, history, best} ->
     {tr, epoch_loss} =
       dataset
       |> Data.batched_sequences(
@@ -214,6 +224,12 @@ max_epochs = 1000
     loss = Nx.to_number(epoch_loss)
     if rem(epoch, 25) == 0, do: Output.puts("epoch #{epoch}: loss=#{inspect(loss)}")
 
+    best =
+      case best do
+        nil -> if is_number(loss), do: {tr, loss}, else: nil
+        {_, best_loss} -> if is_number(loss) and loss < best_loss, do: {tr, loss}, else: best
+      end
+
     history = Enum.take([loss | history], 100)
 
     plateaued? =
@@ -221,22 +237,34 @@ max_epochs = 1000
         List.last(history) - Enum.min(history) < 1.0e-3
 
     cond do
-      not is_number(loss) -> {:halt, {tr, loss, epoch, history}}
-      loss < memorized_loss -> {:halt, {tr, loss, epoch, history}}
-      plateaued? -> {:halt, {tr, loss, epoch, history}}
-      true -> {:cont, {tr, loss, epoch, history}}
+      not is_number(loss) -> {:halt, {tr, loss, epoch, history, best}}
+      loss < memorized_loss -> {:halt, {tr, loss, epoch, history, best}}
+      plateaued? -> {:halt, {tr, loss, epoch, history, best}}
+      true -> {:cont, {tr, loss, epoch, history, best}}
     end
   end)
-  |> then(fn {tr, loss, epoch, _} -> {tr, loss, epoch} end)
+  |> then(fn {_tr, loss, epoch, _, best} -> {best, loss, epoch} end)
 
-if not is_number(final_loss) do
-  Output.error("Training diverged (#{inspect(final_loss)}) — no policy exported")
-  System.halt(1)
+case {is_number(final_loss), best} do
+  {_, nil} ->
+    Output.error("Training diverged with no usable epoch — no policy exported")
+    System.halt(1)
+
+  {false, {_best_tr, best_loss}} ->
+    Output.warning(
+      "Training diverged (#{inspect(final_loss)}) at epoch #{epochs_used} — " <>
+        "exporting best epoch instead (loss=#{Float.round(best_loss * 1.0, 5)})"
+    )
+
+  {true, {_best_tr, best_loss}} ->
+    Output.puts(
+      "Converged: loss=#{Float.round(best_loss * 1.0, 5)} after #{epochs_used} epochs"
+    )
 end
 
-Output.puts("Converged: loss=#{Float.round(final_loss * 1.0, 5)} after #{epochs_used} epochs")
+{best_trainer, _best_loss} = best
 
-case Imitation.export_policy(trainer, out_path) do
+case Imitation.export_policy(best_trainer, out_path) do
   :ok -> Output.success("Policy exported: #{out_path}")
   {:error, reason} ->
     Output.error("Export failed: #{inspect(reason)}")
