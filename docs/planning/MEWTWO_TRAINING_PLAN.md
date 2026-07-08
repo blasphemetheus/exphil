@@ -174,3 +174,19 @@ running it before a bot ships is the exact trap that has kept this project in la
 bot plays in Dolphin and you have a task where a 0.1 val-loss delta actually *means* something,
 revive the sweep with the `train.exs` interface: swap `--backbone gru` for the target, keep
 everything else identical, and give each run a distinct `--name`.
+
+## 2026-07-07 addendum: data facts that change the plan
+
+Per-character data visibility (now logged every run) revealed the general
+200-file corpus is fox 25% / falcon 23% / falco 19% / marth 10% / sheik 5% —
+**Mewtwo does not appear in the top 8**. The general model has essentially
+never seen Mewtwo piloted. Implications:
+- The specialist run on `replays/mewtwo` (131 files) is not a nice-to-have,
+  it is the ONLY source of Mewtwo piloting signal.
+- Consider general-pretrain → Mewtwo fine-tune rather than from-scratch.
+- Calibration from the reference project: slippi-ai's strong BC used ~100k
+  replays and a ~20M-param model (we: 200 replays, 3.7M params). Weak main-
+  stick accuracy (mx≈35%) at our scale is expected, not a bug — scale data
+  before blaming architecture.
+- Loss fixes landed 2026-07-07 (GOTCHAS #53/#54): retrain anything trained
+  before that date before drawing conclusions from its play.
