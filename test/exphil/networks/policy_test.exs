@@ -397,6 +397,55 @@ defmodule ExPhil.Networks.PolicyTest do
     end
   end
 
+  describe "apply_hysteresis/4" do
+    alias ExPhil.Networks.Policy.Sampling
+
+    @hyst [press_threshold: 0.6, release_threshold: 0.4]
+
+    # sigmoid(0.0) = 0.5 — squarely between press (0.6) and release (0.4)
+    defp borderline, do: Nx.tensor([[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]])
+
+    test "borderline prob keeps previous state (held stays held, up stays up)" do
+      prev = Nx.tensor([[1, 0, 1, 0, 1, 0, 1, 0]], type: :u8)
+      plain = Nx.greater(Nx.sigmoid(borderline()), 0.5)
+
+      result = Sampling.apply_hysteresis(plain, borderline(), true, @hyst ++ [prev_buttons: prev])
+
+      assert Nx.to_flat_list(result) == Nx.to_flat_list(prev)
+    end
+
+    test "confident probs override previous state (press edges and releases)" do
+      # sigmoid(2.0)≈0.88 > press, sigmoid(-2.0)≈0.12 < release
+      logits = Nx.tensor([[2.0, 2.0, -2.0, -2.0, 2.0, 2.0, -2.0, -2.0]])
+      prev = Nx.tensor([[0, 1, 0, 1, 0, 1, 0, 1]], type: :u8)
+      plain = Nx.greater(Nx.sigmoid(logits), 0.5)
+
+      result = Sampling.apply_hysteresis(plain, logits, true, @hyst ++ [prev_buttons: prev])
+
+      assert Nx.to_flat_list(result) == [1, 1, 0, 0, 1, 1, 0, 0]
+    end
+
+    test "nil prev applies press threshold everywhere (first frame)" do
+      result = Sampling.apply_hysteresis(borderline(), borderline(), true, @hyst)
+
+      # 0.5 < 0.6 press threshold -> everything up
+      assert Nx.to_flat_list(result) == List.duplicate(0, 8)
+    end
+
+    test "no-op without both thresholds or outside argmax modes" do
+      plain = Nx.greater(Nx.sigmoid(borderline()), 0.5)
+      prev = Nx.tensor([[1, 1, 1, 1, 1, 1, 1, 1]], type: :u8)
+
+      unchanged = Sampling.apply_hysteresis(plain, borderline(), true, prev_buttons: prev)
+      assert Nx.to_flat_list(unchanged) == Nx.to_flat_list(plain)
+
+      stochastic =
+        Sampling.apply_hysteresis(plain, borderline(), false, @hyst ++ [prev_buttons: prev])
+
+      assert Nx.to_flat_list(stochastic) == Nx.to_flat_list(plain)
+    end
+  end
+
   describe "sample_categorical/3" do
     test "deterministic sampling uses argmax" do
       logits = Nx.tensor([[0.1, 0.5, 0.2, 0.9, 0.3]])

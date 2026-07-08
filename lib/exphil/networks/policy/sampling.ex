@@ -44,6 +44,15 @@ defmodule ExPhil.Networks.Policy.Sampling do
     - `:deterministic` - If true, use argmax instead of sampling (default: false)
     - `:axis_buckets` - Number of stick buckets (default: 16)
     - `:shoulder_buckets` - Number of shoulder buckets (default: 4)
+    - `:press_threshold` / `:release_threshold` - Button hysteresis for the
+      argmax button modes (`:deterministic` or `:deterministic_buttons`).
+      A button turns ON above `press_threshold` and OFF below
+      `release_threshold`; in between it keeps its previous state (from
+      `:prev_buttons`). Melee registers inputs on press EDGES, so a flat 0.5
+      cut both drops borderline presses and locks held buttons (a held X is
+      not a jump). Typical: press 0.6, release 0.4.
+    - `:prev_buttons` - previously emitted button tensor (shape [1, buttons]);
+      nil (e.g. first frame) applies `press_threshold` everywhere.
   """
   @spec sample(map(), function(), Nx.Tensor.t(), keyword()) :: map()
   def sample(params, predict_fn, state, opts \\ []) do
@@ -82,6 +91,9 @@ defmodule ExPhil.Networks.Policy.Sampling do
         buttons
       end
 
+    buttons =
+      apply_hysteresis(buttons, buttons_logits, deterministic or deterministic_buttons, opts)
+
     %{
       buttons: buttons,
       main_x: main_x,
@@ -101,6 +113,37 @@ defmodule ExPhil.Networks.Policy.Sampling do
         shoulder: shoulder_logits
       }
     }
+  end
+
+  @doc """
+  Button hysteresis: per-button threshold depends on the button's previous
+  state — `:release_threshold` while held, `:press_threshold` while up.
+
+  Applied only to argmax button modes (stochastic sampling has its own
+  dynamics); returns `buttons` unchanged unless both thresholds are set.
+  Eager ops on a [1, buttons] tensor; cost is negligible next to inference.
+  """
+  @spec apply_hysteresis(Nx.Tensor.t(), Nx.Tensor.t(), boolean(), keyword()) :: Nx.Tensor.t()
+  def apply_hysteresis(buttons, buttons_logits, argmax_buttons?, opts) do
+    press = Keyword.get(opts, :press_threshold)
+    release = Keyword.get(opts, :release_threshold)
+    prev = Keyword.get(opts, :prev_buttons)
+
+    if argmax_buttons? and is_number(press) and is_number(release) do
+      probs = Nx.sigmoid(buttons_logits)
+
+      case prev do
+        nil ->
+          Nx.greater(probs, press)
+
+        prev ->
+          held = Nx.greater(Nx.as_type(prev, :u8), 0)
+          thresholds = Nx.select(held, release, press)
+          Nx.greater(probs, thresholds)
+      end
+    else
+      buttons
+    end
   end
 
   import Nx.Defn

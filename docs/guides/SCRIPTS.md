@@ -419,6 +419,16 @@ mix run scripts/play_dolphin_async.exs \
 Additional options:
 - `--on-game-end MODE` - restart (auto-start next game) or stop (exit)
 
+Decode options (both play scripts):
+- `--temperature X` - sampling temperature (0=argmax-like; 0.3-0.5 plays well)
+- `--deterministic-buttons` - argmax buttons while sticks sample (kills stray taunts)
+- `--press-threshold X` / `--release-threshold Y` - button hysteresis for the
+  argmax button modes: press above X (try 0.6), release below Y (try 0.4),
+  hold previous state in between. Melee registers inputs on press EDGES — a
+  flat 0.5 cut both drops borderline presses and locks held buttons (a held
+  jump button never jumps again). Hysteresis turns near-confident streaks
+  into clean press/release edges.
+
 ### example_bot.exs
 **Example rule-based bot demonstrating the bridge API.**
 

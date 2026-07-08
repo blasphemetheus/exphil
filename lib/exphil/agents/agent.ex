@@ -56,6 +56,9 @@ defmodule ExPhil.Agents.Agent do
     :deterministic,
     :temperature,
     :deterministic_buttons,
+    # Button hysteresis for argmax button modes (nil = plain 0.5 threshold)
+    :press_threshold,
+    :release_threshold,
     :use_prev_action,
     :last_controller,
     # Temporal inference config
@@ -231,6 +234,8 @@ defmodule ExPhil.Agents.Agent do
     deterministic = Keyword.get(opts, :deterministic, false)
     temperature = Keyword.get(opts, :temperature, 1.0)
     deterministic_buttons = Keyword.get(opts, :deterministic_buttons, false)
+    press_threshold = Keyword.get(opts, :press_threshold)
+    release_threshold = Keyword.get(opts, :release_threshold)
     action_repeat = Keyword.get(opts, :action_repeat, 1)
 
     # Allow disabling incremental inference for testing/comparison
@@ -243,6 +248,8 @@ defmodule ExPhil.Agents.Agent do
       deterministic: deterministic,
       temperature: temperature,
       deterministic_buttons: deterministic_buttons,
+      press_threshold: press_threshold,
+      release_threshold: release_threshold,
       # Temporal config - will be set when policy is loaded
       temporal: false,
       backbone: :mlp,
@@ -437,6 +444,8 @@ defmodule ExPhil.Agents.Agent do
       |> maybe_update(:deterministic, opts)
       |> maybe_update(:temperature, opts)
       |> maybe_update(:frame_delay, opts)
+      |> maybe_update(:press_threshold, opts)
+      |> maybe_update(:release_threshold, opts)
 
     {:reply, :ok, state}
   end
@@ -533,7 +542,10 @@ defmodule ExPhil.Agents.Agent do
         embedded_batch,
         deterministic: deterministic,
         temperature: temperature,
-        deterministic_buttons: deterministic_buttons
+        deterministic_buttons: deterministic_buttons,
+        press_threshold: state.press_threshold,
+        release_threshold: state.release_threshold,
+        prev_buttons: state.last_action && state.last_action[:buttons]
       )
 
     # Compute confidence from logits
@@ -581,7 +593,10 @@ defmodule ExPhil.Agents.Agent do
         sequence_batch,
         deterministic: deterministic,
         temperature: temperature,
-        deterministic_buttons: deterministic_buttons
+        deterministic_buttons: deterministic_buttons,
+        press_threshold: state.press_threshold,
+        release_threshold: state.release_threshold,
+        prev_buttons: state.last_action && state.last_action[:buttons]
       )
 
     # Compute confidence from logits

@@ -105,6 +105,8 @@ Output.step(1, 5, "Loading agent")
     deterministic: opts[:deterministic],
     temperature: opts[:temperature] || 1.0,
     deterministic_buttons: opts[:deterministic_buttons] || false,
+    press_threshold: opts[:press_threshold],
+    release_threshold: opts[:release_threshold],
     frame_delay: opts[:frame_delay]
   )
 
