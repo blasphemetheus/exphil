@@ -158,6 +158,49 @@ defmodule ExPhil.Embeddings.Controller do
     ])
   end
 
+  @doc """
+  Batch version of `embed_continuous/1`: list of controller states (nil for
+  "no previous action", e.g. the first frame of a replay) → `{N, 13}` tensor.
+
+  Values extracted in pure Elixir then materialized as one tensor — this is
+  the previous-action channel for `Game.embed_states_fast/3`, so it must be
+  numerically IDENTICAL to `embed_continuous/1` (pinned by the embed-path
+  parity test).
+  """
+  @spec embed_continuous_batch([ControllerState.t() | nil]) :: Nx.Tensor.t()
+  def embed_continuous_batch(controllers) do
+    rows =
+      Enum.map(controllers, fn
+        nil ->
+          List.duplicate(0.0, continuous_embedding_size())
+
+        %ControllerState{} = cs ->
+          buttons =
+            [
+              cs.button_a,
+              cs.button_b,
+              cs.button_x,
+              cs.button_y,
+              cs.button_z,
+              cs.button_l,
+              cs.button_r,
+              cs.button_d_up
+            ]
+            |> Enum.map(&if(&1, do: 1.0, else: 0.0))
+
+          main = stick_continuous_values(cs.main_stick)
+          c = stick_continuous_values(cs.c_stick)
+          shoulder = if is_number(cs.l_shoulder), do: cs.l_shoulder, else: 0.0
+
+          buttons ++ main ++ c ++ [shoulder]
+      end)
+
+    Nx.tensor(rows, type: :f32)
+  end
+
+  defp stick_continuous_values(%{x: x, y: y}), do: [(x - 0.5) * 2.0, (y - 0.5) * 2.0]
+  defp stick_continuous_values(nil), do: [0.0, 0.0]
+
   defp embed_buttons_continuous(%ControllerState{} = cs) do
     buttons = [
       cs.button_a,

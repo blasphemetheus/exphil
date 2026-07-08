@@ -77,4 +77,44 @@ defmodule ExPhil.Embeddings.EmbedPathParityTest do
       end
     end
   end
+
+  test "prev-action channel: batched prev_controllers == per-frame prev_action" do
+    # Prev-action conditioning (task #21): training embeds frame i with frame
+    # i-1's controller via embed_states_fast(prev_controllers:); the live
+    # agent embeds with its own last emitted controller via embed(gs, prev,
+    # port). Same parity requirement as the base test — plus the channel must
+    # actually CHANGE the embedding (guard against silently ignored opts).
+    config = Embeddings.config()
+
+    frames = ReplayFixtures.tech_fixture(:multishine, frames: 16, period: 8)
+    states = Enum.map(frames, fn {gs, _cs} -> gs end)
+    # Shifted controllers: frame i's prev = frame i-1's controller, nil first
+    prevs = [nil | Enum.map(frames, fn {_gs, cs} -> cs end)] |> Enum.take(length(states))
+
+    batched =
+      Embeddings.Game.embed_states_fast(states, 1, config: config, prev_controllers: prevs)
+
+    per_frame =
+      Enum.zip(states, prevs)
+      |> Enum.map(fn {gs, prev} -> Embeddings.Game.embed(gs, prev, 1, config: config) end)
+      |> Nx.stack()
+
+    assert Nx.shape(batched) == Nx.shape(per_frame)
+
+    diff =
+      batched |> Nx.subtract(per_frame) |> Nx.abs() |> Nx.reduce_max() |> Nx.to_number()
+
+    assert diff <= 1.0e-6,
+           "PREV-ACTION EMBEDDING SKEW: max |diff| = #{diff} — training " <>
+             "(prev_controllers) and live (embed prev arg) disagree"
+
+    # The channel must be live: real prev controllers ≠ zeroed slot
+    zeroed = Embeddings.Game.embed_states_fast(states, 1, config: config)
+
+    channel_delta =
+      batched |> Nx.subtract(zeroed) |> Nx.abs() |> Nx.reduce_max() |> Nx.to_number()
+
+    assert channel_delta > 1.0e-3,
+           "prev_controllers appears to be IGNORED (embedding identical to zeros)"
+  end
 end

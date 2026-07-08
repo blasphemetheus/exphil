@@ -97,6 +97,9 @@ defmodule ExPhil.Training.EmbeddingCache do
       # caller doesn't know it) — a subset tensor can't hide under the
       # full dataset's key (GOTCHAS.md #51)
       frame_count: Keyword.get(opts, :frame_count),
+      # Prev-action channel contents differ (real prev controllers vs
+      # zeros) — same config, different tensor, must not share a key
+      use_prev_action: Keyword.get(opts, :use_prev_action, false),
       # Include augmentation params so augmented caches have different keys
       augmented: augmented,
       num_noisy_variants: num_noisy_variants,

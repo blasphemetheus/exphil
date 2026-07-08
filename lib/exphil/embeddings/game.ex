@@ -349,9 +349,20 @@ defmodule ExPhil.Embeddings.Game do
           clamp: true
         )
 
-      # Previous action (zeros since we don't have it in temporal sequences)
+      # Previous action: real per-frame previous controllers when supplied
+      # (`:prev_controllers` — list aligned with game_states, nil entries for
+      # replay-start frames), zeros otherwise. Historically this channel was
+      # ALWAYS zeros, which meant the model never saw its own last input —
+      # making frame-precise input sequences (dash dance flips, multishine
+      # phase) unlearnable except indirectly through velocity/action state.
       prev_action_emb =
-        Nx.broadcast(0.0, {batch_size, ControllerEmbed.continuous_embedding_size()})
+        case Keyword.get(opts, :prev_controllers) do
+          nil ->
+            Nx.broadcast(0.0, {batch_size, ControllerEmbed.continuous_embedding_size()})
+
+          prev_controllers ->
+            ControllerEmbed.embed_continuous_batch(prev_controllers)
+        end
 
       # Base embeddings (stage only included for one-hot modes)
       base_embs =

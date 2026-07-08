@@ -247,6 +247,14 @@ defmodule ExPhil.Training.Pipeline do
     # Streaming mode — don't load data upfront
     Output.step(2, 4, "Setting up streaming pipeline")
 
+    if opts[:use_prev_action] do
+      Output.warning(
+        "--prev-action is not wired into the streaming pipeline yet — " <>
+          "the prev-action channel will be ZEROS in streamed chunks. " <>
+          "Use the standard (non-streaming) pipeline for prev-action training."
+      )
+    end
+
     chunk_size = opts[:stream_chunk_size]
     file_chunks = Streaming.chunk_files(replay_files, chunk_size)
     Output.puts("  #{length(file_chunks)} chunks of ~#{chunk_size} files")
@@ -442,16 +450,22 @@ defmodule ExPhil.Training.Pipeline do
   defp precompute_embeddings(dataset, replay_files, opts) do
     cache_enabled = opts[:cache_embeddings] != false
 
+    use_prev_action = opts[:use_prev_action] || false
+
     if cache_enabled do
       Data.precompute_frame_embeddings_cached(dataset,
         cache: true,
         cache_dir: opts[:cache_dir] || "cache/embeddings",
         force_recompute: opts[:no_cache] || false,
         replay_files: replay_files,
-        show_progress: true
+        show_progress: true,
+        use_prev_action: use_prev_action
       )
     else
-      Data.precompute_frame_embeddings(dataset, show_progress: true)
+      Data.precompute_frame_embeddings(dataset,
+        show_progress: true,
+        use_prev_action: use_prev_action
+      )
     end
   end
 

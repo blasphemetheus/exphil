@@ -55,6 +55,9 @@ defmodule ExPhil.Agents.Agent do
     :frame_buffer,
     :deterministic,
     :temperature,
+    :deterministic_buttons,
+    :use_prev_action,
+    :last_controller,
     # Temporal inference config
     :temporal,
     :backbone,
@@ -227,6 +230,7 @@ defmodule ExPhil.Agents.Agent do
     frame_delay = Keyword.get(opts, :frame_delay, 0)
     deterministic = Keyword.get(opts, :deterministic, false)
     temperature = Keyword.get(opts, :temperature, 1.0)
+    deterministic_buttons = Keyword.get(opts, :deterministic_buttons, false)
     action_repeat = Keyword.get(opts, :action_repeat, 1)
 
     # Allow disabling incremental inference for testing/comparison
@@ -238,6 +242,7 @@ defmodule ExPhil.Agents.Agent do
       frame_buffer: :queue.new(),
       deterministic: deterministic,
       temperature: temperature,
+      deterministic_buttons: deterministic_buttons,
       # Temporal config - will be set when policy is loaded
       temporal: false,
       backbone: :mlp,
@@ -377,6 +382,7 @@ defmodule ExPhil.Agents.Agent do
       state
       | frame_buffer: :queue.new(),
         last_action: nil,
+        last_controller: nil,
         frames_since_inference: 0,
         mamba_cache: new_mamba_cache
     }
@@ -394,7 +400,7 @@ defmodule ExPhil.Agents.Agent do
 
       # Create a dummy game state for warmup
       dummy_state = create_dummy_game_state()
-      dummy_embedded = embed_game_state(dummy_state, 1, state.embed_config)
+      dummy_embedded = embed_game_state(dummy_state, 1, state)
 
       # Run inference to trigger JIT compilation
       if state.temporal do
@@ -461,7 +467,7 @@ defmodule ExPhil.Agents.Agent do
     try do
       # Embed game state
       player_port = Keyword.get(opts, :player_port, 1)
-      embedded = embed_game_state(game_state, player_port, state.embed_config)
+      embedded = embed_game_state(game_state, player_port, state)
 
       # Route to appropriate inference mode
       {action, confidence, new_state} =
@@ -482,10 +488,20 @@ defmodule ExPhil.Agents.Agent do
             compute_single_frame_action(state, embedded, opts)
         end
 
+      # Remember the emitted controller for the prev-action channel (only
+      # decoded here when the policy was trained to see it)
+      last_controller =
+        if new_state.use_prev_action do
+          action_to_controller(action, new_state)
+        else
+          nil
+        end
+
       # Cache action for action repeat
       new_state = %{
         new_state
         | last_action: action,
+          last_controller: last_controller,
           frames_since_inference: 1,
           # Mark as warmed up after first successful inference
           warmed_up: true
@@ -507,13 +523,17 @@ defmodule ExPhil.Agents.Agent do
     deterministic = Keyword.get(opts, :deterministic, state.deterministic)
     temperature = Keyword.get(opts, :temperature, state.temperature)
 
+    deterministic_buttons =
+      Keyword.get(opts, :deterministic_buttons, state.deterministic_buttons || false)
+
     action =
       Networks.Policy.sample(
         state.policy_params,
         state.predict_fn,
         embedded_batch,
         deterministic: deterministic,
-        temperature: temperature
+        temperature: temperature,
+        deterministic_buttons: deterministic_buttons
       )
 
     # Compute confidence from logits
@@ -551,13 +571,17 @@ defmodule ExPhil.Agents.Agent do
     deterministic = Keyword.get(opts, :deterministic, state.deterministic)
     temperature = Keyword.get(opts, :temperature, state.temperature)
 
+    deterministic_buttons =
+      Keyword.get(opts, :deterministic_buttons, state.deterministic_buttons || false)
+
     action =
       Networks.Policy.sample(
         state.policy_params,
         state.predict_fn,
         sequence_batch,
         deterministic: deterministic,
-        temperature: temperature
+        temperature: temperature,
+        deterministic_buttons: deterministic_buttons
       )
 
     # Compute confidence from logits
@@ -787,10 +811,17 @@ defmodule ExPhil.Agents.Agent do
     Nx.stack(padded_frames)
   end
 
-  defp embed_game_state(game_state, player_port, _embed_config) do
+  defp embed_game_state(game_state, player_port, state) do
     # Use default Game config for embedding
     # The embed_config we store is just for axis_buckets/shoulder_buckets, not the full Game struct
-    Embeddings.Game.embed(game_state, nil, player_port)
+    #
+    # Prev-action channel: policies trained with --prev-action get the
+    # agent's own last emitted controller (matching training, where frame i
+    # sees frame i-1's controller); older policies trained on a zeroed slot
+    # get nil → zeros. Mixing regimes scrambles the input — the config flag
+    # decides, not the caller.
+    prev_controller = if state.use_prev_action, do: state.last_controller, else: nil
+    Embeddings.Game.embed(game_state, prev_controller, player_port)
   end
 
   defp action_to_controller(action, state) do
@@ -883,6 +914,16 @@ defmodule ExPhil.Agents.Agent do
         nil
       end
 
+    # Prev-action regime comes from the TRAINING config: policies trained
+    # with --prev-action expect their own last controller in the embedding;
+    # older policies expect zeros. Not caller-overridable — mixing regimes
+    # scrambles the input.
+    use_prev_action = Map.get(config, :use_prev_action, false)
+
+    if use_prev_action do
+      Logger.info("[Agent] Policy trained with prev-action conditioning — feeding own outputs back")
+    end
+
     new_state = %{
       state
       | policy_params: params,
@@ -892,6 +933,8 @@ defmodule ExPhil.Agents.Agent do
         temporal: temporal,
         backbone: backbone,
         window_size: window_size,
+        use_prev_action: use_prev_action,
+        last_controller: nil,
         # Reset frame buffer when loading new policy
         frame_buffer: :queue.new(),
         # Mamba cache for incremental inference

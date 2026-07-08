@@ -1371,6 +1371,31 @@ defmodule ExPhil.Training.Data do
     end
 
     embed_config = dataset.embed_config
+    use_prev_action = Keyword.get(opts, :use_prev_action, false)
+
+    # Previous-action channel: frame i sees frame i-1's controller, nil at
+    # replay boundaries (detected by frame-number discontinuity — the frames
+    # list is a flat concat across replays). Without this the model never
+    # observes its own last input, making frame-precise input sequences
+    # (dash-dance flips, multishine phase) unlearnable except indirectly.
+    prev_controllers =
+      if use_prev_action do
+        [nil | dataset.frames]
+        |> Enum.zip(dataset.frames)
+        |> Enum.map(fn
+          {nil, _cur} ->
+            nil
+
+          {prev, cur} ->
+            if prev.game_state.frame + 1 == cur.game_state.frame do
+              prev.controller
+            else
+              nil
+            end
+        end)
+      else
+        nil
+      end
 
     # Calculate total batches for progress tracking
     total_batches = div(total + batch_size - 1, batch_size)
@@ -1378,8 +1403,15 @@ defmodule ExPhil.Training.Data do
 
     # Process in batches for GPU efficiency and memory management
     # Collect batch tensors (each is {batch_size, embed_size})
+    frames_indexed =
+      if prev_controllers do
+        Enum.zip(dataset.frames, prev_controllers)
+      else
+        Enum.map(dataset.frames, &{&1, nil})
+      end
+
     batch_tensors =
-      dataset.frames
+      frames_indexed
       |> Enum.chunk_every(batch_size)
       |> Enum.with_index()
       |> Enum.map(fn {chunk, chunk_idx} ->
@@ -1415,15 +1447,16 @@ defmodule ExPhil.Training.Data do
         end
 
         # Batch embed all frames in this chunk with name_ids for style-conditional training
-        game_states = Enum.map(chunk, & &1.game_state)
-        name_ids = Enum.map(chunk, fn f -> f[:name_id] || 0 end)
+        {frames, prevs} = Enum.unzip(chunk)
+        game_states = Enum.map(frames, & &1.game_state)
+        name_ids = Enum.map(frames, fn f -> f[:name_id] || 0 end)
+
+        embed_opts = [config: embed_config, name_id: name_ids]
+        embed_opts = if use_prev_action, do: embed_opts ++ [prev_controllers: prevs], else: embed_opts
 
         # Embed batch and copy to CPU to avoid GPU OOM
         # Returns tensor of shape {chunk_size, embed_size}
-        Embeddings.Game.embed_states_fast(game_states, 1,
-          config: embed_config,
-          name_id: name_ids
-        )
+        Embeddings.Game.embed_states_fast(game_states, 1, embed_opts)
         |> Nx.backend_copy(Nx.BinaryBackend)
       end)
 
@@ -1575,7 +1608,8 @@ defmodule ExPhil.Training.Data do
       cache_key =
         EmbeddingCache.cache_key(dataset.embed_config, replay_files,
           temporal: false,
-          frame_count: dataset.size
+          frame_count: dataset.size,
+          use_prev_action: Keyword.get(opts, :use_prev_action, false)
         )
 
       Logger.info("[EmbeddingCache] Looking for cache key: #{cache_key} (frame embeddings)")

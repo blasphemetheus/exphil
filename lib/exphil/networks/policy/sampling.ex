@@ -57,6 +57,8 @@ defmodule ExPhil.Networks.Policy.Sampling do
     # Sample ALL heads (+ confidence) in ONE compiled program. Doing this with
     # per-head eager Nx ops costs >100ms per decision (dozens of separate XLA
     # dispatches); fused it is ~1ms. See scripts/profile_agent_inference.exs.
+    deterministic_buttons = Keyword.get(opts, :deterministic_buttons, false)
+
     {buttons, main_x, main_y, c_x, c_y, shoulder, conf} =
       if deterministic do
         jitted(:fused_det, &fused_sample_deterministic/1).(logits_tuple)
@@ -68,6 +70,16 @@ defmodule ExPhil.Networks.Policy.Sampling do
           key,
           Nx.tensor(temperature, type: :f32)
         )
+      end
+
+    # Mixed decode: argmax the buttons while sticks keep sampling — kills
+    # stray rare-button rolls (taunts) without argmax's modal lock on
+    # movement. One tiny eager op on a [1,8] tensor.
+    buttons =
+      if deterministic_buttons and not deterministic do
+        Nx.greater(Nx.sigmoid(buttons_logits), 0.5)
+      else
+        buttons
       end
 
     %{

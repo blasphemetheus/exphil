@@ -103,6 +103,8 @@ Output.step(1, 5, "Loading agent")
   Agent.start_link(
     policy_path: opts[:policy],
     deterministic: opts[:deterministic],
+    temperature: opts[:temperature] || 1.0,
+    deterministic_buttons: opts[:deterministic_buttons] || false,
     frame_delay: opts[:frame_delay]
   )
 
