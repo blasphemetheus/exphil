@@ -236,6 +236,33 @@ class MeleeBridge:
                 fullscreen=False,
             )
 
+            # Enlarge the render window at the source: Console.__init__ wrote
+            # Dolphin.ini into the temp User dir, and Dolphin reads it at
+            # run() — so the window is CREATED at this size. WM-side resizes
+            # (Hyprland rules) raced Dolphin's GL init and left the game
+            # rendering 640x528 in a corner of the window.
+            try:
+                import configparser
+                ini_path = os.path.join(
+                    self.console.dolphin_home_path, "Config", "Dolphin.ini"
+                )
+                ini = configparser.ConfigParser()
+                if os.path.isfile(ini_path):
+                    ini.read(ini_path)
+                if not ini.has_section("Display"):
+                    ini.add_section("Display")
+                # ~1.94x native 640x528, fits a 1080p screen with bar
+                ini.set("Display", "RenderWindowWidth",
+                        str(self.config.get("window_width", 1240)))
+                ini.set("Display", "RenderWindowHeight",
+                        str(self.config.get("window_height", 1023)))
+                ini.set("Display", "RenderWindowAutoSize", "False")
+                with open(ini_path, "w") as f:
+                    ini.write(f)
+                logger.info(f"Render window size set in {ini_path}")
+            except Exception as e:
+                logger.warning(f"Could not set render window size: {e}")
+
             self.controller = melee.Controller(
                 console=self.console,
                 port=self.controller_port,

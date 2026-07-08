@@ -23,6 +23,7 @@ defmodule ExPhil.Agents.MewtwoFairExpertTest do
         action_frame: 200.0,
         on_ground: true,
         jumps_left: 1,
+        x: 0.0,
         y: 0.0,
         speed_y_self: 0.0,
         facing: 1
@@ -95,6 +96,16 @@ defmodule ExPhil.Agents.MewtwoFairExpertTest do
       p = player(action: 29.0, on_ground: false, y: 40.0, speed_y_self: -1.0)
       {:ok, c} = MewtwoFairExpert.label(expert, p)
       assert c == ControllerState.neutral()
+    end
+
+    test "grounded near the edge walks toward center instead of jumping", %{expert: expert} do
+      {:ok, c} = MewtwoFairExpert.label(expert, player(on_ground: true, x: 75.0))
+      refute c.button_y
+      assert c.main_stick.x < 0.1
+
+      {:ok, c} = MewtwoFairExpert.label(expert, player(on_ground: true, x: -75.0))
+      refute c.button_y
+      assert c.main_stick.x > 0.9
     end
 
     test "dead/respawn states are skipped", %{expert: expert} do

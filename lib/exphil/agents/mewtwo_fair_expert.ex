@@ -43,6 +43,11 @@ defmodule ExPhil.Agents.MewtwoFairExpert do
   # landing within the next few frames will coincide with touchdown
   @lcancel_height 8.0
 
+  # |x| beyond which a grounded jump-restart risks drifting off the stage
+  # (FD edges at ±85.57) — walk back toward center instead. Observed live:
+  # the jump-tap restart rule near the edge SD'd an under-trained policy.
+  @edge_margin 60.0
+
   @doc """
   Build the expert from a fair-chain recording (defaults to the canonical
   fixture). Options: `:player_port` (default 1), `:min_count` (default 3
@@ -150,6 +155,12 @@ defmodule ExPhil.Agents.MewtwoFairExpert do
     falling? = (player.speed_y_self || 0.0) < 0.0
 
     cond do
+      # Near the edge: walk back toward center first — jump-restarting here
+      # drifts an imprecise policy off the stage (observed SDs)
+      player.on_ground and abs(player.x || 0.0) > @edge_margin ->
+        toward_center = if (player.x || 0.0) > 0, do: 0.0, else: 1.0
+        %{neutral() | main_stick: %{x: toward_center, y: 0.5}}
+
       # Grounded off-script: restart the drill with a jump (recorder uses Y).
       player.on_ground ->
         if held?(prev, :button_y), do: neutral(), else: tap(:button_y)

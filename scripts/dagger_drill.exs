@@ -158,6 +158,12 @@ dataset =
 
 embed_size = Embeddings.embedding_size(dataset.embed_config)
 
+# Cosine-decay the LR: constant LR diverged to NaN late in run after run
+# (multishine at 90k frames, mewtwo at 31k) — more steps per epoch means more
+# chances for one step to blow up. Decay over ~400 epochs' worth of steps;
+# the loss bar / plateau stop usually fire well before the floor.
+steps_per_epoch = div(dataset.size, 64) + 1
+
 trainer =
   Imitation.new(
     embed_config: dataset.embed_config,
@@ -169,6 +175,9 @@ trainer =
     hidden_size: 256,
     num_layers: 1,
     learning_rate: learning_rate,
+    lr_schedule: :cosine,
+    warmup_steps: steps_per_epoch,
+    decay_steps: steps_per_epoch * 400,
     max_grad_norm: 0.5,
     label_smoothing: 0.0,
     dropout: 0.0
