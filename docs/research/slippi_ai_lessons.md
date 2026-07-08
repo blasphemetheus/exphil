@@ -101,3 +101,14 @@ Them: ~100k replays, ~3×512 recurrent+FFW, batch 512 × unroll 80, cloud
 training (skypilot). Us (2026-07): 200 replays, 3.7M params, single 5090.
 Weak main-stick accuracy (~35%) at our scale is expected; scale data before
 blaming architecture.
+
+## 2026-07-07 postscript: the plain-NLL A/B was run — focal/pos_weight WINS at our scale
+
+Controlled A/B (200 files, 30 epochs, seed 42, only the loss stack varied):
+plain NLL collapsed on rare buttons — Z recall 0%, L 0–7.5%, diversity
+8–10% vs the focal+pos_weight arm's Z 80%, L 62%, diversity 66%. Stick
+accuracy roughly equal. Conclusion: slippi-ai affords plain NLL because
+~100k replays give rare buttons enough absolute examples; at 200 replays
+the loss engineering is what keeps rare buttons alive. Scale substitutes
+for loss engineering — keep the stack until the data grows ~2 orders of
+magnitude, then re-run this A/B.
