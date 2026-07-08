@@ -2326,3 +2326,31 @@ layout.
 **Lesson:** any dual implementation (fast/slow, batched/single) needs a pinned
 parity test from day one. Prepend-then-reverse list building is exactly how
 partial reorderings sneak in.
+
+## 54. Label smoothing × per-button pos_weight trained every model to taunt
+
+**Symptom:** Every default-config model pressed rare buttons constantly in
+live play — d-pad-up (taunts), Z (shine-grabs), L — regardless of training
+data. Separately, runs with smoothing enabled appeared to "flatline" at a
+suspiciously stable loss (e.g. 1.618) and never reach low-loss targets.
+
+**Root cause (two distinct effects):**
+1. *The poison:* label smoothing turns a never-pressed button's target into
+   ε (0.05–0.1). Composed with per-button `pos_weight` w, the BCE optimum
+   becomes `p* = wε/(wε + 1−ε)`. With production defaults (ε=0.1, d-up
+   capped at w=30, Z≈12): d-up p*=0.77, Z p*=0.54 — ABOVE the 0.5 press
+   threshold. The loss *minimum* instructs the model to hold rare buttons.
+2. *The floor:* smoothing also imposes an absolute loss floor
+   (≈0.33/categorical head at ε=0.05 ⇒ ~1.62 for five heads). A loss parked
+   at the floor means CONVERGED, not broken — don't set absolute loss
+   targets below the floor when smoothing is on.
+
+**Fix:** buttons are NEVER label-smoothed (`loss.ex`, both the per-sample
+frame-weighted path and the closure path); categorical heads keep smoothing
+(softmax renormalizes — benign). Regression: `loss_function_test.exs`
+"label smoothing × pos_weight pathology".
+
+**Lesson:** any loss term that reweights positives interacts with target
+smoothing. Derive the optimum in closed form before composing them. Models
+trained before 2026-07-07 (incl. clean_200/test_175) carry the poison —
+retraining upgrades them for free.
