@@ -2354,3 +2354,30 @@ frame-weighted path and the closure path); categorical heads keep smoothing
 smoothing. Derive the optimum in closed form before composing them. Models
 trained before 2026-07-07 (incl. clean_200/test_175) carry the poison —
 retraining upgrades them for free.
+
+## 55. Facing direction embedded as +1.0 for BOTH directions (-1 is truthy)
+
+**Symptom:** the model never distinguishes left from right facing: bair when
+fair was intended (Mewtwo drill), dash-PIVOTING instead of dash-dancing in
+live play, any facing-conditional behavior learned only via weak proxies
+(velocity sign, opponent-relative position).
+
+**Cause:** facing arrives as **-1/+1 integers** from both the Peppi parser
+and the live bridge (`1 if player.facing else -1`), but every embed site
+routed it through `bool_embed`/`batch_bool_embed` with `on: 1.0, off: -1.0`.
+In Elixir `-1` is truthy — and `bool_embed`'s number branch checks `v != 0` —
+so **-1 mapped to `on` (+1.0)**, same as +1. The `(p && p.facing) || false`
+idiom compounding it: only missing players ever hit `off`, making "no player"
+embed identically to what "facing left" should have been.
+
+**Fix (2026-07-08):** dedicated `Primitives.facing_embed/1` +
+`batch_facing_embed/1`: -1/+1 pass through as floats, booleans use libmelee
+semantics (False = left), nil (missing player/Nana) = 0.0 neutral. All five
+embed sites (player batch, player single-frame, Nana ×3) converted. Embedding
+cache format bumped to v3 — every pre-v3 cache entry is facing-blind.
+
+**Lesson:** `|| false` + `bool_embed` is only safe for actual booleans. Any
+signed integer field (-1/+1 conventions are common in game data) silently
+saturates. Audit pattern: `grep 'bool_embed' | grep -v` known-boolean fields.
+**All checkpoints trained before 2026-07-08 are facing-blind** — retraining
+picks up the signal for free.

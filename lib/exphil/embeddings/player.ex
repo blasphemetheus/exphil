@@ -333,7 +333,8 @@ defmodule ExPhil.Embeddings.Player do
   defp embed_batch_base(players, config) do
     # Extract all values into lists (pure Elixir - fast)
     percents = Enum.map(players, fn p -> (p && p.percent) || 0.0 end)
-    facings = Enum.map(players, fn p -> (p && p.facing) || false end)
+    # nil (missing player) stays nil — batch_facing_embed maps it to neutral
+    facings = Enum.map(players, fn p -> p && p.facing end)
     xs = Enum.map(players, fn p -> (p && p.x) || 0.0 end)
     ys = Enum.map(players, fn p -> (p && p.y) || 0.0 end)
     actions = Enum.map(players, fn p -> (p && p.action) || 0 end)
@@ -345,7 +346,7 @@ defmodule ExPhil.Embeddings.Player do
 
     # Batch Nx operations (few calls instead of N)
     percent_emb = Primitives.batch_float_embed(percents, scale: 0.01, lower: 0.0, upper: 5.0)
-    facing_emb = Primitives.batch_bool_embed(facings, on: 1.0, off: -1.0)
+    facing_emb = Primitives.batch_facing_embed(facings)
     x_emb = Primitives.batch_float_embed(xs, scale: config.xy_scale)
     y_emb = Primitives.batch_float_embed(ys, scale: config.xy_scale)
     invuln_emb = Primitives.batch_bool_embed(invulnerables)
@@ -553,8 +554,8 @@ defmodule ExPhil.Embeddings.Player do
           Primitives.batch_float_embed(values.xs, scale: 0.05),
           # [batch, 1]
           Primitives.batch_float_embed(values.ys, scale: 0.05),
-          # [batch, 1]
-          Primitives.batch_bool_embed(values.facings, on: 1.0, off: -1.0),
+          # [batch, 1] — Nana facing: same -1/+1 integer pitfall as players
+          Primitives.batch_facing_embed(values.facings),
           # [batch, 1]
           Primitives.batch_bool_embed(flags.on_ground),
           # [batch, 1]
@@ -607,8 +608,8 @@ defmodule ExPhil.Embeddings.Player do
           Primitives.batch_float_embed(values.xs, scale: 0.05),
           # [batch, 1]
           Primitives.batch_float_embed(values.ys, scale: 0.05),
-          # [batch, 1]
-          Primitives.batch_bool_embed(values.facings, on: 1.0, off: -1.0),
+          # [batch, 1] — Nana facing: same -1/+1 integer pitfall as players
+          Primitives.batch_facing_embed(values.facings),
           # [batch, 1]
           Primitives.batch_bool_embed(flags.on_ground),
           # [batch, 1]
@@ -652,7 +653,7 @@ defmodule ExPhil.Embeddings.Player do
     else
       # Extract Nana values (defaulting to 0/false for nil Nanas)
       nana_percents = Enum.map(nanas, fn n -> (n && n.percent) || 0.0 end)
-      nana_facings = Enum.map(nanas, fn n -> (n && n.facing) || false end)
+      nana_facings = Enum.map(nanas, fn n -> n && n.facing end)
       nana_xs = Enum.map(nanas, fn n -> (n && n.x) || 0.0 end)
       nana_ys = Enum.map(nanas, fn n -> (n && n.y) || 0.0 end)
       nana_actions = Enum.map(nanas, fn n -> (n && n.action) || 0 end)
@@ -662,7 +663,7 @@ defmodule ExPhil.Embeddings.Player do
       nana_percent_emb =
         Primitives.batch_float_embed(nana_percents, scale: 0.01, lower: 0.0, upper: 5.0)
 
-      nana_facing_emb = Primitives.batch_bool_embed(nana_facings, on: 1.0, off: -1.0)
+      nana_facing_emb = Primitives.batch_facing_embed(nana_facings)
       nana_x_emb = Primitives.batch_float_embed(nana_xs, scale: config.xy_scale)
       nana_y_emb = Primitives.batch_float_embed(nana_ys, scale: config.xy_scale)
 

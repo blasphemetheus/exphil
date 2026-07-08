@@ -43,7 +43,7 @@ defmodule ExPhil.Embeddings.Nana do
           exists: [boolean()],
           xs: [float()],
           ys: [float()],
-          facings: [boolean()],
+          facings: [integer() | boolean() | nil],
           percents: [float()],
           stocks: [integer()],
           actions: [integer()]
@@ -80,7 +80,9 @@ defmodule ExPhil.Embeddings.Nana do
       exists: Enum.map(nanas, fn n -> n != nil end),
       xs: Enum.map(nanas, fn n -> (n && n.x) || 0.0 end),
       ys: Enum.map(nanas, fn n -> (n && n.y) || 0.0 end),
-      facings: Enum.map(nanas, fn n -> (n && n.facing) || false end),
+      # nil stays nil (missing Nana → neutral facing); -1 is truthy, so the
+      # old `|| false` idiom must never touch facing values
+      facings: Enum.map(nanas, fn n -> n && n.facing end),
       percents: Enum.map(nanas, fn n -> (n && n.percent) || 0.0 end),
       stocks: Enum.map(nanas, fn n -> (n && n.stock) || 0 end),
       actions: Enum.map(nanas, fn n -> (n && n.action) || 0 end)

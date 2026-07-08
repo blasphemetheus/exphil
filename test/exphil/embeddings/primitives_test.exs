@@ -289,12 +289,25 @@ defmodule ExPhil.Embeddings.PrimitivesTest do
       assert_in_delta tensor_to_number(result), -1.0, 0.001
     end
 
-    test "accepts integer input" do
+    test "accepts -1/+1 integers (what the parsers actually send)" do
+      # Both the Peppi parser and the live bridge deliver facing as -1/+1
+      # integers. -1 is TRUTHY, so routing through bool_embed made both
+      # directions +1.0 — the model was facing-blind (GOTCHAS #55).
       right = Primitives.facing_embed(1)
-      left = Primitives.facing_embed(0)
+      left = Primitives.facing_embed(-1)
 
       assert_in_delta tensor_to_number(right), 1.0, 0.001
       assert_in_delta tensor_to_number(left), -1.0, 0.001
+    end
+
+    test "missing player embeds neutral, distinct from facing left" do
+      assert_in_delta tensor_to_number(Primitives.facing_embed(nil)), 0.0, 0.001
+    end
+
+    test "batch variant matches single-value semantics" do
+      result = Primitives.batch_facing_embed([-1, 1, nil, true, false])
+
+      assert Nx.to_flat_list(result) == [-1.0, 1.0, 0.0, 1.0, -1.0]
     end
   end
 

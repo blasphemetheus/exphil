@@ -43,7 +43,9 @@ defmodule ExPhil.Training.EmbeddingCache do
   # embed-split reorder), even if config/files are identical — stale entries
   # under an unchanged key silently corrupt training (GOTCHAS.md #51).
   # v2: added version + frame_count to the key (2026-07-02).
-  @cache_format_version 2
+  # v3: facing-embedding fix (2026-07-08) — facing was always +1.0 (-1 is
+  #     truthy through bool_embed); every pre-v3 embedding is facing-blind.
+  @cache_format_version 3
 
   @doc """
   Generate a cache key from embedding config and replay files.

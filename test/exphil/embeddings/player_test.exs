@@ -255,8 +255,9 @@ defmodule ExPhil.Embeddings.PlayerTest do
     end
 
     test "encodes facing direction correctly" do
+      # Real parsers deliver -1/+1 integers (0 never occurs)
       player_right = mock_player(facing: 1)
-      player_left = mock_player(facing: 0)
+      player_left = mock_player(facing: -1)
       config = %PlayerEmbed{with_nana: false, with_speeds: false}
 
       result_right = PlayerEmbed.embed_base(player_right, config)

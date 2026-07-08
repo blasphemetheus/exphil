@@ -291,8 +291,33 @@ defmodule ExPhil.Embeddings.Primitives do
   """
   @spec facing_embed(boolean() | integer() | Nx.Tensor.t()) :: Nx.Tensor.t()
   def facing_embed(value) do
-    bool_embed(value, on: 1.0, off: -1.0)
+    Nx.tensor(facing_value(value), type: :f32) |> ensure_trailing_dim()
   end
+
+  @doc """
+  Batch facing embedding - list of facing values, returns [batch, 1] tensor.
+
+  Facing arrives as -1/+1 INTEGERS from both the replay parser and the live
+  bridge — never route it through bool_embed: -1 is truthy, so both
+  directions embedded as +1.0 and the model was facing-blind (GOTCHAS #55).
+  """
+  @spec batch_facing_embed([number() | boolean() | nil]) :: Nx.Tensor.t()
+  def batch_facing_embed(values) when is_list(values) do
+    values
+    |> Enum.map(&facing_value/1)
+    |> Nx.tensor(type: :f32)
+    |> Nx.reshape({:auto, 1})
+  end
+
+  # -1/+1 integers pass through; booleans use libmelee semantics (True=right,
+  # False=LEFT); missing players (nil) are NEUTRAL (0.0) — the old off: -1.0
+  # made "no player" identical to "facing left"
+  defp facing_value(true), do: 1.0
+  defp facing_value(false), do: -1.0
+  defp facing_value(nil), do: 0.0
+  defp facing_value(v) when is_number(v) and v < 0, do: -1.0
+  defp facing_value(v) when is_number(v) and v > 0, do: 1.0
+  defp facing_value(_), do: 0.0
 
   # ============================================================================
   # Specialized Embeddings
