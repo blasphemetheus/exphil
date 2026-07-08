@@ -67,8 +67,10 @@ defmodule ExPhil.Agents.MewtwoFairExpertTest do
       refute c.button_y
     end
 
-    test "falling near the stage taps L (L-cancel insurance)", %{expert: expert} do
-      p = player(action: 29.0, on_ground: false, y: 4.0, speed_y_self: -2.0)
+    test "falling near the stage in an aerial attack taps L (L-cancel insurance)", %{
+      expert: expert
+    } do
+      p = player(action: 66.0, on_ground: false, y: 4.0, speed_y_self: -2.0)
 
       {:ok, c} = MewtwoFairExpert.label(expert, p)
       assert c.button_l
@@ -76,6 +78,24 @@ defmodule ExPhil.Agents.MewtwoFairExpertTest do
       l_held = %{ControllerState.neutral() | button_l: true}
       {:ok, c} = MewtwoFairExpert.label(expert, p, l_held)
       refute c.button_l
+    end
+
+    test "falling near the stage OUTSIDE an attack never taps L (would airdodge)", %{
+      expert: expert
+    } do
+      p = player(action: 29.0, on_ground: false, y: 4.0, speed_y_self: -2.0)
+      {:ok, c} = MewtwoFairExpert.label(expert, p)
+      refute c.button_l
+    end
+
+    test "airborne past the edge steers back toward center", %{expert: expert} do
+      p = player(action: 25.0, on_ground: false, x: 75.0, y: 30.0, speed_y_self: 1.0)
+      {:ok, c} = MewtwoFairExpert.label(expert, p)
+      assert c.main_stick.x < 0.1
+      refute c.button_l
+
+      {:ok, c} = MewtwoFairExpert.label(expert, Map.put(p, :x, -75.0))
+      assert c.main_stick.x > 0.9
     end
 
     test "rising in a jump c-sticks a fair toward facing", %{expert: expert} do

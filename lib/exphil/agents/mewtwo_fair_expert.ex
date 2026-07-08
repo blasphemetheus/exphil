@@ -37,6 +37,10 @@ defmodule ExPhil.Agents.MewtwoFairExpert do
 
   # Universal Melee action-state IDs
   @jump_states 25..28
+  # ATTACK_AIR_N..ATTACK_AIR_LW — the only states where an airborne L press
+  # L-cancels; anywhere else it AIRDODGES (observed live: stray airdodges
+  # from an unconditional falling-near-ground L tap)
+  @aerial_attacks 65..70
   @first_actionable 14
 
   # Height (y) below which a falling aerial should be L-cancelling: an input
@@ -165,10 +169,19 @@ defmodule ExPhil.Agents.MewtwoFairExpert do
       player.on_ground ->
         if held?(prev, :button_y), do: neutral(), else: tap(:button_y)
 
-      # Falling close to the stage: L-cancel insurance — an L landing in the
-      # next couple of frames covers the touchdown window.
-      falling? and (player.y || 0.0) < @lcancel_height ->
+      # Falling close to the stage IN AN AERIAL ATTACK: L-cancel insurance —
+      # an L landing in the next couple of frames covers the touchdown
+      # window. Outside attack states an airborne L is an airdodge, not a
+      # cancel — never tap it there.
+      falling? and (player.y || 0.0) < @lcancel_height and action in @aerial_attacks ->
         if held?(prev, :button_l), do: neutral(), else: tap(:button_l)
+
+      # Airborne past the edge margin: steer back toward center — jumps
+      # drift, and nothing else corrects horizontal position in the air
+      # (observed live: hopping off the stage).
+      abs(player.x || 0.0) > @edge_margin ->
+        toward_center = if (player.x || 0.0) > 0, do: 0.0, else: 1.0
+        %{neutral() | main_stick: %{x: toward_center, y: 0.5}}
 
       # Rising in a jump without an attack out: c-stick fair toward facing
       # (c-stick avoids main-stick drift side effects).
