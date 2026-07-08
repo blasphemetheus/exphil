@@ -419,6 +419,12 @@ mix run scripts/play_dolphin_async.exs \
 Additional options:
 - `--on-game-end MODE` - restart (auto-start next game) or stop (exit)
 
+Drill opponent (scripted port-2 dummy):
+- `--dummy MODE` - drive port 2 with a scripted behavior: `stand` (training
+  dummy), `shield` (2s-on/1s-off pulse), `jump` (hops every 1.5s), `walk`
+  (strolls around center), `cpu` (in-game CPU via `--dummy-cpu-level 1-9`).
+- `--dummy-character NAME` - dummy's character (default fox)
+
 Decode options (both play scripts):
 - `--temperature X` - sampling temperature (0=argmax-like; 0.3-0.5 plays well)
 - `--deterministic-buttons` - argmax buttons while sticks sample (kills stray taunts)

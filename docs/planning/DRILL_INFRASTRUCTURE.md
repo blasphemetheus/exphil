@@ -56,12 +56,15 @@ Validated on Fox multishine: jump-cancels per solo game across iterations
 
 ## Infrastructure worth building (priority order)
 
-1. **Scripted port-2 dummy** ⏳ NEXT (after Mewtwo fair proves out —
-   user-confirmed order). libmelee can drive both ports; a scripted dummy
-   (stand / shield pattern / jump pattern / random tech / walk) unlocks all
-   interactive drills: shield pressure, tech chases, Confusion grabs,
-   fair-combo at rising percent. Touches `priv/python/melee_bridge.py`
-   (port-2 controller), bridge config, play scripts (`--dummy MODE`).
+1. **Scripted port-2 dummy** ✅ BUILT (2026-07-08). `--dummy MODE` on the
+   play scripts (DUMMY env on dagger_loop.sh): `stand` / `shield` (pulsed) /
+   `jump` / `walk` / `cpu N` / `external`. Smoke-tested: standing Fox took
+   Mewtwo fairs (P2 in Wait 2313/2400 frames). Hybrid architecture:
+   open-loop timing patterns live in python (synchronous, frame-locked);
+   REACTIVE dummies (tech_random, DI, punishes) belong in Elixir via
+   `MeleePort.send_controller(input |> Map.put(:port, 2))` with
+   `dummy_mode: "external"` — that's also the self-play plumbing.
+   Follow-up: tech_random (knockdown state machine, Elixir-side).
 2. **DrillExpert behaviour + registry** — two experts share ~70% structure;
    the third justifies extraction: `from_fixture/2`, `label/3`, `score/1`,
    name→module registry so `dagger_drill.exs`/`dagger_loop.sh` never need

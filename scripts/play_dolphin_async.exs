@@ -136,7 +136,11 @@ bridge_config = %{
   opponent_port: opts[:opponent_port],
   character: opts[:character],
   stage: opts[:stage],
-  online_delay: opts[:frame_delay]
+  online_delay: opts[:frame_delay],
+  # Scripted port-2 dummy for drills (none|stand|shield|jump|walk|cpu)
+  dummy_mode: opts[:dummy] || "none",
+  dummy_character: opts[:dummy_character] || "fox",
+  dummy_cpu_level: opts[:dummy_cpu_level] || 0
 }
 
 case MeleePort.init_console(bridge, bridge_config, 60_000) do

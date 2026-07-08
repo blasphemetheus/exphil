@@ -145,6 +145,12 @@ defmodule ExPhil.Bridge.MeleePort do
         shoulder: 0.0..1.0,
         buttons: %{a: bool, b: bool, x: bool, y: bool, z: bool, l: bool, r: bool, d_up: bool}
       }
+
+  An optional `:port` key routes the input to that port's controller instead
+  of the main one — used to drive the opponent port from Elixir (reactive
+  dummies, self-play). Requires the bridge initialized with a `dummy_mode`
+  so the second controller exists; use `dummy_mode: "external"` for
+  Elixir-driven ports (scripted python modes would fight per-frame inputs).
   """
   @spec send_controller(server(), controller_input(), timeout_ms()) ::
           :ok | {:game_ended, String.t()} | {:error, term()}

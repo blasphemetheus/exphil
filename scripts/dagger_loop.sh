@@ -13,6 +13,9 @@
 #   ROLLOUTS    comma-separated seed replays (default: today's replays >500KB
 #               — WARNING: that picks up ALL of today's games including ones
 #               from other drills; pass ROLLOUTS explicitly on mixed days)
+#   DUMMY       scripted port-2 dummy for probe games:
+#               stand|shield|jump|walk|cpu (default: none)
+#   DUMMY_CPU   CPU level when DUMMY=cpu (default 3)
 #   SLIPPI_DIR  replay directory        (default ~/Slippi)
 #   DOLPHIN     dolphin path            (default ~/.local/share/slippi/netplay)
 #   ISO         melee ISO               (default ~/isos/melee.iso)
@@ -78,6 +81,8 @@ for i in $(seq 1 "$ITERS"); do
     --policy "$POLICY" \
     --dolphin "$DOLPHIN" --iso "$ISO" \
     --character "$CHARACTER" --stage final_destination \
+    ${DUMMY:+--dummy "$DUMMY"} \
+    ${DUMMY:+--dummy-cpu-level "${DUMMY_CPU:-3}"} \
     --deterministic --on-game-end stop >>"$LOG" 2>&1 || {
     echo "[dagger_loop] play session failed or timed out — aborting; see $LOG" | tee -a "$LOG"
     exit 1

@@ -210,6 +210,11 @@ class MeleeBridge:
         self.config = {}
         self._postgame_reported = False  # Track if we've reported postgame to Elixir
         self._last_in_game = False  # Track if we were in game last frame
+        # Scripted port-2 dummy (drill opponents): none|stand|shield|jump|walk|cpu
+        self.dummy_mode: str = "none"
+        self.dummy_controller: Optional[melee.Controller] = None
+        self.dummy_menu_helper: Optional[melee.MenuHelper] = None
+        self._dummy_frame: int = 0
 
     def init(self, config: Dict[str, Any]) -> Dict[str, Any]:
         """Initialize the console and controller."""
@@ -271,6 +276,23 @@ class MeleeBridge:
 
             self.menu_helper = melee.MenuHelper()
 
+            # Scripted dummy on the opponent port (drill opponents). "cpu"
+            # only uses the controller for menu setup (cpu_level does the
+            # rest); scripted modes drive it every in-game frame; "external"
+            # creates the controller for Elixir to drive via
+            # send_controller(port: opponent_port).
+            self.dummy_mode = config.get("dummy_mode", "none")
+            if self.dummy_mode != "none":
+                self.dummy_controller = melee.Controller(
+                    console=self.console,
+                    port=self.opponent_port,
+                    type=melee.ControllerType.STANDARD,
+                )
+                self.dummy_menu_helper = melee.MenuHelper()
+                logger.info(
+                    f"Dummy enabled: mode={self.dummy_mode} port={self.opponent_port}"
+                )
+
             # Run dolphin
             logger.info(f"Starting Dolphin with ISO: {iso_path}")
             logger.info(f"Console slippi_port: {self.console.slippi_port}")
@@ -303,6 +325,12 @@ class MeleeBridge:
                 return {"error": "Failed to connect controller"}
 
             logger.info(f"Controller connected on port {self.controller_port}")
+
+            if self.dummy_controller is not None:
+                if not self.dummy_controller.connect():
+                    return {"error": "Failed to connect dummy controller"}
+                logger.info(f"Dummy controller connected on port {self.opponent_port}")
+
             self.running = True
 
             return {"ok": True, "controller_port": self.controller_port}
@@ -380,6 +408,25 @@ class MeleeBridge:
                 elif isinstance(stage, str):
                     stage = melee.Stage[stage.upper()]
 
+                # Dummy picks first (no autostart) so the main helper's
+                # autostart can't fire before the opponent is on the roster.
+                if self.dummy_menu_helper is not None:
+                    dummy_char = self.config.get("dummy_character", "fox")
+                    if isinstance(dummy_char, int):
+                        dummy_char = melee.Character(dummy_char)
+                    elif isinstance(dummy_char, str):
+                        dummy_char = melee.Character[dummy_char.upper()]
+
+                    self.dummy_menu_helper.menu_helper_simple(
+                        gamestate,
+                        self.dummy_controller,
+                        dummy_char,
+                        stage,
+                        cpu_level=int(self.config.get("dummy_cpu_level", 0)),
+                        autostart=False,
+                        swag=False,
+                    )
+
                 # MenuHelper is a stateful class in libmelee >= 0.40 —
                 # call on the instance created in init (static call shifts
                 # every argument into the wrong slot via self).
@@ -391,6 +438,14 @@ class MeleeBridge:
                     autostart=True,
                     swag=False,
                 )
+
+            # Scripted dummy behaviors run every in-game frame. "cpu" needs
+            # no driving (game AI owns the port after menu setup); "external"
+            # means Elixir drives the port via send_controller(port: N) —
+            # python must not fight it.
+            if is_in_game and self.dummy_controller is not None and \
+                    self.dummy_mode in ("stand", "shield", "jump", "walk"):
+                self._drive_dummy(gamestate)
 
             return {
                 "ok": True,
@@ -407,13 +462,65 @@ class MeleeBridge:
             logger.exception("Error during step")
             return {"error": str(e)}
 
+    def _drive_dummy(self, gamestate):
+        """Drive the scripted port-2 dummy for one frame.
+
+        Modes (drill opponents, see docs/planning/DRILL_INFRASTRUCTURE.md):
+          stand  - training dummy: neutral every frame
+          shield - holds shield in a 2s-on / 1s-off pulse (never shield-breaks)
+          jump   - hops on a 1.5s cycle
+          walk   - strolls back and forth around center stage
+        (tech_random needs a knockdown state machine — follow-up.)
+        """
+        c = self.dummy_controller
+        self._dummy_frame += 1
+        t = self._dummy_frame
+        c.release_all()
+
+        if self.dummy_mode == "shield":
+            if t % 180 < 120:
+                c.press_button(melee.Button.BUTTON_R)
+
+        elif self.dummy_mode == "jump":
+            if t % 90 == 0:
+                c.press_button(melee.Button.BUTTON_Y)
+
+        elif self.dummy_mode == "walk":
+            p = gamestate.players.get(self.opponent_port)
+            x = float(p.position.x) if p and p.position else 0.0
+            # Half-tilt = walk, not dash; wander a lane around center
+            if x > 20.0:
+                c.tilt_analog(melee.Button.BUTTON_MAIN, 0.35, 0.5)
+            elif x < -20.0:
+                c.tilt_analog(melee.Button.BUTTON_MAIN, 0.65, 0.5)
+            else:
+                # Inside the lane: drift with a slow square wave
+                going_right = (t % 240) < 120
+                c.tilt_analog(
+                    melee.Button.BUTTON_MAIN, 0.65 if going_right else 0.35, 0.5
+                )
+        # "stand" (and anything unrecognized): stay neutral after release_all
+
     def send_controller(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Send controller input."""
+        """Send controller input.
+
+        Optional "port" routes to a specific controller — the dummy port's
+        controller when it matches opponent_port (Elixir-driven dummies /
+        self-play), otherwise the main controller. Requires the dummy to be
+        enabled at init (dummy_mode != "none") so the controller exists.
+        """
         if not self.running or not self.controller:
             return {"error": "Controller not initialized"}
 
         try:
-            apply_controller_input(self.controller, input_data)
+            target = self.controller
+            port = input_data.get("port")
+            if port is not None and int(port) == self.opponent_port:
+                if self.dummy_controller is None:
+                    return {"error": "No controller on port %s (enable a dummy_mode at init)" % port}
+                target = self.dummy_controller
+
+            apply_controller_input(target, input_data)
             return {"ok": True}
         except BrokenPipeError:
             logger.info("Dolphin disconnected while sending controller input")
