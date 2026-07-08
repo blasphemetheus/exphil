@@ -98,6 +98,22 @@ defmodule ExPhil.Agents.MewtwoFairExpertTest do
       assert c.main_stick.x > 0.9
     end
 
+    test "edge safety overrides TABLE-covered states", %{expert: expert} do
+      # (25, af 1, airborne) is densely covered by the fixture table — but at
+      # the edge the table's center-stage answer (incl. the recorder's
+      # fade-back drift) must lose to the steer (observed SDs)
+      p = player(action: 25.0, action_frame: 1.0, on_ground: false, x: 80.0, y: 15.0)
+      {:ok, c} = MewtwoFairExpert.label(expert, p)
+      assert c.main_stick.x < 0.1
+      refute c.button_y
+
+      # L-cancel still fires while steering back in a falling aerial
+      landing = player(action: 66.0, on_ground: false, x: 80.0, y: 4.0, speed_y_self: -2.0)
+      {:ok, c} = MewtwoFairExpert.label(expert, landing)
+      assert c.button_l
+      assert c.main_stick.x < 0.1
+    end
+
     test "rising in a jump c-sticks a fair toward facing", %{expert: expert} do
       p = player(action: 25.0, on_ground: false, y: 20.0, speed_y_self: 2.0, facing: 1)
 

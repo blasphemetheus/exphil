@@ -98,6 +98,13 @@ defmodule ExPhil.Agents.MewtwoFairExpert do
       trunc(player.action) < @first_actionable ->
         :skip
 
+      # Edge safety OVERRIDES the table: table keys deliberately exclude x,
+      # so past the margin the table keeps serving center-stage answers —
+      # including the fixture's natural fade-back drift — straight off the
+      # edge (observed live: SD by jumping and drifting backwards).
+      abs(player.x || 0.0) > @edge_margin ->
+        {:ok, edge_recovery(player, prev)}
+
       controller = fine[fine_key(player)] ->
         {:ok, controller}
 
@@ -154,17 +161,29 @@ defmodule ExPhil.Agents.MewtwoFairExpert do
 
   # -- Recovery rules -----------------------------------------------------------
 
+  # Past the margin nothing matters but getting back over stage — label()
+  # short-circuits here BEFORE the table (whose keys exclude x). Steer
+  # toward center; keep the L-cancel tap when landing mid-aerial.
+  defp edge_recovery(player, prev) do
+    action = trunc(player.action)
+    falling? = (player.speed_y_self || 0.0) < 0.0
+    toward_center = if (player.x || 0.0) > 0, do: 0.0, else: 1.0
+    steer = %{neutral() | main_stick: %{x: toward_center, y: 0.5}}
+
+    if not player.on_ground and falling? and (player.y || 0.0) < @lcancel_height and
+         action in @aerial_attacks and not held?(prev, :button_l) do
+      %{steer | button_l: true}
+    else
+      steer
+    end
+  end
+
+  # Center-stage table misses only — edge states never reach here
   defp recovery(player, prev) do
     action = trunc(player.action)
     falling? = (player.speed_y_self || 0.0) < 0.0
 
     cond do
-      # Near the edge: walk back toward center first — jump-restarting here
-      # drifts an imprecise policy off the stage (observed SDs)
-      player.on_ground and abs(player.x || 0.0) > @edge_margin ->
-        toward_center = if (player.x || 0.0) > 0, do: 0.0, else: 1.0
-        %{neutral() | main_stick: %{x: toward_center, y: 0.5}}
-
       # Grounded off-script: restart the drill with a jump (recorder uses Y).
       player.on_ground ->
         if held?(prev, :button_y), do: neutral(), else: tap(:button_y)
@@ -175,13 +194,6 @@ defmodule ExPhil.Agents.MewtwoFairExpert do
       # cancel — never tap it there.
       falling? and (player.y || 0.0) < @lcancel_height and action in @aerial_attacks ->
         if held?(prev, :button_l), do: neutral(), else: tap(:button_l)
-
-      # Airborne past the edge margin: steer back toward center — jumps
-      # drift, and nothing else corrects horizontal position in the air
-      # (observed live: hopping off the stage).
-      abs(player.x || 0.0) > @edge_margin ->
-        toward_center = if (player.x || 0.0) > 0, do: 0.0, else: 1.0
-        %{neutral() | main_stick: %{x: toward_center, y: 0.5}}
 
       # Rising in a jump without an attack out: c-stick fair toward facing
       # (c-stick avoids main-stick drift side effects).

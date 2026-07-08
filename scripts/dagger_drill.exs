@@ -42,7 +42,11 @@ alias ExPhil.Embeddings
        "checkpoints/multishine_dagger_policy.bin"}
 
     "mewtwo_fair" ->
-      {ExPhil.Agents.MewtwoFairExpert, "test/fixtures/replays/mewtwo_fair_chains.slp",
+      # Varied recording (SH/FH/DJ fair) + dense metronomic SH-fair-only one:
+      # variety for coverage, density for crisp stick targets at press frames
+      {ExPhil.Agents.MewtwoFairExpert,
+       "test/fixtures/replays/mewtwo_fair_chains.slp," <>
+         "test/fixtures/replays/mewtwo_shfair_only.slp",
        "checkpoints/mewtwo_fair_dagger_policy.bin"}
 
     other ->
@@ -50,7 +54,13 @@ alias ExPhil.Embeddings
       System.halt(1)
   end
 
-fixture_path = opts[:fixture] || default_fixture
+# --fixture accepts a comma-separated list: multiple recordings of the same
+# drill combine into one expert table (denser where they overlap, variance
+# averaged out) and all contribute training frames
+fixture_paths =
+  (opts[:fixture] || default_fixture)
+  |> String.split(",", trim: true)
+  |> Enum.map(&Path.expand/1)
 out_path = opts[:out] || default_out
 prev_action = Keyword.get(opts, :prev_action, true)
 prev_action_dropout = opts[:prev_action_dropout] || 0.1
@@ -79,15 +89,13 @@ Output.banner("Drill DAgger Trainer")
 
 Output.config([
   {"Expert", inspect(expert_mod)},
-  {"Fixture", fixture_path},
+  {"Fixtures", Enum.map(fixture_paths, &Path.basename/1)},
   {"Rollouts", length(rollout_paths)},
   {"Prev-action", prev_action},
   {"Prev-action dropout", prev_action_dropout},
   {"Action delay", action_delay},
   {"Out", out_path}
 ])
-
-expert = expert_mod.from_fixture(fixture_path, player_port: port)
 
 load_frames = fn path ->
   {:ok, replay} = Peppi.parse(path)
@@ -97,9 +105,27 @@ load_frames = fn path ->
   |> Enum.reject(&(&1.game_state.frame < 0))
 end
 
-# Fixture: human = expert; recorded controllers are the labels
-fixture_frames = load_frames.(fixture_path)
-Output.puts("Fixture frames: #{length(fixture_frames)}")
+# The multishine fixture ends with an SD (recorder holds pure left, no
+# buttons, to end the game) — those frames are junk training targets
+fixture_filter = fn frames ->
+  if expert_mod == ExPhil.Agents.MultishineExpert do
+    Enum.reject(frames, fn %{controller: c} ->
+      c.main_stick.x < 0.25 and c.main_stick.y > 0.4 and
+        not c.button_b and not c.button_x
+    end)
+  else
+    frames
+  end
+end
+
+# Fixture: human = expert; recorded controllers are the labels. Kept as
+# per-replay lists so shift_actions never crosses replay boundaries.
+fixture_frame_lists = Enum.map(fixture_paths, fn p -> fixture_filter.(load_frames.(p)) end)
+fixture_frames = List.flatten(fixture_frame_lists)
+Output.puts("Fixture frames: #{length(fixture_frames)} across #{length(fixture_paths)} recording(s)")
+
+# Expert table from ALL fixture recordings combined
+expert = expert_mod.from_frames(fixture_frames, player_port: port)
 
 relabel = fn frames, recorded ->
   Enum.flat_map(frames, fn frame ->
@@ -140,12 +166,12 @@ rollout_frame_lists =
     relabeled
   end)
 
-all_frames = List.flatten([fixture_frames | rollout_frame_lists])
+all_frames = List.flatten(fixture_frame_lists ++ rollout_frame_lists)
 Output.puts("Aggregate: #{length(all_frames)} frames (#{length(fixture_frames)} fixture)")
 
 # Shift per source replay — never across concat boundaries
 shifted_frames =
-  [fixture_frames | rollout_frame_lists]
+  (fixture_frame_lists ++ rollout_frame_lists)
   |> Enum.flat_map(&Data.shift_actions(&1, action_delay))
 
 dataset =
@@ -160,8 +186,9 @@ embed_size = Embeddings.embedding_size(dataset.embed_config)
 
 # Cosine-decay the LR: constant LR diverged to NaN late in run after run
 # (multishine at 90k frames, mewtwo at 31k) — more steps per epoch means more
-# chances for one step to blow up. Decay over ~400 epochs' worth of steps;
-# the loss bar / plateau stop usually fire well before the floor.
+# chances for one step to blow up. Decay over ~200 epochs' worth of steps
+# (400 left LR too high too long: a 90k-frame pool still NaN'd at epoch 168);
+# healthy runs hit the loss bar or plateau well before the floor.
 steps_per_epoch = div(dataset.size, 64) + 1
 
 trainer =
@@ -177,7 +204,7 @@ trainer =
     learning_rate: learning_rate,
     lr_schedule: :cosine,
     warmup_steps: steps_per_epoch,
-    decay_steps: steps_per_epoch * 400,
+    decay_steps: steps_per_epoch * 200,
     max_grad_norm: 0.5,
     label_smoothing: 0.0,
     dropout: 0.0

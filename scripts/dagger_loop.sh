@@ -66,6 +66,7 @@ for i in $(seq 1 "$ITERS"); do
 
   mix run scripts/dagger_drill.exs \
     --expert "$EXPERT" \
+    ${FIXTURE:+--fixture "$FIXTURE"} \
     --rollouts "$ROLLOUTS" \
     --out "$POLICY" >>"$LOG" 2>&1
 
