@@ -307,8 +307,16 @@ defmodule ExPhil.Bridge.AsyncRunner do
             handle_postgame(bridge, table, game_state, agent)
             frame_loop(bridge, table, auto_menu, player_port, agent)
 
-          {:menu, _game_state} ->
-            # In menu, just continue (auto_menu handles navigation)
+          {:menu, game_state} ->
+            # Falling out of a game into ANY menu is the game end: this
+            # Slippi setup never reports POSTGAME_SCORES (verified from
+            # bridge logs — a full game→restart cycle showed IN_GAME →
+            # CHARACTER_SELECT directly), so waiting for a :postgame event
+            # meant on_game_end was never honored and :stop sessions ran
+            # (and held the GPU) forever.
+            if in_game?(table), do: handle_postgame(bridge, table, game_state, agent)
+
+            # Otherwise just continue (auto_menu handles navigation)
             frame_loop(bridge, table, auto_menu, player_port, agent)
 
           {:game_ended, reason} ->
@@ -436,6 +444,13 @@ defmodule ExPhil.Bridge.AsyncRunner do
   defp should_stop?(table) do
     case :ets.lookup(table, :should_stop) do
       [{:should_stop, true}] -> true
+      _ -> false
+    end
+  end
+
+  defp in_game?(table) do
+    case :ets.lookup(table, :in_game) do
+      [{:in_game, true}] -> true
       _ -> false
     end
   end

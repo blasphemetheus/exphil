@@ -187,10 +187,15 @@ Output.puts("")
 defmodule StatsMonitor do
   @target_fps 60
 
-  def run(runner, interval_ms \\ 5000) do
+  def run(runner, interval_ms \\ 5000, on_game_end \\ :restart) do
     Process.sleep(interval_ms)
 
     stats = ExPhil.Bridge.AsyncRunner.get_stats(runner)
+
+    # With --on-game-end stop the frame loop exits after game 1, but nothing
+    # stopped this monitor — the BEAM (and its multi-GB EXLA allocation)
+    # lived on until killed by hand. Return so the script's cleanup runs.
+    done? = on_game_end == :stop and stats.games_played >= 1
 
     if stats.elapsed_ms > 0 do
       elapsed_s = stats.elapsed_ms / 1000
@@ -209,7 +214,12 @@ defmodule StatsMonitor do
       )
     end
 
-    run(runner, interval_ms)
+    if done? do
+      IO.puts("[Stats] Game complete (on_game_end=stop) — shutting down")
+      :ok
+    else
+      run(runner, interval_ms, on_game_end)
+    end
   end
 
   # Color code based on FPS performance
@@ -240,7 +250,7 @@ end
 
 # Run stats monitor
 try do
-  StatsMonitor.run(runner, 5000)
+  StatsMonitor.run(runner, 5000, opts[:on_game_end])
 rescue
   e in RuntimeError ->
     Output.error("Error: #{Exception.message(e)}")
