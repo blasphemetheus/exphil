@@ -255,6 +255,7 @@ defmodule ExPhil.Training.Config.Parser do
     |> parse_flag(args, "--focal-loss", :focal_loss)
     |> parse_flag(args, "--prev-action", :use_prev_action)
     |> parse_neg_flag(args, "--no-prev-action", :use_prev_action)
+    |> parse_int_arg(args, "--action-delay", :action_delay)
     |> parse_neg_flag(args, "--no-focal-loss", :focal_loss)
     |> parse_float_arg(args, "--focal-gamma", :focal_gamma)
     |> parse_float_arg(args, "--button-weight", :button_weight)

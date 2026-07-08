@@ -140,6 +140,44 @@ defmodule ExPhil.Training.Data do
   end
 
   @doc """
+  Shift each frame's target controller `delay` frames into the future,
+  within contiguous replay segments (frame-number discontinuity = replay
+  boundary; frames whose target would cross a boundary are dropped).
+
+  Why: the live bridge applies an input 1 frame after the decision. A model
+  trained on (state(t) → controller(t)) systematically lands its outputs one
+  frame late — fatal for frame-precise sequences (observed live as missing
+  the reflector jump-cancel window and freezing in shine-wait). Training on
+  (state(t) → controller(t+delay)) makes the model plan for its own latency
+  (slippi-ai trains this way at delay 18-21 for netplay).
+
+  Composes with prev-action conditioning: after the shift, "previous frame's
+  controller" = controller(t+delay-1) — exactly the input the live agent's
+  last decision lands at decision time.
+  """
+  @spec shift_actions([frame()], non_neg_integer()) :: [frame()]
+  def shift_actions(frames, 0), do: frames
+
+  def shift_actions(frames, delay) when is_integer(delay) and delay > 0 do
+    shifted =
+      frames
+      |> Enum.chunk_every(delay + 1, 1, :discard)
+      |> Enum.flat_map(fn [frame | rest] ->
+        target = List.last(rest)
+
+        # Contiguity: the target frame must be exactly `delay` game-frames
+        # ahead (no replay boundary or dropped frames in between)
+        if target.game_state.frame == frame.game_state.frame + delay do
+          [%{frame | controller: target.controller}]
+        else
+          []
+        end
+      end)
+
+    shifted
+  end
+
+  @doc """
   Create a dataset from a list of frames directly.
 
   Useful for testing or when data is already in memory.

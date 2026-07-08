@@ -18,7 +18,7 @@ alias ExPhil.Embeddings
 
 {opts, _, _} =
   OptionParser.parse(System.argv(),
-    strict: [replays: :string, out: :string, robust: :boolean]
+    strict: [replays: :string, out: :string, robust: :boolean, prev_action: :boolean, action_delay: :integer]
   )
 
 # --replays accepts a dir or glob of .slp files; default = the single
@@ -27,6 +27,8 @@ alias ExPhil.Embeddings
 replay_glob = opts[:replays] || "test/fixtures/replays/fox_multishine_closed.slp"
 out_path = opts[:out] || "checkpoints/multishine_probe_policy.bin"
 robust = opts[:robust] || false
+prev_action = opts[:prev_action] || false
+action_delay = opts[:action_delay] || 0
 window = 16
 
 Output.banner("Multishine Probe Policy Trainer")
@@ -60,14 +62,16 @@ Output.puts("Training frames: #{length(frames)}")
 
 dataset =
   frames
+  |> Data.shift_actions(action_delay)
   |> Data.from_frames()
-  |> Data.precompute_frame_embeddings()
+  |> Data.precompute_frame_embeddings(use_prev_action: prev_action)
 
 embed_size = Embeddings.embedding_size(dataset.embed_config)
 
 trainer =
   Imitation.new(
     embed_config: dataset.embed_config,
+    use_prev_action: prev_action,
     embed_size: embed_size,
     temporal: true,
     backbone: :gru,

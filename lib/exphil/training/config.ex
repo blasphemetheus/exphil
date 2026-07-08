@@ -209,6 +209,7 @@ defmodule ExPhil.Training.Config do
     "--no-focal-loss",
     "--prev-action",
     "--no-prev-action",
+    "--action-delay",
     "--focal-gamma",
     "--button-weight",
     "--button-pos-weight",
@@ -589,6 +590,7 @@ defmodule ExPhil.Training.Config do
       # Enabled by default to prevent mode collapse on button predictions
       focal_loss: true,
       use_prev_action: false,
+      action_delay: 0,
       # Higher = more focus on hard examples
       focal_gamma: 3.0,
       # Button loss weight: multiply button loss to balance vs 5 stick/shoulder losses
@@ -1497,6 +1499,7 @@ defmodule ExPhil.Training.Config do
       dropout: opts[:dropout],
       focal_loss: opts[:focal_loss],
       use_prev_action: opts[:use_prev_action],
+      action_delay: opts[:action_delay],
       focal_gamma: opts[:focal_gamma],
       button_weight: opts[:button_weight],
       button_pos_weight: case opts[:button_pos_weight] do

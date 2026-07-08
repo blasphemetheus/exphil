@@ -233,7 +233,10 @@ defmodule ExPhil.Training.Imitation.Checkpointing do
         # Mamba-specific config
         state_size: trainer.config[:state_size] || 16,
         expand_factor: trainer.config[:expand_factor] || 2,
-        conv_size: trainer.config[:conv_size] || 4
+        conv_size: trainer.config[:conv_size] || 4,
+        # Embedding regime: the live agent must feed its own outputs back
+        # into the prev-action channel iff the model trained with it
+        use_prev_action: trainer.config[:use_prev_action] || false
       }
     }
 

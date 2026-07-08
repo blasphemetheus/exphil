@@ -303,6 +303,19 @@ defmodule ExPhil.Training.Pipeline do
       Output.puts("  #{length(frames)} frames from #{length(replay_files)} files")
       log_character_distribution(frames)
 
+      # Delay-aware training: pair state(t) with controller(t+delay) so the
+      # model plans for the bridge's input latency (see Data.shift_actions)
+      frames =
+        case opts[:action_delay] || 0 do
+          0 ->
+            frames
+
+          delay ->
+            shifted = Data.shift_actions(frames, delay)
+            Output.puts("  Action delay #{delay}: #{length(shifted)} frames after target shift")
+            shifted
+        end
+
       # Build embed config
       embed_config = Embeddings.config(
         action_mode: opts[:action_mode] || :learned,
