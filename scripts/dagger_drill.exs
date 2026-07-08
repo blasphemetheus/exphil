@@ -68,8 +68,11 @@ rollout_paths =
   |> Enum.flat_map(&Path.wildcard/1)
 
 if rollout_paths == [] do
-  Output.error("No rollout replays given — pass --rollouts \"path1.slp,glob*.slp\"")
-  System.halt(1)
+  Output.warning(
+    "No rollouts — bootstrap mode: training on the fixture alone " <>
+      "(iteration 0 of a new drill). Play a game with the result and feed " <>
+      "the replay back as the first rollout."
+  )
 end
 
 Output.banner("Drill DAgger Trainer")
