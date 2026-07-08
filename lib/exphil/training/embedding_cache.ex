@@ -106,6 +106,20 @@ defmodule ExPhil.Training.EmbeddingCache do
       noise_scale: noise_scale
     }
 
+    # Prev-action dropout bakes a random mask into the tensor: masked and
+    # clean embeddings must not collide. Added conditionally so dropout=0.0
+    # keys are byte-identical to pre-dropout keys (existing caches stay
+    # valid). NOTE: a cached entry pins its mask — rerunning with the same
+    # dropout reuses the same masked frames (use --no-cache for a fresh mask).
+    prev_action_dropout = Keyword.get(opts, :prev_action_dropout, 0.0)
+
+    hash_input =
+      if prev_action_dropout > 0.0 do
+        Map.put(hash_input, :prev_action_dropout, prev_action_dropout)
+      else
+        hash_input
+      end
+
     # Generate SHA256 hash
     hash_input
     |> :erlang.term_to_binary()

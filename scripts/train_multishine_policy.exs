@@ -18,7 +18,7 @@ alias ExPhil.Embeddings
 
 {opts, _, _} =
   OptionParser.parse(System.argv(),
-    strict: [replays: :string, out: :string, robust: :boolean, prev_action: :boolean, action_delay: :integer]
+    strict: [replays: :string, out: :string, robust: :boolean, prev_action: :boolean, action_delay: :integer, prev_action_dropout: :float]
   )
 
 # --replays accepts a dir or glob of .slp files; default = the single
@@ -28,6 +28,7 @@ replay_glob = opts[:replays] || "test/fixtures/replays/fox_multishine_closed.slp
 out_path = opts[:out] || "checkpoints/multishine_probe_policy.bin"
 robust = opts[:robust] || false
 prev_action = opts[:prev_action] || false
+prev_action_dropout = opts[:prev_action_dropout] || 0.0
 action_delay = opts[:action_delay] || 0
 window = 16
 
@@ -64,7 +65,10 @@ dataset =
   frames
   |> Data.shift_actions(action_delay)
   |> Data.from_frames()
-  |> Data.precompute_frame_embeddings(use_prev_action: prev_action)
+  |> Data.precompute_frame_embeddings(
+    use_prev_action: prev_action,
+    prev_action_dropout: prev_action_dropout
+  )
 
 embed_size = Embeddings.embedding_size(dataset.embed_config)
 

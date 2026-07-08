@@ -209,6 +209,7 @@ defmodule ExPhil.Training.Config do
     "--no-focal-loss",
     "--prev-action",
     "--no-prev-action",
+    "--prev-action-dropout",
     "--action-delay",
     "--focal-gamma",
     "--button-weight",
@@ -590,6 +591,10 @@ defmodule ExPhil.Training.Config do
       # Enabled by default to prevent mode collapse on button predictions
       focal_loss: true,
       use_prev_action: false,
+      # Fraction of frames whose prev-action channel is zeroed during training
+      # (exposure-bias mitigation: live the model eats its own outputs, which
+      # drift from ground truth — dropout stops it over-relying on the channel)
+      prev_action_dropout: 0.0,
       action_delay: 0,
       # Higher = more focus on hard examples
       focal_gamma: 3.0,
@@ -1499,6 +1504,7 @@ defmodule ExPhil.Training.Config do
       dropout: opts[:dropout],
       focal_loss: opts[:focal_loss],
       use_prev_action: opts[:use_prev_action],
+      prev_action_dropout: opts[:prev_action_dropout],
       action_delay: opts[:action_delay],
       focal_gamma: opts[:focal_gamma],
       button_weight: opts[:button_weight],

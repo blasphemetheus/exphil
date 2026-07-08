@@ -464,6 +464,7 @@ defmodule ExPhil.Training.Pipeline do
     cache_enabled = opts[:cache_embeddings] != false
 
     use_prev_action = opts[:use_prev_action] || false
+    prev_action_dropout = opts[:prev_action_dropout] || 0.0
 
     if cache_enabled do
       Data.precompute_frame_embeddings_cached(dataset,
@@ -472,12 +473,14 @@ defmodule ExPhil.Training.Pipeline do
         force_recompute: opts[:no_cache] || false,
         replay_files: replay_files,
         show_progress: true,
-        use_prev_action: use_prev_action
+        use_prev_action: use_prev_action,
+        prev_action_dropout: prev_action_dropout
       )
     else
       Data.precompute_frame_embeddings(dataset,
         show_progress: true,
-        use_prev_action: use_prev_action
+        use_prev_action: use_prev_action,
+        prev_action_dropout: prev_action_dropout
       )
     end
   end

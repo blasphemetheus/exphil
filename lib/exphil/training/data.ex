@@ -1410,26 +1410,44 @@ defmodule ExPhil.Training.Data do
 
     embed_config = dataset.embed_config
     use_prev_action = Keyword.get(opts, :use_prev_action, false)
+    prev_action_dropout = Keyword.get(opts, :prev_action_dropout, 0.0)
 
     # Previous-action channel: frame i sees frame i-1's controller, nil at
     # replay boundaries (detected by frame-number discontinuity — the frames
     # list is a flat concat across replays). Without this the model never
     # observes its own last input, making frame-precise input sequences
     # (dash-dance flips, multishine phase) unlearnable except indirectly.
+    #
+    # Dropout zeroes the channel on a random subset of frames so the model
+    # can't over-rely on it: live, prev-action is the model's own decoded
+    # output, which drifts from ground truth (teacher-forcing exposure bias).
+    # The mask is fixed per precompute (embeddings are cached), which is fine:
+    # the training signal is "sometimes this channel is absent", not a fresh
+    # mask per epoch.
+    # A frame may carry an explicit :prev_controller override (DAgger-style
+    # relabeled rollouts: the channel must show what the POLICY actually
+    # pressed, while :controller holds the expert's corrected target —
+    # deriving prev from the neighbor would leak the correction into the
+    # channel and hide the (state, own-mistake) pairs the live agent faces).
     prev_controllers =
       if use_prev_action do
         [nil | dataset.frames]
         |> Enum.zip(dataset.frames)
-        |> Enum.map(fn
-          {nil, _cur} ->
-            nil
-
-          {prev, cur} ->
-            if prev.game_state.frame + 1 == cur.game_state.frame do
-              prev.controller
-            else
-              nil
+        |> Enum.map(fn {prev, cur} ->
+          prev_controller =
+            cond do
+              is_map_key(cur, :prev_controller) -> cur.prev_controller
+              is_nil(prev) -> nil
+              prev.game_state.frame + 1 == cur.game_state.frame -> prev.controller
+              true -> nil
             end
+
+          if prev_controller != nil and prev_action_dropout > 0.0 and
+               :rand.uniform() < prev_action_dropout do
+            nil
+          else
+            prev_controller
+          end
         end)
       else
         nil
@@ -1647,7 +1665,8 @@ defmodule ExPhil.Training.Data do
         EmbeddingCache.cache_key(dataset.embed_config, replay_files,
           temporal: false,
           frame_count: dataset.size,
-          use_prev_action: Keyword.get(opts, :use_prev_action, false)
+          use_prev_action: Keyword.get(opts, :use_prev_action, false),
+          prev_action_dropout: Keyword.get(opts, :prev_action_dropout, 0.0)
         )
 
       Logger.info("[EmbeddingCache] Looking for cache key: #{cache_key} (frame embeddings)")
