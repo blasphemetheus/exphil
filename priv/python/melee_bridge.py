@@ -410,7 +410,13 @@ class MeleeBridge:
 
                 # Dummy picks first (no autostart) so the main helper's
                 # autostart can't fire before the opponent is on the roster.
-                if self.dummy_menu_helper is not None:
+                # ONLY during character select: stage select has one shared
+                # cursor, and a second controller pressing buttons there
+                # fights port 1 — observed as a session stuck at
+                # STAGE_SELECT indefinitely (race; sometimes won, sometimes
+                # not).
+                if self.dummy_menu_helper is not None and \
+                        gamestate.menu_state == melee.Menu.CHARACTER_SELECT:
                     dummy_char = self.config.get("dummy_character", "fox")
                     if isinstance(dummy_char, int):
                         dummy_char = melee.Character(dummy_char)
