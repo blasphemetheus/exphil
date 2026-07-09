@@ -14,8 +14,12 @@
 #               — WARNING: that picks up ALL of today's games including ones
 #               from other drills; pass ROLLOUTS explicitly on mixed days)
 #   DUMMY       scripted port-2 dummy for probe games:
-#               stand|shield|jump|walk|cpu (default: none)
+#               stand|shield|jump|walk|cpu|tech_random (default: none)
 #   DUMMY_CPU   CPU level when DUMMY=cpu (default 3)
+#   PRESS/RELEASE  button hysteresis thresholds for probes (default
+#               0.45/0.3 — drill policies are systematically
+#               under-confident; the flat 0.5 cut dropped most intended
+#               presses. A/B: 43 -> 189 fairs/game, same policy.)
 #   SLIPPI_DIR  replay directory        (default ~/Slippi)
 #   DOLPHIN     dolphin path            (default ~/.local/share/slippi/netplay)
 #   ISO         melee ISO               (default ~/isos/melee.iso)
@@ -84,6 +88,7 @@ for i in $(seq 1 "$ITERS"); do
     --character "$CHARACTER" --stage final_destination \
     ${DUMMY:+--dummy "$DUMMY"} \
     ${DUMMY:+--dummy-cpu-level "${DUMMY_CPU:-3}"} \
+    --press-threshold "${PRESS:-0.45}" --release-threshold "${RELEASE:-0.3}" \
     --deterministic --on-game-end stop >>"$LOG" 2>&1 || {
     echo "[dagger_loop] play session failed or timed out — aborting; see $LOG" | tee -a "$LOG"
     exit 1
