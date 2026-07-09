@@ -256,6 +256,13 @@ class MeleeBridge:
                     ini.read(ini_path)
                 if not ini.has_section("Display"):
                     ini.add_section("Display")
+                if not ini.has_section("DSP"):
+                    ini.add_section("DSP")
+                # ALSA-direct spews `alsa::poll() returned POLLERR` at full
+                # speed when the device is contended (once produced 29GB of
+                # log in 8 minutes); Pulse routes through pipewire-pulse and
+                # keeps audio working
+                ini.set("DSP", "Backend", "Pulse")
                 # ~1.94x native 640x528, fits a 1080p screen with bar
                 ini.set("Display", "RenderWindowWidth",
                         str(self.config.get("window_width", 1240)))
@@ -595,9 +602,35 @@ def send_response(response: Dict[str, Any]):
     print(json_str, flush=True)
 
 
+def _orphan_watchdog(bridge):
+    """Exit if the Elixir side dies while the main thread is blocked.
+
+    Stdin EOF only ends the main loop when the main thread is actually
+    reading stdin — a bridge blocked inside a libmelee call (e.g. a dead
+    Slippi connection) never returns to the loop and lives forever as an
+    orphan. Observed: two such orphans held a deleted 29GB ALSA-spam log's
+    inode and kept the disk full. When the parent (beam) dies we get
+    reparented to init (ppid 1) — force-exit then.
+    """
+    import time
+    while True:
+        if os.getppid() == 1:
+            logger.info("Parent process died — force exiting")
+            try:
+                if bridge.console:
+                    bridge.console.stop()
+            except Exception:
+                pass
+            os._exit(0)
+        time.sleep(5)
+
+
 def main():
     """Main protocol loop - read commands from stdin, write responses to stdout."""
     bridge = MeleeBridge()
+
+    import threading
+    threading.Thread(target=_orphan_watchdog, args=(bridge,), daemon=True).start()
 
     logger.info("Melee bridge started, waiting for commands...")
 
