@@ -28,6 +28,20 @@ for path <- paths do
   fairs = Enum.count(pairs, fn [a, b] -> a != 66 and b == 66 end)
   jumps = Enum.count(pairs, fn [a, b] -> a != 24 and b == 24 end)
 
+  # Aerial mix: which attack comes out is decided by stick position at the
+  # press frame — wrong-aerial share measures stick accuracy, not intent
+  aerial_names = %{65 => "nair", 66 => "fair", 67 => "bair", 68 => "uair", 69 => "dair"}
+
+  aerial_mix =
+    aerial_names
+    |> Enum.map(fn {id, name} ->
+      n = Enum.count(pairs, fn [a, b] -> a != id and b == id end)
+      {name, n}
+    end)
+    |> Enum.reject(fn {_, n} -> n == 0 end)
+    |> Enum.map(fn {name, n} -> "#{name}=#{n}" end)
+    |> Enum.join(" ")
+
   landing_runs =
     actions
     |> Enum.chunk_by(& &1)
@@ -45,6 +59,26 @@ for path <- paths do
 
   IO.puts(
     "#{Path.basename(path)}: #{frames}f | jumps=#{jumps} fairs=#{fairs} " <>
-      "fair_landings=#{landings} L-cancelled=#{cancelled} (#{lcancel_pct}%) | #{rate} fairs/1k frames"
+      "fair_landings=#{landings} L-cancelled=#{cancelled} (#{lcancel_pct}%) | " <>
+      "#{rate} fairs/1k frames | aerials: #{aerial_mix}"
   )
+
+  # Structured row for cross-iteration plots (logs/drill_scores.jsonl)
+  File.mkdir_p!("logs")
+
+  row =
+    Jason.encode!(%{
+      drill: "mewtwo_fair",
+      replay: Path.basename(path),
+      scored_at: DateTime.utc_now() |> DateTime.to_iso8601(),
+      frames: frames,
+      jumps: jumps,
+      fairs: fairs,
+      fair_landings: landings,
+      lcancelled: cancelled,
+      lcancel_pct: lcancel_pct,
+      fairs_per_1k: rate
+    })
+
+  File.write!("logs/drill_scores.jsonl", row <> "\n", [:append])
 end

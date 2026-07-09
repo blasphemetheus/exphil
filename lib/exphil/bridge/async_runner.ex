@@ -156,9 +156,17 @@ defmodule ExPhil.Bridge.AsyncRunner do
     player_port = Keyword.get(opts, :player_port, 1)
     auto_menu = Keyword.get(opts, :auto_menu, true)
     on_game_end = Keyword.get(opts, :on_game_end, :restart)
+    # Elixir-driven opponent-port dummy (reactive drills): a module with
+    # new/0 + step/2 returning {input, state}. Requires the bridge started
+    # with dummy_mode: "external" so the port-2 controller exists.
+    dummy_module = Keyword.get(opts, :dummy)
 
     # Create ETS table for shared state
     table = :ets.new(:async_runner_state, [:set, :public])
+
+    if dummy_module do
+      :ets.insert(table, {:elixir_dummy, dummy_module, dummy_module.new()})
+    end
 
     # Initialize shared state
     :ets.insert(table, {:latest_game_state, nil})
@@ -371,6 +379,8 @@ defmodule ExPhil.Bridge.AsyncRunner do
         MeleePort.send_controller(bridge, input)
     end
 
+    drive_elixir_dummy(bridge, table, game_state, player_port)
+
     # Check for game end via stocks
     check_stocks_for_game_end(bridge, table, game_state, player_port, agent)
   end
@@ -445,6 +455,24 @@ defmodule ExPhil.Bridge.AsyncRunner do
     case :ets.lookup(table, :should_stop) do
       [{:should_stop, true}] -> true
       _ -> false
+    end
+  end
+
+  # Elixir-driven opponent dummy: read the opponent's state, step the dummy
+  # module, route its input to the opponent port. Synchronous with the frame
+  # loop, same as the agent's own send.
+  defp drive_elixir_dummy(bridge, table, game_state, player_port) do
+    case :ets.lookup(table, :elixir_dummy) do
+      [{:elixir_dummy, mod, dummy_state}] ->
+        opponent_port = if player_port == 1, do: 2, else: 1
+        opponent = game_state.players && game_state.players[opponent_port]
+
+        {input, dummy_state} = mod.step(opponent, dummy_state)
+        MeleePort.send_controller(bridge, Map.put(input, :port, opponent_port))
+        :ets.insert(table, {:elixir_dummy, mod, dummy_state})
+
+      _ ->
+        :ok
     end
   end
 

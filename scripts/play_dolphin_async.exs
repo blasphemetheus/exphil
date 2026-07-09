@@ -129,6 +129,11 @@ Output.success("Bridge process started")
 Output.step(3, 5, "Initializing Dolphin")
 Output.puts("  (This will launch Dolphin - make sure to plug in your controller!)")
 
+# Elixir-driven dummies read game state and react (vs python's open-loop
+# timing patterns); the bridge runs "external" so python doesn't fight them
+elixir_dummies = %{"tech_random" => ExPhil.Agents.Dummies.TechRandom}
+elixir_dummy = elixir_dummies[opts[:dummy]]
+
 bridge_config = %{
   dolphin_path: opts[:dolphin],
   iso_path: opts[:iso],
@@ -137,8 +142,8 @@ bridge_config = %{
   character: opts[:character],
   stage: opts[:stage],
   online_delay: opts[:frame_delay],
-  # Scripted port-2 dummy for drills (none|stand|shield|jump|walk|cpu)
-  dummy_mode: opts[:dummy] || "none",
+  # Port-2 dummy for drills (none|stand|shield|jump|walk|cpu|tech_random)
+  dummy_mode: if(elixir_dummy, do: "external", else: opts[:dummy] || "none"),
   dummy_character: opts[:dummy_character] || "fox",
   dummy_cpu_level: opts[:dummy_cpu_level] || 0
 }
@@ -176,7 +181,8 @@ Output.step(5, 5, "Starting async game runner")
     bridge: bridge,
     player_port: opts[:port],
     auto_menu: not opts[:no_auto_menu],
-    on_game_end: opts[:on_game_end]
+    on_game_end: opts[:on_game_end],
+    dummy: elixir_dummy
   )
 
 Output.success("Async runner started")

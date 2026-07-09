@@ -157,7 +157,7 @@ defmodule ExPhil.CLI do
     %{name: :on_game_end, flag: "--on-game-end", type: :string, short: nil, default: "restart",
       desc: "Action on game end: restart or stop", group: [:dolphin]},
     %{name: :dummy, flag: "--dummy", type: :string, short: nil, default: "none",
-      desc: "Port-2 dummy for drills: none|stand|shield|jump|walk|cpu|external (external = Elixir drives the port)", group: [:dolphin]},
+      desc: "Port-2 dummy for drills: none|stand|shield|jump|walk|cpu|tech_random (reactive, Elixir-driven)|external", group: [:dolphin]},
     %{name: :dummy_character, flag: "--dummy-character", type: :string, short: nil, default: "fox",
       desc: "Dummy's character (requires --dummy)", group: [:dolphin]},
     %{name: :dummy_cpu_level, flag: "--dummy-cpu-level", type: :integer, short: nil, default: 0,

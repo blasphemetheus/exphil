@@ -37,4 +37,21 @@ for path <- paths do
   IO.puts(
     "#{Path.basename(path)}: #{frames}f | JC=#{jc} shine=#{shine} empty_hop=#{empty_hop} | #{rate} JC/1k frames"
   )
+
+  # Structured row for cross-iteration plots (logs/drill_scores.jsonl)
+  File.mkdir_p!("logs")
+
+  row =
+    Jason.encode!(%{
+      drill: "multishine",
+      replay: Path.basename(path),
+      scored_at: DateTime.utc_now() |> DateTime.to_iso8601(),
+      frames: frames,
+      jc: jc,
+      shine: shine,
+      empty_hop: empty_hop,
+      jc_per_1k: rate
+    })
+
+  File.write!("logs/drill_scores.jsonl", row <> "\n", [:append])
 end
