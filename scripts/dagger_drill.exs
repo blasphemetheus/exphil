@@ -139,11 +139,13 @@ Output.puts("Fixture frames: #{length(fixture_frames)} across #{length(fixture_p
 # Expert table from ALL fixture recordings combined
 expert = expert_mod.from_frames(fixture_frames, player_port: port)
 
+opp_port = if port == 1, do: 2, else: 1
+
 relabel = fn frames, recorded ->
   Enum.flat_map(frames, fn frame ->
     prev = recorded[frame.game_state.frame + action_delay - 1]
 
-    case expert_mod.label(expert, frame.game_state.players[port], prev) do
+    case expert_mod.label(expert, frame.game_state.players[port], prev, frame.game_state.players[opp_port]) do
       {:ok, correction} ->
         [
           frame

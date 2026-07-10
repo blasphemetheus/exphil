@@ -103,7 +103,7 @@ defmodule ExPhil.Agents.MultishineExpert do
   Returns `{:ok, %ControllerState{}}` or `:skip` for dead/respawn states.
   """
   @spec label(t(), map(), ControllerState.t() | nil) :: {:ok, ControllerState.t()} | :skip
-  def label(%__MODULE__{table: table}, player, prev \\ nil) do
+  def label(%__MODULE__{table: table}, player, prev \\ nil, _opponent \\ nil) do
     action = trunc(player.action)
     af = trunc(player.action_frame)
     grounded = player.on_ground

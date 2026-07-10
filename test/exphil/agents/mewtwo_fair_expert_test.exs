@@ -49,8 +49,8 @@ defmodule ExPhil.Agents.MewtwoFairExpertTest do
       fair_fine =
         expert.fine
         |> Map.keys()
-        |> Enum.filter(fn {a, _, _, _, _} -> a == 66 end)
-        |> Enum.group_by(fn {_, af, _, _, _} -> af end)
+        |> Enum.filter(fn {a, _, _, _, _, _} -> a == 66 end)
+        |> Enum.group_by(fn {_, af, _, _, _, _} -> af end)
 
       assert Enum.any?(fair_fine, fn {_af, keys} -> length(keys) > 1 end),
              "expected at least one action_frame with multiple physics variants"
@@ -147,6 +147,26 @@ defmodule ExPhil.Agents.MewtwoFairExpertTest do
     test "dead/respawn states are skipped", %{expert: expert} do
       assert :skip = MewtwoFairExpert.label(expert, player(action: 0.0))
       assert :skip = MewtwoFairExpert.label(expert, player(action: 12.0))
+    end
+
+    test "out of range approaches instead of jump-restarting", %{expert: expert} do
+      opp = %{x: 60.0}
+      {:ok, c} = MewtwoFairExpert.label(expert, player(on_ground: true, x: 0.0), nil, opp)
+      refute c.button_y, "far away: approach, don't swing at nothing"
+      assert c.main_stick.x > 0.9, "dash toward the opponent"
+
+      {:ok, c} = MewtwoFairExpert.label(expert, player(on_ground: true, x: 0.0), nil, %{x: -60.0})
+      assert c.main_stick.x < 0.1
+    end
+
+    test "in range keeps the jump-restart cycle", %{expert: expert} do
+      {:ok, c} = MewtwoFairExpert.label(expert, player(on_ground: true, x: 0.0), nil, %{x: 20.0})
+      assert c.button_y
+    end
+
+    test "unknown opponent behaves like the pre-distance expert", %{expert: expert} do
+      {:ok, c} = MewtwoFairExpert.label(expert, player(on_ground: true))
+      assert c.button_y
     end
   end
 

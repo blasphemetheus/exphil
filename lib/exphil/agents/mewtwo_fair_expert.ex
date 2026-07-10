@@ -72,6 +72,7 @@ defmodule ExPhil.Agents.MewtwoFairExpert do
   @spec from_frames([map()], keyword()) :: t()
   def from_frames(frames, opts \\ []) do
     port = Keyword.get(opts, :player_port, 1)
+    opp_port = Keyword.get(opts, :opponent_port, if(port == 1, do: 2, else: 1))
     min_count = Keyword.get(opts, :min_count, 3)
 
     usable =
@@ -80,20 +81,26 @@ defmodule ExPhil.Agents.MewtwoFairExpert do
       |> Enum.reject(fn f -> trunc(f.game_state.players[port].action) < @first_actionable end)
 
     %__MODULE__{
-      fine: build_table(usable, port, &fine_key/1, min_count),
-      coarse: build_table(usable, port, &coarse_key/1, max(min_count, 4))
+      fine: build_table(usable, port, &fine_key(&1, opp_of(&2, opp_port)), min_count),
+      coarse: build_table(usable, port, fn p, _f -> coarse_key(p) end, max(min_count, 4))
     }
   end
+
+  defp opp_of(frame, opp_port), do: frame.game_state.players[opp_port]
 
   @doc """
   Label a player state with the expert's input (landing convention).
 
   `prev` is the input that actually landed on the previous frame — recovery
-  taps alternate against it so press EDGES are learnable from the
-  prev-action channel.
+  taps alternate against it so press EDGES are learnable. `opponent` (the
+  other port's player) keys the distance features: the approach-fair drill
+  teaches WHEN to swing, and that decision lives in the gap between the two
+  characters — without it the table collapses "in range" and "across the
+  stage" into one cell (observed live: metronome fairs at nothing).
   """
-  @spec label(t(), map(), ControllerState.t() | nil) :: {:ok, ControllerState.t()} | :skip
-  def label(%__MODULE__{fine: fine, coarse: coarse}, player, prev \\ nil) do
+  @spec label(t(), map(), ControllerState.t() | nil, map() | nil) ::
+          {:ok, ControllerState.t()} | :skip
+  def label(%__MODULE__{fine: fine, coarse: coarse}, player, prev \\ nil, opponent \\ nil) do
     cond do
       trunc(player.action) < @first_actionable ->
         :skip
@@ -105,14 +112,14 @@ defmodule ExPhil.Agents.MewtwoFairExpert do
       abs(player.x || 0.0) > @edge_margin ->
         {:ok, edge_recovery(player, prev)}
 
-      controller = fine[fine_key(player)] ->
+      controller = fine[fine_key(player, opponent)] ->
         {:ok, controller}
 
       controller = coarse[coarse_key(player)] ->
         {:ok, controller}
 
       true ->
-        {:ok, recovery(player, prev)}
+        {:ok, recovery(player, prev, opponent)}
     end
   end
 
@@ -142,9 +149,19 @@ defmodule ExPhil.Agents.MewtwoFairExpert do
 
   # -- Keys -------------------------------------------------------------------
 
-  defp fine_key(player) do
+  defp fine_key(player, opponent) do
     {trunc(player.action), trunc(player.action_frame), player.on_ground,
-     player.jumps_left || 0, height_bucket(player.y)}
+     player.jumps_left || 0, height_bucket(player.y), distance_bucket(player, opponent)}
+  end
+
+  # Horizontal gap to the opponent, in 15-unit buckets capped at 4 (60+
+  # units = "across the stage"). :na when the opponent is unknown (some
+  # tests) — a distinct key, never colliding with measured buckets.
+  defp distance_bucket(_player, nil), do: :na
+
+  defp distance_bucket(player, opponent) do
+    dist = abs((player.x || 0.0) - (opponent.x || 0.0))
+    min(div(trunc(dist), 15), 4)
   end
 
   defp coarse_key(player) do
@@ -179,11 +196,18 @@ defmodule ExPhil.Agents.MewtwoFairExpert do
   end
 
   # Center-stage table misses only — edge states never reach here
-  defp recovery(player, prev) do
+  defp recovery(player, prev, opponent \\ nil) do
     action = trunc(player.action)
     falling? = (player.speed_y_self || 0.0) < 0.0
 
     cond do
+      # Out of range: approach — a jump-restart here teaches metronome fairs
+      # at nothing. In range (or opponent unknown), the drill cycle resumes.
+      player.on_ground and opponent != nil and
+          abs((player.x || 0.0) - (opponent.x || 0.0)) > 35.0 ->
+        toward = if (opponent.x || 0.0) > (player.x || 0.0), do: 1.0, else: 0.0
+        %{neutral() | main_stick: %{x: toward, y: 0.5}}
+
       # Grounded off-script: restart the drill with a jump (recorder uses Y).
       player.on_ground ->
         if held?(prev, :button_y), do: neutral(), else: tap(:button_y)
@@ -233,9 +257,10 @@ defmodule ExPhil.Agents.MewtwoFairExpert do
 
   # -- Table construction -------------------------------------------------------
 
+  # key_fn receives (player, frame) so fine keys can reach the opponent
   defp build_table(frames, port, key_fn, min_count) do
     frames
-    |> Enum.group_by(fn f -> key_fn.(f.game_state.players[port]) end)
+    |> Enum.group_by(fn f -> key_fn.(f.game_state.players[port], f) end)
     |> Enum.filter(fn {_key, group} -> length(group) >= min_count end)
     |> Map.new(fn {key, group} -> {key, modal_controller(group)} end)
   end

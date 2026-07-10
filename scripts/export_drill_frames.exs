@@ -69,11 +69,13 @@ frame_lists =
 
     recorded = Map.new(raw, fn f -> {f.game_state.frame, f.controller} end)
 
+    opp_port = if port == 1, do: 2, else: 1
+
     relabeled =
       Enum.flat_map(raw, fn frame ->
         prev = recorded[frame.game_state.frame + action_delay - 1]
 
-        case expert_mod.label(expert, frame.game_state.players[port], prev) do
+        case expert_mod.label(expert, frame.game_state.players[port], prev, frame.game_state.players[opp_port]) do
           {:ok, correction} ->
             [frame |> Map.put(:controller, correction) |> Map.put(:prev_controller, prev)]
 

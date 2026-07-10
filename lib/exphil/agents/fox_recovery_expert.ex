@@ -65,7 +65,7 @@ defmodule ExPhil.Agents.FoxRecoveryExpert do
   aerials. `prev` is the previously-landed input (tap alternation).
   """
   @spec label(t(), map(), ControllerState.t() | nil) :: {:ok, ControllerState.t()} | :skip
-  def label(%__MODULE__{}, player, prev \\ nil) do
+  def label(%__MODULE__{}, player, prev \\ nil, _opponent \\ nil) do
     action = trunc(player.action || 0)
     x = player.x || 0.0
     y = player.y || 0.0
