@@ -316,6 +316,26 @@ defmodule ExPhil.Training.Pipeline do
             shifted
         end
 
+      # Curriculum mixing: drill .frames exports (already expert-labeled;
+      # shifted per source segment inside MixFrames with the same delay).
+      # Appended AFTER the corpus shift so no shift crosses the boundary.
+      frames =
+        case opts[:mix_frames] do
+          nil ->
+            frames
+
+          spec ->
+            {mixed, stats} =
+              ExPhil.Training.MixFrames.load(spec, action_delay: opts[:action_delay] || 0)
+
+            for %{path: path, expert: expert, frames: n} <- stats do
+              Output.puts("  Mix: #{Path.basename(path)} (#{expert}) +#{n} frames")
+            end
+
+            Output.puts("  Curriculum mix total: +#{length(mixed)} drill frames")
+            frames ++ mixed
+        end
+
       # Build embed config
       embed_config = Embeddings.config(
         action_mode: opts[:action_mode] || :learned,
@@ -474,7 +494,10 @@ defmodule ExPhil.Training.Pipeline do
         replay_files: replay_files,
         show_progress: true,
         use_prev_action: use_prev_action,
-        prev_action_dropout: prev_action_dropout
+        prev_action_dropout: prev_action_dropout,
+        # Mixed drill frames change the dataset without changing
+        # replay_files — must not share a cache key (GOTCHAS #51 family)
+        mix_frames: opts[:mix_frames]
       )
     else
       Data.precompute_frame_embeddings(dataset,

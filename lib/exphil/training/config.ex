@@ -210,6 +210,7 @@ defmodule ExPhil.Training.Config do
     "--prev-action",
     "--no-prev-action",
     "--prev-action-dropout",
+    "--mix-frames",
     "--action-delay",
     "--focal-gamma",
     "--button-weight",
@@ -595,6 +596,9 @@ defmodule ExPhil.Training.Config do
       # (exposure-bias mitigation: live the model eats its own outputs, which
       # drift from ground truth — dropout stops it over-relying on the channel)
       prev_action_dropout: 0.0,
+      # Curriculum mixing: comma/glob list of drill .frames exports
+      # (scripts/export_drill_frames.exs) concatenated into training
+      mix_frames: nil,
       action_delay: 0,
       # Higher = more focus on hard examples
       focal_gamma: 3.0,

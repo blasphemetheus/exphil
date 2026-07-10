@@ -338,6 +338,7 @@ These options apply to multiple new architectures:
 | `--prev-action` | false | Condition on previous frame's controller (training embeds frame i-1's inputs; live agent feeds back its own outputs). Enables frame-precise input sequences (dash dance, multishine). Regime is stored in the policy config — old checkpoints keep zeros. Not yet wired for --streaming. |
 | `--prev-action-dropout P` | 0.0 | Zero the prev-action channel on fraction P of training frames (exposure-bias mitigation: live, the model feeds back its own outputs, which drift from teacher-forced ground truth). Try 0.1–0.3 with --prev-action. Mask is baked into the embedding cache entry — use --no-cache for a fresh mask. |
 | `--action-delay N` | 0 | Train on controller(t+N) so the model plans for input latency (bridge = 1 frame). Composes with --prev-action. |
+| `--mix-frames SPEC` | nil | Curriculum mixing: comma/glob list of drill `.frames` exports (`scripts/export_drill_frames.exs`) concatenated into training. Drill frames must be exported at the SAME `--action-delay` (the prev-action channel misaligns otherwise; a warning fires). Changes the embedding cache key. |
 | `--focal-gamma X` | 2.0 | Focal loss gamma (higher = focus on hard) |
 | `--button-weight X` | 2.0 | Multiply button loss (fixes under-prediction) |
 | `--stick-edge-weight X` | nil | Weight edge stick buckets higher (try 2.0-3.0) |

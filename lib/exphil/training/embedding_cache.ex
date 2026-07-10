@@ -122,6 +122,15 @@ defmodule ExPhil.Training.EmbeddingCache do
         hash_input
       end
 
+    # Mixed drill frames change the tensor without changing replay_files —
+    # keys must not collide (added conditionally: nil leaves existing keys
+    # byte-identical)
+    hash_input =
+      case Keyword.get(opts, :mix_frames) do
+        nil -> hash_input
+        spec -> Map.put(hash_input, :mix_frames, spec)
+      end
+
     # Generate SHA256 hash
     hash_input
     |> :erlang.term_to_binary()

@@ -1666,7 +1666,8 @@ defmodule ExPhil.Training.Data do
           temporal: false,
           frame_count: dataset.size,
           use_prev_action: Keyword.get(opts, :use_prev_action, false),
-          prev_action_dropout: Keyword.get(opts, :prev_action_dropout, 0.0)
+          prev_action_dropout: Keyword.get(opts, :prev_action_dropout, 0.0),
+          mix_frames: Keyword.get(opts, :mix_frames)
         )
 
       Logger.info("[EmbeddingCache] Looking for cache key: #{cache_key} (frame embeddings)")
