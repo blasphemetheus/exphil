@@ -570,6 +570,17 @@ class MeleeBridge:
             except Exception as e:
                 errors.append(f"console: {e}")
 
+            # console.stop() sometimes leaves Dolphin alive (observed frozen
+            # at stage select after a sudden-death game). Force-kill by the
+            # session's UNIQUE temp User dir — matches only our Dolphin.
+            try:
+                home = self.console.dolphin_home_path
+                if home and "/tmp/" in str(home):
+                    import subprocess
+                    subprocess.run(["pkill", "-f", str(home)], timeout=5)
+            except Exception as e:
+                errors.append(f"dolphin force-kill: {e}")
+
         if errors:
             logger.warning(f"Cleanup warnings: {errors}")
 
