@@ -109,11 +109,25 @@ in
     export NVIDIA_DRIVER_LIB="/run/opengl-driver/lib"
     export LD_LIBRARY_PATH="$NVSHMEM_LIB:$CUDA_COMPAT:$NVIDIA_DRIVER_LIB:$LD_LIBRARY_PATH"
 
-    # XLA wants libnvrtc-builtins.so.12.9 but nix has 12.8 — create compat symlink
+    # libexla links whatever nvrtc it was built against, and the profile's
+    # CUDA minor drifts across devenv re-evals (12.8 <-> 12.9 observed).
+    # Link the CURRENT profile's nvrtc libs by their real names, then alias
+    # the missing minor to the present one — nvrtc-builtins is tolerant
+    # across minors in practice (the 12.8-as-12.9 alias ran for months).
+    # (Do NOT hardcode /nix/store paths here: the old one went stale after
+    # a nix GC — dead symlink, "cannot open shared object file".)
     mkdir -p "$CUDA_COMPAT"
-    if [ ! -f "$CUDA_COMPAT/libnvrtc-builtins.so.12.9" ]; then
-      ln -sf /nix/store/f41hjldhxc1v8bwwncm8rgslazhpan17-cuda_nvrtc-12.8.93-source/lib/libnvrtc-builtins.so.12.8 "$CUDA_COMPAT/libnvrtc-builtins.so.12.9"
-    fi
+    for nvrtc_lib in "$DEVENV_PROFILE"/lib/libnvrtc*; do
+      [ -e "$nvrtc_lib" ] && ln -sf "$nvrtc_lib" "$CUDA_COMPAT/$(basename "$nvrtc_lib")" || true
+    done
+    for a in 12.8 12.9; do
+      for b in 12.8 12.9; do
+        if [ "$a" != "$b" ] && [ ! -e "$CUDA_COMPAT/libnvrtc-builtins.so.$a" ] \
+            && [ -e "$CUDA_COMPAT/libnvrtc-builtins.so.$b" ]; then
+          ln -sf "$CUDA_COMPAT/libnvrtc-builtins.so.$b" "$CUDA_COMPAT/libnvrtc-builtins.so.$a"
+        fi
+      done
+    done
 
     # Install hex and rebar if not present
     if [ ! -f "$MIX_HOME/archives/hex-"* ] 2>/dev/null; then
