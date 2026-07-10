@@ -49,6 +49,11 @@ alias ExPhil.Embeddings
          "test/fixtures/replays/mewtwo_shfair_only.slp",
        "checkpoints/mewtwo_fair_dagger_policy.bin"}
 
+    "fox_recovery" ->
+      # Rules-only (recovery is pure geometry): no fixture; every ordinary
+      # replay with offstage moments is a rollout to relabel
+      {ExPhil.Agents.FoxRecoveryExpert, nil, "checkpoints/fox_recovery_dagger_policy.bin"}
+
     other ->
       Output.error("Unknown expert #{inspect(other)} (multishine | mewtwo_fair)")
       System.halt(1)
@@ -56,9 +61,10 @@ alias ExPhil.Embeddings
 
 # --fixture accepts a comma-separated list: multiple recordings of the same
 # drill combine into one expert table (denser where they overlap, variance
-# averaged out) and all contribute training frames
+# averaged out) and all contribute training frames. Rules-only experts
+# (fox_recovery) have no fixture at all.
 fixture_paths =
-  (opts[:fixture] || default_fixture)
+  (opts[:fixture] || default_fixture || "")
   |> String.split(",", trim: true)
   |> Enum.map(&Path.expand/1)
 out_path = opts[:out] || default_out
@@ -78,6 +84,11 @@ rollout_paths =
   |> Enum.flat_map(&Path.wildcard/1)
 
 if rollout_paths == [] do
+  if fixture_paths == [] do
+    Output.error("Fixture-less expert with no rollouts — nothing to train on. Pass --rollouts.")
+    System.halt(1)
+  end
+
   Output.warning(
     "No rollouts — bootstrap mode: training on the fixture alone " <>
       "(iteration 0 of a new drill). Play a game with the result and feed " <>

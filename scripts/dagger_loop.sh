@@ -43,8 +43,14 @@ case "$EXPERT" in
     CHARACTER=${CHARACTER:-mewtwo}
     TRACE=${TRACE:-scripts/trace_mewtwo_fair.exs}
     ;;
+  fox_recovery)
+    CHARACTER=${CHARACTER:-fox}
+    TRACE=${TRACE:-scripts/trace_sd_postmortem.exs}
+    # A solo recovery drill never goes offstage — needs pressure.
+    DUMMY=${DUMMY:-cpu}
+    ;;
   *)
-    echo "Unknown EXPERT=$EXPERT (multishine | mewtwo_fair)" >&2
+    echo "Unknown EXPERT=$EXPERT (multishine | mewtwo_fair | fox_recovery)" >&2
     exit 1
     ;;
 esac
