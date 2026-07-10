@@ -145,7 +145,8 @@ bridge_config = %{
   # Port-2 dummy for drills (none|stand|shield|jump|walk|cpu|tech_random)
   dummy_mode: if(elixir_dummy, do: "external", else: opts[:dummy] || "none"),
   dummy_character: opts[:dummy_character] || "fox",
-  dummy_cpu_level: opts[:dummy_cpu_level] || 0
+  dummy_cpu_level: opts[:dummy_cpu_level] || 0,
+  no_audio: opts[:no_audio] || false
 }
 
 case MeleePort.init_console(bridge, bridge_config, 60_000) do

@@ -31,7 +31,8 @@ alias ExPhil.Embeddings
       action_delay: :integer,
       prev_action_dropout: :float,
       port: :integer,
-      lr: :float
+      lr: :float,
+      backbone: :string
     ]
   )
 
@@ -202,13 +203,18 @@ embed_size = Embeddings.embedding_size(dataset.embed_config)
 # healthy runs hit the loss bar or plateau well before the floor.
 steps_per_epoch = div(dataset.size, 64) + 1
 
+# --backbone tests whether drill conclusions transfer across architectures
+# (drills default to GRU for iteration speed; E-series models are mamba —
+# e.g. is the under-confidence that hysteresis exposed GRU-specific?)
+backbone = String.to_atom(opts[:backbone] || "gru")
+
 trainer =
   Imitation.new(
     embed_config: dataset.embed_config,
     use_prev_action: prev_action,
     embed_size: embed_size,
     temporal: true,
-    backbone: :gru,
+    backbone: backbone,
     window_size: window,
     hidden_size: 256,
     num_layers: 1,

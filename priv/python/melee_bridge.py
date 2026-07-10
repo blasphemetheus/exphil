@@ -265,8 +265,12 @@ class MeleeBridge:
                 # ALSA-direct spews `alsa::poll() returned POLLERR` at full
                 # speed when the device is contended (once produced 29GB of
                 # log in 8 minutes); Pulse routes through pipewire-pulse and
-                # keeps audio working
-                ini.set("DSP", "Backend", "Pulse")
+                # keeps audio working. Farm/unattended sessions pass
+                # no_audio to silence the game entirely.
+                if self.config.get("no_audio"):
+                    ini.set("DSP", "Backend", "No Audio")
+                else:
+                    ini.set("DSP", "Backend", "Pulse")
                 # ~1.94x native 640x528, fits a 1080p screen with bar
                 ini.set("Display", "RenderWindowWidth",
                         str(self.config.get("window_width", 1240)))

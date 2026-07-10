@@ -162,6 +162,8 @@ defmodule ExPhil.CLI do
       desc: "Dummy's character (requires --dummy)", group: [:dolphin]},
     %{name: :dummy_cpu_level, flag: "--dummy-cpu-level", type: :integer, short: nil, default: 0,
       desc: "CPU level for --dummy cpu (1-9)", group: [:dolphin]},
+    %{name: :no_audio, flag: "--no-audio", type: :boolean, short: nil, default: false,
+      desc: "Silence Dolphin (farm/unattended sessions)", group: [:dolphin]},
 
     # PPO training flags (for train_ppo.exs)
     %{name: :pretrained, flag: "--pretrained", type: :string, short: nil, default: nil,
