@@ -344,24 +344,79 @@ embed_size = Embeddings.embedding_size(embed_config)
 Output.puts("  Embedding config: #{inspect(Keyword.take(embed_opts, [:action_mode, :character_mode, :stage_mode, :nana_mode]))}")
 Output.puts("  Embedding size: #{embed_size} dims")
 
+# Regime fields come from the MODEL's config, not CLI defaults: evaluating a
+# policy under a different temporal/backbone regime than it was trained with
+# crashes on parameter-map mismatch (a mamba policy built as MLP), and
+# ignoring its prev-action/action-delay regime silently mismeasures it
+# (zeros in the prev-action slot, targets unshifted). CLI values only fill
+# gaps for old checkpoints that predate these config fields.
+# JSON round-trip stores booleans/ints as strings in some config versions
+to_bool = fn
+  true -> true
+  "true" -> true
+  _ -> false
+end
+
+to_int = fn
+  n when is_integer(n) -> n
+  s when is_binary(s) -> String.to_integer(s)
+  _ -> 0
+end
+
+regime_temporal =
+  case get_cfg.(model_config, :temporal, nil) do
+    nil -> opts[:temporal]
+    v -> to_bool.(v)
+  end
+
+regime_backbone =
+  case get_cfg.(model_config, :backbone, nil) do
+    nil -> opts[:backbone]
+    v -> to_string(v)
+  end
+
+regime_window =
+  case get_cfg.(model_config, :window_size, nil) do
+    nil -> opts[:window_size]
+    v -> to_int.(v)
+  end
+
+use_prev_action = to_bool.(get_cfg.(model_config, :use_prev_action, false))
+action_delay = to_int.(get_cfg.(model_config, :action_delay, 0))
+
+opts = %{opts | temporal: regime_temporal, backbone: regime_backbone, window_size: regime_window}
+
+if use_prev_action or action_delay > 0 do
+  Output.puts(
+    "  Regime from model config: temporal=#{opts[:temporal]} backbone=#{opts[:backbone]} " <>
+      "prev_action=#{use_prev_action} action_delay=#{action_delay}"
+  )
+end
+
 # Create dataset
 Output.step(4, 5, "Creating evaluation dataset")
 
 dataset_start = System.monotonic_time(:millisecond)
+
+# Targets must match the model's training convention: delay-shifted
+# controllers (no-op at delay 0)
+frames = Data.shift_actions(frames, action_delay)
+
 dataset =
   if opts[:temporal] do
-    # Temporal mode: create sequences
-    base_dataset = Data.from_frames(frames, embed_config: embed_config)
-
-    seq_dataset =
-      Data.to_sequences(base_dataset,
-        window_size: opts[:window_size],
-        stride: 1
-      )
-
-    # Precompute embeddings for faster evaluation
-    Data.precompute_embeddings(seq_dataset, show_progress: true)
+    # Same path as the trainer: frame-level embeddings (with the prev-action
+    # channel when the model was trained with it) + lazy sequence windows
+    frames
+    |> Data.from_frames(embed_config: embed_config)
+    |> Data.precompute_frame_embeddings(
+      show_progress: true,
+      use_prev_action: use_prev_action
+    )
   else
+    if use_prev_action do
+      Output.warning("prev-action regime on a non-temporal model — evaluating with zeros in the prev-action slot")
+    end
+
     Data.from_frames(frames,
       embed_config: embed_config,
       temporal: false
@@ -382,6 +437,9 @@ batches =
   if opts[:temporal] do
     Data.batched_sequences(dataset,
       batch_size: opts[:batch_size],
+      window_size: opts[:window_size],
+      stride: 1,
+      lazy: true,
       shuffle: false,
       drop_last: false
     )
