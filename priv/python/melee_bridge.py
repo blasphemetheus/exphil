@@ -252,6 +252,10 @@ class MeleeBridge:
                     self.console.dolphin_home_path, "Config", "Dolphin.ini"
                 )
                 ini = configparser.ConfigParser()
+                # Preserve key case: the default optionxform lowercases keys
+                # on rewrite (SIDevice0 -> sidevice0), which Dolphin's
+                # case-sensitive reader then ignores
+                ini.optionxform = str
                 if os.path.isfile(ini_path):
                     ini.read(ini_path)
                 if not ini.has_section("Display"):
