@@ -36,27 +36,32 @@ alias ExPhil.Embeddings
     ]
   )
 
-{expert_mod, default_fixture, default_out} =
+# expert_char: the expert's character's internal ID — fixtures auto-detect
+# which port the expert player is on (recordings land on whichever port the
+# controller happened to claim; observed: same drill recorded P1 one day,
+# P2 the next after an adapter re-plug)
+{expert_mod, default_fixture, default_out, expert_char} =
   case opts[:expert] || "multishine" do
     "multishine" ->
       {ExPhil.Agents.MultishineExpert, "test/fixtures/replays/fox_multishine_closed.slp",
-       "checkpoints/multishine_dagger_policy.bin"}
+       "checkpoints/multishine_dagger_policy.bin", 1}
 
     "mewtwo_fair" ->
-      # Varied recording (SH/FH/DJ fair) + dense metronomic SH-fair-only one:
-      # variety for coverage, density for crisp stick targets at press frames
+      # Varied recording (SH/FH/DJ fair) + dense metronomic SH-fair-only +
+      # approach-fair (varied-distance dash-ins for the distance-keyed table)
       {ExPhil.Agents.MewtwoFairExpert,
        "test/fixtures/replays/mewtwo_fair_chains.slp," <>
-         "test/fixtures/replays/mewtwo_shfair_only.slp",
-       "checkpoints/mewtwo_fair_dagger_policy.bin"}
+         "test/fixtures/replays/mewtwo_shfair_only.slp," <>
+         "test/fixtures/replays/mewtwo_approach_fair.slp",
+       "checkpoints/mewtwo_fair_dagger_policy.bin", 16}
 
     "fox_recovery" ->
       # Rules-only (recovery is pure geometry): no fixture; every ordinary
       # replay with offstage moments is a rollout to relabel
-      {ExPhil.Agents.FoxRecoveryExpert, nil, "checkpoints/fox_recovery_dagger_policy.bin"}
+      {ExPhil.Agents.FoxRecoveryExpert, nil, "checkpoints/fox_recovery_dagger_policy.bin", 1}
 
     other ->
-      Output.error("Unknown expert #{inspect(other)} (multishine | mewtwo_fair)")
+      Output.error("Unknown expert #{inspect(other)} (multishine | mewtwo_fair | fox_recovery)")
       System.halt(1)
   end
 
@@ -109,12 +114,47 @@ Output.config([
   {"Out", out_path}
 ])
 
-load_frames = fn path ->
-  {:ok, replay} = Peppi.parse(path)
+# Which port is the expert's character on in this replay? (nil char or no
+# match falls back to the given default port)
+detect_port = fn replay, default ->
+  case replay |> Peppi.to_training_frames(player_port: default) |> Enum.take(1) do
+    [f] ->
+      Enum.find_value(f.game_state.players, default, fn {p, pl} ->
+        if pl && trunc(pl.character || -1) == expert_char, do: p
+      end)
 
-  replay
-  |> Peppi.to_training_frames(player_port: port, opponent_port: 2)
-  |> Enum.reject(&(&1.game_state.frame < 0))
+    _ ->
+      default
+  end
+end
+
+load_frames = fn path, detect? ->
+  {:ok, replay} = Peppi.parse(path)
+  use_port = if detect? and expert_char, do: detect_port.(replay, port), else: port
+
+  if use_port != port do
+    Output.puts("  #{Path.basename(path)}: expert character on port #{use_port} — normalizing")
+  end
+
+  frames =
+    replay
+    |> Peppi.to_training_frames(
+      player_port: use_port,
+      opponent_port: if(use_port == 1, do: 2, else: 1)
+    )
+    |> Enum.reject(&(&1.game_state.frame < 0))
+
+  # Normalize so the expert is ALWAYS players[1] downstream — the shared
+  # table build and relabeling assume one port across all sources
+  if use_port == port do
+    frames
+  else
+    Enum.map(frames, fn f ->
+      gs = f.game_state
+      swapped = %{1 => gs.players[use_port], 2 => gs.players[port]}
+      %{f | game_state: %{gs | players: swapped}}
+    end)
+  end
 end
 
 # The multishine fixture ends with an SD (recorder holds pure left, no
@@ -132,7 +172,7 @@ end
 
 # Fixture: human = expert; recorded controllers are the labels. Kept as
 # per-replay lists so shift_actions never crosses replay boundaries.
-fixture_frame_lists = Enum.map(fixture_paths, fn p -> fixture_filter.(load_frames.(p)) end)
+fixture_frame_lists = Enum.map(fixture_paths, fn p -> fixture_filter.(load_frames.(p, true)) end)
 fixture_frames = List.flatten(fixture_frame_lists)
 Output.puts("Fixture frames: #{length(fixture_frames)} across #{length(fixture_paths)} recording(s)")
 
@@ -165,7 +205,7 @@ end
 
 rollout_frame_lists =
   Enum.map(rollout_paths, fn path ->
-    raw = load_frames.(path)
+    raw = load_frames.(path, false)
     recorded = Map.new(raw, fn f -> {f.game_state.frame, f.controller} end)
     relabeled = relabel.(raw, recorded)
 
