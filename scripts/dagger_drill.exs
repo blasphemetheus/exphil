@@ -87,7 +87,13 @@ port = opts[:port] || 1
 # Constant LR blows up late as the aggregate grows; keep it modest (see
 # dagger_multishine.exs — same convergence setup)
 learning_rate = opts[:lr] || 2.0e-4
-window = 16
+
+# --backbone tests whether drill conclusions transfer across architectures.
+# Each backbone brings its OWN shape via Config.backbone_defaults — mamba
+# under the GRU drill shape (window 16, 1 layer) diverges at epoch 4.
+backbone = String.to_atom(opts[:backbone] || "gru")
+bb_defaults = ExPhil.Training.Config.backbone_defaults(backbone) || []
+window = bb_defaults[:window_size] || 16
 
 rollout_paths =
   (opts[:rollouts] || "")
@@ -251,11 +257,6 @@ embed_size = Embeddings.embedding_size(dataset.embed_config)
 # healthy runs hit the loss bar or plateau well before the floor.
 steps_per_epoch = div(dataset.size, 64) + 1
 
-# --backbone tests whether drill conclusions transfer across architectures
-# (drills default to GRU for iteration speed; E-series models are mamba —
-# e.g. is the under-confidence that hysteresis exposed GRU-specific?)
-backbone = String.to_atom(opts[:backbone] || "gru")
-
 trainer =
   Imitation.new(
     embed_config: dataset.embed_config,
@@ -265,7 +266,10 @@ trainer =
     backbone: backbone,
     window_size: window,
     hidden_size: 256,
-    num_layers: 1,
+    num_layers: bb_defaults[:num_layers] || 1,
+    state_size: bb_defaults[:state_size] || 16,
+    expand_factor: bb_defaults[:expand_factor] || 2,
+    conv_size: bb_defaults[:conv_size] || 4,
     learning_rate: learning_rate,
     lr_schedule: :cosine,
     warmup_steps: steps_per_epoch,
