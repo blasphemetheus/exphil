@@ -66,6 +66,15 @@ alias ExPhil.Embeddings
       {ExPhil.Agents.MewtwoTechChaseExpert, nil,
        "checkpoints/mewtwo_techchase_dagger_policy.bin", 16}
 
+    "mewtwo_combo" ->
+      # Composite: fair expert when the opponent stands, chase expert when
+      # they're down — the full approach->fair->knockdown->punish cycle
+      {ExPhil.Agents.MewtwoComboExpert,
+       "test/fixtures/replays/mewtwo_fair_chains.slp," <>
+         "test/fixtures/replays/mewtwo_shfair_only.slp," <>
+         "test/fixtures/replays/mewtwo_approach_fair.slp",
+       "checkpoints/mewtwo_combo_dagger_policy.bin", 16}
+
     other ->
       Output.error("Unknown expert #{inspect(other)} (multishine | mewtwo_fair | fox_recovery)")
       System.halt(1)
