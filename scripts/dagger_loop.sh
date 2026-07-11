@@ -91,6 +91,11 @@ for i in $(seq 1 "$ITERS"); do
     exit 1
   fi
 
+  # Orphaned Dolphins from crashed sessions hold the slippi port — a new
+  # session then connects to the corpse and sits at CHARACTER_SELECT
+  # forever (observed 2026-07-11). Clear strays before every probe.
+  pgrep -f "libmelee[_]" >/dev/null && { pkill -f "libmelee[_]"; sleep 2; }
+
   LAST_REPLAY=$(ls -t "$SLIPPI_DIR"/*.slp 2>/dev/null | head -1 || true)
   echo "[dagger_loop] playing solo probe..." | tee -a "$LOG"
 
