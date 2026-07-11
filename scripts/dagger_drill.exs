@@ -60,6 +60,12 @@ alias ExPhil.Embeddings
       # replay with offstage moments is a rollout to relabel
       {ExPhil.Agents.FoxRecoveryExpert, nil, "checkpoints/fox_recovery_dagger_policy.bin", 1}
 
+    "mewtwo_techchase" ->
+      # Rules-only REACTION drill: reads the opponent's tech choice from
+      # their action state. Rollouts = games vs --dummy tech_random.
+      {ExPhil.Agents.MewtwoTechChaseExpert, nil,
+       "checkpoints/mewtwo_techchase_dagger_policy.bin", 16}
+
     other ->
       Output.error("Unknown expert #{inspect(other)} (multishine | mewtwo_fair | fox_recovery)")
       System.halt(1)

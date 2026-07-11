@@ -49,6 +49,12 @@ case "$EXPERT" in
     # A solo recovery drill never goes offstage — needs pressure.
     DUMMY=${DUMMY:-cpu}
     ;;
+  mewtwo_techchase)
+    CHARACTER=${CHARACTER:-mewtwo}
+    TRACE=${TRACE:-scripts/trace_tech_chase.exs}
+    # Reaction drill needs randomized techs to read
+    DUMMY=${DUMMY:-tech_random}
+    ;;
   *)
     echo "Unknown EXPERT=$EXPERT (multishine | mewtwo_fair | fox_recovery)" >&2
     exit 1
