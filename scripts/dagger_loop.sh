@@ -96,6 +96,7 @@ for i in $(seq 1 "$ITERS"); do
   echo "[dagger_loop] === iteration $i/$ITERS: training -> $POLICY ===" | tee -a "$LOG"
 
   mix run scripts/dagger_drill.exs \
+    ${LR:+--lr "$LR"} \
     --expert "$EXPERT" \
     ${FIXTURE:+--fixture "$FIXTURE"} \
     --rollouts "$ROLLOUTS" \
