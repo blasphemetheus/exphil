@@ -164,6 +164,8 @@ defmodule ExPhil.CLI do
       desc: "CPU level for --dummy cpu (1-9)", group: [:dolphin]},
     %{name: :no_audio, flag: "--no-audio", type: :boolean, short: nil, default: false,
       desc: "Silence Dolphin (farm/unattended sessions)", group: [:dolphin]},
+    %{name: :connect_code, flag: "--connect-code", type: :string, short: nil, default: nil,
+      desc: "Slippi Direct netplay: connect to this code (e.g. ABCD#123). Requires a logged-in Slippi account in the local Dolphin User dir; disables dummies. Pair with a delay-robust model.", group: [:dolphin]},
 
     # PPO training flags (for train_ppo.exs)
     %{name: :pretrained, flag: "--pretrained", type: :string, short: nil, default: nil,

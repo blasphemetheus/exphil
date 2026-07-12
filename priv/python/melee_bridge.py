@@ -235,11 +235,23 @@ class MeleeBridge:
         try:
             logger.info(f"Initializing console at {dolphin_path}")
 
+            # Netplay (Slippi Direct, Phillip-style): the bot connects to an
+            # opponent's connect code. Requires the machine's own Dolphin
+            # User dir (with a logged-in Slippi account) copied into the
+            # temp home, and the online input delay the account plays at.
+            connect_code = config.get("connect_code") or ""
+            online = bool(connect_code)
+            self.connect_code = connect_code
+
             # Minimal config - don't pass our logger, libmelee expects its own interface
             self.console = melee.Console(
                 path=dolphin_path,
                 fullscreen=False,
+                online_delay=int(config.get("online_delay") or 0),
+                copy_home_directory=online,
             )
+            if online:
+                logger.info(f"Netplay mode: will connect to {connect_code}")
 
             # Enlarge the render window at the source: Console.__init__ wrote
             # Dolphin.ini into the temp User dir, and Dolphin reads it at
@@ -297,6 +309,9 @@ class MeleeBridge:
             # creates the controller for Elixir to drive via
             # send_controller(port: opponent_port).
             self.dummy_mode = config.get("dummy_mode", "none")
+            if online and self.dummy_mode != "none":
+                logger.warning("Netplay mode: opponent is remote — dummy disabled")
+                self.dummy_mode = "none"
             if self.dummy_mode != "none":
                 self.dummy_controller = melee.Controller(
                     console=self.console,
@@ -451,11 +466,14 @@ class MeleeBridge:
                 # MenuHelper is a stateful class in libmelee >= 0.40 —
                 # call on the instance created in init (static call shifts
                 # every argument into the wrong slot via self).
+                # With a connect_code, libmelee navigates Slippi Direct and
+                # connects to the remote opponent instead of local VS.
                 self.menu_helper.menu_helper_simple(
                     gamestate,
                     self.controller,
                     character,
                     stage,
+                    connect_code=getattr(self, "connect_code", "") or "",
                     autostart=True,
                     swag=False,
                 )

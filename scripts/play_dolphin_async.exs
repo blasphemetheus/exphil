@@ -134,6 +134,13 @@ Output.puts("  (This will launch Dolphin - make sure to plug in your controller!
 elixir_dummies = %{"tech_random" => ExPhil.Agents.Dummies.TechRandom}
 elixir_dummy = elixir_dummies[opts[:dummy]]
 
+# Netplay (Slippi Direct): opponent is remote — no dummy of any kind
+elixir_dummy = if opts[:connect_code], do: nil, else: elixir_dummy
+
+if opts[:connect_code] do
+  Output.puts("  Netplay: connecting to #{opts[:connect_code]} (dummies disabled)")
+end
+
 bridge_config = %{
   dolphin_path: opts[:dolphin],
   iso_path: opts[:iso],
@@ -143,10 +150,18 @@ bridge_config = %{
   stage: opts[:stage],
   online_delay: opts[:frame_delay],
   # Port-2 dummy for drills (none|stand|shield|jump|walk|cpu|tech_random)
-  dummy_mode: if(elixir_dummy, do: "external", else: opts[:dummy] || "none"),
+  dummy_mode:
+    cond do
+      opts[:connect_code] -> "none"
+      elixir_dummy -> "external"
+      true -> opts[:dummy] || "none"
+    end,
   dummy_character: opts[:dummy_character] || "fox",
   dummy_cpu_level: opts[:dummy_cpu_level] || 0,
-  no_audio: opts[:no_audio] || false
+  no_audio: opts[:no_audio] || false,
+  # Slippi Direct netplay (see docs/planning/YETI_DEBUT.md); online_delay
+  # rides the existing --frame-delay flag above
+  connect_code: opts[:connect_code]
 }
 
 case MeleePort.init_console(bridge, bridge_config, 60_000) do
