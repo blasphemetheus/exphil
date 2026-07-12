@@ -282,7 +282,11 @@ class MeleeBridge:
                 # keeps audio working. Farm/unattended sessions pass
                 # no_audio to silence the game entirely.
                 if self.config.get("no_audio"):
-                    ini.set("DSP", "Backend", "No Audio")
+                    # Backend name varies by Dolphin build ("No Audio" wasn't
+                    # honored by this one — sound persisted); Volume=0 is
+                    # unambiguous and always exists
+                    ini.set("DSP", "Backend", "No Audio Output")
+                    ini.set("DSP", "Volume", "0")
                 else:
                     ini.set("DSP", "Backend", "Pulse")
                 # ~1.94x native 640x528, fits a 1080p screen with bar

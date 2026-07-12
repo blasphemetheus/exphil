@@ -122,6 +122,7 @@ for i in $(seq 1 "$ITERS"); do
     ${DUMMY:+--dummy "$DUMMY"} \
     ${DUMMY:+--dummy-cpu-level "${DUMMY_CPU:-3}"} \
     --press-threshold "${PRESS:-0.45}" --release-threshold "${RELEASE:-0.3}" \
+    --no-audio \
     --deterministic --on-game-end stop >>"$LOG" 2>&1 || {
     echo "[dagger_loop] play session failed or timed out — aborting; see $LOG" | tee -a "$LOG"
     exit 1
