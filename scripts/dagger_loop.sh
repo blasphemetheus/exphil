@@ -26,6 +26,16 @@
 #
 # Each iteration takes ~10-30 min (training grows with the pool + one game).
 set -euo pipefail
+
+# Self-protect against hypridle's 40-minute idle suspend, which pauses
+# training mid-run (observed: a 2-iteration loop wall-clocked 5 hours
+# across suspends). Re-exec under a sleep inhibitor whose lifetime is the
+# whole run — a fixed-duration side inhibitor expires mid-loop.
+if [ -z "${DAGGER_LOOP_INHIBITED:-}" ] && command -v systemd-inhibit >/dev/null 2>&1; then
+  export DAGGER_LOOP_INHIBITED=1
+  exec systemd-inhibit --what=sleep --who="dagger_loop" \
+    --why="drill DAgger rounds in progress" "$0" "$@"
+fi
 cd "$(dirname "$0")/.."
 
 ITERS=${1:-3}
