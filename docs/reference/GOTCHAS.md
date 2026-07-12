@@ -2381,3 +2381,27 @@ signed integer field (-1/+1 conventions are common in game data) silently
 saturates. Audit pattern: `grep 'bool_embed' | grep -v` known-boolean fields.
 **All checkpoints trained before 2026-07-08 are facing-blind** — retraining
 picks up the signal for free.
+
+## 56. "No Audio Output" DSP backend silently removes the emulation-speed throttle
+
+**Symptom:** unattended play sessions die with `melee.slippstream.EnetDisconnected`
+after a few minutes; the game plays badly (missed techs, sparse inputs, bot
+loses to a scripted dummy it normally beats); `[Stats]` lines show impossible
+fps (`522.4/60 fps`); the session hangs ~30s at game end then the
+`{:step, auto_menu}` GenServer call times out and everything cascades down.
+
+**Cause:** on Slippi's Dolphin 5.0 base, audio buffering against a real DSP
+backend is what paces the emulation core. Selecting the null backend
+(`Backend = No Audio Output`) unthrottles it — this is exactly how slippi-ai
+implements fast-forward rollouts on purpose. `EmulationSpeed = 1.0` in [Core]
+does not save you. The policy (~62 inferences/s) then acts on ~1 of every 8
+frames, and the game-end transition stalls the frame stream.
+
+**Fix (2026-07-12, 407701b):** `no_audio` mode in `melee_bridge.py` keeps
+`Backend = Pulse` and silences with `Volume = 0` only. Silent AND paced.
+
+**Lesson:** if a probe's fps stat isn't ~60/60, stop trusting everything
+downstream — the replay is garbage for training (bot inputs are sparse) and
+the crash signatures (EnetDisconnected, step timeouts) are symptoms, not
+causes. Four replays from 2026-07-12 03:10–03:40 are poisoned this way; they
+live in `~/Slippi/2026-07/` and must not enter training pools.
