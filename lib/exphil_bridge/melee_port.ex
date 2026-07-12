@@ -413,6 +413,12 @@ defmodule ExPhil.Bridge.MeleePort do
     |> Map.new()
   end
 
+  # nil/true/false ARE atoms — Atom.to_string(nil) == "nil", which is TRUTHY
+  # in Python and switched the bridge into netplay mode with connect code
+  # "nil". JSON carries these natively; only bare atoms (:fox etc.) need
+  # stringifying.
+  defp normalize_value(nil), do: nil
+  defp normalize_value(v) when is_boolean(v), do: v
   defp normalize_value(v) when is_atom(v), do: Atom.to_string(v)
   defp normalize_value(v), do: v
 
