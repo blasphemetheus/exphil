@@ -282,10 +282,14 @@ class MeleeBridge:
                 # keeps audio working. Farm/unattended sessions pass
                 # no_audio to silence the game entirely.
                 if self.config.get("no_audio"):
-                    # Backend name varies by Dolphin build ("No Audio" wasn't
-                    # honored by this one — sound persisted); Volume=0 is
-                    # unambiguous and always exists
-                    ini.set("DSP", "Backend", "No Audio Output")
+                    # Keep a REAL backend even when silent: on Slippi's
+                    # Dolphin 5.0 base the null backend ("No Audio Output")
+                    # removes the emulation-speed throttle — games ran at
+                    # ~520fps, the policy only saw 1 in ~8 frames, and the
+                    # game-end transition hung the frame stream (observed
+                    # 2026-07-12, four probes in a row). Volume=0 on Pulse
+                    # is silent AND paced.
+                    ini.set("DSP", "Backend", "Pulse")
                     ini.set("DSP", "Volume", "0")
                 else:
                     ini.set("DSP", "Backend", "Pulse")
