@@ -2405,3 +2405,40 @@ downstream — the replay is garbage for training (bot inputs are sparse) and
 the crash signatures (EnetDisconnected, step timeouts) are symptoms, not
 causes. Four replays from 2026-07-12 03:10–03:40 are poisoned this way; they
 live in `~/Slippi/2026-07/` and must not enter training pools.
+
+## 57. --dummy-cpu-level > 0 makes the game AI own the port — Elixir-driven dummies press into a void
+
+**Symptom:** the `tech_random` dummy never techs (0 successful techs in 91
+knockdowns across 12 probe games); its digital R presses are visible in the
+replay's port-2 controller stream, in-window, sometimes held through
+touchdown — and the character DownBounds anyway.
+
+**Cause:** `menu_helper_simple(..., cpu_level=dummy_cpu_level)` — any
+cpu_level > 0 configures the port as a game-AI CPU at character select. The
+game ignores the pipe controller's in-game inputs (Slippi still RECORDS
+them — polled but unused, which makes the replay actively misleading). Every
+tech_random recipe passed `--dummy-cpu-level 3`, so the "reaction dummy" was
+a vanilla lvl-3 CPU Fox for the entire combo-drill era (2026-07-08..13).
+
+**Fix:** `--dummy-cpu-level 0` for `external`/scripted dummy modes (now the
+dagger_loop.sh default); cpu_level > 0 belongs only with `DUMMY=cpu`.
+
+**Lesson (interp roadmap P1):** this was caught by ground-truth probing —
+degenerate single-class labels (tech_choice never had a second class) made
+probe accuracies read 1.000 everywhere. If a probe result looks too good,
+check the LABEL distribution before theorizing about representations.
+
+## 58. The final probe's Dolphin can orphan at menus — and record garbage replays
+
+**Symptom:** after a probe loop finishes, a Dolphin instance survives at
+character/stage select (the loop's stray-kill only runs BEFORE each probe;
+the last probe's Dolphin has no successor to clean it up). Worse, an
+orphan can record a >500KB replay with nobody driving either port —
+which passes the pool-sweep size filter and would enter a future training
+pool as garbage (observed 2026-07-15: Game_20260715T121825.slp, 584KB,
+quarantined to ~/Slippi/quarantine/).
+
+**Fix:** loop scripts should kill `/tmp/libmelee_`-matched processes once
+more AFTER the final probe; when sweeping replays into pools, prefer
+explicit lists over size-filtered globs, and check knockdown/action
+content (ReplayStats.summarize) before ingesting unknown files.

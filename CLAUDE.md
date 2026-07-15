@@ -238,6 +238,23 @@ See [GOTCHAS.md](docs/reference/GOTCHAS.md) for detailed fixes. Most common issu
 
 ## Development Practices
 
+**Build the time-savers first — never re-run the boring part twice.**
+When an investigation requires expensive runs (training to a failure point,
+long probes), invest in capture/replay infrastructure BEFORE iterating on
+hypotheses:
+- **Capture the crime scene**: when a detector trips, serialize everything
+  needed to replay the event offline (batch + params + optimizer state).
+  One saved fatal step turns hour-long reproductions into second-long
+  replays with unlimited re-examination (f32 vs bf16, op bisection, ...).
+- **Checkpoint the cliff**: on a doomed run, save full trainer state just
+  before the failure zone so later experiments resume from the cliff
+  instead of from scratch (~10x). Failure regimes here are state-driven
+  (weight scale, loss band), not exact-step-driven — approximate resume
+  re-enters the regime fine.
+- Case study: the 2026-07 NaN hunt re-paid a 40-90 min approach five times
+  before building these; each hypothesis after the fatal-batch capture
+  would have cost seconds.
+
 **File operations:**
 - Use the Write tool for creating new files, not Bash with cat/heredoc
 - Use the Edit tool for modifying existing files
@@ -249,6 +266,12 @@ See [GOTCHAS.md](docs/reference/GOTCHAS.md) for detailed fixes. Most common issu
   process with SIGSEGV/SIGBUS (affects all repos sharing EXLA: nx, exphil, edifice).
 - **On the dev machine (`nixos_slanka`) with training active:** do NOT run `mix`. Edit files
   freely; just don't invoke `mix` until the run finishes.
+- **EXCEPTION — multi-stage loops:** a drill/probe LOOP invokes a fresh `mix run`
+  per stage, and each invocation recompiles changed `.ex` files. Editing lib
+  files while a loop is active injects your (possibly broken) code into its
+  next stage — a mid-loop compile error killed round-4 probes + round-5
+  training on 2026-07-15. While any loop script is running: edit only `.exs`
+  scripts it doesn't call, docs, or other repos.
 - **In cloud / CI / any session with no training running:** run `mix` freely — there's no live
   process to kill, and running the tests is exactly what you want. This rule does not apply here.
 - Rule of thumb: if a GPU training job is in flight, hold off on `mix`; otherwise go ahead.
@@ -293,6 +316,21 @@ The table format `| Option | Default | Description |` in TRAINING.md ensures:
 - Verification: easy to cross-reference against `@valid_flags` to catch drift
 
 ## Script Logging & UX Standards
+
+**Interim progress must be observable — never bury a long run behind a
+buffering pipe.** Piping a script through `tail`/`head`/`grep` without
+`tee` holds ALL output until exit: a 20-minute hang becomes unreadable
+(observed 2026-07-14 — an XLA-compile hang was invisible because the runner
+piped through `tail -14`). Every script that can run >1 min tees to a log
+file; launchers read the log, not the pipe.
+
+**Nx.LinAlg `eigh`/`svd` on EXLA can hang the session in XLA COMPILATION**
+(pure-defn implementations unroll iteration loops into enormous graphs;
+f64 makes it worse — 20+ min single-core compile for a 256×256 eigh).
+For small matrices, run decompositions on `Nx.BinaryBackend` — and scope
+`Nx.default_backend/1` around that stage so ops' internally-created
+tensors (iotas, indices) land on the same backend (mixed backends crash
+inconsistently: some ops tolerate, some don't — don't rely on it).
 
 All scripts use `ExPhil.Training.Output` for consistent, informative output. Key conventions:
 
