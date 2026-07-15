@@ -49,8 +49,8 @@ defmodule ExPhil.Agents.MewtwoFairExpertTest do
       fair_fine =
         expert.fine
         |> Map.keys()
-        |> Enum.filter(fn {a, _, _, _, _, _} -> a == 66 end)
-        |> Enum.group_by(fn {_, af, _, _, _, _} -> af end)
+        |> Enum.filter(fn {a, _, _, _, _, _, _} -> a == 66 end)
+        |> Enum.group_by(fn {_, af, _, _, _, _, _} -> af end)
 
       assert Enum.any?(fair_fine, fn {_af, keys} -> length(keys) > 1 end),
              "expected at least one action_frame with multiple physics variants"

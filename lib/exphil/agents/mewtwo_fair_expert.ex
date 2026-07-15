@@ -151,7 +151,24 @@ defmodule ExPhil.Agents.MewtwoFairExpert do
 
   defp fine_key(player, opponent) do
     {trunc(player.action), trunc(player.action_frame), player.on_ground,
-     player.jumps_left || 0, height_bucket(player.y), distance_bucket(player, opponent)}
+     player.jumps_left || 0, height_bucket(player.y), distance_bucket(player, opponent),
+     side_bucket(player, opponent)}
+  end
+
+  # Facing-relative side of the opponent: 1 = in front, -1 = behind, :na
+  # when unknown. The key was previously UNSIGNED (abs distance only), so
+  # the table could not distinguish opponent-in-front from opponent-behind
+  # — the policy faithfully learned direction-blind fairs (the
+  # fair-in-place-while-Fox-stands-behind loop; interp case #3,
+  # 2026-07-15). Signing the key also unlocks the turnaround exemplars
+  # already present in the recordings, which unsigned buckets averaged
+  # away. Sparsity cost: keys double; coarse-key fallback covers gaps.
+  defp side_bucket(_player, nil), do: :na
+
+  defp side_bucket(player, opponent) do
+    dx = (opponent.x || 0.0) - (player.x || 0.0)
+    facing = if (player.facing || 1) >= 0, do: 1, else: -1
+    if dx * facing >= 0, do: 1, else: -1
   end
 
   # Horizontal gap to the opponent, in 15-unit buckets capped at 4 (60+

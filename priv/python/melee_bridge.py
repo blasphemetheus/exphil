@@ -322,6 +322,23 @@ class MeleeBridge:
             if online and self.dummy_mode != "none":
                 logger.warning("Netplay mode: opponent is remote — dummy disabled")
                 self.dummy_mode = "none"
+            # GOTCHAS #57 guard: a cpu_level > 0 makes the game AI own the
+            # port at character select — driven dummies (external/scripted)
+            # then press into a void while Slippi records their ghost
+            # inputs. This exact combination silently replaced the
+            # tech_random dummy with a lvl-3 CPU for the entire combo-drill
+            # era (2026-07-08..13). Zero it and shout.
+            driven_modes = ("external", "stand", "shield", "jump", "walk")
+            if self.dummy_mode in driven_modes and \
+                    int(config.get("dummy_cpu_level", 0)) > 0:
+                logger.error(
+                    "dummy_mode=%s is controller-driven but dummy_cpu_level=%s "
+                    "would hand the port to the game AI (inputs ignored). "
+                    "Forcing cpu_level=0. Use dummy_mode='cpu' for a CPU opponent.",
+                    self.dummy_mode, config.get("dummy_cpu_level"),
+                )
+                config["dummy_cpu_level"] = 0
+                self.config["dummy_cpu_level"] = 0
             if self.dummy_mode != "none":
                 self.dummy_controller = melee.Controller(
                     console=self.console,

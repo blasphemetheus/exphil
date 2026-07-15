@@ -19,10 +19,16 @@ defmodule ExPhil.Agents.Dummies.TechRandom do
 
   Stateless between knockdowns: any non-knockdown action resets the plan.
 
+  Between knockdowns it isn't a statue (2026-07-14): it walks toward the
+  bot and occasionally holds shield for ~20-40 frames — enough pressure to
+  create real approach/knockdown situations without fighting back. (The
+  movement role was previously played, unintentionally, by a lvl-3 CPU —
+  see GOTCHAS #57.)
+
   ## Usage (pure step function)
 
       state = TechRandom.new()
-      {input, state} = TechRandom.step(opponent_player, state)
+      {input, state} = TechRandom.step(dummy_player, bot_player, state)
       MeleePort.send_controller(bridge, Map.put(input, :port, 2))
   """
 
@@ -36,24 +42,38 @@ defmodule ExPhil.Agents.Dummies.TechRandom do
   @down_wait [184, 192]
 
   # Height below which the tech press fires (falling in a hit state —
-  # touchdown lands within the ~20-frame tech window)
-  @tech_height 12.0
+  # touchdown lands within the ~20-frame tech window).
+  # 2026-07-13: raised 12.0 → 18.0 and press burst 2 → 8 frames after
+  # ground-truth audit found 0 successful techs in 91 knockdowns — the old
+  # 2-frame press at ~5-9 frames pre-touchdown was recorded by the console
+  # (visible in replays) yet never produced Passive states. A longer burst
+  # starting earlier keeps the press inside the 20-frame window while
+  # covering bridge latency and polling edges.
+  @tech_height 18.0
 
-  defstruct plan: nil, delay: 0, press_frames: 0
+  defstruct plan: nil, delay: 0, press_frames: 0, idle: nil
 
   @type t :: %__MODULE__{}
 
   @spec new() :: t()
   def new, do: %__MODULE__{}
 
+  # How close (x units) the dummy walks before stopping
+  @walk_stop_distance 15.0
+  # Per-frame chance of starting a shield hold while idling
+  @shield_chance 0.008
+
   @doc """
   Compute this frame's input for the dummy. Returns `{input_map, new_state}`;
-  the input is always a complete controller map (neutral when idle).
+  the input is always a complete controller map. `foe` (the bot's player
+  state) drives the walk-toward idle behavior; nil falls back to standing.
   """
-  @spec step(map() | nil, t()) :: {map(), t()}
-  def step(nil, _state), do: {neutral(), new()}
+  @spec step(map() | nil, map() | nil, t()) :: {map(), t()}
+  def step(player, foe \\ nil, s)
 
-  def step(player, %__MODULE__{} = s) do
+  def step(nil, _foe, _state), do: {neutral(), new()}
+
+  def step(player, foe, %__MODULE__{} = s) do
     action = trunc(player.action || 0)
 
     cond do
@@ -86,10 +106,45 @@ defmodule ExPhil.Agents.Dummies.TechRandom do
         end
 
       true ->
-        # Out of the knockdown lifecycle: fresh plan next time
-        {neutral(), new()}
+        # Out of the knockdown lifecycle: reset the knockdown plan, keep
+        # idling — walk toward the bot, occasionally hold shield
+        idle_step(player, foe, %{s | plan: nil, delay: 0, press_frames: 0})
     end
   end
+
+  # -- Idle behavior --------------------------------------------------------------
+
+  defp idle_step(player, foe, s) do
+    case s.idle do
+      {:shield, n} when n > 0 ->
+        {shield_input(), %{s | idle: {:shield, n - 1}}}
+
+      _ ->
+        if :rand.uniform() < @shield_chance do
+          {shield_input(), %{s | idle: {:shield, 20 + :rand.uniform(20)}}}
+        else
+          {walk_input(player, foe), %{s | idle: nil}}
+        end
+    end
+  end
+
+  defp walk_input(player, foe) do
+    dx = if foe, do: (foe.x || 0.0) - (player.x || 0.0), else: 0.0
+
+    cond do
+      foe == nil or abs(dx) < @walk_stop_distance ->
+        neutral()
+
+      dx > 0 ->
+        # Partial tilt = walk (full deflection would dash)
+        %{neutral() | main_stick: %{x: 0.65, y: 0.5}}
+
+      true ->
+        %{neutral() | main_stick: %{x: 0.35, y: 0.5}}
+    end
+  end
+
+  defp shield_input, do: %{neutral() | shoulder: 1.0}
 
   # -- Plans --------------------------------------------------------------------
 
@@ -104,7 +159,7 @@ defmodule ExPhil.Agents.Dummies.TechRandom do
         :miss
       end
 
-    %{s | plan: plan, press_frames: 2}
+    %{s | plan: plan, press_frames: 8}
   end
 
   defp ensure_getup_plan(%{plan: {:getup, _}} = s), do: s
