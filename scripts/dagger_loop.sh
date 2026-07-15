@@ -15,7 +15,10 @@
 #               from other drills; pass ROLLOUTS explicitly on mixed days)
 #   DUMMY       scripted port-2 dummy for probe games:
 #               stand|shield|jump|walk|cpu|tech_random (default: none)
-#   DUMMY_CPU   CPU level when DUMMY=cpu (default 3)
+#   DUMMY_CPU   CPU level (default 0 = human port so Elixir-driven dummies
+#               actually control the character; ONLY set >0 for DUMMY=cpu —
+#               a CPU level makes the game AI own the port and ignore
+#               tech_random/scripted inputs entirely, GOTCHAS #57)
 #   PRESS/RELEASE  button hysteresis thresholds for probes (default
 #               0.45/0.3 — drill policies are systematically
 #               under-confident; the flat 0.5 cut dropped most intended
@@ -110,7 +113,7 @@ for i in $(seq 1 "$ITERS"); do
   # Orphaned Dolphins from crashed sessions hold the slippi port — a new
   # session then connects to the corpse and sits at CHARACTER_SELECT
   # forever (observed 2026-07-11). Clear strays before every probe.
-  pgrep -f "libmelee[_]" >/dev/null && { pkill -f "libmelee[_]"; sleep 2; }
+  pgrep -f "/tmp/libmelee_" >/dev/null && { pkill -f "/tmp/libmelee_"; sleep 2; }
 
   LAST_REPLAY=$(ls -t "$SLIPPI_DIR"/*.slp 2>/dev/null | head -1 || true)
   echo "[dagger_loop] playing solo probe..." | tee -a "$LOG"
@@ -120,7 +123,7 @@ for i in $(seq 1 "$ITERS"); do
     --dolphin "$DOLPHIN" --iso "$ISO" \
     --character "$CHARACTER" --stage final_destination \
     ${DUMMY:+--dummy "$DUMMY"} \
-    ${DUMMY:+--dummy-cpu-level "${DUMMY_CPU:-3}"} \
+    ${DUMMY:+--dummy-cpu-level "${DUMMY_CPU:-0}"} \
     --press-threshold "${PRESS:-0.45}" --release-threshold "${RELEASE:-0.3}" \
     --no-audio \
     --deterministic --on-game-end stop >>"$LOG" 2>&1 || {

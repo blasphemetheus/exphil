@@ -2113,7 +2113,8 @@ defmodule ExPhil.Training.Data do
         drop_last: drop_last,
         seed: seed,
         character_weights: character_weights,
-        neutral_weight: Keyword.get(opts, :neutral_weight, 0.25)
+        neutral_weight: Keyword.get(opts, :neutral_weight, 0.25),
+        transition_weight: Keyword.get(opts, :transition_weight)
       )
     else
       # Eager mode: use pre-built sequence embeddings (high RAM, fast batching)
@@ -2335,24 +2336,43 @@ defmodule ExPhil.Training.Data do
     gpu = Keyword.get(opts, :gpu, true)
     use_batch = Keyword.get(opts, :use_batch, false)
     neutral_weight = Keyword.get(opts, :neutral_weight, 0.25)
+    transition_weight = Keyword.get(opts, :transition_weight)
 
     # Create batch stream with lazy slicing
     indices
     |> Enum.chunk_every(batch_size)
     |> maybe_drop_last(drop_last, batch_size)
     |> Stream.map(fn batch_indices ->
-      create_sequence_batch_lazy(chunks_array, chunk_size, frames_array, batch_indices, window_size, stride, embed_dim, gpu, use_batch, neutral_weight)
+      create_sequence_batch_lazy(chunks_array, chunk_size, frames_array, batch_indices, window_size, stride, embed_dim, gpu, use_batch, neutral_weight, transition_weight)
     end)
   end
 
   # Lazy batch creation - slices sequences from chunked frame embeddings on-the-fly
-  defp create_sequence_batch_lazy(chunks_array, chunk_size, frames_array, indices, window_size, stride, embed_dim, gpu, use_batch, neutral_weight) do
+  defp create_sequence_batch_lazy(chunks_array, chunk_size, frames_array, indices, window_size, stride, embed_dim, gpu, use_batch, neutral_weight, transition_weight \\ nil) do
     # Slice sequences from chunked embeddings (fast: 16K-row chunks vs 1.26M-row tensor)
     sequences =
       Enum.map(indices, fn seq_idx ->
         frame_start = seq_idx * stride
         slice_from_chunks(chunks_array, chunk_size, frame_start, window_size, embed_dim)
       end)
+
+    # Previous-frame actions for transition weighting (anti-copycat,
+    # task #19): frames where the action CHANGES are where the policy must
+    # learn state-driven switching instead of leaning on the a_{t-1} echo —
+    # copy frames (~90% of data) otherwise dominate the loss.
+    prev_actions =
+      if transition_weight do
+        Enum.map(indices, fn seq_idx ->
+          frame_idx = seq_idx * stride + window_size - 2
+
+          case :array.get(max(frame_idx, 0), frames_array) do
+            :undefined -> nil
+            frame -> get_action(frame)
+          end
+        end)
+      else
+        nil
+      end
 
     # Get actions from frames (use last frame of each sequence window)
     actions =
@@ -2387,7 +2407,12 @@ defmodule ExPhil.Training.Data do
       states_batch = Nx.Batch.stack(sequences)
       action_tensors = actions_to_tensors(actions)
       # Action tensors stay eager (small, not worth deferring)
-      frame_weights = compute_frame_weights(actions, neutral_weight: neutral_weight)
+      frame_weights =
+        compute_frame_weights(actions,
+          neutral_weight: neutral_weight,
+          transition_weight: transition_weight,
+          prev_actions: prev_actions
+        )
 
       %{states: states_batch, actions: action_tensors, frame_weights: frame_weights}
     else
@@ -2400,7 +2425,13 @@ defmodule ExPhil.Training.Data do
 
       # Per-frame loss weights: action frames get 1.0, neutral frames get neutral_weight
       # This prevents mode collapse on large datasets where neutral dominates
-      frame_weights = compute_frame_weights(actions, neutral_weight: neutral_weight)
+      frame_weights =
+        compute_frame_weights(actions,
+          neutral_weight: neutral_weight,
+          transition_weight: transition_weight,
+          prev_actions: prev_actions
+        )
+
       frame_weights = if gpu, do: Nx.backend_transfer(frame_weights, EXLA.Backend), else: frame_weights
 
       %{states: states, actions: action_tensors, frame_weights: frame_weights}
@@ -2418,13 +2449,39 @@ defmodule ExPhil.Training.Data do
   """
   def compute_frame_weights(actions, opts \\ []) when is_list(actions) do
     neutral_w = Keyword.get(opts, :neutral_weight, 0.25)
-    weights = Enum.map(actions, fn action ->
-      buttons = action[:buttons] || %{}
-      any_button = Enum.any?(buttons, fn {_k, v} -> v == true end)
-      stick_moved = (action[:main_x] || 8) != 8 or (action[:main_y] || 8) != 8
-      if any_button or stick_moved, do: 1.0, else: neutral_w
-    end)
+    transition_w = Keyword.get(opts, :transition_weight)
+    prev_actions = Keyword.get(opts, :prev_actions)
+
+    base =
+      Enum.map(actions, fn action ->
+        buttons = action[:buttons] || %{}
+        any_button = Enum.any?(buttons, fn {_k, v} -> v == true end)
+        stick_moved = (action[:main_x] || 8) != 8 or (action[:main_y] || 8) != 8
+        if any_button or stick_moved, do: 1.0, else: neutral_w
+      end)
+
+    # Transition upweighting (anti-copycat, task #19): frames where the
+    # action DIFFERS from the previous frame get `transition_weight` —
+    # these are the state-driven switching decisions the copy shortcut
+    # cannot predict. ~90% of frames are copies; without this the loss is
+    # dominated by "repeat a_{t-1}".
+    weights =
+      if transition_w && prev_actions do
+        Enum.zip_with([base, actions, prev_actions], fn [w, a, prev] ->
+          if prev != nil and action_differs?(a, prev), do: max(w, transition_w * 1.0), else: w
+        end)
+      else
+        base
+      end
+
     Nx.tensor(weights, type: :f32)
+  end
+
+  # Meaningful action change: any button toggled or a stick/shoulder bucket
+  # moved between consecutive frames
+  defp action_differs?(a, prev) do
+    keys = [:buttons, :main_x, :main_y, :c_x, :c_y, :shoulder]
+    Enum.any?(keys, fn k -> Map.get(a, k) != Map.get(prev, k) end)
   end
 
   # Get frame embeddings as a chunked structure for fast slicing.

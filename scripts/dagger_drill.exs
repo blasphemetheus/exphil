@@ -32,7 +32,14 @@ alias ExPhil.Embeddings
       prev_action_dropout: :float,
       port: :integer,
       lr: :float,
-      backbone: :string
+      backbone: :string,
+      target_loss: :float,
+      max_epochs: :integer,
+      nan_forensics: :boolean,
+      mixed_precision: :boolean,
+      window: :integer,
+      transition_weight: :float,
+      debug_grads_after: :integer
     ]
   )
 
@@ -52,7 +59,8 @@ alias ExPhil.Embeddings
       {ExPhil.Agents.MewtwoFairExpert,
        "test/fixtures/replays/mewtwo_fair_chains.slp," <>
          "test/fixtures/replays/mewtwo_shfair_only.slp," <>
-         "test/fixtures/replays/mewtwo_approach_fair.slp",
+         "test/fixtures/replays/mewtwo_approach_fair.slp," <>
+         "test/fixtures/replays/mewtwo_turnaround_fair.slp",
        "checkpoints/mewtwo_fair_dagger_policy.bin", 16}
 
     "fox_recovery" ->
@@ -72,7 +80,8 @@ alias ExPhil.Embeddings
       {ExPhil.Agents.MewtwoComboExpert,
        "test/fixtures/replays/mewtwo_fair_chains.slp," <>
          "test/fixtures/replays/mewtwo_shfair_only.slp," <>
-         "test/fixtures/replays/mewtwo_approach_fair.slp",
+         "test/fixtures/replays/mewtwo_approach_fair.slp," <>
+         "test/fixtures/replays/mewtwo_turnaround_fair.slp",
        "checkpoints/mewtwo_combo_dagger_policy.bin", 16}
 
     other ->
@@ -102,7 +111,15 @@ learning_rate = opts[:lr] || 2.0e-4
 # under the GRU drill shape (window 16, 1 layer) diverges at epoch 4.
 backbone = String.to_atom(opts[:backbone] || "gru")
 bb_defaults = ExPhil.Training.Config.backbone_defaults(backbone) || []
-window = bb_defaults[:window_size] || 16
+# --window overrides bb_defaults (gru default is 60 — NOT 16; the || 16
+# fallback below never fires for known backbones). Exploding-BPTT
+# hypothesis (2026-07-13): both forensics runs detonated at param_max ~5.2
+# regardless of precision — 60 backward Jacobians overflow at a critical
+# weight scale. Shorter windows raise that ceiling steeply.
+# Fallbacks match the common bb_defaults values (60/2) so they can't lie —
+# the old `|| 16` never fired for any known backbone yet had the whole team
+# believing "window 16" for a week (2026-07-13 discovery).
+window = opts[:window] || bb_defaults[:window_size] || 60
 
 rollout_paths =
   (opts[:rollouts] || "")
@@ -275,28 +292,140 @@ trainer =
     backbone: backbone,
     window_size: window,
     hidden_size: 256,
-    num_layers: bb_defaults[:num_layers] || 1,
+    num_layers: bb_defaults[:num_layers] || 2,
     state_size: bb_defaults[:state_size] || 16,
     expand_factor: bb_defaults[:expand_factor] || 2,
     conv_size: bb_defaults[:conv_size] || 4,
+    # DELIBERATE divergences from bb_defaults (which also carry
+    # precision: :f32 and dropout: 0.1 for recurrent backbones):
+    #   precision — stays bf16 for speed; the NaN instability that
+    #     motivated bb_defaults' f32 is fixed at the loss boundary
+    #     (Policy.Loss.imitation_loss casts to f32, 2026-07-14).
+    #   dropout 0.0 — drills WANT memorization of the expert table.
     learning_rate: learning_rate,
     lr_schedule: :cosine,
     warmup_steps: steps_per_epoch,
     decay_steps: steps_per_epoch * 200,
     max_grad_norm: 0.5,
     label_smoothing: 0.0,
-    dropout: 0.0
+    dropout: 0.0,
+    # --mixed-precision: FP32 master weights + BF16 compute. (Tested
+    # 2026-07-13: does NOT fix the NaN detonations — kept for future use.)
+    mixed_precision: opts[:mixed_precision] || false,
+    # --debug-grads-after N: from step N on, fused per-step grad finiteness
+    # check; per-layer dump on the first non-finite step (GRAD_DETONATION).
+    debug_grads_after: opts[:debug_grads_after]
   )
 
 {_predict_fn, loss_fn} = Imitation.build_loss_fn(trainer.policy_model)
 
-memorized_loss = 2.0e-3
-max_epochs = 1000
+# --target-loss: stop as soon as loss drops below this. The default (2e-3)
+# trains to memorization — but live scores peak at MODERATE loss (36.4%
+# conversion from a 0.16-loss export, 23.1% from 0.08) and collapse to 0%
+# at the floor (0.002-loss policy = statue, 2026-07-12). Pass ~0.08-0.15
+# to export in the behaviorally-alive band.
+memorized_loss = opts[:target_loss] || 2.0e-3
+max_epochs = opts[:max_epochs] || 1000
 
-# Track the best epoch so a late divergence still exports a usable policy
+# --nan-forensics: per-batch loss finiteness checks plus a trail of numeric
+# vitals (param max/norm, adam mu/nu extremes, nu zero-fraction) sampled
+# every 100 optimizer steps. On the first non-finite loss: dump the trail,
+# halt(2). Discriminates the two live NaN mechanisms:
+#   optimizer-spike (pure-bf16 stale second moment) -> param_max modest,
+#     nu_zero_frac high/stale, then a single-step blowup;
+#   forward overflow -> param_max grinding upward over thousands of steps.
+nan_forensics = opts[:nan_forensics] || false
+
+# Float tensors only: ModelState.data also carries integer RNG-key tensors
+# (observed u32 ~2.46e9) that poison max/norm stats and wrap on squaring.
+flatten_tensors = fn data ->
+  walk = fn walk, v ->
+    cond do
+      is_struct(v, Nx.Tensor) ->
+        case Nx.type(v) do
+          {:f, _} -> [v]
+          {:bf, _} -> [v]
+          _ -> []
+        end
+
+      is_struct(v) -> []
+      is_map(v) -> v |> Map.values() |> Enum.flat_map(&walk.(walk, &1))
+      is_tuple(v) -> v |> Tuple.to_list() |> Enum.flat_map(&walk.(walk, &1))
+      true -> []
+    end
+  end
+
+  walk.(walk, data)
+end
+
+# Adam(W) state lives somewhere inside the composed optimizer state tuple —
+# find the first map holding :mu and :nu rather than hardcoding the nesting.
+find_adam_state = fn state ->
+  find = fn find, v ->
+    cond do
+      is_map(v) and not is_struct(v) and Map.has_key?(v, :mu) and Map.has_key?(v, :nu) -> v
+      is_tuple(v) -> v |> Tuple.to_list() |> Enum.find_value(&find.(find, &1))
+      is_map(v) and not is_struct(v) -> v |> Map.values() |> Enum.find_value(&find.(find, &1))
+      true -> nil
+    end
+  end
+
+  find.(find, state)
+end
+
+safe_max = fn nums ->
+  if nums != [] and Enum.all?(nums, &is_number/1), do: Enum.max(nums), else: :nan
+end
+
+numeric_stats = fn tr_now ->
+  params = flatten_tensors.(tr_now.policy_params.data)
+  param_maxes = Enum.map(params, fn t -> Nx.abs(t) |> Nx.reduce_max() |> Nx.to_number() end)
+  param_sq = Enum.map(params, fn t -> Nx.multiply(t, t) |> Nx.sum() |> Nx.to_number() end)
+
+  {mu_max, nu_max, nu_zero_frac} =
+    case find_adam_state.(tr_now.optimizer_state) do
+      %{mu: mu, nu: nu} ->
+        mus = flatten_tensors.(mu)
+        nus = flatten_tensors.(nu)
+        nu_total = nus |> Enum.map(&Nx.size/1) |> Enum.sum()
+
+        nu_zeros =
+          nus
+          |> Enum.map(fn t -> Nx.equal(t, 0.0) |> Nx.sum() |> Nx.to_number() end)
+          |> Enum.sum()
+
+        {safe_max.(Enum.map(mus, fn t -> Nx.abs(t) |> Nx.reduce_max() |> Nx.to_number() end)),
+         safe_max.(Enum.map(nus, fn t -> Nx.reduce_max(t) |> Nx.to_number() end)),
+         Float.round(nu_zeros / max(nu_total, 1), 4)}
+
+      _ ->
+        {nil, nil, nil}
+    end
+
+  %{
+    param_max: safe_max.(param_maxes),
+    param_norm:
+      if(Enum.all?(param_sq, &is_number/1),
+        do: Float.round(:math.sqrt(Enum.sum(param_sq)), 3),
+        else: :nan
+      ),
+    mu_max: mu_max,
+    nu_max: nu_max,
+    nu_zero_frac: nu_zero_frac
+  }
+end
+
+# Track the best epoch so a late divergence still exports a usable policy.
+# On NaN, restore the best params and CONTINUE (up to 5 restores) instead of
+# halting: every LR >= 1.5e-4 run NaN'd mid-run (5-for-5 at 2e-4, 2026-07-13)
+# and halting forfeits the rest of the epoch budget. The shuffle seed varies
+# by epoch so a restored retry sees a different batch order rather than
+# deterministically re-diverging (grad clipping 0.5 is already on; these
+# NaNs are forward-pass overflows, so a fresh trajectory is the only out).
 {best, final_loss, epochs_used} =
-  Enum.reduce_while(1..max_epochs, {trainer, nil, 0, [], nil}, fn epoch,
-                                                                  {tr, _, _, history, best} ->
+  Enum.reduce_while(1..max_epochs, {trainer, nil, 0, [], nil, 0}, fn epoch,
+                                                                     {tr, _, _, history, best,
+                                                                      restores} ->
     {tr, epoch_loss} =
       dataset
       |> Data.batched_sequences(
@@ -306,11 +435,78 @@ max_epochs = 1000
         lazy: true,
         shuffle: true,
         drop_last: false,
-        seed: 42
+        seed: 42 + epoch,
+        transition_weight: opts[:transition_weight]
       )
-      |> Enum.reduce({tr, nil}, fn batch, {tr_acc, _} ->
-        {tr_next, metrics} = Imitation.train_step(tr_acc, batch, loss_fn)
-        {tr_next, metrics.loss}
+      |> then(fn batches ->
+        if nan_forensics do
+          batches
+          |> Enum.reduce_while({tr, nil, []}, fn batch, {tr_acc, _, trail} ->
+            {tr_next, metrics} = Imitation.train_step(tr_acc, batch, loss_fn)
+            loss_num = Nx.to_number(metrics.loss)
+            step = tr_next.step
+
+            trail =
+              if rem(step, 100) == 0 do
+                stats = numeric_stats.(tr_next)
+                # The ~150 eager EXLA ops per sample leave device buffers
+                # behind until BEAM GC frees the refs — without this the GPU
+                # OOMs by step ~3000 (observed 2026-07-13).
+                :erlang.garbage_collect()
+                Enum.take([{step, loss_num, stats} | trail], 30)
+              else
+                trail
+              end
+
+            # Cliff checkpoints: full trainer state (params + optimizer)
+            # every 25k steps once inside the failure zone, keep last 2 —
+            # later experiments resume from the cliff instead of re-paying
+            # the 40-90 min approach ("build the time-savers first").
+            if rem(step, 25_000) == 0 and step >= 250_000 do
+              File.mkdir_p!("checkpoints/cliffs")
+              path = "checkpoints/cliffs/cliff_step#{step}.ckpt"
+              Output.puts("saving cliff checkpoint: #{path}")
+              Imitation.save_checkpoint(tr_next, path)
+
+              "checkpoints/cliffs/cliff_step*.ckpt"
+              |> Path.wildcard()
+              |> Enum.sort_by(fn p ->
+                Regex.run(~r/step(\d+)/, p) |> List.last() |> String.to_integer()
+              end)
+              |> Enum.drop(-2)
+              |> Enum.each(&File.rm/1)
+            end
+
+            if rem(step, 1000) == 0 and trail != [] do
+              {_, _, st} = hd(trail)
+              Output.puts("forensics step #{step}: loss=#{inspect(loss_num)} #{inspect(st)}")
+            end
+
+            if is_number(loss_num) do
+              {:cont, {tr_next, metrics.loss, trail}}
+            else
+              Output.error(
+                "FORENSICS: first non-finite loss (#{inspect(loss_num)}) " <>
+                  "at optimizer step #{step}, epoch #{epoch}"
+              )
+
+              Output.puts("post-mortem (already-poisoned) stats: #{inspect(numeric_stats.(tr_next))}")
+              Output.puts("trail (newest first, sampled every 100 steps):")
+
+              Enum.each(trail, fn {s, l, st} ->
+                Output.puts("  step #{s}: loss=#{inspect(l)} #{inspect(st)}")
+              end)
+
+              System.halt(2)
+            end
+          end)
+          |> then(fn {tr2, l, _} -> {tr2, l} end)
+        else
+          Enum.reduce(batches, {tr, nil}, fn batch, {tr_acc, _} ->
+            {tr_next, metrics} = Imitation.train_step(tr_acc, batch, loss_fn)
+            {tr_next, metrics.loss}
+          end)
+        end
       end)
 
     loss = Nx.to_number(epoch_loss)
@@ -322,20 +518,31 @@ max_epochs = 1000
         {_, best_loss} -> if is_number(loss) and loss < best_loss, do: {tr, loss}, else: best
       end
 
-    history = Enum.take([loss | history], 100)
+    history = if is_number(loss), do: Enum.take([loss | history], 100), else: history
 
     plateaued? =
       length(history) == 100 and is_number(loss) and
         List.last(history) - Enum.min(history) < 1.0e-3
 
     cond do
-      not is_number(loss) -> {:halt, {tr, loss, epoch, history, best}}
-      loss < memorized_loss -> {:halt, {tr, loss, epoch, history, best}}
-      plateaued? -> {:halt, {tr, loss, epoch, history, best}}
-      true -> {:cont, {tr, loss, epoch, history, best}}
+      not is_number(loss) and best != nil and restores < 5 ->
+        {best_tr, best_loss} = best
+
+        Output.warning(
+          "NaN at epoch #{epoch} — restored best params " <>
+            "(loss=#{Float.round(best_loss * 1.0, 5)}), continuing " <>
+            "(restore #{restores + 1}/5)"
+        )
+
+        {:cont, {best_tr, best_loss, epoch, history, best, restores + 1}}
+
+      not is_number(loss) -> {:halt, {tr, loss, epoch, history, best, restores}}
+      loss < memorized_loss -> {:halt, {tr, loss, epoch, history, best, restores}}
+      plateaued? -> {:halt, {tr, loss, epoch, history, best, restores}}
+      true -> {:cont, {tr, loss, epoch, history, best, restores}}
     end
   end)
-  |> then(fn {_tr, loss, epoch, _, best} -> {best, loss, epoch} end)
+  |> then(fn {_tr, loss, epoch, _, best, _} -> {best, loss, epoch} end)
 
 case {is_number(final_loss), best} do
   {_, nil} ->

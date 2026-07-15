@@ -466,8 +466,9 @@ defmodule ExPhil.Bridge.AsyncRunner do
       [{:elixir_dummy, mod, dummy_state}] ->
         opponent_port = if player_port == 1, do: 2, else: 1
         opponent = game_state.players && game_state.players[opponent_port]
+        bot = game_state.players && game_state.players[player_port]
 
-        {input, dummy_state} = mod.step(opponent, dummy_state)
+        {input, dummy_state} = mod.step(opponent, bot, dummy_state)
         MeleePort.send_controller(bridge, Map.put(input, :port, opponent_port))
         :ets.insert(table, {:elixir_dummy, mod, dummy_state})
 

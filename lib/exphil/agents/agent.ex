@@ -60,6 +60,8 @@ defmodule ExPhil.Agents.Agent do
     :press_threshold,
     :release_threshold,
     :use_prev_action,
+    :ablate_prev_action,
+    :leace_eraser,
     :last_controller,
     # Temporal inference config
     :temporal,
@@ -241,6 +243,11 @@ defmodule ExPhil.Agents.Agent do
     # Allow disabling incremental inference for testing/comparison
     use_incremental = Keyword.get(opts, :use_incremental, true)
 
+    # Interp P3 ablation: force the prev-action channel to zeros at
+    # inference even for policies trained with it (live arm of the
+    # closed-loop shield-lock / self-conditioning experiments)
+    ablate_prev_action = Keyword.get(opts, :ablate_prev_action, false)
+
     state = %__MODULE__{
       name: Keyword.get(opts, :name),
       frame_delay: frame_delay,
@@ -250,6 +257,8 @@ defmodule ExPhil.Agents.Agent do
       deterministic_buttons: deterministic_buttons,
       press_threshold: press_threshold,
       release_threshold: release_threshold,
+      ablate_prev_action: ablate_prev_action,
+      leace_eraser: Keyword.get(opts, :leace_eraser),
       # Temporal config - will be set when policy is loaded
       temporal: false,
       backbone: :mlp,
@@ -869,32 +878,72 @@ defmodule ExPhil.Agents.Agent do
     # Build appropriate model based on temporal flag
     # Note: dropout is included to match training architecture, but Axon
     # disables dropout during inference mode by default
-    model =
-      if temporal do
-        Logger.info(
-          "[Agent] Loading temporal policy (backbone: #{backbone}, window: #{window_size})"
-        )
+    # SSM-family shape params: omitting these rebuilt mamba/SSM exports
+    # with DEFAULT shapes at inference — a silent architecture mismatch
+    # (exports carry them since the backbone_defaults integration; GRU
+    # ignores them harmlessly)
+    trunk_opts = [
+      embed_size: embed_size,
+      backbone: backbone,
+      window_size: window_size,
+      num_heads: Map.get(config, :num_heads, 4),
+      head_dim: Map.get(config, :head_dim, 64),
+      hidden_size: Map.get(config, :hidden_size, 256),
+      num_layers: Map.get(config, :num_layers, 2),
+      state_size: Map.get(config, :state_size, 16),
+      expand_factor: Map.get(config, :expand_factor, 2),
+      conv_size: Map.get(config, :conv_size, 4),
+      dropout: dropout
+    ]
 
-        Networks.Policy.build_temporal(
-          embed_size: embed_size,
-          backbone: backbone,
-          window_size: window_size,
-          num_heads: Map.get(config, :num_heads, 4),
-          head_dim: Map.get(config, :head_dim, 64),
-          hidden_size: Map.get(config, :hidden_size, 256),
-          num_layers: Map.get(config, :num_layers, 2),
-          dropout: dropout,
-          axis_buckets: axis_buckets,
-          shoulder_buckets: shoulder_buckets
-        )
-      else
-        Networks.Policy.build(
-          embed_size: embed_size,
-          hidden_sizes: hidden_sizes,
-          dropout: dropout,
-          axis_buckets: axis_buckets,
-          shoulder_buckets: shoulder_buckets
-        )
+    model =
+      cond do
+        temporal and is_binary(state.leace_eraser) ->
+          # Interp-surgical inference (P3/P6): a fitted LEACE eraser as a
+          # frozen transformation between trunk and heads — removes the
+          # concept subspace (e.g. the prev-button copy signal) while
+          # leaving all layer names intact so exported params load as-is.
+          eraser = state.leace_eraser |> File.read!() |> :erlang.binary_to_term()
+
+          Logger.warning(
+            "[Agent] LEACE ERASER ACTIVE: #{state.leace_eraser} (rank #{eraser.rank})"
+          )
+
+          mu = eraser.mu
+          at = Nx.transpose(eraser.a)
+
+          trunk = Networks.Policy.build_temporal_trunk(trunk_opts)
+
+          erased =
+            Axon.nx(
+              trunk,
+              fn x ->
+                mu_c = Nx.as_type(mu, Nx.type(x))
+                at_c = Nx.as_type(at, Nx.type(x))
+                Nx.subtract(x, Nx.dot(Nx.subtract(x, mu_c), at_c))
+              end,
+              name: "leace_erase"
+            )
+
+          Networks.Policy.Heads.build_controller_head(erased, axis_buckets, shoulder_buckets)
+
+        temporal ->
+          Logger.info(
+            "[Agent] Loading temporal policy (backbone: #{backbone}, window: #{window_size})"
+          )
+
+          Networks.Policy.build_temporal(
+            trunk_opts ++ [axis_buckets: axis_buckets, shoulder_buckets: shoulder_buckets]
+          )
+
+        true ->
+          Networks.Policy.build(
+            embed_size: embed_size,
+            hidden_sizes: hidden_sizes,
+            dropout: dropout,
+            axis_buckets: axis_buckets,
+            shoulder_buckets: shoulder_buckets
+          )
       end
 
     {_init_fn, predict_fn} = Utils.build_compiled(model)
@@ -931,9 +980,17 @@ defmodule ExPhil.Agents.Agent do
 
     # Prev-action regime comes from the TRAINING config: policies trained
     # with --prev-action expect their own last controller in the embedding;
-    # older policies expect zeros. Not caller-overridable — mixing regimes
-    # scrambles the input.
-    use_prev_action = Map.get(config, :use_prev_action, false)
+    # older policies expect zeros. Not caller-overridable — EXCEPT the
+    # explicit :ablate_prev_action experiment flag (interp P3), which
+    # deliberately feeds zeros to a prev-action policy to measure the
+    # channel's causal contribution live.
+    use_prev_action =
+      if state.ablate_prev_action do
+        Logger.warning("[Agent] ABLATION: prev-action channel forced to zeros (interp P3)")
+        false
+      else
+        Map.get(config, :use_prev_action, false)
+      end
 
     if use_prev_action do
       Logger.info("[Agent] Policy trained with prev-action conditioning — feeding own outputs back")

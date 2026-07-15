@@ -107,7 +107,9 @@ Output.step(1, 5, "Loading agent")
     deterministic_buttons: opts[:deterministic_buttons] || false,
     press_threshold: opts[:press_threshold],
     release_threshold: opts[:release_threshold],
-    frame_delay: opts[:frame_delay]
+    frame_delay: opts[:frame_delay],
+    ablate_prev_action: opts[:ablate_prev_action] || false,
+    leace_eraser: opts[:leace_eraser]
   )
 
 config = Agent.get_config(agent)

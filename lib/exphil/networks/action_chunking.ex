@@ -498,6 +498,15 @@ defmodule ExPhil.Networks.ActionChunking do
   """
   @spec cvae_loss(Nx.Tensor.t(), Nx.Tensor.t(), Nx.Tensor.t(), Nx.Tensor.t(), float()) :: Nx.Tensor.t()
   defn cvae_loss(target_actions, predicted_actions, mu, log_var, kl_weight) do
+    # Loss math in f32 regardless of network precision — the KL term's
+    # exp(log_var) is exactly the op class whose bf16 backward births NaN
+    # gradients with a finite forward (see Policy.Loss.imitation_loss and
+    # the 2026-07-14 grad-localizer forensics).
+    target_actions = Nx.as_type(target_actions, :f32)
+    predicted_actions = Nx.as_type(predicted_actions, :f32)
+    mu = Nx.as_type(mu, :f32)
+    log_var = Nx.as_type(log_var, :f32)
+
     recon = reconstruction_loss(target_actions, predicted_actions)
     kl = kl_divergence(mu, log_var)
     Nx.add(recon, Nx.multiply(kl_weight, kl))

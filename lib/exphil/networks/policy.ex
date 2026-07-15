@@ -258,10 +258,29 @@ defmodule ExPhil.Networks.Policy do
   """
   @spec build_temporal_autoregressive(keyword()) :: Axon.t()
   def build_temporal_autoregressive(opts \\ []) do
-    embed_size = Keyword.fetch!(opts, :embed_size)
-    backbone_type = Keyword.get(opts, :backbone, :sliding_window)
     axis_buckets = Keyword.get(opts, :axis_buckets, @axis_buckets)
     shoulder_buckets = Keyword.get(opts, :shoulder_buckets, @shoulder_buckets)
+
+    backbone = build_temporal_trunk(opts)
+
+    # Build controller head on top
+    Heads.build_controller_head(backbone, axis_buckets, shoulder_buckets)
+  end
+
+  @doc """
+  Build only the temporal trunk (backbone) of the autoregressive policy —
+  the `[batch, hidden]` representation that the six controller heads read.
+
+  Trunk layers are constructed in exactly the same order as in
+  `build_temporal_autoregressive/1`, so auto-generated layer names match and
+  parameters exported from a full policy load into the trunk unchanged
+  (Axon resolves parameters by layer name; the unused head parameters are
+  ignored). Used by `ExPhil.Interp` for activation capture and probing.
+  """
+  @spec build_temporal_trunk(keyword()) :: Axon.t()
+  def build_temporal_trunk(opts \\ []) do
+    embed_size = Keyword.fetch!(opts, :embed_size)
+    backbone_type = Keyword.get(opts, :backbone, :sliding_window)
     action_embed_size = Keyword.get(opts, :action_embed_size, nil)
     num_action_ids = Keyword.get(opts, :num_action_ids, @default_num_action_ids)
     character_embed_size = Keyword.get(opts, :character_embed_size, nil)
@@ -290,20 +309,16 @@ defmodule ExPhil.Networks.Policy do
         num_character_ids: num_character_ids
       )
 
-    backbone =
-      if action_embed_size || character_embed_size do
-        build_temporal_with_learned_embeddings(
-          effective_embed_size,
-          embed_size,
-          backbone_type,
-          backbone_opts
-        )
-      else
-        Backbone.build_temporal_backbone(effective_embed_size, backbone_type, backbone_opts)
-      end
-
-    # Build controller head on top
-    Heads.build_controller_head(backbone, axis_buckets, shoulder_buckets)
+    if action_embed_size || character_embed_size do
+      build_temporal_with_learned_embeddings(
+        effective_embed_size,
+        embed_size,
+        backbone_type,
+        backbone_opts
+      )
+    else
+      Backbone.build_temporal_backbone(effective_embed_size, backbone_type, backbone_opts)
+    end
   end
 
   # Wrap a temporal backbone with learned embedding preprocessing
