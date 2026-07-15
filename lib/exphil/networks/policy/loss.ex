@@ -90,6 +90,39 @@ defmodule ExPhil.Networks.Policy.Loss do
   """
   @spec imitation_loss(map(), map(), keyword()) :: Nx.Tensor.t()
   def imitation_loss(logits, targets, opts) do
+    # Loss math (and therefore its BACKWARD under autodiff) always runs in
+    # f32, whatever precision the network computes in. Grad-localizer
+    # forensics (2026-07-14, GRAD_DETONATION step 344,769) caught NaN
+    # gradients born in the buttons-BCE backward under bf16 compute with a
+    # FINITE forward loss — the root cause of every "endemic NaN" drill
+    # death that week (mixed precision didn't help because it also runs the
+    # backward in bf16). Casting here, at the loss math entry point,
+    # protects every caller: training loss_and_grad builders, eval loss,
+    # and future call sites. Cost is negligible (loss ops are tiny next to
+    # the network).
+    logits = Map.new(logits, fn {k, v} -> {k, Nx.as_type(v, :f32)} end)
+
+    # Clamp logits away from the exp-overflow cliff (f32 exp overflows at
+    # |x| ~ 88.7). Crime-scene autopsy 2026-07-14 (scene_step284154): the
+    # fatal batch carried button logits at -89.9, and the NaN only occurs
+    # in the training-compiled program — XLA's algebraic simplifier can
+    # rewrite the stable BCE form (and its adjoint) into exp(+x) variants
+    # during fusion, so stability depends on compilation luck. At |x|=60,
+    # sigmoid saturates to within 1e-26 and the true gradient is ~0: the
+    # clamp is mathematically inert but removes the cliff under ANY
+    # compiler rewrite. This closed the week-long "endemic NaN" saga
+    # (six runs: bf16, f32-master, f32-loss, w16, seed, LR all refuted;
+    # per-layer localizer + crime-scene replay named it).
+    #
+    # min∘max instead of Nx.clip: Nx 0.11's autodiff produces INCORRECT
+    # gradients for Nx.clip in this expression (wrong on EXLA and the pure
+    # evaluator alike — upstream Nx bug; minimal reproducer in
+    # scripts/nx_clip_grad_repro.exs). A clip-based clamp silently killed a
+    # training run from step 0 (garbage grads → logits blown to the rails →
+    # zero-grad saturation, 2026-07-14). min/max grads verified correct
+    # against the analytic reference.
+    logits = Map.new(logits, fn {k, v} -> {k, Nx.min(Nx.max(v, -60.0), 60.0)} end)
+
     label_smoothing = Keyword.get(opts, :label_smoothing, 0.0)
     focal_loss = Keyword.get(opts, :focal_loss, false)
     focal_gamma = Keyword.get(opts, :focal_gamma, 2.0)

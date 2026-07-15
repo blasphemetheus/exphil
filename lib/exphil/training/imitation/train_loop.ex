@@ -264,6 +264,17 @@ defmodule ExPhil.Training.Imitation.TrainLoop do
     grads_data = get_params_data(grads)
     params_data = get_params_data(trainer.policy_params)
 
+    # NaN forensics (config :debug_grads_after, integer step): cheap fused
+    # global grad finiteness check per step; on the first non-finite step,
+    # dump per-layer grad norms to name the operator that detonates.
+    # Three 2026-07-13 forensics runs showed single-step NaN births that
+    # per-100-step sampling cannot localize — this catches the fatal step.
+    debug_after = trainer.config[:debug_grads_after]
+
+    if debug_after && trainer.step >= debug_after do
+      check_grad_detonation(loss, grads_data, trainer, batch)
+    end
+
     # Update parameters using the optimizer
     {updates, new_optimizer_state} =
       trainer.optimizer.(
@@ -285,6 +296,100 @@ defmodule ExPhil.Training.Imitation.TrainLoop do
 
     {new_trainer, %{loss: loss, step: new_trainer.step}}
   end
+
+  # One fused kernel (jit-cached on the grads container shape) taking the
+  # global max |grad|. Max never overflows (unlike sum-of-squares norms,
+  # which hit inf at |g| ~ 1e19 in ANY 32-bit float — that ambiguity made
+  # the 2026-07-14 dumps unable to distinguish "inf grads" from "large
+  # finite grads"; note clip_by_global_norm has the SAME overflow inside
+  # it, making the clipper itself a NaN amplifier for large finite bursts).
+  # Trip threshold 1.0e15: far above healthy grads (~1e-2..1), far below
+  # the norm-overflow zone — catches the burst while it is still finite.
+  defp check_grad_detonation(loss, grads_data, trainer, batch) do
+    step = trainer.step
+    tensors = flatten_grad_tensors(grads_data) |> List.to_tuple()
+
+    global_max =
+      Nx.Defn.jit_apply(
+        fn tup ->
+          tup
+          |> Tuple.to_list()
+          |> Enum.map(&Nx.reduce_max(Nx.abs(&1)))
+          |> Enum.reduce(&Nx.max/2)
+        end,
+        [tensors],
+        compiler: EXLA
+      )
+      |> Nx.to_number()
+
+    if not is_number(global_max) or global_max > 1.0e15 do
+      loss_num = Nx.to_number(loss)
+
+      per_layer =
+        Enum.map(grads_data, fn {layer, params} ->
+          maxes =
+            params
+            |> flatten_grad_tensors()
+            |> Enum.map(fn t -> Nx.reduce_max(Nx.abs(t)) |> Nx.to_number() end)
+
+          {layer,
+           if(Enum.all?(maxes, &is_number/1), do: Enum.max([0.0 | maxes]), else: :NONFINITE)}
+        end)
+
+      Logger.error(
+        "GRAD_DETONATION step=#{step} loss=#{inspect(loss_num)} " <>
+          "global_max=#{inspect(global_max)} per_layer_max=#{inspect(per_layer, limit: :infinity)}"
+      )
+
+      # Crime-scene capture ("build the time-savers first", 2026-07-14):
+      # serialize everything needed to replay THIS exact backward pass
+      # offline — the fatal batch, the pre-step params, the optimizer
+      # state. One saved scene = unlimited second-long re-examinations
+      # (precision sweeps, op bisection) instead of 40-90 min approach
+      # runs per hypothesis. See scripts/replay_crime_scene.exs.
+      save_crime_scene(trainer, batch, step, loss_num)
+    end
+  end
+
+  defp save_crime_scene(trainer, batch, step, loss_num) do
+    dir = "interp/crime_scenes"
+    File.mkdir_p!(dir)
+    path = Path.join(dir, "scene_step#{step}.bin")
+
+    transfer = fn term ->
+      try do
+        Nx.backend_transfer(term, Nx.BinaryBackend)
+      rescue
+        _ -> term
+      end
+    end
+
+    scene = %{
+      step: step,
+      loss: loss_num,
+      batch: %{
+        states: transfer.(batch.states),
+        actions: transfer.(batch.actions),
+        frame_weights: transfer.(Map.get(batch, :frame_weights))
+      },
+      params: transfer.(trainer.policy_params),
+      optimizer_state: transfer.(trainer.optimizer_state),
+      config: Map.drop(trainer.config, [:kmeans_centers])
+    }
+
+    File.write!(path, :erlang.term_to_binary(scene))
+    Logger.error("CRIME_SCENE saved: #{path}")
+  rescue
+    e -> Logger.error("crime-scene save failed: #{inspect(e)}")
+  end
+
+  defp flatten_grad_tensors(%Nx.Tensor{} = t), do: [t]
+
+  defp flatten_grad_tensors(map) when is_map(map) and not is_struct(map) do
+    map |> Map.values() |> Enum.flat_map(&flatten_grad_tensors/1)
+  end
+
+  defp flatten_grad_tensors(_), do: []
 
   # Mixed precision training with FP32 master weights
   defp train_step_mixed_precision(trainer, batch, mp_state) do

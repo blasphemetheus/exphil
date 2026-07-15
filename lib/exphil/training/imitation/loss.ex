@@ -69,6 +69,10 @@ defmodule ExPhil.Training.Imitation.Loss do
       {buttons, main_x, main_y, c_x, c_y, shoulder} =
         predict_fn.(Utils.ensure_model_state(params), states)
 
+      # NOTE: the f32-loss NaN fix lives in Policy.imitation_loss itself
+      # (the loss math entry point), so every builder in this file is
+      # covered — including build_autoregressive_loss_and_grad_fn, which is
+      # what train_step ACTUALLY uses (it ignores the loss_fn argument).
       logits = %{
         buttons: buttons,
         main_x: main_x,

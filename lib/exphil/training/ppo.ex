@@ -415,11 +415,15 @@ defmodule ExPhil.Training.PPO do
       %{policy: policy_logits, value: values} =
         predict_fn.(Utils.ensure_model_state(params), states_bin)
 
-      # Compute new log probs
-      new_log_probs = ActorCritic.compute_log_probs(policy_logits, actions_bin)
+      # Compute new log probs — in f32: exp(logp - logp_old) is the most
+      # NaN-prone op in RL, and low-precision backward of exp is exactly the
+      # failure class found by the 2026-07-14 grad-localizer forensics
+      # (see Policy.Loss.imitation_loss).
+      new_log_probs =
+        ActorCritic.compute_log_probs(policy_logits, actions_bin) |> Nx.as_type(:f32)
 
       # Policy loss (clipped PPO objective)
-      ratio = Nx.exp(Nx.subtract(new_log_probs, old_log_probs_bin))
+      ratio = Nx.exp(Nx.subtract(new_log_probs, Nx.as_type(old_log_probs_bin, :f32)))
       clipped_ratio = Nx.clip(ratio, 1.0 - config.clip_range, 1.0 + config.clip_range)
 
       surr1 = Nx.multiply(ratio, advantages_bin)

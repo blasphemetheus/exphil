@@ -248,9 +248,17 @@ defmodule ExPhil.Training.MixedPrecision do
   # Internal Helpers
   # ==========================================================================
 
-  # Recursively cast all tensors in a nested map to FP32
+  # Recursively cast all FLOAT tensors in a nested map to FP32.
+  # Integer tensors (e.g. Axon RNN/dropout RNG keys, u32) must keep their
+  # type — casting a key to a float type crashes Axon.rnn_state at compile
+  # ("expected key with 32-bit unsigned integer type", observed 2026-07-13
+  # with GRU + mixed precision).
   defp ensure_f32(tensor) when is_struct(tensor, Nx.Tensor) do
-    Nx.as_type(tensor, :f32)
+    case Nx.type(tensor) do
+      {:f, _} -> Nx.as_type(tensor, :f32)
+      {:bf, _} -> Nx.as_type(tensor, :f32)
+      _ -> tensor
+    end
   end
 
   defp ensure_f32(%Axon.ModelState{data: data} = state) do
@@ -263,9 +271,14 @@ defmodule ExPhil.Training.MixedPrecision do
 
   defp ensure_f32(other), do: other
 
-  # Recursively cast all tensors to compute precision
+  # Recursively cast all FLOAT tensors to compute precision (see ensure_f32
+  # for why integer tensors — RNG keys — must pass through untouched)
   defp cast_params(tensor, precision) when is_struct(tensor, Nx.Tensor) do
-    Nx.as_type(tensor, precision)
+    case Nx.type(tensor) do
+      {:f, _} -> Nx.as_type(tensor, precision)
+      {:bf, _} -> Nx.as_type(tensor, precision)
+      _ -> tensor
+    end
   end
 
   defp cast_params(%Axon.ModelState{data: data} = state, precision) do
