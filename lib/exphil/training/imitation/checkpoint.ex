@@ -211,10 +211,7 @@ defmodule ExPhil.Training.Imitation.Checkpointing do
       trainer.config[:embed_size] ||
         (trainer.embed_config && Embeddings.embedding_size(trainer.embed_config))
 
-    export = %{
-      # Convert params to BinaryBackend for serialization
-      params: to_binary_backend(trainer.policy_params),
-      config: %{
+    config = %{
         # Discretization
         axis_buckets: trainer.config.axis_buckets,
         shoulder_buckets: trainer.config.shoulder_buckets,
@@ -238,9 +235,23 @@ defmodule ExPhil.Training.Imitation.Checkpointing do
         # into the prev-action channel iff the model trained with it
         use_prev_action: trainer.config[:use_prev_action] || false
       }
-    }
 
-    File.write(path, :erlang.term_to_binary(export))
+    # Edifice manifest format (task #16): Nx.serialize params + embedded
+    # Edifice.Spec. Self-describing (the spec carries the build opts the
+    # network was ACTUALLY built with — no silent-default fallbacks at
+    # load), shape-validatable via Edifice.Checkpoint.validate_shapes!,
+    # and ~3-5x faster to (de)serialize than Erlang term format.
+    # Training.Checkpoint.load_policy reads BOTH this and the legacy
+    # term_to_binary format (r1-r10 checkpoints stay loadable).
+    # external: exphil's policy (backbone trunk + 6 autoregressive heads)
+    # is a composite owned by exphil, not an edifice registry arch — exphil
+    # rebuilds it from config; the spec still carries opts + provenance.
+    spec = Edifice.Spec.new(:exphil_policy, Map.to_list(config), external: true)
+
+    Edifice.Checkpoint.save(to_binary_backend(trainer.policy_params), path,
+      spec: spec,
+      metadata: %{config: config}
+    )
   end
 
   # ============================================================================

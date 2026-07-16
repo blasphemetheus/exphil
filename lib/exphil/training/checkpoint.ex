@@ -81,9 +81,28 @@ defmodule ExPhil.Training.Checkpoint do
   @spec load_policy(Path.t(), keyword()) :: {:ok, policy_export()} | {:error, term()}
   def load_policy(path, opts \\ []) do
     case File.read(path) do
-      {:ok, binary} ->
+      {:ok, <<131, _::binary>> = binary} ->
+        # Legacy format: :erlang.term_to_binary of %{params, config}
+        # (term format always starts with byte 131)
         export = deserialize_trusted(binary, path)
         validate_and_return(export, :policy, opts)
+
+      {:ok, <<flag, _meta_size::32, _::binary>>} when flag in [0, 1] ->
+        # Edifice manifest format (task #16): Nx.serialize params + embedded
+        # Edifice.Spec — self-describing, shape-validatable, ~3-5x faster
+        # deserialization. Written by Imitation export_policy since 2026-07-16.
+        {params, metadata} = Edifice.Checkpoint.load(path, return_metadata: true)
+
+        export = %{
+          params: params,
+          config: metadata[:config] || %{},
+          spec: metadata["__edifice_spec__"]
+        }
+
+        validate_and_return(export, :policy, opts)
+
+      {:ok, _binary} ->
+        {:error, {:unknown_policy_format, path}}
 
       {:error, reason} ->
         {:error, {:file_read, reason}}
