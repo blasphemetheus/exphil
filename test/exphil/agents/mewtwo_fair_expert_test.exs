@@ -164,6 +164,23 @@ defmodule ExPhil.Agents.MewtwoFairExpertTest do
       assert c.button_y
     end
 
+    test "opponent BEHIND takes the :turn_toward branch, not jump-restart", %{expert: expert} do
+      # facing right (facing: 1), opponent to the left = behind, adjacent
+      p = player(on_ground: true, x: 0.0, facing: 1)
+
+      {:ok, c, tag} = MewtwoFairExpert.label_traced(expert, p, nil, %{x: -20.0})
+      assert tag == :turn_toward, "pathology-#4 fix: behind must not jump-restart"
+      refute c.button_y
+      assert c.main_stick.x < 0.1, "steer toward the opponent (left)"
+
+      # same geometry mirrored: facing left, opponent to the right
+      {:ok, c, tag} =
+        MewtwoFairExpert.label_traced(expert, player(on_ground: true, x: 0.0, facing: -1), nil, %{x: 20.0})
+
+      assert tag == :turn_toward
+      assert c.main_stick.x > 0.9, "steer toward the opponent (right)"
+    end
+
     test "unknown opponent behaves like the pre-distance expert", %{expert: expert} do
       {:ok, c} = MewtwoFairExpert.label(expert, player(on_ground: true))
       assert c.button_y

@@ -556,8 +556,11 @@ defmodule ExPhil.Agents.Agent do
   # Existing holds are never cut, so full hops are unaffected; the learned
   # 1-frame liftoff double jump cannot fire, while data-like DJs (12-16f
   # after liftoff) pass untouched.
-  defp apply_jump_debounce(action, %{jump_debounce: n} = state, airborne?)
-       when is_integer(n) and n > 0 do
+  # Public for direct unit testing (pure tensor logic on a plain state map);
+  # not part of the Agent API.
+  @doc false
+  def apply_jump_debounce(action, %{jump_debounce: n} = state, airborne?)
+      when is_integer(n) and n > 0 do
     buttons = action[:buttons]
     prev = state.last_action && state.last_action[:buttons]
 
@@ -586,7 +589,8 @@ defmodule ExPhil.Agents.Agent do
     {Map.put(action, :buttons, buttons), %{state | jump_cooldown: cooldown}}
   end
 
-  defp apply_jump_debounce(action, state, _airborne?), do: {action, state}
+  @doc false
+  def apply_jump_debounce(action, state, _airborne?), do: {action, state}
 
   # Single-frame inference (original behavior)
   defp compute_single_frame_action(state, embedded, opts) do
