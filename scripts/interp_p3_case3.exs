@@ -27,7 +27,8 @@ policies = [
   {"poolgrow_r1 (old era)", "checkpoints/mewtwo_combo_poolgrow_r1_policy.bin"},
   {"newera_r7 (sighted, sparse)", "checkpoints/mewtwo_combo_newera_r7_policy.bin"},
   {"newera_r8 (sighted + turnaround fixture)", "checkpoints/mewtwo_combo_newera_r8_policy.bin"},
-  {"newera_r9 (repaired teacher: turn_toward + scrub)", "checkpoints/mewtwo_combo_newera_r9_policy.bin"}
+  {"newera_r9 (repaired teacher: turn_toward + scrub)", "checkpoints/mewtwo_combo_newera_r9_policy.bin"},
+  {"newera_r10 (DAgger on r9 probes)", "checkpoints/mewtwo_combo_newera_r10_policy.bin"}
 ]
 # Missing checkpoints are skipped (pre-run safety), so this stays runnable
 # before r9 lands.
