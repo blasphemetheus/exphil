@@ -93,6 +93,7 @@ doc/
 
 # Test fixtures are the exception to the global .slp ignore
 !test/fixtures/replays/*.slp
+!scenarios/replays/*.slp
 drills/
 
 # Interp artifacts (crime scenes, erasers, cached captures — GBs)

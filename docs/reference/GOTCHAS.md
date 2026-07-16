@@ -2566,3 +2566,36 @@ Pinned by a first-frame parity test (step-path vs windowed logits).
 must reproduce the windowed path's warmup regime, not just its per-frame
 math — equivalence tests on mid-sequence frames won't catch a cold-start
 mismatch.
+
+## 66. Analog trigger pipe commands are silently ignored on the ExiAI headless build
+
+**Symptom:** replaying recorded inputs through the bridge on the ExiAI
+headless Dolphin (GOTCHAS #64) reproduced sticks and digital buttons
+exactly, but the TechRandom dummy's shield holds (`shoulder: 1.0` →
+libmelee `press_shoulder` → pipe `SET L …`) never shielded — port 2 stood
+in Wait while the source replay showed 25 s of GuardOn. Minimal repro:
+hold `shoulder: 1.0` on port 2 → nothing; hold digital `buttons.l: true`
+→ shields immediately (shield HP visibly draining).
+
+**Cause:** the ExiAI build's pipe input path drops the analog trigger
+axis (`SET L`/`SET R`), while digital `PRESS L/R` works. Sticks
+(`SET MAIN/C`) are unaffected — they round-trip bit-exactly (a recorded
+0.35 walk tilt replays as exactly 0.35).
+
+**Fix/workaround:** `scripts/scenario_suite.exs` converts recorded analog
+trigger values past Melee's analog-shield threshold (43/140 ≈ 0.31) into
+digital L/R presses when building replay inputs.
+
+**Consequences of the conversion (real, observed):** digital presses have
+different powershield semantics (a run reproduced positions exactly but hit
+GuardReflect where the source had GuardOn — the suite's drift check treats
+the shield family 178-182 as equivalent for this reason), and shield-HIT
+interactions can diverge (shield slide differed by ~0.6 units at the hit,
+compounding afterwards). Prefix replays that cross a shield-hit or a
+missed-tech interaction may deterministically diverge — the drift check
+catches them; curate handoff moments that avoid such interactions, or take
+the earliest usable moment.
+
+**Also affects live play:** any policy analog-shoulder output (the shoulder
+head) is a no-op on this build; only its digital L/R button head can
+shield. Probe scores on the headless build inherit this.

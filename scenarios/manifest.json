@@ -1,0 +1,24 @@
+{
+  "comment": "Curated scenario handoff moments (task #18). Sources are r-line probe games (policy Mewtwo P1 vs tech_random Fox P2 on FD) copied into scenarios/replays/. Frames are in-game frame numbers (GO ~ frame 0). Curated 2026-07-16 from a scan of 55 probe replays (scripts/scan_scenarios.exs); picks favor early handoff frames (short prefix, less drift risk) and clean situations per docs/guides/SCENARIOS.md.",
+  "entries": [
+    { "slp": "scenarios/replays/Game_20260716T071523.slp", "frame": 631,  "type": "opponent_behind", "note": "dx=-17.2 p1_facing=1 p1_action=18 (turn); Fox behind at mid range" },
+    { "slp": "scenarios/replays/Game_20260716T072614.slp", "frame": 877,  "type": "opponent_behind", "note": "dx=18.4 p1_facing=-1 p1_action=18 (turn); Fox behind-right" },
+    { "slp": "scenarios/replays/Game_20260716T065841.slp", "frame": 2322, "type": "opponent_behind", "note": "dx=-8.7 p1_facing=1 p1_action=20 (dash); Fox close behind during dash" },
+    { "slp": "scenarios/replays/Game_20260715T195318.slp", "frame": 880,  "type": "opponent_behind", "note": "dx=-12.4 p1_facing=1 p1_action=42 (landing); Fox behind on landing" },
+
+    { "slp": "scenarios/replays/Game_20260716T071523.slp", "frame": 1117, "type": "tech_chase", "note": "entry=missed_bound_u p2_x=-43.8 dist=9.8; point-blank missed tech" },
+    { "slp": "scenarios/replays/Game_20260716T072614.slp", "frame": 2601, "type": "tech_chase", "note": "entry=missed_bound_d p2_x=-23.4 dist=12.1" },
+    { "slp": "scenarios/replays/Game_20260716T065841.slp", "frame": 2623, "type": "tech_chase", "note": "entry=missed_bound_u p2_x=12.5 dist=7.2; closest curated chase" },
+    { "slp": "scenarios/replays/Game_20260715T195318.slp", "frame": 1157, "type": "tech_chase", "note": "entry=tech_in_place p2_x=52.2 dist=14.1; tech-in-place variety" },
+
+    { "slp": "scenarios/replays/Game_20260715T195318.slp", "frame": 1453, "type": "edgeguard", "note": "p2=(85.6,0.0) p1_x=58.2; Fox at right ledge height, P1 near" },
+    { "slp": "scenarios/replays/Game_20260716T071523.slp", "frame": 3662, "type": "edgeguard", "note": "p2=(-87.6,35.0) p1_x=-48.0; left side, Fox above ledge" },
+    { "slp": "scenarios/replays/Game_20260716T072614.slp", "frame": 8540, "type": "edgeguard", "note": "p2=(-85.7,177.0) p1_x=-8.5; high recovery, P1 starts near center" },
+
+    { "slp": "scenarios/replays/Game_20260716T072614.slp", "frame": 5259, "type": "getup", "note": "entry=191 p1=(-66.1,0.0); policy knocked down mid-left. Only 4 getup candidates exist in 55 probe games (the dummy never attacks; knockdowns are self-inflicted) and the other three diverge or slide off the edge - single entry until a fixture with an attacking dummy exists" },
+
+    { "slp": "scenarios/replays/Game_20260715T195318.slp", "frame": 4970, "type": "idle_deadlock", "note": "run=4517f dist=7.0; the 75-second mutual stare" },
+    { "slp": "scenarios/replays/Game_20260714T142354.slp", "frame": 889,  "type": "idle_deadlock", "note": "run=203f dist=14.3" },
+    { "slp": "scenarios/replays/Game_20260714T142354.slp", "frame": 1662, "type": "idle_deadlock", "note": "run=191f dist=14.1" }
+  ]
+}
