@@ -2513,3 +2513,30 @@ whose own command line contains the pattern (it's right there in the
 **Fix:** kill by exact PID, or match process names only with
 `pgrep -x`/`pkill -x`. If `-f` is unavoidable, exclude the caller, e.g.
 `pkill -f '[d]olphin-emu'` (bracket trick prevents self-match).
+
+## 64. Headless probes need the ExiAI Dolphin — and its NixOS setup recipe
+
+**Symptom 1:** `--headless` with the stock netplay build fails at
+`melee.Console`: `Null video requires mainline or ExiAI Ishiiruka.`
+**Symptom 2:** pointing `--dolphin` at a directory without "netplay" in
+its name fails libmelee's path heuristic (`Unknown path ...`).
+**Symptom 3:** running the ExiAI AppImage directly on NixOS fails with
+`dlopen(): error loading libfuse.so.2` (no FUSE for AppImage mounts).
+
+**Setup (done 2026-07-16, working):** vladfi1's ExiAI build lives at
+`~/.local/share/slippi/exi-ai/` (release exi-ai-0.2.0 from
+vladfi1/slippi-Ishiiruka — Ishiiruka 3.5.1, slippi 3.19.0). The AppImage
+is EXTRACTED (`--appimage-extract`, needs no FUSE) and launched through
+the `dolphin-emu-headless` wrapper script in that dir, which supplies the
+five FHS libs the binary can't find (alsa-lib, libglvnd, libusb1, zlib,
+gcc-lib) from pinned nix store paths via LD_LIBRARY_PATH; nix-ld provides
+the loader. Point libmelee at the WRAPPER FILE (a file path bypasses the
+"netplay" dir heuristic):
+
+    --dolphin ~/.local/share/slippi/exi-ai/dolphin-emu-headless --headless
+
+Validated: full game, no window, natural end, clean replay, report card
+parses it (6/8 gates, r10 policy). If a system update garbage-collects
+the pinned store paths, re-run
+`nix build --no-link nixpkgs#alsa-lib nixpkgs#libglvnd nixpkgs#libusb1 nixpkgs#zlib nixpkgs#stdenv.cc.cc.lib`
+and refresh the paths in the wrapper.

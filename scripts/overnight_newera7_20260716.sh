@@ -109,10 +109,20 @@ probe() {
   local conv
   conv=$(grep -oE 'conversions=[0-9]+' <<<"$trace_out" | head -1 | cut -d= -f2)
   ROUND_CONV=$((ROUND_CONV + ${conv:-0}))
-  # Tier-1 report card (jump/shield/deadlock gates) into the log
-  mix run scripts/report_card.exs "$new_replay" 2>/dev/null | tee -a "$LOG"
+  # Tier-1 report card (jump/shield/deadlock gates) into the log; the
+  # gates-passed count feeds round selection (#20: save-best by report
+  # card, not loss)
+  local card score
+  card=$(mix run scripts/report_card.exs "$new_replay" 2>/dev/null | tee -a "$LOG")
+  echo "$card"
+  score=$(grep -oE 'SCORE: [0-9]+' <<<"$card" | head -1 | grep -oE '[0-9]+$')
+  ROUND_SCORE=$((ROUND_SCORE + ${score:-0}))
+  ROUND_CARDS=$((ROUND_CARDS + 1))
   PROBE_REPLAY=$new_replay
 }
+
+BEST_AVG10=-1
+BEST_ROUND=""
 
 for R in $(seq 11 $((10 + ROUNDS))); do
   POLICY=checkpoints/mewtwo_combo_newera_r${R}_policy.bin
@@ -132,6 +142,8 @@ for R in $(seq 11 $((10 + ROUNDS))); do
   # A/B probes: plain vs jump-debounce (does the fixed teacher obsolete
   # the decode band-aid?)
   ROUND_CONV=0
+  ROUND_SCORE=0
+  ROUND_CARDS=0
   for p in 1 2 3; do
     PROBE_REPLAY=""
     if probe "$POLICY" "r${R}_p${p}_plain" && [ -n "$PROBE_REPLAY" ]; then
@@ -144,6 +156,16 @@ for R in $(seq 11 $((10 + ROUNDS))); do
       POOL+=("$PROBE_REPLAY")
     fi
   done
+  # Round report-card average (x10 to stay in integer math), best-round
+  # tracking for the save-best symlink below
+  if [ "$ROUND_CARDS" -gt 0 ]; then
+    AVG10=$((ROUND_SCORE * 10 / ROUND_CARDS))
+    echo "[newera] round $R report-card avg: $((AVG10 / 10)).$((AVG10 % 10))/8 over $ROUND_CARDS games" | tee -a "$LOG"
+    if [ "$AVG10" -gt "$BEST_AVG10" ]; then
+      BEST_AVG10=$AVG10
+      BEST_ROUND=$R
+    fi
+  fi
   # Gate: only continue to another round if this one converts at all —
   # a 0-conversion policy feeds the next round pathological on-policy data
   if [ "$ROUND_CONV" -eq 0 ]; then
@@ -152,6 +174,14 @@ for R in $(seq 11 $((10 + ROUNDS))); do
   fi
   echo "[newera] round $R total conversions: $ROUND_CONV" | tee -a "$LOG"
 done
+
+# #20 save-best: the round with the best report-card average wins the
+# stable "best" name (selection by gates, not loss)
+if [ -n "$BEST_ROUND" ]; then
+  ln -sfn "mewtwo_combo_newera_r${BEST_ROUND}_policy.bin" \
+    checkpoints/mewtwo_combo_newera_best_policy.bin
+  echo "[newera] best round by report card: r$BEST_ROUND ($((BEST_AVG10 / 10)).$((BEST_AVG10 % 10))/8 avg) -> checkpoints/mewtwo_combo_newera_best_policy.bin" | tee -a "$LOG"
+fi
 
 # Pre-registered measurement: attribution/compression across the eras
 # (r9 entry added; missing checkpoints are skipped by the script)

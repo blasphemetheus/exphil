@@ -172,6 +172,12 @@ defmodule ExPhil.CLI do
       desc: "Silence Dolphin (farm/unattended sessions)", group: [:dolphin]},
     %{name: :connect_code, flag: "--connect-code", type: :string, short: nil, default: nil,
       desc: "Slippi Direct netplay: connect to this code (e.g. ABCD#123). Requires a logged-in Slippi account in the local Dolphin User dir; disables dummies. Pair with a delay-robust model.", group: [:dolphin]},
+    %{name: :headless, flag: "--headless", type: :boolean, short: nil, default: false,
+      desc: "Null gfx backend + no audio + blocking input: no window, no GC adapter, game paced by the policy loop (runs faster than realtime; safe to run several in parallel)", group: [:dolphin]},
+    %{name: :replay_dir, flag: "--replay-dir", type: :string, short: nil, default: nil,
+      desc: "Write .slp replays to this directory (flat, no monthly folders). Give each parallel probe its own dir for unambiguous attribution.", group: [:dolphin]},
+    %{name: :slippi_port, flag: "--slippi-port", type: :integer, short: nil, default: nil,
+      desc: "Slippi spectator port (default 51441). Parallel instances need distinct ports.", group: [:dolphin]},
 
     # PPO training flags (for train_ppo.exs)
     %{name: :pretrained, flag: "--pretrained", type: :string, short: nil, default: nil,

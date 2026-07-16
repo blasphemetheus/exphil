@@ -162,6 +162,13 @@ bridge_config = %{
   dummy_character: opts[:dummy_character] || "fox",
   dummy_cpu_level: opts[:dummy_cpu_level] || 0,
   no_audio: opts[:no_audio] || false,
+  # Headless probes (task #5): Null gfx + no audio + blocking input. The
+  # game paces to the policy loop instead of the video/audio throttle, so
+  # every frame is seen even though emulation runs unthrottled (GOTCHA #56
+  # is about the NON-blocking case).
+  headless: opts[:headless] || false,
+  replay_dir: opts[:replay_dir],
+  slippi_port: opts[:slippi_port],
   # Slippi Direct netplay (see docs/planning/YETI_DEBUT.md); online_delay
   # rides the existing --frame-delay flag above
   connect_code: opts[:connect_code]

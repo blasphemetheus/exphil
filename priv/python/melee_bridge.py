@@ -243,67 +243,102 @@ class MeleeBridge:
             online = bool(connect_code)
             self.connect_code = connect_code
 
-            # Minimal config - don't pass our logger, libmelee expects its own interface
-            self.console = melee.Console(
+            # Headless probes (task #5): Null gfx backend renders nothing
+            # (no window, no GC adapter contention) and disable_audio drops
+            # the audio pipeline entirely. With no video/audio throttle the
+            # emulator runs unthrottled (GOTCHA #56) — which is SAFE here
+            # only because blocking_input=True paces the game to the
+            # controller loop: every frame waits for the policy's inputs, so
+            # nothing is skipped and games run as fast as inference allows.
+            self.headless = bool(config.get("headless"))
+
+            console_kwargs = dict(
                 path=dolphin_path,
                 fullscreen=False,
                 online_delay=int(config.get("online_delay") or 0),
                 copy_home_directory=online,
+                # Distinct ports let parallel instances coexist (default 51441)
+                slippi_port=int(config.get("slippi_port") or 51441),
+                blocking_input=bool(config.get("blocking_input", self.headless)),
             )
+            if self.headless:
+                console_kwargs["gfx_backend"] = "Null"
+                console_kwargs["disable_audio"] = True
+            replay_dir = config.get("replay_dir")
+            if replay_dir:
+                # Flat per-instance replay dir -> unambiguous attribution
+                # when several probes run at once (loops read exactly this
+                # dir instead of mtime-scanning a shared ~/Slippi).
+                replay_dir = os.path.expanduser(replay_dir)
+                os.makedirs(replay_dir, exist_ok=True)
+                console_kwargs["replay_dir"] = replay_dir
+                console_kwargs["replay_monthly_folders"] = False
+
+            # Minimal config - don't pass our logger, libmelee expects its own interface
+            self.console = melee.Console(**console_kwargs)
             if online:
                 logger.info(f"Netplay mode: will connect to {connect_code}")
+            if self.headless:
+                logger.info("Headless mode: Null gfx, no audio, blocking input")
 
             # Enlarge the render window at the source: Console.__init__ wrote
             # Dolphin.ini into the temp User dir, and Dolphin reads it at
             # run() — so the window is CREATED at this size. WM-side resizes
             # (Hyprland rules) raced Dolphin's GL init and left the game
             # rendering 640x528 in a corner of the window.
-            try:
-                import configparser
-                ini_path = os.path.join(
-                    self.console.dolphin_home_path, "Config", "Dolphin.ini"
-                )
-                # Default (lowercasing) parser ON PURPOSE: libmelee's own
-                # writer lowercases keys, and mixing cases creates DUPLICATE
-                # keys (RenderWindowWidth + renderwindowwidth) that crash
-                # strict configparser reads downstream. Dolphin reads keys
-                # case-insensitively — lowercase everywhere is fine (the old
-                # "SIDevice case" worry was a misdiagnosed udev problem).
-                ini = configparser.ConfigParser()
-                if os.path.isfile(ini_path):
-                    ini.read(ini_path)
-                if not ini.has_section("Display"):
-                    ini.add_section("Display")
-                if not ini.has_section("DSP"):
-                    ini.add_section("DSP")
-                # ALSA-direct spews `alsa::poll() returned POLLERR` at full
-                # speed when the device is contended (once produced 29GB of
-                # log in 8 minutes); Pulse routes through pipewire-pulse and
-                # keeps audio working. Farm/unattended sessions pass
-                # no_audio to silence the game entirely.
-                if self.config.get("no_audio"):
-                    # Keep a REAL backend even when silent: on Slippi's
-                    # Dolphin 5.0 base the null backend ("No Audio Output")
-                    # removes the emulation-speed throttle — games ran at
-                    # ~520fps, the policy only saw 1 in ~8 frames, and the
-                    # game-end transition hung the frame stream (observed
-                    # 2026-07-12, four probes in a row). Volume=0 on Pulse
-                    # is silent AND paced.
-                    ini.set("DSP", "Backend", "Pulse")
-                    ini.set("DSP", "Volume", "0")
-                else:
-                    ini.set("DSP", "Backend", "Pulse")
-                # ~1.94x native 640x528, fits a 1080p screen with bar
-                ini.set("Display", "RenderWindowWidth",
-                        str(self.config.get("window_width", 1240)))
-                ini.set("Display", "RenderWindowHeight",
-                        str(self.config.get("window_height", 1023)))
-                ini.set("Display", "RenderWindowAutoSize", "False")
-                with open(ini_path, "w") as f:
-                    ini.write(f)
-                logger.info(f"Render window size set in {ini_path}")
-            except Exception as e:
-                logger.warning(f"Could not set render window size: {e}")
+            # Headless: no window and libmelee already configured the null
+            # audio path via disable_audio — skip all ini editing (the DSP
+            # Pulse/volume dance below exists to keep the REALTIME throttle,
+            # which headless deliberately doesn't want).
+            if not self.headless:
+                try:
+                    import configparser
+                    ini_path = os.path.join(
+                        self.console.dolphin_home_path, "Config", "Dolphin.ini"
+                    )
+                    # Default (lowercasing) parser ON PURPOSE: libmelee's own
+                    # writer lowercases keys, and mixing cases creates DUPLICATE
+                    # keys (RenderWindowWidth + renderwindowwidth) that crash
+                    # strict configparser reads downstream. Dolphin reads keys
+                    # case-insensitively — lowercase everywhere is fine (the old
+                    # "SIDevice case" worry was a misdiagnosed udev problem).
+                    ini = configparser.ConfigParser()
+                    if os.path.isfile(ini_path):
+                        ini.read(ini_path)
+                    if not ini.has_section("Display"):
+                        ini.add_section("Display")
+                    if not ini.has_section("DSP"):
+                        ini.add_section("DSP")
+                    # ALSA-direct spews `alsa::poll() returned POLLERR` at full
+                    # speed when the device is contended (once produced 29GB of
+                    # log in 8 minutes); Pulse routes through pipewire-pulse and
+                    # keeps audio working. Farm/unattended sessions pass
+                    # no_audio to silence the game entirely.
+                    if self.config.get("no_audio"):
+                        # Keep a REAL backend even when silent: on Slippi's
+                        # Dolphin 5.0 base the null backend ("No Audio Output")
+                        # removes the emulation-speed throttle — games ran at
+                        # ~520fps, the policy only saw 1 in ~8 frames, and the
+                        # game-end transition hung the frame stream (observed
+                        # 2026-07-12, four probes in a row). Volume=0 on Pulse
+                        # is silent AND paced. (Headless mode skips this whole
+                        # block: it WANTS the unthrottled path and paces via
+                        # blocking_input instead.)
+                        ini.set("DSP", "Backend", "Pulse")
+                        ini.set("DSP", "Volume", "0")
+                    else:
+                        ini.set("DSP", "Backend", "Pulse")
+                    # ~1.94x native 640x528, fits a 1080p screen with bar
+                    ini.set("Display", "RenderWindowWidth",
+                            str(self.config.get("window_width", 1240)))
+                    ini.set("Display", "RenderWindowHeight",
+                            str(self.config.get("window_height", 1023)))
+                    ini.set("Display", "RenderWindowAutoSize", "False")
+                    with open(ini_path, "w") as f:
+                        ini.write(f)
+                    logger.info(f"Render window size set in {ini_path}")
+                except Exception as e:
+                    logger.warning(f"Could not set render window size: {e}")
 
             self.controller = melee.Controller(
                 console=self.console,
@@ -368,7 +403,22 @@ class MeleeBridge:
             # Connect to console
             sys.stderr.write("[melee_bridge] Calling console.connect()...\n")
             sys.stderr.flush()
-            connected = self.console.connect()
+            # Retry with backoff: a lone Dolphin is listening well inside
+            # the 3s pre-wait, but PARALLEL instances boot slower (ISO read
+            # + shader cache contention) and a single early connect() gave
+            # up on instance 2 of 2 (observed 2026-07-16). Total budget
+            # ~45s; each connect() attempt has its own internal timeout.
+            connected = False
+            for attempt in range(1, 6):
+                connected = self.console.connect()
+                if connected:
+                    break
+                wait = 2 * attempt
+                sys.stderr.write(
+                    f"[melee_bridge] connect() attempt {attempt} failed, retrying in {wait}s...\n"
+                )
+                sys.stderr.flush()
+                time.sleep(wait)
             sys.stderr.write(f"[melee_bridge] connect() returned: {connected}\n")
             sys.stderr.flush()
             logger.info(f"Connect returned: {connected}")
