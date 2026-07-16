@@ -18,7 +18,7 @@ exla_target = System.get_env("EXLA_TARGET", "host")
 
 if exla_target == "cuda" do
   config :exla, :clients,
-    cuda: [platform: :cuda, memory_fraction: 0.9],
+    cuda: [platform: :cuda, memory_fraction: 0.75],
     default: [platform: :cuda]
 
   config :exla, default_client: :cuda
