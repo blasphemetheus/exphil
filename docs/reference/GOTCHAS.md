@@ -2536,7 +2536,12 @@ the loader. Point libmelee at the WRAPPER FILE (a file path bypasses the
     --dolphin ~/.local/share/slippi/exi-ai/dolphin-emu-headless --headless
 
 Validated: full game, no window, natural end, clean replay, report card
-parses it (6/8 gates, r10 policy). If a system update garbage-collects
+parses it (6/8 gates, r10 policy). Throughput: blocking-paced headless
+games run ~6-7x realtime per instance (8777 frames in ~22 s wall);
+3-way parallel ≈ 20x probe throughput vs one windowed realtime game.
+Known wart: the BEAM sometimes segfaults during EXLA/CUDA teardown AFTER
+a clean game — parallel_probes.sh therefore judges probes by replay
+presence, not exit code. If a system update garbage-collects
 the pinned store paths, re-run
 `nix build --no-link nixpkgs#alsa-lib nixpkgs#libglvnd nixpkgs#libusb1 nixpkgs#zlib nixpkgs#stdenv.cc.cc.lib`
 and refresh the paths in the wrapper.

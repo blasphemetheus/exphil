@@ -88,8 +88,15 @@ for idx in "${!PIDS[@]}"; do
     echo "[probes] p$p finished ok"
   else
     rc=$?
-    echo "[probes] p$p exited rc=$rc (see $OUT/p$p.log)"
-    FAIL=1
+    # The BEAM can segfault during EXLA/CUDA teardown AFTER a clean game
+    # (observed 2026-07-16: 2 of 3 headless probes, replays + report
+    # cards fine). Judge the probe by its output, not its exit code.
+    if compgen -G "$OUT/p$p/*.slp" >/dev/null; then
+      echo "[probes] p$p rc=$rc (teardown crash) but produced a replay — ok"
+    else
+      echo "[probes] p$p exited rc=$rc with NO replay (see $OUT/p$p.log)"
+      FAIL=1
+    fi
   fi
 done
 
