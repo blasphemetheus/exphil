@@ -6,6 +6,29 @@ This document tracks identified issues and planned improvements from the January
 
 - **GPU Kernel Language Exploration** — Evaluating Julia, Futhark, Mojo, and Bend as alternatives to CUDA C for scan kernels. See [KERNEL_LANGUAGE_COMPARISON.md](../research/KERNEL_LANGUAGE_COMPARISON.md) for findings and [individual exploration docs](../research/) for per-language details.
 
+## Recently Added (2026-07-16 audit round)
+
+- **`--gradient-checkpoint` is a no-op [P2]**: the flag routes to
+  `GatedSSM.build_checkpointed/1`, whose "checkpoint" markers are identity
+  `Axon.nx` layers — no recomputation happens and the documented memory
+  savings (~2.5GB → ~0.8GB) do not exist. The old
+  `ExPhil.Training.GradientCheckpoint` module was DELETED 2026-07-16 (its
+  `scale_gradient` implemented a mathematically wrong VJP — collapsed the
+  cotangent to `Nx.mean(g)` — and was never wired into any backbone). Either
+  implement real Axon-level checkpointing or remove the flag + doc claims.
+- **PPO/league jit hygiene [P1]**: see
+  [AUDIT_NX_USAGE_2026-07-16.md](AUDIT_NX_USAGE_2026-07-16.md) — per-minibatch
+  closure recompiles, missing `compiler: EXLA`, BinaryBackend round trips in
+  `training/ppo.ex`, `league/evolution.ex`, `league/pretraining.ex`. Mirror
+  `imitation/loss.ex`'s build-once + tensors-as-args pattern.
+- **`gated_ssm.ex` "selective scan" is an approximation [P1-research]**:
+  `selective_scan_impl` (gated_ssm.ex:353) computes `sigmoid(dt)*(B*C*x)` +
+  EMA, not the real recurrence. Replace via `XLASelectiveScan` (see Nx audit
+  §6) — coordinate with task #13 (Nx.block/CustomCall migration).
+- **`mamba_nif` backbone breaks autodiff if trained [P1]**: the NIF scan
+  does `to_binary`→NIF→`from_binary` inside an `Axon.layer`; gradients
+  cannot flow. Guard to inference-only.
+
 ## Priority Legend
 
 - **P0**: Critical - fix immediately (security, data loss risk)
