@@ -100,7 +100,22 @@ defmodule ExPhil.Agents.MewtwoFairExpert do
   """
   @spec label(t(), map(), ControllerState.t() | nil, map() | nil) ::
           {:ok, ControllerState.t()} | :skip
-  def label(%__MODULE__{fine: fine, coarse: coarse}, player, prev \\ nil, opponent \\ nil) do
+  def label(expert, player, prev \\ nil, opponent \\ nil) do
+    case label_traced(expert, player, prev, opponent) do
+      {:ok, controller, _source} -> {:ok, controller}
+      :skip -> :skip
+    end
+  end
+
+  @doc """
+  Like `label/4` but also returns which path produced the label:
+  `:edge | :fine | :coarse | :approach | :jump_restart | :lcancel |
+  :cstick_fair | :airborne_neutral`. Audit/coverage instrumentation
+  (teacher-quality audit, 2026-07-15).
+  """
+  @spec label_traced(t(), map(), ControllerState.t() | nil, map() | nil) ::
+          {:ok, ControllerState.t(), atom()} | :skip
+  def label_traced(%__MODULE__{fine: fine, coarse: coarse}, player, prev \\ nil, opponent \\ nil) do
     cond do
       trunc(player.action) < @first_actionable ->
         :skip
@@ -110,16 +125,17 @@ defmodule ExPhil.Agents.MewtwoFairExpert do
       # including the fixture's natural fade-back drift — straight off the
       # edge (observed live: SD by jumping and drifting backwards).
       abs(player.x || 0.0) > @edge_margin ->
-        {:ok, edge_recovery(player, prev)}
+        {:ok, edge_recovery(player, prev), :edge}
 
       controller = fine[fine_key(player, opponent)] ->
-        {:ok, controller}
+        {:ok, controller, :fine}
 
       controller = coarse[coarse_key(player)] ->
-        {:ok, controller}
+        {:ok, controller, :coarse}
 
       true ->
-        {:ok, recovery(player, prev, opponent)}
+        {controller, branch} = recovery_traced(player, prev, opponent)
+        {:ok, controller, branch}
     end
   end
 
@@ -213,38 +229,53 @@ defmodule ExPhil.Agents.MewtwoFairExpert do
   end
 
   # Center-stage table misses only — edge states never reach here
-  defp recovery(player, prev, opponent \\ nil) do
+  defp recovery_traced(player, prev, opponent) do
     action = trunc(player.action)
     falling? = (player.speed_y_self || 0.0) < 0.0
 
     cond do
-      # Out of range: approach — a jump-restart here teaches metronome fairs
-      # at nothing. In range (or opponent unknown), the drill cycle resumes.
-      player.on_ground and opponent != nil and
-          abs((player.x || 0.0) - (opponent.x || 0.0)) > 35.0 ->
+      # Opponent BEHIND: turn/walk toward them before anything else. The old
+      # jump-restart here taught direction-blind metronome jumping (pathology
+      # #4: the grounded jump default was ~31% of ALL labels, 2026-07-15
+      # coverage audit) and left (behind, adjacent) states with no exit
+      # (observed live: 75s mutual-idle deadlock). Also gives case #3's
+      # turnaround exemplars a default-path ally.
+      player.on_ground and opponent != nil and side_bucket(player, opponent) == -1 ->
         toward = if (opponent.x || 0.0) > (player.x || 0.0), do: 1.0, else: 0.0
-        %{neutral() | main_stick: %{x: toward, y: 0.5}}
+        {%{neutral() | main_stick: %{x: toward, y: 0.5}}, :turn_toward}
 
-      # Grounded off-script: restart the drill with a jump (recorder uses Y).
+      # Not at fair spacing (in front): walk there — approach replaces the
+      # old 35-unit boundary; jump-restarts only happen AT spacing now.
+      player.on_ground and opponent != nil and
+          abs((player.x || 0.0) - (opponent.x || 0.0)) > 30.0 ->
+        toward = if (opponent.x || 0.0) > (player.x || 0.0), do: 1.0, else: 0.0
+        {%{neutral() | main_stick: %{x: toward, y: 0.5}}, :approach}
+
+      # Grounded at spacing with the opponent in front (or opponent unknown —
+      # some tests): restart the drill with a jump (recorder uses Y).
       player.on_ground ->
-        if held?(prev, :button_y), do: neutral(), else: tap(:button_y)
+        if held?(prev, :button_y),
+          do: {neutral(), :jump_restart},
+          else: {tap(:button_y), :jump_restart}
 
       # Falling close to the stage IN AN AERIAL ATTACK: L-cancel insurance —
       # an L landing in the next couple of frames covers the touchdown
       # window. Outside attack states an airborne L is an airdodge, not a
       # cancel — never tap it there.
       falling? and (player.y || 0.0) < @lcancel_height and action in @aerial_attacks ->
-        if held?(prev, :button_l), do: neutral(), else: tap(:button_l)
+        if held?(prev, :button_l),
+          do: {neutral(), :lcancel},
+          else: {tap(:button_l), :lcancel}
 
       # Rising in a jump without an attack out: c-stick fair toward facing
       # (c-stick avoids main-stick drift side effects).
       action in @jump_states ->
-        cstick_fair(player, prev)
+        {cstick_fair(player, prev), :cstick_fair}
 
       # Anything else airborne (riding out the fair, tumble, specials): let
       # the table/state evolve; neutral is safe.
       true ->
-        neutral()
+        {neutral(), :airborne_neutral}
     end
   end
 

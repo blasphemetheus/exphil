@@ -59,6 +59,8 @@ defmodule ExPhil.Agents.Agent do
     # Button hysteresis for argmax button modes (nil = plain 0.5 threshold)
     :press_threshold,
     :release_threshold,
+    :jump_debounce,
+    :jump_cooldown,
     :use_prev_action,
     :ablate_prev_action,
     :leace_eraser,
@@ -257,6 +259,8 @@ defmodule ExPhil.Agents.Agent do
       deterministic_buttons: deterministic_buttons,
       press_threshold: press_threshold,
       release_threshold: release_threshold,
+      jump_debounce: Keyword.get(opts, :jump_debounce),
+      jump_cooldown: 0,
       ablate_prev_action: ablate_prev_action,
       leace_eraser: Keyword.get(opts, :leace_eraser),
       # Temporal config - will be set when policy is loaded
@@ -506,6 +510,20 @@ defmodule ExPhil.Agents.Agent do
             compute_single_frame_action(state, embedded, opts)
         end
 
+      # Jump re-press debounce BEFORE caching, so hysteresis prev_buttons and
+      # the prev-action channel both see the buttons actually emitted.
+      # Airborne-only: grounded re-presses (jump out of shield, restarts) are
+      # legitimate and cannot cause the liftoff double jump — suppressing
+      # them locked the bot in shield (observed live 2026-07-15: OOS jump
+      # blocked -> held shield through hits -> breaks).
+      airborne? =
+        case game_state.players[Keyword.get(opts, :player_port, 1)] do
+          %{on_ground: grounded} -> not grounded
+          _ -> false
+        end
+
+      {action, new_state} = apply_jump_debounce(action, new_state, airborne?)
+
       # Remember the emitted controller for the prev-action channel (only
       # decoded here when the policy was trained to see it)
       last_controller =
@@ -532,6 +550,43 @@ defmodule ExPhil.Agents.Agent do
         {:error, e}
     end
   end
+
+  # Jump re-press debounce (pathology #4 band-aid): after both jump buttons
+  # (X=2, Y=3) release, suppress NEW press edges for jump_debounce frames.
+  # Existing holds are never cut, so full hops are unaffected; the learned
+  # 1-frame liftoff double jump cannot fire, while data-like DJs (12-16f
+  # after liftoff) pass untouched.
+  defp apply_jump_debounce(action, %{jump_debounce: n} = state, airborne?)
+       when is_integer(n) and n > 0 do
+    buttons = action[:buttons]
+    prev = state.last_action && state.last_action[:buttons]
+
+    jump_slice = fn t -> t |> Nx.slice_along_axis(2, 2, axis: 1) |> Nx.reduce_max() |> Nx.to_number() end
+    prev_jump? = prev != nil and jump_slice.(prev) > 0
+    want_jump? = jump_slice.(buttons) > 0
+
+    cooldown = max((state.jump_cooldown || 0) - 1, 0)
+
+    {buttons, cooldown} =
+      cond do
+        # new AIRBORNE press edge while cooling down -> suppress this press
+        # (grounded presses always pass: OOS jump, drill restarts)
+        airborne? and want_jump? and not prev_jump? and cooldown > 0 ->
+          zeros = Nx.broadcast(Nx.tensor(0, type: Nx.type(buttons)), {1, 2})
+          {Nx.put_slice(buttons, [0, 2], zeros), cooldown}
+
+        # release edge -> arm the cooldown window
+        not want_jump? and prev_jump? ->
+          {buttons, n}
+
+        true ->
+          {buttons, cooldown}
+      end
+
+    {Map.put(action, :buttons, buttons), %{state | jump_cooldown: cooldown}}
+  end
+
+  defp apply_jump_debounce(action, state, _airborne?), do: {action, state}
 
   # Single-frame inference (original behavior)
   defp compute_single_frame_action(state, embedded, opts) do

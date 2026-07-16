@@ -19,19 +19,26 @@
 alias ExPhil.Interp.Activations
 alias ExPhil.Training.Output
 
-{opts, _, _} = OptionParser.parse(System.argv(), strict: [policy: :string])
+{opts, _, _} = OptionParser.parse(System.argv(), strict: [policy: :string, replays: :string])
 policy = opts[:policy] || "checkpoints/mewtwo_combo_poolgrow_r1_policy.bin"
 
 slippi = Path.expand("~/Slippi")
 
-# Mix of old-era (CPU dummy) and new-era (real tech dummy) games
+# Default: mix of old-era (CPU dummy) and new-era (real tech dummy) games.
+# Override with --replays comma,separated,paths (relative to ~/Slippi or absolute).
 replays =
-  [
-    "Game_20260713T015257.slp",
-    "Game_20260713T070100.slp",
-    "Game_20260714T115716.slp"
-  ]
-  |> Enum.map(&Path.join(slippi, &1))
+  case opts[:replays] do
+    nil ->
+      [
+        "Game_20260713T015257.slp",
+        "Game_20260713T070100.slp",
+        "Game_20260714T115716.slp"
+      ]
+
+    list ->
+      String.split(list, ",", trim: true)
+  end
+  |> Enum.map(fn p -> if String.starts_with?(p, "/"), do: p, else: Path.join(slippi, p) end)
   |> Enum.filter(&File.exists?/1)
 
 press_t = 0.45

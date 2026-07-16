@@ -154,6 +154,8 @@ defmodule ExPhil.CLI do
       desc: "Button hysteresis: prob needed to PRESS an up button (try 0.6; needs --release-threshold; argmax button modes only)", group: [:dolphin]},
     %{name: :release_threshold, flag: "--release-threshold", type: :float, short: nil, default: nil,
       desc: "Button hysteresis: prob below which a held button RELEASES (try 0.4) — presses become edges, not holds", group: [:dolphin]},
+    %{name: :jump_debounce, flag: "--jump-debounce", type: :integer, short: nil, default: nil,
+      desc: "Suppress NEW X/Y press edges for N frames after both jump buttons release (pathology #4 instant-DJ band-aid; holds unaffected)", group: [:dolphin]},
     %{name: :no_auto_menu, flag: "--no-auto-menu", type: :boolean, short: nil, default: false,
       desc: "Don't auto-navigate menus", group: [:dolphin]},
     %{name: :action_repeat, flag: "--action-repeat", type: :integer, short: nil, default: 1,
