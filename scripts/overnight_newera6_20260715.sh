@@ -26,7 +26,7 @@ DOLPHIN=$HOME/.local/share/slippi/netplay
 ISO=$HOME/isos/melee.iso
 LOG=logs/overnight_newera6_20260715.log
 TRACE=scripts/trace_tech_chase.exs
-ROUNDS=1
+ROUNDS=2
 
 if pgrep -x beam.smp >/dev/null; then
   echo "[newera] BEAM ALREADY LIVE — refusing to start (NO-MIX rule)" | tee -a "$LOG"
@@ -98,7 +98,15 @@ probe() {
     return 1
   fi
   echo "[newera] $tag replay: $new_replay" | tee -a "$LOG"
-  mix run "$TRACE" "$new_replay" 2>/dev/null | tee -a "$LOG"
+  local trace_out
+  trace_out=$(mix run "$TRACE" "$new_replay" 2>/dev/null | tee -a "$LOG")
+  echo "$trace_out"
+  # Accumulate this round's conversions (gates the next round)
+  local conv
+  conv=$(grep -oE 'conversions=[0-9]+' <<<"$trace_out" | head -1 | cut -d= -f2)
+  ROUND_CONV=$((ROUND_CONV + ${conv:-0}))
+  # Tier-1 report card (jump/shield/deadlock gates) into the log
+  mix run scripts/report_card.exs "$new_replay" 2>/dev/null | tee -a "$LOG"
   PROBE_REPLAY=$new_replay
 }
 
@@ -119,19 +127,32 @@ for R in $(seq 9 $((8 + ROUNDS))); do
   fi
   # A/B probes: plain vs jump-debounce (does the fixed teacher obsolete
   # the decode band-aid?)
-  for p in 1 2; do
+  ROUND_CONV=0
+  for p in 1 2 3; do
     PROBE_REPLAY=""
     if probe "$POLICY" "r${R}_p${p}_plain" && [ -n "$PROBE_REPLAY" ]; then
       POOL+=("$PROBE_REPLAY")
     fi
   done
-  for p in 3 4; do
+  for p in 4 5 6; do
     PROBE_REPLAY=""
     if probe "$POLICY" "r${R}_p${p}_debounce" --jump-debounce 10 && [ -n "$PROBE_REPLAY" ]; then
       POOL+=("$PROBE_REPLAY")
     fi
   done
+  # Gate: only continue to another round if this one converts at all —
+  # a 0-conversion policy feeds the next round pathological on-policy data
+  if [ "$ROUND_CONV" -eq 0 ]; then
+    echo "[newera] round $R: 0 conversions across probes — not continuing" | tee -a "$LOG"
+    break
+  fi
+  echo "[newera] round $R total conversions: $ROUND_CONV" | tee -a "$LOG"
 done
+
+# Pre-registered measurement: attribution/compression across the eras
+# (r9 entry added; missing checkpoints are skipped by the script)
+echo "[newera] running interp_p3_case3..." | tee -a "$LOG"
+mix run scripts/interp_p3_case3.exs >>"$LOG" 2>&1 || true
 # GOTCHAS #58: kill the FINAL probe's Dolphin too — orphans record
 # garbage >500k replays that poison size-globbed pools
 sleep 3
