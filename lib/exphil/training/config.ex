@@ -1624,7 +1624,16 @@ defmodule ExPhil.Training.Config do
     # Seed Nx's global key (affects Nx.Random operations)
     # Note: Nx uses a PRNG key system, this sets the default
     Nx.default_backend(EXLA.Backend)
-    Application.put_env(:nx, :default_defn_options, seed: seed)
+    # Merge into default_defn_options rather than replacing them: a plain
+    # put_env with [seed: ...] drops the compiler, silently sending every
+    # bare Nx.Defn.jit/value_and_grad in the app to Nx.Defn.Evaluator
+    # (pure-Elixir, no XLA fusion).
+    defn_opts =
+      Application.get_env(:nx, :default_defn_options, [])
+      |> Keyword.put_new(:compiler, EXLA)
+      |> Keyword.put(:seed, seed)
+
+    Application.put_env(:nx, :default_defn_options, defn_opts)
 
     seed
   end
