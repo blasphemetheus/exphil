@@ -33,6 +33,16 @@ if pgrep -x beam.smp >/dev/null; then
   exit 1
 fi
 
+# Recompiles need the devenv toolchain: launching from a bare shell fails
+# ~2 min in with cargo/make :enoent buried in the log (burned two launches
+# 2026-07-15). Fail loudly at t=0 instead.
+for tool in make cargo; do
+  command -v "$tool" >/dev/null || {
+    echo "[newera] $tool not on PATH — run me from 'devenv shell'" | tee -a "$LOG"
+    exit 1
+  }
+done
+
 POOL=(
   "$HOME/Slippi/Game_20260714T115716.slp"
   "$HOME/Slippi/Game_20260714T142354.slp"

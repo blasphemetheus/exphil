@@ -510,7 +510,22 @@ end
       end)
 
     loss = Nx.to_number(epoch_loss)
-    if rem(epoch, 25) == 0, do: Output.puts("epoch #{epoch}: loss=#{inspect(loss)}")
+    if rem(epoch, 5) == 0, do: Output.puts("epoch #{epoch}: loss=#{inspect(loss)}")
+
+    # Mid-training publish: a play-able snapshot every 10 epochs, so the
+    # run can be eye-tested while it trains (from a separate worktree —
+    # NO-MIX). Write-then-rename is atomic on the same filesystem, so a
+    # reader can never observe a torn file. Warm-restart caveat: mid-cycle
+    # snapshots can look worse than the final export.
+    if rem(epoch, 10) == 0 and is_number(loss) do
+      latest = Path.rootname(out_path) <> "_latest.bin"
+      tmp = latest <> ".tmp"
+
+      case Imitation.export_policy(tr, tmp) do
+        :ok -> File.rename!(tmp, latest)
+        _ -> File.rm(tmp)
+      end
+    end
 
     best =
       case best do
