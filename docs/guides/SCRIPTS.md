@@ -23,7 +23,7 @@ This document describes all available scripts in the `scripts/` directory.
 | **Play** | play_dolphin.exs | `--policy --dolphin --iso` |
 | | play_dolphin_async.exs | Same (recommended for slow models) |
 | | example_bot.exs | `--dolphin --iso` |
-| **DAgger** | dagger_multishine.exs | `--rollouts "a.slp,b.slp" --out policy.bin` |
+| **DAgger** | dagger_drill.exs | `--expert multishine --rollouts "a.slp,b.slp" --out policy.bin` |
 | | dagger_loop.sh | `[iterations]` — automated train→play→score loop |
 | | trace_multishine.exs | `replay.slp` — JC/shine scoreboard per replay |
 | **Export** | export_onnx.exs | `--policy policy.bin` |
