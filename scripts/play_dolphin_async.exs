@@ -110,7 +110,8 @@ Output.step(1, 5, "Loading agent")
     jump_debounce: opts[:jump_debounce],
     frame_delay: opts[:frame_delay],
     ablate_prev_action: opts[:ablate_prev_action] || false,
-    leace_eraser: opts[:leace_eraser]
+    leace_eraser: opts[:leace_eraser],
+    stateful_step: opts[:stateful_step] || false
   )
 
 config = Agent.get_config(agent)
@@ -120,6 +121,10 @@ Output.puts("    Temporal: #{config.temporal}")
 if config.temporal do
   Output.puts("    Backbone: #{config.backbone}")
   Output.puts("    Window:   #{config.window_size} frames")
+
+  if config[:stateful_step_active] do
+    Output.puts("    Stateful: Edifice.Stateful step path (O(1)/frame)")
+  end
 end
 
 # Step 2: Start the Melee bridge

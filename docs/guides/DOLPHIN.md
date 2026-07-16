@@ -94,6 +94,7 @@ mix run scripts/play_dolphin.exs \
 | `--stage NAME` | final_destination | Stage |
 | `--frame-delay N` | 0 | Simulated online delay |
 | `--deterministic` | false | Use argmax instead of sampling |
+| `--stateful-step` | false | O(1) recurrent inference: advance the GRU/LSTM trunk one frame at a time via the Edifice.Stateful step API instead of re-running the full window each frame (temporal `:gru`/`:lstm` policies only). Also enables the agent's `snapshot_state/1` / `restore_state/2` rollback API for netplay. |
 
 ### Async-only Options
 

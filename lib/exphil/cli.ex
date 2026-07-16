@@ -160,6 +160,8 @@ defmodule ExPhil.CLI do
       desc: "Don't auto-navigate menus", group: [:dolphin]},
     %{name: :action_repeat, flag: "--action-repeat", type: :integer, short: nil, default: 1,
       desc: "Only compute new action every N frames", group: [:dolphin]},
+    %{name: :stateful_step, flag: "--stateful-step", type: :boolean, short: nil, default: false,
+      desc: "O(1) recurrent inference: advance the GRU/LSTM trunk one frame at a time via the Edifice.Stateful step API instead of re-running the full window (temporal :gru/:lstm policies only; enables rollback snapshots)", group: [:dolphin]},
     %{name: :on_game_end, flag: "--on-game-end", type: :string, short: nil, default: "restart",
       desc: "Action on game end: restart or stop", group: [:dolphin]},
     %{name: :dummy, flag: "--dummy", type: :string, short: nil, default: "none",

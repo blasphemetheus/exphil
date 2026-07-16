@@ -34,6 +34,17 @@ defmodule ExPhil.Networks.Recurrent do
 
   ## Hidden State Management
 
+  > #### Superseded for agent inference {: .warning}
+  >
+  > The hand-rolled stateful path here (`build_stateful/1` + `initial_hidden/2`)
+  > is superseded by the `Edifice.Stateful` step API for O(1) per-frame agent
+  > inference: `Edifice.Recurrent.init_state/2` + `Edifice.Recurrent.step/3`
+  > (used by `ExPhil.Agents.Agent` with `stateful_step: true`). The Edifice
+  > path works on params trained with the FULL windowed policy (no separate
+  > stateful model needed), supports stacked layers and both Axon/fused param
+  > layouts, and provides snapshot/serialize/deserialize for netplay rollback.
+  > These functions remain for existing callers.
+
   For real-time inference, hidden states must be carried between frames:
 
       # Initialize hidden state

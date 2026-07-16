@@ -77,7 +77,17 @@ defmodule ExPhil.Agents.Agent do
     :last_action,
     # Mamba incremental inference cache
     :mamba_cache,
-    :use_incremental
+    :use_incremental,
+    # Edifice.Stateful step-path inference (O(1) per frame, GRU/LSTM only)
+    # stateful_step: requested via opts; trunk_state != nil means ACTIVE
+    :stateful_step,
+    :trunk_state,
+    :trunk_step_params,
+    :heads_predict_fn,
+    # true until the first post-reset frame has warmed the trunk (see
+    # compute_stateful_step_action: replicates the windowed path's
+    # pad-with-first-frame warmup so cold-start behavior matches)
+    :trunk_cold
   ]
 
   @type t :: %__MODULE__{}
@@ -97,6 +107,7 @@ defmodule ExPhil.Agents.Agent do
           | {:embed_config, map()}
           | {:action_repeat, pos_integer()}
           | {:use_incremental, boolean()}
+          | {:stateful_step, boolean()}
 
   @doc """
   Start an Agent GenServer.
@@ -109,6 +120,9 @@ defmodule ExPhil.Agents.Agent do
     - `:deterministic` - Use deterministic action selection (default: false)
     - `:temperature` - Sampling temperature (default: 1.0)
     - `:embed_config` - Embedding configuration (auto-detected from policy)
+    - `:stateful_step` - O(1) recurrent inference via the Edifice.Stateful
+      step API (temporal GRU/LSTM policies only; default: false). Enables
+      `snapshot_state/1` / `restore_state/2` for netplay rollback.
   """
   @spec start_link([start_option()]) :: GenServer.on_start()
   def start_link(opts) do
@@ -228,6 +242,36 @@ defmodule ExPhil.Agents.Agent do
     GenServer.call(agent, :warmed_up?)
   end
 
+  @doc """
+  Snapshot the agent's recurrent inference state as a serializable blob.
+
+  This is the rollback primitive for netplay (task #9): frames get
+  re-simulated when remote inputs arrive late, so the policy must be able
+  to restore its state to frame k and replay deterministically.
+
+  The blob captures the Edifice.Stateful trunk state plus the agent's own
+  per-frame bookkeeping (jump cooldown, last action/controller for the
+  prev-action channel and hysteresis). Only available in stateful-step
+  mode (`stateful_step: true` with a temporal GRU/LSTM policy).
+
+  Returns `{:ok, binary}` or `{:error, :not_stateful}`.
+  """
+  @spec snapshot_state(GenServer.server()) :: {:ok, binary()} | {:error, term()}
+  def snapshot_state(agent) do
+    GenServer.call(agent, :snapshot_state)
+  end
+
+  @doc """
+  Restore a state previously captured with `snapshot_state/1`.
+
+  After restore, feeding the same frames produces the same actions the
+  original timeline would have produced (deterministic modes).
+  """
+  @spec restore_state(GenServer.server(), binary()) :: :ok | {:error, term()}
+  def restore_state(agent, blob) when is_binary(blob) do
+    GenServer.call(agent, {:restore_state, blob})
+  end
+
   # ============================================================================
   # GenServer Callbacks
   # ============================================================================
@@ -275,7 +319,14 @@ defmodule ExPhil.Agents.Agent do
       last_action: nil,
       # Mamba incremental inference (will be initialized when Mamba policy loads)
       mamba_cache: nil,
-      use_incremental: use_incremental
+      use_incremental: use_incremental,
+      # Edifice.Stateful step-path inference (activated at policy load when
+      # the backbone supports it)
+      stateful_step: Keyword.get(opts, :stateful_step, false),
+      trunk_state: nil,
+      trunk_step_params: nil,
+      heads_predict_fn: nil,
+      trunk_cold: true
     }
 
     # Load policy if provided
@@ -382,7 +433,10 @@ defmodule ExPhil.Agents.Agent do
       # Incremental inference status
       use_incremental: state.use_incremental,
       incremental_active: state.mamba_cache != nil,
-      incremental_step: if(state.mamba_cache, do: state.mamba_cache.step, else: 0)
+      incremental_step: if(state.mamba_cache, do: state.mamba_cache.step, else: 0),
+      # Edifice.Stateful step path status
+      stateful_step: state.stateful_step,
+      stateful_step_active: state.trunk_state != nil
     }
 
     {:reply, config, state}
@@ -398,13 +452,25 @@ defmodule ExPhil.Agents.Agent do
         state.mamba_cache
       end
 
+    # Reset the Edifice.Stateful trunk state (step path) — a fresh init is
+    # exactly the state a fresh game should start from (equivalence pinned
+    # by test/exphil/networks/stateful_step_equivalence_test.exs)
+    new_trunk_state =
+      if state.trunk_state != nil do
+        init_trunk_state(state.trunk_step_params, state.embed_config, state.backbone)
+      else
+        nil
+      end
+
     new_state = %{
       state
       | frame_buffer: :queue.new(),
         last_action: nil,
         last_controller: nil,
         frames_since_inference: 0,
-        mamba_cache: new_mamba_cache
+        mamba_cache: new_mamba_cache,
+        trunk_state: new_trunk_state,
+        trunk_cold: true
     }
 
     {:reply, :ok, new_state}
@@ -423,19 +489,34 @@ defmodule ExPhil.Agents.Agent do
       dummy_embedded = embed_game_state(dummy_state, 1, state)
 
       # Run inference to trigger JIT compilation
-      if state.temporal do
-        # For temporal models, we need a full window of dummy embeddings
-        dummy_sequence =
-          List.duplicate(dummy_embedded, state.window_size)
-          |> Nx.stack()
-          # Add batch dimension
-          |> Nx.new_axis(0)
+      cond do
+        state.trunk_state != nil ->
+          # Stateful step path: compile the trunk step + heads-only predict.
+          # The warmup step runs on a THROWAWAY copy of the trunk state — the
+          # real state must not advance before the first game frame.
+          frame = Nx.reshape(dummy_embedded, {1, Nx.size(dummy_embedded)})
 
-        _output = state.predict_fn.(Utils.ensure_model_state(state.policy_params), dummy_sequence)
-      else
-        # For MLP, just single frame
-        input = Nx.reshape(dummy_embedded, {1, :auto})
-        _output = state.predict_fn.(Utils.ensure_model_state(state.policy_params), input)
+          {features, _new_trunk_state} =
+            trunk_step_fn().(state.trunk_step_params, state.trunk_state, frame)
+
+          _output =
+            state.heads_predict_fn.(Utils.ensure_model_state(state.policy_params), features)
+
+        state.temporal ->
+          # For temporal models, we need a full window of dummy embeddings
+          dummy_sequence =
+            List.duplicate(dummy_embedded, state.window_size)
+            |> Nx.stack()
+            # Add batch dimension
+            |> Nx.new_axis(0)
+
+          _output =
+            state.predict_fn.(Utils.ensure_model_state(state.policy_params), dummy_sequence)
+
+        true ->
+          # For MLP, just single frame
+          input = Nx.reshape(dummy_embedded, {1, :auto})
+          _output = state.predict_fn.(Utils.ensure_model_state(state.policy_params), input)
       end
 
       elapsed = System.monotonic_time(:millisecond) - start_time
@@ -448,6 +529,49 @@ defmodule ExPhil.Agents.Agent do
   @impl true
   def handle_call(:warmed_up?, _from, state) do
     {:reply, state.warmed_up, state}
+  end
+
+  @impl true
+  def handle_call(:snapshot_state, _from, state) do
+    if state.trunk_state == nil do
+      {:reply, {:error, :not_stateful}, state}
+    else
+      blob =
+        :erlang.term_to_binary(%{
+          version: 1,
+          trunk_state: Edifice.Stateful.serialize(state.trunk_state),
+          trunk_cold: state.trunk_cold,
+          jump_cooldown: state.jump_cooldown,
+          last_action: state.last_action && Edifice.Stateful.serialize(state.last_action),
+          last_controller: state.last_controller,
+          frames_since_inference: state.frames_since_inference
+        })
+
+      {:reply, {:ok, blob}, state}
+    end
+  end
+
+  @impl true
+  def handle_call({:restore_state, blob}, _from, state) do
+    if state.trunk_state == nil do
+      {:reply, {:error, :not_stateful}, state}
+    else
+      snap = :erlang.binary_to_term(blob)
+
+      new_state = %{
+        state
+        | trunk_state: Edifice.Stateful.deserialize(snap.trunk_state),
+          trunk_cold: Map.get(snap, :trunk_cold, false),
+          jump_cooldown: snap.jump_cooldown,
+          last_action: snap.last_action && Edifice.Stateful.deserialize(snap.last_action),
+          last_controller: snap.last_controller,
+          frames_since_inference: snap.frames_since_inference
+      }
+
+      {:reply, :ok, new_state}
+    end
+  rescue
+    e -> {:reply, {:error, {:invalid_snapshot, e}}, state}
   end
 
   @impl true
@@ -500,6 +624,12 @@ defmodule ExPhil.Agents.Agent do
           state.temporal and state.backbone == :gated_ssm and state.use_incremental and
               state.mamba_cache != nil ->
             compute_incremental_mamba_action(state, embedded, opts)
+
+          # Edifice.Stateful step path (O(1) per frame): advance the GRU/LSTM
+          # trunk state with the current frame only, then run the heads-only
+          # predict on the resulting features. Opt-in via --stateful-step.
+          state.temporal and state.trunk_state != nil ->
+            compute_stateful_step_action(state, embedded, opts)
 
           # Standard temporal inference (O(window_size) per frame)
           state.temporal ->
@@ -676,6 +806,106 @@ defmodule ExPhil.Agents.Agent do
     {action, confidence, new_state}
   end
 
+  # Edifice.Stateful step-path inference (O(1) per frame) for GRU/LSTM.
+  #
+  # The windowed path re-runs the whole 60-frame window every frame — O(window)
+  # work for O(1) new information. Here we advance the recurrent trunk state
+  # with just the current frame via Edifice.Recurrent.step/3 (JIT-compiled and
+  # cached by Edifice.Stateful.jit_step), then run the six controller heads on
+  # the resulting [1, hidden] features through a heads-only Axon subgraph that
+  # shares layer names with the full policy, so the SAME exported params are
+  # used unchanged. Sampling goes through the standard Sampling module, so all
+  # knobs (deterministic, temperature, hysteresis, deterministic_buttons)
+  # behave identically to the windowed path.
+  #
+  # Equivalence with the windowed forward is pinned by
+  # test/exphil/networks/stateful_step_equivalence_test.exs.
+  defp compute_stateful_step_action(state, embedded, opts) do
+    # Current frame only: [1, embed_size]
+    frame = Nx.reshape(embedded, {1, Nx.size(embedded)})
+
+    # Cold-start warmup: the windowed path pads its buffer with copies of
+    # the FIRST frame, so the trunk always sees a saturated window — a
+    # regime the policy was trained in. A cold hidden state is
+    # off-distribution and caused an opening-SD pathology in live probes
+    # (stock lost at frame ~120 in every cold-start game). Replicate the
+    # pad semantics: step the first frame window_size-1 extra times, once
+    # per game (~13 ms total on the 5090 for window 60).
+    trunk_state =
+      if state.trunk_cold do
+        Enum.reduce(1..max(state.window_size - 1, 0)//1, state.trunk_state, fn _, st ->
+          {_out, st} = trunk_step_fn().(state.trunk_step_params, st, frame)
+          st
+        end)
+      else
+        state.trunk_state
+      end
+
+    {features, new_trunk_state} =
+      trunk_step_fn().(state.trunk_step_params, trunk_state, frame)
+
+    deterministic = Keyword.get(opts, :deterministic, state.deterministic)
+    temperature = Keyword.get(opts, :temperature, state.temperature)
+
+    deterministic_buttons =
+      Keyword.get(opts, :deterministic_buttons, state.deterministic_buttons || false)
+
+    action =
+      Networks.Policy.sample(
+        state.policy_params,
+        state.heads_predict_fn,
+        features,
+        deterministic: deterministic,
+        temperature: temperature,
+        deterministic_buttons: deterministic_buttons,
+        press_threshold: state.press_threshold,
+        release_threshold: state.release_threshold,
+        prev_buttons: state.last_action && state.last_action[:buttons]
+      )
+
+    confidence = Networks.Policy.compute_confidence(action)
+
+    {action, confidence, %{state | trunk_state: new_trunk_state, trunk_cold: false}}
+  end
+
+  # JIT-compiled Edifice.Recurrent.step/3 — cached in :persistent_term by
+  # Edifice.Stateful.jit_step (same hygiene as Sampling.jitted/2). Falls back
+  # to the eager step when EXLA isn't loaded (e.g. BinaryBackend tests).
+  defp trunk_step_fn do
+    if Code.ensure_loaded?(EXLA) do
+      Edifice.Stateful.jit_step(Edifice.Recurrent, EXLA)
+    else
+      &Edifice.Recurrent.step/3
+    end
+  end
+
+  # The trunk-only param subset for Edifice.Recurrent.step/init_state:
+  # "input_ln" plus every "gru_*"/"lstm_*" layer (covers both the Axon layout
+  # — gru_1, gru_1_ln, gru_1_h_hidden_state — and the fused-kernel layout —
+  # gru_1_input_proj, gru_1_fused_scan). Passing only the trunk subset keeps
+  # the head params out of the JIT trace.
+  defp trunk_step_params(params, cell_type) do
+    prefix = "#{cell_type}_"
+
+    params
+    |> raw_policy_params()
+    |> Map.filter(fn {k, _v} ->
+      is_binary(k) and (k == "input_ln" or String.starts_with?(k, prefix))
+    end)
+  end
+
+  # Initial trunk state for the step path (see Edifice.Recurrent.init_state/2:
+  # for the Axon layout this replicates Axon's key-derived initial hidden
+  # state, NOT zeros — required for step/window equivalence from frame 1).
+  defp init_trunk_state(trunk_params, embed_config, cell_type) do
+    Edifice.Recurrent.init_state(trunk_params,
+      batch_size: 1,
+      hidden_size: embed_config[:hidden_size] || 256,
+      num_layers: embed_config[:num_layers] || 2,
+      cell_type: cell_type
+    )
+  end
+
   # Incremental GatedSSM inference with state caching (O(1) per frame)
   # This is 60x faster than compute_temporal_action for window_size=60
   defp compute_incremental_mamba_action(state, embedded, opts) do
@@ -749,6 +979,17 @@ defmodule ExPhil.Agents.Agent do
 
   defp raw_policy_params(%Axon.ModelState{data: data}), do: data
   defp raw_policy_params(params), do: params
+
+  # Move all param tensors to the default backend (EXLA device when
+  # available). Checkpoint-loaded tensors live on Nx.BinaryBackend and would
+  # otherwise be re-transferred host->device on EVERY inference call.
+  defp copy_params_to_default_backend(%Axon.ModelState{} = ms) do
+    %{ms | data: Nx.backend_copy(ms.data, Nx.default_backend())}
+  end
+
+  defp copy_params_to_default_backend(params) do
+    Nx.backend_copy(params, Nx.default_backend())
+  end
 
   # Sample action from backbone output (run through policy heads)
   defp sample_from_backbone_output(backbone_output, params, opts) do
@@ -1055,6 +1296,73 @@ defmodule ExPhil.Agents.Agent do
       Logger.info("[Agent] Policy trained with prev-action conditioning — feeding own outputs back")
     end
 
+    # Edifice.Stateful step path (opt-in via stateful_step / --stateful-step):
+    # O(1) recurrent inference for GRU/LSTM temporal policies. Builds a
+    # heads-only predict fn (same layer names as the full policy, so the
+    # exported params slot in unchanged) plus the initial trunk state.
+    {trunk_params, trunk_state, heads_predict_fn, params} =
+      cond do
+        not state.stateful_step ->
+          {nil, nil, nil, params}
+
+        not (temporal and backbone in [:gru, :lstm]) ->
+          Logger.warning(
+            "[Agent] stateful_step requested but backbone #{inspect(backbone)} " <>
+              "doesn't support the Edifice.Stateful step path (GRU/LSTM only) — " <>
+              "falling back to windowed inference"
+          )
+
+          {nil, nil, nil, params}
+
+        is_binary(state.leace_eraser) ->
+          Logger.warning(
+            "[Agent] stateful_step is incompatible with --leace-eraser " <>
+              "(eraser sits between trunk and heads in the full graph) — " <>
+              "falling back to windowed inference"
+          )
+
+          {nil, nil, nil, params}
+
+        true ->
+          hidden_size = Map.get(config, :hidden_size, 256)
+
+          Logger.info(
+            "[Agent] Stateful step path ACTIVE (Edifice.Stateful, backbone: #{backbone}, " <>
+              "O(1)/frame instead of O(#{window_size}))"
+          )
+
+          # Checkpoint tensors deserialize onto Nx.BinaryBackend; without
+          # this copy every jitted step re-transfers all trunk weights
+          # host->device (measured 12.4 ms/step vs 0.21 ms device-resident
+          # on the 5090 for the r10 GRU). Copy once at load.
+          params = copy_params_to_default_backend(params)
+
+          heads_input = Axon.input("features", shape: {nil, hidden_size})
+
+          heads_model =
+            Networks.Policy.Heads.build_controller_head(
+              heads_input,
+              axis_buckets,
+              shoulder_buckets
+            )
+
+          {_init_fn, heads_predict_fn} = Utils.build_compiled(heads_model)
+
+          trunk_params = trunk_step_params(params, backbone)
+
+          trunk_state =
+            init_trunk_state(
+              trunk_params,
+              %{
+                hidden_size: hidden_size,
+                num_layers: Map.get(config, :num_layers, 2)
+              },
+              backbone
+            )
+
+          {trunk_params, trunk_state, heads_predict_fn, params}
+      end
+
     new_state = %{
       state
       | policy_params: params,
@@ -1069,7 +1377,12 @@ defmodule ExPhil.Agents.Agent do
         # Reset frame buffer when loading new policy
         frame_buffer: :queue.new(),
         # Mamba cache for incremental inference
-        mamba_cache: mamba_cache
+        mamba_cache: mamba_cache,
+        # Edifice.Stateful step path (nil = windowed inference)
+        trunk_step_params: trunk_params,
+        trunk_state: trunk_state,
+        heads_predict_fn: heads_predict_fn,
+        trunk_cold: true
     }
 
     {:ok, new_state}
