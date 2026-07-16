@@ -61,7 +61,8 @@ alias ExPhil.Embeddings
          "test/fixtures/replays/mewtwo_shfair_only.slp," <>
          "test/fixtures/replays/mewtwo_approach_fair.slp," <>
          "test/fixtures/replays/mewtwo_turnaround_fair.slp," <>
-         "test/fixtures/replays/mewtwo_oos_chains.slp",
+         "test/fixtures/replays/mewtwo_oos_chains.slp," <>
+         "test/fixtures/replays/mewtwo_ground_neutral.slp",
        "checkpoints/mewtwo_fair_dagger_policy.bin", 16}
 
     "fox_recovery" ->
@@ -83,7 +84,8 @@ alias ExPhil.Embeddings
          "test/fixtures/replays/mewtwo_shfair_only.slp," <>
          "test/fixtures/replays/mewtwo_approach_fair.slp," <>
          "test/fixtures/replays/mewtwo_turnaround_fair.slp," <>
-         "test/fixtures/replays/mewtwo_oos_chains.slp",
+         "test/fixtures/replays/mewtwo_oos_chains.slp," <>
+         "test/fixtures/replays/mewtwo_ground_neutral.slp",
        "checkpoints/mewtwo_combo_dagger_policy.bin", 16}
 
     other ->

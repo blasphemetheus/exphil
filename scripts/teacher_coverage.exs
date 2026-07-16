@@ -17,7 +17,8 @@ fixtures =
     "test/fixtures/replays/mewtwo_shfair_only.slp",
     "test/fixtures/replays/mewtwo_approach_fair.slp",
     "test/fixtures/replays/mewtwo_turnaround_fair.slp",
-    "test/fixtures/replays/mewtwo_oos_chains.slp"
+    "test/fixtures/replays/mewtwo_oos_chains.slp",
+    "test/fixtures/replays/mewtwo_ground_neutral.slp"
   ]
 
 frames =
