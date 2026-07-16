@@ -81,9 +81,34 @@ defmodule ExPhil.Agents.MewtwoFairExpert do
       |> Enum.reject(fn f -> trunc(f.game_state.players[port].action) < @first_actionable end)
 
     %__MODULE__{
-      fine: build_table(usable, port, &fine_key(&1, opp_of(&2, opp_port)), min_count),
-      coarse: build_table(usable, port, fn p, _f -> coarse_key(p) end, max(min_count, 4))
+      fine:
+        usable
+        |> build_table(port, &fine_key(&1, opp_of(&2, opp_port)), min_count)
+        |> scrub_early_air_jumps(),
+      coarse:
+        usable
+        |> build_table(port, fn p, _f -> coarse_key(p) end, max(min_count, 4))
+        |> scrub_early_air_jumps()
     }
+  end
+
+  # Frames after liftoff before a double jump could sensibly start
+  @dj_scrub_af 8
+
+  # Jump-state cells before af 8 must not press jump: the recorder's
+  # deliberate double jumps happen 12-16f after liftoff, but the policy
+  # generalizes ANY early-air jump label into a liftoff re-press
+  # (pathology #4's 1-frame double jump — and stick jumps bypass the
+  # --jump-debounce band-aid entirely). Later-af DJ exemplars survive.
+  # Both key shapes start {action, af, ...}.
+  defp scrub_early_air_jumps(table) do
+    Map.new(table, fn {key, controller} ->
+      if elem(key, 0) in @jump_states and elem(key, 1) < @dj_scrub_af do
+        {key, %{controller | button_x: false, button_y: false}}
+      else
+        {key, controller}
+      end
+    end)
   end
 
   defp opp_of(frame, opp_port), do: frame.game_state.players[opp_port]

@@ -178,4 +178,15 @@ defmodule ExPhil.Agents.MewtwoFairExpertTest do
       assert agreement > 0.8, "button agreement only #{Float.round(agreement, 3)}"
     end
   end
+
+  describe "early-air jump scrub (pathology #4)" do
+    test "no jump-state cell before af 8 presses a jump button", %{expert: expert} do
+      for {table, kind} <- [{expert.fine, :fine}, {expert.coarse, :coarse}],
+          {key, controller} <- table,
+          elem(key, 0) in 25..28 and elem(key, 1) < 8 do
+        refute controller.button_x or controller.button_y,
+               "#{kind} cell #{inspect(key)} presses jump before af 8"
+      end
+    end
+  end
 end

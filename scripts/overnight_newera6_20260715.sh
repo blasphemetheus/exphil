@@ -98,7 +98,7 @@ for R in $(seq 9 $((8 + ROUNDS))); do
   echo "[newera] === round $R: ${#POOL[@]} replays, repaired teacher, dropout 0.4, transition 2.0 -> $POLICY ===" | tee -a "$LOG"
   mix run scripts/dagger_drill.exs \
     --expert mewtwo_combo \
-    --max-epochs 150 \
+    --max-epochs 100 \
     --prev-action-dropout 0.4 \
     --transition-weight 2.0 \
     --rollouts "$ROLLOUTS" \
