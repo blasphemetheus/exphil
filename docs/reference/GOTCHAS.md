@@ -2545,3 +2545,24 @@ presence, not exit code. If a system update garbage-collects
 the pinned store paths, re-run
 `nix build --no-link nixpkgs#alsa-lib nixpkgs#libglvnd nixpkgs#libusb1 nixpkgs#zlib nixpkgs#stdenv.cc.cc.lib`
 and refresh the paths in the wrapper.
+
+## 65. Cold recurrent state is off-distribution — step paths must replicate windowed warmup
+
+**Symptom:** every cold-start game on the Edifice.Stateful step path lost a
+stock by ~frame 120 (opening SD off the ledge); windowed games with the SAME
+checkpoint never did. Head-logit equivalence tests all passed — the bug was
+not in the math.
+
+**Cause:** the windowed path pads the buffer with `window_size` copies of
+frame 1 at game start, so the trunk ALWAYS sees a "60 identical frames"
+prefix — the network trained on that regime. A zeros-initialized hidden
+state is a state the network has never seen.
+
+**Fix:** on the first frame after reset, step the trunk `window_size - 1`
+extra times on that frame before the real step (~13 ms once per game).
+Pinned by a first-frame parity test (step-path vs windowed logits).
+
+**Lesson:** ANY future O(1) step path (Mamba/GatedSSM incremental included)
+must reproduce the windowed path's warmup regime, not just its per-frame
+math — equivalence tests on mid-sequence frames won't catch a cold-start
+mismatch.

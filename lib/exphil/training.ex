@@ -47,7 +47,7 @@ defmodule ExPhil.Training do
   - `entropy` - Action distribution entropy
   """
 
-  alias ExPhil.Training.{Imitation, PPO, Data}
+  alias ExPhil.Training.{Imitation, PPO, Data, Checkpoint}
   alias ExPhil.Error.CheckpointError
 
   require Logger
@@ -393,36 +393,17 @@ defmodule ExPhil.Training do
   def load_policy(path, opts \\ []) do
     validate = Keyword.get(opts, :validate, true)
 
-    with {:ok, binary} <- File.read(path),
-         {:ok, policy} <- safe_deserialize(binary, path),
+    # Format sniffing (legacy term_to_binary vs edifice manifest) lives in
+    # Training.Checkpoint.load_policy — this facade must NOT deserialize
+    # itself, or the two loaders drift (a duplicated legacy loader here
+    # rejected every manifest-format export as :corrupted, 2026-07-16).
+    with {:ok, policy} <- Checkpoint.load_policy(path, warn_on_mismatch: false),
          :ok <- if(validate, do: validate_policy(policy, path), else: :ok) do
       {:ok, policy}
-    end
-  end
-
-  # Safely deserialize binary term with helpful error messages.
-  #
-  # Prefer :safe, but fall back to an unrestricted load with a warning:
-  # policy exports are local artifacts we produced, and :safe rejects terms
-  # like funs — worse, it rejects atoms not yet in THIS VM's atom table, so
-  # whether a given file loads under :safe varies run-to-run with module
-  # load order. Mirrors Checkpoint.deserialize_trusted/2.
-  defp safe_deserialize(binary, path) do
-    try do
-      {:ok, :erlang.binary_to_term(binary, [:safe])}
-    rescue
-      ArgumentError ->
-        Logger.warning(
-          "#{path} contains terms rejected by :safe deserialization; " <>
-            "falling back to unrestricted load. Only load checkpoints from trusted sources."
-        )
-
-        try do
-          {:ok, :erlang.binary_to_term(binary)}
-        rescue
-          ArgumentError ->
-            {:error, CheckpointError.new(:corrupted, path: path)}
-        end
+    else
+      {:error, {:file_read, reason}} -> {:error, reason}
+      {:error, {:unknown_policy_format, _}} -> {:error, CheckpointError.new(:corrupted, path: path)}
+      other -> other
     end
   end
 

@@ -233,10 +233,12 @@ defmodule ExPhil.Training.Checkpoint do
   # Private helpers
 
   defp validate_and_return(data, type, opts) do
+    # Map.get, not data.config: hand-crafted or truncated exports may lack
+    # the key entirely, and validation should report that, not KeyError
     config =
       case type do
-        :checkpoint -> data.config || %{}
-        :policy -> data.config || %{}
+        :checkpoint -> Map.get(data, :config) || %{}
+        :policy -> Map.get(data, :config) || %{}
       end
 
     warn_on_mismatch = Keyword.get(opts, :warn_on_mismatch, true)
