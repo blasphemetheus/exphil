@@ -70,7 +70,12 @@ defmodule ScenarioSuite do
   # Replay preparation (once per source .slp)
   # ==========================================================================
 
-  def prepare_replay(slp) do
+  def prepare_replay(slp, opts \\ []) do
+    # pipe_shim: convert recorded analog trigger holds to digital presses.
+    # Needed ONLY for the pipe input path on the ExiAI build (GOTCHAS #66);
+    # with EXI inputs (bridge default when headless) analog triggers
+    # round-trip and the shim must be OFF or light shields replay wrong.
+    shim = Keyword.get(opts, :pipe_shim, false)
     {:ok, replay} = Peppi.parse(Path.expand(slp))
 
     {inputs, ref} =
@@ -80,7 +85,11 @@ defmodule ScenarioSuite do
 
         if p1 && p2 do
           {
-            Map.put(inputs, f.frame_number, {rec_input(p1.controller), rec_input(p2.controller)}),
+            Map.put(
+              inputs,
+              f.frame_number,
+              {rec_input(p1.controller, shim), rec_input(p2.controller, shim)}
+            ),
             Map.put(ref, f.frame_number, %{
               p1: ScenarioScan.player_summary(p1),
               p2: ScenarioScan.player_summary(p2)
@@ -107,7 +116,7 @@ defmodule ScenarioSuite do
   # in probe games). The analog value is still sent for builds that honor it.
   @trigger_digital_threshold 0.31
 
-  defp rec_input(c) do
+  defp rec_input(c, pipe_shim) do
     %{
       main_stick: %{x: c.main_stick_x, y: c.main_stick_y},
       c_stick: %{x: c.c_stick_x, y: c.c_stick_y},
@@ -118,8 +127,8 @@ defmodule ScenarioSuite do
         x: c.button_x,
         y: c.button_y,
         z: c.button_z,
-        l: c.button_l or c.l_trigger > @trigger_digital_threshold,
-        r: c.button_r or c.r_trigger > @trigger_digital_threshold,
+        l: c.button_l or (pipe_shim and c.l_trigger > @trigger_digital_threshold),
+        r: c.button_r or (pipe_shim and c.r_trigger > @trigger_digital_threshold),
         d_up: c.button_d_up
       }
     }
@@ -515,6 +524,7 @@ end
       run_dir: :string,
       press_threshold: :float,
       release_threshold: :float,
+      pipe_shim: :boolean,
       quiet: :boolean,
       verbose: :boolean
     ]
@@ -616,7 +626,12 @@ preps =
   entries
   |> Enum.map(& &1.slp)
   |> Enum.uniq()
-  |> Map.new(fn slp -> {slp, ScenarioSuite.prepare_replay(slp)} end)
+  |> Map.new(fn slp ->
+    # --pipe-shim: only for pipe-input replays on the ExiAI build (#66);
+    # default OFF — the bridge now uses EXI inputs when headless, which
+    # round-trip analog triggers (WS5 fix)
+    {slp, ScenarioSuite.prepare_replay(slp, pipe_shim: opts[:pipe_shim] || false)}
+  end)
 
 Output.success("Parsed #{map_size(preps)} source replay(s)")
 

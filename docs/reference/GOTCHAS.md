@@ -2600,6 +2600,18 @@ the earliest usable moment.
 head) is a no-op on this build; only its digital L/R button head can
 shield. Probe scores on the headless build inherit this.
 
+**RESOLVED 2026-07-17 (WS5): use EXI inputs.** The drop is specific to the
+PIPE input path; the ExiAI build's native path (`use_exi_inputs=True`,
+the "Allow Bot Input Overrides" gecko — what slippi-ai uses) honors analog
+triggers. The bridge now defaults `exi_inputs = headless` (melee_bridge.py
+console_kwargs; falls back to pipes with a warning on non-EXI builds), and
+scenario_suite's analog→digital shim is OFF by default (`--pipe-shim` to
+re-enable for pipe-mode replays). Proof: the 13 scenario prefixes that
+DIVERGED under dropped analog replay at drift (0.0, 0.0) with the shim off
+— the recorded analog shield holds demonstrably reach the game. The
+analog shoulder head works in headless play again; headless shield-gate
+scores are comparable with windowed builds from this date forward.
+
 ## 67. Every mix compile RELINKS the shared exla NIF — concurrent BEAMs get SIGBUS
 
 **Symptom:** a running training BEAM dies with `Bus error (core dumped)`

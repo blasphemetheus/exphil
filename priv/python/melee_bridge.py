@@ -264,6 +264,17 @@ class MeleeBridge:
             if self.headless:
                 console_kwargs["gfx_backend"] = "Null"
                 console_kwargs["disable_audio"] = True
+            # EXI inputs (WS5, lightshield fix): the ExiAI build's native
+            # input path ("Allow Bot Input Overrides" gecko). The plain
+            # pipe path on that build silently DROPS analog trigger values
+            # (GOTCHAS #66); EXI inputs honor them. Default: on whenever
+            # headless (the ExiAI build is the only headless build we run);
+            # explicit config wins. libmelee raises ValueError on builds
+            # without EXI support — we retry without it below.
+            use_exi = config.get("exi_inputs")
+            if use_exi is None:
+                use_exi = self.headless
+            console_kwargs["use_exi_inputs"] = bool(use_exi)
             replay_dir = config.get("replay_dir")
             if replay_dir:
                 # Flat per-instance replay dir -> unambiguous attribution
@@ -275,11 +286,26 @@ class MeleeBridge:
                 console_kwargs["replay_monthly_folders"] = False
 
             # Minimal config - don't pass our logger, libmelee expects its own interface
-            self.console = melee.Console(**console_kwargs)
+            try:
+                self.console = melee.Console(**console_kwargs)
+            except ValueError as e:
+                if console_kwargs.get("use_exi_inputs") and "custom dolphin build" in str(e):
+                    logger.warning(
+                        "EXI inputs unsupported by this Dolphin build — retrying "
+                        "with pipe inputs (analog triggers will be dropped on "
+                        "the ExiAI build, GOTCHAS #66)"
+                    )
+                    console_kwargs["use_exi_inputs"] = False
+                    self.console = melee.Console(**console_kwargs)
+                else:
+                    raise
             if online:
                 logger.info(f"Netplay mode: will connect to {connect_code}")
             if self.headless:
-                logger.info("Headless mode: Null gfx, no audio, blocking input")
+                logger.info(
+                    "Headless mode: Null gfx, no audio, blocking input, "
+                    f"exi_inputs={console_kwargs.get('use_exi_inputs')}"
+                )
 
             # Enlarge the render window at the source: Console.__init__ wrote
             # Dolphin.ini into the temp User dir, and Dolphin reads it at
