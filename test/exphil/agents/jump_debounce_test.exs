@@ -119,13 +119,39 @@ defmodule ExPhil.Agents.JumpDebounceTest do
     assert jump?(dj)
   end
 
-  test "X release while Y still held is not a release edge" do
-    # Both slices reduce over cols 2-3 jointly: Y held keeps prev_jump true,
-    # want_jump true -> falls to passthrough, cooldown just decrements
-    st = state(cooldown: 3, last_action: action(1, 1))
+  test "X release while Y stays held: Y is never cut, but the window ARMS" do
+    # Per-column semantics (WS3): any column release arms the cooldown so a
+    # later re-press gets suppressed. The still-held column is untouched.
+    st = state(n: 10, cooldown: 3, last_action: action(1, 1))
     {out, new_st} = Agent.apply_jump_debounce(action(0, 1), st, true)
 
     assert jump?(out)
-    assert new_st.jump_cooldown == 2
+    assert new_st.jump_cooldown == 10
+  end
+
+  test "X->Y same-frame alternation airborne is suppressed AND arms the window" do
+    # The r12 evasion: release X + press Y in one frame read as a
+    # continuous hold under joint max semantics
+    st = state(n: 10, cooldown: 0, last_action: action(1, 0))
+    {out, new_st} = Agent.apply_jump_debounce(action(0, 1), st, true)
+
+    refute jump?(out)
+    assert new_st.jump_cooldown == 10
+  end
+
+  test "pressing the second jump button while the first is held (airborne) is suppressed" do
+    # No cooldown needed: a second jump column has no purpose but a DJ
+    st = state(cooldown: 0, last_action: action(1, 0))
+    {out, _} = Agent.apply_jump_debounce(action(1, 1), st, true)
+
+    # X (held) survives, Y (new) is zeroed -> still jumping via the hold
+    assert Nx.to_flat_list(out.buttons) |> Enum.at(2) == 1.0
+    assert Nx.to_flat_list(out.buttons) |> Enum.at(3) == 0.0
+  end
+
+  test "GROUNDED X->Y alternation passes (OOS/restart legitimacy preserved)" do
+    st = state(n: 10, cooldown: 0, last_action: action(1, 0))
+    {out, _} = Agent.apply_jump_debounce(action(0, 1), st, false)
+    assert jump?(out)
   end
 end

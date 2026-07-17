@@ -92,19 +92,32 @@ defmodule ExPhil.Agents.MewtwoFairExpert do
     }
   end
 
-  # Frames after liftoff before a double jump could sensibly start
-  @dj_scrub_af 8
+  # Frames after liftoff before a double jump could sensibly start.
+  # Widened 8 -> 12 (2026-07-17, WS3): r12 still failed liftoff->DJ p50 at
+  # 2-4f — the 8-11f gray zone left enough early-DJ mass for the policy to
+  # compress toward liftoff. The recorder's deliberate DJs are 12-16f;
+  # af < 12 keeps all of them.
+  @dj_scrub_af 12
 
-  # Jump-state cells before af 8 must not press jump: the recorder's
-  # deliberate double jumps happen 12-16f after liftoff, but the policy
-  # generalizes ANY early-air jump label into a liftoff re-press
-  # (pathology #4's 1-frame double jump — and stick jumps bypass the
-  # --jump-debounce band-aid entirely). Later-af DJ exemplars survive.
+  # Melee's tap-jump engages near stick y ~0.66 (normalized 0..1 here,
+  # up > 0.5). 0.60 preserves upward drift/DI while staying under the
+  # threshold.
+  @tap_jump_cap 0.60
+
+  # Jump-state cells before af 12 must not initiate a jump by ANY means:
+  # the recorder's deliberate double jumps happen 12-16f after liftoff,
+  # but the policy generalizes ANY early-air jump label into a liftoff
+  # re-press (pathology #4's 1-frame double jump). Two initiation paths
+  # are scrubbed: X/Y presses, and TAP JUMP (stick-up past the ~0.66
+  # threshold — bypasses button-level defenses entirely; capped to 0.60
+  # so upward drift survives). Later-af DJ exemplars survive untouched.
   # Both key shapes start {action, af, ...}.
   defp scrub_early_air_jumps(table) do
     Map.new(table, fn {key, controller} ->
       if elem(key, 0) in @jump_states and elem(key, 1) < @dj_scrub_af do
-        {key, %{controller | button_x: false, button_y: false}}
+        stick = controller.main_stick
+        capped = %{stick | y: min(stick.y, @tap_jump_cap)}
+        {key, %{controller | button_x: false, button_y: false, main_stick: capped}}
       else
         {key, controller}
       end
@@ -175,6 +188,14 @@ defmodule ExPhil.Agents.MewtwoFairExpert do
     scored =
       frames
       |> Enum.reject(&(&1.game_state.frame < 0))
+      # Exclude frames the DJ scrub deliberately alters (jump states at
+      # af < @dj_scrub_af): the teacher disagrees with the recorder there
+      # BY DESIGN — counting them makes fidelity report scrub strength,
+      # not table quality.
+      |> Enum.reject(fn f ->
+        p = f.game_state.players[port]
+        p && trunc(p.action) in @jump_states and (p.action_frame || 0.0) < @dj_scrub_af
+      end)
       |> Enum.flat_map(fn f ->
         case label(expert, f.game_state.players[port]) do
           {:ok, c} -> [{c, f.controller}]

@@ -11,15 +11,9 @@
 alias ExPhil.Agents.{MewtwoComboExpert, MewtwoFairExpert, MewtwoTechChaseExpert}
 alias ExPhil.Interp.ReplayStats
 
-fixtures =
-  [
-    "test/fixtures/replays/mewtwo_fair_chains.slp",
-    "test/fixtures/replays/mewtwo_shfair_only.slp",
-    "test/fixtures/replays/mewtwo_approach_fair.slp",
-    "test/fixtures/replays/mewtwo_turnaround_fair.slp",
-    "test/fixtures/replays/mewtwo_oos_chains.slp",
-    "test/fixtures/replays/mewtwo_ground_neutral.slp"
-  ]
+# Single source (drift with the trainer's list made this audit lie —
+# see ExPhil.Agents.FixtureSets)
+fixtures = ExPhil.Agents.FixtureSets.mewtwo_combo()
 
 frames =
   Enum.flat_map(fixtures, fn path ->

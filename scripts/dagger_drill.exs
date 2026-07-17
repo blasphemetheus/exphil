@@ -80,12 +80,7 @@ alias ExPhil.Embeddings
       # Composite: fair expert when the opponent stands, chase expert when
       # they're down — the full approach->fair->knockdown->punish cycle
       {ExPhil.Agents.MewtwoComboExpert,
-       "test/fixtures/replays/mewtwo_fair_chains.slp," <>
-         "test/fixtures/replays/mewtwo_shfair_only.slp," <>
-         "test/fixtures/replays/mewtwo_approach_fair.slp," <>
-         "test/fixtures/replays/mewtwo_turnaround_fair.slp," <>
-         "test/fixtures/replays/mewtwo_oos_chains.slp," <>
-         "test/fixtures/replays/mewtwo_ground_neutral.slp",
+       ExPhil.Agents.FixtureSets.mewtwo_combo_csv(),
        "checkpoints/mewtwo_combo_dagger_policy.bin", 16}
 
     other ->

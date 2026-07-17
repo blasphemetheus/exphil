@@ -1,0 +1,31 @@
+defmodule ExPhil.Agents.FixtureSets do
+  @moduledoc """
+  SINGLE SOURCE for expert fixture lists.
+
+  The mewtwo_combo list was previously hardcoded in BOTH
+  scripts/dagger_drill.exs and scripts/teacher_coverage.exs — a silent
+  drift risk called out in the 2026-07-17 r13-prep recon: adding a fixture
+  to the trainer but not the coverage audit makes the audit lie about the
+  teacher it claims to measure. Add new fixtures HERE only.
+  """
+
+  @mewtwo_combo [
+    "test/fixtures/replays/mewtwo_fair_chains.slp",
+    "test/fixtures/replays/mewtwo_shfair_only.slp",
+    "test/fixtures/replays/mewtwo_approach_fair.slp",
+    "test/fixtures/replays/mewtwo_turnaround_fair.slp",
+    "test/fixtures/replays/mewtwo_oos_chains.slp",
+    "test/fixtures/replays/mewtwo_ground_neutral.slp"
+    # Pending recordings (task #22): behind-response chains (targets the
+    # opponent_behind scenario regression), FH-no-DJ air control (targets
+    # DJ timing) — add both here when Bradley records them.
+  ]
+
+  @doc "Fixture paths for the mewtwo_combo composite expert."
+  @spec mewtwo_combo() :: [Path.t()]
+  def mewtwo_combo, do: @mewtwo_combo
+
+  @doc "Comma-joined form for CLI --fixtures style consumers."
+  @spec mewtwo_combo_csv() :: String.t()
+  def mewtwo_combo_csv, do: Enum.join(@mewtwo_combo, ",")
+end

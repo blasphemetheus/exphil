@@ -694,22 +694,46 @@ defmodule ExPhil.Agents.Agent do
     buttons = action[:buttons]
     prev = state.last_action && state.last_action[:buttons]
 
-    jump_slice = fn t -> t |> Nx.slice_along_axis(2, 2, axis: 1) |> Nx.reduce_max() |> Nx.to_number() end
-    prev_jump? = prev != nil and jump_slice.(prev) > 0
-    want_jump? = jump_slice.(buttons) > 0
+    # Per-COLUMN X/Y values, not just the joint max: an X->Y alternation
+    # (release X + press Y same frame, or press Y while X is held) reads
+    # as a continuous hold under joint semantics and evaded suppression —
+    # r12's debounce arm still produced 2f double jumps (WS3, 2026-07-17).
+    col = fn t, i -> t |> Nx.slice_along_axis(i, 1, axis: 1) |> Nx.reduce_max() |> Nx.to_number() end
+    {x_now, y_now} = {col.(buttons, 2), col.(buttons, 3)}
+    {x_prev, y_prev} = if prev, do: {col.(prev, 2), col.(prev, 3)}, else: {0, 0}
+
+    prev_jump? = x_prev > 0 or y_prev > 0
+    want_jump? = x_now > 0 or y_now > 0
+    # a jump COLUMN going 0 -> pressed is a new initiation even if the
+    # other column is still held (pressing a second jump button has no
+    # purpose but a double jump)
+    new_col_press? = (x_now > 0 and x_prev == 0) or (y_now > 0 and y_prev == 0)
+    any_col_release? = (x_prev > 0 and x_now == 0) or (y_prev > 0 and y_now == 0)
 
     cooldown = max((state.jump_cooldown || 0) - 1, 0)
 
     {buttons, cooldown} =
       cond do
-        # new AIRBORNE press edge while cooling down -> suppress this press
-        # (grounded presses always pass: OOS jump, drill restarts)
-        airborne? and want_jump? and not prev_jump? and cooldown > 0 ->
-          zeros = Nx.broadcast(Nx.tensor(0, type: Nx.type(buttons)), {1, 2})
-          {Nx.put_slice(buttons, [0, 2], zeros), cooldown}
+        # new AIRBORNE column press while cooling down OR while the other
+        # jump button is already held -> suppress the newly pressed
+        # column(s); a held column is never cut (full hops unaffected).
+        # (Grounded presses always pass: OOS jump, drill restarts.)
+        airborne? and new_col_press? and (cooldown > 0 or prev_jump?) ->
+          buttons =
+            if x_now > 0 and x_prev == 0,
+              do: Nx.put_slice(buttons, [0, 2], Nx.broadcast(Nx.tensor(0, type: Nx.type(buttons)), {1, 1})),
+              else: buttons
 
-        # release edge -> arm the cooldown window
-        not want_jump? and prev_jump? ->
+          buttons =
+            if y_now > 0 and y_prev == 0,
+              do: Nx.put_slice(buttons, [0, 3], Nx.broadcast(Nx.tensor(0, type: Nx.type(buttons)), {1, 1})),
+              else: buttons
+
+          # a same-frame alternation is also a release -> arm the window
+          {buttons, (if any_col_release?, do: n, else: cooldown)}
+
+        # any column release -> arm the cooldown window
+        any_col_release? ->
           {buttons, n}
 
         true ->
