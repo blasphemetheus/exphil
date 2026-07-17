@@ -64,19 +64,29 @@ defmodule ExPhil.Interp.ReplayStatsTest do
       assert stats.p50 == 4
       assert stats.p95 == 4
       assert stats.max == 4
-      assert stats.breaks_risked == 0
+      assert stats.breaks == 0
     end
 
-    test "flags shield-break-risk runs (>= 450 frames)" do
-      actions = List.duplicate(@shield_hold, 450) ++ [@wait]
+    test "counts OBSERVED shield breaks via break-family successors" do
+      # 215f hold ending in ShieldBreakFly (205) = one break; a second
+      # shield ending in plain wait = not a break
+      actions =
+        List.duplicate(@shield_hold, 215) ++ [205, 206] ++
+          List.duplicate(@wait, 5) ++ [@shield_hold, @shield_hold, @wait]
+
       stats = ReplayStats.shield_stats(actions)
-      assert stats.breaks_risked == 1
-      assert stats.max == 450
+      assert stats.breaks == 1
+      assert stats.max == 215
+    end
+
+    test "dizzy successor (FuraFura 211) also counts as a break" do
+      actions = [@wait] ++ List.duplicate(@shield_hold, 10) ++ [211, @wait]
+      assert ReplayStats.count_shield_breaks(actions) == 1
     end
 
     test "no shielding at all" do
       stats = ReplayStats.shield_stats([@wait, @dash, @wait])
-      assert stats == %{shield_frac: 0.0, runs: 0, p50: 0, p95: 0, max: 0, breaks_risked: 0}
+      assert stats == %{shield_frac: 0.0, runs: 0, p50: 0, p95: 0, max: 0, breaks: 0}
     end
 
     test "p95 picks the top run among many" do

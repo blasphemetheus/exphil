@@ -13,6 +13,12 @@ defmodule ExPhil.Interp.ReplayStats do
   alias ExPhil.Data.Peppi
 
   @shield_states [178, 179, 180]
+  # ShieldBreakFly/Fall/Down/Stand + FuraFura dizzy — the states a HARD
+  # shield break transitions into. Confirmed 2026-07-17 (WS1): 89 of 92
+  # shield runs >= 200f across r10-r12 probes ended in 205; hard shield
+  # breaks at ~215f from full, so the old 450f "light-shield horizon"
+  # threshold could never fire.
+  @shield_break_states MapSet.new(205..211)
   @knockdown_entries [183, 191, 199, 200, 201]
   @lifecycle MapSet.new([183, 184, 186, 187, 188, 189, 191, 192, 194, 195, 196, 197, 199, 200, 201])
   @hitstun MapSet.new(Enum.to_list(75..91) ++ Enum.to_list(223..232))
@@ -61,8 +67,11 @@ defmodule ExPhil.Interp.ReplayStats do
   end
 
   @doc """
-  Shield behavior summary: fraction of frames shielding, run count, and
-  run-length percentiles (shield break ~ 450f of full hold).
+  Shield behavior summary: fraction of frames shielding, run count,
+  run-length percentiles, and OBSERVED shield breaks (`breaks`: shield
+  runs whose successor state is in the break family 205..211 — hard
+  shield breaks at ~215f from full, which is why run-length p95 pins at
+  215 in shield-locked policies).
   """
   def shield_stats(actions) do
     n = length(actions)
@@ -75,8 +84,19 @@ defmodule ExPhil.Interp.ReplayStats do
       p50: percentile(runs, 0.5),
       p95: percentile(runs, 0.95),
       max: (if runs == [], do: 0, else: Enum.max(runs)),
-      breaks_risked: Enum.count(runs, &(&1 >= 450))
+      breaks: count_shield_breaks(actions)
     }
+  end
+
+  @doc "Shield runs whose successor action is a shield-break state (205..211)."
+  def count_shield_breaks(actions) do
+    set = MapSet.new(@shield_states)
+
+    actions
+    |> Enum.chunk_every(2, 1, :discard)
+    |> Enum.count(fn [a, b] ->
+      MapSet.member?(set, a) and MapSet.member?(@shield_break_states, b)
+    end)
   end
 
   @doc """

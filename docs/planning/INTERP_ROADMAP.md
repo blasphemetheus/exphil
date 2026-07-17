@@ -339,3 +339,18 @@ discovery. Effort: ~2-3 days. Stretch tier — unblock after Phases 1-3.
 - [ ] P4: reaction-vs-guessing verdict per checkpoint
 - [ ] P5: one closed curation cycle
 - [ ] P6: steering demo + ground-truth-scored SAE features
+
+## CLOSED 2026-07-17: the constant-215 shield p95 = hard shield BREAKS
+
+Measured (scripts/shield_run_stats.exs over 32 r10-r12 probe replays):
+92 shield runs >= 200f, **89 terminate in action 205 ShieldBreakFly** —
+lengths cliff at exactly 215f (the hard-shield break frame from full 60HP,
+~3.58s). The p95=215 constant across three policies was the run-length
+tail spiking AT the game's break ceiling. Confirms the :323 ablation
+mechanism end-to-end: prev-action shield-lock rides shield to BREAK.
+
+Consequences shipped: ReplayStats.shield_stats `breaks_risked` (450f
+light-shield horizon, dead code for hard shield) replaced by `breaks`
+(observed break-family successors 205..211); report card gained gate 9
+"shield breaks == 0" — scores are x/9 from r13 on (x/8 through r12).
+r13 remedy lever: --prev-action-dropout 0.4 -> 0.6 (per this ablation).

@@ -52,7 +52,11 @@ defmodule ExPhil.Interp.ReportCard do
       gate("shield run p95 (f)", shield.p95 || 0, (shield.p95 || 0) <= 180, "<=180"),
       gate("OOS idle %", oos_idle_pct, oos_idle_pct <= 50.0, "<=50"),
       gate("max idle streak (f)", max_idle, max_idle <= 300, "<=300 (5s; deadlock detector)"),
-      gate("X/Y press p50 (f)", xy_p50, xy_p50 == nil or xy_p50 <= 6, "<=6 (SH-capable)")
+      gate("X/Y press p50 (f)", xy_p50, xy_p50 == nil or xy_p50 <= 6, "<=6 (SH-capable)"),
+      # Gate 9 (added 2026-07-17 after WS1 confirmed the constant-215
+      # mystery = hard shield BREAKS: 89 across r10-r12 probes). Scores
+      # from here on are x/9 — not directly comparable to r1-r12's x/8.
+      gate("shield breaks", shield.breaks, shield.breaks == 0, "==0 (broke 89x in r10-r12)")
     ]
 
     %{gates: gates, passed: Enum.count(gates, & &1.pass), total: length(gates)}

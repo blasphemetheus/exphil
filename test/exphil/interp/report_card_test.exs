@@ -125,7 +125,7 @@ defmodule ExPhil.Interp.ReportCardTest do
   end
 
   describe "evaluate/1 (gate vector)" do
-    test "a disciplined synthetic game passes all 8 gates" do
+    test "a disciplined synthetic game passes all 9 gates" do
       # Mostly neutral movement, one patient jump, brief shield with a jump
       # OOS, short X presses, no idle deadlock (break waits with dash 20)
       block = List.duplicate(@wait, 200) ++ [20] ++ List.duplicate(@wait, 200)
@@ -149,8 +149,8 @@ defmodule ExPhil.Interp.ReportCardTest do
 
       failed = result.gates |> Enum.reject(& &1.pass) |> Enum.map(& &1.name)
       assert failed == []
-      assert result.passed == 8
-      assert result.total == 8
+      assert result.passed == 9
+      assert result.total == 9
     end
 
     test "a 215-frame shield run fails exactly the shield gates" do
@@ -164,8 +164,25 @@ defmodule ExPhil.Interp.ReportCardTest do
       assert "shield run p95 (f)" in failed
       # 215/931 frames ~ 23% occupancy also trips the occupancy gate
       assert "shield occupancy %" in failed
+      # run ends in a jump, not a break-family state -> gate 9 passes
+      refute "shield breaks" in failed
       refute "max idle streak (f)" in failed
       refute "jumps/100 grounded" in failed
+    end
+
+    test "a shield run ending in ShieldBreakFly trips gate 9" do
+      base = List.duplicate(@wait, 250) ++ [20] ++ List.duplicate(@wait, 250)
+      # 215f hold -> 205 (ShieldBreakFly) -> dizzy -> recover
+      actions =
+        base ++ List.duplicate(@shield_hold, 215) ++ [205, 206, 211] ++ base
+
+      controllers = List.duplicate(idle_controller(), length(actions))
+
+      result = ReportCard.evaluate(%{p1: %{actions: actions, controllers: controllers}})
+      break_gate = Enum.find(result.gates, &(&1.name == "shield breaks"))
+
+      refute break_gate.pass
+      assert break_gate.value == 1
     end
 
     test "a 301-frame idle streak trips the deadlock detector" do
@@ -197,8 +214,8 @@ defmodule ExPhil.Interp.ReportCardTest do
     @tag :fixture
     test "runs end-to-end on a real replay" do
       result = ReportCard.evaluate_path(@fixture)
-      assert result.total == 8
-      assert length(result.gates) == 8
+      assert result.total == 9
+      assert length(result.gates) == 9
       assert result.passed in 0..8
       assert ReportCard.score(@fixture) == result.passed
     end
