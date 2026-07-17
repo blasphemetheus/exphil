@@ -128,13 +128,21 @@ for R in $(seq 11 $((10 + ROUNDS))); do
   POLICY=checkpoints/mewtwo_combo_newera_r${R}_policy.bin
   ROLLOUTS=$(IFS=,; echo "${POOL[*]}")
   echo "[newera] === round $R: ${#POOL[@]} replays, repaired teacher, dropout 0.4, transition 2.0 -> $POLICY ===" | tee -a "$LOG"
-  mix run scripts/dagger_drill.exs \
-    --expert mewtwo_combo \
-    --max-epochs 100 \
-    --prev-action-dropout 0.4 \
-    --transition-weight 2.0 \
-    --rollouts "$ROLLOUTS" \
-    --out "$POLICY" >>"$LOG" 2>&1
+  # Resume guard: if this round's checkpoint already exists, skip straight
+  # to probing (r11's first probe phase was lost to launcher-open login
+  # stalls, GOTCHA #62, 2026-07-17 — retraining 5h to rerun 6 probes is
+  # not acceptable). Delete the checkpoint to force a retrain.
+  if [ -f "$POLICY" ]; then
+    echo "[newera] round $R: checkpoint exists — skipping training (resume mode)" | tee -a "$LOG"
+  else
+    mix run scripts/dagger_drill.exs \
+      --expert mewtwo_combo \
+      --max-epochs 100 \
+      --prev-action-dropout 0.4 \
+      --transition-weight 2.0 \
+      --rollouts "$ROLLOUTS" \
+      --out "$POLICY" >>"$LOG" 2>&1
+  fi
   if [ ! -f "$POLICY" ]; then
     echo "[newera] round $R produced no checkpoint — stopping" | tee -a "$LOG"
     exit 1
