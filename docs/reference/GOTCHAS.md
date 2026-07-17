@@ -2600,17 +2600,30 @@ the earliest usable moment.
 head) is a no-op on this build; only its digital L/R button head can
 shield. Probe scores on the headless build inherit this.
 
-**RESOLVED 2026-07-17 (WS5): use EXI inputs.** The drop is specific to the
-PIPE input path; the ExiAI build's native path (`use_exi_inputs=True`,
-the "Allow Bot Input Overrides" gecko — what slippi-ai uses) honors analog
-triggers. The bridge now defaults `exi_inputs = headless` (melee_bridge.py
-console_kwargs; falls back to pipes with a warning on non-EXI builds), and
-scenario_suite's analog→digital shim is OFF by default (`--pipe-shim` to
-re-enable for pipe-mode replays). Proof: the 13 scenario prefixes that
-DIVERGED under dropped analog replay at drift (0.0, 0.0) with the shim off
-— the recorded analog shield holds demonstrably reach the game. The
-analog shoulder head works in headless play again; headless shield-gate
-scores are comparable with windowed builds from this date forward.
+**PARTIAL RESOLUTION 2026-07-17 (WS5) — EXI inputs express analog PRESSES
+but analog RELEASE LATCHES.** `use_exi_inputs=True` (the "Allow Bot Input
+Overrides" gecko) makes analog trigger values reach the game — the 13
+scenario prefixes that diverged under dropped analog replayed at drift
+(0.0, 0.0). BUT in every EXI-mode PROBE game the TechRandom dummy's
+20-40f analog shield holds never released: P2 rode shield to BREAK +
+FuraFura dizzy each stock (918 dizzy frames in one game), knockdowns went
+to zero, conversions to zero. The scenario drift check masked this
+because it treats the shield family 178-182 as equivalent — release
+timing inside the family is invisible to it. Conclusion: the EXI override
+appears to treat zero/neutral analog as "no override" (a latch), so
+releases cannot be expressed.
+
+Current state: `exi_inputs` is OPT-IN in the bridge (default: pipe
+inputs, analog dropped, shim-based workarounds); scenario_suite's
+`--pipe-shim` defaults ON. DO NOT train on EXI-mode games until the
+latch is fixed. Next step if pursued: read the gecko/EXI override
+handling in vladfi1/slippi-Ishiiruka for the neutral-value semantics —
+likely a small upstream fix or a protocol nuance (e.g. an explicit
+override-clear command libmelee doesn't send).
+
+Lesson: an equivalence check is only as strong as its tolerance classes —
+the drift check's shield-family leniency turned "release is broken" into
+"15/15 exact". Pin release EDGES explicitly when validating input paths.
 
 ## 67. Every mix compile RELINKS the shared exla NIF — concurrent BEAMs get SIGBUS
 
@@ -2663,3 +2676,29 @@ artifacts; commit fbee4e4). Same pattern as exphil's deserialize_trusted.
 either guarantee the atoms' interning (load-bearing module references)
 or have a trusted-artifact fallback. Round-trip tests in one VM prove
 NOTHING about fresh-VM loads when atoms are involved.
+
+## 69. Unthrottled headless games mistime POLICY inputs — pace the frame loop
+
+**Symptom:** headless probe games score fine on movement gates but
+knockdowns/conversions collapse (~0-4 kd/game vs 7-20 windowed) for the
+SAME checkpoint. Frame-locked input REPLAY (scenario suite) is unaffected.
+
+**Cause:** the ExiAI build has no internal throttle with audio disabled
+(the throttle is audio-backend-tied on this base, #56; the
+emulation_speed config is a NO-OP). Games run 6-7x realtime, but the
+async runner's act cycle is wall-clock — inputs update every ~3.6 GAME
+frames, so 3-frame short-hop presses mistime and launchers rarely land.
+The stateful step path alone shaves latency but the runner cycle still
+quantizes.
+
+**Fix (both required for headless probes):**
+1. `pace_hz: 60` in AsyncRunner (with blocking pipes the game only
+   advances when fed — the runner IS the throttle; build-independent).
+2. `--stateful-step`: at 60Hz with 3 arms sharing the GPU, windowed-style
+   inference drops to ~30/s (acting every other frame); the O(1) step
+   path restores every-frame acting.
+Validated: knockdowns 11-16/game, conversions restored, ~3x throughput
+from parallelism (velocity now comes from CONCURRENCY, not game speed).
+Also: pick probe replays by SIZE not mtime — at real-time pacing the
+post-game window lets auto-menu boot a second game whose stub .slp is
+newer than the completed one.

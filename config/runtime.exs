@@ -16,5 +16,20 @@ end
 # Limit GPU memory usage to avoid OOM with other processes
 if memory_fraction = System.get_env("EXLA_MEMORY_FRACTION") do
   {fraction, ""} = Float.parse(memory_fraction)
-  config :exla, :memory_fraction, fraction
+
+  # Must land INSIDE the client config — a top-level :exla :memory_fraction
+  # is dead config exla never reads. (Found 2026-07-17: parallel probe arms
+  # each ballooned to the dev default 0.75 and starved arm 3 to 50MB.)
+  clients = Application.get_env(:exla, :clients, [])
+
+  clients =
+    for {name, opts} <- clients do
+      if opts[:platform] == :cuda do
+        {name, Keyword.put(opts, :memory_fraction, fraction)}
+      else
+        {name, opts}
+      end
+    end
+
+  config :exla, :clients, clients
 end

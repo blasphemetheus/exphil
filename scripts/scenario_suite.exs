@@ -180,6 +180,10 @@ defmodule ScenarioSuite do
       dummy_cpu_level: 0,
       no_audio: true,
       headless: not opts[:windowed],
+      # Unthrottled is SAFE here (and 6-7x faster): prefix inputs are
+      # frame-indexed and blocking-paced, timing-exact at any speed —
+      # unlike policy-driven probes, which need real-time (see bridge).
+      emulation_speed: 0.0,
       replay_dir: run_dir,
       slippi_port: opts[:slippi_port] + seq
     }
@@ -627,10 +631,11 @@ preps =
   |> Enum.map(& &1.slp)
   |> Enum.uniq()
   |> Map.new(fn slp ->
-    # --pipe-shim: only for pipe-input replays on the ExiAI build (#66);
-    # default OFF — the bridge now uses EXI inputs when headless, which
-    # round-trip analog triggers (WS5 fix)
-    {slp, ScenarioSuite.prepare_replay(slp, pipe_shim: opts[:pipe_shim] || false)}
+    # pipe_shim defaults ON: the bridge runs pipe inputs (EXI is opt-in
+    # only — its analog RELEASE latches, see #66 addendum), and pipe mode
+    # on the ExiAI build drops analog triggers, so recorded analog shield
+    # holds must replay as digital presses. --no-pipe-shim for EXI runs.
+    {slp, ScenarioSuite.prepare_replay(slp, pipe_shim: Keyword.get(opts, :pipe_shim, true))}
   end)
 
 Output.success("Parsed #{map_size(preps)} source replay(s)")

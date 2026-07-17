@@ -213,7 +213,11 @@ Output.step(5, 5, "Starting async game runner")
     player_port: opts[:port],
     auto_menu: not opts[:no_auto_menu],
     on_game_end: opts[:on_game_end],
-    dummy: elixir_dummy
+    dummy: elixir_dummy,
+    # Headless (ExiAI) has no internal throttle: pace the frame loop to
+    # 60Hz so input timing matches windowed play (--pace-hz to override;
+    # 0 = unpaced). See AsyncRunner pace/1.
+    pace_hz: opts[:pace_hz] || if(opts[:headless], do: 60, else: 0)
   )
 
 Output.success("Async runner started")

@@ -180,6 +180,8 @@ defmodule ExPhil.CLI do
       desc: "Write .slp replays to this directory (flat, no monthly folders). Give each parallel probe its own dir for unambiguous attribution.", group: [:dolphin]},
     %{name: :slippi_port, flag: "--slippi-port", type: :integer, short: nil, default: nil,
       desc: "Slippi spectator port (default 51441). Parallel instances need distinct ports.", group: [:dolphin]},
+    %{name: :pace_hz, flag: "--pace-hz", type: :integer, short: nil, default: nil,
+      desc: "Frame-loop pacing for headless games (default 60 when --headless; 0 = unpaced). Unthrottled policy-driven games mistime inputs.", group: [:dolphin]},
 
     # PPO training flags (for train_ppo.exs)
     %{name: :pretrained, flag: "--pretrained", type: :string, short: nil, default: nil,

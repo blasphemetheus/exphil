@@ -174,6 +174,21 @@ defmodule ExPhil.Bridge.AsyncRunner do
     :ets.insert(table, {:in_game, false})
     # Only true when stop() called or fatal error
     :ets.insert(table, {:should_stop, false})
+
+    # Frame pacing (pace_hz opt): with blocking pipe input the game only
+    # advances when we feed it, so the RUNNER is the throttle. The ExiAI
+    # headless build has no internal throttle (audio-backend-tied on this
+    # base, GOTCHA #56; emulation_speed config is a no-op) and unthrottled
+    # policy-driven games quantize inputs to the act-cycle (~3.6 game
+    # frames at 450fps) — SH presses mistimed, knockdowns collapse
+    # (2026-07-17). pace_hz: 60 restores real-time input granularity for
+    # probes; 0/absent = unpaced (scenario-style frame-locked replay
+    # drives MeleePort directly and doesn't come through here).
+    pace_hz = Keyword.get(opts, :pace_hz, 0)
+
+    if is_integer(pace_hz) and pace_hz > 0 do
+      :ets.insert(table, {:pace_ns, div(1_000_000_000, pace_hz)})
+    end
     # :restart or :stop
     :ets.insert(table, {:on_game_end, on_game_end})
     :ets.insert(table, {:frame_count, 0})
@@ -296,6 +311,23 @@ defmodule ExPhil.Bridge.AsyncRunner do
   # Frame Loop (runs in separate process, fast)
   # ============================================================================
 
+  # Hold the frame cadence set by :pace_ns (see init). Uses the frame
+  # process's own dictionary for last-frame time — the loop is a single
+  # process, no coordination needed.
+  defp pace(table) do
+    case :ets.lookup(table, :pace_ns) do
+      [{:pace_ns, ns}] when ns > 0 ->
+        now = System.monotonic_time(:nanosecond)
+        last = Process.get(:last_frame_ns, now - ns)
+        remaining_ms = div(ns - (now - last), 1_000_000)
+        if remaining_ms > 0, do: Process.sleep(remaining_ms)
+        Process.put(:last_frame_ns, System.monotonic_time(:nanosecond))
+
+      _ ->
+        :ok
+    end
+  end
+
   defp frame_loop(bridge, table, auto_menu, player_port, agent) do
     case should_stop?(table) do
       true ->
@@ -309,6 +341,7 @@ defmodule ExPhil.Bridge.AsyncRunner do
         case MeleePort.step(bridge, auto_menu: auto_menu) do
           {:ok, game_state} ->
             handle_game_frame(bridge, table, game_state, player_port, agent)
+            pace(table)
             frame_loop(bridge, table, auto_menu, player_port, agent)
 
           {:postgame, game_state} ->

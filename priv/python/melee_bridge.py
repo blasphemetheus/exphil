@@ -264,17 +264,27 @@ class MeleeBridge:
             if self.headless:
                 console_kwargs["gfx_backend"] = "Null"
                 console_kwargs["disable_audio"] = True
-            # EXI inputs (WS5, lightshield fix): the ExiAI build's native
-            # input path ("Allow Bot Input Overrides" gecko). The plain
-            # pipe path on that build silently DROPS analog trigger values
-            # (GOTCHAS #66); EXI inputs honor them. Default: on whenever
-            # headless (the ExiAI build is the only headless build we run);
-            # explicit config wins. libmelee raises ValueError on builds
-            # without EXI support — we retry without it below.
-            use_exi = config.get("exi_inputs")
-            if use_exi is None:
-                use_exi = self.headless
-            console_kwargs["use_exi_inputs"] = bool(use_exi)
+                # emulation_speed for POLICY-DRIVEN headless games must be
+                # 1.0 (real time): at unthrottled ~450fps the async
+                # runner's ~8ms act cycle quantizes inputs to every ~3.6
+                # game frames — short-hop presses (3f) mistimed, launches
+                # rarely land, knockdowns/conversions collapse (2026-07-17,
+                # r12 headless: ~0 kd/game vs 7-20 windowed). Frame-locked
+                # input REPLAY (scenario suite) is timing-exact at any
+                # speed and passes 0.0 (unthrottled) explicitly.
+                console_kwargs["emulation_speed"] = float(
+                    config.get("emulation_speed", 1.0)
+                )
+            # EXI inputs (WS5): the ExiAI build's native input path honors
+            # analog trigger PRESSES that the pipe path drops (GOTCHAS
+            # #66) — but analog RELEASE appears to LATCH: in every
+            # EXI-mode probe game the TechRandom dummy's 20-40f analog
+            # shield holds never released and it shield-broke into dizzy
+            # (2026-07-17 validation). OPT-IN ONLY (config exi_inputs)
+            # until release semantics are fixed; do NOT train on EXI-mode
+            # games. libmelee raises ValueError on non-EXI builds — we
+            # retry without it below.
+            console_kwargs["use_exi_inputs"] = bool(config.get("exi_inputs"))
             replay_dir = config.get("replay_dir")
             if replay_dir:
                 # Flat per-instance replay dir -> unambiguous attribution

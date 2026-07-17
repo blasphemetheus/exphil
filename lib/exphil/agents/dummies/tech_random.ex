@@ -144,7 +144,12 @@ defmodule ExPhil.Agents.Dummies.TechRandom do
     end
   end
 
-  defp shield_input, do: %{neutral() | shoulder: 1.0}
+  # DIGITAL R, not analog shoulder: analog trigger commands are dropped on
+  # the ExiAI headless pipe path (GOTCHAS #66) and their release LATCHES
+  # under EXI inputs — digital works identically on every build, keeping
+  # dummy behavior (and therefore knockdown/conversion counts) comparable
+  # across windowed and headless probes.
+  defp shield_input, do: %{neutral() | buttons: %{neutral().buttons | r: true}}
 
   # -- Plans --------------------------------------------------------------------
 
