@@ -2626,3 +2626,28 @@ sharing the local nx/exla checkout. watch_latest.sh now enforces this
 (refuses beside a live beam.smp; WATCH_LATEST_UNSAFE=1 to override).
 True co-tenancy needs per-consumer NIF isolation (own exla build/cache
 per checkout) — open engineering, tracked on the task list.
+
+## 68. binary_to_term(:safe) vs atoms your VM never interned — manifest checkpoints crashed every probe
+
+**Symptom:** every r11 probe crashed at agent load with `invalid or unsafe
+external representation of a term` from `Edifice.Checkpoint.load_nx` —
+TWO full probe phases lost (2026-07-17, ~3h) because each probe timed out
+at 900s around a crash that happened in the first second. (The first
+phase was additionally masked by GOTCHA #62 suspicion — the launcher WAS
+open, but closing it fixed nothing.)
+
+**Cause:** `binary_to_term(bin, [:safe])` rejects atoms not currently
+interned in the loading VM, and interning depends on which modules happen
+to be loaded. The manifest metadata contains the external spec arch atom
+`:exphil_policy`, interned only by the EXPORTING module
+(imitation/checkpoint.ex) — which a pure-inference VM never loads. Tests
+could not catch it: the test file's own literals intern the atom.
+
+**Fix:** edifice `deserialize_metadata` now falls back to unrestricted
+`binary_to_term` with a warning (checkpoints are locally-produced
+artifacts; commit fbee4e4). Same pattern as exphil's deserialize_trusted.
+
+**Lesson:** any `:safe` deserialization of data containing atoms must
+either guarantee the atoms' interning (load-bearing module references)
+or have a trusted-artifact fallback. Round-trip tests in one VM prove
+NOTHING about fresh-VM loads when atoms are involved.
