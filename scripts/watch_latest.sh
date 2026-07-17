@@ -56,6 +56,23 @@ for tool in make cargo; do
     exit 1
   }
 done
+
+# HARD INTERLOCK (GOTCHAS #67): every mix compile RELINKS the shared
+# local-exla libexla.so (nx/exla/cache — symlinked into every consumer's
+# _build). A mix invocation here while ANY other BEAM has that .so mapped
+# rewrites it under the mapping -> SIGBUS in the other process. This
+# exact failure killed r11's first launch 2026-07-16 17:54 (the watcher's
+# first probe rebuilt exla and bus-errored the training BEAM 11s later).
+# Until per-consumer NIF isolation exists, this watcher REFUSES to run
+# while any beam.smp is alive. Override only if you have verified no
+# exla-sharing BEAM is running: WATCH_LATEST_UNSAFE=1
+if [ -z "${WATCH_LATEST_UNSAFE:-}" ] && pgrep -x beam.smp >/dev/null; then
+  echo "[watch] REFUSING: a beam.smp is live and mix compiles relink the"
+  echo "[watch] shared exla NIF under it (SIGBUS — killed r11 launch #1)."
+  echo "[watch] Co-tenant mode is DISABLED pending per-consumer NIF"
+  echo "[watch] isolation. Use --once between runs, or see GOTCHAS #67."
+  exit 1
+fi
 [ -d "$PLAY_REPO" ] || { echo "[watch] play worktree missing: $PLAY_REPO"; exit 1; }
 
 log() { echo "[watch $(date +%H:%M:%S)] $*" | tee -a "$LOG"; }

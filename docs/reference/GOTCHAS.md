@@ -2599,3 +2599,30 @@ the earliest usable moment.
 **Also affects live play:** any policy analog-shoulder output (the shoulder
 head) is a no-op on this build; only its digital L/R button head can
 shield. Probe scores on the headless build inherit this.
+
+## 67. Every mix compile RELINKS the shared exla NIF — concurrent BEAMs get SIGBUS
+
+**Symptom:** a running training BEAM dies with `Bus error (core dumped)`
+seconds after ANOTHER project/worktree sharing the local exla runs any
+`mix` command. Killed r11's first launch (2026-07-16 17:54:44, core dump
+on record): the watch_latest co-tenant probe's `mix run` in exphil-play
+rewrote `nx/exla/cache/libexla.so` while the training BEAM (started 34s
+earlier) had it mapped.
+
+**Cause:** every consumer's `_build/dev/lib/exla/priv/libexla.so` is a
+SYMLINK to the single shared `nx/exla/cache/libexla.so`, and mix compile
+re-links/rewrites that cache file EVERY invocation (mtime advances on
+back-to-back no-change compiles). Writes to an mmap'd .so = SIGBUS in
+whoever mapped it. Replacing the symlinks with real copies does NOT
+stick — the next compile recreates them.
+
+**Why sequential loops survive:** each loop stage compiles BEFORE its
+BEAM loads the NIF, and only one BEAM exists at a time. r1–r10 ran this
+way; the hazard is strictly CONCURRENT mix across exla-sharing checkouts
+(exphil, exphil-play, edifice, nx).
+
+**Rule:** while ANY exla-consuming BEAM is running, no `mix` in ANY repo
+sharing the local nx/exla checkout. watch_latest.sh now enforces this
+(refuses beside a live beam.smp; WATCH_LATEST_UNSAFE=1 to override).
+True co-tenancy needs per-consumer NIF isolation (own exla build/cache
+per checkout) — open engineering, tracked on the task list.
