@@ -81,6 +81,14 @@ defmodule ExPhil.Agents.Agent do
     # Edifice.Stateful step-path inference (O(1) per frame, GRU/LSTM only)
     # stateful_step: requested via opts; trunk_state != nil means ACTIVE
     :stateful_step,
+    # Last game frame seen by the debounce — cooldown must tick in GAME
+    # FRAMES, not compute calls (stateful-step runs ~2.2 calls/frame,
+    # which shrank the "10-frame" window to ~4.5 real frames; the r14
+    # instant-DJ escape, 2026-07-18)
+    :last_debounce_frame,
+    # Ground/air transition tracking: the window also arms at LIFTOFF
+    # (tap-jump first jumps have no button release to arm on)
+    :was_airborne,
     :trunk_state,
     :trunk_step_params,
     :heads_predict_fn,
@@ -652,7 +660,47 @@ defmodule ExPhil.Agents.Agent do
           _ -> false
         end
 
-      {action, new_state} = apply_jump_debounce(action, new_state, airborne?)
+      # Cooldown ticks by GAME-FRAME delta, not call count: multiple
+      # inferences on one frame must not burn the window (r14 escape).
+      frame = game_state.frame
+      last_frame = new_state.last_debounce_frame
+
+      frame_delta =
+        cond do
+          not (is_integer(frame) and is_integer(last_frame)) -> 1
+          # New game: frame counters reset (to -123); resync, don't freeze
+          frame < last_frame -> 1
+          true -> frame - last_frame
+        end
+
+      # Arm the window at JUMPSQUAT and at LIFTOFF (not only on button
+      # release): tap-jump first jumps never release a button, and at
+      # ~2.2 calls/frame the agent can emit a press while still SEEING
+      # grounded that lands airborne one frame later — jumpsquat (action
+      # 24, visible 5f before liftoff on Mewtwo) is the earliest reliable
+      # "a jump is already in progress" signal, when a second jump press
+      # has no legitimate purpose (residual 1-2f DJs, 2026-07-18).
+      player = game_state.players[Keyword.get(opts, :player_port, 1)]
+      in_jumpsquat? = player != nil and trunc(player.action || 0) == 24
+      liftoff? = airborne? and new_state.was_airborne == false
+
+      new_state =
+        if (in_jumpsquat? or liftoff?) and is_integer(new_state.jump_debounce) and
+             new_state.jump_debounce > 0 do
+          %{new_state | jump_cooldown: max(new_state.jump_cooldown || 0, new_state.jump_debounce)}
+        else
+          new_state
+        end
+
+      # Suppression context includes jumpsquat: a NEW jump press during an
+      # in-progress jumpsquat is the liftoff-DJ impulse arriving early
+      # (grounded-at-decision, airborne-on-arrival). OOS jumps come from
+      # shield states (178-182), never 24 — still pass. Drill restarts
+      # press BEFORE entering 24 — still pass.
+      {action, new_state} =
+        apply_jump_debounce(action, new_state, airborne? or in_jumpsquat?, frame_delta)
+
+      new_state = %{new_state | last_debounce_frame: frame, was_airborne: airborne?}
 
       # Remember the emitted controller for the prev-action channel (only
       # decoded here when the policy was trained to see it)
@@ -689,7 +737,9 @@ defmodule ExPhil.Agents.Agent do
   # Public for direct unit testing (pure tensor logic on a plain state map);
   # not part of the Agent API.
   @doc false
-  def apply_jump_debounce(action, %{jump_debounce: n} = state, airborne?)
+  def apply_jump_debounce(action, state, airborne?, frame_delta \\ 1)
+
+  def apply_jump_debounce(action, %{jump_debounce: n} = state, airborne?, frame_delta)
       when is_integer(n) and n > 0 do
     buttons = action[:buttons]
     prev = state.last_action && state.last_action[:buttons]
@@ -710,9 +760,9 @@ defmodule ExPhil.Agents.Agent do
     new_col_press? = (x_now > 0 and x_prev == 0) or (y_now > 0 and y_prev == 0)
     any_col_release? = (x_prev > 0 and x_now == 0) or (y_prev > 0 and y_now == 0)
 
-    cooldown = max((state.jump_cooldown || 0) - 1, 0)
+    cooldown = max((state.jump_cooldown || 0) - max(frame_delta, 0), 0)
 
-    {buttons, cooldown} =
+    {buttons, cooldown, decision} =
       cond do
         # new AIRBORNE column press while cooling down OR while the other
         # jump button is already held -> suppress the newly pressed
@@ -730,21 +780,31 @@ defmodule ExPhil.Agents.Agent do
               else: buttons
 
           # a same-frame alternation is also a release -> arm the window
-          {buttons, (if any_col_release?, do: n, else: cooldown)}
+          {buttons, (if any_col_release?, do: n, else: cooldown), :suppress}
 
         # any column release -> arm the cooldown window
         any_col_release? ->
-          {buttons, n}
+          {buttons, n, :arm}
 
         true ->
-          {buttons, cooldown}
+          {buttons, cooldown, :pass}
       end
+
+    # Decision trace for the instant-DJ hunt (r14: 1-2f DJs survive both
+    # arms). EXPHIL_DEBOUNCE_TRACE=1 logs every jump-column event with the
+    # full decision context; grep '[DBNC]' from the probe log.
+    if System.get_env("EXPHIL_DEBOUNCE_TRACE") == "1" and
+         (new_col_press? or any_col_release? or want_jump?) do
+      Logger.info(
+        "[DBNC] #{decision} air=#{airborne?} x=#{x_prev}->#{x_now} y=#{y_prev}->#{y_now} " <>
+          "cooldown=#{state.jump_cooldown || 0}->#{cooldown} new_press=#{new_col_press?} release=#{any_col_release?}"
+      )
+    end
 
     {Map.put(action, :buttons, buttons), %{state | jump_cooldown: cooldown}}
   end
 
-  @doc false
-  def apply_jump_debounce(action, state, _airborne?), do: {action, state}
+  def apply_jump_debounce(action, state, _airborne?, _frame_delta), do: {action, state}
 
   # Single-frame inference (original behavior)
   defp compute_single_frame_action(state, embedded, opts) do

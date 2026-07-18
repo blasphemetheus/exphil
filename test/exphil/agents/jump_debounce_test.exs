@@ -154,4 +154,24 @@ defmodule ExPhil.Agents.JumpDebounceTest do
     {out, _} = Agent.apply_jump_debounce(action(0, 1), st, false)
     assert jump?(out)
   end
+
+  test "cooldown ticks by GAME-FRAME delta, not call count (r14 escape)" do
+    # Same frame revisited (delta 0): the window must not burn down.
+    st = state(cooldown: 5, last_action: action(0, 0))
+    {out, st} = Agent.apply_jump_debounce(action(0, 1), st, true, 0)
+    refute jump?(out)
+    assert st.jump_cooldown == 5
+
+    # 2.2-calls-per-frame world: three same-frame calls + one advance
+    # consume exactly ONE frame of window
+    st = %{st | last_action: action(0, 0)}
+    {out, st} = Agent.apply_jump_debounce(action(0, 1), st, true, 1)
+    refute jump?(out)
+    assert st.jump_cooldown == 4
+
+    # Frame skip (delta 3) burns 3
+    st = %{st | last_action: action(0, 0)}
+    {_, st} = Agent.apply_jump_debounce(action(0, 0), st, true, 3)
+    assert st.jump_cooldown == 1
+  end
 end
