@@ -2702,3 +2702,26 @@ from parallelism (velocity now comes from CONCURRENCY, not game speed).
 Also: pick probe replays by SIZE not mtime — at real-time pacing the
 post-game window lets auto-menu boot a second game whose stub .slp is
 newer than the completed one.
+
+## 66-RESOLUTION (2026-07-18): Slippi MAINLINE pipes carry analog fully — adopt mainline, no fork
+
+WS5b drift test (Slippi mainline 4.0.0-beta.19, extracted AppImage +
+nix-ld wrapper at ~/.local/share/slippi/mainline/dolphin-emu-mainline):
+14/15 scenario prefixes replay at drift (0.0,0.0) with the analog→digital
+shim OFF — analog trigger PRESSES AND RELEASES round-trip through plain
+pipes (a latch would ride TechRandom's 20-40f holds into dizzy 211,
+outside the drift check's lenient family → instant divergence; none
+occurred). Type scores identical to the ExiAI baseline.
+
+Consequences: the ExiAI fork/rebase plan is CANCELLED; #66 is a
+build-specific defect of the ExiAI fork (upstream issue draft reframed
+to FYI). Migration notes: mainline bundles ONLY the xcb Qt platform (a
+benign window opens per instance — cosmetic for probes; offscreen
+plugin borrowing from nixpkgs qt6 is the cleanup path), libmelee
+classifies it mainline (Null video allowed, Slippi-section config,
+save_replays/replay_dir supported), and `run(platform="headless")`
+requires a headless QPA this AppImage lacks. One engine nuance: one
+idle_deadlock prefix diverges at a respawn boundary (P1 dy=45, platform
+height) — mainline respawn timing differs slightly from Ishiiruka;
+curate scenario handoffs away from respawn boundaries when using
+mainline, or re-record sources on mainline.
