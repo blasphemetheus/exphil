@@ -15,10 +15,13 @@ defmodule ExPhil.Agents.FixtureSets do
     "test/fixtures/replays/mewtwo_approach_fair.slp",
     "test/fixtures/replays/mewtwo_turnaround_fair.slp",
     "test/fixtures/replays/mewtwo_oos_chains.slp",
-    "test/fixtures/replays/mewtwo_ground_neutral.slp"
-    # Pending recordings (task #22): behind-response chains (targets the
-    # opponent_behind scenario regression), FH-no-DJ air control (targets
-    # DJ timing) — add both here when Bradley records them.
+    "test/fixtures/replays/mewtwo_ground_neutral.slp",
+    # Recorded 2026-07-18 (task #22): behind-response chains (18 behind
+    # episodes both facings + 13 organic tech-chase entries; targets the
+    # opponent_behind scenario regression) and FH-no-DJ air control
+    # (226 full-hop stints, 3.1% DJ at p50=31f; targets instant-DJ timing)
+    "test/fixtures/replays/mewtwo_behind_response.slp",
+    "test/fixtures/replays/mewtwo_fh_air_control.slp"
   ]
 
   @doc "Fixture paths for the mewtwo_combo composite expert."
