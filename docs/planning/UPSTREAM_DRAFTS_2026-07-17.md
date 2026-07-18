@@ -6,7 +6,7 @@ still community-valuable but reframe from "blocking us" to "FYI + repro".
 
 ---
 
-## Draft 1 — Issue for vladfi1/slippi-Ishiiruka
+## Draft 1 — Issue for vladfi1/slippi-ai (build repo is a fork: Issues DISABLED there; slippi-ai is his canonical repo and the ExiAI build exists for it — right audience)
 
 **Title:** ExiAI build: analog triggers dropped on the pipe path; expressed
 but never released via EXI input overrides

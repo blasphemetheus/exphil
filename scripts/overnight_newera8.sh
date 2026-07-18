@@ -339,6 +339,11 @@ for R in $(seq "$FIRST_ROUND" $((FIRST_ROUND + ROUNDS - 1))); do
   if [ -f "$POLICY" ]; then
     echo "[newera8] round $R: checkpoint exists — skipping training (resume mode)" | tee -a "$LOG"
   else
+    RESUME_FLAG=
+    if [ -f "$POLICY.trainer.ckpt" ]; then
+      echo "[newera8] round $R: trainer snapshot found — resuming interrupted training" | tee -a "$LOG"
+      RESUME_FLAG=--resume
+    fi
     assert_no_beam "round $R training"
     mix run scripts/dagger_drill.exs \
       --expert mewtwo_combo \
@@ -346,6 +351,7 @@ for R in $(seq "$FIRST_ROUND" $((FIRST_ROUND + ROUNDS - 1))); do
       --prev-action-dropout "$DROPOUT" \
       --transition-weight 2.0 \
       ${BACKBONE:+--backbone "$BACKBONE"} \
+      $RESUME_FLAG \
       --rollouts "$ROLLOUTS" \
       --out "$POLICY" >>"$LOG" 2>&1
   fi

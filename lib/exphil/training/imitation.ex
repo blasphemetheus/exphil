@@ -511,7 +511,7 @@ defmodule ExPhil.Training.Imitation do
   # Checkpointing - delegated to Checkpointing submodule
   # ============================================================================
 
-  defdelegate save_checkpoint(trainer, path), to: Checkpointing
+  defdelegate save_checkpoint(trainer, path, opts \\ []), to: Checkpointing
   def save_checkpoint_async(trainer, path, opts \\ []),
     do: Checkpointing.save_checkpoint_async(trainer, path, opts)
   defdelegate get_optimizer_step(optimizer_state), to: Checkpointing

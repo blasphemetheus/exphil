@@ -39,7 +39,8 @@ alias ExPhil.Embeddings
       mixed_precision: :boolean,
       window: :integer,
       transition_weight: :float,
-      debug_grads_after: :integer
+      debug_grads_after: :integer,
+      resume: :boolean
     ]
   )
 
@@ -326,6 +327,48 @@ trainer =
 memorized_loss = opts[:target_loss] || 2.0e-3
 max_epochs = opts[:max_epochs] || 1000
 
+# --resume: continue an interrupted run from OUT.trainer.ckpt (full trainer
+# state incl. Adam moments, published atomically every 10 epochs below).
+# The fingerprint refuses cross-experiment resumes loudly: same-named
+# checkpoints with a different pool/recipe must retrain, not silently blend
+# (built after reboot #2 killed r13 at epoch 70/100, 2026-07-18).
+trainer_ckpt = out_path <> ".trainer.ckpt"
+
+run_fingerprint =
+  :erlang.phash2(
+    {opts[:rollouts], opts[:expert], backbone, opts[:prev_action_dropout],
+     opts[:transition_weight], max_epochs}
+  )
+
+{trainer, start_epoch} =
+  cond do
+    opts[:resume] && File.exists?(trainer_ckpt) ->
+      {:ok, raw} = ExPhil.Training.Checkpoint.load(trainer_ckpt, warn_on_mismatch: false)
+      meta = Map.get(raw, :meta) || %{}
+
+      if meta[:fingerprint] != run_fingerprint do
+        Output.error(
+          "--resume refused: #{trainer_ckpt} was written by a DIFFERENT run " <>
+            "(fingerprint #{inspect(meta[:fingerprint])} vs #{run_fingerprint}: " <>
+            "pool/expert/backbone/dropout/transition/epochs changed). " <>
+            "Delete the snapshot to retrain fresh."
+        )
+
+        System.halt(4)
+      end
+
+      {:ok, restored} = Imitation.load_checkpoint(trainer, trainer_ckpt)
+      Output.success("Resuming from trainer snapshot: epoch #{meta[:epoch]}, step #{restored.step}")
+      {restored, meta[:epoch] + 1}
+
+    opts[:resume] ->
+      Output.warning("--resume set but no snapshot at #{trainer_ckpt} — training fresh")
+      {trainer, 1}
+
+    true ->
+      {trainer, 1}
+  end
+
 # --nan-forensics: per-batch loss finiteness checks plus a trail of numeric
 # vitals (param max/norm, adam mu/nu extremes, nu zero-fraction) sampled
 # every 100 optimizer steps. On the first non-finite loss: dump the trail,
@@ -422,7 +465,7 @@ end
 # deterministically re-diverging (grad clipping 0.5 is already on; these
 # NaNs are forward-pass overflows, so a fresh trajectory is the only out).
 {best, final_loss, epochs_used} =
-  Enum.reduce_while(1..max_epochs, {trainer, nil, 0, [], nil, 0}, fn epoch,
+  Enum.reduce_while(start_epoch..max_epochs, {trainer, nil, 0, [], nil, 0}, fn epoch,
                                                                      {tr, _, _, history, best,
                                                                       restores} ->
     {tr, epoch_loss} =
@@ -524,6 +567,13 @@ end
         :ok -> File.rename!(tmp, latest)
         _ -> File.rm(tmp)
       end
+
+      # Trainer snapshot for --resume (full state incl. Adam moments;
+      # atomic inside save_checkpoint). ~11MB sync write every 10 epochs
+      # — negligible next to a ~110s epoch. Deleted on successful export.
+      Imitation.save_checkpoint(tr, trainer_ckpt,
+        meta: %{epoch: epoch, fingerprint: run_fingerprint}
+      )
     end
 
     best =
@@ -576,7 +626,11 @@ end
 {best_trainer, _best_loss} = best
 
 case Imitation.export_policy(best_trainer, out_path) do
-  :ok -> Output.success("Policy exported: #{out_path}")
+  :ok ->
+    Output.success("Policy exported: #{out_path}")
+    # The run finished — the resume snapshot is a cliff we no longer need
+    File.rm(trainer_ckpt)
+
   {:error, reason} ->
     Output.error("Export failed: #{inspect(reason)}")
     System.halt(1)

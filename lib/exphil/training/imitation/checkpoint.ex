@@ -47,8 +47,8 @@ defmodule ExPhil.Training.Imitation.Checkpointing do
   - `:ok` on success
   - `{:error, term()}` on failure
   """
-  @spec save_checkpoint(struct(), Path.t()) :: :ok | {:error, term()}
-  def save_checkpoint(trainer, path) do
+  @spec save_checkpoint(struct(), Path.t(), keyword()) :: :ok | {:error, term()}
+  def save_checkpoint(trainer, path, opts \\ []) do
     # Convert all tensors to BinaryBackend for serialization
     checkpoint = %{
       policy_params: to_binary_backend(trainer.policy_params),
@@ -58,15 +58,31 @@ defmodule ExPhil.Training.Imitation.Checkpointing do
       metrics: trainer.metrics
     }
 
+    # Optional caller metadata (e.g. dagger resume snapshots store
+    # %{epoch: e, fingerprint: f}); load_checkpoint/2 ignores it, callers
+    # peek it via Training.Checkpoint.load/2 + Map.get(:meta).
+    checkpoint =
+      case Keyword.get(opts, :meta) do
+        nil -> checkpoint
+        meta -> Map.put(checkpoint, :meta, meta)
+      end
+
     dir = Path.dirname(path)
     File.mkdir_p!(dir)
 
-    case File.write(path, :erlang.term_to_binary(checkpoint)) do
+    # Write-then-rename: atomic on the same filesystem, so an interrupt
+    # (reboot killed r13 mid-write territory, 2026-07-18) can never leave
+    # a truncated checkpoint at the published path.
+    tmp = path <> ".tmp"
+
+    case File.write(tmp, :erlang.term_to_binary(checkpoint)) do
       :ok ->
+        File.rename!(tmp, path)
         Logger.info("Saved checkpoint to #{path}")
         :ok
 
       error ->
+        File.rm(tmp)
         error
     end
   end
