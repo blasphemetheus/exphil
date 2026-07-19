@@ -116,3 +116,47 @@ decision above.
 user_json wiring + Direct smoke (next quiet evening, needs Bradley
 present) → rollback integration → delay A/B (informs conditioning) →
 match-flow polish + full rehearsal night.
+
+## Steering A/B results (2026-07-19, Tier-0 #3 executed)
+
+Vector: `checkpoints/r14_shield_steer.bin` — contrast of r14 trunk
+features (GRU, window 16, hidden 256) over all six r14 probe replays:
+mean(trunk | P1 action 178-182) - mean(trunk | P1 grounded non-shield),
+4,428 shield vs 92,865 grounded frames, raw contrast norm 10.25,
+normalized to |v|=1 (`scripts/extract_steer_vector.exs`). Hook:
+`--steer-vector/--steer-alpha` projects alpha of the feature component
+along v̂ out before the heads (`ExPhil.Interp.Steering`), live on both
+the windowed (Axon.nx `steer_project`) and stateful step seams.
+
+Probes: one headless ExiAI game per arm, r14 policy, --stateful-step
+--jump-debounce 10 --deterministic, tech_random dummy, FD (same recipe
+as newera8 fan-outs; ports 51541-43; probes/steer_ab/).
+
+| arm      | frames | card | shield occ % | run p50/p95/max (f) | runs>=200 | breaks | OOS idle % | kd | conv (rate) |
+|----------|--------|------|--------------|---------------------|-----------|--------|------------|----|-------------|
+| baseline | 21,683 | 7/9  | 2.79         | 5 / 215 / 215       | 2         | 2      | 8.0        | 31 | 7 (22.6%)   |
+| α=0.5    | 28,801 | 6/9  | 5.86         | 13 / 215 / 215      | 6         | 7      | 20.45      | 26 | 8 (30.8%)   |
+| α=1.0    | 16,838 | 9/9  | 1.52         | 3 / 32 / 59         | 0         | 0      | 2.27       | 20 | 5 (25.0%)   |
+
+**VERDICT: CAUSAL.** Full projection removal (α=1.0) takes the policy
+off the 215 pin entirely (p95 215→32, max 59, zero runs ≥180, breaks
+→0) and scores the first 9/9 card of the program — with shield
+occupancy DOWN (2.79→1.52), OOS idle DOWN (8.0→2.27) and conversion
+rate intact (25%). Half-strength (α=0.5) is NOT a milder win: it reads
+worse than baseline (occupancy 5.86%, p50 run 13f, 7 breaks) — partial
+attenuation seems to leave the attractor reachable while weakening the
+release signal. The 178-182 trunk direction is causally responsible for
+the shield-lock; the fix is all-or-nothing along this axis.
+
+Side observation (α=1.0): double jumps vanished entirely (DJ per air
+stint 0.0%, liftoff→DJ p50 nil; jumps/100 still 0.96, X/Y p50 3f — SH
+capable). The shield direction and the DJ impulse apparently share
+subspace — consistent with the prev-action copy-signal story. Watch DJ
+recovery usage before shipping α=1.0 as a default (recovery DJs matter
+off-stage even if neutral DJs were pathological).
+
+Per the Tier-0 decision rule (causal → r15 gets probe-as-regularizer or
+LEACE α<1): pick up probe-as-regularizer for r15, and keep
+`--steer-vector r14_shield_steer.bin --steer-alpha 1.0` as a live
+mitigation usable TODAY (it stacks with --jump-debounce; zero training
+cost). α<1 variants are dead per the α=0.5 arm.

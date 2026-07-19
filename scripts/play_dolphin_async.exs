@@ -111,6 +111,8 @@ Output.step(1, 5, "Loading agent")
     frame_delay: opts[:frame_delay],
     ablate_prev_action: opts[:ablate_prev_action] || false,
     leace_eraser: opts[:leace_eraser],
+    steer_vector: opts[:steer_vector],
+    steer_alpha: opts[:steer_alpha] || 1.0,
     stateful_step: opts[:stateful_step] || false
   )
 

@@ -64,6 +64,15 @@ defmodule ExPhil.Agents.Agent do
     :use_prev_action,
     :ablate_prev_action,
     :leace_eraser,
+    # Steering-vector hook (Tier-0 shield-lock A/B): --steer-vector PATH +
+    # --steer-alpha F project alpha of the trunk features' component along
+    # a unit direction OUT before the heads. steer_v is the loaded (and
+    # default-backend-copied) unit tensor; nil = hook inactive. Unlike
+    # leace_eraser this applies on BOTH the windowed path (Axon.nx layer)
+    # and the stateful step path (eager op on the step features).
+    :steer_vector,
+    :steer_alpha,
+    :steer_v,
     :last_controller,
     # Temporal inference config
     :temporal,
@@ -315,6 +324,9 @@ defmodule ExPhil.Agents.Agent do
       jump_cooldown: 0,
       ablate_prev_action: ablate_prev_action,
       leace_eraser: Keyword.get(opts, :leace_eraser),
+      steer_vector: Keyword.get(opts, :steer_vector),
+      steer_alpha: Keyword.get(opts, :steer_alpha) || 1.0,
+      steer_v: nil,
       # Temporal config - will be set when policy is loaded
       temporal: false,
       backbone: :mlp,
@@ -928,6 +940,17 @@ defmodule ExPhil.Agents.Agent do
     {features, new_trunk_state} =
       trunk_step_fn().(state.trunk_step_params, trunk_state, frame)
 
+    # Steering hook (same seam as the windowed path's steer_project layer):
+    # project alpha of the features' component along the steering direction
+    # out BEFORE the heads. Tiny eager op on [1, hidden]; steer_v is
+    # device-resident (copied at load).
+    features =
+      if state.steer_v do
+        ExPhil.Interp.Steering.steer(features, state.steer_v, state.steer_alpha || 1.0)
+      else
+        features
+      end
+
     deterministic = Keyword.get(opts, :deterministic, state.deterministic)
     temperature = Keyword.get(opts, :temperature, state.temperature)
 
@@ -1280,36 +1303,79 @@ defmodule ExPhil.Agents.Agent do
       dropout: dropout
     ]
 
+    # Steering-vector hook (Tier-0 shield-lock A/B): load %{v: unit tensor}
+    # once here; the windowed path gets it as an Axon.nx layer below, the
+    # stateful step path applies it to the step features directly (see
+    # compute_stateful_step_action) — same {hidden} feature space.
+    steering =
+      if is_binary(state.steer_vector) do
+        s = ExPhil.Interp.Steering.load!(state.steer_vector)
+        alpha = state.steer_alpha || 1.0
+
+        Logger.warning(
+          "[Agent] STEERING ACTIVE: #{state.steer_vector} " <>
+            "(alpha=#{alpha}, dim #{Nx.size(s.v)})"
+        )
+
+        unless temporal do
+          Logger.warning(
+            "[Agent] --steer-vector only applies to temporal policies — ignored"
+          )
+        end
+
+        %{v: s.v, alpha: alpha}
+      else
+        nil
+      end
+
     model =
       cond do
-        temporal and is_binary(state.leace_eraser) ->
-          # Interp-surgical inference (P3/P6): a fitted LEACE eraser as a
-          # frozen transformation between trunk and heads — removes the
-          # concept subspace (e.g. the prev-button copy signal) while
-          # leaving all layer names intact so exported params load as-is.
-          eraser = state.leace_eraser |> File.read!() |> :erlang.binary_to_term()
-
-          Logger.warning(
-            "[Agent] LEACE ERASER ACTIVE: #{state.leace_eraser} (rank #{eraser.rank})"
-          )
-
-          mu = eraser.mu
-          at = Nx.transpose(eraser.a)
-
+        temporal and (is_binary(state.leace_eraser) or steering != nil) ->
+          # Interp-surgical inference (P3/P6 + steering): frozen feature
+          # transformations between trunk and heads — leave all layer names
+          # intact so exported params load as-is.
           trunk = Networks.Policy.build_temporal_trunk(trunk_opts)
 
-          erased =
-            Axon.nx(
-              trunk,
-              fn x ->
-                mu_c = Nx.as_type(mu, Nx.type(x))
-                at_c = Nx.as_type(at, Nx.type(x))
-                Nx.subtract(x, Nx.dot(Nx.subtract(x, mu_c), at_c))
-              end,
-              name: "leace_erase"
-            )
+          trunk =
+            if is_binary(state.leace_eraser) do
+              # Fitted LEACE eraser: removes the concept subspace (e.g. the
+              # prev-button copy signal).
+              eraser = state.leace_eraser |> File.read!() |> :erlang.binary_to_term()
 
-          Networks.Policy.Heads.build_controller_head(erased, axis_buckets, shoulder_buckets)
+              Logger.warning(
+                "[Agent] LEACE ERASER ACTIVE: #{state.leace_eraser} (rank #{eraser.rank})"
+              )
+
+              mu = eraser.mu
+              at = Nx.transpose(eraser.a)
+
+              Axon.nx(
+                trunk,
+                fn x ->
+                  mu_c = Nx.as_type(mu, Nx.type(x))
+                  at_c = Nx.as_type(at, Nx.type(x))
+                  Nx.subtract(x, Nx.dot(Nx.subtract(x, mu_c), at_c))
+                end,
+                name: "leace_erase"
+              )
+            else
+              trunk
+            end
+
+          trunk =
+            if steering do
+              %{v: v, alpha: alpha} = steering
+
+              Axon.nx(
+                trunk,
+                fn x -> ExPhil.Interp.Steering.steer(x, v, alpha) end,
+                name: "steer_project"
+              )
+            else
+              trunk
+            end
+
+          Networks.Policy.Heads.build_controller_head(trunk, axis_buckets, shoulder_buckets)
 
         temporal ->
           Logger.info(
@@ -1466,7 +1532,12 @@ defmodule ExPhil.Agents.Agent do
         trunk_step_params: trunk_params,
         trunk_state: trunk_state,
         heads_predict_fn: heads_predict_fn,
-        trunk_cold: true
+        trunk_cold: true,
+        # Steering unit vector, copied to the default backend once at load —
+        # the step path applies it eagerly every frame (host-resident copies
+        # would re-transfer per frame; same rationale as
+        # copy_params_to_default_backend above)
+        steer_v: steering && Nx.backend_copy(steering.v, Nx.default_backend())
     }
 
     {:ok, new_state}
