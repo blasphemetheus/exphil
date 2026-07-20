@@ -35,6 +35,7 @@ alias ExPhil.Embeddings
       backbone: :string,
       target_loss: :float,
       max_epochs: :integer,
+      hidden_size: :integer,
       nan_forensics: :boolean,
       mixed_precision: :boolean,
       window: :integer,
@@ -291,7 +292,9 @@ trainer =
     temporal: true,
     backbone: backbone,
     window_size: window,
-    hidden_size: 256,
+    # --hidden-size: bake-off capacity screens (e.g. GRU 2x = 512); the
+    # export config carries it, so agents/probes rebuild the right shape.
+    hidden_size: opts[:hidden_size] || 256,
     num_layers: bb_defaults[:num_layers] || 2,
     state_size: bb_defaults[:state_size] || 16,
     expand_factor: bb_defaults[:expand_factor] || 2,

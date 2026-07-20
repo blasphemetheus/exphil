@@ -21,6 +21,13 @@
 #   NEWERA8_ROUNDS=2       rounds to run (r13..)
 #   NEWERA8_BACKBONE=      bake-off: backbone for dagger_drill --backbone;
 #                          checkpoint names gain _<backbone> when set
+#   NEWERA8_TAG=           screen-run isolation (e.g. screen_min_gru):
+#                          checkpoint NAME_SUFFIX becomes _<tag> (replacing
+#                          the backbone suffix), log + probe dirs gain the
+#                          tag — screen runs never collide with the r-line
+#   NEWERA8_MAX_EPOCHS=100 dagger_drill --max-epochs (30 = screening budget)
+#   NEWERA8_DRILL_FLAGS=   extra dagger_drill flags, appended VERBATIM
+#                          (word-split; e.g. "--hidden-size 512")
 #   NEWERA8_SCENARIOS=1    run scenario_suite per round (eval phase)
 #   NEWERA8_SMOKE=1        guards + one 2-arm fan-out vs r12, then exit
 #   PROBE_MODE=headless|windowed   windowed = newera7's sequential probe
@@ -35,13 +42,22 @@ if [ -z "${NEWERA8_INHIBITED:-}" ] && command -v systemd-inhibit >/dev/null 2>&1
 fi
 cd "$(dirname "$0")/.."
 
-LOG=logs/overnight_newera8_$(date +%Y%m%d).log
-PROBE_BASE=probes/newera8
+TAG=${NEWERA8_TAG:-}
+LOG=logs/overnight_newera8${TAG:+_$TAG}_$(date +%Y%m%d).log
+PROBE_BASE=probes/newera8${TAG:+/$TAG}
 TRACE=scripts/trace_tech_chase.exs
 ROUNDS=${NEWERA8_ROUNDS:-2}
 FIRST_ROUND=13
 BACKBONE=${NEWERA8_BACKBONE:-}
-NAME_SUFFIX=${BACKBONE:+_$BACKBONE}
+MAX_EPOCHS=${NEWERA8_MAX_EPOCHS:-100}
+DRILL_FLAGS=${NEWERA8_DRILL_FLAGS:-}
+# TAG wins the checkpoint suffix (screen tags already name the backbone);
+# without a TAG the r-line's backbone-suffix behavior is unchanged.
+if [ -n "$TAG" ]; then
+  NAME_SUFFIX=_$TAG
+else
+  NAME_SUFFIX=${BACKBONE:+_$BACKBONE}
+fi
 PROBE_MODE=${PROBE_MODE:-headless}
 HEADLESS_DOLPHIN=$HOME/.local/share/slippi/exi-ai/dolphin-emu-headless
 NETPLAY_DOLPHIN=$HOME/.local/share/slippi/netplay
@@ -155,6 +171,16 @@ POOL=(
   "$HOME/Slippi/Game_20260717T084349.slp"
   "$HOME/Slippi/Game_20260717T085207.slp"
   "$HOME/Slippi/Game_20260717T090032.slp"
+  # r13 probe replays (private-dir paths): r14 trained on the 48 above +
+  # these 6 = the 54-game pool. Screen runs (TAG set, fresh r13-with-tag
+  # checkpoints) train on the same diet r14 saw. When the r-line resumes
+  # at r15, append r14's 6 probe replays here too.
+  "probes/newera8/r13/plain/p1/Game_20260718T002318.slp"
+  "probes/newera8/r13/plain/p2/Game_20260718T002330.slp"
+  "probes/newera8/r13/plain/p3/Game_20260718T002343.slp"
+  "probes/newera8/r13/debounce/p1/Game_20260718T003155.slp"
+  "probes/newera8/r13/debounce/p2/Game_20260718T003208.slp"
+  "probes/newera8/r13/debounce/p3/Game_20260718T003220.slp"
 )
 
 # --------------------------------------------------------------- timing
@@ -345,12 +371,15 @@ for R in $(seq "$FIRST_ROUND" $((FIRST_ROUND + ROUNDS - 1))); do
       RESUME_FLAG=--resume
     fi
     assert_no_beam "round $R training"
+    # $DRILL_FLAGS deliberately unquoted: NEWERA8_DRILL_FLAGS is appended
+    # verbatim (word-split) for bake-off shape knobs like --hidden-size 512
     mix run scripts/dagger_drill.exs \
       --expert mewtwo_combo \
-      --max-epochs 100 \
+      --max-epochs "$MAX_EPOCHS" \
       --prev-action-dropout "$DROPOUT" \
       --transition-weight 2.0 \
       ${BACKBONE:+--backbone "$BACKBONE"} \
+      $DRILL_FLAGS \
       $RESUME_FLAG \
       --rollouts "$ROLLOUTS" \
       --out "$POLICY" >>"$LOG" 2>&1

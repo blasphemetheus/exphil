@@ -155,8 +155,64 @@ subspace — consistent with the prev-action copy-signal story. Watch DJ
 recovery usage before shipping α=1.0 as a default (recovery DJs matter
 off-stage even if neutral DJs were pathological).
 
+**DJ-recovery check (2026-07-19 evening, scripts/dj_recovery_check.exs):
+INCONCLUSIVE — zero offstage samples at α=1.0.** Offstage recovery
+situations (airborne, |x|>88 or y<-6, ≥15f) across the available games:
+- baseline (2 games): 6 situations, DJ used 2/6, 3 returned / 3 died
+  (both DJ'd recoveries returned) — r14 does use its recovery DJ.
+- α=0.5 (1 game): 1 situation, no DJ, returned.
+- α=1.0 (2 games, incl. a dedicated 28,801f probe): 2 + 0 situations,
+  no DJ used, both returned. The dedicated full-length α=1.0 game never
+  went offstage at all.
+Recovery-DJ capability at α=1.0 is therefore UNTESTED by live sampling
+(the steered policy barely leaves the stage — itself weak positive
+evidence on positioning, not proof of DJ capability). GATE for
+shipping --steer-alpha 1.0 as a live default: run an offstage-forcing
+check first (multiple games, or a scenario prefix that starts P1
+launched offstage) — on the ledger as follow-up work, not tonight.
+
 Per the Tier-0 decision rule (causal → r15 gets probe-as-regularizer or
 LEACE α<1): pick up probe-as-regularizer for r15, and keep
 `--steer-vector r14_shield_steer.bin --steer-alpha 1.0` as a live
 mitigation usable TODAY (it stacks with --jump-debounce; zero training
 cost). α<1 variants are dead per the α=0.5 arm.
+
+## Bake-off screen results (2026-07-19, Tier-0 #4 executed)
+
+Three 30-epoch screens on the 54-game pool (newera8, NEWERA8_TAG
+isolation, 1 round each, dropout 0.6, 2x3-arm headless probe fan-outs,
+scored x/9). Loss = the drill's best/exported loss at stop ("Converged"
+line); epoch-30 sampled loss in parens (per-epoch loss is noisy at
+dropout 0.6). Reference rows: the r-line GRU-256 at its OWN epoch 30
+(r13, dropout 0.4) and full 100-epoch r13/r14 results.
+
+| screen        | backbone     | hidden | loss @30ep (best / e30 sample) | card avg | per-game cards   | conv | train (s) | probe (s) | stateful step path |
+|---------------|--------------|--------|-------------------------------|----------|------------------|------|-----------|-----------|--------------------|
+| screen_min_gru| min_gru      | 256    | 0.447 / 0.937                 | 6.6/9    | 7,6,6,7,7,7      | 1    | 2,656     | 1,048     | UNSUPPORTED (agent gate gru/lstm only — fell back windowed despite PROBE_STATEFUL=1) |
+| screen_mamba  | mamba        | 256    | 0.072 / 0.535                 | 8.1/9    | 8,8,8,8,9,8      | 5    | 8,717     | 1,037     | n/a (PROBE_STATEFUL=0, windowed) |
+| screen_gru2x  | gru          | 512    | 0.285 / NaN(restored)         | 6.0/9    | 6,6,6,6,7,5      | 8    | 9,263     | 1,058     | ACTIVE (512-hidden step path worked) |
+| r13 reference | gru          | 256    | (0.307 e30 sample; dropout .4)| 4.5/9    | (100ep result)   | 7    | ~17,400   | —         | ACTIVE |
+| r14 reference | gru          | 256    | conv. 0.048 @100ep            | 6.0/9    | (100ep result)   | 9    | ~17,400   | —         | ACTIVE |
+
+Notes:
+- **mamba is the card winner by a wide margin** (8.1/9 incl. one 9/9;
+  first mamba on edifice's real conv) and the CHEAPEST loss at 30ep
+  (0.072) — but converts less (5 vs 8/9). Its shield gates pass across
+  the board. Cost: 3.3x min_gru train time, and no O(1) step path
+  (windowed probes only; a Stateful impl or the GatedSSM-style cache
+  would be needed for stateful probing/netplay rollback).
+- **gru2x converts best of the screens (8)** but cards worst (6.0/9)
+  and hit a NaN detonation at epoch 30 (restore 1/5 caught it — best
+  params 0.285 exported; GOTCHA #46 class at 512 hidden, bf16). A
+  gru2x rerun wants f32 or a lower LR before it's judged fairly.
+- **min_gru is the speed king** (2,656s train, 3.3x faster than mamba)
+  but behaviorally weakest here: 1 conversion, mid cards, loss floor
+  0.447 at 30ep. Also NOT stateful-capable in the agent today.
+- Screens vs r-line: all three screens at 30 epochs card >= the r13
+  100-epoch result (4.5/9); mamba at 30ep beats even r14's 6.0/9.
+  30-epoch screening is a real signal at ~1/6 the train cost —
+  supports the epoch-budget instrumentation item in Tier 1.
+- Screen probe throughput note: min_gru/mamba probes ran windowed at
+  59.9/60 fps with ~0.7-0.75 inferences/frame (window 16 is cheap
+  enough at 3 arms); gru2x ran the step path. Step latency was not
+  separately instrumented this run.
