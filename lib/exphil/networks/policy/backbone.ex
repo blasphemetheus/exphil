@@ -96,6 +96,7 @@ defmodule ExPhil.Networks.Policy.Backbone do
   alias Edifice.SSM.Hybrid
   alias Edifice.SSM.Mamba
   alias Edifice.SSM.MambaCumsum
+  alias Edifice.SSM.MambaSSD
   alias Edifice.Recurrent
 
   # MambaNIF uses Rust NIF - stays in ExPhil
@@ -584,6 +585,12 @@ defmodule ExPhil.Networks.Policy.Backbone do
       :mamba ->
         build_mamba_backbone(embed_size, opts)
 
+      :mamba_2 ->
+        # Mamba-2 (SSD form, Edifice.SSM.MambaSSD) — config.ex has had
+        # backbone_defaults for :mamba_2 since the bake-off, but the
+        # dispatch was never wired (caught by the 2026-07-20 screen)
+        build_mamba2_backbone(embed_size, opts)
+
       :mamba_nif ->
         build_mamba_nif_backbone(embed_size, opts)
 
@@ -863,6 +870,9 @@ defmodule ExPhil.Networks.Policy.Backbone do
         Keyword.get(opts, :hidden_size, 256)
 
       :mamba ->
+        Keyword.get(opts, :hidden_size, 256)
+
+      :mamba_2 ->
         Keyword.get(opts, :hidden_size, 256)
 
       :mamba_nif ->
@@ -2908,6 +2918,23 @@ defmodule ExPhil.Networks.Policy.Backbone do
     ]
 
     Mamba.build(mamba_opts)
+  end
+
+  # Mamba-2: SSD (state-space duality) formulation. Same option surface
+  # as build_mamba_backbone; MambaSSD's chunked scan reads the shared
+  # Common option names.
+  defp build_mamba2_backbone(embed_size, opts) do
+    mamba_opts = [
+      embed_dim: embed_size,
+      hidden_size: Keyword.get(opts, :hidden_size, 256),
+      state_size: Keyword.get(opts, :state_size, 16),
+      expand_factor: Keyword.get(opts, :expand_factor, 2),
+      num_layers: Keyword.get(opts, :num_layers, 2),
+      dropout: Keyword.get(opts, :dropout, @default_dropout),
+      window_size: Keyword.get(opts, :window_size, 60)
+    ]
+
+    MambaSSD.build(mamba_opts)
   end
 
   # Mamba with CUDA-accelerated selective scan via Rust NIF (5x faster!)

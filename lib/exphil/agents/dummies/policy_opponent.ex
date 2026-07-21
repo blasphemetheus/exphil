@@ -36,17 +36,30 @@ defmodule ExPhil.Agents.Dummies.PolicyOpponent do
         release_threshold: Keyword.get(opts, :release_threshold)
       )
 
+    # CRITICAL: warm the JIT now, not on the first frame. The play script
+    # warms P1 only; without this, port 2's first inference compiles XLA
+    # INSIDE the frame loop — the loop starves (~0.1 fps observed,
+    # 2026-07-20 ladder smoke) until the bridge watchdog kills the match.
+    case Agent.warmup(agent) do
+      {:ok, _ms} -> :ok
+      other -> raise "PolicyOpponent warmup failed: #{inspect(other)}"
+    end
+
     %__MODULE__{agent: agent}
   end
 
   @doc """
   Rich dummy contract: full game state + the port this policy controls.
-  Returns `{action, state}` — an ACTION map (like the port-1 agent's),
-  not a raw input; the runner converts it.
+  Returns `{controller_state | nil, state}` — a fully-decoded
+  `%ControllerState{}` (via the agent's own decode pipeline, hysteresis
+  and all), which is the ONLY shape `action_to_input/2` accepts. nil on
+  inference error (runner skips the send that frame).
   """
   def step_game(game_state, self_port, %__MODULE__{agent: agent} = s) do
-    action = Agent.get_action(agent, swap_perspective(game_state, self_port))
-    {action, s}
+    case Agent.get_controller(agent, swap_perspective(game_state, self_port)) do
+      {:ok, controller} -> {controller, s}
+      {:error, _} -> {nil, s}
+    end
   end
 
   # The policy was trained seeing itself as players[1]; mirror the map so

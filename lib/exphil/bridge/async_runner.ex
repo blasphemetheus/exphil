@@ -506,11 +506,18 @@ defmodule ExPhil.Bridge.AsyncRunner do
 
         cond do
           # Rich contract (PolicyOpponent, checkpoint ladder): full game
-          # state in, ACTION out — converted by the SAME action_to_input
-          # path as the port-1 policy.
+          # state in, decoded %ControllerState{} out — converted by the
+          # SAME action_to_input path as the port-1 policy, tagged with
+          # the opponent port like the classic dummy send. nil = skip
+          # this frame (inference error).
           function_exported?(mod, :step_game, 3) ->
-            {action, dummy_state} = mod.step_game(game_state, opponent_port, dummy_state)
-            MeleePort.send_controller(bridge, action_to_input(action, opponent_port))
+            {controller, dummy_state} = mod.step_game(game_state, opponent_port, dummy_state)
+
+            if controller do
+              input = controller |> action_to_input(opponent_port) |> Map.put(:port, opponent_port)
+              MeleePort.send_controller(bridge, input)
+            end
+
             :ets.insert(table, {:elixir_dummy, mod, dummy_state})
 
           true ->

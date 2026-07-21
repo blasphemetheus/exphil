@@ -108,6 +108,10 @@ for ((i = 0; i < n; i++)); do
       rc=$?
       if [ "$rc" -ne 0 ]; then
         echo "[ladder] match $match exited rc=$rc (timeout/crash) — scorer will skip if no replay" | tee -a "$LOG"
+        # A crashed arm can strand its Dolphin (observed 2026-07-20: four
+        # strays after the first smoke) — sweep before the next match
+        pkill -f "dolphin-emu -e.*libmelee" 2>/dev/null
+        sleep 2
       fi
     done
   done
