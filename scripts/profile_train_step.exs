@@ -48,7 +48,7 @@ if replay_paths == [], do: raise("no replays matched")
 
 variants =
   case opts[:backbones] do
-    nil -> ["mamba", "mamba_2_seq", "mamba_2_c8"]
+    nil -> ["mamba", "mamba_2_seq", "mamba_2_c8", "mamba_2_c12", "mamba_2_c20"]
     s -> String.split(s, ",", trim: true)
   end
 
@@ -56,7 +56,11 @@ variant_config = fn
   "mamba" -> {:mamba, []}
   "mamba_2_seq" -> {:mamba_2, []}
   "mamba_2_c8" -> {:mamba_2, [chunk_size: 8, training_mode: true]}
-  other -> raise "unknown variant #{other} (mamba | mamba_2_seq | mamba_2_c8)"
+  # Divisors of window 60: no remainder chunk (one compiled chunk shape)
+  # and a smaller O(chunks^2) inter-chunk unroll (5 resp. 3 chunks)
+  "mamba_2_c12" -> {:mamba_2, [chunk_size: 12, training_mode: true]}
+  "mamba_2_c20" -> {:mamba_2, [chunk_size: 20, training_mode: true]}
+  other -> raise "unknown variant #{other} (mamba | mamba_2_seq | mamba_2_c8 | mamba_2_c12 | mamba_2_c20)"
 end
 
 Output.banner("Train-step profile (real drill graph)")
