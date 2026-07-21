@@ -85,13 +85,24 @@ BASE_PORT=51500
 mkdir -p logs "$PROBE_BASE"
 
 # ---------------------------------------------------------------- guards
-if pgrep -x beam.smp >/dev/null; then
-  echo "[newera8] BEAM ALREADY LIVE — refusing to start (#67)" | tee -a "$LOG"
+# #67's hazard is beams sharing OUR exla NIF — i.e. beams running out of
+# the nx-consumer repos. Unrelated apps (2026-07-21: Bradley's Phoenix
+# server in ~/git/shine) must not block training; match by /proc cwd.
+exla_beams() {
+  local p
+  for p in $(pgrep -x beam.smp); do
+    case "$(readlink /proc/$p/cwd 2>/dev/null)" in
+      "$HOME/git/exphil"* | "$HOME/git/edifice"* | "$HOME/git/nx"*) echo "$p" ;;
+    esac
+  done
+}
+if [ -n "$(exla_beams)" ]; then
+  echo "[newera8] EXLA-sharing BEAM ALREADY LIVE ($(exla_beams | tr '\n' ' ')) — refusing to start (#67)" | tee -a "$LOG"
   exit 1
 fi
 assert_no_beam() {
-  pgrep -x beam.smp >/dev/null && {
-    echo "[newera8] BEAM alive before $1 — refusing (#67)" | tee -a "$LOG"
+  [ -n "$(exla_beams)" ] && {
+    echo "[newera8] EXLA-sharing BEAM alive before $1 — refusing (#67)" | tee -a "$LOG"
     exit 1
   }
 }
