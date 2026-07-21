@@ -52,4 +52,20 @@ defmodule ExPhil.Interp.Steering do
     proj = Nx.dot(x, v)
     Nx.subtract(x, Nx.multiply(alpha, Nx.multiply(Nx.new_axis(proj, -1), v)))
   end
+
+  @doc """
+  Scalar-gain steering: MULTIPLY the component of `x` along unit `v` by
+  `g` instead of subtracting it (arXiv:2602.22719 — 2-5x gains on causal
+  subspaces beat additive vectors on 7 SSMs; adopted per
+  INTERP_NEXT_RESEARCH_2026-07-20).
+
+  `g = 1` is the identity; `g = 0` equals `steer(x, v, 1.0)` (full
+  erasure); `g > 1` amplifies the direction. Same tensor contract as
+  `steer/3`.
+  """
+  def gain(x, v, g) do
+    v = Nx.as_type(v, Nx.type(x))
+    proj = Nx.dot(x, v)
+    Nx.add(x, Nx.multiply(g - 1.0, Nx.multiply(Nx.new_axis(proj, -1), v)))
+  end
 end
