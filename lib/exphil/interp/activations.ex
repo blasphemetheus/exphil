@@ -236,9 +236,10 @@ defmodule ExPhil.Interp.Activations do
         show_progress: false
       )
 
-    to_binary = fn t -> t |> Nx.as_type(:f32) |> Nx.backend_transfer(Nx.BinaryBackend) end
-
-    batch_outputs =
+    # The generic batch->forward->collect loop lives in edifice now
+    # (Edifice.Interpretability.Capture, the audit-gap-3 port); this
+    # module keeps the melee half: replays, embeddings (+cache), labels.
+    batches =
       dataset
       |> Data.batched_sequences(
         batch_size: batch_size,
@@ -248,38 +249,35 @@ defmodule ExPhil.Interp.Activations do
         shuffle: false,
         drop_last: false
       )
-      |> Enum.map(fn batch ->
-        case Map.get(trunk, :kind, :trunk) do
-          :heads ->
-            {buttons, main_x, main_y, c_x, c_y, shoulder} =
-              trunk.predict_fn.(trunk.params, batch.states)
+      # Stream, not Enum: one batch on device at a time
+      |> Stream.map(& &1.states)
+
+    # Heads trunks return a 6-tuple; adapt to Capture's tensor-or-map
+    # contract (atom keys pass through untouched)
+    predict_fn =
+      case Map.get(trunk, :kind, :trunk) do
+        :heads ->
+          fn params, states ->
+            {buttons, main_x, main_y, c_x, c_y, shoulder} = trunk.predict_fn.(params, states)
 
             %{
-              buttons: to_binary.(buttons),
-              main_x: to_binary.(main_x),
-              main_y: to_binary.(main_y),
-              c_x: to_binary.(c_x),
-              c_y: to_binary.(c_y),
-              shoulder: to_binary.(shoulder)
+              buttons: buttons,
+              main_x: main_x,
+              main_y: main_y,
+              c_x: c_x,
+              c_y: c_y,
+              shoulder: shoulder
             }
+          end
 
-          _ ->
-            to_binary.(trunk.predict_fn.(trunk.params, batch.states))
-        end
-      end)
+        _ ->
+          trunk.predict_fn
+      end
 
     activations =
-      case batch_outputs do
-        # NB: order matters — a bare %{} pattern also matches Nx.Tensor
-        # structs (they're maps underneath)
-        [%Nx.Tensor{} | _] ->
-          Nx.concatenate(batch_outputs, axis: 0)
-
-        [_first | _] ->
-          batch_outputs
-          |> Enum.reduce(fn m, acc ->
-            Map.new(acc, fn {k, v} -> {k, Nx.concatenate([v, Map.fetch!(m, k)])} end)
-          end)
+      case Edifice.Interpretability.Capture.run(predict_fn, trunk.params, batches) do
+        %{"output" => t} -> t
+        m -> m
       end
 
     n =
