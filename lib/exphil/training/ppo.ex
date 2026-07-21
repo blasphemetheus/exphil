@@ -73,7 +73,11 @@ defmodule ExPhil.Training.PPO do
     # Total timesteps collected
     :timesteps,
     # Training metrics
-    :metrics
+    :metrics,
+    # One-time-jitted minibatch update (built lazily on first update;
+    # audit 2026-07-16 fix — the per-minibatch closure recompiled on the
+    # Evaluator every call). NOT the rollout env step_fn.
+    :update_step_fn
   ]
 
   @type t :: %__MODULE__{}
@@ -392,88 +396,118 @@ defmodule ExPhil.Training.PPO do
     end)
   end
 
-  defp minibatch_update(trainer, states, actions, advantages, returns, old_log_probs, old_values) do
+  # One fused, one-time-jitted minibatch update (audit 2026-07-16 fixes):
+  # tensors flow as JIT ARGUMENTS (no closure captures -> no per-minibatch
+  # recompiles, no device->host round trips), compiler: EXLA (the old
+  # bare Nx.Defn.jit resolved to the Evaluator), and the forward, loss,
+  # grads, metrics, optimizer update, and apply_updates are ONE compiled
+  # program. Config scalars are captured (plain floats — safe).
+  defp build_update_step_fn(trainer) do
     {_init_fn, predict_fn} = Utils.build_compiled(trainer.model)
     config = trainer.config
+    optimizer_update = trainer.optimizer
 
-    # Extract params data from ModelState for gradient computation
-    params_data = get_params_data(trainer.params)
+    Nx.Defn.jit(
+      fn params_data, optimizer_state, states, actions, advantages, returns, old_log_probs,
+         old_values ->
+        # Loss for the gradient (scalar)
+        loss_fn = fn params ->
+          %{policy: policy_logits, value: values} =
+            predict_fn.(Utils.ensure_model_state(params), states)
 
-    # IMPORTANT: Convert closure-captured tensors to BinaryBackend to avoid EXLA/Expr mismatch.
-    # When JIT compiles a function, tensors captured in closures must be on BinaryBackend,
-    # then JIT will promote them to the appropriate backend (EXLA) during compilation.
-    states_bin = Nx.backend_copy(states, Nx.BinaryBackend)
-    old_log_probs_bin = Nx.backend_copy(old_log_probs, Nx.BinaryBackend)
-    advantages_bin = Nx.backend_copy(advantages, Nx.BinaryBackend)
-    returns_bin = Nx.backend_copy(returns, Nx.BinaryBackend)
-    old_values_bin = Nx.backend_copy(old_values, Nx.BinaryBackend)
-    actions_bin = Map.new(actions, fn {k, v} -> {k, Nx.backend_copy(v, Nx.BinaryBackend)} end)
+          # New log probs — in f32: exp(logp - logp_old) is the most
+          # NaN-prone op in RL; low-precision backward of exp is the
+          # failure class from the 2026-07-14 grad-localizer forensics.
+          new_log_probs =
+            ActorCritic.compute_log_probs(policy_logits, actions) |> Nx.as_type(:f32)
 
-    # Loss function that returns only the scalar loss (for gradient computation)
-    # Uses the BinaryBackend copies to avoid EXLA tensor closure issues
-    loss_fn = fn params ->
-      %{policy: policy_logits, value: values} =
-        predict_fn.(Utils.ensure_model_state(params), states_bin)
+          ratio = Nx.exp(Nx.subtract(new_log_probs, Nx.as_type(old_log_probs, :f32)))
+          clipped_ratio = Nx.clip(ratio, 1.0 - config.clip_range, 1.0 + config.clip_range)
 
-      # Compute new log probs — in f32: exp(logp - logp_old) is the most
-      # NaN-prone op in RL, and low-precision backward of exp is exactly the
-      # failure class found by the 2026-07-14 grad-localizer forensics
-      # (see Policy.Loss.imitation_loss).
-      new_log_probs =
-        ActorCritic.compute_log_probs(policy_logits, actions_bin) |> Nx.as_type(:f32)
+          surr1 = Nx.multiply(ratio, advantages)
+          surr2 = Nx.multiply(clipped_ratio, advantages)
+          policy_loss = Nx.negate(Nx.mean(Nx.min(surr1, surr2)))
 
-      # Policy loss (clipped PPO objective)
-      ratio = Nx.exp(Nx.subtract(new_log_probs, Nx.as_type(old_log_probs_bin, :f32)))
-      clipped_ratio = Nx.clip(ratio, 1.0 - config.clip_range, 1.0 + config.clip_range)
+          value_loss =
+            if config.value_clip do
+              Value.clipped_value_loss(values, old_values, returns, config.clip_range)
+            else
+              Value.value_loss(values, returns)
+            end
 
-      surr1 = Nx.multiply(ratio, advantages_bin)
-      surr2 = Nx.multiply(clipped_ratio, advantages_bin)
-      policy_loss = Nx.negate(Nx.mean(Nx.min(surr1, surr2)))
+          entropy = ActorCritic.compute_entropy(policy_logits)
 
-      # Value loss (optionally clipped)
-      value_loss =
-        if config.value_clip do
-          Value.clipped_value_loss(values, old_values_bin, returns_bin, config.clip_range)
-        else
-          Value.value_loss(values, returns_bin)
+          policy_loss
+          |> Nx.add(Nx.multiply(config.value_coef, value_loss))
+          |> Nx.subtract(Nx.multiply(config.entropy_coef, entropy))
         end
 
-      # Entropy bonus
-      entropy = ActorCritic.compute_entropy(policy_logits)
+        {loss, grads} = Nx.Defn.value_and_grad(loss_fn).(params_data)
 
-      # Total loss (this is what we differentiate)
-      policy_loss
-      |> Nx.add(Nx.multiply(config.value_coef, value_loss))
-      |> Nx.subtract(Nx.multiply(config.entropy_coef, entropy))
-    end
+        # Metrics forward — in-graph (XLA can CSE against the loss
+        # forward; worst case one extra on-device forward, never an
+        # eager host-side pass)
+        %{policy: policy_logits, value: values} =
+          predict_fn.(Utils.ensure_model_state(params_data), states)
 
-    # Compute gradients on params data
-    # JIT compile the value_and_grad function to ensure consistent backend (EXLA)
-    grad_fn = Nx.Defn.jit(Nx.Defn.value_and_grad(loss_fn))
-    {loss, grads} = grad_fn.(params_data)
+        new_log_probs =
+          ActorCritic.compute_log_probs(policy_logits, actions) |> Nx.as_type(:f32)
 
-    # Compute metrics in a separate forward pass (no gradients needed)
-    %{policy: policy_logits, value: values} =
-      predict_fn.(Utils.ensure_model_state(trainer.params), states)
+        ratio = Nx.exp(Nx.subtract(new_log_probs, Nx.as_type(old_log_probs, :f32)))
+        clipped_ratio = Nx.clip(ratio, 1.0 - config.clip_range, 1.0 + config.clip_range)
+        surr1 = Nx.multiply(ratio, advantages)
+        surr2 = Nx.multiply(clipped_ratio, advantages)
+        policy_loss = Nx.negate(Nx.mean(Nx.min(surr1, surr2)))
+        value_loss = Value.value_loss(values, returns)
+        entropy = ActorCritic.compute_entropy(policy_logits)
+        approx_kl = Nx.mean(Nx.subtract(Nx.subtract(ratio, 1), Nx.log(ratio)))
 
-    new_log_probs = ActorCritic.compute_log_probs(policy_logits, actions)
-    ratio = Nx.exp(Nx.subtract(new_log_probs, old_log_probs))
+        clip_fraction =
+          ratio
+          |> Nx.subtract(1.0)
+          |> Nx.abs()
+          |> Nx.greater(config.clip_range)
+          |> Nx.as_type(:f32)
+          |> Nx.mean()
 
-    policy_loss = compute_policy_loss(ratio, advantages, config.clip_range)
-    value_loss = Value.value_loss(values, returns)
-    entropy = ActorCritic.compute_entropy(policy_logits)
+        # Optimizer + apply, fused into the same program
+        {updates, new_optimizer_state} = optimizer_update.(grads, optimizer_state, params_data)
+        new_params_data = Polaris.Updates.apply_updates(params_data, updates)
 
-    # Update parameters using Polaris
-    {updates, new_optimizer_state} =
-      trainer.optimizer.(
-        grads,
+        {new_params_data, new_optimizer_state,
+         %{
+           loss: loss,
+           policy_loss: policy_loss,
+           value_loss: value_loss,
+           entropy: entropy,
+           approx_kl: approx_kl,
+           clip_fraction: clip_fraction
+         }}
+      end,
+      compiler: EXLA,
+      on_conflict: :reuse
+    )
+  end
+
+  defp ensure_update_step_fn(%{update_step_fn: f} = trainer) when is_function(f), do: trainer
+  defp ensure_update_step_fn(trainer), do: %{trainer | update_step_fn: build_update_step_fn(trainer)}
+
+  defp minibatch_update(trainer, states, actions, advantages, returns, old_log_probs, old_values) do
+    trainer = ensure_update_step_fn(trainer)
+    params_data = get_params_data(trainer.params)
+
+    {new_params_data, new_optimizer_state, metrics_t} =
+      trainer.update_step_fn.(
+        params_data,
         trainer.optimizer_state,
-        params_data
+        states,
+        actions,
+        advantages,
+        returns,
+        old_log_probs,
+        old_values
       )
 
-    # Use jit wrapper to avoid Nx.LazyContainer nil issue with defn default params
-    apply_updates_fn = Nx.Defn.jit(&Polaris.Updates.apply_updates/2)
-    new_params_data = apply_updates_fn.(params_data, updates)
     new_params = put_params_data(trainer.params, new_params_data)
 
     new_trainer = %{
@@ -483,40 +517,13 @@ defmodule ExPhil.Training.PPO do
         step: trainer.step + 1
     }
 
-    metrics = %{
-      loss: Nx.to_number(loss),
-      policy_loss: Nx.to_number(policy_loss),
-      value_loss: Nx.to_number(value_loss),
-      entropy: Nx.to_number(entropy),
-      approx_kl: compute_approx_kl(ratio),
-      clip_fraction: compute_clip_fraction(ratio, config.clip_range)
-    }
+    metrics = Map.new(metrics_t, fn {k, v} -> {k, Nx.to_number(v)} end)
 
     {new_trainer, metrics}
   end
 
-  defp compute_policy_loss(ratio, advantages, clip_range) do
-    clipped_ratio = Nx.clip(ratio, 1.0 - clip_range, 1.0 + clip_range)
-    surr1 = Nx.multiply(ratio, advantages)
-    surr2 = Nx.multiply(clipped_ratio, advantages)
-    Nx.negate(Nx.mean(Nx.min(surr1, surr2)))
-  end
-
-  defp compute_approx_kl(ratio) do
-    # Approximate KL divergence: E[(ratio - 1) - log(ratio)]
-    kl = Nx.subtract(Nx.subtract(ratio, 1), Nx.log(ratio))
-    Nx.to_number(Nx.mean(kl))
-  end
-
-  defp compute_clip_fraction(ratio, clip_range) do
-    clipped =
-      Nx.logical_or(
-        Nx.less(ratio, 1.0 - clip_range),
-        Nx.greater(ratio, 1.0 + clip_range)
-      )
-
-    Nx.to_number(Nx.mean(Nx.as_type(clipped, :f32)))
-  end
+  # (compute_policy_loss/approx_kl/clip_fraction folded into the fused
+  # update step — see build_update_step_fn)
 
   defp compute_advantages(rewards, values, dones, gamma, lambda) do
     Value.compute_gae(rewards, values, dones, gamma, lambda)
