@@ -170,6 +170,8 @@ defmodule ExPhil.CLI do
       desc: "Action on game end: restart or stop", group: [:dolphin]},
     %{name: :dummy, flag: "--dummy", type: :string, short: nil, default: "none",
       desc: "Port-2 dummy for drills: none|stand|shield|jump|walk|cpu|tech_random (reactive, Elixir-driven)|external", group: [:dolphin]},
+    %{name: :p2_policy, flag: "--p2-policy", type: :string, short: nil, default: nil,
+      desc: "Checkpoint ladder (task #19): drive port 2 with a SECOND policy .bin (PolicyOpponent via the external-dummy hook; overrides --dummy; inference inline in the frame loop, so pair with --headless pacing)", group: [:dolphin]},
     %{name: :dummy_character, flag: "--dummy-character", type: :string, short: nil, default: "fox",
       desc: "Dummy's character (requires --dummy)", group: [:dolphin]},
     %{name: :dummy_cpu_level, flag: "--dummy-cpu-level", type: :integer, short: nil, default: 0,

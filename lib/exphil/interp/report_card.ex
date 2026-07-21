@@ -35,7 +35,7 @@ defmodule ExPhil.Interp.ReportCard do
   needs `p1.actions`, `p1.controllers`).
   """
   @spec evaluate(map()) :: %{gates: [gate()], passed: non_neg_integer(), total: pos_integer()}
-  def evaluate(%{p1: %{actions: actions, controllers: controllers}}) do
+  def evaluate(%{p1: %{actions: actions, controllers: controllers} = p1} = data) do
     shield = ReplayStats.shield_stats(actions)
 
     jump_rate = jump_rate(actions)
@@ -58,6 +58,29 @@ defmodule ExPhil.Interp.ReportCard do
       # from here on are x/9 — not directly comparable to r1-r12's x/8.
       gate("shield breaks", shield.breaks, shield.breaks == 0, "==0 (broke 89x in r10-r12)")
     ]
+
+    # Gate 10 (added 2026-07-20 after the first human demo: policy rarely
+    # initiates in neutral). Needs both ports' positions, so it only runs
+    # on full load/1 data — legacy actions+controllers callers stay x/9.
+    # PROVISIONAL threshold; calibrate against demo games + r14 probes.
+    gates =
+      case {Map.get(p1, :players), get_in(data, [:p2, :players])} do
+        {p1p, p2p} when is_list(p1p) and is_list(p2p) ->
+          ap = ReplayStats.approach_stats(p1, data.p2)
+
+          gates ++
+            [
+              gate(
+                "armed approaches/min",
+                ap.armed_per_min,
+                ap.armed_per_min >= 1.0,
+                ">=1.0 (PROVISIONAL — calibrating)"
+              )
+            ]
+
+        _ ->
+          gates
+      end
 
     %{gates: gates, passed: Enum.count(gates, & &1.pass), total: length(gates)}
   end

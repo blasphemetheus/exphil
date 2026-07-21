@@ -62,7 +62,7 @@ defmodule ExPhil.Training.Imitation do
 
   alias ExPhil.Networks.Policy
   alias ExPhil.Embeddings
-  alias ExPhil.Training.{MixedPrecision, Utils}
+  alias ExPhil.Training.{MixedPrecision, ProbeRegularizer, Utils}
   alias ExPhil.Training.Imitation.{Checkpointing, Loss, Optimizer, TrainLoop, Validation}
 
   require Logger
@@ -84,7 +84,13 @@ defmodule ExPhil.Training.Imitation do
     # Compiled eval loss function - for validation without gradient computation
     :eval_loss_fn,
     # Mixed precision state (FP32 master weights + BF16 compute params)
-    :mixed_precision_state
+    :mixed_precision_state,
+    # Probe-as-regularizer (r15): trunk-only forward sharing the policy's
+    # param names, and the online-refit direction it penalizes. Both nil
+    # unless config.probe_reg_weight > 0; probe_direction starts as a zero
+    # vector (penalty exactly 0) until ProbeRegularizer.refit/4 fits it.
+    :trunk_predict_fn,
+    :probe_direction
   ]
 
   @type t :: %__MODULE__{
@@ -100,7 +106,9 @@ defmodule ExPhil.Training.Imitation do
           apply_updates_fn: function() | nil,
           eval_loss_fn: function() | nil,
           loss_and_grad_fn: function() | nil,
-          mixed_precision_state: MixedPrecision.t() | nil
+          mixed_precision_state: MixedPrecision.t() | nil,
+          trunk_predict_fn: function() | nil,
+          probe_direction: Nx.Tensor.t() | nil
         }
 
   # Default training configuration
@@ -178,6 +186,9 @@ defmodule ExPhil.Training.Imitation do
     # Entropy regularization
     # Prevents mode collapse by penalizing collapsed output distributions
     entropy_weight: 0.0,
+    # Probe-as-regularizer (r15): weight on mean((trunk . v)^2) where v is
+    # the online-refit shield-lock direction. 0.0 = off (temporal only)
+    probe_reg_weight: 0.0,
     # Optimizer selection
     # :adam, :adamw, :lamb, :radam, :sgd, :rmsprop
     optimizer: :adamw,
@@ -328,9 +339,30 @@ defmodule ExPhil.Training.Imitation do
     optimizer_fn = Nx.Defn.jit(optimizer_update, compiler: EXLA, on_conflict: :reuse)
     apply_updates_fn = Nx.Defn.jit(&Polaris.Updates.apply_updates/2, compiler: EXLA, on_conflict: :reuse)
 
+    # Probe-as-regularizer (r15): build the trunk-only forward once; the
+    # trunk fn rides into the loss builder via a TRANSIENT config key (not
+    # stored on trainer.config, so checkpoint serialization never sees a
+    # function). Requires temporal — the direction lives in trunk space.
+    {trunk_predict_fn, probe_direction} =
+      if (config[:probe_reg_weight] || 0.0) > 0 do
+        unless config.temporal do
+          raise ArgumentError, "probe_reg_weight requires temporal: true (trunk-space direction)"
+        end
+
+        {ProbeRegularizer.build_trunk_fn(config),
+         Nx.broadcast(Nx.tensor(0.0, type: :f32), {config.hidden_size})}
+      else
+        {nil, nil}
+      end
+
+    loss_config =
+      if trunk_predict_fn,
+        do: Map.put(config, :probe_trunk_fn, trunk_predict_fn),
+        else: config
+
     # Build compiled loss+grad function (avoids deep_backend_copy every batch)
     # This function is JITted once and reused for all training steps
-    loss_and_grad_fn = Loss.build_loss_and_grad_fn(predict_fn, config)
+    loss_and_grad_fn = Loss.build_loss_and_grad_fn(predict_fn, loss_config)
 
     # Build compiled eval loss function (for validation - no gradients needed)
     # JITted once and reused for all validation batches
@@ -354,7 +386,9 @@ defmodule ExPhil.Training.Imitation do
       apply_updates_fn: apply_updates_fn,
       loss_and_grad_fn: loss_and_grad_fn,
       eval_loss_fn: eval_loss_fn,
-      mixed_precision_state: mixed_precision_state
+      mixed_precision_state: mixed_precision_state,
+      trunk_predict_fn: trunk_predict_fn,
+      probe_direction: probe_direction
     }
   end
 
@@ -458,7 +492,19 @@ defmodule ExPhil.Training.Imitation do
 
       case policy_type do
         pt when pt in [:autoregressive, :act] ->
-          {_loss, _grads} = trainer.loss_and_grad_fn.(trainer.policy_params, states, actions, frame_weights)
+          # 5-arg variant when probe-as-regularizer is active (r15)
+          {_loss, _grads} =
+            if trainer.probe_direction do
+              trainer.loss_and_grad_fn.(
+                trainer.policy_params,
+                states,
+                actions,
+                frame_weights,
+                trainer.probe_direction
+              )
+            else
+              trainer.loss_and_grad_fn.(trainer.policy_params, states, actions, frame_weights)
+            end
 
         _generative ->
           # Diffusion/flow_matching need noise+timestep, skip warmup of loss_and_grad_fn

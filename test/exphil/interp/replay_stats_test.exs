@@ -206,6 +206,170 @@ defmodule ExPhil.Interp.ReplayStatsTest do
     end
   end
 
+  describe "approach_stats/2" do
+    # Synthetic walk-in: P2 parked at x=0, P1 starts at -60 (dist 60 >=
+    # start threshold), walks in 1 unit/frame until dist 15 (< engage 20),
+    # then holds. Engagement onset lands mid-walk; P1 covered 100% of the
+    # closure.
+    defp walk_in(fair_at_engage?) do
+      hold = 20
+      walk = 45
+      tail = 55
+      n = hold + walk + tail
+
+      p1x =
+        List.duplicate(-60.0, hold) ++
+          Enum.map(1..walk, fn i -> -60.0 + i end) ++ List.duplicate(-15.0, tail)
+
+      p1_players = Enum.map(p1x, &%{x: &1})
+      p2_players = List.duplicate(%{x: 0.0}, n)
+
+      # dist crosses 20 at x=-20 -> onset index hold + 40
+      onset = hold + 40
+
+      actions =
+        if fair_at_engage? do
+          List.duplicate(@wait, onset + 2) ++ List.duplicate(66, 8) ++
+            List.duplicate(@wait, n - onset - 10)
+        else
+          List.duplicate(@wait, n)
+        end
+
+      {%{actions: actions, players: p1_players}, %{players: p2_players}}
+    end
+
+    test "a walk-in ending in fair counts as one armed approach" do
+      {p1, p2} = walk_in(true)
+      s = ReplayStats.approach_stats(p1, p2)
+
+      assert s.approaches == 1
+      assert s.armed == 1
+      assert s.armed_per_min > 0
+    end
+
+    test "a walk-in with no attack is an approach but not armed" do
+      {p1, p2} = walk_in(false)
+      s = ReplayStats.approach_stats(p1, p2)
+
+      assert s.approaches == 1
+      assert s.armed == 0
+    end
+
+    test "the opponent walking in is NOT our approach (closure share)" do
+      n = 120
+      p1_players = List.duplicate(%{x: -60.0}, n)
+
+      p2x =
+        List.duplicate(0.0, 20) ++
+          Enum.map(1..45, fn i -> 0.0 - i end) ++ List.duplicate(-45.0, 55)
+
+      p2_players = Enum.map(p2x, &%{x: &1})
+      p1 = %{actions: List.duplicate(@wait, n), players: p1_players}
+
+      s = ReplayStats.approach_stats(p1, %{players: p2_players})
+      assert s.approaches == 0
+    end
+
+    test "closing distance while in hitstun (comboed inward) does not count" do
+      {p1, p2} = walk_in(true)
+      # Hitstun at the closure start (the furthest-apart frame, index 0)
+      p1 = %{p1 | actions: List.duplicate(@hitstun_lo, 30) ++ Enum.drop(p1.actions, 30)}
+
+      s = ReplayStats.approach_stats(p1, p2)
+      assert s.approaches == 0
+    end
+  end
+
+  describe "conversion_stats/2" do
+    # walk_in/1 geometry: onset at index 60, closure start (furthest-apart
+    # frame in the lookback) at index 0, n = 120.
+    defp with_p2_actions({p1, p2}, p2_actions), do: {p1, Map.put(p2, :actions, p2_actions)}
+
+    test "P2 entering hitstun after engagement converts; span covers decision through payoff" do
+      n = 120
+      # Engagement onset is index 59: dist hits exactly 20.0 (<= engage
+      # threshold) one frame before the walk_in comment's "onset = 60"
+      onset = 59
+      # P2 takes the hit ~10 frames after engagement
+      p2_actions =
+        List.duplicate(@wait, onset + 10) ++
+          List.duplicate(@hitstun_lo, 20) ++ List.duplicate(@wait, n - onset - 30)
+
+      {p1, p2} = with_p2_actions(walk_in(true), p2_actions)
+      s = ReplayStats.conversion_stats(p1, p2)
+
+      assert s.approaches == 1
+      assert s.conversions == 1
+      assert s.spans == [{0, onset + 45}]
+    end
+
+    test "an approach with no opponent hitstun does not convert" do
+      {p1, p2} = with_p2_actions(walk_in(true), List.duplicate(@wait, 120))
+      s = ReplayStats.conversion_stats(p1, p2)
+
+      assert s.approaches == 1
+      assert s.conversions == 0
+      assert s.spans == []
+    end
+
+    test "approaching an already-comboed opponent is not a fresh conversion (entry-only)" do
+      # P2 is in hitstun from well before the onset with no new entry inside
+      # the window
+      p2_actions = List.duplicate(@wait, 30) ++ List.duplicate(@hitstun_lo, 90)
+      {p1, p2} = with_p2_actions(walk_in(true), p2_actions)
+      s = ReplayStats.conversion_stats(p1, p2)
+
+      assert s.approaches == 1
+      assert s.conversions == 0
+    end
+
+    test "hitstun entry after the window closes does not convert" do
+      n = 120
+      onset = 60
+      # Entry at onset + 50, past the 45-frame window
+      p2_actions = List.duplicate(@wait, onset + 50) ++ List.duplicate(@hitstun_lo, n - onset - 50)
+      {p1, p2} = with_p2_actions(walk_in(true), p2_actions)
+      s = ReplayStats.conversion_stats(p1, p2)
+
+      assert s.conversions == 0
+    end
+  end
+
+  describe "opening_stats/2" do
+    test "a combo is ONE opening but several hit entries" do
+      # opening -> 3 re-hits inside the 60f window -> long gap -> fresh opening
+      actions =
+        List.duplicate(@wait, 30) ++
+          List.duplicate(@hitstun_lo, 20) ++
+          List.duplicate(@wait, 10) ++
+          List.duplicate(@hitstun_lo, 15) ++
+          List.duplicate(@wait, 200) ++
+          List.duplicate(@hitstun_lo, 10)
+
+      s = ReplayStats.opening_stats(actions)
+
+      assert s.openings == 2
+      assert s.hit_entries == 3
+      assert s.per_min > 0
+    end
+
+    test "hitstun on frame 0 counts as an opening" do
+      s = ReplayStats.opening_stats(List.duplicate(@hitstun_lo, 30) ++ List.duplicate(@wait, 30))
+      assert s.openings == 1
+      assert s.hit_entries == 1
+    end
+
+    test "no hitstun means no openings" do
+      s = ReplayStats.opening_stats(List.duplicate(@wait, 600))
+      assert s == %{openings: 0, hit_entries: 0, per_min: 0.0, entries_per_min: 0.0}
+    end
+
+    test "thrown states count as hitstun entries" do
+      s = ReplayStats.opening_stats(List.duplicate(@wait, 30) ++ List.duplicate(@thrown_lo, 20))
+      assert s.openings == 1
+    end
+  end
+
   describe "load/1 + summarize/1 (fixture integration)" do
     @tag :fixture
     test "loads a real replay into the documented shape" do

@@ -306,6 +306,8 @@ discovery. Effort: ~2-3 days. Stretch tier — unblock after Phases 1-3.
 
 | Date | Phase | Experiment | Result |
 |---|---|---|---|
+| 2026-07-20 | P6→training | **Probe-as-regularizer WRITTEN (#36, uncompiled)**: the steering verdict's training-time analog. Online class-mean contrast (shield family 178..182) refit every K epochs from current activations (fresh rounds can't reuse r14's vector — wrong basis); loss += W·mean((trunk·v)²), direction as a jit argument, zero-vector inert start, INLP-style self-limiting. `--probe-reg W --probe-reg-every K` on the drill. | pending compile + r15 A/B |
+| 2026-07-19 | P6 | **STEERING A/B (commit 74e27bc): CAUSAL — the roadmap's control rung reached.** r14 + shield-contrast vector at α=1.0: first 9/9 card, 0 shield breaks, shield p95 215→32. α=0.5 WORSE than baseline → the axis is all-or-nothing; LEACE α<1 dead. Live mitigation shipped: `--steer-vector checkpoints/r14_shield_steer.bin --steer-alpha 1.0`. DJ-recovery side-check inconclusive (0 offstage situations in 2 games) — α=1.0 stays opt-in, not default. Human demo (2 sessions): steering holds under real pressure BUT occasional breaks vs human pressure (attractor still reachable → supports training-time fix) and zero opening creation (→ punish expert #34). | steering rung DONE; lever → #36 |
 | 2026-07-13 | P2 | NaN forensics: code-read eliminated head-normalize amplification + unguarded log paths (all off/stable in drill path); found drill trains PURE bf16 (params+optimizer, no f32 master) — prime suspect. Instrumented run (`--nan-forensics`, vitals every 100 steps) in flight. | pending |
 | 2026-07-13 | P0 | Wrote capture stack: `Policy.build_temporal_trunk` (lib refactor, name-compatible with exports), `ExPhil.Interp.Activations` (trunk capture over replays, training-identical embedding path), `ExPhil.Interp.GroundTruth` (15 features incl. tech_choice + next_kd_choice lookahead), `scripts/interp_capture.exs`. | written; smoke test pending (beam busy with forensics) |
 | 2026-07-13 | P0 | Smoke test: poolgrow_r1 × Game_20260713T015257.slp → {18042, 256} f32 + aligned labels in 6.9 s. Base rates: own_airborne 66.8%, own_shielding 6.4%, opp_shielding 0%, opp_knockdown 2.9% (529 lifecycle frames). 84/84 policy tests pass post-refactor. | **P0 COMPLETE** (gaps listed in checklist) |
@@ -330,15 +332,38 @@ discovery. Effort: ~2-3 days. Stretch tier — unblock after Phases 1-3.
 | 2026-07-13 | P2 | **Window-16 test REFUTED the exploding-BPTT theory too**: died at step 323,040 (ep 26), param_max 4.48 — same zone as w60 runs despite 16 vs 60 Jacobians. Three runs, three same-neighborhood detonations; invariants are the REGIME (LR ~2e-4 near peak, loss 0.2-0.4, weight scale 4.5-5.2), not precision/window/seed/steps. Since tanh/sigmoid gating bounds forward activations, no proposed slow mechanism produces an inf — the fatal step itself is unobserved. Next: per-layer grad-finiteness instrumentation armed after step 250k to catch the detonation in the act and name the layer. | grad-localizer queued |
 | 2026-07-13 | P2 | **Mixed-precision control REFUTED the precision hypothesis**: f32 master weights + f32 optimizer state died the same way at step 336,695 (ep 27). Key clue: both forensics runs detonated at nearly identical weight scale — **param_max 5.15 (bf16) vs 5.21 (f32-master)** — at different step counts. New leading theory: **exploding BPTT gradients through the 60-step GRU recurrence** — LR sets the weight GROWTH RATE, but the trigger is a critical spectral radius (~param_max 5.2) where the product of 60 backward Jacobians overflows (any float precision; bf16/f32 share exponent range). Explains LR-dependence of steps-to-NaN (2e-4 ~340-460k, 1.5e-4 ~673k, 1e-4 ~762k), single-step death, clip impotence (inf is born in backward, clip(inf)=NaN). En route: fixed real `MixedPrecision` bug (blanket-cast clobbered u32 RNG keys → GRU compile crash). Discriminating test queued: window 16 (16 Jacobians ≫ headroom). | window-16 run queued |
 
-## Milestone summary (check off here)
+## Milestone summary (check off here; reconciled 2026-07-20)
 
-- [ ] P0: activation+label pairs from any checkpoint/replay
-- [ ] P1: probe↔conversion validation verdict (decision gate)
-- [ ] P2: NaN root cause confirmed + training telemetry live
-- [ ] P3: two pathologies causally explained
-- [ ] P4: reaction-vs-guessing verdict per checkpoint
-- [ ] P5: one closed curation cycle
-- [ ] P6: steering demo + ground-truth-scored SAE features
+- [x] P0: activation+label pairs from any checkpoint/replay (2026-07-13;
+      open "better tier": per-timestep window states for the logit lens,
+      per-head logit capture, per-stage offstage lookup, capture cache)
+- [x] P1: probe↔conversion validation verdict (decision gate) — verdict
+      2026-07-13: representations do NOT rank behavior (memBA↔conversion
+      ρ=−0.47; trained trunks compress away unused info) → the
+      pre-registered weak-correlation branch fired; bottleneck is ACTING
+      not KNOWING; program redirected to P3
+- [x] P2: NaN root cause confirmed + training telemetry live — buttons-BCE
+      backward at the f32 exp cliff; fix = ±60 logit clamp (rewrite-proof),
+      validated past 556k; upstream Nx.clip g² grad bug found + merged
+      (#1779); telemetry shipped: --nan-forensics, grad-localizer,
+      max-based detector, per-phase TIMING. Open: probe-eval-every-N-epochs
+      (feature-formation curves → export-epoch selection)
+- [x] P3: two pathologies causally explained — exceeded, THREE end-to-end:
+      shield-lock = prev-action feedback loop riding to the 215f hard-break
+      ceiling (ablation + shield_run_stats; gate 9); jump→DJ metronome =
+      teacher jump-default burned into weights (r9/r10 teacher repair
+      killed it); case #3 opponent-blindness = direction-blind teacher key
+      (knowing-without-acting at the layer level; bar cleared r10)
+- [ ] P4: reaction-vs-guessing verdict per checkpoint — decodability
+      tracked across rounds (opp_behind 0.706→0.875) but the
+      probe-accuracy-vs-frame-offset plot (the actual verdict artifact)
+      not built; needs P0's per-timestep capture tier
+- [ ] P5: one closed curation cycle — not started; now converges with the
+      five-char program's human corpus (#30) + capability catalog (#31)
+- [~] P6: steering demo + ground-truth-scored SAE features — steering
+      HALF: DONE AND CAUSAL (2026-07-19 A/B below). SAE half: blocked on
+      edifice remediation (#15); the cross-architecture comparison (same
+      features, GRU vs mamba) is UNBLOCKED once mamba_full lands
 
 ## CLOSED 2026-07-17: the constant-215 shield p95 = hard shield BREAKS
 

@@ -834,6 +834,53 @@ defmodule ExPhil.Training.DataTest do
       assert length(Enum.to_list(without_partial)) == 2
     end
 
+    test "lazy sampling_weights replicates windows by their supervised frame's weight" do
+      # Conversion-weighted pool sampling (r15): weight w replicates a
+      # window trunc(w) times. 20 frames, window 5, stride 1 -> 16 windows;
+      # frame 4 is the supervised (last) frame of window 0 only.
+      frames = mock_frames(20)
+
+      dataset =
+        Data.from_frames(frames)
+        |> Data.precompute_frame_embeddings(show_progress: false)
+
+      weights = List.duplicate(1.0, 20) |> List.replace_at(4, 3.0)
+
+      count_rows = fn batches ->
+        batches
+        |> Enum.map(fn b -> b.states |> Nx.shape() |> elem(0) end)
+        |> Enum.sum()
+      end
+
+      weighted =
+        Data.batched_sequences(dataset,
+          batch_size: 4,
+          window_size: 5,
+          stride: 1,
+          lazy: true,
+          shuffle: true,
+          seed: 7,
+          sampling_weights: weights
+        )
+
+      # 15 windows x1 + window 0 x3 = 18
+      assert count_rows.(weighted) == 18
+
+      uniform =
+        Data.batched_sequences(dataset,
+          batch_size: 4,
+          window_size: 5,
+          stride: 1,
+          lazy: true,
+          shuffle: true,
+          seed: 7,
+          sampling_weights: List.duplicate(1.0, 20)
+        )
+
+      # All-1.0 weights sample every window exactly once
+      assert count_rows.(uniform) == 16
+    end
+
     test "shuffle produces different orderings" do
       frames = mock_frames(200)
       dataset = Data.from_frames(frames)

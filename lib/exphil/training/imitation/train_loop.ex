@@ -595,7 +595,19 @@ defmodule ExPhil.Training.Imitation.TrainLoop do
   # For autoregressive and ACT: uses cached loss_and_grad_fn with 4 args (includes frame_weights)
   # For diffusion and flow_matching: samples noise/timestep and uses 5 args
   defp compute_policy_loss_and_grad(:autoregressive, trainer, states, actions, frame_weights) do
-    trainer.loss_and_grad_fn.(trainer.policy_params, states, actions, frame_weights)
+    # Probe-as-regularizer (r15): the loss fn was built with a 5th argument
+    # (the online-refit probe direction) whenever probe_direction is set
+    if trainer.probe_direction do
+      trainer.loss_and_grad_fn.(
+        trainer.policy_params,
+        states,
+        actions,
+        frame_weights,
+        trainer.probe_direction
+      )
+    else
+      trainer.loss_and_grad_fn.(trainer.policy_params, states, actions, frame_weights)
+    end
   end
 
   defp compute_policy_loss_and_grad(:act, trainer, states, actions, frame_weights) do

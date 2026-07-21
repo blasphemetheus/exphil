@@ -2725,3 +2725,40 @@ idle_deadlock prefix diverges at a respawn boundary (P1 dy=45, platform
 height) — mainline respawn timing differs slightly from Ishiiruka;
 curate scenario handoffs away from respawn boundaries when using
 mainline, or re-record sources on mainline.
+
+## 70. Slippi Launcher beta-Dolphin can't launch on NixOS — FUSE, not libs; fix = APPIMAGE_EXTRACT_AND_RUN=1
+
+Symptom (2026-07-19 first hit, diagnosed 2026-07-20): launcher on the
+beta (mainline) track says "updating", then Play -> "required libraries
+for launching Dolphin may be missing". The UI message is a red herring —
+`~/.config/Slippi Launcher/logs/main.log` shows the truth:
+`Error: $FUSERMOUNT_PROG not set`, exit 127. The beta Dolphin is a RAW
+AppImage the launcher downloads to `~/.config/Slippi Launcher/netplay-beta/`,
+and it cannot FUSE-mount inside the launcher's bubblewrap FHS sandbox
+(slippi-nix wraps the launcher in an fhsenv).
+
+Approaches that DON'T work (tried):
+- Replacing the AppImage with a shim to the nix-ld mainline wrapper
+  (#64): the launcher validates its download and silently RE-DOWNLOADS
+  over any modification on next open; and even when the shim ran, the
+  nix-store libs clashed with the sandbox's own glibc
+  ("GLIBC_2.42 not found" — nix-ld wrappers are for OUTSIDE the sandbox).
+- slippi-nix's `slippi-netplay-beta` package + symlink (the stable-track
+  arrangement): the flake lags upstream (beta.14 vs the launcher's
+  beta.19) and Slippi online enforces current versions.
+
+THE FIX: `APPIMAGE_EXTRACT_AND_RUN=1` in the launcher's environment.
+The AppImage runtime is static — it self-extracts to /tmp (no FUSE) and
+runs its own bundled libs inside the FHS sandbox, which is the
+Ubuntu-shaped world it expects. Zero file mutation -> survives every
+launcher/Dolphin update. Set in BOTH launch paths:
+- `~/.config/fish/functions/slippi.fish` (env prefix on slippi-launcher)
+- `~/.local/share/applications/slippi-launcher.desktop` (local override
+  of the nix-profile entry; Exec uses `~/.nix-profile/bin/...`, not a
+  pinned store path, so launcher upgrades keep working)
+`slippi-fix` (~/.local/bin) verifies both and restores a clobbered
+AppImage if a stale shim is found.
+
+The nix-ld wrapper (`dolphin-emu-mainline`) remains CORRECT for
+libmelee/headless/exphil use from a normal shell — the two contexts need
+opposite treatments (sandbox -> bundled libs; bare NixOS -> nix-ld).

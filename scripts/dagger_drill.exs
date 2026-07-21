@@ -16,7 +16,7 @@
 require Logger
 Logger.configure(level: :warning)
 
-alias ExPhil.Training.{Data, Imitation, Output}
+alias ExPhil.Training.{ConversionSampling, Data, Imitation, Output, ProbeRegularizer}
 alias ExPhil.Data.Peppi
 alias ExPhil.Embeddings
 
@@ -40,6 +40,9 @@ alias ExPhil.Embeddings
       mixed_precision: :boolean,
       window: :integer,
       transition_weight: :float,
+      conversion_weight: :float,
+      probe_reg: :float,
+      probe_reg_every: :integer,
       debug_grads_after: :integer,
       resume: :boolean
     ]
@@ -150,6 +153,8 @@ Output.config([
   {"Prev-action", prev_action},
   {"Prev-action dropout", prev_action_dropout},
   {"Action delay", action_delay},
+  {"Conversion weight", opts[:conversion_weight] || "off"},
+  {"Probe regularizer", if(opts[:probe_reg], do: "#{opts[:probe_reg]} (refit every #{opts[:probe_reg_every] || 5})", else: "off")},
   {"Out", out_path}
 ])
 
@@ -262,10 +267,35 @@ rollout_frame_lists =
 all_frames = List.flatten(fixture_frame_lists ++ rollout_frame_lists)
 Output.puts("Aggregate: #{length(all_frames)} frames (#{length(fixture_frames)} fixture)")
 
-# Shift per source replay — never across concat boundaries
-shifted_frames =
-  (fixture_frame_lists ++ rollout_frame_lists)
-  |> Enum.flat_map(&Data.shift_actions(&1, action_delay))
+# Shift per source replay — never across concat boundaries. Kept as
+# per-replay lists so conversion spans (below) can't cross them either.
+shifted_frame_lists =
+  Enum.map(fixture_frame_lists ++ rollout_frame_lists, &Data.shift_actions(&1, action_delay))
+
+shifted_frames = List.flatten(shifted_frame_lists)
+
+# --conversion-weight W (r15): windows whose supervised frame falls in a
+# converting-approach span (closure start -> opponent-hitstun payoff) are
+# sampled ~W times per epoch instead of once — the go-in decisions the
+# 2026-07-19 human demo showed the policy never learned. Computed on the
+# SHIFTED lists so frame indices align with dataset.frames exactly.
+sampling_weights =
+  if cw = opts[:conversion_weight] do
+    {weights, cstats} = ConversionSampling.frame_weights(shifted_frame_lists, cw)
+
+    pct = Float.round(100.0 * cstats.upweighted / max(cstats.frames, 1), 1)
+
+    Output.puts(
+      "Conversion weighting: #{cstats.conversions}/#{cstats.approaches} approaches " <>
+        "converted; #{cstats.upweighted}/#{cstats.frames} frames (#{pct}%) upweighted x#{cw}"
+    )
+
+    if cstats.conversions == 0 do
+      Output.warning("--conversion-weight set but no conversions found — sampling is uniform")
+    end
+
+    weights
+  end
 
 dataset =
   shifted_frames
@@ -276,6 +306,22 @@ dataset =
   )
 
 embed_size = Embeddings.embedding_size(dataset.embed_config)
+
+# --probe-reg W [--probe-reg-every K] (r15, the steering-decided lever):
+# penalize trunk alignment with the shield-lock direction during training.
+# The direction refits from CURRENT activations every K epochs (fresh
+# rounds can't reuse the r14 vector — wrong basis); until the first
+# successful refit the direction is zero and training is plain BC.
+probe_reg = opts[:probe_reg] || 0.0
+probe_reg_every = opts[:probe_reg_every] || 5
+
+probe_frame_labels =
+  if probe_reg > 0 do
+    labels = ProbeRegularizer.frame_labels(shifted_frames)
+    shield_frac = Float.round(100.0 * Enum.sum(labels) / max(length(labels), 1), 1)
+    Output.puts("Probe regularizer: #{shield_frac}% of pool frames are shield-family")
+    labels
+  end
 
 # Cosine-decay the LR: constant LR diverged to NaN late in run after run
 # (multishine at 90k frames, mewtwo at 31k) — more steps per epoch means more
@@ -317,7 +363,9 @@ trainer =
     mixed_precision: opts[:mixed_precision] || false,
     # --debug-grads-after N: from step N on, fused per-step grad finiteness
     # check; per-layer dump on the first non-finite step (GRAD_DETONATION).
-    debug_grads_after: opts[:debug_grads_after]
+    debug_grads_after: opts[:debug_grads_after],
+    # --probe-reg: probe-as-regularizer weight (0.0 = off, r15)
+    probe_reg_weight: probe_reg
   )
 
 {_predict_fn, loss_fn} = Imitation.build_loss_fn(trainer.policy_model)
@@ -337,11 +385,23 @@ max_epochs = opts[:max_epochs] || 1000
 # (built after reboot #2 killed r13 at epoch 70/100, 2026-07-18).
 trainer_ckpt = out_path <> ".trainer.ckpt"
 
+# New recipe flags join the fingerprint only when set (TAGGED, so two
+# different flags with equal values can't collide) — snapshots written
+# before a flag existed (e.g. tonight's mamba_full) still resume.
 run_fingerprint =
-  :erlang.phash2(
-    {opts[:rollouts], opts[:expert], backbone, opts[:prev_action_dropout],
-     opts[:transition_weight], max_epochs}
-  )
+  {opts[:rollouts], opts[:expert], backbone, opts[:prev_action_dropout],
+   opts[:transition_weight], max_epochs}
+  |> then(fn base ->
+    if cw = opts[:conversion_weight],
+      do: :erlang.append_element(base, {:conversion_weight, cw}),
+      else: base
+  end)
+  |> then(fn base ->
+    if probe_reg > 0,
+      do: :erlang.append_element(base, {:probe_reg, probe_reg, probe_reg_every}),
+      else: base
+  end)
+  |> :erlang.phash2()
 
 {trainer, start_epoch} =
   cond do
@@ -481,7 +541,8 @@ end
         shuffle: true,
         drop_last: false,
         seed: 42 + epoch,
-        transition_weight: opts[:transition_weight]
+        transition_weight: opts[:transition_weight],
+        sampling_weights: sampling_weights
       )
       |> then(fn batches ->
         if nan_forensics do
@@ -556,6 +617,19 @@ end
 
     loss = Nx.to_number(epoch_loss)
     if rem(epoch, 5) == 0, do: Output.puts("epoch #{epoch}: loss=#{inspect(loss)}")
+
+    # Probe-as-regularizer refit (r15): re-derive the shield-lock direction
+    # from the network's CURRENT activations. Skipped on NaN epochs — the
+    # restore path below rewinds params, and a direction fit on poisoned
+    # activations would ride along.
+    tr =
+      if probe_reg > 0 and is_number(loss) and rem(epoch, probe_reg_every) == 0 do
+        {tr2, rstats} = ProbeRegularizer.refit(tr, dataset, probe_frame_labels, window_size: window)
+        Output.puts("probe-reg refit @ epoch #{epoch}: #{inspect(rstats)}")
+        tr2
+      else
+        tr
+      end
 
     # Mid-training publish: a play-able snapshot every 10 epochs, so the
     # run can be eye-tested while it trains (from a separate worktree —

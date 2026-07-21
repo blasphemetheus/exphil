@@ -2114,7 +2114,8 @@ defmodule ExPhil.Training.Data do
         seed: seed,
         character_weights: character_weights,
         neutral_weight: Keyword.get(opts, :neutral_weight, 0.25),
-        transition_weight: Keyword.get(opts, :transition_weight)
+        transition_weight: Keyword.get(opts, :transition_weight),
+        sampling_weights: Keyword.get(opts, :sampling_weights)
       )
     else
       # Eager mode: use pre-built sequence embeddings (high RAM, fast batching)
@@ -2294,11 +2295,14 @@ defmodule ExPhil.Training.Data do
   # - `:drop_last` - Drop last incomplete batch (default: false)
   # - `:seed` - Random seed for shuffling
   # - `:character_weights` - Optional character-balanced sampling
+  # - `:sampling_weights` - Optional per-frame pool-sampling weights (r15
+  #   conversion weighting, ExPhil.Training.ConversionSampling)
   defp batched_sequences_lazy(dataset, batch_size, window_size, stride, opts) do
     shuffle = Keyword.get(opts, :shuffle, true)
     drop_last = Keyword.get(opts, :drop_last, false)
     seed = Keyword.get(opts, :seed, System.system_time())
     character_weights = Keyword.get(opts, :character_weights, nil)
+    sampling_weights = Keyword.get(opts, :sampling_weights, nil)
 
     # Get frame embeddings as chunked structure for fast slicing
     {chunks_array, chunk_size, num_frames, embed_dim} = get_frame_embeddings_chunked(dataset)
@@ -2321,6 +2325,27 @@ defmodule ExPhil.Training.Data do
           alias ExPhil.Training.CharacterBalance
           frame_weights = CharacterBalance.frame_weights(dataset.frames, character_weights)
           CharacterBalance.balanced_indices(frame_weights, length(valid_indices))
+
+        sampling_weights != nil ->
+          # Conversion-weighted pool sampling (r15): each window is keyed
+          # by the weight of its supervised (last) frame and replicated
+          # trunc(w) times, +1 with probability frac(w). Deterministic
+          # under :seed (:rand seeded above), O(n) — NOT
+          # CharacterBalance.weighted_sample, whose linear scan per draw
+          # is O(n^2) at pool scale. Weight 1.0 = exactly one copy;
+          # w < 1.0 downsamples.
+          wtuple = :erlang.list_to_tuple(sampling_weights)
+          wsize = tuple_size(wtuple)
+
+          valid_indices
+          |> Enum.flat_map(fn seq_idx ->
+            last = seq_idx * stride + window_size - 1
+            w = if last < wsize, do: elem(wtuple, last), else: 1.0
+            copies = trunc(w)
+            copies = if :rand.uniform() < w - copies, do: copies + 1, else: copies
+            List.duplicate(seq_idx, copies)
+          end)
+          |> Enum.shuffle()
 
         shuffle ->
           Enum.shuffle(valid_indices)

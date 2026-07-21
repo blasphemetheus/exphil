@@ -98,3 +98,4 @@ drills/
 
 # Interp artifacts (crime scenes, erasers, cached captures — GBs)
 /interp/
+corpus/

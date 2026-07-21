@@ -37,6 +37,7 @@ defmodule ExPhil.Training.Imitation.Loss do
   alias ExPhil.Networks.DiffusionPolicy
   alias ExPhil.Networks.ActionChunking
   alias ExPhil.Networks.FlowMatching
+  alias ExPhil.Training.ProbeRegularizer
   alias ExPhil.Training.Utils
 
   @doc """
@@ -154,46 +155,77 @@ defmodule ExPhil.Training.Imitation.Loss do
     head_normalize = config[:head_normalize] || false
     precision = config[:precision] || :bf16
 
+    # Probe-as-regularizer (r15): when enabled, the loss takes the CURRENT
+    # probe direction as a 5th ARGUMENT (never a closure capture — the
+    # direction refits mid-training and captured tensors break value_and_grad,
+    # GOTCHAS #3) and adds weight * mean((trunk(p, states) . v)^2). The trunk
+    # predict fn shares param names with the full policy, so gradients flow
+    # into the same trunk weights; a zero direction makes the term exactly 0.
+    probe_reg_weight = config[:probe_reg_weight] || 0.0
+    probe_trunk_fn = config[:probe_trunk_fn]
+
+    loss_opts = [
+      label_smoothing: label_smoothing,
+      focal_loss: focal_loss,
+      focal_gamma: focal_gamma,
+      button_weight: button_weight,
+      button_pos_weight: button_pos_weight,
+      stick_edge_weight: stick_edge_weight,
+      entropy_weight: entropy_weight,
+      head_normalize: head_normalize
+    ]
+
     # Build the loss+grad function using JIT compilation
     # predict_fn is captured here (once), not in train_step (every batch)
-    inner_fn = fn params, states, actions, frame_weights ->
-      # Convert states to training precision
-      states = Nx.as_type(states, precision)
+    inner_fn =
+      if probe_reg_weight > 0 and probe_trunk_fn do
+        fn params, states, actions, frame_weights, probe_v ->
+          states = Nx.as_type(states, precision)
 
-      # Build loss function - states/actions are already Defn.Expr from outer JIT
-      loss_fn = fn p ->
-        {buttons, main_x, main_y, c_x, c_y, shoulder} =
-          predict_fn.(Utils.ensure_model_state(p), states)
+          loss_fn = fn p ->
+            bc = autoregressive_bc_loss(predict_fn, p, states, actions, frame_weights, loss_opts)
+            h = probe_trunk_fn.(Utils.ensure_model_state(p), states)
+            penalty = ProbeRegularizer.alignment_penalty(h, probe_v)
+            Nx.add(bc, Nx.multiply(probe_reg_weight, penalty))
+          end
 
-        logits = %{
-          buttons: buttons,
-          main_x: main_x,
-          main_y: main_y,
-          c_x: c_x,
-          c_y: c_y,
-          shoulder: shoulder
-        }
+          Nx.Defn.value_and_grad(loss_fn).(params)
+        end
+      else
+        fn params, states, actions, frame_weights ->
+          # Convert states to training precision
+          states = Nx.as_type(states, precision)
 
-        Policy.imitation_loss(logits, actions,
-          label_smoothing: label_smoothing,
-          focal_loss: focal_loss,
-          focal_gamma: focal_gamma,
-          button_weight: button_weight,
-          button_pos_weight: button_pos_weight,
-          stick_edge_weight: stick_edge_weight,
-          entropy_weight: entropy_weight,
-          head_normalize: head_normalize,
-          frame_weights: frame_weights
-        )
+          # Build loss function - states/actions are already Defn.Expr from outer JIT
+          loss_fn = fn p ->
+            autoregressive_bc_loss(predict_fn, p, states, actions, frame_weights, loss_opts)
+          end
+
+          # Compute loss and gradients
+          Nx.Defn.value_and_grad(loss_fn).(params)
+        end
       end
-
-      # Compute loss and gradients
-      Nx.Defn.value_and_grad(loss_fn).(params)
-    end
 
     # JIT compile the entire function - this makes states/actions flow as Defn.Expr
     # during tracing, avoiding the EXLA/Defn.Expr conflict
     Nx.Defn.jit(inner_fn, compiler: EXLA, on_conflict: :reuse)
+  end
+
+  # The plain BC objective shared by both autoregressive loss arms
+  defp autoregressive_bc_loss(predict_fn, p, states, actions, frame_weights, loss_opts) do
+    {buttons, main_x, main_y, c_x, c_y, shoulder} =
+      predict_fn.(Utils.ensure_model_state(p), states)
+
+    logits = %{
+      buttons: buttons,
+      main_x: main_x,
+      main_y: main_y,
+      c_x: c_x,
+      c_y: c_y,
+      shoulder: shoulder
+    }
+
+    Policy.imitation_loss(logits, actions, loss_opts ++ [frame_weights: frame_weights])
   end
 
   # Diffusion: MSE noise prediction loss

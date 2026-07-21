@@ -144,6 +144,21 @@ Output.puts("  (This will launch Dolphin - make sure to plug in your controller!
 elixir_dummies = %{"tech_random" => ExPhil.Agents.Dummies.TechRandom}
 elixir_dummy = elixir_dummies[opts[:dummy]]
 
+# --p2-policy (checkpoint ladder, task #19): a SECOND policy drives port 2
+# through the same external-dummy hook, with sampling on (ladder wants
+# game-to-game variance). Overrides --dummy.
+elixir_dummy =
+  if p2 = opts[:p2_policy] do
+    {ExPhil.Agents.Dummies.PolicyOpponent,
+     [
+       policy_path: p2,
+       press_threshold: opts[:press_threshold],
+       release_threshold: opts[:release_threshold]
+     ]}
+  else
+    elixir_dummy
+  end
+
 # Netplay (Slippi Direct): opponent is remote — no dummy of any kind
 elixir_dummy = if opts[:connect_code], do: nil, else: elixir_dummy
 

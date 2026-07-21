@@ -157,15 +157,20 @@ defmodule ExPhil.Bridge.AsyncRunner do
     auto_menu = Keyword.get(opts, :auto_menu, true)
     on_game_end = Keyword.get(opts, :on_game_end, :restart)
     # Elixir-driven opponent-port dummy (reactive drills): a module with
-    # new/0 + step/2 returning {input, state}. Requires the bridge started
+    # new/0 + step/3 returning {input, state}. Requires the bridge started
     # with dummy_mode: "external" so the port-2 controller exists.
+    # `{module, init_arg}` passes config to new/1 — used by PolicyOpponent
+    # (checkpoint ladder) which also implements the RICH contract
+    # step_game/3 (full game state in, ACTION out).
     dummy_module = Keyword.get(opts, :dummy)
 
     # Create ETS table for shared state
     table = :ets.new(:async_runner_state, [:set, :public])
 
-    if dummy_module do
-      :ets.insert(table, {:elixir_dummy, dummy_module, dummy_module.new()})
+    case dummy_module do
+      nil -> :ok
+      {mod, init_arg} -> :ets.insert(table, {:elixir_dummy, mod, mod.new(init_arg)})
+      mod -> :ets.insert(table, {:elixir_dummy, mod, mod.new()})
     end
 
     # Initialize shared state
@@ -498,12 +503,24 @@ defmodule ExPhil.Bridge.AsyncRunner do
     case :ets.lookup(table, :elixir_dummy) do
       [{:elixir_dummy, mod, dummy_state}] ->
         opponent_port = if player_port == 1, do: 2, else: 1
-        opponent = game_state.players && game_state.players[opponent_port]
-        bot = game_state.players && game_state.players[player_port]
 
-        {input, dummy_state} = mod.step(opponent, bot, dummy_state)
-        MeleePort.send_controller(bridge, Map.put(input, :port, opponent_port))
-        :ets.insert(table, {:elixir_dummy, mod, dummy_state})
+        cond do
+          # Rich contract (PolicyOpponent, checkpoint ladder): full game
+          # state in, ACTION out — converted by the SAME action_to_input
+          # path as the port-1 policy.
+          function_exported?(mod, :step_game, 3) ->
+            {action, dummy_state} = mod.step_game(game_state, opponent_port, dummy_state)
+            MeleePort.send_controller(bridge, action_to_input(action, opponent_port))
+            :ets.insert(table, {:elixir_dummy, mod, dummy_state})
+
+          true ->
+            opponent = game_state.players && game_state.players[opponent_port]
+            bot = game_state.players && game_state.players[player_port]
+
+            {input, dummy_state} = mod.step(opponent, bot, dummy_state)
+            MeleePort.send_controller(bridge, Map.put(input, :port, opponent_port))
+            :ets.insert(table, {:elixir_dummy, mod, dummy_state})
+        end
 
       _ ->
         :ok

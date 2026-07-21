@@ -216,3 +216,28 @@ Notes:
   59.9/60 fps with ~0.7-0.75 inferences/frame (window 16 is cheap
   enough at 3 arms); gru2x ran the step path. Step latency was not
   separately instrumented this run.
+
+## Live demo observations (Bradley, 2026-07-19 evening, r14 + steer α=1.0)
+
+First human-vs-bot session with steering live (2 recorded games, added
+to the mamba_full pool as rollouts). Bradley's read of the gameplay:
+
+- **Approach fair is rare.** The bot has the SH/FH fair mechanics from
+  the drills but seldom initiates an approach with it in real neutral —
+  the approach_fair fixture teaches the button sequence, not the
+  decision of when to go in. Candidate levers: conversion-weighted
+  sampling (approaches that convert get upweighted), disagreement
+  mining vs the combo expert's approach branch, or an explicit
+  approach-rate gate on the report card to make regression visible.
+- **No dtilt/uptilt in neutral.** Both are absent from the expert's
+  vocabulary entirely — the combo expert only knows fair chains + tech
+  chase. Teaching them needs (a) a new fixture recording (dtilt/uptilt
+  spacing + whiff punish patterns) and (b) extending the expert or
+  accepting BC-from-fixture-only for those moves. Fixture recording
+  session to schedule (joins the 1-of-3 remaining from #22).
+- **"Some semblance of neutral" is the ask** — spacing, stage control,
+  option mixing rather than drill-shaped behavior. This is the paradigm
+  ladder's territory (conversion-weighted BC → disagreement mining →
+  PPO), reinforcing it as the post-r15 priority over more decode/interp
+  patches. The steering result cleaned up the pathologies; neutral
+  quality is now the visible frontier.

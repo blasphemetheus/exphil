@@ -214,10 +214,37 @@ defmodule ExPhil.Interp.ReportCardTest do
     @tag :fixture
     test "runs end-to-end on a real replay" do
       result = ReportCard.evaluate_path(@fixture)
-      assert result.total == 9
-      assert length(result.gates) == 9
-      assert result.passed in 0..8
+      assert result.total == 10
+      assert length(result.gates) == 10
+      assert result.passed in 0..10
       assert ReportCard.score(@fixture) == result.passed
+    end
+  end
+
+  describe "gate 10 (armed approaches/min)" do
+    test "only appears when both ports' positions are present" do
+      actions = List.duplicate(@wait, 400) ++ [20] ++ List.duplicate(@wait, 400)
+      controllers = List.duplicate(idle_controller(), length(actions))
+
+      legacy = ReportCard.evaluate(%{p1: %{actions: actions, controllers: controllers}})
+      assert legacy.total == 9
+      refute Enum.any?(legacy.gates, &(&1.name == "armed approaches/min"))
+
+      full =
+        ReportCard.evaluate(%{
+          p1: %{
+            actions: actions,
+            controllers: controllers,
+            players: List.duplicate(%{x: -60.0}, length(actions))
+          },
+          p2: %{players: List.duplicate(%{x: 0.0}, length(actions))}
+        })
+
+      assert full.total == 10
+      approach_gate = Enum.find(full.gates, &(&1.name == "armed approaches/min"))
+      # Never approaches -> 0/min -> fails the provisional >=1.0 floor
+      refute approach_gate.pass
+      assert approach_gate.value == 0.0
     end
   end
 end

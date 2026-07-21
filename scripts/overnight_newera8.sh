@@ -15,7 +15,10 @@
 #   - #67 airtight: ONE mix compile at t=0, fan-outs run --no-compile;
 #     nothing may relink the shared exla NIF while probe BEAMs live
 #   - per-phase TIMING lines + rounds/day estimate (#20)
-#   - report card is x/9 from r13 on (gate 9 shield breaks; x/8 thru r12)
+#   - report card is x/10 from r15 on (gate 10 armed approaches; x/9
+#     r13-r14 with gate 9 shield breaks; x/8 thru r12)
+#   NEWERA8_CONVERSION_WEIGHT=  --conversion-weight (r15 pool sampling)
+#   NEWERA8_PROBE_REG= / NEWERA8_PROBE_REG_EVERY=  --probe-reg[-every] (r15)
 #
 # Env knobs:
 #   NEWERA8_ROUNDS=2       rounds to run (r13..)
@@ -59,7 +62,13 @@ else
   NAME_SUFFIX=${BACKBONE:+_$BACKBONE}
 fi
 PROBE_MODE=${PROBE_MODE:-headless}
-HEADLESS_DOLPHIN=$HOME/.local/share/slippi/exi-ai/dolphin-emu-headless
+# MAINLINE from r15 on (#66-RESOLUTION: ExiAI drops analog trigger pipes;
+# mainline carries them fully). mamba_full/r13-r14 cards were scored on
+# ExiAI — cross-engine card comparisons are invalid; the 3-game same-policy
+# A/B (post-run queue) anchors the translation. Override to the old ExiAI
+# wrapper via NEWERA8_DOLPHIN for back-compat probes. Mainline nuance:
+# one benign xcb window per instance; respawn timing differs slightly.
+HEADLESS_DOLPHIN=${NEWERA8_DOLPHIN:-$HOME/.local/share/slippi/mainline/dolphin-emu-mainline}
 NETPLAY_DOLPHIN=$HOME/.local/share/slippi/netplay
 ISO=$HOME/isos/melee.iso
 PROBE_TIMEOUT=${PROBE_TIMEOUT:-720}
@@ -107,10 +116,18 @@ if [ "$PROBE_MODE" = headless ]; then
       exit 1
     }
   done
-  echo "[newera8] probes: headless ExiAI, PIPE inputs — analog triggers dropped (#66:" | tee -a "$LOG"
-  echo "[newera8] policy analog-shoulder head is a no-op; shield gates not comparable" | tee -a "$LOG"
-  echo "[newera8] with r1-r12 windowed history; EXI mode stays OPT-IN until its" | tee -a "$LOG"
-  echo "[newera8] analog-release latch is fixed — see #66 addendum)" | tee -a "$LOG"
+  case "$HEADLESS_DOLPHIN" in
+    *exi-ai*)
+      echo "[newera8] probes: headless ExiAI, PIPE inputs — analog triggers dropped (#66:" | tee -a "$LOG"
+      echo "[newera8] policy analog-shoulder head is a no-op; shield gates not comparable" | tee -a "$LOG"
+      echo "[newera8] with r1-r12 windowed history; EXI mode stays OPT-IN until its" | tee -a "$LOG"
+      echo "[newera8] analog-release latch is fixed — see #66 addendum)" | tee -a "$LOG"
+      ;;
+    *)
+      echo "[newera8] probes: headless MAINLINE (#66-RESOLUTION) — analog pipes intact;" | tee -a "$LOG"
+      echo "[newera8] cards NOT comparable with ExiAI-scored rounds (thru mamba_full)" | tee -a "$LOG"
+      ;;
+  esac
 else
   echo "[newera8] probes: WINDOWED calibration mode — keep the Slippi launcher CLOSED (#62)" | tee -a "$LOG"
 fi
@@ -182,6 +199,17 @@ POOL=(
   "probes/newera8/r13/debounce/p2/Game_20260718T003208.slp"
   "probes/newera8/r13/debounce/p3/Game_20260718T003220.slp"
 )
+
+# NEWERA8_EXTRA_ROLLOUTS: comma-separated extra replays appended to the
+# pool (e.g. human-vs-bot demo games — the richest DAgger rollouts we get)
+if [ -n "${NEWERA8_EXTRA_ROLLOUTS:-}" ]; then
+  IFS=',' read -ra _EXTRA <<< "$NEWERA8_EXTRA_ROLLOUTS"
+  for _r in "${_EXTRA[@]}"; do
+    [ -f "$_r" ] || { echo "[newera8] FATAL: extra rollout missing: $_r"; exit 1; }
+    POOL+=("$_r")
+  done
+  echo "[newera8] pool += ${#_EXTRA[@]} extra rollouts (NEWERA8_EXTRA_ROLLOUTS)"
+fi
 
 # --------------------------------------------------------------- timing
 T_TRAIN=0 T_PROBE=0 T_EVAL=0 ROUNDS_DONE=0
@@ -379,6 +407,9 @@ for R in $(seq "$FIRST_ROUND" $((FIRST_ROUND + ROUNDS - 1))); do
       --prev-action-dropout "$DROPOUT" \
       --transition-weight 2.0 \
       ${BACKBONE:+--backbone "$BACKBONE"} \
+      ${NEWERA8_CONVERSION_WEIGHT:+--conversion-weight "$NEWERA8_CONVERSION_WEIGHT"} \
+      ${NEWERA8_PROBE_REG:+--probe-reg "$NEWERA8_PROBE_REG"} \
+      ${NEWERA8_PROBE_REG_EVERY:+--probe-reg-every "$NEWERA8_PROBE_REG_EVERY"} \
       $DRILL_FLAGS \
       $RESUME_FLAG \
       --rollouts "$ROLLOUTS" \
@@ -441,7 +472,7 @@ for R in $(seq "$FIRST_ROUND" $((FIRST_ROUND + ROUNDS - 1))); do
 
   if [ "$ROUND_CARDS" -gt 0 ]; then
     AVG10=$((ROUND_SCORE * 10 / ROUND_CARDS))
-    echo "[newera8] round $R report-card avg: $((AVG10 / 10)).$((AVG10 % 10))/9 over $ROUND_CARDS games build=$PROBE_MODE" | tee -a "$LOG"
+    echo "[newera8] round $R report-card avg: $((AVG10 / 10)).$((AVG10 % 10))/10 over $ROUND_CARDS games build=$PROBE_MODE" | tee -a "$LOG"
     if [ "$AVG10" -gt "$BEST_AVG10" ]; then
       BEST_AVG10=$AVG10
       BEST_ROUND=$R
@@ -465,7 +496,7 @@ done
 if [ -n "$BEST_ROUND" ]; then
   ln -sfn "mewtwo_combo_newera${NAME_SUFFIX}_r${BEST_ROUND}_policy.bin" \
     "checkpoints/mewtwo_combo_newera${NAME_SUFFIX}_best_policy.bin"
-  echo "[newera8] best round by report card: r$BEST_ROUND ($((BEST_AVG10 / 10)).$((BEST_AVG10 % 10))/9 avg, build=$PROBE_MODE) -> checkpoints/mewtwo_combo_newera${NAME_SUFFIX}_best_policy.bin" | tee -a "$LOG"
+  echo "[newera8] best round by report card: r$BEST_ROUND ($((BEST_AVG10 / 10)).$((BEST_AVG10 % 10))/10 avg, build=$PROBE_MODE) -> checkpoints/mewtwo_combo_newera${NAME_SUFFIX}_best_policy.bin" | tee -a "$LOG"
 fi
 
 assert_no_beam interp
