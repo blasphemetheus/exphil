@@ -410,6 +410,7 @@ for R in $(seq "$FIRST_ROUND" $((FIRST_ROUND + ROUNDS - 1))); do
       ${NEWERA8_CONVERSION_WEIGHT:+--conversion-weight "$NEWERA8_CONVERSION_WEIGHT"} \
       ${NEWERA8_PROBE_REG:+--probe-reg "$NEWERA8_PROBE_REG"} \
       ${NEWERA8_PROBE_REG_EVERY:+--probe-reg-every "$NEWERA8_PROBE_REG_EVERY"} \
+      ${NEWERA8_PROBE_EVAL:+--probe-eval-every "$NEWERA8_PROBE_EVAL"} \
       $DRILL_FLAGS \
       $RESUME_FLAG \
       --rollouts "$ROLLOUTS" \

@@ -1,0 +1,31 @@
+{
+  "matches": [
+    {
+      "match": "m001_mewtwo_combo_newera_r13_policy__vs__mewtwo_combo_newera_r14_policy",
+      "p1": "mewtwo_combo_newera_r13_policy",
+      "p2": "mewtwo_combo_newera_r14_policy",
+      "p1_score": 0.0
+    }
+  ],
+  "engine": "mainline",
+  "skipped": [],
+  "ladder_dir": "probes/ladder/warmup_test",
+  "standings": [
+    {
+      "wins": 1,
+      "rating": 1016.0,
+      "losses": 0,
+      "draws": 0,
+      "player": "mewtwo_combo_newera_r14_policy",
+      "games": 1
+    },
+    {
+      "wins": 0,
+      "rating": 984.0,
+      "losses": 1,
+      "draws": 0,
+      "player": "mewtwo_combo_newera_r13_policy",
+      "games": 1
+    }
+  ]
+}

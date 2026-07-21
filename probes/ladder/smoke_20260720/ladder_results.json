@@ -1,0 +1,42 @@
+{
+  "matches": [
+    {
+      "match": "m003_mewtwo_combo_newera_r13_policy__vs__mewtwo_combo_newera_mamba_full_best_policy",
+      "p1": "mewtwo_combo_newera_r13_policy",
+      "p2": "mewtwo_combo_newera_mamba_full_best_policy",
+      "p1_score": 1.0
+    },
+    {
+      "match": "m004_mewtwo_combo_newera_mamba_full_best_policy__vs__mewtwo_combo_newera_r13_policy",
+      "p1": "mewtwo_combo_newera_mamba_full_best_policy",
+      "p2": "mewtwo_combo_newera_r13_policy",
+      "p1_score": 1.0
+    }
+  ],
+  "engine": "mainline",
+  "skipped": [
+    "m001_mewtwo_combo_newera_r13_policy__vs__mewtwo_combo_newera_r14_policy",
+    "m002_mewtwo_combo_newera_r14_policy__vs__mewtwo_combo_newera_r13_policy",
+    "m005_mewtwo_combo_newera_r14_policy__vs__mewtwo_combo_newera_mamba_full_best_policy",
+    "m006_mewtwo_combo_newera_mamba_full_best_policy__vs__mewtwo_combo_newera_r14_policy"
+  ],
+  "ladder_dir": "probes/ladder/smoke_20260720",
+  "standings": [
+    {
+      "wins": 1,
+      "rating": 1001.5,
+      "losses": 1,
+      "draws": 0,
+      "player": "mewtwo_combo_newera_mamba_full_best_policy",
+      "games": 2
+    },
+    {
+      "wins": 1,
+      "rating": 998.5,
+      "losses": 1,
+      "draws": 0,
+      "player": "mewtwo_combo_newera_r13_policy",
+      "games": 2
+    }
+  ]
+}

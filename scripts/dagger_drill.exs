@@ -43,6 +43,7 @@ alias ExPhil.Embeddings
       conversion_weight: :float,
       probe_reg: :float,
       probe_reg_every: :integer,
+      probe_eval_every: :integer,
       debug_grads_after: :integer,
       resume: :boolean
     ]
@@ -385,6 +386,28 @@ max_epochs = opts[:max_epochs] || 1000
 # (built after reboot #2 killed r13 at epoch 70/100, 2026-07-18).
 trainer_ckpt = out_path <> ".trainer.ckpt"
 
+# --probe-eval-every K: feature-formation curves (TrainingProbes) — probe
+# a small ground-truth feature set on the current trunk every K epochs,
+# log one line + append JSONL next to the checkpoint. Trend instrument
+# for the epoch budget; ~30-60s per eval. Off by default.
+probe_eval_every = opts[:probe_eval_every] || 0
+
+{probe_eval_trunk_fn, probe_eval_labels} =
+  if probe_eval_every > 0 do
+    labels =
+      shifted_frames
+      |> ExPhil.Interp.GroundTruth.frame_labels()
+      |> :erlang.list_to_tuple()
+
+    tfn = trainer.trunk_predict_fn || ExPhil.Interp.ProbeRegularizer.build_trunk_fn(trainer.config)
+    Output.puts("Probe-eval every #{probe_eval_every} epochs (#{tuple_size(labels)} labeled frames)")
+    {tfn, labels}
+  else
+    {nil, nil}
+  end
+
+probe_curves_path = out_path <> ".probe_curves.jsonl"
+
 # New recipe flags join the fingerprint only when set (TAGGED, so two
 # different flags with equal values can't collide) — snapshots written
 # before a flag existed (e.g. tonight's mamba_full) still resume.
@@ -630,6 +653,18 @@ end
       else
         tr
       end
+
+    # Feature-formation curves (--probe-eval-every)
+    if probe_eval_every > 0 and is_number(loss) and rem(epoch, probe_eval_every) == 0 do
+      bas = ExPhil.Interp.TrainingProbes.eval(tr, probe_eval_trunk_fn, dataset, probe_eval_labels, window_size: window)
+      Output.puts("probe-eval @ epoch #{epoch}: #{ExPhil.Interp.TrainingProbes.format(bas)}")
+
+      File.write!(
+        probe_curves_path,
+        Jason.encode!(%{epoch: epoch, loss: loss, probes: bas}) <> "\n",
+        [:append]
+      )
+    end
 
     # Mid-training publish: a play-able snapshot every 10 epochs, so the
     # run can be eye-tested while it trains (from a separate worktree —
