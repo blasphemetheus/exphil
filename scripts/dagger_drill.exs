@@ -44,6 +44,8 @@ alias ExPhil.Embeddings
       probe_reg: :float,
       probe_reg_every: :integer,
       probe_eval_every: :integer,
+      mamba_chunk_size: :integer,
+      mamba_matmul_scan: :boolean,
       debug_grads_after: :integer,
       resume: :boolean
     ]
@@ -366,7 +368,11 @@ trainer =
     # check; per-layer dump on the first non-finite step (GRAD_DETONATION).
     debug_grads_after: opts[:debug_grads_after],
     # --probe-reg: probe-as-regularizer weight (0.0 = off, r15)
-    probe_reg_weight: probe_reg
+    probe_reg_weight: probe_reg,
+    # SSD scan tuning (mamba_2 only; bench_ssd_scan.exs picks values).
+    # Both nil = the r15-lineage sequential path.
+    chunk_size: opts[:mamba_chunk_size],
+    training_mode: opts[:mamba_matmul_scan]
   )
 
 {_predict_fn, loss_fn} = Imitation.build_loss_fn(trainer.policy_model)

@@ -411,6 +411,8 @@ for R in $(seq "$FIRST_ROUND" $((FIRST_ROUND + ROUNDS - 1))); do
       ${NEWERA8_PROBE_REG:+--probe-reg "$NEWERA8_PROBE_REG"} \
       ${NEWERA8_PROBE_REG_EVERY:+--probe-reg-every "$NEWERA8_PROBE_REG_EVERY"} \
       ${NEWERA8_PROBE_EVAL:+--probe-eval-every "$NEWERA8_PROBE_EVAL"} \
+      ${NEWERA8_MAMBA_CHUNK:+--mamba-chunk-size "$NEWERA8_MAMBA_CHUNK"} \
+      ${NEWERA8_MAMBA_MATMUL:+--mamba-matmul-scan} \
       $DRILL_FLAGS \
       $RESUME_FLAG \
       --rollouts "$ROLLOUTS" \

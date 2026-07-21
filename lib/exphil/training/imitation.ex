@@ -258,7 +258,14 @@ defmodule ExPhil.Training.Imitation do
           qk_layernorm: Map.get(config, :qk_layernorm, true),
           # Gradient checkpointing for memory efficiency
           gradient_checkpoint: Map.get(config, :gradient_checkpoint, false),
-          checkpoint_every: Map.get(config, :checkpoint_every, 1)
+          checkpoint_every: Map.get(config, :checkpoint_every, 1),
+          # Mamba-family shape/scan options (nil entries are skipped by
+          # the backbone builders' Keyword.get defaults)
+          state_size: config.state_size,
+          expand_factor: config.expand_factor,
+          conv_size: config.conv_size,
+          chunk_size: Map.get(config, :chunk_size),
+          training_mode: Map.get(config, :training_mode)
         )
       else
         Policy.build(

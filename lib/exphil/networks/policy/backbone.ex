@@ -2934,6 +2934,19 @@ defmodule ExPhil.Networks.Policy.Backbone do
       window_size: Keyword.get(opts, :window_size, 60)
     ]
 
+    # SSD scan tuning (bench_ssd_scan.exs picks these). NOTE: the
+    # mamba2_screen/r15 lineage ran with BOTH absent — i.e. the
+    # sequential (non-matmul) path at chunk 32. :training_mode true
+    # switches to the matmul formulation; :chunk_size scales its
+    # transfer tensor quadratically.
+    mamba_opts =
+      Enum.reduce([:chunk_size, :training_mode], mamba_opts, fn k, acc ->
+        case Keyword.get(opts, k) do
+          nil -> acc
+          v -> Keyword.put(acc, k, v)
+        end
+      end)
+
     MambaSSD.build(mamba_opts)
   end
 
