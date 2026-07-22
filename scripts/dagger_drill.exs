@@ -44,6 +44,8 @@ alias ExPhil.Embeddings
       probe_reg: :float,
       probe_reg_every: :integer,
       probe_eval_every: :integer,
+      bc_replays: :string,
+      bc_sample: :integer,
       mamba_chunk_size: :integer,
       mamba_matmul_scan: :boolean,
       debug_grads_after: :integer,
@@ -223,7 +225,46 @@ fixture_frame_lists = Enum.map(fixture_paths, fn p -> fixture_filter.(load_frame
 fixture_frames = List.flatten(fixture_frame_lists)
 Output.puts("Fixture frames: #{length(fixture_frames)} across #{length(fixture_paths)} recording(s)")
 
-# Expert table from ALL fixture recordings combined
+# --bc-replays (r16): human demonstration replays as DIRECT behavior
+# cloning — recorded controllers are the labels (port-normalized like
+# fixtures), added to the training pool but NOT fed to the expert table.
+# This supplies neutral/initiation vocabulary the scripted expert lacks
+# (the 2026-07-19 "never initiates in neutral" gap) without polluting the
+# teacher. --bc-sample N picks N replays at random (seeded) to control the
+# BC fraction so human frames don't drown the drill signal.
+bc_paths =
+  (opts[:bc_replays] || "")
+  |> String.split(",", trim: true)
+  |> Enum.map(&Path.expand/1)
+  |> Enum.flat_map(&Path.wildcard/1)
+
+bc_paths =
+  case opts[:bc_sample] do
+    nil -> bc_paths
+    n -> :rand.seed(:exsss, {7, 7, 7}) && Enum.take(Enum.shuffle(bc_paths), n)
+  end
+
+# Archive quality varies — some replays parse empty/truncated (observed
+# 2026-07-22 on corpus/archive/mewtwo). Skip anything under @bc_min_frames.
+bc_min_frames = 600
+
+bc_frame_lists =
+  bc_paths
+  |> Enum.map(fn p -> load_frames.(p, true) end)
+  |> Enum.filter(fn frames -> length(frames) >= bc_min_frames end)
+
+bc_frames = List.flatten(bc_frame_lists)
+
+if bc_paths != [] do
+  skipped = length(bc_paths) - length(bc_frame_lists)
+
+  Output.puts(
+    "BC replays: #{length(bc_frames)} frames across #{length(bc_frame_lists)} human games" <>
+      if(skipped > 0, do: " (#{skipped} skipped: empty/short)", else: "")
+  )
+end
+
+# Expert table from ALL fixture recordings combined (BC replays excluded)
 expert = expert_mod.from_frames(fixture_frames, player_port: port)
 
 opp_port = if port == 1, do: 2, else: 1
@@ -267,13 +308,24 @@ rollout_frame_lists =
     relabeled
   end)
 
-all_frames = List.flatten(fixture_frame_lists ++ rollout_frame_lists)
-Output.puts("Aggregate: #{length(all_frames)} frames (#{length(fixture_frames)} fixture)")
+all_frame_lists = fixture_frame_lists ++ bc_frame_lists ++ rollout_frame_lists
+all_frames = List.flatten(all_frame_lists)
+
+bc_pct = Float.round(100.0 * length(bc_frames) / max(length(all_frames), 1), 1)
+
+Output.puts(
+  "Aggregate: #{length(all_frames)} frames " <>
+    "(#{length(fixture_frames)} fixture, #{length(bc_frames)} BC = #{bc_pct}%)"
+)
+
+if bc_pct > 60.0 do
+  Output.warning("BC frames are #{bc_pct}% of the pool — human demos may drown the drill; --bc-sample to reduce")
+end
 
 # Shift per source replay — never across concat boundaries. Kept as
 # per-replay lists so conversion spans (below) can't cross them either.
 shifted_frame_lists =
-  Enum.map(fixture_frame_lists ++ rollout_frame_lists, &Data.shift_actions(&1, action_delay))
+  Enum.map(all_frame_lists, &Data.shift_actions(&1, action_delay))
 
 shifted_frames = List.flatten(shifted_frame_lists)
 
@@ -423,6 +475,11 @@ run_fingerprint =
   |> then(fn base ->
     if cw = opts[:conversion_weight],
       do: :erlang.append_element(base, {:conversion_weight, cw}),
+      else: base
+  end)
+  |> then(fn base ->
+    if bc_paths != [],
+      do: :erlang.append_element(base, {:bc, length(bc_paths), length(bc_frames)}),
       else: base
   end)
   |> then(fn base ->
