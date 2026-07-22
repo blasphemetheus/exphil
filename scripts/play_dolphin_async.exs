@@ -174,6 +174,11 @@ bridge_config = %{
   character: opts[:character],
   stage: opts[:stage],
   online_delay: opts[:frame_delay],
+  # Netplay account home (#9): EXPHIL_NETPLAY_HOME env (no CLI flag —
+  # keeps this change out of compiled cli.ex). For the bot account:
+  #   EXPHIL_NETPLAY_HOME=~/.config/SlippiOnline-bot
+  user_home: System.get_env("EXPHIL_NETPLAY_HOME"),
+  gfx_backend: System.get_env("EXPHIL_GFX"),
   # Port-2 dummy for drills (none|stand|shield|jump|walk|cpu|tech_random)
   dummy_mode:
     cond do

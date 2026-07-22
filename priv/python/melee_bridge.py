@@ -257,6 +257,24 @@ class MeleeBridge:
                 fullscreen=False,
                 online_delay=int(config.get("online_delay") or 0),
                 copy_home_directory=online,
+                # Netplay account selection (#9 user_json wiring): the home
+                # dir whose user.json/Config get copied into the temp User
+                # dir. Unset => libmelee's default (the MAIN account's home)
+                # — pass the BOT home (~/.config/SlippiOnline-bot) so Direct
+                # sessions play as EXPH#288, never as DBTD#411.
+                dolphin_home_path=(
+                    os.path.expanduser(config["user_home"])
+                    if config.get("user_home")
+                    else None
+                ),
+                # Explicit gfx override (e.g. "Null" for a windowless
+                # NETPLAY bot — the nix-ld wrapper's GL/Vulkan paths are
+                # unaudited; Null is its only proven backend, 2026-07-21)
+                **(
+                    {"gfx_backend": config["gfx_backend"]}
+                    if config.get("gfx_backend")
+                    else {}
+                ),
                 # Distinct ports let parallel instances coexist (default 51441)
                 slippi_port=int(config.get("slippi_port") or 51441),
                 blocking_input=bool(config.get("blocking_input", self.headless)),

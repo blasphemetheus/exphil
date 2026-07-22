@@ -37,7 +37,11 @@ defmodule ExPhil.Bridge.MeleePort do
   alias ExPhil.Bridge.GameState
   alias ExPhil.Error.BridgeError
 
-  @default_timeout 30_000
+  # 90s: netplay Direct holds emulation (no frames advance) while waiting
+  # for the opponent peer to connect — a 30s step timeout crashed the
+  # bridge before a human could enter the code (2026-07-21 Direct smoke).
+  # Harmless for live play: this is a MAX wait, steps normally return ~16ms.
+  @default_timeout 90_000
 
   # ============================================================================
   # Types
