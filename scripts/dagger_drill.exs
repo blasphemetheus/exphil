@@ -178,31 +178,40 @@ detect_port = fn replay, default ->
 end
 
 load_frames = fn path, detect? ->
-  {:ok, replay} = Peppi.parse(path)
-  use_port = if detect? and expert_char, do: detect_port.(replay, port), else: port
+  # Archive + timeout-truncated seed .slp include corrupt/partial files
+  # (2026-07-22). Skip them (-> []) rather than crash the whole run; the
+  # BC min-frames filter and empty-rollout handling drop them downstream.
+  case Peppi.parse(path) do
+    {:error, reason} ->
+      Output.warning("skipping unparseable replay #{Path.basename(path)}: #{inspect(reason)}")
+      []
 
-  if use_port != port do
-    Output.puts("  #{Path.basename(path)}: expert character on port #{use_port} — normalizing")
-  end
+    {:ok, replay} ->
+      use_port = if detect? and expert_char, do: detect_port.(replay, port), else: port
 
-  frames =
-    replay
-    |> Peppi.to_training_frames(
-      player_port: use_port,
-      opponent_port: if(use_port == 1, do: 2, else: 1)
-    )
-    |> Enum.reject(&(&1.game_state.frame < 0))
+      if use_port != port do
+        Output.puts("  #{Path.basename(path)}: expert character on port #{use_port} — normalizing")
+      end
 
-  # Normalize so the expert is ALWAYS players[1] downstream — the shared
-  # table build and relabeling assume one port across all sources
-  if use_port == port do
-    frames
-  else
-    Enum.map(frames, fn f ->
-      gs = f.game_state
-      swapped = %{1 => gs.players[use_port], 2 => gs.players[port]}
-      %{f | game_state: %{gs | players: swapped}}
-    end)
+      frames =
+        replay
+        |> Peppi.to_training_frames(
+          player_port: use_port,
+          opponent_port: if(use_port == 1, do: 2, else: 1)
+        )
+        |> Enum.reject(&(&1.game_state.frame < 0))
+
+      # Normalize so the expert is ALWAYS players[1] downstream — the shared
+      # table build and relabeling assume one port across all sources
+      if use_port == port do
+        frames
+      else
+        Enum.map(frames, fn f ->
+          gs = f.game_state
+          swapped = %{1 => gs.players[use_port], 2 => gs.players[port]}
+          %{f | game_state: %{gs | players: swapped}}
+        end)
+      end
   end
 end
 

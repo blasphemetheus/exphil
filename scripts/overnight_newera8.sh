@@ -222,6 +222,18 @@ if [ -n "${NEWERA8_EXTRA_ROLLOUTS:-}" ]; then
   echo "[newera8] pool += ${#_EXTRA[@]} extra rollouts (NEWERA8_EXTRA_ROLLOUTS)"
 fi
 
+# NEWERA8_SEED_ROLLOUTS_DIR (r16 #38): a dir tree of scenario-seeded .slp
+# (gen_scenario_manifest.exs + scenario_suite.exs) — the bot playing from
+# punish/approach states it rarely reaches. Expert-relabeled like any
+# rollout; reinforces conversion breadth.
+if [ -n "${NEWERA8_SEED_ROLLOUTS_DIR:-}" ]; then
+  _n=0
+  while IFS= read -r _s; do
+    POOL+=("$_s"); _n=$((_n + 1))
+  done < <(find "$NEWERA8_SEED_ROLLOUTS_DIR" -name '*.slp' | sort)
+  echo "[newera8] pool += $_n seeded rollouts (NEWERA8_SEED_ROLLOUTS_DIR)"
+fi
+
 # --------------------------------------------------------------- timing
 T_TRAIN=0 T_PROBE=0 T_EVAL=0 ROUNDS_DONE=0
 phase_begin() { PHASE_T0=$SECONDS; }
@@ -424,6 +436,8 @@ for R in $(seq "$FIRST_ROUND" $((FIRST_ROUND + ROUNDS - 1))); do
       ${NEWERA8_PROBE_EVAL:+--probe-eval-every "$NEWERA8_PROBE_EVAL"} \
       ${NEWERA8_MAMBA_CHUNK:+--mamba-chunk-size "$NEWERA8_MAMBA_CHUNK"} \
       ${NEWERA8_MAMBA_MATMUL:+--mamba-matmul-scan} \
+      ${NEWERA8_BC_REPLAYS:+--bc-replays "$NEWERA8_BC_REPLAYS"} \
+      ${NEWERA8_BC_SAMPLE:+--bc-sample "$NEWERA8_BC_SAMPLE"} \
       $DRILL_FLAGS \
       $RESUME_FLAG \
       --rollouts "$ROLLOUTS" \
