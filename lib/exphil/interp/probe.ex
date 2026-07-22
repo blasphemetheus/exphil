@@ -54,69 +54,84 @@ defmodule ExPhil.Interp.Probe do
     to_dev = fn t -> Nx.backend_copy(t, EXLA.Backend) end
     {x, y, x_eval, y_eval} = {to_dev.(x), to_dev.(y), to_dev.(x_eval), to_dev.(y_eval)}
 
-    {x, y} = mask_rows(x, y)
-    {x_eval, y_eval} = mask_rows(x_eval, y_eval)
+    # A feature with every row masked (-1) on one side of the split is a
+    # nil result, not a crash: Nx cannot build {0}-shaped tensors, so the
+    # empty case is a sentinel, never a tensor. Killed r16 at epoch 10
+    # (2026-07-22): BC archive frames landed entirely in one side of the
+    # positional 75/25 split, leaving a feature with zero eval rows.
+    case {mask_rows(x, y), mask_rows(x_eval, y_eval)} do
+      {:empty, _} ->
+        empty_result()
 
+      {_, :empty} ->
+        empty_result()
+
+      {{x, y}, {x_eval, y_eval}} ->
+        fit_eval_masked(x, y, x_eval, y_eval, num_classes, steps, lr, l2)
+    end
+  end
+
+  defp empty_result do
+    %{
+      balanced_accuracy: nil,
+      accuracy: nil,
+      majority_baseline: nil,
+      per_class_recall: nil,
+      n_train: 0,
+      n_eval: 0,
+      params: nil
+    }
+  end
+
+  defp fit_eval_masked(x, y, x_eval, y_eval, num_classes, steps, lr, l2) do
     n_train = Nx.axis_size(x, 0)
     n_eval = Nx.axis_size(x_eval, 0)
 
-    if n_train == 0 or n_eval == 0 do
-      %{
-        balanced_accuracy: nil,
-        accuracy: nil,
-        majority_baseline: nil,
-        per_class_recall: nil,
-        n_train: n_train,
-        n_eval: n_eval,
-        params: nil
-      }
-    else
-      # Standardize with train statistics
-      mean = Nx.mean(x, axes: [0], keep_axes: true)
-      std = Nx.standard_deviation(x, axes: [0], keep_axes: true) |> Nx.max(1.0e-6)
-      xs = Nx.divide(Nx.subtract(x, mean), std)
-      xs_eval = Nx.divide(Nx.subtract(x_eval, mean), std)
+    # Standardize with train statistics
+    mean = Nx.mean(x, axes: [0], keep_axes: true)
+    std = Nx.standard_deviation(x, axes: [0], keep_axes: true) |> Nx.max(1.0e-6)
+    xs = Nx.divide(Nx.subtract(x, mean), std)
+    xs_eval = Nx.divide(Nx.subtract(x_eval, mean), std)
 
-      # Inverse-frequency class weights from the train labels
-      counts = class_counts(y, num_classes)
-      weights = Nx.divide(n_train / num_classes, Nx.max(counts, 1))
+    # Inverse-frequency class weights from the train labels
+    counts = class_counts(y, num_classes)
+    weights = Nx.divide(n_train / num_classes, Nx.max(counts, 1))
 
-      d = Nx.axis_size(x, 1)
+    d = Nx.axis_size(x, 1)
 
-      # Edifice probe (task: :regression → raw logits) supplies the model;
-      # we train its single dense layer directly.
-      _probe_model = LinearProbe.build(input_size: d, num_classes: num_classes, task: :regression)
+    # Edifice probe (task: :regression → raw logits) supplies the model;
+    # we train its single dense layer directly.
+    _probe_model = LinearProbe.build(input_size: d, num_classes: num_classes, task: :regression)
 
-      key = Nx.Random.key(42)
-      {w, _} = Nx.Random.normal(key, 0.0, 0.01, shape: {d, num_classes}, type: :f32)
-      b = Nx.broadcast(Nx.tensor(0.0, type: :f32), {num_classes})
+    key = Nx.Random.key(42)
+    {w, _} = Nx.Random.normal(key, 0.0, 0.01, shape: {d, num_classes}, type: :f32)
+    b = Nx.broadcast(Nx.tensor(0.0, type: :f32), {num_classes})
 
-      y_onehot = Nx.equal(Nx.new_axis(y, 1), Nx.iota({1, num_classes})) |> Nx.as_type(:f32)
+    y_onehot = Nx.equal(Nx.new_axis(y, 1), Nx.iota({1, num_classes})) |> Nx.as_type(:f32)
 
-      {w, b} = train_jit(xs, y_onehot, weights, w, b, steps, lr, l2)
+    {w, b} = train_jit(xs, y_onehot, weights, w, b, steps, lr, l2)
 
-      pred = predict_jit(w, b, xs_eval)
-      per_class = per_class_recall(pred, y_eval, num_classes)
+    pred = predict_jit(w, b, xs_eval)
+    per_class = per_class_recall(pred, y_eval, num_classes)
 
-      recalls = per_class |> Enum.reject(&is_nil/1)
+    recalls = per_class |> Enum.reject(&is_nil/1)
 
-      # Guard: with <2 classes present in eval, "balanced accuracy" is
-      # degenerate (predicting the only class scores 1.0). This is exactly
-      # how the tech_choice=1.000 artifact slipped through on 2026-07-13 —
-      # the tech dummy never teched, so the label had one class.
-      balanced =
-        if length(recalls) >= 2, do: Enum.sum(recalls) / length(recalls), else: nil
+    # Guard: with <2 classes present in eval, "balanced accuracy" is
+    # degenerate (predicting the only class scores 1.0). This is exactly
+    # how the tech_choice=1.000 artifact slipped through on 2026-07-13 —
+    # the tech dummy never teched, so the label had one class.
+    balanced =
+      if length(recalls) >= 2, do: Enum.sum(recalls) / length(recalls), else: nil
 
-      %{
-        balanced_accuracy: balanced,
-        accuracy: Nx.mean(Nx.equal(pred, y_eval)) |> Nx.to_number(),
-        majority_baseline: majority_baseline(y_eval, num_classes),
-        per_class_recall: per_class,
-        n_train: n_train,
-        n_eval: n_eval,
-        params: %{w: w, b: b, mean: mean, std: std}
-      }
-    end
+    %{
+      balanced_accuracy: balanced,
+      accuracy: Nx.mean(Nx.equal(pred, y_eval)) |> Nx.to_number(),
+      majority_baseline: majority_baseline(y_eval, num_classes),
+      per_class_recall: per_class,
+      n_train: n_train,
+      n_eval: n_eval,
+      params: %{w: w, b: b, mean: mean, std: std}
+    }
   end
 
   @doc """
@@ -125,12 +140,22 @@ defmodule ExPhil.Interp.Probe do
   """
   def split_by_replay(capture, eval_replays) do
     idx = capture.replay_index
-    eval_mask = Enum.reduce(eval_replays, Nx.broadcast(0, Nx.shape(idx)), fn r, acc ->
-      Nx.logical_or(acc, Nx.equal(idx, r))
-    end)
 
-    train_rows = mask_to_indices(Nx.logical_not(eval_mask))
-    eval_rows = mask_to_indices(eval_mask)
+    eval_mask =
+      Enum.reduce(eval_replays, Nx.broadcast(0, Nx.shape(idx)), fn r, acc ->
+        Nx.logical_or(acc, Nx.equal(idx, r))
+      end)
+
+    train_rows =
+      mask_to_indices(Nx.logical_not(eval_mask)) ||
+        raise(ArgumentError, "split_by_replay: every replay assigned to eval — no training rows")
+
+    eval_rows =
+      mask_to_indices(eval_mask) ||
+        raise(
+          ArgumentError,
+          "split_by_replay: eval_replays #{inspect(eval_replays)} match no rows"
+        )
 
     take = fn t, rows -> Nx.take(t, rows, axis: 0) end
 
@@ -248,22 +273,23 @@ defmodule ExPhil.Interp.Probe do
   # Private — Nx internals
   # ============================================================================
 
+  # Returns {x, y} with -1 rows dropped, or :empty when nothing survives.
+  # Never constructs an empty tensor: Nx.broadcast rejects {0} shapes —
+  # the old "empty" fallback here was itself the r16 crash (2026-07-22).
   defp mask_rows(x, y) do
-    keep = mask_to_indices(Nx.greater_equal(y, 0))
-
-    if Nx.axis_size(keep, 0) == 0 do
-      {Nx.broadcast(0.0, {0, Nx.axis_size(x, 1)}), Nx.broadcast(0, {0})}
-    else
-      {Nx.take(x, keep, axis: 0), Nx.take(y, keep, axis: 0)}
+    case mask_to_indices(Nx.greater_equal(y, 0)) do
+      nil -> :empty
+      keep -> {Nx.take(x, keep, axis: 0), Nx.take(y, keep, axis: 0)}
     end
   end
 
+  # Indices tensor of set rows, or nil when the mask selects none.
   defp mask_to_indices(mask) do
     n = Nx.axis_size(mask, 0)
     count = Nx.sum(mask) |> Nx.to_number()
 
     if count == 0 do
-      Nx.broadcast(0, {0})
+      nil
     else
       mask
       |> Nx.as_type(:s64)

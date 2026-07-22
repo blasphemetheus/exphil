@@ -16,7 +16,7 @@
 require Logger
 Logger.configure(level: :warning)
 
-alias ExPhil.Training.{ConversionSampling, Data, Imitation, Output, ProbeRegularizer}
+alias ExPhil.Training.{ConversionSampling, Data, Imitation, MemoryLedger, Output, ProbeRegularizer}
 alias ExPhil.Data.Peppi
 alias ExPhil.Embeddings
 
@@ -49,7 +49,9 @@ alias ExPhil.Embeddings
       mamba_chunk_size: :integer,
       mamba_matmul_scan: :boolean,
       debug_grads_after: :integer,
-      resume: :boolean
+      resume: :boolean,
+      preflight: :boolean,
+      memory_check: :string
     ]
   )
 
@@ -331,6 +333,47 @@ if bc_pct > 60.0 do
   Output.warning("BC frames are #{bc_pct}% of the pool — human demos may drown the drill; --bc-sample to reduce")
 end
 
+# --memory-check warn|strict|off (default warn): predict this pool's peak
+# RSS from the ledger of past runs BEFORE paying the embed + JIT cost —
+# a pool that won't fit should be refused here, in seconds, not die at
+# hour 3. Every run appends its own (pool_frames, VmHWM) point on exit,
+# so the model sharpens with each run.
+pool_frames = length(all_frames)
+memory_check = opts[:memory_check] || "warn"
+
+if memory_check != "off" do
+  case MemoryLedger.headroom_check(pool_frames, window: window) do
+    {:no_data, _} ->
+      Output.puts(
+        "memory-check: no ledger entries yet (#{MemoryLedger.default_path()}) — " <>
+          "prediction unavailable; this run records the first point"
+      )
+
+    {:ok, info} ->
+      Output.puts(
+        "memory-check: predicted peak #{MemoryLedger.format_bytes(info.predicted_bytes)} " <>
+          "fits budget #{MemoryLedger.format_bytes(info.budget_bytes)} " <>
+          "(#{info.model}, #{info.points} run(s), #{info.slope_bytes_per_frame} B/frame)"
+      )
+
+    {:warn, info} ->
+      Output.warning(
+        "memory-check: predicted peak #{MemoryLedger.format_bytes(info.predicted_bytes)} " <>
+          "(x#{info.margin} margin) EXCEEDS budget #{MemoryLedger.format_bytes(info.budget_bytes)} " <>
+          "(#{info.model} from #{info.points} run(s)) — this pool may OOM"
+      )
+
+      if memory_check == "strict" do
+        Output.error(
+          "--memory-check strict: refusing to start. Shrink the pool " <>
+            "(--bc-sample / fewer rollouts) or free RAM."
+        )
+
+        System.halt(5)
+      end
+  end
+end
+
 # Shift per source replay — never across concat boundaries. Kept as
 # per-replay lists so conversion spans (below) can't cross them either.
 shifted_frame_lists =
@@ -370,6 +413,13 @@ dataset =
   )
 
 embed_size = Embeddings.embedding_size(dataset.embed_config)
+
+post_embed_mem = MemoryLedger.process_memory()
+
+Output.puts(
+  "memory: post-embed rss=#{MemoryLedger.format_bytes(post_embed_mem.rss_bytes)} " <>
+    "(#{round(post_embed_mem.rss_bytes / max(pool_frames, 1))} B/frame observed)"
+)
 
 # --probe-reg W [--probe-reg-every K] (r15, the steering-decided lever):
 # penalize trunk alignment with the shield-lock direction during training.
@@ -466,7 +516,11 @@ probe_eval_every = opts[:probe_eval_every] || 0
       |> ExPhil.Interp.GroundTruth.frame_labels()
       |> :erlang.list_to_tuple()
 
-    tfn = trainer.trunk_predict_fn || ExPhil.Interp.ProbeRegularizer.build_trunk_fn(trainer.config)
+    # ProbeRegularizer lives in Training, not Interp — the wrong namespace
+    # here only detonated when --probe-eval-every ran WITHOUT --probe-reg
+    # (only probe-reg builds trainer.trunk_predict_fn), which is why
+    # r15/r16 (both flags on) never hit it.
+    tfn = trainer.trunk_predict_fn || ProbeRegularizer.build_trunk_fn(trainer.config)
     Output.puts("Probe-eval every #{probe_eval_every} epochs (#{tuple_size(labels)} labeled frames)")
     {tfn, labels}
   else
@@ -474,6 +528,112 @@ probe_eval_every = opts[:probe_eval_every] || 0
   end
 
 probe_curves_path = out_path <> ".probe_curves.jsonl"
+
+# One (pool_frames, peak RSS) point per run — the data the memory-check
+# prediction above is fit from. VmHWM is the kernel high-water mark, so
+# transient spikes (the epoch-boundary suspect class) are captured even
+# without a sampler running at the right moment.
+record_ledger = fn mode ->
+  mem = MemoryLedger.process_memory()
+
+  gpu_mb =
+    case ExPhil.Training.GPUUtils.get_memory_info() do
+      {:ok, info} -> info.used_mb
+      _ -> nil
+    end
+
+  MemoryLedger.append(%{
+    mode: mode,
+    tag: Path.basename(out_path),
+    pool_frames: pool_frames,
+    embed_size: embed_size,
+    window: window,
+    backbone: backbone,
+    peak_rss_bytes: mem.hwm_bytes,
+    gpu_used_mb: gpu_mb
+  })
+
+  mem
+end
+
+# --preflight: full-pool dress rehearsal, no training. Exercises every
+# stage that has ever killed a run at THIS run's exact pool and config —
+# parse + embed (the RAM peak), one JIT-compiled train step (the GPU
+# peak), probe-reg refit, probe-eval (the r16 killer, 2026-07-22),
+# policy export + trainer snapshot — records the memory-ledger point,
+# then exits 0. Minutes spent here instead of an overnight lost at
+# epoch 10; launchers gate the real run on this exit code.
+if opts[:preflight] do
+  Output.banner("PREFLIGHT (dress rehearsal — no training)")
+  preflight_t0 = System.monotonic_time(:millisecond)
+
+  [first_batch] =
+    dataset
+    |> Data.batched_sequences(
+      batch_size: 64,
+      window_size: window,
+      stride: 1,
+      lazy: true,
+      shuffle: true,
+      drop_last: false,
+      seed: 42,
+      transition_weight: opts[:transition_weight],
+      sampling_weights: sampling_weights
+    )
+    |> Enum.take(1)
+
+  Output.puts("preflight: JIT compiling one train step (may take minutes)...")
+  {tr_pf, pf_metrics} = Imitation.train_step(trainer, first_batch, loss_fn)
+  Output.puts("preflight: train step OK (loss=#{inspect(Nx.to_number(pf_metrics.loss))})")
+
+  tr_pf =
+    if probe_reg > 0 do
+      {tr2, rstats} =
+        ProbeRegularizer.refit(tr_pf, dataset, probe_frame_labels, window_size: window)
+
+      Output.puts("preflight: probe-reg refit OK #{inspect(rstats)}")
+      tr2
+    else
+      tr_pf
+    end
+
+  if probe_eval_every > 0 do
+    bas =
+      ExPhil.Interp.TrainingProbes.eval(tr_pf, probe_eval_trunk_fn, dataset, probe_eval_labels,
+        window_size: window
+      )
+
+    Output.puts("preflight: probe-eval OK #{ExPhil.Interp.TrainingProbes.format(bas)}")
+  end
+
+  pf_bin = out_path <> ".preflight.bin"
+  pf_ckpt = out_path <> ".preflight.ckpt"
+
+  case Imitation.export_policy(tr_pf, pf_bin) do
+    :ok ->
+      Output.puts("preflight: policy export OK")
+
+    {:error, reason} ->
+      Output.error("preflight: policy export FAILED: #{inspect(reason)}")
+      System.halt(1)
+  end
+
+  Imitation.save_checkpoint(tr_pf, pf_ckpt, meta: %{epoch: 0, fingerprint: :preflight})
+  Output.puts("preflight: trainer snapshot OK")
+  File.rm(pf_bin)
+  File.rm(pf_ckpt)
+
+  pf_mem = record_ledger.("preflight")
+  pf_secs = div(System.monotonic_time(:millisecond) - preflight_t0, 1000)
+
+  Output.success(
+    "PREFLIGHT PASSED in #{pf_secs}s — peak rss " <>
+      "#{MemoryLedger.format_bytes(pf_mem.hwm_bytes)} over #{pool_frames} frames; " <>
+      "ledger updated (#{MemoryLedger.default_path()})"
+  )
+
+  System.halt(0)
+end
 
 # New recipe flags join the fingerprint only when set (TAGGED, so two
 # different flags with equal values can't collide) — snapshots written
@@ -711,7 +871,19 @@ end
       end)
 
     loss = Nx.to_number(epoch_loss)
-    if rem(epoch, 5) == 0, do: Output.puts("epoch #{epoch}: loss=#{inspect(loss)}")
+
+    # Per-epoch heartbeat (2026-07-22): previously only rem(epoch,5)==0
+    # logged, so the drill went SILENT for 4 of every 5 epochs. With
+    # ~10-min mamba_2 epochs that's ~40 min of no log output during
+    # healthy training — long enough that a log-mtime heartbeat monitor
+    # false-alarms (observed while watching the r16 relaunch). One line
+    # every epoch keeps mtime advancing, so "pid alive AND log advancing"
+    # is a sound liveness signal again without needing to poll GPU util.
+    rss = MemoryLedger.process_memory().rss_bytes
+
+    Output.puts(
+      "epoch #{epoch}/#{max_epochs}: loss=#{inspect(loss)} rss=#{MemoryLedger.format_bytes(rss)}"
+    )
 
     # Probe-as-regularizer refit (r15): re-derive the shield-lock direction
     # from the network's CURRENT activations. Skipped on NaN epochs — the
@@ -726,23 +898,16 @@ end
         tr
       end
 
-    # Feature-formation curves (--probe-eval-every)
-    if probe_eval_every > 0 and is_number(loss) and rem(epoch, probe_eval_every) == 0 do
-      bas = ExPhil.Interp.TrainingProbes.eval(tr, probe_eval_trunk_fn, dataset, probe_eval_labels, window_size: window)
-      Output.puts("probe-eval @ epoch #{epoch}: #{ExPhil.Interp.TrainingProbes.format(bas)}")
-
-      File.write!(
-        probe_curves_path,
-        Jason.encode!(%{epoch: epoch, loss: loss, probes: bas}) <> "\n",
-        [:append]
-      )
-    end
-
     # Mid-training publish: a play-able snapshot every 10 epochs, so the
     # run can be eye-tested while it trains (from a separate worktree —
     # NO-MIX). Write-then-rename is atomic on the same filesystem, so a
     # reader can never observe a torn file. Warm-restart caveat: mid-cycle
     # snapshots can look worse than the final export.
+    #
+    # Snapshot runs BEFORE probe-eval (r16 lesson, 2026-07-22): both fire
+    # on the same epochs, and when probe-eval crashed at epoch 10 the run
+    # died before its first save — 10 epochs of work gone. Risky
+    # instrumentation goes last so a death there costs 0 epochs.
     if rem(epoch, 10) == 0 and is_number(loss) do
       latest = Path.rootname(out_path) <> "_latest.bin"
       tmp = latest <> ".tmp"
@@ -757,6 +922,18 @@ end
       # — negligible next to a ~110s epoch. Deleted on successful export.
       Imitation.save_checkpoint(tr, trainer_ckpt,
         meta: %{epoch: epoch, fingerprint: run_fingerprint}
+      )
+    end
+
+    # Feature-formation curves (--probe-eval-every)
+    if probe_eval_every > 0 and is_number(loss) and rem(epoch, probe_eval_every) == 0 do
+      bas = ExPhil.Interp.TrainingProbes.eval(tr, probe_eval_trunk_fn, dataset, probe_eval_labels, window_size: window)
+      Output.puts("probe-eval @ epoch #{epoch}: #{ExPhil.Interp.TrainingProbes.format(bas)}")
+
+      File.write!(
+        probe_curves_path,
+        Jason.encode!(%{epoch: epoch, loss: loss, probes: bas}) <> "\n",
+        [:append]
       )
     end
 
@@ -812,6 +989,14 @@ end
 case Imitation.export_policy(best_trainer, out_path) do
   :ok ->
     Output.success("Policy exported: #{out_path}")
+
+    final_mem = record_ledger.("train")
+
+    Output.puts(
+      "memory: run peak rss #{MemoryLedger.format_bytes(final_mem.hwm_bytes)} " <>
+        "over #{pool_frames} frames — ledger updated (#{MemoryLedger.default_path()})"
+    )
+
     # The run finished — the resume snapshot is a cliff we no longer need
     File.rm(trainer_ckpt)
 

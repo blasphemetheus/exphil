@@ -32,6 +32,10 @@
 #   NEWERA8_DRILL_FLAGS=   extra dagger_drill flags, appended VERBATIM
 #                          (word-split; e.g. "--hidden-size 512")
 #   NEWERA8_SCENARIOS=1    run scenario_suite per round (eval phase)
+#   NEWERA8_PREFLIGHT=1    dagger_drill --preflight dress rehearsal per
+#                          round BEFORE training (embed + 1 JIT step +
+#                          probe-eval + snapshot at full pool); abort on
+#                          failure — no more epoch-10 overnight deaths
 #   NEWERA8_SMOKE=1        guards + one 2-arm fan-out vs r12, then exit
 #   PROBE_MODE=headless|windowed   windowed = newera7's sequential probe
 #                          (calibration; needs launcher CLOSED, #62)
@@ -105,6 +109,26 @@ assert_no_beam() {
     echo "[newera8] EXLA-sharing BEAM alive before $1 — refusing (#67)" | tee -a "$LOG"
     exit 1
   }
+}
+# Decode a trainer exit status for the log. r16's death (2026-07-22) was
+# misdiagnosed as a silent SIGKILL for 7 hours because the exit status
+# was never logged — it was a plain Elixir crash (exit 1, trace in the
+# drill log). >=128 means killed by signal (137 = SIGKILL, the
+# OOM-killer's signature; 139 = SIGSEGV, the mix-compile-during-training
+# NIF relink). Anything else is a crash whose stack trace IS in the log.
+describe_rc() {
+  case "$1" in
+    0) echo "" ;;
+    137) echo " = SIGKILL (OOM? check: journalctl -k | grep -i oom)" ;;
+    139) echo " = SIGSEGV (EXLA NIF relinked mid-run? see CLAUDE.md mix rule)" ;;
+    *)
+      if [ "$1" -ge 128 ] 2>/dev/null; then
+        echo " = killed by signal $(($1 - 128))"
+      else
+        echo " = crash/error exit (stack trace at the end of the drill log)"
+      fi
+      ;;
+  esac
 }
 for tool in make cargo; do
   command -v "$tool" >/dev/null || {
@@ -424,27 +448,48 @@ for R in $(seq "$FIRST_ROUND" $((FIRST_ROUND + ROUNDS - 1))); do
     assert_no_beam "round $R training"
     # $DRILL_FLAGS deliberately unquoted: NEWERA8_DRILL_FLAGS is appended
     # verbatim (word-split) for bake-off shape knobs like --hidden-size 512
-    mix run scripts/dagger_drill.exs \
-      --expert mewtwo_combo \
-      --max-epochs "$MAX_EPOCHS" \
-      --prev-action-dropout "$DROPOUT" \
-      --transition-weight 2.0 \
-      ${BACKBONE:+--backbone "$BACKBONE"} \
-      ${NEWERA8_CONVERSION_WEIGHT:+--conversion-weight "$NEWERA8_CONVERSION_WEIGHT"} \
-      ${NEWERA8_PROBE_REG:+--probe-reg "$NEWERA8_PROBE_REG"} \
-      ${NEWERA8_PROBE_REG_EVERY:+--probe-reg-every "$NEWERA8_PROBE_REG_EVERY"} \
-      ${NEWERA8_PROBE_EVAL:+--probe-eval-every "$NEWERA8_PROBE_EVAL"} \
-      ${NEWERA8_MAMBA_CHUNK:+--mamba-chunk-size "$NEWERA8_MAMBA_CHUNK"} \
-      ${NEWERA8_MAMBA_MATMUL:+--mamba-matmul-scan} \
-      ${NEWERA8_BC_REPLAYS:+--bc-replays "$NEWERA8_BC_REPLAYS"} \
-      ${NEWERA8_BC_SAMPLE:+--bc-sample "$NEWERA8_BC_SAMPLE"} \
-      $DRILL_FLAGS \
-      $RESUME_FLAG \
-      --rollouts "$ROLLOUTS" \
-      --out "$POLICY" >>"$LOG" 2>&1
+    DRILL_CMD=(mix run scripts/dagger_drill.exs
+      --expert mewtwo_combo
+      --max-epochs "$MAX_EPOCHS"
+      --prev-action-dropout "$DROPOUT"
+      --transition-weight 2.0
+      ${BACKBONE:+--backbone "$BACKBONE"}
+      ${NEWERA8_CONVERSION_WEIGHT:+--conversion-weight "$NEWERA8_CONVERSION_WEIGHT"}
+      ${NEWERA8_PROBE_REG:+--probe-reg "$NEWERA8_PROBE_REG"}
+      ${NEWERA8_PROBE_REG_EVERY:+--probe-reg-every "$NEWERA8_PROBE_REG_EVERY"}
+      ${NEWERA8_PROBE_EVAL:+--probe-eval-every "$NEWERA8_PROBE_EVAL"}
+      ${NEWERA8_MAMBA_CHUNK:+--mamba-chunk-size "$NEWERA8_MAMBA_CHUNK"}
+      ${NEWERA8_MAMBA_MATMUL:+--mamba-matmul-scan}
+      ${NEWERA8_BC_REPLAYS:+--bc-replays "$NEWERA8_BC_REPLAYS"}
+      ${NEWERA8_BC_SAMPLE:+--bc-sample "$NEWERA8_BC_SAMPLE"}
+      $DRILL_FLAGS
+      $RESUME_FLAG
+      --rollouts "$ROLLOUTS"
+      --out "$POLICY")
+
+    # NEWERA8_PREFLIGHT=1: dress-rehearse the EXACT run (same pool, same
+    # flags) — embed, one JIT step, probe-eval, snapshot — before
+    # committing the epochs. A config that would die at the first epoch-
+    # boundary dies here in minutes instead (r16 lesson, 2026-07-22).
+    if [ -n "${NEWERA8_PREFLIGHT:-}" ]; then
+      echo "[newera8] round $R PREFLIGHT (full-pool dress rehearsal)..." | tee -a "$LOG"
+      "${DRILL_CMD[@]}" --preflight >>"$LOG" 2>&1
+      rc=$?
+      if [ "$rc" -ne 0 ]; then
+        echo "[newera8] round $R PREFLIGHT FAILED: exit $rc$(describe_rc "$rc") — aborting before wasting a training run" | tee -a "$LOG"
+        exit 1
+      fi
+      echo "[newera8] round $R preflight passed" | tee -a "$LOG"
+    fi
+
+    "${DRILL_CMD[@]}" >>"$LOG" 2>&1
+    rc=$?
+    if [ "$rc" -ne 0 ]; then
+      echo "[newera8] round $R trainer EXIT STATUS $rc$(describe_rc "$rc")" | tee -a "$LOG"
+    fi
   fi
   if [ ! -f "$POLICY" ]; then
-    echo "[newera8] round $R produced no checkpoint — stopping" | tee -a "$LOG"
+    echo "[newera8] round $R produced no checkpoint (trainer exit ${rc:-not-run}) — stopping" | tee -a "$LOG"
     exit 1
   fi
   phase_end train "$R"
