@@ -1,0 +1,724 @@
+{
+  "entries": [
+    {
+      "frame": 2420,
+      "note": "p2=(85.9,16.4) p1_x=35.5",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r15/r13/debounce/p2/Game_20260721T233428.slp",
+      "type": "edgeguard"
+    },
+    {
+      "frame": 995,
+      "note": "dx=-6.8 p1_facing=1 p1_action=18",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r15/r13/plain/p2/Game_20260721T232541.slp",
+      "type": "opponent_behind"
+    },
+    {
+      "frame": 3333,
+      "note": "entry=missed_bound_d p2_x=-2.1 dist=3.2",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r15/r13/debounce/p1/Game_20260721T233416.slp",
+      "type": "tech_chase"
+    },
+    {
+      "frame": 1172,
+      "note": "dx=-11.6 p1_facing=1 p1_action=43",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r15/r13/debounce/p2/Game_20260721T233428.slp",
+      "type": "opponent_behind"
+    },
+    {
+      "frame": 1907,
+      "note": "entry=missed_bound_u p2_x=40.8 dist=8.4",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r14/debounce/p2/Game_20260718T074603.slp",
+      "type": "tech_chase"
+    },
+    {
+      "frame": 583,
+      "note": "dx=-13.3 p1_facing=1 p1_action=18",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r14/debounce/p2/Game_20260718T074603.slp",
+      "type": "opponent_behind"
+    },
+    {
+      "frame": 886,
+      "note": "entry=missed_bound_u p2_x=-27.5 dist=3.5",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r14/plain/p1/Game_20260718T073713.slp",
+      "type": "tech_chase"
+    },
+    {
+      "frame": 4177,
+      "note": "dx=-17.1 p1_facing=1 p1_action=18",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r14/plain/p1/Game_20260718T073713.slp",
+      "type": "opponent_behind"
+    },
+    {
+      "frame": 503,
+      "note": "entry=tech_in_place p2_x=-5.6 dist=13.2",
+      "slp": "/home/blewf/git/exphil/probes/newera8/mamba_full/r13/debounce/p2/Game_20260720T192608.slp",
+      "type": "tech_chase"
+    },
+    {
+      "frame": 3358,
+      "note": "dx=-5.5 p1_facing=1 p1_action=71",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r15/r13/plain/p1/Game_20260721T232529.slp",
+      "type": "opponent_behind"
+    },
+    {
+      "frame": 3225,
+      "note": "entry=tech_in_place p2_x=17.6 dist=10.5",
+      "slp": "/home/blewf/git/exphil/probes/newera8/mamba_full/r13/debounce/p1/Game_20260720T192556.slp",
+      "type": "tech_chase"
+    },
+    {
+      "frame": 6053,
+      "note": "dx=-1.2 p1_facing=1 p1_action=233",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r13/plain/p2/Game_20260718T002330.slp",
+      "type": "opponent_behind"
+    },
+    {
+      "frame": 6494,
+      "note": "entry=missed_bound_d p2_x=-18.6 dist=28.6",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r13/debounce/p1/Game_20260718T003155.slp",
+      "type": "tech_chase"
+    },
+    {
+      "frame": 1450,
+      "note": "dx=-16.2 p1_facing=1 p1_action=60",
+      "slp": "/home/blewf/git/exphil/probes/newera8/mamba_full/r13/plain/p1/Game_20260720T191719.slp",
+      "type": "opponent_behind"
+    },
+    {
+      "frame": 4942,
+      "note": "entry=tech_in_place p2_x=-75.7 dist=44.0",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r13/debounce/p2/Game_20260718T003208.slp",
+      "type": "tech_chase"
+    },
+    {
+      "frame": 365,
+      "note": "dx=-0.7 p1_facing=1 p1_action=233",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r14/debounce/p3/Game_20260718T074615.slp",
+      "type": "opponent_behind"
+    },
+    {
+      "frame": 4481,
+      "note": "entry=tech_in_place p2_x=-4.2 dist=20.2",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r13/debounce/p2/Game_20260718T003208.slp",
+      "type": "tech_chase"
+    },
+    {
+      "frame": 362,
+      "note": "dx=-4.7 p1_facing=1 p1_action=71",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r15/r13/debounce/p3/Game_20260721T233440.slp",
+      "type": "opponent_behind"
+    },
+    {
+      "frame": 2400,
+      "note": "entry=tech_in_place p2_x=45.5 dist=22.3",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r14/plain/p3/Game_20260718T073738.slp",
+      "type": "tech_chase"
+    },
+    {
+      "frame": 1562,
+      "note": "dx=-19.0 p1_facing=1 p1_action=18",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r15/r13/plain/p1/Game_20260721T232529.slp",
+      "type": "opponent_behind"
+    },
+    {
+      "frame": 4883,
+      "note": "entry=missed_bound_u p2_x=33.3 dist=26.9",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r14/plain/p1/Game_20260718T073713.slp",
+      "type": "tech_chase"
+    },
+    {
+      "frame": 3382,
+      "note": "dx=-16.3 p1_facing=1 p1_action=18",
+      "slp": "/home/blewf/git/exphil/probes/newera8/mamba_full/r13/plain/p2/Game_20260720T191731.slp",
+      "type": "opponent_behind"
+    },
+    {
+      "frame": 3068,
+      "note": "entry=tech_in_place p2_x=22.7 dist=7.2",
+      "slp": "/home/blewf/git/exphil/probes/newera8/mamba_full/r13/plain/p1/Game_20260720T191719.slp",
+      "type": "tech_chase"
+    },
+    {
+      "frame": 2183,
+      "note": "dx=-13.2 p1_facing=1 p1_action=71",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r15/r13/debounce/p3/Game_20260721T233440.slp",
+      "type": "opponent_behind"
+    },
+    {
+      "frame": 3329,
+      "note": "entry=missed_bound_d p2_x=19.6 dist=4.0",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r14/debounce/p1/Game_20260718T074551.slp",
+      "type": "tech_chase"
+    },
+    {
+      "frame": 2347,
+      "note": "dx=-13.4 p1_facing=1 p1_action=42",
+      "slp": "/home/blewf/git/exphil/probes/newera8/mamba_full/r13/debounce/p3/Game_20260720T192621.slp",
+      "type": "opponent_behind"
+    },
+    {
+      "frame": 5340,
+      "note": "entry=tech_in_place p2_x=56.3 dist=31.2",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r14/plain/p1/Game_20260718T073713.slp",
+      "type": "tech_chase"
+    },
+    {
+      "frame": 2921,
+      "note": "dx=0.1 p1_facing=-1 p1_action=17",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r14/debounce/p3/Game_20260718T074615.slp",
+      "type": "opponent_behind"
+    },
+    {
+      "frame": 3044,
+      "note": "entry=tech_in_place p2_x=72.5 dist=32.1",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r14/plain/p3/Game_20260718T073738.slp",
+      "type": "tech_chase"
+    },
+    {
+      "frame": 3636,
+      "note": "dx=-16.9 p1_facing=1 p1_action=18",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r15/r13/plain/p1/Game_20260721T232529.slp",
+      "type": "opponent_behind"
+    },
+    {
+      "frame": 2889,
+      "note": "entry=tech_in_place p2_x=-7.7 dist=28.2",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r14/debounce/p2/Game_20260718T074603.slp",
+      "type": "tech_chase"
+    },
+    {
+      "frame": 4696,
+      "note": "dx=1.1 p1_facing=-1 p1_action=72",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r14/debounce/p2/Game_20260718T074603.slp",
+      "type": "opponent_behind"
+    },
+    {
+      "frame": 5332,
+      "note": "entry=tech_in_place p2_x=-24.5 dist=28.2",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r13/plain/p3/Game_20260718T002343.slp",
+      "type": "tech_chase"
+    },
+    {
+      "frame": 2036,
+      "note": "dx=-23.1 p1_facing=1 p1_action=42",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r13/debounce/p1/Game_20260718T003155.slp",
+      "type": "opponent_behind"
+    },
+    {
+      "frame": 6849,
+      "note": "entry=tech_in_place p2_x=27.8 dist=4.4",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r13/plain/p2/Game_20260718T002330.slp",
+      "type": "tech_chase"
+    },
+    {
+      "frame": 994,
+      "note": "dx=-3.7 p1_facing=1 p1_action=42",
+      "slp": "/home/blewf/git/exphil/probes/newera8/mamba_full/r13/plain/p2/Game_20260720T191731.slp",
+      "type": "opponent_behind"
+    },
+    {
+      "frame": 1106,
+      "note": "entry=missed_bound_u p2_x=-17.9 dist=19.6",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r14/plain/p2/Game_20260718T073726.slp",
+      "type": "tech_chase"
+    },
+    {
+      "frame": 1473,
+      "note": "dx=-11.8 p1_facing=1 p1_action=18",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r14/debounce/p3/Game_20260718T074615.slp",
+      "type": "opponent_behind"
+    },
+    {
+      "frame": 2411,
+      "note": "entry=missed_bound_u p2_x=41.6 dist=3.7",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r15/r13/debounce/p1/Game_20260721T233416.slp",
+      "type": "tech_chase"
+    },
+    {
+      "frame": 8010,
+      "note": "dx=-2.0 p1_facing=1 p1_action=21",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r14/plain/p2/Game_20260718T073726.slp",
+      "type": "opponent_behind"
+    },
+    {
+      "frame": 3582,
+      "note": "entry=missed_bound_u p2_x=-19.7 dist=21.2",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r14/debounce/p3/Game_20260718T074615.slp",
+      "type": "tech_chase"
+    },
+    {
+      "frame": 3471,
+      "note": "dx=0.3 p1_facing=-1 p1_action=72",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r14/debounce/p2/Game_20260718T074603.slp",
+      "type": "opponent_behind"
+    },
+    {
+      "frame": 3798,
+      "note": "entry=missed_bound_u p2_x=-34.5 dist=21.3",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r13/debounce/p1/Game_20260718T003155.slp",
+      "type": "tech_chase"
+    },
+    {
+      "frame": 4284,
+      "note": "dx=-15.4 p1_facing=1 p1_action=72",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r15/r13/plain/p3/Game_20260721T232553.slp",
+      "type": "opponent_behind"
+    },
+    {
+      "frame": 2381,
+      "note": "entry=missed_bound_u p2_x=-32.8 dist=30.1",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r14/plain/p2/Game_20260718T073726.slp",
+      "type": "tech_chase"
+    },
+    {
+      "frame": 1204,
+      "note": "dx=-9.9 p1_facing=1 p1_action=42",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r14/debounce/p3/Game_20260718T074615.slp",
+      "type": "opponent_behind"
+    },
+    {
+      "frame": 4356,
+      "note": "entry=tech_in_place p2_x=28.5 dist=7.1",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r13/plain/p1/Game_20260718T002318.slp",
+      "type": "tech_chase"
+    },
+    {
+      "frame": 2440,
+      "note": "dx=2.3 p1_facing=-1 p1_action=18",
+      "slp": "/home/blewf/git/exphil/probes/newera8/mamba_full/r13/debounce/p2/Game_20260720T192608.slp",
+      "type": "opponent_behind"
+    },
+    {
+      "frame": 1599,
+      "note": "entry=tech_in_place p2_x=-32.8 dist=18.8",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r13/debounce/p1/Game_20260718T003155.slp",
+      "type": "tech_chase"
+    },
+    {
+      "frame": 4250,
+      "note": "dx=-24.8 p1_facing=1 p1_action=18",
+      "slp": "/home/blewf/git/exphil/probes/newera8/mamba_full/r13/debounce/p3/Game_20260720T192621.slp",
+      "type": "opponent_behind"
+    },
+    {
+      "frame": 1053,
+      "note": "entry=tech_in_place p2_x=13.9 dist=12.4",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r14/debounce/p2/Game_20260718T074603.slp",
+      "type": "tech_chase"
+    },
+    {
+      "frame": 3070,
+      "note": "dx=-7.0 p1_facing=1 p1_action=18",
+      "slp": "/home/blewf/git/exphil/probes/newera8/mamba_full/r13/plain/p2/Game_20260720T191731.slp",
+      "type": "opponent_behind"
+    },
+    {
+      "frame": 1475,
+      "note": "entry=missed_bound_u p2_x=-34.0 dist=20.3",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r14/debounce/p1/Game_20260718T074551.slp",
+      "type": "tech_chase"
+    },
+    {
+      "frame": 4038,
+      "note": "dx=0.9 p1_facing=-1 p1_action=72",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r14/plain/p3/Game_20260718T073738.slp",
+      "type": "opponent_behind"
+    },
+    {
+      "frame": 1969,
+      "note": "entry=missed_bound_u p2_x=22.1 dist=9.2",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r14/debounce/p1/Game_20260718T074551.slp",
+      "type": "tech_chase"
+    },
+    {
+      "frame": 3896,
+      "note": "dx=-6.3 p1_facing=1 p1_action=20",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r15/r13/plain/p2/Game_20260721T232541.slp",
+      "type": "opponent_behind"
+    },
+    {
+      "frame": 2314,
+      "note": "entry=tech_in_place p2_x=37.5 dist=15.4",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r15/r13/debounce/p2/Game_20260721T233428.slp",
+      "type": "tech_chase"
+    },
+    {
+      "frame": 1046,
+      "note": "dx=-14.0 p1_facing=1 p1_action=18",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r15/r13/plain/p1/Game_20260721T232529.slp",
+      "type": "opponent_behind"
+    },
+    {
+      "frame": 4690,
+      "note": "entry=tech_in_place p2_x=-64.1 dist=35.5",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r13/plain/p1/Game_20260718T002318.slp",
+      "type": "tech_chase"
+    },
+    {
+      "frame": 579,
+      "note": "dx=-16.3 p1_facing=1 p1_action=18",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r15/r13/debounce/p1/Game_20260721T233416.slp",
+      "type": "opponent_behind"
+    },
+    {
+      "frame": 7974,
+      "note": "entry=missed_bound_u p2_x=-7.7 dist=32.9",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r14/plain/p2/Game_20260718T073726.slp",
+      "type": "tech_chase"
+    },
+    {
+      "frame": 1313,
+      "note": "dx=-5.7 p1_facing=1 p1_action=18",
+      "slp": "/home/blewf/git/exphil/probes/newera8/mamba_full/r13/plain/p3/Game_20260720T191743.slp",
+      "type": "opponent_behind"
+    },
+    {
+      "frame": 1200,
+      "note": "entry=missed_bound_d p2_x=-68.0 dist=66.3",
+      "slp": "/home/blewf/git/exphil/probes/newera8/mamba_full/r13/debounce/p2/Game_20260720T192608.slp",
+      "type": "tech_chase"
+    },
+    {
+      "frame": 3888,
+      "note": "dx=-14.6 p1_facing=1 p1_action=19",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r15/r13/plain/p3/Game_20260721T232553.slp",
+      "type": "opponent_behind"
+    },
+    {
+      "frame": 4796,
+      "note": "entry=missed_bound_d p2_x=-14.5 dist=27.7",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r13/debounce/p1/Game_20260718T003155.slp",
+      "type": "tech_chase"
+    },
+    {
+      "frame": 3939,
+      "note": "dx=25.3 p1_facing=-1 p1_action=18",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r13/debounce/p3/Game_20260718T003220.slp",
+      "type": "opponent_behind"
+    },
+    {
+      "frame": 6339,
+      "note": "entry=missed_bound_d p2_x=-31.5 dist=24.0",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r13/plain/p1/Game_20260718T002318.slp",
+      "type": "tech_chase"
+    },
+    {
+      "frame": 3815,
+      "note": "dx=23.1 p1_facing=-1 p1_action=43",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r13/plain/p2/Game_20260718T002330.slp",
+      "type": "opponent_behind"
+    },
+    {
+      "frame": 3221,
+      "note": "entry=missed_bound_u p2_x=-16.8 dist=24.5",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r14/plain/p2/Game_20260718T073726.slp",
+      "type": "tech_chase"
+    },
+    {
+      "frame": 3097,
+      "note": "dx=-19.0 p1_facing=1 p1_action=18",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r13/plain/p2/Game_20260718T002330.slp",
+      "type": "opponent_behind"
+    },
+    {
+      "frame": 3926,
+      "note": "entry=tech_in_place p2_x=24.2 dist=30.0",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r14/debounce/p1/Game_20260718T074551.slp",
+      "type": "tech_chase"
+    },
+    {
+      "frame": 2806,
+      "note": "dx=-6.7 p1_facing=1 p1_action=18",
+      "slp": "/home/blewf/git/exphil/probes/newera8/mamba_full/r13/debounce/p3/Game_20260720T192621.slp",
+      "type": "opponent_behind"
+    },
+    {
+      "frame": 4090,
+      "note": "entry=tech_in_place p2_x=20.8 dist=19.3",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r13/plain/p3/Game_20260718T002343.slp",
+      "type": "tech_chase"
+    },
+    {
+      "frame": 2259,
+      "note": "dx=27.5 p1_facing=-1 p1_action=234",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r14/debounce/p3/Game_20260718T074615.slp",
+      "type": "opponent_behind"
+    },
+    {
+      "frame": 2698,
+      "note": "dx=20.0 p1_facing=-1 p1_action=60",
+      "slp": "/home/blewf/git/exphil/probes/newera8/mamba_full/r13/plain/p1/Game_20260720T191719.slp",
+      "type": "opponent_behind"
+    },
+    {
+      "frame": 3452,
+      "note": "dx=-10.3 p1_facing=1 p1_action=18",
+      "slp": "/home/blewf/git/exphil/probes/newera8/mamba_full/r13/debounce/p2/Game_20260720T192608.slp",
+      "type": "opponent_behind"
+    },
+    {
+      "frame": 4619,
+      "note": "dx=-15.9 p1_facing=1 p1_action=71",
+      "slp": "/home/blewf/git/exphil/probes/newera8/mamba_full/r13/debounce/p3/Game_20260720T192621.slp",
+      "type": "opponent_behind"
+    },
+    {
+      "frame": 3716,
+      "note": "dx=3.7 p1_facing=-1 p1_action=18",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r14/debounce/p2/Game_20260718T074603.slp",
+      "type": "opponent_behind"
+    },
+    {
+      "frame": 3487,
+      "note": "dx=-11.1 p1_facing=1 p1_action=18",
+      "slp": "/home/blewf/git/exphil/probes/newera8/mamba_full/r13/plain/p1/Game_20260720T191719.slp",
+      "type": "opponent_behind"
+    },
+    {
+      "frame": 3663,
+      "note": "dx=1.5 p1_facing=-1 p1_action=233",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r13/plain/p3/Game_20260718T002343.slp",
+      "type": "opponent_behind"
+    },
+    {
+      "frame": 3141,
+      "note": "dx=-15.3 p1_facing=1 p1_action=20",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r13/debounce/p2/Game_20260718T003208.slp",
+      "type": "opponent_behind"
+    },
+    {
+      "frame": 306,
+      "note": "dx=6.0 p1_facing=-1 p1_action=18",
+      "slp": "/home/blewf/git/exphil/probes/newera8/mamba_full/r13/plain/p2/Game_20260720T191731.slp",
+      "type": "opponent_behind"
+    },
+    {
+      "frame": 2823,
+      "note": "dx=-5.9 p1_facing=1 p1_action=18",
+      "slp": "/home/blewf/git/exphil/probes/newera8/mamba_full/r13/plain/p2/Game_20260720T191731.slp",
+      "type": "opponent_behind"
+    },
+    {
+      "frame": 2192,
+      "note": "dx=-12.8 p1_facing=1 p1_action=18",
+      "slp": "/home/blewf/git/exphil/probes/newera8/mamba_full/r13/debounce/p2/Game_20260720T192608.slp",
+      "type": "opponent_behind"
+    },
+    {
+      "frame": 2151,
+      "note": "dx=-22.4 p1_facing=1 p1_action=42",
+      "slp": "/home/blewf/git/exphil/probes/newera8/mamba_full/r13/plain/p2/Game_20260720T191731.slp",
+      "type": "opponent_behind"
+    },
+    {
+      "frame": 4429,
+      "note": "dx=-9.6 p1_facing=1 p1_action=71",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r14/debounce/p3/Game_20260718T074615.slp",
+      "type": "opponent_behind"
+    },
+    {
+      "frame": 3499,
+      "note": "dx=-1.3 p1_facing=1 p1_action=71",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r13/debounce/p3/Game_20260718T003220.slp",
+      "type": "opponent_behind"
+    },
+    {
+      "frame": 4037,
+      "note": "dx=6.3 p1_facing=-1 p1_action=233",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r14/debounce/p1/Game_20260718T074551.slp",
+      "type": "opponent_behind"
+    },
+    {
+      "frame": 1563,
+      "note": "dx=-10.0 p1_facing=1 p1_action=20",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r15/r13/plain/p2/Game_20260721T232541.slp",
+      "type": "opponent_behind"
+    },
+    {
+      "frame": 2557,
+      "note": "dx=12.2 p1_facing=-1 p1_action=18",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r14/plain/p2/Game_20260718T073726.slp",
+      "type": "opponent_behind"
+    },
+    {
+      "frame": 4544,
+      "note": "dx=-28.6 p1_facing=1 p1_action=42",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r13/debounce/p2/Game_20260718T003208.slp",
+      "type": "opponent_behind"
+    },
+    {
+      "frame": 666,
+      "note": "dx=-6.2 p1_facing=1 p1_action=42",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r15/r13/plain/p3/Game_20260721T232553.slp",
+      "type": "opponent_behind"
+    },
+    {
+      "frame": 367,
+      "note": "dx=-0.5 p1_facing=1 p1_action=20",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r13/debounce/p2/Game_20260718T003208.slp",
+      "type": "opponent_behind"
+    },
+    {
+      "frame": 439,
+      "note": "dx=6.9 p1_facing=-1 p1_action=18",
+      "slp": "/home/blewf/git/exphil/probes/newera8/mamba_full/r13/plain/p1/Game_20260720T191719.slp",
+      "type": "opponent_behind"
+    },
+    {
+      "frame": 4580,
+      "note": "dx=0.4 p1_facing=-1 p1_action=72",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r14/plain/p1/Game_20260718T073713.slp",
+      "type": "opponent_behind"
+    },
+    {
+      "frame": 1722,
+      "note": "dx=-29.6 p1_facing=1 p1_action=43",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r15/r13/plain/p3/Game_20260721T232553.slp",
+      "type": "opponent_behind"
+    },
+    {
+      "frame": 2749,
+      "note": "dx=9.9 p1_facing=-1 p1_action=42",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r13/debounce/p2/Game_20260718T003208.slp",
+      "type": "opponent_behind"
+    },
+    {
+      "frame": 4357,
+      "note": "dx=4.2 p1_facing=-1 p1_action=71",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r14/debounce/p2/Game_20260718T074603.slp",
+      "type": "opponent_behind"
+    },
+    {
+      "frame": 6585,
+      "note": "dx=-16.2 p1_facing=1 p1_action=18",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r14/plain/p2/Game_20260718T073726.slp",
+      "type": "opponent_behind"
+    },
+    {
+      "frame": 2085,
+      "note": "dx=-29.2 p1_facing=1 p1_action=43",
+      "slp": "/home/blewf/git/exphil/probes/newera8/mamba_full/r13/debounce/p1/Game_20260720T192556.slp",
+      "type": "opponent_behind"
+    },
+    {
+      "frame": 953,
+      "note": "dx=14.8 p1_facing=-1 p1_action=43",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r13/debounce/p2/Game_20260718T003208.slp",
+      "type": "opponent_behind"
+    },
+    {
+      "frame": 964,
+      "note": "dx=-16.3 p1_facing=1 p1_action=18",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r14/plain/p1/Game_20260718T073713.slp",
+      "type": "opponent_behind"
+    },
+    {
+      "frame": 1535,
+      "note": "dx=-0.0 p1_facing=1 p1_action=71",
+      "slp": "/home/blewf/git/exphil/probes/newera8/mamba_full/r13/debounce/p3/Game_20260720T192621.slp",
+      "type": "opponent_behind"
+    },
+    {
+      "frame": 3042,
+      "note": "dx=-23.0 p1_facing=1 p1_action=18",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r15/r13/plain/p1/Game_20260721T232529.slp",
+      "type": "opponent_behind"
+    },
+    {
+      "frame": 3741,
+      "note": "dx=3.5 p1_facing=-1 p1_action=70",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r14/plain/p3/Game_20260718T073738.slp",
+      "type": "opponent_behind"
+    },
+    {
+      "frame": 930,
+      "note": "dx=-18.5 p1_facing=1 p1_action=18",
+      "slp": "/home/blewf/git/exphil/probes/newera8/mamba_full/r13/debounce/p2/Game_20260720T192608.slp",
+      "type": "opponent_behind"
+    },
+    {
+      "frame": 3593,
+      "note": "dx=-3.5 p1_facing=1 p1_action=71",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r15/r13/debounce/p3/Game_20260721T233440.slp",
+      "type": "opponent_behind"
+    },
+    {
+      "frame": 2433,
+      "note": "dx=-6.0 p1_facing=1 p1_action=60",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r15/r13/debounce/p1/Game_20260721T233416.slp",
+      "type": "opponent_behind"
+    },
+    {
+      "frame": 2960,
+      "note": "dx=-12.6 p1_facing=1 p1_action=43",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r15/r13/plain/p2/Game_20260721T232541.slp",
+      "type": "opponent_behind"
+    },
+    {
+      "frame": 3416,
+      "note": "dx=-11.1 p1_facing=1 p1_action=42",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r14/plain/p3/Game_20260718T073738.slp",
+      "type": "opponent_behind"
+    },
+    {
+      "frame": 2002,
+      "note": "dx=-10.2 p1_facing=1 p1_action=42",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r14/plain/p2/Game_20260718T073726.slp",
+      "type": "opponent_behind"
+    },
+    {
+      "frame": 2604,
+      "note": "dx=17.5 p1_facing=-1 p1_action=18",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r13/plain/p3/Game_20260718T002343.slp",
+      "type": "opponent_behind"
+    },
+    {
+      "frame": 5591,
+      "note": "dx=-4.3 p1_facing=1 p1_action=42",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r13/debounce/p1/Game_20260718T003155.slp",
+      "type": "opponent_behind"
+    },
+    {
+      "frame": 693,
+      "note": "dx=-15.0 p1_facing=1 p1_action=20",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r15/r13/debounce/p3/Game_20260721T233440.slp",
+      "type": "opponent_behind"
+    },
+    {
+      "frame": 592,
+      "note": "dx=-13.5 p1_facing=1 p1_action=18",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r14/plain/p3/Game_20260718T073738.slp",
+      "type": "opponent_behind"
+    },
+    {
+      "frame": 2553,
+      "note": "dx=26.2 p1_facing=-1 p1_action=18",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r15/r13/plain/p3/Game_20260721T232553.slp",
+      "type": "opponent_behind"
+    },
+    {
+      "frame": 347,
+      "note": "dx=16.8 p1_facing=-1 p1_action=42",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r15/r13/plain/p3/Game_20260721T232553.slp",
+      "type": "opponent_behind"
+    },
+    {
+      "frame": 361,
+      "note": "dx=-16.5 p1_facing=1 p1_action=42",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r15/r13/debounce/p2/Game_20260721T233428.slp",
+      "type": "opponent_behind"
+    },
+    {
+      "frame": 5379,
+      "note": "dx=1.7 p1_facing=-1 p1_action=72",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r14/debounce/p1/Game_20260718T074551.slp",
+      "type": "opponent_behind"
+    },
+    {
+      "frame": 5441,
+      "note": "dx=-5.8 p1_facing=1 p1_action=71",
+      "slp": "/home/blewf/git/exphil/probes/newera8/r14/plain/p1/Game_20260718T073713.slp",
+      "type": "opponent_behind"
+    }
+  ]
+}
