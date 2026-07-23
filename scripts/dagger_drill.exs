@@ -44,6 +44,9 @@ alias ExPhil.Embeddings
       opener_weight: :float,
       opener_lookback: :integer,
       learn_player_styles: :boolean,
+      stream_chunk_size: :integer,
+      stream_shard_dir: :string,
+      open_shards: :integer,
       probe_reg: :float,
       probe_reg_every: :integer,
       probe_eval_every: :integer,
@@ -115,6 +118,13 @@ out_path = opts[:out] || default_out
 prev_action = Keyword.get(opts, :prev_action, true)
 prev_action_dropout = opts[:prev_action_dropout] || 0.1
 action_delay = Keyword.get(opts, :action_delay, 2)
+
+# --stream-chunk-size N (#33/data-scaling): stream training data as per-file
+# embedding shards (ExPhil.Data.TrainingShards) instead of materializing the
+# whole frame list + embedding tensor. Peak RAM becomes O(largest file), flat
+# in pool size — the all-in-RAM path caps ~5.6M frames; the five-char corpus
+# needs ~10x. nil (default) = the all-in-RAM path, byte-identical to before.
+streaming = opts[:stream_chunk_size]
 port = opts[:port] || 1
 # Constant LR blows up late as the aggregate grows; keep it modest (see
 # dagger_multishine.exs — same convergence setup)
@@ -262,20 +272,33 @@ bc_paths =
 # 2026-07-22 on corpus/archive/mewtwo). Skip anything under @bc_min_frames.
 bc_min_frames = 600
 
+# Streaming defers BC loading into the shard build's process_fn (one file
+# at a time), so nothing accumulates here.
 bc_frame_lists =
-  bc_paths
-  |> Enum.map(fn p -> load_frames.(p, true) end)
-  |> Enum.filter(fn frames -> length(frames) >= bc_min_frames end)
+  if streaming do
+    []
+  else
+    bc_paths
+    |> Enum.map(fn p -> load_frames.(p, true) end)
+    |> Enum.filter(fn frames -> length(frames) >= bc_min_frames end)
+  end
 
 bc_frames = List.flatten(bc_frame_lists)
 
-if bc_paths != [] do
-  skipped = length(bc_paths) - length(bc_frame_lists)
+cond do
+  bc_paths != [] and streaming ->
+    Output.puts("BC replays: #{length(bc_paths)} human game(s) — streamed at shard build")
 
-  Output.puts(
-    "BC replays: #{length(bc_frames)} frames across #{length(bc_frame_lists)} human games" <>
-      if(skipped > 0, do: " (#{skipped} skipped: empty/short)", else: "")
-  )
+  bc_paths != [] ->
+    skipped = length(bc_paths) - length(bc_frame_lists)
+
+    Output.puts(
+      "BC replays: #{length(bc_frames)} frames across #{length(bc_frame_lists)} human games" <>
+        if(skipped > 0, do: " (#{skipped} skipped: empty/short)", else: "")
+    )
+
+  true ->
+    :ok
 end
 
 # --learn-player-styles (r17): condition the policy on WHO it's imitating so
@@ -286,7 +309,7 @@ end
 # human tag) fall through to name_id 0. At inference, --style-tag NAME
 # picks a style. Registry persisted next to the checkpoint at export.
 player_registry =
-  if opts[:learn_player_styles] and bc_paths != [] do
+  if opts[:learn_player_styles] && bc_paths != [] do
     {:ok, reg} = ExPhil.Training.PlayerRegistry.from_replays(bc_paths)
     n = map_size(reg.tag_to_id)
 
@@ -357,55 +380,129 @@ seed_meta_by_dir =
     {dir, meta}
   end)
 
-rollout_frame_lists =
-  Enum.map(rollout_paths, fn path ->
-    raw = load_frames.(path, false)
-    recorded = Map.new(raw, fn f -> {f.game_state.frame, f.controller} end)
+# One rollout -> expert-relabeled frames. Factored out so the streaming
+# shard build can call it per file (one at a time) instead of accumulating
+# every rollout's frames up front.
+process_rollout = fn path ->
+  raw = load_frames.(path, false)
+  recorded = Map.new(raw, fn f -> {f.game_state.frame, f.controller} end)
 
-    raw =
-      case seed_meta_by_dir[Path.dirname(path)][Path.basename(path)] do
-        %{"handoff" => handoff, "window" => window} ->
-          sliced =
-            Enum.filter(raw, fn f ->
-              f.game_state.frame >= handoff and f.game_state.frame <= handoff + window
-            end)
+  raw =
+    case seed_meta_by_dir[Path.dirname(path)][Path.basename(path)] do
+      %{"handoff" => handoff, "window" => window} ->
+        sliced =
+          Enum.filter(raw, fn f ->
+            f.game_state.frame >= handoff and f.game_state.frame <= handoff + window
+          end)
 
-          Output.puts(
-            "  #{Path.basename(path)}: seed sliced to [#{handoff}, #{handoff + window}] " <>
-              "(#{length(sliced)}/#{length(raw)} frames)"
-          )
+        Output.puts(
+          "  #{Path.basename(path)}: seed sliced to [#{handoff}, #{handoff + window}] " <>
+            "(#{length(sliced)}/#{length(raw)} frames)"
+        )
 
-          sliced
+        sliced
 
-        _ ->
-          raw
-      end
+      _ ->
+        raw
+    end
 
-    relabeled = relabel.(raw, recorded)
+  relabeled = relabel.(raw, recorded)
 
-    disagreements =
-      Enum.count(relabeled, fn f ->
-        button_sig.(f.controller) != button_sig.(recorded[f.game_state.frame])
-      end)
+  disagreements =
+    Enum.count(relabeled, fn f ->
+      button_sig.(f.controller) != button_sig.(recorded[f.game_state.frame])
+    end)
 
-    pct = Float.round(100.0 * disagreements / max(length(relabeled), 1), 1)
-    Output.puts("  #{Path.basename(path)}: #{length(relabeled)} frames, #{pct}% corrected")
+  pct = Float.round(100.0 * disagreements / max(length(relabeled), 1), 1)
+  Output.puts("  #{Path.basename(path)}: #{length(relabeled)} frames, #{pct}% corrected")
 
-    relabeled
-  end)
+  relabeled
+end
+
+rollout_frame_lists = if streaming, do: [], else: Enum.map(rollout_paths, process_rollout)
+
+# Streaming shard build (#33): every source is processed ONE AT A TIME —
+# load -> relabel/slice -> shift -> weights + probe labels -> embed -> f16
+# shard -> discard. Nothing accumulates, so peak RAM is O(largest file).
+# Weights and probe labels are baked per shard here, which is why the
+# eager sampling_weights / probe_frame_labels blocks below are skipped.
+{shard_manifest, shard_dir} =
+  if streaming do
+    dir = opts[:stream_shard_dir] || "#{out_path}.shards"
+    econf = ExPhil.Embeddings.Game.Config.default()
+
+    specs =
+      Enum.map(fixture_frame_lists, &{:fixture, &1}) ++
+        Enum.map(bc_paths, &{:bc, &1}) ++
+        Enum.map(rollout_paths, &{:rollout, &1})
+
+    process_fn = fn
+      {:fixture, list} ->
+        Data.shift_actions(list, action_delay)
+
+      {:bc, p} ->
+        fr = load_frames.(p, true)
+        if length(fr) >= bc_min_frames, do: Data.shift_actions(fr, action_delay), else: []
+
+      {:rollout, p} ->
+        p |> process_rollout.() |> Data.shift_actions(action_delay)
+    end
+
+    spec_key = fn
+      {:fixture, list} -> "fixture:#{:erlang.phash2(list)}"
+      {kind, p} -> "#{kind}:#{p}"
+    end
+
+    Output.puts("Streaming shard build -> #{dir} (#{length(specs)} sources)")
+
+    {:ok, st} =
+      ExPhil.Data.TrainingShards.build(specs, dir,
+        embed_config: econf,
+        window: window,
+        use_prev_action: prev_action,
+        prev_action_dropout: prev_action_dropout,
+        conversion_weight: opts[:conversion_weight],
+        opener_weight: opts[:opener_weight],
+        opener_lookback: opts[:opener_lookback],
+        probe_reg?: (opts[:probe_reg] || 0.0) > 0,
+        process_fn: process_fn,
+        spec_key: spec_key,
+        progress: fn done, total, _ ->
+          if rem(done, 5) == 0, do: IO.write(:stderr, "\r  shard #{done}/#{total}\e[K")
+        end
+      )
+
+    IO.write(:stderr, "\r\e[K")
+
+    Output.success(
+      "Shards: #{st.files} built, #{st.skipped} reused, #{st.total_frames} frames -> #{dir}"
+    )
+
+    {ExPhil.Data.TrainingShards.load_manifest(dir), dir}
+  else
+    {nil, nil}
+  end
 
 all_frame_lists = fixture_frame_lists ++ bc_frame_lists ++ rollout_frame_lists
 all_frames = List.flatten(all_frame_lists)
 
 bc_pct = Float.round(100.0 * length(bc_frames) / max(length(all_frames), 1), 1)
 
-Output.puts(
-  "Aggregate: #{length(all_frames)} frames " <>
-    "(#{length(fixture_frames)} fixture, #{length(bc_frames)} BC = #{bc_pct}%)"
-)
+if streaming do
+  Output.puts(
+    "Aggregate (streamed): #{shard_manifest["total_frames"]} frames across " <>
+      "#{length(shard_manifest["shards"])} shard(s), " <>
+      "#{shard_manifest["total_sequences"]} sequences"
+  )
+else
+  Output.puts(
+    "Aggregate: #{length(all_frames)} frames " <>
+      "(#{length(fixture_frames)} fixture, #{length(bc_frames)} BC = #{bc_pct}%)"
+  )
 
-if bc_pct > 60.0 do
-  Output.warning("BC frames are #{bc_pct}% of the pool — human demos may drown the drill; --bc-sample to reduce")
+  if bc_pct > 60.0 do
+    Output.warning("BC frames are #{bc_pct}% of the pool — human demos may drown the drill; --bc-sample to reduce")
+  end
 end
 
 # --memory-check warn|strict|off (default warn): predict this pool's peak
@@ -413,8 +510,15 @@ end
 # a pool that won't fit should be refused here, in seconds, not die at
 # hour 3. Every run appends its own (pool_frames, VmHWM) point on exit,
 # so the model sharpens with each run.
-pool_frames = length(all_frames)
-memory_check = opts[:memory_check] || "warn"
+pool_frames = if streaming, do: shard_manifest["total_frames"], else: length(all_frames)
+
+# Streaming peak is O(largest file + open shards), NOT O(pool) — the
+# ledger's linear all-in-RAM model doesn't apply, so skip the gate.
+memory_check = if streaming, do: "off", else: opts[:memory_check] || "warn"
+
+if streaming do
+  Output.puts("memory-check: skipped (streaming — peak is O(file + open shards), flat in pool size)")
+end
 
 if memory_check != "off" do
   case MemoryLedger.headroom_check(pool_frames, window: window) do
@@ -451,8 +555,9 @@ end
 
 # Shift per source replay — never across concat boundaries. Kept as
 # per-replay lists so conversion spans (below) can't cross them either.
+# (streaming shifted per-file inside the shard build; nothing to do here)
 shifted_frame_lists =
-  Enum.map(all_frame_lists, &Data.shift_actions(&1, action_delay))
+  if streaming, do: [], else: Enum.map(all_frame_lists, &Data.shift_actions(&1, action_delay))
 
 shifted_frames = List.flatten(shifted_frame_lists)
 
@@ -462,21 +567,26 @@ shifted_frames = List.flatten(shifted_frame_lists)
 # 2026-07-19 human demo showed the policy never learned. Computed on the
 # SHIFTED lists so frame indices align with dataset.frames exactly.
 conversion_weights =
-  if cw = opts[:conversion_weight] do
-    {weights, cstats} = ConversionSampling.frame_weights(shifted_frame_lists, cw)
+  if streaming do
+    # baked per shard at build time (see the shard build above)
+    nil
+  else
+    if cw = opts[:conversion_weight] do
+      {weights, cstats} = ConversionSampling.frame_weights(shifted_frame_lists, cw)
 
-    pct = Float.round(100.0 * cstats.upweighted / max(cstats.frames, 1), 1)
+      pct = Float.round(100.0 * cstats.upweighted / max(cstats.frames, 1), 1)
 
-    Output.puts(
-      "Conversion weighting: #{cstats.conversions}/#{cstats.approaches} approaches " <>
-        "converted; #{cstats.upweighted}/#{cstats.frames} frames (#{pct}%) upweighted x#{cw}"
-    )
+      Output.puts(
+        "Conversion weighting: #{cstats.conversions}/#{cstats.approaches} approaches " <>
+          "converted; #{cstats.upweighted}/#{cstats.frames} frames (#{pct}%) upweighted x#{cw}"
+      )
 
-    if cstats.conversions == 0 do
-      Output.warning("--conversion-weight set but no conversions found — sampling is uniform")
+      if cstats.conversions == 0 do
+        Output.warning("--conversion-weight set but no conversions found — sampling is uniform")
+      end
+
+      weights
     end
-
-    weights
   end
 
 # --opener-weight W (r17, the gate-10 lever): windows leading INTO a
@@ -486,25 +596,30 @@ conversion_weights =
 # going-in. This targets exactly that. Composed with conversion weights by
 # elementwise MAX (largest applicable boost; no multiplicative blowup).
 opener_weights =
-  if ow = opts[:opener_weight] do
-    {weights, ostats} =
-      ExPhil.Training.OpenerSampling.frame_weights(shifted_frame_lists, ow,
-        lookback: opts[:opener_lookback] || 30
+  if streaming do
+    # baked per shard at build time (see the shard build above)
+    nil
+  else
+    if ow = opts[:opener_weight] do
+      {weights, ostats} =
+        ExPhil.Training.OpenerSampling.frame_weights(shifted_frame_lists, ow,
+          lookback: opts[:opener_lookback] || 30
+        )
+
+      pct = Float.round(100.0 * ostats.upweighted / max(ostats.frames, 1), 1)
+
+      Output.puts(
+        "Opener weighting: #{ostats.openers} openers; " <>
+          "#{ostats.upweighted}/#{ostats.frames} frames (#{pct}%) upweighted x#{ow} " <>
+          "(dist #{inspect(ostats.distribution)})"
       )
 
-    pct = Float.round(100.0 * ostats.upweighted / max(ostats.frames, 1), 1)
+      if ostats.openers == 0 do
+        Output.warning("--opener-weight set but no openers found — sampling is uniform")
+      end
 
-    Output.puts(
-      "Opener weighting: #{ostats.openers} openers; " <>
-        "#{ostats.upweighted}/#{ostats.frames} frames (#{pct}%) upweighted x#{ow} " <>
-        "(dist #{inspect(ostats.distribution)})"
-    )
-
-    if ostats.openers == 0 do
-      Output.warning("--opener-weight set but no openers found — sampling is uniform")
+      weights
     end
-
-    weights
   end
 
 sampling_weights =
@@ -517,14 +632,21 @@ sampling_weights =
   end
 
 dataset =
-  shifted_frames
-  |> Data.from_frames(player_registry: player_registry)
-  |> Data.precompute_frame_embeddings(
-    use_prev_action: prev_action,
-    prev_action_dropout: prev_action_dropout
-  )
+  if streaming do
+    nil
+  else
+    shifted_frames
+    |> Data.from_frames(player_registry: player_registry)
+    |> Data.precompute_frame_embeddings(
+      use_prev_action: prev_action,
+      prev_action_dropout: prev_action_dropout
+    )
+  end
 
-embed_size = Embeddings.embedding_size(dataset.embed_config)
+embed_size =
+  if streaming,
+    do: shard_manifest["embed_size"],
+    else: Embeddings.embedding_size(dataset.embed_config)
 
 post_embed_mem = MemoryLedger.process_memory()
 
@@ -541,12 +663,38 @@ Output.puts(
 probe_reg = opts[:probe_reg] || 0.0
 probe_reg_every = opts[:probe_reg_every] || 5
 
-probe_frame_labels =
-  if probe_reg > 0 do
-    labels = ProbeRegularizer.frame_labels(shifted_frames)
-    shield_frac = Float.round(100.0 * Enum.sum(labels) / max(length(labels), 1), 1)
-    Output.puts("Probe regularizer: #{shield_frac}% of pool frames are shield-family")
-    labels
+{probe_dataset, probe_frame_labels} =
+  cond do
+    # Streaming: labels ride in the shards. probe_dataset/2 hands back a
+    # bounded temp dataset + aligned labels so refit/probe-eval run
+    # UNCHANGED on a subset (the all-in-RAM refit subsamples anyway).
+    streaming && probe_reg > 0 ->
+      {ds, labels} =
+        ExPhil.Data.TrainingShards.probe_dataset(shard_manifest,
+          shard_dir: shard_dir,
+          window_size: window
+        )
+
+      shield_frac = Float.round(100.0 * Enum.sum(labels) / max(length(labels), 1), 1)
+
+      Output.puts(
+        "Probe regularizer (streamed subset): #{ds.size} frames, " <>
+          "#{shield_frac}% shield-family"
+      )
+
+      {ds, labels}
+
+    streaming ->
+      {nil, nil}
+
+    probe_reg > 0 ->
+      labels = ProbeRegularizer.frame_labels(shifted_frames)
+      shield_frac = Float.round(100.0 * Enum.sum(labels) / max(length(labels), 1), 1)
+      Output.puts("Probe regularizer: #{shield_frac}% of pool frames are shield-family")
+      {dataset, labels}
+
+    true ->
+      {dataset, nil}
   end
 
 # Cosine-decay the LR: constant LR diverged to NaN late in run after run
@@ -554,11 +702,45 @@ probe_frame_labels =
 # chances for one step to blow up. Decay over ~200 epochs' worth of steps
 # (400 left LR too high too long: a 90k-frame pool still NaN'd at epoch 168);
 # healthy runs hit the loss bar or plateau well before the floor.
-steps_per_epoch = div(dataset.size, 64) + 1
+steps_per_epoch =
+  if streaming,
+    do: div(shard_manifest["total_sequences"], 64) + 1,
+    else: div(dataset.size, 64) + 1
+
+# One batch source for both the preflight and the training loop. Streaming
+# yields batches from the shards (shuffled shard order per epoch, groups of
+# :open_shards concatenated); the all-in-RAM path is unchanged. Weights are
+# already baked into the shards, so sampling_weights is nil when streaming.
+batches_for = fn epoch ->
+  if streaming do
+    ExPhil.Data.TrainingShards.stream_batches(shard_manifest,
+      shard_dir: shard_dir,
+      batch_size: 64,
+      window_size: window,
+      stride: 1,
+      seed: 42 + epoch,
+      open_shards: opts[:open_shards] || 8,
+      transition_weight: opts[:transition_weight]
+    )
+  else
+    Data.batched_sequences(dataset,
+      batch_size: 64,
+      window_size: window,
+      stride: 1,
+      lazy: true,
+      shuffle: true,
+      drop_last: false,
+      seed: 42 + epoch,
+      transition_weight: opts[:transition_weight],
+      sampling_weights: sampling_weights
+    )
+  end
+end
 
 trainer =
   Imitation.new(
-    embed_config: dataset.embed_config,
+    embed_config:
+      if(streaming, do: ExPhil.Embeddings.Game.Config.default(), else: dataset.embed_config),
     use_prev_action: prev_action,
     embed_size: embed_size,
     temporal: true,
@@ -680,18 +862,7 @@ if opts[:preflight] do
   preflight_t0 = System.monotonic_time(:millisecond)
 
   first_batch =
-    dataset
-    |> Data.batched_sequences(
-      batch_size: 64,
-      window_size: window,
-      stride: 1,
-      lazy: true,
-      shuffle: true,
-      drop_last: false,
-      seed: 42,
-      transition_weight: opts[:transition_weight],
-      sampling_weights: sampling_weights
-    )
+    batches_for.(0)
     |> Enum.take(1)
     |> case do
       [b] ->
@@ -716,7 +887,7 @@ if opts[:preflight] do
   tr_pf =
     if probe_reg > 0 do
       {tr2, rstats} =
-        ProbeRegularizer.refit(tr_pf, dataset, probe_frame_labels, window_size: window)
+        ProbeRegularizer.refit(tr_pf, probe_dataset, probe_frame_labels, window_size: window)
 
       Output.puts("preflight: probe-reg refit OK #{inspect(rstats)}")
       tr2
@@ -726,7 +897,7 @@ if opts[:preflight] do
 
   if probe_eval_every > 0 do
     bas =
-      ExPhil.Interp.TrainingProbes.eval(tr_pf, probe_eval_trunk_fn, dataset, probe_eval_labels,
+      ExPhil.Interp.TrainingProbes.eval(tr_pf, probe_eval_trunk_fn, probe_dataset, probe_eval_labels,
         window_size: window
       )
 
@@ -914,18 +1085,7 @@ end
                                                                      {tr, _, _, history, best,
                                                                       restores} ->
     {tr, epoch_loss} =
-      dataset
-      |> Data.batched_sequences(
-        batch_size: 64,
-        window_size: window,
-        stride: 1,
-        lazy: true,
-        shuffle: true,
-        drop_last: false,
-        seed: 42 + epoch,
-        transition_weight: opts[:transition_weight],
-        sampling_weights: sampling_weights
-      )
+      batches_for.(epoch)
       |> then(fn batches ->
         if nan_forensics do
           batches
@@ -1018,7 +1178,7 @@ end
     # activations would ride along.
     tr =
       if probe_reg > 0 and is_number(loss) and rem(epoch, probe_reg_every) == 0 do
-        {tr2, rstats} = ProbeRegularizer.refit(tr, dataset, probe_frame_labels, window_size: window)
+        {tr2, rstats} = ProbeRegularizer.refit(tr, probe_dataset, probe_frame_labels, window_size: window)
         Output.puts("probe-reg refit @ epoch #{epoch}: #{inspect(rstats)}")
         tr2
       else
@@ -1054,7 +1214,7 @@ end
 
     # Feature-formation curves (--probe-eval-every)
     if probe_eval_every > 0 and is_number(loss) and rem(epoch, probe_eval_every) == 0 do
-      bas = ExPhil.Interp.TrainingProbes.eval(tr, probe_eval_trunk_fn, dataset, probe_eval_labels, window_size: window)
+      bas = ExPhil.Interp.TrainingProbes.eval(tr, probe_eval_trunk_fn, probe_dataset, probe_eval_labels, window_size: window)
       Output.puts("probe-eval @ epoch #{epoch}: #{ExPhil.Interp.TrainingProbes.format(bas)}")
 
       File.write!(

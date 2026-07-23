@@ -23,12 +23,32 @@
 > matches all-in-RAM except at group boundaries). `probe_subset/2` gives
 > refit a bounded streaming source.
 >
-> **Still open: the dagger_drill `--stream-chunk-size` wiring** — feed the
-> drill's per-file load/relabel/seed-slice as the `process_fn`, swap the
-> `precompute`+`batched_sequences` block for `build`+`stream_batches`, and
-> land it WITH a multi-epoch training smoke (streaming vs all-in-RAM loss
-> curve within f16 tol on a small pool). Probe-reg-in-streaming uses
-> `probe_subset/2`.
+> **UPDATE 2026-07-23 (pm): `--stream-chunk-size` is WIRED into
+> dagger_drill and smoke-tested end-to-end.** nil (default) = the
+> all-in-RAM path, untouched. When set: every source is loaded/relabeled/
+> shifted/embedded ONE AT A TIME into shards, weights+probe labels baked
+> per shard, training streams from them (`--open-shards` groups),
+> probe-reg/probe-eval run on a bounded shard subset
+> (`TrainingShards.probe_dataset/2`), steps_per_epoch + pool_frames from
+> the manifest, memory-check skipped (the linear model doesn't apply).
+>
+> **Smoke (204k-frame pool, 3 epochs, same seed):** streaming converged and
+> exported; peak RSS 3.0 GB vs all-in-RAM 3.2 GB; shard REUSE verified (a
+> second run rebuilt 0 of 11 shards — embed once, train many).
+>
+> **Honest caveat — loss is NOT bit-parity across the multi-file pool, by
+> design.** Batch-level parity IS exact under matched conditions (see the
+> earlier entry). Epoch-level, the shuffle granularity differs and it
+> MOVES THE LOSS: `open_shards: 8` → 0.465, all-shards-one-group → 0.944,
+> all-in-RAM global shuffle → 1.490. Smaller groups make batches
+> near-homogeneous (easier to fit, lower loss, weaker gradients). Set
+> `--open-shards` as high as RAM allows. Removing the trade properly needs
+> a cross-GROUP sequence-slot shuffle buffer — the natural next
+> improvement, NOT implemented.
+>
+> Also fixed en route: `opts[:learn_player_styles] and ...` raised
+> BadBooleanError when the flag was absent — i.e. the DEFAULT drill path
+> was broken by the style-conditioning commit. Caught by this smoke.
 
 Written 2026-07-22 (r16 training). Answers the standing question: how do
 we scale up training data without runs that OOM? The memory ledger now

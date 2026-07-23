@@ -283,7 +283,25 @@ defmodule ExPhil.Data.TrainingShards do
     - `:batch_size` (default 64), `:window_size`, `:stride` (default 1)
     - `:seed` (default from time) — reshuffle shards per epoch as `42+epoch`
     - `:open_shards` (default 8) — shards concatenated per group; ↑ = better
-      cross-replay mixing, more RAM (peak ≈ open_shards × shard bytes)
+      cross-replay mixing, more RAM (peak ≈ open_shards × shard bytes).
+
+      **This knob changes training dynamics — measured 2026-07-23** on a
+      204k-frame pool (11 shards), 3 epochs, same seed/pool:
+
+      | config | loss |
+      |--------|------|
+      | `open_shards: 8` (grouped) | 0.465 |
+      | all 11 shards in one group | 0.944 |
+      | all-in-RAM (global shuffle) | 1.490 |
+
+      Batches are drawn from within a group, so a small `open_shards`
+      makes them near-homogeneous (one or two replays) — easier to fit,
+      lower training loss, less representative gradients. More mixing
+      moves monotonically toward the all-in-RAM global-shuffle baseline.
+      Set `open_shards` as high as RAM allows; it is the shuffle-quality
+      dial, not a free parameter. A proper cross-GROUP shuffle buffer
+      (sequence-slot reservoir) would remove the trade entirely and is
+      the natural next improvement — not implemented here.
     - `:transition_weight`, `:neutral_weight`, `:shuffle` (default true)
   """
   def stream_batches(manifest, opts) do
@@ -365,18 +383,20 @@ defmodule ExPhil.Data.TrainingShards do
   end
 
   @doc """
-  Probe-reg subset: strided sequence batches + aligned shield labels from a
-  bounded set of shards (default first 4). Returns `{batches, labels}` where
-  `labels` is a flat 0/1 list aligned to the concatenated frames — feed both
-  to a streaming `ProbeRegularizer.refit`. Keeps refit O(subset), matching
-  the all-in-RAM refit's 4096-row subsample.
+  Probe-reg / probe-eval subset as a REAL in-memory dataset plus aligned
+  shield labels, built from a bounded set of shards (default first 8).
+
+  Returning a `Data` dataset means `ProbeRegularizer.refit/4` and
+  `ExPhil.Interp.TrainingProbes.eval/5` work UNCHANGED in streaming mode —
+  they just see a smaller pool. Keeps refit O(subset), which matches what
+  the all-in-RAM refit already does (it subsamples ~4096 rows anyway).
+
+  Returns `{dataset, labels}`.
   """
-  def probe_subset(manifest, opts) do
+  def probe_dataset(manifest, opts) do
     shard_dir = Keyword.fetch!(opts, :shard_dir)
     window = Keyword.get(opts, :window_size) || manifest["window"] || 60
-    n_shards = Keyword.get(opts, :n_shards, 4)
-    every = Keyword.get(opts, :every, 1)
-    target = Keyword.get(opts, :target_rows, 4096)
+    n_shards = Keyword.get(opts, :n_shards, 8)
 
     group = Enum.take(manifest["shards"], n_shards)
     dataset = load_group(shard_dir, group, manifest["embed_size"], window)
@@ -390,15 +410,7 @@ defmodule ExPhil.Data.TrainingShards do
         end
       end)
 
-    {batches, _indices} =
-      Data.strided_sequence_batches(dataset,
-        batch_size: 256,
-        window_size: window,
-        every: every,
-        limit: target
-      )
-
-    {batches, labels, dataset.size}
+    {dataset, labels}
   end
 
   # ==========================================================================
