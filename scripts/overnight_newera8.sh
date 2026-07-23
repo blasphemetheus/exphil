@@ -18,6 +18,11 @@
 #   - report card is x/10 from r15 on (gate 10 armed approaches; x/9
 #     r13-r14 with gate 9 shield breaks; x/8 thru r12)
 #   NEWERA8_CONVERSION_WEIGHT=  --conversion-weight (r15 pool sampling)
+#   NEWERA8_OPENER_WEIGHT=      --opener-weight (r17 gate-10 lever)
+#   NEWERA8_OPENER_LOOKBACK=    --opener-lookback (default 30)
+#   NEWERA8_LEARN_STYLES=1      --learn-player-styles (style conditioning)
+#   NEWERA8_STREAM_CHUNK=       --stream-chunk-size (streaming shards, #33)
+#   NEWERA8_OPEN_SHARDS=        --open-shards (shuffle quality; keep high)
 #   NEWERA8_PROBE_REG= / NEWERA8_PROBE_REG_EVERY=  --probe-reg[-every] (r15)
 #
 # Env knobs:
@@ -475,6 +480,11 @@ for R in $(seq "$FIRST_ROUND" $((FIRST_ROUND + ROUNDS - 1))); do
       --transition-weight 2.0
       ${BACKBONE:+--backbone "$BACKBONE"}
       ${NEWERA8_CONVERSION_WEIGHT:+--conversion-weight "$NEWERA8_CONVERSION_WEIGHT"}
+      ${NEWERA8_OPENER_WEIGHT:+--opener-weight "$NEWERA8_OPENER_WEIGHT"}
+      ${NEWERA8_OPENER_LOOKBACK:+--opener-lookback "$NEWERA8_OPENER_LOOKBACK"}
+      ${NEWERA8_LEARN_STYLES:+--learn-player-styles}
+      ${NEWERA8_STREAM_CHUNK:+--stream-chunk-size "$NEWERA8_STREAM_CHUNK"}
+      ${NEWERA8_OPEN_SHARDS:+--open-shards "$NEWERA8_OPEN_SHARDS"}
       ${NEWERA8_PROBE_REG:+--probe-reg "$NEWERA8_PROBE_REG"}
       ${NEWERA8_PROBE_REG_EVERY:+--probe-reg-every "$NEWERA8_PROBE_REG_EVERY"}
       ${NEWERA8_PROBE_EVAL:+--probe-eval-every "$NEWERA8_PROBE_EVAL"}
