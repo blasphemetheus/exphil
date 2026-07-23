@@ -71,8 +71,30 @@ NOT yet `mix test`-run:**
   — with one caveat observed: `finalize_timeout` from one entry's position
   (the float/DJ save case the #38 note predicted); works from others. The
   unfinalized-run drop path held (0 bad seeds).
-- **P5 (embedding-ANN retrieval) remains gated on #33 streaming embed.**
 - Full sweep after all of it: 100/100 tests.
+
+**Priority 5 (2026-07-23 morning) — DONE, tested + live-validated. The
+flywheel build-order table is COMPLETE.**
+- The #33 gate dissolved on inspection: P5 needs a memory-flat embedding
+  pass, not the dagger training wiring. `ExPhil.Data.SituationIndex`
+  (+7 tests) IS that pass — per-file streaming build (parse → embed →
+  f16 shard → discard; idempotent extend; `--char` port autodetect) with
+  brute-force GPU cosine top-k + temporal spacing on query (spacing added
+  after the first live query showed one held situation flooding the
+  top-k with consecutive frames).
+- **Memory flatness PROVEN** (the DATA_SCALING step-2 criterion, embed
+  pass): self-reported peak VmHWM 1.48 / 1.55 / 1.77 GB at 65k / 415k /
+  1.77M frames — flat at 27x scale, ~11x under the 19.9 GB all-in-RAM
+  point. greg corpus extrapolates to ~2 GB RAM.
+- Live: mewtwo archive index (127 files / 1.77M frames / 142s build);
+  r16 passivity gap g_54affc1c queried → 40 diverse human instances at
+  0.999 cosine across 6+ games → marked mined.
+- `scripts/situation_index.exs` build/query (query by `--like SLP:FRAME`
+  or `--gap ID`; `--manifest-out` for drill manifests).
+- **Still open on the data-scaling side (tracked there, not here):** the
+  dagger_drill shard-streaming wiring — compact targets in shards,
+  relabel first-pass, shuffle buffer — to be landed WITH a full training
+  smoke.
 
 ### ✅ VERIFICATION DONE (2026-07-23 02:47-02:48, after r16 finished)
 

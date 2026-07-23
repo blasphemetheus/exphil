@@ -1,5 +1,21 @@
 # Data scaling analysis — how far the pool grows, and the streaming gap
 
+> **UPDATE 2026-07-23: the streaming EMBED pass is LANDED and flatness-
+> PROVEN** via `ExPhil.Data.SituationIndex` (per-file f16 shards, built
+> for flywheel P5 but designed as this doc's shard infrastructure).
+> Measured peak RSS (self-reported VmHWM, archive/mewtwo corpus):
+> 65k frames → 1.48 GB, 415k → 1.55 GB, 1.77M → 1.77 GB — **flat at 27x
+> scale, vs 19.9 GB for the all-in-RAM path at the same 2M-frame scale
+> (~11x lighter)**. The greg corpus (~50-70M frames) extrapolates to
+> ~2 GB RAM / ~30-40 GB of disk shards.
+>
+> **Still open — the training-side wiring (step 1 below):** dagger_drill
+> consuming shards per chunk. Needs: compact per-frame targets in the
+> shard (controllers ~100 B/frame — 50M frames fit in ~5 GB), a
+> first-pass for relabel/conversion-weights/probe rows, and a shuffle
+> buffer over chunks. Do it with a full training-smoke validation, not as
+> a drive-by — it touches the production drill path.
+
 Written 2026-07-22 (r16 training). Answers the standing question: how do
 we scale up training data without runs that OOM? The memory ledger now
 has real anchor points, so the RAM ceiling is a closed-form number, and
