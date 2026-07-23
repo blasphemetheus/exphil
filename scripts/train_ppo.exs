@@ -35,11 +35,14 @@ alias ExPhil.Bridge.{MeleePort, GameState, Player, ControllerState}
 alias ExPhil.{Embeddings, Rewards}
 alias ExPhil.Agents.Agent
 
-# Parse command line arguments using CLI module
-@flag_groups [:verbosity, :training, :checkpoint, :replay, :dolphin, :ppo, :common]
+# Parse command line arguments using CLI module.
+# Plain binding, NOT a module attribute — .exs scripts run outside any
+# module, so `@flag_groups` raised "cannot invoke @/1 outside module" on
+# every invocation (which is why this script was "repaired but UNRUN").
+flag_groups = [:verbosity, :training, :checkpoint, :replay, :dolphin, :ppo, :common]
 
 opts = CLI.parse_args(System.argv(),
-  flags: @flag_groups,
+  flags: flag_groups,
   defaults: [
     checkpoint: "checkpoints/ppo_latest.axon",
     character: "mewtwo",
@@ -51,7 +54,7 @@ opts = CLI.parse_args(System.argv(),
 CLI.setup_verbosity(opts)
 
 # Handle help
-CLI.maybe_show_help(opts, "train_ppo.exs", @flag_groups, fn ->
+CLI.maybe_show_help(opts, "train_ppo.exs", flag_groups, fn ->
   IO.puts("""
 
   EXAMPLES:
@@ -122,8 +125,10 @@ defmodule PPOScript do
         # Get current game state from environment
         {:ok, game_state} = get_state(env_acc)
 
-        # Embed state
-        embedded = Embeddings.Game.embed(game_state, embed_config)
+        # Embed state. Signature is embed(game_state, prev_action, own_port,
+        # opts) — passing embed_config as arg 2 fed it into the prev-action
+        # slot and blew up in embed_continuous/1.
+        embedded = Embeddings.Game.embed(game_state, nil, 1, config: embed_config)
 
         # Get action and value from agent
         {:ok, action, action_log_prob, value} =
@@ -305,17 +310,13 @@ defmodule PPOScript do
     {:ok, new_env, reward, if(done, do: 1.0, else: 0.0)}
   end
 
+  # Delegate to the canonical converter the live agent uses. The previous
+  # hand-rolled version was written against a stale ControllerState shape
+  # (a `buttons:` map + flat main_x/c_x floats); the real struct carries
+  # `main_stick: %{x,y}` / `c_stick: %{x,y}` and flat button_* fields, so
+  # it raised KeyError on every call. Never run => never caught.
   defp action_to_controller(action) do
-    %ControllerState{
-      buttons: action.buttons,
-      # Convert from bucket to 0-1
-      main_x: action.main_x / 16.0,
-      main_y: action.main_y / 16.0,
-      c_x: action.c_x / 16.0,
-      c_y: action.c_y / 16.0,
-      l_shoulder: if(action.shoulder > 0, do: action.shoulder / 4.0, else: 0.0),
-      r_shoulder: 0.0
-    }
+    ExPhil.Networks.to_controller_state(action, axis_buckets: 16)
   end
 
   defp episode_done?(game_state) do
@@ -366,9 +367,6 @@ defmodule PPOScript do
     }
   end
 end
-
-# Import helper
-import PPOScript
 
 # ============================================================================
 # Main Script
@@ -438,7 +436,7 @@ Output.puts("  Embed size: #{trainer.config.embed_size}")
 Output.step(2, 3, "Initializing environment")
 
 env_type = if config.mock, do: :mock, else: :dolphin
-{:ok, env} = init_env(env_type, config)
+{:ok, env} = PPOScript.init_env(env_type, config)
 Output.puts("  Environment ready")
 
 Output.step(3, 3, "Training for #{config.timesteps} timesteps")
@@ -451,7 +449,7 @@ start_time = System.monotonic_time(:millisecond)
 {final_trainer, final_env} =
   Enum.reduce(1..num_updates, {trainer, env}, fn update, {acc_trainer, acc_env} ->
     # Collect rollout
-    rollout = collect_rollout(acc_env, nil, acc_trainer, config.rollout_length)
+    rollout = PPOScript.collect_rollout(acc_env, nil, acc_trainer, config.rollout_length)
 
     # PPO update
     {new_trainer, metrics} = PPO.update(acc_trainer, rollout)

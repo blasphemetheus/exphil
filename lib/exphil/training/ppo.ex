@@ -186,18 +186,25 @@ defmodule ExPhil.Training.PPO do
     }
   end
 
+  # Use the canonical policy loader. A raw binary_to_term here only ever
+  # worked for the LEGACY term format; every policy exported since
+  # 2026-07-16 is the Edifice manifest format (flag byte + meta size), so
+  # this raised "invalid or unsafe external representation" on any modern
+  # checkpoint. Checkpoint.load_policy/2 handles both.
   defp load_pretrained(initial_params, path) do
-    case File.read(path) do
-      {:ok, binary} ->
-        checkpoint = :erlang.binary_to_term(binary, [:safe])
-        # Merge pretrained policy params with initial params
-        # This handles cases where the architecture is slightly different
-        # Use bracket notation to avoid KeyError when key doesn't exist
-        pretrained = checkpoint[:policy_params] || checkpoint[:params]
-        merge_params(initial_params, pretrained)
+    case ExPhil.Training.Checkpoint.load_policy(path) do
+      {:ok, export} ->
+        pretrained = Map.get(export, :params) || Map.get(export, :policy_params)
+
+        if pretrained do
+          merge_params(initial_params, pretrained)
+        else
+          Logger.warning("Pretrained checkpoint #{path} has no params — using random init")
+          initial_params
+        end
 
       {:error, reason} ->
-        Logger.warning("Could not load pretrained weights from #{path}: #{reason}")
+        Logger.warning("Could not load pretrained weights from #{path}: #{inspect(reason)}")
         initial_params
     end
   end
