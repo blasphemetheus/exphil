@@ -567,7 +567,7 @@ if opts[:preflight] do
   Output.banner("PREFLIGHT (dress rehearsal — no training)")
   preflight_t0 = System.monotonic_time(:millisecond)
 
-  [first_batch] =
+  first_batch =
     dataset
     |> Data.batched_sequences(
       batch_size: 64,
@@ -581,6 +581,21 @@ if opts[:preflight] do
       sampling_weights: sampling_weights
     )
     |> Enum.take(1)
+    |> case do
+      [b] ->
+        b
+
+      [] ->
+        # Degenerate pool (fewer frames than the window => no sequences):
+        # fail loud here rather than MatchError, and non-zero so a
+        # launcher gate treats it as a failed preflight.
+        Output.error(
+          "preflight: pool of #{pool_frames} frames yields no window-#{window} " <>
+            "sequences — pool too small for this backbone's window"
+        )
+
+        System.halt(1)
+    end
 
   Output.puts("preflight: JIT compiling one train step (may take minutes)...")
   {tr_pf, pf_metrics} = Imitation.train_step(trainer, first_batch, loss_fn)

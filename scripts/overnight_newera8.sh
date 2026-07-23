@@ -36,6 +36,9 @@
 #                          round BEFORE training (embed + 1 JIT step +
 #                          probe-eval + snapshot at full pool); abort on
 #                          failure — no more epoch-10 overnight deaths
+#   NEWERA8_WATCHDOG=0     disable the liveness watchdog (default on):
+#                          train_watchdog.sh on this launcher's pid+LOG,
+#                          desktop-notifies on hang / hard-kill
 #   NEWERA8_SMOKE=1        guards + one 2-arm fan-out vs r12, then exit
 #   PROBE_MODE=headless|windowed   windowed = newera7's sequential probe
 #                          (calibration; needs launcher CLOSED, #62)
@@ -425,6 +428,23 @@ if [ -n "${NEWERA8_SMOKE:-}" ]; then
   mix run --no-compile scripts/report_card.exs "${FANOUT_REPLAYS[@]}" 2>/dev/null | tee -a "$LOG" | grep 'SCORE:'
   echo "[newera8] SMOKE done (rc=$rc)" | tee -a "$LOG"
   exit 0
+fi
+
+# --------------------------------------------------- liveness watchdog
+# NEWERA8_WATCHDOG=0 to disable. Runs train_watchdog.sh against this
+# launcher's own pid + LOG, so a HANG (pid alive, no log/GPU progress) or
+# a hard SIGKILL/OOM (which skips the EXIT trap) gets a desktop
+# notification while Bradley's away — the r16 gap (2026-07-22): a silent
+# death went 7h unnoticed. A clean/normal exit runs the trap and kills
+# the watchdog quietly (the launcher's own describe_rc covers ordinary
+# crashes); only trap-skipping deaths and hangs reach the watchdog.
+WATCHDOG_PID=""
+if [ "${NEWERA8_WATCHDOG:-1}" != 0 ] && [ -x scripts/train_watchdog.sh ]; then
+  scripts/train_watchdog.sh --pid "$$" --log "$LOG" --interval 120 \
+    >>"logs/watchdog${TAG:+_$TAG}_$(date +%Y%m%d).log" 2>&1 &
+  WATCHDOG_PID=$!
+  echo "[newera8] liveness watchdog started (pid $WATCHDOG_PID, watching $$)" | tee -a "$LOG"
+  trap '[ -n "$WATCHDOG_PID" ] && kill "$WATCHDOG_PID" 2>/dev/null' EXIT
 fi
 
 # ------------------------------------------------------------ round loop
