@@ -302,10 +302,58 @@ button_sig = fn c ->
   {c.button_a, c.button_b, c.button_x, c.button_y, c.button_z, c.button_l, c.button_r}
 end
 
+# Scenario-seed slicing (#38 / drills design 2026-07-23): a seed dir
+# built by build_seed_dir.exs carries seed_meta.json mapping each .slp
+# basename -> %{handoff, window}. Seeds are sliced to the response
+# [handoff, handoff+window] BEFORE relabeling — the prefix is identical
+# across all attempts from one handoff and the --finalize SD tail is
+# junk; training on either would skew the pool. The `recorded` map is
+# built from the UNSLICED frames so prev-action lookups at the slice
+# boundary still resolve.
+seed_meta_by_dir =
+  rollout_paths
+  |> Enum.map(&Path.dirname/1)
+  |> Enum.uniq()
+  |> Map.new(fn dir ->
+    meta =
+      case File.read(Path.join(dir, "seed_meta.json")) do
+        {:ok, bin} ->
+          case Jason.decode(bin) do
+            {:ok, decoded} -> decoded
+            _ -> %{}
+          end
+
+        _ ->
+          %{}
+      end
+
+    {dir, meta}
+  end)
+
 rollout_frame_lists =
   Enum.map(rollout_paths, fn path ->
     raw = load_frames.(path, false)
     recorded = Map.new(raw, fn f -> {f.game_state.frame, f.controller} end)
+
+    raw =
+      case seed_meta_by_dir[Path.dirname(path)][Path.basename(path)] do
+        %{"handoff" => handoff, "window" => window} ->
+          sliced =
+            Enum.filter(raw, fn f ->
+              f.game_state.frame >= handoff and f.game_state.frame <= handoff + window
+            end)
+
+          Output.puts(
+            "  #{Path.basename(path)}: seed sliced to [#{handoff}, #{handoff + window}] " <>
+              "(#{length(sliced)}/#{length(raw)} frames)"
+          )
+
+          sliced
+
+        _ ->
+          raw
+      end
+
     relabeled = relabel.(raw, recorded)
 
     disagreements =
