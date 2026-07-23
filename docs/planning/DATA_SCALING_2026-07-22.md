@@ -9,12 +9,26 @@
 > (~11x lighter)**. The greg corpus (~50-70M frames) extrapolates to
 > ~2 GB RAM / ~30-40 GB of disk shards.
 >
-> **Still open — the training-side wiring (step 1 below):** dagger_drill
-> consuming shards per chunk. Needs: compact per-frame targets in the
-> shard (controllers ~100 B/frame — 50M frames fit in ~5 GB), a
-> first-pass for relabel/conversion-weights/probe rows, and a shuffle
-> buffer over chunks. Do it with a full training-smoke validation, not as
-> a drive-by — it touches the production drill path.
+> **UPDATE 2026-07-23 (pm): the training-shard layer is BUILT + validated.**
+> `ExPhil.Data.TrainingShards` streams per-file shards carrying f16
+> embeddings (prev-action baked) + 6-byte packed targets + per-frame
+> sampling weights (conversion ⊔ opener) + probe labels. Validated:
+> (1) action pack/unpack exact; (2) per-frame embeddings match all-in-RAM
+> within f16 tol (4e-4); (3) **batch parity** — with matched seed+weights,
+> streamed batch == all-in-RAM batch (embeddings f16-tol, actions/weights
+> exact); (4) **flatness** 1.46/1.59/1.67 GB at 82k/253k/1.08M frames
+> (with targets+weights+probe labels), vs 19.9 GB all-in-RAM @2M.
+> `stream_batches/2` concatenates `:open_shards` shards into a temp dataset
+> and reuses the existing `batched_sequences` lazy path (so window-sliding
+> matches all-in-RAM except at group boundaries). `probe_subset/2` gives
+> refit a bounded streaming source.
+>
+> **Still open: the dagger_drill `--stream-chunk-size` wiring** — feed the
+> drill's per-file load/relabel/seed-slice as the `process_fn`, swap the
+> `precompute`+`batched_sequences` block for `build`+`stream_batches`, and
+> land it WITH a multi-epoch training smoke (streaming vs all-in-RAM loss
+> curve within f16 tol on a small pool). Probe-reg-in-streaming uses
+> `probe_subset/2`.
 
 Written 2026-07-22 (r16 training). Answers the standing question: how do
 we scale up training data without runs that OOM? The memory ledger now
