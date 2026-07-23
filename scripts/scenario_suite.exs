@@ -63,8 +63,22 @@ defmodule ScenarioSuite do
     buttons: %{a: false, b: false, x: false, y: false, z: false, l: false, r: false, d_up: false}
   }
 
+  # --finalize suicide input: hold the main stick full-left (x=0.0) with
+  # no jump/up-B, so the character walks off the FD edge and drifts into
+  # the blast zone within a couple seconds — forcing GAME!. Slippi writes
+  # the .slp's raw-data length ONLY at game-end (#73), so without this a
+  # scenario stopped at handoff+window leaves an unparseable file. NOTE:
+  # UNVERIFIED on a live run (written while r16 held the GPU, 2026-07-22)
+  # — confirm Mewtwo actually SDs from center on FD with this input; if a
+  # float/DJ saves it, add a down-hold or a walk-off from a known x.
+  @suicide %{@neutral | main_stick: %{x: 0.0, y: 0.5}}
+
   # ~3 min of menu frames before declaring the boot stuck
   @menu_step_limit 12_000
+
+  # --finalize: cap the self-destruct drive so a game that somehow won't
+  # end can't hang the suite (unthrottled, so 1200 frames = seconds).
+  @finalize_step_limit 1_200
 
   # ==========================================================================
   # Replay preparation (once per source .slp)
@@ -250,6 +264,11 @@ defmodule ScenarioSuite do
       handoff_snapshot: nil,
       obs: [],
       truncated: nil,
+      # --finalize (#38/#73): after the response window, drive the game to
+      # a natural end so Slippi finalizes the .slp and it can be reused as
+      # a training rollout. Off by default (eval only needs the window).
+      finalize: opts[:finalize] || false,
+      finalize_steps: 0,
       # Prefix drift diagnostics: sampled trace + first frame past thresholds
       trace_all: opts[:trace_all] || false,
       drift_trace: [],
@@ -270,6 +289,9 @@ defmodule ScenarioSuite do
               loop(bridge, %{st | menu_steps: st.menu_steps + 1})
             end
 
+          :finalize ->
+            finish(%{st | truncated: :finalized})
+
           :respond ->
             finish(%{st | truncated: :game_ended})
 
@@ -279,6 +301,7 @@ defmodule ScenarioSuite do
 
       {:postgame, _gs} ->
         case st.phase do
+          :finalize -> finish(%{st | truncated: :finalized})
           :respond -> finish(%{st | truncated: :game_ended})
           :menu -> loop(bridge, %{st | menu_steps: st.menu_steps + 1})
           :prefix -> %{error: "game ended during prefix (catastrophic divergence?)"}
@@ -290,12 +313,17 @@ defmodule ScenarioSuite do
         case st.phase do
           :prefix -> prefix_frame(bridge, gs, st)
           :respond -> respond_frame(bridge, gs, st)
+          :finalize -> finalize_frame(bridge, gs, st)
         end
 
       {:game_ended, reason} ->
-        if st.phase == :respond,
-          do: finish(%{st | truncated: :game_ended}),
-          else: %{error: "dolphin ended: #{reason}"}
+        cond do
+          # --finalize succeeded: the SD reached GAME!, so the .slp is now
+          # finalized/parseable — the goal, not an error.
+          st.phase == :finalize -> finish(%{st | truncated: :finalized})
+          st.phase == :respond -> finish(%{st | truncated: :game_ended})
+          true -> %{error: "dolphin ended: #{reason}"}
+        end
 
       {:error, reason} ->
         %{error: "step error: #{inspect(reason)}"}
@@ -353,7 +381,14 @@ defmodule ScenarioSuite do
       end
 
     if f >= st.handoff + st.window do
-      finish(st)
+      # Window over. --finalize: play on to a natural game end so the
+      # .slp finalizes (#38/#73); otherwise stop here (eval is done — the
+      # score comes from st.obs collected during the window).
+      if st.finalize do
+        finalize_frame(bridge, gs, %{st | phase: :finalize})
+      else
+        finish(st)
+      end
     else
       # Port 1: the policy takes over.
       case Agent.get_controller(st.agent, gs, player_port: 1) do
@@ -376,6 +411,26 @@ defmodule ScenarioSuite do
       MeleePort.send_controller(bridge, Map.put(p2, :port, 2))
 
       loop(bridge, st)
+    end
+  end
+
+  # --finalize phase: after the scored window, drive P1 off-stage (P2
+  # neutral) to force GAME! so Slippi closes the .slp. The frames added
+  # here are junk (a walk-off SD), but they sit AFTER the useful prefix +
+  # response and the point is only to make the file parseable as a
+  # training rollout; the expert-relabel + downstream min-frame/empty
+  # filters tolerate the short SD tail. Capped by @finalize_step_limit.
+  defp finalize_frame(bridge, gs, st) do
+    _ = gs
+
+    if st.finalize_steps >= @finalize_step_limit do
+      # Never reached GAME! (recovered? off-stage-immune?) — stop anyway;
+      # the .slp stays unfinalized, flagged so a caller can drop it.
+      finish(%{st | truncated: :finalize_timeout})
+    else
+      MeleePort.send_controller(bridge, @suicide)
+      MeleePort.send_controller(bridge, Map.put(@neutral, :port, 2))
+      loop(bridge, %{st | finalize_steps: st.finalize_steps + 1})
     end
   end
 
@@ -529,6 +584,7 @@ end
       press_threshold: :float,
       release_threshold: :float,
       pipe_shim: :boolean,
+      finalize: :boolean,
       quiet: :boolean,
       verbose: :boolean
     ]
@@ -552,6 +608,7 @@ suite_opts = [
   input_offset: opts[:input_offset] || 1,
   drift_tolerance: opts[:drift_tolerance] || 3.0,
   window: opts[:window],
+  finalize: opts[:finalize] || false,
   run_base: opts[:run_dir] || "logs/scenario_runs/#{ts}"
 ]
 

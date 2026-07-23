@@ -2762,3 +2762,105 @@ AppImage if a stale shim is found.
 The nix-ld wrapper (`dolphin-emu-mainline`) remains CORRECT for
 libmelee/headless/exphil use from a normal shell — the two contexts need
 opposite treatments (sandbox -> bundled libs; bare NixOS -> nix-ld).
+
+## 71. Probe empty-split builds a {0}-shaped Nx tensor and crashes the whole run
+
+Killed r16 at epoch 10 (2026-07-22). `--probe-eval-every K` splits the
+pool positionally 75/25 (`TrainingProbes.eval`); a probe feature whose
+labeled rows (`-1` = masked) all land on ONE side of that split leaves
+the other side with zero rows. The old `Probe.mask_rows` "empty"
+fallback tried to represent that with `Nx.broadcast(0.0, {0, d})` —
+**Nx rejects any dimension of 0**, so the guard meant to handle
+emptiness was itself the crash (`ArgumentError: got 0 in shape {0}`).
+It surfaced on r16 and not r15 because r16's BC-archive frames (appended
+at 10.1% of pool) pushed some feature's rows entirely out of the eval
+slice.
+
+Fix (probe.ex): `mask_rows`/`mask_to_indices` return `:empty`/`nil`
+sentinels — NEVER an empty tensor; `fit_eval` yields a nil-accuracy
+result (`mean_balanced_accuracy` is already nil-safe, and `format`
+renders it `-`); `split_by_replay` raises a clear message on a fully
+one-sided split. Lesson beyond this bug: an "empty" branch that
+constructs a zero-sized tensor to represent emptiness is a landmine —
+carry emptiness as a sentinel and short-circuit, don't tensor it.
+
+## 72. Training-run liveness is pid + heartbeat, NOT a log error-grep
+
+r16 died at 03:05 and went undetected until 10:00 (2026-07-22) because
+the Monitor grepped the drill log for error STRINGS (FATAL/diverged/NaN)
+— and the real death line, `** (ArgumentError)`, matched none of them.
+An error-grep misses BOTH silent kills (SIGKILL/OOM write no log line at
+all) AND crashes whose message you didn't predict. It is the wrong
+instrument.
+
+Correct liveness = **pid alive AND (log advancing OR GPU still
+computing)**. The GPU clause is not optional: the drill is legitimately
+SILENT for stretches — with ~10-min mamba_2 epochs and per-N-epoch
+logging the log can go untouched for tens of minutes during perfectly
+healthy training, so "log mtime advancing within N min" alone
+false-alarms. `scripts/train_watchdog.sh` implements this (pid death =>
+exit; log-stale + GPU-idle for K consecutive checks => hang warning).
+Corollaries:
+- **Log the trainer's exit status.** r16's launcher printed only
+  "produced no checkpoint" and hid exit 1; the OOM misdiagnosis followed
+  directly. `overnight_newera8.sh`'s `describe_rc` now decodes it: 137 =
+  SIGKILL/OOM-killer, 139 = SIGSEGV/NIF-relink, else = crash with a
+  trace in the log. A real OOM DOES log to `journalctl -k` on this box
+  (proof: gjs killed at 54 GB RSS, Jul 21 13:52) — so post-mortem, grep
+  the kernel log before theorizing a "spike that didn't log".
+- **Read the log TAIL before theorizing a cause.** The r16 stack trace
+  sat at the end of the drill log for 7h while an OOM theory was built
+  on "the log just stops."
+- The drill now logs per-epoch (was every 5th) so log-mtime is a usable
+  heartbeat again — but the GPU clause remains the robust fallback.
+
+## 73. scenario_suite .slp never finalize — they stop games mid-play
+
+Blocks #38 (2026-07-22). `scenario_suite.exs` prefix-replays a punish/
+approach situation, records the bot's response, then STOPS the game
+after the response window — before Dolphin reaches GAME!. Slippi writes
+the raw-data length only at game-end, so a game that never ends produces
+a .slp with an unwritten length field: EVERY such seed fails Peppi parse
+("failed to fill whole buffer"), even on a clean, uncorrupted recording.
+The seeds are unusable as training rollouts. Fix (r17): play each
+scenario to a NATURAL game end, or add an explicit finalize step that
+lets Slippi close the file. Manifest generation
+(`gen_scenario_manifest.exs`) and loop wiring (`NEWERA8_SEED_ROLLOUTS_DIR`)
+are ready; only finalization remains.
+
+## 74. Mainline Slippi needs a MAINLINE-format home — Ishiiruka layout crashes online start
+
+Feeding mainline Dolphin an Ishiiruka-format user home (with an
+`ishiiruka` marker) crashes at online-session start with a CoreTiming
+`ScheduleEvent` nullptr. Mainline expects the netplay-beta home layout
+(no `ishiiruka` marker). Use a mainline-shaped home for any
+mainline-build online/netplay path; the two build families are not
+home-compatible. (Discovered on the netplay #9 work; kept for whenever
+netplay comes off the shelf.)
+
+## 75. pgrep -f "<pat>" self-matches when the pattern is in your own argv
+
+Cost 2 launches (2026-07-22): a `pgrep -f "dagger_drill"` guard run from
+a shell whose own command line contains "dagger_drill" matches ITSELF,
+so the guard both kills the wrong thing and false-positives "drill
+already running". Sibling of #63 (pkill -f self-match kills the calling
+shell). Verify process identity with `ps -eo pid,comm` (match the
+program, not the argv substring), and NEVER combine a pgrep-kill with
+launching the very thing the pattern names.
+
+## 76. Axon.build seeds param init from system_time() — pass :seed for reproducible fits
+
+`Axon.build` initializes parameters from `System.system_time()` unless
+given an explicit `:seed`, so nominally-identical fits diverge run to
+run. Bit the edifice `SAETrainer` (non-reproducible warm-starts). Pass
+`:seed` to any `Axon.build`/fit you need to reproduce.
+
+## 77. Microbench fusion ≠ full-graph fusion — only the real-graph profiler ranks a cost
+
+Two isolated block microbenches misattributed the r15 slowdown
+(2026-07-21): an op that looks cheap (or expensive) in a standalone
+bench fuses differently inside the full training graph, where
+surrounding ops change what XLA fuses. Only the real-graph train-step
+profiler correctly ranked the cost (r15's 2x epoch = the probe-reg 2nd
+trunk fwd+bwd, not CSE'd — invisible to a microbench). Profile the whole
+graph, not the block, before attributing a regression.
