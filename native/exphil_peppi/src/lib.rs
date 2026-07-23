@@ -88,6 +88,12 @@ pub struct PlayerMeta {
     pub character: i32,
     pub character_name: String,
     pub tag: Option<String>,
+    // Netplay identity (Slippi online): display name (e.g. "Plup") and
+    // connect code (e.g. "PLUP#123"). Populated for online replays; None
+    // for local/console games. Style-conditional training keys on the
+    // netplay name because in-game name_tag is blank in netplay.
+    pub netplay_name: Option<String>,
+    pub netplay_code: Option<String>,
 }
 
 /// Replay metadata
@@ -190,6 +196,22 @@ fn character_name(char_id: u8) -> String {
 }
 
 /// Convert stage ID to our standard ID
+// Netplay display name / connect code from a player, dropping empty
+// strings (local/console replays carry an all-zero MeleeString -> "").
+fn netplay_name(player: &peppi::game::Player) -> Option<String> {
+    player.netplay.as_ref().and_then(|n| {
+        let s = n.name.0.clone();
+        if s.is_empty() { None } else { Some(s) }
+    })
+}
+
+fn netplay_code(player: &peppi::game::Player) -> Option<String> {
+    player.netplay.as_ref().and_then(|n| {
+        let s = n.code.0.clone();
+        if s.is_empty() { None } else { Some(s) }
+    })
+}
+
 fn stage_id(stage: u16) -> i32 {
     // Standard Melee stage IDs
     match stage {
@@ -340,6 +362,8 @@ fn parse_game<G: Game>(game: &G, path: &str) -> ParsedReplay {
             character: character_id(player.character),
             character_name: character_name(player.character),
             tag: player.name_tag.as_ref().map(|s| s.0.clone()),
+            netplay_name: netplay_name(player),
+            netplay_code: netplay_code(player),
         });
     }
 
@@ -418,6 +442,8 @@ fn get_replay_metadata(path: String) -> NifResult<(Atom, ReplayMeta)> {
             character: character_id(player.character),
             character_name: character_name(player.character),
             tag: player.name_tag.as_ref().map(|s| s.0.clone()),
+            netplay_name: netplay_name(player),
+            netplay_code: netplay_code(player),
         });
     }
 

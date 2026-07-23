@@ -2372,6 +2372,67 @@ defmodule ExPhil.Training.Data do
     end)
   end
 
+  @doc """
+  Systematic every-Nth-sequence lazy batches over frame embeddings.
+
+  Built for probe-reg refit sampling (2026-07-23): sampling every Nth
+  BATCH keeps a handful of CONTIGUOUS index clumps, and at r16 pool scale
+  (every=495 -> 16 clumps of 256 consecutive sequences) the clumps landed
+  in shield-free stretches — 4 shield rows sampled from a 3.9%-shield
+  pool, silently no-opping the regularizer for the whole run. Every-Nth
+  SEQUENCE gives uniform systematic coverage at identical trunk cost.
+
+  Returns `{batch_stream, indices}` — `indices` are the sampled sequence
+  indices in row order (batch j's row k is sequence
+  `indices[j * batch_size + k]`), so callers can align per-frame labels
+  exactly.
+
+  ## Options
+    - `:every` — sequence stride between samples (default 1)
+    - `:limit` — cap on sampled sequences (default nil)
+    - `:batch_size` (default 256), `:window_size`, `:stride` (default 1)
+
+  Requires `dataset.embedded_frames` (the lazy/chunked path).
+  """
+  def strided_sequence_batches(dataset, opts \\ []) do
+    batch_size = Keyword.get(opts, :batch_size, 256)
+    stride = Keyword.get(opts, :stride, 1)
+
+    window_size =
+      Keyword.get(opts, :window_size) || get_in(dataset.metadata, [:window_size]) || 30
+
+    every = max(Keyword.get(opts, :every, 1), 1)
+    limit = Keyword.get(opts, :limit)
+
+    {chunks_array, chunk_size, num_frames, embed_dim} = get_frame_embeddings_chunked(dataset)
+    num_sequences = div(num_frames - window_size, stride) + 1
+    frames_array = :array.from_list(dataset.frames)
+
+    indices = 0..(num_sequences - 1)//every |> Enum.to_list()
+    indices = if limit, do: Enum.take(indices, limit), else: indices
+
+    batches =
+      indices
+      |> Enum.chunk_every(batch_size)
+      |> Stream.map(fn batch_indices ->
+        create_sequence_batch_lazy(
+          chunks_array,
+          chunk_size,
+          frames_array,
+          batch_indices,
+          window_size,
+          stride,
+          embed_dim,
+          true,
+          false,
+          0.25,
+          nil
+        )
+      end)
+
+    {batches, indices}
+  end
+
   # Lazy batch creation - slices sequences from chunked frame embeddings on-the-fly
   defp create_sequence_batch_lazy(chunks_array, chunk_size, frames_array, indices, window_size, stride, embed_dim, gpu, use_batch, neutral_weight, transition_weight \\ nil) do
     # Slice sequences from chunked embeddings (fast: 16K-row chunks vs 1.26M-row tensor)

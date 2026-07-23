@@ -113,7 +113,11 @@ defmodule ExPhil.Data.Peppi do
 
   defmodule PlayerMeta do
     @moduledoc "Player metadata from game start"
-    defstruct [:port, :character, :character_name, :tag]
+    # netplay_name/netplay_code: Slippi online identity (display name +
+    # connect code). Populated for netplay replays, nil for local/console.
+    # Style-conditional training keys on netplay_name — in-game `tag`
+    # (cartridge name tag) is blank in netplay.
+    defstruct [:port, :character, :character_name, :tag, :netplay_name, :netplay_code]
   end
 
   defmodule ReplayMeta do
@@ -412,9 +416,12 @@ defmodule ExPhil.Data.Peppi do
   # Private Helpers
   # ============================================================================
 
-  # Extract player tag from replay metadata for style-conditional training
+  # Player identity for style-conditional training. Prefer the netplay
+  # display name (present + distinct in online replays); fall back to the
+  # in-game cartridge name tag (blank in netplay, but set on console).
   defp get_player_tag(%ReplayMeta{players: players}, player_port) when is_list(players) do
     case Enum.find(players, fn p -> p.port == player_port end) do
+      %PlayerMeta{netplay_name: name} when is_binary(name) and name != "" -> name
       %PlayerMeta{tag: tag} when is_binary(tag) and tag != "" -> tag
       _ -> nil
     end

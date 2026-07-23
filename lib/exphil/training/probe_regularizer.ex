@@ -153,18 +153,26 @@ defmodule ExPhil.Training.ProbeRegularizer do
     num_sequences = div(dataset.size - window, stride) + 1
     every = max(div(num_sequences, target_rows), 1)
 
-    {h_parts, label_parts} =
-      dataset
-      |> Data.batched_sequences(
+    # Every-Nth-SEQUENCE systematic sample (2026-07-23). The previous
+    # every-Nth-BATCH scheme kept a few CONTIGUOUS index clumps; at r16
+    # scale (every=495 -> 16 clumps) they landed in shield-free stretches
+    # and the regularizer silently no-opped all run (4 shield rows from a
+    # 3.9%-shield pool). Same trunk cost, uniform coverage.
+    {batches, indices} =
+      Data.strided_sequence_batches(dataset,
         batch_size: batch_size,
         window_size: window,
         stride: stride,
-        lazy: true,
-        shuffle: false,
-        drop_last: false
+        every: every,
+        limit: target_rows
       )
+
+    idx_tuple = :erlang.list_to_tuple(indices)
+    n_idx = tuple_size(idx_tuple)
+
+    {h_parts, label_parts} =
+      batches
       |> Stream.with_index()
-      |> Stream.filter(fn {_batch, j} -> rem(j, every) == 0 end)
       |> Enum.reduce({[], []}, fn {batch, j}, {hs, ls} ->
         h =
           trainer.trunk_predict_fn.(
@@ -177,8 +185,15 @@ defmodule ExPhil.Training.ProbeRegularizer do
 
         labels =
           for k <- 0..(rows - 1) do
-            frame_idx = (base + k) * stride + window - 1
-            if frame_idx < n_labels, do: elem(labels_tuple, frame_idx), else: 0
+            row = base + k
+
+            with true <- row < n_idx,
+                 frame_idx = elem(idx_tuple, row) * stride + window - 1,
+                 true <- frame_idx < n_labels do
+              elem(labels_tuple, frame_idx)
+            else
+              _ -> 0
+            end
           end
 
         # BinaryBackend copy: eager EXLA buffers accumulated across a whole

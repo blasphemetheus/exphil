@@ -41,6 +41,8 @@ alias ExPhil.Embeddings
       window: :integer,
       transition_weight: :float,
       conversion_weight: :float,
+      opener_weight: :float,
+      opener_lookback: :integer,
       probe_reg: :float,
       probe_reg_every: :integer,
       probe_eval_every: :integer,
@@ -434,7 +436,7 @@ shifted_frames = List.flatten(shifted_frame_lists)
 # sampled ~W times per epoch instead of once — the go-in decisions the
 # 2026-07-19 human demo showed the policy never learned. Computed on the
 # SHIFTED lists so frame indices align with dataset.frames exactly.
-sampling_weights =
+conversion_weights =
   if cw = opts[:conversion_weight] do
     {weights, cstats} = ConversionSampling.frame_weights(shifted_frame_lists, cw)
 
@@ -450,6 +452,43 @@ sampling_weights =
     end
 
     weights
+  end
+
+# --opener-weight W (r17, the gate-10 lever): windows leading INTO a
+# neutral-opener (approach + commit, [opener-lookback, opener]) are
+# oversampled ~W times. r16 proved conversion-weighting lifts the punish
+# but NOT initiation (armed-approaches/min stayed ~0) — nothing upweighted
+# going-in. This targets exactly that. Composed with conversion weights by
+# elementwise MAX (largest applicable boost; no multiplicative blowup).
+opener_weights =
+  if ow = opts[:opener_weight] do
+    {weights, ostats} =
+      ExPhil.Training.OpenerSampling.frame_weights(shifted_frame_lists, ow,
+        lookback: opts[:opener_lookback] || 30
+      )
+
+    pct = Float.round(100.0 * ostats.upweighted / max(ostats.frames, 1), 1)
+
+    Output.puts(
+      "Opener weighting: #{ostats.openers} openers; " <>
+        "#{ostats.upweighted}/#{ostats.frames} frames (#{pct}%) upweighted x#{ow} " <>
+        "(dist #{inspect(ostats.distribution)})"
+    )
+
+    if ostats.openers == 0 do
+      Output.warning("--opener-weight set but no openers found — sampling is uniform")
+    end
+
+    weights
+  end
+
+sampling_weights =
+  cond do
+    conversion_weights && opener_weights ->
+      ExPhil.Training.OpenerSampling.combine_max(conversion_weights, opener_weights)
+
+    true ->
+      conversion_weights || opener_weights
   end
 
 dataset =

@@ -1181,4 +1181,45 @@ defmodule ExPhil.Training.DataTest do
       IO.puts("\n  [Regression] Batch creation for #{num_frames} frames: #{Float.round(avg_ms_per_batch, 1)}ms/batch avg")
     end
   end
+
+  describe "strided_sequence_batches/2 (probe-reg systematic sampling)" do
+    setup do
+      frames = mock_frames(2000)
+      dataset = frames |> Data.from_frames() |> Data.precompute_frame_embeddings(show_progress: false)
+      %{dataset: dataset}
+    end
+
+    test "indices are uniform every-Nth sequence, not contiguous clumps", %{dataset: dataset} do
+      {_batches, indices} =
+        Data.strided_sequence_batches(dataset, window_size: 60, every: 50, batch_size: 256)
+
+      # 0, 50, 100, ... — the fix's core property. The OLD every-Nth-BATCH
+      # scheme returned contiguous runs (0..255, 12800..13055, ...) that at
+      # r16 scale all landed in one class; these spread across the pool.
+      assert Enum.take(indices, 4) == [0, 50, 100, 150]
+      gaps = indices |> Enum.chunk_every(2, 1, :discard) |> Enum.map(fn [a, b] -> b - a end)
+      assert Enum.all?(gaps, &(&1 == 50))
+    end
+
+    test "systematic sample tracks a sparse per-position signal", %{dataset: dataset} do
+      # Mark every 10th FRAME as class-1; a window's label is its last
+      # frame. A uniform seq-sample must recover ~10% class-1, whereas
+      # contiguous clumps could miss the signal entirely.
+      window = 60
+      {_batches, indices} = Data.strided_sequence_batches(dataset, window_size: window, every: 7)
+
+      class1 =
+        Enum.count(indices, fn i -> rem(i + window - 1, 10) == 0 end)
+
+      frac = class1 / length(indices)
+      assert_in_delta frac, 0.1, 0.05
+    end
+
+    test "limit caps the sampled sequences", %{dataset: dataset} do
+      {_batches, indices} =
+        Data.strided_sequence_batches(dataset, window_size: 60, every: 3, limit: 100)
+
+      assert length(indices) == 100
+    end
+  end
 end
