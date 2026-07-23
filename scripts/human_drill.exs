@@ -199,6 +199,7 @@ defmodule HumanDrill do
       attempt: nil,
       prev_cs: nil,
       saved_lists: [],
+      discard_lists: [],
       attempts_meta: [],
       counts: %{saved: 0, discarded: 0}
     }
@@ -418,33 +419,62 @@ defmodule HumanDrill do
 
     keep? = verdict == :save and length(frames) >= st.min_attempt
 
+    # Preference pairs (flywheel B4): save/discard verdicts on the SAME
+    # slot are labeled preferences. Discards are kept in a parallel
+    # .discards.frames file (hard negatives / future DPO-style pairs);
+    # sidecar entries carry list indices into their respective files so
+    # pairs are recoverable by slot.
+    discard? = not keep? and length(frames) >= st.min_attempt
+
     meta = %{
       "slot" => st.attempt.slot,
       "started_at" => st.attempt.started_at,
       "frames" => length(frames),
       "verdict" => to_string(if keep?, do: :save, else: :discard),
-      "why" => why
+      "why" => why,
+      "list_index" =>
+        cond do
+          keep? -> length(st.saved_lists)
+          discard? -> length(st.discard_lists)
+          true -> nil
+        end,
+      "list_file" =>
+        cond do
+          keep? -> "saved"
+          discard? -> "discards"
+          true -> nil
+        end
     }
 
     st = %{st | attempt: nil, attempts_meta: [meta | st.attempts_meta]}
 
-    if keep? do
-      saved = st.saved_lists ++ [frames]
-      write_frames!(st.out, st.tag, saved)
-      write_sidecar!(st.out, st.attempts_meta)
-      counts = %{st.counts | saved: st.counts.saved + 1}
-      Output.success("   SAVED #{length(frames)} frames (#{counts.saved} total) -> #{st.out}")
-      %{st | saved_lists: saved, counts: counts}
-    else
-      counts = %{st.counts | discarded: st.counts.discarded + 1}
+    cond do
+      keep? ->
+        saved = st.saved_lists ++ [frames]
+        write_frames!(st.out, st.tag, saved)
+        write_sidecar!(st.out, st.attempts_meta)
+        counts = %{st.counts | saved: st.counts.saved + 1}
+        Output.success("   SAVED #{length(frames)} frames (#{counts.saved} total) -> #{st.out}")
+        %{st | saved_lists: saved, counts: counts}
 
-      reason =
-        if verdict == :save,
-          do: "too short (< #{st.min_attempt} frames)",
-          else: why
+      discard? ->
+        discards = st.discard_lists ++ [frames]
+        write_frames!(st.out <> ".discards.frames", st.tag, discards)
+        write_sidecar!(st.out, st.attempts_meta)
+        counts = %{st.counts | discarded: st.counts.discarded + 1}
+        Output.puts("   discarded (#{why}) — kept as negative")
+        %{st | discard_lists: discards, counts: counts}
 
-      Output.puts("   discarded (#{reason})")
-      %{st | counts: counts}
+      true ->
+        counts = %{st.counts | discarded: st.counts.discarded + 1}
+
+        reason =
+          if verdict == :save,
+            do: "too short (< #{st.min_attempt} frames)",
+            else: why
+
+        Output.puts("   discarded (#{reason}, too short to keep)")
+        %{st | counts: counts}
     end
   end
 

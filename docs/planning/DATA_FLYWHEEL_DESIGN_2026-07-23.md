@@ -37,6 +37,43 @@ NOT yet `mix test`-run:**
   manifest), marks the source gap "mined". `--char-filter` via metadata.
 - 16 Coverage logic assertions PASS standalone.
 
+**Priority 3 + 4 (2026-07-23 ~03:00-04:15) — DONE, tested + live-smoked:**
+- **P3a style tags:** audit found tag→id→embedding fully wired for training
+  (`--player-registry`, PlayerRegistry, always-present 112-dim name one-hot)
+  but NOT inference. Wired: Agent `style_id`/`style_tag`+registry opts →
+  `embed(..., name_id:)` (embed-parity tests green — id 0 default preserves
+  existing behavior); `--style-id/--style-tag/--player-registry` CLI flags;
+  train.exs persists `<checkpoint>.players.json` after fit.
+- **P3b NeutralScan:** `lib/exphil/eval/neutral_scan.ex` (+11 tests) —
+  opener taxonomy (jab/dash_attack/tilt/smash/aerial/grab/special; laser+
+  projectile fold into :special v1, drift-in dropped — no velocity in slim
+  frames), entropy/top-share; StyleCard gains 2 appended gates + pack
+  thresholds + `openers` in the result. REAL-DATA VALIDATION: r16 probe =
+  35 openers, top_share 0.914, entropy 0.501 bits → both gates FAIL —
+  exactly the one-note neutral the Fox program targets.
+- **P3c sparring ingest:** `scripts/ingest_sparring.exs` — copy + merged
+  session.json sidecar (human/bot ports per game, checkpoint) + nested
+  coach_report per bot port. Smoked end-to-end on probe stand-ins.
+- **P4 seeded self-play:** `scripts/selfplay_rollouts.exs` — both ports
+  live policies from a both-neutral prefix handoff; finalize + seed_meta
+  (same contract as build_seed_dir). LIVE-VERIFIED: 6484-frame parseable
+  rollout, 27 distinct action states per port in the window (both live).
+  RL/PPO consumption only — that arm stays gated on the PPO smoke.
+- **P4 preference pairs:** human_drill keeps ≥min-length discards in
+  `<out>.discards.frames` with per-attempt list_file/list_index in the
+  sidecar (pairs recoverable by slot).
+- **P4 uncertainty logging:** Agent `:uncertainty_log` buffers the per-head
+  confidences sampling ALREADY computes, JSONL-flushes every 600f + on
+  terminate; `--uncertainty-log` in CLI/play_dolphin_async/selfplay;
+  consumer `scripts/uncertainty_gaps.exs` (bottom-percentile clusters →
+  ledger). LIVE-VERIFIED end-to-end on a self-play run.
+- **#38 finalize** also live-confirmed this session (parse OK, Mewtwo SDs)
+  — with one caveat observed: `finalize_timeout` from one entry's position
+  (the float/DJ save case the #38 note predicted); works from others. The
+  unfinalized-run drop path held (0 bad seeds).
+- **P5 (embedding-ANN retrieval) remains gated on #33 streaming embed.**
+- Full sweep after all of it: 100/100 tests.
+
 ### ✅ VERIFICATION DONE (2026-07-23 02:47-02:48, after r16 finished)
 
 All P1+P2 `mix test`-green and smoke-validated on real r16 probe replays:

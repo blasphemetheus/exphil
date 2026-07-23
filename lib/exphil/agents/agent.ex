@@ -73,6 +73,19 @@ defmodule ExPhil.Agents.Agent do
     :steer_vector,
     :steer_alpha,
     :steer_v,
+    # Style-conditional inference (flywheel P3a): index into the name/tag
+    # one-hot the embedding ALWAYS carries (num_player_names slot). Training
+    # with --player-registry maps tags -> ids; at inference this selects
+    # whose style to imitate. 0 (the unknown-player id) = the pre-P3a
+    # behavior, so existing checkpoints/callers are unaffected.
+    :style_id,
+    # Uncertainty logging (flywheel A4): per-frame head confidences (already
+    # computed by sampling) buffered and appended as JSONL to this path.
+    # Low confidence = states the training data doesn't cover — a gap
+    # signal that fires BEFORE failures do. nil = off (no overhead beyond
+    # the confidence compute that happens anyway).
+    :uncertainty_log,
+    :uncertainty_buf,
     :last_controller,
     # Temporal inference config
     :temporal,
@@ -311,6 +324,33 @@ defmodule ExPhil.Agents.Agent do
     # closed-loop shield-lock / self-conditioning experiments)
     ablate_prev_action = Keyword.get(opts, :ablate_prev_action, false)
 
+    # Style-conditional inference: :style_id (integer) wins; else
+    # :style_tag resolved through a :player_registry JSON (from training's
+    # --player-registry vocab). Unknown tag -> 0 with a warning.
+    style_id =
+      case {Keyword.get(opts, :style_id), Keyword.get(opts, :style_tag)} do
+        {id, _} when is_integer(id) ->
+          id
+
+        {nil, tag} when is_binary(tag) ->
+          with path when is_binary(path) <- Keyword.get(opts, :player_registry),
+               {:ok, registry} <- ExPhil.Training.PlayerRegistry.from_json(path),
+               id when is_integer(id) <- ExPhil.Training.PlayerRegistry.get_id(registry, tag) do
+            id
+          else
+            _ ->
+              Logger.warning(
+                "[agent] style_tag #{inspect(tag)} not resolvable " <>
+                  "(missing/invalid :player_registry or unknown tag) — using style_id 0"
+              )
+
+              0
+          end
+
+        _ ->
+          0
+      end
+
     state = %__MODULE__{
       name: Keyword.get(opts, :name),
       frame_delay: frame_delay,
@@ -327,6 +367,9 @@ defmodule ExPhil.Agents.Agent do
       steer_vector: Keyword.get(opts, :steer_vector),
       steer_alpha: Keyword.get(opts, :steer_alpha) || 1.0,
       steer_v: nil,
+      style_id: style_id,
+      uncertainty_log: Keyword.get(opts, :uncertainty_log),
+      uncertainty_buf: [],
       # Temporal config - will be set when policy is loaded
       temporal: false,
       backbone: :mlp,
@@ -404,8 +447,9 @@ defmodule ExPhil.Agents.Agent do
   @impl true
   def handle_call({:get_controller, game_state, opts}, _from, state) do
     case compute_action(state, game_state, opts) do
-      {:ok, action, _confidence, new_state} ->
+      {:ok, action, confidence, new_state} ->
         controller = action_to_controller(action, state)
+        new_state = log_uncertainty(new_state, game_state, confidence)
         {:reply, {:ok, controller}, new_state}
 
       {:error, _} = error ->
@@ -605,6 +649,14 @@ defmodule ExPhil.Agents.Agent do
       |> maybe_update(:release_threshold, opts)
 
     {:reply, :ok, state}
+  end
+
+  @impl true
+  def terminate(_reason, state) do
+    # Final uncertainty flush (flywheel A4) — partial buffers survive
+    # normal GenServer.stop at session end.
+    flush_uncertainty(state)
+    :ok
   end
 
   # ============================================================================
@@ -1252,7 +1304,55 @@ defmodule ExPhil.Agents.Agent do
     # get nil → zeros. Mixing regimes scrambles the input — the config flag
     # decides, not the caller.
     prev_controller = if state.use_prev_action, do: state.last_controller, else: nil
-    Embeddings.Game.embed(game_state, prev_controller, player_port)
+    Embeddings.Game.embed(game_state, prev_controller, player_port, name_id: state.style_id || 0)
+  end
+
+  # Uncertainty logging (flywheel A4). Confidence is computed by sampling
+  # regardless; when :uncertainty_log is set, buffer one compact entry per
+  # frame and append-flush as JSONL every @uncertainty_flush frames (and on
+  # terminate). One file line = %{"f" =>, "overall" =>, "buttons" =>,
+  # "main" =>, "c" =>, "shoulder" =>}.
+  @uncertainty_flush 600
+
+  defp log_uncertainty(%{uncertainty_log: nil} = state, _gs, _conf), do: state
+
+  defp log_uncertainty(state, game_state, conf) when is_map(conf) do
+    entry = %{
+      "f" => game_state.frame,
+      "overall" => conf[:overall],
+      "buttons" => conf[:buttons],
+      "main" => conf[:main],
+      "c" => conf[:c],
+      "shoulder" => conf[:shoulder]
+    }
+
+    buf = [entry | state.uncertainty_buf]
+
+    if length(buf) >= @uncertainty_flush do
+      flush_uncertainty(%{state | uncertainty_buf: buf})
+    else
+      %{state | uncertainty_buf: buf}
+    end
+  end
+
+  defp log_uncertainty(state, _gs, _conf), do: state
+
+  defp flush_uncertainty(%{uncertainty_log: nil} = state), do: state
+  defp flush_uncertainty(%{uncertainty_buf: []} = state), do: state
+
+  defp flush_uncertainty(state) do
+    lines =
+      state.uncertainty_buf
+      |> Enum.reverse()
+      |> Enum.map_join("", fn e -> Jason.encode!(e) <> "\n" end)
+
+    File.mkdir_p!(Path.dirname(state.uncertainty_log))
+    File.write!(state.uncertainty_log, lines, [:append])
+    %{state | uncertainty_buf: []}
+  rescue
+    e ->
+      Logger.warning("[agent] uncertainty flush failed: #{Exception.message(e)}")
+      %{state | uncertainty_buf: []}
   end
 
   defp action_to_controller(action, state) do

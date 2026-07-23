@@ -197,6 +197,18 @@ callbacks = if opts[:profile],
 # Train
 {:ok, state} = Trainer.fit(trainer, pipeline, callbacks: callbacks)
 
+# Persist the style-tag vocabulary next to the checkpoint (flywheel P3a):
+# a policy trained with --learn-player-styles is conditioned on name ids,
+# and inference (--style-tag) needs the same tag->id mapping to select one.
+if pipeline.player_registry && opts[:checkpoint] do
+  players_path = "#{opts[:checkpoint]}.players.json"
+
+  case ExPhil.Training.PlayerRegistry.to_json(pipeline.player_registry, players_path) do
+    :ok -> Output.puts("  Player registry: #{players_path}")
+    {:error, reason} -> Output.warning("Player registry save failed: #{inspect(reason)}")
+  end
+end
+
 # Summary
 Output.puts("\nTraining complete!")
 Output.puts("  Epochs: #{state.epoch}/#{state.epochs}")

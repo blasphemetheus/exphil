@@ -48,7 +48,13 @@ defmodule ExPhil.Interp.StyleCard do
     apm_band: {120, 700},
     di_pct_min: 60.0,
     recovery_rate_min: 0.8,
-    sd_max: 1
+    sd_max: 1,
+    # Neutral-opener diversity (flywheel C2): "does a couple different
+    # things in neutral", measured. nil metrics (< opener_min_events
+    # openers) no-evidence-pass, mirroring the other gates.
+    opener_entropy_min: 1.0,
+    top_opener_share_max: 0.6,
+    opener_min_events: 8
   }
 
   # Char packs override thresholds (and later add pack-specific gates:
@@ -106,7 +112,28 @@ defmodule ExPhil.Interp.StyleCard do
       gate("SDs", rec.sds, rec.sds <= pack.sd_max, "<=#{pack.sd_max} (PROVISIONAL)")
     ]
 
-    %{gates: gates, passed: Enum.count(gates, & &1.pass), total: length(gates)}
+    # Neutral-opener diversity gates (appended so earlier gate positions —
+    # and any references to them by number — stay stable).
+    ns = ExPhil.Eval.NeutralScan.summary(p1.actions, p2.actions, min_events: pack.opener_min_events)
+
+    gates =
+      gates ++
+        [
+          gate(
+            "opener entropy (bits)",
+            ns.entropy_bits,
+            ns.entropy_bits == nil or ns.entropy_bits >= pack.opener_entropy_min,
+            ">=#{pack.opener_entropy_min} over >=#{pack.opener_min_events} openers (PROVISIONAL)"
+          ),
+          gate(
+            "top opener share",
+            ns.top_share,
+            ns.top_share == nil or ns.top_share <= pack.top_opener_share_max,
+            "<=#{pack.top_opener_share_max} (PROVISIONAL)"
+          )
+        ]
+
+    %{gates: gates, passed: Enum.count(gates, & &1.pass), total: length(gates), openers: ns}
   end
 
   @doc "Threshold pack for a character (unknown/nil -> defaults)."

@@ -113,6 +113,10 @@ Output.step(1, 5, "Loading agent")
     leace_eraser: opts[:leace_eraser],
     steer_vector: opts[:steer_vector],
     steer_alpha: opts[:steer_alpha] || 1.0,
+    style_id: opts[:style_id],
+    style_tag: opts[:style_tag],
+    player_registry: opts[:player_registry],
+    uncertainty_log: opts[:uncertainty_log],
     stateful_step: opts[:stateful_step] || false
   )
 
