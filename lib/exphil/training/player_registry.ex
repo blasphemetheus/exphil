@@ -95,7 +95,11 @@ defmodule ExPhil.Training.PlayerRegistry do
           case Peppi.parse(path) do
             {:ok, replay} ->
               replay.metadata.players
-              |> Enum.map(& &1.tag)
+              # Prefer the netplay display name (in-game name_tag is blank
+              # in netplay); matches Peppi.get_player_tag so registry keys
+              # align with the per-frame player_tag attached during
+              # to_training_frames.
+              |> Enum.map(fn p -> p.netplay_name || p.tag end)
               |> Enum.reject(&is_nil/1)
               |> Enum.reject(&(&1 == ""))
 

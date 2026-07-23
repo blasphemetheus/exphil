@@ -43,6 +43,7 @@ alias ExPhil.Embeddings
       conversion_weight: :float,
       opener_weight: :float,
       opener_lookback: :integer,
+      learn_player_styles: :boolean,
       probe_reg: :float,
       probe_reg_every: :integer,
       probe_eval_every: :integer,
@@ -277,6 +278,30 @@ if bc_paths != [] do
   )
 end
 
+# --learn-player-styles (r17): condition the policy on WHO it's imitating so
+# the archive's distinct Mewtwos don't average into mush. The registry is
+# built from the BC replays' netplay names (get_player_tag prefers them);
+# from_frames attaches a per-frame name_id, precompute embeds it into the
+# always-present name one-hot. Fixture/rollout frames (bot self-play, no
+# human tag) fall through to name_id 0. At inference, --style-tag NAME
+# picks a style. Registry persisted next to the checkpoint at export.
+player_registry =
+  if opts[:learn_player_styles] and bc_paths != [] do
+    {:ok, reg} = ExPhil.Training.PlayerRegistry.from_replays(bc_paths)
+    n = map_size(reg.tag_to_id)
+
+    Output.puts(
+      "Style conditioning: #{n} distinct player(s) in the registry " <>
+        "(#{inspect(reg.tag_to_id |> Map.keys() |> Enum.take(6))}#{if n > 6, do: ", ...", else: ""})"
+    )
+
+    if n == 0 do
+      Output.warning("--learn-player-styles set but no player identities found — styles inert")
+    end
+
+    reg
+  end
+
 # Expert table from ALL fixture recordings combined (BC replays excluded)
 expert = expert_mod.from_frames(fixture_frames, player_port: port)
 
@@ -493,7 +518,7 @@ sampling_weights =
 
 dataset =
   shifted_frames
-  |> Data.from_frames()
+  |> Data.from_frames(player_registry: player_registry)
   |> Data.precompute_frame_embeddings(
     use_prev_action: prev_action,
     prev_action_dropout: prev_action_dropout
@@ -1091,6 +1116,14 @@ end
 case Imitation.export_policy(best_trainer, out_path) do
   :ok ->
     Output.success("Policy exported: #{out_path}")
+
+    # Persist the style vocabulary next to the checkpoint (r17): inference
+    # (--style-tag) needs the same tag->id map the policy trained on.
+    if player_registry && map_size(player_registry.tag_to_id) > 0 do
+      players_path = "#{out_path}.players.json"
+      ExPhil.Training.PlayerRegistry.to_json(player_registry, players_path)
+      Output.puts("Player registry: #{players_path}")
+    end
 
     final_mem = record_ledger.("train")
 
