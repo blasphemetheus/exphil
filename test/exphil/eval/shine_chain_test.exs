@@ -26,7 +26,7 @@ defmodule ExPhil.Eval.ShineChainTest do
     end
   end
 
-  describe "chains/1 — CLEAN grounded multishine only" do
+  describe "chains/1 — the real multishine cycle" do
     test "three GROUNDED shines jump-cancelled is one chain of length 3" do
       actions =
         hold(@wait) ++
@@ -37,14 +37,40 @@ defmodule ExPhil.Eval.ShineChainTest do
       assert ShineChain.chains(actions) == [3]
     end
 
-    test "an AERIAL shine BREAKS the chain (this is the sloppy loop we must catch)" do
-      # ground shine -> jumpsquat -> AIR shine -> ... : left the ground.
+    test "the REAL cycle — short takeoff + aerial shine landing back into a ground shine — CHAINS" do
+      # shine -> JC -> takeoff (1f) -> aerial shine (4f, halts the rise) ->
+      # reflector persists into the grounded state. 3 grounded segments = 3.
+      cycle = hold(@shine) ++ hold(@jumpsquat) ++ hold(@aerial_jump, 1) ++ hold(@air_shine, 4)
+      actions = cycle ++ cycle ++ hold(@shine) ++ hold(@wait)
+
+      assert ShineChain.chains(actions) == [3]
+    end
+
+    test "a FULL-JUMP air shine breaks the chain (the sloppy 2026-07-23 fixture loop)" do
+      # Long airtime with an air shine = jumped, shined on the way down.
+      actions =
+        hold(@shine) ++ hold(@jumpsquat) ++ hold(@aerial_jump, 10) ++ hold(@air_shine, 15) ++
+          hold(@shine)
+
+      assert ShineChain.chains(actions) == [1, 1]
+      assert [%{ended_by: :air_shine}, _] = ShineChain.chains_detailed(actions)
+    end
+
+    test "an aerial shine that lands into WAIT (not another shine) breaks the chain" do
       actions =
         hold(@shine) ++ hold(@jumpsquat) ++ hold(@air_shine) ++
           hold(@wait) ++ hold(@shine)
 
-      # two length-1 grounded chains, not a length-3 anything
       assert ShineChain.chains(actions) == [1, 1]
+    end
+
+    test ":max_air_gap tunes the airtime allowance" do
+      actions =
+        hold(@shine) ++ hold(@jumpsquat) ++ hold(@aerial_jump, 1) ++ hold(@air_shine, 4) ++
+          hold(@shine)
+
+      assert ShineChain.chains(actions) == [2]
+      assert ShineChain.chains(actions, max_air_gap: 3) == [1, 1]
     end
 
     test "a lone grounded shine is a chain of length 1" do
@@ -79,7 +105,7 @@ defmodule ExPhil.Eval.ShineChainTest do
     end
   end
 
-  describe "grounded fraction (the number that catches airborne 'shining')" do
+  describe "grounded fraction (diagnostic — a real multishine sits ~0.4-0.6)" do
     test "all-grounded reads ~1.0, all-aerial reads ~0.0" do
       clean = hold(@shine) ++ hold(@jumpsquat) ++ hold(@ground_shine2)
       sloppy = hold(@air_shine) ++ hold(@jumpsquat) ++ hold(@air_shine)
@@ -99,6 +125,21 @@ defmodule ExPhil.Eval.ShineChainTest do
 
     test "a jumpsquat that shines is not an empty hop" do
       assert ShineChain.empty_hops(hold(@shine) ++ hold(@jumpsquat) ++ hold(@shine)) == 0
+    end
+
+    test "a multishine cycle's brief takeoff into an aerial shine is NOT an empty hop" do
+      actions =
+        hold(@shine) ++ hold(@jumpsquat) ++ hold(@aerial_jump, 1) ++ hold(@air_shine, 4) ++
+          hold(@shine)
+
+      assert ShineChain.empty_hops(actions) == 0
+    end
+
+    test "a LONG takeoff counts as an empty hop even if a shine eventually comes out" do
+      actions =
+        hold(@shine) ++ hold(@jumpsquat) ++ hold(@aerial_jump, 20) ++ hold(@air_shine)
+
+      assert ShineChain.empty_hops(actions) == 1
     end
   end
 

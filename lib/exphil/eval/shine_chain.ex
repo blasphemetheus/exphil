@@ -14,35 +14,57 @@ defmodule ExPhil.Eval.ShineChain do
 
   Chain length separates them, so the fix can be aimed correctly.
 
-  ## The multishine cycle
+  ## The multishine cycle (corrected 2026-07-24)
 
-  A multishine alternates reflector → jumpsquat → reflector → …:
+  A real multishine is NOT fully grounded. Per SmashWiki (and every TAS),
+  multishining is "repeatedly shining, jump-cancelling it, and shining again
+  **the frame they leave the ground**":
 
-      shine (reflector 360..368)
-        -> jump-cancel (jumpsquat 24)
-          -> shine (reflector)   # cycle repeats
+      shine (grounded reflector 360..363)
+        -> jump-cancel (jumpsquat 24, 3 frames — only up-smash/up-B/grab can
+           cancel jumpsquat; down-B during it is EATEN)
+          -> takeoff (aerial jump 25, 1-2 frames)
+            -> AERIAL shine on the first airborne frame (365..368) — halts
+               Fox's rise, so he lands within a few frames (canonically ~5
+               airborne total)
+              -> reflector persists into the grounded state
+                 # cycle repeats via JC of the landed grounded reflector
 
-  A **chain** is a maximal alternating run of reflector/jumpsquat segments;
-  its **length** is the number of reflector segments in it (i.e. how many
-  shines came out). Length 1 = a lone shine, no multishine. The classic
-  drop is jumpsquat → aerial jump (25): jumped but never shined — the
-  "empty hop" the trace script already counts.
+  So each cycle contains a SHORT airborne stretch WITH an aerial shine in it.
+  What distinguishes the sloppy shine-jump-airshine loop (the 2026-07-23
+  fixture) is not that it shines in the air — it is that its air stretch is a
+  FULL JUMP (tens of frames).
+
+  A **chain** is a run of grounded-reflector segments linked by jumpsquat
+  and/or an airborne stretch of at most `:max_air_gap` frames (default
+  #{8}) that contains an aerial reflector. Its **length** is the number of
+  grounded reflector segments — i.e. completed cycles.
+
+  ## Metric history (why this is v3)
+
+  v1 conflated grounded and aerial reflectors and reported the 75%-aerial
+  fixture as "clean, max 73". v2 over-corrected: it required
+  `grounded_fraction ~ 1.0` and broke the chain on ANY aerial reflector —
+  but a zero-airtime multishine is not a real Melee technique (the 2026-07-24
+  probes "proving the bridge can't shine-cancel jumpsquat" were testing a
+  mechanic that does not exist). v3 encodes the real cycle: short airtime
+  with an aerial shine CONTINUES the chain; long airtime or shineless
+  airtime breaks it.
 
   Action IDs mirror `ExPhil.Agents.MultishineExpert`.
   """
 
   # Fox action states (Melee internal), same as MultishineExpert.
-  # CRITICAL distinction (added 2026-07-23 after a coarse version conflated
-  # them and reported a 75%-aerial fixture as a "clean multishine, max 73"):
-  # a real grounded multishine stays on the GROUND — grounded reflector
-  # (360..363), jump-cancelled instantly so Fox never leaves the stage. The
-  # sloppy shine-jump-AIR-shine loop uses the AERIAL reflector (365..368)
-  # and is a different, worse behavior. Counting both as "a shine" hides
-  # exactly the failure we care about.
   @jumpsquat 24
   @aerial_jump 25
   @reflector_ground 360..363
   @reflector_air 365..368
+
+  # Max airborne frames (takeoff + aerial reflector) between two grounded
+  # reflector segments for the chain to continue. A real multishine cycle is
+  # ~5 airborne frames; a short hop is ~30+, a full hop far more — 8 cleanly
+  # separates the technique from the sloppy full-jump loop.
+  @default_max_air_gap 8
 
   @doc """
   Family of one action id: `:ground_reflect`, `:air_reflect`, `:jumpsquat`,
@@ -55,14 +77,14 @@ defmodule ExPhil.Eval.ShineChain do
   def family(_), do: :other
 
   @doc """
-  Chain lengths (shines per unbroken alternating run) for an action-id list,
-  longest-first order preserved as encountered.
+  Chain lengths (grounded shines per unbroken multishine run) for an
+  action-id list, order preserved as encountered.
 
-  Runs of the same family collapse first (an action persists for several
-  frames), so this is robust to frame counts.
+  Options: `:max_air_gap` (default #{@default_max_air_gap}) — max airborne
+  frames per cycle before the chain breaks.
   """
-  def chains(actions) when is_list(actions) do
-    actions |> chains_detailed() |> Enum.map(& &1.length)
+  def chains(actions, opts \\ []) when is_list(actions) do
+    actions |> chains_detailed(opts) |> Enum.map(& &1.length)
   end
 
   @doc """
@@ -71,57 +93,110 @@ defmodule ExPhil.Eval.ShineChain do
 
   Returns `[%{length:, ended_by:}]` where `ended_by` is:
 
-    * `:empty_hop` — jumpsquat → aerial jump. Jumped but never shined; the
+    * `:air_shine` — the airborne stretch had an aerial shine but exceeded
+      `:max_air_gap`: the sloppy full-jump shine-on-the-way-down loop.
+    * `:empty_hop` — left the ground from jumpsquat and never shined; the
       canonical dropped-multishine.
-    * `:other_action` — left the loop some other way (landed, got hit,
-      did something else).
+    * `:aerial_jump` — airborne with no shine, not straight from jumpsquat.
+    * `:other_action` — left the loop some other way (landed and waited,
+      got hit, did something else).
     * `:end_of_input` — the replay ended mid-chain (not a real failure).
 
   A run of `:empty_hop` endings at a CONSISTENT length points at a phase /
   timing bug or an expert-table coverage cliff at that depth; a spread of
   lengths points at drift or sampling noise.
   """
-  def chains_detailed(actions) when is_list(actions) do
+  def chains_detailed(actions, opts \\ []) when is_list(actions) do
+    max_air_gap = Keyword.get(opts, :max_air_gap, @default_max_air_gap)
+
     actions
     |> Enum.map(&family/1)
     |> Enum.chunk_by(& &1)
-    |> Enum.map(&hd/1)
-    |> collapse_chains()
+    |> Enum.map(&{hd(&1), length(&1)})
+    |> collapse_chains(max_air_gap)
   end
 
-  # Walk the family-segment sequence, accumulating CLEAN grounded multishine
-  # runs: consecutive GROUND reflectors whose only gaps are jumpsquat (the
-  # jump-cancel). Length = grounded-shine count. The chain BREAKS on an
-  # aerial reflector or an airborne jump — because that means Fox left the
-  # ground, which is precisely NOT a clean multishine.
-  defp collapse_chains(segments) do
-    {chains, current, prev} =
-      Enum.reduce(segments, {[], 0, nil}, fn seg, {acc, cur, prev} ->
-        case seg do
+  # Walk {family, frame_count} segments, accumulating multishine runs.
+  # Grounded reflectors extend the chain; jumpsquat keeps it alive (the JC);
+  # an airborne stretch is TENTATIVE until Fox returns to the ground — short
+  # + containing an aerial shine continues the chain, anything else breaks it.
+  defp collapse_chains(segments, max_air_gap) do
+    init = %{acc: [], cur: 0, air: 0, air_shine?: false, from_js?: false, prev: nil}
+
+    st =
+      Enum.reduce(segments, init, fn {fam, n}, st ->
+        case fam do
           :ground_reflect ->
-            {acc, cur + 1, seg}
+            st = land(st, max_air_gap)
+            %{st | cur: st.cur + 1, prev: fam}
 
-          # jumpsquat keeps an open GROUNDED chain alive (it's the JC)
           :jumpsquat ->
-            {acc, cur, seg}
+            st = land(st, max_air_gap)
+            %{st | prev: fam}
 
-          # left the ground — the chain is over. Distinguish HOW:
-          #   air_reflect  -> shined in the air (the sloppy loop)
-          #   aerial_jump  -> jumped without shining (empty hop)
           :air_reflect ->
-            {close(acc, cur, :air_shine), 0, seg}
+            %{
+              st
+              | air: st.air + n,
+                air_shine?: true,
+                from_js?: st.from_js? or st.prev == :jumpsquat,
+                prev: fam
+            }
 
           :aerial_jump ->
-            reason = if prev == :jumpsquat, do: :empty_hop, else: :aerial_jump
-            {close(acc, cur, reason), 0, seg}
+            %{
+              st
+              | air: st.air + n,
+                from_js?: st.from_js? or st.prev == :jumpsquat,
+                prev: fam
+            }
 
-          _ ->
-            {close(acc, cur, :other_action), 0, seg}
+          _other ->
+            reason = if st.air > 0, do: gap_reason(st, max_air_gap), else: :other_action
+
+            %{
+              st
+              | acc: close(st.acc, st.cur, reason),
+                cur: 0,
+                air: 0,
+                air_shine?: false,
+                from_js?: false,
+                prev: fam
+            }
         end
       end)
 
-    _ = prev
-    close(chains, current, :end_of_input) |> Enum.reverse()
+    close(st.acc, st.cur, :end_of_input) |> Enum.reverse()
+  end
+
+  # Back on the ground with a pending airborne stretch: does it EXTEND the
+  # chain (short, with an aerial shine — a real multishine cycle) or BREAK it
+  # (full jump / shineless hop)?
+  defp land(%{air: 0} = st, _max_air_gap), do: st
+
+  defp land(st, max_air_gap) do
+    if st.air_shine? and st.air <= max_air_gap do
+      %{st | air: 0, air_shine?: false, from_js?: false}
+    else
+      %{
+        st
+        | acc: close(st.acc, st.cur, gap_reason(st, max_air_gap)),
+          cur: 0,
+          air: 0,
+          air_shine?: false,
+          from_js?: false
+      }
+    end
+  end
+
+  defp gap_reason(st, max_air_gap) do
+    cond do
+      # Air part was a valid cycle; the break is whatever came after it.
+      st.air_shine? and st.air <= max_air_gap -> :other_action
+      st.air_shine? -> :air_shine
+      st.from_js? -> :empty_hop
+      true -> :aerial_jump
+    end
   end
 
   defp close(acc, 0, _reason), do: acc
@@ -136,15 +211,20 @@ defmodule ExPhil.Eval.ShineChain do
     * `entries` — chains that got at least one shine out (B1 signal)
     * `sustained` — chains of length >= `:sustain_min` (default 5, the
       B2 target)
-    * `empty_hops` — jumpsquat immediately followed by an aerial jump: the
+    * `empty_hops` — left the ground from jumpsquat and never shined: the
       canonical dropped-loop failure
+
+  `grounded_fraction` is a DIAGNOSTIC, not a gate: a real multishine sits
+  around 0.4-0.6 (each cycle has both a grounded and an aerial reflector
+  segment). ~1.0 means lone ground shines with no cycling; ~0.25 with long
+  airtime is the sloppy full-jump loop. Gate on `max_length`/`sustained`.
 
   `mean_length`/`max_length` are nil when there are no chains, so a
   no-evidence run reads as nil rather than a misleading 0.0.
   """
   def summary(actions, opts \\ []) when is_list(actions) do
     sustain_min = Keyword.get(opts, :sustain_min, 5)
-    detailed = chains_detailed(actions)
+    detailed = chains_detailed(actions, opts)
     cs = Enum.map(detailed, & &1.length)
     n = length(cs)
 
@@ -153,7 +233,7 @@ defmodule ExPhil.Eval.ShineChain do
     air = Enum.count(fams, &(&1 == :air_reflect))
 
     %{
-      # Clean grounded-multishine chains (the thing we actually want)
+      # Multishine chains (grounded shines linked by JC + short aerial shine)
       chains: n,
       shines: Enum.sum(cs),
       mean_length: if(n > 0, do: Float.round(Enum.sum(cs) / n, 2), else: nil),
@@ -162,25 +242,38 @@ defmodule ExPhil.Eval.ShineChain do
       sustained: Enum.count(cs, &(&1 >= sustain_min)),
       length_histogram: Enum.frequencies(cs),
       ended_by: Enum.frequencies_by(detailed, & &1.ended_by),
-      # The headline number that catches "it looks like it's shining but
-      # it's airborne": fraction of shine frames spent GROUNDED. A clean
-      # multishine is ~1.0; the sloppy shine-jump-airshine loop is low.
       ground_shine_frames: ground,
       air_shine_frames: air,
       grounded_fraction:
         if(ground + air > 0, do: Float.round(ground / (ground + air), 3), else: nil),
-      empty_hops: empty_hops(actions)
+      empty_hops: empty_hops(actions, opts)
     }
   end
 
-  @doc "Jumpsquat immediately followed by an aerial jump — jumped, never shined."
-  def empty_hops(actions) when is_list(actions) do
+  @doc """
+  Left the ground from jumpsquat and never shined — jumped without the
+  multishine's first-airborne-frame shine.
+
+  A good multishine cycle also passes through jumpsquat -> takeoff, but its
+  takeoff is 1-2 frames and immediately followed by the aerial reflector;
+  that is NOT an empty hop. Counted as one when the takeoff exceeds
+  `:max_air_gap` frames or is followed by anything but an aerial reflector.
+  """
+  def empty_hops(actions, opts \\ []) when is_list(actions) do
+    max_air_gap = Keyword.get(opts, :max_air_gap, @default_max_air_gap)
+
     actions
     |> Enum.map(&family/1)
     |> Enum.chunk_by(& &1)
-    |> Enum.map(&hd/1)
-    |> Enum.chunk_every(2, 1, :discard)
-    |> Enum.count(fn [a, b] -> a == :jumpsquat and b == :aerial_jump end)
+    |> Enum.map(&{hd(&1), length(&1)})
+    |> Enum.chunk_every(3, 1)
+    |> Enum.count(fn
+      [{:jumpsquat, _}, {:aerial_jump, n} | rest] ->
+        n > max_air_gap or not match?([{:air_reflect, _} | _], rest)
+
+      _ ->
+        false
+    end)
   end
 
   @doc """

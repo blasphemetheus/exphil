@@ -226,3 +226,38 @@ known sequence"). That framing is now wrong: the sequence it's imitating is
 itself not the target. Track B's first gate is really **produce a clean
 grounded-multishine fixture** (grounded_fraction ≈ 1.0); only after that does
 "can the policy reproduce it" become the question.
+
+## RESOLVED 2026-07-24 (late): the teacher multishines — the bridge was never the wall
+
+The "bridge-execution wall" above is RETRACTED. The scripted teacher now
+produces a TAS-quality 9-frame multishine cycle through the same pipe:
+**max chain 20 in a 5s clip** (ShineChain v3, breaks only at clip edges),
+grounded_fraction 0.467, 0 empty hops. Trace: `365 x3 -> 366 x1 -> 361 x2 ->
+24 x3`, airborne 4 frames at y=0.0.
+
+Three stacked errors had produced the "wall":
+
+1. **The probes tested a nonexistent mechanic.** Down-B cannot cancel
+   jumpsquat (only up-smash/up-B/grab can). Every "shine during jumpsquat"
+   sweep failed against Melee's rules, not the bridge.
+2. **The metric punished the technique.** A real multishine is ~half aerial
+   (SmashWiki: "shining again the frame they leave the ground"); ShineChain
+   v2 broke chains on ANY aerial reflector, so correct-shaped attempts
+   scored max 1. v3 chains through air gaps <=8 frames containing an aerial
+   shine.
+3. **The one-frame timing that actually matters** (measured via
+   `MULTISHINE_TRACE=1` per-frame y/vy): on airborne frame 1 the jump's
+   +2.1 rise and the shine's vy-zeroing race — shine activating THAT frame
+   stalls Fox at y~0 (lands in 4 frames); one frame later he is at y=2.1,
+   and the aerial reflector's real physics (weak 0.027/f^2 gravity,
+   fastfall DISABLED — measured) turn it into a 22-frame float. A reactive
+   press off the first airborne observation is inherently that one frame
+   late; pressing B on the observed LAST jumpsquat frame (af 3 of exactly
+   3) arrives on airborne frame 1. Also required: hold B through the
+   reflector so it survives landing JC-able (releasing mid-air causes an
+   18-frame wind-down), release B only during jumpsquat af 1-2 to arm the
+   fresh edge.
+
+Teacher fix lives in `record_multishine.exs` `:closed_loop`. Next
+(task list): re-record the fixture 20s+, verify with ShineChain v3
+(max_length >= 5), rebuild MultishineExpert, retrain, gate the policy on v3.
