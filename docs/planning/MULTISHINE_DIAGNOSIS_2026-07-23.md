@@ -160,6 +160,48 @@ libmelee pipe input with the strategies available.** This is a hard wall, not
 a tuning problem. It is almost certainly why the original fixture is 75%
 aerial — the recorder physically cannot keep Fox grounded.
 
+## What the POLICY actually does (2026-07-24, live capture)
+
+Bradley noticed the trained bot appears to grounded-multishine "moreso than
+the teacher." Captured the policy's per-frame action + emitted input live
+(`scripts/analyze_policy_shine.exs`, same bridge as inference). Its longest
+grounded run:
+
+```
+gShine af=2..18  gnd=true | B=false  X=TRUE(held)  stickY=0.0
+```
+
+The bot enters a grounded reflector and **holds it ~18 frames** with X HELD
+(no fresh jump edge → no jump-cancel), then transitions (action 39) and
+enters a NEW grounded shine. So the "grounded multishine" is the bot
+**re-entering the shine repeatedly on the ground** — shine, hold, release,
+shine — NOT the tight jump-cancel loop. `ShineChain`: grounded_fraction 0.16,
+max grounded CHAIN = 1. It shines on the ground more than the teacher, but it
+does not multishine.
+
+**No actor — scripted probe, scripted teacher, or trained policy — produces a
+jump-cancel grounded multishine through this bridge.** Every one either takes
+off (probe/teacher) or holds/re-enters the reflector (policy).
+
+## The deeper implication: the bridge is the wall at BOTH ends
+
+The policy runs inference through the SAME MeleePort → libmelee pipe as the
+probes. The probes proved the shine-cancel of jumpsquat doesn't register
+through that pipe. Therefore a grounded multishine — which REQUIRES that
+cancel — cannot be executed through this bridge by ANYTHING, scripted or
+learned. This means:
+
+- The fixture can't be GENERATED through the bridge (why it's 75% aerial).
+- Even with a perfect human fixture, the bot running INFERENCE through the
+  same bridge likely can't EXECUTE the multishine either.
+
+So Track B is not just a data problem — it may be a **bridge-execution**
+problem. Fixing it requires understanding why libmelee's pipe input cannot
+deliver a jumpsquat-frame shine-cancel (input-poll alignment / a Dolphin or
+ExiAI-build quirk), OR moving to an input path that can. That is the real
+blocker, above the fixture question. A human-recorded fixture is still needed
+for the DATA, but it will only pay off once the execution path works.
+
 ## Real options to get a clean fixture (next work)
 
 1. **Human-recorded fixture (recommended — the only reliably-working path).**
