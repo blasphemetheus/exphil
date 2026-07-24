@@ -36,11 +36,26 @@ defmodule ExPhil.Agents.MultishineExpertTest do
       end
     end
 
-    test "jumpsquat af0 = jump press landing, stick held down", %{expert: expert} do
+    test "jumpsquat af0 = the jump-cancel landing, with B still held", %{expert: expert} do
+      # af0 is the frame the JC input LANDS on. B is held here (not just X):
+      # releasing B would end the reflector before the jump-cancel takes, and
+      # the fresh B edge the airborne shine needs is armed by the RELEASE on
+      # jumpsquat af 1-2 instead. (Pre-2026-07-24 fixtures had B false here,
+      # from a teacher that could not chain.)
       {:ok, c} = MultishineExpert.label(expert, player(24, 0, true))
       assert c.button_x
-      refute c.button_b
+      assert c.button_b
       assert c.main_stick.y < 0.25
+    end
+
+    test "jumpsquat af1/af2 release B to arm the airborne-frame-1 shine", %{expert: expert} do
+      # The two frames that make the technique work: B down here, so the
+      # press decided on the last jumpsquat frame lands as a fresh edge on
+      # airborne frame 1 (see GOTCHAS #80).
+      for af <- [1, 2] do
+        {:ok, c} = MultishineExpert.label(expert, player(24, af, true))
+        refute c.button_b, "expected B released at jumpsquat af#{af}"
+      end
     end
 
     test "aerial shine start = down-B landing", %{expert: expert} do
@@ -49,11 +64,17 @@ defmodule ExPhil.Agents.MultishineExpertTest do
       assert c.main_stick.y < 0.25
     end
 
-    test "aerial shine af2 releases to neutral (fixture nuance)", %{expert: expert} do
-      {:ok, c} = MultishineExpert.label(expert, player(365, 2, false))
-      refute c.button_b
-      refute c.button_x
-      assert_in_delta c.main_stick.y, 0.5, 0.1
+    test "aerial shine HOLDS B so the reflector survives landing", %{expert: expert} do
+      # B stays down through the whole aerial reflector: it must persist into
+      # the grounded state to be jump-cancelable there. Releasing mid-air
+      # makes the shine wind down instead (measured — an 18-frame stall that
+      # breaks the chain), so this is the opposite of the old fixture, which
+      # released to neutral here.
+      for af <- [1, 2, 3] do
+        {:ok, c} = MultishineExpert.label(expert, player(365, af, false))
+        assert c.button_b, "expected B held at aerial shine af#{af}"
+        assert c.main_stick.y < 0.25
+      end
     end
   end
 

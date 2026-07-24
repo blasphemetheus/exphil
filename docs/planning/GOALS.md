@@ -87,30 +87,43 @@ Supporting signal (not gates): opener entropy / top-opener share via
 **Goal:** multishine perfectly, *no matter the circumstance.* It multishines
 sometimes today; the target is reliability, not novelty.
 
-**Corrected 2026-07-23 — this was NOT the execution problem it looked like.**
-Measuring the fixture with a grounded-vs-aerial metric (`ExPhil.Eval.ShineChain`)
-showed the training source `fox_multishine_closed.slp` is **only 24.6% grounded
-shines** (275 grounded vs 844 aerial frames); its max clean *grounded*
-multishine is **length 1**. The bot faithfully clones a fixture that itself
-does the sloppy shine → jump → air-shine loop, not a real multishine. So the
-first problem is a **data** problem: the behavior isn't in the supervision.
-Full writeup: `docs/planning/MULTISHINE_DIAGNOSIS_2026-07-23.md`.
+**Corrected twice. Current status 2026-07-24: B0 and the teacher gate are
+DONE; this is now an ordinary imitation problem.**
 
-Gates, in order — B0 is the actual first step:
+- *2026-07-23:* the fixture was measured (`ExPhil.Eval.ShineChain`) and found
+  to be a sloppy shine → full jump → air-shine loop, not a multishine. Real
+  finding: the behavior was not in the supervision.
+- *2026-07-24:* the follow-up conclusion that the *bridge* could not execute a
+  multishine was **WRONG** and is retracted. It rested on probes for a
+  technique Melee does not have (down-B cannot cancel jumpsquat — only
+  up-smash/up-B/grab can) and on a metric that broke the chain on the aerial
+  shine a real multishine requires. Both fixed. The scripted teacher now
+  multishines through the normal bridge (max chain 186 in a 30s fixture), and
+  the **table-driven** teacher reproduces it live (max chain 103).
+
+Full writeup: `docs/planning/MULTISHINE_DIAGNOSIS_2026-07-23.md` (see the
+RESOLVED section at the bottom).
+
+Gates:
 
 | Gate | Metric | Now | Target | Tooling |
 |------|--------|-----|--------|---------|
-| **B0 — fixture is clean** | `ShineChain.grounded_fraction` of the fixture | **0.25** | **≥ 0.9** | `ShineChain.summary` ✅; fix `record_multishine.exs` JC timing |
-| **B1 — policy enters** | % of curated start states where a GROUNDED shine loop begins within 60f | — | ≥ 90% | `scripts/scenario_suite.exs` |
-| **B2 — policy sustains** | max consecutive GROUNDED shines | — | ≥ 5 | `ShineChain` ✅ |
+| **B0 — fixture is clean** | `ShineChain.max_length` of the fixture | **186** ✅ | ≥ 50 | `ShineChain.summary_for_replay` |
+| **B0b — table teacher drives it** | `ShineChain.max_length`, teacher live | **103** ✅ | ≥ 5 | `scripts/demo_expert.exs`, `scripts/inspect_multishine_table.exs` |
+| **B1 — policy enters** | chains started per minute, live | — | ≥ 1 | `scripts/analyze_policy_shine.exs` |
+| **B2 — policy sustains** | `ShineChain.sustained` (chains ≥ 5) | — | > 0 | `ShineChain` |
 
-Root of the sloppy fixture: `record_multishine.exs` `:closed_loop` mode presses
-the next shine on jumpsquat's *exit* frame (airborne), so the shine comes out
-in the air. Fix the JC-shine frame → verify `grounded_fraction ≈ 1.0` BEFORE
-saving → rebuild the `MultishineExpert` table → retrain. Only after B0 does
-"can the policy reproduce it" (B1/B2) become the real question. Reference:
-`ExPhil.Agents.MultishineExpert`, `scripts/demo_expert.exs` (drive the teacher
-live), `scripts/demo_vs_teacher.exs` (policy vs teacher side by side).
+**Do not gate on `grounded_fraction`.** A real multishine is roughly *one
+third* grounded shine frames (measured steady state: 2 grounded + 4 aerial
+frames per 9-frame cycle → 0.33–0.47). The old "≥ 0.9" target was unreachable
+by construction and is what made correct attempts score as failures. It
+remains useful only as a diagnostic: ~1.0 means lone ground shines that never
+cycle, and a low value *with long air gaps* is the sloppy full-jump loop.
+
+Reference: `ExPhil.Agents.MultishineExpert`, `scripts/demo_expert.exs` (drive
+the teacher live), `scripts/demo_vs_teacher.exs` (policy vs teacher side by
+side), `scripts/inspect_multishine_table.exs` (table coverage without booting
+Dolphin).
 
 ---
 

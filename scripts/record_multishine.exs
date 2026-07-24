@@ -97,7 +97,7 @@ defmodule Multishine do
   @reflector_range 360..369
   @jumpsquat 24
 
-  def input(:closed_loop, frame, player) do
+  def input(:closed_loop, _frame, player) do
     in_reflector = player.action in @reflector_range
     af = max(player.action_frame || 0, 0)
 
@@ -140,23 +140,20 @@ defmodule Multishine do
       # Aerial reflector (365 startup / 366+ out): B HELD — keep the shine
       # active so it persists through landing into a JC-able grounded
       # reflector (releasing B here made it wind down instead — measured).
-      # Stick ALTERNATES down/neutral by af parity: fastfall needs the stick
-      # to CROSS into down while falling, and a stick held down since the
-      # ground never triggers it (measured: the un-fastfallen aerial
-      # reflector falls at ~0.027/frame² — 10x weaker than Fox's real
-      # gravity — turning the canonical ~5 airborne frames into 17+). The
-      # every-other-frame flick lands one within a frame of the fall
-      # starting, whenever that is. Parity keys off the WALL-CLOCK frame,
-      # not action_frame — 366 is a loop animation whose af can freeze,
-      # which would pin the stick and kill the flick (v4: 22 airborne
-      # frames, no fastfall, with af-parity alternation).
+      # Stick stays DOWN — no fastfall flick, deliberately. Earlier takes
+      # alternated the stick down/neutral to trigger a fastfall, because a
+      # mistimed shine left Fox floating at y=2.1 for 22 frames under the
+      # aerial reflector's weak 0.027/frame² gravity. With the shine landing
+      # on airborne frame 1 he never rises (y stays 0.0, ~4 airborne
+      # frames), so the flick became vestigial — and actively harmful: keyed
+      # on WALL-CLOCK parity over an odd-length (9-frame) cycle, it gave
+      # IDENTICAL states different stick values on alternate cycles, making
+      # the fixture unlearnable (BC floored at loss 0.121 against a 2e-3
+      # target — the entropy of a coin flip on the stick head). closed_loop's
+      # whole premise is that every frame's input is a pure function of the
+      # observable state; anything keyed on the wall clock breaks it.
       in_reflector ->
-        %{
-          main_stick: %{x: 0.5, y: if(rem(frame, 2) == 0, do: 0.0, else: 0.5)},
-          c_stick: %{x: 0.5, y: 0.5},
-          shoulder: 0.0,
-          buttons: %{a: false, b: true, x: false, y: false, z: false, l: false, r: false, d_up: false}
-        }
+        controller(b: true)
 
       # Special fall (helpless, post-reflector-release): no inputs — pressing
       # B here did nothing but destroy the next shine's edge.

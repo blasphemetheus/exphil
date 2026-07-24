@@ -57,7 +57,8 @@ alias ExPhil.Embeddings
       debug_grads_after: :integer,
       resume: :boolean,
       preflight: :boolean,
-      memory_check: :string
+      memory_check: :string,
+      rollout_cap_per_state: :integer
     ]
   )
 
@@ -420,6 +421,47 @@ process_rollout = fn path ->
 end
 
 rollout_frame_lists = if streaming, do: [], else: Enum.map(rollout_paths, process_rollout)
+
+# Coverage-balanced rollouts (--rollout-cap-per-state K, opt-in; nil = old
+# behavior). A stuck policy emits a PATHOLOGICAL trajectory: one state
+# repeated for thousands of frames. Relabeled, that is thousands of copies
+# of a single correction, which swamps the fixture and teaches the policy to
+# emit that one correction unconditionally.
+#
+# Measured 2026-07-24 (multishine): a BC policy jammed holding the grounded
+# reflector produced 2609 rollout frames, ~2100 of them the SAME state, vs
+# 1679 fixture frames. DAgger round 1 collapsed from "holds one shine
+# forever" to "never shines at all" — it had learned "always tap X".
+# Capping per {action, action_frame, on_ground} keeps full STATE coverage
+# (every distinct off-distribution state the policy visited is still
+# corrected) while restoring the loop's share of the data.
+rollout_frame_lists =
+  case opts[:rollout_cap_per_state] do
+    nil ->
+      rollout_frame_lists
+
+    cap when cap > 0 ->
+      capped =
+        Enum.map(rollout_frame_lists, fn frames ->
+          frames
+          |> Enum.group_by(fn f ->
+            p = f.game_state.players[port]
+            if p, do: {trunc(p.action), trunc(p.action_frame), p.on_ground}, else: :unknown
+          end)
+          |> Enum.flat_map(fn {_key, group} -> Enum.take(group, cap) end)
+          |> Enum.sort_by(& &1.game_state.frame)
+        end)
+
+      before_n = rollout_frame_lists |> List.flatten() |> length()
+      after_n = capped |> List.flatten() |> length()
+
+      Output.puts(
+        "  rollout cap #{cap}/state: #{before_n} -> #{after_n} frames " <>
+          "(#{before_n - after_n} redundant repeats dropped; state coverage unchanged)"
+      )
+
+      capped
+  end
 
 # Streaming shard build (#33): every source is processed ONE AT A TIME —
 # load -> relabel/slice -> shift -> weights + probe labels -> embed -> f16

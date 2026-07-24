@@ -82,7 +82,44 @@ loop = fn loop, n, acc ->
 end
 
 recs = loop.(loop, 0, [])
+
+# End the game before tearing down: Slippi only finalizes the .slp on game
+# END, so a mid-game stop leaves a truncated file that peppi rejects with
+# "failed to fill whole buffer" — which silently costs you the rollout.
+# (Cost a DAgger round on 2026-07-24: the drill reported "0 frames, 0.0%
+# corrected" and trained on the fixture alone, i.e. plain BC wearing a
+# DAgger label.) Hold left to SD until the game ends, same as
+# record_multishine.exs. Skip with MULTISHINE_NO_SD=1 for a pure
+# measurement run whose replay you don't need.
+sd_left = %{
+  main_stick: %{x: 0.0, y: 0.5}, c_stick: %{x: 0.5, y: 0.5}, shoulder: 0.0,
+  buttons: %{a: false, b: false, x: false, y: false, z: false, l: false, r: false, d_up: false}
+}
+
+sd_loop = fn sd_loop, left ->
+  if left <= 0 do
+    :timeout
+  else
+    case MeleePort.step(bridge, auto_menu: false) do
+      {:ok, _} ->
+        MeleePort.send_controller(bridge, sd_left)
+        sd_loop.(sd_loop, left - 1)
+
+      _ -> :game_ended
+    end
+  end
+end
+
+if System.get_env("MULTISHINE_NO_SD") == "1" do
+  Output.puts("skipping SD-out (MULTISHINE_NO_SD=1) — replay will be TRUNCATED and unusable as a rollout")
+else
+  Output.puts("SD-ing to end the game so Slippi finalizes the .slp (usable as a DAgger rollout)...")
+  Output.puts("SD result: #{inspect(sd_loop.(sd_loop, 7200))}")
+  Process.sleep(3_000)
+end
+
 try do MeleePort.stop(bridge) catch :exit, _ -> :ok end
+Process.sleep(2_000)
 
 acts = Enum.map(recs, fn {a, _, _, _} -> a end)
 s = ShineChain.summary(acts)
@@ -104,6 +141,43 @@ runs =
   |> Enum.filter(fn [{{a, _, _, _}, _} | _] -> in_loop.(a) end)
 
 best = Enum.max_by(runs, &length/1, fn -> [] end)
+
+# ALWAYS show what the policy did, not just whether it shined. A run that
+# reports "no chains" is otherwise a dead end — "never shines" and "shines
+# but never chains" and "stuck in one state" all print identically, and you
+# cannot tell which without another Dolphin boot (~5 min each).
+Output.puts("")
+Output.puts("=== what the policy actually did (#{length(recs)} frames) ===")
+
+recs
+|> Enum.frequencies_by(fn {a, _, _, _} -> name.(a) end)
+|> Enum.sort_by(fn {_k, v} -> -v end)
+|> Enum.take(10)
+|> Enum.each(fn {n, c} ->
+  Output.puts("  #{String.pad_trailing(n, 8)} #{String.pad_leading("#{c}", 5)} frames (#{Float.round(100.0 * c / max(length(recs), 1), 1)}%)")
+end)
+
+press_rate = fn f ->
+  n = Enum.count(recs, fn {_, _, _, c} -> f.(c.buttons) end)
+  "#{Float.round(100.0 * n / max(length(recs), 1), 1)}%"
+end
+
+Output.puts(
+  "  press rates: B=#{press_rate.(& &1.b)} X=#{press_rate.(& &1.x)} " <>
+    "Y=#{press_rate.(& &1.y)} A=#{press_rate.(& &1.a)}"
+)
+
+stick_down = Enum.count(recs, fn {_, _, _, c} -> c.main_stick.y < 0.25 end)
+Output.puts("  stick held down: #{Float.round(100.0 * stick_down / max(length(recs), 1), 1)}%")
+
+Output.puts("\n  first 24 in-game frames:")
+
+recs
+|> Enum.take(24)
+|> Enum.each(fn {a, af, g, c} ->
+  b = c.buttons
+  Output.puts("    #{String.pad_trailing(name.(a), 8)} af=#{af} gnd=#{g} | B=#{b.b} X=#{b.x} sY=#{Float.round(c.main_stick.y, 2)}")
+end)
 
 if best != [] do
   {_, start_i} = hd(best)

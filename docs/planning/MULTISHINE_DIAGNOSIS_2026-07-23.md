@@ -261,3 +261,78 @@ Three stacked errors had produced the "wall":
 Teacher fix lives in `record_multishine.exs` `:closed_loop`. Next
 (task list): re-record the fixture 20s+, verify with ShineChain v3
 (max_length >= 5), rebuild MultishineExpert, retrain, gate the policy on v3.
+
+## 2026-07-24 (overnight): teacher DONE, policy blocked on a state-stream shift
+
+Ran the full backlog (fixture -> table -> retrain -> policy gate). Steps 1-3
+passed; **gate 4 (the policy) FAILS, and the cause is not what any of the
+earlier hypotheses predicted.**
+
+### What passed
+
+| Step | Result |
+|------|--------|
+| Fixture (30s, closed_loop) | max chain **186**, 187 shines, 0 empty hops, grounded_fraction 0.352 |
+| Expert table | 9 keys, covers the whole cycle |
+| Table-driven teacher LIVE (`demo_expert`) | max chain **103**, 0 empty hops ✅ |
+| BC training | loss **0.00148 in 12 epochs** |
+
+### The state-purity bug (cost one training run, then fixed)
+
+The first BC run floored at **loss 0.121 after 2000 epochs** instead of
+reaching 2e-3. Cause: the recorder's fastfall stick-flick was keyed on
+WALL-CLOCK frame parity, and the cycle is 9 frames (odd) — so identical
+states got different stick values on alternate cycles. `closed_loop`'s
+premise is that every input is a pure function of observable state, and the
+flick broke it; BC was fitting a coin flip.
+
+The flick was also vestigial: it existed to fastfall Fox down from y=2.1,
+but with the shine landing on airborne frame 1 he never rises. Removed it →
+0 ambiguous state keys → **loss 0.00148 in 12 epochs** (167x fewer epochs).
+`inspect_multishine_table.exs` now reports state purity so this is caught
+before a training run is spent.
+
+### Gate 4: the policy learned it, then can't run it
+
+The trained policy, measured two ways with the SAME weights:
+
+| fed | B rate | X rate | behavior |
+|-----|--------|--------|----------|
+| PARSED fixture states (offline) | 78.2% | 11.0% | **99.3% agreement** — reproduces the fixture |
+| LIVE bridge states | 100% | 0.1% | holds one reflector ~2000 frames, never shines |
+
+So this is **not** a learning failure, not exposure bias, and not the
+fixture. It is the parsed-vs-live state shift of GOTCHAS #81 (Peppi and
+libmelee disagree on `action_frame`: parsed jumpsquat af 0,1,2 vs live
+1,2,3, and it varies per action). The policy learned "release B at jumpsquat
+af 1,2" in PARSED coordinates and never sees those coordinates live.
+
+DAgger was tried first and made it worse, which is itself informative:
+- Round 1 rollout was truncated (`analyze_policy_shine` never ended the
+  game; Slippi only finalizes on game end) → drill silently trained on the
+  fixture alone: "0 frames, 0.0% corrected". Fixed — the script now SDs out.
+- Round 1 with a valid rollout: 2609 frames, 94.3% corrected, but ~2100 of
+  them were the SAME stuck state. It swamped the fixture and the policy
+  collapsed to "always tap X" — from "never jump-cancels" to "never shines".
+- Added `--rollout-cap-per-state` (opt-in) to `dagger_drill.exs`: caps
+  frames per `{action, af, on_ground}`, keeping full state coverage. 2609 →
+  514 frames. Policy still failed — because DAgger cannot fix a feature
+  mismatch, only a coverage gap.
+
+### Next experiment (do this first, it is cheap and decisive)
+
+Diff the two state streams directly on the SAME game: the recorder's live
+observations (`MULTISHINE_TRACE=1`) against the parse of the .slp it
+produced, frame by frame, field by field. That yields the exact mapping
+(is it a uniform +1 on af? per-action? do other fields shift too?). Only
+then choose the fix:
+
+1. **Normalize at the embedding boundary** — one conversion, benefits every
+   policy, but touches shared code and needs a regression pass on the
+   Mewtwo tracks (coarse behaviors currently tolerate the shift).
+2. **Train on live-captured pairs** — have the recorder dump its own
+   `(observed_state, decided_input)` stream and train on that, bypassing the
+   replay round-trip. Narrow and safe; only helps drills.
+3. **Feed the policy parsed-convention features live** — inverse of (1).
+
+Do NOT spend more DAgger rounds on this until the streams are reconciled.

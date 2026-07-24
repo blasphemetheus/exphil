@@ -2864,3 +2864,103 @@ surrounding ops change what XLA fuses. Only the real-graph train-step
 profiler correctly ranked the cost (r15's 2x epoch = the probe-reg 2nd
 trunk fwd+bwd, not CSE'd — invisible to a microbench). Profile the whole
 graph, not the block, before attributing a regression.
+
+## 78. Verify a technique EXISTS before probing whether the harness can do it
+
+Cost ~2 days (2026-07-23/24, Track B). `jumpsquat_probe.exs` swept every
+input strategy for a shine "during jumpsquat" — held B, fresh edges,
+buffered X+B, JC-frame 0..4, open-loop rhythms — all failed, and the
+failure was written up as a bridge/libmelee input-delivery wall that
+blocked the whole Fox track. **Down-B cannot cancel jumpsquat in Melee.**
+Only up-smash, up-B, and grab can; a down-B during jumpsquat is eaten.
+Every probe was testing something the game forbids, so the exhaustive
+sweep "proved" only that the rules are the rules. The real multishine
+shines on the FIRST AIRBORNE FRAME, and the same bridge does it fine
+(max chain 186).
+
+Sibling of the "doubt the metric before the observation" lesson, one
+level deeper: when a probe proves something is IMPOSSIBLE, first check
+that the thing is possible at all. A negative result about your own
+infrastructure is a much bigger claim than a mechanics bug, so it needs
+the stronger evidence — cite the mechanic (SmashWiki / frame data / a
+human doing it) before concluding the harness is broken.
+
+## 79. A metric that forbids the technique's own mechanics will fail every correct attempt
+
+`ShineChain` v2 defined a clean multishine as consecutive GROUNDED
+reflectors and BROKE the chain on any aerial reflector, targeting
+`grounded_fraction >= 0.9`. But a real multishine is ~1/3 grounded shine
+frames — each cycle is 2 grounded + 4 aerial frames, because the shine
+comes out in the air by definition. So the metric scored every correct
+attempt as "max chain 1" and sent the investigation hunting for a
+nonexistent zero-airtime technique (see #78). v3 chains through air gaps
+<= 8 frames that contain an aerial shine and still breaks on full jumps.
+
+When defining a metric for a technique, first write down the technique's
+actual frame-by-frame shape and check the metric scores a KNOWN-GOOD
+execution highly. A metric validated only against known-BAD data (v2 was
+tuned to reject the sloppy fixture) can be maximally wrong: it correctly
+rejects the bad thing while also rejecting the good thing.
+
+## 80. Frame-perfect inputs must be PREDICTIVE — reacting to the state is already too late
+
+At 0 bridge latency the observe-act loop is still one frame: an input
+decided from the state at frame N lands at N+1. For the multishine that
+one frame is the entire technique. Shine activating on airborne frame 1
+zeroes vy before the jump's +2.1 first-frame rise, so Fox stalls at y~0
+and lands in 4 frames; one frame later he is at y=2.1 and the aerial
+reflector's physics (0.027/f^2 gravity, fastfall DISABLED in-state) make
+it a 22-frame float — a shine-hop, not a multishine. Reacting to "I am
+airborne" therefore never works. The teacher instead presses B on the
+observed LAST jumpsquat frame (af 3 of exactly 3), so it LANDS on
+airborne frame 1.
+
+Generalize: for any frame-perfect tech, key the input off the state one
+frame BEFORE the target frame, using a state whose duration is
+deterministic (jumpsquat is always 3 frames). Diagnose with per-frame
+physics, not action segments — `MULTISHINE_TRACE=1` on
+`record_multishine.exs` prints y/vy/action/af per frame and is what
+found this; a segment dump shows "22 frames airborne" but never why.
+
+## 81. Peppi's action_frame and libmelee's disagree — table lookups built from replays MISS live
+
+The `MultishineExpert` table is keyed on `{action, action_frame,
+on_ground}` extracted from a parsed .slp, then looked up live. The two
+sources do not agree on `action_frame`: for the same multishine cycle,
+parsed gives jumpsquat af 0,1,2 / 366 af 0 / 361 af 1,2 while live
+libmelee gives 1,2,3 / 1 / 2,3 (365 happens to agree). There is also a
+landing-convention offset: the table stores the input recorded ON a
+frame, but a live driver needs the input that lands on the NEXT frame.
+
+Consequence: live table lookups miss on several frames per cycle. The
+2026-07-24 teacher still passed its live gate (max chain 103) because
+the misses fall through to `MultishineExpert`'s recovery rules, which
+happen to emit the right input there (jumpsquat miss -> "start a shine"
+= exactly the airborne-frame-1 press). **That is load-bearing luck, not
+alignment.** Before "fixing" the af convention or trimming the recovery
+rules, re-run `scripts/demo_expert.exs` — either change can silently
+break the teacher. Note also that `inspect_multishine_table.exs`'s LIVE
+fidelity number is computed in parsed-af space and therefore does NOT
+predict live behavior; the live demo is authoritative.
+
+**ESCALATION (same day): this breaks POLICIES too, not just tables — and
+silently.** The multishine policy trained to loss 0.0012 was measured
+both ways on 2026-07-24:
+
+| fed | B press rate | X press rate | behavior |
+|-----|--------------|--------------|----------|
+| PARSED fixture states (offline) | 78.2% | 11.0% | 99.3% button agreement — reproduces the fixture |
+| LIVE bridge states | 100% | 0.1% | holds the reflector forever, never shines |
+
+Same weights. The policy learned the correct function; the live feature
+stream is different enough to collapse it onto a constant. A replay-trained
+policy is therefore NOT guaranteed to be running on the features it was
+trained on, and nothing in the training loss can tell you — the loss is
+computed entirely in parsed space.
+
+Diagnose with `scripts/eval_policy_on_fixture.exs` (offline, ~10s, no
+Dolphin): high offline agreement + live failure = state-stream problem,
+low offline agreement = training problem. Run it BEFORE blaming exposure
+bias, DAgger coverage, or the bridge. Coarse behaviors tolerate the shift
+(most of the repo's policies "work"), so this stayed invisible until a
+frame-perfect technique made it load-bearing.
