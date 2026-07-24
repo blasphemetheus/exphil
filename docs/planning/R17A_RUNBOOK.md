@@ -36,6 +36,20 @@ Everything else matches r16 so the comparison is clean.
 
 ## Launch
 
+**Shortcut (2026-07-24):** `scripts/launch_r17a_resume.sh` is this exact
+command, already wrapped. Run it detached and inside the devenv shell:
+
+```bash
+nohup setsid devenv shell -- bash scripts/launch_r17a_resume.sh \
+  > logs/r17a_launcher_resume.log 2>&1 < /dev/null & disown
+```
+
+The `devenv shell --` is REQUIRED and is missing from the raw command below:
+run it from a plain shell and the launcher dies immediately with
+`[newera8] make not on PATH` (GOTCHAS #60). The launcher auto-`--resume`s
+whenever it finds the round's `trainer.ckpt`, so this is also the
+resume-after-interruption command.
+
 ```bash
 cd ~/git/exphil
 BC=$(cat corpus/curated/r17a_bc.txt)
