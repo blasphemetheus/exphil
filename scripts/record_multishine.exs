@@ -64,11 +64,20 @@ defmodule Multishine do
   @period_multishine 12
   @period_simple 15
 
+  # Open-loop rhythm, sweepable. The reactive/closed-loop approach cannot
+  # shine-cancel jumpsquat (it always lands the shine one frame late, after
+  # takeoff — measured 2026-07-24). A muscle-memory-style FIXED rhythm can
+  # hit jumpsquat frame 1. Tune period / jump-frame / shine2-frame:
+  #   MULTISHINE_PERIOD (default 8), MULTISHINE_JUMP_AT (4), MULTISHINE_SHINE2_AT (5)
+  @ol_period (System.get_env("MULTISHINE_PERIOD") || "8") |> String.to_integer()
+  @ol_jump (System.get_env("MULTISHINE_JUMP_AT") || "4") |> String.to_integer()
+  @ol_shine2 (System.get_env("MULTISHINE_SHINE2_AT") || "5") |> String.to_integer()
+
   def input(:multishine, frame) do
-    case rem(frame, @period_multishine) do
+    case rem(frame, @ol_period) do
       0 -> controller(b: true)
-      3 -> controller(x: true)
-      7 -> controller(b: true)
+      f when f == @ol_jump -> controller(x: true)
+      f when f == @ol_shine2 -> controller(b: true)
       _ -> controller([])
     end
   end

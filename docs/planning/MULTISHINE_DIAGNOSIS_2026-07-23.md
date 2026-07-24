@@ -124,20 +124,58 @@ author hit (the `:closed_loop` code carries "take-5/take-6" trace comments).
 shine→jump→land→shine — no better than today. Retraining is gated on a
 fixture that actually chains (`grounded_fraction ≈ 1.0` AND `max_length ≥ 5`).
 
+## Deeper investigation 2026-07-24: latency=0, the jumpsquat cancel is the wall
+
+Investigated the two proposed fixes — bridge latency compensation and the
+closed-loop mechanic — empirically.
+
+**Bridge input latency = 0 (measured, `scripts/latency_probe.exs`).** From a
+standing Fox, a single-frame down+B produces the grounded reflector on the
+very next observed step (5/5 trials, "N+0"). `console.step()` flushes the
+controllers before reading, so an input decided from frame N lands on N+1 —
+the minimal unavoidable observe-act frame, no extra. **There is no excess
+latency to compensate. The "+1 bridge latency" note in the old closed_loop
+comments was wrong. Latency compensation is a dead end.**
+
+**The jumpsquat shine-cancel does not register through the pipe input — any
+input strategy** (`scripts/jumpsquat_probe.exs`, exhaustive):
+
+| strategy | result |
+|----------|--------|
+| held B through jumpsquat | full jump, then nothing (held B = no edge) |
+| fresh B edge at jsquat af 1 | full jump |
+| buffer X+B on the JC frame | full jump → **aerial** shine (input reaches, but after takeoff) |
+| open-loop rhythm sweep (period 6/7/8, jump@4, shine2@5/6) | grounded_fraction 0.11–0.29, max grounded chain 1 |
+| JC-shine-frame sweep 0..4 | identical: grounded shine → full jump → land → shine |
+
+Across reactive AND open-loop, across every B timing/edge/buffer: Fox always
+completes takeoff and the shine comes out in the AIR, never during jumpsquat.
+The shine input clearly reaches the game (it shines from standing, and shines
+aerially after the jump) — but the shine-cancel of Fox's 3-frame jumpsquat is
+never delivered on frame 1. The observe→react loop lands the shine one frame
+late even at 0 latency, and open-loop timing doesn't fix it either.
+
+**Conclusion: a clean grounded multishine cannot be produced through the
+libmelee pipe input with the strategies available.** This is a hard wall, not
+a tuning problem. It is almost certainly why the original fixture is 75%
+aerial — the recorder physically cannot keep Fox grounded.
+
 ## Real options to get a clean fixture (next work)
 
-1. **Human-recorded fixture (recommended, cleanest).** Record one real Fox
-   multishine on normal Dolphin/console (not through the bridge — the bridge
-   is where the frame-perfect input dies), import it, verify with
+1. **Human-recorded fixture (recommended — the only reliably-working path).**
+   Record one real Fox multishine on normal Dolphin/console with a physical
+   controller (NOT through the bridge — the 2026-07-24 investigation proved
+   the bridge physically cannot keep Fox grounded), import it, verify with
    `ShineChain.summary` that `grounded_fraction ≈ 1.0` and `max_length` is
    large, then it's the fixture. Everything downstream (rebuild
    `MultishineExpert` table → retrain → gate on ShineChain) is ready.
-2. **Bridge input-latency compensation** — send inputs one frame ahead /
-   predict next state, so frame-perfect drills become hittable. Infrastructure
-   work that benefits every scripted expert, not just multishine.
-3. **Deeper `:closed_loop` investigation** — why down+B during jumpsquat
-   doesn't cancel (stick state at the press? the JC-jump input itself?
-   C-stick shine?). Many iterations, uncertain payoff.
+2. ~~Bridge latency compensation~~ — **RULED OUT.** Measured latency is 0.
+3. **Fix pipe input frame-1 delivery** (deep, uncertain) — figure out why the
+   ExiAI pipe input can't deliver a jumpsquat-frame-1 shine-cancel (input-poll
+   alignment? sub-frame? a Dolphin/libmelee quirk). This is the only way to
+   generate a clean fixture through automation rather than a human recording,
+   but it is open-ended infrastructure spelunking. `latency_probe.exs` and
+   `jumpsquat_probe.exs` are the tools to continue it.
 
 ## GOALS.md Track B correction
 
