@@ -29,7 +29,8 @@ alias ExPhil.Training.Output
       stage: :string,
       port: :integer,
       slippi_dir: :string,
-      out: :string
+      out: :string,
+      dummy: :string
     ]
   )
 
@@ -44,6 +45,15 @@ fixture_path = opts[:out] || "test/fixtures/replays/fox_multishine.slp"
 
 defmodule Multishine do
   @moduledoc false
+
+  # Jumpsquat shine-out frame (closed loop): press down+B when action_frame
+  # >= this during jumpsquat. The default 3 landed the shine on jumpsquat's
+  # EXIT frame (airborne) -> aerial shine 75% of the time (grounded_fraction
+  # 0.25, the 2026-07-23 diagnosis). Lower = press earlier = shine comes out
+  # GROUNDED. Sweepable via MULTISHINE_JC_FRAME to dial it in by measurement
+  # (ShineChain.grounded_fraction) instead of guessing.
+  @jc_shine_frame (System.get_env("MULTISHINE_JC_FRAME") || "3") |> String.to_integer()
+  def jc_shine_frame, do: @jc_shine_frame
 
   # All patterns hold the main stick DOWN (y = 0.0 in libmelee's 0..1 space).
   # Shine = down + B; jump-cancel = X during shine; aerial shine on the first
@@ -152,10 +162,10 @@ defmodule Multishine do
       # timing slips a frame, the airborne branch below still delivers an
       # aerial shine + fastfall recovery instead of an empty hop.
       player.action == @jumpsquat ->
-        # take-6 trace: af>=2 landed the edge on jumpsquat frame 3 (consumed
-        # no-op) — live af leads the recording by one. af>=3 puts it on the
-        # exit frame.
-        controller(b: af >= 3)
+        # Sweepable JC-shine frame. The old hard-coded af>=3 put the shine on
+        # jumpsquat's EXIT frame (airborne) -> aerial shine. Pressing earlier
+        # (af>=2) lands it while still grounded. Dial in by measurement.
+        controller(b: af >= @jc_shine_frame)
 
       # Airborne without reflector (just left the ground from the JC):
       # aerial shine IMMEDIATELY — B was released during jumpsquat, so this
@@ -514,7 +524,16 @@ Output.puts("Launching Dolphin (pick any character on the opponent port)...")
     controller_port: player_port,
     opponent_port: if(player_port == 1, do: 2, else: 1),
     character: :fox,
-    stage: stage
+    stage: stage,
+    # A built-in "stand" dummy fills port 2 and clears CSS python-side, so no
+    # human controller is needed — this makes the recorder automatable (e.g.
+    # sweeping MULTISHINE_JC_FRAME headless). Overridable via --dummy.
+    dummy_mode: opts[:dummy] || "stand",
+    dummy_character: "fox",
+    dummy_cpu_level: 0,
+    # Headless (ExiAI build) for unattended sweeps; MULTISHINE_HEADLESS=1.
+    headless: System.get_env("MULTISHINE_HEADLESS") == "1",
+    no_audio: System.get_env("MULTISHINE_HEADLESS") == "1"
   })
 
 result = RecordLoop.run(bridge, mode, seconds * 60)

@@ -93,6 +93,52 @@ the behavior.
   match, ShineChain summary for both. The side-by-side that made the gap
   visible.
 
+## Attempted fix (2026-07-23, later): B-timing sweep — did NOT crack it
+
+Made `record_multishine.exs` `:closed_loop` JC-shine frame sweepable
+(`MULTISHINE_JC_FRAME`) + automatable (built-in port-2 `stand` dummy clears
+CSS, `MULTISHINE_HEADLESS=1`), and swept the shine-out frame 0→4, measuring
+each with `ShineChain`:
+
+| JC frame | grounded_fraction | clean max chain | outcome |
+|----------|-------------------|-----------------|---------|
+| 0, 1, 2  | **1.0** (0 aerial) | **1** | 31 empty hops — shine, FULL JUMP, land, shine |
+| 3 (old)  | 0.365 | 1 | aerial shines |
+| 4        | 0.41  | 1 | aerial shines |
+
+Two findings:
+1. **JC frame ≤2 eliminates the AERIAL shine** (grounded_fraction → 1.0). So
+   the "shines on the way down" is fixable — press the shine earlier.
+2. **But it does not CHAIN.** af 0/1/2 give byte-identical results (93 ground
+   frames, 31 empty hops, max chain 1): Fox shines once grounded, then does a
+   FULL 20-frame jump (empty hop), lands, shines again. The down+B during
+   jumpsquat is **not shine-cancelling at all**, regardless of frame.
+
+Jumpsquat here is 3 frames; pressing at af=0 lands (with +1 bridge latency)
+inside the cancel window and STILL fails — so it is **not purely latency**.
+The frame-perfect shine-out-of-jumpsquat cancel does not reproduce through
+this input path by sweeping the B frame. This is the same wall the original
+author hit (the `:closed_loop` code carries "take-5/take-6" trace comments).
+
+**Did NOT retrain.** A fixture of single grounded shines would teach
+shine→jump→land→shine — no better than today. Retraining is gated on a
+fixture that actually chains (`grounded_fraction ≈ 1.0` AND `max_length ≥ 5`).
+
+## Real options to get a clean fixture (next work)
+
+1. **Human-recorded fixture (recommended, cleanest).** Record one real Fox
+   multishine on normal Dolphin/console (not through the bridge — the bridge
+   is where the frame-perfect input dies), import it, verify with
+   `ShineChain.summary` that `grounded_fraction ≈ 1.0` and `max_length` is
+   large, then it's the fixture. Everything downstream (rebuild
+   `MultishineExpert` table → retrain → gate on ShineChain) is ready.
+2. **Bridge input-latency compensation** — send inputs one frame ahead /
+   predict next state, so frame-perfect drills become hittable. Infrastructure
+   work that benefits every scripted expert, not just multishine.
+3. **Deeper `:closed_loop` investigation** — why down+B during jumpsquat
+   doesn't cancel (stick state at the press? the JC-jump input itself?
+   C-stick shine?). Many iterations, uncertain payoff.
+
 ## GOALS.md Track B correction
 
 GOALS.md says Track B is an EXECUTION problem ("the policy can't reproduce a

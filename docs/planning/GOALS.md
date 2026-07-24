@@ -87,20 +87,30 @@ Supporting signal (not gates): opener entropy / top-opener share via
 **Goal:** multishine perfectly, *no matter the circumstance.* It multishines
 sometimes today; the target is reliability, not novelty.
 
-This is a different kind of problem from Track A — a known, fixed input
-sequence that must survive arbitrary starting conditions. No decision-making
-required.
+**Corrected 2026-07-23 — this was NOT the execution problem it looked like.**
+Measuring the fixture with a grounded-vs-aerial metric (`ExPhil.Eval.ShineChain`)
+showed the training source `fox_multishine_closed.slp` is **only 24.6% grounded
+shines** (275 grounded vs 844 aerial frames); its max clean *grounded*
+multishine is **length 1**. The bot faithfully clones a fixture that itself
+does the sloppy shine → jump → air-shine loop, not a real multishine. So the
+first problem is a **data** problem: the behavior isn't in the supervision.
+Full writeup: `docs/planning/MULTISHINE_DIAGNOSIS_2026-07-23.md`.
 
-| Gate | Metric | Target | Tooling |
-|------|--------|--------|---------|
-| **B1 — enters** | % of curated start states where the shine loop begins within 60f | **≥ 90%** | `scripts/scenario_suite.exs` (virtual savestates) ✅ exists |
-| **B2 — sustains** | mean consecutive shines before a drop | **≥ 5** | ⚠️ **needs a chain metric** |
+Gates, in order — B0 is the actual first step:
 
-"Any circumstance" = a curated start-state set: in place, out of dash, after
-landing, on/near shield, varying position and facing. The input-prefix
-machinery in `scenario_suite.exs` and the real savestates from
-`scripts/human_drill.exs` produce exactly these. Reference behavior:
-`ExPhil.Agents.MultishineExpert`, `scripts/trace_multishine.exs`.
+| Gate | Metric | Now | Target | Tooling |
+|------|--------|-----|--------|---------|
+| **B0 — fixture is clean** | `ShineChain.grounded_fraction` of the fixture | **0.25** | **≥ 0.9** | `ShineChain.summary` ✅; fix `record_multishine.exs` JC timing |
+| **B1 — policy enters** | % of curated start states where a GROUNDED shine loop begins within 60f | — | ≥ 90% | `scripts/scenario_suite.exs` |
+| **B2 — policy sustains** | max consecutive GROUNDED shines | — | ≥ 5 | `ShineChain` ✅ |
+
+Root of the sloppy fixture: `record_multishine.exs` `:closed_loop` mode presses
+the next shine on jumpsquat's *exit* frame (airborne), so the shine comes out
+in the air. Fix the JC-shine frame → verify `grounded_fraction ≈ 1.0` BEFORE
+saving → rebuild the `MultishineExpert` table → retrain. Only after B0 does
+"can the policy reproduce it" (B1/B2) become the real question. Reference:
+`ExPhil.Agents.MultishineExpert`, `scripts/demo_expert.exs` (drive the teacher
+live), `scripts/demo_vs_teacher.exs` (policy vs teacher side by side).
 
 ---
 
