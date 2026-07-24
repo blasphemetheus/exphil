@@ -1,0 +1,524 @@
+==> exla
+Using libexla.so from /home/blewf/.cache/xla/exla/elixir-1.18.4-erts-15.2.7.6-xla-0.10.0-exla-0.12.0-ry7rhnojcblwgz6npcnndj7dve/libexla.so
+EXLA_CPU_ONLY is not set, checking for nvcc availability
+CUDA is available.
+make: '/home/blewf/git/exphil/_build/dev/lib/exla/priv/libexla.so' is up to date.
+==> edifice
+    warning: outdented heredoc line. The contents inside the heredoc should be indented at the same level as the closing """. The following is forbidden:
+
+        def text do
+          """
+        contents
+          """
+        end
+
+    Instead make sure the contents are indented as much as the heredoc closing:
+
+        def text do
+          """
+          contents
+          """
+        end
+
+    The current heredoc line is indented too little
+    │
+  3 │ > ### STATUS: BROKEN — do not use for research conclusions
+    │              ~
+    │
+    └─ lib/edifice/interpretability/gated_sae.ex:3:14
+
+    warning: outdented heredoc line. The contents inside the heredoc should be indented at the same level as the closing """. The following is forbidden:
+
+        def text do
+          """
+        contents
+          """
+        end
+
+    Instead make sure the contents are indented as much as the heredoc closing:
+
+        def text do
+          """
+          contents
+          """
+        end
+
+    The current heredoc line is indented too little
+    │
+  3 │ > ### STATUS: BROKEN — do not use for research conclusions
+    │              ~
+    │
+    └─ lib/edifice/interpretability/matryoshka_sae.ex:3:14
+
+    warning: outdented heredoc line. The contents inside the heredoc should be indented at the same level as the closing """. The following is forbidden:
+
+        def text do
+          """
+        contents
+          """
+        end
+
+    Instead make sure the contents are indented as much as the heredoc closing:
+
+        def text do
+          """
+          contents
+          """
+        end
+
+    The current heredoc line is indented too little
+    │
+  3 │ > ### STATUS: BROKEN — needs redesign, not a patch
+    │              ~
+    │
+    └─ lib/edifice/interpretability/cross_layer_transcoder.ex:3:14
+
+    warning: outdented heredoc line. The contents inside the heredoc should be indented at the same level as the closing """. The following is forbidden:
+
+        def text do
+          """
+        contents
+          """
+        end
+
+    Instead make sure the contents are indented as much as the heredoc closing:
+
+        def text do
+          """
+          contents
+          """
+        end
+
+    The current heredoc line is indented too little
+    │
+  3 │ > ### STATUS: MISLABELED — this is not DAS
+    │              ~
+    │
+    └─ lib/edifice/interpretability/das_probe.ex:3:14
+
+     warning: redefining @doc attribute previously set at line 826
+     │
+ 858 │   @doc """
+     │   ~~~~~~~~
+     │
+     └─ lib/edifice/ssm/gated_ssm.ex:858: Edifice.SSM.GatedSSM (module)
+
+     warning: redefining @doc attribute previously set at line 145
+     │
+ 177 │   @doc """
+     │   ~~~~~~~~
+     │
+     └─ lib/edifice/ssm/common.ex:177: Edifice.SSM.Common (module)
+
+==> exphil
+      warning: default values for the optional arguments in create_sequence_batch_lazy/11 are never used
+      │
+ 2437 │   defp create_sequence_batch_lazy(chunks_array, chunk_size, frames_array, indices, window_size, stride, embed_dim, gpu, use_batch, neutral_weight, transition_weight \\ nil) do
+      │        ~
+      │
+      └─ lib/exphil/training/data.ex:2437:8: ExPhil.Training.Data (module)
+
+    warning: module attribute @jumpsquat was set but never used
+    │
+ 42 │   @jumpsquat 24
+    │   ~~~~~~~~~~~~~
+    │
+    └─ lib/exphil/agents/multishine_expert.ex:42: ExPhil.Agents.MultishineExpert (module)
+
+    warning: unused alias Utils
+    │
+ 27 │   alias ExPhil.Training.Utils
+    │   ~
+    │
+    └─ lib/exphil/interp/probe.ex:27:3
+
+    warning: variable "process_fn" is unused (if the variable is not meant to be used, prefix it with an underscore)
+    │
+ 78 │     process_fn = Keyword.fetch!(opts, :process_fn)
+    │     ~~~~~~~~~~
+    │
+    └─ lib/exphil/data/training_shards.ex:78:5: ExPhil.Data.TrainingShards.build/3
+
+
+00:51:34.393 [info] [ExPhil] Application started
+
+00:51:34.394 [debug] [ExPhil] Supervision tree: [{ExPhil.Training.AsyncCheckpoint, #PID<0.286.0>, :worker, [ExPhil.Training.AsyncCheckpoint]}, {ExPhil.Telemetry.Collector, #PID<0.285.0>, :worker, [ExPhil.Telemetry.Collector]}, {ExPhil.Agents.Supervisor, #PID<0.284.0>, :supervisor, [ExPhil.Agents.Supervisor]}, {ExPhil.Bridge.Supervisor, #PID<0.283.0>, :supervisor, [ExPhil.Bridge.Supervisor]}, {ExPhil.Registry, #PID<0.281.0>, :supervisor, [Registry]}]
+     warning: clauses with the same name and arity (number of arguments) should be grouped together, "def input/2" was previously defined (scripts/record_multishine.exs:79)
+     │
+ 375 │   def input(:simple, frame) do
+     │       ~
+     │
+     └─ scripts/record_multishine.exs:375:7
+
+    warning: module attribute @period_multishine was set but never used
+    │
+ 65 │   @period_multishine 12
+    │   ~~~~~~~~~~~~~~~~~~~~~
+    │
+    └─ scripts/record_multishine.exs:65: Multishine (module)
+
+
+╔════════════════════════════════════════════════════════════╗
+║                  Fox Multishine Recorder                   ║
+╚════════════════════════════════════════════════════════════╝
+
+[1mConfiguration:[0m
+  [2m  Mode:[0m :closed_loop
+  [2m  Duration:[0m "5s (300 frames)"
+  [2m  Stage:[0m :final_destination
+  [2m  Slippi dir:[0m "/home/blewf/Slippi"
+  [2m  Fixture out:[0m "/tmp/claude-1000/-home-blewf/d7c6eb08-359e-4660-8915-e09526f73698/scratchpad/fox_ms_v6.slp"
+
+[00:51:34] Launching Dolphin (pick any character on the opponent port)...
+[melee_bridge] INFO: Melee bridge started, waiting for commands...
+[melee_bridge] INFO: Initializing console at /home/blewf/.local/share/slippi/exi-ai/dolphin-emu-headless
+[melee_bridge] INFO: Headless mode: Null gfx, no audio, blocking input, exi_inputs=False
+[melee_bridge] INFO: Dummy enabled: mode=stand port=2
+[melee_bridge] INFO: Starting Dolphin with ISO: /home/blewf/isos/melee.iso
+[melee_bridge] INFO: Console slippi_port: 51441
+[melee_bridge] INFO: Console slippi_address: 127.0.0.1
+[melee_bridge] INFO: Dolphin process started
+[melee_bridge] Waiting 3 seconds...
+[melee_bridge] Wait complete, now connecting...
+[melee_bridge] Calling console.connect()...
+[melee_bridge] connect() returned: True
+[melee_bridge] INFO: Connect returned: True
+[melee_bridge] INFO: Connected to console
+[melee_bridge] INFO: Controller connected on port 1
+[melee_bridge] INFO: Dummy controller connected on port 2
+[melee_bridge] INFO: Frame 0: UNKNOWN_MENU | P1:? P2:?
+[melee_bridge] INFO: Frame 0: MAIN_MENU | P1:? P2:?
+[melee_bridge] INFO: Frame 0: CHARACTER_SELECT | P1:0%/0stk P2:0%/0stk
+[melee_bridge] INFO: Frame 0: STAGE_SELECT | P1:0%/0stk P2:0%/0stk
+[melee_bridge] INFO: Frame 60: STAGE_SELECT | P1:0%/0stk P2:0%/0stk
+51:38:960 Core/HW/EXI_DeviceSlippi.cpp:501 W[SLIPPI]: Creating file write thread...
+[record] In game — starting closed_loop input loop
+[trace] f0 act=322 af=-1 gnd=false y=10.0 vy=0.0
+[trace] f1 act=322 af=-1 gnd=false y=10.0 vy=0.0
+[trace] f2 act=322 af=-1 gnd=false y=10.0 vy=0.0
+[melee_bridge] INFO: Frame -120: IN_GAME | P1:0%/4stk P2:0%/4stk
+[trace] f3 act=322 af=-1 gnd=false y=10.0 vy=0.0
+[trace] f4 act=322 af=-1 gnd=false y=10.0 vy=0.0
+[trace] f5 act=323 af=1 gnd=false y=10.04 vy=0.0
+[trace] f6 act=323 af=2 gnd=false y=10.09 vy=0.0
+[trace] f7 act=323 af=3 gnd=false y=10.13 vy=0.0
+[trace] f8 act=323 af=4 gnd=false y=10.18 vy=0.0
+[trace] f9 act=323 af=5 gnd=false y=10.22 vy=0.0
+[trace] f10 act=323 af=6 gnd=false y=10.27 vy=0.0
+[trace] f11 act=323 af=7 gnd=false y=10.31 vy=0.0
+[trace] f12 act=323 af=8 gnd=false y=10.36 vy=0.0
+[trace] f13 act=323 af=9 gnd=false y=10.4 vy=0.0
+[trace] f14 act=323 af=10 gnd=false y=10.45 vy=0.0
+[trace] f15 act=323 af=11 gnd=false y=10.49 vy=0.0
+[trace] f16 act=323 af=11 gnd=false y=10.54 vy=0.0
+[trace] f17 act=323 af=11 gnd=false y=10.58 vy=0.0
+[trace] f18 act=323 af=11 gnd=false y=10.63 vy=0.0
+[trace] f19 act=323 af=11 gnd=false y=10.67 vy=0.0
+[trace] f20 act=323 af=11 gnd=false y=10.72 vy=0.0
+[trace] f21 act=323 af=11 gnd=false y=10.76 vy=0.0
+[trace] f22 act=323 af=11 gnd=false y=10.81 vy=0.0
+[trace] f23 act=323 af=11 gnd=false y=10.85 vy=0.0
+[trace] f24 act=323 af=11 gnd=false y=10.9 vy=0.0
+[trace] f25 act=323 af=11 gnd=false y=10.94 vy=0.0
+[trace] f26 act=323 af=11 gnd=false y=10.99 vy=0.0
+[trace] f27 act=323 af=11 gnd=false y=11.03 vy=0.0
+[trace] f28 act=323 af=11 gnd=false y=11.08 vy=0.0
+[trace] f29 act=323 af=11 gnd=false y=11.12 vy=0.0
+[trace] f30 act=323 af=11 gnd=false y=11.17 vy=0.0
+[trace] f31 act=323 af=11 gnd=false y=11.21 vy=0.0
+[trace] f32 act=323 af=11 gnd=false y=11.26 vy=0.0
+[trace] f33 act=323 af=11 gnd=false y=11.3 vy=0.0
+[trace] f34 act=324 af=-1 gnd=false y=11.35 vy=0.0
+[trace] f35 act=324 af=-1 gnd=false y=11.3 vy=0.0
+[trace] f36 act=324 af=-1 gnd=false y=11.26 vy=0.0
+[trace] f37 act=324 af=-1 gnd=false y=11.21 vy=0.0
+[trace] f38 act=324 af=-1 gnd=false y=11.17 vy=0.0
+[trace] f39 act=324 af=-1 gnd=false y=11.12 vy=0.0
+[trace] f40 act=324 af=-1 gnd=false y=11.08 vy=0.0
+[trace] f41 act=324 af=-1 gnd=false y=11.03 vy=0.0
+[trace] f42 act=324 af=-1 gnd=false y=10.99 vy=0.0
+[trace] f43 act=324 af=-1 gnd=false y=10.94 vy=0.0
+[trace] f44 act=324 af=-1 gnd=false y=10.9 vy=0.0
+[trace] f45 act=324 af=-1 gnd=false y=10.85 vy=0.0
+[trace] f46 act=324 af=-1 gnd=false y=10.81 vy=0.0
+[trace] f47 act=324 af=-1 gnd=false y=10.76 vy=0.0
+[trace] f48 act=324 af=-1 gnd=false y=10.72 vy=0.0
+[trace] f49 act=324 af=-1 gnd=false y=10.67 vy=0.0
+[trace] f50 act=324 af=-1 gnd=false y=10.63 vy=0.0
+[trace] f51 act=324 af=-1 gnd=false y=10.58 vy=0.0
+[trace] f52 act=324 af=-1 gnd=false y=10.54 vy=0.0
+[trace] f53 act=324 af=-1 gnd=false y=10.49 vy=0.0
+[trace] f54 act=324 af=-1 gnd=false y=10.45 vy=0.0
+[trace] f55 act=324 af=-1 gnd=false y=10.4 vy=0.0
+[trace] f56 act=324 af=-1 gnd=false y=10.36 vy=0.0
+[trace] f57 act=324 af=-1 gnd=false y=10.31 vy=0.0
+[trace] f58 act=324 af=-1 gnd=false y=10.27 vy=0.0
+[trace] f59 act=324 af=-1 gnd=false y=10.22 vy=0.0
+[trace] f60 act=324 af=-1 gnd=false y=10.18 vy=0.0
+[trace] f61 act=324 af=-1 gnd=false y=10.13 vy=0.0
+[trace] f62 act=324 af=-1 gnd=false y=10.09 vy=0.0
+[melee_bridge] INFO: Frame -60: IN_GAME | P1:0%/4stk P2:0%/4stk
+[trace] f63 act=324 af=-1 gnd=false y=10.04 vy=0.0
+[trace] f64 act=29 af=1 gnd=false y=9.81 vy=-0.23
+[trace] f65 act=29 af=2 gnd=false y=9.35 vy=-0.46
+[trace] f66 act=29 af=3 gnd=false y=8.66 vy=-0.69
+[trace] f67 act=29 af=4 gnd=false y=7.74 vy=-0.92
+[trace] f68 act=29 af=5 gnd=false y=6.59 vy=-1.15
+[trace] f69 act=29 af=6 gnd=false y=5.21 vy=-1.38
+[trace] f70 act=29 af=7 gnd=false y=3.6 vy=-1.61
+[trace] f71 act=29 af=8 gnd=false y=1.76 vy=-1.84
+[trace] f72 act=29 af=1 gnd=false y=-0.31 vy=-2.07
+[trace] f73 act=29 af=2 gnd=false y=-2.61 vy=-2.3
+[trace] f74 act=42 af=1 gnd=true y=0.0 vy=-2.53
+[trace] f75 act=42 af=2 gnd=true y=0.0 vy=0.0
+[trace] f76 act=42 af=3 gnd=true y=0.0 vy=0.0
+[trace] f77 act=42 af=4 gnd=true y=0.0 vy=0.0
+[trace] f78 act=42 af=5 gnd=true y=0.0 vy=0.0
+[trace] f79 act=42 af=6 gnd=true y=0.0 vy=0.0
+[trace] f80 act=42 af=7 gnd=true y=0.0 vy=0.0
+[trace] f81 act=42 af=8 gnd=true y=0.0 vy=0.0
+[trace] f82 act=42 af=9 gnd=true y=0.0 vy=0.0
+[trace] f83 act=42 af=10 gnd=true y=0.0 vy=0.0
+[trace] f84 act=360 af=1 gnd=true y=0.0 vy=0.0
+[trace] f85 act=360 af=2 gnd=true y=0.0 vy=0.0
+[trace] f86 act=360 af=3 gnd=true y=0.0 vy=0.0
+[trace] f87 act=24 af=1 gnd=true y=0.0 vy=0.0
+[trace] f88 act=24 af=2 gnd=true y=0.0 vy=0.0
+[trace] f89 act=24 af=3 gnd=true y=0.0 vy=0.0
+[trace] f90 act=365 af=1 gnd=false y=0.0 vy=0.0
+[trace] f91 act=365 af=2 gnd=false y=0.0 vy=0.0
+[trace] f92 act=365 af=3 gnd=false y=0.0 vy=0.0
+[trace] f93 act=366 af=1 gnd=false y=0.0 vy=0.0
+[trace] f94 act=361 af=2 gnd=true y=0.0 vy=-0.027
+[trace] f95 act=361 af=3 gnd=true y=0.0 vy=0.0
+[trace] f96 act=24 af=1 gnd=true y=0.0 vy=0.0
+[trace] f97 act=24 af=2 gnd=true y=0.0 vy=0.0
+[trace] f98 act=24 af=3 gnd=true y=0.0 vy=0.0
+[trace] f99 act=365 af=1 gnd=false y=0.0 vy=0.0
+[trace] f100 act=365 af=2 gnd=false y=0.0 vy=0.0
+[trace] f101 act=365 af=3 gnd=false y=0.0 vy=0.0
+[trace] f102 act=366 af=1 gnd=false y=0.0 vy=0.0
+[trace] f103 act=361 af=2 gnd=true y=0.0 vy=-0.027
+[trace] f104 act=361 af=3 gnd=true y=0.0 vy=0.0
+[trace] f105 act=24 af=1 gnd=true y=0.0 vy=0.0
+[trace] f106 act=24 af=2 gnd=true y=0.0 vy=0.0
+[trace] f107 act=24 af=3 gnd=true y=0.0 vy=0.0
+[trace] f108 act=365 af=1 gnd=false y=0.0 vy=0.0
+[trace] f109 act=365 af=2 gnd=false y=0.0 vy=0.0
+[trace] f110 act=365 af=3 gnd=false y=0.0 vy=0.0
+[trace] f111 act=366 af=1 gnd=false y=0.0 vy=0.0
+[trace] f112 act=361 af=2 gnd=true y=0.0 vy=-0.027
+[trace] f113 act=361 af=3 gnd=true y=0.0 vy=0.0
+[trace] f114 act=24 af=1 gnd=true y=0.0 vy=0.0
+[trace] f115 act=24 af=2 gnd=true y=0.0 vy=0.0
+[trace] f116 act=24 af=3 gnd=true y=0.0 vy=0.0
+[trace] f117 act=365 af=1 gnd=false y=0.0 vy=0.0
+[trace] f118 act=365 af=2 gnd=false y=0.0 vy=0.0
+[trace] f119 act=365 af=3 gnd=false y=0.0 vy=0.0
+[trace] f120 act=366 af=1 gnd=false y=0.0 vy=0.0
+[trace] f121 act=361 af=2 gnd=true y=0.0 vy=-0.027
+[trace] f122 act=361 af=3 gnd=true y=0.0 vy=0.0
+[melee_bridge] INFO: Frame 0: IN_GAME | P1:0%/4stk P2:0%/4stk
+[trace] f123 act=24 af=1 gnd=true y=0.0 vy=0.0
+[trace] f124 act=24 af=2 gnd=true y=0.0 vy=0.0
+[trace] f125 act=24 af=3 gnd=true y=0.0 vy=0.0
+[trace] f126 act=365 af=1 gnd=false y=0.0 vy=0.0
+[trace] f127 act=365 af=2 gnd=false y=0.0 vy=0.0
+[trace] f128 act=365 af=3 gnd=false y=0.0 vy=0.0
+[trace] f129 act=366 af=1 gnd=false y=0.0 vy=0.0
+[trace] f130 act=361 af=2 gnd=true y=0.0 vy=-0.027
+[trace] f131 act=361 af=3 gnd=true y=0.0 vy=0.0
+[trace] f132 act=24 af=1 gnd=true y=0.0 vy=0.0
+[trace] f133 act=24 af=2 gnd=true y=0.0 vy=0.0
+[trace] f134 act=24 af=3 gnd=true y=0.0 vy=0.0
+[trace] f135 act=365 af=1 gnd=false y=0.0 vy=0.0
+[trace] f136 act=365 af=2 gnd=false y=0.0 vy=0.0
+[trace] f137 act=365 af=3 gnd=false y=0.0 vy=0.0
+[trace] f138 act=366 af=1 gnd=false y=0.0 vy=0.0
+[trace] f139 act=361 af=2 gnd=true y=0.0 vy=-0.027
+[trace] f140 act=361 af=3 gnd=true y=0.0 vy=0.0
+[trace] f141 act=24 af=1 gnd=true y=0.0 vy=0.0
+[trace] f142 act=24 af=2 gnd=true y=0.0 vy=0.0
+[trace] f143 act=24 af=3 gnd=true y=0.0 vy=0.0
+[trace] f144 act=365 af=1 gnd=false y=0.0 vy=0.0
+[trace] f145 act=365 af=2 gnd=false y=0.0 vy=0.0
+[trace] f146 act=365 af=3 gnd=false y=0.0 vy=0.0
+[trace] f147 act=366 af=1 gnd=false y=0.0 vy=0.0
+[trace] f148 act=361 af=2 gnd=true y=0.0 vy=-0.027
+[trace] f149 act=361 af=3 gnd=true y=0.0 vy=0.0
+[trace] f150 act=24 af=1 gnd=true y=0.0 vy=0.0
+[trace] f151 act=24 af=2 gnd=true y=0.0 vy=0.0
+[trace] f152 act=24 af=3 gnd=true y=0.0 vy=0.0
+[trace] f153 act=365 af=1 gnd=false y=0.0 vy=0.0
+[trace] f154 act=365 af=2 gnd=false y=0.0 vy=0.0
+[trace] f155 act=365 af=3 gnd=false y=0.0 vy=0.0
+[trace] f156 act=366 af=1 gnd=false y=0.0 vy=0.0
+[trace] f157 act=361 af=2 gnd=true y=0.0 vy=-0.027
+[trace] f158 act=361 af=3 gnd=true y=0.0 vy=0.0
+[trace] f159 act=24 af=1 gnd=true y=0.0 vy=0.0
+[trace] f160 act=24 af=2 gnd=true y=0.0 vy=0.0
+[trace] f161 act=24 af=3 gnd=true y=0.0 vy=0.0
+[trace] f162 act=365 af=1 gnd=false y=0.0 vy=0.0
+[trace] f163 act=365 af=2 gnd=false y=0.0 vy=0.0
+[trace] f164 act=365 af=3 gnd=false y=0.0 vy=0.0
+[trace] f165 act=366 af=1 gnd=false y=0.0 vy=0.0
+[trace] f166 act=361 af=2 gnd=true y=0.0 vy=-0.027
+[trace] f167 act=361 af=3 gnd=true y=0.0 vy=0.0
+[trace] f168 act=24 af=1 gnd=true y=0.0 vy=0.0
+[trace] f169 act=24 af=2 gnd=true y=0.0 vy=0.0
+[trace] f170 act=24 af=3 gnd=true y=0.0 vy=0.0
+[trace] f171 act=365 af=1 gnd=false y=0.0 vy=0.0
+[trace] f172 act=365 af=2 gnd=false y=0.0 vy=0.0
+[trace] f173 act=365 af=3 gnd=false y=0.0 vy=0.0
+[trace] f174 act=366 af=1 gnd=false y=0.0 vy=0.0
+[trace] f175 act=361 af=2 gnd=true y=0.0 vy=-0.027
+[trace] f176 act=361 af=3 gnd=true y=0.0 vy=0.0
+[trace] f177 act=24 af=1 gnd=true y=0.0 vy=0.0
+[trace] f178 act=24 af=2 gnd=true y=0.0 vy=0.0
+[trace] f179 act=24 af=3 gnd=true y=0.0 vy=0.0
+[trace] f180 act=365 af=1 gnd=false y=0.0 vy=0.0
+[trace] f181 act=365 af=2 gnd=false y=0.0 vy=0.0
+[trace] f182 act=365 af=3 gnd=false y=0.0 vy=0.0
+[melee_bridge] INFO: Frame 60: IN_GAME | P1:0%/4stk P2:0%/4stk
+[trace] f183 act=366 af=1 gnd=false y=0.0 vy=0.0
+[trace] f184 act=361 af=2 gnd=true y=0.0 vy=-0.027
+[trace] f185 act=361 af=3 gnd=true y=0.0 vy=0.0
+[trace] f186 act=24 af=1 gnd=true y=0.0 vy=0.0
+[trace] f187 act=24 af=2 gnd=true y=0.0 vy=0.0
+[trace] f188 act=24 af=3 gnd=true y=0.0 vy=0.0
+[trace] f189 act=365 af=1 gnd=false y=0.0 vy=0.0
+[trace] f190 act=365 af=2 gnd=false y=0.0 vy=0.0
+[trace] f191 act=365 af=3 gnd=false y=0.0 vy=0.0
+[trace] f192 act=366 af=1 gnd=false y=0.0 vy=0.0
+[trace] f193 act=361 af=2 gnd=true y=0.0 vy=-0.027
+[trace] f194 act=361 af=3 gnd=true y=0.0 vy=0.0
+[trace] f195 act=24 af=1 gnd=true y=0.0 vy=0.0
+[trace] f196 act=24 af=2 gnd=true y=0.0 vy=0.0
+[trace] f197 act=24 af=3 gnd=true y=0.0 vy=0.0
+[trace] f198 act=365 af=1 gnd=false y=0.0 vy=0.0
+[trace] f199 act=365 af=2 gnd=false y=0.0 vy=0.0
+[trace] f200 act=365 af=3 gnd=false y=0.0 vy=0.0
+[trace] f201 act=366 af=1 gnd=false y=0.0 vy=0.0
+[trace] f202 act=361 af=2 gnd=true y=0.0 vy=-0.027
+[trace] f203 act=361 af=3 gnd=true y=0.0 vy=0.0
+[trace] f204 act=24 af=1 gnd=true y=0.0 vy=0.0
+[trace] f205 act=24 af=2 gnd=true y=0.0 vy=0.0
+[trace] f206 act=24 af=3 gnd=true y=0.0 vy=0.0
+[trace] f207 act=365 af=1 gnd=false y=0.0 vy=0.0
+[trace] f208 act=365 af=2 gnd=false y=0.0 vy=0.0
+[trace] f209 act=365 af=3 gnd=false y=0.0 vy=0.0
+[trace] f210 act=366 af=1 gnd=false y=0.0 vy=0.0
+[trace] f211 act=361 af=2 gnd=true y=0.0 vy=-0.027
+[trace] f212 act=361 af=3 gnd=true y=0.0 vy=0.0
+[trace] f213 act=24 af=1 gnd=true y=0.0 vy=0.0
+[trace] f214 act=24 af=2 gnd=true y=0.0 vy=0.0
+[trace] f215 act=24 af=3 gnd=true y=0.0 vy=0.0
+[trace] f216 act=365 af=1 gnd=false y=0.0 vy=0.0
+[trace] f217 act=365 af=2 gnd=false y=0.0 vy=0.0
+[trace] f218 act=365 af=3 gnd=false y=0.0 vy=0.0
+[trace] f219 act=366 af=1 gnd=false y=0.0 vy=0.0
+[trace] f220 act=361 af=2 gnd=true y=0.0 vy=-0.027
+[trace] f221 act=361 af=3 gnd=true y=0.0 vy=0.0
+[trace] f222 act=24 af=1 gnd=true y=0.0 vy=0.0
+[trace] f223 act=24 af=2 gnd=true y=0.0 vy=0.0
+[trace] f224 act=24 af=3 gnd=true y=0.0 vy=0.0
+[trace] f225 act=365 af=1 gnd=false y=0.0 vy=0.0
+[trace] f226 act=365 af=2 gnd=false y=0.0 vy=0.0
+[trace] f227 act=365 af=3 gnd=false y=0.0 vy=0.0
+[trace] f228 act=366 af=1 gnd=false y=0.0 vy=0.0
+[trace] f229 act=361 af=2 gnd=true y=0.0 vy=-0.027
+[trace] f230 act=361 af=3 gnd=true y=0.0 vy=0.0
+[trace] f231 act=24 af=1 gnd=true y=0.0 vy=0.0
+[trace] f232 act=24 af=2 gnd=true y=0.0 vy=0.0
+[trace] f233 act=24 af=3 gnd=true y=0.0 vy=0.0
+[trace] f234 act=365 af=1 gnd=false y=0.0 vy=0.0
+[trace] f235 act=365 af=2 gnd=false y=0.0 vy=0.0
+[trace] f236 act=365 af=3 gnd=false y=0.0 vy=0.0
+[trace] f237 act=366 af=1 gnd=false y=0.0 vy=0.0
+[trace] f238 act=361 af=2 gnd=true y=0.0 vy=-0.027
+[trace] f239 act=361 af=3 gnd=true y=0.0 vy=0.0
+[trace] f240 act=24 af=1 gnd=true y=0.0 vy=0.0
+[trace] f241 act=24 af=2 gnd=true y=0.0 vy=0.0
+[trace] f242 act=24 af=3 gnd=true y=0.0 vy=0.0
+[melee_bridge] INFO: Frame 120: IN_GAME | P1:0%/4stk P2:0%/4stk
+[trace] f243 act=365 af=1 gnd=false y=0.0 vy=0.0
+[trace] f244 act=365 af=2 gnd=false y=0.0 vy=0.0
+[trace] f245 act=365 af=3 gnd=false y=0.0 vy=0.0
+[trace] f246 act=366 af=1 gnd=false y=0.0 vy=0.0
+[trace] f247 act=361 af=2 gnd=true y=0.0 vy=-0.027
+[trace] f248 act=361 af=3 gnd=true y=0.0 vy=0.0
+[trace] f249 act=24 af=1 gnd=true y=0.0 vy=0.0
+[trace] f250 act=24 af=2 gnd=true y=0.0 vy=0.0
+[trace] f251 act=24 af=3 gnd=true y=0.0 vy=0.0
+[trace] f252 act=365 af=1 gnd=false y=0.0 vy=0.0
+[trace] f253 act=365 af=2 gnd=false y=0.0 vy=0.0
+[trace] f254 act=365 af=3 gnd=false y=0.0 vy=0.0
+[trace] f255 act=366 af=1 gnd=false y=0.0 vy=0.0
+[trace] f256 act=361 af=2 gnd=true y=0.0 vy=-0.027
+[trace] f257 act=361 af=3 gnd=true y=0.0 vy=0.0
+[trace] f258 act=24 af=1 gnd=true y=0.0 vy=0.0
+[trace] f259 act=24 af=2 gnd=true y=0.0 vy=0.0
+[trace] f260 act=24 af=3 gnd=true y=0.0 vy=0.0
+[trace] f261 act=365 af=1 gnd=false y=0.0 vy=0.0
+[trace] f262 act=365 af=2 gnd=false y=0.0 vy=0.0
+[trace] f263 act=365 af=3 gnd=false y=0.0 vy=0.0
+[trace] f264 act=366 af=1 gnd=false y=0.0 vy=0.0
+[trace] f265 act=361 af=2 gnd=true y=0.0 vy=-0.027
+[trace] f266 act=361 af=3 gnd=true y=0.0 vy=0.0
+[trace] f267 act=24 af=1 gnd=true y=0.0 vy=0.0
+[trace] f268 act=24 af=2 gnd=true y=0.0 vy=0.0
+[trace] f269 act=24 af=3 gnd=true y=0.0 vy=0.0
+[trace] f270 act=365 af=1 gnd=false y=0.0 vy=0.0
+[trace] f271 act=365 af=2 gnd=false y=0.0 vy=0.0
+[trace] f272 act=365 af=3 gnd=false y=0.0 vy=0.0
+[trace] f273 act=366 af=1 gnd=false y=0.0 vy=0.0
+[trace] f274 act=361 af=2 gnd=true y=0.0 vy=-0.027
+[trace] f275 act=361 af=3 gnd=true y=0.0 vy=0.0
+[trace] f276 act=24 af=1 gnd=true y=0.0 vy=0.0
+[trace] f277 act=24 af=2 gnd=true y=0.0 vy=0.0
+[trace] f278 act=24 af=3 gnd=true y=0.0 vy=0.0
+[trace] f279 act=365 af=1 gnd=false y=0.0 vy=0.0
+[trace] f280 act=365 af=2 gnd=false y=0.0 vy=0.0
+[trace] f281 act=365 af=3 gnd=false y=0.0 vy=0.0
+[trace] f282 act=366 af=1 gnd=false y=0.0 vy=0.0
+[trace] f283 act=361 af=2 gnd=true y=0.0 vy=-0.027
+[trace] f284 act=361 af=3 gnd=true y=0.0 vy=0.0
+[trace] f285 act=24 af=1 gnd=true y=0.0 vy=0.0
+[trace] f286 act=24 af=2 gnd=true y=0.0 vy=0.0
+[trace] f287 act=24 af=3 gnd=true y=0.0 vy=0.0
+[trace] f288 act=365 af=1 gnd=false y=0.0 vy=0.0
+[trace] f289 act=365 af=2 gnd=false y=0.0 vy=0.0
+[trace] f290 act=365 af=3 gnd=false y=0.0 vy=0.0
+[trace] f291 act=366 af=1 gnd=false y=0.0 vy=0.0
+[trace] f292 act=361 af=2 gnd=true y=0.0 vy=-0.027
+[trace] f293 act=361 af=3 gnd=true y=0.0 vy=0.0
+[trace] f294 act=24 af=1 gnd=true y=0.0 vy=0.0
+[trace] f295 act=24 af=2 gnd=true y=0.0 vy=0.0
+[trace] f296 act=24 af=3 gnd=true y=0.0 vy=0.0
+[trace] f297 act=365 af=1 gnd=false y=0.0 vy=0.0
+[trace] f298 act=365 af=2 gnd=false y=0.0 vy=0.0
+[trace] f299 act=365 af=3 gnd=false y=0.0 vy=0.0
+[record] 5s recorded...
+[00:51:38] Recording loop done: {:ok, 300}
+[00:51:38] SD-ing Fox to end the game (Slippi finalizes the .slp on game end)...
+[melee_bridge] INFO: Frame 180: IN_GAME | P1:0%/4stk P2:0%/4stk
+[melee_bridge] INFO: Frame 240: IN_GAME | P1:0%/4stk P2:0%/4stk
+[melee_bridge] INFO: Frame 300: IN_GAME | P1:0%/3stk P2:0%/4stk
+[melee_bridge] INFO: Frame 360: IN_GAME | P1:0%/3stk P2:0%/4stk
+[melee_bridge] INFO: Frame 420: IN_GAME | P1:0%/3stk P2:0%/4stk
+[melee_bridge] INFO: Frame 480: IN_GAME | P1:0%/3stk P2:0%/4stk
+[melee_bridge] INFO: Frame 540: IN_GAME | P1:0%/3stk P2:0%/4stk
+[melee_bridge] INFO: Frame 600: IN_GAME | P1:0%/2stk P2:0%/4stk
+[melee_bridge] INFO: Frame 660: IN_GAME | P1:0%/2stk P2:0%/4stk
+[melee_bridge] INFO: Frame 720: IN_GAME | P1:0%/2stk P2:0%/4stk
+[melee_bridge] INFO: Frame 780: IN_GAME | P1:0%/2stk P2:0%/4stk
+[melee_bridge] INFO: Frame 840: IN_GAME | P1:0%/1stk P2:0%/4stk
+[melee_bridge] INFO: Frame 900: IN_GAME | P1:0%/1stk P2:0%/4stk
+[melee_bridge] INFO: Frame 960: IN_GAME | P1:0%/1stk P2:0%/4stk
+[melee_bridge] INFO: Frame 1020: IN_GAME | P1:0%/1stk P2:0%/4stk
+[melee_bridge] INFO: Frame 0: CHARACTER_SELECT | P1:0%/0stk P2:0%/0stk
+[00:51:40] Game end: {:ok, :game_ended}
+[melee_bridge] INFO: Melee bridge shutting down
+
+00:51:46.036 [warning] [MeleePort] Python process exited with status: 0
+[00:51:48] [32m✓ Fixture saved: /tmp/claude-1000/-home-blewf/d7c6eb08-359e-4660-8915-e09526f73698/scratchpad/fox_ms_v6.slp (440 KB, from /home/blewf/Slippi/Game_20260724T005138.slp)[0m
