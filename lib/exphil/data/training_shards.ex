@@ -75,7 +75,10 @@ defmodule ExPhil.Data.TrainingShards do
     File.mkdir_p!(shard_dir)
     embed_config = Keyword.fetch!(opts, :embed_config)
     window = Keyword.get(opts, :window, 60)
-    process_fn = Keyword.fetch!(opts, :process_fn)
+    # Fail fast on the required callback. build_one/7 fetches it per spec, but
+    # that path is skipped for specs already in the manifest — on a fully
+    # resumed build a missing :process_fn would otherwise go unnoticed.
+    _process_fn = Keyword.fetch!(opts, :process_fn)
     spec_key = Keyword.get(opts, :spec_key, &inspect/1)
     progress = Keyword.get(opts, :progress)
     total = length(specs)

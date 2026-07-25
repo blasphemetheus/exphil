@@ -2434,7 +2434,7 @@ defmodule ExPhil.Training.Data do
   end
 
   # Lazy batch creation - slices sequences from chunked frame embeddings on-the-fly
-  defp create_sequence_batch_lazy(chunks_array, chunk_size, frames_array, indices, window_size, stride, embed_dim, gpu, use_batch, neutral_weight, transition_weight \\ nil) do
+  defp create_sequence_batch_lazy(chunks_array, chunk_size, frames_array, indices, window_size, stride, embed_dim, gpu, use_batch, neutral_weight, transition_weight) do
     # Slice sequences from chunked embeddings (fast: 16K-row chunks vs 1.26M-row tensor)
     sequences =
       Enum.map(indices, fn seq_idx ->

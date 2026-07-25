@@ -24,7 +24,6 @@ defmodule ExPhil.Interp.Probe do
   import Nx.Defn
 
   alias Edifice.Interpretability.LinearProbe
-  alias ExPhil.Training.Utils
 
   @default_steps 300
   @default_lr 0.05
