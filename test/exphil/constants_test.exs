@@ -35,6 +35,72 @@ defmodule ExPhil.ConstantsTest do
     end
   end
 
+  describe "action state IDs" do
+    test "first_actionable is Wait (14)" do
+      assert Constants.first_actionable() == 14
+    end
+
+    test "jumpsquat is KneeBend (24)" do
+      assert Constants.jumpsquat() == 24
+    end
+
+    test "aerial_jump is 25, immediately after jumpsquat" do
+      assert Constants.aerial_jump() == 25
+      assert Constants.aerial_jump() == Constants.jumpsquat() + 1
+    end
+
+    test "reflector_ground covers 360..363" do
+      assert Constants.reflector_ground() == 360..363
+      assert Enum.to_list(Constants.reflector_ground()) == [360, 361, 362, 363]
+    end
+
+    test "reflector_air covers 365..368" do
+      assert Constants.reflector_air() == 365..368
+      assert Enum.to_list(Constants.reflector_air()) == [365, 366, 367, 368]
+    end
+
+    test "ground and air reflector ranges are disjoint" do
+      ground = MapSet.new(Constants.reflector_ground())
+      air = MapSet.new(Constants.reflector_air())
+
+      assert MapSet.disjoint?(ground, air),
+             "ground/air shine must stay distinguishable — multishine chain detection depends on it"
+    end
+
+    test "all action state IDs are within num_actions" do
+      ids =
+        [
+          Constants.first_actionable(),
+          Constants.jumpsquat(),
+          Constants.aerial_jump()
+        ] ++ Enum.to_list(Constants.reflector_ground()) ++ Enum.to_list(Constants.reflector_air())
+
+      for id <- ids do
+        assert id >= 0 and id < Constants.num_actions(),
+               "action state #{id} outside 0..#{Constants.num_actions() - 1}"
+      end
+    end
+
+    test "action state IDs are usable in guards and patterns via module attributes" do
+      # Regression guard: Constants exposes plain functions, which are illegal
+      # in guards/patterns. Consumers rely on compile-time attribute
+      # assignment still yielding a literal. If that ever breaks, the modules
+      # in eval/shine_chain.ex stop compiling — pin the mechanism here.
+      defmodule GuardProbe do
+        @jumpsquat ExPhil.Constants.jumpsquat()
+        @reflector_ground ExPhil.Constants.reflector_ground()
+
+        def family(a) when a in @reflector_ground, do: :ground_reflect
+        def family(@jumpsquat), do: :jumpsquat
+        def family(_), do: :other
+      end
+
+      assert GuardProbe.family(361) == :ground_reflect
+      assert GuardProbe.family(24) == :jumpsquat
+      assert GuardProbe.family(99) == :other
+    end
+  end
+
   describe "characters" do
     test "num_characters is 33" do
       assert Constants.num_characters() == 33

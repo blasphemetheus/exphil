@@ -19,7 +19,7 @@ defmodule ExPhil.Constants do
   ## Categories
 
   - **Frame Timing**: FPS, game duration, timeouts
-  - **Action States**: Melee action state counts
+  - **Action States**: Melee action state counts and engine state IDs
   - **Characters**: Character count and IDs
   - **Stages**: Stage IDs for competitive stages
   - **Combat**: Hitstun, shieldstun, ledge timers
@@ -80,6 +80,83 @@ defmodule ExPhil.Constants do
   """
   @spec default_action_embed_dim() :: 64
   def default_action_embed_dim, do: 64
+
+  # ===========================================================================
+  # Action State IDs (Melee internal)
+  # ===========================================================================
+  #
+  # These are engine action-state IDs, NOT frame counts — a recurring source
+  # of confusion (`jumpsquat()` is 24, the KneeBend state, while Fox's actual
+  # jumpsquat *lasts* 3 frames).
+  #
+  # Guard/pattern note: these are plain functions and so cannot appear in a
+  # guard or a pattern directly. Consumers that need them there assign a
+  # module attribute at compile time, which keeps the literal in the pattern
+  # while leaving the value defined only here:
+  #
+  #     @jumpsquat Constants.jumpsquat()
+  #     def family(@jumpsquat), do: :jumpsquat
+
+  @doc """
+  First actionable action-state ID.
+
+  Everything below `Wait` (14) is death, respawn, entry or sleep — states the
+  player has no control over, so they carry no learnable signal. Experts and
+  data filters use this to drop non-actionable frames.
+  """
+  @spec first_actionable() :: 14
+  def first_actionable, do: 14
+
+  @doc """
+  Jumpsquat (`KneeBend`) action-state ID.
+
+  The grounded takeoff state entered before every jump. Central to the
+  parsed-vs-live `action_frame` reconciliation (GOTCHAS #81): Peppi reports
+  jumpsquat frames as 0,1,2 while the libmelee bridge reports 1,2,3.
+  """
+  @spec jumpsquat() :: 24
+  def jumpsquat, do: 24
+
+  @doc """
+  Aerial (double) jump action-state ID.
+
+  The airborne jump state immediately following `jumpsquat/0` takeoff.
+  """
+  @spec aerial_jump() :: 25
+  def aerial_jump, do: 25
+
+  @doc """
+  Grounded reflector (shine) action-state IDs.
+
+  Fox/Falco's down-B on the ground. Four states covering startup through
+  release.
+
+  ## Examples
+
+      iex> 361 in ExPhil.Constants.reflector_ground()
+      true
+
+      iex> 365 in ExPhil.Constants.reflector_ground()
+      false
+
+  """
+  @spec reflector_ground() :: Range.t()
+  def reflector_ground, do: 360..363
+
+  @doc """
+  Airborne reflector (shine) action-state IDs.
+
+  The aerial counterpart of `reflector_ground/0`. Distinguishing the two is
+  what makes multishine chain detection possible.
+
+  ## Examples
+
+      iex> 366 in ExPhil.Constants.reflector_air()
+      true
+
+  """
+  @spec reflector_air() :: Range.t()
+  def reflector_air, do: 365..368
 
   # ===========================================================================
   # Characters
