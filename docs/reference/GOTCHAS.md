@@ -2964,3 +2964,34 @@ low offline agreement = training problem. Run it BEFORE blaming exposure
 bias, DAgger coverage, or the bridge. Coarse behaviors tolerate the shift
 (most of the repo's policies "work"), so this stayed invisible until a
 frame-perfect technique made it load-bearing.
+
+### The measured mapping (task #8 phase 1, 2026-07-25)
+
+Derived from the two committed pairs in `test/fixtures/statestream/` with
+`mix run scripts/diff_state_streams.exs`. Both pairs align at
+`parsed_frame = trace_frame - 123` and agree **100%** on `action`,
+`on_ground` and `y` — so the frames really do correspond, and
+**`action_frame` is the ONLY field that shifts.**
+
+| live af vs parsed af | action ids |
+|---|---|
+| `live == parsed` | 360, 365 |
+| `live == parsed + 1` | 24, 25, 29, 42, 323, 361, 366 |
+
+Actions 322/324 carry `af = -1` on both sides (a sentinel, not a counter).
+The delta is constant per action and identical across both runs, so it is a
+fixed convention rather than context-dependent.
+
+Do NOT reach for a formula — two obvious ones are wrong:
+
+* *"live af = 1-based frames since action entry"* — `action_frame` FREEZES
+  on repeated frames (act 323 sits at live af 11 while the frame counter
+  keeps climbing).
+* *"parsed af = the same counter, 0-based"* — the value Peppi reports on an
+  action's first frame is 0 for some actions (24, 29, 42, 323, 366) and 1
+  for others (360, 361, 365).
+
+The table is pinned by `test/exphil/eval/state_stream_diff_test.exs`, so a
+Peppi/libmelee/recorder upgrade that moves any of these numbers fails a test
+instead of silently collapsing a policy. `ExPhil.Eval.StateStreamDiff` holds
+the math; `to_live_af/3` converts a parsed af into the live convention.
