@@ -28,13 +28,14 @@ defmodule ExPhil.Agents.MewtwoTechChaseExpert do
   """
 
   alias ExPhil.Bridge.ControllerState
+  alias ExPhil.Constants
 
   defstruct table: %{}
 
   @type t :: %__MODULE__{}
 
   # Universal action IDs
-  @first_actionable 14
+  @first_actionable Constants.first_actionable()
   # Our grounded-actionable states (wait/walk/turn/dash/run/jumpsquat/land)
   @our_free_states 14..42
 

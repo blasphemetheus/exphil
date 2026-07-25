@@ -12,9 +12,10 @@ defmodule ExPhil.Interp.ReportCard do
   (round selection, save-best); `scripts/report_card.exs` is the CLI printer.
   """
 
+  alias ExPhil.Constants
   alias ExPhil.Interp.ReplayStats
 
-  @jumpsquat 24
+  @jumpsquat Constants.jumpsquat()
   @rising MapSet.new([25, 26])
   @dj_states MapSet.new([27, 28])
   @airborne_states MapSet.new(25..34)

@@ -29,6 +29,7 @@ defmodule ExPhil.Agents.FoxRecoveryExpert do
   """
 
   alias ExPhil.Bridge.ControllerState
+  alias ExPhil.Constants
 
   defstruct table: %{}
 
@@ -39,7 +40,7 @@ defmodule ExPhil.Agents.FoxRecoveryExpert do
   @ledge_aim_y 5.0
 
   # Universal action IDs
-  @first_actionable 14
+  @first_actionable Constants.first_actionable()
   @cliff_catch 252
   @cliff_wait 253
   @tumble 38

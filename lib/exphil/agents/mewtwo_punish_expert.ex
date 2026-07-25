@@ -34,13 +34,14 @@ defmodule ExPhil.Agents.MewtwoPunishExpert do
   """
 
   alias ExPhil.Bridge.ControllerState
+  alias ExPhil.Constants
 
   defstruct []
 
   @type t :: %__MODULE__{}
 
   # Universal action IDs (see tech-chase expert for the state map)
-  @first_actionable 14
+  @first_actionable Constants.first_actionable()
   @our_free_states 14..42
   # Our movement states where dtilt is unavailable -> dash grab instead
   @our_dash_states [20, 21]

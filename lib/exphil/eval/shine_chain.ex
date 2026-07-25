@@ -51,14 +51,17 @@ defmodule ExPhil.Eval.ShineChain do
   with an aerial shine CONTINUES the chain; long airtime or shineless
   airtime breaks it.
 
-  Action IDs mirror `ExPhil.Agents.MultishineExpert`.
+  Action IDs come from `ExPhil.Constants`.
   """
 
-  # Fox action states (Melee internal), same as MultishineExpert.
-  @jumpsquat 24
-  @aerial_jump 25
-  @reflector_ground 360..363
-  @reflector_air 365..368
+  alias ExPhil.Constants
+
+  # Bound at compile time: Constants exposes functions, which are illegal in
+  # the guards and patterns family/1 uses below.
+  @jumpsquat Constants.jumpsquat()
+  @aerial_jump Constants.aerial_jump()
+  @reflector_ground Constants.reflector_ground()
+  @reflector_air Constants.reflector_air()
 
   # Max airborne frames (takeoff + aerial reflector) between two grounded
   # reflector segments for the chain to continue. A real multishine cycle is

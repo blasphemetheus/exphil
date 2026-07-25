@@ -31,6 +31,7 @@ defmodule ExPhil.Agents.MultishineExpert do
   """
 
   alias ExPhil.Bridge.ControllerState
+  alias ExPhil.Constants
 
   defstruct [:table]
 
@@ -38,12 +39,13 @@ defmodule ExPhil.Agents.MultishineExpert do
 
   @fixture_path "test/fixtures/replays/fox_multishine_closed.slp"
 
-  # Fox action-state IDs (Melee internal)
-  @jumpsquat 24
-  @reflector_ground 360..363
-  @reflector_air 365..368
-  # Everything below Wait (14) is death/respawn/sleep — no learnable signal
-  @first_actionable 14
+  # Fox action-state IDs, bound at compile time from ExPhil.Constants so the
+  # per-frame checks below stay literals rather than remote calls.
+  # (Constants.jumpsquat/0 is the module's other landmark state, but this
+  # module keys its table on raw {action, af, grounded} and never tests it.)
+  @reflector_ground Constants.reflector_ground()
+  @reflector_air Constants.reflector_air()
+  @first_actionable Constants.first_actionable()
 
   @doc """
   Build an expert from a multishine replay (defaults to the canonical fixture).

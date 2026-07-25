@@ -28,6 +28,7 @@ defmodule ExPhil.Agents.MewtwoFairExpert do
   """
 
   alias ExPhil.Bridge.ControllerState
+  alias ExPhil.Constants
 
   defstruct [:fine, :coarse]
 
@@ -41,7 +42,7 @@ defmodule ExPhil.Agents.MewtwoFairExpert do
   # L-cancels; anywhere else it AIRDODGES (observed live: stray airdodges
   # from an unconditional falling-near-ground L tap)
   @aerial_attacks 65..70
-  @first_actionable 14
+  @first_actionable Constants.first_actionable()
 
   # Height (y) below which a falling aerial should be L-cancelling: an input
   # landing within the next few frames will coincide with touchdown
