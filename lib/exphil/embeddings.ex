@@ -58,6 +58,13 @@ defmodule ExPhil.Embeddings do
       - `:one_hot_full` (default) - 64-dim one-hot
       - `:one_hot_compact` - 7-dim (6 competitive + "other")
       - `:learned` - 1 ID + trainable embedding
+    - `:af_convention` - Convention the incoming `action_frame` is in
+      (GOTCHAS #81). `:parsed` (default) is a no-op and is what every
+      checkpoint trained on; `:live` normalizes bridge values into parsed
+      space before embedding. Set this when serving a policy against live
+      Dolphin states:
+
+          Embeddings.config(af_convention: :live)
 
   """
   @spec config(keyword()) :: config()
@@ -78,7 +85,8 @@ defmodule ExPhil.Embeddings do
         :with_ledge_distance,
         :jumps_normalized,
         :action_mode,
-        :character_mode
+        :character_mode,
+        :af_convention
       ])
 
     player_config = struct(base.player, player_opts)

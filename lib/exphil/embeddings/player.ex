@@ -29,6 +29,7 @@ defmodule ExPhil.Embeddings.Player do
 
   # Uses Nx with module prefix
   alias ExPhil.Constants
+  alias ExPhil.Data.ActionFrameConvention
   alias ExPhil.Embeddings.Primitives
   alias ExPhil.Embeddings.Nana, as: NanaEmbed
   alias ExPhil.Embeddings.Player.{Action, Ids}
@@ -57,11 +58,19 @@ defmodule ExPhil.Embeddings.Player do
             # :one_hot (399 dims) or :learned (action embedded in network, 0 dims here)
             action_mode: :learned,
             # :one_hot (33 dims) or :learned (character embedded in network, 0 dims here)
-            character_mode: :learned
+            character_mode: :learned,
+            # Convention the INCOMING PlayerState.action_frame is expressed in
+            # (task #8 / GOTCHAS #81). :parsed is what every checkpoint trained
+            # on and is a no-op; :live converts through
+            # ExPhil.Data.ActionFrameConvention first, so a policy fed bridge
+            # states sees the same feature it learned. Only the 9 measured
+            # actions are converted — see that module's coverage limit.
+            af_convention: :parsed
 
   @type nana_mode :: :full | :compact | :enhanced
   @type action_mode :: :one_hot | :learned
   @type character_mode :: :one_hot | :learned
+  @type af_convention :: :parsed | :live
 
   @type config :: %__MODULE__{
           xy_scale: float(),
@@ -75,7 +84,8 @@ defmodule ExPhil.Embeddings.Player do
           with_ledge_distance: boolean(),
           jumps_normalized: boolean(),
           action_mode: action_mode(),
-          character_mode: character_mode()
+          character_mode: character_mode(),
+          af_convention: af_convention()
         }
 
   # ==========================================================================
@@ -278,7 +288,7 @@ defmodule ExPhil.Embeddings.Player do
 
     embeddings =
       if config.with_frame_info do
-        [embed_frame_info(player) | embeddings]
+        [embed_frame_info(player, config) | embeddings]
       else
         embeddings
       end
@@ -458,7 +468,8 @@ defmodule ExPhil.Embeddings.Player do
         # Hitstun frames remaining (0-120ish, normalized to 0-1)
         hitstun_frames = Enum.map(players, fn p -> (p && p.hitstun_frames_left) || 0 end)
         # Action frame (how far into the animation, typically 0-100+, normalized)
-        action_frames = Enum.map(players, fn p -> (p && p.action_frame) || 0 end)
+        action_frames =
+          Enum.map(players, fn p -> (p && action_frame_in_parsed_space(p, config)) || 0 end)
 
         frame_embs = [
           # Scale hitstun by max hitstun frames, clamp to 0-1
@@ -819,15 +830,36 @@ defmodule ExPhil.Embeddings.Player do
   @doc """
   Embed frame timing info (hitstun remaining, action frame).
   Useful for knowing when player/opponent can act.
+
+  `config.af_convention` declares which convention `player.action_frame` is
+  in; `:live` values are converted into parsed space first (GOTCHAS #81).
   """
-  @spec embed_frame_info(PlayerState.t()) :: Nx.Tensor.t()
-  def embed_frame_info(%PlayerState{} = player) do
+  @spec embed_frame_info(PlayerState.t(), config()) :: Nx.Tensor.t()
+  def embed_frame_info(player, config \\ default_config())
+
+  def embed_frame_info(%PlayerState{} = player, config) do
     # Hitstun frames: normalize by max hitstun (120 frames)
     hitstun = min((player.hitstun_frames_left || 0) / Constants.max_hitstun_frames(), 1.0)
     # Action frame: normalize by standard animation length, allow overflow
-    action_frame = min((player.action_frame || 0) / Constants.standard_action_frames(), 2.0)
+    action_frame =
+      min(
+        action_frame_in_parsed_space(player, config) / Constants.standard_action_frames(),
+        2.0
+      )
 
     Nx.tensor([hitstun, action_frame], type: :f32)
+  end
+
+  # Single seam for the parsed<->live action_frame shift. Returns the value in
+  # PARSED space, which is what every checkpoint was trained on, so :parsed
+  # (the default) is an exact no-op and existing behavior is unchanged.
+  defp action_frame_in_parsed_space(player, config) do
+    af = player.action_frame || 0
+
+    case config.af_convention do
+      :live -> ActionFrameConvention.live_to_parsed(player.action && trunc(player.action), af)
+      _ -> af
+    end
   end
 
   @doc """

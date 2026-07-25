@@ -2995,3 +2995,50 @@ The table is pinned by `test/exphil/eval/state_stream_diff_test.exs`, so a
 Peppi/libmelee/recorder upgrade that moves any of these numbers fails a test
 instead of silently collapsing a policy. `ExPhil.Eval.StateStreamDiff` holds
 the math; `to_live_af/3` converts a parsed af into the live convention.
+
+### The fix (phase 2 option 1) — implemented, OFF by default
+
+`ExPhil.Data.ActionFrameConvention` applies the table, and the embedding
+boundary consumes it via a new player-embedding option:
+
+    Embeddings.config(af_convention: :live)   # normalize bridge states
+    Embeddings.config()                       # :parsed — default, exact no-op
+
+**Parsed is canonical**: live values are converted INTO parsed space, not the
+reverse, because every existing checkpoint already learned parsed-space
+features. This fixes them in place rather than invalidating them.
+
+Default is `:parsed`, so nothing changes until a caller opts in — the live
+path (`PolicyServing`, `Agent`) already accepts `:embed_config`, so enabling
+it is a config change with no code change.
+
+**It is a PARTIAL fix, and the gap is large.** The table covers 9 of 399
+action states, all from two Fox multishine recordings. Unmeasured actions pass
+through unchanged, deliberately: the deltas are not extrapolable (mostly 1,
+but the shine states 360/365 are 0), so guessing would corrupt states that
+currently agree.
+
+Measured share of frames the table actually covers, per fixture:
+
+| fixture | frames | covered |
+|---|---|---|
+| fox_multishine_closed | 2702 | 77.3% |
+| fox_multishine_sloppy | 2519 | 69.0% |
+| fox_multishine | 1901 | 47.3% |
+| gnw_movement_ledge | 12315 | 25.9% |
+| gnw_neutral_dense | 11858 | 16.5% |
+| mewtwo_approach_fair | 12639 | 12.1% |
+| mewtwo_behind_response | 16734 | 9.7% |
+| mewtwo_dtilt_uptilt_dense | 7156 | 8.4% |
+
+So it substantially covers the Fox multishine loop it was derived from, and
+**barely touches Mewtwo (~10%)**. The commonest unmeasured states are the
+everyday ones — 14 (Wait), 20, 66, 90. Do not expect this to fix a Mewtwo
+policy as it stands; widening coverage needs more `.slp` + trace pairs, which
+needs Dolphin. Size the gap for any workload with
+`ActionFrameConvention.unknown_actions/1`.
+
+Still OUTSTANDING before trusting this live: the Mewtwo regression pass, since
+current behaviors may quietly depend on the un-normalized shift, and a
+re-verification of the multishine teacher — its live success partly rides on
+table-miss → recovery-rule luck, which this change perturbs.
