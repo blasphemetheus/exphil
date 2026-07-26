@@ -106,11 +106,28 @@ defmodule ExPhil.Eval.StateStreamTrace do
   def maybe_emit(state)
 
   def maybe_emit(%GameState{} = state) do
-    if enabled?(), do: emit(state, port())
+    if enabled?() and in_game?(state), do: emit(state, port())
     state
   end
 
   def maybe_emit(other), do: other
+
+  # Menu frames must NOT be traced. The frame counter resets between games and
+  # idles during menus, so a trace spanning menus contains DUPLICATE frame
+  # numbers — and a duplicate silently pairs the wrong live frame to a parsed
+  # one. Observed cost: a Mewtwo pair scored 98.0% action agreement (looks
+  # nearly right, is unusable) purely from post-game frames after the counter
+  # reset; trimming to the in-game run took it to exactly 100%.
+  #
+  # libmelee Menu values: IN_GAME = 2, SUDDEN_DEATH = 3.
+  @in_game_menu_states [2, 3]
+
+  defp in_game?(%GameState{menu_state: menu}) when is_integer(menu),
+    do: menu in @in_game_menu_states
+
+  # Unknown/absent menu_state: emit rather than silently record nothing —
+  # a noisy trace is recoverable, a missing one is not.
+  defp in_game?(_state), do: true
 
   defp emit(%GameState{frame: frame, players: players}, port)
        when is_integer(frame) and is_map(players) do

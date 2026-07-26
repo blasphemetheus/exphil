@@ -76,8 +76,9 @@ defmodule ExPhil.Embeddings.AfConventionTest do
     end
 
     test "unmeasured actions are untouched under :live" do
-      live = PlayerEmbed.embed_frame_info(player(14, 5), live_config())
-      parsed = PlayerEmbed.embed_frame_info(player(14, 5), parsed_config())
+      # 252 = cliff catch, which no recorded pair covers yet.
+      live = PlayerEmbed.embed_frame_info(player(252, 5), live_config())
+      parsed = PlayerEmbed.embed_frame_info(player(252, 5), parsed_config())
 
       assert Nx.to_flat_list(live) == Nx.to_flat_list(parsed)
     end

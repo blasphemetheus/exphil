@@ -9,12 +9,13 @@ defmodule ExPhil.Data.ActionFrameConventionTest do
   @dir "test/fixtures/statestream"
 
   describe "the table is the measurement" do
-    test "static deltas match a fresh derivation from the committed pairs" do
-      # THE anti-drift test. AFC hardcodes the table so it is usable at
-      # runtime without parsing fixtures; this proves the hardcoded copy still
-      # equals what the recordings actually say. If someone edits @deltas by
-      # hand, or a Peppi/libmelee upgrade moves the convention, this fails
-      # here rather than silently mis-normalizing every policy.
+    test "committed pairs never CONTRADICT the table" do
+      # THE anti-drift test. The table is broader than the committed pairs
+      # (most of it comes from a Mewtwo recording too large to vendor), so
+      # this is a consistency check rather than equality: every action these
+      # fixtures measure must match what the table claims. A Peppi/libmelee
+      # upgrade that moves the convention fails here instead of silently
+      # mis-normalizing every policy.
       derived =
         for name <- ["fox_ms_frame1", "fox_ms_float"], reduce: %{} do
           acc ->
@@ -24,12 +25,40 @@ defmodule ExPhil.Data.ActionFrameConventionTest do
             Map.merge(acc, Map.new(report.mapping, fn {action, m} -> {action, m.delta} end))
         end
 
-      assert derived == AFC.deltas()
+      refute Enum.empty?(derived)
+
+      for {action, delta} <- derived do
+        assert AFC.deltas()[action] == delta,
+               "fixture says action #{action} has delta #{delta}, table says " <>
+                 "#{inspect(AFC.deltas()[action])}"
+      end
     end
 
-    test "covers exactly the 9 measured actions" do
-      assert AFC.coverage() == 9
-      assert Map.keys(AFC.deltas()) |> Enum.sort() == [24, 25, 29, 42, 323, 360, 361, 365, 366]
+    test "table matches the pinned mapping fixture exactly" do
+      # action_frame_map.json is the recorded measurement, regenerable with
+      # scripts/diff_state_streams.exs --json. Hand-editing @deltas without
+      # re-measuring fails here.
+      pinned =
+        "#{@dir}/action_frame_map.json"
+        |> File.read!()
+        |> Jason.decode!()
+        |> Map.fetch!("deltas")
+        |> Map.new(fn {k, v} -> {String.to_integer(k), v} end)
+
+      assert pinned == AFC.deltas()
+    end
+
+    test "covers the 75 measured actions" do
+      assert AFC.coverage() == 75
+
+      # The Fox-derived originals must survive every later merge.
+      for action <- [24, 25, 29, 42, 323, 360, 361, 365, 366] do
+        assert AFC.known?(action)
+      end
+    end
+
+    test "deltas are only ever 0 or 1" do
+      assert AFC.deltas() |> Map.values() |> Enum.uniq() |> Enum.sort() == [0, 1]
     end
   end
 
@@ -55,11 +84,13 @@ defmodule ExPhil.Data.ActionFrameConventionTest do
 
   describe "coverage limits are explicit, not silent" do
     test "unmeasured actions pass through unchanged" do
-      # The deltas are NOT extrapolable (mostly 1, but 360/365 are 0), so an
-      # unmeasured action must not be guessed at.
-      assert AFC.live_to_parsed(14, 5) == 5
-      assert AFC.live_to_parsed(252, 0) == 0
-      refute AFC.known?(14)
+      # The deltas are NOT extrapolable (a majority are 1, but many — the
+      # shine states 360/365, most hitstun/tumble — are 0), so an unmeasured
+      # action must not be guessed at. 252/253 are cliff catch/wait, which no
+      # recorded pair has covered yet.
+      assert AFC.live_to_parsed(252, 5) == 5
+      assert AFC.live_to_parsed(253, 0) == 0
+      refute AFC.known?(252)
     end
 
     test "negative action_frame sentinels are never adjusted" do
@@ -73,8 +104,8 @@ defmodule ExPhil.Data.ActionFrameConventionTest do
     end
 
     test "unknown_actions/1 sizes the gap for a workload" do
-      assert AFC.unknown_actions([24, 14, 365, 252, 14]) == [14, 252]
-      assert AFC.unknown_actions([24, 365]) == []
+      assert AFC.unknown_actions([24, 253, 365, 252, 253]) == [252, 253]
+      assert AFC.unknown_actions([24, 365, 14]) == []
     end
 
     test "known?/1 is honest about what was measured" do

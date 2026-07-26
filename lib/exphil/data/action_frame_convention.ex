@@ -16,40 +16,130 @@ defmodule ExPhil.Data.ActionFrameConvention do
 
   ## The table
 
-  Measured by `ExPhil.Eval.StateStreamDiff` from the committed pairs in
-  `test/fixtures/statestream/` (task #8 phase 1). `delta` is
-  `live_af - parsed_af`, constant per action and identical across both runs:
+  Measured by `ExPhil.Eval.StateStreamDiff` from recorded pairs. `delta` is
+  `live_af - parsed_af` and is a constant per action — every action ever
+  measured has exactly one delta, and it is always 0 or 1.
 
-      live af == parsed af      : 360, 365
-      live af == parsed af + 1  : 24, 25, 29, 42, 323, 361, 366
+  Two independent sources agree exactly on the 6 actions both cover
+  (24, 25, 29, 42, 323, 360), despite one being a Fox TAS multishine loop and
+  the other a Mewtwo policy fighting a level-9 CPU. So the convention is a
+  property of Peppi-vs-libmelee, not of a character or technique.
 
   There is no formula behind this — see `ExPhil.Eval.StateStreamDiff` for the
   two plausible rules that both fail.
 
-  ## COVERAGE LIMIT — read before trusting this
+  ## COVERAGE — good for Mewtwo/G&W play, still not total
 
-  The table covers **#{9} of #{399} action states**, all derived from two Fox
-  multishine recordings. Unmeasured actions are passed through UNCHANGED,
-  because the measured deltas are not extrapolable: they are mostly 1, but the
-  two shine states (360, 365) are 0, and nothing observed so far predicts
-  which an unmeasured action will be.
+  The table covers **75 of 399** action states. Measured share of frames it
+  normalizes, before (9 actions, Fox-only) and after adding the Mewtwo game:
 
-  So this normalization strictly improves the 9 known actions and changes
-  nothing else. It is NOT a complete fix for the state-stream shift. Widening
-  it requires more recorded `.slp` + trace pairs, which requires Dolphin.
-  Use `known?/1` and `unknown_actions/1` to see what a given workload would
-  actually have normalized.
+  | fixture | 9 actions | 75 actions |
+  |---|---|---|
+  | mewtwo_behind_response | 9.7% | 95.4% |
+  | mewtwo_dtilt_uptilt_dense | 8.4% | 91.0% |
+  | fox_multishine_closed | 77.3% | 85.9% |
+  | gnw_neutral_dense | 16.5% | 82.6% |
+  | gnw_movement_ledge | 25.9% | 74.4% |
+  | mewtwo_approach_fair | 12.1% | 54.9% |
+
+  Unmeasured actions still pass through UNCHANGED, deliberately: the deltas
+  are not extrapolable (a majority are 1, but many — including the shine
+  states 360/365 and most hitstun/tumble states — are 0), so guessing would
+  corrupt states that currently agree.
+
+  Widening further is cheap: record another pair (see
+  `ExPhil.Eval.StateStreamTrace`) covering whatever the target character
+  actually does, and merge. `unknown_actions/1` sizes the remaining gap for a
+  specific workload.
   """
 
-  # Measured, not assumed. Pinned against a fresh re-derivation from the
-  # fixtures in test/exphil/data/action_frame_convention_test.exs, so this
-  # table cannot silently drift away from the recordings it came from.
+  # Measured, not assumed.
+  #
+  # Provenance — two independent sources, zero conflicts:
+  #   * 9 actions from the Fox multishine pairs in test/fixtures/statestream/
+  #     (a frame-perfect TAS loop)
+  #   * 72 from a Mewtwo-policy-vs-level-9-Fox-CPU game recorded 2026-07-26
+  #     (EXPHIL_STATE_TRACE=1, 9189 frames, 100% action/on_ground/y agreement)
+  #
+  # The 6 actions both measured (24, 25, 29, 42, 323, 360) agree exactly,
+  # across different characters, inputs and situations — so the convention is
+  # a property of Peppi-vs-libmelee, not of a character or a technique.
+  #
+  # Pinned by test/exphil/data/action_frame_convention_test.exs against
+  # test/fixtures/statestream/action_frame_map.json, and cross-checked against
+  # a live re-derivation from the committed pairs.
   @deltas %{
+    12 => 1,
+    14 => 1,
+    15 => 0,
+    16 => 0,
+    18 => 0,
+    20 => 0,
     24 => 1,
     25 => 1,
+    26 => 1,
+    27 => 1,
+    28 => 0,
     29 => 1,
+    35 => 1,
+    39 => 0,
+    40 => 1,
+    41 => 1,
     42 => 1,
+    43 => 1,
+    44 => 0,
+    47 => 0,
+    48 => 1,
+    49 => 1,
+    53 => 0,
+    56 => 0,
+    57 => 0,
+    60 => 0,
+    63 => 0,
+    64 => 0,
+    65 => 0,
+    66 => 0,
+    67 => 0,
+    68 => 0,
+    69 => 0,
+    70 => 0,
+    71 => 0,
+    72 => 0,
+    74 => 0,
+    76 => 0,
+    78 => 0,
+    79 => 0,
+    80 => 0,
+    84 => 0,
+    85 => 0,
+    86 => 0,
+    88 => 0,
+    180 => 0,
+    181 => 0,
+    212 => 1,
+    213 => 0,
+    214 => 1,
+    216 => 0,
+    217 => 0,
+    218 => 0,
+    219 => 0,
+    220 => 0,
+    221 => 0,
+    222 => 0,
+    233 => 0,
+    234 => 0,
+    235 => 0,
+    236 => 0,
+    264 => 1,
     323 => 1,
+    341 => 0,
+    342 => 1,
+    345 => 1,
+    346 => 0,
+    347 => 1,
+    350 => 1,
+    351 => 0,
+    359 => 0,
     360 => 0,
     361 => 1,
     365 => 0,
