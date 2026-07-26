@@ -48,8 +48,8 @@ defmodule ExPhil.Data.ActionFrameConventionTest do
       assert pinned == AFC.deltas()
     end
 
-    test "covers the 75 measured actions" do
-      assert AFC.coverage() == 75
+    test "covers the 77 measured actions" do
+      assert AFC.coverage() == 77
 
       # The Fox-derived originals must survive every later merge.
       for action <- [24, 25, 29, 42, 323, 360, 361, 365, 366] do

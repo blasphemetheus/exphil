@@ -11,7 +11,26 @@
 # Usage:
 #   mix run scripts/record_multishine.exs \
 #     --dolphin ~/.local/share/slippi/netplay --iso ~/isos/melee.iso \
-#     --seconds 20 [--mode multishine|simple]
+#     --seconds 20 [--mode closed_loop|multishine|simple]
+#
+# MODES — use `closed_loop` for a real multishine. It reacts to Fox's actual
+# action state, so it holds the 9-frame TAS cycle indefinitely. `multishine`
+# is an OPEN-LOOP frame script: it presses a fixed pattern regardless of what
+# Fox is doing, so once timing slips it cannot recover. Measured over 2 min
+# vs a level-1 CPU (2026-07-26):
+#
+#   closed_loop  791 shines, 9-frame gaps, ONE unbroken chain of 791
+#   multishine   108 shines, 66-frame gaps, max chain 1
+#
+# The open-loop failure looks like: ground shine (good) -> jump -> air shine
+# (in time) -> air shine (late) -> then 36 frames of airborne reflector with
+# no jump left, so it must FALL, land, and restart. Verify any recording with
+# ExPhil.Eval.ShineChain.chains_detailed/2 before trusting it as a fixture.
+#
+# Opponent: `--dummy cpu --dummy-cpu-level 1` gives a passive Fox CPU (level
+# alone is what hands the port to the game AI, GOTCHAS #57). `--out` defaults
+# to test/fixtures/replays/fox_multishine.slp — pass it explicitly unless you
+# mean to overwrite that committed fixture.
 
 require Logger
 Logger.configure(level: :warning)
@@ -30,7 +49,8 @@ alias ExPhil.Training.Output
       port: :integer,
       slippi_dir: :string,
       out: :string,
-      dummy: :string
+      dummy: :string,
+      dummy_cpu_level: :integer
     ]
   )
 
@@ -553,7 +573,12 @@ Output.puts("Launching Dolphin (pick any character on the opponent port)...")
     # sweeping MULTISHINE_JC_FRAME headless). Overridable via --dummy.
     dummy_mode: opts[:dummy] || "stand",
     dummy_character: "fox",
-    dummy_cpu_level: 0,
+    # `--dummy cpu` alone is NOT a CPU: the game AI only owns the port when
+    # cpu_level > 0 (GOTCHAS #57), so without this the opponent just stands
+    # there. A low level (1) is usually what you want here — present enough
+    # to make the recording realistic, passive enough not to interrupt the
+    # multishine loop being recorded.
+    dummy_cpu_level: opts[:dummy_cpu_level] || 0,
     # Headless (ExiAI build) for unattended sweeps; MULTISHINE_HEADLESS=1.
     headless: System.get_env("MULTISHINE_HEADLESS") == "1",
     no_audio: System.get_env("MULTISHINE_HEADLESS") == "1"

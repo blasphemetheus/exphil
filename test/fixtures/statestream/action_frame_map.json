@@ -2,13 +2,15 @@
   "_comment": "parsed<->live action_frame convention (task #8, GOTCHAS #81). delta = live_af - parsed_af. Pins ExPhil.Data.ActionFrameConvention. Regenerate with scripts/diff_state_streams.exs --json on a 100%-agreement pair.",
   "_sources": [
     "test/fixtures/statestream/fox_ms_frame1 + fox_ms_float (Fox multishine, 9 actions)",
-    "Mewtwo policy vs level-9 Fox CPU, 2026-07-26, 9189 frames, 100% action/on_ground/y agreement (72 actions)"
+    "Mewtwo policy vs level-9 Fox CPU, 2026-07-26, 9189 frames (72 actions)",
+    "Fox multishine teacher (closed_loop) vs level-1 Fox CPU, 2026-07-26, 2min + 4 SDs, 8087/8090 frames (17 actions)"
   ],
   "deltas": {
     "12": 1,
     "14": 1,
     "15": 0,
     "16": 0,
+    "17": 0,
     "18": 0,
     "20": 0,
     "24": 1,
@@ -79,6 +81,7 @@
     "360": 0,
     "361": 1,
     "365": 0,
-    "366": 1
+    "366": 1,
+    "368": 1
   }
 }

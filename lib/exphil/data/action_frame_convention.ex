@@ -20,26 +20,28 @@ defmodule ExPhil.Data.ActionFrameConvention do
   `live_af - parsed_af` and is a constant per action — every action ever
   measured has exactly one delta, and it is always 0 or 1.
 
-  Two independent sources agree exactly on the 6 actions both cover
-  (24, 25, 29, 42, 323, 360), despite one being a Fox TAS multishine loop and
-  the other a Mewtwo policy fighting a level-9 CPU. So the convention is a
-  property of Peppi-vs-libmelee, not of a character or technique.
+  THREE independent recordings — a Fox TAS multishine loop, a Mewtwo policy
+  fighting a level-9 CPU, and the Fox teacher fighting a level-1 CPU — agree
+  on every action any two of them share. Zero conflicts. So the convention is
+  a property of Peppi-vs-libmelee, not of a character, opponent or technique.
 
   There is no formula behind this — see `ExPhil.Eval.StateStreamDiff` for the
   two plausible rules that both fail.
 
   ## COVERAGE — good for Mewtwo/G&W play, still not total
 
-  The table covers **75 of 399** action states. Measured share of frames it
-  normalizes, before (9 actions, Fox-only) and after adding the Mewtwo game:
+  The table covers **77 of 399** action states. Measured share of frames it
+  normalizes, before (9 actions, from the two vendored Fox pairs) and now:
 
-  | fixture | 9 actions | 75 actions |
+  | fixture | 9 actions | 77 actions |
   |---|---|---|
-  | mewtwo_behind_response | 9.7% | 95.4% |
-  | mewtwo_dtilt_uptilt_dense | 8.4% | 91.0% |
-  | fox_multishine_closed | 77.3% | 85.9% |
-  | gnw_neutral_dense | 16.5% | 82.6% |
-  | gnw_movement_ledge | 25.9% | 74.4% |
+  | mewtwo_behind_response | 9.7% | 96.3% |
+  | mewtwo_dtilt_uptilt_dense | 8.4% | 92.2% |
+  | fox_multishine_closed | 77.3% | 91.2% |
+  | fox_multishine_sloppy | 69.0% | 89.5% |
+  | gnw_neutral_dense | 16.5% | 82.9% |
+  | fox_multishine | 47.3% | 82.4% |
+  | gnw_movement_ledge | 25.9% | 74.8% |
   | mewtwo_approach_fair | 12.1% | 54.9% |
 
   Unmeasured actions still pass through UNCHANGED, deliberately: the deltas
@@ -55,15 +57,13 @@ defmodule ExPhil.Data.ActionFrameConvention do
 
   # Measured, not assumed.
   #
-  # Provenance — two independent sources, zero conflicts:
-  #   * 9 actions from the Fox multishine pairs in test/fixtures/statestream/
+  # Provenance — three independent recordings, zero conflicts on any shared
+  # action (each validated at 100% action/on_ground/y agreement):
+  #   * 9 actions — the Fox multishine pairs in test/fixtures/statestream/
   #     (a frame-perfect TAS loop)
-  #   * 72 from a Mewtwo-policy-vs-level-9-Fox-CPU game recorded 2026-07-26
-  #     (EXPHIL_STATE_TRACE=1, 9189 frames, 100% action/on_ground/y agreement)
-  #
-  # The 6 actions both measured (24, 25, 29, 42, 323, 360) agree exactly,
-  # across different characters, inputs and situations — so the convention is
-  # a property of Peppi-vs-libmelee, not of a character or a technique.
+  #   * 72 — Mewtwo policy vs level-9 Fox CPU, 2026-07-26, 9189 frames
+  #   * +2 (17, 368) — Fox multishine teacher vs level-1 Fox CPU, 2026-07-26,
+  #     2 min + 4 SDs; its other 15 actions re-confirmed the existing entries
   #
   # Pinned by test/exphil/data/action_frame_convention_test.exs against
   # test/fixtures/statestream/action_frame_map.json, and cross-checked against
@@ -73,6 +73,7 @@ defmodule ExPhil.Data.ActionFrameConvention do
     14 => 1,
     15 => 0,
     16 => 0,
+    17 => 0,
     18 => 0,
     20 => 0,
     24 => 1,
@@ -143,7 +144,8 @@ defmodule ExPhil.Data.ActionFrameConvention do
     360 => 0,
     361 => 1,
     365 => 0,
-    366 => 1
+    366 => 1,
+    368 => 1
   }
 
   @doc """
