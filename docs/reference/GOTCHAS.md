@@ -3074,3 +3074,42 @@ may not even be the same failure.
 
 Caveats: n=1 per condition, unmatched games (the CPU differs between runs),
 and this policy was trained WITHOUT `--prev-action`.
+
+### ROOT CAUSE FOUND (2026-07-26): exposure bias, not features
+
+Chasing the above further produced the actual answer. Live, deterministic:
+
+| policy | frames in grounded reflector (361) |
+|---|---|
+| no prev-action | 5099 / 5216 = **97.8%** |
+| with prev-action | 2576 / 2694 = **95.6%** |
+
+It enters shine and never leaves. Then the decisive measurement — the
+`action_frame` values it occupies while stuck in 361:
+
+* in the training fixture, action 361 only ever has **af 1..2**
+* live, it sits at **af 3 through 28**, roughly uniformly
+
+The policy is operating in states it has NEVER SEEN. One frame of timing
+slip puts it at reflector af=3, off the training manifold, where its output
+is undefined; it keeps holding B, af grows, and it drifts further out. The
+trap is absorbing.
+
+This explains every observation at once:
+
+* **offline 99.9%** — teacher-forced, so always on-distribution
+* **stochastic live, 66 shines** — random RELEASES occasionally kick it back
+  onto the manifold. Those shines were sampling noise, not learned timing
+* **deterministic live, frozen** — nothing perturbs it, so it never returns
+* **prev-action didn't help** — the channel works (verified: the Agent logs
+  "feeding own outputs back"); the STATES are unseen
+* **af normalization didn't help** — 2/288 dims cannot rescue a state 26
+  frames off-manifold
+
+**Consequence for the DAgger advice above.** "Do NOT spend DAgger rounds on
+this — DAgger fixes coverage, not features" was correct GIVEN the belief that
+#81 was the cause. #81 is now measured at 2/288 dims with no live effect, so
+that premise is gone: this IS the coverage case, and DAgger
+(`dagger_drill.exs`) is the right tool. More epochs, more recordings of the
+same trajectory, and further feature fixes provably cannot help — none of
+them produce data for "reflector at af 3+".
