@@ -119,6 +119,12 @@ expert = MultishineExpert.from_fixture(fixture_path)
     deterministic_buttons: not (opts[:stochastic] || false)
   )
 
+# MUST warm up, and MUST use get_controller/3 below — not get_action/3, which
+# returns raw action INDICES with no :button_b key, so every comparison
+# silently reads false and two different policies score identically. Cost me a
+# bogus before/after on 2026-07-26; eval_policy_on_fixture.exs had it right.
+Agent.warmup(agent)
+
 # Walk the rollout, asking the policy for an action at each visited state and
 # comparing to the expert's label for that same state.
 {on_tot, on_ok, off_tot, off_ok, off_states} =
@@ -131,7 +137,7 @@ expert = MultishineExpert.from_fixture(fixture_path)
         {ont, ono, offt, offo, seen}
 
       {:ok, want} ->
-        {:ok, got} = Agent.get_action(agent, f.game_state, player_port: port)
+        {:ok, got} = Agent.get_controller(agent, f.game_state, player_port: port)
 
         agree? =
           Map.get(got, :button_b, false) == Map.get(want, :button_b, false) and
