@@ -3042,3 +3042,35 @@ Still OUTSTANDING before trusting this live: the Mewtwo regression pass, since
 current behaviors may quietly depend on the un-normalized shift, and a
 re-verification of the multishine teacher — its live success partly rides on
 table-miss → recovery-rule luck, which this change perturbs.
+
+### FIRST LIVE A/B (2026-07-26): the fix does NOT rescue the policy
+
+Multishine probe policy (trained on the laptop in 90s, 99.9% B/X agreement
+offline on `fox_multishine_closed`), run live vs a level-1 Fox CPU for 2 min
+each with `--live-af` off then on:
+
+| | OFF | ON |
+|---|---|---|
+| grounded shines | 66 | 65 |
+| max chain | 1 | 2 |
+| median shine gap | 81f | 83f |
+
+No meaningful difference. The flag was verified wired (embedding tensors do
+change), so this is a real negative result, not a plumbing failure.
+
+**Why, quantitatively:** normalizing `action_frame` changes **2 of 288
+embedding dims**, each by 1/60 ≈ 0.017 after normalization. That is ~0.7% of
+the feature vector moving by a rounding error. It was never plausible that
+this alone flips a policy between "9-frame chain" and "sporadic shines" — and
+it doesn't.
+
+So #81 is REAL as a data-fidelity bug (the streams genuinely disagree, and
+the table is correct) but it is NOT a sufficient explanation for live failure.
+Something else dominates: candidates are the action_delay/landing convention,
+the prev-action channel, or exposure/compounding error once the policy leaves
+the memorized trajectory. Note this policy shines 66 times live — it does NOT
+reproduce the total collapse (B=100%, never shines) recorded above, so the two
+may not even be the same failure.
+
+Caveats: n=1 per condition, unmatched games (the CPU differs between runs),
+and this policy was trained WITHOUT `--prev-action`.

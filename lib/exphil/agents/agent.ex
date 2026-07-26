@@ -51,6 +51,8 @@ defmodule ExPhil.Agents.Agent do
     :policy_params,
     :predict_fn,
     :embed_config,
+    # :parsed (default, no-op) | :live — see GOTCHAS #81
+    :af_convention,
     :frame_delay,
     :frame_buffer,
     :deterministic,
@@ -386,6 +388,7 @@ defmodule ExPhil.Agents.Agent do
       # Edifice.Stateful step-path inference (activated at policy load when
       # the backbone supports it)
       stateful_step: Keyword.get(opts, :stateful_step, false),
+      af_convention: Keyword.get(opts, :af_convention, :parsed),
       trunk_state: nil,
       trunk_step_params: nil,
       heads_predict_fn: nil,
@@ -1304,7 +1307,23 @@ defmodule ExPhil.Agents.Agent do
     # get nil → zeros. Mixing regimes scrambles the input — the config flag
     # decides, not the caller.
     prev_controller = if state.use_prev_action, do: state.last_controller, else: nil
-    Embeddings.Game.embed(game_state, prev_controller, player_port, name_id: state.style_id || 0)
+    opts = [name_id: state.style_id || 0]
+
+    # af_convention: :live normalizes the bridge's action_frame into the
+    # PARSED convention every checkpoint was trained on (GOTCHAS #81).
+    # Default :parsed is an exact no-op, so this cannot perturb existing
+    # behavior unless asked for.
+    opts =
+      if state.af_convention == :live,
+        do: [{:config, live_af_embed_config()} | opts],
+        else: opts
+
+    Embeddings.Game.embed(game_state, prev_controller, player_port, opts)
+  end
+
+  defp live_af_embed_config do
+    config = ExPhil.Embeddings.Game.Config.default()
+    %{config | player: %{config.player | af_convention: :live}}
   end
 
   # Uncertainty logging (flywheel A4). Confidence is computed by sampling

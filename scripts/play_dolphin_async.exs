@@ -86,6 +86,7 @@ Output.config([
   {"Policy", opts[:policy]},
   {"Dolphin", opts[:dolphin]},
   {"ISO", opts[:iso]},
+  {"af convention", if(opts[:live_af], do: "live -> parsed (GOTCHAS #81)", else: "parsed (no-op)")},
   {"Agent Port", opts[:port]},
   {"Your Port", opts[:opponent_port]},
   {"Character", opts[:character]},
@@ -117,7 +118,8 @@ Output.step(1, 5, "Loading agent")
     style_tag: opts[:style_tag],
     player_registry: opts[:player_registry],
     uncertainty_log: opts[:uncertainty_log],
-    stateful_step: opts[:stateful_step] || false
+    stateful_step: opts[:stateful_step] || false,
+    af_convention: if(opts[:live_af], do: :live, else: :parsed)
   )
 
 config = Agent.get_config(agent)
@@ -260,7 +262,7 @@ Output.puts("")
 defmodule StatsMonitor do
   @target_fps 60
 
-  def run(runner, interval_ms \\ 5000, on_game_end \\ :restart) do
+  def run(runner, interval_ms \\ 5000, on_game_end \\ :restart, max_seconds \\ nil) do
     Process.sleep(interval_ms)
 
     stats = ExPhil.Bridge.AsyncRunner.get_stats(runner)
@@ -269,6 +271,12 @@ defmodule StatsMonitor do
     # stopped this monitor — the BEAM (and its multi-GB EXLA allocation)
     # lived on until killed by hand. Return so the script's cleanup runs.
     done? = on_game_end == :stop and stats.games_played >= 1
+
+    # --seconds: return so the caller can SD the game to a clean end. Killing
+    # the process instead leaves a TRUNCATED .slp that peppi rejects with
+    # "failed to fill whole buffer" — Slippi only finalizes on game end, so a
+    # timeout-kill throws the whole recording away.
+    expired? = is_integer(max_seconds) and stats.elapsed_ms >= max_seconds * 1000
 
     if stats.elapsed_ms > 0 do
       elapsed_s = stats.elapsed_ms / 1000
@@ -287,11 +295,17 @@ defmodule StatsMonitor do
       )
     end
 
-    if done? do
-      IO.puts("[Stats] Game complete (on_game_end=stop) — shutting down")
-      :ok
-    else
-      run(runner, interval_ms, on_game_end)
+    cond do
+      done? ->
+        IO.puts("[Stats] Game complete (on_game_end=stop) — shutting down")
+        :ok
+
+      expired? ->
+        IO.puts("[Stats] --seconds reached — ending the game cleanly")
+        :duration_reached
+
+      true ->
+        run(runner, interval_ms, on_game_end, max_seconds)
     end
   end
 
@@ -321,9 +335,50 @@ defmodule StatsMonitor do
   defp confidence_color(_), do: IO.ANSI.red()
 end
 
+# Hold full left, no buttons: walk/fall off and don't recover, burning stocks
+# until the game ENDS. Slippi only finalizes a .slp on game end — killing the
+# process mid-game leaves a truncated file peppi rejects outright ("failed to
+# fill whole buffer"), i.e. the entire session is unanalyzable. Same technique
+# and input signature as record_multishine.exs, so the SD tail is filterable.
+defmodule GracefulSD do
+  @hold_left %{
+    main_stick: %{x: 0.0, y: 0.5},
+    c_stick: %{x: 0.5, y: 0.5},
+    shoulder: 0.0,
+    buttons: %{a: false, b: false, x: false, y: false, z: false, l: false, r: false, d_up: false}
+  }
+
+  # ~2 min safety cap; a level-1 CPU will not save you from walking off.
+  def run(bridge, frames_left \\ 7200) do
+    if frames_left <= 0 do
+      {:error, :sd_timeout}
+    else
+      case MeleePort.step(bridge, auto_menu: false) do
+        {:ok, _} ->
+          MeleePort.send_controller(bridge, @hold_left)
+          run(bridge, frames_left - 1)
+
+        {:postgame, _} -> {:ok, :game_ended}
+        {:menu, _} -> {:ok, :game_ended}
+        {:game_ended, _} -> {:ok, :game_ended}
+        {:error, reason} -> {:error, reason}
+      end
+    end
+  end
+end
+
 # Run stats monitor
 try do
-  StatsMonitor.run(runner, 5000, opts[:on_game_end])
+  case StatsMonitor.run(runner, 5000, opts[:on_game_end], opts[:seconds]) do
+    :duration_reached ->
+      # Stop the policy FIRST so it stops fighting the SD inputs.
+      AsyncRunner.stop(runner)
+      Output.puts("SD-ing to end the game (Slippi finalizes the .slp on game end)...")
+      Output.puts("  Game end: #{inspect(GracefulSD.run(bridge))}")
+
+    _ ->
+      :ok
+  end
 rescue
   e in RuntimeError ->
     Output.error("Error: #{Exception.message(e)}")
