@@ -14,6 +14,19 @@ survive:
 |------|-----------|---------------|
 | `fox_ms_float` | pre-fix teacher: aerial shine on airborne frame 2 → 22-frame float | long, varied air states |
 | `fox_ms_frame1` | final teacher: frame-1 shine, 9-frame TAS cycle | the tight loop where every af matters |
+| `fox_ms_teacher_2min` | closed-loop teacher vs a level-1 Fox CPU, 2 min then 4 SDs | 791 shines in ONE unbroken chain — the longest multishine on record here (previous best: fixture 186, live 103); ends naturally so the .slp is properly finalized, and covers death/respawn states the 5s pairs never reach |
+
+`fox_ms_teacher_2min` differs from the older two in three ways worth knowing:
+its trace holds ONLY `[trace]` lines (the older logs are raw recorder stdout,
+build noise included — the parser ignores the difference); it carries TRUE
+in-game frames so it aligns at offset 0 rather than -123; and at 8087 frames
+it is ~27x longer. Recorded with:
+
+    mix run scripts/record_multishine.exs --mode closed_loop \
+      --seconds 120 --dummy cpu --dummy-cpu-level 1 --out <path>.slp
+
+Use `--mode closed_loop`. The default `multishine` mode is an open-loop frame
+script that does NOT hold the loop (108 shines at 66-frame gaps vs 791 at 9).
 
 Purpose: diff the two streams frame by frame to derive the EXACT
 parsed↔live mapping. **Done** — see `mix run scripts/diff_state_streams.exs`
