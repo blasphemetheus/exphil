@@ -136,7 +136,7 @@ defmodule ExPhil.Interp.StyleCardTest do
   end
 
   describe "evaluate/2 (card assembly)" do
-    test "returns 6 gates; no-evidence metrics pass; char pack resolves" do
+    test "returns 8 gates; no-evidence metrics pass; char pack resolves" do
       n = 700
       controllers =
         Enum.flat_map(1..10, fn _ -> [press(:button_a)] ++ List.duplicate(neutral_controller(), 69) end)
@@ -152,8 +152,9 @@ defmodule ExPhil.Interp.StyleCardTest do
       }
 
       result = StyleCard.evaluate(data, char: :mewtwo)
-      assert result.total == 6
-      assert length(result.gates) == 6
+      # 6 base gates + the 2 neutral-opener diversity gates appended in 72f8a36
+      assert result.total == 8
+      assert length(result.gates) == 8
 
       by_name = Map.new(result.gates, &{&1.name, &1})
       # nil-evidence gates pass
@@ -163,6 +164,14 @@ defmodule ExPhil.Interp.StyleCardTest do
       assert by_name["SDs"].pass
       # ~51 inputs/min is below the human band floor -> fails
       refute by_name["inputs/min"].pass
+
+      # The opener gates follow the same no-evidence convention: this fixture
+      # is all Wait frames, so NeutralScan finds no openers and both abstain
+      # rather than failing on absent data.
+      assert by_name["opener entropy (bits)"].pass
+      assert by_name["top opener share"].pass
+      assert result.openers.entropy_bits == nil
+      assert result.openers.top_share == nil
     end
   end
 end
