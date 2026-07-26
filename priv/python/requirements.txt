@@ -4,8 +4,24 @@
 # For PyTorch/Triton GPU acceleration (FlashAttention, selective scan bridges):
 #   pip install -r requirements-gpu-accel.txt
 
-# Melee library for game interaction
-melee>=0.40.0
+# Melee library for game interaction.
+#
+# MUST be vladfi1's FORK, not upstream libmelee on PyPI. The bridge needs two
+# APIs that exist only in the fork:
+#   * Console(use_exi_inputs=...)          — EXI input path (opt-in)
+#   * a STATEFUL MenuHelper                — upstream's menu_helper_simple is a
+#     class-level function with no `self`, so calling it on an instance shifts
+#     every positional argument by one ("got multiple values for argument
+#     'connect_code'").
+#
+# This was previously declared as `melee>=0.40.0`, which stock PyPI 0.41.1
+# satisfies and CANNOT work — so the bridge ran only on machines where someone
+# had installed the fork by hand, and broke on every fresh environment
+# (laptop, Docker, CI). Pin the source, not just a version floor.
+#
+# Same fork+tag slippi-ai pins. Needs `git` at install time (present in all
+# three Dockerfiles); pulls pyenet, exactly as upstream libmelee does.
+melee @ git+https://github.com/vladfi1/libmelee.git@v0.43.0
 
 # Replay parsing
 py-slippi>=1.6.0

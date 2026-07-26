@@ -4,14 +4,40 @@ Running trained agents against Dolphin/Slippi.
 
 ## Prerequisites
 
-### 1. Slippi Dolphin
+### 1. Slippi Dolphin — which build depends on windowed vs headless
 
 Download from https://slippi.gg/downloads
 
-AppImage location (after Slippi Launcher install):
+**Windowed play** (netplay/stable track, what Slippi Launcher installs by
+default):
 ```
 ~/.config/Slippi Launcher/netplay/Slippi_Online-x86_64.AppImage
 ```
+
+**Headless probes need a DIFFERENT build.** `--headless` on the netplay build
+fails inside `melee.Console` with `Null video requires mainline or ExiAI
+Ishiiruka.` Use the Slippi **mainline (beta track)** Dolphin — adopted
+2026-07-18 after it was shown to carry analog trigger presses AND releases
+through plain pipes, which the ExiAI fork does not:
+
+```
+~/.local/share/slippi/mainline/dolphin-emu-mainline
+```
+
+libmelee classifies mainline correctly (Null video allowed, Slippi-section
+config, `save_replays`/`replay_dir` supported). Point `--dolphin` at the
+wrapper FILE, not a directory — libmelee's path heuristic looks for
+"netplay" in a directory name and rejects anything else.
+
+| build | windowed | headless | notes |
+|---|---|---|---|
+| netplay (stable) | yes | **no** | Launcher default |
+| mainline (beta) | yes | yes | required for `--headless` |
+| ExiAI Ishiiruka | yes | yes | superseded — drops analog triggers (GOTCHAS #66) |
+
+See GOTCHAS #64 (headless setup), #66-RESOLUTION (why mainline), #69 (pace
+the frame loop on unthrottled headless games) and #70 (Launcher beta track
+on NixOS needs `APPIMAGE_EXTRACT_AND_RUN=1`).
 
 ### 2. Melee ISO
 
@@ -32,6 +58,21 @@ source .venv/bin/activate
 
 # Install dependencies
 pip install -r priv/python/requirements.txt
+```
+
+**libmelee must be vladfi1's fork, not upstream PyPI.** `requirements.txt`
+pins it, so the command above is enough — but do NOT `pip install melee`,
+which silently installs upstream. The bridge needs the fork's stateful
+`MenuHelper` and `Console(use_exi_inputs=...)`; upstream gets as far as
+launching Dolphin and then dies with `got multiple values for argument
+'connect_code'` (and leaks the Dolphin window, since the crash skips
+teardown). The bridge preflights this and reports it clearly.
+
+Verify:
+```bash
+pip show melee | grep -E "Version|Home-page"
+# Version: 0.43.0
+# Home-page: https://github.com/vladfi1/libmelee
 ```
 
 ### 4. System Library: enet

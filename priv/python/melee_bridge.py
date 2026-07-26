@@ -34,12 +34,52 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+_LIBMELEE_INSTALL = (
+    "pip install 'melee @ git+https://github.com/vladfi1/libmelee.git@v0.43.0'"
+)
+
 try:
     import melee
     from melee.enums import Button, Action
 except ImportError:
-    logger.error("libmelee not installed. Run: pip install melee")
+    # NOT `pip install melee` — that pulls upstream from PyPI, which this
+    # bridge cannot drive (see _require_forked_libmelee below).
+    logger.error("libmelee not installed. Run: %s", _LIBMELEE_INSTALL)
     sys.exit(1)
+
+
+def _require_forked_libmelee():
+    """Fail early, and legibly, on upstream libmelee.
+
+    The bridge needs vladfi1's fork. Upstream's MenuHelper.menu_helper_simple
+    is a class-level function taking no `self`, so calling it on an instance
+    binds the instance to `gamestate` and shifts every positional argument by
+    one — surfacing much later as the baffling "got multiple values for
+    argument 'connect_code'", after Dolphin has already been launched (and
+    then leaked, because the crash skips teardown).
+
+    requirements.txt pins the fork; this catches an environment that drifted
+    from it.
+    """
+    import inspect
+
+    try:
+        params = list(
+            inspect.signature(melee.MenuHelper.menu_helper_simple).parameters
+        )
+    except (AttributeError, TypeError, ValueError):
+        return  # can't introspect — let the real call fail on its own terms
+
+    if params and params[0] == "self":
+        return
+
+    version = getattr(melee, "__version__", None) or "unknown"
+    raise RuntimeError(
+        f"Incompatible libmelee ({version}): MenuHelper is not the stateful "
+        f"instance API this bridge requires, so menu navigation would receive "
+        f"shifted arguments. Upstream PyPI libmelee will not work — install "
+        f"the fork ExPhil pins:\n    {_LIBMELEE_INSTALL}"
+    )
 
 
 # ============================================================================
@@ -302,7 +342,14 @@ class MeleeBridge:
             # until release semantics are fixed; do NOT train on EXI-mode
             # games. libmelee raises ValueError on non-EXI builds — we
             # retry without it below.
-            console_kwargs["use_exi_inputs"] = bool(config.get("exi_inputs"))
+            # Only PASS the kwarg when actually opting in. It is a no-op when
+            # false, but libmelee builds that predate EXI support raise
+            # TypeError on the unknown keyword — including stock 0.41.1, which
+            # requirements.txt (melee>=0.40.0) happily allows. Passing it
+            # unconditionally made the bridge silently require a newer/forked
+            # libmelee than anything we pin.
+            if config.get("exi_inputs"):
+                console_kwargs["use_exi_inputs"] = True
             replay_dir = config.get("replay_dir")
             if replay_dir:
                 # Flat per-instance replay dir -> unambiguous attribution
@@ -323,7 +370,22 @@ class MeleeBridge:
                         "with pipe inputs (analog triggers will be dropped on "
                         "the ExiAI build, GOTCHAS #66)"
                     )
-                    console_kwargs["use_exi_inputs"] = False
+                    console_kwargs.pop("use_exi_inputs", None)
+                    self.console = melee.Console(**console_kwargs)
+                else:
+                    raise
+            except TypeError as e:
+                # Older libmelee has no use_exi_inputs parameter at all (the
+                # ValueError path above only covers a NEW libmelee talking to
+                # an old Dolphin build). Drop it and retry on pipe inputs,
+                # which is the default everything trains on anyway.
+                if "use_exi_inputs" in str(e):
+                    logger.warning(
+                        "libmelee %s has no use_exi_inputs — EXI inputs need a "
+                        "newer libmelee; retrying with pipe inputs",
+                        getattr(melee, "__version__", "unknown"),
+                    )
+                    console_kwargs.pop("use_exi_inputs", None)
                     self.console = melee.Console(**console_kwargs)
                 else:
                     raise
@@ -400,6 +462,7 @@ class MeleeBridge:
                 type=melee.ControllerType.STANDARD,
             )
 
+            _require_forked_libmelee()
             self.menu_helper = melee.MenuHelper()
 
             # Scripted dummy on the opponent port (drill opponents). "cpu"
