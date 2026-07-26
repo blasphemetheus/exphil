@@ -142,17 +142,28 @@ Two options — run slippi-frame-extractor for raw parquet, or read mimic-melee 
       Re-verify the teacher after ANY af-convention change (GOTCHAS #81):
       its live success partly rides on table-miss -> recovery-rule luck.
 
-- [ ] **Get a policy trained on Fox multishining — check B2 first.**
-      The multishine POLICY (as opposed to the teacher/table) is what task
-      #8's phase-2 fix is ultimately meant to unblock: it hit loss 0.00148
-      and 99.3% parsed-space agreement but collapsed on live states
-      (B=100%, never shines). A checkpoint of it may already exist on
-      `b2:exphil-artifacts/checkpoints/` — check before retraining.
-      `list-checkpoints` / `sync-checkpoints-down`, see
-      docs/operations/REPLAY_STORAGE.md. With one in hand,
-      `eval_policy_on_fixture.exs` against `fox_multishine_closed.slp` is a
-      MEANINGFUL discriminator (that fixture presses B/X constantly, unlike
-      the Mewtwo fixtures — see the note under Mode Collapse below).
+- [x] **Get a policy trained on Fox multishining.** No B2 trip needed — it
+      retrains from scratch on a LAPTOP CPU in ~90 seconds:
+      `mix run scripts/train_multishine_policy.exs` (GRU, hidden 256, 1
+      layer, window 16, 1679 frames from `fox_multishine_closed.slp`).
+      Reached loss 0.00161 in 12 epochs, matching the 0.00148 on record.
+      Never wait for the GPU for this one.
+      Verified with `eval_policy_on_fixture.exs` on that same fixture — a
+      MEANINGFUL run, since it presses B 77.7% of frames (unlike the Mewtwo
+      fixtures, see Mode Collapse below): **99.9% B/X agreement at delay 0,
+      and press rates matching the fixture exactly (B=77.7% X=11.1%)**.
+      Delay 1 scores only 66.7%, confirming delay 0 is the right convention.
+      Reproduces the 99.3% parsed-space figure on record.
+
+- [ ] **Run that multishine policy LIVE with `af_convention: :live`** — the
+      first end-to-end test of task #8 phase 2. The offline eval above says
+      the policy learned the right function, so a live failure is now
+      attributable to the state stream (GOTCHAS #81) rather than training.
+      With the 77-action table covering 91.2% of `fox_multishine_closed`
+      frames, the normalization should finally have something to bite on.
+      Needs `play_dolphin_async.exs` to expose the embed-config option
+      (`Embeddings.config(af_convention: :live)`); the seam exists but there
+      is no CLI flag yet. Compare shine counts with the flag on vs off.
 
 ## Architecture Evaluation
 - [ ] Jamba 20-epoch convergence test (with kCudaAsync allocator + val_split)
