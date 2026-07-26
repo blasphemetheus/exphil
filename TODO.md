@@ -127,6 +127,33 @@ Two options — run slippi-frame-extractor for raw parquet, or read mimic-melee 
 - [ ] Assess character distribution across 95k replays — may help with class imbalance work
 - [ ] Check game boundary handling: .pt shards use offsets array, parquet uses per-file splits
 
+## Multishine / State-Stream (task #8 follow-ups)
+
+- [ ] **Play the multishine teacher live: teacher on one port, level-1 CPU on port 2.**
+      The teacher currently gets validated against a fixture and via
+      `demo_expert.exs`; running it against a passive low-level CPU gives a
+      live behavioural check with an opponent present but not interfering
+      (a level-1 CPU mostly idles, so a broken loop is unambiguous rather
+      than "it got hit"). Use `--dummy cpu --dummy-cpu-level 1`.
+      Also the cheapest way to record a NEW state-stream pair covering Fox
+      multishine states under live conditions:
+      `EXPHIL_STATE_TRACE=1 ... > pair.live-trace.log 2>&1`, then
+      `scripts/diff_state_streams.exs` (needs 100% action/on_ground/y).
+      Re-verify the teacher after ANY af-convention change (GOTCHAS #81):
+      its live success partly rides on table-miss -> recovery-rule luck.
+
+- [ ] **Get a policy trained on Fox multishining — check B2 first.**
+      The multishine POLICY (as opposed to the teacher/table) is what task
+      #8's phase-2 fix is ultimately meant to unblock: it hit loss 0.00148
+      and 99.3% parsed-space agreement but collapsed on live states
+      (B=100%, never shines). A checkpoint of it may already exist on
+      `b2:exphil-artifacts/checkpoints/` — check before retraining.
+      `list-checkpoints` / `sync-checkpoints-down`, see
+      docs/operations/REPLAY_STORAGE.md. With one in hand,
+      `eval_policy_on_fixture.exs` against `fox_multishine_closed.slp` is a
+      MEANINGFUL discriminator (that fixture presses B/X constantly, unlike
+      the Mewtwo fixtures — see the note under Mode Collapse below).
+
 ## Architecture Evaluation
 - [ ] Jamba 20-epoch convergence test (with kCudaAsync allocator + val_split)
 - [ ] Compare top architectures at 20 epochs (H3, Zamba, MinGRU, Mamba)
