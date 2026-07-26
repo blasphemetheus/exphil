@@ -429,6 +429,10 @@ defmodule ExPhil.Bridge.MeleePort do
   defp parse_game_state(nil), do: nil
 
   defp parse_game_state(gs) when is_map(gs) do
+    # Single decode point for every live frame, so this is where a
+    # state-stream trace is emitted (task #8 / GOTCHAS #81). No-op unless
+    # EXPHIL_STATE_TRACE=1, which lets ANY live script record the live half
+    # of a pair without its own tracing code.
     %ExPhil.Bridge.GameState{
       frame: gs["frame"],
       stage: gs["stage"],
@@ -437,6 +441,7 @@ defmodule ExPhil.Bridge.MeleePort do
       projectiles: parse_projectiles(gs["projectiles"]),
       distance: gs["distance"]
     }
+    |> ExPhil.Eval.StateStreamTrace.maybe_emit()
   end
 
   defp parse_players(nil), do: %{}

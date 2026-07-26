@@ -457,11 +457,12 @@ defmodule RecordLoop do
               # diagnosis (y / vertical speed / af) — the only way to see
               # WHY an air phase is long, since action segments can't.
               if System.get_env("MULTISHINE_TRACE") == "1" do
-                IO.puts(
-                  "[trace] f#{in_game_frames} act=#{inspect(player.action)} " <>
-                    "af=#{inspect(player.action_frame)} gnd=#{inspect(player.on_ground)} " <>
-                    "y=#{Float.round(player.y * 1.0, 2)} vy=#{Float.round((player.speed_y_self || 0.0) * 1.0, 3)}"
-                )
+                # Shared formatter — see ExPhil.Eval.StateStreamTrace. Keeps
+                # this emitter and StateStreamDiff's parser from drifting.
+                # Note this passes the recorder-local frame counter, not the
+                # in-game frame, which is why the committed fixtures align at
+                # offset -123; EXPHIL_STATE_TRACE=1 emits true game frames.
+                IO.puts(ExPhil.Eval.StateStreamTrace.line(in_game_frames, player))
               else
                 if rem(in_game_frames, 60) == 0 do
                   IO.puts(

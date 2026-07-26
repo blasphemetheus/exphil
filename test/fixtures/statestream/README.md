@@ -16,10 +16,8 @@ survive:
 | `fox_ms_frame1` | final teacher: frame-1 shine, 9-frame TAS cycle | the tight loop where every af matters |
 
 Purpose: diff the two streams frame by frame to derive the EXACT
-parsed↔live mapping (known so far: parsed jumpsquat af 0,1,2 vs live 1,2,3;
-action 365 agrees; the offset varies per action — and check whether other
-fields shift too). This is the first experiment of task #8 and needs no
-Dolphin and no GPU — it is deliberately laptop-sized.
+parsed↔live mapping. **Done** — see `mix run scripts/diff_state_streams.exs`
+and the table in GOTCHAS #81. `action_frame` is the only field that shifts.
 
 Alignment hint: the in-game frame counter in the trace (`f###`) and the
 replay's frame index count the same game, but confirm alignment on an
@@ -28,3 +26,42 @@ matches parsed frame 0 — menu frames differ between the two.
 
 Do not regenerate casually: a pair is only valid if the .slp and the trace
 come from the SAME run (record with `MULTISHINE_TRACE=1` and keep both).
+
+## Recording NEW pairs (the coverage problem)
+
+These two pairs only cover the Fox multishine loop, so the derived table
+covers 9 of 399 action states. Measured share of frames it can normalize:
+~77% on the multishine fixture but only **~8-12% on Mewtwo** — the commonest
+unmeasured states are everyday ones (14 Wait, 20, 66, 90). Broadening that is
+the bottleneck on making the phase-2 fix useful for Mewtwo.
+
+Any live script can now record the live half, not just the multishine
+recorder:
+
+```bash
+EXPHIL_STATE_TRACE=1 mix run scripts/<any live script>.exs ... \
+  > mewtwo_pair.live-trace.log 2>&1
+```
+
+Then pair it with the `.slp` Dolphin wrote for that SAME run (newest file in
+your Slippi replay dir) and check it:
+
+```bash
+mix run scripts/diff_state_streams.exs \
+  --slp mewtwo_pair.slp --trace mewtwo_pair.live-trace.log
+```
+
+A good pair reports **100% agreement on action / on_ground / y**. Anything
+less means the two halves are not the same run (or the port is wrong — set
+`EXPHIL_STATE_TRACE_PORT=N`), and the mapping it produces is garbage.
+
+What makes a pair VALUABLE is action-state coverage, not good play: aim for
+ordinary Mewtwo movement, shielding, aerials, getting hit, ledge and
+recovery — states 14/20/66/90 and friends. Several short varied sessions beat
+one long repetitive one. `ActionFrameConvention.unknown_actions/1` tells you
+what a recording still leaves unmeasured.
+
+Note: pairs recorded via `EXPHIL_STATE_TRACE=1` carry the TRUE in-game frame
+(so they align at offset 0), while the two committed fixtures used a
+recorder-local counter (offset -123). Both are fine — the differ anchors on
+the first jumpsquat rather than assuming a numbering.
