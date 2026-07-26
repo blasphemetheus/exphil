@@ -155,16 +155,31 @@ Two options — run slippi-frame-extractor for raw parquet, or read mimic-melee 
       Delay 1 scores only 66.7%, confirming delay 0 is the right convention.
       Reproduces the 99.3% parsed-space figure on record.
 
-- [ ] **Run that multishine policy LIVE with `af_convention: :live`** — the
-      first end-to-end test of task #8 phase 2. The offline eval above says
-      the policy learned the right function, so a live failure is now
-      attributable to the state stream (GOTCHAS #81) rather than training.
-      With the 77-action table covering 91.2% of `fox_multishine_closed`
-      frames, the normalization should finally have something to bite on.
-      Needs `play_dolphin_async.exs` to expose the embed-config option
-      (`Embeddings.config(af_convention: :live)`); the seam exists but there
-      is no CLI flag yet. Compare shine counts with the flag on vs off.
+- [x] **Run that multishine policy LIVE with `af_convention: :live`** — DONE,
+      NEGATIVE. `--live-af` and `--seconds` flags added to
+      play_dolphin_async.exs. 2 min each vs a level-1 Fox CPU: 66 shines OFF
+      vs 65 ON, median gap 81f vs 83f. No effect, and the flag was verified
+      wired (embedding tensors change). Root cause turned out to be EXPOSURE
+      BIAS, not features — see GOTCHAS #81's "ROOT CAUSE FOUND" section.
+      Keep `af_convention` default OFF: coverage is 77/399, so enabling it
+      puts SOME actions in parsed convention and the rest in live — a mixture
+      matching neither training nor current inference. Revisit when coverage
+      is near-total or a measured win exists.
 
+- [ ] **DAgger round 1 for multishine — NEEDS THE GPU.** Attempted on the
+      laptop 2026-07-26 and abandoned at 30 min. The aggregate is 16882
+      frames (1679 fixture + 15203 relabelled rollout, the expert corrected
+      **89% of visited frames**) and training runs **~7 min/EPOCH** vs ~6
+      s/epoch for the 1679-frame baseline — a ~70x slowdown from 10x data.
+      4 epochs in 30 min, loss bouncing 0.112/0.043/0.068/0.071, target 2e-3.
+      So: initial multishine training is a laptop job (90 s), DAgger rounds
+      are NOT. Re-record rollouts at home (2 min each, cheap) rather than
+      vendoring them, then:
+        mix run scripts/dagger_drill.exs --expert multishine \
+          --rollouts "<a>.slp,<b>.slp" --out checkpoints/ms_dagger1.bin
+      Gate the result with `scripts/eval_policy_on_rollout.exs` — compare
+      off-manifold agreement before vs after on the SAME rollout (the
+      absolute numbers are confounded; the delta is what means something).
 ## Architecture Evaluation
 - [ ] Jamba 20-epoch convergence test (with kCudaAsync allocator + val_split)
 - [ ] Compare top architectures at 20 epochs (H3, Zamba, MinGRU, Mamba)
