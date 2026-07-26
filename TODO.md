@@ -129,6 +129,35 @@ Two options — run slippi-frame-extractor for raw parquet, or read mimic-melee 
 
 ## Multishine / State-Stream (task #8 follow-ups)
 
+- [ ] **Widen the action_frame table — cheap, laptop-sized, unblocks the
+      af_convention default.** "77 of 399" understates it: 399 counts every
+      character's specials plus states unreachable in normal play. Measured
+      against what we ACTUALLY encounter, across every live trace recorded
+      2026-07-26: **98 distinct action states seen, 77 mapped, 21 missing**
+      (17 universal <341, 4 character-specific). Missing:
+      0, 38, 50, 55, 73, 83, 89, 90, 178, 179, 182, 252, 253, 262, 263,
+      322, 324, 344, 352, 363, 364.
+
+      Two of those (322, 324) carry af = -1 sentinels and are unmappable by
+      construction. Most of the rest were SEEN but never mapped only because
+      their run was killed mid-game, so the .slp was truncated and no pair
+      could be diffed — the failure `--seconds` now prevents. So a chunk of
+      this gap is already-collected data we threw away.
+
+      What it takes: VARIETY, not volume. Yield per recording so far —
+      Fox TAS loop +9, Mewtwo vs level-9 CPU +66, Fox teacher loop +2. A
+      repetitive loop adds nothing; a real match adds dozens. Target the
+      missing states directly: ledge (252/253), tech/knockdown (178-182),
+      grabs and throws, and one varied match per character for its 341+
+      specials.
+
+      Cost: ~2 min to record + ~1 min to diff per pair, and it is
+      interruptible. Five to ten varied recordings is well under an hour and
+      should take mapped coverage of encountered states past 95%. THEN
+      flipping `af_convention` to default-on becomes uncontroversial, because
+      the "mixed convention" objection disappears once nearly everything
+      encountered is mapped.
+
 - [ ] **Play the multishine teacher live: teacher on one port, level-1 CPU on port 2.**
       The teacher currently gets validated against a fixture and via
       `demo_expert.exs`; running it against a passive low-level CPU gives a

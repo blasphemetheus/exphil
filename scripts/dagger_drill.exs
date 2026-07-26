@@ -56,6 +56,7 @@ alias ExPhil.Embeddings
       mamba_matmul_scan: :boolean,
       debug_grads_after: :integer,
       resume: :boolean,
+      snapshot_every: :integer,
       preflight: :boolean,
       memory_check: :string,
       rollout_cap_per_state: :integer
@@ -832,6 +833,13 @@ trainer =
 memorized_loss = opts[:target_loss] || 2.0e-3
 max_epochs = opts[:max_epochs] || 1000
 
+# How often to persist progress. Default 10 is fine at ~seconds/epoch, but a
+# big DAgger aggregate on CPU runs MINUTES per epoch — a 30-min run then dies
+# at epoch 4 having saved nothing (observed 2026-07-26, 16882 frames at ~7
+# min/epoch). Set this below (budget / epoch_time) so at least one snapshot
+# lands before you run out of wall clock.
+snapshot_every = max(opts[:snapshot_every] || 10, 1)
+
 # --resume: continue an interrupted run from OUT.trainer.ckpt (full trainer
 # state incl. Adam moments, published atomically every 10 epochs below).
 # The fingerprint refuses cross-experiment resumes loudly: same-named
@@ -1237,7 +1245,7 @@ end
     # on the same epochs, and when probe-eval crashed at epoch 10 the run
     # died before its first save — 10 epochs of work gone. Risky
     # instrumentation goes last so a death there costs 0 epochs.
-    if rem(epoch, 10) == 0 and is_number(loss) do
+    if rem(epoch, snapshot_every) == 0 and is_number(loss) do
       latest = Path.rootname(out_path) <> "_latest.bin"
       tmp = latest <> ".tmp"
 
