@@ -466,6 +466,19 @@ case AsyncRunner.stop(runner) do
       "  Final stats: #{final_stats.frames} frames, #{final_stats.inferences} inferences, #{final_stats.games} games"
     )
 
+    # Harness health: a stale send re-sent the previous action because no new
+    # inference finished in between — for a 9-frame multishine cycle each one
+    # is a timing slip the POLICY did not cause. High staleness = the machine,
+    # not the model, degraded this run's score; see EXPOSURE_BIAS.md item 0a.
+    stale = Map.get(final_stats, :stale_sends, 0)
+    max_run = Map.get(final_stats, :max_stale_run, 0)
+    frames = max(final_stats.frames, 1)
+    pct = Float.round(stale * 100 / frames, 1)
+
+    Output.puts(
+      "  Staleness: #{stale}/#{final_stats.frames} sends stale (#{pct}%), longest stale run #{max_run} frames"
+    )
+
   _ ->
     :ok
 end

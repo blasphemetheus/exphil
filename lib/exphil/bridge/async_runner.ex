@@ -302,10 +302,27 @@ defmodule ExPhil.Bridge.AsyncRunner do
     [{:inference_count, inferences}] = :ets.lookup(state.state_table, :inference_count)
     [{:games_played, games}] = :ets.lookup(state.state_table, :games_played)
 
+    lookup_or_zero = fn key ->
+      case :ets.lookup(state.state_table, key) do
+        [{^key, v}] -> v
+        [] -> 0
+      end
+    end
+
+    stale_sends = lookup_or_zero.(:stale_sends)
+    max_stale_run = lookup_or_zero.(:max_stale_run)
+
     :ets.delete(state.state_table)
 
-    {:reply, {:ok, %{frames: frames, inferences: inferences, games: games}},
-     %{state | running: false}}
+    {:reply,
+     {:ok,
+      %{
+        frames: frames,
+        inferences: inferences,
+        games: games,
+        stale_sends: stale_sends,
+        max_stale_run: max_stale_run
+      }}, %{state | running: false}}
   end
 
   @impl true
@@ -471,6 +488,7 @@ defmodule ExPhil.Bridge.AsyncRunner do
           # Send the action
           input = action_to_input(action, player_port)
           MeleePort.send_controller(bridge, input)
+          track_staleness(table)
       end
     end
 
@@ -478,6 +496,40 @@ defmodule ExPhil.Bridge.AsyncRunner do
 
     # Check for game end via stocks
     check_stocks_for_game_end(bridge, table, game_state, player_port, agent)
+  end
+
+  # Staleness telemetry. The frame loop always sends the most recent action,
+  # so when inference runs slower than the frame cadence the SAME action is
+  # re-sent with no new inference in between. For frame-precise sequences (a
+  # 9-frame multishine cycle) ONE stale send is a timing slip, so the
+  # distribution — stale sends and the longest stale run — is the
+  # harness-health number a live eval needs; the aggregate inference rate
+  # (1.2x on an idle laptop, 2026-07-27) hides it. Read AFTER the send, so a
+  # same-frame inference completion can count as fresh — approximate by one
+  # frame either way, fine for a health metric. Counters surface in stop/1's
+  # final stats.
+  defp track_staleness(table) do
+    [{:inference_count, inf}] = :ets.lookup(table, :inference_count)
+
+    last =
+      case :ets.lookup(table, :inf_at_last_send) do
+        [{:inf_at_last_send, v}] -> v
+        [] -> -1
+      end
+
+    :ets.insert(table, {:inf_at_last_send, inf})
+
+    if last == inf do
+      :ets.update_counter(table, :stale_sends, 1, {:stale_sends, 0})
+      run = :ets.update_counter(table, :stale_run, 1, {:stale_run, 0})
+
+      case :ets.lookup(table, :max_stale_run) do
+        [{:max_stale_run, m}] when m >= run -> :ok
+        _ -> :ets.insert(table, {:max_stale_run, run})
+      end
+    else
+      :ets.insert(table, {:stale_run, 0})
+    end
   end
 
   defp handle_postgame(bridge, table, game_state, agent) do

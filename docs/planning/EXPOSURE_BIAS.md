@@ -209,6 +209,43 @@ Also: **2 of 6 runs lost to truncated replays** (graceful SD failed, ~20% flake,
 also hit ms_synth_c). Each failure costs a seed. Worth fixing before any
 larger seed sweep.
 
+## 0c. THE HARNESS ITSELF IS PART OF THE MEASUREMENT (2026-07-27)
+
+Investigated whether the eval harness has distributional quirks of its own.
+Three findings:
+
+1. **Inference headroom is razor-thin.** AsyncRunner decouples the frame
+   loop from inference: the frame loop always sends the LATEST completed
+   action, so slow inference silently RE-SENDS the previous action. The four
+   post-SD-fix idle runs of `ms_synth_a` ran 1.20–1.28 inferences/frame —
+   only 20–30% margin over the 60 Hz cadence on an idle laptop. Any
+   background load pushes some frames under 1.0 and each such frame is a
+   stale send = a timing slip the policy did not cause. For a 9-frame cycle
+   this is a direct, machine-induced chain-breaker, and a plausible
+   contributor to the 2.2x run-to-run spread (item 0a).
+
+2. **Under heavy load the harness doesn't degrade — it collapses.** With
+   CPU training saturating cores, a live run advanced ~540 game frames in
+   ~8 minutes (~1 fps) and never left STAGE_SELECT. Protocol rule: NEVER
+   run live evals concurrently with training or any heavy job. (This also
+   means a loaded-vs-idle A/B needs a CALIBRATED load — e.g. one busy core —
+   not a saturating one.)
+
+3. **Staleness is now measured per run.** AsyncRunner counts stale sends
+   and the longest stale run; `play_dolphin_async.exs` prints
+   `Staleness: N/frames (x%), longest stale run M` in its final stats.
+   Runs with outlier staleness should be discarded as measurement failures,
+   the same as truncated replays. (Also fixes the n: the four sdfix runs of
+   ms_synth_a scored 39.7/53.6/52.5/54.6 self/min, chains 5/6/6/7 — item
+   0a's four runs plus these = n=8 idle baseline, mean ~45, range
+   26.9–58.4.)
+
+4. **Training/eval delay mismatch (open).** Drills train with a FIXED
+   `--action-delay 2`; live, the effective delay is the async pipeline's
+   phase (1–2+ frames) plus any staleness — i.e. VARIABLE. The policy is
+   conditioned on a delay distribution it never saw. Untested how much this
+   costs; the staleness counter makes it measurable now.
+
 - [-] **3b. prev-action x synthesis — NO DETECTABLE GAIN (n=2, below
   resolution).** Prediction was that Melee's press-EDGE requirement plus the
   recovery rules' alternation on previously-landed input meant synthesis was
@@ -251,14 +288,32 @@ larger seed sweep.
   scale 0.02: 39.4 / 41.2, inside synth's 29.4-58.4 range. Only one scale was
   tried; like 3b this is below the resolution floor rather than disproven.
 
-- [ ] **5. Teacher-driven recovery data.** The closed-loop teacher holds **791
-  unbroken cycles**. Start it from perturbed / off-trajectory states and record
-  how it recovers: on-policy-adjacent data with a perfect labeller and no policy
-  rollouts. Needs Dolphin, laptop-capable.
+- [~] **5. Teacher-driven recovery data — FIRST RUN 2026-07-27, training in
+  progress.** The closed-loop teacher holds **791 unbroken cycles**; the
+  perturbation harness knocks it off-trajectory every N frames and records
+  the real recovery. First run (`PERTURB_EVERY=180 PERTURB_FRAMES=6`, 120s,
+  level-1 CPU): 7200 frames, ~40 perturbations, **25.1% of rollout frames
+  relabeled** — real off-manifold coverage synthesis cannot reach. Caveat:
+  mode `random` presses B 15% of the time mid-random-stick = side-B off
+  stage; Fox died ~3 times, so some correction mass sits in dead/respawn
+  states. `PERTURB_MODE=stick` (no buttons) or `release` (pure timing slip)
+  are the gentler knobs, untried. Policy: `checkpoints/ms_perturb*.bin`,
+  epoch snapshots archived for a loss-vs-live-competence curve.
 
-- [ ] **6. Scheduled sampling.** Feed the model its own predictions for a
-  fraction of training frames. Nothing implements this today; textbook
-  exposure-bias fix, fits the existing train loop. Laptop.
+- [~] **6. Scheduled sampling — IMPLEMENTED 2026-07-27, not yet evaluated.**
+  `ExPhil.Training.ScheduledSampling`: with probability P per sample, the
+  prev-action slice of the last window position is replaced by the model's
+  OWN decoded prediction (decode pinned to the live path: logit>0 buttons,
+  argmax/16 sticks rescaled (v-0.5)*2, argmax/4 shoulder). Depth-1,
+  last-position-only — game-state dims need a simulator, which is what the
+  perturbation harness covers; the two compose. Slice located empirically
+  via `Attribution.prev_action_dim_range/1` (layout has scrambled silently
+  before). One extra forward pass per step.
+
+  Drill usage: `--scheduled-sampling 0.5 --ss-ramp 10` (linear 0→P over 10
+  epochs). Requires `--prev-action`. NOTE: loss under scheduled sampling is
+  a harder objective — do not compare loss curves across this flag, judge
+  by live runs only (item 0a protocol: ≥3 runs).
 
 - [ ] **7. PPO fine-tuning from the BC policy.** Infrastructure exists.
   Optimizes the CLOSED-LOOP objective (shine count) rather than one-step

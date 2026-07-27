@@ -457,6 +457,17 @@ defmodule Perturb do
   @every String.to_integer(System.get_env("PERTURB_EVERY") || "0")
   @frames String.to_integer(System.get_env("PERTURB_FRAMES") || "6")
 
+  # PERTURB_MODE picks how violent the knock is. The first-ever harness run
+  # (2026-07-27, mode random) killed Fox ~3 times in 120s — random stick +
+  # 15% B is a side-B off the stage, and death/respawn states dilute the
+  # recovery data with states the multishine expert has no meaningful label
+  # for. The gentler modes displace timing without specials:
+  #   random  - stick anywhere + occasional A/B/X/L (historical default)
+  #   stick   - random main stick, NO buttons (drift/slide, no side-B deaths)
+  #   release - full neutral for the burst (pure timing slip, zero
+  #             displacement — isolates the phase dimension of recovery)
+  @mode System.get_env("PERTURB_MODE") || "random"
+
   def enabled?, do: @every > 0
 
   def maybe(input, mstate, _frame) when @every <= 0, do: {input, mstate}
@@ -466,32 +477,51 @@ defmodule Perturb do
 
     cond do
       left > 0 ->
-        {random_input(), Map.put(mstate, :perturb_left, left - 1)}
+        {perturb_input(), Map.put(mstate, :perturb_left, left - 1)}
 
       rem(frame, @every) == 0 and frame > 0 ->
-        IO.puts("[perturb] f#{frame}: knocking teacher off-trajectory for #{@frames} frames")
-        {random_input(), Map.put(mstate, :perturb_left, @frames - 1)}
+        IO.puts(
+          "[perturb] f#{frame}: knocking teacher off-trajectory for #{@frames} frames (#{@mode})"
+        )
+
+        {perturb_input(), Map.put(mstate, :perturb_left, @frames - 1)}
 
       true ->
         {input, mstate}
     end
   end
 
-  defp random_input do
+  defp perturb_input do
+    case @mode do
+      "stick" -> %{neutral_input() | main_stick: %{x: :rand.uniform(), y: :rand.uniform()}}
+      "release" -> neutral_input()
+      _random -> random_input()
+    end
+  end
+
+  defp neutral_input do
     %{
-      main_stick: %{x: :rand.uniform(), y: :rand.uniform()},
+      main_stick: %{x: 0.5, y: 0.5},
       c_stick: %{x: 0.5, y: 0.5},
       shoulder: 0.0,
-      buttons: %{
-        a: :rand.uniform() < 0.15,
-        b: :rand.uniform() < 0.15,
-        x: :rand.uniform() < 0.25,
-        y: false,
-        z: false,
-        l: :rand.uniform() < 0.1,
-        r: false,
-        d_up: false
-      }
+      buttons: %{a: false, b: false, x: false, y: false, z: false, l: false, r: false, d_up: false}
+    }
+  end
+
+  defp random_input do
+    %{
+      neutral_input()
+      | main_stick: %{x: :rand.uniform(), y: :rand.uniform()},
+        buttons: %{
+          a: :rand.uniform() < 0.15,
+          b: :rand.uniform() < 0.15,
+          x: :rand.uniform() < 0.25,
+          y: false,
+          z: false,
+          l: :rand.uniform() < 0.1,
+          r: false,
+          d_up: false
+        }
     }
   end
 end
