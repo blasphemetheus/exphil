@@ -245,7 +245,14 @@ Three findings:
    not stalls. (Also fixes the n: the four sdfix runs of
    ms_synth_a scored 39.7/53.6/52.5/54.6 self/min, chains 5/6/6/7 — item
    0a's four runs plus these = n=8 idle baseline, mean ~45, range
-   26.9–58.4.)
+   26.9–58.4.) SECOND CORRECTION (post-reboot 2026-07-27): loadavg does
+   NOT predict staleness either — after a reboot, 9 consecutive runs
+   held 0.2–1.9% at loadavg up to 4.9, where the pre-reboot machine
+   (15h uptime) gave 17–31% at similar loadavg. Accumulated machine
+   state (thermal throttle / memory pressure / background churn) is the
+   real driver. Practical rule stands: staleness is a PER-RUN stat,
+   read it from the run itself, and a reboot is the cheapest way to a
+   clean measurement block.
 
 4. **Training/eval delay mismatch (open).** Drills train with a FIXED
    `--action-delay 2`; live, the effective delay is the async pipeline's
@@ -266,6 +273,12 @@ Three findings:
    the idle eval is FAR less noisy: ms_synth_ss scored 90.6/90.1/92.5
    self/min — a 1.03x spread vs the CPU condition's 2.2x — and with zero
    hit-induced shines it is pure capability. See item 6 for that result.
+   CORRECTED same day: the low-noise claim held only in the degraded-
+   harness regime. Under a clean harness the same policy spread 7.3–56.1
+   (7.7x) vs idle — WORSE than the CPU condition, because the idle eval
+   removes the opponent's perturbations and exposes absorption-time
+   luck (see 6-replication). Tightness vs idle was an artifact of
+   staleness-noise ergodizing the loop, not a property of the eval.
 
 - [-] **3b. prev-action x synthesis — NO DETECTABLE GAIN (n=2, below
   resolution).** Prediction was that Melee's press-EDGE requirement plus the
@@ -338,8 +351,10 @@ Three findings:
   re-recording (no deaths), scheduled sampling on top of synth (item 6,
   now implemented).
 
-- [x] **6. Scheduled sampling — MEASURED 2026-07-27: FIRST CLEAN WIN SINCE
-  SYNTHESIS.** `ms_synth_ss` (synth + prev-action + `--scheduled-sampling
+- [-] **6. Scheduled sampling — MEASURED 2026-07-27: initially read as the
+  first clean win since synthesis; **SUPERSEDED same day by 6-replication
+  below — does not survive seed replication or a clean harness.** Original
+  result kept for the record. `ms_synth_ss` (synth + prev-action + `--scheduled-sampling
   0.5`, train_multishine_policy.exs, 4063 frames, loss 0.001 @ 29 epochs):
 
   | policy (all synth-trained) | vs CPU self/min · chain | vs IDLE self/min · chain |
@@ -360,7 +375,59 @@ Three findings:
   Caveats: vs-CPU chains 2-3 measured at the day's WORST staleness (30%)
   — redo under clean conditions before reading that cell; single training
   run (no seed replication); rate not chain length is the robust gain.
-  Original implementation note follows.
+  Original implementation note follows. BOTH caveats resolved same day —
+  see 6-replication; both went against the result.
+
+- [-] **6-replication. SS REPLICATION FAILED 2026-07-27 (same day, post-
+  reboot, cleanest harness ever: 0.2–1.9% staleness all runs).** Two fresh
+  training runs of the EXACT recipe (same command, fresh init seeds; both
+  reproduced 4063 frames; losses 0.00164@27ep, 0.00187@20ep vs original
+  0.001@29ep) plus a clean re-run of the original binary:
+
+  | policy, vs IDLE | self/min | max chain | staleness |
+  |---|---|---|---|
+  | `ms_synth_ss` (orig, YESTERDAY) | 90.6 · 90.1 · 92.5 | 4 · 4 · 6 | 17–29% |
+  | `ms_synth_ss` (orig, TODAY clean) | **7.3 · 18.0 · 56.1** | 2 · 2 · 2 | 0.5–1.2% |
+  | `ms_synth_ss_b` | **0 · 0 · 0** (crouches) | 0 | 0.2–0.4% |
+  | `ms_synth_ss_c` | **0.8 · 1.6 · 0.8** | 1 · 2 · 1 | 0.2–0.4% |
+
+  Also the vs-CPU redo under clean staleness: orig scored 31.2 · 34.6 ·
+  35.9, chains 4·3·2 — INSIDE plain synth's 26.9–58.4 spread. So: no SS
+  gain vs CPU (confirmed), and the idle-opponent "win" is (a) seed-
+  dependent — 2 of 3 seeds fall into the crouch absorber like the
+  controls — and (b) not reproducible even for the winning seed under a
+  clean harness. Yesterday's 90/min was measured ONLY in the degraded-
+  harness regime.
+
+  **Leading hypothesis — staleness-as-noise:** a stale send repeats the
+  previous action for a frame; at 17–29% that is heavy action-repeat
+  noise. A deterministic policy (argmax decode, conf 0.97) in the crouch
+  fixed point stays there forever; noise makes the membrane leaky and
+  keeps kicking the policy back onto the cycle. Supporting spread
+  pattern: orig vs idle was eerily TIGHT dirty (1.03x) and WILD clean
+  (7.7x) — noise ergodizes the closed loop; clean, absorption time is
+  luck of the transient. Same logic explains why vs-CPU runs are tight
+  (1.15x) at moderate rate: the OPPONENT is a perturbation source
+  (approaches/hits knock the state around, preventing permanent
+  absorption). Discriminating experiment (untried — classifier blocked
+  the CPU-burner; run `stress-ng --cpu $(nproc)` manually + FORCE=1
+  protocol run): re-eval `ms_synth_ss_b` (the 0/0/0 seed) vs idle under
+  deliberate load; if staleness resurrects it, noise is the mechanism
+  independent of seed. If confirmed, inference-time stochasticity
+  (sampling temperature / ε on the button head) is the principled,
+  tunable version of what the broken harness delivered by accident.
+
+  **The crouch absorber, named:** distinct from the #81 reflector trap.
+  Live sequence (observed): imperfect multishine → missed shine after
+  jump → full shorthop (airborne ~20f with no shine in the 16-frame
+  window = zero training support) → lands holding down (the marginal-
+  mode action of multishine data) → Squat/SquatWait forever, at high
+  confidence. Candidate coverage fix, untried: extend `RecoverySynth`
+  to Squat/SquatWait/landing states labeled with down-B (same machinery
+  that killed the reflector trap; item 3c already proposed widening —
+  the crouch basin is now the highest-value target). Forensics gap:
+  `chain_break_forensics.exs` counts #81-trap pooling but not crouch
+  pooling; add Squat/SquatWait to make basin occupancy a tracked stat.
 
 - [~] **6-implementation. Scheduled sampling — IMPLEMENTED 2026-07-27.**
   `ExPhil.Training.ScheduledSampling`: with probability P per sample, the
