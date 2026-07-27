@@ -135,6 +135,30 @@ defmodule ExPhil.Bridge.AsyncRunner do
   end
 
   @doc """
+  Switch the frame loop to SD mode: hold full left until the game ends.
+
+  Use this instead of `stop/1` when you need the replay finalized. Slippi only
+  writes a complete `.slp` on game end, and `stop/1` tears down the bridge (it
+  exits the frame loop process, which kills the Python side), so any attempt to
+  drive the game AFTER stopping races the teardown and usually loses the
+  recording.
+
+  Poll `sd_complete?/1` for the game to end, then call `stop/1` as normal.
+  """
+  @spec begin_sd(GenServer.server()) :: :ok
+  def begin_sd(runner) do
+    GenServer.call(runner, :begin_sd)
+  end
+
+  @doc """
+  Whether the SD started by `begin_sd/1` has reached a game end.
+  """
+  @spec sd_complete?(GenServer.server()) :: boolean()
+  def sd_complete?(runner) do
+    GenServer.call(runner, :sd_complete?)
+  end
+
+  @doc """
   Gets current runtime statistics.
 
   Returns a map with performance metrics including FPS, inference rate,
@@ -179,6 +203,7 @@ defmodule ExPhil.Bridge.AsyncRunner do
     :ets.insert(table, {:in_game, false})
     # Only true when stop() called or fatal error
     :ets.insert(table, {:should_stop, false})
+    :ets.insert(table, {:sd_mode, false})
 
     # Frame pacing (pace_hz opt): with blocking pipe input the game only
     # advances when we feed it, so the RUNNER is the throttle. The ExiAI
@@ -241,6 +266,24 @@ defmodule ExPhil.Bridge.AsyncRunner do
   end
 
   @impl true
+  def handle_call(:begin_sd, _from, state) do
+    :ets.insert(state.state_table, {:sd_mode, true})
+    Logger.info("[AsyncRunner] SD mode — holding left until the game ends")
+    {:reply, :ok, state}
+  end
+
+  def handle_call(:sd_complete?, _from, state) do
+    # games_played increments on game end (handle_postgame), which is exactly
+    # the event that makes Slippi finalize the .slp.
+    done? =
+      case :ets.lookup(state.state_table, :games_played) do
+        [{:games_played, n}] when n > 0 -> true
+        _ -> false
+      end
+
+    {:reply, done?, state}
+  end
+
   def handle_call(:stop, _from, state) do
     Logger.info("[AsyncRunner] Stopping...")
 
@@ -405,16 +448,30 @@ defmodule ExPhil.Bridge.AsyncRunner do
     # Increment frame count
     :ets.update_counter(table, :frame_count, 1)
 
-    # Get latest action and send it
-    case :ets.lookup(table, :latest_action) do
-      [{:latest_action, nil}] ->
-        # No action yet, send neutral
-        :ok
+    # SD mode overrides the policy: hold full left, no buttons, so the player
+    # walks off and burns stocks until the game ENDS and Slippi finalizes the
+    # replay. This MUST happen inside the frame loop.
+    #
+    # The obvious alternative — stop the runner, then drive the bridge from the
+    # caller — is broken: stop/1 does Process.exit(frame_loop_pid, :shutdown),
+    # which tears down the Python bridge ("Parent process died — force
+    # exiting", Dolphin exits code 9), so the caller then talks to a corpse.
+    # It won that race ~70% of the time, which is worse than failing outright:
+    # the other ~30% produced a TRUNCATED .slp that peppi rejects, silently
+    # costing an entire recording.
+    if sd_mode?(table) do
+      MeleePort.send_controller(bridge, sd_input(player_port))
+    else
+      case :ets.lookup(table, :latest_action) do
+        [{:latest_action, nil}] ->
+          # No action yet, send neutral
+          :ok
 
-      [{:latest_action, action}] ->
-        # Send the action
-        input = action_to_input(action, player_port)
-        MeleePort.send_controller(bridge, input)
+        [{:latest_action, action}] ->
+          # Send the action
+          input = action_to_input(action, player_port)
+          MeleePort.send_controller(bridge, input)
+      end
     end
 
     drive_elixir_dummy(bridge, table, game_state, player_port)
@@ -494,6 +551,26 @@ defmodule ExPhil.Bridge.AsyncRunner do
       [{:should_stop, true}] -> true
       _ -> false
     end
+  end
+
+  defp sd_mode?(table) do
+    case :ets.lookup(table, :sd_mode) do
+      [{:sd_mode, true}] -> true
+      _ -> false
+    end
+  end
+
+  # Full left, no buttons: walk off and do not recover. Same input signature as
+  # record_multishine.exs uses, so the SD tail stays filterable from training
+  # data by that exact signature.
+  defp sd_input(player_port) do
+    %{
+      port: player_port,
+      main_stick: %{x: 0.0, y: 0.5},
+      c_stick: %{x: 0.5, y: 0.5},
+      shoulder: 0.0,
+      buttons: %{a: false, b: false, x: false, y: false, z: false, l: false, r: false, d_up: false}
+    }
   end
 
   # Elixir-driven opponent dummy: read the opponent's state, step the dummy

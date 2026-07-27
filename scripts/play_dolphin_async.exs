@@ -341,6 +341,26 @@ end
 # fill whole buffer"), i.e. the entire session is unanalyzable. Same technique
 # and input signature as record_multishine.exs, so the SD tail is filterable.
 defmodule GracefulSD do
+  @poll_ms 500
+  @timeout_ms 120_000
+
+  @doc """
+  Wait for the frame loop's SD to reach a game end.
+
+  The loop itself holds left (AsyncRunner.begin_sd/1); this only watches. ~2 min
+  cap — a level-1 CPU will not save you from walking off, so exceeding it means
+  something is wrong, not that it needs longer.
+  """
+  def await(runner, waited \\ 0) do
+    cond do
+      AsyncRunner.sd_complete?(runner) -> :ok
+      waited >= @timeout_ms -> {:error, :sd_timeout}
+      true ->
+        Process.sleep(@poll_ms)
+        await(runner, waited + @poll_ms)
+    end
+  end
+
   @hold_left %{
     main_stick: %{x: 0.0, y: 0.5},
     c_stick: %{x: 0.5, y: 0.5},
@@ -414,20 +434,16 @@ end
 try do
   case StatsMonitor.run(runner, 5000, opts[:on_game_end], opts[:seconds]) do
     :duration_reached ->
-      # Stop the policy FIRST so it stops fighting the SD inputs, then let any
-      # in-flight bridge traffic clear before the SD loop relies on replies.
-      AsyncRunner.stop(runner)
-      GracefulSD.drain(bridge)
+      # SD runs INSIDE the frame loop. Stopping the runner first and driving
+      # the bridge afterwards races the teardown — stop/1 exits the frame loop
+      # process, which kills the Python bridge, so the caller ends up talking
+      # to a corpse. That lost ~30% of recordings to truncated .slp files.
       Output.puts("SD-ing to end the game (Slippi finalizes the .slp on game end)...")
+      AsyncRunner.begin_sd(runner)
 
-      case GracefulSD.run(bridge) do
-        {:ok, :game_ended} ->
-          Output.success("  Game end: replay finalized")
-
-        other ->
-          # Say so loudly: the .slp will be TRUNCATED and unparseable, so the
-          # run is lost. Better to know now than at analysis time.
-          Output.error("  SD FAILED (#{inspect(other)}) — .slp will be truncated/unusable")
+      case GracefulSD.await(runner) do
+        :ok -> Output.success("  Game end: replay finalized")
+        {:error, reason} -> Output.error("  SD FAILED (#{inspect(reason)}) — .slp truncated")
       end
 
     _ ->
