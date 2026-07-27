@@ -8,11 +8,17 @@ always the truth.
 
     ls -t docs/planning/HANDOFF_*.md | head -1
 
-As of 2026-07-26 that is
-[HANDOFF_2026-07-26.md](HANDOFF_2026-07-26.md) — laptop session: task #8
-phases 1 and 2, and the root-cause finding that the multishine policy's live
-failure is **exposure bias**, not the state-stream shift (GOTCHAS #81 moves
-2/288 embedding dims and has no measurable live effect).
+As of 2026-07-27 that is
+[HANDOFF_2026-07-27.md](HANDOFF_2026-07-27.md) — multishine / exposure bias:
+the synthesized recovery set works (self-initiated shines ~6.5/min → ~40/min,
+max chain 1 → 3-7), the perturbation harness is built but never run, and the
+measurement protocol was corrected (the variance is in the RUNS, not the
+training seeds).
+
+Prior: [HANDOFF_2026-07-26.md](HANDOFF_2026-07-26.md) — task #8 phases 1 and 2,
+and the root-cause finding that the multishine policy's live failure is
+**exposure bias**, not the state-stream shift (GOTCHAS #81 moves 2/288
+embedding dims and has no measurable live effect).
 
 Immediately prior: [HANDOFF_2026-07-24e.md](HANDOFF_2026-07-24e.md) (vacation
 edition) for the r17a resume point and the multishine teacher narrative.
