@@ -235,7 +235,13 @@ Three findings:
    and the longest stale run; `play_dolphin_async.exs` prints
    `Staleness: N/frames (x%), longest stale run M` in its final stats.
    Runs with outlier staleness should be discarded as measurement failures,
-   the same as truncated replays. (Also fixes the n: the four sdfix runs of
+   the same as truncated replays. First 6 instrumented runs: **~16% stale
+   sends is this laptop's STEADY STATE** (15.7–17.2% across loadavg 2–5,
+   longest run always 3) — inference misses roughly 1 frame in 6 whenever
+   Dolphin+bridge+policy share the machine. That is a floor on live timing
+   fidelity here, present in every historical measurement too; comparisons
+   remain valid because it is uniform, but absolute chain lengths are
+   measured through it. (Also fixes the n: the four sdfix runs of
    ms_synth_a scored 39.7/53.6/52.5/54.6 self/min, chains 5/6/6/7 — item
    0a's four runs plus these = n=8 idle baseline, mean ~45, range
    26.9–58.4.)
@@ -288,17 +294,34 @@ Three findings:
   scale 0.02: 39.4 / 41.2, inside synth's 29.4-58.4 range. Only one scale was
   tried; like 3b this is below the resolution floor rather than disproven.
 
-- [~] **5. Teacher-driven recovery data — FIRST RUN 2026-07-27, training in
-  progress.** The closed-loop teacher holds **791 unbroken cycles**; the
-  perturbation harness knocks it off-trajectory every N frames and records
-  the real recovery. First run (`PERTURB_EVERY=180 PERTURB_FRAMES=6`, 120s,
-  level-1 CPU): 7200 frames, ~40 perturbations, **25.1% of rollout frames
-  relabeled** — real off-manifold coverage synthesis cannot reach. Caveat:
-  mode `random` presses B 15% of the time mid-random-stick = side-B off
-  stage; Fox died ~3 times, so some correction mass sits in dead/respawn
-  states. `PERTURB_MODE=stick` (no buttons) or `release` (pure timing slip)
-  are the gentler knobs, untried. Policy: `checkpoints/ms_perturb*.bin`,
-  epoch snapshots archived for a loss-vs-live-competence curve.
+- [x] **5. Teacher-driven recovery data — RUN AND MEASURED 2026-07-27:
+  UNDERPERFORMS SYNTH ON CHAINS.** First harness run (`PERTURB_EVERY=180
+  PERTURB_FRAMES=6` mode random, 120s, level-1 CPU): 7200 frames, ~40
+  perturbations, 25.1% of rollout frames relabeled; trained to
+  convergence (loss 0.00154, epoch 56). Protocol result (n=3 runs per
+  policy, staleness-matched at ~16%):
+
+  | condition | self/min | max chain |
+  |---|---|---|
+  | synth (n=11 runs) | ~45 (26.9–58.4) | **3–7** |
+  | perturb, loss 0.0015 (n=3) | 32.4 · 44.1 · 38.8 | **2 · 2 · 1** |
+  | perturb e40, loss 0.09 (n=3) | 33.9 · 44.9 · 47.7 | **1 · 1 · 2** |
+
+  Rate equivalent, chains DON'T overlap — on the LOW side. Two collateral
+  findings: (a) the moderate-loss "statue at the floor" lore does NOT
+  reproduce here — 0.0015 and 0.09 behave identically (that lore came from
+  the conversion metric on r-series drills; don't port it blindly);
+  (b) chain_break_forensics on all 6 runs: ~half of breaks UNFORCED, bot
+  pools in reflector states after (156–262 frames/run in the #81 trap at
+  BOTH loss bands) — the absorbing trap survives perturbation training.
+
+  Suspected causes, untested: fixture dilution (1679 of 8549 frames = 20%
+  cycle data vs synth's targeted trap-state density), death/respawn frames
+  in the corrections (random mode side-B'd Fox off stage ~3 times), and
+  corrections spread thin (~40 recovery episodes). Next levers:
+  synth+perturb COMBINED aggregate, `PERTURB_MODE=stick|release`
+  re-recording (no deaths), scheduled sampling on top of synth (item 6,
+  now implemented).
 
 - [~] **6. Scheduled sampling — IMPLEMENTED 2026-07-27, not yet evaluated.**
   `ExPhil.Training.ScheduledSampling`: with probability P per sample, the

@@ -84,8 +84,10 @@ done
 echo "=== scoring"
 SLPS=$(ls "$OUTDIR"/r*.slp 2>/dev/null)
 if [ -z "$SLPS" ]; then echo "no replays captured" >&2; exit 4; fi
+# NB: Output.puts writes to STDERR — do not 2>/dev/null here (first run of
+# this script silently dropped the entire scoring section that way).
 if [ "$DUMMY" = "cpu" ]; then
-  for s in $SLPS; do mix run scripts/check_replay_ports.exs "$s" --expect-cpu 2 2>/dev/null | grep -a "port\|✓\|❌"; done
+  for s in $SLPS; do mix run scripts/check_replay_ports.exs "$s" --expect-cpu 2 2>&1 | grep -a "port \|checks"; done
 fi
-mix run scripts/analyze_shine_source.exs $SLPS 2>/dev/null | grep -a "replay\|r[0-9]"
+mix run scripts/analyze_shine_source.exs $SLPS 2>&1 | grep -a "replay  \|r[0-9] "
 echo "=== done. Protocol: report mean AND range; <2x differences are unresolved (EXPOSURE_BIAS.md 0a/0b)."
