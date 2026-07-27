@@ -92,7 +92,13 @@ Status: [ ] untried · [~] in progress · [x] done · [-] ruled out
   | | self-initiated shines/min | max chain |
   |---|---|---|
   | baseline (3 seeds) | 11.4 · 3.0 · 5.2 | 1 · 1 · 1 |
-  | **synth (2 seeds)** | **58.4 · 36.2** | **5 · 3** |
+  | **synth (3 seeds)** | **58.4 · 36.2 · 29.4** | **5 · 3 · 6** |
+
+  Ranges 3.0–11.4 vs 29.4–58.4: no overlap, nearest points 2.6x apart, on
+  n=3 both sides. Rate and chain length do NOT track each other (the weakest
+  seed on rate, 29.4, is the best on chain, 6) — "shines often" and "sustains
+  a cycle" look like partly independent capabilities, worth separating in any
+  future scoring.
 
   No overlap, 3x gap between nearest points — legible where the agreement
   metric was pure noise (item 0). Every baseline shine was ISOLATED (max chain
@@ -141,6 +147,34 @@ Status: [ ] untried · [~] in progress · [x] done · [-] ruled out
   The high scores did not replicate. There is no context-length effect visible
   through this much noise, so the hypothesis is neither confirmed nor refuted —
   see item 0, which is the real result.
+
+- [ ] **3b. prev-action x synthesis — TRY THIS FIRST.** Highest expected value
+  per minute of the untried items, and theoretically motivated rather than a
+  guess. Melee registers shine on a press EDGE, and MultishineExpert's recovery
+  rules alternate on the PREVIOUSLY-LANDED input ("press when the button was
+  up, release when it was down"). Synthesis is currently teaching "tap X at
+  reflector af 3+" to a policy that CANNOT SEE whether X was already held — so
+  it can only learn a marginal press probability, never the alternation. That
+  is a plausible reason max chain stalls at 3-6.
+
+  It also reframes the earlier null result: `--prev-action` alone did nothing
+  BECAUSE there was no recovery data to condition on. The two may only work
+  together, which is exactly the interaction a single-variable ablation misses.
+  One flag combination, ~6 min per seed. Laptop.
+
+- [ ] **3c. Widen synthesis beyond the reflector.** `RecoverySynth` currently
+  extends only actions 360-368, but the policy also drifts in jumpsquat (24),
+  aerial jump (25) and landing states. Same machinery, different `:actions`
+  set. Laptop, ~10 min.
+
+- [ ] **3d. Sweep `--synth-ratio` / `--synth-max-af`.** 1.0 and 30 were picked
+  without testing. Higher ratio = more recovery coverage but risks swamping the
+  core loop. 3 seeds x 3 ratios is ~1 h of training plus live eval, and the
+  live eval (~4 min/run) is the bottleneck. Laptop.
+
+- [ ] **3e. Longer live evals.** Runs are 2 min, i.e. only ~90 shine
+  opportunities. Max chain 3-6 vs the teacher's 791 may partly be a sampling
+  limit rather than a capability limit. One 5-min run settles it. Laptop, cheap.
 
 - [ ] **4. Noise injection (DART-style).**
   `ExPhil.Training.Augmentation.add_noise/2` and `maybe_add_noise/2` already
