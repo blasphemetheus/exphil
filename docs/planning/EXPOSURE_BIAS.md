@@ -86,11 +86,45 @@ Status: [ ] untried · [~] in progress · [x] done · [-] ruled out
   Rollouts re-recorded 2026-07-26 against a REAL CPU (the earlier ones were
   collected against an idle HUMAN port — GOTCHAS #57b).
 
-- [~] **2. Synthesize the correction set without rollouts.** `MultishineExpert`
-  ALREADY has recovery rules for exactly the off-table states the policy falls
-  into; today they only run live. Enumerate off-manifold states — reflector at
-  af 3..28 above all — label them with those rules, mix into training. DAgger's
-  benefit without the rollout loop, aimed straight at the known trap. Laptop.
+- [x] **2. Synthesize the correction set without rollouts — WORKS.** Live,
+  deterministic, vs a level-1 Fox CPU, 2 min each:
+
+  | | self-initiated shines/min | max chain |
+  |---|---|---|
+  | baseline (3 seeds) | 11.4 · 3.0 · 5.2 | 1 · 1 · 1 |
+  | **synth (2 seeds)** | **58.4 · 36.2** | **5 · 3** |
+
+  No overlap, 3x gap between nearest points — legible where the agreement
+  metric was pure noise (item 0). Every baseline shine was ISOLATED (max chain
+  1); the synth policies chain, which is multishine behaviour appearing in a
+  trained policy for the first time.
+
+  Shines are split self-initiated vs hit-induced because Bradley observed the
+  CPU jabbing the bot out of a held shine — so raw shine count is contaminated
+  by how often the opponent hit it. Baselines: 15-18 hit-induced vs 6-20 self,
+  i.e. roughly half their shines were the opponent's doing. Synth: 115 self vs
+  21 hit-induced. The gain is genuine recovery, not more jabs.
+
+  Cost: seconds of synthesis + ~6 min training, no GPU, no Dolphin, no rollout
+  loop — against DAgger's ~3 GPU-less hours that did not converge.
+
+  Caveats: n=2 synth (the third run's replay truncated), one drill only, and
+  max chain 3-5 against the teacher's 791. A step, not a solution. The
+  synthesis only reaches states reachable by EXTENDING segments the fixture
+  already visits; getting hit, ledge and tech situations still need recordings.
+
+  **Generalise this.** The recovery rules already existed and were only ever
+  executed LIVE, never trained on. Every scripted expert has the same latent
+  asset — MewtwoFairExpert, MewtwoTechChaseExpert, MewtwoPunishExpert,
+  FoxRecoveryExpert. Free training signal across the whole drill suite.
+
+- [ ] **2b. Apply the same synthesis to the other drills.** The recovery rules
+  in MewtwoFairExpert, MewtwoTechChaseExpert, MewtwoPunishExpert and
+  FoxRecoveryExpert are all trained-on-never, executed-live-only, exactly as
+  the multishine ones were. `ExPhil.Data.RecoverySynth` takes an `:expert` and
+  an `:actions` set, so pointing it at another drill is mostly picking which
+  actions that drill gets stuck in — run the diagnostic first
+  (`eval_policy_on_rollout.exs` names the most-visited unseen states).
 
 - [x] **3. Context-length ablation — NO EFFECT, but it found something worse.**
   Trained window 16/8/4/2 (all memorize equally: loss 0.00128–0.00182) and
