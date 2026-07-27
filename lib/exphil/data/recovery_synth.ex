@@ -53,6 +53,7 @@ defmodule ExPhil.Data.RecoverySynth do
   alternation rules exist to prevent.
   """
 
+  alias ExPhil.Agents.LedgeExpert
   alias ExPhil.Agents.MultishineExpert
   alias ExPhil.Constants
 
@@ -158,6 +159,97 @@ defmodule ExPhil.Data.RecoverySynth do
       prev = List.last(lead) |> then(&(&1 && &1.controller))
       lead ++ crouch_tail(frame, port, max_af, expert, prev)
     end)
+  end
+
+  @doc """
+  Manufacture ledge coverage: real lead-ins followed by a synthetic
+  `CliffCatch -> CliffWait` tail at the stage edge, labelled by
+  `ExPhil.Agents.LedgeExpert` (strategy-parameterized; default `:getup`).
+
+  Options:
+    * `:port` — player port (default 1)
+    * `:max_af` — CliffWait frames per tail (default 30)
+    * `:lead_in` — real frames prepended per block (default 16)
+    * `:ratio` — cap output at this multiple of input frames (default 0.3 —
+      the ledge is a time-sink valley, not the main absorber)
+    * `:strategy` — LedgeExpert strategy (default `:getup`)
+    * `:edge_x` — stage edge |x| (default `Constants.fd_edge_x/0`; per-stage
+      generalization pending)
+
+  Blocks alternate left/right ledge (facing toward the stage). Player
+  percents come from the sampled real frames, so both sides of the 100%
+  slow/quick threshold get covered for free wherever the fixture's percents
+  vary.
+  """
+  @spec build_ledge([map()], keyword()) :: [map()]
+  def build_ledge(frames, opts \\ []) do
+    port = Keyword.get(opts, :port, 1)
+    max_af = Keyword.get(opts, :max_af, 30)
+    lead_in = Keyword.get(opts, :lead_in, 16)
+    ratio = Keyword.get(opts, :ratio, 0.3)
+    edge_x = Keyword.get(opts, :edge_x, Constants.fd_edge_x())
+    expert = Keyword.get(opts, :expert) || LedgeExpert.new(strategy: Keyword.get(opts, :strategy, :getup))
+
+    budget = trunc(length(frames) * ratio)
+    per_block = lead_in + 7 + max_af
+
+    # Any real frame works as a lead-in source; sample evenly for phase
+    # coverage like build/2.
+    sources =
+      frames
+      |> Enum.with_index()
+      |> Enum.filter(fn {f, _} -> f.game_state.players[port] != nil end)
+
+    sources
+    |> take_evenly(max(min(length(sources), div(budget, per_block)), 1))
+    |> Enum.with_index()
+    |> Enum.flat_map(fn {{frame, i}, block_idx} ->
+      side = if rem(block_idx, 2) == 0, do: 1, else: -1
+      lead = Enum.slice(frames, max(i - lead_in + 1, 0), min(i + 1, lead_in))
+      prev = List.last(lead) |> then(&(&1 && &1.controller))
+      lead ++ ledge_tail(frame, port, side, edge_x, max_af, expert, prev)
+    end)
+  end
+
+  # CliffCatch af 1..7 (no control), then CliffWait af 1..max_af, at the
+  # ledge coordinates, facing the stage. Labels thread prev for alternation.
+  defp ledge_tail(frame, port, side, edge_x, max_af, expert, prev0) do
+    player = frame.game_state.players[port]
+
+    states =
+      Enum.map(1..7, &{Constants.cliff_catch(), &1}) ++
+        Enum.map(1..max_af, &{Constants.cliff_wait(), &1})
+
+    {tail, _prev} =
+      Enum.reduce(states, {[], prev0}, fn {action, af}, {acc, prev} ->
+        shifted = %{
+          player
+          | action: action,
+            action_frame: af,
+            on_ground: false,
+            x: side * (edge_x + 2.0),
+            y: -12.0,
+            facing: -side
+        }
+
+        case LedgeExpert.label(expert, shifted, prev) do
+          {:ok, controller} ->
+            players = Map.put(frame.game_state.players, port, shifted)
+
+            out = %{
+              frame
+              | game_state: %{frame.game_state | players: players},
+                controller: controller
+            }
+
+            {[out | acc], controller}
+
+          :skip ->
+            {acc, prev}
+        end
+      end)
+
+    Enum.reverse(tail)
   end
 
   # Squat af 1..2, then SquatWait af 1..max_af. Threads each label into the

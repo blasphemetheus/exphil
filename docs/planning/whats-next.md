@@ -8,12 +8,20 @@ always the truth.
 
     ls -t docs/planning/HANDOFF_*.md | head -1
 
-As of 2026-07-27 (late) that is
-[HANDOFF_2026-07-27b.md](HANDOFF_2026-07-27b.md) — the perturbation harness
-was RUN and measured (underperforms synth on chains, no overlap), scheduled
-sampling is implemented+tested with the first SS×synth policy trained, and
-the eval harness itself got instrumented (16% stale-send steady state,
-load-collapse rule, `eval_live_protocol.sh` as the one-command protocol).
+As of 2026-07-27 (evening) that is
+[HANDOFF_2026-07-27c.md](HANDOFF_2026-07-27c.md) — the SS "win" died in
+replication (seeds + staleness artifact); the absorbing-state model landed
+and predicted every cell (repeat noise inert / sampling rescues absorbed
+policies / coverage removes the basin); crouch-basin synthesis broke the
+sustain ceiling (chains 7 -> 19-22, escape replicates 3/3 seeds);
+LedgeExpert built as transfer infrastructure with the recorded direction
+that ledge knowledge ships via a future ledge drill, not multishine data.
+
+Prior: [HANDOFF_2026-07-27b.md](HANDOFF_2026-07-27b.md) — the perturbation
+harness was RUN and measured (underperforms synth on chains, no overlap),
+scheduled sampling implemented+tested with the first SS×synth policy
+trained, and the eval harness instrumented (load-collapse rule,
+`eval_live_protocol.sh` as the one-command protocol).
 
 Prior: [HANDOFF_2026-07-27.md](HANDOFF_2026-07-27.md) — synthesized recovery
 set works (~6.5 → ~40 self-shines/min), perturbation harness built-not-run,

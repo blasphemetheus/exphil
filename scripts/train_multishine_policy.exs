@@ -18,7 +18,7 @@ alias ExPhil.Embeddings
 
 {opts, _, _} =
   OptionParser.parse(System.argv(),
-    strict: [replays: :string, out: :string, robust: :boolean, prev_action: :boolean, action_delay: :integer, prev_action_dropout: :float, window: :integer, synth_recovery: :boolean, synth_max_af: :integer, synth_ratio: :float, synth_crouch: :boolean, crouch_max_af: :integer, crouch_ratio: :float, noise: :float, noise_prob: :float, scheduled_sampling: :float, ss_ramp: :integer]
+    strict: [replays: :string, out: :string, robust: :boolean, prev_action: :boolean, action_delay: :integer, prev_action_dropout: :float, window: :integer, synth_recovery: :boolean, synth_max_af: :integer, synth_ratio: :float, synth_crouch: :boolean, crouch_max_af: :integer, crouch_ratio: :float, synth_ledge: :boolean, ledge_strategy: :string, ledge_ratio: :float, ledge_max_af: :integer, noise: :float, noise_prob: :float, scheduled_sampling: :float, ss_ramp: :integer]
   )
 
 # --replays accepts a dir or glob of .slp files; default = the single
@@ -103,6 +103,26 @@ frames =
 
     Output.puts("Synthetic crouch frames: #{length(crouch_synth)}")
     frames ++ crouch_synth
+  else
+    frames
+  end
+
+# --synth-ledge: manufacture the ledge valley (EXPOSURE_BIAS item 8's "next
+# basin") — CliffCatch -> CliffWait tails at the FD edge, escape labelled by
+# LedgeExpert (--ledge-strategy getup|attack|roll|jump|drop_jump).
+frames =
+  if opts[:synth_ledge] do
+    ledge_synth =
+      ExPhil.Data.RecoverySynth.build_ledge(base_frames,
+        port: 1,
+        max_af: opts[:ledge_max_af] || 30,
+        lead_in: window,
+        ratio: opts[:ledge_ratio] || 0.3,
+        strategy: String.to_atom(opts[:ledge_strategy] || "getup")
+      )
+
+    Output.puts("Synthetic ledge frames: #{length(ledge_synth)}")
+    frames ++ ledge_synth
   else
     frames
   end

@@ -555,9 +555,18 @@ Three findings:
   ~97% crouch confidence the button head still fires B a few % of
   frames — each one a shine that re-enters the cycle), COVERAGE (item
   8) removes the basin outright and remains the strongest and the only
-  deterministic-decode fix. Untried compositions: T on a crouch-covered
-  policy (does sampling unstick seed b's chains-of-2 breaks?); T sweep
-  (0.3/0.5/1.0); `--deterministic-buttons` reverse ablation.
+  deterministic-decode fix.
+
+  **T=0.5 on a crouch-covered policy (ms_crouch_b, the chains-of-2 seed):
+  54.5 / 55.7 self/min, chains STILL 2 · 2** (third run lost to the ~20%
+  SD flake). Sampling does NOT unstick a functioning policy's chain
+  ceiling and costs ~20% rate in cycle slips. Sharpened conclusion:
+  temperature is a RESCUE for absorbed/pathological policies (0 -> ~57),
+  neutral-to-harmful for working ones (68 -> 55, chains unchanged) —
+  seed b's chain-2 limit is structural to what it learned, not a stuck
+  state. Untried: T sweep (0.3/1.0); `--deterministic-buttons` reverse
+  ablation; adaptive T (sample only when the recent action distribution
+  looks pooled — a cheap absorber detector at inference time).
 
 ## How to judge any of them
 

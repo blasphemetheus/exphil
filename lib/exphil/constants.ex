@@ -142,6 +142,33 @@ defmodule ExPhil.Constants do
   @spec squat_wait() :: 40
   def squat_wait, do: 40
 
+  @doc "CliffCatch action-state ID (ledge grab; ~7 frames, no control)."
+  @spec cliff_catch() :: 252
+  def cliff_catch, do: 252
+
+  @doc "CliffWait action-state ID (hanging on the ledge; all options open)."
+  @spec cliff_wait() :: 253
+  def cliff_wait, do: 253
+
+  @doc """
+  Ledge getup-animation action-state IDs (254..263): climb, attack, roll and
+  jump variants. The game picks the SLOW variant at percent >= 100, QUICK
+  below — same input, different animation (see `ExPhil.Agents.LedgeExpert`).
+  No control during any of them.
+  """
+  @spec ledge_getups() :: Range.t()
+  def ledge_getups, do: 254..263
+
+  @doc """
+  Final Destination edge |x| coordinate.
+
+  Already used as a magic number in fox_recovery_expert, mewtwo_fair_expert,
+  eval/coverage, eval/scenario_scan and interp/ground_truth — new code should
+  reference this instead. Per-stage generalization pending.
+  """
+  @spec fd_edge_x() :: float()
+  def fd_edge_x, do: 85.57
+
   @doc """
   Grounded reflector (shine) action-state IDs.
 
