@@ -439,6 +439,63 @@ defmodule Multishine do
   end
 end
 
+# Periodic perturbation, for teacher-driven recovery data
+# (docs/planning/EXPOSURE_BIAS.md item 4).
+#
+# The gap this fills: RecoverySynth manufactures off-trajectory states by
+# EXTENDING segments the fixture already visits, and its labels come from the
+# expert's recovery RULES. It cannot produce states that need genuinely
+# different play, and its labels are only as good as those rules. Here the
+# teacher — which holds 791 unbroken cycles — is knocked off its trajectory
+# for real and plays its own way back, so both the states and the recoveries
+# are ground truth.
+#
+# Perturbations are deliberately dumb (random stick + occasional buttons):
+# the point is to leave the trajectory, not to simulate an opponent. The
+# recovery that follows is what carries the signal.
+defmodule Perturb do
+  @every String.to_integer(System.get_env("PERTURB_EVERY") || "0")
+  @frames String.to_integer(System.get_env("PERTURB_FRAMES") || "6")
+
+  def enabled?, do: @every > 0
+
+  def maybe(input, mstate, _frame) when @every <= 0, do: {input, mstate}
+
+  def maybe(input, mstate, frame) do
+    left = Map.get(mstate, :perturb_left, 0)
+
+    cond do
+      left > 0 ->
+        {random_input(), Map.put(mstate, :perturb_left, left - 1)}
+
+      rem(frame, @every) == 0 and frame > 0 ->
+        IO.puts("[perturb] f#{frame}: knocking teacher off-trajectory for #{@frames} frames")
+        {random_input(), Map.put(mstate, :perturb_left, @frames - 1)}
+
+      true ->
+        {input, mstate}
+    end
+  end
+
+  defp random_input do
+    %{
+      main_stick: %{x: :rand.uniform(), y: :rand.uniform()},
+      c_stick: %{x: 0.5, y: 0.5},
+      shoulder: 0.0,
+      buttons: %{
+        a: :rand.uniform() < 0.15,
+        b: :rand.uniform() < 0.15,
+        x: :rand.uniform() < 0.25,
+        y: false,
+        z: false,
+        l: :rand.uniform() < 0.1,
+        r: false,
+        d_up: false
+      }
+    }
+  end
+end
+
 defmodule RecordLoop do
   @moduledoc false
   alias ExPhil.Bridge.MeleePort
@@ -497,6 +554,16 @@ defmodule RecordLoop do
             {m, _} ->
               {Multishine.input(m, in_game_frames), mstate}
           end
+
+        # --perturb-every N [--perturb-frames M]: knock the teacher OFF its
+        # trajectory for M frames, then hand control straight back. The teacher
+        # then plays a real recovery from a genuinely off-trajectory state —
+        # ground truth for exposure bias, covering states RecoverySynth cannot
+        # reach (it only extends segments the fixture already visits).
+        #
+        # Slippi records the whole session, so the .slp can be relabelled
+        # offline by dagger_drill.exs; nothing extra needs recording here.
+        {input, mstate} = Perturb.maybe(input, mstate, in_game_frames)
 
         MeleePort.send_controller(bridge, input)
 

@@ -348,22 +348,65 @@ defmodule GracefulSD do
     buttons: %{a: false, b: false, x: false, y: false, z: false, l: false, r: false, d_up: false}
   }
 
-  # ~2 min safety cap; a level-1 CPU will not save you from walking off.
-  def run(bridge, frames_left \\ 7200) do
-    if frames_left <= 0 do
-      {:error, :sd_timeout}
-    else
-      case MeleePort.step(bridge, auto_menu: false) do
-        {:ok, _} ->
-          MeleePort.send_controller(bridge, @hold_left)
-          run(bridge, frames_left - 1)
+  # MeleePort's default step timeout is 90 SECONDS. Stopping the AsyncRunner
+  # can leave an in-flight request/response pair mid-transit, so the first
+  # step() here blocks on a reply the dying reader already consumed. At 90s a
+  # single desync eats most of the run's remaining budget and the process is
+  # killed still SD-ing — which leaves a TRUNCATED .slp, losing the whole
+  # recording. Observed 2026-07-26 on 2 of 6 runs: both hung with zero output
+  # the instant SD began, while the successful runs finished SD in ~15s.
+  #
+  # So: a short per-step timeout, and treat a timeout as retryable rather than
+  # fatal. A desync then costs ~2s, not 90.
+  @step_timeout_ms 2_000
+  @max_consecutive_timeouts 30
 
-        {:postgame, _} -> {:ok, :game_ended}
-        {:menu, _} -> {:ok, :game_ended}
-        {:game_ended, _} -> {:ok, :game_ended}
-        {:error, reason} -> {:error, reason}
-      end
+  @doc """
+  Drain any in-flight bridge traffic after the runner stops.
+
+  Cheap insurance: a few bounded steps let a half-delivered response clear
+  before the SD loop starts counting on replies.
+  """
+  def drain(bridge, n \\ 5) do
+    Enum.each(1..n, fn _ ->
+      MeleePort.step(bridge, [auto_menu: false], @step_timeout_ms)
+    end)
+  catch
+    :exit, _ -> :ok
+  end
+
+  # ~2 min safety cap; a level-1 CPU will not save you from walking off.
+  def run(bridge, frames_left \\ 7200, timeouts \\ 0) do
+    cond do
+      frames_left <= 0 ->
+        {:error, :sd_timeout}
+
+      timeouts > @max_consecutive_timeouts ->
+        {:error, {:bridge_unresponsive, timeouts}}
+
+      true ->
+        case step(bridge) do
+          {:ok, _} ->
+            MeleePort.send_controller(bridge, @hold_left)
+            run(bridge, frames_left - 1, 0)
+
+          :timeout ->
+            run(bridge, frames_left - 1, timeouts + 1)
+
+          {:postgame, _} -> {:ok, :game_ended}
+          {:menu, _} -> {:ok, :game_ended}
+          {:game_ended, _} -> {:ok, :game_ended}
+          {:error, reason} -> {:error, reason}
+        end
     end
+  end
+
+  defp step(bridge) do
+    MeleePort.step(bridge, [auto_menu: false], @step_timeout_ms)
+  catch
+    # GenServer.call raises on timeout; the bridge itself is usually fine, the
+    # reply was just lost. Retry rather than abandon a nearly-complete run.
+    :exit, {:timeout, _} -> :timeout
   end
 end
 
@@ -371,10 +414,21 @@ end
 try do
   case StatsMonitor.run(runner, 5000, opts[:on_game_end], opts[:seconds]) do
     :duration_reached ->
-      # Stop the policy FIRST so it stops fighting the SD inputs.
+      # Stop the policy FIRST so it stops fighting the SD inputs, then let any
+      # in-flight bridge traffic clear before the SD loop relies on replies.
       AsyncRunner.stop(runner)
+      GracefulSD.drain(bridge)
       Output.puts("SD-ing to end the game (Slippi finalizes the .slp on game end)...")
-      Output.puts("  Game end: #{inspect(GracefulSD.run(bridge))}")
+
+      case GracefulSD.run(bridge) do
+        {:ok, :game_ended} ->
+          Output.success("  Game end: replay finalized")
+
+        other ->
+          # Say so loudly: the .slp will be TRUNCATED and unparseable, so the
+          # run is lost. Better to know now than at analysis time.
+          Output.error("  SD FAILED (#{inspect(other)}) — .slp will be truncated/unusable")
+      end
 
     _ ->
       :ok

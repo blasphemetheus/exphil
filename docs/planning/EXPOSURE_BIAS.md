@@ -148,6 +148,39 @@ Status: [ ] untried · [~] in progress · [x] done · [-] ruled out
   through this much noise, so the hypothesis is neither confirmed nor refuted —
   see item 0, which is the real result.
 
+## 0a. THE VARIANCE IS IN THE RUNS, NOT THE SEEDS
+
+Measured 2026-07-27. FOUR live runs of ONE fixed policy (`ms_synth_a`):
+
+| run | self/min | max chain |
+|---|---|---|
+| first | 58.4 | 5 |
+| v1 | 26.9 | 4 |
+| v2 | 40.2 | 5 |
+| v3 | 34.2 | 5 |
+
+A **2.2x spread with the network held constant**. So the scatter previously
+blamed on training seeds is mostly GAME-to-game randomness — CPU behaviour,
+starting positions, luck.
+
+**Every comparison in this doc before this point trained ~3 seeds and did ONE
+run each**, which is n=1 on the dimension that actually varies. That is why
+prev-action and noise (items 3b, 4) showed nothing: not because the effects
+are absent, but because the design had no power.
+
+**Corrected protocol — cheaper AND stronger than what it replaces:**
+
+1. **≥3 live RUNS per policy.** This matters more than seed count.
+2. Budget accordingly: a run is ~4 min, a training ~2 min. Three runs of one
+   policy beats three policies of one run, at similar cost.
+3. Report the mean and range over runs; a difference smaller than ~2x is not
+   resolvable without many more runs.
+4. Use `scripts/record_until_valid.sh` so a truncated replay costs a retry
+   rather than a data point.
+
+The synth-vs-baseline result survives this (mean ~39.9 vs ~6.5, no overlap
+anywhere). Nothing smaller does.
+
 ## 0b. RESOLUTION FLOOR — we can no longer measure small effects
 
 Synth's own spread is 29.4–58.4 self-shines/min: a 2x range across seeds.
