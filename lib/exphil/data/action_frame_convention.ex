@@ -3,6 +3,30 @@ defmodule ExPhil.Data.ActionFrameConvention do
   Converts `action_frame` between the PARSED and LIVE conventions
   (task #8 phase 2 option 1, GOTCHAS #81).
 
+  > #### INVALID — do not build on this {: .error}
+  >
+  > The premise below (that `delta` is a constant per action id) was
+  > **falsified on 2026-07-26** by a dual-port recording, which traces two
+  > ports in one run and so holds run phase identical. Two ports disagreed on
+  > shared actions, and worse, ONE port reported `MIXED [0, 1]` for actions
+  > 14, 29, 42 and 344 — the same action, same run, same port, both deltas.
+  > The offset varies per OCCURRENCE, so no table keyed on action (or on
+  > character, or on run) can be correct.
+  >
+  > The first three recordings agreed perfectly only because they were
+  > repetitive — a TAS loop, a teacher cycle, a stuck policy — so every
+  > occurrence of an action was entered identically. Varied play breaks it.
+  >
+  > `af_convention: :live` therefore stays OFF permanently in this form. It
+  > was already measured to change 2 of 288 embedding dims with no live
+  > effect; it is now also known to be wrong on some frames rather than
+  > merely incomplete. The real live-failure cause is exposure bias, which
+  > this never touched.
+  >
+  > Kept as a documented dead end — the measurement apparatus
+  > (`ExPhil.Eval.StateStreamDiff`, `ExPhil.Eval.StateStreamTrace`) remains
+  > sound and useful; only the per-action model is wrong.
+
   Peppi (reading a `.slp`) and libmelee (reading live memory through the
   bridge) do not report the same `action_frame` for the same game frame. Every
   policy in this repo is TRAINED on the parsed convention and RUN on the live

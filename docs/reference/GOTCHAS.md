@@ -3128,6 +3128,48 @@ may not even be the same failure.
 Caveats: n=1 per condition, unmatched games (the CPU differs between runs),
 and this policy was trained WITHOUT `--prev-action`.
 
+### SETTLED (2026-07-26): the per-action delta table is INVALID — do not use it
+
+The dual-port experiment (below) ends this thread. Tracing BOTH ports in ONE
+recording holds run phase identical by construction, so it separates a
+per-character effect from a per-run one. Result, on pairs that each validate
+at a *uniquely* correct offset (100% action/on_ground/y, 94% at ±1):
+
+- **Across ports in one run:** Mewtwo and Zelda disagree on actions 323 and
+  351; Mewtwo and Falco disagree on 347. Same frames, same timing, different
+  delta. So it is not a per-run sampling phase.
+- **Within ONE port in ONE run:** Zelda's port reports `MIXED [0, 1]` for
+  actions 14, 29, 42 and 344 — the same action, same run, same port,
+  sometimes delta 0 and sometimes delta 1.
+
+That second finding is fatal on its own. The delta is not a property of the
+action, nor of the character, nor of the run: it varies **per occurrence**,
+presumably with the exact frame an action was entered relative to the
+bridge's memory read.
+
+**Why the first three recordings agreed perfectly.** They were narrow,
+repetitive behaviors — a Fox TAS multishine loop, a teacher holding one
+9-frame cycle, a policy stuck in a reflector. Every occurrence of an action
+was entered the same way, so every occurrence shared a delta. Broad varied
+play is what exposes the mixture. **Agreement across repetitive recordings is
+not evidence of a stable convention** — it is evidence that the recordings
+were repetitive.
+
+**Consequences:**
+
+1. `ExPhil.Data.ActionFrameConvention` cannot do what it claims. Its table is
+   a majority vote over occurrences, wrong for the minority, and there is no
+   key (action, character, or run) that makes it right.
+2. `af_convention: :live` must stay OFF permanently in its current form. It
+   was already measured to have no live effect (2/288 dims); it is now also
+   known to be wrong for some frames rather than merely incomplete.
+3. Any future attempt must condition on something that actually determines
+   the offset — entry context, not action id — or drop the idea and accept
+   that live and parsed `action_frame` are simply not interchangeable at
+   single-frame precision.
+4. The real live-failure cause remains exposure bias (below), which this never
+   affected.
+
 ### WIDENING BLOCKED (2026-07-26): the delta is NOT a per-action constant
 
 Six new pairs (Mewtwo policy vs level-9 Marth/Falcon/Puff/Peach/Falco) broke

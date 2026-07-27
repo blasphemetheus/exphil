@@ -61,19 +61,38 @@ defmodule ExPhil.Eval.StateStreamTrace do
   def enabled?, do: System.get_env(@enabled_var) == "1"
 
   @doc """
-  Port being traced (default 1).
+  Port being traced (default 1). First port when several are configured.
   """
   @spec port() :: pos_integer()
-  def port do
+  def port, do: ports() |> hd()
+
+  @doc """
+  Ports being traced, from `EXPHIL_STATE_TRACE_PORT` (default `[1]`).
+
+  Accepts a comma-separated list (`"1,2"`). Tracing two ports in ONE recording
+  is the only way to compare them under identical run timing — which is what
+  separates a per-character effect from a per-run one, since both ports then
+  share the same sampling phase by construction.
+  """
+  @spec ports() :: [pos_integer(), ...]
+  def ports do
     case System.get_env(@port_var) do
       nil ->
-        1
+        [1]
 
       raw ->
-        case Integer.parse(raw) do
-          {n, _} when n > 0 -> n
-          _ -> 1
-        end
+        parsed =
+          raw
+          |> String.split(",", trim: true)
+          |> Enum.flat_map(fn part ->
+            case Integer.parse(String.trim(part)) do
+              {n, _} when n > 0 -> [n]
+              _ -> []
+            end
+          end)
+          |> Enum.uniq()
+
+        if parsed == [], do: [1], else: parsed
     end
   end
 
@@ -91,8 +110,22 @@ defmodule ExPhil.Eval.StateStreamTrace do
 
   """
   @spec line(integer(), map()) :: String.t()
-  def line(frame, player) do
-    "[trace] f#{frame} act=#{trunc_or(player.action)} af=#{trunc_or(player.action_frame)} " <>
+  def line(frame, player), do: line(frame, player, nil)
+
+  @doc """
+  As `line/2`, tagging the line with `p=<port>`.
+
+  The tag is emitted ONLY when several ports are traced, so a single-port
+  trace stays byte-identical to the three vendored pairs in
+  `test/fixtures/statestream/` (whose format is pinned by round-trip tests).
+  `parse_trace/2` treats an untagged line as belonging to whichever port is
+  asked for, which is what keeps those legacy traces readable.
+  """
+  @spec line(integer(), map(), pos_integer() | nil) :: String.t()
+  def line(frame, player, port) do
+    tag = if port, do: " p=#{port}", else: ""
+
+    "[trace]#{tag} f#{frame} act=#{trunc_or(player.action)} af=#{trunc_or(player.action_frame)} " <>
       "gnd=#{player.on_ground == true} y=#{round2(player.y)} vy=#{round3(player.speed_y_self)}"
   end
 
@@ -106,7 +139,13 @@ defmodule ExPhil.Eval.StateStreamTrace do
   def maybe_emit(state)
 
   def maybe_emit(%GameState{} = state) do
-    if enabled?() and in_game?(state), do: emit(state, port())
+    if enabled?() and in_game?(state) do
+      case ports() do
+        [single] -> emit(state, single, nil)
+        many -> Enum.each(many, &emit(state, &1, &1))
+      end
+    end
+
     state
   end
 
@@ -129,15 +168,15 @@ defmodule ExPhil.Eval.StateStreamTrace do
   # a noisy trace is recoverable, a missing one is not.
   defp in_game?(_state), do: true
 
-  defp emit(%GameState{frame: frame, players: players}, port)
+  defp emit(%GameState{frame: frame, players: players}, port, tag)
        when is_integer(frame) and is_map(players) do
     case players[port] do
       nil -> :ok
-      player -> IO.puts(line(frame, player))
+      player -> IO.puts(line(frame, player, tag))
     end
   end
 
-  defp emit(_state, _port), do: :ok
+  defp emit(_state, _port, _tag), do: :ok
 
   defp trunc_or(nil), do: nil
   defp trunc_or(v) when is_number(v), do: trunc(v)

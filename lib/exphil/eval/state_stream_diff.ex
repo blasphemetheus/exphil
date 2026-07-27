@@ -100,7 +100,9 @@ defmodule ExPhil.Eval.StateStreamDiff do
     port = Keyword.get(opts, :port, 1)
 
     with {:ok, parsed} <- parse_replay(slp_path, port),
-         {:ok, trace} <- parse_trace(trace_path),
+         # Same port on both halves: in a multi-port trace the `p=` tag selects
+         # it; in a single-port trace every line is that port already.
+         {:ok, trace} <- parse_trace(trace_path, port: port),
          {:ok, offset} <- align(parsed, trace, opts) do
       {:ok, build_report(parsed, trace, offset, opts)}
     end
@@ -112,15 +114,17 @@ defmodule ExPhil.Eval.StateStreamDiff do
   The log is raw recorder stdout, so it also contains build noise; only
   `[trace]` lines are considered.
   """
-  @spec parse_trace(Path.t()) :: {:ok, [trace_row()]} | {:error, term()}
-  def parse_trace(path) do
+  @spec parse_trace(Path.t(), keyword()) :: {:ok, [trace_row()]} | {:error, term()}
+  def parse_trace(path, opts \\ []) do
+    want_port = Keyword.get(opts, :port)
+
     case File.read(path) do
       {:ok, contents} ->
         rows =
           contents
           |> String.split("\n")
           |> Enum.filter(&String.contains?(&1, "[trace]"))
-          |> Enum.flat_map(&parse_trace_line/1)
+          |> Enum.flat_map(&parse_trace_line(&1, want_port))
 
         if rows == [], do: {:error, {:no_trace_lines, path}}, else: {:ok, rows}
 
@@ -129,22 +133,35 @@ defmodule ExPhil.Eval.StateStreamDiff do
     end
   end
 
-  defp parse_trace_line(line) do
-    case Regex.run(@trace_re, line) do
-      [_, f, act, af, gnd, y, vy] ->
-        [
-          %{
-            f: String.to_integer(f),
-            act: String.to_integer(act),
-            af: String.to_integer(af),
-            gnd: gnd == "true",
-            y: to_float(y),
-            vy: to_float(vy)
-          }
-        ]
+  # A `p=N` tag is present only in multi-port traces. An UNTAGGED line belongs
+  # to whichever port the caller asked for — that is what keeps the vendored
+  # single-port pairs readable after the tag was introduced.
+  @port_re ~r/\[trace\]\s+p=(\d+)/
 
-      nil ->
-        []
+  defp parse_trace_line(line, want_port) do
+    with true <- port_matches?(line, want_port),
+         [_, f, act, af, gnd, y, vy] <- Regex.run(@trace_re, line) do
+      [
+        %{
+          f: String.to_integer(f),
+          act: String.to_integer(act),
+          af: String.to_integer(af),
+          gnd: gnd == "true",
+          y: to_float(y),
+          vy: to_float(vy)
+        }
+      ]
+    else
+      _ -> []
+    end
+  end
+
+  defp port_matches?(_line, nil), do: true
+
+  defp port_matches?(line, want) do
+    case Regex.run(@port_re, line) do
+      [_, p] -> String.to_integer(p) == want
+      nil -> true
     end
   end
 

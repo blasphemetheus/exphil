@@ -123,6 +123,80 @@ defmodule ExPhil.Eval.StateStreamTraceTest do
       System.put_env(@port_var, "garbage")
       assert StateStreamTrace.port() == 1
     end
+
+    test "ports/0 parses a comma-separated list" do
+      assert StateStreamTrace.ports() == [1]
+
+      System.put_env(@port_var, "1,2")
+      assert StateStreamTrace.ports() == [1, 2]
+
+      System.put_env(@port_var, " 2 , 1 ")
+      assert StateStreamTrace.ports() == [2, 1]
+
+      System.put_env(@port_var, "2,2")
+      assert StateStreamTrace.ports() == [2]
+
+      System.put_env(@port_var, "garbage,0,-1")
+      assert StateStreamTrace.ports() == [1]
+    end
+  end
+
+  describe "multi-port tracing" do
+    test "single port stays byte-identical to the vendored format" do
+      # The three committed pairs have no p= tag. If a tag leaked into the
+      # single-port path they would stop matching the pinned format.
+      refute StateStreamTrace.line(7, player()) =~ "p="
+      assert StateStreamTrace.line(7, player(), nil) == StateStreamTrace.line(7, player())
+    end
+
+    test "several ports emit one tagged line each per frame" do
+      System.put_env(@enabled_var, "1")
+      System.put_env(@port_var, "1,2")
+
+      state = %GameState{
+        frame: 5,
+        players: %{1 => player(action: 24), 2 => player(action: 365)}
+      }
+
+      out = ExUnit.CaptureIO.capture_io(fn -> StateStreamTrace.maybe_emit(state) end)
+      lines = out |> String.split("\n", trim: true)
+
+      assert length(lines) == 2
+      assert Enum.any?(lines, &(&1 =~ "p=1" and &1 =~ "act=24"))
+      assert Enum.any?(lines, &(&1 =~ "p=2" and &1 =~ "act=365"))
+    end
+
+    test "a tagged trace round-trips per port through the parser" do
+      System.put_env(@enabled_var, "1")
+      System.put_env(@port_var, "1,2")
+
+      state = %GameState{
+        frame: 5,
+        players: %{1 => player(action: 24, af: 2), 2 => player(action: 365, af: 3)}
+      }
+
+      out = ExUnit.CaptureIO.capture_io(fn -> StateStreamTrace.maybe_emit(state) end)
+      path = Path.join(System.tmp_dir!(), "dual_#{System.unique_integer([:positive])}.log")
+      File.write!(path, out)
+
+      {:ok, p1} = StateStreamDiff.parse_trace(path, port: 1)
+      {:ok, p2} = StateStreamDiff.parse_trace(path, port: 2)
+      File.rm(path)
+
+      assert [%{act: 24, af: 2}] = p1
+      assert [%{act: 365, af: 3}] = p2
+    end
+
+    test "untagged legacy lines are returned for whichever port is asked" do
+      # Vendored pairs predate the tag; filtering must not silently drop them.
+      {:ok, rows} =
+        StateStreamDiff.parse_trace(
+          "test/fixtures/statestream/fox_ms_frame1.live-trace.log",
+          port: 2
+        )
+
+      assert length(rows) == 300
+    end
   end
 
   describe "maybe_emit/1" do
