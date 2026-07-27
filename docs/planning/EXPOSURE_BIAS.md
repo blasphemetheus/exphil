@@ -235,13 +235,14 @@ Three findings:
    and the longest stale run; `play_dolphin_async.exs` prints
    `Staleness: N/frames (x%), longest stale run M` in its final stats.
    Runs with outlier staleness should be discarded as measurement failures,
-   the same as truncated replays. First 6 instrumented runs: **~16% stale
-   sends is this laptop's STEADY STATE** (15.7–17.2% across loadavg 2–5,
-   longest run always 3) — inference misses roughly 1 frame in 6 whenever
-   Dolphin+bridge+policy share the machine. That is a floor on live timing
-   fidelity here, present in every historical measurement too; comparisons
-   remain valid because it is uniform, but absolute chain lengths are
-   measured through it. (Also fixes the n: the four sdfix runs of
+   the same as truncated replays. CORRECTED after 18 instrumented runs: an
+   early "~16% steady state" read did NOT hold — staleness ranged **1.6%
+   to 30.8%** across the day, tracking ambient load (cleanest runs 1.6–3.8%
+   at true idle; 25–31% in back-to-back chained eval blocks). It is a
+   PER-RUN health stat: report it with every score, treat >10% as a
+   degraded run, and leave cooldown between eval blocks. Longest stale run
+   stayed 1–5 frames throughout — degradation is many single-frame slips,
+   not stalls. (Also fixes the n: the four sdfix runs of
    ms_synth_a scored 39.7/53.6/52.5/54.6 self/min, chains 5/6/6/7 — item
    0a's four runs plus these = n=8 idle baseline, mean ~45, range
    26.9–58.4.)
@@ -251,6 +252,20 @@ Three findings:
    phase (1–2+ frames) plus any staleness — i.e. VARIABLE. The policy is
    conditioned on a delay distribution it never saw. Untested how much this
    costs; the staleness counter makes it measurable now.
+
+5. **The eval OPPONENT is part of the input distribution (2026-07-27).**
+   `--dummy stand` (idle opponent) was supposed to be the clean capability
+   control. Result: `ms_synth_a` AND `ms_pa_a` — both ~45 self/min vs the
+   CPU — score **0/0/0** against it (`ms_synth_a` spends 3465/4429 frames
+   CROUCHING; the PA runs were the day's cleanest at 1.6–3.8% staleness, so
+   this is policy collapse, not harness noise). Opponent state is embedded;
+   an idle Fox at spawn is off-manifold, and non-robust policies key their
+   behavior to opponent context. Consequences: (a) eval-opponent choice is
+   itself a distribution-shift experiment — a policy must be robust before
+   the idle measurement means anything; (b) for policies that survive it,
+   the idle eval is FAR less noisy: ms_synth_ss scored 90.6/90.1/92.5
+   self/min — a 1.03x spread vs the CPU condition's 2.2x — and with zero
+   hit-induced shines it is pure capability. See item 6 for that result.
 
 - [-] **3b. prev-action x synthesis — NO DETECTABLE GAIN (n=2, below
   resolution).** Prediction was that Melee's press-EDGE requirement plus the
@@ -323,7 +338,31 @@ Three findings:
   re-recording (no deaths), scheduled sampling on top of synth (item 6,
   now implemented).
 
-- [~] **6. Scheduled sampling — IMPLEMENTED 2026-07-27, not yet evaluated.**
+- [x] **6. Scheduled sampling — MEASURED 2026-07-27: FIRST CLEAN WIN SINCE
+  SYNTHESIS.** `ms_synth_ss` (synth + prev-action + `--scheduled-sampling
+  0.5`, train_multishine_policy.exs, 4063 frames, loss 0.001 @ 29 epochs):
+
+  | policy (all synth-trained) | vs CPU self/min · chain | vs IDLE self/min · chain |
+  |---|---|---|
+  | no PA (`ms_synth_a`) | ~45 (26.9–58.4) · 3–7, n=11 | **0·0·0 — crouches** |
+  | PA teacher-forced (`ms_pa_a`) | 32.3 · 44.3 · chains 6·4, n=2 | **0·0·0** (cleanest runs of the day) |
+  | PA + SS (`ms_synth_ss`) | 38.9–48.2 · 2·3·3 | **90.6 · 90.1 · 92.5 · chains 4·4·6, 0 hit-induced** |
+
+  The 2x2 isolates it: prev-action ALONE does not survive the idle-opponent
+  shift; SS does, at DOUBLE the CPU-condition rate — and it scored that
+  under 17–29% staleness (degraded harness). Mechanism as predicted:
+  teacher-forced, the PA channel is redundant with the state stream, so the
+  model leans on opponent-context features that collapse off-manifold; SS
+  decorrelates the channel (sometimes it contains the model's own decode),
+  forcing a genuinely self-conditioned loop that transfers. Explains the
+  3b null retroactively: PA without SS trains a channel the model ignores.
+
+  Caveats: vs-CPU chains 2-3 measured at the day's WORST staleness (30%)
+  — redo under clean conditions before reading that cell; single training
+  run (no seed replication); rate not chain length is the robust gain.
+  Original implementation note follows.
+
+- [~] **6-implementation. Scheduled sampling — IMPLEMENTED 2026-07-27.**
   `ExPhil.Training.ScheduledSampling`: with probability P per sample, the
   prev-action slice of the last window position is replaced by the model's
   OWN decoded prediction (decode pinned to the live path: logit>0 buttons,
