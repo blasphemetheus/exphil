@@ -3075,6 +3075,49 @@ may not even be the same failure.
 Caveats: n=1 per condition, unmatched games (the CPU differs between runs),
 and this policy was trained WITHOUT `--prev-action`.
 
+### WIDENING BLOCKED (2026-07-26): the delta is NOT a per-action constant
+
+Six new pairs (Mewtwo policy vs level-9 Marth/Falcon/Puff/Peach/Falco) broke
+the assumption the table rests on. All six align at a UNIQUELY correct offset
+(100% action/on_ground/y, and 99.3-99.7% at +-1, so alignment is not in
+question). Yet they disagree with each other on shared actions:
+
+| run | act 12 parsed -> live | delta |
+|---|---|---|
+| peach_p2 | [0,59] -> [0,59] | **0** |
+| falco_p2 | [0,59] -> [1,60] | 1 |
+| marth_p2 | [0,59] -> [1,60] | 1 |
+
+Same universal action, same parsed range, different live offset PER RECORDING.
+Conflicts hit 12, 13, 29, 38, 183, 184, 186, 253, 341 — and 12/29 are already
+IN the shipped table (as delta 1), so those entries are wrong for at least one
+character.
+
+Within any single run every action still has exactly one delta; the variation
+is BETWEEN runs. That points at a per-run sampling-phase artifact (when the
+bridge reads memory relative to the game's frame advance) rather than a
+property of the action — but it is not proven, and peach agreed with the
+table on 14 of its 23 actions, which a uniform whole-run shift does not
+explain.
+
+**Consequences:**
+
+1. The table cannot be widened from these recordings. Merging them would bake
+   one character's phase into a table applied to all.
+2. Existing entries for the conflicting actions are suspect.
+3. This is a further reason `af_convention` stays default OFF — and a stronger
+   one than partial coverage, because it means the table may be wrong, not
+   merely incomplete, for some actions.
+4. **A pair passing the 100% agreement check is NOT sufficient** to trust its
+   deltas. Agreement validates ALIGNMENT, not convention stability. Cross-check
+   any new pair against the established table and treat systematic
+   disagreement as a red flag, not a discovery.
+
+Open question worth one experiment at home: record the SAME character twice in
+separate runs. If the two runs disagree, it is per-run sampling phase and the
+whole per-action framing is wrong. If they agree, it is character-dependent and
+the table needs a character key.
+
 ### ROOT CAUSE FOUND (2026-07-26): exposure bias, not features
 
 Chasing the above further produced the actual answer. Live, deterministic:

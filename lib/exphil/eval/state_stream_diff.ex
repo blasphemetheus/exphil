@@ -200,6 +200,20 @@ defmodule ExPhil.Eval.StateStreamDiff do
   """
   @spec align([parsed_row()], [trace_row()], keyword()) :: {:ok, integer()} | {:error, term()}
   def align(parsed, trace, opts \\ []) do
+    # An explicit offset skips anchor detection entirely. Traces emitted by
+    # ExPhil.Eval.StateStreamTrace carry the TRUE in-game frame, so offset 0
+    # is correct for them — and anchoring then fails for no good reason on any
+    # port that never performs the anchor action (a passive CPU never jumps,
+    # so :anchor_not_found on an otherwise perfect pair). The agreement check
+    # validates the result either way, so an explicit offset is not a
+    # shortcut around verification.
+    case Keyword.get(opts, :offset) do
+      offset when is_integer(offset) -> {:ok, offset}
+      _ -> align_on_anchor(parsed, trace, opts)
+    end
+  end
+
+  defp align_on_anchor(parsed, trace, opts) do
     anchor = Keyword.get(opts, :anchor_action, Constants.jumpsquat())
 
     with {:ok, p_frame} <- first_entry_frame(parsed, anchor, :parsed),

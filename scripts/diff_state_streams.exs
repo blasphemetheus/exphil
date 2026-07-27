@@ -16,6 +16,11 @@
 #   mix run scripts/diff_state_streams.exs --slp a.slp --trace a.live-trace.log
 #
 #   # options: --port N (default 1), --json
+#   #   --offset N  skip anchor detection and use parsed = trace + N.
+#   #               Traces from EXPHIL_STATE_TRACE carry true in-game frames,
+#   #               so --offset 0 is right for them. Needed when the traced
+#   #               port never performs the anchor action (a passive CPU
+#   #               never jumps -> anchor_not_found on a fine pair).
 #
 # A pair is only valid if the .slp and the trace come from the SAME run; see
 # test/fixtures/statestream/README.md.
@@ -24,7 +29,7 @@ alias ExPhil.Eval.StateStreamDiff
 
 {opts, _rest, _} =
   OptionParser.parse(System.argv(),
-    strict: [slp: :string, trace: :string, port: :integer, json: :boolean]
+    strict: [slp: :string, trace: :string, port: :integer, json: :boolean, offset: :integer]
   )
 
 port = Keyword.get(opts, :port, 1)
@@ -58,7 +63,7 @@ pct = fn r -> "#{Float.round(r * 100, 1)}%" end
 
 reports =
   Enum.map(pairs, fn {name, slp, trace} ->
-    case StateStreamDiff.diff(slp, trace, port: port) do
+    case StateStreamDiff.diff(slp, trace, [port: port] ++ if(opts[:offset], do: [offset: opts[:offset]], else: [])) do
       {:ok, report} ->
         unless opts[:json] do
           IO.puts("\n=== #{name} ===")
