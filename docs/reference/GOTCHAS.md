@@ -3128,6 +3128,16 @@ may not even be the same failure.
 Caveats: n=1 per condition, unmatched games (the CPU differs between runs),
 and this policy was trained WITHOUT `--prev-action`.
 
+**RETRACTION on the DAgger before/after (2026-07-26, later the same day):** the
+off-manifold agreement metric was subsequently measured across repeated
+trainings of IDENTICAL configs and ranges **44-77%** (three window-16 runs
+alone: 43.1 / 51.7 / 48.5). The reported DAgger result — probe 59.4% -> dagger
+37.4%, described as "backwards from DAgger's purpose" — sits INSIDE that noise
+band and is NOT evidence of a regression. Any conclusion from a single pair of
+runs on this metric is void. See docs/planning/EXPOSURE_BIAS.md item 0 for the
+required protocol (>=3 seeds, compare distributions, prefer behavioral measures
+like ShineChain counts which have a much tighter distribution).
+
 ### SETTLED (2026-07-26): the per-action delta table is INVALID — do not use it
 
 The dual-port experiment (below) ends this thread. Tracing BOTH ports in ONE

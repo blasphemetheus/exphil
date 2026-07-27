@@ -18,7 +18,7 @@ alias ExPhil.Embeddings
 
 {opts, _, _} =
   OptionParser.parse(System.argv(),
-    strict: [replays: :string, out: :string, robust: :boolean, prev_action: :boolean, action_delay: :integer, prev_action_dropout: :float]
+    strict: [replays: :string, out: :string, robust: :boolean, prev_action: :boolean, action_delay: :integer, prev_action_dropout: :float, window: :integer]
   )
 
 # --replays accepts a dir or glob of .slp files; default = the single
@@ -30,7 +30,11 @@ robust = opts[:robust] || false
 prev_action = opts[:prev_action] || false
 prev_action_dropout = opts[:prev_action_dropout] || 0.0
 action_delay = opts[:action_delay] || 0
-window = 16
+# Recurrent context length. Exposed for the exposure-bias context ablation
+# (docs/planning/EXPOSURE_BIAS.md item 3): the policy fails live in states it
+# has seen pointwise but reached through an unseen 16-frame history, so a
+# shorter context may be more robust off-trajectory.
+window = opts[:window] || 16
 
 Output.banner("Multishine Probe Policy Trainer")
 
