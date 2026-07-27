@@ -18,7 +18,7 @@ alias ExPhil.Embeddings
 
 {opts, _, _} =
   OptionParser.parse(System.argv(),
-    strict: [replays: :string, out: :string, robust: :boolean, prev_action: :boolean, action_delay: :integer, prev_action_dropout: :float, window: :integer]
+    strict: [replays: :string, out: :string, robust: :boolean, prev_action: :boolean, action_delay: :integer, prev_action_dropout: :float, window: :integer, synth_recovery: :boolean, synth_max_af: :integer, synth_ratio: :float]
   )
 
 # --replays accepts a dir or glob of .slp files; default = the single
@@ -62,6 +62,26 @@ frames =
         not c.button_b and not c.button_x
     end)
   end)
+
+# --synth-recovery: manufacture the off-trajectory states the policy actually
+# falls into and let the expert label them (EXPOSURE_BIAS.md item 2). The
+# fixture has grounded reflector only at af 1..2; live the policy sits at af
+# 3..28 and never escapes. No rollouts or Dolphin needed.
+frames =
+  if opts[:synth_recovery] do
+    synth =
+      ExPhil.Data.RecoverySynth.build(frames,
+        port: 1,
+        max_af: opts[:synth_max_af] || 30,
+        lead_in: window,
+        ratio: opts[:synth_ratio] || 1.0
+      )
+
+    Output.puts("Synthetic recovery frames: #{length(synth)}")
+    frames ++ synth
+  else
+    frames
+  end
 
 Output.puts("Training frames: #{length(frames)}")
 
