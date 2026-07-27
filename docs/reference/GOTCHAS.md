@@ -2428,6 +2428,59 @@ degenerate single-class labels (tech_choice never had a second class) made
 probe accuracies read 1.000 everywhere. If a probe result looks too good,
 check the LABEL distribution before theorizing about representations.
 
+### 57b (2026-07-26): the OPPOSITE failure — `--dummy cpu` that is not a CPU
+
+Caught from behavior alone: "I've never seen a level 9 CPU ledge plank." The
+replay start block settles it (`type` 0 = HUMAN, 1 = CPU) — **5 of 6
+recordings made with `--dummy cpu --dummy-cpu-level 9` had a HUMAN port 2**.
+That port sat in Wait 76% of frames, never once jumped, and drifted onto the
+ledge. It was an idle pipe-driven human port, not a passive CPU.
+
+**Cause — an autostart race.** The dummy's helper runs `autostart=False`; port
+1's runs on the SAME frame with `autostart=True`. libmelee sets a CPU up as a
+multi-frame state machine (walk to the HMN/CPU box, press A to flip the type,
+walk to the level slider, grab, drag, release — one micro-step per frame,
+every branch `return`s). The instant the port flips to CPU, Melee defaults it
+to **level 1**, which already marks the roster ready, so port 1 pressed START
+mid-dance. The dummy helper is also gated to `CHARACTER_SELECT`, so once START
+advances the menu an unfinished drag can never complete. Even the one run that
+did get a CPU was probably level 1.
+
+**Fix:** port 1's `autostart` is now gated on `_dummy_ready/1` — the dummy port
+must report `controller_status == CONTROLLER_CPU`, `cpu_level == requested`,
+and not `is_holding_cpu_slider` — bounded by a 600-frame watchdog that starts
+anyway and logs loudly. The watchdog resets in-game so its budget is per CSS
+visit (otherwise it false-fires on the post-game CSS, where the port reads
+UNPLUGGED).
+
+**Verified across five characters (2026-07-26), all `type=CPU`, all level 9:**
+
+| dummy | frames | distinct actions | Wait% | jumped | grabs |
+|---|---|---|---|---|---|
+| G&W | 3644 | 37 | 24.3 | yes | yes |
+| Mewtwo | 3124 | 37 | 5.4 | yes | yes |
+| Zelda | 3183 | 50 | 17.4 | yes | yes |
+| Fox | 3216 | 57 | 19.0 | yes | yes |
+| Ice Climbers | 3198 | 39 | 23.2 | yes | yes |
+
+Compare the broken baseline: 19 distinct actions, 76% Wait, never jumped.
+
+**Related footguns closed at the same time.** `--dummy cpu` with level 0 (the
+CLI DEFAULT) is not a CPU at all — libmelee gates its whole CPU block on
+`use_cpu = level > 0`, so the port stays HUMAN with a connected but never
+driven controller. Levels are clamped to 1-9 (an unreachable level drags the
+slider forever). `--dummy-character sheik` + a CPU level raises inside
+libmelee and `step()`'s broad `except` swallowed it, leaving the session
+dummy-less — rejected at init now, use `zelda`. `serialize_player` finally
+carries `cpu_level`/`controller_status`, so the achieved level is observable
+from Elixir at all.
+
+**How to check:** `mix run scripts/check_replay_ports.exs <replay.slp>
+--expect-cpu 2 [--expect-level N]`. It reads the start block via py-slippi
+(Peppi's `PlayerMeta` does not expose player type) and exits 1 on mismatch, so
+a recording loop can gate on it. Do not trust "the opponent looked passive" —
+check the header.
+
 ## 58. The final probe's Dolphin can orphan at menus — and record garbage replays
 
 **Symptom:** after a probe loop finishes, a Dolphin instance survives at
