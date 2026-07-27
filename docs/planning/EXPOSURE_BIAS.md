@@ -511,19 +511,53 @@ Three findings:
   (drop/climb first). chain_break_forensics.exs now counts ledge
   occupancy (252..263) so the valley is tracked before it is attacked.
 
-- [~] **9. Inference-time sampling — CAPABILITY WIRED, experiments
-  pending.** The live path already had `--temperature` (CLI float,
-  agent config -> Policy sampling); eval_live_protocol.sh now takes
-  `--temperature T` (replaces `--deterministic` for the block, recorded
-  in protocol.txt). Rationale: sampling is the ONLY noise family that
-  can escape an absorber (see 6-replication) — at 97% crouch confidence,
-  sampled decode still fires B a few percent of frames, each a shine
-  that re-enters the cycle. Planned blocks, vs idle: `ms_synth_ss_b`
-  (the absorbed seed) at T 0.5 and 1.0 — resurrection here would be
-  mechanism-clean since repeat noise did nothing; the tradeoff to watch
-  is on-manifold precision loss (sampled slips during the 9-frame
-  cycle). Composes with `--deterministic-buttons` for the reverse
-  ablation (sampled sticks, argmax buttons).
+  **REPLICATED (2 more seeds + vs-CPU, all clean 0.7-1.5% stale):**
+
+  | seed | vs IDLE self/min | vs IDLE chain |
+  |---|---|---|
+  | a | 129.1 · 99.7 · 103.1 | 22 · 20 · 19 |
+  | b | 67.9 · 68.8 · 68.2 | 2 · 2 · 2 |
+  | c | 98.3 · 99.1 · 95.1 | 11 · 9 · 8 |
+
+  Seed a vs CPU: 72.9 · 81.4 · 67.8, chains 7 · 9 · 7 — above plain
+  synth's 26.9-58.4 / 3-7 in the harder condition too. Verdict, split by
+  effect: (1) ABSORBER ESCAPE REPLICATES 3/3 — every seed >= 68/min vs
+  idle where the same recipe minus crouch data scored 0/0/0; seed b at
+  chains-of-2 shines/breaks/re-enters forever without ever absorbing.
+  The coverage effect is a property of the METHOD. Contrast SS
+  (6-replication): 0 / ~1 / 7-56 across seeds. (2) SUSTAIN is
+  seed-variant (2 -> 22) but per-seed STABLE across runs (22/20/19,
+  11/9/8, 2/2/2) — chain ability is a trained-policy property, not run
+  luck; the basin fix unlocks the possibility, the init decides how much
+  is realised. Next levers for sustain: longer runs (the 60s window may
+  clip seed a), SS x crouch composition, seed selection at train time
+  (cheap: eval 3+ seeds, keep the best — legitimate now that the
+  variance is understood).
+
+- [x] **9. Inference-time sampling — MEASURED 2026-07-27: RESURRECTS AN
+  ABSORBED POLICY.** The live path already had `--temperature` (CLI
+  float, agent config -> Policy sampling); eval_live_protocol.sh now
+  takes `--temperature T` (replaces `--deterministic` for the block,
+  recorded in protocol.txt). The mechanism-closing result, all vs idle,
+  same policy (`ms_synth_ss_b`, the reference absorbed seed):
+
+  | decode | self/min | max chain |
+  |---|---|---|
+  | deterministic, clean (0.2-0.4%) | 0 · 0 · 0 | 0 |
+  | deterministic, repeat noise (27-30% stale) | 0 · 0 · 0 | 0 |
+  | **sampled, T=0.5, clean (2.1-2.6%)** | **53.5 · 57.2 · 59.9** | **8 · 9 · 6** |
+
+  A policy that sat 3448 consecutive frames in SquatWait under argmax
+  plays at plain-synth level when decode samples — and chains 6-9 show
+  T=0.5 costs no visible cycle precision. The absorbing-state model
+  called all three cells: action-REPEAT noise is inert in a fixed point
+  (repeat-of-crouch = crouch), SAMPLING makes the membrane leaky (at
+  ~97% crouch confidence the button head still fires B a few % of
+  frames — each one a shine that re-enters the cycle), COVERAGE (item
+  8) removes the basin outright and remains the strongest and the only
+  deterministic-decode fix. Untried compositions: T on a crouch-covered
+  policy (does sampling unstick seed b's chains-of-2 breaks?); T sweep
+  (0.3/0.5/1.0); `--deterministic-buttons` reverse ablation.
 
 ## How to judge any of them
 
