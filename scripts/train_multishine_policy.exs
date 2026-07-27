@@ -18,7 +18,7 @@ alias ExPhil.Embeddings
 
 {opts, _, _} =
   OptionParser.parse(System.argv(),
-    strict: [replays: :string, out: :string, robust: :boolean, prev_action: :boolean, action_delay: :integer, prev_action_dropout: :float, window: :integer, synth_recovery: :boolean, synth_max_af: :integer, synth_ratio: :float, noise: :float, noise_prob: :float]
+    strict: [replays: :string, out: :string, robust: :boolean, prev_action: :boolean, action_delay: :integer, prev_action_dropout: :float, window: :integer, synth_recovery: :boolean, synth_max_af: :integer, synth_ratio: :float, noise: :float, noise_prob: :float, scheduled_sampling: :float, ss_ramp: :integer]
   )
 
 # --replays accepts a dir or glob of .slp files; default = the single
@@ -133,7 +133,10 @@ trainer =
     # Gate mode: pure memorization (no regularization). Robust mode
     # (task #20): mild regularization — the goal is transfer, not replication.
     label_smoothing: if(robust, do: 0.05, else: 0.0),
-    dropout: if(robust, do: 0.1, else: 0.0)
+    dropout: if(robust, do: 0.1, else: 0.0),
+    # --scheduled-sampling P: self-conditioned prev-action on P of samples
+    # (requires --prev-action; EXPOSURE_BIAS item 6). Ramped below.
+    scheduled_sampling: opts[:scheduled_sampling] || 0.0
   )
 
 {_predict_fn, loss_fn} = Imitation.build_loss_fn(trainer.policy_model)
@@ -146,6 +149,17 @@ max_epochs = if robust, do: 800, else: 2000
 
 {trainer, final_loss, epochs_used} =
   Enum.reduce_while(1..max_epochs, {trainer, nil, 0, []}, fn epoch, {tr, _, _, history} ->
+    # Scheduled sampling ramp: 0 -> P over --ss-ramp epochs (default 10)
+    tr =
+      case opts[:scheduled_sampling] do
+        nil ->
+          tr
+
+        p_max ->
+          ramp = max(opts[:ss_ramp] || 10, 1)
+          %{tr | config: Map.put(tr.config, :ss_p_current, min(p_max, p_max * epoch / ramp))}
+      end
+
     {tr, epoch_loss} =
       dataset
       |> Data.batched_sequences(
