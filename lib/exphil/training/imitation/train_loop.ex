@@ -123,12 +123,32 @@ defmodule ExPhil.Training.Imitation.TrainLoop do
   @spec train_step(struct(), map(), function()) :: {struct(), map()}
   def train_step(%{mixed_precision_state: nil} = trainer, batch, _loss_fn) do
     # Standard training path (no mixed precision)
-    train_step_standard(trainer, batch)
+    train_step_standard(trainer, maybe_scheduled_sample(trainer, batch))
   end
 
   def train_step(%{mixed_precision_state: mp_state} = trainer, batch, _loss_fn) do
     # Mixed precision training path
-    train_step_mixed_precision(trainer, batch, mp_state)
+    train_step_mixed_precision(trainer, maybe_scheduled_sample(trainer, batch), mp_state)
+  end
+
+  # Scheduled sampling (see ExPhil.Training.ScheduledSampling): with
+  # probability `ss_p_current` (per-epoch ramp, falling back to the static
+  # `scheduled_sampling` config) per SAMPLE, swap the last window position's
+  # prev-action slice for the model's own decoded prediction. The Bernoulli
+  # mask is drawn here in plain Elixir so the jitted splice fn needs no
+  # RNG-key plumbing; validation/eval paths are untouched (teacher-forced).
+  defp maybe_scheduled_sample(%{ss_fn: nil}, batch), do: batch
+
+  defp maybe_scheduled_sample(trainer, %{states: states} = batch) do
+    p = trainer.config[:ss_p_current] || trainer.config[:scheduled_sampling] || 0.0
+
+    if p <= 0.0 do
+      batch
+    else
+      rows = for _ <- 1..Nx.axis_size(states, 0), do: [if(:rand.uniform() < p, do: 1.0, else: 0.0)]
+      mask = Nx.tensor(rows, type: :f32)
+      %{batch | states: trainer.ss_fn.(trainer.policy_params, states, mask)}
+    end
   end
 
   # ============================================================================

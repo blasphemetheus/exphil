@@ -62,7 +62,7 @@ defmodule ExPhil.Training.Imitation do
 
   alias ExPhil.Networks.Policy
   alias ExPhil.Embeddings
-  alias ExPhil.Training.{MixedPrecision, ProbeRegularizer, Utils}
+  alias ExPhil.Training.{MixedPrecision, ProbeRegularizer, ScheduledSampling, Utils}
   alias ExPhil.Training.Imitation.{Checkpointing, Loss, Optimizer, TrainLoop, Validation}
 
   require Logger
@@ -85,6 +85,12 @@ defmodule ExPhil.Training.Imitation do
     :eval_loss_fn,
     # Mixed precision state (FP32 master weights + BF16 compute params)
     :mixed_precision_state,
+    # Scheduled sampling (exposure bias): jitted splice fn that swaps the
+    # last window position's prev-action slice for the model's own decoded
+    # prediction. nil unless config.scheduled_sampling > 0. A function, so
+    # it lives on the struct, NOT in config (checkpoint serialization must
+    # never see a function — same rule as probe_trunk_fn).
+    :ss_fn,
     # Probe-as-regularizer (r15): trunk-only forward sharing the policy's
     # param names, and the online-refit direction it penalizes. Both nil
     # unless config.probe_reg_weight > 0; probe_direction starts as a zero
@@ -362,6 +368,32 @@ defmodule ExPhil.Training.Imitation do
         {nil, nil}
       end
 
+    # Scheduled sampling (exposure bias, EXPOSURE_BIAS.md item 5): locate
+    # the prev-action slice empirically unless the caller supplied it, then
+    # build the jitted splice fn once. Discovery uses the DEFAULT embed
+    # config — pass :ss_prev_dims explicitly for non-default layouts.
+    config =
+      if (config[:scheduled_sampling] || 0.0) > 0.0 and config[:ss_prev_dims] == nil do
+        Map.put(config, :ss_prev_dims, ExPhil.Interp.Attribution.prev_action_dim_range())
+      else
+        config
+      end
+
+    ss_fn =
+      if (config[:scheduled_sampling] || 0.0) > 0.0 do
+        unless config.temporal do
+          raise ArgumentError, "scheduled_sampling requires temporal: true (windowed states)"
+        end
+
+        unless config[:use_prev_action] do
+          raise ArgumentError,
+                "scheduled_sampling requires use_prev_action: true — with the channel " <>
+                  "zeroed there is no conditioning to self-sample"
+        end
+
+        ScheduledSampling.build(predict_fn, config)
+      end
+
     loss_config =
       if trunk_predict_fn,
         do: Map.put(config, :probe_trunk_fn, trunk_predict_fn),
@@ -394,6 +426,7 @@ defmodule ExPhil.Training.Imitation do
       loss_and_grad_fn: loss_and_grad_fn,
       eval_loss_fn: eval_loss_fn,
       mixed_precision_state: mixed_precision_state,
+      ss_fn: ss_fn,
       trunk_predict_fn: trunk_predict_fn,
       probe_direction: probe_direction
     }

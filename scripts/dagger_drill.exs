@@ -30,6 +30,8 @@ alias ExPhil.Embeddings
       prev_action: :boolean,
       action_delay: :integer,
       prev_action_dropout: :float,
+      scheduled_sampling: :float,
+      ss_ramp: :integer,
       port: :integer,
       lr: :float,
       backbone: :string,
@@ -174,6 +176,11 @@ Output.config([
   {"Rollouts", length(rollout_paths)},
   {"Prev-action", prev_action},
   {"Prev-action dropout", prev_action_dropout},
+  {"Scheduled sampling",
+   if(opts[:scheduled_sampling],
+     do: "#{opts[:scheduled_sampling]} (ramp #{opts[:ss_ramp] || 10} epochs)",
+     else: "off"
+   )},
   {"Action delay", action_delay},
   {"Conversion weight", opts[:conversion_weight] || "off"},
   {"Probe regularizer", if(opts[:probe_reg], do: "#{opts[:probe_reg]} (refit every #{opts[:probe_reg_every] || 5})", else: "off")},
@@ -817,6 +824,11 @@ trainer =
     debug_grads_after: opts[:debug_grads_after],
     # --probe-reg: probe-as-regularizer weight (0.0 = off, r15)
     probe_reg_weight: probe_reg,
+    # --scheduled-sampling P: swap the last window position's prev-action
+    # slice for the model's own decoded prediction on P of samples
+    # (exposure bias at TRAINING time; composes with synthesis/DAgger data).
+    # Ramped 0 -> P over --ss-ramp epochs in the epoch loop below.
+    scheduled_sampling: opts[:scheduled_sampling] || 0.0,
     # SSD scan tuning (mamba_2 only; bench_ssd_scan.exs picks values).
     # Both nil = the r15-lineage sequential path.
     chunk_size: opts[:mamba_chunk_size],
@@ -1134,6 +1146,20 @@ end
   Enum.reduce_while(start_epoch..max_epochs, {trainer, nil, 0, [], nil, 0}, fn epoch,
                                                                      {tr, _, _, history, best,
                                                                       restores} ->
+    # Scheduled sampling ramp: 0 -> P linearly over --ss-ramp epochs
+    # (default 10). Standard curriculum — early epochs learn the mapping
+    # teacher-forced, later epochs see self-conditioned prev-action.
+    tr =
+      case opts[:scheduled_sampling] do
+        nil ->
+          tr
+
+        p_max ->
+          ramp = max(opts[:ss_ramp] || 10, 1)
+          p = min(p_max, p_max * epoch / ramp)
+          %{tr | config: Map.put(tr.config, :ss_p_current, p)}
+      end
+
     {tr, epoch_loss} =
       batches_for.(epoch)
       |> then(fn batches ->

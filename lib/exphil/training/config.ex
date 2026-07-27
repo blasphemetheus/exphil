@@ -210,6 +210,8 @@ defmodule ExPhil.Training.Config do
     "--prev-action",
     "--no-prev-action",
     "--prev-action-dropout",
+    "--scheduled-sampling",
+    "--ss-ramp",
     "--mix-frames",
     "--action-delay",
     "--focal-gamma",
@@ -596,6 +598,13 @@ defmodule ExPhil.Training.Config do
       # (exposure-bias mitigation: live the model eats its own outputs, which
       # drift from ground truth — dropout stops it over-relying on the channel)
       prev_action_dropout: 0.0,
+      # Scheduled sampling (exposure bias): fraction of samples whose LAST
+      # window position's prev-action slice is replaced by the model's own
+      # decoded prediction (ExPhil.Training.ScheduledSampling). Requires
+      # --temporal and --prev-action. 0.0 = off. Ramped 0 -> P over
+      # ss_ramp epochs by the drill loop; the main pipeline applies P flat.
+      scheduled_sampling: 0.0,
+      ss_ramp: 10,
       # Curriculum mixing: comma/glob list of drill .frames exports
       # (scripts/export_drill_frames.exs) concatenated into training
       mix_frames: nil,
@@ -1509,6 +1518,8 @@ defmodule ExPhil.Training.Config do
       focal_loss: opts[:focal_loss],
       use_prev_action: opts[:use_prev_action],
       prev_action_dropout: opts[:prev_action_dropout],
+      scheduled_sampling: opts[:scheduled_sampling],
+      ss_ramp: opts[:ss_ramp],
       action_delay: opts[:action_delay],
       focal_gamma: opts[:focal_gamma],
       button_weight: opts[:button_weight],

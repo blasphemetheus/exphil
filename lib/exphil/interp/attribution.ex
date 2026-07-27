@@ -65,6 +65,62 @@ defmodule ExPhil.Interp.Attribution do
   end
 
   @doc """
+  Empirically locate the prev-action slice in the game embedding.
+
+  Embeds one reference state under two controllers that differ in EVERY
+  prev-action dimension (all 8 buttons, both stick axes off-center in both
+  directions, shoulder), diffs the embeddings, and asserts the changed dims
+  form one contiguous 13-wide run. Returns `[offset, 13]`.
+
+  Used by scheduled sampling to splice the model's own prediction into the
+  right dims — discovered, not hand-written, for the same reason as
+  `discover_dims/2` (the layout has already scrambled silently once).
+
+  `opts` are forwarded to `Embeddings.Game.embed/4`; pass the same embed
+  options the training data was built with for non-default layouts.
+  """
+  def prev_action_dim_range(opts \\ []) do
+    base = reference_state()
+
+    all_off = neutral_controller()
+
+    all_on = %ExPhil.Bridge.ControllerState{
+      main_stick: %{x: 0.9, y: 0.1},
+      c_stick: %{x: 0.1, y: 0.9},
+      l_shoulder: 1.0,
+      r_shoulder: 0.0,
+      button_a: true,
+      button_b: true,
+      button_x: true,
+      button_y: true,
+      button_z: true,
+      button_l: true,
+      button_r: true,
+      button_d_up: true
+    }
+
+    embed = fn ctrl ->
+      Embeddings.Game.embed(base, ctrl, 1, opts) |> Nx.backend_transfer(Nx.BinaryBackend)
+    end
+
+    dims =
+      Nx.not_equal(embed.(all_off), embed.(all_on))
+      |> Nx.to_flat_list()
+      |> Enum.with_index()
+      |> Enum.filter(fn {d, _} -> d == 1 end)
+      |> Enum.map(&elem(&1, 1))
+
+    offset = List.first(dims)
+
+    unless length(dims) == 13 and dims == Enum.to_list(offset..(offset + 12)) do
+      raise "prev-action dims not a contiguous 13-run: #{inspect(dims)} — " <>
+              "embedding layout changed or embed opts mismatch"
+    end
+
+    [offset, 13]
+  end
+
+  @doc """
   Gradient × input saliency for one head over a batch of input windows.
 
   `predict_fn`/`params` from `Activations.load_heads/1`; `states` is

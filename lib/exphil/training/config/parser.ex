@@ -256,6 +256,8 @@ defmodule ExPhil.Training.Config.Parser do
     |> parse_flag(args, "--prev-action", :use_prev_action)
     |> parse_neg_flag(args, "--no-prev-action", :use_prev_action)
     |> parse_float_arg(args, "--prev-action-dropout", :prev_action_dropout)
+    |> parse_float_arg(args, "--scheduled-sampling", :scheduled_sampling)
+    |> parse_int_arg(args, "--ss-ramp", :ss_ramp)
     |> parse_string_arg(args, "--mix-frames", :mix_frames)
     |> parse_int_arg(args, "--action-delay", :action_delay)
     |> parse_neg_flag(args, "--no-focal-loss", :focal_loss)
