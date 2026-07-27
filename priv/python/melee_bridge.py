@@ -116,6 +116,17 @@ def serialize_player(player: melee.PlayerState) -> Dict[str, Any]:
         "nana": serialize_nana(player.nana) if hasattr(player, 'nana') and player.nana else None,
         # Controller state (for imitation learning)
         "controller_state": serialize_controller_state(player.controller_state) if player.controller_state else None,
+        # Port TYPE, so a caller can tell whether an opponent really is the CPU
+        # it asked for. Without this the achieved level was unobservable from
+        # Elixir and a silently-HUMAN dummy looked like a passive CPU
+        # (GOTCHAS #57). libmelee zeroes cpu_level unless controller_status is
+        # CONTROLLER_CPU, so read them together.
+        "cpu_level": getattr(player, "cpu_level", 0),
+        "controller_status": (
+            player.controller_status.value
+            if hasattr(getattr(player, "controller_status", None), "value")
+            else getattr(player, "controller_status", None)
+        ),
     }
 
 
@@ -491,6 +502,44 @@ class MeleeBridge:
                 )
                 config["dummy_cpu_level"] = 0
                 self.config["dummy_cpu_level"] = 0
+
+            # The mirror-image footgun: dummy_mode="cpu" with level 0 is NOT a
+            # CPU. libmelee gates its whole CPU setup on `use_cpu = level > 0`,
+            # so the port stays HUMAN with a connected-but-never-driven
+            # controller — an idle standing dummy that reads as a passive CPU.
+            # The CLI default IS 0, so `--dummy cpu` alone hits this every time.
+            if self.dummy_mode == "cpu":
+                lvl = int(config.get("dummy_cpu_level", 0))
+                if lvl <= 0:
+                    logger.error(
+                        "dummy_mode='cpu' with dummy_cpu_level=%s is NOT a CPU — "
+                        "libmelee skips CPU setup entirely when level <= 0 and the "
+                        "port stays HUMAN and idle. Defaulting to level 1; pass "
+                        "--dummy-cpu-level 1..9 explicitly.", lvl,
+                    )
+                    lvl = 1
+                elif lvl > 9:
+                    logger.error(
+                        "dummy_cpu_level=%s is out of range; Melee levels are 1-9 "
+                        "and an unreachable level makes libmelee drag the slider "
+                        "forever. Clamping to 9.", lvl,
+                    )
+                    lvl = 9
+                config["dummy_cpu_level"] = lvl
+                self.config["dummy_cpu_level"] = lvl
+
+                # libmelee raises ValueError("We can't force the CPU to pick
+                # Sheik.") inside choose_character, and step()'s broad
+                # except swallows it into a per-frame error while the session
+                # limps on with no dummy. Fail at init instead.
+                dchar = config.get("dummy_character", "fox")
+                if isinstance(dchar, str) and dchar.upper() == "SHEIK":
+                    return {
+                        "error": "dummy_character='sheik' cannot be a CPU "
+                                 "(libmelee refuses; Sheik is reached via Zelda). "
+                                 "Use 'zelda'."
+                    }
+
             if self.dummy_mode != "none":
                 self.dummy_controller = melee.Controller(
                     console=self.console,
@@ -499,7 +548,10 @@ class MeleeBridge:
                 )
                 self.dummy_menu_helper = melee.MenuHelper()
                 logger.info(
-                    f"Dummy enabled: mode={self.dummy_mode} port={self.opponent_port}"
+                    f"Dummy enabled: mode={self.dummy_mode} port={self.opponent_port} "
+                    f"character={self.config.get('dummy_character', 'fox')} "
+                    f"cpu_level={self.config.get('dummy_cpu_level', 0)} "
+                    f"(achieved level is logged at character select)"
                 )
 
             # Run dolphin
@@ -563,6 +615,68 @@ class MeleeBridge:
             logger.exception("Failed to initialize")
             return {"error": str(e)}
 
+    # Frames to wait at CSS for the dummy's CPU setup before starting anyway.
+    # The dance is ~tens of frames; 600 (10s) is generous but bounded, so a
+    # stuck slider degrades to "wrong level, logged" instead of hanging the
+    # session forever.
+    _DUMMY_SETUP_TIMEOUT_FRAMES = 600
+
+    def _dummy_ready(self, gamestate) -> bool:
+        """Whether port 1 may press START yet.
+
+        True for every dummy mode except a CPU that has not finished being
+        configured. See the autostart-race comment at the port-1 helper call.
+        """
+        if self.dummy_mode != "cpu":
+            return True
+
+        want = int(self.config.get("dummy_cpu_level", 0))
+        if want <= 0:
+            return True
+
+        player = (gamestate.players or {}).get(self.opponent_port)
+        if player is None:
+            return False
+
+        self._dummy_wait_frames = getattr(self, "_dummy_wait_frames", 0) + 1
+
+        is_cpu = (
+            getattr(player, "controller_status", None)
+            == melee.enums.ControllerStatus.CONTROLLER_CPU
+        )
+        # libmelee zeroes cpu_level unless controller_status is CONTROLLER_CPU,
+        # so both must be checked; and a held slider means the drag is mid-flight.
+        ready = (
+            is_cpu
+            and getattr(player, "cpu_level", 0) == want
+            and not getattr(player, "is_holding_cpu_slider", False)
+        )
+
+        if ready:
+            if not getattr(self, "_dummy_ready_logged", False):
+                logger.info(
+                    "Dummy CPU configured: port=%s level=%s (after %s CSS frames)",
+                    self.opponent_port, want, self._dummy_wait_frames,
+                )
+                self._dummy_ready_logged = True
+            return True
+
+        if self._dummy_wait_frames > self._DUMMY_SETUP_TIMEOUT_FRAMES:
+            if not getattr(self, "_dummy_timeout_logged", False):
+                logger.error(
+                    "Dummy CPU setup TIMED OUT after %s frames — starting anyway. "
+                    "Requested level=%s, port %s reports controller_status=%s "
+                    "cpu_level=%s. The opponent will NOT be the requested CPU; "
+                    "verify with the replay header (type 0=HUMAN, 1=CPU).",
+                    self._dummy_wait_frames, want, self.opponent_port,
+                    getattr(player, "controller_status", None),
+                    getattr(player, "cpu_level", None),
+                )
+                self._dummy_timeout_logged = True
+            return True
+
+        return False
+
     def step(self, auto_menu: bool = True) -> Dict[str, Any]:
         """Get the next game state, optionally handling menu navigation."""
         if not self.running or not self.console:
@@ -587,6 +701,15 @@ class MeleeBridge:
 
             # Handle menu navigation if requested
             is_in_game = gamestate.menu_state in [melee.Menu.IN_GAME, melee.Menu.SUDDEN_DEATH]
+
+            # Reset the dummy-setup watchdog once the game is running, so its
+            # frame budget is PER character-select visit. Without this the
+            # counter carries over and the timeout fires spuriously on the
+            # post-game CSS (where the dummy port reads UNPLUGGED), logging a
+            # scary false failure after a run that configured its CPU fine.
+            if is_in_game and getattr(self, "_dummy_wait_frames", 0):
+                self._dummy_wait_frames = 0
+                self._dummy_timeout_logged = False
             is_menu = not is_in_game
 
             # Detect game-ending states
@@ -662,13 +785,27 @@ class MeleeBridge:
                 # every argument into the wrong slot via self).
                 # With a connect_code, libmelee navigates Slippi Direct and
                 # connects to the remote opponent instead of local VS.
+                #
+                # autostart is GATED on the dummy finishing its CPU setup.
+                # libmelee configures a CPU as a multi-frame state machine
+                # (walk to the HMN/CPU box, press A to flip the type, walk to
+                # the level slider, grab, drag, release — one micro-step per
+                # frame). The instant the port flips to CPU, Melee defaults it
+                # to level 1, which ALREADY marks the roster ready — so an
+                # unconditional autostart here presses START mid-dance and the
+                # game begins with a level-1 CPU, or with the port still HMN.
+                # Measured 2026-07-26: 5 of 6 recordings came up type=HUMAN
+                # despite --dummy-cpu-level 9, which is why the "level 9 CPU"
+                # stood in Wait 76% of frames and never jumped. The dummy
+                # helper is also gated to CHARACTER_SELECT, so once START
+                # advances the menu an unfinished drag can never complete.
                 self.menu_helper.menu_helper_simple(
                     gamestate,
                     self.controller,
                     character,
                     stage,
                     connect_code=getattr(self, "connect_code", "") or "",
-                    autostart=True,
+                    autostart=self._dummy_ready(gamestate),
                     swag=False,
                 )
 
