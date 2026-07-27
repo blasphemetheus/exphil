@@ -148,7 +148,42 @@ Status: [ ] untried · [~] in progress · [x] done · [-] ruled out
   through this much noise, so the hypothesis is neither confirmed nor refuted —
   see item 0, which is the real result.
 
-- [ ] **3b. prev-action x synthesis — TRY THIS FIRST.** Highest expected value
+## 0b. RESOLUTION FLOOR — we can no longer measure small effects
+
+Synth's own spread is 29.4–58.4 self-shines/min: a 2x range across seeds.
+Anything smaller than that is invisible at n=2-3 with 2-minute runs. Measured
+2026-07-26:
+
+| condition | self-initiated shines/min | max chain |
+|---|---|---|
+| baseline (n=3) | 11.4 · 3.0 · 5.2 | 1 · 1 · 1 |
+| synth (n=3) | 58.4 · 36.2 · 29.4 | 5 · 3 · 6 |
+| synth + prev-action (n=2) | 32.3 · 44.3 | 6 · 4 |
+| synth + noise 0.02 (n=2) | 39.4 · 41.2 | 1 · 3 |
+
+Both additions land INSIDE synth's range. "No detectable gain" here does NOT
+mean "no gain" — it means this setup cannot tell. Distinguishing a 20-30%
+improvement needs many more seeds or much longer runs, and the binding cost is
+LIVE EVAL (~4 min/run), not training (~2 min).
+
+**Consequence: stop tuning knobs.** Further micro-variations on synthesis are
+unmeasurable until the measurement gets cheaper or tighter. Prefer the
+remaining big swings (items 4/5 below), or first invest in the measurement:
+longer runs, batched evaluation, or an offline proxy that correlates with live
+chain length.
+
+Also: **2 of 6 runs lost to truncated replays** (graceful SD failed, ~20% flake,
+also hit ms_synth_c). Each failure costs a seed. Worth fixing before any
+larger seed sweep.
+
+- [-] **3b. prev-action x synthesis — NO DETECTABLE GAIN (n=2, below
+  resolution).** Prediction was that Melee's press-EDGE requirement plus the
+  recovery rules' alternation on previously-landed input meant synthesis was
+  teaching a press probability the policy could not condition properly. Result
+  32.3 / 44.3 vs synth's 29.4-58.4: inside the noise. The reasoning may still
+  be right; the experiment cannot resolve it. Original note follows.
+
+- [-] **3b-original. prev-action x synthesis — TRY THIS FIRST.** Highest expected value
   per minute of the untried items, and theoretically motivated rather than a
   guess. Melee registers shine on a press EDGE, and MultishineExpert's recovery
   rules alternate on the PREVIOUSLY-LANDED input ("press when the button was
@@ -176,11 +211,12 @@ Status: [ ] untried · [~] in progress · [x] done · [-] ruled out
   opportunities. Max chain 3-6 vs the teacher's 791 may partly be a sampling
   limit rather than a capability limit. One 5-min run settles it. Laptop, cheap.
 
-- [ ] **4. Noise injection (DART-style).**
-  `ExPhil.Training.Augmentation.add_noise/2` and `maybe_add_noise/2` already
-  exist and are NOT used by the multishine trainer. Perturbing states during
-  collection widens training into a tube around the trajectory instead of a
-  line — the standard cheap alternative to iterative DAgger. Laptop.
+- [-] **4. Noise injection (DART-style) — WIRED, no detectable gain (n=2).**
+  `--noise SCALE [--noise-prob P]` on train_multishine_policy.exs, using the
+  existing `Augmentation.maybe_add_noise/2` (continuous fields only — never
+  action state, buttons or flags, which would corrupt the label). Result at
+  scale 0.02: 39.4 / 41.2, inside synth's 29.4-58.4 range. Only one scale was
+  tried; like 3b this is below the resolution floor rather than disproven.
 
 - [ ] **5. Teacher-driven recovery data.** The closed-loop teacher holds **791
   unbroken cycles**. Start it from perturbed / off-trajectory states and record

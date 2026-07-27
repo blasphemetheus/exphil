@@ -18,7 +18,7 @@ alias ExPhil.Embeddings
 
 {opts, _, _} =
   OptionParser.parse(System.argv(),
-    strict: [replays: :string, out: :string, robust: :boolean, prev_action: :boolean, action_delay: :integer, prev_action_dropout: :float, window: :integer, synth_recovery: :boolean, synth_max_af: :integer, synth_ratio: :float]
+    strict: [replays: :string, out: :string, robust: :boolean, prev_action: :boolean, action_delay: :integer, prev_action_dropout: :float, window: :integer, synth_recovery: :boolean, synth_max_af: :integer, synth_ratio: :float, noise: :float, noise_prob: :float]
   )
 
 # --replays accepts a dir or glob of .slp files; default = the single
@@ -81,6 +81,28 @@ frames =
     frames ++ synth
   else
     frames
+  end
+
+# --noise: DART-style state perturbation. Synthesis only covers EXTENSIONS of
+# segments the fixture already visits; noise widens training into a tube
+# AROUND the trajectory, so the two are complementary rather than redundant.
+# Only continuous fields are perturbed (positions, percent, velocities) —
+# never action state, buttons or flags, which would corrupt the label.
+frames =
+  case opts[:noise] do
+    nil ->
+      frames
+
+    scale ->
+      prob = opts[:noise_prob] || 0.5
+
+      noised =
+        Enum.map(frames, fn f ->
+          ExPhil.Training.Augmentation.maybe_add_noise(f, scale: scale, probability: prob)
+        end)
+
+      Output.puts("Noise: scale=#{scale} p=#{prob} applied to #{length(noised)} frames")
+      noised
   end
 
 Output.puts("Training frames: #{length(frames)}")

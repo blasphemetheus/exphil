@@ -127,6 +127,70 @@ Two options — run slippi-frame-extractor for raw parquet, or read mimic-melee 
 - [ ] Assess character distribution across 95k replays — may help with class imbalance work
 - [ ] Check game boundary handling: .pt shards use offsets array, parquet uses per-file splits
 
+## Make the bot multishine better (exposure bias)
+
+Full context, evidence and caveats: [docs/planning/EXPOSURE_BIAS.md](docs/planning/EXPOSURE_BIAS.md).
+Root cause is EXPOSURE BIAS, not the state-stream shift. The synthesized
+recovery set already took self-initiated shines from 3.0–11.4/min to
+29.4–58.4/min and max chain from 1 to 3–6 (n=3 both sides, no overlap).
+
+Score every change with `scripts/analyze_shine_source.exs` — self-initiated
+shines and max chain, **≥3 seeds**, never the off-manifold agreement metric
+(44–77% run-to-run noise at one config). Rate and chain length do NOT track
+each other; report both.
+
+Ordered by expected value per minute on the laptop:
+
+- [ ] **1. prev-action channel + synthesis TOGETHER.** Highest value and the
+      only theoretically-motivated one. Melee registers shine on a press EDGE,
+      and the recovery rules alternate on the previously-landed input — so
+      synthesis currently teaches "tap X at reflector af 3+" to a policy that
+      cannot SEE whether X is held. It can learn a marginal press probability,
+      never the alternation. Plausible cause of max chain stalling at 3–6.
+      Also reframes the earlier null: `--prev-action` alone did nothing
+      BECAUSE there was no recovery data to condition on. No code — run
+      `--prev-action --synth-recovery`. Laptop, ~6 min/seed.
+
+- [-] **2. Widen synthesis beyond reflector states — DROPPED, measured
+      pointless.** Compared every action's live af range against its fixture
+      range. Only TWO actions ever exceed it, and grounded reflector 361 is
+      99.6% of the total:
+
+      | action | fixture max af | live max af | frames beyond |
+      |---|---|---|---|
+      | 361 | 14 | 27 | **1006** |
+      | 42 | 9 | 13 | 4 |
+
+      The reflector IS the trap and synthesis already covers it (extends to
+      af 30 vs the live max of 27). Widening would add impossible states as
+      well as useless ones: jumpsquat is a FIXED 3 frames, so synthesising
+      af 4 there manufactures a state the game cannot produce. Only HOLDABLE
+      actions can be extended at all.
+
+- [ ] **3. Noise injection (DART-style).**
+      `ExPhil.Training.Augmentation.add_noise/2` and `maybe_add_noise/2`
+      already exist and are unused by the multishine trainer. Widens training
+      into a TUBE around the trajectory rather than a line — complementary to
+      synthesis, which only covers extensions of already-visited segments.
+      Laptop, ~15 min to wire.
+
+- [ ] **4. Teacher-driven recovery data (perturbation harness).** The
+      closed-loop teacher holds 791 unbroken cycles. Start it from PERTURBED
+      states and record how it actually recovers: ground truth instead of
+      rule-generated labels, and it reaches states synthesis cannot (getting
+      hit, ledge, tech). Needs Dolphin; laptop-capable. Biggest build of the
+      set — the harness must set up an off-trajectory state, hand control to
+      the teacher, and record only the recovery.
+
+- [ ] **5. Scheduled sampling.** Feed the model its own predictions for a
+      fraction of training frames — attacks exposure bias during TRAINING
+      rather than via data, so it composes with all of the above. Nothing
+      implements it today; largest code change of the laptop-viable set.
+
+- [ ] Sweep `--synth-ratio` / `--synth-max-af` (1.0 and 30 were picked
+      untested), and try a longer live eval — 2 min gives only ~90 shine
+      opportunities, so chain 3–6 may be a sampling limit not a capability one.
+
 ## Multishine / State-Stream (task #8 follow-ups)
 
 - [ ] **Widen the action_frame table — cheap, laptop-sized, unblocks the
