@@ -534,6 +534,45 @@ Three findings:
   (cheap: eval 3+ seeds, keep the best — legitimate now that the
   variance is understood).
 
+  **SEED FARM CORRECTION (2026-07-27 evening, 5 fresh seeds d-h, same
+  command, all clean 0.3-0.7% stale, 3x60s vs idle): "escape replicates
+  3/3" was itself small-n luck.**
+
+  | seed | self/min | chains | verdict |
+  |---|---|---|---|
+  | d | 86.3 · 89.7 · 88.8 | 2 · 2 · 2 | escape (b-like) |
+  | e | 1.6 · 0.8 · 6.5 | 1 | FAILED |
+  | f | 7.4 · 3.3 · 18.7 | 3 · 2 · 3 | FAILED (marginal) |
+  | g | 0.0 · 0.0 · 0.0 | 0 | FAILED (dead) |
+  | h | 5.7 · 6.5 · 4.9 | 1 · 2 · 1 | FAILED |
+
+  Escape rate at n=8: **4/8** (a, b, c, d). Forensics on every failure:
+  ALL crouch-absorbed despite training WITH the crouch data — occupancy
+  57.5-78.3%, spells 2525-3459f; g absorbs at frame 104 and never
+  shines at all (entry 324x20 > 29x10 > 42x30, identical both runs);
+  f absorbs latest (frame 1042 in its best run) — a marginal policy's
+  score is absorption-time luck, exactly the 0c-5 pattern. Coverage
+  raises the odds the escape solution wins the init lottery (0/3
+  without crouch data -> 4/8 with) but does NOT remove the basin from
+  the loss landscape. Per-seed run stability HOLDS at n=8 (d spread
+  86.3-89.7; g exactly 0/0/0 twice). Protocol lesson: for seed-variant
+  properties, 3/3 carries little evidence (p=1/8 under a fair coin) —
+  claims about METHOD effects need the failure MODE checked (forensics),
+  not just the count. ms_crouch_a remains the champion; farm found no
+  new sustain seed (best new chains: 3).
+
+  **SUSTAIN CEILING IS REAL (queue-1 answer, 3x180s on seed a, clean
+  0.4-1.1%):** 117.1 / 101.0 self/min, max chains 12 across 188 / 171
+  chains per run (r1 lost to the ~20% SD flake). Longer windows did NOT
+  reveal clipped chains — the 60s blocks' 19-22 were upper-tail draws,
+  not truncations. Chain max is heavy-tailed run-to-run; the ceiling is
+  intrinsic to the policy. All breaks remain 100% unforced, resolving
+  through air-reflector/jump states (366/27/361/365). NEW at 180s: r3
+  spent 647f (5.4%) at the LEDGE where every 60s replay showed zero —
+  the ledge valley is reachable, just rare per minute. Strengthens the
+  future ledge-drill direction (HANDOFF_2026-07-27c recorded decision)
+  without changing the leave---synth-ledge-off verdict.
+
 - [x] **9. Inference-time sampling — MEASURED 2026-07-27: RESURRECTS AN
   ABSORBED POLICY.** The live path already had `--temperature` (CLI
   float, agent config -> Policy sampling); eval_live_protocol.sh now
@@ -567,6 +606,16 @@ Three findings:
   state. Untried: T sweep (0.3/1.0); `--deterministic-buttons` reverse
   ablation; adaptive T (sample only when the recent action distribution
   looks pooled — a cheap absorber detector at inference time).
+
+  **RESCUE REPLICATED on a second absorbed policy (2026-07-27 evening,
+  pre-registered):** ms_crouch_g — the seed farm's dead seed, 0/0/0
+  deterministic, absorbed at frame 104 with 78.3% crouch occupancy —
+  scores **78.4 · 72.8 · 61.5 self/min, chains 4 · 3 · 3** at T=0.5
+  (clean 0.9-1.4% stale). Prediction made from the theory before the
+  block ran. Sampling-rescue is now n=2 policies (ms_synth_ss_b
+  53.5-59.9, ms_crouch_g 61.5-78.4), both to roughly plain-synth level,
+  both with intact cycle precision (chains 3-9). The membrane leak is a
+  property of absorbed policies as a class, not of one seed.
 
 ## How to judge any of them
 
