@@ -15,6 +15,17 @@
 # states in the following second) — grounded reflector at high action_frame
 # is GOTCHAS #81's absorbing trap, visible here directly.
 #
+# CROUCH ABSORBER (EXPOSURE_BIAS 6-replication): the second known trap is
+# Squat/SquatWait — vs an idle opponent, non-robust policies enter it and
+# never leave (observed live: botched shine → shorthop → land holding down
+# → crouch forever). Per replay this script now also reports:
+#   crouch occupancy  - frames in Squat/SquatWait/SquatRv (39/40/41) / total
+#   absorbed spells   - maximal crouch runs >= --absorb frames (default 120,
+#                       i.e. 2s), with start frame and length
+#   entry routes      - run-length-compressed action sequence over the 60
+#                       frames BEFORE each absorbed spell: the exact states
+#                       that need RecoverySynth coverage (item 3c targeting)
+#
 # Chain definition here is ONSET-GAP based (consecutive shine onsets <= --gap
 # frames apart, default 15 ≈ the 9-frame cycle + slack), deliberately simpler
 # than ExPhil.Eval.ShineChain's family walk — it keeps frame indices, which
@@ -25,7 +36,7 @@ alias ExPhil.Training.Output
 
 {opts, paths, _} =
   OptionParser.parse(System.argv(),
-    strict: [port: :integer, gap: :integer, window: :integer]
+    strict: [port: :integer, gap: :integer, window: :integer, absorb: :integer]
   )
 
 if paths == [] do
@@ -36,8 +47,18 @@ end
 port = opts[:port] || 1
 gap = opts[:gap] || 15
 window = opts[:window] || 30
+absorb_min = opts[:absorb] || 120
 
 reflectors = [360, 361, 362, 363, 364, 365, 366, 367]
+# Squat / SquatWait / SquatRv. NOTE: real engine enum (consistent with
+# jumpsquat=24), NOT the coarse buckets in embeddings/player/action.ex.
+crouch = [39, 40, 41]
+# CliffCatch/CliffWait + getup family — the "ledge valley" (observed live
+# on ms_crouch_a 2026-07-27: aerial drift near the edge -> ledge-grab ->
+# hang; a time-sink rather than an absorber so far, but the expert has NO
+# correct rule there — its airborne fallback presses B, which is a no-op
+# on the ledge — so it cannot be synthesised away without a new rule).
+ledge = Enum.to_list(252..263)
 
 Enum.each(paths, fn path ->
   name = Path.basename(path, ".slp")
@@ -133,6 +154,52 @@ Enum.each(paths, fn path ->
         if trap > 0 do
           Output.puts("  ⚠ #{trap} frames in the GOTCHAS #81 trap (361 at af>2) post-break")
         end
+      end
+
+      # --- Crouch-absorber report (independent of chain breaks: a fully
+      # absorbed run may have zero chains yet be 95% crouch) ---
+      total = length(rows)
+      crouch_frames = Enum.count(rows, &(&1.action in crouch))
+
+      # Maximal runs of consecutive crouch frames, as {start_index, len}.
+      {spells, cur} =
+        rows
+        |> Enum.with_index()
+        |> Enum.reduce({[], nil}, fn {r, i}, {done, cur} ->
+          case {r.action in crouch, cur} do
+            {true, nil} -> {done, {i, 1}}
+            {true, {s, n}} -> {done, {s, n + 1}}
+            {false, nil} -> {done, nil}
+            {false, spell} -> {[spell | done], nil}
+          end
+        end)
+
+      spells = Enum.reverse(if cur, do: [cur | spells], else: spells)
+      absorbed = Enum.filter(spells, fn {_, len} -> len >= absorb_min end)
+
+      ledge_frames = Enum.count(rows, &(&1.action in ledge))
+
+      if total > 0 and ledge_frames > 0 do
+        lpct = Float.round(100.0 * ledge_frames / total, 1)
+        Output.puts("  ledge occupancy: #{ledge_frames}/#{total} frames (#{lpct}%)")
+      end
+
+      if total > 0 and crouch_frames > 0 do
+        pct = Float.round(100.0 * crouch_frames / total, 1)
+        Output.puts("  crouch occupancy: #{crouch_frames}/#{total} frames (#{pct}%)")
+
+        Enum.each(absorbed, fn {start, len} ->
+          # Entry route: run-length-compressed actions over the 60 frames
+          # before the spell — the states RecoverySynth needs to cover.
+          route =
+            rows
+            |> Enum.slice(max(start - 60, 0), min(start, 60))
+            |> Enum.map(& &1.action)
+            |> Enum.chunk_by(& &1)
+            |> Enum.map_join(" > ", fn [a | _] = run -> "#{a}x#{length(run)}" end)
+
+          Output.puts("  ⚠ ABSORBED at frame #{start} for #{len}f; entry: #{route}")
+        end)
       end
 
     {:error, reason} ->

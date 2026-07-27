@@ -34,6 +34,23 @@ defmodule ExPhil.Data.RecoverySynth do
   It only covers states reachable by extending a segment the fixture already
   visits. States that require genuinely different play (getting hit, ledge,
   tech) are not synthesisable this way and still need rollouts or recordings.
+
+  ## Manufactured states — the crouch absorber (`build_crouch/2`)
+
+  `build/2` extends what the fixture visits; the crouch absorber
+  (EXPOSURE_BIAS 6-replication) is a state the teacher NEVER visits: vs an
+  idle opponent the policy botches a shine, shorthops, lands holding down and
+  crouches forever at high confidence. `build_crouch/2` MANUFACTURES the trap:
+  it grafts a synthetic Squat -> SquatWait tail onto real post-shine frames,
+  labelled by the expert's grounded fallback (start a shine, edge-alternated).
+  Tails run past the training window so some windows are ENTIRELY crouch —
+  the deep-basin state itself gets coverage, not just the entrance.
+
+  Unlike `extend/4` (which labels each frame with `prev = nil`), the crouch
+  tail THREADS each frame's label into the next frame's `prev`, so labels
+  alternate press/release exactly as the expert would behave live — a
+  constant "press B" tail would re-teach the held-button pathology the
+  alternation rules exist to prevent.
   """
 
   alias ExPhil.Agents.MultishineExpert
@@ -96,6 +113,85 @@ defmodule ExPhil.Data.RecoverySynth do
       lead = Enum.slice(frames, max(i - lead_in + 1, 0), min(i + 1, lead_in))
       lead ++ extend(frame, port, max_af, expert)
     end)
+  end
+
+  @doc """
+  Manufacture crouch-absorber coverage: real post-shine lead-ins followed by
+  a synthetic `Squat -> SquatWait` tail, expert-labelled with edge alternation.
+
+  Options:
+    * `:port` — player port (default 1)
+    * `:max_af` — SquatWait frames per tail (default 40: past the 16-frame
+      window, so fully-crouched windows exist; live absorption runs minutes,
+      but af coverage past the window adds nothing the GRU can distinguish)
+    * `:lead_in` — real frames prepended per block (default 16)
+    * `:ratio` — cap output at this multiple of input frames (default 0.5 —
+      the trap needs coverage, not dominance over the core loop)
+
+  Source points are the ends of grounded-reflector segments (post-shine — the
+  closest fixture analog of the observed entry route: botched cycle -> land ->
+  crouch), sampled evenly like `build/2`.
+  """
+  @spec build_crouch([map()], keyword()) :: [map()]
+  def build_crouch(frames, opts \\ []) do
+    port = Keyword.get(opts, :port, 1)
+    max_af = Keyword.get(opts, :max_af, 40)
+    lead_in = Keyword.get(opts, :lead_in, 16)
+    ratio = Keyword.get(opts, :ratio, 0.5)
+
+    expert = Keyword.get(opts, :expert) || MultishineExpert.from_fixture()
+    actions = Constants.reflector_ground() |> Enum.to_list() |> MapSet.new()
+
+    budget = trunc(length(frames) * ratio)
+    # Each block: lead-in + 2 Squat frames + max_af SquatWait frames.
+    per_block = lead_in + 2 + max_af
+
+    segments =
+      frames
+      |> Enum.with_index()
+      |> segment_ends(port, actions)
+
+    segments
+    |> take_evenly(max(min(length(segments), div(budget, per_block)), 1))
+    |> Enum.flat_map(fn {frame, i} ->
+      lead = Enum.slice(frames, max(i - lead_in + 1, 0), min(i + 1, lead_in))
+      prev = List.last(lead) |> then(&(&1 && &1.controller))
+      lead ++ crouch_tail(frame, port, max_af, expert, prev)
+    end)
+  end
+
+  # Squat af 1..2, then SquatWait af 1..max_af. Threads each label into the
+  # next frame's `prev` so the expert's press/release alternation survives
+  # into the data (see moduledoc).
+  defp crouch_tail(frame, port, max_af, expert, prev0) do
+    player = frame.game_state.players[port]
+
+    states =
+      Enum.map(1..2, &{Constants.squat(), &1}) ++
+        Enum.map(1..max_af, &{Constants.squat_wait(), &1})
+
+    {tail, _prev} =
+      Enum.reduce(states, {[], prev0}, fn {action, af}, {acc, prev} ->
+        shifted = %{player | action: action, action_frame: af, on_ground: true}
+
+        case MultishineExpert.label(expert, shifted, prev) do
+          {:ok, controller} ->
+            players = Map.put(frame.game_state.players, port, shifted)
+
+            out = %{
+              frame
+              | game_state: %{frame.game_state | players: players},
+                controller: controller
+            }
+
+            {[out | acc], controller}
+
+          :skip ->
+            {acc, prev}
+        end
+      end)
+
+    Enum.reverse(tail)
   end
 
   # Roughly how many segments fit the budget: each contributes a lead-in plus

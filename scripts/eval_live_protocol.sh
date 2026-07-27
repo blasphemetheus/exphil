@@ -2,7 +2,7 @@
 # Live-eval protocol runner — EXPOSURE_BIAS.md items 0a/0c operationalized.
 #
 #   scripts/eval_live_protocol.sh <policy.bin> <outdir> [--runs N] [--seconds S]
-#       [--dummy cpu|stand] [-- <extra play_dolphin_async args...>]
+#       [--dummy cpu|stand] [--temperature T] [-- <extra play_dolphin_async args...>]
 #
 # Runs N live runs of ONE policy (the variance is in the RUNS, not the
 # seeds), collects logs + replays, then scores them all with
@@ -27,16 +27,24 @@ shift 2
 RUNS=3
 SECONDS_ARG=60
 DUMMY=cpu
+TEMPERATURE=""
 EXTRA=()
 while [ $# -gt 0 ]; do
   case "$1" in
     --runs) RUNS="$2"; shift 2 ;;
     --seconds) SECONDS_ARG="$2"; shift 2 ;;
     --dummy) DUMMY="$2"; shift 2 ;;
+    --temperature) TEMPERATURE="$2"; shift 2 ;;
     --) shift; EXTRA=("$@"); break ;;
     *) echo "unknown arg: $1" >&2; exit 2 ;;
   esac
 done
+
+# --temperature T: stochastic decode (EXPOSURE_BIAS 6-replication follow-up —
+# sampling is the only noise that can ESCAPE an absorber; stale-send repeat
+# noise cannot, measured 2026-07-27). Replaces --deterministic for the run.
+DECODE_ARGS=(--deterministic)
+[ -n "$TEMPERATURE" ] && DECODE_ARGS=(--temperature "$TEMPERATURE")
 
 DOLPHIN_DIR="${DOLPHIN_DIR:-$HOME/.config/Slippi Launcher/netplay}"
 ISO="${ISO:-$HOME/games/melee.iso}"
@@ -54,7 +62,7 @@ if [ "${FORCE:-0}" != "1" ]; then
 fi
 
 mkdir -p "$OUTDIR"
-echo "policy=$POLICY runs=$RUNS seconds=$SECONDS_ARG dummy=$DUMMY loadavg=$(cut -d' ' -f1-3 /proc/loadavg)" | tee "$OUTDIR/protocol.txt"
+echo "policy=$POLICY runs=$RUNS seconds=$SECONDS_ARG dummy=$DUMMY decode=${DECODE_ARGS[*]} loadavg=$(cut -d' ' -f1-3 /proc/loadavg)" | tee "$OUTDIR/protocol.txt"
 
 DUMMY_ARGS=(--dummy "$DUMMY" --dummy-character fox)
 [ "$DUMMY" = "cpu" ] && DUMMY_ARGS+=(--dummy-cpu-level 1)
@@ -73,7 +81,7 @@ for i in $(seq 1 "$RUNS"); do
     --policy "$POLICY" \
     --dolphin "$DOLPHIN_DIR" --iso "$ISO" \
     --character fox "${DUMMY_ARGS[@]}" \
-    --on-game-end stop --seconds "$SECONDS_ARG" --deterministic \
+    --on-game-end stop --seconds "$SECONDS_ARG" "${DECODE_ARGS[@]}" \
     "${EXTRA[@]}" > "$OUTDIR/r$i.log" 2>&1
   kill_dolphins
   newest=$(ls -t "$HOME"/Slippi/*.slp 2>/dev/null | head -1)

@@ -126,6 +126,23 @@ defmodule ExPhil.Constants do
   def aerial_jump, do: 25
 
   @doc """
+  Squat (crouch transition) action-state ID.
+
+  Engine enum, consistent with `jumpsquat/0` = 24 (KneeBend). NOT the coarse
+  bucket ranges in `ExPhil.Embeddings.Player.Action`, which are an embedding
+  compression and disagree with raw replay IDs.
+  """
+  @spec squat() :: 39
+  def squat, do: 39
+
+  @doc """
+  SquatWait (held crouch) action-state ID — the crouch absorber's fixed
+  point (docs/planning/EXPOSURE_BIAS.md 6-replication).
+  """
+  @spec squat_wait() :: 40
+  def squat_wait, do: 40
+
+  @doc """
   Grounded reflector (shine) action-state IDs.
 
   Fox/Falco's down-B on the ground. Four states covering startup through

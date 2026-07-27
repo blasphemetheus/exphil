@@ -409,13 +409,25 @@ Three findings:
   luck of the transient. Same logic explains why vs-CPU runs are tight
   (1.15x) at moderate rate: the OPPONENT is a perturbation source
   (approaches/hits knock the state around, preventing permanent
-  absorption). Discriminating experiment (untried — classifier blocked
-  the CPU-burner; run `stress-ng --cpu $(nproc)` manually + FORCE=1
-  protocol run): re-eval `ms_synth_ss_b` (the 0/0/0 seed) vs idle under
-  deliberate load; if staleness resurrects it, noise is the mechanism
-  independent of seed. If confirmed, inference-time stochasticity
-  (sampling temperature / ε on the button head) is the principled,
-  tunable version of what the broken harness delivered by accident.
+  absorption).
+
+  **Discriminating experiment RUN (stress-ng, 3 workers): staleness does
+  NOT resurrect an absorbed seed.** `ms_synth_ss_b` vs idle at 26.9 /
+  30.2 / 29.6% staleness, 3-4-frame slips — a near-exact reproduction of
+  yesterday's regime — scored **0/0/0**. (First attempt at full
+  saturation hit 56% staleness with 21-28-frame freezes — that regime is
+  uninterpretable, a 9-frame cycle can't execute at 4-frame action
+  granularity; discard such runs.) This is theoretically clean: a stale
+  send REPEATS the previous action, and repeat-of-crouch is crouch —
+  action-repeat noise perturbs a policy in motion but is inert inside an
+  absorber. Consequences: (a) yesterday's 90/min is still not fully
+  explained — for the one marginally-capable seed, the degraded harness
+  can only have been altering cycle-break/absorber-ENTRY dynamics, not
+  rescuing it from crouch; (b) the three noise families are now
+  empirically separated: training-time state noise (item 4, null),
+  inference-time action-repeat (inert in absorbers, this experiment),
+  inference-time SAMPLING (untested, the only one that generates new
+  actions in a fixed point — item 9).
 
   **The crouch absorber, named:** distinct from the #81 reflector trap.
   Live sequence (observed): imperfect multishine → missed shine after
@@ -447,6 +459,71 @@ Three findings:
 - [ ] **7. PPO fine-tuning from the BC policy.** Infrastructure exists.
   Optimizes the CLOSED-LOOP objective (shine count) rather than one-step
   imitation, which is the thing that actually diverges. GPU.
+
+- [~] **8. Crouch-basin coverage — IMPLEMENTED 2026-07-27, first policy
+  training.** `RecoverySynth.build_crouch/2`: manufactures the crouch
+  absorber (a state the teacher NEVER visits, so `build/2`'s segment
+  extension can't reach it) by grafting synthetic `Squat(39) ->
+  SquatWait(40) af 1..40` tails onto post-shine fixture frames. Tails run
+  past the 16-frame window so some training windows are ENTIRELY crouch —
+  covering the deep-basin state, not just the entrance. Labels come from
+  `MultishineExpert`'s existing grounded fallback ("start a shine"), and
+  — unlike `build/2`'s extend, which labels every frame with `prev=nil`
+  (a held-button label sequence!) — the tail THREADS each label into the
+  next frame's `prev`, so B alternates press/release exactly as the
+  expert behaves live. REQUIRES `--prev-action` (the alternation is
+  unlearnable without the channel — item 3b's lesson). Wired as
+  `--synth-crouch [--crouch-max-af N] [--crouch-ratio R]` in
+  train_multishine_policy.exs; 5 tests in
+  test/exphil/data/recovery_synth_test.exs. First policy: `ms_crouch_a`
+  (synth + PA + crouch, no SS — isolating the coverage variable).
+  Forensics support: chain_break_forensics.exs now reports crouch
+  occupancy, absorbed spells (>= --absorb frames, default 120) and
+  run-length-compressed ENTRY ROUTES per spell.
+
+  **FIRST EVAL (n=1 training run, replication in progress): the sustain
+  ceiling broke.** vs IDLE, clean harness (0.7-1.0% stale),
+  deterministic decode:
+
+  | run | self/min | max chain |
+  |---|---|---|
+  | r1 | 129.1 | 22 |
+  | r2 | 99.7 | 20 |
+  | r3 | 103.1 | 19 |
+
+  Previous best chain from ANY intervention: 7 (open problem #1 said
+  "every intervention moves rate, barely moves sustain" — this moved
+  BOTH, 2x rate and ~3x chain, zero hit-induced, 1.29x spread).
+  Forensics on r1: crouch occupancy 2.4% vs the absorbed seed's 78.3%
+  (one 3448-frame spell) — breaks still 100% unforced but now resolve
+  through air-reflector/jump states back into the cycle instead of
+  terminally pooling. Interpretation: covering the basin turns terminal
+  breaks into instant re-entries, which is exactly what stitches chains.
+  Loss converged slower (0.00172 @ 80 epochs vs ~27 for non-crouch
+  recipes) — the alternating escape labels are a genuinely harder
+  objective.
+
+  **Next basin observed live (ledge valley):** with crouch covered, the
+  flow finds the next-largest trap — aerial drift near the edge ->
+  ledge-grab -> CliffWait hang. A time-sink so far, not an absorber.
+  NOT synthesisable with the current expert: its airborne fallback
+  (press B) is a NO-OP on the ledge — escape needs a real new rule
+  (drop/climb first). chain_break_forensics.exs now counts ledge
+  occupancy (252..263) so the valley is tracked before it is attacked.
+
+- [~] **9. Inference-time sampling — CAPABILITY WIRED, experiments
+  pending.** The live path already had `--temperature` (CLI float,
+  agent config -> Policy sampling); eval_live_protocol.sh now takes
+  `--temperature T` (replaces `--deterministic` for the block, recorded
+  in protocol.txt). Rationale: sampling is the ONLY noise family that
+  can escape an absorber (see 6-replication) — at 97% crouch confidence,
+  sampled decode still fires B a few percent of frames, each a shine
+  that re-enters the cycle. Planned blocks, vs idle: `ms_synth_ss_b`
+  (the absorbed seed) at T 0.5 and 1.0 — resurrection here would be
+  mechanism-clean since repeat noise did nothing; the tradeoff to watch
+  is on-manifold precision loss (sampled slips during the 9-frame
+  cycle). Composes with `--deterministic-buttons` for the reverse
+  ablation (sampled sticks, argmax buttons).
 
 ## How to judge any of them
 

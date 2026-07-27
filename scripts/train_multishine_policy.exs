@@ -18,7 +18,7 @@ alias ExPhil.Embeddings
 
 {opts, _, _} =
   OptionParser.parse(System.argv(),
-    strict: [replays: :string, out: :string, robust: :boolean, prev_action: :boolean, action_delay: :integer, prev_action_dropout: :float, window: :integer, synth_recovery: :boolean, synth_max_af: :integer, synth_ratio: :float, noise: :float, noise_prob: :float, scheduled_sampling: :float, ss_ramp: :integer]
+    strict: [replays: :string, out: :string, robust: :boolean, prev_action: :boolean, action_delay: :integer, prev_action_dropout: :float, window: :integer, synth_recovery: :boolean, synth_max_af: :integer, synth_ratio: :float, synth_crouch: :boolean, crouch_max_af: :integer, crouch_ratio: :float, noise: :float, noise_prob: :float, scheduled_sampling: :float, ss_ramp: :integer]
   )
 
 # --replays accepts a dir or glob of .slp files; default = the single
@@ -63,6 +63,10 @@ frames =
     end)
   end)
 
+# Both synthesis modes source segments and lead-ins from the REAL fixture
+# frames, not from each other's output.
+base_frames = frames
+
 # --synth-recovery: manufacture the off-trajectory states the policy actually
 # falls into and let the expert label them (EXPOSURE_BIAS.md item 2). The
 # fixture has grounded reflector only at af 1..2; live the policy sits at af
@@ -79,6 +83,26 @@ frames =
 
     Output.puts("Synthetic recovery frames: #{length(synth)}")
     frames ++ synth
+  else
+    frames
+  end
+
+# --synth-crouch: manufacture the crouch absorber (EXPOSURE_BIAS
+# 6-replication) — a state the teacher NEVER visits, so build/2 can't reach
+# it. Grafts Squat -> SquatWait tails onto post-shine frames, labelled
+# "start a shine" with edge alternation.
+frames =
+  if opts[:synth_crouch] do
+    crouch_synth =
+      ExPhil.Data.RecoverySynth.build_crouch(base_frames,
+        port: 1,
+        max_af: opts[:crouch_max_af] || 40,
+        lead_in: window,
+        ratio: opts[:crouch_ratio] || 0.5
+      )
+
+    Output.puts("Synthetic crouch frames: #{length(crouch_synth)}")
+    frames ++ crouch_synth
   else
     frames
   end
