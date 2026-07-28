@@ -249,6 +249,33 @@ opening-fix only, arm B + X-hold), since farm 5 also confounded the
 X-hold intervention with the poisoning. Interesting residue: seed t
 (marginal, 6-16/min) reached chains 4-10 — noted, not interpreted.
 
+**FARM 6 (two-arm, post-relabel-fix, 2026-07-28 13:11): the combined
+recipe WORKS — new all-time champion.** All clean staleness (1.1-1.8%),
+3x60s vs idle:
+
+| arm | seed | self/min | chains | notes |
+|---|---|---|---|---|
+| A: +opening(fixed) | x | 87-93 | 3-6 | escape |
+| A | y | 108-115 | 7-15 | near-sustainer, SPIKE jc-margins |
+| B: A + X-hold(3) | z | **121-147** | **16-27** | ALL-TIME RECORD both axes |
+| B | zz | 49-56 | 1 | metronome: steady singles, never JCs |
+
+- **Escape 4/4, opening deaths 0/4** (baselines: 3/7 fixed recipe, 6/12
+  original). Opening-synth with expert relabeling closes the opening
+  absorber at n=4.
+- **z beats every seed ever measured** (prev bests: 129/min, chains 22
+  by ms_crouch_a) — trained in 17 epochs on the full recipe:
+  `--synth-recovery --synth-crouch --synth-opening --opening-replays
+  <dead-seed openings> --x-hold-extend 3 --prev-action`.
+- jc-margin check: z has the positive-plateau signature (+0.617,
+  flip 0.0); y sustains at chains 15 WITH spike margins — the plateau
+  is sufficient-not-necessary at n=4. zz emits no jc events at all
+  (single-shine metronome — a NEW low-sustain phenotype worth forensics).
+- Sustain variance persists within arms (z 27 vs zz 1) — X-hold is not
+  a sustain guarantee; per-arm n=2 cannot rank the arms yet. Next: seed
+  farm the full recipe (the operational cost question is now "how often
+  does the recipe produce a z"), and forensics on zz's metronome.
+
 **The remaining lottery is the GAME OPENING.** m absorbs at frame 104
 via the same entry route as g (324x20 > 29x10 > 42x30 = spawn-platform
 fall -> crouch, never shines). Rollout cross-test: m reproduces its

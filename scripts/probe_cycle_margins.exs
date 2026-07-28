@@ -52,7 +52,8 @@ chains = %{
   "ms_crouch_j" => 2, "ms_crouch_k" => 4, "ms_crouch_l" => 3,
   "ms_crouchfix_m" => 0, "ms_crouchfix_n" => 18, "ms_crouchfix_o" => 3,
   "ms_crouchfix_p" => 0, "ms_crouchfix_q" => 21, "ms_crouchfix_r" => 0,
-  "ms_crouchfix_s" => 1
+  "ms_crouchfix_s" => 1,
+  "ms_open_x" => 6, "ms_open_y" => 15, "ms_open_z" => 27, "ms_open_zz" => 1
 }
 
 replay_for = fn policy_path ->
