@@ -233,6 +233,22 @@ flip=1.0 for the champion; presses are events, holds are not presses):
   (the expert's own labels already hold X 2 frames — check which seeds
   copied that vs compressed it).
 
+**FARM 5 (combined recipe, 2026-07-28 afternoon): REGRESSED — and the
+root cause is a general lesson about synthesis from policy replays.**
+Seeds t/u/v/w (crouch + opening + X-hold): 0-1/4 escape, u/v absorbed at
+frame 104 via the exact route opening-synth targets. Root cause
+(commit ccae060): build_opening's extra_sources lead-ins kept the DEAD
+seeds' recorded controllers as labels — the farm was trained to IMITATE
+the absorbed policies' opening behavior. **Rule: any synthesis that
+harvests states from a policy replay must relabel with the expert;
+recorded controllers are only valid labels when the recorder was the
+teacher.** (DAgger knows this — it is the entire point of relabeling —
+and build_crouch never hit it because its lead-ins come from the teacher
+fixture.) Fixed + regression-tested; farm 6 reruns deconfounded (arm A
+opening-fix only, arm B + X-hold), since farm 5 also confounded the
+X-hold intervention with the poisoning. Interesting residue: seed t
+(marginal, 6-16/min) reached chains 4-10 — noted, not interpreted.
+
 **The remaining lottery is the GAME OPENING.** m absorbs at frame 104
 via the same entry route as g (324x20 > 29x10 > 42x30 = spawn-platform
 fall -> crouch, never shines). Rollout cross-test: m reproduces its
