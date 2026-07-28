@@ -545,8 +545,21 @@ Three findings:
   | f | 7.4 · 3.3 · 18.7 | 3 · 2 · 3 | FAILED (marginal) |
   | g | 0.0 · 0.0 · 0.0 | 0 | FAILED (dead) |
   | h | 5.7 · 6.5 · 4.9 | 1 · 2 · 1 | FAILED |
+  | i | 66.0 · 74.3 · 71.1 | 3 · 3 · 3 | escape |
+  | j | 4.1 · 1.6 · 1.6 | 1 · 2 · 1 | FAILED (73.8% crouch) |
+  | k | 68.8 · 81.0 · 70.9 | 3 · 4 · 4 | escape |
+  | l | 13.9 · 24.4 · 13.0 | 2 · 3 · 3 | FAILED (oscillating) |
 
-  Escape rate at n=8: **4/8** (a, b, c, d). Forensics on every failure:
+  Escape rate at n=12: **6/12 — exactly 50%** (a, b, c, d, i, k).
+  Sustain distribution among escapees: chains 2-4 for four of six,
+  8-11 for c, 19-22 only for a — the champion is ~1/12 rare, the
+  functional-bot tier is a coin flip per seed. Operational recipe:
+  train 2-3 seeds, keep any escapee; farm longer only when hunting a
+  sustainer. Seed l is a NEW failure variant: six REPEATED absorbed
+  spells of ~300-730f with brief escapes between, entering via a
+  near-identical RLE route each time (40x9-10 > 360x3 > 361x6 > 24x3 >
+  25x35 > 42x4) — a semi-permeable membrane, deterministic loop
+  structure visible in the route repetition. Forensics on every failure:
   ALL crouch-absorbed despite training WITH the crouch data — occupancy
   57.5-78.3%, spells 2525-3459f; g absorbs at frame 104 and never
   shines at all (entry 324x20 > 29x10 > 42x30, identical both runs);
