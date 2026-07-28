@@ -190,6 +190,49 @@ Seeds m, n, o trained with per-epoch mental rollouts
   caveat: 12-17% staleness, clean re-eval queued), o = 77-84/min clean,
   m = DEAD (0 shines).
 
+**Farm 4 (overnight): the fix's live verdict.** Fixed-synth n=7: escape
+3/7 (n, o, q) — the ">> 6/12" prediction is FALSIFIED as stated. But the
+sustain distribution transformed: 2 of 3 escapees are chains-18+
+sustainers (n re-evaled CLEAN: 114-141/min chains 14/18/17; q: 116/min
+chains 21/10), where the old recipe produced 2 sustainers in 12 seeds.
+Covered-basin escape is now universal (probe curves: ALL fixed seeds
+esc@2 offline by epoch 10-30, including the live-dead p/r/s) — the
+lottery consolidated into the OPENING route, which now kills outright
+(~4/7) instead of leaving seeds mediocre. Early-reject caveat: the
+current probe entries CANNOT catch opening deaths (p/r/s pass them);
+the discriminating state is each seed's OWN opening trajectory, which
+argues for opening-synth coverage rather than a better probe entry.
+
+**SUSTAIN MECHANISM FOUND (margin cartography + break species,
+`probe_cycle_margins.exs` + `analyze_break_phases.exs`).** Event-margin
+probing over each seed's own replay (measure at the bot's successful
+button EDGES — v1 labeled whole phases "should press" and produced
+flip=1.0 for the champion; presses are events, holds are not presses):
+
+- **jc_event X-margin separates sustainers from breakers 10/10 by
+  SIGN**: a +2.86, c +1.28, n +1.23, q +0.26 (flip 0.0) vs b -7.75,
+  d -4.83, e -4.16, i -4.33, j -4.74, k -5.84 (flip ~1.0). Sustainers
+  hold X positive through the JC window (fat plateau — harmless, the
+  edge already registered); breakers emit single-frame X spikes that
+  evaporate under one frame of drift. Known artifact: logits align one
+  frame late vs the controller stream (bridge delay), so aerial-event
+  numbers read the NEXT decision — the JC separation survives because
+  it is asymmetric across tiers under the same misalignment.
+- **Break species differ by tier** (chains>=2 only): sustainers a/n/q
+  break in the AIR (air_shine/empty_hop — the one-frame aerial B is
+  their only remaining weakness); old-recipe chains-2-4 escapees
+  b/i/k break on the GROUND (other_action 60-95% — they voluntarily
+  leave the cycle; alternation decays); o is pure empty_hop (JCs fine,
+  misses aerial B). "Why did the good run go well": fat X-hold at the
+  JC + staying in the loop on the ground; only the aerial shine still
+  breaks it.
+- Next: fix the 1-frame alignment for citable aerial margins; the
+  jc-margin sign is an early-reject-friendly SUSTAIN predictor
+  candidate (add to per-epoch probes); training lever suggested by the
+  mechanism: reward/label X-holds over X-spikes through the JC window
+  (the expert's own labels already hold X 2 frames — check which seeds
+  copied that vs compressed it).
+
 **The remaining lottery is the GAME OPENING.** m absorbs at frame 104
 via the same entry route as g (324x20 > 29x10 > 42x30 = spawn-platform
 fall -> crouch, never shines). Rollout cross-test: m reproduces its
