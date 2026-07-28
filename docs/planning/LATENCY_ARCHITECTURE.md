@@ -170,6 +170,39 @@ committed inputs. Both threads tasked (diagnose-metronomes,
 double-anticipation, in-flight-channel). Defaults gate remains CLOSED —
 second bad flip caught in two days.
 
+**Re-record experiment (RAN 2026-07-28, task 'double-anticipation')**:
+shifted teacher (closed_loop_d1, triggers one frame earlier) through an
+online_delay=1 bridge held ONE UNBROKEN CHAIN OF 787 (original: 791) —
+teacher-level adaptation works perfectly. But ms_rerec_a (delay-0
+training on the d1 fixture, full recipe):
+
+| condition | self/min | chains |
+|---|---|---|
+| async+0 | 104-113 | 4-5 |
+| async+1 (the "matched" one) | 80-83 | 2 |
+| sync | 80-96 | 2 |
+
+- **P3 CONFIRMED: sync ≈ async+1** (first direct estimate of sync's
+  effective delay: one frame more than async).
+- **P1 FAILED — and the margins explain why**: rerec_a has the fattest
+  critical margins ever measured (jc +5.8, aerial +4.2, flip 0.0, first
+  positive crit_p10_min) yet zero aerial_shine_events at +1 (empty_hop
+  breaks). Same-frame (state_t, applied_t) training CANNOT express
+  anticipation: it reproduces a stream lagging by the deployment delay
+  regardless of the recording's delay — a different recording only
+  changes which lagged copy you learn (crisply).
+
+**THE SYNTHESIS (what actually confers delay-matching)**: slippi-ai's
+scheme is label shift AND the in-flight action channel TOGETHER —
+state_i paired with action_{i+D+1}, with action_{i+D} (the queued
+action) as an INPUT. Farm 7 had the shift without the channel: the
+state collisions it died of (JC-commit vs B-hold on the same af 1-2
+states) are exactly what the queued-action input disambiguates. The
+re-record had neither. Neither half works alone; the in-flight channel
+(task 3) is not an enhancement — it is the missing half of delay
+adaptation. The shifted teacher + d1 fixture remain valuable as the
+matched-EVAL ground truth for that work.
+
 ## Defaults migration plan (NOT yet flipped — gates first)
 
 | Default | Current | Target | Gate |
