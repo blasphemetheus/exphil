@@ -18,7 +18,7 @@ alias ExPhil.Embeddings
 
 {opts, _, _} =
   OptionParser.parse(System.argv(),
-    strict: [replays: :string, out: :string, robust: :boolean, prev_action: :boolean, action_delay: :integer, prev_action_dropout: :float, window: :integer, synth_recovery: :boolean, synth_max_af: :integer, synth_ratio: :float, synth_crouch: :boolean, crouch_max_af: :integer, crouch_ratio: :float, synth_ledge: :boolean, ledge_strategy: :string, ledge_ratio: :float, ledge_max_af: :integer, noise: :float, noise_prob: :float, scheduled_sampling: :float, ss_ramp: :integer]
+    strict: [replays: :string, out: :string, robust: :boolean, prev_action: :boolean, action_delay: :integer, prev_action_dropout: :float, window: :integer, synth_recovery: :boolean, synth_max_af: :integer, synth_ratio: :float, synth_crouch: :boolean, crouch_max_af: :integer, crouch_ratio: :float, synth_ledge: :boolean, ledge_strategy: :string, ledge_ratio: :float, ledge_max_af: :integer, noise: :float, noise_prob: :float, scheduled_sampling: :float, ss_ramp: :integer, probe_basin: :boolean, probe_every: :integer]
   )
 
 # --replays accepts a dir or glob of .slp files; default = the single
@@ -185,6 +185,47 @@ trainer =
 
 {_predict_fn, loss_fn} = Imitation.build_loss_fn(trainer.policy_model)
 
+# --probe-basin: per-epoch mental rollout of the crouch basin
+# (INIT_FORENSICS option 6 — watch the init lottery get decided). Records
+# {epoch, loss, escape@entry...} to <out>.basin_probe.jsonl every
+# --probe-every epochs (default 5). Entries: the synthetic training-style
+# entry plus seed g's real absorbed entry when that replay exists.
+basin_probe =
+  if opts[:probe_basin] do
+    alias ExPhil.Interp.BasinRollout
+    {_init, probe_predict} = ExPhil.Training.Utils.build_compiled(trainer.policy_model, mode: :inference)
+
+    g_replay = "eval_runs/0727_crouch_g_idle/r1.slp"
+
+    entries =
+      [{"synthetic", BasinRollout.entry_synthetic()}] ++
+        if File.exists?(g_replay),
+          do: [{"g@104", BasinRollout.entry_from_replay(g_replay, 104)}],
+          else: []
+
+    probe_path = out_path <> ".basin_probe.jsonl"
+    File.rm(probe_path)
+    Output.puts("Basin probe: #{length(entries)} entries -> #{probe_path}")
+
+    fn epoch, loss, params ->
+      params = ExPhil.Training.Utils.ensure_model_state(params)
+
+      results =
+        Map.new(entries, fn {name, entry} ->
+          case BasinRollout.rollout(probe_predict, params, entry, max_frames: 120) do
+            {:escape, t} -> {name, t}
+            {:absorbed, _} -> {name, nil}
+          end
+        end)
+
+      line = Jason.encode!(Map.merge(%{epoch: epoch, loss: loss}, results))
+      File.write!(probe_path, line <> "\n", [:append])
+      results
+    end
+  end
+
+probe_every = opts[:probe_every] || 5
+
 # Robust mode can't use an absolute loss bar: label smoothing imposes a
 # FLOOR (≈0.33/categorical head at ε=0.05 → ~1.62 total) that no model can
 # go below. Stop on plateau instead: <1e-3 improvement over 100 epochs.
@@ -222,6 +263,14 @@ max_epochs = if robust, do: 800, else: 2000
 
     loss = Nx.to_number(epoch_loss)
     if rem(epoch, 25) == 0, do: Output.puts("epoch #{epoch}: loss=#{inspect(loss)}")
+
+    if basin_probe && (epoch == 1 or rem(epoch, probe_every) == 0) and is_number(loss) do
+      results = basin_probe.(epoch, loss, tr.policy_params)
+
+      if rem(epoch, 25) == 0 do
+        Output.puts("  basin probe: #{inspect(results)}")
+      end
+    end
 
     history = Enum.take([loss | history], 100)
 

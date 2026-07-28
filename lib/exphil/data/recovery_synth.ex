@@ -255,6 +255,14 @@ defmodule ExPhil.Data.RecoverySynth do
   # Squat af 1..2, then SquatWait af 1..max_af. Threads each label into the
   # next frame's `prev` so the expert's press/release alternation survives
   # into the data (see moduledoc).
+  #
+  # Tail frames carry CONSECUTIVE frame numbers continuing from the source
+  # frame: precompute_frame_embeddings only threads the prev-action channel
+  # across consecutive frame numbers, and with the source number duplicated
+  # (pre-2026-07-27 behavior) every tail frame embedded prev as ABSENT — the
+  # release-when-prev-B signal was invisible in exactly the states this
+  # synthesis exists to cover, leaving escape to init luck (measured 6/12;
+  # INIT_FORENSICS_OPTIONS.md).
   defp crouch_tail(frame, port, max_af, expert, prev0) do
     player = frame.game_state.players[port]
 
@@ -262,8 +270,8 @@ defmodule ExPhil.Data.RecoverySynth do
       Enum.map(1..2, &{Constants.squat(), &1}) ++
         Enum.map(1..max_af, &{Constants.squat_wait(), &1})
 
-    {tail, _prev} =
-      Enum.reduce(states, {[], prev0}, fn {action, af}, {acc, prev} ->
+    {tail, _prev, _n} =
+      Enum.reduce(states, {[], prev0, 1}, fn {action, af}, {acc, prev, n} ->
         shifted = %{player | action: action, action_frame: af, on_ground: true}
 
         case MultishineExpert.label(expert, shifted, prev) do
@@ -272,14 +280,18 @@ defmodule ExPhil.Data.RecoverySynth do
 
             out = %{
               frame
-              | game_state: %{frame.game_state | players: players},
+              | game_state: %{
+                  frame.game_state
+                  | players: players,
+                    frame: frame.game_state.frame + n
+                },
                 controller: controller
             }
 
-            {[out | acc], controller}
+            {[out | acc], controller, n + 1}
 
           :skip ->
-            {acc, prev}
+            {acc, prev, n}
         end
       end)
 
