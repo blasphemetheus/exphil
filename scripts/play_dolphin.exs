@@ -25,10 +25,10 @@ alias ExPhil.Bridge.ControllerState
 alias ExPhil.Training.Output
 
 # Parse command line arguments using CLI module
-@flag_groups [:verbosity, :checkpoint, :replay, :dolphin, :common]
+flag_groups = [:verbosity, :checkpoint, :replay, :dolphin, :common]
 
 opts = CLI.parse_args(System.argv(),
-  flags: @flag_groups,
+  flags: flag_groups,
   defaults: [character: "mewtwo"]
 )
 
@@ -47,7 +47,7 @@ opts = Keyword.update(opts, :stage, :final_destination, fn
 end)
 
 # Handle help
-CLI.maybe_show_help(opts, "play_dolphin.exs", @flag_groups, fn ->
+CLI.maybe_show_help(opts, "play_dolphin.exs", flag_groups, fn ->
   IO.puts("""
 
   EXAMPLES:
@@ -119,7 +119,13 @@ bridge_config = %{
   opponent_port: opts[:opponent_port],
   character: opts[:character],
   stage: opts[:stage],
-  online_delay: opts[:frame_delay]
+  online_delay: opts[:frame_delay],
+  # Dummy opponent (same keys as play_dolphin_async.exs) — makes the SYNC
+  # runner usable for unattended eval blocks (deterministic 1-frame delay,
+  # no staleness by construction; the jitter experiment of 2026-07-28).
+  dummy_mode: opts[:dummy],
+  dummy_character: opts[:dummy_character],
+  dummy_cpu_level: opts[:dummy_cpu_level]
 }
 
 case MeleePort.init_console(bridge, bridge_config, 60_000) do
@@ -232,10 +238,61 @@ defmodule GameLoop do
           "\n[#{timestamp()}] 🎮 IN GAME! Starting agent control at frame #{game_state.frame}"
         )
 
-        %{stats | in_game: true, start_time: System.monotonic_time(:millisecond)}
+        stats
+        |> Map.put(:in_game, true)
+        |> Map.put(:start_time, System.monotonic_time(:millisecond))
+        |> Map.put(:start_frame, game_state.frame)
       else
         stats
       end
+
+    # --seconds N: play N in-game seconds, then SD until the game ends so
+    # Slippi finalizes the .slp (same contract as play_dolphin_async.exs).
+    seconds = opts[:cli_opts][:seconds]
+
+    if seconds && stats.frames >= seconds * 60 do
+      span = game_state.frame - (stats[:start_frame] || game_state.frame)
+      skipped = max(span - stats.frames, 0)
+
+      IO.puts("\n[#{timestamp()}] --seconds reached — SD-ing to end the game")
+
+      IO.puts(
+        "  Final stats: #{stats.frames} frames, #{stats.frames} inferences (sync), " <>
+          "#{span} game frames elapsed, skipped #{skipped} (#{Float.round(skipped * 100 / max(span, 1), 1)}%)"
+      )
+
+      sd_until_game_end(bridge)
+      Process.sleep(3_000)
+      IO.puts("[#{timestamp()}]   Game end: replay finalized")
+      {:ok, stats}
+    else
+      handle_in_game_play(agent, bridge, player_port, game_state, stats, opts)
+    end
+  end
+
+  # After the footage: hold full left until the game ends (max ~2 min).
+  defp sd_until_game_end(bridge, frames_left \\ 7200)
+  defp sd_until_game_end(_bridge, 0), do: {:error, :sd_timeout}
+
+  defp sd_until_game_end(bridge, frames_left) do
+    hold_left = %{
+      main_stick: %{x: 0.0, y: 0.5},
+      c_stick: %{x: 0.5, y: 0.5},
+      shoulder: 0.0,
+      buttons: %{a: false, b: false, x: false, y: false, z: false, l: false, r: false, d_up: false}
+    }
+
+    case MeleePort.step(bridge, auto_menu: false) do
+      {:ok, _} ->
+        MeleePort.send_controller(bridge, hold_left)
+        sd_until_game_end(bridge, frames_left - 1)
+
+      _postgame_menu_or_end ->
+        {:ok, :game_ended}
+    end
+  end
+
+  defp handle_in_game_play(agent, bridge, player_port, game_state, stats, opts) do
 
     # Check for stock changes and game end
     {stats, game_over} = check_stocks(game_state, stats, player_port)
@@ -376,7 +433,7 @@ end
 
 # Run the game loop
 try do
-  GameLoop.run(agent, bridge, opts[:port], no_auto_menu: opts[:no_auto_menu])
+  GameLoop.run(agent, bridge, opts[:port], no_auto_menu: opts[:no_auto_menu], cli_opts: opts)
 rescue
   e in RuntimeError ->
     IO.puts("\nError: #{Exception.message(e)}")

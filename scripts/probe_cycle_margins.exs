@@ -30,10 +30,17 @@ alias ExPhil.Interp.Activations
 alias ExPhil.Training.{Data, Output}
 
 {opts, _, _} =
-  OptionParser.parse(System.argv(), strict: [policies: :string, out: :string])
+  OptionParser.parse(System.argv(), strict: [policies: :string, out: :string, offset: :integer])
 
 policy_glob = opts[:policies] || "checkpoints/ms_crouch*.bin"
 out_path = opts[:out] || "eval_runs/interp/cycle_margins.json"
+
+# Bridge delay: controller[t] was decided from the window ending at t+OFFSET
+# (live loop: read frame t-1 -> infer -> input lands on frame t, so -1).
+# The script also prints a per-seed empirical calibration: B/X parity
+# restricted to TRANSITION frames (constant stretches are alignment-blind)
+# at offsets 0/-1/-2 — the margin tables use --offset (default -1).
+offset = opts[:offset] || -1
 
 # Measured live max chains (best across runs; INIT_FORENSICS + farm logs)
 chains = %{
@@ -138,22 +145,48 @@ results =
         end)
 
       frames_arr = List.to_tuple(frames)
+      logits_arr = List.to_tuple(logits)
+      logit_at = fn t -> if t >= window - 1 and t < total, do: elem(logits_arr, t - (window - 1)) end
+
+      # Offset calibration: transition-frame parity at candidate offsets.
+      transitions =
+        for t <- window..(total - 1),
+            f = elem(frames_arr, t),
+            p = elem(frames_arr, t - 1),
+            f.controller.button_b != p.controller.button_b or
+              f.controller.button_x != p.controller.button_x,
+            do: t
+
+      cal =
+        Map.new([0, -1, -2], fn off ->
+          hits =
+            Enum.count(transitions, fn t ->
+              case logit_at.(t + off) do
+                nil ->
+                  false
+
+                {b, x} ->
+                  f = elem(frames_arr, t)
+                  (b > 0.0) == f.controller.button_b and (x > 0.0) == f.controller.button_x
+              end
+            end)
+
+          {off, Float.round(hits / max(length(transitions), 1), 3)}
+        end)
 
       by_phase =
-        logits
-        |> Enum.with_index(window - 1)
-        |> Enum.reduce(%{}, fn {{b, x}, t}, acc ->
+        Enum.reduce((window - 1)..(total - 1), %{}, fn t, acc ->
           f = elem(frames_arr, t)
           prev_f = if t > 0, do: elem(frames_arr, t - 1)
           player = f.game_state.players[1]
 
-          case event_of.(player, f.controller, prev_f && prev_f.controller) do
-            nil ->
-              acc
-
-            event ->
-              logit = if event_btn[event] == :b, do: b, else: x
-              Map.update(acc, event, [logit], &[logit | &1])
+          with event when event != nil <-
+                 event_of.(player, f.controller, prev_f && prev_f.controller),
+               {b, x} <- logit_at.(t + offset) do
+            logit = if event_btn[event] == :b, do: b, else: x
+            Map.update(acc, event, [logit], &[logit | &1])
+          else
+            _ -> acc
           end
         end)
 
@@ -176,7 +209,7 @@ results =
 
       Output.puts(
         "#{String.pad_trailing(seed, 16)} chains=#{String.pad_trailing(to_string(chains[seed]), 4)} " <>
-          "crit_p10_min=#{inspect(crit_score)} " <>
+          "cal=#{inspect(cal)} crit_p10_min=#{inspect(crit_score)} " <>
           Enum.map_join(critical, " ", fn ph ->
             case stats[ph] do
               nil -> "#{ph}=-"

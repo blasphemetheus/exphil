@@ -28,6 +28,7 @@ RUNS=3
 SECONDS_ARG=60
 DUMMY=cpu
 TEMPERATURE=""
+RUNNER=async
 EXTRA=()
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -35,10 +36,21 @@ while [ $# -gt 0 ]; do
     --seconds) SECONDS_ARG="$2"; shift 2 ;;
     --dummy) DUMMY="$2"; shift 2 ;;
     --temperature) TEMPERATURE="$2"; shift 2 ;;
+    --runner) RUNNER="$2"; shift 2 ;;
     --) shift; EXTRA=("$@"); break ;;
     *) echo "unknown arg: $1" >&2; exit 2 ;;
   esac
 done
+
+# --runner sync: frame-locked loop (play_dolphin.exs) — deterministic
+# 1-frame delay, no staleness by construction; per-run health stat is the
+# "skipped N (x%)" line instead. The jitter experiment of 2026-07-28.
+RUNNER_SCRIPT=scripts/play_dolphin_async.exs
+RUNNER_ARGS=(--on-game-end stop)
+if [ "$RUNNER" = "sync" ]; then
+  RUNNER_SCRIPT=scripts/play_dolphin.exs
+  RUNNER_ARGS=()
+fi
 
 # --temperature T: stochastic decode (EXPOSURE_BIAS 6-replication follow-up —
 # sampling is the only noise that can ESCAPE an absorber; stale-send repeat
@@ -62,7 +74,7 @@ if [ "${FORCE:-0}" != "1" ]; then
 fi
 
 mkdir -p "$OUTDIR"
-echo "policy=$POLICY runs=$RUNS seconds=$SECONDS_ARG dummy=$DUMMY decode=${DECODE_ARGS[*]} loadavg=$(cut -d' ' -f1-3 /proc/loadavg)" | tee "$OUTDIR/protocol.txt"
+echo "policy=$POLICY runner=$RUNNER runs=$RUNS seconds=$SECONDS_ARG dummy=$DUMMY decode=${DECODE_ARGS[*]} loadavg=$(cut -d' ' -f1-3 /proc/loadavg)" | tee "$OUTDIR/protocol.txt"
 
 DUMMY_ARGS=(--dummy "$DUMMY" --dummy-character fox)
 [ "$DUMMY" = "cpu" ] && DUMMY_ARGS+=(--dummy-cpu-level 1)
@@ -77,16 +89,16 @@ kill_dolphins() {
 for i in $(seq 1 "$RUNS"); do
   kill_dolphins
   echo "=== run $i/$RUNS start $(date +%H:%M:%S) loadavg=$(cut -d' ' -f1 /proc/loadavg)"
-  XLA_TARGET=cpu timeout $((SECONDS_ARG + 420)) mix run scripts/play_dolphin_async.exs \
+  XLA_TARGET=cpu timeout $((SECONDS_ARG + 420)) mix run "$RUNNER_SCRIPT" \
     --policy "$POLICY" \
     --dolphin "$DOLPHIN_DIR" --iso "$ISO" \
     --character fox "${DUMMY_ARGS[@]}" \
-    --on-game-end stop --seconds "$SECONDS_ARG" "${DECODE_ARGS[@]}" \
+    --seconds "$SECONDS_ARG" "${RUNNER_ARGS[@]}" "${DECODE_ARGS[@]}" \
     "${EXTRA[@]}" > "$OUTDIR/r$i.log" 2>&1
   kill_dolphins
   newest=$(ls -t "$HOME"/Slippi/*.slp 2>/dev/null | head -1)
   [ -n "$newest" ] && cp "$newest" "$OUTDIR/r$i.slp"
-  grep -a "Final stats\|Staleness\|SD FAILED\|replay finalized" "$OUTDIR/r$i.log" | sed "s/^/  r$i /"
+  grep -a "Final stats\|Staleness\|skipped\|SD FAILED\|replay finalized" "$OUTDIR/r$i.log" | sed "s/^/  r$i /"
 done
 
 echo "=== scoring"
