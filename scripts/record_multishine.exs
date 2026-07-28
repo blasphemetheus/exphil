@@ -50,7 +50,8 @@ alias ExPhil.Training.Output
       slippi_dir: :string,
       out: :string,
       dummy: :string,
-      dummy_cpu_level: :integer
+      dummy_cpu_level: :integer,
+      online_delay: :integer
     ]
   )
 
@@ -117,7 +118,17 @@ defmodule Multishine do
   @reflector_range 360..369
   @jumpsquat 24
 
-  def input(:closed_loop, _frame, player) do
+  # :closed_loop_d1 — the teacher for a bridge with ONE EXTRA frame of
+  # delay (online_delay 1; the async+1/sync harness condition). Same rules,
+  # trigger windows shifted one frame EARLIER so inputs still land on their
+  # mechanic frames (LATENCY_ARCHITECTURE.md double-anticipation: adapting
+  # to a slower harness means re-recording the teacher through it, not
+  # shifting labels — farm 7's label shift put colliding labels on
+  # two-frame-resolution states and dissolved every chain).
+  def input(:closed_loop, frame, player), do: closed_loop(frame, player, 0)
+  def input(:closed_loop_d1, frame, player), do: closed_loop(frame, player, 1)
+
+  defp closed_loop(_frame, player, shift) do
     in_reflector = player.action in @reflector_range
     af = max(player.action_frame || 0, 0)
 
@@ -130,8 +141,9 @@ defmodule Multishine do
     cond do
       # Grounded reflector, too early to JC: hold B (keep it out).
       # Window shifted 1 early vs the true JC frame (4): the bridge applies
-      # inputs one frame late, so pressing at af 3 lands at af 4.
-      in_reflector and player.on_ground and af <= 2 ->
+      # inputs one frame late, so pressing at af 3 lands at af 4. `shift`
+      # moves every trigger another frame earlier for slower bridges.
+      in_reflector and player.on_ground and af <= 2 - shift ->
         controller(b: true)
 
       # Grounded reflector, JC window (af 3..4, arrives 4..5): X pressed
@@ -140,7 +152,7 @@ defmodule Multishine do
       # the aerial shine is produced by the jumpsquat branch's release
       # instead (measured 2026-07-24: releasing B in the air made the shine
       # wind down 368->363 x14 -> crouch instead of landing JC-able).
-      in_reflector and player.on_ground and af <= 4 ->
+      in_reflector and player.on_ground and af <= 4 - shift ->
         controller(b: true, x: true)
 
       # af 5..8: JC should have taken; keep the reflector out (X released —
@@ -192,7 +204,7 @@ defmodule Multishine do
       # float. The frame-1 shine is the entire difference between a
       # multishine and a shine-hop.
       player.action == @jumpsquat ->
-        controller(b: af >= 3)
+        controller(b: af >= 3 - shift)
 
       # Airborne without reflector (just left the ground from the JC): shine
       # IMMEDIATELY — this is THE multishine input ("shining again the frame
@@ -543,7 +555,7 @@ defmodule RecordLoop do
 
         {input, mstate} =
           case {mode, game_state.players[1]} do
-            {m, nil} when m in [:closed_loop, :jc_upsmash, :capability] ->
+            {m, nil} when m in [:closed_loop, :closed_loop_d1, :jc_upsmash, :capability] ->
               if rem(in_game_frames, 60) == 0, do: IO.puts("[#{mode}] P1 is nil!")
               {Multishine.neutral(), mstate}
 
@@ -559,7 +571,7 @@ defmodule RecordLoop do
 
               {input, mstate}
 
-            {m, player} when m in [:closed_loop, :jc_upsmash] ->
+            {m, player} when m in [:closed_loop, :closed_loop_d1, :jc_upsmash] ->
               # MULTISHINE_TRACE=1: per-frame physics trace for timing
               # diagnosis (y / vertical speed / af) — the only way to see
               # WHY an air phase is long, since action segments can't.
@@ -677,6 +689,7 @@ Output.puts("Launching Dolphin (pick any character on the opponent port)...")
     # multishine loop being recorded.
     dummy_cpu_level: opts[:dummy_cpu_level] || 0,
     # Headless (ExiAI build) for unattended sweeps; MULTISHINE_HEADLESS=1.
+    online_delay: opts[:online_delay] || 0,
     headless: System.get_env("MULTISHINE_HEADLESS") == "1",
     no_audio: System.get_env("MULTISHINE_HEADLESS") == "1"
   })
