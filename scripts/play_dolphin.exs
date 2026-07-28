@@ -270,7 +270,9 @@ defmodule GameLoop do
     end
   end
 
-  # After the footage: hold full left until the game ends (max ~2 min).
+  # After the footage: LRAS (instant quit, proper Slippi game end) for the
+  # first 2s, then hold-left walk-off fallback until the game ends (~2 min
+  # cap). Logs stocks/x/action every second — SD-flake observability.
   defp sd_until_game_end(bridge, frames_left \\ 7200)
   defp sd_until_game_end(_bridge, 0), do: {:error, :sd_timeout}
 
@@ -282,9 +284,32 @@ defmodule GameLoop do
       buttons: %{a: false, b: false, x: false, y: false, z: false, l: false, r: false, d_up: false}
     }
 
+    lras = %{
+      main_stick: %{x: 0.5, y: 0.5},
+      c_stick: %{x: 0.5, y: 0.5},
+      shoulder: 0.0,
+      buttons: %{a: true, b: false, x: false, y: false, z: false, l: true, r: true, d_up: false, start: true}
+    }
+
+    # LRAS gated OFF pending polling-mode console support (pause stalls the
+    # frame stream and deadlocks the bridge inside console.step — see
+    # AsyncRunner @lras_frames note). 0 = straight to hold-left.
+    lras_frames = 0
+    frames_used = 7200 - frames_left
+    input = if frames_used < lras_frames, do: lras, else: hold_left
+
     case MeleePort.step(bridge, auto_menu: false) do
-      {:ok, _} ->
-        MeleePort.send_controller(bridge, hold_left)
+      {:ok, game_state} ->
+        if rem(frames_used, 60) == 0 do
+          p = game_state.players[1]
+
+          IO.puts(
+            "[SD] f#{frames_used} phase=#{if(frames_used < lras_frames, do: "LRAS", else: "hold-left")} " <>
+              "stocks=#{p && p.stock} x=#{p && Float.round(p.x * 1.0, 1)} action=#{p && p.action}"
+          )
+        end
+
+        MeleePort.send_controller(bridge, input)
         sd_until_game_end(bridge, frames_left - 1)
 
       _postgame_menu_or_end ->

@@ -56,10 +56,14 @@ frames =
     |> Peppi.to_training_frames(player_port: 1, opponent_port: 2)
     |> Enum.reject(&(&1.game_state.frame < 0))
     # Drop the SD tail (recorder holds pure left with no buttons to end the
-    # game) — filter by that exact input signature rather than a fixed count
+    # game) — filter by that exact input signature rather than a fixed count.
+    # Second signature (2026-07-28): the LRAS quit — A+L+R held with a
+    # neutral stick (Start isn't recorded in parsed controller state).
     |> Enum.reject(fn %{controller: c} ->
-      c.main_stick.x < 0.25 and c.main_stick.y > 0.4 and
-        not c.button_b and not c.button_x
+      (c.main_stick.x < 0.25 and c.main_stick.y > 0.4 and
+         not c.button_b and not c.button_x) or
+        (c.button_a and c.button_l and c.button_r and
+           abs(c.main_stick.x - 0.5) < 0.1)
     end)
   end)
 

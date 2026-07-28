@@ -39,6 +39,17 @@ defmodule ExPhil.Bridge.AsyncRunner do
   """
 
   use GenServer
+
+  # LRAS (L+R+A+Start instant quit) is DISABLED until the bridge supports
+  # polling-mode console stepping: Start pauses the game, a paused game
+  # stops producing frames, and libmelee only flushes controller state
+  # inside console.step() — so the single-threaded Python bridge deadlocks
+  # inside step() and the quit-completing Start edge can never be
+  # delivered (measured 2026-07-28: game paused, one [SD] frame, then
+  # stall). slippi-ai solves this with console polling mode
+  # (console_timeout); see LATENCY_ARCHITECTURE.md direction #4 — enable
+  # @lras_frames > 0 only after that lands.
+  @lras_frames 0
   require Logger
 
   alias ExPhil.Agents.Agent
@@ -477,7 +488,21 @@ defmodule ExPhil.Bridge.AsyncRunner do
     # the other ~30% produced a TRUNCATED .slp that peppi rejects, silently
     # costing an entire recording.
     if sd_mode?(table) do
-      MeleePort.send_controller(bridge, sd_input(player_port))
+      n = :ets.update_counter(table, :sd_frames, 1, {:sd_frames, 0})
+
+      # SD-flake observability: is the input stream landing? x moving /
+      # stocks dropping = yes; frozen = the stream is desynced and the game
+      # never sees the quit inputs.
+      if rem(n, 60) == 1 do
+        p = game_state.players[player_port]
+
+        IO.puts(
+          "[SD] f#{n} phase=#{if(n <= @lras_frames, do: "LRAS", else: "hold-left")} " <>
+            "stocks=#{p && p.stock} x=#{p && Float.round((p.x || 0.0) * 1.0, 1)} action=#{p && p.action}"
+        )
+      end
+
+      MeleePort.send_controller(bridge, sd_input(player_port, n))
     else
       case :ets.lookup(table, :latest_action) do
         [{:latest_action, nil}] ->
@@ -612,10 +637,28 @@ defmodule ExPhil.Bridge.AsyncRunner do
     end
   end
 
-  # Full left, no buttons: walk off and do not recover. Same input signature as
-  # record_multishine.exs uses, so the SD tail stays filterable from training
-  # data by that exact signature.
-  defp sd_input(player_port) do
+  # End-game input schedule: LRAS (L+R+A+Start — instant match quit with a
+  # proper Slippi game-end event) for the first @lras_frames, then the
+  # legacy hold-left walk-off as fallback. All four LRAS buttons go in ONE
+  # message (a partial press pauses instead — and LRAS also quits from the
+  # pause screen, so even that resolves). Start is send-only in the bridge
+  # protocol (melee_bridge.py button_map; deliberately absent from
+  # serialize_controller_state to preserve the 13-dim prev-action contract).
+  #
+  # Training-data filterability: hold-left keeps the pure-left-no-buttons
+  # signature; LRAS frames are filtered by A+L+R held with neutral stick
+  # (see train_multishine_policy.exs reject clause).
+  defp sd_input(player_port, n) when n <= @lras_frames do
+    %{
+      port: player_port,
+      main_stick: %{x: 0.5, y: 0.5},
+      c_stick: %{x: 0.5, y: 0.5},
+      shoulder: 0.0,
+      buttons: %{a: true, b: false, x: false, y: false, z: false, l: true, r: true, d_up: false, start: true}
+    }
+  end
+
+  defp sd_input(player_port, _n) do
     %{
       port: player_port,
       main_stick: %{x: 0.0, y: 0.5},

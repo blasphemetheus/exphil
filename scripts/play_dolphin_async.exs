@@ -368,6 +368,21 @@ defmodule GracefulSD do
     buttons: %{a: false, b: false, x: false, y: false, z: false, l: false, r: false, d_up: false}
   }
 
+  # L+R+A+Start: the instant match quit ("salty runback"). Ends the game in
+  # ~1 frame with a proper Slippi game-end event — no walk-off, no deaths.
+  # All four in ONE controller message (partial presses would pause instead;
+  # LRAS also quits from the pause screen, so even that resolves). Start is
+  # send-only in the bridge protocol (see melee_bridge.py button_map).
+  @lras %{
+    main_stick: %{x: 0.5, y: 0.5},
+    c_stick: %{x: 0.5, y: 0.5},
+    shoulder: 0.0,
+    buttons: %{a: true, b: false, x: false, y: false, z: false, l: true, r: true, d_up: false, start: true}
+  }
+
+  # Frames of LRAS attempts before falling back to the hold-left walk-off.
+  @lras_frames 120
+
   # MeleePort's default step timeout is 90 SECONDS. Stopping the AsyncRunner
   # can leave an in-flight request/response pair mid-transit, so the first
   # step() here blocks on a reply the dying reader already consumed. At 90s a
@@ -406,8 +421,24 @@ defmodule GracefulSD do
 
       true ->
         case step(bridge) do
-          {:ok, _} ->
-            MeleePort.send_controller(bridge, @hold_left)
+          {:ok, game_state} ->
+            frames_used = 7200 - frames_left
+            input = if frames_used < @lras_frames, do: @lras, else: @hold_left
+
+            # Observability (SD-flake diagnosis): does the input stream
+            # actually land? If x isn't moving and stocks aren't dropping
+            # during hold-left, the bridge stream is desynced (the
+            # 2026-07-26 teardown failure mode), not the game refusing.
+            if rem(frames_used, 60) == 0 do
+              p = game_state.players[1]
+
+              IO.puts(
+                "[SD] f#{frames_used} phase=#{if(frames_used < @lras_frames, do: "LRAS", else: "hold-left")} " <>
+                  "stocks=#{p && p.stock} x=#{p && Float.round(p.x * 1.0, 1)} action=#{p && p.action}"
+              )
+            end
+
+            MeleePort.send_controller(bridge, input)
             run(bridge, frames_left - 1, 0)
 
           :timeout ->

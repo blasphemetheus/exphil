@@ -237,6 +237,10 @@ def apply_controller_input(controller: melee.Controller, input_data: Dict[str, A
         "l": Button.BUTTON_L,
         "r": Button.BUTTON_R,
         "d_up": Button.BUTTON_D_UP,
+        # Start is SEND-ONLY (LRAS game-quit for replay finalization). It is
+        # deliberately absent from serialize_controller_state: adding it there
+        # would widen the 13-dim prev-action embedding contract.
+        "start": Button.BUTTON_START,
     }
 
     for name, button in button_map.items():
