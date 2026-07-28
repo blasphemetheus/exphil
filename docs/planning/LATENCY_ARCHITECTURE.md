@@ -203,6 +203,24 @@ re-record had neither. Neither half works alone; the in-flight channel
 adaptation. The shifted teacher + d1 fixture remain valuable as the
 matched-EVAL ground truth for that work.
 
+**Channel analysis revision (2026-07-28 evening, task 'in-flight
+channel', from reading the agent code)**: at D=1 the in-flight channel
+ALREADY EXISTS with aligned semantics — training prev-action threads
+the SHIFTED stream (shift_actions runs before precompute), making
+channel[t] = label of t-1; the live agent feeds its own previous decode
+= exactly the same thing. The prev channel IS the full one-item queue
+at D=1. New plumbing is only required at D >= 2 (netplay). This
+retracts the "farm 7 died for lack of the channel" story and reopens
+the metronome cause. NEW PRIME SUSPECT: --x-hold-extend widens X at
+UNSHIFTED positions and shift_actions then moves labels underneath
+(590 widened frames -> X=true on hold-phase states = the collision,
+caused by transform ORDERING, not architecture). Farm 8 (running,
+pre-registered): arm A = shift WITHOUT x-hold (prediction: chains under
+async+1 — the matched-training gate finally passing); arm B = shift+SS
+0.5 (channel exposure robustness). If arm A passes, the transform-order
+fix is: apply x-hold-extend AFTER shift_actions, or key it on shifted
+positions.
+
 ## Defaults migration plan (NOT yet flipped — gates first)
 
 | Default | Current | Target | Gate |
