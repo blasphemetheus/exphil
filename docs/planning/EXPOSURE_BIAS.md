@@ -630,6 +630,27 @@ Three findings:
   both with intact cycle precision (chains 3-9). The membrane leak is a
   property of absorbed policies as a class, not of one seed.
 
+  **T SWEEP on ms_crouch_g (same evening): the rescue SATURATES by
+  T=0.3 — the dose-response is FLAT, and the pre-registered
+  "lower T -> weaker rescue" prediction was WRONG.**
+
+  | T | self/min | chains |
+  |---|---|---|
+  | 0 (argmax) | 0 · 0 · 0 | 0 |
+  | 0.3 | 80.9 · 77.4 · 70.3 | 4 · 5 · 3 |
+  | 0.5 | 78.4 · 72.8 · 61.5 | 4 · 3 · 3 |
+  | 1.0 | 63.9 · 77.8 · 76.0 | 3 · 3 · 3 |
+
+  Reading: escape is not rate-limited by leak probability in this range
+  — even T=0.3's occasional B-fire suffices, because once out of the
+  basin the (deterministic-ish) cycle dynamics are intact and every
+  escape immediately pays shines. The 0 -> full-rescue transition is a
+  sharp threshold somewhere in (0, 0.3), untested. Chains sit at 3-5
+  across ALL temperatures — sampling rescues RATE, never SUSTAIN,
+  consistent with the ms_crouch_b result. Practical: if shipping a
+  sampled decode as an absorber safety net, T=0.3 buys the rescue at
+  the lowest cycle-slip cost measured.
+
 ## How to judge any of them
 
 `mix run scripts/eval_policy_on_rollout.exs --policy X --rollout R` on a FIXED
