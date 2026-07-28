@@ -195,6 +195,27 @@ defmodule ExPhil.Data.RecoverySynthTest do
       assert numbers == Enum.to_list(hd(numbers)..(hd(numbers) + length(numbers) - 1))
     end
 
+    test "lead-ins are relabeled by the expert, not the recorded controllers" do
+      # Poisoned source: recorded controllers hold B on every frame (a dead
+      # policy's absorbed stream). Labels must NOT inherit the hold.
+      poisoned =
+        Enum.map(0..129, fn n ->
+          f = frame(n, 29, n + 1)
+          %{f | controller: %{f.controller | button_b: true}}
+        end)
+
+      out =
+        RecoverySynth.build_opening(poisoned,
+          expert: expert(),
+          lead_in: 6,
+          max_af: 5,
+          graft_frames: [100]
+        )
+
+      lead_b = out |> Enum.take(6) |> Enum.map(& &1.controller.button_b)
+      refute lead_b == [true, true, true, true, true, true]
+    end
+
     test "extra_sources with frame-number resets are split into openings" do
       # Two concatenated "replays", each with its own opening.
       extra = opening_frames() ++ opening_frames()

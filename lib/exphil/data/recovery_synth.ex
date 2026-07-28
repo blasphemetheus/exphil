@@ -161,7 +161,22 @@ defmodule ExPhil.Data.RecoverySynth do
           i ->
             frame = Enum.at(opening, i)
             lead = Enum.slice(opening, max(i - lead_in + 1, 0), min(i + 1, lead_in))
-            prev = List.last(lead) |> then(&(&1 && &1.controller))
+
+            # RELABEL the lead with the expert, threading prev through it
+            # into the tail. The recorded controllers of an extra_sources
+            # lead are a DEAD POLICY'S own outputs (hold-B, crouch) —
+            # keeping them as labels teaches the absorber's behavior in
+            # exactly the states this synthesis exists to fix (measured
+            # 2026-07-28: farm 5 seeds trained on unrelabeled dead-seed
+            # openings absorbed at frame 104 via the identical route).
+            {lead, prev} =
+              Enum.map_reduce(lead, nil, fn f, prev ->
+                case MultishineExpert.label(expert, f.game_state.players[port], prev) do
+                  {:ok, c} -> {%{f | controller: c}, c}
+                  :skip -> {f, f.controller}
+                end
+              end)
+
             lead ++ crouch_tail(frame, port, max_af, expert, prev)
         end
       end)
