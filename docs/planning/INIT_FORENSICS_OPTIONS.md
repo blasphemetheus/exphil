@@ -159,3 +159,46 @@ conditioning metric; v2/v3 are the instruments), 1b [x], 5 [x],
 2 [ ] (saliency contrast now well-posed: does the B logit's gradient
 weight prev-action dims for escapers vs af dims?), 6 [ ] (design ready:
 per-epoch mental-rollout escape fraction).
+
+### 2026-07-28 midnight session (options 2 + 6 executed; fix tested live)
+
+**Option 2 DONE (`probe_b_attribution.exs`).** Gradient x input on the
+deep-basin B logit, with the prev-B dim located separately
+(discover_dims' probe controller never toggles B — its :prev_action
+group misses the load-bearing dim; fixed in-script). Result: attribution
+MAGNITUDE does not separate outcomes (g attends prev-B 0.109 ~= a's
+0.093); combined with the boundary gap's SIGN it completes the
+taxonomy — three circuit solutions to the same labels:
+- prev-B NEGATIVE coupling (release-on-held = the edge rule): a, c, d
+- prev-B POSITIVE coupling (perseveration — copy what I just did):
+  g, h, j = the hold-B absorbers
+- af-parity/state-driven alternation (near-zero prev coupling): b, i, k
+Note the structural artifact: prev_b share is necessarily 0 in the
+no-B variant (gradient x input on a zero input) — only the held variant
+is informative for that dim.
+
+**Option 6 DONE + RecoverySynth fix tested (commit 4afb006).** Tail
+frames renumbered -> prev threads -> the release rule became learnable.
+Seeds m, n, o trained with per-epoch mental rollouts
+(`--probe-basin`, JSONL curves):
+- Convergence 2-4x faster (20/34/40 epochs vs ~80+): the alternating
+  labels went from half-noise to predictable.
+- The lottery, watched: ALL THREE seeds acquire covered-basin escape
+  between epoch 1 and 10 (absorbed -> esc@2) — on the fixed synthesis,
+  covered-region escape is no longer init luck.
+- Live: n = 104-124/min chains 20/10/8 (SECOND SEED EVER past chain 10;
+  caveat: 12-17% staleness, clean re-eval queued), o = 77-84/min clean,
+  m = DEAD (0 shines).
+
+**The remaining lottery is the GAME OPENING.** m absorbs at frame 104
+via the same entry route as g (324x20 > 29x10 > 42x30 = spawn-platform
+fall -> crouch, never shines). Rollout cross-test: m reproduces its
+death offline from its own m@104 entry; n and o ALSO fail from m's
+hole (they live-escape only because their own openings never dig it);
+**ms_crouch_a escapes m's hole in 1 frame** — the champion is a
+genuinely different tier. The uncovered state region = basin windows
+whose HISTORY is entry-animation frames (fixture contains none). Next
+coverage target: OPENING SYNTH — graft crouch tails onto entry-route
+lead-ins. Prediction: kills the m/g failure mode; escape rate -> ~1.
+Overnight farm 4 (seeds p-s + clean n re-eval) pins the fixed-synth
+rate meanwhile.
