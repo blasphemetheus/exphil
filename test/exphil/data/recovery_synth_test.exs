@@ -152,6 +152,67 @@ defmodule ExPhil.Data.RecoverySynthTest do
     end
   end
 
+  describe "build_opening/2" do
+    # An "opening": entry-ish actions over game frames 0..130, then later
+    # non-opening frames that must NOT be used as lead-ins.
+    defp opening_frames do
+      entry = Enum.map(0..89, &frame(&1, 324, &1 + 1))
+      descent = Enum.map(90..129, &frame(&1, 29, &1 - 89))
+      late = Enum.map(300..340, &frame(&1, 14, &1 - 299))
+      entry ++ descent ++ late
+    end
+
+    test "grafts crouch tails onto opening lead-ins at the graft points" do
+      out =
+        RecoverySynth.build_opening(opening_frames(),
+          expert: expert(),
+          lead_in: 4,
+          max_af: 10,
+          graft_frames: [95, 110]
+        )
+
+      actions = Enum.map(out, & &1.game_state.players[1].action)
+      # Two grafts, each: 4 lead + 2 squat + 10 squat_wait
+      assert Enum.count(actions, &(&1 == @squat)) == 4
+      assert Enum.count(actions, &(&1 == @squat_wait)) == 20
+      # Lead-ins come from the opening (entry/descent actions), never the
+      # late segment.
+      refute 14 in actions
+    end
+
+    test "tail frame numbers continue consecutively from the graft point" do
+      out =
+        RecoverySynth.build_opening(opening_frames(),
+          expert: expert(),
+          lead_in: 4,
+          max_af: 6,
+          graft_frames: [100]
+        )
+
+      numbers = Enum.map(out, & &1.game_state.frame)
+      # Whole block strictly consecutive: lead (real, consecutive) then tail
+      # (graft frame + 1, +2, ...) — the prev-action threading contract.
+      assert numbers == Enum.to_list(hd(numbers)..(hd(numbers) + length(numbers) - 1))
+    end
+
+    test "extra_sources with frame-number resets are split into openings" do
+      # Two concatenated "replays", each with its own opening.
+      extra = opening_frames() ++ opening_frames()
+
+      out =
+        RecoverySynth.build_opening([],
+          expert: expert(),
+          lead_in: 4,
+          max_af: 5,
+          graft_frames: [100],
+          extra_sources: extra
+        )
+
+      # One graft per source opening -> two blocks.
+      assert Enum.count(Enum.map(out, & &1.game_state.players[1].action), &(&1 == @squat)) == 4
+    end
+  end
+
   describe "build/2 (regression smoke)" do
     test "extends reflector segments past the fixture's af range" do
       out =

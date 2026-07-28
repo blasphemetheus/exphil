@@ -18,7 +18,7 @@ alias ExPhil.Embeddings
 
 {opts, _, _} =
   OptionParser.parse(System.argv(),
-    strict: [replays: :string, out: :string, robust: :boolean, prev_action: :boolean, action_delay: :integer, prev_action_dropout: :float, window: :integer, synth_recovery: :boolean, synth_max_af: :integer, synth_ratio: :float, synth_crouch: :boolean, crouch_max_af: :integer, crouch_ratio: :float, synth_ledge: :boolean, ledge_strategy: :string, ledge_ratio: :float, ledge_max_af: :integer, noise: :float, noise_prob: :float, scheduled_sampling: :float, ss_ramp: :integer, probe_basin: :boolean, probe_every: :integer]
+    strict: [replays: :string, out: :string, robust: :boolean, prev_action: :boolean, action_delay: :integer, prev_action_dropout: :float, window: :integer, synth_recovery: :boolean, synth_max_af: :integer, synth_ratio: :float, synth_crouch: :boolean, crouch_max_af: :integer, crouch_ratio: :float, synth_ledge: :boolean, ledge_strategy: :string, ledge_ratio: :float, ledge_max_af: :integer, noise: :float, noise_prob: :float, scheduled_sampling: :float, ss_ramp: :integer, probe_basin: :boolean, probe_every: :integer, x_hold_extend: :integer, synth_opening: :boolean, opening_replays: :string]
   )
 
 # --replays accepts a dir or glob of .slp files; default = the single
@@ -125,6 +125,102 @@ frames =
     frames ++ ledge_synth
   else
     frames
+  end
+
+# --synth-opening: cover the GAME-OPENING route (spawn-platform fall ->
+# crouch), the absorber that kills ~half of otherwise-competent seeds
+# (INIT_FORENSICS_OPTIONS.md 2026-07-28: m/g/p/r/s all absorb at frame ~104
+# via entry 324x20 > 29x10 > 42x30, a history the fixture's post-shine
+# lead-ins never cover). Grafts expert-labelled crouch tails onto opening
+# lead-ins from the fixture itself, plus (--opening-replays GLOB) the real
+# absorbed openings harvested from dead seeds' replays.
+frames =
+  if opts[:synth_opening] do
+    extra_frames =
+      case opts[:opening_replays] do
+        nil ->
+          []
+
+        glob ->
+          glob
+          |> Path.wildcard()
+          |> Enum.flat_map(fn path ->
+            case ExPhil.Data.Peppi.parse(path) do
+              {:ok, replay} ->
+                replay
+                |> ExPhil.Data.Peppi.to_training_frames(player_port: 1, opponent_port: 2)
+                |> Enum.reject(&(&1.game_state.frame < 0))
+
+              _ ->
+                []
+            end
+          end)
+      end
+
+    opening_synth =
+      ExPhil.Data.RecoverySynth.build_opening(base_frames,
+        port: 1,
+        max_af: opts[:crouch_max_af] || 40,
+        lead_in: window,
+        extra_sources: extra_frames
+      )
+
+    Output.puts("Synthetic opening frames: #{length(opening_synth)}")
+    frames ++ opening_synth
+  else
+    frames
+  end
+
+# --x-hold-extend N: widen the jump-cancel X press from a 2-frame spike
+# into a hold that persists through jumpsquat (release stays before
+# landing, preserving the landing X-edge the cycle pivots on). Motivation
+# (INIT_FORENSICS 2026-07-28): sustainers hold X through the JC window,
+# breakers emit razor spikes that evaporate under one frame of drift —
+# make the fat hold the LABEL so spikes no longer fit the data.
+frames =
+  case opts[:x_hold_extend] || 0 do
+    0 ->
+      frames
+
+    n_extend ->
+      jumpsquat = 24
+      arr = List.to_tuple(frames)
+      total = tuple_size(arr)
+
+      extended =
+        Enum.map(0..(total - 1), fn i ->
+          f = elem(arr, i)
+
+          if f.controller.button_x do
+            f
+          else
+            # Should this released-X frame become held? Yes if an X press
+            # ended within the previous n_extend frames (consecutive frame
+            # numbers only — never across synthesis block boundaries) and
+            # we are still in jumpsquat.
+            in_jumpsquat = f.game_state.players[1].action == jumpsquat
+
+            recently_pressed =
+              in_jumpsquat and
+                Enum.any?(1..n_extend, fn back ->
+                  j = i - back
+
+                  j >= 0 and
+                    elem(arr, j).controller.button_x and
+                    elem(arr, j).game_state.frame == f.game_state.frame - back
+                end)
+
+            if recently_pressed do
+              %{f | controller: %{f.controller | button_x: true}}
+            else
+              f
+            end
+          end
+        end)
+
+      changed = Enum.count(Enum.zip(frames, extended), fn {a, b} -> a != b end)
+      Output.puts("X-hold extend (#{n_extend}f through jumpsquat): #{changed} frames widened")
+      extended
   end
 
 # --noise: DART-style state perturbation. Synthesis only covers EXTENSIONS of

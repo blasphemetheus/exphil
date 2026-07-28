@@ -117,6 +117,77 @@ defmodule ExPhil.Data.RecoverySynth do
   end
 
   @doc """
+  Manufacture GAME-OPENING coverage: the spawn-platform descent as lead-in,
+  followed by the same expert-labelled `Squat -> SquatWait` tail as
+  `build_crouch/2`.
+
+  Why (INIT_FORENSICS_OPTIONS.md, 2026-07-28): the crouch recipe's remaining
+  live failure mode is the opening — seeds m/g/p/r/s absorb at frame ~104
+  via the entry route (spawn-platform fall -> crouch) and never shine once.
+  `build_crouch/2` grafts tails onto POST-SHINE lead-ins, so basin windows
+  with entry-animation history are never covered; offline, dead seeds pass
+  post-shine-entry probes and die only from their own openings.
+
+  Lead-in sources: the opening segment (game frames `0..@opening_max_frame`)
+  of the given fixture frames, plus any `:extra_sources` frame lists — pass
+  the real openings harvested from dead seeds' replays for exact-history
+  coverage. Multiple grafts per opening (at the landing and shortly after)
+  cover slightly different descent phases.
+
+  Options: `:port`, `:max_af`, `:lead_in`, `:extra_sources` (flat frame list,
+  may contain several replays — split on frame-number resets), `:graft_frames`
+  (game-frame graft points, default `[90, 105, 120]`), `:expert`.
+  """
+  @opening_max_frame 200
+
+  @spec build_opening([map()], keyword()) :: [map()]
+  def build_opening(frames, opts \\ []) do
+    port = Keyword.get(opts, :port, 1)
+    max_af = Keyword.get(opts, :max_af, 40)
+    lead_in = Keyword.get(opts, :lead_in, 16)
+    graft_frames = Keyword.get(opts, :graft_frames, [90, 105, 120])
+    expert = Keyword.get(opts, :expert) || MultishineExpert.from_fixture()
+    extra = Keyword.get(opts, :extra_sources, [])
+
+    ([frames] ++ split_on_frame_reset(extra))
+    |> Enum.flat_map(fn source ->
+      opening = Enum.filter(source, &(&1.game_state.frame <= @opening_max_frame))
+
+      Enum.flat_map(graft_frames, fn gf ->
+        case Enum.find_index(opening, &(&1.game_state.frame >= gf)) do
+          nil ->
+            []
+
+          i ->
+            frame = Enum.at(opening, i)
+            lead = Enum.slice(opening, max(i - lead_in + 1, 0), min(i + 1, lead_in))
+            prev = List.last(lead) |> then(&(&1 && &1.controller))
+            lead ++ crouch_tail(frame, port, max_af, expert, prev)
+        end
+      end)
+    end)
+  end
+
+  # A flat frame list may concatenate several replays; game frame numbers
+  # reset at each boundary.
+  defp split_on_frame_reset([]), do: []
+
+  defp split_on_frame_reset(frames) do
+    frames
+    |> Enum.chunk_while(
+      [],
+      fn f, acc ->
+        case acc do
+          [] -> {:cont, [f]}
+          [prev | _] when f.game_state.frame < prev.game_state.frame -> {:cont, Enum.reverse(acc), [f]}
+          _ -> {:cont, [f | acc]}
+        end
+      end,
+      fn acc -> {:cont, Enum.reverse(acc), []} end
+    )
+  end
+
+  @doc """
   Manufacture crouch-absorber coverage: real post-shine lead-ins followed by
   a synthetic `Squat -> SquatWait` tail, expert-labelled with edge alternation.
 
