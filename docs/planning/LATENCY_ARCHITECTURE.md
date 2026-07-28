@@ -142,6 +142,21 @@ single-shine behavior genuinely became delay-robust; only CHAINING died.
 (2) 3/3 uniformity = the label shift makes chain-critical sequencing
 unlearnable, not an init lottery.
 
+**DIAGNOSED (same day, task 'diagnose-metronomes')**: (1) d1 seeds'
+offset calibration peaks at -3 where every delay-0 seed peaks at -2 —
+the training shifted temporal alignment by EXACTLY the trained delay;
+the mechanism worked. (2) Their replays contain ZERO jc_events and ZERO
+aerial_shine_events — the JC branch didn't degrade, it ceased to exist.
+Mechanism: the .slp records APPLIED inputs, and applied[t] was decided
+from state[t-1], so the fixture is ALREADY a one-frame-shifted dataset
+(delay-0 training = matched to the live pipeline; z chains-27
+consistent). Stacking --action-delay 1 demands two-frame anticipation:
+the JC must be committed while seeing reflector af 1-2 — the same
+states that carry B-hold labels — so chain-critical states collide,
+the model averages, and only widely-spaced single shines survive.
+Basin escape was unaffected (per-epoch probes: esc@2 by epoch 10) —
+collisions only occur at two-frame-resolution decisions.
+
 **Prime suspect — DOUBLE ANTICIPATION**: the closed-loop teacher already
 compensates the bridge delay ("pressing at af 3 lands at af 4",
 record_multishine.exs), so the fixture's (state, controller) pairs bake
