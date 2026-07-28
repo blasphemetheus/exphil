@@ -125,8 +125,35 @@ Agent-path vs AsyncRunner-path on identical states; (b) if paths match,
 train delay-1/delay-2 seeds and re-eval under sync (the original gate).
 Defaults stay UNFLIPPED — the gates did their job.
 
-**Delay-matched training** (after sync validates): train 3 seeds with
-`--action-delay 1`, eval under sync. Gate for the defaults flip below.
+**Delay-matched training** (RAN 2026-07-28, farm 7): champion recipe +
+`--action-delay 1`, 3 seeds x {async+0, async+1, sync}. **GATE FAILED,
+structurally**: all three seeds are METRONOMES (steady single shines,
+chains 1, every condition — the zz phenotype 3/3, no seed spread):
+
+| seed | async+0 | async+1 | sync |
+|---|---|---|---|
+| d1a | 39-49/min c1 | 46-47/min c1 | 6-33/min c1-2 |
+| d1b | 49-50/min c1 | 47-49/min c1 | 3-43/min c1 |
+| d1c | 26-41/min c1-2 | 39-41/min c1 | 2-4/min c1 |
+
+Two informative fragments in the failure: (1) RATE became flat across
++0/+1 (delay-0 seeds lose rate under +1; delay-1 seeds don't) — the
+single-shine behavior genuinely became delay-robust; only CHAINING died.
+(2) 3/3 uniformity = the label shift makes chain-critical sequencing
+unlearnable, not an init lottery.
+
+**Prime suspect — DOUBLE ANTICIPATION**: the closed-loop teacher already
+compensates the bridge delay ("pressing at af 3 lands at af 4",
+record_multishine.exs), so the fixture's (state, controller) pairs bake
+in one frame of anticipation; `--action-delay 1` stacks a second.
+Corollary: delay-0 training IS the match for the current async harness
+(z chains-27 consistent), and adapting to a slower harness likely means
+RE-RECORDING the fixture through a D-delay bridge, not shifting labels.
+Second gap vs slippi-ai: their delay-trained policies SEE the in-flight
+action queue as an input (delayed_actions); ours is blind to its own
+committed inputs. Both threads tasked (diagnose-metronomes,
+double-anticipation, in-flight-channel). Defaults gate remains CLOSED —
+second bad flip caught in two days.
 
 ## Defaults migration plan (NOT yet flipped — gates first)
 
