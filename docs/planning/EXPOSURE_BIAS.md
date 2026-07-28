@@ -651,6 +651,18 @@ Three findings:
   sampled decode as an absorber safety net, T=0.3 buys the rescue at
   the lowest cycle-slip cost measured.
 
+  **MECHANISM CORRECTION (same night, interp session — see
+  INIT_FORENSICS_OPTIONS.md findings): g's absorber is a HELD-B fixed
+  point, and the flat curve is now quantitative, not mysterious.**
+  Offline forward passes over g's real absorbed replay (93.9% parity
+  with live) show B pressed on 100% of basin frames at logit ~+0.35 —
+  the policy HOLDS B; Melee registers edges, so held B is a no-op. The
+  rescue mechanism is random RELEASE: p(release) = 1 - sigmoid(logit/T)
+  = 0.24 / 0.33 / 0.41 at T = 0.3 / 0.5 / 1.0 — all fast-escape, hence
+  flat. Failure taxonomy across all six failed seeds: hold-B absorber
+  (g, h, j), silent never-press absorber (e, f), no-fixed-point
+  oscillator (l).
+
 ## How to judge any of them
 
 `mix run scripts/eval_policy_on_rollout.exs --policy X --rollout R` on a FIXED
