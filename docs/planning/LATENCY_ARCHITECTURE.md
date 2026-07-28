@@ -88,14 +88,42 @@ netplay: same policy retrained/retrofitted to D=18+; budget donated to
 
 ## Experiments (pre-registered)
 
-**Jitter experiment** (running): eval razor-spike breakers (b, d, k) and
-controls (a, n) under `--runner sync`, 3x60s vs idle. Predictions:
-1. Frame-skip stat ~0 (sync loop keeps up; GRU inference is ~ms).
-2. Margin-probe transition parity on sync replays jumps to ~1.0 at a
-   single fixed offset (the instrument becomes exact).
-3. THE decisive one: if b/d/k chains rise materially under deterministic
-   delay, part of "sustain seed variance" was harness jitter, and every
-   historical chain number gets an asterisk.
+**Jitter experiment** (RAN 2026-07-28): eval razor-spike breakers
+(b, d, k) and controls (a, n) under `--runner sync`, 3x60s vs idle.
+Predictions and outcomes:
+1. Frame-skip ~0 — **CONFIRMED** (3600/3600 frames, 0.0% skipped, every
+   run; the loop is genuinely frame-locked).
+2. Transition parity ~1.0 at a fixed offset — **REFUTED**: sync replays
+   calibrate WORSE than async (max 0.371 flat across offsets 0..-4, vs
+   async's clear structure peaking 0.666 at -2 and collapsing at -4).
+3. Breakers improve — **REFUTED, inverted for everyone**:
+
+   | seed | async self/min · chains | sync self/min · chains |
+   |---|---|---|
+   | a | 99-129 · 19-22 | 42-49 · 2 |
+   | n | 114-141 · 14-18 | 44-48 · 2-3 |
+   | k | 69-81 · 3-4 | 39-50 · 1-2 |
+   | b | 68 · 2 | 37-39 · 1 |
+   | d | 86-90 · 2 | 2-7 · 1 |
+
+**Reading (2026-07-28): a uniform ~45/min chains-2 ceiling across wildly
+different policies is a harness signature.** Two candidate causes, not
+yet separated:
+(i) constant sync delay differs from async's typical effective delay by
++1 (controller flushes on the NEXT step) and delay-0-trained policies
+are brittle to the shift — the af 3-4 JC window is consistently missed;
+(ii) the sync script's inference path (`Agent.get_controller`, the Agent
+GenServer's internal window/prev bookkeeping) diverges from the async
+runner's inference process in embedding/history construction — which
+would also explain the WORSE offline parity. embed_path_parity_test is
+prior art for exactly this class of bug.
+**Either way the deep conclusion stands: every historical number is
+calibrated to the async harness's particular delay distribution, and
+policies are delay-brittle because delay was never a trained property.**
+Next diagnostics, in order: (a) side-by-side embed/window dump of
+Agent-path vs AsyncRunner-path on identical states; (b) if paths match,
+train delay-1/delay-2 seeds and re-eval under sync (the original gate).
+Defaults stay UNFLIPPED — the gates did their job.
 
 **Delay-matched training** (after sync validates): train 3 seeds with
 `--action-delay 1`, eval under sync. Gate for the defaults flip below.

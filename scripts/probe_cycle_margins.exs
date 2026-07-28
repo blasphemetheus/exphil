@@ -30,7 +30,9 @@ alias ExPhil.Interp.Activations
 alias ExPhil.Training.{Data, Output}
 
 {opts, _, _} =
-  OptionParser.parse(System.argv(), strict: [policies: :string, out: :string, offset: :integer])
+  OptionParser.parse(System.argv(),
+    strict: [policies: :string, out: :string, offset: :integer, replay: :string]
+  )
 
 policy_glob = opts[:policies] || "checkpoints/ms_crouch*.bin"
 out_path = opts[:out] || "eval_runs/interp/cycle_margins.json"
@@ -100,11 +102,21 @@ results =
     replay = replay_for.(path)
 
     # SD-flake replays are truncated and fail to parse — try each candidate.
+    # --replay overrides the auto-derived path (e.g. to probe sync-runner
+    # replays for offset calibration).
+    candidates =
+      case opts[:replay] do
+        nil ->
+          (replay && Path.wildcard("eval_runs/*#{String.replace(Path.basename(path, ".bin"), "ms_", "")}_idle*/r*.slp"))
+          |> List.wrap()
+          |> Enum.sort()
+
+        override ->
+          Path.wildcard(override) |> Enum.sort()
+      end
+
     parsed =
-      (replay && Path.wildcard("eval_runs/*#{String.replace(Path.basename(path, ".bin"), "ms_", "")}_idle*/r*.slp"))
-      |> List.wrap()
-      |> Enum.sort()
-      |> Enum.find_value(fn p ->
+      Enum.find_value(candidates, fn p ->
         case Peppi.parse(p) do
           {:ok, parsed} -> {p, parsed}
           _ -> nil
@@ -158,7 +170,7 @@ results =
             do: t
 
       cal =
-        Map.new([0, -1, -2], fn off ->
+        Map.new([0, -1, -2, -3, -4], fn off ->
           hits =
             Enum.count(transitions, fn t ->
               case logit_at.(t + off) do
