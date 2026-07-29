@@ -221,6 +221,13 @@ defmodule ExPhil.Bridge.AsyncRunner do
     # Only true when stop() called or fatal error
     :ets.insert(table, {:should_stop, false})
     :ets.insert(table, {:sd_mode, false})
+    # LRAS requires the polling-mode console: if the chord PAUSES instead of
+    # instant-quitting, only the no_frame send->step cycle can deliver the
+    # quit-completing Start edge. With polling disabled the pause deadlocks
+    # step() until the GenServer call timeout (reproduced 2026-07-28,
+    # polling_ab r1). Callers that init the bridge with console_timeout: 0
+    # MUST pass lras: false so SD goes straight to the hold-left walk-off.
+    :ets.insert(table, {:lras_enabled, Keyword.get(opts, :lras, true)})
 
     # Frame pacing (pace_hz opt): with blocking pipe input the game only
     # advances when we feed it, so the RUNNER is the throttle. The ExiAI
@@ -494,7 +501,7 @@ defmodule ExPhil.Bridge.AsyncRunner do
           IO.puts("[SD] no-frame tick #{n} (game paused?) — pulsing LRAS/Start")
         end
 
-        MeleePort.send_controller(bridge, sd_input(player_port, n, :no_frame))
+        MeleePort.send_controller(bridge, sd_no_frame_input(player_port, n, lras_frames(table)))
         frame_loop(bridge, table, auto_menu, player_port, agent)
 
       true ->
@@ -542,16 +549,18 @@ defmodule ExPhil.Bridge.AsyncRunner do
       # SD-flake observability: is the input stream landing? x moving /
       # stocks dropping = yes; frozen = the stream is desynced and the game
       # never sees the quit inputs.
+      lf = lras_frames(table)
+
       if rem(n, 60) == 1 do
         p = game_state.players[player_port]
 
         IO.puts(
-          "[SD] f#{n} phase=#{if(n <= @lras_frames, do: "LRAS", else: "hold-left")} " <>
+          "[SD] f#{n} phase=#{if(n <= lf, do: "LRAS", else: "hold-left")} " <>
             "stocks=#{p && p.stock} x=#{p && Float.round((p.x || 0.0) * 1.0, 1)} action=#{p && p.action}"
         )
       end
 
-      MeleePort.send_controller(bridge, sd_input(player_port, n))
+      MeleePort.send_controller(bridge, sd_input(player_port, n, lf))
     else
       case :ets.lookup(table, :latest_action) do
         [{:latest_action, nil}] ->
@@ -701,7 +710,16 @@ defmodule ExPhil.Bridge.AsyncRunner do
   # Training-data filterability: hold-left keeps the pure-left-no-buttons
   # signature; LRAS frames are filtered by A+L+R held with neutral stick
   # (see train_multishine_policy.exs reject clause).
-  defp sd_input(player_port, n) when n <= @lras_frames do
+  # Runtime LRAS window: 0 when the runner was started with lras: false
+  # (bridge in blocking dispatch — see the :lras_enabled init comment).
+  defp lras_frames(table) do
+    case :ets.lookup(table, :lras_enabled) do
+      [{:lras_enabled, false}] -> 0
+      _ -> @lras_frames
+    end
+  end
+
+  defp sd_input(player_port, n, lras_frames) when n <= lras_frames do
     %{
       port: player_port,
       main_stick: %{x: 0.5, y: 0.5},
@@ -721,7 +739,7 @@ defmodule ExPhil.Bridge.AsyncRunner do
     }
   end
 
-  defp sd_input(player_port, _n) do
+  defp sd_input(player_port, _n, _lras_frames) do
     %{
       port: player_port,
       main_stick: %{x: 0.0, y: 0.5},
@@ -731,11 +749,11 @@ defmodule ExPhil.Bridge.AsyncRunner do
     }
   end
 
-  # No-frame (paused) variant: past the LRAS window the /2 fallback is
+  # No-frame (paused) variant: past the LRAS window sd_input/3's fallback is
   # hold-left — useless on a PAUSED game (walk-off needs gameplay frames).
   # Pulse Start alone to unpause so the walk-off can act once frames
-  # resume. Within the LRAS window the schedule is identical to /2.
-  defp sd_input(player_port, n, :no_frame) when n > @lras_frames do
+  # resume. Within the LRAS window the schedule is identical to sd_input/3.
+  defp sd_no_frame_input(player_port, n, lras_frames) when n > lras_frames do
     %{
       port: player_port,
       main_stick: %{x: 0.5, y: 0.5},
@@ -755,7 +773,7 @@ defmodule ExPhil.Bridge.AsyncRunner do
     }
   end
 
-  defp sd_input(player_port, n, _ctx), do: sd_input(player_port, n)
+  defp sd_no_frame_input(player_port, n, lras_frames), do: sd_input(player_port, n, lras_frames)
 
   # Elixir-driven opponent dummy: read the opponent's state, step the dummy
   # module, route its input to the opponent port. Synchronous with the frame

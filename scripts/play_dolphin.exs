@@ -35,6 +35,11 @@ opts = CLI.parse_args(System.argv(),
 # Setup verbosity early
 CLI.setup_verbosity(opts)
 
+# sd_until_game_end reads this to gate LRAS off under blocking dispatch
+# (--console-timeout 0); it has no opts in scope. Same process — the sync
+# runner is single-process by design.
+Process.put(:cli_console_timeout, opts[:console_timeout])
+
 # Convert character and stage to atoms if strings
 opts = Keyword.update(opts, :character, :mewtwo, fn
   c when is_binary(c) -> String.to_atom(c)
@@ -312,7 +317,10 @@ defmodule GameLoop do
     # (a continuous hold never re-edges). Each toggle rides its own
     # console.step() flush, so edges land whether ticks come from real
     # frames (60Hz) or paused no-frame polls (~10Hz).
-    lras_frames = 120
+    # REQUIRES the polling console: with --console-timeout 0 a pausing
+    # chord deadlocks step() (polling_ab r1/r2, 2026-07-28) — skip LRAS
+    # and go straight to the hold-left walk-off.
+    lras_frames = if Process.get(:cli_console_timeout) == 0, do: 0, else: 120
     frames_used = 7200 - frames_left
     start_down = rem(frames_used, 2) == 0
 

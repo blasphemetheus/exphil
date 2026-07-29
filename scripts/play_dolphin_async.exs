@@ -251,7 +251,10 @@ Output.step(5, 5, "Starting async game runner")
     # Headless (ExiAI) has no internal throttle: pace the frame loop to
     # 60Hz so input timing matches windowed play (--pace-hz to override;
     # 0 = unpaced). See AsyncRunner pace/1.
-    pace_hz: opts[:pace_hz] || if(opts[:headless], do: 60, else: 0)
+    pace_hz: opts[:pace_hz] || if(opts[:headless], do: 60, else: 0),
+    # LRAS needs the polling console: --console-timeout 0 (blocking
+    # dispatch) would deadlock on a chord that pauses (polling_ab r1).
+    lras: opts[:console_timeout] != 0
   )
 
 Output.success("Async runner started")
