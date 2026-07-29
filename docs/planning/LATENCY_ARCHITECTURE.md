@@ -221,6 +221,30 @@ async+1 — the matched-training gate finally passing); arm B = shift+SS
 fix is: apply x-hold-extend AFTER shift_actions, or key it on shifted
 positions.
 
+**Farm 8 (2026-07-28 evening): BOTH remaining hypotheses refuted.**
+Arm A (shift, no x-hold): metronomes, chains 1, both harnesses — x-hold
+ordering was NOT the cause. Arm B (shift + SS 0.5): metronomes — channel
+exposure bias was NOT the cause. Running tally: SIX shift-trained seeds,
+six metronomes, all memorizing to loss ~0.002, none with an optimum at
+ANY harness delay. The label shift kills closed-loop chaining through a
+mechanism that has now survived five falsified explanations (missing
+channel, x-hold interaction, exposure bias, harness arithmetic,
+collision-by-collision). ms_shift_a's calibration peaks at -1 — the
+shift moves alignment FRESHER, not more anticipatory. OPEN PROBLEM;
+next instrument: extend BasinRollout to a full-cycle offline simulator
+and watch a shift seed drop the loop frame by frame.
+
+**Strategic position after the day**: async+0 + delay-0 training is a
+validated, excellent production combination (z: 147/min chains 27);
+sync's delay is pinned at +1; no policy-adaptation path to +1 exists
+yet (shift and re-record both fail differently). Most promising
+untried direction for +1/netplay: DAGGER THROUGH THE DELAYED BRIDGE —
+the shifted teacher demonstrably masters the +1 harness (787-chain),
+so dagger_drill against it UNDER async+1 yields exactly-matched
+(state, expert-correction) pairs with genuine closed-loop coverage,
+bypassing label surgery entirely. The D>=2 queue channel remains
+future work gated on netplay ambitions.
+
 ## Defaults migration plan (NOT yet flipped — gates first)
 
 | Default | Current | Target | Gate |
