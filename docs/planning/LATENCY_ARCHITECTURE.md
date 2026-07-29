@@ -288,8 +288,24 @@ NEW baseline era — do not compare across the flip without noting it
    fresh Start edge reaches the pause screen every other cycle; a
    continuous hold never re-edges). Past the LRAS window a paused game
    gets a Start-only pulse to unpause into the hold-left walk-off.
-   Validation pending: sync eval block with --blocking-input — skip stat
-   must stay 0 AND offset calibration should collapse to ONE peak >0.9.
+   VALIDATED 2026-07-28 (eval_runs/lras_smoke1, blocking_sync1,
+   blocking_sync_stand):
+   - LRAS: instant quit on the FIRST chord frame in all 5 games (async
+     smoke + 3 sync + 1 stand) — `[SD] f1 phase=LRAS` then
+     CHARACTER_SELECT, replay finalized, no pause ever occurred (the
+     no-frame pulse machinery is an unexercised safety net so far).
+     Contrast 2026-07-28 pre-fix: pause, one [SD] frame, stall.
+   - Skip gate PASSED 3/3: sync + --blocking-input = 3600/3600 game
+     frames, skipped 0 (0.0%), every run.
+   - Offset calibration: the jitter smear is GONE — single dominant peak,
+     reproducible ±0.02 across runs (cal 0 => 0.74-0.77, -1 => ~0.51,
+     rest <=0.26). But the pre-registered ">0.9" FAILED: peak is
+     0.71-0.77, and a stand-dummy run (no CPU interference) came in at
+     0.714 — interference falsified as the explanation. The ~0.75
+     ceiling is intrinsic to the parity measure at this offset (policy's
+     own transition-frame consistency), not harness jitter. Note also
+     the peak offset MOVED: async delay-0 fingerprint was -2; blocking
+     sync is 0. Offsets are harness-specific — do not compare across.
 5. Netplay track: delay retrofit tooling (slippi-ai's update_delay.py
    pattern), --online-robust delay-distribution training, displayName
    port discovery.
