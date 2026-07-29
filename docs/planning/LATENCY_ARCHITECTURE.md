@@ -327,3 +327,50 @@ NEW baseline era — do not compare across the flip without noting it
 5. Netplay track: delay retrofit tooling (slippi-ai's update_delay.py
    pattern), --online-robust delay-distribution training, displayName
    port discovery.
+
+## The dummy artifact + headless trust campaign (2026-07-28 late)
+
+**The ~70/min "collapse" was a comparability artifact.** Champion
+numbers (121-147, chains 16-27) were STAND-dummy (0728_open_z_idle);
+every post-polling block defaulted to cpu-1, whose jabs cap chains.
+Post-reboot stand-dummy windowed: **165-186 self/min, chains 15-23**
+(prereg CONFIRMED) — new all-time rate records THROUGH the polling
+harness. Windowed + --blocking-input: 170-182, **chain 30 all-time
+record** — blocking input costs nothing windowed. Polling A/B (cpu):
+~70 vs 53 (n=1) — polling exonerated. Failed preregs #7-#9 along the
+way: fresh-regime recovery (wrong — dummy), headless single-clock
+recovery, send-late recovery (both wrong — see below).
+
+**Headless trust ladder** (stand dummy, all 3-run blocks, mainline
+beta AppImage `netplay-beta/Slippi_Netplay_Mainline-x86_64.AppImage`):
+
+| config                        | self/min  | chains | cal peak |
+|-------------------------------|-----------|--------|----------|
+| windowed async (either input) | 165-186   | 15-30  | 0.78 @-3 |
+| headless speed1.0 pace-hz 0   | 122-163   | 10-16  |          |
+| headless speed1.0 pace-hz 60  | 118-138   | 7-12   | 0.67 @-2 |
+| headless speed0  pace-hz 60   | 74-119    | 2-10   | 0.51 flat|
+
+**Finding: chain capability tracks offset-calibration SHARPNESS**
+(probe_cycle_margins cal spread) — the harness-quality metric. Speed-0
+doesn't shift the effective delay, it SMEARS it per-frame (which game
+frame an input lands in depends on userspace write-arrival timing when
+the emulator is unthrottled); smear = variable jitter = the one thing
+the one-frame-brittle policy cannot survive. Neither a drift-free
+sleep+spin pacer nor pace-before-send reordering recovers it (both
+landed and kept — they are correct engineering and inert in the
+recommended configs; the collapse is speed-0-specific).
+
+**Operational verdicts:**
+- Timing-critical eval: windowed async, stand dummy for capability
+  numbers, cpu-1 only for its own comparison lineage. NEVER compare
+  across dummies (the eval opponent is part of the distribution).
+- Best headless recipe today: `--headless --pace-hz 0` (speed 1.0,
+  emulator throttle as the single clock): 122-163, chains 10-16 —
+  usable where windowed isn't, NOT yet windowed-equivalent. Trust gate
+  for full equivalence: cal peak >=0.75 concentrated at one offset.
+- `--emulation-speed 0` = menus at max fps (game-start overhead
+  ~2min -> ~12s/run, block wall time halved) but gameplay offset
+  smear — do NOT use for timing-critical runs until a runtime
+  speed-switch (menus 0, gameplay 1.0) exists. That switch is the
+  next headless lever.

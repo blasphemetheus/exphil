@@ -403,18 +403,41 @@ defmodule ExPhil.Bridge.AsyncRunner do
   # Hold the frame cadence set by :pace_ns (see init). Uses the frame
   # process's own dictionary for last-frame time — the loop is a single
   # process, no coordination needed.
+  #
+  # Only in-game frames pace (the frame_loop calls this solely on the
+  # {:ok, game_state} branch — menu frames never sleep). That is what lets
+  # --emulation-speed 0 + blocking input rip through the CSS/CPU-slider/
+  # stage-select at max fps while gameplay stays 60Hz: the frame loop is
+  # then the game's ONLY clock (single-clock pacing, headless trust
+  # experiments 2026-07-28).
   defp pace(table) do
     case :ets.lookup(table, :pace_ns) do
       [{:pace_ns, ns}] when ns > 0 ->
         now = System.monotonic_time(:nanosecond)
+        # Drift-free schedule: the next deadline advances from the PREVIOUS
+        # deadline, not from "now" — sleep overshoot never accumulates. If
+        # we're more than one period behind (menu exit, GC pause), resync
+        # to now instead of sprinting to catch up.
         last = Process.get(:last_frame_ns, now - ns)
-        remaining_ms = div(ns - (now - last), 1_000_000)
-        if remaining_ms > 0, do: Process.sleep(remaining_ms)
-        Process.put(:last_frame_ns, System.monotonic_time(:nanosecond))
+        deadline = if now - last > 2 * ns, do: now, else: last + ns
+
+        # Hybrid sleep+spin: Process.sleep has ~ms granularity and jitter —
+        # fatal for a 16.67ms cadence feeding 1-frame-tolerance tech
+        # (measured 2026-07-28: software-paced headless chains 7-10 vs
+        # emulator-throttle 10-16 vs video-throttle 15-30). Sleep to ~2ms
+        # short of the deadline, then spin the remainder.
+        coarse_ms = div(deadline - now, 1_000_000) - 2
+        if coarse_ms > 0, do: Process.sleep(coarse_ms)
+        spin_until(deadline)
+        Process.put(:last_frame_ns, deadline)
 
       _ ->
         :ok
     end
+  end
+
+  defp spin_until(deadline) do
+    if System.monotonic_time(:nanosecond) < deadline, do: spin_until(deadline)
   end
 
   defp frame_loop(bridge, table, auto_menu, player_port, agent) do
@@ -435,8 +458,16 @@ defmodule ExPhil.Bridge.AsyncRunner do
             handle_no_frame(bridge, table, auto_menu, player_port, agent)
 
           {:ok, game_state} ->
-            handle_game_frame(bridge, table, game_state, player_port, agent)
+            # Pace BEFORE acting: sleep to just shy of the next frame
+            # deadline, THEN snapshot the latest action and send — the
+            # flush (top of the next console.step) follows immediately, so
+            # the freshest inference result rides each frame. The old
+            # send-then-sleep order let the queued action go stale for a
+            # full period; with a drift-free pacer that phase-locked into
+            # a consistent one-frame-late application and collapsed chains
+            # to 2-4 (the async+1 brittleness signature, 2026-07-28).
             pace(table)
+            handle_game_frame(bridge, table, game_state, player_port, agent)
             frame_loop(bridge, table, auto_menu, player_port, agent)
 
           {:postgame, game_state} ->

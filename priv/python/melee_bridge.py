@@ -369,9 +369,14 @@ class MeleeBridge:
                 # r12 headless: ~0 kd/game vs 7-20 windowed). Frame-locked
                 # input REPLAY (scenario suite) is timing-exact at any
                 # speed and passes 0.0 (unthrottled) explicitly.
-                console_kwargs["emulation_speed"] = float(
-                    config.get("emulation_speed", 1.0)
-                )
+                # None-tolerant (Elixir sends nil for unset keys). 0.0 =
+                # unthrottled: safe ONLY because blocking_input paces the
+                # game to the controller loop — gameplay speed is then set
+                # by the frame loop's pace_hz, and menus run at max fps.
+                emulation_speed = config.get("emulation_speed")
+                if emulation_speed is None:
+                    emulation_speed = 1.0
+                console_kwargs["emulation_speed"] = float(emulation_speed)
             # EXI inputs (WS5): the ExiAI build's native input path honors
             # analog trigger PRESSES that the pipe path drops (GOTCHAS
             # #66) — but analog RELEASE appears to LATCH: in every

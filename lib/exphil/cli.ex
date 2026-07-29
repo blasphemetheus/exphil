@@ -204,6 +204,8 @@ defmodule ExPhil.CLI do
       desc: "Slippi spectator port (default 51441). Parallel instances need distinct ports.", group: [:dolphin]},
     %{name: :pace_hz, flag: "--pace-hz", type: :integer, short: nil, default: nil,
       desc: "Frame-loop pacing for headless games (default 60 when --headless; 0 = unpaced). Unthrottled policy-driven games mistime inputs.", group: [:dolphin]},
+    %{name: :emulation_speed, flag: "--emulation-speed", type: :float, short: nil, default: nil,
+      desc: "Headless emulation speed (default 1.0 = realtime throttle). 0 = unthrottled: menus fly at max fps and gameplay paces to the frame loop via blocking input — pair with --pace-hz 60. Single-clock pacing; see LATENCY_ARCHITECTURE headless trust notes", group: [:dolphin]},
 
     # PPO training flags (for train_ppo.exs)
     %{name: :pretrained, flag: "--pretrained", type: :string, short: nil, default: nil,

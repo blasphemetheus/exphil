@@ -200,6 +200,9 @@ bridge_config = %{
   # every frame is seen even though emulation runs unthrottled (GOTCHA #56
   # is about the NON-blocking case).
   headless: opts[:headless] || false,
+  # 0 = unthrottled emulator (menus at max fps, gameplay paced by the
+  # frame loop via blocking input). nil = bridge default 1.0 realtime.
+  emulation_speed: opts[:emulation_speed],
   # Harness parity (HANDOFF_2026-07-28 step 1): --blocking-input forces the
   # game to wait for the bot's controller write each frame even when
   # windowed (nil = bridge default: on for headless only); --console-timeout
