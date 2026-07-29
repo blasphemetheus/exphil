@@ -427,7 +427,25 @@ dagger ~0.905 flat, floor 0.82->0.88. No representational timing
 shift; both trunks add ~0.09 of press-timing info over the floor.
 NARROWS the mechanism: the d1 teacher's rules are the same features
 with SHIFTED THRESHOLDS, and a threshold shift needs only the HEADS.
-Decisive follow-up queued: head/trunk swap surgery — if
-champion-trunk + dagger-heads inherits the delay preference, the
-adaptation is a head-level decision boundary (also explaining
-12-epoch convergence).
+
+**Boundary maps (probe_cycle_boundary.exs, offline)**: mean B/X logits
+by {cycle phase, af} over both teacher fixtures settle it:
+- champion: textbook d0 boundary — X-trigger at ground-reflector af3
+  (the d0 JC window), margins ±2-5 everywhere.
+- dagger3: boundary SHIFTED EARLIER (X positive from af0-1, peak af1;
+  jumpsquat B moved to af1-2 where champion releases — pressing B in
+  jumpsquat so it lands on the first airborne frame AFTER the +1
+  delay) but margins THIN (0.3-0.9) — right place, barely held. The
+  anticipation is real and printed in the logits; thin margins are
+  the chains-2-4 / 30%-flip story.
+- head/trunk swap hybrids: DEGENERATE (champT+d1H mashes B at +4
+  logits; d1T+champH inert). Lesson recorded: independently-trained
+  trunks have unaligned feature bases — head-swap surgery is only
+  valid within a shared-trunk fine-tune lineage. Mains hybrid evals
+  cancelled. The correct head-level test: freeze the champion trunk,
+  fine-tune HEADS ONLY on d1 labels; if the delay preference
+  reproduces, adaptation is head-implementable (fast, composable).
+- Round-4 lever implied by thin margins: the drill's loss target says
+  "memorized" while margins say "barely" — train past convergence /
+  lower --target-loss / margin-aware objective to fatten the held
+  boundary before more data.
