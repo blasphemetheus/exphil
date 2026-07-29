@@ -407,7 +407,27 @@ prev-action, converged 0.0006 @ epoch 77, 46 min laptop CPU):
 - Prereg "chains beat 3-5" FAILED on absolute numbers; the inversion
   was not pre-registered and is the real result.
 
-**Round 2** (in flight): 12 aggregated rollouts (incl. 6 collected by
-the round-1 student — near-dead absorber runs included on purpose:
-teacher labels exactly the stuck states). Prereg: chains >=8 at
-delay-1, rate toward ~114 baseline, aerial-shine flip <27%.
+**Round 2**: 12 aggregated rollouts. Rate RECOVERED (120-123/min) but
+chains 2-4 — prereg >=8 FAILED. Forensics: every break unforced;
+post-break dwell in reflector states (366/368, 20s spells) — the
+switch decisions (JC out of shine, airborne B) are the weak joints.
+
+**Round 3**: anti-copycat package (--transition-weight 2.0
+--prev-action-dropout 0.6, the R17A pairing). Converged in the SAME
+12 epochs (soft-falsifies the copy-shortcut diagnostic — a drill
+state space with ~hundreds of unique {action,af} keys memorizes fast
+regardless of weighting; convergence speed is not diagnostic here).
+Eval pending mains.
+
+**Mechanistic probe (interp_d1_timing.exs)**: encode-horizon curves —
+balanced accuracy of "X-edge within k frames" probes, champion vs
+dagger3 trunk vs raw-embedding floor, identical 6-replay mix. Prereg
+(dagger holds intent at longer leads) FAILED: champion ~0.916 flat,
+dagger ~0.905 flat, floor 0.82->0.88. No representational timing
+shift; both trunks add ~0.09 of press-timing info over the floor.
+NARROWS the mechanism: the d1 teacher's rules are the same features
+with SHIFTED THRESHOLDS, and a threshold shift needs only the HEADS.
+Decisive follow-up queued: head/trunk swap surgery — if
+champion-trunk + dagger-heads inherits the delay preference, the
+adaptation is a head-level decision boundary (also explaining
+12-epoch convergence).
