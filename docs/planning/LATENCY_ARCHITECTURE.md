@@ -269,9 +269,27 @@ NEW baseline era — do not compare across the flip without noting it
    measures ~5e-7; structural bugs ~1.0). Informational drift probe:
    carried-state vs sliding-window logits differ by ~0.04 after 40 frames
    (random init) — the truncation semantics are REAL, which is why the
-   agent's cold-start pad replication and per-game reset matter. Live
-   validation (--stateful-step eval block vs windowed baseline) still
-   pending before flipping any default.
+   agent's cold-start pad replication and per-game reset matter.
+   LIVE BLOCK 2026-07-28 (eval_runs/stateful_arm vs windowed_arm, 3+3
+   runs, async+0, cpu-1, 60s — REGIME-CAVEATED: uptime 7h19, load ~3.5,
+   uptime check skipped before the block; the windowed arm itself sat
+   ~2x below champion (68.2 mean vs 121-147), so absolute numbers are
+   not champion-comparable):
+   - windowed 63.4/72.6/68.5 self/min chains 4/5/5 stale 1.4-1.6%
+   - stateful 57.4/53.4/37.3 self/min chains 3/4/3 stale 0.5-1.0%
+   - Arm delta 1.38x = UNRESOLVED by the <2x rule, but suggestive:
+     arms don't overlap (stateful best 57.4 < windowed worst 63.4),
+     chains consistently one lower. Consistent with carried-state
+     divergence: the GRU is TRAINED as sliding h0+16-frame windows;
+     stateful deploy carries state all game — a function it was never
+     trained as (the fixture drift probe's 0.04 gap, compounded).
+   - CONFIRMED win: O(1) compute is real — staleness 0.5-1.0% vs
+     1.4-1.6%, ~1.4x inference rate, on a loaded laptop CPU.
+   - Decision: --stateful-step stays OPT-IN. If the gap ever needs
+     resolving: (a) clean-regime rerun, (b) hybrid deploy (re-encode
+     the window every k frames to re-sync state, step between — keeps
+     most of the compute win with bounded drift), (c) slippi-ai's real
+     fix: train the unroll = deploy step.
 3. Explicit delay queue in the bridge (the C component) — needed the day
    models outgrow the frame budget or D > 1: apply action at its target
    frame, split budget console/local like slippi-ai.
