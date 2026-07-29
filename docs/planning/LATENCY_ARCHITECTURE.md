@@ -261,14 +261,35 @@ NEW baseline era — do not compare across the flip without noting it
 ## Direction / open items
 
 1. Validate + flip defaults per gates above.
-2. Stateful streaming step path for the GRU policy (exists in Edifice;
-   needs the parity test + agent wiring). 16x less per-frame compute.
+2. Stateful streaming step path for the GRU policy — LANDED 2026-07-29:
+   fixture-level bit-parity gate
+   (test/exphil/networks/stateful_fixture_parity_test.exs) pins the step
+   path against the windowed forward on real embedded multishine windows
+   at deployment dims, GRU+LSTM, rolling offsets, tol 1e-5 (fp noise
+   measures ~5e-7; structural bugs ~1.0). Informational drift probe:
+   carried-state vs sliding-window logits differ by ~0.04 after 40 frames
+   (random init) — the truncation semantics are REAL, which is why the
+   agent's cold-start pad replication and per-game reset matter. Live
+   validation (--stateful-step eval block vs windowed baseline) still
+   pending before flipping any default.
 3. Explicit delay queue in the bridge (the C component) — needed the day
    models outgrow the frame budget or D > 1: apply action at its target
    frame, split budget console/local like slippi-ai.
-4. blocking-input equivalent for our bridge (Dolphin waits for the bot)
-   — investigate libmelee/Slippi ini support; this is what makes sync
-   robust to inference spikes rather than frame-skipping through them.
+4. blocking-input + polling — LANDED 2026-07-29. blocking_input was
+   already plumbed (default: headless only); `--blocking-input` now
+   forces it for windowed sync evals. Polling mode
+   (Console(polling_mode/polling_timeout), config console_timeout,
+   default 0.1s) makes console.step return no-frame instead of blocking
+   forever; MeleePort absorbs no_frame transparently for legacy callers
+   (poll: false) and surfaces :no_frame to LRAS-aware runners
+   (poll: true). LRAS is UNGATED: @lras_frames 120 in async_runner +
+   lras_frames 120 in play_dolphin.exs, L+R+A held with Start PULSED
+   (toggle per tick — each toggle rides its own console.step flush, so a
+   fresh Start edge reaches the pause screen every other cycle; a
+   continuous hold never re-edges). Past the LRAS window a paused game
+   gets a Start-only pulse to unpause into the hold-left walk-off.
+   Validation pending: sync eval block with --blocking-input — skip stat
+   must stay 0 AND offset calibration should collapse to ONE peak >0.9.
 5. Netplay track: delay retrofit tooling (slippi-ai's update_delay.py
    pattern), --online-robust delay-distribution training, displayName
    port discovery.
