@@ -252,6 +252,48 @@ def apply_controller_input(controller: melee.Controller, input_data: Dict[str, A
 # Bridge State
 # ============================================================================
 
+class ActionQueue:
+    """Frame-keyed action scheduling (LATENCY_ARCHITECTURE direction #3).
+
+    Explicit local delay: an action tagged for frame t+D is HELD here and
+    only written to the controller when the console reports frame t+D —
+    so the state->action latency is exactly D frames regardless of how
+    fast inference ran. This is the D>=2 delay component Slippi's native
+    online_delay doesn't give us, and the seam for slippi-ai-style
+    console/local budget splitting.
+
+    Pure data structure (no controller access) so the exact-D semantics
+    are pinned by test_action_queue.py without Dolphin.
+    """
+
+    def __init__(self):
+        self._queue: Dict[int, list] = {}
+        self._last_frame: Optional[int] = None
+
+    def schedule(self, frame: int, item: Any) -> None:
+        self._queue.setdefault(int(frame), []).append(item)
+
+    def pop_due(self, frame: int) -> list:
+        """All items scheduled for frames <= `frame`, oldest frame first.
+
+        A frame REGRESSION (new game: Melee restarts at -123) drops the
+        whole queue — actions scheduled against the previous game's
+        timeline must never fire into the new one.
+        """
+        if self._last_frame is not None and frame < self._last_frame:
+            self._queue.clear()
+        self._last_frame = frame
+
+        due_frames = sorted(f for f in self._queue if f <= frame)
+        items = []
+        for f in due_frames:
+            items.extend(self._queue.pop(f))
+        return items
+
+    def __len__(self):
+        return sum(len(v) for v in self._queue.values())
+
+
 class MeleeBridge:
     """Manages the connection to Dolphin/Slippi."""
 
@@ -266,6 +308,10 @@ class MeleeBridge:
         self._postgame_reported = False  # Track if we've reported postgame to Elixir
         self._last_in_game = False  # Track if we were in game last frame
         self.polling = False  # console polling mode (set in init from console_timeout)
+        # Local delay queue (direction #3): actions tagged with "delay" D
+        # are held until the console reports current_frame + D.
+        self.action_queue = ActionQueue()
+        self._current_frame: Optional[int] = None
         # Scripted port-2 dummy (drill opponents): none|stand|shield|jump|walk|cpu
         self.dummy_mode: str = "none"
         self.dummy_controller: Optional[melee.Controller] = None
@@ -748,6 +794,21 @@ class MeleeBridge:
             # Handle menu navigation if requested
             is_in_game = gamestate.menu_state in [melee.Menu.IN_GAME, melee.Menu.SUDDEN_DEATH]
 
+            # Local delay queue (direction #3): track the frame clock and
+            # apply everything scheduled for it. Writes land in the pipe
+            # NOW and flush at the top of the NEXT console.step — the same
+            # one-step semantics as an immediate send, just deferred to the
+            # target frame. pop_due also drops the queue on frame
+            # regression (new game), so stale actions never cross games.
+            if is_in_game:
+                self._current_frame = gamestate.frame
+                for queued in self.action_queue.pop_due(gamestate.frame):
+                    self._apply_input_now(queued)
+            else:
+                # Out of game the frame clock is meaningless for scheduling;
+                # sends fall back to immediate until the next game starts.
+                self._current_frame = None
+
             # Reset the dummy-setup watchdog once the game is running, so its
             # frame budget is PER character-select visit. Without this the
             # counter carries over and the timeout fires spuriously on the
@@ -928,6 +989,19 @@ class MeleeBridge:
         if not self.running or not self.controller:
             return {"error": "Controller not initialized"}
 
+        # Local delay queue (direction #3): "delay" D holds the action until
+        # the console reports frame current+D (applied in step, before the
+        # next flush). Without "delay" (or before the first in-game frame)
+        # the action applies immediately — the pre-queue path, unchanged.
+        delay = input_data.get("delay")
+        if delay and self._current_frame is not None:
+            apply_at = self._current_frame + int(delay)
+            self.action_queue.schedule(apply_at, input_data)
+            return {"ok": True, "queued_for": apply_at}
+
+        return self._apply_input_now(input_data)
+
+    def _apply_input_now(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
         try:
             target = self.controller
             port = input_data.get("port")

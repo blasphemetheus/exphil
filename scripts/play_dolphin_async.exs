@@ -257,7 +257,10 @@ Output.step(5, 5, "Starting async game runner")
     pace_hz: opts[:pace_hz] || if(opts[:headless], do: 60, else: 0),
     # LRAS needs the polling console: --console-timeout 0 (blocking
     # dispatch) would deadlock on a chord that pauses (polling_ab r1).
-    lras: opts[:console_timeout] != 0
+    lras: opts[:console_timeout] != 0,
+    # Direction #3: explicit bridge-side action delay (frames), independent
+    # of --frame-delay (Slippi native online delay); the two compose.
+    local_delay: opts[:local_delay] || 0
   )
 
 Output.success("Async runner started")

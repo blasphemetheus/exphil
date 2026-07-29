@@ -228,6 +228,10 @@ defmodule ExPhil.Bridge.AsyncRunner do
     # polling_ab r1). Callers that init the bridge with console_timeout: 0
     # MUST pass lras: false so SD goes straight to the hold-left walk-off.
     :ets.insert(table, {:lras_enabled, Keyword.get(opts, :lras, true)})
+    # Direction #3: explicit local action delay (frames). Policy actions are
+    # tagged so the bridge's ActionQueue applies them exactly N frames after
+    # the state they answered. SD/dummy sends stay immediate.
+    :ets.insert(table, {:local_delay, Keyword.get(opts, :local_delay, 0)})
 
     # Frame pacing (pace_hz opt): with blocking pipe input the game only
     # advances when we feed it, so the RUNNER is the throttle. The ExiAI
@@ -600,7 +604,11 @@ defmodule ExPhil.Bridge.AsyncRunner do
 
         [{:latest_action, action}] ->
           # Send the action
-          input = action_to_input(action, player_port)
+          input =
+            action
+            |> action_to_input(player_port)
+            |> maybe_tag_local_delay(table)
+
           MeleePort.send_controller(bridge, input)
           track_staleness(table)
       end
@@ -741,6 +749,16 @@ defmodule ExPhil.Bridge.AsyncRunner do
   # Training-data filterability: hold-left keeps the pure-left-no-buttons
   # signature; LRAS frames are filtered by A+L+R held with neutral stick
   # (see train_multishine_policy.exs reject clause).
+  # Direction #3: tag policy actions with the explicit local delay so the
+  # bridge's frame-keyed queue applies them exactly N frames after the
+  # state they answered (0/absent = immediate, the pre-queue path).
+  defp maybe_tag_local_delay(input, table) do
+    case :ets.lookup(table, :local_delay) do
+      [{:local_delay, d}] when is_integer(d) and d > 0 -> Map.put(input, :delay, d)
+      _ -> input
+    end
+  end
+
   # Runtime LRAS window: 0 when the runner was started with lras: false
   # (bridge in blocking dispatch — see the :lras_enabled init comment).
   defp lras_frames(table) do
