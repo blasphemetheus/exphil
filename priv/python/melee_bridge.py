@@ -265,6 +265,7 @@ class MeleeBridge:
         self.config = {}
         self._postgame_reported = False  # Track if we've reported postgame to Elixir
         self._last_in_game = False  # Track if we were in game last frame
+        self.polling = False  # console polling mode (set in init from console_timeout)
         # Scripted port-2 dummy (drill opponents): none|stand|shield|jump|walk|cpu
         self.dummy_mode: str = "none"
         self.dummy_controller: Optional[melee.Controller] = None
@@ -280,7 +281,6 @@ class MeleeBridge:
         self.controller_port = config.get("controller_port", 1)
         self.opponent_port = config.get("opponent_port", 2)
         online_delay = config.get("online_delay", 0)
-        blocking_input = config.get("blocking_input", True)
 
         if not dolphin_path:
             return {"error": "dolphin_path is required"}
@@ -332,8 +332,32 @@ class MeleeBridge:
                 ),
                 # Distinct ports let parallel instances coexist (default 51441)
                 slippi_port=int(config.get("slippi_port") or 51441),
-                blocking_input=bool(config.get("blocking_input", self.headless)),
+                # None-tolerant: Elixir configs send nil for unset keys, which
+                # arrives as None and would defeat a config.get default.
+                blocking_input=(
+                    self.headless
+                    if config.get("blocking_input") is None
+                    else bool(config.get("blocking_input"))
+                ),
             )
+            # Polling mode (slippi-ai harness parity): console.step() returns
+            # None after console_timeout seconds instead of blocking forever.
+            # This is what makes LRAS possible — Start pauses the game, a
+            # paused game emits no frames, and without polling the
+            # single-threaded bridge deadlocks inside step() so the
+            # quit-completing Start edge can never be flushed (controllers
+            # only flush at the TOP of console.step()). Default ON with a
+            # 100ms timeout: in-game frames arrive every ~17ms so the timeout
+            # never fires spuriously; during a pause the send→step cycle runs
+            # at ~10Hz, which paces the Start pulse. Pass console_timeout=0
+            # to restore blocking dispatch.
+            console_timeout = config.get("console_timeout")
+            if console_timeout is None:
+                console_timeout = 0.1
+            self.polling = float(console_timeout) > 0
+            if self.polling:
+                console_kwargs["polling_mode"] = True
+                console_kwargs["polling_timeout"] = float(console_timeout)
             if self.headless:
                 console_kwargs["gfx_backend"] = "Null"
                 console_kwargs["disable_audio"] = True
@@ -688,6 +712,14 @@ class MeleeBridge:
 
         try:
             gamestate = self.console.step()
+
+            if gamestate is None and self.polling:
+                # Polling timeout — no frame within console_timeout. NOT an
+                # error: the game is paused (LRAS), loading, or in a menu
+                # transition. Report no_frame so the Elixir loop can keep
+                # sending controller input (the next step() call flushes it)
+                # and decide for itself when a stall is fatal.
+                return {"ok": True, "no_frame": True}
 
             if gamestate is None:
                 # This can happen during menu transitions - try to recover

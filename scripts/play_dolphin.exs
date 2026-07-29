@@ -120,6 +120,12 @@ bridge_config = %{
   character: opts[:character],
   stage: opts[:stage],
   online_delay: opts[:frame_delay],
+  # Harness parity (HANDOFF_2026-07-28 step 1): --blocking-input makes the
+  # game wait for the bot's controller write each frame (nil = bridge
+  # default: on for headless only); --console-timeout tunes the polling
+  # dispatch that LRAS needs (nil = bridge default 0.1s).
+  blocking_input: opts[:blocking_input] || nil,
+  console_timeout: opts[:console_timeout],
   # Dummy opponent (same keys as play_dolphin_async.exs) — makes the SYNC
   # runner usable for unattended eval blocks (deterministic 1-frame delay,
   # no staleness by construction; the jitter experiment of 2026-07-28).
@@ -188,7 +194,23 @@ defmodule GameLoop do
 
     auto_menu = not Keyword.get(opts, :no_auto_menu, false)
 
-    case MeleePort.step(bridge, auto_menu: auto_menu) do
+    step_result = MeleePort.step(bridge, auto_menu: auto_menu, poll: true)
+    if step_result != :no_frame, do: Process.put(:no_frame_streak, 0)
+
+    case step_result do
+      :no_frame ->
+        # Polling timeout (paused game, load screen) — just re-poll, with a
+        # cap so a dead console doesn't spin forever (~60s at 100ms polls).
+        streak = Process.get(:no_frame_streak, 0) + 1
+        Process.put(:no_frame_streak, streak)
+
+        if streak > 600 do
+          IO.puts("\n[#{timestamp()}] ❌ #{streak} consecutive no-frame polls — console hung")
+          {:error, :console_hung}
+        else
+          run(agent, bridge, player_port, Keyword.put(opts, :stats, stats))
+        end
+
       {:ok, game_state} ->
         handle_in_game(agent, bridge, player_port, game_state, stats, opts)
 
@@ -284,21 +306,35 @@ defmodule GameLoop do
       buttons: %{a: false, b: false, x: false, y: false, z: false, l: false, r: false, d_up: false}
     }
 
+    # LRAS enabled (polling-mode console landed 2026-07-29 — see AsyncRunner
+    # @lras_frames note). L+R+A held, Start PULSED: if the first chord frame
+    # pauses instead of quitting, the pause screen needs a fresh Start edge
+    # (a continuous hold never re-edges). Each toggle rides its own
+    # console.step() flush, so edges land whether ticks come from real
+    # frames (60Hz) or paused no-frame polls (~10Hz).
+    lras_frames = 120
+    frames_used = 7200 - frames_left
+    start_down = rem(frames_used, 2) == 0
+
     lras = %{
       main_stick: %{x: 0.5, y: 0.5},
       c_stick: %{x: 0.5, y: 0.5},
       shoulder: 0.0,
-      buttons: %{a: true, b: false, x: false, y: false, z: false, l: true, r: true, d_up: false, start: true}
+      buttons: %{a: true, b: false, x: false, y: false, z: false, l: true, r: true, d_up: false, start: start_down}
     }
 
-    # LRAS gated OFF pending polling-mode console support (pause stalls the
-    # frame stream and deadlocks the bridge inside console.step — see
-    # AsyncRunner @lras_frames note). 0 = straight to hold-left.
-    lras_frames = 0
-    frames_used = 7200 - frames_left
+    # Paused past the LRAS window: hold-left can't act on a paused game —
+    # pulse Start alone to unpause so the walk-off fallback can resume.
+    unpause = %{
+      main_stick: %{x: 0.5, y: 0.5},
+      c_stick: %{x: 0.5, y: 0.5},
+      shoulder: 0.0,
+      buttons: %{a: false, b: false, x: false, y: false, z: false, l: false, r: false, d_up: false, start: start_down}
+    }
+
     input = if frames_used < lras_frames, do: lras, else: hold_left
 
-    case MeleePort.step(bridge, auto_menu: false) do
+    case MeleePort.step(bridge, auto_menu: false, poll: true) do
       {:ok, game_state} ->
         if rem(frames_used, 60) == 0 do
           p = game_state.players[1]
@@ -310,6 +346,17 @@ defmodule GameLoop do
         end
 
         MeleePort.send_controller(bridge, input)
+        sd_until_game_end(bridge, frames_left - 1)
+
+      :no_frame ->
+        # No frame within console_timeout — the game is paused (Start
+        # landed) or loading. NOT game end: keep the send→step cycle alive
+        # so the next Start edge can complete the quit.
+        if rem(frames_used, 20) == 0 do
+          IO.puts("[SD] no-frame tick f#{frames_used} (game paused?) — pulsing")
+        end
+
+        MeleePort.send_controller(bridge, if(frames_used < lras_frames, do: lras, else: unpause))
         sd_until_game_end(bridge, frames_left - 1)
 
       _postgame_menu_or_end ->

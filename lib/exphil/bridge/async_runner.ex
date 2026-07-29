@@ -40,16 +40,22 @@ defmodule ExPhil.Bridge.AsyncRunner do
 
   use GenServer
 
-  # LRAS (L+R+A+Start instant quit) is DISABLED until the bridge supports
-  # polling-mode console stepping: Start pauses the game, a paused game
-  # stops producing frames, and libmelee only flushes controller state
-  # inside console.step() — so the single-threaded Python bridge deadlocks
-  # inside step() and the quit-completing Start edge can never be
-  # delivered (measured 2026-07-28: game paused, one [SD] frame, then
-  # stall). slippi-ai solves this with console polling mode
-  # (console_timeout); see LATENCY_ARCHITECTURE.md direction #4 — enable
-  # @lras_frames > 0 only after that lands.
-  @lras_frames 0
+  # LRAS (L+R+A+Start instant quit) — ENABLED now that the bridge polls
+  # (console_timeout, 2026-07-29). The old deadlock: Start pauses the
+  # game, a paused game stops producing frames, and libmelee only flushes
+  # controller state inside console.step() — so a blocking bridge stalled
+  # inside step() and the quit-completing Start edge could never be
+  # delivered (measured 2026-07-28). With polling, step() returns
+  # :no_frame after ~100ms and the frame loop keeps the send→step cycle
+  # alive through the pause (see the :no_frame branch in frame_loop/5).
+  # 120 ticks ≈ 2s of in-game attempts or ~12s of paused 10Hz polls
+  # before falling back to the hold-left walk-off.
+  @lras_frames 120
+
+  # Consecutive :no_frame polls before the loop declares the console hung
+  # (~60s at the default 100ms console_timeout). Pauses and load screens
+  # are far shorter; a dead Dolphin never comes back.
+  @no_frame_fatal_streak 600
   require Logger
 
   alias ExPhil.Agents.Agent
@@ -414,7 +420,13 @@ defmodule ExPhil.Bridge.AsyncRunner do
 
       false ->
         # Read next frame
-        case MeleePort.step(bridge, auto_menu: auto_menu) do
+        step_result = MeleePort.step(bridge, auto_menu: auto_menu, poll: true)
+        if step_result != :no_frame, do: Process.put(:no_frame_streak, 0)
+
+        case step_result do
+          :no_frame ->
+            handle_no_frame(bridge, table, auto_menu, player_port, agent)
+
           {:ok, game_state} ->
             handle_game_frame(bridge, table, game_state, player_port, agent)
             pace(table)
@@ -450,6 +462,43 @@ defmodule ExPhil.Bridge.AsyncRunner do
             :ets.insert(table, {:should_stop, true})
             :ok
         end
+    end
+  end
+
+  # Polling timeout: the console produced no frame within console_timeout.
+  # Expected while the game is PAUSED (the first LRAS Start press) or on
+  # load screens. Controllers only flush inside console.step(), so during a
+  # pause each no-frame tick must both advance the SD input schedule (the
+  # Start pulse needs fresh edges) and immediately re-poll — that send→step
+  # cycle at ~10Hz is what delivers the quit-completing Start edge to the
+  # pause screen. Outside SD mode a no-frame tick is just a quiet re-poll.
+  defp handle_no_frame(bridge, table, auto_menu, player_port, agent) do
+    streak = Process.get(:no_frame_streak, 0) + 1
+    Process.put(:no_frame_streak, streak)
+
+    cond do
+      streak > @no_frame_fatal_streak ->
+        Logger.error(
+          "[AsyncRunner:FrameLoop] #{streak} consecutive no-frame polls — " <>
+            "console hung or disconnected, stopping"
+        )
+
+        send_neutral_controller(bridge)
+        :ets.insert(table, {:should_stop, true})
+        :ok
+
+      sd_mode?(table) ->
+        n = :ets.update_counter(table, :sd_frames, 1, {:sd_frames, 0})
+
+        if rem(n, 20) == 1 do
+          IO.puts("[SD] no-frame tick #{n} (game paused?) — pulsing LRAS/Start")
+        end
+
+        MeleePort.send_controller(bridge, sd_input(player_port, n, :no_frame))
+        frame_loop(bridge, table, auto_menu, player_port, agent)
+
+      true ->
+        frame_loop(bridge, table, auto_menu, player_port, agent)
     end
   end
 
@@ -639,10 +688,14 @@ defmodule ExPhil.Bridge.AsyncRunner do
 
   # End-game input schedule: LRAS (L+R+A+Start — instant match quit with a
   # proper Slippi game-end event) for the first @lras_frames, then the
-  # legacy hold-left walk-off as fallback. All four LRAS buttons go in ONE
-  # message (a partial press pauses instead — and LRAS also quits from the
-  # pause screen, so even that resolves). Start is send-only in the bridge
-  # protocol (melee_bridge.py button_map; deliberately absent from
+  # legacy hold-left walk-off as fallback. L+R+A are HELD; Start is PULSED
+  # (toggled every tick): if the first chord frame pauses instead of
+  # quitting, the pause screen needs a FRESH Start edge to complete the
+  # quit — a continuous hold never re-edges (measured 2026-07-28). Each
+  # toggle lands on its own console.step() flush, so edges arrive every
+  # other tick whether ticks come from real frames (60Hz) or paused
+  # no-frame polls (~10Hz). Start is send-only in the bridge protocol
+  # (melee_bridge.py button_map; deliberately absent from
   # serialize_controller_state to preserve the 13-dim prev-action contract).
   #
   # Training-data filterability: hold-left keeps the pure-left-no-buttons
@@ -654,7 +707,17 @@ defmodule ExPhil.Bridge.AsyncRunner do
       main_stick: %{x: 0.5, y: 0.5},
       c_stick: %{x: 0.5, y: 0.5},
       shoulder: 0.0,
-      buttons: %{a: true, b: false, x: false, y: false, z: false, l: true, r: true, d_up: false, start: true}
+      buttons: %{
+        a: true,
+        b: false,
+        x: false,
+        y: false,
+        z: false,
+        l: true,
+        r: true,
+        d_up: false,
+        start: rem(n, 2) == 1
+      }
     }
   end
 
@@ -667,6 +730,32 @@ defmodule ExPhil.Bridge.AsyncRunner do
       buttons: %{a: false, b: false, x: false, y: false, z: false, l: false, r: false, d_up: false}
     }
   end
+
+  # No-frame (paused) variant: past the LRAS window the /2 fallback is
+  # hold-left — useless on a PAUSED game (walk-off needs gameplay frames).
+  # Pulse Start alone to unpause so the walk-off can act once frames
+  # resume. Within the LRAS window the schedule is identical to /2.
+  defp sd_input(player_port, n, :no_frame) when n > @lras_frames do
+    %{
+      port: player_port,
+      main_stick: %{x: 0.5, y: 0.5},
+      c_stick: %{x: 0.5, y: 0.5},
+      shoulder: 0.0,
+      buttons: %{
+        a: false,
+        b: false,
+        x: false,
+        y: false,
+        z: false,
+        l: false,
+        r: false,
+        d_up: false,
+        start: rem(n, 2) == 1
+      }
+    }
+  end
+
+  defp sd_input(player_port, n, _ctx), do: sd_input(player_port, n)
 
   # Elixir-driven opponent dummy: read the opponent's state, step the dummy
   # module, route its input to the opponent port. Synchronous with the frame

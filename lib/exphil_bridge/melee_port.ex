@@ -43,6 +43,13 @@ defmodule ExPhil.Bridge.MeleePort do
   # Harmless for live play: this is a MAX wait, steps normally return ~16ms.
   @default_timeout 90_000
 
+  # Transparent step retries for blocking callers when the bridge is in
+  # polling mode (no_frame every ~100ms). 880 × ~100ms ≈ 88s — sized to the
+  # same netplay-Direct budget as @default_timeout, and just under it so a
+  # hung console surfaces as {:error, :console_hung} instead of a caller
+  # GenServer.call timeout.
+  @max_no_frame_retries 880
+
   # ============================================================================
   # Types
   # ============================================================================
@@ -78,7 +85,8 @@ defmodule ExPhil.Bridge.MeleePort do
           optional(:opponent_port) => pos_integer(),
           optional(:character) => atom() | pos_integer(),
           optional(:stage) => atom() | pos_integer(),
-          optional(:online_delay) => non_neg_integer()
+          optional(:online_delay) => non_neg_integer(),
+          optional(:console_timeout) => number()
         }
 
   @typedoc "Start link options"
@@ -93,6 +101,7 @@ defmodule ExPhil.Bridge.MeleePort do
           | {:menu, GameState.t()}
           | {:postgame, GameState.t()}
           | {:game_ended, String.t()}
+          | :no_frame
           | {:error, term()}
 
   # ============================================================================
@@ -122,6 +131,10 @@ defmodule ExPhil.Bridge.MeleePort do
     - `:character` - Character to select (atom or integer)
     - `:stage` - Stage to select (atom or integer)
     - `:online_delay` - Simulate online delay frames (default: 0)
+    - `:console_timeout` - Polling-mode timeout in seconds (default: 0.1).
+      `step/3` returns `:no_frame` when no frame arrives in time (paused
+      game, load screen) instead of blocking. Pass `0` for legacy blocking
+      dispatch.
   """
   @spec init_console(server(), init_config() | keyword(), timeout_ms()) ::
           {:ok, %{controller_port: pos_integer()}} | {:error, term()}
@@ -133,6 +146,15 @@ defmodule ExPhil.Bridge.MeleePort do
   Get the next game state.
 
   Returns `{:ok, game_state}` when in game, or `{:menu, game_state}` during menus.
+
+  ## Options
+    - `:auto_menu` - Let the bridge navigate menus (default: true)
+    - `:poll` - Surface `:no_frame` when the console produced no frame within
+      its polling timeout (paused game, load screen). Default false: no_frame
+      is absorbed by transparent re-polling, preserving blocking semantics
+      for callers that don't handle `:no_frame`. LRAS-capable runners MUST
+      pass `poll: true` — completing the quit requires sending controller
+      input between polls while the game is paused.
   """
   @spec step(server(), keyword(), timeout_ms()) :: step_result()
   def step(server, opts \\ [], timeout \\ @default_timeout) do
@@ -224,9 +246,10 @@ defmodule ExPhil.Bridge.MeleePort do
   @impl true
   def handle_call({:step, opts}, from, state) do
     auto_menu = Keyword.get(opts, :auto_menu, true)
+    poll = Keyword.get(opts, :poll, false)
     request = %{cmd: "step", auto_menu: auto_menu}
     send_request(state.port, request)
-    {:noreply, %{state | pending: {:step, from}}}
+    {:noreply, %{state | pending: {:step, from, %{poll: poll, auto_menu: auto_menu, retries: 0}}}}
   end
 
   @impl true
@@ -270,7 +293,8 @@ defmodule ExPhil.Bridge.MeleePort do
     Logger.warning("[MeleePort] Python process exited with status: #{status}")
 
     if state.pending do
-      {_type, from} = state.pending
+      # Pending is {type, from} or {:step, from, meta}
+      from = elem(state.pending, 1)
       GenServer.reply(from, {:error, BridgeError.new(:port_closed, bridge: :melee_port, context: %{exit_status: status})})
     end
 
@@ -350,15 +374,35 @@ defmodule ExPhil.Bridge.MeleePort do
   end
 
   defp handle_response(response, state) do
-    case state.pending do
-      nil ->
+    case {state.pending, response} do
+      {nil, _} ->
         Logger.warning(
           "[MeleePort] Received response with no pending request: #{inspect(response)}"
         )
 
         state
 
-      {type, from} ->
+      # Polling-mode no_frame reaching a BLOCKING caller (poll: false, the
+      # default): transparently re-issue the step so legacy scripts keep
+      # their pre-polling semantics — step/3 only returns when a real frame
+      # (or a real error) arrives. Capped so a dead console surfaces as an
+      # error instead of retrying forever. LRAS-aware runners pass
+      # poll: true and handle :no_frame themselves.
+      {{:step, from, %{poll: false, retries: r} = meta}, %{"ok" => true, "no_frame" => true}} ->
+        if r >= @max_no_frame_retries do
+          GenServer.reply(from, {:error, :console_hung})
+          %{state | pending: nil}
+        else
+          send_request(state.port, %{cmd: "step", auto_menu: meta.auto_menu})
+          %{state | pending: {:step, from, %{meta | retries: r + 1}}}
+        end
+
+      {{type, from, _meta}, _} ->
+        reply = format_reply(type, response)
+        GenServer.reply(from, reply)
+        %{state | pending: nil}
+
+      {{type, from}, _} ->
         reply = format_reply(type, response)
         GenServer.reply(from, reply)
         %{state | pending: nil}
@@ -368,6 +412,11 @@ defmodule ExPhil.Bridge.MeleePort do
   defp format_reply(:init, %{"ok" => true} = response) do
     {:ok, %{controller_port: response["controller_port"]}}
   end
+
+  # Polling-mode timeout: no frame arrived within console_timeout (paused
+  # game, load screen). Must match BEFORE the general :step ok clause —
+  # there is no game_state to parse.
+  defp format_reply(:step, %{"ok" => true, "no_frame" => true}), do: :no_frame
 
   defp format_reply(:step, %{"ok" => true} = response) do
     game_state = parse_game_state(response["game_state"])

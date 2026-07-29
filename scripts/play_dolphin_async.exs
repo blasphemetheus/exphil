@@ -200,6 +200,12 @@ bridge_config = %{
   # every frame is seen even though emulation runs unthrottled (GOTCHA #56
   # is about the NON-blocking case).
   headless: opts[:headless] || false,
+  # Harness parity (HANDOFF_2026-07-28 step 1): --blocking-input forces the
+  # game to wait for the bot's controller write each frame even when
+  # windowed (nil = bridge default: on for headless only); --console-timeout
+  # tunes the polling dispatch LRAS needs (nil = bridge default 0.1s).
+  blocking_input: opts[:blocking_input] || nil,
+  console_timeout: opts[:console_timeout],
   replay_dir: opts[:replay_dir],
   slippi_port: opts[:slippi_port],
   # Slippi Direct netplay (see docs/planning/YETI_DEBUT.md); online_delay
