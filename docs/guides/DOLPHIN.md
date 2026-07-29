@@ -21,13 +21,27 @@ Ishiiruka.` Use the Slippi **mainline (beta track)** Dolphin — adopted
 through plain pipes, which the ExiAI fork does not:
 
 ```
+# NixOS (nixos_slanka):
 ~/.local/share/slippi/mainline/dolphin-emu-mainline
+# Manjaro laptop (Slippi Launcher "Beta" release channel installs it):
+~/.config/Slippi Launcher/netplay-beta/Slippi_Netplay_Mainline-x86_64.AppImage
 ```
+
+On Manjaro, enable the Beta release channel in Slippi Launcher settings —
+it installs the mainline AppImage alongside netplay. Do NOT let
+AppImageLauncher "integrate" it (that moves it to ~/Applications under a
+hashed name, breaking the Launcher's zsync updates and the --dolphin path).
 
 libmelee classifies mainline correctly (Null video allowed, Slippi-section
 config, `save_replays`/`replay_dir` supported). Point `--dolphin` at the
 wrapper FILE, not a directory — libmelee's path heuristic looks for
 "netplay" in a directory name and rejects anything else.
+
+**Mainline headless does NOT write replays to `~/Slippi`** — they land in
+the temp User dir, which is deleted at exit. ALWAYS pass `--replay-dir`
+on headless runs or the .slp silently vanishes (verified 2026-07-28: a
+headless smoke left no new file in ~/Slippi and the eval protocol's
+"copy newest" grabbed a stale replay from an earlier windowed run).
 
 | build | windowed | headless | notes |
 |---|---|---|---|

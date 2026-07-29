@@ -414,17 +414,22 @@ class MeleeBridge:
                 else:
                     raise
             except TypeError as e:
-                # Older libmelee has no use_exi_inputs parameter at all (the
-                # ValueError path above only covers a NEW libmelee talking to
-                # an old Dolphin build). Drop it and retry on pipe inputs,
-                # which is the default everything trains on anyway.
-                if "use_exi_inputs" in str(e):
+                # Optional kwargs that only exist in newer libmelee forks.
+                # Drop whichever one this version rejects and retry:
+                #   use_exi_inputs — pipe inputs are the default anyway
+                #   replay_monthly_folders — pinned v0.43.0 takes replay_dir
+                #     but not this; replays still land in replay_dir, just
+                #     possibly under a monthly subfolder (glob accordingly)
+                optional_kwargs = ["use_exi_inputs", "replay_monthly_folders"]
+                dropped = [k for k in optional_kwargs if k in console_kwargs and k in str(e)]
+                if dropped:
                     logger.warning(
-                        "libmelee %s has no use_exi_inputs — EXI inputs need a "
-                        "newer libmelee; retrying with pipe inputs",
+                        "libmelee %s rejects %s — retrying without",
                         getattr(melee, "__version__", "unknown"),
+                        dropped,
                     )
-                    console_kwargs.pop("use_exi_inputs", None)
+                    for k in dropped:
+                        console_kwargs.pop(k, None)
                     self.console = melee.Console(**console_kwargs)
                 else:
                     raise
