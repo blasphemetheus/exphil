@@ -374,3 +374,40 @@ recommended configs; the collapse is speed-0-specific).
   smear — do NOT use for timing-critical runs until a runtime
   speed-switch (menus 0, gameplay 1.0) exists. That switch is the
   next headless lever.
+
+## DAgger through the delayed bridge (2026-07-29, campaign live)
+
+The +1-adaptation path the delay campaign queued. Protocol per round:
+student collects through `--frame-delay 1` (windowed, stand dummy);
+`dagger_drill.exs --expert multishine --fixture fox_multishine_closed_d1.slp`
+builds the SHIFTED teacher table from the d1 fixture automatically
+(MultishineExpert.from_frames keys {action, af, grounded} — the
+fixture's pairs ARE the one-frame-early triggers) and relabels every
+visited frame; retrain; eval at delay-1. Farm-5 label rule satisfied
+by construction. Caveat: expert RECOVERY RULES remain delay-0-flavored
+(table covers the happy path; revisit if break forensics point there).
+
+**Round 0** (ms_open_z through delay-1): 113.6-115.4 self/min, chains
+3-5 — the one-frame collapse reproduced under the polling harness.
+Bridge fingerprint: stable bimodal -2/-3 (0.65-0.70, ±0.02 across
+runs) — NOT a smear; the reduced peak vs delay-0 (0.78) is
+policy-harness mismatch, i.e. the trainable part. Gate passed.
+
+**Round 1** (17.5k frames: d1 fixture + 3 relabeled rollouts, GRU w16
+prev-action, converged 0.0006 @ epoch 77, 46 min laptop CPU):
+- delay-1: 35-75/min, chains 2-3. delay-0: 11-44/min, chains 1-2.
+- **DELAY-PREFERENCE INVERSION: the policy scores BETTER through the
+  delayed bridge than without it** — first learned policy in the
+  campaign to do so. Re-recording never transferred this (rerec_a:
+  fattest margins, zero aerial shines at +1). The DAgger ingredients
+  (student-visited states + real presses in the prev channel) carry
+  the anticipation signal BC-through-rerec could not.
+- Capability thin: cal peak 0.52 flat-ish, aerial-shine flip 27-31%
+  (the chain-critical B-press is marginal) — data thinness, 3 rollouts.
+- Prereg "chains beat 3-5" FAILED on absolute numbers; the inversion
+  was not pre-registered and is the real result.
+
+**Round 2** (in flight): 12 aggregated rollouts (incl. 6 collected by
+the round-1 student — near-dead absorber runs included on purpose:
+teacher labels exactly the stuck states). Prereg: chains >=8 at
+delay-1, rate toward ~114 baseline, aerial-shine flip <27%.
