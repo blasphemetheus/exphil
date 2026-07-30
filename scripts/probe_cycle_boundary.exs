@@ -23,12 +23,17 @@ alias ExPhil.Data.Peppi
 alias ExPhil.Interp.Activations
 alias ExPhil.Training.{Data, Output}
 
-policies = [
-  {"champion", "checkpoints/ms_open_z.bin"},
-  {"dagger3", "checkpoints/ms_d1_dagger3_policy.bin"},
-  {"champT+d1H", "checkpoints/hybrid_champTrunk_d1Heads.bin"},
-  {"d1T+champH", "checkpoints/hybrid_d1Trunk_champHeads.bin"}
-]
+# Hybrids deleted 2026-07-29 (cross-lineage head-swap is degenerate — see
+# LATENCY_ARCHITECTURE.md); r4e10 = R4 margin round's epoch-10 export.
+policies =
+  [
+    {"champion", "checkpoints/ms_open_z.bin"},
+    {"dagger3", "checkpoints/ms_d1_dagger3_policy.bin"},
+    {"dagger3_r4e10", "checkpoints/ms_d1_dagger3_policy_latest.bin"}
+  ]
+  |> Enum.filter(fn {name, path} ->
+    File.exists?(path) || (Output.warning("skipping #{name}: #{path} missing"); false)
+  end)
 
 fixtures = [
   {"d0", "test/fixtures/replays/fox_multishine_closed.slp"},

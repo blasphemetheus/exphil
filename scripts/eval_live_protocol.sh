@@ -89,15 +89,23 @@ kill_dolphins() {
 for i in $(seq 1 "$RUNS"); do
   kill_dolphins
   echo "=== run $i/$RUNS start $(date +%H:%M:%S) loadavg=$(cut -d' ' -f1 /proc/loadavg)"
-  XLA_TARGET=cpu timeout $((SECONDS_ARG + 420)) mix run "$RUNNER_SCRIPT" \
+  run_start=$(date +%s)
+  XLA_TARGET="${XLA_TARGET_EVAL:-cpu}" timeout $((SECONDS_ARG + 420)) mix run "$RUNNER_SCRIPT" \
     --policy "$POLICY" \
     --dolphin "$DOLPHIN_DIR" --iso "$ISO" \
     --character fox "${DUMMY_ARGS[@]}" \
     --seconds "$SECONDS_ARG" "${RUNNER_ARGS[@]}" "${DECODE_ARGS[@]}" \
     "${EXTRA[@]}" > "$OUTDIR/r$i.log" 2>&1
   kill_dolphins
-  newest=$(ls -t "$HOME"/Slippi/*.slp 2>/dev/null | head -1)
-  [ -n "$newest" ] && cp "$newest" "$OUTDIR/r$i.slp"
+  # mainline builds write into monthly subdirs (~/Slippi/2026-07/); a replay
+  # older than the run start is a FAILED run's leftover, not this run's output
+  # (the 2026-07-30 stale-copy artifact: 3 identical "runs" scored from one file)
+  newest=$(ls -t "$HOME"/Slippi/*.slp "$HOME"/Slippi/*/*.slp 2>/dev/null | head -1)
+  if [ -n "$newest" ] && [ "$(stat -c %Y "$newest")" -ge "$run_start" ]; then
+    cp "$newest" "$OUTDIR/r$i.slp"
+  else
+    echo "  r$i NO FRESH REPLAY (run failed?) — see $OUTDIR/r$i.log" >&2
+  fi
   grep -a "Final stats\|Staleness\|skipped\|SD FAILED\|replay finalized" "$OUTDIR/r$i.log" | sed "s/^/  r$i /"
 done
 
