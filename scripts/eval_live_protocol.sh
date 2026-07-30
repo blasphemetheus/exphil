@@ -118,4 +118,12 @@ if [ "$DUMMY" = "cpu" ]; then
   for s in $SLPS; do mix run scripts/check_replay_ports.exs "$s" --expect-cpu 2 2>&1 | grep -a "port \|checks"; done
 fi
 mix run scripts/analyze_shine_source.exs $SLPS 2>&1 | grep -a "replay  \|r[0-9] "
+# Harness-health gate (2026-07-30): offset calibration on r1, every block.
+# Sharp single peak >=0.75 = trustworthy timing; a smeared/bimodal cal means
+# the numbers above measure the harness, not the policy. Peak POSITION is
+# harness-specific — compare concentration only (HANDOFF_2026-07-29b rule 2).
+echo "=== calibration (r1)"
+XLA_TARGET="${XLA_TARGET_EVAL:-cpu}" mix run scripts/probe_cycle_margins.exs \
+  --policies "$POLICY" --replay "$OUTDIR/r1.slp" \
+  --out "$OUTDIR/cal_r1.json" 2>&1 | grep -a "cal="
 echo "=== done. Protocol: report mean AND range; <2x differences are unresolved (EXPOSURE_BIAS.md 0a/0b)."
