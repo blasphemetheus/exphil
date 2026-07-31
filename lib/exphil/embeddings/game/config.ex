@@ -54,7 +54,20 @@ defmodule ExPhil.Embeddings.Game.Config do
             with_frame_count: true,
             # Stage embedding mode
             # :one_hot_full (64), :one_hot_compact (7), :learned (ID in network)
-            stage_mode: :one_hot_compact
+            stage_mode: :one_hot_compact,
+            # Queue-as-input (2026-07-31, slippi-ai delayed_actions parity):
+            # depth of the committed-but-unapplied action queue the policy
+            # observes. 1 = the classic prev-action channel (default,
+            # byte-identical to before). K>1 appends K-1 more controller
+            # slots (13 dims each), newest first.
+            queue_depth: 1,
+            # Declared action delay as a one-hot input (0..8) so one policy
+            # can train across a delay DISTRIBUTION and condition on the
+            # rung it is playing at. false = absent (default).
+            with_delay_id: false
+
+  @delay_id_size 9
+  def delay_id_size, do: @delay_id_size
 
   @type stage_mode :: :one_hot_full | :one_hot_compact | :learned
 
@@ -69,7 +82,9 @@ defmodule ExPhil.Embeddings.Game.Config do
           with_distance: boolean(),
           with_relative_pos: boolean(),
           with_frame_count: boolean(),
-          stage_mode: stage_mode()
+          stage_mode: stage_mode(),
+          queue_depth: pos_integer(),
+          with_delay_id: boolean()
         }
 
   @doc """
@@ -204,8 +219,13 @@ defmodule ExPhil.Embeddings.Game.Config do
     # Stage (depends on stage_mode)
     stage_size = Stage.embedding_size(config.stage_mode)
 
-    # Previous action (continuous)
-    prev_action_size = ControllerEmbed.continuous_embedding_size()
+    # Previous action / committed-action queue (continuous, 13 dims per
+    # slot; queue_depth 1 = the classic prev-action channel)
+    queue_depth = Map.get(config, :queue_depth) || 1
+    prev_action_size = ControllerEmbed.continuous_embedding_size() * queue_depth
+
+    # Declared-delay one-hot (queue-as-input)
+    delay_id_size = if Map.get(config, :with_delay_id), do: @delay_id_size, else: 0
 
     # Player name (one-hot)
     name_size = config.num_player_names
@@ -236,7 +256,7 @@ defmodule ExPhil.Embeddings.Game.Config do
     character_ids_size = num_character_ids(config)
     stage_ids_size = num_stage_ids(config)
 
-    players_size + stage_size + prev_action_size + name_size +
+    players_size + stage_size + prev_action_size + delay_id_size + name_size +
       projectile_size + item_size +
       distance_size + relative_pos_size + frame_count_size +
       action_ids_size + character_ids_size + stage_ids_size

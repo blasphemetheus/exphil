@@ -91,6 +91,7 @@ Output.step(1, 5, "Loading agent")
     policy_path: opts[:policy],
     deterministic: opts[:deterministic],
     frame_delay: opts[:frame_delay],
+    delay_id: opts[:frame_delay] || 0,
     action_repeat: opts[:action_repeat]
   )
 

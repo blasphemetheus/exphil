@@ -63,7 +63,10 @@ alias ExPhil.Embeddings
       memory_check: :string,
       rollout_cap_per_state: :integer,
       opening_replays: :string,
-      x_hold_extend: :integer
+      x_hold_extend: :integer,
+      queue_depth: :integer,
+      with_delay_id: :boolean,
+      multi_delay: :string
     ]
   )
 
@@ -683,9 +686,31 @@ end
 
 # Shift per source replay — never across concat boundaries. Kept as
 # per-replay lists so conversion spans (below) can't cross them either.
-# (streaming shifted per-file inside the shard build; nothing to do here)
+# --multi-delay: see dagger_drill.exs (queue-as-input mixed-delay pool).
+delays =
+  case opts[:multi_delay] do
+    nil -> [action_delay]
+    s -> s |> String.split(",", trim: true) |> Enum.map(&String.to_integer/1)
+  end
+
+if length(delays) > 1 and streaming do
+  Output.error("--multi-delay is not supported with --stream-chunk-size")
+  System.halt(1)
+end
+
 shifted_frame_lists =
-  if streaming, do: [], else: Enum.map(all_frame_lists, &Data.shift_actions(&1, action_delay))
+  cond do
+    streaming ->
+      []
+
+    length(delays) == 1 and not (opts[:with_delay_id] || false) ->
+      Enum.map(all_frame_lists, &Data.shift_actions(&1, action_delay))
+
+    true ->
+      for d <- delays, list <- all_frame_lists do
+        list |> Data.shift_actions(d) |> Enum.map(&Map.put(&1, :delay_id, d))
+      end
+  end
 
 shifted_frames = List.flatten(shifted_frame_lists)
 
@@ -765,6 +790,23 @@ dataset =
   else
     shifted_frames
     |> Data.from_frames(player_registry: player_registry)
+    |> then(fn ds ->
+      # Queue-as-input: see dagger_drill.exs — config carries the layout.
+      qd = opts[:queue_depth] || 1
+
+      if qd > 1 or opts[:with_delay_id] do
+        %{
+          ds
+          | embed_config: %{
+              ds.embed_config
+              | queue_depth: qd,
+                with_delay_id: opts[:with_delay_id] || false
+            }
+        }
+      else
+        ds
+      end
+    end)
     |> Data.precompute_frame_embeddings(
       use_prev_action: prev_action,
       prev_action_dropout: prev_action_dropout

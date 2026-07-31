@@ -195,11 +195,40 @@ defmodule ExPhil.Embeddings.Game do
         embeddings
       end
 
+    # Previous action / committed-action queue. queue_depth 1 keeps the
+    # classic single prev slot (`prev_action` arg); K>1 reads the newest-
+    # first queue from opts[:queue_controllers] (live agents pass their
+    # ring buffer), falling back to [prev_action] for slot 1.
+    queue_depth = Map.get(config, :queue_depth) || 1
+
+    queue_embs =
+      if queue_depth > 1 do
+        queue = Keyword.get(opts, :queue_controllers) || [prev_action]
+
+        for k <- 0..(queue_depth - 1) do
+          ControllerEmbed.embed_continuous(Enum.at(queue, k))
+        end
+      else
+        [ControllerEmbed.embed_continuous(prev_action)]
+      end
+
+    delay_embs =
+      if Map.get(config, :with_delay_id) do
+        [
+          Primitives.one_hot(Keyword.get(opts, :delay_id, 0),
+            size: Config.delay_id_size(),
+            clamp: true
+          )
+        ]
+      else
+        []
+      end
+
     embeddings =
       embeddings ++
+        queue_embs ++
+        delay_embs ++
         [
-          # Previous action
-          ControllerEmbed.embed_continuous(prev_action),
           # Player name/tag ID (for style learning)
           Primitives.one_hot(name_id, size: config.num_player_names, clamp: true)
         ]
@@ -355,13 +384,60 @@ defmodule ExPhil.Embeddings.Game do
       # ALWAYS zeros, which meant the model never saw its own last input —
       # making frame-precise input sequences (dash dance flips, multishine
       # phase) unlearnable except indirectly through velocity/action state.
-      prev_action_emb =
-        case Keyword.get(opts, :prev_controllers) do
-          nil ->
-            Nx.broadcast(0.0, {batch_size, ControllerEmbed.continuous_embedding_size()})
+      queue_depth = Map.get(config, :queue_depth) || 1
+      slot_size = ControllerEmbed.continuous_embedding_size()
 
-          prev_controllers ->
-            ControllerEmbed.embed_continuous_batch(prev_controllers)
+      prev_action_emb =
+        cond do
+          # Queue-as-input: `:queue_controllers` is a per-frame list of K
+          # committed controllers, newest first (slot k = the action
+          # committed k decision-steps ago, nil at boundaries/dropout).
+          queue_depth > 1 ->
+            queues = Keyword.get(opts, :queue_controllers)
+
+            slots =
+              for k <- 0..(queue_depth - 1) do
+                case queues do
+                  nil ->
+                    Nx.broadcast(0.0, {batch_size, slot_size})
+
+                  queues ->
+                    queues
+                    |> Enum.map(fn q -> Enum.at(q || [], k) end)
+                    |> ControllerEmbed.embed_continuous_batch()
+                end
+              end
+
+            Nx.concatenate(slots, axis: 1)
+
+          true ->
+            case Keyword.get(opts, :prev_controllers) do
+              nil ->
+                Nx.broadcast(0.0, {batch_size, slot_size})
+
+              prev_controllers ->
+                ControllerEmbed.embed_continuous_batch(prev_controllers)
+            end
+        end
+
+      # Declared-delay one-hot (queue-as-input): scalar or per-frame list.
+      prev_action_emb =
+        if Map.get(config, :with_delay_id) do
+          ids =
+            case Keyword.get(opts, :delay_id, 0) do
+              ids when is_list(ids) -> ids
+              id when is_integer(id) -> List.duplicate(id, batch_size)
+            end
+
+          delay_emb =
+            Primitives.batch_one_hot(Nx.tensor(ids, type: :s32),
+              size: Config.delay_id_size(),
+              clamp: true
+            )
+
+          Nx.concatenate([prev_action_emb, delay_emb], axis: 1)
+        else
+          prev_action_emb
         end
 
       # Base embeddings (stage only included for one-hot modes)

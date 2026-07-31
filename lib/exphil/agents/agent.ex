@@ -65,6 +65,12 @@ defmodule ExPhil.Agents.Agent do
     :jump_cooldown,
     :use_prev_action,
     :ablate_prev_action,
+    # Queue-as-input (2026-07-31): ring buffer of the agent's own K most
+    # recent emitted controllers (newest first) + the declared delay this
+    # session plays at. Populated only for policies whose embed config has
+    # queue_depth > 1 / with_delay_id.
+    :controller_queue,
+    :delay_id,
     :leace_eraser,
     # Steering-vector hook (Tier-0 shield-lock A/B): --steer-vector PATH +
     # --steer-alpha F project alpha of the trunk features' component along
@@ -362,6 +368,8 @@ defmodule ExPhil.Agents.Agent do
       deterministic_buttons: deterministic_buttons,
       press_threshold: press_threshold,
       release_threshold: release_threshold,
+      controller_queue: [],
+      delay_id: Keyword.get(opts, :delay_id, 0),
       jump_debounce: Keyword.get(opts, :jump_debounce),
       jump_cooldown: 0,
       ablate_prev_action: ablate_prev_action,
@@ -530,6 +538,7 @@ defmodule ExPhil.Agents.Agent do
       | frame_buffer: :queue.new(),
         last_action: nil,
         last_controller: nil,
+        controller_queue: [],
         frames_since_inference: 0,
         mamba_cache: new_mamba_cache,
         trunk_state: new_trunk_state,
@@ -772,6 +781,21 @@ defmodule ExPhil.Agents.Agent do
           action_to_controller(action, new_state)
         else
           nil
+        end
+
+      # Queue-as-input ring buffer: newest first, truncated to the policy's
+      # trained queue depth.
+      new_state =
+        case queue_depth(new_state) do
+          depth when depth > 1 and last_controller != nil ->
+            %{
+              new_state
+              | controller_queue:
+                  Enum.take([last_controller | new_state.controller_queue || []], depth)
+            }
+
+          _ ->
+            new_state
         end
 
       # Cache action for action repeat
@@ -1314,7 +1338,30 @@ defmodule ExPhil.Agents.Agent do
         do: [{:config, live_af_embed_config()} | opts],
         else: opts
 
+    # Queue-as-input: policies trained with queue_depth > 1 / with_delay_id
+    # get a config override + their own ring buffer. The config the policy
+    # trained with is authoritative (state.embed_config carries it).
+    depth = queue_depth(state)
+    delay_id? = Map.get(state.embed_config || %{}, :with_delay_id) || false
+
+    opts =
+      if depth > 1 or delay_id? do
+        base = Keyword.get(opts, :config, ExPhil.Embeddings.Game.Config.default())
+        cfg = %{base | queue_depth: depth, with_delay_id: delay_id?}
+
+        opts
+        |> Keyword.put(:config, cfg)
+        |> Keyword.put(:queue_controllers, state.controller_queue || [])
+        |> Keyword.put(:delay_id, state.delay_id || 0)
+      else
+        opts
+      end
+
     Embeddings.Game.embed(game_state, prev_controller, player_port, opts)
+  end
+
+  defp queue_depth(state) do
+    Map.get(state.embed_config || %{}, :queue_depth) || 1
   end
 
   defp live_af_embed_config do
@@ -1639,6 +1686,7 @@ defmodule ExPhil.Agents.Agent do
         window_size: window_size,
         use_prev_action: use_prev_action,
         last_controller: nil,
+        controller_queue: [],
         # Reset frame buffer when loading new policy
         frame_buffer: :queue.new(),
         # Mamba cache for incremental inference

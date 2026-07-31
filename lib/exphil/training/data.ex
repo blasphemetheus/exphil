@@ -1429,26 +1429,65 @@ defmodule ExPhil.Training.Data do
     # pressed, while :controller holds the expert's corrected target —
     # deriving prev from the neighbor would leak the correction into the
     # channel and hide the (state, own-mistake) pairs the live agent faces).
+    # Queue-as-input generalization (2026-07-31): queue_depth K from the
+    # embed config; slot k = the action committed k decision-steps ago.
+    # For DAgger-relabeled frames (carrying :prev_controller = the POLICY's
+    # actual press, while :controller holds the expert correction), slot k
+    # comes from frames[i-k+1].prev_controller — the policy's real press at
+    # i-k — so deeper slots never leak expert corrections. Plain replays use
+    # frames[i-k].controller. Boundaries (frame-number discontinuities) and
+    # per-slot dropout nil the slot.
+    queue_depth = Map.get(embed_config, :queue_depth) || 1
+
     prev_controllers =
       if use_prev_action do
-        [nil | dataset.frames]
-        |> Enum.zip(dataset.frames)
-        |> Enum.map(fn {prev, cur} ->
-          prev_controller =
+        frames_t = List.to_tuple(dataset.frames)
+        n = tuple_size(frames_t)
+
+        consecutive? = fn a, b ->
+          elem(frames_t, a).game_state.frame + (b - a) == elem(frames_t, b).game_state.frame
+        end
+
+        slot_at = fn i, k ->
+          cur = elem(frames_t, i)
+
+          raw =
             cond do
-              is_map_key(cur, :prev_controller) -> cur.prev_controller
-              is_nil(prev) -> nil
-              prev.game_state.frame + 1 == cur.game_state.frame -> prev.controller
-              true -> nil
+              is_map_key(cur, :prev_controller) ->
+                # DAgger frames: press at i-k lives at frames[i-k+1].prev_controller
+                j = i - k + 1
+
+                if j >= 0 and (j == i or consecutive?.(j, i)) do
+                  elem(frames_t, j)[:prev_controller]
+                else
+                  nil
+                end
+
+              true ->
+                j = i - k
+
+                if j >= 0 and consecutive?.(j, i) do
+                  elem(frames_t, j).controller
+                else
+                  nil
+                end
             end
 
-          if prev_controller != nil and prev_action_dropout > 0.0 and
+          if raw != nil and prev_action_dropout > 0.0 and
                :rand.uniform() < prev_action_dropout do
             nil
           else
-            prev_controller
+            raw
           end
-        end)
+        end
+
+        for i <- 0..(n - 1) do
+          if queue_depth > 1 do
+            for k <- 1..queue_depth, do: slot_at.(i, k)
+          else
+            slot_at.(i, 1)
+          end
+        end
       else
         nil
       end
@@ -1508,7 +1547,28 @@ defmodule ExPhil.Training.Data do
         name_ids = Enum.map(frames, fn f -> f[:name_id] || 0 end)
 
         embed_opts = [config: embed_config, name_id: name_ids]
-        embed_opts = if use_prev_action, do: embed_opts ++ [prev_controllers: prevs], else: embed_opts
+
+        embed_opts =
+          cond do
+            use_prev_action and queue_depth > 1 -> embed_opts ++ [queue_controllers: prevs]
+            use_prev_action -> embed_opts ++ [prev_controllers: prevs]
+            true -> embed_opts
+          end
+
+        # Delay-ID channel: per-frame :delay_id tag wins (mixed-delay pools
+        # tag frames at shift time), else the scalar opt for the whole set.
+        embed_opts =
+          cond do
+            Enum.any?(frames, &is_map_key(&1, :delay_id)) ->
+              default_id = Keyword.get(opts, :delay_id, 0)
+              embed_opts ++ [delay_id: Enum.map(frames, fn f -> f[:delay_id] || default_id end)]
+
+            Keyword.has_key?(opts, :delay_id) ->
+              embed_opts ++ [delay_id: Keyword.get(opts, :delay_id)]
+
+            true ->
+              embed_opts
+          end
 
         # Embed batch and copy to CPU to avoid GPU OOM
         # Returns tensor of shape {chunk_size, embed_size}
