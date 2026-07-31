@@ -10,7 +10,10 @@
 set -uo pipefail
 cd "$(dirname "$0")/.."
 export ISO="${ISO:-$HOME/isos/melee.iso}"
-export DOLPHIN_DIR="${DOLPHIN_DIR:-$HOME/.config/Slippi Launcher/netplay-beta-nixos}"
+# Canonical harness build pinned EXPLICITLY: fish config exports DOLPHIN_DIR
+# to the old Ishiiruka netplay build, and ${VAR:-default} defers to it —
+# farm 9/11 evals silently ran through Ishiiruka windowed because of this.
+export DOLPHIN_DIR="$HOME/.config/Slippi Launcher/netplay-beta-nixos"
 export XLA_TARGET_EVAL=cuda12
 OPENING='eval_runs/0730_farm9_*/r*.slp'
 
