@@ -247,6 +247,15 @@ defmodule ExPhil.Bridge.AsyncRunner do
     if is_integer(pace_hz) and pace_hz > 0 do
       :ets.insert(table, {:pace_ns, div(1_000_000_000, pace_hz)})
     end
+
+    # Netplay searching/connecting screens legitimately emit no frames for
+    # minutes — the default ~60s hung-console watchdog killed the bot mid
+    # Direct search (2026-07-31 loopback test). Callers set this high (or
+    # effectively infinite) when a connect_code session is in flight.
+    :ets.insert(
+      table,
+      {:no_frame_fatal, Keyword.get(opts, :no_frame_fatal_streak, @no_frame_fatal_streak)}
+    )
     # :restart or :stop
     :ets.insert(table, {:on_game_end, on_game_end})
     :ets.insert(table, {:frame_count, 0})
@@ -518,8 +527,14 @@ defmodule ExPhil.Bridge.AsyncRunner do
     streak = Process.get(:no_frame_streak, 0) + 1
     Process.put(:no_frame_streak, streak)
 
+    fatal_streak =
+      case :ets.lookup(table, :no_frame_fatal) do
+        [{:no_frame_fatal, v}] -> v
+        _ -> @no_frame_fatal_streak
+      end
+
     cond do
-      streak > @no_frame_fatal_streak ->
+      streak > fatal_streak ->
         Logger.error(
           "[AsyncRunner:FrameLoop] #{streak} consecutive no-frame polls — " <>
             "console hung or disconnected, stopping"

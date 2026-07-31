@@ -138,4 +138,96 @@ defmodule ExPhil.Data.SlpRepair do
       _ -> {last_bookend_end, events}
     end
   end
+
+  # FRAME_START — where a frame's event group begins; the only safe place
+  # to resume after a mid-stream gap (resuming mid-frame leaves a pre
+  # without its post and panics peppi's frame assembly).
+  @frame_start 0x3A
+
+  @doc """
+  Like `repair/2` but tolerates MID-STREAM corruption, not just truncation:
+  short zero/garbage gaps inside the event stream (observed 2026-07-31 on
+  mainline-beta ONLINE replays — a ~22-byte zero gap ~61KB in) are excised
+  and the walk resyncs at the next FRAME_START whose following event also
+  parses. Complete frames on both sides of each gap are kept.
+  """
+  @spec repair_gaps(Path.t(), Path.t() | nil) :: {:ok, Path.t(), map()} | {:error, term()}
+  def repair_gaps(path, out_path \\ nil) do
+    out_path = out_path || path <> ".repaired.slp"
+
+    with {:ok, bin} <- File.read(path),
+         {:ok, sizes, stream_start} <- payload_sizes(bin) do
+      raw_end = declared_raw_end(bin)
+
+      {segments, events, gaps} =
+        walk_segments(bin, sizes, stream_start, raw_end, stream_start, stream_start, [], 0, 0)
+
+      spliced =
+        segments
+        |> Enum.reject(fn {s, e} -> e <= s end)
+        |> Enum.map_join(fn {s, e} -> binary_part(bin, s, e - s) end)
+
+      # The payload-declaration event must lead the stream: splice it back
+      # in front of the recovered segments (segments start AFTER it).
+      head = binary_part(bin, @header_size, stream_start - @header_size)
+      raw = head <> spliced
+      raw_len = byte_size(raw)
+
+      repaired =
+        binary_part(bin, 0, @header_size - 4) <>
+          <<raw_len::unsigned-big-32>> <> raw <> @metadata_close
+
+      case File.write(out_path, repaired) do
+        :ok ->
+          {:ok, out_path,
+           %{raw_bytes: raw_len, events: events, gaps: gaps,
+             dropped_bytes: byte_size(bin) - raw_len - @header_size}}
+
+        error ->
+          error
+      end
+    end
+  end
+
+  defp walk_segments(bin, sizes, pos, raw_end, seg_start, last_bookend, acc, events, gaps) do
+    limit = min(raw_end, byte_size(bin))
+
+    with true <- pos < limit,
+         <<_::binary-size(pos), code, _::binary>> <- bin,
+         {:ok, len} <- Map.fetch(sizes, code),
+         true <- pos + 1 + len <= limit do
+      next = pos + 1 + len
+      bookend = if code == @frame_bookend, do: next, else: last_bookend
+      walk_segments(bin, sizes, next, raw_end, seg_start, bookend, acc, events + 1, gaps)
+    else
+      _ ->
+        acc = [{seg_start, last_bookend} | acc]
+
+        case resync(bin, sizes, pos + 1, limit) do
+          nil ->
+            {Enum.reverse(acc), events, gaps}
+
+          p ->
+            walk_segments(bin, sizes, p, raw_end, p, p, acc, events, gaps + 1)
+        end
+    end
+  end
+
+  # Scan forward for a FRAME_START whose immediately following event also
+  # parses — two-event validation keeps us from resyncing into garbage
+  # that merely starts with the right byte.
+  defp resync(bin, sizes, pos, limit) when pos < limit do
+    with <<_::binary-size(pos), @frame_start, _::binary>> <- bin,
+         {:ok, len} <- Map.fetch(sizes, @frame_start),
+         next = pos + 1 + len,
+         true <- next < limit,
+         <<_::binary-size(next), code2, _::binary>> <- bin,
+         {:ok, _} <- Map.fetch(sizes, code2) do
+      pos
+    else
+      _ -> resync(bin, sizes, pos + 1, limit)
+    end
+  end
+
+  defp resync(_bin, _sizes, _pos, _limit), do: nil
 end

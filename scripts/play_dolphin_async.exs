@@ -251,6 +251,10 @@ Output.step(5, 5, "Starting async game runner")
     auto_menu: not opts[:no_auto_menu],
     on_game_end: opts[:on_game_end],
     dummy: elixir_dummy,
+    # Netplay search/connect screens emit no frames for minutes — the
+    # ~60s hung-console default killed the bot mid Direct search
+    # (2026-07-31). 18000 polls ≈ 30 min at the 100ms console timeout.
+    no_frame_fatal_streak: if(opts[:connect_code], do: 18_000, else: 600),
     # Headless (ExiAI) has no internal throttle: pace the frame loop to
     # 60Hz so input timing matches windowed play (--pace-hz to override;
     # 0 = unpaced). See AsyncRunner pace/1.
