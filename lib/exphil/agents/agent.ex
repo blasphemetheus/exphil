@@ -788,11 +788,38 @@ defmodule ExPhil.Agents.Agent do
       new_state =
         case queue_depth(new_state) do
           depth when depth > 1 and last_controller != nil ->
-            %{
-              new_state
-              | controller_queue:
-                  Enum.take([last_controller | new_state.controller_queue || []], depth)
-            }
+            queue = Enum.take([last_controller | new_state.controller_queue || []], depth)
+
+            # EXPHIL_QUEUE_TRACE=1: one line per decision with the ring's
+            # contents (live-queue forensics, 2026-07-31 — pair with the
+            # replay to diff live slots against training-space queues).
+            if System.get_env("EXPHIL_QUEUE_TRACE") do
+              enc = fn c ->
+                btns =
+                  [{c.button_a, "A"}, {c.button_b, "B"}, {c.button_x, "X"},
+                   {c.button_y, "Y"}, {c.button_z, "Z"}, {c.button_l, "L"},
+                   {c.button_r, "R"}]
+                  |> Enum.filter(&elem(&1, 0))
+                  |> Enum.map_join(&elem(&1, 1))
+
+                "#{btns}:#{Float.round(c.main_stick.x * 1.0, 4)},#{Float.round(c.main_stick.y * 1.0, 4)}"
+              end
+
+              slots = Enum.map_join(queue, " ", enc)
+
+              # Applied inputs as the GAME reports them (live libmelee
+              # controller_state) — replay-free ground truth for the
+              # decode->send->apply chain.
+              applied =
+                case player && player.controller_state do
+                  nil -> "-"
+                  cs -> enc.(cs)
+                end
+
+              IO.puts("[qtrace] f#{frame} applied=#{applied} #{slots}")
+            end
+
+            %{new_state | controller_queue: queue}
 
           _ ->
             new_state
