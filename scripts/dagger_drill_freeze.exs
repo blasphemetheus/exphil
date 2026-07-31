@@ -61,7 +61,9 @@ alias ExPhil.Embeddings
       snapshot_every: :integer,
       preflight: :boolean,
       memory_check: :string,
-      rollout_cap_per_state: :integer
+      rollout_cap_per_state: :integer,
+      opening_replays: :string,
+      x_hold_extend: :integer
     ]
   )
 
@@ -534,6 +536,82 @@ rollout_frame_lists =
   end
 
 all_frame_lists = fixture_frame_lists ++ bc_frame_lists ++ rollout_frame_lists
+
+# --opening-replays GLOB (2026-07-31): see dagger_drill.exs — farm-11's
+# opening-coverage lesson; without it heads-only fine-tunes go inert.
+all_frame_lists =
+  case opts[:opening_replays] do
+    nil ->
+      all_frame_lists
+
+    glob ->
+      extra =
+        glob
+        |> Path.wildcard()
+        |> Enum.flat_map(fn p -> load_frames.(p, true) end)
+
+      opening_synth =
+        ExPhil.Data.RecoverySynth.build_opening(List.flatten(fixture_frame_lists),
+          port: port,
+          lead_in: window,
+          expert: expert,
+          extra_sources: extra
+        )
+
+      Output.puts("Synthetic opening frames: #{length(opening_synth)}")
+      all_frame_lists ++ [opening_synth]
+  end
+
+# --x-hold-extend N: see dagger_drill.exs — widen the JC X press through
+# jumpsquat; deterministic rollouts otherwise teach razor windows.
+all_frame_lists =
+  case opts[:x_hold_extend] || 0 do
+    0 ->
+      all_frame_lists
+
+    n_extend ->
+      jumpsquat_id = 24
+
+      widened_lists =
+        Enum.map(all_frame_lists, fn list ->
+          arr = List.to_tuple(list)
+          total = tuple_size(arr)
+
+          Enum.map(0..(total - 1), fn i ->
+            f = elem(arr, i)
+
+            if f.controller.button_x do
+              f
+            else
+              in_jumpsquat = f.game_state.players[port].action == jumpsquat_id
+
+              recently_pressed =
+                in_jumpsquat and
+                  Enum.any?(1..n_extend, fn back ->
+                    j = i - back
+
+                    j >= 0 and
+                      elem(arr, j).controller.button_x and
+                      elem(arr, j).game_state.frame == f.game_state.frame - back
+                  end)
+
+              if recently_pressed do
+                %{f | controller: %{f.controller | button_x: true}}
+              else
+                f
+              end
+            end
+          end)
+        end)
+
+      changed =
+        Enum.zip(List.flatten(all_frame_lists), List.flatten(widened_lists))
+        |> Enum.count(fn {a, b} -> a != b end)
+
+      Output.puts("X-hold extend (#{n_extend}f through jumpsquat): #{changed} frames widened")
+      widened_lists
+  end
+
 all_frames = List.flatten(all_frame_lists)
 
 bc_pct = Float.round(100.0 * length(bc_frames) / max(length(all_frames), 1), 1)

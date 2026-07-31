@@ -29,7 +29,9 @@ policies =
   [
     {"champion", "checkpoints/ms_open_z.bin"},
     {"dagger3", "checkpoints/ms_d1_dagger3_policy.bin"},
-    {"dagger3_r4e10", "checkpoints/ms_d1_dagger3_policy_latest.bin"}
+    {"dagger3_r3", "checkpoints/ms_d1_dagger3_r3.bin"},
+    {"d3_diverse1", "checkpoints/ms_d3_diverse1.bin"},
+    {"d3_freeze2", "checkpoints/ms_d3_freeze2.bin"}
   ]
   |> Enum.filter(fn {name, path} ->
     File.exists?(path) || (Output.warning("skipping #{name}: #{path} missing"); false)
