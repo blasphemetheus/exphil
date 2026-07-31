@@ -1568,7 +1568,11 @@ defmodule ExPhil.Agents.Agent do
           axis_buckets: axis_buckets,
           shoulder_buckets: shoulder_buckets,
           hidden_size: Map.get(config, :hidden_size, 256),
-          num_layers: Map.get(config, :num_layers, 2)
+          num_layers: Map.get(config, :num_layers, 2),
+          # Queue-as-input layout: flat keys on the exported config (the
+          # embed_config map is a legacy flattened map that dropped them)
+          queue_depth: Map.get(config, :queue_depth, 1),
+          with_delay_id: Map.get(config, :with_delay_id, false)
         },
         embed_config
       )

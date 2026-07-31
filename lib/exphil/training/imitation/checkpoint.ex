@@ -249,7 +249,15 @@ defmodule ExPhil.Training.Imitation.Checkpointing do
         conv_size: trainer.config[:conv_size] || 4,
         # Embedding regime: the live agent must feed its own outputs back
         # into the prev-action channel iff the model trained with it
-        use_prev_action: trainer.config[:use_prev_action] || false
+        use_prev_action: trainer.config[:use_prev_action] || false,
+        # Queue-as-input layout (2026-07-31): the live agent must rebuild
+        # the exact channel layout (K committed-action slots + delay
+        # one-hot). Missing keys here cost a silent 288-vs-336 embed
+        # mismatch that only surfaced at live warmup.
+        queue_depth:
+          (trainer.embed_config && Map.get(trainer.embed_config, :queue_depth)) || 1,
+        with_delay_id:
+          (trainer.embed_config && Map.get(trainer.embed_config, :with_delay_id)) || false
       }
 
     # Edifice manifest format (task #16): Nx.serialize params + embedded
