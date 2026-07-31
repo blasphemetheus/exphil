@@ -61,7 +61,12 @@ defmodule ExPhil.Embeddings.Game do
             with_distance: true,
             with_relative_pos: true,
             with_frame_count: true,
-            stage_mode: :one_hot_compact
+            stage_mode: :one_hot_compact,
+            # Queue-as-input (2026-07-31) — mirror of Game.Config; the two
+            # config structs coexist ("works with both struct types") and
+            # datasets carry THIS one, so both need the fields.
+            queue_depth: 1,
+            with_delay_id: false
 
   @type stage_mode :: :one_hot_full | :one_hot_compact | :learned
 
