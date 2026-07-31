@@ -395,34 +395,30 @@ defmodule ExPhil.Agents.Agent do
       trunk_cold: true
     }
 
-    # Load policy if provided
-    state =
+    # Load policy if provided. An explicitly requested policy that fails to
+    # load is FATAL: continuing without one runs a phantom (random-init)
+    # policy, which scores 0 and looks like a real eval (2026-07-30 farm 10:
+    # three "evals" ran against a checkpoint that was never written).
+    load_result =
       cond do
         Keyword.has_key?(opts, :policy_path) ->
-          case load_policy_internal(state, Keyword.fetch!(opts, :policy_path)) do
-            {:ok, new_state} ->
-              new_state
-
-            {:error, reason} ->
-              Logger.warning("[Agent] Failed to load policy: #{inspect(reason)}")
-              state
-          end
+          load_policy_internal(state, Keyword.fetch!(opts, :policy_path))
 
         Keyword.has_key?(opts, :policy) ->
-          case load_policy_internal(state, Keyword.fetch!(opts, :policy)) do
-            {:ok, new_state} ->
-              new_state
-
-            {:error, reason} ->
-              Logger.warning("[Agent] Failed to load policy: #{inspect(reason)}")
-              state
-          end
+          load_policy_internal(state, Keyword.fetch!(opts, :policy))
 
         true ->
-          state
+          {:ok, state}
       end
 
-    {:ok, state}
+    case load_result do
+      {:ok, state} ->
+        {:ok, state}
+
+      {:error, reason} ->
+        Logger.error("[Agent] Failed to load policy: #{inspect(reason)} — refusing to start")
+        {:stop, {:policy_load_failed, reason}}
+    end
   end
 
   @impl true
