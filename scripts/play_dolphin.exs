@@ -136,7 +136,18 @@ bridge_config = %{
   # no staleness by construction; the jitter experiment of 2026-07-28).
   dummy_mode: opts[:dummy],
   dummy_character: opts[:dummy_character],
-  dummy_cpu_level: opts[:dummy_cpu_level]
+  dummy_cpu_level: opts[:dummy_cpu_level],
+  # 2026-07-30: these were accepted by the CLI but silently unplumbed —
+  # every "headless sync" run before this was a windowed Dolphin at 1.0x.
+  # With headless + emulation_speed 0, dolphin unthrottles and blocking
+  # input paces the game to this loop: sync farms run as fast as
+  # step+inference allows (the frame loop has no sleep of its own).
+  no_audio: opts[:no_audio] || false,
+  headless: opts[:headless] || false,
+  emulation_speed: opts[:emulation_speed],
+  replay_dir: opts[:replay_dir],
+  slippi_port: opts[:slippi_port],
+  connect_code: opts[:connect_code]
 }
 
 case MeleePort.init_console(bridge, bridge_config, 60_000) do
