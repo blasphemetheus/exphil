@@ -66,7 +66,9 @@ alias ExPhil.Embeddings
       x_hold_extend: :integer,
       queue_depth: :integer,
       with_delay_id: :boolean,
-      multi_delay: :string
+      multi_delay: :string,
+      pipeline_offset: :integer,
+      shift_jitter: :integer
     ]
   )
 

@@ -66,7 +66,9 @@ alias ExPhil.Embeddings
       x_hold_extend: :integer,
       queue_depth: :integer,
       with_delay_id: :boolean,
-      multi_delay: :string
+      multi_delay: :string,
+      pipeline_offset: :integer,
+      shift_jitter: :integer
     ]
   )
 
@@ -713,18 +715,56 @@ if length(delays) > 1 and streaming do
   System.halt(1)
 end
 
+# --pipeline-offset P (default 0): labels shift by d + P — the measured
+# live decision->application latency is frame_delay + 2 (2026-07-31
+# live-queue forensics), so P=2 aligns training labels with reality while
+# delay-ID tags stay at the nominal d (what the live agent knows).
+# --shift-jitter J: per source list, add a uniform draw from -J..J to the
+# shift — deliberately reproducing the laptop harness's accidental label
+# smear (the one ingredient unique to R3, the only policy that ever
+# chained at its trained delay rung).
+pipeline_offset = opts[:pipeline_offset] || 0
+shift_jitter = opts[:shift_jitter] || 0
+
+effective_shift = fn d ->
+  base = d + pipeline_offset
+
+  if shift_jitter > 0 do
+    j = :rand.uniform(2 * shift_jitter + 1) - shift_jitter - 1
+    {base + j, j}
+  else
+    {base, 0}
+  end
+end
+
 shifted_frame_lists =
   cond do
     streaming ->
       []
 
-    length(delays) == 1 and not (opts[:with_delay_id] || false) ->
+    length(delays) == 1 and not (opts[:with_delay_id] || false) and
+      pipeline_offset == 0 and shift_jitter == 0 ->
       Enum.map(all_frame_lists, &Data.shift_actions(&1, action_delay))
 
     true ->
-      for d <- delays, list <- all_frame_lists do
-        list |> Data.shift_actions(d) |> Enum.map(&Map.put(&1, :delay_id, d))
+      lists =
+        for d <- delays, list <- all_frame_lists do
+          {shift, j} = effective_shift.(d)
+
+          shifted =
+            list
+            |> Data.shift_actions(shift)
+            |> Enum.map(&Map.put(&1, :delay_id, d))
+
+          {shifted, d, shift, j}
+        end
+
+      if shift_jitter > 0 do
+        draws = Enum.map_join(lists, " ", fn {_, d, s, j} -> "d#{d}->#{s}(#{j})" end)
+        Output.puts("Shift jitter draws: #{draws}")
       end
+
+      Enum.map(lists, &elem(&1, 0))
   end
 
 shifted_frames = List.flatten(shifted_frame_lists)
