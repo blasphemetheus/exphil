@@ -80,8 +80,12 @@ DUMMY_ARGS=(--dummy "$DUMMY" --dummy-character fox)
 [ "$DUMMY" = "cpu" ] && DUMMY_ARGS+=(--dummy-cpu-level 1)
 
 kill_dolphins() {
-  # match the mounted AppImage, never the launcher path, never our own cmdline
-  ps -eo pid,args | grep '[A]ppRun.wrapped' | awk '{print $1}' | xargs -r kill -9 2>/dev/null
+  # BOT-owned Dolphins only: the bot's wrapper runs via the appimage-run
+  # cache (~/.cache/appimage-run/*/AppRun.wrapped); Bradley's launcher
+  # sessions extract to /tmp/appimage_extracted_* and MUST survive
+  # (2026-07-31: the unscoped kill took out his live game mid-play).
+  ps -eo pid,args | grep '[A]ppRun.wrapped' | grep 'appimage-run' \
+    | awk '{print $1}' | xargs -r kill -9 2>/dev/null
   sleep 2
   rm -rf /tmp/libmelee_* 2>/dev/null
 }
