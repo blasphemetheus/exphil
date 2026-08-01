@@ -32,7 +32,7 @@ run_arm () { # name, train flags...
     echo "=== GRIND1 $name EVAL d$d $(date +%H:%M:%S)"
     EXLA_TARGET=host bash scripts/eval_live_protocol.sh checkpoints/ms_g1_$name.bin \
       eval_runs/0731_g1_${name}_d$d --runs 1 --dummy stand --runner sync \
-      -- --frame-delay $d --headless --emulation-speed 0 --slippi-port 51442
+      -- --frame-delay $d --headless --slippi-port 51442
   done
 }
 

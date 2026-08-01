@@ -370,14 +370,42 @@ defmodule ExPhil.Training.Imitation do
 
     # Scheduled sampling (exposure bias, EXPOSURE_BIAS.md item 5): locate
     # the prev-action slice empirically unless the caller supplied it, then
-    # build the jitted splice fn once. Discovery uses the DEFAULT embed
-    # config — pass :ss_prev_dims explicitly for non-default layouts.
+    # build the jitted splice fn once. Discovery probes the ACTUAL embed
+    # config, so non-default layouts (queue-as-input, delay-id) resolve to
+    # the queue block's first slot; pass :ss_prev_dims explicitly only to
+    # override. Queue depth flows from the embed config: all K slots are
+    # self-sampled (ScheduledSampling moduledoc has the alignment argument).
     config =
-      if (config[:scheduled_sampling] || 0.0) > 0.0 and config[:ss_prev_dims] == nil do
-        Map.put(config, :ss_prev_dims, ExPhil.Interp.Attribution.prev_action_dim_range())
+      if (config[:scheduled_sampling] || 0.0) > 0.0 do
+        config
+        |> then(fn c ->
+          if c[:ss_prev_dims] == nil do
+            Map.put(
+              c,
+              :ss_prev_dims,
+              ExPhil.Interp.Attribution.prev_action_dim_range(config: embed_config)
+            )
+          else
+            c
+          end
+        end)
+        |> then(fn c ->
+          if c[:ss_queue_depth] == nil do
+            Map.put(c, :ss_queue_depth, Map.get(embed_config, :queue_depth) || 1)
+          else
+            c
+          end
+        end)
       else
         config
       end
+
+    if (config[:scheduled_sampling] || 0.0) > 0.0 and
+         (config[:ss_queue_depth] || 1) >= config[:window_size] do
+      raise ArgumentError,
+            "scheduled_sampling with ss_queue_depth #{config[:ss_queue_depth]} needs " <>
+              "window_size > #{config[:ss_queue_depth]} (got #{config[:window_size]})"
+    end
 
     ss_fn =
       if (config[:scheduled_sampling] || 0.0) > 0.0 do

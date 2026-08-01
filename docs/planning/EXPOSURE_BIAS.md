@@ -456,6 +456,21 @@ Three findings:
   a harder objective — do not compare loss curves across this flag, judge
   by live runs only (item 0a protocol: ≥3 runs).
 
+  **SS-on-queue (2026-07-31).** With `--queue-depth K` the same flag now
+  self-samples ALL K queue slots: slot k is filled with the model's decoded
+  prediction on the window truncated by k frames. Alignment argument: queue
+  slots are built from already-shifted frames (`shift_actions` relabels
+  `:controller` in place), so slot k at position t IS the model's target at
+  t-k — truncate-by-k is exact under any `--pipeline-offset`/
+  `--shift-jitter`/multi-delay mix, no shift bookkeeping. All slots swap
+  together under one per-sample mask (live, every slot is self-generated —
+  a mixed queue would be a training-only artifact). Depth flows from the
+  dataset's embed config automatically; needs `window > K`. Cost: one extra
+  forward per slot (K=4 ≈ 2x step time). Motivation: queue1's teacher-forced
+  channel amplified exposure bias (58-73/min vs control 239); jq's d3
+  crouch-absorber collapse (0 shines, 4/4 runs, 97% Squat occupancy from
+  frame 104) is the same signature.
+
 - [ ] **7. PPO fine-tuning from the BC policy.** Infrastructure exists.
   Optimizes the CLOSED-LOOP objective (shine count) rather than one-step
   imitation, which is the thing that actually diverges. GPU.
