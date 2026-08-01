@@ -676,16 +676,33 @@ defmodule ExPhil.Agents.Agent do
   end
 
   defp compute_action(state, game_state, opts) do
-    # Action repeat: return cached action if we haven't hit the repeat interval
-    if state.action_repeat > 1 and state.last_action != nil and
-         state.frames_since_inference < state.action_repeat do
-      # Return cached action with default confidence, increment counter
-      new_state = %{state | frames_since_inference: state.frames_since_inference + 1}
-      default_conf = %{overall: 0.0, buttons: 0.0, main: 0.0, c: 0.0, shoulder: 0.0}
-      {:ok, state.last_action, default_conf, new_state}
-    else
-      # Time to run actual inference
-      do_compute_action(state, game_state, opts)
+    frame = game_state.frame
+
+    cond do
+      # ONE DECISION PER GAME FRAME. Async polls faster than Dolphin
+      # produces frames (~1.4-2.2 calls/frame observed), and a same-frame
+      # re-inference has no upside for identical state but actively
+      # corrupts self-referential conditioning: after decision #1 pushes
+      # the ring, re-inference #2 would embed with slot 1 = an action the
+      # game hasn't applied yet. Training's invariant is one decision per
+      # frame with slot 1 = the PREVIOUS frame's action — so on a repeated
+      # frame, re-send the cached action. (frame < last is a NEW GAME,
+      # which must infer; nil frames infer.)
+      is_integer(frame) and frame == state.last_debounce_frame and state.last_action != nil ->
+        default_conf = %{overall: 0.0, buttons: 0.0, main: 0.0, c: 0.0, shoulder: 0.0}
+        {:ok, state.last_action, default_conf, state}
+
+      # Action repeat: return cached action if we haven't hit the repeat interval
+      state.action_repeat > 1 and state.last_action != nil and
+          state.frames_since_inference < state.action_repeat ->
+        # Return cached action with default confidence, increment counter
+        new_state = %{state | frames_since_inference: state.frames_since_inference + 1}
+        default_conf = %{overall: 0.0, buttons: 0.0, main: 0.0, c: 0.0, shoulder: 0.0}
+        {:ok, state.last_action, default_conf, new_state}
+
+      true ->
+        # Time to run actual inference
+        do_compute_action(state, game_state, opts)
     end
   end
 
