@@ -127,6 +127,11 @@ def serialize_player(player: melee.PlayerState) -> Dict[str, Any]:
             if hasattr(getattr(player, "controller_status", None), "value")
             else getattr(player, "controller_status", None)
         ),
+        # Slippi Online connect code (e.g. "EXPH#288"); empty offline. Lets
+        # the Elixir side identify WHICH player is the bot under netplay,
+        # where Slippi assigns in-game ports per session (the static --port
+        # assumption ego-swapped the embedding when the bot drew port 2).
+        "connect_code": getattr(player, "connectCode", "") or "",
     }
 
 
@@ -177,7 +182,36 @@ def serialize_projectile(proj) -> Dict[str, Any]:
     }
 
 
-def serialize_game_state(gs: melee.GameState) -> Dict[str, Any]:
+def detect_own_port(gs: melee.GameState, opponent_code: Optional[str]) -> Optional[int]:
+    """Which in-game port is the bot, under Slippi Online?
+
+    Slippi assigns ports per session, so the configured --port is only a
+    guess. We know the OPPONENT's connect code (it's what we searched for);
+    the bot is the other tagged player. Returns None offline / when the
+    assignment is ambiguous (caller falls back to the configured port).
+    """
+    if not opponent_code:
+        return None
+    try:
+        norm = lambda c: (c or "").strip().upper()
+        opp = norm(opponent_code)
+        codes = {
+            port: norm(getattr(p, "connectCode", ""))
+            for port, p in gs.players.items()
+            if p is not None
+        }
+        others = [port for port, c in codes.items() if c and c != opp]
+        if len(others) == 1:
+            return others[0]
+        matches = [port for port, c in codes.items() if c == opp]
+        if len(matches) == 1 and len(codes) == 2:
+            return next(p for p in codes if p != matches[0])
+    except Exception:
+        pass
+    return None
+
+
+def serialize_game_state(gs: melee.GameState, opponent_code: Optional[str] = None) -> Dict[str, Any]:
     """Convert full game state to serializable dict."""
     players = {}
     for port, player in gs.players.items():
@@ -190,6 +224,10 @@ def serialize_game_state(gs: melee.GameState) -> Dict[str, Any]:
         "stage": gs.stage.value if hasattr(gs.stage, 'value') else (gs.stage or 0),
         "menu_state": gs.menu_state.value if hasattr(gs.menu_state, 'value') else (gs.menu_state or 0),
         "players": players,
+        # Netplay only (None offline): the bot's ACTUAL in-game port this
+        # session, detected via connect codes. Elixir prefers this over the
+        # configured --port for embedding/state lookups.
+        "own_port": detect_own_port(gs, opponent_code),
         "projectiles": projectiles,
         "distance": float(gs.distance) if gs.distance else 0.0,
         # Stage-specific data
@@ -928,7 +966,9 @@ class MeleeBridge:
                 "ok": True,
                 "is_menu": is_menu,
                 "is_postgame": is_postgame,
-                "game_state": serialize_game_state(gamestate),
+                "game_state": serialize_game_state(
+                    gamestate, getattr(self, "connect_code", None)
+                ),
             }
 
         except BrokenPipeError:

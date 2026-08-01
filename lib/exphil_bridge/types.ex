@@ -10,6 +10,10 @@ defmodule ExPhil.Bridge.GameState do
           stage: integer(),
           menu_state: integer(),
           players: %{integer() => ExPhil.Bridge.Player.t()},
+          # Netplay only (nil offline): the bot's ACTUAL in-game port,
+          # detected bridge-side via connect codes. Slippi assigns ports
+          # per session, so the configured --port is only a guess there.
+          own_port: integer() | nil,
           projectiles: [ExPhil.Bridge.Projectile.t()],
           items: [ExPhil.Bridge.Item.t()],
           distance: float()
@@ -20,6 +24,7 @@ defmodule ExPhil.Bridge.GameState do
     :stage,
     :menu_state,
     :players,
+    :own_port,
     :projectiles,
     :items,
     :distance
@@ -75,7 +80,9 @@ defmodule ExPhil.Bridge.Player do
           speed_x_attack: float(),
           speed_y_attack: float(),
           nana: ExPhil.Bridge.Nana.t() | nil,
-          controller_state: ExPhil.Bridge.ControllerState.t() | nil
+          controller_state: ExPhil.Bridge.ControllerState.t() | nil,
+          # Slippi Online connect code ("EXPH#288"); "" or nil offline
+          connect_code: String.t() | nil
         }
 
   defstruct [
@@ -98,7 +105,8 @@ defmodule ExPhil.Bridge.Player do
     :speed_x_attack,
     :speed_y_attack,
     :nana,
-    :controller_state
+    :controller_state,
+    :connect_code
   ]
 
   @doc """

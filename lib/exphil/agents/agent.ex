@@ -691,8 +691,12 @@ defmodule ExPhil.Agents.Agent do
 
   defp do_compute_action(state, game_state, opts) do
     try do
-      # Embed game state
-      player_port = Keyword.get(opts, :player_port, 1)
+      # Embed game state. Port: under Slippi Online the bridge detects the
+      # bot's ACTUAL in-game port via connect codes (Slippi assigns ports
+      # per session — the static --port guess ego-swapped the embedding
+      # when the bot drew port 2, observed Direct 2026-08-01: the policy
+      # saw the HUMAN as "self" and degenerated into hold-B).
+      player_port = effective_port(game_state, opts)
       embedded = embed_game_state(game_state, player_port, state)
 
       # Route to appropriate inference mode
@@ -727,7 +731,7 @@ defmodule ExPhil.Agents.Agent do
       # them locked the bot in shield (observed live 2026-07-15: OOS jump
       # blocked -> held shield through hits -> breaks).
       airborne? =
-        case game_state.players[Keyword.get(opts, :player_port, 1)] do
+        case game_state.players[player_port] do
           %{on_ground: grounded} -> not grounded
           _ -> false
         end
@@ -737,11 +741,14 @@ defmodule ExPhil.Agents.Agent do
       frame = game_state.frame
       last_frame = new_state.last_debounce_frame
 
+      # New game: frame counters reset (to -123)
+      game_reset? = is_integer(frame) and is_integer(last_frame) and frame < last_frame
+
       frame_delta =
         cond do
           not (is_integer(frame) and is_integer(last_frame)) -> 1
-          # New game: frame counters reset (to -123); resync, don't freeze
-          frame < last_frame -> 1
+          # On reset: resync, don't freeze
+          game_reset? -> 1
           true -> frame - last_frame
         end
 
@@ -752,7 +759,7 @@ defmodule ExPhil.Agents.Agent do
       # 24, visible 5f before liftoff on Mewtwo) is the earliest reliable
       # "a jump is already in progress" signal, when a second jump press
       # has no legitimate purpose (residual 1-2f DJs, 2026-07-18).
-      player = game_state.players[Keyword.get(opts, :player_port, 1)]
+      player = game_state.players[player_port]
       in_jumpsquat? = player != nil and trunc(player.action || 0) == 24
       liftoff? = airborne? and new_state.was_airborne == false
 
@@ -784,11 +791,21 @@ defmodule ExPhil.Agents.Agent do
         end
 
       # Queue-as-input ring buffer: newest first, truncated to the policy's
-      # trained queue depth.
+      # trained queue depth. Advanced by GAME FRAME, not by decision: async
+      # runs >1 inference/frame, and per-decision pushes warp the ring's
+      # timescale (slot k became "k CALLS ago" — invisible in the sync
+      # harness where calls == frames, live corruption for queue policies).
       new_state =
         case queue_depth(new_state) do
           depth when depth > 1 and last_controller != nil ->
-            queue = Enum.take([last_controller | new_state.controller_queue || []], depth)
+            queue =
+              update_controller_queue(
+                new_state.controller_queue || [],
+                last_controller,
+                frame_delta,
+                game_reset?,
+                depth
+              )
 
             # EXPHIL_QUEUE_TRACE=1: one line per decision with the ring's
             # contents (live-queue forensics, 2026-07-31 — pair with the
@@ -1385,6 +1402,41 @@ defmodule ExPhil.Agents.Agent do
       end
 
     Embeddings.Game.embed(game_state, prev_controller, player_port, opts)
+  end
+
+  # Under Slippi Online the bridge detects the bot's actual in-game port
+  # via connect codes (GameState.own_port); offline it is nil and the
+  # configured --port applies.
+  defp effective_port(%{own_port: own_port}, _opts) when is_integer(own_port), do: own_port
+  defp effective_port(_game_state, opts), do: Keyword.get(opts, :player_port, 1)
+
+  @doc """
+  Advance the queue-as-input ring buffer by one DECISION while keeping the
+  training-parity invariant: slot k == the input the game applied k frames
+  ago.
+
+    * game reset (frame counter went backwards, new game): fresh ring —
+      old-game actions must not leak across the boundary
+    * frame_delta 0 (re-inference on the same game frame): REPLACE the
+      head — the game applies only the last input sent for a frame
+    * frame_delta d >= 1: push the new head; the previous head was HELD by
+      the game through the d-1 undecided frames, so copies of it fill the
+      gap slots
+
+  Public for tests; runtime callers live in do_compute_action/3.
+  """
+  def update_controller_queue(queue, controller, frame_delta, game_reset?, depth) do
+    cond do
+      game_reset? or queue == [] ->
+        [controller]
+
+      frame_delta <= 0 ->
+        Enum.take([controller | tl(queue)], depth)
+
+      true ->
+        held = List.duplicate(hd(queue), min(frame_delta - 1, depth))
+        Enum.take([controller | held ++ queue], depth)
+    end
   end
 
   defp queue_depth(state) do

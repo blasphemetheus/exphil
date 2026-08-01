@@ -487,6 +487,7 @@ defmodule ExPhil.Bridge.MeleePort do
       stage: gs["stage"],
       menu_state: gs["menu_state"],
       players: parse_players(gs["players"]),
+      own_port: gs["own_port"],
       projectiles: parse_projectiles(gs["projectiles"]),
       distance: gs["distance"]
     }
@@ -526,7 +527,8 @@ defmodule ExPhil.Bridge.MeleePort do
       speed_x_attack: p["speed_x_attack"],
       speed_y_attack: p["speed_y_attack"],
       nana: parse_nana(p["nana"]),
-      controller_state: parse_controller_state(p["controller_state"])
+      controller_state: parse_controller_state(p["controller_state"]),
+      connect_code: p["connect_code"]
     }
   end
 
