@@ -18,7 +18,7 @@ alias ExPhil.Embeddings
 
 {opts, _, _} =
   OptionParser.parse(System.argv(),
-    strict: [replays: :string, out: :string, robust: :boolean, prev_action: :boolean, action_delay: :integer, prev_action_dropout: :float, window: :integer, synth_recovery: :boolean, synth_max_af: :integer, synth_ratio: :float, synth_crouch: :boolean, crouch_max_af: :integer, crouch_ratio: :float, synth_ledge: :boolean, ledge_strategy: :string, ledge_ratio: :float, ledge_max_af: :integer, noise: :float, noise_prob: :float, scheduled_sampling: :float, ss_ramp: :integer, probe_basin: :boolean, probe_every: :integer, probe_entries: :string, reject_at: :integer, reject_on: :string, x_hold_extend: :integer, synth_opening: :boolean, opening_replays: :string]
+    strict: [replays: :string, out: :string, robust: :boolean, prev_action: :boolean, action_delay: :integer, prev_action_dropout: :float, window: :integer, synth_recovery: :boolean, synth_max_af: :integer, synth_ratio: :float, synth_crouch: :boolean, crouch_max_af: :integer, crouch_ratio: :float, synth_ledge: :boolean, ledge_strategy: :string, ledge_ratio: :float, ledge_max_af: :integer, noise: :float, noise_prob: :float, scheduled_sampling: :float, ss_ramp: :integer, probe_basin: :boolean, probe_every: :integer, probe_entries: :string, reject_at: :integer, reject_on: :string, select_by: :string, post_converge: :integer, x_hold_extend: :integer, synth_opening: :boolean, opening_replays: :string]
   )
 
 # --replays accepts a dir or glob of .slp files; default = the single
@@ -396,6 +396,18 @@ probe_every = opts[:probe_every] || 5
 reject_at = opts[:reject_at]
 reject_on = opts[:reject_on] || "basin"
 
+# --select-by margin (task #4, the round-4 thin-margin lever): export the
+# probe epoch with the FATTEST critical margin (max crit_p10_min) instead
+# of the final/converged params — loss says "memorized" while margins say
+# "barely" (d1 DAgger: loss 0.0006, margins 0.3-0.9, chains 2-4).
+# --post-converge N keeps training N epochs past the loss bar so margins
+# can fatten before selection. Default: loss (unchanged behavior).
+select_by = opts[:select_by] || "loss"
+post_converge = opts[:post_converge] || 0
+
+if select_by not in ["loss", "margin"],
+  do: raise(ArgumentError, "--select-by #{select_by} (want loss|margin)")
+
 reject_check = fn results ->
   basin_fail =
     probe_entry_names != [] and Enum.all?(probe_entry_names, &is_nil(Map.get(results, &1)))
@@ -416,8 +428,10 @@ end
 memorized_loss = if robust, do: :plateau, else: 2.0e-3
 max_epochs = if robust, do: 800, else: 2000
 
-{trainer, final_loss, epochs_used} =
-  Enum.reduce_while(1..max_epochs, {trainer, nil, 0, []}, fn epoch, {tr, _, _, history} ->
+{trainer, final_loss, epochs_used, margin_best} =
+  Enum.reduce_while(1..max_epochs, {trainer, nil, 0, [], nil, nil}, fn epoch,
+                                                                      {tr, _, _, history,
+                                                                       margin_best, converged_at} ->
     # Scheduled sampling ramp: 0 -> P over --ss-ramp epochs (default 10)
     tr =
       case opts[:scheduled_sampling] do
@@ -469,15 +483,35 @@ max_epochs = if robust, do: 800, else: 2000
       reject_at != nil and epoch >= reject_at and is_map(probe_results) and
         reject_check.(probe_results)
 
+    # Margin-best tracking: trainer structs are immutable, so holding the
+    # reference pins that epoch's params (same idiom as the drill's `best`).
+    margin_best =
+      with true <- select_by == "margin",
+           crit when is_number(crit) <- is_map(probe_results) && probe_results["crit_p10_min"] do
+        case margin_best do
+          {_, best_crit, _} when best_crit >= crit -> margin_best
+          _ -> {tr, crit, epoch}
+        end
+      else
+        _ -> margin_best
+      end
+
+    converged_now? =
+      (memorized_loss == :plateau and plateaued?) or
+        (is_number(memorized_loss) and is_number(loss) and loss < memorized_loss)
+
+    converged_at = converged_at || if converged_now?, do: epoch
+
+    acc = {tr, loss, epoch, history, margin_best, converged_at}
+
     cond do
-      not is_number(loss) -> {:halt, {tr, loss, epoch, history}}
-      rejected? -> {:halt, {tr, {:rejected, loss, probe_results}, epoch, history}}
-      memorized_loss == :plateau and plateaued? -> {:halt, {tr, loss, epoch, history}}
-      is_number(memorized_loss) and loss < memorized_loss -> {:halt, {tr, loss, epoch, history}}
-      true -> {:cont, {tr, loss, epoch, history}}
+      not is_number(loss) -> {:halt, acc}
+      rejected? -> {:halt, {tr, {:rejected, loss, probe_results}, epoch, history, margin_best, converged_at}}
+      converged_at != nil and epoch >= converged_at + post_converge -> {:halt, acc}
+      true -> {:cont, acc}
     end
   end)
-  |> then(fn {tr, loss, epoch, _} -> {tr, loss, epoch} end)
+  |> then(fn {tr, loss, epoch, _, margin_best, _} -> {tr, loss, epoch, margin_best} end)
 
 # Early-reject: no export, marker file, exit 3 (distinct from divergence's 1)
 # — farms skip the Dolphin eval either way via the missing-.bin guard.
@@ -505,7 +539,28 @@ end
 
 Output.puts("Memorized: loss=#{Float.round(final_loss * 1.0, 5)} after #{epochs_used} epochs")
 
-case Imitation.export_policy(trainer, out_path) do
+# --select-by margin: export the fattest-critical-margin probe epoch
+# instead of the final params (falls back with a warning when no margin
+# data was collected).
+export_trainer =
+  case {select_by, margin_best} do
+    {"margin", {best_tr, crit, epoch}} ->
+      Output.puts(
+        "Margin-select: exporting epoch #{epoch} (crit_p10_min=#{crit}) " <>
+          "over final epoch #{epochs_used}"
+      )
+
+      best_tr
+
+    {"margin", nil} ->
+      Output.warning("--select-by margin but no margin probes ran — exporting final params")
+      trainer
+
+    _ ->
+      trainer
+  end
+
+case Imitation.export_policy(export_trainer, out_path) do
   :ok -> Output.success("Policy exported: #{out_path}")
   {:error, reason} ->
     Output.error("Export failed: #{inspect(reason)}")

@@ -481,3 +481,11 @@ by {cycle phase, af} over both teacher fixtures settle it:
   "memorized" while margins say "barely" — train past convergence /
   lower --target-loss / margin-aware objective to fatten the held
   boundary before more data.
+  **SHIPPED 2026-08-02 (task #4)**: train_multishine_policy.exs
+  `--select-by margin --post-converge N` — keeps training N epochs past
+  the loss bar and exports the probe epoch with max crit_p10_min
+  (CycleMargins on fixture edges). Smoke confirmed the premise: loss
+  converged by ~ep12 while crit_p10_min kept fattening 1.25 -> 2.48
+  through ep20. A margin-aware LOSS term remains unbuilt (escalate only
+  if selection alone doesn't move live chains). Drill margin wiring
+  still pending (embeddings sharded).
