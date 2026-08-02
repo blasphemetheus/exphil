@@ -233,6 +233,21 @@ collision-by-collision). ms_shift_a's calibration peaks at -1 — the
 shift moves alignment FRESHER, not more anticipatory. OPEN PROBLEM;
 next instrument: extend BasinRollout to a full-cycle offline simulator
 and watch a shift seed drop the loop frame by frame.
+**Simulator BUILT 2026-08-02 (ExPhil.Interp.CycleSim +
+scripts/cycle_sim.exs), gate NOT yet passed.** Dynamics = transition
+graph {action, af, b_edge, x_edge} -> {action', af'} extracted from
+fixture + --graph-replays, with af-tolerant lookup (±4), edge-drop
+fallback (both counted as :soft), per-state statistical reconstruction
+of y + speeds, phase-labeled hard breaks, ShineChain chain scoring.
+Pre-registered gate (champion z chains, metronome zz doesn't) FAILS:
+both sim as endless singles — z never aerial-shines in sim (35-frame
+airborne wait), through four fixes (edge keying, graph enrichment,
+y integration, absolute y+speed reconstruction, af tolerance). Next
+suspect list: dump z's buttons-head logits over the sim's airborne
+windows vs matched live-replay windows and diff the embedding fields
+(embed_path_parity_test is prior art); stick-decode fidelity;
+window-boundary semantics. Usable TODAY for break forensics (hard
+breaks are exact); NOT yet for chain ranking.
 
 **Strategic position after the day**: async+0 + delay-0 training is a
 validated, excellent production combination (z: 147/min chains 27);

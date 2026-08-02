@@ -196,7 +196,12 @@ defmodule ExPhil.Interp.BasinRollout do
     Nx.slice_along_axis(emb, n2 - @window_size, @window_size, axis: 0)
   end
 
-  defp decode_controller(out) do
+  @doc """
+  Deterministic controller decode from the 6-head logit tuple (buttons
+  thresholded at 0, sticks argmaxed). Public since 2026-08-02 — CycleSim
+  shares it.
+  """
+  def decode_controller(out) do
     buttons = out |> elem(0) |> Nx.squeeze() |> Nx.to_flat_list()
     [a, b, x, y, z, l, r, _d_up] = Enum.map(buttons, &(&1 > 0.0))
     bucket = fn t -> (t |> Nx.squeeze() |> Nx.argmax() |> Nx.to_number()) / 16.0 end
