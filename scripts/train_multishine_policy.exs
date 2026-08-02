@@ -463,7 +463,7 @@ max_epochs = if robust, do: 800, else: 2000
     if rem(epoch, 25) == 0, do: Output.puts("epoch #{epoch}: loss=#{inspect(loss)}")
 
     probe_results =
-      if basin_probe && (epoch == 1 or rem(epoch, probe_every) == 0) and is_number(loss) do
+      if basin_probe != nil and (epoch == 1 or rem(epoch, probe_every) == 0) and is_number(loss) do
         results = basin_probe.(epoch, loss, tr.policy_params)
 
         if rem(epoch, 25) == 0 do

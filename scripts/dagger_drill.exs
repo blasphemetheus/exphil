@@ -1570,7 +1570,8 @@ end
 
     # Basin rollout (risky instrumentation last, after the snapshot)
     basin_results =
-      if basin_probe && (epoch == 1 or rem(epoch, basin_probe_every) == 0) and is_number(loss) do
+      if basin_probe != nil and (epoch == 1 or rem(epoch, basin_probe_every) == 0) and
+           is_number(loss) do
         basin_probe.(epoch, loss, tr.policy_params)
       end
 
