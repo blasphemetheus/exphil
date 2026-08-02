@@ -52,6 +52,10 @@ alias ExPhil.Embeddings
       probe_reg: :float,
       probe_reg_every: :integer,
       probe_eval_every: :integer,
+      probe_basin: :boolean,
+      probe_every: :integer,
+      reject_at: :integer,
+      reject_on: :string,
       bc_replays: :string,
       bc_sample: :integer,
       mamba_chunk_size: :integer,
@@ -1062,6 +1066,79 @@ probe_eval_every = opts[:probe_eval_every] || 0
 
 probe_curves_path = out_path <> ".probe_curves.jsonl"
 
+# Basin mental rollout, DEFAULT ON (disable: --no-probe-basin) — same
+# instrument as train_multishine_policy.exs (INIT_FORENSICS option 6),
+# ported here 2026-08-02 (task #2: early-reject as a default). Margins on
+# fixture edges are NOT wired in the drill yet (embeddings are sharded);
+# basin-only reject. --reject-at N + --reject-on basin => halt without
+# export, exit 6 (1/2/4/5 taken).
+# BasinRollout embeds with the DEFAULT prev-action layout — queue-depth /
+# delay-id policies have a different embedding and would crash the probe.
+# Extending the rollout to arbitrary embed configs is task #5 territory.
+basin_compatible? =
+  (opts[:queue_depth] || 1) <= 1 and !opts[:with_delay_id] and prev_action
+
+if opts[:probe_basin] != false and not basin_compatible? do
+  Output.puts("Basin probe: skipped (queue/delay-id embed config unsupported by BasinRollout)")
+end
+
+{basin_probe, probe_entry_names} =
+  if opts[:probe_basin] != false and basin_compatible? do
+    alias ExPhil.Interp.BasinRollout
+    {_init, basin_predict} = ExPhil.Training.Utils.build_compiled(trainer.policy_model, mode: :inference)
+
+    g_replay = "eval_runs/0727_crouch_g_idle/r1.slp"
+    default_fixture = "test/fixtures/replays/fox_multishine_closed.slp"
+
+    entries =
+      if File.exists?(default_fixture),
+        do: [{"synthetic", BasinRollout.entry_synthetic()}],
+        else: []
+
+    entries =
+      entries ++
+        if File.exists?(g_replay),
+          do: [{"g@104", BasinRollout.entry_from_replay(g_replay, 104)}],
+          else: []
+
+    basin_path = out_path <> ".basin_probe.jsonl"
+    File.rm(basin_path)
+    Output.puts("Basin probe: #{length(entries)} entries -> #{basin_path}")
+
+    closure = fn epoch, loss, params ->
+      params = ExPhil.Training.Utils.ensure_model_state(params)
+
+      results =
+        Map.new(entries, fn {name, entry} ->
+          case BasinRollout.rollout(basin_predict, params, entry, max_frames: 120) do
+            {:escape, t} -> {name, t}
+            {:absorbed, _} -> {name, nil}
+          end
+        end)
+
+      File.write!(basin_path, Jason.encode!(Map.merge(%{epoch: epoch, loss: loss}, results)) <> "\n", [:append])
+      results
+    end
+
+    {closure, Enum.map(entries, fn {name, _} -> name end)}
+  else
+    {nil, []}
+  end
+
+basin_probe_every = opts[:probe_every] || 5
+reject_at = opts[:reject_at]
+reject_on = opts[:reject_on] || "basin"
+
+basin_reject_check = fn results ->
+  case reject_on do
+    "basin" ->
+      probe_entry_names != [] and Enum.all?(probe_entry_names, &is_nil(Map.get(results, &1)))
+
+    other ->
+      raise ArgumentError, "--reject-on #{other}: only \"basin\" is wired in the drill"
+  end
+end
+
 # One (pool_frames, peak RSS) point per run — the data the memory-check
 # prediction above is fit from. VmHWM is the kernel high-water mark, so
 # transient spikes (the epoch-boundary suspect class) are captured even
@@ -1477,6 +1554,12 @@ end
       )
     end
 
+    # Basin rollout (risky instrumentation last, after the snapshot)
+    basin_results =
+      if basin_probe && (epoch == 1 or rem(epoch, basin_probe_every) == 0) and is_number(loss) do
+        basin_probe.(epoch, loss, tr.policy_params)
+      end
+
     best =
       case best do
         nil -> if is_number(loss), do: {tr, loss}, else: nil
@@ -1502,12 +1585,36 @@ end
         {:cont, {best_tr, best_loss, epoch, history, best, restores + 1}}
 
       not is_number(loss) -> {:halt, {tr, loss, epoch, history, best, restores}}
+
+      reject_at != nil and epoch >= reject_at and is_map(basin_results) and
+          basin_reject_check.(basin_results) ->
+        {:halt, {tr, {:rejected, loss, basin_results}, epoch, history, best, restores}}
+
       loss < memorized_loss -> {:halt, {tr, loss, epoch, history, best, restores}}
       plateaued? -> {:halt, {tr, loss, epoch, history, best, restores}}
       true -> {:cont, {tr, loss, epoch, history, best, restores}}
     end
   end)
   |> then(fn {_tr, loss, epoch, _, best, _} -> {best, loss, epoch} end)
+
+# Early-reject intercepts BEFORE the divergence/best-export logic: a
+# rejected seed must not fall through to "export best epoch instead".
+case final_loss do
+  {:rejected, loss, probe_row} ->
+    File.write!(
+      out_path <> ".rejected.json",
+      Jason.encode!(Map.merge(%{rejected_at_epoch: epochs_used, loss: loss, reject_on: reject_on}, probe_row))
+    )
+
+    Output.warning(
+      "EARLY-REJECT (#{reject_on}) at epoch #{epochs_used}: #{inspect(probe_row)} — no policy exported"
+    )
+
+    System.halt(6)
+
+  _ ->
+    :ok
+end
 
 case {is_number(final_loss), best} do
   {_, nil} ->

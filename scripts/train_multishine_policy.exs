@@ -18,7 +18,7 @@ alias ExPhil.Embeddings
 
 {opts, _, _} =
   OptionParser.parse(System.argv(),
-    strict: [replays: :string, out: :string, robust: :boolean, prev_action: :boolean, action_delay: :integer, prev_action_dropout: :float, window: :integer, synth_recovery: :boolean, synth_max_af: :integer, synth_ratio: :float, synth_crouch: :boolean, crouch_max_af: :integer, crouch_ratio: :float, synth_ledge: :boolean, ledge_strategy: :string, ledge_ratio: :float, ledge_max_af: :integer, noise: :float, noise_prob: :float, scheduled_sampling: :float, ss_ramp: :integer, probe_basin: :boolean, probe_every: :integer, x_hold_extend: :integer, synth_opening: :boolean, opening_replays: :string]
+    strict: [replays: :string, out: :string, robust: :boolean, prev_action: :boolean, action_delay: :integer, prev_action_dropout: :float, window: :integer, synth_recovery: :boolean, synth_max_af: :integer, synth_ratio: :float, synth_crouch: :boolean, crouch_max_af: :integer, crouch_ratio: :float, synth_ledge: :boolean, ledge_strategy: :string, ledge_ratio: :float, ledge_max_af: :integer, noise: :float, noise_prob: :float, scheduled_sampling: :float, ss_ramp: :integer, probe_basin: :boolean, probe_every: :integer, reject_at: :integer, reject_on: :string, x_hold_extend: :integer, synth_opening: :boolean, opening_replays: :string]
   )
 
 # --replays accepts a dir or glob of .slp files; default = the single
@@ -251,9 +251,12 @@ frames =
 
 Output.puts("Training frames: #{length(frames)}")
 
+# Kept as a named binding: the cycle-margin probe computes its event index
+# on the SHIFTED stream so margins are label-aligned by construction.
+shifted_frames = Data.shift_actions(frames, action_delay)
+
 dataset =
-  frames
-  |> Data.shift_actions(action_delay)
+  shifted_frames
   |> Data.from_frames()
   |> Data.precompute_frame_embeddings(
     use_prev_action: prev_action,
@@ -285,29 +288,61 @@ trainer =
 
 {_predict_fn, loss_fn} = Imitation.build_loss_fn(trainer.policy_model)
 
-# --probe-basin: per-epoch mental rollout of the crouch basin
-# (INIT_FORENSICS option 6 — watch the init lottery get decided). Records
-# {epoch, loss, escape@entry...} to <out>.basin_probe.jsonl every
-# --probe-every epochs (default 5). Entries: the synthetic training-style
-# entry plus seed g's real absorbed entry when that replay exists.
-basin_probe =
-  if opts[:probe_basin] do
+# Per-epoch probes — DEFAULT ON since 2026-08-02 (disable: --no-probe-basin).
+# Two instruments, one JSONL row per probe epoch (<out>.basin_probe.jsonl):
+#   1. Basin mental rollout (INIT_FORENSICS option 6 — watch the init
+#      lottery get decided): escape@entry per entry, nil = absorbed.
+#      Entries: synthetic training-style + seed g's real absorbed entry
+#      when that replay exists.
+#   2. Cycle margins on the fixture's own expert edges (jc/aerial/ground;
+#      the 2026-07-28 sustain separator): jc_p10/jc_flip/crit_p10_min etc.
+# --reject-at N (default off): from epoch N on, halt WITHOUT exporting and
+# exit 3 when the --reject-on criterion holds ("basin" = all rollout
+# entries absorbed; "margin" = jc_flip > 0.5 with n >= 5; "either").
+# Farms need no changes: no .bin appears, so [ -f ... ] guards skip evals.
+{basin_probe, probe_entry_names} =
+  if opts[:probe_basin] != false do
     alias ExPhil.Interp.BasinRollout
+    alias ExPhil.Interp.CycleMargins
     {_init, probe_predict} = ExPhil.Training.Utils.build_compiled(trainer.policy_model, mode: :inference)
 
     g_replay = "eval_runs/0727_crouch_g_idle/r1.slp"
+    default_fixture = "test/fixtures/replays/fox_multishine_closed.slp"
+
+    # BasinRollout embeds with use_prev_action: true — without --prev-action
+    # the entry windows would not match the model's embed size. Margins use
+    # dataset.embedded_frames (always config-matched), so they stay on.
+    entries =
+      if prev_action and File.exists?(default_fixture),
+        do: [{"synthetic", BasinRollout.entry_synthetic()}],
+        else: []
 
     entries =
-      [{"synthetic", BasinRollout.entry_synthetic()}] ++
-        if File.exists?(g_replay),
+      entries ++
+        if prev_action and File.exists?(g_replay),
           do: [{"g@104", BasinRollout.entry_from_replay(g_replay, 104)}],
           else: []
 
+    # Margin prep: event index + gathered windows, computed once. Cheap per
+    # epoch (one batched forward over <=512 event windows).
+    margin_prep =
+      case CycleMargins.events(shifted_frames) do
+        [] -> nil
+        evs -> CycleMargins.prepare(dataset.embedded_frames, evs, window)
+      end
+
     probe_path = out_path <> ".basin_probe.jsonl"
     File.rm(probe_path)
-    Output.puts("Basin probe: #{length(entries)} entries -> #{probe_path}")
 
-    fn epoch, loss, params ->
+    n_events =
+      case margin_prep do
+        nil -> 0
+        {_, kept} -> length(kept)
+      end
+
+    Output.puts("Probes: #{length(entries)} basin entries, #{n_events} margin events -> #{probe_path}")
+
+    closure = fn epoch, loss, params ->
       params = ExPhil.Training.Utils.ensure_model_state(params)
 
       results =
@@ -318,13 +353,38 @@ basin_probe =
           end
         end)
 
+      results =
+        if margin_prep,
+          do: Map.merge(results, CycleMargins.margins(probe_predict, params, margin_prep)),
+          else: results
+
       line = Jason.encode!(Map.merge(%{epoch: epoch, loss: loss}, results))
       File.write!(probe_path, line <> "\n", [:append])
       results
     end
+
+    {closure, Enum.map(entries, fn {name, _} -> name end)}
+  else
+    {nil, []}
   end
 
 probe_every = opts[:probe_every] || 5
+reject_at = opts[:reject_at]
+reject_on = opts[:reject_on] || "basin"
+
+reject_check = fn results ->
+  basin_fail =
+    probe_entry_names != [] and Enum.all?(probe_entry_names, &is_nil(Map.get(results, &1)))
+
+  margin_fail = (results["jc_flip"] || 0.0) > 0.5 and (results["jc_n"] || 0) >= 5
+
+  case reject_on do
+    "basin" -> basin_fail
+    "margin" -> margin_fail
+    "either" -> basin_fail or margin_fail
+    other -> raise ArgumentError, "--reject-on #{other} (want basin|margin|either)"
+  end
+end
 
 # Robust mode can't use an absolute loss bar: label smoothing imposes a
 # FLOOR (≈0.33/categorical head at ε=0.05 → ~1.62 total) that no model can
@@ -364,13 +424,16 @@ max_epochs = if robust, do: 800, else: 2000
     loss = Nx.to_number(epoch_loss)
     if rem(epoch, 25) == 0, do: Output.puts("epoch #{epoch}: loss=#{inspect(loss)}")
 
-    if basin_probe && (epoch == 1 or rem(epoch, probe_every) == 0) and is_number(loss) do
-      results = basin_probe.(epoch, loss, tr.policy_params)
+    probe_results =
+      if basin_probe && (epoch == 1 or rem(epoch, probe_every) == 0) and is_number(loss) do
+        results = basin_probe.(epoch, loss, tr.policy_params)
 
-      if rem(epoch, 25) == 0 do
-        Output.puts("  basin probe: #{inspect(results)}")
+        if rem(epoch, 25) == 0 do
+          Output.puts("  basin probe: #{inspect(results)}")
+        end
+
+        results
       end
-    end
 
     history = Enum.take([loss | history], 100)
 
@@ -378,14 +441,38 @@ max_epochs = if robust, do: 800, else: 2000
       length(history) == 100 and is_number(loss) and
         List.last(history) - Enum.min(history) < 1.0e-3
 
+    rejected? =
+      reject_at != nil and epoch >= reject_at and is_map(probe_results) and
+        reject_check.(probe_results)
+
     cond do
       not is_number(loss) -> {:halt, {tr, loss, epoch, history}}
+      rejected? -> {:halt, {tr, {:rejected, loss, probe_results}, epoch, history}}
       memorized_loss == :plateau and plateaued? -> {:halt, {tr, loss, epoch, history}}
       is_number(memorized_loss) and loss < memorized_loss -> {:halt, {tr, loss, epoch, history}}
       true -> {:cont, {tr, loss, epoch, history}}
     end
   end)
   |> then(fn {tr, loss, epoch, _} -> {tr, loss, epoch} end)
+
+# Early-reject: no export, marker file, exit 3 (distinct from divergence's 1)
+# — farms skip the Dolphin eval either way via the missing-.bin guard.
+case final_loss do
+  {:rejected, loss, probe_row} ->
+    File.write!(
+      out_path <> ".rejected.json",
+      Jason.encode!(Map.merge(%{rejected_at_epoch: epochs_used, loss: loss, reject_on: reject_on}, probe_row))
+    )
+
+    Output.warning(
+      "EARLY-REJECT (#{reject_on}) at epoch #{epochs_used}: #{inspect(probe_row)} — no policy exported"
+    )
+
+    System.halt(3)
+
+  _ ->
+    :ok
+end
 
 if not is_number(final_loss) do
   Output.error("Training diverged (#{inspect(final_loss)}) — no policy exported")

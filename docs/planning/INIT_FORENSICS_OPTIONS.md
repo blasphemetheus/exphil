@@ -71,6 +71,32 @@ Check items off / append findings as they land. Status legend:
   and the failure is closed-loop shift. The afternoon-sized version of
   influence functions.
 
+### 2026-08-02: option 6 productionized — probes DEFAULT-ON + early-reject
+
+Task #2 of the backlog ("kill the seed farm"). Shipped:
+- `ExPhil.Interp.CycleMargins` (lib): the jc/aerial/ground margin
+  instrument extracted from probe_cycle_margins.exs, per-epoch-able on
+  the TEACHER FIXTURE's own edges (one batched forward over <=512 event
+  windows). Alignment fact learned: on training frames the applied
+  controller lags state by one — event family must be read from the
+  PRE-edge frame (current-frame classification finds 0 events; prev
+  finds all 373).
+- train_multishine_policy.exs: basin rollout + fixture margins default
+  ON (--no-probe-basin to disable), both in one JSONL row per probe
+  epoch. `--reject-at N --reject-on basin|margin|either` halts WITHOUT
+  export, writes <out>.rejected.json, exit 3. Margin rule: jc_flip>0.5
+  with n>=5 (the 10/10 sign separator).
+- dagger_drill.exs: basin probe + basin-only reject (exit 6), guarded to
+  compatible embed configs (prev-action, no queue/delay-id — extending
+  BasinRollout to those configs is task #5 territory).
+- Farms unchanged: rejected seeds export no .bin, existing [ -f ] guards
+  skip their Dolphin evals.
+- Verified: epoch-1 reject on an untrained net (both entries absorbed,
+  jc_flip 1.0 — textbook breaker signature), exit 3, marker written.
+
+Remaining option-6 gap = task #3: probe entries still can't catch
+OPENING deaths (needs each seed's own opening trajectory as an entry).
+
 ## Named anti-patterns (what NOT to do)
 
 - **Weight-statistics numerology**: comparing raw norms/spectra between
