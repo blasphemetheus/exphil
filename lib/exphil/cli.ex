@@ -146,6 +146,8 @@ defmodule ExPhil.CLI do
       desc: "Sampling temperature (0=argmax-like, 1=raw distribution; try 0.3-0.5)", group: [:dolphin]},
     %{name: :ablate_prev_action, flag: "--ablate-prev-action", type: :boolean, short: nil, default: false,
       desc: "Interp P3 ablation: feed zeros to the prev-action channel at inference", group: [:dolphin]},
+    %{name: :delay_id_override, flag: "--delay-id-override", type: :integer, short: nil, default: nil,
+      desc: "Interp intervention: force the delay-id one-hot channel to this value regardless of --frame-delay (delay-id patching; policies trained --with-delay-id only)", group: [:dolphin]},
     %{name: :leace_eraser, flag: "--leace-eraser", type: :string, short: nil, default: nil,
       desc: "Path to a fitted LEACE eraser applied between trunk and heads (interp-surgical)", group: [:dolphin]},
     %{name: :steer_vector, flag: "--steer-vector", type: :string, short: nil, default: nil,

@@ -245,7 +245,39 @@ so dagger_drill against it UNDER async+1 yields exactly-matched
 bypassing label surgery entirely. The D>=2 queue channel remains
 future work gated on netplay ambitions.
 
-## Defaults migration plan (NOT yet flipped — gates first)
+## Delay-id patch probe (2026-08-02): jq collapse SOLVED, d2 inversion is dynamics-side
+
+New interp flag `--delay-id-override N` (cli.ex + both play scripts):
+forces the delay-id one-hot regardless of --frame-delay. Six 1-run
+screening evals (sync headless, stand, grind protocol;
+eval_runs/0802_delayid_probe.sh + .log):
+
+| run | self/min | maxchain | baseline |
+|---|---|---|---|
+| jq d3 ctrl | 0 | 0 | 0 x4 (reproduced) |
+| jq d3, id=2 | 72.9 | 1 | — |
+| jq d3, id=4 | **431.4** | **430** | jq @ real d4: 101 c3 |
+| mdq_ss d2 ctrl | 139.8 | 6 | 139.8 c6 (EXACT repro) |
+| mdq_ss d2, id=3 | 70.9 | 1 | — |
+| mdq_ss d3, id=2 | 214.7 | 174 | mdq_ss @ d3 id=3: 380.5 c367 |
+
+**Verdicts:**
+- **jq d3 collapse: CHANNEL-TRIGGERED, confirmed.** True delay held at 3,
+  patching only the id rescues shining completely — id=4 produces a
+  431/min whole-run chain, BETTER than jq at any real rung. The crouch
+  absorber entry at d3 was conditioned by the id one-hot, not the delay
+  dynamics. jq's behavior is dominated by the id channel (0 → 431 on a
+  one-hot flip).
+- **mdq_ss d2 inversion: NOT channel-driven — prereg refuted.** Forcing
+  the good rung's id (3) at d2 makes it WORSE (71 c1 vs 140 c6): id and
+  dynamics must agree; mismatch always costs. The d2 weakness is
+  dynamics/data-side — the handoff's suspect (jitterless d2 sources
+  interacting with SS) stands. Note the SS asymmetry: mdq_ss keeps
+  c174 under a wrong id at d3 (robust), jq flips 0↔431 (brittle) —
+  SS-on-queue also buys id-mismatch robustness.
+- Eval determinism reconfirmed: control reproduced 139.8 c6 exactly.
+
+
 
 | Default | Current | Target | Gate |
 |---|---|---|---|

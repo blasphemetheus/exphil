@@ -110,7 +110,7 @@ Output.step(1, 5, "Loading agent")
     release_threshold: opts[:release_threshold],
     jump_debounce: opts[:jump_debounce],
     frame_delay: opts[:frame_delay],
-    delay_id: opts[:frame_delay] || 0,
+    delay_id: opts[:delay_id_override] || opts[:frame_delay] || 0,
     ablate_prev_action: opts[:ablate_prev_action] || false,
     leace_eraser: opts[:leace_eraser],
     steer_vector: opts[:steer_vector],
