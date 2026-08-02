@@ -94,8 +94,18 @@ Task #2 of the backlog ("kill the seed farm"). Shipped:
 - Verified: epoch-1 reject on an untrained net (both entries absorbed,
   jc_flip 1.0 — textbook breaker signature), exit 3, marker written.
 
-Remaining option-6 gap = task #3: probe entries still can't catch
-OPENING deaths (needs each seed's own opening trajectory as an entry).
+Task #3 (same day): `--probe-entries GLOB` on both scripts — any
+dead-seed replay contributes an auto-detected absorbed entry
+(`BasinRollout.find_absorbed_index/2`: first >=120-frame >=90%-SquatWait
+run; no hand-curated frame numbers). Defaults: the g and m routes.
+Indexing note: after dropping negative frames, g's replay is SquatWait
+from index 0 — the documented "f104" used a different frame base; the
+old hardcoded g@104 window was all-squat frames, so auto-@0 asks the
+identical deep-basin question. `entry_from_frames/1` is now public for
+synthesis-based entries. Residual blind spot (unchanged): a NOVEL
+opening route no dead seed has recorded yet — closing that needs the
+full-cycle offline simulator (task #5), which can roll each fresh seed
+through the actual game opening.
 
 ## Named anti-patterns (what NOT to do)
 

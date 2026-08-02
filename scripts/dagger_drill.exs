@@ -54,6 +54,7 @@ alias ExPhil.Embeddings
       probe_eval_every: :integer,
       probe_basin: :boolean,
       probe_every: :integer,
+      probe_entries: :string,
       reject_at: :integer,
       reject_on: :string,
       bc_replays: :string,
@@ -1095,11 +1096,24 @@ end
         do: [{"synthetic", BasinRollout.entry_synthetic()}],
         else: []
 
+    # Auto-detected absorbed entries from dead-seed replays (task #3;
+    # same convention as train_multishine_policy.exs --probe-entries).
+    entry_replays =
+      (opts[:probe_entries] || "#{g_replay},eval_runs/0728_crouchfix_m_idle/r1.slp")
+      |> String.split(",", trim: true)
+      |> Enum.flat_map(&Path.wildcard/1)
+      |> Enum.filter(&File.exists?/1)
+
     entries =
       entries ++
-        if File.exists?(g_replay),
-          do: [{"g@104", BasinRollout.entry_from_replay(g_replay, 104)}],
-          else: []
+        Enum.flat_map(entry_replays, fn path ->
+          tag = path |> Path.dirname() |> Path.basename() |> String.replace(~r/^\d+_/, "")
+
+          case BasinRollout.entry_from_absorbed_replay(path) do
+            {:ok, {entry, at}} -> [{"#{tag}@#{at}", entry}]
+            :none -> []
+          end
+        end)
 
     basin_path = out_path <> ".basin_probe.jsonl"
     File.rm(basin_path)

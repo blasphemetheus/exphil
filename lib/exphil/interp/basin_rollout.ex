@@ -61,8 +61,73 @@ defmodule ExPhil.Interp.BasinRollout do
       |> Peppi.to_training_frames(player_port: 1, opponent_port: 2)
       |> Enum.reject(&(&1.game_state.frame < 0))
 
-    pre = Enum.slice(frames, max(at - @window_size, 0), @window_size)
-    {embed_window(pre), List.last(pre)}
+    entry_from_frames(Enum.slice(frames, max(at - @window_size, 0), @window_size))
+  end
+
+  @doc """
+  Build an entry directly from a training-frame list (the last
+  #{@window_size} frames become the window; shorter lists are left-padded
+  by repeating the first frame). The `{window_tensor, template}` contract
+  every other entry builder reduces to — public so callers can slice
+  openings from an already-parsed replay or synthesis output
+  (task #3, 2026-08-02).
+  """
+  def entry_from_frames(frames) when frames != [] do
+    {embed_window(frames), List.last(frames)}
+  end
+
+  @doc """
+  Auto-detect the absorbed entry in a dead seed's replay: the first index
+  where a sustained SquatWait run begins (>= `:min_run` frames at
+  >= `:occupancy` SquatWait, defaults 120 / 0.9 — seed g sat at 97.1%
+  Squat occupancy from frame 104). Returns `{:ok, index}` or :none.
+
+  This replaces hand-curated frame numbers (g@104, m@104) so farms can
+  feed ANY opening-death replay via --probe-entries without forensics
+  first (INIT_FORENSICS: the early-reject blind spot is exactly the
+  opening routes the curated entries don't cover).
+  """
+  def find_absorbed_index(frames, opts \\ []) do
+    min_run = Keyword.get(opts, :min_run, 120)
+    occupancy = Keyword.get(opts, :occupancy, 0.9)
+    squat_wait = ExPhil.Constants.squat_wait()
+
+    flags =
+      frames
+      |> Enum.map(&(&1.game_state.players[1].action == squat_wait))
+      |> List.to_tuple()
+
+    n = tuple_size(flags)
+
+    if n < min_run do
+      :none
+    else
+      Enum.find_value(0..(n - min_run), :none, fn i ->
+        if elem(flags, i) do
+          hits = Enum.count(i..(i + min_run - 1), &elem(flags, &1))
+          if hits >= occupancy * min_run, do: {:ok, i}
+        end
+      end)
+    end
+  end
+
+  @doc """
+  `entry_from_replay/2` with the index auto-detected by
+  `find_absorbed_index/2`. Returns `{:ok, {entry, index}}` or :none
+  (no sustained squat run / unparseable replay).
+  """
+  def entry_from_absorbed_replay(path, opts \\ []) do
+    with {:ok, replay} <- Peppi.parse(path),
+         frames =
+           replay
+           |> Peppi.to_training_frames(player_port: 1, opponent_port: 2)
+           |> Enum.reject(&(&1.game_state.frame < 0)),
+         {:ok, at} <- find_absorbed_index(frames, opts) do
+      pre = Enum.slice(frames, max(at - @window_size, 0), @window_size)
+      {:ok, {entry_from_frames(pre), at}}
+    else
+      _ -> :none
+    end
   end
 
   @doc """

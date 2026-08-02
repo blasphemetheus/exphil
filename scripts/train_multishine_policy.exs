@@ -18,7 +18,7 @@ alias ExPhil.Embeddings
 
 {opts, _, _} =
   OptionParser.parse(System.argv(),
-    strict: [replays: :string, out: :string, robust: :boolean, prev_action: :boolean, action_delay: :integer, prev_action_dropout: :float, window: :integer, synth_recovery: :boolean, synth_max_af: :integer, synth_ratio: :float, synth_crouch: :boolean, crouch_max_af: :integer, crouch_ratio: :float, synth_ledge: :boolean, ledge_strategy: :string, ledge_ratio: :float, ledge_max_af: :integer, noise: :float, noise_prob: :float, scheduled_sampling: :float, ss_ramp: :integer, probe_basin: :boolean, probe_every: :integer, reject_at: :integer, reject_on: :string, x_hold_extend: :integer, synth_opening: :boolean, opening_replays: :string]
+    strict: [replays: :string, out: :string, robust: :boolean, prev_action: :boolean, action_delay: :integer, prev_action_dropout: :float, window: :integer, synth_recovery: :boolean, synth_max_af: :integer, synth_ratio: :float, synth_crouch: :boolean, crouch_max_af: :integer, crouch_ratio: :float, synth_ledge: :boolean, ledge_strategy: :string, ledge_ratio: :float, ledge_max_af: :integer, noise: :float, noise_prob: :float, scheduled_sampling: :float, ss_ramp: :integer, probe_basin: :boolean, probe_every: :integer, probe_entries: :string, reject_at: :integer, reject_on: :string, x_hold_extend: :integer, synth_opening: :boolean, opening_replays: :string]
   )
 
 # --replays accepts a dir or glob of .slp files; default = the single
@@ -317,11 +317,35 @@ trainer =
         do: [{"synthetic", BasinRollout.entry_synthetic()}],
         else: []
 
+    # --probe-entries: comma list of globs of DEAD-seed replays; each
+    # contributes an auto-detected absorbed entry (first sustained
+    # SquatWait run — no hand-curated frame numbers). Task #3: every known
+    # opening-death route becomes a foreign-hole probe. Defaults: the two
+    # documented routes (g and m). Universal escapers exit foreign holes
+    # (INIT_FORENSICS tier taxonomy); a seed absorbed in ANY hole is
+    # early-reject material.
+    default_entry_replays = "#{g_replay},eval_runs/0728_crouchfix_m_idle/r1.slp"
+
+    entry_replays =
+      (opts[:probe_entries] || default_entry_replays)
+      |> String.split(",", trim: true)
+      |> Enum.flat_map(&Path.wildcard/1)
+      |> Enum.filter(&File.exists?/1)
+
     entries =
       entries ++
-        if prev_action and File.exists?(g_replay),
-          do: [{"g@104", BasinRollout.entry_from_replay(g_replay, 104)}],
-          else: []
+        if prev_action do
+          Enum.flat_map(entry_replays, fn path ->
+            tag = path |> Path.dirname() |> Path.basename() |> String.replace(~r/^\d+_/, "")
+
+            case BasinRollout.entry_from_absorbed_replay(path) do
+              {:ok, {entry, at}} -> [{"#{tag}@#{at}", entry}]
+              :none -> []
+            end
+          end)
+        else
+          []
+        end
 
     # Margin prep: event index + gathered windows, computed once. Cheap per
     # epoch (one batched forward over <=512 event windows).
