@@ -593,3 +593,14 @@ IC tech flag logic now centralized (was duplicated 4 times):
 *Mamba unification completed: 2026-02-03*
 *Nana helpers extraction completed: 2026-02-03*
 *Structured error types completed: 2026-02-03*
+
+## 9.x reduce_stream_indexed index/value pairing races under load (found 2026-08-03)
+
+Full-suite run: PrefetcherTest:299 failed with {0,12},{1,6} where
+{0,6},{1,12} expected — the SORTED comparison failing means the
+index->value PAIRING swapped, i.e. indices were assigned by completion
+order rather than input order under parallel-suite load. Passes 3/3 in
+isolation. Either reduce_stream_indexed should guarantee input-order
+indexing (fix the impl) or its contract is completion-order (fix the
+test + audit callers that assume input order). Low priority; flake rate
+~1/full-suite.
