@@ -28,7 +28,7 @@ Check items off / append findings as they land. Status legend:
   ~60-81/min). If the numbers land, the absorbing-state theory becomes
   quantitative.
 
-- [ ] **2. Input attribution** (gradient x input, `ExPhil.Interp.
+- [x] **2. Input attribution** (done 2026-07-28, see Findings) (gradient x input, `ExPhil.Interp.
   Attribution`). For the B-decision in basin states, which input groups
   carry it: prev-action (self-reinforcing copy loop = failure story) vs
   own action state/af (expert rule = escape story). Needs a custom
@@ -57,7 +57,7 @@ Check items off / append findings as they land. Status legend:
   is a<->g vs the a<->c/i/k controls, not any single curve.
   Script: `scripts/interp_mode_connectivity.exs`.
 
-- [ ] **6. Training-dynamics forensics** (watch the lottery get
+- [x] **6. Training-dynamics forensics** (done 2026-07-28; PRODUCTIONIZED 2026-08-02, see below) (watch the lottery get
   decided). Per-epoch probe-1 measurements during fresh training runs:
   when does escape competence emerge (or fail to)? Long-term payoff:
   an early-reject test at ~epoch 5-10 that converts the 50% seed yield
