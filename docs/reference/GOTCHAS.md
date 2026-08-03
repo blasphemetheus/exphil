@@ -3275,3 +3275,17 @@ built fine when the .so was produced. Escape hatch (2026-08-02):
 Real fix when rebuilding is actually needed: bump the peppi/ethnum pins.
 Corollary: never `timeout`-kill a mix invocation that may be compiling
 deps; give compile phases their own generous budget.
+
+## 83. Midnight nix-gc eats bare /nix/store paths in hand-written wrappers
+
+The netplay-beta-nixos Dolphin "AppImage" is a wrapper shim exec'ing
+appimage-run by an ABSOLUTE /nix/store path. Nothing rooted that path, so
+the scheduled nix-gc swept it (2026-08-03 ~00:30) and every subsequent
+Dolphin launch died with libmelee's "Unexpected return code 127" —
+grind-5's whole eval sweep failed in 20 seconds, hours after identical
+evals passed. Fix + prevention: `nix build nixpkgs#appimage-run -o
+<dir>/.appimage-run-root` (the -o symlink IS a GC root) and point the
+wrapper through the symlink. Rule: never reference bare /nix/store paths
+from wrapper scripts; always go through a root (-o link, profile, or
+/run/current-system). Diagnostic signature: exit 127 from a launcher
+that worked earlier the same day + a timestamp shortly after midnight.
