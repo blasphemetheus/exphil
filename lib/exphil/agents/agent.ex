@@ -125,7 +125,16 @@ defmodule ExPhil.Agents.Agent do
     # true until the first post-reset frame has warmed the trunk (see
     # compute_stateful_step_action: replicates the windowed path's
     # pad-with-first-frame warmup so cold-start behavior matches)
-    :trunk_cold
+    :trunk_cold,
+    # Hybrid re-sync (task #11, 2026-08-02): every :stateful_resync frames
+    # rebuild trunk_state from scratch through the last window_size
+    # embedded frames (:step_frame_buffer, newest first) — the carried
+    # state drifts from the trained sliding-window regime (~0.04 logit
+    # gap at 40 frames, compounding); re-sync bounds drift to K frames
+    # while keeping the O(1) step for the other K-1. nil = off.
+    :stateful_resync,
+    :step_frame_buffer,
+    :steps_since_resync
   ]
 
   @type t :: %__MODULE__{}
@@ -400,7 +409,10 @@ defmodule ExPhil.Agents.Agent do
       trunk_state: nil,
       trunk_step_params: nil,
       heads_predict_fn: nil,
-      trunk_cold: true
+      trunk_cold: true,
+      stateful_resync: Keyword.get(opts, :stateful_resync, nil),
+      step_frame_buffer: [],
+      steps_since_resync: 0
     }
 
     # Load policy if provided. An explicitly requested policy that fails to
@@ -542,7 +554,9 @@ defmodule ExPhil.Agents.Agent do
         frames_since_inference: 0,
         mamba_cache: new_mamba_cache,
         trunk_state: new_trunk_state,
-        trunk_cold: true
+        trunk_cold: true,
+        step_frame_buffer: [],
+        steps_since_resync: 0
     }
 
     {:reply, :ok, new_state}
@@ -1073,6 +1087,33 @@ defmodule ExPhil.Agents.Agent do
         state.trunk_state
       end
 
+    # Hybrid re-sync: rebuild the state as-if sliding-window (fresh init,
+    # stepped through the buffered previous window_size-1 frames) every
+    # :stateful_resync frames. Bounds carried-state drift to K frames;
+    # costs window_size-1 extra steps every K (amortized ~nothing at
+    # K >= 30). Buffer holds PREVIOUS frames newest-first; the current
+    # frame is stepped normally below either way.
+    buffer = Enum.take([frame | state.step_frame_buffer], max(state.window_size - 1, 1))
+
+    resync? =
+      state.stateful_resync != nil and not state.trunk_cold and
+        state.steps_since_resync >= state.stateful_resync and
+        length(state.step_frame_buffer) >= state.window_size - 1
+
+    trunk_state =
+      if resync? do
+        fresh = init_trunk_state(state.trunk_step_params, state.embed_config, state.backbone)
+
+        state.step_frame_buffer
+        |> Enum.reverse()
+        |> Enum.reduce(fresh, fn f, st ->
+          {_out, st} = trunk_step_fn().(state.trunk_step_params, st, f)
+          st
+        end)
+      else
+        trunk_state
+      end
+
     {features, new_trunk_state} =
       trunk_step_fn().(state.trunk_step_params, trunk_state, frame)
 
@@ -1108,7 +1149,14 @@ defmodule ExPhil.Agents.Agent do
 
     confidence = Networks.Policy.compute_confidence(action)
 
-    {action, confidence, %{state | trunk_state: new_trunk_state, trunk_cold: false}}
+    {action, confidence,
+     %{
+       state
+       | trunk_state: new_trunk_state,
+         trunk_cold: false,
+         step_frame_buffer: buffer,
+         steps_since_resync: if(resync?, do: 0, else: state.steps_since_resync + 1)
+     }}
   end
 
   # JIT-compiled Edifice.Recurrent.step/3 — cached in :persistent_term by

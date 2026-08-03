@@ -120,6 +120,7 @@ Output.step(1, 5, "Loading agent")
     player_registry: opts[:player_registry],
     uncertainty_log: opts[:uncertainty_log],
     stateful_step: opts[:stateful_step] || false,
+    stateful_resync: opts[:stateful_resync],
     af_convention: if(opts[:live_af], do: :live, else: :parsed)
   )
 
