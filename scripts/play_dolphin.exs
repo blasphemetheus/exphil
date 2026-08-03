@@ -92,7 +92,12 @@ Output.step(1, 5, "Loading agent")
     deterministic: opts[:deterministic],
     frame_delay: opts[:frame_delay],
     delay_id: opts[:delay_id_override] || opts[:frame_delay] || 0,
-    action_repeat: opts[:action_repeat]
+    action_repeat: opts[:action_repeat],
+    # Task #11: the sync runner silently DROPPED these (only the async
+    # script forwarded them) — the 10:24 A/B ran three identical windowed
+    # arms and only the activation check caught it
+    stateful_step: opts[:stateful_step] || false,
+    stateful_resync: opts[:stateful_resync]
   )
 
 config = Agent.get_config(agent)
