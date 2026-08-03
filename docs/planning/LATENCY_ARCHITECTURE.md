@@ -292,6 +292,21 @@ eval_runs/0802_delayid_probe.sh + .log):
   SS-on-queue also buys id-mismatch robustness.
 - Eval determinism reconfirmed: control reproduced 139.8 c6 exactly.
 
+**Grind-3 (2026-08-02 evening): jitter × SS REFUTED — jq_ss flattens
+every rung.** Arm jq_ss = mdq_ss recipe + --shift-jitter 1
+(eval_runs/0802_grind3_jqss.{sh,log}; checkpoint ms_g3_jq_ss.bin,
+loss 0.039 vs champion 0.008): d2 84.9 c1 / d3 75.9 c3 / d4 79.9 c1.
+All three preregs fail — jitter doesn't fix d2, kills the d3/d4
+records, and hurts d2 too. Mechanism: per-source jitter makes identical
+states carry differently-shifted labels; SS-on-queue then self-samples
+against inconsistent targets (the 5x loss floor is that
+irreducibility). R3's accidental smear predates the queue channel — its
+benefit does NOT transfer to queue-SS recipes. Rule: NO shift-jitter in
+SS-on-queue recipes. The d2 inversion's remaining suspect is the SOURCE
+DISTRIBUTION (every rollout pool was collected at d3); next probe =
+collect a d2 rollout pool (champion through --frame-delay 2, qtrace
+protocol) and retrain mdq_ss with mixed-rung sources.
+
 
 
 | Default | Current | Target | Gate |
@@ -421,6 +436,22 @@ recommended configs; the collapse is speed-0-specific).
   smear — do NOT use for timing-critical runs until a runtime
   speed-switch (menus 0, gameplay 1.0) exists. That switch is the
   next headless lever.
+  **SUPERSEDED 2026-08-02 (tasks #9/#10, eval_runs/0802_wvh_gap.\*)**:
+  with `--blocking-input`, `--emulation-speed 0` now scores the FULL
+  record (380.5 c367, 3/3 identical, ms_g2_mdq_ss @ d3) at HALF the
+  block wall time (1:55 vs 3:52 per 3-run block) — the July smear
+  verdict predated the blocking-input fixes. New fast headless recipe:
+  `--headless --emulation-speed 0 --blocking-input`. No runtime
+  speed-switch needed.
+  **And the windowed-vs-headless "gap" DID NOT REPRODUCE**: windowed =
+  headless = 380.5 c367 (3/3 each, deterministic) on an idle unlocked
+  desktop. The 08-01 "windowed 105 c19" (locktest) was a REGIME
+  artifact — screen lock + DPMS-off and/or ambient load, not
+  windowed-ness (tonight's only dip was a HEADLESS run, 113.8 c17, in
+  the block whose 5-min loadavg still carried grind-3's tail).
+  Follow-up: lock-state A/B (same block, locked vs unlocked screen) to
+  pin which ingredient degrades — that's the regime live netplay
+  sessions must avoid.
 
 ## DAgger through the delayed bridge (2026-07-29, campaign live)
 
