@@ -248,6 +248,18 @@ windows vs matched live-replay windows and diff the embedding fields
 (embed_path_parity_test is prior art); stick-decode fidelity;
 window-boundary semantics. Usable TODAY for break forensics (hard
 breaks are exact); NOT yet for chain ranking.
+**GATE PASSED 2026-08-03 morning.** The missing pieces were PIPELINE
+semantics, not model or physics: (a) sticky probability hysteresis
+(press 0.45 / release 0.30 on sigmoid — agent.ex decode) instead of
+per-frame logit>0; (b) `decode_lag: 2` — the qtrace-measured intrinsic
+N+2 (z decides aerial B at jumpsquat af0; the press lands two frames
+later ON the first airborne frame); (c) prev-action channel and
+hysteresis held-state track the model's own DECODED stream while edges
+compute on the APPLIED stream. Result: z = ONE UNBROKEN 151-CHAIN over
+1800 sim frames, zz = endless singles, soft=0 both (every transition
+exact-on-graph). CycleSim is now a trusted Dolphin-free evaluator for
+this lineage — screening cost seconds, and "simulate the deployment
+stack, not just the network" is the recorded moral.
 
 **Strategic position after the day**: async+0 + delay-0 training is a
 validated, excellent production combination (z: 147/min chains 27);

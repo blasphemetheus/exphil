@@ -159,32 +159,42 @@ defmodule ExPhil.Interp.CycleSim do
   embedding fed that step, BinaryBackend) for offline diffing against
   live-replay embeddings at matched states (the gate diagnostic).
 
-  `:decode_lag` (default 1): frames between decoding and application —
-  the live pipeline applies a decision one frame after the state it
-  answered, and the training pairing bakes that lag in. At lag 0 the
-  model is effectively asked one frame EARLY: its aerial-shine B lands
-  in jumpsquat (correctly eaten by the graph), stays held, and the
-  first-airborne-frame edge can never fire (diagnosed 2026-08-02,
-  cyclesim_diag: live z's B is also negative mid-jump — the shine is
-  decided a frame before airborne, applied ON the airborne frame).
+  `:decode_lag` (default 2): frames between decoding and application.
+  The MEASURED live pipeline latency is N+2 at --frame-delay N (the
+  intrinsic +2, qtrace-verified 2026-07-31): z decides its aerial B at
+  jumpsquat af0 (cyclesim_cycle_dump: B logit +1.6 exactly there) and
+  the press lands two frames later ON the first airborne frame — the
+  shine. Lag 0/1 ask the model early and the press dies in jumpsquat.
+
+  `:press_threshold` / `:release_threshold` (defaults 0.45 / 0.30):
+  the agent path's probability hysteresis, replicated — B/X decode is
+  sigmoid(logit) vs press-threshold when released, release-threshold
+  when held (sticky). The raw per-frame logit>0 decode manufactured
+  presses/releases the live pipeline never emits (the v4 gate lesson).
   """
   def rollout(predict_fn, params, {entry_window, template}, %Table{} = table, opts \\ []) do
     max_frames = Keyword.get(opts, :max_frames, 600)
     trace? = Keyword.get(opts, :trace, false)
-    decode_lag = Keyword.get(opts, :decode_lag, 1)
+    decode_lag = Keyword.get(opts, :decode_lag, 2)
+    press_t = Keyword.get(opts, :press_threshold, 0.45)
+    release_t = Keyword.get(opts, :release_threshold, 0.30)
     player0 = template.game_state.players[1]
     base_frame = template.game_state.frame
 
-    # prev_ctrl = last APPLIED controller (embeds as prev-action; edge
-    # reference); pending = decoded-but-not-yet-applied (decode_lag 1).
+    # decoded_prev = last DECODED controller (the prev-action channel and
+    # the hysteresis held-state track the model's OWN emitted stream —
+    # live-agent semantics); applied_prev = last APPLIED (edge
+    # reference); queue = decoded-but-not-yet-applied, length decode_lag.
+    queue0 = List.duplicate(template.controller, max(decode_lag, 0))
+
     init =
-      {entry_window, template.controller, template.controller,
+      {entry_window, template.controller, template.controller, queue0,
        {player0.action, player0.action_frame}, [], 0, []}
 
     result =
       Enum.reduce_while(1..max_frames, init, fn t,
-                                                {win, prev_ctrl, pending, {action, af}, actions,
-                                                 soft, trace} ->
+                                                {win, decoded_prev, applied_prev, queue,
+                                                 {action, af}, actions, soft, trace} ->
         grounded = Map.get(table.grounded, action, true)
 
         # Statistical state reconstruction: y + speeds from the per-state
@@ -210,13 +220,13 @@ defmodule ExPhil.Interp.CycleSim do
         }
 
         emb =
-          ExPhil.Embeddings.Game.embed(gs, prev_ctrl, 1)
+          ExPhil.Embeddings.Game.embed(gs, decoded_prev, 1)
           |> Nx.backend_transfer(Nx.BinaryBackend)
           |> Nx.reshape({1, :auto})
 
         win = Nx.concatenate([Nx.slice_along_axis(win, 1, @window_size - 1, axis: 0), emb], axis: 0)
         out = predict_fn.(params, Nx.new_axis(win, 0))
-        ctrl = BasinRollout.decode_controller(out)
+        ctrl = decode_hysteresis(out, decoded_prev, press_t, release_t)
 
         trace =
           if trace? do
@@ -231,14 +241,16 @@ defmodule ExPhil.Interp.CycleSim do
             trace
           end
 
-        # decode_lag 1: this step's transition applies LAST step's decode
-        # (the live pipeline's one-frame application lag); the fresh
-        # decode becomes next step's pending. Lag 0 = apply immediately.
-        {applied, next_pending} =
-          if decode_lag == 0, do: {ctrl, ctrl}, else: {pending, ctrl}
+        # Application queue: this step's transition applies the decode
+        # from decode_lag steps ago; the fresh decode joins the tail.
+        {applied, next_queue} =
+          case queue do
+            [] -> {ctrl, []}
+            [head | rest] -> {head, rest ++ [ctrl]}
+          end
 
-        b_edge = applied.button_b and not prev_ctrl.button_b
-        x_edge = applied.button_x and not prev_ctrl.button_x
+        b_edge = applied.button_b and not applied_prev.button_b
+        x_edge = applied.button_x and not applied_prev.button_x
 
         # Lookup ladder (all non-exact rungs count as :soft):
         #   1. exact {action, af, edges}
@@ -277,7 +289,7 @@ defmodule ExPhil.Interp.CycleSim do
 
           {{next_action, next_af}, soft?} ->
             {:cont,
-             {win, applied, next_pending, {next_action, next_af}, [next_action | actions],
+             {win, ctrl, applied, next_queue, {next_action, next_af}, [next_action | actions],
               soft + ((soft? && 1) || 0), trace}}
         end
       end)
@@ -293,7 +305,7 @@ defmodule ExPhil.Interp.CycleSim do
           trace: trace
         }
 
-      {_win, _ctrl, _pending, _state, actions, soft, trace} ->
+      {_win, _decoded, _applied, _queue, _state, actions, soft, trace} ->
         actions = Enum.reverse(actions)
 
         %{
@@ -342,5 +354,24 @@ defmodule ExPhil.Interp.CycleSim do
 
     {BasinRollout.entry_from_frames(Enum.take(frames, @window_size)),
      transition_table(frames ++ graph_frames)}
+  end
+
+  # Agent-path button decode: sigmoid(logit) vs press threshold when the
+  # button is released, release threshold when held (sticky hysteresis,
+  # agent.ex semantics). Held-state reference is the previous DECODED
+  # controller. Only B/X matter to the transition table.
+  defp decode_hysteresis(out, prev, press_t, release_t) do
+    buttons = out |> elem(0) |> Nx.squeeze() |> Nx.to_flat_list()
+
+    decide = fn logit, held ->
+      p = 1.0 / (1.0 + :math.exp(-logit))
+      if held, do: p >= release_t, else: p >= press_t
+    end
+
+    %{
+      prev
+      | button_b: decide.(Enum.at(buttons, 1), prev.button_b),
+        button_x: decide.(Enum.at(buttons, 2), prev.button_x)
+    }
   end
 end
