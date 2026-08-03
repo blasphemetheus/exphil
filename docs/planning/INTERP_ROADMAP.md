@@ -354,10 +354,24 @@ discovery. Effort: ~2-3 days. Stretch tier — unblock after Phases 1-3.
       teacher jump-default burned into weights (r9/r10 teacher repair
       killed it); case #3 opponent-blindness = direction-blind teacher key
       (knowing-without-acting at the layer level; bar cleared r10)
-- [ ] P4: reaction-vs-guessing verdict per checkpoint — decodability
-      tracked across rounds (opp_behind 0.706→0.875) but the
-      probe-accuracy-vs-frame-offset plot (the actual verdict artifact)
-      not built; needs P0's per-timestep capture tier
+- [x] P4: reaction-vs-guessing verdict per checkpoint — **VERDICT
+      2026-08-02 (scripts/interp_p4_offset.exs,
+      eval_runs/0802_p4_offset_full.json): NOBODY READS TECHS.** Offset
+      curves (tech-choice decodability vs frames-from-episode-start,
+      by-replay split) for r1/r2/r10/r14 over 584 episodes x 49
+      post-CPU-fix replays: FLAT — pre(-30..-6) ≈ entry(0..10) ≈
+      late(11..30) ≈ 0.36-0.40 vs ~0.33 chance; zero post-visibility
+      information gain in any policy. Conversion gains (r10 20%) are
+      COVERAGE/positioning, not reaction; the weak above-chance floor
+      existing 30f BEFORE the episode is a static positional tell worth
+      remembering before training hard vs this dummy. Expected in
+      hindsight (tech episodes <1% of gradient signal, nothing upweights
+      them, P1 showed trunks prune unused info) — the curve is now the
+      ACCEPTANCE TEST for reaction training (#8/P5: upweight tech
+      episodes conversion-weight-style; curve must grow a post-entry
+      rise). Note: the headline curve needed only per-frame capture; the
+      per-timestep tier (P0 better, landed same day) serves the
+      within-window logit-lens variant.
 - [ ] P5: one closed curation cycle — not started; now converges with the
       five-char program's human corpus (#30) + capability catalog (#31)
 - [~] P6: steering demo + ground-truth-scored SAE features — steering
