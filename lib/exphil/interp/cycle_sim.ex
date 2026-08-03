@@ -153,18 +153,38 @@ defmodule ExPhil.Interp.CycleSim do
       `%{at:, action:, af:, family:, buttons: {b, x}}` for the first
       off-graph decision
 
-  Options: `:max_frames` (default 600).
+  Options: `:max_frames` (default 600); `:trace` (default false) — when
+  true the result gains `:trace`, a per-step list of
+  `%{t:, action:, af:, b_logit:, x_logit:, emb:}` (emb = the frame
+  embedding fed that step, BinaryBackend) for offline diffing against
+  live-replay embeddings at matched states (the gate diagnostic).
+
+  `:decode_lag` (default 1): frames between decoding and application —
+  the live pipeline applies a decision one frame after the state it
+  answered, and the training pairing bakes that lag in. At lag 0 the
+  model is effectively asked one frame EARLY: its aerial-shine B lands
+  in jumpsquat (correctly eaten by the graph), stays held, and the
+  first-airborne-frame edge can never fire (diagnosed 2026-08-02,
+  cyclesim_diag: live z's B is also negative mid-jump — the shine is
+  decided a frame before airborne, applied ON the airborne frame).
   """
   def rollout(predict_fn, params, {entry_window, template}, %Table{} = table, opts \\ []) do
     max_frames = Keyword.get(opts, :max_frames, 600)
+    trace? = Keyword.get(opts, :trace, false)
+    decode_lag = Keyword.get(opts, :decode_lag, 1)
     player0 = template.game_state.players[1]
     base_frame = template.game_state.frame
 
-    init = {entry_window, template.controller, {player0.action, player0.action_frame}, [], 0}
+    # prev_ctrl = last APPLIED controller (embeds as prev-action; edge
+    # reference); pending = decoded-but-not-yet-applied (decode_lag 1).
+    init =
+      {entry_window, template.controller, template.controller,
+       {player0.action, player0.action_frame}, [], 0, []}
 
     result =
       Enum.reduce_while(1..max_frames, init, fn t,
-                                                {win, prev_ctrl, {action, af}, actions, soft} ->
+                                                {win, prev_ctrl, pending, {action, af}, actions,
+                                                 soft, trace} ->
         grounded = Map.get(table.grounded, action, true)
 
         # Statistical state reconstruction: y + speeds from the per-state
@@ -198,8 +218,27 @@ defmodule ExPhil.Interp.CycleSim do
         out = predict_fn.(params, Nx.new_axis(win, 0))
         ctrl = BasinRollout.decode_controller(out)
 
-        b_edge = ctrl.button_b and not prev_ctrl.button_b
-        x_edge = ctrl.button_x and not prev_ctrl.button_x
+        trace =
+          if trace? do
+            buttons = out |> elem(0) |> Nx.squeeze() |> Nx.to_flat_list()
+
+            [
+              %{t: t, action: action, af: af, b_logit: Enum.at(buttons, 1),
+                x_logit: Enum.at(buttons, 2), emb: Nx.squeeze(emb)}
+              | trace
+            ]
+          else
+            trace
+          end
+
+        # decode_lag 1: this step's transition applies LAST step's decode
+        # (the live pipeline's one-frame application lag); the fresh
+        # decode becomes next step's pending. Lag 0 = apply immediately.
+        {applied, next_pending} =
+          if decode_lag == 0, do: {ctrl, ctrl}, else: {pending, ctrl}
+
+        b_edge = applied.button_b and not prev_ctrl.button_b
+        x_edge = applied.button_x and not prev_ctrl.button_x
 
         # Lookup ladder (all non-exact rungs count as :soft):
         #   1. exact {action, af, edges}
@@ -231,23 +270,30 @@ defmodule ExPhil.Interp.CycleSim do
               action: action,
               af: af,
               family: ShineChain.family(action),
-              buttons: {ctrl.button_b, ctrl.button_x}
+              buttons: {applied.button_b, applied.button_x}
             }
 
-            {:halt, {:break, brk, Enum.reverse(actions), soft}}
+            {:halt, {:break, brk, Enum.reverse(actions), soft, Enum.reverse(trace)}}
 
           {{next_action, next_af}, soft?} ->
             {:cont,
-             {win, ctrl, {next_action, next_af}, [next_action | actions],
-              soft + ((soft? && 1) || 0)}}
+             {win, applied, next_pending, {next_action, next_af}, [next_action | actions],
+              soft + ((soft? && 1) || 0), trace}}
         end
       end)
 
     case result do
-      {:break, brk, actions, soft} ->
-        %{frames: brk.at, actions: actions, chains: ShineChain.chains(actions), break: brk, soft: soft}
+      {:break, brk, actions, soft, trace} ->
+        %{
+          frames: brk.at,
+          actions: actions,
+          chains: ShineChain.chains(actions),
+          break: brk,
+          soft: soft,
+          trace: trace
+        }
 
-      {_win, _ctrl, _state, actions, soft} ->
+      {_win, _ctrl, _pending, _state, actions, soft, trace} ->
         actions = Enum.reverse(actions)
 
         %{
@@ -255,7 +301,8 @@ defmodule ExPhil.Interp.CycleSim do
           actions: actions,
           chains: ShineChain.chains(actions),
           break: nil,
-          soft: soft
+          soft: soft,
+          trace: Enum.reverse(trace)
         }
     end
   end
