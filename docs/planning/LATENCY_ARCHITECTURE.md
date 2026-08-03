@@ -418,6 +418,19 @@ NEW baseline era — do not compare across the flip without noting it
      the window every k frames to re-sync state, step between — keeps
      most of the compute win with bounded drift), (c) slippi-ai's real
      fix: train the unroll = deploy step.
+     **RESOLVED 2026-08-03 (task #11, eval_runs/0803_ab2_*, champion
+     ms_g2_mdq_ss @ d3 fast-headless):** windowed 380.5 c367 x3;
+     stateful 226.7 c164 x3 — drift cost is REAL and large (-40% rate,
+     chains halved) at champion scale. **Hybrid resync-30 REJECTED:
+     92.9-142.8 c9-75, WORSE than pure drift and nondeterministic** —
+     the periodic carried->sliding state jump is a mid-chain
+     discontinuity; smooth drift is wrong-but-consistent and the policy
+     partially rides it. (--stateful-resync stays in the tree as an
+     experiment knob.) Also fixed en route: the sync runner silently
+     dropped --stateful-step (the first A/B ran three windowed arms;
+     the activation check caught it). Verdict: windowed deploy remains
+     default; option (c) train-unroll-=-deploy-step is the only real
+     path to O(1) inference and moves to the backlog on its own merits.
 3. Explicit delay queue in the bridge (the C component) — needed the day
    models outgrow the frame budget or D > 1: apply action at its target
    frame, split budget console/local like slippi-ai.
