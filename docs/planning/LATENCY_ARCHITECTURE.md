@@ -452,6 +452,19 @@ recommended configs; the collapse is speed-0-specific).
   Follow-up: lock-state A/B (same block, locked vs unlocked screen) to
   pin which ingredient degrades — that's the regime live netplay
   sessions must avoid.
+  **A/B RAN same night (task #17, eval_runs/0802_{lockarm,loadarm}.\*):
+  ALL REGIME SUSPECTS EXONERATED** — windowed under active lock +
+  DPMS-off: 380.5 c367 x3; windowed under 12 busy-loop CPU saturation:
+  380.5 c367 x3. Remaining explanation, by timeline: the 08-01 locktest
+  ran BEFORE `2bd9577` (one decision per game frame, landed later that
+  day) — a non-blocking windowed sync loop re-infers when inference
+  outpaces frames, corrupting the queue slots of a queue-depth-4 policy;
+  headless blocking dispatch never re-infers, which is why only windowed
+  suffered. Tonight's clean windowed runs ARE the regression test for
+  that fix. Consequence: the "live behaves like windowed-degraded" fear
+  is retired on current code — windowed/local-live = record pace. Eval
+  determinism note: 10 consecutive windowed/lock/load runs tonight
+  produced literally identical scoreboards (380.5 c367).
 
 ## DAgger through the delayed bridge (2026-07-29, campaign live)
 
