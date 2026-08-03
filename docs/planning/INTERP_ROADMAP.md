@@ -379,10 +379,18 @@ discovery. Effort: ~2-3 days. Stretch tier — unblock after Phases 1-3.
       but the stand regression gate FAILED CATASTROPHICALLY (380.5 c367
       -> 72.9 c1) — 12 whole pressure rollouts drowned the clean-cycle
       signal even expert-relabeled. THE LOOP ITSELF WORKED (caught the
-      trade unattended in one pass). Cycle #2 = snippet-based mixing
-      (the 0803 miner's 22 snippets / 3.7k frames instead of ~43k
-      rollout frames) once the drill --snippet-frames flag lands.
-      Human-corpus collection remains the data upgrade (GOTCHA #84).
+      trade unattended in one pass). **CYCLE #2 RAN same day**
+      (ms_g8_snippets.bin: 103 mined snippets / 23k frames via
+      --snippet-frames): stand gate HELD (385.5 c374 — snippet dose
+      controls the composition trade) but the pressure gain VANISHED
+      (18-23 c1-2 vs M0 22-28 c4-8). Reading: cycle-1's +43% likely
+      came from the redundant "cycle-under-cpu-presence" context frames
+      (distribution matching) that the miner drops, not the
+      hit-recovery moments. P5 verdict: the closed-loop methodology is
+      VALIDATED both directions (catches catastrophic trades; snippet
+      mixing is safe); the fight-state gap itself stays OPEN — next
+      data upgrade is the HUMAN corpus (Bradley-gated, --replay-dir per
+      GOTCHA #84) and/or richer pressure labels than return-to-cycle.
 - [x] P6: steering demo + ground-truth-scored SAE features — steering
       HALF: DONE AND CAUSAL (2026-07-19 A/B below). **SAE HALF DONE
       2026-08-03** (scripts/interp_sae.exs v2, standardized activations,
