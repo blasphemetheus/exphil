@@ -465,6 +465,17 @@ recommended configs; the collapse is speed-0-specific).
   is retired on current code — windowed/local-live = record pace. Eval
   determinism note: 10 consecutive windowed/lock/load runs tonight
   produced literally identical scoreboards (380.5 c367).
+  **Ops cost of the lock arm (Bradley, same night): hyprlock ended in a
+  FAILED state** after `loginctl lock-session` + windowed Dolphin under
+  lock + `hyprctl dpms off/on` — recovery = `lockfix` from another tty.
+  So the lock+window-map hazard is REAL but aims at the session/lock
+  stack, not bot performance. Rule: don't run windowed evals under an
+  active lock unless someone can reach a tty; headless (record-equal,
+  0802) is the unattended default.
+  Determinism corollary for COLLECTION runs: deterministic decode makes
+  N rollouts N identical replays — pool collection must pass
+  --temperature (0.4 used for the 0802 d2 pool; caught after training
+  briefly started on 12 copies of one game).
 
 ## DAgger through the delayed bridge (2026-07-29, campaign live)
 

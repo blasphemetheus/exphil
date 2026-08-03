@@ -15,6 +15,6 @@ export EXPHIL_SKIP_NIF_COMPILE=1
 
 echo "=== D2POOL collect $(date +%H:%M:%S)"
 EXLA_TARGET=host bash scripts/eval_live_protocol.sh checkpoints/ms_g2_mdq_ss.bin \
-  eval_runs/0802_d2pool --runs 12 --dummy stand --runner sync \
+  eval_runs/0802_d2pool --runs 12 --dummy stand --runner sync --temperature 0.4 \
   -- --frame-delay 2 --headless --emulation-speed 0 --blocking-input --slippi-port 51442
 echo "=== D2POOL done $(date +%H:%M:%S)"
