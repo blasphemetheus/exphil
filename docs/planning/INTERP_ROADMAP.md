@@ -383,10 +383,21 @@ discovery. Effort: ~2-3 days. Stretch tier — unblock after Phases 1-3.
       (the 0803 miner's 22 snippets / 3.7k frames instead of ~43k
       rollout frames) once the drill --snippet-frames flag lands.
       Human-corpus collection remains the data upgrade (GOTCHA #84).
-- [~] P6: steering demo + ground-truth-scored SAE features — steering
-      HALF: DONE AND CAUSAL (2026-07-19 A/B below). SAE half: blocked on
-      edifice remediation (#15); the cross-architecture comparison (same
-      features, GRU vs mamba) is UNBLOCKED once mamba_full lands
+- [x] P6: steering demo + ground-truth-scored SAE features — steering
+      HALF: DONE AND CAUSAL (2026-07-19 A/B below). **SAE HALF DONE
+      2026-08-03** (scripts/interp_sae.exs v2, standardized activations,
+      strictly-binary scoring, eval_runs/sae_scores_1785777029.json):
+      BatchTopK dictionaries on GRU r13 vs mamba2_screen r13 over the
+      49-replay corpus. **Cross-architecture verdict: the SAME
+      ground-truth features emerge in both** — own_offstage (GRU 0.54 /
+      mamba 0.71, mamba CRISPER) and own_shielding (0.60 / 0.43) — and
+      both share the SAME deficit (opp_knockdown ~0.07 = the P4
+      no-tech-reading verdict at feature level, twice). Features look
+      task-driven, not architecture-driven. Caveats recorded: one seed
+      per arch, shared hyperparams, modest F1s; deeper claims want
+      per-arch tuning + dict-size sweeps. The v1 lesson (mamba fit
+      collapses without standardization; multi-valued u8 labels produce
+      F1>1 nonsense) is baked into the script.
 
 ## CLOSED 2026-07-17: the constant-215 shield p95 = hard shield BREAKS
 

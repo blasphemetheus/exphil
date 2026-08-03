@@ -46,8 +46,17 @@ results =
     trunk = Activations.load_trunk(path)
     cap = Activations.capture(trunk, replays)
     acts = Nx.backend_copy(cap.activations, EXLA.Backend)
+
+    # v2: per-dim standardization — architectures differ wildly in
+    # activation scale (mamba2's fit collapsed under GRU-tuned
+    # hyperparams, threshold 7.0 vs 1.2); z-scoring makes one hyperparam
+    # set portable across trunks.
+    mean = Nx.mean(acts, axes: [0], keep_axes: true)
+    std = Nx.standard_deviation(acts, axes: [0], keep_axes: true)
+    acts = Nx.divide(Nx.subtract(acts, mean), Nx.add(std, 1.0e-6))
+
     {n, _d} = Nx.shape(acts)
-    Output.puts("#{seed}: {#{n}, hidden} activations captured")
+    Output.puts("#{seed}: {#{n}, hidden} activations captured (standardized)")
 
     fit =
       SAETrainer.fit(:batch_top_k_sae, acts,
@@ -75,10 +84,13 @@ results =
     fired = Nx.greater(hidden, 0.0)
     fire_rate = fired |> Nx.mean(axes: [0]) |> Nx.to_flat_list()
 
-    # Binary ground-truth labels only (u8 tensors)
+    # STRICTLY binary ground-truth labels: u8 AND max value 1 (v2 fix —
+    # dist_bucket is u8 but multi-valued, which produced F1 > 1 nonsense)
     labels =
       cap.labels
-      |> Enum.filter(fn {_k, t} -> Nx.type(t) == {:u, 8} end)
+      |> Enum.filter(fn {_k, t} ->
+        Nx.type(t) == {:u, 8} and Nx.to_number(Nx.reduce_max(t)) <= 1
+      end)
       |> Map.new(fn {k, t} -> {k, Nx.backend_copy(t, EXLA.Backend)} end)
 
     scored =
@@ -94,16 +106,34 @@ results =
         rec = Nx.divide(tp, max(Nx.to_number(Nx.sum(yf)), 1))
         f1 = Nx.divide(Nx.multiply(2, Nx.multiply(prec, rec)), Nx.max(Nx.add(prec, rec), 1.0e-6))
 
-        best = Nx.argmax(f1) |> Nx.to_number()
+        # v2: top-3 features per label (one crisp feature can hide behind
+        # a duplicate; the top-3 spread also shows redundancy)
+        top3 =
+          f1
+          |> Nx.argsort(direction: :desc)
+          |> Nx.slice_along_axis(0, 3, axis: 0)
+          |> Nx.to_flat_list()
+          |> Enum.map(fn j ->
+            %{
+              feature: j,
+              f1: Float.round(Nx.to_number(f1[j]), 3),
+              precision: Float.round(Nx.to_number(prec[j]), 3),
+              recall: Float.round(Nx.to_number(rec[j]), 3),
+              fire_rate: Float.round(Enum.at(fire_rate, j), 4)
+            }
+          end)
+
+        best = hd(top3)
 
         %{
           label: label,
           base_rate: Float.round(base, 4),
-          best_feature: best,
-          f1: Float.round(Nx.to_number(f1[best]), 3),
-          precision: Float.round(Nx.to_number(prec[best]), 3),
-          recall: Float.round(Nx.to_number(rec[best]), 3),
-          fire_rate: Float.round(Enum.at(fire_rate, best), 4)
+          best_feature: best.feature,
+          f1: best.f1,
+          precision: best.precision,
+          recall: best.recall,
+          fire_rate: best.fire_rate,
+          top3: top3
         }
       end
       |> Enum.sort_by(&(-&1.f1))
