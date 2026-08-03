@@ -368,6 +368,19 @@ on — override to the nearest trained id instead. **ms_g6_sp1 +
 --delay-id-override 3 covers the whole practical band: d2 434.5 c434 /
 d3 413.4 c409 / d4 332.4 c313 — one checkpoint, one knob.**
 
+**Grind-7 {3,4} (2026-08-03 evening, ms_g9_sp34) + probe:** d2 87.9 c1
+(untrained id — rule holds), d3 **428.4 c429**, d4 **83.9 c1 DESPITE
+id 4 being trained** — and at real d4 with id override 3: **380.4
+c381**. Third pool where a TRAINED id-4 mode fails ({2,4} zero, {3,4}
+84; only {2,3,4} ever cracked it at 435). Unified reading: the
+delay-id channel creates per-id behavioral MODES; the id-3 mode is a
+universal executor (330-435 at real d3/d4 across three checkpoints);
+id-2/id-4 mode quality depends on an untheorized pool interaction.
+PRACTICAL CLOSURE: deploy the best-trained id mode (id 3) regardless
+of actual delay in the d3-d4 band — the composition theory is now an
+interp curiosity (CycleSim per-rung traces when the queue-embed
+extension lands), not a blocker for anything.
+
 **Grind-5 (2026-08-03, ms_g5_ladder8, multi-delay {2,4,6,8}):** d2
 **205.8 c73** / d4 90.8 c2 / d6 80.8 c1 / d8 87.8 c1
 (eval_runs/0803_g5_rerun.log; the 00:37 sweep died to GOTCHA #83 first).
