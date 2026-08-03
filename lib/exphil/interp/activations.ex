@@ -47,8 +47,14 @@ defmodule ExPhil.Interp.Activations do
             "#{policy_path} is not a temporal policy — trunk capture only supports temporal policies"
     end
 
+    # :all_timesteps true => trunk returns {batch, window, hidden} (every
+    # timestep's state, the logit-lens/P4 tier) instead of {batch, hidden}.
+    # Same layer names either way — the final-slice layer holds no params.
+    all_timesteps = Keyword.get(opts, :all_timesteps, false)
+
     trunk =
       Networks.Policy.build_temporal_trunk(
+        return_sequences: all_timesteps,
         embed_size: Map.fetch!(config, :embed_size),
         backbone: Map.get(config, :backbone, :mlp),
         window_size: Map.get(config, :window_size, 60),
@@ -84,7 +90,8 @@ defmodule ExPhil.Interp.Activations do
       params: params,
       config: config,
       window: Map.get(config, :window_size, 60),
-      hidden_size: Map.get(config, :hidden_size, 256)
+      hidden_size: Map.get(config, :hidden_size, 256),
+      all_timesteps: all_timesteps
     }
   end
 

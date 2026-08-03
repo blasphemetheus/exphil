@@ -2836,7 +2836,7 @@ defmodule ExPhil.Networks.Policy.Backbone do
       num_layers: num_layers,
       cell_type: :lstm,
       dropout: dropout,
-      return_sequences: false,
+      return_sequences: Keyword.get(opts, :return_sequences, false),
       # For concrete seq_len (efficient JIT)
       window_size: window_size,
       # Optional: limit gradient flow for faster training
@@ -2857,7 +2857,9 @@ defmodule ExPhil.Networks.Policy.Backbone do
       num_layers: num_layers,
       cell_type: :gru,
       dropout: dropout,
-      return_sequences: false,
+      # :return_sequences true => all-timesteps trunk (P0 logit-lens tier);
+      # the final-slice layer is param-free so exported params load either way
+      return_sequences: Keyword.get(opts, :return_sequences, false),
       window_size: window_size,
       truncate_bptt: truncate_bptt
     )
