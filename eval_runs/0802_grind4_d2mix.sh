@@ -23,7 +23,7 @@ mix run scripts/dagger_drill.exs \
   --rollouts "$ROLL" --opening-replays "$OPEN" \
   --max-epochs 60 --prev-action-dropout 0.6 --transition-weight 2.0 \
   --multi-delay "2,3,4" --pipeline-offset 2 --queue-depth 4 --with-delay-id \
-  --scheduled-sampling 0.5 --ss-ramp 10 \
+  --scheduled-sampling 0.5 --ss-ramp 10 --resume \
   --out checkpoints/ms_g4_d2mix.bin \
   2>&1 | grep -aE "Converged|diverged|exported|error|\*\*" | tail -4
 [ -f checkpoints/ms_g4_d2mix.bin ] || { echo "=== GRIND4 FAILED" >&2; exit 1; }

@@ -307,6 +307,22 @@ DISTRIBUTION (every rollout pool was collected at d3); next probe =
 collect a d2 rollout pool (champion through --frame-delay 2, qtrace
 protocol) and retrain mdq_ss with mixed-rung sources.
 
+**Grind-4 (2026-08-02 night): source distribution ALSO refuted — the d2
+inversion goes to the interp bench.** 12 temperature-0.4 d2-native
+rollouts (eval_runs/0802_d2pool) mixed into the mdq_ss recipe
+(ms_g4_d2mix.bin, --resume through a couch-game interruption):
+d2 **138.8 c3** (vs champion 139.8 c6 — unchanged), d3 **424.4 c423 —
+NEW d3 RECORD** (beats 380.5 c367), d4 105.8 c33 (degraded from 435).
+Verdicts: (a) d2 is PINNED at ~139-140/min chains<=6 across four
+different recipes — a metronome cadence (1 shine/~26f) too stable to be
+a data artifact; prime structural suspect = the farm-7/8 shift-collision
+mechanism (JC-commit vs B-hold labels colliding on shared states) biting
+at shift 4 (=d2+2) but not 5/6. Next instruments: probe_cycle_boundary
+per rung on the same checkpoint; CycleSim once its gate passes.
+(b) Pool composition is a PER-RUNG trade: the d2/temp pool boosted d3 to
+the record while halving d4 — g4_d2mix is a d3 SPECIALIST; mdq_ss stays
+the all-round champion; per-target-rung pool tuning is now a real axis.
+
 
 
 | Default | Current | Target | Gate |
