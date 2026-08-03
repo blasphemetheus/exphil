@@ -323,6 +323,21 @@ per rung on the same checkpoint; CycleSim once its gate passes.
 the record while halving d4 — g4_d2mix is a d3 SPECIALIST; mdq_ss stays
 the all-round champion; per-target-rung pool tuning is now a real axis.
 
+**Grind-5 (2026-08-03, ms_g5_ladder8, multi-delay {2,4,6,8}):** d2
+**205.8 c73** / d4 90.8 c2 / d6 80.8 c1 / d8 87.8 c1
+(eval_runs/0803_g5_rerun.log; the 00:37 sweep died to GOTCHA #83 first).
+Two verdicts: (a) **SS-on-queue does NOT ladder past d4** — d6/d8 are
+metronomes; the d<=8 netplay plan leans on d4 (enough for good
+connections: 2-frame Slippi buffer + intrinsic 2) until a new idea.
+(b) **THE d2 PIN SHATTERED**: four recipes with shift-set {4,5,6} pinned
+d2 at ~140 c<=6; this arm's only structural change is RUNG SPACING
+({4,6,8,10} — 2 apart) and d2 jumped +50%/12x-chains. Refined #18
+hypothesis: ADJACENT-shift rungs interfere (1-frame-apart label sets
+collide on shared states; 2-frame spacing dodges it). Decisive next
+arm: multi-delay "2,4" only (spacing 2, minimal pool) vs "2,3" (spacing
+1) — if 2,4 keeps d2 >= 200 and 2,3 re-pins it at 140, the mechanism is
+confirmed causally and the champion recipe becomes spacing-2.
+
 
 
 | Default | Current | Target | Gate |
