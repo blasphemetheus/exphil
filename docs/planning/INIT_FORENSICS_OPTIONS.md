@@ -34,14 +34,14 @@ Check items off / append findings as they land. Status legend:
   own action state/af (expert rule = escape story). Needs a custom
   objective (B logit, not argmax logit). Hypothesis-DRIVEN saliency only.
 
-- [ ] **3. Linear probes on trunk activations** (representation vs use).
+- [x] **3. Linear probes on trunk activations** (representation vs use).
   Can a linear readout decode "basin state" / "af parity" / "B should
   fire" from each seed's trunk? Failure with intact representation =>
   decision-layer problem; collapsed representation => upstream problem.
   Must beat the random-init-trunk control (INTERP_ROADMAP rule).
   Edifice `linear_probe` gets its first validated harness here.
 
-- [ ] **4. Causal interventions** (steering/erasure; `steering.ex`,
+- [x] **4. Causal interventions** (closed SUPERSEDED 2026-08-03) (steering/erasure; `steering.ex`,
   `erase.ex`/LEACE). Erase the putative crouch direction from a failed
   seed's trunk, or steer along the escapee-vs-failure activation
   difference, and watch the B logit. Within-model only — cross-seed
@@ -65,7 +65,7 @@ Check items off / append findings as they land. Status legend:
   axis. Hook: `--probe-crouch` flag in train_multishine_policy.exs
   writing JSONL per epoch.
 
-- [ ] **7. Data attribution / subset-loss forensics.** Per-seed training
+- [x] **7. Data attribution / subset-loss forensics.** Per-seed training
   loss restricted to the crouch-synth slice. High for failures =>
   optimization never fit the escape labels; low => the labels are fit
   and the failure is closed-loop shift. The afternoon-sized version of
@@ -106,6 +106,23 @@ synthesis-based entries. Residual blind spot (unchanged): a NOVEL
 opening route no dead seed has recorded yet — closing that needs the
 full-cycle offline simulator (task #5), which can roll each fresh seed
 through the actual game opening.
+
+### 2026-08-03: options #3 + #7 executed — ledger CLOSED
+
+`scripts/interp_init_forensics.exs` over the full 12-seed zoo:
+- **#7 VERDICT: every seed FIT the escape labels** (teacher-forced B
+  agreement 0.70-0.97 with phase alignment — the pairing lags by one
+  frame, so score at offsets ±1; the deadest absorber g fits at 0.933).
+  "Optimization never fit the labels" is refuted zoo-wide: all failures
+  were CLOSED-LOOP (self-generated-history) phenomena, completing the
+  causal story. Fit does NOT rank live outcome (g 0.93 > escaper k 0.78).
+- **#3 VERDICT: saturated — controls caught it.** B-label and af-parity
+  probes hit ~1.0 on the RANDOM-INIT trunk too (af is an input field);
+  on-manifold trunk probing cannot separate tiers. Re-confirms the
+  2026-07-27 on-manifold finding with Hewitt-Liang controls.
+- **#4 closed as SUPERSEDED**: surgical rescue of absorbed seeds lost
+  its purpose once the synthesis fix + default-on early-reject
+  (2026-08-02) removed the lottery this ledger existed to explain.
 
 ## Named anti-patterns (what NOT to do)
 
