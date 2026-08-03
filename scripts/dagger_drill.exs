@@ -55,6 +55,7 @@ alias ExPhil.Embeddings
       probe_basin: :boolean,
       probe_every: :integer,
       probe_entries: :string,
+      snippet_frames: :string,
       reject_at: :integer,
       reject_on: :string,
       bc_replays: :string,
@@ -545,7 +546,29 @@ rollout_frame_lists =
     {nil, nil}
   end
 
-all_frame_lists = fixture_frame_lists ++ bc_frame_lists ++ rollout_frame_lists
+# --snippet-frames GLOB (task #19, 2026-08-03): pre-relabeled snippet
+# files from scripts/snippet_mine.exs (term_to_binary'd training-frame
+# lists, consecutive frame numbers). MIXED into the pool as extra
+# per-snippet lists (rule 3: mix, never replace; shift_actions can't
+# cross snippet boundaries since each snippet is its own list). Snippets
+# are already expert-relabeled — they skip the drill's relabel pass by
+# construction (they enter as fixture-style lists, not rollouts).
+snippet_frame_lists =
+  (opts[:snippet_frames] || "")
+  |> String.split(",", trim: true)
+  |> Enum.flat_map(&Path.wildcard(Path.expand(&1)))
+  |> Enum.map(fn p -> p |> File.read!() |> :erlang.binary_to_term() end)
+  |> Enum.reject(&(&1 == []))
+
+if snippet_frame_lists != [] do
+  Output.puts(
+    "Snippets: #{length(snippet_frame_lists)} lists, " <>
+      "#{Enum.sum(Enum.map(snippet_frame_lists, &length/1))} pre-relabeled frames"
+  )
+end
+
+all_frame_lists =
+  fixture_frame_lists ++ bc_frame_lists ++ rollout_frame_lists ++ snippet_frame_lists
 
 # --opening-replays GLOB (2026-07-31): the farm-11 lesson ported to drills.
 # Harvest real openings (spawn -> first cycle entry) from prior live replays
