@@ -335,6 +335,29 @@ per rung on the same checkpoint; CycleSim once its gate passes.
 the record while halving d4 — g4_d2mix is a d3 SPECIALIST; mdq_ss stays
 the all-round champion; per-target-rung pool tuning is now a real axis.
 
+**Grind-6 (2026-08-03, the spacing A/B): SPACING REFUTED — and
+ms_g6_sp1 ({2,3}) is the NEW DUAL-RUNG CHAMPION.** Full matrix
+(1-run screening; sp1 confirmed 3/3 deterministic):
+
+| arm | rungs | d2 | d3 | d4 |
+|---|---|---|---|---|
+| mdq_ss | {2,3,4} | 139.8 c6 | 380.5 c367 | 435.3 c436 |
+| g5_ladder8 | {2,4,6,8} | 205.8 c73 | — | 90.8 c2 |
+| g6_sp2 | {2,4} | 131.9 c4 | — | **0.0 c0** |
+| **g6_sp1** | **{2,3}** | **434.5 c434** | **413.4 c409** | 70.9 c4 |
+
+Verdicts: (a) adjacent-shift interference REFUTED — the spacing-1
+minimal pool produced the best d2 EVER (whole-run chain) while the
+spacing-2 minimal pool re-pinned d2 AND zeroed d4. (b) No clean
+one-variable story survives the 4-point matrix; empirically,
+small pools excel at their LOW rungs and starve the high end, and
+{2,3,4}'s d2 pin was a 3-rung-pool composition effect, not structure.
+(c) PRACTICAL OUTCOME: **{2,3} is the recipe for the netplay band**
+(d2 local / d3 Direct — both near-perfect in one checkpoint);
+{2,3,4}/mdq_ss remains the d4 specialist. (d) sp2's d4 ZERO joins jq's
+d3 zero as collapse #2 — delay-id patch probe queued. Rung-composition
+THEORY remains open; the champion question is settled.
+
 **Grind-5 (2026-08-03, ms_g5_ladder8, multi-delay {2,4,6,8}):** d2
 **205.8 c73** / d4 90.8 c2 / d6 80.8 c1 / d8 87.8 c1
 (eval_runs/0803_g5_rerun.log; the 00:37 sweep died to GOTCHA #83 first).
