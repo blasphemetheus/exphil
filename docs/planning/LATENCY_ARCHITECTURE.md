@@ -661,3 +661,11 @@ by {cycle phase, af} over both teacher fixtures settle it:
   through ep20. A margin-aware LOSS term remains unbuilt (escalate only
   if selection alone doesn't move live chains). Drill margin wiring
   still pending (embeddings sharded).
+
+**Per-rung fight-state ceiling (2026-08-03 evening, sp1 vs cpu-9,
+eval_runs/0803_ceiling.log):** d2 21.0 c2 / d3 26.0 c2 / d4(id3) 25.0
+c2 — FLAT. The pressure floor is delay-independent: the fight-state gap
+(P5/#8 territory) costs the same at every rung, so delay selection for
+live play is purely an execution-quality choice. Task #12's runnable
+half is done; the remaining item is the real-friend ping measurement
+(Bradley-gated, rides the next remote Direct session).
