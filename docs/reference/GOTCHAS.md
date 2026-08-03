@@ -3289,3 +3289,14 @@ wrapper through the symlink. Rule: never reference bare /nix/store paths
 from wrapper scripts; always go through a root (-o link, profile, or
 /run/current-system). Diagnostic signature: exit 127 from a launcher
 that worked earlier the same day + a timestamp shortly after midnight.
+
+## 84. Human-session replays die with the temp Dolphin dir — always pass --replay-dir
+
+The play scripts launch Dolphin with a /tmp libmelee user dir; replays
+land there unless --replay-dir is set, and the dir dies with the session
+(the 2026-08-02 couch games vs Bradley — prime fight-state training
+data — survive only as a qtrace log, which has inputs but not
+embeddable game state). Rule: EVERY human/pressure session that might
+feed training passes --replay-dir eval_runs/<name>/ at launch. The
+eval protocol does this implicitly (its r*.slp ARE the collected pool);
+ad-hoc play launches must do it explicitly.
