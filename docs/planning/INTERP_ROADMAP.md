@@ -372,8 +372,17 @@ discovery. Effort: ~2-3 days. Stretch tier — unblock after Phases 1-3.
       rise). Note: the headline curve needed only per-frame capture; the
       per-timestep tier (P0 better, landed same day) serves the
       within-window logit-lens variant.
-- [ ] P5: one closed curation cycle — not started; now converges with the
-      five-char program's human corpus (#30) + capability catalog (#31)
+- [~] P5: one closed curation cycle — **CYCLE #1 RAN 2026-08-03**
+      (eval_runs/0803_pressure_cycle.sh, ms_g7_pressure.bin): fight-state
+      gap, synthetic pressure (champion vs cpu-9). Verdict: pressure
+      metric IMPROVED (+43% shine rate under pressure, fewer hits taken)
+      but the stand regression gate FAILED CATASTROPHICALLY (380.5 c367
+      -> 72.9 c1) — 12 whole pressure rollouts drowned the clean-cycle
+      signal even expert-relabeled. THE LOOP ITSELF WORKED (caught the
+      trade unattended in one pass). Cycle #2 = snippet-based mixing
+      (the 0803 miner's 22 snippets / 3.7k frames instead of ~43k
+      rollout frames) once the drill --snippet-frames flag lands.
+      Human-corpus collection remains the data upgrade (GOTCHA #84).
 - [~] P6: steering demo + ground-truth-scored SAE features — steering
       HALF: DONE AND CAUSAL (2026-07-19 A/B below). SAE half: blocked on
       edifice remediation (#15); the cross-architecture comparison (same
