@@ -358,6 +358,16 @@ small pools excel at their LOW rungs and starve the high end, and
 d3 zero as collapse #2 — delay-id patch probe queued. Rung-composition
 THEORY remains open; the champion question is settled.
 
+**Id-probe follow-up (same day, eval_runs/0803_idprobe.log):** sp2 @
+real d4 with id=2: 69.9 c1 (rescued from ZERO — channel-conditioned
+collapse, pattern #2 confirmed). **sp1 @ real d4 with id=3: 332.4
+c313** — the honest id=4 (an UNTRAINED one-hot) was the entire d4
+problem; sp1's d3 anticipation survives real-d4 dynamics nearly intact.
+DEPLOYMENT RULE: never eval/deploy at an id the policy wasn't trained
+on — override to the nearest trained id instead. **ms_g6_sp1 +
+--delay-id-override 3 covers the whole practical band: d2 434.5 c434 /
+d3 413.4 c409 / d4 332.4 c313 — one checkpoint, one knob.**
+
 **Grind-5 (2026-08-03, ms_g5_ladder8, multi-delay {2,4,6,8}):** d2
 **205.8 c73** / d4 90.8 c2 / d6 80.8 c1 / d8 87.8 c1
 (eval_runs/0803_g5_rerun.log; the 00:37 sweep died to GOTCHA #83 first).
