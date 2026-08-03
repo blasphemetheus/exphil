@@ -57,6 +57,17 @@ ExPhil is an Elixir-based platform for experimenting with neural network archite
 
 ## Current Status
 
+**READ THE NEWEST `docs/planning/HANDOFF_*.md` FIRST** (`ls -t
+docs/planning/HANDOFF_*` picks it) — it is the live resume point;
+everything below is background inventory.
+
+**Production policy (2026-08-03): `checkpoints/ms_g6_sp1.bin`** —
+multi-delay {2,3} champion recipe; d2 434.5/min c434, d3 413.4 c409,
+d4 332.4 c313 via `--delay-id-override 3` (never deploy at an
+untrained delay-id). Fast eval recipe: sync headless
+`--emulation-speed 0 --blocking-input` (record-equivalent, half wall
+time).
+
 **Test coverage:** ~2700 tests passing
 
 **Completed:**
@@ -86,15 +97,26 @@ ExPhil is an Elixir-based platform for experimenting with neural network archite
 
 ## Immediate Priorities
 
-See [GOALS.md](docs/planning/GOALS.md) for comprehensive roadmap. Current focus:
+See [GOALS.md](docs/planning/GOALS.md) and the newest `HANDOFF_*.md`.
+The live program (2026-08): **drill-based skill acquisition under
+delay + interpretability-driven iteration** — NOT architecture
+bake-offs (explicitly deprioritized; architecture is not the
+bottleneck).
 
-**Architecture iteration** — comparing backbones on high-tier replay data (more abundant) to find the best speed/accuracy tradeoff for 60 FPS inference.
-
-**Next Phase:**
-1. **Architecture benchmarking** - Systematic comparison of 30+ backbones on same dataset
-2. **Large-scale self-play training** - GPU cluster deployment (PPO infrastructure complete)
-3. **Scaling experiments** - Larger models, more data, sparse rewards
-4. **Low-tier specialization** - Transfer best architecture to Mewtwo/Ganondorf/etc.
+Current threads:
+1. **Delay campaign (mature)** — multi-delay {2,3} + SS-on-queue is
+   the champion recipe; ladder stops at d4; 18-frame netplay rejected
+   for d<=8. Open: rung-composition theory, real-friend ping
+   measurement (`docs/planning/LATENCY_ARCHITECTURE.md`).
+2. **Interp program** — P0-P6 milestones essentially closed
+   (`docs/planning/INTERP_ROADMAP.md`): CycleSim offline simulator
+   (gate passed), early-reject probes default-on, P4 verdict (no
+   policy reads techs), P5 curation loop validated, cross-arch SAE.
+3. **Fight-state gap** — the bot vs humans/pressure; needs the human
+   replay corpus (always `--replay-dir`, GOTCHA #84) and richer
+   pressure labels.
+4. Parked: large-scale self-play/PPO, architecture benchmarking,
+   low-tier transfer at scale (Mewtwo arm exists: mc_g1_mdq_ss).
 
 ## Documentation
 

@@ -26,6 +26,15 @@ This document describes all available scripts in the `scripts/` directory.
 | **DAgger** | dagger_drill.exs | `--expert multishine --rollouts "a.slp,b.slp" --out policy.bin` |
 | | dagger_loop.sh | `[iterations]` — automated train→play→score loop |
 | | trace_multishine.exs | `replay.slp` — JC/shine scoreboard per replay |
+| | train_multishine_policy.exs | fixture memorization + synth + default-on probes/early-reject |
+| | snippet_mine.exs | `--replays GLOB` — cut+relabel event-anchored snippets → `--snippet-frames` |
+| **Simulation** | cycle_sim.exs | `--policies GLOB` — Dolphin-free full-cycle eval (gate passed 2026-08-03) |
+| | cyclesim_diag.exs | sim-vs-live logit/embedding diff at matched states |
+| | cyclesim_cycle_dump.exs | live logits frame-by-frame through one real cycle |
+| **Interp** | interp_sae.exs | GT-scored SAE features; cross-arch comparison |
+| | interp_p4_offset.exs | decodability-vs-lead-time curves (reaction vs guessing) |
+| | interp_init_forensics.exs | per-seed subset-fit + trunk probes over a checkpoint zoo |
+| | analyze_qtrace.exs | `LOG [--game N]` — live lag curve + verdict + B-run histograms |
 | **Export** | export_onnx.exs | `--policy policy.bin` |
 | | export_numpy.exs | `--policy policy.bin` |
 | **Utilities** | registry.exs | `list`, `show`, `best` |

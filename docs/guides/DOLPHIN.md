@@ -153,6 +153,18 @@ mix run scripts/play_dolphin.exs \
 | `--blocking-input` | false (headless: true) | Dolphin waits for the bot's controller write each frame — the game cannot outrun inference (slippi-ai harness parity). Sync-eval validation: skip stat stays 0 and offset calibration collapses to one peak. |
 | `--console-timeout SECS` | 0.1 | Console polling timeout: `console.step` returns no-frame after this instead of blocking forever. This is what lets the LRAS quit sequence complete through the pause screen (the end-of-game `--seconds` SD now pulses L+R+A+Start for a proper Slippi game-end event before the hold-left fallback). `0` = legacy blocking dispatch, which also disables LRAS. |
 | `--local-delay N` | 0 | Explicit bridge-side action delay: each policy action applies exactly N frames after the state it answered, via a frame-keyed queue in the bridge (`ActionQueue`, pinned by `priv/python/test_action_queue.py`). Independent of `--frame-delay` (Slippi's native online delay) — the two compose. Enables D≥2 delay experiments and slippi-ai-style console/local budget splitting. SD and dummy inputs are never delayed. |
+| `--delay-id-override N` | nil | Force the delay-id one-hot regardless of `--frame-delay`. Deployment rule (2026-08-03): NEVER run a policy at an id it wasn't trained on — override to the nearest trained id (e.g. `ms_g6_sp1` at d4 scores 332 c313 with `--delay-id-override 3` vs 71 at the untrained id 4). Also the interp patch-probe lever. |
+| `--stateful-resync N` | nil | With `--stateful-step`: rebuild the hidden state from the buffered window every N frames. Measured 2026-08-03: REJECTED as a deploy default (the periodic state jump breaks chains harder than smooth drift); kept as an experiment knob. |
+| `--emulation-speed N` | 1.0 | Emulator throttle. `0` = unthrottled — WITH `--blocking-input` this is the fast headless recipe (menus at max fps, gameplay paced by the frame loop): record-equivalent at half the wall time (2026-08-02). Without blocking input, speed 0 smears gameplay timing — don't. |
+
+### Fast headless eval recipe (2026-08-02)
+
+```bash
+--headless --emulation-speed 0 --blocking-input
+```
+Record-equivalent scores (validated vs windowed and vs speed-1 headless,
+3/3 deterministic) at roughly half the block wall time. This is the
+default recipe in every 0803+ eval script.
 
 ### Async-only Options
 

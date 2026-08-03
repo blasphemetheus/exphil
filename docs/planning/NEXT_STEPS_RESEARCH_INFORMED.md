@@ -1,3 +1,5 @@
+> **RESEARCH BACKLOG, NOT A SCHEDULE (written 2026-02).** The live program is the delay campaign + interp cycles (GOALS.md, newest HANDOFF). RL sits at rung 3 of the escalation ladder and is not started.
+
 # Research-Informed Next Steps for ExPhil
 
 > **Purpose:** Concrete implementation roadmap based on insights from WORLD_MODELS_AND_SCALING.md and PIVOTAL_RESEARCHERS.md. Each item includes rationale, implementation details, and success criteria.

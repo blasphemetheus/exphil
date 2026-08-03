@@ -254,11 +254,13 @@ Three findings:
    read it from the run itself, and a reboot is the cheapest way to a
    clean measurement block.
 
-4. **Training/eval delay mismatch (open).** Drills train with a FIXED
-   `--action-delay 2`; live, the effective delay is the async pipeline's
-   phase (1–2+ frames) plus any staleness — i.e. VARIABLE. The policy is
-   conditioned on a delay distribution it never saw. Untested how much this
-   costs; the staleness counter makes it measurable now.
+4. **Training/eval delay mismatch — RESOLVED by the delay campaign
+   (2026-07-28..08-03).** The variable-delay harness was engineered away
+   (blocking sync, measured intrinsic +2), and delay became a TRAINED
+   property: multi-delay pools + delay-id + queue-as-input + SS-on-queue.
+   Production: ms_g6_sp1 ({2,3}) covers d2-d4 (434/413/332 via id
+   override). Jitter and rung-spacing hypotheses both refuted en route.
+   Full record: LATENCY_ARCHITECTURE.md.
 
 5. **The eval OPPONENT is part of the input distribution (2026-07-27).**
    `--dummy stand` (idle opponent) was supposed to be the clean capability
@@ -441,7 +443,12 @@ Three findings:
   `chain_break_forensics.exs` counts #81-trap pooling but not crouch
   pooling; add Squat/SquatWait to make basin occupancy a tracked stat.
 
-- [~] **6-implementation. Scheduled sampling — IMPLEMENTED 2026-07-27.**
+- [x] **6-implementation. Scheduled sampling — IMPLEMENTED 2026-07-27;
+  VALIDATED AS THE RECIPE 2026-07-31..08-03.** SS-on-queue broke the d3
+  rung (mdq_ss 380.5 c367 vs teacher-forced mdq's 73 c1), buys
+  id-mismatch robustness, and is in every champion recipe since
+  (ms_g6_sp1: d2 434.5 c434 / d3 413.4 c409). Rule: never combine with
+  --shift-jitter (grind-3: inconsistent targets flatten every rung).
   `ExPhil.Training.ScheduledSampling`: with probability P per sample, the
   prev-action slice of the last window position is replaced by the model's
   OWN decoded prediction (decode pinned to the live path: logit>0 buttons,

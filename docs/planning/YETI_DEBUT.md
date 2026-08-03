@@ -15,6 +15,13 @@ suffices). The bot never travels.
 
 ## Schedule
 
+> **Status 2026-08-03:** technically READY — every gate below the
+> account/couch rows is green and the model side is done (ms_g6_sp1).
+> Remaining are the two human-scheduled items: a remote friend session
+> (doubles as the task-#12 ping measurement; ACAB#182 is owed a match)
+> and the debut date itself. The original dates below have slipped;
+> the plan holds.
+
 | When | Milestone | Owner |
 |---|---|---|
 | Week of 07-14 | Netplay plumbing: `--connect-code` through bridge + play script; bot Slippi account created | Claude / Bradley (account) |
@@ -24,25 +31,30 @@ suffices). The bot never travels.
 | Week of 07-28 | Dress rehearsal (one more couch session with the final checkpoint) | Bradley |
 | First Thursday of August | **Yeti debut** — friendlies setup, Latitude + connect code | Bradley |
 
-## Technical checklist
+## Technical checklist (updated 2026-08-03)
 
-- [ ] Bridge: `connect_code` config → libmelee `menu_helper_simple(connect_code:)`
-      navigates Slippi Direct; `copy_home_directory` so the temp User dir
-      carries the logged-in Slippi account; `online_delay` actually passed to
-      `Console` (currently read but unused).
-- [ ] Play script: `--connect-code CODE#123` flag; dummy/port-2 logic bypassed
-      for online (opponent is remote).
-- [ ] Bot Slippi account (needs email verification — Bradley). Suggested tag
-      with style: distinct from SPKN so opponents know it's the bot.
-- [ ] Delay-robust model: netplay ≈ 6–18 effective delay frames vs our local
-      delay-2 training. E3 flags: `--online-robust` / high `--action-delay`
-      (Phillip: 18–21). This IS the planned E3 — netplay just fixes its
-      delay target.
+- [x] Bridge: `connect_code` config → libmelee Direct navigation, account
+      home via `EXPHIL_NETPLAY_HOME`, `online_delay` passed to Console —
+      DONE and verified live (2026-08-01 Direct loopback games).
+- [x] Play script: `--connect-code CODE#123`; dummies auto-disabled for
+      online. DONE.
+- [x] Bot Slippi account: EXPH#288 (verified in the 08-01 games).
+- [x] Delay-robust model: **the 18-21-frame Phillip target is RETIRED**
+      (2026-08-03 ladder verdict: SS-on-queue doesn't ladder past d4,
+      and realistic Direct = 2-4 frame buffer + intrinsic 2). The
+      production policy is `ms_g6_sp1` (multi-delay {2,3}): d2 434.5
+      c434 / d3 413.4 c409 / d4 332.4 c313 with `--delay-id-override 3`.
+      Launch recipe: HANDOFF_2026-07-31 ops + `--frame-delay 3`,
+      qtrace on, `analyze_qtrace.exs` between games (rung = peak − 2).
 - [ ] Robustness pass: matchup variety (corpus is all-character ✓), no
       SD pathologies (recovery mixing), sane behavior on non-FD stages
       (drills are FD-only; corpus isn't — verify live).
-- [ ] Couch test protocol: 3 games, note lag feel, exploits found, and the
-      "is this fun to play against?" verdict.
+- [x] Couch test: run 2026-08-02 (Bradley vs then-champion mdq_ss) —
+      verdict "very cool"; observation: two modes vs humans (sparse
+      shines vs entering the loop). Replays LOST to the temp-dir trap —
+      future human sessions MUST pass --replay-dir (GOTCHA #84).
+      Remaining before debut: one session vs ms_g6_sp1 + a REMOTE
+      friend session for the real ping measurement (task #12).
 - [ ] Failure fallbacks for the night: pre-verified connect code, phone
       hotspot if venue wifi is hostile, and a recorded exhibition replay as
       plan C.

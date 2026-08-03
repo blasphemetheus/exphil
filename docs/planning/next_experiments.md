@@ -1,3 +1,5 @@
+> **SUPERSEDED (pre-drill era, 2026-07-02).** None of these experiments is on the program — architecture bake-offs are explicitly deprioritized (GOALS.md). Kept for reference only.
+
 # Next Training Experiments
 
 ## Prerequisites

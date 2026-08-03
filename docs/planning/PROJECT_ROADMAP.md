@@ -1,3 +1,5 @@
+> **SNAPSHOT (2026-02) — NOT THE LIVE PLAN.** The active program is in `GOALS.md` + the newest `HANDOFF_*.md` (`ls -t docs/planning/HANDOFF_*`). None of the priorities below (self-play at scale, GPU-cluster PPO, architecture benchmarking) is currently scheduled.
+
 # ExPhil Project Roadmap
 
 Comprehensive roadmap of improvements across all project areas. See also:

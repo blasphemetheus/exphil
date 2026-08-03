@@ -1,3 +1,5 @@
+> **SCOPE: `train_from_replays.exs` performance work only.** Drill-trainer and delay-campaign flags live in docs/guides/TRAINING.md ("Drill trainer flags") and the newest HANDOFF.
+
 # Training Improvements Roadmap
 
 Ideas for improving training speed, effectiveness, and developer experience. Prioritized by impact and effort.

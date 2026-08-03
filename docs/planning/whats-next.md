@@ -8,32 +8,13 @@ always the truth.
 
     ls -t docs/planning/HANDOFF_*.md | head -1
 
-As of 2026-07-27 (evening) that is
-[HANDOFF_2026-07-27c.md](HANDOFF_2026-07-27c.md) — the SS "win" died in
-replication (seeds + staleness artifact); the absorbing-state model landed
-and predicted every cell (repeat noise inert / sampling rescues absorbed
-policies / coverage removes the basin); crouch-basin synthesis broke the
-sustain ceiling (chains 7 -> 19-22, escape replicates 3/3 seeds);
-LedgeExpert built as transfer infrastructure with the recorded direction
-that ledge knowledge ships via a future ledge drill, not multishine data.
-
-Prior: [HANDOFF_2026-07-27b.md](HANDOFF_2026-07-27b.md) — the perturbation
-harness was RUN and measured (underperforms synth on chains, no overlap),
-scheduled sampling implemented+tested with the first SS×synth policy
-trained, and the eval harness instrumented (load-collapse rule,
-`eval_live_protocol.sh` as the one-command protocol).
-
-Prior: [HANDOFF_2026-07-27.md](HANDOFF_2026-07-27.md) — synthesized recovery
-set works (~6.5 → ~40 self-shines/min), perturbation harness built-not-run,
-measurement protocol corrected (variance is in the RUNS, not seeds).
-
-Before that: [HANDOFF_2026-07-26.md](HANDOFF_2026-07-26.md) — task #8 phases
-1 and 2, and the root-cause finding that the multishine policy's live failure
-is **exposure bias**, not the state-stream shift (GOTCHAS #81 moves 2/288
-embedding dims and has no measurable live effect).
-
-Immediately prior: [HANDOFF_2026-07-24e.md](HANDOFF_2026-07-24e.md) (vacation
-edition) for the r17a resume point and the multishine teacher narrative.
+The `ls -t` line above is the ONLY authoritative pointer — per-handoff
+summaries here went stale within days (this doc once pointed at
+07-27c while seven newer handoffs existed). As of 2026-08-03 the
+newest is [HANDOFF_2026-08-03b.md](HANDOFF_2026-08-03b.md):
+production policy `ms_g6_sp1` (d2-d4 with one checkpoint +
+`--delay-id-override 3`), 19/20 backlog tasks closed, delay campaign
+mature, interp P0-P6 essentially complete.
 
 ## Correction to the version this replaced
 

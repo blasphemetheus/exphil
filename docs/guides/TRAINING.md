@@ -368,12 +368,35 @@ This precomputes multiple versions of each frame (original, mirrored, noisy vari
 
 ### Online Play Training
 
+> **2026-08-03: the 18-frame target is retired.** The delay campaign
+> (LATENCY_ARCHITECTURE.md) found realistic Slippi Direct = 2-4 frame
+> buffer + intrinsic +2, SS-on-queue doesn't ladder past d4, and the
+> production approach is the DRILL trainer's multi-delay {2,3} +
+> queue-as-input + SS-on-queue recipe (below), not label-shift flags.
+
 | Option | Default | Description |
 |--------|---------|-------------|
-| `--online-robust` | false | Enable online play training mode |
+| `--online-robust` | false | Enable online play training mode (legacy path) |
 | `--frame-delay-augment` | false | Enable frame delay augmentation |
 | `--frame-delay-min N` | 0 | Minimum delay frames (local play) |
-| `--frame-delay-max N` | 18 | Maximum delay frames (online play) |
+| `--frame-delay-max N` | 18 | Maximum delay frames (legacy; see note above) |
+
+### Drill trainer flags (`dagger_drill.exs` / `train_multishine_policy.exs`)
+
+The delay-campaign and interp flags (2026-07/08). Both scripts unless noted.
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--multi-delay "2,3"` | off | Train one policy across delay rungs; per-frame delay-id tags (drill only). {2,3} is the production recipe |
+| `--pipeline-offset N` | 0 | Label shift = delay + N; the measured live pipeline is +2 (drill only) |
+| `--queue-depth K` | 1 | Queue-as-input: last K decoded actions as input channels (drill only) |
+| `--with-delay-id` | false | Delay-id one-hot input (size 9, ids 0-8; never deploy at an untrained id — override instead) |
+| `--scheduled-sampling P` + `--ss-ramp N` | off | SS-on-queue: self-sample the queue channels; THE exposure-bias fix. Never combine with `--shift-jitter` |
+| `--snippet-frames GLOB` | off | Mix pre-relabeled snippet files from `snippet_mine.exs` (drill only) |
+| `--probe-basin` | **ON** | Per-epoch basin mental rollout + (multishine script) fixture margins to `<out>.basin_probe.jsonl`; `--no-probe-basin` disables |
+| `--probe-entries GLOB` | g+m routes | Dead-seed replays as auto-detected absorbed probe entries |
+| `--reject-at N` / `--reject-on basin\|margin\|either` | off | Early-reject: halt WITHOUT export (exit 3 multishine / 6 drill) when the probe criterion holds at epoch >= N |
+| `--select-by margin` + `--post-converge N` | loss/0 | Export the fattest-margin probe epoch; keep training N epochs past the loss bar (multishine script only) |
 
 ### Monitoring
 
@@ -582,17 +605,20 @@ mix run scripts/train_from_replays.exs \
 ### Training with Frame Delay (for online play)
 
 ```bash
-# Simulate 18-frame Slippi online delay
-mix run scripts/train_from_replays.exs \
-  --temporal --backbone mamba \
-  --frame-delay 18 --epochs 5
+# Production delay recipe (2026-08-03): drill trainer, multi-delay {2,3}
+# + queue-as-input + SS-on-queue — covers d2-d4 with one checkpoint
+# (d4 via --delay-id-override 3 at play time)
+mix run scripts/dagger_drill.exs \
+  --expert multishine --fixture test/fixtures/replays/fox_multishine_closed_d1.slp \
+  --rollouts "..." --multi-delay "2,3" --pipeline-offset 2 \
+  --queue-depth 4 --with-delay-id --scheduled-sampling 0.5 --ss-ramp 10
 ```
 
-| Connection | Delay | Notes |
-|------------|-------|-------|
-| LAN/Local | 0-4 | Near-instant |
-| Good online | 12-18 | Standard Slippi |
-| Poor online | 24-36 | High latency |
+| Connection | Effective delay | Notes |
+|------------|-----------------|-------|
+| Local / loopback Direct | 4-5 (frame-delay 2-3 + intrinsic 2) | Measured sharp, not a smear |
+| Realistic remote Direct | ~4-6 | 2-4 frame Slippi buffer + intrinsic 2 |
+| 18+ (old Phillip target) | — | RETIRED: SS-on-queue doesn't ladder past d4; a ranked-tier fork would need its own embedding layout |
 
 ### Gradient Accumulation
 

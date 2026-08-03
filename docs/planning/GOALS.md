@@ -1,6 +1,6 @@
 # ExPhil: Goals
 
-**Last Updated:** 2026-07-24
+**Last Updated:** 2026-08-03
 
 This document states **what the bot should do**. It is deliberately not an
 inventory of what we've built — that lives in the appendix, and only so we
@@ -110,8 +110,17 @@ Gates:
 |------|--------|-----|--------|---------|
 | **B0 — fixture is clean** | `ShineChain.max_length` of the fixture | **186** ✅ | ≥ 50 | `ShineChain.summary_for_replay` |
 | **B0b — table teacher drives it** | `ShineChain.max_length`, teacher live | **103** ✅ | ≥ 5 | `scripts/demo_expert.exs`, `scripts/inspect_multishine_table.exs` |
-| **B1 — policy enters** | chains started per minute, live | — | ≥ 1 | `scripts/analyze_policy_shine.exs` |
-| **B2 — policy sustains** | `ShineChain.sustained` (chains ≥ 5) | — | > 0 | `ShineChain` |
+| **B1 — policy enters** | chains started per minute, live | **✅ crushed** | ≥ 1 | `scripts/analyze_policy_shine.exs` |
+| **B2 — policy sustains** | `ShineChain.sustained` (chains ≥ 5) | **✅ c434** | > 0 | `ShineChain` |
+
+**Track B RESOLVED (2026-08-03).** Production policy
+`checkpoints/ms_g6_sp1.bin` (multi-delay {2,3} + SS-on-queue recipe):
+d2 **434.5/min chain-434**, d3 **413.4 c409** (3/3 deterministic),
+d4 **332.4 c313** via `--delay-id-override 3`. Verified multishining
+over Slippi Direct loopback at sharp 5-frame latency (2026-08-01,
+then-champion mdq_ss). The full campaign record — SS-on-queue, jitter
+refuted, spacing refuted, ladder stops at d4, CycleSim offline
+simulator — lives in `LATENCY_ARCHITECTURE.md`.
 
 **Do not gate on `grounded_fraction`.** A real multishine is roughly *one
 third* grounded shine frames (measured steady state: 2 grounded + 4 aerial
@@ -137,16 +146,23 @@ Attempt in this order. Do not skip rungs.
    style conditioning, a probe-reg that actually applies.
 3. **Invest in RL properly** — only after 1 and 2 are genuinely exhausted.
 
-### We are here
+### We are here (updated 2026-08-03)
 
-- **Rung 2 has been attempted twice and failed to move A1:** r15 (raised
-  conversions, gate-10 flat) and r16 (added human BC, gate-10 flat at 0.17).
-- **r17a is in flight** (launched 2026-07-23 17:46) and is *also rung-2 work* —
-  opener weighting + curated BC + style conditioning + a fixed probe-reg.
-  Scored against `R17_ACCEPTANCE_2026-07-23.md`.
-- **Rung 1 was skipped.** Whatever r17a scores, fixing what the expert teaches
-  is the next work. If r17a misses, that's rung 2's *third* negative and the
-  ladder says rung 1, not RL.
+- **Track B (Fox multishine) is resolved** — see the gate table above.
+  The July-era "we are here" (r15-r17a rung-2 attempts) is history;
+  what actually broke Track B open was the DELAY CAMPAIGN (queue-as-
+  input + SS-on-queue + the {2,3} pool) plus the interp instruments
+  (early-reject probes, margin export, CycleSim), not more data.
+- **Track A (Mewtwo decisions) remains at the rung-1 boundary**: P4's
+  verdict (2026-08-02: NO drill policy reads techs — conversion is
+  coverage, not reaction; 584 episodes, 4 checkpoints) sharpens rung 1
+  into a concrete spec: the expert must supervise reaction-conditioned
+  decisions AND the tech-episode frames must be upweighted (the
+  P4 offset curve is the acceptance test).
+- **P5 curation loop validated both directions** (2026-08-03 cycles:
+  whole-rollout mixing destroys core skill; snippet mixing via
+  `--snippet-frames` is safe). The fight-state/pressure gap is open
+  pending the HUMAN replay corpus (always `--replay-dir`, GOTCHA #84).
 
 ---
 
@@ -179,16 +195,20 @@ for attention. Breadth before the core problem multiplies the bug.
 
 ---
 
-## Next work (derived from the gates above)
+## Next work (updated 2026-08-03; see newest HANDOFF for the live list)
 
-1. **Rung 1: teach the decision.** Change what the expert supervises so
-   "when to go in" is itself a label. Top priority.
-2. **A3 metric:** aerial-chain length per opening, next to
-   `FailureScan.dropped_punish`.
-3. **B1/B2:** a `multishine` scenario type + shine-chain metric; curate the
-   start-state set.
-4. Score r17a against `R17_ACCEPTANCE_2026-07-23.md` when it lands; record the
-   result in "We are here" above.
+1. **Rung 1: teach the decision** (Track A) — now with the P4 offset
+   curve as the mechanistic acceptance test and tech-episode
+   upweighting as the named lever.
+2. **Fight-state/pressure gap** — human corpus collection
+   (`--replay-dir`!) + richer pressure labels; the P5 loop and
+   snippet-miner are ready.
+3. **Direct exhibition** — recipe is ready (ms_g6_sp1 @ d3); gated on
+   scheduling (ACAB#182 owed a match) + the stock-taking goal below.
+4. **Rung-composition theory + train-unroll-=-deploy-step** — the two
+   open engineering threads (LATENCY_ARCHITECTURE).
+5. **Technique-id conditioning** — "frame-perfect on command": two
+   techniques, one policy, one trigger channel; all machinery exists.
 
 ---
 
