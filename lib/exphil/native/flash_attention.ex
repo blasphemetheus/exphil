@@ -51,7 +51,10 @@ defmodule ExPhil.Native.FlashAttention do
     otp_app: :exphil,
     crate: "flash_attention_nif",
     path: "native/flash_attention_nif",
-    features: if(@cuda_enabled, do: ["cuda"], else: [])
+    features: if(@cuda_enabled, do: ["cuda"], else: []),
+    # Same escape hatch as Peppi: prebuilt .so + rustc that can't rebuild
+    # old crate pins (see peppi.ex, 2026-08-02)
+    skip_compilation?: System.get_env("EXPHIL_SKIP_NIF_COMPILE") == "1"
 
   @doc """
   Check if CUDA flash attention is available.

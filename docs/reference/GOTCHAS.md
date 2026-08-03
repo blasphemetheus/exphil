@@ -3261,3 +3261,17 @@ that premise is gone: this IS the coverage case, and DAgger
 (`dagger_drill.exs`) is the right tool. More epochs, more recordings of the
 same trajectory, and further feature fixes provably cannot help — none of
 them produce data for "reflector at af 3+".
+
+## 82. SIGTERM mid-`mix test` can strand rustler in a rebuild loop the current rustc cannot finish
+
+Killing a test run during dependency compilation (e.g. a harness timeout)
+can invalidate rustler's crate fingerprint while the prebuilt
+`_build/<env>/lib/exphil/priv/native/*.so` remain perfectly loadable. The
+forced rebuild then fails on TOOLCHAIN DRIFT — rustc 1.97 (devenv,
+2026-07) cannot compile the old `ethnum` pin (E0512 transmute error) that
+built fine when the .so was produced. Escape hatch (2026-08-02):
+`EXPHIL_SKIP_NIF_COMPILE=1` makes both NIF modules (`Data.Peppi`,
+`Native.FlashAttention`) skip compilation and load the prebuilt .so.
+Real fix when rebuilding is actually needed: bump the peppi/ethnum pins.
+Corollary: never `timeout`-kill a mix invocation that may be compiling
+deps; give compile phases their own generous budget.

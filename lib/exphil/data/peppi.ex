@@ -50,8 +50,13 @@ defmodule ExPhil.Data.Peppi do
   use Rustler,
     otp_app: :exphil,
     crate: "exphil_peppi",
-    # Skip compilation in prod OR when cargo isn't available (e.g., Docker runtime)
-    skip_compilation?: Mix.env() == :prod or System.find_executable("cargo") == nil
+    # Skip compilation in prod OR when cargo isn't available (e.g., Docker
+    # runtime) OR on explicit request (EXPHIL_SKIP_NIF_COMPILE=1 — use the
+    # prebuilt priv/native .so when the current rustc can't rebuild old
+    # crate pins, e.g. ethnum E0512 under rustc 1.97; found 2026-08-02)
+    skip_compilation?:
+      Mix.env() == :prod or System.find_executable("cargo") == nil or
+        System.get_env("EXPHIL_SKIP_NIF_COMPILE") == "1"
 
   # ============================================================================
   # NIF Struct Definitions
