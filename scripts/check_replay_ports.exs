@@ -62,13 +62,9 @@ print(json.dumps(out))
 {json, 0} = System.cmd(python, ["-c", script | paths], stderr_to_stdout: false)
 reports = Jason.decode!(json)
 
-type_name = fn
-  0 -> "HUMAN"
-  1 -> "CPU"
-  2 -> "DEMO"
-  3 -> "empty"
-  other -> "type=#{inspect(other)}"
-end
+alias ExPhil.Eval.PortCheck
+
+type_name = &PortCheck.type_name/1
 
 failures =
   Enum.reduce(reports, 0, fn r, acc ->
@@ -84,38 +80,20 @@ failures =
 
         want_port = opts[:expect_cpu]
 
-        if want_port do
-          port = Enum.find(r["ports"], &(&1["port"] == want_port))
+        # Decision lives in ExPhil.Eval.PortCheck so it is unit-tested
+        # (test/exphil/eval/port_check_test.exs) — this gate had none until
+        # 2026-08-03 despite guarding every CPU-dummy eval block.
+        case PortCheck.verify(r["ports"],
+               expect_cpu: want_port,
+               expect_level: opts[:expect_level]
+             ) do
+          :ok ->
+            if want_port, do: Output.success("  port #{want_port} is a CPU as requested")
+            acc
 
-          cond do
-            is_nil(port) ->
-              Output.error("  expected a CPU on port #{want_port}, but that port is absent")
-              acc + 1
-
-            port["type"] != 1 ->
-              Output.error(
-                "  port #{want_port} is #{type_name.(port["type"])}, NOT a CPU — the dummy " <>
-                  "never finished character-select setup (GOTCHAS #57)"
-              )
-
-              acc + 1
-
-            opts[:expect_level] && port["cpu_level"] &&
-                port["cpu_level"] != opts[:expect_level] ->
-              Output.error(
-                "  port #{want_port} is a CPU but level #{port["cpu_level"]}, " <>
-                  "expected #{opts[:expect_level]} — Melee defaults a fresh CPU to 1, " <>
-                  "so this is the autostart race firing before the slider drag finished"
-              )
-
-              acc + 1
-
-            true ->
-              Output.success("  port #{want_port} is a CPU as requested")
-              acc
-          end
-        else
-          acc
+          {:error, _reason, message} ->
+            Output.error("  " <> message)
+            acc + 1
         end
 
       err ->

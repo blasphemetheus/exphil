@@ -1,4 +1,19 @@
 defmodule ExPhil.Data.ActionFrameConventionTest do
+  @moduledoc """
+  ⚠️ **DEPRECATED SUBJECT — these tests pin the CONTENTS of a table that
+  GOTCHAS #81 (SETTLED 2026-07-26) declares INVALID.**
+
+  The live-vs-parsed `action_frame` delta varies *per occurrence* — same
+  action, same run, same port, sometimes 0 and sometimes 1 — so no
+  per-action key can be correct; the table is a majority vote that is wrong
+  for the minority. These tests remain only as anti-drift pins on the
+  measurement artifact (if the table changes, that should be deliberate).
+
+  **They do NOT license using the table.** `af_convention: :live` must stay
+  off; that is guarded separately by
+  `test/exphil/harness/af_convention_default_test.exs`, because everything
+  here passes whether the feature is on or off.
+  """
   use ExUnit.Case, async: true
 
   alias ExPhil.Data.ActionFrameConvention, as: AFC

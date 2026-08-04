@@ -188,12 +188,25 @@ defmodule ExPhil.Test.ReplicationCheck do
       bucket(e.c_stick.y, buckets) == bucket(a.c_stick.y, buckets)
   end
 
+  # GOTCHAS #66's lesson, applied: "an equivalence check is only as strong as
+  # its tolerance classes." This compared only the DIGITAL l/r bits and was
+  # blind to the analog shoulder axis entirely — the same blindness that let
+  # a broken analog RELEASE score 15/15 exact under the scenario drift
+  # check. `:exact` now means exact, analog included (quantized to 1/64 so
+  # float noise from the decode path is not mistaken for a real difference).
   defp buttons_equal?(e, a) do
     e.button_a == a.button_a and e.button_b == a.button_b and
       e.button_x == a.button_x and e.button_y == a.button_y and
       e.button_z == a.button_z and e.button_l == a.button_l and
-      e.button_r == a.button_r and e.button_d_up == a.button_d_up
+      e.button_r == a.button_r and e.button_d_up == a.button_d_up and
+      analog_equal?(e.l_shoulder, a.l_shoulder) and
+      analog_equal?(e.r_shoulder, a.r_shoulder)
   end
+
+  defp analog_equal?(e, a) when is_number(e) and is_number(a),
+    do: round(e * 64) == round(a * 64)
+
+  defp analog_equal?(e, a), do: e == a
 
   # Map a 0..1 stick value to a discrete bucket index (matches the uniform
   # discretization used for training targets in ExPhil.Embeddings.Controller).

@@ -1,4 +1,15 @@
 defmodule ExPhil.Eval.StateStreamDiffTest do
+  @moduledoc """
+  ⚠️ The `action_frame` convention portion of these tests pins a table
+  GOTCHAS #81 (SETTLED 2026-07-26) declares **INVALID** — the live-vs-parsed
+  delta varies per occurrence, so no per-action key is correct. Kept as
+  anti-drift pins on the measurement artifact only; they do not license
+  using the table, and they pass whether `af_convention: :live` is on or
+  off. The actual guard is
+  `test/exphil/harness/af_convention_default_test.exs`.
+
+  The non-convention tests here (stream diffing itself) remain valid.
+  """
   use ExUnit.Case, async: true
 
   alias ExPhil.Eval.StateStreamDiff
