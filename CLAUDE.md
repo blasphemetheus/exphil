@@ -61,12 +61,24 @@ ExPhil is an Elixir-based platform for experimenting with neural network archite
 docs/planning/HANDOFF_*` picks it) — it is the live resume point;
 everything below is background inventory.
 
-**Production policy (2026-08-03): `checkpoints/ms_g6_sp1.bin`** —
-multi-delay {2,3} champion recipe; d2 434.5/min c434, d3 413.4 c409,
-d4 332.4 c313 via `--delay-id-override 3` (never deploy at an
-untrained delay-id). Fast eval recipe: sync headless
+**Production policy (2026-08-04): `checkpoints/ms_g4_d2mix.bin`** —
+best measured against a HUMAN (chain 2, 40 shines/game) and the top d3
+dummy chainer (424/min, chain 423). Deploy at `--frame-delay 3`.
+
+> **The 08-03 crowning of `ms_g6_sp1` was REVERTED.** It won the
+> stand-dummy comparison (434 vs 380) and then scored **zero shines in
+> two human games** while the policy it displaced shone 20-27/game. The
+> dummy ranking is INVERTED against humans. Rank by chain strength at
+> the DEPLOY rung, and never crown on stand-dummy numbers alone — see
+> `docs/planning/HUMAN_PLAY_FINDINGS_2026-08-04.md`.
+>
+> Sober caveat on all of it: **no checkpoint multishines against a
+> human** (best chain 2, versus 400+ against a dummy). The chains are a
+> static-environment result.
+
+Never deploy at an untrained delay-id. Fast eval recipe: sync headless
 `--emulation-speed 0 --blocking-input` (record-equivalent, half wall
-time).
+time), but note 3-run determinism is a property of FD/BF only.
 
 **Test coverage:** ~2700 tests passing
 

@@ -669,3 +669,19 @@ c2 — FLAT. The pressure floor is delay-independent: the fight-state gap
 live play is purely an execution-quality choice. Task #12's runnable
 half is done; the remaining item is the real-friend ping measurement
 (Bradley-gated, rides the next remote Direct session).
+
+## Promotion rule (2026-08-04, learned the hard way)
+
+**Never crown a checkpoint on stand-dummy numbers.** `ms_g6_sp1` won the
+dummy comparison (434/min vs 380) and scored ZERO shines in two games
+against a human, while the policy it displaced shone 20-27 per game. The
+dummy ranking was INVERTED, not merely uninformative — a standing dummy
+rewards exploiting a world where nothing happens.
+
+Rank by **chain strength at the DEPLOY rung** (the d3 whole-run chainers
+g4_d2mix/g9_sp34 gave the best human results; sp1's strength was d2), and
+run `scripts/promote_check.sh` before writing "production" anywhere: it
+scores the deploy rung, the off-distribution Yoshi's Story absorber repro,
+and a MOVING opponent (cpu-9 measured flat 21-26 across all policies and
+does not discriminate). Score CHAINS from replays, not qtrace press
+counts — those differ by an order of magnitude (HUMAN_PLAY_FINDINGS F5).
