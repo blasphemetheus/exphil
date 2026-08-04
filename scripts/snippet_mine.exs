@@ -23,11 +23,22 @@ alias ExPhil.Training.Output
 
 {opts, _, _} =
   OptionParser.parse(System.argv(),
-    strict: [replays: :string, out: :string, pre: :integer, post: :integer, port: :integer, fixture: :string]
+    strict: [
+      replays: :string,
+      out: :string,
+      pre: :integer,
+      post: :integer,
+      port: :integer,
+      fixture: :string,
+      action_delay: :integer
+    ]
   )
 
 replays = Path.wildcard(Path.expand(opts[:replays] || "eval_runs/0803_pressure_pool/r*.slp")) |> Enum.sort()
 out_dir = opts[:out] || "eval_runs/0803_snippets"
+# Frames are emitted UNSHIFTED; the consumer applies the delay. Recorded in
+# the envelope so MixFrames can warn on a mismatch (see the write below).
+action_delay = opts[:action_delay] || 0
 pre = opts[:pre] || 32
 post = opts[:post] || 120
 port = opts[:port] || 1
@@ -116,11 +127,28 @@ expert = MultishineExpert.from_frames(fixture_frames, player_port: 1)
     end
   end)
 
-snippets
-|> Enum.with_index()
-|> Enum.each(fn {frames, i} ->
-  File.write!(Path.join(out_dir, "snippet_#{String.pad_leading(to_string(i), 3, "0")}.frames"), :erlang.term_to_binary(frames))
-end)
+# ONE file in the MixFrames envelope (unified 2026-08-03). v1 wrote a bare
+# term_to_binary per snippet, a parallel format that silently dropped the
+# :action_delay contract — ExPhil.Training.MixFrames warns when a file's
+# export delay differs from the training delay, because a mismatch
+# misaligns the :prev_controller channel by that many frames and corrupts
+# training invisibly. Snippets are per-source lists (shift_actions must not
+# cross a snippet boundary), which is exactly what :frame_lists means.
+out_file = Path.join(out_dir, "snippets.frames")
+
+File.write!(
+  out_file,
+  :erlang.term_to_binary(%{
+    expert: "multishine",
+    exported_at: DateTime.utc_now() |> DateTime.to_iso8601(),
+    action_delay: action_delay,
+    frame_lists: snippets,
+    # snippet-miner provenance (ignored by MixFrames, useful in forensics)
+    event: "hitstun_in_cycle",
+    pre: pre,
+    post: post
+  })
+)
 
 File.write!(
   Path.join(out_dir, "manifest.json"),

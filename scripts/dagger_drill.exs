@@ -557,7 +557,31 @@ snippet_frame_lists =
   (opts[:snippet_frames] || "")
   |> String.split(",", trim: true)
   |> Enum.flat_map(&Path.wildcard(Path.expand(&1)))
-  |> Enum.map(fn p -> p |> File.read!() |> :erlang.binary_to_term() end)
+  |> Enum.flat_map(fn p ->
+    # MixFrames envelope (unified 2026-08-03): %{action_delay, frame_lists,
+    # ...}. Warn on a delay mismatch for the same reason MixFrames does —
+    # a wrong :prev_controller alignment corrupts training silently.
+    case p |> File.read!() |> :erlang.binary_to_term() do
+      %{frame_lists: lists} = payload ->
+        export_delay = payload[:action_delay] || 0
+
+        if export_delay != action_delay do
+          Output.warning(
+            "#{Path.basename(p)} exported at action_delay=#{export_delay} but this drill " <>
+              "uses #{action_delay} — the :prev_controller channel is misaligned by " <>
+              "#{abs(export_delay - action_delay)} frame(s); re-mine with " <>
+              "--action-delay #{action_delay}"
+          )
+        end
+
+        lists
+
+      other when is_list(other) ->
+        # Legacy bare-list snippet file (pre-unification). Accept, but say so.
+        Output.warning("#{Path.basename(p)}: legacy bare-list .frames (no action_delay contract)")
+        [other]
+    end
+  end)
   |> Enum.reject(&(&1 == []))
 
 if snippet_frame_lists != [] do

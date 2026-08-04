@@ -110,6 +110,15 @@ defmodule ExPhil.Training.Config do
     :coconut
   ]
   @valid_optimizers [:adam, :adamw, :lamb, :radam, :sgd, :rmsprop, :adabelief, :yogi]
+
+  @doc """
+  The CLI-selectable backbones. Public so the atom contract between this
+  list, the dispatcher, and `backbone_defaults/1` can be tested rather than
+  duplicated (test/exphil/harness/backbone_defaults_test.exs) — a typo'd
+  defaults key silently trains a backbone with no defaults at all.
+  """
+  @spec valid_backbones() :: [atom()]
+  def valid_backbones, do: @valid_backbones
   @valid_lr_schedules [:constant, :cosine, :cosine_restarts, :exponential, :linear]
   # Policy types: how actions are predicted
   # - :autoregressive - Standard 6-head sequential prediction (current default)
@@ -381,7 +390,11 @@ defmodule ExPhil.Training.Config do
         [temporal: true, precision: :f32, dropout: 0.0, lr_schedule: :cosine_restarts,
          window_size: 60, num_layers: 2, state_size: 16, expand_factor: 2]
 
-      :mamba_3 ->
+      # NOTE the atom: the dispatcher (Networks.Policy.Backbone) and
+      # @valid_backbones both spell this :mamba3. A :mamba_3 clause here
+      # never matched, so the backbone trained with NO defaults — silently
+      # untuned (found 2026-08-03 while preparing the architecture bake-off).
+      :mamba3 ->
         [temporal: true, precision: :f32, dropout: 0.0, lr_schedule: :cosine_restarts,
          window_size: 60, num_layers: 2]
 
@@ -419,7 +432,8 @@ defmodule ExPhil.Training.Config do
       :hgrn ->
         [temporal: true, precision: :f32, dropout: 0.0, window_size: 60, num_layers: 2]
 
-      :ret_net ->
+      # Same class of typo as :mamba3 above — the real atom is :retnet.
+      :retnet ->
         [temporal: true, precision: :f32, dropout: 0.0, window_size: 60, num_layers: 2]
 
       # Attention-based (high quality, slower)
