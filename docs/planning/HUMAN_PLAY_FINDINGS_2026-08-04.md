@@ -90,11 +90,46 @@ the instrument.
 
 ## Work items
 
-### A. Reproduce the absorber OFFLINE via stage shift  *(task #30 — do first)*
-Run the stand-dummy eval on Dreamland instead of FD. If the collapse
-reproduces (F4 predicts it will), the human-pressure failure becomes a
-60-second deterministic test instead of "schedule a friend and hope".
-Everything below gets cheaper. Score with chains, 3 runs, FD as control.
+### A. Reproduce the absorber OFFLINE via stage shift  *(task #30 — DONE)*
+
+**RAN 2026-08-04** (`eval_runs/0804_stage_absorber.{sh,log}`, ms_g4_d2mix,
+stand dummy, d3, stage the only variable, 3 runs each):
+
+| stage | run 1 | run 2 | run 3 |
+|---|---|---|---|
+| FD | 424/min c423 | 424 c423 | 424 c423 |
+| Battlefield | 425 c423 | 425 c423 | 425 c423 |
+| Dreamland | 406 c401 | 396 c209 | 399 c315 |
+| **Yoshi's Story** | 286 c236 | **40 c1** | **44 c2** |
+
+**A1. The DL hypothesis is REFUTED.** Dreamland chains 200-400 against a
+stand dummy — nothing like the live "holds shine". So the live DL failure
+needed the HUMAN too; stage alone was not sufficient. BF is pixel-identical
+to FD, so "not-FD" is not the trigger either.
+
+**A2. But we got the offline reproduction anyway — on Yoshi's Story.**
+2 of 3 runs collapse to chain 1-2, and forensics confirm it is the ABSORBER,
+not an SD or stage-edge artifact:
+
+| run | squat occupancy | offstage | end stock |
+|---|---|---|---|
+| YS collapsed (r2) | **52.2%** | 0.0% | 4 |
+| YS good (r1) | 2.5% | 0.0% | 4 |
+| FD (r1) | 0.1% | — | 4 |
+
+Half the game spent in Squat, all stocks intact. That is the hold-B fixed
+point, reproduced with no human, in 60 seconds, on demand.
+
+**A3. Bonus — it is STOCHASTIC on the same stage, which is better for
+study than a deterministic failure.** Same policy, same dummy, same stage:
+one run chains 236, two collapse. That gives a *contrastive pair* (good vs
+absorbed trajectory, everything else held constant) — exactly the setup
+that cracked the crouch zoo in July, and it feeds the CycleSim/BasinRollout
+instruments directly.
+
+**A4. Harness caveat discovered:** "3-run determinism" is a property of FD
+and BF, NOT of the harness. DL and YS vary run to run. Any future stage
+work needs more runs before trusting a number.
 
 ### B. Fix the promotion criterion  *(task #31)*
 Revert the production designation from `sp1`; add a pre-crowning gate that
