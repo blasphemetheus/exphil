@@ -82,6 +82,20 @@ CLI.require_options!(opts, [:policy, :dolphin, :iso])
 
 Output.banner("ExPhil Dolphin Play (ASYNC)")
 
+# GOTCHA #84: without --replay-dir, replays land in Dolphin's TEMP user dir
+# and die with the session. That cost the 2026-08-02 couch games vs Bradley
+# — prime fight-state training data, irrecoverable. Warn loudly whenever a
+# HUMAN is on the other side (couch or netplay), because those are the
+# sessions whose replays we can never re-record.
+if is_nil(opts[:replay_dir]) and (opts[:connect_code] || opts[:dummy] in [nil, "none"]) do
+  Output.warning(
+    "No --replay-dir: this looks like a HUMAN session and its replays will be " <>
+      "written to Dolphin's temp dir, which is deleted when the session ends " <>
+      "(GOTCHA #84 — the 08-02 couch corpus was lost exactly this way). " <>
+      "Pass --replay-dir eval_runs/<name>/ to keep them."
+  )
+end
+
 Output.config([
   {"Policy", opts[:policy]},
   {"Dolphin", opts[:dolphin]},

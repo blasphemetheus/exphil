@@ -40,7 +40,11 @@ GAME_TIMEOUT=${GAME_TIMEOUT:-720}
 BASE_PORT=51600
 LOG="$LADDER_DIR/ladder.log"
 
-if pgrep -f "overnight_newera8|dagger_drill" >/dev/null 2>&1; then
+# Bracket trick (GOTCHA #63): "[o]vernight" matches the target process but
+# NOT this script's own cmdline, so the guard can't refuse because it found
+# itself. Without it, running the ladder from a wrapper whose command line
+# mentions either name is an instant false positive.
+if pgrep -f "[o]vernight_newera8|[d]agger_drill" >/dev/null 2>&1; then
   echo "[ladder] REFUSING: training/probe loop is alive (#67 + GPU contention)"
   exit 1
 fi
