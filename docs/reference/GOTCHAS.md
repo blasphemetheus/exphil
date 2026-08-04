@@ -3300,3 +3300,23 @@ embeddable game state). Rule: EVERY human/pressure session that might
 feed training passes --replay-dir eval_runs/<name>/ at launch. The
 eval protocol does this implicitly (its r*.slp ARE the collected pool);
 ad-hoc play launches must do it explicitly.
+
+## 85. The offline fixture discriminator was delay-0-era: two offsets, no delay-id
+
+`scripts/eval_policy_on_fixture.exs` compared the policy's emission only
+against controller_N and controller_N+1, and constructed its Agent without
+a `delay_id`. Both assumptions predate the delay campaign. Consequence
+(measured 2026-08-03 while wiring it into the eval protocol): the two
+best policies in the repo — 380-434 shines/min live — scored ~0.33-0.40
+"agreement", which reads as "never learned the mapping" and would send a
+reader hunting a nonexistent training bug. With an offset SWEEP (0..8)
+and the trained id, ms_g6_sp1 scores **0.999 at offset 5** — exactly its
+trained `frame_delay 3 + pipeline_offset 2`. The argmax offset is now the
+useful output: it MEASURES the policy's effective label shift from the
+weights alone.
+
+Second lesson, recorded at the same time: this eval is TEACHER-FORCED on
+fixture states, so it cannot see closed-loop mode collapse. An UNTRAINED
+delay-id (catastrophic live: 71/min vs 434) still scores 0.93 offline.
+Offline agreement answers "did it learn the mapping"; CycleSim answers
+"does the closed loop hold". Use both.

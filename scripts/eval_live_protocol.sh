@@ -113,6 +113,18 @@ for i in $(seq 1 "$RUNS"); do
   grep -a "Final stats\|Staleness\|skipped\|SD FAILED\|replay finalized" "$OUTDIR/r$i.log" | sed "s/^/  r$i /"
 done
 
+# Offline-vs-live discriminator (task #21, 2026-08-03). ~10s, no Dolphin.
+# Recorded BEFORE scoring so every block carries the number: high offline
+# agreement + poor live numbers => STATE-STREAM / delay problem, not a
+# learning failure (the distinction GOTCHA #81 took four escalations to
+# reach). Advisory, not fatal — we have no calibrated threshold yet, and a
+# hard gate on an uncalibrated number would block good runs.
+echo "=== offline fixture agreement"
+FIXTURE_AGREE=$(XLA_TARGET="${XLA_TARGET_EVAL:-cpu}" mix run scripts/eval_policy_on_fixture.exs \
+  --policy "$POLICY" 2>&1 | grep -a "FIXTURE_AGREEMENT" | tail -1)
+echo "  ${FIXTURE_AGREE:-(unavailable)}"
+echo "fixture_agreement: ${FIXTURE_AGREE:-unavailable}" >> "$OUTDIR/protocol.txt"
+
 echo "=== scoring"
 SLPS=$(ls "$OUTDIR"/r*.slp 2>/dev/null)
 if [ -z "$SLPS" ]; then echo "no replays captured" >&2; exit 4; fi

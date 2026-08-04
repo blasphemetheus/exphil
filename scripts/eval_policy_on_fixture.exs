@@ -27,7 +27,9 @@ alias ExPhil.Agents.Agent
 alias ExPhil.Training.Output
 
 {opts, _, _} =
-  OptionParser.parse(System.argv(), strict: [policy: :string, fixture: :string, port: :integer, limit: :integer])
+  OptionParser.parse(System.argv(),
+    strict: [policy: :string, fixture: :string, port: :integer, limit: :integer, delay_id: :integer]
+  )
 
 policy_path = opts[:policy] || raise "--policy required"
 fixture = opts[:fixture] || "test/fixtures/replays/fox_multishine_closed.slp"
@@ -49,7 +51,18 @@ Output.banner("Policy vs its own fixture (offline)")
 Output.puts("policy:  #{Path.basename(policy_path)}")
 Output.puts("fixture: #{Path.basename(fixture)} (#{length(frames)} frames)")
 
-{:ok, agent} = Agent.start_link(policy_path: policy_path, deterministic: true)
+# --delay-id N: delay-id policies have per-id behavioral MODES, and an
+# UNTRAINED id is catastrophic (2026-08-03: ms_g6_sp1 scores 434/min at a
+# trained id, 71 at an untrained one). Defaulting to 0 made this script
+# report ~0.40 agreement for two record-setting policies — a phantom
+# "training bug" that is really an untrained-mode measurement. Pass the id
+# the policy was trained on (LATENCY_ARCHITECTURE: sp1 => 2 or 3).
+{:ok, agent} =
+  Agent.start_link(
+    policy_path: policy_path,
+    deterministic: true,
+    delay_id: opts[:delay_id] || 0
+  )
 Agent.warmup(agent)
 
 # Compare against the input recorded on the SAME frame (delay 0) and on the
@@ -66,19 +79,43 @@ results =
   |> Enum.reject(&is_nil/1)
 
 n = length(results)
+arr = List.to_tuple(results)
 
-same_frame =
-  Enum.count(results, fn {pb, px, ab, ax} -> pb == ab and px == ax end)
+# Offset SWEEP (widened 2026-08-03). The original compared only offsets 0
+# and 1 — a delay-0-era assumption. Delay-trained policies emit the action
+# for frame N+d+pipeline_offset (measured intrinsic +2), so the champion
+# recipes land at offset ~4-5 and scored ~0.33 against the old two-offset
+# comparison, which reads as "never learned the mapping" when it is
+# actually "learned a different, correct convention". The argmax offset is
+# itself the useful output: it MEASURES the policy's effective label shift.
+offsets = 0..8
 
-next_frame =
-  results
-  |> Enum.zip(tl(results) ++ [nil])
-  |> Enum.reject(fn {_a, b} -> is_nil(b) end)
-  |> Enum.count(fn {{pb, px, _, _}, {_, _, ab, ax}} -> pb == ab and px == ax end)
+agreements =
+  Map.new(offsets, fn off ->
+    pairs = max(n - off, 1)
+
+    hits =
+      Enum.count(0..(n - off - 1)//1, fn i ->
+        {pb, px, _, _} = elem(arr, i)
+        {_, _, ab, ax} = elem(arr, i + off)
+        pb == ab and px == ax
+      end)
+
+    {off, hits / pairs}
+  end)
+
+{best_off, best} = Enum.max_by(agreements, fn {_off, a} -> a end)
 
 Output.puts("")
-Output.puts("B/X agreement vs controller_N   (delay 0): #{Float.round(100.0 * same_frame / max(n, 1), 1)}%")
-Output.puts("B/X agreement vs controller_N+1 (delay 1): #{Float.round(100.0 * next_frame / max(n - 1, 1), 1)}%")
+
+Output.puts(
+  "B/X agreement by offset: " <>
+    Enum.map_join(offsets, "  ", fn o ->
+      "#{o}=#{Float.round(100.0 * agreements[o], 1)}%"
+    end)
+)
+
+Output.puts("best offset #{best_off} (#{Float.round(100.0 * best, 1)}%)")
 
 # What the policy is actually pressing — a policy stuck on "B always" shows
 # up here instantly, and no agreement number explains that as clearly.
@@ -91,14 +128,23 @@ Output.puts("")
 Output.puts("press rates   policy: B=#{Float.round(pb_rate * 100, 1)}% X=#{Float.round(px_rate * 100, 1)}%")
 Output.puts("            fixture: B=#{Float.round(ab_rate * 100, 1)}% X=#{Float.round(ax_rate * 100, 1)}%")
 
-best = max(same_frame / max(n, 1), next_frame / max(n - 1, 1))
+# Machine-readable summary for the eval-protocol gate (task #21). Keep this
+# line's shape stable — eval_live_protocol.sh greps it.
+Output.puts(
+  "FIXTURE_AGREEMENT best=#{Float.round(best, 4)} offset=#{best_off} " <>
+    "delay_id=#{opts[:delay_id] || 0} n=#{n}"
+)
 
 cond do
   best > 0.95 ->
     Output.success(
-      "Policy reproduces the fixture offline. A live failure is then a STATE-STREAM " <>
-        "problem (parsed vs live action_frame, GOTCHAS #81) or an action_delay mismatch — " <>
-        "not a learning failure."
+      "Policy reproduces the fixture offline at offset #{best_off}. A live failure is " <>
+        "then a STATE-STREAM problem (parsed vs live action_frame, GOTCHAS #81), a " <>
+        "delay/id mismatch, or a CLOSED-LOOP failure this eval cannot see — it is " <>
+        "teacher-forced on fixture states, so mode collapse that only appears on " <>
+        "self-generated histories scores high here (measured: an UNTRAINED delay-id " <>
+        "still scores 0.93 offline while collapsing live). Use CycleSim for the " <>
+        "closed-loop question; the two instruments are complementary."
     )
 
   abs(pb_rate - ab_rate) > 0.2 or abs(px_rate - ax_rate) > 0.2 ->
