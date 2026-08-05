@@ -60,6 +60,7 @@ alias ExPhil.Embeddings
       y_augment: :float,
       y_augment_offset: :float,
       y_augment_frames: :integer,
+      margin_weight: :float,
       reject_at: :integer,
       reject_on: :string,
       bc_replays: :string,
@@ -952,13 +953,40 @@ opener_weights =
     end
   end
 
-sampling_weights =
-  cond do
-    conversion_weights && opener_weights ->
-      ExPhil.Training.OpenerSampling.combine_max(conversion_weights, opener_weights)
+# --margin-weight W (2026-08-05, the delay-break lever): upweight the
+# aerial-shine-decision frames (aerial-jump family + late-jumpsquat with a
+# B-press label) — the per-link Bernoulli where netplay chains die. Buys
+# logit margin at exactly that decision; primary readout is the
+# probe_cycle_margins delay-id sweep, not chains.
+margin_weights =
+  if mw = opts[:margin_weight] do
+    if streaming do
+      Output.warning("--margin-weight is not baked into shards — ignored in streaming mode")
+      nil
+    else
+      {weights, mstats} = ExPhil.Training.MarginSampling.frame_weights(shifted_frame_lists, mw)
+      pct = Float.round(100.0 * mstats.upweighted / max(mstats.frames, 1), 2)
 
-    true ->
-      conversion_weights || opener_weights
+      Output.puts(
+        "Margin weighting: #{mstats.upweighted}/#{mstats.frames} frames (#{pct}%) " <>
+          "aerial-B-critical, upweighted x#{mw}"
+      )
+
+      if mstats.upweighted == 0 do
+        Output.warning("--margin-weight set but no critical frames found — sampling is uniform")
+      end
+
+      weights
+    end
+  end
+
+sampling_weights =
+  [conversion_weights, opener_weights, margin_weights]
+  |> Enum.reject(&is_nil/1)
+  |> case do
+    [] -> nil
+    [one] -> one
+    many -> Enum.reduce(many, &ExPhil.Training.OpenerSampling.combine_max/2)
   end
 
 dataset =
