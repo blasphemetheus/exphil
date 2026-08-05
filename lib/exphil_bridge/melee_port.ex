@@ -673,6 +673,18 @@ defmodule ExPhil.Bridge.MeleePort do
   # Autostart gate: don't press START while the dummy's CPU-level slider
   # dance is mid-flight (measured 2026-07-26: unconditional autostart left
   # the dummy HUMAN in 5 of 6 recordings). Ported from melee_bridge.py.
+  # Once configuration has been observed, stay ready: CSS status is only
+  # readable AT character select — later scenes (stage select) reset the
+  # players map to unplugged defaults, and unthrottled headless menus rack
+  # up frames fast enough to trip the watchdog spuriously after success.
+  defp dummy_ready(%{dummy_mode: "cpu", dummy_ready_logged: true} = state, _gamestate),
+    do: {true, state}
+
+  # Outside character select the status bytes are meaningless; don't count.
+  defp dummy_ready(%{dummy_mode: "cpu"} = state, %{menu_state: menu} = _gamestate)
+       when menu != @menu_character_select,
+       do: {false, state}
+
   defp dummy_ready(%{dummy_mode: "cpu"} = state, gamestate) do
     want = Map.get(state.config, :dummy_cpu_level, 0) || 0
 
