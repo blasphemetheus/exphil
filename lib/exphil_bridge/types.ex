@@ -82,7 +82,11 @@ defmodule ExPhil.Bridge.Player do
           nana: ExPhil.Bridge.Nana.t() | nil,
           controller_state: ExPhil.Bridge.ControllerState.t() | nil,
           # Slippi Online connect code ("EXPH#288"); "" or nil offline
-          connect_code: String.t() | nil
+          connect_code: String.t() | nil,
+          # In-game Melee nametag (e.g. "EXPH"), recorded in the replay's
+          # GAME_START. "" when no tag is selected. Netplay games are
+          # identified by connect_code instead.
+          nametag: String.t()
         }
 
   defstruct [
@@ -106,7 +110,8 @@ defmodule ExPhil.Bridge.Player do
     :speed_y_attack,
     :nana,
     :controller_state,
-    :connect_code
+    :connect_code,
+    :nametag
   ]
 
   @doc """

@@ -467,6 +467,10 @@ defmodule ExPhil.Bridge.MeleePort do
       ]
       |> put_if(:gfx_backend, Map.get(config, :gfx_backend))
       |> put_if(:replay_dir, Map.get(config, :replay_dir))
+      # Memory cards are off by default (the "create game data?" dialog
+      # hangs menus). Enable when the session needs save data — e.g. to
+      # use an in-game nametag.
+      |> put_if(:memory_card, Map.get(config, :memory_card))
       |> put_if(:copy_home_from, online && Map.get(config, :user_home))
 
     Melee.Dolphin.launch(opts)
@@ -922,7 +926,8 @@ defmodule ExPhil.Bridge.MeleePort do
       speed_y_attack: p.speed_y_attack,
       nana: convert_nana(p.nana),
       controller_state: convert_controller_state(p.controller_state),
-      connect_code: p.connectCode || ""
+      connect_code: p.connectCode || "",
+      nametag: p.nametag || ""
     }
   end
 
