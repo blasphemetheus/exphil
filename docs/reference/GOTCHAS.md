@@ -2779,6 +2779,30 @@ height) — mainline respawn timing differs slightly from Ishiiruka;
 curate scenario handoffs away from respawn boundaries when using
 mainline, or re-record sources on mainline.
 
+## 66-NATIVE (2026-08-05): EXI inputs work on the native bridge — presses AND releases; no latch
+
+With the native libmelee_ex bridge (Python bridge removed), `exi_inputs:
+true` on the ExiAI build was probed directly: 30f analog-L holds (0.7)
+alternating with 60f neutral windows, judged by the trigger readback in
+the spectator stream (`players[1].controller_state.l_shoulder`).
+
+- PIPE mode control on ExiAI: held readback 0.0 — reproduces #66's
+  press-drop exactly.
+- EXI mode: held readback **0.7 exact**, released readback **0.0** across
+  all 6 cycles — presses honored, releases clean. The 2026-07-17
+  release-latch did NOT reproduce (probe:
+  scratchpad/trigger_latch_probe.exs pattern; wire-up is
+  `exi_inputs: true` → the "Allow Bot Input Overrides" gecko code).
+
+Two caveats before training on EXI-mode games:
+1. EXI readback is the RAW float (0.7, not the pipe-quantized 0.3859...)
+   — EXI overrides bypass pad quantization, so controller-state
+   observations in EXI games have a different value distribution than
+   pipe/replay data. The 13-dim controller embedding sees this.
+2. The old latch was observed under TechRandom's hold patterns on an
+   earlier session; re-validate with the real drill dummies before
+   flipping any training pipeline to EXI.
+
 ## 70. Slippi Launcher beta-Dolphin can't launch on NixOS — FUSE, not libs; fix = APPIMAGE_EXTRACT_AND_RUN=1
 
 Symptom (2026-07-19 first hit, diagnosed 2026-07-20): launcher on the

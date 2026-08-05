@@ -317,10 +317,13 @@ defmodule ExPhil.Bridge.MeleePort do
       headless = truthy?(Map.get(config, :headless))
       dummy_mode = normalize_dummy_mode(Map.get(config, :dummy_mode, "none"), online)
 
-      if truthy?(Map.get(config, :exi_inputs)) do
-        Logger.warning(
-          "[MeleePort] exi_inputs requested but the native bridge only " <>
-            "implements pipe inputs — continuing with pipes (GOTCHAS #66)"
+      exi_inputs = truthy?(Map.get(config, :exi_inputs))
+
+      if exi_inputs do
+        Logger.info(
+          "[MeleePort] exi_inputs: enabling the Bot Input Overrides gecko " <>
+            "code (requires the ExiAI Dolphin build). Inputs still travel " <>
+            "over the pipe; the build injects them via EXI in-game."
         )
       end
 
@@ -341,6 +344,7 @@ defmodule ExPhil.Bridge.MeleePort do
                headless: headless,
                blocking_input: blocking_input,
                slippi_port: slippi_port,
+               exi_inputs: exi_inputs,
                controller_ports:
                  if(dummy_mode == "none",
                    do: [controller_port],
@@ -444,6 +448,7 @@ defmodule ExPhil.Bridge.MeleePort do
          headless: headless,
          blocking_input: blocking_input,
          slippi_port: slippi_port,
+         exi_inputs: exi_inputs,
          controller_ports: controller_ports
        }) do
     opts =
@@ -456,7 +461,9 @@ defmodule ExPhil.Bridge.MeleePort do
         online_delay: Map.get(config, :online_delay) || 0,
         emulation_speed: (headless && (Map.get(config, :emulation_speed) || 1.0) * 1.0) || 1.0,
         save_replays: Map.get(config, :replay_dir) != nil,
-        controller_ports: controller_ports
+        controller_ports: controller_ports,
+        gecko_extra_codes:
+          if(exi_inputs, do: ["$Optional: Allow Bot Input Overrides"], else: [])
       ]
       |> put_if(:gfx_backend, Map.get(config, :gfx_backend))
       |> put_if(:replay_dir, Map.get(config, :replay_dir))
