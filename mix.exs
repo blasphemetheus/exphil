@@ -231,6 +231,9 @@ defmodule ExPhil.MixProject do
       # Python Interop (optional, for melee_bridge)
       {:pythonx, "~> 0.3", optional: true},
 
+      # Native libmelee port (replaces the Python melee_bridge)
+      {:libmelee_ex, path: "../libmelee_ex"},
+
       # Telemetry & Metrics
       {:telemetry, "~> 1.2"},
       {:telemetry_metrics, "~> 1.0"},

@@ -1,8 +1,14 @@
 defmodule ExPhil.Bridge.MeleePort do
   @moduledoc """
-  GenServer that manages communication with the Python melee_bridge.py script.
+  GenServer that manages a live Dolphin/Slippi session — natively, via
+  `libmelee_ex` (no Python).
 
-  Uses an Erlang Port for bidirectional communication with line-delimited JSON.
+  This module preserves the public API of the original Python-bridge
+  implementation (`priv/python/melee_bridge.py` over an Erlang Port);
+  callers are unchanged. Internally it now drives `Melee.Dolphin`
+  (process/config), `Melee.Console` (ENet spectator stream),
+  `Melee.Controller` (pipe input), and `Melee.MenuHelper` (menu
+  navigation) directly.
 
   ## Usage
 
@@ -34,7 +40,7 @@ defmodule ExPhil.Bridge.MeleePort do
   use GenServer
   require Logger
 
-  alias ExPhil.Bridge.GameState
+  alias ExPhil.Bridge.ActionQueue
   alias ExPhil.Error.BridgeError
 
   # 90s: netplay Direct holds emulation (no frames advance) while waiting
@@ -49,6 +55,15 @@ defmodule ExPhil.Bridge.MeleePort do
   # hung console surfaces as {:error, :console_hung} instead of a caller
   # GenServer.call timeout.
   @max_no_frame_retries 880
+
+  # Menu enum wire values (Melee.Enums.Menu)
+  @menu_in_game 2
+  @menu_sudden_death 3
+  @menu_postgame 4
+  @menu_character_select 0
+
+  # Frames to wait at CSS for the dummy's CPU setup before starting anyway.
+  @dummy_setup_timeout_frames 600
 
   # ============================================================================
   # Types
@@ -89,7 +104,7 @@ defmodule ExPhil.Bridge.MeleePort do
           optional(:console_timeout) => number()
         }
 
-  @typedoc "Start link options"
+  @typedoc "Start link options (Python-era options are accepted and ignored)"
   @type start_option ::
           {:python_path, String.t()}
           | {:script_path, String.t()}
@@ -97,9 +112,9 @@ defmodule ExPhil.Bridge.MeleePort do
 
   @typedoc "Result of a step operation"
   @type step_result ::
-          {:ok, GameState.t()}
-          | {:menu, GameState.t()}
-          | {:postgame, GameState.t()}
+          {:ok, ExPhil.Bridge.GameState.t()}
+          | {:menu, ExPhil.Bridge.GameState.t()}
+          | {:postgame, ExPhil.Bridge.GameState.t()}
           | {:game_ended, String.t()}
           | :no_frame
           | {:error, term()}
@@ -111,9 +126,8 @@ defmodule ExPhil.Bridge.MeleePort do
   @doc """
   Starts the MeleePort GenServer.
 
-  ## Options
-    - `:python_path` - Path to Python executable (default: "python3")
-    - `:script_path` - Path to melee_bridge.py (default: priv/python/melee_bridge.py)
+  Python-era options (`:python_path`, `:script_path`) are accepted for
+  compatibility and ignored — there is no Python process anymore.
   """
   @spec start_link([start_option()]) :: GenServer.on_start()
   def start_link(opts \\ []) do
@@ -124,17 +138,24 @@ defmodule ExPhil.Bridge.MeleePort do
   Initialize the Dolphin console and controller.
 
   ## Config
-    - `:dolphin_path` - Path to Slippi/Dolphin folder (required)
+    - `:dolphin_path` - Path to Slippi/Dolphin folder or executable (required)
     - `:iso_path` - Path to Melee 1.02 ISO (required)
     - `:controller_port` - Controller port (default: 1)
     - `:opponent_port` - Opponent port (default: 2)
-    - `:character` - Character to select (atom or integer)
-    - `:stage` - Stage to select (atom or integer)
+    - `:character` - Character to select (atom, string, or internal id)
+    - `:stage` - Stage to select (atom, string, or internal id)
     - `:online_delay` - Simulate online delay frames (default: 0)
     - `:console_timeout` - Polling-mode timeout in seconds (default: 0.1).
       `step/3` returns `:no_frame` when no frame arrives in time (paused
       game, load screen) instead of blocking. Pass `0` for legacy blocking
       dispatch.
+    - `:headless`, `:gfx_backend`, `:emulation_speed`, `:blocking_input`,
+      `:slippi_port`, `:replay_dir`, `:no_audio`, `:window_width`,
+      `:window_height` - Dolphin knobs, semantics unchanged from the
+      Python bridge
+    - `:connect_code`, `:user_home` - Slippi Direct netplay
+    - `:dummy_mode`, `:dummy_character`, `:dummy_cpu_level` - opponent-port
+      dummy (none|stand|shield|jump|walk|cpu|external)
   """
   @spec init_console(server(), init_config() | keyword(), timeout_ms()) ::
           {:ok, %{controller_port: pos_integer()}} | {:error, term()}
@@ -148,7 +169,7 @@ defmodule ExPhil.Bridge.MeleePort do
   Returns `{:ok, game_state}` when in game, or `{:menu, game_state}` during menus.
 
   ## Options
-    - `:auto_menu` - Let the bridge navigate menus (default: true)
+    - `:auto_menu` - Navigate menus automatically (default: true)
     - `:poll` - Surface `:no_frame` when the console produced no frame within
       its polling timeout (paused game, load screen). Default false: no_frame
       is absorbed by transparent re-polling, preserving blocking semantics
@@ -176,7 +197,10 @@ defmodule ExPhil.Bridge.MeleePort do
   of the main one — used to drive the opponent port from Elixir (reactive
   dummies, self-play). Requires the bridge initialized with a `dummy_mode`
   so the second controller exists; use `dummy_mode: "external"` for
-  Elixir-driven ports (scripted python modes would fight per-frame inputs).
+  Elixir-driven ports.
+
+  An optional `:delay` key (frames) holds the action in the frame-keyed
+  queue until the console reports `current_frame + delay`.
   """
   @spec send_controller(server(), controller_input(), timeout_ms()) ::
           :ok | {:game_ended, String.t()} | {:error, term()}
@@ -185,7 +209,7 @@ defmodule ExPhil.Bridge.MeleePort do
   end
 
   @doc """
-  Ping the Python bridge to check if it's alive.
+  Liveness check (formerly pinged the Python process).
   """
   @spec ping(server(), timeout_ms()) :: :pong | {:error, term()}
   def ping(server, timeout \\ 5_000) do
@@ -204,101 +228,66 @@ defmodule ExPhil.Bridge.MeleePort do
   # GenServer Callbacks
   # ============================================================================
 
-  @impl true
-  def init(opts) do
-    python_path = Keyword.get(opts, :python_path, find_python())
-    script_path = Keyword.get(opts, :script_path, default_script_path())
-
-    Logger.info("[MeleePort] Starting Python bridge: #{script_path}")
-    Logger.info("[MeleePort] Using Python: #{python_path}")
-
-    port =
-      Port.open(
-        {:spawn_executable, python_path},
-        [
-          :binary,
-          :exit_status,
-          :use_stdio,
-          # Don't merge stderr - keep JSON responses clean on stdout
-          # Logs go to stderr and we'll ignore them (they go to /tmp/melee_bridge.log)
-          {:args, ["-u", script_path]},
-          {:cd, File.cwd!()}
-        ]
-      )
-
-    state = %{
-      port: port,
-      pending: nil,
-      buffer: "",
-      initialized: false
-    }
-
-    {:ok, state}
+  defmodule State do
+    @moduledoc false
+    defstruct dolphin: nil,
+              console: nil,
+              controller: nil,
+              dummy_controller: nil,
+              controller_port: 1,
+              opponent_port: 2,
+              config: %{},
+              running: false,
+              polling: false,
+              menu_helper: nil,
+              dummy_menu_helper: nil,
+              action_queue: ExPhil.Bridge.ActionQueue.new(),
+              current_frame: nil,
+              dummy_mode: "none",
+              dummy_frame: 0,
+              dummy_wait_frames: 0,
+              dummy_ready_logged: false,
+              dummy_timeout_logged: false,
+              postgame_reported: false,
+              last_in_game: false
   end
 
   @impl true
-  def handle_call({:init_console, config}, from, state) do
-    request = %{cmd: "init", config: normalize_config(config)}
-    send_request(state.port, request)
-    {:noreply, %{state | pending: {:init, from}}}
+  def init(_opts) do
+    {:ok, %State{}}
   end
 
   @impl true
-  def handle_call({:step, opts}, from, state) do
+  def handle_call({:init_console, config}, _from, state) do
+    config = normalize_config(config)
+
+    case do_init(config, state) do
+      {:ok, state} ->
+        {:reply, {:ok, %{controller_port: state.controller_port}}, state}
+
+      {:error, reason} ->
+        {:reply, {:error, reason}, state}
+    end
+  end
+
+  def handle_call({:step, opts}, _from, state) do
     auto_menu = Keyword.get(opts, :auto_menu, true)
     poll = Keyword.get(opts, :poll, false)
-    request = %{cmd: "step", auto_menu: auto_menu}
-    send_request(state.port, request)
-    {:noreply, %{state | pending: {:step, from, %{poll: poll, auto_menu: auto_menu, retries: 0}}}}
+
+    {reply, state} = do_step(state, auto_menu, poll, 0)
+    {:reply, reply, state}
   end
 
-  @impl true
-  def handle_call({:send_controller, input}, from, state) do
-    request = %{cmd: "send_controller", input: input}
-    send_request(state.port, request)
-    {:noreply, %{state | pending: {:send_controller, from}}}
+  def handle_call({:send_controller, input}, _from, state) do
+    {reply, state} = do_send_controller(state, input)
+    {:reply, reply, state}
   end
 
-  @impl true
-  def handle_call(:ping, from, state) do
-    request = %{cmd: "ping"}
-    send_request(state.port, request)
-    {:noreply, %{state | pending: {:ping, from}}}
-  end
+  def handle_call(:ping, _from, state), do: {:reply, :pong, state}
 
-  @impl true
-  def handle_call(:stop, from, state) do
-    request = %{cmd: "stop"}
-    send_request(state.port, request)
-    {:noreply, %{state | pending: {:stop, from}}}
-  end
-
-  @impl true
-  def handle_info({port, {:data, data}}, %{port: port} = state) do
-    # Accumulate data and try to parse complete JSON lines
-    buffer = state.buffer <> data
-
-    case parse_buffer(buffer) do
-      {:ok, response, remaining} ->
-        state = handle_response(response, state)
-        {:noreply, %{state | buffer: remaining}}
-
-      :incomplete ->
-        {:noreply, %{state | buffer: buffer}}
-    end
-  end
-
-  @impl true
-  def handle_info({port, {:exit_status, status}}, %{port: port} = state) do
-    Logger.warning("[MeleePort] Python process exited with status: #{status}")
-
-    if state.pending do
-      # Pending is {type, from} or {:step, from, meta}
-      from = elem(state.pending, 1)
-      GenServer.reply(from, {:error, BridgeError.new(:port_closed, bridge: :melee_port, context: %{exit_status: status})})
-    end
-
-    {:stop, :normal, state}
+  def handle_call(:stop, _from, state) do
+    state = teardown(state)
+    {:reply, :ok, state}
   end
 
   @impl true
@@ -309,277 +298,745 @@ defmodule ExPhil.Bridge.MeleePort do
 
   @impl true
   def terminate(_reason, state) do
-    # The Python bridge usually exits on its own after a :stop command, in
-    # which case the port is already closed — Port.close on a dead port
-    # raises ArgumentError and would crash whoever linked to us mid-teardown.
-    if state.port && Port.info(state.port) != nil do
-      Port.close(state.port)
+    teardown(state)
+    :ok
+  end
+
+  # ============================================================================
+  # Init
+  # ============================================================================
+
+  defp do_init(config, _state) do
+    with :ok <- require_key(config, :dolphin_path),
+         :ok <- require_key(config, :iso_path),
+         {:ok, config} <- validate_dummy_config(config) do
+      controller_port = Map.get(config, :controller_port, 1)
+      opponent_port = Map.get(config, :opponent_port, 2)
+      connect_code = to_string(Map.get(config, :connect_code) || "")
+      online = connect_code != ""
+      headless = truthy?(Map.get(config, :headless))
+      dummy_mode = normalize_dummy_mode(Map.get(config, :dummy_mode, "none"), online)
+
+      if truthy?(Map.get(config, :exi_inputs)) do
+        Logger.warning(
+          "[MeleePort] exi_inputs requested but the native bridge only " <>
+            "implements pipe inputs — continuing with pipes (GOTCHAS #66)"
+        )
+      end
+
+      console_timeout = Map.get(config, :console_timeout) || 0.1
+      polling = console_timeout > 0
+
+      blocking_input =
+        case Map.get(config, :blocking_input) do
+          nil -> headless
+          v -> truthy?(v)
+        end
+
+      slippi_port = Map.get(config, :slippi_port) || 51_441
+
+      with {:ok, dolphin} <-
+             launch_dolphin(config, %{
+               online: online,
+               headless: headless,
+               blocking_input: blocking_input,
+               slippi_port: slippi_port,
+               controller_ports:
+                 if(dummy_mode == "none",
+                   do: [controller_port],
+                   else: [controller_port, opponent_port]
+                 )
+             }),
+           {:ok, console} <-
+             start_console(slippi_port, polling, console_timeout, blocking_input),
+           :ok <- connect_console_with_retries(console, 5),
+           {:ok, controller} <- start_controller(dolphin, controller_port, console),
+           {:ok, dummy_controller} <-
+             maybe_start_dummy_controller(dolphin, dummy_mode, opponent_port, console) do
+        if online, do: Logger.info("[MeleePort] Netplay mode: connecting to #{connect_code}")
+
+        {:ok,
+         %State{
+           dolphin: dolphin,
+           console: console,
+           controller: controller,
+           dummy_controller: dummy_controller,
+           controller_port: controller_port,
+           opponent_port: opponent_port,
+           config: Map.put(config, :connect_code, connect_code),
+           running: true,
+           polling: polling,
+           menu_helper: Melee.MenuHelper.new(),
+           dummy_menu_helper: if(dummy_mode != "none", do: Melee.MenuHelper.new()),
+           dummy_mode: dummy_mode
+         }}
+      end
+    end
+  end
+
+  defp require_key(config, key) do
+    if Map.get(config, key), do: :ok, else: {:error, "#{key} is required"}
+  end
+
+  # GOTCHAS #57 family: dummy_mode/cpu_level interaction guards, ported
+  # verbatim from melee_bridge.py.
+  defp validate_dummy_config(config) do
+    mode = to_string(Map.get(config, :dummy_mode, "none"))
+    level = Map.get(config, :dummy_cpu_level, 0) || 0
+
+    driven_modes = ~w(external stand shield jump walk)
+
+    cond do
+      mode in driven_modes and level > 0 ->
+        Logger.error(
+          "[MeleePort] dummy_mode=#{mode} is controller-driven but " <>
+            "dummy_cpu_level=#{level} would hand the port to the game AI " <>
+            "(inputs ignored). Forcing cpu_level=0. Use dummy_mode=cpu for a CPU."
+        )
+
+        {:ok, Map.put(config, :dummy_cpu_level, 0)}
+
+      mode == "cpu" ->
+        dchar = to_string(Map.get(config, :dummy_character, "fox"))
+
+        cond do
+          String.downcase(dchar) == "sheik" ->
+            {:error,
+             "dummy_character='sheik' cannot be a CPU (libmelee semantics; " <>
+               "Sheik is reached via Zelda). Use 'zelda'."}
+
+          level <= 0 ->
+            Logger.error(
+              "[MeleePort] dummy_mode=cpu with dummy_cpu_level=#{level} is NOT " <>
+                "a CPU — the port stays HUMAN and idle. Defaulting to level 1."
+            )
+
+            {:ok, Map.put(config, :dummy_cpu_level, 1)}
+
+          level > 9 ->
+            Logger.error("[MeleePort] dummy_cpu_level=#{level} out of range; clamping to 9.")
+            {:ok, Map.put(config, :dummy_cpu_level, 9)}
+
+          true ->
+            {:ok, config}
+        end
+
+      true ->
+        {:ok, config}
+    end
+  end
+
+  defp normalize_dummy_mode(mode, online) do
+    mode = to_string(mode || "none")
+
+    if online and mode != "none" do
+      Logger.warning("[MeleePort] Netplay mode: opponent is remote — dummy disabled")
+      "none"
+    else
+      mode
+    end
+  end
+
+  # -- libmelee_ex touchpoints -------------------------------------------------
+
+  defp launch_dolphin(config, %{
+         online: online,
+         headless: headless,
+         blocking_input: blocking_input,
+         slippi_port: slippi_port,
+         controller_ports: controller_ports
+       }) do
+    opts =
+      [
+        path: Map.fetch!(config, :dolphin_path),
+        iso_path: Map.fetch!(config, :iso_path),
+        slippi_port: slippi_port,
+        headless: headless,
+        blocking_input: blocking_input,
+        online_delay: Map.get(config, :online_delay) || 0,
+        emulation_speed: (headless && (Map.get(config, :emulation_speed) || 1.0) * 1.0) || 1.0,
+        save_replays: Map.get(config, :replay_dir) != nil,
+        controller_ports: controller_ports
+      ]
+      |> put_if(:gfx_backend, Map.get(config, :gfx_backend))
+      |> put_if(:replay_dir, Map.get(config, :replay_dir))
+      |> put_if(:copy_home_from, online && Map.get(config, :user_home))
+
+    Melee.Dolphin.launch(opts)
+  end
+
+  defp put_if(opts, _key, nil), do: opts
+  defp put_if(opts, _key, false), do: opts
+  defp put_if(opts, key, value), do: Keyword.put(opts, key, value)
+
+  defp start_console(slippi_port, polling, console_timeout, blocking_input) do
+    Melee.Console.start_link(
+      port: slippi_port,
+      polling_mode: polling,
+      polling_timeout: round(console_timeout * 1000),
+      blocking_input: blocking_input
+    )
+  end
+
+  # Retry with backoff: a lone Dolphin is listening quickly, but parallel
+  # instances boot slower (ISO read + shader cache contention) — ported
+  # budget from melee_bridge.py (~45s total).
+  defp connect_console_with_retries(console, attempts) do
+    Enum.reduce_while(1..attempts, {:error, :never_tried}, fn attempt, _acc ->
+      case Melee.Console.connect(console, 10_000) do
+        :ok ->
+          {:halt, :ok}
+
+        {:error, reason} ->
+          if attempt < attempts do
+            wait = 2_000 * attempt
+            Logger.warning("[MeleePort] console connect attempt #{attempt} failed, retrying in #{wait}ms")
+            Process.sleep(wait)
+            {:cont, {:error, reason}}
+          else
+            {:halt, {:error, {:connect_failed, reason}}}
+          end
+      end
+    end)
+  end
+
+  defp start_controller(dolphin, port, console) do
+    with {:ok, pipe} <- Melee.Dolphin.setup_controller(dolphin, port),
+         {:ok, controller} <- Melee.Controller.start_link(pipe_path: pipe),
+         :ok <- Melee.Controller.connect(controller, 60_000),
+         :ok <- Melee.Console.register_controller(console, controller) do
+      {:ok, controller}
+    end
+  end
+
+  defp maybe_start_dummy_controller(_dolphin, "none", _port, _console), do: {:ok, nil}
+
+  defp maybe_start_dummy_controller(dolphin, _mode, port, console) do
+    start_controller(dolphin, port, console)
+  end
+
+  # ============================================================================
+  # Step
+  # ============================================================================
+
+  defp do_step(%{running: false} = state, _auto_menu, _poll, _retries),
+    do: {{:error, "Console not initialized"}, state}
+
+  defp do_step(state, auto_menu, poll, retries) do
+    case Melee.Console.step(state.console) do
+      nil when poll ->
+        {:no_frame, state}
+
+      nil ->
+        if retries >= @max_no_frame_retries do
+          {{:error, :console_hung}, state}
+        else
+          do_step(state, auto_menu, poll, retries + 1)
+        end
+
+      {:error, :enet_disconnected} ->
+        Logger.info("[MeleePort] Dolphin disconnected")
+        {{:game_ended, "dolphin_disconnected"}, %{state | running: false}}
+
+      {:ok, gamestate} ->
+        handle_frame(state, gamestate, auto_menu)
+    end
+  end
+
+  defp handle_frame(state, gamestate, auto_menu) do
+    is_in_game = gamestate.menu_state in [@menu_in_game, @menu_sudden_death]
+    is_postgame = gamestate.menu_state == @menu_postgame
+    is_menu = not is_in_game
+
+    # Local delay queue: track the frame clock and apply everything
+    # scheduled for it (writes land in the pipe now, flush at the top of
+    # the next console step — same one-step semantics as immediate sends).
+    state =
+      if is_in_game do
+        {due, queue} = ActionQueue.pop_due(state.action_queue, gamestate.frame)
+        Enum.each(due, &apply_input_now(state, &1))
+        %{state | action_queue: queue, current_frame: gamestate.frame}
+      else
+        %{state | current_frame: nil}
+      end
+
+    # Reset the dummy-setup watchdog once the game is running (budget is
+    # per character-select visit).
+    state =
+      if is_in_game and state.dummy_wait_frames > 0 do
+        %{state | dummy_wait_frames: 0, dummy_timeout_logged: false}
+      else
+        state
+      end
+
+    # Track transitions for the postgame-report protocol.
+    state = if is_in_game and not state.last_in_game, do: %{state | postgame_reported: false}, else: state
+    state = %{state | last_in_game: is_in_game}
+
+    if rem(gamestate.frame, 60) == 0 do
+      log_frame(gamestate)
+    end
+
+    # Skip menu navigation on the FIRST postgame frame so the caller can
+    # decide (restart vs stop); navigate on subsequent frames.
+    skip_menu_nav = is_postgame and not state.postgame_reported
+    state = if is_postgame, do: %{state | postgame_reported: true}, else: state
+
+    state =
+      if is_menu and auto_menu and not skip_menu_nav do
+        navigate_menus(state, gamestate)
+      else
+        state
+      end
+
+    # Scripted dummy behaviors run every in-game frame.
+    state =
+      if is_in_game and state.dummy_controller != nil and
+           state.dummy_mode in ~w(stand shield jump walk) do
+        drive_dummy(state, gamestate)
+      else
+        state
+      end
+
+    reply_state = convert_game_state(gamestate, state)
+
+    reply =
+      cond do
+        is_postgame -> {:postgame, reply_state}
+        is_menu -> {:menu, reply_state}
+        true -> {:ok, reply_state}
+      end
+
+    {reply, state}
+  end
+
+  defp log_frame(gamestate) do
+    p1 = gamestate.players[1]
+    p2 = gamestate.players[2]
+
+    fmt = fn
+      nil -> "?"
+      p -> "#{round(p.percent)}%/#{p.stock}stk"
+    end
+
+    Logger.info(
+      "[MeleePort] Frame #{gamestate.frame}: menu_state=#{gamestate.menu_state} | " <>
+        "P1:#{fmt.(p1)} P2:#{fmt.(p2)}"
+    )
+  end
+
+  # -- Menu navigation ---------------------------------------------------------
+
+  defp navigate_menus(state, gamestate) do
+    character = to_character_id(Map.get(state.config, :character, :fox))
+    stage = to_stage_id(Map.get(state.config, :stage, :final_destination))
+
+    # Dummy picks first (no autostart) so the main helper's autostart can't
+    # fire before the opponent is on the roster. ONLY during character
+    # select: stage select has one shared cursor and a second controller
+    # fights port 1 there.
+    state =
+      if state.dummy_menu_helper != nil and
+           gamestate.menu_state == @menu_character_select do
+        dummy_char = to_character_id(Map.get(state.config, :dummy_character, "fox"))
+
+        helper =
+          Melee.MenuHelper.step(state.dummy_menu_helper, gamestate, state.dummy_controller,
+            port: state.opponent_port,
+            character: dummy_char,
+            stage: stage,
+            cpu_level: Map.get(state.config, :dummy_cpu_level, 0) || 0,
+            autostart: false,
+            swag: false
+          )
+
+        %{state | dummy_menu_helper: helper}
+      else
+        state
+      end
+
+    {autostart, state} = dummy_ready(state, gamestate)
+
+    helper =
+      Melee.MenuHelper.step(state.menu_helper, gamestate, state.controller,
+        port: state.controller_port,
+        character: character,
+        stage: stage,
+        connect_code: Map.get(state.config, :connect_code, ""),
+        autostart: autostart,
+        swag: false
+      )
+
+    %{state | menu_helper: helper}
+  end
+
+  # Autostart gate: don't press START while the dummy's CPU-level slider
+  # dance is mid-flight (measured 2026-07-26: unconditional autostart left
+  # the dummy HUMAN in 5 of 6 recordings). Ported from melee_bridge.py.
+  defp dummy_ready(%{dummy_mode: "cpu"} = state, gamestate) do
+    want = Map.get(state.config, :dummy_cpu_level, 0) || 0
+
+    if want <= 0 do
+      {true, state}
+    else
+      case gamestate.players[state.opponent_port] do
+        nil ->
+          {false, state}
+
+        player ->
+          state = %{state | dummy_wait_frames: state.dummy_wait_frames + 1}
+
+          # ControllerStatus.CONTROLLER_CPU
+          is_cpu = player.controller_status == 1
+
+          ready = is_cpu and player.cpu_level == want and not player.is_holding_cpu_slider
+
+          cond do
+            ready ->
+              state =
+                if state.dummy_ready_logged do
+                  state
+                else
+                  Logger.info(
+                    "[MeleePort] Dummy CPU configured: port=#{state.opponent_port} " <>
+                      "level=#{want} (after #{state.dummy_wait_frames} CSS frames)"
+                  )
+
+                  %{state | dummy_ready_logged: true}
+                end
+
+              {true, state}
+
+            state.dummy_wait_frames > @dummy_setup_timeout_frames ->
+              state =
+                if state.dummy_timeout_logged do
+                  state
+                else
+                  Logger.error(
+                    "[MeleePort] Dummy CPU setup TIMED OUT after " <>
+                      "#{state.dummy_wait_frames} frames — starting anyway. " <>
+                      "Requested level=#{want}, port #{state.opponent_port} reports " <>
+                      "controller_status=#{inspect(player.controller_status)} " <>
+                      "cpu_level=#{inspect(player.cpu_level)}."
+                  )
+
+                  %{state | dummy_timeout_logged: true}
+                end
+
+              {true, state}
+
+            true ->
+              {false, state}
+          end
+      end
+    end
+  end
+
+  defp dummy_ready(state, _gamestate), do: {true, state}
+
+  # -- Scripted dummies --------------------------------------------------------
+
+  defp drive_dummy(state, gamestate) do
+    c = state.dummy_controller
+    t = state.dummy_frame + 1
+    Melee.Controller.release_all(c)
+
+    case state.dummy_mode do
+      "shield" ->
+        if rem(t, 180) < 120, do: Melee.Controller.press_button(c, :r)
+
+      "jump" ->
+        if rem(t, 90) == 0, do: Melee.Controller.press_button(c, :y)
+
+      "walk" ->
+        x =
+          case gamestate.players[state.opponent_port] do
+            nil -> 0.0
+            p -> p.position.x
+          end
+
+        cond do
+          x > 20.0 -> Melee.Controller.tilt_analog(c, :main, 0.35, 0.5)
+          x < -20.0 -> Melee.Controller.tilt_analog(c, :main, 0.65, 0.5)
+          rem(t, 240) < 120 -> Melee.Controller.tilt_analog(c, :main, 0.65, 0.5)
+          true -> Melee.Controller.tilt_analog(c, :main, 0.35, 0.5)
+        end
+
+      _stand ->
+        :ok
+    end
+
+    %{state | dummy_frame: t}
+  end
+
+  # ============================================================================
+  # Controller input
+  # ============================================================================
+
+  defp do_send_controller(%{running: false} = state, _input),
+    do: {{:error, "Controller not initialized"}, state}
+
+  defp do_send_controller(state, input) do
+    delay = get_in_any(input, :delay)
+
+    if delay && state.current_frame != nil do
+      apply_at = state.current_frame + trunc(delay)
+      queue = ActionQueue.schedule(state.action_queue, apply_at, input)
+      {:ok, %{state | action_queue: queue}}
+    else
+      case apply_input_now(state, input) do
+        :ok -> {:ok, state}
+        error -> {error, state}
+      end
+    end
+  end
+
+  defp apply_input_now(state, input) do
+    port = get_in_any(input, :port)
+
+    target =
+      cond do
+        port != nil and trunc(port) == state.opponent_port ->
+          state.dummy_controller || {:error, "No controller on port #{port} (enable a dummy_mode at init)"}
+
+        true ->
+          state.controller
+      end
+
+    case target do
+      {:error, _} = error ->
+        error
+
+      controller ->
+        apply_controller_input(controller, input)
+        :ok
+    end
+  end
+
+  @button_map [
+    a: :a,
+    b: :b,
+    x: :x,
+    y: :y,
+    z: :z,
+    l: :l,
+    r: :r,
+    d_up: :d_up,
+    # Start is SEND-ONLY (LRAS game-quit for replay finalization); it is
+    # deliberately absent from the observed controller-state contract.
+    start: :start
+  ]
+
+  defp apply_controller_input(controller, input) do
+    Melee.Controller.release_all(controller)
+
+    main = get_in_any(input, :main_stick) || %{}
+    Melee.Controller.tilt_analog(
+      controller,
+      :main,
+      get_in_any(main, :x) || 0.5,
+      get_in_any(main, :y) || 0.5
+    )
+
+    c = get_in_any(input, :c_stick) || %{}
+    Melee.Controller.tilt_analog(
+      controller,
+      :c,
+      get_in_any(c, :x) || 0.5,
+      get_in_any(c, :y) || 0.5
+    )
+
+    Melee.Controller.press_shoulder(controller, :l, get_in_any(input, :shoulder) || 0.0)
+
+    buttons = get_in_any(input, :buttons) || %{}
+
+    for {name, button} <- @button_map, truthy?(get_in_any(buttons, name)) do
+      Melee.Controller.press_button(controller, button)
     end
 
     :ok
   end
 
   # ============================================================================
-  # Private Helpers
+  # GameState conversion (Melee.* structs -> ExPhil.Bridge.* structs)
   # ============================================================================
 
-  defp default_script_path do
-    :code.priv_dir(:exphil)
-    |> to_string()
-    |> Path.join("python/melee_bridge.py")
-  rescue
-    # Fallback for development
-    _ -> Path.join([File.cwd!(), "priv", "python", "melee_bridge.py"])
-  end
+  defp convert_game_state(gamestate, state) do
+    players =
+      Map.new(gamestate.players, fn {port, player} ->
+        {port, convert_player(player)}
+      end)
 
-  defp find_python do
-    # Check for project venv first (has libmelee installed)
-    venv_python = Path.join([File.cwd!(), ".venv", "bin", "python3"])
-
-    cond do
-      File.exists?(venv_python) ->
-        venv_python
-
-      # Check EXPHIL_PYTHON env var
-      System.get_env("EXPHIL_PYTHON") ->
-        System.get_env("EXPHIL_PYTHON")
-
-      # Fall back to system python3
-      true ->
-        "python3"
-    end
-  end
-
-  defp send_request(port, request) do
-    json = Jason.encode!(request)
-    Port.command(port, json <> "\n")
-  end
-
-  defp parse_buffer(buffer) do
-    case String.split(buffer, "\n", parts: 2) do
-      [line, remaining] when line != "" ->
-        case Jason.decode(line) do
-          {:ok, response} ->
-            {:ok, response, remaining}
-
-          {:error, _} ->
-            # Skip non-JSON lines (shouldn't happen now that stderr is separate)
-            Logger.debug("[Python output] #{line}")
-            parse_buffer(remaining)
-        end
-
-      _ ->
-        :incomplete
-    end
-  end
-
-  defp handle_response(response, state) do
-    case {state.pending, response} do
-      {nil, _} ->
-        Logger.warning(
-          "[MeleePort] Received response with no pending request: #{inspect(response)}"
-        )
-
-        state
-
-      # Polling-mode no_frame reaching a BLOCKING caller (poll: false, the
-      # default): transparently re-issue the step so legacy scripts keep
-      # their pre-polling semantics — step/3 only returns when a real frame
-      # (or a real error) arrives. Capped so a dead console surfaces as an
-      # error instead of retrying forever. LRAS-aware runners pass
-      # poll: true and handle :no_frame themselves.
-      {{:step, from, %{poll: false, retries: r} = meta}, %{"ok" => true, "no_frame" => true}} ->
-        if r >= @max_no_frame_retries do
-          GenServer.reply(from, {:error, :console_hung})
-          %{state | pending: nil}
-        else
-          send_request(state.port, %{cmd: "step", auto_menu: meta.auto_menu})
-          %{state | pending: {:step, from, %{meta | retries: r + 1}}}
-        end
-
-      {{type, from, _meta}, _} ->
-        reply = format_reply(type, response)
-        GenServer.reply(from, reply)
-        %{state | pending: nil}
-
-      {{type, from}, _} ->
-        reply = format_reply(type, response)
-        GenServer.reply(from, reply)
-        %{state | pending: nil}
-    end
-  end
-
-  defp format_reply(:init, %{"ok" => true} = response) do
-    {:ok, %{controller_port: response["controller_port"]}}
-  end
-
-  # Polling-mode timeout: no frame arrived within console_timeout (paused
-  # game, load screen). Must match BEFORE the general :step ok clause —
-  # there is no game_state to parse.
-  defp format_reply(:step, %{"ok" => true, "no_frame" => true}), do: :no_frame
-
-  defp format_reply(:step, %{"ok" => true} = response) do
-    game_state = parse_game_state(response["game_state"])
-
-    cond do
-      response["is_postgame"] ->
-        {:postgame, game_state}
-
-      response["is_menu"] ->
-        {:menu, game_state}
-
-      true ->
-        {:ok, game_state}
-    end
-  end
-
-  # Handle graceful game end (Dolphin disconnected)
-  defp format_reply(:step, %{"error" => "game_ended", "reason" => reason}) do
-    {:game_ended, reason}
-  end
-
-  defp format_reply(:send_controller, %{"error" => "game_ended", "reason" => reason}) do
-    {:game_ended, reason}
-  end
-
-  defp format_reply(:send_controller, %{"ok" => true}), do: :ok
-
-  defp format_reply(:ping, %{"ok" => true, "pong" => true}), do: :pong
-
-  defp format_reply(:stop, %{"ok" => true}), do: :ok
-
-  defp format_reply(_type, %{"error" => error}) do
-    {:error, error}
-  end
-
-  defp format_reply(type, response) do
-    Logger.warning("[MeleePort] Unexpected response for #{type}: #{inspect(response)}")
-    {:error, BridgeError.new(:protocol_error, bridge: :melee_port, context: %{operation: type, response: inspect(response)})}
-  end
-
-  defp normalize_config(config) when is_map(config) do
-    config
-    |> Enum.map(fn
-      {k, v} when is_atom(k) -> {Atom.to_string(k), normalize_value(v)}
-      {k, v} -> {k, normalize_value(v)}
-    end)
-    |> Map.new()
-  end
-
-  # nil/true/false ARE atoms — Atom.to_string(nil) == "nil", which is TRUTHY
-  # in Python and switched the bridge into netplay mode with connect code
-  # "nil". JSON carries these natively; only bare atoms (:fox etc.) need
-  # stringifying.
-  defp normalize_value(nil), do: nil
-  defp normalize_value(v) when is_boolean(v), do: v
-  defp normalize_value(v) when is_atom(v), do: Atom.to_string(v)
-  defp normalize_value(v), do: v
-
-  defp parse_game_state(nil), do: nil
-
-  defp parse_game_state(gs) when is_map(gs) do
-    # Single decode point for every live frame, so this is where a
-    # state-stream trace is emitted (task #8 / GOTCHAS #81). No-op unless
-    # EXPHIL_STATE_TRACE=1, which lets ANY live script record the live half
-    # of a pair without its own tracing code.
     %ExPhil.Bridge.GameState{
-      frame: gs["frame"],
-      stage: gs["stage"],
-      menu_state: gs["menu_state"],
-      players: parse_players(gs["players"]),
-      own_port: gs["own_port"],
-      projectiles: parse_projectiles(gs["projectiles"]),
-      distance: gs["distance"]
+      frame: gamestate.frame,
+      stage: gamestate.stage,
+      menu_state: gamestate.menu_state,
+      players: players,
+      own_port: detect_own_port(gamestate, Map.get(state.config, :connect_code, "")),
+      projectiles: Enum.map(gamestate.projectiles, &convert_projectile/1),
+      distance: gamestate.distance
     }
     |> ExPhil.Eval.StateStreamTrace.maybe_emit()
   end
 
-  defp parse_players(nil), do: %{}
+  defp convert_player(nil), do: nil
 
-  defp parse_players(players) when is_map(players) do
-    players
-    |> Enum.map(fn {port, player} ->
-      {String.to_integer(port), parse_player(player)}
-    end)
-    |> Map.new()
-  end
-
-  defp parse_player(nil), do: nil
-
-  defp parse_player(p) when is_map(p) do
+  defp convert_player(p) do
     %ExPhil.Bridge.Player{
-      character: p["character"],
-      x: p["x"],
-      y: p["y"],
-      percent: p["percent"],
-      stock: p["stock"],
-      facing: p["facing"],
-      action: p["action"],
-      action_frame: p["action_frame"],
-      invulnerable: p["invulnerable"],
-      jumps_left: p["jumps_left"],
-      on_ground: p["on_ground"],
-      shield_strength: p["shield_strength"],
-      hitstun_frames_left: p["hitstun_frames_left"],
-      speed_air_x_self: p["speed_air_x_self"],
-      speed_ground_x_self: p["speed_ground_x_self"],
-      speed_y_self: p["speed_y_self"],
-      speed_x_attack: p["speed_x_attack"],
-      speed_y_attack: p["speed_y_attack"],
-      nana: parse_nana(p["nana"]),
-      controller_state: parse_controller_state(p["controller_state"]),
-      connect_code: p["connect_code"]
+      character: p.character,
+      x: p.position.x,
+      y: p.position.y,
+      percent: p.percent,
+      stock: p.stock,
+      facing: if(p.facing, do: 1, else: -1),
+      action: p.action,
+      action_frame: p.action_frame,
+      invulnerable: p.invulnerable,
+      jumps_left: p.jumps_left,
+      on_ground: p.on_ground,
+      shield_strength: p.shield_strength,
+      hitstun_frames_left: p.hitstun_frames_left,
+      speed_air_x_self: p.speed_air_x_self,
+      speed_ground_x_self: p.speed_ground_x_self,
+      speed_y_self: p.speed_y_self,
+      speed_x_attack: p.speed_x_attack,
+      speed_y_attack: p.speed_y_attack,
+      nana: convert_nana(p.nana),
+      controller_state: convert_controller_state(p.controller_state),
+      connect_code: p.connectCode || ""
     }
   end
 
-  defp parse_nana(nil), do: nil
+  defp convert_nana(nil), do: nil
 
-  defp parse_nana(n) do
+  defp convert_nana(n) do
     %ExPhil.Bridge.Nana{
-      x: n["x"],
-      y: n["y"],
-      percent: n["percent"],
-      stock: n["stock"],
-      action: n["action"],
-      facing: n["facing"]
+      x: n.position.x,
+      y: n.position.y,
+      percent: n.percent,
+      stock: n.stock,
+      action: n.action,
+      facing: if(n.facing, do: 1, else: -1)
     }
   end
 
-  defp parse_controller_state(nil), do: nil
+  defp convert_controller_state(nil), do: nil
 
-  defp parse_controller_state(cs) do
+  defp convert_controller_state(cs) do
+    {mx, my} = cs.main_stick
+    {cx, cy} = cs.c_stick
+
     %ExPhil.Bridge.ControllerState{
-      main_stick: parse_stick(cs["main_stick"]),
-      c_stick: parse_stick(cs["c_stick"]),
-      l_shoulder: cs["l_shoulder"],
-      r_shoulder: cs["r_shoulder"],
-      button_a: cs["button_a"],
-      button_b: cs["button_b"],
-      button_x: cs["button_x"],
-      button_y: cs["button_y"],
-      button_z: cs["button_z"],
-      button_l: cs["button_l"],
-      button_r: cs["button_r"],
-      button_d_up: cs["button_d_up"]
+      main_stick: %{x: mx, y: my},
+      c_stick: %{x: cx, y: cy},
+      l_shoulder: cs.l_shoulder,
+      r_shoulder: cs.r_shoulder,
+      button_a: cs.button.a,
+      button_b: cs.button.b,
+      button_x: cs.button.x,
+      button_y: cs.button.y,
+      button_z: cs.button.z,
+      button_l: cs.button.l,
+      button_r: cs.button.r,
+      button_d_up: cs.button.d_up
     }
   end
 
-  defp parse_stick(nil), do: %{x: 0.5, y: 0.5}
-  defp parse_stick(s), do: %{x: s["x"], y: s["y"]}
+  defp convert_projectile(p) do
+    %ExPhil.Bridge.Projectile{
+      owner: p.owner,
+      x: p.position.x,
+      y: p.position.y,
+      type: p.type,
+      subtype: p.subtype,
+      speed_x: p.speed.x,
+      speed_y: p.speed.y
+    }
+  end
 
-  defp parse_projectiles(nil), do: []
+  # Which in-game port is the bot, under Slippi Online? We know the
+  # OPPONENT's connect code (it's what we searched for); the bot is the
+  # other tagged player. nil offline / ambiguous.
+  defp detect_own_port(_gamestate, ""), do: nil
 
-  defp parse_projectiles(projs) when is_list(projs) do
-    Enum.map(projs, fn p ->
-      %ExPhil.Bridge.Projectile{
-        owner: p["owner"],
-        x: p["x"],
-        y: p["y"],
-        type: p["type"],
-        subtype: p["subtype"],
-        speed_x: p["speed_x"],
-        speed_y: p["speed_y"]
-      }
+  defp detect_own_port(gamestate, opponent_code) do
+    norm = fn c -> (c || "") |> String.trim() |> String.upcase() end
+    opp = norm.(opponent_code)
+
+    codes =
+      for {port, p} <- gamestate.players, p != nil, into: %{} do
+        {port, norm.(p.connectCode)}
+      end
+
+    others = for {port, c} <- codes, c != "" and c != opp, do: port
+
+    case others do
+      [port] ->
+        port
+
+      _ ->
+        matches = for {port, c} <- codes, c == opp, do: port
+
+        with [m] <- matches,
+             2 <- map_size(codes) do
+          Enum.find(Map.keys(codes), &(&1 != m))
+        else
+          _ -> nil
+        end
+    end
+  end
+
+  # ============================================================================
+  # Teardown / misc helpers
+  # ============================================================================
+
+  defp teardown(state) do
+    if state.controller, do: safe(fn -> Melee.Controller.disconnect(state.controller) end)
+    if state.dummy_controller, do: safe(fn -> Melee.Controller.disconnect(state.dummy_controller) end)
+    if state.console, do: safe(fn -> Melee.Console.stop(state.console) end)
+    if state.dolphin, do: safe(fn -> Melee.Dolphin.stop(state.dolphin) end)
+
+    %{state | running: false, controller: nil, dummy_controller: nil, console: nil, dolphin: nil}
+  end
+
+  defp safe(fun) do
+    fun.()
+  catch
+    kind, reason -> Logger.debug("[MeleePort] cleanup: #{inspect({kind, reason})}")
+  end
+
+  defp normalize_config(config) when is_list(config), do: normalize_config(Map.new(config))
+
+  defp normalize_config(config) when is_map(config) do
+    Map.new(config, fn
+      {k, v} when is_binary(k) -> {String.to_existing_atom(k), v}
+      {k, v} -> {k, v}
     end)
   end
+
+  defp truthy?(nil), do: false
+  defp truthy?(false), do: false
+  defp truthy?(_), do: true
+
+  # Input maps may arrive with atom or string keys depending on the caller.
+  defp get_in_any(map, key) when is_map(map),
+    do: Map.get(map, key) || Map.get(map, Atom.to_string(key))
+
+  defp get_in_any(_map, _key), do: nil
+
+  defp to_character_id(v) when is_integer(v), do: v
+  defp to_character_id(v) when is_atom(v), do: Melee.Enums.Character.to_id(v)
+
+  defp to_character_id(v) when is_binary(v),
+    do: v |> String.downcase() |> String.to_existing_atom() |> Melee.Enums.Character.to_id()
+
+  defp to_stage_id(v) when is_integer(v), do: v
+  defp to_stage_id(v) when is_atom(v), do: Melee.Enums.Stage.to_id(v)
+
+  defp to_stage_id(v) when is_binary(v),
+    do: v |> String.downcase() |> String.to_existing_atom() |> Melee.Enums.Stage.to_id()
+
+  # Error struct kept for API compatibility with error-matching callers.
+  @doc false
+  def bridge_error(reason), do: BridgeError.new(reason, bridge: :melee_port)
 end
