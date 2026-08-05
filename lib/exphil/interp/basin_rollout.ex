@@ -23,16 +23,22 @@ defmodule ExPhil.Interp.BasinRollout do
 
   alias ExPhil.Bridge.ControllerState
   alias ExPhil.Data.{Peppi, RecoverySynth}
-  alias ExPhil.Training.Data
+  alias ExPhil.Interp.Activations
 
   @window_size 16
   @af_loop 120
+
+  # Every entry builder and the rollout accept `:config` (the policy's
+  # export config) + `:delay_id` — queue/delay-id (336-dim) policies embed
+  # in their trained layout via Activations.embed_frames/embed_config_for
+  # (2026-08-04 W1/W2 unblock). Omitting them keeps the classic 288-dim
+  # default layout, so crouch-zoo callers are unchanged.
 
   @doc """
   Build the synthetic training-style entry (post-shine lead-in -> Squat)
   from the canonical fixture. Returns `{window_tensor, template_frame}`.
   """
-  def entry_synthetic(fixture \\ "test/fixtures/replays/fox_multishine_closed.slp") do
+  def entry_synthetic(fixture \\ "test/fixtures/replays/fox_multishine_closed.slp", opts \\ []) do
     {:ok, replay} = Peppi.parse(fixture)
 
     frames =
@@ -46,14 +52,14 @@ defmodule ExPhil.Interp.BasinRollout do
     block = RecoverySynth.build_crouch(frames, port: 1, max_af: 40, lead_in: 16, ratio: 0.001)
 
     pre = Enum.take(block, length(block) - 40)
-    {embed_window(pre), List.last(pre)}
+    {embed_window(pre, opts), List.last(pre)}
   end
 
   @doc """
   Build an entry from a real replay's frames ending just before `at`
   (e.g. the first absorbed frame from chain_break_forensics).
   """
-  def entry_from_replay(path, at) do
+  def entry_from_replay(path, at, opts \\ []) do
     {:ok, replay} = Peppi.parse(path)
 
     frames =
@@ -61,7 +67,7 @@ defmodule ExPhil.Interp.BasinRollout do
       |> Peppi.to_training_frames(player_port: 1, opponent_port: 2)
       |> Enum.reject(&(&1.game_state.frame < 0))
 
-    entry_from_frames(Enum.slice(frames, max(at - @window_size, 0), @window_size))
+    entry_from_frames(Enum.slice(frames, max(at - @window_size, 0), @window_size), opts)
   end
 
   @doc """
@@ -72,8 +78,8 @@ defmodule ExPhil.Interp.BasinRollout do
   openings from an already-parsed replay or synthesis output
   (task #3, 2026-08-02).
   """
-  def entry_from_frames(frames) when frames != [] do
-    {embed_window(frames), List.last(frames)}
+  def entry_from_frames(frames, opts \\ []) when frames != [] do
+    {embed_window(frames, opts), List.last(frames)}
   end
 
   @doc """
@@ -124,7 +130,7 @@ defmodule ExPhil.Interp.BasinRollout do
            |> Enum.reject(&(&1.game_state.frame < 0)),
          {:ok, at} <- find_absorbed_index(frames, opts) do
       pre = Enum.slice(frames, max(at - @window_size, 0), @window_size)
-      {:ok, {entry_from_frames(pre), at}}
+      {:ok, {entry_from_frames(pre, opts), at}}
     else
       _ -> :none
     end
@@ -142,8 +148,14 @@ defmodule ExPhil.Interp.BasinRollout do
     player0 = template.game_state.players[1]
     base_frame = template.game_state.frame
 
+    embed_config = Activations.embed_config_for(Keyword.get(opts, :config))
+    delay_id = Keyword.get(opts, :delay_id) || 0
+    queue_depth = Map.get(embed_config, :queue_depth) || 1
+    ring0 = List.duplicate(template.controller, queue_depth)
+
     result =
-      Enum.reduce_while(1..max_frames, {entry_window, template.controller}, fn t, {win, prev_ctrl} ->
+      Enum.reduce_while(1..max_frames, {entry_window, ring0}, fn t, {win, ring} ->
+        prev_ctrl = hd(ring)
         af = rem(t - 1, @af_loop) + 1
         player = %{player0 | action: squat_wait, action_frame: af, on_ground: true}
 
@@ -154,7 +166,11 @@ defmodule ExPhil.Interp.BasinRollout do
         }
 
         emb =
-          ExPhil.Embeddings.Game.embed(gs, prev_ctrl, 1)
+          ExPhil.Embeddings.Game.embed(gs, prev_ctrl, 1,
+            config: embed_config,
+            queue_controllers: ring,
+            delay_id: delay_id
+          )
           |> Nx.backend_transfer(Nx.BinaryBackend)
           |> Nx.reshape({1, :auto})
 
@@ -165,7 +181,7 @@ defmodule ExPhil.Interp.BasinRollout do
         if ctrl.button_b and not prev_ctrl.button_b do
           {:halt, {:escape, t}}
         else
-          {:cont, {win, ctrl}}
+          {:cont, {win, [ctrl | Enum.take(ring, queue_depth - 1)]}}
         end
       end)
 
@@ -175,11 +191,12 @@ defmodule ExPhil.Interp.BasinRollout do
     end
   end
 
-  defp embed_window(frames) do
+  defp embed_window(frames, opts) do
     ds =
-      frames
-      |> Data.from_frames()
-      |> Data.precompute_frame_embeddings(use_prev_action: true, show_progress: false)
+      Activations.embed_frames(frames, Keyword.get(opts, :config) || %{},
+        delay_id: Keyword.get(opts, :delay_id),
+        use_prev_action: true
+      )
 
     emb = Nx.backend_transfer(ds.embedded_frames, Nx.BinaryBackend)
     {n, _} = Nx.shape(emb)

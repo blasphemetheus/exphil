@@ -181,20 +181,30 @@ defmodule ExPhil.Interp.CycleSim do
     player0 = template.game_state.players[1]
     base_frame = template.game_state.frame
 
+    # Queue/delay-id layout (2026-08-04): `:config` = the policy's export
+    # config, `:delay_id` = its deploy id; omitted -> classic 288-dim
+    # layout. `ring` = last K DECODED controllers (newest first, live-agent
+    # semantics — same stream the prev-action slot always tracked).
+    embed_config = ExPhil.Interp.Activations.embed_config_for(Keyword.get(opts, :config))
+    delay_id = Keyword.get(opts, :delay_id) || 0
+    embed_queue_depth = Map.get(embed_config, :queue_depth) || 1
+
     # decoded_prev = last DECODED controller (the prev-action channel and
     # the hysteresis held-state track the model's OWN emitted stream —
     # live-agent semantics); applied_prev = last APPLIED (edge
     # reference); queue = decoded-but-not-yet-applied, length decode_lag.
     queue0 = List.duplicate(template.controller, max(decode_lag, 0))
+    ring0 = List.duplicate(template.controller, embed_queue_depth)
 
     init =
-      {entry_window, template.controller, template.controller, queue0,
+      {entry_window, ring0, template.controller, queue0,
        {player0.action, player0.action_frame}, [], 0, []}
 
     result =
       Enum.reduce_while(1..max_frames, init, fn t,
-                                                {win, decoded_prev, applied_prev, queue,
+                                                {win, ring, applied_prev, queue,
                                                  {action, af}, actions, soft, trace} ->
+        decoded_prev = hd(ring)
         grounded = Map.get(table.grounded, action, true)
 
         # Statistical state reconstruction: y + speeds from the per-state
@@ -220,7 +230,11 @@ defmodule ExPhil.Interp.CycleSim do
         }
 
         emb =
-          ExPhil.Embeddings.Game.embed(gs, decoded_prev, 1)
+          ExPhil.Embeddings.Game.embed(gs, decoded_prev, 1,
+            config: embed_config,
+            queue_controllers: ring,
+            delay_id: delay_id
+          )
           |> Nx.backend_transfer(Nx.BinaryBackend)
           |> Nx.reshape({1, :auto})
 
@@ -289,7 +303,8 @@ defmodule ExPhil.Interp.CycleSim do
 
           {{next_action, next_af}, soft?} ->
             {:cont,
-             {win, ctrl, applied, next_queue, {next_action, next_af}, [next_action | actions],
+             {win, [ctrl | Enum.take(ring, embed_queue_depth - 1)], applied, next_queue,
+              {next_action, next_af}, [next_action | actions],
               soft + ((soft? && 1) || 0), trace}}
         end
       end)
@@ -352,8 +367,10 @@ defmodule ExPhil.Interp.CycleSim do
       |> Keyword.get(:graph_replays, [])
       |> Enum.flat_map(&load_frames/1)
 
-    {BasinRollout.entry_from_frames(Enum.take(frames, @window_size)),
-     transition_table(frames ++ graph_frames)}
+    {BasinRollout.entry_from_frames(
+       Enum.take(frames, @window_size),
+       Keyword.take(opts, [:config, :delay_id])
+     ), transition_table(frames ++ graph_frames)}
   end
 
   # Agent-path button decode: sigmoid(logit) vs press threshold when the

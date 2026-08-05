@@ -12,7 +12,8 @@
 #   XLA_TARGET=cpu mix run scripts/probe_replay_basin.exs \
 #     --policy checkpoints/ms_crouch_g.bin \
 #     --replay eval_runs/0727_crouch_g_idle/r1.slp \
-#     [--sample-every 30] [--out eval_runs/interp/replay_basin_g_r1.json]
+#     [--sample-every 30] [--out eval_runs/interp/replay_basin_g_r1.json] \
+#     [--delay-id 3]   # REQUIRED for with_delay_id policies (the deploy id)
 
 require Logger
 Logger.configure(level: :warning)
@@ -23,7 +24,13 @@ alias ExPhil.Training.{Data, Output}
 
 {opts, _, _} =
   OptionParser.parse(System.argv(),
-    strict: [policy: :string, replay: :string, sample_every: :integer, out: :string]
+    strict: [
+      policy: :string,
+      replay: :string,
+      sample_every: :integer,
+      out: :string,
+      delay_id: :integer
+    ]
   )
 
 policy_path = opts[:policy] || raise "--policy required"
@@ -44,15 +51,14 @@ frames =
 n = length(frames)
 Output.puts("Frames: #{n}")
 
-ds =
-  frames
-  |> Data.from_frames()
-  |> Data.precompute_frame_embeddings(use_prev_action: true, show_progress: false)
-
-emb = Nx.backend_transfer(ds.embedded_frames, Nx.BinaryBackend)
-
+# Policy-config-aware embedding (queue/delay-id layouts; --delay-id
+# required for with_delay_id policies — Activations.embed_frames raises).
 loaded = Activations.load_heads(policy_path)
 window = loaded.window
+
+ds = Activations.embed_frames(frames, loaded.config, delay_id: opts[:delay_id])
+
+emb = Nx.backend_transfer(ds.embedded_frames, Nx.BinaryBackend)
 
 # Predict in chunks to bound memory: windows ending at t for t in window-1..n-1
 batch = 512

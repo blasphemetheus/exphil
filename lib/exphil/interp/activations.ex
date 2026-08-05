@@ -31,6 +31,72 @@ defmodule ExPhil.Interp.Activations do
   alias ExPhil.Training.{Data, Utils}
 
   @doc """
+  Policy-config-aware replay embedding (2026-08-04, W1/W2 unblock): build
+  the dataset embedding in the exact layout the checkpoint trained on —
+  `queue_depth`, `with_delay_id`, `use_prev_action` — mirroring the drill's
+  pool construction. The crouch-era instruments hardcoded the default
+  288-dim layout, which no production (queue/delay-id, 336-dim) policy can
+  consume.
+
+  `:delay_id` is REQUIRED when the config has `with_delay_id: true`:
+  delay-id policies have per-id behavioral MODES, and a wrong/defaulted id
+  is a phantom-bug factory (the eval_policy_on_fixture 2026-08-03 lesson —
+  record policies read as broken at id 0).
+
+  Note: this path embeds fresh (no disk cache) — `delay_id` is not part of
+  the embedding cache key, so cached entries would silently collide across
+  ids.
+
+  Returns the dataset with `:embedded_frames` set.
+  """
+  def embed_frames(frames, config, opts \\ []) do
+    delay_id = Keyword.get(opts, :delay_id)
+
+    if Map.get(config, :with_delay_id, false) and delay_id == nil do
+      raise ArgumentError,
+            "policy trained with_delay_id — pass delay_id: N (the id it deploys at; " <>
+              "a wrong or defaulted id selects a different behavioral mode, not noise)"
+    end
+
+    dataset = Data.from_frames(frames)
+
+    dataset = %{
+      dataset
+      | embed_config: %{
+          dataset.embed_config
+          | queue_depth: Map.get(config, :queue_depth) || 1,
+            with_delay_id: Map.get(config, :with_delay_id, false)
+        }
+    }
+
+    precompute_opts = [
+      use_prev_action:
+        Keyword.get(opts, :use_prev_action, Map.get(config, :use_prev_action, true)),
+      show_progress: Keyword.get(opts, :show_progress, false)
+    ]
+
+    precompute_opts =
+      if delay_id, do: precompute_opts ++ [delay_id: delay_id], else: precompute_opts
+
+    Data.precompute_frame_embeddings(dataset, precompute_opts)
+  end
+
+  @doc """
+  Derive the `Embeddings.Game.Config` for a policy config's layout —
+  the single-frame-embed counterpart of `embed_frames/3` (closed-loop
+  simulators build frames one at a time and can't go through a dataset).
+  """
+  def embed_config_for(nil), do: ExPhil.Embeddings.Game.Config.default()
+
+  def embed_config_for(config) do
+    %{
+      ExPhil.Embeddings.Game.Config.default()
+      | queue_depth: Map.get(config, :queue_depth) || 1,
+        with_delay_id: Map.get(config, :with_delay_id, false)
+    }
+  end
+
+  @doc """
   Load an exported policy `.bin` and build its trunk-only predict function.
 
   Returns a map with `:predict_fn`, `:params`, `:config`, `:window`,
@@ -232,16 +298,30 @@ defmodule ExPhil.Interp.Activations do
     # prev-action regime) — we re-embedded the same dozen replays ~30x/day
     # before this. Ablated captures (use_prev_action false) get their own
     # cache entries via the key's use_prev_action component.
+    # Queue/delay-id policies take the config-aware uncached path instead:
+    # delay_id is not in the cache key, so cached entries would collide.
+    config = Map.get(trunk, :config, %{})
+
+    custom_layout? =
+      (Map.get(config, :queue_depth) || 1) > 1 or Map.get(config, :with_delay_id, false)
+
     dataset =
-      frames
-      |> Data.from_frames()
-      |> Data.precompute_frame_embeddings_cached(
-        cache: true,
-        replay_files: [path],
-        use_prev_action: use_prev_action,
-        prev_action_dropout: 0.0,
-        show_progress: false
-      )
+      if custom_layout? do
+        embed_frames(frames, config,
+          delay_id: Keyword.get(opts, :delay_id),
+          use_prev_action: use_prev_action
+        )
+      else
+        frames
+        |> Data.from_frames()
+        |> Data.precompute_frame_embeddings_cached(
+          cache: true,
+          replay_files: [path],
+          use_prev_action: use_prev_action,
+          prev_action_dropout: 0.0,
+          show_progress: false
+        )
+      end
 
     # The generic batch->forward->collect loop lives in edifice now
     # (Edifice.Interpretability.Capture, the audit-gap-3 port); this

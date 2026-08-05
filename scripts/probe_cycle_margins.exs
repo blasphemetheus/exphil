@@ -31,7 +31,13 @@ alias ExPhil.Training.{Data, Output}
 
 {opts, _, _} =
   OptionParser.parse(System.argv(),
-    strict: [policies: :string, out: :string, offset: :integer, replay: :string]
+    strict: [
+      policies: :string,
+      out: :string,
+      offset: :integer,
+      replay: :string,
+      delay_id: :integer
+    ]
   )
 
 policy_glob = opts[:policies] || "checkpoints/ms_crouch*.bin"
@@ -136,15 +142,15 @@ results =
         |> Peppi.to_training_frames(player_port: 1, opponent_port: 2)
         |> Enum.reject(&(&1.game_state.frame < 0))
 
-      ds =
-        frames
-        |> Data.from_frames()
-        |> Data.precompute_frame_embeddings(use_prev_action: true, show_progress: false)
+      # Policy-config-aware embedding (queue/delay-id layouts; --delay-id
+      # required for with_delay_id policies — Activations.embed_frames raises).
+      loaded = Activations.load_heads(path)
+      window = loaded.window
+
+      ds = Activations.embed_frames(frames, loaded.config, delay_id: opts[:delay_id])
 
       emb = Nx.backend_transfer(ds.embedded_frames, Nx.BinaryBackend)
       {total, _} = Nx.shape(emb)
-      loaded = Activations.load_heads(path)
-      window = loaded.window
 
       logits =
         (window - 1)..(total - 1)

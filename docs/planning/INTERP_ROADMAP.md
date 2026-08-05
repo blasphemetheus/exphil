@@ -1,6 +1,10 @@
 # Mechanistic Interpretability Roadmap
 
-**Status doc — revisit and check off milestones as they land.**
+**v1 CLOSED 2026-08-04 — all phases P0–P6 have verdicts. This doc is
+now the instrument log / historical record. The live roadmap is
+[INTERP_ROADMAP_V2.md](INTERP_ROADMAP_V2.md) (the application arc:
+customer-driven workstreams W1–W5).**
+
 Created 2026-07-13. Owner: Bradley + Claude sessions.
 
 ## Strategic context
@@ -372,7 +376,10 @@ discovery. Effort: ~2-3 days. Stretch tier — unblock after Phases 1-3.
       rise). Note: the headline curve needed only per-frame capture; the
       per-timestep tier (P0 better, landed same day) serves the
       within-window logit-lens variant.
-- [~] P5: one closed curation cycle — **CYCLE #1 RAN 2026-08-03**
+- [x] P5: one closed curation cycle — CLOSED POSITIVE 2026-08-04: cycle 3b
+      (aligned REAL-HUMAN snippets) held the stand gate at 421/min AND
+      cut YS collapses 2-of-3 → 0-of-3 (see INTERP_ROADMAP_V2 experiment
+      log). History: **CYCLE #1 RAN 2026-08-03**
       (eval_runs/0803_pressure_cycle.sh, ms_g7_pressure.bin): fight-state
       gap, synthetic pressure (champion vs cpu-9). Verdict: pressure
       metric IMPROVED (+43% shine rate under pressure, fewer hits taken)

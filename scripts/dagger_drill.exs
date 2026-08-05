@@ -56,6 +56,10 @@ alias ExPhil.Embeddings
       probe_every: :integer,
       probe_entries: :string,
       snippet_frames: :string,
+      allow_snippet_delay_mismatch: :boolean,
+      y_augment: :float,
+      y_augment_offset: :float,
+      y_augment_frames: :integer,
       reject_at: :integer,
       reject_on: :string,
       bc_replays: :string,
@@ -566,12 +570,22 @@ snippet_frame_lists =
         export_delay = payload[:action_delay] || 0
 
         if export_delay != action_delay do
-          Output.warning(
+          # FATAL since 2026-08-04 (GOTCHA #86): this was a warning, cycle
+          # 3a launched over it, and 100 GPU-minutes produced an invalid
+          # checkpoint (stand 104.9 vs 421.4 for the same data aligned —
+          # the misalignment also manufactured 80 phantom miner anchors).
+          # A contract mismatch that corrupts training must abort.
+          Output.error(
             "#{Path.basename(p)} exported at action_delay=#{export_delay} but this drill " <>
-              "uses #{action_delay} — the :prev_controller channel is misaligned by " <>
-              "#{abs(export_delay - action_delay)} frame(s); re-mine with " <>
-              "--action-delay #{action_delay}"
+              "uses #{action_delay} — the :prev_controller channel would be misaligned by " <>
+              "#{abs(export_delay - action_delay)} frame(s). Re-mine with " <>
+              "--action-delay #{action_delay} (or pass --allow-snippet-delay-mismatch " <>
+              "if you are deliberately studying the corruption)."
           )
+
+          unless opts[:allow_snippet_delay_mismatch] do
+            System.halt(1)
+          end
         end
 
         lists
@@ -621,6 +635,62 @@ all_frame_lists =
 
       Output.puts("Synthetic opening frames: #{length(opening_synth)}")
       all_frame_lists ++ [opening_synth]
+  end
+
+# --y-augment FRAC (2026-08-04, cycle 4a): platform-competence repair by
+# label-preserving altitude augmentation. The absorber diagnosis showed the
+# X/JC head is silenced by the OWN-Y channel alone (grounded-at-height is
+# OOD for FD-only data; patch-confirmed), and the relapse dashboard showed
+# every lineage checkpoint carries the hole — g10b merely routes around it.
+# The multishine cycle is position-independent, so shifting whole frame
+# lists up by a platform offset creates grounded-at-height exemplars with
+# correct labels for free. Whole lists are shifted (never frames within a
+# list) so window histories stay internally consistent.
+# Dose is a FRAME budget, not a list fraction: cycle-4a run 1 (2026-08-04)
+# sampled 25% of lists, landed 44,450 frames (3.5x the known-safe snippet
+# scale) and P3'd the core (stand 421 -> 82) — while moving plat X_mean
+# −5.8 -> −1.35, so the signal works and only the dose was wrong. Budget
+# default matches the validated snippet dose. Small lists are preferred
+# (fixture/snippet-scale, cleanest cycles) to keep composition skew low.
+y_aug = opts[:y_augment] || 0.0
+
+all_frame_lists =
+  if y_aug > 0.0 do
+    offset = opts[:y_augment_offset] || 23.45
+    budget = opts[:y_augment_frames] || 12_000
+
+    shifted =
+      all_frame_lists
+      |> Enum.sort_by(&length/1)
+      |> Enum.reduce_while({[], 0}, fn list, {acc, n} ->
+        if n >= budget,
+          do: {:halt, {acc, n}},
+          else: {:cont, {[list | acc], n + length(list)}}
+      end)
+      |> elem(0)
+      |> Enum.map(fn list ->
+        Enum.map(list, fn f ->
+          p = f.game_state.players[port]
+
+          %{
+            f
+            | game_state: %{
+                f.game_state
+                | players: Map.put(f.game_state.players, port, %{p | y: p.y + offset})
+              }
+          }
+        end)
+      end)
+
+    Output.puts(
+      "Y-augment: #{length(shifted)} lists (+#{offset} own-y) = " <>
+        "#{Enum.sum(Enum.map(shifted, &length/1))} grounded-at-height frames " <>
+        "(budget #{budget})"
+    )
+
+    all_frame_lists ++ shifted
+  else
+    all_frame_lists
   end
 
 # --x-hold-extend N (2026-07-31, ported from train_multishine_policy):

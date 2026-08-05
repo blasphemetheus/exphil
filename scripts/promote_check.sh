@@ -21,6 +21,16 @@
 #   3. MOVING OPPONENT — a dummy that never acts is the whole problem.
 #      cpu-9 measured FLAT (21-26/min) across every policy and does NOT
 #      discriminate, so this uses --p2-policy (policy vs policy).
+#   0. OPPONENT-SENSITIVITY (offline, seconds, runs FIRST) — perturb the
+#      opponent's state in a fixed replay's frames and measure B/X logit
+#      movement (scripts/probe_opponent_dependence.exs). Measured
+#      2026-08-04 on the g6/g4/g2 labeled contrast: the score ranks
+#      INVERSELY with human performance (g4 1.34 / g2 1.83 / g6 3.84 vs
+#      human shines 40 / ~25 / 0). Static overfit is not opponent
+#      BLINDNESS — it is overfitting TO the static opponent: the dummy's
+#      exact state becomes cycle context, and any perturbation (i.e. a
+#      human) destabilizes it. LOW = robust cycle, HIGH = red flag.
+#      Three calibration points; advisory like everything else here.
 #
 # All three are advisory: they print a verdict, they do not block. We have
 # one human data point per policy and thresholds are not calibrated — a
@@ -45,6 +55,12 @@ OUT="eval_runs/promote_${NAME}_$(date +%m%d%H%M)"
 mkdir -p "$OUT"
 
 echo "=== PROMOTE-CHECK $NAME (deploy rung d$RUNG)"
+
+echo "--- 0/3 opponent-sensitivity (offline; LOW=robust, HIGH=static-overfit flag)"
+echo "    reference: g4_d2mix 1.34 (human-best) / g2_mdq_ss 1.83 / g6_sp1 3.84 (human-zero)"
+XLA_TARGET=cpu mix run scripts/probe_opponent_dependence.exs \
+  --policies "$CKPT" --delay-id "$RUNG" \
+  --out "$OUT/opp_dependence.json" 2>&1 | grep -aE "DEPENDENCE|far|neutral" || true
 
 echo "--- 1/3 deploy-rung chain (FD, stand dummy)"
 EXLA_TARGET=host bash scripts/eval_live_protocol.sh "$CKPT" "$OUT/rung" \

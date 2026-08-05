@@ -3320,3 +3320,22 @@ fixture states, so it cannot see closed-loop mode collapse. An UNTRAINED
 delay-id (catastrophic live: 71/min vs 434) still scores 0.93 offline.
 Offline agreement answers "did it learn the mapping"; CycleSim answers
 "does the closed loop hold". Use both.
+
+## 86. Training-corrupting contract mismatches must ABORT, not warn (the cycle-3a lesson)
+
+The snippet loader detected cycle 3a's action-delay mismatch (snippets
+mined at `--action-delay 5`, drill running 2) and printed a correct,
+specific warning — into a launcher log nobody reads until the run ends.
+The run proceeded: 100 GPU-minutes, an invalid checkpoint (stand 104.9/min
+vs **421.4** for the SAME source games re-mined aligned), and a
+near-miss on a wrong P3 verdict for the whole human-curation program.
+The misalignment also corrupted the MINER itself: 80 of 173 anchors were
+phantoms (aligned re-mine: 93 anchors / 12,339 frames vs 173 / 20,317).
+
+Since 2026-08-04 the drill exits 1 on the mismatch
+(`--allow-snippet-delay-mismatch` opts out, for deliberately studying the
+corruption). General rule: a detected contract violation that silently
+corrupts training data is a GATE, not a log line — launchers pipe
+through grep/tail, tmux panes scroll away, and a warning that costs
+nothing to ignore will be ignored at 2 AM. Reserve warnings for
+degradations a run can survive.
