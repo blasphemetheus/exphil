@@ -232,7 +232,7 @@ defmodule ExPhil.MixProject do
       {:pythonx, "~> 0.3", optional: true},
 
       # Native libmelee port (replaces the Python melee_bridge)
-      {:libmelee_ex, path: "../libmelee_ex"},
+      {:libmelee_ex, libmelee_ex_dep()},
 
       # Telemetry & Metrics
       {:telemetry, "~> 1.2"},
@@ -260,6 +260,21 @@ defmodule ExPhil.MixProject do
       {:stream_data, "~> 1.1", only: [:dev, :test]},
       {:muzak, "~> 1.1", only: :test}
     ]
+  end
+
+  # Same resolution strategy as edifice_dep/0: local sibling for
+  # development, GitHub for Docker/CI builds where no sibling exists.
+  defp libmelee_ex_dep do
+    cond do
+      path = System.get_env("LIBMELEE_EX_PATH") ->
+        [path: path]
+
+      System.get_env("DOCKER_BUILD") ->
+        [github: System.get_env("LIBMELEE_EX_REPO") || "blasphemetheus/libmelee_ex"]
+
+      true ->
+        [path: "../libmelee_ex"]
+    end
   end
 
   defp edifice_dep do
