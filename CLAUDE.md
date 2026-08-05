@@ -61,20 +61,26 @@ ExPhil is an Elixir-based platform for experimenting with neural network archite
 docs/planning/HANDOFF_*` picks it) — it is the live resume point;
 everything below is background inventory.
 
-**Production policy (2026-08-04): `checkpoints/ms_g4_d2mix.bin`** —
-best measured against a HUMAN (chain 2, 40 shines/game) and the top d3
-dummy chainer (424/min, chain 423). Deploy at `--frame-delay 3`.
+**Production policy (2026-08-05): `checkpoints/ms_g10b_human.bin`** —
+crowned with EVERY rung recorded (the full 08-04 promotion rule):
+stand d3 421/min c421; **YS 0-of-11 collapses** (chains 43-208);
+opp-sensitivity rung-0 1.44 (robust band); **human netplay chain 4**
+(new record; lag peak verified 6 @ 99.6%) at 32-47 self-shines/min;
+human LOCAL chain 22. **Deploy at `--frame-delay 4`** — d4 beat d3
+vs a human on both metrics (chains 4/3 vs 3/2, ~40 vs ~30/min; n=2
+per rung). Trained multi-delay {2,3,4} + aligned human snippets
+(cycle 3b — the P5 curation loop's validated product).
 
-> **The 08-03 crowning of `ms_g6_sp1` was REVERTED.** It won the
-> stand-dummy comparison (434 vs 380) and then scored **zero shines in
-> two human games** while the policy it displaced shone 20-27/game. The
-> dummy ranking is INVERTED against humans. Rank by chain strength at
-> the DEPLOY rung, and never crown on stand-dummy numbers alone — see
-> `docs/planning/HUMAN_PLAY_FINDINGS_2026-08-04.md`.
+> **Standing rule (the g6 lesson, 08-04):** rank by chain strength at
+> the DEPLOY rung and never crown on stand-dummy numbers alone — the
+> dummy ranking can INVERT against humans (`ms_g6_sp1`: dummy record,
+> human zero; mechanism: overfit to the dummy's frozen state, see
+> INTERP_ROADMAP_V2 log). YS claims need n>=8 run-level buckets.
 >
-> Sober caveat on all of it: **no checkpoint multishines against a
-> human** (best chain 2, versus 400+ against a dummy). The chains are a
-> static-environment result.
+> The 08-04 "no checkpoint multishines against a human" caveat is
+> RESOLVED (08-05): g10b chains 22 locally / 4 over netplay vs a
+> human. The remaining gap is the DELAY REGIME (22 -> 4 within-policy,
+> same day/opponent) — task #20 is the bottleneck, not fight-state.
 
 Never deploy at an untrained delay-id. Fast eval recipe: sync headless
 `--emulation-speed 0 --blocking-input` (record-equivalent, half wall

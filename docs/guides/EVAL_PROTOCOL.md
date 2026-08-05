@@ -80,6 +80,8 @@ revisit promote_check thresholds. Score CHAINS from replays
 | 2026-08-03/04 | ms_g4_d2mix | 1.34 | 423 | 2/3 | 40 | 2 |
 | 2026-08-03/04 | ms_g2_mdq_ss | 1.83 | 367 | — | 21-29 | 1 |
 | 2026-08-03/04 | ms_g6_sp1 | 3.84 | 409 (id 3) | — | 0 | 0 |
+| 2026-08-05 | **ms_g10b_human** | 1.44 | 421 | **0/11** | 89-109 self (28-33/min) | **3** (netplay; lag peak 5 @ 99.8%) |
+| 2026-08-05 | ms_g10b_human (LOCAL, ~2f) | — | — | — | 47-94 self | **22** — delay regime costs 22→3, same day/opponent |
 
 Reading so far (n=3): FD chain does NOT rank human outcome; opp-sens
 ranks it inversely and perfectly. Neither is calibrated — that is what
