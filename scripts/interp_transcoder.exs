@@ -226,14 +226,24 @@ results =
       )
     end
 
-    # Persist the dictionary for Stage 2 (frozen-gate attribution)
+    # Persist the dictionary for Stage 2 (frozen-gate attribution).
+    # GOTCHA #1: EXLA tensors serialize as dead buffer refs — deep-transfer
+    # the ModelState to BinaryBackend before term_to_binary.
     dict_path = "eval_runs/interp/transcoder_#{seed}.bin"
+
+    deep = fn
+      %Nx.Tensor{} = t, _self -> Nx.backend_transfer(t, Nx.BinaryBackend)
+      %{} = m, self -> Map.new(m, fn {k, v} -> {k, self.(v, self)} end)
+      other, _self -> other
+    end
+
+    binary_params = %{fit.params | data: deep.(fit.params.data, deep)}
 
     File.write!(
       dict_path,
       :erlang.term_to_binary(%{
         build_opts: fit.build_opts,
-        params: fit.params,
+        params: binary_params,
         x_mean: Nx.backend_transfer(x_mean, Nx.BinaryBackend),
         x_std: Nx.backend_transfer(x_std, Nx.BinaryBackend),
         y_mean: Nx.backend_transfer(y_mean, Nx.BinaryBackend),
