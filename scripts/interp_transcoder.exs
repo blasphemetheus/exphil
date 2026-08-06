@@ -95,6 +95,11 @@ results =
     {x_parts, y_parts, label_parts} =
       replays
       |> Enum.map(fn rp ->
+        # Per-replay TRUE delay id (multi-id dictionaries: an id-4 one-hot
+        # dim that is constant-0 in the corpus gets ~0 std and explodes
+        # under standardization — the pass-2 lesson). Path convention: the
+        # d4 netplay dirs carry "_d4".
+        delay_id = if String.contains?(rp, "_d4"), do: 4, else: delay_id
         cap = Activations.capture_replay(trunk, rp, delay_id: delay_id)
 
         frames =
