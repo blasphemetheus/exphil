@@ -118,6 +118,25 @@ pub struct ParsedReplay {
 // Character & Stage Mappings
 // ============================================================================
 
+/// Convert an INTERNAL (in-game) character ID to our standard frame-level ID.
+///
+/// Post-frame events carry the game's internal enum (Mario=0x00, Fox=0x01,
+/// ..., Ganondorf=0x19, Roy=0x1A, ... Sandbag=0x20), NOT the external CSS
+/// enum game-start uses. Historically post.character was fed through
+/// `character_id/1` (the external table) — numerically the identity for
+/// 0x00..=0x19, so every character trained to date got a consistent id and
+/// no checkpoint noticed, but ids >= 0x1A fell to -1 (Roy -> -1, found by
+/// libmelee_ex's differential work 2026-08-05). The frame-level convention
+/// is therefore pinned as IDENTITY (standard id == internal id, 33 slots
+/// matching the 33-dim character one-hot); unknowns clamp to 32, never -1
+/// (a negative embedding index).
+fn internal_character_id(char_id: u8) -> i32 {
+    match char_id {
+        0x00..=0x20 => char_id as i32,
+        _ => 32,
+    }
+}
+
 /// Convert peppi's external character ID to our standard ID
 fn character_id(char_id: u8) -> i32 {
     // Peppi uses "external" character IDs (CSS order)
@@ -313,7 +332,7 @@ fn parse_player_frame(data: &Data) -> PlayerFrame {
         .unwrap_or(true);
 
     PlayerFrame {
-        character: character_id(post.character),
+        character: internal_character_id(post.character),
         x: post.position.x as f64,
         y: post.position.y as f64,
         percent: post.percent as f64,
@@ -459,3 +478,21 @@ fn get_replay_metadata(path: String) -> NifResult<(Atom, ReplayMeta)> {
 
 // Register NIFs
 rustler::init!("Elixir.ExPhil.Data.Peppi");
+
+#[cfg(test)]
+mod tests {
+    // The frame-level convention is IDENTITY over internal ids (see
+    // internal_character_id docs): checkpoints trained pre-fix depend on
+    // 0x00..=0x19 staying numerically unchanged; Roy (0x1A) must be 26,
+    // never -1; unknowns clamp into the 33-slot one-hot, never negative.
+    #[test]
+    fn internal_character_ids_identity_no_negatives() {
+        assert_eq!(super::internal_character_id(0x01), 1); // Fox (unchanged)
+        assert_eq!(super::internal_character_id(0x10), 16); // Mewtwo (unchanged)
+        assert_eq!(super::internal_character_id(0x1A), 26); // Roy (was -1)
+        assert_eq!(super::internal_character_id(0x20), 32); // Sandbag
+        for id in 0..=255u8 {
+            assert!(super::internal_character_id(id) >= 0);
+        }
+    }
+}
