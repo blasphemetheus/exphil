@@ -104,7 +104,7 @@ for i in $(seq 1 "$RUNS"); do
   kill_dolphins
   echo "=== run $i/$RUNS start $(date +%H:%M:%S) loadavg=$(cut -d' ' -f1 /proc/loadavg)"
   run_start=$(date +%s)
-  XLA_TARGET="${XLA_TARGET_EVAL:-cpu}" timeout $((SECONDS_ARG + 420)) mix run "$RUNNER_SCRIPT" \
+  XLA_TARGET="${XLA_TARGET_EVAL:-cuda12}" timeout $((SECONDS_ARG + 420)) mix run "$RUNNER_SCRIPT" \
     --policy "$POLICY" \
     --dolphin "$DOLPHIN_DIR" --iso "$ISO" \
     --replay-dir "$HOME/Slippi" \
@@ -136,7 +136,7 @@ done
 # reach). Advisory, not fatal — we have no calibrated threshold yet, and a
 # hard gate on an uncalibrated number would block good runs.
 echo "=== offline fixture agreement"
-FIXTURE_AGREE=$(XLA_TARGET="${XLA_TARGET_EVAL:-cpu}" mix run scripts/eval_policy_on_fixture.exs \
+FIXTURE_AGREE=$(XLA_TARGET="${XLA_TARGET_EVAL:-cuda12}" mix run scripts/eval_policy_on_fixture.exs \
   --policy "$POLICY" 2>&1 | grep -a "FIXTURE_AGREEMENT" | tail -1)
 echo "  ${FIXTURE_AGREE:-(unavailable)}"
 echo "fixture_agreement: ${FIXTURE_AGREE:-unavailable}" >> "$OUTDIR/protocol.txt"
@@ -155,7 +155,7 @@ mix run scripts/analyze_shine_source.exs $SLPS 2>&1 | grep -a "replay  \|r[0-9] 
 # the numbers above measure the harness, not the policy. Peak POSITION is
 # harness-specific — compare concentration only (HANDOFF_2026-07-29b rule 2).
 echo "=== calibration (r1)"
-XLA_TARGET="${XLA_TARGET_EVAL:-cpu}" mix run scripts/probe_cycle_margins.exs \
+XLA_TARGET="${XLA_TARGET_EVAL:-cuda12}" mix run scripts/probe_cycle_margins.exs \
   --policies "$POLICY" --replay "$OUTDIR/r1.slp" \
   --out "$OUTDIR/cal_r1.json" 2>&1 | grep -a "cal="
 echo "=== done. Protocol: report mean AND range; <2x differences are unresolved (EXPOSURE_BIAS.md 0a/0b)."

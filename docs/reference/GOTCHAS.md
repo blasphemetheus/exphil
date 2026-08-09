@@ -3407,3 +3407,20 @@ records (c421 etc.) and the 08-05 human records (22/23 local, 3-4
 netplay — strict-recounted 2026-08-07) are ShineChain numbers and stand.
 Rule: multishine CLAIMS cite ShineChain; forensics is for break
 classification only.
+
+## 90. Post-reboot CPU-flavor libexla loses CUDA symbols — eval default is now cuda12
+
+After the 2026-08-09 reboot, `XLA_TARGET=cpu` builds of the forked
+libexla fail to load: `undefined symbol: cudaGetErrorString`. The fork
+bundles the 46 fused CUDA custom-call kernels unconditionally, so even
+the "cpu" flavor references cudart, and the post-reboot relink (cache
+fingerprint `bild2...`) left the symbol unresolved. Every
+`eval_live_protocol.sh` sub-invocation died at EXLA start (`EXLA.NIF is
+not available`), which presents as three instant NO-FRESH-REPLAY runs.
+
+Fix: the protocol's default is now `XLA_TARGET_EVAL:-cuda12` (the
+protocol already refuses to run beside training, so CPU isolation
+bought nothing on this box). The broken cache entries were deleted. If
+a genuine CPU-only eval is ever needed, the CPU flavor must be relinked
+against cudart (or the fork's Makefile taught to exclude the CUDA
+custom-call objects for cpu targets) — deferred until someone needs it.
