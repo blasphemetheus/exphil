@@ -135,6 +135,7 @@ defmodule ExPhil.Training.Config do
   @valid_flags [
     "--replays",
     "--replay-dir",
+    "--corpus",
     "--epochs",
     "--batch-size",
     "--hidden-sizes",
@@ -491,6 +492,9 @@ defmodule ExPhil.Training.Config do
   def defaults do
     [
       replays: @default_replays_dir,
+      # Pre-built MmapCorpus directory (scripts/build_corpus.exs) —
+      # bypasses parse/embed entirely; overrides :replays when set
+      corpus: nil,
       epochs: 10,
       batch_size: 64,
       hidden_sizes: @default_hidden_sizes,

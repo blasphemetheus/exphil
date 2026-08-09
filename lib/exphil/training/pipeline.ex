@@ -46,6 +46,10 @@ defmodule ExPhil.Training.Pipeline do
     # Resolved options (button_pos_weight tensor, character_weights, etc.)
     :resolved_opts,
 
+    # Corpus mode state (pre-built MmapCorpus — no parse/embed at train time)
+    :corpus,
+    :corpus_train_ranges,
+
     # Streaming mode state
     :streaming,
     :file_chunks,
@@ -95,9 +99,13 @@ defmodule ExPhil.Training.Pipeline do
   def setup(opts) do
     streaming = opts[:stream_chunk_size] != nil and opts[:stream_chunk_size] > 0
 
-    with {:ok, replay_files, replay_stats} <- find_and_validate_replays(opts),
-         {:ok, pipeline} <- build_pipeline(replay_files, replay_stats, streaming, opts) do
-      {:ok, pipeline}
+    if opts[:corpus] do
+      build_pipeline_corpus(opts)
+    else
+      with {:ok, replay_files, replay_stats} <- find_and_validate_replays(opts),
+           {:ok, pipeline} <- build_pipeline(replay_files, replay_stats, streaming, opts) do
+        {:ok, pipeline}
+      end
     end
   end
 
@@ -125,6 +133,10 @@ defmodule ExPhil.Training.Pipeline do
   - `:drop_last` — Drop incomplete final batch (default: true)
   """
   @spec batch_stream(t(), keyword()) :: {Enumerable.t(), non_neg_integer()}
+  def batch_stream(%{corpus: corpus} = pipeline, opts) when corpus != nil do
+    batch_stream_corpus(pipeline, opts)
+  end
+
   def batch_stream(%{streaming: true} = pipeline, opts) do
     batch_stream_streaming(pipeline, opts)
   end
@@ -458,6 +470,118 @@ defmodule ExPhil.Training.Pipeline do
 
       {:ok, pipeline}
     end
+  end
+
+  # ============================================================================
+  # Private — Corpus mode (pre-built MmapCorpus, see scripts/build_corpus.exs)
+  # ============================================================================
+
+  defp build_pipeline_corpus(opts) do
+    alias ExPhil.Training.MmapCorpus
+
+    if !opts[:temporal] do
+      raise ArgumentError,
+            "--corpus requires temporal training (the corpus stores frame " <>
+              "embeddings for windowed sequence batches; use a temporal backbone)"
+    end
+
+    dir = opts[:corpus]
+    Output.step(1, 3, "Opening corpus")
+    corpus = MmapCorpus.open!(dir)
+
+    Output.puts(
+      "  #{dir}: #{corpus.num_frames} frames from #{length(corpus.files)} files " <>
+        "(embed #{corpus.embed_size}, #{Float.round(corpus.num_frames * corpus.embed_size * 4 / 1.0e9, 1)}GB on disk)"
+    )
+
+    window = opts[:window_size] || 60
+    stride = opts[:stride] || 5
+    batch_size = opts[:batch_size] || 32
+
+    {train_ranges, val_ranges} = MmapCorpus.split_files(corpus, opts[:val_split] || 0.1)
+
+    n_train = length(MmapCorpus.sequence_starts(train_ranges, window, stride))
+
+    Output.puts(
+      "  Train: #{length(train_ranges)} files / #{n_train} sequences, " <>
+        "Val: #{length(val_ranges)} files (whole-game holdout)"
+    )
+
+    Output.step(2, 3, "Preparing validation")
+
+    {val_stream, n_val} =
+      MmapCorpus.batched_sequences(corpus, val_ranges,
+        window_size: window,
+        stride: stride,
+        batch_size: batch_size,
+        shuffle: false,
+        drop_last: false,
+        gpu: false,
+        neutral_weight: Keyword.get(opts, :neutral_weight, 0.25)
+      )
+
+    val_batches = if n_val > 0, do: Enum.to_list(val_stream), else: nil
+    Output.puts("  #{n_val} validation batches")
+
+    Output.step(3, 3, "Resolving config")
+
+    resolved_opts =
+      opts
+      |> Keyword.put(:embed_size, corpus.embed_size)
+      |> resolve_corpus_button_pos_weight(corpus)
+
+    pipeline = %__MODULE__{
+      corpus: corpus,
+      corpus_train_ranges: train_ranges,
+      val_batches: val_batches,
+      replay_files: Enum.map(corpus.files, & &1.path),
+      replay_stats: %{total: length(corpus.files), invalid: 0},
+      streaming: false,
+      estimated_batches: div(n_train, batch_size),
+      resolved_opts: resolved_opts
+    }
+
+    {:ok, pipeline}
+  end
+
+  defp resolve_corpus_button_pos_weight(opts, corpus) do
+    alias ExPhil.Training.MmapCorpus
+
+    case opts[:button_pos_weight] do
+      :auto ->
+        rates = MmapCorpus.button_rates(corpus)
+        button_order = [:a, :b, :x, :y, :z, :l, :r, :d_up]
+        rates_tensor =
+          button_order
+          |> Enum.map(&Map.get(rates, &1, 0.0))
+          |> Nx.tensor(type: :f32)
+          |> Nx.backend_copy(Nx.BinaryBackend)
+
+        pos_weight = ExPhil.Networks.Policy.Loss.compute_pos_weights_from_rates(rates_tensor)
+        Output.puts("  Per-button pos_weight: #{inspect(Nx.to_flat_list(pos_weight) |> Enum.map(&Float.round(&1, 1)))}")
+        Keyword.put(opts, :button_pos_weight, pos_weight)
+
+      _ ->
+        opts
+    end
+  end
+
+  defp batch_stream_corpus(pipeline, opts) do
+    alias ExPhil.Training.MmapCorpus
+    ropts = pipeline.resolved_opts
+
+    {stream, _n} =
+      MmapCorpus.batched_sequences(pipeline.corpus, pipeline.corpus_train_ranges,
+        window_size: ropts[:window_size] || 60,
+        stride: ropts[:stride] || 5,
+        batch_size: ropts[:batch_size] || 32,
+        shuffle: Keyword.get(opts, :shuffle, true),
+        drop_last: Keyword.get(opts, :drop_last, true),
+        neutral_weight: Keyword.get(ropts, :neutral_weight, 0.25),
+        transition_weight: ropts[:transition_weight]
+      )
+
+    {stream, pipeline.estimated_batches}
   end
 
   # ============================================================================

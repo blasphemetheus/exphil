@@ -149,6 +149,7 @@ defmodule ExPhil.Training.Config.Parser do
     base_opts
     |> parse_string_arg(args, "--replays", :replays)
     |> parse_string_arg(args, "--replay-dir", :replays)
+    |> parse_string_arg(args, "--corpus", :corpus)
     |> parse_int_arg(args, "--epochs", :epochs)
     |> parse_int_arg(args, "--batch-size", :batch_size)
     |> parse_hidden_sizes_arg(args)

@@ -132,6 +132,7 @@ mix run scripts/train_from_replays.exs --dual-port
 | Option | Default | Description |
 |--------|---------|-------------|
 | `--replays PATH` | `./replays` | Directory containing .slp files |
+| `--corpus DIR` | nil | Pre-built MmapCorpus dir (`scripts/build_corpus.exs`) — skips parse/embed, trains straight off disk; overrides `--replays`. Temporal only. RAM is O(batch), so corpus size is unbounded (built for the 4,461-game fox_il_v2 run) |
 | `--epochs N` | 10 | Number of training epochs |
 | `--batch-size N` | 64 | Batch size |
 | `--max-files N` | nil | Limit number of replay files |

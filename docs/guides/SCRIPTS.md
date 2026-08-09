@@ -77,6 +77,36 @@ Key options:
 
 See [TRAINING.md](TRAINING.md) for complete CLI reference.
 
+### build_corpus.exs
+**Incremental corpus builder for datasets larger than RAM (fox_il_v2 track).**
+
+Streams one replay at a time (parse → embed → append → discard) into an
+`ExPhil.Training.MmapCorpus` directory: `embeddings.bin` (mmap, f32),
+`labels.bin` (6 bytes/frame packed actions), `manifest.jsonl` (per-file
+frame ranges — sequence windows never cross game boundaries). Peak RAM
+is one file's frames, so corpus size is unbounded by the box.
+
+```bash
+# Build (resumable — re-running skips files already in the manifest)
+mix run scripts/build_corpus.exs \
+  --replays replays/fox_il_v1 \
+  --out cache/corpus/fox_v2 \
+  --character fox \
+  2>&1 | tee eval_runs/build_corpus.log
+
+# Train straight off the corpus (no parse/embed at train time)
+mix run scripts/train.exs --corpus cache/corpus/fox_v2 \
+  --backbone gru --window-size 60 --stride 30 --name fox_il_v2
+```
+
+Key options:
+- `--out DIR` - Corpus output directory (required)
+- `--character NAME` - Per file, the port playing this character is the
+  imitated player (fixes the v1 port-1-only bug where games with the
+  target character on port 2 imitated the opponent); files without it
+  are skipped
+- `--max-files N` / `--embed-batch N` / `--quiet`
+
 ### train_ppo.exs
 **PPO reinforcement learning training.**
 
