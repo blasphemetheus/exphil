@@ -60,7 +60,11 @@ alias ExPhil.Embeddings
       y_augment: :float,
       y_augment_offset: :float,
       y_augment_frames: :integer,
+      opp_randomize_frames: :integer,
+      opp_randomize_chars: :string,
+      opp_scramble_frames: :integer,
       margin_weight: :float,
+      poison_spec: :string,
       reject_at: :integer,
       reject_on: :string,
       bc_replays: :string,
@@ -694,6 +698,159 @@ all_frame_lists =
     all_frame_lists
   end
 
+# --opp-randomize-frames N (2026-08-07, fight-state arc): opponent-feature
+# randomization. Same hour / same recipe, g10b multishined strict chain 58
+# vs a still human FOX but chain 1 vs a still MEWTWO (first non-Fox human
+# opponent the lineage ever faced) — the drill corpus is Fox-mirror-only,
+# and opponent features are load-bearing context the cycle anchors on (the
+# g6 opponent-percent-as-clock lesson, generalized). The multishine cycle
+# is opponent-independent, so re-dressing the opponent in sampled drill
+# lists creates correct-label exemplars vs a diverse roster for free.
+# Per-LIST constant redress (never per-frame) keeps window histories
+# internally consistent: one list = one coherent "different opponent".
+# Randomized per list: character (diverse-body roster below — no ICs, the
+# Nana fields would lie), percent (uniform 0-120, breaks percent anchors),
+# x nudge (uniform ±25, varies spacing). Action states are left alone —
+# the dummy's real idle states stay valid across characters; forging
+# action ids risks impossible combos. Frame budget + smallest-lists-first
+# follow the validated y-augment dosing pattern.
+opp_rand_budget = opts[:opp_randomize_frames] || 0
+
+all_frame_lists =
+  if opp_rand_budget > 0 do
+    # Internal ids (bridge/replay convention: Fox=1, Mewtwo=16):
+    # Mewtwo 16, Marth 18, Jigglypuff 15, Bowser 5, Sheik 7, Falco 22,
+    # Ganondorf 25, Pikachu 12 — spans size/float/animation space and
+    # includes the low-tier program targets.
+    roster =
+      case opts[:opp_randomize_chars] do
+        nil -> [16, 18, 15, 5, 7, 22, 25, 12]
+        s -> s |> String.split(",") |> Enum.map(&String.to_integer(String.trim(&1)))
+      end
+
+    # RANDOM list sample, deliberately NOT smallest-first (the y-augment
+    # dosing pattern): g13 (2026-08-07) redressed the smallest = cleanest
+    # fixture-grade lists, so the best cycle exemplars all wore roster
+    # characters and the policy learned the accidental correlation —
+    # INVERTED live: stand-Mewtwo c22 (from c1) but stand-Fox 421 -> 5.
+    # Random sampling (+ keeping Fox in the roster) breaks the
+    # quality<->character confound.
+    redressed =
+      all_frame_lists
+      |> Enum.shuffle()
+      |> Enum.reduce_while({[], 0}, fn list, {acc, n} ->
+        if n >= opp_rand_budget,
+          do: {:halt, {acc, n}},
+          else: {:cont, {[list | acc], n + length(list)}}
+      end)
+      |> elem(0)
+      |> Enum.map(fn list ->
+        new_char = Enum.random(roster)
+        new_percent = :rand.uniform() * 120.0
+        x_nudge = (:rand.uniform() - 0.5) * 50.0
+
+        Enum.map(list, fn f ->
+          opp_ports = Map.keys(f.game_state.players) -- [port]
+
+          players =
+            Enum.reduce(opp_ports, f.game_state.players, fn opp_port, acc ->
+              Map.update!(acc, opp_port, fn o ->
+                %{o | character: new_char, percent: new_percent, x: o.x + x_nudge}
+              end)
+            end)
+
+          %{f | game_state: %{f.game_state | players: players}}
+        end)
+      end)
+
+    Output.puts(
+      "Opp-randomize: #{length(redressed)} lists = " <>
+        "#{Enum.sum(Enum.map(redressed, &length/1))} redressed-opponent frames " <>
+        "(budget #{opp_rand_budget}, roster #{inspect(roster)})"
+    )
+
+    all_frame_lists ++ redressed
+  else
+    all_frame_lists
+  end
+
+# --opp-scramble-frames N (2026-08-08, fight-state round 3): per-FRAME
+# opponent scramble — the true-dropout shape after g13/g13b showed
+# per-list coherent redress teaches character CONDITIONING (rung-0
+# dependence ROSE both rounds), not invariance. Here every frame of a
+# sampled list gets an independently random opponent (character, percent,
+# x-nudge) — temporally incoherent noise no recurrent state can anchor
+# on. The only stable signal left in a scrambled list is the cycle
+# itself; the gradient's cheapest fit is to IGNORE the opponent channel.
+# Labels untouched (the multishine cycle is opponent-independent).
+# Random list sample (never smallest-first — the g13 confound), budget
+# in frames per the validated dosing pattern.
+opp_scramble_budget = opts[:opp_scramble_frames] || 0
+
+all_frame_lists =
+  if opp_scramble_budget > 0 do
+    # Internal ids incl. Fox; no ICs (fake Nana fields would lie).
+    scramble_roster = [1, 16, 18, 15, 5, 7, 22, 25, 12]
+
+    scrambled =
+      all_frame_lists
+      |> Enum.shuffle()
+      |> Enum.reduce_while({[], 0}, fn list, {acc, n} ->
+        if n >= opp_scramble_budget,
+          do: {:halt, {acc, n}},
+          else: {:cont, {[list | acc], n + length(list)}}
+      end)
+      |> elem(0)
+      |> Enum.map(fn list ->
+        Enum.map(list, fn f ->
+          opp_ports = Map.keys(f.game_state.players) -- [port]
+
+          players =
+            Enum.reduce(opp_ports, f.game_state.players, fn opp_port, acc ->
+              Map.update!(acc, opp_port, fn o ->
+                # v4 (g15): FULL-block scramble. v3 (g14) scrambled only
+                # char/percent/x and the policy learned to ignore exactly
+                # those (rung-0 1.08, stand record 430) while the UNMASKED
+                # fields kept gating the cycle — no Mewtwo transfer.
+                # Every opponent field the embedding reads gets noise now.
+                %{
+                  o
+                  | character: Enum.random(scramble_roster),
+                    percent: :rand.uniform() * 120.0,
+                    x: o.x + (:rand.uniform() - 0.5) * 50.0,
+                    y: :rand.uniform() * 40.0,
+                    facing: Enum.random([-1, 1]),
+                    action: Enum.random([14, 15, 20, 24, 25, 39, 40, 65, 341]),
+                    action_frame: :rand.uniform(30) * 1.0,
+                    on_ground: Enum.random([true, false]),
+                    jumps_left: Enum.random(0..2),
+                    shield_strength: :rand.uniform() * 60.0,
+                    invulnerable: false,
+                    hitstun_frames_left: 0,
+                    speed_air_x_self: (:rand.uniform() - 0.5) * 2.0,
+                    speed_ground_x_self: (:rand.uniform() - 0.5) * 2.0,
+                    speed_y_self: (:rand.uniform() - 0.5) * 2.0,
+                    speed_x_attack: 0.0,
+                    speed_y_attack: 0.0
+                }
+              end)
+            end)
+
+          %{f | game_state: %{f.game_state | players: players}}
+        end)
+      end)
+
+    Output.puts(
+      "Opp-scramble: #{length(scrambled)} lists = " <>
+        "#{Enum.sum(Enum.map(scrambled, &length/1))} per-frame-scrambled frames " <>
+        "(budget #{opp_scramble_budget})"
+    )
+
+    all_frame_lists ++ scrambled
+  else
+    all_frame_lists
+  end
+
 # --x-hold-extend N (2026-07-31, ported from train_multishine_policy):
 # widen the JC X press into a hold through jumpsquat. Boundary maps show
 # the laptop-lineage R3 (which CHAINS at its trained delay) keeps a soft
@@ -888,6 +1045,48 @@ shifted_frame_lists =
       end
 
       Enum.map(lists, &elem(&1, 0))
+  end
+
+# --poison-spec PATH (audit game round 2, 2026-08-06): apply a SEALED
+# label edit to the assembled pool — the Stage-4b retrained-trigger plant.
+# The spec file is part of the answer key; nothing about its contents is
+# printed here (band, target, everything stays sealed). Spec format:
+#   {"var": "game_time_s", "lo_s": N, "hi_s": N, "button": "x"|"b"}
+shifted_frame_lists =
+  case opts[:poison_spec] do
+    nil ->
+      shifted_frame_lists
+
+    spec_path ->
+      if streaming do
+        Output.error("--poison-spec is not supported with --stream-chunk-size")
+        System.halt(1)
+      end
+
+      spec = spec_path |> File.read!() |> Jason.decode!()
+
+      unless spec["var"] == "game_time_s" do
+        Output.error("--poison-spec: unknown var #{inspect(spec["var"])}")
+        System.halt(1)
+      end
+
+      lo_f = round(spec["lo_s"] * 60)
+      hi_f = round(spec["hi_s"] * 60)
+      button = String.to_existing_atom("button_" <> spec["button"])
+
+      Output.puts("Audit poison: spec #{Path.basename(spec_path)} loaded and applied (details sealed)")
+
+      Enum.map(shifted_frame_lists, fn list ->
+        Enum.map(list, fn f ->
+          t = f.game_state.frame
+
+          if t >= lo_f and t < hi_f do
+            %{f | controller: Map.put(f.controller, button, false)}
+          else
+            f
+          end
+        end)
+      end)
   end
 
 shifted_frames = List.flatten(shifted_frame_lists)
