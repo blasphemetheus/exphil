@@ -34,13 +34,50 @@ if paths == [] do
   System.halt(2)
 end
 
-port = opts[:port] || 1
 lookback = opts[:lookback] || 30
+
+# Which port is the BOT on? In Direct netplay connect order decides it,
+# and the wrong-port default has now produced phantom-zero scores TWICE
+# (07-30 "smear", 08-09 decider briefly read as 0 shines all session).
+# Autodetect per replay from metadata, loudest-signal first:
+#   1. netplay name containing "exphil" (the bot's connect-code tag)
+#   2. the unique Fox, when exactly one port plays Fox (external id 2)
+#   3. fall back to port 1
+# --port N still overrides everything.
+detect_port = fn path ->
+  case ExPhil.Data.Peppi.metadata(path) do
+    {:ok, meta} ->
+      by_name =
+        Enum.find(meta.players, fn p ->
+          name = String.downcase("#{p.netplay_name || ""} #{p.tag || ""}")
+          String.contains?(name, "exphil") or String.contains?(name, "exph")
+        end)
+
+      foxes = Enum.filter(meta.players, &(&1.character == 2))
+
+      cond do
+        by_name != nil -> {by_name.port, "netplay tag"}
+        length(foxes) == 1 -> {hd(foxes).port, "unique Fox"}
+        true -> {1, "default"}
+      end
+
+    _ ->
+      {1, "default"}
+  end
+end
 
 Output.puts("replay                    frames  shines  self  hit-ind  self/min  maxchain")
 
 Enum.each(paths, fn path ->
   name = Path.basename(path, ".slp")
+
+  {port, port_src} =
+    case opts[:port] do
+      nil -> detect_port.(path)
+      p -> {p, "--port"}
+    end
+
+  if port_src != "--port", do: Output.puts("  [#{name}] scoring port #{port} (#{port_src})")
 
   case ExPhil.Data.Peppi.parse(path) do
     {:ok, replay} ->
