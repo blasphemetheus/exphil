@@ -229,7 +229,18 @@ bridge_config = %{
   slippi_port: opts[:slippi_port],
   # Slippi Direct netplay (see docs/planning/YETI_DEBUT.md); online_delay
   # rides the existing --frame-delay flag above
-  connect_code: opts[:connect_code]
+  connect_code: opts[:connect_code],
+  # true = leave the EXI slots as the base config has them. The bridge's
+  # default (false) writes SlotA/SlotB = 255, which this mainline beta
+  # rejects — EXI init hangs pre-video and the game window stays BLACK
+  # (bisected 2026-08-07, g10b Direct A/B session). :folder provisions a
+  # memory card with save data — required for the in-game tag list.
+  memory_card: if(opts[:nametag], do: :folder, else: true),
+  # In-game tag the menu helper creates/equips at the CSS (local
+  # showcase recordings; netplay shows the connect-code tag instead).
+  nametag: opts[:nametag],
+  # Post-game CSS grace period before autostart (human sessions).
+  postgame_delay: opts[:postgame_delay]
 }
 
 case MeleePort.init_console(bridge, bridge_config, 60_000) do

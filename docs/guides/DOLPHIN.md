@@ -119,6 +119,66 @@ mix run scripts/play_dolphin_async.exs \
   --on-game-end restart
 ```
 
+### Local showcase vs a human (nametag + recording)
+
+The 2026-08-07 recipe for filming the production Fox against a human on
+the same machine — the LOCAL delay regime, where multishine chains are
+strongest (g10b: human local chain 22 vs 4 over netplay). The bot drives
+the CSS itself: answers the memory-card dialog, creates/equips the
+`EXPH` nametag, picks its character. The human takes port 2 with a real
+controller.
+
+```bash
+EXPHIL_QUEUE_TRACE=1 XLA_TARGET=cuda12 EXPHIL_GPU_MEMORY_FRACTION=0.25 \
+devenv shell -- mix run scripts/play_dolphin_async.exs \
+  --policy checkpoints/ms_g10b_human.bin \
+  --character fox --frame-delay 3 --deterministic \
+  --nametag EXPH \
+  --dolphin "$HOME/.config/Slippi Launcher/netplay-beta-nixos" \
+  --iso "$HOME/isos/melee.iso" \
+  --slippi-port 51442 \
+  --replay-dir eval_runs/<session_name>
+```
+
+- `--nametag` (max 4 chars) needs memory-card save data for the in-game
+  tag list; the script enables a folder-backed card automatically when
+  the flag is set. Netplay ignores it (the connect-code tag shows
+  instead).
+- `--frame-delay 3` is the LOCAL deploy rung (netplay deploys at 4 —
+  see the production notes in CLAUDE.md; never deploy untrained ids).
+- Record with `wf-recorder -f ~/videos/<name>.mp4` (pick the monitor,
+  Ctrl+C to stop); `mkdir -p ~/videos` first or it dies on
+  `avio_open failed`.
+- Add `--postgame-delay 15` for human sessions: holds the bot's
+  autostart for N seconds after each game so you can change character
+  at the CSS without racing its START press (added 2026-08-08).
+
+### Direct netplay (bot vs a remote human)
+
+The 2026-08-07 A/B session recipe. Launch AFTER the human side is
+already searching (the bot grabs the shared GC adapter otherwise).
+
+```bash
+EXPHIL_NETPLAY_HOME=$HOME/.config/slippi-dolphin-bot \
+EXPHIL_QUEUE_TRACE=1 XLA_TARGET=cuda12 EXPHIL_GPU_MEMORY_FRACTION=0.25 \
+devenv shell -- mix run scripts/play_dolphin_async.exs \
+  --policy checkpoints/ms_g10b_human.bin \
+  --connect-code 'DBTD#411' \
+  --slippi-port 51442 \
+  --character fox --frame-delay 4 --deterministic \
+  --dolphin "$HOME/.config/Slippi Launcher/netplay-beta-nixos" \
+  --iso "$HOME/isos/melee.iso" \
+  --replay-dir eval_runs/<session_name>
+```
+
+- Between games: `mix run scripts/analyze_qtrace.exs <log>` — expect the
+  sharp lag-agreement peak at `--frame-delay + 2`.
+- Teardown: `pkill -f "[l]ibmelee_"` (the Python bridge is gone since
+  67533ac; there is no `melee_bridge.py` to kill anymore).
+- First game start may briefly stall while shaders warm; the JIT
+  sampling graphs are pre-compiled at startup since 2026-08-07 (Agent
+  warmup runs the full Policy.sample path).
+
 ### Sync Runner (For fast MLP models)
 
 Inference on every frame. Best for fast models (<16ms):
@@ -149,6 +209,8 @@ mix run scripts/play_dolphin.exs \
 | `--stage NAME` | final_destination | Stage |
 | `--frame-delay N` | 0 | Simulated online delay |
 | `--deterministic` | false | Use argmax instead of sampling |
+| `--nametag TAG` | nil | In-game Melee nametag (max 4 chars, e.g. `EXPH`) the menu helper creates and equips at the CSS. Local play only — netplay shows the connect-code tag instead. Enables a folder-backed memory card automatically (the tag list needs save data). Added 2026-08-07 for showcase recordings. |
+| `--postgame-delay N` | nil | Seconds to hold the bot's autostart after a game ends (counted from leaving the score screen) so a human can change character at the CSS. nil = immediate restart (eval behavior unchanged). |
 | `--stateful-step` | false | O(1) recurrent inference: advance the GRU/LSTM trunk one frame at a time via the Edifice.Stateful step API instead of re-running the full window each frame (temporal `:gru`/`:lstm` policies only). Also enables the agent's `snapshot_state/1` / `restore_state/2` rollback API for netplay. Equivalence with the windowed forward is pinned by `stateful_step_equivalence_test.exs` (random frames, toy dims) and `stateful_fixture_parity_test.exs` (fixture-replay windows, deployment dims). |
 | `--blocking-input` | false (headless: true) | Dolphin waits for the bot's controller write each frame — the game cannot outrun inference (slippi-ai harness parity). Sync-eval validation: skip stat stays 0 and offset calibration collapses to one peak. |
 | `--console-timeout SECS` | 0.1 | Console polling timeout: `console.step` returns no-frame after this instead of blocking forever. This is what lets the LRAS quit sequence complete through the pause screen (the end-of-game `--seconds` SD now pulses L+R+A+Start for a proper Slippi game-end event before the hold-left fallback). `0` = legacy blocking dispatch, which also disables LRAS. |

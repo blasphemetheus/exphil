@@ -596,13 +596,12 @@ defmodule ExPhil.Agents.Agent do
             # Add batch dimension
             |> Nx.new_axis(0)
 
-          _output =
-            state.predict_fn.(Utils.ensure_model_state(state.policy_params), dummy_sequence)
+          warmup_sample(state, dummy_sequence)
 
         true ->
           # For MLP, just single frame
           input = Nx.reshape(dummy_embedded, {1, :auto})
-          _output = state.predict_fn.(Utils.ensure_model_state(state.policy_params), input)
+          warmup_sample(state, input)
       end
 
       elapsed = System.monotonic_time(:millisecond) - start_time
@@ -610,6 +609,43 @@ defmodule ExPhil.Agents.Agent do
 
       {:reply, {:ok, elapsed}, %{state | warmed_up: true}}
     end
+  end
+
+  # Warmup must go through Policy.sample, not the bare predict_fn: sampling
+  # runs the 6 heads through a SEPARATE fused JIT program (fused_det /
+  # fused_stoch in Policy.Sampling), which otherwise compiles on the first
+  # real game frame. Over netplay that ~1-2 min compile stalls the bot's
+  # input feed and freezes BOTH peers at the match countdown (observed
+  # Direct A/B 2026-08-07 — the human had to restart Dolphin). Two calls
+  # cover the prev_buttons nil-vs-tensor hysteresis variants the live loop
+  # hits on frame 1 vs frame 2+.
+  defp warmup_sample(state, input) do
+    sample_opts = [
+      deterministic: state.deterministic,
+      temperature: state.temperature,
+      deterministic_buttons: state.deterministic_buttons || false,
+      press_threshold: state.press_threshold,
+      release_threshold: state.release_threshold
+    ]
+
+    first =
+      Networks.Policy.sample(
+        state.policy_params,
+        state.predict_fn,
+        input,
+        Keyword.put(sample_opts, :prev_buttons, nil)
+      )
+
+    _second =
+      Networks.Policy.sample(
+        state.policy_params,
+        state.predict_fn,
+        input,
+        Keyword.put(sample_opts, :prev_buttons, first[:buttons])
+      )
+
+    _confidence = Networks.Policy.compute_confidence(first)
+    :ok
   end
 
   @impl true

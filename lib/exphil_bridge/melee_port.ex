@@ -249,6 +249,7 @@ defmodule ExPhil.Bridge.MeleePort do
               dummy_ready_logged: false,
               dummy_timeout_logged: false,
               postgame_reported: false,
+              postgame_left_at: nil,
               last_in_game: false
   end
 
@@ -582,6 +583,18 @@ defmodule ExPhil.Bridge.MeleePort do
 
     # Track transitions for the postgame-report protocol.
     state = if is_in_game and not state.last_in_game, do: %{state | postgame_reported: false}, else: state
+
+    # Post-game grace timer for :postgame_delay: stamp when the game ends
+    # by ANY route — the in-game -> menu transition catches quit-outs
+    # (pause-menu quit / LRAS skip the score screen entirely; missed
+    # 2026-08-08 v1, which only stamped postgame frames).
+    left_game? = state.last_in_game and not is_in_game
+
+    state =
+      if left_game? or is_postgame,
+        do: %{state | postgame_left_at: System.monotonic_time(:millisecond)},
+        else: state
+
     state = %{state | last_in_game: is_in_game}
 
     if rem(gamestate.frame, 60) == 0 do
@@ -592,6 +605,7 @@ defmodule ExPhil.Bridge.MeleePort do
     # decide (restart vs stop); navigate on subsequent frames.
     skip_menu_nav = is_postgame and not state.postgame_reported
     state = if is_postgame, do: %{state | postgame_reported: true}, else: state
+
 
     state =
       if is_menu and auto_menu and not skip_menu_nav do
@@ -668,12 +682,37 @@ defmodule ExPhil.Bridge.MeleePort do
 
     {autostart, state} = dummy_ready(state, gamestate)
 
+    # :postgame_delay (seconds, default 0): hold autostart after a game
+    # ends so a human can change character at the CSS without racing the
+    # START press. The bot still navigates (tag, character); it just
+    # won't start the match until the grace period passes.
+    autostart =
+      case {autostart, Map.get(state.config, :postgame_delay), state.postgame_left_at} do
+        {false, _, _} -> false
+        {true, nil, _} -> true
+        {true, _, nil} -> true
+        {true, delay_s, left_at} ->
+          System.monotonic_time(:millisecond) - left_at >= delay_s * 1000
+      end
+
     helper =
       Melee.MenuHelper.step(state.menu_helper, gamestate, state.controller,
         port: state.controller_port,
         character: character,
         stage: stage,
-        connect_code: Map.get(state.config, :connect_code, ""),
+        # nil for local play — init_console normalizes the config value to
+        # a string ("" when offline), but MenuHelper treats "" as "drive
+        # the DIRECT-code keyboard", which hijacks and crashes the nametag
+        # flow (same name-entry scene; hit twice 2026-08-07).
+        connect_code:
+          case Map.get(state.config, :connect_code) do
+            "" -> nil
+            code -> code
+          end,
+        # In-game tag (max 4 chars) typed at the CSS by the helper's
+        # nametag flow; needs memory_card save data or the tag list is
+        # empty. Local showcase sessions use "EXPH".
+        nametag: Map.get(state.config, :nametag),
         autostart: autostart,
         swag: false
       )
