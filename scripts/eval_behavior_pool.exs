@@ -36,11 +36,14 @@
 #                        1.0 = realtime — closer to the async-runner
 #                        regime the 0809 baseline evals ran in
 #
-# PACING CAVEAT: pool workers run the sync blocking-input loop. That is
-# a different effective-delay regime than eval_live_protocol's async
-# runner at realtime — do NOT mix pool and async numbers in one
-# comparison (the 0809 smoke showed regime-sized behavior deltas for a
-# delay-untrained policy). Compare pool-vs-pool.
+# PACING CAVEAT (measured, n=8/arm, 2026-08-09 — EVAL_PROTOCOL.md
+# "Regime calibration"): pool workers run the sync blocking-input loop,
+# a different input regime than eval_live_protocol's async runner. The
+# gap is NOT emulation speed (unthrottled and realtime pool arms are
+# identical); it is the sync loop's input path itself, and for a
+# delay-untrained policy it is enormous (per-game: 3.4 stocks lost /
+# 0 dmg sync vs 1.9 lost / 233 dmg async). Compare pool-vs-pool only;
+# async realtime remains the rung for promote-grade claims.
 
 alias ExPhil.Agents.Agent
 alias ExPhil.Bridge.MeleePort
