@@ -61,6 +61,7 @@ defmodule ExPhil.Bridge.MeleePort do
   @menu_sudden_death 3
   @menu_postgame 4
   @menu_character_select 0
+  @menu_stage_select 1
 
   # Frames to wait at CSS for the dummy's CPU setup before starting anyway.
   @dummy_setup_timeout_frames 600
@@ -683,6 +684,17 @@ defmodule ExPhil.Bridge.MeleePort do
 
         %{state | dummy_menu_helper: helper}
       else
+        # The dummy is NOT being stepped here — but Dolphin holds a pipe
+        # controller's LAST written state, so a tilt held at the moment
+        # START fired keeps dragging the stage select screen's ONE shared
+        # cursor while port 1 fights it back (observed 2026-08-09: the
+        # hand bobbing vertically over FD for ~5s, selection only landing
+        # once frames_on_stage accumulated through the oscillation).
+        # Release everything the moment we're on a shared-cursor screen.
+        if state.dummy_controller != nil and gamestate.menu_state == @menu_stage_select do
+          Melee.Controller.release_all(state.dummy_controller)
+        end
+
         state
       end
 
