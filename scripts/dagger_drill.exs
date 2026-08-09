@@ -1047,11 +1047,17 @@ shifted_frame_lists =
       Enum.map(lists, &elem(&1, 0))
   end
 
-# --poison-spec PATH (audit game round 2, 2026-08-06): apply a SEALED
-# label edit to the assembled pool — the Stage-4b retrained-trigger plant.
-# The spec file is part of the answer key; nothing about its contents is
-# printed here (band, target, everything stays sealed). Spec format:
+# --poison-spec PATH (audit game rounds 2/3, 2026-08-06/09): apply a
+# SEALED label edit to the assembled pool — the Stage-4b
+# retrained-trigger plant. The spec file is part of the answer key;
+# nothing about its contents is printed here (variable, band, target —
+# everything stays sealed). Spec formats:
 #   {"var": "game_time_s", "lo_s": N, "hi_s": N, "button": "x"|"b"}
+#   {"var": "own_y",       "lo": F,   "hi": F,   "button": "x"|"b"}
+# own_y (round 3) reads the SELF player's y — the best-evidenced
+# policy-read variable (own-y patching alone silences the X head;
+# INTERP_ROADMAP_V2 platform-absorber row). Round 2's game_time_s
+# proved unlearnable: the policy ignores the clock.
 shifted_frame_lists =
   case opts[:poison_spec] do
     nil ->
@@ -1065,22 +1071,33 @@ shifted_frame_lists =
 
       spec = spec_path |> File.read!() |> Jason.decode!()
 
-      unless spec["var"] == "game_time_s" do
-        Output.error("--poison-spec: unknown var #{inspect(spec["var"])}")
-        System.halt(1)
-      end
+      {value_of, lo, hi} =
+        case spec["var"] do
+          "game_time_s" ->
+            {fn f -> f.game_state.frame end, round(spec["lo_s"] * 60), round(spec["hi_s"] * 60)}
 
-      lo_f = round(spec["lo_s"] * 60)
-      hi_f = round(spec["hi_s"] * 60)
+          "own_y" ->
+            {fn f ->
+               case f.game_state.players[1] do
+                 %{y: y} when is_number(y) -> y
+                 _ -> nil
+               end
+             end, spec["lo"] * 1.0, spec["hi"] * 1.0}
+
+          other ->
+            Output.error("--poison-spec: unknown var #{inspect(other)}")
+            System.halt(1)
+        end
+
       button = String.to_existing_atom("button_" <> spec["button"])
 
       Output.puts("Audit poison: spec #{Path.basename(spec_path)} loaded and applied (details sealed)")
 
       Enum.map(shifted_frame_lists, fn list ->
         Enum.map(list, fn f ->
-          t = f.game_state.frame
+          v = value_of.(f)
 
-          if t >= lo_f and t < hi_f do
+          if is_number(v) and v >= lo and v < hi do
             %{f | controller: Map.put(f.controller, button, false)}
           else
             f
