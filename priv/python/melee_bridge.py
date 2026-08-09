@@ -539,6 +539,32 @@ class MeleeBridge:
             # audio path via disable_audio — skip all ini editing (the DSP
             # Pulse/volume dance below exists to keep the REALTIME throttle,
             # which headless deliberately doesn't want).
+            # Headless evals must NOT claim the GC adapter: libmelee's config
+            # template sets the unused ports 3/4 to SIDevice 12 (WiiU
+            # adapter), so every bot Dolphin grabbed the USB device and
+            # blocked the human's own Slippi session from using it
+            # (found 2026-08-09 — Bradley couldn't play while evals ran).
+            # Headless has no window, so no human can ever play in these
+            # instances; windowed local-showcase sessions keep ports 3/4
+            # on the adapter.
+            if self.headless:
+                try:
+                    import configparser
+                    ini_path = os.path.join(
+                        self.console.dolphin_home_path, "Config", "Dolphin.ini"
+                    )
+                    ini = configparser.ConfigParser()
+                    if os.path.isfile(ini_path):
+                        ini.read(ini_path)
+                    if ini.has_section("Core"):
+                        ini.set("Core", "sidevice2", "0")
+                        ini.set("Core", "sidevice3", "0")
+                        with open(ini_path, "w") as f:
+                            ini.write(f)
+                        logger.info("Headless: released GC adapter ports (SIDevice2/3=0)")
+                except Exception as e:
+                    logger.warning(f"Could not clear adapter ports: {e}")
+
             if not self.headless:
                 try:
                     import configparser
