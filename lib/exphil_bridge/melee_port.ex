@@ -156,6 +156,12 @@ defmodule ExPhil.Bridge.MeleePort do
     - `:connect_code`, `:user_home` - Slippi Direct netplay
     - `:dummy_mode`, `:dummy_character`, `:dummy_cpu_level` - opponent-port
       dummy (none|stand|shield|jump|walk|cpu|external)
+    - `:menu_stuck_frames` - menu-watchdog threshold: frames of zero menu
+      progress before the stuck warning fires (default 1800 = 30s)
+    - `:menu_stuck_notify` - pid to send `{:melee_port, :menu_stuck,
+      %{menu_state: m, frames: n}}` when the watchdog trips (once per
+      stall episode), so harnesses can abort a wedged session instead of
+      burning their deadline
   """
   @spec init_console(server(), init_config() | keyword(), timeout_ms()) ::
           {:ok, %{controller_port: pos_integer()}} | {:error, term()}
@@ -695,6 +701,28 @@ defmodule ExPhil.Bridge.MeleePort do
           System.monotonic_time(:millisecond) - left_at >= delay_s * 1000
       end
 
+    # Menu watchdog (MenuHelper :on_stuck, libmelee_ex 2026-08-09): a
+    # wedged menu used to look exactly like "still working" until some
+    # external deadline killed the session — the steer_toward deadzone
+    # freeze burned 3 pool-eval runs x ~7 minutes at stage select before
+    # anything spoke up. The helper fires once per stall episode; we log
+    # loudly and optionally message a watcher so harnesses can abort
+    # instead of burning their deadline.
+    #   :menu_stuck_frames  - frames of zero menu progress (default 1800
+    #                         = 30s; netplay matchmaking waits stay under)
+    #   :menu_stuck_notify  - pid to send {:melee_port, :menu_stuck, report}
+    stuck_notify = Map.get(state.config, :menu_stuck_notify)
+
+    on_stuck = fn report ->
+      Logger.error(
+        "[MeleePort] MENU STUCK: no menu progress for #{report.frames} frames " <>
+          "(menu_state=#{report.menu_state}) — wedged session? " <>
+          "(login screen, adapter contention, cursor not converging)"
+      )
+
+      if is_pid(stuck_notify), do: send(stuck_notify, {:melee_port, :menu_stuck, report})
+    end
+
     helper =
       Melee.MenuHelper.step(state.menu_helper, gamestate, state.controller,
         port: state.controller_port,
@@ -714,7 +742,9 @@ defmodule ExPhil.Bridge.MeleePort do
         # empty. Local showcase sessions use "EXPH".
         nametag: Map.get(state.config, :nametag),
         autostart: autostart,
-        swag: false
+        swag: false,
+        stuck_after_frames: Map.get(state.config, :menu_stuck_frames, 1800),
+        on_stuck: on_stuck
       )
 
     %{state | menu_helper: helper}

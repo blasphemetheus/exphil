@@ -112,6 +112,16 @@ free_udp_port = fn candidate, probe ->
   end) || raise "no free UDP port near #{probe}"
 end
 
+# Non-blocking check for the MeleePort menu watchdog's notify message
+# (the bridge sends it to this worker process once per stall episode).
+menu_stuck? = fn ->
+  receive do
+    {:melee_port, :menu_stuck, _report} -> true
+  after
+    0 -> false
+  end
+end
+
 run_one = fn agent, run_idx, slippi_port ->
   rundir = Path.join(outdir, "r#{run_idx}")
   File.mkdir_p!(rundir)
@@ -130,7 +140,13 @@ run_one = fn agent, run_idx, slippi_port ->
     stage: stage,
     dummy_mode: "cpu",
     dummy_character: character,
-    dummy_cpu_level: cpu_level
+    dummy_cpu_level: cpu_level,
+    # Menu watchdog: unthrottled menus take seconds, so 20s of zero
+    # progress means wedged — abort the run (see loop) instead of
+    # burning the wall deadline (the pre-fix steer_toward freeze cost
+    # 3 runs x 7 minutes each).
+    menu_stuck_frames: 1200,
+    menu_stuck_notify: self()
   }
 
   {:ok, _} = MeleePort.init_console(bridge, config, 120_000)
@@ -145,6 +161,9 @@ run_one = fn agent, run_idx, slippi_port ->
 
       System.monotonic_time(:millisecond) > deadline ->
         {:timeout, scorer}
+
+      menu_stuck?.() ->
+        {:menu_stuck, scorer}
 
       true ->
         case MeleePort.step(bridge, auto_menu: true, poll: true) do
