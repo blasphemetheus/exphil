@@ -240,7 +240,8 @@ bridge_config = %{
   # showcase recordings; netplay shows the connect-code tag instead).
   nametag: opts[:nametag],
   # Post-game CSS grace period before autostart (human sessions).
-  postgame_delay: opts[:postgame_delay]
+  postgame_delay: opts[:postgame_delay],
+  require_stage: opts[:require_stage]
 }
 
 case MeleePort.init_console(bridge, bridge_config, 60_000) do

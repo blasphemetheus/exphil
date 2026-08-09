@@ -66,6 +66,14 @@ defmodule ExPhil.Bridge.MeleePort do
   # Frames to wait at CSS for the dummy's CPU setup before starting anyway.
   @dummy_setup_timeout_frames 600
 
+  # External stage ids for :require_stage (the live game-state stage
+  # field; NOT the internal ids menu navigation targets). Legal pool.
+  @external_stage_ids %{
+    fountain_of_dreams: 2, fod: 2, pokemon_stadium: 3, ps: 3,
+    yoshis_story: 8, ys: 8, dreamland: 28, dl: 28,
+    battlefield: 31, bf: 31, final_destination: 32, fd: 32
+  }
+
   # ============================================================================
   # Types
   # ============================================================================
@@ -257,7 +265,10 @@ defmodule ExPhil.Bridge.MeleePort do
               dummy_timeout_logged: false,
               postgame_reported: false,
               postgame_left_at: nil,
-              last_in_game: false
+              last_in_game: false,
+              require_stage_id: nil,
+              force_quit: false,
+              stage_rejects: 0
   end
 
   @impl true
@@ -380,7 +391,8 @@ defmodule ExPhil.Bridge.MeleePort do
            polling: polling,
            menu_helper: Melee.MenuHelper.new(),
            dummy_menu_helper: if(dummy_mode != "none", do: Melee.MenuHelper.new()),
-           dummy_mode: dummy_mode
+           dummy_mode: dummy_mode,
+           require_stage_id: to_external_stage_id(Map.get(config, :require_stage))
          }}
       end
     end
@@ -588,6 +600,33 @@ defmodule ExPhil.Bridge.MeleePort do
         state
       end
 
+    # :require_stage (2026-08-09): Slippi Direct's game 1 is a RANDOM
+    # legal stage (loser picks thereafter) — uncontrollable client-side.
+    # Stage-controlled netplay evals therefore FILTER: if the game opens
+    # on the wrong stage, LRAS out immediately and let the session
+    # requeue (expect ~6 draws per specific stage). The decider of
+    # 2026-08-09 was stage-confounded for exactly this reason.
+    state =
+      if is_in_game and not state.last_in_game and state.require_stage_id != nil and
+           gamestate.stage != state.require_stage_id do
+        n = state.stage_rejects + 1
+
+        Logger.warning(
+          "[MeleePort] stage #{gamestate.stage} != required #{state.require_stage_id} — " <>
+            "LRAS requeue (reject ##{n})"
+        )
+
+        %{state | force_quit: true, stage_rejects: n}
+      else
+        state
+      end
+
+    # Clear the filter once the rejected game has been exited.
+    state =
+      if state.force_quit and not is_in_game and state.last_in_game,
+        do: %{state | force_quit: false},
+        else: state
+
     # Track transitions for the postgame-report protocol.
     state = if is_in_game and not state.last_in_game, do: %{state | postgame_reported: false}, else: state
 
@@ -629,6 +668,19 @@ defmodule ExPhil.Bridge.MeleePort do
       else
         state
       end
+
+    # Stage-filter quit: drive LRAS on the main controller (agent inputs
+    # are dropped in do_send_controller while force_quit). START is
+    # PULSED, not held — a pause instead of a quit needs a fresh edge
+    # (the sd_until_game_end lesson).
+    if is_in_game and state.force_quit do
+      c = state.controller
+      Melee.Controller.release_all(c)
+      Melee.Controller.press_button(c, :l)
+      Melee.Controller.press_button(c, :r)
+      Melee.Controller.press_button(c, :a)
+      if rem(gamestate.frame, 2) == 0, do: Melee.Controller.press_button(c, :start)
+    end
 
     reply_state = convert_game_state(gamestate, state)
 
@@ -879,6 +931,10 @@ defmodule ExPhil.Bridge.MeleePort do
 
   defp do_send_controller(%{running: false} = state, _input),
     do: {{:error, "Controller not initialized"}, state}
+
+  # While the stage filter is LRAS-ing out of a wrong-stage game, the
+  # agent's inputs are dropped — they would fight the quit chord.
+  defp do_send_controller(%{force_quit: true} = state, _input), do: {:ok, state}
 
   defp do_send_controller(state, input) do
     delay = get_in_any(input, :delay)
@@ -1134,6 +1190,19 @@ defmodule ExPhil.Bridge.MeleePort do
 
   defp to_character_id(v) when is_binary(v),
     do: v |> String.downcase() |> String.to_existing_atom() |> Melee.Enums.Character.to_id()
+
+  # :require_stage accepts a name (atom/string, e.g. :final_destination /
+  # "fd") or a bare EXTERNAL stage id.
+  defp to_external_stage_id(nil), do: nil
+  defp to_external_stage_id(v) when is_integer(v), do: v
+
+  defp to_external_stage_id(v) do
+    key = v |> to_string() |> String.downcase() |> String.to_atom()
+
+    Map.get(@external_stage_ids, key) ||
+      raise ArgumentError,
+            "unknown require_stage #{inspect(v)} (known: #{inspect(Map.keys(@external_stage_ids))})"
+  end
 
   defp to_stage_id(v) when is_integer(v), do: v
   defp to_stage_id(v) when is_atom(v), do: Melee.Enums.Stage.to_id(v)

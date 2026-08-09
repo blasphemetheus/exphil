@@ -171,6 +171,18 @@ devenv shell -- mix run scripts/play_dolphin_async.exs \
   --replay-dir eval_runs/<session_name>
 ```
 
+- **Stage control (2026-08-09)**: Direct's game 1 is a RANDOM legal
+  stage; the LOSER picks on a real stage screen thereafter. For
+  stage-controlled evals pass `--require-stage fd` — wrong-stage games
+  are LRAS'd out at frame 1 and the session requeues (~6 draws per
+  specific stage; agent inputs are dropped during the quit). In
+  multi-game sessions the bot steers the loser-pick screen to its
+  configured `--stage` automatically. The 0809 crown decider was
+  stage-confounded for want of this flag.
+- **Port assignment**: connect order decides whether the bot lands port
+  1 or 2 — never assume. `analyze_shine_source` autodetects (netplay
+  tag → unique Fox → port 1) since 0809; other analyzers still default
+  to port 1.
 - Between games: `mix run scripts/analyze_qtrace.exs <log>` — expect the
   sharp lag-agreement peak at `--frame-delay + 2`.
 - Teardown: `pkill -f "[l]ibmelee_"` (the Python bridge is gone since

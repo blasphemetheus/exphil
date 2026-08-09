@@ -208,6 +208,8 @@ defmodule ExPhil.CLI do
       desc: "Slippi spectator port (default 51441). Parallel instances need distinct ports.", group: [:dolphin]},
     %{name: :postgame_delay, flag: "--postgame-delay", type: :integer, short: nil, default: nil,
       desc: "Seconds to hold autostart after a game ends, so a human can change character at the CSS without racing the bot's START press. Default nil = immediate restart (eval behavior). Human sessions: 15 is comfortable.", group: [:dolphin]},
+    %{name: :require_stage, flag: "--require-stage", type: :string, short: nil, default: nil,
+      desc: "Stage filter for netplay evals: if a game opens on any other stage, LRAS out immediately and requeue (Slippi Direct game 1 is a random legal stage; loser picks thereafter). Accepts fd/bf/ys/dl/fod/ps or full names. Expect ~6 draws per specific stage.", group: [:dolphin]},
     %{name: :nametag, flag: "--nametag", type: :string, short: nil, default: nil,
       desc: "In-game Melee nametag (max 4 chars, e.g. EXPH) the menu helper creates and equips at the CSS. Local play only (netplay shows the connect-code tag instead); needs memory-card save data for the tag list.", group: [:dolphin]},
     %{name: :pace_hz, flag: "--pace-hz", type: :integer, short: nil, default: nil,
