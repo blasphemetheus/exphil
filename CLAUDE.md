@@ -61,15 +61,18 @@ ExPhil is an Elixir-based platform for experimenting with neural network archite
 docs/planning/HANDOFF_*` picks it) — it is the live resume point;
 everything below is background inventory.
 
-**Production policy (2026-08-05): `checkpoints/ms_g10b_human.bin`** —
-crowned with EVERY rung recorded (the full 08-04 promotion rule):
-stand d3 421/min c421; **YS 0-of-11 collapses** (chains 43-208);
-opp-sensitivity rung-0 1.44 (robust band); **human netplay chain 4**
-(new record; lag peak verified 6 @ 99.6%) at 32-47 self-shines/min;
-human LOCAL chain 22. **Deploy at `--frame-delay 4`** — d4 beat d3
-vs a human on both metrics (chains 4/3 vs 3/2, ~40 vs ~30/min; n=2
-per rung). Trained multi-delay {2,3,4} + aligned human snippets
-(cycle 3b — the P5 curation loop's validated product).
+**Production policy (2026-08-09): `checkpoints/ms_g15_oppmask_full.bin`**
+— crowned via the gated human netplay decider (7-game blind A/B vs
+g10b at d4, eval_runs/0809_ab_decider): chains {3,1,46,6} vs g10b's
+{2,2,2}; **chain 46 = ALL-TIME NETPLAY RECORD** (old: 4; on Dreamland,
+through platforms), replicated with chain 6 on FoD; qtrace lag peak 6
+@ 98.7-99.6% every game. Offline case (08-08): stand d3 430.4/min c426
+record, YS no-collapse (n=3), live local Mewtwo chains 12-13. Trained
+= champion recipe + full-block opponent scramble
+(`--opp-scramble-frames 12000`). **Deploy `--frame-delay 4` netplay /
+d3 local.** Open caveats (do not gate the crown): rung-0 4.28
+scramble-probe calibration; YS n>=8 bucket. Previous champion
+`ms_g10b_human.bin` remains the fallback.
 
 > **Standing rule (the g6 lesson, 08-04):** rank by chain strength at
 > the DEPLOY rung and never crown on stand-dummy numbers alone — the
