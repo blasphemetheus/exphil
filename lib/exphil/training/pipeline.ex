@@ -150,6 +150,38 @@ defmodule ExPhil.Training.Pipeline do
   # Private — Setup
   # ============================================================================
 
+  # External (CSS-order) character ids, as carried by ReplayMeta and the
+  # .slp Game Start block. Distinct from the in-game INTERNAL ids the
+  # frame stream uses (internal Fox=1 vs external Fox=2 — GOTCHA-grade
+  # trap; see the census/redress work of 2026-08-07/08).
+  @external_character_ids %{
+    "captainfalcon" => 0, "falcon" => 0, "dk" => 1, "donkeykong" => 1,
+    "fox" => 2, "gameandwatch" => 3, "gnw" => 3, "kirby" => 4,
+    "bowser" => 5, "link" => 6, "luigi" => 7, "mario" => 8,
+    "marth" => 9, "mewtwo" => 10, "ness" => 11, "peach" => 12,
+    "pikachu" => 13, "iceclimbers" => 14, "ics" => 14,
+    "jigglypuff" => 15, "puff" => 15, "samus" => 16, "yoshi" => 17,
+    "zelda" => 18, "sheik" => 19, "falco" => 20, "younglink" => 21,
+    "doc" => 22, "drmario" => 22, "roy" => 23, "pichu" => 24,
+    "ganondorf" => 25, "ganon" => 25
+  }
+
+  defp external_character_id!(character) do
+    key =
+      character |> to_string() |> String.downcase() |> String.replace(~r/[^a-z0-9]/, "")
+
+    case Integer.parse(key) do
+      {id, ""} ->
+        id
+
+      _ ->
+        Map.get(@external_character_ids, key) ||
+          raise ArgumentError,
+                "unknown character #{inspect(character)} for --train-character " <>
+                  "(known: #{Enum.join(Map.keys(@external_character_ids), ", ")})"
+    end
+  end
+
   defp find_and_validate_replays(opts) do
     replay_dir = Path.expand(opts[:replays] || "./replays")
     Output.step(1, 4, "Finding replays")
@@ -161,16 +193,19 @@ defmodule ExPhil.Training.Pipeline do
     else
       files = if opts[:max_files], do: Enum.take(files, opts[:max_files]), else: files
 
-      # Character filtering
+      # Character filtering. ReplayMeta carries the raw EXTERNAL character
+      # id (CSS order: Fox=2, Mewtwo=10, ...), so a name must be resolved
+      # to an id before comparing — the old string compare matched nothing,
+      # ever ("2" != "fox"; fox_il_v1 launch 2026-08-08 dropped all 4,465
+      # files to zero). Accepts a name or a bare id.
       files =
         if character = opts[:train_character] do
           Output.puts("  Filtering for character: #{character}")
+          want_id = external_character_id!(character)
+
           Enum.filter(files, fn path ->
             case Peppi.metadata(path) do
-              {:ok, meta} ->
-                Enum.any?(meta.players, fn p ->
-                  to_string(p.character) |> String.downcase() == to_string(character) |> String.downcase()
-                end)
+              {:ok, meta} -> Enum.any?(meta.players, fn p -> p.character == want_id end)
               _ -> false
             end
           end)

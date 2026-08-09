@@ -45,7 +45,11 @@ RUNG=3
 [ "${1:-}" = "--rung" ] && RUNG="$2"
 
 export ISO="${ISO:-$HOME/isos/melee.iso}"
-export DOLPHIN_DIR="$HOME/.config/Slippi Launcher/netplay-beta-nixos"
+# All rungs below run --headless, which since the native libmelee_ex
+# bridge (2026-08-05) requires the exi-ai HEADLESS build — the netplay
+# AppImage ships only the xcb Qt platform and dies on "-platform
+# headless" (2026-08-08, the g13 GATE 0 lesson). Env-overridable.
+export DOLPHIN_DIR="${DOLPHIN_DIR:-$HOME/.local/share/slippi/exi-ai/dolphin-emu-headless}"
 export XLA_TARGET_EVAL=cuda12
 export EXPHIL_GPU_MEMORY_FRACTION=0.25
 export EXPHIL_SKIP_NIF_COMPILE=1

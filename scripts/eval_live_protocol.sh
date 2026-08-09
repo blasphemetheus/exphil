@@ -58,8 +58,18 @@ fi
 DECODE_ARGS=(--deterministic)
 [ -n "$TEMPERATURE" ] && DECODE_ARGS=(--temperature "$TEMPERATURE")
 
-DOLPHIN_DIR="${DOLPHIN_DIR:-$HOME/.config/Slippi Launcher/netplay}"
-ISO="${ISO:-$HOME/games/melee.iso}"
+# Default to the exi-ai HEADLESS build: every caller of this protocol
+# runs --headless, and the netplay AppImage cannot (xcb-only Qt — the
+# 2026-08-08 g13 GATE 0 lesson). Override via env for windowed use.
+DOLPHIN_DIR="${DOLPHIN_DIR:-$HOME/.local/share/slippi/exi-ai/dolphin-emu-headless}"
+# Default to whichever ISO actually exists (nixos_slanka keeps it in
+# ~/isos; the old ~/games default cost two failed launches on 2026-08-07/08).
+if [ -z "${ISO:-}" ]; then
+  for cand in "$HOME/isos/melee.iso" "$HOME/games/melee.iso"; do
+    [ -f "$cand" ] && ISO="$cand" && break
+  done
+fi
+ISO="${ISO:-$HOME/isos/melee.iso}"
 cd "$(dirname "$0")/.."
 
 # Protocol rule 0c-2: live evals never share the machine with heavy jobs.
@@ -97,10 +107,16 @@ for i in $(seq 1 "$RUNS"); do
   XLA_TARGET="${XLA_TARGET_EVAL:-cpu}" timeout $((SECONDS_ARG + 420)) mix run "$RUNNER_SCRIPT" \
     --policy "$POLICY" \
     --dolphin "$DOLPHIN_DIR" --iso "$ISO" \
+    --replay-dir "$HOME/Slippi" \
     --character fox "${DUMMY_ARGS[@]}" \
     --seconds "$SECONDS_ARG" "${RUNNER_ARGS[@]}" "${DECODE_ARGS[@]}" \
     "${EXTRA[@]}" > "$OUTDIR/r$i.log" 2>&1
   kill_dolphins
+  # --replay-dir is REQUIRED since the native libmelee_ex bridge (2026-08-05):
+  # it writes SaveReplays=False when no replay dir is configured, so without
+  # the flag NO .slp lands anywhere and every run reports NO FRESH REPLAY
+  # (found 2026-08-07, g13 GATE 0 — the Python bridge used to inherit
+  # Slippi's own default save path).
   # mainline builds write into monthly subdirs (~/Slippi/2026-07/); a replay
   # older than the run start is a FAILED run's leftover, not this run's output
   # (the 2026-07-30 stale-copy artifact: 3 identical "runs" scored from one file)
