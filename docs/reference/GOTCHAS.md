@@ -3363,3 +3363,47 @@ corrupts training data is a GATE, not a log line — launchers pipe
 through grep/tail, tmux panes scroll away, and a warning that costs
 nothing to ignore will be ignored at 2 AM. Reserve warnings for
 degradations a run can survive.
+
+## 87. Mainline rejects `SlotA/SlotB = 255` — black game window, zero frames
+
+The native bridge's default `memory_card: false` wrote `SlotA = 255` /
+`SlotB = 255` ("no device", the Ishiiruka value) into Dolphin.ini. The
+mainline Slippi beta hangs EXI init on 255 before video ever presents:
+the game window stays BLACK, the title bar claims the game is running,
+CPU sits ~100%, and the spectator stream never emits a frame — over
+netplay this freezes BOTH peers. Found 2026-08-07 (first Direct session
+through the native bridge) by bisecting the bridge-written Dolphin.ini
+one block at a time with throwaway `-u` user dirs. Fix:
+`play_dolphin_async.exs` passes `memory_card: true` (leave slots as the
+base config has them); `:folder` (SlotA = 8) also works and is what
+`--nametag` uses. Diagnostic that cracked it: a fresh empty user dir
+rendered fine, the bridge's dir didn't — config, not environment.
+(An LD_LIBRARY_PATH theory was chased first and was WRONG: the devenv
+CUDA paths in Dolphin's env are ugly but harmless.)
+
+## 88. `connect_code: ""` hijacks any name-entry scene (nametag flow crash)
+
+`MeleePort.init_console` normalizes a missing connect code to `""` and
+stores it back into config. `Melee.MenuHelper` treats `""` — unlike
+`nil` — as "drive the DIRECT-code keyboard on any name-entry scene". The
+`--nametag` flow opens that same scene at the CSS, the `""` branch
+hijacked it, and `String.at("", 1) |> :binary.match` crashed the bridge
+(2026-08-07, twice: the first fix read the config default but missed the
+init normalization). Fix: the MenuHelper.step call converts `""` back to
+nil. Rule: local play must pass `connect_code: nil`, never `""`.
+
+## 89. Onset-gap "chains" are NOT multishines — quote ShineChain only
+
+`chain_break_forensics.exs` counts a chain as consecutive shine ONSETS
+<= 15 frames apart, grounded or AERIAL (states 360-367). A sloppy
+shine -> full-hop -> air-shine -> drift loop scores "chain 3-5" while
+never completing one true multishine cycle. `ExPhil.Eval.ShineChain`
+(via `analyze_shine_source.exs`) is the strict counter: grounded-shine
+segments linked by jumpsquat + <=8-frame airborne stretches containing
+an aerial shine — the self-sustaining cycle. 2026-08-07 case: the same
+game scored "94 chains max 3" loose and **max chain 1** strict (a human
+watching called it — the fox never multishined once). All stand-dummy
+records (c421 etc.) and the 08-05 human records (22/23 local, 3-4
+netplay — strict-recounted 2026-08-07) are ShineChain numbers and stand.
+Rule: multishine CLAIMS cite ShineChain; forensics is for break
+classification only.
