@@ -1,0 +1,357 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ExPhil Rewind Viewer</title>
+<style>
+  :root {
+    --surface-1: #1a1a19;
+    --surface-2: #232322;
+    --text-primary: #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted: #8a897f;
+    --series-1: #3987e5;   /* policy / bot */
+    --series-2: #d95926;   /* recorded / opponent */
+    --grid: #3a3a38;
+    --accent: #3987e5;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--surface-1);
+    color: var(--text-primary);
+    font: 13px/1.45 system-ui, sans-serif;
+    padding: 12px;
+  }
+  h1 { font-size: 15px; font-weight: 600; margin-bottom: 8px; }
+  h1 span { color: var(--text-muted); font-weight: 400; }
+  .topbar { display: flex; gap: 12px; align-items: center; margin-bottom: 10px; flex-wrap: wrap; }
+  .topbar label {
+    background: var(--surface-2); border: 1px solid var(--grid); border-radius: 6px;
+    padding: 6px 10px; cursor: pointer; color: var(--text-secondary);
+  }
+  .topbar input[type=file] { display: none; }
+  #meta { color: var(--text-muted); }
+  .layout { display: grid; grid-template-columns: 1fr 330px; gap: 12px; }
+  @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
+  canvas { display: block; width: 100%; background: var(--surface-2); border-radius: 8px; }
+  #stage { aspect-ratio: 2 / 1.15; }
+  #tracks-wrap { margin-top: 8px; overflow: hidden; border-radius: 8px; }
+  .transport { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
+  .transport button {
+    background: var(--surface-2); color: var(--text-primary); border: 1px solid var(--grid);
+    border-radius: 6px; padding: 5px 12px; cursor: pointer; font-size: 13px;
+  }
+  .transport button:hover { border-color: var(--accent); }
+  #scrub { flex: 1; accent-color: var(--accent); }
+  #frameno { min-width: 110px; text-align: right; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+  .panel { background: var(--surface-2); border-radius: 8px; padding: 12px; }
+  .panel h2 { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .05em; margin: 10px 0 6px; }
+  .panel h2:first-child { margin-top: 0; }
+  #situations { display: flex; flex-wrap: wrap; gap: 4px; min-height: 22px; }
+  #situations .chip {
+    background: var(--surface-1); border: 1px solid var(--grid); border-radius: 10px;
+    padding: 1px 8px; font-size: 11px; color: var(--text-secondary);
+  }
+  #situations .chip.hot { border-color: var(--series-2); color: var(--text-primary); }
+  table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  td, th { padding: 2px 4px; text-align: right; color: var(--text-secondary); }
+  th { color: var(--text-muted); font-weight: 400; }
+  td:first-child, th:first-child { text-align: left; }
+  .bar-row { display: grid; grid-template-columns: 34px 1fr 40px; gap: 6px; align-items: center; margin: 2px 0; }
+  .bar-row .name { color: var(--text-secondary); font-size: 11px; }
+  .bar-row .val { color: var(--text-muted); font-size: 11px; text-align: right; }
+  .bar { height: 8px; background: var(--surface-1); border-radius: 4px; overflow: hidden; position: relative; }
+  .bar i { display: block; height: 100%; background: var(--series-1); border-radius: 4px; }
+  .bar.rec i { background: var(--series-2); }
+  .legend { display: flex; gap: 12px; color: var(--text-muted); font-size: 11px; margin-top: 4px; }
+  .legend b { display: inline-block; width: 10px; height: 10px; border-radius: 2px; vertical-align: -1px; margin-right: 4px; }
+  #help { color: var(--text-muted); margin-top: 8px; font-size: 12px; }
+  kbd { background: var(--surface-2); border: 1px solid var(--grid); border-radius: 3px; padding: 0 4px; }
+</style>
+</head>
+<body>
+<h1>ExPhil Rewind Viewer <span id="meta">— load a session export</span></h1>
+<div class="topbar">
+  <label>Load session.json <input type="file" id="file" accept=".json"></label>
+  <div class="legend">
+    <span><b style="background:var(--series-1)"></b>bot / policy</span>
+    <span><b style="background:var(--series-2)"></b>opponent / recorded</span>
+  </div>
+</div>
+
+<div class="layout">
+  <div>
+    <canvas id="stage"></canvas>
+    <div class="transport">
+      <button id="play">▶</button>
+      <button id="back">−1</button>
+      <button id="fwd">+1</button>
+      <input type="range" id="scrub" min="0" max="0" value="0" step="1">
+      <span id="frameno">–</span>
+    </div>
+    <div id="tracks-wrap"><canvas id="tracks"></canvas></div>
+    <div id="help">
+      <kbd>space</kbd> play/pause · <kbd>←</kbd>/<kbd>→</kbd> step (<kbd>shift</kbd> ×10) ·
+      click the label timeline to jump · generate exports with
+      <code>ExPhil.Inspect.export_session/2</code>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Situations</h2>
+    <div id="situations"></div>
+    <h2>Players</h2>
+    <table id="ptable"></table>
+    <h2>Policy — p(press) <span style="color:var(--text-muted)">(dot = recorded)</span></h2>
+    <div id="buttons"></div>
+    <h2>main_x</h2>
+    <canvas id="mx" height="70"></canvas>
+    <h2>main_y</h2>
+    <canvas id="my" height="70"></canvas>
+  </div>
+</div>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const BLUE = getComputedStyle(document.documentElement).getPropertyValue("--series-1").trim();
+const ORANGE = getComputedStyle(document.documentElement).getPropertyValue("--series-2").trim();
+const GRID = getComputedStyle(document.documentElement).getPropertyValue("--grid").trim();
+const MUTED = getComputedStyle(document.documentElement).getPropertyValue("--text-muted").trim();
+
+let S = null;          // session payload
+let t = 0;             // current frame index
+let playing = false;
+let presentLabels = []; // [{name, bit, segments:[[a,b],...]}]
+
+// The "hot" labels get chip highlighting when active
+const HOT = new Set(["edge_danger", "being_edgeguarded", "conversion_open", "ledge_option_pending", "cornered"]);
+
+$("file").addEventListener("change", async e => {
+  const f = e.target.files[0];
+  if (!f) return;
+  S = JSON.parse(await f.text());
+  prepare();
+  setFrame(S.window, true);
+});
+
+function prepare() {
+  $("meta").textContent = `— ${S.total} frames · stage ${S.stage} · port ${S.port} · window ${S.window}`;
+  $("scrub").max = S.total - 1;
+
+  // Label lanes present in this session, as segments for the track canvas
+  presentLabels = [];
+  S.labels.forEach((name, bit) => {
+    const segs = [];
+    let start = null;
+    for (let i = 0; i < S.total; i++) {
+      const on = labelOn(S.frames[i], bit);
+      if (on && start === null) start = i;
+      if (!on && start !== null) { segs.push([start, i]); start = null; }
+    }
+    if (start !== null) segs.push([start, S.total]);
+    if (segs.length) presentLabels.push({ name, bit, segments: segs });
+  });
+
+  drawTracks();
+}
+
+// Bits >= 31 need BigInt care (masks are u64 from Elixir)
+function bigOn(mask, bit) {
+  return (BigInt(mask) & (1n << BigInt(bit))) !== 0n;
+}
+function labelOn(frame, bit) {
+  return bit < 31 ? (frame.mask & (1 << bit)) !== 0 : bigOn(frame.mask, bit);
+}
+
+// ---------------------------------------------------------------- stage view
+function drawStage() {
+  const cv = $("stage");
+  const dpr = window.devicePixelRatio || 1;
+  cv.width = cv.clientWidth * dpr; cv.height = cv.clientHeight * dpr;
+  const cx = cv.getContext("2d");
+  cx.scale(dpr, dpr);
+  const W = cv.clientWidth, H = cv.clientHeight;
+  cx.clearRect(0, 0, W, H);
+
+  const g = S.geometry;
+  const [bl, br, bt, bb] = g.blast || [-250, 250, 200, -140];
+  const sx = x => (x - bl) / (br - bl) * W;
+  const sy = y => H - (y - bb) / (bt - bb) * H;
+
+  // Blastzone frame
+  cx.strokeStyle = GRID; cx.setLineDash([4, 4]);
+  cx.strokeRect(sx(bl) + 1, sy(bt) + 1, sx(br) - sx(bl) - 2, sy(bb) - sy(bt) - 2);
+  cx.setLineDash([]);
+
+  // Main stage
+  cx.strokeStyle = MUTED; cx.lineWidth = 2;
+  cx.beginPath(); cx.moveTo(sx(-g.edge), sy(0)); cx.lineTo(sx(g.edge), sy(0)); cx.stroke();
+
+  // Platforms
+  for (const [h, l, r] of S.geometry.platforms) {
+    cx.beginPath(); cx.moveTo(sx(l), sy(h)); cx.lineTo(sx(r), sy(h)); cx.stroke();
+  }
+
+  // Players (triangle points in facing direction)
+  const fr = S.frames[t];
+  drawPlayer(cx, sx, sy, fr.own, BLUE);
+  drawPlayer(cx, sx, sy, fr.opp, ORANGE);
+
+  // Trail for the bot (last 60 frames)
+  cx.strokeStyle = BLUE; cx.globalAlpha = 0.35; cx.lineWidth = 1;
+  cx.beginPath();
+  for (let i = Math.max(0, t - 60); i <= t; i++) {
+    const p = S.frames[i].own; if (!p) continue;
+    i === Math.max(0, t - 60) ? cx.moveTo(sx(p[0]), sy(p[1])) : cx.lineTo(sx(p[0]), sy(p[1]));
+  }
+  cx.stroke(); cx.globalAlpha = 1;
+}
+
+function drawPlayer(cx, sx, sy, p, color) {
+  if (!p) return;
+  const [x, y, facing] = p;
+  cx.fillStyle = color;
+  cx.beginPath();
+  const px = sx(x), py = sy(y), d = 7 * (facing >= 0 ? 1 : -1);
+  cx.moveTo(px + d, py); cx.lineTo(px - d * 0.7, py - 5); cx.lineTo(px - d * 0.7, py + 5);
+  cx.closePath(); cx.fill();
+}
+
+// ------------------------------------------------------------- label tracks
+const LANE_H = 13;
+function drawTracks() {
+  const cv = $("tracks");
+  const dpr = window.devicePixelRatio || 1;
+  const H = presentLabels.length * LANE_H + 4;
+  cv.style.height = H + "px";
+  cv.width = cv.clientWidth * dpr; cv.height = H * dpr;
+  const cx = cv.getContext("2d");
+  cx.scale(dpr, dpr);
+  const W = cv.clientWidth;
+  cx.clearRect(0, 0, W, H);
+  cx.font = "10px system-ui";
+
+  presentLabels.forEach((lab, row) => {
+    const y = row * LANE_H + 2;
+    cx.fillStyle = MUTED;
+    cx.fillText(lab.name, 4, y + 9);
+    cx.fillStyle = BLUE;
+    for (const [a, b] of lab.segments) {
+      const x0 = 120 + a / S.total * (W - 124);
+      const x1 = 120 + b / S.total * (W - 124);
+      cx.fillRect(x0, y + 2, Math.max(x1 - x0, 1.5), LANE_H - 6);
+    }
+  });
+
+  // Playhead
+  const px = 120 + t / S.total * (cv.clientWidth - 124);
+  cx.strokeStyle = ORANGE; cx.lineWidth = 1;
+  cx.beginPath(); cx.moveTo(px, 0); cx.lineTo(px, H); cx.stroke();
+}
+
+$("tracks").addEventListener("click", e => {
+  if (!S) return;
+  const rect = e.target.getBoundingClientRect();
+  const frac = (e.clientX - rect.left - 120) / (rect.width - 124);
+  if (frac >= 0 && frac <= 1) setFrame(Math.round(frac * (S.total - 1)));
+});
+
+// -------------------------------------------------------------- side panel
+function drawPanel() {
+  const fr = S.frames[t];
+  $("frameno").textContent = `${t} / ${S.total - 1}`;
+
+  // Situations
+  const chips = [];
+  S.labels.forEach((name, bit) => {
+    if (labelOn(fr, bit)) chips.push(`<span class="chip ${HOT.has(name) ? "hot" : ""}">${name}</span>`);
+  });
+  $("situations").innerHTML = chips.join("") || `<span class="chip">—</span>`;
+
+  // Players table
+  const row = (name, p) => p ? `<tr><td>${name}</td><td>${p[0].toFixed(1)}</td><td>${p[1].toFixed(1)}</td>
+    <td>${p[4]}%</td><td>${p[5]}</td><td>${p[3]}</td></tr>` : "";
+  $("ptable").innerHTML =
+    `<tr><th></th><th>x</th><th>y</th><th>%</th><th>stk</th><th>act</th></tr>` +
+    row("bot", fr.own) + row("opp", fr.opp);
+
+  // Buttons
+  const rec = fr.rec ? new Set(fr.rec[2]) : new Set();
+  if (fr.pol) {
+    $("buttons").innerHTML = S.buttons.slice(0, 7).map((b, i) => `
+      <div class="bar-row">
+        <span class="name">${b}${rec.has(i) ? " ●" : ""}</span>
+        <div class="bar"><i style="width:${(fr.pol.b[i] * 100).toFixed(1)}%"></i></div>
+        <span class="val">${fr.pol.b[i].toFixed(2)}</span>
+      </div>`).join("");
+    drawDist($("mx"), fr.pol.mx, fr.rec ? fr.rec[0] : null);
+    drawDist($("my"), fr.pol.my, fr.rec ? fr.rec[1] : null);
+  } else {
+    $("buttons").innerHTML = `<span style="color:var(--text-muted)">no policy output (pre-window)</span>`;
+    [$("mx"), $("my")].forEach(c => c.getContext("2d").clearRect(0, 0, c.width, c.height));
+  }
+}
+
+function drawDist(cv, probs, recVal) {
+  const dpr = window.devicePixelRatio || 1;
+  cv.width = cv.clientWidth * dpr; cv.height = 70 * dpr;
+  const cx = cv.getContext("2d");
+  cx.scale(dpr, dpr);
+  const W = cv.clientWidth, H = 70;
+  cx.clearRect(0, 0, W, H);
+  const n = probs.length, bw = W / n;
+  const max = Math.max(...probs, 0.001);
+  cx.fillStyle = BLUE;
+  probs.forEach((p, i) => {
+    const h = p / max * (H - 12);
+    cx.beginPath();
+    cx.roundRect(i * bw + 1, H - h - 2, bw - 2, h, 2);
+    cx.fill();
+  });
+  if (recVal != null) {
+    const rx = Math.round(recVal * (n - 1)) * bw + bw / 2;
+    cx.strokeStyle = ORANGE; cx.lineWidth = 2;
+    cx.beginPath(); cx.moveTo(rx, 2); cx.lineTo(rx, H - 2); cx.stroke();
+  }
+}
+
+// ---------------------------------------------------------------- transport
+function setFrame(nt, force) {
+  if (!S) return;
+  t = Math.max(0, Math.min(S.total - 1, nt));
+  $("scrub").value = t;
+  drawStage(); drawTracks(); drawPanel();
+}
+
+$("scrub").addEventListener("input", e => setFrame(+e.target.value));
+$("back").addEventListener("click", () => setFrame(t - 1));
+$("fwd").addEventListener("click", () => setFrame(t + 1));
+$("play").addEventListener("click", togglePlay);
+
+function togglePlay() {
+  if (!S) return;
+  playing = !playing;
+  $("play").textContent = playing ? "⏸" : "▶";
+  if (playing) tick();
+}
+function tick() {
+  if (!playing) return;
+  setFrame(t + 1);
+  if (t >= S.total - 1) { playing = false; $("play").textContent = "▶"; return; }
+  requestAnimationFrame(tick);
+}
+
+document.addEventListener("keydown", e => {
+  if (!S) return;
+  const step = e.shiftKey ? 10 : 1;
+  if (e.code === "Space") { e.preventDefault(); togglePlay(); }
+  if (e.code === "ArrowLeft") setFrame(t - step);
+  if (e.code === "ArrowRight") setFrame(t + step);
+});
+
+window.addEventListener("resize", () => { if (S) { drawStage(); drawTracks(); } });
+</script>
+</body>
+</html>

@@ -457,7 +457,13 @@ defmodule ExPhil.Situations do
 
   # Per-stage geometry, cached per stage id (labels run per-frame — do
   # not hit Melee.Stages 60x/sec)
-  defp geometry(stage) do
+  @doc """
+  Stage geometry used by the rules (edge x, platforms, blastzones), by
+  EXTERNAL stage id. Public for consumers that render or export the
+  same geometry the labels were computed from (Inspect.export_session).
+  """
+  @spec geometry(number() | nil) :: %{edge: float(), blast: tuple() | nil, platforms: list()}
+  def geometry(stage) do
     id = trunc(stage || 0)
 
     case :persistent_term.get({__MODULE__, :geo, id}, nil) do

@@ -159,6 +159,131 @@ defmodule ExPhil.Inspect do
   end
 
   # ==========================================================================
+  # Export (the standalone viewer's food)
+  # ==========================================================================
+
+  @doc """
+  Export the whole session to one JSON file for the standalone viewer
+  (`priv/viewer/rewind_viewer.html`): per-frame player states, situation
+  bitmasks + the label registry, per-frame policy summaries (batched
+  forward passes over every frame), and the stage geometry the labels
+  were computed from.
+
+  Policy rows are compact: button sigmoids (8), main-stick softmaxes
+  (buckets), argmaxes for the c-stick/shoulder heads. Frames before the
+  trunk window carry `nil`.
+  """
+  @spec export_session(t(), Path.t(), keyword()) :: :ok
+  def export_session(%__MODULE__{} = s, path, opts \\ []) do
+    chunk = Keyword.get(opts, :chunk, 256)
+    round3 = fn v -> Float.round(v * 1.0, 3) end
+
+    policies =
+      (s.window - 1)..(s.total - 1)//1
+      |> Enum.chunk_every(chunk)
+      |> Enum.flat_map(fn ts ->
+        wins =
+          Enum.map(ts, fn t ->
+            Nx.slice_along_axis(s.embedded, t - s.window + 1, s.window, axis: 0)
+          end)
+
+        {b, mx, my, cx, cy, sh} = s.loaded.predict_fn.(s.loaded.params, Nx.stack(wins))
+
+        b_rows = b |> Nx.sigmoid() |> Nx.to_list()
+        mx_rows = mx |> batch_softmax() |> Nx.to_list()
+        my_rows = my |> batch_softmax() |> Nx.to_list()
+        cx_am = cx |> Nx.argmax(axis: 1) |> Nx.to_flat_list()
+        cy_am = cy |> Nx.argmax(axis: 1) |> Nx.to_flat_list()
+        sh_am = sh |> Nx.argmax(axis: 1) |> Nx.to_flat_list()
+
+        Enum.zip([b_rows, mx_rows, my_rows, cx_am, cy_am, sh_am])
+        |> Enum.map(fn {bb, mxx, myy, cxa, cya, sha} ->
+          %{
+            b: Enum.map(bb, round3),
+            mx: Enum.map(mxx, round3),
+            my: Enum.map(myy, round3),
+            cs: [cxa, cya, sha]
+          }
+        end)
+      end)
+
+    policy_at = fn t ->
+      if t >= s.window - 1, do: Enum.at(policies, t - (s.window - 1))
+    end
+
+    frames =
+      for t <- 0..(s.total - 1) do
+        f = elem(s.frames, t)
+        gs = f.game_state
+        opp_port = if s.port == 1, do: 2, else: 1
+
+        %{
+          f: gs.frame,
+          own: compact_player(gs.players[s.port]),
+          opp: compact_player(gs.players[opp_port]),
+          mask: s.situations |> Enum.at(t) |> Situations.to_mask(),
+          rec: compact_controller(f.controller),
+          pol: policy_at.(t)
+        }
+      end
+
+    stage = elem(s.frames, 0).game_state.stage
+    geo = Situations.geometry(stage)
+
+    payload = %{
+      version: 1,
+      window: s.window,
+      port: s.port,
+      total: s.total,
+      stage: stage,
+      labels: Enum.map(Situations.labels(), &to_string/1),
+      buttons: Enum.map(@buttons, &to_string/1),
+      geometry: %{
+        edge: geo.edge,
+        blast: geo.blast && Tuple.to_list(geo.blast),
+        platforms: Enum.map(geo.platforms, &Tuple.to_list/1)
+      },
+      frames: frames
+    }
+
+    File.write!(path, Jason.encode!(payload))
+    :ok
+  end
+
+  defp batch_softmax(logits) do
+    m = Nx.reduce_max(logits, axes: [1], keep_axes: true)
+    e = Nx.exp(Nx.subtract(logits, m))
+    Nx.divide(e, Nx.sum(e, axes: [1], keep_axes: true))
+  end
+
+  defp compact_player(nil), do: nil
+
+  defp compact_player(p) do
+    [
+      Float.round((p.x || 0.0) * 1.0, 2),
+      Float.round((p.y || 0.0) * 1.0, 2),
+      p.facing || 1,
+      trunc(p.action || 0),
+      Float.round((p.percent || 0.0) * 1.0, 1),
+      p.stock || 0,
+      if(p.on_ground, do: 1, else: 0)
+    ]
+  end
+
+  defp compact_controller(nil), do: nil
+
+  defp compact_controller(c) do
+    pressed =
+      [:button_a, :button_b, :button_x, :button_y, :button_z, :button_l, :button_r]
+      |> Enum.with_index()
+      |> Enum.filter(fn {b, _i} -> Map.get(c, b, false) end)
+      |> Enum.map(&elem(&1, 1))
+
+    ms = c.main_stick || %{x: 0.5, y: 0.5}
+    [Float.round(ms.x * 1.0, 3), Float.round(ms.y * 1.0, 3), pressed]
+  end
+
+  # ==========================================================================
   # Internals
   # ==========================================================================
 
