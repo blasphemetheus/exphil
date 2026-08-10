@@ -79,6 +79,7 @@
   <div class="legend">
     <span><b style="background:var(--series-1)"></b>bot / policy</span>
     <span><b style="background:var(--series-2)"></b>opponent / recorded</span>
+    <span><b style="background:transparent;border:2px solid #e5484d;border-radius:50%"></b>attacking</span>
   </div>
 </div>
 
@@ -170,6 +171,20 @@ const CHAR_EMOJI = {
 };
 const normChar = s => (s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
 const charEmoji = name => CHAR_EMOJI[normChar(name)] || null;
+
+// Attack-animation states: jab 44-49, dash attack 50, tilts 51-57,
+// smashes 58-64, aerials 65-69, grabs 212/214, getup attacks 187/195,
+// ledge attacks 256/257. This flags "attacking", NOT "hitbox active" —
+// active-frame windows need per-character frame data (TODO: ingest
+// meleeFrameDataExtractor JSON and gate on action_frame). Specials
+// excluded (charge/travel frames without hitboxes would false-flag).
+const ATTACK_RED = "#e5484d";
+function attacking(p) {
+  if (!p) return false;
+  const a = p[3];
+  return (a >= 44 && a <= 69) || a === 212 || a === 214 ||
+         a === 187 || a === 195 || a === 256 || a === 257;
+}
 
 let STATS = null;      // situation_stats tree for the session's matchup
 let statsMatchup = null;
@@ -380,6 +395,16 @@ function drawPlayer(cx, sx, sy, p, color, emoji) {
   if (!p) return;
   const [x, y, facing] = p;
   const px = sx(x), py = sy(y), d = 7 * (facing >= 0 ? 1 : -1);
+
+  // Attack indicator: red ring, biased toward the facing side (where
+  // the hitbox usually lives)
+  if (attacking(p)) {
+    cx.strokeStyle = ATTACK_RED; cx.lineWidth = 2;
+    cx.beginPath();
+    cx.arc(px + d * 0.6, py, 11, 0, Math.PI * 2);
+    cx.stroke();
+  }
+
   cx.fillStyle = color;
   cx.beginPath();
   cx.moveTo(px + d, py); cx.lineTo(px - d * 0.7, py - 5); cx.lineTo(px - d * 0.7, py + 5);
