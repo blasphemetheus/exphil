@@ -137,7 +137,12 @@ recovery = FoxRecoveryExpert.new()
           me = fn i -> elem(arr, i).game_state.players[port] end
 
           stage = elem(arr, 0).game_state.stage
-          edge = Melee.Stages.edge_ground_position(trunc(stage || 32)) || 85.5656967163
+
+          # external (Slippi) id -> atom; raw ids hit the wrong stage
+          # (external YS 8 = internal FoD 8)
+          edge =
+            (trunc(stage || 0) |> Melee.Enums.Stage.from_external() |> Melee.Stages.edge_ground_position()) ||
+              85.5656967163
           turnaround = EdgeTurnaroundExpert.new(edge_x: edge, danger_margin: margin)
 
           in_hitstun = fn i -> MapSet.member?(hitstun, trunc(me.(i).action || 0)) end

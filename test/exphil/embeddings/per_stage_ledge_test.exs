@@ -66,6 +66,17 @@ defmodule ExPhil.Embeddings.PerStageLedgeTest do
 
     assert Nx.shape(emb_off) == Nx.shape(emb_on)
     refute Nx.to_flat_list(emb_off) == Nx.to_flat_list(emb_on)
+
+    # The REAL YS edge (56) must appear, not internal-id-collision FoD's
+    # 63.35. Both players' ledge dims change (own x=60, opp x=-20); own
+    # is embedded first. At x=60 the real YS value is (56-60)/56 < 0.
+    off_l = Nx.to_flat_list(emb_off)
+    on_l = Nx.to_flat_list(emb_on)
+    changed = Enum.zip(off_l, on_l) |> Enum.filter(fn {a, b} -> a != b end)
+    assert [{own_off, own_on}, {_opp_off, opp_on}] = changed
+    assert_in_delta own_off, (85.0 - 60.0) / 85.0, 1.0e-4
+    assert_in_delta own_on, (56.0 - 60.0) / 56.0, 1.0e-4
+    assert_in_delta opp_on, (56.0 - 20.0) / 56.0, 1.0e-4
   end
 
   test "batch path (embed_states_fast) matches the live path with the flag on" do

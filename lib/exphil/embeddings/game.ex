@@ -676,7 +676,10 @@ defmodule ExPhil.Embeddings.Game do
   defp maybe_stage_edge(_player_config, _stage), do: nil
 
   defp stage_edge_for(stage) do
-    case Melee.Stages.edge_ground_position(trunc(stage || 0)) do
+    # game_state.stage is the EXTERNAL (Slippi) id; Melee.Stages keys on
+    # atoms/internal ids and external YS (8) collides with internal FoD
+    # (8) — convert or silently use the wrong stage's edge
+    case stage |> then(&trunc(&1 || 0)) |> Melee.Enums.Stage.from_external() |> Melee.Stages.edge_ground_position() do
       nil -> 85.0
       edge -> edge
     end

@@ -3494,3 +3494,16 @@ banned — it's a slur).
 `:binary.copy(" ", -1)` ArgumentError when the title exceeds the inner
 box width (observed 2026-08-10 with a ~62-char banner). Keep banners
 short or fix the padding clamp in `output.ex:686`.
+
+## 96. `game_state.stage` is the EXTERNAL id; `Melee.Stages` keys on atoms/internal ids
+
+The ids collide silently: external Yoshi's Story is 8, internal Fountain
+of Dreams is ALSO 8 — so `Melee.Stages.edge_ground_position(gs.stage)`
+on a YS game returns FoD's edge (63.35, not 56) with no error. External
+FD (32) and BF (31) are unknown internally, so they fall through to
+nil/fallbacks and *look* right on FD, which is how this shipped a night
+of work before being caught (2026-08-11, in ExPhil.Situations tests —
+the 08-10 per-stage-ledge + edge-miner code had the same bug; no
+artifacts affected because everything ran on FD). Rule: convert with
+`Melee.Enums.Stage.from_external/1` FIRST, then call Melee.Stages with
+the atom. Unknown externals map to :no_stage -> nil -> your fallback.
