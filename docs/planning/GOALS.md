@@ -177,6 +177,23 @@ Bot account: EXPH#288.
 
 ---
 
+## Track C — the Coach (long-term goal, added 2026-08-10)
+
+A teaching agent for human players: it knows what's good per
+character/matchup/percent/situation, steers a live game into a chosen
+drill situation, plays the opposition role, detects what the learner
+did, and gives feedback with a curriculum. (Bradley + brother-in-law's
+idea.) Full design: [COACH_ROADMAP.md](COACH_ROADMAP.md).
+
+Why it lives here and not in NOT-goals: its prerequisite stack is the
+CURRENT program's own roadmap — the situation labeler
+([SITUATION_LABELS.md](SITUATION_LABELS.md)), an option vocabulary, a
+moment-inspection API + rewind viewer (interp's daily need unified),
+per-situation corpus statistics (the v0 "what's good" model), and the
+F5 value model. Only the curriculum/feedback product layer is new. The
+"knowledge model for every matchup" is the new capability goal; corpus
+sparsity in low-tier matchups is its known wall.
+
 ## Explicitly NOT goals right now
 
 These are real and will come back; they are *deferred* so they stop competing
