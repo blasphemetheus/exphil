@@ -75,6 +75,19 @@ explained_by_neutral? = fn {x, y} ->
   Enum.any?(neutral_segs, &(StageCollision.point_segment_distance(x, y, &1) < tolerance))
 end
 
+# A line-GROUP is one structure (windmill, mound, mountain...): touching
+# any of its lines claims the whole group, which is what recovers the
+# walls/ceilings under a structure that players only ever stand ON TOP
+# of. The primary (main-stage) group is never claimable.
+primary_group =
+  base["lines"] |> Enum.map(&Map.get(&1, "group", 0)) |> Enum.frequencies() |> Enum.max_by(&elem(&1, 1)) |> elem(0)
+
+group_of_index =
+  Map.new(base["lines"], fn l -> {l["index"], Map.get(l, "group", 0)} end)
+
+lines_of_group =
+  base["lines"] |> Enum.group_by(&Map.get(&1, "group", 0))
+
 # type -> list of {x, y} observation points
 points_by_type =
   Enum.reduce(replays, %{}, fn path, acc ->
@@ -113,19 +126,28 @@ pinned =
   Enum.reduce(points_by_type, existing, fn {type, pts}, acc ->
     pts = Enum.uniq_by(pts, fn {x, y} -> {Float.round(x, 1), Float.round(y, 1)} end)
 
-    matched =
-      for %{seg: seg} = line <- union,
+    touched_groups =
+      for %{seg: seg, index: idx} <- union,
+          g = group_of_index[idx],
+          g != primary_group,
           hits = Enum.count(pts, fn {x, y} -> StageCollision.point_segment_distance(x, y, seg) < tolerance end),
-          hits >= min_hits do
-        {x1, y1, x2, y2} = line.seg
+          hits >= min_hits,
+          uniq: true,
+          do: g
+
+    # Emit EVERY line of each touched group (the whole structure)
+    matched =
+      for g <- touched_groups, l <- lines_of_group[g] || [], l["class"] != "dynamic" do
+        [x1, y1] = elem(varr, l["v1"])
+        [x2, y2] = elem(varr, l["v2"])
 
         %{
-          "index" => line.index,
-          "class" => line.class,
+          "index" => l["index"],
+          "class" => l["class"],
+          "group" => g,
           "seg" => [x1, y1, x2, y2],
-          "ledge_grab" => line.ledge,
-          "drop_through" => line.drop,
-          "hits" => hits
+          "ledge_grab" => l["ledge_grab"],
+          "drop_through" => l["drop_through"]
         }
       end
 

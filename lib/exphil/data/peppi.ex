@@ -124,7 +124,8 @@ defmodule ExPhil.Data.Peppi do
       :fod_platform_left,
       :fod_platform_right,
       :stadium_event,
-      :stadium_type
+      :stadium_type,
+      :whispy_direction
     ]
   end
 
@@ -476,7 +477,8 @@ defmodule ExPhil.Data.Peppi do
         fod_platform_left: Map.get(frame, :fod_platform_left),
         fod_platform_right: Map.get(frame, :fod_platform_right),
         stadium_event: Map.get(frame, :stadium_event),
-        stadium_type: Map.get(frame, :stadium_type)
+        stadium_type: Map.get(frame, :stadium_type),
+        whispy_direction: Map.get(frame, :whispy_direction)
       }
     else
       nil

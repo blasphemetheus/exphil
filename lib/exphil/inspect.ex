@@ -226,7 +226,7 @@ defmodule ExPhil.Inspect do
     # FoD heights and the PS transformation type arrive as EVENTS and
     # persist between them — hold the last seen value while mapping
     {frames, _} =
-      Enum.map_reduce(0..(s.total - 1), %{fod: nil, ps: nil}, fn t, held ->
+      Enum.map_reduce(0..(s.total - 1), %{fod: nil, ps: nil, wsp: nil}, fn t, held ->
         f = elem(s.frames, t)
         gs = f.game_state
         opp_port = s.opp_port
@@ -238,7 +238,8 @@ defmodule ExPhil.Inspect do
                 {nil, nil} -> held.fod
                 {l, r} -> {l || elem(held.fod || {nil, nil}, 0), r || elem(held.fod || {nil, nil}, 1)}
               end,
-            ps: Map.get(gs, :stadium_type) || held.ps
+            ps: Map.get(gs, :stadium_type) || held.ps,
+            wsp: Map.get(gs, :whispy_direction) || held.wsp
         }
 
         base = %{
@@ -265,6 +266,7 @@ defmodule ExPhil.Inspect do
           end
 
         base = if held.ps, do: Map.put(base, :ps, held.ps), else: base
+        base = if held.wsp, do: Map.put(base, :wsp, held.wsp), else: base
 
         {base, held}
       end)
@@ -342,6 +344,14 @@ defmodule ExPhil.Inspect do
     end
   end
 
+  # Stages whose NON-primary line-groups are runtime movers and must not
+  # render statically: YS (Randall — drawn from per-frame rnd), FoD (all
+  # three platforms — sides from fodp events, top from the static
+  # table), PS (transformation structures — drawn from pinned ps_types).
+  # Everywhere else non-primary groups are static geometry (Dreamland's
+  # platforms are each their own group and never move).
+  @primary_only ~w(yoshis_story fountain_of_dreams pokemon_stadium pokemon_stadium_1 pokemon_stadium_2 pokemon_stadium_3 pokemon_stadium_4)
+
   defp load_collision_file(name) do
     path = Path.join([:code.priv_dir(:exphil), "stage_collision", "#{name}.json"])
 
@@ -349,15 +359,22 @@ defmodule ExPhil.Inspect do
          {:ok, %{"vertices" => vs, "lines" => lines}} <- Jason.decode(raw) do
       varr = List.to_tuple(vs)
 
-      primary =
-        lines
-        |> Enum.map(&Map.get(&1, "group", 0))
-        |> Enum.frequencies()
-        |> Enum.max_by(&elem(&1, 1), fn -> {0, 0} end)
-        |> elem(0)
+      lines =
+        if to_string(name) in @primary_only do
+          primary =
+            lines
+            |> Enum.map(&Map.get(&1, "group", 0))
+            |> Enum.frequencies()
+            |> Enum.max_by(&elem(&1, 1), fn -> {0, 0} end)
+            |> elem(0)
+
+          Enum.filter(lines, &(Map.get(&1, "group", primary) == primary))
+        else
+          lines
+        end
 
       lines
-      |> Enum.filter(&(&1["class"] != "dynamic" and Map.get(&1, "group", primary) == primary))
+      |> Enum.filter(&(&1["class"] != "dynamic"))
       |> Enum.group_by(& &1["class"], fn l ->
         [x1, y1] = elem(varr, l["v1"])
         [x2, y2] = elem(varr, l["v2"])

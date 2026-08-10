@@ -87,6 +87,8 @@ pub struct GameFrame {
     pub fod_platform_right: Option<f64>,
     pub stadium_event: Option<i32>,
     pub stadium_type: Option<i32>,
+    /// Dreamland Whispy blow direction (raw u8 from the 0x40 event)
+    pub whispy_direction: Option<i32>,
 }
 
 /// Player metadata from game start
@@ -396,6 +398,11 @@ fn parse_frame(frame: &Frame) -> GameFrame {
         _ => (None, None),
     };
 
+    let whispy_direction = match &frame.dreamland_whispys {
+        Some(ws) if !ws.is_empty() => Some(ws[ws.len() - 1].direction as i32),
+        _ => None,
+    };
+
     GameFrame {
         frame_number: frame.id,
         players,
@@ -403,6 +410,7 @@ fn parse_frame(frame: &Frame) -> GameFrame {
         fod_platform_right: fod_right,
         stadium_event,
         stadium_type,
+        whispy_direction,
     }
 }
 
