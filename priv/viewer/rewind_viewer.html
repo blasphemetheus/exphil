@@ -377,10 +377,10 @@ function drawStage() {
     cx.fillText(`transformation: ${PS_TYPES[fr.ps] || fr.ps}${activePS ? "" : " (structures not pinned)"}`, W / 2 - 80, 16);
   }
 
-  // Dreamland Whispy wind (0x40 event, held): 0 = calm, 1/2 = blowing
-  // (observed 822-frame symmetric periods on the 0809 DL netplay game).
-  // Which of 1/2 is left vs right is provisional until eyeballed
-  // against character drift.
+  // Dreamland Whispy wind (0x40 event, held): 0 = calm, 1 = blowing
+  // LEFT, 2 = blowing RIGHT — VERIFIED via airborne-player drift on the
+  // 0809 DL netplay game (state 1: -0.047 x/frame, state 2: +0.18,
+  // calm baseline +0.037).
   if (fr.wsp === 1 || fr.wsp === 2) {
     const blowLeft = fr.wsp === 1;
     cx.fillStyle = ORANGE; cx.font = "12px system-ui";
