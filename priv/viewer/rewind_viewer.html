@@ -402,11 +402,21 @@ function drawStage() {
     draw(coll.wall_right, 2, 0.9);
     draw(coll.ceiling, 1, 0.6);
 
-    // FoD side platforms at their LIVE per-frame heights (spec >= 3.18
-    // replays). Heights are exact from the events; x-spans (~21..49.5)
-    // are approximate — FoD's side platforms are unmapped in the static
-    // table precisely because they move (their collision lives in
-    // non-primary line-groups)
+    // FoD platforms: ALL THREE are moving-object line-groups in the
+    // stage file (each a parked line the engine positions), so none
+    // survive the primary-group filter. The two SIDES get Slippi height
+    // events (exact heights, approximate x-spans ~21..49.5); the TOP
+    // never moves in practice but has NO event — draw it from the
+    // static table (first entry of geometry.platforms).
+    if (S.stage === 2) {
+      const top = S.geometry.platforms[0];
+      if (top) {
+        const [h, l, r] = top;
+        cx.strokeStyle = meta.color; cx.lineWidth = 2; cx.globalAlpha = 0.8;
+        cx.beginPath(); cx.moveTo(sx(l), sy(h)); cx.lineTo(sx(r), sy(h)); cx.stroke();
+        cx.globalAlpha = 1;
+      }
+    }
     if (fr.fodp) {
       const [lh, rh] = fr.fodp;
       cx.strokeStyle = meta.color; cx.lineWidth = 2; cx.globalAlpha = 0.55;
