@@ -251,8 +251,19 @@ defmodule ExPhil.Inspect do
            {:ok, %{"vertices" => vs, "lines" => lines}} <- Jason.decode(raw) do
         varr = List.to_tuple(vs)
 
+        # Primary line-group only: moving objects (YS's Randall, FoD's
+        # side platforms) are authored as separate groups parked at
+        # static positions — drawing those parked lines is wrong (the
+        # viewer renders Randall from the per-frame export instead)
+        primary =
+          lines
+          |> Enum.map(&Map.get(&1, "group", 0))
+          |> Enum.frequencies()
+          |> Enum.max_by(&elem(&1, 1), fn -> {0, 0} end)
+          |> elem(0)
+
         lines
-        |> Enum.filter(&(&1["class"] != "dynamic"))
+        |> Enum.filter(&(&1["class"] != "dynamic" and Map.get(&1, "group", primary) == primary))
         |> Enum.group_by(& &1["class"], fn l ->
           [x1, y1] = elem(varr, l["v1"])
           [x2, y2] = elem(varr, l["v2"])

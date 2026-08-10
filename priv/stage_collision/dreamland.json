@@ -2,6 +2,8 @@
   "source": "GrOp.dat",
   "lines": [
     {
+      "index": 0,
+      "group": 0,
       "v1": 0,
       "v2": 1,
       "physics": 1,
@@ -11,6 +13,8 @@
       "class": "ground"
     },
     {
+      "index": 1,
+      "group": 1,
       "v1": 2,
       "v2": 3,
       "physics": 1,
@@ -20,6 +24,8 @@
       "class": "ground"
     },
     {
+      "index": 2,
+      "group": 2,
       "v1": 4,
       "v2": 5,
       "physics": 1,
@@ -29,6 +35,8 @@
       "class": "ground"
     },
     {
+      "index": 3,
+      "group": 3,
       "v1": 11,
       "v2": 12,
       "physics": 1,
@@ -38,6 +46,8 @@
       "class": "ground"
     },
     {
+      "index": 4,
+      "group": 3,
       "v1": 12,
       "v2": 13,
       "physics": 1,
@@ -47,6 +57,8 @@
       "class": "ground"
     },
     {
+      "index": 5,
+      "group": 3,
       "v1": 13,
       "v2": 10,
       "physics": 1,
@@ -56,6 +68,8 @@
       "class": "ground"
     },
     {
+      "index": 6,
+      "group": 3,
       "v1": 9,
       "v2": 6,
       "physics": 2,
@@ -65,6 +79,8 @@
       "class": "ceiling"
     },
     {
+      "index": 7,
+      "group": 3,
       "v1": 8,
       "v2": 9,
       "physics": 4,
@@ -74,6 +90,8 @@
       "class": "wall_right"
     },
     {
+      "index": 8,
+      "group": 3,
       "v1": 10,
       "v2": 8,
       "physics": 4,
@@ -83,6 +101,8 @@
       "class": "wall_right"
     },
     {
+      "index": 9,
+      "group": 3,
       "v1": 7,
       "v2": 11,
       "physics": 8,
@@ -92,6 +112,8 @@
       "class": "wall_left"
     },
     {
+      "index": 10,
+      "group": 3,
       "v1": 6,
       "v2": 7,
       "physics": 8,

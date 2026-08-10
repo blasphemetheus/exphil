@@ -129,9 +129,42 @@ parse_dat = fn path ->
 
   lines =
     for {class, first, n} <- groups, n > 0, i <- first..(first + n - 1), i < line_count do
-      Map.put(line_at.(i), :class, class)
+      line_at.(i) |> Map.put(:class, class) |> Map.put(:index, i)
     end
 
+  # Line-GROUP membership (SBM_CollLineGroup at 0x24: each group's own
+  # top/bottom/right/left index+count pairs in its first 16 bytes).
+  # Moving objects live in their own groups — YS's Randall is group 0's
+  # single line, parked at its authoring position; FoD's moving side
+  # platforms likewise. Tag lines so consumers can keep only the
+  # primary (static-stage) group.
+  <<goff::32-big, gcount::32-big, _::binary>> = binary_part(data, coll_off + 0x24, 8)
+
+  group_of =
+    if gcount > 1 do
+      ranges =
+        for g <- 0..(gcount - 1) do
+          base = goff + g * 0x28
+
+          pairs =
+            for k <- 0..3 do
+              <<idx::16-big, n::16-big>> = binary_part(data, base + k * 4, 4)
+              {idx, n}
+            end
+
+          {g, pairs}
+        end
+
+      fn i ->
+        Enum.find_value(ranges, 0, fn {g, pairs} ->
+          if Enum.any?(pairs, fn {idx, n} -> n > 0 and i >= idx and i < idx + n end), do: g
+        end)
+      end
+    else
+      fn _i -> 0 end
+    end
+
+  lines = Enum.map(lines, &Map.put(&1, :group, group_of.(&1.index)))
   {vertices, lines}
 end
 

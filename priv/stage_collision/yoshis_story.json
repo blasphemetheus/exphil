@@ -2,6 +2,8 @@
   "source": "GrSt.dat",
   "lines": [
     {
+      "index": 0,
+      "group": 0,
       "v1": 0,
       "v2": 1,
       "physics": 1,
@@ -11,6 +13,8 @@
       "class": "ground"
     },
     {
+      "index": 1,
+      "group": 1,
       "v1": 11,
       "v2": 12,
       "physics": 1,
@@ -20,6 +24,8 @@
       "class": "ground"
     },
     {
+      "index": 2,
+      "group": 1,
       "v1": 15,
       "v2": 13,
       "physics": 1,
@@ -29,6 +35,8 @@
       "class": "ground"
     },
     {
+      "index": 3,
+      "group": 1,
       "v1": 13,
       "v2": 14,
       "physics": 1,
@@ -38,6 +46,8 @@
       "class": "ground"
     },
     {
+      "index": 4,
+      "group": 1,
       "v1": 18,
       "v2": 19,
       "physics": 1,
@@ -47,6 +57,8 @@
       "class": "ground"
     },
     {
+      "index": 5,
+      "group": 1,
       "v1": 4,
       "v2": 5,
       "physics": 1,
@@ -56,6 +68,8 @@
       "class": "ground"
     },
     {
+      "index": 6,
+      "group": 1,
       "v1": 14,
       "v2": 20,
       "physics": 1,
@@ -65,6 +79,8 @@
       "class": "ground"
     },
     {
+      "index": 7,
+      "group": 1,
       "v1": 7,
       "v2": 8,
       "physics": 4,
@@ -74,6 +90,8 @@
       "class": "wall_right"
     },
     {
+      "index": 8,
+      "group": 1,
       "v1": 8,
       "v2": 22,
       "physics": 4,
@@ -83,6 +101,8 @@
       "class": "wall_right"
     },
     {
+      "index": 9,
+      "group": 1,
       "v1": 31,
       "v2": 29,
       "physics": 4,
@@ -92,6 +112,8 @@
       "class": "wall_right"
     },
     {
+      "index": 10,
+      "group": 1,
       "v1": 29,
       "v2": 9,
       "physics": 4,
@@ -101,6 +123,8 @@
       "class": "wall_right"
     },
     {
+      "index": 11,
+      "group": 1,
       "v1": 22,
       "v2": 23,
       "physics": 4,
@@ -110,6 +134,8 @@
       "class": "wall_right"
     },
     {
+      "index": 12,
+      "group": 1,
       "v1": 9,
       "v2": 10,
       "physics": 4,
@@ -119,6 +145,8 @@
       "class": "wall_right"
     },
     {
+      "index": 13,
+      "group": 1,
       "v1": 10,
       "v2": 7,
       "physics": 4,
@@ -128,6 +156,8 @@
       "class": "wall_right"
     },
     {
+      "index": 14,
+      "group": 1,
       "v1": 33,
       "v2": 31,
       "physics": 4,
@@ -137,6 +167,8 @@
       "class": "wall_right"
     },
     {
+      "index": 15,
+      "group": 1,
       "v1": 17,
       "v2": 33,
       "physics": 4,
@@ -146,6 +178,8 @@
       "class": "wall_right"
     },
     {
+      "index": 16,
+      "group": 1,
       "v1": 16,
       "v2": 17,
       "physics": 4,
@@ -155,6 +189,8 @@
       "class": "wall_right"
     },
     {
+      "index": 17,
+      "group": 1,
       "v1": 20,
       "v2": 16,
       "physics": 4,
@@ -164,6 +200,8 @@
       "class": "wall_right"
     },
     {
+      "index": 18,
+      "group": 1,
       "v1": 25,
       "v2": 15,
       "physics": 8,
@@ -173,6 +211,8 @@
       "class": "wall_left"
     },
     {
+      "index": 19,
+      "group": 1,
       "v1": 24,
       "v2": 25,
       "physics": 8,
@@ -182,6 +222,8 @@
       "class": "wall_left"
     },
     {
+      "index": 20,
+      "group": 1,
       "v1": 21,
       "v2": 2,
       "physics": 8,
@@ -191,6 +233,8 @@
       "class": "wall_left"
     },
     {
+      "index": 21,
+      "group": 1,
       "v1": 2,
       "v2": 3,
       "physics": 8,
@@ -200,6 +244,8 @@
       "class": "wall_left"
     },
     {
+      "index": 22,
+      "group": 1,
       "v1": 27,
       "v2": 28,
       "physics": 8,
@@ -209,6 +255,8 @@
       "class": "wall_left"
     },
     {
+      "index": 23,
+      "group": 1,
       "v1": 26,
       "v2": 27,
       "physics": 8,
@@ -218,6 +266,8 @@
       "class": "wall_left"
     },
     {
+      "index": 24,
+      "group": 1,
       "v1": 32,
       "v2": 24,
       "physics": 8,
@@ -227,6 +277,8 @@
       "class": "wall_left"
     },
     {
+      "index": 25,
+      "group": 1,
       "v1": 30,
       "v2": 32,
       "physics": 8,
@@ -236,6 +288,8 @@
       "class": "wall_left"
     },
     {
+      "index": 26,
+      "group": 1,
       "v1": 3,
       "v2": 6,
       "physics": 8,
@@ -245,6 +299,8 @@
       "class": "wall_left"
     },
     {
+      "index": 27,
+      "group": 1,
       "v1": 6,
       "v2": 26,
       "physics": 8,
@@ -254,6 +310,8 @@
       "class": "wall_left"
     },
     {
+      "index": 28,
+      "group": 1,
       "v1": 28,
       "v2": 30,
       "physics": 8,
