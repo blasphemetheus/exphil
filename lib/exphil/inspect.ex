@@ -241,6 +241,27 @@ defmodule ExPhil.Inspect do
     stage = elem(s.frames, 0).game_state.stage
     geo = Situations.geometry(stage)
 
+    # Precise collision (task #1, scripts/extract_stage_collision.exs):
+    # segment lists per physics class, if extracted data is present
+    collision =
+      with atom when atom not in [nil, :no_stage] <-
+             Melee.Enums.Stage.from_external(trunc(stage || 0)),
+           path = Path.join([:code.priv_dir(:exphil), "stage_collision", "#{atom}.json"]),
+           {:ok, raw} <- File.read(path),
+           {:ok, %{"vertices" => vs, "lines" => lines}} <- Jason.decode(raw) do
+        varr = List.to_tuple(vs)
+
+        lines
+        |> Enum.filter(&(&1["class"] != "dynamic"))
+        |> Enum.group_by(& &1["class"], fn l ->
+          [x1, y1] = elem(varr, l["v1"])
+          [x2, y2] = elem(varr, l["v2"])
+          [x1, y1, x2, y2, if(l["ledge_grab"], do: 1, else: 0), if(l["drop_through"], do: 1, else: 0)]
+        end)
+      else
+        _ -> nil
+      end
+
     # Character names for stats-matchup lookup (frame data carries
     # INTERNAL ids — Melee.Enums.Character.from_id is the right decoder)
     char_name = fn t, port ->
@@ -268,7 +289,8 @@ defmodule ExPhil.Inspect do
       geometry: %{
         edge: geo.edge,
         blast: geo.blast && Tuple.to_list(geo.blast),
-        platforms: Enum.map(geo.platforms, &Tuple.to_list/1)
+        platforms: Enum.map(geo.platforms, &Tuple.to_list/1),
+        collision: collision
       },
       frames: frames
     }

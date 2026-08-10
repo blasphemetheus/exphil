@@ -365,34 +365,56 @@ function drawStage() {
   cx.font = "11px system-ui";
   cx.fillText(meta.name + (S.stage === 2 ? " (side plats omitted)" : ""), sx(bl) + 6, sy(bb) - 6);
 
-  // Main stage: colored line + a soft ground slab beneath it
-  cx.strokeStyle = meta.color; cx.lineWidth = 3; cx.lineCap = "round";
-  cx.beginPath(); cx.moveTo(sx(-g.edge), sy(0)); cx.lineTo(sx(g.edge), sy(0)); cx.stroke();
-  cx.globalAlpha = 0.18; cx.fillStyle = meta.color;
-  cx.fillRect(sx(-g.edge), sy(0), sx(g.edge) - sx(-g.edge), 6);
-  cx.globalAlpha = 1;
+  if (g.collision) {
+    // PRECISE collision (extracted from the stage .dat, edge-validated):
+    // grounds/slants thick, walls medium, ceilings/undersides thin,
+    // drop-through platforms slightly transparent, ledge-grab segments
+    // ticked in orange
+    const draw = (segs, width, alpha) => {
+      if (!segs) return;
+      for (const [x1, y1, x2, y2, ledge, dropthru] of segs) {
+        cx.strokeStyle = meta.color;
+        cx.globalAlpha = dropthru ? 0.55 : alpha;
+        cx.lineWidth = width;
+        cx.beginPath(); cx.moveTo(sx(x1), sy(y1)); cx.lineTo(sx(x2), sy(y2)); cx.stroke();
+        if (ledge) {
+          cx.strokeStyle = ORANGE; cx.lineWidth = 1; cx.globalAlpha = 0.9;
+          cx.beginPath(); cx.moveTo(sx(x1), sy(y1)); cx.lineTo(sx(x2), sy(y2)); cx.stroke();
+        }
+      }
+      cx.globalAlpha = 1;
+    };
+    draw(g.collision.ground, 3, 1);
+    draw(g.collision.wall_left, 2, 0.9);
+    draw(g.collision.wall_right, 2, 0.9);
+    draw(g.collision.ceiling, 1, 0.6);
+  } else {
+    // Fallback: stylized layout (no extracted collision in this export)
+    cx.strokeStyle = meta.color; cx.lineWidth = 3; cx.lineCap = "round";
+    cx.beginPath(); cx.moveTo(sx(-g.edge), sy(0)); cx.lineTo(sx(g.edge), sy(0)); cx.stroke();
+    cx.globalAlpha = 0.18; cx.fillStyle = meta.color;
+    cx.fillRect(sx(-g.edge), sy(0), sx(g.edge) - sx(-g.edge), 6);
+    cx.globalAlpha = 1;
 
-  // Walls below the ledges (walljump/walltech surfaces): solid for the
-  // near-vertical zone, dotted inward taper for the underside hull
-  if (meta.walls) {
-    const { depth, taper } = meta.walls;
-    for (const side of [1, -1]) {
-      const ex = side * g.edge;
-      cx.strokeStyle = meta.color; cx.lineWidth = 2;
-      cx.beginPath(); cx.moveTo(sx(ex), sy(0)); cx.lineTo(sx(ex), sy(-depth)); cx.stroke();
-      cx.setLineDash([2, 4]); cx.lineWidth = 1;
-      cx.beginPath();
-      cx.moveTo(sx(ex), sy(-depth));
-      cx.quadraticCurveTo(sx(ex), sy(taper[1]), sx(side * g.edge * taper[0]), sy(taper[1]));
-      cx.stroke();
-      cx.setLineDash([]);
+    if (meta.walls) {
+      const { depth, taper } = meta.walls;
+      for (const side of [1, -1]) {
+        const ex = side * g.edge;
+        cx.strokeStyle = meta.color; cx.lineWidth = 2;
+        cx.beginPath(); cx.moveTo(sx(ex), sy(0)); cx.lineTo(sx(ex), sy(-depth)); cx.stroke();
+        cx.setLineDash([2, 4]); cx.lineWidth = 1;
+        cx.beginPath();
+        cx.moveTo(sx(ex), sy(-depth));
+        cx.quadraticCurveTo(sx(ex), sy(taper[1]), sx(side * g.edge * taper[0]), sy(taper[1]));
+        cx.stroke();
+        cx.setLineDash([]);
+      }
     }
-  }
 
-  // Platforms in the stage color, thinner
-  cx.strokeStyle = meta.color; cx.lineWidth = 2;
-  for (const [h, l, r] of S.geometry.platforms) {
-    cx.beginPath(); cx.moveTo(sx(l), sy(h)); cx.lineTo(sx(r), sy(h)); cx.stroke();
+    cx.strokeStyle = meta.color; cx.lineWidth = 2;
+    for (const [h, l, r] of S.geometry.platforms) {
+      cx.beginPath(); cx.moveTo(sx(l), sy(h)); cx.lineTo(sx(r), sy(h)); cx.stroke();
+    }
   }
 
   // Randall (Yoshi's): exact per-frame position from the export

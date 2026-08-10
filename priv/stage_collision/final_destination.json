@@ -1,0 +1,223 @@
+{
+  "source": "GrNLa.dat",
+  "lines": [
+    {
+      "v1": 4,
+      "v2": 15,
+      "physics": 1,
+      "ledge_grab": true,
+      "drop_through": false,
+      "material": 0,
+      "class": "ground"
+    },
+    {
+      "v1": 15,
+      "v2": 6,
+      "physics": 1,
+      "ledge_grab": false,
+      "drop_through": false,
+      "material": 0,
+      "class": "ground"
+    },
+    {
+      "v1": 6,
+      "v2": 5,
+      "physics": 1,
+      "ledge_grab": true,
+      "drop_through": false,
+      "material": 0,
+      "class": "ground"
+    },
+    {
+      "v1": 7,
+      "v2": 8,
+      "physics": 2,
+      "ledge_grab": false,
+      "drop_through": false,
+      "material": 0,
+      "class": "ceiling"
+    },
+    {
+      "v1": 9,
+      "v2": 7,
+      "physics": 2,
+      "ledge_grab": false,
+      "drop_through": false,
+      "material": 0,
+      "class": "ceiling"
+    },
+    {
+      "v1": 14,
+      "v2": 9,
+      "physics": 2,
+      "ledge_grab": false,
+      "drop_through": false,
+      "material": 0,
+      "class": "ceiling"
+    },
+    {
+      "v1": 11,
+      "v2": 14,
+      "physics": 4,
+      "ledge_grab": false,
+      "drop_through": false,
+      "material": 0,
+      "class": "wall_right"
+    },
+    {
+      "v1": 3,
+      "v2": 10,
+      "physics": 4,
+      "ledge_grab": false,
+      "drop_through": false,
+      "material": 0,
+      "class": "wall_right"
+    },
+    {
+      "v1": 10,
+      "v2": 11,
+      "physics": 4,
+      "ledge_grab": false,
+      "drop_through": false,
+      "material": 0,
+      "class": "wall_right"
+    },
+    {
+      "v1": 5,
+      "v2": 2,
+      "physics": 4,
+      "ledge_grab": false,
+      "drop_through": false,
+      "material": 0,
+      "class": "wall_right"
+    },
+    {
+      "v1": 2,
+      "v2": 3,
+      "physics": 4,
+      "ledge_grab": false,
+      "drop_through": false,
+      "material": 0,
+      "class": "wall_right"
+    },
+    {
+      "v1": 1,
+      "v2": 4,
+      "physics": 8,
+      "ledge_grab": false,
+      "drop_through": false,
+      "material": 0,
+      "class": "wall_left"
+    },
+    {
+      "v1": 13,
+      "v2": 0,
+      "physics": 8,
+      "ledge_grab": false,
+      "drop_through": false,
+      "material": 0,
+      "class": "wall_left"
+    },
+    {
+      "v1": 0,
+      "v2": 1,
+      "physics": 8,
+      "ledge_grab": false,
+      "drop_through": false,
+      "material": 0,
+      "class": "wall_left"
+    },
+    {
+      "v1": 12,
+      "v2": 13,
+      "physics": 8,
+      "ledge_grab": false,
+      "drop_through": false,
+      "material": 0,
+      "class": "wall_left"
+    },
+    {
+      "v1": 8,
+      "v2": 12,
+      "physics": 8,
+      "ledge_grab": false,
+      "drop_through": false,
+      "material": 0,
+      "class": "wall_left"
+    }
+  ],
+  "vertices": [
+    [
+      -65.7993,
+      -20.4538
+    ],
+    [
+      -85.5657,
+      -10.5
+    ],
+    [
+      85.5657,
+      -10.5
+    ],
+    [
+      65.7993,
+      -20.4538
+    ],
+    [
+      -85.5657,
+      0.0
+    ],
+    [
+      85.5657,
+      0.0
+    ],
+    [
+      75.0,
+      0.0
+    ],
+    [
+      -47.456,
+      -55.3882
+    ],
+    [
+      -53.7736,
+      -54.2584
+    ],
+    [
+      47.456,
+      -55.3882
+    ],
+    [
+      65.8374,
+      -31.3443
+    ],
+    [
+      61.4195,
+      -47.3663
+    ],
+    [
+      -61.4195,
+      -47.3663
+    ],
+    [
+      -65.8374,
+      -31.3443
+    ],
+    [
+      53.7736,
+      -54.2584
+    ],
+    [
+      -75.0,
+      0.0
+    ]
+  ],
+  "summary": {
+    "ground_max_x": 85.5657,
+    "ceiling": 3,
+    "ground": 3,
+    "wall_left": 5,
+    "wall_right": 5
+  },
+  "stage": "final_destination"
+}
