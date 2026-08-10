@@ -132,6 +132,24 @@ let presentLabels = []; // [{name, bit, segments:[[a,b],...]}]
 // The "hot" labels get chip highlighting when active
 const HOT = new Set(["edge_danger", "being_edgeguarded", "conversion_open", "ledge_option_pending", "cornered"]);
 
+// Per-stage presentation (EXTERNAL Slippi ids — same space as the
+// export's `stage`). Colors are thematic, deliberately distinct from
+// the two data-series hues (blue = bot, orange = opponent).
+// TODO: FoD side platforms are omitted (heights animate through the
+// match; Melee.Stages only carries the top platform) — render their
+// height track once per-frame platform data is exported.
+// TODO: Yoshi's slanted edges + Randall, PS transformations — drawn as
+// the neutral flat layout for now.
+const STAGE_META = {
+  32: { name: "Final Destination", color: "#9085e9" },
+  31: { name: "Battlefield",       color: "#c3c2b7" },
+  8:  { name: "Yoshi's Story",     color: "#1baf7a" },
+  2:  { name: "Fountain of Dreams",color: "#d55181" },
+  3:  { name: "Pokémon Stadium",   color: "#c98500" },
+  28: { name: "Dreamland",         color: "#b08d57" },
+};
+const stageMeta = () => STAGE_META[S.stage] || { name: `stage ${S.stage}`, color: MUTED };
+
 let STATS = null;      // situation_stats tree for the session's matchup
 let statsMatchup = null;
 
@@ -209,20 +227,34 @@ function drawStage() {
   cx.clearRect(0, 0, W, H);
 
   const g = S.geometry;
+  const meta = stageMeta();
   const [bl, br, bt, bb] = g.blast || [-250, 250, 200, -140];
-  const sx = x => (x - bl) / (br - bl) * W;
-  const sy = y => H - (y - bb) / (bt - bb) * H;
+  // Small margin so the blastzone box sits inside the canvas
+  const pad = 8;
+  const sx = x => pad + (x - bl) / (br - bl) * (W - 2 * pad);
+  const sy = y => H - pad - (y - bb) / (bt - bb) * (H - 2 * pad);
 
-  // Blastzone frame
-  cx.strokeStyle = GRID; cx.setLineDash([4, 4]);
-  cx.strokeRect(sx(bl) + 1, sy(bt) + 1, sx(br) - sx(bl) - 2, sy(bb) - sy(bt) - 2);
+  // Blastzone: the box of where you can be — cross it and you're dead
+  cx.strokeStyle = MUTED; cx.setLineDash([5, 5]); cx.lineWidth = 1;
+  cx.strokeRect(sx(bl), sy(bt), sx(br) - sx(bl), sy(bb) - sy(bt));
   cx.setLineDash([]);
+  cx.fillStyle = MUTED; cx.font = "10px system-ui";
+  cx.fillText("blastzone", sx(bl) + 6, sy(bt) + 12);
 
-  // Main stage
-  cx.strokeStyle = MUTED; cx.lineWidth = 2;
+  // Stage name tag
+  cx.fillStyle = meta.color;
+  cx.font = "11px system-ui";
+  cx.fillText(meta.name + (S.stage === 2 ? " (side plats omitted)" : ""), sx(bl) + 6, sy(bb) - 6);
+
+  // Main stage: colored line + a soft ground slab beneath it
+  cx.strokeStyle = meta.color; cx.lineWidth = 3; cx.lineCap = "round";
   cx.beginPath(); cx.moveTo(sx(-g.edge), sy(0)); cx.lineTo(sx(g.edge), sy(0)); cx.stroke();
+  cx.globalAlpha = 0.18; cx.fillStyle = meta.color;
+  cx.fillRect(sx(-g.edge), sy(0), sx(g.edge) - sx(-g.edge), 6);
+  cx.globalAlpha = 1;
 
-  // Platforms
+  // Platforms in the stage color, thinner
+  cx.strokeStyle = meta.color; cx.lineWidth = 2;
   for (const [h, l, r] of S.geometry.platforms) {
     cx.beginPath(); cx.moveTo(sx(l), sy(h)); cx.lineTo(sx(r), sy(h)); cx.stroke();
   }
