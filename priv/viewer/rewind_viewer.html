@@ -139,13 +139,18 @@ const HOT = new Set(["edge_danger", "being_edgeguarded", "conversion_open", "led
 // match; Melee.Stages only carries the top platform) — render their
 // height track once per-frame platform data is exported.
 // TODO: Yoshi's slanted edges + Randall, PS transformations — drawn as
-// the neutral flat layout for now.
+// the neutral flat layout for now. BF/DL rounded undersides (tech-able,
+// not walljumpable) not yet drawn.
+// `walls`: stylized walljump/walltech surfaces below each ledge —
+// { depth } is the near-vertical zone drawn solid; the inward taper
+// below it is drawn dotted as an explicit approximation (Melee.Stages
+// carries no wall hull data).
 const STAGE_META = {
-  32: { name: "Final Destination", color: "#9085e9" },
+  32: { name: "Final Destination", color: "#9085e9", walls: { depth: 25, taper: [0.62, -75] } },
   31: { name: "Battlefield",       color: "#c3c2b7" },
-  8:  { name: "Yoshi's Story",     color: "#1baf7a" },
+  8:  { name: "Yoshi's Story",     color: "#1baf7a", walls: { depth: 18, taper: [0.7, -55] } },
   2:  { name: "Fountain of Dreams",color: "#d55181" },
-  3:  { name: "Pokémon Stadium",   color: "#c98500" },
+  3:  { name: "Pokémon Stadium",   color: "#c98500", walls: { depth: 20, taper: [0.75, -60] } },
   28: { name: "Dreamland",         color: "#b08d57" },
 };
 const stageMeta = () => STAGE_META[S.stage] || { name: `stage ${S.stage}`, color: MUTED };
@@ -271,6 +276,23 @@ function drawStage() {
   cx.globalAlpha = 0.18; cx.fillStyle = meta.color;
   cx.fillRect(sx(-g.edge), sy(0), sx(g.edge) - sx(-g.edge), 6);
   cx.globalAlpha = 1;
+
+  // Walls below the ledges (walljump/walltech surfaces): solid for the
+  // near-vertical zone, dotted inward taper for the underside hull
+  if (meta.walls) {
+    const { depth, taper } = meta.walls;
+    for (const side of [1, -1]) {
+      const ex = side * g.edge;
+      cx.strokeStyle = meta.color; cx.lineWidth = 2;
+      cx.beginPath(); cx.moveTo(sx(ex), sy(0)); cx.lineTo(sx(ex), sy(-depth)); cx.stroke();
+      cx.setLineDash([2, 4]); cx.lineWidth = 1;
+      cx.beginPath();
+      cx.moveTo(sx(ex), sy(-depth));
+      cx.quadraticCurveTo(sx(ex), sy(taper[1]), sx(side * g.edge * taper[0]), sy(taper[1]));
+      cx.stroke();
+      cx.setLineDash([]);
+    }
+  }
 
   // Platforms in the stage color, thinner
   cx.strokeStyle = meta.color; cx.lineWidth = 2;
