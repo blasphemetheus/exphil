@@ -72,6 +72,10 @@ end
 if "--quiet" in System.argv(), do: Logger.configure(level: :warning)
 
 alias ExPhil.Training.{Config, Pipeline, Trainer, Output}
+
+# Suspend guard: idle-suspend froze a run mid-epoch 2026-08-10 — hold a
+# sleep:idle inhibitor for the life of this BEAM (auto-released on exit)
+ExPhil.Training.Inhibitor.hold("train.exs run")
 alias ExPhil.Training.Callbacks.{
   ProgressBar, Validation, Diagnostics, Checkpoint,
   EarlyStopping, EMA, GracefulShutdown, EpochSummary,

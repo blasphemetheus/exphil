@@ -150,6 +150,7 @@ end
 
 # Use the training output module for colored output, progress bars, and formatting
 alias ExPhil.Training.Output
+ExPhil.Training.Inhibitor.hold("train_from_replays run")
 
 # Build auto-tags based on training configuration
 build_model_tags = fn opts ->

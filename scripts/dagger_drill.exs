@@ -17,6 +17,7 @@ require Logger
 Logger.configure(level: :warning)
 
 alias ExPhil.Training.{ConversionSampling, Data, Imitation, MemoryLedger, Output, ProbeRegularizer}
+ExPhil.Training.Inhibitor.hold("dagger drill")
 alias ExPhil.Data.Peppi
 alias ExPhil.Embeddings
 

@@ -32,6 +32,7 @@
 if "--quiet" in System.argv(), do: Logger.configure(level: :warning)
 
 alias ExPhil.Training.{Data, MmapCorpus, Output}
+ExPhil.Training.Inhibitor.hold("corpus build")
 alias ExPhil.Data.Peppi
 alias ExPhil.Embeddings
 

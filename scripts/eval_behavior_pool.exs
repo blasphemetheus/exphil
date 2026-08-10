@@ -49,6 +49,7 @@ alias ExPhil.Agents.Agent
 alias ExPhil.Bridge.MeleePort
 alias ExPhil.Eval.LiveScorer
 alias ExPhil.Training.Output
+ExPhil.Training.Inhibitor.hold("eval_behavior_pool run")
 
 {opts, _, _} =
   OptionParser.parse(System.argv(),
