@@ -252,6 +252,7 @@ function drawStage() {
 
   const g = S.geometry;
   const meta = stageMeta();
+  const fr = S.frames[t];
   const [bl, br, bt, bb] = g.blast || [-250, 250, 200, -140];
   // Small margin so the blastzone box sits inside the canvas
   const pad = 8;
@@ -300,8 +301,14 @@ function drawStage() {
     cx.beginPath(); cx.moveTo(sx(l), sy(h)); cx.lineTo(sx(r), sy(h)); cx.stroke();
   }
 
+  // Randall (Yoshi's): exact per-frame position from the export
+  if (fr.rnd) {
+    const [ry, rxl, rxr] = fr.rnd;
+    cx.strokeStyle = meta.color; cx.lineWidth = 3;
+    cx.beginPath(); cx.moveTo(sx(rxl), sy(ry)); cx.lineTo(sx(rxr), sy(ry)); cx.stroke();
+  }
+
   // Players (triangle points in facing direction; emoji = character)
-  const fr = S.frames[t];
   drawPlayer(cx, sx, sy, fr.own, BLUE, charEmoji(S.own_char));
   drawPlayer(cx, sx, sy, fr.opp, ORANGE, charEmoji(S.opp_char));
 

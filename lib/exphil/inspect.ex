@@ -211,13 +211,17 @@ defmodule ExPhil.Inspect do
       if t >= s.window - 1, do: Enum.at(policies, t - (s.window - 1))
     end
 
+    # Yoshi's only: exact per-frame Randall (deterministic function of
+    # the frame number — Melee.Stages.randall_position, incl. corners)
+    yoshis? = trunc(elem(s.frames, 0).game_state.stage || 0) == 8
+
     frames =
       for t <- 0..(s.total - 1) do
         f = elem(s.frames, t)
         gs = f.game_state
         opp_port = if s.port == 1, do: 2, else: 1
 
-        %{
+        base = %{
           f: gs.frame,
           own: compact_player(gs.players[s.port]),
           opp: compact_player(gs.players[opp_port]),
@@ -225,6 +229,13 @@ defmodule ExPhil.Inspect do
           rec: compact_controller(f.controller),
           pol: policy_at.(t)
         }
+
+        if yoshis? do
+          {ry, rxl, rxr} = Melee.Stages.randall_position(trunc(gs.frame || 0))
+          Map.put(base, :rnd, [Float.round(ry, 2), Float.round(rxl, 2), Float.round(rxr, 2)])
+        else
+          base
+        end
       end
 
     stage = elem(s.frames, 0).game_state.stage
