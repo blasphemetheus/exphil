@@ -436,10 +436,16 @@ function drawStage() {
       }
     }
     if (fr.fodp) {
+      // Event height references a point 5.125 units above the walkable
+      // surface (constant, measured against 561 at-rest standing
+      // samples); subtract to draw where feet actually land. Residual
+      // ~5-unit lead remains DURING travel (event leads the physical
+      // platform mid-animation) — verified sync at rest.
+      const FOD_SURFACE_OFFSET = 5.125;
       const [lh, rh] = fr.fodp;
       cx.strokeStyle = meta.color; cx.lineWidth = 2; cx.globalAlpha = 0.55;
-      if (lh != null) { cx.beginPath(); cx.moveTo(sx(-49.5), sy(lh)); cx.lineTo(sx(-21), sy(lh)); cx.stroke(); }
-      if (rh != null) { cx.beginPath(); cx.moveTo(sx(21), sy(rh)); cx.lineTo(sx(49.5), sy(rh)); cx.stroke(); }
+      if (lh != null) { const y = lh - FOD_SURFACE_OFFSET; cx.beginPath(); cx.moveTo(sx(-49.5), sy(y)); cx.lineTo(sx(-21), sy(y)); cx.stroke(); }
+      if (rh != null) { const y = rh - FOD_SURFACE_OFFSET; cx.beginPath(); cx.moveTo(sx(21), sy(y)); cx.lineTo(sx(49.5), sy(y)); cx.stroke(); }
       cx.globalAlpha = 1;
     }
   } else {

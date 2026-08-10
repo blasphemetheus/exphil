@@ -374,16 +374,20 @@ fn parse_frame(frame: &Frame) -> GameFrame {
         players.insert(port_num, player_frame);
     }
 
-    // FoD platform-height events: 0 = left platform, 1 = right (a frame
-    // can carry one, both, or neither — heights persist between events,
-    // consumers hold the last seen value)
+    // FoD platform-height events. Raw platform id 0 = RIGHT, 1 = LEFT —
+    // pinned empirically (2026-08-11): players RIDING each platform in
+    // the 0809 netplay FoD game match this assignment (mean|err| 3.2 vs
+    // 13.9 for the reverse). Heights persist between events; consumers
+    // hold the last seen value. The height value references a point
+    // 5.125 units ABOVE the walkable surface (constant across 561
+    // at-rest standing samples) — surface consumers subtract it.
     let mut fod_left = None;
     let mut fod_right = None;
     if let Some(plats) = &frame.fod_platforms {
         for p in plats {
             match p.platform {
-                0 => fod_left = Some(p.height as f64),
-                1 => fod_right = Some(p.height as f64),
+                0 => fod_right = Some(p.height as f64),
+                1 => fod_left = Some(p.height as f64),
                 _ => {}
             }
         }
