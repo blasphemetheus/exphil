@@ -40,7 +40,7 @@ if replays == [], do: raise("no replays matched")
 
 out_path = opts[:out] || "priv/stage_collision/pokemon_stadium_types.json"
 
-@min_hits = min_hits = 3
+min_hits = 3
 tolerance = 2.0
 type_names = %{3 => "fire", 4 => "grass", 6 => "rock", 9 => "water"}
 

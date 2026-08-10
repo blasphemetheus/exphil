@@ -42,7 +42,7 @@ defmodule ExPhil.Inspect do
   @buttons ~w(a b x y z l r d_up)a
   @axis_heads [:main_x, :main_y, :c_x, :c_y, :shoulder]
 
-  defstruct [:loaded, :frames, :states, :embedded, :situations, :window, :port, :total]
+  defstruct [:loaded, :frames, :states, :embedded, :situations, :window, :port, :opp_port, :total]
 
   @type t :: %__MODULE__{}
 
@@ -59,16 +59,22 @@ defmodule ExPhil.Inspect do
   @spec open(Path.t(), Path.t(), keyword()) :: {:ok, t()} | {:error, term()}
   def open(policy_path, replay_path, opts \\ []) do
     port = Keyword.get(opts, :player_port, 1)
-    opp = if port == 1, do: 2, else: 1
 
     with {:ok, replay} <- Peppi.parse(replay_path, player_port: port) do
+      # Opponent = the OTHER player's actual port from metadata — HF
+      # replays often use ports 1&3, and hardcoding 2 silently drops the
+      # opponent from the panel AND empties the situation labels
+      opp =
+        Enum.find_value(replay.metadata.players, fn p -> if p.port != port, do: p.port end) ||
+          if(port == 1, do: 2, else: 1)
+
       frames =
         replay
         |> Peppi.to_training_frames(player_port: port, opponent_port: opp)
         |> Enum.reject(&(&1.game_state.frame < 0))
 
       loaded = Activations.load_heads(policy_path)
-      {:ok, from_frames(loaded, frames, opts)}
+      {:ok, from_frames(loaded, frames, Keyword.put(opts, :opponent_port, opp))}
     end
   end
 
@@ -80,6 +86,7 @@ defmodule ExPhil.Inspect do
   @spec from_frames(map(), [map()], keyword()) :: t()
   def from_frames(loaded, frames, opts \\ []) do
     port = Keyword.get(opts, :player_port, 1)
+    opp_port = Keyword.get(opts, :opponent_port, if(port == 1, do: 2, else: 1))
 
     ds = Activations.embed_frames(frames, loaded.config, Keyword.take(opts, [:delay_id]))
     embedded = Nx.backend_transfer(ds.embedded_frames, Nx.BinaryBackend)
@@ -94,6 +101,7 @@ defmodule ExPhil.Inspect do
       situations: Situations.label_states(states, port, as: :set),
       window: loaded.window,
       port: port,
+      opp_port: opp_port,
       total: length(frames)
     }
   end
@@ -118,7 +126,7 @@ defmodule ExPhil.Inspect do
       frame: frame.game_state.frame,
       stage: frame.game_state.stage,
       situations: s.situations |> Enum.at(t) |> Enum.sort(),
-      players: players_summary(frame.game_state, s.port),
+      players: players_summary(frame.game_state, s.port, s.opp_port),
       recorded: controller_summary(frame.controller),
       policy: policy_at(s, t, s.embedded)
     }
@@ -221,7 +229,7 @@ defmodule ExPhil.Inspect do
       Enum.map_reduce(0..(s.total - 1), %{fod: nil, ps: nil}, fn t, held ->
         f = elem(s.frames, t)
         gs = f.game_state
-        opp_port = if s.port == 1, do: 2, else: 1
+        opp_port = s.opp_port
 
         held = %{
           held
@@ -287,7 +295,7 @@ defmodule ExPhil.Inspect do
       end
     end
 
-    opp_port = if s.port == 1, do: 2, else: 1
+    opp_port = s.opp_port
 
     payload = %{
       version: 1,
@@ -303,13 +311,35 @@ defmodule ExPhil.Inspect do
         edge: geo.edge,
         blast: geo.blast && Tuple.to_list(geo.blast),
         platforms: Enum.map(geo.platforms, &Tuple.to_list/1),
-        collision: collision
+        collision: collision,
+        # PS only: observationally pinned transformation subsets
+        # (scripts/pin_ps_transformations.exs) — type -> class -> segs
+        ps_types: ps_types(stage)
       },
       frames: frames
     }
 
     File.write!(path, Jason.encode!(payload))
     :ok
+  end
+
+  defp ps_types(stage) do
+    with 3 <- trunc(stage || 0),
+         path = Path.join([:code.priv_dir(:exphil), "stage_collision", "pokemon_stadium_types.json"]),
+         {:ok, raw} <- File.read(path),
+         {:ok, pinned} <- Jason.decode(raw) do
+      Map.new(pinned, fn {type, %{"segments" => segs}} ->
+        grouped =
+          Enum.group_by(segs, & &1["class"], fn s ->
+            [x1, y1, x2, y2] = s["seg"]
+            [x1, y1, x2, y2, if(s["ledge_grab"], do: 1, else: 0), if(s["drop_through"], do: 1, else: 0)]
+          end)
+
+        {type, grouped}
+      end)
+    else
+      _ -> nil
+    end
   end
 
   defp load_collision_file(name) do
@@ -434,9 +464,7 @@ defmodule ExPhil.Inspect do
     sum / n
   end
 
-  defp players_summary(gs, own_port) do
-    opp_port = if own_port == 1, do: 2, else: 1
-
+  defp players_summary(gs, own_port, opp_port) do
     %{
       own: player_summary(gs.players[own_port]),
       opponent: player_summary(gs.players[opp_port])

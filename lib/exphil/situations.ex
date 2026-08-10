@@ -211,9 +211,18 @@ defmodule ExPhil.Situations do
   """
   @spec fold(map(), GameState.t(), integer()) :: {map(), MapSet.t()}
   def fold(ctx, %GameState{} = gs, own_port) do
-    opp_port = if own_port == 1, do: 2, else: 1
     own = GameState.get_player(gs, own_port)
-    opp = GameState.get_player(gs, opp_port)
+
+    # Opponent = any OTHER present player (HF replays use ports 1&3 etc.
+    # — hardcoding "the other of 1/2" silently empties every label)
+    opp =
+      gs.players
+      |> Enum.reject(fn {p, pl} -> p == own_port or pl == nil end)
+      |> Enum.sort_by(&elem(&1, 0))
+      |> case do
+        [{_p, pl} | _] -> pl
+        [] -> nil
+      end
 
     if own == nil or opp == nil do
       {ctx, MapSet.new()}

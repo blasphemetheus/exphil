@@ -1,0 +1,2093 @@
+{
+  "3": {
+    "name": "fire",
+    "points_seen": 216,
+    "segments": [
+      {
+        "class": "ground",
+        "drop_through": true,
+        "hits": 59,
+        "index": 17,
+        "ledge_grab": false,
+        "seg": [
+          -78.0,
+          37.75,
+          -62.25,
+          37.75
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": true,
+        "hits": 7,
+        "index": 18,
+        "ledge_grab": false,
+        "seg": [
+          -54.25,
+          37.75,
+          -48.0,
+          37.75
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "hits": 45,
+        "index": 19,
+        "ledge_grab": false,
+        "seg": [
+          -76.5313,
+          -0.75,
+          -70.0625,
+          2.5
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "hits": 12,
+        "index": 33,
+        "ledge_grab": false,
+        "seg": [
+          70.0,
+          5.0,
+          76.5,
+          -1.5
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "hits": 102,
+        "index": 51,
+        "ledge_grab": true,
+        "seg": [
+          -87.75,
+          0.0,
+          -72.5,
+          0.0
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "hits": 22,
+        "index": 52,
+        "ledge_grab": true,
+        "seg": [
+          -72.5,
+          0.0,
+          -70.0,
+          0.0
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "hits": 47,
+        "index": 54,
+        "ledge_grab": true,
+        "seg": [
+          72.25,
+          0.0,
+          87.75,
+          0.0
+        ]
+      },
+      {
+        "class": "wall_left",
+        "drop_through": false,
+        "hits": 11,
+        "index": 101,
+        "ledge_grab": false,
+        "seg": [
+          -74.75,
+          24.0,
+          -74.75,
+          69.0
+        ]
+      },
+      {
+        "class": "wall_left",
+        "drop_through": false,
+        "hits": 28,
+        "index": 102,
+        "ledge_grab": false,
+        "seg": [
+          -74.5,
+          -2.0,
+          -77.25,
+          18.0
+        ]
+      },
+      {
+        "class": "wall_left",
+        "drop_through": false,
+        "hits": 12,
+        "index": 106,
+        "ledge_grab": false,
+        "seg": [
+          -87.75,
+          -4.0,
+          -87.75,
+          0.0
+        ]
+      }
+    ]
+  },
+  "4": {
+    "name": "grass",
+    "points_seen": 1579,
+    "segments": [
+      {
+        "class": "ground",
+        "drop_through": false,
+        "hits": 91,
+        "index": 19,
+        "ledge_grab": false,
+        "seg": [
+          -76.5313,
+          -0.75,
+          -70.0625,
+          2.5
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "hits": 267,
+        "index": 20,
+        "ledge_grab": false,
+        "seg": [
+          -70.0625,
+          2.5,
+          -25.0,
+          2.5
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": true,
+        "hits": 187,
+        "index": 21,
+        "ledge_grab": false,
+        "seg": [
+          -33.75,
+          53.0,
+          -3.75,
+          53.0
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "hits": 117,
+        "index": 22,
+        "ledge_grab": false,
+        "seg": [
+          -25.0,
+          2.5,
+          -20.0,
+          -1.0
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "hits": 77,
+        "index": 23,
+        "ledge_grab": false,
+        "seg": [
+          -20.0,
+          -1.0,
+          -10.0,
+          -1.0
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": true,
+        "hits": 245,
+        "index": 24,
+        "ledge_grab": false,
+        "seg": [
+          -15.75,
+          29.25,
+          14.25,
+          29.25
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "hits": 65,
+        "index": 25,
+        "ledge_grab": false,
+        "seg": [
+          -10.0,
+          -1.0,
+          -7.5,
+          0.0
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "hits": 263,
+        "index": 26,
+        "ledge_grab": false,
+        "seg": [
+          -7.5,
+          0.0,
+          20.0,
+          0.0
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "hits": 45,
+        "index": 27,
+        "ledge_grab": false,
+        "seg": [
+          20.0,
+          0.0,
+          25.0,
+          5.0
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "hits": 145,
+        "index": 28,
+        "ledge_grab": false,
+        "seg": [
+          25.0,
+          5.0,
+          70.0,
+          5.0
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": true,
+        "hits": 14,
+        "index": 29,
+        "ledge_grab": false,
+        "seg": [
+          32.75,
+          26.0,
+          34.75,
+          30.0
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": true,
+        "hits": 35,
+        "index": 30,
+        "ledge_grab": false,
+        "seg": [
+          34.75,
+          30.0,
+          42.0,
+          31.0
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": true,
+        "hits": 31,
+        "index": 31,
+        "ledge_grab": false,
+        "seg": [
+          42.0,
+          31.0,
+          49.25,
+          30.0
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": true,
+        "hits": 8,
+        "index": 32,
+        "ledge_grab": false,
+        "seg": [
+          49.25,
+          30.0,
+          51.25,
+          26.0
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "hits": 68,
+        "index": 33,
+        "ledge_grab": false,
+        "seg": [
+          70.0,
+          5.0,
+          76.5,
+          -1.5
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "hits": 385,
+        "index": 34,
+        "ledge_grab": false,
+        "seg": [
+          -70.0,
+          0.0,
+          70.0,
+          0.0
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": true,
+        "hits": 101,
+        "index": 41,
+        "ledge_grab": false,
+        "seg": [
+          -35.5,
+          52.5,
+          -19.75,
+          52.5
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "hits": 41,
+        "index": 43,
+        "ledge_grab": false,
+        "seg": [
+          -28.0,
+          1.5,
+          -25.25,
+          0.0
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "hits": 175,
+        "index": 44,
+        "ledge_grab": false,
+        "seg": [
+          -25.25,
+          0.0,
+          -5.0,
+          0.0
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "hits": 44,
+        "index": 46,
+        "ledge_grab": false,
+        "seg": [
+          -3.75,
+          27.75,
+          -1.25,
+          27.75
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "hits": 45,
+        "index": 47,
+        "ledge_grab": false,
+        "seg": [
+          -1.25,
+          21.5,
+          19.25,
+          0.0
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": true,
+        "hits": 142,
+        "index": 48,
+        "ledge_grab": false,
+        "seg": [
+          -1.25,
+          27.75,
+          22.5,
+          27.75
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "hits": 49,
+        "index": 49,
+        "ledge_grab": false,
+        "seg": [
+          19.25,
+          0.0,
+          56.0,
+          0.0
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "hits": 137,
+        "index": 51,
+        "ledge_grab": true,
+        "seg": [
+          -87.75,
+          0.0,
+          -72.5,
+          0.0
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "hits": 33,
+        "index": 52,
+        "ledge_grab": true,
+        "seg": [
+          -72.5,
+          0.0,
+          -70.0,
+          0.0
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "hits": 96,
+        "index": 54,
+        "ledge_grab": true,
+        "seg": [
+          72.25,
+          0.0,
+          87.75,
+          0.0
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "hits": 3,
+        "index": 56,
+        "ledge_grab": false,
+        "seg": [
+          -67.5,
+          0.0,
+          -52.75,
+          5.0
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "hits": 9,
+        "index": 57,
+        "ledge_grab": false,
+        "seg": [
+          -52.75,
+          5.0,
+          -21.75,
+          5.0
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "hits": 30,
+        "index": 58,
+        "ledge_grab": false,
+        "seg": [
+          -21.75,
+          5.0,
+          -5.5,
+          -4.5
+        ]
+      },
+      {
+        "class": "wall_right",
+        "drop_through": false,
+        "hits": 6,
+        "index": 80,
+        "ledge_grab": false,
+        "seg": [
+          -42.0,
+          69.0,
+          -32.75,
+          48.0
+        ]
+      },
+      {
+        "class": "wall_right",
+        "drop_through": false,
+        "hits": 42,
+        "index": 83,
+        "ledge_grab": false,
+        "seg": [
+          -28.0,
+          16.5,
+          -28.0,
+          1.5
+        ]
+      },
+      {
+        "class": "wall_right",
+        "drop_through": false,
+        "hits": 24,
+        "index": 84,
+        "ledge_grab": false,
+        "seg": [
+          -1.25,
+          27.75,
+          -1.25,
+          21.5
+        ]
+      },
+      {
+        "class": "wall_right",
+        "drop_through": false,
+        "hits": 14,
+        "index": 89,
+        "ledge_grab": false,
+        "seg": [
+          87.75,
+          0.0,
+          87.75,
+          -4.0
+        ]
+      },
+      {
+        "class": "wall_left",
+        "drop_through": false,
+        "hits": 39,
+        "index": 102,
+        "ledge_grab": false,
+        "seg": [
+          -74.5,
+          -2.0,
+          -77.25,
+          18.0
+        ]
+      },
+      {
+        "class": "wall_left",
+        "drop_through": false,
+        "hits": 39,
+        "index": 104,
+        "ledge_grab": false,
+        "seg": [
+          -5.0,
+          0.0,
+          -3.75,
+          12.75
+        ]
+      },
+      {
+        "class": "wall_left",
+        "drop_through": false,
+        "hits": 22,
+        "index": 105,
+        "ledge_grab": false,
+        "seg": [
+          -3.75,
+          12.75,
+          -3.75,
+          27.75
+        ]
+      },
+      {
+        "class": "wall_left",
+        "drop_through": false,
+        "hits": 13,
+        "index": 106,
+        "ledge_grab": false,
+        "seg": [
+          -87.75,
+          -4.0,
+          -87.75,
+          0.0
+        ]
+      },
+      {
+        "class": "dynamic",
+        "drop_through": false,
+        "hits": 371,
+        "index": 112,
+        "ledge_grab": false,
+        "seg": [
+          -40.0,
+          1.0,
+          -3.5,
+          1.0
+        ]
+      },
+      {
+        "class": "dynamic",
+        "drop_through": false,
+        "hits": 26,
+        "index": 113,
+        "ledge_grab": false,
+        "seg": [
+          -40.0,
+          -1.0,
+          -40.0,
+          1.0
+        ]
+      },
+      {
+        "class": "dynamic",
+        "drop_through": false,
+        "hits": 167,
+        "index": 114,
+        "ledge_grab": false,
+        "seg": [
+          -3.5,
+          -1.0,
+          -40.0,
+          -1.0
+        ]
+      },
+      {
+        "class": "dynamic",
+        "drop_through": false,
+        "hits": 44,
+        "index": 115,
+        "ledge_grab": false,
+        "seg": [
+          -3.5,
+          1.0,
+          -1.75,
+          1.75
+        ]
+      },
+      {
+        "class": "dynamic",
+        "drop_through": false,
+        "hits": 35,
+        "index": 116,
+        "ledge_grab": false,
+        "seg": [
+          -2.25,
+          1.0,
+          -1.0,
+          3.5
+        ]
+      },
+      {
+        "class": "dynamic",
+        "drop_through": false,
+        "hits": 39,
+        "index": 117,
+        "ledge_grab": false,
+        "seg": [
+          -2.25,
+          -1.0,
+          -2.25,
+          1.0
+        ]
+      },
+      {
+        "class": "dynamic",
+        "drop_through": false,
+        "hits": 44,
+        "index": 118,
+        "ledge_grab": false,
+        "seg": [
+          -1.75,
+          -1.75,
+          -3.5,
+          -1.0
+        ]
+      },
+      {
+        "class": "dynamic",
+        "drop_through": false,
+        "hits": 55,
+        "index": 119,
+        "ledge_grab": false,
+        "seg": [
+          -1.75,
+          1.75,
+          1.75,
+          1.75
+        ]
+      },
+      {
+        "class": "dynamic",
+        "drop_through": false,
+        "hits": 35,
+        "index": 120,
+        "ledge_grab": false,
+        "seg": [
+          -1.0,
+          -3.5,
+          -2.25,
+          -1.0
+        ]
+      },
+      {
+        "class": "dynamic",
+        "drop_through": false,
+        "hits": 33,
+        "index": 121,
+        "ledge_grab": false,
+        "seg": [
+          -1.0,
+          3.5,
+          -1.0,
+          40.0
+        ]
+      },
+      {
+        "class": "dynamic",
+        "drop_through": false,
+        "hits": 31,
+        "index": 126,
+        "ledge_grab": false,
+        "seg": [
+          1.0,
+          3.5,
+          2.0,
+          1.25
+        ]
+      },
+      {
+        "class": "dynamic",
+        "drop_through": false,
+        "hits": 33,
+        "index": 127,
+        "ledge_grab": false,
+        "seg": [
+          1.0,
+          40.0,
+          1.0,
+          3.5
+        ]
+      },
+      {
+        "class": "dynamic",
+        "drop_through": false,
+        "hits": 54,
+        "index": 128,
+        "ledge_grab": false,
+        "seg": [
+          1.75,
+          -1.75,
+          -1.75,
+          -1.75
+        ]
+      },
+      {
+        "class": "dynamic",
+        "drop_through": false,
+        "hits": 45,
+        "index": 129,
+        "ledge_grab": false,
+        "seg": [
+          1.75,
+          1.75,
+          3.5,
+          1.0
+        ]
+      },
+      {
+        "class": "dynamic",
+        "drop_through": false,
+        "hits": 39,
+        "index": 130,
+        "ledge_grab": false,
+        "seg": [
+          2.0,
+          1.25,
+          2.0,
+          -1.25
+        ]
+      },
+      {
+        "class": "dynamic",
+        "drop_through": false,
+        "hits": 31,
+        "index": 131,
+        "ledge_grab": false,
+        "seg": [
+          2.0,
+          -1.25,
+          1.0,
+          -3.5
+        ]
+      },
+      {
+        "class": "dynamic",
+        "drop_through": false,
+        "hits": 157,
+        "index": 132,
+        "ledge_grab": false,
+        "seg": [
+          3.5,
+          1.0,
+          40.0,
+          1.0
+        ]
+      },
+      {
+        "class": "dynamic",
+        "drop_through": false,
+        "hits": 45,
+        "index": 133,
+        "ledge_grab": false,
+        "seg": [
+          3.5,
+          -1.0,
+          1.75,
+          -1.75
+        ]
+      },
+      {
+        "class": "dynamic",
+        "drop_through": false,
+        "hits": 140,
+        "index": 134,
+        "ledge_grab": false,
+        "seg": [
+          40.0,
+          -1.0,
+          3.5,
+          -1.0
+        ]
+      }
+    ]
+  },
+  "6": {
+    "name": "rock",
+    "points_seen": 1551,
+    "segments": [
+      {
+        "class": "ground",
+        "drop_through": false,
+        "hits": 15,
+        "index": 19,
+        "ledge_grab": false,
+        "seg": [
+          -76.5313,
+          -0.75,
+          -70.0625,
+          2.5
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": true,
+        "hits": 110,
+        "index": 21,
+        "ledge_grab": false,
+        "seg": [
+          -33.75,
+          53.0,
+          -3.75,
+          53.0
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "hits": 51,
+        "index": 22,
+        "ledge_grab": false,
+        "seg": [
+          -25.0,
+          2.5,
+          -20.0,
+          -1.0
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "hits": 61,
+        "index": 23,
+        "ledge_grab": false,
+        "seg": [
+          -20.0,
+          -1.0,
+          -10.0,
+          -1.0
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": true,
+        "hits": 52,
+        "index": 24,
+        "ledge_grab": false,
+        "seg": [
+          -15.75,
+          29.25,
+          14.25,
+          29.25
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "hits": 52,
+        "index": 25,
+        "ledge_grab": false,
+        "seg": [
+          -10.0,
+          -1.0,
+          -7.5,
+          0.0
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "hits": 79,
+        "index": 26,
+        "ledge_grab": false,
+        "seg": [
+          -7.5,
+          0.0,
+          20.0,
+          0.0
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "hits": 42,
+        "index": 27,
+        "ledge_grab": false,
+        "seg": [
+          20.0,
+          0.0,
+          25.0,
+          5.0
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "hits": 5,
+        "index": 28,
+        "ledge_grab": false,
+        "seg": [
+          25.0,
+          5.0,
+          70.0,
+          5.0
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "hits": 13,
+        "index": 33,
+        "ledge_grab": false,
+        "seg": [
+          70.0,
+          5.0,
+          76.5,
+          -1.5
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "hits": 629,
+        "index": 34,
+        "ledge_grab": false,
+        "seg": [
+          -70.0,
+          0.0,
+          70.0,
+          0.0
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "hits": 47,
+        "index": 37,
+        "ledge_grab": true,
+        "seg": [
+          -74.75,
+          69.0,
+          -67.75,
+          69.0
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "hits": 79,
+        "index": 38,
+        "ledge_grab": false,
+        "seg": [
+          -67.75,
+          75.0,
+          -56.0,
+          75.0
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "hits": 95,
+        "index": 39,
+        "ledge_grab": false,
+        "seg": [
+          -56.0,
+          75.0,
+          -46.75,
+          72.0
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "hits": 41,
+        "index": 40,
+        "ledge_grab": false,
+        "seg": [
+          -46.75,
+          72.0,
+          -42.0,
+          69.0
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": true,
+        "hits": 110,
+        "index": 41,
+        "ledge_grab": false,
+        "seg": [
+          -35.5,
+          52.5,
+          -19.75,
+          52.5
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": true,
+        "hits": 86,
+        "index": 42,
+        "ledge_grab": false,
+        "seg": [
+          -31.5,
+          21.0,
+          -15.0,
+          21.0
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "hits": 30,
+        "index": 43,
+        "ledge_grab": false,
+        "seg": [
+          -28.0,
+          1.5,
+          -25.25,
+          0.0
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "hits": 132,
+        "index": 44,
+        "ledge_grab": false,
+        "seg": [
+          -25.25,
+          0.0,
+          -5.0,
+          0.0
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": true,
+        "hits": 180,
+        "index": 45,
+        "ledge_grab": false,
+        "seg": [
+          -4.0,
+          42.75,
+          21.25,
+          49.5
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "hits": 20,
+        "index": 46,
+        "ledge_grab": false,
+        "seg": [
+          -3.75,
+          27.75,
+          -1.25,
+          27.75
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "hits": 177,
+        "index": 47,
+        "ledge_grab": false,
+        "seg": [
+          -1.25,
+          21.5,
+          19.25,
+          0.0
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": true,
+        "hits": 48,
+        "index": 48,
+        "ledge_grab": false,
+        "seg": [
+          -1.25,
+          27.75,
+          22.5,
+          27.75
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "hits": 371,
+        "index": 49,
+        "ledge_grab": false,
+        "seg": [
+          19.25,
+          0.0,
+          56.0,
+          0.0
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "hits": 161,
+        "index": 50,
+        "ledge_grab": false,
+        "seg": [
+          56.0,
+          0.0,
+          77.25,
+          -2.25
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "hits": 71,
+        "index": 51,
+        "ledge_grab": true,
+        "seg": [
+          -87.75,
+          0.0,
+          -72.5,
+          0.0
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "hits": 10,
+        "index": 53,
+        "ledge_grab": true,
+        "seg": [
+          70.0,
+          0.0,
+          72.25,
+          0.0
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "hits": 60,
+        "index": 54,
+        "ledge_grab": true,
+        "seg": [
+          72.25,
+          0.0,
+          87.75,
+          0.0
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "hits": 31,
+        "index": 58,
+        "ledge_grab": false,
+        "seg": [
+          -21.75,
+          5.0,
+          -5.5,
+          -4.5
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "hits": 5,
+        "index": 69,
+        "ledge_grab": false,
+        "seg": [
+          58.25,
+          -4.5,
+          65.0,
+          -4.5
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "hits": 40,
+        "index": 70,
+        "ledge_grab": false,
+        "seg": [
+          65.0,
+          -4.5,
+          70.0,
+          0.0
+        ]
+      },
+      {
+        "class": "wall_right",
+        "drop_through": false,
+        "hits": 30,
+        "index": 80,
+        "ledge_grab": false,
+        "seg": [
+          -42.0,
+          69.0,
+          -32.75,
+          48.0
+        ]
+      },
+      {
+        "class": "wall_right",
+        "drop_through": false,
+        "hits": 23,
+        "index": 82,
+        "ledge_grab": false,
+        "seg": [
+          -32.75,
+          28.5,
+          -28.0,
+          16.5
+        ]
+      },
+      {
+        "class": "wall_right",
+        "drop_through": false,
+        "hits": 16,
+        "index": 84,
+        "ledge_grab": false,
+        "seg": [
+          -1.25,
+          27.75,
+          -1.25,
+          21.5
+        ]
+      },
+      {
+        "class": "wall_right",
+        "drop_through": false,
+        "hits": 13,
+        "index": 89,
+        "ledge_grab": false,
+        "seg": [
+          87.75,
+          0.0,
+          87.75,
+          -4.0
+        ]
+      },
+      {
+        "class": "wall_left",
+        "drop_through": false,
+        "hits": 14,
+        "index": 101,
+        "ledge_grab": false,
+        "seg": [
+          -74.75,
+          24.0,
+          -74.75,
+          69.0
+        ]
+      },
+      {
+        "class": "wall_left",
+        "drop_through": false,
+        "hits": 12,
+        "index": 103,
+        "ledge_grab": false,
+        "seg": [
+          -67.75,
+          69.0,
+          -67.75,
+          75.0
+        ]
+      },
+      {
+        "class": "wall_left",
+        "drop_through": false,
+        "hits": 9,
+        "index": 104,
+        "ledge_grab": false,
+        "seg": [
+          -5.0,
+          0.0,
+          -3.75,
+          12.75
+        ]
+      },
+      {
+        "class": "wall_left",
+        "drop_through": false,
+        "hits": 10,
+        "index": 105,
+        "ledge_grab": false,
+        "seg": [
+          -3.75,
+          12.75,
+          -3.75,
+          27.75
+        ]
+      },
+      {
+        "class": "wall_left",
+        "drop_through": false,
+        "hits": 6,
+        "index": 106,
+        "ledge_grab": false,
+        "seg": [
+          -87.75,
+          -4.0,
+          -87.75,
+          0.0
+        ]
+      },
+      {
+        "class": "wall_left",
+        "drop_through": false,
+        "hits": 14,
+        "index": 111,
+        "ledge_grab": false,
+        "seg": [
+          70.0,
+          -5.0,
+          70.0,
+          0.0
+        ]
+      },
+      {
+        "class": "dynamic",
+        "drop_through": false,
+        "hits": 134,
+        "index": 112,
+        "ledge_grab": false,
+        "seg": [
+          -40.0,
+          1.0,
+          -3.5,
+          1.0
+        ]
+      },
+      {
+        "class": "dynamic",
+        "drop_through": false,
+        "hits": 126,
+        "index": 114,
+        "ledge_grab": false,
+        "seg": [
+          -3.5,
+          -1.0,
+          -40.0,
+          -1.0
+        ]
+      },
+      {
+        "class": "dynamic",
+        "drop_through": false,
+        "hits": 19,
+        "index": 121,
+        "ledge_grab": false,
+        "seg": [
+          -1.0,
+          3.5,
+          -1.0,
+          40.0
+        ]
+      },
+      {
+        "class": "dynamic",
+        "drop_through": false,
+        "hits": 47,
+        "index": 127,
+        "ledge_grab": false,
+        "seg": [
+          1.0,
+          40.0,
+          1.0,
+          3.5
+        ]
+      },
+      {
+        "class": "dynamic",
+        "drop_through": false,
+        "hits": 223,
+        "index": 132,
+        "ledge_grab": false,
+        "seg": [
+          3.5,
+          1.0,
+          40.0,
+          1.0
+        ]
+      },
+      {
+        "class": "dynamic",
+        "drop_through": false,
+        "hits": 205,
+        "index": 134,
+        "ledge_grab": false,
+        "seg": [
+          40.0,
+          -1.0,
+          3.5,
+          -1.0
+        ]
+      },
+      {
+        "class": "dynamic",
+        "drop_through": false,
+        "hits": 40,
+        "index": 135,
+        "ledge_grab": false,
+        "seg": [
+          40.0,
+          1.0,
+          40.0,
+          -1.0
+        ]
+      }
+    ]
+  },
+  "9": {
+    "name": "water",
+    "points_seen": 2620,
+    "segments": [
+      {
+        "class": "ground",
+        "drop_through": true,
+        "hits": 25,
+        "index": 17,
+        "ledge_grab": false,
+        "seg": [
+          -78.0,
+          37.75,
+          -62.25,
+          37.75
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "hits": 60,
+        "index": 19,
+        "ledge_grab": false,
+        "seg": [
+          -76.5313,
+          -0.75,
+          -70.0625,
+          2.5
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "hits": 3,
+        "index": 20,
+        "ledge_grab": false,
+        "seg": [
+          -70.0625,
+          2.5,
+          -25.0,
+          2.5
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": true,
+        "hits": 34,
+        "index": 21,
+        "ledge_grab": false,
+        "seg": [
+          -33.75,
+          53.0,
+          -3.75,
+          53.0
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": true,
+        "hits": 33,
+        "index": 24,
+        "ledge_grab": false,
+        "seg": [
+          -15.75,
+          29.25,
+          14.25,
+          29.25
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "hits": 14,
+        "index": 33,
+        "ledge_grab": false,
+        "seg": [
+          70.0,
+          5.0,
+          76.5,
+          -1.5
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "hits": 27,
+        "index": 34,
+        "ledge_grab": false,
+        "seg": [
+          -70.0,
+          0.0,
+          70.0,
+          0.0
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": true,
+        "hits": 5,
+        "index": 35,
+        "ledge_grab": false,
+        "seg": [
+          -55.0,
+          25.0,
+          -25.0,
+          25.0
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "hits": 13,
+        "index": 37,
+        "ledge_grab": true,
+        "seg": [
+          -74.75,
+          69.0,
+          -67.75,
+          69.0
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "hits": 17,
+        "index": 38,
+        "ledge_grab": false,
+        "seg": [
+          -67.75,
+          75.0,
+          -56.0,
+          75.0
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": true,
+        "hits": 30,
+        "index": 41,
+        "ledge_grab": false,
+        "seg": [
+          -35.5,
+          52.5,
+          -19.75,
+          52.5
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": true,
+        "hits": 20,
+        "index": 42,
+        "ledge_grab": false,
+        "seg": [
+          -31.5,
+          21.0,
+          -15.0,
+          21.0
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "hits": 33,
+        "index": 50,
+        "ledge_grab": false,
+        "seg": [
+          56.0,
+          0.0,
+          77.25,
+          -2.25
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "hits": 126,
+        "index": 51,
+        "ledge_grab": true,
+        "seg": [
+          -87.75,
+          0.0,
+          -72.5,
+          0.0
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "hits": 24,
+        "index": 52,
+        "ledge_grab": true,
+        "seg": [
+          -72.5,
+          0.0,
+          -70.0,
+          0.0
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "hits": 11,
+        "index": 53,
+        "ledge_grab": true,
+        "seg": [
+          70.0,
+          0.0,
+          72.25,
+          0.0
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "hits": 65,
+        "index": 54,
+        "ledge_grab": true,
+        "seg": [
+          72.25,
+          0.0,
+          87.75,
+          0.0
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "hits": 41,
+        "index": 56,
+        "ledge_grab": false,
+        "seg": [
+          -67.5,
+          0.0,
+          -52.75,
+          5.0
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "hits": 236,
+        "index": 57,
+        "ledge_grab": false,
+        "seg": [
+          -52.75,
+          5.0,
+          -21.75,
+          5.0
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "hits": 131,
+        "index": 59,
+        "ledge_grab": false,
+        "seg": [
+          -5.5,
+          -4.5,
+          16.75,
+          -4.5
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": true,
+        "hits": 171,
+        "index": 60,
+        "ledge_grab": false,
+        "seg": [
+          7.5,
+          20.0,
+          32.5,
+          20.0
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "hits": 59,
+        "index": 61,
+        "ledge_grab": false,
+        "seg": [
+          16.75,
+          -4.5,
+          17.75,
+          -3.5
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "hits": 98,
+        "index": 62,
+        "ledge_grab": false,
+        "seg": [
+          17.75,
+          -3.5,
+          22.25,
+          -3.5
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "hits": 60,
+        "index": 63,
+        "ledge_grab": false,
+        "seg": [
+          22.25,
+          -3.5,
+          23.25,
+          -4.5
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "hits": 332,
+        "index": 64,
+        "ledge_grab": false,
+        "seg": [
+          23.25,
+          -4.5,
+          51.75,
+          -4.5
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": true,
+        "hits": 56,
+        "index": 65,
+        "ledge_grab": false,
+        "seg": [
+          42.5,
+          35.0,
+          67.5,
+          35.0
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "hits": 56,
+        "index": 66,
+        "ledge_grab": false,
+        "seg": [
+          51.75,
+          -4.5,
+          52.75,
+          -3.5
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "hits": 92,
+        "index": 67,
+        "ledge_grab": false,
+        "seg": [
+          52.75,
+          -3.5,
+          57.25,
+          -3.5
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "hits": 56,
+        "index": 68,
+        "ledge_grab": false,
+        "seg": [
+          57.25,
+          -3.5,
+          58.25,
+          -4.5
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "hits": 105,
+        "index": 69,
+        "ledge_grab": false,
+        "seg": [
+          58.25,
+          -4.5,
+          65.0,
+          -4.5
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "hits": 71,
+        "index": 70,
+        "ledge_grab": false,
+        "seg": [
+          65.0,
+          -4.5,
+          70.0,
+          0.0
+        ]
+      },
+      {
+        "class": "wall_right",
+        "drop_through": false,
+        "hits": 14,
+        "index": 80,
+        "ledge_grab": false,
+        "seg": [
+          -42.0,
+          69.0,
+          -32.75,
+          48.0
+        ]
+      },
+      {
+        "class": "wall_right",
+        "drop_through": false,
+        "hits": 4,
+        "index": 81,
+        "ledge_grab": false,
+        "seg": [
+          -32.75,
+          48.0,
+          -32.75,
+          28.5
+        ]
+      },
+      {
+        "class": "wall_right",
+        "drop_through": false,
+        "hits": 40,
+        "index": 83,
+        "ledge_grab": false,
+        "seg": [
+          -28.0,
+          16.5,
+          -28.0,
+          1.5
+        ]
+      },
+      {
+        "class": "wall_right",
+        "drop_through": false,
+        "hits": 10,
+        "index": 89,
+        "ledge_grab": false,
+        "seg": [
+          87.75,
+          0.0,
+          87.75,
+          -4.0
+        ]
+      },
+      {
+        "class": "wall_left",
+        "drop_through": false,
+        "hits": 3,
+        "index": 100,
+        "ledge_grab": false,
+        "seg": [
+          -77.25,
+          18.0,
+          -74.75,
+          24.0
+        ]
+      },
+      {
+        "class": "wall_left",
+        "drop_through": false,
+        "hits": 45,
+        "index": 101,
+        "ledge_grab": false,
+        "seg": [
+          -74.75,
+          24.0,
+          -74.75,
+          69.0
+        ]
+      },
+      {
+        "class": "wall_left",
+        "drop_through": false,
+        "hits": 39,
+        "index": 102,
+        "ledge_grab": false,
+        "seg": [
+          -74.5,
+          -2.0,
+          -77.25,
+          18.0
+        ]
+      },
+      {
+        "class": "wall_left",
+        "drop_through": false,
+        "hits": 16,
+        "index": 103,
+        "ledge_grab": false,
+        "seg": [
+          -67.75,
+          69.0,
+          -67.75,
+          75.0
+        ]
+      },
+      {
+        "class": "wall_left",
+        "drop_through": false,
+        "hits": 6,
+        "index": 106,
+        "ledge_grab": false,
+        "seg": [
+          -87.75,
+          -4.0,
+          -87.75,
+          0.0
+        ]
+      },
+      {
+        "class": "wall_left",
+        "drop_through": false,
+        "hits": 18,
+        "index": 111,
+        "ledge_grab": false,
+        "seg": [
+          70.0,
+          -5.0,
+          70.0,
+          0.0
+        ]
+      },
+      {
+        "class": "dynamic",
+        "drop_through": false,
+        "hits": 8,
+        "index": 112,
+        "ledge_grab": false,
+        "seg": [
+          -40.0,
+          1.0,
+          -3.5,
+          1.0
+        ]
+      },
+      {
+        "class": "dynamic",
+        "drop_through": false,
+        "hits": 6,
+        "index": 113,
+        "ledge_grab": false,
+        "seg": [
+          -40.0,
+          -1.0,
+          -40.0,
+          1.0
+        ]
+      },
+      {
+        "class": "dynamic",
+        "drop_through": false,
+        "hits": 5,
+        "index": 114,
+        "ledge_grab": false,
+        "seg": [
+          -3.5,
+          -1.0,
+          -40.0,
+          -1.0
+        ]
+      },
+      {
+        "class": "dynamic",
+        "drop_through": false,
+        "hits": 3,
+        "index": 127,
+        "ledge_grab": false,
+        "seg": [
+          1.0,
+          40.0,
+          1.0,
+          3.5
+        ]
+      }
+    ]
+  }
+}
