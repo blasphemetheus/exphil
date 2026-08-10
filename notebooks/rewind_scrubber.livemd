@@ -20,11 +20,31 @@ moment) over `ExPhil.Situations` (47 labels).
 # Livebook release), which points Mix.install at the wrong path
 project_root = Path.expand("..", __DIR__)
 
-Mix.install([
+# When exphil is configured for the local nx/exla forks
+# (EDIFICE_LOCAL_NX=1, e.g. launched from devenv shell), the SAME path
+# overrides must be restated HERE: `override: true` only counts at the
+# top level, and in Livebook the top level is this Mix.install call —
+# kino's optional hex nx otherwise diverges against exphil's path nx.
+local_nx? = System.get_env("EDIFICE_LOCAL_NX") == "1"
+
+deps = [
   {:exphil, path: project_root, env: :dev},
   {:kino, "~> 0.14"},
   {:kino_vega_lite, "~> 0.1"}
-])
+]
+
+deps =
+  if local_nx? do
+    deps ++
+      [
+        {:nx, path: Path.expand("../nx/nx", project_root), override: true},
+        {:exla, path: Path.expand("../nx/exla", project_root), override: true, env: :dev}
+      ]
+  else
+    deps
+  end
+
+Mix.install(deps)
 
 alias ExPhil.{Inspect, Situations}
 alias VegaLite, as: Vl
