@@ -16,7 +16,11 @@ defmodule ExPhil.Bridge.GameState do
           own_port: integer() | nil,
           projectiles: [ExPhil.Bridge.Projectile.t()],
           items: [ExPhil.Bridge.Item.t()],
-          distance: float()
+          distance: float(),
+          fod_platform_left: float() | nil,
+          fod_platform_right: float() | nil,
+          stadium_event: integer() | nil,
+          stadium_type: integer() | nil
         }
 
   defstruct [
@@ -27,7 +31,14 @@ defmodule ExPhil.Bridge.GameState do
     :own_port,
     :projectiles,
     :items,
-    :distance
+    :distance,
+    # Stage events (Slippi spec >= 3.18, task #3; nil on older replays
+    # and on the live bridge until it forwards them): FoD side-platform
+    # heights (persist between events) and the PS transformation state
+    :fod_platform_left,
+    :fod_platform_right,
+    :stadium_event,
+    :stadium_type
   ]
 
   @doc """

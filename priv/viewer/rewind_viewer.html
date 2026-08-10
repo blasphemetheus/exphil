@@ -365,7 +365,20 @@ function drawStage() {
   cx.font = "11px system-ui";
   cx.fillText(meta.name + (S.stage === 2 ? " (side plats omitted)" : ""), sx(bl) + 6, sy(bb) - 6);
 
-  if (g.collision) {
+  // PS transformations: the structures' collision is a runtime-selected
+  // subset of a shared union (all GrPs files carry identical collision
+  // — verified against a real grass-transformation replay), so per-type
+  // geometry can't be drawn from static data alone. Render the neutral
+  // layout + an explicit badge; per-type subsets get pinned as
+  // event-correlated replays accumulate (task #4).
+  const coll = g.collision;
+  const PS_TYPES = { 3: "fire", 4: "grass", 5: "normal", 6: "rock", 9: "water" };
+  if (fr.ps && fr.ps !== 5) {
+    cx.fillStyle = ORANGE; cx.font = "11px system-ui";
+    cx.fillText(`transformation: ${PS_TYPES[fr.ps] || fr.ps} (structures not drawn)`, W / 2 - 80, 16);
+  }
+
+  if (coll) {
     // PRECISE collision (extracted from the stage .dat, edge-validated):
     // grounds/slants thick, walls medium, ceilings/undersides thin,
     // drop-through platforms slightly transparent, ledge-grab segments
@@ -384,10 +397,23 @@ function drawStage() {
       }
       cx.globalAlpha = 1;
     };
-    draw(g.collision.ground, 3, 1);
-    draw(g.collision.wall_left, 2, 0.9);
-    draw(g.collision.wall_right, 2, 0.9);
-    draw(g.collision.ceiling, 1, 0.6);
+    draw(coll.ground, 3, 1);
+    draw(coll.wall_left, 2, 0.9);
+    draw(coll.wall_right, 2, 0.9);
+    draw(coll.ceiling, 1, 0.6);
+
+    // FoD side platforms at their LIVE per-frame heights (spec >= 3.18
+    // replays). Heights are exact from the events; x-spans (~21..49.5)
+    // are approximate — FoD's side platforms are unmapped in the static
+    // table precisely because they move (their collision lives in
+    // non-primary line-groups)
+    if (fr.fodp) {
+      const [lh, rh] = fr.fodp;
+      cx.strokeStyle = meta.color; cx.lineWidth = 2; cx.globalAlpha = 0.55;
+      if (lh != null) { cx.beginPath(); cx.moveTo(sx(-49.5), sy(lh)); cx.lineTo(sx(-21), sy(lh)); cx.stroke(); }
+      if (rh != null) { cx.beginPath(); cx.moveTo(sx(21), sy(rh)); cx.lineTo(sx(49.5), sy(rh)); cx.stroke(); }
+      cx.globalAlpha = 1;
+    }
   } else {
     // Fallback: stylized layout (no extracted collision in this export)
     cx.strokeStyle = meta.color; cx.lineWidth = 3; cx.lineCap = "round";

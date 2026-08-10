@@ -215,11 +215,23 @@ defmodule ExPhil.Inspect do
     # the frame number — Melee.Stages.randall_position, incl. corners)
     yoshis? = trunc(elem(s.frames, 0).game_state.stage || 0) == 8
 
-    frames =
-      for t <- 0..(s.total - 1) do
+    # FoD heights and the PS transformation type arrive as EVENTS and
+    # persist between them — hold the last seen value while mapping
+    {frames, _} =
+      Enum.map_reduce(0..(s.total - 1), %{fod: nil, ps: nil}, fn t, held ->
         f = elem(s.frames, t)
         gs = f.game_state
         opp_port = if s.port == 1, do: 2, else: 1
+
+        held = %{
+          held
+          | fod:
+              case {Map.get(gs, :fod_platform_left), Map.get(gs, :fod_platform_right)} do
+                {nil, nil} -> held.fod
+                {l, r} -> {l || elem(held.fod || {nil, nil}, 0), r || elem(held.fod || {nil, nil}, 1)}
+              end,
+            ps: Map.get(gs, :stadium_type) || held.ps
+        }
 
         base = %{
           f: gs.frame,
@@ -230,46 +242,36 @@ defmodule ExPhil.Inspect do
           pol: policy_at.(t)
         }
 
-        if yoshis? do
-          {ry, rxl, rxr} = Melee.Stages.randall_position(trunc(gs.frame || 0))
-          Map.put(base, :rnd, [Float.round(ry, 2), Float.round(rxl, 2), Float.round(rxr, 2)])
-        else
-          base
-        end
-      end
+        base =
+          if yoshis? do
+            {ry, rxl, rxr} = Melee.Stages.randall_position(trunc(gs.frame || 0))
+            Map.put(base, :rnd, [Float.round(ry, 2), Float.round(rxl, 2), Float.round(rxr, 2)])
+          else
+            base
+          end
+
+        base =
+          case held.fod do
+            {l, r} when l != nil or r != nil -> Map.put(base, :fodp, [l, r])
+            _ -> base
+          end
+
+        base = if held.ps, do: Map.put(base, :ps, held.ps), else: base
+
+        {base, held}
+      end)
 
     stage = elem(s.frames, 0).game_state.stage
     geo = Situations.geometry(stage)
 
-    # Precise collision (task #1, scripts/extract_stage_collision.exs):
-    # segment lists per physics class, if extracted data is present
+    # Precise collision (task #1): segment lists per physics class.
+    # load_collision_file keeps only the primary line-group — moving
+    # objects (YS's Randall, FoD's side platforms) are authored as
+    # separate groups parked at static positions; the viewer renders
+    # them from per-frame data instead.
     collision =
-      with atom when atom not in [nil, :no_stage] <-
-             Melee.Enums.Stage.from_external(trunc(stage || 0)),
-           path = Path.join([:code.priv_dir(:exphil), "stage_collision", "#{atom}.json"]),
-           {:ok, raw} <- File.read(path),
-           {:ok, %{"vertices" => vs, "lines" => lines}} <- Jason.decode(raw) do
-        varr = List.to_tuple(vs)
-
-        # Primary line-group only: moving objects (YS's Randall, FoD's
-        # side platforms) are authored as separate groups parked at
-        # static positions — drawing those parked lines is wrong (the
-        # viewer renders Randall from the per-frame export instead)
-        primary =
-          lines
-          |> Enum.map(&Map.get(&1, "group", 0))
-          |> Enum.frequencies()
-          |> Enum.max_by(&elem(&1, 1), fn -> {0, 0} end)
-          |> elem(0)
-
-        lines
-        |> Enum.filter(&(&1["class"] != "dynamic" and Map.get(&1, "group", primary) == primary))
-        |> Enum.group_by(& &1["class"], fn l ->
-          [x1, y1] = elem(varr, l["v1"])
-          [x2, y2] = elem(varr, l["v2"])
-          [x1, y1, x2, y2, if(l["ledge_grab"], do: 1, else: 0), if(l["drop_through"], do: 1, else: 0)]
-        end)
-      else
+      case Melee.Enums.Stage.from_external(trunc(stage || 0)) do
+        atom when atom not in [nil, :no_stage] -> load_collision_file(atom)
         _ -> nil
       end
 
@@ -308,6 +310,32 @@ defmodule ExPhil.Inspect do
 
     File.write!(path, Jason.encode!(payload))
     :ok
+  end
+
+  defp load_collision_file(name) do
+    path = Path.join([:code.priv_dir(:exphil), "stage_collision", "#{name}.json"])
+
+    with {:ok, raw} <- File.read(path),
+         {:ok, %{"vertices" => vs, "lines" => lines}} <- Jason.decode(raw) do
+      varr = List.to_tuple(vs)
+
+      primary =
+        lines
+        |> Enum.map(&Map.get(&1, "group", 0))
+        |> Enum.frequencies()
+        |> Enum.max_by(&elem(&1, 1), fn -> {0, 0} end)
+        |> elem(0)
+
+      lines
+      |> Enum.filter(&(&1["class"] != "dynamic" and Map.get(&1, "group", primary) == primary))
+      |> Enum.group_by(& &1["class"], fn l ->
+        [x1, y1] = elem(varr, l["v1"])
+        [x2, y2] = elem(varr, l["v2"])
+        [x1, y1, x2, y2, if(l["ledge_grab"], do: 1, else: 0), if(l["drop_through"], do: 1, else: 0)]
+      end)
+    else
+      _ -> nil
+    end
   end
 
   defp batch_softmax(logits) do

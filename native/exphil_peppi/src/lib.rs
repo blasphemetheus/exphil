@@ -78,6 +78,15 @@ pub struct PlayerFrame {
 pub struct GameFrame {
     pub frame_number: i32,
     pub players: HashMap<i32, PlayerFrame>,
+    // Stage events (Slippi spec >= 3.18; None on older replays):
+    // Fountain of Dreams side-platform heights and the Pokemon Stadium
+    // transformation state (event: 0 finished / 2 init / 3 on_monitor /
+    // 4 receding / 5 rising / 6 finalize; type: 3 fire / 4 grass /
+    // 5 normal / 6 rock / 9 water)
+    pub fod_platform_left: Option<f64>,
+    pub fod_platform_right: Option<f64>,
+    pub stadium_event: Option<i32>,
+    pub stadium_type: Option<i32>,
 }
 
 /// Player metadata from game start
@@ -363,9 +372,37 @@ fn parse_frame(frame: &Frame) -> GameFrame {
         players.insert(port_num, player_frame);
     }
 
+    // FoD platform-height events: 0 = left platform, 1 = right (a frame
+    // can carry one, both, or neither — heights persist between events,
+    // consumers hold the last seen value)
+    let mut fod_left = None;
+    let mut fod_right = None;
+    if let Some(plats) = &frame.fod_platforms {
+        for p in plats {
+            match p.platform {
+                0 => fod_left = Some(p.height as f64),
+                1 => fod_right = Some(p.height as f64),
+                _ => {}
+            }
+        }
+    }
+
+    // Stadium transformation: take the last event of the frame
+    let (stadium_event, stadium_type) = match &frame.stadium_transformations {
+        Some(ts) if !ts.is_empty() => {
+            let t = ts[ts.len() - 1];
+            (Some(t.event as i32), Some(t.r#type as i32))
+        }
+        _ => (None, None),
+    };
+
     GameFrame {
         frame_number: frame.id,
         players,
+        fod_platform_left: fod_left,
+        fod_platform_right: fod_right,
+        stadium_event,
+        stadium_type,
     }
 }
 

@@ -112,8 +112,20 @@ defmodule ExPhil.Data.Peppi do
   end
 
   defmodule GameFrame do
-    @moduledoc "A single parsed game frame"
-    defstruct [:frame_number, :players]
+    @moduledoc """
+    A single parsed game frame. The stage-event fields (Slippi spec >=
+    3.18, task #3) are nil on older replays: FoD side-platform heights
+    persist between events (consumers hold the last seen value);
+    stadium_event/type carry the PS transformation state machine.
+    """
+    defstruct [
+      :frame_number,
+      :players,
+      :fod_platform_left,
+      :fod_platform_right,
+      :stadium_event,
+      :stadium_type
+    ]
   end
 
   defmodule PlayerMeta do
@@ -460,7 +472,11 @@ defmodule ExPhil.Data.Peppi do
         menu_state: 2,
         players: players,
         projectiles: [],
-        distance: distance
+        distance: distance,
+        fod_platform_left: Map.get(frame, :fod_platform_left),
+        fod_platform_right: Map.get(frame, :fod_platform_right),
+        stadium_event: Map.get(frame, :stadium_event),
+        stadium_type: Map.get(frame, :stadium_type)
       }
     else
       nil
