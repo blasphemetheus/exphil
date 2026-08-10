@@ -64,6 +64,7 @@
   .bar { height: 8px; background: var(--surface-1); border-radius: 4px; overflow: hidden; position: relative; }
   .bar i { display: block; height: 100%; background: var(--series-1); border-radius: 4px; }
   .bar.rec i { background: var(--series-2); }
+  .stat-row { grid-template-columns: 90px 1fr 74px; }
   .legend { display: flex; gap: 12px; color: var(--text-muted); font-size: 11px; margin-top: 4px; }
   .legend b { display: inline-block; width: 10px; height: 10px; border-radius: 2px; vertical-align: -1px; margin-right: 4px; }
   #help { color: var(--text-muted); margin-top: 8px; font-size: 12px; }
@@ -74,6 +75,7 @@
 <h1>ExPhil Rewind Viewer <span id="meta">— load a session export</span></h1>
 <div class="topbar">
   <label>Load session.json <input type="file" id="file" accept=".json"></label>
+  <label>Load stats.json <input type="file" id="statsfile" accept=".json"></label>
   <div class="legend">
     <span><b style="background:var(--series-1)"></b>bot / policy</span>
     <span><b style="background:var(--series-2)"></b>opponent / recorded</span>
@@ -109,6 +111,8 @@
     <canvas id="mx" height="70"></canvas>
     <h2>main_y</h2>
     <canvas id="my" height="70"></canvas>
+    <h2>Humans here <span id="statmu" style="color:var(--text-muted)"></span></h2>
+    <div id="humanstats"><span style="color:var(--text-muted)">load a stats.json (scripts/situation_stats.exs)</span></div>
   </div>
 </div>
 
@@ -128,13 +132,42 @@ let presentLabels = []; // [{name, bit, segments:[[a,b],...]}]
 // The "hot" labels get chip highlighting when active
 const HOT = new Set(["edge_danger", "being_edgeguarded", "conversion_open", "ledge_option_pending", "cornered"]);
 
+let STATS = null;      // situation_stats tree for the session's matchup
+let statsMatchup = null;
+
 $("file").addEventListener("change", async e => {
   const f = e.target.files[0];
   if (!f) return;
   S = JSON.parse(await f.text());
   prepare();
+  matchStats();
   setFrame(S.window, true);
 });
+
+$("statsfile").addEventListener("change", async e => {
+  const f = e.target.files[0];
+  if (!f) return;
+  STATS = JSON.parse(await f.text());
+  matchStats();
+  if (S) drawPanel();
+});
+
+// Match the session's matchup to a stats-tree key. Session characters
+// come from Melee.Enums atoms ("captain_falcon"); stats keys use the
+// corpus alias table ("captainfalcon_vs_falco") — compare normalized.
+function matchStats() {
+  statsMatchup = null;
+  $("statmu").textContent = "";
+  if (!STATS || !S || !S.own_char) return;
+  const norm = s => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const want = norm(S.own_char) + "vs" + norm(S.opp_char || "");
+  for (const key of Object.keys(STATS.tree || {})) {
+    if (norm(key) === want) { statsMatchup = key; break; }
+  }
+  $("statmu").textContent = statsMatchup
+    ? `— ${statsMatchup} (${STATS.files_used} games)`
+    : `— no ${S.own_char}_vs_${S.opp_char} in stats`;
+}
 
 function prepare() {
   $("meta").textContent = `— ${S.total} frames · stage ${S.stage} · port ${S.port} · window ${S.window}`;
@@ -279,6 +312,8 @@ function drawPanel() {
 
   // Buttons
   const rec = fr.rec ? new Set(fr.rec[2]) : new Set();
+  drawHumanStats(fr);
+
   if (fr.pol) {
     $("buttons").innerHTML = S.buttons.slice(0, 7).map((b, i) => `
       <div class="bar-row">
@@ -292,6 +327,40 @@ function drawPanel() {
     $("buttons").innerHTML = `<span style="color:var(--text-muted)">no policy output (pre-window)</span>`;
     [$("mx"), $("my")].forEach(c => c.getContext("2d").clearRect(0, 0, c.width, c.height));
   }
+}
+
+// "What do humans do here": for the frame's active labels (most
+// specific first, umbrellas last), the corpus option mix + damage delta
+const UMBRELLA = new Set(["neutral", "advantage", "disadvantage"]);
+
+function drawHumanStats(fr) {
+  if (!STATS || !statsMatchup) return;
+  const labels = STATS.tree[statsMatchup];
+
+  let active = [];
+  S.labels.forEach((name, bit) => { if (labelOn(fr, bit) && labels[name]) active.push(name); });
+  active.sort((a, b) => (UMBRELLA.has(a) ? 1 : 0) - (UMBRELLA.has(b) ? 1 : 0));
+  if (!active.length) active = labels["_any"] ? ["_any"] : [];
+
+  $("humanstats").innerHTML = active.slice(0, 3).map(name => {
+    const cells = Object.entries(labels[name]);
+    const total = cells.reduce((s, [, v]) => s + v.n, 0);
+    const rows = cells
+      .sort(([, a], [, b]) => b.n - a.n)
+      .slice(0, 4)
+      .map(([opt, v]) => {
+        const pct = (100 * v.n / total).toFixed(0);
+        const d = v.dmg_delta_avg;
+        return `<div class="bar-row stat-row">
+          <span class="name">${opt}</span>
+          <div class="bar"><i style="width:${pct}%"></i></div>
+          <span class="val">${pct}% Δ${d > 0 ? "+" : ""}${d.toFixed(1)}</span>
+        </div>`;
+      }).join("");
+    return `<div style="margin-bottom:6px">
+      <div style="color:var(--text-secondary);font-size:11px">${name} <span style="color:var(--text-muted)">(n=${total})</span></div>
+      ${rows}</div>`;
+  }).join("") || `<span style="color:var(--text-muted)">no data for this frame's labels</span>`;
 }
 
 function drawDist(cv, probs, recVal) {

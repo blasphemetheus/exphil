@@ -230,12 +230,28 @@ defmodule ExPhil.Inspect do
     stage = elem(s.frames, 0).game_state.stage
     geo = Situations.geometry(stage)
 
+    # Character names for stats-matchup lookup (frame data carries
+    # INTERNAL ids — Melee.Enums.Character.from_id is the right decoder)
+    char_name = fn t, port ->
+      case elem(s.frames, t).game_state.players[port] do
+        %{character: c} when is_number(c) ->
+          c |> trunc() |> Melee.Enums.Character.from_id() |> to_string()
+
+        _ ->
+          nil
+      end
+    end
+
+    opp_port = if s.port == 1, do: 2, else: 1
+
     payload = %{
       version: 1,
       window: s.window,
       port: s.port,
       total: s.total,
       stage: stage,
+      own_char: char_name.(0, s.port),
+      opp_char: char_name.(0, opp_port),
       labels: Enum.map(Situations.labels(), &to_string/1),
       buttons: Enum.map(@buttons, &to_string/1),
       geometry: %{
