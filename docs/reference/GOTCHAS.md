@@ -3442,3 +3442,55 @@ when using `--lr-schedule cosine`, OR just use `--lr-schedule constant`
 (the proven fox_il recipe — constant 1e-4 was still descending at epoch
 10). Better long-term: cosine should default `decay_steps` to the run's
 total training steps, not a fixed 10k.
+
+## 92. Corpus mode silently ignored `--mix-frames` — use `--mix-corpus`
+
+`build_pipeline_corpus` never consulted `:mix_frames`, so a corpus-mode
+run with `--mix-frames drills/*.frames` trained WITHOUT the drill
+frames — no warning, config json even records the flag (found 2026-08-10
+building the edge-DAgger arm). The curriculum-mixing block lives only in
+the replay-mode pipeline (`pipeline.ex` around the `Data.from_frames`
+path).
+
+Corpus-mode mixing is now `--mix-corpus DIR --mix-oversample N`
+(2026-08-10): pack the drill snippets into a mini MmapCorpus with
+`scripts/build_snippet_corpus.exs` (one corpus file per snippet) and the
+pipeline interleaves its batches into the train stream. This is also
+STRUCTURALLY better than --mix-frames for temporal training — see #93.
+
+## 93. Replay-mode temporal windows cross file/snippet boundaries
+
+`Data.create_sequences` slides a window over the FLAT frames list with
+no frame-number discontinuity check, so windows spanning two replays
+train on stitched histories. For whole replays this pollutes ~0.7% of
+sequences (window 60 vs ~9k-frame games) — tolerated noise, but for
+short `--mix-frames` snippet lists (~60-240 frames each) boundary-
+crossing windows are the NORM, and expert-relabel exports that DROP
+`:skip` frames additionally put time-skips INSIDE windows. Corpus-mode
+windows never cross files (`MmapCorpus.sequence_starts` is per-file
+range), which is why snippet mixing should go through
+`build_snippet_corpus.exs` + `--mix-corpus` (one file per snippet), and
+why `edge_snippet_mine.exs --keep-unlabeled` exists (keeps recorded
+controllers on unlabeled frames to preserve contiguity).
+
+## 94. The percent<20 SD/KO death classifier is wrong in both directions
+
+`Melee.GameEvents` and `analyze_behavior.exs` classify a stock loss as
+`:sd` iff pre-death percent < 20. Bradley's review (2026-08-10): a
+spike/edgeguard kills at ANY percent (false :sd at low percent) and a
+dash-off SD happens at ANY percent (false :ko once the bot has taken
+~20%+, systematically undercounting SDs late in games). Passable vs a
+level-1 CPU (which rarely kills), wrong vs real opponents. The
+trajectory classifier in `scripts/edge_snippet_mine.exs` is the correct
+pattern: walk back from the stock loss to the last grounded frame and
+check for an untouched fall (no hitstun action states in between).
+Backport to GameEvents/analyze_behavior still owed. Terminology from the
+same review: death kinds are two-way `:sd`/`:ko`; "edgeguard" names the
+SITUATION of contesting a recovery, never a death kind ("gimp" is
+banned — it's a slur).
+
+## 95. `Output.banner/2` raises on titles longer than the box width
+
+`:binary.copy(" ", -1)` ArgumentError when the title exceeds the inner
+box width (observed 2026-08-10 with a ~62-char banner). Keep banners
+short or fix the padding clamp in `output.ex:686`.

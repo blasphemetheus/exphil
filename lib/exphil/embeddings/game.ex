@@ -186,10 +186,12 @@ defmodule ExPhil.Embeddings.Game do
     # [name, prev, stage, OPPONENT, OWN, ...] where it had trained on
     # [OWN, OPPONENT, stage, prev, name, ...] — scrambled features invisible
     # to val_loss. Pinned by test/exphil/embeddings/embed_path_parity_test.exs.
+    stage_edge = maybe_stage_edge(config.player, game_state.stage)
+
     embeddings = [
       # Players (ego-centric: own first)
-      PlayerEmbed.embed(own, config.player),
-      PlayerEmbed.embed(opponent, config.player)
+      PlayerEmbed.embed(own, config.player, stage_edge),
+      PlayerEmbed.embed(opponent, config.player, stage_edge)
     ]
 
     # Stage embedding (only when using one-hot modes, not learned)
@@ -372,9 +374,16 @@ defmodule ExPhil.Embeddings.Game do
       # Extract stages
       stages = Enum.map(game_states, fn gs -> gs.stage || 0 end)
 
+      # Per-frame stage edges for ledge distance (per_stage_ledge arms
+      # only — nil keeps the historical 85-everywhere constant)
+      stage_edges =
+        if config.player.per_stage_ledge do
+          Enum.map(stages, &stage_edge_for/1)
+        end
+
       # Batch embed players
-      own_emb = PlayerEmbed.embed_batch(own_players, config.player)
-      opp_emb = PlayerEmbed.embed_batch(opponent_players, config.player)
+      own_emb = PlayerEmbed.embed_batch(own_players, config.player, stage_edges)
+      opp_emb = PlayerEmbed.embed_batch(opponent_players, config.player, stage_edges)
 
       # Batch embed name_ids (style-conditional training)
       name_emb =
@@ -658,6 +667,20 @@ defmodule ExPhil.Embeddings.Game do
   # ============================================================================
   # Helper Functions
   # ============================================================================
+
+  # Real per-stage ground-edge (teeter) x for per_stage_ledge arms.
+  # Melee.Stages is the single source of truth; nil (unknown/non-legal
+  # stage) falls back to the historical constant so the feature is never
+  # undefined.
+  defp maybe_stage_edge(%{per_stage_ledge: true}, stage), do: stage_edge_for(stage)
+  defp maybe_stage_edge(_player_config, _stage), do: nil
+
+  defp stage_edge_for(stage) do
+    case Melee.Stages.edge_ground_position(trunc(stage || 0)) do
+      nil -> 85.0
+      edge -> edge
+    end
+  end
 
   defp get_players_ego(game_state, own_port) do
     own = GameState.get_player(game_state, own_port)

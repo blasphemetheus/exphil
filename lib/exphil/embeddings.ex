@@ -83,6 +83,7 @@ defmodule ExPhil.Embeddings do
         :with_frame_info,
         :with_stock,
         :with_ledge_distance,
+        :per_stage_ledge,
         :jumps_normalized,
         :action_mode,
         :character_mode,

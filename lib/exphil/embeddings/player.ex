@@ -53,6 +53,15 @@ defmodule ExPhil.Embeddings.Player do
             with_stock: true,
             # Distance to nearest ledge (+1 dim per player)
             with_ledge_distance: true,
+            # Use the REAL per-stage edge x for ledge distance instead of the
+            # historical 85-everywhere constant (task #25: real edges span
+            # 56 (YS) … 87.75 (PS); at x=60 on YS the constant says "safe
+            # 0.29" when the player is actually offstage). DEFAULT OFF:
+            # every existing checkpoint is calibrated to 85-everywhere, so
+            # only fresh training arms (v3-edge) may opt in. The edge value
+            # itself is threaded per-frame by the Game embedder (stage
+            # lives on game_state, not the player).
+            per_stage_ledge: false,
             # Use 1-dim normalized float instead of 7-dim one-hot (saves 6 dims/player)
             jumps_normalized: true,
             # :one_hot (399 dims) or :learned (action embedded in network, 0 dims here)
@@ -82,6 +91,7 @@ defmodule ExPhil.Embeddings.Player do
           with_frame_info: boolean(),
           with_stock: boolean(),
           with_ledge_distance: boolean(),
+          per_stage_ledge: boolean(),
           jumps_normalized: boolean(),
           action_mode: action_mode(),
           character_mode: character_mode(),
@@ -267,14 +277,14 @@ defmodule ExPhil.Embeddings.Player do
 
   """
   @spec embed(PlayerState.t(), config()) :: Nx.Tensor.t()
-  def embed(player, config \\ default_config())
+  def embed(player, config \\ default_config(), stage_edge \\ nil)
 
-  def embed(nil, config) do
+  def embed(nil, config, _stage_edge) do
     # Return zeros for missing player
     Nx.broadcast(0.0, {embedding_size(config)})
   end
 
-  def embed(%PlayerState{} = player, config) do
+  def embed(%PlayerState{} = player, config, stage_edge) do
     embeddings = [
       embed_base(player, config)
     ]
@@ -302,7 +312,7 @@ defmodule ExPhil.Embeddings.Player do
 
     embeddings =
       if config.with_ledge_distance do
-        [embed_ledge_distance(player) | embeddings]
+        [embed_ledge_distance(player, stage_edge) | embeddings]
       else
         embeddings
       end
@@ -330,17 +340,17 @@ defmodule ExPhil.Embeddings.Player do
   ## Returns
     Tensor of shape [batch_size, embedding_size]
   """
-  @spec embed_batch([PlayerState.t() | nil], config()) :: Nx.Tensor.t()
-  def embed_batch(players, config \\ default_config()) when is_list(players) do
+  @spec embed_batch([PlayerState.t() | nil], config(), [float() | nil] | nil) :: Nx.Tensor.t()
+  def embed_batch(players, config \\ default_config(), stage_edges \\ nil) when is_list(players) do
     # Handle empty list
     if Enum.empty?(players) do
       Nx.broadcast(0.0, {0, embedding_size(config)})
     else
-      embed_batch_base(players, config)
+      embed_batch_base(players, config, stage_edges)
     end
   end
 
-  defp embed_batch_base(players, config) do
+  defp embed_batch_base(players, config, stage_edges) do
     # Extract all values into lists (pure Elixir - fast)
     percents = Enum.map(players, fn p -> (p && p.percent) || 0.0 end)
     # nil (missing player) stays nil — batch_facing_embed maps it to neutral
@@ -504,11 +514,14 @@ defmodule ExPhil.Embeddings.Player do
     # Add distance to ledge if configured
     embs_with_ledge =
       if config.with_ledge_distance do
-        # Calculate distance to nearest ledge (simplified: stage_edge - |x|)
-        stage_edge = 85.0
+        # Distance to nearest ledge (stage_edge - |x|). The edge is the
+        # historical 85-everywhere constant unless the caller threads
+        # per-frame stage edges (per_stage_ledge arms — task #25)
+        edges = stage_edges || List.duplicate(nil, length(players))
 
         ledge_distances =
-          Enum.map(players, fn p ->
+          Enum.zip_with(players, edges, fn p, edge ->
+            stage_edge = edge || 85.0
             x = (p && p.x) || 0.0
             # Normalize: 0 at edge, ~1 at center
             (stage_edge - abs(x)) / stage_edge
@@ -878,12 +891,13 @@ defmodule ExPhil.Embeddings.Player do
   Useful for recovery and edgeguard awareness.
   Uses simplified estimate based on x position and typical stage width.
   """
-  @spec embed_ledge_distance(PlayerState.t()) :: Nx.Tensor.t()
-  def embed_ledge_distance(%PlayerState{} = player) do
-    # Approximate stage edge at x = ±85 (varies by stage, but good average)
+  @spec embed_ledge_distance(PlayerState.t(), float() | nil) :: Nx.Tensor.t()
+  def embed_ledge_distance(%PlayerState{} = player, stage_edge \\ nil) do
+    # Stage edge defaults to the historical x = ±85 constant; per-stage
+    # arms (per_stage_ledge — task #25) pass the real teeter x
     # Distance to nearest edge = stage_edge - |x|
     # Negative means offstage
-    stage_edge = 85.0
+    stage_edge = stage_edge || 85.0
     x = player.x || 0.0
     distance_to_edge = stage_edge - abs(x)
     # Normalize: 0 at edge, 1 at center, negative offstage

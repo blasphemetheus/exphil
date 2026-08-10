@@ -24,6 +24,9 @@
 #                       without it are skipped). Omit = port 1.
 #   --max-files N       Limit files (testing)
 #   --embed-batch N     GPU embedding batch size [1000]
+#   --per-stage-ledge   Real per-stage edge x in the ledge-distance
+#                       feature (task #25). Bakes into the embeddings —
+#                       train MUST pass the same flag; recorded in meta
 #   --quiet             Errors/summary only
 
 if "--quiet" in System.argv(), do: Logger.configure(level: :warning)
@@ -40,6 +43,7 @@ alias ExPhil.Embeddings
       character: :string,
       max_files: :integer,
       embed_batch: :integer,
+      per_stage_ledge: :boolean,
       quiet: :boolean
     ]
   )
@@ -81,7 +85,8 @@ embed_config =
   Embeddings.config(
     action_mode: :learned,
     character_mode: :learned,
-    stage_mode: :one_hot_compact
+    stage_mode: :one_hot_compact,
+    per_stage_ledge: opts[:per_stage_ledge] || false
   )
 
 Output.config([
@@ -137,7 +142,8 @@ meta = %{
   character_mode: "learned",
   stage_mode: "one_hot_compact",
   character: character,
-  replay_dir: replay_dir
+  replay_dir: replay_dir,
+  per_stage_ledge: opts[:per_stage_ledge] || false
 }
 
 start_time = System.monotonic_time(:millisecond)

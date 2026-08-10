@@ -50,6 +50,11 @@ defmodule ExPhil.Training.Pipeline do
     :corpus,
     :corpus_train_ranges,
 
+    # Corpus-mode curriculum mixing (--mix-corpus): a second, small
+    # MmapCorpus (snippet mini-corpus) interleaved into the train stream
+    :mix_corpus,
+    :mix_corpus_ranges,
+
     # Streaming mode state
     :streaming,
     :file_chunks,
@@ -309,7 +314,8 @@ defmodule ExPhil.Training.Pipeline do
     embed_config = Embeddings.config(
       action_mode: opts[:action_mode] || :learned,
       character_mode: opts[:character_mode] || :learned,
-      stage_mode: opts[:stage_mode] || :one_hot_compact
+      stage_mode: opts[:stage_mode] || :one_hot_compact,
+      per_stage_ledge: opts[:per_stage_ledge] || false
     )
 
     # Estimate batch count
@@ -388,7 +394,8 @@ defmodule ExPhil.Training.Pipeline do
         action_mode: opts[:action_mode] || :learned,
         character_mode: opts[:character_mode] || :learned,
         stage_mode: opts[:stage_mode] || :one_hot_compact,
-        kmeans_centers: opts[:kmeans_centers]
+        kmeans_centers: opts[:kmeans_centers],
+        per_stage_ledge: opts[:per_stage_ledge] || false
       )
 
       # Create base dataset
@@ -523,6 +530,36 @@ defmodule ExPhil.Training.Pipeline do
     val_batches = if n_val > 0, do: Enum.to_list(val_stream), else: nil
     Output.puts("  #{n_val} validation batches")
 
+    # Curriculum mixing: a snippet mini-corpus interleaved into training.
+    # Every mix file is train (no val split — val stays comparable to
+    # unmixed baselines); windows never cross snippet boundaries because
+    # sequence_starts is per-file.
+    {mix_corpus, mix_ranges, n_mix} =
+      case opts[:mix_corpus] do
+        nil ->
+          {nil, nil, 0}
+
+        mix_dir ->
+          mix = MmapCorpus.open!(mix_dir)
+
+          if mix.embed_size != corpus.embed_size do
+            raise ArgumentError,
+                  "--mix-corpus #{mix_dir} embed_size #{mix.embed_size} != " <>
+                    "main corpus #{corpus.embed_size}"
+          end
+
+          {ranges, []} = MmapCorpus.split_files(mix, 0.0)
+          oversample = opts[:mix_oversample] || 1
+          n_seq = length(MmapCorpus.sequence_starts(ranges, window, stride))
+
+          Output.puts(
+            "  Mix corpus #{mix_dir}: #{mix.num_frames} frames / #{length(mix.files)} snippets, " <>
+              "#{n_seq} sequences x#{oversample} oversample"
+          )
+
+          {mix, ranges, div(n_seq * oversample, batch_size)}
+      end
+
     Output.step(3, 3, "Resolving config")
 
     resolved_opts =
@@ -533,11 +570,13 @@ defmodule ExPhil.Training.Pipeline do
     pipeline = %__MODULE__{
       corpus: corpus,
       corpus_train_ranges: train_ranges,
+      mix_corpus: mix_corpus,
+      mix_corpus_ranges: mix_ranges,
       val_batches: val_batches,
       replay_files: Enum.map(corpus.files, & &1.path),
       replay_stats: %{total: length(corpus.files), invalid: 0},
       streaming: false,
-      estimated_batches: div(n_train, batch_size),
+      estimated_batches: div(n_train, batch_size) + n_mix,
       resolved_opts: resolved_opts
     }
 
@@ -570,7 +609,7 @@ defmodule ExPhil.Training.Pipeline do
     alias ExPhil.Training.MmapCorpus
     ropts = pipeline.resolved_opts
 
-    {stream, _n} =
+    {stream, n_main} =
       MmapCorpus.batched_sequences(pipeline.corpus, pipeline.corpus_train_ranges,
         window_size: ropts[:window_size] || 60,
         stride: ropts[:stride] || 5,
@@ -581,7 +620,69 @@ defmodule ExPhil.Training.Pipeline do
         transition_weight: ropts[:transition_weight]
       )
 
+    stream = inject_mix_corpus(stream, n_main, pipeline, ropts)
+
     {stream, pipeline.estimated_batches}
+  end
+
+  # Interleave snippet mini-corpus batches (--mix-corpus) evenly through
+  # the main corpus stream. The mix is materialized once on CPU (it is
+  # small by construction — hundreds of snippets) and cycled
+  # :mix_oversample times; tensors are shared across cycles and only
+  # transferred to GPU at injection.
+  defp inject_mix_corpus(stream, _n_main, %__MODULE__{mix_corpus: nil}, _ropts), do: stream
+
+  defp inject_mix_corpus(stream, n_main, pipeline, ropts) do
+    alias ExPhil.Training.MmapCorpus
+
+    {mix_stream, _} =
+      MmapCorpus.batched_sequences(pipeline.mix_corpus, pipeline.mix_corpus_ranges,
+        window_size: ropts[:window_size] || 60,
+        stride: ropts[:stride] || 5,
+        batch_size: ropts[:batch_size] || 32,
+        shuffle: true,
+        drop_last: false,
+        gpu: false,
+        neutral_weight: Keyword.get(ropts, :neutral_weight, 0.25),
+        transition_weight: ropts[:transition_weight]
+      )
+
+    mix_batches = Enum.to_list(mix_stream)
+    oversample = ropts[:mix_oversample] || 1
+    n_mix = length(mix_batches) * oversample
+
+    if n_mix == 0 do
+      stream
+    else
+      inject_every = max(div(n_main, n_mix), 1)
+
+      queue =
+        mix_batches
+        |> List.duplicate(oversample)
+        |> List.flatten()
+
+      stream
+      |> Stream.with_index(1)
+      |> Stream.transform(queue, fn {batch, i}, q ->
+        case q do
+          [m | rest] when rem(i, inject_every) == 0 ->
+            # backend_copy, NOT backend_transfer: cycled batches share
+            # tensors — a transfer would deallocate the CPU source and
+            # crash the next cycle's injection of the same batch
+            gpu_m = %{
+              m
+              | states: Nx.backend_copy(m.states, EXLA.Backend),
+                actions: Map.new(m.actions, fn {k, v} -> {k, Nx.backend_copy(v, EXLA.Backend)} end),
+                frame_weights: Nx.backend_copy(m.frame_weights, EXLA.Backend)
+            }
+
+            {[batch, gpu_m], rest}
+
+          _ ->
+            {[batch], q}
+        end
+      end)
+    end
   end
 
   # ============================================================================

@@ -223,6 +223,9 @@ defmodule ExPhil.Training.Config do
     "--scheduled-sampling",
     "--ss-ramp",
     "--mix-frames",
+    "--mix-corpus",
+    "--mix-oversample",
+    "--per-stage-ledge",
     "--action-delay",
     "--focal-gamma",
     "--button-weight",
@@ -626,6 +629,20 @@ defmodule ExPhil.Training.Config do
       # Curriculum mixing: comma/glob list of drill .frames exports
       # (scripts/export_drill_frames.exs) concatenated into training
       mix_frames: nil,
+      # Corpus-mode curriculum mixing: a second MmapCorpus dir
+      # (scripts/build_snippet_corpus.exs) whose batches are interleaved
+      # into the training stream — corpus mode ignores :mix_frames, and
+      # unlike it, mini-corpus windows never cross snippet boundaries
+      mix_corpus: nil,
+      # How many passes of the mix corpus to interleave per epoch (the
+      # mix is typically ~0.05% of the main corpus — oversample to give
+      # corrections a meaningful gradient share, e.g. 20)
+      mix_oversample: 1,
+      # Task #25: real per-stage edge x in the ledge-distance feature
+      # (default-off; existing checkpoints are calibrated to the
+      # 85-everywhere constant — only fresh v3-edge arms opt in, and a
+      # corpus must be REBUILT with this flag for corpus-mode training)
+      per_stage_ledge: false,
       action_delay: 0,
       # Higher = more focus on hard examples
       focal_gamma: 3.0,
