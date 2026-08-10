@@ -3424,3 +3424,21 @@ bought nothing on this box). The broken cache entries were deleted. If
 a genuine CPU-only eval is ever needed, the CPU flavor must be relinked
 against cudart (or the fork's Makefile taught to exclude the CUDA
 custom-call objects for cpu targets) — deferred until someone needs it.
+
+## 91. `--lr-schedule cosine` defaults its decay horizon to 10k steps — freezes long runs
+
+`build_lr_schedule` (imitation/optimizer.ex) sets the cosine decay
+horizon from `decay_steps`, which defaults to **10,000** when
+`--decay-steps` is not passed. On a large corpus one epoch is far more
+than 10k steps (fox_v2: 19,245 steps/epoch), so the LR cosine-decays to
+ZERO within the first half-epoch and stays there — the model freezes at
+its epoch-1 weights for the rest of the run. Tell: `val_loss` pinned at
+the exact epoch-1 value for many epochs while `train_loss` stays high
+(observed 2026-08-09, fox_il_v2_long: val stuck at 5.8242 through 8
+epochs, ~25 min GPU wasted).
+
+Fixes: pass `--decay-steps <total_steps>` (epochs × steps_per_epoch)
+when using `--lr-schedule cosine`, OR just use `--lr-schedule constant`
+(the proven fox_il recipe — constant 1e-4 was still descending at epoch
+10). Better long-term: cosine should default `decay_steps` to the run's
+total training steps, not a fixed 10k.
