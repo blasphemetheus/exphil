@@ -150,6 +150,22 @@ const STAGE_META = {
 };
 const stageMeta = () => STAGE_META[S.stage] || { name: `stage ${S.stage}`, color: MUTED };
 
+// Character glyphs (keys normalized: lowercase, alphanumeric only —
+// matches Melee.Enums.Character atom names however they're underscored).
+// Emoji are the signifier of choice per Bradley; the colored facing
+// triangle stays as the identity channel (dittos would otherwise be
+// ambiguous). Unknown characters fall back to the bare triangle.
+const CHAR_EMOJI = {
+  fox: "🦊", falco: "🐦", captainfalcon: "🏎️", marth: "⚔️", roy: "🔥",
+  sheik: "🥷", zelda: "👸", link: "🗡️", younglink: "🪃", mewtwo: "🔮",
+  pikachu: "⚡", pichu: "🐭", jigglypuff: "🎈", kirby: "🍥", yoshi: "🥚",
+  mario: "🍄", drmario: "💊", luigi: "🟢", peach: "🍑", bowser: "🐢",
+  donkeykong: "🦍", ganondorf: "👿", ness: "🧢", iceclimbers: "🧊",
+  samus: "🤖", gameandwatch: "🕹️", mrgameandwatch: "🕹️"
+};
+const normChar = s => (s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+const charEmoji = name => CHAR_EMOJI[normChar(name)] || null;
+
 let STATS = null;      // situation_stats tree for the session's matchup
 let statsMatchup = null;
 
@@ -188,7 +204,10 @@ function matchStats() {
 }
 
 function prepare() {
-  $("meta").textContent = `— ${S.total} frames · stage ${S.stage} · port ${S.port} · window ${S.window}`;
+  const mu = S.own_char
+    ? ` · ${charEmoji(S.own_char) || ""}${S.own_char} vs ${charEmoji(S.opp_char) || ""}${S.opp_char}`
+    : "";
+  $("meta").textContent = `— ${S.total} frames · ${(STAGE_META[S.stage] || {name: "stage " + S.stage}).name}${mu} · window ${S.window}`;
   $("scrub").max = S.total - 1;
 
   // Label lanes present in this session, as segments for the track canvas
@@ -259,10 +278,10 @@ function drawStage() {
     cx.beginPath(); cx.moveTo(sx(l), sy(h)); cx.lineTo(sx(r), sy(h)); cx.stroke();
   }
 
-  // Players (triangle points in facing direction)
+  // Players (triangle points in facing direction; emoji = character)
   const fr = S.frames[t];
-  drawPlayer(cx, sx, sy, fr.own, BLUE);
-  drawPlayer(cx, sx, sy, fr.opp, ORANGE);
+  drawPlayer(cx, sx, sy, fr.own, BLUE, charEmoji(S.own_char));
+  drawPlayer(cx, sx, sy, fr.opp, ORANGE, charEmoji(S.opp_char));
 
   // Trail for the bot (last 60 frames)
   cx.strokeStyle = BLUE; cx.globalAlpha = 0.35; cx.lineWidth = 1;
@@ -274,14 +293,20 @@ function drawStage() {
   cx.stroke(); cx.globalAlpha = 1;
 }
 
-function drawPlayer(cx, sx, sy, p, color) {
+function drawPlayer(cx, sx, sy, p, color, emoji) {
   if (!p) return;
   const [x, y, facing] = p;
+  const px = sx(x), py = sy(y), d = 7 * (facing >= 0 ? 1 : -1);
   cx.fillStyle = color;
   cx.beginPath();
-  const px = sx(x), py = sy(y), d = 7 * (facing >= 0 ? 1 : -1);
   cx.moveTo(px + d, py); cx.lineTo(px - d * 0.7, py - 5); cx.lineTo(px - d * 0.7, py + 5);
   cx.closePath(); cx.fill();
+  if (emoji) {
+    cx.font = "16px system-ui";
+    cx.textAlign = "center";
+    cx.fillText(emoji, px, py - 9);
+    cx.textAlign = "start";
+  }
 }
 
 // ------------------------------------------------------------- label tracks
@@ -340,7 +365,8 @@ function drawPanel() {
     <td>${p[4]}%</td><td>${p[5]}</td><td>${p[3]}</td></tr>` : "";
   $("ptable").innerHTML =
     `<tr><th></th><th>x</th><th>y</th><th>%</th><th>stk</th><th>act</th></tr>` +
-    row("bot", fr.own) + row("opp", fr.opp);
+    row(`${charEmoji(S.own_char) || ""} bot`, fr.own) +
+    row(`${charEmoji(S.opp_char) || ""} opp`, fr.opp);
 
   // Buttons
   const rec = fr.rec ? new Set(fr.rec[2]) : new Set();
