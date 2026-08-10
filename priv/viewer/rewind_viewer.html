@@ -380,11 +380,30 @@ function drawStage() {
   // Dreamland Whispy wind (0x40 event, held): 0 = calm, 1 = blowing
   // LEFT, 2 = blowing RIGHT — VERIFIED via airborne-player drift on the
   // 0809 DL netplay game (state 1: -0.047 x/frame, state 2: +0.18,
-  // calm baseline +0.037).
+  // calm baseline +0.037). Rendered as streamlines BELOW the floor,
+  // animated along the blow direction while the gust lasts.
   if (fr.wsp === 1 || fr.wsp === 2) {
-    const blowLeft = fr.wsp === 1;
-    cx.fillStyle = ORANGE; cx.font = "12px system-ui";
-    cx.fillText(`${blowLeft ? "←" : "→"} whispy wind`, W / 2 - 40, 16);
+    const dir = fr.wsp === 1 ? -1 : 1;
+    const phase = (t % 30) / 30 * 24 * dir; // drift with playback frame
+    cx.strokeStyle = ORANGE; cx.fillStyle = ORANGE;
+    cx.globalAlpha = 0.7; cx.lineWidth = 1.5;
+    for (let row = 0; row < 3; row++) {
+      const wy = sy(-8 - row * 9);
+      for (let k = -3; k <= 3; k++) {
+        const wx = sx(k * 24 + (row % 2) * 12) + phase;
+        cx.beginPath();
+        cx.moveTo(wx - 8 * dir, wy);
+        cx.lineTo(wx + 8 * dir, wy);
+        // arrowhead
+        cx.lineTo(wx + 3 * dir, wy - 3);
+        cx.moveTo(wx + 8 * dir, wy);
+        cx.lineTo(wx + 3 * dir, wy + 3);
+        cx.stroke();
+      }
+    }
+    cx.font = "10px system-ui";
+    cx.fillText("whispy", sx(0) - 15, sy(-32));
+    cx.globalAlpha = 1;
   }
 
   if (coll) {
