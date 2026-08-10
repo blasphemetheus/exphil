@@ -114,7 +114,8 @@ Output.config([
   {"Danger margin", margin}
 ])
 
-recovery = FoxRecoveryExpert.new()
+# Constructed per replay below — the recovery aim target is per-stage
+# now that extracted ledge positions exist (FoxRecoveryExpert.for_stage)
 
 {snippets, stats} =
   Enum.reduce(replays, {[], %{replays: 0, anchors: 0, frames: 0, skipped: 0}}, fn path,
@@ -144,6 +145,7 @@ recovery = FoxRecoveryExpert.new()
             (trunc(stage || 0) |> Melee.Enums.Stage.from_external() |> Melee.Stages.edge_ground_position()) ||
               85.5656967163
           turnaround = EdgeTurnaroundExpert.new(edge_x: edge, danger_margin: margin)
+          recovery = FoxRecoveryExpert.for_stage(trunc(stage || 0))
 
           in_hitstun = fn i -> MapSet.member?(hitstun, trunc(me.(i).action || 0)) end
 

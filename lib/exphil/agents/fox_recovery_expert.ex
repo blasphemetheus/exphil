@@ -31,13 +31,12 @@ defmodule ExPhil.Agents.FoxRecoveryExpert do
   alias ExPhil.Bridge.ControllerState
   alias ExPhil.Constants
 
-  defstruct table: %{}
+  # Geometry defaults to FD (drills run on FD — behavior identical to
+  # the pre-parameterized module); `for_stage/1` swaps in the REAL ledge
+  # position from extracted collision (ExPhil.StageCollision, task #1)
+  defstruct edge_x: 85.57, ledge_aim_y: 5.0
 
-  @type t :: %__MODULE__{}
-
-  # FD geometry (drills run on FD)
-  @edge_x 85.57
-  @ledge_aim_y 5.0
+  @type t :: %__MODULE__{edge_x: float(), ledge_aim_y: float()}
 
   # Universal action IDs
   @first_actionable Constants.first_actionable()
@@ -53,6 +52,23 @@ defmodule ExPhil.Agents.FoxRecoveryExpert do
   @spec new() :: t()
   def new, do: %__MODULE__{}
 
+  @doc """
+  Expert with the REAL ledge position for a stage (atom or external id)
+  from extracted collision data; falls back to FD geometry when the
+  stage has none. The aim y sits slightly above the actual ledge point.
+  """
+  @spec for_stage(atom() | number() | nil) :: t()
+  def for_stage(stage) do
+    case ExPhil.StageCollision.ledge_positions(stage) do
+      [] ->
+        new()
+
+      ledges ->
+        {lx, ly} = Enum.max_by(ledges, fn {x, _y} -> abs(x) end)
+        %__MODULE__{edge_x: abs(lx), ledge_aim_y: ly + 5.0}
+    end
+  end
+
   @doc "Fixture-API compatibility for dagger_drill (frames are ignored)."
   @spec from_frames([map()], keyword()) :: t()
   def from_frames(_frames, _opts \\ []), do: new()
@@ -66,14 +82,14 @@ defmodule ExPhil.Agents.FoxRecoveryExpert do
   aerials. `prev` is the previously-landed input (tap alternation).
   """
   @spec label(t(), map(), ControllerState.t() | nil) :: {:ok, ControllerState.t()} | :skip
-  def label(%__MODULE__{}, player, prev \\ nil, _opponent \\ nil) do
+  def label(%__MODULE__{} = expert, player, prev \\ nil, _opponent \\ nil) do
     action = trunc(player.action || 0)
     x = player.x || 0.0
     y = player.y || 0.0
     grounded = player.on_ground
     jumps = player.jumps_left || 0
 
-    offstage = abs(x) > @edge_x
+    offstage = abs(x) > expert.edge_x
     below = y < -5.0
 
     cond do
@@ -100,7 +116,7 @@ defmodule ExPhil.Agents.FoxRecoveryExpert do
 
       action in @char_specials ->
         # Mid-special (Firefox charge aims with the stick; flight too)
-        {:ok, aim_at_ledge(x, y)}
+        {:ok, aim_at_ledge(expert, x, y)}
 
       action in @damage_air or action == @tumble ->
         # Can't act (or barely): survival DI toward the stage
@@ -112,7 +128,7 @@ defmodule ExPhil.Agents.FoxRecoveryExpert do
 
       y < 15.0 ->
         # Jumpless (or still low after the jump): Firefox, aimed at the ledge
-        {:ok, tap_upb(x, y, prev)}
+        {:ok, tap_upb(expert, x, y, prev)}
 
       true ->
         # Offstage but high: drift inward, save resources
@@ -130,8 +146,8 @@ defmodule ExPhil.Agents.FoxRecoveryExpert do
     end
   end
 
-  defp tap_upb(x, y, prev) do
-    aim = aim_at_ledge(x, y)
+  defp tap_upb(expert, x, y, prev) do
+    aim = aim_at_ledge(expert, x, y)
 
     if held?(prev, :button_b) do
       aim
@@ -141,10 +157,10 @@ defmodule ExPhil.Agents.FoxRecoveryExpert do
   end
 
   # Unit-circle stick aimed from (x, y) at the near ledge, slightly above it
-  defp aim_at_ledge(x, y) do
-    target_x = if x > 0, do: @edge_x, else: -@edge_x
+  defp aim_at_ledge(expert, x, y) do
+    target_x = if x > 0, do: expert.edge_x, else: -expert.edge_x
     dx = target_x - x
-    dy = @ledge_aim_y - y
+    dy = expert.ledge_aim_y - y
     mag = max(:math.sqrt(dx * dx + dy * dy), 1.0e-6)
 
     %{neutral() | main_stick: %{x: 0.5 + 0.5 * dx / mag, y: 0.5 + 0.5 * dy / mag}}

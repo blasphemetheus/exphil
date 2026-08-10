@@ -100,7 +100,11 @@ defmodule ExPhil.Situations do
     :jc_window,
     :shine_cancellable,
     # -- hygiene
-    :warmup_frames
+    :warmup_frames,
+    # -- appended 2026-08-11 (registry is append-only): wall interaction
+    # zones from extracted stage collision (ExPhil.StageCollision)
+    :walljump_zone,
+    :walltech_available
   ]
 
   @bit Map.new(Enum.with_index(@labels))
@@ -136,6 +140,10 @@ defmodule ExPhil.Situations do
   @timeout_frame 27_000
   @shield_low 20.0
   @percent_gap 40.0
+  # Wall-zone reach (units to the nearest wall segment): walljump needs
+  # near-contact; walltech has the tech window's leniency
+  @walljump_dist 8.0
+  @walltech_dist 12.0
 
   # Action states (libmelee enum)
   @rebirth [12, 13]
@@ -350,6 +358,17 @@ defmodule ExPhil.Situations do
         |> put(:jc_window, act(own) == @jumpsquat)
         |> put(:shine_cancellable, MapSet.member?(@reflector_ground, act(own)))
         |> put(:warmup_frames, frame < @warmup)
+
+      # ---- wall zones (extracted collision; false when no data) ----
+      # Guarded: wall_distance only runs when the state could use a wall
+      wall_dist =
+        if not own.on_ground or hitstun?(own),
+          do: ExPhil.StageCollision.wall_distance(gs.stage, x(own), y(own))
+
+      set =
+        set
+        |> put(:walljump_zone, wall_dist != nil and not own.on_ground and wall_dist < @walljump_dist)
+        |> put(:walltech_available, wall_dist != nil and hitstun?(own) and wall_dist < @walltech_dist)
 
       {ctx, MapSet.new(set)}
     end
