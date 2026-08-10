@@ -15,8 +15,13 @@ moment) over `ExPhil.Situations` (47 labels).
 ## Setup
 
 ```elixir
+# __DIR__ anchors to THIS notebook's directory — Path.expand("..") alone
+# resolves against the runtime's cwd (often $HOME under the nixpkgs
+# Livebook release), which points Mix.install at the wrong path
+project_root = Path.expand("..", __DIR__)
+
 Mix.install([
-  {:exphil, path: Path.expand(".."), env: :dev},
+  {:exphil, path: project_root, env: :dev},
   {:kino, "~> 0.14"},
   {:kino_vega_lite, "~> 0.1"}
 ])
@@ -43,7 +48,9 @@ policy_input =
 
 replay_input =
   Kino.Input.text("Replay .slp",
-    default: Path.wildcard(Path.expand("../eval_runs/0810_edgeB_pool/r*/*.slp")) |> List.first() || ""
+    default:
+      Path.wildcard(Path.join(project_root, "eval_runs/0810_edgeB_pool/r*/*.slp")) |> List.first() ||
+        ""
   )
 
 port_input = Kino.Input.select("Bot port", [{1, "1"}, {2, "2"}], default: 1)
@@ -53,7 +60,7 @@ Kino.Layout.grid([policy_input, replay_input, port_input, delay_input])
 ```
 
 ```elixir
-policy_path = Path.expand("..") |> Path.join(Kino.Input.read(policy_input)) |> then(fn p ->
+policy_path = project_root |> Path.join(Kino.Input.read(policy_input)) |> then(fn p ->
   if File.exists?(p), do: p, else: Kino.Input.read(policy_input)
 end)
 
