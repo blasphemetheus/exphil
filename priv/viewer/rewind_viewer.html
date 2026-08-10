@@ -406,12 +406,19 @@ function drawStage() {
   drawPlayer(cx, sx, sy, fr.own, BLUE, charEmoji(S.own_char));
   drawPlayer(cx, sx, sy, fr.opp, ORANGE, charEmoji(S.opp_char));
 
-  // Trail for the bot (last 60 frames)
+  // Trail for the bot (last 60 frames). Break the line on death warps
+  // (dead/respawn action states < 14) and any teleport-sized jump —
+  // otherwise a death draws a bogus line up to the angel platform.
   cx.strokeStyle = BLUE; cx.globalAlpha = 0.35; cx.lineWidth = 1;
   cx.beginPath();
+  let pen = false, lastP = null;
   for (let i = Math.max(0, t - 60); i <= t; i++) {
-    const p = S.frames[i].own; if (!p) continue;
-    i === Math.max(0, t - 60) ? cx.moveTo(sx(p[0]), sy(p[1])) : cx.lineTo(sx(p[0]), sy(p[1]));
+    const p = S.frames[i].own;
+    if (!p || p[3] < 14) { pen = false; lastP = null; continue; }
+    const jump = lastP && Math.hypot(p[0] - lastP[0], p[1] - lastP[1]) > 40;
+    if (!pen || jump) { cx.moveTo(sx(p[0]), sy(p[1])); pen = true; }
+    else cx.lineTo(sx(p[0]), sy(p[1]));
+    lastP = p;
   }
   cx.stroke(); cx.globalAlpha = 1;
 }
