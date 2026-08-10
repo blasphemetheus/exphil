@@ -251,12 +251,11 @@ Pick a label, get every segment where it fires — read an index off the table
 and drag the slider there.
 
 ```elixir
+default_label =
+  Enum.find(lane_order, &(&1 == "edge_danger")) || List.first(lane_order)
+
 label_select =
-  Kino.Input.select(
-    "Label",
-    Enum.map(lane_order, &{&1, &1}),
-    default: List.first(Enum.filter(lane_order, &(&1 == "edge_danger"))) || List.first(lane_order)
-  )
+  Kino.Input.select("Label", Enum.map(lane_order, &{&1, &1}), default: default_label)
 
 jump_frame = Kino.Frame.new()
 
@@ -265,9 +264,14 @@ Kino.listen(label_select, fn %{value: label} ->
   Kino.Frame.render(jump_frame, Kino.DataTable.new(rows, name: "#{label} segments"))
 end)
 
+# Seed from the computed default — Kino.Input.read/1 raises before the
+# widget has been rendered at least once
 Kino.Frame.render(
   jump_frame,
-  Kino.DataTable.new(Enum.filter(segments, &(&1.label == Kino.Input.read(label_select))) |> Enum.take(50))
+  Kino.DataTable.new(
+    segments |> Enum.filter(&(&1.label == default_label)) |> Enum.take(50),
+    name: "#{default_label} segments"
+  )
 )
 
 Kino.Layout.grid([label_select, jump_frame])
