@@ -174,22 +174,76 @@ const charEmoji = name => CHAR_EMOJI[normChar(name)] || null;
 let STATS = null;      // situation_stats tree for the session's matchup
 let statsMatchup = null;
 
+// ------------------------------------------------- persistence (IndexedDB)
+// File paths can't be reopened after a refresh (browser sandbox), but
+// the loaded CONTENT can: cache raw text keyed by slot, restore on
+// startup. Scrub position rides in localStorage.
+const idb = () => new Promise((res, rej) => {
+  const rq = indexedDB.open("exphil-rewind", 1);
+  rq.onupgradeneeded = () => rq.result.createObjectStore("files");
+  rq.onsuccess = () => res(rq.result);
+  rq.onerror = () => rej(rq.error);
+});
+async function idbPut(key, val) {
+  const db = await idb();
+  return new Promise((res, rej) => {
+    const tx = db.transaction("files", "readwrite");
+    tx.objectStore("files").put(val, key);
+    tx.oncomplete = res; tx.onerror = () => rej(tx.error);
+  });
+}
+async function idbGet(key) {
+  const db = await idb();
+  return new Promise((res, rej) => {
+    const rq = db.transaction("files").objectStore("files").get(key);
+    rq.onsuccess = () => res(rq.result); rq.onerror = () => rej(rq.error);
+  });
+}
+
+function loadSession(text, name) {
+  S = JSON.parse(text);
+  prepare();
+  matchStats();
+  const saved = parseInt(localStorage.getItem("rewind-t") || "", 10);
+  setFrame(Number.isFinite(saved) && saved < S.total ? saved : S.window, true);
+  if (name) document.title = `Rewind — ${name}`;
+}
+
+function loadStats(text) {
+  STATS = JSON.parse(text);
+  matchStats();
+  if (S) drawPanel();
+}
+
 $("file").addEventListener("change", async e => {
   const f = e.target.files[0];
   if (!f) return;
-  S = JSON.parse(await f.text());
-  prepare();
-  matchStats();
-  setFrame(S.window, true);
+  const text = await f.text();
+  localStorage.removeItem("rewind-t"); // fresh file -> fresh position
+  loadSession(text, f.name);
+  idbPut("session", { name: f.name, text }).catch(() => {});
 });
 
 $("statsfile").addEventListener("change", async e => {
   const f = e.target.files[0];
   if (!f) return;
-  STATS = JSON.parse(await f.text());
-  matchStats();
-  if (S) drawPanel();
+  const text = await f.text();
+  loadStats(text);
+  idbPut("stats", { name: f.name, text }).catch(() => {});
 });
+
+// Restore last session on startup
+(async () => {
+  try {
+    const st = await idbGet("stats");
+    if (st) loadStats(st.text);
+    const se = await idbGet("session");
+    if (se) {
+      loadSession(se.text, se.name);
+      $("meta").textContent += ` · restored ${se.name}`;
+    }
+  } catch (_) { /* first visit / private mode */ }
+})();
 
 // Match the session's matchup to a stats-tree key. Session characters
 // come from Melee.Enums atoms ("captain_falcon"); stats keys use the
@@ -478,6 +532,7 @@ function setFrame(nt, force) {
   if (!S) return;
   t = Math.max(0, Math.min(S.total - 1, nt));
   $("scrub").value = t;
+  try { localStorage.setItem("rewind-t", t); } catch (_) {}
   drawStage(); drawTracks(); drawPanel();
 }
 
