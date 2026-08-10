@@ -109,14 +109,22 @@ answer ad hoc today.
 Offline RL / outcome regression on the corpus. Coach uses it for
 difficulty calibration and feedback scoring; lab uses it for RL.
 
-### 6. Scenario director
-Live GenServer driving the coach-side character to REACH a target
-situation (get the learner to ledge; stand at tech-chase range; feed a
-specific approach), using scripted experts + the SessionPool/MeleePort
-stack. Savestate loading (if the Slippi/Dolphin build exposes it) is
-the cheap 10x here — investigate before building elaborate steering.
-The static ancestor (seed dirs sliced at handoff points) already
-exists for drills.
+### 6. Scenario director — built AROUND Improoover
+**Improoover (ppfiction)** already solves the hard half: it exports a
+moment from a .slp into a .gci savestate you can boot, replay, and
+TAKE CONTROL of — built for "redo where you messed up in tournament."
+So the director's core loop is: pick a moment (from the learner's own
+replays via situation labels + knowledge-model deviation, or from the
+corpus as a canonical example) -> Improoover-style export -> boot the
+.gci -> learner plays the rep, coach bot plays the opposition ->
+detect/score the response (labels + option vocabulary) -> repeat or
+advance. Integration work: drive the export programmatically from our
+labeler's output (a mined SD/failure window IS a coachable moment —
+tonight's edge miner literally produces the input list), and get the
+bot agent playing the opposition port inside a .gci-restored state
+(MeleePort/libmelee vs the training-mode loader — the one open
+plumbing question). Live steering (driving the game into a situation
+without a savestate) becomes the fallback, not the foundation.
 
 ### 7. Curriculum + feedback loop (the actual coach product)
 Pick next drill from (learner's per-situation deviation from the
@@ -127,11 +135,13 @@ twin — build LAST, on top of 1-6.
 
 ## Under the hood reuse
 
-The coach's drill machinery is the existing export/DAgger stack (drill
-recordings, expert relabeling, .frames exports, snippet corpora — the
-same pipeline tonight's edge arc used). The learner-facing loop
+Rep delivery = **Improoover exports** (.slp moment -> bootable .gci
+savestate, see #6). Mining which moments to export = the existing
+labeler/miner stack (tonight's edge miner is the template: situation
+label -> window -> coachable moment). Scoring = the same
+labels + option vocabulary that grade the bot. The learner-facing loop
 generates exactly the artifacts the bot-training loop consumes: a
-human drilling ledge escapes vs the scenario director produces
+human drilling ledge escapes against the coach produces
 perfectly-labeled situation snippets. THE COACH AND THE BOT FEED EACH
 OTHER: his reps are our corpus; our knowledge model is his teacher.
 
