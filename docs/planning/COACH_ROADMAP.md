@@ -158,9 +158,22 @@ OTHER: his reps are our corpus; our knowledge model is his teacher.
 - Latency/ergonomics constraints of a consumer session (netplay-safe
   delays are already solved for the bot; menus/UX are not).
 
+## Status (2026-08-11)
+
+1. `ExPhil.Situations` — **SHIPPED** (47 labels winnowed with Bradley;
+   fold-based batch+live frontends; found GOTCHA #96 external/internal
+   stage-id collision in testing).
+2. `ExPhil.Inspect` — **SHIPPED** (session + moment/2 +
+   counterfactual/4; stub-injectable for tests; smoked on edgeB).
+3. Rewind scrubber — **SHIPPED** (`notebooks/rewind_scrubber.livemd`:
+   situation-timeline lanes, frame slider -> moment panel, jump-to-label
+   segments table, interactive counterfactual).
+4. Option vocabulary + per-situation corpus stats — NEXT.
+5. Value model (F5) — unscheduled.
+6. Scenario director / Improoover plumbing spike — unscheduled (do the
+   spike in a live session).
+7. Curriculum/feedback — last.
+
 ## Non-goals for now
 
-No scheduling, no UI beyond Livebook, no product polish. The next
-concrete steps if/when this activates: winnow SITUATION_LABELS.md ->
-implement `ExPhil.Situations` (#1) -> Inspect.moment (#2) -> Livebook
-scrubber (#3). All three are justified by the current program alone.
+No scheduling, no UI beyond Livebook, no product polish.

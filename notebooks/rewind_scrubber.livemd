@@ -1,0 +1,312 @@
+# Rewind Scrubber
+
+## What this is
+
+The rewind viewer (coach roadmap #3): open a replay + a policy, see the whole
+game as **situation-label tracks** (like a DAW timeline), then scrub to any
+frame and see **everything inference exposes** — the labels, both players,
+per-head policy distributions, entropy, what was actually pressed — plus
+window-consistent counterfactuals ("what would the policy do if the fox were
+20 units closer to the edge?").
+
+Backend: `ExPhil.Inspect` (one parse+embed per session, one forward pass per
+moment) over `ExPhil.Situations` (47 labels).
+
+## Setup
+
+```elixir
+Mix.install([
+  {:exphil, path: Path.expand(".."), env: :dev},
+  {:kino, "~> 0.14"},
+  {:kino_vega_lite, "~> 0.1"}
+])
+
+alias ExPhil.{Inspect, Situations}
+alias VegaLite, as: Vl
+
+# Reference dataviz palette (light mode): blue = policy/primary series,
+# orange = recorded/comparison series. Identity is never color-alone —
+# every two-series chart below also carries a legend.
+blue = "#2a78d6"
+orange = "#eb6834"
+
+IO.puts("Setup complete")
+```
+
+## 1. Open a session
+
+```elixir
+policy_input =
+  Kino.Input.text("Policy .bin",
+    default: "checkpoints/fox_il_v2_edgeB_20260810_060518_best_policy.bin"
+  )
+
+replay_input =
+  Kino.Input.text("Replay .slp",
+    default: Path.wildcard(Path.expand("../eval_runs/0810_edgeB_pool/r*/*.slp")) |> List.first() || ""
+  )
+
+port_input = Kino.Input.select("Bot port", [{1, "1"}, {2, "2"}], default: 1)
+delay_input = Kino.Input.text("delay_id (blank unless with_delay_id policy)", default: "")
+
+Kino.Layout.grid([policy_input, replay_input, port_input, delay_input])
+```
+
+```elixir
+policy_path = Path.expand("..") |> Path.join(Kino.Input.read(policy_input)) |> then(fn p ->
+  if File.exists?(p), do: p, else: Kino.Input.read(policy_input)
+end)
+
+replay_path = Kino.Input.read(replay_input)
+port = Kino.Input.read(port_input)
+
+opts =
+  case Kino.Input.read(delay_input) |> String.trim() do
+    "" -> [player_port: port]
+    d -> [player_port: port, delay_id: String.to_integer(d)]
+  end
+
+{:ok, session} = Inspect.open(policy_path, replay_path, opts)
+IO.puts("#{session.total} frames | window #{session.window} | port #{session.port}")
+```
+
+## 2. Situation timeline
+
+Each present label gets a lane; a bar covers the frames where it is active.
+Lane position carries identity, so a single hue is correct here (no legend
+needed for one series). Hover any bar for the exact frame range.
+
+```elixir
+# Compress per-frame label sets into segments (runs of consecutive frames)
+segments =
+  Situations.labels()
+  |> Enum.flat_map(fn label ->
+    session.situations
+    |> Enum.with_index()
+    |> Enum.chunk_by(fn {set, _i} -> MapSet.member?(set, label) end)
+    |> Enum.filter(fn [{set, _} | _] -> MapSet.member?(set, label) end)
+    |> Enum.map(fn chunk ->
+      {_, first} = hd(chunk)
+      {_, last} = List.last(chunk)
+      %{label: to_string(label), start: first, stop: last + 1, frames: last - first + 1}
+    end)
+  end)
+
+present = segments |> Enum.map(& &1.label) |> Enum.uniq()
+lane_order = Situations.labels() |> Enum.map(&to_string/1) |> Enum.filter(&(&1 in present))
+
+Vl.new(width: 750, height: 14 * length(lane_order), title: "Situation timeline")
+|> Vl.data_from_values(segments)
+|> Vl.mark(:bar, height: 9, corner_radius: 2, color: blue)
+|> Vl.encode_field(:x, "start", type: :quantitative, title: "frame index",
+  scale: [domain: [0, session.total]])
+|> Vl.encode_field(:x2, "stop")
+|> Vl.encode_field(:y, "label", type: :nominal, sort: lane_order, title: nil)
+|> Vl.encode(:tooltip, [
+  [field: "label"], [field: "start"], [field: "stop"], [field: "frames"]
+])
+```
+
+## 3. Scrub
+
+Drag the slider; the panel re-renders from `Inspect.moment/2`.
+
+```elixir
+render_moment = fn session, t ->
+  m = Inspect.moment(session, t)
+  own = m.players.own
+  opp = m.players.opponent
+
+  header =
+    Kino.Markdown.new("""
+    ### Frame #{m.index} (game frame #{m.frame})
+    **Situations:** #{if m.situations == [], do: "—", else: Enum.map_join(m.situations, " ", &"`#{&1}`")}
+
+    | | x | y | % | stocks | action | shield | hitstun |
+    |---|---|---|---|---|---|---|---|
+    | **bot** | #{Float.round(own.x * 1.0, 1)} | #{Float.round(own.y * 1.0, 1)} | #{trunc(own.percent || 0)} | #{own.stock} | #{own.action} | #{Float.round((own.shield || 0.0) * 1.0, 0)} | #{own.hitstun_left} |
+    | **opp** | #{Float.round(opp.x * 1.0, 1)} | #{Float.round(opp.y * 1.0, 1)} | #{trunc(opp.percent || 0)} | #{opp.stock} | #{opp.action} | #{Float.round((opp.shield || 0.0) * 1.0, 0)} | #{opp.hitstun_left} |
+    """)
+
+  case m.policy do
+    nil ->
+      Kino.Layout.grid([
+        header,
+        Kino.Markdown.new("_No policy output yet — first #{session.window - 1} frames have insufficient history._")
+      ])
+
+    pol ->
+      recorded_buttons = m.recorded.buttons |> Enum.map(&(&1 |> to_string() |> String.replace("button_", "")))
+
+      button_rows =
+        for {btn, p} <- pol.buttons do
+          %{button: to_string(btn), p: p, recorded: to_string(btn) in recorded_buttons}
+        end
+
+      buttons_chart =
+        Vl.new(width: 320, height: 150, title: "p(press) — orange dot = actually pressed")
+        |> Vl.layers([
+          Vl.new()
+          |> Vl.data_from_values(button_rows)
+          |> Vl.mark(:bar, corner_radius: 2, color: blue)
+          |> Vl.encode_field(:y, "button", type: :nominal, title: nil)
+          |> Vl.encode_field(:x, "p", type: :quantitative, scale: [domain: [0, 1]], title: "probability")
+          |> Vl.encode(:tooltip, [[field: "button"], [field: "p", format: ".3f"]]),
+          Vl.new()
+          |> Vl.data_from_values(Enum.filter(button_rows, & &1.recorded))
+          |> Vl.mark(:point, filled: true, size: 90, color: orange)
+          |> Vl.encode_field(:y, "button", type: :nominal)
+          |> Vl.encode(:x, datum: 1.0)
+        ])
+
+      stick_chart = fn head, label, recorded_val ->
+        probs = pol[head].probs
+        n = length(probs)
+        rows = Enum.with_index(probs) |> Enum.map(fn {p, i} -> %{bucket: i, p: p} end)
+        rec_bucket = if recorded_val, do: round(recorded_val * (n - 1))
+
+        base =
+          Vl.new()
+          |> Vl.data_from_values(rows)
+          |> Vl.mark(:bar, corner_radius: 2, color: blue)
+          |> Vl.encode_field(:x, "bucket", type: :ordinal, title: label)
+          |> Vl.encode_field(:y, "p", type: :quantitative, title: nil)
+          |> Vl.encode(:tooltip, [[field: "bucket"], [field: "p", format: ".3f"]])
+
+        layers =
+          if rec_bucket do
+            [base,
+             Vl.new()
+             |> Vl.data_from_values([%{bucket: rec_bucket}])
+             |> Vl.mark(:rule, color: orange, size: 2)
+             |> Vl.encode_field(:x, "bucket", type: :ordinal)]
+          else
+            [base]
+          end
+
+        Vl.new(width: 220, height: 110,
+          title: "#{label} (H=#{Float.round(pol[head].entropy, 2)}) — orange = recorded")
+        |> Vl.layers(layers)
+      end
+
+      Kino.Layout.grid([
+        header,
+        Kino.Markdown.new(
+          "**Policy would press:** #{if pol.pressed == [], do: "nothing", else: Enum.map_join(pol.pressed, " ", &"`#{&1}`")} " <>
+            " · button entropy #{Float.round(pol.buttons_entropy, 3)}"
+        ),
+        Kino.Layout.grid(
+          [
+            buttons_chart,
+            stick_chart.(:main_x, "main_x", m.recorded.main_stick && m.recorded.main_stick.x),
+            stick_chart.(:main_y, "main_y", m.recorded.main_stick && m.recorded.main_stick.y)
+          ],
+          columns: 3
+        )
+      ])
+  end
+end
+
+frame_slider = Kino.Input.range("Frame", min: 0, max: session.total - 1, step: 1, default: session.window)
+panel = Kino.Frame.new()
+
+Kino.listen(frame_slider, fn %{value: t} ->
+  Kino.Frame.render(panel, render_moment.(session, trunc(t)))
+end)
+
+Kino.Frame.render(panel, render_moment.(session, session.window))
+Kino.Layout.grid([frame_slider, panel])
+```
+
+## 4. Jump to a situation
+
+Pick a label, get every segment where it fires — read an index off the table
+and drag the slider there.
+
+```elixir
+label_select =
+  Kino.Input.select(
+    "Label",
+    Enum.map(lane_order, &{&1, &1}),
+    default: List.first(Enum.filter(lane_order, &(&1 == "edge_danger"))) || List.first(lane_order)
+  )
+
+jump_frame = Kino.Frame.new()
+
+Kino.listen(label_select, fn %{value: label} ->
+  rows = segments |> Enum.filter(&(&1.label == label)) |> Enum.take(50)
+  Kino.Frame.render(jump_frame, Kino.DataTable.new(rows, name: "#{label} segments"))
+end)
+
+Kino.Frame.render(
+  jump_frame,
+  Kino.DataTable.new(Enum.filter(segments, &(&1.label == Kino.Input.read(label_select))) |> Enum.take(50))
+)
+
+Kino.Layout.grid([label_select, jump_frame])
+```
+
+## 5. Counterfactual
+
+Patch the bot's x across the whole trunk window (self-consistent history) and
+compare stick distributions: does position actually gate the decision here?
+
+```elixir
+cf_form =
+  Kino.Control.form(
+    [
+      frame: Kino.Input.number("Frame index", default: session.window),
+      dx: Kino.Input.number("x shift (+ = away from center on current side)", default: 20)
+    ],
+    submit: "Run counterfactual"
+  )
+
+cf_out = Kino.Frame.new()
+
+Kino.listen(cf_form, fn %{data: %{frame: t, dx: dx}} ->
+  t = trunc(t)
+
+  cf =
+    Inspect.counterfactual(session, t, fn p ->
+      side = if (p.x || 0.0) >= 0, do: 1.0, else: -1.0
+      %{p | x: (p.x || 0.0) + side * dx}
+    end)
+
+  rows =
+    Enum.with_index(cf.baseline_policy.main_x.probs)
+    |> Enum.map(fn {p, i} -> %{bucket: i, p: p, series: "baseline"} end)
+    |> Kernel.++(
+      Enum.with_index(cf.policy.main_x.probs)
+      |> Enum.map(fn {p, i} -> %{bucket: i, p: p, series: "patched"} end)
+    )
+
+  chart =
+    Vl.new(width: 480, height: 160,
+      title: "main_x: baseline vs x#{if dx >= 0, do: "+", else: ""}#{dx} (argmax #{cf.baseline_policy.main_x.argmax} -> #{cf.policy.main_x.argmax})")
+    |> Vl.data_from_values(rows)
+    |> Vl.mark(:bar, corner_radius: 2)
+    |> Vl.encode_field(:x, "bucket", type: :ordinal)
+    |> Vl.encode_field(:y, "p", type: :quantitative, title: nil)
+    |> Vl.encode_field(:x_offset, "series")
+    |> Vl.encode_field(:color, "series",
+      type: :nominal,
+      scale: [domain: ["baseline", "patched"], range: [blue, orange]]
+    )
+    |> Vl.encode(:tooltip, [[field: "series"], [field: "bucket"], [field: "p", format: ".3f"]])
+
+  Kino.Frame.render(cf_out, chart)
+end)
+
+Kino.Layout.grid([cf_form, cf_out])
+```
+
+## Notes
+
+* The slider re-runs one forward pass per drag step — fast on GPU, tolerable on
+  CPU. The timeline and segments are computed once per session.
+* `edge_danger` + counterfactual is the workflow that validated the edge-DAgger
+  arm: at a danger frame, shove x outward and watch whether `main_x` mass moves
+  inward. If it doesn't, the policy isn't reading position there (coverage vs
+  representation — the probe_edge_attribution question, now interactive).
+* Not wired yet (roadmap): trunk activations / probe-zoo outputs, OOD flags,
+  live ring-buffer sessions ("why did the bot just do that?").
