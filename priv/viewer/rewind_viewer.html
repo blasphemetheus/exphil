@@ -174,16 +174,38 @@ const charEmoji = name => CHAR_EMOJI[normChar(name)] || null;
 
 // Attack-animation states: jab 44-49, dash attack 50, tilts 51-57,
 // smashes 58-64, aerials 65-69, grabs 212/214, getup attacks 187/195,
-// ledge attacks 256/257. This flags "attacking", NOT "hitbox active" —
-// active-frame windows need per-character frame data (TODO: ingest
-// meleeFrameDataExtractor JSON and gate on action_frame). Specials
-// excluded (charge/travel frames without hitboxes would false-flag).
+// ledge attacks 256/257. Specials excluded (charge/travel frames
+// without hitboxes would false-flag).
 const ATTACK_RED = "#e5484d";
 function attacking(p) {
   if (!p) return false;
   const a = p[3];
   return (a >= 44 && a <= 69) || a === 212 || a === 214 ||
          a === 187 || a === 195 || a === 256 || a === 257;
+}
+
+// Action-state id -> frame-data move key (task #2). Angled tilt/smash
+// variants map by id order (51-55 = ftilt Hi..Lw, 58-62 = fsmash).
+const FD_KEY = {
+  44: "jab1", 45: "jab2", 46: "jab3",
+  47: "rapidjabs_loop", 48: "rapidjabs_loop", 49: "rapidjabs_loop",
+  50: "dashattack",
+  51: "ftilt_h", 52: "ftilt_mh", 53: "ftilt_m", 54: "ftilt_ml", 55: "ftilt_l",
+  56: "utilt", 57: "dtilt",
+  58: "fsmash_h", 59: "fsmash_mh", 60: "fsmash_m", 61: "fsmash_ml", 62: "fsmash_l",
+  63: "usmash", 64: "dsmash",
+  65: "nair", 66: "fair", 67: "bair", 68: "uair", 69: "dair",
+  212: "grab", 214: "dashgrab"
+};
+
+// True hitbox-out check from per-character frame data: true/false when
+// known, null when this move has no data (fall back to animation ring)
+function hitboxOut(p, fd) {
+  if (!p || !fd) return null;
+  const windows = fd[FD_KEY[p[3]]];
+  if (!windows) return null;
+  const af = p[7];
+  return windows.some(([s, e]) => af >= s && af <= e);
 }
 
 // Readable move names for the universal attack action states. Coarse on
@@ -504,8 +526,9 @@ function drawStage() {
   }
 
   // Players (triangle points in facing direction; emoji = character)
-  drawPlayer(cx, sx, sy, fr.own, BLUE, charEmoji(S.own_char));
-  drawPlayer(cx, sx, sy, fr.opp, ORANGE, charEmoji(S.opp_char));
+  const fdTables = S.frame_data || {};
+  drawPlayer(cx, sx, sy, fr.own, BLUE, charEmoji(S.own_char), fdTables.own);
+  drawPlayer(cx, sx, sy, fr.opp, ORANGE, charEmoji(S.opp_char), fdTables.opp);
 
   // Trail for the bot (last 60 frames). Break the line on death warps
   // (dead/respawn action states < 14) and any teleport-sized jump —
@@ -524,24 +547,29 @@ function drawStage() {
   cx.stroke(); cx.globalAlpha = 1;
 }
 
-function drawPlayer(cx, sx, sy, p, color, emoji) {
+function drawPlayer(cx, sx, sy, p, color, emoji, fd) {
   if (!p) return;
   const [x, y, facing] = p;
   const px = sx(x), py = sy(y), d = 7 * (facing >= 0 ? 1 : -1);
 
-  // Attack indicator: red ring, biased toward the facing side (where
-  // the hitbox usually lives)
+  // Attack indicator, frame-data-gated when available:
+  //   solid red ring   = hitbox ACTIVE this frame (frame data)
+  //   dashed red ring  = attack animation, hitbox NOT out (startup/endlag)
+  //   solid ring       = animation-only fallback (no frame data for move)
   if (attacking(p)) {
-    cx.strokeStyle = ATTACK_RED; cx.lineWidth = 2;
+    const out = hitboxOut(p, fd);
+    cx.strokeStyle = ATTACK_RED; cx.lineWidth = out === true ? 2.5 : 1.5;
+    if (out === false) cx.setLineDash([3, 3]);
     cx.beginPath();
     cx.arc(px + d * 0.6, py, 11, 0, Math.PI * 2);
     cx.stroke();
+    cx.setLineDash([]);
     const mv = moveName(p[3]);
     if (mv) {
       cx.fillStyle = ATTACK_RED;
       cx.font = "10px system-ui";
       cx.textAlign = "center";
-      cx.fillText(mv, px, py + 22);
+      cx.fillText(mv + (out === true ? " (active)" : ""), px, py + 22);
       cx.textAlign = "start";
     }
   }

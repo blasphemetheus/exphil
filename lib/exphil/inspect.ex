@@ -307,6 +307,13 @@ defmodule ExPhil.Inspect do
       stage: stage,
       own_char: char_name.(0, s.port),
       opp_char: char_name.(0, opp_port),
+      # Per-character hit windows for the universal moves (task #2):
+      # %{"nair" => [[4,7],[8,31]], ...} — the viewer gates its ring on
+      # action_frame within these
+      frame_data: %{
+        own: hit_tables(char_name.(0, s.port)),
+        opp: hit_tables(char_name.(0, opp_port))
+      },
       labels: Enum.map(Situations.labels(), &to_string/1),
       buttons: Enum.map(@buttons, &to_string/1),
       geometry: %{
@@ -323,6 +330,18 @@ defmodule ExPhil.Inspect do
 
     File.write!(path, Jason.encode!(payload))
     :ok
+  end
+
+  defp hit_tables(char) do
+    case ExPhil.FrameData.data(char) do
+      nil ->
+        nil
+
+      moves ->
+        for {name, %{"hitFrames" => hf}} <- moves, into: %{} do
+          {name, Enum.map(hf, fn %{"start" => s, "end" => e} -> [s, e] end)}
+        end
+    end
   end
 
   defp ps_types(stage) do
@@ -401,7 +420,10 @@ defmodule ExPhil.Inspect do
       trunc(p.action || 0),
       Float.round((p.percent || 0.0) * 1.0, 1),
       p.stock || 0,
-      if(p.on_ground, do: 1, else: 0)
+      if(p.on_ground, do: 1, else: 0),
+      # action_frame (index 7): the frame-data consumers gate hitbox
+      # windows on this
+      trunc(p.action_frame || 0)
     ]
   end
 
