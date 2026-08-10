@@ -1,0 +1,1818 @@
+{
+    "jab1": {
+        "subactionIndex": 46,
+        "subactionName": "PlyZelda5K_Share_ACTION_Attack11_figatree",
+        "totalFrames": 29,
+        "iasa": 27,
+        "hitFrames": [
+            {
+                "start": 11,
+                "end": 11,
+                "hitboxes": [
+                    0
+                ]
+            },
+            {
+                "start": 13,
+                "end": 13,
+                "hitboxes": [
+                    0
+                ]
+            },
+            {
+                "start": 15,
+                "end": 15,
+                "hitboxes": [
+                    0
+                ]
+            },
+            {
+                "start": 17,
+                "end": 17,
+                "hitboxes": [
+                    0
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 2,
+                "angle": 361,
+                "kbGrowth": 100,
+                "weightDepKb": 0,
+                "hitboxInteraction": 1,
+                "baseKb": 10,
+                "element": "electric",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "jab2": null,
+    "jab3": null,
+    "rapidjabs_start": null,
+    "rapidjabs_loop": null,
+    "rapidjabs_end": null,
+    "dashattack": {
+        "subactionIndex": 52,
+        "subactionName": "PlyZelda5K_Share_ACTION_AttackDash_figatree",
+        "totalFrames": 37,
+        "iasa": 36,
+        "hitFrames": [
+            {
+                "start": 6,
+                "end": 8,
+                "hitboxes": [
+                    0,
+                    1
+                ]
+            },
+            {
+                "start": 9,
+                "end": 13,
+                "hitboxes": [
+                    2,
+                    3
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 13,
+                "angle": 90,
+                "kbGrowth": 70,
+                "weightDepKb": 0,
+                "hitboxInteraction": 1,
+                "baseKb": 70,
+                "element": "electric",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 9,
+                "angle": 361,
+                "kbGrowth": 70,
+                "weightDepKb": 0,
+                "hitboxInteraction": 1,
+                "baseKb": 50,
+                "element": "electric",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 8,
+                "angle": 90,
+                "kbGrowth": 70,
+                "weightDepKb": 0,
+                "hitboxInteraction": 1,
+                "baseKb": 20,
+                "element": "electric",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 7,
+                "angle": 361,
+                "kbGrowth": 70,
+                "weightDepKb": 0,
+                "hitboxInteraction": 1,
+                "baseKb": 20,
+                "element": "electric",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "ftilt_h": {
+        "subactionIndex": 53,
+        "subactionName": "PlyZelda5K_Share_ACTION_AttackS3Hi_figatree",
+        "totalFrames": 37,
+        "iasa": 37,
+        "hitFrames": [
+            {
+                "start": 12,
+                "end": 14,
+                "hitboxes": [
+                    0,
+                    1,
+                    2
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 13,
+                "angle": 110,
+                "kbGrowth": 88,
+                "weightDepKb": 0,
+                "hitboxInteraction": 1,
+                "baseKb": 50,
+                "element": "slash",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 12,
+                "angle": 361,
+                "kbGrowth": 88,
+                "weightDepKb": 0,
+                "hitboxInteraction": 1,
+                "baseKb": 50,
+                "element": "slash",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 11,
+                "angle": 361,
+                "kbGrowth": 88,
+                "weightDepKb": 0,
+                "hitboxInteraction": 1,
+                "baseKb": 50,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "ftilt_mh": {
+        "subactionIndex": 54,
+        "subactionName": "PlyZelda5K_Share_ACTION_AttackS3HiS_figatree",
+        "totalFrames": 37,
+        "iasa": 37,
+        "hitFrames": [
+            {
+                "start": 12,
+                "end": 14,
+                "hitboxes": [
+                    0,
+                    1,
+                    2
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 13,
+                "angle": 110,
+                "kbGrowth": 88,
+                "weightDepKb": 0,
+                "hitboxInteraction": 1,
+                "baseKb": 50,
+                "element": "slash",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 12,
+                "angle": 361,
+                "kbGrowth": 88,
+                "weightDepKb": 0,
+                "hitboxInteraction": 1,
+                "baseKb": 50,
+                "element": "slash",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 11,
+                "angle": 361,
+                "kbGrowth": 88,
+                "weightDepKb": 0,
+                "hitboxInteraction": 1,
+                "baseKb": 50,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "ftilt_m": {
+        "subactionIndex": 55,
+        "subactionName": "PlyZelda5K_Share_ACTION_AttackS3S_figatree",
+        "totalFrames": 37,
+        "iasa": 37,
+        "hitFrames": [
+            {
+                "start": 12,
+                "end": 14,
+                "hitboxes": [
+                    0,
+                    1,
+                    2
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 13,
+                "angle": 110,
+                "kbGrowth": 88,
+                "weightDepKb": 0,
+                "hitboxInteraction": 1,
+                "baseKb": 50,
+                "element": "slash",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 12,
+                "angle": 361,
+                "kbGrowth": 88,
+                "weightDepKb": 0,
+                "hitboxInteraction": 1,
+                "baseKb": 50,
+                "element": "slash",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 11,
+                "angle": 361,
+                "kbGrowth": 88,
+                "weightDepKb": 0,
+                "hitboxInteraction": 1,
+                "baseKb": 50,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "ftilt_ml": {
+        "subactionIndex": 56,
+        "subactionName": "PlyZelda5K_Share_ACTION_AttackS3LwS_figatree",
+        "totalFrames": 37,
+        "iasa": 37,
+        "hitFrames": [
+            {
+                "start": 12,
+                "end": 14,
+                "hitboxes": [
+                    0,
+                    1,
+                    2
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 13,
+                "angle": 110,
+                "kbGrowth": 88,
+                "weightDepKb": 0,
+                "hitboxInteraction": 1,
+                "baseKb": 50,
+                "element": "slash",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 12,
+                "angle": 361,
+                "kbGrowth": 88,
+                "weightDepKb": 0,
+                "hitboxInteraction": 1,
+                "baseKb": 50,
+                "element": "slash",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 11,
+                "angle": 361,
+                "kbGrowth": 88,
+                "weightDepKb": 0,
+                "hitboxInteraction": 1,
+                "baseKb": 50,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "ftilt_l": {
+        "subactionIndex": 57,
+        "subactionName": "PlyZelda5K_Share_ACTION_AttackS3Lw_figatree",
+        "totalFrames": 37,
+        "iasa": 37,
+        "hitFrames": [
+            {
+                "start": 12,
+                "end": 14,
+                "hitboxes": [
+                    0,
+                    1,
+                    2
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 13,
+                "angle": 110,
+                "kbGrowth": 88,
+                "weightDepKb": 0,
+                "hitboxInteraction": 1,
+                "baseKb": 50,
+                "element": "slash",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 12,
+                "angle": 361,
+                "kbGrowth": 88,
+                "weightDepKb": 0,
+                "hitboxInteraction": 1,
+                "baseKb": 50,
+                "element": "slash",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 11,
+                "angle": 361,
+                "kbGrowth": 88,
+                "weightDepKb": 0,
+                "hitboxInteraction": 1,
+                "baseKb": 50,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "utilt": {
+        "subactionIndex": 58,
+        "subactionName": "PlyZelda5K_Share_ACTION_AttackHi3_figatree",
+        "totalFrames": 43,
+        "iasa": 40,
+        "hitFrames": [
+            {
+                "start": 10,
+                "end": 24,
+                "hitboxes": [
+                    0
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 11,
+                "angle": 70,
+                "kbGrowth": 105,
+                "weightDepKb": 0,
+                "hitboxInteraction": 1,
+                "baseKb": 65,
+                "element": "electric",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "dtilt": {
+        "subactionIndex": 59,
+        "subactionName": "PlyZelda5K_Share_ACTION_AttackLw3_figatree",
+        "totalFrames": 31,
+        "iasa": 30,
+        "hitFrames": [
+            {
+                "start": 5,
+                "end": 7,
+                "hitboxes": [
+                    0,
+                    1,
+                    2
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 7,
+                "angle": 270,
+                "kbGrowth": 80,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 20,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": false
+            },
+            {
+                "damage": 7,
+                "angle": 80,
+                "kbGrowth": 80,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 20,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": false,
+                "hitAirborne": true
+            },
+            {
+                "damage": 8,
+                "angle": 270,
+                "kbGrowth": 80,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 20,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "fsmash_h": null,
+    "fsmash_mh": null,
+    "fsmash_m": {
+        "subactionIndex": 62,
+        "subactionName": "PlyZelda5K_Share_ACTION_AttackS4S_figatree",
+        "totalFrames": 39,
+        "chargeFrame": 11,
+        "iasa": null,
+        "hitFrames": [
+            {
+                "start": 16,
+                "end": 16,
+                "hitboxes": [
+                    0,
+                    1,
+                    2,
+                    3
+                ]
+            },
+            {
+                "start": 18,
+                "end": 18,
+                "hitboxes": [
+                    0,
+                    1,
+                    2,
+                    3
+                ]
+            },
+            {
+                "start": 20,
+                "end": 20,
+                "hitboxes": [
+                    0,
+                    1,
+                    2,
+                    3
+                ]
+            },
+            {
+                "start": 22,
+                "end": 22,
+                "hitboxes": [
+                    0,
+                    1,
+                    2,
+                    3
+                ]
+            },
+            {
+                "start": 24,
+                "end": 24,
+                "hitboxes": [
+                    0,
+                    1,
+                    2,
+                    3
+                ]
+            },
+            {
+                "start": 26,
+                "end": 26,
+                "hitboxes": [
+                    4
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 1,
+                "angle": 160,
+                "kbGrowth": 100,
+                "weightDepKb": 40,
+                "hitboxInteraction": 1,
+                "baseKb": 0,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 1,
+                "angle": 60,
+                "kbGrowth": 100,
+                "weightDepKb": 12,
+                "hitboxInteraction": 1,
+                "baseKb": 0,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 1,
+                "angle": 45,
+                "kbGrowth": 100,
+                "weightDepKb": 11,
+                "hitboxInteraction": 1,
+                "baseKb": 0,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 1,
+                "angle": 30,
+                "kbGrowth": 100,
+                "weightDepKb": 13,
+                "hitboxInteraction": 1,
+                "baseKb": 0,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 14,
+                "angle": 361,
+                "kbGrowth": 98,
+                "weightDepKb": 0,
+                "hitboxInteraction": 1,
+                "baseKb": 50,
+                "element": "electric",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "fsmash_ml": null,
+    "fsmash_l": null,
+    "usmash": {
+        "subactionIndex": 66,
+        "subactionName": "PlyZelda5K_Share_ACTION_AttackHi4_figatree",
+        "totalFrames": 56,
+        "chargeFrame": 4,
+        "iasa": 51,
+        "hitFrames": [
+            {
+                "start": 5,
+                "end": 5,
+                "hitboxes": [
+                    0,
+                    1,
+                    2
+                ]
+            },
+            {
+                "start": 7,
+                "end": 7,
+                "hitboxes": [
+                    0,
+                    1,
+                    2
+                ]
+            },
+            {
+                "start": 9,
+                "end": 9,
+                "hitboxes": [
+                    0,
+                    1,
+                    2
+                ]
+            },
+            {
+                "start": 11,
+                "end": 11,
+                "hitboxes": [
+                    0,
+                    1,
+                    2
+                ]
+            },
+            {
+                "start": 13,
+                "end": 13,
+                "hitboxes": [
+                    0,
+                    1,
+                    2
+                ]
+            },
+            {
+                "start": 15,
+                "end": 15,
+                "hitboxes": [
+                    0,
+                    1,
+                    2
+                ]
+            },
+            {
+                "start": 17,
+                "end": 17,
+                "hitboxes": [
+                    0,
+                    1,
+                    2
+                ]
+            },
+            {
+                "start": 24,
+                "end": 24,
+                "hitboxes": [
+                    0,
+                    2,
+                    3
+                ]
+            },
+            {
+                "start": 26,
+                "end": 26,
+                "hitboxes": [
+                    0,
+                    2,
+                    3
+                ]
+            },
+            {
+                "start": 28,
+                "end": 28,
+                "hitboxes": [
+                    0,
+                    2,
+                    3
+                ]
+            },
+            {
+                "start": 30,
+                "end": 30,
+                "hitboxes": [
+                    0,
+                    2,
+                    3
+                ]
+            },
+            {
+                "start": 32,
+                "end": 32,
+                "hitboxes": [
+                    0,
+                    2,
+                    3
+                ]
+            },
+            {
+                "start": 34,
+                "end": 34,
+                "hitboxes": [
+                    0,
+                    2,
+                    3
+                ]
+            },
+            {
+                "start": 36,
+                "end": 36,
+                "hitboxes": [
+                    4
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 1,
+                "angle": 90,
+                "kbGrowth": 100,
+                "weightDepKb": 16,
+                "hitboxInteraction": 0,
+                "baseKb": 0,
+                "element": "electric",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 1,
+                "angle": 170,
+                "kbGrowth": 100,
+                "weightDepKb": 20,
+                "hitboxInteraction": 0,
+                "baseKb": 0,
+                "element": "electric",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 1,
+                "angle": 90,
+                "kbGrowth": 100,
+                "weightDepKb": 45,
+                "hitboxInteraction": 0,
+                "baseKb": 0,
+                "element": "electric",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 1,
+                "angle": 110,
+                "kbGrowth": 100,
+                "weightDepKb": 20,
+                "hitboxInteraction": 0,
+                "baseKb": 0,
+                "element": "electric",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 5,
+                "angle": 90,
+                "kbGrowth": 210,
+                "weightDepKb": 0,
+                "hitboxInteraction": 2,
+                "baseKb": 20,
+                "element": "electric",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "dsmash": {
+        "subactionIndex": 67,
+        "subactionName": "PlyZelda5K_Share_ACTION_AttackLw4_figatree",
+        "totalFrames": 39,
+        "chargeFrame": 2,
+        "iasa": 32,
+        "hitFrames": [
+            {
+                "start": 4,
+                "end": 7,
+                "hitboxes": [
+                    0
+                ]
+            },
+            {
+                "start": 13,
+                "end": 16,
+                "hitboxes": [
+                    1
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 11,
+                "angle": 30,
+                "kbGrowth": 90,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 20,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 11,
+                "angle": 30,
+                "kbGrowth": 80,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 20,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "nair": {
+        "subactionIndex": 68,
+        "subactionName": "PlyZelda5K_Share_ACTION_AttackAirN_figatree",
+        "totalFrames": 49,
+        "iasa": 42,
+        "autoCancelBefore": 6,
+        "autoCancelAfter": 37,
+        "landingLag": 18,
+        "lcancelledLandingLag": 9,
+        "hitFrames": [
+            {
+                "start": 6,
+                "end": 7,
+                "hitboxes": [
+                    0,
+                    1,
+                    2
+                ]
+            },
+            {
+                "start": 10,
+                "end": 11,
+                "hitboxes": [
+                    0,
+                    1,
+                    2
+                ]
+            },
+            {
+                "start": 14,
+                "end": 15,
+                "hitboxes": [
+                    0,
+                    1,
+                    2
+                ]
+            },
+            {
+                "start": 18,
+                "end": 19,
+                "hitboxes": [
+                    0,
+                    1,
+                    2
+                ]
+            },
+            {
+                "start": 22,
+                "end": 23,
+                "hitboxes": [
+                    0,
+                    1,
+                    2
+                ]
+            },
+            {
+                "start": 26,
+                "end": 27,
+                "hitboxes": [
+                    0,
+                    1,
+                    2
+                ]
+            },
+            {
+                "start": 30,
+                "end": 31,
+                "hitboxes": [
+                    3,
+                    4
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 2,
+                "angle": 130,
+                "kbGrowth": 100,
+                "weightDepKb": 70,
+                "hitboxInteraction": 1,
+                "baseKb": 0,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 3,
+                "angle": 90,
+                "kbGrowth": 90,
+                "weightDepKb": 120,
+                "hitboxInteraction": 1,
+                "baseKb": 0,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 3,
+                "angle": 90,
+                "kbGrowth": 90,
+                "weightDepKb": 50,
+                "hitboxInteraction": 1,
+                "baseKb": 0,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 5,
+                "angle": 361,
+                "kbGrowth": 130,
+                "weightDepKb": 0,
+                "hitboxInteraction": 1,
+                "baseKb": 40,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 5,
+                "angle": 361,
+                "kbGrowth": 120,
+                "weightDepKb": 0,
+                "hitboxInteraction": 1,
+                "baseKb": 40,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "fair": {
+        "subactionIndex": 69,
+        "subactionName": "PlyZelda5K_Share_ACTION_AttackAirF_figatree",
+        "totalFrames": 39,
+        "iasa": 36,
+        "autoCancelBefore": 8,
+        "autoCancelAfter": 24,
+        "landingLag": 18,
+        "lcancelledLandingLag": 9,
+        "hitFrames": [
+            {
+                "start": 8,
+                "end": 11,
+                "hitboxes": [
+                    0,
+                    1
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 10,
+                "angle": 361,
+                "kbGrowth": 80,
+                "weightDepKb": 0,
+                "hitboxInteraction": 1,
+                "baseKb": 0,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 20,
+                "angle": 361,
+                "kbGrowth": 96,
+                "weightDepKb": 0,
+                "hitboxInteraction": 1,
+                "baseKb": 30,
+                "element": "electric",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "bair": {
+        "subactionIndex": 70,
+        "subactionName": "PlyZelda5K_Share_ACTION_AttackAirB_figatree",
+        "totalFrames": 35,
+        "iasa": 33,
+        "autoCancelBefore": 5,
+        "autoCancelAfter": 25,
+        "landingLag": 18,
+        "lcancelledLandingLag": 9,
+        "hitFrames": [
+            {
+                "start": 5,
+                "end": 8,
+                "hitboxes": [
+                    0,
+                    1
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 10,
+                "angle": 361,
+                "kbGrowth": 80,
+                "weightDepKb": 0,
+                "hitboxInteraction": 1,
+                "baseKb": 0,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 20,
+                "angle": 361,
+                "kbGrowth": 96,
+                "weightDepKb": 0,
+                "hitboxInteraction": 1,
+                "baseKb": 30,
+                "element": "electric",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "uair": {
+        "subactionIndex": 71,
+        "subactionName": "PlyZelda5K_Share_ACTION_AttackAirHi_figatree",
+        "totalFrames": 54,
+        "iasa": null,
+        "autoCancelBefore": 14,
+        "autoCancelAfter": 44,
+        "landingLag": 25,
+        "lcancelledLandingLag": 12,
+        "hitFrames": [
+            {
+                "start": 14,
+                "end": 16,
+                "hitboxes": [
+                    0
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 13,
+                "angle": 90,
+                "kbGrowth": 120,
+                "weightDepKb": 0,
+                "hitboxInteraction": 1,
+                "baseKb": 0,
+                "element": "fire",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "dair": {
+        "subactionIndex": 72,
+        "subactionName": "PlyZelda5K_Share_ACTION_AttackAirLw_figatree",
+        "totalFrames": 43,
+        "iasa": 43,
+        "autoCancelBefore": 1,
+        "autoCancelAfter": 39,
+        "landingLag": 24,
+        "lcancelledLandingLag": 12,
+        "hitFrames": [
+            {
+                "start": 14,
+                "end": 17,
+                "hitboxes": [
+                    0,
+                    1
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 8,
+                "angle": 275,
+                "kbGrowth": 100,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 5,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 7,
+                "angle": 275,
+                "kbGrowth": 80,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 0,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "grab": {
+        "subactionIndex": 242,
+        "subactionName": "PlyZelda5K_Share_ACTION_Catch_figatree",
+        "totalFrames": 29,
+        "iasa": null,
+        "hitFrames": [
+            {
+                "start": 11,
+                "end": 12,
+                "hitboxes": [
+                    0
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 0,
+                "angle": 361,
+                "kbGrowth": 100,
+                "weightDepKb": 0,
+                "hitboxInteraction": 2,
+                "baseKb": 0,
+                "element": "grab",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "dashgrab": {
+        "subactionIndex": 243,
+        "subactionName": "PlyZelda5K_Share_ACTION_CatchDash_figatree",
+        "totalFrames": 39,
+        "iasa": null,
+        "hitFrames": [
+            {
+                "start": 11,
+                "end": 12,
+                "hitboxes": [
+                    0
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 0,
+                "angle": 361,
+                "kbGrowth": 100,
+                "weightDepKb": 0,
+                "hitboxInteraction": 2,
+                "baseKb": 0,
+                "element": "grab",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "pummel": {
+        "subactionIndex": 245,
+        "subactionName": "PlyZelda5K_Share_ACTION_CatchAttack_figatree",
+        "totalFrames": 24,
+        "iasa": null,
+        "hitFrames": [
+            {
+                "start": 6,
+                "end": 8,
+                "hitboxes": [
+                    0
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 3,
+                "angle": 80,
+                "kbGrowth": 100,
+                "weightDepKb": 30,
+                "hitboxInteraction": 0,
+                "baseKb": 0,
+                "element": "electric",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "fthrow": {
+        "subactionIndex": 247,
+        "subactionName": "PlyZelda5K_Share_ACTION_ThrowF_figatree",
+        "totalFrames": 49,
+        "iasa": null,
+        "throw": {
+            "damage": 12,
+            "angle": 45,
+            "kbGrowth": 50,
+            "weightDepKb": 0,
+            "baseKb": 17,
+            "element": 8
+        },
+        "hitFrames": [],
+        "hitboxes": []
+    },
+    "bthrow": {
+        "subactionIndex": 248,
+        "subactionName": "PlyZelda5K_Share_ACTION_ThrowB_figatree",
+        "totalFrames": 49,
+        "iasa": null,
+        "throw": {
+            "damage": 11,
+            "angle": 45,
+            "kbGrowth": 60,
+            "weightDepKb": 0,
+            "baseKb": 20,
+            "element": 0
+        },
+        "hitFrames": [],
+        "hitboxes": []
+    },
+    "uthrow": {
+        "subactionIndex": 249,
+        "subactionName": "PlyZelda5K_Share_ACTION_ThrowHi_figatree",
+        "totalFrames": 49,
+        "iasa": null,
+        "throw": {
+            "damage": 11,
+            "angle": 90,
+            "kbGrowth": 50,
+            "weightDepKb": 0,
+            "baseKb": 20,
+            "element": 0
+        },
+        "hitFrames": [],
+        "hitboxes": []
+    },
+    "dthrow": {
+        "subactionIndex": 250,
+        "subactionName": "PlyZelda5K_Share_ACTION_ThrowLw_figatree",
+        "totalFrames": 64,
+        "iasa": null,
+        "throw": {
+            "damage": 2,
+            "angle": 120,
+            "kbGrowth": 42,
+            "weightDepKb": 0,
+            "baseKb": 20,
+            "element": 0
+        },
+        "hitFrames": [
+            {
+                "start": 24,
+                "end": 25,
+                "hitboxes": [
+                    0
+                ]
+            },
+            {
+                "start": 30,
+                "end": 31,
+                "hitboxes": [
+                    0
+                ]
+            },
+            {
+                "start": 36,
+                "end": 37,
+                "hitboxes": [
+                    0
+                ]
+            },
+            {
+                "start": 42,
+                "end": 43,
+                "hitboxes": [
+                    0
+                ]
+            },
+            {
+                "start": 48,
+                "end": 49,
+                "hitboxes": [
+                    0
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 2,
+                "angle": 40,
+                "kbGrowth": 100,
+                "weightDepKb": 25,
+                "hitboxInteraction": 1,
+                "baseKb": 0,
+                "element": "electric",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "0x127": {
+        "subactionIndex": 295,
+        "subactionName": "PlyZelda5K_Share_ACTION_SpecialN_figatree",
+        "totalFrames": 59,
+        "iasa": null,
+        "hitFrames": [
+            {
+                "start": 12,
+                "end": 12,
+                "hitboxes": [
+                    0,
+                    1
+                ]
+            },
+            {
+                "start": 15,
+                "end": 15,
+                "hitboxes": [
+                    0,
+                    1
+                ]
+            },
+            {
+                "start": 18,
+                "end": 18,
+                "hitboxes": [
+                    0,
+                    1
+                ]
+            },
+            {
+                "start": 21,
+                "end": 21,
+                "hitboxes": [
+                    0,
+                    1
+                ]
+            },
+            {
+                "start": 24,
+                "end": 24,
+                "hitboxes": [
+                    0,
+                    1
+                ]
+            },
+            {
+                "start": 27,
+                "end": 27,
+                "hitboxes": [
+                    0,
+                    1
+                ]
+            },
+            {
+                "start": 30,
+                "end": 30,
+                "hitboxes": [
+                    2,
+                    3
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 1,
+                "angle": 10,
+                "kbGrowth": 40,
+                "weightDepKb": 0,
+                "hitboxInteraction": 1,
+                "baseKb": 12,
+                "element": "slash",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 2,
+                "angle": 10,
+                "kbGrowth": 40,
+                "weightDepKb": 0,
+                "hitboxInteraction": 1,
+                "baseKb": 12,
+                "element": "slash",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 5,
+                "angle": 361,
+                "kbGrowth": 100,
+                "weightDepKb": 0,
+                "hitboxInteraction": 1,
+                "baseKb": 50,
+                "element": "slash",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 4,
+                "angle": 361,
+                "kbGrowth": 100,
+                "weightDepKb": 0,
+                "hitboxInteraction": 1,
+                "baseKb": 40,
+                "element": "slash",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "0x128": {
+        "subactionIndex": 296,
+        "subactionName": "PlyZelda5K_Share_ACTION_SpecialAirN_figatree",
+        "totalFrames": 59,
+        "iasa": null,
+        "hitFrames": [
+            {
+                "start": 12,
+                "end": 12,
+                "hitboxes": [
+                    0,
+                    1
+                ]
+            },
+            {
+                "start": 15,
+                "end": 15,
+                "hitboxes": [
+                    0,
+                    1
+                ]
+            },
+            {
+                "start": 18,
+                "end": 18,
+                "hitboxes": [
+                    0,
+                    1
+                ]
+            },
+            {
+                "start": 21,
+                "end": 21,
+                "hitboxes": [
+                    0,
+                    1
+                ]
+            },
+            {
+                "start": 24,
+                "end": 24,
+                "hitboxes": [
+                    0,
+                    1
+                ]
+            },
+            {
+                "start": 27,
+                "end": 27,
+                "hitboxes": [
+                    0,
+                    1
+                ]
+            },
+            {
+                "start": 30,
+                "end": 30,
+                "hitboxes": [
+                    2,
+                    3
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 1,
+                "angle": 10,
+                "kbGrowth": 40,
+                "weightDepKb": 0,
+                "hitboxInteraction": 1,
+                "baseKb": 12,
+                "element": "slash",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 2,
+                "angle": 10,
+                "kbGrowth": 40,
+                "weightDepKb": 0,
+                "hitboxInteraction": 1,
+                "baseKb": 12,
+                "element": "slash",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 5,
+                "angle": 361,
+                "kbGrowth": 100,
+                "weightDepKb": 0,
+                "hitboxInteraction": 1,
+                "baseKb": 50,
+                "element": "slash",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 4,
+                "angle": 361,
+                "kbGrowth": 100,
+                "weightDepKb": 0,
+                "hitboxInteraction": 1,
+                "baseKb": 40,
+                "element": "slash",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "0x129": {
+        "subactionIndex": 297,
+        "subactionName": "PlyZelda5K_Share_ACTION_SpecialSStart_figatree",
+        "totalFrames": 24,
+        "iasa": null,
+        "hitFrames": [],
+        "hitboxes": []
+    },
+    "0x12a": {
+        "subactionIndex": 298,
+        "subactionName": "PlyZelda5K_Share_ACTION_SpecialSLoop_figatree",
+        "totalFrames": 14,
+        "iasa": null,
+        "hitFrames": [],
+        "hitboxes": []
+    },
+    "0x12b": {
+        "subactionIndex": 299,
+        "subactionName": "PlyZelda5K_Share_ACTION_SpecialSEnd_figatree",
+        "totalFrames": 39,
+        "iasa": null,
+        "hitFrames": [],
+        "hitboxes": []
+    },
+    "0x12c": {
+        "subactionIndex": 300,
+        "subactionName": "PlyZelda5K_Share_ACTION_SpecialAirSStart_figatree",
+        "totalFrames": 24,
+        "iasa": null,
+        "hitFrames": [],
+        "hitboxes": []
+    },
+    "0x12d": {
+        "subactionIndex": 301,
+        "subactionName": "PlyZelda5K_Share_ACTION_SpecialAirSLoop_figatree",
+        "totalFrames": 14,
+        "iasa": null,
+        "hitFrames": [],
+        "hitboxes": []
+    },
+    "0x12e": {
+        "subactionIndex": 302,
+        "subactionName": "PlyZelda5K_Share_ACTION_SpecialAirSEnd_figatree",
+        "totalFrames": 39,
+        "iasa": null,
+        "hitFrames": [
+            {
+                "start": 18,
+                "end": 18,
+                "hitboxes": [
+                    0
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 4,
+                "angle": 80,
+                "kbGrowth": 100,
+                "weightDepKb": 120,
+                "hitboxInteraction": 2,
+                "baseKb": 0,
+                "element": "slash",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "0x12f": {
+        "subactionIndex": 303,
+        "subactionName": "PlyZelda5K_Share_ACTION_SpecialHiStart_figatree",
+        "totalFrames": 33,
+        "iasa": null,
+        "hitFrames": [
+            {
+                "start": 10,
+                "end": 11,
+                "hitboxes": [
+                    0
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 4,
+                "angle": 80,
+                "kbGrowth": 100,
+                "weightDepKb": 120,
+                "hitboxInteraction": 2,
+                "baseKb": 0,
+                "element": "slash",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "0x130": {
+        "subactionIndex": 304,
+        "subactionName": "PlyZelda5K_Share_ACTION_SpecialHi_figatree",
+        "totalFrames": 21,
+        "iasa": null,
+        "hitFrames": [
+            {
+                "start": 1,
+                "end": 2,
+                "hitboxes": [
+                    0
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 4,
+                "angle": 361,
+                "kbGrowth": 100,
+                "weightDepKb": 120,
+                "hitboxInteraction": 2,
+                "baseKb": 0,
+                "element": "fire",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "0x131": {
+        "subactionIndex": 305,
+        "subactionName": "PlyZelda5K_Share_ACTION_SpecialAirHiStart_figatree",
+        "totalFrames": 33,
+        "iasa": null,
+        "hitFrames": [
+            {
+                "start": 10,
+                "end": 11,
+                "hitboxes": [
+                    0
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 4,
+                "angle": 80,
+                "kbGrowth": 100,
+                "weightDepKb": 120,
+                "hitboxInteraction": 2,
+                "baseKb": 0,
+                "element": "slash",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "0x132": {
+        "subactionIndex": 306,
+        "subactionName": "PlyZelda5K_Share_ACTION_SpecialAirHi_figatree",
+        "totalFrames": 61,
+        "iasa": null,
+        "hitFrames": [
+            {
+                "start": 1,
+                "end": 2,
+                "hitboxes": [
+                    0
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 4,
+                "angle": 361,
+                "kbGrowth": 100,
+                "weightDepKb": 120,
+                "hitboxInteraction": 2,
+                "baseKb": 0,
+                "element": "fire",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "0x133": {
+        "subactionIndex": 307,
+        "subactionName": "PlyZelda5K_Share_ACTION_SpecialLw_figatree",
+        "totalFrames": 43,
+        "iasa": null,
+        "hitFrames": [],
+        "hitboxes": []
+    },
+    "0x134": {
+        "subactionIndex": 308,
+        "subactionName": "PlyZelda5K_Share_ACTION_SpecialLw2_figatree",
+        "totalFrames": 25,
+        "iasa": null,
+        "hitFrames": [],
+        "hitboxes": []
+    },
+    "0x135": {
+        "subactionIndex": 309,
+        "subactionName": "PlyZelda5K_Share_ACTION_SpecialAirLw_figatree",
+        "totalFrames": 43,
+        "iasa": null,
+        "hitFrames": [],
+        "hitboxes": []
+    },
+    "0x136": {
+        "subactionIndex": 310,
+        "subactionName": "PlyZelda5K_Share_ACTION_SpecialAirLw2_figatree",
+        "totalFrames": 25,
+        "iasa": null,
+        "hitFrames": [],
+        "hitboxes": []
+    }
+}

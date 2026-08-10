@@ -1,0 +1,218 @@
+{
+    "jab1": null,
+    "jab2": null,
+    "jab3": null,
+    "rapidjabs_start": null,
+    "rapidjabs_loop": null,
+    "rapidjabs_end": null,
+    "dashattack": null,
+    "ftilt_h": null,
+    "ftilt_mh": null,
+    "ftilt_m": null,
+    "ftilt_ml": null,
+    "ftilt_l": null,
+    "utilt": null,
+    "dtilt": null,
+    "fsmash_h": null,
+    "fsmash_mh": null,
+    "fsmash_m": null,
+    "fsmash_ml": null,
+    "fsmash_l": null,
+    "usmash": null,
+    "dsmash": null,
+    "nair": null,
+    "fair": null,
+    "bair": null,
+    "uair": null,
+    "dair": null,
+    "grab": null,
+    "dashgrab": null,
+    "pummel": null,
+    "fthrow": null,
+    "bthrow": null,
+    "uthrow": null,
+    "dthrow": null,
+    "0x139": {
+        "subactionIndex": 313,
+        "subactionName": "PlyNana5K_Share_ACTION_SpecialS2_figatree",
+        "totalFrames": 69,
+        "iasa": null,
+        "hitFrames": [
+            {
+                "start": 10,
+                "end": 10,
+                "hitboxes": [
+                    0
+                ]
+            },
+            {
+                "start": 14,
+                "end": 14,
+                "hitboxes": [
+                    1
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 4,
+                "angle": 70,
+                "kbGrowth": 130,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 5,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 2,
+                "angle": 70,
+                "kbGrowth": 130,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 5,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "0x13a": {
+        "subactionIndex": 314,
+        "subactionName": "PlyNana5K_Share_ACTION_SpecialAirS2_figatree",
+        "totalFrames": 69,
+        "iasa": null,
+        "hitFrames": [
+            {
+                "start": 10,
+                "end": 10,
+                "hitboxes": [
+                    0
+                ]
+            },
+            {
+                "start": 14,
+                "end": 14,
+                "hitboxes": [
+                    1
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 4,
+                "angle": 70,
+                "kbGrowth": 130,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 5,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 2,
+                "angle": 70,
+                "kbGrowth": 130,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 5,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "0x13b": {
+        "subactionIndex": 315,
+        "subactionName": "PlyNana5K_Share_ACTION_SpecialHiStart_figatree",
+        "totalFrames": 12,
+        "iasa": null,
+        "hitFrames": [],
+        "hitboxes": []
+    },
+    "0x13c": {
+        "subactionIndex": 316,
+        "subactionName": "PlyNana5K_Share_ACTION_SpecialHiThrow_figatree",
+        "totalFrames": 42,
+        "iasa": null,
+        "hitFrames": [],
+        "hitboxes": [
+            {
+                "damage": 16,
+                "angle": 80,
+                "kbGrowth": 60,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 60,
+                "element": "normal",
+                "shieldDamage": 5,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "0x13d": {
+        "subactionIndex": 317,
+        "subactionName": "PlyNana5K_Share_ACTION_SpecialHiThrow2_figatree",
+        "totalFrames": 59,
+        "iasa": null,
+        "hitFrames": [],
+        "hitboxes": []
+    },
+    "0x13e": {
+        "subactionIndex": 318,
+        "subactionName": "PlyNana5K_Share_ACTION_SpecialAirHiStart_figatree",
+        "totalFrames": 12,
+        "iasa": null,
+        "hitFrames": [],
+        "hitboxes": [
+            {
+                "damage": 16,
+                "angle": 80,
+                "kbGrowth": 60,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 60,
+                "element": "normal",
+                "shieldDamage": 5,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "0x13f": {
+        "subactionIndex": 319,
+        "subactionName": "PlyNana5K_Share_ACTION_SpecialAirHiThrow_figatree",
+        "totalFrames": 42,
+        "iasa": null,
+        "hitFrames": [],
+        "hitboxes": [
+            {
+                "damage": 16,
+                "angle": 80,
+                "kbGrowth": 60,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 60,
+                "element": "normal",
+                "shieldDamage": 5,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "0x140": {
+        "subactionIndex": 320,
+        "subactionName": "PlyNana5K_Share_ACTION_SpecialAirHiThrow2_figatree",
+        "totalFrames": 59,
+        "iasa": null,
+        "hitFrames": [],
+        "hitboxes": []
+    }
+}

@@ -1,0 +1,1780 @@
+{
+    "jab1": {
+        "subactionIndex": 46,
+        "subactionName": "PlyGanon5K_Share_ACTION_Attack11_figatree",
+        "totalFrames": 21,
+        "iasa": 19,
+        "hitFrames": [
+            {
+                "start": 3,
+                "end": 5,
+                "hitboxes": [
+                    0,
+                    1
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 7,
+                "angle": 361,
+                "kbGrowth": 100,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 30,
+                "element": "electric",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 8,
+                "angle": 361,
+                "kbGrowth": 100,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 30,
+                "element": "electric",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "jab2": {
+        "subactionIndex": 47,
+        "subactionName": "PlyGanon5K_Share_ACTION_Attack12_figatree",
+        "totalFrames": 30,
+        "iasa": null,
+        "hitFrames": [],
+        "hitboxes": []
+    },
+    "jab3": null,
+    "rapidjabs_start": null,
+    "rapidjabs_loop": null,
+    "rapidjabs_end": null,
+    "dashattack": {
+        "subactionIndex": 52,
+        "subactionName": "PlyGanon5K_Share_ACTION_AttackDash_figatree",
+        "totalFrames": 39,
+        "iasa": 38,
+        "hitFrames": [
+            {
+                "start": 7,
+                "end": 9,
+                "hitboxes": [
+                    0
+                ]
+            },
+            {
+                "start": 10,
+                "end": 16,
+                "hitboxes": [
+                    1
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 14,
+                "angle": 115,
+                "kbGrowth": 80,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 40,
+                "element": "normal",
+                "shieldDamage": 1,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 10,
+                "angle": 110,
+                "kbGrowth": 60,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 25,
+                "element": "normal",
+                "shieldDamage": 1,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "ftilt_h": {
+        "subactionIndex": 53,
+        "subactionName": "PlyGanon5K_Share_ACTION_AttackS3Hi_figatree",
+        "totalFrames": 29,
+        "iasa": null,
+        "hitFrames": [
+            {
+                "start": 9,
+                "end": 11,
+                "hitboxes": [
+                    0,
+                    1,
+                    2
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 14,
+                "angle": 361,
+                "kbGrowth": 100,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 20,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 13,
+                "angle": 361,
+                "kbGrowth": 100,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 20,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 12,
+                "angle": 361,
+                "kbGrowth": 100,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 20,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "ftilt_mh": {
+        "subactionIndex": 54,
+        "subactionName": "PlyGanon5K_Share_ACTION_AttackS3HiS_figatree",
+        "totalFrames": 29,
+        "iasa": null,
+        "hitFrames": [
+            {
+                "start": 9,
+                "end": 11,
+                "hitboxes": [
+                    0,
+                    1,
+                    2
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 14,
+                "angle": 361,
+                "kbGrowth": 100,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 20,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 13,
+                "angle": 361,
+                "kbGrowth": 100,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 20,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 12,
+                "angle": 361,
+                "kbGrowth": 100,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 20,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "ftilt_m": {
+        "subactionIndex": 55,
+        "subactionName": "PlyGanon5K_Share_ACTION_AttackS3S_figatree",
+        "totalFrames": 29,
+        "iasa": null,
+        "hitFrames": [
+            {
+                "start": 9,
+                "end": 11,
+                "hitboxes": [
+                    0,
+                    1,
+                    2
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 13,
+                "angle": 361,
+                "kbGrowth": 100,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 20,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 12,
+                "angle": 361,
+                "kbGrowth": 100,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 20,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 11,
+                "angle": 361,
+                "kbGrowth": 100,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 20,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "ftilt_ml": {
+        "subactionIndex": 56,
+        "subactionName": "PlyGanon5K_Share_ACTION_AttackS3LwS_figatree",
+        "totalFrames": 29,
+        "iasa": null,
+        "hitFrames": [
+            {
+                "start": 9,
+                "end": 11,
+                "hitboxes": [
+                    0,
+                    1,
+                    2
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 12,
+                "angle": 361,
+                "kbGrowth": 100,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 20,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 11,
+                "angle": 361,
+                "kbGrowth": 100,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 20,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 10,
+                "angle": 361,
+                "kbGrowth": 100,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 20,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "ftilt_l": {
+        "subactionIndex": 57,
+        "subactionName": "PlyGanon5K_Share_ACTION_AttackS3Lw_figatree",
+        "totalFrames": 29,
+        "iasa": null,
+        "hitFrames": [
+            {
+                "start": 9,
+                "end": 11,
+                "hitboxes": [
+                    0,
+                    1,
+                    2
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 12,
+                "angle": 361,
+                "kbGrowth": 100,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 20,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 11,
+                "angle": 361,
+                "kbGrowth": 100,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 20,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 10,
+                "angle": 361,
+                "kbGrowth": 100,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 20,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "utilt": {
+        "subactionIndex": 58,
+        "subactionName": "PlyGanon5K_Share_ACTION_AttackHi3_figatree",
+        "totalFrames": 114,
+        "iasa": 113,
+        "hitFrames": [
+            {
+                "start": 81,
+                "end": 83,
+                "hitboxes": [
+                    0
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 27,
+                "angle": 361,
+                "kbGrowth": 80,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 110,
+                "element": "fire",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "dtilt": {
+        "subactionIndex": 59,
+        "subactionName": "PlyGanon5K_Share_ACTION_AttackLw3_figatree",
+        "totalFrames": 35,
+        "iasa": 35,
+        "hitFrames": [
+            {
+                "start": 10,
+                "end": 12,
+                "hitboxes": [
+                    0,
+                    1,
+                    2
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 12,
+                "angle": 80,
+                "kbGrowth": 100,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 30,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 12,
+                "angle": 70,
+                "kbGrowth": 100,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 30,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 12,
+                "angle": 60,
+                "kbGrowth": 100,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 30,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "fsmash_h": {
+        "subactionIndex": 60,
+        "subactionName": "PlyGanon5K_Share_ACTION_AttackS4Hi_figatree",
+        "totalFrames": 66,
+        "chargeFrame": 10,
+        "iasa": 60,
+        "hitFrames": [
+            {
+                "start": 20,
+                "end": 24,
+                "hitboxes": [
+                    0
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 24,
+                "angle": 80,
+                "kbGrowth": 85,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 40,
+                "element": "darkness",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "fsmash_mh": null,
+    "fsmash_m": {
+        "subactionIndex": 62,
+        "subactionName": "PlyGanon5K_Share_ACTION_AttackS4S_figatree",
+        "totalFrames": 66,
+        "chargeFrame": 10,
+        "iasa": 60,
+        "hitFrames": [
+            {
+                "start": 20,
+                "end": 24,
+                "hitboxes": [
+                    0
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 22,
+                "angle": 70,
+                "kbGrowth": 83,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 40,
+                "element": "darkness",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 20,
+                "angle": 60,
+                "kbGrowth": 80,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 40,
+                "element": "darkness",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "fsmash_ml": null,
+    "fsmash_l": {
+        "subactionIndex": 64,
+        "subactionName": "PlyGanon5K_Share_ACTION_AttackS4Lw_figatree",
+        "totalFrames": 66,
+        "chargeFrame": 10,
+        "iasa": 60,
+        "hitFrames": [
+            {
+                "start": 20,
+                "end": 24,
+                "hitboxes": [
+                    0
+                ]
+            },
+            {
+                "start": 63,
+                "end": 65,
+                "hitboxes": [
+                    1,
+                    2,
+                    3
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 20,
+                "angle": 60,
+                "kbGrowth": 80,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 40,
+                "element": "darkness",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 22,
+                "angle": 90,
+                "kbGrowth": 80,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 50,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 22,
+                "angle": 80,
+                "kbGrowth": 80,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 50,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 22,
+                "angle": 361,
+                "kbGrowth": 80,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 50,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "usmash": {
+        "subactionIndex": 66,
+        "subactionName": "PlyGanon5K_Share_ACTION_AttackHi4_figatree",
+        "totalFrames": 54,
+        "chargeFrame": 8,
+        "iasa": 40,
+        "hitFrames": [
+            {
+                "start": 21,
+                "end": 23,
+                "hitboxes": [
+                    0,
+                    1,
+                    2
+                ]
+            },
+            {
+                "start": 26,
+                "end": 29,
+                "hitboxes": [
+                    3,
+                    4,
+                    5
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 22,
+                "angle": 90,
+                "kbGrowth": 80,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 50,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 22,
+                "angle": 80,
+                "kbGrowth": 80,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 50,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 22,
+                "angle": 361,
+                "kbGrowth": 80,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 50,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 19,
+                "angle": 90,
+                "kbGrowth": 80,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 40,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 19,
+                "angle": 80,
+                "kbGrowth": 80,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 40,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 19,
+                "angle": 361,
+                "kbGrowth": 80,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 40,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "dsmash": {
+        "subactionIndex": 67,
+        "subactionName": "PlyGanon5K_Share_ACTION_AttackLw4_figatree",
+        "totalFrames": 49,
+        "chargeFrame": 14,
+        "iasa": 47,
+        "hitFrames": [
+            {
+                "start": 19,
+                "end": 22,
+                "hitboxes": [
+                    0,
+                    1
+                ]
+            },
+            {
+                "start": 29,
+                "end": 32,
+                "hitboxes": [
+                    2,
+                    3
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 8,
+                "angle": 160,
+                "kbGrowth": 100,
+                "weightDepKb": 90,
+                "hitboxInteraction": 3,
+                "baseKb": 0,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 8,
+                "angle": 160,
+                "kbGrowth": 100,
+                "weightDepKb": 130,
+                "hitboxInteraction": 3,
+                "baseKb": 0,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 14,
+                "angle": 120,
+                "kbGrowth": 110,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 60,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 12,
+                "angle": 120,
+                "kbGrowth": 110,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 60,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "nair": {
+        "subactionIndex": 68,
+        "subactionName": "PlyGanon5K_Share_ACTION_AttackAirN_figatree",
+        "totalFrames": 44,
+        "iasa": null,
+        "autoCancelBefore": 4,
+        "autoCancelAfter": 25,
+        "landingLag": 25,
+        "lcancelledLandingLag": 12,
+        "hitFrames": [
+            {
+                "start": 7,
+                "end": 8,
+                "hitboxes": [
+                    0,
+                    1,
+                    2
+                ]
+            },
+            {
+                "start": 20,
+                "end": 21,
+                "hitboxes": [
+                    3
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 12,
+                "angle": 55,
+                "kbGrowth": 100,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 30,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 12,
+                "angle": 60,
+                "kbGrowth": 100,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 30,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 12,
+                "angle": 65,
+                "kbGrowth": 100,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 30,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 12,
+                "angle": 361,
+                "kbGrowth": 100,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 50,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "fair": {
+        "subactionIndex": 69,
+        "subactionName": "PlyGanon5K_Share_ACTION_AttackAirF_figatree",
+        "totalFrames": 44,
+        "iasa": 35,
+        "autoCancelBefore": 7,
+        "autoCancelAfter": 33,
+        "landingLag": 25,
+        "lcancelledLandingLag": 12,
+        "hitFrames": [
+            {
+                "start": 14,
+                "end": 19,
+                "hitboxes": [
+                    0
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 17,
+                "angle": 361,
+                "kbGrowth": 80,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 60,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "bair": {
+        "subactionIndex": 70,
+        "subactionName": "PlyGanon5K_Share_ACTION_AttackAirB_figatree",
+        "totalFrames": 35,
+        "iasa": 29,
+        "autoCancelBefore": 7,
+        "autoCancelAfter": 18,
+        "landingLag": 25,
+        "lcancelledLandingLag": 12,
+        "hitFrames": [
+            {
+                "start": 10,
+                "end": 15,
+                "hitboxes": [
+                    0,
+                    1
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 16,
+                "angle": 361,
+                "kbGrowth": 100,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 30,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 16,
+                "angle": 361,
+                "kbGrowth": 100,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 10,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "uair": {
+        "subactionIndex": 71,
+        "subactionName": "PlyGanon5K_Share_ACTION_AttackAirHi_figatree",
+        "totalFrames": 33,
+        "iasa": 30,
+        "autoCancelBefore": 1,
+        "autoCancelAfter": 21,
+        "landingLag": 25,
+        "lcancelledLandingLag": 12,
+        "hitFrames": [
+            {
+                "start": 6,
+                "end": 10,
+                "hitboxes": [
+                    0,
+                    1
+                ]
+            },
+            {
+                "start": 11,
+                "end": 13,
+                "hitboxes": [
+                    2,
+                    3
+                ]
+            },
+            {
+                "start": 14,
+                "end": 16,
+                "hitboxes": [
+                    4,
+                    5
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 13,
+                "angle": 361,
+                "kbGrowth": 100,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 35,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 12,
+                "angle": 361,
+                "kbGrowth": 100,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 35,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 12,
+                "angle": 30,
+                "kbGrowth": 80,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 30,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 10,
+                "angle": 30,
+                "kbGrowth": 80,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 30,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 8,
+                "angle": 0,
+                "kbGrowth": 70,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 20,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 6,
+                "angle": 0,
+                "kbGrowth": 70,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 20,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "dair": {
+        "subactionIndex": 72,
+        "subactionName": "PlyGanon5K_Share_ACTION_AttackAirLw_figatree",
+        "totalFrames": 44,
+        "iasa": 38,
+        "autoCancelBefore": 4,
+        "autoCancelAfter": 35,
+        "landingLag": 35,
+        "lcancelledLandingLag": 17,
+        "hitFrames": [
+            {
+                "start": 16,
+                "end": 20,
+                "hitboxes": [
+                    0
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 22,
+                "angle": 270,
+                "kbGrowth": 100,
+                "weightDepKb": 0,
+                "hitboxInteraction": 1,
+                "baseKb": 50,
+                "element": "electric",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "grab": {
+        "subactionIndex": 242,
+        "subactionName": "PlyGanon5K_Share_ACTION_Catch_figatree",
+        "totalFrames": 29,
+        "iasa": null,
+        "hitFrames": [
+            {
+                "start": 6,
+                "end": 7,
+                "hitboxes": [
+                    0
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 0,
+                "angle": 361,
+                "kbGrowth": 100,
+                "weightDepKb": 0,
+                "hitboxInteraction": 2,
+                "baseKb": 0,
+                "element": "grab",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "dashgrab": {
+        "subactionIndex": 243,
+        "subactionName": "PlyGanon5K_Share_ACTION_CatchDash_figatree",
+        "totalFrames": 39,
+        "iasa": null,
+        "hitFrames": [
+            {
+                "start": 10,
+                "end": 12,
+                "hitboxes": [
+                    0
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 0,
+                "angle": 361,
+                "kbGrowth": 100,
+                "weightDepKb": 0,
+                "hitboxInteraction": 2,
+                "baseKb": 0,
+                "element": "grab",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "pummel": {
+        "subactionIndex": 245,
+        "subactionName": "PlyGanon5K_Share_ACTION_CatchAttack_figatree",
+        "totalFrames": 23,
+        "iasa": null,
+        "hitFrames": [
+            {
+                "start": 4,
+                "end": 4,
+                "hitboxes": [
+                    0
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 3,
+                "angle": 80,
+                "kbGrowth": 100,
+                "weightDepKb": 30,
+                "hitboxInteraction": 1,
+                "baseKb": 0,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "fthrow": {
+        "subactionIndex": 247,
+        "subactionName": "PlyGanon5K_Share_ACTION_ThrowF_figatree",
+        "totalFrames": 39,
+        "iasa": null,
+        "throw": {
+            "damage": 4,
+            "angle": 45,
+            "kbGrowth": 105,
+            "weightDepKb": 0,
+            "baseKb": 11,
+            "element": 4
+        },
+        "hitFrames": [
+            {
+                "start": 11,
+                "end": 17,
+                "hitboxes": [
+                    0
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 5,
+                "angle": 80,
+                "kbGrowth": 100,
+                "weightDepKb": 0,
+                "hitboxInteraction": 1,
+                "baseKb": 70,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "bthrow": {
+        "subactionIndex": 248,
+        "subactionName": "PlyGanon5K_Share_ACTION_ThrowB_figatree",
+        "totalFrames": 49,
+        "iasa": null,
+        "throw": {
+            "damage": 4,
+            "angle": 135,
+            "kbGrowth": 130,
+            "weightDepKb": 0,
+            "baseKb": 7,
+            "element": 8
+        },
+        "hitFrames": [
+            {
+                "start": 12,
+                "end": 19,
+                "hitboxes": [
+                    0
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 5,
+                "angle": 70,
+                "kbGrowth": 100,
+                "weightDepKb": 0,
+                "hitboxInteraction": 1,
+                "baseKb": 70,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "uthrow": {
+        "subactionIndex": 249,
+        "subactionName": "PlyGanon5K_Share_ACTION_ThrowHi_figatree",
+        "totalFrames": 43,
+        "iasa": null,
+        "throw": {
+            "damage": 3,
+            "angle": 90,
+            "kbGrowth": 105,
+            "weightDepKb": 0,
+            "baseKb": 17,
+            "element": 8
+        },
+        "hitFrames": [
+            {
+                "start": 11,
+                "end": 28,
+                "hitboxes": [
+                    0
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 4,
+                "angle": 80,
+                "kbGrowth": 100,
+                "weightDepKb": 0,
+                "hitboxInteraction": 1,
+                "baseKb": 60,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "dthrow": {
+        "subactionIndex": 250,
+        "subactionName": "PlyGanon5K_Share_ACTION_ThrowLw_figatree",
+        "totalFrames": 39,
+        "iasa": null,
+        "throw": {
+            "damage": 7,
+            "angle": 100,
+            "kbGrowth": 36,
+            "weightDepKb": 0,
+            "baseKb": 18,
+            "element": 12
+        },
+        "hitFrames": [],
+        "hitboxes": []
+    },
+    "0x12d": {
+        "subactionIndex": 301,
+        "subactionName": "PlyGanon5K_Share_ACTION_SpecialN_figatree",
+        "totalFrames": 119,
+        "iasa": 117,
+        "hitFrames": [
+            {
+                "start": 70,
+                "end": 72,
+                "hitboxes": [
+                    0,
+                    1,
+                    2
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 30,
+                "angle": 361,
+                "kbGrowth": 100,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 30,
+                "element": "darkness",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 32,
+                "angle": 361,
+                "kbGrowth": 100,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 30,
+                "element": "darkness",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 34,
+                "angle": 361,
+                "kbGrowth": 100,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 30,
+                "element": "darkness",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "0x12e": {
+        "subactionIndex": 302,
+        "subactionName": "PlyGanon5K_Share_ACTION_SpecialAirN_figatree",
+        "totalFrames": 119,
+        "iasa": 117,
+        "hitFrames": [
+            {
+                "start": 70,
+                "end": 72,
+                "hitboxes": [
+                    0,
+                    1,
+                    2
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 30,
+                "angle": 361,
+                "kbGrowth": 100,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 40,
+                "element": "darkness",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 32,
+                "angle": 361,
+                "kbGrowth": 100,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 40,
+                "element": "darkness",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 34,
+                "angle": 361,
+                "kbGrowth": 100,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 40,
+                "element": "darkness",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "0x12f": {
+        "subactionIndex": 303,
+        "subactionName": "PlyGanon5K_Share_ACTION_SpecialSStart_figatree",
+        "totalFrames": 79,
+        "iasa": null,
+        "hitFrames": [],
+        "hitboxes": [
+            {
+                "damage": 0,
+                "angle": 361,
+                "kbGrowth": 0,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 0,
+                "element": "empty",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "0x130": {
+        "subactionIndex": 304,
+        "subactionName": "PlyGanon5K_Share_ACTION_SpecialS_figatree",
+        "totalFrames": 24,
+        "iasa": null,
+        "hitFrames": [
+            {
+                "start": 3,
+                "end": 7,
+                "hitboxes": [
+                    0
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 17,
+                "angle": 105,
+                "kbGrowth": 69,
+                "weightDepKb": 0,
+                "hitboxInteraction": 2,
+                "baseKb": 60,
+                "element": "darkness",
+                "shieldDamage": 2,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "0x131": {
+        "subactionIndex": 305,
+        "subactionName": "PlyGanon5K_Share_ACTION_SpecialAirSStart_figatree",
+        "totalFrames": 79,
+        "iasa": null,
+        "hitFrames": [],
+        "hitboxes": [
+            {
+                "damage": 0,
+                "angle": 361,
+                "kbGrowth": 0,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 0,
+                "element": "empty",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "0x132": {
+        "subactionIndex": 306,
+        "subactionName": "PlyGanon5K_Share_ACTION_SpecialAirS_figatree",
+        "totalFrames": 44,
+        "iasa": null,
+        "hitFrames": [
+            {
+                "start": 3,
+                "end": 7,
+                "hitboxes": [
+                    0
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 16,
+                "angle": 70,
+                "kbGrowth": 65,
+                "weightDepKb": 0,
+                "hitboxInteraction": 2,
+                "baseKb": 50,
+                "element": "darkness",
+                "shieldDamage": 2,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "0x133": {
+        "subactionIndex": 307,
+        "subactionName": "PlyGanon5K_Share_ACTION_SpecialHi_figatree",
+        "totalFrames": 64,
+        "iasa": null,
+        "hitFrames": [
+            {
+                "start": 13,
+                "end": 13,
+                "hitboxes": [
+                    0,
+                    1
+                ]
+            },
+            {
+                "start": 14,
+                "end": 39,
+                "hitboxes": [
+                    0
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 1,
+                "angle": 361,
+                "kbGrowth": 100,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 0,
+                "element": "grab",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 1,
+                "angle": 361,
+                "kbGrowth": 100,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 0,
+                "element": "grab",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": false
+            }
+        ]
+    },
+    "0x134": {
+        "subactionIndex": 308,
+        "subactionName": "PlyGanon5K_Share_ACTION_SpecialAirHi_figatree",
+        "totalFrames": 64,
+        "iasa": null,
+        "hitFrames": [
+            {
+                "start": 13,
+                "end": 13,
+                "hitboxes": [
+                    0,
+                    1
+                ]
+            },
+            {
+                "start": 14,
+                "end": 39,
+                "hitboxes": [
+                    0
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 1,
+                "angle": 361,
+                "kbGrowth": 100,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 0,
+                "element": "grab",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 1,
+                "angle": 361,
+                "kbGrowth": 100,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 0,
+                "element": "grab",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": false
+            }
+        ]
+    },
+    "0x135": {
+        "subactionIndex": 309,
+        "subactionName": "PlyGanon5K_Share_ACTION_SpecialHiCatch_figatree",
+        "totalFrames": 15,
+        "iasa": null,
+        "hitFrames": [
+            {
+                "start": 4,
+                "end": 4,
+                "hitboxes": [
+                    0
+                ]
+            },
+            {
+                "start": 8,
+                "end": 8,
+                "hitboxes": [
+                    0
+                ]
+            },
+            {
+                "start": 12,
+                "end": 12,
+                "hitboxes": [
+                    0
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 1,
+                "angle": 361,
+                "kbGrowth": 100,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 60,
+                "element": "electric",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "0x136": {
+        "subactionIndex": 310,
+        "subactionName": "PlyGanon5K_Share_ACTION_SpecialHiThrow_figatree",
+        "totalFrames": 59,
+        "iasa": null,
+        "throw": {
+            "damage": 15,
+            "angle": 361,
+            "kbGrowth": 82,
+            "weightDepKb": 0,
+            "baseKb": 10,
+            "element": 0
+        },
+        "hitFrames": [],
+        "hitboxes": []
+    },
+    "0x137": {
+        "subactionIndex": 311,
+        "subactionName": "PlyGanon5K_Share_ACTION_SpecialLw_figatree",
+        "totalFrames": 39,
+        "iasa": null,
+        "hitFrames": [
+            {
+                "start": 14,
+                "end": 38,
+                "hitboxes": [
+                    0
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 15,
+                "angle": 361,
+                "kbGrowth": 85,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 60,
+                "element": "darkness",
+                "shieldDamage": 10,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "0x138": {
+        "subactionIndex": 312,
+        "subactionName": "PlyGanon5K_Share_ACTION_SpecialLwEnd_figatree",
+        "totalFrames": 29,
+        "iasa": null,
+        "hitFrames": [],
+        "hitboxes": []
+    },
+    "0x139": {
+        "subactionIndex": 313,
+        "subactionName": "PlyGanon5K_Share_ACTION_SpecialAirLw_figatree",
+        "totalFrames": 29,
+        "iasa": null,
+        "hitFrames": [],
+        "hitboxes": [
+            {
+                "damage": 14,
+                "angle": 290,
+                "kbGrowth": 80,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 50,
+                "element": "darkness",
+                "shieldDamage": 10,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "0x13a": {
+        "subactionIndex": 314,
+        "subactionName": "PlyGanon5K_Share_ACTION_SpecialAirLwEnd_figatree",
+        "totalFrames": 44,
+        "iasa": null,
+        "hitFrames": [
+            {
+                "start": 2,
+                "end": 3,
+                "hitboxes": [
+                    0
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 12,
+                "angle": 80,
+                "kbGrowth": 20,
+                "weightDepKb": 0,
+                "hitboxInteraction": 0,
+                "baseKb": 60,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": false
+            }
+        ]
+    },
+    "0x13b": {
+        "subactionIndex": 315,
+        "subactionName": "PlyGanon5K_Share_ACTION_SpecialLwEndAir_figatree",
+        "totalFrames": 29,
+        "iasa": null,
+        "hitFrames": [],
+        "hitboxes": []
+    },
+    "0x13c": {
+        "subactionIndex": 316,
+        "subactionName": "PlyGanon5K_Share_ACTION_SpecialAirLwEndAir_figatree",
+        "totalFrames": 28,
+        "iasa": null,
+        "hitFrames": [],
+        "hitboxes": []
+    },
+    "0x13d": {
+        "subactionIndex": 317,
+        "subactionName": "PlyGanon5K_Share_ACTION_SpecialHiThrow_figatree",
+        "totalFrames": 59,
+        "iasa": null,
+        "hitFrames": [],
+        "hitboxes": []
+    }
+}

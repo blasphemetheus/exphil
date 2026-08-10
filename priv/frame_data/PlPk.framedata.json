@@ -1,0 +1,1406 @@
+{
+    "jab1": {
+        "subactionIndex": 46,
+        "subactionName": "PlyPikachu5K_Share_ACTION_Attack11_figatree",
+        "totalFrames": 21,
+        "iasa": null,
+        "hitFrames": [
+            {
+                "start": 2,
+                "end": 3,
+                "hitboxes": [
+                    0,
+                    1
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 2,
+                "angle": 0,
+                "kbGrowth": 50,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 7,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 2,
+                "angle": 0,
+                "kbGrowth": 50,
+                "weightDepKb": 0,
+                "hitboxInteraction": 2,
+                "baseKb": 7,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "jab2": null,
+    "jab3": null,
+    "rapidjabs_start": null,
+    "rapidjabs_loop": null,
+    "rapidjabs_end": null,
+    "dashattack": {
+        "subactionIndex": 52,
+        "subactionName": "PlyPikachu5K_Share_ACTION_AttackDash_figatree",
+        "totalFrames": 49,
+        "iasa": null,
+        "hitFrames": [
+            {
+                "start": 5,
+                "end": 16,
+                "hitboxes": [
+                    0
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 8,
+                "angle": 361,
+                "kbGrowth": 70,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 40,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "ftilt_h": {
+        "subactionIndex": 53,
+        "subactionName": "PlyPikachu5K_Share_ACTION_AttackS3Hi_figatree",
+        "totalFrames": 29,
+        "iasa": null,
+        "hitFrames": [
+            {
+                "start": 5,
+                "end": 14,
+                "hitboxes": [
+                    0
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 9,
+                "angle": 361,
+                "kbGrowth": 100,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 10,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "ftilt_mh": null,
+    "ftilt_m": {
+        "subactionIndex": 55,
+        "subactionName": "PlyPikachu5K_Share_ACTION_AttackS3S_figatree",
+        "totalFrames": 29,
+        "iasa": null,
+        "hitFrames": [
+            {
+                "start": 5,
+                "end": 14,
+                "hitboxes": [
+                    0
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 8,
+                "angle": 361,
+                "kbGrowth": 100,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 10,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "ftilt_ml": null,
+    "ftilt_l": {
+        "subactionIndex": 57,
+        "subactionName": "PlyPikachu5K_Share_ACTION_AttackS3Lw_figatree",
+        "totalFrames": 29,
+        "iasa": null,
+        "hitFrames": [
+            {
+                "start": 5,
+                "end": 14,
+                "hitboxes": [
+                    0
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 7,
+                "angle": 361,
+                "kbGrowth": 100,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 10,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "utilt": {
+        "subactionIndex": 58,
+        "subactionName": "PlyPikachu5K_Share_ACTION_AttackHi3_figatree",
+        "totalFrames": 23,
+        "iasa": null,
+        "hitFrames": [
+            {
+                "start": 7,
+                "end": 14,
+                "hitboxes": [
+                    0,
+                    1,
+                    2
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 7,
+                "angle": 96,
+                "kbGrowth": 124,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 40,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 7,
+                "angle": 96,
+                "kbGrowth": 124,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 45,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 6,
+                "angle": 88,
+                "kbGrowth": 124,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 45,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "dtilt": {
+        "subactionIndex": 59,
+        "subactionName": "PlyPikachu5K_Share_ACTION_AttackLw3_figatree",
+        "totalFrames": 21,
+        "iasa": 19,
+        "hitFrames": [
+            {
+                "start": 7,
+                "end": 9,
+                "hitboxes": [
+                    0
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 7,
+                "angle": 35,
+                "kbGrowth": 100,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 12,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "fsmash_h": null,
+    "fsmash_mh": null,
+    "fsmash_m": {
+        "subactionIndex": 62,
+        "subactionName": "PlyPikachu5K_Share_ACTION_AttackS4_figatree",
+        "totalFrames": 49,
+        "chargeFrame": 14,
+        "iasa": null,
+        "hitFrames": [
+            {
+                "start": 16,
+                "end": 18,
+                "hitboxes": [
+                    0
+                ]
+            },
+            {
+                "start": 19,
+                "end": 21,
+                "hitboxes": [
+                    1,
+                    2
+                ]
+            },
+            {
+                "start": 22,
+                "end": 23,
+                "hitboxes": [
+                    3,
+                    4,
+                    5
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 21,
+                "angle": 361,
+                "kbGrowth": 92,
+                "weightDepKb": 0,
+                "hitboxInteraction": 0,
+                "baseKb": 25,
+                "element": "electric",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 19,
+                "angle": 361,
+                "kbGrowth": 95,
+                "weightDepKb": 0,
+                "hitboxInteraction": 0,
+                "baseKb": 25,
+                "element": "electric",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 19,
+                "angle": 361,
+                "kbGrowth": 90,
+                "weightDepKb": 0,
+                "hitboxInteraction": 0,
+                "baseKb": 25,
+                "element": "electric",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 18,
+                "angle": 361,
+                "kbGrowth": 95,
+                "weightDepKb": 0,
+                "hitboxInteraction": 0,
+                "baseKb": 22,
+                "element": "electric",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 18,
+                "angle": 361,
+                "kbGrowth": 90,
+                "weightDepKb": 0,
+                "hitboxInteraction": 0,
+                "baseKb": 22,
+                "element": "electric",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 18,
+                "angle": 361,
+                "kbGrowth": 85,
+                "weightDepKb": 0,
+                "hitboxInteraction": 0,
+                "baseKb": 22,
+                "element": "electric",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "fsmash_ml": null,
+    "fsmash_l": null,
+    "usmash": {
+        "subactionIndex": 66,
+        "subactionName": "PlyPikachu5K_Share_ACTION_AttackHi4_figatree",
+        "totalFrames": 43,
+        "chargeFrame": 5,
+        "iasa": 41,
+        "hitFrames": [
+            {
+                "start": 8,
+                "end": 10,
+                "hitboxes": [
+                    0,
+                    1,
+                    2
+                ]
+            },
+            {
+                "start": 11,
+                "end": 13,
+                "hitboxes": [
+                    3
+                ]
+            },
+            {
+                "start": 14,
+                "end": 17,
+                "hitboxes": [
+                    4
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 19,
+                "angle": 85,
+                "kbGrowth": 110,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 40,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 18,
+                "angle": 85,
+                "kbGrowth": 110,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 40,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 17,
+                "angle": 85,
+                "kbGrowth": 100,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 40,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 13,
+                "angle": 90,
+                "kbGrowth": 110,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 30,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 7,
+                "angle": 40,
+                "kbGrowth": 48,
+                "weightDepKb": 0,
+                "hitboxInteraction": 1,
+                "baseKb": 5,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "dsmash": {
+        "subactionIndex": 67,
+        "subactionName": "PlyPikachu5K_Share_ACTION_AttackLw4_figatree",
+        "totalFrames": 54,
+        "chargeFrame": 5,
+        "iasa": 51,
+        "hitFrames": [
+            {
+                "start": 7,
+                "end": 8,
+                "hitboxes": [
+                    0,
+                    1
+                ]
+            },
+            {
+                "start": 10,
+                "end": 11,
+                "hitboxes": [
+                    0,
+                    1
+                ]
+            },
+            {
+                "start": 13,
+                "end": 14,
+                "hitboxes": [
+                    0,
+                    1
+                ]
+            },
+            {
+                "start": 16,
+                "end": 17,
+                "hitboxes": [
+                    0,
+                    1
+                ]
+            },
+            {
+                "start": 19,
+                "end": 20,
+                "hitboxes": [
+                    0,
+                    1
+                ]
+            },
+            {
+                "start": 22,
+                "end": 23,
+                "hitboxes": [
+                    0,
+                    1
+                ]
+            },
+            {
+                "start": 25,
+                "end": 26,
+                "hitboxes": [
+                    0,
+                    1
+                ]
+            },
+            {
+                "start": 28,
+                "end": 28,
+                "hitboxes": [
+                    2
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 2,
+                "angle": 170,
+                "kbGrowth": 30,
+                "weightDepKb": 0,
+                "hitboxInteraction": 0,
+                "baseKb": 70,
+                "element": "electric",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 2,
+                "angle": 90,
+                "kbGrowth": 30,
+                "weightDepKb": 0,
+                "hitboxInteraction": 0,
+                "baseKb": 30,
+                "element": "electric",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 3,
+                "angle": 70,
+                "kbGrowth": 170,
+                "weightDepKb": 0,
+                "hitboxInteraction": 0,
+                "baseKb": 70,
+                "element": "electric",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "nair": {
+        "subactionIndex": 68,
+        "subactionName": "PlyPikachu5K_Share_ACTION_AttackAirN_figatree",
+        "totalFrames": 39,
+        "iasa": null,
+        "autoCancelBefore": 3,
+        "autoCancelAfter": 34,
+        "landingLag": 15,
+        "lcancelledLandingLag": 7,
+        "hitFrames": [
+            {
+                "start": 3,
+                "end": 10,
+                "hitboxes": [
+                    0
+                ]
+            },
+            {
+                "start": 11,
+                "end": 28,
+                "hitboxes": [
+                    1
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 12,
+                "angle": 361,
+                "kbGrowth": 100,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 18,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 9,
+                "angle": 361,
+                "kbGrowth": 100,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 0,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "fair": {
+        "subactionIndex": 69,
+        "subactionName": "PlyPikachu5K_Share_ACTION_AttackAirF_figatree",
+        "totalFrames": 39,
+        "iasa": null,
+        "autoCancelBefore": 10,
+        "autoCancelAfter": 37,
+        "landingLag": 20,
+        "lcancelledLandingLag": 10,
+        "hitFrames": [
+            {
+                "start": 10,
+                "end": 12,
+                "hitboxes": [
+                    0
+                ]
+            },
+            {
+                "start": 14,
+                "end": 16,
+                "hitboxes": [
+                    0
+                ]
+            },
+            {
+                "start": 18,
+                "end": 20,
+                "hitboxes": [
+                    0
+                ]
+            },
+            {
+                "start": 22,
+                "end": 24,
+                "hitboxes": [
+                    0
+                ]
+            },
+            {
+                "start": 26,
+                "end": 28,
+                "hitboxes": [
+                    0
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 2,
+                "angle": 361,
+                "kbGrowth": 100,
+                "weightDepKb": 30,
+                "hitboxInteraction": 3,
+                "baseKb": 0,
+                "element": "electric",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "bair": {
+        "subactionIndex": 70,
+        "subactionName": "PlyPikachu5K_Share_ACTION_AttackAirB_figatree",
+        "totalFrames": 59,
+        "iasa": null,
+        "autoCancelBefore": 4,
+        "autoCancelAfter": 49,
+        "landingLag": 30,
+        "lcancelledLandingLag": 15,
+        "hitFrames": [
+            {
+                "start": 4,
+                "end": 7,
+                "hitboxes": [
+                    0
+                ]
+            },
+            {
+                "start": 8,
+                "end": 37,
+                "hitboxes": [
+                    1
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 12,
+                "angle": 361,
+                "kbGrowth": 100,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 20,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 9,
+                "angle": 361,
+                "kbGrowth": 100,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 20,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "uair": {
+        "subactionIndex": 71,
+        "subactionName": "PlyPikachu5K_Share_ACTION_AttackAirHi_figatree",
+        "totalFrames": 27,
+        "iasa": null,
+        "autoCancelBefore": 3,
+        "autoCancelAfter": 17,
+        "landingLag": 26,
+        "lcancelledLandingLag": 13,
+        "hitFrames": [
+            {
+                "start": 3,
+                "end": 4,
+                "hitboxes": [
+                    0
+                ]
+            },
+            {
+                "start": 5,
+                "end": 6,
+                "hitboxes": [
+                    1
+                ]
+            },
+            {
+                "start": 7,
+                "end": 8,
+                "hitboxes": [
+                    2
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 4,
+                "angle": 80,
+                "kbGrowth": 60,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 100,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 4,
+                "angle": 0,
+                "kbGrowth": 60,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 60,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            },
+            {
+                "damage": 4,
+                "angle": 130,
+                "kbGrowth": 60,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 80,
+                "element": "normal",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "dair": {
+        "subactionIndex": 72,
+        "subactionName": "PlyPikachu5K_Share_ACTION_AttackAirLw_figatree",
+        "totalFrames": 57,
+        "iasa": 48,
+        "autoCancelBefore": 1,
+        "autoCancelAfter": 38,
+        "landingLag": 40,
+        "lcancelledLandingLag": 20,
+        "hitFrames": [
+            {
+                "start": 14,
+                "end": 26,
+                "hitboxes": [
+                    0
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 12,
+                "angle": 361,
+                "kbGrowth": 100,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 20,
+                "element": "electric",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "grab": {
+        "subactionIndex": 242,
+        "subactionName": "PlyPikachu5K_Share_ACTION_Catch_figatree",
+        "totalFrames": 29,
+        "iasa": null,
+        "hitFrames": [
+            {
+                "start": 6,
+                "end": 7,
+                "hitboxes": [
+                    0
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 0,
+                "angle": 361,
+                "kbGrowth": 100,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 0,
+                "element": "grab",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "dashgrab": {
+        "subactionIndex": 243,
+        "subactionName": "PlyPikachu5K_Share_ACTION_CatchDash_figatree",
+        "totalFrames": 39,
+        "iasa": null,
+        "hitFrames": [
+            {
+                "start": 10,
+                "end": 11,
+                "hitboxes": [
+                    0
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 0,
+                "angle": 361,
+                "kbGrowth": 100,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 0,
+                "element": "grab",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "pummel": {
+        "subactionIndex": 245,
+        "subactionName": "PlyPikachu5K_Share_ACTION_CatchAttack_figatree",
+        "totalFrames": 23,
+        "iasa": null,
+        "hitFrames": [
+            {
+                "start": 2,
+                "end": 2,
+                "hitboxes": [
+                    0
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 3,
+                "angle": 80,
+                "kbGrowth": 100,
+                "weightDepKb": 30,
+                "hitboxInteraction": 1,
+                "baseKb": 0,
+                "element": "electric",
+                "shieldDamage": 0,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "fthrow": {
+        "subactionIndex": 247,
+        "subactionName": "PlyPikachu5K_Share_ACTION_ThrowF_figatree",
+        "totalFrames": 43,
+        "iasa": null,
+        "throw": {
+            "damage": 2,
+            "angle": 45,
+            "kbGrowth": 110,
+            "weightDepKb": 0,
+            "baseKb": 11,
+            "element": 4
+        },
+        "hitFrames": [
+            {
+                "start": 10,
+                "end": 13,
+                "hitboxes": [
+                    0
+                ]
+            },
+            {
+                "start": 14,
+                "end": 17,
+                "hitboxes": [
+                    0
+                ]
+            },
+            {
+                "start": 18,
+                "end": 21,
+                "hitboxes": [
+                    0
+                ]
+            },
+            {
+                "start": 22,
+                "end": 25,
+                "hitboxes": [
+                    0
+                ]
+            },
+            {
+                "start": 26,
+                "end": 29,
+                "hitboxes": [
+                    0
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 2,
+                "angle": 361,
+                "kbGrowth": 100,
+                "weightDepKb": 0,
+                "hitboxInteraction": 0,
+                "baseKb": 0,
+                "element": "electric",
+                "shieldDamage": 1,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "bthrow": {
+        "subactionIndex": 248,
+        "subactionName": "PlyPikachu5K_Share_ACTION_ThrowB_figatree",
+        "totalFrames": 49,
+        "iasa": null,
+        "throw": {
+            "damage": 9,
+            "angle": 135,
+            "kbGrowth": 50,
+            "weightDepKb": 0,
+            "baseKb": 18,
+            "element": 12
+        },
+        "hitFrames": [],
+        "hitboxes": []
+    },
+    "uthrow": {
+        "subactionIndex": 249,
+        "subactionName": "PlyPikachu5K_Share_ACTION_ThrowHi_figatree",
+        "totalFrames": 43,
+        "iasa": null,
+        "throw": {
+            "damage": 5,
+            "angle": 90,
+            "kbGrowth": 45,
+            "weightDepKb": 0,
+            "baseKb": 22,
+            "element": 8
+        },
+        "hitFrames": [
+            {
+                "start": 14,
+                "end": 19,
+                "hitboxes": [
+                    0
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 5,
+                "angle": 361,
+                "kbGrowth": 0,
+                "weightDepKb": 90,
+                "hitboxInteraction": 0,
+                "baseKb": 0,
+                "element": "normal",
+                "shieldDamage": 1,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "dthrow": {
+        "subactionIndex": 250,
+        "subactionName": "PlyPikachu5K_Share_ACTION_ThrowLw_figatree",
+        "totalFrames": 47,
+        "iasa": null,
+        "throw": {
+            "damage": 5,
+            "angle": 80,
+            "kbGrowth": 38,
+            "weightDepKb": 0,
+            "baseKb": 15,
+            "element": 0
+        },
+        "hitFrames": [
+            {
+                "start": 12,
+                "end": 19,
+                "hitboxes": [
+                    0
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 5,
+                "angle": 361,
+                "kbGrowth": 0,
+                "weightDepKb": 90,
+                "hitboxInteraction": 0,
+                "baseKb": 0,
+                "element": "normal",
+                "shieldDamage": 1,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "0x127": {
+        "subactionIndex": 295,
+        "subactionName": "PlyPikachu5K_Share_ACTION_SpecialN_figatree",
+        "totalFrames": 57,
+        "iasa": null,
+        "hitFrames": [],
+        "hitboxes": []
+    },
+    "0x128": {
+        "subactionIndex": 296,
+        "subactionName": "PlyPikachu5K_Share_ACTION_SpecialAirN_figatree",
+        "totalFrames": 57,
+        "iasa": null,
+        "hitFrames": [],
+        "hitboxes": []
+    },
+    "0x129": {
+        "subactionIndex": 297,
+        "subactionName": "PlyPikachu5K_Share_ACTION_SpecialSStart_figatree",
+        "totalFrames": 13,
+        "iasa": null,
+        "hitFrames": [],
+        "hitboxes": []
+    },
+    "0x12a": {
+        "subactionIndex": 298,
+        "subactionName": "PlyPikachu5K_Share_ACTION_SpecialSHold_figatree",
+        "totalFrames": 5,
+        "iasa": null,
+        "hitFrames": [],
+        "hitboxes": []
+    },
+    "0x12b": {
+        "subactionIndex": 299,
+        "subactionName": "PlyPikachu5K_Share_ACTION_SpecialS_figatree",
+        "totalFrames": 39,
+        "iasa": null,
+        "hitFrames": [
+            {
+                "start": 4,
+                "end": 29,
+                "hitboxes": [
+                    0
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 4,
+                "angle": 361,
+                "kbGrowth": 90,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 15,
+                "element": "electric",
+                "shieldDamage": 4,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "0x12c": {
+        "subactionIndex": 300,
+        "subactionName": "PlyPikachu5K_Share_ACTION_SpecialS_figatree",
+        "totalFrames": 39,
+        "iasa": null,
+        "hitFrames": [],
+        "hitboxes": []
+    },
+    "0x12d": {
+        "subactionIndex": 301,
+        "subactionName": "PlyPikachu5K_Share_ACTION_SpecialSEnd_figatree",
+        "totalFrames": 44,
+        "iasa": null,
+        "hitFrames": [],
+        "hitboxes": []
+    },
+    "0x12e": {
+        "subactionIndex": 302,
+        "subactionName": "PlyPikachu5K_Share_ACTION_SpecialAirSStart_figatree",
+        "totalFrames": 13,
+        "iasa": null,
+        "hitFrames": [],
+        "hitboxes": []
+    },
+    "0x12f": {
+        "subactionIndex": 303,
+        "subactionName": "PlyPikachu5K_Share_ACTION_SpecialAirSHold_figatree",
+        "totalFrames": 5,
+        "iasa": null,
+        "hitFrames": [],
+        "hitboxes": []
+    },
+    "0x130": {
+        "subactionIndex": 304,
+        "subactionName": "PlyPikachu5K_Share_ACTION_SpecialS_figatree",
+        "totalFrames": 39,
+        "iasa": null,
+        "hitFrames": [
+            {
+                "start": 4,
+                "end": 29,
+                "hitboxes": [
+                    0
+                ]
+            }
+        ],
+        "hitboxes": [
+            {
+                "damage": 4,
+                "angle": 361,
+                "kbGrowth": 90,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 15,
+                "element": "electric",
+                "shieldDamage": 4,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "0x131": {
+        "subactionIndex": 305,
+        "subactionName": "PlyPikachu5K_Share_ACTION_SpecialAirSEnd_figatree",
+        "totalFrames": 29,
+        "iasa": null,
+        "hitFrames": [],
+        "hitboxes": []
+    },
+    "0x132": {
+        "subactionIndex": 306,
+        "subactionName": "PlyPikachu5K_Share_ACTION_SpecialHiStart_figatree",
+        "totalFrames": 13,
+        "iasa": null,
+        "hitFrames": [],
+        "hitboxes": [
+            {
+                "damage": 3,
+                "angle": 0,
+                "kbGrowth": 40,
+                "weightDepKb": 0,
+                "hitboxInteraction": 2,
+                "baseKb": 5,
+                "element": "electric",
+                "shieldDamage": 5,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "0x133": {
+        "subactionIndex": 307,
+        "subactionName": "PlyPikachu5K_Share_ACTION_SpecialHiStart_figatree",
+        "totalFrames": 13,
+        "iasa": null,
+        "hitFrames": [],
+        "hitboxes": [
+            {
+                "damage": 2,
+                "angle": 0,
+                "kbGrowth": 40,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 5,
+                "element": "electric",
+                "shieldDamage": 5,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "0x134": {
+        "subactionIndex": 308,
+        "subactionName": "PlyPikachu5K_Share_ACTION_SpecialHiEnd_figatree",
+        "totalFrames": 49,
+        "iasa": null,
+        "hitFrames": [],
+        "hitboxes": []
+    },
+    "0x135": {
+        "subactionIndex": 309,
+        "subactionName": "PlyPikachu5K_Share_ACTION_SpecialAirHiStart_figatree",
+        "totalFrames": 13,
+        "iasa": null,
+        "hitFrames": [],
+        "hitboxes": [
+            {
+                "damage": 3,
+                "angle": 0,
+                "kbGrowth": 40,
+                "weightDepKb": 0,
+                "hitboxInteraction": 2,
+                "baseKb": 5,
+                "element": "electric",
+                "shieldDamage": 5,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "0x136": {
+        "subactionIndex": 310,
+        "subactionName": "PlyPikachu5K_Share_ACTION_SpecialAirHiStart_figatree",
+        "totalFrames": 13,
+        "iasa": null,
+        "hitFrames": [],
+        "hitboxes": [
+            {
+                "damage": 2,
+                "angle": 0,
+                "kbGrowth": 40,
+                "weightDepKb": 0,
+                "hitboxInteraction": 3,
+                "baseKb": 5,
+                "element": "electric",
+                "shieldDamage": 5,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "0x137": {
+        "subactionIndex": 311,
+        "subactionName": "PlyPikachu5K_Share_ACTION_SpecialAirHiEnd_figatree",
+        "totalFrames": 49,
+        "iasa": null,
+        "hitFrames": [],
+        "hitboxes": []
+    },
+    "0x138": {
+        "subactionIndex": 312,
+        "subactionName": "PlyPikachu5K_Share_ACTION_SpecialLwStart_figatree",
+        "totalFrames": 17,
+        "iasa": null,
+        "hitFrames": [],
+        "hitboxes": []
+    },
+    "0x139": {
+        "subactionIndex": 313,
+        "subactionName": "PlyPikachu5K_Share_ACTION_SpecialLwLoop_figatree",
+        "totalFrames": 9,
+        "projectiles": [
+            3
+        ],
+        "iasa": null,
+        "hitFrames": [],
+        "hitboxes": []
+    },
+    "0x13a": {
+        "subactionIndex": 314,
+        "subactionName": "PlyPikachu5K_Share_ACTION_SpecialLwLoop_figatree",
+        "totalFrames": 9,
+        "iasa": null,
+        "hitFrames": [],
+        "hitboxes": [
+            {
+                "damage": 17,
+                "angle": 361,
+                "kbGrowth": 60,
+                "weightDepKb": 0,
+                "hitboxInteraction": 2,
+                "baseKb": 100,
+                "element": "electric",
+                "shieldDamage": 2,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "0x13b": {
+        "subactionIndex": 315,
+        "subactionName": "PlyPikachu5K_Share_ACTION_SpecialLwEnd_figatree",
+        "totalFrames": 35,
+        "iasa": null,
+        "hitFrames": [],
+        "hitboxes": []
+    },
+    "0x13c": {
+        "subactionIndex": 316,
+        "subactionName": "PlyPikachu5K_Share_ACTION_SpecialAirLwStart_figatree",
+        "totalFrames": 17,
+        "projectiles": [
+            3
+        ],
+        "iasa": null,
+        "hitFrames": [],
+        "hitboxes": []
+    },
+    "0x13d": {
+        "subactionIndex": 317,
+        "subactionName": "PlyPikachu5K_Share_ACTION_SpecialAirLwLoop_figatree",
+        "totalFrames": 9,
+        "projectiles": [
+            3
+        ],
+        "iasa": null,
+        "hitFrames": [],
+        "hitboxes": []
+    },
+    "0x13e": {
+        "subactionIndex": 318,
+        "subactionName": "PlyPikachu5K_Share_ACTION_SpecialAirLwLoop_figatree",
+        "totalFrames": 9,
+        "iasa": null,
+        "hitFrames": [],
+        "hitboxes": [
+            {
+                "damage": 17,
+                "angle": 361,
+                "kbGrowth": 60,
+                "weightDepKb": 0,
+                "hitboxInteraction": 2,
+                "baseKb": 100,
+                "element": "electric",
+                "shieldDamage": 2,
+                "hitGrounded": true,
+                "hitAirborne": true
+            }
+        ]
+    },
+    "0x13f": {
+        "subactionIndex": 319,
+        "subactionName": "PlyPikachu5K_Share_ACTION_SpecialAirLwEnd_figatree",
+        "totalFrames": 35,
+        "iasa": null,
+        "hitFrames": [],
+        "hitboxes": []
+    }
+}
