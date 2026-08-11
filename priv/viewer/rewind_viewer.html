@@ -456,11 +456,12 @@ function drawStage() {
     draw(coll.wall_right, 2, 0.9);
     draw(coll.ceiling, 1, 0.6);
 
-    // PS persistent geometry (the two platforms — claimed by EVERY
-    // transformation type, so they survive all of them): drawn always
-    const psShared = (g.ps_types || {})["_shared"];
-    if (psShared) {
-      draw(psShared.ground, 2, 0.9);
+    // PS normal-state platforms: they DISAPPEAR during transformations
+    // (Bradley, ground truth) — drawn only when no transformation is
+    // active (type absent or 5 = normal)
+    const psPlatforms = (g.ps_types || {})["_platforms"];
+    if (psPlatforms && (!fr.ps || fr.ps === 5)) {
+      draw(psPlatforms.ground, 2, 0.9);
     }
 
     // Active transformation's pinned structures over the base.

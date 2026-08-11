@@ -127,26 +127,54 @@ existing =
     _ -> %{}
   end
 
+# Ground truth from Bradley (2026-08-11): the two normal platforms
+# DISAPPEAR during transformations — nothing but the base shell
+# persists across states. So: platforms are identified GEOMETRICALLY
+# (the group made entirely of drop-through ground lines — drawn only in
+# the normal state), and every remaining group is assigned EXCLUSIVELY
+# to the single type with the most observation hits on it. Exclusive
+# majority assignment is what prevents overlay soup: a group can only
+# ever belong to one transformation.
+platform_groups =
+  for {g, ls} <- Enum.group_by(base["lines"], &Map.get(&1, "group", 0)),
+      g != primary_group,
+      length(ls) <= 4,
+      Enum.all?(ls, &(&1["class"] == "ground" and &1["drop_through"])),
+      do: g
+
+# hits per {group, type}
+group_hits =
+  for {type, pts} <- points_by_type,
+      pts = Enum.uniq_by(pts, fn {x, y} -> {Float.round(x, 1), Float.round(y, 1)} end),
+      %{seg: seg, index: idx} <- union,
+      g = group_of_index[idx],
+      g != primary_group,
+      g not in platform_groups,
+      hits = Enum.count(pts, fn {x, y} -> StageCollision.point_segment_distance(x, y, seg) < tolerance end),
+      hits > 0,
+      reduce: %{} do
+    acc -> Map.update(acc, {g, type}, hits, &(&1 + hits))
+  end
+
+# group -> its majority type (needs at least min_hits total)
+group_owner =
+  group_hits
+  |> Enum.group_by(fn {{g, _t}, _h} -> g end)
+  |> Map.new(fn {g, entries} ->
+    {{_g, best_type}, best_hits} = Enum.max_by(entries, &elem(&1, 1))
+    total = entries |> Enum.map(&elem(&1, 1)) |> Enum.sum()
+    {g, if(best_hits >= min_hits, do: best_type, else: nil) |> then(&{&1, best_hits, total})}
+  end)
+
 touched_by_type =
   Map.new(points_by_type, fn {type, pts} ->
-    pts = Enum.uniq_by(pts, fn {x, y} -> {Float.round(x, 1), Float.round(y, 1)} end)
-
     groups =
-      for %{seg: seg, index: idx} <- union,
-          g = group_of_index[idx],
-          g != primary_group,
-          hits = Enum.count(pts, fn {x, y} -> StageCollision.point_segment_distance(x, y, seg) < tolerance end),
-          hits >= min_hits,
-          uniq: true,
-          do: g
+      for {g, {owner, _bh, _tot}} <- group_owner, owner == type, uniq: true, do: g
 
     {type, {pts, MapSet.new(groups)}}
   end)
 
-shared_groups =
-  touched_by_type
-  |> Enum.map(fn {_t, {_pts, gs}} -> gs end)
-  |> Enum.reduce(&MapSet.intersection/2)
+shared_groups = MapSet.new(platform_groups)
 
 emit_groups = fn groups ->
   for g <- groups, l <- lines_of_group[g] || [], l["class"] != "dynamic" do
@@ -168,8 +196,8 @@ pinned =
   Enum.reduce(touched_by_type, existing, fn {type, {pts, groups}}, acc ->
     pts = Enum.uniq_by(pts, fn {x, y} -> {Float.round(x, 1), Float.round(y, 1)} end)
 
-    # This type's structures = its claims minus the persistent set
-    matched = emit_groups.(MapSet.difference(groups, shared_groups))
+    # Exclusive: this type's structures are only its majority-owned groups
+    matched = emit_groups.(groups)
 
     key = to_string(type)
     old = Map.get(acc, key, %{"segments" => [], "points_seen" => 0})
@@ -185,7 +213,12 @@ pinned =
     })
   end)
 
-pinned = Map.put(pinned, "_shared", %{"segments" => emit_groups.(shared_groups)})
+# "_platforms": the two normal platforms — drawn ONLY in the normal
+# state (they disappear during transformations)
+pinned =
+  pinned
+  |> Map.delete("_shared")
+  |> Map.put("_platforms", %{"segments" => emit_groups.(shared_groups)})
 
 File.write!(out_path, Jason.encode!(pinned, pretty: true))
 
@@ -196,7 +229,8 @@ for {type, %{"name" => name, "segments" => segs, "points_seen" => n}} <- Enum.so
   Output.puts("  type #{type} (#{name}): #{length(segs)} pinned segments from #{n} points")
 end
 
-Output.puts("  shared (persistent, drawn always): #{length(pinned["_shared"]["segments"])} segments")
+Output.puts("  platforms (normal state only): #{length(pinned["_platforms"]["segments"])} segments")
+Output.puts("  group ownership: #{inspect(Map.new(group_owner, fn {g, {o, bh, tot}} -> {g, {o, bh, tot}} end))}")
 
 covered = map_size(pinned)
 Output.success("#{covered}/4 transformation types have pinned segments -> #{out_path}")
