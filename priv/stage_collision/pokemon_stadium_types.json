@@ -1,8 +1,398 @@
 {
   "3": {
     "name": "fire",
-    "points_seen": 216,
+    "points_seen": 1467,
     "segments": [
+      {
+        "class": "ground",
+        "drop_through": false,
+        "group": 1,
+        "index": 0,
+        "ledge_grab": false,
+        "seg": [
+          -70.0081,
+          0.0,
+          -65.0081,
+          2.5
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "group": 1,
+        "index": 1,
+        "ledge_grab": false,
+        "seg": [
+          -65.0081,
+          2.5,
+          -48.0,
+          2.5
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "group": 1,
+        "index": 2,
+        "ledge_grab": false,
+        "seg": [
+          -62.25,
+          37.75,
+          -54.25,
+          37.75
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "group": 1,
+        "index": 3,
+        "ledge_grab": false,
+        "seg": [
+          -49.5,
+          26.5,
+          -40.5,
+          23.5
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "group": 1,
+        "index": 4,
+        "ledge_grab": false,
+        "seg": [
+          -40.5,
+          23.5,
+          -37.5,
+          20.5
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "group": 1,
+        "index": 5,
+        "ledge_grab": false,
+        "seg": [
+          -37.5,
+          20.5,
+          -36.0,
+          20.5
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "group": 1,
+        "index": 6,
+        "ledge_grab": false,
+        "seg": [
+          -33.0,
+          50.0,
+          -24.0,
+          50.0
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "group": 1,
+        "index": 7,
+        "ledge_grab": false,
+        "seg": [
+          -21.0,
+          2.5,
+          -20.0,
+          2.5
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "group": 1,
+        "index": 8,
+        "ledge_grab": false,
+        "seg": [
+          -20.0,
+          2.5,
+          -10.0,
+          -4.0
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "group": 1,
+        "index": 9,
+        "ledge_grab": false,
+        "seg": [
+          -10.0,
+          -4.0,
+          5.0,
+          -4.0
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "group": 1,
+        "index": 10,
+        "ledge_grab": false,
+        "seg": [
+          5.0,
+          -4.0,
+          12.25,
+          4.5
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": true,
+        "group": 1,
+        "index": 11,
+        "ledge_grab": false,
+        "seg": [
+          7.75,
+          26.002,
+          53.75,
+          26.0041
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "group": 1,
+        "index": 12,
+        "ledge_grab": false,
+        "seg": [
+          12.25,
+          4.5,
+          51.75,
+          4.5
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "group": 1,
+        "index": 13,
+        "ledge_grab": false,
+        "seg": [
+          51.75,
+          4.5,
+          54.25,
+          4.5
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "group": 1,
+        "index": 14,
+        "ledge_grab": false,
+        "seg": [
+          54.25,
+          4.5,
+          56.75,
+          2.5
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "group": 1,
+        "index": 15,
+        "ledge_grab": false,
+        "seg": [
+          56.75,
+          2.5,
+          67.375,
+          2.5
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": false,
+        "group": 1,
+        "index": 16,
+        "ledge_grab": false,
+        "seg": [
+          67.375,
+          2.5,
+          74.0,
+          -0.75
+        ]
+      },
+      {
+        "class": "wall_right",
+        "drop_through": false,
+        "group": 1,
+        "index": 76,
+        "ledge_grab": false,
+        "seg": [
+          -54.25,
+          37.75,
+          -52.5,
+          29.5
+        ]
+      },
+      {
+        "class": "wall_right",
+        "drop_through": false,
+        "group": 1,
+        "index": 77,
+        "ledge_grab": false,
+        "seg": [
+          -52.5,
+          29.5,
+          -49.5,
+          26.5
+        ]
+      },
+      {
+        "class": "wall_right",
+        "drop_through": false,
+        "group": 1,
+        "index": 78,
+        "ledge_grab": false,
+        "seg": [
+          -24.0,
+          50.0,
+          -24.0,
+          5.5
+        ]
+      },
+      {
+        "class": "wall_right",
+        "drop_through": false,
+        "group": 1,
+        "index": 79,
+        "ledge_grab": false,
+        "seg": [
+          -24.0,
+          5.5,
+          -21.0,
+          2.5
+        ]
+      },
+      {
+        "class": "wall_left",
+        "drop_through": false,
+        "group": 1,
+        "index": 91,
+        "ledge_grab": false,
+        "seg": [
+          -60.0,
+          23.5,
+          -62.25,
+          37.75
+        ]
+      },
+      {
+        "class": "wall_left",
+        "drop_through": false,
+        "group": 1,
+        "index": 92,
+        "ledge_grab": false,
+        "seg": [
+          -57.0,
+          19.0,
+          -60.0,
+          23.5
+        ]
+      },
+      {
+        "class": "wall_left",
+        "drop_through": false,
+        "group": 1,
+        "index": 93,
+        "ledge_grab": false,
+        "seg": [
+          -49.5,
+          14.5,
+          -57.0,
+          19.0
+        ]
+      },
+      {
+        "class": "wall_left",
+        "drop_through": false,
+        "group": 1,
+        "index": 94,
+        "ledge_grab": false,
+        "seg": [
+          -48.0,
+          2.5,
+          -45.0,
+          5.5
+        ]
+      },
+      {
+        "class": "wall_left",
+        "drop_through": false,
+        "group": 1,
+        "index": 95,
+        "ledge_grab": false,
+        "seg": [
+          -46.5,
+          11.5,
+          -49.5,
+          14.5
+        ]
+      },
+      {
+        "class": "wall_left",
+        "drop_through": false,
+        "group": 1,
+        "index": 96,
+        "ledge_grab": false,
+        "seg": [
+          -45.0,
+          5.5,
+          -45.0,
+          8.5
+        ]
+      },
+      {
+        "class": "wall_left",
+        "drop_through": false,
+        "group": 1,
+        "index": 97,
+        "ledge_grab": false,
+        "seg": [
+          -45.0,
+          8.5,
+          -46.5,
+          11.5
+        ]
+      },
+      {
+        "class": "wall_left",
+        "drop_through": false,
+        "group": 1,
+        "index": 98,
+        "ledge_grab": false,
+        "seg": [
+          -36.0,
+          20.5,
+          -33.0,
+          26.5
+        ]
+      },
+      {
+        "class": "wall_left",
+        "drop_through": false,
+        "group": 1,
+        "index": 99,
+        "ledge_grab": false,
+        "seg": [
+          -33.0,
+          26.5,
+          -33.0,
+          50.0
+        ]
+      },
       {
         "class": "ground",
         "drop_through": true,
@@ -33,7 +423,7 @@
   },
   "4": {
     "name": "grass",
-    "points_seen": 1579,
+    "points_seen": 2077,
     "segments": [
       {
         "class": "ground",
@@ -229,12 +619,40 @@
           76.5,
           -1.5
         ]
+      },
+      {
+        "class": "ground",
+        "drop_through": true,
+        "group": -1,
+        "index": -1,
+        "ledge_grab": false,
+        "observed": true,
+        "seg": [
+          -58.83,
+          6.02,
+          -47.24,
+          6.02
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": true,
+        "group": -1,
+        "index": -1,
+        "ledge_grab": false,
+        "observed": true,
+        "seg": [
+          -55.87,
+          8.36,
+          -40.51,
+          8.36
+        ]
       }
     ]
   },
   "5": {
     "name": "normal",
-    "points_seen": 2033,
+    "points_seen": 2483,
     "segments": [
       {
         "class": "ground",
@@ -283,10 +701,10 @@
         "ledge_grab": false,
         "observed": true,
         "seg": [
-          -57.09,
-          25.0,
-          -24.05,
-          25.0
+          59.31,
+          -5.56,
+          81.47,
+          -5.56
         ]
       },
       {
@@ -297,17 +715,115 @@
         "ledge_grab": false,
         "observed": true,
         "seg": [
-          24.05,
-          25.0,
-          57.09,
-          25.0
+          -8.54,
+          3.77,
+          52.88,
+          3.77
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": true,
+        "group": -1,
+        "index": -1,
+        "ledge_grab": false,
+        "observed": true,
+        "seg": [
+          57.72,
+          3.91,
+          86.98,
+          3.91
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": true,
+        "group": -1,
+        "index": -1,
+        "ledge_grab": false,
+        "observed": true,
+        "seg": [
+          -24.26,
+          5.84,
+          -10.68,
+          5.84
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": true,
+        "group": -1,
+        "index": -1,
+        "ledge_grab": false,
+        "observed": true,
+        "seg": [
+          -8.16,
+          5.74,
+          9.37,
+          5.74
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": true,
+        "group": -1,
+        "index": -1,
+        "ledge_grab": false,
+        "observed": true,
+        "seg": [
+          26.25,
+          6.23,
+          41.14,
+          6.23
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": true,
+        "group": -1,
+        "index": -1,
+        "ledge_grab": false,
+        "observed": true,
+        "seg": [
+          -81.47,
+          -5.56,
+          -59.31,
+          -5.56
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": true,
+        "group": -1,
+        "index": -1,
+        "ledge_grab": false,
+        "observed": true,
+        "seg": [
+          -86.98,
+          3.91,
+          -57.72,
+          3.91
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": true,
+        "group": -1,
+        "index": -1,
+        "ledge_grab": false,
+        "observed": true,
+        "seg": [
+          -41.14,
+          6.23,
+          -26.25,
+          6.23
         ]
       }
     ]
   },
   "6": {
     "name": "rock",
-    "points_seen": 1551,
+    "points_seen": 1669,
     "segments": [
       {
         "class": "ground",
@@ -638,7 +1154,7 @@
   },
   "9": {
     "name": "water",
-    "points_seen": 2620,
+    "points_seen": 3128,
     "segments": [
       {
         "class": "ground",
@@ -846,6 +1362,370 @@
           -4.5,
           70.0,
           0.0
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": true,
+        "group": -1,
+        "index": -1,
+        "ledge_grab": false,
+        "observed": true,
+        "seg": [
+          -68.73,
+          53.8,
+          -24.46,
+          53.8
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": true,
+        "group": -1,
+        "index": -1,
+        "ledge_grab": false,
+        "observed": true,
+        "seg": [
+          -30.97,
+          34.02,
+          -23.98,
+          34.02
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": true,
+        "group": -1,
+        "index": -1,
+        "ledge_grab": false,
+        "observed": true,
+        "seg": [
+          -67.26,
+          46.01,
+          -56.62,
+          46.01
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": true,
+        "group": -1,
+        "index": -1,
+        "ledge_grab": false,
+        "observed": true,
+        "seg": [
+          -40.82,
+          45.95,
+          -31.44,
+          45.95
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": true,
+        "group": -1,
+        "index": -1,
+        "ledge_grab": false,
+        "observed": true,
+        "seg": [
+          -72.37,
+          52.2,
+          -33.89,
+          52.2
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": true,
+        "group": -1,
+        "index": -1,
+        "ledge_grab": false,
+        "observed": true,
+        "seg": [
+          -28.96,
+          52.0,
+          -17.51,
+          52.0
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": true,
+        "group": -1,
+        "index": -1,
+        "ledge_grab": false,
+        "observed": true,
+        "seg": [
+          -37.43,
+          41.81,
+          -5.19,
+          41.81
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": true,
+        "group": -1,
+        "index": -1,
+        "ledge_grab": false,
+        "observed": true,
+        "seg": [
+          -82.56,
+          56.16,
+          -55.3,
+          56.16
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": true,
+        "group": -1,
+        "index": -1,
+        "ledge_grab": false,
+        "observed": true,
+        "seg": [
+          -49.36,
+          55.98,
+          -18.45,
+          55.98
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": true,
+        "group": -1,
+        "index": -1,
+        "ledge_grab": false,
+        "observed": true,
+        "seg": [
+          -66.73,
+          44.08,
+          -56.17,
+          44.08
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": true,
+        "group": -1,
+        "index": -1,
+        "ledge_grab": false,
+        "observed": true,
+        "seg": [
+          -38.57,
+          44.29,
+          -25.99,
+          44.29
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": true,
+        "group": -1,
+        "index": -1,
+        "ledge_grab": false,
+        "observed": true,
+        "seg": [
+          -25.7,
+          65.94,
+          -6.53,
+          65.94
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": true,
+        "group": -1,
+        "index": -1,
+        "ledge_grab": false,
+        "observed": true,
+        "seg": [
+          -31.22,
+          64.06,
+          -7.13,
+          64.06
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": true,
+        "group": -1,
+        "index": -1,
+        "ledge_grab": false,
+        "observed": true,
+        "seg": [
+          -33.62,
+          32.03,
+          -21.63,
+          32.03
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": true,
+        "group": -1,
+        "index": -1,
+        "ledge_grab": false,
+        "observed": true,
+        "seg": [
+          -17.23,
+          32.09,
+          -9.61,
+          32.09
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": true,
+        "group": -1,
+        "index": -1,
+        "ledge_grab": false,
+        "observed": true,
+        "seg": [
+          -38.16,
+          58.01,
+          -4.03,
+          58.01
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": true,
+        "group": -1,
+        "index": -1,
+        "ledge_grab": false,
+        "observed": true,
+        "seg": [
+          -79.45,
+          27.96,
+          -63.98,
+          27.96
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": true,
+        "group": -1,
+        "index": -1,
+        "ledge_grab": false,
+        "observed": true,
+        "seg": [
+          -21.46,
+          28.18,
+          -9.66,
+          28.18
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": true,
+        "group": -1,
+        "index": -1,
+        "ledge_grab": false,
+        "observed": true,
+        "seg": [
+          -79.04,
+          48.11,
+          -50.93,
+          48.11
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": true,
+        "group": -1,
+        "index": -1,
+        "ledge_grab": false,
+        "observed": true,
+        "seg": [
+          -43.43,
+          48.03,
+          -25.0,
+          48.03
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": true,
+        "group": -1,
+        "index": -1,
+        "ledge_grab": false,
+        "observed": true,
+        "seg": [
+          -78.06,
+          40.06,
+          -69.72,
+          40.06
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": true,
+        "group": -1,
+        "index": -1,
+        "ledge_grab": false,
+        "observed": true,
+        "seg": [
+          -35.91,
+          40.42,
+          -26.34,
+          40.42
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": true,
+        "group": -1,
+        "index": -1,
+        "ledge_grab": false,
+        "observed": true,
+        "seg": [
+          -20.44,
+          40.15,
+          -5.66,
+          40.15
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": true,
+        "group": -1,
+        "index": -1,
+        "ledge_grab": false,
+        "observed": true,
+        "seg": [
+          -34.14,
+          30.03,
+          -8.91,
+          30.03
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": true,
+        "group": -1,
+        "index": -1,
+        "ledge_grab": false,
+        "observed": true,
+        "seg": [
+          -78.05,
+          50.11,
+          -46.79,
+          50.11
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": true,
+        "group": -1,
+        "index": -1,
+        "ledge_grab": false,
+        "observed": true,
+        "seg": [
+          -21.77,
+          74.14,
+          -9.88,
+          74.14
         ]
       }
     ]

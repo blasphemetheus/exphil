@@ -61,11 +61,13 @@ union =
 # Neutral layout = primary group's segments (what the viewer draws as
 # base). Points near these are explained by the flat stage and carry no
 # transformation information.
-primary =
-  base["lines"] |> Enum.map(&Map.get(&1, "group", 0)) |> Enum.frequencies() |> Enum.max_by(&elem(&1, 1)) |> elem(0)
-
+# Collection pre-filter: only drop points explained by the BASE SHELL
+# (ledge-grab rule). A stale largest-group version of this filter used
+# G1 — the fire tree — whose static footprint shadowed the midfield and
+# silently starved fire (and others) of observations.
 neutral_segs =
-  for l <- base["lines"], Map.get(l, "group", primary) == primary do
+  for l <- base["lines"],
+      Map.get(l, "group", 0) == StageCollision.base_group(base["lines"]) do
     [x1, y1] = elem(varr, l["v1"])
     [x2, y2] = elem(varr, l["v2"])
     {x1, y1, x2, y2}
@@ -216,58 +218,96 @@ pinned =
     })
   end)
 
-# The REAL side platforms match no static segment (their collision is
-# runtime-positioned) — synthesize them from where normal-state players
-# actually STAND elevated: cluster (side, rounded y), keep clusters with
-# solid support, emit the observed x-span at the modal height. Same
-# players-as-probes method that measured FoD's start heights.
-synth_platforms =
-  case points_by_type[5] do
-    nil ->
-      []
-
-    pts ->
-      pts
-      |> Enum.filter(fn {_x, y} -> y > 15.0 and y < 45.0 end)
-      |> Enum.group_by(fn {x, y} -> {if(x < 0, do: :l, else: :r), Float.round(y / 2) * 2} end)
-      |> Enum.filter(fn {_k, ps} -> length(ps) >= 20 end)
-      |> Enum.map(fn {{side, _yb}, ps} ->
-        ys = Enum.map(ps, &elem(&1, 1))
-        y = Enum.sum(ys) / length(ys)
-        xs = Enum.map(ps, &elem(&1, 0))
-        {side, Float.round(y, 2), Float.round(Enum.min(xs) - 2, 2), Float.round(Enum.max(xs) + 2, 2)}
-      end)
-      |> then(fn clusters ->
-        # Stadium is symmetric: mirror any cluster lacking a counterpart
-        # on the other side at the same height (right platform had too
-        # few standing samples in the observed games)
-        mirrored =
-          for {side, y, x1, x2} <- clusters,
-              other = if(side == :l, do: :r, else: :l),
-              not Enum.any?(clusters, fn {s, y2, _, _} -> s == other and abs(y2 - y) < 3.0 end),
-              do: {other, y, -x2, -x1}
-
-        clusters ++ mirrored
-      end)
-      |> Enum.map(fn {_side, y, x1, x2} ->
-        %{
-          "index" => -1,
-          "class" => "ground",
-          "group" => -1,
-          "seg" => [x1, y, x2, y],
-          "ledge_grab" => false,
-          "drop_through" => true,
-          "observed" => true
-        }
-      end)
+# Runtime-positioned geometry (normal side platforms, fire's floor and
+# trunk, ...) matches NO static segment — synthesize per type from the
+# standing points its owned+base geometry can't explain: bin by height
+# (2 units), split x-clusters at gaps > 6, keep well-supported clusters,
+# emit observed segments. Normal-state clusters get symmetric mirroring
+# (the stage is symmetric; some sides are under-sampled).
+base_segs =
+  for l <- lines_of_group[primary_group] || [] do
+    [x1, y1] = elem(varr, l["v1"])
+    [x2, y2] = elem(varr, l["v2"])
+    {x1, y1, x2, y2}
   end
 
+synthesize = fn type, owned_groups ->
+  pts = points_by_type[type] || []
+
+  explained =
+    base_segs ++
+      (for g <- owned_groups, l <- lines_of_group[g] || [], l["class"] != "dynamic" do
+         [x1, y1] = elem(varr, l["v1"])
+         [x2, y2] = elem(varr, l["v2"])
+         {x1, y1, x2, y2}
+       end)
+
+  clusters =
+    pts
+    |> Enum.filter(fn {x, y} ->
+      Enum.all?(explained, &(StageCollision.point_segment_distance(x, y, &1) > 2.5))
+    end)
+    |> Enum.group_by(fn {_x, y} -> round(y / 2) * 2 end)
+    |> Enum.flat_map(fn {_yb, ps} ->
+      ps
+      |> Enum.sort_by(&elem(&1, 0))
+      |> Enum.chunk_while([], fn {x, y}, acc ->
+        case acc do
+          [] -> {:cont, [{x, y}]}
+          [{px, _} | _] when x - px <= 6.0 -> {:cont, [{x, y} | acc]}
+          _ -> {:cont, Enum.reverse(acc), [{x, y}]}
+        end
+      end, fn acc -> {:cont, Enum.reverse(acc), []} end)
+      |> Enum.filter(&(length(&1) >= 15))
+    end)
+    |> Enum.map(fn ps ->
+      ys = Enum.map(ps, &elem(&1, 1))
+      y = Float.round(Enum.sum(ys) / length(ys), 2)
+      xs = Enum.map(ps, &elem(&1, 0))
+      {y, Float.round(Enum.min(xs) - 2, 2), Float.round(Enum.max(xs) + 2, 2)}
+    end)
+
+  clusters =
+    if type == 5 do
+      mirrored =
+        for {y, x1, x2} <- clusters,
+            x2 < 0 or x1 > 0,
+            not Enum.any?(clusters, fn {y2, mx1, mx2} ->
+              abs(y2 - y) < 3.0 and mx1 <= -x2 + 3 and mx2 >= -x1 - 3
+            end),
+            do: {y, -x2, -x1}
+
+      clusters ++ mirrored
+    else
+      clusters
+    end
+
+  for {y, x1, x2} <- clusters do
+    %{
+      "index" => -1,
+      "class" => "ground",
+      "group" => -1,
+      "seg" => [x1, y, x2, y],
+      "ledge_grab" => false,
+      "drop_through" => true,
+      "observed" => true
+    }
+  end
+end
+
+owned_by_type =
+  group_owner
+  |> Enum.filter(fn {_g, {o, _, _}} -> o != nil end)
+  |> Enum.group_by(fn {_g, {o, _, _}} -> o end, fn {g, _} -> g end)
+
 pinned =
-  pinned
-  |> Map.delete("_shared")
-  |> Map.delete("_platforms")
-  |> Map.update("5", %{"segments" => synth_platforms}, fn e ->
-    Map.update(e, "segments", synth_platforms, &(&1 ++ synth_platforms))
+  Enum.reduce(Map.keys(points_by_type), pinned |> Map.delete("_shared") |> Map.delete("_platforms"), fn type, acc ->
+    synth = synthesize.(type, Map.get(owned_by_type, type, []))
+    key = to_string(type)
+
+    Map.update(acc, key, %{"name" => type_names[type], "segments" => synth, "points_seen" => 0}, fn e ->
+      Map.update(e, "segments", synth, &(&1 ++ synth))
+    end)
   end)
 
 File.write!(out_path, Jason.encode!(pinned, pretty: true))
