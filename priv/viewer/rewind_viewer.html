@@ -328,7 +328,10 @@ function prepare() {
   const mu = S.own_char
     ? ` · ${charEmoji(S.own_char) || ""}${S.own_char} vs ${charEmoji(S.opp_char) || ""}${S.opp_char}`
     : "";
-  $("meta").textContent = `— ${S.total} frames · ${(STAGE_META[S.stage] || {name: "stage " + S.stage}).name}${mu} · window ${S.window}`;
+  // exported_at makes stale-cache confusion self-diagnosing: if the
+  // header timestamp predates a fix, the cached copy needs re-picking
+  const vintage = S.exported_at ? ` · exported ${S.exported_at}` : " · exported pre-v2 (re-export recommended)";
+  $("meta").textContent = `— ${S.total} frames · ${(STAGE_META[S.stage] || {name: "stage " + S.stage}).name}${mu} · window ${S.window}${vintage}`;
   $("scrub").max = S.total - 1;
 
   // Label lanes present in this session, as segments for the track canvas

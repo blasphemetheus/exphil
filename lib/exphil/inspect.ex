@@ -311,7 +311,8 @@ defmodule ExPhil.Inspect do
     opp_port = s.opp_port
 
     payload = %{
-      version: 1,
+      version: 2,
+      exported_at: DateTime.utc_now() |> DateTime.truncate(:second) |> DateTime.to_iso8601(),
       window: s.window,
       port: s.port,
       total: s.total,
