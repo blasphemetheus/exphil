@@ -392,14 +392,10 @@ defmodule ExPhil.Inspect do
 
       lines =
         if to_string(name) in @primary_only do
-          primary =
-            lines
-            |> Enum.map(&Map.get(&1, "group", 0))
-            |> Enum.frequencies()
-            |> Enum.max_by(&elem(&1, 1), fn -> {0, 0} end)
-            |> elem(0)
-
-          Enum.filter(lines, &(Map.get(&1, "group", primary) == primary))
+          # Base group = the one with the grabbable ledges (NOT the
+          # largest — on PS the largest group is the fire tree)
+          base = ExPhil.StageCollision.base_group(lines)
+          Enum.filter(lines, &(Map.get(&1, "group", base) == base))
         else
           lines
         end

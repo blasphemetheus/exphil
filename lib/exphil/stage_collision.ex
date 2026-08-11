@@ -93,6 +93,24 @@ defmodule ExPhil.StageCollision do
     end
   end
 
+  @doc """
+  The BASE (static stage shell) line-group id for a decoded lines list:
+  the group holding the most `ledge_grab` lines — every stage's static
+  base has grabbable edges; moving objects (Randall, FoD platforms, PS
+  transformation structures) never do. Tie-break: most lines. Found the
+  hard way on PS, where the largest group (30 lines) is the fire-tree
+  structure and the real base is 21 lines (4 ledges, edge 87.75).
+  """
+  @spec base_group([map()]) :: integer()
+  def base_group(lines) do
+    lines
+    |> Enum.group_by(&Map.get(&1, "group", 0))
+    |> Enum.max_by(fn {_g, ls} ->
+      {Enum.count(ls, & &1["ledge_grab"]), length(ls)}
+    end)
+    |> elem(0)
+  end
+
   @doc "Distance from point to segment {x1,y1,x2,y2}."
   @spec point_segment_distance(number(), number(), {number(), number(), number(), number()}) ::
           float()

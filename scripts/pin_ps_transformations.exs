@@ -79,8 +79,8 @@ end
 # any of its lines claims the whole group, which is what recovers the
 # walls/ceilings under a structure that players only ever stand ON TOP
 # of. The primary (main-stage) group is never claimable.
-primary_group =
-  base["lines"] |> Enum.map(&Map.get(&1, "group", 0)) |> Enum.frequencies() |> Enum.max_by(&elem(&1, 1)) |> elem(0)
+# Ledge-grab rule, NOT largest — on PS the largest group is a structure
+primary_group = StageCollision.base_group(base["lines"])
 
 group_of_index =
   Map.new(base["lines"], fn l -> {l["index"], Map.get(l, "group", 0)} end)
