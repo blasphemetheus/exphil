@@ -468,6 +468,27 @@ function drawStage() {
       draw(psNormal.ceiling, 1, 0.6);
     }
 
+    // Windmill (water only): APPROXIMATE indicator — hub and CW
+    // direction fitted from 1,271 blade-riding chords (bisector method);
+    // exact rotation rate unfittable from contaminated observations
+    // (riders slide along blades), so phase/rate here are illustrative.
+    // Precision path in task #5. Drawn faint + labeled to signal
+    // approximation.
+    if (fr.ps === 9 && (fr.pse == null || fr.pse === 0)) {
+      const hx = sx(-36.64), hy = sy(38.8), R = sx(-36.64 + 28) - sx(-36.64);
+      const ang = (t * -0.022) % (Math.PI * 2);
+      cx.strokeStyle = ORANGE; cx.globalAlpha = 0.35; cx.lineWidth = 2;
+      for (let k = 0; k < 4; k++) {
+        const a = ang + k * Math.PI / 2;
+        cx.beginPath(); cx.moveTo(hx, hy);
+        cx.lineTo(hx + R * Math.cos(a), hy - R * Math.sin(a)); cx.stroke();
+      }
+      cx.globalAlpha = 0.7; cx.font = "9px system-ui";
+      cx.fillStyle = ORANGE;
+      cx.fillText("windmill (approx)", hx - 30, hy + R + 12);
+      cx.globalAlpha = 1;
+    }
+
     // Active transformation's pinned structures over the base.
     // stadium_event phase = the switching animation: 0 finished (solid),
     // 2 init / 3 on_monitor / 4 receding / 5 rising / 6 finalize
