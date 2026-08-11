@@ -237,10 +237,35 @@ defmodule ExPhil.Inspect do
     fod_seed = if has_fod_events?, do: {21.25, 27.25}
 
     {frames, _} =
-      Enum.map_reduce(0..(s.total - 1), %{fod: fod_seed, ps: nil, pse: nil, wsp: nil}, fn t, held ->
+      Enum.map_reduce(0..(s.total - 1), %{fod: fod_seed, ps: nil, psn: nil, pse: nil, wsp: nil}, fn t, held ->
         f = elem(s.frames, t)
         gs = f.game_state
         opp_port = s.opp_port
+
+        # PS transformation state machine (Bradley's grassrock report —
+        # the jumbotron ANNOUNCES the next type ~10s before the stage
+        # morphs; play continues on the old layout through init(2)/
+        # on_monitor(3)): `announced` = the jumbotron; `active` = what's
+        # physically standable — switches from old to new when
+        # new_rising(5) begins.
+        {announced, active, pse} =
+          case {Map.get(gs, :stadium_type), Map.get(gs, :stadium_event)} do
+            {nil, nil} ->
+              {held.psn, held.ps, held.pse}
+
+            {t, e} ->
+              t = t || held.psn
+              e = if(e != nil, do: e, else: held.pse)
+
+              active =
+                cond do
+                  e in [2, 3, 4] -> held.ps || 5
+                  e in [5, 6, 0] -> t
+                  true -> held.ps
+                end
+
+              {t, active, e}
+          end
 
         held = %{
           held
@@ -249,8 +274,9 @@ defmodule ExPhil.Inspect do
                 {nil, nil} -> held.fod
                 {l, r} -> {l || elem(held.fod || {nil, nil}, 0), r || elem(held.fod || {nil, nil}, 1)}
               end,
-            ps: Map.get(gs, :stadium_type) || held.ps,
-            pse: Map.get(gs, :stadium_event) || held.pse,
+            ps: active,
+            psn: announced,
+            pse: pse,
             wsp: Map.get(gs, :whispy_direction) || held.wsp
         }
 
@@ -278,6 +304,7 @@ defmodule ExPhil.Inspect do
           end
 
         base = if held.ps, do: Map.put(base, :ps, held.ps), else: base
+        base = if held.psn && held.psn != held.ps, do: Map.put(base, :psn, held.psn), else: base
         base = if held.pse != nil, do: Map.put(base, :pse, held.pse), else: base
         base = if held.wsp, do: Map.put(base, :wsp, held.wsp), else: base
 

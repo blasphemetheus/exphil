@@ -396,11 +396,18 @@ function drawStage() {
   // event-bearing replays; unpinned/partial types still get the badge.
   const coll = g.collision;
   const PS_TYPES = { 3: "fire", 4: "grass", 5: "normal", 6: "rock", 9: "water" };
+  // fr.ps = the PHYSICALLY ACTIVE layout (export state machine); fr.psn
+  // = a different type announced on the jumbotron (play continues on
+  // the active layout for ~10s before the morph — Bradley's grassrock
+  // finding). Structures dash only during the actual morph (4/5/6).
   const activePS = fr.ps && fr.ps !== 5 ? (g.ps_types || {})[fr.ps] : null;
-  if (fr.ps && fr.ps !== 5) {
-    const morph = fr.pse != null && fr.pse !== 0 ? " (switching…)" : "";
+  const morphing = fr.pse != null && [4, 5, 6].includes(fr.pse);
+  if (fr.psn) {
     cx.fillStyle = ORANGE; cx.font = "11px system-ui";
-    cx.fillText(`transformation: ${PS_TYPES[fr.ps] || fr.ps}${morph}${activePS ? "" : " (structures not pinned)"}`, W / 2 - 80, 16);
+    cx.fillText(`next: ${PS_TYPES[fr.psn] || fr.psn} (on monitor)`, W / 2 - 60, 16);
+  } else if (fr.ps && fr.ps !== 5) {
+    cx.fillStyle = ORANGE; cx.font = "11px system-ui";
+    cx.fillText(`transformation: ${PS_TYPES[fr.ps] || fr.ps}${morphing ? " (switching…)" : ""}${activePS ? "" : " (structures not pinned)"}`, W / 2 - 80, 16);
   }
 
   // Dreamland Whispy wind (0x40 event, held): 0 = calm, 1 = blowing
@@ -494,7 +501,6 @@ function drawStage() {
     // 2 init / 3 on_monitor / 4 receding / 5 rising / 6 finalize
     // (translucent + dashed while the stage is morphing)
     if (activePS) {
-      const morphing = fr.pse != null && fr.pse !== 0;
       if (morphing) { cx.setLineDash([4, 4]); }
       const a = morphing ? 0.45 : 1;
       draw(activePS.ground, 3, a);
