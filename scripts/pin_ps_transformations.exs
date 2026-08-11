@@ -115,18 +115,23 @@ points_by_type =
     end
   end)
 
-# Attribute union segments per type
+# Attribute union segments per type. Two-stage: first collect each
+# type's touched groups, then split PERSISTENT geometry (groups touched
+# during EVERY observed type — the two platforms survive all
+# transformations) from per-type structures (claims minus shared).
+# Without the subtraction every type claims the platforms too and the
+# per-type overlays draw as "a bunch of transforms at once".
 existing =
   case File.read(out_path) do
     {:ok, raw} -> Jason.decode!(raw)
     _ -> %{}
   end
 
-pinned =
-  Enum.reduce(points_by_type, existing, fn {type, pts}, acc ->
+touched_by_type =
+  Map.new(points_by_type, fn {type, pts} ->
     pts = Enum.uniq_by(pts, fn {x, y} -> {Float.round(x, 1), Float.round(y, 1)} end)
 
-    touched_groups =
+    groups =
       for %{seg: seg, index: idx} <- union,
           g = group_of_index[idx],
           g != primary_group,
@@ -135,21 +140,36 @@ pinned =
           uniq: true,
           do: g
 
-    # Emit EVERY line of each touched group (the whole structure)
-    matched =
-      for g <- touched_groups, l <- lines_of_group[g] || [], l["class"] != "dynamic" do
-        [x1, y1] = elem(varr, l["v1"])
-        [x2, y2] = elem(varr, l["v2"])
+    {type, {pts, MapSet.new(groups)}}
+  end)
 
-        %{
-          "index" => l["index"],
-          "class" => l["class"],
-          "group" => g,
-          "seg" => [x1, y1, x2, y2],
-          "ledge_grab" => l["ledge_grab"],
-          "drop_through" => l["drop_through"]
-        }
-      end
+shared_groups =
+  touched_by_type
+  |> Enum.map(fn {_t, {_pts, gs}} -> gs end)
+  |> Enum.reduce(&MapSet.intersection/2)
+
+emit_groups = fn groups ->
+  for g <- groups, l <- lines_of_group[g] || [], l["class"] != "dynamic" do
+    [x1, y1] = elem(varr, l["v1"])
+    [x2, y2] = elem(varr, l["v2"])
+
+    %{
+      "index" => l["index"],
+      "class" => l["class"],
+      "group" => g,
+      "seg" => [x1, y1, x2, y2],
+      "ledge_grab" => l["ledge_grab"],
+      "drop_through" => l["drop_through"]
+    }
+  end
+end
+
+pinned =
+  Enum.reduce(touched_by_type, existing, fn {type, {pts, groups}}, acc ->
+    pts = Enum.uniq_by(pts, fn {x, y} -> {Float.round(x, 1), Float.round(y, 1)} end)
+
+    # This type's structures = its claims minus the persistent set
+    matched = emit_groups.(MapSet.difference(groups, shared_groups))
 
     key = to_string(type)
     old = Map.get(acc, key, %{"segments" => [], "points_seen" => 0})
@@ -165,13 +185,18 @@ pinned =
     })
   end)
 
+pinned = Map.put(pinned, "_shared", %{"segments" => emit_groups.(shared_groups)})
+
 File.write!(out_path, Jason.encode!(pinned, pretty: true))
 
 Output.puts("  observed types this run: #{inspect(Map.new(points_by_type, fn {t, p} -> {type_names[t], length(p)} end))}")
 
-for {type, %{"name" => name, "segments" => segs, "points_seen" => n}} <- Enum.sort(pinned) do
+for {type, %{"name" => name, "segments" => segs, "points_seen" => n}} <- Enum.sort(pinned),
+    type != "_shared" do
   Output.puts("  type #{type} (#{name}): #{length(segs)} pinned segments from #{n} points")
 end
+
+Output.puts("  shared (persistent, drawn always): #{length(pinned["_shared"]["segments"])} segments")
 
 covered = map_size(pinned)
 Output.success("#{covered}/4 transformation types have pinned segments -> #{out_path}")

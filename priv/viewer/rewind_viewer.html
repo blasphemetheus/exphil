@@ -398,8 +398,9 @@ function drawStage() {
   const PS_TYPES = { 3: "fire", 4: "grass", 5: "normal", 6: "rock", 9: "water" };
   const activePS = fr.ps && fr.ps !== 5 ? (g.ps_types || {})[fr.ps] : null;
   if (fr.ps && fr.ps !== 5) {
+    const morph = fr.pse != null && fr.pse !== 0 ? " (switching…)" : "";
     cx.fillStyle = ORANGE; cx.font = "11px system-ui";
-    cx.fillText(`transformation: ${PS_TYPES[fr.ps] || fr.ps}${activePS ? "" : " (structures not pinned)"}`, W / 2 - 80, 16);
+    cx.fillText(`transformation: ${PS_TYPES[fr.ps] || fr.ps}${morph}${activePS ? "" : " (structures not pinned)"}`, W / 2 - 80, 16);
   }
 
   // Dreamland Whispy wind (0x40 event, held): 0 = calm, 1 = blowing
@@ -455,13 +456,26 @@ function drawStage() {
     draw(coll.wall_right, 2, 0.9);
     draw(coll.ceiling, 1, 0.6);
 
-    // Active transformation's pinned structures over the base
+    // PS persistent geometry (the two platforms — claimed by EVERY
+    // transformation type, so they survive all of them): drawn always
+    const psShared = (g.ps_types || {})["_shared"];
+    if (psShared) {
+      draw(psShared.ground, 2, 0.9);
+    }
+
+    // Active transformation's pinned structures over the base.
+    // stadium_event phase = the switching animation: 0 finished (solid),
+    // 2 init / 3 on_monitor / 4 receding / 5 rising / 6 finalize
+    // (translucent + dashed while the stage is morphing)
     if (activePS) {
-      draw(activePS.ground, 3, 1);
-      draw(activePS.wall_left, 2, 0.9);
-      draw(activePS.wall_right, 2, 0.9);
-      draw(activePS.ceiling, 1, 0.6);
-      draw(activePS.dynamic, 2, 0.8);
+      const morphing = fr.pse != null && fr.pse !== 0;
+      if (morphing) { cx.setLineDash([4, 4]); }
+      const a = morphing ? 0.45 : 1;
+      draw(activePS.ground, 3, a);
+      draw(activePS.wall_left, 2, 0.9 * a);
+      draw(activePS.wall_right, 2, 0.9 * a);
+      draw(activePS.ceiling, 1, 0.6 * a);
+      cx.setLineDash([]);
     }
 
     // FoD platforms: ALL THREE are moving-object line-groups in the

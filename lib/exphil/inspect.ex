@@ -237,7 +237,7 @@ defmodule ExPhil.Inspect do
     fod_seed = if has_fod_events?, do: {21.25, 27.25}
 
     {frames, _} =
-      Enum.map_reduce(0..(s.total - 1), %{fod: fod_seed, ps: nil, wsp: nil}, fn t, held ->
+      Enum.map_reduce(0..(s.total - 1), %{fod: fod_seed, ps: nil, pse: nil, wsp: nil}, fn t, held ->
         f = elem(s.frames, t)
         gs = f.game_state
         opp_port = s.opp_port
@@ -250,6 +250,7 @@ defmodule ExPhil.Inspect do
                 {l, r} -> {l || elem(held.fod || {nil, nil}, 0), r || elem(held.fod || {nil, nil}, 1)}
               end,
             ps: Map.get(gs, :stadium_type) || held.ps,
+            pse: Map.get(gs, :stadium_event) || held.pse,
             wsp: Map.get(gs, :whispy_direction) || held.wsp
         }
 
@@ -277,6 +278,7 @@ defmodule ExPhil.Inspect do
           end
 
         base = if held.ps, do: Map.put(base, :ps, held.ps), else: base
+        base = if held.pse != nil, do: Map.put(base, :pse, held.pse), else: base
         base = if held.wsp, do: Map.put(base, :wsp, held.wsp), else: base
 
         {base, held}
