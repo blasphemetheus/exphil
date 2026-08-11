@@ -266,6 +266,27 @@ synthesize = fn type, owned_groups ->
       xs = Enum.map(ps, &elem(&1, 0))
       {y, Float.round(Enum.min(xs) - 2, 2), Float.round(Enum.max(xs) + 2, 2)}
     end)
+    # A real new surface is SEPARATED from known geometry; clusters
+    # hovering within 8 units of an explained segment are measurement
+    # noise (hitlag/slope/ECB standing offsets around the floor), not
+    # platforms — they were rendering as junk strips along the stage
+    |> Enum.reject(fn {y, x1, x2} ->
+      mid = (x1 + x2) / 2
+      Enum.any?(explained, &(StageCollision.point_segment_distance(mid, y, &1) < 8.0))
+    end)
+    # Water: the windmill's sweep disc (hub -36.64, 38.8, fitted) is
+    # ROTATING geometry — riding samples cluster at frozen angles and
+    # would render as a stack of static strips. The spinner indicator
+    # owns that region; static synthesis stays out of it.
+    |> Enum.reject(fn {y, x1, x2} ->
+      type == 9 and
+        (fn ->
+           mid = (x1 + x2) / 2
+           dx = mid - -36.64
+           dy = y - 38.8
+           :math.sqrt(dx * dx + dy * dy) < 50.0
+         end).()
+    end)
 
   clusters =
     if type == 5 do
