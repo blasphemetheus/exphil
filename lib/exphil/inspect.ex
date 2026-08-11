@@ -224,9 +224,20 @@ defmodule ExPhil.Inspect do
     yoshis? = trunc(elem(s.frames, 0).game_state.stage || 0) == 8
 
     # FoD heights and the PS transformation type arrive as EVENTS and
-    # persist between them — hold the last seen value while mapping
+    # persist between them — hold the last seen value while mapping.
+    # SEED: platforms exist from frame 0 but the first event arrives
+    # ~1000 frames in; both 0809 netplay games measure the start heights
+    # at exactly left 16.125 / right 22.125 surface (21.25 / 27.25 in
+    # event space, +5.125 reference). Seed only when the replay carries
+    # FoD events at all — event-less (pre-3.18) replays stay absent
+    # rather than freezing platforms at start heights forever.
+    has_fod_events? =
+      Enum.any?(s.states, &(Map.get(&1, :fod_platform_left) || Map.get(&1, :fod_platform_right)))
+
+    fod_seed = if has_fod_events?, do: {21.25, 27.25}
+
     {frames, _} =
-      Enum.map_reduce(0..(s.total - 1), %{fod: nil, ps: nil, wsp: nil}, fn t, held ->
+      Enum.map_reduce(0..(s.total - 1), %{fod: fod_seed, ps: nil, wsp: nil}, fn t, held ->
         f = elem(s.frames, t)
         gs = f.game_state
         opp_port = s.opp_port
