@@ -42,7 +42,7 @@ out_path = opts[:out] || "priv/stage_collision/pokemon_stadium_types.json"
 
 min_hits = 3
 tolerance = 2.0
-type_names = %{3 => "fire", 4 => "grass", 6 => "rock", 9 => "water"}
+type_names = %{3 => "fire", 4 => "grass", 5 => "normal", 6 => "rock", 9 => "water"}
 
 Output.banner("PS transformation pinning")
 
@@ -102,7 +102,11 @@ points_by_type =
           end)
 
         Enum.reduce(samples, acc, fn
-          {0, type, pts}, a when type in [3, 4, 6, 9] ->
+          # NORMAL (5) is a layout like any other: the middle floor +
+          # real side platforms are its exclusive groups (the base shell
+          # holds only the ledge slivers — transformations replace the
+          # whole middle)
+          {0, type, pts}, a when type in [3, 4, 5, 6, 9] ->
             fresh = Enum.reject(pts, explained_by_neutral?)
             Map.update(a, type, fresh, &(fresh ++ &1))
 
@@ -135,18 +139,17 @@ existing =
 # to the single type with the most observation hits on it. Exclusive
 # majority assignment is what prevents overlay soup: a group can only
 # ever belong to one transformation.
-platform_groups =
-  for {g, ls} <- Enum.group_by(base["lines"], &Map.get(&1, "group", 0)),
-      g != primary_group,
-      length(ls) <= 4,
-      Enum.all?(ls, &(&1["class"] == "ground" and &1["drop_through"])),
-      do: g
+# (A geometric "all drop-through = platforms" rule misfired here — it
+# caught the fire tree's branch platforms. Normal's real geometry is
+# pinned observationally like every other type.)
+platform_groups = []
 
 # hits per {group, type}
 group_hits =
   for {type, pts} <- points_by_type,
       pts = Enum.uniq_by(pts, fn {x, y} -> {Float.round(x, 1), Float.round(y, 1)} end),
-      %{seg: seg, index: idx} <- union,
+      %{seg: seg, index: idx, class: class} <- union,
+      class != "dynamic",
       g = group_of_index[idx],
       g != primary_group,
       g not in platform_groups,
@@ -213,12 +216,59 @@ pinned =
     })
   end)
 
-# "_platforms": the two normal platforms — drawn ONLY in the normal
-# state (they disappear during transformations)
+# The REAL side platforms match no static segment (their collision is
+# runtime-positioned) — synthesize them from where normal-state players
+# actually STAND elevated: cluster (side, rounded y), keep clusters with
+# solid support, emit the observed x-span at the modal height. Same
+# players-as-probes method that measured FoD's start heights.
+synth_platforms =
+  case points_by_type[5] do
+    nil ->
+      []
+
+    pts ->
+      pts
+      |> Enum.filter(fn {_x, y} -> y > 15.0 and y < 45.0 end)
+      |> Enum.group_by(fn {x, y} -> {if(x < 0, do: :l, else: :r), Float.round(y / 2) * 2} end)
+      |> Enum.filter(fn {_k, ps} -> length(ps) >= 20 end)
+      |> Enum.map(fn {{side, _yb}, ps} ->
+        ys = Enum.map(ps, &elem(&1, 1))
+        y = Enum.sum(ys) / length(ys)
+        xs = Enum.map(ps, &elem(&1, 0))
+        {side, Float.round(y, 2), Float.round(Enum.min(xs) - 2, 2), Float.round(Enum.max(xs) + 2, 2)}
+      end)
+      |> then(fn clusters ->
+        # Stadium is symmetric: mirror any cluster lacking a counterpart
+        # on the other side at the same height (right platform had too
+        # few standing samples in the observed games)
+        mirrored =
+          for {side, y, x1, x2} <- clusters,
+              other = if(side == :l, do: :r, else: :l),
+              not Enum.any?(clusters, fn {s, y2, _, _} -> s == other and abs(y2 - y) < 3.0 end),
+              do: {other, y, -x2, -x1}
+
+        clusters ++ mirrored
+      end)
+      |> Enum.map(fn {_side, y, x1, x2} ->
+        %{
+          "index" => -1,
+          "class" => "ground",
+          "group" => -1,
+          "seg" => [x1, y, x2, y],
+          "ledge_grab" => false,
+          "drop_through" => true,
+          "observed" => true
+        }
+      end)
+  end
+
 pinned =
   pinned
   |> Map.delete("_shared")
-  |> Map.put("_platforms", %{"segments" => emit_groups.(shared_groups)})
+  |> Map.delete("_platforms")
+  |> Map.update("5", %{"segments" => synth_platforms}, fn e ->
+    Map.update(e, "segments", synth_platforms, &(&1 ++ synth_platforms))
+  end)
 
 File.write!(out_path, Jason.encode!(pinned, pretty: true))
 
@@ -229,7 +279,6 @@ for {type, %{"name" => name, "segments" => segs, "points_seen" => n}} <- Enum.so
   Output.puts("  type #{type} (#{name}): #{length(segs)} pinned segments from #{n} points")
 end
 
-Output.puts("  platforms (normal state only): #{length(pinned["_platforms"]["segments"])} segments")
 Output.puts("  group ownership: #{inspect(Map.new(group_owner, fn {g, {o, bh, tot}} -> {g, {o, bh, tot}} end))}")
 
 covered = map_size(pinned)

@@ -456,12 +456,16 @@ function drawStage() {
     draw(coll.wall_right, 2, 0.9);
     draw(coll.ceiling, 1, 0.6);
 
-    // PS normal-state platforms: they DISAPPEAR during transformations
-    // (Bradley, ground truth) — drawn only when no transformation is
-    // active (type absent or 5 = normal)
-    const psPlatforms = (g.ps_types || {})["_platforms"];
-    if (psPlatforms && (!fr.ps || fr.ps === 5)) {
-      draw(psPlatforms.ground, 2, 0.9);
+    // PS normal state IS a layout like the transformations: the middle
+    // floor + real side platforms are type 5's pinned groups (the base
+    // shell holds only the ledge slivers). Drawn when no transformation
+    // is active (pre-event or type 5).
+    const psNormal = (g.ps_types || {})["5"];
+    if (psNormal && (!fr.ps || fr.ps === 5)) {
+      draw(psNormal.ground, 3, 1);
+      draw(psNormal.wall_left, 2, 0.9);
+      draw(psNormal.wall_right, 2, 0.9);
+      draw(psNormal.ceiling, 1, 0.6);
     }
 
     // Active transformation's pinned structures over the base.

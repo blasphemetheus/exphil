@@ -2,7 +2,34 @@
   "3": {
     "name": "fire",
     "points_seen": 216,
-    "segments": []
+    "segments": [
+      {
+        "class": "ground",
+        "drop_through": true,
+        "group": 2,
+        "index": 17,
+        "ledge_grab": false,
+        "seg": [
+          -78.0,
+          37.75,
+          -62.25,
+          37.75
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": true,
+        "group": 2,
+        "index": 18,
+        "ledge_grab": false,
+        "seg": [
+          -54.25,
+          37.75,
+          -48.0,
+          37.75
+        ]
+      }
+    ]
   },
   "4": {
     "name": "grass",
@@ -205,9 +232,9 @@
       }
     ]
   },
-  "6": {
-    "name": "rock",
-    "points_seen": 1551,
+  "5": {
+    "name": "normal",
+    "points_seen": 2033,
     "segments": [
       {
         "class": "ground",
@@ -248,6 +275,40 @@
           25.0
         ]
       },
+      {
+        "class": "ground",
+        "drop_through": true,
+        "group": -1,
+        "index": -1,
+        "ledge_grab": false,
+        "observed": true,
+        "seg": [
+          -57.09,
+          25.0,
+          -24.05,
+          25.0
+        ]
+      },
+      {
+        "class": "ground",
+        "drop_through": true,
+        "group": -1,
+        "index": -1,
+        "ledge_grab": false,
+        "observed": true,
+        "seg": [
+          24.05,
+          25.0,
+          57.09,
+          25.0
+        ]
+      }
+    ]
+  },
+  "6": {
+    "name": "rock",
+    "points_seen": 1551,
+    "segments": [
       {
         "class": "ground",
         "drop_through": false,
@@ -785,36 +846,6 @@
           -4.5,
           70.0,
           0.0
-        ]
-      }
-    ]
-  },
-  "_platforms": {
-    "segments": [
-      {
-        "class": "ground",
-        "drop_through": true,
-        "group": 2,
-        "index": 17,
-        "ledge_grab": false,
-        "seg": [
-          -78.0,
-          37.75,
-          -62.25,
-          37.75
-        ]
-      },
-      {
-        "class": "ground",
-        "drop_through": true,
-        "group": 2,
-        "index": 18,
-        "ledge_grab": false,
-        "seg": [
-          -54.25,
-          37.75,
-          -48.0,
-          37.75
         ]
       }
     ]
