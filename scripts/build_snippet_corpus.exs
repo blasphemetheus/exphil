@@ -30,7 +30,26 @@ frames_path = opts[:frames] || raise("--frames is required")
 out_dir = opts[:out] || raise("--out is required")
 window = opts[:window] || 60
 
-%{frame_lists: lists} = envelope = frames_path |> File.read!() |> :erlang.binary_to_term()
+# --frames accepts a comma-separated list: stacked training arms merge
+# multiple correction/skill mixes into ONE mini-corpus (the convC1
+# lesson: corrective mixes must STACK — dropping the edge mix regressed
+# SDs 0.6 -> 13.4)
+envelopes =
+  frames_path
+  |> String.split(",", trim: true)
+  |> Enum.map(fn p -> p |> File.read!() |> :erlang.binary_to_term() end)
+
+for e <- envelopes, (e[:action_delay] || 0) != (hd(envelopes)[:action_delay] || 0) do
+  raise "mixed action_delay across envelopes (GOTCHA #86)"
+end
+
+lists = Enum.flat_map(envelopes, & &1.frame_lists)
+
+envelope = %{
+  expert: Enum.map_join(envelopes, "+", & &1[:expert]),
+  action_delay: hd(envelopes)[:action_delay] || 0,
+  frame_lists: lists
+}
 
 Output.banner("Snippet corpus builder")
 Output.config([
