@@ -42,7 +42,18 @@ defmodule ExPhil.Inspect do
   @buttons ~w(a b x y z l r d_up)a
   @axis_heads [:main_x, :main_y, :c_x, :c_y, :shoulder]
 
-  defstruct [:loaded, :frames, :states, :embedded, :situations, :window, :port, :opp_port, :total]
+  defstruct [
+    :loaded,
+    :frames,
+    :states,
+    :embedded,
+    :situations,
+    :window,
+    :port,
+    :opp_port,
+    :total,
+    :replay_path
+  ]
 
   @type t :: %__MODULE__{}
 
@@ -74,7 +85,12 @@ defmodule ExPhil.Inspect do
         |> Enum.reject(&(&1.game_state.frame < 0))
 
       loaded = Activations.load_heads(policy_path)
-      {:ok, from_frames(loaded, frames, Keyword.put(opts, :opponent_port, opp))}
+
+      session =
+        from_frames(loaded, frames, Keyword.put(opts, :opponent_port, opp))
+        |> Map.put(:replay_path, replay_path)
+
+      {:ok, session}
     end
   end
 
@@ -348,6 +364,9 @@ defmodule ExPhil.Inspect do
       stage: stage,
       own_char: char_name.(0, s.port),
       opp_char: char_name.(0, opp_port),
+      # Source replay — viewer bookmarks emit scenario-manifest entries
+      # (the bot's Improoover loop: bookmark -> input-replay handoff)
+      replay_path: s.replay_path,
       # Per-character hit windows for the universal moves (task #2):
       # %{"nair" => [[4,7],[8,31]], ...} — the viewer gates its ring on
       # action_frame within these

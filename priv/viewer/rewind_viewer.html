@@ -31,6 +31,11 @@
     padding: 6px 10px; cursor: pointer; color: var(--text-secondary);
   }
   .topbar input[type=file] { display: none; }
+  .topbar button {
+    background: var(--surface-2); border: 1px solid var(--grid); border-radius: 6px;
+    padding: 6px 10px; cursor: pointer; color: var(--text-secondary); font-size: 13px;
+  }
+  .topbar button:hover { border-color: var(--accent); }
   #meta { color: var(--text-muted); }
   .layout { display: grid; grid-template-columns: 1fr 330px; gap: 12px; }
   @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
@@ -76,6 +81,8 @@
 <div class="topbar">
   <label>Load session.json <input type="file" id="file" accept=".json"></label>
   <label>Load stats.json <input type="file" id="statsfile" accept=".json"></label>
+  <button id="bookmark" title="Bookmark this frame as a practice scenario (or press M)">🔖 bookmark</button>
+  <button id="bmexport" title="Download bookmarks as a scenario manifest">manifest (<span id="bmcount">0</span>)</button>
   <div class="legend">
     <span><b style="background:var(--series-1)"></b>bot / policy</span>
     <span><b style="background:var(--series-2)"></b>opponent / recorded</span>
@@ -803,7 +810,57 @@ document.addEventListener("keydown", e => {
   if (e.code === "Space") { e.preventDefault(); togglePlay(); }
   if (e.code === "ArrowLeft") setFrame(t - step);
   if (e.code === "ArrowRight") setFrame(t + step);
+  if (e.code === "KeyM") addBookmark();
 });
+
+// ------------------------------------------------- scenario bookmarks
+// The bot's Improoover loop, step 1: bookmark a moment here, download
+// the manifest, then scenario_suite.exs input-replays to the handoff
+// and lets the policy practice it (--runs N --temperature T);
+// scenario_dagger_mine.exs turns the successful attempts into training
+// data. Bookmarks persist in localStorage across sessions/refreshes.
+function loadBookmarks() {
+  try { return JSON.parse(localStorage.getItem("rewind-bookmarks") || "[]"); }
+  catch (_) { return []; }
+}
+function saveBookmarks(b) {
+  try { localStorage.setItem("rewind-bookmarks", JSON.stringify(b)); } catch (_) {}
+  $("bmcount").textContent = b.length;
+}
+function addBookmark() {
+  if (!S) return;
+  if (!S.replay_path) {
+    alert("This export predates replay_path — re-export the session to bookmark from it.");
+    return;
+  }
+  const fr = S.frames[t];
+  const labels = [];
+  S.labels.forEach((name, bit) => { if (labelOn(fr, bit)) labels.push(name); });
+  const bms = loadBookmarks();
+  bms.push({
+    slp: S.replay_path,
+    frame: fr.f,
+    type: "bookmark",
+    note: `viewer bookmark idx ${t}; ${labels.filter(l => !UMBRELLA.has(l)).slice(0, 4).join(" ") || "neutral"};` +
+          ` own=(${fr.own ? fr.own[0] + "," + fr.own[1] : "?"})`
+  });
+  saveBookmarks(bms);
+}
+$("bookmark").addEventListener("click", addBookmark);
+$("bmexport").addEventListener("click", () => {
+  const bms = loadBookmarks();
+  if (!bms.length) { alert("No bookmarks yet — press M on a moment worth practicing."); return; }
+  const manifest = {
+    comment: `Viewer bookmarks exported ${new Date().toISOString()} — practice moments for scenario_suite.exs`,
+    entries: bms
+  };
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(manifest, null, 2)], { type: "application/json" }));
+  a.download = "bookmarks_manifest.json";
+  a.click();
+  if (confirm(`Downloaded ${bms.length} bookmark(s). Clear the list?`)) saveBookmarks([]);
+});
+saveBookmarks(loadBookmarks());
 
 window.addEventListener("resize", () => { if (S) { drawStage(); drawTracks(); } });
 </script>
