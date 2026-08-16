@@ -83,10 +83,10 @@ defmodule ExPhil.Data.EventsPeppiParityTest do
      `character: -1` into the embeddings. (`character_name/1` is wrong
      for essentially every character — it labels internal ids with
      external names, e.g. internal 1 = Fox is reported "Donkey Kong".)
-     Not fixed here: it lives in Rust and this repo runs with
-     `EXPHIL_SKIP_NIF_COMPILE=1`. The harness excuses exactly the `-1`
-     case for internal ids >= 0x1A, and `"pins the known NIF character-id
-     hole"` below fails the moment the hole widens or is fixed.
+     **FIXED 2026-08-13** (`internal_character_id/1` in the NIF is
+     pinned as identity; the rebuilt .so ships it). The harness no
+     longer excuses anything — character ids must simply agree — and
+     the dedicated test below now pins the FIX instead of the hole.
 
   8. **`invulnerable` is excluded.** libmelee reads the hurtbox
      collision state (0x34); the NIF derives it from ad-hoc
@@ -123,10 +123,43 @@ defmodule ExPhil.Data.EventsPeppiParityTest do
   huggingface replays (91%) are pre-2.2.0 and yield nothing; all 683
   eval_runs and all 19 fixtures are 2.2.0+. This is an inherent boundary
   of a live-spectator codec (the live stream is always modern), not a
-  parser bug, so the test screens the corpus with
-  `Parity.comparable?/1` and only samples replays that advertise 0x3C.
-  Anything with a bookend that still yields no frames counts as a hard
-  failure, not a skip.
+  parser bug. Since 2026-08-14 those files are **no longer skipped**:
+  `Parity.check_file/2` routes them through `Melee.SlpFile`'s manual
+  bookends, and a dedicated test below samples exactly that population.
+  The main test still uses `Parity.comparable?/1` to sample the modern
+  population, where anything with a bookend that yields no frames
+  counts as a hard failure, not a skip.
+
+  What the extension itself found (none visible without a differential):
+
+    * `Melee.SlpFile` dropped the FINAL frame of every GAME_END-ending
+      manual-bookend replay (no successor pre-frame ever completes it) —
+      every old corpus file came up exactly one frame short. Fixed in
+      libmelee_ex `83bcc6a`.
+    * An early-rollback-era pre-2.2.0 replay can carry the SAME frame
+      twice (frame 6176 duplicated, observed once in 9,092 files).
+      `Melee.SlpFile` merged the re-simulation into the first
+      simulation; it now treats the repeat as a frame boundary with
+      normal rollback semantics (libmelee_ex `f278bfa`).
+    * Fields absent at a file's replay version (jumps at 0x32, speeds,
+      hitlag, on_ground) are reported as *invented defaults* by both
+      parsers — and the defaults differ (libmelee_ex `jumps_left: 1`,
+      the peppi NIF `unwrap_or(2)`). The harness gates field
+      comparisons on the file's advertised post-frame payload length
+      (`Parity.post_frame_len/1`).
+    * The wire's facing direction can be EXACTLY 0.0 (one frame in the
+      corpus, byte-verified) — libmelee reads false, the NIF's sign
+      map reads +1, neither wrong about the bytes. Normalization 2
+      excuses precisely that pattern.
+    * Old Slippi can STOP WRITING a port's events mid-game (~70 frames
+      while the player sits on the respawn platform, then resume).
+      libmelee_ex omits the port for exactly the event-less frames —
+      byte-faithful — while **peppi fabricates rows over the hole and
+      then misassigns the port's returning data** (verified against
+      the raw: melee's post-gap values match the bytes, peppi's do
+      not). The harness accepts a missing melee port iff the raw
+      really has no events for it, and excludes that port from field
+      comparison for the remainder of the file.
 
   ## Running
 
@@ -153,6 +186,20 @@ defmodule ExPhil.Data.EventsPeppiParityTest do
   `Melee.Events` read all of those, so on this corpus the Elixir codec is
   strictly the more tolerant of the two, and is byte-for-byte in
   agreement everywhere both can read.
+
+  ## Result of the pre-2.2.0 scale run (2026-08-16)
+
+  The entire pre-2.2.0 population of the corpus — **9,092 replays**,
+  every one routed through `Melee.SlpFile`'s manual bookends — was
+  compared field-by-field against peppi: **9,087 OK, 0 divergences**,
+  45 min wall. The only 5 skips were Rust panics inside peppi's own
+  deserializer (`peppi-2.1.2 de.rs` assertion failures); libmelee_ex
+  read all five. Getting to zero took the five findings listed under
+  "Corpus eligibility" — two real libmelee_ex fixes (final-frame flush,
+  re-simulation boundary) and three harness normalizations grounded in
+  byte-level verification, including one case where peppi fabricates
+  and misassigns data over a Slippi write-gap and libmelee_ex is
+  demonstrably the more faithful parser.
   """
 
   use ExUnit.Case, async: false
@@ -216,6 +263,65 @@ defmodule ExPhil.Data.EventsPeppiParityTest do
              "too many skipped replays (#{length(skipped)}/#{length(sample)}): " <>
                inspect(Enum.take(skipped, 10))
     end
+
+    test "agree on PRE-2.2.0 replays via Melee.SlpFile's manual bookends" do
+      # These files have no FRAME_BOOKEND, so the live codec yields
+      # nothing for them; check_file routes them through Melee.SlpFile,
+      # which completes each frame off the next frame's pre-frame event
+      # (and flushes the final frame at GAME_END — a real one-frame-short
+      # bug this very differential found when first extended, fixed in
+      # libmelee_ex 83bcc6a). Fields the file's replay version predates
+      # (jumps, speeds, hitlag, on_ground — see
+      # Parity.post_frame_len/1) are excluded: both parsers invent
+      # different defaults for absent fields, which is a defaults
+      # disagreement, not a decoding one.
+      paths = Parity.corpus()
+
+      if paths == [] do
+        flunk("no replay corpus found; set PARITY_CORPUS")
+      end
+
+      sample =
+        paths
+        |> Parity.sample(length(paths), @seed)
+        |> Stream.reject(&Parity.comparable?/1)
+        |> Enum.take(@sample)
+
+      if sample == [] do
+        IO.puts("\n[parity] no pre-2.2.0 replays in the corpus; nothing to compare")
+      else
+        {checked, skipped, divergence} =
+          Enum.reduce_while(sample, {0, [], nil}, fn path, {ok, skips, _} ->
+            case Parity.check_file(path) do
+              :ok -> {:cont, {ok + 1, skips, nil}}
+              {:skip, reason} -> {:cont, {ok, [{path, reason} | skips], nil}}
+              {:divergence, d} -> {:halt, {ok, skips, d}}
+            end
+          end)
+
+        if divergence do
+          flunk("""
+          Melee.SlpFile (manual bookends) and peppi disagree on a pre-2.2.0 replay.
+
+            file:  #{divergence.file}
+            frame: #{inspect(divergence.frame)}
+            port:  #{inspect(divergence.port)}
+            field: #{divergence.field}
+            melee: #{inspect(divergence.melee)}
+            peppi: #{inspect(divergence.peppi)}
+
+          (sample=#{@sample} seed=#{@seed}; re-run with the same PARITY_SEED
+          to reproduce, or PARITY_CORPUS=#{divergence.file} to isolate.)
+          """)
+        end
+
+        assert checked > 0, "every sampled old replay was skipped: #{inspect(skipped)}"
+
+        assert length(skipped) <= div(length(sample), 4),
+               "too many skipped old replays (#{length(skipped)}/#{length(sample)}): " <>
+                 inspect(Enum.take(skipped, 10))
+      end
+    end
   end
 
   describe "the harness itself" do
@@ -248,7 +354,13 @@ defmodule ExPhil.Data.EventsPeppiParityTest do
 
     @roy_replay "replays/huggingface/20_50_14 [INFP] Peach + Roy (YS).slp"
 
-    test "pins the known NIF character-id hole (Roy -> -1)" do
+    test "pins the FIXED NIF character-id mapping (Roy -> 0x1A, no more -1)" do
+      # History: the NIF used to feed post.character (an INTERNAL id)
+      # through the external-id table — identity below 0x1A, but Roy and
+      # above fell to -1 (found by this differential 2026-08-05). Fixed
+      # 2026-08-13: internal_character_id/1 is pinned as identity. This
+      # test used to pin the HOLE so it couldn't widen unnoticed; it now
+      # pins the fix so it cannot regress.
       if File.exists?(@roy_replay) do
         {:ok, raw} = Parity.raw_stream(@roy_replay)
         {:ok, [_, _, gs | _]} = Parity.melee_frames(raw, skip_rollback_frames: false)
@@ -260,11 +372,9 @@ defmodule ExPhil.Data.EventsPeppiParityTest do
 
         assert roy_port, "fixture no longer contains a Roy"
 
-        # libmelee_ex decodes the internal id correctly...
+        # Both sides now report the internal id, in agreement.
         assert gs.players[roy_port].character == 0x1A
-        # ...the NIF drops it on the floor. Fix character_id/1 in
-        # native/exphil_peppi/src/lib.rs and this assertion flips.
-        assert pf.players[roy_port].character == -1
+        assert pf.players[roy_port].character == 0x1A
       end
     end
 

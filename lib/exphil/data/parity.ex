@@ -82,8 +82,10 @@ defmodule ExPhil.Data.Parity do
   `Melee.Events` (like libmelee) emits a completed `GameState` on
   FRAME_BOOKEND (0x3C), which Slippi only added in replay version 2.2.0.
   Older replays parse to `:game_end` with zero frames — an inherent
-  capability boundary of the live-stream codec, not a decoding error, so
-  parity has nothing to compare on them.
+  capability boundary of the live-stream codec, not a decoding error.
+  `check_file/2` routes such files through `Melee.SlpFile`'s manual
+  bookends instead, so they are still compared; this predicate now only
+  selects WHICH melee-side reader a file gets.
   """
   @spec comparable?(Path.t()) :: boolean()
   def comparable?(path) do
@@ -120,25 +122,78 @@ defmodule ExPhil.Data.Parity do
   Returns the FIRST divergence found (in frame then port then field
   order), or `:ok`. Files that either parser rejects are reported as
   `{:skip, reason}` rather than as a divergence.
+
+  Routing: replays that advertise FRAME_BOOKEND (2.2.0+) go through the
+  raw event stream exactly as the live spectator path would read it.
+  Pre-2.2.0 replays have no bookend, so the live codec alone yields
+  zero frames for them — they go through `Melee.SlpFile`, whose
+  libmelee-style manual bookends complete each frame off the next
+  frame's pre-frame event. Same decoder underneath, different frame
+  completion — which is exactly the code path this differential then
+  vouches for.
   """
   @spec check_file(Path.t(), keyword()) :: :ok | {:skip, atom()} | {:divergence, divergence()}
   def check_file(path, opts \\ []) do
     # skip_rollback_frames: false — peppi emits every simulation of a
     # frame (rollback re-simulations included) as its own row, so
     # libmelee_ex must too for the two sequences to line up. See
-    # ExPhil.Data.EventsPeppiParityTest's "Alignment" note.
+    # ExPhil.Data.EventsPeppiParityTest's "Alignment" note. (Pre-2.2.0
+    # replays predate rollback, so it is a no-op there.)
     opts = Keyword.put_new(opts, :skip_rollback_frames, false)
 
-    with :ok <- eligible(path),
-         {:ok, raw} <- unwrap(path),
-         {:ok, replay} <- peppi(path),
-         {:ok, frames} <- melee(raw, opts) do
-      compare(path, frames, replay.frames)
+    with {:ok, replay} <- peppi(path),
+         {:ok, frames} <- melee_for(path, opts) do
+      compare(path, frames, replay.frames, post_frame_len: post_frame_len(path))
     end
   end
 
-  defp eligible(path),
-    do: if(comparable?(path), do: :ok, else: {:skip, :pre_2_2_no_frame_bookend})
+  # Total post-frame (0x38) event length (command byte included) as
+  # advertised by the file's payload table, or nil when unreadable.
+  # Old replay versions have SHORTER post-frame events; a field whose
+  # wire offset lies beyond this length does not exist in the file, and
+  # both parsers then report their own *invented defaults* (e.g.
+  # jumps_left: libmelee_ex defaults 1, the peppi NIF unwrap_or(2)) —
+  # a defaults disagreement, not a decoding one, so those fields are
+  # excluded from comparison.
+  @spec post_frame_len(Path.t()) :: pos_integer() | nil
+  def post_frame_len(path) do
+    with {:ok, io} <- File.open(path, [:read, :binary]),
+         {:ok, header} <-
+           (fn ->
+              r = :file.read(io, 256)
+              File.close(io)
+              r
+            end).(),
+         <<"{U", 3, "raw[$U#l", _len::big-unsigned-32, 0x35, n, rest::binary>> <- header,
+         true <- n >= 1 and byte_size(rest) >= n - 1 do
+      binary_part(rest, 0, n - 1)
+      |> then(&for(<<c, size::16 <- &1>>, do: {c, size}))
+      |> List.keyfind(0x38, 0)
+      |> case do
+        {0x38, size} -> size + 1
+        nil -> nil
+      end
+    else
+      _ -> nil
+    end
+  end
+
+  defp melee_for(path, opts) do
+    if comparable?(path) do
+      with {:ok, raw} <- unwrap(path), do: melee(raw, opts)
+    else
+      melee_slp_file(path, opts)
+    end
+  end
+
+  defp melee_slp_file(path, opts) do
+    case path |> Melee.SlpFile.stream!(opts) |> Enum.to_list() do
+      [] -> {:skip, :melee_no_frames}
+      frames -> {:ok, frames}
+    end
+  rescue
+    _ -> {:skip, :melee_parse_failed}
+  end
 
   defp unwrap(path) do
     case raw_stream(path) do
@@ -173,9 +228,10 @@ defmodule ExPhil.Data.Parity do
   missing or extra frame is reported as such rather than silently
   shifting every later comparison by one.
   """
-  @spec compare(Path.t(), [GameState.t()], [Peppi.GameFrame.t()]) ::
+  @spec compare(Path.t(), [GameState.t()], [Peppi.GameFrame.t()], keyword()) ::
           :ok | {:divergence, divergence()}
-  def compare(path, melee_frames, peppi_frames) do
+  def compare(path, melee_frames, peppi_frames, opts \\ []) do
+    post_len = Keyword.get(opts, :post_frame_len)
     m_ids = Enum.map(melee_frames, & &1.frame)
     p_ids = Enum.map(peppi_frames, & &1.frame_number)
 
@@ -190,38 +246,64 @@ defmodule ExPhil.Data.Parity do
       true ->
         [melee_frames, peppi_frames]
         |> Enum.zip()
-        |> Enum.reduce_while(:ok, fn {mf, pf}, _ ->
-          case compare_frame(path, mf.frame, mf, pf) do
-            :ok -> {:cont, :ok}
-            other -> {:halt, other}
+        |> Enum.reduce_while({:ok, MapSet.new()}, fn {mf, pf}, {_, gapped} ->
+          case compare_frame(path, mf.frame, mf, pf, gapped, post_len) do
+            {:ok, gapped} -> {:cont, {:ok, gapped}}
+            other -> {:halt, {other, gapped}}
           end
         end)
+        |> elem(0)
     end
   end
 
-  defp compare_frame(path, frame, m, p) do
+  defp compare_frame(path, frame, m, p, gapped, post_len) do
     ports = p.players |> Map.keys() |> Enum.sort()
 
-    Enum.reduce_while(ports, :ok, fn port, _ ->
+    Enum.reduce_while(ports, {:ok, gapped}, fn port, {:ok, gapped} ->
       case {Map.get(m.players, port), Map.get(p.players, port)} do
         {nil, pp} ->
-          # An eliminated player stops receiving pre/post frame updates.
-          # libmelee_ex drops the port from that frame; peppi keeps a
-          # fixed port list for the whole game and emits a ZEROED
-          # placeholder row. Accept that, but only if the row really is
-          # the all-zero placeholder — a genuinely dropped port would
-          # still be caught here.
-          if placeholder?(pp),
-            do: {:cont, :ok},
-            else: {:halt, {:divergence, div(path, frame, port, :player_present, nil, pp)}}
+          # Slippi can stop writing a port's pre/post events mid-game:
+          # elimination, and (observed in old replays) a ~70-frame gap
+          # while a player sits on the respawn platform — the port comes
+          # BACK afterwards. libmelee_ex omits the port for exactly
+          # those frames, faithfully to the bytes; peppi papers over the
+          # hole with a fabricated row. So the ground truth is the raw
+          # itself: a missing melee port is accepted iff the raw stream
+          # really has no pre/post event for that (frame, port). A melee
+          # decode bug that drops events actually present still fails.
+          cond do
+            placeholder?(pp) ->
+              {:cont, {:ok, gapped}}
+
+            not raw_has?(path, frame, port) ->
+              # Byte-verified write gap. peppi's rows for this port are
+              # untrustworthy from here on — after the gap it misassigns
+              # the port's returning data (verified against the raw:
+              # melee's post-gap values match the bytes, peppi's do
+              # not) — so the port is excluded from field comparison
+              # for the rest of the file. Divergences before the gap
+              # were already checked.
+              {:cont, {:ok, MapSet.put(gapped, port)}}
+
+            true ->
+              {:halt, {{:divergence, div(path, frame, port, :player_present, nil, pp)}, gapped}}
+          end
 
         {mp, pp} ->
-          case compare_player(path, frame, port, mp, pp) do
-            :ok -> {:cont, :ok}
-            other -> {:halt, other}
+          if MapSet.member?(gapped, port) do
+            {:cont, {:ok, gapped}}
+          else
+            case compare_player(path, frame, port, mp, pp, post_len) do
+              :ok -> {:cont, {:ok, gapped}}
+              other -> {:halt, {other, gapped}}
+            end
           end
       end
     end)
+    |> case do
+      {:ok, gapped} -> {:ok, gapped}
+      {{:divergence, _} = d, _gapped} -> d
+    end
   end
 
   # peppi's stand-in row for a port that is no longer being updated.
@@ -230,6 +312,54 @@ defmodule ExPhil.Data.Parity do
   defp placeholder?(pp) do
     pp.character == 0 and pp.action == 0 and pp.stock == 0 and pp.percent == 0.0 and
       pp.x == 0.0 and pp.y == 0.0
+  end
+
+  # Does the raw stream contain any PRE/POST_FRAME event for this
+  # (frame, port)? Consulted only when a melee-side port is missing —
+  # rare — so the index is built lazily, and cached for the CURRENT file
+  # only (single process-dictionary key, no growth across a corpus run).
+  defp raw_has?(path, frame, port) do
+    index =
+      case Process.get({__MODULE__, :raw_index}) do
+        {^path, index} ->
+          index
+
+        _ ->
+          index = build_raw_index(path)
+          Process.put({__MODULE__, :raw_index}, {path, index})
+          index
+      end
+
+    MapSet.member?(index, {frame, port})
+  end
+
+  defp build_raw_index(path) do
+    {:ok, raw} = raw_stream(path)
+    <<0x35, n, rest::binary>> = raw
+    table = for <<c, s::16 <- binary_part(rest, 0, n - 1)>>, into: %{}, do: {c, s}
+    stream = binary_part(rest, n - 1, byte_size(rest) - (n - 1))
+    index_events(stream, table, MapSet.new())
+  end
+
+  defp index_events(<<>>, _table, acc), do: acc
+
+  defp index_events(<<cmd, rest::binary>> = bin, table, acc) do
+    size = Map.get(table, cmd, 0) + 1
+
+    if size > byte_size(bin) do
+      acc
+    else
+      acc =
+        case {cmd in [0x37, 0x38], rest} do
+          {true, <<frame::big-signed-32, port, _::binary>>} ->
+            MapSet.put(acc, {frame, port + 1})
+
+          _ ->
+            acc
+        end
+
+      index_events(binary_part(bin, size, byte_size(bin) - size), table, acc)
+    end
   end
 
   @doc """
@@ -258,8 +388,14 @@ defmodule ExPhil.Data.Parity do
       {:action, mp.action, pp.action},
       {:action_frame, mp.action_frame, peppi_af},
       # NORMALIZATION 2 (facing): libmelee stores a boolean (true = right),
-      # peppi's NIF stores +1/-1 from the same f32 direction field.
-      {:facing, mp.facing, pp.facing > 0},
+      # peppi's NIF stores +1/-1 from the same f32 direction field. The
+      # wire can carry direction == EXACTLY 0.0 (first observed in an
+      # old replay, frame 613: verified by reading the f32 straight out
+      # of the raw) — libmelee reads `0.0 > 0` as false, the NIF's sign
+      # mapping yields +1, and neither is wrong about the bytes. That
+      # one pattern (melee false, peppi +1) is excused; a melee-true /
+      # peppi--1 mismatch cannot come from 0.0 and still fails.
+      facing_triple(mp.facing, pp.facing),
       {:on_ground, mp.on_ground, pp.on_ground},
       {:jumps_left, mp.jumps_left, pp.jumps_left},
       {:shield_strength, mp.shield_strength, pp.shield_strength},
@@ -304,21 +440,44 @@ defmodule ExPhil.Data.Parity do
 
   defp in_unit?(v), do: is_number(v) and v >= 0.0 and v <= 1.0
 
-  # KNOWN BUG in the exphil NIF, not in either parser's decoding (see
-  # the test moduledoc): the NIF's
-  # `character_id/1` treats peppi's post-frame character as an EXTERNAL
-  # (CSS-order) id, but it is the INTERNAL id. The table is accidentally
-  # the identity for internal 0x00..0x19, so every character below Roy
-  # comes out right; internal 0x1A (Roy) and above fall through to -1.
-  # Excused here so the harness reports genuine codec divergences, and
-  # pinned by a dedicated test so the hole cannot widen unnoticed.
-  @roy_internal 0x1A
-  defp peppi_character(melee_char, -1) when melee_char >= @roy_internal, do: melee_char
+  # See NORMALIZATION 2: {false, +1} is the direction-==-0.0 signature.
+  defp facing_triple(false, peppi_facing) when peppi_facing > 0,
+    do: {:facing, :zero_direction_excused, :zero_direction_excused}
+
+  defp facing_triple(melee_facing, peppi_facing),
+    do: {:facing, melee_facing, peppi_facing > 0}
+
+  # The NIF's historical Roy->-1 internal-id hole (post.character fed
+  # through the external-id table; found by this differential
+  # 2026-08-05) was fixed 2026-08-13 — internal_character_id/1 is
+  # identity now — so no excuse remains: character ids must simply
+  # agree. The dedicated pin test now pins the FIX instead of the hole.
   defp peppi_character(_melee_char, peppi_char), do: peppi_char
 
-  defp compare_player(path, frame, port, mp, pp) do
+  # Post-frame fields that only exist from a given event length on
+  # (event-relative offsets from lib/melee/events.ex's post_frame
+  # decode, plus field width). A shorter event means the file's replay
+  # version predates the field; both parsers then report invented
+  # defaults (jumps_left: libmelee_ex 1, peppi NIF unwrap_or(2)) —
+  # a defaults disagreement, not a decoding one, so skip those fields.
+  @post_frame_field_min_len %{
+    on_ground: 0x30,
+    jumps_left: 0x33,
+    speed_air_x_self: 0x39,
+    speed_y_self: 0x3D,
+    speed_x_attack: 0x41,
+    speed_y_attack: 0x45,
+    speed_ground_x_self: 0x49,
+    hitlag_left: 0x4D
+  }
+
+  defp compare_player(path, frame, port, mp, pp, post_len) do
     mp
     |> field_triples(pp)
+    |> Enum.reject(fn {field, _a, _b} ->
+      min_len = Map.get(@post_frame_field_min_len, field)
+      min_len != nil and post_len != nil and post_len < min_len
+    end)
     |> Enum.reduce_while(:ok, fn {field, a, b}, _ ->
       if equal?(a, b),
         do: {:cont, :ok},
