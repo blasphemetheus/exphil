@@ -40,6 +40,10 @@ alias ExPhil.Embeddings
       max_epochs: :integer,
       hidden_size: :integer,
       nan_forensics: :boolean,
+      collapse_forensics: :boolean,
+      init_from: :string,
+      replay_scene: :string,
+      snapshot_all: :boolean,
       mixed_precision: :boolean,
       window: :integer,
       transition_weight: :float,
@@ -65,6 +69,13 @@ alias ExPhil.Embeddings
       opp_randomize_chars: :string,
       opp_scramble_frames: :integer,
       margin_weight: :float,
+      awbc_beta: :float,
+      awbc: :boolean,
+      awbc_shuffle: :boolean,
+      awbc_air_reward: :float,
+      distill_from: :string,
+      distill_weight: :float,
+      distill_tau: :float,
       poison_spec: :string,
       reject_at: :integer,
       reject_on: :string,
@@ -614,6 +625,17 @@ end
 all_frame_lists =
   fixture_frame_lists ++ bc_frame_lists ++ rollout_frame_lists ++ snippet_frame_lists
 
+# F3 distill-anchor provenance (per-LIST): anchor only clean-cycle data —
+# fixture + rollout true; bc (human) + snippet false. Lists appended by
+# later augmentation stages (opening synth, y-augment) are fixture-
+# derived/expert-relabeled = clean; handled below by treating any list
+# beyond this base count as true.
+distill_base_flags =
+  List.duplicate(true, length(fixture_frame_lists)) ++
+    List.duplicate(false, length(bc_frame_lists)) ++
+    List.duplicate(true, length(rollout_frame_lists)) ++
+    List.duplicate(false, length(snippet_frame_lists))
+
 # --opening-replays GLOB (2026-07-31): the farm-11 lesson ported to drills.
 # Harvest real openings (spawn -> first cycle entry) from prior live replays
 # and graft expert-relabeled entries onto them. The fixture's openings are
@@ -1048,6 +1070,25 @@ shifted_frame_lists =
       Enum.map(lists, &elem(&1, 0))
   end
 
+# Provenance flags expanded in lockstep with the shift above: appended
+# augmentation lists (beyond the base pool) are clean; multi-delay
+# repeats every list once per delay in the same order.
+distill_clean_flags =
+  if streaming do
+    []
+  else
+    flags =
+      distill_base_flags ++
+        List.duplicate(true, length(all_frame_lists) - length(distill_base_flags))
+
+    if length(delays) == 1 and not (opts[:with_delay_id] || false) and
+         pipeline_offset == 0 and shift_jitter == 0 do
+      flags
+    else
+      for _d <- delays, fl <- flags, do: fl
+    end
+  end
+
 # --poison-spec PATH (audit game rounds 2/3, 2026-08-06/09): apply a
 # SEALED label edit to the assembled pool — the Stage-4b
 # retrained-trigger plant. The spec file is part of the answer key;
@@ -1206,6 +1247,55 @@ sampling_weights =
     many -> Enum.reduce(many, &ExPhil.Training.OpenerSampling.combine_max/2)
   end
 
+# --awbc [--awbc-beta B] [--awbc-shuffle] (OFFLINE_RL_SPEC F5, multishine
+# adaptation): advantage-weighted BC. Per-frame LOSS weights from the
+# shine-chain return-to-go — frames inside/leading-into long chains get
+# amplified, frames before breaks damped. DISTINCT from the sampling
+# weights above (draw frequency): these multiply the imitation loss via
+# the batch frame_weights channel. --awbc-shuffle is the pre-registered
+# B3 placebo control: same weight distribution, outcome info destroyed.
+awbc_loss_weights =
+  if opts[:awbc] || opts[:awbc_beta] || opts[:awbc_shuffle] do
+    if streaming do
+      Output.warning("--awbc is not supported in streaming mode — ignored")
+      nil
+    else
+      aw_opts =
+        [
+          shuffle: opts[:awbc_shuffle] || false,
+          seed: 42,
+          air_shine_reward: opts[:awbc_air_reward] || 0.0
+        ] ++ if(b = opts[:awbc_beta], do: [beta: b], else: [])
+
+      {weights, astats} =
+        ExPhil.Training.AdvantageWeighting.frame_weights(shifted_frame_lists, aw_opts)
+
+      Output.puts(
+        "AWBC weighting#{if opts[:awbc_shuffle], do: " (B3 SHUFFLED CONTROL)", else: ""}: " <>
+          "#{astats.frames} frames, #{astats.shine_entries} shine entries, " <>
+          "beta #{Float.round(astats.beta * 1.0, 4)}, " <>
+          "w p10/p90 #{Float.round(astats.p10_w, 3)}/#{Float.round(astats.p90_w, 3)} " <>
+          "(ratio #{astats.weight_ratio && Float.round(astats.weight_ratio, 2)}), " <>
+          "#{astats.flat_lists} signal-free list(s)"
+      )
+
+      if astats.shine_entries == 0 do
+        Output.warning("--awbc set but no shine entries found — weights are uniform")
+      end
+
+      weights
+    end
+  end
+
+# F3 distill anchor: per-FRAME anchor mask from the per-list provenance
+# flags (aligned with dataset.frames = flattened shifted lists; poison
+# edits labels, never lengths, so alignment survives it).
+distill_frame_mask =
+  if opts[:distill_from] && !streaming do
+    Enum.zip(shifted_frame_lists, distill_clean_flags)
+    |> Enum.flat_map(fn {list, fl} -> List.duplicate(fl, length(list)) end)
+  end
+
 dataset =
   if streaming do
     nil
@@ -1248,6 +1338,83 @@ Output.puts(
   "memory: post-embed rss=#{MemoryLedger.format_bytes(post_embed_mem.rss_bytes)} " <>
     "(#{round(post_embed_mem.rss_bytes / max(pool_frames, 1))} B/frame observed)"
 )
+
+# --distill-from CKPT [--distill-weight W] [--distill-tau T] (F3 Route A,
+# DISTILL_ANCHOR_SPEC): precompute the FROZEN teacher's 6-head logits
+# over every training sequence ONCE (never in-graph — GOTCHA #3), store
+# f16 rows indexed by sequence (same indexing as the embeddings), and
+# anchor the student to them via masked KL on clean-cycle frames only.
+{distill_teacher, distill_mask_seq} =
+  if df = opts[:distill_from] do
+    if streaming do
+      Output.error("--distill-from is not supported in streaming mode")
+      System.halt(1)
+    end
+
+    Output.puts("Distill anchor: precomputing teacher logits from #{Path.basename(df)}")
+    teacher = ExPhil.Interp.Activations.load_heads(df)
+    t_embed = Map.fetch!(teacher.config, :embed_size)
+
+    if t_embed != embed_size do
+      Output.error("--distill-from embed_size #{t_embed} != pool embed_size #{embed_size}")
+      System.halt(1)
+    end
+
+    if teacher.window != window do
+      Output.warning(
+        "teacher window #{teacher.window} != drill window #{window} — teacher sees drill-window slices"
+      )
+    end
+
+    {tbatches, seq_indices} =
+      Data.strided_sequence_batches(dataset,
+        every: 1,
+        batch_size: 512,
+        window_size: window,
+        stride: 1
+      )
+
+    chunks =
+      tbatches
+      |> Stream.with_index()
+      |> Enum.map(fn {batch, i} ->
+        if rem(i, 50) == 0, do: IO.write(:stderr, "\r  teacher logits: batch #{i}\e[K")
+
+        {b, mx, my, cx, cy, sh} = teacher.predict_fn.(teacher.params, batch.states)
+
+        Nx.concatenate([b, mx, my, cx, cy, sh], axis: 1)
+        |> Nx.as_type(:f16)
+        |> Nx.backend_transfer(Nx.BinaryBackend)
+      end)
+
+    IO.write(:stderr, "\r\e[K")
+    tensor = Nx.concatenate(chunks, axis: 0)
+    num_seq = length(seq_indices)
+
+    mask_seq =
+      if distill_frame_mask do
+        fm = :erlang.list_to_tuple(distill_frame_mask)
+        n = tuple_size(fm)
+
+        Enum.map(0..(num_seq - 1), fn k ->
+          idx = k + window - 1
+          idx < n and elem(fm, idx)
+        end)
+      else
+        List.duplicate(true, num_seq)
+      end
+
+    n_anchor = Enum.count(mask_seq, & &1)
+
+    Output.puts(
+      "Distill anchor: #{num_seq} teacher rows (#{Float.round(Nx.byte_size(tensor) / 1.0e6, 1)} MB f16), " <>
+        "#{n_anchor}/#{num_seq} sequences anchored (clean-cycle provenance)"
+    )
+
+    {tensor, mask_seq}
+  else
+    {nil, nil}
+  end
 
 # --probe-reg W [--probe-reg-every K] (r15, the steering-decided lever):
 # penalize trunk alignment with the shield-lock direction during training.
@@ -1326,7 +1493,10 @@ batches_for = fn epoch ->
       drop_last: false,
       seed: 42 + epoch,
       transition_weight: opts[:transition_weight],
-      sampling_weights: sampling_weights
+      sampling_weights: sampling_weights,
+      loss_weights: awbc_loss_weights,
+      distill_teacher: distill_teacher,
+      distill_mask: distill_mask_seq
     )
   end
 end
@@ -1368,6 +1538,11 @@ trainer =
     debug_grads_after: opts[:debug_grads_after],
     # --probe-reg: probe-as-regularizer weight (0.0 = off, r15)
     probe_reg_weight: probe_reg,
+    # --distill-from/--distill-weight (F3 anchor): weight defaults to the
+    # spec's 0.5 whenever a teacher is given; 0.0 = plain BC loss.
+    distill_weight:
+      if(opts[:distill_from], do: opts[:distill_weight] || 0.5, else: 0.0),
+    distill_tau: opts[:distill_tau] || 1.0,
     # --scheduled-sampling P: swap the last window position's prev-action
     # slice for the model's own decoded prediction on P of samples
     # (exposure bias at TRAINING time; composes with synthesis/DAgger data).
@@ -1677,6 +1852,34 @@ run_fingerprint =
       {trainer, 1}
   end
 
+# --init-from CKPT (2026-08-20, collapse-forensics program): warm-start the
+# POLICY PARAMS from an exported .bin (fresh optimizer/step/epoch — unlike
+# --resume, which needs the full trainer snapshot). Purpose: re-enter a
+# saved regime (e.g. g15r2's epoch-50 pre-collapse state) to study what
+# happens next. The state-driven-regime lesson (CLAUDE.md) says approximate
+# resume re-enters failure regimes fine; Adam moments warm up in ~1 epoch.
+trainer =
+  case opts[:init_from] do
+    nil ->
+      trainer
+
+    ckpt ->
+      if opts[:resume], do: raise("--init-from and --resume are mutually exclusive")
+      {:ok, export} = ExPhil.Training.Checkpoint.load_policy(ckpt)
+
+      # The export stores the bare params tree; the trainer carries an
+      # Axon.ModelState. Graft the loaded tree into the existing state so
+      # downstream .data accesses (numeric_stats, train_step) keep working.
+      new_ps =
+        case trainer.policy_params do
+          %Axon.ModelState{} = ms -> %{ms | data: export.params}
+          _plain -> export.params
+        end
+
+      Output.success("Warm-started policy params from #{ckpt} (fresh optimizer)")
+      %{trainer | policy_params: new_ps}
+  end
+
 # --nan-forensics: per-batch loss finiteness checks plus a trail of numeric
 # vitals (param max/norm, adam mu/nu extremes, nu zero-fraction) sampled
 # every 100 optimizer steps. On the first non-finite loss: dump the trail,
@@ -1685,6 +1888,25 @@ run_fingerprint =
 #     nu_zero_frac high/stale, then a single-step blowup;
 #   forward overflow -> param_max grinding upward over thousands of steps.
 nan_forensics = opts[:nan_forensics] || false
+
+# --collapse-forensics (2026-08-20): catch the GOTCHA #99 degenerate-batch
+# event in the act. Rides the nan-forensics per-batch loop; on the first
+# batch whose loss < 1e-5 (validated: collapse batches were 2.5e-8/2.0e-6,
+# normal batch losses >= ~1e-3) it dumps the CRIME SCENE — the pre-update
+# trainer (the params that produced the ~0 loss), the post-update trainer,
+# and the batch itself (host-transferred) — then halts(3) for offline
+# replay (f32 vs bf16, term-by-term loss decomposition, op bisection).
+collapse_forensics = opts[:collapse_forensics] || false
+
+deep_to_host = fn deep, term ->
+  cond do
+    is_struct(term, Nx.Tensor) -> Nx.backend_transfer(term, Nx.BinaryBackend)
+    is_map(term) and not is_struct(term) -> Map.new(term, fn {k, v} -> {k, deep.(deep, v)} end)
+    is_list(term) -> Enum.map(term, &deep.(deep, &1))
+    is_tuple(term) -> term |> Tuple.to_list() |> Enum.map(&deep.(deep, &1)) |> List.to_tuple()
+    true -> term
+  end
+end
 
 # Float tensors only: ModelState.data also carries integer RNG-key tensors
 # (observed u32 ~2.46e9) that poison max/norm stats and wrap on squaring.
@@ -1765,6 +1987,65 @@ numeric_stats = fn tr_now ->
   }
 end
 
+# --replay-scene PREFIX (2026-08-20, GOTCHA #99 mechanism hunt): offline
+# replay of a captured collapse/spike scene. PREFIX is the dumped file
+# prefix (e.g. checkpoints/collapse_scene/spike1). Loads the PRE-update
+# trainer + the batch, reruns train_step under THIS process's nx stack,
+# prints the loss (twice — determinism check) and the max param diff vs
+# the recorded POST trainer. Run once per nx checkout and compare: a
+# stack-dependent loss or param divergence isolates the bug mechanically.
+# Uses the drill's own loss_fn/pool construction so the computation is
+# byte-for-byte the training one. Halts before any training.
+if prefix = opts[:replay_scene] do
+  find1 = fn glob ->
+    case Path.wildcard(glob) do
+      [one] -> one
+      other -> raise "expected exactly one #{glob}, got #{inspect(other)}"
+    end
+  end
+
+  pre_path = find1.(prefix <> "_pre_trainer_step*.ckpt")
+  batch_path = find1.(prefix <> "_batch_step*.bin")
+  scene_json = find1.(prefix <> "_scene_step*.json")
+  scene = scene_json |> File.read!() |> Jason.decode!()
+
+  {:ok, tr_scene} = Imitation.load_checkpoint(trainer, pre_path)
+  batch = batch_path |> File.read!() |> :erlang.binary_to_term()
+
+  Output.puts("REPLAY scene #{prefix}: recorded loss #{scene["loss"]} at step #{scene["step"]}")
+  Output.puts("REPLAY nx stack: #{:os.cmd(~c(git -C #{Path.expand("~/git/nx")} log --oneline -1)) |> to_string() |> String.trim()}")
+
+  {tr_after, m1} = Imitation.train_step(tr_scene, batch, loss_fn)
+  {_, m2} = Imitation.train_step(tr_scene, batch, loss_fn)
+  Output.puts("REPLAY loss run1=#{inspect(Nx.to_number(m1.loss))} run2=#{inspect(Nx.to_number(m2.loss))}")
+
+  case Path.wildcard(prefix <> "_post_trainer_step*.ckpt") do
+    [post_path] ->
+      {:ok, tr_post} = Imitation.load_checkpoint(trainer, post_path)
+      replayed = flatten_tensors.(tr_after.policy_params.data)
+      recorded = flatten_tensors.(tr_post.policy_params.data)
+
+      diffs =
+        Enum.zip(replayed, recorded)
+        |> Enum.map(fn {a, b} ->
+          Nx.subtract(Nx.as_type(a, :f32), Nx.as_type(b, :f32))
+          |> Nx.abs()
+          |> Nx.reduce_max()
+          |> Nx.to_number()
+        end)
+
+      Output.puts(
+        "REPLAY post-params vs recorded post: max|diff|=#{Enum.max(diffs)} " <>
+          "(#{Enum.count(diffs, &(&1 > 1.0e-6))}/#{length(diffs)} tensors differ >1e-6)"
+      )
+
+    _ ->
+      Output.puts("REPLAY: no post trainer recorded (skipping param diff)")
+  end
+
+  System.halt(0)
+end
+
 # Track the best epoch so a late divergence still exports a usable policy.
 # On NaN, restore the best params and CONTINUE (up to 5 restores) instead of
 # halting: every LR >= 1.5e-4 run NaN'd mid-run (5-for-5 at 2e-4, 2026-07-13)
@@ -1793,12 +2074,70 @@ end
     {tr, epoch_loss} =
       batches_for.(epoch)
       |> then(fn batches ->
-        if nan_forensics do
+        if nan_forensics or collapse_forensics do
           batches
           |> Enum.reduce_while({tr, nil, []}, fn batch, {tr_acc, _, trail} ->
             {tr_next, metrics} = Imitation.train_step(tr_acc, batch, loss_fn)
             loss_num = Nx.to_number(metrics.loss)
             step = tr_next.step
+
+            # Per-batch loss series (2026-08-20 cross-stack overlay test):
+            # with the per-epoch-seeded shuffle, two stacks see the same
+            # batch order — the series diverging timestamps the first
+            # corrupted step. Appended, cheap (one line per step).
+            if collapse_forensics do
+              File.write!(out_path <> ".batchloss", "#{epoch} #{step} #{loss_num}\n", [:append])
+            end
+
+            dump_scene = fn tag ->
+              dir = "checkpoints/collapse_scene"
+              File.mkdir_p!(dir)
+
+              Output.error(
+                "#{String.upcase(tag)} SCENE: batch loss #{inspect(loss_num)} at step #{step}, " <>
+                  "epoch #{epoch} — dumping to #{dir}/"
+              )
+
+              Imitation.save_checkpoint(tr_acc, "#{dir}/#{tag}_pre_trainer_step#{step}.ckpt")
+              Imitation.save_checkpoint(tr_next, "#{dir}/#{tag}_post_trainer_step#{step}.ckpt")
+
+              File.write!(
+                "#{dir}/#{tag}_batch_step#{step}.bin",
+                :erlang.term_to_binary(deep_to_host.(deep_to_host, batch))
+              )
+
+              File.write!(
+                "#{dir}/#{tag}_scene_step#{step}.json",
+                Jason.encode!(%{
+                  tag: tag,
+                  step: step,
+                  epoch: epoch,
+                  loss: loss_num,
+                  stats: inspect(numeric_stats.(tr_next)),
+                  trail: Enum.map(trail, fn {s, l, st} -> [s, l, inspect(st)] end)
+                })
+              )
+            end
+
+            if collapse_forensics and is_number(loss_num) and loss_num < 1.0e-5 do
+              dump_scene.("collapse")
+              Output.success("Collapse scene dumped. Halting for offline replay.")
+              System.halt(3)
+            end
+
+            # Spike scenes (2026-08-20, second forensics round): the wild
+            # stack spikes (47x, 153x one-epoch jumps) ~4x more often than
+            # it collapses; a spiked batch is the same scrambled-update
+            # event with the opposite sign and serves the both-stacks
+            # replay identically. Dump up to 3, do NOT halt — a collapse
+            # later in the run is still the prize.
+            spike_dumps = Process.get(:spike_dumps, 0)
+
+            if collapse_forensics and is_number(loss_num) and loss_num > 0.3 and
+                 epoch > 1 and spike_dumps < 3 do
+              Process.put(:spike_dumps, spike_dumps + 1)
+              dump_scene.("spike#{spike_dumps + 1}")
+            end
 
             trail =
               if rem(step, 100) == 0 do
@@ -1901,6 +2240,21 @@ end
     # on the same epochs, and when probe-eval crashed at epoch 10 the run
     # died before its first save — 10 epochs of work gone. Risky
     # instrumentation goes last so a death there costs 0 epochs.
+    # --snapshot-all (2026-08-20, behavioral gate-sweep recipe): keep a
+    # policy snapshot for EVERY epoch. Rationale: chain skill lives on
+    # transient peaks that continued training destroys, and loss anti-
+    # correlates with behavior late in training (0820_collapse_forensics)
+    # — checkpoint selection must happen by POST-RUN behavioral gating
+    # over these snapshots, not by loss. ~3.8MB each.
+    if opts[:snapshot_all] and is_number(loss) do
+      snap = Path.rootname(out_path) <> "_ep#{epoch}.bin"
+
+      case Imitation.export_policy(tr, snap) do
+        :ok -> :ok
+        err -> Output.warning("snapshot-all export failed at epoch #{epoch}: #{inspect(err)}")
+      end
+    end
+
     if rem(epoch, snapshot_every) == 0 and is_number(loss) do
       latest = Path.rootname(out_path) <> "_latest.bin"
       tmp = latest <> ".tmp"
@@ -1937,13 +2291,32 @@ end
         basin_probe.(epoch, loss, tr.policy_params)
       end
 
+    # Collapse guard (2026-08-19, GOTCHA #99): two runs in one night
+    # reported a ONE-EPOCH loss drop to ~1e-6..1e-8 (g15r2 ep51, g18
+    # ep10) — a degenerate state, not convergence. Because export picks
+    # the BEST-loss epoch, the collapse epoch won the export both times
+    # (gated 12.0 and 0.0 self/min vs 362.5 for the pre-collapse save).
+    # No genuine drill loss has ever reached 1e-5, and organic descent
+    # at these lrs never drops >100x below the running best in one
+    # epoch. Treat such epochs exactly like NaN: never best, never
+    # convergence, restore best params and continue.
+    collapse_suspect? =
+      is_number(loss) and
+        (loss < 1.0e-5 or (match?({_, _}, best) and loss < elem(best, 1) / 100))
+
     best =
       case best do
-        nil -> if is_number(loss), do: {tr, loss}, else: nil
-        {_, best_loss} -> if is_number(loss) and loss < best_loss, do: {tr, loss}, else: best
+        nil -> if is_number(loss) and not collapse_suspect?, do: {tr, loss}, else: nil
+        {_, best_loss} ->
+          if is_number(loss) and not collapse_suspect? and loss < best_loss,
+            do: {tr, loss},
+            else: best
       end
 
-    history = if is_number(loss), do: Enum.take([loss | history], 100), else: history
+    history =
+      if is_number(loss) and not collapse_suspect?,
+        do: Enum.take([loss | history], 100),
+        else: history
 
     plateaued? =
       length(history) == 100 and is_number(loss) and
@@ -1962,6 +2335,23 @@ end
         {:cont, {best_tr, best_loss, epoch, history, best, restores + 1}}
 
       not is_number(loss) -> {:halt, {tr, loss, epoch, history, best, restores}}
+
+      collapse_suspect? and best != nil and restores < 5 ->
+        {best_tr, best_loss} = best
+
+        Output.warning(
+          "COLLAPSE-SUSPECT loss=#{inspect(loss)} at epoch #{epoch} (<1e-5 or >100x " <>
+            "one-epoch drop) — restored best params (loss=#{Float.round(best_loss * 1.0, 5)}), " <>
+            "continuing (restore #{restores + 1}/5)"
+        )
+
+        {:cont, {best_tr, best_loss, epoch, history, best, restores + 1}}
+
+      collapse_suspect? ->
+        # No best to restore (collapse on epoch 1) or restores exhausted:
+        # halt as diverged so the export path falls back to best-epoch and
+        # the degenerate loss can never print as "Converged".
+        {:halt, {tr, {:collapsed, loss}, epoch, history, best, restores}}
 
       reject_at != nil and epoch >= reject_at and is_map(basin_results) and
           basin_reject_check.(basin_results) ->
