@@ -4,6 +4,35 @@
 gated on the human corpus growing and the cycle-4 arc concluding — this
 is the bridge to RL staging (#29), buildable without an emulator.**
 
+> **IMPLEMENTED 2026-08-12 — multishine adaptation first**
+> (HANDOFF_2026-08-12 item 2; the generalist/human-corpus arm below
+> stays as-specced for later). What shipped:
+>
+> - `ExPhil.Training.AdvantageWeighting` — shine-chain reward (+1 per
+>   grounded-reflector ENTRY via `ShineChain.family/1`; return-to-go is
+>   then a discounted count of upcoming shines, so chains carry the
+>   advantage with no separate break penalty), H=300 γ=0.997 RTG,
+>   per-list mean baseline, percentile-rule beta, clip + mean-normalize,
+>   `shuffle:` B3 control. Tested.
+> - Loss plumbing: `Data.batched_sequences(..., loss_weights: ws)` —
+>   per-frame LOSS weights multiplied into the batch `:frame_weights`
+>   channel at the window's supervised frame (distinct from
+>   `:sampling_weights`, which changes draw frequency). Tested.
+> - `dagger_drill.exs --awbc [--awbc-beta B] [--awbc-shuffle]
+>   [--awbc-air-reward R]`. Smoke-validated on the d1 fixture: 787
+>   shine entries, beta 0.48, weight ratio 5.5 (in the 5-10 band).
+> - Pre-registered arms harness:
+>   `eval_runs/0813_awbc_ms/run_awbc_arms.sh` (B1/B2/B3 at the g15
+>   champion recipe, equal data/compute; gates + verdict rules inline).
+>
+> Deviation from the v1 spec, deliberate: reward is the SHINE-CHAIN
+> signal, not `Rewards.Standard` — the multishine domain has the dense
+> instrumented reward; the generalist arm will use Rewards.Standard as
+> written. The advantage-variance caveat found during design: curated
+> drill data is near-all-success, so weights only bite where the pool
+> carries FAILURES (rollout/eval replays with breaks) — the arms pool
+> includes them via `--rollouts`.
+
 ## Why this rung first
 
 Plain BC's ceiling is the demonstrator: every frame is imitated equally,

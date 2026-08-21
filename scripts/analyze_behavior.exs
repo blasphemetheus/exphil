@@ -77,22 +77,37 @@ analyze_replay = fn path ->
         # frames shielding + observed hard shield breaks (entry into 205..211)
         shield = ReplayStats.shield_stats(Enum.map(actions, &trunc(&1 * 1.0)))
 
-        # Death classification: a stock decrement whose PRE-death percent is
-        # under 20 is an SD (walked/fell off), not a KO
-        {sd_deaths, ko_deaths, _} =
-          Enum.reduce(frames, {0, 0, nil}, fn frame, {sd, ko, prev} ->
+        # Death classification (trajectory, GOTCHA #94 — mirrors
+        # Melee.GameEvents): a stock decrement is a KO only if the bot
+        # had been in hitstun since it last touched ground/ledge; an
+        # untouched fall is an SD at ANY percent. The old percent<20
+        # heuristic missed high-percent SDs and miscounted spikes.
+        hitstun = MapSet.new(Enum.to_list(75..91) ++ Enum.to_list(223..232))
+        ledge = MapSet.new([252, 253])
+
+        {sd_deaths, ko_deaths, _, _} =
+          Enum.reduce(frames, {0, 0, nil, false}, fn frame, {sd, ko, prev, hit_since_safe} ->
             p = get.(frame, bot_port)
+            action = trunc((p && p.action) || -1)
 
-            case {prev, p} do
-              {%{stock: ps, percent: pp}, %{stock: cs}}
-              when is_integer(ps) and is_integer(cs) and cs < ps ->
-                if is_number(pp) and pp < 20.0,
-                  do: {sd + 1, ko, p},
-                  else: {sd, ko + 1, p}
+            {sd, ko} =
+              case {prev, p} do
+                {%{stock: ps}, %{stock: cs}}
+                when is_integer(ps) and is_integer(cs) and cs < ps ->
+                  if hit_since_safe, do: {sd, ko + 1}, else: {sd + 1, ko}
 
-              _ ->
-                {sd, ko, p}
-            end
+                _ ->
+                  {sd, ko}
+              end
+
+            hit_since_safe =
+              cond do
+                MapSet.member?(hitstun, action) -> true
+                (p && p.on_ground) == true or MapSet.member?(ledge, action) -> false
+                true -> hit_since_safe
+              end
+
+            {sd, ko, p, hit_since_safe}
           end)
 
         xs = bot_frames |> Enum.map(& &1.x) |> Enum.reject(&is_nil/1)

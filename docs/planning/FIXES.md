@@ -6,6 +6,20 @@ This document tracks identified issues and planned improvements from the January
 
 - **GPU Kernel Language Exploration** — Evaluating Julia, Futhark, Mojo, and Bend as alternatives to CUDA C for scan kernels. See [KERNEL_LANGUAGE_COMPARISON.md](../research/KERNEL_LANGUAGE_COMPARISON.md) for findings and [individual exploration docs](../research/) for per-language details.
 
+## Recently Added (2026-08-19)
+
+- **dagger_drill convergence exit trusts a single epoch's loss [P1 — GUARD SHIPPED 2026-08-19, root cause open]**: `collapse_suspect?` guard now routes loss<1e-5 / >100x one-epoch drops through the NaN-restore path (see GOTCHA #99; g18 also collapsed at ep10 the same night, awbc arm — the anomaly is recipe-independent and its root cause is UNKNOWN). Original description:
+  g15r2 (eval_runs/0819_g15r2/RESULTS.md) bounced in its normal loss
+  band (~0.007–0.024) through epoch 50, then dropped to 2.5e-8 in ONE
+  epoch — a degenerate collapse, not convergence — and the drill's
+  "Converged" check exported the dead epoch-51 weights (stand-fox
+  12.0/min vs 362.5 for the epoch-50 periodic save). Fix: require the
+  loss below target for >=2 consecutive epochs, AND treat a >100x
+  one-epoch drop as divergence-suspect (export best/previous epoch,
+  warn loudly). Until fixed: never trust a "Converged" line without
+  reading the loss trajectory, and keep `_latest.bin` around as the
+  pre-collapse fallback.
+
 ## Recently Added (2026-07-16 audit round)
 
 - **`--gradient-checkpoint` is a no-op [P2]**: the flag routes to

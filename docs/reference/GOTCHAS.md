@@ -3484,7 +3484,12 @@ level-1 CPU (which rarely kills), wrong vs real opponents. The
 trajectory classifier in `scripts/edge_snippet_mine.exs` is the correct
 pattern: walk back from the stock loss to the last grounded frame and
 check for an untouched fall (no hitstun action states in between).
-Backport to GameEvents/analyze_behavior still owed. Terminology from the
+**RESOLVED 2026-08-12**: backported to both — `Melee.GameEvents` and
+`analyze_behavior.exs` now track a per-port hit-since-last-ground/ledge
+flag (hitstun action families 75..91 + 223..232, or
+`hitstun_frames_left > 0` where available; CliffCatch/CliffWait reset
+like ground). Validated on the 0813_dose_session games: the witnessed
+g1 airdodge SD flipped 0→1, g2 revealed 2 hidden SDs. Terminology from the
 same review: death kinds are two-way `:sd`/`:ko`; "edgeguard" names the
 SITUATION of contesting a recovery, never a death kind ("gimp" is
 banned — it's a slur).
@@ -3507,3 +3512,106 @@ the 08-10 per-stage-ledge + edge-miner code had the same bug; no
 artifacts affected because everything ran on FD). Rule: convert with
 `Melee.Enums.Stage.from_external/1` FIRST, then call Melee.Stages with
 the atom. Unknown externals map to :no_stage -> nil -> your fallback.
+
+## 97. Dolphin orphans on abrupt beam death — fixed by the libmelee_ex spawn shim
+
+A bare `Port.open({:spawn_executable, dolphin})` leaks the emulator
+whenever the BEAM dies abruptly (kill -9, the EXLA-recompile SIGBUS, a
+crashed eval): Erlang closes the port pipe, but Dolphin never reads
+stdin, so it runs forever at full speed (four orphans from an 08-11
+eval burned ~5 cores for 2 days; found 2026-08-13 while diagnosing the
+wedged-hyprlock incident). Fixed structurally in `Melee.Dolphin`
+(libmelee_ex): Dolphin is spawned through a 9-line sh shim whose
+`cat`-on-stdin watcher converts port-pipe EOF (fires on EVERY beam
+death mode) into SIGTERM on the emulator; TERM/INT are trap-forwarded
+so `stop/1` still works, and `stop/1`'s -9 escalation sweeps the shim's
+children (`pkill -9 -P`) so a TERM-immune Dolphin can't survive it.
+Two sub-gotchas encountered building it:
+  * POSIX gives BACKGROUNDED commands an implicit /dev/null stdin —
+    `( cat ... ) &` EOFs instantly; stash the real stdin on fd 3 first
+    (`exec 3<&0` ... `cat <&3`).
+  * pkill/pgrep -f self-match: a command that CONTAINS the pattern text
+    anywhere (e.g. a heredoc defining the thing you're grepping for)
+    kills its own shell even with the [b]racket idiom on the pattern.
+Belt-and-braces for pre-shim leftovers + stale /tmp/libmelee_* homes:
+`scripts/reap_orphan_dolphins.sh` (PPID-1 rule; 1-day age guard on
+temp-home removal).
+
+## 98. nx 0.13 made Nx.while backward O(n²) — RNN training 15x slower; fix: unroll: :static
+
+The 0.12.1→0.13.1 nx merge (2026-08-13) silently multiplied
+champion-recipe train time ~16x (g16: 27 min/epoch vs b2's 103 s on the
+identical command; caught 08-14 because the overnight run was still on
+epoch 17/60 in the morning). Bisected (31 commits, automated
+fixture-bench script) to elixir-nx/nx#1785 `fix(grad): while grad
+propagation rule`: the old while-grad ran the gradient body forward
+alongside the loop (WRONG ordering for reverse-mode in general — every
+pre-0.13 RNN checkpoint trained on those grads); the fix replays the
+forward body from step 0 for EVERY backward step to keep O(1) memory —
+O(seq_len²) time. Axon's RNNs default to `unroll: :dynamic` (= Nx.while
+per layer), so GRU/LSTM training at window 60 ate the full quadratic.
+
+Diagnostic signature: beam pegged at exactly ONE core, GPU ~85% "busy"
+(real kernels, just n× too many), epoch loss curve normal. Easy to
+misread as host-callback overhead or Evaluator fallback — bisect, don't
+changelog-guess (first two suspects #1795/#1804 were both wrong).
+
+Fix: pass `unroll: :static` to Axon.lstm/gru when seq_len is a
+compile-time constant (Edifice.Recurrent.build_axon_recurrent and
+ExPhil.Networks.Recurrent both default :static now, overridable via
+`:unroll`). Costs: one-time JIT of the unrolled graph (~3.5 min at
+window 60 vs ~30 s dynamic) + higher RSS (2.5→4.2 GB on the fixture
+bench). Post-fix 0.13.1 epoch = 5 s (dynamic 0.12.1 was 6 s). Static
+unroll grads are plain chain rule — also sidesteps the old rule's
+correctness bug. Fast-eval bisect harness kept at
+scratchpad bisect_bench.sh pattern: 2-epoch fixture drill, classify on
+epoch-2 wall time.
+
+## 99. One-epoch loss collapse to ~0 wins the best-epoch export — "Converged: loss=0.0" is a DEAD checkpoint
+
+2026-08-19: two full-scale drill runs in one night (g15r2 no-awbc, ep51;
+g18 awbc, ep10 — both lr 2e-4, fixed-grad stack) reported a normal loss
+band (~0.007–0.07) and then a ONE-EPOCH drop to 2.5e-8 / 2.0e-6. That is
+not convergence — a real imitation loss on a 380k mixed human/rollout
+pool cannot reach 1e-5, and checkpoint forensics showed the collapse
+epoch still moved weights like a normal epoch (mean |Δw| ~6% of weight
+scale vs the previous save), so the REPORTED loss and the actual
+optimization state diverged. Because dagger_drill exports the BEST-loss
+epoch and halts on `loss < target`, the collapse epoch won the export
+both times: gated 12.0 and 0.0 self/min, vs 362.5/min c353 for g15r2's
+pre-collapse epoch-50 `_latest` snapshot (saved every 10 epochs — the
+rescue only existed because the collapse landed one epoch past a
+snapshot; g18's collapse AT epoch 10 overwrote its own rescue).
+
+Fix (in dagger_drill since 2026-08-19): a `collapse_suspect?` guard —
+loss < 1e-5 OR a >100x one-epoch drop below the running best — is
+treated exactly like the NaN path: never updates `best`, never triggers
+the convergence halt, restores best params and continues (5-restore
+budget), else halts as diverged so export falls back to best-epoch.
+
+Reading logs: never trust a `Converged:` line without the loss
+trajectory behind it (g16's 0.00127@58 was genuine; 0.0@10 was not).
+Root cause of the degenerate epoch itself is UNKNOWN (never observed
+before 08-19; 2-for-3 that night; survives awbc on/off) — if it recurs
+with the guard active, the restore-warning line dates it and the
+fatal-batch capture pattern (CLAUDE.md dev practices) is the next tool.
+
+## 100. GPU contention silently invalidates human play sessions — both arms flatline, menus hang at login
+
+2026-08-20: a 6-game blind decider ran while a training beam held 75%
+of the GPU. Every game was uniformly bad on BOTH arms (ground shines,
+zero chains) — including the reigning champion that had chained 12-46
+vs the same human before. Logs show the async loop starved: 8-22% of
+frames got stale actions (g4: 7562 inferences / 9739 frames; healthy
+sessions are 1:1). The bot effectively played at a large UNTRAINED lag
+regime — the known chain-killer — so the session measured contention,
+not policy quality. The same contention stretched JIT warmup from ~20s
+to minutes, during which the old synchronous Step-4 warmup blocked the
+menu-navigating runner: Dolphin sat inert at the Slippi login screen.
+
+Fixes shipped: (a) decider scripts now HARD-REFUSE to start if
+dagger_drill/run_g*/gate_sweep/eval_live_protocol processes are live
+(copy the guard into every future human-session script); (b)
+play_dolphin_async warmup is backgrounded (Task.start) so menu
+navigation proceeds during XLA compile. Rule: human rungs get an idle
+GPU, verified mechanically, never by memory.

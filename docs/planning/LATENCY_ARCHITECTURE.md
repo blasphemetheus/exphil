@@ -670,6 +670,91 @@ live play is purely an execution-quality choice. Task #12's runnable
 half is done; the remaining item is the real-friend ping measurement
 (Bradley-gated, rides the next remote Direct session).
 
+## Rung-composition theory + ping plan (2026-08-19, planning-queue write-up)
+
+Closing the two open items from the delay campaign as PLANS (both
+execution-gated: theory arms on GPU idle post-retune, ping on the next
+remote session).
+
+### Standing caveat first: every composition fact below is OLD-GRAD era
+
+All grind-5/6/7 numbers and the id-mode readings were trained on the
+pre-nx#1785 (incorrect) while-grad rule (GOTCHA #98). The fixed stack
+demonstrably moves optima (g16 arc). **Before any theory arm runs,
+re-verify the basic composition facts on the fixed stack** — one cheap
+fixture-scale probe of {2,3} vs {2,3,4} id-mode quality. If the
+pattern (id-3 universal, id-4 pool-dependent, low-rung dilution)
+doesn't replicate, the theory program below restarts from new facts.
+
+### The facts a theory must explain (as of 08-03, old-grad)
+
+1. id-3 is a UNIVERSAL EXECUTOR: 330-435 at real d3/d4 across three
+   differently-pooled checkpoints (sp1, g9_sp34, mdq_ss).
+2. A TRAINED id-4 mode works only in the full ladder {2,3,4} (435);
+   {2,4} zeroed it, {3,4} got 84. The highest rung seems to need dense
+   support beneath it.
+3. The LOWEST rung is dilution-fragile: d2 = 434 in {2,3} but pinned
+   ~140 in {2,3,4} — adding a higher rung taxed the low one, while d3
+   stayed strong in both.
+4. Adjacent-shift interference REFUTED (grind-6: spacing-1 pool set
+   the d2 record; spacing-2 pool zeroed d4).
+5. SS-on-queue does not ladder past d4 (d6/d8 metronomes).
+
+### Hypotheses (mutually distinguishable)
+
+- **H-share (dilution):** per-rung mode quality tracks that rung's
+  absolute data share; the d2 pin in {2,3,4} is just 33% vs 50%.
+  Predicts: reweighting d2 up inside {2,3,4} recovers it.
+- **H-scaffold (curriculum-in-a-checkpoint):** the highest rung's mode
+  only forms when every intermediate rung is present (anticipation at
+  d is bootstrapped from d-1 features); lower rungs don't need
+  scaffolding from above. Predicts: {2,4} and {3,4} fail d4 at ANY
+  share weighting; {2,3,4} with a tiny d4 share still cracks d4.
+- **H-mode-budget (capacity):** the id channel partitions the trunk
+  into modes competing for capacity; quality ranks by share BUT the
+  id-3 mode generalizes because d3 sits mid-band (its features are
+  reusable at d2 and d4), making it cheap — an asymmetry neither pure
+  share nor pure scaffold predicts.
+
+### Decisive arms (fixture-scale first, LR-sweep pattern; GPU-idle work)
+
+- E0 (replication, must run first): {2,3} vs {2,3,4} on the fixed
+  stack, all-rung eval + id-override probes. Re-establishes facts 1-3.
+- E1 (share vs scaffold on the LOW end): {2,3,4} with d2 oversampled
+  to 50% absolute share. d2 recovers -> H-share; stays pinned ->
+  rung-4 presence itself interferes.
+- E2 (share vs scaffold on the HIGH end): {3,4} with d4 oversampled.
+  d4 still fails -> H-scaffold; recovers -> H-share.
+- E3 (interp): CycleSim per-rung traces of the id modes — BLOCKED on
+  the queue-embed extension; unblocks whenever that lands.
+
+Priority remains as ruled 08-03: practical closure exists (deploy the
+best-trained id mode); this is understanding work, never a blocker.
+Do not schedule ahead of the retune program or F3.
+
+### Real-friend ping measurement plan (Bradley-gated, next remote Direct session)
+
+Goal: a validated lookup rule **measured ping -> --frame-delay +
+--delay-id-override to deploy**, replacing the current single point
+(netplay decider: d4 worked, qtrace lag peak 6 @ ~99%).
+
+Protocol (rides the session, ~zero extra time):
+1. Per game, note the Slippi HUD ping (and connection quality) — one
+   screenshot or a line in the session notes is enough.
+2. Keep every .slp + the bot harness qtrace logs (lag distribution is
+   already recorded; no new tooling).
+3. After the session, tabulate: ping band -> qtrace lag peak/percentile
+   -> subjective feel + per-game chain count (from replays, never
+   qtrace presses — promotion-rule discipline).
+4. Decision rule to validate: effective rung ~= intrinsic 2 + Slippi
+   buffer + ceil(ping/2 / 16.7ms); deploy the nearest TRAINED id at or
+   above it (never an untrained id — standing rule). If measured lag
+   contradicts the formula, the qtrace distribution wins.
+
+Deliverable: a "ping -> deploy knob" table in this doc + the session's
+row(s). Two remote sessions at different pings is enough to call the
+formula validated or dead.
+
 ## Promotion rule (2026-08-04, learned the hard way)
 
 **Never crown a checkpoint on stand-dummy numbers.** `ms_g6_sp1` won the

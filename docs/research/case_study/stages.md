@@ -258,6 +258,30 @@ end
 - Warning animation before change
 - Some time frozen during transition
 
+**Water windmill kinematics** (task #5, resolved 2026-08-12):
+- Hub at (−36.64, 38.8), fitted from blade-riding chords (players-as-probes)
+- Rotation: **−0.5°/frame clockwise** — exact, from the melee decomp
+  (`grpstadium.c:579`, `HSD_JObjAddRotationZ(..., -0.5F * deg_to_rad)`)
+- Period: exactly 720 frames = 12.000 s per revolution
+- Empirical cross-check: `scripts/fit_windmill_rate.exs` (surface-carry
+  estimator over rider frame-pairs) bracketed the constant and confirmed
+  direction; raw rider angles are contaminated by blade-slide (riders are
+  carried conveyor-style and slide along the soft-platform blades), which
+  is why chord-slope fitting failed on 2026-08-11
+- Blade phase: **NOT deterministic from any replay-visible anchor**
+  (measured 2026-08-12, `scripts/fit_windmill_phase.exs` over 12 water
+  phases in the local corpus): same-game water-phase pairs are mutually
+  inconsistent under every clock hypothesis tested (water-start anchor,
+  game-global clock, cumulative water time with/without morph, model
+  birth). The decomp is consistent with this: the water init grabs the
+  windmill jobj without setting its rotation (`AddRotationZ` only
+  accumulates). Treat phase as a **per-water-phase latent**: riders on
+  the wheel give `(θ + 0.5·t_rel) mod 90` samples whose circular mean
+  anchors the blades (within-phase concentration 0.95–0.99 — which also
+  independently re-validates the −0.5°/frame rate). The rewind viewer
+  does this fit automatically (`fitWindmillPhases`) and draws exact
+  blades when a phase has ≥8 rider samples at concentration >0.8.
+
 **Frozen Stadium** ([Inven Global](https://www.invenglobal.com/articles/15576/the-return-of-unfrozen-pokemon-stadium-was-awful-and-awesome)):
 - Modded version that disables transformations
 - Was standard for online play 2020-2023
