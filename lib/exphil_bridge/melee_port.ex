@@ -369,6 +369,7 @@ defmodule ExPhil.Bridge.MeleePort do
                    do: [controller_port],
                    else: [controller_port, opponent_port]
                  )
+                 |> add_human_adapter_port(config, headless, online)
              }),
            {:ok, console} <-
              start_console(slippi_port, polling, console_timeout, blocking_input),
@@ -458,6 +459,28 @@ defmodule ExPhil.Bridge.MeleePort do
       "none"
     else
       mode
+    end
+  end
+
+  # Human controller port (opt-in): EXPHIL_HUMAN_PORT=2 (or config
+  # :human_port) declares that port as :gcn_adapter, so declare_ports/2
+  # doesn't unplug it — without this, a fresh temp home makes the human
+  # visit Dolphin's controller menu every single launch. Windowed local
+  # sessions only: headless and netplay Dolphins must never claim the
+  # GC adapter (it blocks the human's own Slippi session — 2026-08-09).
+  defp add_human_adapter_port(ports, config, headless, online) do
+    raw = Map.get(config, :human_port) || System.get_env("EXPHIL_HUMAN_PORT")
+
+    with false <- headless or online or raw in [nil, ""],
+         {port, _} when port in 1..4 <- Integer.parse(to_string(raw)) do
+      if port in ports do
+        Logger.warning("[MeleePort] human_port #{port} is already a bot port; ignoring")
+        ports
+      else
+        ports ++ [{port, :gcn_adapter}]
+      end
+    else
+      _ -> ports
     end
   end
 
@@ -787,6 +810,24 @@ defmodule ExPhil.Bridge.MeleePort do
       if is_pid(stuck_notify), do: send(stuck_notify, {:melee_port, :menu_stuck, report})
     end
 
+    # :menu_ready_check (2026-08-21, warmup-race fix follow-up): a
+    # zero-arity fun; while it returns false at the CHARACTER SELECT
+    # screen, the bot does not navigate or confirm — it idles with a
+    # visible slow stick wiggle (the "still loading" animation). Melee
+    # won't start a match until every port confirms, so the unconfirmed
+    # bot is an engine-enforced interlock against starting a game on a
+    # half-JIT'd policy. The check MUST be non-blocking (a GenServer
+    # call into the warming Agent would queue behind the compile — the
+    # exact bug this replaces); callers use a :persistent_term flag.
+    ready_check = Map.get(state.config, :menu_ready_check)
+
+    if is_function(ready_check, 0) and gamestate.menu_state == @menu_character_select and
+         not ready_check.() do
+      phase = rem(div(abs(gamestate.frame), 24), 2)
+      x = if phase == 0, do: 0.35, else: 0.65
+      Melee.Controller.tilt_analog(state.controller, :main, x, 0.5)
+      state
+    else
     helper =
       Melee.MenuHelper.step(state.menu_helper, gamestate, state.controller,
         port: state.controller_port,
@@ -812,6 +853,7 @@ defmodule ExPhil.Bridge.MeleePort do
       )
 
     %{state | menu_helper: helper}
+    end
   end
 
   # Autostart gate: don't press START while the dummy's CPU-level slider

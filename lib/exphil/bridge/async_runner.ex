@@ -911,7 +911,13 @@ defmodule ExPhil.Bridge.AsyncRunner do
                 # not analog values — sending those to libmelee clamps the
                 # sticks to full deflection (the "drifts right forever" bug).
                 case Agent.get_controller_with_confidence(agent, game_state,
-                       player_port: player_port
+                       player_port: player_port,
+                       # Long timeout: the first call can queue behind a
+                       # backgrounded JIT warmup (~20s idle GPU, minutes
+                       # loaded). The frame reader is a separate process, so
+                       # a slow inference degrades to stale-action stats —
+                       # never crash the session over it.
+                       timeout: 120_000
                      ) do
                   {:ok, controller, confidence} ->
                     :ets.insert(table, {:latest_action, controller})

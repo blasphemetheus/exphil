@@ -188,7 +188,14 @@ if opts[:connect_code] do
   Output.puts("  Netplay: connecting to #{opts[:connect_code]} (dummies disabled)")
 end
 
+# Warmup readiness flag for the CSS interlock (see MeleePort
+# :menu_ready_check): false until the backgrounded warmup task flips it.
+# Default TRUE in the getter so a crashed-before-put path can never wedge
+# the menus forever.
+:persistent_term.put({:exphil, :warmup_done}, false)
+
 bridge_config = %{
+  menu_ready_check: fn -> :persistent_term.get({:exphil, :warmup_done}, true) end,
   dolphin_path: opts[:dolphin],
   iso_path: opts[:iso],
   controller_port: opts[:port],
@@ -257,16 +264,32 @@ case MeleePort.init_console(bridge, bridge_config, 60_000) do
     System.halt(1)
 end
 
-# Step 4: JIT Warmup
-Output.step(4, 5, "JIT Warmup (this may take a minute for temporal models)")
+# Step 4: JIT Warmup — BACKGROUNDED since 2026-08-20. The synchronous
+# version held the whole pipeline (including the Step-5 runner that does
+# menu navigation) until XLA compile finished, so Dolphin sat inert at
+# the login screen for the entire warmup (~20s idle GPU; minutes under
+# load). Menu navigation needs no inference, so the runner starts now
+# and warmup overlaps with the human's own menu time. If a game somehow
+# starts before warmup completes, the Agent GenServer serializes: the
+# first inference queues behind the compile (the async runner already
+# tolerates slow first inferences by design).
+Output.step(4, 5, "JIT Warmup (backgrounded — menus proceed while XLA compiles)")
 
-case Agent.warmup(agent) do
-  {:ok, warmup_ms} ->
-    Output.success("JIT warmup complete (#{warmup_ms}ms)")
+Task.start(fn ->
+  try do
+    case Agent.warmup(agent) do
+      {:ok, warmup_ms} ->
+        Output.success("JIT warmup complete (#{warmup_ms}ms)")
 
-  {:error, reason} ->
-    Output.warning("Warmup failed: #{inspect(reason)} (will warmup on first inference)")
-end
+      {:error, reason} ->
+        Output.warning("Warmup failed: #{inspect(reason)} (will warmup on first inference)")
+    end
+  after
+    # Release the CSS interlock no matter how warmup ended — the bot
+    # holds its character un-confirmed (wiggling) until this flips.
+    :persistent_term.put({:exphil, :warmup_done}, true)
+  end
+end)
 
 # Step 5: Start async runner
 Output.step(5, 5, "Starting async game runner")

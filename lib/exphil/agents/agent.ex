@@ -234,7 +234,13 @@ defmodule ExPhil.Agents.Agent do
   @spec get_controller_with_confidence(GenServer.server(), GameState.t(), keyword()) ::
           {:ok, ControllerState.t(), map()} | {:error, term()}
   def get_controller_with_confidence(agent, game_state, opts \\ []) do
-    GenServer.call(agent, {:get_controller_with_confidence, game_state, opts})
+    # :timeout (default 5_000) is consumed here, not forwarded. Callers that
+    # can race a backgrounded JIT warmup (async_runner's inference loop) pass
+    # a long timeout: the first call queues behind the warmup in this
+    # GenServer, and 2026-08-21 a 5s default crashed the game runner at
+    # frame -123 with "Inferences: 0" (GOTCHA #100 follow-up).
+    {timeout, opts} = Keyword.pop(opts, :timeout, 5_000)
+    GenServer.call(agent, {:get_controller_with_confidence, game_state, opts}, timeout)
   end
 
   @doc """
