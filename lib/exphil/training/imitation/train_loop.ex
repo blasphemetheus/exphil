@@ -277,7 +277,7 @@ defmodule ExPhil.Training.Imitation.TrainLoop do
 
     # Compute loss and gradients based on policy type
     {loss, grads} = compute_policy_loss_and_grad(
-      policy_type, trainer, states, actions, frame_weights
+      policy_type, trainer, states, actions, frame_weights, batch
     )
 
     # Extract data for optimizer (grads has same structure as ModelState)
@@ -424,7 +424,7 @@ defmodule ExPhil.Training.Imitation.TrainLoop do
 
     # Forward + backward in BF16 (compute precision)
     {loss, grads} = compute_policy_loss_and_grad(
-      policy_type, %{trainer | policy_params: compute_model_state}, states, actions, frame_weights
+      policy_type, %{trainer | policy_params: compute_model_state}, states, actions, frame_weights, batch
     )
     grads_data = get_params_data(grads)
 
@@ -473,7 +473,7 @@ defmodule ExPhil.Training.Imitation.TrainLoop do
     frame_weights = Map.get(batch, :frame_weights) || default_frame_weights(states)
     policy_type = trainer.config[:policy_type] || :autoregressive
 
-    {loss, grads} = compute_policy_loss_and_grad(policy_type, trainer, states, actions, frame_weights)
+    {loss, grads} = compute_policy_loss_and_grad(policy_type, trainer, states, actions, frame_weights, batch)
     grads_data = get_params_data(grads)
     loss_val = Nx.to_number(loss)
 
@@ -563,7 +563,7 @@ defmodule ExPhil.Training.Imitation.TrainLoop do
     frame_weights = Map.get(batch, :frame_weights) || default_frame_weights(states)
     policy_type = trainer.config[:policy_type] || :autoregressive
 
-    {_loss, grads} = compute_policy_loss_and_grad(policy_type, trainer, states, actions, frame_weights)
+    {_loss, grads} = compute_policy_loss_and_grad(policy_type, trainer, states, actions, frame_weights, batch)
     grads_data = get_params_data(grads)
 
     flatten_grad_norms(grads_data, "")
@@ -614,36 +614,76 @@ defmodule ExPhil.Training.Imitation.TrainLoop do
   # Dispatch loss computation based on policy type
   # For autoregressive and ACT: uses cached loss_and_grad_fn with 4 args (includes frame_weights)
   # For diffusion and flow_matching: samples noise/timestep and uses 5 args
-  defp compute_policy_loss_and_grad(:autoregressive, trainer, states, actions, frame_weights) do
-    # Probe-as-regularizer (r15): the loss fn was built with a 5th argument
-    # (the online-refit probe direction) whenever probe_direction is set
-    if trainer.probe_direction do
-      trainer.loss_and_grad_fn.(
-        trainer.policy_params,
-        states,
-        actions,
-        frame_weights,
-        trainer.probe_direction
-      )
-    else
-      trainer.loss_and_grad_fn.(trainer.policy_params, states, actions, frame_weights)
+  # For autoregressive with distill_weight > 0 (F3 anchor): 6 args, the
+  # teacher logits + distill mask riding on the batch (zeros when a batch
+  # lacks them — an all-zero mask makes the KL term exactly 0)
+  defp compute_policy_loss_and_grad(:autoregressive, trainer, states, actions, frame_weights, batch) do
+    distill_weight = trainer.config[:distill_weight] || 0.0
+
+    cond do
+      distill_weight > 0 ->
+        {teacher, mask} = distill_batch_fields(trainer, batch, states)
+
+        trainer.loss_and_grad_fn.(
+          trainer.policy_params,
+          states,
+          actions,
+          frame_weights,
+          teacher,
+          mask
+        )
+
+      # Probe-as-regularizer (r15): the loss fn was built with a 5th argument
+      # (the online-refit probe direction) whenever probe_direction is set
+      trainer.probe_direction != nil ->
+        trainer.loss_and_grad_fn.(
+          trainer.policy_params,
+          states,
+          actions,
+          frame_weights,
+          trainer.probe_direction
+        )
+
+      true ->
+        trainer.loss_and_grad_fn.(trainer.policy_params, states, actions, frame_weights)
     end
   end
 
-  defp compute_policy_loss_and_grad(:act, trainer, states, actions, frame_weights) do
+  defp compute_policy_loss_and_grad(:act, trainer, states, actions, frame_weights, _batch) do
     trainer.loss_and_grad_fn.(trainer.policy_params, states, actions, frame_weights)
   end
 
-  defp compute_policy_loss_and_grad(:diffusion, trainer, states, actions, _frame_weights) do
+  defp compute_policy_loss_and_grad(:diffusion, trainer, states, actions, _frame_weights, _batch) do
     # Sample random noise and timesteps for diffusion training
     {noise, timestep} = sample_noise_and_timestep(trainer, actions)
     trainer.loss_and_grad_fn.(trainer.policy_params, states, actions, noise, timestep)
   end
 
-  defp compute_policy_loss_and_grad(:flow_matching, trainer, states, actions, _frame_weights) do
+  defp compute_policy_loss_and_grad(:flow_matching, trainer, states, actions, _frame_weights, _batch) do
     # Sample random noise and timesteps for flow matching training
     {noise, timestep} = sample_noise_and_timestep(trainer, actions)
     trainer.loss_and_grad_fn.(trainer.policy_params, states, actions, noise, timestep)
+  end
+
+  # Teacher logits + distill mask from the batch; zero fallbacks sized
+  # from the trainer config's head-bucket layout when a batch (val
+  # precompute, crime-scene replay) doesn't carry them.
+  defp distill_batch_fields(trainer, batch, states) do
+    batch_size = elem(Nx.shape(states), 0)
+
+    total =
+      8 + 4 * ((trainer.config[:axis_buckets] || 16) + 1) +
+        ((trainer.config[:shoulder_buckets] || 4) + 1)
+
+    teacher =
+      Map.get(batch, :teacher_logits) ||
+        Nx.broadcast(Nx.tensor(0.0, type: :f32), {batch_size, total})
+
+    mask =
+      Map.get(batch, :distill_mask) ||
+        Nx.broadcast(Nx.tensor(0.0, type: :f32), {batch_size})
+
+    {teacher, mask}
   end
 
   # Sample noise and timesteps for generative policy training

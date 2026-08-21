@@ -175,11 +175,59 @@ defmodule ExPhil.Training.Imitation.Loss do
       head_normalize: head_normalize
     ]
 
+    # KL-distillation anchor (F3 Route A): when distill_weight > 0 the
+    # loss takes teacher logits + a distill mask as 5th/6th ARGUMENTS
+    # (per-batch tensors, precomputed at pool build — the teacher never
+    # runs in-graph, GOTCHA #3).
+    distill_weight = config[:distill_weight] || 0.0
+    distill_tau = config[:distill_tau] || 1.0
+
+    if distill_weight > 0 and probe_reg_weight > 0 do
+      raise ArgumentError,
+            "distill_weight and probe_reg_weight are separate loss variants — enable one at a time"
+    end
+
     # Build the loss+grad function using JIT compilation
     # predict_fn is captured here (once), not in train_step (every batch)
     inner_fn =
-      if probe_reg_weight > 0 and probe_trunk_fn do
-        fn params, states, actions, frame_weights, probe_v ->
+      cond do
+        distill_weight > 0 ->
+          fn params, states, actions, frame_weights, teacher_logits, distill_mask ->
+            states = Nx.as_type(states, precision)
+
+            loss_fn = fn p ->
+              {buttons, main_x, main_y, c_x, c_y, shoulder} =
+                predict_fn.(Utils.ensure_model_state(p), states)
+
+              logits = %{
+                buttons: buttons,
+                main_x: main_x,
+                main_y: main_y,
+                c_x: c_x,
+                c_y: c_y,
+                shoulder: shoulder
+              }
+
+              bc =
+                Policy.imitation_loss(
+                  logits,
+                  actions,
+                  loss_opts ++ [frame_weights: frame_weights]
+                )
+
+              kl =
+                ExPhil.Networks.Policy.Loss.distill_kl(logits, teacher_logits, distill_mask,
+                  tau: distill_tau
+                )
+
+              Nx.add(bc, Nx.multiply(distill_weight, kl))
+            end
+
+            Nx.Defn.value_and_grad(loss_fn).(params)
+          end
+
+        probe_reg_weight > 0 and probe_trunk_fn != nil ->
+          fn params, states, actions, frame_weights, probe_v ->
           states = Nx.as_type(states, precision)
 
           loss_fn = fn p ->
@@ -190,20 +238,21 @@ defmodule ExPhil.Training.Imitation.Loss do
           end
 
           Nx.Defn.value_and_grad(loss_fn).(params)
-        end
-      else
-        fn params, states, actions, frame_weights ->
-          # Convert states to training precision
-          states = Nx.as_type(states, precision)
-
-          # Build loss function - states/actions are already Defn.Expr from outer JIT
-          loss_fn = fn p ->
-            autoregressive_bc_loss(predict_fn, p, states, actions, frame_weights, loss_opts)
           end
 
-          # Compute loss and gradients
-          Nx.Defn.value_and_grad(loss_fn).(params)
-        end
+        true ->
+          fn params, states, actions, frame_weights ->
+            # Convert states to training precision
+            states = Nx.as_type(states, precision)
+
+            # Build loss function - states/actions are already Defn.Expr from outer JIT
+            loss_fn = fn p ->
+              autoregressive_bc_loss(predict_fn, p, states, actions, frame_weights, loss_opts)
+            end
+
+            # Compute loss and gradients
+            Nx.Defn.value_and_grad(loss_fn).(params)
+          end
       end
 
     # JIT compile the entire function - this makes states/actions flow as Defn.Expr

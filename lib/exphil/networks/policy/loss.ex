@@ -703,4 +703,83 @@ defmodule ExPhil.Networks.Policy.Loss do
     log_sum_exp = Nx.log(Nx.sum(Nx.exp(shifted), axes: [-1], keep_axes: true))
     Nx.subtract(shifted, log_sum_exp)
   end
+
+  @doc """
+  KL-distillation anchor term (DISTILL_ANCHOR_SPEC F3, Route A).
+
+  Masked mean over the batch of
+
+      sum_buttons  KL(Bernoulli(sig(t)) || Bernoulli(sig(s)))
+    + sum_softmax_heads KL(softmax(t/tau) || softmax(s/tau))
+
+  where `t` is the FROZEN teacher's logits and `s` the student's.
+  `teacher_concat` is the per-frame teacher logits concatenated in head
+  order [buttons, main_x, main_y, c_x, c_y, shoulder] — precomputed at
+  pool-build time (never run the teacher in-graph; GOTCHA #3). Head
+  sizes are taken from the student logits' static shapes at trace time.
+  `mask` is `{batch}` (1.0 = anchor this frame, 0.0 = don't); an
+  all-zero mask yields exactly 0.
+
+  Both logit sets are f32-cast and ±60-clamped before any exp/sigmoid —
+  the same NaN lessons as `imitation_loss/3` (min/max, never Nx.clip).
+  tau defaults to 1 (the teacher IS the target behavior); no tau^2
+  scaling is applied — the caller's distill_weight owns the scale.
+  """
+  def distill_kl(student_logits, teacher_concat, mask, opts \\ []) do
+    tau = Keyword.get(opts, :tau, 1.0)
+
+    clamp = fn t -> t |> Nx.as_type(:f32) |> Nx.max(-60.0) |> Nx.min(60.0) end
+    student = Map.new(student_logits, fn {k, v} -> {k, clamp.(v)} end)
+    teacher_concat = clamp.(teacher_concat)
+    mask = Nx.as_type(mask, :f32)
+
+    head_order = [:buttons, :main_x, :main_y, :c_x, :c_y, :shoulder]
+    sizes = Enum.map(head_order, fn k -> elem(Nx.shape(student[k]), 1) end)
+    offsets = Enum.scan([0 | sizes], &(&1 + &2)) |> Enum.take(length(sizes))
+
+    teacher =
+      head_order
+      |> Enum.zip(Enum.zip(offsets, sizes))
+      |> Map.new(fn {k, {off, size}} ->
+        {k, Nx.slice_along_axis(teacher_concat, off, size, axis: 1)}
+      end)
+
+    # Buttons: sum of per-button Bernoulli KLs, via stable log-sigmoid
+    # (log_sig(x) = -softplus(-x); softplus(x) = max(x,0) + log1p(exp(-|x|)))
+    log_sig = fn x ->
+      Nx.negate(Nx.add(Nx.max(Nx.negate(x), 0.0), Nx.log1p(Nx.exp(Nx.negate(Nx.abs(x))))))
+    end
+
+    tb = teacher.buttons
+    sb = student.buttons
+    pt = Nx.sigmoid(tb)
+
+    btn_kl =
+      pt
+      |> Nx.multiply(Nx.subtract(log_sig.(tb), log_sig.(sb)))
+      |> Nx.add(
+        Nx.multiply(
+          Nx.subtract(1.0, pt),
+          Nx.subtract(log_sig.(Nx.negate(tb)), log_sig.(Nx.negate(sb)))
+        )
+      )
+      |> Nx.sum(axes: [1])
+
+    cat_kl = fn t, s ->
+      logp_t = log_softmax(Nx.divide(t, tau))
+      logp_s = log_softmax(Nx.divide(s, tau))
+
+      Nx.exp(logp_t)
+      |> Nx.multiply(Nx.subtract(logp_t, logp_s))
+      |> Nx.sum(axes: [1])
+    end
+
+    per_sample =
+      [:main_x, :main_y, :c_x, :c_y, :shoulder]
+      |> Enum.map(fn k -> cat_kl.(teacher[k], student[k]) end)
+      |> Enum.reduce(btn_kl, &Nx.add/2)
+
+    Nx.sum(Nx.multiply(per_sample, mask))
+    |> Nx.divide(Nx.max(Nx.sum(mask), 1.0))
+  end
 end

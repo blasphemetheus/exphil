@@ -236,7 +236,12 @@ defmodule ExPhil.Networks.Recurrent do
     recurrent_opts = [
       name: name,
       recurrent_initializer: recurrent_init,
-      use_bias: true
+      use_bias: true,
+      # :static unrolls the recurrence into the graph (window length is a
+      # compile-time constant here). Axon's default :dynamic emits Nx.while,
+      # whose reverse-mode grad is O(seq_len^2) since nx 0.13 (#1785) — it
+      # cost a 15x training slowdown on 2026-08-14 before this was pinned.
+      unroll: Keyword.get(opts, :unroll, :static)
     ]
 
     # Axon.lstm/gru returns {output_sequence, hidden_state_tuple}

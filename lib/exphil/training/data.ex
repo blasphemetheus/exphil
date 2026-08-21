@@ -2175,7 +2175,10 @@ defmodule ExPhil.Training.Data do
         character_weights: character_weights,
         neutral_weight: Keyword.get(opts, :neutral_weight, 0.25),
         transition_weight: Keyword.get(opts, :transition_weight),
-        sampling_weights: Keyword.get(opts, :sampling_weights)
+        sampling_weights: Keyword.get(opts, :sampling_weights),
+        loss_weights: Keyword.get(opts, :loss_weights),
+        distill_teacher: Keyword.get(opts, :distill_teacher),
+        distill_mask: Keyword.get(opts, :distill_mask)
       )
     else
       # Eager mode: use pre-built sequence embeddings (high RAM, fast batching)
@@ -2357,12 +2360,31 @@ defmodule ExPhil.Training.Data do
   # - `:character_weights` - Optional character-balanced sampling
   # - `:sampling_weights` - Optional per-frame pool-sampling weights (r15
   #   conversion weighting, ExPhil.Training.ConversionSampling)
+  # - `:loss_weights` - Optional per-frame LOSS weights aligned with
+  #   dataset.frames (AWBC, ExPhil.Training.AdvantageWeighting). Distinct
+  #   from :sampling_weights: these multiply the per-frame imitation loss
+  #   (batch :frame_weights channel) instead of changing draw frequency.
+  #   Keyed by the window's supervised (last) frame, like actions.
   defp batched_sequences_lazy(dataset, batch_size, window_size, stride, opts) do
     shuffle = Keyword.get(opts, :shuffle, true)
     drop_last = Keyword.get(opts, :drop_last, false)
     seed = Keyword.get(opts, :seed, System.system_time())
     character_weights = Keyword.get(opts, :character_weights, nil)
     sampling_weights = Keyword.get(opts, :sampling_weights, nil)
+
+    loss_wtuple =
+      case Keyword.get(opts, :loss_weights) do
+        nil -> nil
+        ws when is_list(ws) -> :erlang.list_to_tuple(ws)
+      end
+
+    # F3 distill anchor: teacher logits per SEQUENCE (row k = sequence k,
+    # same indexing as the embeddings) + per-sequence anchor mask.
+    distill =
+      case {Keyword.get(opts, :distill_teacher), Keyword.get(opts, :distill_mask)} do
+        {nil, _} -> nil
+        {teacher, mask} when is_list(mask) -> {teacher, :erlang.list_to_tuple(mask)}
+      end
 
     # Get frame embeddings as chunked structure for fast slicing
     {chunks_array, chunk_size, num_frames, embed_dim} = get_frame_embeddings_chunked(dataset)
@@ -2428,8 +2450,37 @@ defmodule ExPhil.Training.Data do
     |> Enum.chunk_every(batch_size)
     |> maybe_drop_last(drop_last, batch_size)
     |> Stream.map(fn batch_indices ->
-      create_sequence_batch_lazy(chunks_array, chunk_size, frames_array, batch_indices, window_size, stride, embed_dim, gpu, use_batch, neutral_weight, transition_weight)
+      batch = create_sequence_batch_lazy(chunks_array, chunk_size, frames_array, batch_indices, window_size, stride, embed_dim, gpu, use_batch, neutral_weight, transition_weight, loss_wtuple)
+      attach_distill_fields(batch, batch_indices, distill, gpu)
     end)
+  end
+
+  # F3 distill anchor: gather the precomputed teacher-logit rows + anchor
+  # mask for this batch's sequence indices and ride them on the batch map
+  # (train_loop passes them into the 6-arg distill loss).
+  defp attach_distill_fields(batch, _indices, nil, _gpu), do: batch
+
+  defp attach_distill_fields(batch, indices, {teacher, mask_tuple}, gpu) do
+    idx = Nx.tensor(indices, type: :s64)
+    rows = Nx.take(teacher, idx, axis: 0)
+
+    mask =
+      indices
+      |> Enum.map(fn i ->
+        if i < tuple_size(mask_tuple) and elem(mask_tuple, i), do: 1.0, else: 0.0
+      end)
+      |> Nx.tensor(type: :f32)
+
+    {rows, mask} =
+      if gpu do
+        {Nx.backend_transfer(rows, EXLA.Backend), Nx.backend_transfer(mask, EXLA.Backend)}
+      else
+        {rows, mask}
+      end
+
+    batch
+    |> Map.put(:teacher_logits, rows)
+    |> Map.put(:distill_mask, mask)
   end
 
   @doc """
@@ -2494,7 +2545,7 @@ defmodule ExPhil.Training.Data do
   end
 
   # Lazy batch creation - slices sequences from chunked frame embeddings on-the-fly
-  defp create_sequence_batch_lazy(chunks_array, chunk_size, frames_array, indices, window_size, stride, embed_dim, gpu, use_batch, neutral_weight, transition_weight) do
+  defp create_sequence_batch_lazy(chunks_array, chunk_size, frames_array, indices, window_size, stride, embed_dim, gpu, use_batch, neutral_weight, transition_weight, loss_wtuple \\ nil) do
     # Slice sequences from chunked embeddings (fast: 16K-row chunks vs 1.26M-row tensor)
     sequences =
       Enum.map(indices, fn seq_idx ->
@@ -2559,6 +2610,7 @@ defmodule ExPhil.Training.Data do
           transition_weight: transition_weight,
           prev_actions: prev_actions
         )
+        |> apply_loss_weights(indices, stride, window_size, loss_wtuple)
 
       %{states: states_batch, actions: action_tensors, frame_weights: frame_weights}
     else
@@ -2577,6 +2629,7 @@ defmodule ExPhil.Training.Data do
           transition_weight: transition_weight,
           prev_actions: prev_actions
         )
+        |> apply_loss_weights(indices, stride, window_size, loss_wtuple)
 
       frame_weights = if gpu, do: Nx.backend_transfer(frame_weights, EXLA.Backend), else: frame_weights
 
@@ -2621,6 +2674,26 @@ defmodule ExPhil.Training.Data do
       end
 
     Nx.tensor(weights, type: :f32)
+  end
+
+  # AWBC (loss_weights channel): multiply per-frame LOSS weights into the
+  # batch frame_weights, keyed by each window's supervised (last) frame —
+  # the same frame the actions come from. Out-of-range indices (shouldn't
+  # happen for valid sequences) fall back to 1.0.
+  defp apply_loss_weights(frame_weights, _indices, _stride, _window_size, nil), do: frame_weights
+
+  defp apply_loss_weights(frame_weights, indices, stride, window_size, loss_wtuple) do
+    n = tuple_size(loss_wtuple)
+
+    lw =
+      indices
+      |> Enum.map(fn seq_idx ->
+        last = seq_idx * stride + window_size - 1
+        if last < n, do: elem(loss_wtuple, last) * 1.0, else: 1.0
+      end)
+      |> Nx.tensor(type: :f32)
+
+    Nx.multiply(frame_weights, lw)
   end
 
   # Meaningful action change: any button toggled or a stick/shoulder bucket
