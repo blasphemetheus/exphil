@@ -30,7 +30,7 @@ for i in 1 2 3; do
   echo
   echo "=== GAME $i/3 — press Enter when ready at the CSS ==="
   read -r
-  EXPHIL_QUEUE_TRACE=1 XLA_TARGET=cuda12 EXPHIL_GPU_MEMORY_FRACTION=0.25 \
+  EXPHIL_QUEUE_TRACE=1 EXPHIL_HUMAN_PORT=2 XLA_TARGET=cuda12 EXPHIL_GPU_MEMORY_FRACTION=0.25 \
   devenv shell -- mix run scripts/play_dolphin_async.exs \
     --policy "${POLICIES[$name]}" \
     --character fox --temperature 0.3 \
