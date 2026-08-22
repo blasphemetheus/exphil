@@ -54,9 +54,32 @@ carry X" from a wall into a config line. Four postures it enables:
       format bug these tests caught cost the afternoon), total-f32
       decode (NaN crash caught), subscriptions, lifecycle, external
       streaming. Suite 500/0.
+- [x] `menu_state` scene-word decoder (2026-08-22b):
+      `MemoryMap.decode_scene/1` + `scene_name/1` — the packed word is
+      the scene controller `<<major, pending, previous, minor>>`;
+      stream scene = `(minor <<< 8) ||| major`, so the decode reuses
+      `Events.Menu.scene_name/1`'s whole taxonomy as offline test
+      vectors (live word 0x02020200 @ VS CSS = the confirming read).
+      OWED: a live transition trace pinning byte-1 vs byte-2
+      (pending vs previous) — mw_verify now prints decoded scenes.
+- [x] Capability reference doc (2026-08-22b):
+      `libmelee_ex/docs/memory-watch.md` — contract, datagram grammar
+      data definition, semantics, address book + provenance, the
+      address-hunt playbook, gotcha table.
+- [x] Test battery round 2 (2026-08-22b): MemoryMap invariants
+      (MEM1-virtual range, chain-offset sanity, full dolphin-echo
+      round trip name recovery), parse_datagram TOTALITY fuzz (200
+      random binaries + adversarial shapes — a raise in the receive
+      path kills the watcher mid-session), scene-word input classes
+      (settled/transitioning/boundary + all known scenes).
 - [ ] exphil bridge: MeleePort accepts watcher values and merges them
       into menu-scene GameStates (fixes GOTCHA #101 properly; the
       blind CSS fallback becomes the no-watcher fallback).
+- [ ] Address-hunt kit: promote the tmp/mw_verify differential-scan
+      pattern into a real tool (batch candidate generation over a
+      region, changed-line report across a driven state change,
+      stale-read heuristics: constants/denormals/never-changes).
+      The CSS re-derivation thread should build this as it goes.
 
 ## Application list (ordered; check off / date as done)
 
@@ -84,6 +107,30 @@ carry X" from a wall into a config line. Four postures it enables:
        stream schema support.
 8. [ ] (later, netplay era) lobby automation: read connect/matchmaking
        state for unattended session management.
+9. [ ] **Scene-transition early warning** (cheap; unblocked NOW, no
+       CSS addresses needed): `pending_major != major` in the decoded
+       scene word = a scene change committed but not yet landed —
+       RAM-only signal the stream never carries. Consumers: the menu
+       watchdog (act one step earlier), and a SEMI-closed online CSS
+       loop today — the scene word alone confirms "we left the CSS"
+       i.e. the blind fallback's selection actually took, replacing
+       the open-loop hope with a checkable postcondition.
+10. [ ] **Delay-regime measurement** (feeds LATENCY_ARCHITECTURE's
+       ping-table thread, the 22→4 chain-gap question): RAM frame
+       counter read at datagram arrival vs the stream event's frame
+       stamp = a direct, per-session measure of the local pipeline's
+       contribution to effective delay. Same method against a netplay
+       session decomposes effective delay into local vs network parts
+       — today it's inferred from qtrace lag peaks after the fact.
+11. [ ] **In-game player ground truth** (percent/stock/action/position
+       per port from RAM): classic addresses exist, need the same
+       0x80-virtual re-verification as CSS. Superset of application
+       #3 (parity) and prerequisite for #4 (scenario asserts) and #7
+       (outcome channels) — verify once, three consumers.
+12. [ ] **Menu-frame liveness ratchet**: `menu_frame`/`rng_seed`
+       monotonicity as the universal "session is alive and paced"
+       check for every launcher/watchdog — replaces process-alive
+       heuristics that can't see a wedged-but-running core.
 
 ## Non-goals / boundaries
 
@@ -117,3 +164,13 @@ carry X" from a wall into a config line. Four postures it enables:
   rejected everything. Addresses must be 0x80-virtual. get_f32 made
   total (NaN bits). Classic per-port CSS addresses stale on this
   build → next thread = address re-derivation (HANDOFF_2026-08-22).
+- 2026-08-22b (foundation pass): menu_state DECODED offline — packed
+  scene-controller word, cross-validated against the stream taxonomy
+  (every Events.Menu scene = a test vector; live 0x02020200 @ VS CSS
+  fits). Shipped: decode_scene/scene_name, MemoryMap invariant
+  battery + parse totality fuzz, docs/memory-watch.md reference,
+  mw_verify scene printout. Applications #9-#12 added (transition
+  early-warning unblocks a semi-closed online CSS WITHOUT the per-port
+  addresses; delay-regime measurement; in-game ground truth as the
+  verify-once/three-consumers step; liveness ratchet). Tests 39/0 in
+  the two batteries.
