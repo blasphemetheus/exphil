@@ -3615,3 +3615,33 @@ dagger_drill/run_g*/gate_sweep/eval_live_protocol processes are live
 play_dolphin_async warmup is backgrounded (Task.start) so menu
 navigation proceeds during XLA compile. Rule: human rungs get an idle
 GPU, verified mechanically, never by memory.
+
+## 101. The netplay-beta build streams NO live online-CSS state — menus there are open-loop by design
+
+2026-08-22 raw-payload diagnosis (EXPHIL_MENU_RAW=1, solo bot at the
+online CSS with the cursor demonstrably moving): the menu_event payload
+streams, but the ONLY changing bytes are a frame counter; the entire
+CSS field region (cursor f32s at 0x03, character 0x29+, coin 0x2D+) is
+a ONE-SHOT scene-entry snapshot. It contains the account's PREVIOUSLY
+SELECTED character — so the helper's feedback menuing "worked"
+historically only while the saved character differed from the target
+(the timed make-do/reroll branches muddled through blind), and wedged
+the day the bot's own past fox picks made the frozen byte read fox
+pre-pick (correct_character true -> START mashing, never A). We broke
+it by winning.
+
+Consequences:
+- Online-CSS driving MUST be open-loop: MeleePort's blind fallback
+  (steer 8s -> ONE A press [A toggles the pick; even counts deselect]
+  -> START pulses -> hand back to the helper for the code scene) is
+  DEFAULT ON for online sessions (EXPHIL_CSS_BLIND_FALLBACK=0 opts
+  out). Center the stick before blind presses — the pipe latches the
+  last steering tilt and presses land on a moving cursor otherwise.
+- menu_helper's online "locked in" branch now requires coin_down or
+  the ready banner, never the (hover/snapshot) character byte alone.
+- Real feedback would need dolphin memory watches (day+ build) or a
+  build that emits CSS state — neither currently justified: the blind
+  flow completed two live sessions end-to-end.
+- Debug dumps in play scripts: default verbosity sets Logger to
+  :warning — Logger.info debug lines are silently eaten (cost two
+  relaunch cycles); use Logger.warning or IO.puts.

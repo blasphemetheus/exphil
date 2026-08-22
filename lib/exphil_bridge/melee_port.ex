@@ -735,6 +735,12 @@ defmodule ExPhil.Bridge.MeleePort do
   # -- Menu navigation ---------------------------------------------------------
 
   defp navigate_menus(state, gamestate) do
+    # Frame counter for the loading animation + blind-fallback phases
+    # (menu frames don't advance gamestate.frame reliably; GOTCHA #101
+    # diagnosis history).
+    css_n = Process.get(:css_debug_n, 0)
+    Process.put(:css_debug_n, css_n + 1)
+
     character = to_character_id(Map.get(state.config, :character, :fox))
     stage = to_stage_id(Map.get(state.config, :stage, :final_destination))
 
@@ -820,39 +826,165 @@ defmodule ExPhil.Bridge.MeleePort do
     # call into the warming Agent would queue behind the compile — the
     # exact bug this replaces); callers use a :persistent_term flag.
     ready_check = Map.get(state.config, :menu_ready_check)
+    online? = Map.get(state.config, :connect_code) not in [nil, ""]
 
-    if is_function(ready_check, 0) and gamestate.menu_state == @menu_character_select and
-         not ready_check.() do
-      phase = rem(div(abs(gamestate.frame), 24), 2)
-      x = if phase == 0, do: 0.35, else: 0.65
-      Melee.Controller.tilt_analog(state.controller, :main, x, 0.5)
-      state
-    else
-    helper =
-      Melee.MenuHelper.step(state.menu_helper, gamestate, state.controller,
-        port: state.controller_port,
-        character: character,
-        stage: stage,
-        # nil for local play — init_console normalizes the config value to
-        # a string ("" when offline), but MenuHelper treats "" as "drive
-        # the DIRECT-code keyboard", which hijacks and crashes the nametag
-        # flow (same name-entry scene; hit twice 2026-08-07).
-        connect_code:
-          case Map.get(state.config, :connect_code) do
-            "" -> nil
-            code -> code
-          end,
-        # In-game tag (max 4 chars) typed at the CSS by the helper's
-        # nametag flow; needs memory_card save data or the tag list is
-        # empty. Local showcase sessions use "EXPH".
-        nametag: Map.get(state.config, :nametag),
-        autostart: autostart,
-        swag: false,
-        stuck_after_frames: Map.get(state.config, :menu_stuck_frames, 1800),
-        on_stuck: on_stuck
-      )
+    at_css? = gamestate.menu_state in [@menu_character_select, 6]
 
-    %{state | menu_helper: helper}
+    # DEFAULT ON for online since 2026-08-22 (opt out with =0): the
+    # netplay-beta build streams NO live online-CSS state — only a frame
+    # counter ticks in the menu payload; cursor/character/coin are a
+    # one-shot scene-entry snapshot (raw-dump diagnosis,
+    # eval_runs/0822_netplay_crown/RESULTS.md). The snapshot holds the
+    # account's PREVIOUSLY SELECTED character, so feedback menuing
+    # "worked" only until the bot's own past fox picks poisoned it into
+    # reading fox pre-pick. Online CSS is open-loop territory, period.
+    blind_fallback? =
+      online? and gamestate.menu_state == 6 and
+        System.get_env("EXPHIL_CSS_BLIND_FALLBACK") != "0" and
+        not Process.get(:css_blind_done, false) and
+        (not is_function(ready_check, 0) or ready_check.())
+
+    # The helper step, factored so the blind-fallback steering phase can
+    # reuse it (defined before the cond; closes over this frame's vars).
+    helper_drive = fn state ->
+      helper =
+        Melee.MenuHelper.step(state.menu_helper, gamestate, state.controller,
+          port: state.controller_port,
+          character: character,
+          stage: stage,
+          connect_code:
+            case Map.get(state.config, :connect_code) do
+              "" -> nil
+              code -> code
+            end,
+          nametag: Map.get(state.config, :nametag),
+          autostart: autostart,
+          swag: false,
+          stuck_after_frames: Map.get(state.config, :menu_stuck_frames, 1800),
+          on_stuck: on_stuck
+        )
+
+      %{state | menu_helper: helper}
+    end
+
+    cond do
+      # Warming + at a CSS (local 0 or slippi online 6): idle with a
+      # visible LOADING ANIMATION, never confirm — the human sees
+      # "loading" where the cursor is (Bradley's 08-22 UX request).
+      # Candidates via EXPHIL_LOADING_ANIM (Bradley picks the keeper):
+      #   wiggle   - left-right shimmy (default)
+      #   infinity - small lemniscate (stick velocity x=cos t, y=cos 2t
+      #              integrates to a figure-eight cursor path)
+      #   circle   - small orbit
+      #   nod      - vertical bob
+      # Stick = cursor VELOCITY on the CSS, so each pattern is zero-mean
+      # to keep the path closed; r sized above the deadzone.
+      is_function(ready_check, 0) and at_css? and not ready_check.() ->
+        # Piecewise square-wave segments, NOT sinusoids: the CSS cursor
+        # response is nonlinear (deadzone + curve), so a trig pattern
+        # leaves a DC residue and drifts (observed live: steady upward
+        # crawl). Equal-duration opposite segments cancel exactly under
+        # any monotone response.
+        r = 0.18
+        seg = rem(div(css_n, 18), 4)
+
+        {x, y} =
+          case System.get_env("EXPHIL_LOADING_ANIM", "wiggle") do
+            # true two-lobed infinity: a diamond orbit traced left of
+            # center, then one right of center (8 x 12-frame segments).
+            # Built from pure-cardinal legs so per-axis response
+            # asymmetry (which collapsed the diagonal bowtie into a "V")
+            # cannot distort the shape, and sized down so the top legs
+            # stay off the neighboring portrait frames.
+            "infinity" ->
+              case rem(div(css_n, 12), 8) do
+                0 -> {0.5, 0.5 + r}
+                1 -> {0.5 - r, 0.5}
+                2 -> {0.5, 0.5 - r}
+                3 -> {0.5 + r, 0.5}
+                4 -> {0.5, 0.5 + r}
+                5 -> {0.5 + r, 0.5}
+                6 -> {0.5, 0.5 - r}
+                7 -> {0.5 - r, 0.5}
+              end
+
+            # diamond orbit: N, E, S, W
+            "circle" ->
+              case seg do
+                0 -> {0.5, 0.5 + r}
+                1 -> {0.5 + r, 0.5}
+                2 -> {0.5, 0.5 - r}
+                3 -> {0.5 - r, 0.5}
+              end
+
+            "nod" ->
+              {0.5, if(rem(div(css_n, 24), 2) == 0, do: 0.5 - r, else: 0.5 + r)}
+
+            _ ->
+              {if(rem(div(css_n, 24), 2) == 0, do: 0.5 - r, else: 0.5 + r), 0.5}
+          end
+
+        Melee.Controller.tilt_analog(state.controller, :main, x, y)
+        state
+
+      # BLIND CSS FALLBACK (EXPHIL_CSS_BLIND_FALLBACK=1, 2026-08-22):
+      # this mainline-beta build streams NO online-CSS state (cursor/
+      # character/coin bit-frozen across sessions), so the helper's
+      # feedback steering can never confirm a pick. Observed live: the
+      # actual cursor reliably parks on the target portrait — so after
+      # warmup, press A open-loop for ~2s, then pulse START. Remove
+      # once the CSS state feed is fixed (parser regression suspect:
+      # the 08-17 rules-menu session).
+      blind_fallback? and Process.get(:css_blind_n, 0) >= 480 ->
+        n = Process.get(:css_blind_n, 0)
+        Process.put(:css_blind_n, n + 1)
+
+        # CENTER THE STICK first, every frame: the pipe latches the last
+        # written state, so the helper's final steering tilt kept the
+        # cursor moving under the presses (observed live: A-spam over a
+        # drifting cursor, nothing selected).
+        Melee.Controller.tilt_analog(state.controller, :main, 0.5, 0.5)
+
+        cond do
+          # helper steered for the first 480 frames (cursor parks on the
+          # target)... then ONE A press, held 3 frames, on the stationary
+          # cursor. Exactly one: A over the selected portrait TOGGLES
+          # (observed live — an even press count ended deselected).
+          n < 483 ->
+            Melee.Controller.press_button(state.controller, :a)
+
+          n < 600 ->
+            Melee.Controller.release_button(state.controller, :a)
+
+          # ...then pulse START for ~5s...
+          n < 900 ->
+            Melee.Controller.release_button(state.controller, :a)
+
+            if rem(n, 60) < 3,
+              do: Melee.Controller.press_button(state.controller, :start),
+              else: Melee.Controller.release_button(state.controller, :start)
+
+          # ...then HAND BACK to the helper permanently (via the done
+          # flag, which un-matches blind_fallback? from the next frame):
+          # menu_state 6 also covers the code/name-entry scene after the
+          # CSS, and the helper has a real flow for it (Z-select the
+          # autofilled code) — observed live 08-22: the fallback kept
+          # pulsing START there ("goes to confirm and sits").
+          true ->
+            Melee.Controller.release_button(state.controller, :start)
+            Process.put(:css_blind_done, true)
+        end
+
+        state
+
+      blind_fallback? ->
+        # count state-6 frames while the helper still drives (steering
+        # phase of the blind fallback)
+        Process.put(:css_blind_n, Process.get(:css_blind_n, 0) + 1)
+        helper_drive.(state)
+
+      true ->
+        helper_drive.(state)
     end
   end
 
