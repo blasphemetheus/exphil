@@ -818,11 +818,20 @@ defmodule ExPhil.Bridge.MeleePort do
     #                         = 30s; netplay matchmaking waits stay under)
     #   :menu_stuck_notify  - pid to send {:melee_port, :menu_stuck, report}
     stuck_notify = Map.get(state.config, :menu_stuck_notify)
+    stuck_watcher = state.dolphin && state.dolphin.memory_watcher
 
     on_stuck = fn report ->
+      # RAM ground truth (MEMORY_WATCH_PROGRAM apps #2/#12): the scene
+      # view names the actual screen (the stream collapses login/boot
+      # dialogs to menu_state 255), and the traffic delta over ~250ms
+      # separates "core wedged" (zero — dolphin sends a datagram every
+      # step) from "core running, menuing stuck" (positive).
+      report = Map.merge(report, ram_menu_diagnosis(stuck_watcher))
+
       Logger.error(
         "[MeleePort] MENU STUCK: no menu progress for #{report.frames} frames " <>
-          "(menu_state=#{report.menu_state}) — wedged session? " <>
+          "(menu_state=#{report.menu_state} ram_scene=#{inspect(report.ram_scene)} " <>
+          "ram_traffic_delta=#{inspect(report.ram_traffic_delta)}) — wedged session? " <>
           "(login screen, adapter contention, cursor not converging)"
       )
 
@@ -1029,6 +1038,31 @@ defmodule ExPhil.Bridge.MeleePort do
       true ->
         helper_drive.(state)
     end
+  end
+
+  # RAM ground truth for the stuck report — total over missing/dead
+  # watchers (a diagnosis helper must never take the menu loop down).
+  # The 250ms traffic window blocks the frame loop, which is fine
+  # exactly here: on_stuck fires once per stall episode, 30s in.
+  defp ram_menu_diagnosis(nil), do: %{ram_scene: :no_watcher, ram_traffic_delta: nil}
+
+  defp ram_menu_diagnosis(watcher) do
+    scene =
+      case ExPhil.Bridge.BlindCss.observe(watcher) do
+        :unknown -> :unknown
+        word -> Melee.MemoryMap.scene_view(word)
+      end
+
+    delta =
+      try do
+        t0 = Melee.MemoryWatcher.traffic(watcher)
+        Process.sleep(250)
+        Melee.MemoryWatcher.traffic(watcher) - t0
+      catch
+        :exit, _ -> nil
+      end
+
+    %{ram_scene: scene, ram_traffic_delta: delta}
   end
 
   # Autostart gate: don't press START while the dummy's CPU-level slider

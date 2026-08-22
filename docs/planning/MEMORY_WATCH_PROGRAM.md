@@ -86,9 +86,13 @@ carry X" from a wall into a config line. Four postures it enables:
 1. [ ] **Live online-CSS state** (cursor/character/coin per port from
        RAM) -> real feedback menuing on any build; delete the blind
        fallback's guesswork. First consumer, validates the plumbing.
-2. [ ] **Menu-scene ground truth for the watchdog**: watch the scene
-       ids -> the MENU STUCK watchdog gets real signal (no more
-       false alarms during holds).
+2. [~] **Menu-scene ground truth for the watchdog** — diagnosis slice
+       SHIPPED 2026-08-22b: MeleePort's MENU STUCK report/log now
+       carries `ram_scene` (SceneView — names the actual screen where
+       the stream says 255) and `ram_traffic_delta` (250ms window:
+       zero = core wedged, positive = core fine / menuing stuck).
+       OPEN: using the signal to SUPPRESS false alarms during
+       legitimate holds (matchmaking waits), not just label them.
 3. [ ] **Parser parity, live**: cross-check stream-parsed player state
        vs RAM reads during a headless game — extends the peppi
        differential method to the live bridge (catches GOTCHA
@@ -132,10 +136,15 @@ carry X" from a wall into a config line. Four postures it enables:
        0x80-virtual re-verification as CSS. Superset of application
        #3 (parity) and prerequisite for #4 (scenario asserts) and #7
        (outcome channels) — verify once, three consumers.
-12. [ ] **Menu-frame liveness ratchet**: `menu_frame`/`rng_seed`
-       monotonicity as the universal "session is alive and paced"
-       check for every launcher/watchdog — replaces process-alive
-       heuristics that can't see a wedged-but-running core.
+12. [x] **Liveness ratchet** — SHIPPED 2026-08-22b, simpler than
+       planned: `MemoryWatcher.traffic/1`, a monotone
+       PARSE-INDEPENDENT datagram count. Key wire fact (pinned by the
+       grammar battery): dolphin sends a bare-NUL empty-step datagram
+       EVERY step, so raw arrival — no address needed at all — is
+       ground truth for "core running and paced"; liveness =
+       `delta > 0` between two reads. First consumer: the stuck
+       report's `ram_traffic_delta` (#2). Open: adopt in launchers/
+       harnesses beyond MeleePort.
 
 ## Non-goals / boundaries
 
