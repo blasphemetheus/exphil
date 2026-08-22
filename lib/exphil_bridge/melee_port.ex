@@ -515,6 +515,19 @@ defmodule ExPhil.Bridge.MeleePort do
       # use an in-game nametag.
       |> put_if(:memory_card, Map.get(config, :memory_card))
       |> put_if(:copy_home_from, online && Map.get(config, :user_home))
+      # RAM scene watching (MEMORY_WATCH_PROGRAM app #9, 2026-08-22b):
+      # default ON for online sessions — the netplay-beta build streams
+      # no live online-CSS state (GOTCHA #101), and the watcher's scene
+      # word is what semi-closes the blind CSS fallback (BlindCss).
+      # EXPHIL_MEMORY_WATCH=1 forces on for any session, =0 disables.
+      |> put_if(
+        :memory_watch,
+        case System.get_env("EXPHIL_MEMORY_WATCH") do
+          "0" -> false
+          "1" -> Melee.MemoryMap.menu_with_canary()
+          _ -> online && Melee.MemoryMap.menu_with_canary()
+        end
+      )
 
     Melee.Dolphin.launch(opts)
   end
@@ -932,10 +945,13 @@ defmodule ExPhil.Bridge.MeleePort do
       # character/coin bit-frozen across sessions), so the helper's
       # feedback steering can never confirm a pick. Observed live: the
       # actual cursor reliably parks on the target portrait — so after
-      # warmup, press A open-loop for ~2s, then pulse START. Remove
-      # once the CSS state feed is fixed (parser regression suspect:
-      # the 08-17 rules-menu session).
-      blind_fallback? and Process.get(:css_blind_n, 0) >= 480 ->
+      # warmup, press A open-loop, then pulse START, per the
+      # ExPhil.Bridge.BlindCss decision table. Since 2026-08-22b the
+      # loop is SEMI-CLOSED when a memory watcher runs: the RAM scene
+      # word confirms the post-START departure (early handback) and
+      # detects a pick that never landed (bounded A retry). With no
+      # watcher every path is the validated open-loop timing.
+      blind_fallback? and Process.get(:css_blind_n, 0) >= ExPhil.Bridge.BlindCss.a_press_at() ->
         n = Process.get(:css_blind_n, 0)
         Process.put(:css_blind_n, n + 1)
 
@@ -945,34 +961,61 @@ defmodule ExPhil.Bridge.MeleePort do
         # drifting cursor, nothing selected).
         Melee.Controller.tilt_analog(state.controller, :main, 0.5, 0.5)
 
-        cond do
-          # helper steered for the first 480 frames (cursor parks on the
-          # target)... then ONE A press, held 3 frames, on the stationary
-          # cursor. Exactly one: A over the selected portrait TOGGLES
-          # (observed live — an even press count ended deselected).
-          n < 483 ->
+        watcher = state.dolphin && state.dolphin.memory_watcher
+        progress = ExPhil.Bridge.BlindCss.classify(ExPhil.Bridge.BlindCss.observe(watcher))
+        retries = Process.get(:css_blind_retries, 0)
+
+        case ExPhil.Bridge.BlindCss.step(n, progress, retries) do
+          # ONE A press, held 3 frames, on the stationary cursor.
+          # Exactly one: A over the selected portrait TOGGLES (observed
+          # live — an even press count ended deselected).
+          :press_a ->
             Melee.Controller.press_button(state.controller, :a)
 
-          n < 600 ->
+          :release_a ->
             Melee.Controller.release_button(state.controller, :a)
 
-          # ...then pulse START for ~5s...
-          n < 900 ->
+          {:pulse_start, on?} ->
             Melee.Controller.release_button(state.controller, :a)
 
-            if rem(n, 60) < 3,
+            if on?,
               do: Melee.Controller.press_button(state.controller, :start),
               else: Melee.Controller.release_button(state.controller, :start)
 
-          # ...then HAND BACK to the helper permanently (via the done
-          # flag, which un-matches blind_fallback? from the next frame):
-          # menu_state 6 also covers the code/name-entry scene after the
-          # CSS, and the helper has a real flow for it (Z-select the
-          # autofilled code) — observed live 08-22: the fallback kept
-          # pulsing START there ("goes to confirm and sits").
-          true ->
+          # Scene evidence says the pick never landed: replay the A
+          # press on the parked cursor (bounded; the odd press count is
+          # preserved because a failed pick left the toggle unset).
+          {:retry_a, r} ->
+            Logger.warning(
+              "[MeleePort] blind CSS: scene still at online CSS after START window " <>
+                "(progress=#{progress}) — retrying A press (#{r})"
+            )
+
+            Process.put(:css_blind_retries, r)
+            Process.put(:css_blind_n, ExPhil.Bridge.BlindCss.a_press_at())
+            Melee.Controller.release_button(state.controller, :start)
+
+          # HAND BACK to the helper permanently (via the done flag,
+          # which un-matches blind_fallback? from the next frame):
+          # menu_state 6 also covers the code/name-entry scene after
+          # the CSS, and the helper has a real flow for it (Z-select
+          # the autofilled code) — observed live 08-22: the fallback
+          # kept pulsing START there ("goes to confirm and sits").
+          :handback ->
+            if progress in [:departing, :elsewhere] do
+              Logger.info(
+                "[MeleePort] blind CSS: departure CONFIRMED via RAM scene word " <>
+                  "(progress=#{progress}, frame #{n}) — handing back to helper"
+              )
+            end
+
             Melee.Controller.release_button(state.controller, :start)
             Process.put(:css_blind_done, true)
+
+          # n >= a_press_at here, so :steer is unreachable; be loud if
+          # the table and the guard ever drift apart.
+          :steer ->
+            Logger.warning("[MeleePort] blind CSS: unexpected :steer at n=#{n}")
         end
 
         state

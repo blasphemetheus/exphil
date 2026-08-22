@@ -107,14 +107,19 @@ carry X" from a wall into a config line. Four postures it enables:
        stream schema support.
 8. [ ] (later, netplay era) lobby automation: read connect/matchmaking
        state for unattended session management.
-9. [ ] **Scene-transition early warning** (cheap; unblocked NOW, no
-       CSS addresses needed): `pending_major != major` in the decoded
-       scene word = a scene change committed but not yet landed —
-       RAM-only signal the stream never carries. Consumers: the menu
-       watchdog (act one step earlier), and a SEMI-closed online CSS
-       loop today — the scene word alone confirms "we left the CSS"
-       i.e. the blind fallback's selection actually took, replacing
-       the open-loop hope with a checkable postcondition.
+9. [x] **Scene-transition early warning** — CODE SHIPPED 2026-08-22b
+       (LIVE VALIDATION OWED, next Direct session):
+       `Melee.MemoryMap.scene_view/1` (SceneView data definition:
+       settled | leaving) + `ExPhil.Bridge.BlindCss` (pure decision
+       table, 15-test class enumeration + whole-trace tests) wired
+       into MeleePort's blind CSS fallback. Semantics: START-pulse
+       phase hands back EARLY on confirmed departure; still settled
+       at the CSS after the window -> bounded A-press retry (2);
+       unmapped scenes classify :unknown (never close the loop on
+       noise); no watcher = exactly the validated open-loop timings.
+       Watcher default-ON for online launches
+       (EXPHIL_MEMORY_WATCH=1 forces any session, =0 disables).
+       Menu watchdog consumer still open.
 10. [ ] **Delay-regime measurement** (feeds LATENCY_ARCHITECTURE's
        ping-table thread, the 22→4 chain-gap question): RAM frame
        counter read at datagram arrival vs the stream event's frame
@@ -174,3 +179,13 @@ carry X" from a wall into a config line. Four postures it enables:
   addresses; delay-regime measurement; in-game ground truth as the
   verify-once/three-consumers step; liveness ratchet). Tests 39/0 in
   the two batteries.
+- 2026-08-22b (later): application #9 SHIPPED code-side —
+  `scene_view/1` SceneView (libmelee_ex) + `ExPhil.Bridge.BlindCss`
+  pure decision table (HtDP: observation classes -> progress classes
+  -> phase x progress table; legacy-equivalence trace test pins that
+  no-watcher behavior is bit-identical to the validated 08-22
+  open-loop). MeleePort launches the watcher by default for online
+  sessions. OWED: live Direct-session validation (watch for the
+  "departure CONFIRMED via RAM scene word" log line + whether the
+  code-entry scene shows as a distinct major-8 minor — that read
+  also settles the pending/previous byte order).
