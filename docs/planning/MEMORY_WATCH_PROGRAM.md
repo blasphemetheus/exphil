@@ -75,11 +75,16 @@ carry X" from a wall into a config line. Four postures it enables:
 - [ ] exphil bridge: MeleePort accepts watcher values and merges them
       into menu-scene GameStates (fixes GOTCHA #101 properly; the
       blind CSS fallback becomes the no-watcher fallback).
-- [ ] Address-hunt kit: promote the tmp/mw_verify differential-scan
-      pattern into a real tool (batch candidate generation over a
-      region, changed-line report across a driven state change,
-      stale-read heuristics: constants/denormals/never-changes).
-      The CSS re-derivation thread should build this as it goes.
+- [x] Address-hunt kit (2026-08-22b): `Melee.MemoryHunt` — pure,
+      18-test class enumeration: candidates/3 (region -> watch batch,
+      MEM1-range guarded — silent out-of-range watches read 0 and
+      poison the differential), changed/2 (snapshot diff; appearance
+      IS change under on-change semantics), correlated/2
+      (driven-minus-idle — kills always-ticking counters),
+      f32_class/1 (zero/denormal/normal/nan triage), tracks?/2
+      (commanded-coordinate closing argument; no evidence != pass).
+      Live driver: `examples/memory_hunt_css.exs` (HUNT_BASE/COUNT/
+      STRIDE env). Ready for the CSS re-derivation runs.
 
 ## Application list (ordered; check off / date as done)
 
