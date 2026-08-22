@@ -1,0 +1,2 @@
+policy=checkpoints/ms_p1_anneal_ep2.bin runner=sync runs=1 seconds=60 dummy=stand decode=--deterministic loadavg=2.48 2.63 2.18
+fixture_agreement: [21:35:58] FIXTURE_AGREEMENT best=0.8859 offset=5 delay_id=0 n=1679

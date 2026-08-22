@@ -1,0 +1,20 @@
+ep1: 395.5/min chain 389
+ep2: 437.4/min chain 438
+ep3: 436.4/min chain 437
+ep4: 83.9/min chain 3
+ep5: 84.9/min chain 3
+ep6: 113.8/min chain 2
+ep7: 437.4/min chain 438
+ep8: 437.4/min chain 438
+ep9: 112.8/min chain 2
+ep10: 99.9/min chain 2
+ep11: 436.4/min chain 437
+ep12: 82.9/min chain 1
+ep13: 80.9/min chain 1
+ep14: 126.8/min chain 4
+ep15: 82.9/min chain 1
+=== ARGMAX: checkpoints/ms_p1_anneal_ep2.bin at 437.4/min
+[21:35:16] r1                          3605     438   438        0     437.4       438
+[21:35:16] r2                          3605     438   438        0     437.4       438
+[21:35:16] r3                          3605     438   438        0     437.4       438
+[21:35:58] r1                          3605      81    81        0      80.9         1
