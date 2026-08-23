@@ -683,6 +683,24 @@ defmodule ExPhil.Bridge.MeleePort do
       log_frame(gamestate)
     end
 
+    # #10 delay probe (2026-08-23): RAM frame counter (0x80479D60,
+    # already in the menu watch set as :menu_frame) minus the stream
+    # event's frame stamp, at arrival. Local sync baseline = +123
+    # exactly (quartet, zero jitter); any drift here decomposes the
+    # netplay session's effective delay into local vs network parts.
+    # Every 300 in-game frames — 5s cadence, negligible cost.
+    if is_in_game and rem(gamestate.frame, 300) == 0 do
+      with watcher when watcher != nil <- state.dolphin && state.dolphin.memory_watcher,
+           {:ok, ram_frame} <- safe_watch_get(watcher, :menu_frame) do
+        Logger.info(
+          "[MeleePort] #10 delay probe: ram_frame - stream_frame = " <>
+            "#{ram_frame - gamestate.frame} (local-sync baseline 123) at frame #{gamestate.frame}"
+        )
+      else
+        _ -> :ok
+      end
+    end
+
     # Skip menu navigation on the FIRST postgame frame so the caller can
     # decide (restart vs stop); navigate on subsequent frames.
     skip_menu_nav = is_postgame and not state.postgame_reported
@@ -1185,6 +1203,13 @@ defmodule ExPhil.Bridge.MeleePort do
   # watchers (a diagnosis helper must never take the menu loop down).
   # The 250ms traffic window blocks the frame loop, which is fine
   # exactly here: on_stuck fires once per stall episode, 30s in.
+  # Total watcher read: nil/dead watcher or unobserved name -> :unknown.
+  defp safe_watch_get(watcher, name) do
+    Melee.MemoryWatcher.get(watcher, name)
+  catch
+    :exit, _ -> :unknown
+  end
+
   # Overlay watcher CSS observations onto a menu gamestate (pure merge
   # in Melee.MemoryMap.merge_css/2; the policy of WHEN lives here).
   defp ram_menu_merge(state, gamestate) do
