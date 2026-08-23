@@ -132,15 +132,23 @@ carry X" from a wall into a config line. Four postures it enables:
        zero = core wedged, positive = core fine / menuing stuck).
        OPEN: using the signal to SUPPRESS false alarms during
        legitimate holds (matchmaking waits), not just label them.
-3. [ ] **Parser parity, live**: cross-check stream-parsed player state
-       vs RAM reads during a headless game — extends the peppi
-       differential method to the live bridge (catches GOTCHA
-       #81-class action_frame divergences at the source).
+3. [x] **Parser parity, live** — VERIFIED 2026-08-22c (the quartet
+       run, libmelee_ex tmp/mw_quartet.exs: one solo CPU game on FD,
+       900 arrival rows): stream-vs-RAM bit-exact wherever the value
+       did not change across the arrival boundary (stock 100%, action
+       94-96%, x/y exact at rest); continuously-moving fields read ~1
+       frame FRESHER from RAM (first x mismatch = exactly one frame of
+       walk speed) — within-frame phase, not lag (the frame counter
+       read +123 on every row). Standing per-frame parity harness =
+       re-run the quartet script.
 4. [ ] **Scenario-farm verification**: Improoover/scenario setups
        assert exact game state (percent, position, RNG seed) before
        recording a rep — removes inference from drill farms.
-5. [ ] **RNG seed capture per game** -> determinism audits and
-       exact-replay debugging for the eval protocol.
+5. [x] **RNG seed capture per game** — VERIFIED 2026-08-22c (quartet):
+       `rng_seed` (804D5F90) readable at match start and ticking EVERY
+       frame in-game (900 distinct/900 rows; the "canary doesn't tick"
+       caveat is settled-menus-only). Ready for determinism audits;
+       wiring into the eval protocol is a consumer task.
 6. [ ] **Stage internals live**: FoD platform heights / PS
        transformation state on ANY build or era (the stream only has
        these >=3.18) — feeds StageCollision consumers in live play.
@@ -163,18 +171,23 @@ carry X" from a wall into a config line. Four postures it enables:
        Watcher default-ON for online launches
        (EXPHIL_MEMORY_WATCH=1 forces any session, =0 disables).
        Menu watchdog consumer still open.
-10. [ ] **Delay-regime measurement** (feeds LATENCY_ARCHITECTURE's
-       ping-table thread, the 22→4 chain-gap question): RAM frame
-       counter read at datagram arrival vs the stream event's frame
-       stamp = a direct, per-session measure of the local pipeline's
-       contribution to effective delay. Same method against a netplay
-       session decomposes effective delay into local vs network parts
-       — today it's inferred from qtrace lag peaks after the fact.
-11. [ ] **In-game player ground truth** (percent/stock/action/position
-       per port from RAM): classic addresses exist, need the same
-       0x80-virtual re-verification as CSS. Superset of application
-       #3 (parity) and prerequisite for #4 (scenario asserts) and #7
-       (outcome channels) — verify once, three consumers.
+10. [~] **Delay-regime measurement** — METHOD VALIDATED 2026-08-22c
+       (quartet): `ram_frame = slippi_frame + 123` dead constant across
+       all 900 arrival rows (zero jitter) in the local sync harness —
+       0x80479D60 counts from scene start, Slippi stamps from -123, so
+       any drift from +123 at arrival IS pipeline lag, measured
+       per-arrival. OPEN: run the same probe against a NETPLAY session
+       to decompose effective delay into local vs network parts (the
+       22→4 chain-gap question) — next Direct session.
+11. [x] **In-game player ground truth** — VERIFIED 2026-08-22c
+       (quartet): the classic locations.csv player block survived
+       mainline INTACT (base 0x80453080, stride 0xE90; x/y/facing/
+       percent/stock static, action/action_frame via the entity
+       pointer at base+0xB0). Shipped as `MemoryMap.game()` (+
+       percent/1, stock/1 decoders; libmelee_ex 10f8a17), test-pinned.
+       Consumer gotcha: watches read :unknown until first CHANGE
+       (percent silent until first damage). #4 (scenario asserts) and
+       #7 (outcome channels) are now unblocked.
 12. [x] **Liveness ratchet** — SHIPPED 2026-08-22b, simpler than
        planned: `MemoryWatcher.traffic/1`, a monotone
        PARSE-INDEPENDENT datagram count. Key wire fact (pinned by the
@@ -241,6 +254,14 @@ carry X" from a wall into a config line. Four postures it enables:
   night: re-arm on leaving the CSS scene + raw scene-word CHANGE
   logging (science trace: code-entry minor, byte order, match-start
   word now land in every session log).
+- 2026-08-22c (later): **THE QUARTET RAN — #11/#3/#5 closed, #10
+  method validated** in one solo CPU game on FD (900 arrival rows;
+  details on each item above; libmelee_ex 10f8a17 ships
+  MemoryMap.game()). Casting note: the run played cptfalcon vs
+  young_link because MenuHelper `:character` is the INTERNAL id (fox
+  0x01) and the script passed external ids — Bradley's live ID caught
+  it; verification is character-agnostic. #6 (stage internals) still
+  owed — piggyback on a FoD/PS re-run of the same script.
 - 2026-08-22c: **selection-state holdout CLOSED** — the visual
   ground-truth plan (grim screenshots read by the agent + Bradley
   live) exposed both premises as false in one run: fox was NEVER
