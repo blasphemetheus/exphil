@@ -533,33 +533,43 @@ defmodule ExPhil.Bridge.MeleePort do
       # EXPHIL_MEMORY_WATCH=1 forces on for any session, =0 disables.
       |> put_if(
         :memory_watch,
-        case System.get_env("EXPHIL_MEMORY_WATCH") do
-          "0" ->
-            false
-
-          "1" ->
-            Melee.MemoryMap.menu_with_canary() ++
-              Melee.MemoryMap.direct_code() ++ stage_watches()
-
-          _ ->
-            cond do
-              online ->
-                Melee.MemoryMap.menu_with_canary() ++
-                  Melee.MemoryMap.direct_code() ++ stage_watches()
-
-              # Local sessions get just the stage watches when the game
-              # is configured onto FoD/PS (three u32 lines; the menu
-              # watch set stays online-only per 08-22b).
-              Map.get(config, :stage) in [:fountain_of_dreams, :pokemon_stadium] ->
-                stage_watches()
-
-              true ->
-                false
-            end
-        end
+        memory_watch_set(System.get_env("EXPHIL_MEMORY_WATCH"), online, Map.get(config, :stage))
       )
 
     Melee.Dolphin.launch(opts)
+  end
+
+  @doc """
+  The memory-watch set for a session (pure; unit-tested). Stage watch
+  lines (FoD platform heights + PS transform digit) are LOCAL-ONLY, and
+  only when the session is configured onto FoD/PS: on other stages the
+  two 0x80C6 addresses sit in volatile stage-allocation heap that
+  changes EVERY in-game frame, and the watcher's on-change churn
+  starved the netplay frame loop to ~2fps (crown-decider incident #3 —
+  the netplay stage merge is gated off anyway, so online stage watches
+  served nobody). The menu watch set stays online-only per 08-22b;
+  EXPHIL_MEMORY_WATCH=1 forces the menu set on, =0 disables everything.
+  """
+  def memory_watch_set(env, online, config_stage) do
+    stage_lines =
+      if config_stage in [:fountain_of_dreams, :pokemon_stadium] and not online,
+        do: stage_watches(),
+        else: []
+
+    case env do
+      "0" ->
+        false
+
+      "1" ->
+        Melee.MemoryMap.menu_with_canary() ++ Melee.MemoryMap.direct_code() ++ stage_lines
+
+      _ ->
+        cond do
+          online -> Melee.MemoryMap.menu_with_canary() ++ Melee.MemoryMap.direct_code()
+          stage_lines != [] -> stage_lines
+          true -> false
+        end
+    end
   end
 
   defp put_if(opts, _key, nil), do: opts
@@ -570,6 +580,24 @@ defmodule ExPhil.Bridge.MeleePort do
   # PS transform digit — three cheap u32 lines, merged into in-game
   # gamestates by handle_frame when the game is on FoD/PS.
   defp stage_watches, do: Melee.MemoryMap.fod() ++ Melee.MemoryMap.ps()
+
+  @doc """
+  Controller ops for the stage-filter LRAS drive at tick `t` (pure;
+  unit-tested). Tick 0 grounds the pad once, then L+R+A are HELD for
+  the rest of the quit — never re-churned: per-frame release/re-press
+  are sub-frame pipe writes, and a pad sample inside the gap sees a
+  PARTIAL chord (shield -> Start-only pause -> statue; crown-decider
+  incidents 1-2). START pulses with 10-tick holds so fresh edges keep
+  completing the chord from gameplay AND from an accidental pause
+  (Melee ignores Start in the first moments of a game — early edges
+  are eaten and the pulse just keeps coming).
+  """
+  def force_quit_ops(0),
+    do: [:ground, {:press, :l}, {:press, :r}, {:press, :a}]
+
+  def force_quit_ops(t) when rem(t, 20) == 10, do: [{:press, :start}]
+  def force_quit_ops(t) when rem(t, 20) == 0, do: [{:release, :start}]
+  def force_quit_ops(_t), do: []
 
   defp start_console(slippi_port, polling, console_timeout, blocking_input) do
     Melee.Console.start_link(
@@ -809,25 +837,11 @@ defmodule ExPhil.Bridge.MeleePort do
       t = Process.get(:force_quit_tick, 0)
       Process.put(:force_quit_tick, t + 1)
 
-      # HOLD L+R+A continuously — pressed once, never churned. The
-      # previous per-frame release_all + re-press was sub-frame pipe
-      # writes: a pad sample inside the release->press gap saw a
-      # PARTIAL chord (shield, then a Start-only sample = pause, then
-      # statue — twice in the crown decider). Start pulses with real
-      # 10-frame holds; each Start edge completes the chord from
-      # gameplay AND from the pause menu (L/R/A never drop).
-      if t == 0 do
-        Melee.Controller.release_all(c)
-        Melee.Controller.press_button(c, :l)
-        Melee.Controller.press_button(c, :r)
-        Melee.Controller.press_button(c, :a)
-      end
-
-      cond do
-        rem(t, 20) == 10 -> Melee.Controller.press_button(c, :start)
-        t > 0 and rem(t, 20) == 0 -> Melee.Controller.release_button(c, :start)
-        true -> :ok
-      end
+      Enum.each(force_quit_ops(t), fn
+        :ground -> Melee.Controller.release_all(c)
+        {:press, b} -> Melee.Controller.press_button(c, b)
+        {:release, b} -> Melee.Controller.release_button(c, b)
+      end)
     else
       if Process.get(:force_quit_tick, 0) > 0, do: Process.put(:force_quit_tick, 0)
     end
