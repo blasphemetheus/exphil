@@ -68,15 +68,41 @@ defmodule ExPhil.Bridge.BlindCssTest do
       assert BlindCss.observe_selected(nil, 1) == :unknown
       assert BlindCss.observe_hover(nil, 0x0A) == false
     end
+
+    test "snapshot/1 with no watcher is empty" do
+      assert BlindCss.snapshot(nil) == %{}
+    end
+  end
+
+  describe "snapshot derivations (the one-call-per-frame contract)" do
+    test "scene_from/1: present, absent" do
+      assert BlindCss.scene_from(%{menu_state: 0x08080100}) == 0x08080100
+      assert BlindCss.scene_from(%{}) == :unknown
+    end
+
+    test "selection_from/2: all observe_selected classes, pure" do
+      assert BlindCss.selection_from(%{css_p1_selected: 0x21}, 1) == :none
+      assert BlindCss.selection_from(%{css_p1_selected: 0x02}, 1) == {:character, 2}
+      # implausible word (garbage beyond a byte)
+      assert BlindCss.selection_from(%{css_p1_selected: 0x12345678}, 1) == :unknown
+      # unobserved
+      assert BlindCss.selection_from(%{}, 1) == :unknown
+      # per-port keying
+      assert BlindCss.selection_from(%{css_p2_selected: 0x14}, 2) == {:character, 0x14}
+      assert BlindCss.selection_from(%{css_p2_selected: 0x14}, 1) == :unknown
+    end
   end
 
   describe "normalize_selection/2 — the entry-garbage guard" do
     test "only the TARGET character counts as locked" do
       assert BlindCss.normalize_selection({:character, 2}, 2) == {:character, 2}
-      # The live g5 regression: entry garbage decoded as character 26
-      # and the machine skipped the press. Any non-target character is
-      # noise — neither locked nor a whiff.
-      assert BlindCss.normalize_selection({:character, 26}, 2) == :unknown
+      # The ONLINE CSS's unselected sentinel is 26 (Master Hand — no
+      # CSS-roster mapping): a NONE-class value (confirmed by /proc
+      # pread 2026-08-24), so probes get their whiff signal from it.
+      assert BlindCss.normalize_selection({:character, 26}, 2) == :none
+      assert BlindCss.normalize_selection({:character, 30}, 2) == :none
+      # A REAL other character stays :unknown — never locked, never a
+      # whiff (the g5 press-skip regression class).
       assert BlindCss.normalize_selection({:character, 7}, 2) == :unknown
     end
 

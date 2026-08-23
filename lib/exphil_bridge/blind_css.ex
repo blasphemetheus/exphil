@@ -115,6 +115,21 @@ defmodule ExPhil.Bridge.BlindCss do
   def warmup_step(_phase), do: :animate
 
   @doc """
+  Phase advance DURING warmup: the steer budget is frozen (probing
+  gets the whole JIT window instead of racing a countdown it can't
+  use — the 2026-08-24 15s-of-stillness wait), and the only exit is
+  the pick actually landing, which parks the machine at the pulse
+  phase where `warmup_step/1` holds it (`:animate`) until ready — the
+  no-START-mid-JIT interlock is preserved.
+  """
+  @spec warmup_advance(phase(), :unknown | :none | {:character, byte()}) :: phase()
+  def warmup_advance({:steer, _n} = phase, selection) do
+    if match?({:character, _}, selection), do: {:pulse, 0}, else: phase
+  end
+
+  def warmup_advance(phase, _selection), do: phase
+
+  @doc """
   Phase adjustment when warmup completes: grant at least a
   #{@resteer_frames}-frame re-steer window (the animation drifted the
   cursor). With hover evidence the re-steer exits as soon as the hand
@@ -139,6 +154,43 @@ defmodule ExPhil.Bridge.BlindCss do
   catch
     # A dead watcher must not take the menu loop down with it.
     :exit, _ -> :unknown
+  end
+
+  @doc """
+  One watcher snapshot per frame, totally: `nil`/dead watcher yields
+  an empty map. Every per-frame observation derives from this ONE
+  GenServer call — the 2026-08-24 g9 stall was ~10 synchronous watcher
+  calls per menu frame queueing behind the scene-entry datagram burst
+  until the unread spectator socket got dropped.
+  """
+  @spec snapshot(pid() | nil) :: %{atom() => non_neg_integer()}
+  def snapshot(nil), do: %{}
+
+  def snapshot(watcher) do
+    # 500ms bound: a degraded watcher must never stall the frame loop
+    # below spectator-keepalive rates (the empty map degrades every
+    # consumer to its no-watcher behavior for that frame).
+    Melee.MemoryWatcher.snapshot(watcher, 500)
+  catch
+    :exit, _ -> %{}
+  end
+
+  @doc "Scene word from a snapshot (pure)."
+  @spec scene_from(%{atom() => non_neg_integer()}) :: :unknown | non_neg_integer()
+  def scene_from(snapshot), do: Map.get(snapshot, :menu_state, :unknown)
+
+  @doc """
+  Selection reading from a snapshot (pure): same classes as
+  `observe_selected/2`.
+  """
+  @spec selection_from(%{atom() => non_neg_integer()}, 1..4) ::
+          :unknown | :none | {:character, byte()}
+  def selection_from(snapshot, port) do
+    case Map.get(snapshot, :"css_p#{port}_selected") do
+      nil -> :unknown
+      word when word <= 0xFF -> MemoryMap.css_selected(word)
+      _implausible -> :unknown
+    end
   end
 
   @doc """
@@ -202,7 +254,15 @@ defmodule ExPhil.Bridge.BlindCss do
   def normalize_selection({:character, ext}, target_ext) when ext == target_ext,
     do: {:character, ext}
 
-  def normalize_selection({:character, _other}, _target_ext), do: :unknown
+  def normalize_selection({:character, other}, _target_ext) do
+    # An id with NO CSS-roster mapping is a NONE-CLASS SENTINEL, not a
+    # pick: the ONLINE CSS's unselected value is 26 (Master Hand —
+    # unpickable), confirmed by per-frame /proc pread 2026-08-24 after
+    # three staleness heuristics chased it as garbage. A real other
+    # character stays :unknown (never locked, never a whiff).
+    if Melee.Enums.Character.from_game_external(other) == nil, do: :none, else: :unknown
+  end
+
   def normalize_selection(other, _target_ext), do: other
 
   @doc """

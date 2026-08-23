@@ -158,7 +158,14 @@ defmodule ExPhil.Networks.Policy.Sampling do
       nil ->
         compiled =
           if Code.ensure_loaded?(EXLA) do
-            Nx.Defn.jit(fun, compiler: EXLA)
+            # Disk-cached executable (JIT_WARMUP.md step 1): the fused
+            # samplers were the dominant residual compile after the
+            # predict/trunk/heads caches landed.
+            Nx.Defn.jit(
+              fun,
+              [compiler: EXLA] ++
+                ExPhil.Training.Utils.xla_exec_cache("sampling_#{name}", {__MODULE__, name})
+            )
           else
             Nx.Defn.jit(fun)
           end

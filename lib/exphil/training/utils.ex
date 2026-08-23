@@ -53,4 +53,38 @@ defmodule ExPhil.Training.Utils do
 
     Axon.build(model, opts)
   end
+
+  @doc """
+  Persistent XLA executable cache options (JIT_WARMUP.md step 1):
+  EXLA's `cache: path` serializes a compiled executable to disk, so a
+  fresh process deserializes instead of recompiling. One file per
+  jit'd function; weights are runtime arguments, so keying is
+  architecture+shapes — and EXLA's own disk key (client, arg shapes,
+  options) auto-invalidates with a warning on any mismatch, making a
+  stale file cost at most the old compile-every-boot behavior.
+
+  DEFAULT OFF (2026-08-24): the first live-game outing hung the
+  inference process mid-game (counter frozen, inputs latched on
+  down-B) with cached executables; the identical session with
+  `EXPHIL_XLA_EXEC_CACHE=0` played normally — the deserialized-
+  executable path is unsafe on this stack (xla 0.10 / exla 0.13 /
+  5090) until bisected. `EXPHIL_XLA_EXEC_CACHE`: unset/`0` =
+  disabled, `1` = `~/.cache/exphil/xla_exec`, anything else = the
+  cache directory.
+  """
+  @spec xla_exec_cache(String.t(), term()) :: keyword()
+  def xla_exec_cache(name, key_parts) do
+    case System.get_env("EXPHIL_XLA_EXEC_CACHE", "0") do
+      "0" ->
+        []
+
+      value ->
+        base =
+          if value == "1",
+            do: Path.join(System.user_home!(), ".cache/exphil/xla_exec"),
+            else: value
+
+        [cache: Path.join(base, "#{name}-#{:erlang.phash2(key_parts)}.exlaexec")]
+    end
+  end
 end

@@ -28,9 +28,22 @@ policy). Menu overhead beyond JIT is ~3-4s local / ~5s netplay (the
    path to store the cache"); `EXLA.NIF.deserialize_executable` exists.
    Wire `cache: <dir keyed by checkpoint hash + shapes>` into the
    Agent's jit options; expect second-boot warmup ~1-3s.
-   STATUS: [ ] not started. First step: find where Agent/warmup calls
-   EXLA.jit / Nx.Defn.jit and thread the option; cold/warm A-B measure
-   via the "JIT warmup complete (NNNNms)" log line.
+   STATUS: [~] ATTEMPTED 2026-08-24, DEFAULT-OFF after a live
+   conviction. Wired into all four compile sites (predict, trunk_step,
+   heads, fused samplers; Utils.xla_exec_cache/2 +
+   EXPHIL_XLA_EXEC_CACHE env). Measured: cold 26.5s (compile+write),
+   warm 13.4s — the caches hit (no key-mismatch warnings) but only
+   ~6s came back; the residual 13s is NOT the fused samplers (their
+   cache moved nothing) — unattributed (candidate: driver PTX->SASS
+   JIT for sm_120, cuDNN handle init). THEN the live conviction: the
+   first real netplay game with cached executables HUNG the inference
+   process mid-game (counter frozen at 2612, inputs latched on down-B
+   = crouch + held shine); the identical session with the cache
+   disabled played normally. Deserialized executables are unsafe on
+   this stack (xla 0.10 / exla 0.13.1 / RTX 5090) pending a bisect
+   (enable per-function to find the poisoned one; suspect the big
+   9.8MB predict executable or device-state assumptions in
+   EXLA.Executable.load).
 2. **XLA autotune cache dir** — env-only fallback if (1) stalls:
    XLA_FLAGS autotune-cache flags persist the benchmarking results
    (usually the bulk of compile time). STATUS: [ ] untried.
@@ -60,3 +73,11 @@ bit-identical, but verify once).
 - 2026-08-24: doc created; exla `:cache`-as-path support confirmed in
   the local fork's source (exla/lib/exla.ex). Baseline: 19.8s
   (measured repeatedly 2026-08-23, ms_g19_ep4 GRU-60 on the 5090).
+- 2026-08-24 (later): step 1 wired + measured (26.5 cold / 13.4 warm)
+  then CONVICTED — cached executables hang inference mid-game
+  (details at option 1) — default-off. Also: ~13s of warmup is
+  unattributed by the executable caches at all (warmup stage
+  instrumentation added to Agent). Next levers: attribute the
+  residual 13s (likely driver-level), then option 2 (autotune cache
+  flags) or option 3 (resident policy server, which sidesteps the
+  deserialize question entirely).

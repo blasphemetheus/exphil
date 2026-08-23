@@ -577,8 +577,17 @@ defmodule ExPhil.Agents.Agent do
       start_time = System.monotonic_time(:millisecond)
 
       # Create a dummy game state for warmup
+      stage_t0 = System.monotonic_time(:millisecond)
       dummy_state = create_dummy_game_state()
       dummy_embedded = embed_game_state(dummy_state, 1, state)
+
+      stage = fn label, prev ->
+        now = System.monotonic_time(:millisecond)
+        Logger.info("[Agent] warmup stage #{label}: #{now - prev}ms")
+        now
+      end
+
+      stage_t = stage.("embed", stage_t0)
 
       # Run inference to trigger JIT compilation
       cond do
@@ -591,8 +600,12 @@ defmodule ExPhil.Agents.Agent do
           {features, _new_trunk_state} =
             trunk_step_fn().(state.trunk_step_params, state.trunk_state, frame)
 
+          stage_t = stage.("trunk_step", stage_t)
+
           _output =
             state.heads_predict_fn.(Utils.ensure_model_state(state.policy_params), features)
+
+          _ = stage.("heads_predict", stage_t)
 
         state.temporal ->
           # For temporal models, we need a full window of dummy embeddings
@@ -1206,11 +1219,19 @@ defmodule ExPhil.Agents.Agent do
   # to the eager step when EXLA isn't loaded (e.g. BinaryBackend tests).
   defp trunk_step_fn do
     if Code.ensure_loaded?(EXLA) do
-      Edifice.Stateful.jit_step(Edifice.Recurrent, EXLA)
+      Edifice.Stateful.jit_step(
+        Edifice.Recurrent,
+        EXLA,
+        xla_exec_cache("trunk_step", Edifice.Recurrent)
+      )
     else
       &Edifice.Recurrent.step/3
     end
   end
+
+  # Persistent XLA executable cache (JIT_WARMUP.md step 1) — see
+  # ExPhil.Training.Utils.xla_exec_cache/2.
+  defp xla_exec_cache(name, key_parts), do: Utils.xla_exec_cache(name, key_parts)
 
   # The trunk-only param subset for Edifice.Recurrent.step/init_state:
   # "input_ln" plus every "gru_*"/"lstm_*" layer (covers both the Axon layout
@@ -1744,7 +1765,14 @@ defmodule ExPhil.Agents.Agent do
           )
       end
 
-    {_init_fn, predict_fn} = Utils.build_compiled(model)
+    {_init_fn, predict_fn} =
+      Utils.build_compiled(
+        model,
+        xla_exec_cache(
+          "predict",
+          {backbone, embed_size, hidden_sizes, axis_buckets, shoulder_buckets, window_size}
+        )
+      )
 
     # Build embed_config with all needed fields
     full_embed_config =
@@ -1848,7 +1876,11 @@ defmodule ExPhil.Agents.Agent do
               shoulder_buckets
             )
 
-          {_init_fn, heads_predict_fn} = Utils.build_compiled(heads_model)
+          {_init_fn, heads_predict_fn} =
+            Utils.build_compiled(
+              heads_model,
+              xla_exec_cache("heads", {hidden_size, axis_buckets, shoulder_buckets})
+            )
 
           trunk_params = trunk_step_params(params, backbone)
 

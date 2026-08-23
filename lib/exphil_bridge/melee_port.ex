@@ -310,6 +310,17 @@ defmodule ExPhil.Bridge.MeleePort do
   end
 
   @impl true
+  def handle_info({:ram_mem1, {emu, base}}, state) do
+    Process.put(:ram_mem1, {emu, base})
+
+    Logger.info(
+      "[MeleePort] MEM1 located (emulator #{emu}, base 0x#{Integer.to_string(base, 16)}) — " <>
+        "selection words now read fresh per frame"
+    )
+
+    {:noreply, state}
+  end
+
   def handle_info(msg, state) do
     Logger.debug("[MeleePort] Unexpected message: #{inspect(msg)}")
     {:noreply, state}
@@ -773,7 +784,26 @@ defmodule ExPhil.Bridge.MeleePort do
     Process.put(:css_debug_n, css_n + 1)
 
     # One RAM scene-word read per menu frame (nil/dead watcher -> :unknown).
-    scene_word = ExPhil.Bridge.BlindCss.observe(state.dolphin && state.dolphin.memory_watcher)
+    # ONE watcher call per menu frame (2026-08-24): every RAM
+    # observation below derives from this snapshot. The g9 stall was
+    # ~10 synchronous watcher GenServer calls per frame queueing
+    # behind the scene-entry datagram burst until the unread spectator
+    # socket got dropped ("dolphin_disconnected" at warmup end).
+    # The selection words are read FRESH each frame via /proc pread
+    # (2026-08-24, third redesign): the watcher's on-change semantics
+    # are hostile to these words (initial values never sent; the
+    # scene-entry garbage 26 strands it when the correction datagram
+    # drops in the burst; every seed/staleness heuristic was
+    # timing-fragile). Once MEM1 is located (async, cached), four
+    # 4-byte preads cost microseconds and are ALWAYS current truth —
+    # they override the watcher unconditionally.
+    ram_snapshot =
+      Map.merge(
+        ExPhil.Bridge.BlindCss.snapshot(state.dolphin && state.dolphin.memory_watcher),
+        pread_selection_words(state)
+      )
+
+    scene_word = ExPhil.Bridge.BlindCss.scene_from(ram_snapshot)
 
     # Log scene-word CHANGES (menu frames only): the science trace the
     # 08-22 evening session lacked — code-entry minor, pending/previous
@@ -815,15 +845,10 @@ defmodule ExPhil.Bridge.MeleePort do
     # MenuHelper's verify-before-confirm (:code_buffer option) and the
     # science log. :unknown without a watcher = legacy blind typing.
     code_buffer =
-      if watcher = state.dolphin && state.dolphin.memory_watcher do
+      if map_size(ram_snapshot) > 0 do
         code =
           Melee.MemoryMap.direct_code()
-          |> Enum.map(fn {name, _} ->
-            case safe_watch_get(watcher, name) do
-              {:ok, v} -> v
-              :unknown -> :unknown
-            end
-          end)
+          |> Enum.map(fn {name, _} -> Map.get(ram_snapshot, name, :unknown) end)
           |> Melee.MemoryMap.decode_direct_code()
 
         if code != "" and Process.get(:last_code_buf) != code do
@@ -862,7 +887,7 @@ defmodule ExPhil.Bridge.MeleePort do
     # selected array are validated at that scene (owed next Direct
     # session) — a stale heap address there would feed the helper
     # garbage cursors.
-    gamestate = ram_menu_merge(state, gamestate)
+    gamestate = ram_menu_merge(state, gamestate, ram_snapshot)
 
     character = to_character_id(Map.get(state.config, :character, :fox))
     stage = to_stage_id(Map.get(state.config, :stage, :final_destination))
@@ -1074,21 +1099,26 @@ defmodule ExPhil.Bridge.MeleePort do
         # end the steer early) but discard its action — the helper
         # drives during warmup, and the machine parks at the press
         # phase (warmup_step -> :animate) until ready.
-        watcher = state.dolphin && state.dolphin.memory_watcher
         phase = Process.get(:css_blind_phase, ExPhil.Bridge.BlindCss.new())
 
-        {_action, phase2, _r} =
-          ExPhil.Bridge.BlindCss.step(
-            phase,
-            ExPhil.Bridge.BlindCss.classify(scene_word),
-            blind_selection(state, watcher),
-            ExPhil.Bridge.BlindCss.observe_hover(watcher, blind_target_css(state)),
-            Process.get(:css_blind_retries, 0)
-          )
+        # Warmup advance: steer budget FROZEN — the probes get the
+        # whole JIT window; the only exit is the pick landing (parks
+        # at the pulse phase, held by warmup_step until ready).
+        phase2 =
+          ExPhil.Bridge.BlindCss.warmup_advance(phase, blind_selection(state, ram_snapshot))
 
         Process.put(:css_blind_phase, phase2)
         Process.put(:css_was_warming, true)
-        helper_drive.(state)
+
+        # Same probe-steering as the main branch — the helper's
+        # frozen-snapshot steering is what drifted the hand off-grid
+        # in the first place. No snapshot = legacy helper.
+        if map_size(ram_snapshot) > 0 do
+          probe_steer(state, ram_snapshot, blind_target_ext(state))
+          state
+        else
+          helper_drive.(state)
+        end
 
       # LOCAL CSS warming with the hand still over the portrait grid:
       # steer DOWN to neutral ground before starting the animation.
@@ -1164,21 +1194,33 @@ defmodule ExPhil.Bridge.MeleePort do
       # budgets are the validated open-loop timings, so a silent
       # watcher degrades to the legacy 480/600/900 timeline exactly.
       blind_fallback? ->
-        watcher = state.dolphin && state.dolphin.memory_watcher
         phase = Process.get(:css_blind_phase, ExPhil.Bridge.BlindCss.new())
         retries = Process.get(:css_blind_retries, 0)
         progress = ExPhil.Bridge.BlindCss.classify(scene_word)
-        selection = blind_selection(state, watcher)
-        hover? = ExPhil.Bridge.BlindCss.observe_hover(watcher, blind_target_css(state))
+        selection = blind_selection(state, ram_snapshot)
+        # Hover byte is STALE at the online CSS — probe-steering supplies
+        # position via the selection word instead.
+        hover? = false
 
         {action, phase2, retries2} =
           ExPhil.Bridge.BlindCss.step(phase, progress, selection, hover?, retries)
 
-        log_blind_transition(phase, phase2, retries, retries2, selection, hover?, watcher)
+        log_blind_transition(phase, phase2, retries, retries2, selection, hover?, ram_snapshot)
         Process.put(:css_blind_phase, phase2)
         Process.put(:css_blind_retries, retries2)
 
         case action do
+          :steer when map_size(ram_snapshot) > 0 ->
+            # PROBE-STEERING (2026-08-24): the helper's own steering
+            # runs on the stream's FROZEN cursor snapshot — a
+            # constant-direction drift that pins the hand at a screen
+            # edge ("reliably parks on fox" was snapshot luck). The
+            # A-press probe is the position sensor via the selection
+            # word; see probe_steer/3.
+            probe_steer(state, ram_snapshot, blind_target_ext(state))
+            state
+
+          # No watcher: the legacy frozen-snapshot helper steering.
           :steer ->
             helper_drive.(state)
 
@@ -1241,6 +1283,182 @@ defmodule ExPhil.Bridge.MeleePort do
     :exit, _ -> :unknown
   end
 
+  # One-time /proc seed of the on-change-blind watches (the selection
+  # words): computed at the first menu frame, cached for the process.
+  # Failure (no dolphin pid, MEM1 not found) caches %{} — behavior is
+  # then exactly the unseeded on-change world.
+  @seed_addrs for p <- 1..4, do: {:"css_p#{p}_selected", 0x8043208C + 8 * (p - 1)}
+  # Per-frame /proc read of the selection words. MEM1 location is
+  # found ONCE by a background task (the g12 lesson: the /proc scan
+  # inline every frame starved the spectator socket); after that each
+  # frame is four 4-byte preads — microseconds, always-current truth.
+  defp pread_selection_words(state) do
+    case Process.get(:ram_mem1) do
+      {emu, base} ->
+        Map.new(@seed_addrs, fn {name, virt} ->
+          case Melee.MemoryDump.pread(emu, base + (virt - 0x80000000), 4) do
+            {:ok, <<v::unsigned-32>>} -> {name, v}
+            _ -> {name, 0}
+          end
+        end)
+
+      nil ->
+        unless Process.get(:ram_mem1_task_started, false) do
+          Process.put(:ram_mem1_task_started, true)
+          me = self()
+          os_pid = state.dolphin && state.dolphin.os_pid
+
+          spawn(fn ->
+            Enum.reduce_while(1..120, nil, fn _i, _ ->
+              case find_mem1_any_scene(os_pid) do
+                {_emu, _base} = found ->
+                  send(me, {:ram_mem1, found})
+                  {:halt, :ok}
+
+                _ ->
+                  Process.sleep(500)
+                  {:cont, nil}
+              end
+            end)
+          end)
+        end
+
+        %{}
+    end
+  rescue
+    # A dead emulator pid mid-session: drop back to watcher-only.
+    _ -> %{}
+  end
+
+  defp find_mem1_any_scene(os_pid) do
+    with true <- is_integer(os_pid) do
+      Enum.find_value([<<0x08, 0x08>>, <<0x02, 0x02>>, <<0x01, 0x01>>], fn prefix ->
+        Melee.MemoryDump.find_mem1(os_pid, prefix)
+      end)
+    else
+      _ -> nil
+    end
+  rescue
+    _ -> nil
+  end
+
+  # PROBE-STEERING for the online CSS (2026-08-24): the only VALIDATED
+  # position signal online is the SELECTION word — the hover byte is
+  # stale local-CSS residue there (g7: constant 0x0D while the hand
+  # visibly moved; g6's 0x0A "validation" was leftover local hovering).
+  # So the A-press probe IS the position sensor: a probe that picks a
+  # character names the portrait under the hand (game-external id ->
+  # grid position); B reclaims the mis-pick (verified toggle); the
+  # next move heads toward the target along the grid. Probes that pick
+  # nothing (:none) mean off-grid -> rotating sweep. Probing the
+  # TARGET ends the whole steer: the machine's selection fast-path
+  # jumps straight to the START pulses with the pick already placed.
+  #
+  # Period: 15f move (~1-2 cells at 0.35 tilt) + 12f settle + 3f A +
+  # 15f settle-and-read ≈ 0.75s per probe; convergence from any spawn
+  # in a handful of probes.
+  @probe_period 45
+  defp probe_steer(state, ram_snapshot, target_ext) do
+    c = state.controller
+    n = Process.get(:css_sweep_n, 0)
+    Process.put(:css_sweep_n, n + 1)
+    phase = rem(n, @probe_period)
+
+    wrong_pick =
+      case ExPhil.Bridge.BlindCss.selection_from(ram_snapshot, 1) do
+        {:character, ext} when ext != target_ext ->
+          # Only a REAL CSS-roster character is a mis-pick worth a B —
+          # the online CSS's unselected sentinel is 26 (no roster
+          # mapping), and B-ing it backed out of the scene (g14 loop).
+          if Melee.Enums.Character.from_game_external(ext) != nil, do: ext, else: nil
+
+        _ ->
+          nil
+      end
+
+    if wrong_pick, do: Process.put(:css_probe_pos, wrong_pick)
+
+    reclaim_n = Process.get(:css_reclaim_n, 0)
+
+    if wrong_pick == nil and reclaim_n != 0, do: Process.put(:css_reclaim_n, 0)
+
+    cond do
+      # A mis-pick is a position fix AND must be reclaimed before
+      # moving on — B edges until the word clears. BOUNDED: a wrong
+      # value that B cannot clear within ~2s is stale garbage, not a
+      # real coin (the g14 loop: a stranded 26 held B forever, and B
+      # at the CSS backs out to the main menu) — stop reclaiming and
+      # sweep on.
+      wrong_pick != nil and reclaim_n < 120 ->
+        Process.put(:css_reclaim_n, reclaim_n + 1)
+        Melee.Controller.tilt_analog(c, :main, 0.5, 0.5)
+        Melee.Controller.release_button(c, :a)
+
+        if rem(n, 4) < 2,
+          do: Melee.Controller.press_button(c, :b),
+          else: Melee.Controller.release_button(c, :b)
+
+      phase < 15 ->
+        Melee.Controller.release_button(c, :a)
+        Melee.Controller.release_button(c, :b)
+        {x, y} = probe_heading(Process.get(:css_probe_pos), target_ext, div(n, @probe_period))
+        Melee.Controller.tilt_analog(c, :main, x, y)
+
+      phase < 27 ->
+        Melee.Controller.tilt_analog(c, :main, 0.5, 0.5)
+        Melee.Controller.release_button(c, :a)
+
+      phase < 30 ->
+        Melee.Controller.press_button(c, :a)
+
+      true ->
+        Melee.Controller.release_button(c, :a)
+    end
+  end
+
+  # Heading from the last probe fix (game-external ids) toward the
+  # target's grid slot; no fix yet -> rotating diagonal sweep.
+  defp probe_heading(nil, _target_ext, period) do
+    t = 0.35
+
+    case rem(period, 4) do
+      0 -> {0.5 + t, 0.5 + t * 0.5}
+      1 -> {0.5 - t, 0.5 - t * 0.5}
+      2 -> {0.5 + t, 0.5 - t * 0.5}
+      3 -> {0.5 - t, 0.5 + t * 0.5}
+    end
+  end
+
+  defp probe_heading(from_ext, target_ext, _period) do
+    t = 0.35
+    {fr, fc} = ext_grid_pos(from_ext)
+    {tr, tc} = ext_grid_pos(target_ext)
+    dx = sign(tc - fc)
+    # rows grow downward; stick y grows upward
+    dy = -sign(tr - fr)
+    {0.5 + t * dx, 0.5 + t * dy}
+  end
+
+  # game-external id -> CSS grid {row, col}; the random slot shifts the
+  # bottom row over by one (same math as the hunt harnesses' slot_xy).
+  defp ext_grid_pos(ext) do
+    css =
+      ext
+      |> Melee.Enums.Character.from_game_external()
+      |> then(fn
+        nil -> 0
+        internal -> internal |> Melee.Enums.Character.from_id() |> Melee.Enums.Character.from_internal()
+      end)
+
+    row = div(css, 9)
+    col = rem(css, 9)
+    {row, if(row == 2, do: col + 1, else: col)}
+  end
+
+  defp sign(v) when v > 0, do: 1
+  defp sign(v) when v < 0, do: -1
+  defp sign(_), do: 0
+
   # The CSS-grid id of the configured character (fox -> 0x0A), for the
   # hover-byte steer exit.
   defp blind_target_css(state) do
@@ -1251,27 +1469,30 @@ defmodule ExPhil.Bridge.MeleePort do
     |> Melee.Enums.Character.from_internal()
   end
 
-  # The selection reading, normalized against the target's GAME-external
-  # id (fox -> 2): entry-state garbage that decodes as some OTHER
-  # character must never read as "locked" (the g5 smoke regression).
-  defp blind_selection(state, watcher) do
-    target_ext =
-      state.config
-      |> Map.get(:character, :fox)
-      |> to_character_id()
-      |> Melee.Enums.Character.from_id()
-      |> Melee.Enums.Character.to_game_external()
+  # The target character's GAME-external id (fox -> 2) — the selection
+  # word's scheme.
+  defp blind_target_ext(state) do
+    state.config
+    |> Map.get(:character, :fox)
+    |> to_character_id()
+    |> Melee.Enums.Character.from_id()
+    |> Melee.Enums.Character.to_game_external()
+  end
 
-    watcher
-    |> ExPhil.Bridge.BlindCss.observe_selected(1)
-    |> ExPhil.Bridge.BlindCss.normalize_selection(target_ext)
+  # The selection reading, normalized against the target: entry-state
+  # garbage that decodes as some OTHER character must never read as
+  # "locked" (the g5 smoke regression).
+  defp blind_selection(state, ram_snapshot) do
+    ram_snapshot
+    |> ExPhil.Bridge.BlindCss.selection_from(1)
+    |> ExPhil.Bridge.BlindCss.normalize_selection(blind_target_ext(state))
   end
 
   # Science trace for the event-driven fallback: log each phase
   # transition with the evidence that caused it. The steer->press line
   # doubles as the ONLINE hover-byte validation trail (raw read
   # included); re-press bumps log at warning.
-  defp log_blind_transition(phase, phase2, retries, retries2, selection, hover?, watcher) do
+  defp log_blind_transition(phase, phase2, retries, retries2, selection, _hover?, ram_snapshot) do
     from = elem(phase, 0)
     to = elem(phase2, 0)
 
@@ -1286,11 +1507,12 @@ defmodule ExPhil.Bridge.MeleePort do
         :ok
 
       true ->
-        hover_raw = safe_watch_get(watcher, :css_p1_character)
+        hover_raw = Map.get(ram_snapshot, :css_p1_character)
+        sel_raw = Map.get(ram_snapshot, :css_p1_selected)
 
         Logger.info(
           "[MeleePort] blind CSS: #{from}(#{elem(phase, 1)}f) -> #{to} " <>
-            "(selection #{inspect(selection)}, hover_match #{hover?}, " <>
+            "(selection #{inspect(selection)}, sel_raw #{inspect(sel_raw, base: :hex)}, " <>
             "hover_raw #{inspect(hover_raw, base: :hex)})"
         )
     end
@@ -1305,7 +1527,7 @@ defmodule ExPhil.Bridge.MeleePort do
   # only derived at the offline CSS — online it stays off until a
   # park-and-scan validates it there (EXPHIL_RAM_MENU=full opts in;
   # =0 disables the online merge entirely).
-  defp ram_menu_merge(state, gamestate) do
+  defp ram_menu_merge(state, gamestate, ram_snapshot) do
     watcher = state.dolphin && state.dolphin.memory_watcher
     offline_css? = gamestate.menu_state == @menu_character_select
     online_css? = gamestate.menu_state == 6
@@ -1321,18 +1543,16 @@ defmodule ExPhil.Bridge.MeleePort do
       end
 
     if fields do
-      snapshot = Melee.MemoryWatcher.snapshot(watcher)
-
       unless Process.get(:ram_menu_merge_logged, false) do
         Process.put(:ram_menu_merge_logged, true)
 
         Logger.info(
           "[MeleePort] RAM menu merge active (fields=#{fields}, " <>
-            "#{map_size(snapshot)} observed watches)"
+            "#{map_size(ram_snapshot)} observed watches)"
         )
       end
 
-      Melee.MemoryMap.merge_css(gamestate, snapshot, fields: fields)
+      Melee.MemoryMap.merge_css(gamestate, ram_snapshot, fields: fields)
     else
       gamestate
     end
