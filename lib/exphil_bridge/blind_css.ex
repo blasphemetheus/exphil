@@ -34,8 +34,10 @@ defmodule ExPhil.Bridge.BlindCss do
                   | :press_a                ; the ONE pick press (A toggles!)
                   | :release_a              ; settle after the press
                   | {:pulse_start, on?}     ; START pulse duty cycle
-                  | {:retry_a, retries'}    ; pick didn't land; caller resets n to @a_press_at
                   | :handback               ; done — helper owns the scene from here
+      Phase       = see `t:phase/0` — the event-driven machine
+                    (2026-08-23) that replaced the global frame counter;
+                    re-presses are internal phase transitions now.
 
   `Selection` (2026-08-22c) reads the `css_pN_selected` RAM word — the
   static-region selected-character array (0x8043208C stride 8,
@@ -51,52 +53,76 @@ defmodule ExPhil.Bridge.BlindCss do
   the online scene minors are not fully derived yet (program doc), and
   acting on an unrecognized word would close the loop on noise.
 
-  Phase timings are the live-validated 2026-08-22 values: helper
-  steers 480 frames (cursor parks), A held 3, released ~2s, START
-  pulsed ~5s at 3-of-60 duty.
+  Phase budgets are the live-validated 2026-08-22 values (steer 480,
+  press 3, settle 117, pulse 300) — since 2026-08-23 they are
+  WORST-CASE FALLBACKS: hover/selection/scene readbacks end each phase
+  as soon as the evidence lands, and a silent watcher reproduces the
+  legacy timeline exactly.
   """
 
   alias Melee.MemoryMap
 
-  # Live-validated phase boundaries (frames at the online CSS).
-  @a_press_at 480
-  @a_release_at 483
-  @pulse_at 600
-  @handback_at 900
+  # Phase budgets — the live-validated 2026-08-22 open-loop timings,
+  # now WORST-CASE FALLBACKS: each phase exits early on evidence
+  # (hover match, selection word, scene word) and only runs out its
+  # budget when the readback is silent, which reproduces the legacy
+  # timeline exactly (test-pinned below).
+  @steer_budget 480
+  @press_frames 3
+  # 480 steer + 3 press + 1 press-exit release + 116 = 600, the legacy
+  # pulse-start frame.
+  @confirm_budget 116
+  # Legacy pulse window 600..900.
+  @pulse_budget 300
+  # With the pick RAM-confirmed, two pulse periods are enough — the
+  # code-entry departure is unobservable anyway (2026-08-23 sessions:
+  # the scene advanced within 1-2 pulses every time).
+  @pulse_early_exit 120
   @max_retries 2
   # Post-warmup re-steer: the loading animation orbits the cursor
   # slightly off-portrait, so the press replays the last stretch of
   # steering before firing.
   @resteer_frames 120
 
-  @doc "Frame index where the A-press phase begins (retry reset point)."
-  def a_press_at, do: @a_press_at
+  @typedoc """
+  The fallback's phase: what it is doing, and how many frames it has
+  been doing it.
+
+      Phase = {:steer, n}    ; helper walks the cursor to the portrait
+            | {:press, n}    ; the ONE A press (3 frames held)
+            | {:confirm, n}  ; released; waiting for the selection word
+            | {:pulse, n}    ; START pulses at 3-of-60 duty
+  """
+  @type phase :: {:steer | :press | :confirm | :pulse, non_neg_integer()}
+
+  @doc "A fresh fallback phase (steering from frame zero)."
+  @spec new() :: phase()
+  def new, do: {:steer, 0}
 
   @doc """
   What the fallback does at the ONLINE CSS while JIT warmup is still
   running (2026-08-22c overlap: the steer phase runs concurrently with
-  warmup instead of after it — same 480 frames of helper exposure,
-  moved ~8s earlier).
-
-      WarmupAction = :steer    ; n < a_press_at — helper parks the cursor
-                   | :animate  ; parked; play the loading animation
+  warmup instead of after it). The phase machine may complete steering
+  early (hover match) during warmup; it then parks in `:animate` until
+  ready — the press never fires mid-JIT.
 
   ONLINE ONLY: at the local CSS the helper has real feedback and could
   fully confirm mid-JIT, breaking the warmup interlock — local keeps
   the pure animation.
   """
-  @spec warmup_step(non_neg_integer()) :: :steer | :animate
-  def warmup_step(n) when n < @a_press_at, do: :steer
-  def warmup_step(_n), do: :animate
+  @spec warmup_step(phase()) :: :steer | :animate
+  def warmup_step({:steer, _n}), do: :steer
+  def warmup_step(_phase), do: :animate
 
   @doc """
-  Counter adjustment when warmup completes: a fully-steered counter
-  rewinds to a #{@resteer_frames}-frame re-steer window (the animation
-  drifted the cursor); a partial steer keeps its progress.
+  Phase adjustment when warmup completes: grant at least a
+  #{@resteer_frames}-frame re-steer window (the animation drifted the
+  cursor). With hover evidence the re-steer exits as soon as the hand
+  reads the target again — the window is a ceiling, not a wait.
   """
-  @spec ready_resteer_reset(non_neg_integer()) :: non_neg_integer()
-  def ready_resteer_reset(n) when n >= @a_press_at, do: @a_press_at - @resteer_frames
-  def ready_resteer_reset(n), do: n
+  @spec ready_resteer_reset(phase()) :: phase()
+  def ready_resteer_reset({:steer, n}), do: {:steer, min(n, @steer_budget - @resteer_frames)}
+  def ready_resteer_reset(_past_steer), do: {:steer, @steer_budget - @resteer_frames}
 
   @doc """
   Read the scene word off a memory watcher, totally: `nil` watcher,
@@ -159,59 +185,136 @@ defmodule ExPhil.Bridge.BlindCss do
   end
 
   @doc """
-  The decision table: (frames at CSS, Progress, retries, Selection) ->
-  Action.
+  Normalize a selection reading against the TARGET character's
+  game-external id. The selected word's scene-ENTRY value can be
+  garbage that decodes as a plausible character (26 observed live at
+  both online and probe CSS entries; the g5 smoke pulsed START at an
+  unpicked CSS because {:character, 26} looked locked). Only the
+  target counts as locked; any OTHER character value is noise —
+  never "locked" (don't skip the press) and never a whiff (don't
+  burn a bounded re-press on it). `:none` passes through as the
+  positive whiff signal.
+  """
+  @spec normalize_selection(
+          :unknown | :none | {:character, byte()},
+          byte() | nil
+        ) :: :unknown | :none | {:character, byte()}
+  def normalize_selection({:character, ext}, target_ext) when ext == target_ext,
+    do: {:character, ext}
 
-  Scene evidence is consulted only where it can mean something — the
-  pulse phase (early confirm) and the window end (retry-or-give-up).
-  Selection evidence is consulted only at the press window: a
-  RAM-confirmed `{:character, _}` skips the A press (A toggles — a
-  press there would DESELECT); `:none`/`:unknown` keep the validated
-  open-loop press. Everything else is timed regardless.
+  def normalize_selection({:character, _other}, _target_ext), do: :unknown
+  def normalize_selection(other, _target_ext), do: other
+
+  @doc """
+  Does the hover byte read the wanted portrait? Totally: `nil`/dead
+  watcher, unobserved address, or any non-matching value read `false`
+  — early steer-exit requires POSITIVE evidence, so a dead or garbage
+  hover byte just means the steer runs its legacy budget. `target_css`
+  is the CSS-grid id (fox = 0x0A). Hover-byte validity at the ONLINE
+  CSS is still unproven (it is verified at the local CSS; the
+  press-point log carries the raw read as the validation trail).
+  """
+  @spec observe_hover(pid() | nil, byte()) :: boolean()
+  def observe_hover(nil, _target_css), do: false
+
+  def observe_hover(watcher, target_css) do
+    case Melee.MemoryWatcher.get(watcher, :css_p1_character) do
+      {:ok, word} -> Bitwise.bsr(word, 24) == target_css
+      :unknown -> false
+    end
+  catch
+    :exit, _ -> false
+  end
+
+  @doc """
+  The EVENT-DRIVEN step (2026-08-23): `(Phase, Progress, Selection,
+  hover_match?, retries) -> {Action, Phase', retries'}`.
+
+  Each phase exits on evidence and falls back to the legacy budget:
+
+    * `:steer` — ends when the hover byte reads the target (the hand
+      IS on the portrait), when the selection word already reads
+      locked (rematch: skip straight to the pulses), or at 480 frames.
+    * `:press` — 3 frames of A; skipped entirely when RAM says locked
+      (A toggles — a press there would DESELECT).
+    * `:confirm` — ends the instant the selection word flips to
+      `{:character, _}` (measured: a few frames), or at the legacy
+      117-frame settle; a positive `:none` at budget end = the press
+      whiffed -> re-press (bounded), replacing whole retry windows.
+    * `:pulse` — 3-of-60 START duty; ends on scene departure, after
+      #{@pulse_early_exit} frames with the pick RAM-confirmed (the
+      code-entry departure is unobservable; the helper takes over,
+      safe under the RAM menu merge), or at the 300-frame budget with
+      the legacy retry-or-handback.
+
+  With every observation `:unknown`/`false` the machine reproduces the
+  legacy 480/483/600/900 timeline action-for-action (test-pinned).
   """
   @spec step(
-          non_neg_integer(),
+          phase(),
           :at_css | :departing | :elsewhere | :unknown,
-          non_neg_integer(),
-          :unknown | :none | {:character, byte()}
+          :unknown | :none | {:character, byte()},
+          boolean(),
+          non_neg_integer()
         ) ::
-          :steer
-          | :press_a
-          | :release_a
-          | {:pulse_start, boolean()}
-          | {:retry_a, non_neg_integer()}
-          | :handback
-  def step(n, progress, retries \\ 0, selection \\ :unknown)
+          {:steer | :press_a | :release_a | {:pulse_start, boolean()} | :handback, phase(),
+           non_neg_integer()}
+  def step(phase, progress, selection, hover_match?, retries)
 
-  def step(n, _progress, _retries, _selection) when n < @a_press_at, do: :steer
+  def step({:steer, n}, _progress, selection, hover_match?, r) do
+    cond do
+      # Rematch fast path: pick already locked — nothing to press,
+      # straight to the START pulses.
+      match?({:character, _}, selection) -> {:steer, {:pulse, 0}, r}
+      hover_match? -> {:steer, {:press, 0}, r}
+      n + 1 >= @steer_budget -> {:steer, {:press, 0}, r}
+      true -> {:steer, {:steer, n + 1}, r}
+    end
+  end
 
-  # Press window, already locked in per RAM: do NOT press (A toggles).
-  def step(n, _progress, _retries, {:character, _id}) when n < @a_release_at, do: :release_a
+  def step({:press, n}, _progress, selection, _hover?, r) do
+    cond do
+      # Locked per RAM: do NOT press (A toggles).
+      match?({:character, _}, selection) -> {:release_a, {:pulse, 0}, r}
+      n < @press_frames -> {:press_a, {:press, n + 1}, r}
+      true -> {:release_a, {:confirm, 0}, r}
+    end
+  end
 
-  def step(n, _progress, _retries, _selection) when n < @a_release_at, do: :press_a
-  def step(n, _progress, _retries, _selection) when n < @pulse_at, do: :release_a
+  def step({:confirm, n}, _progress, selection, _hover?, r) do
+    cond do
+      match?({:character, _}, selection) -> {:release_a, {:pulse, 0}, r}
+      n + 1 < @confirm_budget -> {:release_a, {:confirm, n + 1}, r}
+      # Budget out with a POSITIVE whiff read: re-press immediately —
+      # this replaces the legacy full-window retries.
+      selection == :none and r < @max_retries -> {:release_a, {:press, 0}, r + 1}
+      true -> {:release_a, {:pulse, 0}, r}
+    end
+  end
 
-  # START pulses: confirmed departure ends them early.
-  def step(n, progress, _retries, _selection)
-      when n < @handback_at and progress in [:departing, :elsewhere],
-      do: :handback
+  def step({:pulse, n}, progress, selection, _hover?, r) do
+    cond do
+      # Confirmed departure: the scene is moving — hand back now.
+      progress in [:departing, :elsewhere] ->
+        {:handback, {:pulse, n}, r}
 
-  def step(n, _progress, _retries, _selection) when n < @handback_at,
-    do: {:pulse_start, rem(n, 60) < 3}
+      # Pick RAM-confirmed and two pulse periods sent: hand back early
+      # (measured 2026-08-23: the scene advanced within 1-2 pulses on
+      # every cycle; the RAM menu merge lets the helper press START
+      # itself if the CSS truly never left).
+      match?({:character, _}, selection) and n >= @pulse_early_exit ->
+        {:handback, {:pulse, n}, r}
 
-  # Window over, still settled at the CSS, but RAM confirms the pick:
-  # hand back NOW instead of burning retry windows (each is ~7s of
-  # steer-skip + pulses). Measured 2026-08-23 live: every retry cycle
-  # ran with "SKIPPING A press (already locked in)" — pure wait. The
-  # handback is safe because the RAM menu merge gives the helper real
-  # coin_down/selection at the online CSS, so it presses START itself
-  # if the scene truly never left.
-  def step(_n, :at_css, _retries, {:character, _id}), do: :handback
+      n < @pulse_budget ->
+        {{:pulse_start, rem(n, 60) < 3}, {:pulse, n + 1}, r}
 
-  # Window over, still settled at the CSS, pick unconfirmed: the press
-  # may never have landed — bounded retry (legacy open-loop path).
-  def step(_n, :at_css, retries, _selection) when retries < @max_retries,
-    do: {:retry_a, retries + 1}
+      # Budget out, still settled at the CSS, pick unconfirmed: the
+      # press may never have landed — bounded re-press (legacy).
+      progress == :at_css and not match?({:character, _}, selection) and r < @max_retries ->
+        {:release_a, {:press, 0}, r + 1}
 
-  def step(_n, _progress, _retries, _selection), do: :handback
+      true ->
+        {:handback, {:pulse, n}, r}
+    end
+  end
 end

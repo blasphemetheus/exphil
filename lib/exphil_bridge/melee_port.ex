@@ -805,7 +805,7 @@ defmodule ExPhil.Bridge.MeleePort do
            Melee.MemoryMap.scene_name(prev_word) == :slippi_online_game and
            Melee.MemoryMap.scene_name(scene_word) == :slippi_online_css do
         Process.put(:css_blind_done, false)
-        Process.put(:css_blind_n, 0)
+        Process.put(:css_blind_phase, ExPhil.Bridge.BlindCss.new())
         Process.put(:css_blind_retries, 0)
         Logger.warning("[MeleePort] blind CSS: game ended (RAM scene word) — fallback re-armed")
       end
@@ -842,9 +842,10 @@ defmodule ExPhil.Bridge.MeleePort do
     # and the post-game CSS sat unpicked forever — the 08-22 evening
     # MENU STUCK (ram_scene settled at online CSS, traffic healthy).
     if gamestate.menu_state != 6 and
-         (Process.get(:css_blind_done, false) or Process.get(:css_blind_n, 0) > 0) do
+         (Process.get(:css_blind_done, false) or
+            Process.get(:css_blind_phase) not in [nil, ExPhil.Bridge.BlindCss.new()]) do
       Process.put(:css_blind_done, false)
-      Process.put(:css_blind_n, 0)
+      Process.put(:css_blind_phase, ExPhil.Bridge.BlindCss.new())
       Process.put(:css_blind_retries, 0)
       Logger.info("[MeleePort] blind CSS: left online-CSS scene — fallback re-armed")
     end
@@ -1030,16 +1031,19 @@ defmodule ExPhil.Bridge.MeleePort do
       %{state | menu_helper: helper}
     end
 
-    # One-shot on warmup completion: a fully-steered counter rewinds to
-    # the re-steer window (the loading animation orbited the cursor off
-    # the portrait); a partial steer keeps its progress.
+    # One-shot on warmup completion: grant a re-steer window (the
+    # loading animation orbited the cursor off the portrait); with
+    # hover evidence the re-steer exits as soon as the hand reads the
+    # target again.
     if Process.get(:css_was_warming, false) and
          (not is_function(ready_check, 0) or ready_check.()) do
       Process.put(:css_was_warming, false)
 
       Process.put(
-        :css_blind_n,
-        ExPhil.Bridge.BlindCss.ready_resteer_reset(Process.get(:css_blind_n, 0))
+        :css_blind_phase,
+        ExPhil.Bridge.BlindCss.ready_resteer_reset(
+          Process.get(:css_blind_phase, ExPhil.Bridge.BlindCss.new())
+        )
       )
     end
 
@@ -1063,8 +1067,26 @@ defmodule ExPhil.Bridge.MeleePort do
       # the helper has real feedback and could confirm mid-JIT.
       is_function(ready_check, 0) and at_css? and not ready_check.() and online? and
           gamestate.menu_state == 6 and
-          ExPhil.Bridge.BlindCss.warmup_step(Process.get(:css_blind_n, 0)) == :steer ->
-        Process.put(:css_blind_n, Process.get(:css_blind_n, 0) + 1)
+          ExPhil.Bridge.BlindCss.warmup_step(
+            Process.get(:css_blind_phase, ExPhil.Bridge.BlindCss.new())
+          ) == :steer ->
+        # Advance the phase machine with live evidence (hover match can
+        # end the steer early) but discard its action — the helper
+        # drives during warmup, and the machine parks at the press
+        # phase (warmup_step -> :animate) until ready.
+        watcher = state.dolphin && state.dolphin.memory_watcher
+        phase = Process.get(:css_blind_phase, ExPhil.Bridge.BlindCss.new())
+
+        {_action, phase2, _r} =
+          ExPhil.Bridge.BlindCss.step(
+            phase,
+            ExPhil.Bridge.BlindCss.classify(scene_word),
+            blind_selection(state, watcher),
+            ExPhil.Bridge.BlindCss.observe_hover(watcher, blind_target_css(state)),
+            Process.get(:css_blind_retries, 0)
+          )
+
+        Process.put(:css_blind_phase, phase2)
         Process.put(:css_was_warming, true)
         helper_drive.(state)
 
@@ -1134,87 +1156,59 @@ defmodule ExPhil.Bridge.MeleePort do
         Melee.Controller.tilt_analog(state.controller, :main, x, y)
         state
 
-      # BLIND CSS FALLBACK (EXPHIL_CSS_BLIND_FALLBACK=1, 2026-08-22):
-      # this mainline-beta build streams NO online-CSS state (cursor/
-      # character/coin bit-frozen across sessions), so the helper's
-      # feedback steering can never confirm a pick. Observed live: the
-      # actual cursor reliably parks on the target portrait — so after
-      # warmup, press A open-loop, then pulse START, per the
-      # ExPhil.Bridge.BlindCss decision table. Since 2026-08-22b the
-      # loop is SEMI-CLOSED when a memory watcher runs: the RAM scene
-      # word confirms the post-START departure (early handback) and
-      # detects a pick that never landed (bounded A retry). With no
-      # watcher every path is the validated open-loop timing.
-      blind_fallback? and Process.get(:css_blind_n, 0) >= ExPhil.Bridge.BlindCss.a_press_at() ->
-        n = Process.get(:css_blind_n, 0)
-        Process.put(:css_blind_n, n + 1)
-
-        # CENTER THE STICK first, every frame: the pipe latches the last
-        # written state, so the helper's final steering tilt kept the
-        # cursor moving under the presses (observed live: A-spam over a
-        # drifting cursor, nothing selected).
-        Melee.Controller.tilt_analog(state.controller, :main, 0.5, 0.5)
-
-        progress = ExPhil.Bridge.BlindCss.classify(scene_word)
+      # BLIND CSS FALLBACK (EXPHIL_CSS_BLIND_FALLBACK=1, 2026-08-22;
+      # EVENT-DRIVEN 2026-08-23): the mainline-beta build streams NO
+      # online-CSS state, so the flow runs on RAM readbacks — hover
+      # byte ends the steer, the selection word confirms the pick and
+      # gates re-presses, the scene word confirms departure. Phase
+      # budgets are the validated open-loop timings, so a silent
+      # watcher degrades to the legacy 480/600/900 timeline exactly.
+      blind_fallback? ->
+        watcher = state.dolphin && state.dolphin.memory_watcher
+        phase = Process.get(:css_blind_phase, ExPhil.Bridge.BlindCss.new())
         retries = Process.get(:css_blind_retries, 0)
+        progress = ExPhil.Bridge.BlindCss.classify(scene_word)
+        selection = blind_selection(state, watcher)
+        hover? = ExPhil.Bridge.BlindCss.observe_hover(watcher, blind_target_css(state))
 
-        # RAM selection state (css_p1_selected, 2026-08-22c): verified
-        # at the OFFLINE CSS; whether the online CSS drives the same
-        # array is the open question — the press-point log below is
-        # the probe (science trace for the next Direct session).
-        selection =
-          ExPhil.Bridge.BlindCss.observe_selected(
-            state.dolphin && state.dolphin.memory_watcher,
-            1
-          )
+        {action, phase2, retries2} =
+          ExPhil.Bridge.BlindCss.step(phase, progress, selection, hover?, retries)
 
-        if n == ExPhil.Bridge.BlindCss.a_press_at() do
-          Logger.info(
-            "[MeleePort] blind CSS press point: RAM selection reads #{inspect(selection)}" <>
-              if(match?({:character, _}, selection),
-                do: " — SKIPPING A press (already locked in)",
-                else: ""
-              )
-          )
-        end
+        log_blind_transition(phase, phase2, retries, retries2, selection, hover?, watcher)
+        Process.put(:css_blind_phase, phase2)
+        Process.put(:css_blind_retries, retries2)
 
-        case ExPhil.Bridge.BlindCss.step(n, progress, retries, selection) do
-          # ONE A press, held 3 frames, on the stationary cursor.
-          # Exactly one: A over the selected portrait TOGGLES (observed
-          # live — an even press count ended deselected).
+        case action do
+          :steer ->
+            helper_drive.(state)
+
           :press_a ->
+            # CENTER THE STICK: the pipe latches the last steering tilt
+            # (observed live: A-spam over a drifting cursor picks
+            # nothing).
+            Melee.Controller.tilt_analog(state.controller, :main, 0.5, 0.5)
             Melee.Controller.press_button(state.controller, :a)
+            state
 
           :release_a ->
+            Melee.Controller.tilt_analog(state.controller, :main, 0.5, 0.5)
             Melee.Controller.release_button(state.controller, :a)
+            state
 
           {:pulse_start, on?} ->
+            Melee.Controller.tilt_analog(state.controller, :main, 0.5, 0.5)
             Melee.Controller.release_button(state.controller, :a)
 
             if on?,
               do: Melee.Controller.press_button(state.controller, :start),
               else: Melee.Controller.release_button(state.controller, :start)
 
-          # Scene evidence says the pick never landed: replay the A
-          # press on the parked cursor (bounded; the odd press count is
-          # preserved because a failed pick left the toggle unset).
-          {:retry_a, r} ->
-            Logger.warning(
-              "[MeleePort] blind CSS: scene still at online CSS after START window " <>
-                "(progress=#{progress} word=#{inspect(scene_word, base: :hex)}) — " <>
-                "retrying A press (#{r})"
-            )
-
-            Process.put(:css_blind_retries, r)
-            Process.put(:css_blind_n, ExPhil.Bridge.BlindCss.a_press_at())
-            Melee.Controller.release_button(state.controller, :start)
+            state
 
           # HAND BACK to the helper permanently (via the done flag,
           # which un-matches blind_fallback? from the next frame):
-          # menu_state 6 also covers the code/name-entry scene after
-          # the CSS, and the helper has a real flow for it (Z-select
-          # the autofilled code) — observed live 08-22: the fallback
-          # kept pulsing START there ("goes to confirm and sits").
+          # menu_state 6 also covers the code/name-entry scene, and the
+          # helper has the verified typing flow for it.
           :handback ->
             confirmed =
               if progress in [:departing, :elsewhere],
@@ -1223,25 +1217,13 @@ defmodule ExPhil.Bridge.MeleePort do
 
             Logger.info(
               "[MeleePort] blind CSS: handing back to helper (progress=#{progress} " <>
-                "word=#{inspect(scene_word, base: :hex)}, frame #{n})#{confirmed}"
+                "word=#{inspect(scene_word, base: :hex)}, phase #{inspect(phase2)})#{confirmed}"
             )
 
             Melee.Controller.release_button(state.controller, :start)
             Process.put(:css_blind_done, true)
-
-          # n >= a_press_at here, so :steer is unreachable; be loud if
-          # the table and the guard ever drift apart.
-          :steer ->
-            Logger.warning("[MeleePort] blind CSS: unexpected :steer at n=#{n}")
+            state
         end
-
-        state
-
-      blind_fallback? ->
-        # count state-6 frames while the helper still drives (steering
-        # phase of the blind fallback)
-        Process.put(:css_blind_n, Process.get(:css_blind_n, 0) + 1)
-        helper_drive.(state)
 
       true ->
         helper_drive.(state)
@@ -1257,6 +1239,61 @@ defmodule ExPhil.Bridge.MeleePort do
     Melee.MemoryWatcher.get(watcher, name)
   catch
     :exit, _ -> :unknown
+  end
+
+  # The CSS-grid id of the configured character (fox -> 0x0A), for the
+  # hover-byte steer exit.
+  defp blind_target_css(state) do
+    state.config
+    |> Map.get(:character, :fox)
+    |> to_character_id()
+    |> Melee.Enums.Character.from_id()
+    |> Melee.Enums.Character.from_internal()
+  end
+
+  # The selection reading, normalized against the target's GAME-external
+  # id (fox -> 2): entry-state garbage that decodes as some OTHER
+  # character must never read as "locked" (the g5 smoke regression).
+  defp blind_selection(state, watcher) do
+    target_ext =
+      state.config
+      |> Map.get(:character, :fox)
+      |> to_character_id()
+      |> Melee.Enums.Character.from_id()
+      |> Melee.Enums.Character.to_game_external()
+
+    watcher
+    |> ExPhil.Bridge.BlindCss.observe_selected(1)
+    |> ExPhil.Bridge.BlindCss.normalize_selection(target_ext)
+  end
+
+  # Science trace for the event-driven fallback: log each phase
+  # transition with the evidence that caused it. The steer->press line
+  # doubles as the ONLINE hover-byte validation trail (raw read
+  # included); re-press bumps log at warning.
+  defp log_blind_transition(phase, phase2, retries, retries2, selection, hover?, watcher) do
+    from = elem(phase, 0)
+    to = elem(phase2, 0)
+
+    cond do
+      retries2 > retries ->
+        Logger.warning(
+          "[MeleePort] blind CSS: pick unconfirmed at #{from} budget end " <>
+            "(selection #{inspect(selection)}) — re-pressing (#{retries2})"
+        )
+
+      from == to ->
+        :ok
+
+      true ->
+        hover_raw = safe_watch_get(watcher, :css_p1_character)
+
+        Logger.info(
+          "[MeleePort] blind CSS: #{from}(#{elem(phase, 1)}f) -> #{to} " <>
+            "(selection #{inspect(selection)}, hover_match #{hover?}, " <>
+            "hover_raw #{inspect(hover_raw, base: :hex)})"
+        )
+    end
   end
 
   # Overlay watcher CSS observations onto a menu gamestate (pure merge

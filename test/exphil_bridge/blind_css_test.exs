@@ -49,165 +49,202 @@ defmodule ExPhil.Bridge.BlindCssTest do
   end
 
   # ---------------------------------------------------------------
-  # step/3 decision table: phases x progress classes.
+  # The event-driven phase machine (2026-08-23): each phase exits on
+  # evidence, budgets are legacy fallbacks.
   # ---------------------------------------------------------------
-  describe "step/3 — timed phases ignore scene evidence" do
-    test "steer, press, release phases are progress-independent" do
-      for progress <- [:at_css, :departing, :elsewhere, :unknown] do
-        assert BlindCss.step(0, progress) == :steer
-        assert BlindCss.step(479, progress) == :steer
-        assert BlindCss.step(480, progress) == :press_a
-        assert BlindCss.step(482, progress) == :press_a
-        assert BlindCss.step(483, progress) == :release_a
-        assert BlindCss.step(599, progress) == :release_a
-      end
-    end
+
+  defp run(phase, opts \\ []) do
+    BlindCss.step(
+      phase,
+      Keyword.get(opts, :progress, :unknown),
+      Keyword.get(opts, :selection, :unknown),
+      Keyword.get(opts, :hover, false),
+      Keyword.get(opts, :retries, 0)
+    )
   end
 
-  describe "step/4 — selection evidence at the press window (2026-08-22c)" do
-    test "RAM-confirmed selection skips the A press (A toggles)" do
-      for progress <- [:at_css, :departing, :elsewhere, :unknown] do
-        assert BlindCss.step(480, progress, 0, {:character, 0x02}) == :release_a
-        assert BlindCss.step(482, progress, 0, {:character, 0x14}) == :release_a
-      end
-    end
-
-    test ":none and :unknown keep the validated open-loop press" do
-      assert BlindCss.step(480, :at_css, 0, :none) == :press_a
-      assert BlindCss.step(480, :at_css, 0, :unknown) == :press_a
-    end
-
-    test "selection is consulted at the press window and the window end only" do
-      # Same answers as the selection-blind table everywhere else.
-      for selection <- [:none, :unknown, {:character, 0x02}] do
-        assert BlindCss.step(0, :at_css, 0, selection) == :steer
-        assert BlindCss.step(483, :at_css, 0, selection) == :release_a
-        assert BlindCss.step(600, :at_css, 0, selection) == {:pulse_start, true}
-        assert BlindCss.step(601, :departing, 0, selection) == :handback
-        assert BlindCss.step(900, :at_css, 2, selection) == :handback
-      end
-
-      # Window end, retries left: unconfirmed pick retries (legacy)...
-      assert BlindCss.step(900, :at_css, 0, :none) == {:retry_a, 1}
-      assert BlindCss.step(900, :at_css, 0, :unknown) == {:retry_a, 1}
-    end
-
-    test "window end with RAM-confirmed pick: hand back, never burn retry windows" do
-      # Measured live 2026-08-23: every retry cycle after the first
-      # press ran with the pick already confirmed — ~7s of pure wait
-      # each. With the RAM menu merge, the helper can press START
-      # itself, so early handback is safe.
-      assert BlindCss.step(900, :at_css, 0, {:character, 0x02}) == :handback
-      assert BlindCss.step(900, :at_css, 1, {:character, 0x14}) == :handback
-    end
-  end
-
-  describe "observe_selected/2 — totality" do
-    test "no watcher yields :unknown" do
+  describe "observe totality" do
+    test "observe_selected/2 and observe_hover/2 with no watcher" do
       assert BlindCss.observe_selected(nil, 1) == :unknown
+      assert BlindCss.observe_hover(nil, 0x0A) == false
     end
   end
 
-  describe "step/3 — pulse phase consults the scene" do
-    test "no signal / still at CSS: pulse with 3-of-60 duty" do
-      for progress <- [:unknown, :at_css] do
-        assert BlindCss.step(600, progress) == {:pulse_start, true}
-        assert BlindCss.step(602, progress) == {:pulse_start, true}
-        assert BlindCss.step(603, progress) == {:pulse_start, false}
-        assert BlindCss.step(659, progress) == {:pulse_start, false}
-        assert BlindCss.step(660, progress) == {:pulse_start, true}
-      end
+  describe "normalize_selection/2 — the entry-garbage guard" do
+    test "only the TARGET character counts as locked" do
+      assert BlindCss.normalize_selection({:character, 2}, 2) == {:character, 2}
+      # The live g5 regression: entry garbage decoded as character 26
+      # and the machine skipped the press. Any non-target character is
+      # noise — neither locked nor a whiff.
+      assert BlindCss.normalize_selection({:character, 26}, 2) == :unknown
+      assert BlindCss.normalize_selection({:character, 7}, 2) == :unknown
     end
 
-    test "departure confirmed mid-pulse: hand back immediately" do
-      assert BlindCss.step(601, :departing) == :handback
-      assert BlindCss.step(750, :elsewhere) == :handback
-    end
-  end
-
-  describe "step/3 — window end: retry vs handback" do
-    test "still settled at CSS with retries left: retry the pick" do
-      assert BlindCss.step(900, :at_css, 0) == {:retry_a, 1}
-      assert BlindCss.step(900, :at_css, 1) == {:retry_a, 2}
-    end
-
-    test "retries exhausted: hand back (legacy behavior)" do
-      assert BlindCss.step(900, :at_css, 2) == :handback
-    end
-
-    test "no signal at window end: hand back (never retry on no evidence)" do
-      assert BlindCss.step(900, :unknown, 0) == :handback
-    end
-
-    test "departed by window end: hand back" do
-      assert BlindCss.step(900, :departing, 0) == :handback
-      assert BlindCss.step(900, :elsewhere, 0) == :handback
+    test ":none (the whiff signal) and :unknown pass through" do
+      assert BlindCss.normalize_selection(:none, 2) == :none
+      assert BlindCss.normalize_selection(:unknown, 2) == :unknown
     end
   end
 
-  describe "warmup overlap — warmup_step/1 + ready_resteer_reset/1" do
-    test "warmup_step: steer until the press point, then animate" do
-      assert BlindCss.warmup_step(0) == :steer
-      assert BlindCss.warmup_step(479) == :steer
-      assert BlindCss.warmup_step(480) == :animate
-      assert BlindCss.warmup_step(5000) == :animate
+  describe "phase machine — steer" do
+    test "no evidence: counts to the 480 budget, then presses" do
+      assert run({:steer, 0}) == {:steer, {:steer, 1}, 0}
+      assert run({:steer, 478}) == {:steer, {:steer, 479}, 0}
+      assert run({:steer, 479}) == {:steer, {:press, 0}, 0}
     end
 
-    test "ready reset: full steer rewinds to the re-steer window; partial keeps progress" do
-      assert BlindCss.ready_resteer_reset(480) == 360
-      assert BlindCss.ready_resteer_reset(5000) == 360
-      assert BlindCss.ready_resteer_reset(0) == 0
-      assert BlindCss.ready_resteer_reset(300) == 300
+    test "hover match ends the steer immediately" do
+      assert run({:steer, 5}, hover: true) == {:steer, {:press, 0}, 0}
     end
 
-    test "the re-steer window re-enters the table as steering, then presses" do
-      n = BlindCss.ready_resteer_reset(480)
-      assert BlindCss.step(n, :unknown) == :steer
-      assert BlindCss.step(479, :unknown) == :steer
-      assert BlindCss.step(480, :unknown) == :press_a
+    test "rematch fast path: locked selection skips straight to the pulses" do
+      assert run({:steer, 0}, selection: {:character, 2}) == {:steer, {:pulse, 0}, 0}
+      assert run({:steer, 300}, selection: {:character, 2}, hover: true) ==
+               {:steer, {:pulse, 0}, 0}
     end
   end
 
-  # ---------------------------------------------------------------
-  # Whole-trace properties: the sequence a session actually produces.
-  # ---------------------------------------------------------------
+  describe "phase machine — press and confirm" do
+    test "press holds A for 3 frames, then waits for the readback" do
+      assert run({:press, 0}) == {:press_a, {:press, 1}, 0}
+      assert run({:press, 2}) == {:press_a, {:press, 3}, 0}
+      assert run({:press, 3}) == {:release_a, {:confirm, 0}, 0}
+    end
+
+    test "locked selection skips the press (A toggles)" do
+      assert run({:press, 0}, selection: {:character, 2}) == {:release_a, {:pulse, 0}, 0}
+    end
+
+    test "confirm exits the instant the selection word flips" do
+      assert run({:confirm, 4}, selection: {:character, 2}) == {:release_a, {:pulse, 0}, 0}
+    end
+
+    test "confirm without a readback runs the legacy settle (pulse starts at frame 600)" do
+      assert run({:confirm, 0}) == {:release_a, {:confirm, 1}, 0}
+      assert run({:confirm, 114}) == {:release_a, {:confirm, 115}, 0}
+      assert run({:confirm, 115}) == {:release_a, {:pulse, 0}, 0}
+    end
+
+    test "a positive whiff (:none) at the confirm budget re-presses, bounded" do
+      assert run({:confirm, 115}, selection: :none) == {:release_a, {:press, 0}, 1}
+      assert run({:confirm, 115}, selection: :none, retries: 2) == {:release_a, {:pulse, 0}, 2}
+    end
+  end
+
+  describe "phase machine — pulse" do
+    test "3-of-60 duty cycle" do
+      assert run({:pulse, 0}, progress: :at_css) == {{:pulse_start, true}, {:pulse, 1}, 0}
+      assert run({:pulse, 2}, progress: :at_css) == {{:pulse_start, true}, {:pulse, 3}, 0}
+      assert run({:pulse, 3}, progress: :at_css) == {{:pulse_start, false}, {:pulse, 4}, 0}
+      assert run({:pulse, 60}, progress: :at_css) == {{:pulse_start, true}, {:pulse, 61}, 0}
+    end
+
+    test "confirmed departure hands back immediately" do
+      assert {:handback, _, 0} = run({:pulse, 7}, progress: :departing)
+      assert {:handback, _, 0} = run({:pulse, 250}, progress: :elsewhere)
+    end
+
+    test "locked selection + two pulse periods = early handback" do
+      assert {{:pulse_start, _}, {:pulse, 120}, 0} =
+               run({:pulse, 119}, progress: :at_css, selection: {:character, 2})
+
+      assert {:handback, _, 0} = run({:pulse, 120}, progress: :at_css, selection: {:character, 2})
+    end
+
+    test "budget end at the CSS with an unconfirmed pick re-presses, bounded" do
+      assert run({:pulse, 300}, progress: :at_css) == {:release_a, {:press, 0}, 1}
+      assert run({:pulse, 300}, progress: :at_css, selection: :none, retries: 1) ==
+               {:release_a, {:press, 0}, 2}
+
+      assert {:handback, _, 2} = run({:pulse, 300}, progress: :at_css, retries: 2)
+    end
+
+    test "budget end with no scene evidence hands back (never retry on noise)" do
+      assert {:handback, _, 0} = run({:pulse, 300}, progress: :unknown)
+    end
+  end
+
+  describe "warmup overlap" do
+    test "warmup_step: steer while steering, animate once parked" do
+      assert BlindCss.warmup_step({:steer, 10}) == :steer
+      assert BlindCss.warmup_step({:press, 0}) == :animate
+      assert BlindCss.warmup_step({:pulse, 50}) == :animate
+    end
+
+    test "ready reset grants at least the re-steer window" do
+      assert BlindCss.ready_resteer_reset({:steer, 100}) == {:steer, 100}
+      assert BlindCss.ready_resteer_reset({:steer, 470}) == {:steer, 360}
+      assert BlindCss.ready_resteer_reset({:press, 2}) == {:steer, 360}
+    end
+  end
+
   describe "traces" do
-    defp trace(progress_at, retries \\ 0) do
-      # Run n = 0..920 with a progress function; stop at terminal action.
-      Enum.reduce_while(0..920, [], fn n, acc ->
-        action = BlindCss.step(n, progress_at.(n), retries)
+    test "silent watcher reproduces the legacy 480/483/600/900 timeline exactly" do
+      {actions, _phase, _r} =
+        Enum.reduce(1..900, {[], BlindCss.new(), 0}, fn _i, {acc, phase, r} ->
+          {action, phase2, r2} = BlindCss.step(phase, :unknown, :unknown, false, r)
+          {[action | acc], phase2, r2}
+        end)
 
-        case action do
-          :handback -> {:halt, Enum.reverse([{n, action} | acc])}
-          {:retry_a, _} -> {:halt, Enum.reverse([{n, action} | acc])}
-          _ -> {:cont, [{n, action} | acc]}
-        end
-      end)
+      actions = Enum.reverse(actions)
+
+      assert Enum.take(actions, 480) == List.duplicate(:steer, 480)
+      assert Enum.slice(actions, 480, 3) == List.duplicate(:press_a, 3)
+      assert Enum.slice(actions, 483, 117) == List.duplicate(:release_a, 117)
+
+      pulses = Enum.slice(actions, 600, 300)
+      assert length(pulses) == 300
+
+      for {p, k} <- Enum.with_index(pulses) do
+        assert p == {:pulse_start, rem(k, 60) < 3}
+      end
+
+      # The 901st step (budget out, no evidence) hands back.
+      {final, _, _} =
+        Enum.reduce(1..901, {nil, BlindCss.new(), 0}, fn _i, {_a, phase, r} ->
+          BlindCss.step(phase, :unknown, :unknown, false, r)
+        end)
+
+      assert final == :handback
     end
 
-    test "no watcher signal: exactly the legacy 2026-08-22 open-loop sequence" do
-      t = trace(fn _ -> :unknown end)
-      actions = Enum.map(t, &elem(&1, 1))
+    test "full-evidence trace reaches handback in a few seconds of frames" do
+      # Hover matches at steer frame 10; selection confirms 5 frames
+      # after the press; early handback after 120 pulse frames.
+      {frames, final} =
+        Enum.reduce_while(1..900, {0, BlindCss.new(), 0}, fn i, {_n, phase, r} ->
+          selection =
+            case phase do
+              {:confirm, n} when n >= 5 -> {:character, 2}
+              {:pulse, _} -> {:character, 2}
+              _ -> :none
+            end
 
-      assert Enum.count(actions, &(&1 == :steer)) == 480
-      assert Enum.count(actions, &(&1 == :press_a)) == 3
-      assert Enum.count(actions, &(&1 == :release_a)) == 117
-      assert Enum.count(actions, &match?({:pulse_start, _}, &1)) == 300
-      assert List.last(t) == {900, :handback}
+          hover = match?({:steer, n} when n >= 10, phase)
+
+          case BlindCss.step(phase, :at_css, selection, hover, r) do
+            {:handback, _, _} -> {:halt, {i, :handback}}
+            {_a, phase2, r2} -> {:cont, {i, phase2, r2}}
+          end
+        end)
+
+      assert final == :handback
+      # ~10 steer + 4 press + 6 confirm + 121 pulse ≈ 141 frames (2.4s)
+      assert frames < 160
     end
 
-    test "departure at frame 700: pulses stop there, not at 900" do
-      t = trace(fn n -> if n >= 700, do: :departing, else: :at_css end)
-      assert List.last(t) == {700, :handback}
-      refute Enum.any?(t, fn {n, a} -> n > 700 and match?({:pulse_start, _}, a) end)
-    end
+    test "rematch trace: retained pick reaches handback in ~2s" do
+      {frames, final} =
+        Enum.reduce_while(1..900, {0, BlindCss.new(), 0}, fn i, {_n, phase, r} ->
+          case BlindCss.step(phase, :at_css, {:character, 2}, false, r) do
+            {:handback, _, _} -> {:halt, {i, :handback}}
+            {_a, phase2, r2} -> {:cont, {i, phase2, r2}}
+          end
+        end)
 
-    test "pick never lands: retry issued at window end, reset point re-enters press phase" do
-      t = trace(fn _ -> :at_css end, 0)
-      assert List.last(t) == {900, {:retry_a, 1}}
-      # The caller resets n to a_press_at/0 — from there the table
-      # replays press -> release -> pulse without re-steering.
-      assert BlindCss.step(BlindCss.a_press_at(), :at_css, 1) == :press_a
+      assert final == :handback
+      # 1 steer + 121 pulse frames
+      assert frames < 130
     end
   end
 end
