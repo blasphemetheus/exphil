@@ -66,12 +66,19 @@ defmodule ExPhil.Bridge.MeleePort do
   # Frames to wait at CSS for the dummy's CPU setup before starting anyway.
   @dummy_setup_timeout_frames 600
 
-  # External stage ids for :require_stage (the live game-state stage
-  # field; NOT the internal ids menu navigation targets). Legal pool.
-  @external_stage_ids %{
-    fountain_of_dreams: 2, fod: 2, pokemon_stadium: 3, ps: 3,
-    yoshis_story: 8, ys: 8, dreamland: 28, dl: 28,
-    battlefield: 31, bf: 31, final_destination: 32, fd: 32
+  # Stage aliases for :require_stage. gamestate.stage carries INTERNAL
+  # ids (events.ex converts GAME_START's external id via from_external
+  # |> to_id) — the old external-id table here broke SILENTLY when that
+  # conversion landed: FD itself got rejected (required external 32 vs
+  # live internal 0x19; crown-decider incident #5, GOTCHA #96 class).
+  # Legal pool.
+  @require_stage_aliases %{
+    fountain_of_dreams: :fountain_of_dreams, fod: :fountain_of_dreams,
+    pokemon_stadium: :pokemon_stadium, ps: :pokemon_stadium,
+    yoshis_story: :yoshis_story, ys: :yoshis_story,
+    dreamland: :dreamland, dl: :dreamland,
+    battlefield: :battlefield, bf: :battlefield,
+    final_destination: :final_destination, fd: :final_destination
   }
 
   # ============================================================================
@@ -436,7 +443,7 @@ defmodule ExPhil.Bridge.MeleePort do
            menu_helper: Melee.MenuHelper.new(),
            dummy_menu_helper: if(dummy_mode != "none", do: Melee.MenuHelper.new()),
            dummy_mode: dummy_mode,
-           require_stage_id: to_external_stage_id(Map.get(config, :require_stage))
+           require_stage_id: require_stage_internal_id(Map.get(config, :require_stage))
          }}
       end
     end
@@ -2132,15 +2139,25 @@ defmodule ExPhil.Bridge.MeleePort do
 
   # :require_stage accepts a name (atom/string, e.g. :final_destination /
   # "fd") or a bare EXTERNAL stage id.
-  defp to_external_stage_id(nil), do: nil
-  defp to_external_stage_id(v) when is_integer(v), do: v
+  @doc """
+  Resolve a `:require_stage` value to the INTERNAL stage id the live
+  `gamestate.stage` field carries (pure; unit-tested). Integers pass
+  through (caller asserts the space).
+  """
+  def require_stage_internal_id(nil), do: nil
+  def require_stage_internal_id(v) when is_integer(v), do: v
 
-  defp to_external_stage_id(v) do
+  def require_stage_internal_id(v) do
     key = v |> to_string() |> String.downcase() |> String.to_atom()
 
-    Map.get(@external_stage_ids, key) ||
-      raise ArgumentError,
-            "unknown require_stage #{inspect(v)} (known: #{inspect(Map.keys(@external_stage_ids))})"
+    case Map.get(@require_stage_aliases, key) do
+      nil ->
+        raise ArgumentError,
+              "unknown require_stage #{inspect(v)} (known: #{inspect(Map.keys(@require_stage_aliases))})"
+
+      atom ->
+        Melee.Enums.Stage.to_id(atom)
+    end
   end
 
   defp to_stage_id(v) when is_integer(v), do: v

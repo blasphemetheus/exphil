@@ -64,6 +64,36 @@ defmodule ExPhil.Bridge.MeleePortUnitTest do
     end
   end
 
+  describe "require_stage_internal_id/1 (id-space pin, GOTCHA #96 class)" do
+    test "resolves to the INTERNAL id space gamestate.stage carries" do
+      # events.ex converts GAME_START's external stage id to internal
+      # (from_external |> to_id); the reject comparison must live in
+      # the same space. Decider incident #5: the old external table
+      # rejected FD itself (external 32 vs live internal 0x19).
+      assert MeleePort.require_stage_internal_id(:final_destination) == 0x19
+      assert MeleePort.require_stage_internal_id("fd") == 0x19
+      assert MeleePort.require_stage_internal_id(:pokemon_stadium) == 0x12
+      assert MeleePort.require_stage_internal_id(:fountain_of_dreams) == 0x08
+      assert MeleePort.require_stage_internal_id(nil) == nil
+    end
+
+    test "agrees with the events.ex GAME_START conversion for every legal stage" do
+      for {atom, external} <- [
+            fountain_of_dreams: 2,
+            pokemon_stadium: 3,
+            yoshis_story: 8,
+            dreamland: 28,
+            battlefield: 31,
+            final_destination: 32
+          ] do
+        live_id = external |> Melee.Enums.Stage.from_external() |> Melee.Enums.Stage.to_id()
+
+        assert MeleePort.require_stage_internal_id(atom) == live_id,
+               "#{atom}: require id diverges from the live gamestate.stage space"
+      end
+    end
+  end
+
   describe "memory_watch_set/3 (watcher starvation pin)" do
     test "ONLINE sessions never watch stage-internal addresses" do
       # The FoD/PS words sit in volatile stage-allocation heap on other
