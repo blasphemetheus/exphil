@@ -808,11 +808,28 @@ defmodule ExPhil.Bridge.MeleePort do
       c = state.controller
       t = Process.get(:force_quit_tick, 0)
       Process.put(:force_quit_tick, t + 1)
-      Melee.Controller.release_all(c)
-      Melee.Controller.press_button(c, :l)
-      Melee.Controller.press_button(c, :r)
-      Melee.Controller.press_button(c, :a)
-      if rem(t, 4) < 2, do: Melee.Controller.press_button(c, :start)
+
+      # HOLD L+R+A continuously — pressed once, never churned. The
+      # previous per-frame release_all + re-press was sub-frame pipe
+      # writes: a pad sample inside the release->press gap saw a
+      # PARTIAL chord (shield, then a Start-only sample = pause, then
+      # statue — twice in the crown decider). Start pulses with real
+      # 10-frame holds; each Start edge completes the chord from
+      # gameplay AND from the pause menu (L/R/A never drop).
+      if t == 0 do
+        Melee.Controller.release_all(c)
+        Melee.Controller.press_button(c, :l)
+        Melee.Controller.press_button(c, :r)
+        Melee.Controller.press_button(c, :a)
+      end
+
+      cond do
+        rem(t, 20) == 10 -> Melee.Controller.press_button(c, :start)
+        t > 0 and rem(t, 20) == 0 -> Melee.Controller.release_button(c, :start)
+        true -> :ok
+      end
+    else
+      if Process.get(:force_quit_tick, 0) > 0, do: Process.put(:force_quit_tick, 0)
     end
 
     reply_state = convert_game_state(gamestate, state)
