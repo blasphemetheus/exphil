@@ -1200,6 +1200,13 @@ defmodule ExPhil.Bridge.MeleePort do
       # duty cycles), and if the fallback ever finds itself armed
       # while depth already reads 3 (a disconnect kickback), this same
       # clause keeps it from probe-typing garbage into the keyboard.
+      #
+      # There is deliberately NO reverse-edge (3 -> 2) re-arm: the
+      # SEARCHING screen is the CSS scene (depth 2, screenshot-
+      # verified), so that edge fires at every successful search
+      # start — re-arming on it would stomp live searches. The real
+      # strand classes are covered: disconnect kickbacks land at the
+      # KEYBOARD (this clause), game ends re-arm via the scene word.
       blind_fallback? and
           ExPhil.Bridge.BlindCss.depth_from(ram_snapshot) == :at_keyboard ->
         Logger.info(
