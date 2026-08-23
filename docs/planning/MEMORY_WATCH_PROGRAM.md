@@ -105,16 +105,26 @@ carry X" from a wall into a config line. Four postures it enables:
        (constant 0=HMN). DEAD: classic coin chain (804A0BC0 stale
        pointer) AND the offline stream's coin_down (false throughout
        a navigate-picked CSS — GOTCHA #101's offline sibling).
-       Selection-state hunt via A-press dump-diff (Melee.MemoryDump
-       dump/diff + ambient-baseline subtraction; ~1300 press-
-       correlated words of 93k ambient): candidate 0x80444964
-       (2->0 on first press, deterministic x3) but the re-press did
-       NOT flip it back — toggle model wrong or press-2 whiffed;
-       semantics UNRESOLVED, needs visual ground truth (screenshot or
-       human eyes on whether fox is selected). Second candidate
-       0x80479C58 behaves counter-like (3->1/3->2/2->0), not a flag.
-       REMAINING for #1: selection/coin state semantics, then
-       feedback menuing replaces the blind fallback's guesswork.
+       SELECTION STATE SOLVED 2026-08-22c (grim-screenshot ground
+       truth + A/B toggle experiment, libmelee_ex
+       tmp/mw_select_toggle.exs + tmp/mw_stride.exs):
+       `css_pN_selected` = u32 at 0x8043208C + 8·(N−1), value = the
+       port's locked-in EXTERNAL character id, 0x21 = none; flips on
+       A-select, back on B-deselect, untouched by hovering; parallel
+       copy at +0x54. P1 verified fox (0x21->0x02), P2 falco
+       (0x21->0x14), both through the live MemoryWatcher path; in
+       MemoryMap.menu() (replaces the dead coin chain) with
+       css_selected/1 decoder, test-pinned. The earlier candidates
+       were red herrings born of TWO false premises: navigate! never
+       pre-picked fox (its default until = CSS ARRIVAL), and probe
+       tap! presses land nondeterministically against a free-running
+       dolphin (step-counted holds can be sub-frame wall time — use
+       wall-clock press/sleep/release). 0x80444964 falsified
+       (2->16->0 across select/deselect), 0x80479C58 falsified.
+       REMAINING for #1: confirm 0x8043208C family reads correctly at
+       the ONLINE CSS (static region, expected to survive — next
+       Direct session), then feedback menuing replaces the blind
+       fallback's guesswork.
 2. [~] **Menu-scene ground truth for the watchdog** — diagnosis slice
        SHIPPED 2026-08-22b: MeleePort's MENU STUCK report/log now
        carries `ram_scene` (SceneView — names the actual screen where
@@ -231,6 +241,18 @@ carry X" from a wall into a config line. Four postures it enables:
   night: re-arm on leaving the CSS scene + raw scene-word CHANGE
   logging (science trace: code-entry minor, byte order, match-start
   word now land in every session log).
+- 2026-08-22c: **selection-state holdout CLOSED** — the visual
+  ground-truth plan (grim screenshots read by the agent + Bradley
+  live) exposed both premises as false in one run: fox was NEVER
+  pre-picked (navigate!'s until = arrival), and the probe's A presses
+  were landing nondeterministically (tap!'s step-counted hold is
+  sub-frame against a free-running windowed dolphin; wall-clock holds
+  fixed it). With real selects/deselects the toggle signature found
+  `css_pN_selected` (0x8043208C stride 8, external id, 0x21=none;
+  0x804320E0 parallel copy) — visually confirmed both directions,
+  watcher-path verified, shipped in MemoryMap + tests (suite 564/0).
+  Bonus corroboration: 0x80432058 holds the costume file string
+  ("PlFx"/"PlFc"). Old candidates 0x80444964/0x80479C58 falsified.
 - 2026-08-22b (later): application #9 SHIPPED code-side —
   `scene_view/1` SceneView (libmelee_ex) + `ExPhil.Bridge.BlindCss`
   pure decision table (HtDP: observation classes -> progress classes

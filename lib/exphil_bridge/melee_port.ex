@@ -1046,7 +1046,27 @@ defmodule ExPhil.Bridge.MeleePort do
         progress = ExPhil.Bridge.BlindCss.classify(scene_word)
         retries = Process.get(:css_blind_retries, 0)
 
-        case ExPhil.Bridge.BlindCss.step(n, progress, retries) do
+        # RAM selection state (css_p1_selected, 2026-08-22c): verified
+        # at the OFFLINE CSS; whether the online CSS drives the same
+        # array is the open question — the press-point log below is
+        # the probe (science trace for the next Direct session).
+        selection =
+          ExPhil.Bridge.BlindCss.observe_selected(
+            state.dolphin && state.dolphin.memory_watcher,
+            1
+          )
+
+        if n == ExPhil.Bridge.BlindCss.a_press_at() do
+          Logger.info(
+            "[MeleePort] blind CSS press point: RAM selection reads #{inspect(selection)}" <>
+              if(match?({:character, _}, selection),
+                do: " — SKIPPING A press (already locked in)",
+                else: ""
+              )
+          )
+        end
+
+        case ExPhil.Bridge.BlindCss.step(n, progress, retries, selection) do
           # ONE A press, held 3 frames, on the stationary cursor.
           # Exactly one: A over the selected portrait TOGGLES (observed
           # live — an even press count ended deselected).

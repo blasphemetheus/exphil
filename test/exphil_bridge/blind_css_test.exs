@@ -64,6 +64,52 @@ defmodule ExPhil.Bridge.BlindCssTest do
     end
   end
 
+  describe "step/4 — selection evidence at the press window (2026-08-22c)" do
+    test "RAM-confirmed selection skips the A press (A toggles)" do
+      for progress <- [:at_css, :departing, :elsewhere, :unknown] do
+        assert BlindCss.step(480, progress, 0, {:character, 0x02}) == :release_a
+        assert BlindCss.step(482, progress, 0, {:character, 0x14}) == :release_a
+      end
+    end
+
+    test ":none and :unknown keep the validated open-loop press" do
+      assert BlindCss.step(480, :at_css, 0, :none) == :press_a
+      assert BlindCss.step(480, :at_css, 0, :unknown) == :press_a
+    end
+
+    test "selection is consulted ONLY at the press window" do
+      # Same answers as the selection-blind table everywhere else.
+      for selection <- [:none, :unknown, {:character, 0x02}] do
+        assert BlindCss.step(0, :at_css, 0, selection) == :steer
+        assert BlindCss.step(483, :at_css, 0, selection) == :release_a
+        assert BlindCss.step(600, :at_css, 0, selection) == {:pulse_start, true}
+        assert BlindCss.step(601, :departing, 0, selection) == :handback
+        assert BlindCss.step(900, :at_css, 0, selection) == {:retry_a, 1}
+        assert BlindCss.step(900, :at_css, 2, selection) == :handback
+      end
+    end
+
+    test "retry cycle with confirmed selection is a pure START re-pulse (no second A)" do
+      # The safety property that lets the retry stay selection-agnostic:
+      # replaying from the reset point never presses A while RAM says
+      # locked in.
+      reset = BlindCss.a_press_at()
+
+      actions =
+        for n <- reset..899 do
+          BlindCss.step(n, :at_css, 1, {:character, 0x02})
+        end
+
+      refute :press_a in actions
+    end
+  end
+
+  describe "observe_selected/2 — totality" do
+    test "no watcher yields :unknown" do
+      assert BlindCss.observe_selected(nil, 1) == :unknown
+    end
+  end
+
   describe "step/3 — pulse phase consults the scene" do
     test "no signal / still at CSS: pulse with 3-of-60 duty" do
       for progress <- [:unknown, :at_css] do
