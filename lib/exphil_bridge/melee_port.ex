@@ -797,14 +797,22 @@ defmodule ExPhil.Bridge.MeleePort do
     # Stage-filter quit: drive LRAS on the main controller (agent inputs
     # are dropped in do_send_controller while force_quit). START is
     # PULSED, not held — a pause instead of a quit needs a fresh edge
-    # (the sd_until_game_end lesson).
+    # (the sd_until_game_end lesson). The pulse rides an INTERNAL tick,
+    # NOT gamestate.frame: the game frame FREEZES during a pause, so
+    # frame-parity gating stopped pulsing the moment a stray pause
+    # landed on odd parity (crown-decider incident: shield -> pause ->
+    # statue; Bradley's diagnosis). 2-on/2-off keeps real START edges
+    # coming while L+R+A stay held — each edge completes the quit
+    # chord from gameplay AND from the pause menu.
     if is_in_game and state.force_quit do
       c = state.controller
+      t = Process.get(:force_quit_tick, 0)
+      Process.put(:force_quit_tick, t + 1)
       Melee.Controller.release_all(c)
       Melee.Controller.press_button(c, :l)
       Melee.Controller.press_button(c, :r)
       Melee.Controller.press_button(c, :a)
-      if rem(gamestate.frame, 2) == 0, do: Melee.Controller.press_button(c, :start)
+      if rem(t, 4) < 2, do: Melee.Controller.press_button(c, :start)
     end
 
     reply_state = convert_game_state(gamestate, state)
