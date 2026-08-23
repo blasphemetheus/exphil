@@ -341,6 +341,12 @@ defmodule ExPhil.Bridge.MeleePort do
 
       Process.send_after(self(), :force_quit_pulse, 300)
     else
+      # Quit finished (or session ending) between pulses: ground the
+      # pad so the held chord can't leak into the next game.
+      if Process.get(:force_quit_tick, 0) > 0 and state.running do
+        Melee.Controller.release_all(state.controller)
+      end
+
       Process.put(:force_quit_tick, 0)
     end
 
@@ -790,11 +796,19 @@ defmodule ExPhil.Bridge.MeleePort do
         state
       end
 
-    # Clear the filter once the rejected game has been exited.
+    # Clear the filter once the rejected game has been exited — and
+    # GROUND THE PAD: the quit chord (L+R+A, possibly Start) is still
+    # physically held, and stale holds ride into the next game's inputs
+    # (post-timer-fix decider symptom: the bot shielded instead of
+    # playing on the accepted FD).
     state =
-      if state.force_quit and not is_in_game and state.last_in_game,
-        do: %{state | force_quit: false},
-        else: state
+      if state.force_quit and not is_in_game and state.last_in_game do
+        Melee.Controller.release_all(state.controller)
+        Process.put(:force_quit_tick, 0)
+        %{state | force_quit: false}
+      else
+        state
+      end
 
     # Track transitions for the postgame-report protocol.
     state = if is_in_game and not state.last_in_game, do: %{state | postgame_reported: false}, else: state
