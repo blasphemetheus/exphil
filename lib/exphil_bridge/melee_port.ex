@@ -917,6 +917,19 @@ defmodule ExPhil.Bridge.MeleePort do
       %{state | menu_helper: helper}
     end
 
+    # One-shot on warmup completion: a fully-steered counter rewinds to
+    # the re-steer window (the loading animation orbited the cursor off
+    # the portrait); a partial steer keeps its progress.
+    if Process.get(:css_was_warming, false) and
+         (not is_function(ready_check, 0) or ready_check.()) do
+      Process.put(:css_was_warming, false)
+
+      Process.put(
+        :css_blind_n,
+        ExPhil.Bridge.BlindCss.ready_resteer_reset(Process.get(:css_blind_n, 0))
+      )
+    end
+
     cond do
       # Warming + at a CSS (local 0 or slippi online 6): idle with a
       # visible LOADING ANIMATION, never confirm — the human sees
@@ -929,7 +942,21 @@ defmodule ExPhil.Bridge.MeleePort do
       #   nod      - vertical bob
       # Stick = cursor VELOCITY on the CSS, so each pattern is zero-mean
       # to keep the path closed; r sized above the deadzone.
+      # Warming at the ONLINE CSS with steering still owed: run the
+      # blind fallback's steer phase CONCURRENTLY with JIT warmup
+      # (2026-08-22c overlap — same 480 frames of helper exposure,
+      # ~8s earlier). Online only: the helper can't confirm there
+      # pre-signal, so the warmup interlock holds; at the local CSS
+      # the helper has real feedback and could confirm mid-JIT.
+      is_function(ready_check, 0) and at_css? and not ready_check.() and online? and
+          gamestate.menu_state == 6 and
+          ExPhil.Bridge.BlindCss.warmup_step(Process.get(:css_blind_n, 0)) == :steer ->
+        Process.put(:css_blind_n, Process.get(:css_blind_n, 0) + 1)
+        Process.put(:css_was_warming, true)
+        helper_drive.(state)
+
       is_function(ready_check, 0) and at_css? and not ready_check.() ->
+        Process.put(:css_was_warming, true)
         # Piecewise square-wave segments, NOT sinusoids: the CSS cursor
         # response is nonlinear (deadzone + curve), so a trig pattern
         # leaves a DC residue and drifts (observed live: steady upward

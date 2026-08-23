@@ -51,9 +51,39 @@ defmodule ExPhil.Bridge.BlindCss do
   @pulse_at 600
   @handback_at 900
   @max_retries 2
+  # Post-warmup re-steer: the loading animation orbits the cursor
+  # slightly off-portrait, so the press replays the last stretch of
+  # steering before firing.
+  @resteer_frames 120
 
   @doc "Frame index where the A-press phase begins (retry reset point)."
   def a_press_at, do: @a_press_at
+
+  @doc """
+  What the fallback does at the ONLINE CSS while JIT warmup is still
+  running (2026-08-22c overlap: the steer phase runs concurrently with
+  warmup instead of after it — same 480 frames of helper exposure,
+  moved ~8s earlier).
+
+      WarmupAction = :steer    ; n < a_press_at — helper parks the cursor
+                   | :animate  ; parked; play the loading animation
+
+  ONLINE ONLY: at the local CSS the helper has real feedback and could
+  fully confirm mid-JIT, breaking the warmup interlock — local keeps
+  the pure animation.
+  """
+  @spec warmup_step(non_neg_integer()) :: :steer | :animate
+  def warmup_step(n) when n < @a_press_at, do: :steer
+  def warmup_step(_n), do: :animate
+
+  @doc """
+  Counter adjustment when warmup completes: a fully-steered counter
+  rewinds to a #{@resteer_frames}-frame re-steer window (the animation
+  drifted the cursor); a partial steer keeps its progress.
+  """
+  @spec ready_resteer_reset(non_neg_integer()) :: non_neg_integer()
+  def ready_resteer_reset(n) when n >= @a_press_at, do: @a_press_at - @resteer_frames
+  def ready_resteer_reset(n), do: n
 
   @doc """
   Read the scene word off a memory watcher, totally: `nil` watcher,

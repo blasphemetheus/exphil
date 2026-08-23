@@ -87,6 +87,29 @@ defmodule ExPhil.Bridge.BlindCssTest do
     end
   end
 
+  describe "warmup overlap — warmup_step/1 + ready_resteer_reset/1" do
+    test "warmup_step: steer until the press point, then animate" do
+      assert BlindCss.warmup_step(0) == :steer
+      assert BlindCss.warmup_step(479) == :steer
+      assert BlindCss.warmup_step(480) == :animate
+      assert BlindCss.warmup_step(5000) == :animate
+    end
+
+    test "ready reset: full steer rewinds to the re-steer window; partial keeps progress" do
+      assert BlindCss.ready_resteer_reset(480) == 360
+      assert BlindCss.ready_resteer_reset(5000) == 360
+      assert BlindCss.ready_resteer_reset(0) == 0
+      assert BlindCss.ready_resteer_reset(300) == 300
+    end
+
+    test "the re-steer window re-enters the table as steering, then presses" do
+      n = BlindCss.ready_resteer_reset(480)
+      assert BlindCss.step(n, :unknown) == :steer
+      assert BlindCss.step(479, :unknown) == :steer
+      assert BlindCss.step(480, :unknown) == :press_a
+    end
+  end
+
   # ---------------------------------------------------------------
   # Whole-trace properties: the sequence a session actually produces.
   # ---------------------------------------------------------------
