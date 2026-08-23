@@ -534,9 +534,28 @@ defmodule ExPhil.Bridge.MeleePort do
       |> put_if(
         :memory_watch,
         case System.get_env("EXPHIL_MEMORY_WATCH") do
-          "0" -> false
-          "1" -> Melee.MemoryMap.menu_with_canary() ++ Melee.MemoryMap.direct_code()
-          _ -> online && Melee.MemoryMap.menu_with_canary() ++ Melee.MemoryMap.direct_code()
+          "0" ->
+            false
+
+          "1" ->
+            Melee.MemoryMap.menu_with_canary() ++
+              Melee.MemoryMap.direct_code() ++ stage_watches()
+
+          _ ->
+            cond do
+              online ->
+                Melee.MemoryMap.menu_with_canary() ++
+                  Melee.MemoryMap.direct_code() ++ stage_watches()
+
+              # Local sessions get just the stage watches when the game
+              # is configured onto FoD/PS (three u32 lines; the menu
+              # watch set stays online-only per 08-22b).
+              Map.get(config, :stage) in [:fountain_of_dreams, :pokemon_stadium] ->
+                stage_watches()
+
+              true ->
+                false
+            end
         end
       )
 
@@ -546,6 +565,11 @@ defmodule ExPhil.Bridge.MeleePort do
   defp put_if(opts, _key, nil), do: opts
   defp put_if(opts, _key, false), do: opts
   defp put_if(opts, key, value), do: Keyword.put(opts, key, value)
+
+  # Stage-internal watches (2026-08-24 hunts): FoD platform heights +
+  # PS transform digit — three cheap u32 lines, merged into in-game
+  # gamestates by handle_frame when the game is on FoD/PS.
+  defp stage_watches, do: Melee.MemoryMap.fod() ++ Melee.MemoryMap.ps()
 
   defp start_console(slippi_port, polling, console_timeout, blocking_input) do
     Melee.Console.start_link(
@@ -625,6 +649,36 @@ defmodule ExPhil.Bridge.MeleePort do
     is_in_game = gamestate.menu_state in [@menu_in_game, @menu_sudden_death]
     is_postgame = gamestate.menu_state == @menu_postgame
     is_menu = not is_in_game
+
+    # Stage-internal RAM merge (2026-08-24 hunts, libmelee 736dd6e):
+    # FoD live platform heights (continuous truth — the stream only
+    # samples change events) + PS transform digit (fill-only; never
+    # overwrites a live stream phase). Gated to FoD/PS games so other
+    # stages pay nothing; ONE bounded watcher snapshot per in-game
+    # frame (the menu path's budget law; menu/in-game frames are
+    # disjoint). Internal stage ids: FoD 0x8, PS 0x12.
+    gamestate =
+      if is_in_game and gamestate.stage in [0x8, 0x12] and
+           state.dolphin && state.dolphin.memory_watcher do
+        merged =
+          Melee.MemoryMap.merge_stage(
+            gamestate,
+            ExPhil.Bridge.BlindCss.snapshot(state.dolphin.memory_watcher)
+          )
+
+        if merged != gamestate and not Process.get(:stage_merge_logged, false) do
+          Process.put(:stage_merge_logged, true)
+
+          Logger.info(
+            "[MeleePort] stage RAM merge active (stage=#{gamestate.stage}, " <>
+              "fod=#{inspect(merged.fod_platforms)}, ps=#{inspect(merged.stadium_transformation)})"
+          )
+        end
+
+        merged
+      else
+        gamestate
+      end
 
     # Local delay queue: track the frame clock and apply everything
     # scheduled for it (writes land in the pipe now, flush at the top of
