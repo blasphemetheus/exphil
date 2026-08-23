@@ -800,6 +800,20 @@ defmodule ExPhil.Bridge.MeleePort do
       Logger.info("[MeleePort] blind CSS: left online-CSS scene — fallback re-armed")
     end
 
+    # RAM menu-GameState merge (MEMORY_WATCH_PROGRAM core-plumbing,
+    # 2026-08-23): overlay watcher CSS observations (cursor, hover,
+    # selected/coin, status, ready banner) onto the stream gamestate
+    # before any helper sees it — MenuHelper's feedback steering then
+    # runs on RAM truth where the stream lies (dead coin_down offline,
+    # frozen snapshot online, GOTCHA #101). Strictly additive: only
+    # observed fields substitute, no watcher = stream unchanged.
+    # OFFLINE CSS: on by default (addresses verified 08-22c).
+    # ONLINE CSS: behind EXPHIL_RAM_MENU=1 until the cursor block +
+    # selected array are validated at that scene (owed next Direct
+    # session) — a stale heap address there would feed the helper
+    # garbage cursors.
+    gamestate = ram_menu_merge(state, gamestate)
+
     character = to_character_id(Map.get(state.config, :character, :fox))
     stage = to_stage_id(Map.get(state.config, :stage, :final_destination))
 
@@ -1140,6 +1154,37 @@ defmodule ExPhil.Bridge.MeleePort do
   # watchers (a diagnosis helper must never take the menu loop down).
   # The 250ms traffic window blocks the frame loop, which is fine
   # exactly here: on_stuck fires once per stall episode, 30s in.
+  # Overlay watcher CSS observations onto a menu gamestate (pure merge
+  # in Melee.MemoryMap.merge_css/2; the policy of WHEN lives here).
+  defp ram_menu_merge(state, gamestate) do
+    watcher = state.dolphin && state.dolphin.memory_watcher
+    offline_css? = gamestate.menu_state == @menu_character_select
+    online_css? = gamestate.menu_state == 6
+
+    apply? =
+      watcher != nil and
+        (offline_css? or (online_css? and System.get_env("EXPHIL_RAM_MENU") == "1"))
+
+    if apply? do
+      snapshot = Melee.MemoryWatcher.snapshot(watcher)
+
+      unless Process.get(:ram_menu_merge_logged, false) do
+        Process.put(:ram_menu_merge_logged, true)
+
+        Logger.info(
+          "[MeleePort] RAM menu merge active (#{map_size(snapshot)} observed watches)"
+        )
+      end
+
+      Melee.MemoryMap.merge_css(gamestate, snapshot)
+    else
+      gamestate
+    end
+  catch
+    # A dead watcher must not take the menu loop down with it.
+    :exit, _ -> gamestate
+  end
+
   defp ram_menu_diagnosis(nil), do: %{ram_scene: :no_watcher, ram_traffic_delta: nil}
 
   defp ram_menu_diagnosis(watcher) do

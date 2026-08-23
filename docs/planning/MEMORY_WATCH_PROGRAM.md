@@ -72,9 +72,22 @@ carry X" from a wall into a config line. Four postures it enables:
       random binaries + adversarial shapes — a raise in the receive
       path kills the watcher mid-session), scene-word input classes
       (settled/transitioning/boundary + all known scenes).
-- [ ] exphil bridge: MeleePort accepts watcher values and merges them
-      into menu-scene GameStates (fixes GOTCHA #101 properly; the
-      blind CSS fallback becomes the no-watcher fallback).
+- [x] exphil bridge: MeleePort menu-GameState merge — SHIPPED
+      2026-08-23. Pure overlay `Melee.MemoryMap.merge_css/2`
+      (libmelee_ex 78dd688: cursor/hover/selected/status/ready,
+      strictly additive, only observed fields substitute) applied in
+      MeleePort.navigate_menus before any helper sees the gamestate.
+      LIVE-VALIDATED offline (tmp/mw_merge_smoke.exs: merged
+      coin_down=true + fox locked while the stream says false —
+      repairs the dead offline coin_down). Policy: OFFLINE CSS always
+      (when a watcher runs); ONLINE CSS behind EXPHIL_RAM_MENU=1
+      until the cursor block + selected array are validated at that
+      scene (owed next Direct session) — then feedback menuing
+      replaces blind arithmetic and the blind fallback becomes the
+      no-watcher fallback. Id-space lesson: the selected words hold
+      the GAME-external scheme (Slippi/engine, fox=2 falco=20), a
+      THIRD space vs internal ids and CSS-grid ids —
+      `Character.from_game_external/1` is the converter.
 - [x] Address-hunt kit (2026-08-22b): `Melee.MemoryHunt` — pure,
       18-test class enumeration: candidates/3 (region -> watch batch,
       MEM1-range guarded — silent out-of-range watches read 0 and
@@ -254,6 +267,15 @@ carry X" from a wall into a config line. Four postures it enables:
   night: re-arm on leaving the CSS scene + raw scene-word CHANGE
   logging (science trace: code-entry minor, byte order, match-start
   word now land in every session log).
+- 2026-08-23: **MeleePort menu-GameState merge SHIPPED + live-validated**
+  (libmelee_ex 78dd688 merge_css/2 + from_game_external/1; exphil
+  wiring in navigate_menus). Smoke proof: merged coin_down=true with
+  fox locked while the stream reports false. Online CSS application
+  gated on EXPHIL_RAM_MENU=1 pending next-Direct-session address
+  validation. Remaining core plumbing: NONE — the build checklist is
+  complete; open program items are #2 (watchdog suppression), #6
+  (stage internals via a FoD/PS quartet re-run), #10-netplay, #4/#7
+  consumers, #8.
 - 2026-08-22c (later): **THE QUARTET RAN — #11/#3/#5 closed, #10
   method validated** in one solo CPU game on FD (900 arrival rows;
   details on each item above; libmelee_ex 10f8a17 ships
