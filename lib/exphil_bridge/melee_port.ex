@@ -1533,6 +1533,15 @@ defmodule ExPhil.Bridge.MeleePort do
     online_css? = gamestate.menu_state == 6
     online_mode = System.get_env("EXPHIL_RAM_MENU", "static")
 
+    # Main menu (5): overlay the RAM Online-Play selection index — the
+    # stream's menu_selection lags seconds there (the "Unranked hover"
+    # wait); the RAM word steps instantly, so choose_direct_online
+    # commits the moment the hand reaches Direct.
+    gamestate =
+      if gamestate.menu_state == 5,
+        do: Melee.MemoryMap.merge_online_menu(gamestate, ram_snapshot),
+        else: gamestate
+
     fields =
       cond do
         watcher == nil -> nil

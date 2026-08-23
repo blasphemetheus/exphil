@@ -647,6 +647,8 @@ defmodule ExPhil.Agents.Agent do
       release_threshold: state.release_threshold
     ]
 
+    t0 = System.monotonic_time(:millisecond)
+
     first =
       Networks.Policy.sample(
         state.policy_params,
@@ -654,6 +656,9 @@ defmodule ExPhil.Agents.Agent do
         input,
         Keyword.put(sample_opts, :prev_buttons, nil)
       )
+
+    t1 = System.monotonic_time(:millisecond)
+    Logger.info("[Agent] warmup stage sample1 (predict+heads compile): #{t1 - t0}ms")
 
     _second =
       Networks.Policy.sample(
@@ -663,7 +668,15 @@ defmodule ExPhil.Agents.Agent do
         Keyword.put(sample_opts, :prev_buttons, first[:buttons])
       )
 
+    t2 = System.monotonic_time(:millisecond)
+    Logger.info("[Agent] warmup stage sample2 (prev-buttons variant): #{t2 - t1}ms")
+
     _confidence = Networks.Policy.compute_confidence(first)
+
+    Logger.info(
+      "[Agent] warmup stage confidence: #{System.monotonic_time(:millisecond) - t2}ms"
+    )
+
     :ok
   end
 
