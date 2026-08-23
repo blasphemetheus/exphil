@@ -888,14 +888,34 @@ defmodule ExPhil.Bridge.MeleePort do
       # step) from "core running, menuing stuck" (positive).
       report = Map.merge(report, ram_menu_diagnosis(stuck_watcher))
 
-      Logger.error(
-        "[MeleePort] MENU STUCK: no menu progress for #{report.frames} frames " <>
-          "(menu_state=#{report.menu_state} ram_scene=#{inspect(report.ram_scene)} " <>
-          "ram_traffic_delta=#{inspect(report.ram_traffic_delta)}) — wedged session? " <>
-          "(login screen, adapter contention, cursor not converging)"
-      )
+      # #2 watchdog suppression (2026-08-23): a legitimate hold — a
+      # committed scene transition, or the post-pick online wait —
+      # logs quietly instead of alarming, and re-arms the helper's
+      # stuck detector (flag consumed in helper_drive below) so the
+      # verdict is re-evaluated every stuck window: a hold that decays
+      # into a core wedge alarms one window later. The bot14 wedge
+      # class (online CSS, fallback NOT done) still alarms.
+      case ExPhil.Bridge.StuckPolicy.verdict(report, Process.get(:css_blind_done, false)) do
+        {:suppress, reason} ->
+          Process.put(:menu_stuck_suppressed, true)
 
-      if is_pid(stuck_notify), do: send(stuck_notify, {:melee_port, :menu_stuck, report})
+          Logger.info(
+            "[MeleePort] menu hold (#{inspect(reason)}): no menu progress for " <>
+              "#{report.frames} frames, RAM says legitimate " <>
+              "(ram_scene=#{inspect(report.ram_scene)} " <>
+              "ram_traffic_delta=#{inspect(report.ram_traffic_delta)}) — watchdog re-armed"
+          )
+
+        :alarm ->
+          Logger.error(
+            "[MeleePort] MENU STUCK: no menu progress for #{report.frames} frames " <>
+              "(menu_state=#{report.menu_state} ram_scene=#{inspect(report.ram_scene)} " <>
+              "ram_traffic_delta=#{inspect(report.ram_traffic_delta)}) — wedged session? " <>
+              "(login screen, adapter contention, cursor not converging)"
+          )
+
+          if is_pid(stuck_notify), do: send(stuck_notify, {:melee_port, :menu_stuck, report})
+      end
     end
 
     # :menu_ready_check (2026-08-21, warmup-race fix follow-up): a
@@ -945,6 +965,17 @@ defmodule ExPhil.Bridge.MeleePort do
           stuck_after_frames: Map.get(state.config, :menu_stuck_frames, 1800),
           on_stuck: on_stuck
         )
+
+      # Consume a suppressed-verdict flag set synchronously inside the
+      # step above: rewind the stall episode so the detector re-fires
+      # (and re-evaluates the hold) after another full stuck window.
+      helper =
+        if Process.get(:menu_stuck_suppressed, false) do
+          Process.put(:menu_stuck_suppressed, false)
+          %{helper | stuck_reported: false, stalled_frames: 0}
+        else
+          helper
+        end
 
       %{state | menu_helper: helper}
     end

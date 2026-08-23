@@ -138,13 +138,23 @@ carry X" from a wall into a config line. Four postures it enables:
        the ONLINE CSS (static region, expected to survive — next
        Direct session), then feedback menuing replaces the blind
        fallback's guesswork.
-2. [~] **Menu-scene ground truth for the watchdog** — diagnosis slice
-       SHIPPED 2026-08-22b: MeleePort's MENU STUCK report/log now
-       carries `ram_scene` (SceneView — names the actual screen where
-       the stream says 255) and `ram_traffic_delta` (250ms window:
-       zero = core wedged, positive = core fine / menuing stuck).
-       OPEN: using the signal to SUPPRESS false alarms during
-       legitimate holds (matchmaking waits), not just label them.
+2. [x] **Menu-scene ground truth for the watchdog** — COMPLETE
+       2026-08-23. Diagnosis slice (22b): the MENU STUCK report
+       carries `ram_scene` + `ram_traffic_delta`. Suppression slice
+       (`ExPhil.Bridge.StuckPolicy`, pure verdict table, 7-test class
+       enumeration): a report is SUPPRESSED (info log, no notify) only
+       on positive evidence on BOTH axes — traffic > 0 AND a known
+       legitimate hold ({:leaving,..} transition in flight, or settled
+       online CSS with the blind fallback DONE = post-pick opponent/
+       code-entry wait). A suppressed verdict re-arms the helper's
+       stuck detector (stalled_frames/stuck_reported reset), so the
+       hold is re-evaluated every stuck window — a hold that decays
+       into a core wedge alarms one window later. Pinned regression:
+       the bot14 wedge class (online CSS, fallback NOT done, healthy
+       traffic) still alarms. Matchmaking minors are not in the scene
+       taxonomy yet → they classify :unknown → alarm (never suppress
+       on noise); extend the table when the scene-word change log
+       captures them.
 3. [x] **Parser parity, live** — VERIFIED 2026-08-22c (the quartet
        run, libmelee_ex tmp/mw_quartet.exs: one solo CPU game on FD,
        900 arrival rows): stream-vs-RAM bit-exact wherever the value
@@ -267,6 +277,12 @@ carry X" from a wall into a config line. Four postures it enables:
   night: re-arm on leaving the CSS scene + raw scene-word CHANGE
   logging (science trace: code-entry minor, byte order, match-start
   word now land in every session log).
+- 2026-08-23 (later): **#2 watchdog suppression SHIPPED** —
+  ExPhil.Bridge.StuckPolicy verdict table + MeleePort wiring with
+  detector re-arm (details at #2 above). Program applications now
+  fully closed except: #6 (FoD/PS quartet re-run), #10-netplay, #4/#7
+  (consumers of #11), #8 (netplay era), plus the online-CSS address
+  validation gating EXPHIL_RAM_MENU.
 - 2026-08-23: **MeleePort menu-GameState merge SHIPPED + live-validated**
   (libmelee_ex 78dd688 merge_css/2 + from_game_external/1; exphil
   wiring in navigate_menus). Smoke proof: merged coin_down=true with
