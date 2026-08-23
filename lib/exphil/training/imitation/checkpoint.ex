@@ -257,7 +257,12 @@ defmodule ExPhil.Training.Imitation.Checkpointing do
         queue_depth:
           (trainer.embed_config && Map.get(trainer.embed_config, :queue_depth)) || 1,
         with_delay_id:
-          (trainer.embed_config && Map.get(trainer.embed_config, :with_delay_id)) || false
+          (trainer.embed_config && Map.get(trainer.embed_config, :with_delay_id)) || false,
+        # Trained delay-id set (2026-08-24, the untrained-id trap): the
+        # live Agent refuses to deploy a delay-conditioned policy at an
+        # id outside this set (bare --frame-delay 4 silently ran id4 —
+        # untrained — and collapsed chaining for three decider games).
+        train_delays: train_delays(trainer.config)
       }
 
     # Edifice manifest format (task #16): Nx.serialize params + embedded
@@ -325,6 +330,17 @@ defmodule ExPhil.Training.Imitation.Checkpointing do
   # ============================================================================
 
   # Recursively convert all tensors to BinaryBackend for serialization
+  # The delay-id set this training run exposed the policy to: the
+  # augment range when frame-delay augmentation is on, else the single
+  # configured delay. Saved into checkpoint config as :train_delays.
+  defp train_delays(config) do
+    if config[:frame_delay_augment] do
+      Enum.to_list((config[:frame_delay_min] || 0)..(config[:frame_delay_max] || 0))
+    else
+      [config[:frame_delay] || 0]
+    end
+  end
+
   defp to_binary_backend(%Nx.Tensor{} = tensor) do
     Nx.backend_copy(tensor, Nx.BinaryBackend)
   end

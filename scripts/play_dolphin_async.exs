@@ -87,14 +87,20 @@ Output.banner("ExPhil Dolphin Play (ASYNC)")
 # — prime fight-state training data, irrecoverable. Warn loudly whenever a
 # HUMAN is on the other side (couch or netplay), because those are the
 # sessions whose replays we can never re-record.
-if is_nil(opts[:replay_dir]) and (opts[:connect_code] || opts[:dummy] in [nil, "none"]) do
-  Output.warning(
-    "No --replay-dir: this looks like a HUMAN session and its replays will be " <>
-      "written to Dolphin's temp dir, which is deleted when the session ends " <>
-      "(GOTCHA #84 — the 08-02 couch corpus was lost exactly this way). " <>
-      "Pass --replay-dir eval_runs/<name>/ to keep them."
-  )
-end
+# Default replay dir (2026-08-24): replays are the ONLY canonical
+# chain evidence ("score chains from replays, never qtrace presses")
+# and every lost-corpus incident traces to a missing --replay-dir
+# (GOTCHA #84). Without one, default to a dated session dir instead of
+# just warning.
+opts =
+  if is_nil(opts[:replay_dir]) do
+    default_dir = "eval_runs/#{Date.utc_today() |> Calendar.strftime("%m%d")}_session"
+    File.mkdir_p!(default_dir)
+    Output.puts("No --replay-dir given — replays will be kept in #{default_dir}/")
+    Keyword.put(opts, :replay_dir, default_dir)
+  else
+    opts
+  end
 
 Output.config([
   {"Policy", opts[:policy]},
@@ -125,6 +131,11 @@ Output.step(1, 5, "Loading agent")
     jump_debounce: opts[:jump_debounce],
     frame_delay: opts[:frame_delay],
     delay_id: opts[:delay_id_override] || opts[:frame_delay] || 0,
+    # An EXPLICIT --delay-id-override is the operator saying "I know" —
+    # it bypasses the Agent's untrained-delay-id guard. A bare
+    # --frame-delay N does NOT (the 2026-08-24 trap: d4 silently ran
+    # untrained id4 and collapsed chaining).
+    allow_untrained_delay_id: opts[:delay_id_override] != nil,
     ablate_prev_action: opts[:ablate_prev_action] || false,
     leace_eraser: opts[:leace_eraser],
     steer_vector: opts[:steer_vector],

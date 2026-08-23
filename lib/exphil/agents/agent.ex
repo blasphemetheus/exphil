@@ -71,6 +71,7 @@ defmodule ExPhil.Agents.Agent do
     # queue_depth > 1 / with_delay_id.
     :controller_queue,
     :delay_id,
+    :allow_untrained_delay_id,
     :leace_eraser,
     # Steering-vector hook (Tier-0 shield-lock A/B): --steer-vector PATH +
     # --steer-alpha F project alpha of the trunk features' component along
@@ -385,6 +386,7 @@ defmodule ExPhil.Agents.Agent do
       release_threshold: release_threshold,
       controller_queue: [],
       delay_id: Keyword.get(opts, :delay_id, 0),
+      allow_untrained_delay_id: Keyword.get(opts, :allow_untrained_delay_id, false),
       jump_debounce: Keyword.get(opts, :jump_debounce),
       jump_cooldown: 0,
       ablate_prev_action: ablate_prev_action,
@@ -1274,6 +1276,43 @@ defmodule ExPhil.Agents.Agent do
   # Initial trunk state for the step path (see Edifice.Recurrent.init_state/2:
   # for the Axon layout this replicates Axon's key-derived initial hidden
   # state, NOT zeros — required for step/window equivalence from frame 1).
+  # Known trained set for the g15/g19 champion line (multi-delay {2,3}
+  # recipe; 0 = the unconditioned local case) — the fallback when an
+  # older checkpoint predates the :train_delays metadata key.
+  @champion_line_train_delays [0, 2, 3]
+
+  @doc """
+  Pure guard decision (unit-tested): is deploying at `delay_id` an
+  untrained-id violation? `train_delays` nil falls back to the champion
+  line's known set #{inspect(@champion_line_train_delays)}.
+  """
+  def untrained_delay_id?(delay_id, train_delays, with_delay_id?, allow?) do
+    with_delay_id? and not allow? and
+      delay_id not in (train_delays || @champion_line_train_delays)
+  end
+
+  defp validate_delay_id!(state, config, full_embed_config) do
+    trained = Map.get(config, :train_delays)
+
+    if untrained_delay_id?(
+         state.delay_id,
+         trained,
+         Map.get(full_embed_config, :with_delay_id, false),
+         state.allow_untrained_delay_id || false
+       ) do
+      raise ArgumentError, """
+      delay_id #{state.delay_id} is UNTRAINED for this delay-conditioned policy \
+      (trained: #{inspect(trained || @champion_line_train_delays)}). Bare --frame-delay N \
+      silently sets delay_id=N — that collapsed chaining for three netplay games on \
+      2026-08-24. Netplay d4 deploys want --delay-id-override 3 \
+      (docs/guides/DEPLOY_KNOBS.md); an explicit --delay-id-override also bypasses \
+      this guard.
+      """
+    end
+
+    :ok
+  end
+
   defp init_trunk_state(trunk_params, embed_config, cell_type) do
     Edifice.Recurrent.init_state(trunk_params,
       batch_size: 1,
@@ -1813,6 +1852,15 @@ defmodule ExPhil.Agents.Agent do
         },
         embed_config
       )
+
+    # Untrained delay-id guard (2026-08-24 crown-decider lesson): a
+    # delay-conditioned policy deployed at an id it never trained on
+    # silently collapses behavior (bare --frame-delay 4 ran id4 —
+    # untrained — for three netplay games). Newer checkpoints carry
+    # :train_delays; older ones fall back to the champion line's known
+    # set. `allow_untrained_delay_id: true` (set by an EXPLICIT
+    # --delay-id-override) is the escape hatch.
+    validate_delay_id!(state, config, full_embed_config)
 
     # Initialize GatedSSM cache when using incremental inference.
     # :gated_ssm only — see compute_action dispatch; Mamba param names don't
