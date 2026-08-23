@@ -141,11 +141,25 @@ carry X" from a wall into a config line. Four postures it enables:
        rematch cycles). EXPHIL_RAM_MENU now defaults ON online for
        static fields (merge_css fields: :static); cursors stay off
        online until the heap block is park-and-scanned there. #1 is
-       CLOSED except that cursor sliver + the NEW last blind menu:
-       the direct-code keyboard (enter_direct_code steers by the
-       stream's menu_selection at an online scene — GOTCHA #101
-       exposure class, visibly live tonight but unverified; no RAM
-       coverage of the keyboard state yet).
+       CLOSED. The direct-code keyboard fell same night (5-round hunt,
+       tmp/mw_codebuf*.exs): typed-text buffer at **0x804A0740,
+       STATIC** — 3 bytes/char (SJIS-fullwidth pair + NUL pad),
+       NUL-terminated; `MemoryMap.direct_code()` watch set +
+       `decode_direct_code/1`; MeleePort logs the readback on change.
+       Facts: the field opens AUTOFILLED and the first keystroke
+       REPLACES it; the stream's menu_selection IS frozen at the
+       keyboard (blind-typing confirmed — the readback is the fix);
+       the online CSS hand SPAWNS OFF-GRID (left edge; A there picks
+       nothing, START no-ops — rounds 2-3 failed exactly there);
+       selection-word entry value can be garbage (26) — only
+       :none -> {:character, c} transitions count. Keyboard-CURSOR RAM
+       state still unknown — optional (readback + clear/retype covers
+       unattended reconnects). ONLINE CSS CURSOR: hunt INCONCLUSIVE
+       (offline heap block frozen/denormal online; movement-diff
+       candidates weak, logged in tmp/mw_visual/online_hunt.log) —
+       DEPRIORITIZED: the adopted pattern is selection-word-feedback
+       steering (heading -> A -> read the selected word), which the
+       hunt harnesses used successfully.
 2. [x] **Menu-scene ground truth for the watchdog** — COMPLETE
        2026-08-23. Diagnosis slice (22b): the MENU STUCK report
        carries `ram_scene` + `ram_traffic_delta`. Suppression slice
@@ -288,6 +302,21 @@ carry X" from a wall into a config line. Four postures it enables:
   night: re-arm on leaving the CSS scene + raw scene-word CHANGE
   logging (science trace: code-entry minor, byte order, match-start
   word now land in every session log).
+- 2026-08-23 (late): **code-entry blindness CLOSED + menu-time
+  profiler shipped.** Typed-code buffer 0x804A0740 (static, 3
+  bytes/char SJIS+NUL) found by dump-diff, confirmed by
+  scan-for-visible-text across a replacing keystroke (screenshot
+  ground truth caught two failed rounds where the keyboard never
+  opened — the hand spawns off-grid at the online CSS).
+  MemoryMap.direct_code()/decode_direct_code/1; MeleePort watches +
+  logs the readback. Bradley's ask "record where menu time goes"
+  shipped as scripts/analyze_menu_time.exs — first run on the
+  0823 session log flagged 14s of retry windows after RAM confirmed
+  the pick; fixed same hour (BlindCss window-end
+  selection-confirmed -> :handback; ~14s saved per CSS cycle, safe
+  because the RAM merge lets the helper press START itself). Online
+  CSS cursor hunt: INCONCLUSIVE, deprioritized in favor of
+  selection-word-feedback steering.
 - 2026-08-23 (live session, eval_runs/0823_live_observability):
   **everything validated in production in one Direct session vs
   Bradley** — online selection array (:none -> {:character,2}),

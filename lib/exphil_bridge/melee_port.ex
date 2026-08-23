@@ -524,8 +524,8 @@ defmodule ExPhil.Bridge.MeleePort do
         :memory_watch,
         case System.get_env("EXPHIL_MEMORY_WATCH") do
           "0" -> false
-          "1" -> Melee.MemoryMap.menu_with_canary()
-          _ -> online && Melee.MemoryMap.menu_with_canary()
+          "1" -> Melee.MemoryMap.menu_with_canary() ++ Melee.MemoryMap.direct_code()
+          _ -> online && Melee.MemoryMap.menu_with_canary() ++ Melee.MemoryMap.direct_code()
         end
       )
 
@@ -808,6 +808,27 @@ defmodule ExPhil.Bridge.MeleePort do
         Process.put(:css_blind_n, 0)
         Process.put(:css_blind_retries, 0)
         Logger.warning("[MeleePort] blind CSS: game ended (RAM scene word) — fallback re-armed")
+      end
+    end
+
+    # Direct-code buffer readback (0x804A0740, 2026-08-23): log the
+    # typed text whenever it changes — the science trace for code
+    # entry, and the ground truth for a future verify-before-confirm
+    # (the field autofills and the first keystroke REPLACES it).
+    if watcher = state.dolphin && state.dolphin.memory_watcher do
+      code =
+        Melee.MemoryMap.direct_code()
+        |> Enum.map(fn {name, _} ->
+          case safe_watch_get(watcher, name) do
+            {:ok, v} -> v
+            :unknown -> :unknown
+          end
+        end)
+        |> Melee.MemoryMap.decode_direct_code()
+
+      if code != "" and Process.get(:last_code_buf) != code do
+        Process.put(:last_code_buf, code)
+        Logger.info("[MeleePort] direct-code buffer reads \"#{code}\"")
       end
     end
 

@@ -77,30 +77,28 @@ defmodule ExPhil.Bridge.BlindCssTest do
       assert BlindCss.step(480, :at_css, 0, :unknown) == :press_a
     end
 
-    test "selection is consulted ONLY at the press window" do
+    test "selection is consulted at the press window and the window end only" do
       # Same answers as the selection-blind table everywhere else.
       for selection <- [:none, :unknown, {:character, 0x02}] do
         assert BlindCss.step(0, :at_css, 0, selection) == :steer
         assert BlindCss.step(483, :at_css, 0, selection) == :release_a
         assert BlindCss.step(600, :at_css, 0, selection) == {:pulse_start, true}
         assert BlindCss.step(601, :departing, 0, selection) == :handback
-        assert BlindCss.step(900, :at_css, 0, selection) == {:retry_a, 1}
         assert BlindCss.step(900, :at_css, 2, selection) == :handback
       end
+
+      # Window end, retries left: unconfirmed pick retries (legacy)...
+      assert BlindCss.step(900, :at_css, 0, :none) == {:retry_a, 1}
+      assert BlindCss.step(900, :at_css, 0, :unknown) == {:retry_a, 1}
     end
 
-    test "retry cycle with confirmed selection is a pure START re-pulse (no second A)" do
-      # The safety property that lets the retry stay selection-agnostic:
-      # replaying from the reset point never presses A while RAM says
-      # locked in.
-      reset = BlindCss.a_press_at()
-
-      actions =
-        for n <- reset..899 do
-          BlindCss.step(n, :at_css, 1, {:character, 0x02})
-        end
-
-      refute :press_a in actions
+    test "window end with RAM-confirmed pick: hand back, never burn retry windows" do
+      # Measured live 2026-08-23: every retry cycle after the first
+      # press ran with the pick already confirmed — ~7s of pure wait
+      # each. With the RAM menu merge, the helper can press START
+      # itself, so early handback is safe.
+      assert BlindCss.step(900, :at_css, 0, {:character, 0x02}) == :handback
+      assert BlindCss.step(900, :at_css, 1, {:character, 0x14}) == :handback
     end
   end
 

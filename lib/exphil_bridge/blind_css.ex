@@ -199,10 +199,17 @@ defmodule ExPhil.Bridge.BlindCss do
   def step(n, _progress, _retries, _selection) when n < @handback_at,
     do: {:pulse_start, rem(n, 60) < 3}
 
-  # Window over, still settled at the CSS: the pick never landed — or,
-  # with RAM-confirmed selection, only the START did; either way the
-  # retry cycle is safe, because the press window above skips A while
-  # selection reads {:character, _}.
+  # Window over, still settled at the CSS, but RAM confirms the pick:
+  # hand back NOW instead of burning retry windows (each is ~7s of
+  # steer-skip + pulses). Measured 2026-08-23 live: every retry cycle
+  # ran with "SKIPPING A press (already locked in)" — pure wait. The
+  # handback is safe because the RAM menu merge gives the helper real
+  # coin_down/selection at the online CSS, so it presses START itself
+  # if the scene truly never left.
+  def step(_n, :at_css, _retries, {:character, _id}), do: :handback
+
+  # Window over, still settled at the CSS, pick unconfirmed: the press
+  # may never have landed — bounded retry (legacy open-loop path).
   def step(_n, :at_css, retries, _selection) when retries < @max_retries,
     do: {:retry_a, retries + 1}
 
