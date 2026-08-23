@@ -1068,6 +1068,23 @@ defmodule ExPhil.Bridge.MeleePort do
         Process.put(:css_was_warming, true)
         helper_drive.(state)
 
+      # LOCAL CSS warming with the hand still over the portrait grid:
+      # steer DOWN to neutral ground before starting the animation.
+      # Melee CSS hands COLLIDE — an idle hand wiggling on the grid
+      # nudges the dummy's working hand and knocks its picks around
+      # (Bradley's 2026-08-23 observation: the p2 select/deselect war
+      # ran exactly as long as p1's animation sat on the portraits;
+      # entropy, ~30-120s of churn, sometimes a MENU STUCK). The RAM
+      # merge gives an honest local cursor to steer by.
+      is_function(ready_check, 0) and at_css? and not ready_check.() and not online? and
+          (case gamestate.players[state.controller_port] do
+             %{cursor: %{y: y}} -> y > 0.5
+             _ -> false
+           end) ->
+        Process.put(:css_was_warming, true)
+        Melee.Controller.tilt_analog(state.controller, :main, 0.5, 0.2)
+        state
+
       is_function(ready_check, 0) and at_css? and not ready_check.() ->
         Process.put(:css_was_warming, true)
         # Piecewise square-wave segments, NOT sinusoids: the CSS cursor

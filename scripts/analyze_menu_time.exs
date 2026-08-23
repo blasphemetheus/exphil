@@ -42,6 +42,12 @@ classify = fn line ->
   cond do
     line =~ ~r/Step 3\/5: Initializing Dolphin/ -> :launch
     line =~ ~r/Dolphin initialized and connected/ -> :connected
+    # LOCAL sessions: the Frame log's menu_state timeline (0 = CSS,
+    # 1 = stage select, 2/3 = in-game, 4 = postgame).
+    line =~ ~r/Frame \d+: menu_state=0 / -> :local_css
+    line =~ ~r/Frame \d+: menu_state=1 / -> :local_sss
+    line =~ ~r/Frame -?\d+: menu_state=[23] / -> :local_game
+    line =~ ~r/Frame \d+: menu_state=4 / -> :local_postgame
     line =~ ~r/RAM scene word -> 0x\w*04 / -> :scene_game
     line =~ ~r/RAM scene word -> 0x08080100/ -> :scene_css
     line =~ ~r/RAM scene word/ -> :scene_other
@@ -156,6 +162,33 @@ if wasted != [] and first_handback != nil do
     "#{length(wasted)} retry window(s) ran AFTER RAM confirmed the pick — " <>
       "~#{fmt.(saved)}s of pure wait (fixed by the selection-confirmed early handback)"
   )
+end
+
+# --- LOCAL session phases (menu_state timeline) -----------------------
+local_css = Prof.first(events, :local_css)
+local_sss = Prof.first(events, :local_sss)
+local_game = Prof.first(events, :local_game)
+
+if local_css != nil do
+  Output.puts("")
+  Output.puts("Local phase durations (menu_state timeline, 1s resolution):")
+
+  local_rows = [
+    {"connected -> local CSS", connected, local_css},
+    {"CSS (pick + CPU slider + START)", local_css, local_sss || local_game},
+    {"stage select", local_sss, local_sss && local_game},
+    {"CSS+stage total -> in-game", local_css, local_game}
+  ]
+
+  for {name, a, b} <- local_rows do
+    case {a, b} do
+      {{ta, _, _}, {tb, _, _}} ->
+        Output.puts("  #{String.pad_trailing(name, 46)} #{fmt.(tb - ta)}s")
+
+      _ ->
+        Output.puts("  #{String.pad_trailing(name, 46)}   -")
+    end
+  end
 end
 
 # --- per-game cycles --------------------------------------------------
