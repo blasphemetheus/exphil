@@ -321,6 +321,32 @@ defmodule ExPhil.Bridge.MeleePort do
     {:noreply, state}
   end
 
+  def handle_info(:force_quit_pulse, state) do
+    # Wall-clock LRAS drive (decider incidents 1-4): the Slippi
+    # spectator stream FREEZES during a pause, so any frame-driven
+    # pulse dies the moment a Start edge lands as pause instead of
+    # quit. Pipe inputs still reach the game while paused; alternating
+    # 300ms Start edges with L+R+A continuously held complete the quit
+    # chord from gameplay or from the pause menu, stream or no stream.
+    if state.force_quit and state.running do
+      c = state.controller
+      t = Process.get(:force_quit_tick, 0)
+      Process.put(:force_quit_tick, t + 1)
+
+      Enum.each(force_quit_ops(t), fn
+        :ground -> Melee.Controller.release_all(c)
+        {:press, b} -> Melee.Controller.press_button(c, b)
+        {:release, b} -> Melee.Controller.release_button(c, b)
+      end)
+
+      Process.send_after(self(), :force_quit_pulse, 300)
+    else
+      Process.put(:force_quit_tick, 0)
+    end
+
+    {:noreply, state}
+  end
+
   def handle_info(msg, state) do
     Logger.debug("[MeleePort] Unexpected message: #{inspect(msg)}")
     {:noreply, state}
@@ -582,22 +608,23 @@ defmodule ExPhil.Bridge.MeleePort do
   defp stage_watches, do: Melee.MemoryMap.fod() ++ Melee.MemoryMap.ps()
 
   @doc """
-  Controller ops for the stage-filter LRAS drive at tick `t` (pure;
-  unit-tested). Tick 0 grounds the pad once, then L+R+A are HELD for
-  the rest of the quit — never re-churned: per-frame release/re-press
-  are sub-frame pipe writes, and a pad sample inside the gap sees a
-  PARTIAL chord (shield -> Start-only pause -> statue; crown-decider
-  incidents 1-2). START pulses with 10-tick holds so fresh edges keep
-  completing the chord from gameplay AND from an accidental pause
-  (Melee ignores Start in the first moments of a game — early edges
-  are eaten and the pulse just keeps coming).
+  Controller ops for the stage-filter LRAS drive at wall-clock pulse
+  `t` (pure; unit-tested; ~300ms per pulse). Pulse 0 grounds the pad
+  once, then L+R+A are HELD for the rest of the quit — never
+  re-churned: release/re-press gaps are sub-frame pipe writes, and a
+  pad sample inside the gap sees a PARTIAL chord (shield ->
+  Start-only pause -> statue; crown-decider incidents 1-2). START
+  then alternates pressed/released each pulse: early edges are eaten
+  (Melee ignores Start in a game's first moments — Bradley's
+  diagnosis), one edge may land as PAUSE (which also freezes the
+  spectator stream, incidents 3-4 — hence wall-clock, not frames),
+  and the next edge completes the quit from the pause menu.
   """
   def force_quit_ops(0),
     do: [:ground, {:press, :l}, {:press, :r}, {:press, :a}]
 
-  def force_quit_ops(t) when rem(t, 20) == 10, do: [{:press, :start}]
-  def force_quit_ops(t) when rem(t, 20) == 0, do: [{:release, :start}]
-  def force_quit_ops(_t), do: []
+  def force_quit_ops(t) when rem(t, 2) == 1, do: [{:press, :start}]
+  def force_quit_ops(_t), do: [{:release, :start}]
 
   defp start_console(slippi_port, polling, console_timeout, blocking_input) do
     Melee.Console.start_link(
@@ -751,6 +778,13 @@ defmodule ExPhil.Bridge.MeleePort do
             "LRAS requeue (reject ##{n})"
         )
 
+        # The pulse rides a WALL-CLOCK timer, not frames: the Slippi
+        # spectator stream stops delivering frames during a PAUSE, so
+        # any frame-driven Start pulse dies the instant a Start edge
+        # lands as pause instead of quit (decider incidents 1-4 — the
+        # stream froze at in-game frame ~11 every time, exactly when
+        # the first Start registered).
+        Process.send_after(self(), :force_quit_pulse, 50)
         %{state | force_quit: true, stage_rejects: n}
       else
         state
@@ -832,19 +866,8 @@ defmodule ExPhil.Bridge.MeleePort do
     # statue; Bradley's diagnosis). 2-on/2-off keeps real START edges
     # coming while L+R+A stay held — each edge completes the quit
     # chord from gameplay AND from the pause menu.
-    if is_in_game and state.force_quit do
-      c = state.controller
-      t = Process.get(:force_quit_tick, 0)
-      Process.put(:force_quit_tick, t + 1)
-
-      Enum.each(force_quit_ops(t), fn
-        :ground -> Melee.Controller.release_all(c)
-        {:press, b} -> Melee.Controller.press_button(c, b)
-        {:release, b} -> Melee.Controller.release_button(c, b)
-      end)
-    else
-      if Process.get(:force_quit_tick, 0) > 0, do: Process.put(:force_quit_tick, 0)
-    end
+    # (The LRAS chord itself is driven by the :force_quit_pulse timer —
+    # frame-driven pulses die when a pause freezes the stream.)
 
     reply_state = convert_game_state(gamestate, state)
 

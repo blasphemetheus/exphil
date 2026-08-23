@@ -25,21 +25,18 @@ defmodule ExPhil.Bridge.MeleePortUnitTest do
       end
     end
 
-    test "START pulses with 10-tick holds, repeating forever" do
-      # Press edges at 10, 30, 50...; releases at 20, 40, 60... — the
-      # pulse must RECUR (early edges are eaten while Melee ignores
-      # Start at game start, and a stray pause needs later edges).
-      for t <- [10, 30, 50, 1010] do
+    test "START alternates press/release every pulse, forever" do
+      # Wall-clock pulses (~300ms): edges must RECUR indefinitely —
+      # early edges are eaten (Melee ignores Start in a game's first
+      # moments), one edge may land as PAUSE (freezing the spectator
+      # stream — why this can't be frame-driven), and a LATER fresh
+      # edge must complete the quit from the pause menu.
+      for t <- [1, 3, 5, 999] do
         assert MeleePort.force_quit_ops(t) == [{:press, :start}]
       end
 
-      for t <- [20, 40, 60, 1020] do
+      for t <- [2, 4, 6, 1000] do
         assert MeleePort.force_quit_ops(t) == [{:release, :start}]
-      end
-
-      # Between edges: hold steady (no writes at all)
-      for t <- [1..9, 11..19, 21..29] |> Enum.flat_map(&Enum.to_list/1) do
-        assert MeleePort.force_quit_ops(t) == []
       end
     end
 
