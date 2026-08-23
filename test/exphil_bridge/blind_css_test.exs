@@ -80,6 +80,15 @@ defmodule ExPhil.Bridge.BlindCssTest do
       assert BlindCss.scene_from(%{}) == :unknown
     end
 
+    test "depth_from/1: only the two verified values carry meaning" do
+      assert BlindCss.depth_from(%{online_menu_depth: 2}) == :at_css
+      assert BlindCss.depth_from(%{online_menu_depth: 3}) == :at_keyboard
+      # Unmapped screens / absent (on-change may withhold the initial
+      # value): never act.
+      assert BlindCss.depth_from(%{online_menu_depth: 5}) == :unknown
+      assert BlindCss.depth_from(%{}) == :unknown
+    end
+
     test "selection_from/2: all observe_selected classes, pure" do
       assert BlindCss.selection_from(%{css_p1_selected: 0x21}, 1) == :none
       assert BlindCss.selection_from(%{css_p1_selected: 0x02}, 1) == {:character, 2}

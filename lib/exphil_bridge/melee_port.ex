@@ -1193,6 +1193,25 @@ defmodule ExPhil.Bridge.MeleePort do
       # gates re-presses, the scene word confirms departure. Phase
       # budgets are the validated open-loop timings, so a silent
       # watcher degrades to the legacy 480/600/900 timeline exactly.
+      # INSTANT KEYBOARD EXIT (2026-08-24, the depth-word consumer):
+      # 0x804060E0 flipping 2 -> 3 means the Name Entry keyboard is
+      # OPEN — the transition the scene word cannot see. Hand back the
+      # moment it flips (the pulse phase no longer waits out 2s of
+      # duty cycles), and if the fallback ever finds itself armed
+      # while depth already reads 3 (a disconnect kickback), this same
+      # clause keeps it from probe-typing garbage into the keyboard.
+      blind_fallback? and
+          ExPhil.Bridge.BlindCss.depth_from(ram_snapshot) == :at_keyboard ->
+        Logger.info(
+          "[MeleePort] blind CSS: keyboard OPEN per depth word — handing back instantly " <>
+            "(phase #{inspect(Process.get(:css_blind_phase))})"
+        )
+
+        Melee.Controller.release_button(state.controller, :start)
+        Melee.Controller.release_button(state.controller, :a)
+        Process.put(:css_blind_done, true)
+        helper_drive.(state)
+
       blind_fallback? ->
         phase = Process.get(:css_blind_phase, ExPhil.Bridge.BlindCss.new())
         retries = Process.get(:css_blind_retries, 0)

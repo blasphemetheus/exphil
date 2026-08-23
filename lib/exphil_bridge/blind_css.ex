@@ -180,6 +180,24 @@ defmodule ExPhil.Bridge.BlindCss do
   def scene_from(snapshot), do: Map.get(snapshot, :menu_state, :unknown)
 
   @doc """
+  Online-menu screen depth from a snapshot (pure): the 0x804060E0
+  word (hunted+verified 2026-08-24) reads 2 at the online CSS and 3
+  at the Name Entry keyboard — the transition the scene word cannot
+  see. Only those two values carry meaning; every other reading (or
+  absence — on-change semantics may withhold the initial value) is
+  `:unknown`. The CSS->keyboard flip IS a change, so the watcher
+  reports exactly the transition that matters.
+  """
+  @spec depth_from(%{atom() => non_neg_integer()}) :: :at_css | :at_keyboard | :unknown
+  def depth_from(snapshot) do
+    case Map.get(snapshot, :online_menu_depth) do
+      2 -> :at_css
+      3 -> :at_keyboard
+      _ -> :unknown
+    end
+  end
+
+  @doc """
   Selection reading from a snapshot (pure): same classes as
   `observe_selected/2`.
   """
