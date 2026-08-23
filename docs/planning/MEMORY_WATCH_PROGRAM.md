@@ -88,9 +88,19 @@ carry X" from a wall into a config line. Four postures it enables:
 
 ## Application list (ordered; check off / date as done)
 
-1. [ ] **Live online-CSS state** (cursor/character/coin per port from
-       RAM) -> real feedback menuing on any build; delete the blind
-       fallback's guesswork. First consumer, validates the plumbing.
+1. [~] **Live online-CSS state** — CURSORS RE-DERIVED 2026-08-22
+       (libmelee_ex 60b20a8): the classic 4-port block relocated
+       intact by +0x17200, stride 0xB80 preserved; P1 bit-exact
+       verified via MemoryWatcher, P2-P4 delta-derived. Method that
+       won: PARK-AND-SCAN (examples/memory_scan_css.exs — read
+       /proc/<emulator>/mem as its ancestor, scan MEM1 for the
+       stream-reported f32 bits, intersect across parks); the
+       differential hunt proved the classic region dry but couldn't
+       find the new one (settled CSS memory is STATIC — even the RNG
+       doesn't tick there; traffic deltas are the only liveness).
+       OWED: character/status/coin bytes (same park-and-scan, park on
+       distinct portraits), then feedback menuing replaces the blind
+       fallback's guesswork.
 2. [~] **Menu-scene ground truth for the watchdog** — diagnosis slice
        SHIPPED 2026-08-22b: MeleePort's MENU STUCK report/log now
        carries `ram_scene` (SceneView — names the actual screen where
