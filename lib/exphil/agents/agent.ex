@@ -602,10 +602,13 @@ defmodule ExPhil.Agents.Agent do
 
           stage_t = stage.("trunk_step", stage_t)
 
-          _output =
-            state.heads_predict_fn.(Utils.ensure_model_state(state.policy_params), features)
+          # The live step path samples via Policy.sample(heads_predict_fn,
+          # features) — same fused-sampler compile hazard as the windowed
+          # path (see warmup_sample), so warm THAT program, not the bare
+          # heads predict.
+          warmup_sample(state, state.heads_predict_fn, features)
 
-          _ = stage.("heads_predict", stage_t)
+          _ = stage.("heads_sample", stage_t)
 
         state.temporal ->
           # For temporal models, we need a full window of dummy embeddings
@@ -615,12 +618,12 @@ defmodule ExPhil.Agents.Agent do
             # Add batch dimension
             |> Nx.new_axis(0)
 
-          warmup_sample(state, dummy_sequence)
+          warmup_sample(state, state.predict_fn, dummy_sequence)
 
         true ->
           # For MLP, just single frame
           input = Nx.reshape(dummy_embedded, {1, :auto})
-          warmup_sample(state, input)
+          warmup_sample(state, state.predict_fn, input)
       end
 
       elapsed = System.monotonic_time(:millisecond) - start_time
@@ -638,7 +641,7 @@ defmodule ExPhil.Agents.Agent do
   # Direct A/B 2026-08-07 — the human had to restart Dolphin). Two calls
   # cover the prev_buttons nil-vs-tensor hysteresis variants the live loop
   # hits on frame 1 vs frame 2+.
-  defp warmup_sample(state, input) do
+  defp warmup_sample(state, predict_fn, input) do
     sample_opts = [
       deterministic: state.deterministic,
       temperature: state.temperature,
@@ -652,7 +655,7 @@ defmodule ExPhil.Agents.Agent do
     first =
       Networks.Policy.sample(
         state.policy_params,
-        state.predict_fn,
+        predict_fn,
         input,
         Keyword.put(sample_opts, :prev_buttons, nil)
       )
@@ -663,7 +666,7 @@ defmodule ExPhil.Agents.Agent do
     _second =
       Networks.Policy.sample(
         state.policy_params,
-        state.predict_fn,
+        predict_fn,
         input,
         Keyword.put(sample_opts, :prev_buttons, first[:buttons])
       )

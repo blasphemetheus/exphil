@@ -676,7 +676,10 @@ defmodule ExPhil.Training.Output do
   Print a banner for script startup.
   """
   def banner(title, subtitle \\ nil) do
-    width = 60
+    # Widen to fit long titles (e.g. deep eval_runs log paths) — a title
+    # longer than the default width used to crash on negative padding.
+    width = max(60, String.length(title) + 2)
+    width = if subtitle, do: max(width, String.length(subtitle) + 2), else: width
     puts_raw("")
     puts_raw("╔" <> String.duplicate("═", width) <> "╗")
     title_padding = div(width - String.length(title), 2)

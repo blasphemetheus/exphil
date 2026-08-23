@@ -46,7 +46,29 @@ policy). Menu overhead beyond JIT is ~3-4s local / ~5s netplay (the
    EXLA.Executable.load).
 2. **XLA autotune cache dir** — env-only fallback if (1) stalls:
    XLA_FLAGS autotune-cache flags persist the benchmarking results
-   (usually the bulk of compile time). STATUS: [ ] untried.
+   (usually the bulk of compile time). STATUS: [x] DEAD 2026-08-24:
+   `--xla_gpu_autotune_level=0` changed nothing (19.8s → 20.0s), so
+   autotuning is ~0% of our compile; a persistent autotune cache can
+   save nothing.
+2b. **Stateful step path (`--stateful-step`)** — compile a
+   single-timestep trunk graph instead of the 60-frame unroll.
+   STATUS: [x] MEASURED 2026-08-24: **warmup 19.9s → 1.5s** (embed
+   0.2s + trunk_step 0.55s + fused heads sampler 0.75s). No cache, no
+   deserialization safety question — the graph is just 60x smaller.
+   Same-day fix: the stateful warmup branch previously warmed only the
+   bare heads predict, NOT the fused sampler the live loop actually
+   calls (`Policy.sample(heads_predict_fn, features)`) — the 08-07
+   netplay-freeze class waiting to happen; warmup now routes through
+   `warmup_sample` with both prev_buttons variants. Equivalence is
+   pinned (stateful_step_equivalence_test, max logit delta 3.6e-7) and
+   the path is already mandatory for headless probes (GOTCHA #69).
+   LIVE-VALIDATED same night (eval_runs/0824_stateful_live): stateful
+   vs windowed control, identical settings (ms_g19_ep4, local, CPU-3,
+   d3) — warmup 1,482ms vs 19,973ms; BOTH arms qtrace-sharp at the
+   nominal lag peak 5 (d3+2), stateful marginally sharper (99.9% vs
+   99.6%); staleness 1/9192 vs 7/9153. Use `--stateful-step` in local
+   deploy recipes now. REMAINING: netplay-vs-human rung before the
+   script default flips (deploy-rung rule).
 3. **Resident policy server** — one long-lived beam JITs once and
    serves inference to every session (games and dolphins come and go).
    Also what unattended rematch and eval fleets want (gate sweeps run
@@ -73,6 +95,20 @@ bit-identical, but verify once).
 - 2026-08-24: doc created; exla `:cache`-as-path support confirmed in
   the local fork's source (exla/lib/exla.ex). Baseline: 19.8s
   (measured repeatedly 2026-08-23, ms_g19_ep4 GRU-60 on the 5090).
+- 2026-08-24 (attribution session): the residual is ATTRIBUTED. Stage
+  lines (standalone boot, ms_g19_ep4): embed 209ms, **sample1 19.6s**,
+  sample2 5ms, confidence 1ms — the entire cost is the ONE fused
+  predict+sampler compile of the 60-frame unrolled GRU graph. Process
+  watch during compile: beam.smp ~200% CPU for ~16s (XLA HLO passes,
+  in-process) then a single `ptxas -arch sm_120a` for ~4s. Driver
+  PTX->SASS JIT hypothesis DEAD: ptxas targets sm_120a natively (CUDA
+  12.9) and ~/.nv/ComputeCache stayed untouched. Autotune hypothesis
+  DEAD: `--xla_gpu_autotune_level=0` → 20.0s (no change). The winning
+  lever is 2b: **`--stateful-step` warmup = 1.5s** (single-step graph;
+  19.6s of HLO work simply never exists). Also fixed the stateful
+  warmup gap (fused sampler now warmed — was the 08-07 freeze class).
+  Attribution harness: scratchpad warmup_attribution.exs (boots Agent
+  standalone, no Dolphin, WARMUP_STATEFUL=1 toggles the path).
 - 2026-08-24 (later): step 1 wired + measured (26.5 cold / 13.4 warm)
   then CONVICTED — cached executables hang inference mid-game
   (details at option 1) — default-off. Also: ~13s of warmup is
