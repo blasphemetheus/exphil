@@ -98,9 +98,23 @@ carry X" from a wall into a config line. Four postures it enables:
        differential hunt proved the classic region dry but couldn't
        find the new one (settled CSS memory is STATIC — even the RNG
        doesn't tick there; traffic deltas are the only liveness).
-       OWED: character/status/coin bytes (same park-and-scan, park on
-       distinct portraits), then feedback menuing replaces the blind
-       fallback's guesswork.
+       LATER SAME NIGHT — hover byte CONFIRMED LIVE: classic STATIC
+       803F0E0A responds per-portrait on mainline (ids tracked 3
+       hovers + verified fox=10 at park; static region survived, only
+       the heap moved). Status byte 803F0E08 plausibly intact
+       (constant 0=HMN). DEAD: classic coin chain (804A0BC0 stale
+       pointer) AND the offline stream's coin_down (false throughout
+       a navigate-picked CSS — GOTCHA #101's offline sibling).
+       Selection-state hunt via A-press dump-diff (Melee.MemoryDump
+       dump/diff + ambient-baseline subtraction; ~1300 press-
+       correlated words of 93k ambient): candidate 0x80444964
+       (2->0 on first press, deterministic x3) but the re-press did
+       NOT flip it back — toggle model wrong or press-2 whiffed;
+       semantics UNRESOLVED, needs visual ground truth (screenshot or
+       human eyes on whether fox is selected). Second candidate
+       0x80479C58 behaves counter-like (3->1/3->2/2->0), not a flag.
+       REMAINING for #1: selection/coin state semantics, then
+       feedback menuing replaces the blind fallback's guesswork.
 2. [~] **Menu-scene ground truth for the watchdog** — diagnosis slice
        SHIPPED 2026-08-22b: MeleePort's MENU STUCK report/log now
        carries `ram_scene` (SceneView — names the actual screen where
