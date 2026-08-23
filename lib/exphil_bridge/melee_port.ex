@@ -783,8 +783,14 @@ defmodule ExPhil.Bridge.MeleePort do
       Process.put(:last_scene_word, scene_word)
       hex = scene_word |> Integer.to_string(16) |> String.pad_leading(8, "0")
 
+      # The all-zero word is a known ~17ms load-noise transient (bot14
+      # capture + tonight's session) — label it so the honest decode
+      # ({:settled, :press_start}) doesn't read as a real scene visit.
+      transient = if scene_word == 0, do: " (zero-word transient — load noise)", else: ""
+
       Logger.info(
-        "[MeleePort] RAM scene word -> 0x#{hex} #{inspect(Melee.MemoryMap.scene_view(scene_word))}"
+        "[MeleePort] RAM scene word -> 0x#{hex} " <>
+          "#{inspect(Melee.MemoryMap.scene_view(scene_word))}#{transient}"
       )
 
       # ONLINE GAME -> CSS word transition = a game just ended and the
@@ -1211,28 +1217,42 @@ defmodule ExPhil.Bridge.MeleePort do
   end
 
   # Overlay watcher CSS observations onto a menu gamestate (pure merge
-  # in Melee.MemoryMap.merge_css/2; the policy of WHEN lives here).
+  # in Melee.MemoryMap.merge_css/3; the policy of WHEN and WHICH FIELDS
+  # lives here). Validated 2026-08-23 live Direct session: the static
+  # region (selection/hover/status/ready) reads correctly at the ONLINE
+  # CSS (:none -> {:character, 2} across the pick), so the online merge
+  # is DEFAULT ON for static fields. The CURSOR block is menu-HEAP and
+  # only derived at the offline CSS — online it stays off until a
+  # park-and-scan validates it there (EXPHIL_RAM_MENU=full opts in;
+  # =0 disables the online merge entirely).
   defp ram_menu_merge(state, gamestate) do
     watcher = state.dolphin && state.dolphin.memory_watcher
     offline_css? = gamestate.menu_state == @menu_character_select
     online_css? = gamestate.menu_state == 6
+    online_mode = System.get_env("EXPHIL_RAM_MENU", "static")
 
-    apply? =
-      watcher != nil and
-        (offline_css? or (online_css? and System.get_env("EXPHIL_RAM_MENU") == "1"))
+    fields =
+      cond do
+        watcher == nil -> nil
+        offline_css? -> :all
+        online_css? and online_mode == "full" -> :all
+        online_css? and online_mode != "0" -> :static
+        true -> nil
+      end
 
-    if apply? do
+    if fields do
       snapshot = Melee.MemoryWatcher.snapshot(watcher)
 
       unless Process.get(:ram_menu_merge_logged, false) do
         Process.put(:ram_menu_merge_logged, true)
 
         Logger.info(
-          "[MeleePort] RAM menu merge active (#{map_size(snapshot)} observed watches)"
+          "[MeleePort] RAM menu merge active (fields=#{fields}, " <>
+            "#{map_size(snapshot)} observed watches)"
         )
       end
 
-      Melee.MemoryMap.merge_css(gamestate, snapshot)
+      Melee.MemoryMap.merge_css(gamestate, snapshot, fields: fields)
     else
       gamestate
     end

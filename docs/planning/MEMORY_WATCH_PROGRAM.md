@@ -134,10 +134,18 @@ carry X" from a wall into a config line. Four postures it enables:
        dolphin (step-counted holds can be sub-frame wall time — use
        wall-clock press/sleep/release). 0x80444964 falsified
        (2->16->0 across select/deselect), 0x80479C58 falsified.
-       REMAINING for #1: confirm 0x8043208C family reads correctly at
-       the ONLINE CSS (static region, expected to survive — next
-       Direct session), then feedback menuing replaces the blind
-       fallback's guesswork.
+       ONLINE VALIDATED 2026-08-23 (live Direct session,
+       eval_runs/0823_live_observability): :none -> {:character, 2}
+       across the pick AT the online CSS; selection-skip fired on
+       every retry; post-game CSS RETAINS the pick (zero A presses on
+       rematch cycles). EXPHIL_RAM_MENU now defaults ON online for
+       static fields (merge_css fields: :static); cursors stay off
+       online until the heap block is park-and-scanned there. #1 is
+       CLOSED except that cursor sliver + the NEW last blind menu:
+       the direct-code keyboard (enter_direct_code steers by the
+       stream's menu_selection at an online scene — GOTCHA #101
+       exposure class, visibly live tonight but unverified; no RAM
+       coverage of the keyboard state yet).
 2. [x] **Menu-scene ground truth for the watchdog** — COMPLETE
        2026-08-23. Diagnosis slice (22b): the MENU STUCK report
        carries `ram_scene` + `ram_traffic_delta`. Suppression slice
@@ -199,9 +207,12 @@ carry X" from a wall into a config line. Four postures it enables:
        all 900 arrival rows (zero jitter) in the local sync harness —
        0x80479D60 counts from scene start, Slippi stamps from -123, so
        any drift from +123 at arrival IS pipeline lag, measured
-       per-arrival. OPEN: run the same probe against a NETPLAY session
-       to decompose effective delay into local vs network parts (the
-       22→4 chain-gap question) — next Direct session.
+       per-arrival. NETPLAY SLICE DONE 2026-08-23 (live Direct
+       session): 48/48 in-game samples read EXACTLY 123, zero jitter —
+       the local pipeline contributes ZERO frames of observation lag
+       over netplay; the effective-delay gap (22→4) is entirely
+       input-delay regime + rollback/network. Probe is a standing
+       MeleePort log line (5s cadence in-game); [x] as a capability.
 11. [x] **In-game player ground truth** — VERIFIED 2026-08-22c
        (quartet): the classic locations.csv player block survived
        mainline INTACT (base 0x80453080, stride 0xE90; x/y/facing/
@@ -277,6 +288,19 @@ carry X" from a wall into a config line. Four postures it enables:
   night: re-arm on leaving the CSS scene + raw scene-word CHANGE
   logging (science trace: code-entry minor, byte order, match-start
   word now land in every session log).
+- 2026-08-23 (live session, eval_runs/0823_live_observability):
+  **everything validated in production in one Direct session vs
+  Bradley** — online selection array (:none -> {:character,2}),
+  selection-skip on every retry, post-game pick RETENTION (zero
+  A presses on rematch), StuckPolicy suppressing a real 30s connect
+  hold (game started 2.4s later), game-end re-arm x2, #10 netplay =
+  flat 123 x48 (local pipeline contributes zero), new scene word
+  0x08080101 (post-game online SSS flash). EXPHIL_RAM_MENU flipped
+  DEFAULT ON online (static fields). NEW open sliver: the direct-code
+  keyboard is the last blind menu (details at #1); teardown must also
+  kill `[s]lippi-dolphin-bot` (orphan searched a truncated code).
+  Ops note: observability sessions MUST launch with --verbose
+  (default verbosity sets Logger :warning and eats the science trace).
 - 2026-08-23 (later): **#2 watchdog suppression SHIPPED** —
   ExPhil.Bridge.StuckPolicy verdict table + MeleePort wiring with
   detector re-arm (details at #2 above). Program applications now
