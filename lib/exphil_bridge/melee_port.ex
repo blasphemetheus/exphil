@@ -811,26 +811,30 @@ defmodule ExPhil.Bridge.MeleePort do
       end
     end
 
-    # Direct-code buffer readback (0x804A0740, 2026-08-23): log the
-    # typed text whenever it changes — the science trace for code
-    # entry, and the ground truth for a future verify-before-confirm
-    # (the field autofills and the first keystroke REPLACES it).
-    if watcher = state.dolphin && state.dolphin.memory_watcher do
-      code =
-        Melee.MemoryMap.direct_code()
-        |> Enum.map(fn {name, _} ->
-          case safe_watch_get(watcher, name) do
-            {:ok, v} -> v
-            :unknown -> :unknown
-          end
-        end)
-        |> Melee.MemoryMap.decode_direct_code()
+    # Direct-code buffer readback (0x804A0740, 2026-08-23): feeds
+    # MenuHelper's verify-before-confirm (:code_buffer option) and the
+    # science log. :unknown without a watcher = legacy blind typing.
+    code_buffer =
+      if watcher = state.dolphin && state.dolphin.memory_watcher do
+        code =
+          Melee.MemoryMap.direct_code()
+          |> Enum.map(fn {name, _} ->
+            case safe_watch_get(watcher, name) do
+              {:ok, v} -> v
+              :unknown -> :unknown
+            end
+          end)
+          |> Melee.MemoryMap.decode_direct_code()
 
-      if code != "" and Process.get(:last_code_buf) != code do
-        Process.put(:last_code_buf, code)
-        Logger.info("[MeleePort] direct-code buffer reads \"#{code}\"")
+        if code != "" and Process.get(:last_code_buf) != code do
+          Process.put(:last_code_buf, code)
+          Logger.info("[MeleePort] direct-code buffer reads \"#{code}\"")
+        end
+
+        code
+      else
+        :unknown
       end
-    end
 
     # Re-arm the blind CSS fallback when the session leaves the online
     # CSS scene (postgame flow passes through non-6 menu states before
@@ -1005,6 +1009,7 @@ defmodule ExPhil.Bridge.MeleePort do
               code -> code
             end,
           nametag: Map.get(state.config, :nametag),
+          code_buffer: code_buffer,
           autostart: autostart,
           swag: false,
           stuck_after_frames: Map.get(state.config, :menu_stuck_frames, 1800),
