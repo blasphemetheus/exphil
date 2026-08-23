@@ -761,12 +761,30 @@ defmodule ExPhil.Bridge.MeleePort do
     # 08-22 evening session lacked — code-entry minor, pending/previous
     # byte order, match-start word all land in the log for free.
     if scene_word != :unknown and Process.get(:last_scene_word) != scene_word do
+      prev_word = Process.get(:last_scene_word)
       Process.put(:last_scene_word, scene_word)
       hex = scene_word |> Integer.to_string(16) |> String.pad_leading(8, "0")
 
       Logger.info(
         "[MeleePort] RAM scene word -> 0x#{hex} #{inspect(Melee.MemoryMap.scene_view(scene_word))}"
       )
+
+      # ONLINE GAME -> CSS word transition = a game just ended and the
+      # pick was consumed. This is the RAM-only re-arm signal the
+      # stream cannot provide: the whole online flow reports
+      # menu_state 6 (CSS, code entry, search, SSS flash), so the
+      # stream-based reset below never fires online — the 08-22 bot14
+      # MENU STUCK (post-game CSS, fallback spent, unpicked forever).
+      # The word held :slippi_online_game through the game (no menu
+      # frames update it), so prev is unfakeable by menu flickers.
+      if prev_word != nil and
+           Melee.MemoryMap.scene_name(prev_word) == :slippi_online_game and
+           Melee.MemoryMap.scene_name(scene_word) == :slippi_online_css do
+        Process.put(:css_blind_done, false)
+        Process.put(:css_blind_n, 0)
+        Process.put(:css_blind_retries, 0)
+        Logger.warning("[MeleePort] blind CSS: game ended (RAM scene word) — fallback re-armed")
+      end
     end
 
     # Re-arm the blind CSS fallback when the session leaves the online

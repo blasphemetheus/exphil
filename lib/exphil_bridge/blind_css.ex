@@ -110,6 +110,13 @@ defmodule ExPhil.Bridge.BlindCss do
           :at_css | :departing | :elsewhere | :unknown
   def classify(:unknown), do: :unknown
 
+  # All-zero words appear as ~17ms transients during online scene
+  # churn (observed twice, bot14 capture 2026-08-22). A bot genuinely
+  # at press-start can never be inside the blind-CSS arm, so zero is
+  # load noise, never evidence — without this clause it classified
+  # :elsewhere and could trigger a premature handback mid-pulse.
+  def classify(0), do: :unknown
+
   def classify(word) when is_integer(word) do
     case MemoryMap.scene_view(word) do
       {:settled, :slippi_online_css} -> :at_css

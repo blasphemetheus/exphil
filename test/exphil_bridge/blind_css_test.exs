@@ -32,6 +32,20 @@ defmodule ExPhil.Bridge.BlindCssTest do
       # must not close the loop (would hand back on noise).
       assert BlindCss.classify(0x42424200) == :unknown
     end
+
+    test "the all-zero transient is :unknown (bot14 scene-load flicker)" do
+      # Observed twice live: 0x00000000 for ~17ms during online scene
+      # churn. Genuine press-start can't occur inside the blind arm —
+      # zero is noise, and :elsewhere here caused premature handback.
+      assert BlindCss.classify(0x00000000) == :unknown
+    end
+
+    test "the online in-game word is :elsewhere — the true departure signal" do
+      # 0x0408 = major 8 minor 4 = online in-game (bot14 capture,
+      # replay-correlated). Match forming during the START pulse now
+      # confirms departure instead of hiding behind settled-unknown.
+      assert BlindCss.classify(0x08080104) == :elsewhere
+    end
   end
 
   # ---------------------------------------------------------------
