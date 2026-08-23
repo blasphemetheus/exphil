@@ -84,7 +84,28 @@ defmodule ExPhil.Training.Utils do
             do: Path.join(System.user_home!(), ".cache/exphil/xla_exec"),
             else: value
 
-        [cache: Path.join(base, "#{name}-#{:erlang.phash2(key_parts)}.exlaexec")]
+        if exec_cache_enabled_for?(name) do
+          [cache: Path.join(base, "#{name}-#{:erlang.phash2(key_parts)}.exlaexec")]
+        else
+          []
+        end
+    end
+  end
+
+  # Bisect control (the cached-executable hang, JIT_WARMUP.md):
+  # EXPHIL_XLA_EXEC_CACHE_ONLY="predict,heads" caches only the named
+  # functions (prefix match, so "sampling" covers every fused
+  # sampler); unset = all four sites. Function names: predict,
+  # trunk_step, heads, sampling_*.
+  defp exec_cache_enabled_for?(name) do
+    case System.get_env("EXPHIL_XLA_EXEC_CACHE_ONLY") do
+      nil ->
+        true
+
+      only ->
+        only
+        |> String.split(",")
+        |> Enum.any?(&String.starts_with?(name, String.trim(&1)))
     end
   end
 end

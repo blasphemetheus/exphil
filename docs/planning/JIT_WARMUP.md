@@ -28,22 +28,25 @@ policy). Menu overhead beyond JIT is ~3-4s local / ~5s netplay (the
    path to store the cache"); `EXLA.NIF.deserialize_executable` exists.
    Wire `cache: <dir keyed by checkpoint hash + shapes>` into the
    Agent's jit options; expect second-boot warmup ~1-3s.
-   STATUS: [~] ATTEMPTED 2026-08-24, DEFAULT-OFF after a live
-   conviction. Wired into all four compile sites (predict, trunk_step,
-   heads, fused samplers; Utils.xla_exec_cache/2 +
-   EXPHIL_XLA_EXEC_CACHE env). Measured: cold 26.5s (compile+write),
-   warm 13.4s — the caches hit (no key-mismatch warnings) but only
-   ~6s came back; the residual 13s is NOT the fused samplers (their
-   cache moved nothing) — unattributed (candidate: driver PTX->SASS
-   JIT for sm_120, cuDNN handle init). THEN the live conviction: the
-   first real netplay game with cached executables HUNG the inference
-   process mid-game (counter frozen at 2612, inputs latched on down-B
-   = crouch + held shine); the identical session with the cache
-   disabled played normally. Deserialized executables are unsafe on
-   this stack (xla 0.10 / exla 0.13.1 / RTX 5090) pending a bisect
-   (enable per-function to find the poisoned one; suspect the big
-   9.8MB predict executable or device-state assumptions in
-   EXLA.Executable.load).
+   STATUS: [x] BISECTED + CLOSED 2026-08-24 (eval_runs/
+   0824_cache_bisect): 3-arm warm-boot matrix — all-cached FATAL,
+   predict-only FATAL, sampling-only CLEAN — **the 9.8MB `predict`
+   executable's cache is the poison, and the mechanism is TIMING, not
+   corruption**: deserialization defers expensive finalization to
+   first use in the calling process, so the Inference process's first
+   live call re-loads MID-GAME, blocking the frame loop for seconds →
+   local spectator disconnect / the netplay both-peers freeze that
+   originally convicted the cache ("counter frozen, latched down-B" =
+   frame-loop starvation seen from outside). A cold cache-writing
+   boot also once hard-wedged every scheduler post-warmup (do_wait) —
+   same load path, worse day. Sampling caches are innocent AND
+   worthless (~0 warmup saved). VERDICT: stays DEFAULT-OFF
+   permanently; per-function knob EXPHIL_XLA_EXEC_CACHE_ONLY + pins
+   in test/exphil/training/xla_exec_cache_test.exs. A future revival
+   would need first-use finalization forced at WARMUP TIME in the
+   inference process — but the stateful path (2b) already makes the
+   whole question moot for probes, and the resident policy server
+   (option 3) for deploys.
 2. **XLA autotune cache dir** — env-only fallback if (1) stalls:
    XLA_FLAGS autotune-cache flags persist the benchmarking results
    (usually the bulk of compile time). STATUS: [x] DEAD 2026-08-24:
