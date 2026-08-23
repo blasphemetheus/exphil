@@ -254,6 +254,40 @@ carry X" from a wall into a config line. Four postures it enables:
        report's `ram_traffic_delta` (#2). Open: adopt in launchers/
        harnesses beyond MeleePort.
 
+## Late-night arc 2026-08-24 (the online-CSS closed loop, condensed)
+
+Full detail in the commit messages (libmelee_ex 7b92410/4035cbf,
+exphil 1c18781/7fe20f8) and JIT_WARMUP.md. The laws it minted:
+
+- **The A-press probe is the position sensor** at the online CSS
+  (hover byte = stale local residue there; helper steering = frozen-
+  snapshot luck). Probe-steering: sweep -> tap -> the selection word
+  names the portrait -> B real mis-picks (bounded) -> converge.
+- **Per-frame /proc pread beats the watcher** for on-change-hostile
+  words (selection): initial values never sent, correction datagrams
+  droppable, every seed/staleness heuristic timing-fragile. MEM1
+  found once async; 4 preads/frame = microseconds of always-truth.
+- **The online CSS's unselected sentinel is 26** (Master Hand — no
+  roster mapping); ids without a CSS-roster mapping classify :none.
+- **One bounded watcher call per menu frame**: ~10 synchronous calls
+  per frame starved the spectator socket (dolphin_disconnected);
+  so did an inline /proc scan retry loop. Anything slow runs OFF the
+  frame loop.
+- **Unknown submenu = WAIT, never B** (transient values during scene
+  loads; blind B backed out of Direct in a loop).
+- New addresses: `online_menu_selection` 0x804D7788 (Ranked0/
+  Unranked1/Direct2/Teams3/Party4; merged onto main-menu gamestates —
+  main menu -> online CSS now 0.5s, was ~6s) and `online_menu_depth`
+  0x804060E0 (CSS=2, keyboard=3 — the scene-word-invisible
+  transition; consumer queued: instant pulse exit + keyboard-strand
+  detection).
+- XLA executable cache: CONVICTED live (inference hang mid-game,
+  inputs latched) — default-off; JIT_WARMUP.md tracks it. Warmup
+  stage instrumentation added (the temporal branch holds the whole
+  ~20s; breakdown logs on next boot).
+- Frozen warmup steer budget: probes own the JIT window; picks land
+  MID-WARMUP (g17/g19); post-JIT CSS->typed-code ≈ 4s.
+
 ## Non-goals / boundaries
 
 - WRITE access: MemoryWatcher is read-only. Write-side control stays
