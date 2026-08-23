@@ -754,6 +754,34 @@ defmodule ExPhil.Bridge.MeleePort do
     css_n = Process.get(:css_debug_n, 0)
     Process.put(:css_debug_n, css_n + 1)
 
+    # One RAM scene-word read per menu frame (nil/dead watcher -> :unknown).
+    scene_word = ExPhil.Bridge.BlindCss.observe(state.dolphin && state.dolphin.memory_watcher)
+
+    # Log scene-word CHANGES (menu frames only): the science trace the
+    # 08-22 evening session lacked — code-entry minor, pending/previous
+    # byte order, match-start word all land in the log for free.
+    if scene_word != :unknown and Process.get(:last_scene_word) != scene_word do
+      Process.put(:last_scene_word, scene_word)
+      hex = scene_word |> Integer.to_string(16) |> String.pad_leading(8, "0")
+
+      Logger.info(
+        "[MeleePort] RAM scene word -> 0x#{hex} #{inspect(Melee.MemoryMap.scene_view(scene_word))}"
+      )
+    end
+
+    # Re-arm the blind CSS fallback when the session leaves the online
+    # CSS scene (postgame flow passes through non-6 menu states before
+    # the next CSS). Without this the done-flag persisted across games
+    # and the post-game CSS sat unpicked forever — the 08-22 evening
+    # MENU STUCK (ram_scene settled at online CSS, traffic healthy).
+    if gamestate.menu_state != 6 and
+         (Process.get(:css_blind_done, false) or Process.get(:css_blind_n, 0) > 0) do
+      Process.put(:css_blind_done, false)
+      Process.put(:css_blind_n, 0)
+      Process.put(:css_blind_retries, 0)
+      Logger.info("[MeleePort] blind CSS: left online-CSS scene — fallback re-armed")
+    end
+
     character = to_character_id(Map.get(state.config, :character, :fox))
     stage = to_stage_id(Map.get(state.config, :stage, :final_destination))
 
@@ -970,8 +998,7 @@ defmodule ExPhil.Bridge.MeleePort do
         # drifting cursor, nothing selected).
         Melee.Controller.tilt_analog(state.controller, :main, 0.5, 0.5)
 
-        watcher = state.dolphin && state.dolphin.memory_watcher
-        progress = ExPhil.Bridge.BlindCss.classify(ExPhil.Bridge.BlindCss.observe(watcher))
+        progress = ExPhil.Bridge.BlindCss.classify(scene_word)
         retries = Process.get(:css_blind_retries, 0)
 
         case ExPhil.Bridge.BlindCss.step(n, progress, retries) do
@@ -997,7 +1024,8 @@ defmodule ExPhil.Bridge.MeleePort do
           {:retry_a, r} ->
             Logger.warning(
               "[MeleePort] blind CSS: scene still at online CSS after START window " <>
-                "(progress=#{progress}) — retrying A press (#{r})"
+                "(progress=#{progress} word=#{inspect(scene_word, base: :hex)}) — " <>
+                "retrying A press (#{r})"
             )
 
             Process.put(:css_blind_retries, r)
@@ -1011,12 +1039,15 @@ defmodule ExPhil.Bridge.MeleePort do
           # the autofilled code) — observed live 08-22: the fallback
           # kept pulsing START there ("goes to confirm and sits").
           :handback ->
-            if progress in [:departing, :elsewhere] do
-              Logger.info(
-                "[MeleePort] blind CSS: departure CONFIRMED via RAM scene word " <>
-                  "(progress=#{progress}, frame #{n}) — handing back to helper"
-              )
-            end
+            confirmed =
+              if progress in [:departing, :elsewhere],
+                do: " — departure CONFIRMED via RAM scene word",
+                else: ""
+
+            Logger.info(
+              "[MeleePort] blind CSS: handing back to helper (progress=#{progress} " <>
+                "word=#{inspect(scene_word, base: :hex)}, frame #{n})#{confirmed}"
+            )
 
             Melee.Controller.release_button(state.controller, :start)
             Process.put(:css_blind_done, true)

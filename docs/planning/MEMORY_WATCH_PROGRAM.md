@@ -193,6 +193,20 @@ carry X" from a wall into a config line. Four postures it enables:
   addresses; delay-regime measurement; in-game ground truth as the
   verify-once/three-consumers step; liveness ratchet). Tests 39/0 in
   the two batteries.
+- 2026-08-22 EVENING: **first live netplay validation PASSED**
+  (eval_runs/0822_netplay_crown addendum; ep4 chain 62 on FD =
+  ALL-TIME NETPLAY RECORD en route, 87.6 self/min, lag sharp 6).
+  Watcher engaged over netplay; online CSS = settled major-8 word
+  (layout confirmed at a 2nd scene family). NEW FACT: the Direct
+  CSS -> code-entry transition does NOT change the scene word, so
+  departure is unobservable there pre-match — BlindCss retries always
+  fire (spurious-but-safe: deterministic 3 A presses = odd = ends
+  selected). Enriched MENU STUCK fired live and diagnosed a real bug:
+  blind-CSS Process flags persisted across games -> post-game CSS
+  unpicked forever (masked before by per-game relaunches). FIXED same
+  night: re-arm on leaving the CSS scene + raw scene-word CHANGE
+  logging (science trace: code-entry minor, byte order, match-start
+  word now land in every session log).
 - 2026-08-22b (later): application #9 SHIPPED code-side —
   `scene_view/1` SceneView (libmelee_ex) + `ExPhil.Bridge.BlindCss`
   pure decision table (HtDP: observation classes -> progress classes
