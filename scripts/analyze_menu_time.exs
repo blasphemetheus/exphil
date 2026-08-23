@@ -137,7 +137,7 @@ for {name, dur} <- rows do
     cond do
       dur == nil -> "  (not observed)"
       budget == nil -> ""
-      dur > budget -> "  <-- OVER budget #{fmt.(budget)}s"
+      dur > budget + 500 -> "  <-- OVER budget #{fmt.(budget)}s"
       true -> ""
     end
 

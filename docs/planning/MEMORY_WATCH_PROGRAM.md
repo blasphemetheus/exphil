@@ -302,6 +302,17 @@ carry X" from a wall into a config line. Four postures it enables:
   night: re-arm on leaving the CSS scene + raw scene-word CHANGE
   logging (science trace: code-entry minor, byte order, match-start
   word now land in every session log).
+- 2026-08-23 (validation session 2, eval_runs/0823_live_observability
+  RESULTS §2): early handback 7.0s ×3 cycles; typing readback +
+  verified confirm; rematch = zero presses; **GHOST-TEXT STRAND fixed
+  live** (AUTO FILL suggestion sits in the RAM buffer but only Z
+  commits it — buffer==code can't distinguish; Z interleaved every
+  4th confirm press, libmelee_ex c22eb4f; disconnect→re-search
+  reconnects cleanly); #10 netplay again 57/57 flat 123. NEXT
+  SLIVERS: RAM marker for "at the keyboard" (stream submenu frozen);
+  EVENT-DRIVEN blind-CSS timeline (hover/selection/buffer readbacks
+  all online-validated → replace the 480/600/900 frame timers;
+  ~15s→4-5s post-JIT).
 - 2026-08-23 (latest): **local 1v1 profiled; three menu bugs fixed
   same night** (eval_runs/0823_menu_profile/RESULTS.md; Bradley's live
   narration drove every diagnosis). (1) METASTABLE PICK TOGGLE:

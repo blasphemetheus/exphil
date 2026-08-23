@@ -60,6 +60,41 @@ confirmed and sat searching "DB". Two lessons:
   the code-entry keyboard state (park-and-scan or dump-diff at the
   keyboard) so unattended reconnects are closed-loop.
 
+## Validation session 2 (g4.log, later the same night)
+
+All of the night's shipped fixes re-validated over live Direct play
+(3 games + 2 disconnect/reconnect tests):
+
+- **Early handback: 7.0s press->handback on every cycle** (was 21s);
+  zero A retries, zero wasted pulse windows.
+- **Typing readback**: per-keystroke narration D -> DBTD#411 (1.7s),
+  verified confirm; blind typing is accurate on fresh keyboards.
+- **Rematch fast path**: pick retained, zero presses; same-session
+  rematches skip the keyboard entirely (game start 3s after the skip
+  line).
+- **GHOST-TEXT STRAND found and fixed live** (g2/g3 -> fix ->
+  g4 validated): after a disconnect kickback the keyboard shows the
+  previous code as an AUTO FILL *suggestion* — the RAM buffer holds
+  the string but only Z commits it, so buffer == code cannot
+  distinguish ghost from committed, and the old confirm STARTed into
+  nothing forever (audible as a repeating cut-off deny cue —
+  Bradley's ear). Fix: Z interleaved every 4th confirm press
+  (libmelee_ex c22eb4f); Bradley's disconnect -> re-search test
+  reconnected cleanly.
+- **#10 delay: 57/57 samples at exactly 123** — second netplay
+  session, still zero local observation lag.
+- StuckPolicy: suppressed only genuine waits throughout.
+
+Open slivers from session 2: keyboard-scene detection still relies on
+the stream's frozen submenu (a RAM marker for "at the keyboard" would
+make disconnect recovery autonomous instead of needing the confirm
+phase's persistence); the blind-CSS timeline is still worst-case
+frame-timed (480/600/900) — with hover + selection + buffer readbacks
+all validated online, an EVENT-DRIVEN timeline (steer until
+hover==target, press, confirm via selection word) can take the
+post-JIT CSS cycle from ~15s to ~4-5s (Bradley's "why the small
+waits" question; next code session).
+
 ## Shipped as a result (same night)
 
 - `EXPHIL_RAM_MENU` default flipped ON for the online CSS,
