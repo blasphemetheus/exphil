@@ -654,11 +654,17 @@ defmodule ExPhil.Bridge.MeleePort do
     # FoD live platform heights (continuous truth — the stream only
     # samples change events) + PS transform digit (fill-only; never
     # overwrites a live stream phase). Gated to FoD/PS games so other
-    # stages pay nothing; ONE bounded watcher snapshot per in-game
-    # frame (the menu path's budget law; menu/in-game frames are
-    # disjoint). Internal stage ids: FoD 0x8, PS 0x12.
+    # stages pay nothing. LOCAL SESSIONS ONLY (same day, the crown
+    # decider incident): over netplay the bounded watcher snapshot ran
+    # slow EVERY in-game frame — fps collapsed to 3-5 and an LRAS
+    # reject half-fired into a stuck pause — AND the FoD heights read
+    # garbage there (addresses verified on local boots only; the
+    # netplay allocation may differ). Netplay re-enable needs BOTH a
+    # pread path (microseconds, like pread_selection_words) and a
+    # netplay-boot address re-verify. Internal ids: FoD 0x8, PS 0x12.
     gamestate =
       if is_in_game and gamestate.stage in [0x8, 0x12] and
+           state.config[:connect_code] == nil and
            state.dolphin && state.dolphin.memory_watcher do
         merged =
           Melee.MemoryMap.merge_stage(
