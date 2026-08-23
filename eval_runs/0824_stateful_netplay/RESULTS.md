@@ -59,3 +59,25 @@ a trained id is untested.
   (b) if yes, netplay retest at d4/id3.
 - qtrace both netplay arms: not analyzed for lag here (behavior
   already decided the flip); logs retained (g1.log, g2_resync60.log).
+
+## Addendum: resync repair + retest at record knobs (same day)
+
+- **Local d3 vs CPU-3 (eval_runs/0824_resync_local): stateful+resync60
+  RESTORES windowed-grade chaining** — 57.2 shines/min, max 9,
+  sustained 9 (windowed control: 61.4/9/8; plain stateful: 38.9/6/2).
+  Same run validated the new qtrace `act=` canonical chain line
+  bit-exact against replay scoring (129 shines, identical histogram).
+- Netplay retest at RECORD knobs (d4 + --delay-id-override 3,
+  stateful+resync60, g3_resync60_id3.log): lag sharp 6 @ 99.7%; game 1
+  max chain 3, game 2 aborted ~25s. Max 3 is INSIDE the windowed
+  netplay per-game distribution ({3,1,46,6} / {4,62} / {23,12} — most
+  games score 1-6; records are tail events), so n=1 cannot separate
+  the arms. Default flip stays open pending tail events on the resync
+  arm from organic sessions.
+- Identity checks: ms_g19_ep4.bin mtime 2026-08-20, unchanged since
+  before the 0822 chain-62 session — today's arm played the identical
+  bytes. ep4 remains UNCROWNED (ms_g15 = champion-of-record; the
+  ep4-vs-g15 stage-pinned decider is still owed).
+- EXPHIL_GPU_MEMORY_FRACTION=0.25 ruled out as a behavior factor:
+  identical to the record session's env; caps allocator pool only;
+  latency stayed sharp.

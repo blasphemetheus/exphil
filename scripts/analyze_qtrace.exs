@@ -25,10 +25,21 @@ alias ExPhil.Training.Output
 log_path = List.first(args) || raise "usage: analyze_qtrace.exs LOG [--max-lag N] [--game N]"
 max_lag = opts[:max_lag] || 10
 
+# act= (bot ACTION STATE, added 2026-08-24) is optional — older logs
+# lack it. When present, chains are scored canonically via ShineChain;
+# B-press runs are COMMANDED inputs only and must never be read as
+# chains (0822 lesson: 212 commanded cycles vs chain 23 landed).
 parse_line = fn line ->
-  case Regex.run(~r/\[qtrace\] f(-?\d+) applied=(\S+)((?: \S+)*)/, line) do
-    [_, f, applied, slots] ->
-      {String.to_integer(f), applied, slots |> String.split(" ", trim: true) |> List.first()}
+  case Regex.run(~r/\[qtrace\] f(-?\d+)(?: act=(\S+))? applied=(\S+)((?: \S+)*)/, line) do
+    [_, f, act, applied, slots] ->
+      act =
+        case Integer.parse(act) do
+          {a, ""} -> a
+          _ -> nil
+        end
+
+      {String.to_integer(f), act, applied,
+       slots |> String.split(" ", trim: true) |> List.first()}
 
     _ ->
       nil
@@ -41,9 +52,9 @@ games =
   |> File.stream!()
   |> Stream.map(parse_line)
   |> Stream.reject(&is_nil/1)
-  |> Enum.reduce([], fn {f, _, _} = entry, acc ->
+  |> Enum.reduce([], fn {f, _, _, _} = entry, acc ->
     case acc do
-      [[{prev_f, _, _} | _] = cur | rest] when f >= prev_f ->
+      [[{prev_f, _, _, _} | _] = cur | rest] when f >= prev_f ->
         [[entry | cur] | rest]
 
       _ ->
@@ -73,7 +84,7 @@ games
 |> Enum.with_index(1)
 |> Enum.filter(fn {_, idx} -> opts[:game] in [nil, idx] end)
 |> Enum.each(fn {entries, idx} ->
-  in_game = Enum.filter(entries, fn {f, _, _} -> f >= 0 end)
+  in_game = Enum.filter(entries, fn {f, _, _, _} -> f >= 0 end)
   n = length(in_game)
 
   Output.puts("")
@@ -82,8 +93,8 @@ games
   if n < 120 do
     Output.warning("too short to analyze, skipping")
   else
-    decisions = Map.new(in_game, fn {f, _, slot1} -> {f, slot1} end)
-    applieds = Map.new(in_game, fn {f, applied, _} -> {f, applied} end)
+    decisions = Map.new(in_game, fn {f, _, _, slot1} -> {f, slot1} end)
+    applieds = Map.new(in_game, fn {f, _, applied, _} -> {f, applied} end)
     frames = in_game |> Enum.map(&elem(&1, 0))
     {min_f, max_f} = Enum.min_max(frames)
 
@@ -129,9 +140,31 @@ games
     minutes = n / 3600.0
 
     Output.puts("")
-    Output.puts("  B press cycles: #{d_presses} (#{Float.round(d_presses / max(minutes, 0.01), 1)}/min); " <>
-      "#{d_long} hold-B runs >30f")
+    Output.puts("  B press cycles (COMMANDED, not chains): #{d_presses} " <>
+      "(#{Float.round(d_presses / max(minutes, 0.01), 1)}/min); #{d_long} hold-B runs >30f")
     Output.puts("  decision B-runs: #{fmt_hist.(d_hist)}")
     Output.puts("  applied  B-runs: #{fmt_hist.(a_hist)}")
+
+    # Canonical chains from act= (ShineChain v3 over logged action states —
+    # the same metric as replay scoring, replay-free). Only when the log
+    # carries act= (2026-08-24+).
+    actions = in_game |> Enum.map(&elem(&1, 1)) |> Enum.reject(&is_nil/1)
+
+    if length(actions) > div(n, 2) do
+      chains = ExPhil.Eval.ShineChain.chains_detailed(actions)
+      lens = chains |> Enum.map(& &1.length) |> Enum.sort(:desc)
+      shines = Enum.sum(lens)
+      sustained = Enum.count(lens, &(&1 >= 2))
+      maxlen = List.first(lens) || 0
+
+      Output.puts("")
+      Output.puts("  CHAINS (canonical, from act= action states): " <>
+        "shines=#{shines} (#{Float.round(shines / max(minutes, 0.01), 1)}/min) " <>
+        "max_chain=#{maxlen} sustained(>=2)=#{sustained} top=#{inspect(Enum.take(lens, 8))}")
+    else
+      Output.puts("")
+      Output.puts("  CHAINS: no act= field in this log (pre-2026-08-24) — " <>
+        "score chains from replays; B-runs above are commanded inputs, not chains")
+    end
   end
 end)

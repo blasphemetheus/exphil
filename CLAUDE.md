@@ -163,6 +163,7 @@ docs/
 | **guides** | [SCRIPTS.md](docs/guides/SCRIPTS.md) | All scripts reference |
 | **guides** | [INFERENCE.md](docs/guides/INFERENCE.md) | ONNX export, quantization |
 | **guides** | [DOLPHIN.md](docs/guides/DOLPHIN.md) | Dolphin setup, running agents |
+| **guides** | [DEPLOY_KNOBS.md](docs/guides/DEPLOY_KNOBS.md) | Launch flags per context (netplay/local/headless) — copy, never reconstruct |
 | **guides** | [TESTING.md](docs/guides/TESTING.md) | Test harness, coverage |
 | **reference** | [ARCHITECTURE.md](docs/reference/ARCHITECTURE.md) | System design, network structure |
 | **reference** | [architectures/](docs/reference/architectures/ARCHITECTURES.md) | Backbone docs (MLP, LSTM, Mamba) |

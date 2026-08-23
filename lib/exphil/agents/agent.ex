@@ -935,7 +935,14 @@ defmodule ExPhil.Agents.Agent do
                   cs -> enc.(cs)
                 end
 
-              IO.puts("[qtrace] f#{frame} applied=#{applied} #{slots}")
+              # act= is the bot's ACTION STATE — landed-technique ground
+              # truth. Chains are scored from this via ShineChain (analyze_
+              # qtrace.exs), never from the applied B presses: commanded
+              # down-B is eaten during jumpsquat etc., so press runs
+              # overcount chains wildly (0822 lesson).
+              act = if player, do: player.action, else: "-"
+
+              IO.puts("[qtrace] f#{frame} act=#{act} applied=#{applied} #{slots}")
             end
 
             %{new_state | controller_queue: queue}
