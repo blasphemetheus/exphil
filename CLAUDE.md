@@ -61,18 +61,18 @@ ExPhil is an Elixir-based platform for experimenting with neural network archite
 docs/planning/HANDOFF_*` picks it) — it is the live resume point;
 everything below is background inventory.
 
-**Production policy (2026-08-09): `checkpoints/ms_g15_oppmask_full.bin`**
-— crowned via the gated human netplay decider (7-game blind A/B vs
-g10b at d4, eval_runs/0809_ab_decider): chains {3,1,46,6} vs g10b's
-{2,2,2}; **chain 46 = ALL-TIME NETPLAY RECORD** (old: 4; on Dreamland,
-through platforms), replicated with chain 6 on FoD; qtrace lag peak 6
-@ 98.7-99.6% every game. Offline case (08-08): stand d3 430.4/min c426
-record, YS no-collapse (n=3), live local Mewtwo chains 12-13. Trained
-= champion recipe + full-block opponent scramble
-(`--opp-scramble-frames 12000`). **Deploy `--frame-delay 4` netplay /
-d3 local.** Open caveats (do not gate the crown): rung-0 4.28
-scramble-probe calibration; YS n>=8 bucket. Previous champion
-`ms_g10b_human.bin` remains the fallback.
+**Production policy (2026-08-24): `checkpoints/ms_g19_ep4.bin`** —
+crowned via the blind stage-pinned netplay decider vs ms_g15
+(eval_runs/0824_crown_decider, FD-pinned, record knobs): canonical
+chains {32,12} vs g15's {3,3,13}, blind human impressions aligned.
+Prior record card: **all-time netplay chain 62** (0822, FD), stand d3
+437.4/min c438, human-session chains 96/163. **Deploy netplay =
+`--frame-delay 4 --delay-id-override 3`** (id4 is UNTRAINED — bare
+d4 collapses chaining; see docs/guides/DEPLOY_KNOBS.md) **/ d3
+local.** Decider caveats (recorded, not crown-gating): n=5, FD-only,
+single opponent/day. Fallback: `ms_g15_oppmask_full.bin` (the 08-09
+champion; its card: chain 46 record at the time, {3,1,46,6} decider
+vs g10b).
 
 > **Standing rule (the g6 lesson, 08-04):** rank by chain strength at
 > the DEPLOY rung and never crown on stand-dummy numbers alone — the
