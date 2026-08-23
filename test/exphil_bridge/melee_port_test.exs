@@ -95,35 +95,32 @@ defmodule ExPhil.Bridge.MeleePortUnitTest do
   end
 
   describe "memory_watch_set/3 (watcher starvation pin)" do
-    test "ONLINE sessions never watch stage-internal addresses" do
+    test "stage-internal addresses are NEVER in any watch set" do
       # The FoD/PS words sit in volatile stage-allocation heap on other
-      # stages — on-change churn starved the netplay frame loop to
-      # ~2fps (decider incident #3). The netplay stage merge is gated
-      # off, so online stage watches serve nobody.
-      for env <- [nil, "1"], stage <- [:final_destination, :fountain_of_dreams, :pokemon_stadium] do
-        watches = MeleePort.memory_watch_set(env, true, stage)
-        names = Keyword.keys(watches)
-        refute :fod_platform_left in names, "online (env=#{inspect(env)}, #{stage}) watches FoD"
-        refute :ps_transform_digit in names, "online (env=#{inspect(env)}, #{stage}) watches PS"
-        assert :menu_state in names
+      # stages — the watcher's on-change churn starved the netplay
+      # frame loop to ~2fps (decider incident #3). They are read via
+      # direct pread (stage_ram_apply), never watched.
+      for env <- [nil, "1"],
+          online <- [true, false],
+          stage <- [:final_destination, :fountain_of_dreams, :pokemon_stadium] do
+        case MeleePort.memory_watch_set(env, online, stage) do
+          false ->
+            :ok
+
+          watches ->
+            names = Keyword.keys(watches)
+            refute :fod_platform_left in names, "(#{inspect(env)},#{online},#{stage}) watches FoD"
+            refute :ps_transform_digit in names, "(#{inspect(env)},#{online},#{stage}) watches PS"
+            assert :menu_state in names
+        end
       end
     end
 
-    test "local FoD/PS sessions get exactly the stage watches by default" do
-      watches = MeleePort.memory_watch_set(nil, false, :fountain_of_dreams)
-      assert Keyword.keys(watches) |> Enum.sort() ==
-               [:fod_platform_left, :fod_platform_right, :ps_transform_digit]
-
-      assert MeleePort.memory_watch_set(nil, false, :pokemon_stadium) == watches
-    end
-
-    test "local non-stage sessions default to no watcher; env overrides" do
-      assert MeleePort.memory_watch_set(nil, false, :final_destination) == false
+    test "menu set online by default; env forces on/off; local defaults off" do
+      assert :menu_state in Keyword.keys(MeleePort.memory_watch_set(nil, true, :final_destination))
+      assert MeleePort.memory_watch_set(nil, false, :fountain_of_dreams) == false
       assert MeleePort.memory_watch_set("0", true, :fountain_of_dreams) == false
-
-      forced = MeleePort.memory_watch_set("1", false, :fountain_of_dreams)
-      assert :menu_state in Keyword.keys(forced)
-      assert :fod_platform_left in Keyword.keys(forced)
+      assert :menu_state in Keyword.keys(MeleePort.memory_watch_set("1", false, :final_destination))
     end
   end
 end

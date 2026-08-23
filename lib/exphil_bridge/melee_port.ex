@@ -579,35 +579,19 @@ defmodule ExPhil.Bridge.MeleePort do
   end
 
   @doc """
-  The memory-watch set for a session (pure; unit-tested). Stage watch
-  lines (FoD platform heights + PS transform digit) are LOCAL-ONLY, and
-  only when the session is configured onto FoD/PS: on other stages the
-  two 0x80C6 addresses sit in volatile stage-allocation heap that
-  changes EVERY in-game frame, and the watcher's on-change churn
-  starved the netplay frame loop to ~2fps (crown-decider incident #3 —
-  the netplay stage merge is gated off anyway, so online stage watches
-  served nobody). The menu watch set stays online-only per 08-22b;
-  EXPHIL_MEMORY_WATCH=1 forces the menu set on, =0 disables everything.
+  The memory-watch set for a session (pure; unit-tested). Stage
+  addresses (FoD heights / PS digit) are NEVER watched — the watcher's
+  on-change churn on those volatile-heap words starved the netplay
+  frame loop to ~2fps (crown-decider incident #3); they are read by
+  direct pread in stage_ram_apply instead. The menu watch set stays
+  online-only per 08-22b; EXPHIL_MEMORY_WATCH=1 forces it on for any
+  session, =0 disables.
   """
-  def memory_watch_set(env, online, config_stage) do
-    stage_lines =
-      if config_stage in [:fountain_of_dreams, :pokemon_stadium] and not online,
-        do: stage_watches(),
-        else: []
-
+  def memory_watch_set(env, online, _config_stage) do
     case env do
-      "0" ->
-        false
-
-      "1" ->
-        Melee.MemoryMap.menu_with_canary() ++ Melee.MemoryMap.direct_code() ++ stage_lines
-
-      _ ->
-        cond do
-          online -> Melee.MemoryMap.menu_with_canary() ++ Melee.MemoryMap.direct_code()
-          stage_lines != [] -> stage_lines
-          true -> false
-        end
+      "0" -> false
+      "1" -> Melee.MemoryMap.menu_with_canary() ++ Melee.MemoryMap.direct_code()
+      _ -> online && Melee.MemoryMap.menu_with_canary() ++ Melee.MemoryMap.direct_code()
     end
   end
 
@@ -615,10 +599,76 @@ defmodule ExPhil.Bridge.MeleePort do
   defp put_if(opts, _key, false), do: opts
   defp put_if(opts, key, value), do: Keyword.put(opts, key, value)
 
-  # Stage-internal watches (2026-08-24 hunts): FoD platform heights +
-  # PS transform digit — three cheap u32 lines, merged into in-game
-  # gamestates by handle_frame when the game is on FoD/PS.
-  defp stage_watches, do: Melee.MemoryMap.fod() ++ Melee.MemoryMap.ps()
+  # Stage-internal RAM addresses (2026-08-24 hunts): FoD platform
+  # height f32s + PS transform digit, read via direct pread (never via
+  # the watcher: watching them starved netplay — on non-FoD/PS stages
+  # the 0x80C6 words are volatile heap churning every frame).
+  @stage_addrs [
+                 Melee.MemoryMap.fod(),
+                 Melee.MemoryMap.ps()
+               ]
+               |> List.flatten()
+               |> Enum.map(fn {name, hex} -> {name, String.to_integer(hex, 16)} end)
+
+  defp pread_stage_words(state) do
+    case Process.get(:ram_mem1) do
+      {emu, base} ->
+        Map.new(@stage_addrs, fn {name, virt} ->
+          case Melee.MemoryDump.pread(emu, base + (virt - 0x80000000), 4) do
+            {:ok, <<v::unsigned-32>>} -> {name, v}
+            _ -> {name, nil}
+          end
+        end)
+
+      nil ->
+        ensure_mem1_locator(state)
+        %{}
+    end
+  end
+
+  defp stage_ram_apply(state, gamestate) do
+    snapshot = pread_stage_words(state)
+    # An actual code string = netplay; CLI defaults leave nil OR false
+    # here (`!= nil` mis-branched a local smoke into the probe path).
+    online? = is_binary(state.config[:connect_code]) and state.config[:connect_code] != ""
+
+    cond do
+      snapshot == %{} ->
+        gamestate
+
+      online? ->
+        # Probe only (netplay addresses unverified): every ~10s log the
+        # raw reads next to the stream truth so organic netplay FoD/PS
+        # games build the re-verification dataset.
+        if rem(Process.get(:stage_probe_tick, 0), 600) == 0 do
+          Logger.info(
+            "[MeleePort] netplay stage-addr probe (stage=#{gamestate.stage}): " <>
+              "#{inspect(snapshot)} stream_fod=#{inspect(gamestate.fod_platforms)} " <>
+              "stream_ps=#{inspect(gamestate.stadium_transformation)}"
+          )
+        end
+
+        Process.put(:stage_probe_tick, Process.get(:stage_probe_tick, 0) + 1)
+        gamestate
+
+      true ->
+        merged = Melee.MemoryMap.merge_stage(gamestate, snapshot)
+
+        # One-shot on the first successful pread application — NOT on
+        # merged != gamestate (early-game RAM equals the stream
+        # defaults, so a difference can take a minute to appear).
+        unless Process.get(:stage_merge_logged, false) do
+          Process.put(:stage_merge_logged, true)
+
+          Logger.info(
+            "[MeleePort] stage RAM merge active (stage=#{gamestate.stage}, " <>
+              "fod=#{inspect(merged.fod_platforms)}, ps=#{inspect(merged.stadium_transformation)})"
+          )
+        end
+
+        merged
+    end
+  end
 
   @doc """
   Controller ops for the stage-filter LRAS drive at wall-clock pulse
@@ -719,37 +769,19 @@ defmodule ExPhil.Bridge.MeleePort do
     is_menu = not is_in_game
 
     # Stage-internal RAM merge (2026-08-24 hunts, libmelee 736dd6e):
-    # FoD live platform heights (continuous truth — the stream only
-    # samples change events) + PS transform digit (fill-only; never
-    # overwrites a live stream phase). Gated to FoD/PS games so other
-    # stages pay nothing. LOCAL SESSIONS ONLY (same day, the crown
-    # decider incident): over netplay the bounded watcher snapshot ran
-    # slow EVERY in-game frame — fps collapsed to 3-5 and an LRAS
-    # reject half-fired into a stuck pause — AND the FoD heights read
-    # garbage there (addresses verified on local boots only; the
-    # netplay allocation may differ). Netplay re-enable needs BOTH a
-    # pread path (microseconds, like pread_selection_words) and a
-    # netplay-boot address re-verify. Internal ids: FoD 0x8, PS 0x12.
+    # FoD live platform heights (continuous truth) + PS transform digit
+    # (fill-only). Values come from direct /proc PREADS (microseconds,
+    # cached MEM1 handle) — the earlier per-frame watcher snapshot
+    # starved the netplay frame loop to ~2fps (decider incident #1).
+    # LOCAL games merge; NETPLAY games only LOG a periodic probe of the
+    # same addresses: they read garbage floats in the one netplay FoD
+    # sighting so far (allocation may differ across boot modes), so
+    # organic netplay FoD/PS games accumulate the verification data and
+    # the merge flips on once the probe shows stream-matching values.
+    # Internal ids: FoD 0x8, PS 0x12.
     gamestate =
-      if is_in_game and gamestate.stage in [0x8, 0x12] and
-           state.config[:connect_code] == nil and
-           state.dolphin && state.dolphin.memory_watcher do
-        merged =
-          Melee.MemoryMap.merge_stage(
-            gamestate,
-            ExPhil.Bridge.BlindCss.snapshot(state.dolphin.memory_watcher)
-          )
-
-        if merged != gamestate and not Process.get(:stage_merge_logged, false) do
-          Process.put(:stage_merge_logged, true)
-
-          Logger.info(
-            "[MeleePort] stage RAM merge active (stage=#{gamestate.stage}, " <>
-              "fod=#{inspect(merged.fod_platforms)}, ps=#{inspect(merged.stadium_transformation)})"
-          )
-        end
-
-        merged
+      if is_in_game and gamestate.stage in [0x8, 0x12] do
+        stage_ram_apply(state, gamestate)
       else
         gamestate
       end
@@ -1457,6 +1489,31 @@ defmodule ExPhil.Bridge.MeleePort do
   # Failure (no dolphin pid, MEM1 not found) caches %{} — behavior is
   # then exactly the unseeded on-change world.
   @seed_addrs for p <- 1..4, do: {:"css_p#{p}_selected", 0x8043208C + 8 * (p - 1)}
+
+  # Start the one-shot background MEM1 locator (shared by the CSS
+  # selection preads and the stage-word preads). The g12 lesson: the
+  # /proc scan must NEVER run inline in the frame loop.
+  defp ensure_mem1_locator(state) do
+    unless Process.get(:ram_mem1_task_started, false) do
+      Process.put(:ram_mem1_task_started, true)
+      me = self()
+      os_pid = state.dolphin && state.dolphin.os_pid
+
+      spawn(fn ->
+        Enum.reduce_while(1..120, nil, fn _i, _ ->
+          case find_mem1_any_scene(os_pid) do
+            {_emu, _base} = found ->
+              send(me, {:ram_mem1, found})
+              {:halt, :ok}
+
+            _ ->
+              Process.sleep(500)
+              {:cont, nil}
+          end
+        end)
+      end)
+    end
+  end
   # Per-frame /proc read of the selection words. MEM1 location is
   # found ONCE by a background task (the g12 lesson: the /proc scan
   # inline every frame starved the spectator socket); after that each
@@ -1472,25 +1529,7 @@ defmodule ExPhil.Bridge.MeleePort do
         end)
 
       nil ->
-        unless Process.get(:ram_mem1_task_started, false) do
-          Process.put(:ram_mem1_task_started, true)
-          me = self()
-          os_pid = state.dolphin && state.dolphin.os_pid
-
-          spawn(fn ->
-            Enum.reduce_while(1..120, nil, fn _i, _ ->
-              case find_mem1_any_scene(os_pid) do
-                {_emu, _base} = found ->
-                  send(me, {:ram_mem1, found})
-                  {:halt, :ok}
-
-                _ ->
-                  Process.sleep(500)
-                  {:cont, nil}
-              end
-            end)
-          end)
-        end
+        ensure_mem1_locator(state)
 
         %{}
     end
