@@ -33,7 +33,11 @@ by a stray launcher Dolphin from earlier tonight).
 
 ## Verdict
 
-Gate PASSED: the stateful step path has nominal decision→apply latency
-live, at 13x less warmup. Recommend `--stateful-step` in local deploy
-recipes now; netplay-vs-human remains the final rung before flipping
-the script default (deploy-rung rule).
+LATENCY gate passed: nominal decision→apply latency at 13x less warmup.
+
+**SUPERSEDED same day on BEHAVIOR (see eval_runs/0824_stateful_netplay/
+RESULTS.md):** canonical ShineChain scoring of THESE replays shows the
+stateful arm chained ~4x less than the windowed control (sustained 2
+vs 8, max 6 vs 8, 38.9 vs 61.4 shines/min) — invisible to qtrace,
+which measures the input chain, not landed technique. Default stays
+off for play; stateful remains correct for headless probes (#69).

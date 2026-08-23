@@ -62,13 +62,21 @@ policy). Menu overhead beyond JIT is ~3-4s local / ~5s netplay (the
    `warmup_sample` with both prev_buttons variants. Equivalence is
    pinned (stateful_step_equivalence_test, max logit delta 3.6e-7) and
    the path is already mandatory for headless probes (GOTCHA #69).
-   LIVE-VALIDATED same night (eval_runs/0824_stateful_live): stateful
-   vs windowed control, identical settings (ms_g19_ep4, local, CPU-3,
-   d3) — warmup 1,482ms vs 19,973ms; BOTH arms qtrace-sharp at the
-   nominal lag peak 5 (d3+2), stateful marginally sharper (99.9% vs
-   99.6%); staleness 1/9192 vs 7/9153. Use `--stateful-step` in local
-   deploy recipes now. REMAINING: netplay-vs-human rung before the
-   script default flips (deploy-rung rule).
+   LIVE-VALIDATED for LATENCY same night (eval_runs/0824_stateful_live):
+   warmup 1,482ms vs 19,973ms; both arms qtrace-sharp at nominal peak 5.
+   BUT the deploy rung FAILED on BEHAVIOR (eval_runs/0824_stateful_netplay
+   + canonical rescore of the local A/B): ShineChain-over-replays shows
+   the stateful arm chains ~4x less than windowed even locally at the
+   trained id (sustained 2 vs 8, 38.9 vs 61.4 shines/min), and netplay
+   games capped at chain 1-2 (those also confounded by an untrained
+   delay-id — bare --frame-delay 4 sets id4; record knobs are d4/id3).
+   Mechanism: carried GRU state diverges from trained sliding-window
+   semantics after frame 60 (the equivalence test only pins the first
+   window). VERDICT: default stays OFF for play; the g6 lesson holds —
+   latency rungs don't crown, chain strength at the deploy rung does.
+   Still correct for headless probes (GOTCHA #69). Open: does
+   --stateful-resync at a trained id restore chains? (untested clean —
+   the netplay resync arm was id4-confounded).
 3. **Resident policy server** — one long-lived beam JITs once and
    serves inference to every session (games and dolphins come and go).
    Also what unattended rematch and eval fleets want (gate sweeps run
