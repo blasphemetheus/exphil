@@ -302,6 +302,20 @@ carry X" from a wall into a config line. Four postures it enables:
   night: re-arm on leaving the CSS scene + raw scene-word CHANGE
   logging (science trace: code-entry minor, byte order, match-start
   word now land in every session log).
+- 2026-08-23 (latest): **local 1v1 profiled; three menu bugs fixed
+  same night** (eval_runs/0823_menu_profile/RESULTS.md; Bradley's live
+  narration drove every diagnosis). (1) METASTABLE PICK TOGGLE:
+  2-frame A-edges outrun the coin readback and A over the placed coin
+  reclaims it — a select/deselect war on both ports; the LYING stream
+  coin_down had accidentally damped it, honest RAM truth exposed it →
+  20f press debounce (A-pick/B-reclaim/box-click). (2) CSS hands
+  COLLIDE: p1's warmup wiggle on the grid knocked the dummy's picks
+  around → warmup animation parks below the grid. (3) SSS deadzone
+  freeze (single-axis 08-09 residue) → 45f stall detection + full-tilt
+  unstick burst. Result: local menu overhead ~3-4s beyond JIT (was
+  30s-to-never). LAW: any press that toggles game state must be
+  debounced against its readback latency — honest readbacks expose
+  latch races that lying streams damp.
 - 2026-08-23 (late): **code-entry blindness CLOSED + menu-time
   profiler shipped.** Typed-code buffer 0x804A0740 (static, 3
   bytes/char SJIS+NUL) found by dump-diff, confirmed by
