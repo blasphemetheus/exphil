@@ -194,9 +194,17 @@ carry X" from a wall into a config line. Four postures it enables:
        frame in-game (900 distinct/900 rows; the "canary doesn't tick"
        caveat is settled-menus-only). Ready for determinism audits;
        wiring into the eval protocol is a consumer task.
-6. [ ] **Stage internals live**: FoD platform heights / PS
-       transformation state on ANY build or era (the stream only has
-       these >=3.18) — feeds StageCollision consumers in live play.
+6. [~] **Stage internals live** — PIGGYBACK DONE 2026-08-24: the
+       quartet re-run on FoD and PS (tmp/mw_quartet_fod/_ps.exs)
+       confirms the in-game player truth, parity profile, and the
+       +123 delay constant generalize to the moving-geometry stages
+       (FoD: 899/900 at 123 + one 122 — the first jitter sample ever,
+       benign boundary race; PS: 900/900). OPEN refinement: the
+       stage-internal ADDRESSES themselves (FoD platform-height f32s,
+       PS transformation state word) — hunt method: scan MEM1 for the
+       stream-reported platform-height bit pattern (>=3.18 streams
+       carry it) or slow-drift differential; feeds StageCollision in
+       live play on any build/era.
 7. [ ] **Richer outcome channels** (with the tech-drill program):
        L-cancel flags, hitlag/hitstun counters, knockback vectors
        read directly — new AWBC/GameEvents signal without waiting for
