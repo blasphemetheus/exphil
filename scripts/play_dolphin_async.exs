@@ -157,8 +157,18 @@ agent =
     # Resident-server checkout (POLICY_SERVER_DESIGN.md): the Agent
     # lives in the server beam (pre-JIT'd); this session never touches
     # the GPU (EXLA_CPU_ONLY was set before any Nx use — the
-    # second-EXLA-client law).
-    {:ok, _} = Node.start(:"exphil_session_#{System.os_time(:millisecond)}@127.0.0.1", :longnames)
+    # second-client law). Distribution must be on FROM VM BOOT: a
+    # mid-run Node.start renames the beam and strands every pid minted
+    # as nonode@nohost (first smoke crashed in EXLA's cache exactly
+    # this way).
+    unless Node.alive?() do
+      raise """
+      --policy-server needs the session VM booted distributed. Launch with:
+        ELIXIR_ERL_OPTIONS="-name session_$$@127.0.0.1 -setcookie exphil_policy_local" \\
+          mix run scripts/play_dolphin_async.exs --policy-server ...
+      """
+    end
+
     Node.set_cookie(:exphil_policy_local)
 
     unless Node.connect(:"exphil_policy@127.0.0.1") do
@@ -632,7 +642,14 @@ catch
   :exit, _ -> Output.puts("  (cleanup timed out, Dolphin may still be running)")
 end
 
-GenServer.stop(agent)
+# Server-owned agents go BACK TO THE POOL (release), never stopped —
+# stopping one destroys the server's warm asset (first pooling smoke:
+# session B re-JIT'd 19s because session A's cleanup killed the agent).
+if opts[:policy_server] do
+  ExPhil.Agents.PolicyServer.release(agent)
+else
+  GenServer.stop(agent)
+end
 
 Output.divider()
 Output.section("Session Complete!")

@@ -21,8 +21,15 @@ policies = String.split(opts[:policy] || "checkpoints/ms_g19_ep4.bin", ",")
 
 Output.banner("ExPhil Policy Server")
 
-# Named node, loopback only. epmd auto-starts via Node.start.
-{:ok, _} = Node.start(:"exphil_policy@127.0.0.1", :longnames)
+# Distribution must be on FROM VM BOOT (a mid-run Node.start renames
+# the beam and strands every pid minted before it — the first session
+# smoke died in EXLA's cache that way). Launch:
+#   ELIXIR_ERL_OPTIONS="-name exphil_policy@127.0.0.1 -setcookie exphil_policy_local" \
+#     mix run scripts/policy_server.exs --policy ...
+unless Node.alive?() do
+  raise "boot distributed: ELIXIR_ERL_OPTIONS=\"-name exphil_policy@127.0.0.1 -setcookie exphil_policy_local\" mix run scripts/policy_server.exs ..."
+end
+
 Node.set_cookie(String.to_atom(opts[:cookie] || "exphil_policy_local"))
 
 {:ok, _pid} = PolicyServer.start_link()

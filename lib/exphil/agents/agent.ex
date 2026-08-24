@@ -72,6 +72,7 @@ defmodule ExPhil.Agents.Agent do
     :controller_queue,
     :delay_id,
     :allow_untrained_delay_id,
+    :train_delays,
     :leace_eraser,
     # Steering-vector hook (Tier-0 shield-lock A/B): --steer-vector PATH +
     # --steer-alpha F project alpha of the trunk features' component along
@@ -294,6 +295,18 @@ defmodule ExPhil.Agents.Agent do
   @spec warmed_up?(GenServer.server()) :: boolean()
   def warmed_up?(agent) do
     GenServer.call(agent, :warmed_up?)
+  end
+
+  @doc """
+  Update session-tunable settings on a warm agent (policy-server pool
+  reuse): sampling knobs, delay configuration, style, af convention.
+  Structural options (checkpoint, stateful_step, LEACE/steering,
+  registries) are part of the server's pool key and cannot change here.
+  Re-runs the untrained-delay-id guard when delay_id changes.
+  """
+  @spec reconfigure(GenServer.server(), keyword()) :: :ok | {:error, term()}
+  def reconfigure(agent, opts) do
+    GenServer.call(agent, {:reconfigure, opts})
   end
 
   @doc """
@@ -683,6 +696,48 @@ defmodule ExPhil.Agents.Agent do
     )
 
     :ok
+  end
+
+  @tunable_opts [
+    :deterministic,
+    :temperature,
+    :deterministic_buttons,
+    :press_threshold,
+    :release_threshold,
+    :jump_debounce,
+    :frame_delay,
+    :delay_id,
+    :allow_untrained_delay_id,
+    :ablate_prev_action,
+    :style_id,
+    :style_tag,
+    :stateful_resync,
+    :af_convention
+  ]
+
+  @impl true
+  def handle_call({:reconfigure, opts}, _from, state) do
+    unknown = Keyword.keys(opts) -- @tunable_opts
+
+    if unknown != [] do
+      {:reply, {:error, {:not_tunable, unknown}}, state}
+    else
+      new_state =
+        Enum.reduce(opts, state, fn {k, v}, acc -> Map.put(acc, k, v) end)
+
+      # Delay-id guard applies to the NEW settings (pool reuse must not
+      # sneak an untrained id past the boot-time check).
+      if untrained_delay_id?(
+           new_state.delay_id || 0,
+           new_state.train_delays,
+           Map.get(new_state.embed_config || %{}, :with_delay_id, false),
+           new_state.allow_untrained_delay_id || false
+         ) do
+        {:reply, {:error, {:untrained_delay_id, new_state.delay_id}}, state}
+      else
+        {:reply, :ok, new_state}
+      end
+    end
   end
 
   @impl true
@@ -1981,6 +2036,8 @@ defmodule ExPhil.Agents.Agent do
       | policy_params: params,
         predict_fn: predict_fn,
         embed_config: full_embed_config,
+        # Retained for reconfigure-time delay-id revalidation (pool reuse)
+        train_delays: Map.get(config, :train_delays),
         # Set temporal config
         temporal: temporal,
         backbone: backbone,

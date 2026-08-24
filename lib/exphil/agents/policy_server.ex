@@ -87,44 +87,129 @@ defmodule ExPhil.Agents.PolicyServer do
     {:ok,
      %{
        rev: rev,
-       # policy_path => true once its first Agent warmed (JIT cached in-beam)
+       # policy_path => true once its first Agent warmed
        warmed: %{},
-       # agent_pid => %{policy: path, session: pid, monitor: ref}
-       checkouts: %{}
+       # agent_pid => %{policy: path, session: pid, monitor: ref, key: term}
+       checkouts: %{},
+       # {policy_path, agent_opts} => [warm idle agents]. The design's
+       # per-beam JIT amortization does NOT hold across Agent instances
+       # (each Axon.build mints fresh closures = new cache identity —
+       # measured 19.2s for the second Agent), so warm REUSE is the
+       # real amortizer: released Agents park here and later checkouts
+       # with the same key get them back instantly (reset, still warm).
+       pool: %{}
      }}
+  end
+
+  # Options that change WHAT gets built/JIT'd (pool key); everything
+  # else is a session tunable applied to a pooled agent via
+  # Agent.reconfigure/2.
+  @structural_opts [
+    :stateful_step,
+    :leace_eraser,
+    :steer_vector,
+    :steer_alpha,
+    :player_registry,
+    :uncertainty_log
+  ]
+
+  defp split_opts(agent_opts) do
+    {structural, tunable} = Keyword.split(agent_opts, @structural_opts)
+
+    # Normalize: drop nil/false entries so "explicitly default" equals
+    # "absent" — a session's `stateful_step: false` must key the same
+    # as a preload that never mentioned it (first smoke: every session
+    # missed the preloaded pool over exactly this). steer_alpha only
+    # matters alongside a steer_vector.
+    structural =
+      structural
+      |> Enum.reject(fn
+        {:steer_alpha, _} -> Keyword.get(structural, :steer_vector) in [nil, false]
+        {_k, v} -> v in [nil, false]
+      end)
+      |> Enum.sort()
+
+    {structural, tunable}
   end
 
   @impl true
   def handle_call({:checkout, policy_path, agent_opts, session}, _from, state) do
-    case start_and_warm(policy_path, agent_opts, state) do
-      {:ok, agent, warmup_ms} ->
-        ref = Process.monitor(session)
+    {structural, tunable} = split_opts(agent_opts)
+    key = {policy_path, structural}
 
-        checkouts =
-          Map.put(state.checkouts, agent, %{policy: policy_path, session: session, monitor: ref})
+    case pop_pooled(state, key) do
+      {agent, state} when agent != nil ->
+        case Agent.reconfigure(agent, tunable) do
+          :ok ->
+            :ok = Agent.reset_buffer(agent)
+            ref = Process.monitor(session)
 
-        cached = Map.has_key?(state.warmed, policy_path)
+            checkouts =
+              Map.put(state.checkouts, agent, %{
+                policy: policy_path,
+                session: session,
+                monitor: ref,
+                key: key
+              })
 
-        Logger.info(
-          "[PolicyServer] checkout #{Path.basename(policy_path)} -> #{inspect(agent)} " <>
-            "for #{inspect(session)} (warmup #{warmup_ms}ms, cached=#{cached})"
-        )
+            Logger.info(
+              "[PolicyServer] checkout #{Path.basename(policy_path)} -> #{inspect(agent)} " <>
+                "for #{inspect(session)} (POOLED, warmup 0ms)"
+            )
 
-        {:reply, {:ok, agent, %{warmup_ms: warmup_ms, cached: cached}},
-         %{state | checkouts: checkouts, warmed: Map.put(state.warmed, policy_path, true)}}
+            {:reply, {:ok, agent, %{warmup_ms: 0, cached: true}},
+             %{state | checkouts: checkouts}}
 
-      {:error, reason} ->
-        {:reply, {:error, reason}, state}
+          {:error, reason} ->
+            # Bad tunables (e.g. untrained delay id): the agent stays
+            # pooled; the session gets the error.
+            {:reply, {:error, reason},
+             %{state | pool: Map.update(state.pool, key, [agent], &[agent | &1])}}
+        end
+
+      {nil, state} ->
+        case start_and_warm(policy_path, agent_opts, state) do
+          {:ok, agent, warmup_ms} ->
+            ref = Process.monitor(session)
+
+            checkouts =
+              Map.put(state.checkouts, agent, %{
+                policy: policy_path,
+                session: session,
+                monitor: ref,
+                key: key
+              })
+
+            Logger.info(
+              "[PolicyServer] checkout #{Path.basename(policy_path)} -> #{inspect(agent)} " <>
+                "for #{inspect(session)} (warmup #{warmup_ms}ms)"
+            )
+
+            {:reply, {:ok, agent, %{warmup_ms: warmup_ms, cached: false}},
+             %{state | checkouts: checkouts, warmed: Map.put(state.warmed, policy_path, true)}}
+
+          {:error, reason} ->
+            {:reply, {:error, reason}, state}
+        end
     end
   end
 
   def handle_call({:preload, policy_path, agent_opts}, _from, state) do
+    {structural, _tunable} = split_opts(agent_opts)
+    key = {policy_path, structural}
+
     case start_and_warm(policy_path, agent_opts, state) do
       {:ok, agent, warmup_ms} ->
-        # The preload Agent's job was priming the in-beam JIT cache.
-        GenServer.stop(agent, :normal)
+        # Park the warm Agent in the pool — Agent instances don't share
+        # JIT identity, so the WARM PROCESS is the asset, not a cache.
         Logger.info("[PolicyServer] preloaded #{Path.basename(policy_path)} (#{warmup_ms}ms)")
-        {:reply, {:ok, warmup_ms}, %{state | warmed: Map.put(state.warmed, policy_path, true)}}
+
+        {:reply, {:ok, warmup_ms},
+         %{
+           state
+           | warmed: Map.put(state.warmed, policy_path, true),
+             pool: Map.update(state.pool, key, [agent], &[agent | &1])
+         }}
 
       {:error, reason} ->
         {:reply, {:error, reason}, state}
@@ -190,15 +275,45 @@ defmodule ExPhil.Agents.PolicyServer do
     end
   end
 
+  @pool_cap 4
+
   defp do_release(agent_pid, state) do
     case Map.pop(state.checkouts, agent_pid) do
       {nil, _} ->
         state
 
-      {%{monitor: ref}, checkouts} ->
+      {%{monitor: ref, key: key}, checkouts} ->
         Process.demonitor(ref, [:flush])
-        if Process.alive?(agent_pid), do: GenServer.stop(agent_pid, :normal)
-        %{state | checkouts: checkouts}
+        state = %{state | checkouts: checkouts}
+
+        cond do
+          not Process.alive?(agent_pid) ->
+            state
+
+          length(Map.get(state.pool, key, [])) >= @pool_cap ->
+            GenServer.stop(agent_pid, :normal)
+            state
+
+          true ->
+            # Warm reuse: park it for the next same-key checkout.
+            %{state | pool: Map.update(state.pool, key, [agent_pid], &[agent_pid | &1])}
+        end
     end
+  end
+
+  # Pop a live pooled agent for the key (skipping any that died idle).
+  defp pop_pooled(state, key) do
+    {agent, rest} =
+      state.pool
+      |> Map.get(key, [])
+      |> Enum.split_while(fn a -> not Process.alive?(a) end)
+      |> then(fn {_dead, alive} ->
+        case alive do
+          [a | rest] -> {a, rest}
+          [] -> {nil, []}
+        end
+      end)
+
+    {agent, %{state | pool: Map.put(state.pool, key, rest)}}
   end
 end
