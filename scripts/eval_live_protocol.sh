@@ -29,6 +29,7 @@ SECONDS_ARG=60
 DUMMY=cpu
 TEMPERATURE=""
 RUNNER=async
+SERVER=0
 EXTRA=()
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -37,6 +38,7 @@ while [ $# -gt 0 ]; do
     --dummy) DUMMY="$2"; shift 2 ;;
     --temperature) TEMPERATURE="$2"; shift 2 ;;
     --runner) RUNNER="$2"; shift 2 ;;
+    --server) SERVER=1; shift ;;
     --) shift; EXTRA=("$@"); break ;;
     *) echo "unknown arg: $1" >&2; exit 2 ;;
   esac
@@ -84,7 +86,31 @@ if [ "${FORCE:-0}" != "1" ]; then
 fi
 
 mkdir -p "$OUTDIR"
-echo "policy=$POLICY runner=$RUNNER runs=$RUNS seconds=$SECONDS_ARG dummy=$DUMMY decode=${DECODE_ARGS[*]} loadavg=$(cut -d' ' -f1-3 /proc/loadavg)" | tee "$OUTDIR/protocol.txt"
+echo "policy=$POLICY runner=$RUNNER runs=$RUNS seconds=$SECONDS_ARG dummy=$DUMMY server=$SERVER decode=${DECODE_ARGS[*]} loadavg=$(cut -d' ' -f1-3 /proc/loadavg)" | tee "$OUTDIR/protocol.txt"
+
+# --server: resident policy server (POLICY_SERVER_DESIGN.md) — the fleet
+# pays JIT once server-side; runs 2..N check out pooled agents at 0ms.
+# LAW: compile BEFORE the server boots so per-run `mix run` never
+# recompiles (a NIF swap under the live server beam SIGBUSes it).
+SERVER_PID=""
+if [ "$SERVER" = "1" ]; then
+  echo "=== compiling before server boot (no-mix law)"
+  mix compile 2>&1 | tail -1
+  ELIXIR_ERL_OPTIONS="-name exphil_policy@127.0.0.1 -setcookie exphil_policy_local" \
+    mix run scripts/policy_server.exs --policy "$POLICY" > "$OUTDIR/server.log" 2>&1 &
+  SERVER_PID=$!
+  trap '[ -n "$SERVER_PID" ] && kill "$SERVER_PID" 2>/dev/null' EXIT
+  echo "=== waiting for policy server (JIT once, server-side)"
+  for _ in $(seq 1 90); do
+    grep -q "Serving\." "$OUTDIR/server.log" 2>/dev/null && break
+    if ! kill -0 "$SERVER_PID" 2>/dev/null; then
+      echo "policy server died — see $OUTDIR/server.log" >&2; exit 5
+    fi
+    sleep 2
+  done
+  grep -q "Serving\." "$OUTDIR/server.log" || { echo "server never came up" >&2; exit 5; }
+  RUNNER_ARGS+=(--policy-server)
+fi
 
 DUMMY_ARGS=(--dummy "$DUMMY" --dummy-character fox)
 [ "$DUMMY" = "cpu" ] && DUMMY_ARGS+=(--dummy-cpu-level 1)
@@ -104,6 +130,12 @@ for i in $(seq 1 "$RUNS"); do
   kill_dolphins
   echo "=== run $i/$RUNS start $(date +%H:%M:%S) loadavg=$(cut -d' ' -f1 /proc/loadavg)"
   run_start=$(date +%s)
+  # --server runs need a unique distributed name (boot-time — mid-run
+  # Node.start strands EXLA pids); local runs keep the plain VM.
+  RUN_ERL_OPTS=""
+  [ "$SERVER" = "1" ] && RUN_ERL_OPTS="-name session_r${i}_$$@127.0.0.1 -setcookie exphil_policy_local"
+
+  ELIXIR_ERL_OPTIONS="$RUN_ERL_OPTS" \
   XLA_TARGET="${XLA_TARGET_EVAL:-cuda12}" timeout $((SECONDS_ARG + 420)) mix run "$RUNNER_SCRIPT" \
     --policy "$POLICY" \
     --dolphin "$DOLPHIN_DIR" --iso "$ISO" \
