@@ -18,6 +18,13 @@
 #   --frame-delay N     - Simulated online delay (default: 0)
 #   --deterministic     - Use deterministic action selection
 
+# Policy-server sessions must never create a GPU EXLA client (the
+# second-EXLA-client law kills the server beam) — force CPU before ANY
+# Nx/EXLA touch. Env read is safe here: no EXLA client exists yet.
+if "--policy-server" in System.argv() do
+  System.put_env("EXLA_CPU_ONLY", "1")
+end
+
 require Logger
 
 alias ExPhil.CLI
@@ -120,9 +127,9 @@ Output.config([
 # Step 1: Load the agent
 Output.step(1, 5, "Loading agent")
 
-{:ok, agent} =
-  Agent.start_link(
-    policy_path: opts[:policy],
+# Agent opts shared by the local path and the policy-server checkout.
+agent_opts =
+  [
     deterministic: opts[:deterministic],
     temperature: opts[:temperature] || 1.0,
     deterministic_buttons: opts[:deterministic_buttons] || false,
@@ -131,10 +138,6 @@ Output.step(1, 5, "Loading agent")
     jump_debounce: opts[:jump_debounce],
     frame_delay: opts[:frame_delay],
     delay_id: opts[:delay_id_override] || opts[:frame_delay] || 0,
-    # An EXPLICIT --delay-id-override is the operator saying "I know" —
-    # it bypasses the Agent's untrained-delay-id guard. A bare
-    # --frame-delay N does NOT (the 2026-08-24 trap: d4 silently ran
-    # untrained id4 and collapsed chaining).
     allow_untrained_delay_id: opts[:delay_id_override] != nil,
     ablate_prev_action: opts[:ablate_prev_action] || false,
     leace_eraser: opts[:leace_eraser],
@@ -147,7 +150,34 @@ Output.step(1, 5, "Loading agent")
     stateful_step: opts[:stateful_step] || false,
     stateful_resync: opts[:stateful_resync],
     af_convention: if(opts[:live_af], do: :live, else: :parsed)
-  )
+  ]
+
+agent =
+  if opts[:policy_server] do
+    # Resident-server checkout (POLICY_SERVER_DESIGN.md): the Agent
+    # lives in the server beam (pre-JIT'd); this session never touches
+    # the GPU (EXLA_CPU_ONLY was set before any Nx use — the
+    # second-EXLA-client law).
+    {:ok, _} = Node.start(:"exphil_session_#{System.os_time(:millisecond)}@127.0.0.1", :longnames)
+    Node.set_cookie(:exphil_policy_local)
+
+    unless Node.connect(:"exphil_policy@127.0.0.1") do
+      raise "policy server not reachable — start it: mix run scripts/policy_server.exs"
+    end
+
+    # Global name sync then checkout
+    :global.sync()
+
+    {:ok, agent, %{warmup_ms: ms, cached: cached}} =
+      ExPhil.Agents.PolicyServer.checkout(opts[:policy], agent_opts)
+
+    Output.success("Agent checked out from policy server (warmup #{ms}ms, cached=#{cached})")
+    agent
+  else
+    {:ok, agent} = Agent.start_link([policy_path: opts[:policy]] ++ agent_opts)
+    agent
+  end
+
 
 config = Agent.get_config(agent)
 Output.success("Agent loaded")

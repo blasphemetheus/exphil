@@ -210,6 +210,8 @@ defmodule ExPhil.CLI do
       desc: "Seconds to hold autostart after a game ends, so a human can change character at the CSS without racing the bot's START press. Default nil = immediate restart (eval behavior). Human sessions: 15 is comfortable.", group: [:dolphin]},
     %{name: :require_stage, flag: "--require-stage", type: :string, short: nil, default: nil,
       desc: "Stage filter for netplay evals: if a game opens on any other stage, LRAS out immediately and requeue (Slippi Direct game 1 is a random legal stage; loser picks thereafter). Accepts fd/bf/ys/dl/fod/ps or full names. Expect ~6 draws per specific stage.", group: [:dolphin]},
+    %{name: :policy_server, flag: "--policy-server", type: :boolean, short: nil, default: false,
+      desc: "Check the Agent out of a running resident policy server (scripts/policy_server.exs) instead of loading+JIT-compiling locally — session boot collapses to menu time. The session runs EXLA CPU-only (second-client law). See docs/planning/POLICY_SERVER_DESIGN.md.", group: [:dolphin]},
     %{name: :frozen_stadium, flag: "--frozen-stadium", type: :boolean, short: nil, default: true,
       desc: "Toggle Frozen Stadium at local stage select (default true = frozen, no transformations — the libmelee MenuHelper default). Pass --no-frozen-stadium for live transformations (needed for any PS stage-internal work; discovered 2026-08-24 when a transform hunt played 4 silent minutes on a frozen stadium).", group: [:dolphin]},
     %{name: :nametag, flag: "--nametag", type: :string, short: nil, default: nil,
