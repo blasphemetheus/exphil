@@ -12,8 +12,14 @@ split); (2) distribution must be on FROM VM BOOT (mid-run Node.start
 strands pre-rename pids — the first session died in EXLA's cache);
 (3) session cleanup RELEASES server-owned agents, never stops them.
 Launch: see scripts/policy_server.exs header + --policy-server in
-play_dolphin_async. Remaining: eval-harness adoption (M3's fleet
-half), checkpoint hot-swap ergonomics (M4).
+play_dolphin_async. **M3 fleet half DONE same evening
+(eval_live_protocol.sh --server, 7a0bfd0): 2-run smoke — both runs
+0ms checkout (preload + pool reuse), full games, standard scoring;
+per-run overhead beyond game time ~15s. The harness compiles BEFORE
+server boot (no-mix law) and gives each run a unique boot-time node
+name.** Remaining: checkpoint hot-swap ergonomics (M4); other
+harnesses (gate_sweep, checkpoint_ladder) adopt the same pattern
+when next used.
 
 2026-08-24. The last structural JIT lever: one long-lived beam holds
 the JIT'd policy and serves inference to every session; games and
