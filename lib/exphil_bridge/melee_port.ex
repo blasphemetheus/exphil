@@ -1204,6 +1204,10 @@ defmodule ExPhil.Bridge.MeleePort do
           port: state.controller_port,
           character: character,
           stage: stage,
+          # Default TRUE mirrors MenuHelper; --no-frozen-stadium enables
+          # live PS transformations (2026-08-24: a transform hunt played
+          # 4 silent minutes before this default was even visible here).
+          frozen_stadium: Map.get(state.config, :frozen_stadium, true),
           connect_code:
             case Map.get(state.config, :connect_code) do
               "" -> nil

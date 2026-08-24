@@ -257,6 +257,7 @@ bridge_config = %{
   # In-game tag the menu helper creates/equips at the CSS (local
   # showcase recordings; netplay shows the connect-code tag instead).
   nametag: opts[:nametag],
+  frozen_stadium: opts[:frozen_stadium],
   # Post-game CSS grace period before autostart (human sessions).
   postgame_delay: opts[:postgame_delay],
   require_stage: opts[:require_stage]
