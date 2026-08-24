@@ -334,14 +334,22 @@ defmodule ExPhil.Training.Imitation.Checkpointing do
   # ============================================================================
 
   # Recursively convert all tensors to BinaryBackend for serialization
-  # The delay-id set this training run exposed the policy to: the
-  # augment range when frame-delay augmentation is on, else the single
-  # configured delay. Saved into checkpoint config as :train_delays.
+  # The delay-id set this training run exposed the policy to. Priority:
+  # an explicit :train_delays (dagger_drill's --multi-delay list — the
+  # 0824 replicate sweeps all gate-FAILED because this helper missed
+  # that pathway and stamped [0], which the untrained-id guard then
+  # dutifully enforced), else the frame-delay-augment range, else the
+  # single configured delay.
   defp train_delays(config) do
-    if config[:frame_delay_augment] do
-      Enum.to_list((config[:frame_delay_min] || 0)..(config[:frame_delay_max] || 0))
-    else
-      [config[:frame_delay] || 0]
+    cond do
+      is_list(config[:train_delays]) and config[:train_delays] != [] ->
+        config[:train_delays]
+
+      config[:frame_delay_augment] ->
+        Enum.to_list((config[:frame_delay_min] || 0)..(config[:frame_delay_max] || 0))
+
+      true ->
+        [config[:frame_delay] || 0]
     end
   end
 

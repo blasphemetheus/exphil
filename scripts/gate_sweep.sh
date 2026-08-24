@@ -39,7 +39,7 @@ for snap in $snaps; do
   dir="$OUTDIR/ep${ep}"
   EXLA_TARGET=host EXPHIL_GPU_MEMORY_FRACTION=0.25 bash scripts/eval_live_protocol.sh \
     "$snap" "$dir" --runs 1 --dummy stand --runner sync \
-    -- --frame-delay 3 --headless --emulation-speed 0 --blocking-input --slippi-port 51442 \
+    -- --frame-delay 3 --delay-id-override 3 --headless --emulation-speed 0 --blocking-input --slippi-port 51442 \
     > "$dir.log" 2>&1 || { echo "ep${ep} GATE FAILED" | tee -a "$TABLE"; continue; }
   # `|| true` everywhere: under set -e a no-match grep in a $() assignment
   # killed the whole sweep at ep32 of the f3_a2 run (2026-08-21) — a
@@ -59,11 +59,11 @@ if [ "$CONFIRM" = "--confirm" ] && [ -n "$best_snap" ]; then
   echo "=== confirming argmax x3 fox + mewtwo"
   EXLA_TARGET=host EXPHIL_GPU_MEMORY_FRACTION=0.25 bash scripts/eval_live_protocol.sh \
     "$best_snap" "$OUTDIR/argmax_fox" --runs 3 --dummy stand --runner sync \
-    -- --frame-delay 3 --headless --emulation-speed 0 --blocking-input --slippi-port 51442 \
+    -- --frame-delay 3 --delay-id-override 3 --headless --emulation-speed 0 --blocking-input --slippi-port 51442 \
     2>&1 | grep -aE "r[123] " | tail -3 | tee -a "$TABLE"
   EXLA_TARGET=host EXPHIL_GPU_MEMORY_FRACTION=0.25 bash scripts/eval_live_protocol.sh \
     "$best_snap" "$OUTDIR/argmax_mewtwo" --runs 1 --dummy stand --runner sync \
-    -- --frame-delay 3 --dummy-character mewtwo --headless --emulation-speed 0 --blocking-input --slippi-port 51442 \
+    -- --frame-delay 3 --delay-id-override 3 --dummy-character mewtwo --headless --emulation-speed 0 --blocking-input --slippi-port 51442 \
     2>&1 | grep -aE "r1 " | tail -1 | tee -a "$TABLE"
 fi
 echo "=== SWEEP DONE. Table: $TABLE"

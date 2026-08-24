@@ -1505,6 +1505,11 @@ trainer =
   Imitation.new(
     embed_config:
       if(streaming, do: ExPhil.Embeddings.Game.Config.default(), else: dataset.embed_config),
+    # The delay-id set this pool was built at (--multi-delay); saved
+    # into checkpoint metadata so the live untrained-id guard knows the
+    # truth (0824: without this, multi-delay checkpoints stamped [0]
+    # and every d3 gate was refused).
+    train_delays: delays,
     use_prev_action: prev_action,
     embed_size: embed_size,
     temporal: true,
