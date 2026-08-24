@@ -77,9 +77,15 @@ policy). Menu overhead beyond JIT is ~3-4s local / ~5s netplay (the
    semantics after frame 60 (the equivalence test only pins the first
    window). VERDICT: default stays OFF for play; the g6 lesson holds —
    latency rungs don't crown, chain strength at the deploy rung does.
-   Still correct for headless probes (GOTCHA #69). Open: does
-   --stateful-resync at a trained id restore chains? (untested clean —
-   the netplay resync arm was id4-confounded).
+   Still correct for headless probes (GOTCHA #69). UPDATE (same day,
+   eval_runs/0824_resync_local): **`--stateful-resync 60` at a trained
+   id RESTORES windowed-grade chains locally** (sustained 9 vs
+   windowed's 8 vs plain-stateful's 2, 57.2 shines/min) — the
+   as-if-windowed rebuild works. Remaining rung before the deploy
+   default flips: netplay TAIL evidence (a 20+ chain on the resync arm
+   during organic play; per-game netplay chains are heavy-tailed, so
+   n=1 medians prove nothing — the 0824 crown-decider distribution
+   {32,12} vs {3,3,13} shows the tail is where arms separate).
 3. **Resident policy server** — one long-lived beam JITs once and
    serves inference to every session (games and dolphins come and go).
    Also what unattended rematch and eval fleets want (gate sweeps run
@@ -128,3 +134,12 @@ bit-identical, but verify once).
   residual 13s (likely driver-level), then option 2 (autotune cache
   flags) or option 3 (resident policy server, which sidesteps the
   deserialize question entirely).
+- 2026-08-24 (evening close-out): options 1 and 2 both reached final
+  verdicts (1 = bisected, predict-cache load timing, permanently off;
+  2 = autotune is ~0% of compile). Scoreboard: probes/headless =
+  SOLVED (stateful, 1.5s); local play = 20s windowed (resync arm
+  pending netplay tails could bring 1.5s); deploys = 20s windowed.
+  **The only structural lever left is option 3, the resident policy
+  server** — now also the eval-fleet multiplier (gate sweeps and
+  deciders pay 20s per session start today). Option 4 (ONNX) stays
+  the parallel runway behind a behavioral gate.
