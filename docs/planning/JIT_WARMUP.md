@@ -89,8 +89,17 @@ policy). Menu overhead beyond JIT is ~3-4s local / ~5s netplay (the
 3. **Resident policy server** — one long-lived beam JITs once and
    serves inference to every session (games and dolphins come and go).
    Also what unattended rematch and eval fleets want (gate sweeps run
-   hundreds of session starts). STATUS: [ ] design only. Structural;
-   do after (1) since (1) may make per-session compile cheap enough.
+   hundreds of session starts). STATUS: [x] **BUILT + VALIDATED
+   2026-08-24** (POLICY_SERVER_DESIGN.md has the full status):
+   session checkout of a preloaded agent = **0ms warmup**, full clean
+   game over remote inference at 60fps (staleness 1/2457). The
+   amortizer is warm-agent POOLING, not JIT-cache identity (which
+   does not survive Axon.build). Launch: distributed-boot server
+   (scripts/policy_server.exs) + `--policy-server` sessions. THE
+   WINDOWED DEPLOY PATH NOW HAS ZERO SESSION JIT — the problem this
+   doc exists for is solved for every configuration: probes =
+   stateful 1.5s, local/netplay windowed = policy server 0ms
+   (server pays 20s once per boot).
 4. **ONNX runtime deploy path** — we already export ONNX INT8 with
    0.55ms inference; ORT loads in ~1s with zero JIT. Needs parity
    validation for GRU + autoregressive heads + sampling before any

@@ -1,5 +1,20 @@
 # Resident policy server — design (JIT_WARMUP option 3)
 
+**STATUS 2026-08-24: BUILT + SMOKE-VALIDATED (M1-M3).** Session C
+checked out the preloaded agent at **warmup 0ms** and played a full
+clean game through it (2,457 frames, staleness 1 — remote inference
+holds 60fps). Three design corrections from the smokes, all committed:
+(1) per-beam JIT identity does NOT amortize across Agent instances
+(fresh Axon.build closures = new cache identity; measured 19.2s for a
+second Agent) — the amortizer is WARM-AGENT POOLING (release parks,
+checkout reuses via Agent.reconfigure, structural-vs-tunable opts
+split); (2) distribution must be on FROM VM BOOT (mid-run Node.start
+strands pre-rename pids — the first session died in EXLA's cache);
+(3) session cleanup RELEASES server-owned agents, never stops them.
+Launch: see scripts/policy_server.exs header + --policy-server in
+play_dolphin_async. Remaining: eval-harness adoption (M3's fleet
+half), checkpoint hot-swap ergonomics (M4).
+
 2026-08-24. The last structural JIT lever: one long-lived beam holds
 the JIT'd policy and serves inference to every session; games and
 dolphins come and go, the compile happens once per server boot.
