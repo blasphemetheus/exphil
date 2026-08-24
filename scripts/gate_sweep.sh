@@ -40,7 +40,18 @@ for snap in $snaps; do
   EXLA_TARGET=host EXPHIL_GPU_MEMORY_FRACTION=0.25 bash scripts/eval_live_protocol.sh \
     "$snap" "$dir" --runs 1 --dummy stand --runner sync \
     -- --frame-delay 3 --delay-id-override 3 --headless --emulation-speed 0 --blocking-input --slippi-port 51442 \
-    > "$dir.log" 2>&1 || { echo "ep${ep} GATE FAILED" | tee -a "$TABLE"; continue; }
+    > "$dir.log" 2>&1 || {
+      echo "ep${ep} GATE FAILED" | tee -a "$TABLE"
+      # GUARDS_BACKLOG #3: N consecutive failures = infrastructure,
+      # not policy (0824: 60x GATE FAILED -> "argmax -1" marched on).
+      CONSEC_FAIL=$(( ${CONSEC_FAIL:-0} + 1 ))
+      if [ "$CONSEC_FAIL" -ge 5 ]; then
+        echo "=== ABORT: $CONSEC_FAIL consecutive gate failures — INFRASTRUCTURE? See $dir.log" | tee -a "$TABLE" >&2
+        exit 7
+      fi
+      continue
+    }
+    CONSEC_FAIL=0
   # `|| true` everywhere: under set -e a no-match grep in a $() assignment
   # killed the whole sweep at ep32 of the f3_a2 run (2026-08-21) — a
   # missing score line must cost one epoch, never the sweep.

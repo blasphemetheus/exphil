@@ -1331,6 +1331,39 @@ defmodule ExPhil.Agents.Agent do
   # Initial trunk state for the step path (see Edifice.Recurrent.init_state/2:
   # for the Axon layout this replicates Axon's key-derived initial hidden
   # state, NOT zeros — required for step/window equivalence from frame 1).
+  defp validate_embed_canary!(config, full_embed_config) do
+    case Map.get(config, :embed_canary) do
+      stored when is_list(stored) ->
+        live_config = %{
+          ExPhil.Embeddings.Game.Config.default()
+          | queue_depth: Map.get(full_embed_config, :queue_depth) || 1,
+            with_delay_id: Map.get(full_embed_config, :with_delay_id) || false,
+            stage_internals: Map.get(full_embed_config, :stage_internals) || false
+        }
+
+        live = ExPhil.Embeddings.Canary.fingerprint_live(live_config)
+
+        case ExPhil.Embeddings.Canary.compare(stored, live) do
+          :ok ->
+            :ok
+
+          {:error, report} ->
+            raise ArgumentError, """
+            EMBEDDING FINGERPRINT MISMATCH: the live embedding path diverges from \
+            what this checkpoint was trained with — the policy would play on \
+            scrambled or wrong-space features (the base-block-reversal / \
+            stage-as-"other" bug class). Report: #{inspect(report)}. \
+            If the embedding code changed intentionally since this checkpoint \
+            was saved, retrain or re-export it.
+            """
+        end
+
+      _ ->
+        # Pre-canary checkpoint — nothing to check.
+        :ok
+    end
+  end
+
   # Known trained set for the g15/g19 champion line (multi-delay {2,3}
   # recipe; 0 = the unconditioned local case) — the fallback when an
   # older checkpoint predates the :train_delays metadata key.
@@ -1915,6 +1948,12 @@ defmodule ExPhil.Agents.Agent do
         },
         embed_config
       )
+
+    # Embedding fingerprint guard (GUARDS_BACKLOG #1): re-embed the
+    # canary through the LIVE path with the reconstructed config and
+    # compare against the save-time batched fingerprint. Divergence =
+    # the policy would play on scrambled/wrong-space features — refuse.
+    validate_embed_canary!(config, full_embed_config)
 
     # Untrained delay-id guard (2026-08-24 crown-decider lesson): a
     # delay-conditioned policy deployed at an id it never trained on

@@ -262,6 +262,11 @@ defmodule ExPhil.Training.Imitation.Checkpointing do
         # the embedding — the live agent must rebuild the same layout.
         stage_internals:
           (trainer.embed_config && Map.get(trainer.embed_config, :stage_internals)) || false,
+        # Embedding fingerprint (GUARDS_BACKLOG #1): the canary state
+        # embedded through the BATCHED path with the config the agent
+        # will reconstruct; the agent re-embeds through the LIVE path
+        # at load and refuses on divergence.
+        embed_canary: embed_canary(trainer),
         # Trained delay-id set (2026-08-24, the untrained-id trap): the
         # live Agent refuses to deploy a delay-conditioned policy at an
         # id outside this set (bare --frame-delay 4 silently ran id4 —
@@ -334,6 +339,29 @@ defmodule ExPhil.Training.Imitation.Checkpointing do
   # ============================================================================
 
   # Recursively convert all tensors to BinaryBackend for serialization
+  # Canary fingerprint with the RECONSTRUCTED config (default struct +
+  # the flat keys the agent reads back) — v1 scope: covers the
+  # reconstruction surface, which is every historical burn (block
+  # order, id spaces, queue layout, stage gating). Failure to embed
+  # must never fail a SAVE — store nil and let load skip.
+  defp embed_canary(trainer) do
+    ec = trainer.embed_config || %{}
+
+    config = %{
+      ExPhil.Embeddings.Game.Config.default()
+      | queue_depth: Map.get(ec, :queue_depth) || 1,
+        with_delay_id: Map.get(ec, :with_delay_id) || false,
+        stage_internals: Map.get(ec, :stage_internals) || false
+    }
+
+    ExPhil.Embeddings.Canary.fingerprint_batched(config)
+  rescue
+    e ->
+      require Logger
+      Logger.warning("[Checkpoint] embed canary failed at save (#{inspect(e)}) — storing nil")
+      nil
+  end
+
   # The delay-id set this training run exposed the policy to. Priority:
   # an explicit :train_delays (dagger_drill's --multi-delay list — the
   # 0824 replicate sweeps all gate-FAILED because this helper missed

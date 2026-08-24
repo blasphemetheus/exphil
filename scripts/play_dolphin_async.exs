@@ -389,6 +389,43 @@ defmodule StatsMonitor do
 
     stats = ExPhil.Bridge.AsyncRunner.get_stats(runner)
 
+    # Frame-loop starvation alarm (GUARDS_BACKLOG #2): the cumulative
+    # fps average hides degradation (a dead loop decays as N/t), so
+    # alarm on the WINDOWED rate between ticks. Two consecutive
+    # starved windows while a game is running = loud alarm; with
+    # EXPHIL_STARVATION_FATAL=1 (eval harnesses) it kills the session —
+    # a starved eval is garbage data (EXPOSURE_BIAS 0c; three live
+    # incidents on 2026-08-24 were diagnosed by a human watching fps).
+    prev_frames = Process.get(:sm_prev_frames, 0)
+    windowed_fps = (stats.frames - prev_frames) * 1000 / interval_ms
+    Process.put(:sm_prev_frames, stats.frames)
+
+    in_game_window? = stats.frames > prev_frames or stats.games_played > 0
+
+    starved_ticks =
+      if in_game_window? and stats.frames > 0 and windowed_fps < 45 and
+           stats.games_played == 0 do
+        n = Process.get(:sm_starved, 0) + 1
+        Process.put(:sm_starved, n)
+        n
+      else
+        Process.put(:sm_starved, 0)
+        0
+      end
+
+    if starved_ticks >= 2 do
+      IO.puts(
+        "#{IO.ANSI.red()}[Stats] FRAME LOOP STARVED: #{Float.round(windowed_fps, 1)} fps " <>
+          "windowed for #{starved_ticks} ticks — inputs are stale, results are garbage" <>
+          IO.ANSI.reset()
+      )
+
+      if System.get_env("EXPHIL_STARVATION_FATAL") == "1" do
+        IO.puts("[Stats] EXPHIL_STARVATION_FATAL=1 — aborting session")
+        System.halt(6)
+      end
+    end
+
     # With --on-game-end stop the frame loop exits after game 1, but nothing
     # stopped this monitor — the BEAM (and its multi-GB EXLA allocation)
     # lived on until killed by hand. Return so the script's cleanup runs.

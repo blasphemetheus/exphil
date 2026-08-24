@@ -5,7 +5,7 @@ for but don't"), written the night the delay-id guard made its first
 catch (against our own bad metadata). Ordered by (history of burns x
 cheapness). Each entry names the incidents that justify it.
 
-## 1. Train-vs-live embedding FINGERPRINT canary — highest value [QUEUED: first post-replicate work, Bradley 08-24]
+## 1. Train-vs-live embedding FINGERPRINT canary — [BUILT 08-24: ExPhil.Embeddings.Canary; save stores the batched-path fingerprint, Agent load re-embeds via the live path and refuses on divergence; pre-canary checkpoints skip]
 
 **The class**: any silent divergence between what training embedded
 and what the live agent embeds. Burns on record: the base-block
@@ -22,7 +22,7 @@ compare. Any mismatch = hard error naming the first divergent dim
 range. One canary kills the whole class — id spaces, ordering,
 scaling, gating — including bugs we haven't written yet.
 
-## 2. In-game frame-loop starvation alarm [QUEUED]
+## 2. In-game frame-loop starvation alarm — [BUILT 08-24: windowed-fps check in StatsMonitor, 2 ticks <45fps = loud alarm; EXPHIL_STARVATION_FATAL=1 aborts]
 
 **The class**: the frame loop degrades and the bot plays garbage while
 everything "works". THREE incidents today alone (stage-merge watcher
@@ -34,7 +34,7 @@ each diagnosed by a human watching fps decay or a statue on screen.
 sessions (a starved eval is garbage data — see EXPOSURE_BIAS 0c). The
 in-game sibling of MENU STUCK.
 
-## 3. Gate-sweep infrastructure-failure abort [QUEUED]
+## 3. Gate-sweep infrastructure-failure abort — [BUILT 08-24: 5 consecutive failures = exit 7 "INFRASTRUCTURE?"]
 
 **The class**: eval infrastructure fails and the harness happily
 concludes "the policy scored nothing". Tonight: 60x "GATE FAILED" →
