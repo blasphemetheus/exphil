@@ -92,6 +92,11 @@ Output.step(1, 5, "Loading agent")
     deterministic: opts[:deterministic],
     frame_delay: opts[:frame_delay],
     delay_id: opts[:delay_id_override] || opts[:frame_delay] || 0,
+    # Explicit --delay-id-override bypasses the untrained-id guard
+    # (same contract as play_dolphin_async; missing here cost the
+    # phase-2 r1/r2 sweeps — every gate refused the [0]-stamped
+    # checkpoints even with the override on the command line).
+    allow_untrained_delay_id: opts[:delay_id_override] != nil,
     action_repeat: opts[:action_repeat],
     # Task #11: the sync runner silently DROPPED these (only the async
     # script forwarded them) — the 10:24 A/B ran three identical windowed
