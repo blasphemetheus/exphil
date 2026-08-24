@@ -55,6 +55,10 @@ defmodule ExPhil.Embeddings.Game.Config do
             # Stage embedding mode
             # :one_hot_full (64), :one_hot_compact (7), :learned (ID in network)
             stage_mode: :one_hot_compact,
+            # Stage internals (2026-08-24 W4 stage-blindness verdict):
+            # FoD platform heights (2) + PS transformation one-hot (5),
+            # zero-gated by stage. Default false (layout-stable).
+            stage_internals: false,
             # Queue-as-input (2026-07-31, slippi-ai delayed_actions parity):
             # depth of the committed-but-unapplied action queue the policy
             # observes. 1 = the classic prev-action channel (default,
@@ -256,9 +260,14 @@ defmodule ExPhil.Embeddings.Game.Config do
     character_ids_size = num_character_ids(config)
     stage_ids_size = num_stage_ids(config)
 
+    # Stage internals (FoD heights 2 + PS transform one-hot 5)
+    stage_internals_size =
+      if Map.get(config, :stage_internals), do: Stage.internals_size(), else: 0
+
     players_size + stage_size + prev_action_size + delay_id_size + name_size +
       projectile_size + item_size +
       distance_size + relative_pos_size + frame_count_size +
+      stage_internals_size +
       action_ids_size + character_ids_size + stage_ids_size
   end
 

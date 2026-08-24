@@ -224,7 +224,9 @@ defmodule ExPhil.Training.Imitation do
     # Get embedding configuration
     embed_config =
       Keyword.get_lazy(opts, :embed_config, fn ->
-        Embeddings.config(Keyword.take(opts, [:with_speeds, :with_nana, :with_projectiles]))
+        Embeddings.config(
+          Keyword.take(opts, [:with_speeds, :with_nana, :with_projectiles, :stage_internals])
+        )
       end)
 
     embed_size = Keyword.get(opts, :embed_size, Embeddings.embedding_size(embed_config))

@@ -258,6 +258,10 @@ defmodule ExPhil.Training.Imitation.Checkpointing do
           (trainer.embed_config && Map.get(trainer.embed_config, :queue_depth)) || 1,
         with_delay_id:
           (trainer.embed_config && Map.get(trainer.embed_config, :with_delay_id)) || false,
+        # Stage internals (W4 2026-08-24): FoD heights + PS transform in
+        # the embedding — the live agent must rebuild the same layout.
+        stage_internals:
+          (trainer.embed_config && Map.get(trainer.embed_config, :stage_internals)) || false,
         # Trained delay-id set (2026-08-24, the untrained-id trap): the
         # live Agent refuses to deploy a delay-conditioned policy at an
         # id outside this set (bare --frame-delay 4 silently ran id4 —

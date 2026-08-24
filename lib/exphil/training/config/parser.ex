@@ -229,6 +229,7 @@ defmodule ExPhil.Training.Config.Parser do
     |> parse_int_arg(args, "--frame-delay-min", :frame_delay_min)
     |> parse_int_arg(args, "--frame-delay-max", :frame_delay_max)
     |> parse_online_robust_flag(args)
+    |> parse_flag(args, "--stage-internals", :stage_internals)
     |> parse_flag(args, "--early-stopping", :early_stopping)
     |> parse_int_arg(args, "--patience", :patience)
     |> parse_float_arg(args, "--min-delta", :min_delta)

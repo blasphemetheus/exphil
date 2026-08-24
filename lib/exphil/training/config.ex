@@ -191,6 +191,7 @@ defmodule ExPhil.Training.Config do
     "--frame-delay-min",
     "--frame-delay-max",
     "--online-robust",
+    "--stage-internals",
     "--early-stopping",
     "--patience",
     "--min-delta",
@@ -560,6 +561,10 @@ defmodule ExPhil.Training.Config do
       # Not recommended - adds overhead without tensor core benefits on current XLA
       mixed_precision: false,
       frame_delay: 0,
+      # Stage internals in the embedding (FoD platform heights + PS
+      # transformation; W4 2026-08-24 stage-blindness verdict). +7 raw
+      # dims, zero-gated by stage. Enable with --stage-internals.
+      stage_internals: false,
       # Frame delay augmentation for online robustness
       # Enable with --frame-delay-augment or --online-robust
       frame_delay_augment: false,

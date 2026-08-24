@@ -381,6 +381,7 @@ This precomputes multiple versions of each frame (original, mirrored, noisy vari
 | Option | Default | Description |
 |--------|---------|-------------|
 | `--online-robust` | false | Enable online play training mode (legacy path) |
+| `--stage-internals` | false | Add FoD platform heights + PS transformation to the embedding (+7 raw dims, zero-gated by stage; W4 2026-08-24 stage-blindness verdict) |
 | `--frame-delay-augment` | false | Enable frame delay augmentation |
 | `--frame-delay-min N` | 0 | Minimum delay frames (local play) |
 | `--frame-delay-max N` | 18 | Maximum delay frames (legacy; see note above) |

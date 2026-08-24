@@ -66,7 +66,11 @@ defmodule ExPhil.Embeddings.Game do
             # config structs coexist ("works with both struct types") and
             # datasets carry THIS one, so both need the fields.
             queue_depth: 1,
-            with_delay_id: false
+            with_delay_id: false,
+            # Stage internals (2026-08-24 W4 verdict): FoD platform
+            # heights + PS transformation as direct features. Default
+            # false — existing checkpoints' layouts are untouched.
+            stage_internals: false
 
   @type stage_mode :: :one_hot_full | :one_hot_compact | :learned
 
@@ -278,6 +282,15 @@ defmodule ExPhil.Embeddings.Game do
     embeddings =
       if config.with_items do
         embeddings ++ [Items.embed(game_state.items, own_port, config.max_items)]
+      else
+        embeddings
+      end
+
+    # Optional: stage internals (FoD heights + PS transform; W4 2026-08-24).
+    # MUST mirror embed_states_fast's insertion point (parity-pinned).
+    embeddings =
+      if Map.get(config, :stage_internals) do
+        embeddings ++ [Stage.internals(game_state)]
       else
         embeddings
       end
@@ -512,6 +525,16 @@ defmodule ExPhil.Embeddings.Game do
           embs_with_frame ++ [proj_emb]
         else
           embs_with_frame
+        end
+
+      # Stage internals (FoD heights + PS transform; W4 2026-08-24) —
+      # mirrors the live path's position: after every legacy optional
+      # block, before the trailing ID appends (parity-pinned).
+      embs_with_projectiles =
+        if Map.get(config, :stage_internals) do
+          embs_with_projectiles ++ [Stage.internals_batch(game_states)]
+        else
+          embs_with_projectiles
         end
 
       # Append player action IDs at end when using learned embeddings

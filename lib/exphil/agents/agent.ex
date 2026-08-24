@@ -1577,11 +1577,18 @@ defmodule ExPhil.Agents.Agent do
     # trained with is authoritative (state.embed_config carries it).
     depth = queue_depth(state)
     delay_id? = Map.get(state.embed_config || %{}, :with_delay_id) || false
+    stage_internals? = Map.get(state.embed_config || %{}, :stage_internals) || false
 
     opts =
-      if depth > 1 or delay_id? do
+      if depth > 1 or delay_id? or stage_internals? do
         base = Keyword.get(opts, :config, ExPhil.Embeddings.Game.Config.default())
-        cfg = %{base | queue_depth: depth, with_delay_id: delay_id?}
+
+        cfg = %{
+          base
+          | queue_depth: depth,
+            with_delay_id: delay_id?,
+            stage_internals: stage_internals?
+        }
 
         opts
         |> Keyword.put(:config, cfg)
@@ -1848,7 +1855,8 @@ defmodule ExPhil.Agents.Agent do
           # Queue-as-input layout: flat keys on the exported config (the
           # embed_config map is a legacy flattened map that dropped them)
           queue_depth: Map.get(config, :queue_depth, 1),
-          with_delay_id: Map.get(config, :with_delay_id, false)
+          with_delay_id: Map.get(config, :with_delay_id, false),
+          stage_internals: Map.get(config, :stage_internals, false)
         },
         embed_config
       )

@@ -2018,14 +2018,31 @@ defmodule ExPhil.Bridge.MeleePort do
 
     %ExPhil.Bridge.GameState{
       frame: gamestate.frame,
-      stage: gamestate.stage,
+      # EXTERNAL id — the space every replay-trained embedding uses
+      # (peppi emits external; 2026-08-24 audit: the raw INTERNAL id was
+      # passed through here forever, so the live stage one-hot landed in
+      # the "other" bucket every game — GOTCHA #96 class, masked by the
+      # policy's measured stage-blindness).
+      stage: to_external_stage(gamestate.stage),
       menu_state: gamestate.menu_state,
       players: players,
       own_port: detect_own_port(gamestate, Map.get(state.config, :connect_code, "")),
       projectiles: Enum.map(gamestate.projectiles, &convert_projectile/1),
-      distance: gamestate.distance
+      distance: gamestate.distance,
+      # Stage internals for the embedding (W4 2026-08-24): stream-fed,
+      # RAM-merged on local FoD/PS (merge_stage).
+      fod_platform_left: gamestate.fod_platforms && gamestate.fod_platforms.left,
+      fod_platform_right: gamestate.fod_platforms && gamestate.fod_platforms.right,
+      stadium_type: gamestate.stadium_transformation && gamestate.stadium_transformation.type
     }
     |> ExPhil.Eval.StateStreamTrace.maybe_emit()
+  end
+
+  defp to_external_stage(internal_id) do
+    case internal_id |> Melee.Enums.Stage.from_id() |> Melee.Enums.Stage.to_external() do
+      nil -> internal_id
+      external -> external
+    end
   end
 
   defp convert_player(nil), do: nil

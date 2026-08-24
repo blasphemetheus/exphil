@@ -284,6 +284,7 @@ defmodule ExPhil.Data.Peppi do
     player_port = Keyword.get(opts, :player_port, 1)
     opponent_port = Keyword.get(opts, :opponent_port, 2)
     frame_delay = Keyword.get(opts, :frame_delay, 0)
+    replay = forward_fill_stadium(replay)
 
     if frame_delay == 0 do
       # No delay - standard training
@@ -318,6 +319,7 @@ defmodule ExPhil.Data.Peppi do
   def to_training_frames_with_stats(%ParsedReplay{} = replay, opts \\ []) do
     alias ExPhil.Data.ParseStats
 
+    replay = forward_fill_stadium(replay)
     player_port = Keyword.get(opts, :player_port, 1)
     opponent_port = Keyword.get(opts, :opponent_port, 2)
     frame_delay = Keyword.get(opts, :frame_delay, 0)
@@ -369,6 +371,29 @@ defmodule ExPhil.Data.Peppi do
         action_frame: t
       }
     end)
+  end
+
+  # Forward-fill :stadium_type across frames (2026-08-24): the stream
+  # sets it only ON transformation-event frames (~7 frames per event),
+  # but each event announces the next layout INCLUDING the type-5
+  # revert to normal — so the carried value IS the active-layout
+  # tracker (the same semantics the PS RAM transform digit holds).
+  # :stadium_event stays raw/event-only. nil until the first event =
+  # normal-so-far, which downstream defaults handle.
+  defp forward_fill_stadium(%ParsedReplay{frames: frames} = replay) do
+    {filled, _} =
+      Enum.map_reduce(frames, nil, fn frame, current ->
+        current = Map.get(frame, :stadium_type) || current
+
+        frame =
+          if current != nil and Map.get(frame, :stadium_type) == nil,
+            do: Map.put(frame, :stadium_type, current),
+            else: frame
+
+        {frame, current}
+      end)
+
+    %{replay | frames: filled}
   end
 
   defp extract_frames_no_delay(replay, player_port, opponent_port) do

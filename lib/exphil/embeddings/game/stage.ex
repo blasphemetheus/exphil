@@ -192,4 +192,67 @@ defmodule ExPhil.Embeddings.Game.Stage do
   """
   @spec num_stages_compact() :: non_neg_integer()
   def num_stages_compact, do: @num_stages_compact
+
+  # ============================================================================
+  # Stage internals (2026-08-24, W4 stage-blindness verdict): live
+  # stage-internal state as embedding features. The champion trunk was
+  # probed STAGE-BLIND on both FoD platform heights and the PS
+  # transformation — the input embedding leaked layout info and the
+  # recurrence discarded it — so these features hand the layout to the
+  # net directly. Values come from replay stream events (peppi,
+  # forward-filled) at training time and the RAM merge live.
+  # Layout (7 dims): [fod_left/35, fod_right/35, ps_onehot x5].
+  # Zero-gated by stage: heights only on FoD (external 2), transform
+  # one-hot only on PS (external 3).
+  # ============================================================================
+
+  @internals_size 7
+  @fod_stage 2
+  @ps_stage 3
+  # Slippi stadium_type -> class index (normal/fire/grass/rock/water)
+  @ps_type_class %{5 => 0, 3 => 1, 4 => 2, 6 => 3, 9 => 4}
+
+  @doc "Size of the stage-internals block."
+  @spec internals_size() :: non_neg_integer()
+  def internals_size, do: @internals_size
+
+  @doc """
+  Stage-internals feature values for one game state (list of
+  #{@internals_size} floats; see the section comment for layout).
+  """
+  @spec internals_values(map()) :: [float()]
+  def internals_values(game_state) do
+    stage = Map.get(game_state, :stage)
+
+    heights =
+      if stage == @fod_stage do
+        left = Map.get(game_state, :fod_platform_left) || 20.0
+        right = Map.get(game_state, :fod_platform_right) || 28.0
+        [left / 35.0, right / 35.0]
+      else
+        [0.0, 0.0]
+      end
+
+    ps =
+      if stage == @ps_stage do
+        class = Map.get(@ps_type_class, Map.get(game_state, :stadium_type) || 5, 0)
+        for i <- 0..4, do: if(i == class, do: 1.0, else: 0.0)
+      else
+        [0.0, 0.0, 0.0, 0.0, 0.0]
+      end
+
+    heights ++ ps
+  end
+
+  @doc "Stage-internals block for one game state ({#{@internals_size}} f32)."
+  def internals(game_state) do
+    Nx.tensor(internals_values(game_state), type: :f32)
+  end
+
+  @doc "Batched stage-internals block ({n, #{@internals_size}} f32)."
+  def internals_batch(game_states) do
+    game_states
+    |> Enum.map(&internals_values/1)
+    |> Nx.tensor(type: :f32)
+  end
 end
