@@ -1,0 +1,12 @@
+r1 ep16 [ep16: 438.4/min chain 439] mewtwo=25.0 (chain 5) yoshi=78.9 (chain 1) popo=177.8 (chain 141)
+r1 ep17 [ep17: 438.4/min chain 439] mewtwo=23.0 (chain 1) yoshi=420.4 (chain 417) popo=77.9 (chain 2)
+r1 ep50 [ep50: 434.4/min chain 435] mewtwo=36.9 (chain 4) yoshi=350.5 (chain 319) popo=76.9 (chain 14)
+r2 ep5 [ep5: 437.4/min chain 438] mewtwo=73.9 (chain 1) yoshi=71.9 (chain 1) popo=99.9 (chain 1)
+r2 ep22 [ep22: 438.4/min chain 439] mewtwo=98.9 (chain 5) yoshi=98.9 (chain 6) popo=97.9 (chain 12)
+r2 ep26 [ep26: 435.4/min chain 436] mewtwo=79.9 (chain 9) yoshi=46.9 (chain 2) popo=27.0 (chain 2)
+r2 ep39 [ep39: 435.4/min chain 436] mewtwo=206.7 (chain 144) yoshi=426.4 (chain 419) popo=434.4 (chain 433)
+r2 ep45 [ep45: 439.4/min chain 440] mewtwo=23.0 (chain 2) yoshi=36.9 (chain 4) popo=12.0 (chain 2)
+r3 ep4 [ep4: 439.4/min chain 440] mewtwo=344.5 (chain 320) yoshi=273.6 (chain 230) popo=362.5 (chain 348)
+r3 ep5 [ep5: 434.4/min chain 435] mewtwo=90.9 (chain 1) yoshi=82.9 (chain 1) popo=71.9 (chain 1)
+=== JOINT SWEEP DONE 20:40:57
+CHAMPION ms_g19_ep4 mewtwo=92.9 (chain 1) yoshi=97.9 (chain 1) popo=439.4 (chain 440)
