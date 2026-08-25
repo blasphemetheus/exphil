@@ -109,3 +109,13 @@ on the other side and wait), then MenuHelper: on the error state,
 press Z + re-enter the search flow. Blind periodic Z is NOT
 acceptable (Z cancels an ACTIVE search — the depth-word arc). Until
 the signature exists, the mitigation is operational: relaunch.
+
+## 9. Unknown-flag rejection in standalone-parser scripts (added 08-25)
+
+**The class**: scripts with their own OptionParser strict lists
+(dagger_drill and kin) silently IGNORE unrecognized flags —
+`--stage-internals` on the 0825 overnight arm was dropped without a
+word and the arm trained the plain recipe (a wasted-premise run; only
+the checkpoint metadata exposed it). **The guard**: every standalone
+parser checks OptionParser's invalid/unknown list and ERRORS with the
+offending flags. One helper, applied to each script's parse site.
