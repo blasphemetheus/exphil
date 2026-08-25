@@ -36,3 +36,16 @@ profile, then the scaling question (300 -> 7,911 via streaming).
 ## Program notes
 Guard #9 (unknown-flag abort) is live in the drill — the flag that
 was silently dropped overnight now either lands or halts the run.
+
+## Live behavior look (Bradley, 0825_gen_pilot_live)
+
+Played the pilot locally (fixed.bin): **mostly stands idle; crouches
+when approached; occasional jab / dtilt / short-hop; jumps sometimes
+when airborne; sometimes runs offstage.** Textbook small-corpus BC
+mode-averaging (the modal master-Fox frame is neutral/idle-adjacent),
+with real context reactions already visible (crouch-on-approach).
+The scale-up + (properly wired) features are the response, not recipe
+surgery. NOTE: the pilot actually trained WITHOUT stage internals —
+train.exs's data pipeline drops the flag (third standalone
+config-build; fix owed) — and its metadata claimed otherwise
+(canary/params width divergence -> guard #6 spec).
