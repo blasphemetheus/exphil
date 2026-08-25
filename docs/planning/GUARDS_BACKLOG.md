@@ -97,3 +97,15 @@ NaN path; this covers the "exported the cliff" path.)
   exists and PS work now knows to pass it.
 - Deploy-knob drift beyond delay-id: DEPLOY_KNOBS.md + the guard (#1
   delay-id) cover the burn history; more would be config-freezing.
+
+## 8. Matchmaking-timeout error handling (added 08-24, live incident)
+
+**The class**: Slippi Direct shows "Error: Matchmaking timed out,
+please try again (press Z to clear)" when the peer is slow to start
+searching; the bot sits on the error screen forever (a human cleared
+it this time). **The guard**: hunt the error screen's RAM signature
+(one park-and-scan session at a forced timeout — search with nobody
+on the other side and wait), then MenuHelper: on the error state,
+press Z + re-enter the search flow. Blind periodic Z is NOT
+acceptable (Z cancels an ACTIVE search — the depth-word arc). Until
+the signature exists, the mitigation is operational: relaunch.
