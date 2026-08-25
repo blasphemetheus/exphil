@@ -1795,7 +1795,15 @@ defmodule ExPhil.Agents.Agent do
   defp load_policy_internal(state, %{params: params, config: config} = _policy) do
     # Extract config
     embed_config = Map.get(config, :embed_config, %{})
-    embed_size = Map.get(config, :embed_size) || Map.get(embed_config, :embed_size, 1991)
+    # The canary's length IS the true input width (it's the embedded
+    # canonical state) — prefer it over the scalar, which can be stale
+    # (0825: a 288 default rode along in a 296-layout checkpoint and
+    # the model built at the wrong width, dying at warmup).
+    embed_size =
+      case Map.get(config, :embed_canary) do
+        canary when is_list(canary) and canary != [] -> length(canary)
+        _ -> Map.get(config, :embed_size) || Map.get(embed_config, :embed_size, 1991)
+      end
     axis_buckets = Map.get(config, :axis_buckets, 16)
     shoulder_buckets = Map.get(config, :shoulder_buckets, 4)
 

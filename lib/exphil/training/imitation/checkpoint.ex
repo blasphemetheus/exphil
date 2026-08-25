@@ -222,10 +222,25 @@ defmodule ExPhil.Training.Imitation.Checkpointing do
     dir = Path.dirname(path)
     File.mkdir_p!(dir)
 
-    # Extract embed_size from config or compute from embed_config
-    embed_size =
-      trainer.config[:embed_size] ||
-        (trainer.embed_config && Embeddings.embedding_size(trainer.embed_config))
+    # embed_size: the EMBED CONFIG is the single source of truth — the
+    # scalar in trainer.config can be stale (0825: a 288 default rode
+    # along while the real stage-internals layout was 296; the agent
+    # then built a 288-input model for 296 params and died at warmup).
+    computed_embed_size =
+      trainer.embed_config && Embeddings.embedding_size(trainer.embed_config)
+
+    stored_embed_size = trainer.config[:embed_size]
+
+    if computed_embed_size && stored_embed_size && computed_embed_size != stored_embed_size do
+      require Logger
+
+      Logger.warning(
+        "[Checkpoint] trainer.config embed_size #{stored_embed_size} disagrees with " <>
+          "embed_config's #{computed_embed_size} — exporting the computed value"
+      )
+    end
+
+    embed_size = computed_embed_size || stored_embed_size
 
     config = %{
         # Discretization
