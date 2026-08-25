@@ -2389,14 +2389,16 @@ defmodule ExPhil.Training.Data do
     # Get frame embeddings as chunked structure for fast slicing
     {chunks_array, chunk_size, num_frames, embed_dim} = get_frame_embeddings_chunked(dataset)
 
-    # Calculate number of valid sequences
-    num_sequences = div(num_frames - window_size, stride) + 1
+    # Calculate number of valid sequences (clamped: a streaming chunk
+    # shorter than one window yields no sequences, and 0..-1 iterates
+    # BACKWARDS rather than empty)
+    num_sequences = max(div(num_frames - window_size, stride) + 1, 0)
 
     # Get frames array for action lookup
     frames_array = :array.from_list(dataset.frames)
 
     # Prepare indices
-    valid_indices = 0..(num_sequences - 1) |> Enum.to_list()
+    valid_indices = if num_sequences == 0, do: [], else: Enum.to_list(0..(num_sequences - 1))
 
     # Seed random number generator
     :rand.seed(:exsss, {seed, seed, seed})

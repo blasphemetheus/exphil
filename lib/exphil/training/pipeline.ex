@@ -911,15 +911,36 @@ defmodule ExPhil.Training.Pipeline do
     chunk_opts = pipeline.streaming_chunk_opts
     dataset_opts = pipeline.streaming_dataset_opts
 
+    # Temporal chunks come back in the LAZY layout (flat frames + flat
+    # embedded tensor + window/stride metadata) — batch with lazy: true so
+    # windows are sliced on the fly, matching the standard pipeline.
+    seq_batch_opts = [
+      batch_size: ropts[:batch_size] || 32,
+      shuffle: true,
+      drop_last: true,
+      lazy: ropts[:lazy_sequences] != false,
+      use_batch: ropts[:use_batch] || false,
+      window_size: ropts[:window_size] || 60,
+      stride: ropts[:stride] || 5,
+      neutral_weight: Keyword.get(ropts, :neutral_weight, 0.25)
+    ]
+
     stream =
       if ropts[:pipeline_chunks] do
-        # Pipelined: parse chunk N+1 while training on chunk N
+        # Pipelined: parse chunk N+1 while training on chunk N.
+        # stream_batches (NOT stream_prepared_chunks, which yields
+        # {dataset, idx, errors} tuples straight into the batch loop).
         alias ExPhil.Training.ChunkPipeline
-        ChunkPipeline.stream_prepared_chunks(pipeline.file_chunks,
-          chunk_opts: chunk_opts,
-          dataset_opts: dataset_opts,
-          batch_size: ropts[:batch_size] || 32,
-          temporal: ropts[:temporal]
+
+        ChunkPipeline.stream_batches(
+          pipeline.file_chunks,
+          [
+            chunk_opts: chunk_opts,
+            dataset_opts: dataset_opts,
+            temporal: ropts[:temporal],
+            cache_embeddings: ropts[:cache_streaming] || false,
+            embed_config: pipeline.embed_config
+          ] ++ seq_batch_opts
         )
       else
         pipeline.file_chunks
@@ -928,11 +949,7 @@ defmodule ExPhil.Training.Pipeline do
           chunk_dataset = Streaming.create_dataset(chunk_frames, dataset_opts)
 
           if ropts[:temporal] do
-            Data.batched_sequences(chunk_dataset,
-              batch_size: ropts[:batch_size] || 32,
-              shuffle: true,
-              drop_last: true
-            )
+            Data.batched_sequences(chunk_dataset, seq_batch_opts)
           else
             Data.batched(chunk_dataset,
               batch_size: ropts[:batch_size] || 32,

@@ -183,7 +183,16 @@ defmodule ExPhil.Training.ChunkPipeline do
     drop_last = Keyword.get(opts, :drop_last, false)
 
     # Separate pipeline opts from batch opts
-    pipeline_opts = Keyword.take(opts, [:chunk_opts, :dataset_opts, :buffer_size, :show_progress])
+    pipeline_opts =
+      Keyword.take(opts, [
+        :chunk_opts,
+        :dataset_opts,
+        :buffer_size,
+        :show_progress,
+        :cache_embeddings,
+        :cache_dir,
+        :embed_config
+      ])
 
     # Additional batch options
     batch_opts =
@@ -193,6 +202,9 @@ defmodule ExPhil.Training.ChunkPipeline do
         :dataset_opts,
         :buffer_size,
         :show_progress,
+        :cache_embeddings,
+        :cache_dir,
+        :embed_config,
         :batch_size,
         :temporal
       ])
@@ -310,22 +322,25 @@ defmodule ExPhil.Training.ChunkPipeline do
 
     base_dataset = Data.from_frames(frames, from_frames_opts)
 
-    # Attach cached embeddings
-    dataset = %{base_dataset | embedded_frames: cached_embeddings}
-
-    # Transfer embeddings to GPU for fast batching
+    # Attach cached embeddings (GPU-resident for fast batching). Temporal
+    # chunks use the LAZY layout — flat frames + flat embedded tensor +
+    # window/stride metadata — batched_sequences(lazy: true) does the
+    # window slicing. (The old code called sequences_from_frame_embeddings
+    # on a non-sequenced dataset: size = num FRAMES, so it tried to build
+    # one sequence per frame off the end of the tensor.)
     gpu_embeddings = Nx.backend_transfer(cached_embeddings, EXLA.Backend)
-    dataset = %{dataset | embedded_frames: gpu_embeddings}
+    dataset = %{base_dataset | embedded_frames: gpu_embeddings}
 
-    # Convert to sequences if temporal
     if temporal do
-      Data.sequences_from_frame_embeddings(
-        dataset,
-        gpu_embeddings,
-        window_size: window_size,
-        stride: stride,
-        show_progress: false
-      )
+      %{
+        dataset
+        | metadata:
+            Map.merge(dataset.metadata || %{}, %{
+              temporal: true,
+              window_size: window_size,
+              stride: stride
+            })
+      }
     else
       dataset
     end

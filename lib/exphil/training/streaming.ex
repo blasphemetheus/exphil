@@ -199,32 +199,29 @@ defmodule ExPhil.Training.Streaming do
 
     dataset = Data.from_frames(frames, from_frames_opts)
 
-    dataset =
-      if temporal do
-        Data.to_sequences(dataset,
-          window_size: window_size,
-          stride: stride
-        )
-      else
-        dataset
-      end
-
     # Precompute embeddings for this chunk if enabled
     if precompute do
       if temporal do
-        # For temporal: build sequence embeddings from frame embeddings (30x faster)
-        # 1. Precompute frame embeddings
-        frame_embedded = Data.precompute_frame_embeddings(dataset, show_progress: show_progress)
-        # 2. Build sequence embeddings by slicing frame embeddings
-        seq_dataset = Data.sequences_from_frame_embeddings(
-          dataset,
-          frame_embedded.embedded_frames,
-          window_size: window_size,
-          show_progress: show_progress
-        )
-        # 3. Transfer sequence embeddings to GPU for fast Nx.take during batching
-        gpu_embeddings = Nx.backend_transfer(seq_dataset.sequence_embeddings, EXLA.Backend)
-        %{seq_dataset | sequence_embeddings: gpu_embeddings}
+        # LAZY temporal layout (2026-08-25 rewrite): keep the FLAT frame list
+        # plus one {num_frames, dim} embedded tensor; batched_sequences(lazy:
+        # true) slices windows on the fly, exactly like the standard pipeline.
+        # The old eager path here embedded AFTER to_sequences (so it embedded
+        # one last-frame per sequence and sliced windows off a too-short
+        # tensor) and finished by writing :sequence_embeddings — a field the
+        # Data struct doesn't have. It could never have completed a chunk.
+        embedded_dataset = Data.precompute_frame_embeddings(dataset, show_progress: show_progress)
+        gpu_embeddings = Nx.backend_transfer(embedded_dataset.embedded_frames, EXLA.Backend)
+
+        %{
+          embedded_dataset
+          | embedded_frames: gpu_embeddings,
+            metadata:
+              Map.merge(embedded_dataset.metadata || %{}, %{
+                temporal: true,
+                window_size: window_size,
+                stride: stride
+              })
+        }
       else
         # For single-frame: just precompute frame embeddings
         embedded_dataset = Data.precompute_frame_embeddings(dataset, show_progress: show_progress)
@@ -233,7 +230,12 @@ defmodule ExPhil.Training.Streaming do
         %{embedded_dataset | embedded_frames: gpu_embeddings}
       end
     else
-      dataset
+      # No precompute: legacy eager sequence structs (embeds at batch time)
+      if temporal do
+        Data.to_sequences(dataset, window_size: window_size, stride: stride)
+      else
+        dataset
+      end
     end
   end
 
