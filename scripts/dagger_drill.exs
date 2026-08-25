@@ -21,7 +21,7 @@ ExPhil.Training.Inhibitor.hold("dagger drill")
 alias ExPhil.Data.Peppi
 alias ExPhil.Embeddings
 
-{opts, _, _} =
+{opts, _argv, invalid} =
   OptionParser.parse(System.argv(),
     strict: [
       expert: :string,
@@ -93,11 +93,21 @@ alias ExPhil.Embeddings
       x_hold_extend: :integer,
       queue_depth: :integer,
       with_delay_id: :boolean,
+      stage_internals: :boolean,
       multi_delay: :string,
       pipeline_offset: :integer,
       shift_jitter: :integer
     ]
   )
+
+# GUARDS_BACKLOG #9: OptionParser silently collects unrecognized flags
+# in `invalid` — refusing them here cost one wasted overnight arm
+# (0825: --stage-internals dropped without a word; the run trained the
+# plain recipe and only the checkpoint metadata exposed it).
+if invalid != [] do
+  IO.puts(:stderr, "UNRECOGNIZED FLAGS: #{inspect(invalid)} — refusing to train on a wrong premise.")
+  System.halt(2)
+end
 
 # expert_char: the expert's character's internal ID — fixtures auto-detect
 # which port the expert player is on (recordings land on whichever port the
@@ -1308,13 +1318,14 @@ dataset =
       # it back (single source of truth for the channel layout).
       qd = opts[:queue_depth] || 1
 
-      if qd > 1 or opts[:with_delay_id] do
+      if qd > 1 or opts[:with_delay_id] or opts[:stage_internals] do
         %{
           ds
           | embed_config: %{
               ds.embed_config
               | queue_depth: qd,
-                with_delay_id: opts[:with_delay_id] || false
+                with_delay_id: opts[:with_delay_id] || false,
+                stage_internals: opts[:stage_internals] || false
             }
         }
       else
