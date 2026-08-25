@@ -79,17 +79,68 @@ alive?
 **Notes:** this is the committed next step; everything else forks on
 its result.
 
-### D2. BC-then-RL: offline RL first (F5), then self-play
-Take the best generalist checkpoint as the base policy. Start with
-offline RL (advantage-weighted regression / IQL-style on the replay
-corpus — the F5 thread) before touching self-play PPO. The corpus
-already has outcomes; AWBC is already validated in the champion line.
-**Answers:** can sharpening beat imitation's ceiling — the "surpass
-Phillip-Mewtwo" decision problem, on Fox first where eval is easy.
-**Cost:** days-to-weeks; new training loop code but reuses everything
-else.
-**Notes:** the philosophy verdict already chose this road. Needs a
-value model, which Track C also wants — shared investment.
+**Registered predictions (08-25, pre-result — grade these):**
+- WILL have: dithering/averaging at contested decision points (an
+  objective property, not a data-size one); off-distribution collapse
+  vs non-masters (worst exactly where the opponent is worst — CPUs
+  create states masters never see); the recurring BC flaw taxonomy at
+  reduced rate (offstage side-B SDs, shield-loops, getup-attack,
+  no combo-DI adaptation); execution good but not ms_g19-crisp.
+  Delay-naive by construction (train_delays [0] — local/sync eval
+  only; multi-delay must be bred into a v2 before any netplay talk).
+- WON'T have: the pilot's idle/crouch collapse; mechanical hygiene
+  problems (l-cancels, wavedash, dashdance dense in data); metadata
+  lies (today's guards).
+- Stock table: beginner human = wins games; lvl 3 = stocks easily +
+  occasional weird passivity; lvl 6 = usually wins; lvl 9 = probably
+  wins but ugly (psychic powershields are maximally off-distribution);
+  professional = occasional scrappy stock, does NOT win games (pros
+  farm the panic/passivity loops within a game; BC can't adapt back).
+- Calibration prior: masters-data BC alone ≈ "solid intermediate
+  netplay player" (the slippi-ai experience).
+
+### D2. BC-then-RL: offline RL first (F5), then anchored self-play
+Take the best generalist checkpoint as the base policy. Three
+escalating steps (elaborated 08-25 with Bradley):
+1. **AWBC pass** — advantage-weighted BC over the corpus outcomes;
+   nearly free, already validated in the champion line.
+2. **Offline RL proper** (IQL/AWR-style) — trains the VALUE MODEL,
+   which the coach product (D11/C2) wants for its eval bar anyway.
+3. **Online self-play, KL-anchored to the BC prior** — the load-bearing
+   slippi-ai lesson: RL without the human prior rediscovers alien
+   degenerate styles; RL with it gets "this master, trying harder."
+   Bradley's fleet intuition ("start at 80, go to 300") = league
+   training seeded from the BC checkpoint: exploiter agents +
+   past-checkpoint opponents, gated on exploitability probes (RL
+   checkpoint selection will be at least as lottery-shaped as BC
+   epochs — port the gate-sweep discipline).
+
+**Pure-RL control arm — small, not a bot.** Phillip already ran the
+full pure-RL experiment (2017: works, alien style, cluster-scale
+compute, 2-6-frame reactions doing real work). Replicating it on one
+5090 + Dolphin throughput = plausibly 6-12 months wall-clock for a
+bankable lesson we already have. Instead: pure RL vs BC+RL on a
+CONSTRAINED mini-game (multishine sustain, 1-stock ledge scenario —
+seconds-long episodes, drill/scenario machinery reused). Cheap, equal
+footing, same science.
+
+**The Phillip question.** Phillip-Mewtwo is the realistic medium-term
+benchmark (its low-tier agents were the weak flank; effectively Track
+A's stated target already) — months, not years, once step 2 exists.
+Phillip-Fox at native reaction speed is the hard version: our
+human-delay-regime bot vs a 3-frame-reaction agent — winning that is a
+statement that strategy beats reflexes. **ICs is the sleeper niche:**
+no prior art anywhere, our compact-Nana embedding is unique, and
+masters' IC data is sparse enough that RL is plausibly the ONLY way to
+learn real handoffs.
+
+**Answers:** can sharpening beat imitation's ceiling — "plays to win."
+**Cost:** step 1 days; step 2 weeks; step 3 the long game (env
+throughput on one box is the bottleneck; policy-server/async infra is
+the parallelism substrate).
+**Notes:** don't SWITCH to RL — STACK onto it. The BC/data program
+(D1/D3) keeps running underneath: every RL result inherits its prior's
+quality.
 
 ### D3. Yeti corpus ingest
 Collect the yeti tournament-series replays, filter Fox 1v1s (parse
