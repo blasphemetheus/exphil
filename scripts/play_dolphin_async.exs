@@ -397,13 +397,13 @@ defmodule StatsMonitor do
     # a starved eval is garbage data (EXPOSURE_BIAS 0c; three live
     # incidents on 2026-08-24 were diagnosed by a human watching fps).
     prev_frames = Process.get(:sm_prev_frames, 0)
-    windowed_fps = (stats.frames - prev_frames) * 1000 / interval_ms
-    Process.put(:sm_prev_frames, stats.frames)
+    windowed_fps = (stats.frames_read - prev_frames) * 1000 / interval_ms
+    Process.put(:sm_prev_frames, stats.frames_read)
 
-    in_game_window? = stats.frames > prev_frames or stats.games_played > 0
+    in_game_window? = stats.frames_read > prev_frames or stats.games_played > 0
 
     starved_ticks =
-      if in_game_window? and stats.frames > 0 and windowed_fps < 45 and
+      if in_game_window? and stats.frames_read > 0 and windowed_fps < 45 and
            stats.games_played == 0 do
         n = Process.get(:sm_starved, 0) + 1
         Process.put(:sm_starved, n)
