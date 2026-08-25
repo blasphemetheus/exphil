@@ -148,7 +148,7 @@ if opts[:verbose] == true or opts[:dry_run] == true do
   Output.puts("\n  Model architecture:")
   Trainer.display_model(trainer,
     temporal: opts[:temporal],
-    embed_size: opts[:embed_size] || 288,
+    embed_size: trainer.config.embed_size,
     window_size: opts[:window_size] || 60
   )
 end

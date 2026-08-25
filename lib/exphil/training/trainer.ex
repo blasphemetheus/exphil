@@ -58,11 +58,21 @@ defmodule ExPhil.Training.Trainer do
   """
   @spec new(Pipeline.t(), keyword()) :: Imitation.t()
   def new(%Pipeline{} = pipeline, opts) do
+    # Input width truth order: actual embedded tensor > the pipeline's
+    # embed config > CLI/default. The streaming pipeline has no upfront
+    # embedded_frames, so without the embed_config fallback it built
+    # 288-wide models for 296-wide chunks (stage-internals flag-drop
+    # class, 2026-08-25).
     embed_size =
-      if pipeline.train_dataset && pipeline.train_dataset.embedded_frames do
-        elem(Nx.shape(pipeline.train_dataset.embedded_frames), 1)
-      else
-        opts[:embed_size] || 288
+      cond do
+        pipeline.train_dataset && pipeline.train_dataset.embedded_frames ->
+          elem(Nx.shape(pipeline.train_dataset.embedded_frames), 1)
+
+        pipeline.embed_config ->
+          ExPhil.Embeddings.embedding_size(pipeline.embed_config)
+
+        true ->
+          opts[:embed_size] || 288
       end
 
     # Merge resolved opts with required defaults for Imitation.new
@@ -90,6 +100,14 @@ defmodule ExPhil.Training.Trainer do
       defaults
       |> Keyword.merge(non_nil.(pipeline.resolved_opts))
       |> Keyword.put(:embed_size, embed_size)
+      # Hand the trainer the pipeline's FULL embed config — Imitation.new
+      # otherwise reconstructs one from a 4-key whitelist, and checkpoint
+      # metadata/canary then describe a config the data wasn't embedded with
+      |> then(fn kw ->
+        if pipeline.embed_config,
+          do: Keyword.put(kw, :embed_config, pipeline.embed_config),
+          else: kw
+      end)
 
     Imitation.new(trainer_opts)
   end

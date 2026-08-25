@@ -70,15 +70,15 @@ put in aliases) checks for a LIVE holder and refuses GPU work with
 the holder's cmdline in the message. Escape hatch env for deliberate
 sharing (policy-server sessions are CPU-only and exempt).
 
-## 6. Checkpoint save-time lint
+## 6. Checkpoint save-time lint — [BUILT 08-25 (width lint): export_policy resolves embed_size against the PARAMS' actual leading dims (embed_config candidate preferred, config scalar fallback) and RAISES if neither matches any param tensor; warns when the canary length disagrees with the exported width (agent prefers canary → non-default embed opts won't deploy). Same commit killed the root cause: Pipeline's two hand-rolled Embeddings.config whitelists now pass full resolved opts, and Trainer.new falls back to pipeline.embed_config width for the streaming path (which has no upfront embedded tensor). Remaining sub-lints unbuilt: with_delay_id⇒train_delays consistency, fingerprint-present assert]
 
 **The class**: wrong metadata baked at save, discovered at deploy
-(tonight's train_delays [0]). **The guard**: after building the
-config map, assert consistency before writing: with_delay_id =>
-train_delays non-empty and != [0] when a multi-delay pool was built;
-queue_depth/embed sizes agree with the dataset's embed_config;
-fingerprint (#1) present. Refuse to save a checkpoint that lies
-about itself.
+(train_delays [0]; the 0825 pilot's config said 296 while the params
+were 288). **The guard**: after building the config map, assert
+consistency before writing: with_delay_id => train_delays non-empty
+and != [0] when a multi-delay pool was built; queue_depth/embed sizes
+agree with the dataset's embed_config; fingerprint (#1) present.
+Refuse to save a checkpoint that lies about itself.
 
 ## 7. Convergence-exit trust (already recommended, still unbuilt)
 

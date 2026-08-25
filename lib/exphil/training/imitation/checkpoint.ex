@@ -222,25 +222,35 @@ defmodule ExPhil.Training.Imitation.Checkpointing do
     dir = Path.dirname(path)
     File.mkdir_p!(dir)
 
-    # embed_size: the EMBED CONFIG is the single source of truth — the
-    # scalar in trainer.config can be stale (0825: a 288 default rode
-    # along while the real stage-internals layout was 296; the agent
-    # then built a 288-input model for 296 params and died at warmup).
+    # embed_size (guard #6, GUARDS_BACKLOG): the PARAMS are the single
+    # source of truth — both the trainer.config scalar and embed_config
+    # have lied before (0825 pilot: config scalar said 296 while the
+    # params were 288-wide and the agent died at warmup; conversely a
+    # trainer built with an explicit :embed_size carries a default
+    # embed_config that overstates the width). The input layer's kernel
+    # leading dim IS the trained width, so export whichever candidate
+    # actually appears in the params — and refuse to write a checkpoint
+    # whose metadata no param tensor can corroborate.
     computed_embed_size =
       trainer.embed_config && Embeddings.embedding_size(trainer.embed_config)
 
     stored_embed_size = trainer.config[:embed_size]
 
-    if computed_embed_size && stored_embed_size && computed_embed_size != stored_embed_size do
+    embed_size =
+      resolve_embed_size!(trainer.policy_params, computed_embed_size, stored_embed_size, path)
+
+    canary = embed_canary(trainer)
+
+    if is_list(canary) and canary != [] and length(canary) != embed_size do
       require Logger
 
       Logger.warning(
-        "[Checkpoint] trainer.config embed_size #{stored_embed_size} disagrees with " <>
-          "embed_config's #{computed_embed_size} — exporting the computed value"
+        "[Checkpoint] embed canary length #{length(canary)} != embed_size #{embed_size} — " <>
+          "the live Agent prefers the canary length as input width, so this checkpoint " <>
+          "will NOT deploy at the trained width (non-default embedding opts are outside " <>
+          "the canary's reconstruction surface)"
       )
     end
-
-    embed_size = computed_embed_size || stored_embed_size
 
     config = %{
         # Discretization
@@ -281,7 +291,7 @@ defmodule ExPhil.Training.Imitation.Checkpointing do
         # embedded through the BATCHED path with the config the agent
         # will reconstruct; the agent re-embeds through the LIVE path
         # at load and refuses on divergence.
-        embed_canary: embed_canary(trainer),
+        embed_canary: canary,
         # Trained delay-id set (2026-08-24, the untrained-id trap): the
         # live Agent refuses to deploy a delay-conditioned policy at an
         # id outside this set (bare --frame-delay 4 silently ran id4 —
@@ -376,6 +386,77 @@ defmodule ExPhil.Training.Imitation.Checkpointing do
       Logger.warning("[Checkpoint] embed canary failed at save (#{inspect(e)}) — storing nil")
       nil
   end
+
+  # Guard #6 core: collect the leading dim of every rank>=2 tensor in
+  # the params tree — the input layer's kernel leading dim is the true
+  # trained width, so the exported embed_size MUST appear in this set.
+  # Prefer the embed_config-computed candidate, fall back to the
+  # trainer.config scalar, refuse the export if neither matches (an
+  # export with lying metadata is worse than a failed export; the
+  # trainer state is still live and re-exportable after a fix).
+  defp resolve_embed_size!(params, computed, stored, path) do
+    widths = tensor_leading_dims(params, MapSet.new())
+    require Logger
+
+    cond do
+      MapSet.size(widths) == 0 ->
+        # No rank>=2 tensors to corroborate against — nothing to lint
+        computed || stored
+
+      is_integer(computed) and MapSet.member?(widths, computed) ->
+        if is_integer(stored) and stored != computed do
+          Logger.warning(
+            "[Checkpoint] trainer.config embed_size #{stored} disagrees with " <>
+              "embed_config's #{computed} — exporting the computed value (params agree)"
+          )
+        end
+
+        computed
+
+      is_integer(stored) and MapSet.member?(widths, stored) ->
+        if is_integer(computed) and computed != stored do
+          Logger.warning(
+            "[Checkpoint] embed_config claims width #{computed} but the params were " <>
+              "built #{stored} wide (explicit :embed_size trainer) — exporting #{stored}"
+          )
+        end
+
+        stored
+
+      true ->
+        raise ArgumentError,
+              "[Checkpoint guard #6] refusing to export #{path}: neither embed_config's " <>
+                "width (#{inspect(computed)}) nor trainer.config's (#{inspect(stored)}) is " <>
+                "the leading dim of ANY param tensor (observed leading dims: " <>
+                "#{widths |> Enum.sort() |> Enum.join(", ")}) — the params were built at a " <>
+                "different input width than the metadata claims (0825 pilot class: config " <>
+                "said 296, params were 288)"
+    end
+  end
+
+  defp tensor_leading_dims(%Nx.Tensor{} = t, acc) do
+    case Nx.shape(t) do
+      shape when tuple_size(shape) >= 2 -> MapSet.put(acc, elem(shape, 0))
+      _ -> acc
+    end
+  end
+
+  defp tensor_leading_dims(%Axon.ModelState{data: data}, acc),
+    do: tensor_leading_dims(data, acc)
+
+  defp tensor_leading_dims(map, acc) when is_map(map) and not is_struct(map) do
+    Enum.reduce(map, acc, fn {_k, v}, a -> tensor_leading_dims(v, a) end)
+  end
+
+  defp tensor_leading_dims(list, acc) when is_list(list) do
+    Enum.reduce(list, acc, &tensor_leading_dims/2)
+  end
+
+  defp tensor_leading_dims(tuple, acc) when is_tuple(tuple) do
+    tuple |> Tuple.to_list() |> Enum.reduce(acc, &tensor_leading_dims/2)
+  end
+
+  defp tensor_leading_dims(_other, acc), do: acc
 
   # The delay-id set this training run exposed the policy to. Priority:
   # an explicit :train_delays (dagger_drill's --multi-delay list — the

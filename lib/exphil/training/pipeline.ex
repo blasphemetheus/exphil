@@ -311,12 +311,10 @@ defmodule ExPhil.Training.Pipeline do
     file_chunks = Streaming.chunk_files(replay_files, chunk_size)
     Output.puts("  #{length(file_chunks)} chunks of ~#{chunk_size} files")
 
-    embed_config = Embeddings.config(
-      action_mode: opts[:action_mode] || :learned,
-      character_mode: opts[:character_mode] || :learned,
-      stage_mode: opts[:stage_mode] || :one_hot_compact,
-      per_stage_ledge: opts[:per_stage_ledge] || false
-    )
+    # Pass the FULL resolved opts — Embeddings.config/1 whitelists internally.
+    # Hand-picked key lists here silently dropped newer flags (--stage-internals
+    # trained 288 wide while metadata claimed 296, 2026-08-25 pilot).
+    embed_config = Embeddings.config(opts)
 
     # Estimate batch count
     estimated = estimate_streaming_batches(replay_files, opts)
@@ -389,14 +387,9 @@ defmodule ExPhil.Training.Pipeline do
             frames ++ mixed
         end
 
-      # Build embed config
-      embed_config = Embeddings.config(
-        action_mode: opts[:action_mode] || :learned,
-        character_mode: opts[:character_mode] || :learned,
-        stage_mode: opts[:stage_mode] || :one_hot_compact,
-        kmeans_centers: opts[:kmeans_centers],
-        per_stage_ledge: opts[:per_stage_ledge] || false
-      )
+      # Build embed config from the FULL resolved opts (config/1 whitelists
+      # internally; see streaming branch note on the flag-drop bug class)
+      embed_config = Embeddings.config(opts)
 
       # Create base dataset
       dataset = Data.from_frames(frames, embed_config: embed_config)
