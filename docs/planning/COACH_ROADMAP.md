@@ -158,6 +158,103 @@ OTHER: his reps are our corpus; our knowledge model is his teacher.
 - Latency/ergonomics constraints of a consumer session (netplay-safe
   delays are already solved for the bot; menus/UX are not).
 
+## The analysis product surface (added 2026-08-25, Bradley + brother-in-law round 2)
+
+Three product concepts, in increasing ambition. They form a ladder:
+each is the substrate of the next, and almost all of the hard parts
+are components the lab program already shipped or already decided to
+build. The chess analogy runs deep: Stockfish = policy + value +
+legal-move enumeration + a UI that overlays them on the board. We have
+the policy, we decided to build the value net (F5/D2), the "board
+geometry" is done (StageCollision + FrameData + viewer), and the
+legal-move enumerator is the one genuinely missing piece.
+
+### C1. The options overlay ("chess-move highlights for Melee")
+
+In the replay viewer, at a decision point, show the *available* named
+options the way a chess UI highlights a queen's squares: Fox can JC
+upsmash / full hop / side-B / walk forward / shield-drop (with timing
+windows) — rendered as affordances at the character's position. Plus
+usage analytics over the replay/session: option distribution per
+situation, so "you side-B'd 78% of your ledge approaches" is visible
+as a bar, and low option-entropy (predictability) jumps out.
+
+What exists: `ExPhil.Options` recognizes options *chosen* (detection);
+`ExPhil.Situations` provides the decision-point segmentation (47
+labels); `situation_stats` gives per-situation option distributions
+over 1.5M corpus events (the "book"); the HTML rewind viewer already
+draws precise stage geometry and hitbox-gated rings; opener-entropy
+machinery exists in NeutralScan/StyleCard.
+
+The missing piece — the **option ENUMERATOR**: given (action state,
+frame within it, position, character frame data, stage geometry),
+enumerate what is *legal now* with timing windows. Rules-based, no ML:
+frame data gives cancel windows and jumpsquat rules, StageCollision
+gives platform/ledge affordances (shield-drop spots, ledgedash
+availability). It's the inverse of the detector we already wrote, over
+tables we already ingested. This is the C1 build item.
+
+### C2. The engine lens ("what does the bot think here")
+
+The rewind viewer's existing policy-distribution graph, upgraded to
+speak the SAME vocabulary as C1: project the policy's controller-space
+distribution into *option space*, so the overlay can color each
+available option by (a) what the model would do and (b) what corpus
+winners did in this situation. Two implementation routes: cheap —
+sample N actions from the policy heads and classify the short
+continuations with the existing Options detector; richer — short
+CycleSim-style rollouts per candidate option. Multi-model comparison
+(champion vs generalist vs corpus stats) falls out for free and is
+itself interesting lab telemetry (where do our models disagree with
+masters?).
+
+Ranking is what makes this Stockfish-like, and ranking needs the
+VALUE MODEL (item 5 / direction D2). Until it lands, the corpus-stats
+winner distribution is the honest v0 eval bar; after it lands, each
+option gets an expected-value delta ("this choice cost ~8% expected
+stock" — the number this doc already promised in #5).
+
+### C3. Natural-language replay feedback ("put your replay in, get coached")
+
+Drop a .slp in; an intelligence layer tells you what went wrong in a
+neutral exchange and what would have won it, where you dropped a combo
+and the follow-up you had, how you could have DI'd out. The key
+design read: **the LLM is the THIN layer; the grounded analysis is the
+hard part — and the grounded analysis is exactly C1 + C2 + the value
+model + the failure scanners we already run** (dropped_punish, SD
+classifier, situation exchanges). Pipeline: replay → moment
+segmentation (Situations) → per-moment structured facts (options
+available [C1], option chosen [Options], what masters chose
+[situation_stats], value deltas [F5], failure tags [FailureScan]) →
+LLM narrates, prioritizes, and phrases for a human. Never let the LLM
+watch raw frames; it only ever sees the structured facts — that keeps
+it honest and makes its claims checkable.
+
+One standalone gem inside C3: the **DI report card**. Melee knockback
+is deterministic given (move, percent, position, DI input), so optimal
+survival DI per hit is *analytically computable* — no ML, no value
+net. Compare actual DI stick angles to optimal per death/combo-hit and
+report the survivable deaths. Self-contained, high perceived value,
+buildable early, and exercises the FrameData/physics tables end to end.
+
+### Sequencing (the ladder)
+
+- **v0 (buildable now):** option-entropy + usage report per situation
+  (shipped parts only), rendered in the existing viewer. Eval bar =
+  corpus-stats proxy.
+- **v0.5:** the option enumerator → C1 overlay proper.
+- **v1:** value model lands (D2/F5, the lab wants it anyway) → true
+  eval bar + per-option deltas → C2 complete.
+- **v1.5:** DI report card (independent track, any time).
+- **v2:** C3 narration over the structured-facts pipeline.
+
+Answer to "what direction do we go to make C3 eventually possible":
+**the direction we're already going.** The generalist line gives the
+policy prior; offline RL (D2) gives the value model; the labeling
+program gives the segmentation and vocabulary. The only net-new
+investments C3 adds are the option enumerator (C1) and the phrasing
+layer — both small next to what's banked.
+
 ## Status (2026-08-11)
 
 1. `ExPhil.Situations` — **SHIPPED** (47 labels winnowed with Bradley;
@@ -165,10 +262,11 @@ OTHER: his reps are our corpus; our knowledge model is his teacher.
    stage-id collision in testing).
 2. `ExPhil.Inspect` — **SHIPPED** (session + moment/2 +
    counterfactual/4; stub-injectable for tests; smoked on edgeB).
-3. Rewind scrubber — **SHIPPED** (`notebooks/rewind_scrubber.livemd`:
-   situation-timeline lanes, frame slider -> moment panel, jump-to-label
-   segments table, interactive counterfactual).
-4. Option vocabulary + per-situation corpus stats — NEXT.
+3. Rewind scrubber — **SHIPPED**, then superseded by the HTML rewind
+   viewer (`priv/viewer/rewind_viewer.html` + `export_rewind.exs`,
+   hitbox-gated rings, bookmarks).
+4. Option vocabulary + per-situation corpus stats — **SHIPPED 08-10/11**
+   (`ExPhil.Options`, situation_stats v2, 1.5M events).
 5. Value model (F5) — unscheduled.
 6. Scenario director / Improoover plumbing spike — unscheduled (do the
    spike in a live session).

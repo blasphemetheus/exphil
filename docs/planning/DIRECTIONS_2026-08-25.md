@@ -174,14 +174,20 @@ gone: menus, code entry, policy server, stage pinning all work.
 **Answers:** the public proof-of-life gate in GOALS.md.
 **Cost:** scheduling + a session; zero new code.
 
-### D11. Coach (Track C) increment
-The knowledge model v0 + viewer + situation stats exist. A thin next
-increment: per-situation "what's good" queries exposed during replay
-review (Bradley + brother-in-law's product idea), fed by the same
-labels the bot program needs anyway.
+### D11. Coach (Track C) — now with a concrete product ladder
+Expanded 08-25 (brother-in-law round 2) in COACH_ROADMAP.md "analysis
+product surface": **C1** options overlay (chess-move highlights — the
+one missing piece is a rules-based option ENUMERATOR over
+FrameData+StageCollision), **C2** engine lens (policy distribution
+projected into option space, ranked by the D2 value model; corpus
+stats as the v0 eval bar), **C3** LLM replay feedback (thin narration
+over C1+C2+FailureScan structured facts — never raw frames). Plus the
+standalone **DI report card** (optimal survival DI is deterministic
+physics — no ML, buildable any time).
 **Answers:** long-term product direction; keeps the shared substrate
-(labels, value model) honest.
-**Cost:** incremental; do when D2's value model lands (shared prereq).
+(labels, options, value model) honest.
+**Cost:** v0 usage/entropy report = shipped parts only; enumerator =
+the first real build item; the rest rides on D2.
 
 ### D12. Low-tier at scale (the actual long-term goal)
 Multi-character generalist or per-character lines for Mewtwo, Ganon,
