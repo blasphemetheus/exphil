@@ -149,4 +149,71 @@ applies against any live training/eval beam; schedule around sweeps.
 
 ## Results ledger
 
-(append findings here as instruments run)
+### G1 — entropy map, ep10, 12 files, 15,259 sampled frames (2026-08-26)
+Full table: `eval_runs/0826_gen_v1_sweep/entropy_map.txt`. Nats; uniform
+refs buttons(8 Bernoulli)=5.55, 17-bucket=2.83, 5-bucket=1.61.
+
+Baseline `__all__`: buttons 3.85, main_x 1.36, main_y 1.48, c_x 0.71,
+c_y 0.74, shoulder 0.67.
+
+**Findings and the decisions they make:**
+1. **The heads live in completely different entropy regimes.** Buttons
+   sit at 3.85/5.55 = **69% of uniform** — the model is genuinely
+   unsure which buttons to press. Sticks sit at 1.36/2.83 = **48%**,
+   c-stick at **25%**, shoulder at **41%**. A single global temperature
+   is therefore the WRONG SHAPE: T=0.5 that tames the button tail
+   over-sharpens the c-stick, and T that frees movement makes buttons
+   chaotic. → **per-head temperature is not an optimization, it's a
+   correction.** First v2-decode change; buttons want the coldest T.
+2. **Entropy tracks game-theoretic reality, which is a soundness
+   check.** Lowest-entropy states are the ones with a correct answer:
+   `edge_danger` (buttons 3.16), `tumble` (3.39), `shine_cancellable`
+   (buttons 3.76 but main_y **0.91** — the lowest stick entropy in the
+   table, i.e. the model KNOWS which way to hold on a shine-cancel).
+   Highest are genuine mixups: `pummel_throw_decision` (4.37),
+   `being_tech_chased` (4.26), `walltech_available` (4.18),
+   `shield_pressure_theirs` (4.17, and shoulder 1.03 = the highest
+   shield-head entropy anywhere — correct: that IS the shield mixup).
+   The model has *situation-appropriate uncertainty*, which is what a
+   population-BC model should have.
+3. **disadvantage (4.14) / in_hitstun (4.13) >> advantage (3.75) /
+   combo_active (3.79).** The model is decisive when ahead and
+   uncertain when behind — consistent with masters' DI/escape choices
+   being genuinely mixed, but ALSO the signature of thin, high-variance
+   supervision on defense. → **G6 curation target #1: defensive/
+   disadvantage states for the v2 mix.**
+4. `neutral` (3.75) is BELOW baseline while `conversion_open` (3.92) is
+   above — the model is more certain in neutral than mid-conversion.
+   That inverts the drill-era failure (which was passive in neutral and
+   fine in punish) and is consistent with the sweep's 35% conversion /
+   9-13 dropped-punish counts: **the generalist's weakness is finishing,
+   not entering.** → aim D2's value model and v2 curation at punish
+   continuation, not at approach.
+
+### G2 — history-vs-state dominance, ep10, n=256 windows (2026-08-26)
+`HISTORY/CURRENT ratio = 0.391` (prefix-swap KL 0.733 mean / 0.44
+median; last-frame swap KL 1.877 / 1.27). Frozen-tile stay-mass:
+idle-tiled 0.202 vs active-tiled 0.208 — **no idle stickiness**.
+
+**Verdict: exposure bias is NOT structural in this model.** The policy
+is current-state-dominated (last frame moves the distribution ~2.6x
+more than 50 frames of history), and a frozen/idle history creates no
+preference for continuing to idle. Two consequences:
+1. **v2 does NOT need scheduled sampling.** The SS-on-queue move that
+   broke the specialist's delay campaign open would be solving a
+   problem this model doesn't have. Budget it elsewhere. (Re-run this
+   probe on any v2 that changes the history window or backbone.)
+2. **The argmax crouch-loop is therefore a DECODE pathology, not a
+   memory pathology** — it's the mode-collapse of a multi-modal
+   distribution (G1 finding 1: buttons at 69% of uniform entropy), not
+   the model conditioning on its own idleness. This is exactly why
+   T=0.5 fixed it live while argmax could not, and it re-points the fix
+   at decode strategy (per-head T, nucleus, Best-of-N with a value
+   model) rather than at retraining.
+
+**Combined read (G1+G2):** the model contains the behavior, holds
+appropriate uncertainty, and does not self-trap. What we lack is a
+*selection rule* over its distribution. That is a decode-and-value
+problem — i.e. D2's value model is the highest-leverage next
+investment, and it now has interp evidence behind it rather than
+argument alone.

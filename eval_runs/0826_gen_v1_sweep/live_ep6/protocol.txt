@@ -1,0 +1,2 @@
+policy=checkpoints/fox_gen_v1_20260825_210355_ep6.bin runner=async runs=3 seconds=120 dummy=cpu server=0 decode=--temperature 0.5 loadavg=2.48 2.94 3.70
+fixture_agreement: [13:10:22] FIXTURE_AGREEMENT best=0.7784 offset=0 delay_id=0 n=1679
