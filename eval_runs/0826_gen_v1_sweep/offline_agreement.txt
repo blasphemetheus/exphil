@@ -1,0 +1,42 @@
+fixture: replays/erickfm_ranked/FOX/extracted/master-master-000551fbfa951d4cce5f3f7a.slp
+=== ep1
+[04:05:49] press rates   policy: B=3.8% X=0.2%
+[04:05:49]             fixture: B=4.2% X=0.0%
+[04:05:49] FIXTURE_AGREEMENT best=0.9745 offset=0 delay_id=0 n=10259
+=== ep2
+[04:11:06] press rates   policy: B=4.0% X=0.5%
+[04:11:06]             fixture: B=4.2% X=0.0%
+[04:11:06] FIXTURE_AGREEMENT best=0.9737 offset=0 delay_id=0 n=10259
+=== ep3
+[04:16:29] press rates   policy: B=4.1% X=0.4%
+[04:16:29]             fixture: B=4.2% X=0.0%
+[04:16:29] FIXTURE_AGREEMENT best=0.9762 offset=0 delay_id=0 n=10259
+=== ep4
+[04:21:55] press rates   policy: B=4.1% X=0.6%
+[04:21:55]             fixture: B=4.2% X=0.0%
+[04:21:55] FIXTURE_AGREEMENT best=0.9731 offset=0 delay_id=0 n=10259
+=== ep5
+[04:27:24] press rates   policy: B=4.2% X=0.4%
+[04:27:24]             fixture: B=4.2% X=0.0%
+[04:27:24] FIXTURE_AGREEMENT best=0.9751 offset=0 delay_id=0 n=10259
+=== ep6
+[04:32:44] press rates   policy: B=4.1% X=0.4%
+[04:32:44]             fixture: B=4.2% X=0.0%
+[04:32:44] FIXTURE_AGREEMENT best=0.9749 offset=0 delay_id=0 n=10259
+=== ep7
+[04:38:14] press rates   policy: B=4.2% X=0.4%
+[04:38:14]             fixture: B=4.2% X=0.0%
+[04:38:14] FIXTURE_AGREEMENT best=0.9747 offset=0 delay_id=0 n=10259
+=== ep8
+[04:44:00] press rates   policy: B=4.5% X=0.2%
+[04:44:00]             fixture: B=4.2% X=0.0%
+[04:44:00] FIXTURE_AGREEMENT best=0.975 offset=0 delay_id=0 n=10259
+=== ep9
+[04:49:24] press rates   policy: B=4.2% X=0.2%
+[04:49:24]             fixture: B=4.2% X=0.0%
+[04:49:24] FIXTURE_AGREEMENT best=0.9736 offset=0 delay_id=0 n=10259
+=== ep10
+[04:55:02] press rates   policy: B=3.8% X=0.2%
+[04:55:02]             fixture: B=4.2% X=0.0%
+[04:55:02] FIXTURE_AGREEMENT best=0.9749 offset=0 delay_id=0 n=10259
+SWEEP DONE
