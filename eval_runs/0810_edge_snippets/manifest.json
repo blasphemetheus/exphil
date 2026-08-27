@@ -1,0 +1,12 @@
+{
+  "pre": 45,
+  "post": 90,
+  "action_delay": 0,
+  "lookahead": 300,
+  "snippets": 235,
+  "anchors": 236,
+  "frames": 14546,
+  "danger_margin": 20.0,
+  "replays_scanned": 86,
+  "replays_skipped": 1
+}

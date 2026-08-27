@@ -1,0 +1,1 @@
+policy=checkpoints/ms_d3_full2.bin runner=sync runs=3 seconds=60 dummy=stand decode=--temperature 0.5 loadavg=1.97 1.52 1.53

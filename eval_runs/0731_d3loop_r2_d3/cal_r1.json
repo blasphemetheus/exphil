@@ -1,0 +1,8 @@
+{
+  "ms_d3_dagger2_policy": {
+    "replay": "eval_runs/0731_d3loop_r2_d3/r1.slp",
+    "chains": null,
+    "crit_score": null,
+    "phases": {}
+  }
+}

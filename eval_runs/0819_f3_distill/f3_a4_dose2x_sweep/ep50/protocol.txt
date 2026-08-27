@@ -1,0 +1,2 @@
+policy=checkpoints/ms_f3_a4_dose2x_ep50.bin runner=sync runs=1 seconds=60 dummy=stand decode=--deterministic loadavg=3.10 2.63 2.51
+fixture_agreement: [04:13:10] FIXTURE_AGREEMENT best=0.8668 offset=5 delay_id=0 n=1679

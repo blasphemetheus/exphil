@@ -1,0 +1,1 @@
+policy=checkpoints/ms_d3_freeze2.bin runner=sync runs=1 seconds=60 dummy=stand decode=--deterministic loadavg=1.62 1.53 1.56

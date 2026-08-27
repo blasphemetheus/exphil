@@ -1,0 +1,2 @@
+policy=checkpoints/fox_il_v2_edgeB_20260810_060518_best_policy.bin runner=async runs=8 seconds=120 dummy=cpu decode=--temperature 0.3 loadavg=11.97 11.48 9.21
+fixture_agreement: [19:07:46] FIXTURE_AGREEMENT best=0.7945 offset=0 delay_id=0 n=1679

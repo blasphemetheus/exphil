@@ -1,0 +1,1 @@
+policy=checkpoints/ms_open_z.bin runner=async runs=1 seconds=15 dummy=stand decode=--deterministic loadavg=2.11 2.63 2.52

@@ -1,0 +1,1 @@
+policy=checkpoints/ms_g1_jitter5.bin runner=sync runs=1 seconds=60 dummy=stand decode=--deterministic loadavg=1.41 1.12 1.01

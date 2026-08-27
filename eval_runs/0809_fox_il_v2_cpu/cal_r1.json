@@ -1,0 +1,8 @@
+{
+  "fox_il_v2_20260809_041730_best_policy": {
+    "replay": "eval_runs/0809_fox_il_v2_cpu/r1.slp",
+    "chains": null,
+    "crit_score": null,
+    "phases": {}
+  }
+}

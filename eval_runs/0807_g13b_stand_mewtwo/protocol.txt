@@ -1,0 +1,2 @@
+policy=checkpoints/ms_g13b_oppmix.bin runner=sync runs=1 seconds=60 dummy=stand decode=--deterministic loadavg=1.86 0.99 0.83
+fixture_agreement: [04:31:27] FIXTURE_AGREEMENT best=0.902 offset=5 delay_id=0 n=1679

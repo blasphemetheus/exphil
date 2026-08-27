@@ -1,0 +1,23 @@
+{
+  "ms_d3_full2": {
+    "replay": "eval_runs/0731_openround_full2_d2/r1.slp",
+    "chains": null,
+    "crit_score": 4.428,
+    "phases": {
+      "jc_event": {
+        "min": 5.159,
+        "n": 22,
+        "mean": 5.242,
+        "p10": 5.192,
+        "flip_frac": 0.0
+      },
+      "aerial_shine_event": {
+        "min": 4.33,
+        "n": 21,
+        "mean": 4.489,
+        "p10": 4.428,
+        "flip_frac": 0.0
+      }
+    }
+  }
+}

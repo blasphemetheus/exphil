@@ -1,0 +1,2 @@
+policy=checkpoints/ms_overlay_wild.bin runner=sync runs=1 seconds=60 dummy=stand decode=--deterministic loadavg=1.51 1.24 1.30
+fixture_agreement: [09:58:50] FIXTURE_AGREEMENT best=0.8829 offset=5 delay_id=0 n=1679

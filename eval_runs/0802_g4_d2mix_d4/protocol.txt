@@ -1,0 +1,1 @@
+policy=checkpoints/ms_g4_d2mix.bin runner=sync runs=1 seconds=60 dummy=stand decode=--deterministic loadavg=2.38 1.09 0.93

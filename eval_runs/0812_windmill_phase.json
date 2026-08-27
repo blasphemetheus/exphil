@@ -1,0 +1,128 @@
+{
+  "anchor": "first stable water frame (stadium_event 0, type 9)",
+  "rate_deg_per_frame": -0.5,
+  "pooled_phi0_mod90": -28.45,
+  "pooled_concentration": 0.177,
+  "phases": [
+    {
+      "file": "Game_20260710T180906.slp",
+      "phase": 1,
+      "n": 446,
+      "phi0": -2.5,
+      "concentration": 0.509,
+      "phi0_corrected": 14.34,
+      "concentration_corrected": 0.723,
+      "blade_half_width": 6.0
+    },
+    {
+      "file": "Game_20260713T095442.slp",
+      "phase": 1,
+      "n": 147,
+      "phi0": -21.22,
+      "concentration": 0.339,
+      "phi0_corrected": -23.22,
+      "concentration_corrected": 0.736,
+      "blade_half_width": 4.5
+    },
+    {
+      "file": "Game_20260714T154103.slp",
+      "phase": 1,
+      "n": 347,
+      "phi0": -35.09,
+      "concentration": 0.494,
+      "phi0_corrected": -25.42,
+      "concentration_corrected": 0.757,
+      "blade_half_width": 5.0
+    },
+    {
+      "file": "Game_20260714T155636.slp",
+      "phase": 1,
+      "n": 350,
+      "phi0": -42.7,
+      "concentration": 0.358,
+      "phi0_corrected": -40.89,
+      "concentration_corrected": 0.572,
+      "blade_half_width": 4.75
+    },
+    {
+      "file": "Game_20260720T140431.slp",
+      "phase": 1,
+      "n": 4,
+      "phi0": 24.29,
+      "concentration": 0.997,
+      "phi0_corrected": 31.0,
+      "concentration_corrected": 1.0,
+      "blade_half_width": 3.25
+    },
+    {
+      "file": "Game_20260720T140431.slp",
+      "phase": 2,
+      "n": 54,
+      "phi0": 7.62,
+      "concentration": 0.994,
+      "phi0_corrected": 7.87,
+      "concentration_corrected": 0.998,
+      "blade_half_width": 0.75
+    },
+    {
+      "file": "Game_20260720T140757.slp",
+      "phase": 1,
+      "n": 63,
+      "phi0": -21.3,
+      "concentration": 0.288,
+      "phi0_corrected": -8.25,
+      "concentration_corrected": 0.602,
+      "blade_half_width": 6.0
+    },
+    {
+      "file": "Game_20260721T161936.slp",
+      "phase": 1,
+      "n": 122,
+      "phi0": -38.38,
+      "concentration": 0.69,
+      "phi0_corrected": -40.26,
+      "concentration_corrected": 0.789,
+      "blade_half_width": 2.5
+    },
+    {
+      "file": "Game_20260806T165432.slp",
+      "phase": 1,
+      "n": 8,
+      "phi0": -2.8,
+      "concentration": 0.936,
+      "phi0_corrected": -12.87,
+      "concentration_corrected": 0.959,
+      "blade_half_width": 1.25
+    },
+    {
+      "file": "Game_20260809T114700.slp",
+      "phase": 1,
+      "n": 44,
+      "phi0": 36.44,
+      "concentration": 0.987,
+      "phi0_corrected": -43.75,
+      "concentration_corrected": 0.989,
+      "blade_half_width": 6.0
+    },
+    {
+      "file": "Game_20260811T162941.slp",
+      "phase": 1,
+      "n": 61,
+      "phi0": -42.74,
+      "concentration": 0.954,
+      "phi0_corrected": -43.06,
+      "concentration_corrected": 0.969,
+      "blade_half_width": 0.75
+    },
+    {
+      "file": "Game_20260811T162941.slp",
+      "phase": 2,
+      "n": 52,
+      "phi0": -16.35,
+      "concentration": 0.966,
+      "phi0_corrected": 9.47,
+      "concentration_corrected": 0.998,
+      "blade_half_width": 6.0
+    }
+  ]
+}

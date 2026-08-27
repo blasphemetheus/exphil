@@ -1,0 +1,2 @@
+policy=checkpoints/ms_g19r3_ep37.bin runner=sync runs=1 seconds=60 dummy=stand server=0 decode=--deterministic loadavg=2.15 2.46 2.49
+fixture_agreement: unavailable

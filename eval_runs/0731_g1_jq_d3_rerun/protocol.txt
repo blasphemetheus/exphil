@@ -1,0 +1,1 @@
+policy=checkpoints/ms_g1_jq.bin runner=sync runs=3 seconds=60 dummy=stand decode=--deterministic loadavg=0.20 0.25 0.24

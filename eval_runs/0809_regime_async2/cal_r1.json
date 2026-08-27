@@ -1,0 +1,30 @@
+{
+  "fox_il_v2_20260809_041730_best_policy": {
+    "replay": "eval_runs/0809_regime_async2/r1.slp",
+    "chains": null,
+    "crit_score": -1.249,
+    "phases": {
+      "jc_event": {
+        "min": -0.346,
+        "n": 1,
+        "mean": -0.346,
+        "p10": -0.346,
+        "flip_frac": 1.0
+      },
+      "aerial_shine_event": {
+        "min": -1.425,
+        "n": 13,
+        "mean": -0.888,
+        "p10": -1.249,
+        "flip_frac": 1.0
+      },
+      "ground_shine_event": {
+        "min": -1.403,
+        "n": 1553,
+        "mean": -0.616,
+        "p10": -0.981,
+        "flip_frac": 0.965
+      }
+    }
+  }
+}

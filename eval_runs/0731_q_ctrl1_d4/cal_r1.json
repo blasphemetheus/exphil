@@ -1,0 +1,30 @@
+{
+  "ms_q_ctrl1": {
+    "replay": "eval_runs/0731_q_ctrl1_d4/r1.slp",
+    "chains": null,
+    "crit_score": -0.598,
+    "phases": {
+      "jc_event": {
+        "min": -1.033,
+        "n": 85,
+        "mean": -0.069,
+        "p10": -0.598,
+        "flip_frac": 0.659
+      },
+      "aerial_shine_event": {
+        "min": -0.476,
+        "n": 26,
+        "mean": 0.168,
+        "p10": -0.376,
+        "flip_frac": 0.423
+      },
+      "ground_shine_event": {
+        "min": -0.145,
+        "n": 2,
+        "mean": -0.071,
+        "p10": -0.145,
+        "flip_frac": 0.5
+      }
+    }
+  }
+}

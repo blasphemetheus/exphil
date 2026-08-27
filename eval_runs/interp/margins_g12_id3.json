@@ -1,0 +1,16 @@
+{
+  "ms_g12_margin": {
+    "replay": "eval_runs/0804_cycle3b_stand/r1.slp",
+    "chains": null,
+    "crit_score": 0.278,
+    "phases": {
+      "aerial_shine_event": {
+        "min": 0.278,
+        "n": 1,
+        "mean": 0.278,
+        "p10": 0.278,
+        "flip_frac": 0.0
+      }
+    }
+  }
+}

@@ -1,0 +1,1 @@
+policy=checkpoints/ms_open_y.bin runner=async runs=3 seconds=60 dummy=stand decode=--deterministic loadavg=6.13 5.18 4.72

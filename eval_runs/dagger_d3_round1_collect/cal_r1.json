@@ -1,0 +1,16 @@
+{
+  "ms_farm11_a2": {
+    "replay": "eval_runs/dagger_d3_round1_collect/r1.slp",
+    "chains": null,
+    "crit_score": 15.341,
+    "phases": {
+      "aerial_shine_event": {
+        "min": 15.341,
+        "n": 8,
+        "mean": 16.504,
+        "p10": 15.341,
+        "flip_frac": 0.0
+      }
+    }
+  }
+}

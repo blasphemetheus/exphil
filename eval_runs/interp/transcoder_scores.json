@@ -1,0 +1,92 @@
+{
+  "results": [
+    {
+      "dead": 7,
+      "r2": -0.01443623109181269,
+      "policy": "ms_g10b_human",
+      "scores": [
+        {
+          "label": "own_offstage",
+          "precision": 0.764,
+          "fire_rate": 0.0205,
+          "f1": 0.47,
+          "base_rate": 0.046,
+          "best_feature": 1587,
+          "recall": 0.34
+        },
+        {
+          "label": "opp_shielding",
+          "precision": 0.285,
+          "fire_rate": 0.0062,
+          "f1": 0.286,
+          "base_rate": 0.0062,
+          "best_feature": 1161,
+          "recall": 0.286
+        },
+        {
+          "label": "opp_offstage",
+          "precision": 0.82,
+          "fire_rate": 0.0139,
+          "f1": 0.272,
+          "base_rate": 0.0698,
+          "best_feature": 744,
+          "recall": 0.163
+        },
+        {
+          "label": "opp_damaged_recent",
+          "precision": 0.372,
+          "fire_rate": 0.0196,
+          "f1": 0.263,
+          "base_rate": 0.0359,
+          "best_feature": 671,
+          "recall": 0.203
+        },
+        {
+          "label": "opp_knockdown",
+          "precision": 0.453,
+          "fire_rate": 0.0167,
+          "f1": 0.25,
+          "base_rate": 0.0437,
+          "best_feature": 1489,
+          "recall": 0.173
+        },
+        {
+          "label": "opp_hitstun",
+          "precision": 0.695,
+          "fire_rate": 0.0033,
+          "f1": 0.245,
+          "base_rate": 0.0155,
+          "best_feature": 630,
+          "recall": 0.149
+        },
+        {
+          "label": "own_airborne",
+          "precision": 0.978,
+          "fire_rate": 0.0351,
+          "f1": 0.205,
+          "base_rate": 0.2995,
+          "best_feature": 927,
+          "recall": 0.114
+        },
+        {
+          "label": "own_shielding",
+          "precision": 0.111,
+          "fire_rate": 0.0001,
+          "f1": 0.2,
+          "base_rate": 0.0,
+          "best_feature": 1839,
+          "recall": 1.0
+        },
+        {
+          "label": "opp_behind",
+          "precision": 0.317,
+          "fire_rate": 0.0566,
+          "f1": 0.144,
+          "base_rate": 0.1931,
+          "best_feature": 268,
+          "recall": 0.093
+        }
+      ]
+    }
+  ]
+}

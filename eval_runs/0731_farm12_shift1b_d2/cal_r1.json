@@ -1,0 +1,23 @@
+{
+  "ms_farm12_shift1b": {
+    "replay": "eval_runs/0731_farm12_shift1b_d2/r1.slp",
+    "chains": null,
+    "crit_score": -6.714,
+    "phases": {
+      "jc_event": {
+        "min": -7.179,
+        "n": 13,
+        "mean": -1.494,
+        "p10": -6.714,
+        "flip_frac": 0.538
+      },
+      "aerial_shine_event": {
+        "min": -21.777,
+        "n": 38,
+        "mean": -1.094,
+        "p10": -5.923,
+        "flip_frac": 0.789
+      }
+    }
+  }
+}

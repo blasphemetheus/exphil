@@ -1,0 +1,1 @@
+policy=checkpoints/ms_ledge_a.bin runs=3 seconds=60 dummy=stand decode=--deterministic loadavg=3.77 3.38 3.33

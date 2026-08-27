@@ -1,0 +1,2 @@
+policy=checkpoints/ms_g4_d2mix.bin runner=sync runs=3 seconds=60 dummy=stand decode=--deterministic loadavg=2.18 0.97 0.61
+fixture_agreement: [01:15:34] FIXTURE_AGREEMENT best=0.8889 offset=5 delay_id=0 n=1679

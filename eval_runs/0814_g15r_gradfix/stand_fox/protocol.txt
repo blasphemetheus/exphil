@@ -1,0 +1,2 @@
+policy=checkpoints/ms_g15r_gradfix.bin runner=sync runs=3 seconds=60 dummy=stand decode=--deterministic loadavg=1.91 1.99 2.12
+fixture_agreement: [02:31:37] FIXTURE_AGREEMENT best=0.8465 offset=5 delay_id=0 n=1679

@@ -1,0 +1,23 @@
+{
+  "ms_d1_dagger3_r3": {
+    "replay": "eval_runs/0730_sync_dagger3r3_d2/r1.slp",
+    "chains": null,
+    "crit_score": -0.349,
+    "phases": {
+      "jc_event": {
+        "min": -0.405,
+        "n": 70,
+        "mean": -0.284,
+        "p10": -0.349,
+        "flip_frac": 0.986
+      },
+      "aerial_shine_event": {
+        "min": -2.764,
+        "n": 70,
+        "mean": 0.45,
+        "p10": 0.507,
+        "flip_frac": 0.029
+      }
+    }
+  }
+}

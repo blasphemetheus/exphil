@@ -1,0 +1,16 @@
+{
+  "ms_open_z": {
+    "replay": "eval_runs/0730_sync_d3/r1.slp",
+    "chains": 27,
+    "crit_score": 1.047,
+    "phases": {
+      "jc_event": {
+        "min": 0.926,
+        "n": 55,
+        "mean": 1.198,
+        "p10": 1.047,
+        "flip_frac": 0.0
+      }
+    }
+  }
+}

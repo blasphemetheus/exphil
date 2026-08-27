@@ -1,0 +1,2 @@
+policy=checkpoints/ms_g11b_yaug.bin runner=sync runs=8 seconds=60 dummy=stand decode=--deterministic loadavg=1.22 2.29 1.57
+fixture_agreement: [17:15:53] FIXTURE_AGREEMENT best=0.8858 offset=6 delay_id=0 n=1679

@@ -1,0 +1,2963 @@
+{
+  "tree": {
+    "fox_vs_fox": {
+      "walljump_zone": {
+        "airdodge": {
+          "n": 1,
+          "dmg_dealt_avg": 0.0,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 0.0,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 1.0
+        },
+        "special": {
+          "n": 1,
+          "dmg_dealt_avg": 7.0,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 7.0,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        }
+      },
+      "below_ledge": {
+        "aerial": {
+          "n": 1,
+          "dmg_dealt_avg": 0.0,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 0.0,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "airdodge": {
+          "n": 3,
+          "dmg_dealt_avg": 0.0,
+          "dmg_taken_avg": 0.33,
+          "dmg_delta_avg": -0.33,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 1.0
+        },
+        "special": {
+          "n": 1,
+          "dmg_dealt_avg": 8.0,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 8.0,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        }
+      },
+      "disadvantage": {
+        "aerial": {
+          "n": 4,
+          "dmg_dealt_avg": 4.01,
+          "dmg_taken_avg": 0.7,
+          "dmg_delta_avg": 3.3,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.25
+        },
+        "airdodge": {
+          "n": 2,
+          "dmg_dealt_avg": 2.5,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 2.5,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.5
+        },
+        "getup_attack": {
+          "n": 17,
+          "dmg_dealt_avg": 4.99,
+          "dmg_taken_avg": 0.59,
+          "dmg_delta_avg": 4.4,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "grab": {
+          "n": 4,
+          "dmg_dealt_avg": 10.23,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 10.23,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "missed_tech": {
+          "n": 14,
+          "dmg_dealt_avg": 4.32,
+          "dmg_taken_avg": 0.72,
+          "dmg_delta_avg": 3.6,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "shield_on": {
+          "n": 8,
+          "dmg_dealt_avg": 6.51,
+          "dmg_taken_avg": 0.46,
+          "dmg_delta_avg": 6.05,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "special": {
+          "n": 8,
+          "dmg_dealt_avg": 4.5,
+          "dmg_taken_avg": 4.05,
+          "dmg_delta_avg": 0.45,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "spotdodge": {
+          "n": 12,
+          "dmg_dealt_avg": 7.11,
+          "dmg_taken_avg": 2.43,
+          "dmg_delta_avg": 4.68,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        }
+      },
+      "_pct_0-39": {
+        "aerial": {
+          "n": 22,
+          "dmg_dealt_avg": 5.18,
+          "dmg_taken_avg": 1.31,
+          "dmg_delta_avg": 3.87,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "airdodge": {
+          "n": 11,
+          "dmg_dealt_avg": 1.59,
+          "dmg_taken_avg": 0.86,
+          "dmg_delta_avg": 0.73,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "dash": {
+          "n": 4,
+          "dmg_dealt_avg": 3.75,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 3.75,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "double_jump": {
+          "n": 20,
+          "dmg_dealt_avg": 3.65,
+          "dmg_taken_avg": 2.19,
+          "dmg_delta_avg": 1.46,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "getup_attack": {
+          "n": 3,
+          "dmg_dealt_avg": 7.78,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 7.78,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "grab": {
+          "n": 184,
+          "dmg_dealt_avg": 5.41,
+          "dmg_taken_avg": 1.97,
+          "dmg_delta_avg": 3.45,
+          "stock_take_rate": 0.0109,
+          "stock_loss_rate": 0.0
+        },
+        "jab": {
+          "n": 13,
+          "dmg_dealt_avg": 5.7,
+          "dmg_taken_avg": 0.28,
+          "dmg_delta_avg": 5.42,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "missed_tech": {
+          "n": 3,
+          "dmg_dealt_avg": 6.79,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 6.79,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "roll_backward": {
+          "n": 24,
+          "dmg_dealt_avg": 5.42,
+          "dmg_taken_avg": 2.65,
+          "dmg_delta_avg": 2.77,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "roll_forward": {
+          "n": 40,
+          "dmg_dealt_avg": 3.48,
+          "dmg_taken_avg": 1.05,
+          "dmg_delta_avg": 2.43,
+          "stock_take_rate": 0.05,
+          "stock_loss_rate": 0.0
+        },
+        "shield_on": {
+          "n": 213,
+          "dmg_dealt_avg": 4.48,
+          "dmg_taken_avg": 1.89,
+          "dmg_delta_avg": 2.58,
+          "stock_take_rate": 0.0141,
+          "stock_loss_rate": 0.0
+        },
+        "smash": {
+          "n": 3,
+          "dmg_dealt_avg": 15.5,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 15.5,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "special": {
+          "n": 148,
+          "dmg_dealt_avg": 6.05,
+          "dmg_taken_avg": 3.01,
+          "dmg_delta_avg": 3.04,
+          "stock_take_rate": 0.0068,
+          "stock_loss_rate": 0.0068
+        },
+        "spotdodge": {
+          "n": 60,
+          "dmg_dealt_avg": 5.55,
+          "dmg_taken_avg": 2.56,
+          "dmg_delta_avg": 2.99,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "throw": {
+          "n": 42,
+          "dmg_dealt_avg": 11.53,
+          "dmg_taken_avg": 0.83,
+          "dmg_delta_avg": 10.7,
+          "stock_take_rate": 0.0238,
+          "stock_loss_rate": 0.0
+        },
+        "tilt": {
+          "n": 2,
+          "dmg_dealt_avg": 5.0,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 5.0,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "wavedash": {
+          "n": 34,
+          "dmg_dealt_avg": 4.51,
+          "dmg_taken_avg": 3.21,
+          "dmg_delta_avg": 1.3,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "waveland": {
+          "n": 8,
+          "dmg_dealt_avg": 3.4,
+          "dmg_taken_avg": 0.82,
+          "dmg_delta_avg": 2.58,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        }
+      },
+      "in_hitstun": {
+        "aerial": {
+          "n": 4,
+          "dmg_dealt_avg": 4.01,
+          "dmg_taken_avg": 0.7,
+          "dmg_delta_avg": 3.3,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.25
+        },
+        "airdodge": {
+          "n": 2,
+          "dmg_dealt_avg": 2.5,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 2.5,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.5
+        },
+        "grab": {
+          "n": 2,
+          "dmg_dealt_avg": 14.22,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 14.22,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "missed_tech": {
+          "n": 19,
+          "dmg_dealt_avg": 3.68,
+          "dmg_taken_avg": 0.53,
+          "dmg_delta_avg": 3.15,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0526
+        },
+        "shield_on": {
+          "n": 2,
+          "dmg_dealt_avg": 5.23,
+          "dmg_taken_avg": 1.84,
+          "dmg_delta_avg": 3.39,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "special": {
+          "n": 6,
+          "dmg_dealt_avg": 2.1,
+          "dmg_taken_avg": 5.4,
+          "dmg_delta_avg": -3.3,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "spotdodge": {
+          "n": 11,
+          "dmg_dealt_avg": 7.3,
+          "dmg_taken_avg": 2.65,
+          "dmg_delta_avg": 4.65,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        }
+      },
+      "_pct_120+": {
+        "aerial": {
+          "n": 3,
+          "dmg_dealt_avg": 4.0,
+          "dmg_taken_avg": 1.12,
+          "dmg_delta_avg": 2.88,
+          "stock_take_rate": 0.3333,
+          "stock_loss_rate": 0.0
+        },
+        "double_jump": {
+          "n": 1,
+          "dmg_dealt_avg": 0.0,
+          "dmg_taken_avg": 3.36,
+          "dmg_delta_avg": -3.36,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "getup_attack": {
+          "n": 1,
+          "dmg_dealt_avg": 6.0,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 6.0,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "grab": {
+          "n": 7,
+          "dmg_dealt_avg": 3.43,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 3.43,
+          "stock_take_rate": 0.4286,
+          "stock_loss_rate": 0.0
+        },
+        "missed_tech": {
+          "n": 2,
+          "dmg_dealt_avg": 3.0,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 3.0,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "roll_forward": {
+          "n": 1,
+          "dmg_dealt_avg": 0.0,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 0.0,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "shield_on": {
+          "n": 9,
+          "dmg_dealt_avg": 2.67,
+          "dmg_taken_avg": 1.19,
+          "dmg_delta_avg": 1.48,
+          "stock_take_rate": 0.2222,
+          "stock_loss_rate": 0.0
+        },
+        "special": {
+          "n": 6,
+          "dmg_dealt_avg": 3.0,
+          "dmg_taken_avg": 1.23,
+          "dmg_delta_avg": 1.77,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "spotdodge": {
+          "n": 3,
+          "dmg_dealt_avg": 0.0,
+          "dmg_taken_avg": 2.45,
+          "dmg_delta_avg": -2.45,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "wavedash": {
+          "n": 1,
+          "dmg_dealt_avg": 0.0,
+          "dmg_taken_avg": 4.0,
+          "dmg_delta_avg": -4.0,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        }
+      },
+      "approach": {
+        "aerial": {
+          "n": 9,
+          "dmg_dealt_avg": 7.01,
+          "dmg_taken_avg": 1.52,
+          "dmg_delta_avg": 5.49,
+          "stock_take_rate": 0.1111,
+          "stock_loss_rate": 0.0
+        },
+        "airdodge": {
+          "n": 1,
+          "dmg_dealt_avg": 0.0,
+          "dmg_taken_avg": 3.6,
+          "dmg_delta_avg": -3.6,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "dash": {
+          "n": 1,
+          "dmg_dealt_avg": 0.0,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 0.0,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "double_jump": {
+          "n": 5,
+          "dmg_dealt_avg": 2.6,
+          "dmg_taken_avg": 3.81,
+          "dmg_delta_avg": -1.21,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "grab": {
+          "n": 57,
+          "dmg_dealt_avg": 5.94,
+          "dmg_taken_avg": 1.88,
+          "dmg_delta_avg": 4.06,
+          "stock_take_rate": 0.0175,
+          "stock_loss_rate": 0.0
+        },
+        "jab": {
+          "n": 1,
+          "dmg_dealt_avg": 0.0,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 0.0,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "roll_backward": {
+          "n": 8,
+          "dmg_dealt_avg": 3.63,
+          "dmg_taken_avg": 2.22,
+          "dmg_delta_avg": 1.42,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "roll_forward": {
+          "n": 10,
+          "dmg_dealt_avg": 1.81,
+          "dmg_taken_avg": 1.27,
+          "dmg_delta_avg": 0.54,
+          "stock_take_rate": 0.1,
+          "stock_loss_rate": 0.0
+        },
+        "shield_on": {
+          "n": 53,
+          "dmg_dealt_avg": 4.58,
+          "dmg_taken_avg": 1.4,
+          "dmg_delta_avg": 3.18,
+          "stock_take_rate": 0.0566,
+          "stock_loss_rate": 0.0
+        },
+        "smash": {
+          "n": 1,
+          "dmg_dealt_avg": 18.33,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 18.33,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "special": {
+          "n": 37,
+          "dmg_dealt_avg": 8.01,
+          "dmg_taken_avg": 1.74,
+          "dmg_delta_avg": 6.27,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.027
+        },
+        "spotdodge": {
+          "n": 7,
+          "dmg_dealt_avg": 3.54,
+          "dmg_taken_avg": 0.57,
+          "dmg_delta_avg": 2.97,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "wavedash": {
+          "n": 13,
+          "dmg_dealt_avg": 7.8,
+          "dmg_taken_avg": 2.0,
+          "dmg_delta_avg": 5.8,
+          "stock_take_rate": 0.0769,
+          "stock_loss_rate": 0.0
+        },
+        "waveland": {
+          "n": 3,
+          "dmg_dealt_avg": 4.24,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 4.24,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        }
+      },
+      "resource_exhausted": {
+        "aerial": {
+          "n": 2,
+          "dmg_dealt_avg": 0.0,
+          "dmg_taken_avg": 0.5,
+          "dmg_delta_avg": -0.5,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.5
+        },
+        "airdodge": {
+          "n": 3,
+          "dmg_dealt_avg": 0.0,
+          "dmg_taken_avg": 0.33,
+          "dmg_delta_avg": -0.33,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 1.0
+        },
+        "special": {
+          "n": 2,
+          "dmg_dealt_avg": 11.55,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 11.55,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        }
+      },
+      "shine_cancellable": {
+        "grab": {
+          "n": 1,
+          "dmg_dealt_avg": 0.0,
+          "dmg_taken_avg": 5.73,
+          "dmg_delta_avg": -5.73,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "shield_on": {
+          "n": 2,
+          "dmg_dealt_avg": 9.6,
+          "dmg_taken_avg": 4.85,
+          "dmg_delta_avg": 4.75,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        }
+      },
+      "pummel_throw_decision": {
+        "dash": {
+          "n": 2,
+          "dmg_dealt_avg": 0.0,
+          "dmg_taken_avg": 1.27,
+          "dmg_delta_avg": -1.27,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "grab": {
+          "n": 1,
+          "dmg_dealt_avg": 9.0,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 9.0,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "jab": {
+          "n": 4,
+          "dmg_dealt_avg": 0.0,
+          "dmg_taken_avg": 0.97,
+          "dmg_delta_avg": -0.97,
+          "stock_take_rate": 0.25,
+          "stock_loss_rate": 0.0
+        },
+        "shield_on": {
+          "n": 110,
+          "dmg_dealt_avg": 3.73,
+          "dmg_taken_avg": 2.12,
+          "dmg_delta_avg": 1.62,
+          "stock_take_rate": 0.0364,
+          "stock_loss_rate": 0.0
+        },
+        "smash": {
+          "n": 1,
+          "dmg_dealt_avg": 18.33,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 18.33,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "special": {
+          "n": 49,
+          "dmg_dealt_avg": 7.05,
+          "dmg_taken_avg": 3.16,
+          "dmg_delta_avg": 3.89,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0204
+        },
+        "spotdodge": {
+          "n": 3,
+          "dmg_dealt_avg": 0.0,
+          "dmg_taken_avg": 1.33,
+          "dmg_delta_avg": -1.33,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "throw": {
+          "n": 62,
+          "dmg_dealt_avg": 10.75,
+          "dmg_taken_avg": 0.72,
+          "dmg_delta_avg": 10.03,
+          "stock_take_rate": 0.0161,
+          "stock_loss_rate": 0.0
+        }
+      },
+      "advantage": {
+        "aerial": {
+          "n": 6,
+          "dmg_dealt_avg": 0.67,
+          "dmg_taken_avg": 0.56,
+          "dmg_delta_avg": 0.11,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "airdodge": {
+          "n": 3,
+          "dmg_dealt_avg": 0.0,
+          "dmg_taken_avg": 1.0,
+          "dmg_delta_avg": -1.0,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "dash": {
+          "n": 1,
+          "dmg_dealt_avg": 0.0,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 0.0,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "double_jump": {
+          "n": 6,
+          "dmg_dealt_avg": 4.14,
+          "dmg_taken_avg": 0.51,
+          "dmg_delta_avg": 3.63,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "grab": {
+          "n": 67,
+          "dmg_dealt_avg": 2.49,
+          "dmg_taken_avg": 0.86,
+          "dmg_delta_avg": 1.63,
+          "stock_take_rate": 0.0448,
+          "stock_loss_rate": 0.0
+        },
+        "jab": {
+          "n": 8,
+          "dmg_dealt_avg": 0.0,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 0.0,
+          "stock_take_rate": 0.125,
+          "stock_loss_rate": 0.0
+        },
+        "roll_backward": {
+          "n": 6,
+          "dmg_dealt_avg": 4.47,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 4.47,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "roll_forward": {
+          "n": 21,
+          "dmg_dealt_avg": 3.26,
+          "dmg_taken_avg": 1.08,
+          "dmg_delta_avg": 2.18,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "shield_on": {
+          "n": 65,
+          "dmg_dealt_avg": 2.97,
+          "dmg_taken_avg": 0.64,
+          "dmg_delta_avg": 2.33,
+          "stock_take_rate": 0.0154,
+          "stock_loss_rate": 0.0
+        },
+        "special": {
+          "n": 53,
+          "dmg_dealt_avg": 7.16,
+          "dmg_taken_avg": 1.56,
+          "dmg_delta_avg": 5.59,
+          "stock_take_rate": 0.0189,
+          "stock_loss_rate": 0.0
+        },
+        "spotdodge": {
+          "n": 5,
+          "dmg_dealt_avg": 0.0,
+          "dmg_taken_avg": 4.04,
+          "dmg_delta_avg": -4.04,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "throw": {
+          "n": 62,
+          "dmg_dealt_avg": 10.75,
+          "dmg_taken_avg": 0.72,
+          "dmg_delta_avg": 10.03,
+          "stock_take_rate": 0.0161,
+          "stock_loss_rate": 0.0
+        },
+        "tilt": {
+          "n": 1,
+          "dmg_dealt_avg": 0.0,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 0.0,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "wavedash": {
+          "n": 13,
+          "dmg_dealt_avg": 3.45,
+          "dmg_taken_avg": 2.14,
+          "dmg_delta_avg": 1.31,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "waveland": {
+          "n": 3,
+          "dmg_dealt_avg": 0.0,
+          "dmg_taken_avg": 1.0,
+          "dmg_delta_avg": -1.0,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        }
+      },
+      "neutral": {
+        "aerial": {
+          "n": 31,
+          "dmg_dealt_avg": 5.2,
+          "dmg_taken_avg": 2.03,
+          "dmg_delta_avg": 3.17,
+          "stock_take_rate": 0.0645,
+          "stock_loss_rate": 0.0323
+        },
+        "airdodge": {
+          "n": 9,
+          "dmg_dealt_avg": 1.17,
+          "dmg_taken_avg": 0.82,
+          "dmg_delta_avg": 0.34,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.4444
+        },
+        "dash": {
+          "n": 7,
+          "dmg_dealt_avg": 3.46,
+          "dmg_taken_avg": 0.36,
+          "dmg_delta_avg": 3.09,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "double_jump": {
+          "n": 24,
+          "dmg_dealt_avg": 3.02,
+          "dmg_taken_avg": 2.31,
+          "dmg_delta_avg": 0.72,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "grab": {
+          "n": 234,
+          "dmg_dealt_avg": 5.41,
+          "dmg_taken_avg": 2.66,
+          "dmg_delta_avg": 2.75,
+          "stock_take_rate": 0.0128,
+          "stock_loss_rate": 0.0
+        },
+        "jab": {
+          "n": 13,
+          "dmg_dealt_avg": 7.39,
+          "dmg_taken_avg": 0.58,
+          "dmg_delta_avg": 6.81,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "roll_backward": {
+          "n": 32,
+          "dmg_dealt_avg": 6.67,
+          "dmg_taken_avg": 2.53,
+          "dmg_delta_avg": 4.14,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "roll_forward": {
+          "n": 50,
+          "dmg_dealt_avg": 3.8,
+          "dmg_taken_avg": 0.95,
+          "dmg_delta_avg": 2.85,
+          "stock_take_rate": 0.04,
+          "stock_loss_rate": 0.0
+        },
+        "shield_on": {
+          "n": 282,
+          "dmg_dealt_avg": 4.74,
+          "dmg_taken_avg": 2.43,
+          "dmg_delta_avg": 2.32,
+          "stock_take_rate": 0.0177,
+          "stock_loss_rate": 0.0
+        },
+        "smash": {
+          "n": 5,
+          "dmg_dealt_avg": 12.32,
+          "dmg_taken_avg": 2.73,
+          "dmg_delta_avg": 9.59,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "special": {
+          "n": 170,
+          "dmg_dealt_avg": 6.44,
+          "dmg_taken_avg": 3.39,
+          "dmg_delta_avg": 3.05,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0176
+        },
+        "spotdodge": {
+          "n": 81,
+          "dmg_dealt_avg": 4.57,
+          "dmg_taken_avg": 3.24,
+          "dmg_delta_avg": 1.33,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "tilt": {
+          "n": 1,
+          "dmg_dealt_avg": 10.0,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 10.0,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "wavedash": {
+          "n": 39,
+          "dmg_dealt_avg": 5.01,
+          "dmg_taken_avg": 3.77,
+          "dmg_delta_avg": 1.24,
+          "stock_take_rate": 0.0256,
+          "stock_loss_rate": 0.0256
+        },
+        "waveland": {
+          "n": 6,
+          "dmg_dealt_avg": 4.54,
+          "dmg_taken_avg": 0.6,
+          "dmg_delta_avg": 3.94,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        }
+      },
+      "_pct_40-79": {
+        "aerial": {
+          "n": 9,
+          "dmg_dealt_avg": 3.98,
+          "dmg_taken_avg": 1.93,
+          "dmg_delta_avg": 2.05,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "airdodge": {
+          "n": 3,
+          "dmg_dealt_avg": 0.0,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 0.0,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 1.0
+        },
+        "dash": {
+          "n": 3,
+          "dmg_dealt_avg": 0.0,
+          "dmg_taken_avg": 0.85,
+          "dmg_delta_avg": -0.85,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "double_jump": {
+          "n": 5,
+          "dmg_dealt_avg": 4.28,
+          "dmg_taken_avg": 0.81,
+          "dmg_delta_avg": 3.47,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "getup_attack": {
+          "n": 12,
+          "dmg_dealt_avg": 4.63,
+          "dmg_taken_avg": 0.39,
+          "dmg_delta_avg": 4.23,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "grab": {
+          "n": 77,
+          "dmg_dealt_avg": 4.07,
+          "dmg_taken_avg": 3.08,
+          "dmg_delta_avg": 0.99,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "jab": {
+          "n": 5,
+          "dmg_dealt_avg": 1.35,
+          "dmg_taken_avg": 0.78,
+          "dmg_delta_avg": 0.57,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "missed_tech": {
+          "n": 13,
+          "dmg_dealt_avg": 3.34,
+          "dmg_taken_avg": 0.36,
+          "dmg_delta_avg": 2.98,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0769
+        },
+        "roll_backward": {
+          "n": 7,
+          "dmg_dealt_avg": 9.22,
+          "dmg_taken_avg": 1.29,
+          "dmg_delta_avg": 7.94,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "roll_forward": {
+          "n": 14,
+          "dmg_dealt_avg": 3.37,
+          "dmg_taken_avg": 1.12,
+          "dmg_delta_avg": 2.25,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "shield_on": {
+          "n": 87,
+          "dmg_dealt_avg": 4.51,
+          "dmg_taken_avg": 2.26,
+          "dmg_delta_avg": 2.25,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "smash": {
+          "n": 2,
+          "dmg_dealt_avg": 7.55,
+          "dmg_taken_avg": 6.82,
+          "dmg_delta_avg": 0.72,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "special": {
+          "n": 49,
+          "dmg_dealt_avg": 7.63,
+          "dmg_taken_avg": 2.99,
+          "dmg_delta_avg": 4.64,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "spotdodge": {
+          "n": 22,
+          "dmg_dealt_avg": 2.94,
+          "dmg_taken_avg": 4.44,
+          "dmg_delta_avg": -1.5,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "throw": {
+          "n": 11,
+          "dmg_dealt_avg": 9.03,
+          "dmg_taken_avg": 0.88,
+          "dmg_delta_avg": 8.15,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "wavedash": {
+          "n": 9,
+          "dmg_dealt_avg": 3.93,
+          "dmg_taken_avg": 3.66,
+          "dmg_delta_avg": 0.27,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        }
+      },
+      "combo_active": {
+        "aerial": {
+          "n": 8,
+          "dmg_dealt_avg": 2.25,
+          "dmg_taken_avg": 0.89,
+          "dmg_delta_avg": 1.36,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "airdodge": {
+          "n": 3,
+          "dmg_dealt_avg": 0.0,
+          "dmg_taken_avg": 1.0,
+          "dmg_delta_avg": -1.0,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "dash": {
+          "n": 2,
+          "dmg_dealt_avg": 0.0,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 0.0,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "double_jump": {
+          "n": 8,
+          "dmg_dealt_avg": 3.1,
+          "dmg_taken_avg": 0.38,
+          "dmg_delta_avg": 2.72,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "grab": {
+          "n": 51,
+          "dmg_dealt_avg": 2.67,
+          "dmg_taken_avg": 0.89,
+          "dmg_delta_avg": 1.78,
+          "stock_take_rate": 0.0588,
+          "stock_loss_rate": 0.0
+        },
+        "jab": {
+          "n": 8,
+          "dmg_dealt_avg": 2.58,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 2.58,
+          "stock_take_rate": 0.125,
+          "stock_loss_rate": 0.0
+        },
+        "roll_forward": {
+          "n": 11,
+          "dmg_dealt_avg": 1.77,
+          "dmg_taken_avg": 0.7,
+          "dmg_delta_avg": 1.08,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "shield_on": {
+          "n": 46,
+          "dmg_dealt_avg": 2.23,
+          "dmg_taken_avg": 0.62,
+          "dmg_delta_avg": 1.61,
+          "stock_take_rate": 0.0217,
+          "stock_loss_rate": 0.0
+        },
+        "special": {
+          "n": 42,
+          "dmg_dealt_avg": 6.27,
+          "dmg_taken_avg": 2.49,
+          "dmg_delta_avg": 3.78,
+          "stock_take_rate": 0.0238,
+          "stock_loss_rate": 0.0
+        },
+        "spotdodge": {
+          "n": 4,
+          "dmg_dealt_avg": 3.36,
+          "dmg_taken_avg": 7.12,
+          "dmg_delta_avg": -3.75,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "throw": {
+          "n": 62,
+          "dmg_dealt_avg": 10.75,
+          "dmg_taken_avg": 0.72,
+          "dmg_delta_avg": 10.03,
+          "stock_take_rate": 0.0161,
+          "stock_loss_rate": 0.0
+        },
+        "tilt": {
+          "n": 1,
+          "dmg_dealt_avg": 10.0,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 10.0,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "wavedash": {
+          "n": 7,
+          "dmg_dealt_avg": 0.82,
+          "dmg_taken_avg": 2.11,
+          "dmg_delta_avg": -1.29,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "waveland": {
+          "n": 3,
+          "dmg_dealt_avg": 0.0,
+          "dmg_taken_avg": 1.0,
+          "dmg_delta_avg": -1.0,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        }
+      },
+      "near_blastzone": {
+        "aerial": {
+          "n": 1,
+          "dmg_dealt_avg": 0.0,
+          "dmg_taken_avg": 1.0,
+          "dmg_delta_avg": -1.0,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 1.0
+        },
+        "airdodge": {
+          "n": 1,
+          "dmg_dealt_avg": 0.0,
+          "dmg_taken_avg": 1.0,
+          "dmg_delta_avg": -1.0,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 1.0
+        }
+      },
+      "_pct_80-119": {
+        "aerial": {
+          "n": 8,
+          "dmg_dealt_avg": 2.43,
+          "dmg_taken_avg": 2.47,
+          "dmg_delta_avg": -0.03,
+          "stock_take_rate": 0.125,
+          "stock_loss_rate": 0.25
+        },
+        "airdodge": {
+          "n": 4,
+          "dmg_dealt_avg": 1.25,
+          "dmg_taken_avg": 0.25,
+          "dmg_delta_avg": 1.0,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.5
+        },
+        "dash": {
+          "n": 1,
+          "dmg_dealt_avg": 9.19,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 9.19,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "double_jump": {
+          "n": 4,
+          "dmg_dealt_avg": 0.75,
+          "dmg_taken_avg": 1.8,
+          "dmg_delta_avg": -1.05,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "getup_attack": {
+          "n": 1,
+          "dmg_dealt_avg": 0.0,
+          "dmg_taken_avg": 5.34,
+          "dmg_delta_avg": -5.34,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "grab": {
+          "n": 44,
+          "dmg_dealt_avg": 3.18,
+          "dmg_taken_avg": 1.87,
+          "dmg_delta_avg": 1.31,
+          "stock_take_rate": 0.0227,
+          "stock_loss_rate": 0.0
+        },
+        "jab": {
+          "n": 3,
+          "dmg_dealt_avg": 5.07,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 5.07,
+          "stock_take_rate": 0.3333,
+          "stock_loss_rate": 0.0
+        },
+        "missed_tech": {
+          "n": 1,
+          "dmg_dealt_avg": 0.0,
+          "dmg_taken_avg": 5.34,
+          "dmg_delta_avg": -5.34,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "roll_backward": {
+          "n": 9,
+          "dmg_dealt_avg": 5.07,
+          "dmg_taken_avg": 0.94,
+          "dmg_delta_avg": 4.13,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "roll_forward": {
+          "n": 16,
+          "dmg_dealt_avg": 4.5,
+          "dmg_taken_avg": 0.77,
+          "dmg_delta_avg": 3.73,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "shield_on": {
+          "n": 58,
+          "dmg_dealt_avg": 3.67,
+          "dmg_taken_avg": 2.06,
+          "dmg_delta_avg": 1.61,
+          "stock_take_rate": 0.0172,
+          "stock_loss_rate": 0.0
+        },
+        "special": {
+          "n": 35,
+          "dmg_dealt_avg": 6.38,
+          "dmg_taken_avg": 2.67,
+          "dmg_delta_avg": 3.71,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0571
+        },
+        "spotdodge": {
+          "n": 15,
+          "dmg_dealt_avg": 3.86,
+          "dmg_taken_avg": 3.57,
+          "dmg_delta_avg": 0.29,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "throw": {
+          "n": 9,
+          "dmg_dealt_avg": 9.22,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 9.22,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "wavedash": {
+          "n": 9,
+          "dmg_dealt_avg": 5.71,
+          "dmg_taken_avg": 3.17,
+          "dmg_delta_avg": 2.54,
+          "stock_take_rate": 0.1111,
+          "stock_loss_rate": 0.1111
+        },
+        "waveland": {
+          "n": 1,
+          "dmg_dealt_avg": 0.0,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 0.0,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        }
+      },
+      "being_tech_chased": {
+        "getup_attack": {
+          "n": 11,
+          "dmg_dealt_avg": 7.0,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 7.0,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "grab": {
+          "n": 1,
+          "dmg_dealt_avg": 12.46,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 12.46,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "shield_on": {
+          "n": 4,
+          "dmg_dealt_avg": 7.09,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 7.09,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "special": {
+          "n": 2,
+          "dmg_dealt_avg": 11.7,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 11.7,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "spotdodge": {
+          "n": 1,
+          "dmg_dealt_avg": 5.0,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 5.0,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        }
+      },
+      "edgeguard": {
+        "aerial": {
+          "n": 1,
+          "dmg_dealt_avg": 0.0,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 0.0,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "dash": {
+          "n": 2,
+          "dmg_dealt_avg": 0.0,
+          "dmg_taken_avg": 1.27,
+          "dmg_delta_avg": -1.27,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "double_jump": {
+          "n": 3,
+          "dmg_dealt_avg": 3.65,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 3.65,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "grab": {
+          "n": 21,
+          "dmg_dealt_avg": 0.21,
+          "dmg_taken_avg": 0.69,
+          "dmg_delta_avg": -0.48,
+          "stock_take_rate": 0.0952,
+          "stock_loss_rate": 0.0
+        },
+        "jab": {
+          "n": 2,
+          "dmg_dealt_avg": 0.0,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 0.0,
+          "stock_take_rate": 0.5,
+          "stock_loss_rate": 0.0
+        },
+        "roll_backward": {
+          "n": 2,
+          "dmg_dealt_avg": 5.0,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 5.0,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "roll_forward": {
+          "n": 7,
+          "dmg_dealt_avg": 1.34,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 1.34,
+          "stock_take_rate": 0.2857,
+          "stock_loss_rate": 0.0
+        },
+        "shield_on": {
+          "n": 29,
+          "dmg_dealt_avg": 1.72,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 1.72,
+          "stock_take_rate": 0.1034,
+          "stock_loss_rate": 0.0
+        },
+        "special": {
+          "n": 20,
+          "dmg_dealt_avg": 3.16,
+          "dmg_taken_avg": 0.13,
+          "dmg_delta_avg": 3.03,
+          "stock_take_rate": 0.05,
+          "stock_loss_rate": 0.0
+        },
+        "wavedash": {
+          "n": 3,
+          "dmg_dealt_avg": 0.79,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 0.79,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        }
+      },
+      "walltech_available": {
+        "missed_tech": {
+          "n": 1,
+          "dmg_dealt_avg": 6.0,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 6.0,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        }
+      },
+      "warmup_frames": {
+        "aerial": {
+          "n": 2,
+          "dmg_dealt_avg": 4.5,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 4.5,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "airdodge": {
+          "n": 2,
+          "dmg_dealt_avg": 5.25,
+          "dmg_taken_avg": 1.5,
+          "dmg_delta_avg": 3.75,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "double_jump": {
+          "n": 3,
+          "dmg_dealt_avg": 4.94,
+          "dmg_taken_avg": 1.0,
+          "dmg_delta_avg": 3.94,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "grab": {
+          "n": 4,
+          "dmg_dealt_avg": 4.86,
+          "dmg_taken_avg": 0.75,
+          "dmg_delta_avg": 4.11,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "roll_forward": {
+          "n": 4,
+          "dmg_dealt_avg": 5.78,
+          "dmg_taken_avg": 1.0,
+          "dmg_delta_avg": 4.78,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "shield_on": {
+          "n": 9,
+          "dmg_dealt_avg": 4.61,
+          "dmg_taken_avg": 1.22,
+          "dmg_delta_avg": 3.39,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "special": {
+          "n": 7,
+          "dmg_dealt_avg": 12.09,
+          "dmg_taken_avg": 1.0,
+          "dmg_delta_avg": 11.09,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "spotdodge": {
+          "n": 2,
+          "dmg_dealt_avg": 2.5,
+          "dmg_taken_avg": 3.41,
+          "dmg_delta_avg": -0.91,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "throw": {
+          "n": 1,
+          "dmg_dealt_avg": 7.46,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 7.46,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "waveland": {
+          "n": 2,
+          "dmg_dealt_avg": 5.25,
+          "dmg_taken_avg": 1.5,
+          "dmg_delta_avg": 3.75,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        }
+      },
+      "retreat": {
+        "aerial": {
+          "n": 4,
+          "dmg_dealt_avg": 1.45,
+          "dmg_taken_avg": 1.22,
+          "dmg_delta_avg": 0.23,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "airdodge": {
+          "n": 4,
+          "dmg_dealt_avg": 0.0,
+          "dmg_taken_avg": 0.25,
+          "dmg_delta_avg": -0.25,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.75
+        },
+        "dash": {
+          "n": 1,
+          "dmg_dealt_avg": 0.0,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 0.0,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "double_jump": {
+          "n": 1,
+          "dmg_dealt_avg": 0.0,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 0.0,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "grab": {
+          "n": 14,
+          "dmg_dealt_avg": 6.16,
+          "dmg_taken_avg": 1.67,
+          "dmg_delta_avg": 4.49,
+          "stock_take_rate": 0.1429,
+          "stock_loss_rate": 0.0
+        },
+        "jab": {
+          "n": 2,
+          "dmg_dealt_avg": 4.66,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 4.66,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "roll_backward": {
+          "n": 3,
+          "dmg_dealt_avg": 13.52,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 13.52,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "roll_forward": {
+          "n": 4,
+          "dmg_dealt_avg": 0.0,
+          "dmg_taken_avg": 1.22,
+          "dmg_delta_avg": -1.22,
+          "stock_take_rate": 0.25,
+          "stock_loss_rate": 0.0
+        },
+        "shield_on": {
+          "n": 22,
+          "dmg_dealt_avg": 5.17,
+          "dmg_taken_avg": 2.21,
+          "dmg_delta_avg": 2.95,
+          "stock_take_rate": 0.0455,
+          "stock_loss_rate": 0.0
+        },
+        "smash": {
+          "n": 2,
+          "dmg_dealt_avg": 7.55,
+          "dmg_taken_avg": 6.82,
+          "dmg_delta_avg": 0.72,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "special": {
+          "n": 15,
+          "dmg_dealt_avg": 7.7,
+          "dmg_taken_avg": 2.74,
+          "dmg_delta_avg": 4.96,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "spotdodge": {
+          "n": 7,
+          "dmg_dealt_avg": 3.64,
+          "dmg_taken_avg": 3.94,
+          "dmg_delta_avg": -0.3,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "wavedash": {
+          "n": 1,
+          "dmg_dealt_avg": 10.43,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 10.43,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        }
+      },
+      "respawn_invincible": {
+        "airdodge": {
+          "n": 4,
+          "dmg_dealt_avg": 1.75,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 1.75,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "grab": {
+          "n": 6,
+          "dmg_dealt_avg": 0.0,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 0.0,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "roll_backward": {
+          "n": 1,
+          "dmg_dealt_avg": 0.0,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 0.0,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "shield_on": {
+          "n": 5,
+          "dmg_dealt_avg": 0.0,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 0.0,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "special": {
+          "n": 4,
+          "dmg_dealt_avg": 0.0,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 0.0,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "spotdodge": {
+          "n": 1,
+          "dmg_dealt_avg": 0.0,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 0.0,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "wavedash": {
+          "n": 1,
+          "dmg_dealt_avg": 0.0,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 0.0,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        }
+      },
+      "conversion_open": {
+        "aerial": {
+          "n": 21,
+          "dmg_dealt_avg": 4.17,
+          "dmg_taken_avg": 0.9,
+          "dmg_delta_avg": 3.27,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0952
+        },
+        "airdodge": {
+          "n": 9,
+          "dmg_dealt_avg": 0.56,
+          "dmg_taken_avg": 0.65,
+          "dmg_delta_avg": -0.09,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.3333
+        },
+        "dash": {
+          "n": 1,
+          "dmg_dealt_avg": 0.0,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 0.0,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "double_jump": {
+          "n": 20,
+          "dmg_dealt_avg": 3.52,
+          "dmg_taken_avg": 1.94,
+          "dmg_delta_avg": 1.58,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "getup_attack": {
+          "n": 17,
+          "dmg_dealt_avg": 4.99,
+          "dmg_taken_avg": 0.59,
+          "dmg_delta_avg": 4.4,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "grab": {
+          "n": 153,
+          "dmg_dealt_avg": 5.15,
+          "dmg_taken_avg": 2.18,
+          "dmg_delta_avg": 2.97,
+          "stock_take_rate": 0.0327,
+          "stock_loss_rate": 0.0
+        },
+        "jab": {
+          "n": 15,
+          "dmg_dealt_avg": 5.69,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 5.69,
+          "stock_take_rate": 0.0667,
+          "stock_loss_rate": 0.0
+        },
+        "missed_tech": {
+          "n": 19,
+          "dmg_dealt_avg": 3.68,
+          "dmg_taken_avg": 0.53,
+          "dmg_delta_avg": 3.15,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0526
+        },
+        "roll_backward": {
+          "n": 9,
+          "dmg_dealt_avg": 5.36,
+          "dmg_taken_avg": 1.97,
+          "dmg_delta_avg": 3.39,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "roll_forward": {
+          "n": 23,
+          "dmg_dealt_avg": 3.09,
+          "dmg_taken_avg": 1.78,
+          "dmg_delta_avg": 1.32,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "shield_on": {
+          "n": 163,
+          "dmg_dealt_avg": 4.93,
+          "dmg_taken_avg": 1.98,
+          "dmg_delta_avg": 2.95,
+          "stock_take_rate": 0.0184,
+          "stock_loss_rate": 0.0
+        },
+        "smash": {
+          "n": 3,
+          "dmg_dealt_avg": 9.39,
+          "dmg_taken_avg": 4.55,
+          "dmg_delta_avg": 4.84,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "special": {
+          "n": 109,
+          "dmg_dealt_avg": 5.82,
+          "dmg_taken_avg": 3.64,
+          "dmg_delta_avg": 2.18,
+          "stock_take_rate": 0.0092,
+          "stock_loss_rate": 0.0092
+        },
+        "spotdodge": {
+          "n": 63,
+          "dmg_dealt_avg": 5.33,
+          "dmg_taken_avg": 3.17,
+          "dmg_delta_avg": 2.16,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "throw": {
+          "n": 59,
+          "dmg_dealt_avg": 10.8,
+          "dmg_taken_avg": 0.76,
+          "dmg_delta_avg": 10.04,
+          "stock_take_rate": 0.0169,
+          "stock_loss_rate": 0.0
+        },
+        "tilt": {
+          "n": 2,
+          "dmg_dealt_avg": 5.0,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 5.0,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "wavedash": {
+          "n": 20,
+          "dmg_dealt_avg": 4.85,
+          "dmg_taken_avg": 2.9,
+          "dmg_delta_avg": 1.95,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "waveland": {
+          "n": 3,
+          "dmg_dealt_avg": 0.0,
+          "dmg_taken_avg": 1.0,
+          "dmg_delta_avg": -1.0,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        }
+      },
+      "shield_pressure_theirs": {
+        "grab": {
+          "n": 55,
+          "dmg_dealt_avg": 5.45,
+          "dmg_taken_avg": 2.17,
+          "dmg_delta_avg": 3.28,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "roll_backward": {
+          "n": 20,
+          "dmg_dealt_avg": 7.25,
+          "dmg_taken_avg": 3.18,
+          "dmg_delta_avg": 4.08,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "roll_forward": {
+          "n": 25,
+          "dmg_dealt_avg": 3.6,
+          "dmg_taken_avg": 1.18,
+          "dmg_delta_avg": 2.43,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "spotdodge": {
+          "n": 44,
+          "dmg_dealt_avg": 4.71,
+          "dmg_taken_avg": 2.52,
+          "dmg_delta_avg": 2.19,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        }
+      },
+      "onstage_center": {
+        "aerial": {
+          "n": 16,
+          "dmg_dealt_avg": 5.48,
+          "dmg_taken_avg": 2.27,
+          "dmg_delta_avg": 3.2,
+          "stock_take_rate": 0.125,
+          "stock_loss_rate": 0.0
+        },
+        "dash": {
+          "n": 2,
+          "dmg_dealt_avg": 0.0,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 0.0,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "double_jump": {
+          "n": 23,
+          "dmg_dealt_avg": 3.36,
+          "dmg_taken_avg": 2.26,
+          "dmg_delta_avg": 1.1,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "getup_attack": {
+          "n": 6,
+          "dmg_dealt_avg": 7.22,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 7.22,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "grab": {
+          "n": 205,
+          "dmg_dealt_avg": 5.14,
+          "dmg_taken_avg": 2.02,
+          "dmg_delta_avg": 3.13,
+          "stock_take_rate": 0.0244,
+          "stock_loss_rate": 0.0
+        },
+        "jab": {
+          "n": 16,
+          "dmg_dealt_avg": 5.42,
+          "dmg_taken_avg": 0.47,
+          "dmg_delta_avg": 4.95,
+          "stock_take_rate": 0.0625,
+          "stock_loss_rate": 0.0
+        },
+        "roll_backward": {
+          "n": 21,
+          "dmg_dealt_avg": 6.54,
+          "dmg_taken_avg": 1.84,
+          "dmg_delta_avg": 4.7,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "roll_forward": {
+          "n": 36,
+          "dmg_dealt_avg": 3.96,
+          "dmg_taken_avg": 0.59,
+          "dmg_delta_avg": 3.37,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "shield_on": {
+          "n": 252,
+          "dmg_dealt_avg": 4.59,
+          "dmg_taken_avg": 1.99,
+          "dmg_delta_avg": 2.6,
+          "stock_take_rate": 0.0159,
+          "stock_loss_rate": 0.0
+        },
+        "smash": {
+          "n": 2,
+          "dmg_dealt_avg": 10.35,
+          "dmg_taken_avg": 6.82,
+          "dmg_delta_avg": 3.53,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "special": {
+          "n": 135,
+          "dmg_dealt_avg": 7.18,
+          "dmg_taken_avg": 2.84,
+          "dmg_delta_avg": 4.34,
+          "stock_take_rate": 0.0074,
+          "stock_loss_rate": 0.0074
+        },
+        "spotdodge": {
+          "n": 75,
+          "dmg_dealt_avg": 4.75,
+          "dmg_taken_avg": 3.12,
+          "dmg_delta_avg": 1.63,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "throw": {
+          "n": 43,
+          "dmg_dealt_avg": 11.72,
+          "dmg_taken_avg": 0.52,
+          "dmg_delta_avg": 11.21,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "tilt": {
+          "n": 2,
+          "dmg_dealt_avg": 5.0,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 5.0,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        }
+      },
+      "recovery_high": {
+        "aerial": {
+          "n": 3,
+          "dmg_dealt_avg": 0.0,
+          "dmg_taken_avg": 0.67,
+          "dmg_delta_avg": -0.67,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.6667
+        },
+        "airdodge": {
+          "n": 2,
+          "dmg_dealt_avg": 0.0,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 0.0,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 1.0
+        },
+        "dash": {
+          "n": 2,
+          "dmg_dealt_avg": 5.0,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 5.0,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "double_jump": {
+          "n": 1,
+          "dmg_dealt_avg": 5.0,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 5.0,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "grab": {
+          "n": 6,
+          "dmg_dealt_avg": 4.0,
+          "dmg_taken_avg": 5.0,
+          "dmg_delta_avg": -1.0,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "roll_backward": {
+          "n": 1,
+          "dmg_dealt_avg": 0.0,
+          "dmg_taken_avg": 15.0,
+          "dmg_delta_avg": -15.0,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "roll_forward": {
+          "n": 2,
+          "dmg_dealt_avg": 0.0,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 0.0,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "shield_on": {
+          "n": 4,
+          "dmg_dealt_avg": 1.75,
+          "dmg_taken_avg": 3.75,
+          "dmg_delta_avg": -2.0,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "special": {
+          "n": 3,
+          "dmg_dealt_avg": 10.5,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 10.5,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        }
+      },
+      "_any": {
+        "aerial": {
+          "n": 42,
+          "dmg_dealt_avg": 4.31,
+          "dmg_taken_avg": 1.65,
+          "dmg_delta_avg": 2.67,
+          "stock_take_rate": 0.0476,
+          "stock_loss_rate": 0.0476
+        },
+        "airdodge": {
+          "n": 18,
+          "dmg_dealt_avg": 1.25,
+          "dmg_taken_avg": 0.58,
+          "dmg_delta_avg": 0.67,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.2778
+        },
+        "dash": {
+          "n": 8,
+          "dmg_dealt_avg": 3.02,
+          "dmg_taken_avg": 0.32,
+          "dmg_delta_avg": 2.71,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "double_jump": {
+          "n": 30,
+          "dmg_dealt_avg": 3.25,
+          "dmg_taken_avg": 1.95,
+          "dmg_delta_avg": 1.3,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "getup_attack": {
+          "n": 17,
+          "dmg_dealt_avg": 4.99,
+          "dmg_taken_avg": 0.59,
+          "dmg_delta_avg": 4.4,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "grab": {
+          "n": 312,
+          "dmg_dealt_avg": 4.72,
+          "dmg_taken_avg": 2.18,
+          "dmg_delta_avg": 2.54,
+          "stock_take_rate": 0.0192,
+          "stock_loss_rate": 0.0
+        },
+        "jab": {
+          "n": 21,
+          "dmg_dealt_avg": 4.57,
+          "dmg_taken_avg": 0.36,
+          "dmg_delta_avg": 4.22,
+          "stock_take_rate": 0.0476,
+          "stock_loss_rate": 0.0
+        },
+        "missed_tech": {
+          "n": 19,
+          "dmg_dealt_avg": 3.68,
+          "dmg_taken_avg": 0.53,
+          "dmg_delta_avg": 3.15,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0526
+        },
+        "roll_backward": {
+          "n": 40,
+          "dmg_dealt_avg": 6.0,
+          "dmg_taken_avg": 2.03,
+          "dmg_delta_avg": 3.98,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "roll_forward": {
+          "n": 71,
+          "dmg_dealt_avg": 3.64,
+          "dmg_taken_avg": 0.98,
+          "dmg_delta_avg": 2.65,
+          "stock_take_rate": 0.0282,
+          "stock_loss_rate": 0.0
+        },
+        "shield_on": {
+          "n": 367,
+          "dmg_dealt_avg": 4.31,
+          "dmg_taken_avg": 1.99,
+          "dmg_delta_avg": 2.32,
+          "stock_take_rate": 0.0163,
+          "stock_loss_rate": 0.0
+        },
+        "smash": {
+          "n": 5,
+          "dmg_dealt_avg": 12.32,
+          "dmg_taken_avg": 2.73,
+          "dmg_delta_avg": 9.59,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "special": {
+          "n": 238,
+          "dmg_dealt_avg": 6.35,
+          "dmg_taken_avg": 2.91,
+          "dmg_delta_avg": 3.44,
+          "stock_take_rate": 0.0042,
+          "stock_loss_rate": 0.0126
+        },
+        "spotdodge": {
+          "n": 100,
+          "dmg_dealt_avg": 4.55,
+          "dmg_taken_avg": 3.12,
+          "dmg_delta_avg": 1.44,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "throw": {
+          "n": 62,
+          "dmg_dealt_avg": 10.75,
+          "dmg_taken_avg": 0.72,
+          "dmg_delta_avg": 10.03,
+          "stock_take_rate": 0.0161,
+          "stock_loss_rate": 0.0
+        },
+        "tilt": {
+          "n": 2,
+          "dmg_dealt_avg": 5.0,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 5.0,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "wavedash": {
+          "n": 53,
+          "dmg_dealt_avg": 4.53,
+          "dmg_taken_avg": 3.3,
+          "dmg_delta_avg": 1.23,
+          "stock_take_rate": 0.0189,
+          "stock_loss_rate": 0.0189
+        },
+        "waveland": {
+          "n": 9,
+          "dmg_dealt_avg": 3.03,
+          "dmg_taken_avg": 0.73,
+          "dmg_delta_avg": 2.29,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        }
+      },
+      "tech_chase": {
+        "aerial": {
+          "n": 1,
+          "dmg_dealt_avg": 4.0,
+          "dmg_taken_avg": 3.36,
+          "dmg_delta_avg": 0.64,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "double_jump": {
+          "n": 5,
+          "dmg_dealt_avg": 4.97,
+          "dmg_taken_avg": 0.62,
+          "dmg_delta_avg": 4.35,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "grab": {
+          "n": 21,
+          "dmg_dealt_avg": 2.26,
+          "dmg_taken_avg": 2.07,
+          "dmg_delta_avg": 0.19,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "roll_backward": {
+          "n": 5,
+          "dmg_dealt_avg": 4.31,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 4.31,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "roll_forward": {
+          "n": 13,
+          "dmg_dealt_avg": 2.96,
+          "dmg_taken_avg": 1.45,
+          "dmg_delta_avg": 1.51,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "shield_on": {
+          "n": 25,
+          "dmg_dealt_avg": 4.14,
+          "dmg_taken_avg": 1.0,
+          "dmg_delta_avg": 3.15,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "special": {
+          "n": 20,
+          "dmg_dealt_avg": 5.96,
+          "dmg_taken_avg": 1.62,
+          "dmg_delta_avg": 4.34,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "spotdodge": {
+          "n": 1,
+          "dmg_dealt_avg": 0.0,
+          "dmg_taken_avg": 12.0,
+          "dmg_delta_avg": -12.0,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "tilt": {
+          "n": 1,
+          "dmg_dealt_avg": 0.0,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 0.0,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        }
+      },
+      "percent_deficit": {
+        "aerial": {
+          "n": 1,
+          "dmg_dealt_avg": 2.82,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 2.82,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "airdodge": {
+          "n": 1,
+          "dmg_dealt_avg": 0.0,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 0.0,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 1.0
+        },
+        "grab": {
+          "n": 1,
+          "dmg_dealt_avg": 2.82,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 2.82,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "special": {
+          "n": 2,
+          "dmg_dealt_avg": 2.82,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 2.82,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        }
+      },
+      "recovery_low": {
+        "aerial": {
+          "n": 1,
+          "dmg_dealt_avg": 0.0,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 0.0,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "airdodge": {
+          "n": 3,
+          "dmg_dealt_avg": 0.0,
+          "dmg_taken_avg": 0.33,
+          "dmg_delta_avg": -0.33,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 1.0
+        },
+        "special": {
+          "n": 2,
+          "dmg_dealt_avg": 11.55,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 11.55,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        }
+      },
+      "being_juggled": {
+        "airdodge": {
+          "n": 1,
+          "dmg_dealt_avg": 5.0,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 5.0,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        }
+      },
+      "post_kill_neutral": {
+        "aerial": {
+          "n": 1,
+          "dmg_dealt_avg": 0.0,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 0.0,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "grab": {
+          "n": 14,
+          "dmg_dealt_avg": 0.75,
+          "dmg_taken_avg": 0.57,
+          "dmg_delta_avg": 0.18,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "roll_backward": {
+          "n": 2,
+          "dmg_dealt_avg": 0.0,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 0.0,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "roll_forward": {
+          "n": 1,
+          "dmg_dealt_avg": 0.0,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 0.0,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "shield_on": {
+          "n": 16,
+          "dmg_dealt_avg": 0.0,
+          "dmg_taken_avg": 0.75,
+          "dmg_delta_avg": -0.75,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "special": {
+          "n": 8,
+          "dmg_dealt_avg": 0.75,
+          "dmg_taken_avg": 0.5,
+          "dmg_delta_avg": 0.25,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "spotdodge": {
+          "n": 7,
+          "dmg_dealt_avg": 0.0,
+          "dmg_taken_avg": 2.29,
+          "dmg_delta_avg": -2.29,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "wavedash": {
+          "n": 2,
+          "dmg_dealt_avg": 0.0,
+          "dmg_taken_avg": 2.0,
+          "dmg_delta_avg": -2.0,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        }
+      },
+      "offstage": {
+        "aerial": {
+          "n": 4,
+          "dmg_dealt_avg": 0.0,
+          "dmg_taken_avg": 0.5,
+          "dmg_delta_avg": -0.5,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.5
+        },
+        "airdodge": {
+          "n": 5,
+          "dmg_dealt_avg": 0.0,
+          "dmg_taken_avg": 0.2,
+          "dmg_delta_avg": -0.2,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 1.0
+        },
+        "dash": {
+          "n": 2,
+          "dmg_dealt_avg": 5.0,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 5.0,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "double_jump": {
+          "n": 1,
+          "dmg_dealt_avg": 5.0,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 5.0,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "grab": {
+          "n": 6,
+          "dmg_dealt_avg": 4.0,
+          "dmg_taken_avg": 5.0,
+          "dmg_delta_avg": -1.0,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "roll_backward": {
+          "n": 1,
+          "dmg_dealt_avg": 0.0,
+          "dmg_taken_avg": 15.0,
+          "dmg_delta_avg": -15.0,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "roll_forward": {
+          "n": 2,
+          "dmg_dealt_avg": 0.0,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 0.0,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "shield_on": {
+          "n": 4,
+          "dmg_dealt_avg": 1.75,
+          "dmg_taken_avg": 3.75,
+          "dmg_delta_avg": -2.0,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "special": {
+          "n": 5,
+          "dmg_dealt_avg": 10.92,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 10.92,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        }
+      },
+      "juggle": {
+        "grab": {
+          "n": 3,
+          "dmg_dealt_avg": 7.0,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 7.0,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "roll_forward": {
+          "n": 1,
+          "dmg_dealt_avg": 0.0,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 0.0,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "shield_on": {
+          "n": 3,
+          "dmg_dealt_avg": 6.03,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 6.03,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "special": {
+          "n": 3,
+          "dmg_dealt_avg": 8.55,
+          "dmg_taken_avg": 6.17,
+          "dmg_delta_avg": 2.38,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        }
+      },
+      "onstage_corner": {
+        "aerial": {
+          "n": 1,
+          "dmg_dealt_avg": 0.0,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 0.0,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "dash": {
+          "n": 3,
+          "dmg_dealt_avg": 6.4,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 6.4,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "double_jump": {
+          "n": 1,
+          "dmg_dealt_avg": 5.0,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 5.0,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "getup_attack": {
+          "n": 3,
+          "dmg_dealt_avg": 2.0,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 2.0,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "grab": {
+          "n": 24,
+          "dmg_dealt_avg": 3.56,
+          "dmg_taken_avg": 4.36,
+          "dmg_delta_avg": -0.8,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "jab": {
+          "n": 2,
+          "dmg_dealt_avg": 2.66,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 2.66,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "roll_backward": {
+          "n": 2,
+          "dmg_dealt_avg": 0.0,
+          "dmg_taken_avg": 7.5,
+          "dmg_delta_avg": -7.5,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "roll_forward": {
+          "n": 10,
+          "dmg_dealt_avg": 3.51,
+          "dmg_taken_avg": 2.42,
+          "dmg_delta_avg": 1.09,
+          "stock_take_rate": 0.1,
+          "stock_loss_rate": 0.0
+        },
+        "shield_on": {
+          "n": 22,
+          "dmg_dealt_avg": 2.98,
+          "dmg_taken_avg": 3.7,
+          "dmg_delta_avg": -0.72,
+          "stock_take_rate": 0.0455,
+          "stock_loss_rate": 0.0
+        },
+        "smash": {
+          "n": 1,
+          "dmg_dealt_avg": 15.09,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 15.09,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "special": {
+          "n": 12,
+          "dmg_dealt_avg": 6.56,
+          "dmg_taken_avg": 2.35,
+          "dmg_delta_avg": 4.22,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0833
+        },
+        "spotdodge": {
+          "n": 1,
+          "dmg_dealt_avg": 14.85,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 14.85,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "throw": {
+          "n": 6,
+          "dmg_dealt_avg": 7.74,
+          "dmg_taken_avg": 0.62,
+          "dmg_delta_avg": 7.12,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        }
+      },
+      "jc_window": {
+        "aerial": {
+          "n": 24,
+          "dmg_dealt_avg": 6.26,
+          "dmg_taken_avg": 1.81,
+          "dmg_delta_avg": 4.45,
+          "stock_take_rate": 0.0833,
+          "stock_loss_rate": 0.0
+        },
+        "double_jump": {
+          "n": 30,
+          "dmg_dealt_avg": 3.25,
+          "dmg_taken_avg": 1.95,
+          "dmg_delta_avg": 1.3,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "grab": {
+          "n": 94,
+          "dmg_dealt_avg": 4.66,
+          "dmg_taken_avg": 2.13,
+          "dmg_delta_avg": 2.53,
+          "stock_take_rate": 0.0213,
+          "stock_loss_rate": 0.0
+        },
+        "special": {
+          "n": 28,
+          "dmg_dealt_avg": 2.69,
+          "dmg_taken_avg": 1.08,
+          "dmg_delta_avg": 1.61,
+          "stock_take_rate": 0.0357,
+          "stock_loss_rate": 0.0357
+        }
+      },
+      "percent_lead": {
+        "aerial": {
+          "n": 17,
+          "dmg_dealt_avg": 4.28,
+          "dmg_taken_avg": 1.32,
+          "dmg_delta_avg": 2.96,
+          "stock_take_rate": 0.1176,
+          "stock_loss_rate": 0.1176
+        },
+        "airdodge": {
+          "n": 7,
+          "dmg_dealt_avg": 0.71,
+          "dmg_taken_avg": 0.55,
+          "dmg_delta_avg": 0.17,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.4286
+        },
+        "dash": {
+          "n": 2,
+          "dmg_dealt_avg": 0.0,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 0.0,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "double_jump": {
+          "n": 12,
+          "dmg_dealt_avg": 2.45,
+          "dmg_taken_avg": 2.26,
+          "dmg_delta_avg": 0.2,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "getup_attack": {
+          "n": 10,
+          "dmg_dealt_avg": 4.67,
+          "dmg_taken_avg": 1.01,
+          "dmg_delta_avg": 3.66,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "grab": {
+          "n": 136,
+          "dmg_dealt_avg": 4.19,
+          "dmg_taken_avg": 1.97,
+          "dmg_delta_avg": 2.23,
+          "stock_take_rate": 0.0294,
+          "stock_loss_rate": 0.0
+        },
+        "jab": {
+          "n": 11,
+          "dmg_dealt_avg": 2.53,
+          "dmg_taken_avg": 0.35,
+          "dmg_delta_avg": 2.18,
+          "stock_take_rate": 0.0909,
+          "stock_loss_rate": 0.0
+        },
+        "missed_tech": {
+          "n": 10,
+          "dmg_dealt_avg": 3.75,
+          "dmg_taken_avg": 1.01,
+          "dmg_delta_avg": 2.74,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "roll_backward": {
+          "n": 18,
+          "dmg_dealt_avg": 5.6,
+          "dmg_taken_avg": 1.58,
+          "dmg_delta_avg": 4.02,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "roll_forward": {
+          "n": 28,
+          "dmg_dealt_avg": 3.6,
+          "dmg_taken_avg": 0.59,
+          "dmg_delta_avg": 3.01,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "shield_on": {
+          "n": 173,
+          "dmg_dealt_avg": 4.11,
+          "dmg_taken_avg": 1.86,
+          "dmg_delta_avg": 2.25,
+          "stock_take_rate": 0.0173,
+          "stock_loss_rate": 0.0
+        },
+        "special": {
+          "n": 93,
+          "dmg_dealt_avg": 6.97,
+          "dmg_taken_avg": 2.91,
+          "dmg_delta_avg": 4.06,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "spotdodge": {
+          "n": 44,
+          "dmg_dealt_avg": 3.77,
+          "dmg_taken_avg": 2.95,
+          "dmg_delta_avg": 0.82,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "throw": {
+          "n": 27,
+          "dmg_dealt_avg": 9.16,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 9.16,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "tilt": {
+          "n": 1,
+          "dmg_dealt_avg": 10.0,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 10.0,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "wavedash": {
+          "n": 21,
+          "dmg_dealt_avg": 3.49,
+          "dmg_taken_avg": 3.0,
+          "dmg_delta_avg": 0.5,
+          "stock_take_rate": 0.0476,
+          "stock_loss_rate": 0.0
+        },
+        "waveland": {
+          "n": 2,
+          "dmg_dealt_avg": 0.0,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 0.0,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        }
+      },
+      "above_stage": {
+        "aerial": {
+          "n": 2,
+          "dmg_dealt_avg": 1.5,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 1.5,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "airdodge": {
+          "n": 5,
+          "dmg_dealt_avg": 2.4,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 2.4,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "special": {
+          "n": 4,
+          "dmg_dealt_avg": 0.0,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 0.0,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        }
+      },
+      "cornered": {
+        "aerial": {
+          "n": 1,
+          "dmg_dealt_avg": 0.0,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 0.0,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "dash": {
+          "n": 3,
+          "dmg_dealt_avg": 6.4,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 6.4,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "double_jump": {
+          "n": 1,
+          "dmg_dealt_avg": 0.0,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 0.0,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "getup_attack": {
+          "n": 1,
+          "dmg_dealt_avg": 6.0,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 6.0,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "grab": {
+          "n": 24,
+          "dmg_dealt_avg": 4.51,
+          "dmg_taken_avg": 3.17,
+          "dmg_delta_avg": 1.34,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "jab": {
+          "n": 1,
+          "dmg_dealt_avg": 5.31,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 5.31,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "roll_backward": {
+          "n": 3,
+          "dmg_dealt_avg": 2.33,
+          "dmg_taken_avg": 8.23,
+          "dmg_delta_avg": -5.9,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "roll_forward": {
+          "n": 8,
+          "dmg_dealt_avg": 4.39,
+          "dmg_taken_avg": 2.65,
+          "dmg_delta_avg": 1.74,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "shield_on": {
+          "n": 22,
+          "dmg_dealt_avg": 3.97,
+          "dmg_taken_avg": 3.75,
+          "dmg_delta_avg": 0.22,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "smash": {
+          "n": 1,
+          "dmg_dealt_avg": 15.09,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 15.09,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "special": {
+          "n": 13,
+          "dmg_dealt_avg": 7.63,
+          "dmg_taken_avg": 4.04,
+          "dmg_delta_avg": 3.59,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0769
+        },
+        "spotdodge": {
+          "n": 3,
+          "dmg_dealt_avg": 6.86,
+          "dmg_taken_avg": 2.23,
+          "dmg_delta_avg": 4.63,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "throw": {
+          "n": 7,
+          "dmg_dealt_avg": 8.31,
+          "dmg_taken_avg": 0.53,
+          "dmg_delta_avg": 7.78,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        }
+      },
+      "being_edgeguarded": {
+        "aerial": {
+          "n": 4,
+          "dmg_dealt_avg": 0.0,
+          "dmg_taken_avg": 0.5,
+          "dmg_delta_avg": -0.5,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.5
+        },
+        "airdodge": {
+          "n": 5,
+          "dmg_dealt_avg": 0.0,
+          "dmg_taken_avg": 0.2,
+          "dmg_delta_avg": -0.2,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 1.0
+        },
+        "dash": {
+          "n": 2,
+          "dmg_dealt_avg": 5.0,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 5.0,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "double_jump": {
+          "n": 1,
+          "dmg_dealt_avg": 5.0,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 5.0,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "grab": {
+          "n": 6,
+          "dmg_dealt_avg": 4.0,
+          "dmg_taken_avg": 5.0,
+          "dmg_delta_avg": -1.0,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "roll_backward": {
+          "n": 1,
+          "dmg_dealt_avg": 0.0,
+          "dmg_taken_avg": 15.0,
+          "dmg_delta_avg": -15.0,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "roll_forward": {
+          "n": 2,
+          "dmg_dealt_avg": 0.0,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 0.0,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "shield_on": {
+          "n": 4,
+          "dmg_dealt_avg": 1.75,
+          "dmg_taken_avg": 3.75,
+          "dmg_delta_avg": -2.0,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        },
+        "special": {
+          "n": 5,
+          "dmg_dealt_avg": 10.92,
+          "dmg_taken_avg": 0.0,
+          "dmg_delta_avg": 10.92,
+          "stock_take_rate": 0.0,
+          "stock_loss_rate": 0.0
+        }
+      }
+    }
+  },
+  "events": 1414,
+  "character": null,
+  "horizon": 120,
+  "generated_from": "/home/blewf/git/exphil/eval_runs/0811_convC2_async",
+  "files_used": 8
+}

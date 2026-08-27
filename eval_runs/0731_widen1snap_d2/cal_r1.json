@@ -1,0 +1,16 @@
+{
+  "ms_d3_widen1_latest": {
+    "replay": "eval_runs/0731_widen1snap_d2/r1.slp",
+    "chains": null,
+    "crit_score": -0.997,
+    "phases": {
+      "aerial_shine_event": {
+        "min": -0.997,
+        "n": 1,
+        "mean": -0.997,
+        "p10": -0.997,
+        "flip_frac": 1.0
+      }
+    }
+  }
+}

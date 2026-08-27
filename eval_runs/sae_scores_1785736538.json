@@ -1,0 +1,196 @@
+{
+  "results": [
+    {
+      "dead": 502,
+      "policy": "mewtwo_combo_newera_r13_policy",
+      "scores": [
+        {
+          "label": "dist_bucket",
+          "precision": 2.642,
+          "fire_rate": 0.3187,
+          "f1": 0.955,
+          "base_rate": 1.4447,
+          "best_feature": 160,
+          "recall": 0.583
+        },
+        {
+          "label": "own_offstage",
+          "precision": 0.928,
+          "fire_rate": 0.0064,
+          "f1": 0.702,
+          "base_rate": 0.0105,
+          "best_feature": 513,
+          "recall": 0.564
+        },
+        {
+          "label": "own_shielding",
+          "precision": 0.821,
+          "fire_rate": 0.0139,
+          "f1": 0.688,
+          "base_rate": 0.0192,
+          "best_feature": 106,
+          "recall": 0.591
+        },
+        {
+          "label": "own_airborne",
+          "precision": 0.97,
+          "fire_rate": 0.3187,
+          "f1": 0.594,
+          "base_rate": 0.7217,
+          "best_feature": 160,
+          "recall": 0.428
+        },
+        {
+          "label": "opp_shielding",
+          "precision": 0.295,
+          "fire_rate": 0.3187,
+          "f1": 0.325,
+          "base_rate": 0.2606,
+          "best_feature": 160,
+          "recall": 0.361
+        },
+        {
+          "label": "opp_behind",
+          "precision": 0.412,
+          "fire_rate": 0.2159,
+          "f1": 0.261,
+          "base_rate": 0.4654,
+          "best_feature": 255,
+          "recall": 0.191
+        },
+        {
+          "label": "opp_hitstun",
+          "precision": 0.227,
+          "fire_rate": 0.0404,
+          "f1": 0.244,
+          "base_rate": 0.0348,
+          "best_feature": 1020,
+          "recall": 0.264
+        },
+        {
+          "label": "opp_offstage",
+          "precision": 0.17,
+          "fire_rate": 0.0057,
+          "f1": 0.163,
+          "base_rate": 0.0062,
+          "best_feature": 785,
+          "recall": 0.155
+        },
+        {
+          "label": "opp_damaged_recent",
+          "precision": 0.129,
+          "fire_rate": 0.0141,
+          "f1": 0.135,
+          "base_rate": 0.0128,
+          "best_feature": 958,
+          "recall": 0.142
+        },
+        {
+          "label": "opp_knockdown",
+          "precision": 0.068,
+          "fire_rate": 0.0141,
+          "f1": 0.078,
+          "base_rate": 0.0105,
+          "best_feature": 958,
+          "recall": 0.091
+        }
+      ]
+    },
+    {
+      "dead": 1014,
+      "policy": "mewtwo_combo_newera_mamba2_screen_r13_policy",
+      "scores": [
+        {
+          "label": "dist_bucket",
+          "precision": 1.451,
+          "fire_rate": 0.9854,
+          "f1": 1.176,
+          "base_rate": 1.4447,
+          "best_feature": 1012,
+          "recall": 0.989
+        },
+        {
+          "label": "own_airborne",
+          "precision": 0.72,
+          "fire_rate": 0.9939,
+          "f1": 0.834,
+          "base_rate": 0.7217,
+          "best_feature": 293,
+          "recall": 0.992
+        },
+        {
+          "label": "opp_behind",
+          "precision": 0.462,
+          "fire_rate": 0.9939,
+          "f1": 0.63,
+          "base_rate": 0.4654,
+          "best_feature": 293,
+          "recall": 0.987
+        },
+        {
+          "label": "own_offstage",
+          "precision": 0.621,
+          "fire_rate": 0.0107,
+          "f1": 0.627,
+          "base_rate": 0.0105,
+          "best_feature": 245,
+          "recall": 0.634
+        },
+        {
+          "label": "opp_shielding",
+          "precision": 0.263,
+          "fire_rate": 0.9705,
+          "f1": 0.415,
+          "base_rate": 0.2606,
+          "best_feature": 215,
+          "recall": 0.979
+        },
+        {
+          "label": "opp_hitstun",
+          "precision": 0.096,
+          "fire_rate": 0.0688,
+          "f1": 0.127,
+          "base_rate": 0.0348,
+          "best_feature": 29,
+          "recall": 0.189
+        },
+        {
+          "label": "own_shielding",
+          "precision": 0.044,
+          "fire_rate": 0.4329,
+          "f1": 0.085,
+          "base_rate": 0.0192,
+          "best_feature": 565,
+          "recall": 1.0
+        },
+        {
+          "label": "opp_damaged_recent",
+          "precision": 0.036,
+          "fire_rate": 0.0688,
+          "f1": 0.061,
+          "base_rate": 0.0128,
+          "best_feature": 29,
+          "recall": 0.196
+        },
+        {
+          "label": "opp_knockdown",
+          "precision": 0.023,
+          "fire_rate": 0.0732,
+          "f1": 0.04,
+          "base_rate": 0.0105,
+          "best_feature": 163,
+          "recall": 0.16
+        },
+        {
+          "label": "opp_offstage",
+          "precision": 0.072,
+          "fire_rate": 0.0022,
+          "f1": 0.037,
+          "base_rate": 0.0062,
+          "best_feature": 159,
+          "recall": 0.025
+        }
+      ]
+    }
+  ]
+}

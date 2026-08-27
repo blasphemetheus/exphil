@@ -1,0 +1,2 @@
+policy=checkpoints/ms_f3_a2_anchor_ep11.bin runner=sync runs=1 seconds=60 dummy=stand decode=--deterministic loadavg=2.36 2.57 2.35
+fixture_agreement: [01:33:57] FIXTURE_AGREEMENT best=0.8871 offset=5 delay_id=0 n=1679

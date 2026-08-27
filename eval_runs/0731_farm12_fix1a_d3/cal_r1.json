@@ -1,0 +1,23 @@
+{
+  "ms_farm12_fix1a": {
+    "replay": "eval_runs/0731_farm12_fix1a_d3/r1.slp",
+    "chains": null,
+    "crit_score": -11.736,
+    "phases": {
+      "jc_event": {
+        "min": -3.048,
+        "n": 51,
+        "mean": -1.147,
+        "p10": -1.879,
+        "flip_frac": 0.98
+      },
+      "aerial_shine_event": {
+        "min": -11.736,
+        "n": 9,
+        "mean": -9.939,
+        "p10": -11.736,
+        "flip_frac": 1.0
+      }
+    }
+  }
+}

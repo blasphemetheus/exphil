@@ -1,0 +1,1 @@
+policy=checkpoints/ms_crouch_d.bin runner=sync runs=3 seconds=60 dummy=stand decode=--deterministic loadavg=3.41 3.00 2.72

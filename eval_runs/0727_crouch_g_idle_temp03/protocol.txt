@@ -1,0 +1,1 @@
+policy=checkpoints/ms_crouch_g.bin runs=3 seconds=60 dummy=stand decode=--temperature 0.3 loadavg=2.17 4.17 5.43

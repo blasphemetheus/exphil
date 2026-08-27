@@ -1,0 +1,1 @@
+policy=checkpoints/ms_farm11_b1.bin runner=sync runs=3 seconds=60 dummy=stand decode=--temperature 0.5 loadavg=0.76 1.29 1.46

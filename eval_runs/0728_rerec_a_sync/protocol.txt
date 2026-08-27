@@ -1,0 +1,1 @@
+policy=checkpoints/ms_rerec_a.bin runner=sync runs=3 seconds=60 dummy=stand decode=--deterministic loadavg=3.95 4.15 3.30

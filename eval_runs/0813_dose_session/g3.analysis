@@ -1,0 +1,46 @@
+Configuring shell
+Configuring shell in 3.96ms
+Loading tasks
+Loading tasks in 570µs
+Running tasks     devenv:enterShell
+
+Running tasks
+Running           devenv:files:cleanup
+Succeeded         devenv:files:cleanup (3.49ms)
+Running           devenv:enterShell
+Succeeded         devenv:enterShell (3.30ms)
+Running           devenv:enterTest
+No command        devenv:enterTest
+Running tasks in 6.92ms
+1 Skipped, 2 Succeeded
+Configuring shell
+Configuring shell in 1.48ms
+✨ devenv 2.0.6 is out of date. Please update to 2.2.0: https://devenv.sh/getting-started/#installation
+ExPhil dev shell ready (CUDA enabled).
+==> exla
+Using libexla.so from /home/blewf/.cache/xla/exla/elixir-1.18.4-erts-16.4.0.4-xla-0.10.0-exla-0.12.0-ry7rhnojcblwgz6npcnndj7dve/libexla.so
+EXLA_CPU_ONLY is not set, checking for nvcc availability
+CUDA is available.
+make: '/home/blewf/git/exphil/_build/dev/lib/exla/priv/libexla.so' is up to date.
+==> exphil
+     warning: clauses with the same name and arity (number of arguments) should be grouped together, "def handle_call/3" was previously defined (lib/exphil/agents/agent.ex:445)
+     │
+ 652 │   def handle_call(:warmed_up?, _from, state) do
+     │       ~
+     │
+     └─ lib/exphil/agents/agent.ex:652:7
+
+
+19:42:33.915 [info] [ExPhil] Application started
+
+19:42:33.917 [debug] [ExPhil] Supervision tree: [{ExPhil.Training.AsyncCheckpoint, #PID<0.284.0>, :worker, [ExPhil.Training.AsyncCheckpoint]}, {ExPhil.Telemetry.Collector, #PID<0.283.0>, :worker, [ExPhil.Telemetry.Collector]}, {ExPhil.Agents.Supervisor, #PID<0.282.0>, :supervisor, [ExPhil.Agents.Supervisor]}, {ExPhil.Bridge.Supervisor, #PID<0.281.0>, :supervisor, [ExPhil.Bridge.Supervisor]}, {ExPhil.Registry, #PID<0.279.0>, :supervisor, [Registry]}]
+
+╔════════════════════════════════════════════════════════════╗
+║                     Behavior Analyzer                      ║
+╚════════════════════════════════════════════════════════════╝
+
+[19:42:33] 
+[19:42:33] == eval_runs/0813_dose_session/g3 (1 replays, bot port 1)
+[19:42:33]   file  secs  stk_lost  SD  KO  stk_taken  dmg  shield%  breaks  actions  inp/min  x_span  offstage%
+[19:42:33]   Game_20260812T193937.slp  89.2  4  1  3  2  104.2  0.6  0  69  3043.0  373.0  13.1
+[19:42:33]   MEAN  89.2  4.0  1.0  3.0  2.0  104.2  0.6  0.0  69.0  3043.0  373.0  13.1

@@ -1,0 +1,1 @@
+policy=checkpoints/ms_shift_b.bin runner=async runs=3 seconds=60 dummy=stand decode=--deterministic loadavg=4.61 4.48 3.62

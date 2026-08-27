@@ -1,0 +1,1 @@
+policy=checkpoints/mc_g1_mdq_ss.bin runner=sync runs=1 seconds=60 dummy=stand decode=--deterministic loadavg=1.94 1.75 1.25

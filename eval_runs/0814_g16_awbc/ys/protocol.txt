@@ -1,0 +1,2 @@
+policy=checkpoints/ms_g16_awbc.bin runner=sync runs=3 seconds=60 dummy=stand decode=--deterministic loadavg=2.41 1.65 1.21
+fixture_agreement: [12:02:18] FIXTURE_AGREEMENT best=0.8429 offset=5 delay_id=0 n=1679

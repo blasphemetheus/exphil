@@ -1,0 +1,65 @@
+ep1: 0.0/min chain 0
+ep2: 0.0/min chain 0
+ep3: 118.8/min chain 1
+ep4: 75.9/min chain 1
+ep5: 385.5/min chain 374
+ep6 GATE FAILED (no score line)
+ep7: 129.8/min chain 2
+ep8: 438.4/min chain 439
+ep9: 85.9/min chain 3
+ep10: 394.5/min chain 388
+ep11: 187.7/min chain 111
+ep12: 368.5/min chain 356
+ep13: 99.9/min chain 5
+ep14: 370.5/min chain 352
+ep15: 320.6/min chain 290
+ep16: 316.6/min chain 288
+ep17: 438.4/min chain 439
+ep18: 404.4/min chain 395
+ep19: 100.9/min chain 1
+ep20: 376.5/min chain 363
+ep21: 420.4/min chain 415
+ep22: 301.6/min chain 251
+ep23: 438.4/min chain 439
+ep24: 171.8/min chain 79
+ep25: 365.5/min chain 341
+ep26: 426.4/min chain 423
+ep27: 355.5/min chain 326
+ep28: 427.4/min chain 427
+ep29: 175.8/min chain 57
+ep30: 354.5/min chain 320
+ep31: 309.6/min chain 26
+ep32: 264.6/min chain 200
+ep33: 419.4/min chain 416
+ep34: 152.8/min chain 45
+ep35: 426.4/min chain 400
+ep36: 398.4/min chain 389
+ep37: 434.4/min chain 434
+ep38: 435.4/min chain 436
+ep39: 411.4/min chain 403
+ep40: 427.4/min chain 426
+ep41: 360.5/min chain 337
+ep42: 372.5/min chain 358
+ep43: 411.4/min chain 402
+ep44: 427.4/min chain 426
+ep45: 8.0/min chain 1
+ep46: 393.5/min chain 383
+ep47: 187.7/min chain 18
+ep48: 432.4/min chain 433
+ep49: 408.4/min chain 400
+ep50: 271.6/min chain 231
+ep51: 25.0/min chain 2
+ep52: 114.8/min chain 20
+ep53: 433.4/min chain 434
+ep54: 131.8/min chain 20
+ep55: 433.4/min chain 434
+ep56: 96.9/min chain 3
+ep57: 434.4/min chain 435
+ep58: 97.9/min chain 9
+ep59: 297.6/min chain 15
+ep60: 117.8/min chain 27
+=== ARGMAX: checkpoints/ms_f3_a4_dose2x_ep8.bin at 438.4/min
+[04:22:14] r1                          3605     439   439        0     438.4       439
+[04:22:14] r2                          3605     439   439        0     438.4       439
+[04:22:14] r3                          3605     439   439        0     438.4       439
+[04:22:55] r1                          3605      52    52        0      51.9         1

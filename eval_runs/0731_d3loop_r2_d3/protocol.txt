@@ -1,0 +1,1 @@
+policy=checkpoints/ms_d3_dagger2_policy.bin runner=sync runs=1 seconds=60 dummy=stand decode=--deterministic loadavg=1.28 2.78 3.77

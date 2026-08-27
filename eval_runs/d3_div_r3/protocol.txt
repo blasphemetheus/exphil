@@ -1,0 +1,1 @@
+policy=checkpoints/ms_d1_dagger3_r3.bin runner=sync runs=3 seconds=60 dummy=stand decode=--temperature 0.3 loadavg=1.88 1.71 1.60

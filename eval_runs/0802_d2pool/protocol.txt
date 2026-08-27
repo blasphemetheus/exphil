@@ -1,0 +1,1 @@
+policy=checkpoints/ms_g2_mdq_ss.bin runner=sync runs=12 seconds=60 dummy=stand decode=--temperature 0.4 loadavg=0.91 2.95 3.23

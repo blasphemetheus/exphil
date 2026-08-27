@@ -1,0 +1,2 @@
+policy=checkpoints/ms_p2_ss0_ep52.bin runner=sync runs=1 seconds=60 dummy=stand decode=--deterministic loadavg=2.10 2.47 2.51
+fixture_agreement: [23:04:46] FIXTURE_AGREEMENT best=0.8668 offset=5 delay_id=0 n=1679

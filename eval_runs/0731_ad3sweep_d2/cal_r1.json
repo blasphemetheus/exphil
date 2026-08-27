@@ -1,0 +1,30 @@
+{
+  "ms_d3_dagger1_ad3": {
+    "replay": "eval_runs/0731_ad3sweep_d2/r1.slp",
+    "chains": null,
+    "crit_score": 3.967,
+    "phases": {
+      "jc_event": {
+        "min": -0.443,
+        "n": 32,
+        "mean": 4.32,
+        "p10": 3.967,
+        "flip_frac": 0.063
+      },
+      "aerial_shine_event": {
+        "min": 3.771,
+        "n": 29,
+        "mean": 5.978,
+        "p10": 5.473,
+        "flip_frac": 0.0
+      },
+      "ground_shine_event": {
+        "min": -0.27,
+        "n": 49,
+        "mean": 1.934,
+        "p10": 0.2,
+        "flip_frac": 0.061
+      }
+    }
+  }
+}

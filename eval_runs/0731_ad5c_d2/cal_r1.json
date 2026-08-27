@@ -1,0 +1,30 @@
+{
+  "ms_d3_ad5": {
+    "replay": "eval_runs/0731_ad5c_d2/r1.slp",
+    "chains": null,
+    "crit_score": -0.29,
+    "phases": {
+      "jc_event": {
+        "min": -0.753,
+        "n": 63,
+        "mean": 0.015,
+        "p10": -0.29,
+        "flip_frac": 0.54
+      },
+      "aerial_shine_event": {
+        "min": -0.196,
+        "n": 44,
+        "mean": 0.729,
+        "p10": 0.053,
+        "flip_frac": 0.023
+      },
+      "ground_shine_event": {
+        "min": -0.996,
+        "n": 25,
+        "mean": -0.004,
+        "p10": -0.414,
+        "flip_frac": 0.48
+      }
+    }
+  }
+}

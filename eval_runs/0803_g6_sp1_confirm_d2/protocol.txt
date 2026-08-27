@@ -1,0 +1,1 @@
+policy=checkpoints/ms_g6_sp1.bin runner=sync runs=3 seconds=60 dummy=stand decode=--deterministic loadavg=0.72 0.92 0.90

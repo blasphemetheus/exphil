@@ -1,0 +1,1 @@
+policy=checkpoints/ms_crouchfix_n.bin runs=3 seconds=60 dummy=stand decode=--deterministic loadavg=8.21 6.09 4.46

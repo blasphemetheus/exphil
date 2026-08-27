@@ -1,0 +1,1 @@
+policy=checkpoints/fox_il_v2_20260809_041730_best_policy.bin runner=async runs=8 seconds=120 dummy=cpu decode=--temperature 0.3 loadavg=6.40 7.16 6.24

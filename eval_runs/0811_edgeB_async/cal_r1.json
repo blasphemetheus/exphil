@@ -1,0 +1,23 @@
+{
+  "fox_il_v2_edgeB_20260810_060518_best_policy": {
+    "replay": "eval_runs/0811_edgeB_async/r1.slp",
+    "chains": null,
+    "crit_score": -1.395,
+    "phases": {
+      "aerial_shine_event": {
+        "min": -1.395,
+        "n": 8,
+        "mean": -1.007,
+        "p10": -1.395,
+        "flip_frac": 1.0
+      },
+      "ground_shine_event": {
+        "min": -1.802,
+        "n": 1354,
+        "mean": -0.643,
+        "p10": -1.06,
+        "flip_frac": 0.979
+      }
+    }
+  }
+}

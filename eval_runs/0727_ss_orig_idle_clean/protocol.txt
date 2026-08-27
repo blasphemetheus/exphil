@@ -1,0 +1,1 @@
+policy=checkpoints/ms_synth_ss.bin runs=3 seconds=60 dummy=stand loadavg=3.81 3.72 2.63

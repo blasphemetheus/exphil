@@ -1,0 +1,1 @@
+policy=checkpoints/ms_q_queue1.bin runner=sync runs=1 seconds=60 dummy=stand decode=--deterministic loadavg=1.75 1.20 0.97

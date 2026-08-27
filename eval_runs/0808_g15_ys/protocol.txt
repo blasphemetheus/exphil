@@ -1,0 +1,2 @@
+policy=checkpoints/ms_g15_oppmask_full.bin runner=sync runs=3 seconds=60 dummy=stand decode=--deterministic loadavg=1.89 1.45 1.48
+fixture_agreement: [13:40:04] FIXTURE_AGREEMENT best=0.8889 offset=5 delay_id=0 n=1679

@@ -1,0 +1,23 @@
+{
+  "ms_open_z": {
+    "replay": "eval_runs/0730_champion_5090_delay1/r1.slp",
+    "chains": 27,
+    "crit_score": 0.583,
+    "phases": {
+      "jc_event": {
+        "min": 0.583,
+        "n": 1,
+        "mean": 0.583,
+        "p10": 0.583,
+        "flip_frac": 0.0
+      },
+      "ground_shine_event": {
+        "min": -0.436,
+        "n": 10,
+        "mean": -0.386,
+        "p10": -0.395,
+        "flip_frac": 1.0
+      }
+    }
+  }
+}

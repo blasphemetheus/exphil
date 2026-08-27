@@ -1,0 +1,2 @@
+policy=checkpoints/fox_il_v1_20260809_023217_best_policy.bin runner=async runs=1 seconds=60 dummy=cpu decode=--deterministic loadavg=0.86 0.98 1.25
+fixture_agreement: [21:55:12] FIXTURE_AGREEMENT best=0.6599 offset=0 delay_id=0 n=1679

@@ -1,0 +1,16 @@
+{
+  "ms_g10b_human": {
+    "replay": "eval_runs/0804_cycle3b_stand/r1.slp",
+    "chains": null,
+    "crit_score": 0.091,
+    "phases": {
+      "aerial_shine_event": {
+        "min": 0.091,
+        "n": 1,
+        "mean": 0.091,
+        "p10": 0.091,
+        "flip_frac": 0.0
+      }
+    }
+  }
+}

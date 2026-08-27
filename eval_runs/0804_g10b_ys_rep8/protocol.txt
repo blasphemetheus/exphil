@@ -1,0 +1,2 @@
+policy=checkpoints/ms_g10b_human.bin runner=sync runs=8 seconds=60 dummy=stand decode=--deterministic loadavg=0.84 1.65 1.54
+fixture_agreement: [17:22:13] FIXTURE_AGREEMENT best=0.8208 offset=5 delay_id=0 n=1679

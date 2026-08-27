@@ -1,0 +1,23 @@
+{
+  "ms_open_z": {
+    "replay": "eval_runs/0803_resync_windowed/r1.slp",
+    "chains": 27,
+    "crit_score": -2.399,
+    "phases": {
+      "aerial_shine_event": {
+        "min": -2.406,
+        "n": 69,
+        "mean": -2.37,
+        "p10": -2.399,
+        "flip_frac": 1.0
+      },
+      "ground_shine_event": {
+        "min": -0.43,
+        "n": 69,
+        "mean": -0.382,
+        "p10": -0.397,
+        "flip_frac": 1.0
+      }
+    }
+  }
+}

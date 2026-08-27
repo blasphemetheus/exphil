@@ -1,0 +1,30 @@
+{
+  "ms_d3_freeze2": {
+    "replay": "eval_runs/loopback_direct_game2_fixed2.slp",
+    "chains": null,
+    "crit_score": -2.109,
+    "phases": {
+      "jc_event": {
+        "min": -2.109,
+        "n": 4,
+        "mean": -1.764,
+        "p10": -2.109,
+        "flip_frac": 1.0
+      },
+      "aerial_shine_event": {
+        "min": -1.174,
+        "n": 9,
+        "mean": 1.456,
+        "p10": -1.174,
+        "flip_frac": 0.444
+      },
+      "ground_shine_event": {
+        "min": -1.833,
+        "n": 47,
+        "mean": 1.324,
+        "p10": -0.691,
+        "flip_frac": 0.255
+      }
+    }
+  }
+}

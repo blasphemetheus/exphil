@@ -1,0 +1,30 @@
+{
+  "ms_farm11_b1": {
+    "replay": "eval_runs/d3_div_b1/r1.slp",
+    "chains": null,
+    "crit_score": -6.965,
+    "phases": {
+      "jc_event": {
+        "min": -4.433,
+        "n": 43,
+        "mean": 1.218,
+        "p10": -1.551,
+        "flip_frac": 0.186
+      },
+      "aerial_shine_event": {
+        "min": -8.738,
+        "n": 18,
+        "mean": -1.47,
+        "p10": -6.965,
+        "flip_frac": 0.722
+      },
+      "ground_shine_event": {
+        "min": -5.488,
+        "n": 127,
+        "mean": -1.076,
+        "p10": -3.823,
+        "flip_frac": 0.819
+      }
+    }
+  }
+}

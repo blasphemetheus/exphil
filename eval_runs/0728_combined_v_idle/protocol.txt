@@ -1,0 +1,1 @@
+policy=checkpoints/ms_combined_v.bin runner=async runs=3 seconds=60 dummy=stand decode=--deterministic loadavg=6.68 5.49 4.48

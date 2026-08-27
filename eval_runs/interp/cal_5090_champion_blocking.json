@@ -1,0 +1,23 @@
+{
+  "ms_open_z": {
+    "replay": "eval_runs/0730_champion_5090_blocking/r1.slp",
+    "chains": 27,
+    "crit_score": -2.348,
+    "phases": {
+      "aerial_shine_event": {
+        "min": -3.256,
+        "n": 47,
+        "mean": -2.319,
+        "p10": -2.348,
+        "flip_frac": 1.0
+      },
+      "ground_shine_event": {
+        "min": -0.526,
+        "n": 37,
+        "mean": -0.448,
+        "p10": -0.51,
+        "flip_frac": 1.0
+      }
+    }
+  }
+}

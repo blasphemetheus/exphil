@@ -1,0 +1,23 @@
+{
+  "ms_farm9_c": {
+    "replay": "eval_runs/0730_farm9_c_d1/r1.slp",
+    "chains": null,
+    "crit_score": -7.775,
+    "phases": {
+      "jc_event": {
+        "min": -7.795,
+        "n": 16,
+        "mean": -6.455,
+        "p10": -7.775,
+        "flip_frac": 0.938
+      },
+      "ground_shine_event": {
+        "min": -1.24,
+        "n": 29,
+        "mean": -0.898,
+        "p10": -1.166,
+        "flip_frac": 1.0
+      }
+    }
+  }
+}

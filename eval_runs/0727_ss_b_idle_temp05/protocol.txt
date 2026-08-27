@@ -1,0 +1,1 @@
+policy=checkpoints/ms_synth_ss_b.bin runs=3 seconds=60 dummy=stand decode=--temperature 0.5 loadavg=3.09 3.97 4.61

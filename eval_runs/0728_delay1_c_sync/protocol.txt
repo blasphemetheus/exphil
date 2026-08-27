@@ -1,0 +1,1 @@
+policy=checkpoints/ms_delay1_c.bin runner=sync runs=3 seconds=60 dummy=stand decode=--deterministic loadavg=4.12 4.36 4.39

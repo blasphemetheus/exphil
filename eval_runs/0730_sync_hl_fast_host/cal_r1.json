@@ -1,0 +1,16 @@
+{
+  "ms_farm11_a2": {
+    "replay": "eval_runs/0730_sync_hl_fast_host/r1.slp",
+    "chains": null,
+    "crit_score": 16.425,
+    "phases": {
+      "aerial_shine_event": {
+        "min": 16.425,
+        "n": 2,
+        "mean": 17.181,
+        "p10": 16.425,
+        "flip_frac": 0.0
+      }
+    }
+  }
+}

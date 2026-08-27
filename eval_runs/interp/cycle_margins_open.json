@@ -1,0 +1,100 @@
+{
+  "ms_open_x": {
+    "replay": "eval_runs/0728_open_x_idle/r1.slp",
+    "chains": 6,
+    "crit_score": -3.046,
+    "phases": {
+      "jc_event": {
+        "min": -3.076,
+        "n": 12,
+        "mean": -2.843,
+        "p10": -3.046,
+        "flip_frac": 1.0
+      },
+      "aerial_shine_event": {
+        "min": -2.559,
+        "n": 8,
+        "mean": -1.602,
+        "p10": -2.559,
+        "flip_frac": 1.0
+      },
+      "ground_shine_event": {
+        "min": 1.032,
+        "n": 32,
+        "mean": 1.428,
+        "p10": 1.42,
+        "flip_frac": 0.0
+      }
+    }
+  },
+  "ms_open_y": {
+    "replay": "eval_runs/0728_open_y_idle/r1.slp",
+    "chains": 15,
+    "crit_score": -2.51,
+    "phases": {
+      "jc_event": {
+        "min": -2.57,
+        "n": 27,
+        "mean": -2.278,
+        "p10": -2.51,
+        "flip_frac": 1.0
+      },
+      "aerial_shine_event": {
+        "min": -2.078,
+        "n": 7,
+        "mean": -2.044,
+        "p10": -2.078,
+        "flip_frac": 1.0
+      },
+      "ground_shine_event": {
+        "min": 0.534,
+        "n": 16,
+        "mean": 0.652,
+        "p10": 0.634,
+        "flip_frac": 0.0
+      }
+    }
+  },
+  "ms_open_z": {
+    "replay": "eval_runs/0728_open_z_idle/r1.slp",
+    "chains": 27,
+    "crit_score": -2.54,
+    "phases": {
+      "jc_event": {
+        "min": 0.617,
+        "n": 5,
+        "mean": 0.79,
+        "p10": 0.617,
+        "flip_frac": 0.0
+      },
+      "aerial_shine_event": {
+        "min": -3.238,
+        "n": 11,
+        "mean": -2.518,
+        "p10": -2.54,
+        "flip_frac": 1.0
+      },
+      "ground_shine_event": {
+        "min": -0.402,
+        "n": 9,
+        "mean": -0.382,
+        "p10": -0.402,
+        "flip_frac": 1.0
+      }
+    }
+  },
+  "ms_open_zz": {
+    "replay": "eval_runs/0728_open_zz_idle/r1.slp",
+    "chains": 1,
+    "crit_score": null,
+    "phases": {
+      "ground_shine_event": {
+        "min": 0.201,
+        "n": 59,
+        "mean": 0.615,
+        "p10": 0.602,
+        "flip_frac": 0.0
+      }
+    }
+  }
+}

@@ -1,0 +1,2 @@
+policy=checkpoints/ms_g19r1_ep21.bin runner=sync runs=1 seconds=60 dummy=stand server=0 decode=--deterministic loadavg=1.87 2.08 2.31
+fixture_agreement: [04:01:16] FIXTURE_AGREEMENT best=0.8889 offset=5 delay_id=0 n=1679

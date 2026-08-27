@@ -1,0 +1,1 @@
+policy=checkpoints/mewtwo_combo_poolgrow_r1_policy.bin runner=sync runs=1 seconds=60 dummy=stand decode=--deterministic loadavg=1.85 1.77 1.18

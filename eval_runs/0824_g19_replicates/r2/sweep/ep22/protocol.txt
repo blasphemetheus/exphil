@@ -1,0 +1,2 @@
+policy=checkpoints/ms_g19r2_ep22.bin runner=sync runs=1 seconds=60 dummy=stand server=0 decode=--deterministic loadavg=1.89 2.22 2.46
+fixture_agreement: [04:46:25] FIXTURE_AGREEMENT best=0.8877 offset=5 delay_id=0 n=1679

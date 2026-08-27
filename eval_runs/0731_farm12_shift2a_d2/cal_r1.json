@@ -1,0 +1,23 @@
+{
+  "ms_farm12_shift2a": {
+    "replay": "eval_runs/0731_farm12_shift2a_d2/r1.slp",
+    "chains": null,
+    "crit_score": 0.548,
+    "phases": {
+      "aerial_shine_event": {
+        "min": 0.5,
+        "n": 14,
+        "mean": 0.876,
+        "p10": 0.548,
+        "flip_frac": 0.0
+      },
+      "ground_shine_event": {
+        "min": 2.632,
+        "n": 9,
+        "mean": 2.75,
+        "p10": 2.632,
+        "flip_frac": 0.0
+      }
+    }
+  }
+}

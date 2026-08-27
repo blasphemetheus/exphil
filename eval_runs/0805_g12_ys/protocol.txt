@@ -1,0 +1,2 @@
+policy=checkpoints/ms_g12_margin.bin runner=sync runs=3 seconds=60 dummy=stand decode=--deterministic loadavg=1.73 1.60 1.40
+fixture_agreement: [14:33:39] FIXTURE_AGREEMENT best=0.8877 offset=5 delay_id=0 n=1679

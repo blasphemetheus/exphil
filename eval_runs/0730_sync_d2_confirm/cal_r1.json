@@ -1,0 +1,8 @@
+{
+  "ms_open_z": {
+    "replay": "eval_runs/0730_sync_d2_confirm/r1.slp",
+    "chains": 27,
+    "crit_score": null,
+    "phases": {}
+  }
+}

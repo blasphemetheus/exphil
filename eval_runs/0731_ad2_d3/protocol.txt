@@ -1,0 +1,1 @@
+policy=checkpoints/ms_d3_ad2.bin runner=sync runs=1 seconds=60 dummy=stand decode=--deterministic loadavg=0.96 0.70 0.73

@@ -1,0 +1,8 @@
+{
+  "fox_il_v1_20260809_023217_best_policy": {
+    "replay": "eval_runs/0808_fox_il_smoke/r1.slp",
+    "chains": null,
+    "crit_score": null,
+    "phases": {}
+  }
+}

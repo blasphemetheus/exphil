@@ -1,0 +1,8 @@
+{
+  "ms_farm11_a2": {
+    "replay": "eval_runs/0730_sync_hl_fast_cuda2/r1.slp",
+    "chains": null,
+    "crit_score": null,
+    "phases": {}
+  }
+}

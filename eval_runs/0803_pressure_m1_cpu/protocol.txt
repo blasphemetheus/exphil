@@ -1,0 +1,1 @@
+policy=checkpoints/ms_g7_pressure.bin runner=sync runs=3 seconds=60 dummy=cpu decode=--deterministic loadavg=0.48 0.69 0.72

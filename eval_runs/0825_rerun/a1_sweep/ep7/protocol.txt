@@ -1,0 +1,2 @@
+policy=checkpoints/ms_g20si2_ep7.bin runner=sync runs=1 seconds=60 dummy=stand server=0 decode=--deterministic loadavg=2.36 1.93 1.38
+fixture_agreement: unavailable

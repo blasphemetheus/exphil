@@ -1,0 +1,16 @@
+{
+  "fox_il_v1_20260809_023217_best_policy": {
+    "replay": "eval_runs/0809_fox_il_v1_cpu/r1.slp",
+    "chains": null,
+    "crit_score": null,
+    "phases": {
+      "ground_shine_event": {
+        "min": -0.115,
+        "n": 5,
+        "mean": -0.033,
+        "p10": -0.115,
+        "flip_frac": 0.8
+      }
+    }
+  }
+}

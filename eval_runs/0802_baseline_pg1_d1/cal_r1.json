@@ -1,0 +1,8 @@
+{
+  "mewtwo_combo_poolgrow_r1_policy": {
+    "replay": "eval_runs/0802_baseline_pg1_d1/r1.slp",
+    "chains": null,
+    "crit_score": null,
+    "phases": {}
+  }
+}

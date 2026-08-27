@@ -1,0 +1,1 @@
+policy=checkpoints/ms_farm9_c.bin runner=sync runs=3 seconds=60 dummy=stand decode=--deterministic loadavg=3.19 2.29 2.12

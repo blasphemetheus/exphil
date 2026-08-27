@@ -1,0 +1,1 @@
+policy=checkpoints/ms_g8_snippets.bin runner=sync runs=1 seconds=60 dummy=stand decode=--deterministic loadavg=2.80 1.48 0.97

@@ -1,0 +1,16 @@
+{
+  "ms_open_z": {
+    "replay": "eval_runs/0730_hl_d1_pace0/r1.slp",
+    "chains": 27,
+    "crit_score": null,
+    "phases": {
+      "ground_shine_event": {
+        "min": -0.396,
+        "n": 26,
+        "mean": -0.378,
+        "p10": -0.39,
+        "flip_frac": 1.0
+      }
+    }
+  }
+}

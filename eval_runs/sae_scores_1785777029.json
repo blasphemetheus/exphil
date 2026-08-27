@@ -1,0 +1,592 @@
+{
+  "results": [
+    {
+      "dead": 50,
+      "policy": "mewtwo_combo_newera_r13_policy",
+      "scores": [
+        {
+          "label": "own_shielding",
+          "precision": 0.59,
+          "fire_rate": 0.0196,
+          "f1": 0.595,
+          "top3": [
+            {
+              "feature": 828,
+              "precision": 0.59,
+              "fire_rate": 0.0196,
+              "f1": 0.595,
+              "recall": 0.6
+            },
+            {
+              "feature": 106,
+              "precision": 0.489,
+              "fire_rate": 0.0286,
+              "f1": 0.584,
+              "recall": 0.726
+            },
+            {
+              "feature": 855,
+              "precision": 0.742,
+              "fire_rate": 0.0121,
+              "f1": 0.573,
+              "recall": 0.467
+            }
+          ],
+          "recall": 0.6,
+          "base_rate": 0.0192,
+          "best_feature": 828
+        },
+        {
+          "label": "own_offstage",
+          "precision": 0.624,
+          "fire_rate": 0.0081,
+          "f1": 0.544,
+          "top3": [
+            {
+              "feature": 942,
+              "precision": 0.624,
+              "fire_rate": 0.0081,
+              "f1": 0.544,
+              "recall": 0.483
+            },
+            {
+              "feature": 1003,
+              "precision": 0.534,
+              "fire_rate": 0.0101,
+              "f1": 0.525,
+              "recall": 0.517
+            },
+            {
+              "feature": 513,
+              "precision": 0.382,
+              "fire_rate": 0.0186,
+              "f1": 0.489,
+              "recall": 0.678
+            }
+          ],
+          "recall": 0.483,
+          "base_rate": 0.0105,
+          "best_feature": 942
+        },
+        {
+          "label": "opp_hitstun",
+          "precision": 0.183,
+          "fire_rate": 0.0946,
+          "f1": 0.267,
+          "top3": [
+            {
+              "feature": 1020,
+              "precision": 0.183,
+              "fire_rate": 0.0946,
+              "f1": 0.267,
+              "recall": 0.497
+            },
+            {
+              "feature": 169,
+              "precision": 0.457,
+              "fire_rate": 0.0116,
+              "f1": 0.229,
+              "recall": 0.153
+            },
+            {
+              "feature": 425,
+              "precision": 0.231,
+              "fire_rate": 0.0293,
+              "f1": 0.212,
+              "recall": 0.195
+            }
+          ],
+          "recall": 0.497,
+          "base_rate": 0.0348,
+          "best_feature": 1020
+        },
+        {
+          "label": "opp_offstage",
+          "precision": 0.149,
+          "fire_rate": 0.0126,
+          "f1": 0.199,
+          "top3": [
+            {
+              "feature": 232,
+              "precision": 0.149,
+              "fire_rate": 0.0126,
+              "f1": 0.199,
+              "recall": 0.299
+            },
+            {
+              "feature": 112,
+              "precision": 0.173,
+              "fire_rate": 0.0057,
+              "f1": 0.165,
+              "recall": 0.157
+            },
+            {
+              "feature": 93,
+              "precision": 0.111,
+              "fire_rate": 0.0155,
+              "f1": 0.158,
+              "recall": 0.274
+            }
+          ],
+          "recall": 0.299,
+          "base_rate": 0.0062,
+          "best_feature": 232
+        },
+        {
+          "label": "opp_damaged_recent",
+          "precision": 0.124,
+          "fire_rate": 0.0189,
+          "f1": 0.148,
+          "top3": [
+            {
+              "feature": 661,
+              "precision": 0.124,
+              "fire_rate": 0.0189,
+              "f1": 0.148,
+              "recall": 0.183
+            },
+            {
+              "feature": 139,
+              "precision": 0.159,
+              "fire_rate": 0.0092,
+              "f1": 0.134,
+              "recall": 0.115
+            },
+            {
+              "feature": 800,
+              "precision": 0.086,
+              "fire_rate": 0.0423,
+              "f1": 0.133,
+              "recall": 0.286
+            }
+          ],
+          "recall": 0.183,
+          "base_rate": 0.0128,
+          "best_feature": 661
+        },
+        {
+          "label": "opp_behind",
+          "precision": 0.947,
+          "fire_rate": 0.0302,
+          "f1": 0.115,
+          "top3": [
+            {
+              "feature": 501,
+              "precision": 0.947,
+              "fire_rate": 0.0302,
+              "f1": 0.115,
+              "recall": 0.061
+            },
+            {
+              "feature": 908,
+              "precision": 0.857,
+              "fire_rate": 0.0298,
+              "f1": 0.103,
+              "recall": 0.055
+            },
+            {
+              "feature": 1020,
+              "precision": 0.289,
+              "fire_rate": 0.0946,
+              "f1": 0.098,
+              "recall": 0.059
+            }
+          ],
+          "recall": 0.061,
+          "base_rate": 0.4654,
+          "best_feature": 501
+        },
+        {
+          "label": "opp_shielding",
+          "precision": 0.212,
+          "fire_rate": 0.0946,
+          "f1": 0.113,
+          "top3": [
+            {
+              "feature": 1020,
+              "precision": 0.212,
+              "fire_rate": 0.0946,
+              "f1": 0.113,
+              "recall": 0.077
+            },
+            {
+              "feature": 85,
+              "precision": 0.288,
+              "fire_rate": 0.0491,
+              "f1": 0.091,
+              "recall": 0.054
+            },
+            {
+              "feature": 843,
+              "precision": 0.653,
+              "fire_rate": 0.0157,
+              "f1": 0.074,
+              "recall": 0.039
+            }
+          ],
+          "recall": 0.077,
+          "base_rate": 0.2606,
+          "best_feature": 1020
+        },
+        {
+          "label": "own_airborne",
+          "precision": 0.957,
+          "fire_rate": 0.0371,
+          "f1": 0.094,
+          "top3": [
+            {
+              "feature": 971,
+              "precision": 0.957,
+              "fire_rate": 0.0371,
+              "f1": 0.094,
+              "recall": 0.049
+            },
+            {
+              "feature": 749,
+              "precision": 0.93,
+              "fire_rate": 0.0339,
+              "f1": 0.084,
+              "recall": 0.044
+            },
+            {
+              "feature": 912,
+              "precision": 1.0,
+              "fire_rate": 0.03,
+              "f1": 0.08,
+              "recall": 0.042
+            }
+          ],
+          "recall": 0.049,
+          "base_rate": 0.7217,
+          "best_feature": 971
+        },
+        {
+          "label": "opp_knockdown",
+          "precision": 0.079,
+          "fire_rate": 0.0108,
+          "f1": 0.08,
+          "top3": [
+            {
+              "feature": 958,
+              "precision": 0.079,
+              "fire_rate": 0.0108,
+              "f1": 0.08,
+              "recall": 0.081
+            },
+            {
+              "feature": 678,
+              "precision": 0.091,
+              "fire_rate": 0.0065,
+              "f1": 0.069,
+              "recall": 0.056
+            },
+            {
+              "feature": 93,
+              "precision": 0.057,
+              "fire_rate": 0.0155,
+              "f1": 0.068,
+              "recall": 0.084
+            }
+          ],
+          "recall": 0.081,
+          "base_rate": 0.0105,
+          "best_feature": 958
+        }
+      ]
+    },
+    {
+      "dead": 464,
+      "policy": "mewtwo_combo_newera_mamba2_screen_r13_policy",
+      "scores": [
+        {
+          "label": "own_offstage",
+          "precision": 0.734,
+          "fire_rate": 0.0099,
+          "f1": 0.712,
+          "top3": [
+            {
+              "feature": 276,
+              "precision": 0.734,
+              "fire_rate": 0.0099,
+              "f1": 0.712,
+              "recall": 0.691
+            },
+            {
+              "feature": 803,
+              "precision": 0.726,
+              "fire_rate": 0.0082,
+              "f1": 0.638,
+              "recall": 0.57
+            },
+            {
+              "feature": 1022,
+              "precision": 0.613,
+              "fire_rate": 0.0111,
+              "f1": 0.631,
+              "recall": 0.651
+            }
+          ],
+          "recall": 0.691,
+          "base_rate": 0.0105,
+          "best_feature": 276
+        },
+        {
+          "label": "own_shielding",
+          "precision": 0.531,
+          "fire_rate": 0.0129,
+          "f1": 0.425,
+          "top3": [
+            {
+              "feature": 609,
+              "precision": 0.531,
+              "fire_rate": 0.0129,
+              "f1": 0.425,
+              "recall": 0.355
+            },
+            {
+              "feature": 217,
+              "precision": 0.099,
+              "fire_rate": 0.0087,
+              "f1": 0.062,
+              "recall": 0.045
+            },
+            {
+              "feature": 79,
+              "precision": 0.164,
+              "fire_rate": 0.0044,
+              "f1": 0.061,
+              "recall": 0.038
+            }
+          ],
+          "recall": 0.355,
+          "base_rate": 0.0192,
+          "best_feature": 609
+        },
+        {
+          "label": "own_airborne",
+          "precision": 0.978,
+          "fire_rate": 0.1962,
+          "f1": 0.418,
+          "top3": [
+            {
+              "feature": 684,
+              "precision": 0.978,
+              "fire_rate": 0.1962,
+              "f1": 0.418,
+              "recall": 0.266
+            },
+            {
+              "feature": 982,
+              "precision": 0.985,
+              "fire_rate": 0.1855,
+              "f1": 0.403,
+              "recall": 0.253
+            },
+            {
+              "feature": 772,
+              "precision": 0.981,
+              "fire_rate": 0.1809,
+              "f1": 0.393,
+              "recall": 0.246
+            }
+          ],
+          "recall": 0.266,
+          "base_rate": 0.7217,
+          "best_feature": 684
+        },
+        {
+          "label": "opp_shielding",
+          "precision": 0.274,
+          "fire_rate": 0.1962,
+          "f1": 0.236,
+          "top3": [
+            {
+              "feature": 684,
+              "precision": 0.274,
+              "fire_rate": 0.1962,
+              "f1": 0.236,
+              "recall": 0.207
+            },
+            {
+              "feature": 982,
+              "precision": 0.273,
+              "fire_rate": 0.1855,
+              "f1": 0.227,
+              "recall": 0.194
+            },
+            {
+              "feature": 772,
+              "precision": 0.258,
+              "fire_rate": 0.1809,
+              "f1": 0.211,
+              "recall": 0.179
+            }
+          ],
+          "recall": 0.207,
+          "base_rate": 0.2606,
+          "best_feature": 684
+        },
+        {
+          "label": "opp_behind",
+          "precision": 0.186,
+          "fire_rate": 0.1809,
+          "f1": 0.104,
+          "top3": [
+            {
+              "feature": 772,
+              "precision": 0.186,
+              "fire_rate": 0.1809,
+              "f1": 0.104,
+              "recall": 0.072
+            },
+            {
+              "feature": 982,
+              "precision": 0.179,
+              "fire_rate": 0.1855,
+              "f1": 0.102,
+              "recall": 0.071
+            },
+            {
+              "feature": 684,
+              "precision": 0.171,
+              "fire_rate": 0.1962,
+              "f1": 0.101,
+              "recall": 0.072
+            }
+          ],
+          "recall": 0.072,
+          "base_rate": 0.4654,
+          "best_feature": 772
+        },
+        {
+          "label": "opp_hitstun",
+          "precision": 0.178,
+          "fire_rate": 0.0087,
+          "f1": 0.071,
+          "top3": [
+            {
+              "feature": 217,
+              "precision": 0.178,
+              "fire_rate": 0.0087,
+              "f1": 0.071,
+              "recall": 0.044
+            },
+            {
+              "feature": 385,
+              "precision": 0.139,
+              "fire_rate": 0.0075,
+              "f1": 0.049,
+              "recall": 0.03
+            },
+            {
+              "feature": 415,
+              "precision": 0.113,
+              "fire_rate": 0.0052,
+              "f1": 0.03,
+              "recall": 0.017
+            }
+          ],
+          "recall": 0.044,
+          "base_rate": 0.0348,
+          "best_feature": 217
+        },
+        {
+          "label": "opp_knockdown",
+          "precision": 0.127,
+          "fire_rate": 0.004,
+          "f1": 0.07,
+          "top3": [
+            {
+              "feature": 554,
+              "precision": 0.127,
+              "fire_rate": 0.004,
+              "f1": 0.07,
+              "recall": 0.048
+            },
+            {
+              "feature": 609,
+              "precision": 0.042,
+              "fire_rate": 0.0129,
+              "f1": 0.046,
+              "recall": 0.051
+            },
+            {
+              "feature": 778,
+              "precision": 0.109,
+              "fire_rate": 0.0024,
+              "f1": 0.04,
+              "recall": 0.025
+            }
+          ],
+          "recall": 0.048,
+          "base_rate": 0.0105,
+          "best_feature": 554
+        },
+        {
+          "label": "opp_offstage",
+          "precision": 0.121,
+          "fire_rate": 0.0024,
+          "f1": 0.067,
+          "top3": [
+            {
+              "feature": 778,
+              "precision": 0.121,
+              "fire_rate": 0.0024,
+              "f1": 0.067,
+              "recall": 0.046
+            },
+            {
+              "feature": 320,
+              "precision": 0.063,
+              "fire_rate": 0.0065,
+              "f1": 0.064,
+              "recall": 0.066
+            },
+            {
+              "feature": 609,
+              "precision": 0.045,
+              "fire_rate": 0.0129,
+              "f1": 0.061,
+              "recall": 0.093
+            }
+          ],
+          "recall": 0.046,
+          "base_rate": 0.0062,
+          "best_feature": 778
+        },
+        {
+          "label": "opp_damaged_recent",
+          "precision": 0.075,
+          "fire_rate": 0.0087,
+          "f1": 0.061,
+          "top3": [
+            {
+              "feature": 217,
+              "precision": 0.075,
+              "fire_rate": 0.0087,
+              "f1": 0.061,
+              "recall": 0.051
+            },
+            {
+              "feature": 32,
+              "precision": 0.175,
+              "fire_rate": 0.0026,
+              "f1": 0.059,
+              "recall": 0.035
+            },
+            {
+              "feature": 511,
+              "precision": 0.056,
+              "fire_rate": 0.0088,
+              "f1": 0.046,
+              "recall": 0.039
+            }
+          ],
+          "recall": 0.051,
+          "base_rate": 0.0128,
+          "best_feature": 217
+        }
+      ]
+    }
+  ]
+}

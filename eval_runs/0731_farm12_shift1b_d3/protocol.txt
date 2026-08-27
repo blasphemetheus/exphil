@@ -1,0 +1,1 @@
+policy=checkpoints/ms_farm12_shift1b.bin runner=sync runs=1 seconds=60 dummy=stand decode=--deterministic loadavg=8.43 4.18 4.02

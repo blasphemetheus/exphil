@@ -1,0 +1,30 @@
+{
+  "ms_d3_full2": {
+    "replay": "eval_runs/d3_div_full2/r1.slp",
+    "chains": null,
+    "crit_score": -1.452,
+    "phases": {
+      "jc_event": {
+        "min": -4.392,
+        "n": 121,
+        "mean": 0.85,
+        "p10": -1.452,
+        "flip_frac": 0.43
+      },
+      "aerial_shine_event": {
+        "min": -7.434,
+        "n": 37,
+        "mean": 3.22,
+        "p10": -0.388,
+        "flip_frac": 0.162
+      },
+      "ground_shine_event": {
+        "min": -6.292,
+        "n": 36,
+        "mean": -0.751,
+        "p10": -3.659,
+        "flip_frac": 0.75
+      }
+    }
+  }
+}
