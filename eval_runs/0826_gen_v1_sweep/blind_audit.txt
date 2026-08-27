@@ -1,0 +1,15 @@
+policy: fox_gen_v1_20260825_210355_ep10.bin  files: 5  stride: 7  windows: 7035
+per-head mean |logit delta| vs baseline (nats of logit):
+perturbation       buttons    main_x    main_y       c_x       c_y  shoulder       sum    ratio    flip%
+opp_x_far           0.1482    0.3291    0.3212    0.1518    0.1674    0.2046    1.3223     1.00      7.0
+opp_char_swap       0.0085    0.0214    0.0241    0.0091    0.0086    0.0123    0.0840     0.06      0.4
+stage_swap          0.0592    0.1185    0.1281    0.0580    0.0653    0.1003    0.5295     0.40      2.7
+own_percent_hi      0.0408    0.1004    0.1029    0.0486    0.0531    0.0655    0.4114     0.31      2.5
+opp_percent_hi      0.0341    0.0673    0.0773    0.0341    0.0404    0.0456    0.2988     0.23      1.5
+own_stock_last      0.0152    0.0368    0.0403    0.0161    0.0187    0.0220    0.1492     0.11      0.7
+opp_stock_last      0.0200    0.0425    0.0476    0.0216    0.0217    0.0302    0.1835     0.14      0.9
+
+ratio = perturbation sum / opp_x_far (positive-control) sum. A ratio ~1 = as
+load-bearing as opponent position; ~0.0x = dead channel. flip% = mean fraction
+of frames whose sampled action changed (buttons: on/off toggle; sticks: argmax
+bucket change), averaged over the six heads.

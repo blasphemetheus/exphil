@@ -130,7 +130,7 @@ prioritizes which conditioning inputs are dead weight vs load-bearing
 (a dead opponent-character channel would matter for matchup work).
 
 **Tooling:** blind auditor ready (audit round 2 infrastructure).
-**Status:** [ ] cheap, run after G1/G2.
+**Status:** [x] done (2026-08-27) — see results ledger.
 
 ---
 
@@ -217,3 +217,41 @@ appropriate uncertainty, and does not self-trap. What we lack is a
 problem — i.e. D2's value model is the highest-leverage next
 investment, and it now has interp evidence behind it rather than
 argument alone.
+
+### G7 — blind input audit, ep10, 5 files, 7,035 windows (2026-08-27)
+Full table: `eval_runs/0826_gen_v1_sweep/blind_audit.txt`. Per-head mean
+|logit delta| vs baseline; "ratio" = sum / opp_x_far (positive control).
+
+| perturbation | sum | ratio | flip% | reading |
+|---|---|---|---|---|
+| opp_x_far (control) | 1.32 | 1.00 | 7.0 | position is the dominant input (sanity: audit works) |
+| opp_char_swap | 0.084 | **0.06** | 0.4 | **DEAD — opponent character channel is not read** |
+| stage_swap | 0.53 | 0.40 | 2.7 | load-bearing (stage identity matters) |
+| own_percent_hi | 0.41 | 0.31 | 2.5 | load-bearing |
+| opp_percent_hi | 0.30 | 0.23 | 1.5 | read, weaker than own percent |
+| opp_stock_last | 0.18 | 0.14 | 0.9 | weak |
+| own_stock_last | 0.15 | 0.11 | 0.7 | weak |
+
+**Findings and the decisions they make:**
+1. **The opponent-character channel is effectively dead** (0.06× the
+   position signal; 0.4% action-flip). Whether the learned character
+   embedding collapsed or the trunk down-weighted it, fox_gen_v1 does
+   NOT behaviorally distinguish matchups. Hard result for matchup work
+   (D12 low-tier) and for "the bot plays Marth differently from Fox":
+   the conditioning exists but carries no load. Fix the representation at
+   training time (G4 says whether the trunk even encodes it), or accept
+   that v1 is matchup-agnostic.
+2. **Stage is load-bearing (0.40×)** — second-strongest input after
+   position. `--stage-internals` earned its keep (feeds G4's permanence
+   question).
+3. **Own percent (0.31×) > opponent percent (0.23×)** — the model tracks
+   its own damage more than the opponent's; kill-confirm-on-opponent
+   behavior is thinner than self-preservation.
+4. **Stocks are the weakest read of all** (own 0.11×, opp 0.14×) —
+   last-stock behavior is nearly invisible to the output. Candidates for
+   v2 curation emphasis alongside G1's defensive/disadvantage pocket.
+
+**Caveat:** single-family mean-|logit-delta| is a first-pass sensitivity
+measure; a "dead" channel here means "moves the marginal output little",
+not "the trunk has no linear encoding of it" (that is G4's question).
+
