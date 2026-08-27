@@ -107,3 +107,6 @@ corpus/
 # snapshots (100s of MB; the RESULTS/logs beside them ARE tracked)
 *.frames
 *.ckpt
+
+# Transient bracket/wait-run completion markers
+.bracket_done
