@@ -497,6 +497,83 @@ defmodule ExPhil.Networks.PolicyTest do
     end
   end
 
+  describe "per-head temperature (sample/4 + resolve_temperatures/1)" do
+    alias ExPhil.Networks.Policy.Sampling
+
+    test "scalar temperature keeps buttons raw and applies T to categorical heads" do
+      assert Sampling.resolve_temperatures(0.5) == %{
+               buttons: 1.0,
+               main_x: 0.5,
+               main_y: 0.5,
+               c_x: 0.5,
+               c_y: 0.5,
+               shoulder: 0.5
+             }
+    end
+
+    test "map temperature expands :main/:c group shorthands" do
+      assert Sampling.resolve_temperatures(%{main: 0.5, c: 0.7}) == %{
+               buttons: 1.0,
+               main_x: 0.5,
+               main_y: 0.5,
+               c_x: 0.7,
+               c_y: 0.7,
+               shoulder: 1.0
+             }
+    end
+
+    test "explicit per-head key wins over group shorthand; unspecified heads default to 1.0" do
+      assert Sampling.resolve_temperatures(%{main: 0.5, main_y: 0.2, buttons: 0.3}) == %{
+               buttons: 0.3,
+               main_x: 0.5,
+               main_y: 0.2,
+               c_x: 1.0,
+               c_y: 1.0,
+               shoulder: 1.0
+             }
+    end
+
+    # Fixed logits: button logits 0.3 (sigmoid ≈ 0.574); categorical heads
+    # peaked at bucket 0. Shapes are arbitrary — sample/4 just needs a 6-tuple.
+    defp per_head_logits(_params, _state) do
+      {
+        Nx.tensor([[0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3]]),
+        Nx.tensor([[2.0, 0.0, 0.0]]),
+        Nx.tensor([[2.0, 0.0, 0.0]]),
+        Nx.tensor([[2.0, 0.0, 0.0]]),
+        Nx.tensor([[2.0, 0.0, 0.0]]),
+        Nx.tensor([[2.0, 0.0, 0.0]])
+      }
+    end
+
+    defp mean_button_press(temperature, n \\ 200) do
+      total =
+        1..n
+        |> Enum.map(fn _ ->
+          %{buttons: buttons} =
+            Sampling.sample(%{}, &per_head_logits/2, %{}, temperature: temperature)
+
+          Nx.to_number(Nx.sum(buttons))
+        end)
+        |> Enum.sum()
+
+      total / (n * 8)
+    end
+
+    @tag :slow
+    test "map temperature tempers buttons (cold button T sharpens press rate)" do
+      # sigmoid(0.3 / 0.1) = sigmoid(3.0) ≈ 0.953 — far above raw sigmoid(0.3) ≈ 0.574.
+      assert mean_button_press(%{buttons: 0.1}) > 0.85
+    end
+
+    @tag :slow
+    test "scalar temperature leaves buttons raw (backward-compatible)" do
+      # A hot scalar tempers only categorical heads, NOT buttons: press rate
+      # stays at raw sigmoid(0.3) ≈ 0.574 rather than sigmoid(0.3/10) ≈ 0.508.
+      assert_in_delta mean_button_press(10.0), 0.574, 0.07
+    end
+  end
+
   describe "compute_confidence/1" do
     test "returns confidence map with all keys" do
       logits = %{

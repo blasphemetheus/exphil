@@ -40,7 +40,10 @@ defmodule ExPhil.Networks.Policy.Sampling do
   is sampled conditioned on previously sampled components.
 
   ## Options
-    - `:temperature` - Softmax temperature for exploration (default: 1.0)
+    - `:temperature` - Softmax temperature for exploration (default: 1.0). A
+      number applies to every categorical head (buttons stay raw, as before);
+      a map applies per head — `%{buttons: t, main_x: t, main_y: t, c_x: t,
+      c_y: t, shoulder: t}` with `:main`/`:c` group shorthands for x+y.
     - `:deterministic` - If true, use argmax instead of sampling (default: false)
     - `:axis_buckets` - Number of stick buckets (default: 16)
     - `:shoulder_buckets` - Number of shoulder buckets (default: 4)
@@ -77,7 +80,7 @@ defmodule ExPhil.Networks.Policy.Sampling do
         jitted(:fused_stoch, &fused_sample_stochastic/3).(
           logits_tuple,
           key,
-          Nx.tensor(temperature, type: :f32)
+          temperature_tuple(temperature)
         )
       end
 
@@ -146,6 +149,53 @@ defmodule ExPhil.Networks.Policy.Sampling do
     end
   end
 
+  # --- Per-head temperature resolution ---
+
+  # Heads in the fused stochastic kernel, in tuple order. Buttons were
+  # historically sampled raw (no temperature); the map form can now temper
+  # them too (INTERP_GEN_V1 G1: buttons are the highest-entropy head and want
+  # the coldest T).
+  @temp_heads [:buttons, :main_x, :main_y, :c_x, :c_y, :shoulder]
+
+  defp temperature_tuple(temperature) do
+    temps = resolve_temperatures(temperature)
+    f = fn v -> Nx.tensor(v, type: :f32) end
+
+    {f.(temps.buttons), f.(temps.main_x), f.(temps.main_y), f.(temps.c_x), f.(temps.c_y),
+     f.(temps.shoulder)}
+  end
+
+  # Scalar (backward-compatible): buttons stay raw (T=1.0), every categorical
+  # head shares the scalar — bit-identical to the pre-per-head fused path.
+  @doc false
+  def resolve_temperatures(temperature) when is_number(temperature) do
+    %{buttons: 1.0, main_x: temperature, main_y: temperature, c_x: temperature,
+      c_y: temperature, shoulder: temperature}
+  end
+
+  # Map: group shorthands :main (x+y) and :c (x+y) expand first; explicit
+  # per-head keys win; any head left unspecified defaults to 1.0 (raw).
+  @doc false
+  def resolve_temperatures(map) when is_map(map) do
+    base = %{buttons: 1.0, main_x: 1.0, main_y: 1.0, c_x: 1.0, c_y: 1.0, shoulder: 1.0}
+
+    with_groups =
+      base
+      |> put_group(:main, map[:main])
+      |> put_group(:c, map[:c])
+
+    Enum.reduce(@temp_heads, with_groups, fn head, acc ->
+      case map[head] do
+        t when is_number(t) -> Map.put(acc, head, t)
+        _ -> acc
+      end
+    end)
+  end
+
+  defp put_group(acc, :main, t) when is_number(t), do: %{acc | main_x: t, main_y: t}
+  defp put_group(acc, :c, t) when is_number(t), do: %{acc | c_x: t, c_y: t}
+  defp put_group(acc, _group, _t), do: acc
+
   import Nx.Defn
 
   # Nx's default defn options are EMPTY, so a bare defn call runs on the
@@ -180,16 +230,25 @@ defmodule ExPhil.Networks.Policy.Sampling do
 
   # --- Fused sampling: one XLA program for all six heads + confidence ---
 
-  defnp fused_sample_stochastic({b_l, mx_l, my_l, cx_l, cy_l, sh_l}, key, temperature) do
-    probs = Nx.sigmoid(b_l)
+  # temperatures: {t_buttons, t_main_x, t_main_y, t_c_x, t_c_y, t_shoulder},
+  # one f32 scalar per head. Buttons are now temperature-scaled too (sigmoid
+  # of logits/t) so a cold button temperature can tame the 69%-of-uniform
+  # button tail (INTERP_GEN_V1 G1); at t_buttons=1.0 this is bit-identical to
+  # the pre-per-head raw-Bernoulli path.
+  defnp fused_sample_stochastic(
+         {b_l, mx_l, my_l, cx_l, cy_l, sh_l},
+         key,
+         {t_b, t_mx, t_my, t_cx, t_cy, t_sh}
+       ) do
+    probs = Nx.sigmoid(b_l / t_b)
     {u, key} = Nx.Random.uniform(key, shape: Nx.shape(probs))
     buttons = Nx.less(u, probs)
 
-    {mx, key} = gumbel_argmax(mx_l, key, temperature)
-    {my, key} = gumbel_argmax(my_l, key, temperature)
-    {cx, key} = gumbel_argmax(cx_l, key, temperature)
-    {cy, key} = gumbel_argmax(cy_l, key, temperature)
-    {sh, _key} = gumbel_argmax(sh_l, key, temperature)
+    {mx, key} = gumbel_argmax(mx_l, key, t_mx)
+    {my, key} = gumbel_argmax(my_l, key, t_my)
+    {cx, key} = gumbel_argmax(cx_l, key, t_cx)
+    {cy, key} = gumbel_argmax(cy_l, key, t_cy)
+    {sh, _key} = gumbel_argmax(sh_l, key, t_sh)
 
     {buttons, mx, my, cx, cy, sh, confidence_scalars(b_l, mx_l, my_l, cx_l, cy_l, sh_l)}
   end

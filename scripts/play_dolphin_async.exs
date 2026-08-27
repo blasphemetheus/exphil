@@ -109,6 +109,24 @@ opts =
     opts
   end
 
+# Per-head temperature: any of the four per-head flags builds a map (scalar
+# --temperature is the fallback for heads left unspecified); otherwise the
+# scalar --temperature passes through unchanged. See INTERP_GEN_V1 G1.
+temperature =
+  cond do
+    opts[:buttons_temperature] || opts[:main_temperature] ||
+        opts[:c_temperature] || opts[:shoulder_temperature] ->
+      %{
+        buttons: opts[:buttons_temperature] || opts[:temperature] || 1.0,
+        main: opts[:main_temperature] || opts[:temperature] || 1.0,
+        c: opts[:c_temperature] || opts[:temperature] || 1.0,
+        shoulder: opts[:shoulder_temperature] || opts[:temperature] || 1.0
+      }
+
+    true ->
+      opts[:temperature] || 1.0
+  end
+
 Output.config([
   {"Policy", opts[:policy]},
   {"Dolphin", opts[:dolphin]},
@@ -120,6 +138,7 @@ Output.config([
   {"Stage", opts[:stage]},
   {"Frame Delay", opts[:frame_delay]},
   {"Deterministic", opts[:deterministic]},
+  {"Temperature", inspect(temperature)},
   {"On Game End", opts[:on_game_end]},
   {"Architecture", "ASYNC (separate frame reader + inference processes)"}
 ])
@@ -131,7 +150,7 @@ Output.step(1, 5, "Loading agent")
 agent_opts =
   [
     deterministic: opts[:deterministic],
-    temperature: opts[:temperature] || 1.0,
+    temperature: temperature,
     deterministic_buttons: opts[:deterministic_buttons] || false,
     press_threshold: opts[:press_threshold],
     release_threshold: opts[:release_threshold],

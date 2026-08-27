@@ -152,7 +152,7 @@ defmodule ExPhil.Agents.Agent do
           | {:policy, map()}
           | {:frame_delay, non_neg_integer()}
           | {:deterministic, boolean()}
-          | {:temperature, float()}
+          | {:temperature, float() | map()}
           | {:embed_config, map()}
           | {:action_repeat, pos_integer()}
           | {:use_incremental, boolean()}
@@ -167,7 +167,9 @@ defmodule ExPhil.Agents.Agent do
     - `:policy` - Pre-loaded policy map (alternative to path)
     - `:frame_delay` - Frame delay for online play (default: 0)
     - `:deterministic` - Use deterministic action selection (default: false)
-    - `:temperature` - Sampling temperature (default: 1.0)
+    - `:temperature` - Sampling temperature (default: 1.0). A number applies
+      to every categorical head (buttons stay raw); a map applies per head —
+      see `ExPhil.Networks.Policy.Sampling.sample/4`.
     - `:embed_config` - Embedding configuration (auto-detected from policy)
     - `:stateful_step` - O(1) recurrent inference via the Edifice.Stateful
       step API (temporal GRU/LSTM policies only; default: false). Enables
