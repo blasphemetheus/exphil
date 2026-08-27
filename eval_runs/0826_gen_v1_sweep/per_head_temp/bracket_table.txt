@@ -1,0 +1,19 @@
+=== scalar_05
+scalar_05 r1 [18:04:48] SCORE: armed/min=1.47 conv=2/5 neutral_loss=11 dropped=3 deaths=2 passive=1
+scalar_05 r2 [18:04:49] SCORE: armed/min=0.0 conv=2/3 neutral_loss=7 dropped=2 deaths=2 passive=1
+scalar_05 r3 [18:04:50] SCORE: armed/min=0.0 conv=0/1 neutral_loss=5 dropped=0 deaths=1 passive=3
+scalar_05 r4 [18:04:51] SCORE: armed/min=0.98 conv=0/4 neutral_loss=9 dropped=3 deaths=2 passive=4
+scalar_05 r5 [18:04:52] SCORE: armed/min=0.98 conv=3/7 neutral_loss=7 dropped=7 deaths=3 passive=2
+=== buttons_03
+buttons_03 r1 [18:17:10] SCORE: armed/min=0.0 conv=5/7 neutral_loss=8 dropped=8 deaths=2 passive=3
+buttons_03 r2 [18:17:11] SCORE: armed/min=0.0 conv=0/2 neutral_loss=7 dropped=5 deaths=2 passive=1
+buttons_03 r3 [18:17:12] SCORE: armed/min=0.49 conv=3/7 neutral_loss=7 dropped=7 deaths=3 passive=0
+buttons_03 r4 [18:17:13] SCORE: armed/min=0.0 conv=1/5 neutral_loss=2 dropped=4 deaths=4 passive=0
+buttons_03 r5 [18:17:14] SCORE: armed/min=0.51 conv=0/5 neutral_loss=11 dropped=7 deaths=4 passive=0
+=== full_sched
+full_sched r1 [18:28:47] SCORE: armed/min=0.49 conv=0/3 neutral_loss=11 dropped=8 deaths=3 passive=0
+full_sched r2 [18:28:48] SCORE: armed/min=1.47 conv=3/7 neutral_loss=9 dropped=4 deaths=3 passive=0
+full_sched r3 [18:28:49] SCORE: armed/min=0.0 conv=1/6 neutral_loss=4 dropped=5 deaths=4 passive=0
+full_sched r4 [18:28:50] SCORE: armed/min=0.52 conv=1/5 neutral_loss=7 dropped=7 deaths=4 passive=0
+full_sched r5 [18:28:51] SCORE: armed/min=0.0 conv=0/2 neutral_loss=1 dropped=2 deaths=4 passive=0
+BRACKET DONE (report mean AND range; <2x differences are unresolved)
