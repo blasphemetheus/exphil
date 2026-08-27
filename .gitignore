@@ -99,3 +99,11 @@ drills/
 # Interp artifacts (crime scenes, erasers, cached captures — GBs)
 /interp/
 corpus/
+
+# Machine-local nix LD path capture (regenerate from the local generation)
+.mainline_appimage_ldpath
+
+# Regenerable eval binaries — drill frame exports and crime-scene trainer
+# snapshots (100s of MB; the RESULTS/logs beside them ARE tracked)
+*.frames
+*.ckpt
