@@ -12,7 +12,7 @@ cd "$(dirname "$0")/.."
 POLICY=checkpoints/fox_gen_v1_20260825_210355_ep10.bin
 OUT=eval_runs/0826_gen_v1_sweep/per_head_temp
 RUNS="${RUNS:-5}"
-SECONDS_ARG="${SECONDS:-120}"
+GAME_SECONDS="${GAME_SECONDS:-120}"
 TABLE="$OUT/bracket_table.txt"
 mkdir -p "$OUT"
 : > "$TABLE"
@@ -24,7 +24,7 @@ run_arm() {
   shift 2
   echo "=== $name" | tee -a "$TABLE"
   bash scripts/eval_live_protocol.sh "$POLICY" "$OUT/$name" \
-    --runs "$RUNS" --seconds "$SECONDS_ARG" --dummy cpu \
+    --runs "$RUNS" --seconds "$GAME_SECONDS" --dummy cpu \
     --temperature "$scalar" -- --frame-delay 0 --headless "$@" \
     > "$OUT/$name.log" 2>&1 || { echo "$name PROTOCOL FAILED" | tee -a "$TABLE"; return; }
 
