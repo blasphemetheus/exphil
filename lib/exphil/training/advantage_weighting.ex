@@ -51,6 +51,7 @@ defmodule ExPhil.Training.AdvantageWeighting do
   """
 
   alias ExPhil.Eval.ShineChain
+  alias ExPhil.Rewards
 
   @default_gamma 0.997
   @default_horizon 300
@@ -82,8 +83,13 @@ defmodule ExPhil.Training.AdvantageWeighting do
     {clip_lo, clip_hi} = Keyword.get(opts, :clip, @default_clip)
     air_reward = Keyword.get(opts, :air_shine_reward, 0.0)
     port = Keyword.get(opts, :port, 1)
+    reward = Keyword.get(opts, :reward, :shine)
 
-    rewards_per_list = Enum.map(frame_lists, &rewards(&1, port, air_reward))
+    rewards_per_list =
+      case reward do
+        :standard -> Enum.map(frame_lists, &standard_rewards(&1, port))
+        _ -> Enum.map(frame_lists, &rewards(&1, port, air_reward))
+      end
 
     advantages_per_list =
       Enum.map(rewards_per_list, fn rs ->
@@ -134,6 +140,7 @@ defmodule ExPhil.Training.AdvantageWeighting do
 
     stats = %{
       frames: n,
+      reward: reward,
       shine_entries: rewards_per_list |> List.flatten() |> Enum.count(&(&1 > 0.0)),
       beta: beta,
       p10_w: p10,
@@ -170,6 +177,25 @@ defmodule ExPhil.Training.AdvantageWeighting do
       {r, fam}
     end)
     |> elem(0)
+  end
+
+  @doc """
+  Per-frame STANDARD rewards (OFFLINE_RL_SPEC generalist arm): the stock +
+  damage + win transition reward `r_t = reward(state_t, state_{t+1})` from
+  `Rewards.Standard`, combined with `Rewards.default_config/0`'s standard
+  weights (stock 1.0, damage 0.01, win 5.0). The last frame has no transition
+  and gets 0.0. Same length as `frames`, so return-to-go stays within-list.
+  """
+  def standard_rewards(frames, port \\ 1) do
+    transitions =
+      frames
+      |> Enum.chunk_every(2, 1, :discard)
+      |> Enum.map(fn [prev, curr] ->
+        s = Rewards.Standard.compute(prev.game_state, curr.game_state, player_port: port)
+        s.stock * 1.0 + s.damage * 0.01 + s.win * 5.0
+      end)
+
+    transitions ++ [0.0]
   end
 
   @doc """

@@ -2,6 +2,7 @@ defmodule ExPhil.Training.AdvantageWeightingTest do
   use ExUnit.Case, async: true
 
   alias ExPhil.Constants
+  alias ExPhil.Bridge.{GameState, Player}
   alias ExPhil.Training.AdvantageWeighting, as: AW
 
   @ground_shine Constants.reflector_ground() |> Enum.at(0)
@@ -119,6 +120,65 @@ defmodule ExPhil.Training.AdvantageWeightingTest do
       # per-list multiset identical (list 1 = first 200 frames)
       assert Enum.sort(Enum.take(plain, 200)) == Enum.sort(Enum.take(shuffled, 200))
       assert Enum.sort(Enum.drop(plain, 200)) == Enum.sort(Enum.drop(shuffled, 200))
+    end
+  end
+
+  # --- standard-reward arm (OFFLINE_RL_SPEC generalist) ---
+
+  defp std_player(percent, stock), do: %Player{percent: percent, stock: stock}
+  defp std_gs(own, opp), do: %GameState{players: %{1 => own, 2 => opp}}
+  defp std_frame(own, opp), do: %{game_state: std_gs(own, opp)}
+
+  describe "standard_rewards/2" do
+    test "damage dealt scales by 0.01; last frame is 0.0" do
+      f0 = std_frame(std_player(0, 4), std_player(0, 4))
+      f1 = std_frame(std_player(0, 4), std_player(50, 4))
+      f2 = std_frame(std_player(0, 4), std_player(80, 4))
+
+      rs = AW.standard_rewards([f0, f1, f2])
+
+      assert length(rs) == 3
+      assert_in_delta Enum.at(rs, 0), 0.5, 1.0e-6
+      assert_in_delta Enum.at(rs, 1), 0.3, 1.0e-6
+      assert Enum.at(rs, 2) == 0.0
+    end
+
+    test "taking a stock at 0% is +1.0 (no damage credit)" do
+      f0 = std_frame(std_player(0, 4), std_player(0, 4))
+      f1 = std_frame(std_player(0, 4), std_player(0, 3))
+
+      rs = AW.standard_rewards([f0, f1])
+      assert_in_delta hd(rs), 1.0, 1.0e-6
+    end
+
+    test "losing a stock at 0% is -1.0" do
+      f0 = std_frame(std_player(0, 4), std_player(0, 4))
+      f1 = std_frame(std_player(0, 3), std_player(0, 4))
+
+      rs = AW.standard_rewards([f0, f1])
+      assert_in_delta hd(rs), -1.0, 1.0e-6
+    end
+  end
+
+  describe "frame_weights/2 with :standard reward" do
+    test "produces mean-1 weights and marks the reward family" do
+      good = [
+        std_frame(std_player(0, 4), std_player(0, 4)),
+        std_frame(std_player(0, 4), std_player(50, 4)),
+        std_frame(std_player(0, 4), std_player(0, 3)),
+        std_frame(std_player(0, 4), std_player(0, 3))
+      ]
+
+      idle = [
+        std_frame(std_player(0, 4), std_player(0, 4)),
+        std_frame(std_player(0, 4), std_player(0, 4))
+      ]
+
+      {weights, stats} = AW.frame_weights([good, idle], reward: :standard)
+
+      assert stats.reward == :standard
+      assert stats.frames == 6
+      assert_in_delta Enum.sum(weights) / length(weights), 1.0, 1.0e-6
     end
   end
 end
