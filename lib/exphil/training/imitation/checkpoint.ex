@@ -163,7 +163,15 @@ defmodule ExPhil.Training.Imitation.Checkpointing do
   def load_checkpoint(trainer, path) do
     current_embed_size = trainer.config[:embed_size]
 
-    case Checkpoint.load(path, current_embed_size: current_embed_size) do
+    # A TRAINING resume with a different embedding width cannot succeed —
+    # the first batch dies inside EXLA compile (`cannot reshape {296} to
+    # {1,1,288}`), 80 s and one poisoned 1.2 GB cache entry later. Fail here
+    # instead. Observed 2026-08-28: the AWBC arms dropped --stage-internals
+    # and the warn-only guard let B1 start. (Guards fail loud and safe.)
+    case Checkpoint.load(path,
+           current_embed_size: current_embed_size,
+           error_on_mismatch: true
+         ) do
       {:ok, checkpoint} ->
         new_trainer = %{
           trainer

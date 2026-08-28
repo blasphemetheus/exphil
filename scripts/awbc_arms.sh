@@ -34,7 +34,7 @@ mkdir -p "$OUT" logs
 # fox_gen_v1's non-default recipe (diffed against Config.defaults/0 on
 # 2026-08-28: everything else in its _config.json is a default).
 COMMON=(
-  --backbone gru --temporal
+  --backbone gru --temporal --stage-internals
   --hidden-sizes 512,512,256
   --batch-size 256
   --dropout 0.1
