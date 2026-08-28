@@ -110,3 +110,4 @@ corpus/
 
 # Transient bracket/wait-run completion markers
 .bracket_done
+.sweep_done
