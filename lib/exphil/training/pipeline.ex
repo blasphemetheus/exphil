@@ -910,6 +910,7 @@ defmodule ExPhil.Training.Pipeline do
     ropts = pipeline.resolved_opts
     chunk_opts = pipeline.streaming_chunk_opts
     dataset_opts = pipeline.streaming_dataset_opts
+    awbc? = ropts[:awbc]
 
     # Temporal chunks come back in the LAZY layout (flat frames + flat
     # embedded tensor + window/stride metadata) — batch with lazy: true so
@@ -926,7 +927,7 @@ defmodule ExPhil.Training.Pipeline do
     ]
 
     stream =
-      if ropts[:pipeline_chunks] do
+      if ropts[:pipeline_chunks] and not awbc? do
         # Pipelined: parse chunk N+1 while training on chunk N.
         # stream_batches (NOT stream_prepared_chunks, which yields
         # {dataset, idx, errors} tuples straight into the batch loop).
@@ -948,8 +949,27 @@ defmodule ExPhil.Training.Pipeline do
           {:ok, chunk_frames, _errors} = Streaming.parse_chunk(chunk, chunk_opts)
           chunk_dataset = Streaming.create_dataset(chunk_frames, dataset_opts)
 
+          # AWBC: outcome-weighted per-frame loss weights (return-to-go within
+          # each replay). Force the non-pipelined path when enabled (weights are
+          # chunk-local, and the pipelined ChunkPipeline has no seam for them).
+          batch_opts =
+            if awbc? do
+              lists = ExPhil.Training.AdvantageWeighting.split_by_replay(chunk_frames)
+
+              {ws, _} =
+                ExPhil.Training.AdvantageWeighting.frame_weights(lists,
+                  reward: ropts[:awbc_reward] || :shine,
+                  beta: ropts[:awbc_beta],
+                  shuffle: ropts[:awbc_shuffle] || false
+                )
+
+              seq_batch_opts ++ [loss_weights: ws]
+            else
+              seq_batch_opts
+            end
+
           if ropts[:temporal] do
-            Data.batched_sequences(chunk_dataset, seq_batch_opts)
+            Data.batched_sequences(chunk_dataset, batch_opts)
           else
             Data.batched(chunk_dataset,
               batch_size: ropts[:batch_size] || 32,

@@ -199,6 +199,32 @@ defmodule ExPhil.Training.AdvantageWeighting do
   end
 
   @doc """
+  Split a FLAT frame list (streaming `parse_chunk` output) back into per-replay
+  lists, detecting replay boundaries by the frame-number reset (`game_state
+  .frame` drops back toward 0 at each new game). Order-preserving:
+  `List.flatten(split_by_replay(frames)) == frames`, so the flattened weights
+  align with `dataset.frames`. Return-to-go is then computed within each list,
+  never across a replay boundary (OFFLINE_RL_SPEC frame-boundary hygiene).
+  """
+  def split_by_replay(frames) do
+    {groups, _} =
+      Enum.reduce(frames, {[], nil}, fn f, {groups, prev_frame} ->
+        cur = f.game_state.frame
+
+        if prev_frame == nil or cur <= prev_frame do
+          {[[f] | groups], cur}
+        else
+          case groups do
+            [g | rest] -> {[[f | g] | rest], cur}
+            [] -> {[[f]], cur}
+          end
+        end
+      end)
+
+    groups |> Enum.map(&Enum.reverse/1) |> Enum.reverse()
+  end
+
+  @doc """
   Bounded-horizon discounted return-to-go:
   `R_t = sum_{k=0..H} gamma^k * r_{t+k}`, computed with the reverse
   recurrence `R_t = r_t + gamma * R_{t+1} - gamma^(H+1) * r_{t+H+1}`.

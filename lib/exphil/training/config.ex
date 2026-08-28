@@ -234,6 +234,10 @@ defmodule ExPhil.Training.Config do
     "--stick-edge-weight",
     "--entropy-weight",
     "--neutral-weight",
+    "--awbc",
+    "--awbc-reward",
+    "--awbc-beta",
+    "--awbc-shuffle",
     "--head-normalize",
     "--no-head-normalize",
     "--action-oversample",
@@ -669,6 +673,13 @@ defmodule ExPhil.Training.Config do
       # Per-frame neutral weight: action frames get 1.0, neutral frames get this value
       # Lower = stronger anti-collapse signal. 0.0 = skip neutral frames entirely.
       neutral_weight: 0.25,
+      # AWBC (advantage-weighted BC) loss weights: reweight the imitation loss
+      # by observed outcomes. --awbc-reward standard uses Rewards.Standard
+      # (stock + damage); default :shine is the multishine specialist signal.
+      awbc: false,
+      awbc_reward: :shine,
+      awbc_beta: nil,
+      awbc_shuffle: false,
       # Per-head loss normalization: equalize gradient contribution from each head
       head_normalize: false,
       # Action-conditional oversampling: frames with button presses appear N× more often

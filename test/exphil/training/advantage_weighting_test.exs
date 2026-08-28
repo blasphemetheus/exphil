@@ -181,4 +181,22 @@ defmodule ExPhil.Training.AdvantageWeightingTest do
       assert_in_delta Enum.sum(weights) / length(weights), 1.0, 1.0e-6
     end
   end
+
+  describe "split_by_replay/1" do
+    defp sf(frame), do: %{game_state: %{frame: frame}}
+
+    test "splits on frame reset and preserves order" do
+      frames = [sf(0), sf(1), sf(2), sf(0), sf(1), sf(0), sf(1), sf(2), sf(3)]
+
+      lists = AW.split_by_replay(frames)
+
+      assert Enum.map(lists, &length/1) == [3, 2, 4]
+      assert List.flatten(lists) == frames
+    end
+
+    test "single replay stays whole" do
+      frames = [sf(0), sf(1), sf(2)]
+      assert AW.split_by_replay(frames) == [frames]
+    end
+  end
 end
