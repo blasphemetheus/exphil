@@ -3645,3 +3645,65 @@ Consequences:
 - Debug dumps in play scripts: default verbosity sets Logger to
   :warning — Logger.info debug lines are silently eaten (cost two
   relaunch cycles); use Logger.warning or IO.puts.
+
+## 102
+
+**The live-eval harness silently deleted the evidence of failure (copy
+race on `.slp` finalization).** Found 2026-08-28.
+
+`eval_live_protocol.sh` copied the newest replay out of `~/Slippi`
+immediately after a run, without waiting for Dolphin to finalize the
+file. Copying mid-flush yields a TRUNCATED `.slp` that every parser
+rejects with `I/O error: failed to fill whole buffer`.
+
+**Signature:** a damaged file has a **page-aligned size** (an exact
+multiple of 4096); an intact one has an arbitrary size. Check with
+`stat -c %s file.slp` and `% 4096`.
+
+**Why it is worse than ordinary data loss — the loss is BIASED.** A game
+that ends EARLY (the bot lost its stocks) gives Dolphin less time to
+finalize, so the worst-performing runs are the likeliest to be
+unreadable. In `eval_runs/0828_argmax_buttons` per-arm coverage came out
+**8/8, 8/8, 4/8, 1/8, 0/8 — perfectly ordered by how badly the arm
+played**, and the worst arm produced ZERO scoreable replays. Every
+replay-based metric therefore flatters bad arms by simply omitting their
+failures, and an arm can become entirely invisible.
+
+That bracket only survived because **game duration is recorded in the run
+LOGS** (`Final stats: N frames`), which truncation cannot touch. When a
+replay-scored comparison looks suspicious, cross-check the logs.
+
+**Fixed:** the protocol now polls until the file size is stable across
+two consecutive checks before copying, and warns when a copied replay is
+page-aligned anyway. `ExPhil.Interp.LoopStats.safe_load/2` skips and
+counts unreadable replays instead of crashing on the first one, and
+`loop_report` prints scored/played coverage per arm so partial coverage
+can never be mistaken for a full result.
+
+**Standing rule:** any batch scorer over replays must report
+**scored/played**, not just scored. A metric that silently drops files
+cannot be compared across arms.
+
+## 103
+
+**A config banner's ANSI escapes break literal log assertions.**
+Found 2026-08-28.
+
+`Output.config/1` writes a reset escape BETWEEN the label and the value:
+
+```
+  ^[[2m  Deterministic buttons:^[[0m false
+```
+
+so `grep "Deterministic buttons: false"` never matches, even though the
+line is right there. A knob assertion built on that literal reported
+FALSE alarms for two arms of the 0828 bracket while the arms were in fact
+configured correctly.
+
+**Fix:** strip ANSI before matching —
+`sed -e 's/\x1b\[[0-9;]*m//g' file | grep -q "label: value"`.
+
+Worth keeping the assertion regardless: it fails LOUD and SAFE (it
+flagged arms it could not verify rather than passing them silently),
+which is the correct failure direction for a guard whose job is catching
+a dropped flag.

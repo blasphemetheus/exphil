@@ -59,18 +59,41 @@ Output.config([
 
 # ---- score every game ------------------------------------------------------
 
-reports =
+scored =
   slps
   |> Enum.with_index(1)
   |> Enum.map(fn {path, i} ->
     if !opts[:quiet], do: Output.progress_bar(i, length(slps), label: "Scoring")
 
-    case LoopStats.report(path, bot_port: bot_port) do
-      %{} = r -> {path, r}
+    # Truncated replays are common AND their loss is biased toward the
+    # worst-performing arms (the protocol copies the .slp before Dolphin
+    # finalizes it, so a run whose game ended early is the likeliest to be
+    # unreadable). Skip and COUNT them; never crash the whole report on one.
+    case LoopStats.safe_load(path, bot_port: bot_port) do
+      {:ok, data} -> {path, LoopStats.report(data, bot_port: bot_port)}
+      {:error, reason} -> {:unreadable, path, reason}
     end
   end)
 
 unless opts[:quiet], do: Output.progress_done()
+
+reports = for {path, r} when is_binary(path) <- scored, do: {path, r}
+unreadable = for {:unreadable, path, reason} <- scored, do: {path, reason}
+
+if unreadable != [] do
+  Output.warning(
+    "#{length(unreadable)}/#{length(slps)} replays UNREADABLE (truncated) and excluded. " <>
+      "This loss is BIASED — see eval_live_protocol.sh:155-157 (copy race). " <>
+      "Per-arm coverage is reported below; an arm with low coverage cannot be " <>
+      "compared to one with full coverage."
+  )
+
+  for {path, _reason} <- Enum.take(unreadable, 10) do
+    Output.puts("    skipped: #{Path.dirname(path) |> Path.basename()}/#{Path.basename(path)}")
+  end
+end
+
+if reports == [], do: raise("every replay was unreadable — nothing to score")
 
 groups =
   reports
@@ -96,15 +119,20 @@ headline = [
 ]
 
 header =
-  "| arm | n | " <> Enum.map_join(headline, " | ", fn {_, label} -> label end) <> " |"
+  "| arm | scored/played | " <> Enum.map_join(headline, " | ", fn {_, label} -> label end) <> " |"
 
 sep = "|" <> String.duplicate("---|", 2 + length(headline))
+
+played_by_group =
+  slps
+  |> Enum.group_by(&(&1 |> Path.dirname() |> Path.basename()))
+  |> Map.new(fn {k, v} -> {k, length(v)} end)
 
 rows =
   Enum.map(groups, fn {name, entries} ->
     agg = entries |> Enum.map(&elem(&1, 1)) |> LoopStats.aggregate()
 
-    "| #{name} | #{agg.n} | " <>
+    "| #{name} | #{agg.n}/#{Map.get(played_by_group, name, agg.n)} | " <>
       Enum.map_join(headline, " | ", fn {k, _} -> cell.(agg.stats[k]) end) <> " |"
   end)
 

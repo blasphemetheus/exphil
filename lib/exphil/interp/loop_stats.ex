@@ -69,11 +69,36 @@ defmodule ExPhil.Interp.LoopStats do
   Returns `%{actions: [int], controllers: [ControllerState | nil], n: int}`.
   """
   def load(path, opts \\ []) do
+    case safe_load(path, opts) do
+      {:ok, data} -> data
+      {:error, reason} -> raise "LoopStats.load failed for #{path}: #{inspect(reason)}"
+    end
+  end
+
+  @doc """
+  Like `load/2` but returns `{:error, reason}` instead of raising on an
+  unreadable replay.
+
+  Truncated replays are COMMON and their loss is BIASED: the live-eval
+  protocol copies the newest `.slp` out of `~/Slippi` without waiting for
+  Dolphin to finalize it (`eval_live_protocol.sh:155-157`), so a run whose
+  game ended early — i.e. a run where the bot DIED — is the most likely to
+  produce a truncated, unparseable file. A scorer that crashes on the first
+  bad replay silently makes the worst arm the least measurable one, so
+  every batch entry point here skips and COUNTS them instead.
+  """
+  def safe_load(path, opts \\ []) do
     bot_port = Keyword.get(opts, :bot_port, 1)
     opp_port = if bot_port == 1, do: 2, else: 1
 
-    {:ok, replay} = Peppi.parse(Path.expand(path))
+    with {:ok, replay} <- Peppi.parse(Path.expand(path)) do
+      {:ok, build(replay, bot_port, opp_port)}
+    end
+  rescue
+    e -> {:error, Exception.message(e)}
+  end
 
+  defp build(replay, bot_port, opp_port) do
     frames =
       replay
       |> Peppi.to_training_frames(player_port: bot_port, opponent_port: opp_port)

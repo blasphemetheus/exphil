@@ -1,0 +1,77 @@
+policy=checkpoints/fox_gen_v1_20260825_210355_ep10.bin runs=8 seconds=120 started=2026-08-28T14:56:27-05:00
+=== base — buttons T=1.0 (current decode)
+base KNOB ASSERTION FAILED: 'Deterministic buttons: false' absent from run log — arm is NOT what it claims, discard it
+=== btn0.6 — buttons T=0.6
+btn0.6: 8 replays
+=== btn0.5 — buttons T=0.5
+btn0.5: 8 replays
+=== detbtn — argmax buttons, sticks sample
+detbtn KNOB ASSERTION FAILED: 'Deterministic buttons: true' absent from run log — arm is NOT what it claims, discard it
+=== detbtn_hyst — argmax buttons + press/release hysteresis
+detbtn_hyst: 8 replays
+=== scoring axis 1: loop/taunt
+==> exla
+Using libexla.so from /home/blewf/.cache/xla/exla/elixir-1.18.4-erts-16.4.0.4-xla-0.10.0-exla-0.13.1-2gwjr5st6sq2h5oph3af6rzta4/libexla.so
+EXLA_CPU_ONLY is not set, checking for nvcc availability
+CUDA is available.
+make: '/home/blewf/git/exphil/_build/dev/lib/exla/priv/libexla.so' is up to date.
+==> exphil
+      warning: function blind_target_css/1 is unused
+      │
+ 1676 │   defp blind_target_css(state) do
+      │        ~
+      │
+      └─ lib/exphil_bridge/melee_port.ex:1676:8: ExPhil.Bridge.MeleePort (module)
+
+     warning: clauses with the same name and arity (number of arguments) should be grouped together, "def handle_call/3" was previously defined (lib/exphil/agents/agent.ex:468)
+     │
+ 721 │   def handle_call({:reconfigure, opts}, _from, state) do
+     │       ~
+     │
+     └─ lib/exphil/agents/agent.ex:721:7
+
+
+16:28:00.794 [info] [ExPhil] Application started
+
+16:28:00.795 [debug] [ExPhil] Supervision tree: [{ExPhil.Training.AsyncCheckpoint, #PID<0.285.0>, :worker, [ExPhil.Training.AsyncCheckpoint]}, {ExPhil.Telemetry.Collector, #PID<0.284.0>, :worker, [ExPhil.Telemetry.Collector]}, {ExPhil.Agents.Supervisor, #PID<0.283.0>, :supervisor, [ExPhil.Agents.Supervisor]}, {ExPhil.Bridge.Supervisor, #PID<0.282.0>, :supervisor, [ExPhil.Bridge.Supervisor]}, {ExPhil.Registry, #PID<0.280.0>, :supervisor, [Registry]}]
+
+╔════════════════════════════════════════════════════════════╗
+║                    Loop / Taunt Report                     ║
+╚════════════════════════════════════════════════════════════╝
+
+[1mConfiguration:[0m
+  [2m  Replays:[0m 40
+  [2m  Bot port:[0m 1
+  [2m  Groups:[0m 5
+
+Scoring [[32m█[0m[2m░░░░░░░░░░░░░░░░░░░░░░░░░░░░░[0m] 3% (1/40)[KScoring [[32m██[0m[2m░░░░░░░░░░░░░░░░░░░░░░░░░░░░[0m] 5% (2/40)[KScoring [[32m██[0m[2m░░░░░░░░░░░░░░░░░░░░░░░░░░░░[0m] 8% (3/40)[KScoring [[32m███[0m[2m░░░░░░░░░░░░░░░░░░░░░░░░░░░[0m] 10% (4/40)[KScoring [[32m████[0m[2m░░░░░░░░░░░░░░░░░░░░░░░░░░[0m] 13% (5/40)[KScoring [[32m█████[0m[2m░░░░░░░░░░░░░░░░░░░░░░░░░[0m] 15% (6/40)[KScoring [[32m█████[0m[2m░░░░░░░░░░░░░░░░░░░░░░░░░[0m] 18% (7/40)[KScoring [[32m██████[0m[2m░░░░░░░░░░░░░░░░░░░░░░░░[0m] 20% (8/40)[KScoring [[32m███████[0m[2m░░░░░░░░░░░░░░░░░░░░░░░[0m] 23% (9/40)[KScoring [[32m████████[0m[2m░░░░░░░░░░░░░░░░░░░░░░[0m] 25% (10/40)[KScoring [[32m████████[0m[2m░░░░░░░░░░░░░░░░░░░░░░[0m] 28% (11/40)[KScoring [[32m█████████[0m[2m░░░░░░░░░░░░░░░░░░░░░[0m] 30% (12/40)[K** (MatchError) no match of right hand side value: {:error, "Failed to parse replay: I/O error: failed to fill whole buffer"}
+    (exphil 0.1.0) lib/exphil/interp/loop_stats.ex:75: ExPhil.Interp.LoopStats.load/2
+    (exphil 0.1.0) lib/exphil/interp/loop_stats.ex:275: ExPhil.Interp.LoopStats.report/2
+    scripts/loop_report.exs:68: anonymous fn/4 in :elixir_compiler_7.__FILE__/1
+    (elixir 1.18.4) lib/enum.ex:1714: Enum."-map/2-lists^map/1-1-"/2
+    (elixir 1.18.4) lib/enum.ex:1714: Enum."-map/2-lists^map/1-1-"/2
+    scripts/loop_report.exs:65: (file)
+loop_report FAILED
+=== scoring axis 2: coach_report (competence)
+base r1 [16:28:02] SCORE: armed/min=0.98 conv=1/4 neutral_loss=9 dropped=6 deaths=1 passive=2
+base r2 [16:28:03] SCORE: armed/min=0.49 conv=0/2 neutral_loss=11 dropped=4 deaths=2 passive=0
+base r3 [16:28:03] SCORE: armed/min=0.0 conv=0/0 neutral_loss=7 dropped=3 deaths=0 passive=4
+base r4 [16:28:04] SCORE: armed/min=0.49 conv=2/3 neutral_loss=8 dropped=1 deaths=1 passive=1
+base r5 [16:28:05] SCORE: armed/min=0.49 conv=0/3 neutral_loss=11 dropped=4 deaths=0 passive=3
+base r6 [16:28:06] SCORE: armed/min=0.49 conv=0/3 neutral_loss=9 dropped=3 deaths=3 passive=4
+base r7 [16:28:07] SCORE: armed/min=0.0 conv=0/0 neutral_loss=7 dropped=3 deaths=0 passive=5
+base r8 [16:28:08] SCORE: armed/min=0.0 conv=0/0 neutral_loss=11 dropped=5 deaths=2 passive=1
+btn0.5 r1 [16:28:09] SCORE: armed/min=0.49 conv=1/2 neutral_loss=12 dropped=2 deaths=1 passive=4
+btn0.5 r2 [16:28:10] SCORE: armed/min=0.49 conv=1/2 neutral_loss=8 dropped=5 deaths=2 passive=0
+btn0.5 r3 [16:28:11] SCORE: armed/min=0.98 conv=2/7 neutral_loss=9 dropped=9 deaths=3 passive=0
+btn0.5 r8 [16:28:14] SCORE: armed/min=0.98 conv=2/4 neutral_loss=10 dropped=4 deaths=2 passive=2
+btn0.6 r1 [16:28:15] SCORE: armed/min=0.98 conv=3/5 neutral_loss=12 dropped=6 deaths=2 passive=1
+btn0.6 r2 [16:28:16] SCORE: armed/min=0.0 conv=0/2 neutral_loss=10 dropped=5 deaths=1 passive=2
+btn0.6 r3 [16:28:17] SCORE: armed/min=0.49 conv=1/5 neutral_loss=8 dropped=3 deaths=1 passive=1
+btn0.6 r4 [16:28:18] SCORE: armed/min=0.49 conv=1/5 neutral_loss=7 dropped=5 deaths=2 passive=0
+btn0.6 r5 [16:28:19] SCORE: armed/min=0.0 conv=0/4 neutral_loss=6 dropped=3 deaths=2 passive=4
+btn0.6 r6 [16:28:20] SCORE: armed/min=0.0 conv=1/1 neutral_loss=7 dropped=3 deaths=3 passive=1
+btn0.6 r7 [16:28:21] SCORE: armed/min=0.0 conv=1/2 neutral_loss=7 dropped=9 deaths=1 passive=1
+btn0.6 r8 [16:28:22] SCORE: armed/min=0.49 conv=1/2 neutral_loss=7 dropped=6 deaths=1 passive=2
+detbtn r5 [16:28:26] SCORE: armed/min=0.0 conv=0/3 neutral_loss=8 dropped=0 deaths=4 passive=3
+BRACKET DONE 2026-08-28T16:28:34-05:00 — read PREREG.md BEFORE the numbers; <2x is unresolved

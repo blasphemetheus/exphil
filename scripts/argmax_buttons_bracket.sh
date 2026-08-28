@@ -75,7 +75,11 @@ run_arm() {
   # Knob assertion: the expected decode text must appear in a PER-RUN log
   # (the play script's config banner lands in $OUT/$name/rN.log, not in the
   # protocol's own stdout — verified by smoke test 2026-08-28).
-  if [ -n "$expect" ] && ! grep -qa -- "$expect" "$OUT/$name"/r*.log; then
+  # Strip ANSI before matching: the config banner writes a reset escape
+  # BETWEEN the label and the value ("Deterministic buttons:^[[0m false"),
+  # so a literal "label: value" never matches and every such arm reports a
+  # FALSE alarm (base and detbtn both did, 2026-08-28).
+  if [ -n "$expect" ] && ! sed -e 's/\x1b\[[0-9;]*m//g' "$OUT/$name"/r*.log | grep -qa -- "$expect"; then
     echo "$name KNOB ASSERTION FAILED: '$expect' absent from run log — arm is NOT what it claims, discard it" \
       | tee -a "$TABLE"
     return

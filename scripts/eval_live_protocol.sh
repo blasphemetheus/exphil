@@ -154,7 +154,32 @@ for i in $(seq 1 "$RUNS"); do
   # (the 2026-07-30 stale-copy artifact: 3 identical "runs" scored from one file)
   newest=$(ls -t "$HOME"/Slippi/*.slp "$HOME"/Slippi/*/*.slp 2>/dev/null | head -1)
   if [ -n "$newest" ] && [ "$(stat -c %Y "$newest")" -ge "$run_start" ]; then
+    # WAIT FOR FINALIZATION BEFORE COPYING (2026-08-28). Copying while
+    # Dolphin is still flushing produces a TRUNCATED .slp — recognisable
+    # by a page-aligned size (a multiple of 4096) and fatal to every
+    # parser ("failed to fill whole buffer").
+    #
+    # This cost 19 of 40 replays in eval_runs/0828_argmax_buttons, and the
+    # loss was BIASED: a game that ends EARLY (the bot died) gives Dolphin
+    # less time to finalize, so per-arm coverage came out 8/8, 8/8, 4/8,
+    # 1/8, 0/8 — perfectly ordered by how badly the arm played. The worst
+    # arm produced ZERO scoreable replays. A harness that deletes the
+    # evidence of failure biases every replay-scored comparison toward bad
+    # arms, silently.
+    #
+    # Poll until the size is unchanged across two consecutive checks.
+    prev_sz=-1
+    for _ in $(seq 1 20); do
+      sz=$(stat -c %s "$newest" 2>/dev/null || echo 0)
+      [ "$sz" = "$prev_sz" ] && [ "$sz" != "0" ] && break
+      prev_sz=$sz
+      sleep 0.5
+    done
     cp "$newest" "$OUTDIR/r$i.slp"
+    copied_sz=$(stat -c %s "$OUTDIR/r$i.slp" 2>/dev/null || echo 0)
+    if [ "$copied_sz" -gt 0 ] && [ $((copied_sz % 4096)) -eq 0 ]; then
+      echo "  r$i WARNING: replay size $copied_sz is page-aligned — likely TRUNCATED" >&2
+    fi
   else
     echo "  r$i NO FRESH REPLAY (run failed?) — see $OUTDIR/r$i.log" >&2
   fi
