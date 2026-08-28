@@ -139,6 +139,15 @@ Output.config([
   {"Frame Delay", opts[:frame_delay]},
   {"Deterministic", opts[:deterministic]},
   {"Temperature", inspect(temperature)},
+  # Echoed so an eval harness can ASSERT the decode it asked for actually
+  # arrived (a silently dropped decode flag makes two arms identical and
+  # the bracket a fake null — the flag-drop bug class, guard #6).
+  {"Deterministic buttons", opts[:deterministic_buttons] || false},
+  {"Button hysteresis",
+   if(opts[:press_threshold] || opts[:release_threshold],
+     do: "press=#{inspect(opts[:press_threshold])} release=#{inspect(opts[:release_threshold])}",
+     else: "off"
+   )},
   {"On Game End", opts[:on_game_end]},
   {"Architecture", "ASYNC (separate frame reader + inference processes)"}
 ])
