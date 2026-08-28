@@ -90,8 +90,8 @@ trained with --stage-internals wired.
 - Whether --stage-internals earned permanence (default-on for v2?).
 
 **Tooling:** P4 probe methodology + Inspect.moment; trunk activations
-need a capture hook (margin-export pattern). **Status:** [ ] probe
-harness adaptation owed.
+need a capture hook (margin-export pattern). **Status:** [x] done
+(2026-08-28) — see results ledger.
 
 ## G5. Style separability (SAE / clustering) → is OGSwaglord cheap
 
@@ -254,4 +254,29 @@ Full table: `eval_runs/0826_gen_v1_sweep/blind_audit.txt`. Per-head mean
 **Caveat:** single-family mean-|logit-delta| is a first-pass sensitivity
 measure; a "dead" channel here means "moves the marginal output little",
 not "the trunk has no linear encoding of it" (that is G4's question).
+
+### G4 — linear probes on the trunk, ep10, 40 files, 46,348 train rows (2026-08-28)
+Full table: `eval_runs/0826_gen_v1_sweep/g4_RESULTS.md`. Balanced accuracy of a
+linear probe on the GRU trunk's hidden state vs the raw embedding (input floor).
+
+**The RL-readiness verdict, split in two:**
+- **Fertile:** hitstun (own 0.924 / opp 0.912) and offstage (own 0.933 / opp
+  0.827) are richly, linearly encoded — the punish/edgeguard signals a value
+  model (D2) needs are there to sharpen. → the BC prior is fertile for the
+  core interaction game.
+- **Gaps:** percent (opp 0.524 / own 0.459 vs input ~0.8–0.9) and stage
+  identity (0.489 vs 1.000) are ~half-discarded; opponent character (0.332 ≈
+  majority) is fully discarded. → kill-confirm, recovery-routing, and matchup
+  awareness are NOT readable from the trunk by a linear value head.
+
+**The G7 disambiguation, answered:** the raw embedding DOES carry opponent
+character (input 0.460, weak) and the corpus DOES have variation (Fox vs 7+
+matchups, never a ditto) — so the dead character channel is NOT a collapsed
+embedding or a data gap; it dies **in the trunk**. Matchup-awareness is a
+representation fix (character must bypass/survive the trunk), not a decode or
+data fix.
+
+**Caveats:** linear-only (stage is used non-linearly per G7); the 12-file
+stage=0.009 was a small-eval fluke; input floor needs ≥40 files to be reliable
+(raw-ID scale is ill-conditioned).
 

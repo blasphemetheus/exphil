@@ -1,0 +1,13 @@
+policy: fox_gen_v1_20260825_210355_ep10.bin  files: 40  stride: 7
+train rows 46348 / eval rows 9542
+bal_acc: trunk vs INPUT-floor (raw embedding) vs SHUFFLE floor vs majority
+feature             trunk    input  shuffle  majority  verdict
+
+opp_percent         0.524    0.923    0.243     0.250  DISCARDED (trunk lost input info)
+own_percent         0.459    0.806    0.237     0.250  DISCARDED (trunk lost input info)
+opp_offstage        0.827    0.926    0.488     0.500  PRESERVED (decodable, ~ input)
+own_offstage        0.933    0.912    0.450     0.500  PRESERVED (decodable, ~ input)
+opp_hitstun         0.912    1.000    0.473     0.500  PRESERVED (decodable, ~ input)
+own_hitstun         0.924    0.999    0.477     0.500  PRESERVED (decodable, ~ input)
+stage_identity      0.489    1.000    0.125     0.333  DISCARDED (trunk lost input info)
+opp_character       0.332    0.460    0.211     0.333  WEAK/AMBIGUOUS
