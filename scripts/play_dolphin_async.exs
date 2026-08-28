@@ -263,8 +263,53 @@ elixir_dummy =
 # Netplay (Slippi Direct): opponent is remote — no dummy of any kind
 elixir_dummy = if opts[:connect_code], do: nil, else: elixir_dummy
 
+# Netplay account home. Without an explicit home, libmelee copies
+# ~/.config/SlippiOnline/ — Bradley's OWN login (DBTD#411), which the
+# Launcher also owns: the bot then boots into Slippi's LOGIN screen and the
+# menu helper mashes there forever (2026-08-28). Default to the bot account
+# snapshot and refuse to start when the account is missing or is the very
+# code we are told to connect to.
+netplay_home =
+  case {opts[:connect_code], System.get_env("EXPHIL_NETPLAY_HOME")} do
+    {nil, _} ->
+      nil
+
+    {_code, nil} ->
+      default = Path.expand("~/.config/slippi-dolphin-bot")
+      Output.puts("  Netplay home: EXPHIL_NETPLAY_HOME unset — defaulting to #{default}")
+      default
+
+    {_code, home} ->
+      Path.expand(home)
+  end
+
 if opts[:connect_code] do
-  Output.puts("  Netplay: connecting to #{opts[:connect_code]} (dummies disabled)")
+  user_json = Path.join([netplay_home, "Slippi", "user.json"])
+
+  account =
+    with {:ok, raw} <- File.read(user_json),
+         {:ok, %{"connectCode" => code} = acct} <- Jason.decode(raw) do
+      {code, Map.get(acct, "displayName", "?")}
+    else
+      _ ->
+        Output.error("Netplay: no logged-in Slippi account at #{user_json}")
+        Output.puts("  Set EXPHIL_NETPLAY_HOME to a Dolphin User dir holding the BOT's Slippi/user.json")
+        Output.puts("  (e.g. EXPHIL_NETPLAY_HOME=$HOME/.config/slippi-dolphin-bot). Without it Dolphin")
+        Output.puts("  boots to the login screen and the menu helper mashes there.")
+        System.halt(2)
+    end
+
+  {own_code, own_name} = account
+  target = String.upcase(String.trim(opts[:connect_code]))
+
+  if String.upcase(own_code) == target do
+    Output.error("Netplay: account #{own_code} (#{own_name}) cannot connect to ITSELF (#{target})")
+    Output.puts("  You are launching the bot with the account you play on. Point EXPHIL_NETPLAY_HOME")
+    Output.puts("  at the bot account (EXPH#288) or connect to a different code.")
+    System.halt(2)
+  end
+
+  Output.puts("  Netplay: playing as #{own_code} (#{own_name}) -> connecting to #{target} (dummies disabled)")
 end
 
 # Warmup readiness flag for the CSS interlock (see MeleePort
@@ -285,7 +330,7 @@ bridge_config = %{
   # Netplay account home (#9): EXPHIL_NETPLAY_HOME env (no CLI flag —
   # keeps this change out of compiled cli.ex). For the bot account:
   #   EXPHIL_NETPLAY_HOME=~/.config/SlippiOnline-bot
-  user_home: System.get_env("EXPHIL_NETPLAY_HOME"),
+  user_home: netplay_home,
   gfx_backend: System.get_env("EXPHIL_GFX"),
   # Port-2 dummy for drills (none|stand|shield|jump|walk|cpu|tech_random)
   dummy_mode:
