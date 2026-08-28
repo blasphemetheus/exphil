@@ -14,6 +14,7 @@ OUT="eval_runs/0826_gen_v1_sweep/per_head_temp"
 mkdir -p "$OUT"
 LOG="$OUT/wait_then_bracket.log"
 MARKER="$OUT/.bracket_done"
+rm -f "$MARKER"
 
 quiet() {
   local p load

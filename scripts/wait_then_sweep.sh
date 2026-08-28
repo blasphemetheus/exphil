@@ -10,6 +10,7 @@ OUT="eval_runs/0828_buttons_temp"
 mkdir -p "$OUT"
 LOG="$OUT/wait_then_sweep.log"
 MARKER="$OUT/.sweep_done"
+rm -f "$MARKER"
 
 quiet() {
   local d p b load
