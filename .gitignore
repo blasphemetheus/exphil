@@ -57,6 +57,7 @@ native/rust_linear_scan_nif/Cargo.lock
 
 # Replay files (too large for git)
 /replays/
+/replays
 *.slp
 cover/
 
