@@ -13,9 +13,9 @@ MARKER="$OUT/.sweep_done"
 
 quiet() {
   local d p b load
-  d=$(pgrep -fc "dolphin|Slippi" 2>/dev/null || echo 0)
-  p=$(pgrep -fc "permuter\.py" 2>/dev/null || echo 0)
-  b=$(pgrep -fc "beam\.smp" 2>/dev/null || echo 0)
+  d=$(pgrep -fc "dolphin|Slippi" 2>/dev/null)
+  p=$(pgrep -fc "permuter\.py" 2>/dev/null)
+  b=$(pgrep -fc "beam\.smp" 2>/dev/null)
   load=$(cut -d' ' -f1 /proc/loadavg | cut -d. -f1)
   [ "$d" -eq 0 ] && [ "$p" -eq 0 ] && [ "$b" -eq 0 ] && [ "$load" -lt 2 ]
 }
@@ -29,7 +29,7 @@ while ! quiet; do
   waited=$((waited + 1))
 
   if [ $((waited % 30)) -eq 0 ]; then
-    echo "[$(date '+%F %T')] still waiting (${waited}m) — loadavg=$(cut -d' ' -f1 /proc/loadavg) dolphin=$(pgrep -fc 'dolphin|Slippi' 2>/dev/null || echo 0) permuter=$(pgrep -fc 'permuter\.py' 2>/dev/null || echo 0)" | tee -a "$LOG"
+    echo "[$(date '+%F %T')] still waiting (${waited}m) — loadavg=$(cut -d' ' -f1 /proc/loadavg) dolphin=$(pgrep -fc 'dolphin|Slippi' 2>/dev/null) permuter=$(pgrep -fc 'permuter\.py' 2>/dev/null)" | tee -a "$LOG"
   fi
 
   if [ "$waited" -ge "$MAX_WAIT_MIN" ]; then

@@ -17,7 +17,7 @@ MARKER="$OUT/.bracket_done"
 
 quiet() {
   local p load
-  p=$(pgrep -fc "permuter\.py" 2>/dev/null || echo 0)
+  p=$(pgrep -fc "permuter\.py" 2>/dev/null)
   load=$(cut -d' ' -f1 /proc/loadavg | cut -d. -f1)
   [ "$p" -eq 0 ] && [ "$load" -lt 2 ]
 }
@@ -32,11 +32,11 @@ while ! quiet; do
 
   # progress line every 30 min so a log reader can see it's still alive
   if [ $((waited % 30)) -eq 0 ]; then
-    echo "[$(date '+%F %T')] still waiting (${waited}m) — loadavg=$(cut -d' ' -f1 /proc/loadavg) permuter=$(pgrep -fc 'permuter\.py|permuter-tui' 2>/dev/null || echo 0)" | tee -a "$LOG"
+    echo "[$(date '+%F %T')] still waiting (${waited}m) — loadavg=$(cut -d' ' -f1 /proc/loadavg) permuter=$(pgrep -fc 'permuter\.py|permuter-tui' 2>/dev/null)" | tee -a "$LOG"
   fi
 
   if [ "$waited" -ge "$MAX_WAIT_MIN" ]; then
-    echo "[$(date '+%F %T')] NEVER QUIET after ${MAX_WAIT_MIN}m — ABORTING bracket (permuter=$(pgrep -fc 'permuter\.py|permuter-tui' 2>/dev/null || echo 0), loadavg=$(cat /proc/loadavg)). Re-run manually when the core is free." | tee -a "$LOG"
+    echo "[$(date '+%F %T')] NEVER QUIET after ${MAX_WAIT_MIN}m — ABORTING bracket (permuter=$(pgrep -fc 'permuter\.py|permuter-tui' 2>/dev/null), loadavg=$(cat /proc/loadavg)). Re-run manually when the core is free." | tee -a "$LOG"
     echo "aborted:never_quiet $(date '+%F %T')" > "$MARKER"
     exit 2
   fi
