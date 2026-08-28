@@ -1,0 +1,517 @@
+<title>ExPhil Status Board</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Source+Sans+3:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f3f4f8;
+    --paper: #ffffff;
+    --paper-2: #e9ebf3;
+    --ink: #171a2b;
+    --ink-2: #4a4f66;
+    --ink-3: #8a8fa6;
+    --line: #d5d8e6;
+    --accent: #4338a8;      /* GameCube indigo */
+    --accent-ink: #ffffff;
+    --accent-soft: #e6e3fa;
+    --good: #1d7f4f;
+    --good-soft: #dff3e8;
+    --warn: #a56a00;
+    --warn-soft: #fbefd1;
+    --bad: #b3261e;
+    --bad-soft: #fbe2df;
+    --shadow: 0 1px 0 rgba(23,26,43,.06), 0 8px 24px -16px rgba(23,26,43,.25);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #101220;
+      --paper: #171a2b;
+      --paper-2: #1f2336;
+      --ink: #eceef8;
+      --ink-2: #b5b9cf;
+      --ink-3: #7d8299;
+      --line: #2c3148;
+      --accent: #9b8dff;
+      --accent-ink: #101220;
+      --accent-soft: #2a2650;
+      --good: #4fd58c;
+      --good-soft: #143523;
+      --warn: #f2b53c;
+      --warn-soft: #3a2c0a;
+      --bad: #ff7b72;
+      --bad-soft: #3f1a17;
+      --shadow: 0 1px 0 rgba(0,0,0,.3), 0 8px 24px -16px rgba(0,0,0,.6);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #101220;
+    --paper: #171a2b;
+    --paper-2: #1f2336;
+    --ink: #eceef8;
+    --ink-2: #b5b9cf;
+    --ink-3: #7d8299;
+    --line: #2c3148;
+    --accent: #9b8dff;
+    --accent-ink: #101220;
+    --accent-soft: #2a2650;
+    --good: #4fd58c;
+    --good-soft: #143523;
+    --warn: #f2b53c;
+    --warn-soft: #3a2c0a;
+    --bad: #ff7b72;
+    --bad-soft: #3f1a17;
+    --shadow: 0 1px 0 rgba(0,0,0,.3), 0 8px 24px -16px rgba(0,0,0,.6);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+    font-size: 16.5px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  code, .mono {
+    font-family: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 0.86em;
+    font-variant-numeric: tabular-nums;
+  }
+  code { background: var(--paper-2); padding: 1px 5px; border-radius: 3px; }
+  pre {
+    margin: 0;
+    background: var(--paper-2);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 12px 14px;
+    overflow-x: auto;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  pre code { background: none; padding: 0; font-size: inherit; }
+  h1, h2, h3 { font-family: "Barlow Condensed", "Arial Narrow", sans-serif; margin: 0; text-wrap: balance; letter-spacing: .005em; }
+  h1 { font-weight: 700; font-size: clamp(34px, 5vw, 52px); line-height: 1; }
+  h2 { font-weight: 600; font-size: 28px; line-height: 1.1; }
+  h3 { font-weight: 600; font-size: 19px; line-height: 1.2; }
+  p { margin: 0; }
+  .lede { font-size: 19px; line-height: 1.45; color: var(--ink-2); max-width: 64ch; }
+  .lede strong { color: var(--ink); font-weight: 600; }
+  .eyebrow {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11.5px; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--ink-3);
+  }
+  .muted { color: var(--ink-2); }
+  .small { font-size: 14px; }
+
+  /* shell: sticky rail + content */
+  .shell { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 40px; max-width: 1180px; margin: 0 auto; padding: 44px 28px 96px; }
+  nav.rail { position: sticky; top: 24px; align-self: start; display: flex; flex-direction: column; gap: 2px; }
+  nav.rail a { color: var(--ink-2); text-decoration: none; font-size: 14px; padding: 6px 10px; border-left: 2px solid var(--line); }
+  nav.rail a:hover { color: var(--ink); border-color: var(--accent); }
+  nav.rail .stamp { margin-top: 18px; padding: 10px; border: 1px solid var(--line); border-radius: 4px; background: var(--paper); font-size: 12.5px; color: var(--ink-2); line-height: 1.45; }
+  main { display: flex; flex-direction: column; gap: 56px; min-width: 0; }
+  section { display: flex; flex-direction: column; gap: 18px; scroll-margin-top: 20px; }
+  .section-head { display: flex; flex-direction: column; gap: 6px; padding-bottom: 10px; border-bottom: 2px solid var(--ink); }
+  .section-head p { color: var(--ink-2); max-width: 70ch; }
+
+  /* scoreboard */
+  .board { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .tile { background: var(--paper); border: 1px solid var(--line); border-radius: 4px; padding: 14px 16px 12px; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 4px; }
+  .tile .k { font-size: 12px; color: var(--ink-3); letter-spacing: .06em; text-transform: uppercase; font-family: "JetBrains Mono", monospace; }
+  .tile .v { font-family: "Barlow Condensed", sans-serif; font-weight: 700; font-size: 38px; line-height: 1; font-variant-numeric: tabular-nums; }
+  .tile .v small { font-size: 18px; font-weight: 500; color: var(--ink-3); margin-left: 4px; }
+  .tile .d { font-size: 13.5px; color: var(--ink-2); }
+  .tile.good .v { color: var(--good); }
+  .tile.warn .v { color: var(--warn); }
+  .tile.bad .v { color: var(--bad); }
+  .tile.accent .v { color: var(--accent); }
+
+  /* pills */
+  .pill { display: inline-flex; align-items: center; gap: 6px; font-family: "JetBrains Mono", monospace; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; padding: 2px 8px; border-radius: 3px; white-space: nowrap; }
+  .pill::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+  .pill.good { color: var(--good); background: var(--good-soft); }
+  .pill.warn { color: var(--warn); background: var(--warn-soft); }
+  .pill.bad { color: var(--bad); background: var(--bad-soft); }
+  .pill.accent { color: var(--accent); background: var(--accent-soft); }
+  .pill.neutral { color: var(--ink-2); background: var(--paper-2); }
+
+  /* cards & ledgers */
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+  .card { background: var(--paper); border: 1px solid var(--line); border-radius: 4px; padding: 16px 18px; display: flex; flex-direction: column; gap: 8px; box-shadow: var(--shadow); }
+  .card .top { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+  .card p { color: var(--ink-2); font-size: 15px; }
+  .card p strong { color: var(--ink); }
+  .ledger { display: flex; flex-direction: column; gap: 10px; }
+  .row { display: grid; grid-template-columns: 150px minmax(0,1fr) 190px; gap: 16px; align-items: start; background: var(--paper); border: 1px solid var(--line); border-radius: 4px; padding: 14px 16px; }
+  .row .tag { font-family: "JetBrains Mono", monospace; font-size: 12px; color: var(--accent); letter-spacing: .04em; text-transform: uppercase; padding-top: 3px; }
+  .row .what h3 { margin-bottom: 4px; }
+  .row .what p { color: var(--ink-2); font-size: 15px; }
+  .row .what p strong { color: var(--ink); }
+  .row .ev { font-size: 13px; color: var(--ink-3); line-height: 1.45; }
+  .row .ev b { color: var(--ink-2); font-weight: 600; display: block; }
+
+  table { border-collapse: collapse; width: 100%; font-size: 14.5px; background: var(--paper); }
+  .tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 4px; }
+  th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-family: "JetBrains Mono", monospace; font-size: 11.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); background: var(--paper-2); font-weight: 500; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; font-family: "JetBrains Mono", monospace; font-size: 13.5px; }
+  tr:last-child td { border-bottom: none; }
+  caption { caption-side: bottom; text-align: left; font-size: 13px; color: var(--ink-3); padding: 8px 2px; }
+
+  /* directions */
+  .dirs { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; }
+  .dir { background: var(--paper); border: 1px solid var(--line); border-radius: 4px; padding: 18px; display: flex; flex-direction: column; gap: 10px; box-shadow: var(--shadow); }
+  .dir.pick { border-color: var(--accent); }
+  .dir .head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+  .dir dl { margin: 0; display: grid; grid-template-columns: 74px 1fr; gap: 4px 10px; font-size: 14.5px; }
+  .dir dt { color: var(--ink-3); font-family: "JetBrains Mono", monospace; font-size: 11.5px; letter-spacing: .06em; text-transform: uppercase; padding-top: 3px; }
+  .dir dd { margin: 0; color: var(--ink-2); }
+  .dir dd strong { color: var(--ink); }
+  .callout { background: var(--accent-soft); border-left: 3px solid var(--accent); border-radius: 0 4px 4px 0; padding: 18px 22px; display: flex; flex-direction: column; gap: 8px; }
+  .callout p { font-size: 17px; line-height: 1.45; }
+  .callout p strong { color: var(--accent); }
+  .callout .small { color: var(--ink-2); }
+
+  .laws { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 10px; }
+  .law { display: flex; gap: 12px; padding: 12px 14px; background: var(--paper); border: 1px solid var(--line); border-radius: 4px; font-size: 14.5px; color: var(--ink-2); }
+  .law strong { color: var(--ink); }
+  .law .n { font-family: "JetBrains Mono", monospace; color: var(--accent); font-size: 12px; padding-top: 3px; min-width: 22px; }
+
+  .checklist { display: flex; flex-direction: column; gap: 8px; }
+  .check { display: grid; grid-template-columns: 22px 1fr auto; gap: 12px; align-items: start; padding: 12px 14px; background: var(--paper); border: 1px solid var(--line); border-radius: 4px; }
+  .check .box { width: 16px; height: 16px; border: 2px solid var(--ink-3); border-radius: 3px; margin-top: 3px; }
+  .check.done .box { border-color: var(--good); background: var(--good); }
+  .check .t { font-size: 15px; }
+  .check .t strong { color: var(--ink); }
+  .check .t span { color: var(--ink-2); }
+
+  footer { color: var(--ink-3); font-size: 13px; border-top: 1px solid var(--line); padding-top: 16px; }
+
+  @media (max-width: 860px) {
+    .shell { grid-template-columns: 1fr; gap: 24px; padding: 28px 18px 72px; }
+    nav.rail { position: static; flex-direction: row; flex-wrap: wrap; }
+    nav.rail .stamp { display: none; }
+    .board { grid-template-columns: repeat(2, 1fr); }
+    .row { grid-template-columns: 1fr; gap: 8px; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+
+<div class="shell">
+  <nav class="rail" aria-label="Sections">
+    <a href="#now">Now</a>
+    <a href="#settled">What is settled</a>
+    <a href="#livelook">Live look</a>
+    <a href="#instruments">Instruments</a>
+    <a href="#directions">Directions</a>
+    <a href="#laws">Laws</a>
+    <a href="#bradley">Needs Bradley</a>
+    <a href="#housekeeping">Housekeeping</a>
+    <div class="stamp">
+      <span class="eyebrow">Stamp</span><br>
+      2026-08-28, evening<br>
+      HEAD <span class="mono">1c46ea8</span> + working tree<br>
+      1,331 commits · ~2,700 tests<br>
+      Supersedes DeepSeek's board (08-27)
+    </div>
+  </nav>
+
+  <main>
+    <header style="display:flex;flex-direction:column;gap:14px">
+      <span class="eyebrow">ExPhil · Melee AI lab · Fox generalist program</span>
+      <h1>The generalist plays Melee. It just doesn't pick well.</h1>
+      <p class="lede"><strong>fox_gen_v1</strong> (GRU, 3.0M params, 7,911 ranked Fox games, 10 epochs) plays real games against a human — shine-grabs, drill-shine-grabs, side-B shortens — and between those moments throws out punishable options, taunts, and shield-grabs on repeat. Everything measured this week says the same thing: <strong>the model contains the behavior and lacks a selection rule.</strong> Tonight's live look moved the taunt impulse 4.5× and the human agreed; the loops and the bad picks stayed. The next question is a number, and it is being computed right now.</p>
+    </header>
+
+    <section id="now">
+      <div class="section-head">
+        <h2>Now</h2>
+        <p>The four numbers that describe tonight. Semantic color is state, not decoration.</p>
+      </div>
+      <div class="board">
+        <div class="tile good">
+          <span class="k">d-up presses / min</span>
+          <span class="v">455<small>→ 101</small></span>
+          <span class="d">buttons T 1.0 → 0.5, vs Bradley, same day. Disjoint ranges, replicated vs CPU.</span>
+        </div>
+        <div class="tile warn">
+          <span class="k">deaths / game (bot)</span>
+          <span class="v">3.6<small>= 3.6</small></span>
+          <span class="d">Unchanged by the knob. The human still takes nearly every stock. Dropped conversions 1.3 → 2.6 (n=7, unresolved).</span>
+        </div>
+        <div class="tile accent">
+          <span class="k">pass@16 − pass@1</span>
+          <span class="v">…<small>running</small></span>
+          <span class="d">Leg S, first ever run — 2,000 decision frames × 16 samples on ep10. Unit <code>exphil-legS-ep10</code>.</span>
+        </div>
+        <div class="tile bad">
+          <span class="k">root disk</span>
+          <span class="v">99<small>%</small></span>
+          <span class="d">7.8 GB free of 590. RAM is fine (40 GB available). Cleanup plan below.</span>
+        </div>
+      </div>
+
+      <div class="cards">
+        <div class="card">
+          <div class="top"><h3>Specialist Fox (multishine)</h3><span class="pill good">Closed</span></div>
+          <p>Production <code>ms_g19_ep4.bin</code>, crowned 08-24 by a blind FD decider. Netplay = <code>--frame-delay 4 --delay-id-override 3</code>; id4 is untrained. Record chain 62. Not being worked.</p>
+        </div>
+        <div class="card">
+          <div class="top"><h3>Generalist Fox (fox_gen_v1)</h3><span class="pill accent">Live</span></div>
+          <p>Local-only by design (no delay-ids). Deploy decode as of tonight: <strong><code>--temperature 0.5 --buttons-temperature 0.5</code></strong>, never <code>--deterministic</code> (argmax collapses in ~30 s). v2 waits until v1 is exhausted.</p>
+        </div>
+        <div class="card">
+          <div class="top"><h3>Value model / critic</h3><span class="pill neutral">Entry rung wired</span></div>
+          <p>AWBC arms B1/B2/B3 runnable (<code>--awbc --awbc-reward standard</code>, ~11 h each, never run). The learned critic — offline training script + Best-of-N decode — is not built.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="settled">
+      <div class="section-head">
+        <h2>What is settled</h2>
+        <p>Verified results, each with the evidence a stranger could check. Two of last session's claims are retracted in place — keep that habit.</p>
+      </div>
+      <div class="ledger">
+        <div class="row">
+          <div class="tag">Decode</div>
+          <div class="what">
+            <h3>Argmax buttons collapses the policy</h3>
+            <p>5 arms × 8 games vs CPU. Every sampled-button game reached the 120 s cap (24/24); argmax games died at 72 s mean (2/16 finished). Hysteresis did not rescue it. <strong>The pre-registered falsification branch fired word for word.</strong></p>
+          </div>
+          <div class="ev"><b>eval_runs/0828_argmax_buttons</b>PREREG + RESULTS. Duration came from run LOGS — the replays were half-destroyed (GOTCHA #102).</div>
+        </div>
+        <div class="row">
+          <div class="tag">Decode</div>
+          <div class="what">
+            <h3>Buttons temperature is a press-rate dial, not a diversity knob</h3>
+            <p>d-up presses/min: T 0.5 → 112 · 0.6 → 171 · 0.7 → 248 · 1.0 → 430. Monotone, disjoint ranges, two brackets. Mechanism: buttons are Bernoulli — <code>sigmoid(logit/T)</code> pushes a rare button toward 0 as T falls, whereas sticks are categorical and merely sharpen. Deaths rise as buttons cool (1.1 → 1.6 → 2.0 → 4.0); T=0.5 is next to the cliff.</p>
+          </div>
+          <div class="ev"><b>eval_runs/0828_loop_rescore</b>85 banked replays rescored on a dense metric. No new games, no GPU.</div>
+        </div>
+        <div class="row">
+          <div class="tag">Method</div>
+          <div class="what">
+            <h3>Both "null" sweeps were mis-scored, not null</h3>
+            <p><code>coach_report</code> never measured what the human complained about; its armed/min metric moved 7× across two days on its own. A dense metric turned two dead experiments into a clean dose-response from replays already on disk. <strong>Instrument work has beaten compute every time this month.</strong></p>
+          </div>
+          <div class="ev"><b>HANDOFF_2026-08-28b §2</b>Retracts the 08-28 morning's "both temperature knobs are null."</div>
+        </div>
+        <div class="row">
+          <div class="tag">Pathology</div>
+          <div class="what">
+            <h3>The dominant loop has a name</h3>
+            <p><code>GRAB_WAIT&gt;GRAB_PUMMEL</code> — 78 / 94 / 16 / 10 episodes across four corpora, more than every other detected cycle combined. Bare loops/min is <em>not</em> a pathology score: the human "loops" 9.6/min vs the bot's 0.7 because dash-dancing is a repeated cycle and correct Melee. Rank by the specific pattern.</p>
+          </div>
+          <div class="ev"><b>ExPhil.Interp.LoopStats</b>+ ActionNames. 17 tests.</div>
+        </div>
+        <div class="row">
+          <div class="tag">Interp</div>
+          <div class="what">
+            <h3>The trunk keeps hitstun and offstage, discards percent and character</h3>
+            <p>Linear probes on the GRU trunk: hitstun/offstage R² 0.83–0.93 (fertile); percent 0.46–0.52 vs ~0.85 from raw input (half discarded); opponent character 0.33 (dead). Consequence for the critic: read <strong>trunk ⊕ raw scalars</strong>, not trunk alone — percent is the most important variable in a Melee value function.</p>
+          </div>
+          <div class="ev"><b>INTERP_GEN_V1 G4</b>G1/G2/G7 also closed. Design correction in HANDOFF_2026-08-28b §6.3.</div>
+        </div>
+        <div class="row">
+          <div class="tag">Harness</div>
+          <div class="what">
+            <h3>GOTCHA #102 — the harness deleted the evidence of failure</h3>
+            <p><code>eval_live_protocol.sh</code> copied <code>.slp</code> files before Dolphin finalized them. Signature: a page-aligned size (multiple of 4096). The loss was <strong>biased</strong>: games that ended early (the bot died) lost more replays — per-arm coverage came out 8/8, 8/8, 4/8, 1/8, 0/8, perfectly ordered by how badly the arm played. Fixed; any batch scorer now reports scored/played. Unknown: how many past comparisons this touched.</p>
+          </div>
+          <div class="ev"><b>docs/reference/GOTCHAS.md #102, #103</b>#103: ANSI reset between label and value defeats <code>grep "Label: value"</code>.</div>
+        </div>
+        <div class="row">
+          <div class="tag">Retracted</div>
+          <div class="what">
+            <h3>The transfer decider is not a low-tier test</h3>
+            <p>Both arms are multishine Fox specialists; what varies is the <em>opponent's</em> character. It is a shine-line loose end about opponent robustness. The founding low-tier goal (the bot <em>playing</em> Mewtwo/Ganon) is a different question and this decider does not bear on it.</p>
+          </div>
+          <div class="ev"><b>HANDOFF_2026-08-28b §2</b>Retraction on the record.</div>
+        </div>
+        <div class="row">
+          <div class="tag">Netplay</div>
+          <div class="what">
+            <h3>Fixed tonight: the bot booted into Slippi's login screen and mashed</h3>
+            <p>Launching without <code>EXPHIL_NETPLAY_HOME</code> made libmelee copy <code>~/.config/SlippiOnline/</code> — Bradley's own DBTD#411 login, which the Launcher also holds — so Dolphin opened the login screen and the menu helper mashed there. <code>play_dolphin_async.exs</code> now defaults to the bot account (<code>~/.config/slippi-dolphin-bot</code>, EXPH#288), refuses to start without a <code>user.json</code>, and refuses to connect an account to itself. DEPLOY_KNOBS row corrected.</p>
+          </div>
+          <div class="ev"><b>scripts/play_dolphin_async.exs:262–306</b>Uncommitted in the working tree at time of writing.</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="livelook">
+      <div class="section-head">
+        <h2>Tonight's live look — buttons T = 0.5 vs Bradley</h2>
+        <p>The human-gated rung of the bracket. Same policy, same human, same day as the T=1.0 session this morning. 7 full games (four ~100 KB CSS restarts excluded; no page-aligned sizes).</p>
+      </div>
+      <div class="tablewrap">
+        <table>
+          <caption>loop_report (bot port 1) and coach_report (--char fox) on eval_runs/0828_session (T=1.0) vs eval_runs/0828_livelook_btn05 (T=0.5). Under-2× differences are unresolved by the standing law.</caption>
+          <thead><tr><th>arm</th><th class="num">games</th><th class="num">d-up / min</th><th class="num">taunt entries / min</th><th class="num">pummel loops / game</th><th class="num">deaths / game</th><th class="num">conversions</th><th class="num">dropped / game</th><th class="num">neutral losses / game</th></tr></thead>
+          <tbody>
+            <tr><td>buttons T 1.0 (morning)</td><td class="num">11–12</td><td class="num">455</td><td class="num">1.17</td><td class="num">1.3</td><td class="num">3.64</td><td class="num">8/87 (9%)</td><td class="num">1.3</td><td class="num">7.1</td></tr>
+            <tr><td>buttons T 0.5 (tonight)</td><td class="num">7</td><td class="num"><strong>101</strong></td><td class="num">1.79</td><td class="num">1.4</td><td class="num">3.57</td><td class="num">7/61 (11%)</td><td class="num">2.6</td><td class="num">10.7</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="cards">
+        <div class="card">
+          <div class="top"><h3>What the numbers say</h3><span class="pill warn">Mixed</span></div>
+          <p>The impulse metric the knob was selected on dropped 4.5× with disjoint ranges. Taunt <em>entries</em> and pummel loops per game did not move (ranges overlap). Dropped conversions doubled — plausibly colder buttons costing follow-up presses; n=7.</p>
+        </div>
+        <div class="card">
+          <div class="top"><h3>What Bradley said</h3><span class="pill good">Gate passed</span></div>
+          <p>"Definitely less taunty, less loopy, hints of a very fast, scrappy game. Occasionally playing the game — but a lot of the time throwing out punishable options or taunting or shield-grabbing repetitively. Sometimes a short-hop drill-shine-grab — that was pretty good."</p>
+        </div>
+        <div class="card">
+          <div class="top"><h3>Decision</h3><span class="pill accent">Recipe note</span></div>
+          <p><code>--buttons-temperature 0.5</code> is the default decode for v1 live play. Not a crown (v1 has none). The residual complaint — <strong>picks</strong>, not impulses — is the selection question, which no temperature answers.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="instruments">
+      <div class="section-head">
+        <h2>Instruments</h2>
+        <p>The expensive half of every eval (playing the games) is already banked as <code>.slp</code>; a metric added today runs against every game ever recorded.</p>
+      </div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>instrument</th><th>answers</th><th>state</th><th>caveat that travels with it</th></tr></thead>
+          <tbody>
+            <tr><td><code>loop_report.exs</code> / LoopStats</td><td>taunt presses, taunt entries, frozen/held input, repeated action cycles</td><td><span class="pill good">Working</span></td><td>Rank by specific cycle, never bare loops/min. Reports scored/played.</td></tr>
+            <tr><td><code>coach_report.exs</code></td><td>armed approaches, conversions, drops, deaths, passivity — and appends gaps to the ledger</td><td><span class="pill good">Working</span></td><td>armed/min baseline swings 7× day to day; never carry an A/B on it alone.</td></tr>
+            <tr><td><code>interp_passk.exs</code> — Leg S</td><td>pass@k − pass@1 on decision frames: does a perfect selector have room?</td><td><span class="pill warn">First run tonight</span></td><td>Mandatory calibration: pass@1 across ep1..ep10 must be roughly flat (those epochs demonstrably played the same). Run on two corpora and require agreement.</td></tr>
+            <tr><td>HEADROOM_TRIAD (Legs C, D)</td><td>capacity and data headroom, same unit</td><td><span class="pill neutral">Designed</span></td><td>Each costs training runs; only worth it if Leg S says selection is not the ceiling.</td></tr>
+            <tr><td>eval_live_protocol.sh</td><td>batch games vs CPU/stand with knob assertions</td><td><span class="pill good">Fixed #102</span></td><td>Polls file size before copy; warns on page-aligned results. Cross-check duration in logs.</td></tr>
+            <tr><td>CycleSim, probes, SAE, GapLedger</td><td>offline sim, representation reads, data flywheel</td><td><span class="pill good">Closed / live</span></td><td>G3 (CycleSim adaptation) and G5 (style separability) remain open, low priority.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="directions">
+      <div class="section-head">
+        <h2>Directions</h2>
+        <p>Bradley's standing direction: exhaust v1 (retrain-free first) before v2; delay is a later generation; v1 and v2 stay local-only. "Exhausted" = when the triad says selection is no longer the biggest number.</p>
+      </div>
+      <div class="dirs">
+        <div class="dir">
+          <div class="head"><h3>A · Keep tuning v1 decode</h3><span class="pill warn">Near its end</span></div>
+          <dl>
+            <dt>What</dt><dd>The rule that turns per-frame probabilities into a press. Zero training cost, minutes per try.</dd>
+            <dt>Left</dt><dd>Per-button temperatures (cool only d-up and Z, not A/L/X) — targets the two named pathologies without taxing follow-ups. One more bracket, then stop.</dd>
+            <dt>Why not more</dt><dd>Deaths climb as buttons cool; the knob has a cliff and T=0.5 sits beside it. Local optimum, not a road.</dd>
+          </dl>
+        </div>
+        <div class="dir pick">
+          <div class="head"><h3>B · A critic (value model) → Best-of-N</h3><span class="pill accent">Best long-term</span></div>
+          <dl>
+            <dt>What</dt><dd>A second network scoring "how good is this state for Fox?"; decode becomes sample N, score, pick. <strong>It is the selection rule v1 lacks.</strong></dd>
+            <dt>Build</dt><dd>Offline critic training script + Best-of-N decode. Pieces exist: <code>Networks.Value</code>, GAE, <code>Rewards.Standard</code>, trunk capture. Read trunk ⊕ raw scalars; start linear; validate by <em>ranking</em> the master's action, not MSE; check on bot replays too.</dd>
+            <dt>Risk</dt><dd>Trained on human data, least reliable exactly on the states the bot creates.</dd>
+          </dl>
+        </div>
+        <div class="dir">
+          <div class="head"><h3>C · AWBC arms B1/B2/B3</h3><span class="pill good">Free, overnight</span></div>
+          <dl>
+            <dt>What</dt><dd>Re-weight BC frames by actual game outcome (return-to-go). Same network, different loss weights; wired, never run.</dd>
+            <dt>Role</dt><dd>Cheap test of "does outcome signal help at all" — gates B. Score on the loop/taunt axis alongside coach, never armed/min alone.</dd>
+            <dt>Cost</dt><dd>~11 h each on the 118 GB v1 embedding cache — which is why that cache stays.</dd>
+          </dl>
+        </div>
+        <div class="dir">
+          <div class="head"><h3>D · fox_gen_v2</h3><span class="pill bad">Not yet</span></div>
+          <dl>
+            <dt>What</dt><dd>New recipe / size / corpus. The competing story: 3M params on ~90M frames with val-loss still falling is textbook underfit.</dd>
+            <dt>Gate</dt><dd>Leg S. If pass@16 ≈ pass@1 both low, no selector can help and capacity or data is the ceiling — then and only then v2.</dd>
+          </dl>
+        </div>
+        <div class="dir">
+          <div class="head"><h3>E · Interp-guided fixes</h3><span class="pill neutral">Opportunistic</span></div>
+          <dl>
+            <dt>What</dt><dd>Locate <em>why</em> the pummel loop fires (a saturating grab feature?) and patch by curation, decode masks, or drills.</dd>
+            <dt>Payoff</dt><dd>Highest curiosity, least predictable. Ride it when a probe result falls out of B.</dd>
+          </dl>
+        </div>
+      </div>
+      <div class="callout">
+        <p><strong>Recommendation.</strong> Leg S decides the fork and is running. Fire the AWBC arms overnight (C) while building the critic script (B); if B2 beats B1 on the loop/taunt axis the critic is de-risked, if not you learned it for free. Do not start v2 until the triad says selection is no longer the biggest number.</p>
+        <p class="small">Why pass@k and a critic belong together: pass@k measures whether the right action is <em>in</em> the sampled set; a critic is the thing that picks it out. Leg S is the ceiling on what any critic could ever recover.</p>
+      </div>
+    </section>
+
+    <section id="laws">
+      <div class="section-head">
+        <h2>Laws</h2>
+        <p>Standing rules that earned their place by costing something. The older ones (never crown on stand-dummy numbers, pin stages in deciders, chains from ShineChain over replays only) still hold.</p>
+      </div>
+      <div class="laws">
+        <div class="law"><span class="n">L1</span><span><strong>Suspect the instrument before believing a null.</strong> Two sweeps, two nulls, one metric fix, one clean result — from replays already on disk.</span></div>
+        <div class="law"><span class="n">L2</span><span><strong>Any batch scorer over replays reports scored/played.</strong> Silent coverage differences are indistinguishable from results.</span></div>
+        <div class="law"><span class="n">L3</span><span><strong>Cross-check replay-scored claims against the run logs.</strong> Logs survived a bug that destroyed half the replays.</span></div>
+        <div class="law"><span class="n">L4</span><span><strong>A page-aligned .slp size means a truncated file.</strong> Never a coincidence.</span></div>
+        <div class="law"><span class="n">L5</span><span><strong>Mechanism metrics can move while the event doesn't.</strong> A 4.5× cut in d-up presses left taunt entries flat. Keep the human-gated rung.</span></div>
+        <div class="law"><span class="n">L6</span><span><strong>Never launch netplay without the bot account.</strong> The script now enforces it; the DEPLOY_KNOBS row was the dropped flag.</span></div>
+        <div class="law"><span class="n">L7</span><span><strong>No <code>lib/*.ex</code> edits while a multi-stage loop runs;</strong> <code>Code.string_to_quoted!</code> is the only syntax check while a beam is live.</span></div>
+        <div class="law"><span class="n">L8</span><span><strong>Long runs go through <code>systemd-run --user</code>.</strong> The Bash tool SIGTERMs everything at ~10 min; tmux is absent on slanka.</span></div>
+      </div>
+    </section>
+
+    <section id="bradley">
+      <div class="section-head">
+        <h2>Needs Bradley, not a model</h2>
+      </div>
+      <div class="checklist">
+        <div class="check done"><span class="box"></span><span class="t"><strong>Live look at buttons T=0.5.</strong> <span>Done tonight; gate passed on feel, recorded in eval_runs/0828_livelook_btn05/RESULTS.md.</span></span><span class="pill good">Done</span></div>
+        <div class="check"><span class="box"></span><span class="t"><strong>Transfer decider (D7).</strong> <span>~1–1.5 h at the controller + 30 min scoring. Three decisions in the prereg: what you play (3 Mewtwo + 3 Fox separates "bot handles Mewtwo" from "Bradley is bad at Mewtwo"), the decision rule, whether blind impressions gate. Arms in <code>~/decider2_archive</code> — do not <code>ls -l</code> it, sizes unblind.</span></span><span class="pill warn">Open</span></div>
+        <div class="check"><span class="box"></span><span class="t"><strong>Disk cleanup approval.</strong> <span>~75 GB of stale caches, listed below. Deleting is your call.</span></span><span class="pill bad">Blocking long runs</span></div>
+        <div class="check"><span class="box"></span><span class="t"><strong>Checkpoint pruning.</strong> <span>2,024 files, 23 GB; 5.7 GB from March and 8.5 GB from July are pre-button-fix models. Pick keepers.</span></span><span class="pill neutral">Optional</span></div>
+      </div>
+    </section>
+
+    <section id="housekeeping">
+      <div class="section-head">
+        <h2>Housekeeping</h2>
+        <p>Disk, the working tree, and what each piece is.</p>
+      </div>
+      <div class="tablewrap">
+        <table>
+          <caption>Root filesystem 552/590 GB. Everything below is dated and traced to its producer; the v1 cache is not a sweep — 79 of its 81 hashes were written by the fox_gen_v1 full training run itself (per-chunk streaming cache), and the AWBC arms read it.</caption>
+          <thead><tr><th>path</th><th class="num">size</th><th>what it is</th><th>verdict</th></tr></thead>
+          <tbody>
+            <tr><td><code>cache/embeddings/</code> 79 hashes, 08-25 21:00+</td><td class="num">118 GB</td><td>fox_gen_v1 full run's own per-chunk cache</td><td><span class="pill good">Keep</span> until v1 is exhausted</td></tr>
+            <tr><td><code>cache/corpus/fox_v2/</code></td><td class="num">45 GB</td><td>corpus built 08-08 from the old fox_il_v1 line; nothing current references it</td><td><span class="pill bad">Delete</span></td></tr>
+            <tr><td>2 orphan hashes, 08-25 03:00 &amp; 05:30</td><td class="num">15.5 GB</td><td>pre-full-run smoke/OOM attempts from the same morning</td><td><span class="pill bad">Delete</span></td></tr>
+            <tr><td>3 old hashes (07-10, 08-08, 08-10)</td><td class="num">11.5 GB</td><td>ms_g-line caches</td><td><span class="pill bad">Delete</span></td></tr>
+            <tr><td><code>~/.cache/pip</code></td><td class="num">9.4 GB</td><td>pip wheel cache</td><td><span class="pill bad">Delete</span></td></tr>
+            <tr><td>nix dead paths + 19 old generations</td><td class="num">3.2 GB+</td><td><code>nix-collect-garbage --delete-older-than 14d</code></td><td><span class="pill bad">Delete</span></td></tr>
+            <tr><td><code>cache/quarantine/</code></td><td class="num">1.4 GB</td><td>poisoned-cache forensics, case closed</td><td><span class="pill bad">Delete</span></td></tr>
+            <tr><td><code>replays/</code></td><td class="num">74 GB</td><td>erickfm_ranked 36, greg 13, huggingface 13, fox_il_v1 9.5</td><td><span class="pill good">Keep</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="cards">
+        <div class="card">
+          <div class="top"><h3><code>scenarios/gaps.json</code> +7,784 lines</h3><span class="pill accent">Commit</span></div>
+          <p>735 ledger entries, all <code>source: coach</code>, created 08-27/28 by the bracket and sweep scoring (308 neutral_loss, 264 dropped_punish, 128 passivity_window, 35 death_sequence). That is the GapLedger doing its job — the data flywheel's stage A. Commit it; the ledger is designed to accumulate and dedupe.</p>
+        </div>
+        <div class="card">
+          <div class="top"><h3><code>exphil-status-board.html</code></h3><span class="pill accent">Superseded</span></div>
+          <p>DeepSeek's 08-27 board. Its through-line survives here; its "both temperature knobs are null" was retracted the next day. This page replaces it at <code>docs/planning/status_board.html</code>; the root copy is removed.</p>
+        </div>
+        <div class="card">
+          <div class="top"><h3>Tonight's edits</h3><span class="pill warn">Uncommitted</span></div>
+          <p>Netplay-home fix in <code>play_dolphin_async.exs</code>, DEPLOY_KNOBS row, <code>eval_runs/0828_livelook_btn05/RESULTS.md</code>, coach/loop reports for both 08-28 sessions, this board.</p>
+        </div>
+      </div>
+    </section>
+
+    <footer>ExPhil status board · written 2026-08-28 evening from HANDOFF_2026-08-28b, the live look, and the working tree · numbers are quoted from eval_runs and are checkable there.</footer>
+  </main>
+</div>
