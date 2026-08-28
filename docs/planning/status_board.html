@@ -224,7 +224,7 @@
     <header style="display:flex;flex-direction:column;gap:14px">
       <span class="eyebrow">ExPhil · Melee AI lab · Fox generalist program</span>
       <h1>The generalist plays Melee. It just doesn't pick well.</h1>
-      <p class="lede"><strong>fox_gen_v1</strong> (GRU, 3.0M params, 7,911 ranked Fox games, 10 epochs) plays real games against a human — shine-grabs, drill-shine-grabs, side-B shortens — and between those moments throws out punishable options, taunts, and shield-grabs on repeat. Everything measured this week says the same thing: <strong>the model contains the behavior and lacks a selection rule.</strong> Tonight's live look moved the taunt impulse 4.5× and the human agreed; the loops and the bad picks stayed. The next question is a number, and it is being computed right now.</p>
+      <p class="lede"><strong>fox_gen_v1</strong> (GRU, 3.0M params, 7,911 ranked Fox games, 10 epochs) plays real games against a human — shine-grabs, drill-shine-grabs, side-B shortens — and between those moments throws out punishable options, taunts, and shield-grabs on repeat. Everything measured this week says the same thing: <strong>the model contains the behavior and lacks a selection rule.</strong> Tonight that became a number: on decision frames the master's exact action is in 16 samples <strong>44%</strong> of the time and in one sample <strong>14.5%</strong>. The AWBC arms — the first cheap test of an outcome-based selector — started at 18:22.</p>
     </header>
 
     <section id="now">
@@ -244,14 +244,14 @@
           <span class="d">Unchanged by the knob. The human still takes nearly every stock. Dropped conversions 1.3 → 2.6 (n=7, unresolved).</span>
         </div>
         <div class="tile accent">
-          <span class="k">pass@16 − pass@1</span>
-          <span class="v">…<small>running</small></span>
-          <span class="d">Leg S, first ever run — 2,000 decision frames × 16 samples on ep10. Unit <code>exphil-legS-ep10</code>.</span>
+          <span class="k">pass@16 − pass@1 (joint)</span>
+          <span class="v">+29<small>pts</small></span>
+          <span class="d">Leg S on ep10: 14.5 → 43.7 over 2,000 decision frames; buttons 42 → 93. Selection is the ceiling — pending the ep1..ep10 calibration.</span>
         </div>
-        <div class="tile bad">
+        <div class="tile warn">
           <span class="k">root disk</span>
-          <span class="v">99<small>%</small></span>
-          <span class="d">7.8 GB free of 590. RAM is fine (40 GB available). Cleanup plan below.</span>
+          <span class="v">81<small>%</small></span>
+          <span class="d">Was 99% — replays moved to <code>/data</code> (107 GB free now). ~83 GB of stale caches still deletable, listed below.</span>
         </div>
       </div>
 
@@ -265,8 +265,8 @@
           <p>Local-only by design (no delay-ids). Deploy decode as of tonight: <strong><code>--temperature 0.5 --buttons-temperature 0.5</code></strong>, never <code>--deterministic</code> (argmax collapses in ~30 s). v2 waits until v1 is exhausted.</p>
         </div>
         <div class="card">
-          <div class="top"><h3>Value model / critic</h3><span class="pill neutral">Entry rung wired</span></div>
-          <p>AWBC arms B1/B2/B3 runnable (<code>--awbc --awbc-reward standard</code>, ~11 h each, never run). The learned critic — offline training script + Best-of-N decode — is not built.</p>
+          <div class="top"><h3>Value model / critic</h3><span class="pill accent">Arms running</span></div>
+          <p>AWBC arms B1 → B2 → B3 started 18:22 (unit <code>exphil-awbc-arms</code>; 3 epochs each from ep10, seed 828; prereg in <code>eval_runs/0828_awbc_arms/PREREG.md</code>). The learned critic — offline training script + Best-of-N decode — is not built.</p>
         </div>
       </div>
     </section>
@@ -386,7 +386,7 @@
           <tbody>
             <tr><td><code>loop_report.exs</code> / LoopStats</td><td>taunt presses, taunt entries, frozen/held input, repeated action cycles</td><td><span class="pill good">Working</span></td><td>Rank by specific cycle, never bare loops/min. Reports scored/played.</td></tr>
             <tr><td><code>coach_report.exs</code></td><td>armed approaches, conversions, drops, deaths, passivity — and appends gaps to the ledger</td><td><span class="pill good">Working</span></td><td>armed/min baseline swings 7× day to day; never carry an A/B on it alone.</td></tr>
-            <tr><td><code>interp_passk.exs</code> — Leg S</td><td>pass@k − pass@1 on decision frames: does a perfect selector have room?</td><td><span class="pill warn">First run tonight</span></td><td>Mandatory calibration: pass@1 across ep1..ep10 must be roughly flat (those epochs demonstrably played the same). Run on two corpora and require agreement.</td></tr>
+            <tr><td><code>interp_passk.exs</code> — Leg S</td><td>pass@k − pass@1 on decision frames: does a perfect selector have room?</td><td><span class="pill good">Ran tonight: +29 pts</span></td><td>Run 1 was a bug (same-frame debounce returned one sample 16×; GRU fed no history) — rewritten, self-check added. Still owed: the ep1..ep10 flatness calibration and a second corpus (<code>fox_il_v1</code>). See <code>eval_runs/0828_legS/RESULTS.md</code>.</td></tr>
             <tr><td>HEADROOM_TRIAD (Legs C, D)</td><td>capacity and data headroom, same unit</td><td><span class="pill neutral">Designed</span></td><td>Each costs training runs; only worth it if Leg S says selection is not the ceiling.</td></tr>
             <tr><td>eval_live_protocol.sh</td><td>batch games vs CPU/stand with knob assertions</td><td><span class="pill good">Fixed #102</span></td><td>Polls file size before copy; warns on page-aligned results. Cross-check duration in logs.</td></tr>
             <tr><td>CycleSim, probes, SAE, GapLedger</td><td>offline sim, representation reads, data flywheel</td><td><span class="pill good">Closed / live</span></td><td>G3 (CycleSim adaptation) and G5 (style separability) remain open, low priority.</td></tr>
@@ -441,7 +441,7 @@
         </div>
       </div>
       <div class="callout">
-        <p><strong>Recommendation.</strong> Leg S decides the fork and is running. Fire the AWBC arms overnight (C) while building the critic script (B); if B2 beats B1 on the loop/taunt axis the critic is de-risked, if not you learned it for free. Do not start v2 until the triad says selection is no longer the biggest number.</p>
+        <p><strong>Recommendation.</strong> Leg S came back <strong>+29 pts</strong> with the curve still climbing at k=16: the right action is in the distribution and the decode is not picking it. That is the case for B. The AWBC arms (C) started 18:22 as the cheap first test; build the critic script while they run. Do not start v2 — the triad says selection, not capacity, is the biggest number (calibration still owed).</p>
         <p class="small">Why pass@k and a critic belong together: pass@k measures whether the right action is <em>in</em> the sampled set; a critic is the thing that picks it out. Leg S is the ceiling on what any critic could ever recover.</p>
       </div>
     </section>

@@ -45,6 +45,7 @@
 #   --all-frames         DIAGNOSTIC: score every frame, not just decision frames
 #                        (use to demonstrate the saturation this metric avoids)
 #   --out PATH           write a markdown report
+#   --seed N             RNG seed for the per-frame samples (default 20260828)
 
 require Logger
 Logger.configure(level: :warning)
@@ -68,7 +69,8 @@ alias ExPhil.Training.Output
       limit_files: :integer,
       stick_tol: :float,
       all_frames: :boolean,
-      out: :string
+      out: :string,
+      seed: :integer
     ]
   )
 
@@ -212,8 +214,11 @@ resolve_port = fn path ->
   end
 end
 
-{candidates, total_frames} =
-  Enum.reduce(files, {[], 0}, fn path, {acc, total} ->
+# Candidates are {path, index, port}; the per-file frame lists are kept so
+# each decision frame can be scored WITH ITS OWN GAME'S HISTORY (see the
+# sampling section — the policy is a windowed temporal model).
+{candidates, total_frames, frames_by_path} =
+  Enum.reduce(files, {[], 0, %{}}, fn path, {acc, total, by_path} ->
     with {:ok, file_port} <- resolve_port.(path),
          {:ok, replay} <- Peppi.parse(Path.expand(path)) do
       opp = if file_port == 1, do: 2, else: 1
@@ -240,18 +245,19 @@ end
       picked =
         [frames, masks, prevs]
         |> Enum.zip()
-        |> Enum.filter(fn {f, set, prev} ->
+        |> Enum.with_index()
+        |> Enum.filter(fn {{f, set, prev}, _idx} ->
           situational? =
             not decision_only or
               (set && not MapSet.disjoint?(set, decision_labels))
 
           situational? and (not decision_only or input_changed?.(prev, f.controller))
         end)
-        |> Enum.map(fn {f, _, _} -> {f, file_port} end)
+        |> Enum.map(fn {_, idx} -> {path, idx, file_port} end)
 
-      {[picked | acc], total + length(frames)}
+      {[picked | acc], total + length(frames), Map.put(by_path, path, List.to_tuple(frames))}
     else
-      _ -> {acc, total}
+      _ -> {acc, total, by_path}
     end
   end)
 
@@ -296,6 +302,82 @@ agent_opts = [
 {:ok, agent} = Agent.start_link(agent_opts)
 Agent.warmup(agent)
 
+agent_config = Agent.get_config(agent)
+window = if agent_config.temporal, do: agent_config.window_size || 60, else: 0
+
+# ---- WHY the sampling below looks the way it does (first-run bug, 08-28) ---
+#
+# The first execution of this script returned pass@k IDENTICAL to pass@1 at
+# every k for every head. Two defects, both in how the policy was queried:
+#
+# 1. `Agent.get_controller/3` enforces ONE DECISION PER GAME FRAME (the
+#    async runner polls faster than Dolphin produces frames, so a repeated
+#    frame re-sends the cached action). Calling it 16x on the same frame
+#    yielded ONE sample and 15 copies of it — pass@k could not move.
+#
+# 2. The policy is a windowed temporal model (GRU, window 60) and was fed
+#    isolated frames strided across the corpus, so its window held frames
+#    from unrelated games. Every logit was conditioned on garbage.
+#
+# Now: for each decision frame, reset the agent, replay the preceding
+# `window` frames OF THE SAME GAME through the normal per-frame path (each
+# has a distinct frame number, so no debounce), run ONE forward at the
+# decision frame via `get_action_with_confidence` (returns the raw head
+# logits), and draw n samples from those logits here — the same
+# Bernoulli / Gumbel-max decode the Agent uses, at the same temperatures.
+
+head_temps =
+  case agent_config.temperature do
+    %{} = m -> m
+    t when is_number(t) -> %{buttons: t, main: t, c: t, shoulder: t}
+    _ -> %{buttons: 1.0, main: 1.0, c: 1.0, shoulder: 1.0}
+  end
+
+axis_buckets = 16
+
+flat = fn t -> t |> Nx.squeeze() |> Nx.to_flat_list() end
+
+# Draw n samples from one set of head logits. Returns a list of n
+# ControllerStates.
+draw_samples = fn action, n, key ->
+  b_logits = Nx.squeeze(action.logits.buttons)
+  b_probs = Nx.sigmoid(Nx.divide(b_logits, head_temps.buttons))
+  {u, key} = Nx.Random.uniform(key, shape: {n, Nx.size(b_probs)})
+  buttons = Nx.greater(Nx.new_axis(b_probs, 0), u)
+
+  categorical = fn logits, temp, key ->
+    scaled = Nx.divide(Nx.squeeze(logits), temp)
+    {r, key} = Nx.Random.uniform(key, shape: {n, Nx.size(scaled)})
+    gumbel = Nx.negate(Nx.log(Nx.negate(Nx.log(Nx.add(r, 1.0e-10)))))
+    {Nx.argmax(Nx.add(Nx.new_axis(scaled, 0), gumbel), axis: 1), key}
+  end
+
+  {main_x, key} = categorical.(action.logits.main_x, head_temps.main, key)
+  {main_y, key} = categorical.(action.logits.main_y, head_temps.main, key)
+  {c_x, key} = categorical.(action.logits.c_x, head_temps.c, key)
+  {c_y, key} = categorical.(action.logits.c_y, head_temps.c, key)
+  {shoulder, key} = categorical.(action.logits.shoulder, head_temps.shoulder, key)
+
+  samples =
+    for i <- 0..(n - 1) do
+      ExPhil.Networks.Policy.to_controller_state(
+        %{
+          buttons: buttons[i],
+          main_x: main_x[i],
+          main_y: main_y[i],
+          c_x: c_x[i],
+          c_y: c_y[i],
+          shoulder: shoulder[i]
+        },
+        axis_buckets: axis_buckets
+      )
+    end
+
+  {samples, key}
+end
+
+_ = flat
+
 match_buttons? = fn a, b -> MapSet.equal?(pressed_set.(a), pressed_set.(b)) end
 
 match_stick? = fn a, b, which ->
@@ -308,27 +390,39 @@ match_shoulder? = fn a, b ->
   abs((a.l_shoulder || 0.0) - (b.l_shoulder || 0.0)) <= 0.25
 end
 
-Output.puts("Sampling #{n_samples}x per frame (#{length(selected) * n_samples} inferences)...")
+Output.puts(
+  "Sampling #{n_samples}x per frame from one forward each, with #{window} frames of " <>
+    "same-game history (#{length(selected) * (window + 1)} inferences)..."
+)
+
+rng = Nx.Random.key(opts[:seed] || 20_260_828)
 
 # correct-counts per head, per frame
-counts =
+{counts, _rng} =
   selected
   |> Enum.with_index(1)
-  |> Enum.map(fn {{f, f_port}, idx} ->
+  |> Enum.map_reduce(rng, fn {{path, fi, f_port}, idx}, key ->
     if rem(idx, 100) == 0 do
       Output.progress_bar(idx, length(selected), label: "pass@k")
     end
 
+    frames = frames_by_path[path]
+    f = elem(frames, fi)
     truth = f.controller
 
-    samples =
-      Enum.map(1..n_samples, fn _ ->
-        case Agent.get_controller(agent, f.game_state, player_port: f_port) do
-          {:ok, c} -> c
-          _ -> nil
-        end
-      end)
-      |> Enum.reject(&is_nil/1)
+    # Replay this game's preceding window through the agent so the temporal
+    # buffer holds the real context, then one forward at the decision frame.
+    Agent.reset_buffer(agent)
+
+    for hi <- max(fi - window, 0)..(fi - 1)//1 do
+      Agent.get_controller(agent, elem(frames, hi).game_state, player_port: f_port)
+    end
+
+    {samples, key} =
+      case Agent.get_action_with_confidence(agent, f.game_state, player_port: f_port) do
+        {:ok, action, _conf} -> draw_samples.(action, n_samples, key)
+        _ -> {[], key}
+      end
 
     %{
       n: length(samples),
@@ -342,9 +436,24 @@ counts =
             match_stick?.(s, truth, :c_stick) and match_shoulder?.(s, truth)
         end)
     }
+    |> then(&{&1, key})
   end)
 
 Output.progress_done()
+
+# Instrument self-check: with n independent samples per frame, the per-frame
+# correct count must vary across frames unless the policy is (near-)
+# deterministic. All-or-nothing counts on every frame is the 08-28 bug
+# signature (one sample copied n times) — refuse to report a verdict on it.
+degenerate? =
+  Enum.all?(counts, fn row -> row.buttons in [0, row.n] and row.main in [0, row.n] end)
+
+if degenerate? do
+  Output.error(
+    "Every frame scored all-or-nothing on buttons AND main stick: the samples are " <>
+      "not independent draws (debounce/caching?). Verdict withheld."
+  )
+end
 
 # ---- unbiased pass@k --------------------------------------------------------
 #
@@ -442,7 +551,7 @@ if out = opts[:out] do
   Frames: #{if(decision_only, do: "decision only", else: "ALL (diagnostic)")} —
   #{length(candidates)} candidates from #{total_frames} frames
   (#{Float.round(100.0 * length(candidates) / max(total_frames, 1), 1)}%),
-  #{length(selected)} scored at n=#{n_samples}, temperature #{temperature},
+  #{length(selected)} scored at n=#{n_samples} (one forward per frame, #{window} frames of same-game history), temperature #{temperature},
   stick tolerance #{stick_tol}.
 
   #{table}
