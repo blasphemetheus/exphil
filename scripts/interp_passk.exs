@@ -33,7 +33,9 @@
 # Options:
 #   --policy PATH        policy .bin (required)
 #   --replays GLOB       master replays to score against (required)
-#   --port N             port whose actions we predict (default 1)
+#   --port N             pin the port (use for a port-NORMALIZED corpus);
+#                        omit to auto-detect per file by character
+#   --char-id N          character to score when auto-detecting (default 2 = Fox)
 #   --n N                samples per frame (default 16); pass@k reported for k<=n
 #   --temperature T      decode temperature (default 0.5, the deploy decode)
 #   --buttons-temperature T  per-head button temperature (optional)
@@ -58,6 +60,7 @@ alias ExPhil.Training.Output
       policy: :string,
       replays: :string,
       port: :integer,
+      char_id: :integer,
       n: :integer,
       temperature: :float,
       buttons_temperature: :float,
@@ -72,7 +75,7 @@ alias ExPhil.Training.Output
 policy_path = opts[:policy] || raise "--policy required"
 glob = opts[:replays] || raise "--replays required (glob)"
 port = opts[:port] || 1
-opp_port = if port == 1, do: 2, else: 1
+char_id = opts[:char_id] || 2
 n_samples = opts[:n] || 16
 temperature = opts[:temperature] || 0.5
 limit_frames = opts[:limit_frames] || 2000
@@ -131,7 +134,7 @@ Output.banner("HEADROOM TRIAD Leg S — selection headroom (pass@k)")
 Output.config([
   {"Policy", Path.basename(policy_path)},
   {"Replays", "#{length(files)} files"},
-  {"Port", port},
+  {"Port", if(opts[:port], do: "pinned #{port}", else: "auto by char #{char_id}")},
   {"Samples/frame (n)", n_samples},
   {"Temperature", temperature},
   {"Frames", if(decision_only, do: "DECISION only", else: "ALL (diagnostic)")},
@@ -175,46 +178,84 @@ end
 
 Output.puts("Collecting frames...")
 
-{candidates, total_frames} =
-  Enum.reduce(files, {[], 0}, fn path, {acc, total} ->
-    case Peppi.parse(Path.expand(path)) do
-      {:ok, replay} ->
-        frames =
-          replay
-          |> Peppi.to_training_frames(player_port: port, opponent_port: opp_port)
-          |> Enum.reject(&(&1.game_state.frame < 0))
+# Resolve WHICH PORT holds the master we are scoring against, per file.
+#
+# This is not a detail. The training corpus
+# (replays/erickfm_ranked/FOX/extracted) is normalized to port 1, but other
+# Fox corpora are not: replays/fox_il_v1 has filenames like
+# "Captain Falcon + Fox (FD).slp", so a fixed --port would compare the
+# policy's Fox actions against CAPTAIN FALCON's inputs on half the corpus
+# and report the resulting garbage as a pass@k number.
+#
+# --port pins it explicitly (use for a normalized corpus). Otherwise the
+# port is detected per file by character id (Fox = 2, the id
+# analyze_shine_source.exs:56 uses). Dittos are SKIPPED under auto-detect:
+# with two Foxes there is no principled way to know which one the metric
+# means, and guessing would quietly corrupt the number.
+resolve_port = fn path ->
+  cond do
+    opts[:port] ->
+      {:ok, port}
 
-        masks =
-          if decision_only do
-            Situations.label_states(Enum.map(frames, & &1.game_state), port, as: :set)
-          else
-            List.duplicate(nil, length(frames))
+    true ->
+      case Peppi.metadata(path) do
+        {:ok, meta} ->
+          case Enum.filter(meta.players, &(&1.character == char_id)) do
+            [%{port: p}] -> {:ok, p}
+            [_ | _] -> {:skip, :ditto}
+            [] -> {:skip, :character_absent}
           end
 
-        # Pair each frame with the PREVIOUS frame's controller in one pass
-        # (Enum.at/2 inside a filter would make this quadratic).
-        prevs = [nil | Enum.map(Enum.drop(frames, -1), & &1.controller)]
+        _ ->
+          {:skip, :unreadable}
+      end
+  end
+end
 
-        picked =
-          [frames, masks, prevs]
-          |> Enum.zip()
-          |> Enum.filter(fn {f, set, prev} ->
-            situational? =
-              not decision_only or
-                (set && not MapSet.disjoint?(set, decision_labels))
+{candidates, total_frames} =
+  Enum.reduce(files, {[], 0}, fn path, {acc, total} ->
+    with {:ok, file_port} <- resolve_port.(path),
+         {:ok, replay} <- Peppi.parse(Path.expand(path)) do
+      opp = if file_port == 1, do: 2, else: 1
 
-            situational? and (not decision_only or input_changed?.(prev, f.controller))
-          end)
-          |> Enum.map(fn {f, _, _} -> f end)
+      frames =
+        replay
+        |> Peppi.to_training_frames(player_port: file_port, opponent_port: opp)
+        |> Enum.reject(&(&1.game_state.frame < 0))
 
-        {[picked | acc], total + length(frames)}
+      masks =
+        if decision_only do
+          Situations.label_states(Enum.map(frames, & &1.game_state), file_port, as: :set)
+        else
+          List.duplicate(nil, length(frames))
+        end
 
-      _ ->
-        {acc, total}
+      # Pair each frame with the PREVIOUS frame's controller in one pass
+      # (Enum.at/2 inside a filter would make this quadratic).
+      prevs = [nil | Enum.map(Enum.drop(frames, -1), & &1.controller)]
+
+      # Each candidate carries its own port: the corpus is not guaranteed
+      # port-normalized, and inference must be run for the SAME player the
+      # ground-truth controller came from.
+      picked =
+        [frames, masks, prevs]
+        |> Enum.zip()
+        |> Enum.filter(fn {f, set, prev} ->
+          situational? =
+            not decision_only or
+              (set && not MapSet.disjoint?(set, decision_labels))
+
+          situational? and (not decision_only or input_changed?.(prev, f.controller))
+        end)
+        |> Enum.map(fn {f, _, _} -> {f, file_port} end)
+
+      {[picked | acc], total + length(frames)}
+    else
+      _ -> {acc, total}
     end
   end)
 
-candidates = candidates |> Enum.reverse() |> List.flatten()
+candidates = candidates |> Enum.reverse() |> Enum.concat()
 
 # Spread the sample across the whole corpus rather than taking a prefix
 # (a prefix is one player, one stretch of one game).
@@ -273,7 +314,7 @@ Output.puts("Sampling #{n_samples}x per frame (#{length(selected) * n_samples} i
 counts =
   selected
   |> Enum.with_index(1)
-  |> Enum.map(fn {f, idx} ->
+  |> Enum.map(fn {{f, f_port}, idx} ->
     if rem(idx, 100) == 0 do
       Output.progress_bar(idx, length(selected), label: "pass@k")
     end
@@ -282,7 +323,7 @@ counts =
 
     samples =
       Enum.map(1..n_samples, fn _ ->
-        case Agent.get_controller(agent, f.game_state, player_port: port) do
+        case Agent.get_controller(agent, f.game_state, player_port: f_port) do
           {:ok, c} -> c
           _ -> nil
         end
