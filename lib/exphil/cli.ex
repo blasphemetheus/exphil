@@ -146,6 +146,8 @@ defmodule ExPhil.CLI do
       desc: "Sampling temperature (0=argmax-like, 1=raw distribution; try 0.3-0.5)", group: [:dolphin]},
     %{name: :buttons_temperature, flag: "--buttons-temperature", type: :float, short: nil, default: nil,
       desc: "Per-head temperature for buttons only (overrides --temperature; colder = sharper, e.g. 0.3)", group: [:dolphin]},
+    %{name: :mode_of_n, flag: "--mode-of-n", type: :integer, short: nil, default: nil,
+      desc: "Mode-of-N decode: draw N joint samples per frame (one forward), play the most frequent (try 16)", group: [:dolphin]},
     %{name: :main_temperature, flag: "--main-temperature", type: :float, short: nil, default: nil,
       desc: "Per-head temperature for the main stick x+y (overrides --temperature)", group: [:dolphin]},
     %{name: :c_temperature, flag: "--c-temperature", type: :float, short: nil, default: nil,

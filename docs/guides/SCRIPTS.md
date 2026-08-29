@@ -467,6 +467,7 @@ Drill opponent (scripted port-2 dummy):
 Decode options (both play scripts):
 - `--temperature X` - sampling temperature (0=argmax-like; 0.3-0.5 plays well)
 - `--deterministic-buttons` - argmax buttons while sticks sample (kills stray taunts)
+- `--mode-of-n N` - mode-of-N decode: N joint samples per frame from one forward, play the most frequent (critic-free Best-of-N; offline +8 pts pass@1 at N=16, `eval_runs/0829_critic/RESULTS.md`)
 - `--press-threshold X` / `--release-threshold Y` - button hysteresis for the
   argmax button modes: press above X (try 0.6), release below Y (try 0.4),
   hold previous state in between. Melee registers inputs on press EDGES — a

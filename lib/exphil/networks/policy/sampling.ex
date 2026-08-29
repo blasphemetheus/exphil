@@ -56,6 +56,9 @@ defmodule ExPhil.Networks.Policy.Sampling do
       not a jump). Typical: press 0.6, release 0.4.
     - `:prev_buttons` - previously emitted button tensor (shape [1, buttons]);
       nil (e.g. first frame) applies `press_threshold` everywhere.
+    - `:mode_of_n` - integer N >= 2: draw N joint samples from the same
+      logits (one forward) and return the most frequent one (ties -> first).
+      Critic-free Best-of-N; ignored when `:deterministic`.
   """
   @spec sample(map(), function(), Nx.Tensor.t(), keyword()) :: map()
   def sample(params, predict_fn, state, opts \\ []) do
@@ -71,17 +74,47 @@ defmodule ExPhil.Networks.Policy.Sampling do
     # dispatches); fused it is ~1ms. See scripts/profile_agent_inference.exs.
     deterministic_buttons = Keyword.get(opts, :deterministic_buttons, false)
 
-    {buttons, main_x, main_y, c_x, c_y, shoulder, conf} =
-      if deterministic do
-        jitted(:fused_det, &fused_sample_deterministic/1).(logits_tuple)
-      else
-        key = Nx.Random.key(:erlang.unique_integer([:positive]))
+    # Mode-of-N (2026-08-29, eval_runs/0829_critic/RESULTS.md): draw N joint
+    # samples from the SAME logits and play the most frequent one. Offline it
+    # recovers ~28% of the sampling->oracle gap on both corpora (pass@1
+    # 14.9 -> 22.9 in-distribution) with no critic and no retrain, and beat
+    # the learned linear selector. One trunk/heads forward; the N draws are
+    # a single fused kernel on batch-tiled logits (new JIT shape per N).
+    mode_of_n = Keyword.get(opts, :mode_of_n)
 
-        jitted(:fused_stoch, &fused_sample_stochastic/3).(
-          logits_tuple,
-          key,
-          temperature_tuple(temperature)
-        )
+    {buttons, main_x, main_y, c_x, c_y, shoulder, conf} =
+      cond do
+        deterministic ->
+          jitted(:fused_det, &fused_sample_deterministic/1).(logits_tuple)
+
+        is_integer(mode_of_n) and mode_of_n > 1 ->
+          key = Nx.Random.key(:erlang.unique_integer([:positive]))
+
+          tiled =
+            logits_tuple
+            |> Tuple.to_list()
+            |> Enum.map(&Nx.tile(&1, [mode_of_n | List.duplicate(1, Nx.rank(&1) - 1)]))
+            |> List.to_tuple()
+
+          {b, mx, my, cx, cy, sh, conf} =
+            jitted(:fused_stoch, &fused_sample_stochastic/3).(
+              tiled,
+              key,
+              temperature_tuple(temperature)
+            )
+
+          i = mode_index(b, mx, my, cx, cy, sh)
+          row = &Nx.slice_along_axis(&1, i, 1, axis: 0)
+          {row.(b), row.(mx), row.(my), row.(cx), row.(cy), row.(sh), conf}
+
+        true ->
+          key = Nx.Random.key(:erlang.unique_integer([:positive]))
+
+          jitted(:fused_stoch, &fused_sample_stochastic/3).(
+            logits_tuple,
+            key,
+            temperature_tuple(temperature)
+          )
       end
 
     # Mixed decode: argmax the buttons while sticks keep sampling — kills
@@ -116,6 +149,31 @@ defmodule ExPhil.Networks.Policy.Sampling do
         shoulder: shoulder_logits
       }
     }
+  end
+
+  # Index of the most frequent JOINT action among N draws (buttons [N, 8],
+  # heads [N]); ties break to the first occurrence, matching the offline
+  # mode-of-N in scripts/interp_bestofn.exs. Small host-side work on N rows.
+  @doc false
+  def mode_index(buttons, mx, my, cx, cy, sh) do
+    keys =
+      Enum.zip([
+        Nx.to_list(Nx.as_type(buttons, :u8)),
+        Nx.to_list(mx),
+        Nx.to_list(my),
+        Nx.to_list(cx),
+        Nx.to_list(cy),
+        Nx.to_list(sh)
+      ])
+
+    counts = Enum.frequencies(keys)
+
+    {_key, idx} =
+      keys
+      |> Enum.with_index()
+      |> Enum.max_by(fn {k, _} -> counts[k] end)
+
+    idx
   end
 
   @doc """

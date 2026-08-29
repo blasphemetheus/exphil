@@ -1003,10 +1003,17 @@ defmodule ExPhil.Training.Pipeline do
     div(num_items, batch_size)
   end
 
+  # Temporal streaming samples one window per `stride` frames, so the batch
+  # count is frames/stride/batch — not frames/batch. Until 2026-08-29 this
+  # counted stride-1 windows: the AWBC arms printed "298,986 batches" and
+  # finished at 67,401 (22%), with ETAs 4-5x too long (HANDOFF_2026-08-29 §4).
   defp estimate_streaming_batches(files, opts) do
+    batch_size = opts[:batch_size] || 32
+    stride = if opts[:temporal], do: max(opts[:stride] || 5, 1), else: 1
+
     case Streaming.estimate_total_examples(files, opts) do
-      {:ok, total} -> div(total, opts[:batch_size] || 32)
-      _ -> div(length(files) * 3000, opts[:batch_size] || 32)
+      {:ok, total} -> div(div(total, stride), batch_size)
+      _ -> div(div(length(files) * 3000, stride), batch_size)
     end
   end
 
