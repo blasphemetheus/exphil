@@ -3707,3 +3707,28 @@ Worth keeping the assertion regardless: it fails LOUD and SAFE (it
 flagged arms it could not verify rather than passing them silently),
 which is the correct failure direction for a guard whose job is catching
 a dropped flag.
+
+## 104
+
+**`producer | grep -q` under `set -o pipefail` reports a SUCCESSFUL match
+as failure.** Found 2026-08-29 (AWBC arm scoring, B1 "KNOB ASSERTION
+FAILED").
+
+`grep -q` exits at the first match and closes the pipe; if the producer
+(`sed` over several log files) still has output to write, it gets
+SIGPIPE (status 141) and `pipefail` makes the whole pipeline non-zero.
+`if ! sed ... | grep -q X` then takes the failure branch even though X
+is present. It is RACY — it depends on whether the producer's remaining
+output fits in the pipe buffer before grep exits: 21/30 failures on the
+same 54 KB input, 100% on larger inputs, and the identical line in
+`argmax_buttons_bracket.sh` passed all five arms on 08-28 by luck.
+
+**Fix:** never let the producer's exit status participate — feed grep
+from a process substitution:
+`grep -qa -- "$expect" <(sed -e 's/\x1b\[[0-9;]*m//g' "$dir"/r*.log)`.
+(Alternatives: drop `-q` and test `[ -n "$(... | grep -a -m1 X)" ]`, or
+`set +o pipefail` around the test.) Companion to #103: strip ANSI first.
+
+Loud-and-safe still applied (the arm was flagged, not silently passed),
+but a guard that fires falsely ~70% of the time trains people to ignore
+it — fix the instrument the first time it cries wolf.

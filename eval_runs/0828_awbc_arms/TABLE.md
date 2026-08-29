@@ -45,3 +45,5 @@ arms started 2026-08-28T18:25:31-05:00 resume=checkpoints/fox_gen_v1_20260825_21
 -rw-r--r--  1 blewf users 12036178 Aug 29 10:59 fox_gen_v1_B3_20260829_092709_policy.bin
 
 (10:59 B3 "no awbc text" = the same FALSE ALARM. Verified from checkpoints/fox_gen_v1_B3_20260829_092709_config.json: awbc=true, awbc_shuffle=true, awbc_reward=standard. Val loss B1 5.7688->5.7502->5.7328 | B2 5.7152->5.6941->5.6747 | B3 5.8061->5.7862->5.7694 — recorded, NOT the verdict; no divergence, no arm disqualified. Assertion fixed in scripts/awbc_arms.sh to read the saved _config.json (task 20). Scoring launched 08-29 ~11:05 as unit awbc-score -> eval_runs/0828_awbc_arms/score/score_table.txt.)
+
+(11:35 score B1 "KNOB ASSERTION FAILED" is FALSE: the banner line 'buttons: 0.5' is in all 8 B1 run logs. Cause = 'sed | grep -q' under set -o pipefail: grep -q exits at the first match, sed takes SIGPIPE (141), pipefail reports failure — reproduced 21/30 on the same input. B1 replays are intact and are scored by the axis globs; read B1 normally. Fix = grep -q on a process substitution (applied to argmax_buttons_bracket.sh now; awbc_score.sh after the unit exits). GOTCHA #104.)

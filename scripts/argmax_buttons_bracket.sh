@@ -79,7 +79,7 @@ run_arm() {
   # BETWEEN the label and the value ("Deterministic buttons:^[[0m false"),
   # so a literal "label: value" never matches and every such arm reports a
   # FALSE alarm (base and detbtn both did, 2026-08-28).
-  if [ -n "$expect" ] && ! sed -e 's/\x1b\[[0-9;]*m//g' "$OUT/$name"/r*.log | grep -qa -- "$expect"; then
+  if [ -n "$expect" ] && ! grep -qa -- "$expect" <(sed -e 's/\x1b\[[0-9;]*m//g' "$OUT/$name"/r*.log); then
     echo "$name KNOB ASSERTION FAILED: '$expect' absent from run log — arm is NOT what it claims, discard it" \
       | tee -a "$TABLE"
     return
