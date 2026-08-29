@@ -96,3 +96,18 @@ whether outcome information can supply that selection rule.
 
 Files: `ep1.md`, `ep5.md`, `ep10.md`; logs `logs/legS_cal_ep*.log`.
 Second corpus (`fox_il_v1`, auto-port) → `ep10_fox_il_v1.md` (next stage).
+
+### Second corpus — `fox_il_v1` (ep10, 20 files, port 1, 2000 decision frames, seed 829)
+
+| head | pass@1 | pass@16 | headroom |
+|---|---|---|---|
+| joint | 6.9 | 24.3 | **+17.4** |
+| buttons | 35.9 | 89.0 | +53.0 |
+| main | 20.2 | 38.2 | +18.0 |
+
+Off-corpus everything is lower (this corpus is not what v1 trained on):
+pass@1 halves (14.5 → 6.9) and the ceiling drops (43.6 → 24.3), but the
+selection headroom is still 2.5× pass@1 and buttons pass@16 stays ~89.
+Selection remains the biggest number on a corpus the policy never saw.
+The critic's fresh-corpus test (`interp_bestofn` on fox_il_v1) is
+measured against THIS 6.9 → 24.3 span.

@@ -46,6 +46,9 @@ stage() {  # stage <name> <logfile> <cmd...>
 
 echo "chain started $(date -Is)" | tee -a "$CHAIN"
 
+# SKIP_LEGS=1 re-runs only the critic stages (used 13:55 after the match?/2
+# compile error in critic_features.exs; Leg S stages 1-4 had already passed).
+if [ "${SKIP_LEGS:-0}" != "1" ]; then
 # 1. Leg S calibration — erickfm FOX, port 1, n=16, T=0.5, same seed for all
 for ep in 1 5 10; do
   stage "legS_ep$ep" "logs/legS_cal_ep$ep.log" \
@@ -59,6 +62,7 @@ stage "legS_ep10_fox_il_v1" "logs/legS_cal_ep10_fox_il_v1.log" \
   mix run scripts/interp_passk.exs --policy "${CK}_ep10.bin" \
     --replays 'replays/fox_il_v1/*.slp' --n 16 --seed 829 \
     --limit-files 20 --limit-frames 2000 --out "$LEGS/ep10_fox_il_v1.md"
+fi
 
 # 3. Critic shakedown
 DATA=cache/critic/fox_gen_v1_ep10_erickfm40.nx

@@ -61,7 +61,7 @@ defmodule CriticFeatures do
 
   # Leg S match rule (interp_passk.exs): buttons exact, sticks within tol,
   # shoulder within 0.25.
-  def match?(a, b, tol \\ 0.0625) do
+  def controller_match?(a, b, tol \\ 0.0625) do
     MapSet.equal?(pressed_set(a), pressed_set(b)) and
       abs(a.main_stick.x - b.main_stick.x) <= tol and
       abs(a.main_stick.y - b.main_stick.y) <= tol and
@@ -155,7 +155,7 @@ defmodule CriticFeatures do
       Enum.zip([frames, masks, prevs])
       |> Enum.map(fn {f, set, prev} ->
         situational = set && not MapSet.disjoint?(set, dl)
-        changed = prev != nil and not match?(prev, f.controller)
+        changed = prev != nil and not controller_match?(prev, f.controller)
         if situational and changed, do: 1, else: 0
       end)
 
@@ -262,7 +262,7 @@ defmodule CriticFeatures do
               shoulder_buckets: shoulder_buckets
             )
 
-          {cs, if(match?(cs, master), do: 1, else: 0)}
+          {cs, if(controller_match?(cs, master), do: 1, else: 0)}
         end
       end
 
