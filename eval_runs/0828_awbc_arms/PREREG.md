@@ -89,3 +89,18 @@ Bradley's live impression of the winning arm is recorded, and gates a
   "confounded", not SIGNAL. Cheap follow-up if it matters: a B1' on the
   non-pipelined path (`--awbc` with all weights forced to 1) to remove
   the path difference.
+
+## Amendment 2026-08-29 00:25 (B2 in epoch 2; no B2/B3 play results seen)
+
+The "batch-count confound" above is DOWNGRADED. The 322,407 vs 286,622
+figures are the epoch-start ESTIMATES; the logs show both paths actually
+run ~67,401 batches per epoch (B1 epoch 2 ended at 67401/286622, B2
+epoch 1 at 67401/322407) — the estimator counts windows at stride 1
+while training samples at stride 5. Same actual batch count on the same
+seed => the two paths see the same training windows; what still differs
+is cached-embedding vs re-embedded (should be numerically identical) and
+the AWBC weights. B3-vs-B1 remains the path-effect read but is now
+expected to be small. Estimator display bug to be fixed after the chain
+(lib edit; GOTCHA to add).
+
+Real epoch wall-clock: B1 37 min (cached), B2 ~2h15 (re-embedding).
