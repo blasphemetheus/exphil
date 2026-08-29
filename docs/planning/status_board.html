@@ -213,10 +213,10 @@
     <a href="#housekeeping">Housekeeping</a>
     <div class="stamp">
       <span class="eyebrow">Stamp</span><br>
-      2026-08-28, evening<br>
-      HEAD <span class="mono">1c46ea8</span> + working tree<br>
-      1,331 commits · ~2,700 tests<br>
-      Supersedes DeepSeek's board (08-27)
+      2026-08-29, 15:10<br>
+      HEAD <span class="mono">989e1b2</span>, tree clean<br>
+      1,350 commits · ~2,700 tests<br>
+      Supersedes the 08-28 evening board
     </div>
   </nav>
 
@@ -410,7 +410,9 @@
           <tbody>
             <tr><td><code>loop_report.exs</code> / LoopStats</td><td>taunt presses, taunt entries, frozen/held input, repeated action cycles</td><td><span class="pill good">Working</span></td><td>Rank by specific cycle, never bare loops/min. Reports scored/played.</td></tr>
             <tr><td><code>coach_report.exs</code></td><td>armed approaches, conversions, drops, deaths, passivity — and appends gaps to the ledger</td><td><span class="pill good">Working</span></td><td>armed/min baseline swings 7× day to day; never carry an A/B on it alone.</td></tr>
-            <tr><td><code>interp_passk.exs</code> — Leg S</td><td>pass@k − pass@1 on decision frames: does a perfect selector have room?</td><td><span class="pill good">Ran tonight: +29 pts</span></td><td>Run 1 was a bug (same-frame debounce returned one sample 16×; GRU fed no history) — rewritten, self-check added. Still owed: the ep1..ep10 flatness calibration and a second corpus (<code>fox_il_v1</code>). See <code>eval_runs/0828_legS/RESULTS.md</code>.</td></tr>
+            <tr><td><code>interp_passk.exs</code> — Leg S</td><td>pass@k − pass@1 on decision frames: does a perfect selector have room?</td><td><span class="pill good">Calibrated 08-29</span></td><td>Sees training (pass@1 10.4 → 14.5 ep1 → ep10), headroom stable +24…+29, seed-replicated. <strong>But it is mode-seeking:</strong> argmax-like decodes win it and freeze live. Never rank a decode on it alone (L9). See <code>eval_runs/0828_legS/RESULTS.md</code>.</td></tr>
+            <tr><td><code>critic_extract / critic_train / interp_bestofn.exs</code></td><td>trunk ⊕ raw features → V(s) + selector; offline Best-of-N vs sampling, mode-of-N, oracle</td><td><span class="pill good">Ran 08-29</span></td><td>Two shakedown bugs fixed (name collision; Activations missing <code>stage_internals</code>, GOTCHA #105). Reports gap recovered — pair with the live gate before believing it. In <code>scripts/</code>, not promoted.</td></tr>
+            <tr><td><code>mode_of_n_bracket.sh</code>, <code>awbc_score.sh</code></td><td>live 8×120 s brackets with knob assertions, log durations, staleness</td><td><span class="pill good">Working</span></td><td>GOTCHA #104: <code>sed | grep -q</code> under <code>pipefail</code> false-fails ~70% — assertions use process substitution now. Base banner quotes strings (<code>Mode-of-N: "off"</code>).</td></tr>
             <tr><td>HEADROOM_TRIAD (Legs C, D)</td><td>capacity and data headroom, same unit</td><td><span class="pill neutral">Designed</span></td><td>Each costs training runs; only worth it if Leg S says selection is not the ceiling.</td></tr>
             <tr><td>eval_live_protocol.sh</td><td>batch games vs CPU/stand with knob assertions</td><td><span class="pill good">Fixed #102</span></td><td>Polls file size before copy; warns on page-aligned results. Cross-check duration in logs.</td></tr>
             <tr><td>CycleSim, probes, SAE, GapLedger</td><td>offline sim, representation reads, data flywheel</td><td><span class="pill good">Closed / live</span></td><td>G3 (CycleSim adaptation) and G5 (style separability) remain open, low priority.</td></tr>
@@ -496,7 +498,8 @@
       <div class="checklist">
         <div class="check done"><span class="box"></span><span class="t"><strong>Live look at buttons T=0.5.</strong> <span>Done tonight; gate passed on feel, recorded in eval_runs/0828_livelook_btn05/RESULTS.md.</span></span><span class="pill good">Done</span></div>
         <div class="check"><span class="box"></span><span class="t"><strong>Transfer decider (D7).</strong> <span>~1–1.5 h at the controller + 30 min scoring. Three decisions in the prereg: what you play (3 Mewtwo + 3 Fox separates "bot handles Mewtwo" from "Bradley is bad at Mewtwo"), the decision rule, whether blind impressions gate. Arms in <code>~/decider2_archive</code> — do not <code>ls -l</code> it, sizes unblind.</span></span><span class="pill warn">Open</span></div>
-        <div class="check"><span class="box"></span><span class="t"><strong>Disk cleanup approval.</strong> <span>~75 GB of stale caches, listed below. Deleting is your call.</span></span><span class="pill bad">Blocking long runs</span></div>
+        <div class="check done"><span class="box"></span><span class="t"><strong>Disk cleanup.</strong> <span>Done 08-28 night: replays → <code>/data</code>, fox_v2 corpus, quarantine and orphan hashes deleted; root 57 GB free. pip cache / nix GC still optional.</span></span><span class="pill good">Done</span></div>
+        <div class="check"><span class="box"></span><span class="t"><strong>A selector that keeps the tail.</strong> <span>Every mode-seeking selector tried today collapsed or did nothing. The next idea needs your read: V-scored CycleSim rollouts, a pummel-loop mask (direction E), or something else — before any more brackets.</span></span><span class="pill warn">Decision</span></div>
         <div class="check"><span class="box"></span><span class="t"><strong>Checkpoint pruning.</strong> <span>2,024 files, 23 GB; 5.7 GB from March and 8.5 GB from July are pre-button-fix models. Pick keepers.</span></span><span class="pill neutral">Optional</span></div>
       </div>
     </section>
@@ -532,12 +535,12 @@
           <p>DeepSeek's 08-27 board. Its through-line survives here; its "both temperature knobs are null" was retracted the next day. This page replaces it at <code>docs/planning/status_board.html</code>; the root copy is removed.</p>
         </div>
         <div class="card">
-          <div class="top"><h3>Tonight's edits</h3><span class="pill warn">Uncommitted</span></div>
-          <p>Netplay-home fix in <code>play_dolphin_async.exs</code>, DEPLOY_KNOBS row, <code>eval_runs/0828_livelook_btn05/RESULTS.md</code>, coach/loop reports for both 08-28 sessions, this board.</p>
+          <div class="top"><h3>08-29 commits</h3><span class="pill good">Clean tree</span></div>
+          <p>17 commits, nothing pushed: AWBC scorer + results, Leg S calibration, critic scripts' fixes, <code>Activations</code> stage-internals fix, <code>--mode-of-n</code> + tests, batch-count estimator fix, GOTCHAs #104/#105, this board. Running: Leg S at T=0.05 (unit <code>legS-argmax</code>).</p>
         </div>
       </div>
     </section>
 
-    <footer>ExPhil status board · written 2026-08-28 evening from HANDOFF_2026-08-28b, the live look, and the working tree · numbers are quoted from eval_runs and are checkable there.</footer>
+    <footer>ExPhil status board · updated 2026-08-29 15:10 from HANDOFF_2026-08-29 §1–§9 and eval_runs/0828_awbc_arms, 0828_legS, 0829_critic, 0829_mode_of_n · numbers are quoted from eval_runs and are checkable there.</footer>
   </main>
 </div>
