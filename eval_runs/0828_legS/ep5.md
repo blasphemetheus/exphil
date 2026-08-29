@@ -1,6 +1,6 @@
 # Leg S — selection headroom (pass@k)
 
-Policy: `fox_gen_v1_20260825_210355_ep10.bin`
+Policy: `fox_gen_v1_20260825_210355_ep5.bin`
 Replays: 20 files, port 1
 Frames: decision only —
 45007 candidates from 199255 frames
@@ -10,18 +10,18 @@ stick tolerance 0.0625.
 
 | head | pass@1 | pass@2 | pass@4 | pass@8 | pass@16 | **headroom** |
 |---|---|---|---|---|---|---|
-| joint | 14.5 | 21.5 | 29.1 | 36.7 | 43.6 | **+29.1** |
-| buttons | 42.4 | 59.7 | 75.2 | 86.8 | 93.7 | **+51.3** |
-| main | 38.2 | 44.9 | 50.5 | 55.7 | 60.6 | **+22.3** |
-| c | 91.4 | 92.6 | 93.3 | 93.8 | 94.3 | **+2.8** |
-| shoulder | 85.9 | 89.7 | 92.2 | 94.2 | 95.7 | **+9.8** |
+| joint | 13.3 | 19.8 | 26.9 | 34.2 | 41.0 | **+27.7** |
+| buttons | 41.3 | 58.5 | 74.0 | 86.0 | 93.5 | **+52.2** |
+| main | 36.0 | 42.7 | 48.5 | 54.1 | 59.5 | **+23.5** |
+| c | 91.3 | 92.3 | 92.9 | 93.4 | 93.8 | **+2.5** |
+| shoulder | 85.9 | 89.7 | 92.2 | 94.1 | 95.7 | **+9.7** |
 
 **Headroom** = pass@16 - pass@1: what a perfect selector could
 recover without changing a weight.
 
 ## Verdict
 
-SELECTION headroom is large (+29.1 pts). The right action is in the distribution and the decode is not picking it. A value model has real room; this is the upper bound on what it could recover.
+SELECTION headroom is large (+27.7 pts). The right action is in the distribution and the decode is not picking it. A value model has real room; this is the upper bound on what it could recover.
 
 ## Limits
 
