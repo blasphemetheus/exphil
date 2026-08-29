@@ -223,35 +223,35 @@
   <main>
     <header style="display:flex;flex-direction:column;gap:14px">
       <span class="eyebrow">ExPhil · Melee AI lab · Fox generalist program</span>
-      <h1>The generalist plays Melee. It just doesn't pick well.</h1>
-      <p class="lede"><strong>fox_gen_v1</strong> (GRU, 3.0M params, 7,911 ranked Fox games, 10 epochs) plays real games against a human — shine-grabs, drill-shine-grabs, side-B shortens — and between those moments throws out punishable options, taunts, and shield-grabs on repeat. Everything measured this week says the same thing: <strong>the model contains the behavior and lacks a selection rule.</strong> Tonight that became a number: on decision frames the master's exact action is in 16 samples <strong>44%</strong> of the time and in one sample <strong>14.5%</strong>. The AWBC arms — the first cheap test of an outcome-based selector — started at 18:22.</p>
+      <h1>The generalist plays Melee. Picking the likeliest action is not the fix.</h1>
+      <p class="lede"><strong>fox_gen_v1</strong> (GRU, 3.0M params, 7,911 ranked Fox games, 10 epochs) plays real games against a human and, between the good moments, throws out punishable options, taunts, and shield-grabs on repeat. Yesterday's diagnosis — <strong>the model contains the behavior and lacks a selection rule</strong> — survived today's calibration: the master's action is in 16 samples 44% of the time and in one sample 14.5%, at every epoch, on two seeds. But the three cheapest selectors all came back empty today: outcome-weighted retraining did nothing (<strong>AWBC null</strong>), a learned linear selector lost to a majority vote, and that majority vote — the best thing offline — <strong>froze the bot live</strong> (0/8 games finished). The offline metric rewards picking the mode; live play needs the tail. Updated 08-29 15:10.</p>
     </header>
 
     <section id="now">
       <div class="section-head">
         <h2>Now</h2>
-        <p>The four numbers that describe tonight. Semantic color is state, not decoration.</p>
+        <p>The four numbers that describe today. Semantic color is state, not decoration.</p>
       </div>
       <div class="board">
-        <div class="tile good">
-          <span class="k">d-up presses / min</span>
-          <span class="v">455<small>→ 101</small></span>
-          <span class="d">buttons T 1.0 → 0.5, vs Bradley, same day. Disjoint ranges, replicated vs CPU.</span>
-        </div>
         <div class="tile warn">
-          <span class="k">deaths / game (bot)</span>
-          <span class="v">3.6<small>= 3.6</small></span>
-          <span class="d">Unchanged by the knob. The human still takes nearly every stock. Dropped conversions 1.3 → 2.6 (n=7, unresolved).</span>
+          <span class="k">AWBC arms B1 / B2 / B3</span>
+          <span class="v">1.5<small>× max</small></span>
+          <span class="d">Largest pathology ratio on any pair, all ranges overlapping; the outcome-weighted arm was <em>worst</em> on d-up and pummel loops. Null by the pre-registered rule.</span>
         </div>
         <div class="tile accent">
-          <span class="k">pass@16 − pass@1 (joint)</span>
-          <span class="v">+29<small>pts</small></span>
-          <span class="d">Leg S on ep10: 14.5 → 43.7 over 2,000 decision frames; buttons 42 → 93. Selection is the ceiling — pending the ep1..ep10 calibration.</span>
+          <span class="k">Leg S headroom, ep1 → ep10</span>
+          <span class="v">+24<small>→ +29</small></span>
+          <span class="d">Calibrated: pass@1 rises 10.4 → 13.3 → 14.5 with training, the selection gap stays 2× larger at every epoch. Seed-replicated to 0.1 pt.</span>
         </div>
-        <div class="tile warn">
-          <span class="k">root disk</span>
-          <span class="v">81<small>%</small></span>
-          <span class="d">Was 99% — replays moved to <code>/data</code> (107 GB free now). ~83 GB of stale caches still deletable, listed below.</span>
+        <div class="tile good">
+          <span class="k">mode-of-16, offline pass@1</span>
+          <span class="v">14.9<small>→ 22.9</small></span>
+          <span class="d">Majority vote over 16 samples, no critic, no retrain — recovered 28% of the gap on both corpora and beat the learned selector (19.0).</span>
+        </div>
+        <div class="tile bad">
+          <span class="k">mode-of-16, live</span>
+          <span class="v">0<small>/ 8 finished</small></span>
+          <span class="d">Frozen-input 0.74 (guard 0.20), games end at 50 s, deaths 3.75 vs 2.25, zero approaches. Majority vote is argmax with extra steps.</span>
         </div>
       </div>
 
@@ -262,11 +262,11 @@
         </div>
         <div class="card">
           <div class="top"><h3>Generalist Fox (fox_gen_v1)</h3><span class="pill accent">Live</span></div>
-          <p>Local-only by design (no delay-ids). Deploy decode as of tonight: <strong><code>--temperature 0.5 --buttons-temperature 0.5</code></strong>, never <code>--deterministic</code> (argmax collapses in ~30 s). v2 waits until v1 is exhausted.</p>
+          <p>Local-only by design (no delay-ids). Deploy decode unchanged: <strong><code>--temperature 0.5 --buttons-temperature 0.5</code></strong>. Never <code>--deterministic</code>, <code>--deterministic-buttons</code>, or <code>--mode-of-n</code> — all three freeze the bot within a minute. v2 waits until v1 is exhausted.</p>
         </div>
         <div class="card">
-          <div class="top"><h3>Value model / critic</h3><span class="pill accent">Arms running</span></div>
-          <p>AWBC arms B1 → B2 → B3 started 18:22 (unit <code>exphil-awbc-arms</code>; 3 epochs each from ep10, seed 828; prereg in <code>eval_runs/0828_awbc_arms/PREREG.md</code>). The learned critic — offline training script + Best-of-N decode — is not built.</p>
+          <div class="top"><h3>Value model / critic</h3><span class="pill warn">Three nulls, one law</span></div>
+          <p>AWBC arms: null. Linear selector on trunk ⊕ raw scalars: real (controls clean, 27% of the gap held-out) but beaten by a free majority vote. Majority vote live: argmax lock. The critic direction now carries a live gate — frozen-input ≤ 0.20, 7/8 games to the cap, deaths within 1.5× — before any offline "gap recovered" number counts. <code>eval_runs/0829_critic</code>, <code>eval_runs/0829_mode_of_n</code>.</p>
         </div>
       </div>
     </section>
@@ -277,6 +277,30 @@
         <p>Verified results, each with the evidence a stranger could check. Two of last session's claims are retracted in place — keep that habit.</p>
       </div>
       <div class="ledger">
+        <div class="row">
+          <div class="tag">Decode</div>
+          <div class="what">
+            <h3>Mode-of-N is argmax with extra steps</h3>
+            <p>base vs <code>--mode-of-n 16</code>, 8 games each, same day, staleness ≤ 1.4%: base 8/8 to the 120 s cap, mode16 0/8 (mean 50 s), frozen-input 0.00 vs 0.74, deaths 2.25 vs 3.75, armed approaches 0.24/min vs 0. Offline the same decode had won pass@1 by +8 pts.</p>
+          </div>
+          <div class="ev"><b>eval_runs/0829_mode_of_n</b>RESULTS + prereg read in the script header. Third door into the same collapse (argmax, argmax buttons, mode-of-N).</div>
+        </div>
+        <div class="row">
+          <div class="tag">Training</div>
+          <div class="what">
+            <h3>Outcome-weighted BC changes nothing observable</h3>
+            <p>B1 plain / B2 AWBC / B3 AWBC-shuffled, 3 epochs each from ep10, one protocol, one day. Max ratio on any pathology metric 1.5×, all ranges overlapping; B2 worst on d-up (127 vs 115/min) and pummel loops. Val loss moved, play did not.</p>
+          </div>
+          <div class="ev"><b>eval_runs/0828_awbc_arms</b>PREREG (two dated amendments) + RESULTS. Knobs verified from each checkpoint's <code>_config.json</code>.</div>
+        </div>
+        <div class="row">
+          <div class="tag">Instrument</div>
+          <div class="what">
+            <h3>Leg S is calibrated</h3>
+            <p>pass@1 10.4 / 13.3 / 14.5 at ep1 / 5 / 10 — the probe sees training — while pass@16 − pass@1 is +24 / +28 / +29. Two seeds agree to 0.1 pt on every head. Off-corpus (fox_il_v1): 6.9 → 24.3. Buttons pass@16 sits at 93 from epoch 1.</p>
+          </div>
+          <div class="ev"><b>eval_runs/0828_legS</b>RESULTS §Calibration; ep1/ep5/ep10/ep10_fox_il_v1.md.</div>
+        </div>
         <div class="row">
           <div class="tag">Decode</div>
           <div class="what">
@@ -409,20 +433,20 @@
             <dt>Why not more</dt><dd>Deaths climb as buttons cool; the knob has a cliff and T=0.5 sits beside it. Local optimum, not a road.</dd>
           </dl>
         </div>
-        <div class="dir pick">
-          <div class="head"><h3>B · A critic (value model) → Best-of-N</h3><span class="pill accent">Best long-term</span></div>
+        <div class="dir">
+          <div class="head"><h3>B · A critic (value model) → Best-of-N</h3><span class="pill warn">Needs a tail-keeping selector</span></div>
           <dl>
-            <dt>What</dt><dd>A second network scoring "how good is this state for Fox?"; decode becomes sample N, score, pick. <strong>It is the selection rule v1 lacks.</strong></dd>
-            <dt>Build</dt><dd>Offline critic training script + Best-of-N decode. Pieces exist: <code>Networks.Value</code>, GAE, <code>Rewards.Standard</code>, trunk capture. Read trunk ⊕ raw scalars; start linear; validate by <em>ranking</em> the master's action, not MSE; check on bot replays too.</dd>
-            <dt>Risk</dt><dd>Trained on human data, least reliable exactly on the states the bot creates.</dd>
+            <dt>What</dt><dd>A second network scoring candidates; decode becomes sample N, score, pick. Still the selection rule v1 lacks — but today showed the obvious versions of it pick the mode, and the mode freezes the bot.</dd>
+            <dt>Ran</dt><dd>Linear V(s) + bilinear selector on trunk ⊕ raw scalars (<code>eval_runs/0829_critic</code>): 27% of the gap held-out, controls clean, lost to majority vote (19.0 vs 22.9 pass@1). V(s) ranks states above chance (0.60 vs 0.51) but explains 5% of return variance.</dd>
+            <dt>Gate</dt><dd>Any selector must beat 22.9 / 6.8 offline AND pass the live gate (frozen-input ≤ 0.20, 7/8 to cap, deaths ≤ 1.5×). Offline is now the easy half. An MLP head is not queued until there is a reason to believe it keeps the tail.</dd>
           </dl>
         </div>
         <div class="dir">
-          <div class="head"><h3>C · AWBC arms B1/B2/B3</h3><span class="pill good">Free, overnight</span></div>
+          <div class="head"><h3>C · AWBC arms B1/B2/B3</h3><span class="pill bad">Null</span></div>
           <dl>
-            <dt>What</dt><dd>Re-weight BC frames by actual game outcome (return-to-go). Same network, different loss weights; wired, never run.</dd>
-            <dt>Role</dt><dd>Cheap test of "does outcome signal help at all" — gates B. Score on the loop/taunt axis alongside coach, never armed/min alone.</dd>
-            <dt>Cost</dt><dd>~11 h each on the 118 GB v1 embedding cache — which is why that cache stays.</dd>
+            <dt>What</dt><dd>Re-weight BC frames by actual game outcome (return-to-go). Same network, different loss weights; 3 epochs each from ep10.</dd>
+            <dt>Result</dt><dd>8 games per arm, same protocol, same day: max ratio 1.5× on any pathology metric, every range overlapping, deaths 2.4 / 2.0 / 1.5 (overlapping). Val loss moved (B2 lowest), play did not — the ep1..ep10 decoupling again. <code>eval_runs/0828_awbc_arms/RESULTS.md</code>.</dd>
+            <dt>Left</dt><dd>One sharper-β arm is allowed by the prereg; deferred — it would still only reweight the master's choices, and the gap is in the bot's own picks.</dd>
           </dl>
         </div>
         <div class="dir">
@@ -441,8 +465,8 @@
         </div>
       </div>
       <div class="callout">
-        <p><strong>Recommendation.</strong> Leg S came back <strong>+29 pts</strong> with the curve still climbing at k=16: the right action is in the distribution and the decode is not picking it. That is the case for B. The AWBC arms (C) started 18:22 as the cheap first test; build the critic script while they run. Do not start v2 — the triad says selection, not capacity, is the biggest number (calibration still owed).</p>
-        <p class="small">Why pass@k and a critic belong together: pass@k measures whether the right action is <em>in</em> the sampled set; a critic is the thing that picks it out. Leg S is the ceiling on what any critic could ever recover.</p>
+        <p><strong>Where this leaves the program.</strong> Leg S is calibrated and real: the master's action is in the sampled set far more often than it is played, at every epoch. But every selector tried today that <em>concentrates</em> the decode — outcome weights, a learned ranker, a majority vote — either did nothing or reproduced the argmax collapse. The headroom is a fact about the distribution; cashing it needs a rule that keeps the distribution's tail while moving its center, and no candidate for that rule exists yet. Do not start v2 on this evidence (capacity is still not the biggest number), and do not spend more decode brackets on mode-seeking ideas.</p>
+        <p class="small">Concrete next candidates, cheapest first: (1) Leg S at T→0 to formally show argmax wins the offline metric (running); (2) a selector scored by a <em>state</em> value after a short CycleSim rollout rather than by master-match, since V(s) ranks above chance; (3) direction E — find why the pummel loop fires and mask it, which changes picks without collapsing them.</p>
       </div>
     </section>
 
@@ -460,6 +484,8 @@
         <div class="law"><span class="n">L6</span><span><strong>Never launch netplay without the bot account.</strong> The script now enforces it; the DEPLOY_KNOBS row was the dropped flag.</span></div>
         <div class="law"><span class="n">L7</span><span><strong>No <code>lib/*.ex</code> edits while a multi-stage loop runs;</strong> <code>Code.string_to_quoted!</code> is the only syntax check while a beam is live.</span></div>
         <div class="law"><span class="n">L8</span><span><strong>Long runs go through <code>systemd-run --user</code>.</strong> The Bash tool SIGTERMs everything at ~10 min; tmux is absent on slanka.</span></div>
+        <div class="law"><span class="n">L9</span><span><strong>Offline master-match is mode-seeking and cannot rank decodes alone.</strong> Mode-of-16 won it by +8 pts and froze the bot live. Every decode metric is paired with frozen-input, duration, and deaths from a live bracket.</span></div>
+        <div class="law"><span class="n">L10</span><span><strong>An embed-layout flag must reach every embedding path.</strong> <code>--stage-internals</code> reached the checkpoint and the Agent but not <code>Activations</code>; every trunk capture of v1 died 288-vs-296 until it did (GOTCHA #105). Grep for <code>with_delay_id</code> when adding one.</span></div>
       </div>
     </section>
 

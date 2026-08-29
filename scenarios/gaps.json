@@ -21005,6 +21005,1952 @@
       "source": "coach",
       "status": "new",
       "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150151"
+      },
+      "frame": 4339,
+      "id": "g_4cfb0975",
+      "note": "passive_run=388f mid_dist=6.9",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/base/r1.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "passivity_window"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150151"
+      },
+      "frame": 507,
+      "id": "g_12066342",
+      "note": "opening@507 start_pct=14.0 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/base/r1.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150151"
+      },
+      "frame": 1200,
+      "id": "g_5af43311",
+      "note": "opening@1200 start_pct=51.4 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/base/r1.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150151"
+      },
+      "frame": 1570,
+      "id": "g_55bd9eac",
+      "note": "opening@1570 start_pct=68.1 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/base/r1.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150151"
+      },
+      "frame": 1861,
+      "id": "g_a2fa6e90",
+      "note": "opening@1861 start_pct=73.1 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/base/r1.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150151"
+      },
+      "frame": 3616,
+      "id": "g_34cf519e",
+      "note": "opening@3616 start_pct=131.4 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/base/r1.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150151"
+      },
+      "frame": 3972,
+      "id": "g_289daf52",
+      "note": "opening@3972 start_pct=4.3 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/base/r1.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150151"
+      },
+      "frame": 7042,
+      "id": "g_f1694504",
+      "note": "opening@7042 start_pct=136.0 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/base/r1.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150151"
+      },
+      "frame": 542,
+      "id": "g_3c1936a9",
+      "note": "hit@632 opener=p2_action44 dist_90f_prior=54.9",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/base/r1.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150151"
+      },
+      "frame": 1247,
+      "id": "g_509c8b11",
+      "note": "hit@1337 opener=p2_action60 dist_90f_prior=53.4",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/base/r1.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150152"
+      },
+      "frame": 6184,
+      "id": "g_705e2a38",
+      "note": "passive_run=361f mid_dist=8.3",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/base/r2.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "passivity_window"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150152"
+      },
+      "frame": 2226,
+      "id": "g_e667852b",
+      "note": "opening@2226 start_pct=69.5 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/base/r2.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150152"
+      },
+      "frame": 4344,
+      "id": "g_780b67ba",
+      "note": "opening@4344 start_pct=161.8 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/base/r2.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150152"
+      },
+      "frame": 1238,
+      "id": "g_a935fa86",
+      "note": "hit@1328 opener=p2_action44 dist_90f_prior=49.0",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/base/r2.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150152"
+      },
+      "frame": 2758,
+      "id": "g_3d1384b1",
+      "note": "hit@2848 opener=p2_action44 dist_90f_prior=14.0",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/base/r2.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150152"
+      },
+      "frame": 3410,
+      "id": "g_2b4451ff",
+      "note": "hit@3500 opener=p2_action53 dist_90f_prior=27.7",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/base/r2.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150152"
+      },
+      "frame": 3919,
+      "id": "g_2c0106a5",
+      "note": "hit@4009 opener=p2_action44 dist_90f_prior=0.1",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/base/r2.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150152"
+      },
+      "frame": 4856,
+      "id": "g_71810e2d",
+      "note": "hit@4946 opener=p2_action44 dist_90f_prior=15.8",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/base/r2.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150152"
+      },
+      "frame": 5386,
+      "id": "g_0bc55c72",
+      "note": "hit@5476 opener=p2_action356 dist_90f_prior=81.0",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/base/r2.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150152"
+      },
+      "frame": 5827,
+      "id": "g_18002483",
+      "note": "hit@5917 opener=p2_action57 dist_90f_prior=76.5",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/base/r2.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150153"
+      },
+      "frame": 4208,
+      "id": "g_3531dd25",
+      "note": "passive_run=338f mid_dist=8.3",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/base/r3.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "passivity_window"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150153"
+      },
+      "frame": 4889,
+      "id": "g_aa632bcd",
+      "note": "passive_run=398f mid_dist=8.3",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/base/r3.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "passivity_window"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150153"
+      },
+      "frame": 736,
+      "id": "g_ab967035",
+      "note": "opening@736 start_pct=43.4 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/base/r3.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150153"
+      },
+      "frame": 1927,
+      "id": "g_ea930ead",
+      "note": "opening@1927 start_pct=82.7 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/base/r3.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150153"
+      },
+      "frame": 2735,
+      "id": "g_788f358f",
+      "note": "opening@2735 start_pct=113.3 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/base/r3.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150153"
+      },
+      "frame": 3055,
+      "id": "g_069798e8",
+      "note": "opening@3055 start_pct=123.3 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/base/r3.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150153"
+      },
+      "frame": 340,
+      "id": "g_e4855e28",
+      "note": "hit@430 opener=p2_action44 dist_90f_prior=6.5",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/base/r3.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150153"
+      },
+      "frame": 3212,
+      "id": "g_aed04674",
+      "note": "hit@3302 opener=p2_action60 dist_90f_prior=26.8",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/base/r3.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150153"
+      },
+      "frame": 5495,
+      "id": "g_372392f3",
+      "note": "hit@5585 opener=p2_action60 dist_90f_prior=6.8",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/base/r3.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150153"
+      },
+      "frame": 6001,
+      "id": "g_9f177b93",
+      "note": "hit@6091 opener=p2_action60 dist_90f_prior=15.8",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/base/r3.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150153"
+      },
+      "frame": 2067,
+      "id": "g_c2353dc3",
+      "note": "passive_run=432f mid_dist=29.0",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/base/r4.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "passivity_window"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150153"
+      },
+      "frame": 3891,
+      "id": "g_40c75af9",
+      "note": "passive_run=404f mid_dist=8.3",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/base/r4.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "passivity_window"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150153"
+      },
+      "frame": 1153,
+      "id": "g_be53f456",
+      "note": "opening@1153 start_pct=54.0 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/base/r4.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150153"
+      },
+      "frame": 1507,
+      "id": "g_bb69ce04",
+      "note": "opening@1507 start_pct=62.0 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/base/r4.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150153"
+      },
+      "frame": 2465,
+      "id": "g_17152432",
+      "note": "opening@2465 start_pct=92.3 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/base/r4.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150153"
+      },
+      "frame": 3635,
+      "id": "g_555d0e64",
+      "note": "opening@3635 start_pct=155.3 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/base/r4.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150153"
+      },
+      "frame": 5006,
+      "id": "g_c004ce0d",
+      "note": "opening@5006 start_pct=5.0 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/base/r4.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150153"
+      },
+      "frame": 5677,
+      "id": "g_6f2eba32",
+      "note": "opening@5677 start_pct=48.4 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/base/r4.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150153"
+      },
+      "frame": 7037,
+      "id": "g_e73a62b0",
+      "note": "opening@7037 start_pct=84.1 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/base/r4.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150153"
+      },
+      "frame": 747,
+      "id": "g_570b09de",
+      "note": "hit@837 opener=p2_action44 dist_90f_prior=6.8",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/base/r4.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150154"
+      },
+      "frame": 3722,
+      "id": "g_616af82f",
+      "note": "passive_run=430f mid_dist=6.9",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/base/r5.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "passivity_window"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150154"
+      },
+      "frame": 5655,
+      "id": "g_78a7289f",
+      "note": "passive_run=416f mid_dist=19.0",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/base/r5.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "passivity_window"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150154"
+      },
+      "frame": 6620,
+      "id": "g_701f19ab",
+      "note": "passive_run=305f mid_dist=8.3",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/base/r5.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "passivity_window"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150154"
+      },
+      "frame": 606,
+      "id": "g_a6b08546",
+      "note": "opening@606 start_pct=64.2 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/base/r5.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150154"
+      },
+      "frame": 982,
+      "id": "g_125d2c4e",
+      "note": "opening@982 start_pct=90.9 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/base/r5.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150154"
+      },
+      "frame": 1937,
+      "id": "g_e99dedba",
+      "note": "opening@1937 start_pct=138.4 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/base/r5.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150154"
+      },
+      "frame": 3188,
+      "id": "g_5476aa6f",
+      "note": "opening@3188 start_pct=230.8 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/base/r5.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150154"
+      },
+      "frame": 3531,
+      "id": "g_13a769fd",
+      "note": "opening@3531 start_pct=237.8 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/base/r5.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150154"
+      },
+      "frame": 4151,
+      "id": "g_e306668a",
+      "note": "opening@4151 start_pct=244.1 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/base/r5.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150154"
+      },
+      "frame": 4415,
+      "id": "g_3e63273c",
+      "note": "opening@4415 start_pct=259.1 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/base/r5.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150155"
+      },
+      "frame": 1669,
+      "id": "g_3019003c",
+      "note": "passive_run=409f mid_dist=13.3",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/base/r6.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "passivity_window"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150155"
+      },
+      "frame": 2775,
+      "id": "g_ef009d18",
+      "note": "passive_run=495f mid_dist=8.3",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/base/r6.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "passivity_window"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150155"
+      },
+      "frame": 6847,
+      "id": "g_87584e4e",
+      "note": "passive_run=335f mid_dist=3.5",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/base/r6.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "passivity_window"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150155"
+      },
+      "frame": 761,
+      "id": "g_afe952cf",
+      "note": "opening@761 start_pct=77.0 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/base/r6.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150155"
+      },
+      "frame": 1205,
+      "id": "g_63248438",
+      "note": "opening@1205 start_pct=84.0 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/base/r6.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150155"
+      },
+      "frame": 3248,
+      "id": "g_c2fabe50",
+      "note": "opening@3248 start_pct=190.0 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/base/r6.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150155"
+      },
+      "frame": 3582,
+      "id": "g_118214d4",
+      "note": "opening@3582 start_pct=208.0 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/base/r6.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150155"
+      },
+      "frame": 511,
+      "id": "g_b4dd0482",
+      "note": "hit@601 opener=p2_action44 dist_90f_prior=6.7",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/base/r6.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150155"
+      },
+      "frame": 1352,
+      "id": "g_3f6c7edc",
+      "note": "hit@1442 opener=p2_action44 dist_90f_prior=15.4",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/base/r6.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150155"
+      },
+      "frame": 1950,
+      "id": "g_9245a8f3",
+      "note": "hit@2040 opener=p2_action48 dist_90f_prior=13.8",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/base/r6.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150156"
+      },
+      "frame": 3344,
+      "id": "g_e7b3ff94",
+      "note": "passive_run=315f mid_dist=6.9",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/base/r7.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "passivity_window"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150156"
+      },
+      "frame": 2866,
+      "id": "g_017ec848",
+      "note": "opening@2866 start_pct=126.9 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/base/r7.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150156"
+      },
+      "frame": 5688,
+      "id": "g_a7d6a39d",
+      "note": "opening@5688 start_pct=35.8 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/base/r7.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150156"
+      },
+      "frame": 6165,
+      "id": "g_4355e645",
+      "note": "opening@6165 start_pct=44.0 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/base/r7.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150156"
+      },
+      "frame": 7277,
+      "id": "g_e6ba99c2",
+      "note": "opening@7277 start_pct=118.1 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/base/r7.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150156"
+      },
+      "frame": 883,
+      "id": "g_69c995d0",
+      "note": "hit@973 opener=p2_action44 dist_90f_prior=55.5",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/base/r7.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150156"
+      },
+      "frame": 1664,
+      "id": "g_2c7ab67f",
+      "note": "hit@1754 opener=p2_action56 dist_90f_prior=6.4",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/base/r7.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150156"
+      },
+      "frame": 1991,
+      "id": "g_08b58ad0",
+      "note": "hit@2081 opener=p2_action44 dist_90f_prior=5.4",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/base/r7.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150156"
+      },
+      "frame": 3133,
+      "id": "g_579a1c32",
+      "note": "hit@3223 opener=p2_action44 dist_90f_prior=6.8",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/base/r7.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150156"
+      },
+      "frame": 3462,
+      "id": "g_ee26ce34",
+      "note": "hit@3552 opener=p2_action44 dist_90f_prior=6.9",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/base/r7.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150157"
+      },
+      "frame": 2085,
+      "id": "g_0807c5b7",
+      "note": "opening@2085 start_pct=155.8 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/base/r8.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150157"
+      },
+      "frame": 6688,
+      "id": "g_a442fd52",
+      "note": "opening@6688 start_pct=37.1 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/base/r8.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150157"
+      },
+      "frame": 771,
+      "id": "g_eb7383c7",
+      "note": "hit@861 opener=p2_action44 dist_90f_prior=16.6",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/base/r8.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150157"
+      },
+      "frame": 1022,
+      "id": "g_c207cfe6",
+      "note": "hit@1112 opener=p2_action44 dist_90f_prior=21.5",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/base/r8.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150157"
+      },
+      "frame": 1515,
+      "id": "g_b2a225bf",
+      "note": "hit@1605 opener=p2_action44 dist_90f_prior=7.1",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/base/r8.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150157"
+      },
+      "frame": 2266,
+      "id": "g_7c7cb4c1",
+      "note": "hit@2356 opener=p2_action356 dist_90f_prior=65.4",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/base/r8.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150157"
+      },
+      "frame": 2734,
+      "id": "g_04b1506d",
+      "note": "hit@2824 opener=p2_action60 dist_90f_prior=6.6",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/base/r8.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150157"
+      },
+      "frame": 3266,
+      "id": "g_ecae4883",
+      "note": "hit@3356 opener=p2_action44 dist_90f_prior=45.0",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/base/r8.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150157"
+      },
+      "frame": 3553,
+      "id": "g_a535cb72",
+      "note": "hit@3643 opener=p2_action356 dist_90f_prior=80.7",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/base/r8.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150157"
+      },
+      "frame": 3962,
+      "id": "g_c7f68548",
+      "note": "hit@4052 opener=p2_action44 dist_90f_prior=88.6",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/base/r8.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150158"
+      },
+      "frame": 546,
+      "id": "g_aeb40871",
+      "note": "death@547 elapsed=1f opener=p2_action16",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/mode16/r1.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "death_sequence"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150158"
+      },
+      "frame": 807,
+      "id": "g_86eae3f0",
+      "note": "death@808 elapsed=1f opener=p2_action14",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/mode16/r1.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "death_sequence"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150158"
+      },
+      "frame": 1068,
+      "id": "g_2f718b88",
+      "note": "death@1069 elapsed=1f opener=p2_action14",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/mode16/r1.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "death_sequence"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150159"
+      },
+      "frame": 521,
+      "id": "g_fedd80ae",
+      "note": "death@522 elapsed=1f opener=p2_action15",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/mode16/r2.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "death_sequence"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150159"
+      },
+      "frame": 782,
+      "id": "g_ed403c8a",
+      "note": "death@783 elapsed=1f opener=p2_action14",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/mode16/r2.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "death_sequence"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150159"
+      },
+      "frame": 1043,
+      "id": "g_cc8c9b34",
+      "note": "death@1044 elapsed=1f opener=p2_action14",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/mode16/r2.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "death_sequence"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150159"
+      },
+      "frame": 871,
+      "id": "g_ceaa4f8c",
+      "note": "passive_run=304f mid_dist=7.5",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/mode16/r3.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "passivity_window"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150159"
+      },
+      "frame": 2501,
+      "id": "g_238b98cc",
+      "note": "passive_run=412f mid_dist=25.1",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/mode16/r3.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "passivity_window"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150159"
+      },
+      "frame": 2982,
+      "id": "g_cf8f0b82",
+      "note": "passive_run=360f mid_dist=27.0",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/mode16/r3.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "passivity_window"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150159"
+      },
+      "frame": 3348,
+      "id": "g_3e94f0eb",
+      "note": "passive_run=367f mid_dist=23.2",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/mode16/r3.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "passivity_window"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150159"
+      },
+      "frame": 348,
+      "id": "g_43a37994",
+      "note": "hit@438 opener=p2_action44 dist_90f_prior=6.8",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/mode16/r3.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150159"
+      },
+      "frame": 685,
+      "id": "g_8ac68558",
+      "note": "hit@775 opener=p2_action44 dist_90f_prior=6.8",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/mode16/r3.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150159"
+      },
+      "frame": 1055,
+      "id": "g_4b55cba1",
+      "note": "hit@1145 opener=p2_action44 dist_90f_prior=7.5",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/mode16/r3.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150159"
+      },
+      "frame": 1394,
+      "id": "g_2819e359",
+      "note": "hit@1484 opener=p2_action44 dist_90f_prior=7.0",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/mode16/r3.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150159"
+      },
+      "frame": 1788,
+      "id": "g_2155fa9b",
+      "note": "hit@1878 opener=p2_action44 dist_90f_prior=6.8",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/mode16/r3.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150159"
+      },
+      "frame": 2119,
+      "id": "g_a90a219f",
+      "note": "hit@2209 opener=p2_action44 dist_90f_prior=52.3",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/mode16/r3.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150200"
+      },
+      "frame": 697,
+      "id": "g_0ec189dd",
+      "note": "opening@697 start_pct=15.5 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/mode16/r4.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150200"
+      },
+      "frame": 356,
+      "id": "g_43211eee",
+      "note": "hit@446 opener=p2_action44 dist_90f_prior=7.1",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/mode16/r4.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150200"
+      },
+      "frame": 777,
+      "id": "g_ddd616bd",
+      "note": "hit@867 opener=p2_action63 dist_90f_prior=57.8",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/mode16/r4.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150200"
+      },
+      "frame": 1065,
+      "id": "g_a6884e7a",
+      "note": "hit@1155 opener=p2_action44 dist_90f_prior=5.9",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/mode16/r4.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150200"
+      },
+      "frame": 1244,
+      "id": "g_358306e6",
+      "note": "death@1245 elapsed=1f opener=p2_action14",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/mode16/r4.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "death_sequence"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150200"
+      },
+      "frame": 1494,
+      "id": "g_47dca4ed",
+      "note": "death@1495 elapsed=1f opener=p2_action14",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/mode16/r4.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "death_sequence"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150200"
+      },
+      "frame": 1755,
+      "id": "g_b7dfa113",
+      "note": "death@1756 elapsed=1f opener=p2_action15",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/mode16/r4.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "death_sequence"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150200"
+      },
+      "frame": 2016,
+      "id": "g_1a8b08b5",
+      "note": "death@2017 elapsed=1f opener=p2_action16",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/mode16/r4.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "death_sequence"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150201"
+      },
+      "frame": 793,
+      "id": "g_e179925f",
+      "note": "opening@793 start_pct=13.7 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/mode16/r5.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150201"
+      },
+      "frame": 436,
+      "id": "g_684a13a0",
+      "note": "hit@526 opener=p2_action57 dist_90f_prior=11.3",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/mode16/r5.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150201"
+      },
+      "frame": 917,
+      "id": "g_baca0070",
+      "note": "death@918 elapsed=1f opener=p2_action18",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/mode16/r5.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "death_sequence"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150201"
+      },
+      "frame": 1180,
+      "id": "g_2cf1b1f1",
+      "note": "death@1181 elapsed=1f opener=p2_action16",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/mode16/r5.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "death_sequence"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150201"
+      },
+      "frame": 1441,
+      "id": "g_4654cb7a",
+      "note": "death@1442 elapsed=1f opener=p2_action14",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/mode16/r5.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "death_sequence"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150201"
+      },
+      "frame": 1691,
+      "id": "g_9d0d57fa",
+      "note": "death@1692 elapsed=1f opener=p2_action14",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/mode16/r5.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "death_sequence"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150202"
+      },
+      "frame": 901,
+      "id": "g_f8d91528",
+      "note": "passive_run=332f mid_dist=6.9",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/mode16/r6.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "passivity_window"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150202"
+      },
+      "frame": 2012,
+      "id": "g_25a1849b",
+      "note": "passive_run=355f mid_dist=6.7",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/mode16/r6.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "passivity_window"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150202"
+      },
+      "frame": 2436,
+      "id": "g_f2cdf675",
+      "note": "passive_run=774f mid_dist=35.8",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/mode16/r6.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "passivity_window"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150202"
+      },
+      "frame": 392,
+      "id": "g_088f1d72",
+      "note": "hit@482 opener=p2_action44 dist_90f_prior=6.6",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/mode16/r6.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150202"
+      },
+      "frame": 744,
+      "id": "g_c6642c74",
+      "note": "hit@834 opener=p2_action44 dist_90f_prior=6.8",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/mode16/r6.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150202"
+      },
+      "frame": 1100,
+      "id": "g_67d7c299",
+      "note": "hit@1190 opener=p2_action44 dist_90f_prior=6.9",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/mode16/r6.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150202"
+      },
+      "frame": 1434,
+      "id": "g_37624930",
+      "note": "hit@1524 opener=p2_action44 dist_90f_prior=7.0",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/mode16/r6.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150202"
+      },
+      "frame": 1833,
+      "id": "g_d6048e51",
+      "note": "hit@1923 opener=p2_action44 dist_90f_prior=16.1",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/mode16/r6.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150202"
+      },
+      "frame": 2165,
+      "id": "g_a4194298",
+      "note": "hit@2255 opener=p2_action44 dist_90f_prior=6.7",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/mode16/r6.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150202"
+      },
+      "frame": 2671,
+      "id": "g_4ffe5c6d",
+      "note": "hit@2761 opener=p2_action60 dist_90f_prior=20.0",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/mode16/r6.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150203"
+      },
+      "frame": 1015,
+      "id": "g_34234e52",
+      "note": "passive_run=1313f mid_dist=8.9",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/mode16/r7.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "passivity_window"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150203"
+      },
+      "frame": 2440,
+      "id": "g_b9eea29e",
+      "note": "passive_run=327f mid_dist=11.0",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/mode16/r7.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "passivity_window"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150203"
+      },
+      "frame": 321,
+      "id": "g_52c479d5",
+      "note": "hit@411 opener=p2_action44 dist_90f_prior=6.9",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/mode16/r7.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150203"
+      },
+      "frame": 681,
+      "id": "g_37aa0663",
+      "note": "hit@771 opener=p2_action44 dist_90f_prior=7.1",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/mode16/r7.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150203"
+      },
+      "frame": 1058,
+      "id": "g_c5892108",
+      "note": "hit@1148 opener=p2_action44 dist_90f_prior=5.6",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/mode16/r7.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150203"
+      },
+      "frame": 1548,
+      "id": "g_bf9886da",
+      "note": "hit@1638 opener=p2_action44 dist_90f_prior=7.1",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/mode16/r7.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150203"
+      },
+      "frame": 2026,
+      "id": "g_c1d01573",
+      "note": "hit@2116 opener=p2_action44 dist_90f_prior=6.9",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/mode16/r7.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150203"
+      },
+      "frame": 2497,
+      "id": "g_3986abca",
+      "note": "hit@2587 opener=p2_action44 dist_90f_prior=6.9",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/mode16/r7.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150203"
+      },
+      "frame": 2706,
+      "id": "g_eadc89d3",
+      "note": "death@2707 elapsed=1f opener=p2_action14",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/mode16/r7.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "death_sequence"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150203"
+      },
+      "frame": 2968,
+      "id": "g_cef6a8d3",
+      "note": "death@2969 elapsed=1f opener=p2_action16",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/mode16/r7.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "death_sequence"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150203"
+      },
+      "frame": 486,
+      "id": "g_7e12f0b5",
+      "note": "hit@576 opener=p2_action44 dist_90f_prior=7.1",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/mode16/r8.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150203"
+      },
+      "frame": 838,
+      "id": "g_cedfae2a",
+      "note": "hit@928 opener=p2_action44 dist_90f_prior=7.1",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/mode16/r8.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150203"
+      },
+      "frame": 1193,
+      "id": "g_7e6f3cb1",
+      "note": "hit@1283 opener=p2_action44 dist_90f_prior=6.8",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/mode16/r8.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150203"
+      },
+      "frame": 1565,
+      "id": "g_aba286ba",
+      "note": "hit@1655 opener=p2_action44 dist_90f_prior=19.0",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/mode16/r8.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150203"
+      },
+      "frame": 1894,
+      "id": "g_49f014c7",
+      "note": "hit@1984 opener=p2_action44 dist_90f_prior=7.0",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/mode16/r8.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150203"
+      },
+      "frame": 2261,
+      "id": "g_2f5f8009",
+      "note": "death@2262 elapsed=1f opener=p2_action14",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/mode16/r8.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "death_sequence"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150203"
+      },
+      "frame": 2522,
+      "id": "g_e21626f2",
+      "note": "death@2523 elapsed=1f opener=p2_action15",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/mode16/r8.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "death_sequence"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150203"
+      },
+      "frame": 2783,
+      "id": "g_b33925c2",
+      "note": "death@2784 elapsed=1f opener=p2_action14",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/mode16/r8.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "death_sequence"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_150203"
+      },
+      "frame": 3044,
+      "id": "g_5bb5610b",
+      "note": "death@3045 elapsed=1f opener=p2_action14",
+      "slp": "/home/blewf/git/exphil/eval_runs/0829_mode_of_n/mode16/r8.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "death_sequence"
     }
   ]
 }
