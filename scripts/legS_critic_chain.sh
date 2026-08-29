@@ -31,7 +31,7 @@ CHAIN="$OUT/CHAIN.md"
 DONE_MARKER="$OUT/.chain_done"
 rm -f "$DONE_MARKER"
 
-if pgrep -f 'beam.smp' >/dev/null; then
+if pgrep -x beam.smp >/dev/null; then
   echo "a beam is already live — refusing (second-EXLA-client law)" >&2; exit 3
 fi
 

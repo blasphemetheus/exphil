@@ -17645,6 +17645,3366 @@
       "source": "coach",
       "status": "new",
       "type": "death_sequence"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120240"
+      },
+      "frame": 1513,
+      "id": "g_367a2912",
+      "note": "passive_run=306f mid_dist=8.3",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B1/r1.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "passivity_window"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120240"
+      },
+      "frame": 3970,
+      "id": "g_8c72dc6f",
+      "note": "passive_run=340f mid_dist=8.3",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B1/r1.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "passivity_window"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120240"
+      },
+      "frame": 5137,
+      "id": "g_64ae44c3",
+      "note": "passive_run=423f mid_dist=8.3",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B1/r1.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "passivity_window"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120240"
+      },
+      "frame": 2034,
+      "id": "g_4790c9ee",
+      "note": "opening@2034 start_pct=88.8 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B1/r1.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120240"
+      },
+      "frame": 2313,
+      "id": "g_ce9be815",
+      "note": "opening@2313 start_pct=93.4 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B1/r1.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120240"
+      },
+      "frame": 3753,
+      "id": "g_9df369ad",
+      "note": "opening@3753 start_pct=140.6 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B1/r1.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120240"
+      },
+      "frame": 4930,
+      "id": "g_f1ed7222",
+      "note": "opening@4930 start_pct=179.8 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B1/r1.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120240"
+      },
+      "frame": 380,
+      "id": "g_44353a64",
+      "note": "hit@470 opener=p2_action44 dist_90f_prior=7.1",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B1/r1.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120240"
+      },
+      "frame": 1191,
+      "id": "g_c6a7366e",
+      "note": "hit@1281 opener=p2_action44 dist_90f_prior=7.0",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B1/r1.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120240"
+      },
+      "frame": 1797,
+      "id": "g_4a672ca9",
+      "note": "hit@1887 opener=p2_action63 dist_90f_prior=2.0",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B1/r1.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120241"
+      },
+      "frame": 4824,
+      "id": "g_b85da442",
+      "note": "passive_run=323f mid_dist=26.4",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B1/r2.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "passivity_window"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120241"
+      },
+      "frame": 5153,
+      "id": "g_3d49e4fd",
+      "note": "passive_run=416f mid_dist=8.3",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B1/r2.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "passivity_window"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120241"
+      },
+      "frame": 4596,
+      "id": "g_1d701d49",
+      "note": "opening@4596 start_pct=134.8 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B1/r2.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120241"
+      },
+      "frame": 365,
+      "id": "g_21450a16",
+      "note": "hit@455 opener=p2_action44 dist_90f_prior=9.1",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B1/r2.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120241"
+      },
+      "frame": 1367,
+      "id": "g_bd482b5b",
+      "note": "hit@1457 opener=p2_action45 dist_90f_prior=6.7",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B1/r2.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120241"
+      },
+      "frame": 1841,
+      "id": "g_a293d69e",
+      "note": "hit@1931 opener=p2_action44 dist_90f_prior=6.6",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B1/r2.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120241"
+      },
+      "frame": 2580,
+      "id": "g_f469c2d8",
+      "note": "hit@2670 opener=p2_action60 dist_90f_prior=33.4",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B1/r2.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120241"
+      },
+      "frame": 3481,
+      "id": "g_bbec3185",
+      "note": "hit@3571 opener=p2_action57 dist_90f_prior=68.6",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B1/r2.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120241"
+      },
+      "frame": 3828,
+      "id": "g_ffded252",
+      "note": "hit@3918 opener=p2_action53 dist_90f_prior=68.8",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B1/r2.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120241"
+      },
+      "frame": 4946,
+      "id": "g_a1644ab6",
+      "note": "hit@5036 opener=p2_action44 dist_90f_prior=26.8",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B1/r2.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120242"
+      },
+      "frame": 4957,
+      "id": "g_78a58c35",
+      "note": "passive_run=347f mid_dist=8.3",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B1/r3.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "passivity_window"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120242"
+      },
+      "frame": 6118,
+      "id": "g_97385274",
+      "note": "passive_run=304f mid_dist=8.3",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B1/r3.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "passivity_window"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120242"
+      },
+      "frame": 385,
+      "id": "g_c6101680",
+      "note": "opening@385 start_pct=51.2 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B1/r3.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120242"
+      },
+      "frame": 1043,
+      "id": "g_5a951754",
+      "note": "opening@1043 start_pct=83.4 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B1/r3.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120242"
+      },
+      "frame": 1514,
+      "id": "g_495caefd",
+      "note": "opening@1514 start_pct=99.4 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B1/r3.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120242"
+      },
+      "frame": 4430,
+      "id": "g_fde87b49",
+      "note": "opening@4430 start_pct=158.4 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B1/r3.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120242"
+      },
+      "frame": 4685,
+      "id": "g_9ad9fcc2",
+      "note": "opening@4685 start_pct=165.4 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B1/r3.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120242"
+      },
+      "frame": 5521,
+      "id": "g_7fd1d1f9",
+      "note": "opening@5521 start_pct=194.5 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B1/r3.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120242"
+      },
+      "frame": 6614,
+      "id": "g_7da31bd8",
+      "note": "opening@6614 start_pct=243.5 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B1/r3.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120242"
+      },
+      "frame": 1258,
+      "id": "g_bf7d21a3",
+      "note": "hit@1348 opener=p2_action56 dist_90f_prior=21.4",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B1/r3.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120242"
+      },
+      "frame": 1447,
+      "id": "g_0046b9be",
+      "note": "opening@1447 start_pct=72.4 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B1/r4.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120242"
+      },
+      "frame": 2744,
+      "id": "g_5bc3af98",
+      "note": "opening@2744 start_pct=85.8 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B1/r4.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120242"
+      },
+      "frame": 5013,
+      "id": "g_581c2ef5",
+      "note": "opening@5013 start_pct=204.9 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B1/r4.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120242"
+      },
+      "frame": 1619,
+      "id": "g_0a70f0dd",
+      "note": "hit@1709 opener=p2_action64 dist_90f_prior=31.5",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B1/r4.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120242"
+      },
+      "frame": 2247,
+      "id": "g_f8fa6132",
+      "note": "hit@2337 opener=p2_action44 dist_90f_prior=6.8",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B1/r4.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120242"
+      },
+      "frame": 3453,
+      "id": "g_5375e64c",
+      "note": "hit@3543 opener=p2_action57 dist_90f_prior=28.8",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B1/r4.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120242"
+      },
+      "frame": 3770,
+      "id": "g_aa413db3",
+      "note": "hit@3860 opener=p2_action44 dist_90f_prior=28.6",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B1/r4.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120242"
+      },
+      "frame": 4648,
+      "id": "g_f12c7aa4",
+      "note": "hit@4738 opener=p2_action60 dist_90f_prior=103.9",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B1/r4.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120242"
+      },
+      "frame": 5683,
+      "id": "g_d173e19f",
+      "note": "hit@5773 opener=p2_action44 dist_90f_prior=35.2",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B1/r4.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120242"
+      },
+      "frame": 6114,
+      "id": "g_42bbec78",
+      "note": "hit@6204 opener=p2_action44 dist_90f_prior=7.1",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B1/r4.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120243"
+      },
+      "frame": 3415,
+      "id": "g_d3c9f626",
+      "note": "passive_run=389f mid_dist=8.3",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B1/r5.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "passivity_window"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120243"
+      },
+      "frame": 4023,
+      "id": "g_47c68114",
+      "note": "passive_run=421f mid_dist=8.3",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B1/r5.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "passivity_window"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120243"
+      },
+      "frame": 4450,
+      "id": "g_c112728c",
+      "note": "passive_run=455f mid_dist=8.3",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B1/r5.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "passivity_window"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120243"
+      },
+      "frame": 4911,
+      "id": "g_9300ba2e",
+      "note": "passive_run=518f mid_dist=8.3",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B1/r5.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "passivity_window"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120243"
+      },
+      "frame": 6102,
+      "id": "g_c6223b03",
+      "note": "passive_run=340f mid_dist=15.4",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B1/r5.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "passivity_window"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120243"
+      },
+      "frame": 1661,
+      "id": "g_f40d1024",
+      "note": "opening@1661 start_pct=107.7 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B1/r5.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120243"
+      },
+      "frame": 1958,
+      "id": "g_22972618",
+      "note": "opening@1958 start_pct=126.3 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B1/r5.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120243"
+      },
+      "frame": 1716,
+      "id": "g_1b09eecc",
+      "note": "hit@1806 opener=p2_action60 dist_90f_prior=61.3",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B1/r5.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120243"
+      },
+      "frame": 2021,
+      "id": "g_e9099e01",
+      "note": "hit@2111 opener=p2_action53 dist_90f_prior=59.7",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B1/r5.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120243"
+      },
+      "frame": 2691,
+      "id": "g_03d5a29c",
+      "note": "hit@2781 opener=p2_action44 dist_90f_prior=15.4",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B1/r5.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120244"
+      },
+      "frame": 6349,
+      "id": "g_5d4552bb",
+      "note": "passive_run=345f mid_dist=7.0",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B1/r6.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "passivity_window"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120244"
+      },
+      "frame": 944,
+      "id": "g_4e2b3453",
+      "note": "opening@944 start_pct=52.4 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B1/r6.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120244"
+      },
+      "frame": 1575,
+      "id": "g_051c263c",
+      "note": "opening@1575 start_pct=100.2 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B1/r6.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120244"
+      },
+      "frame": 2900,
+      "id": "g_6a1f0c22",
+      "note": "opening@2900 start_pct=168.6 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B1/r6.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120244"
+      },
+      "frame": 4240,
+      "id": "g_3574e429",
+      "note": "opening@4240 start_pct=195.2 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B1/r6.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120244"
+      },
+      "frame": 4792,
+      "id": "g_b60c6314",
+      "note": "opening@4792 start_pct=199.2 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B1/r6.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120244"
+      },
+      "frame": 5369,
+      "id": "g_c4759049",
+      "note": "opening@5369 start_pct=223.6 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B1/r6.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120244"
+      },
+      "frame": 2128,
+      "id": "g_8734b3ef",
+      "note": "hit@2218 opener=p2_action57 dist_90f_prior=22.2",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B1/r6.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120244"
+      },
+      "frame": 2515,
+      "id": "g_1a96d32e",
+      "note": "hit@2605 opener=p2_action60 dist_90f_prior=38.7",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B1/r6.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120244"
+      },
+      "frame": 3185,
+      "id": "g_d269e5f5",
+      "note": "hit@3275 opener=p2_action44 dist_90f_prior=1.2",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B1/r6.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120245"
+      },
+      "frame": 927,
+      "id": "g_ba570abb",
+      "note": "passive_run=326f mid_dist=6.2",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B1/r7.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "passivity_window"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120245"
+      },
+      "frame": 2837,
+      "id": "g_ab9b6e83",
+      "note": "passive_run=343f mid_dist=16.8",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B1/r7.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "passivity_window"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120245"
+      },
+      "frame": 3319,
+      "id": "g_6aeab7b6",
+      "note": "passive_run=404f mid_dist=11.4",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B1/r7.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "passivity_window"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120245"
+      },
+      "frame": 920,
+      "id": "g_083f9e50",
+      "note": "opening@920 start_pct=4.0 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B1/r7.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120245"
+      },
+      "frame": 2232,
+      "id": "g_95544f8b",
+      "note": "opening@2232 start_pct=40.2 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B1/r7.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120245"
+      },
+      "frame": 3686,
+      "id": "g_255ccb18",
+      "note": "opening@3686 start_pct=93.1 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B1/r7.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120245"
+      },
+      "frame": 4240,
+      "id": "g_4800bc8d",
+      "note": "opening@4240 start_pct=131.1 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B1/r7.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120245"
+      },
+      "frame": 5536,
+      "id": "g_db9ae81c",
+      "note": "opening@5536 start_pct=18.2 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B1/r7.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120245"
+      },
+      "frame": 5874,
+      "id": "g_55f174a7",
+      "note": "opening@5874 start_pct=40.0 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B1/r7.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120245"
+      },
+      "frame": 6325,
+      "id": "g_413f9b1b",
+      "note": "opening@6325 start_pct=45.0 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B1/r7.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120246"
+      },
+      "frame": 4244,
+      "id": "g_03a1cab3",
+      "note": "passive_run=367f mid_dist=8.3",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B1/r8.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "passivity_window"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120246"
+      },
+      "frame": 4648,
+      "id": "g_340c6226",
+      "note": "passive_run=472f mid_dist=8.3",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B1/r8.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "passivity_window"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120246"
+      },
+      "frame": 5321,
+      "id": "g_789d862c",
+      "note": "passive_run=394f mid_dist=8.3",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B1/r8.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "passivity_window"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120246"
+      },
+      "frame": 392,
+      "id": "g_8407d553",
+      "note": "opening@392 start_pct=5.0 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B1/r8.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120246"
+      },
+      "frame": 995,
+      "id": "g_b5edff43",
+      "note": "opening@995 start_pct=65.5 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B1/r8.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120246"
+      },
+      "frame": 1461,
+      "id": "g_c41fbbd1",
+      "note": "opening@1461 start_pct=75.0 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B1/r8.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120246"
+      },
+      "frame": 2100,
+      "id": "g_56295a0f",
+      "note": "opening@2100 start_pct=106.2 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B1/r8.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120246"
+      },
+      "frame": 2573,
+      "id": "g_e12c9271",
+      "note": "opening@2573 start_pct=115.0 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B1/r8.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120246"
+      },
+      "frame": 3416,
+      "id": "g_7f4c4bc5",
+      "note": "opening@3416 start_pct=160.0 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B1/r8.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120246"
+      },
+      "frame": 5161,
+      "id": "g_8fb6fd50",
+      "note": "opening@5161 start_pct=213.9 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B1/r8.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120247"
+      },
+      "frame": 1420,
+      "id": "g_be736244",
+      "note": "passive_run=319f mid_dist=2.6",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B2/r1.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "passivity_window"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120247"
+      },
+      "frame": 3612,
+      "id": "g_f7e9a62d",
+      "note": "passive_run=340f mid_dist=10.0",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B2/r1.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "passivity_window"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120247"
+      },
+      "frame": 4754,
+      "id": "g_43826d13",
+      "note": "passive_run=320f mid_dist=26.3",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B2/r1.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "passivity_window"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120247"
+      },
+      "frame": 6855,
+      "id": "g_2e8eb785",
+      "note": "passive_run=304f mid_dist=6.6",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B2/r1.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "passivity_window"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120247"
+      },
+      "frame": 533,
+      "id": "g_1aee2f76",
+      "note": "opening@533 start_pct=71.2 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B2/r1.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120247"
+      },
+      "frame": 1062,
+      "id": "g_cfaa88a8",
+      "note": "opening@1062 start_pct=83.2 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B2/r1.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120247"
+      },
+      "frame": 1420,
+      "id": "g_850650a6",
+      "note": "opening@1420 start_pct=83.2 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B2/r1.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120247"
+      },
+      "frame": 3479,
+      "id": "g_467fef8c",
+      "note": "opening@3479 start_pct=211.0 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B2/r1.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120247"
+      },
+      "frame": 6726,
+      "id": "g_0586ec3a",
+      "note": "opening@6726 start_pct=152.2 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B2/r1.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120247"
+      },
+      "frame": 347,
+      "id": "g_1d40d076",
+      "note": "hit@437 opener=p2_action44 dist_90f_prior=6.8",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B2/r1.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120248"
+      },
+      "frame": 1142,
+      "id": "g_80c07b80",
+      "note": "passive_run=309f mid_dist=16.5",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B2/r2.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "passivity_window"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120248"
+      },
+      "frame": 2050,
+      "id": "g_4ef025c9",
+      "note": "passive_run=394f mid_dist=15.9",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B2/r2.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "passivity_window"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120248"
+      },
+      "frame": 6834,
+      "id": "g_2a5216df",
+      "note": "passive_run=355f mid_dist=8.3",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B2/r2.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "passivity_window"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120248"
+      },
+      "frame": 3927,
+      "id": "g_cfe302d5",
+      "note": "opening@3927 start_pct=178.5 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B2/r2.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120248"
+      },
+      "frame": 6554,
+      "id": "g_8bf85724",
+      "note": "opening@6554 start_pct=115.0 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B2/r2.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120248"
+      },
+      "frame": 7302,
+      "id": "g_527677e1",
+      "note": "opening@7302 start_pct=154.8 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B2/r2.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120248"
+      },
+      "frame": 477,
+      "id": "g_134c9cd6",
+      "note": "hit@567 opener=p2_action44 dist_90f_prior=55.5",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B2/r2.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120248"
+      },
+      "frame": 882,
+      "id": "g_455d6376",
+      "note": "hit@972 opener=p2_action44 dist_90f_prior=25.0",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B2/r2.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120248"
+      },
+      "frame": 1316,
+      "id": "g_a00f46c6",
+      "note": "hit@1406 opener=p2_action45 dist_90f_prior=26.8",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B2/r2.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120248"
+      },
+      "frame": 2346,
+      "id": "g_9bfcb81c",
+      "note": "hit@2436 opener=p2_action45 dist_90f_prior=19.8",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B2/r2.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120248"
+      },
+      "frame": 3049,
+      "id": "g_a271d303",
+      "note": "passive_run=308f mid_dist=8.3",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B2/r3.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "passivity_window"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120248"
+      },
+      "frame": 3558,
+      "id": "g_45f435a1",
+      "note": "passive_run=326f mid_dist=8.3",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B2/r3.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "passivity_window"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120248"
+      },
+      "frame": 6133,
+      "id": "g_38f3361a",
+      "note": "passive_run=422f mid_dist=10.5",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B2/r3.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "passivity_window"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120248"
+      },
+      "frame": 1354,
+      "id": "g_9267fa74",
+      "note": "opening@1354 start_pct=45.4 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B2/r3.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120248"
+      },
+      "frame": 4020,
+      "id": "g_f8fb5d9e",
+      "note": "opening@4020 start_pct=168.2 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B2/r3.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120248"
+      },
+      "frame": 4917,
+      "id": "g_031d4782",
+      "note": "opening@4917 start_pct=23.1 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B2/r3.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120248"
+      },
+      "frame": 5976,
+      "id": "g_9af0eb16",
+      "note": "opening@5976 start_pct=58.5 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B2/r3.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120248"
+      },
+      "frame": 7219,
+      "id": "g_d1011ce2",
+      "note": "opening@7219 start_pct=95.1 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B2/r3.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120248"
+      },
+      "frame": 317,
+      "id": "g_381bf0d5",
+      "note": "hit@407 opener=p2_action44 dist_90f_prior=13.5",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B2/r3.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120248"
+      },
+      "frame": 849,
+      "id": "g_20568f3c",
+      "note": "hit@939 opener=p2_action44 dist_90f_prior=19.4",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B2/r3.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120249"
+      },
+      "frame": 727,
+      "id": "g_e09fd93f",
+      "note": "opening@727 start_pct=17.3 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B2/r4.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120249"
+      },
+      "frame": 976,
+      "id": "g_7786e18c",
+      "note": "opening@976 start_pct=21.4 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B2/r4.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120249"
+      },
+      "frame": 2299,
+      "id": "g_7e324ade",
+      "note": "opening@2299 start_pct=92.5 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B2/r4.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120249"
+      },
+      "frame": 4797,
+      "id": "g_48c487ac",
+      "note": "opening@4797 start_pct=160.7 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B2/r4.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120249"
+      },
+      "frame": 5166,
+      "id": "g_5224f697",
+      "note": "opening@5166 start_pct=178.5 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B2/r4.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120249"
+      },
+      "frame": 6505,
+      "id": "g_7d5b77cb",
+      "note": "opening@6505 start_pct=49.6 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B2/r4.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120249"
+      },
+      "frame": 390,
+      "id": "g_d58e680d",
+      "note": "hit@480 opener=p2_action44 dist_90f_prior=9.2",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B2/r4.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120249"
+      },
+      "frame": 796,
+      "id": "g_0f5e296c",
+      "note": "hit@886 opener=p2_action57 dist_90f_prior=23.5",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B2/r4.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120249"
+      },
+      "frame": 1462,
+      "id": "g_e17c1faa",
+      "note": "hit@1552 opener=p2_action60 dist_90f_prior=26.6",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B2/r4.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120249"
+      },
+      "frame": 1855,
+      "id": "g_17e6d052",
+      "note": "hit@1945 opener=p2_action44 dist_90f_prior=27.0",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B2/r4.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120250"
+      },
+      "frame": 4177,
+      "id": "g_69041f6d",
+      "note": "passive_run=313f mid_dist=8.3",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B2/r5.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "passivity_window"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120250"
+      },
+      "frame": 5625,
+      "id": "g_9d9cf440",
+      "note": "passive_run=326f mid_dist=9.9",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B2/r5.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "passivity_window"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120250"
+      },
+      "frame": 5957,
+      "id": "g_a50fa37a",
+      "note": "passive_run=349f mid_dist=8.3",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B2/r5.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "passivity_window"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120250"
+      },
+      "frame": 1240,
+      "id": "g_f2e4fbb7",
+      "note": "opening@1240 start_pct=42.3 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B2/r5.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120250"
+      },
+      "frame": 1527,
+      "id": "g_62e219f6",
+      "note": "opening@1527 start_pct=49.3 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B2/r5.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120250"
+      },
+      "frame": 1775,
+      "id": "g_a8397f91",
+      "note": "opening@1775 start_pct=55.7 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B2/r5.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120250"
+      },
+      "frame": 2758,
+      "id": "g_6ee4c999",
+      "note": "opening@2758 start_pct=111.2 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B2/r5.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120250"
+      },
+      "frame": 3297,
+      "id": "g_64b7682a",
+      "note": "opening@3297 start_pct=120.2 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B2/r5.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120250"
+      },
+      "frame": 463,
+      "id": "g_206ef254",
+      "note": "hit@553 opener=p2_action44 dist_90f_prior=7.0",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B2/r5.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120250"
+      },
+      "frame": 2548,
+      "id": "g_3d3ae7e5",
+      "note": "hit@2638 opener=p2_action57 dist_90f_prior=47.1",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B2/r5.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120251"
+      },
+      "frame": 2064,
+      "id": "g_c1b2100d",
+      "note": "passive_run=322f mid_dist=8.3",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B2/r6.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "passivity_window"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120251"
+      },
+      "frame": 1909,
+      "id": "g_f3ef4d20",
+      "note": "opening@1909 start_pct=59.2 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B2/r6.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120251"
+      },
+      "frame": 3630,
+      "id": "g_fe0350a3",
+      "note": "opening@3630 start_pct=27.6 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B2/r6.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120251"
+      },
+      "frame": 5364,
+      "id": "g_52f32774",
+      "note": "opening@5364 start_pct=89.2 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B2/r6.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120251"
+      },
+      "frame": 6372,
+      "id": "g_7448c595",
+      "note": "opening@6372 start_pct=137.0 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B2/r6.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120251"
+      },
+      "frame": 6741,
+      "id": "g_9d74e699",
+      "note": "opening@6741 start_pct=143.0 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B2/r6.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120251"
+      },
+      "frame": 358,
+      "id": "g_40e839b2",
+      "note": "hit@448 opener=p2_action44 dist_90f_prior=36.3",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B2/r6.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120251"
+      },
+      "frame": 832,
+      "id": "g_3eef4885",
+      "note": "hit@922 opener=p2_action44 dist_90f_prior=54.2",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B2/r6.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120251"
+      },
+      "frame": 1519,
+      "id": "g_645d5738",
+      "note": "hit@1609 opener=p2_action45 dist_90f_prior=70.0",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B2/r6.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120251"
+      },
+      "frame": 2282,
+      "id": "g_21487af6",
+      "note": "hit@2372 opener=p2_action44 dist_90f_prior=5.8",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B2/r6.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120252"
+      },
+      "frame": 3887,
+      "id": "g_be4652bb",
+      "note": "passive_run=343f mid_dist=8.3",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B2/r7.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "passivity_window"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120252"
+      },
+      "frame": 5578,
+      "id": "g_6b160d29",
+      "note": "passive_run=433f mid_dist=8.3",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B2/r7.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "passivity_window"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120252"
+      },
+      "frame": 6143,
+      "id": "g_f14e7ecb",
+      "note": "passive_run=423f mid_dist=20.8",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B2/r7.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "passivity_window"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120252"
+      },
+      "frame": 819,
+      "id": "g_65e89895",
+      "note": "opening@819 start_pct=38.8 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B2/r7.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120252"
+      },
+      "frame": 1149,
+      "id": "g_593a4c29",
+      "note": "opening@1149 start_pct=48.8 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B2/r7.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120252"
+      },
+      "frame": 2489,
+      "id": "g_ea3b721a",
+      "note": "opening@2489 start_pct=102.0 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B2/r7.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120252"
+      },
+      "frame": 2853,
+      "id": "g_4b57e437",
+      "note": "opening@2853 start_pct=106.2 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B2/r7.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120252"
+      },
+      "frame": 3179,
+      "id": "g_64d699a2",
+      "note": "opening@3179 start_pct=108.2 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B2/r7.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120252"
+      },
+      "frame": 373,
+      "id": "g_46ed8c7d",
+      "note": "hit@463 opener=p2_action56 dist_90f_prior=2.6",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B2/r7.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120252"
+      },
+      "frame": 1510,
+      "id": "g_7173e29f",
+      "note": "hit@1600 opener=p2_action57 dist_90f_prior=84.7",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B2/r7.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120253"
+      },
+      "frame": 6647,
+      "id": "g_bdee9d54",
+      "note": "passive_run=419f mid_dist=8.3",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B2/r8.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "passivity_window"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120253"
+      },
+      "frame": 628,
+      "id": "g_448c6034",
+      "note": "opening@628 start_pct=59.9 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B2/r8.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120253"
+      },
+      "frame": 1713,
+      "id": "g_e99d944a",
+      "note": "opening@1713 start_pct=111.1 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B2/r8.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120253"
+      },
+      "frame": 2208,
+      "id": "g_82d0f7fb",
+      "note": "opening@2208 start_pct=121.1 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B2/r8.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120253"
+      },
+      "frame": 2994,
+      "id": "g_225549e8",
+      "note": "opening@2994 start_pct=145.9 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B2/r8.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120253"
+      },
+      "frame": 3295,
+      "id": "g_26434add",
+      "note": "opening@3295 start_pct=147.9 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B2/r8.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120253"
+      },
+      "frame": 3665,
+      "id": "g_5d241c19",
+      "note": "opening@3665 start_pct=156.9 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B2/r8.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120253"
+      },
+      "frame": 4901,
+      "id": "g_138aaa8e",
+      "note": "opening@4901 start_pct=195.8 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B2/r8.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120253"
+      },
+      "frame": 5355,
+      "id": "g_038afe5b",
+      "note": "opening@5355 start_pct=203.8 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B2/r8.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120253"
+      },
+      "frame": 864,
+      "id": "g_ffa037e6",
+      "note": "hit@954 opener=p2_action44 dist_90f_prior=6.5",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B2/r8.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120254"
+      },
+      "frame": 825,
+      "id": "g_47cef470",
+      "note": "passive_run=361f mid_dist=15.7",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B3/r1.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "passivity_window"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120254"
+      },
+      "frame": 1598,
+      "id": "g_605bad7e",
+      "note": "opening@1598 start_pct=100.6 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B3/r1.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120254"
+      },
+      "frame": 5166,
+      "id": "g_147c65d8",
+      "note": "opening@5166 start_pct=207.6 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B3/r1.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120254"
+      },
+      "frame": 430,
+      "id": "g_cc25274b",
+      "note": "hit@520 opener=p2_action60 dist_90f_prior=23.4",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B3/r1.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120254"
+      },
+      "frame": 758,
+      "id": "g_97a28446",
+      "note": "hit@848 opener=p2_action44 dist_90f_prior=55.3",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B3/r1.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120254"
+      },
+      "frame": 1642,
+      "id": "g_874bd74a",
+      "note": "hit@1732 opener=p2_action56 dist_90f_prior=57.1",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B3/r1.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120254"
+      },
+      "frame": 2014,
+      "id": "g_31f8018d",
+      "note": "hit@2104 opener=p2_action53 dist_90f_prior=58.3",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B3/r1.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120254"
+      },
+      "frame": 2625,
+      "id": "g_4b1ae0c5",
+      "note": "hit@2715 opener=p2_action44 dist_90f_prior=6.8",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B3/r1.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120254"
+      },
+      "frame": 3006,
+      "id": "g_decc5b62",
+      "note": "hit@3096 opener=p2_action356 dist_90f_prior=142.8",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B3/r1.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120254"
+      },
+      "frame": 3449,
+      "id": "g_54ed4357",
+      "note": "hit@3539 opener=p2_action44 dist_90f_prior=6.9",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B3/r1.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120255"
+      },
+      "frame": 2353,
+      "id": "g_12dd828e",
+      "note": "opening@2353 start_pct=129.5 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B3/r2.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120255"
+      },
+      "frame": 2751,
+      "id": "g_b5f9648c",
+      "note": "opening@2751 start_pct=142.0 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B3/r2.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120255"
+      },
+      "frame": 3257,
+      "id": "g_52cd727b",
+      "note": "opening@3257 start_pct=147.0 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B3/r2.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120255"
+      },
+      "frame": 4571,
+      "id": "g_12b23335",
+      "note": "opening@4571 start_pct=205.0 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B3/r2.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120255"
+      },
+      "frame": 5306,
+      "id": "g_ff71e002",
+      "note": "opening@5306 start_pct=236.9 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B3/r2.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120255"
+      },
+      "frame": 6069,
+      "id": "g_4052d92f",
+      "note": "opening@6069 start_pct=254.4 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B3/r2.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120255"
+      },
+      "frame": 7033,
+      "id": "g_161e8bec",
+      "note": "opening@7033 start_pct=35.7 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B3/r2.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120255"
+      },
+      "frame": 399,
+      "id": "g_30a5eb9c",
+      "note": "hit@489 opener=p2_action44 dist_90f_prior=8.7",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B3/r2.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120255"
+      },
+      "frame": 1403,
+      "id": "g_3bbf0c06",
+      "note": "hit@1493 opener=p2_action53 dist_90f_prior=35.0",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B3/r2.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120255"
+      },
+      "frame": 1676,
+      "id": "g_0db9eaad",
+      "note": "hit@1766 opener=p2_action44 dist_90f_prior=6.8",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B3/r2.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120256"
+      },
+      "frame": 691,
+      "id": "g_e095600e",
+      "note": "opening@691 start_pct=63.1 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B3/r3.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120256"
+      },
+      "frame": 1661,
+      "id": "g_d57c1892",
+      "note": "opening@1661 start_pct=119.7 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B3/r3.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120256"
+      },
+      "frame": 3303,
+      "id": "g_93f0fa96",
+      "note": "opening@3303 start_pct=143.3 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B3/r3.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120256"
+      },
+      "frame": 3702,
+      "id": "g_18dfbefe",
+      "note": "opening@3702 start_pct=152.3 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B3/r3.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120256"
+      },
+      "frame": 5701,
+      "id": "g_03bd0a46",
+      "note": "opening@5701 start_pct=42.1 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B3/r3.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120256"
+      },
+      "frame": 6108,
+      "id": "g_80adc760",
+      "note": "opening@6108 start_pct=70.1 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B3/r3.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120256"
+      },
+      "frame": 6366,
+      "id": "g_91be68b3",
+      "note": "opening@6366 start_pct=71.1 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B3/r3.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120256"
+      },
+      "frame": 388,
+      "id": "g_9e694da4",
+      "note": "hit@478 opener=p2_action44 dist_90f_prior=6.6",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B3/r3.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120256"
+      },
+      "frame": 1095,
+      "id": "g_5d63be0b",
+      "note": "hit@1185 opener=p2_action44 dist_90f_prior=18.1",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B3/r3.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120256"
+      },
+      "frame": 2414,
+      "id": "g_fc2c1325",
+      "note": "hit@2504 opener=p2_action44 dist_90f_prior=10.3",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B3/r3.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120256"
+      },
+      "frame": 2151,
+      "id": "g_d733b45e",
+      "note": "passive_run=309f mid_dist=6.2",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B3/r4.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "passivity_window"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120256"
+      },
+      "frame": 5239,
+      "id": "g_35a2694a",
+      "note": "passive_run=325f mid_dist=8.3",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B3/r4.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "passivity_window"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120256"
+      },
+      "frame": 1531,
+      "id": "g_aefbf7ca",
+      "note": "opening@1531 start_pct=83.4 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B3/r4.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120256"
+      },
+      "frame": 4111,
+      "id": "g_825b5af3",
+      "note": "opening@4111 start_pct=155.7 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B3/r4.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120256"
+      },
+      "frame": 1133,
+      "id": "g_61a51651",
+      "note": "hit@1223 opener=p2_action44 dist_90f_prior=19.9",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B3/r4.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120256"
+      },
+      "frame": 1822,
+      "id": "g_5419396b",
+      "note": "hit@1912 opener=p2_action44 dist_90f_prior=0.5",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B3/r4.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120256"
+      },
+      "frame": 2359,
+      "id": "g_f6972df6",
+      "note": "hit@2449 opener=p2_action60 dist_90f_prior=6.6",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B3/r4.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120256"
+      },
+      "frame": 3250,
+      "id": "g_e2ba330b",
+      "note": "hit@3340 opener=p2_action60 dist_90f_prior=39.8",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B3/r4.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120256"
+      },
+      "frame": 3609,
+      "id": "g_74cfcb68",
+      "note": "hit@3699 opener=p2_action57 dist_90f_prior=52.4",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B3/r4.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120256"
+      },
+      "frame": 3885,
+      "id": "g_1d9da41a",
+      "note": "hit@3975 opener=p2_action57 dist_90f_prior=0.2",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B3/r4.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120257"
+      },
+      "frame": 1578,
+      "id": "g_e1dc5fb3",
+      "note": "opening@1578 start_pct=83.3 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B3/r5.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120257"
+      },
+      "frame": 2309,
+      "id": "g_3b477744",
+      "note": "opening@2309 start_pct=7.0 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B3/r5.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120257"
+      },
+      "frame": 3602,
+      "id": "g_0e751202",
+      "note": "opening@3602 start_pct=46.2 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B3/r5.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120257"
+      },
+      "frame": 5848,
+      "id": "g_14135ef0",
+      "note": "opening@5848 start_pct=114.1 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B3/r5.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120257"
+      },
+      "frame": 6173,
+      "id": "g_0a9c4b70",
+      "note": "opening@6173 start_pct=114.1 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B3/r5.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120257"
+      },
+      "frame": 6795,
+      "id": "g_23974712",
+      "note": "opening@6795 start_pct=138.8 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B3/r5.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120257"
+      },
+      "frame": 1613,
+      "id": "g_0d70f14d",
+      "note": "hit@1703 opener=p2_action56 dist_90f_prior=17.0",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B3/r5.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120257"
+      },
+      "frame": 2685,
+      "id": "g_88e83ff6",
+      "note": "hit@2775 opener=p2_action44 dist_90f_prior=30.8",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B3/r5.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120257"
+      },
+      "frame": 3135,
+      "id": "g_10387a7a",
+      "note": "hit@3225 opener=p2_action57 dist_90f_prior=14.8",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B3/r5.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120257"
+      },
+      "frame": 3427,
+      "id": "g_b58464ca",
+      "note": "hit@3517 opener=p2_action44 dist_90f_prior=14.3",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B3/r5.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120258"
+      },
+      "frame": 4922,
+      "id": "g_345d18c3",
+      "note": "passive_run=369f mid_dist=5.3",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B3/r6.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "passivity_window"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120258"
+      },
+      "frame": 7027,
+      "id": "g_5f1160f8",
+      "note": "passive_run=322f mid_dist=8.3",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B3/r6.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "passivity_window"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120258"
+      },
+      "frame": 464,
+      "id": "g_5c09f8d0",
+      "note": "opening@464 start_pct=28.2 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B3/r6.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120258"
+      },
+      "frame": 2263,
+      "id": "g_2ea4a0ec",
+      "note": "opening@2263 start_pct=106.6 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B3/r6.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120258"
+      },
+      "frame": 3680,
+      "id": "g_4d15dc5d",
+      "note": "opening@3680 start_pct=5.0 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B3/r6.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120258"
+      },
+      "frame": 1314,
+      "id": "g_b3fcd8b5",
+      "note": "hit@1404 opener=p2_action57 dist_90f_prior=71.9",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B3/r6.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120258"
+      },
+      "frame": 3493,
+      "id": "g_936a9375",
+      "note": "hit@3583 opener=p2_action44 dist_90f_prior=23.7",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B3/r6.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120258"
+      },
+      "frame": 3754,
+      "id": "g_4528ea24",
+      "note": "hit@3844 opener=p2_action44 dist_90f_prior=30.8",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B3/r6.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120258"
+      },
+      "frame": 4394,
+      "id": "g_51db3f33",
+      "note": "hit@4484 opener=p2_action60 dist_90f_prior=12.5",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B3/r6.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120258"
+      },
+      "frame": 5181,
+      "id": "g_e03311a1",
+      "note": "hit@5271 opener=p2_action53 dist_90f_prior=20.2",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B3/r6.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120259"
+      },
+      "frame": 2175,
+      "id": "g_07bcd07e",
+      "note": "passive_run=319f mid_dist=8.3",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B3/r7.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "passivity_window"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120259"
+      },
+      "frame": 2659,
+      "id": "g_47ddc9cc",
+      "note": "passive_run=360f mid_dist=6.7",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B3/r7.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "passivity_window"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120259"
+      },
+      "frame": 4640,
+      "id": "g_45a3824b",
+      "note": "passive_run=312f mid_dist=2.6",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B3/r7.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "passivity_window"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120259"
+      },
+      "frame": 393,
+      "id": "g_4cab3acf",
+      "note": "opening@393 start_pct=55.3 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B3/r7.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120259"
+      },
+      "frame": 752,
+      "id": "g_017682fe",
+      "note": "opening@752 start_pct=77.6 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B3/r7.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120259"
+      },
+      "frame": 3640,
+      "id": "g_49a64cd5",
+      "note": "opening@3640 start_pct=207.6 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B3/r7.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120259"
+      },
+      "frame": 4469,
+      "id": "g_e47c35de",
+      "note": "opening@4469 start_pct=22.3 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B3/r7.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120259"
+      },
+      "frame": 5479,
+      "id": "g_d3082608",
+      "note": "opening@5479 start_pct=54.1 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B3/r7.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120259"
+      },
+      "frame": 6228,
+      "id": "g_07be6ba3",
+      "note": "opening@6228 start_pct=94.9 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B3/r7.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120259"
+      },
+      "frame": 6612,
+      "id": "g_2346d242",
+      "note": "opening@6612 start_pct=99.9 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B3/r7.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120300"
+      },
+      "frame": 695,
+      "id": "g_7014c55f",
+      "note": "passive_run=416f mid_dist=20.1",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B3/r8.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "passivity_window"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120300"
+      },
+      "frame": 350,
+      "id": "g_cd18b92b",
+      "note": "opening@350 start_pct=39.4 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B3/r8.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120300"
+      },
+      "frame": 1476,
+      "id": "g_2cfc19d9",
+      "note": "opening@1476 start_pct=82.0 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B3/r8.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120300"
+      },
+      "frame": 1811,
+      "id": "g_d7063f08",
+      "note": "opening@1811 start_pct=89.0 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B3/r8.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120300"
+      },
+      "frame": 3002,
+      "id": "g_353e5114",
+      "note": "opening@3002 start_pct=104.9 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B3/r8.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120300"
+      },
+      "frame": 4641,
+      "id": "g_fe2a1eae",
+      "note": "opening@4641 start_pct=34.0 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B3/r8.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120300"
+      },
+      "frame": 480,
+      "id": "g_cd7ed8e9",
+      "note": "hit@570 opener=p2_action60 dist_90f_prior=62.1",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B3/r8.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120300"
+      },
+      "frame": 767,
+      "id": "g_18155a85",
+      "note": "hit@857 opener=p2_action44 dist_90f_prior=6.6",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B3/r8.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120300"
+      },
+      "frame": 1958,
+      "id": "g_5b235f44",
+      "note": "hit@2048 opener=p2_action44 dist_90f_prior=7.6",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B3/r8.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-29",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260829_120300"
+      },
+      "frame": 3980,
+      "id": "g_25b39f6d",
+      "note": "hit@4070 opener=p2_action60 dist_90f_prior=7.4",
+      "slp": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B3/r8.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "neutral_loss"
     }
   ]
 }
