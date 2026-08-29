@@ -65,7 +65,8 @@ defmodule ExPhil.Interp.Activations do
       | embed_config: %{
           dataset.embed_config
           | queue_depth: Map.get(config, :queue_depth) || 1,
-            with_delay_id: Map.get(config, :with_delay_id, false)
+            with_delay_id: Map.get(config, :with_delay_id, false),
+            stage_internals: Map.get(config, :stage_internals, false)
         }
     }
 
@@ -92,7 +93,8 @@ defmodule ExPhil.Interp.Activations do
     %{
       ExPhil.Embeddings.Game.Config.default()
       | queue_depth: Map.get(config, :queue_depth) || 1,
-        with_delay_id: Map.get(config, :with_delay_id, false)
+        with_delay_id: Map.get(config, :with_delay_id, false),
+        stage_internals: Map.get(config, :stage_internals, false)
     }
   end
 
@@ -298,12 +300,15 @@ defmodule ExPhil.Interp.Activations do
     # prev-action regime) — we re-embedded the same dozen replays ~30x/day
     # before this. Ablated captures (use_prev_action false) get their own
     # cache entries via the key's use_prev_action component.
-    # Queue/delay-id policies take the config-aware uncached path instead:
-    # delay_id is not in the cache key, so cached entries would collide.
+    # Queue/delay-id/stage-internals policies take the config-aware uncached
+    # path instead (2026-08-29: stage_internals was missing here -> 288-vs-296
+    # reshape on every batch of a v1 capture; same class as agent.ex:1673):
+    # delay_id/stage_internals are not in the cache key, so cached entries would collide.
     config = Map.get(trunk, :config, %{})
 
     custom_layout? =
-      (Map.get(config, :queue_depth) || 1) > 1 or Map.get(config, :with_delay_id, false)
+      (Map.get(config, :queue_depth) || 1) > 1 or Map.get(config, :with_delay_id, false) or
+        Map.get(config, :stage_internals, false)
 
     dataset =
       if custom_layout? do
