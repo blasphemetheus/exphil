@@ -72,3 +72,27 @@ the critic / Best-of-N (direction B) is the highest-return investment
 and fox_gen_v2 (direction D) is not yet justified. The AWBC arms
 (`eval_runs/0828_awbc_arms`) running now are the cheap first test of
 whether outcome information can supply that selection rule.
+
+## Calibration (2026-08-29, unit `legS-critic`, seed 829, same 20 files / 2000 decision frames / n=16 / T=0.5)
+
+| epoch | joint pass@1 | pass@16 | headroom | buttons @1 → @16 | main @1 → @16 |
+|---|---|---|---|---|---|
+| 1 | 10.4 | 34.3 | +23.8 | 38.5 → 92.5 | 30.2 → 51.9 |
+| 5 | 13.3 | 41.0 | +27.7 | 41.3 → 93.5 | 36.0 → 59.5 |
+| 10 | 14.5 | 43.6 | +29.1 | 42.4 → 93.7 | 38.2 → 60.6 |
+| 10 (run 3, other seed) | 14.5 | 43.7 | +29.2 | 42.0 → 93.1 | 38.0 → 61.7 |
+
+**Verdict: the instrument passes.**
+- Not flat-by-construction: pass@1 rises monotonically with training
+  (10.4 → 13.3 → 14.5), so the probe does see the policy improve.
+- The selection headroom is present and stable at every epoch (24–29
+  pts) and is ~2× everything training bought between ep1 and ep10 (4.1
+  pts). Selection, not knowledge, remains the biggest number.
+- Buttons pass@16 is pinned at 92.5–93.7 from epoch 1 onward: the button
+  head already CONTAINS the master's press; training mostly moves `main`
+  stick pass@1 (30 → 38).
+- Seed replication: ep10 at seed 829 vs run 3's seed agree to 0.1 pt on
+  every head — the +29 is not a sampling-seed artifact.
+
+Files: `ep1.md`, `ep5.md`, `ep10.md`; logs `logs/legS_cal_ep*.log`.
+Second corpus (`fox_il_v1`, auto-port) → `ep10_fox_il_v1.md` (next stage).
