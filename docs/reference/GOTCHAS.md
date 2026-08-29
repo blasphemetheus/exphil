@@ -3732,3 +3732,28 @@ from a process substitution:
 Loud-and-safe still applied (the arm was flagged, not silently passed),
 but a guard that fires falsely ~70% of the time trains people to ignore
 it — fix the instrument the first time it cries wolf.
+
+## 105
+
+**Every embed-layout flag must be plumbed through EVERY embedding path,
+or offline tools silently build a different width than the policy.**
+Found 2026-08-29 (critic_extract: 40/40 replays skipped with
+`cannot reshape {296} -> {1, 1, 288}`).
+
+`--stage-internals` (+8 dims, 08-24) was carried into the checkpoint
+config and into `Agent`'s live/batched embed config, but NOT into
+`ExPhil.Interp.Activations` (`embed_config_for/1`, `embed_frames/3`,
+and `capture_replay/3`'s cached path, which also does not key on it).
+Any trunk capture of a stage-internals policy failed at the first batch.
+
+**Fix:** `Activations` now mirrors `agent.ex:1673` — stage_internals in
+the derived config, and it forces the config-aware uncached path.
+
+**Rule:** a new embed-layout flag has (at least) four consumers that must
+agree: `Training.Config` → checkpoint config (`imitation/checkpoint.ex`),
+`Agent` (live), `Data`/`Activations` (batched offline), and the canary.
+Grep for `with_delay_id` when adding one — every site that carries it
+must carry the new flag too. A parse-check (`Code.string_to_quoted!`)
+cannot catch this class; nor can it catch a `def match?/3` colliding with
+`Kernel.match?/2` (the other failure that hid behind this one) — only a
+real `mix run`/`Code.compile_file` under the project does.
