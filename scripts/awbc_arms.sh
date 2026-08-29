@@ -61,9 +61,19 @@ run_arm() {
     > "$log" 2>&1
   local rc=$?
   echo "=== $name end $(date -Is) rc=$rc" | tee -a "$OUT/TABLE.md"
-  # Knob assertion (guard #6 class): the arm's flags must show up in its log.
-  if [ "$name" != "B1" ] && ! sed -E 's/\x1b\[[0-9;]*m//g' "$log" | grep -qiE 'awbc'; then
-    echo "!!! $name: no 'awbc' text in $log — flag may have been dropped" | tee -a "$OUT/TABLE.md"
+  # Knob assertion (guard #6 class): read the SAVED config, not the log.
+  # train.exs never prints the word "awbc" (the 04:27 B2 "no awbc text" alarm
+  # was false); the checkpoint's _config.json is the ground truth.
+  local cfg want_awbc want_shuffle
+  cfg=$(ls -t checkpoints/fox_gen_v1_${name}_*_config.json 2>/dev/null | head -1)
+  case "$name" in B1) want_awbc=false; want_shuffle=false ;; B2) want_awbc=true; want_shuffle=false ;; B3) want_awbc=true; want_shuffle=true ;; esac
+  if [ -z "$cfg" ]; then
+    echo "!!! $name: no _config.json saved — arm did not reach save" | tee -a "$OUT/TABLE.md"
+  elif ! grep -qE "\"awbc\": *\"$want_awbc\"" "$cfg" || ! grep -qE "\"awbc_shuffle\": *\"$want_shuffle\"" "$cfg" \
+       || { [ "$want_awbc" = true ] && ! grep -qE "\"awbc_reward\": *\"standard\"" "$cfg"; }; then
+    echo "!!! $name: KNOB MISMATCH in $cfg (want awbc=$want_awbc shuffle=$want_shuffle reward=standard): $(grep -oE "\"awbc[a-z_]*\": *\"[^\"]*\"" "$cfg" | tr "\n" " ")" | tee -a "$OUT/TABLE.md"
+  else
+    echo "    $name knobs OK: $(grep -oE "\"awbc[a-z_]*\": *\"[^\"]*\"" "$cfg" | tr "\n" " ")" | tee -a "$OUT/TABLE.md"
   fi
   return $rc
 }
