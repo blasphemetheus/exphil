@@ -67,3 +67,25 @@ Bradley's live impression of the winning arm is recorded, and gates a
 - One 8-game headless batch per arm; under-2x differences are unresolved.
 - AWBC uses the corpus's own outcomes: the weights say "what the master did
   in games they were winning", not "what beats a human".
+
+## Amendment 2026-08-28 21:55 (B1 done, B2 just started, no B2/B3 results seen)
+
+- **Timing, corrected.** B1: epoch 1 = 2h06 (embedding + writing a NEW
+  102 GB cache — `--seed 828` re-partitions files into chunks, so the v1
+  cache keys did not match), epochs 2-3 = 37 min each from cache. B1 val
+  loss 5.7688 -> 5.7502 -> 5.7328.
+- **B2/B3 take the non-pipelined path with NO embedding cache** (log shows
+  neither "Saving embeddings" nor "Cache hit"; it parses and embeds every
+  chunk every epoch). Expect ~2 h/epoch, ~6 h/arm. Disk-safe (no cache
+  writes; root is at 12 GB free).
+- **Confound, declared before results:** the non-pipelined path reports
+  322,407 batches/epoch vs B1's 286,622 on the same seed — the two paths
+  do not construct identical batch sets. So B1 vs B2 is NOT a pure
+  loss-weighting contrast. The B2 vs B3 contrast IS pure (same path, same
+  weights, permuted). Decision rule stands as written (SIGNAL requires B2
+  to beat BOTH B1 and B3); additionally, **B3 vs B1 is now read as the
+  path effect**, and if B3 differs from B1 by more than B2 differs from
+  B3, the path — not outcome weighting — dominates and the verdict is
+  "confounded", not SIGNAL. Cheap follow-up if it matters: a B1' on the
+  non-pipelined path (`--awbc` with all weights forced to 1) to remove
+  the path difference.
