@@ -76,3 +76,10 @@ same way through different doors.
   live gate added.
 - Default v1 live decode remains buttons T=0.5 (base here replicated:
   d_up 111.6 vs 110.4 on 08-28, 8/8 to the cap).
+
+## Follow-up (15:30) — the offline metric is formally rejected as a decode ranker
+
+Leg S at T=0.05 (≈ argmax) on the same frames: joint pass@1 **24.4%**,
+above mode-of-16's 22.9 and the deploy decode's 14.5. The decode that
+dies fastest live scores highest offline. `eval_runs/0828_legS/RESULTS.md`
+§Near-argmax control.

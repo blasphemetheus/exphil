@@ -111,3 +111,20 @@ selection headroom is still 2.5× pass@1 and buttons pass@16 stays ~89.
 Selection remains the biggest number on a corpus the policy never saw.
 The critic's fresh-corpus test (`interp_bestofn` on fox_il_v1) is
 measured against THIS 6.9 → 24.3 span.
+
+### Near-argmax control — ep10 at T=0.05 all heads (same 20 files / 2000 frames / seed 829)
+
+| decode | joint pass@1 | pass@16 | headroom |
+|---|---|---|---|
+| T=0.5 (deploy) | 14.5 | 43.6 | +29.1 |
+| mode-of-16 over T=0.5 draws (offline, unseen files) | 22.9 | — | — |
+| **T=0.05 (≈ argmax)** | **24.4** | 29.3 | +4.9 |
+
+Argmax wins the offline metric outright (+10 pts over the deploy decode)
+— and argmax is the decode known to freeze the bot in ~30 s
+(0828_argmax_buttons; 0829_mode_of_n). **Offline pass@1 / master-match is
+formally rejected as a decode ranker**: it is maximized by the decode
+that plays worst. It remains valid for what it was built for — the
+*gap* between pass@1 and pass@k for a fixed sampling decode (the
+distribution's headroom) — and for comparing checkpoints at a fixed
+decode (the calibration above).
