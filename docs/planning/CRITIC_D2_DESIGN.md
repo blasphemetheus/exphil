@@ -115,3 +115,21 @@ mix run scripts/interp_bestofn.exs --policy checkpoints/fox_gen_v1_20260825_2103
   --critic checkpoints/critic_fox_gen_v1_ep10.bin --replays 'replays/fox_il_v1/*.slp' \
   --n 16 --out eval_runs/0829_critic/bestofn_fox_il_v1.md
 ```
+
+## Amendment 2026-08-29 15:05 — after the first run and the mode-of-N live bracket
+
+- First run: linear selector **NULL vs mode-of-N** (`eval_runs/0829_critic/RESULTS.md`):
+  27% gap recovered held-out, but the critic-free majority vote recovered 28%
+  on both corpora and beat the selector (22.9 vs 19.0 in-dist; 6.8 vs 4.9 fresh).
+- Then mode-of-N went LIVE and **collapsed** (`eval_runs/0829_mode_of_n/RESULTS.md`):
+  frozen-input 0.74, 0/8 games to the cap, deaths 3.75/game. Majority vote is
+  argmax with extra steps.
+- **Therefore the decision rule above is amended:** "gap recovered" on
+  pass@1 / master-match is a MODE-SEEKING metric and is necessary but not
+  sufficient. STRONG additionally requires a live 8×120 s bracket vs the
+  T=0.5 base with frozen-input ≤ 0.20, ≥ 7/8 games to the cap, and
+  deaths within 1.5× — BEFORE any recipe change or human look. A selector
+  that re-ranks toward the mode will pass offline and fail this; the
+  useful selector, if one exists, must keep the distribution's tail.
+- MLP head: not queued. It would have to beat mode-of-N offline (22.9 / 6.8)
+  AND pass the live gate; the offline half is now known to be the easy half.

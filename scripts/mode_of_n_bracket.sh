@@ -74,7 +74,9 @@ run_arm() {
   sed -e 's/\x1b\[[0-9;]*m//g' "$OUT/$name.log" | grep -aiE 'stale|skipped' | sed 's/^/    /' | tee -a "$TABLE"
 }
 
-run_arm "base"   "buttons T=0.5 (default v1 decode)" "Mode-of-N: off"
+# Output.config inspects string values -> the banner reads `Mode-of-N: "off"`
+# (quoted) while an integer prints bare (`Mode-of-N: 16`). GOTCHA #103 family.
+run_arm "base"   "buttons T=0.5 (default v1 decode)" "Mode-of-N: \"off\""
 run_arm "mode$N" "buttons T=0.5 + mode-of-$N"         "Mode-of-N: $N" --mode-of-n "$N"
 
 echo "=== axis 3: game duration from run logs" | tee -a "$TABLE"

@@ -1,0 +1,31 @@
+{
+  "timestamp": "20260829_120248",
+  "aggregate": {
+    "approaches": 7,
+    "conversions": 2,
+    "neutral_losses": 9,
+    "dropped_punishes": 3,
+    "deaths": 3,
+    "passivity": 3,
+    "games": 1,
+    "mean_armed_per_min": 1.47
+  },
+  "gaps_path": "scenarios/gaps.json",
+  "games": [
+    {
+      "path": "/home/blewf/git/exphil/eval_runs/0828_awbc_arms/score/B2/r2.slp",
+      "bot_port": 1,
+      "opp_port": 2,
+      "armed_per_min": 1.4688,
+      "approaches": 7,
+      "conversions": 2,
+      "conv_rate": 0.2857142857142857,
+      "neutral_losses": 9,
+      "dropped_punishes": 3,
+      "deaths": 3,
+      "passivity": 3,
+      "candidate_count": 18
+    }
+  ],
+  "gaps_appended": 10
+}

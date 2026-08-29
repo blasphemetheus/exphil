@@ -1,0 +1,16 @@
+{
+  "fox_gen_v1_20260825_210355_ep10": {
+    "replay": "eval_runs/0829_mode_of_n/mode16/r1.slp",
+    "chains": null,
+    "crit_score": null,
+    "phases": {
+      "ground_shine_event": {
+        "min": -1.688,
+        "n": 4,
+        "mean": -1.133,
+        "p10": -1.688,
+        "flip_frac": 1.0
+      }
+    }
+  }
+}

@@ -1,0 +1,127 @@
+awbc score runs=8 seconds=120 started=2026-08-29T10:59:58-05:00
+=== B1 — checkpoints/fox_gen_v1_B1_20260828_232532_policy.bin
+    trained: "awbc_reward": "shine" "awbc_beta": "" "awbc_shuffle": "false" "awbc": "false" 
+B1 KNOB ASSERTION FAILED: 'buttons: 0.5' absent from run log — discard arm
+=== B2 — checkpoints/fox_gen_v1_B2_20260829_024551_policy.bin
+    trained: "awbc_beta": "" "awbc": "true" "awbc_shuffle": "false" "awbc_reward": "standard" 
+B2 KNOB ASSERTION FAILED: 'buttons: 0.5' absent from run log — discard arm
+=== B3 — checkpoints/fox_gen_v1_B3_20260829_092709_policy.bin
+    trained: "awbc_beta": "" "awbc": "true" "awbc_shuffle": "true" "awbc_reward": "standard" 
+B3 KNOB ASSERTION FAILED: 'buttons: 0.5' absent from run log — discard arm
+=== axis 3: game duration from run logs (Final stats: N frames)
+B1: n=8 mean=123.2s [113.1–124.8] reaching_cap=7/8
+B2: n=8 mean=122.7s [109.0–124.7] reaching_cap=7/8
+B3: n=8 mean=124.5s [123.9–124.7] reaching_cap=8/8
+=== axis 1: loop/taunt (loop_report --bot-port 1)
+==> exla
+Using libexla.so from /home/blewf/.cache/xla/exla/elixir-1.18.4-erts-16.4.0.4-xla-0.10.0-exla-0.13.1-2gwjr5st6sq2h5oph3af6rzta4/libexla.so
+EXLA_CPU_ONLY is not set, checking for nvcc availability
+CUDA is available.
+make: '/home/blewf/git/exphil/_build/dev/lib/exla/priv/libexla.so' is up to date.
+==> exphil
+      warning: function blind_target_css/1 is unused
+      │
+ 1676 │   defp blind_target_css(state) do
+      │        ~
+      │
+      └─ lib/exphil_bridge/melee_port.ex:1676:8: ExPhil.Bridge.MeleePort (module)
+
+     warning: clauses with the same name and arity (number of arguments) should be grouped together, "def handle_call/3" was previously defined (lib/exphil/agents/agent.ex:468)
+     │
+ 721 │   def handle_call({:reconfigure, opts}, _from, state) do
+     │       ~
+     │
+     └─ lib/exphil/agents/agent.ex:721:7
+
+
+12:02:38.650 [info] [ExPhil] Application started
+
+12:02:38.651 [debug] [ExPhil] Supervision tree: [{ExPhil.Training.AsyncCheckpoint, #PID<0.285.0>, :worker, [ExPhil.Training.AsyncCheckpoint]}, {ExPhil.Telemetry.Collector, #PID<0.284.0>, :worker, [ExPhil.Telemetry.Collector]}, {ExPhil.Agents.Supervisor, #PID<0.283.0>, :supervisor, [ExPhil.Agents.Supervisor]}, {ExPhil.Bridge.Supervisor, #PID<0.282.0>, :supervisor, [ExPhil.Bridge.Supervisor]}, {ExPhil.Registry, #PID<0.280.0>, :supervisor, [Registry]}]
+
+╔════════════════════════════════════════════════════════════╗
+║                    Loop / Taunt Report                     ║
+╚════════════════════════════════════════════════════════════╝
+
+[1mConfiguration:[0m
+  [2m  Replays:[0m 24
+  [2m  Bot port:[0m 1
+  [2m  Groups:[0m 3
+
+Scoring [[32m█[0m[2m░░░░░░░░░░░░░░░░░░░░░░░░░░░░░[0m] 4% (1/24)[KScoring [[32m███[0m[2m░░░░░░░░░░░░░░░░░░░░░░░░░░░[0m] 8% (2/24)[KScoring [[32m████[0m[2m░░░░░░░░░░░░░░░░░░░░░░░░░░[0m] 13% (3/24)[KScoring [[32m█████[0m[2m░░░░░░░░░░░░░░░░░░░░░░░░░[0m] 17% (4/24)[KScoring [[32m██████[0m[2m░░░░░░░░░░░░░░░░░░░░░░░░[0m] 21% (5/24)[KScoring [[32m████████[0m[2m░░░░░░░░░░░░░░░░░░░░░░[0m] 25% (6/24)[KScoring [[32m█████████[0m[2m░░░░░░░░░░░░░░░░░░░░░[0m] 29% (7/24)[KScoring [[32m██████████[0m[2m░░░░░░░░░░░░░░░░░░░░[0m] 33% (8/24)[KScoring [[32m███████████[0m[2m░░░░░░░░░░░░░░░░░░░[0m] 38% (9/24)[KScoring [[32m█████████████[0m[2m░░░░░░░░░░░░░░░░░[0m] 42% (10/24)[KScoring [[32m██████████████[0m[2m░░░░░░░░░░░░░░░░[0m] 46% (11/24)[KScoring [[32m███████████████[0m[2m░░░░░░░░░░░░░░░[0m] 50% (12/24)[KScoring [[32m████████████████[0m[2m░░░░░░░░░░░░░░[0m] 54% (13/24)[KScoring [[32m██████████████████[0m[2m░░░░░░░░░░░░[0m] 58% (14/24)[KScoring [[32m███████████████████[0m[2m░░░░░░░░░░░[0m] 63% (15/24)[KScoring [[32m████████████████████[0m[2m░░░░░░░░░░[0m] 67% (16/24)[KScoring [[32m█████████████████████[0m[2m░░░░░░░░░[0m] 71% (17/24)[KScoring [[32m███████████████████████[0m[2m░░░░░░░[0m] 75% (18/24)[KScoring [[32m████████████████████████[0m[2m░░░░░░[0m] 79% (19/24)[KScoring [[32m█████████████████████████[0m[2m░░░░░[0m] 83% (20/24)[KScoring [[32m██████████████████████████[0m[2m░░░░[0m] 88% (21/24)[KScoring [[32m████████████████████████████[0m[2m░░[0m] 92% (22/24)[KScoring [[32m█████████████████████████████[0m[2m░[0m] 96% (23/24)[KScoring [[32m██████████████████████████████[0m[2m[0m] 100% (24/24)[K
+
+| arm | scored/played | taunts/min | d_up press/min | frozen-input frac | held-action frac | loops/min | max loop reps |
+|---|---|---|---|---|---|---|---|
+| B1 | 8/8 | 2.04 [1.47-3.43] | 114.63 [101.79-131.18] | 0.00 [0.00-0.00] | 0.25 [0.15-0.30] | 1.49 [0.49-3.43] | 8.38 [3-14] |
+| B2 | 8/8 | 1.87 [0.49-2.94] | 126.85 [122.38-132.54] | 0.00 [0.00-0.01] | 0.27 [0.20-0.33] | 1.80 [1.47-2.45] | 8.38 [7-11] |
+| B3 | 8/8 | 1.90 [0.98-3.92] | 119.00 [112.04-126.25] | 0.00 [0.00-0.01] | 0.25 [0.20-0.39] | 1.35 [0.98-2.45] | 5.38 [3-9] |
+
+[12:02:39] [33m⚠️  Mean [min-max]. Standing law: differences under 2x are UNRESOLVED, and a range that spans the other arm's mean is no difference at all.[0m
+
+| arm | game | min | taunts/min | d_up/min | frozen | held | loops/min | max reps |
+|---|---|---|---|---|---|---|---|---|
+| B1 | r1.slp | 2.04 | 1.96 | 108.26 | 0.00 | 0.30 | 1.96 | 11 |
+| B1 | r2.slp | 1.85 | 1.62 | 128.03 | 0.00 | 0.29 | 2.16 | 11 |
+| B1 | r3.slp | 2.04 | 1.47 | 110.17 | 0.00 | 0.15 | 1.47 | 9 |
+| B1 | r4.slp | 2.04 | 1.96 | 131.18 | 0.00 | 0.25 | 0.49 | 3 |
+| B1 | r5.slp | 2.04 | 1.47 | 101.79 | 0.00 | 0.30 | 3.43 | 14 |
+| B1 | r6.slp | 2.04 | 3.43 | 112.10 | 0.00 | 0.26 | 0.49 | 6 |
+| B1 | r7.slp | 2.05 | 2.93 | 110.48 | 0.00 | 0.20 | 0.49 | 3 |
+| B1 | r8.slp | 2.04 | 1.47 | 115.01 | 0.00 | 0.29 | 1.47 | 10 |
+| B2 | r1.slp | 2.04 | 0.49 | 129.99 | 0.00 | 0.31 | 1.47 | 7 |
+| B2 | r2.slp | 2.04 | 0.98 | 129.25 | 0.00 | 0.24 | 1.96 | 7 |
+| B2 | r3.slp | 2.04 | 2.45 | 122.91 | 0.00 | 0.33 | 2.45 | 8 |
+| B2 | r4.slp | 2.04 | 1.96 | 126.30 | 0.00 | 0.29 | 1.96 | 7 |
+| B2 | r5.slp | 1.78 | 2.24 | 126.23 | 0.00 | 0.21 | 1.68 | 10 |
+| B2 | r6.slp | 2.04 | 2.94 | 125.23 | 0.00 | 0.32 | 1.47 | 7 |
+| B2 | r7.slp | 2.04 | 2.93 | 132.54 | 0.00 | 0.26 | 1.47 | 10 |
+| B2 | r8.slp | 2.04 | 0.98 | 122.38 | 0.01 | 0.20 | 1.96 | 11 |
+| B3 | r1.slp | 2.04 | 0.98 | 126.25 | 0.00 | 0.28 | 2.45 | 4 |
+| B3 | r2.slp | 2.04 | 0.98 | 121.05 | 0.00 | 0.24 | 0.98 | 5 |
+| B3 | r3.slp | 2.04 | 0.98 | 112.07 | 0.00 | 0.25 | 1.47 | 4 |
+| B3 | r4.slp | 2.04 | 3.92 | 119.58 | 0.00 | 0.39 | 1.47 | 6 |
+| B3 | r5.slp | 2.04 | 1.47 | 112.04 | 0.00 | 0.20 | 0.98 | 3 |
+| B3 | r6.slp | 2.04 | 2.45 | 120.39 | 0.00 | 0.21 | 0.98 | 8 |
+| B3 | r7.slp | 2.03 | 3.45 | 123.09 | 0.01 | 0.24 | 1.48 | 9 |
+| B3 | r8.slp | 2.04 | 0.98 | 117.54 | 0.00 | 0.22 | 0.98 | 4 |
+
+
+Most repeated action cycles (action-state ids):
+
+| action cycle | episodes |
+|---|---|
+| `GRAB_WAIT>GRAB_PUMMEL` | 57 |
+| `GRAB_PUMMEL>GRAB_WAIT` | 11 |
+| `DAMAGE_HIGH_2>LANDING` | 2 |
+| `STANDING>GRAB` | 1 |
+| `CROUCHING>DOWNTILT` | 1 |
+| `DAMAGE_NEUTRAL_2>LANDING` | 1 |
+| `SHIELD_REFLECT>SPOTDODGE` | 1 |
+| `DOWN_B_GROUND>KNEE_BEND>DOWN_B_STUN>DOWN_B_AIR` | 1 |
+
+[12:02:39] [32m✓ Wrote eval_runs/0828_awbc_arms/score/loops/report.md and report.json[0m
+=== axis 2: coach_report (deaths, conversions, dropped; armed/min is read-only)
+B1 r1 [12:02:40] SCORE: armed/min=0.49 conv=0/3 neutral_loss=10 dropped=4 deaths=2 passive=3
+B1 r2 [12:02:41] SCORE: armed/min=0.0 conv=1/2 neutral_loss=8 dropped=1 deaths=4 passive=2
+B1 r3 [12:02:42] SCORE: armed/min=1.96 conv=2/8 neutral_loss=6 dropped=7 deaths=3 passive=2
+B1 r4 [12:02:43] SCORE: armed/min=0.0 conv=0/2 neutral_loss=7 dropped=3 deaths=2 passive=0
+B1 r5 [12:02:43] SCORE: armed/min=0.49 conv=1/2 neutral_loss=7 dropped=2 deaths=1 passive=5
+B1 r6 [12:02:44] SCORE: armed/min=0.49 conv=1/3 neutral_loss=7 dropped=6 deaths=3 passive=1
+B1 r7 [12:02:45] SCORE: armed/min=0.49 conv=2/8 neutral_loss=8 dropped=7 deaths=3 passive=3
+B1 r8 [12:02:46] SCORE: armed/min=0.0 conv=1/4 neutral_loss=8 dropped=7 deaths=1 passive=3
+B2 r1 [12:02:47] SCORE: armed/min=0.98 conv=3/6 neutral_loss=12 dropped=5 deaths=1 passive=4
+B2 r2 [12:02:48] SCORE: armed/min=1.47 conv=2/7 neutral_loss=9 dropped=3 deaths=3 passive=3
+B2 r3 [12:02:49] SCORE: armed/min=0.49 conv=0/3 neutral_loss=6 dropped=5 deaths=3 passive=3
+B2 r4 [12:02:50] SCORE: armed/min=0.49 conv=0/4 neutral_loss=11 dropped=6 deaths=1 passive=0
+B2 r5 [12:02:50] SCORE: armed/min=0.0 conv=1/5 neutral_loss=7 dropped=5 deaths=3 passive=3
+B2 r6 [12:02:51] SCORE: armed/min=0.49 conv=2/9 neutral_loss=10 dropped=5 deaths=1 passive=1
+B2 r7 [12:02:52] SCORE: armed/min=0.98 conv=1/7 neutral_loss=4 dropped=5 deaths=2 passive=3
+B2 r8 [12:02:53] SCORE: armed/min=0.0 conv=0/1 neutral_loss=7 dropped=8 deaths=2 passive=1
+B3 r1 [12:02:54] SCORE: armed/min=0.98 conv=2/7 neutral_loss=9 dropped=2 deaths=1 passive=1
+B3 r2 [12:02:55] SCORE: armed/min=0.98 conv=1/4 neutral_loss=6 dropped=7 deaths=1 passive=0
+B3 r3 [12:02:56] SCORE: armed/min=1.47 conv=3/9 neutral_loss=7 dropped=7 deaths=1 passive=0
+B3 r4 [12:02:57] SCORE: armed/min=0.49 conv=0/6 neutral_loss=7 dropped=2 deaths=1 passive=2
+B3 r5 [12:02:57] SCORE: armed/min=1.47 conv=1/7 neutral_loss=7 dropped=6 deaths=2 passive=0
+B3 r6 [12:02:58] SCORE: armed/min=0.49 conv=2/4 neutral_loss=7 dropped=3 deaths=1 passive=2
+B3 r7 [12:02:59] SCORE: armed/min=0.49 conv=2/3 neutral_loss=12 dropped=7 deaths=4 passive=3
+B3 r8 [12:03:00] SCORE: armed/min=0.98 conv=1/7 neutral_loss=8 dropped=5 deaths=1 passive=1
+AWBC SCORE DONE 2026-08-29T12:03:00-05:00 — apply PREREG.md's rule: SIGNAL needs B2 vs BOTH B1 and B3 >=2x disjoint; B3-vs-B1 = path effect

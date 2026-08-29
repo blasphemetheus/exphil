@@ -1,0 +1,112 @@
+policy=checkpoints/fox_gen_v1_20260825_210355_ep10.bin runs=8 seconds=120 N=16 started=2026-08-29T14:28:03-05:00
+=== base — buttons T=0.5 (default v1 decode)
+base KNOB ASSERTION FAILED: 'Mode-of-N: off' absent from run log — discard arm
+=== mode16 — buttons T=0.5 + mode-of-16
+mode16: 8 replays
+      r1 [14:50:24]   Staleness: 13/1193 sends stale (1.1%), longest stale run 2 frames
+      r2 [14:51:16]   Staleness: 16/1168 sends stale (1.4%), longest stale run 2 frames
+      r3 [14:53:03]   Staleness: 25/4569 sends stale (0.5%), longest stale run 2 frames
+      r4 [14:54:10]   Staleness: 20/2141 sends stale (0.9%), longest stale run 2 frames
+      r5 [14:55:11]   Staleness: 19/1816 sends stale (1.0%), longest stale run 2 frames
+      r6 [14:57:33]   Staleness: 23/6575 sends stale (0.3%), longest stale run 2 frames
+      r7 [14:59:05]   Staleness: 22/3615 sends stale (0.6%), longest stale run 2 frames
+      r8 [15:00:27]   Staleness: 20/3169 sends stale (0.6%), longest stale run 2 frames
+=== axis 3: game duration from run logs
+base: n=8 mean=124.5s [123.9–124.8] reaching_cap=8/8 inferences/frame=13.0
+mode16: n=8 mean=50.5s [19.5–109.6] reaching_cap=0/8 inferences/frame=9.6
+=== axis 1: loop/taunt
+==> exla
+Using libexla.so from /home/blewf/.cache/xla/exla/elixir-1.18.4-erts-16.4.0.4-xla-0.10.0-exla-0.13.1-2gwjr5st6sq2h5oph3af6rzta4/libexla.so
+EXLA_CPU_ONLY is not set, checking for nvcc availability
+CUDA is available.
+make: '/home/blewf/git/exphil/_build/dev/lib/exla/priv/libexla.so' is up to date.
+==> exphil
+      warning: function blind_target_css/1 is unused
+      │
+ 1676 │   defp blind_target_css(state) do
+      │        ~
+      │
+      └─ lib/exphil_bridge/melee_port.ex:1676:8: ExPhil.Bridge.MeleePort (module)
+
+     warning: clauses with the same name and arity (number of arguments) should be grouped together, "def handle_call/3" was previously defined (lib/exphil/agents/agent.ex:473)
+     │
+ 728 │   def handle_call({:reconfigure, opts}, _from, state) do
+     │       ~
+     │
+     └─ lib/exphil/agents/agent.ex:728:7
+
+
+15:01:50.144 [info] [ExPhil] Application started
+
+15:01:50.146 [debug] [ExPhil] Supervision tree: [{ExPhil.Training.AsyncCheckpoint, #PID<0.285.0>, :worker, [ExPhil.Training.AsyncCheckpoint]}, {ExPhil.Telemetry.Collector, #PID<0.284.0>, :worker, [ExPhil.Telemetry.Collector]}, {ExPhil.Agents.Supervisor, #PID<0.283.0>, :supervisor, [ExPhil.Agents.Supervisor]}, {ExPhil.Bridge.Supervisor, #PID<0.282.0>, :supervisor, [ExPhil.Bridge.Supervisor]}, {ExPhil.Registry, #PID<0.280.0>, :supervisor, [Registry]}]
+
+╔════════════════════════════════════════════════════════════╗
+║                    Loop / Taunt Report                     ║
+╚════════════════════════════════════════════════════════════╝
+
+[1mConfiguration:[0m
+  [2m  Replays:[0m 16
+  [2m  Bot port:[0m 1
+  [2m  Groups:[0m 2
+
+Scoring [[32m██[0m[2m░░░░░░░░░░░░░░░░░░░░░░░░░░░░[0m] 6% (1/16)[KScoring [[32m████[0m[2m░░░░░░░░░░░░░░░░░░░░░░░░░░[0m] 13% (2/16)[KScoring [[32m██████[0m[2m░░░░░░░░░░░░░░░░░░░░░░░░[0m] 19% (3/16)[KScoring [[32m████████[0m[2m░░░░░░░░░░░░░░░░░░░░░░[0m] 25% (4/16)[KScoring [[32m█████████[0m[2m░░░░░░░░░░░░░░░░░░░░░[0m] 31% (5/16)[KScoring [[32m███████████[0m[2m░░░░░░░░░░░░░░░░░░░[0m] 38% (6/16)[KScoring [[32m█████████████[0m[2m░░░░░░░░░░░░░░░░░[0m] 44% (7/16)[KScoring [[32m███████████████[0m[2m░░░░░░░░░░░░░░░[0m] 50% (8/16)[KScoring [[32m█████████████████[0m[2m░░░░░░░░░░░░░[0m] 56% (9/16)[KScoring [[32m███████████████████[0m[2m░░░░░░░░░░░[0m] 63% (10/16)[KScoring [[32m█████████████████████[0m[2m░░░░░░░░░[0m] 69% (11/16)[KScoring [[32m███████████████████████[0m[2m░░░░░░░[0m] 75% (12/16)[KScoring [[32m████████████████████████[0m[2m░░░░░░[0m] 81% (13/16)[KScoring [[32m██████████████████████████[0m[2m░░░░[0m] 88% (14/16)[KScoring [[32m████████████████████████████[0m[2m░░[0m] 94% (15/16)[KScoring [[32m██████████████████████████████[0m[2m[0m] 100% (16/16)[K
+
+| arm | scored/played | taunts/min | d_up press/min | frozen-input frac | held-action frac | loops/min | max loop reps |
+|---|---|---|---|---|---|---|---|
+| base | 8/8 | 1.29 [0.49-1.96] | 111.63 [99.86-120.83] | 0.00 [0.00-0.01] | 0.27 [0.17-0.36] | 1.53 [0.49-2.94] | 7.38 [5-11] |
+| mode16 | 8/8 | 0.22 [0.00-1.78] | 1.12 [0.00-3.57] | 0.74 [0.63-0.85] | 0.51 [0.43-0.60] | 0.51 [0.00-1.78] | 1.50 [0-5] |
+
+[15:01:50] [33m⚠️  Mean [min-max]. Standing law: differences under 2x are UNRESOLVED, and a range that spans the other arm's mean is no difference at all.[0m
+
+| arm | game | min | taunts/min | d_up/min | frozen | held | loops/min | max reps |
+|---|---|---|---|---|---|---|---|---|
+| base | r1.slp | 2.04 | 0.98 | 105.23 | 0.00 | 0.17 | 1.47 | 6 |
+| base | r2.slp | 2.04 | 1.96 | 117.01 | 0.01 | 0.28 | 1.96 | 6 |
+| base | r3.slp | 2.04 | 1.47 | 111.63 | 0.00 | 0.23 | 1.47 | 11 |
+| base | r4.slp | 2.05 | 0.98 | 119.28 | 0.00 | 0.20 | 0.98 | 11 |
+| base | r5.slp | 2.04 | 0.98 | 105.38 | 0.00 | 0.32 | 1.47 | 5 |
+| base | r6.slp | 2.04 | 1.47 | 99.86 | 0.00 | 0.29 | 2.94 | 8 |
+| base | r7.slp | 2.04 | 1.96 | 120.83 | 0.00 | 0.29 | 1.47 | 7 |
+| base | r8.slp | 2.03 | 0.49 | 113.78 | 0.00 | 0.36 | 0.49 | 5 |
+| mode16 | r1.slp | 0.30 | 0.00 | 0.00 | 0.85 | 0.52 | 0.00 | 0 |
+| mode16 | r2.slp | 0.29 | 0.00 | 0.00 | 0.84 | 0.45 | 0.00 | 0 |
+| mode16 | r3.slp | 1.23 | 0.00 | 1.62 | 0.64 | 0.47 | 0.00 | 0 |
+| mode16 | r4.slp | 0.56 | 1.78 | 3.57 | 0.66 | 0.48 | 1.78 | 4 |
+| mode16 | r5.slp | 0.47 | 0.00 | 2.13 | 0.63 | 0.43 | 0.00 | 0 |
+| mode16 | r6.slp | 1.79 | 0.00 | 1.67 | 0.74 | 0.59 | 1.12 | 5 |
+| mode16 | r7.slp | 0.97 | 0.00 | 0.00 | 0.75 | 0.54 | 0.00 | 0 |
+| mode16 | r8.slp | 0.85 | 0.00 | 0.00 | 0.80 | 0.60 | 1.18 | 3 |
+
+
+Most repeated action cycles (action-state ids):
+
+| action cycle | episodes |
+|---|---|
+| `GRAB_WAIT>GRAB_PUMMEL` | 15 |
+| `GRAB_PUMMEL>GRAB_WAIT` | 7 |
+| `STANDING>WALK_SLOW` | 2 |
+| `WALK_SLOW>STANDING` | 1 |
+| `LANDING>CROUCHING>DAMAGE_NEUTRAL_2` | 1 |
+| `DAMAGE_NEUTRAL_1>CROUCH_START>CROUCHING` | 1 |
+| `DAMAGE_NEUTRAL_2>LANDING` | 1 |
+| `DOWN_B_GROUND_START>DOWN_B_GROUND>SWORD_DANCE_3_LOW_AIR>CROUCH_START` | 1 |
+
+[15:01:50] [32m✓ Wrote eval_runs/0829_mode_of_n/loops/report.md and report.json[0m
+=== axis 2: coach_report
+base r1 [15:01:51] SCORE: armed/min=0.49 conv=3/6 neutral_loss=9 dropped=7 deaths=2 passive=1
+base r2 [15:01:52] SCORE: armed/min=0.98 conv=3/4 neutral_loss=8 dropped=2 deaths=2 passive=1
+base r3 [15:01:53] SCORE: armed/min=0.0 conv=4/9 neutral_loss=5 dropped=4 deaths=3 passive=2
+base r4 [15:01:54] SCORE: armed/min=0.49 conv=1/4 neutral_loss=6 dropped=7 deaths=1 passive=2
+base r5 [15:01:55] SCORE: armed/min=0.0 conv=2/5 neutral_loss=7 dropped=7 deaths=2 passive=3
+base r6 [15:01:55] SCORE: armed/min=0.0 conv=0/4 neutral_loss=7 dropped=4 deaths=3 passive=3
+base r7 [15:01:56] SCORE: armed/min=0.0 conv=0/2 neutral_loss=8 dropped=4 deaths=1 passive=1
+base r8 [15:01:57] SCORE: armed/min=0.0 conv=1/5 neutral_loss=11 dropped=2 deaths=4 passive=0
+mode16 r1 [15:01:58] SCORE: armed/min=0.0 conv=0/2 neutral_loss=0 dropped=0 deaths=3 passive=0
+mode16 r2 [15:01:59] SCORE: armed/min=0.0 conv=0/3 neutral_loss=0 dropped=0 deaths=3 passive=0
+mode16 r3 [15:02:00] SCORE: armed/min=0.0 conv=1/3 neutral_loss=8 dropped=0 deaths=4 passive=4
+mode16 r4 [15:02:00] SCORE: armed/min=0.0 conv=0/3 neutral_loss=3 dropped=1 deaths=4 passive=0
+mode16 r5 [15:02:01] SCORE: armed/min=0.0 conv=0/3 neutral_loss=1 dropped=1 deaths=4 passive=0
+mode16 r6 [15:02:02] SCORE: armed/min=0.0 conv=0/1 neutral_loss=14 dropped=0 deaths=4 passive=3
+mode16 r7 [15:02:03] SCORE: armed/min=0.0 conv=0/2 neutral_loss=6 dropped=0 deaths=4 passive=2
+mode16 r8 [15:02:04] SCORE: armed/min=0.0 conv=0/4 neutral_loss=5 dropped=0 deaths=4 passive=0
+MODE-OF-N BRACKET DONE 2026-08-29T15:02:04-05:00 — <2x is unresolved; deaths within 1.5x gate
