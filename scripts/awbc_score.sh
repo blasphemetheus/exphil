@@ -85,7 +85,7 @@ run_arm() {
   fi
 
   # Strip ANSI first (GOTCHA #103: a reset escape sits between label and value).
-  if ! sed -e 's/\x1b\[[0-9;]*m//g' "$OUT/$arm"/r*.log | grep -qa -- "buttons: 0.5"; then
+  if ! grep -qa -- "buttons: 0.5" <(sed -e 's/\x1b\[[0-9;]*m//g' "$OUT/$arm"/r*.log); then
     echo "$arm KNOB ASSERTION FAILED: 'buttons: 0.5' absent from run log — discard arm" | tee -a "$TABLE"
     return
   fi
