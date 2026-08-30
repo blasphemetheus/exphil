@@ -45,7 +45,7 @@ Status: `todo` · `building` · `ran` (has a RESULTS) · `adopted` (on the stand
 | id | instrument | question it answers | status | script / results |
 |---|---|---|---|---|
 | **A1** | **Situation → next-action histograms, bot vs expert** | In each named situation (opp shielding in range, opp offstage, bot offstage, bot >100%, opp on ledge, fresh respawn, opp in hitstun low/mid/high), what does the bot do next vs what the expert does? P(grab \| opp shield in range) etc. | **ran** | `scripts/situation_hist.exs` → `eval_runs/0829_situation_hist/README.md` (dash 31.6% vs ~1%; throw 86% vs 9–36%; off-stage airdodge) |
-| A2 | Edgeguard / recovery scorecards | Opp offstage: go out / ledge / shine / laser / wait, and conversion of each. Bot offstage: route chosen, success rate, how it got there. | todo | |
+| A2 | Edgeguard / recovery scorecards | Opp offstage: go out / ledge / shine / laser / wait, and conversion of each. Bot offstage: route chosen, success rate, how it got there. | queued (chain evaldir2) | `scripts/edge_scorecard.exs` |
 | A3 | Grab follow-ups | After a grab: throw direction, pummels before throw, regrab, release — vs expert. Decides mask-vs-data for the pummel loop. | answered by A1 §2 (bot never throws) | |
 
 ### B. Expert comparison, situation-matched
@@ -54,16 +54,16 @@ Status: `todo` · `building` · `ran` (has a RESULTS) · `adopted` (on the stand
 |---|---|---|---|---|
 | B1 | Action-family match | Did the bot pick the same *category* (aerial/grab/shield/movement/special) as the expert in that state? Softer pass@1. | todo | |
 | **B2** | **Distribution distance per situation** | KL / total-variation between the bot's next-action histogram and the expert's, per situation. Flags narrowing decodes (argmax, mode-of-N) offline — the pass@1 replacement as a decode ranker. | **ran — adopt** | same script; mean TV orders B1/B2/B3 (0.46–0.47) < ep10 (0.53–0.56) < mode-16 (0.72), matching the human read and the live rung |
-| B3 | Entropy per situation | Policy-output entropy by situation from captured logits; low entropy where the expert is diverse = a loop waiting to happen. | todo | |
+| B3 | Entropy per situation | Policy-output entropy by situation from captured logits; low entropy where the expert is diverse = a loop waiting to happen. | queued (chain evaldir2) | `scripts/interp_entropy_by_situation.exs` |
 
 ### C. Temporal structure — the "scrappy / harder to hit" axis
 
 | id | instrument | question | status | script / results |
 |---|---|---|---|---|
-| C1 | Neutral-exchange outcomes | Segment games into exchanges; who won each and how (first hit / trade / whiff punish). Dense "harder to hit" number. | todo | |
+| C1 | Neutral-exchange outcomes | Segment games into exchanges; who won each and how (first hit / trade / whiff punish). Dense "harder to hit" number. | queued (chain evaldir2) | `scripts/neutral_exchange.exs` |
 | C2 | Punish quality | Damage per opening, combo length, % openings ending in a kill, vs expert. | todo | |
 | C3 | Reaction latency | Time-to-action after opponent lands / grabs ledge / bot lands, vs expert. Dithering. | todo | |
-| C4 | Stock-loss forensics | Every death classified: unforced walk-off / failed recovery / edgeguarded / combo'd / neutral kill. Extends `sd_scan`. | mechanism found by A1 §3 (airdodge instead of up-B); classifier still todo | |
+| C4 | Stock-loss forensics | Every death classified: unforced walk-off / failed recovery / edgeguarded / combo'd / neutral kill. Extends `sd_scan`. | queued (chain evaldir2); mechanism already seen in A1 §3 | `scripts/death_classifier.exs` |
 
 ### D. Reliability of the instruments
 
@@ -78,7 +78,7 @@ Status: `todo` · `building` · `ran` (has a RESULTS) · `adopted` (on the stand
 | id | instrument | question | status | script / results |
 |---|---|---|---|---|
 | E1 | Corpus mix by frame | Characters / stages / players by frame; concentration (one player's style dominating the mode). | todo | |
-| E2 | Rare-event coverage | How many expert examples of the exact situations the bot fails in. Hundreds = selection problem; dozens = data. | todo | |
+| E2 | Rare-event coverage | How many expert examples of the exact situations the bot fails in. Hundreds = selection problem; dozens = data. | queued (chain evaldir2) | `scripts/rare_event_coverage.exs` |
 | E3 | Expert pathology baselines | Pummels, taunts, standing lasers per game in *expert* play, so "too much" has a denominator. | todo | |
 | E4 | Left walk-off poison | Is the corpus poisoned with repeated one-sided SDs? | **ran — falsified** | `scripts/sd_scan.exs`, `eval_runs/0829_sd_scan/RESULTS.md` |
 
