@@ -263,8 +263,23 @@ defmodule ExPhil.Networks.Policy do
 
     backbone = build_temporal_trunk(opts)
 
-    # Build controller head on top
-    Heads.build_controller_head(backbone, axis_buckets, shoulder_buckets)
+    # Controller head on top: :independent = six parallel heads (legacy
+    # default); :autoregressive = residual-stream conditional head
+    # (AUTOREGRESSIVE_HEAD_PLAN §3, teacher-forced tf_* inputs in training)
+    case Keyword.get(opts, :head, :independent) do
+      :independent ->
+        Heads.build_controller_head(backbone, axis_buckets, shoulder_buckets)
+
+      :autoregressive ->
+        Heads.build_autoregressive_head(backbone,
+          axis_buckets: axis_buckets,
+          shoulder_buckets: shoulder_buckets
+        )
+
+      other ->
+        raise ArgumentError,
+              "Unknown controller head: #{inspect(other)}. Valid: :independent, :autoregressive"
+    end
   end
 
   @doc """
@@ -468,6 +483,18 @@ defmodule ExPhil.Networks.Policy do
   See `ExPhil.Networks.Policy.Sampling.sample/4`.
   """
   defdelegate sample(params, predict_fn, state, opts \\ []), to: Sampling
+
+  @doc """
+  Sample from a policy with the true autoregressive head.
+  See `ExPhil.Networks.Policy.Sampling.sample_autoregressive/4`.
+  """
+  defdelegate sample_autoregressive(params, trunk_predict_fn, state, opts \\ []), to: Sampling
+
+  @doc """
+  Autoregressive sampling from precomputed trunk features.
+  See `ExPhil.Networks.Policy.Sampling.sample_autoregressive_from_features/3`.
+  """
+  defdelegate sample_autoregressive_from_features(params, features, opts \\ []), to: Sampling
 
   @doc """
   Sample buttons from logits (independent Bernoulli).

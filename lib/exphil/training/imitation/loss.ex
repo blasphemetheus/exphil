@@ -164,6 +164,20 @@ defmodule ExPhil.Training.Imitation.Loss do
     probe_reg_weight = config[:probe_reg_weight] || 0.0
     probe_trunk_fn = config[:probe_trunk_fn]
 
+    # True autoregressive head (AUTOREGRESSIVE_HEAD_PLAN §3): the forward
+    # takes the same frame's TARGET components as teacher-forced inputs, so
+    # the predict call needs an input map built from states + actions.
+    head = config[:head] || :independent
+    temporal = config[:temporal] || false
+
+    if head == :autoregressive and
+         ((config[:distill_weight] || 0.0) > 0 or probe_reg_weight > 0 or
+            (config[:scheduled_sampling] || 0.0) > 0.0) do
+      raise ArgumentError,
+            "head: :autoregressive is not yet supported together with distill_weight, " <>
+              "probe_reg_weight, or scheduled_sampling"
+    end
+
     loss_opts = [
       label_smoothing: label_smoothing,
       focal_loss: focal_loss,
@@ -231,7 +245,7 @@ defmodule ExPhil.Training.Imitation.Loss do
           states = Nx.as_type(states, precision)
 
           loss_fn = fn p ->
-            bc = autoregressive_bc_loss(predict_fn, p, states, actions, frame_weights, loss_opts)
+            bc = autoregressive_bc_loss(predict_fn, p, states, actions, frame_weights, loss_opts, head, temporal)
             h = probe_trunk_fn.(Utils.ensure_model_state(p), states)
             penalty = ProbeRegularizer.alignment_penalty(h, probe_v)
             Nx.add(bc, Nx.multiply(probe_reg_weight, penalty))
@@ -247,7 +261,7 @@ defmodule ExPhil.Training.Imitation.Loss do
 
             # Build loss function - states/actions are already Defn.Expr from outer JIT
             loss_fn = fn p ->
-              autoregressive_bc_loss(predict_fn, p, states, actions, frame_weights, loss_opts)
+              autoregressive_bc_loss(predict_fn, p, states, actions, frame_weights, loss_opts, head, temporal)
             end
 
             # Compute loss and gradients
@@ -261,9 +275,11 @@ defmodule ExPhil.Training.Imitation.Loss do
   end
 
   # The plain BC objective shared by both autoregressive loss arms
-  defp autoregressive_bc_loss(predict_fn, p, states, actions, frame_weights, loss_opts) do
+  defp autoregressive_bc_loss(predict_fn, p, states, actions, frame_weights, loss_opts, head, temporal) do
+    inputs = policy_forward_inputs(head, temporal, states, actions)
+
     {buttons, main_x, main_y, c_x, c_y, shoulder} =
-      predict_fn.(Utils.ensure_model_state(p), states)
+      predict_fn.(Utils.ensure_model_state(p), inputs)
 
     logits = %{
       buttons: buttons,
@@ -275,6 +291,25 @@ defmodule ExPhil.Training.Imitation.Loss do
     }
 
     Policy.imitation_loss(logits, actions, loss_opts ++ [frame_weights: frame_weights])
+  end
+
+  @doc """
+  Build the forward-pass input for a policy given the controller head type.
+
+  `:independent` policies take the bare states tensor; `:autoregressive`
+  policies take a map of states + teacher-forced target components
+  (`Heads.tf_inputs/1`). `temporal` selects the state input name
+  (`"state_sequence"` vs `"state"`).
+  """
+  @spec policy_forward_inputs(atom(), boolean(), Nx.Tensor.t(), map()) ::
+          Nx.Tensor.t() | map()
+  def policy_forward_inputs(:independent, _temporal, states, _actions), do: states
+
+  def policy_forward_inputs(:autoregressive, temporal, states, actions) do
+    state_key = if temporal, do: "state_sequence", else: "state"
+
+    ExPhil.Networks.Policy.Heads.tf_inputs(actions)
+    |> Map.put(state_key, states)
   end
 
   # Diffusion: MSE noise prediction loss
@@ -398,13 +433,18 @@ defmodule ExPhil.Training.Imitation.Loss do
     end
     stick_edge_weight = config[:stick_edge_weight]
     precision = config[:precision] || :bf16
+    head = config[:head] || :independent
+    temporal = config[:temporal] || false
 
     inner_fn = fn params, states, actions ->
       # Convert states to eval precision
       states = Nx.as_type(states, precision)
 
       {buttons, main_x, main_y, c_x, c_y, shoulder} =
-        predict_fn.(Utils.ensure_model_state(params), states)
+        predict_fn.(
+          Utils.ensure_model_state(params),
+          policy_forward_inputs(head, temporal, states, actions)
+        )
 
       logits = %{
         buttons: buttons,

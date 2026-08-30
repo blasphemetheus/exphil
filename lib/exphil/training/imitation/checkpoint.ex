@@ -280,6 +280,10 @@ defmodule ExPhil.Training.Imitation.Checkpointing do
         state_size: trainer.config[:state_size] || 16,
         expand_factor: trainer.config[:expand_factor] || 2,
         conv_size: trainer.config[:conv_size] || 4,
+        # Controller head (AUTOREGRESSIVE_HEAD_PLAN): the live agent must
+        # dispatch sampling on this — :autoregressive checkpoints have
+        # ar_* head params and NO buttons_hidden/main_x_hidden layers.
+        head: trainer.config[:head] || :independent,
         # Embedding regime: the live agent must feed its own outputs back
         # into the prev-action channel iff the model trained with it
         use_prev_action: trainer.config[:use_prev_action] || false,

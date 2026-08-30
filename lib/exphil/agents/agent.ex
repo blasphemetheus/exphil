@@ -104,6 +104,7 @@ defmodule ExPhil.Agents.Agent do
     :temporal,
     :backbone,
     :window_size,
+    :head,
     # JIT warmup tracking
     :warmed_up,
     # Action repeat (skip inference N-1 frames)
@@ -421,6 +422,10 @@ defmodule ExPhil.Agents.Agent do
       temporal: false,
       backbone: :mlp,
       window_size: 60,
+      # Controller head (AUTOREGRESSIVE_HEAD_PLAN): set from checkpoint
+      # config at load; :autoregressive dispatches sampling to
+      # Policy.sample_autoregressive (predict_fn is then the TRUNK fn)
+      head: :independent,
       # JIT warmup
       warmed_up: false,
       # Action repeat
@@ -628,7 +633,8 @@ defmodule ExPhil.Agents.Agent do
           # The live step path samples via Policy.sample(heads_predict_fn,
           # features) — same fused-sampler compile hazard as the windowed
           # path (see warmup_sample), so warm THAT program, not the bare
-          # heads predict.
+          # heads predict. (AR head: heads_predict_fn is nil and
+          # warmup_sample dispatches to the sequential sampler.)
           warmup_sample(state, state.heads_predict_fn, features)
 
           _ = stage.("heads_sample", stage_t)
@@ -673,26 +679,30 @@ defmodule ExPhil.Agents.Agent do
       release_threshold: state.release_threshold
     ]
 
+    # AR-head checkpoints warm the sequential sampler instead — the same
+    # program the live loop hits (stage1/stage2 kernels + trunk).
+    # predict_fn == nil marks the stateful-step arm (input = features).
+    sampler = fn opts ->
+      cond do
+        state.head == :autoregressive and predict_fn == nil ->
+          Networks.Policy.sample_autoregressive_from_features(state.policy_params, input, opts)
+
+        state.head == :autoregressive ->
+          Networks.Policy.sample_autoregressive(state.policy_params, predict_fn, input, opts)
+
+        true ->
+          Networks.Policy.sample(state.policy_params, predict_fn, input, opts)
+      end
+    end
+
     t0 = System.monotonic_time(:millisecond)
 
-    first =
-      Networks.Policy.sample(
-        state.policy_params,
-        predict_fn,
-        input,
-        Keyword.put(sample_opts, :prev_buttons, nil)
-      )
+    first = sampler.(Keyword.put(sample_opts, :prev_buttons, nil))
 
     t1 = System.monotonic_time(:millisecond)
     Logger.info("[Agent] warmup stage sample1 (predict+heads compile): #{t1 - t0}ms")
 
-    _second =
-      Networks.Policy.sample(
-        state.policy_params,
-        predict_fn,
-        input,
-        Keyword.put(sample_opts, :prev_buttons, first[:buttons])
-      )
+    _second = sampler.(Keyword.put(sample_opts, :prev_buttons, first[:buttons]))
 
     t2 = System.monotonic_time(:millisecond)
     Logger.info("[Agent] warmup stage sample2 (prev-buttons variant): #{t2 - t1}ms")
@@ -1175,19 +1185,29 @@ defmodule ExPhil.Agents.Agent do
     deterministic_buttons =
       Keyword.get(opts, :deterministic_buttons, state.deterministic_buttons || false)
 
+    sample_opts = [
+      deterministic: deterministic,
+      temperature: temperature,
+      deterministic_buttons: deterministic_buttons,
+      mode_of_n: Keyword.get(opts, :mode_of_n, state.mode_of_n),
+      press_threshold: state.press_threshold,
+      release_threshold: state.release_threshold,
+      prev_buttons: state.last_action && state.last_action[:buttons]
+    ]
+
     action =
-      Networks.Policy.sample(
-        state.policy_params,
-        state.predict_fn,
-        sequence_batch,
-        deterministic: deterministic,
-        temperature: temperature,
-        deterministic_buttons: deterministic_buttons,
-        mode_of_n: Keyword.get(opts, :mode_of_n, state.mode_of_n),
-        press_threshold: state.press_threshold,
-        release_threshold: state.release_threshold,
-        prev_buttons: state.last_action && state.last_action[:buttons]
-      )
+      if state.head == :autoregressive do
+        # predict_fn is the TRUNK fn for AR checkpoints (features out);
+        # the head is replayed sequentially from the ar_* params.
+        Networks.Policy.sample_autoregressive(
+          state.policy_params,
+          state.predict_fn,
+          sequence_batch,
+          sample_opts
+        )
+      else
+        Networks.Policy.sample(state.policy_params, state.predict_fn, sequence_batch, sample_opts)
+      end
 
     # Compute confidence from logits
     confidence = Networks.Policy.compute_confidence(action)
@@ -1280,19 +1300,31 @@ defmodule ExPhil.Agents.Agent do
     deterministic_buttons =
       Keyword.get(opts, :deterministic_buttons, state.deterministic_buttons || false)
 
+    step_sample_opts = [
+      deterministic: deterministic,
+      temperature: temperature,
+      deterministic_buttons: deterministic_buttons,
+      mode_of_n: Keyword.get(opts, :mode_of_n, state.mode_of_n),
+      press_threshold: state.press_threshold,
+      release_threshold: state.release_threshold,
+      prev_buttons: state.last_action && state.last_action[:buttons]
+    ]
+
     action =
-      Networks.Policy.sample(
-        state.policy_params,
-        state.heads_predict_fn,
-        features,
-        deterministic: deterministic,
-        temperature: temperature,
-        deterministic_buttons: deterministic_buttons,
-        mode_of_n: Keyword.get(opts, :mode_of_n, state.mode_of_n),
-        press_threshold: state.press_threshold,
-        release_threshold: state.release_threshold,
-        prev_buttons: state.last_action && state.last_action[:buttons]
-      )
+      if state.head == :autoregressive do
+        Networks.Policy.sample_autoregressive_from_features(
+          state.policy_params,
+          features,
+          step_sample_opts
+        )
+      else
+        Networks.Policy.sample(
+          state.policy_params,
+          state.heads_predict_fn,
+          features,
+          step_sample_opts
+        )
+      end
 
     confidence = Networks.Policy.compute_confidence(action)
 
@@ -1824,6 +1856,26 @@ defmodule ExPhil.Agents.Agent do
     backbone = Map.get(config, :backbone, :mlp)
     window_size = Map.get(config, :window_size, 60)
 
+    # Controller head (AUTOREGRESSIVE_HEAD_PLAN): JSON round-trips turn the
+    # atom into a string — accept both. :autoregressive means the checkpoint
+    # has ar_* head params and sampling must run sequentially.
+    head =
+      case Map.get(config, :head, :independent) do
+        h when h in [:independent, :autoregressive] -> h
+        "independent" -> :independent
+        "autoregressive" -> :autoregressive
+        other -> raise ArgumentError, "unknown checkpoint head: #{inspect(other)}"
+      end
+
+    if head == :autoregressive do
+      unless temporal do
+        raise ArgumentError,
+              "head: :autoregressive checkpoints require a temporal policy (no trunk seam in the MLP path)"
+      end
+
+      Logger.info("[Agent] Autoregressive controller head ACTIVE (sequential per-frame sampling)")
+    end
+
     # MLP backbone config
     hidden_sizes = Map.get(config, :hidden_sizes, [512, 512])
     dropout = Map.get(config, :dropout, 0.1)
@@ -1921,7 +1973,22 @@ defmodule ExPhil.Agents.Agent do
               trunk
             end
 
-          Networks.Policy.Heads.build_controller_head(trunk, axis_buckets, shoulder_buckets)
+          # AR head: the sampler replays the head from params — the model
+          # here stays the (possibly erased/steered) trunk, features out.
+          if head == :autoregressive do
+            trunk
+          else
+            Networks.Policy.Heads.build_controller_head(trunk, axis_buckets, shoulder_buckets)
+          end
+
+        temporal and head == :autoregressive ->
+          Logger.info(
+            "[Agent] Loading temporal policy TRUNK (backbone: #{backbone}, window: #{window_size}, AR head)"
+          )
+
+          # Trunk only: predict_fn -> [batch, hidden] features; the AR head
+          # runs inside Policy.sample_autoregressive from the ar_* params.
+          Networks.Policy.build_temporal_trunk(trunk_opts)
 
         temporal ->
           Logger.info(
@@ -2060,20 +2127,30 @@ defmodule ExPhil.Agents.Agent do
           # on the 5090 for the r10 GRU). Copy once at load.
           params = copy_params_to_default_backend(params)
 
-          heads_input = Axon.input("features", shape: {nil, hidden_size})
+          # AR head: no heads-only Axon graph — the step path samples via
+          # Policy.sample_autoregressive_from_features (state.head marks it;
+          # heads_predict_fn stays nil).
+          heads_predict_fn =
+            if head == :autoregressive do
+              nil
+            else
+              heads_input = Axon.input("features", shape: {nil, hidden_size})
 
-          heads_model =
-            Networks.Policy.Heads.build_controller_head(
-              heads_input,
-              axis_buckets,
-              shoulder_buckets
-            )
+              heads_model =
+                Networks.Policy.Heads.build_controller_head(
+                  heads_input,
+                  axis_buckets,
+                  shoulder_buckets
+                )
 
-          {_init_fn, heads_predict_fn} =
-            Utils.build_compiled(
-              heads_model,
-              xla_exec_cache("heads", {hidden_size, axis_buckets, shoulder_buckets})
-            )
+              {_init_fn, fused_heads_fn} =
+                Utils.build_compiled(
+                  heads_model,
+                  xla_exec_cache("heads", {hidden_size, axis_buckets, shoulder_buckets})
+                )
+
+              fused_heads_fn
+            end
 
           trunk_params = trunk_step_params(params, backbone)
 
@@ -2097,6 +2174,8 @@ defmodule ExPhil.Agents.Agent do
         embed_config: full_embed_config,
         # Retained for reconfigure-time delay-id revalidation (pool reuse)
         train_delays: Map.get(config, :train_delays),
+        # Controller head dispatch (AR vs independent sampling)
+        head: head,
         # Set temporal config
         temporal: temporal,
         backbone: backbone,

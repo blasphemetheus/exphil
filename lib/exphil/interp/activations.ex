@@ -178,8 +178,11 @@ defmodule ExPhil.Interp.Activations do
             "#{policy_path} is not a temporal policy — head capture only supports temporal policies"
     end
 
+    head = checkpoint_head(config)
+
     model =
       Networks.Policy.build_temporal(
+        head: head,
         embed_size: Map.fetch!(config, :embed_size),
         backbone: Map.get(config, :backbone, :mlp),
         window_size: Map.get(config, :window_size, 60),
@@ -197,14 +200,28 @@ defmodule ExPhil.Interp.Activations do
 
     {_init_fn, predict_fn} = Utils.build_compiled(model, mode: :inference)
 
+    # AR-head checkpoints: predict_fn also needs the teacher-forced
+    # component inputs (`Heads.tf_inputs/1` merged with the window under
+    # "state_sequence") — the logits are then CONDITIONAL on that prefix.
     %{
       kind: :heads,
+      head: head,
       predict_fn: predict_fn,
       params: Utils.ensure_model_state(params),
       config: config,
       window: Map.get(config, :window_size, 60),
       hidden_size: Map.get(config, :hidden_size, 256)
     }
+  end
+
+  # JSON round-trips turn the checkpoint's :head atom into a string
+  defp checkpoint_head(config) do
+    case Map.get(config, :head, :independent) do
+      h when h in [:independent, :autoregressive] -> h
+      "independent" -> :independent
+      "autoregressive" -> :autoregressive
+      other -> raise ArgumentError, "unknown checkpoint head: #{inspect(other)}"
+    end
   end
 
   @doc """
@@ -218,18 +235,33 @@ defmodule ExPhil.Interp.Activations do
 
     hidden = Map.get(config, :hidden_size, 256)
     input = Axon.input("trunk", shape: {nil, hidden})
+    head = checkpoint_head(config)
 
     model =
-      ExPhil.Networks.Policy.Heads.build_controller_head(
-        input,
-        Map.get(config, :axis_buckets, 16),
-        Map.get(config, :shoulder_buckets, 4)
-      )
+      case head do
+        :independent ->
+          ExPhil.Networks.Policy.Heads.build_controller_head(
+            input,
+            Map.get(config, :axis_buckets, 16),
+            Map.get(config, :shoulder_buckets, 4)
+          )
+
+        :autoregressive ->
+          # Teacher-forced AR head over trunk features: callers must merge
+          # Heads.tf_inputs(targets) into the input map alongside "trunk";
+          # logits come back conditional on that prefix.
+          ExPhil.Networks.Policy.Heads.build_autoregressive_head(
+            input,
+            axis_buckets: Map.get(config, :axis_buckets, 16),
+            shoulder_buckets: Map.get(config, :shoulder_buckets, 4)
+          )
+      end
 
     {_init_fn, predict_fn} = Utils.build_compiled(model, mode: :inference)
 
     %{
       kind: :heads_only,
+      head: head,
       predict_fn: predict_fn,
       params: Utils.ensure_model_state(params),
       config: config,

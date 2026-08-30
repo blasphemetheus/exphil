@@ -127,6 +127,13 @@ defmodule ExPhil.Training.Config do
   # - :flow_matching - ODE-based continuous normalizing flow (fast, simpler than diffusion)
   @valid_policy_types [:autoregressive, :diffusion, :act, :flow_matching]
 
+  # Controller head for :autoregressive policies (AUTOREGRESSIVE_HEAD_PLAN):
+  # - :independent - six parallel heads read the trunk (legacy default;
+  #   "autoregressive" in older docs meant this)
+  # - :autoregressive - residual-stream conditional head: buttons ->
+  #   main_x -> main_y -> c_x -> c_y -> shoulder, teacher-forced in training
+  @valid_heads [:independent, :autoregressive]
+
   # Presets are now defined in ExPhil.Training.Config.Presets
   # Use Presets.valid_presets() to get the list
 
@@ -154,6 +161,8 @@ defmodule ExPhil.Training.Config do
     "--backbone",
     # Policy type options
     "--policy-type",
+    # Controller head: independent (default) or autoregressive
+    "--head",
     # Action horizon for ACT and generative policies
     "--action-horizon",
     # Number of diffusion/flow steps for inference
@@ -529,6 +538,9 @@ defmodule ExPhil.Training.Config do
       backbone: :sliding_window,
       # Policy type: :autoregressive, :diffusion, :act, :flow_matching
       policy_type: :autoregressive,
+      # Controller head: :independent (six parallel heads) or :autoregressive
+      # (residual-stream conditional head, AUTOREGRESSIVE_HEAD_PLAN)
+      head: :independent,
       # Action horizon for ACT/generative policies (frames to predict at once)
       action_horizon: 8,
       # Number of steps for diffusion/flow inference (more = higher quality, slower)
@@ -1139,7 +1151,8 @@ defmodule ExPhil.Training.Config do
       valid_backbones: @valid_backbones,
       valid_optimizers: @valid_optimizers,
       valid_lr_schedules: @valid_lr_schedules,
-      valid_policy_types: @valid_policy_types
+      valid_policy_types: @valid_policy_types,
+      valid_heads: @valid_heads
     }
   end
 
@@ -1531,6 +1544,7 @@ defmodule ExPhil.Training.Config do
       temporal: opts[:temporal],
       backbone: if(opts[:temporal], do: to_string(opts[:backbone]), else: "mlp"),
       policy_type: to_string(opts[:policy_type] || :autoregressive),
+      head: to_string(opts[:head] || :independent),
       action_horizon: opts[:action_horizon],
       num_inference_steps: opts[:num_inference_steps],
       kl_weight: opts[:kl_weight],

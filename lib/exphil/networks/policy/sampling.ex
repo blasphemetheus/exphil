@@ -33,6 +33,8 @@ defmodule ExPhil.Networks.Policy.Sampling do
 
   alias ExPhil.Training.Utils
 
+  import Nx.Defn
+
   @doc """
   Sample actions from the policy.
 
@@ -149,6 +151,215 @@ defmodule ExPhil.Networks.Policy.Sampling do
         shoulder: shoulder_logits
       }
     }
+  end
+
+  @doc """
+  Sample from a policy with the TRUE autoregressive head
+  (AUTOREGRESSIVE_HEAD_PLAN §3): components are drawn sequentially, each
+  conditioned on the samples before it via the residual stream.
+
+  `trunk_predict_fn` maps `(params, state)` to `[batch, hidden]` trunk
+  features (built from `Policy.build_temporal_trunk/1` — the AR head math
+  is replayed here from the exported `ar_*` params, mirroring
+  `Heads.build_autoregressive_head/2` layer names exactly).
+
+  Supports the same opts as `sample/4` (per-head `:temperature`,
+  `:deterministic`, `:deterministic_buttons`, hysteresis thresholds,
+  `:mode_of_n`). Button decode modifications (argmax / hysteresis) are
+  applied BEFORE conditioning, so downstream components see the buttons
+  actually sent to the game.
+  """
+  @spec sample_autoregressive(map(), function(), Nx.Tensor.t(), keyword()) :: map()
+  def sample_autoregressive(params, trunk_predict_fn, state, opts \\ []) do
+    features = trunk_predict_fn.(Utils.ensure_model_state(params), state)
+    sample_autoregressive_from_features(params, features, opts)
+  end
+
+  @doc """
+  Autoregressive sampling from precomputed trunk features `[batch, hidden]`
+  (the stateful-step path's entry point). See `sample_autoregressive/4`.
+  """
+  @spec sample_autoregressive_from_features(map(), Nx.Tensor.t(), keyword()) :: map()
+  def sample_autoregressive_from_features(params, features, opts \\ []) do
+    temperature = Keyword.get(opts, :temperature, 1.0)
+    deterministic = Keyword.get(opts, :deterministic, false)
+    deterministic_buttons = Keyword.get(opts, :deterministic_buttons, false)
+    mode_of_n = Keyword.get(opts, :mode_of_n)
+
+    head = ar_head_params(params)
+
+    # Stage 1: residual projection + buttons logits (one XLA program)
+    {r0, b_l} = jitted(:ar_stage1, &ar_stage1/2).(head, features)
+
+    argmax_buttons? = deterministic or deterministic_buttons
+    n = if is_integer(mode_of_n) and mode_of_n > 1 and not deterministic, do: mode_of_n, else: 1
+
+    {r0n, b_ln} =
+      if n > 1 do
+        {Nx.tile(r0, [n, 1]), Nx.tile(b_l, [n, 1])}
+      else
+        {r0, b_l}
+      end
+
+    temps = temperature_tuple(temperature)
+
+    buttons =
+      if argmax_buttons? do
+        Nx.greater(Nx.sigmoid(b_ln), 0.5)
+      else
+        {t_b, _, _, _, _, _} = temps
+        key = Nx.Random.key(:erlang.unique_integer([:positive]))
+        {u, _} = Nx.Random.uniform(key, shape: Nx.shape(b_ln))
+        Nx.less(u, Nx.sigmoid(Nx.divide(b_ln, t_b)))
+      end
+
+    # Hysteresis BEFORE conditioning (see moduledoc of the head builder)
+    buttons = apply_hysteresis(buttons, b_ln, argmax_buttons?, opts)
+    buttons_f32 = Nx.as_type(buttons, :f32)
+
+    # Stage 2: the sequential remainder in one XLA program
+    {mx, my, cx, cy, sh, mx_l, my_l, cx_l, cy_l, sh_l, conf} =
+      if deterministic do
+        jitted(:ar_stage2_det, &ar_stage2_deterministic/4).(head, r0n, buttons_f32, b_ln)
+      else
+        key = Nx.Random.key(:erlang.unique_integer([:positive]))
+
+        jitted(:ar_stage2, &ar_stage2_stochastic/6).(
+          head,
+          r0n,
+          buttons_f32,
+          b_ln,
+          key,
+          temps
+        )
+      end
+
+    # Mode-of-N vote on the joint action (instrument only — disqualified
+    # for play, same as the independent path)
+    {buttons, mx, my, cx, cy, sh, mx_l, my_l, cx_l, cy_l, sh_l} =
+      if n > 1 do
+        i = mode_index(buttons, mx, my, cx, cy, sh)
+        row = &Nx.slice_along_axis(&1, i, 1, axis: 0)
+
+        {row.(buttons), row.(mx), row.(my), row.(cx), row.(cy), row.(sh), row.(mx_l), row.(my_l),
+         row.(cx_l), row.(cy_l), row.(sh_l)}
+      else
+        {buttons, mx, my, cx, cy, sh, mx_l, my_l, cx_l, cy_l, sh_l}
+      end
+
+    %{
+      buttons: buttons,
+      main_x: mx,
+      main_y: my,
+      c_x: cx,
+      c_y: cy,
+      shoulder: sh,
+      confidence_raw: conf,
+      # NOTE: categorical logits are CONDITIONAL on the sampled prefix
+      # (document in interp readers; B3 entropies become conditional
+      # entropies, which is the right thing)
+      logits: %{
+        buttons: b_l,
+        main_x: mx_l,
+        main_y: my_l,
+        c_x: cx_l,
+        c_y: cy_l,
+        shoulder: sh_l
+      }
+    }
+  end
+
+  # Extract the AR head parameter subtree ("ar_*" layers) from a params
+  # map or Axon.ModelState — mirrors Heads.build_autoregressive_head names.
+  defp ar_head_params(params) do
+    data =
+      case params do
+        %Axon.ModelState{data: d} -> d
+        %{data: d} when is_map(d) -> d
+        m when is_map(m) -> m
+      end
+
+    head = Map.filter(data, fn {k, _v} -> is_binary(k) and String.starts_with?(k, "ar_") end)
+
+    if map_size(head) == 0 do
+      raise ArgumentError,
+            "no ar_* head params found — sample_autoregressive needs a checkpoint " <>
+              "trained with head: :autoregressive"
+    end
+
+    head
+  end
+
+  # --- AR head math (defn mirrors of Heads.build_autoregressive_head) ---
+
+  defnp ar_dense(x, layer) do
+    Nx.dot(x, layer["kernel"]) |> Nx.add(layer["bias"])
+  end
+
+  # NOTE: layer maps (not a name string) — defn args must be tensors/containers
+  defnp ar_component(r, hidden_layer, logits_layer) do
+    r
+    |> ar_dense(hidden_layer)
+    |> Nx.max(0)
+    |> ar_dense(logits_layer)
+  end
+
+  defnp ar_stage1(head, features) do
+    r0 = ar_dense(features, head["ar_residual_proj"])
+    b_l = ar_component(r0, head["ar_buttons_hidden"], head["ar_buttons_logits"])
+    {r0, b_l}
+  end
+
+  defnp ar_stage2_stochastic(head, r0, buttons_f32, b_l, key, {_t_b, t_mx, t_my, t_cx, t_cy, t_sh}) do
+    r1 = r0 + Nx.dot(buttons_f32, head["ar_buttons_embed"]["kernel"])
+
+    mx_l = ar_component(r1, head["ar_main_x_hidden"], head["ar_main_x_logits"])
+    {mx, key} = gumbel_argmax(mx_l, key, t_mx)
+    r2 = r1 + Nx.take(head["ar_main_x_embed"]["kernel"], mx)
+
+    my_l = ar_component(r2, head["ar_main_y_hidden"], head["ar_main_y_logits"])
+    {my, key} = gumbel_argmax(my_l, key, t_my)
+    r3 = r2 + Nx.take(head["ar_main_y_embed"]["kernel"], my)
+
+    cx_l = ar_component(r3, head["ar_c_x_hidden"], head["ar_c_x_logits"])
+    {cx, key} = gumbel_argmax(cx_l, key, t_cx)
+    r4 = r3 + Nx.take(head["ar_c_x_embed"]["kernel"], cx)
+
+    cy_l = ar_component(r4, head["ar_c_y_hidden"], head["ar_c_y_logits"])
+    {cy, key} = gumbel_argmax(cy_l, key, t_cy)
+    r5 = r4 + Nx.take(head["ar_c_y_embed"]["kernel"], cy)
+
+    sh_l = ar_component(r5, head["ar_shoulder_hidden"], head["ar_shoulder_logits"])
+    {sh, _key} = gumbel_argmax(sh_l, key, t_sh)
+
+    {mx, my, cx, cy, sh, mx_l, my_l, cx_l, cy_l, sh_l,
+     confidence_scalars(b_l, mx_l, my_l, cx_l, cy_l, sh_l)}
+  end
+
+  defnp ar_stage2_deterministic(head, r0, buttons_f32, b_l) do
+    r1 = r0 + Nx.dot(buttons_f32, head["ar_buttons_embed"]["kernel"])
+
+    mx_l = ar_component(r1, head["ar_main_x_hidden"], head["ar_main_x_logits"])
+    mx = Nx.argmax(mx_l, axis: -1)
+    r2 = r1 + Nx.take(head["ar_main_x_embed"]["kernel"], mx)
+
+    my_l = ar_component(r2, head["ar_main_y_hidden"], head["ar_main_y_logits"])
+    my = Nx.argmax(my_l, axis: -1)
+    r3 = r2 + Nx.take(head["ar_main_y_embed"]["kernel"], my)
+
+    cx_l = ar_component(r3, head["ar_c_x_hidden"], head["ar_c_x_logits"])
+    cx = Nx.argmax(cx_l, axis: -1)
+    r4 = r3 + Nx.take(head["ar_c_x_embed"]["kernel"], cx)
+
+    cy_l = ar_component(r4, head["ar_c_y_hidden"], head["ar_c_y_logits"])
+    cy = Nx.argmax(cy_l, axis: -1)
+    r5 = r4 + Nx.take(head["ar_c_y_embed"]["kernel"], cy)
+
+    sh_l = ar_component(r5, head["ar_shoulder_hidden"], head["ar_shoulder_logits"])
+    sh = Nx.argmax(sh_l, axis: -1)
+
+    {mx, my, cx, cy, sh, mx_l, my_l, cx_l, cy_l, sh_l,
+     confidence_scalars(b_l, mx_l, my_l, cx_l, cy_l, sh_l)}
   end
 
   # Index of the most frequent JOINT action among N draws (buttons [N, 8],

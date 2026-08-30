@@ -205,6 +205,7 @@ See [Architecture Guide](../reference/architectures/ARCHITECTURE_GUIDE.md) for d
 | Option | Default | Description |
 |--------|---------|-------------|
 | `--policy-type TYPE` | autoregressive | Policy architecture type |
+| `--head TYPE` | independent | Controller head: `independent` (six parallel heads) or `autoregressive` (residual-stream conditional head, buttons→main_x→main_y→c_x→c_y→shoulder; see AUTOREGRESSIVE_HEAD_PLAN.md). Temporal only |
 | `--action-horizon N` | 8 | Action prediction horizon (for chunked policies) |
 | `--num-inference-steps N` | 20 | Diffusion/flow matching inference steps |
 | `--kl-weight N` | 10.0 | KL divergence weight for ACT (CVAE) |

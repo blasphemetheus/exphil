@@ -177,6 +177,7 @@ defmodule ExPhil.Training.Config.Parser do
     |> parse_atom_arg(args, "--backbone", :backbone, (ctx[:valid_backbones] || []) ++ [:mlp])
     # Policy type options
     |> parse_atom_arg(args, "--policy-type", :policy_type, ctx[:valid_policy_types] || [:autoregressive])
+    |> parse_atom_arg(args, "--head", :head, ctx[:valid_heads] || [:independent, :autoregressive])
     |> parse_int_arg(args, "--action-horizon", :action_horizon)
     |> parse_int_arg(args, "--num-inference-steps", :num_inference_steps)
     |> parse_float_arg(args, "--kl-weight", :kl_weight)

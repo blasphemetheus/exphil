@@ -105,15 +105,23 @@ the interp loaders, and the canary.
 | # | item | where | size |
 |---|---|---|---|
 | 1 | Run and record the joint-head audit (this doc §7) | `scripts/joint_head_audit.exs` | done 08-30 |
-| 2 | `Heads.build_autoregressive_head(trunk, opts)` — residual stream + 6 conditional heads; teacher-forced inputs `prev_*` | `lib/exphil/networks/policy/heads.ex` (replace the dead `build_autoregressive`) | 1 day |
-| 3 | Predict fn plumbing: training forward takes targets as prefix; `Policy.build_temporal(head: :autoregressive)` | `policy.ex`, `imitation/loss.ex` | 0.5 day |
-| 4 | `Sampling.sample_autoregressive/4` — sequential draw with per-head T; keep `sample/4` for `:independent` | `policy/sampling.ex` | 0.5 day |
-| 5 | Agent: dispatch on checkpoint `head`; stateful-step path | `agents/agent.ex` | 0.5 day |
-| 6 | Checkpoint config + `--head` flag + `Activations`/canary plumbing (GOTCHA #105 checklist: grep `with_delay_id`) | `training/config*.ex`, `imitation/checkpoint.ex`, `interp/activations.ex` | 0.5 day |
-| 7 | Tests: head builds; teacher-forced logits equal sequential logits given the same prefix; sampled joint P(B∧up) on a synthetic dependent distribution recovers the dependency (independent head cannot) | `test/exphil/networks/policy/` | 0.5 day |
-| 8 | Train **v1.1-AR**: B1's recipe (3 epochs from ep10's trunk, seed 828) with the new head; the trunk initialises from ep10, the head from scratch | `scripts/train.exs --resume … --head autoregressive` | 3 h GPU (B1 took 3h20 incl. cache) |
+| 2 | `Heads.build_autoregressive_head(trunk, opts)` — residual stream + 6 conditional heads; teacher-forced inputs `tf_*` | `lib/exphil/networks/policy/heads.ex` (replaced the dead `build_autoregressive`) | **done 08-30** |
+| 3 | Predict fn plumbing: training forward takes targets as prefix; `Policy.build_temporal(head: :autoregressive)` | `policy.ex`, `imitation/loss.ex` (+ `imitation.ex` init template/warmup) | **done 08-30** |
+| 4 | `Sampling.sample_autoregressive/4` — sequential draw with per-head T; keep `sample/4` for `:independent` | `policy/sampling.ex` (stage1/stage2 fused kernels; hysteresis applied BEFORE conditioning) | **done 08-30** |
+| 5 | Agent: dispatch on checkpoint `head`; stateful-step path (AR = trunk-only model, `heads_predict_fn` nil) | `agents/agent.ex` | **done 08-30** |
+| 6 | Checkpoint config + `--head` flag + `Activations` plumbing (canary untouched — head doesn't change the embedding) | `training/config.ex` + `config/parser.ex`, `imitation/checkpoint.ex`, `interp/activations.ex` (`load_heads`/`load_heads_only` branch on head) | **done 08-30** |
+| 7 | Tests: head builds; zero-init = independent; teacher-forced logits equal sequential logits given the same prefix; synthetic P(up\|B)=0.997 vs P(up\|!B)=0.003 recovered (head-only fit, frozen constant features — 8a's mechanism verified in miniature) | `test/exphil/networks/policy/autoregressive_head_test.exs` | **done 08-30** |
+| 8a | **Head-only fit (cheap first — Bradley, 08-30)**: **v1.1-ARhead** = FROZEN ep10 trunk + AR head trained on cached trunk activations (~800 games; `Activations.capture_replay` trunk states ⊕ target controllers — the critic's machinery). Control **v1.1-INDhead** = frozen trunk + re-initialised independent head, same data (controls for "any fresh head fit helps"). Minutes-to-hours, not a retrain. If ARhead already moves A2 recovery routes per §6 → done cheap, skip 8/9. If PARTIAL (coincidence moves, routes don't) → unfreeze and continue per 8/9. | `scripts/train_ar_head.exs` | 2–4 h total |
+| 8 | Train **v1.1-AR**: B1's recipe (3 epochs from ep10's trunk, seed 828) with the new head; the trunk initialises from ep10, the head from scratch. Only if 8a is PARTIAL. | `scripts/train.exs --resume … --head autoregressive` | 3 h GPU (B1 took 3h20 incl. cache) |
 | 9 | Control **v1.1-IND**: identical run with the independent head re-initialised from scratch (so "new head params" is controlled) | same | 3 h GPU |
 | 10 | Score per §6; write RESULTS; human look only if the rule passes | `scripts/awbc_score.sh` pattern | 1.5 h |
+
+Why some training is unavoidable (recorded for the "just do AR inference"
+question): the shipped checkpoint's heads have no input wires for each
+other's samples — no logit depends on another head's draw, so sequential
+sampling from the existing params changes nothing. The dependency
+P(up|B, offstage) lives in weights that must be trained. 8a is the
+minimal training that creates those weights.
 
 No lib edits while any training unit is active (the loop law).
 

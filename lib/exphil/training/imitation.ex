@@ -242,10 +242,19 @@ defmodule ExPhil.Training.Imitation do
     # Load K-means centers if path provided
     config = load_kmeans_centers(config)
 
+    # True autoregressive head (AUTOREGRESSIVE_HEAD_PLAN §3): temporal only
+    # for the trainer path — the non-temporal builder has no trunk seam.
+    head = Map.get(config, :head, :independent)
+
+    if head == :autoregressive and not config.temporal do
+      raise ArgumentError, "head: :autoregressive requires temporal: true"
+    end
+
     # Build policy model - temporal or regular
     policy_model =
       if config.temporal do
         Policy.build_temporal(
+          head: head,
           embed_size: embed_size,
           backbone: config.backbone,
           window_size: config.window_size,
@@ -319,7 +328,19 @@ defmodule ExPhil.Training.Imitation do
     # When using mixed precision, initialize params in FP32 (master weights)
     # Otherwise use configured precision
     init_precision = if config.mixed_precision, do: :f32, else: config.precision
-    policy_params = init_fn.(Nx.template(input_shape, init_precision), Axon.ModelState.empty())
+
+    # AR head: the model has teacher-forced component inputs too
+    init_template =
+      if head == :autoregressive do
+        Map.merge(
+          %{"state_sequence" => Nx.template(input_shape, init_precision)},
+          ExPhil.Networks.Policy.Heads.tf_templates(1)
+        )
+      else
+        Nx.template(input_shape, init_precision)
+      end
+
+    policy_params = init_fn.(init_template, Axon.ModelState.empty())
 
     # Initialize mixed precision state if enabled
     # This maintains FP32 master weights while computing in BF16
@@ -596,8 +617,16 @@ defmodule ExPhil.Training.Imitation do
     %{states: states} = batch
 
     if trainer.predict_fn do
-      # Run one forward pass
-      _predictions = trainer.predict_fn.(trainer.policy_params, states)
+      # Run one forward pass (AR head models take a states+tf-inputs map)
+      inputs =
+        Loss.policy_forward_inputs(
+          trainer.config[:head] || :independent,
+          trainer.config[:temporal] || false,
+          states,
+          batch.actions
+        )
+
+      _predictions = trainer.predict_fn.(trainer.policy_params, inputs)
     end
 
     :ok
