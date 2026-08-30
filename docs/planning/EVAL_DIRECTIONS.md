@@ -69,7 +69,7 @@ Status: `todo` · `building` · `ran` (has a RESULTS) · `adopted` (on the stand
 
 | id | instrument | question | status | script / results |
 |---|---|---|---|---|
-| **D1** | **Noise floors** | Same checkpoint, different days/batches: the natural spread of every metric. Which numbers can ever resolve a real difference? | running (`scripts/noise_floor.sh`, unit noise-floor) | `eval_runs/0829_noise_floor/` |
+| **D1** | **Noise floors** | Same checkpoint, different days/batches: the natural spread of every metric. Which numbers can ever resolve a real difference? | **ran** | `scripts/noise_floor.sh` → `eval_runs/0829_noise_floor/RESULTS.md`: d_up 1.1×, held 1.2×, loops 2.0×, deaths 2.5–3×, conv% 3.5×, armed 7×. D1b (TV floor) todo |
 | D2 | Human-vs-CPU transfer table | For each metric, CPU-bracket value vs Bradley-session value for the same checkpoint. Which metrics the CPU rung can stand in for. | todo | |
 | D3 | Decode-vs-model sensitivity | From banked temperature sweeps: which metrics are purely decode-driven (press rates) vs model-driven. | todo | |
 
@@ -94,7 +94,7 @@ Then re-read B1-the-model, ep10, B2 through A1/B2/C.
 - Expert corpus is the denominator; report the bot and the expert side by side, same detector.
 - Report scored/played (L2) and cross-check durations from run logs (L3).
 - Never rank a decode on a mode-seeking metric alone (L9); pair with frozen-input + duration + deaths.
-- Under-2× differences with overlapping ranges are unresolved until D1 says otherwise.
+- Floors (D1): d_up/min 1.1×, held-action 1.2×, loops/min 2×, dropped 2×, deaths 2.5–3× at n≤8, conversion % and armed/min unusable. The "deaths within 1.5×" gate is inside noise — use durations-to-cap + frozen-input for collapse.
 
 ## Log
 
@@ -106,3 +106,9 @@ Then re-read B1-the-model, ep10, B2 through A1/B2/C.
   it airdodges where the expert up-Bs. B2's TV distance orders the sets
   the way Bradley did and flags mode-of-16 as worst — adopted as the
   offline decode ranker (with the L9 live gate). D1 launched.
+- 2026-08-29 23:40 — D1 ran (`eval_runs/0829_noise_floor/RESULTS.md`): d_up
+  resolves 10% differences; loops/min needs the 2× law exactly; deaths
+  need 3× at n≤8; conversion % and armed/min are not comparison metrics.
+  Re-read: AWBC NULL stands; B1-vs-B2 loops (4.3×) resolved; "deaths climb
+  as buttons cool" retracted as unresolved (1.8× inside a 2.7× floor).
+  Next: D1b (TV-distance floor on the same batches), then A2 / C1.
