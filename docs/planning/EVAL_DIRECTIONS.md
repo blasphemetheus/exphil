@@ -20,7 +20,7 @@ and `eval_runs/0829_livelook_awbc/IMPRESSIONS.md`.
 
 | set | games | what it is |
 |---|---|---|
-| `replays/erickfm_ranked/FOX/extracted` | 7,911 | v1's training corpus, port 1 = the imitated Fox |
+| `replays/erickfm_ranked/FOX/extracted` | 7,911 | v1's training corpus. **CORRECTED 08-30 (E1):** port 1 is NOT always the fox — fox is p1-only 44.2%, p2-only 43.3%, ditto 12.5%; v1 imitated port 1 regardless, so ~43% of its demonstrations are the non-fox opponent (`eval_runs/0830_corpus_mix/RESULTS.md`) |
 | `replays/fox_il_v1` | 4,465 | older Fox corpus, off-distribution for v1 |
 | `eval_runs/0828_*`, `0829_*` brackets | ~120 | bot vs CPU, every decode/checkpoint tagged |
 | `eval_runs/0828_session`, `0828_livelook_btn05`, `0829_livelook_awbc_B{1,2,3}` | ~40 | bot vs Bradley |
@@ -77,7 +77,7 @@ Status: `todo` · `building` · `ran` (has a RESULTS) · `adopted` (on the stand
 
 | id | instrument | question | status | script / results |
 |---|---|---|---|---|
-| E1 | Corpus mix by frame | Characters / stages / players by frame; concentration (one player's style dominating the mode). | todo | |
+| E1 | Corpus mix by frame | Characters / stages / players by frame; concentration (one player's style dominating the mode). | **ran (by file)** | `eval_runs/0830_corpus_mix/RESULTS.md` — v1 imitated port 1 blindly; 56.7% fox, 43% opponent characters. By-frame + player-concentration refinement still open |
 | E2 | Rare-event coverage | How many expert examples of the exact situations the bot fails in. Hundreds = selection problem; dozens = data. | **ran — not data quantity** | `scripts/rare_event_coverage.exs` → `eval_runs/0829_rare_events/RESULTS.md` (thousands of labels/epoch for every missing behaviour) |
 | E3 | Expert pathology baselines | Pummels, taunts, standing lasers per game in *expert* play, so "too much" has a denominator. | building | `scripts/expert_pathology.exs` (written 08-30, first run pending) |
 | E4 | Left walk-off poison | Is the corpus poisoned with repeated one-sided SDs? | **ran — falsified** | `scripts/sd_scan.exs`, `eval_runs/0829_sd_scan/RESULTS.md` |
@@ -146,6 +146,15 @@ Then re-read B1-the-model, ep10, B2 through A1/B2/C.
   implies stick-up" beyond what the trunk state carries. Candidate cause
   for airdodge-over-upB (A2) and option spam; a TRAINING change (head
   structure), not a decode one. Queued as a recipe question for v1.1.
+- 2026-08-30 17:15 — **E1 (by file): v1's corpus is 43% NON-FOX demonstrations**
+  (`eval_runs/0830_corpus_mix/RESULTS.md`). `--train-character` only filters
+  files, never selects the port; v1's run set neither, so the loader took
+  port 1 of every file: fox 56.7%, falco 9%, marth 5.7%, puff 4.6%, …
+  Consequences: (a) "expert port 1" baselines in A1/B2/entropy are
+  character-mixed — fox-only re-reads need per-file detection; (b) the 8a
+  head fit uses per-file fox detection (dittos skipped) — deliberate,
+  symmetric across arms; (c) v1.1/v2 recipe question: character-aware port
+  selection (+ both ditto ports, same-split) yields ~5,470 clean fox games.
 - 2026-08-30 16:30 — **Port-2 side-flip check** (Bradley played, bot port 2;
   `eval_runs/0830_port2_{B1,mode16}/sd.md`): mode-16's walk-off SDs went
   left 4 : right 3 (all 7 deaths that weren't hits were walk-offs) vs
