@@ -113,3 +113,12 @@ Then re-read B1-the-model, ep10, B2 through A1/B2/C.
   Re-read: AWBC NULL stands; B1-vs-B2 loops (4.3×) resolved; "deaths climb
   as buttons cool" retracted as unresolved (1.8× inside a 2.7× floor).
   Next: D1b (TV-distance floor on the same batches), then A2 / C1.
+- 2026-08-29 23:32 — **Dash probe** (`scripts/interp_dash_probe.exs`,
+  `eval_runs/0829_dash_probe/RESULTS.md`): at the exact expert states that
+  precede a dash, ep10's main-stick head puts 74.5% mass on full tilt and
+  samples a flick 74.3% of the time (expert 69.3%); at standing-hold states
+  0.7% (expert 0%). **Not a decode artifact.** The head is calibrated; the
+  bot never dashes because it never reaches dash-initiation states in its
+  own play (WAIT 0.4% of its frames). Closed-loop state drift — a training
+  question (exposure bias / which states the recipe teaches it to be in),
+  per the no-decode-rules rule.
