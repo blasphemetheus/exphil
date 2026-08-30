@@ -24,7 +24,9 @@
 # Options:
 #   --policy PATH       source exported policy .bin (temporal)      (required)
 #   --replays GLOB      training replays                            (required)
-#   --port N            master's port (default 1)
+#   --port N            pin the master's port; omit to auto-detect by --char-id
+#   --char-id N         character for per-file port auto-detect (default 2 = Fox;
+#                       erickfm ranked masters sit on VARYING ports — never pin)
 #   --limit-files N     default 800
 #   --head TYPE         autoregressive | independent (default autoregressive)
 #   --epochs N          head-fit epochs over the cached features (default 4)
@@ -45,7 +47,8 @@ alias ExPhil.Training.{Data, Output, Utils}
 {opts, _, _} =
   OptionParser.parse(System.argv(),
     strict: [
-      policy: :string, replays: :string, port: :integer, limit_files: :integer,
+      policy: :string, replays: :string, port: :integer, char_id: :integer,
+      limit_files: :integer,
       head: :string, epochs: :integer, batch_size: :integer, lr: :float,
       val_frac: :float, features: :string, out: :string, seed: :integer
     ]
@@ -54,7 +57,7 @@ alias ExPhil.Training.{Data, Output, Utils}
 policy_path = opts[:policy] || raise "--policy required"
 glob = opts[:replays] || raise "--replays required"
 out = opts[:out] || raise "--out required"
-port = opts[:port] || 1
+char_id = opts[:char_id] || 2
 limit = opts[:limit_files] || 800
 head = String.to_existing_atom(opts[:head] || "autoregressive")
 unless head in [:autoregressive, :independent], do: raise("--head must be autoregressive|independent")
@@ -73,7 +76,7 @@ Output.config([
   {"Policy", Path.basename(policy_path)},
   {"Head", head},
   {"Replays", "#{length(files)} files"},
-  {"Port", port},
+  {"Port", if(opts[:port], do: "pinned #{opts[:port]}", else: "auto by char #{char_id}")},
   {"Epochs", epochs},
   {"Batch", batch_size},
   {"LR", lr},
@@ -90,13 +93,34 @@ shoulder_buckets = Map.get(trunk.config, :shoulder_buckets, 4)
 # Pass 1: capture trunk features + aligned controller targets, per replay
 # ---------------------------------------------------------------------------
 
+port_tag = if opts[:port], do: "p#{opts[:port]}", else: "c#{char_id}"
+
 features_path =
   opts[:features] ||
-    "cache/ar_head/#{Path.basename(policy_path, ".bin")}_#{length(files)}f_p#{port}.nx"
+    "cache/ar_head/#{Path.basename(policy_path, ".bin")}_#{length(files)}f_#{port_tag}.nx"
 
 File.mkdir_p!(Path.dirname(features_path))
 
-capture_one = fn path ->
+# erickfm ranked masters sit on varying ports — resolve per file by
+# character unless --port pins it (same rule as critic_extract.exs)
+resolve_port = fn path ->
+  if opts[:port] do
+    {:ok, opts[:port]}
+  else
+    case ExPhil.Data.Peppi.metadata(path) do
+      {:ok, meta} ->
+        case Enum.filter(meta.players, &(&1.character == char_id)) do
+          [%{port: p}] -> {:ok, p}
+          _ -> :skip
+        end
+
+      _ ->
+        :skip
+    end
+  end
+end
+
+capture_one = fn path, port ->
   cap = Activations.capture_replay(trunk, path, player_port: port,
     opponent_port: if(port == 1, do: 2, else: 1), labels: false)
 
@@ -145,11 +169,17 @@ data =
       |> Enum.flat_map(fn {path, i} ->
         Output.progress_bar(i, length(files), label: "replays")
 
-        try do
-          [capture_one.(path)]
-        rescue
-          err ->
-            Output.warning("skip #{Path.basename(path)}: #{Exception.message(err)}")
+        case resolve_port.(path) do
+          {:ok, port} ->
+            try do
+              [capture_one.(path, port)]
+            rescue
+              err ->
+                Output.warning("skip #{Path.basename(path)}: #{Exception.message(err)}")
+                []
+            end
+
+          :skip ->
             []
         end
       end)
@@ -181,25 +211,35 @@ data =
 n = Nx.axis_size(data.features, 0)
 Output.puts("Dataset: #{n} rows from #{data.num_replays} replays")
 
-# Split BY REPLAY (frames within a game are correlated)
+# Split BY REPLAY (frames within a game are correlated); <3 replays = no val
 key = Nx.Random.key(seed)
-n_val_replays = max(trunc(data.num_replays * val_frac), 1)
-{perm, key} = Nx.Random.shuffle(key, Nx.iota({data.num_replays}))
-val_replays = perm |> Nx.slice_along_axis(0, n_val_replays, axis: 0) |> Nx.to_flat_list() |> MapSet.new()
 
-val_mask =
-  data.replay_index
-  |> Nx.to_flat_list()
-  |> Enum.map(&if(MapSet.member?(val_replays, &1), do: 1, else: 0))
-  |> Nx.tensor(type: :u8)
+{train_idx, val_idx} =
+  if data.num_replays < 3 or val_frac <= 0.0 do
+    Output.puts("Split: all #{n} rows train (too few replays for a val split)")
+    {Nx.iota({n}, type: :s64), nil}
+  else
+    n_val_replays = max(trunc(data.num_replays * val_frac), 1)
+    {perm, _key} = Nx.Random.shuffle(key, Nx.iota({data.num_replays}))
 
-train_idx = val_mask |> Nx.equal(0) |> Nx.to_flat_list() |> Enum.with_index()
-            |> Enum.filter(fn {v, _} -> v == 1 end) |> Enum.map(&elem(&1, 1)) |> Nx.tensor(type: :s64)
-val_idx = val_mask |> Nx.equal(1) |> Nx.to_flat_list() |> Enum.with_index()
-          |> Enum.filter(fn {v, _} -> v == 1 end) |> Enum.map(&elem(&1, 1)) |> Nx.tensor(type: :s64)
+    val_replays =
+      perm |> Nx.slice_along_axis(0, n_val_replays, axis: 0) |> Nx.to_flat_list() |> MapSet.new()
 
-Output.puts("Split: #{Nx.size(train_idx)} train / #{Nx.size(val_idx)} val rows " <>
-  "(#{n_val_replays} replays held out)")
+    val_mask =
+      data.replay_index
+      |> Nx.to_flat_list()
+      |> Enum.map(&if(MapSet.member?(val_replays, &1), do: 1, else: 0))
+
+    train_idx = val_mask |> Enum.with_index()
+                |> Enum.filter(fn {v, _} -> v == 0 end) |> Enum.map(&elem(&1, 1)) |> Nx.tensor(type: :s64)
+    val_idx = val_mask |> Enum.with_index()
+              |> Enum.filter(fn {v, _} -> v == 1 end) |> Enum.map(&elem(&1, 1)) |> Nx.tensor(type: :s64)
+
+    Output.puts("Split: #{Nx.size(train_idx)} train / #{Nx.size(val_idx)} val rows " <>
+      "(#{n_val_replays} replays held out)")
+
+    {train_idx, val_idx}
+  end
 
 # ---------------------------------------------------------------------------
 # Pass 2: train the head on frozen features
@@ -296,7 +336,7 @@ Output.puts("⏳ JIT compiling head fit (first batch)...")
     IO.write(:stderr, "\n")
 
     val =
-      if Nx.size(val_idx) > 0 do
+      if val_idx != nil and Nx.size(val_idx) > 0 do
         {vf, va} = take_rows.(Nx.slice_along_axis(val_idx, 0, min(Nx.size(val_idx), 50_000), axis: 0))
         Nx.to_number(eval_loss.(pd, vf, va))
       else

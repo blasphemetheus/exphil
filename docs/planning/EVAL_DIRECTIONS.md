@@ -52,7 +52,7 @@ Status: `todo` · `building` · `ran` (has a RESULTS) · `adopted` (on the stand
 
 | id | instrument | question | status | script / results |
 |---|---|---|---|---|
-| B1 | Action-family match | Did the bot pick the same *category* (aerial/grab/shield/movement/special) as the expert in that state? Softer pass@1. | todo | |
+| B1 | Action-family match | Did the bot pick the same *category* (aerial/grab/shield/movement/special) as the expert in that state? Softer pass@1. | building | `scripts/action_family_match.exs` (written 08-30, first run pending) |
 | **B2** | **Distribution distance per situation** | KL / total-variation between the bot's next-action histogram and the expert's, per situation. Flags narrowing decodes (argmax, mode-of-N) offline — the pass@1 replacement as a decode ranker. | **ran — adopt** | same script; mean TV orders B1/B2/B3 (0.46–0.47) < ep10 (0.53–0.56) < mode-16 (0.72), matching the human read and the live rung |
 | B3 | Entropy per situation | Policy-output entropy by situation from captured logits; low entropy where the expert is diverse = a loop waiting to happen. | **ran** | `scripts/interp_entropy_by_situation.exs` → `eval_runs/0829_entropy/RESULTS.md` (grab: 4.1 bits, expert decisive) |
 
@@ -61,8 +61,8 @@ Status: `todo` · `building` · `ran` (has a RESULTS) · `adopted` (on the stand
 | id | instrument | question | status | script / results |
 |---|---|---|---|---|
 | C1 | Neutral-exchange outcomes | Segment games into exchanges; who won each and how (first hit / trade / whiff punish). Dense "harder to hit" number. | **ran** | `scripts/neutral_exchange.exs` → `eval_runs/0829_neutral_exchange/RESULTS.md` (B1 wins 20% of exchanges vs Bradley; needs its floor) |
-| C2 | Punish quality | Damage per opening, combo length, % openings ending in a kill, vs expert. | todo | |
-| C3 | Reaction latency | Time-to-action after opponent lands / grabs ledge / bot lands, vs expert. Dithering. | todo | |
+| C2 | Punish quality | Damage per opening, combo length, % openings ending in a kill, vs expert. | building | `scripts/punish_quality.exs` (written 08-30, first run pending) |
+| C3 | Reaction latency | Time-to-action after opponent lands / grabs ledge / bot lands, vs expert. Dithering. | building | `scripts/reaction_latency.exs` (written 08-30, first run pending) |
 | C4 | Stock-loss forensics | Every death classified: unforced walk-off / failed recovery / edgeguarded / combo'd / neutral kill. Extends `sd_scan`. | **ran** | `scripts/death_classifier.exs` → `eval_runs/0829_death_classifier/RESULTS.md` (bot dies at 52–71% vs expert 109%) |
 
 ### D. Reliability of the instruments
@@ -70,8 +70,8 @@ Status: `todo` · `building` · `ran` (has a RESULTS) · `adopted` (on the stand
 | id | instrument | question | status | script / results |
 |---|---|---|---|---|
 | **D1** | **Noise floors** | Same checkpoint, different days/batches: the natural spread of every metric. Which numbers can ever resolve a real difference? | **ran** | `scripts/noise_floor.sh` → `eval_runs/0829_noise_floor/RESULTS.md`: d_up 1.1×, held 1.2×, loops 2.0×, deaths 2.5–3×, conv% 3.5×, armed 7×. D1b ran: TV floor 0.05 on the mean, 0.1 per situation (`eval_runs/0829_noise_floor/tv_floor.md`) |
-| D2 | Human-vs-CPU transfer table | For each metric, CPU-bracket value vs Bradley-session value for the same checkpoint. Which metrics the CPU rung can stand in for. | todo | |
-| D3 | Decode-vs-model sensitivity | From banked temperature sweeps: which metrics are purely decode-driven (press rates) vs model-driven. | todo | |
+| D2 | Human-vs-CPU transfer table | For each metric, CPU-bracket value vs Bradley-session value for the same checkpoint. Which metrics the CPU rung can stand in for. | building | `scripts/d2_transfer.sh` (runner; pair map needs the real CPU dirs checked) |
+| D3 | Decode-vs-model sensitivity | From banked temperature sweeps: which metrics are purely decode-driven (press rates) vs model-driven. | building | `scripts/decode_sensitivity.exs` over `eval_runs/0828_loop_rescore/*/report.json` |
 
 ### E. Data-side audits
 
@@ -79,7 +79,7 @@ Status: `todo` · `building` · `ran` (has a RESULTS) · `adopted` (on the stand
 |---|---|---|---|---|
 | E1 | Corpus mix by frame | Characters / stages / players by frame; concentration (one player's style dominating the mode). | todo | |
 | E2 | Rare-event coverage | How many expert examples of the exact situations the bot fails in. Hundreds = selection problem; dozens = data. | **ran — not data quantity** | `scripts/rare_event_coverage.exs` → `eval_runs/0829_rare_events/RESULTS.md` (thousands of labels/epoch for every missing behaviour) |
-| E3 | Expert pathology baselines | Pummels, taunts, standing lasers per game in *expert* play, so "too much" has a denominator. | todo | |
+| E3 | Expert pathology baselines | Pummels, taunts, standing lasers per game in *expert* play, so "too much" has a denominator. | building | `scripts/expert_pathology.exs` (written 08-30, first run pending) |
 | E4 | Left walk-off poison | Is the corpus poisoned with repeated one-sided SDs? | **ran — falsified** | `scripts/sd_scan.exs`, `eval_runs/0829_sd_scan/RESULTS.md` |
 
 ## Order of work
@@ -146,6 +146,14 @@ Then re-read B1-the-model, ep10, B2 through A1/B2/C.
   implies stick-up" beyond what the trunk state carries. Candidate cause
   for airdodge-over-upB (A2) and option spam; a TRAINING change (head
   structure), not a decode one. Queued as a recipe question for v1.1.
+- 2026-08-30 16:30 — **Port-2 side-flip check** (Bradley played, bot port 2;
+  `eval_runs/0830_port2_{B1,mode16}/sd.md`): mode-16's walk-off SDs went
+  left 4 : right 3 (all 7 deaths that weren't hits were walk-offs) vs
+  port-1's 24:3 LEFT. The walk-off direction FOLLOWS spawn side / held
+  modal direction — model left-asymmetry rejected; consistent with the
+  mode-mechanism law (vote holds a direction). B1 plain on port 2: zero
+  walk-offs; its SDs (10:2 left-ish) are recovery deaths, the A2 class.
+  Small n (3 games/set). Task 1 of HANDOFF_2026-08-30 closed.
 - 2026-08-30 13:05 — **Joint-head audit** (`scripts/joint_head_audit.exs`,
   `eval_runs/0830_joint_head_audit/RESULTS.md`): within-frame total
   correlation of (buttons, main_x, main_y) = 0.86 bits/frame and it does
