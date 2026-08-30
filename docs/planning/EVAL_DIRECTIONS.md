@@ -146,6 +146,14 @@ Then re-read B1-the-model, ep10, B2 through A1/B2/C.
   implies stick-up" beyond what the trunk state carries. Candidate cause
   for airdodge-over-upB (A2) and option spam; a TRAINING change (head
   structure), not a decode one. Queued as a recipe question for v1.1.
+- 2026-08-30 18:55 — **8a head-only fit ran** (plan item 8a; the lib work
+  items 2–7 landed the same day): frozen ep10 trunk, 12.14 M rows (fox-only
+  per-file detection, dittos both ports), 4 epochs. **ARhead val 2.231 vs
+  INDhead 2.768 — 0.77 bits/frame, ≈ the audit's 0.86 TC prediction.**
+  The independent head pays almost exactly the total correlation the audit
+  measured, on the same trunk and data. §6 CPU-bracket scoring launched
+  (`scripts/arhead_score.sh` → `eval_runs/0830_arhead_score/`); the
+  pre-registered rule gates on A2 routes + live P(up|B), not on val loss.
 - 2026-08-30 17:15 — **E1 (by file): v1's corpus is 43% NON-FOX demonstrations**
   (`eval_runs/0830_corpus_mix/RESULTS.md`). `--train-character` only filters
   files, never selects the port; v1's run set neither, so the loader took
