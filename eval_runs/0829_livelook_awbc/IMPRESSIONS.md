@@ -30,4 +30,16 @@ ordering. The "AWBC helps" reading from the first game is NOT supported
 once B1 is in hand — the shared gain is the three extra epochs. B3
 decides whether B2's style shift is the outcome signal or the weight
 distribution.
-## B3 (AWBC, shuffled weights — placebo control) — pending
+## B3 (AWBC, shuffled weights — placebo control) — played third
+
+Bradley: "B3 also plays a little different. It has more of the
+pathologies of spamming things in place, but it also has its own
+character. Kind of interesting."
+
+Read: three continuations, three styles, no ordering a human could
+call. B3 (no outcome information, same weight distribution as B2) has
+its own character too — so "B2 feels different" is consistent with
+non-uniform weights or just seed-level variation between 3-epoch runs,
+not with the outcome signal. Matches the CPU verdict (NULL) on the
+causal question; adds one thing the CPU could not see: all three
+continuations beat ep10 by feel. Score the replays next.
