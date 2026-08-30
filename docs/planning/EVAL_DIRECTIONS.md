@@ -44,16 +44,16 @@ Status: `todo` · `building` · `ran` (has a RESULTS) · `adopted` (on the stand
 
 | id | instrument | question it answers | status | script / results |
 |---|---|---|---|---|
-| **A1** | **Situation → next-action histograms, bot vs expert** | In each named situation (opp shielding in range, opp offstage, bot offstage, bot >100%, opp on ledge, fresh respawn, opp in hitstun low/mid/high), what does the bot do next vs what the expert does? P(grab \| opp shield in range) etc. | building | `scripts/situation_hist.exs` |
+| **A1** | **Situation → next-action histograms, bot vs expert** | In each named situation (opp shielding in range, opp offstage, bot offstage, bot >100%, opp on ledge, fresh respawn, opp in hitstun low/mid/high), what does the bot do next vs what the expert does? P(grab \| opp shield in range) etc. | **ran** | `scripts/situation_hist.exs` → `eval_runs/0829_situation_hist/README.md` (dash 31.6% vs ~1%; throw 86% vs 9–36%; off-stage airdodge) |
 | A2 | Edgeguard / recovery scorecards | Opp offstage: go out / ledge / shine / laser / wait, and conversion of each. Bot offstage: route chosen, success rate, how it got there. | todo | |
-| A3 | Grab follow-ups | After a grab: throw direction, pummels before throw, regrab, release — vs expert. Decides mask-vs-data for the pummel loop. | todo | |
+| A3 | Grab follow-ups | After a grab: throw direction, pummels before throw, regrab, release — vs expert. Decides mask-vs-data for the pummel loop. | answered by A1 §2 (bot never throws) | |
 
 ### B. Expert comparison, situation-matched
 
 | id | instrument | question | status | script / results |
 |---|---|---|---|---|
 | B1 | Action-family match | Did the bot pick the same *category* (aerial/grab/shield/movement/special) as the expert in that state? Softer pass@1. | todo | |
-| **B2** | **Distribution distance per situation** | KL / total-variation between the bot's next-action histogram and the expert's, per situation. Flags narrowing decodes (argmax, mode-of-N) offline — the pass@1 replacement as a decode ranker. | todo (after A1) | |
+| **B2** | **Distribution distance per situation** | KL / total-variation between the bot's next-action histogram and the expert's, per situation. Flags narrowing decodes (argmax, mode-of-N) offline — the pass@1 replacement as a decode ranker. | **ran — adopt** | same script; mean TV orders B1/B2/B3 (0.46–0.47) < ep10 (0.53–0.56) < mode-16 (0.72), matching the human read and the live rung |
 | B3 | Entropy per situation | Policy-output entropy by situation from captured logits; low entropy where the expert is diverse = a loop waiting to happen. | todo | |
 
 ### C. Temporal structure — the "scrappy / harder to hit" axis
@@ -63,13 +63,13 @@ Status: `todo` · `building` · `ran` (has a RESULTS) · `adopted` (on the stand
 | C1 | Neutral-exchange outcomes | Segment games into exchanges; who won each and how (first hit / trade / whiff punish). Dense "harder to hit" number. | todo | |
 | C2 | Punish quality | Damage per opening, combo length, % openings ending in a kill, vs expert. | todo | |
 | C3 | Reaction latency | Time-to-action after opponent lands / grabs ledge / bot lands, vs expert. Dithering. | todo | |
-| C4 | Stock-loss forensics | Every death classified: unforced walk-off / failed recovery / edgeguarded / combo'd / neutral kill. Extends `sd_scan`. | todo | |
+| C4 | Stock-loss forensics | Every death classified: unforced walk-off / failed recovery / edgeguarded / combo'd / neutral kill. Extends `sd_scan`. | mechanism found by A1 §3 (airdodge instead of up-B); classifier still todo | |
 
 ### D. Reliability of the instruments
 
 | id | instrument | question | status | script / results |
 |---|---|---|---|---|
-| **D1** | **Noise floors** | Same checkpoint, different days/batches: the natural spread of every metric. Which numbers can ever resolve a real difference? | todo | |
+| **D1** | **Noise floors** | Same checkpoint, different days/batches: the natural spread of every metric. Which numbers can ever resolve a real difference? | running (`scripts/noise_floor.sh`, unit noise-floor) | `eval_runs/0829_noise_floor/` |
 | D2 | Human-vs-CPU transfer table | For each metric, CPU-bracket value vs Bradley-session value for the same checkpoint. Which metrics the CPU rung can stand in for. | todo | |
 | D3 | Decode-vs-model sensitivity | From banked temperature sweeps: which metrics are purely decode-driven (press rates) vs model-driven. | todo | |
 
@@ -99,3 +99,10 @@ Then re-read B1-the-model, ep10, B2 through A1/B2/C.
 ## Log
 
 - 2026-08-29 22:55 — document created; E4 recorded as ran/falsified; A1 started.
+- 2026-08-29 23:15 — A1 + B2 ran (`eval_runs/0829_situation_hist/README.md`).
+  Findings: the bot has NO ground movement (dash 0.1% of frames vs 9–12%
+  expert; no dash-dance; grab/spotdodge/special substitute); from a grab it
+  throws 9–36% vs expert 86% (the pummel loop is "never throws"); off-stage
+  it airdodges where the expert up-Bs. B2's TV distance orders the sets
+  the way Bradley did and flags mode-of-16 as worst — adopted as the
+  offline decode ranker (with the L9 live gate). D1 launched.
