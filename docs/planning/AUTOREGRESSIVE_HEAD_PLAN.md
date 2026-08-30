@@ -160,6 +160,25 @@ Decision:
 - **NULL** — no A2 movement and coincidence unchanged → the independence
   is not what loses the up-B; record and stop. Do not tune the decode.
 
-## 7. Audit numbers (filled when the audit ran)
+## 7. Audit numbers
 
-See `eval_runs/0830_joint_head_audit/RESULTS.md`.
+Ran 2026-08-30 13:04 on 1,500 expert games (16.2 M frames):
+`eval_runs/0830_joint_head_audit/RESULTS.md`.
+
+- **Total correlation of (buttons, main_x, main_y): 0.856 bits/frame**
+  unconditional, **0.841** given the action-state id, **0.858** given
+  action-state + situation labels. Conditioning on coarse state removes
+  none of it — the dependency is between the same frame's inputs, not
+  something a better trunk reads off the state. Joint entropy is 5.65
+  bits; the independent factorization mis-spends ~15% of it.
+- **Up-B pair:** P(stick up | B) = 23.7% vs P(stick up) = 7.4% (**3.2×**);
+  offstage P(up | B) = 41.7% vs 14.6% (**2.9×**). An independent head that
+  has learned both marginals produces "B with stick up" on 15% of its
+  offstage B presses; the expert does it on 42%. TV between
+  P(stick_y | B, offstage) and P(stick_y | offstage) = 0.36 — the B-press
+  frames put 42% of stick-y mass in the top four buckets vs 15% otherwise.
+- L/R ↔ stick-side (airdodge / wavedash direction): 1.18× — weak.
+  A ↔ stick-down: 0.78× (anti-correlated).
+
+The up-B is the case the independent head cannot represent, and it is the
+one A2 found missing. This is the audit's green light for §4.
