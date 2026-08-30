@@ -1,0 +1,31 @@
+{
+  "timestamp": "20260829_224701",
+  "aggregate": {
+    "approaches": 7,
+    "conversions": 0,
+    "neutral_losses": 5,
+    "dropped_punishes": 1,
+    "deaths": 4,
+    "passivity": 1,
+    "games": 1,
+    "mean_armed_per_min": 0.0
+  },
+  "gaps_path": "scenarios/gaps.json",
+  "games": [
+    {
+      "path": "/home/blewf/git/exphil/eval_runs/0829_livelook_awbc_B2/2026-08-Mainline/Game_20260829T214420.slp",
+      "bot_port": 1,
+      "opp_port": 2,
+      "armed_per_min": 0.0,
+      "approaches": 7,
+      "conversions": 0,
+      "conv_rate": 0.0,
+      "neutral_losses": 5,
+      "dropped_punishes": 1,
+      "deaths": 4,
+      "passivity": 1,
+      "candidate_count": 11
+    }
+  ],
+  "gaps_appended": 10
+}

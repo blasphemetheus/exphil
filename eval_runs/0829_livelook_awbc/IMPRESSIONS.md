@@ -43,3 +43,33 @@ non-uniform weights or just seed-level variation between 3-epoch runs,
 not with the outcome signal. Matches the CPU verdict (NULL) on the
 causal question; adds one thing the CPU could not see: all three
 continuations beat ep10 by feel. Score the replays next.
+
+## Scored (loop_report --bot-port 1, coach_report --char fox; CSS stubs <150 KB excluded)
+
+| arm | games | d_up/min [range] | loops/min | max loop reps | held-action | deaths/game | conversions | dropped/game | neutral loss/game |
+|---|---|---|---|---|---|---|---|---|---|
+| B1 plain | 7 | 92.5 [78–99] | **0.22** | 1.0 | 0.24 | 3.29 | 5/34 (15%) | 0.71 | 5.3 |
+| B2 AWBC | 10 | 109.8 [88–129] | 0.94 | 3.2 | 0.25 | 3.80 | 14/74 (19%) | 1.30 | 4.9 |
+| B3 shuffled | 5 | 102.1 [96–114] | 0.81 | 2.2 | 0.21 | 2.80 | 6/45 (13%) | 1.20 | 5.4 |
+
+Read against the impressions:
+- B1's "probably better" has a number: loops/min 0.22 vs 0.94 / 0.81 —
+  4× fewer repeated cycles than B2, ranges [0–0.9] vs [0–2.1] (touching,
+  n=7/10). B1 also has the lowest d_up rate (92.5, disjoint from B2's
+  109.8 — but this is the 1.19× band, unresolved by the 2× law).
+- B2's "spams options / spot-dodger": loops/min 0.94, max loop reps 3.2,
+  the most conversions attempted (74 openings in 10 games) and the most
+  dropped (1.3/game) — busier, sloppier. Deaths highest (3.80).
+- B3's "in-place spam": loops/min 0.81, in between; fewest deaths (2.80,
+  n=5).
+- Nothing here separates ≥2× with disjoint ranges except B1's loops/min
+  against B2 (4.3×, ranges touch at 0). Consistent with "three styles,
+  B1 the cleanest," and with the CPU NULL: the outcome weighting did not
+  produce a better player; the plain continuation is the tidiest of the
+  three.
+- All three vs ep10's last human session (T=0.5, 08-28: d_up 101, deaths
+  3.57, dropped 2.6): same d_up band, same deaths; dropped conversions
+  are LOWER in all three continuations (0.7–1.3 vs 2.6). That is the one
+  number that moved with the extra epochs, and it matches "harder to hit
+  / plays the scraps better" only loosely. Worth a B1 vs ep10 blind pair
+  if it matters.
