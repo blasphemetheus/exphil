@@ -45,7 +45,7 @@ Status: `todo` · `building` · `ran` (has a RESULTS) · `adopted` (on the stand
 | id | instrument | question it answers | status | script / results |
 |---|---|---|---|---|
 | **A1** | **Situation → next-action histograms, bot vs expert** | In each named situation (opp shielding in range, opp offstage, bot offstage, bot >100%, opp on ledge, fresh respawn, opp in hitstun low/mid/high), what does the bot do next vs what the expert does? P(grab \| opp shield in range) etc. | **ran** | `scripts/situation_hist.exs` → `eval_runs/0829_situation_hist/README.md` (dash 31.6% vs ~1%; throw 86% vs 9–36%; off-stage airdodge) |
-| A2 | Edgeguard / recovery scorecards | Opp offstage: go out / ledge / shine / laser / wait, and conversion of each. Bot offstage: route chosen, success rate, how it got there. | queued (chain evaldir2) | `scripts/edge_scorecard.exs` |
+| A2 | Edgeguard / recovery scorecards | Opp offstage: go out / ledge / shine / laser / wait, and conversion of each. Bot offstage: route chosen, success rate, how it got there. | **ran** | `scripts/edge_scorecard.exs` → `eval_runs/0829_edge_scorecard/RESULTS.md`; summary in `eval_runs/0829_evaldir2/README.md` |
 | A3 | Grab follow-ups | After a grab: throw direction, pummels before throw, regrab, release — vs expert. Decides mask-vs-data for the pummel loop. | answered by A1 §2 (bot never throws) | |
 
 ### B. Expert comparison, situation-matched
@@ -54,22 +54,22 @@ Status: `todo` · `building` · `ran` (has a RESULTS) · `adopted` (on the stand
 |---|---|---|---|---|
 | B1 | Action-family match | Did the bot pick the same *category* (aerial/grab/shield/movement/special) as the expert in that state? Softer pass@1. | todo | |
 | **B2** | **Distribution distance per situation** | KL / total-variation between the bot's next-action histogram and the expert's, per situation. Flags narrowing decodes (argmax, mode-of-N) offline — the pass@1 replacement as a decode ranker. | **ran — adopt** | same script; mean TV orders B1/B2/B3 (0.46–0.47) < ep10 (0.53–0.56) < mode-16 (0.72), matching the human read and the live rung |
-| B3 | Entropy per situation | Policy-output entropy by situation from captured logits; low entropy where the expert is diverse = a loop waiting to happen. | queued (chain evaldir2) | `scripts/interp_entropy_by_situation.exs` |
+| B3 | Entropy per situation | Policy-output entropy by situation from captured logits; low entropy where the expert is diverse = a loop waiting to happen. | **ran** | `scripts/interp_entropy_by_situation.exs` → `eval_runs/0829_entropy/RESULTS.md` (grab: 4.1 bits, expert decisive) |
 
 ### C. Temporal structure — the "scrappy / harder to hit" axis
 
 | id | instrument | question | status | script / results |
 |---|---|---|---|---|
-| C1 | Neutral-exchange outcomes | Segment games into exchanges; who won each and how (first hit / trade / whiff punish). Dense "harder to hit" number. | queued (chain evaldir2) | `scripts/neutral_exchange.exs` |
+| C1 | Neutral-exchange outcomes | Segment games into exchanges; who won each and how (first hit / trade / whiff punish). Dense "harder to hit" number. | **ran** | `scripts/neutral_exchange.exs` → `eval_runs/0829_neutral_exchange/RESULTS.md` (B1 wins 20% of exchanges vs Bradley; needs its floor) |
 | C2 | Punish quality | Damage per opening, combo length, % openings ending in a kill, vs expert. | todo | |
 | C3 | Reaction latency | Time-to-action after opponent lands / grabs ledge / bot lands, vs expert. Dithering. | todo | |
-| C4 | Stock-loss forensics | Every death classified: unforced walk-off / failed recovery / edgeguarded / combo'd / neutral kill. Extends `sd_scan`. | queued (chain evaldir2); mechanism already seen in A1 §3 | `scripts/death_classifier.exs` |
+| C4 | Stock-loss forensics | Every death classified: unforced walk-off / failed recovery / edgeguarded / combo'd / neutral kill. Extends `sd_scan`. | **ran** | `scripts/death_classifier.exs` → `eval_runs/0829_death_classifier/RESULTS.md` (bot dies at 52–71% vs expert 109%) |
 
 ### D. Reliability of the instruments
 
 | id | instrument | question | status | script / results |
 |---|---|---|---|---|
-| **D1** | **Noise floors** | Same checkpoint, different days/batches: the natural spread of every metric. Which numbers can ever resolve a real difference? | **ran** | `scripts/noise_floor.sh` → `eval_runs/0829_noise_floor/RESULTS.md`: d_up 1.1×, held 1.2×, loops 2.0×, deaths 2.5–3×, conv% 3.5×, armed 7×. D1b (TV floor) todo |
+| **D1** | **Noise floors** | Same checkpoint, different days/batches: the natural spread of every metric. Which numbers can ever resolve a real difference? | **ran** | `scripts/noise_floor.sh` → `eval_runs/0829_noise_floor/RESULTS.md`: d_up 1.1×, held 1.2×, loops 2.0×, deaths 2.5–3×, conv% 3.5×, armed 7×. D1b ran: TV floor 0.05 on the mean, 0.1 per situation (`eval_runs/0829_noise_floor/tv_floor.md`) |
 | D2 | Human-vs-CPU transfer table | For each metric, CPU-bracket value vs Bradley-session value for the same checkpoint. Which metrics the CPU rung can stand in for. | todo | |
 | D3 | Decode-vs-model sensitivity | From banked temperature sweeps: which metrics are purely decode-driven (press rates) vs model-driven. | todo | |
 
@@ -78,7 +78,7 @@ Status: `todo` · `building` · `ran` (has a RESULTS) · `adopted` (on the stand
 | id | instrument | question | status | script / results |
 |---|---|---|---|---|
 | E1 | Corpus mix by frame | Characters / stages / players by frame; concentration (one player's style dominating the mode). | todo | |
-| E2 | Rare-event coverage | How many expert examples of the exact situations the bot fails in. Hundreds = selection problem; dozens = data. | queued (chain evaldir2) | `scripts/rare_event_coverage.exs` |
+| E2 | Rare-event coverage | How many expert examples of the exact situations the bot fails in. Hundreds = selection problem; dozens = data. | **ran — not data quantity** | `scripts/rare_event_coverage.exs` → `eval_runs/0829_rare_events/RESULTS.md` (thousands of labels/epoch for every missing behaviour) |
 | E3 | Expert pathology baselines | Pummels, taunts, standing lasers per game in *expert* play, so "too much" has a denominator. | todo | |
 | E4 | Left walk-off poison | Is the corpus poisoned with repeated one-sided SDs? | **ran — falsified** | `scripts/sd_scan.exs`, `eval_runs/0829_sd_scan/RESULTS.md` |
 
@@ -122,3 +122,10 @@ Then re-read B1-the-model, ep10, B2 through A1/B2/C.
   own play (WAIT 0.4% of its frames). Closed-loop state drift — a training
   question (exposure bias / which states the recipe teaches it to be in),
   per the no-decode-rules rule.
+- 2026-08-29 23:51 — batch 2 ran (D1b, E2, A2, C1, C4, B3); summary in
+  `eval_runs/0829_evaldir2/README.md`. E2: not data quantity. A2/C4: wrong
+  recovery routes at half the expert's success; dies at half the expert's
+  percent. C1: B1 wins 20% of exchanges vs Bradley (47% whiff-punished) —
+  disagrees with loops/coach; needs its floor + a blind pair. B3: the grab
+  is UNCERTAINTY (4.1 bits) not a confident loop. Mechanism probe for
+  mode-of-N's walk-off launched (`scripts/interp_mode_mechanism.exs`).
