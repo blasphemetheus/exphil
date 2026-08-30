@@ -135,3 +135,14 @@ Then re-read B1-the-model, ep10, B2 through A1/B2/C.
   left 23–37% in edge situations) with no button edge, so B lands as
   side-B/laser, never up-B, and the hold walks off. Any mode-seeking decode
   keeps the dense channel and loses the sparse one.
+- 2026-08-30 01:30 — **Architecture note (from the mode-of-N mechanism):**
+  the production head (`Heads.build_controller_head`) computes the 6
+  controller heads IN PARALLEL from the trunk — no intra-frame
+  conditioning at train (parallel CE) or inference (fused sampler). The
+  "autoregressive" name refers to an unused `build_autoregressive` path.
+  slippi-ai's `AutoRegressive` head conditions each component on the
+  previous components' SAMPLES within the frame. Consequence here: an up-B
+  is P(B)·P(stick up) as independent draws; the model cannot express "B
+  implies stick-up" beyond what the trunk state carries. Candidate cause
+  for airdodge-over-upB (A2) and option spam; a TRAINING change (head
+  structure), not a decode one. Queued as a recipe question for v1.1.
