@@ -129,3 +129,9 @@ Then re-read B1-the-model, ep10, B2 through A1/B2/C.
   disagrees with loops/coach; needs its floor + a blind pair. B3: the grab
   is UNCERTAINTY (4.1 bits) not a confident loop. Mechanism probe for
   mode-of-N's walk-off launched (`scripts/interp_mode_mechanism.exs`).
+- 2026-08-30 01:15 — mode-of-N mechanism probe (`eval_runs/0830_mode_mechanism/RESULTS.md`):
+  the vote's per-frame press rates ≈ the expert's; what it destroys is
+  stick variety and press EDGES — modal output is a held direction (full
+  left 23–37% in edge situations) with no button edge, so B lands as
+  side-B/laser, never up-B, and the hold walks off. Any mode-seeking decode
+  keeps the dense channel and loses the sparse one.
