@@ -94,6 +94,7 @@ Then re-read B1-the-model, ep10, B2 through A1/B2/C.
 - Expert corpus is the denominator; report the bot and the expert side by side, same detector.
 - Report scored/played (L2) and cross-check durations from run logs (L3).
 - Never rank a decode on a mode-seeking metric alone (L9); pair with frozen-input + duration + deaths.
+- **Decode rules are instruments, not fixes** (Bradley, 08-29): a behaviour gap found here becomes a TRAINING question (is it in the corpus / does the recipe lose it / does the decode drop it) — never a hand-written mask.
 - Floors (D1): d_up/min 1.1×, held-action 1.2×, loops/min 2×, dropped 2×, deaths 2.5–3× at n≤8, conversion % and armed/min unusable. The "deaths within 1.5×" gate is inside noise — use durations-to-cap + frozen-input for collapse.
 
 ## Log
