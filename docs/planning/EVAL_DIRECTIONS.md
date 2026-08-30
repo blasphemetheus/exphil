@@ -146,3 +146,11 @@ Then re-read B1-the-model, ep10, B2 through A1/B2/C.
   implies stick-up" beyond what the trunk state carries. Candidate cause
   for airdodge-over-upB (A2) and option spam; a TRAINING change (head
   structure), not a decode one. Queued as a recipe question for v1.1.
+- 2026-08-30 13:05 — **Joint-head audit** (`scripts/joint_head_audit.exs`,
+  `eval_runs/0830_joint_head_audit/RESULTS.md`): within-frame total
+  correlation of (buttons, main_x, main_y) = 0.86 bits/frame and it does
+  NOT shrink when conditioning on action-state + situation (0.84–0.86) —
+  the dependency is between the same frame's inputs. P(stick up | B,
+  offstage) = 42% vs 15% marginal (2.9×): an independent head makes an
+  up-B out of one B press in seven; the expert two in five. Plan:
+  `docs/planning/AUTOREGRESSIVE_HEAD_PLAN.md` (pre-registered).
