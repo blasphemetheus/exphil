@@ -25,7 +25,8 @@ alias ExPhil.Training.Output
 
 {opts, _, _} =
   OptionParser.parse(System.argv(),
-    strict: [set: :keep, expert: :string, port: :integer, expert_port: :integer, expert_limit: :integer,
+    strict: [set: :keep, expert: :string, port: :integer, expert_port: :integer,
+             expert_char: :integer, expert_limit: :integer,
              limit_files: :integer, lookback: :integer, concurrency: :integer, out: :string]
   )
 
@@ -114,15 +115,40 @@ scan = fn path, p ->
   end
 end
 
+# --expert-char N: per-file expert port by character (E1: fox sits on
+# varying ports; a fixed port mixes opponent characters into the baseline).
+expert_char = opts[:expert_char]
+
+port_for = fn name, path ->
+  cond do
+    name != expert -> port
+    expert_char == nil -> expert_port
+    true ->
+      case Peppi.metadata(path) do
+        {:ok, meta} ->
+          case Enum.filter(meta.players, &(&1.character == expert_char)) do
+            [%{port: pp}] -> pp
+            _ -> nil
+          end
+
+        _ -> nil
+      end
+  end
+end
+
 agg =
   Map.new(sets, fn {name, _} = s ->
     files = files_for.(s)
-    p = if name == expert, do: expert_port, else: port
-    Output.puts("Scanning #{name}: #{length(files)} files")
+
+    pairs =
+      files |> Enum.map(&{&1, port_for.(name, &1)}) |> Enum.reject(fn {_, p} -> is_nil(p) end)
+
+    Output.puts("Scanning #{name}: #{length(pairs)}/#{length(files)} files")
 
     r =
-      files
-      |> Task.async_stream(&scan.(&1, p), max_concurrency: conc, timeout: :infinity, ordered: false)
+      pairs
+      |> Task.async_stream(fn {f, p} -> scan.(f, p) end,
+        max_concurrency: conc, timeout: :infinity, ordered: false)
       |> Enum.reduce(%{deaths: [], files: 0, frames: 0}, fn {:ok, x}, acc ->
         if x, do: %{deaths: x.deaths ++ acc.deaths, files: acc.files + 1, frames: acc.frames + x.frames}, else: acc
       end)

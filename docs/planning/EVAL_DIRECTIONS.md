@@ -146,6 +146,25 @@ Then re-read B1-the-model, ep10, B2 through A1/B2/C.
   implies stick-up" beyond what the trunk state carries. Candidate cause
   for airdodge-over-upB (A2) and option spam; a TRAINING change (head
   structure), not a decode one. Queued as a recipe question for v1.1.
+- 2026-08-30 22:10 — **Fox-only expert re-reads** (post-E1; `--expert-char`
+  added to situation_hist/edge_scorecard/death_classifier;
+  `eval_runs/0830_foxonly_rereads/README.md`): every conclusion stands and
+  the recovery gaps GROW — fox-only expert: up-B 20.6% (was 16.3), dj 28.9,
+  airdodge 3.7, none 9.9; unforced deaths 19.0% (was 26.9) vs bots' 61–65%
+  (~3.3×); expert deaths are 50% edgeguarded at ~109%. B2 TV +0.01–0.02
+  uniform, ordering unchanged. Also: D2's ep10_human taunt row RESOLVED —
+  one degenerate stub game (3600 taunts/min, dpad 0) + ditto warmups in the
+  session dir; sane games ≈ 2/min. Lesson: session dirs need stub AND
+  degenerate-game filters; prefer medians for session groups.
+- 2026-08-30 21:00 — **Bradley's live look at v1.1-ARhead** (the g6 gate on
+  the 8a SIGNAL): "like a good player BMing or sandbagging — spamming bad
+  options, but then occasionally doing really good strings; not punishing
+  well." Read: the joint structure is REAL to human hands (the strings) and
+  matches the metrics' shape — C2's many-small-hits/no-finisher is the
+  "not punishing", C3's post-landing dithering is the "spamming bad
+  options" between strings. Verdict: structure confirmed, selection/polish
+  not — consistent with the frozen-trunk caveat. Next per plan: items 8/9
+  (3-epoch unfreeze from ep10 with the AR head, IND control).
 - 2026-08-30 20:15 — **Instruments first-run batch** (E3, C2, C3, B1-family,
   D3, C1 floor, D2 — all landed; statuses updated above). Cross-cutting
   reads: (1) C3 is the sharpest new lens — the refit heads DITHER after the

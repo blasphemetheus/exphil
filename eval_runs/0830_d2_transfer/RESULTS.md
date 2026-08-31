@@ -18,14 +18,17 @@ Bradley-session dirs), loop_report --bot-port 1 throughout.
 
 - **dpad/min transfers well**: human ≈ 0.8× CPU, uniformly (91–102 vs
   112–127). The CPU rung can stand in for this metric.
-- **taunts/min transfers** for B1/B2/B3 (human ≈ 0.7–0.85× CPU) —
-  **EXCEPT ep10_human = 331.7/min, which is physically impossible**
-  (>5 taunts/second). The ep10 "human" dir is
-  `eval_runs/0828_livelook_btn05/2026-08-Mainline` scored at --bot-port 1;
-  suspect the bot was NOT port 1 in part of that session (human on P1 →
-  scoring the human's d-pad? no — executed taunt states 264/265 at 331/min
-  is parser/port mix-up territory). Treat the ep10 human row as INVALID
-  until the dir's port map is checked; do not read it as a finding.
+- **taunts/min transfers** for B1/B2/B3 (human ≈ 0.7–0.85× CPU). The
+  ep10_human 331.7 was a MEAN over a contaminated session dir — RESOLVED
+  08-30: per-game values are [0.5, **3600.0**, 0.0, 35.6, 2.5, 1.8, 2.2,
+  2.1, 1.0, 2.4, 0.0]. One degenerate stub game (3600/min = in a
+  taunt-numbered state every frame, with dpad/min = 0 — not caused by
+  d-pad at all), two truncated 0-rows, and the dir opens with fox-ditto
+  warmup games (header scan). The 7 sane games average ≈ 2.0 taunts/min /
+  ≈ 100 dpad/min — right on the B-arms' transfer factor. Lesson: session
+  dirs need the <150 KB stub filter AND a warmup/degenerate-game filter
+  before group means; loop_report means are not robust to one insane game
+  (use medians for session dirs).
 - **loops/min: CPU rung OVERSTATES ~2×** (1.35–1.80 cpu vs 0.22–0.81
   human) but preserves ordering loosely; use for ordering, not magnitude.
 - action_long_frac / longest_input_run: within noise across rungs.

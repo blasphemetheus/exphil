@@ -43,7 +43,8 @@ alias ExPhil.Training.Output
 {opts, _, _} =
   OptionParser.parse(System.argv(),
     strict: [set: :keep, expert: :string, port: :integer, expert_port: :integer,
-             expert_limit: :integer, limit_files: :integer, labels: :string, min_n: :integer,
+             expert_char: :integer, expert_limit: :integer, limit_files: :integer,
+             labels: :string, min_n: :integer,
              top: :integer, concurrency: :integer, out: :string]
   )
 
@@ -60,7 +61,29 @@ unless Enum.any?(sets, fn {n, _} -> n == expert end), do: raise("--expert #{expe
 
 port = opts[:port] || 1
 expert_port = opts[:expert_port] || 1
+expert_char = opts[:expert_char]
 min_n = opts[:min_n] || 20
+
+# --expert-char N: resolve the expert's port PER FILE by character (the
+# corpus has fox on varying ports — E1, eval_runs/0830_corpus_mix; a fixed
+# port mixes ~43% opponent characters into the baseline). Files where the
+# character is absent or ambiguous (dittos) are skipped.
+port_for = fn name, path ->
+  cond do
+    name != expert -> port
+    expert_char == nil -> expert_port
+    true ->
+      case Peppi.metadata(path) do
+        {:ok, meta} ->
+          case Enum.filter(meta.players, &(&1.character == expert_char)) do
+            [%{port: pp}] -> pp
+            _ -> nil
+          end
+
+        _ -> nil
+      end
+  end
+end
 top_n = opts[:top] || 12
 conc = opts[:concurrency] || 8
 
@@ -147,15 +170,20 @@ empty = %{counts: %{}, sit_frames: %{}, events: 0, files: 0}
 agg =
   Map.new(sets, fn {name, _} = s ->
     files = files_for.(s)
-    p = if name == expert, do: expert_port, else: port
-    Output.puts("Scanning #{name}: #{length(files)} files (port #{p})")
+
+    pairs =
+      files |> Enum.map(&{&1, port_for.(name, &1)}) |> Enum.reject(fn {_, p} -> is_nil(p) end)
+
+    Output.puts("Scanning #{name}: #{length(pairs)}/#{length(files)} files" <>
+      if(name == expert and expert_char, do: " (per-file char #{expert_char})", else: ""))
 
     total =
-      files
-      |> Task.async_stream(&scan_file.(&1, p), max_concurrency: conc, timeout: :infinity, ordered: false)
+      pairs
+      |> Task.async_stream(fn {f, p} -> scan_file.(f, p) end,
+        max_concurrency: conc, timeout: :infinity, ordered: false)
       |> Stream.with_index(1)
       |> Enum.reduce(empty, fn {{:ok, r}, i}, acc ->
-        if rem(i, 25) == 0, do: Output.progress_bar(i, length(files), label: name)
+        if rem(i, 25) == 0, do: Output.progress_bar(i, length(pairs), label: name)
         if r, do: merge.(acc, r), else: acc
       end)
 
