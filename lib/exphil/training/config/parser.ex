@@ -246,6 +246,7 @@ defmodule ExPhil.Training.Config.Parser do
     |> parse_float_arg(args, "--restart-mult", :restart_mult)
     |> parse_float_arg(args, "--max-grad-norm", :max_grad_norm)
     |> parse_string_arg(args, "--resume", :resume)
+    |> parse_flag(args, "--reinit-head", :reinit_head)
     |> parse_string_arg(args, "--name", :name)
     |> parse_int_arg(args, "--accumulation-steps", :accumulation_steps)
     |> parse_float_arg(args, "--val-split", :val_split)

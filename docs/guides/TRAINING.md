@@ -314,7 +314,8 @@ These options apply to multiple new architectures:
 | `--save-best` | true | Save model when val_loss improves |
 | `--save-every N` | nil | Save checkpoint every N epochs |
 | `--save-every-batches N` | nil | Save checkpoint every N batches (for streaming) |
-| `--resume PATH` | nil | Resume from checkpoint |
+| `--resume PATH` | nil | Resume from checkpoint. If the checkpoint's controller head differs from `--head`, the TRUNK is transplanted: matching non-head params load, head + optimizer start fresh, config/step keep the trainer's |
+| `--reinit-head` | false | With `--resume`: re-initialise the controller head from scratch while loading the trunk (the "new head params" control, AUTOREGRESSIVE_HEAD_PLAN item 9) |
 | `--precision TYPE` | f32 | f32 or bf16 (FP32 is 2x faster due to XLA issues) |
 | `--mixed-precision` | false | FP32 master weights + BF16 compute (not recommended) |
 | `--frame-delay N` | 0 | Simulated online delay (for Slippi) |

@@ -20,6 +20,9 @@
 #   --bot-port N   Bot's port (default 1, the probe/sweep convention)
 #   --out DIR      Write report.md + report.json here (default: print only)
 #   --per-game     Also print every game's row
+#   --min-bytes N  Exclude stub .slp files under N bytes (default 150000;
+#                  0 disables). Stubs (CSS restarts, degenerate games) poison
+#                  group means — the 0830 D2 "331 taunts/min" artifact.
 #   --quiet
 
 alias ExPhil.Interp.{ActionNames, LoopStats}
@@ -27,7 +30,7 @@ alias ExPhil.Training.Output
 
 {opts, paths, _} =
   OptionParser.parse(System.argv(),
-    switches: [bot_port: :integer, out: :string, per_game: :boolean, quiet: :boolean],
+    switches: [bot_port: :integer, out: :string, per_game: :boolean, quiet: :boolean, min_bytes: :integer],
     aliases: [o: :out, q: :quiet]
   )
 
@@ -44,6 +47,37 @@ slps =
 
 if slps == [] do
   Output.error("No .slp files matched. Pass paths or globs.")
+  System.halt(1)
+end
+
+# Stub filter (default 150 KB, --min-bytes to change; 0 disables).
+# A CSS restart / degenerate stub game poisons group MEANS catastrophically:
+# the 0828 ep10_human dir read "331 taunts/min" from one 100 KB stub at
+# 3600/min (eval_runs/0830_d2_transfer). Stubs are EXCLUDED and COUNTED —
+# the files stay on disk as evidence (GOTCHA #102's lesson: never delete it).
+min_bytes = opts[:min_bytes] || 150_000
+
+{slps, stubs} =
+  Enum.split_with(slps, fn p ->
+    case File.stat(p) do
+      {:ok, %{size: size}} -> size >= min_bytes
+      _ -> true
+    end
+  end)
+
+if stubs != [] do
+  Output.warning(
+    "#{length(stubs)} stub replay(s) under #{min_bytes} bytes EXCLUDED " <>
+      "(CSS restarts / degenerate games; --min-bytes 0 to include):"
+  )
+
+  for path <- Enum.take(stubs, 10) do
+    Output.puts("    stub: #{Path.dirname(path) |> Path.basename()}/#{Path.basename(path)}")
+  end
+end
+
+if slps == [] do
+  Output.error("Every matched replay was a stub (< #{min_bytes} bytes).")
   System.halt(1)
 end
 
@@ -107,7 +141,9 @@ fmt = fn
   v -> to_string(v)
 end
 
-cell = fn s -> "#{fmt.(s.mean)} [#{fmt.(s.min)}-#{fmt.(s.max)}]" end
+# mean~median: a mean far from its median means one game is dragging the
+# group (D2's 331-vs-2 taunts/min lesson) — trust the median for session dirs.
+cell = fn s -> "#{fmt.(s.mean)}~#{fmt.(s.median)} [#{fmt.(s.min)}-#{fmt.(s.max)}]" end
 
 headline = [
   {:taunts_per_min, "taunts/min"},
@@ -141,8 +177,9 @@ table = Enum.join([header, sep | rows], "\n")
 IO.puts("\n" <> table <> "\n")
 
 Output.warning(
-  "Mean [min-max]. Standing law: differences under 2x are UNRESOLVED, " <>
-    "and a range that spans the other arm's mean is no difference at all."
+  "mean~median [min-max]. Standing law: differences under 2x are UNRESOLVED, " <>
+    "and a range that spans the other arm's mean is no difference at all. " <>
+    "A mean far from its median = one degenerate game is dragging the group."
 )
 
 # ---- per-game ---------------------------------------------------------------
@@ -207,8 +244,9 @@ if out = opts[:out] do
 
   #{table}
 
-  Mean [min-max]. Differences under 2x are unresolved; a range spanning
-  another arm's mean is no difference at all.
+  mean~median [min-max]. Differences under 2x are unresolved; a range spanning
+  another arm's mean is no difference at all. A mean far from its median means
+  one degenerate game is dragging the group — trust the median for session dirs.
 
   ## Per game
 

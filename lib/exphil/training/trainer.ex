@@ -174,10 +174,10 @@ defmodule ExPhil.Training.Trainer do
 
   Returns the trainer with restored policy_params, optimizer_state, and step count.
   """
-  @spec resume(Imitation.t(), Path.t()) :: {:ok, Imitation.t()} | {:error, term()}
-  def resume(trainer, checkpoint_path) do
+  @spec resume(Imitation.t(), Path.t(), keyword()) :: {:ok, Imitation.t()} | {:error, term()}
+  def resume(trainer, checkpoint_path, opts \\ []) do
     Logger.info("Resuming from #{checkpoint_path}")
-    Imitation.load_checkpoint(trainer, checkpoint_path)
+    Imitation.load_checkpoint(trainer, checkpoint_path, opts)
   end
 
   @doc """

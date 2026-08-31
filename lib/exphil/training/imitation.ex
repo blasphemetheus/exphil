@@ -660,7 +660,7 @@ defmodule ExPhil.Training.Imitation do
   def save_checkpoint_async(trainer, path, opts \\ []),
     do: Checkpointing.save_checkpoint_async(trainer, path, opts)
   defdelegate get_optimizer_step(optimizer_state), to: Checkpointing
-  defdelegate load_checkpoint(trainer, path), to: Checkpointing
+  defdelegate load_checkpoint(trainer, path, opts \\ []), to: Checkpointing
   defdelegate export_policy(trainer, path), to: Checkpointing
 
   # ============================================================================

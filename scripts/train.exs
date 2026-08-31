@@ -131,7 +131,7 @@ Output.puts("  Parameters: #{Trainer.param_count(trainer) |> div(1000)}K")
 # Resume from checkpoint if specified
 trainer =
   if opts[:resume] do
-    case Trainer.resume(trainer, opts[:resume]) do
+    case Trainer.resume(trainer, opts[:resume], reinit_head: opts[:reinit_head] || false) do
       {:ok, resumed} ->
         Output.puts("  Resumed from #{opts[:resume]} (step #{resumed.step})")
         resumed

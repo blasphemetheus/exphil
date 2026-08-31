@@ -216,6 +216,7 @@ defmodule ExPhil.Training.Config do
     "--restart-mult",
     "--max-grad-norm",
     "--resume",
+    "--reinit-head",
     "--name",
     "--accumulation-steps",
     "--val-split",
@@ -615,6 +616,10 @@ defmodule ExPhil.Training.Config do
       max_grad_norm: 1.0,
       # Resumption
       resume: nil,
+      # With --resume: re-initialise the controller head from scratch while
+      # loading the trunk (the v1.1-IND control; automatic when the heads
+      # differ, e.g. --resume ep10 --head autoregressive)
+      reinit_head: false,
       # Model naming
       name: nil,
       # Gradient accumulation

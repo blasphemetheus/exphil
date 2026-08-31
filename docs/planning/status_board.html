@@ -205,7 +205,7 @@
   <nav class="rail" aria-label="Sections">
     <a href="#now">Now</a>
     <a href="#settled">What is settled</a>
-    <a href="#livelook">Live look</a>
+    <a href="#livelook">8a scorecard</a>
     <a href="#instruments">Instruments</a>
     <a href="#directions">Directions</a>
     <a href="#laws">Laws</a>
@@ -213,18 +213,18 @@
     <a href="#housekeeping">Housekeeping</a>
     <div class="stamp">
       <span class="eyebrow">Stamp</span><br>
-      2026-08-29, 15:10<br>
-      HEAD <span class="mono">989e1b2</span>, tree clean<br>
-      1,350 commits · ~2,700 tests<br>
-      Supersedes the 08-28 evening board
+      2026-08-30, late<br>
+      HEAD <span class="mono">c8bde50</span>, tree clean, pushed<br>
+      1,396 commits · 3,592 tests<br>
+      Supersedes the 08-29 board
     </div>
   </nav>
 
   <main>
     <header style="display:flex;flex-direction:column;gap:14px">
       <span class="eyebrow">ExPhil · Melee AI lab · Fox generalist program</span>
-      <h1>The generalist plays Melee. Picking the likeliest action is not the fix.</h1>
-      <p class="lede"><strong>fox_gen_v1</strong> (GRU, 3.0M params, 7,911 ranked Fox games, 10 epochs) plays real games against a human and, between the good moments, throws out punishable options, taunts, and shield-grabs on repeat. Yesterday's diagnosis — <strong>the model contains the behavior and lacks a selection rule</strong> — survived today's calibration: the master's action is in 16 samples 44% of the time and in one sample 14.5%, at every epoch, on two seeds. But the three cheapest selectors all came back empty today: outcome-weighted retraining did nothing (<strong>AWBC null</strong>), a learned linear selector lost to a majority vote, and that majority vote — the best thing offline — <strong>froze the bot live</strong> (0/8 games finished). The offline metric rewards picking the mode; live play needs the tail. Updated 08-29 15:10.</p>
+      <h1>The heads were independent. Conditioning them brings back up&#8209;B.</h1>
+      <p class="lede">The 08-29 board ended on "no selector keeps the tail." The answer turned out to be a <strong>training</strong> change, not a selector: fox_gen_v1's six controller heads were sampled independently, so an up-B — "B <em>and</em> stick-up on the same frame" — only ever happened at the product of its marginals, and the bot drifted to one-head routes (side-B, airdodge) and died on them. A <strong>true autoregressive head</strong> (buttons → sticks → shoulder, slippi-ai style) was built, tested, and fit on the frozen ep10 trunk in one day. The pre-registered 8a rule fired: <strong>SIGNAL</strong>. Up-B recovery routes appeared from literally zero, airdodge spam halved, recovery deaths fell 51%→35%. Bradley's live read: structure yes, polish no — "a good player sandbagging." Next: unfreeze the trunk for 3 epochs (plan items 8/9), on a corpus that fixes the other find of the day — <strong>43% of v1's demonstrations weren't Fox</strong>. Updated 08-30 late.</p>
     </header>
 
     <section id="now">
@@ -233,40 +233,40 @@
         <p>The four numbers that describe today. Semantic color is state, not decoration.</p>
       </div>
       <div class="board">
-        <div class="tile warn">
-          <span class="k">AWBC arms B1 / B2 / B3</span>
-          <span class="v">1.5<small>× max</small></span>
-          <span class="d">Largest pathology ratio on any pair, all ranges overlapping; the outcome-weighted arm was <em>worst</em> on d-up and pummel loops. Null by the pre-registered rule.</span>
+        <div class="tile good">
+          <span class="k">up-B as first recovery route</span>
+          <span class="v">8.3<small>% vs 0.0</small></span>
+          <span class="d">ARhead vs INDhead on the frozen ep10 trunk, same data, same recipe. Fox-only expert: 20.6%. The route exists again; not yet at expert rate.</span>
         </div>
         <div class="tile accent">
-          <span class="k">Leg S headroom, ep1 → ep10</span>
-          <span class="v">+24<small>→ +29</small></span>
-          <span class="d">Calibrated: pass@1 rises 10.4 → 13.3 → 14.5 with training, the selection gap stays 2× larger at every epoch. Seed-replicated to 0.1 pt.</span>
+          <span class="k">conditioning gap, val loss</span>
+          <span class="v">0.5<small>nats/frame</small></span>
+          <span class="d">ARhead 3.892 vs INDhead 4.374 under v1's full loss recipe — matching the joint-head audit's predicted 0.86 bits of total correlation. Theory and fit agree.</span>
         </div>
-        <div class="tile good">
-          <span class="k">mode-of-16, offline pass@1</span>
-          <span class="v">14.9<small>→ 22.9</small></span>
-          <span class="d">Majority vote over 16 samples, no critic, no retrain — recovered 28% of the gap on both corpora and beat the learned selector (19.0).</span>
+        <div class="tile warn">
+          <span class="k">Bradley's live read on ARhead</span>
+          <span class="v">mixed</span>
+          <span class="d">"A good player BMing/sandbagging — spamming bad options, occasionally really good strings." Structure confirmed, polish behind ep10 (TV 0.63 vs 0.55; C3 dithering). Hence the unfreeze.</span>
         </div>
         <div class="tile bad">
-          <span class="k">mode-of-16, live</span>
-          <span class="v">0<small>/ 8 finished</small></span>
-          <span class="d">Frozen-input 0.74 (guard 0.20), games end at 50 s, deaths 3.75 vs 2.25, zero approaches. Majority vote is argmax with extra steps.</span>
+          <span class="k">v1 corpus: non-Fox demonstrations</span>
+          <span class="v">43<small>%</small></span>
+          <span class="d">The loader took port 1 of every file; Fox sat there in only 56.7% of them. "Generalist by accident." Decision (08-30): v1.1 trains on the fixed, character-aware Fox corpus.</span>
         </div>
       </div>
 
       <div class="cards">
         <div class="card">
           <div class="top"><h3>Specialist Fox (multishine)</h3><span class="pill good">Closed</span></div>
-          <p>Production <code>ms_g19_ep4.bin</code>, crowned 08-24 by a blind FD decider. Netplay = <code>--frame-delay 4 --delay-id-override 3</code>; id4 is untrained. Record chain 62. Not being worked.</p>
+          <p>Production <code>ms_g19_ep4.bin</code>, crowned 08-24 by a blind FD decider. Netplay = <code>--frame-delay 4 --delay-id-override 3</code>; id4 is untrained. Record chain 62. Not being worked; its one loose end is the transfer decider (D7, needs Bradley).</p>
         </div>
         <div class="card">
-          <div class="top"><h3>Generalist Fox (fox_gen_v1)</h3><span class="pill accent">Live</span></div>
-          <p>Local-only by design (no delay-ids). Deploy decode unchanged: <strong><code>--temperature 0.5 --buttons-temperature 0.5</code></strong>. Never <code>--deterministic</code>, <code>--deterministic-buttons</code>, or <code>--mode-of-n</code> — all three freeze the bot within a minute. v2 waits until v1 is exhausted.</p>
+          <div class="top"><h3>Generalist Fox (fox_gen line)</h3><span class="pill accent">Live</span></div>
+          <p>Local-only by design. New deployables: <code>fox_gen_v1.1_ARhead_policy.bin</code> (frozen-trunk AR head) + <code>_INDhead</code> control. Deploy decode unchanged: <strong><code>--temperature 0.5 --buttons-temperature 0.5</code></strong>; never argmax/mode-of-N. Next checkpoint: <strong>v1.1-AR unfreeze</strong>, 3 epochs from ep10, fixed Fox corpus.</p>
         </div>
         <div class="card">
-          <div class="top"><h3>Value model / critic</h3><span class="pill warn">Three nulls, one law</span></div>
-          <p>AWBC arms: null. Linear selector on trunk ⊕ raw scalars: real (controls clean, 27% of the gap held-out) but beaten by a free majority vote. Majority vote live: argmax lock. The critic direction now carries a live gate — frozen-input ≤ 0.20, 7/8 games to the cap, deaths within 1.5× — before any offline "gap recovered" number counts. <code>eval_runs/0829_critic</code>, <code>eval_runs/0829_mode_of_n</code>.</p>
+          <div class="top"><h3>Selection question</h3><span class="pill good">Reframed</span></div>
+          <p>The 08-29 dead end ("every selector picks the mode, the mode freezes the bot") is partly dissolved: a chunk of the "selection" gap was the factorized action space itself. The AR head moves picks <em>without</em> any decode concentration. Critic / Leg S follow-ons stay parked until the AR base settles.</p>
         </div>
       </div>
     </section>
@@ -274,127 +274,123 @@
     <section id="settled">
       <div class="section-head">
         <h2>What is settled</h2>
-        <p>Verified results, each with the evidence a stranger could check. Two of last session's claims are retracted in place — keep that habit.</p>
+        <p>Verified results from the 08-30 arc, each with the evidence a stranger could check.</p>
       </div>
       <div class="ledger">
         <div class="row">
-          <div class="tag">Decode</div>
+          <div class="tag">Mechanism</div>
           <div class="what">
-            <h3>Mode-of-N is argmax with extra steps</h3>
-            <p>base vs <code>--mode-of-n 16</code>, 8 games each, same day, staleness ≤ 1.4%: base 8/8 to the 120 s cap, mode16 0/8 (mean 50 s), frozen-input 0.00 vs 0.74, deaths 2.25 vs 3.75, armed approaches 0.24/min vs 0. Offline the same decode had won pass@1 by +8 pts.</p>
+            <h3>Independent heads mathematically suppress coincidence moves</h3>
+            <p>The joint per-frame action was modelled as six independent draws; the error is the total correlation, measured at <strong>0.86 bits/frame</strong> in expert play. If P(B)=0.3 and P(up)=0.3 but the expert only presses them together, the independent model gives the true joint 0.09 and invents 0.21 of "B with the stick elsewhere" that never happens. That is A2/C4's airdodge-instead-of-up-B, derived rather than observed.</p>
           </div>
-          <div class="ev"><b>eval_runs/0829_mode_of_n</b>RESULTS + prereg read in the script header. Third door into the same collapse (argmax, argmax buttons, mode-of-N).</div>
+          <div class="ev"><b>AUTOREGRESSIVE_HEAD_PLAN.md §2, §7</b>joint_head_audit, eval_runs/0830_joint_head_audit.</div>
         </div>
         <div class="row">
           <div class="tag">Training</div>
           <div class="what">
-            <h3>Outcome-weighted BC changes nothing observable</h3>
-            <p>B1 plain / B2 AWBC / B3 AWBC-shuffled, 3 epochs each from ep10, one protocol, one day. Max ratio on any pathology metric 1.5×, all ranges overlapping; B2 worst on d-up (127 vs 115/min) and pummel loops. Val loss moved, play did not.</p>
+            <h3>8a: the AR head recovers the joint structure — SIGNAL</h3>
+            <p>Frozen ep10 trunk, head-only fits on identical data (1,000 files → 12.1M rows, fox-detected per file, dittos on both ports). ARhead vs INDhead: up-B first-route 8.3% vs 0.0, up-B+double-jump 6×, airdodge share 20.8 vs 53.2, recovery deaths 35.4% vs 51.1%, live offstage P(up|B) lift 2.20–2.65× vs 1.05× (expert 2.9–3.2×). Pre-registered rule, both arms symmetric.</p>
           </div>
-          <div class="ev"><b>eval_runs/0828_awbc_arms</b>PREREG (two dated amendments) + RESULTS. Knobs verified from each checkpoint's <code>_config.json</code>.</div>
+          <div class="ev"><b>eval_runs/0830_arhead_score2/RESULTS.md</b>Plan §4 item 8a, §6 verdict.</div>
         </div>
         <div class="row">
-          <div class="tag">Instrument</div>
+          <div class="tag">Corpus</div>
           <div class="what">
-            <h3>Leg S is calibrated</h3>
-            <p>pass@1 10.4 / 13.3 / 14.5 at ep1 / 5 / 10 — the probe sees training — while pass@16 − pass@1 is +24 / +28 / +29. Two seeds agree to 0.1 pt on every head. Off-corpus (fox_il_v1): 6.9 → 24.3. Buttons pass@16 sits at 93 from epoch 1.</p>
+            <h3>E1: fox_gen_v1 imitated "whoever sat on port 1" — 43% not Fox</h3>
+            <p><code>--train-character</code> only filters files and was never set; the streaming loader hard-coded port 1. Fox is port-1-only in 44.2% of files, port-2-only in 43.3%, ditto 12.5%. The character embedding makes this dilution, not corruption — but it also mixed ~43% non-Fox play into every "expert" baseline scored with <code>--expert-port 1</code>. Fixed per-file with <code>--expert-char</code> on the instruments; <strong>v1.1 trains on the character-aware corpus (Bradley, 08-30)</strong>.</p>
           </div>
-          <div class="ev"><b>eval_runs/0828_legS</b>RESULTS §Calibration; ep1/ep5/ep10/ep10_fox_il_v1.md.</div>
+          <div class="ev"><b>eval_runs/0830_corpus_mix/RESULTS.md</b>Raw .slp header scan, 7,911 files, 0 parse errors.</div>
         </div>
         <div class="row">
-          <div class="tag">Decode</div>
+          <div class="tag">Baseline</div>
           <div class="what">
-            <h3>Argmax buttons collapses the policy</h3>
-            <p>5 arms × 8 games vs CPU. Every sampled-button game reached the 120 s cap (24/24); argmax games died at 72 s mean (2/16 finished). Hysteresis did not rescue it. <strong>The pre-registered falsification branch fired word for word.</strong></p>
+            <h3>Fox-only expert re-reads: every conclusion stands, recovery gaps grow</h3>
+            <p>Rescoring the expert baselines on actual-Fox ports: up-B first-route 20.6%, airdodge 3.7%, unforced recovery deaths 19% — vs the bots' 61–65% unforced deaths. The mixed-character contamination had been <em>understating</em> the gap, not inventing it.</p>
           </div>
-          <div class="ev"><b>eval_runs/0828_argmax_buttons</b>PREREG + RESULTS. Duration came from run LOGS — the replays were half-destroyed (GOTCHA #102).</div>
-        </div>
-        <div class="row">
-          <div class="tag">Decode</div>
-          <div class="what">
-            <h3>Buttons temperature is a press-rate dial, not a diversity knob</h3>
-            <p>d-up presses/min: T 0.5 → 112 · 0.6 → 171 · 0.7 → 248 · 1.0 → 430. Monotone, disjoint ranges, two brackets. Mechanism: buttons are Bernoulli — <code>sigmoid(logit/T)</code> pushes a rare button toward 0 as T falls, whereas sticks are categorical and merely sharpen. Deaths rise as buttons cool (1.1 → 1.6 → 2.0 → 4.0); T=0.5 is next to the cliff.</p>
-          </div>
-          <div class="ev"><b>eval_runs/0828_loop_rescore</b>85 banked replays rescored on a dense metric. No new games, no GPU.</div>
+          <div class="ev"><b>eval_runs/0830_foxonly_rereads/</b><code>--expert-char</code> now on situation_hist, edge_scorecard, death_classifier.</div>
         </div>
         <div class="row">
           <div class="tag">Method</div>
           <div class="what">
-            <h3>Both "null" sweeps were mis-scored, not null</h3>
-            <p><code>coach_report</code> never measured what the human complained about; its armed/min metric moved 7× across two days on its own. A dense metric turned two dead experiments into a clean dose-response from replays already on disk. <strong>Instrument work has beaten compute every time this month.</strong></p>
+            <h3>Two burned 8a runs bought two laws</h3>
+            <p>Run 1 finished a 2.5 h capture then died at save: <code>term_to_binary</code> on a 19 GB map exceeds the BEAM's 2 GB external-term limit → captures are now <strong>streamed</strong> (raw binaries per replay, gathered by <code>:binary.part</code>). Run 2's bracket: both arms died at ~35 s/game because the heads were fit with plain CE — <strong>a refit head must carry the source run's full loss recipe</strong> (pos-weights, smoothing, focal, edge, entropy, lr — now read automatically from <code>*_config.json</code>). Val loss looked fine both times; only the live rung caught it.</p>
           </div>
-          <div class="ev"><b>HANDOFF_2026-08-28b §2</b>Retracts the 08-28 morning's "both temperature knobs are null."</div>
+          <div class="ev"><b>HANDOFF_2026-08-30b §4.3, §5</b>scripts/train_ar_head.exs.</div>
         </div>
         <div class="row">
-          <div class="tag">Pathology</div>
+          <div class="tag">Latency</div>
           <div class="what">
-            <h3>The dominant loop has a name</h3>
-            <p><code>GRAB_WAIT&gt;GRAB_PUMMEL</code> — 78 / 94 / 16 / 10 episodes across four corpora, more than every other detected cycle combined. Bare loops/min is <em>not</em> a pathology score: the human "loops" 9.6/min vs the bot's 0.7 because dash-dancing is a repeated cycle and correct Melee. Rank by the specific pattern.</p>
+            <h3>AR sampling fused to one XLA program: 2.53 ms/decision</h3>
+            <p>The first sequential sampler (two kernels + eager glue) ran 24 ms/decision — 50% stale sends at 60 Hz, a silent handicap on any live comparison. Hysteresis and argmax-buttons apply <em>before</em> conditioning, so later heads condition on what will actually be pressed.</p>
           </div>
-          <div class="ev"><b>ExPhil.Interp.LoopStats</b>+ ActionNames. 17 tests.</div>
+          <div class="ev"><b>Sampling.sample_autoregressive*</b>inline benchmark loop is the reference.</div>
         </div>
         <div class="row">
-          <div class="tag">Interp</div>
+          <div class="tag">Instrument</div>
           <div class="what">
-            <h3>The trunk keeps hitstun and offstage, discards percent and character</h3>
-            <p>Linear probes on the GRU trunk: hitstun/offstage R² 0.83–0.93 (fertile); percent 0.46–0.52 vs ~0.85 from raw input (half discarded); opponent character 0.33 (dead). Consequence for the critic: read <strong>trunk ⊕ raw scalars</strong>, not trunk alone — percent is the most important variable in a Melee value function.</p>
+            <h3>C3: the refit heads dither after the <em>opponent</em> lands</h3>
+            <p>Reaction latency to opponent landings: median 32–45 frames for the refit heads vs 8 for the expert; reactions to the bot's <em>own</em> landings are normal. The sharpest quantitative lens yet on Bradley's "it spectates" — and it is a trunk/polish property, which is what the unfreeze chases.</p>
           </div>
-          <div class="ev"><b>INTERP_GEN_V1 G4</b>G1/G2/G7 also closed. Design correction in HANDOFF_2026-08-28b §6.3.</div>
+          <div class="ev"><b>eval_runs/0830_* (C3)</b>EVAL_DIRECTIONS tracker table.</div>
         </div>
         <div class="row">
-          <div class="tag">Harness</div>
+          <div class="tag">Instrument</div>
           <div class="what">
-            <h3>GOTCHA #102 — the harness deleted the evidence of failure</h3>
-            <p><code>eval_live_protocol.sh</code> copied <code>.slp</code> files before Dolphin finalized them. Signature: a page-aligned size (multiple of 4096). The loss was <strong>biased</strong>: games that ended early (the bot died) lost more replays — per-arm coverage came out 8/8, 8/8, 4/8, 1/8, 0/8, perfectly ordered by how badly the arm played. Fixed; any batch scorer now reports scored/played. Unknown: how many past comparisons this touched.</p>
+            <h3>C2: damage per opening matches the expert; there is no finisher</h3>
+            <p>The bot's damage/opening is expert-level, but it takes 5.1 hits per opening vs the expert's 1.72, and kill conversion is 0. The punish exists; it never ends. Pairs with C3 as the two most concrete "polish" targets for v1.1.</p>
           </div>
-          <div class="ev"><b>docs/reference/GOTCHAS.md #102, #103</b>#103: ANSI reset between label and value defeats <code>grep "Label: value"</code>.</div>
+          <div class="ev"><b>eval_runs/0830_* (C2)</b>punish_quality, fox-only expert baseline.</div>
         </div>
         <div class="row">
-          <div class="tag">Retracted</div>
+          <div class="tag">Decode</div>
           <div class="what">
-            <h3>The transfer decider is not a low-tier test</h3>
-            <p>Both arms are multishine Fox specialists; what varies is the <em>opponent's</em> character. It is a shine-line loose end about opponent robustness. The founding low-tier goal (the bot <em>playing</em> Mewtwo/Ganon) is a different question and this decider does not bear on it.</p>
+            <h3>Port-2 side-flip: the mode-16 walk-off vote holds spawn side, not "left"</h3>
+            <p>On port 2 the walk-offs went left 4 : right 3 (vs 24:3 left on port 1). Model left-asymmetry rejected; the modal vote holds the spawn-side/held direction. Closes the last open question from the mode-of-N post-mortem.</p>
           </div>
-          <div class="ev"><b>HANDOFF_2026-08-28b §2</b>Retraction on the record.</div>
+          <div class="ev"><b>eval_runs/0830_port2_*/sd.md</b>Bradley on the controller, both arms.</div>
         </div>
         <div class="row">
-          <div class="tag">Netplay</div>
+          <div class="tag">Instrument</div>
           <div class="what">
-            <h3>Fixed tonight: the bot booted into Slippi's login screen and mashed</h3>
-            <p>Launching without <code>EXPHIL_NETPLAY_HOME</code> made libmelee copy <code>~/.config/SlippiOnline/</code> — Bradley's own DBTD#411 login, which the Launcher also holds — so Dolphin opened the login screen and the menu helper mashed there. <code>play_dolphin_async.exs</code> now defaults to the bot account (<code>~/.config/slippi-dolphin-bot</code>, EXPH#288), refuses to start without a <code>user.json</code>, and refuses to connect an account to itself. DEPLOY_KNOBS row corrected.</p>
+            <h3>D2 + C1: what transfers from the CPU rung, and the floor under C1</h3>
+            <p>Dense decode metrics (dpad/min, taunts/min) transfer human/CPU at a stable ~0.8×; loop metrics keep ordering only (CPU overstates ~2×). C1's exchange-win noise floor is <strong>0.6 pp</strong> — tightest live metric we have — which makes its B1-vs-Bradley disagreement real, not noise (see Needs Bradley). D2's scary "ep10 human taunts 331/min" was one degenerate 100 KB stub game at 3600/min poisoning a mean; session dirs now get stub+degenerate filters and medians.</p>
           </div>
-          <div class="ev"><b>scripts/play_dolphin_async.exs:262–306</b>Uncommitted in the working tree at time of writing.</div>
+          <div class="ev"><b>eval_runs/0830_d2_transfer/RESULTS.md</b>C1 floor: seven D1 batches as separate sets.</div>
         </div>
       </div>
     </section>
 
     <section id="livelook">
       <div class="section-head">
-        <h2>Tonight's live look — buttons T = 0.5 vs Bradley</h2>
-        <p>The human-gated rung of the bracket. Same policy, same human, same day as the T=1.0 session this morning. 7 full games (four ~100 KB CSS restarts excluded; no page-aligned sizes).</p>
+        <h2>The 8a scorecard — ARhead vs INDhead vs the Fox expert</h2>
+        <p>Same frozen trunk, same data, same loss recipe; the only difference is whether heads condition on earlier components. Expert columns are fox-only re-reads.</p>
       </div>
       <div class="tablewrap">
         <table>
-          <caption>loop_report (bot port 1) and coach_report (--char fox) on eval_runs/0828_session (T=1.0) vs eval_runs/0828_livelook_btn05 (T=0.5). Under-2× differences are unresolved by the standing law.</caption>
-          <thead><tr><th>arm</th><th class="num">games</th><th class="num">d-up / min</th><th class="num">taunt entries / min</th><th class="num">pummel loops / game</th><th class="num">deaths / game</th><th class="num">conversions</th><th class="num">dropped / game</th><th class="num">neutral losses / game</th></tr></thead>
+          <caption>eval_runs/0830_arhead_score2 (16 CPU games/arm + live probes) and 0830_foxonly_rereads. TV distance is vs the expert per-situation action distribution (lower is better; ep10 itself sits at 0.55).</caption>
+          <thead><tr><th>metric</th><th class="num">ARhead</th><th class="num">INDhead</th><th class="num">fox expert</th></tr></thead>
           <tbody>
-            <tr><td>buttons T 1.0 (morning)</td><td class="num">11–12</td><td class="num">455</td><td class="num">1.17</td><td class="num">1.3</td><td class="num">3.64</td><td class="num">8/87 (9%)</td><td class="num">1.3</td><td class="num">7.1</td></tr>
-            <tr><td>buttons T 0.5 (tonight)</td><td class="num">7</td><td class="num"><strong>101</strong></td><td class="num">1.79</td><td class="num">1.4</td><td class="num">3.57</td><td class="num">7/61 (11%)</td><td class="num">2.6</td><td class="num">10.7</td></tr>
+            <tr><td>up-B as first recovery route</td><td class="num"><strong>8.3%</strong></td><td class="num">0.0%</td><td class="num">20.6%</td></tr>
+            <tr><td>airdodge share offstage</td><td class="num"><strong>20.8%</strong></td><td class="num">53.2%</td><td class="num">3.7%</td></tr>
+            <tr><td>recovery deaths (unforced)</td><td class="num"><strong>35.4%</strong></td><td class="num">51.1%</td><td class="num">19%</td></tr>
+            <tr><td>offstage P(up|B) lift</td><td class="num"><strong>2.20–2.65×</strong></td><td class="num">1.05×</td><td class="num">2.9–3.2×</td></tr>
+            <tr><td>val loss (v1 recipe)</td><td class="num"><strong>3.892</strong></td><td class="num">4.374</td><td class="num">—</td></tr>
+            <tr><td>TV distance (vs ep10's 0.55)</td><td class="num">0.63</td><td class="num">—</td><td class="num">0</td></tr>
           </tbody>
         </table>
       </div>
       <div class="cards">
         <div class="card">
-          <div class="top"><h3>What the numbers say</h3><span class="pill warn">Mixed</span></div>
-          <p>The impulse metric the knob was selected on dropped 4.5× with disjoint ranges. Taunt <em>entries</em> and pummel loops per game did not move (ranges overlap). Dropped conversions doubled — plausibly colder buttons costing follow-up presses; n=7.</p>
+          <div class="top"><h3>What the numbers say</h3><span class="pill good">Signal</span></div>
+          <p>Every recovery metric moves toward the expert, from a head-only fit that cost hours, not a retrain. The 0.5-nat val gap is the audit's predicted total correlation being paid back.</p>
         </div>
         <div class="card">
-          <div class="top"><h3>What Bradley said</h3><span class="pill good">Gate passed</span></div>
-          <p>"Definitely less taunty, less loopy, hints of a very fast, scrappy game. Occasionally playing the game — but a lot of the time throwing out punishable options or taunting or shield-grabbing repetitively. Sometimes a short-hop drill-shine-grab — that was pretty good."</p>
+          <div class="top"><h3>What Bradley said</h3><span class="pill warn">Mixed</span></div>
+          <p>"A good player BMing/sandbagging — spamming bad options, occasionally really good strings, not punishing well." The frozen-trunk refit trails ep10 on polish (TV 0.63 vs 0.55, C3 dithering) even as it fixes structure.</p>
         </div>
         <div class="card">
-          <div class="top"><h3>Decision</h3><span class="pill accent">Recipe note</span></div>
-          <p><code>--buttons-temperature 0.5</code> is the default decode for v1 live play. Not a crown (v1 has none). The residual complaint — <strong>picks</strong>, not impulses — is the selection question, which no temperature answers.</p>
+          <div class="top"><h3>Decision</h3><span class="pill accent">Unfreeze</span></div>
+          <p>Plan items 8/9: <strong>v1.1-AR</strong> = 3 epochs from ep10's trunk with the AR head, + v1.1-IND control, on the fixed character-aware Fox corpus (Bradley's call). Chases structure and polish in one run.</p>
         </div>
       </div>
     </section>
@@ -402,20 +398,21 @@
     <section id="instruments">
       <div class="section-head">
         <h2>Instruments</h2>
-        <p>The expensive half of every eval (playing the games) is already banked as <code>.slp</code>; a metric added today runs against every game ever recorded.</p>
+        <p>All eight remaining EVAL_DIRECTIONS instruments ran on 08-30. The expensive half of every eval is banked as <code>.slp</code>; a metric added today runs against every game ever recorded.</p>
       </div>
       <div class="tablewrap">
         <table>
-          <thead><tr><th>instrument</th><th>answers</th><th>state</th><th>caveat that travels with it</th></tr></thead>
+          <thead><tr><th>instrument</th><th>answers</th><th>state</th><th>one-line finding / caveat</th></tr></thead>
           <tbody>
-            <tr><td><code>loop_report.exs</code> / LoopStats</td><td>taunt presses, taunt entries, frozen/held input, repeated action cycles</td><td><span class="pill good">Working</span></td><td>Rank by specific cycle, never bare loops/min. Reports scored/played.</td></tr>
-            <tr><td><code>coach_report.exs</code></td><td>armed approaches, conversions, drops, deaths, passivity — and appends gaps to the ledger</td><td><span class="pill good">Working</span></td><td>armed/min baseline swings 7× day to day; never carry an A/B on it alone.</td></tr>
-            <tr><td><code>interp_passk.exs</code> — Leg S</td><td>pass@k − pass@1 on decision frames: does a perfect selector have room?</td><td><span class="pill good">Calibrated 08-29</span></td><td>Sees training (pass@1 10.4 → 14.5 ep1 → ep10), headroom stable +24…+29, seed-replicated. <strong>But it is mode-seeking:</strong> argmax-like decodes win it and freeze live. Never rank a decode on it alone (L9). See <code>eval_runs/0828_legS/RESULTS.md</code>.</td></tr>
-            <tr><td><code>critic_extract / critic_train / interp_bestofn.exs</code></td><td>trunk ⊕ raw features → V(s) + selector; offline Best-of-N vs sampling, mode-of-N, oracle</td><td><span class="pill good">Ran 08-29</span></td><td>Two shakedown bugs fixed (name collision; Activations missing <code>stage_internals</code>, GOTCHA #105). Reports gap recovered — pair with the live gate before believing it. In <code>scripts/</code>, not promoted.</td></tr>
-            <tr><td><code>mode_of_n_bracket.sh</code>, <code>awbc_score.sh</code></td><td>live 8×120 s brackets with knob assertions, log durations, staleness</td><td><span class="pill good">Working</span></td><td>GOTCHA #104: <code>sed | grep -q</code> under <code>pipefail</code> false-fails ~70% — assertions use process substitution now. Base banner quotes strings (<code>Mode-of-N: "off"</code>).</td></tr>
-            <tr><td>HEADROOM_TRIAD (Legs C, D)</td><td>capacity and data headroom, same unit</td><td><span class="pill neutral">Designed</span></td><td>Each costs training runs; only worth it if Leg S says selection is not the ceiling.</td></tr>
-            <tr><td>eval_live_protocol.sh</td><td>batch games vs CPU/stand with knob assertions</td><td><span class="pill good">Fixed #102</span></td><td>Polls file size before copy; warns on page-aligned results. Cross-check duration in logs.</td></tr>
-            <tr><td>CycleSim, probes, SAE, GapLedger</td><td>offline sim, representation reads, data flywheel</td><td><span class="pill good">Closed / live</span></td><td>G3 (CycleSim adaptation) and G5 (style separability) remain open, low priority.</td></tr>
+            <tr><td>E3 expert pathology baselines</td><td>what the expert's own "pathology" rates are</td><td><span class="pill good">Ran 08-30</span></td><td>Expert d-up 0.15/<em>game</em> vs bot arms 79–94/<em>min</em>. The denominators the bracket claims needed.</td></tr>
+            <tr><td>C2 punish quality</td><td>damage/opening, hits/opening, kill conversion</td><td><span class="pill good">Ran 08-30</span></td><td>Damage/opening expert-level; 5.1 hits/opening vs 1.72; kill conversion 0 — "no finisher."</td></tr>
+            <tr><td>C3 reaction latency</td><td>frames to react, split by event owner</td><td><span class="pill good">Ran 08-30</span></td><td>Dither after <em>opponent</em> landings (med 32–45f vs 8f); self-landings normal.</td></tr>
+            <tr><td>B1 action-family match</td><td>TV distance per situation family</td><td><span class="pill good">Ran 08-30</span></td><td>Offstage family is the gap; adopted ranker from 08-29 still holds.</td></tr>
+            <tr><td>D3 decode sensitivity</td><td>which banked metrics are decode-driven</td><td><span class="pill good">Ran 08-30</span></td><td>dpad/min and action-run lengths knob-ordered ρ=±1.0; taunts/min NOT knob-ordered (model-side).</td></tr>
+            <tr><td>C1 noise floor</td><td>spread of exchange win rate across same-config batches</td><td><span class="pill good">Ran 08-30</span></td><td>0.6 pp — tightest live metric; makes the B1-vs-Bradley disagreement real.</td></tr>
+            <tr><td>D2 transfer table</td><td>which CPU-rung metrics stand in for human sessions</td><td><span class="pill good">Ran 08-30</span></td><td>Dense metrics ~0.8× transfer; loops ordering-only; means not robust to one degenerate game — session dirs get stub filters + medians.</td></tr>
+            <tr><td><code>loop_report.exs</code> / LoopStats</td><td>taunts, frozen input, repeated cycles</td><td><span class="pill good">Working</span></td><td>Rank by specific cycle; scored/played reported; stub (&lt;150 KB) games excluded, medians alongside means for session dirs.</td></tr>
+            <tr><td><code>interp_passk</code> Leg S, critic stack</td><td>selection headroom; V(s) selectors</td><td><span class="pill neutral">Parked</span></td><td>Deliberately parked while the AR line settles; L9 (mode-seeking) still governs both.</td></tr>
           </tbody>
         </table>
       </div>
@@ -424,70 +421,56 @@
     <section id="directions">
       <div class="section-head">
         <h2>Directions</h2>
-        <p>Bradley's standing direction: exhaust v1 (retrain-free first) before v2; delay is a later generation; v1 and v2 stay local-only. "Exhausted" = when the triad says selection is no longer the biggest number.</p>
+        <p>Bradley's standing direction: exhaust v1 before v2; v1/v2 stay local-only; no bespoke decode rules — behaviour gaps are fixed in training.</p>
       </div>
       <div class="dirs">
-        <div class="dir">
-          <div class="head"><h3>A · Keep tuning v1 decode</h3><span class="pill warn">Near its end</span></div>
+        <div class="dir pick">
+          <div class="head"><h3>A · v1.1 unfreeze (plan 8/9)</h3><span class="pill accent">Next action</span></div>
           <dl>
-            <dt>What</dt><dd>The rule that turns per-frame probabilities into a press. Zero training cost, minutes per try.</dd>
-            <dt>Left</dt><dd>Per-button temperatures (cool only d-up and Z, not A/L/X) — targets the two named pathologies without taxing follow-ups. One more bracket, then stop.</dd>
-            <dt>Why not more</dt><dd>Deaths climb as buttons cool; the knob has a cliff and T=0.5 sits beside it. Local optimum, not a road.</dd>
+            <dt>What</dt><dd><strong>v1.1-AR</strong>: resume ep10's trunk, AR head from scratch, 3 epochs, seed 828 (B1's recipe). <strong>v1.1-IND</strong> control: same but independent head re-initialised.</dd>
+            <dt>Corpus</dt><dd><strong>Fixed</strong> (Bradley, 08-30): character-aware port selection + dittos both ports — ~5,470 clean Fox games instead of the 43%-diluted blend. Both arms get the same corpus, so the head comparison stays controlled; the v1→v1.1 delta confounds head+corpus by choice, and the AR-vs-IND pair is the clean read.</dd>
+            <dt>Blocked on</dt><dd>The resume path had never loaded a checkpoint whose params lack the new head's layers — patched 08-30 (trunk transplant: matching params load, head + optimizer start fresh, config no longer clobbered).</dd>
           </dl>
         </div>
         <div class="dir">
-          <div class="head"><h3>B · A critic (value model) → Best-of-N</h3><span class="pill warn">Needs a tail-keeping selector</span></div>
+          <div class="head"><h3>B · Score, then live look</h3><span class="pill neutral">After A</span></div>
           <dl>
-            <dt>What</dt><dd>A second network scoring candidates; decode becomes sample N, score, pick. Still the selection rule v1 lacks — but today showed the obvious versions of it pick the mode, and the mode freezes the bot.</dd>
-            <dt>Ran</dt><dd>Linear V(s) + bilinear selector on trunk ⊕ raw scalars (<code>eval_runs/0829_critic</code>): 27% of the gap held-out, controls clean, lost to majority vote (19.0 vs 22.9 pass@1). V(s) ranks states above chance (0.60 vs 0.51) but explains 5% of return variance.</dd>
-            <dt>Gate</dt><dd>Any selector must beat 22.9 / 6.8 offline AND pass the live gate (frozen-input ≤ 0.20, 7/8 to cap, deaths ≤ 1.5×). Offline is now the easy half. An MLP head is not queued until there is a reason to believe it keeps the tail.</dd>
+            <dt>What</dt><dd><code>arhead_score.sh</code> (16 CPU games + all §6 instruments) on both arms, then Bradley's live look — the g6 gate — plus the blind B1-vs-B2 pair in the same session.</dd>
+            <dt>Rule</dt><dd>Pre-registered in the plan §6; C2/C3 (finisher, dithering) are the polish metrics to watch beyond the recovery cluster.</dd>
           </dl>
         </div>
         <div class="dir">
-          <div class="head"><h3>C · AWBC arms B1/B2/B3</h3><span class="pill bad">Null</span></div>
+          <div class="head"><h3>C · Critic / Leg S follow-ons</h3><span class="pill neutral">Parked</span></div>
           <dl>
-            <dt>What</dt><dd>Re-weight BC frames by actual game outcome (return-to-go). Same network, different loss weights; 3 epochs each from ep10.</dd>
-            <dt>Result</dt><dd>8 games per arm, same protocol, same day: max ratio 1.5× on any pathology metric, every range overlapping, deaths 2.4 / 2.0 / 1.5 (overlapping). Val loss moved (B2 lowest), play did not — the ep1..ep10 decoupling again. <code>eval_runs/0828_awbc_arms/RESULTS.md</code>.</dd>
-            <dt>Left</dt><dd>One sharper-β arm is allowed by the prereg; deferred — it would still only reweight the master's choices, and the gap is in the bot's own picks.</dd>
+            <dt>What</dt><dd>Leg S rewritten-run, selector-with-a-tail ideas, V-scored rollouts.</dd>
+            <dt>Why parked</dt><dd>A critic on top of an independent-heads policy inherits the incoherence; rebuild these on the AR base once it exists. The 08-29 live gate (frozen-input ≤ 0.20, 7/8 to cap) travels with them.</dd>
           </dl>
         </div>
         <div class="dir">
           <div class="head"><h3>D · fox_gen_v2</h3><span class="pill bad">Not yet</span></div>
           <dl>
-            <dt>What</dt><dd>New recipe / size / corpus. The competing story: 3M params on ~90M frames with val-loss still falling is textbook underfit.</dd>
-            <dt>Gate</dt><dd>Leg S. If pass@16 ≈ pass@1 both low, no selector can help and capacity or data is the ceiling — then and only then v2.</dd>
-          </dl>
-        </div>
-        <div class="dir">
-          <div class="head"><h3>E · Interp-guided fixes</h3><span class="pill neutral">Opportunistic</span></div>
-          <dl>
-            <dt>What</dt><dd>Locate <em>why</em> the pummel loop fires (a saturating grab feature?) and patch by curation, decode masks, or drills.</dd>
-            <dt>Payoff</dt><dd>Highest curiosity, least predictable. Ride it when a probe result falls out of B.</dd>
+            <dt>What</dt><dd>New recipe / size. Underfit story still live (3M params, val falling).</dd>
+            <dt>Gate</dt><dd>v1 exhausted per the triad — and v1.1's corpus fix + AR head must land first; either could move the ceiling on its own.</dd>
           </dl>
         </div>
       </div>
       <div class="callout">
-        <p><strong>Where this leaves the program.</strong> Leg S is calibrated and real: the master's action is in the sampled set far more often than it is played, at every epoch. But every selector tried today that <em>concentrates</em> the decode — outcome weights, a learned ranker, a majority vote — either did nothing or reproduced the argmax collapse. The headroom is a fact about the distribution; cashing it needs a rule that keeps the distribution's tail while moving its center, and no candidate for that rule exists yet. Do not start v2 on this evidence (capacity is still not the biggest number), and do not spend more decode brackets on mode-seeking ideas.</p>
-        <p class="small">Concrete next candidates, cheapest first: (1) Leg S at T→0 to formally show argmax wins the offline metric (running); (2) a selector scored by a <em>state</em> value after a short CycleSim rollout rather than by master-match, since V(s) ranks above chance; (3) direction E — find why the pummel loop fires and mask it, which changes picks without collapsing them.</p>
+        <p><strong>Where this leaves the program.</strong> The 08-29 board's closing problem — "cashing the headroom needs a rule that keeps the tail, and no candidate exists" — got a partial answer from an unexpected direction: some of what looked like a selection failure was the action factorization itself. The AR head is that rare fix that moves picks without concentrating the decode. It is not the whole answer (the C3 dithering and C2 finisher gaps are trunk properties the head can't reach), which is exactly what the unfreeze tests: if 3 epochs of joint training close polish while keeping the recovered structure, v1.1-AR becomes the new base for every parked thread — critic, Leg S, drills.</p>
+        <p class="small">Watch item for the unfreeze: hold the pre-registered comparison to AR-vs-IND on the same corpus. The v1→v1.1 improvement will confound head and corpus — that was a deliberate choice, recorded here, not an oversight to discover later.</p>
       </div>
     </section>
 
     <section id="laws">
       <div class="section-head">
         <h2>Laws</h2>
-        <p>Standing rules that earned their place by costing something. The older ones (never crown on stand-dummy numbers, pin stages in deciders, chains from ShineChain over replays only) still hold.</p>
+        <p>Standing rules that earned their place by costing something. The older ones (never crown on stand-dummy numbers, pin stages in deciders, chains from ShineChain over replays only, L1–L10 from the 08-29 board) still hold.</p>
       </div>
       <div class="laws">
-        <div class="law"><span class="n">L1</span><span><strong>Suspect the instrument before believing a null.</strong> Two sweeps, two nulls, one metric fix, one clean result — from replays already on disk.</span></div>
-        <div class="law"><span class="n">L2</span><span><strong>Any batch scorer over replays reports scored/played.</strong> Silent coverage differences are indistinguishable from results.</span></div>
-        <div class="law"><span class="n">L3</span><span><strong>Cross-check replay-scored claims against the run logs.</strong> Logs survived a bug that destroyed half the replays.</span></div>
-        <div class="law"><span class="n">L4</span><span><strong>A page-aligned .slp size means a truncated file.</strong> Never a coincidence.</span></div>
-        <div class="law"><span class="n">L5</span><span><strong>Mechanism metrics can move while the event doesn't.</strong> A 4.5× cut in d-up presses left taunt entries flat. Keep the human-gated rung.</span></div>
-        <div class="law"><span class="n">L6</span><span><strong>Never launch netplay without the bot account.</strong> The script now enforces it; the DEPLOY_KNOBS row was the dropped flag.</span></div>
-        <div class="law"><span class="n">L7</span><span><strong>No <code>lib/*.ex</code> edits while a multi-stage loop runs;</strong> <code>Code.string_to_quoted!</code> is the only syntax check while a beam is live.</span></div>
-        <div class="law"><span class="n">L8</span><span><strong>Long runs go through <code>systemd-run --user</code>.</strong> The Bash tool SIGTERMs everything at ~10 min; tmux is absent on slanka.</span></div>
-        <div class="law"><span class="n">L9</span><span><strong>Offline master-match is mode-seeking and cannot rank decodes alone.</strong> Mode-of-16 won it by +8 pts and froze the bot live. Every decode metric is paired with frozen-input, duration, and deaths from a live bracket.</span></div>
-        <div class="law"><span class="n">L10</span><span><strong>An embed-layout flag must reach every embedding path.</strong> <code>--stage-internals</code> reached the checkpoint and the Agent but not <code>Activations</code>; every trunk capture of v1 died 288-vs-296 until it did (GOTCHA #105). Grep for <code>with_delay_id</code> when adding one.</span></div>
+        <div class="law"><span class="n">L11</span><span><strong>Never <code>term_to_binary</code> a big capture.</strong> The BEAM's external-term limit is 2 GB; a 19 GB map died <em>after</em> the 2.5 h capture. Stream raw binaries per item; gather with <code>:binary.part</code>.</span></div>
+        <div class="law"><span class="n">L12</span><span><strong>A refit head carries the source run's full loss recipe.</strong> Plain CE produced plausible val losses and 35-second games. Pos-weights, smoothing, focal, edge, entropy, lr — read from the checkpoint's <code>*_config.json</code>, now automatic.</span></div>
+        <div class="law"><span class="n">L13</span><span><strong>AR sampling stays one fused XLA program.</strong> Eager glue between kernels was 24 ms/decision = 50% stale sends. Benchmark any sampler change against the 2.53 ms reference.</span></div>
+        <div class="law"><span class="n">L14</span><span><strong>loop_report means are not robust to one degenerate game.</strong> A single 100 KB stub at "3600 taunts/min" turned 2/min into 331/min. Session dirs: stub filter + medians; the stub stays on disk as evidence (L2's cousin — never delete the evidence).</span></div>
+        <div class="law"><span class="n">L15</span><span><strong>Verify a never-exercised code path before betting a run on it.</strong> <code>--resume</code> + <code>--head autoregressive</code> would have silently trained the wrong head: the checkpoint's config clobbered the flag. Guard #6's class, caught in precheck this time.</span></div>
       </div>
     </section>
 
@@ -496,51 +479,35 @@
         <h2>Needs Bradley, not a model</h2>
       </div>
       <div class="checklist">
-        <div class="check done"><span class="box"></span><span class="t"><strong>Live look at buttons T=0.5.</strong> <span>Done tonight; gate passed on feel, recorded in eval_runs/0828_livelook_btn05/RESULTS.md.</span></span><span class="pill good">Done</span></div>
-        <div class="check"><span class="box"></span><span class="t"><strong>Transfer decider (D7).</strong> <span>~1–1.5 h at the controller + 30 min scoring. Three decisions in the prereg: what you play (3 Mewtwo + 3 Fox separates "bot handles Mewtwo" from "Bradley is bad at Mewtwo"), the decision rule, whether blind impressions gate. Arms in <code>~/decider2_archive</code> — do not <code>ls -l</code> it, sizes unblind.</span></span><span class="pill warn">Open</span></div>
-        <div class="check done"><span class="box"></span><span class="t"><strong>Disk cleanup.</strong> <span>Done 08-28 night: replays → <code>/data</code>, fox_v2 corpus, quarantine and orphan hashes deleted; root 57 GB free. pip cache / nix GC still optional.</span></span><span class="pill good">Done</span></div>
-        <div class="check"><span class="box"></span><span class="t"><strong>A selector that keeps the tail.</strong> <span>Every mode-seeking selector tried today collapsed or did nothing. The next idea needs your read: V-scored CycleSim rollouts, a pummel-loop mask (direction E), or something else — before any more brackets.</span></span><span class="pill warn">Decision</span></div>
-        <div class="check"><span class="box"></span><span class="t"><strong>Checkpoint pruning.</strong> <span>2,024 files, 23 GB; 5.7 GB from March and 8.5 GB from July are pre-button-fix models. Pick keepers.</span></span><span class="pill neutral">Optional</span></div>
+        <div class="check done"><span class="box"></span><span class="t"><strong>Live look at fox_gen_v1.1_ARhead.</strong> <span>Done 08-30: "good player sandbagging" — structure confirmed, polish not; drives the unfreeze.</span></span><span class="pill good">Done</span></div>
+        <div class="check done"><span class="box"></span><span class="t"><strong>v1.1 corpus decision.</strong> <span>Decided 08-30: fix the Fox corpus (character-aware ports, dittos both sides) rather than hold it constant.</span></span><span class="pill good">Done</span></div>
+        <div class="check"><span class="box"></span><span class="t"><strong>Blind B1-vs-B2 pair.</strong> <span>C1's floor (0.6 pp) makes its claim real: B1 wins only 20% of exchanges vs you, while loops/coach/your own read say B1 is cleanest. One blind pair says which instrument is lying — it calibrates every future C1 number.</span></span><span class="pill warn">Open</span></div>
+        <div class="check"><span class="box"></span><span class="t"><strong>Transfer decider (D7).</strong> <span>~1–1.5 h at the controller + 30 min scoring; three [DECISION]s in the prereg are yours (what you play — 3 Mewtwo + 3 Fox recommended; the rule; whether impressions gate). Arms in <code>~/decider2_archive</code> — never <code>ls -l</code> it, sizes unblind. Launch commands are in the terminal session notes.</span></span><span class="pill warn">Open</span></div>
+        <div class="check"><span class="box"></span><span class="t"><strong>Checkpoint pruning.</strong> <span>2,024 files, 23 GB; March + July pre-button-fix models are 14 GB of it. Pick keepers.</span></span><span class="pill neutral">Optional</span></div>
       </div>
     </section>
 
     <section id="housekeeping">
       <div class="section-head">
         <h2>Housekeeping</h2>
-        <p>Disk, the working tree, and what each piece is.</p>
-      </div>
-      <div class="tablewrap">
-        <table>
-          <caption>Root filesystem 552/590 GB. Everything below is dated and traced to its producer; the v1 cache is not a sweep — 79 of its 81 hashes were written by the fox_gen_v1 full training run itself (per-chunk streaming cache), and the AWBC arms read it.</caption>
-          <thead><tr><th>path</th><th class="num">size</th><th>what it is</th><th>verdict</th></tr></thead>
-          <tbody>
-            <tr><td><code>cache/embeddings/</code> 79 hashes, 08-25 21:00+</td><td class="num">118 GB</td><td>fox_gen_v1 full run's own per-chunk cache</td><td><span class="pill good">Keep</span> until v1 is exhausted</td></tr>
-            <tr><td><code>cache/corpus/fox_v2/</code></td><td class="num">45 GB</td><td>corpus built 08-08 from the old fox_il_v1 line; nothing current references it</td><td><span class="pill bad">Delete</span></td></tr>
-            <tr><td>2 orphan hashes, 08-25 03:00 &amp; 05:30</td><td class="num">15.5 GB</td><td>pre-full-run smoke/OOM attempts from the same morning</td><td><span class="pill bad">Delete</span></td></tr>
-            <tr><td>3 old hashes (07-10, 08-08, 08-10)</td><td class="num">11.5 GB</td><td>ms_g-line caches</td><td><span class="pill bad">Delete</span></td></tr>
-            <tr><td><code>~/.cache/pip</code></td><td class="num">9.4 GB</td><td>pip wheel cache</td><td><span class="pill bad">Delete</span></td></tr>
-            <tr><td>nix dead paths + 19 old generations</td><td class="num">3.2 GB+</td><td><code>nix-collect-garbage --delete-older-than 14d</code></td><td><span class="pill bad">Delete</span></td></tr>
-            <tr><td><code>cache/quarantine/</code></td><td class="num">1.4 GB</td><td>poisoned-cache forensics, case closed</td><td><span class="pill bad">Delete</span></td></tr>
-            <tr><td><code>replays/</code></td><td class="num">74 GB</td><td>erickfm_ranked 36, greg 13, huggingface 13, fox_il_v1 9.5</td><td><span class="pill good">Keep</span></td></tr>
-          </tbody>
-        </table>
+        <p>Tree, disk, and what each new piece is.</p>
       </div>
       <div class="cards">
         <div class="card">
-          <div class="top"><h3><code>scenarios/gaps.json</code> +7,784 lines</h3><span class="pill accent">Commit</span></div>
-          <p>735 ledger entries, all <code>source: coach</code>, created 08-27/28 by the bracket and sweep scoring (308 neutral_loss, 264 dropped_punish, 128 passivity_window, 35 death_sequence). That is the GapLedger doing its job — the data flywheel's stage A. Commit it; the ledger is designed to accumulate and dedupe.</p>
+          <div class="top"><h3>Repo state</h3><span class="pill good">Pushed</span></div>
+          <p>HEAD <code>c8bde50</code>, clean, <strong>pushed to origin</strong> (08-30, Bradley's ask — the 169-commit local pile is gone). edifice pushed at <code>637b230</code>. 3,592 tests, 0 failures.</p>
         </div>
         <div class="card">
-          <div class="top"><h3><code>exphil-status-board.html</code></h3><span class="pill accent">Superseded</span></div>
-          <p>DeepSeek's 08-27 board. Its through-line survives here; its "both temperature knobs are null" was retracted the next day. This page replaces it at <code>docs/planning/status_board.html</code>; the root copy is removed.</p>
+          <div class="top"><h3><code>cache/ar_head/</code> 19 GB</h3><span class="pill good">Keep</span></div>
+          <p>Streamed trunk-activation capture for head fits (<code>fox_gen_v1_…_ep10_1000f_c2</code>). Reusable for any further head experiment on the ep10 trunk; rebuilding costs 2.5 h.</p>
         </div>
         <div class="card">
-          <div class="top"><h3>08-29 commits</h3><span class="pill good">Clean tree</span></div>
-          <p>17 commits, nothing pushed: AWBC scorer + results, Leg S calibration, critic scripts' fixes, <code>Activations</code> stage-internals fix, <code>--mode-of-n</code> + tests, batch-count estimator fix, GOTCHAs #104/#105, this board. Running: Leg S at T=0.05 (unit <code>legS-argmax</code>).</p>
+          <div class="top"><h3>New checkpoints</h3><span class="pill accent">Deployable</span></div>
+          <p><code>fox_gen_v1.1_ARhead_policy.bin</code> (head: autoregressive) and <code>fox_gen_v1.1_INDhead_policy.bin</code> (control). Production <code>ms_g19_ep4.bin</code> and fox_gen_v1 ep10 untouched.</p>
         </div>
       </div>
     </section>
 
-    <footer>ExPhil status board · updated 2026-08-29 15:10 from HANDOFF_2026-08-29 §1–§9 and eval_runs/0828_awbc_arms, 0828_legS, 0829_critic, 0829_mode_of_n · numbers are quoted from eval_runs and are checkable there.</footer>
+    <footer>ExPhil status board · updated 2026-08-30 late from HANDOFF_2026-08-30b, AUTOREGRESSIVE_HEAD_PLAN §4/§6, EVAL_DIRECTIONS log, and eval_runs/0830_arhead_score2, 0830_corpus_mix, 0830_foxonly_rereads, 0830_d2_transfer · numbers are quoted from eval_runs and are checkable there.</footer>
   </main>
 </div>

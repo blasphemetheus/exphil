@@ -159,8 +159,8 @@ defmodule ExPhil.Training.Imitation.Checkpointing do
   - `{:ok, updated_trainer}` on success
   - `{:error, term()}` on failure
   """
-  @spec load_checkpoint(struct(), Path.t()) :: {:ok, struct()} | {:error, term()}
-  def load_checkpoint(trainer, path) do
+  @spec load_checkpoint(struct(), Path.t(), keyword()) :: {:ok, struct()} | {:error, term()}
+  def load_checkpoint(trainer, path, opts \\ []) do
     current_embed_size = trainer.config[:embed_size]
 
     # A TRAINING resume with a different embedding width cannot succeed —
@@ -173,37 +173,143 @@ defmodule ExPhil.Training.Imitation.Checkpointing do
            error_on_mismatch: true
          ) do
       {:ok, checkpoint} ->
-        new_trainer = %{
-          trainer
-          | policy_params: checkpoint.policy_params,
-            optimizer_state: checkpoint.optimizer_state,
-            config: checkpoint.config,
-            step: checkpoint.step,
-            metrics: checkpoint.metrics
-        }
+        trainer_head = normalize_head(trainer.config[:head])
+        ckpt_head = normalize_head(get_in_config(checkpoint.config, :head))
+        reinit_head = Keyword.get(opts, :reinit_head, false)
 
-        # Validate optimizer step matches trainer step
-        case get_optimizer_step(new_trainer.optimizer_state) do
-          nil ->
-            Logger.warning("Could not verify optimizer step count")
-
-          opt_step when opt_step != new_trainer.step ->
-            Logger.warning(
-              "Optimizer step count (#{opt_step}) differs from trainer step (#{new_trainer.step}). " <>
-                "LR schedule may not continue correctly."
-            )
-
-          _ ->
-            :ok
+        if trainer_head != ckpt_head or reinit_head do
+          transplant_trunk(trainer, checkpoint, path,
+            trainer_head: trainer_head,
+            ckpt_head: ckpt_head,
+            reinit_head: reinit_head
+          )
+        else
+          full_resume(trainer, checkpoint, path)
         end
-
-        Logger.info("Loaded checkpoint from #{path} at step #{new_trainer.step}")
-        {:ok, new_trainer}
 
       {:error, reason} ->
         {:error, reason}
     end
   end
+
+  defp full_resume(trainer, checkpoint, path) do
+    new_trainer = %{
+      trainer
+      | policy_params: checkpoint.policy_params,
+        optimizer_state: checkpoint.optimizer_state,
+        config: checkpoint.config,
+        step: checkpoint.step,
+        metrics: checkpoint.metrics
+    }
+
+    # Validate optimizer step matches trainer step
+    case get_optimizer_step(new_trainer.optimizer_state) do
+      nil ->
+        Logger.warning("Could not verify optimizer step count")
+
+      opt_step when opt_step != new_trainer.step ->
+        Logger.warning(
+          "Optimizer step count (#{opt_step}) differs from trainer step (#{new_trainer.step}). " <>
+            "LR schedule may not continue correctly."
+        )
+
+      _ ->
+        :ok
+    end
+
+    Logger.info("Loaded checkpoint from #{path} at step #{new_trainer.step}")
+    {:ok, new_trainer}
+  end
+
+  # Layer-name prefixes that belong to a controller HEAD (either kind).
+  # Everything else is trunk (+ embeddings) and is safe to transplant.
+  @head_prefixes ~w(buttons_ main_x_ main_y_ c_x_ c_y_ shoulder_ ar_)
+
+  # Trunk transplant: resume the TRUNK from a checkpoint whose head differs
+  # from the trainer's (e.g. `--resume ep10.axon --head autoregressive`), or
+  # whose head is being deliberately re-initialised (`--reinit-head`, the
+  # v1.1-IND control of AUTOREGRESSIVE_HEAD_PLAN item 9).
+  #
+  # Semantics (all deliberate, all logged):
+  # - Trunk/embedding params: loaded from the checkpoint (name + shape match).
+  # - Head params: keep the trainer's fresh init (the checkpoint either lacks
+  #   them entirely — ar_* — or is being intentionally re-rolled).
+  # - Optimizer state: FRESH. The checkpoint's optimizer tree matches the old
+  #   param tree, not the new one; loading it would crash or silently misapply.
+  # - config/step/metrics: keep the trainer's. This is the fix for the silent
+  #   head clobber (checkpoint.config[:head] overwriting `--head`) — guard #6's
+  #   flag-drop class, caught in the 08-30 precheck before it burned a run.
+  defp transplant_trunk(trainer, checkpoint, path, info) do
+    fresh_params = trainer.policy_params
+    fresh_data = params_data(fresh_params)
+    ckpt_data = params_data(checkpoint.policy_params)
+
+    {loadable, skipped_shape} =
+      ckpt_data
+      |> Enum.filter(fn {name, _} -> Map.has_key?(fresh_data, name) and not head_layer?(name) end)
+      |> Enum.split_with(fn {name, params} -> shapes_match?(params, fresh_data[name]) end)
+
+    if loadable == [] do
+      {:error,
+       {:transplant_no_overlap,
+        "no non-head layer of #{path} matches the current model — wrong checkpoint or architecture"}}
+    else
+      dropped_head = Enum.count(ckpt_data, fn {name, _} -> head_layer?(name) end)
+      fresh_head = Enum.count(fresh_data, fn {name, _} -> head_layer?(name) end)
+
+      if skipped_shape != [] do
+        Logger.warning(
+          "[Checkpoint] transplant: #{length(skipped_shape)} trunk layer(s) SKIPPED on shape " <>
+            "mismatch (#{skipped_shape |> Enum.map(&elem(&1, 0)) |> Enum.take(5) |> Enum.join(", ")}) — " <>
+            "these keep their fresh init; verify this is intended"
+        )
+      end
+
+      merged_params = put_params_data(fresh_params, Map.merge(fresh_data, Map.new(loadable)))
+
+      Logger.warning(
+        "[Checkpoint] TRUNK TRANSPLANT from #{path}: head #{inspect(info[:ckpt_head])} -> " <>
+          "#{inspect(info[:trainer_head])}#{if info[:reinit_head], do: " (reinit-head)", else: ""} | " <>
+          "#{length(loadable)} trunk layer(s) loaded, #{fresh_head} head layer(s) fresh, " <>
+          "#{dropped_head} checkpoint head layer(s) dropped | optimizer FRESH, step reset to #{trainer.step}"
+      )
+
+      {:ok, %{trainer | policy_params: merged_params}}
+    end
+  end
+
+  defp head_layer?(name), do: Enum.any?(@head_prefixes, &String.starts_with?(name, &1))
+
+  defp normalize_head(nil), do: :independent
+  defp normalize_head(head) when is_atom(head), do: head
+  defp normalize_head(head) when is_binary(head), do: String.to_existing_atom(head)
+
+  # Checkpoint config may be a map with atom OR string keys after round-trips.
+  defp get_in_config(config, key) when is_map(config),
+    do: Map.get(config, key, Map.get(config, to_string(key)))
+
+  defp get_in_config(config, key) when is_list(config), do: Keyword.get(config, key)
+  defp get_in_config(_, _), do: nil
+
+  # Params may be an Axon.ModelState (data: %{layer => %{param => tensor}})
+  # or a bare map of the same shape (older checkpoints).
+  defp params_data(%Axon.ModelState{data: data}), do: data
+  defp params_data(params) when is_map(params), do: params
+
+  defp put_params_data(%Axon.ModelState{} = state, data), do: %{state | data: data}
+  defp put_params_data(params, data) when is_map(params), do: data
+
+  # NOTE: the Nx.Tensor clause must come FIRST — a tensor is a struct, and
+  # structs satisfy is_map/1, so a bare is_map clause would swallow it.
+  defp shapes_match?(%Nx.Tensor{} = a, %Nx.Tensor{} = b), do: Nx.shape(a) == Nx.shape(b)
+
+  defp shapes_match?(a, b)
+       when is_map(a) and is_map(b) and not is_struct(a) and not is_struct(b) do
+    Map.keys(a) |> Enum.sort() == Map.keys(b) |> Enum.sort() and
+      Enum.all?(a, fn {k, v} -> shapes_match?(v, b[k]) end)
+  end
+
+  defp shapes_match?(_, _), do: false
 
   # ============================================================================
   # Export Functions
