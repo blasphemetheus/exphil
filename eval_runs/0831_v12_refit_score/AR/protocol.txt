@@ -1,0 +1,2 @@
+policy=checkpoints/fox_gen_v1.2_ARrefit_policy.bin runner=async runs=8 seconds=120 dummy=cpu server=0 decode=--temperature 0.5 loadavg=1.47 1.88 2.22
+fixture_agreement: [16:40:59] FIXTURE_AGREEMENT best=0.8755 offset=0 delay_id=0 n=1679
