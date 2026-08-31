@@ -2,8 +2,9 @@
 
 **Status stamp (2026-08-31): essentially CLOSED.** G1/G2/G4/G7 done with
 verdicts (results ledger below); G6's curation targets fell out of G1
-(defensive/disadvantage pocket, punish continuation); **open: G3**
-(CycleSim adaptation spike) and **G5** (style separability) — both
+(defensive/disadvantage pocket, punish continuation); **open: G3b**
+(learned dynamics model — redefined 08-31, see G3; the table-based
+CycleSim adaptation is DROPPED) and **G5** (style separability) — both
 parked, low priority. The program's live successors are
 `EVAL_DIRECTIONS.md` (the eval instrument bank + log) and
 `AUTOREGRESSIVE_HEAD_PLAN.md` — the joint-head audit that found the
@@ -85,8 +86,35 @@ burning live sessions; regression harness for future checkpoints.
 
 **Tooling:** CycleSim exists (gate passed, specialist-era). Adaptation
 needed: generalist state coverage (it was built around multishine
-cycles). **Status:** [ ] adaptation spike owed; scope unknown until
-opened.
+cycles). **Status:** [dropped 2026-08-31] — CycleSim is a transition
+table scraped from fixture replays (exact on visited states, dead
+off-graph, positions frozen); a generalist roams the whole state space,
+so the adaptation has no viable scope. Redefined as **G3b** below.
+
+## G3b. Learned dynamics model → generalist offline rollouts (successor to G3)
+
+**Measures / provides:** a one-step dynamics model
+`state' = f(state, action)` trained on the banked corpus (~90M frames;
+the AR-head streamed-capture infra already emits exactly the needed
+(state, action, next-state) tensors). Gives the critic follow-on its
+rollout engine (CRITIC_D2_DESIGN NULL branch: V + short rollouts over
+`sample_autoregressive_n` candidates) and re-enables basin studies at
+seconds-per-experiment.
+
+**Fidelity ladder (decided 2026-08-31, platfighter question):** learned
+model for breadth, audited by mechanics-true headless Dolphin
+spot-checks — the missing "start from an arbitrary state" piece is the
+parked improoover thread (.slp moment → bootable .gci savestate).
+`~/git/platfighter` is NOT a Melee simulator by design (original game,
+no hitboxes yet) and is not coupled here; its `crates/sim` architecture
+is the template if a hand-built MeleeSim is ever justified — only after
+the learned model measurably fails on fidelity. Validation gate mirrors
+CycleSim's: offline/live parity, measured on the BOT'S OWN rollout
+distribution, not the corpus's.
+
+**Status:** [ ] spike owed — GATED on the 0831_legS_ar reading (if AR
+headroom collapses, the selector program is demoted and this stays
+parked; if headroom survives, this is the next build).
 
 ## G4. Linear probes on the trunk → is the BC-then-RL bet sound
 
