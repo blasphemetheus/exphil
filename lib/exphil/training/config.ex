@@ -296,6 +296,7 @@ defmodule ExPhil.Training.Config do
     "--no-cache-streaming",
     # Auto-select port based on character
     "--train-character",
+    "--select-character-port",
     # Train on both players per replay
     "--dual-port",
     # Weight sampling by inverse character frequency
@@ -528,6 +529,10 @@ defmodule ExPhil.Training.Config do
       player_port: 1,
       # Auto-select port based on character (e.g., :mewtwo)
       train_character: nil,
+      # With --train-character: resolve the imitated port per file to that
+      # character's player (E1 fix — without it the streaming loader imitates
+      # port 1 regardless of who sits there). Streaming pipeline only.
+      select_character_port: false,
       # Train on both ports (doubles training data)
       dual_port: false,
       # Weight sampling by inverse character frequency

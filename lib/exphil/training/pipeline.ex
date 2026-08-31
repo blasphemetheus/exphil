@@ -108,6 +108,7 @@ defmodule ExPhil.Training.Pipeline do
       build_pipeline_corpus(opts)
     else
       with {:ok, replay_files, replay_stats} <- find_and_validate_replays(opts),
+           {:ok, opts} <- resolve_character_ports(replay_files, streaming, opts),
            {:ok, pipeline} <- build_pipeline(replay_files, replay_stats, streaming, opts) do
         {:ok, pipeline}
       end
@@ -196,6 +197,71 @@ defmodule ExPhil.Training.Pipeline do
           raise ArgumentError,
                 "unknown character #{inspect(character)} for --train-character " <>
                   "(known: #{Enum.join(Map.keys(@external_character_ids), ", ")})"
+    end
+  end
+
+  # --select-character-port: fox_gen_v1 imitated "whoever sat on port 1" —
+  # ~43% non-fox demonstrations, because --train-character only FILTERS files
+  # and the streaming loader defaulted every file to port 1 (E1, 2026-08-30,
+  # eval_runs/0830_corpus_mix). With this flag the imitated port is resolved
+  # per file to the --train-character player: singles use that player's port,
+  # dittos fall back to port 1 (both-ports dittos = a v2 refinement; keeping
+  # one entry per file keeps the train/val split trivially straddle-safe).
+  # Streaming-only: the standard pipeline ignores :port_map, so refuse loudly
+  # rather than train the wrong player (guards fail loud and safe).
+  defp resolve_character_ports(files, streaming, opts) do
+    cond do
+      !opts[:select_character_port] ->
+        {:ok, opts}
+
+      !opts[:train_character] ->
+        {:error, "--select-character-port requires --train-character"}
+
+      !streaming ->
+        {:error,
+         "--select-character-port is wired into the streaming pipeline only — " <>
+           "add --stream-chunk-size (the standard path would silently imitate port 1)"}
+
+      true ->
+        want_id = external_character_id!(opts[:train_character])
+
+        {port_map, counts} =
+          Enum.reduce(files, {%{}, %{port1: 0, other_port: 0, ditto: 0, absent: 0}}, fn path,
+                                                                                       {pm, c} ->
+            case Peppi.metadata(path) do
+              {:ok, meta} ->
+                case character_port(meta.players, want_id) do
+                  {:port, 1} -> {Map.put(pm, path, 1), Map.update!(c, :port1, &(&1 + 1))}
+                  {:port, p} -> {Map.put(pm, path, p), Map.update!(c, :other_port, &(&1 + 1))}
+                  :ditto -> {Map.put(pm, path, 1), Map.update!(c, :ditto, &(&1 + 1))}
+                  :absent -> {pm, Map.update!(c, :absent, &(&1 + 1))}
+                end
+
+              _ ->
+                {pm, c}
+            end
+          end)
+
+        Output.puts(
+          "  Character-aware ports (#{opts[:train_character]}): " <>
+            "#{counts.port1} on port 1, #{counts.other_port} on other ports, " <>
+            "#{counts.ditto} dittos (port 1)" <>
+            if(counts.absent > 0, do: ", #{counts.absent} without the character (!)", else: "")
+        )
+
+        {:ok, Keyword.put(opts, :port_map, port_map)}
+    end
+  end
+
+  @doc false
+  # Pure per-file port resolution for --select-character-port (unit-tested):
+  # exactly one player of the wanted character -> that port; two -> :ditto;
+  # none -> :absent (should not happen after the --train-character filter).
+  def character_port(players, want_id) do
+    case Enum.filter(players, &(&1.character == want_id)) do
+      [%{port: p}] -> {:port, p}
+      [_, _ | _] -> :ditto
+      [] -> :absent
     end
   end
 
@@ -326,7 +392,7 @@ defmodule ExPhil.Training.Pipeline do
       streaming: true,
       file_chunks: file_chunks,
       streaming_chunk_opts: Keyword.take(opts, [
-        :player_port, :dual_port, :frame_delay, :skip_errors, :show_errors
+        :player_port, :dual_port, :frame_delay, :skip_errors, :show_errors, :port_map
       ]),
       streaming_dataset_opts: Keyword.take(opts, [
         :temporal, :window_size, :stride, :precompute, :lazy_sequences

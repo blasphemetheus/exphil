@@ -245,8 +245,27 @@ defmodule ExPhil.Training.ChunkPipeline do
       # Generate cache key if caching is enabled
       cache_key =
         if cache_embeddings and embed_config do
-          # Use sorted file paths for deterministic key
-          sorted_files = chunk_files |> Enum.map(&normalize_path/1) |> Enum.sort()
+          # Use sorted file paths for deterministic key. A per-file :port_map
+          # (--select-character-port) changes WHAT gets embedded without
+          # changing any path — fold each file's resolved port into the key,
+          # or a port-remapped corpus silently reuses the old port-1 cache
+          # (the E1 trap, eval_runs/0830_corpus_mix). Port-1 files keep the
+          # bare-path key so existing caches stay valid for default runs.
+          port_map = Keyword.get(chunk_opts, :port_map) || %{}
+          default_port = Keyword.get(chunk_opts, :player_port, 1)
+
+          sorted_files =
+            chunk_files
+            |> Enum.map(fn entry ->
+              path = normalize_path(entry)
+
+              case Map.get(port_map, path, Map.get(port_map, entry, default_port)) do
+                1 -> path
+                port -> {path, port}
+              end
+            end)
+            |> Enum.sort()
+
           EmbeddingCache.cache_key(embed_config, sorted_files, dataset_opts)
         end
 

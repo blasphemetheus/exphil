@@ -168,6 +168,7 @@ defmodule ExPhil.Training.Config.Parser do
     |> parse_string_arg(args, "--checkpoint", :checkpoint)
     |> parse_int_arg(args, "--player", :player_port)
     |> parse_atom_arg(args, "--train-character", :train_character, ctx[:valid_characters] || [])
+    |> parse_flag(args, "--select-character-port", :select_character_port)
     |> parse_flag(args, "--dual-port", :dual_port)
     |> parse_flag(args, "--balance-characters", :balance_characters)
     |> parse_flag(args, "--wandb", :wandb)

@@ -137,7 +137,8 @@ mix run scripts/train_from_replays.exs --dual-port
 | `--batch-size N` | 64 | Batch size |
 | `--max-files N` | nil | Limit number of replay files |
 | `--player-port N` | 1 | Which player to learn from (1 or 2) |
-| `--train-character CHAR` | nil | Auto-select port with this character |
+| `--train-character CHAR` | nil | Filter to replays containing this character (files only — does NOT pick the port by itself; see `--select-character-port`) |
+| `--select-character-port` | false | With `--train-character`: imitate that character's actual port per file (singles → their port, dittos → port 1). Without it the streaming loader imitates port 1 regardless (the fox_gen_v1 43%-non-fox corpus bug, E1). Streaming pipeline only |
 | `--dual-port` | false | Train on BOTH players (2x data) |
 | `--hidden N,N,N` | 512,512,256 | Hidden layer sizes |
 | `--lr X` | 1e-4 | Learning rate (alias: `--learning-rate`) |
