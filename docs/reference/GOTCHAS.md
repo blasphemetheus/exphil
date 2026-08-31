@@ -3757,3 +3757,31 @@ must carry the new flag too. A parse-check (`Code.string_to_quoted!`)
 cannot catch this class; nor can it catch a `def match?/3` colliding with
 `Kernel.match?/2` (the other failure that hid behind this one) — only a
 real `mix run`/`Code.compile_file` under the project does.
+
+## 106
+
+**A port-remapped (or otherwise re-keyed) corpus cache is a SECOND full
+cache — budget the disk before launching, and never let the training
+disk hit 0.** Found 2026-08-31 03:00: the first v1.1 unfreeze launch
+died 40 min in (`EmbeddingCache.save_chunked` ENOSPC) and took the whole
+machine with it — root at 100% breaks unrelated tooling (/tmp lives on
+root here), so the failure is machine-wide, not run-wide.
+
+Mechanism: `--select-character-port` correctly produces NEW cache keys
+(that is its safety property — see the E1 trap), so the fox-port cache
+(~120 GB) built ALONGSIDE two stale port-1 generations already on disk:
+v1's 08-25 set (~95 GB) plus the AWBC seed-828 set from 08-28 (~95 GB —
+note `--seed` re-partitions chunks, so THAT was also a full second cache,
+same class of surprise). 560/590 GB used before the run even started.
+
+Resolution: stale generations MOVED (not deleted) to
+`/data/exphil/old_port1_embedding_cache` (206 GB); tonight's partial
+fox-port chunks kept and reused on relaunch; the truncated in-flight
+chunk (no manifest) moved out too — never leave a half-written cache
+entry where `exists?` might find it.
+
+**Rules:** (1) any launch that changes cache keys (seed, chunk size,
+port map, embed layout) states its cache budget and checks
+`df --output=avail` first; (2) stale cache generations are moved to
+/data, not accumulated on root; (3) a chunk without its `.manifest` is
+garbage — delete on sight.
