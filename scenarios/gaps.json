@@ -25667,6 +25667,286 @@
       "source": "coach",
       "status": "new",
       "type": "neutral_loss"
+    },
+    {
+      "created": "2026-08-31",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260831_141539"
+      },
+      "frame": 542,
+      "id": "g_4e8aa8b2",
+      "note": "passive_run=351f mid_dist=14.0",
+      "slp": "/home/blewf/git/exphil/eval_runs/0831_livelook_v11ar/2026-08-Mainline/Game_20260831T134108.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "passivity_window"
+    },
+    {
+      "created": "2026-08-31",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260831_141539"
+      },
+      "frame": 589,
+      "id": "g_10e26d17",
+      "note": "passive_run=488f mid_dist=9.5",
+      "slp": "/home/blewf/git/exphil/eval_runs/0831_livelook_v11ar/2026-08-Mainline/Game_20260831T134956.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "passivity_window"
+    },
+    {
+      "created": "2026-08-31",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260831_141539"
+      },
+      "frame": 596,
+      "id": "g_87288ae4",
+      "note": "passive_run=309f mid_dist=1.8",
+      "slp": "/home/blewf/git/exphil/eval_runs/0831_livelook_v11ar/2026-08-Mainline/Game_20260831T134841.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "passivity_window"
+    },
+    {
+      "created": "2026-08-31",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260831_141539"
+      },
+      "frame": 1399,
+      "id": "g_3838aeb7",
+      "note": "passive_run=410f mid_dist=21.1",
+      "slp": "/home/blewf/git/exphil/eval_runs/0831_livelook_v11ar/2026-08-Mainline/Game_20260831T135614.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "passivity_window"
+    },
+    {
+      "created": "2026-08-31",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260831_141539"
+      },
+      "frame": 1461,
+      "id": "g_092b08b3",
+      "note": "passive_run=339f mid_dist=17.3",
+      "slp": "/home/blewf/git/exphil/eval_runs/0831_livelook_v11ar/2026-08-Mainline/Game_20260831T133906.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "passivity_window"
+    },
+    {
+      "created": "2026-08-31",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260831_141539"
+      },
+      "frame": 1846,
+      "id": "g_31dcfa14",
+      "note": "passive_run=323f mid_dist=21.5",
+      "slp": "/home/blewf/git/exphil/eval_runs/0831_livelook_v11ar/2026-08-Mainline/Game_20260831T134642.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "passivity_window"
+    },
+    {
+      "created": "2026-08-31",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260831_141539"
+      },
+      "frame": 2320,
+      "id": "g_89de0ab3",
+      "note": "passive_run=325f mid_dist=0.0",
+      "slp": "/home/blewf/git/exphil/eval_runs/0831_livelook_v11ar/2026-08-Mainline/Game_20260831T134956.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "passivity_window"
+    },
+    {
+      "created": "2026-08-31",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260831_141539"
+      },
+      "frame": 2527,
+      "id": "g_b451f2e4",
+      "note": "passive_run=364f mid_dist=2.6",
+      "slp": "/home/blewf/git/exphil/eval_runs/0831_livelook_v11ar/2026-08-Mainline/Game_20260831T133906.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "passivity_window"
+    },
+    {
+      "created": "2026-08-31",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260831_141539"
+      },
+      "frame": 2610,
+      "id": "g_8fcec7d2",
+      "note": "passive_run=333f mid_dist=6.4",
+      "slp": "/home/blewf/git/exphil/eval_runs/0831_livelook_v11ar/2026-08-Mainline/Game_20260831T133730.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "passivity_window"
+    },
+    {
+      "created": "2026-08-31",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260831_141539"
+      },
+      "frame": 2957,
+      "id": "g_5f629e8f",
+      "note": "passive_run=672f mid_dist=13.2",
+      "slp": "/home/blewf/git/exphil/eval_runs/0831_livelook_v11ar/2026-08-Mainline/Game_20260831T135207.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "passivity_window"
+    },
+    {
+      "created": "2026-08-31",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260831_141541"
+      },
+      "frame": 3486,
+      "id": "g_538bd4c4",
+      "note": "passive_run=312f mid_dist=3.0",
+      "slp": "/home/blewf/git/exphil/eval_runs/0831_livelook_v11ind/2026-08-Mainline/Game_20260831T140711.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "passivity_window"
+    },
+    {
+      "created": "2026-08-31",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260831_141541"
+      },
+      "frame": 3938,
+      "id": "g_5fe7ccf6",
+      "note": "passive_run=568f mid_dist=23.1",
+      "slp": "/home/blewf/git/exphil/eval_runs/0831_livelook_v11ind/2026-08-Mainline/Game_20260831T141011.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "passivity_window"
+    },
+    {
+      "created": "2026-08-31",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260831_141541"
+      },
+      "frame": 5233,
+      "id": "g_2277b1d1",
+      "note": "passive_run=498f mid_dist=10.7",
+      "slp": "/home/blewf/git/exphil/eval_runs/0831_livelook_v11ind/2026-08-Mainline/Game_20260831T140711.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "passivity_window"
+    },
+    {
+      "created": "2026-08-31",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260831_141541"
+      },
+      "frame": 5365,
+      "id": "g_38c8946b",
+      "note": "passive_run=341f mid_dist=9.8",
+      "slp": "/home/blewf/git/exphil/eval_runs/0831_livelook_v11ind/2026-08-Mainline/Game_20260831T141011.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "passivity_window"
+    },
+    {
+      "created": "2026-08-31",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260831_141541"
+      },
+      "frame": 6172,
+      "id": "g_9a74a88b",
+      "note": "passive_run=417f mid_dist=5.2",
+      "slp": "/home/blewf/git/exphil/eval_runs/0831_livelook_v11ind/2026-08-Mainline/Game_20260831T140711.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "passivity_window"
+    },
+    {
+      "created": "2026-08-31",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260831_141541"
+      },
+      "frame": 301,
+      "id": "g_5d550376",
+      "note": "opening@301 start_pct=27.0 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0831_livelook_v11ind/2026-08-Mainline/Game_20260831T140334.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-31",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260831_141541"
+      },
+      "frame": 395,
+      "id": "g_bd91a599",
+      "note": "opening@395 start_pct=2.0 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0831_livelook_v11ind/2026-08-Mainline/Game_20260831T140908.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-31",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260831_141541"
+      },
+      "frame": 697,
+      "id": "g_2bfce43a",
+      "note": "opening@697 start_pct=6.7 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0831_livelook_v11ind/2026-08-Mainline/Game_20260831T141011.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-31",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260831_141541"
+      },
+      "frame": 947,
+      "id": "g_d65724a6",
+      "note": "opening@947 start_pct=5.8 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0831_livelook_v11ind/2026-08-Mainline/Game_20260831T140908.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
+    },
+    {
+      "created": "2026-08-31",
+      "evidence": {
+        "bot_port": 1,
+        "set_ts": "20260831_141541"
+      },
+      "frame": 1176,
+      "id": "g_f8464843",
+      "note": "opening@1176 start_pct=43.5 window=120f",
+      "slp": "/home/blewf/git/exphil/eval_runs/0831_livelook_v11ind/2026-08-Mainline/Game_20260831T140711.slp",
+      "source": "coach",
+      "status": "new",
+      "type": "dropped_punish"
     }
   ]
 }
