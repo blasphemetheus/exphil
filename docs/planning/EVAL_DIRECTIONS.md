@@ -146,6 +146,16 @@ Then re-read B1-the-model, ep10, B2 through A1/B2/C.
   implies stick-up" beyond what the trunk state carries. Candidate cause
   for airdodge-over-upB (A2) and option spam; a TRAINING change (head
   structure), not a decode one. Queued as a recipe question for v1.1.
+- 2026-08-30 20:10 — **8a bracket 2: SIGNAL**
+  (`eval_runs/0830_arhead_score2/RESULTS.md`). ARhead vs INDhead, healthy
+  games both arms. A2: up-B first-route 8.3% vs 0.0 (expert 16.3), up-B+dj
+  6× IND, airdodge halved (20.8 vs 53.2), recovery deaths 35.4% vs 51.1%.
+  Live coincidence: P(up|B)/P(up) = 2.20× (offstage 2.65×) vs IND's 1.05×
+  — expert is 2.9–3.2×. TV within floor of IND (0.62 vs 0.61); both above
+  ep10's 0.53 (frozen-trunk refit lags overall polish). Per the
+  pre-registered rule: AR = default-head candidate; **Bradley's live look
+  is the gate**; if confirmed, plan items 8/9 (unfreeze) chase polish +
+  structure together.
 - 2026-08-30 19:30 — **8a bracket 1 DISCARDED; heads refit with the real
   recipe; sampler fused.** Bracket 1 measured a fit bug, not the head: both
   arms fit with plain CE at 1e-3 (no pos-weights/smoothing/focal/edge/

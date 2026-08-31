@@ -1,0 +1,30 @@
+{
+  "fox_gen_v1.1_INDhead_policy": {
+    "replay": "eval_runs/0830_arhead_score2/IND/r1.slp",
+    "chains": null,
+    "crit_score": -1.601,
+    "phases": {
+      "jc_event": {
+        "min": -0.69,
+        "n": 2,
+        "mean": -0.687,
+        "p10": -0.69,
+        "flip_frac": 1.0
+      },
+      "aerial_shine_event": {
+        "min": -1.601,
+        "n": 5,
+        "mean": -0.902,
+        "p10": -1.601,
+        "flip_frac": 1.0
+      },
+      "ground_shine_event": {
+        "min": -2.195,
+        "n": 978,
+        "mean": -0.669,
+        "p10": -1.137,
+        "flip_frac": 0.887
+      }
+    }
+  }
+}
