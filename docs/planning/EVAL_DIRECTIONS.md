@@ -114,6 +114,21 @@ Then re-read B1-the-model, ep10, B2 through A1/B2/C.
 
 ## Log
 
+- 2026-08-31 15:05 — **Critic ladder on coherent candidates: PARTIAL-plus**
+  (`eval_runs/0831_critic_ar/RESULTS.md`). First selector WIN over the
+  free majority vote (13.7 vs 11.0 in-dist, 6.5 vs 5.1 fresh; 08-29 it
+  lost), gap-recovered >50% both corpora — but margin over mode-of-N
+  +2.7/+1.4 pts, under the pre-registered ≥5 → not wire-live. Shuffled
+  control at 11.5 (vs selector 16.5) shows most of the lift is generic
+  action-frequency preference. Rerun queued on v1.2-ARrefit (whose wire
+  is restored). Also 08-31 afternoon: **coincidence probe** — unfreeze
+  ATROPHIED the AR wire (L_cond 2.67→1.14, R_state flat; instrument
+  validated against both live lifts) → v1.2 refit chain queued; **F2
+  commitment scorecard** — pathology is 3.2× committal VOLUME (19.8–22.1
+  /min vs expert 6.2), not per-commitment timing; **F1 defense
+  scorecard** — the defense gap is the airdodge panic button (33% of
+  offstage hitstun episodes vs expert 2.4%, dies 53% within 90f), drift
+  itself near-expert.
 - 2026-08-31 08:30 — **v1.1 unfreeze trained AND scored overnight**
   (`eval_runs/0831_v11_unfreeze/TABLE.md`, `eval_runs/0831_v11_score/RESULTS.md`).
   Corpus FIXED via `--select-character-port` (E1); trunk-transplant resume
