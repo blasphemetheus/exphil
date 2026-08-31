@@ -102,6 +102,20 @@ Then re-read B1-the-model, ep10, B2 through A1/B2/C.
 
 ## Log
 
+- 2026-08-31 02:05 — **0831_legS_ar LANDED** (`eval_runs/0831_legS_ar/RESULTS.md`):
+  joint pass@1/pass@16/headroom — ep10 16.5/44.5/+28.0, INDhead
+  8.1/36.6/+28.5, ARhead 8.5/38.6/**+30.1**. Pre-registered readings:
+  (1) AR−IND pass@1 +0.4 = UNRESOLVED — conditioning is invisible to
+  open-loop match; the AR payoff lives in rare coincidence events pass@k
+  barely weights (why 8a gated on routes, not match). (2) **Headroom
+  SURVIVES on the AR base** — selection gap is NOT a factorization
+  artifact → critic program keeps priority; G3b (learned dynamics) gate
+  OPENS after the unfreeze. (3) ep10 fox-only ≈ 08-28 numbers —
+  instrument continuity, Leg S conclusions survive E1. Bonus: both
+  frozen-trunk refits at HALF ep10's pass@1 (buttons-driven) while
+  ARhead beats ep10 live on recovery — pass@1 is not a skill score,
+  measured twice in one table. Ops law: no inline scripts under
+  systemd-run (`${var}` got eaten by the quoting stack); script FILES only.
 - 2026-08-31 01:00 — **Leg S made AR-aware and relaunched on the head arms**
   (`eval_runs/0831_legS_ar/PREREG.md`, unit `legS-ar`, running). interp_passk
   drew six components independently from one forward's logits — correct for
