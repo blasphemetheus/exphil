@@ -509,6 +509,12 @@ defmodule ExPhil.Networks.Policy do
   defdelegate sample_autoregressive_n(params, trunk_predict_fn, state, n, opts), to: Sampling
 
   @doc """
+  k coherent AR samples for each of n feature rows (batched instrument path).
+  See `ExPhil.Networks.Policy.Sampling.sample_autoregressive_kn/4`.
+  """
+  defdelegate sample_autoregressive_kn(params, features, k, opts), to: Sampling
+
+  @doc """
   Sample buttons from logits (independent Bernoulli).
   See `ExPhil.Networks.Policy.Sampling.sample_buttons/2`.
   """

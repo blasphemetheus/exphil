@@ -201,31 +201,50 @@ defmodule CriticFeatures do
   # Run the six heads on {n, hidden} trunk activations and draw K samples per
   # row with the agent's own decode (Bernoulli buttons, Gumbel-max sticks).
   def sample_candidates(heads, acts, rows, k, temperature, key) do
-    out = heads.predict_fn.(heads.params, %{"trunk" => acts})
-
-    {b, mx, my, cx, cy, sh} =
-      case out do
-        {_, _, _, _, _, _} = t -> t
-        %{buttons: b, main_x: mx, main_y: my, c_x: cx, c_y: cy, shoulder: sh} -> {b, mx, my, cx, cy, sh}
-      end
-
     n = Nx.axis_size(acts, 0)
 
-    {u, key} = Nx.Random.uniform(key, shape: {k, n, 8})
-    buttons = Nx.greater(Nx.new_axis(Nx.sigmoid(Nx.divide(b, temperature)), 0), u)
+    # AR-head checkpoints: candidates must be drawn SEQUENTIALLY (buttons
+    # condition the sticks) — k independent draws from one forward's
+    # marginal logits would rank component chimeras (the same flaw Leg S
+    # had, fixed 08-31). The kn sampler returns the exact shapes the
+    # independent path produces, so everything downstream is head-agnostic.
+    {buttons, i_mx, i_my, i_cx, i_cy, i_sh, key} =
+      if Map.get(heads, :head) == :autoregressive do
+        {b, mx, my, cx, cy, sh} =
+          Policy.sample_autoregressive_kn(heads.params, acts, k,
+            temperature: temperature,
+            key: key
+          )
 
-    gumbel_argmax = fn logits, key ->
-      scaled = Nx.divide(logits, temperature)
-      {r, key} = Nx.Random.uniform(key, shape: {k, n, Nx.axis_size(logits, 1)})
-      g = Nx.negate(Nx.log(Nx.negate(Nx.log(Nx.add(r, 1.0e-10)))))
-      {Nx.argmax(Nx.add(Nx.new_axis(scaled, 0), g), axis: 2), key}
-    end
+        # advance the caller's key (the kn sampler split its copy internally)
+        {_, key} = Nx.Random.uniform(key, shape: {1})
+        {b, mx, my, cx, cy, sh, key}
+      else
+        out = heads.predict_fn.(heads.params, %{"trunk" => acts})
 
-    {i_mx, key} = gumbel_argmax.(mx, key)
-    {i_my, key} = gumbel_argmax.(my, key)
-    {i_cx, key} = gumbel_argmax.(cx, key)
-    {i_cy, key} = gumbel_argmax.(cy, key)
-    {i_sh, key} = gumbel_argmax.(sh, key)
+        {b, mx, my, cx, cy, sh} =
+          case out do
+            {_, _, _, _, _, _} = t -> t
+            %{buttons: b, main_x: mx, main_y: my, c_x: cx, c_y: cy, shoulder: sh} -> {b, mx, my, cx, cy, sh}
+          end
+
+        {u, key} = Nx.Random.uniform(key, shape: {k, n, 8})
+        buttons = Nx.greater(Nx.new_axis(Nx.sigmoid(Nx.divide(b, temperature)), 0), u)
+
+        gumbel_argmax = fn logits, key ->
+          scaled = Nx.divide(logits, temperature)
+          {r, key} = Nx.Random.uniform(key, shape: {k, n, Nx.axis_size(logits, 1)})
+          g = Nx.negate(Nx.log(Nx.negate(Nx.log(Nx.add(r, 1.0e-10)))))
+          {Nx.argmax(Nx.add(Nx.new_axis(scaled, 0), g), axis: 2), key}
+        end
+
+        {i_mx, key} = gumbel_argmax.(mx, key)
+        {i_my, key} = gumbel_argmax.(my, key)
+        {i_cx, key} = gumbel_argmax.(cx, key)
+        {i_cy, key} = gumbel_argmax.(cy, key)
+        {i_sh, key} = gumbel_argmax.(sh, key)
+        {buttons, i_mx, i_my, i_cx, i_cy, i_sh, key}
+      end
 
     # to Elixir once, then per (row, sample) build the ControllerState
     # {k, n, ...} -> tuple-of-tuples for O(1) (s, i) access (Enum.at in the

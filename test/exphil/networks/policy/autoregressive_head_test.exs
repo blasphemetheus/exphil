@@ -188,6 +188,32 @@ defmodule ExPhil.Networks.Policy.AutoregressiveHeadTest do
     assert distinct > 1, "all #{n} samples identical — not independent draws"
   end
 
+  test "sample_autoregressive_kn: k samples per feature row, batched shapes" do
+    model = build_head_model()
+    {params, _} = init_model(model)
+    params = randomize_embeds(params, 42)
+
+    {feats, _} = Nx.Random.normal(Nx.Random.key(11), shape: {5, @hidden})
+
+    {b, mx, my, cx, cy, sh} =
+      Sampling.sample_autoregressive_kn(params, feats, 7, key: Nx.Random.key(12))
+
+    assert Nx.shape(b) == {7, 5, 8}
+    assert Nx.shape(mx) == {7, 5}
+    assert Nx.shape(my) == {7, 5}
+    assert Nx.shape(cx) == {7, 5}
+    assert Nx.shape(cy) == {7, 5}
+    assert Nx.shape(sh) == {7, 5}
+
+    # Same key reproduces; distinct rows/samples vary at T=1
+    {b2, mx2, _, _, _, _} =
+      Sampling.sample_autoregressive_kn(params, feats, 7, key: Nx.Random.key(12))
+
+    assert Nx.to_flat_list(b) == Nx.to_flat_list(b2)
+    assert Nx.to_flat_list(mx) == Nx.to_flat_list(mx2)
+    assert length(Enum.uniq(Nx.to_flat_list(mx))) > 1
+  end
+
   @tag :slow
   @tag timeout: 120_000
   test "AR head learns P(up | B) on a synthetic dependent distribution" do

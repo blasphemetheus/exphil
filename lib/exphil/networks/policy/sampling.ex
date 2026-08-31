@@ -361,6 +361,49 @@ defmodule ExPhil.Networks.Policy.Sampling do
     sample_autoregressive_n(params, features, n, opts)
   end
 
+  @doc """
+  Batched instrument sampling: `k` independent sequential AR samples for
+  EACH of `n` feature rows in one fused pass (critic extraction /
+  Best-of-N over coherent candidates). Returns
+  `{buttons {k,n,8}, main_x {k,n}, main_y {k,n}, c_x {k,n}, c_y {k,n},
+  shoulder {k,n}}` — the same shapes the independent-head candidate
+  samplers produce, so downstream rankers are head-agnostic.
+
+  Same opts contract as `sample_autoregressive_n/4` (`:temperature`,
+  `:key`; no live-decode knobs).
+  """
+  @spec sample_autoregressive_kn(map(), Nx.Tensor.t(), pos_integer(), keyword()) ::
+          {Nx.Tensor.t(), Nx.Tensor.t(), Nx.Tensor.t(), Nx.Tensor.t(), Nx.Tensor.t(),
+           Nx.Tensor.t()}
+  def sample_autoregressive_kn(params, features, k, opts \\ [])
+      when is_integer(k) and k > 0 do
+    temps = temperature_tuple(Keyword.get(opts, :temperature, 1.0))
+    key = Keyword.get(opts, :key) || Nx.Random.key(:erlang.unique_integer([:positive]))
+    head = ar_head_params(params)
+    n = Nx.axis_size(features, 0)
+
+    {r0, b_l} = jitted(:ar_stage1, &ar_stage1/2).(head, features)
+    {r0k, b_lk} = {Nx.tile(r0, [k, 1]), Nx.tile(b_l, [k, 1])}
+    {t_b, _, _, _, _, _} = temps
+    {u, key2} = Nx.Random.uniform(key, shape: Nx.shape(b_lk))
+    buttons = Nx.less(u, Nx.sigmoid(Nx.divide(b_lk, t_b)))
+
+    {mx, my, cx, cy, sh, _mx_l, _my_l, _cx_l, _cy_l, _sh_l, _conf} =
+      jitted(:ar_stage2, &ar_stage2_stochastic/6).(
+        head,
+        r0k,
+        Nx.as_type(buttons, :f32),
+        b_lk,
+        key2,
+        temps
+      )
+
+    reshape = fn t -> Nx.reshape(t, {k, n}) end
+
+    {Nx.reshape(buttons, {k, n, :auto}), reshape.(mx), reshape.(my), reshape.(cx),
+     reshape.(cy), reshape.(sh)}
+  end
+
   # Extract the AR head parameter subtree ("ar_*" layers) from a params
   # map or Axon.ModelState — mirrors Heads.build_autoregressive_head names.
   defp ar_head_params(params) do
