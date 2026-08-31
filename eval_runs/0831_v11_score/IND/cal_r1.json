@@ -1,0 +1,30 @@
+{
+  "fox_gen_v1.1_IND_20260831_103800_policy": {
+    "replay": "eval_runs/0831_v11_score/IND/r1.slp",
+    "chains": null,
+    "crit_score": -1.528,
+    "phases": {
+      "jc_event": {
+        "min": -1.528,
+        "n": 1,
+        "mean": -1.528,
+        "p10": -1.528,
+        "flip_frac": 1.0
+      },
+      "aerial_shine_event": {
+        "min": -0.432,
+        "n": 4,
+        "mean": -0.198,
+        "p10": -0.432,
+        "flip_frac": 0.75
+      },
+      "ground_shine_event": {
+        "min": -1.92,
+        "n": 371,
+        "mean": -0.606,
+        "p10": -1.262,
+        "flip_frac": 0.951
+      }
+    }
+  }
+}

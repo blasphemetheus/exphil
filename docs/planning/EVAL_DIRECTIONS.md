@@ -102,6 +102,19 @@ Then re-read B1-the-model, ep10, B2 through A1/B2/C.
 
 ## Log
 
+- 2026-08-31 08:30 — **v1.1 unfreeze trained AND scored overnight**
+  (`eval_runs/0831_v11_unfreeze/TABLE.md`, `eval_runs/0831_v11_score/RESULTS.md`).
+  Corpus FIXED via `--select-character-port` (E1); trunk-transplant resume
+  worked live. val AR 5.480 vs IND 5.973 (the conditioning gap at scale).
+  §6 verdict: **NO SIGNAL between arms** — routes inverted (IND up-B 15.6
+  vs AR 9.4) while outcomes favor AR (died 28.1 vs 35.6, deaths/game 1.13
+  vs 2.13), everything at/under D1 floors at n=8 → **the live look
+  decides** (g6). The un-confounded headline: BOTH arms crush ep10 on
+  recovery (died 28/36% vs 61%) — unfreeze+corpus works. Flagged open:
+  the 8a coincidence lift inverted post-unfreeze (AR 1.28× vs IND 1.93×
+  offstage) — "trunk absorbs the coincidence when unfrozen" is the
+  interesting candidate, small-n the boring favorite; teacher-forced
+  probe queued behind the live look. Ops: ENOSPC at 02:53 → GOTCHA #106.
 - 2026-08-31 02:05 — **0831_legS_ar LANDED** (`eval_runs/0831_legS_ar/RESULTS.md`):
   joint pass@1/pass@16/headroom — ep10 16.5/44.5/+28.0, INDhead
   8.1/36.6/+28.5, ARhead 8.5/38.6/**+30.1**. Pre-registered readings:
