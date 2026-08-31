@@ -146,6 +146,19 @@ Then re-read B1-the-model, ep10, B2 through A1/B2/C.
   implies stick-up" beyond what the trunk state carries. Candidate cause
   for airdodge-over-upB (A2) and option spam; a TRAINING change (head
   structure), not a decode one. Queued as a recipe question for v1.1.
+- 2026-08-30 19:30 — **8a bracket 1 DISCARDED; heads refit with the real
+  recipe; sampler fused.** Bracket 1 measured a fit bug, not the head: both
+  arms fit with plain CE at 1e-3 (no pos-weights/smoothing/focal/edge/
+  entropy) → 78% unforced deaths, 0/8 games to cap, ep10 reference 8/8.
+  The A2/C4/coincidence numbers from `0830_arhead_score/` are artifacts of
+  that — do not cite. Fixes: fit mirrors the source *_config.json loss
+  recipe (pos-weights resolved from captured targets); AR sampler fused to
+  ONE XLA program (24 ms → 2.53 ms/decision; bracket-1 AR arm was 50%
+  stale); AR banner now warning-level so quiet-mode knob assertions see it.
+  Run 3: ARhead val 3.892 vs INDhead 4.374. Rescore →
+  `eval_runs/0830_arhead_score2/`. Law reaffirmed: a refit head must carry
+  the training run's FULL loss recipe — val loss looked fine both times;
+  only the live rung caught it.
 - 2026-08-30 18:55 — **8a head-only fit ran** (plan item 8a; the lib work
   items 2–7 landed the same day): frozen ep10 trunk, 12.14 M rows (fox-only
   per-file detection, dittos both ports), 4 epochs. **ARhead val 2.231 vs

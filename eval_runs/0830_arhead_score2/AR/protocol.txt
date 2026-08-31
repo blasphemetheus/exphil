@@ -1,0 +1,1 @@
+policy=checkpoints/fox_gen_v1.1_ARhead_policy.bin runner=async runs=8 seconds=120 dummy=cpu server=0 decode=--temperature 0.5 loadavg=1.33 1.53 2.05
