@@ -187,51 +187,79 @@ defmodule ExPhil.Networks.Policy.Sampling do
     mode_of_n = Keyword.get(opts, :mode_of_n)
 
     head = ar_head_params(params)
-
-    # Stage 1: residual projection + buttons logits (one XLA program)
-    {r0, b_l} = jitted(:ar_stage1, &ar_stage1/2).(head, features)
-
     argmax_buttons? = deterministic or deterministic_buttons
     n = if is_integer(mode_of_n) and mode_of_n > 1 and not deterministic, do: mode_of_n, else: 1
-
-    {r0n, b_ln} =
-      if n > 1 do
-        {Nx.tile(r0, [n, 1]), Nx.tile(b_l, [n, 1])}
-      else
-        {r0, b_l}
-      end
-
     temps = temperature_tuple(temperature)
 
-    buttons =
-      if argmax_buttons? do
-        Nx.greater(Nx.sigmoid(b_ln), 0.5)
-      else
-        {t_b, _, _, _, _, _} = temps
-        key = Nx.Random.key(:erlang.unique_integer([:positive]))
-        {u, _} = Nx.Random.uniform(key, shape: Nx.shape(b_ln))
-        Nx.less(u, Nx.sigmoid(Nx.divide(b_ln, t_b)))
+    # Hysteresis config as tensors (applied BEFORE conditioning, inside the
+    # fused kernel — press == release == 0.5 degrades to the plain 0.5 cut).
+    press = Keyword.get(opts, :press_threshold)
+    release = Keyword.get(opts, :release_threshold)
+    prev = Keyword.get(opts, :prev_buttons)
+    use_hyst? = argmax_buttons? and is_number(press) and is_number(release)
+    press_t = Nx.tensor(if(use_hyst?, do: press * 1.0, else: 0.5), type: :f32)
+    release_t = Nx.tensor(if(use_hyst?, do: release * 1.0, else: 0.5), type: :f32)
+
+    {prev_t, has_prev} =
+      case {use_hyst?, prev} do
+        {true, %Nx.Tensor{} = p} -> {Nx.as_type(p, :u8), Nx.tensor(1, type: :u8)}
+        _ -> {Nx.broadcast(Nx.tensor(0, type: :u8), {1, 8}), Nx.tensor(0, type: :u8)}
       end
 
-    # Hysteresis BEFORE conditioning (see moduledoc of the head builder)
-    buttons = apply_hysteresis(buttons, b_ln, argmax_buttons?, opts)
-    buttons_f32 = Nx.as_type(buttons, :f32)
+    {buttons, {mx, my, cx, cy, sh, mx_l, my_l, cx_l, cy_l, sh_l, conf}, b_l} =
+      cond do
+        n > 1 ->
+          # Mode-of-N (instrument only): two-stage path, batch-tiled.
+          {r0, b_l} = jitted(:ar_stage1, &ar_stage1/2).(head, features)
+          {r0n, b_ln} = {Nx.tile(r0, [n, 1]), Nx.tile(b_l, [n, 1])}
+          {t_b, _, _, _, _, _} = temps
+          key = Nx.Random.key(:erlang.unique_integer([:positive]))
+          {u, _} = Nx.Random.uniform(key, shape: Nx.shape(b_ln))
+          buttons = Nx.less(u, Nx.sigmoid(Nx.divide(b_ln, t_b)))
+          key = Nx.Random.key(:erlang.unique_integer([:positive]))
 
-    # Stage 2: the sequential remainder in one XLA program
-    {mx, my, cx, cy, sh, mx_l, my_l, cx_l, cy_l, sh_l, conf} =
-      if deterministic do
-        jitted(:ar_stage2_det, &ar_stage2_deterministic/4).(head, r0n, buttons_f32, b_ln)
-      else
-        key = Nx.Random.key(:erlang.unique_integer([:positive]))
+          rest =
+            jitted(:ar_stage2, &ar_stage2_stochastic/6).(
+              head,
+              r0n,
+              Nx.as_type(buttons, :f32),
+              b_ln,
+              key,
+              temps
+            )
 
-        jitted(:ar_stage2, &ar_stage2_stochastic/6).(
-          head,
-          r0n,
-          buttons_f32,
-          b_ln,
-          key,
-          temps
-        )
+          {buttons, rest, b_l}
+
+        deterministic ->
+          # Fully fused: one XLA program per decision (50% staleness at 60Hz
+          # with the two-stage + eager-glue path, 2026-08-30 AR bracket).
+          {b, rest, b_l} =
+            jitted(:ar_full_det, &ar_full_deterministic/5).(
+              head,
+              features,
+              press_t,
+              release_t,
+              {prev_t, has_prev}
+            )
+
+          {b, rest, b_l}
+
+        argmax_buttons? ->
+          key = Nx.Random.key(:erlang.unique_integer([:positive]))
+
+          jitted(:ar_full_mixed, &ar_full_mixed/7).(
+            head,
+            features,
+            key,
+            temps,
+            press_t,
+            release_t,
+            {prev_t, has_prev}
+          )
+
+        true ->
+          key = Nx.Random.key(:erlang.unique_integer([:positive]))
+          jitted(:ar_full_stoch, &ar_full_stochastic/4).(head, features, key, temps)
       end
 
     # Mode-of-N vote on the joint action (instrument only — disqualified
@@ -360,6 +388,42 @@ defmodule ExPhil.Networks.Policy.Sampling do
 
     {mx, my, cx, cy, sh, mx_l, my_l, cx_l, cy_l, sh_l,
      confidence_scalars(b_l, mx_l, my_l, cx_l, cy_l, sh_l)}
+  end
+
+  # --- fully fused single-decision variants (buttons decode in-kernel) ---
+
+  # Argmax buttons with hysteresis: threshold = release while held, press
+  # while up; no prev (first frame) -> press everywhere. press==release==0.5
+  # is the plain deterministic cut.
+  defnp ar_buttons_argmax(b_l, press, release, {prev, has_prev}) do
+    probs = Nx.sigmoid(b_l)
+    held = Nx.greater(prev, 0)
+    thr = Nx.select(Nx.greater(has_prev, 0), Nx.select(held, release, press), press)
+    Nx.greater(probs, thr)
+  end
+
+  defnp ar_full_deterministic(head, features, press, release, prev_pair) do
+    {r0, b_l} = ar_stage1(head, features)
+    buttons = ar_buttons_argmax(b_l, press, release, prev_pair)
+    rest = ar_stage2_deterministic(head, r0, Nx.as_type(buttons, :f32), b_l)
+    {buttons, rest, b_l}
+  end
+
+  defnp ar_full_mixed(head, features, key, temps, press, release, prev_pair) do
+    {r0, b_l} = ar_stage1(head, features)
+    buttons = ar_buttons_argmax(b_l, press, release, prev_pair)
+    rest = ar_stage2_stochastic(head, r0, Nx.as_type(buttons, :f32), b_l, key, temps)
+    {buttons, rest, b_l}
+  end
+
+  defnp ar_full_stochastic(head, features, key, temps) do
+    {r0, b_l} = ar_stage1(head, features)
+    {t_b, _, _, _, _, _} = temps
+    probs = Nx.sigmoid(b_l / t_b)
+    {u, key} = Nx.Random.uniform(key, shape: Nx.shape(probs))
+    buttons = Nx.less(u, probs)
+    rest = ar_stage2_stochastic(head, r0, Nx.as_type(buttons, :f32), b_l, key, temps)
+    {buttons, rest, b_l}
   end
 
   # Index of the most frequent JOINT action among N draws (buttons [N, 8],

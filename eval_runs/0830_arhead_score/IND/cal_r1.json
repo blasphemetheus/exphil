@@ -1,0 +1,16 @@
+{
+  "fox_gen_v1.1_INDhead_policy": {
+    "replay": "eval_runs/0830_arhead_score/IND/r1.slp",
+    "chains": null,
+    "crit_score": null,
+    "phases": {
+      "ground_shine_event": {
+        "min": -3.641,
+        "n": 4,
+        "mean": -2.151,
+        "p10": -3.641,
+        "flip_frac": 1.0
+      }
+    }
+  }
+}

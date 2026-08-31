@@ -1873,7 +1873,9 @@ defmodule ExPhil.Agents.Agent do
               "head: :autoregressive checkpoints require a temporal policy (no trunk seam in the MLP path)"
       end
 
-      Logger.info("[Agent] Autoregressive controller head ACTIVE (sequential per-frame sampling)")
+      # warning level: the eval protocols run at Logger :warning (quiet) and
+      # their knob assertions grep the run log for this banner
+      Logger.warning("[Agent] Autoregressive controller head ACTIVE (sequential per-frame sampling)")
     end
 
     # MLP backbone config

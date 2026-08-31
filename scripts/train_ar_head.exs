@@ -68,7 +68,7 @@ char_id = opts[:char_id] || 2
 limit = opts[:limit_files] || 1000
 epochs = opts[:epochs] || 4
 batch_size = opts[:batch_size] || 1024
-lr = opts[:lr] || 1.0e-3
+lr = opts[:lr] || 1.0e-4
 val_frac = opts[:val_frac] || 0.05
 seed = opts[:seed] || 828
 
@@ -111,6 +111,36 @@ window = trunk.window
 hidden = trunk.hidden_size
 axis_buckets = Map.get(trunk.config, :axis_buckets, 16)
 shoulder_buckets = Map.get(trunk.config, :shoulder_buckets, 4)
+
+# v1's LOSS RECIPE — the 08-30 first bracket died at ~35s/game in BOTH arms
+# because the heads were fit with plain CE at 1e-3: no button pos-weights
+# (rare buttons collapse — no jumps), no smoothing/focal/edge-weight
+# (miscalibrated sticks). Mirror the source run's *_config.json.
+recipe_path =
+  policy_path
+  |> String.replace(~r/(_ep\d+)?(_policy)?\.bin$/, "")
+  |> Kernel.<>("_config.json")
+
+recipe =
+  if File.exists?(recipe_path) do
+    Output.puts("Loss recipe from #{Path.basename(recipe_path)}")
+    Jason.decode!(File.read!(recipe_path))
+  else
+    Output.warning("no #{Path.basename(recipe_path)} — using v1-style loss defaults")
+    %{}
+  end
+
+label_smoothing = recipe["label_smoothing"] || 0.1
+focal_loss = if is_nil(recipe["focal_loss"]), do: true, else: recipe["focal_loss"]
+focal_gamma = recipe["focal_gamma"] || 3.0
+button_weight = recipe["button_weight"] || 2.0
+stick_edge_weight = recipe["stick_edge_weight"] || 2.0
+entropy_weight = recipe["entropy_weight"] || 0.01
+pos_weight_auto? = recipe["button_pos_weight"] in ["auto", nil]
+
+Output.puts("loss: smooth=#{label_smoothing} focal=#{focal_loss}/#{focal_gamma} " <>
+  "btn_w=#{button_weight} pos_w=#{if pos_weight_auto?, do: "auto", else: "off"} " <>
+  "edge=#{stick_edge_weight} entropy=#{entropy_weight} lr=#{lr}")
 
 port_tag = if opts[:port], do: "p#{opts[:port]}", else: "c#{char_id}"
 
@@ -243,6 +273,33 @@ if byte_size(feats_bin) != expected do
   raise "features.bin is #{byte_size(feats_bin)} bytes, expected #{expected} — partial capture? delete #{features_dir} and recapture"
 end
 
+# resolve the recipe's :auto button pos-weights from the captured targets
+button_pos_weight =
+  if pos_weight_auto? do
+    rates =
+      comp_bins.buttons
+      |> Nx.from_binary(:u8)
+      |> Nx.reshape({n, 8})
+      |> Nx.as_type(:f32)
+      |> Nx.mean(axes: [0])
+
+    w = ExPhil.Networks.Policy.Loss.compute_pos_weights_from_rates(rates, 30.0)
+    Output.puts("button pos-weights: #{inspect(w |> Nx.to_flat_list() |> Enum.map(&Float.round(&1, 1)))}")
+    Nx.backend_copy(w, Nx.BinaryBackend)
+  else
+    nil
+  end
+
+loss_opts = [
+  label_smoothing: label_smoothing,
+  focal_loss: focal_loss,
+  focal_gamma: focal_gamma,
+  button_weight: button_weight,
+  button_pos_weight: button_pos_weight,
+  stick_edge_weight: stick_edge_weight,
+  entropy_weight: entropy_weight
+]
+
 # ---------------------------------------------------------------------------
 # Split BY GAME (ditto halves share a game id -> same side)
 # ---------------------------------------------------------------------------
@@ -369,7 +426,8 @@ fit_one = fn head ->
 
     ExPhil.Networks.Policy.imitation_loss(
       %{buttons: b, main_x: mx, main_y: my, c_x: cx, c_y: cy, shoulder: sh},
-      actions
+      actions,
+      loss_opts
     )
   end
 
