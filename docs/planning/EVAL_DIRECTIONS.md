@@ -29,9 +29,9 @@ and `eval_runs/0829_livelook_awbc/IMPRESSIONS.md`.
 
 | instrument | measures | limits |
 |---|---|---|
-| `loop_report` / LoopStats | d_up presses, taunts, frozen/held input, repeated action cycles | per-game averages; loops/min is not a pathology score by itself |
+| `loop_report` / LoopStats | d_up presses, taunts, frozen/held input, repeated action cycles | per-game averages; loops/min is not a pathology score by itself. 08-31: stub games (<150 KB) excluded+counted, cells now mean~median (the D2 331-taunts/min lesson) |
 | `coach_report` / FailureScan | armed approaches, conversions, dropped punishes, deaths, passivity, neutral losses | armed/min drifts 7× day to day |
-| `interp_passk` (Leg S) | pass@k − pass@1 on decision frames | mode-seeking; never rank decodes on it (L9) |
+| `interp_passk` (Leg S) | pass@k − pass@1 on decision frames | mode-seeking; never rank decodes on it (L9). 08-31: AR-aware — AR checkpoints sample SEQUENTIALLY via `Agent.get_action_samples` (n draws from one forward's logits would score the AR head as independent) |
 | `sd_scan` | self-destructs by side, walk-offs | detector's 90 f window counts late recovery deaths as SDs (symmetric) |
 | `critic_*` / `interp_bestofn` | offline Best-of-N vs sampling / mode-of-N / oracle | same mode-seeking metric |
 | run logs | game duration, inferences/frame, staleness | the truncation-proof cross-check |
@@ -70,7 +70,7 @@ Status: `todo` · `building` · `ran` (has a RESULTS) · `adopted` (on the stand
 | id | instrument | question | status | script / results |
 |---|---|---|---|---|
 | **D1** | **Noise floors** | Same checkpoint, different days/batches: the natural spread of every metric. Which numbers can ever resolve a real difference? | **ran** | `scripts/noise_floor.sh` → `eval_runs/0829_noise_floor/RESULTS.md`: d_up 1.1×, held 1.2×, loops 2.0×, deaths 2.5–3×, conv% 3.5×, armed 7×. D1b ran: TV floor 0.05 on the mean, 0.1 per situation (`eval_runs/0829_noise_floor/tv_floor.md`) |
-| D2 | Human-vs-CPU transfer table | For each metric, CPU-bracket value vs Bradley-session value for the same checkpoint. Which metrics the CPU rung can stand in for. | **ran** | `eval_runs/0830_d2_transfer/RESULTS.md` — dpad/taunts transfer (~0.8× human/CPU factor); loops/min: CPU overstates ~2×, ordering only; ep10_human taunt row invalid (port-map artifact, flagged) |
+| D2 | Human-vs-CPU transfer table | For each metric, CPU-bracket value vs Bradley-session value for the same checkpoint. Which metrics the CPU rung can stand in for. | **ran** | `eval_runs/0830_d2_transfer/RESULTS.md` — dpad/taunts transfer (~0.8× human/CPU factor); loops/min: CPU overstates ~2×, ordering only; ep10_human taunt row RESOLVED 08-30: one degenerate 100 KB stub game at 3600/min poisoned the mean (not d-pad, not port-map); loop_report stub-filters + reports medians since 08-31 |
 | D3 | Decode-vs-model sensitivity | From banked temperature sweeps: which metrics are purely decode-driven (press rates) vs model-driven. | **ran** | `eval_runs/0830_decode_sensitivity/RESULTS.md` — dpad/min, longest action/input runs = decode-driven (rho=±1.0, 4x range); taunts/min NOT knob-ordered (noisy); loops/min decode-leaning |
 
 ### E. Data-side audits
@@ -83,6 +83,9 @@ Status: `todo` · `building` · `ran` (has a RESULTS) · `adopted` (on the stand
 | E4 | Left walk-off poison | Is the corpus poisoned with repeated one-sided SDs? | **ran — falsified** | `scripts/sd_scan.exs`, `eval_runs/0829_sd_scan/RESULTS.md` |
 
 ## Order of work
+
+*(Historical — the full program A→E ran 08-29→08-30; every direction has a
+RESULTS. The doc now serves as the instrument registry + dated log.)*
 
 1. **A1** — the instrument that turns Bradley's sentences into rows; gives B and C their denominators.
 2. **B2** — cheap once A1 exists; would have rejected mode-of-N without a live run.
@@ -99,6 +102,21 @@ Then re-read B1-the-model, ep10, B2 through A1/B2/C.
 
 ## Log
 
+- 2026-08-31 01:00 — **Leg S made AR-aware and relaunched on the head arms**
+  (`eval_runs/0831_legS_ar/PREREG.md`, unit `legS-ar`, running). interp_passk
+  drew six components independently from one forward's logits — correct for
+  independent heads, silently wrong for AR checkpoints (ignores the
+  conditioning AND reuses one path's conditional logits). New:
+  `Sampling.sample_autoregressive_n` (the fused mode-of-N machinery minus
+  the vote, key-seedable) via `Agent.get_action_samples` (debounce-free,
+  side-effect-free). Three arms — ep10 / v1.1_INDhead / v1.1_ARhead —
+  fox-detected ports (E1), n=16, T=0.5/0.5, seed 20260831. Pre-registered
+  readings: joint pass@1 AR−IND (≥3 pts = conditioning visible open-loop)
+  and headroom AR vs IND (shrinks ≥5 pts = part of the old "+29 selection
+  gap" was factorization; survives = critic program keeps priority on the
+  AR base). Also 08-31: loop_report stub filter + mean~median cells;
+  trunk-transplant resume (`--head` mismatch / `--reinit-head`) landed for
+  plan items 8/9.
 - 2026-08-29 22:55 — document created; E4 recorded as ran/falsified; A1 started.
 - 2026-08-29 23:15 — A1 + B2 ran (`eval_runs/0829_situation_hist/README.md`).
   Findings: the bot has NO ground movement (dash 0.1% of frames vs 9–12%

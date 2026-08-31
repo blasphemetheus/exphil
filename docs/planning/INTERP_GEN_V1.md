@@ -1,5 +1,18 @@
 # INTERP_GEN_V1 — interpretability program for the generalist line
 
+**Status stamp (2026-08-31): essentially CLOSED.** G1/G2/G4/G7 done with
+verdicts (results ledger below); G6's curation targets fell out of G1
+(defensive/disadvantage pocket, punish continuation); **open: G3**
+(CycleSim adaptation spike) and **G5** (style separability) — both
+parked, low priority. The program's live successors are
+`EVAL_DIRECTIONS.md` (the eval instrument bank + log) and
+`AUTOREGRESSIVE_HEAD_PLAN.md` — the joint-head audit that found the
+0.86 bits/frame factorization cost is this program's method applied to
+the action space. Note the G1+G2 "combined read" below ("what we lack
+is a selection rule") was later sharpened by that audit: part of the
+selection gap was the independent-head factorization itself (8a SIGNAL,
+08-30).
+
 Started 2026-08-26, the morning fox_gen_v1's decode story broke open
 (argmax = absorbing crouch loop; temp 0.5 = live repertoire + 1.0
 armed approaches/min + 3/4 conversions vs CPU). Companion to
@@ -36,7 +49,7 @@ labels, over a sample of corpus states (teacher-forced histories).
 machinery from the early-reject program); Situations labeler is
 batch-capable. New glue: one script that walks corpus windows, labels
 them, and accumulates per-(label, head) entropy stats.
-**Status:** [ ] script owed (G1 first — directly improves today's knob)
+**Status:** [x] done (2026-08-26) — see results ledger.
 
 ## G2. History-vs-state dominance probe → does v2 train with scheduled sampling
 
@@ -56,7 +69,8 @@ states for a population number.
 
 **Tooling:** Data embedding path can build synthetic windows; policy
 predict on {1, 60, 296}. New script, small.
-**Status:** [ ] script owed (G2 second — decides v2's biggest knob)
+**Status:** [x] done (2026-08-26) — see results ledger (verdict: v2 does
+NOT need scheduled sampling).
 
 ## G3. CycleSim closed-loop basin study → offline decode tuning
 
@@ -117,7 +131,10 @@ pockets where the model stayed uncertain (thin or contradictory data).
 feeds the fight-state program: pressure situations are prime suspects.
 
 **Tooling:** G1's script gets this nearly for free (same walk, add
-loss accumulation). **Status:** [ ] rides on G1.
+loss accumulation). **Status:** [x] absorbed into G1's findings
+(2026-08-26): curation target #1 = defensive/disadvantage states;
+target #2 = punish continuation (finishing, not entering). Feeds the
+v1.1/v2 recipe.
 
 ## G7. Blind input audit → what does it actually read
 
@@ -135,6 +152,8 @@ prioritizes which conditioning inputs are dead weight vs load-bearing
 ---
 
 ## Execution order
+
+*(Historical — ran in roughly this order 08-26→08-28; only G3/G5 remain.)*
 
 1. **G1 + G6** (one script, one corpus walk) — improves today's
    decode knob; yields curation targets.
