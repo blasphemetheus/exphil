@@ -297,6 +297,70 @@ defmodule ExPhil.Networks.Policy.Sampling do
     }
   end
 
+  @doc """
+  Draw `n` INDEPENDENT joint samples from the autoregressive head, each
+  sequentially conditioned (buttons → sticks → shoulder). The instrument
+  entry point for pass@k / Best-of-N on AR checkpoints (Leg S): n draws
+  from one forward's logits would ignore the conditioning AND reuse one
+  path's conditional logits — this is the mode-of-N machinery without the
+  vote. One trunk pass, tiled stage1/stage2 kernels, n coherent actions.
+
+  Component values are bucket INDICES (same convention as `sample/4`) —
+  run each through `Policy.to_controller_state/2` before comparing.
+
+  Opts: `:temperature` (scalar or per-head map), `:key` (Nx.Random key for
+  reproducibility; fresh unique key when omitted). Deliberately NO
+  hysteresis / argmax / mode-of-N — those are live-decode knobs, and an
+  instrument sampling the raw decode distribution must not apply them.
+  """
+  @spec sample_autoregressive_n(map(), Nx.Tensor.t(), pos_integer(), keyword()) :: [map()]
+  def sample_autoregressive_n(params, features, n, opts \\ [])
+      when is_integer(n) and n > 0 do
+    temps = temperature_tuple(Keyword.get(opts, :temperature, 1.0))
+    key = Keyword.get(opts, :key) || Nx.Random.key(:erlang.unique_integer([:positive]))
+    head = ar_head_params(params)
+
+    {r0, b_l} = jitted(:ar_stage1, &ar_stage1/2).(head, features)
+    {r0n, b_ln} = {Nx.tile(r0, [n, 1]), Nx.tile(b_l, [n, 1])}
+    {t_b, _, _, _, _, _} = temps
+    {u, key2} = Nx.Random.uniform(key, shape: Nx.shape(b_ln))
+    buttons = Nx.less(u, Nx.sigmoid(Nx.divide(b_ln, t_b)))
+
+    {mx, my, cx, cy, sh, _mx_l, _my_l, _cx_l, _cy_l, _sh_l, _conf} =
+      jitted(:ar_stage2, &ar_stage2_stochastic/6).(
+        head,
+        r0n,
+        Nx.as_type(buttons, :f32),
+        b_ln,
+        key2,
+        temps
+      )
+
+    for i <- 0..(n - 1) do
+      %{
+        buttons: buttons[i],
+        main_x: mx[i],
+        main_y: my[i],
+        c_x: cx[i],
+        c_y: cy[i],
+        shoulder: sh[i]
+      }
+    end
+  end
+
+  @doc """
+  `sample_autoregressive_n/4` with the trunk forward included: computes
+  features via `trunk_predict_fn` (the windowed path), then draws n
+  sequential samples. See `sample_autoregressive_n/4`.
+  """
+  @spec sample_autoregressive_n(map(), function(), Nx.Tensor.t(), pos_integer(), keyword()) ::
+          [map()]
+  def sample_autoregressive_n(params, trunk_predict_fn, state, n, opts)
+      when is_function(trunk_predict_fn) do
+    features = trunk_predict_fn.(Utils.ensure_model_state(params), state)
+    sample_autoregressive_n(params, features, n, opts)
+  end
+
   # Extract the AR head parameter subtree ("ar_*" layers) from a params
   # map or Axon.ModelState — mirrors Heads.build_autoregressive_head names.
   defp ar_head_params(params) do

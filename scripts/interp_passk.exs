@@ -305,6 +305,13 @@ Agent.warmup(agent)
 agent_config = Agent.get_config(agent)
 window = if agent_config.temporal, do: agent_config.window_size || 60, else: 0
 
+# AR-head checkpoints sample SEQUENTIALLY (buttons condition the sticks).
+# Drawing n components independently from one forward — the independent-head
+# path below — would both ignore the conditioning and reuse one path's
+# conditional logits, silently scoring the AR head as if it were independent.
+ar_head? = Map.get(agent_config, :head) == :autoregressive
+Output.puts("  Head: #{Map.get(agent_config, :head, :independent)}")
+
 # ---- WHY the sampling below looks the way it does (first-run bug, 08-28) ---
 #
 # The first execution of this script returned pass@k IDENTICAL to pass@1 at
@@ -419,9 +426,31 @@ rng = Nx.Random.key(opts[:seed] || 20_260_828)
     end
 
     {samples, key} =
-      case Agent.get_action_with_confidence(agent, f.game_state, player_port: f_port) do
-        {:ok, action, _conf} -> draw_samples.(action, n_samples, key)
-        _ -> {[], key}
+      if ar_head? do
+        # n coherent sequential samples via the agent's instrument path
+        # (side-effect-free: no debounce, no buffer mutation).
+        split = Nx.Random.split(key)
+        {sub, key} = {split[0], split[1]}
+
+        case Agent.get_action_samples(agent, f.game_state,
+               player_port: f_port,
+               n: n_samples,
+               key: sub
+             ) do
+          {:ok, actions} ->
+            {Enum.map(
+               actions,
+               &ExPhil.Networks.Policy.to_controller_state(&1, axis_buckets: axis_buckets)
+             ), key}
+
+          _ ->
+            {[], key}
+        end
+      else
+        case Agent.get_action_with_confidence(agent, f.game_state, player_port: f_port) do
+          {:ok, action, _conf} -> draw_samples.(action, n_samples, key)
+          _ -> {[], key}
+        end
       end
 
     %{

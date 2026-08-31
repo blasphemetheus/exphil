@@ -149,6 +149,45 @@ defmodule ExPhil.Networks.Policy.AutoregressiveHeadTest do
     assert Nx.to_flat_list(Nx.argmax(mx, axis: -1)) == Nx.to_flat_list(sampled.main_x)
   end
 
+  test "sample_autoregressive_n: n coherent samples, key-reproducible, actually varied" do
+    model = build_head_model()
+    {params, predict_fn} = init_model(model)
+    params = randomize_embeds(params, 42)
+    _ = predict_fn
+
+    {trunk, _} = Nx.Random.normal(Nx.Random.key(6), shape: {1, @hidden})
+
+    n = 16
+    samples = Sampling.sample_autoregressive_n(params, trunk, n, key: Nx.Random.key(9))
+
+    assert length(samples) == n
+
+    for s <- samples do
+      assert Nx.shape(s.buttons) == {8}
+      assert Nx.shape(s.main_x) == {}
+      assert Nx.shape(s.shoulder) == {}
+    end
+
+    # Same key => identical draw (the --seed contract in interp_passk)
+    again = Sampling.sample_autoregressive_n(params, trunk, n, key: Nx.Random.key(9))
+
+    assert Enum.zip(samples, again)
+           |> Enum.all?(fn {a, b} ->
+             Nx.to_flat_list(a.buttons) == Nx.to_flat_list(b.buttons) and
+               Nx.to_number(a.main_y) == Nx.to_number(b.main_y)
+           end)
+
+    # Independent draws at T=1 from a random head must not be n copies of
+    # one sample (the 08-28 Leg S run-1 bug signature).
+    distinct =
+      samples
+      |> Enum.map(&{Nx.to_flat_list(&1.buttons), Nx.to_number(&1.main_x), Nx.to_number(&1.main_y)})
+      |> Enum.uniq()
+      |> length()
+
+    assert distinct > 1, "all #{n} samples identical — not independent draws"
+  end
+
   @tag :slow
   @tag timeout: 120_000
   test "AR head learns P(up | B) on a synthetic dependent distribution" do

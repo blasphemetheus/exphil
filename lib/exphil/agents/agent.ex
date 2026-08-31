@@ -221,6 +221,29 @@ defmodule ExPhil.Agents.Agent do
   end
 
   @doc """
+  INSTRUMENT: draw `n` independent joint action samples at this game state
+  (autoregressive-head checkpoints only, windowed temporal path).
+
+  Skips the one-decision-per-frame debounce and does NOT mutate the agent's
+  temporal buffer or caches — repeated calls and same-frame calls are safe.
+  Used by interp_passk (Leg S): pass@k on an AR checkpoint needs n coherent
+  sequential samples, not n draws from one forward's path-conditional logits.
+
+  Opts: `:n` (default 16), `:key` (Nx.Random key), `:player_port`,
+  `:temperature` (defaults to the agent's), `:timeout` (default 30_000).
+
+  Returns `{:ok, [action_map]}` — bucket indices; run each through
+  `ExPhil.Networks.Policy.to_controller_state/2` before comparing to a
+  replay — or `{:error, reason}`.
+  """
+  @spec get_action_samples(GenServer.server(), GameState.t(), keyword()) ::
+          {:ok, [map()]} | {:error, term()}
+  def get_action_samples(agent, game_state, opts \\ []) do
+    {timeout, opts} = Keyword.pop(opts, :timeout, 30_000)
+    GenServer.call(agent, {:get_action_samples, game_state, opts}, timeout)
+  end
+
+  @doc """
   Get controller state for a game state.
 
   Returns a ControllerState struct ready to send to the bridge.
@@ -497,6 +520,14 @@ defmodule ExPhil.Agents.Agent do
   end
 
   @impl true
+  def handle_call({:get_action_samples, game_state, opts}, _from, state) do
+    # Reply with the UNCHANGED state on purpose: this is an instrument path
+    # and must not perturb debounce bookkeeping, the temporal buffer, or any
+    # cache (see compute_action_samples/3).
+    {:reply, compute_action_samples(state, game_state, opts), state}
+  end
+
+  @impl true
   def handle_call({:get_controller, game_state, opts}, _from, state) do
     case compute_action(state, game_state, opts) do
       {:ok, action, confidence, new_state} ->
@@ -541,6 +572,7 @@ defmodule ExPhil.Agents.Agent do
       deterministic: state.deterministic,
       temperature: state.temperature,
       mode_of_n: state.mode_of_n,
+      head: state.head,
       has_policy: state.policy_params != nil,
       # Temporal config
       temporal: state.temporal,
@@ -1154,6 +1186,59 @@ defmodule ExPhil.Agents.Agent do
   end
 
   # Temporal inference with frame buffering
+  # INSTRUMENT PATH (get_action_samples/3): n independent AR joint samples
+  # at one game state. Deliberately side-effect-free — no debounce
+  # bookkeeping, no buffer/cache mutation — so a scorer can call it once per
+  # decision frame after replaying history via get_controller without
+  # perturbing the normal decision stream. Windowed temporal AR checkpoints
+  # only: the stateful/incremental paths hold hidden state this must not
+  # advance.
+  defp compute_action_samples(state, game_state, opts) do
+    n = Keyword.get(opts, :n, 16)
+
+    cond do
+      state.policy_params == nil ->
+        {:error, AgentError.new(:no_policy_loaded, agent: state.name)}
+
+      state.head != :autoregressive ->
+        {:error, :not_autoregressive}
+
+      not state.temporal or state.trunk_state != nil or state.mamba_cache != nil ->
+        {:error, :windowed_temporal_only}
+
+      true ->
+        player_port = effective_port(game_state, opts)
+        embedded = embed_game_state(game_state, player_port, state)
+
+        # Same sequence construction as compute_temporal_action — the
+        # decision frame is part of its own window — on a LOCAL copy of the
+        # buffer that is then discarded.
+        buffer = :queue.in(embedded, state.frame_buffer)
+        {buffer, _dropped} = trim_buffer(buffer, state.window_size)
+
+        sequence =
+          if :queue.len(buffer) < state.window_size do
+            pad_sequence(buffer, state.window_size)
+          else
+            buffer_to_tensor(buffer)
+          end
+
+        sequence_batch = Nx.reshape(sequence, {1, state.window_size, Nx.size(embedded)})
+
+        samples =
+          Networks.Policy.sample_autoregressive_n(
+            state.policy_params,
+            state.predict_fn,
+            sequence_batch,
+            n,
+            temperature: Keyword.get(opts, :temperature, state.temperature),
+            key: Keyword.get(opts, :key)
+          )
+
+        {:ok, samples}
+    end
+  end
+
   defp compute_temporal_action(state, embedded, opts) do
     # Add new frame to buffer
     buffer = :queue.in(embedded, state.frame_buffer)
