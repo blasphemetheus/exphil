@@ -82,6 +82,18 @@ Status: `todo` · `building` · `ran` (has a RESULTS) · `adopted` (on the stand
 | E3 | Expert pathology baselines | Pummels, taunts, standing lasers per game in *expert* play, so "too much" has a denominator. | **ran** | `eval_runs/0830_expert_pathology/RESULTS.md` — expert (fox-only, 345 games): taunts 0.06/game, d-up 0.15/game (bot arms press d-up 79–94/MIN — 1000×+ expert), pummels/grab 0.14, throws/grab 0.56, specials 13.5/min |
 | E4 | Left walk-off poison | Is the corpus poisoned with repeated one-sided SDs? | **ran — falsified** | `scripts/sd_scan.exs`, `eval_runs/0829_sd_scan/RESULTS.md` |
 
+### F. Defense and commitment (Bradley's 08-31 live-look asks)
+
+| id | instrument | question | status | script / results |
+|---|---|---|---|---|
+| **F1** | **Defense scorecard** | When hit (esp. sent offstage): does the subject hold survival DI/drift toward stage/ledge, or throw the stick elsewhere / burn airdodge in danger? Stick-vs-stage-direction during hitstun + drift-after-hitstun + airdodge-while-in-danger rate + survival-given-situation, vs expert. Quantifies "you can hold a direction and live; it doesn't." | **ran** | `scripts/defense_scorecard.exs` → `eval_runs/0831_session_score/defense_scorecard.md` — the gap is NOT the drift (AR 87.9% toward-stage vs expert 91.2) but hitstun DI (67 vs 83) and above all the **airdodge panic button**: 33% of offstage hitstun episodes vs expert 2.4%, dying 53% of the time within 90f (expert 18%) |
+| F2 | Punishable-commitment rate | How often does the subject initiate a laggy option (smash, grab, spotdodge, whiffed special, landing-lag aerial) while the opponent is in threat range and actionable — and P(punished \| committed)? The mechanism behind C1's whiff-punish outcomes ("it puts itself into whiff punish"). | todo | |
+
+Coverage note (08-31): airdodge-offstage = A2 first-route; whiff-punish
+as OUTCOME = C1 exchange classes; no-combo = C2; no-dash-dance = A1 +
+the dash probe (mechanism: closed-loop drift, not decode). F1/F2 are the
+two named complaints with no instrument.
+
 ## Order of work
 
 *(Historical — the full program A→E ran 08-29→08-30; every direction has a
