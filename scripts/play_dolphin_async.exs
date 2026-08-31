@@ -326,6 +326,10 @@ bridge_config = %{
   iso_path: opts[:iso],
   controller_port: opts[:port],
   opponent_port: opts[:opponent_port],
+  # --human-port N: declare that port as the GC adapter in Dolphin's config
+  # (MeleePort.add_human_adapter_port; windowed local only). Falls back to
+  # EXPHIL_HUMAN_PORT inside the bridge when unset.
+  human_port: opts[:human_port],
   character: opts[:character],
   stage: opts[:stage],
   online_delay: opts[:frame_delay],

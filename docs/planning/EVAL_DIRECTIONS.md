@@ -52,7 +52,7 @@ Status: `todo` · `building` · `ran` (has a RESULTS) · `adopted` (on the stand
 
 | id | instrument | question | status | script / results |
 |---|---|---|---|---|
-| B1 | Action-family match | Did the bot pick the same *category* (aerial/grab/shield/movement/special) as the expert in that state? Softer pass@1. | building | `scripts/action_family_match.exs` (written 08-30, first run pending) |
+| B1 | Action-family match | Did the bot pick the same *category* (aerial/grab/shield/movement/special) as the expert in that state? Softer pass@1. | **ran** | `scripts/action_family_match.exs` → `eval_runs/0830_family_match/RESULTS.md` (overall family TV ~0.32–0.37 across all sets; offstage: AR/IND 0.60/0.63 vs B1_human 0.26 — family mix offstage is the gap) |
 | **B2** | **Distribution distance per situation** | KL / total-variation between the bot's next-action histogram and the expert's, per situation. Flags narrowing decodes (argmax, mode-of-N) offline — the pass@1 replacement as a decode ranker. | **ran — adopt** | same script; mean TV orders B1/B2/B3 (0.46–0.47) < ep10 (0.53–0.56) < mode-16 (0.72), matching the human read and the live rung |
 | B3 | Entropy per situation | Policy-output entropy by situation from captured logits; low entropy where the expert is diverse = a loop waiting to happen. | **ran** | `scripts/interp_entropy_by_situation.exs` → `eval_runs/0829_entropy/RESULTS.md` (grab: 4.1 bits, expert decisive) |
 
@@ -60,9 +60,9 @@ Status: `todo` · `building` · `ran` (has a RESULTS) · `adopted` (on the stand
 
 | id | instrument | question | status | script / results |
 |---|---|---|---|---|
-| C1 | Neutral-exchange outcomes | Segment games into exchanges; who won each and how (first hit / trade / whiff punish). Dense "harder to hit" number. | **ran** | `scripts/neutral_exchange.exs` → `eval_runs/0829_neutral_exchange/RESULTS.md` (B1 wins 20% of exchanges vs Bradley; needs its floor) |
-| C2 | Punish quality | Damage per opening, combo length, % openings ending in a kill, vs expert. | building | `scripts/punish_quality.exs` (written 08-30, first run pending) |
-| C3 | Reaction latency | Time-to-action after opponent lands / grabs ledge / bot lands, vs expert. Dithering. | building | `scripts/reaction_latency.exs` (written 08-30, first run pending) |
+| C1 | Neutral-exchange outcomes | Segment games into exchanges; who won each and how (first hit / trade / whiff punish). Dense "harder to hit" number. | **ran + floor** | `eval_runs/0829_neutral_exchange/RESULTS.md`; floor (08-30, `floor.md`): three same-decode CPU batches score 64.0/63.8/63.4% — spread **0.6 pp**. The metric is TIGHT on the CPU rung; B1's 20% vs Bradley is far outside any floor → the human-rung disagreement is real (blind pair still owed) |
+| C2 | Punish quality | Damage per opening, combo length, % openings ending in a kill, vs expert. | **ran** | `eval_runs/0830_punish_quality/RESULTS.md` — damage/opening ≈ expert (10.9 vs 10.9) but 5.1 hits/opening vs expert 1.72 (many small hits, no finisher) and kill conversion 0.0% vs 0.62%/opening |
+| C3 | Reaction latency | Time-to-action after opponent lands / grabs ledge / bot lands, vs expert. Dithering. | **ran** | `eval_runs/0830_reaction_latency/RESULTS.md` — after opp lands: expert med 8f, ep10 12f, AR 32f/IND 45f (≥cap 47–64%!) — the refit heads DITHER on opponent landings; self-lands normal (7f) |
 | C4 | Stock-loss forensics | Every death classified: unforced walk-off / failed recovery / edgeguarded / combo'd / neutral kill. Extends `sd_scan`. | **ran** | `scripts/death_classifier.exs` → `eval_runs/0829_death_classifier/RESULTS.md` (bot dies at 52–71% vs expert 109%) |
 
 ### D. Reliability of the instruments
@@ -70,8 +70,8 @@ Status: `todo` · `building` · `ran` (has a RESULTS) · `adopted` (on the stand
 | id | instrument | question | status | script / results |
 |---|---|---|---|---|
 | **D1** | **Noise floors** | Same checkpoint, different days/batches: the natural spread of every metric. Which numbers can ever resolve a real difference? | **ran** | `scripts/noise_floor.sh` → `eval_runs/0829_noise_floor/RESULTS.md`: d_up 1.1×, held 1.2×, loops 2.0×, deaths 2.5–3×, conv% 3.5×, armed 7×. D1b ran: TV floor 0.05 on the mean, 0.1 per situation (`eval_runs/0829_noise_floor/tv_floor.md`) |
-| D2 | Human-vs-CPU transfer table | For each metric, CPU-bracket value vs Bradley-session value for the same checkpoint. Which metrics the CPU rung can stand in for. | building | `scripts/d2_transfer.sh` (runner; pair map needs the real CPU dirs checked) |
-| D3 | Decode-vs-model sensitivity | From banked temperature sweeps: which metrics are purely decode-driven (press rates) vs model-driven. | building | `scripts/decode_sensitivity.exs` over `eval_runs/0828_loop_rescore/*/report.json` |
+| D2 | Human-vs-CPU transfer table | For each metric, CPU-bracket value vs Bradley-session value for the same checkpoint. Which metrics the CPU rung can stand in for. | **ran** | `eval_runs/0830_d2_transfer/RESULTS.md` — dpad/taunts transfer (~0.8× human/CPU factor); loops/min: CPU overstates ~2×, ordering only; ep10_human taunt row invalid (port-map artifact, flagged) |
+| D3 | Decode-vs-model sensitivity | From banked temperature sweeps: which metrics are purely decode-driven (press rates) vs model-driven. | **ran** | `eval_runs/0830_decode_sensitivity/RESULTS.md` — dpad/min, longest action/input runs = decode-driven (rho=±1.0, 4x range); taunts/min NOT knob-ordered (noisy); loops/min decode-leaning |
 
 ### E. Data-side audits
 
@@ -79,7 +79,7 @@ Status: `todo` · `building` · `ran` (has a RESULTS) · `adopted` (on the stand
 |---|---|---|---|---|
 | E1 | Corpus mix by frame | Characters / stages / players by frame; concentration (one player's style dominating the mode). | **ran (by file)** | `eval_runs/0830_corpus_mix/RESULTS.md` — v1 imitated port 1 blindly; 56.7% fox, 43% opponent characters. By-frame + player-concentration refinement still open |
 | E2 | Rare-event coverage | How many expert examples of the exact situations the bot fails in. Hundreds = selection problem; dozens = data. | **ran — not data quantity** | `scripts/rare_event_coverage.exs` → `eval_runs/0829_rare_events/RESULTS.md` (thousands of labels/epoch for every missing behaviour) |
-| E3 | Expert pathology baselines | Pummels, taunts, standing lasers per game in *expert* play, so "too much" has a denominator. | building | `scripts/expert_pathology.exs` (written 08-30, first run pending) |
+| E3 | Expert pathology baselines | Pummels, taunts, standing lasers per game in *expert* play, so "too much" has a denominator. | **ran** | `eval_runs/0830_expert_pathology/RESULTS.md` — expert (fox-only, 345 games): taunts 0.06/game, d-up 0.15/game (bot arms press d-up 79–94/MIN — 1000×+ expert), pummels/grab 0.14, throws/grab 0.56, specials 13.5/min |
 | E4 | Left walk-off poison | Is the corpus poisoned with repeated one-sided SDs? | **ran — falsified** | `scripts/sd_scan.exs`, `eval_runs/0829_sd_scan/RESULTS.md` |
 
 ## Order of work
@@ -146,6 +146,18 @@ Then re-read B1-the-model, ep10, B2 through A1/B2/C.
   implies stick-up" beyond what the trunk state carries. Candidate cause
   for airdodge-over-upB (A2) and option spam; a TRAINING change (head
   structure), not a decode one. Queued as a recipe question for v1.1.
+- 2026-08-30 20:15 — **Instruments first-run batch** (E3, C2, C3, B1-family,
+  D3, C1 floor, D2 — all landed; statuses updated above). Cross-cutting
+  reads: (1) C3 is the sharpest new lens — the refit heads DITHER after the
+  opponent lands (AR med 32f / IND 45f vs expert 8f, ep10 12f) while
+  self-landing reactions are normal; a candidate mechanism for "spectates
+  after hitting". (2) C2: damage/opening matches the expert (10.9) but 5.1
+  hits/opening vs 1.72 and kill-conversion 0 — many small hits, no
+  finisher. (3) E3 denominators: expert taunts 0.06/game, d-up 0.15/game —
+  the bots' d-up 79–94/MIN is ~30,000× expert; with D3 showing dpad/min
+  rho=1.0 with buttons-T, the taunt pathology is decode-side pressure on a
+  button the expert simply never touches. (4) C1's CPU-rung floor is 0.6 pp
+  — exchange win rate is our tightest live metric.
 - 2026-08-30 20:10 — **8a bracket 2: SIGNAL**
   (`eval_runs/0830_arhead_score2/RESULTS.md`). ARhead vs INDhead, healthy
   games both arms. A2: up-B first-route 8.3% vs 0.0 (expert 16.3), up-B+dj

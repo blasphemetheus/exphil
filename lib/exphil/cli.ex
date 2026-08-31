@@ -136,6 +136,8 @@ defmodule ExPhil.CLI do
       desc: "Agent controller port (1-4)", group: [:dolphin]},
     %{name: :opponent_port, flag: "--opponent-port", type: :integer, short: nil, default: 2,
       desc: "Your controller port (1-4)", group: [:dolphin]},
+    %{name: :human_port, flag: "--human-port", type: :integer, short: nil, default: nil,
+      desc: "Declare this port as the GC adapter (Mayflash) in Dolphin's config so no manual controller setup is needed. Windowed local sessions only; equivalent to EXPHIL_HUMAN_PORT. Usually the same as --opponent-port.", group: [:dolphin]},
     %{name: :stage, flag: "--stage", type: :string, short: nil, default: "final_destination",
       desc: "Stage name", group: [:dolphin]},
     %{name: :frame_delay, flag: "--frame-delay", type: :integer, short: nil, default: 0,
