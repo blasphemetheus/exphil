@@ -115,6 +115,22 @@ Then re-read B1-the-model, ep10, B2 through A1/B2/C.
 
 ## Log
 
+- 2026-09-01 afternoon — **CORPUS CORRUPTION FOUND + FIXED (E1b, GOTCHA
+  #107), v1.3 retrain chain LAUNCHED** (unit `v13-portfix`,
+  `eval_runs/0901_v13_portfix/`). While auditing AWBC's port handling
+  for the planned curation round: the E1 fix resolved the imitated port
+  but the loader never passed opponent_port — on ~44% of the fox corpus
+  (non-port-1 files) the real opponent was DROPPED from every
+  game_state (distance 0) and the embedding saw an all-zero self with
+  the imitated fox in the OPPONENT slot. v1.1/v1.2 trained on that;
+  plausibly a large part of the F3 retreat/scramble verdict. Fix:
+  opponent_port_for + :remap_ports + :r2 cache keys + regression tests
+  (06abf6d); empirical port-2 file check before/after; smoke = E1's
+  smoke + frame inspection. Chain = v1.1 recipe rerun (AR+IND arms,
+  same seed/epochs) → head refit → coincidence probe → arhead_score →
+  position sweep. **Pre-registered primary: approach_delta vs v1.2's
+  −0.20..−0.26.** AWBC curation round queues BEHIND this (one knob at a
+  time; AWBC itself needs the remap to be port-correct).
 - 2026-09-01 — **F3c neutral-range scorecard: Bradley's pushback CONFIRMED,
   the 08-31 "corpus retreat-laser zone" story RETRACTED**
   (`eval_runs/0901_neutral_range/RESULTS.md`, `scripts/neutral_range_scorecard.exs`).

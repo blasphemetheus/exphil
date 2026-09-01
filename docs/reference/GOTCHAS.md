@@ -3785,3 +3785,33 @@ port map, embed layout) states its cache budget and checks
 `df --output=avail` first; (2) stale cache generations are moved to
 /data, not accumulated on root; (3) a chunk without its `.manifest` is
 garbage — delete on sight.
+
+## 107
+
+**Port-convention drift is a corpus-corruption factory: every consumer
+that hardcodes "subject = port 1" silently breaks when the subject
+isn't** (2026-09-01). `--select-character-port` (E1, #GOTCHA-adjacent
+2b874a0) resolved the imitated PORT per file but the streaming loader
+never passed `opponent_port` — `to_training_frames(player_port: 2)`
+defaulted opponent to 2 (== the subject), so on the 3,429 non-port-1
+fox files (~44% of the corpus) `build_game_state` DROPPED the real
+opponent, `distance` was 0, and the embedding (`embed_states_fast(_, 1)`
+hardcoded everywhere) produced an all-zero self with the imitated fox
+in the OPPONENT slot. v1.1/v1.2 trained on this; the smoke that shipped
+E1 verified port-map proportions and descending loss — neither catches
+wrong-slot learning (loss descends fine: the labels are still
+predictable from the opponent block!).
+
+**Fix (06abf6d):** `Streaming.opponent_port_for/2` (first other
+occupied port) + `to_training_frames(remap_ports: true)` (players
+normalized to `%{1 => subject, 2 => opponent}`) + `:r2` cache-key
+generation so the corrupted non-p1 entries are unreachable.
+
+**Rules:** (1) any feature that changes WHICH player is imitated must
+be audited against every port-1 hardcode (`grep -rn "own_port\|, 1,"
+lib/exphil/embeddings lib/exphil/training` — embed, rewards/AWBC,
+Situations calls); (2) a corpus-touching change is smoked by
+INSPECTING one non-default file's frames (players keys, distance,
+own-slot character), not by loss descending; (3) the AWBC entry
+`AdvantageWeighting.standard_rewards(frames, port \\ 1)` is only
+correct AFTER remap — the pipeline passes no port.
