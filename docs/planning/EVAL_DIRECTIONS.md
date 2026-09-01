@@ -136,6 +136,21 @@ Then re-read B1-the-model, ep10, B2 through A1/B2/C.
   scores the imagined embed window (window−k real + k predicted) through
   the POLICY'S OWN TRUNK with an MLP V on trunk features (the 08-31
   critic's V only worked on trunk+raw phi). Run in flight.
+- 2026-09-01 late — **Plan (c) offline campaign COMPLETE: NEGATIVE, with
+  a clean diagnosis** (`eval_runs/0901_vrollout/RESULTS.md` + verdict).
+  v2 RTG-V on imagined trunk feats: V works (rank 0.554) but selector
+  flat (0.5 vs 0.7). v3 discriminative g on the same feats: 0.9 vs 0.7,
+  shuffled-state control 1.0 — no state-conditional signal. Dynamics
+  model EXONERATED by a new action-sensitivity diagnostic
+  (`scripts/dynamics_action_sensitivity.exs`: held actions diverge
+  15–33% of drift; note G3b's gate alone cannot detect action-blindness).
+  Synthesis with the ladder's own shuffled control: offline
+  master-matching at decision frames is mostly not selectable from
+  short-horizon information — the direct critic's margin was largely
+  action-frequency preference. Remaining plan-(c) live idea: VETO
+  selection (catastrophe scoring, where 10-frame consequences ARE
+  informative — F1's panic routes), not master-matching. Primary lever
+  moves to training-side per F3c: approach data exists, BC loses it.
 - 2026-08-31 evening — **v1.2-ARrefit live look (Bradley): survival much
   improved, airdodge panic visibly down, occasional SDs remain; NEW
   headline complaint = no positional play** (identical at either ledge /
