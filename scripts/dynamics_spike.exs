@@ -30,7 +30,7 @@ alias ExPhil.Training.Output
   OptionParser.parse(System.argv(),
     strict: [policy: :string, replays: :string, limit_files: :integer, val_files: :integer,
              epochs: :integer, batch_size: :integer, hidden: :integer, k: :integer,
-             char_id: :integer, seed: :integer, out: :string]
+             char_id: :integer, seed: :integer, out: :string, save: :string]
   )
 
 policy = opts[:policy] || raise "--policy required (for the embed config)"
@@ -277,4 +277,24 @@ if out = opts[:out] do
   File.mkdir_p!(Path.dirname(out))
   File.write!(out, report)
   Output.success("wrote #{out}")
+end
+
+# --save: persist the fitted model for downstream consumers (the V-rollout
+# selector). Params/mu/sd on BinaryBackend (GOTCHA #1); model config is
+# enough to rebuild the Axon graph exactly.
+if save = opts[:save] do
+  File.mkdir_p!(Path.dirname(save))
+
+  to_bin = fn t -> Nx.backend_copy(t, Nx.BinaryBackend) end
+
+  blob = %{
+    params: Nx.Defn.Composite.traverse(state, to_bin),
+    mu: to_bin.(mu),
+    sd: to_bin.(sd),
+    config: %{embed_dim: d, hidden: hidden, action_dim: 13, residual: true,
+              policy: policy, r2: r2, cos_at_k: k_curve[k_steps], k: k_steps}
+  }
+
+  File.write!(save, :erlang.term_to_binary(blob))
+  Output.success("saved dynamics model -> #{save}")
 end

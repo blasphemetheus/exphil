@@ -115,6 +115,27 @@ Then re-read B1-the-model, ep10, B2 through A1/B2/C.
 
 ## Log
 
+- 2026-09-01 — **F3c neutral-range scorecard: Bradley's pushback CONFIRMED,
+  the 08-31 "corpus retreat-laser zone" story RETRACTED**
+  (`eval_runs/0901_neutral_range/RESULTS.md`, `scripts/neutral_range_scorecard.exs`).
+  Expert Fox neutral is APPROACH at range — toward rises 0.095 → 0.609
+  with distance (%twd 70.5 vs %awy 8.0 at 140+), dash-dance band at
+  40–70 (dash 26.8%), aerial laser a seasoning (peak 6.2% at 70–100).
+  The bot inverts nearly every column (toward negative everywhere <140,
+  dash 0.1–0.3%, jump ~1%, aerial laser BELOW expert in the SH-laser
+  band, grounded laser ABOVE everywhere — matches Bradley's "no SH
+  laser / FH double laser"). Consequence: the trunk's all-range retreat
+  is NOT the corpus marginal — BC loses the expert's distance-conditional
+  steering (closed-loop drift family). The approach data IS in the
+  corpus; weight shifts from curation toward training/decode losing it.
+  Also 09-01: **plan (c) V-rollout selector build STARTED**
+  (`scripts/vrollout_eval.exs` + dynamics model saved to
+  `checkpoints/dynamics_fox_v11AR.bin`, `--save` added to the spike).
+  Two recorded negatives on the way: V-on-raw-embeds fails (linear
+  ANTI-correlates rank 0.406; MLP exactly chance 0.503) → v2 design
+  scores the imagined embed window (window−k real + k predicted) through
+  the POLICY'S OWN TRUNK with an MLP V on trunk features (the 08-31
+  critic's V only worked on trunk+raw phi). Run in flight.
 - 2026-08-31 evening — **v1.2-ARrefit live look (Bradley): survival much
   improved, airdodge panic visibly down, occasional SDs remain; NEW
   headline complaint = no positional play** (identical at either ledge /
