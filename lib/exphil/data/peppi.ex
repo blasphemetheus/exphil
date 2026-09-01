@@ -284,15 +284,41 @@ defmodule ExPhil.Data.Peppi do
     player_port = Keyword.get(opts, :player_port, 1)
     opponent_port = Keyword.get(opts, :opponent_port, 2)
     frame_delay = Keyword.get(opts, :frame_delay, 0)
+    remap_ports = Keyword.get(opts, :remap_ports, false)
     replay = forward_fill_stadium(replay)
 
-    if frame_delay == 0 do
-      # No delay - standard training
-      extract_frames_no_delay(replay, player_port, opponent_port)
+    frames =
+      if frame_delay == 0 do
+        # No delay - standard training
+        extract_frames_no_delay(replay, player_port, opponent_port)
+      else
+        # With delay - pair old states with current actions
+        extract_frames_with_delay(replay, player_port, opponent_port, frame_delay)
+      end
+
+    # :remap_ports — normalize the players map to %{1 => subject, 2 =>
+    # opponent} regardless of actual ports. The embedding/reward layers
+    # hardcode own_port 1 / opponent 2, so WITHOUT this a non-port-1
+    # subject embeds as an all-zero self with the subject in the OPPONENT
+    # slot (the 09-01 port-2 corpus corruption: build_game_state(f, 2, 2)
+    # even dropped the real opponent and zeroed distance). Peppi frames
+    # carry no projectiles/items, so port-keyed ownership is not affected.
+    if remap_ports and (player_port != 1 or opponent_port != 2) do
+      Enum.map(frames, fn f ->
+        %{f | game_state: remap_players(f.game_state, player_port, opponent_port)}
+      end)
     else
-      # With delay - pair old states with current actions
-      extract_frames_with_delay(replay, player_port, opponent_port, frame_delay)
+      frames
     end
+  end
+
+  defp remap_players(%GameState{players: players} = gs, player_port, opponent_port) do
+    remapped =
+      [{1, Map.get(players, player_port)}, {2, Map.get(players, opponent_port)}]
+      |> Enum.reject(fn {_k, v} -> is_nil(v) end)
+      |> Map.new()
+
+    %{gs | players: remapped}
   end
 
   @doc """

@@ -102,9 +102,22 @@ defmodule ExPhil.Training.Streaming do
           else
             case Peppi.parse(path, player_port: target_port) do
               {:ok, replay} ->
+                # Opponent = the other occupied port. Passing only
+                # player_port left opponent_port at its default of 2 — for
+                # a port-2 subject that meant opponent == subject: the real
+                # opponent was DROPPED from every game_state, distance was
+                # 0, and the embedding (own_port hardcoded 1) saw an
+                # all-zero self with the subject in the opponent slot (the
+                # 09-01 corpus corruption, ~44% of the fox corpus).
+                # :remap_ports then normalizes to %{1 => subject, 2 => opp}
+                # so the embedding/reward port-1 convention holds.
+                opp_port = opponent_port_for(replay, target_port)
+
                 frames =
                   Peppi.to_training_frames(replay,
                     player_port: target_port,
+                    opponent_port: opp_port,
+                    remap_ports: true,
                     frame_delay: frame_delay
                   )
 
@@ -132,6 +145,22 @@ defmodule ExPhil.Training.Streaming do
     {:ok, List.flatten(all_frames), Enum.reverse(errors)}
   end
 
+  # Opponent = first other port present in the frames (falls back to the
+  # 1<->2 convention when the replay somehow has a single player).
+  defp opponent_port_for(replay, player_port) do
+    replay.frames
+    |> Enum.find_value(fn fr ->
+      case fr.players |> Map.keys() |> Enum.reject(&(&1 == player_port)) do
+        [o | _] -> o
+        [] -> nil
+      end
+    end)
+    |> case do
+      nil -> if player_port == 1, do: 2, else: 1
+      o -> o
+    end
+  end
+
   # Parse both ports for dual-port training
   defp parse_dual_port(path, frame_delay) do
     case Peppi.metadata(path) do
@@ -144,6 +173,8 @@ defmodule ExPhil.Training.Streaming do
               {:ok, replay} ->
                 Peppi.to_training_frames(replay,
                   player_port: port,
+                  opponent_port: opponent_port_for(replay, port),
+                  remap_ports: true,
                   frame_delay: frame_delay
                 )
 

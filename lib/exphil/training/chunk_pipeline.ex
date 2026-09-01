@@ -259,9 +259,14 @@ defmodule ExPhil.Training.ChunkPipeline do
             |> Enum.map(fn entry ->
               path = normalize_path(entry)
 
+              # :r2 = the 09-01 port-remap fix generation. The 08-31 cache
+              # entries under bare {path, port} hold CORRUPTED embeddings
+              # (opponent dropped, self zeroed — see Streaming.parse_chunk);
+              # the marker makes them unreachable. Port-1 files keep the
+              # bare-path key: their embeddings were always correct.
               case Map.get(port_map, path, Map.get(port_map, entry, default_port)) do
                 1 -> path
-                port -> {path, port}
+                port -> {path, port, :r2}
               end
             end)
             |> Enum.sort()

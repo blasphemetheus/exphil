@@ -41,6 +41,64 @@ defmodule ExPhil.Training.CharacterPortTest do
     end
   end
 
+  describe "to_training_frames :remap_ports (09-01 port-2 corruption fix)" do
+    alias ExPhil.Data.Peppi
+    alias ExPhil.Data.Peppi.{ParsedReplay, GameFrame, PlayerFrame}
+
+    defp synthetic_replay do
+      ctrl = %Peppi.Controller{
+        main_stick_x: 0.5, main_stick_y: 0.5, c_stick_x: 0.5, c_stick_y: 0.5,
+        l_trigger: 0.0, r_trigger: 0.0,
+        button_a: false, button_b: false, button_x: false, button_y: false,
+        button_z: false, button_l: false, button_r: false, button_start: false,
+        button_d_up: false, button_d_down: false, button_d_left: false,
+        button_d_right: false
+      }
+
+      pf = fn char, x ->
+        %PlayerFrame{character: char, x: x, y: 0.0, percent: 0.0, stock: 4,
+                     facing: 1, action: 14, action_frame: 0,
+                     invulnerable: false, jumps_left: 2, on_ground: true,
+                     shield_strength: 60.0, hitstun_frames_left: 0.0,
+                     speed_air_x_self: 0.0, speed_ground_x_self: 0.0,
+                     speed_y_self: 0.0, speed_x_attack: 0.0, speed_y_attack: 0.0,
+                     controller: ctrl}
+      end
+
+      frames =
+        Enum.map(0..5, fn i ->
+          %GameFrame{frame_number: i,
+                     players: %{1 => pf.(17, -10.0), 2 => pf.(1, 10.0 + i)}}
+        end)
+
+      %ParsedReplay{frames: frames, metadata: %{stage: 32, players: []}}
+    end
+
+    test "port-2 subject remaps to slot 1 with the REAL opponent in slot 2" do
+      frames =
+        Peppi.to_training_frames(synthetic_replay(),
+          player_port: 2, opponent_port: 1, remap_ports: true)
+
+      gs = hd(frames).game_state
+      assert Map.keys(gs.players) |> Enum.sort() == [1, 2]
+      # subject (was port 2, char 1) now under the embedding's own slot
+      assert gs.players[1].character == 1
+      # the opponent (was port 1) is PRESENT — the bug dropped it entirely
+      assert gs.players[2].character == 17
+      assert gs.distance > 0.0
+    end
+
+    test "without remap, a port-2 subject leaves slot 1 empty (the bug's shape)" do
+      frames =
+        Peppi.to_training_frames(synthetic_replay(),
+          player_port: 2, opponent_port: 1)
+
+      gs = hd(frames).game_state
+      assert gs.players[1].character == 17
+      assert gs.players[2].character == 1
+    end
+  end
+
   describe "--select-character-port flag" do
     test "defaults to false" do
       refute Config.parse_args([])[:select_character_port]
