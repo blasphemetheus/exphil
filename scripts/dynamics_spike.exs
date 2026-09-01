@@ -45,7 +45,7 @@ char_id = opts[:char_id] || 2
 seed = opts[:seed] || 20_260_831
 
 trunk = Activations.load_trunk(policy)
-embed_config = Activations.embed_config_for(Map.get(trunk, :config))
+policy_config = Map.get(trunk, :config)
 
 files = glob |> Path.wildcard() |> Enum.sort() |> Enum.take(limit_files * 3)
 
@@ -97,7 +97,15 @@ load_replay = fn {path, p} ->
     if length(frames) < 120 do
       nil
     else
-      embeds = Activations.embed_frames(frames, embed_config)
+      # embed_frames returns the DATASET with :embedded_frames set (a
+      # stacked {n, d} tensor; {n, variants, d} on multi-delay configs).
+      ds = Activations.embed_frames(frames, policy_config)
+
+      embeds =
+        case Nx.rank(ds.embedded_frames) do
+          2 -> ds.embedded_frames
+          3 -> ds.embedded_frames[[.., 0, ..]]
+        end
 
       acts =
         frames
@@ -134,19 +142,15 @@ pairs_of = fn {e, a} ->
   {x, y}
 end
 
-{tx, ty} =
-  train_data
-  |> Enum.map(pairs_of)
-  |> Enum.reduce(fn {x, y}, {ax, ay} ->
-    {Nx.concatenate([ax, x], axis: 0), Nx.concatenate([ay, y], axis: 0)}
-  end)
+# Single concatenate, not an incremental reduce: the reduce version copies
+# the whole accumulated array every iteration and the superseded device
+# buffers stay pinned by BEAM refs until GC — exhausted the EXLA pool at
+# 52 files (OOM at 552MB with 32GB free, 2026-08-31).
+{txs, tys} = train_data |> Enum.map(pairs_of) |> Enum.unzip()
+{tx, ty} = {Nx.concatenate(txs, axis: 0), Nx.concatenate(tys, axis: 0)}
 
-{vx, vy} =
-  val_data
-  |> Enum.map(pairs_of)
-  |> Enum.reduce(fn {x, y}, {ax, ay} ->
-    {Nx.concatenate([ax, x], axis: 0), Nx.concatenate([ay, y], axis: 0)}
-  end)
+{vxs, vys} = val_data |> Enum.map(pairs_of) |> Enum.unzip()
+{vx, vy} = {Nx.concatenate(vxs, axis: 0), Nx.concatenate(vys, axis: 0)}
 
 n_train = Nx.axis_size(tx, 0)
 Output.puts("  #{n_train} train pairs, #{Nx.axis_size(vx, 0)} val pairs")

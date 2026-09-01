@@ -87,7 +87,8 @@ Status: `todo` · `building` · `ran` (has a RESULTS) · `adopted` (on the stand
 | id | instrument | question | status | script / results |
 |---|---|---|---|---|
 | **F1** | **Defense scorecard** | When hit (esp. sent offstage): does the subject hold survival DI/drift toward stage/ledge, or throw the stick elsewhere / burn airdodge in danger? Stick-vs-stage-direction during hitstun + drift-after-hitstun + airdodge-while-in-danger rate + survival-given-situation, vs expert. Quantifies "you can hold a direction and live; it doesn't." | **ran** | `scripts/defense_scorecard.exs` → `eval_runs/0831_session_score/defense_scorecard.md` — the gap is NOT the drift (AR 87.9% toward-stage vs expert 91.2) but hitstun DI (67 vs 83) and above all the **airdodge panic button**: 33% of offstage hitstun episodes vs expert 2.4%, dying 53% of the time within 90f (expert 18%) |
-| F2 | Punishable-commitment rate | How often does the subject initiate a laggy option (smash, grab, spotdodge, whiffed special, landing-lag aerial) while the opponent is in threat range and actionable — and P(punished \| committed)? The mechanism behind C1's whiff-punish outcomes ("it puts itself into whiff punish"). | todo | |
+| F2 | Punishable-commitment rate | How often does the subject initiate a laggy option (smash, grab, spotdodge, whiffed special, landing-lag aerial) while the opponent is in threat range and actionable — and P(punished \| committed)? The mechanism behind C1's whiff-punish outcomes ("it puts itself into whiff punish"). | **ran** | `scripts/commitment_scorecard.exs` → `eval_runs/0831_session_score/commitment_scorecard.md` — pathology is 3.2× committal VOLUME (19.8–22.1/min vs expert 6.2), not per-commitment timing; opponent confound noted |
+| **F3** | **Position-dependence probe** | Bradley's 08-31 evening ask: "does it actually value where the opponent is?" Mechanistic counterfactual on live-look states: PERCEPTION (does any head's distribution move when opp position is perturbed — mirror/far/close-left/close-right) and DIFFERENTIATION (approach_delta = E[main_x \| opp right] − E[main_x \| opp left]; P(grab) near vs far). Separates "doesn't see position" (curation lever) from "sees it, doesn't select on it" (selection lever, the F1 signature). | **ran** | `scripts/probe_position_dependence.exs` → `eval_runs/0831_position_probe/RESULTS.md` — perception ALIVE; approach_delta **−0.20..−0.24** (steers AWAY, survives :neutral filter); P(z) ~0.30 per neutral frame barely tracking range (grab spam is baseline, not targeting); AR≈IND → trunk property |
 
 Coverage note (08-31): airdodge-offstage = A2 first-route; whiff-punish
 as OUTCOME = C1 exchange classes; no-combo = C2; no-dash-dance = A1 +
@@ -114,6 +115,27 @@ Then re-read B1-the-model, ep10, B2 through A1/B2/C.
 
 ## Log
 
+- 2026-08-31 evening — **v1.2-ARrefit live look (Bradley): survival much
+  improved, airdodge panic visibly down, occasional SDs remain; NEW
+  headline complaint = no positional play** (identical at either ledge /
+  center, option-spam without targeting, never dash-dance→JC upsmash) —
+  `eval_runs/0831_livelook_v12ar/IMPRESSIONS.md`. Three results the same
+  evening: (1) **critic ladder rerun on ARrefit still under the bar** —
+  selector 10.8 vs mode 7.2 in-dist / 4.0 vs 3.0 fresh (+3.6/+1.0 vs
+  v1.1-AR's +2.7/+1.4): restoring the wire did NOT widen the selector
+  margin → the selection gap isn't waiting on the AR wire
+  (`eval_runs/0831_critic_refit/`). (2) **G3b dynamics spike PASSED its
+  pre-declared gate** after two debug rounds (embed_frames returns a
+  dataset not a tensor; incremental-concat OOM): held-out 1-step R²
+  0.996, cos@10 0.827 → **V-rollout selector (plan c) unblocked**
+  (`eval_runs/0831_dynamics_spike/RESULTS.md`). (3) **F3 position probe
+  built + ran on live-look states**: the bot SEES the opponent (all
+  heads move under counterfactual displacement) and systematically
+  steers AWAY (approach_delta −0.20..−0.24, survives :neutral filter);
+  grab ~30% per neutral frame barely tracking range; AR≈IND → trunk
+  property. Verdict: opponent position is encoded as THREAT, never as
+  target — approach/punish is missing behavior, feeding curation target
+  #1 and the V-rollout selector (`eval_runs/0831_position_probe/RESULTS.md`).
 - 2026-08-31 15:05 — **Critic ladder on coherent candidates: PARTIAL-plus**
   (`eval_runs/0831_critic_ar/RESULTS.md`). First selector WIN over the
   free majority vote (13.7 vs 11.0 in-dist, 6.5 vs 5.1 fresh; 08-29 it
