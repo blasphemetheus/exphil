@@ -42,7 +42,7 @@ alias ExPhil.Training.Output
   OptionParser.parse(System.argv(),
     strict: [set: :keep, replays: :string, limit_files: :integer, stride: :integer,
              max_states: :integer, player_port: :integer, opponent_port: :integer,
-             offset: :float, situation: :string, out: :string]
+             offset: :float, situation: :string, sweep: :string, out: :string]
   )
 
 sets =
@@ -113,13 +113,28 @@ perturb = fn frames, fun ->
   end)
 end
 
-variants = [
-  {:baseline, base_frames},
-  {:mirror, perturb.(base_frames, fn o, _s -> %{o | x: -o.x} end)},
-  {:far, perturb.(base_frames, fn o, _s -> %{o | x: o.x + 120.0} end)},
-  {:close_left, perturb.(base_frames, fn o, s -> %{o | x: s.x - offset, y: s.y} end)},
-  {:close_right, perturb.(base_frames, fn o, s -> %{o | x: s.x + offset, y: s.y} end)}
-]
+# --sweep "15,25,40,60,90,130" (F3b): opponent placed at self x -/+ d for
+# each distance d — maps the retreat-vs-range curve. Default = one distance
+# (--offset), reproducing the original close_left/close_right pair.
+sweep =
+  (opts[:sweep] || "#{offset}")
+  |> String.split(",", trim: true)
+  |> Enum.map(fn s -> {v, _} = Float.parse(String.trim(s)); v end)
+
+sweep_variants =
+  Enum.flat_map(sweep, fn d ->
+    [
+      {:"left_#{trunc(d)}", perturb.(base_frames, fn o, s -> %{o | x: s.x - d, y: s.y} end)},
+      {:"right_#{trunc(d)}", perturb.(base_frames, fn o, s -> %{o | x: s.x + d, y: s.y} end)}
+    ]
+  end)
+
+variants =
+  [
+    {:baseline, base_frames},
+    {:mirror, perturb.(base_frames, fn o, _s -> %{o | x: -o.x} end)},
+    {:far, perturb.(base_frames, fn o, _s -> %{o | x: o.x + 120.0} end)}
+  ] ++ sweep_variants
 
 # Bucket-center expectation for a 17-bucket axis head: value(i) = (i-8)/8.
 axis_vals = Nx.divide(Nx.subtract(Nx.iota({17}), 8), 8.0)
@@ -205,16 +220,21 @@ probe_one = fn {name, policy} ->
       }
     end
 
-  approach = e_mx.(outs[:close_right]) - e_mx.(outs[:close_left])
-
-  # Grab-button (z, index 4) sensitivity to opponent proximity: does P(z)
-  # rise when the opponent is actually next to it vs far away?
+  # Grab-button (z, index 4) sensitivity to opponent proximity.
   p_z = fn o -> mean.(o.p_buttons[[.., 4]]) end
-  z_near = (p_z.(outs[:close_left]) + p_z.(outs[:close_right])) / 2
-  z_far = p_z.(outs[:far])
+
+  sweep_stats =
+    Enum.map(sweep, fn d ->
+      l = outs[:"left_#{trunc(d)}"]
+      r = outs[:"right_#{trunc(d)}"]
+
+      %{d: d, e_left: e_mx.(l), e_right: e_mx.(r), approach: e_mx.(r) - e_mx.(l),
+        p_z: (p_z.(l) + p_z.(r)) / 2}
+    end)
 
   %{name: name, head: heads.head, n: Nx.axis_size(base.p_mx, 0), deltas: deltas,
-    e_mx_base: e_mx.(base), approach: approach, z_near: z_near, z_far: z_far}
+    e_mx_base: e_mx.(base), sweep: sweep_stats, z_far: p_z.(outs[:far]),
+    z_base: p_z.(base)}
 end
 
 results = Enum.map(sets, probe_one)
@@ -233,8 +253,15 @@ per_variant =
 
 summary_rows =
   Enum.map_join(results, "\n", fn r ->
-    "| #{r.name} | #{r.head} | #{r.n} | #{f3.(r.e_mx_base)} | **#{f3.(r.approach)}** | " <>
-      "#{f3.(r.z_near)} | #{f3.(r.z_far)} |"
+    Enum.map_join(r.sweep, "\n", fn s ->
+      "| #{r.name} | #{trunc(s.d)} | #{f3.(s.e_left)} | #{f3.(s.e_right)} | " <>
+        "**#{f3.(s.approach)}** | #{f3.(s.p_z)} |"
+    end)
+  end)
+
+context_rows =
+  Enum.map_join(results, "\n", fn r ->
+    "| #{r.name} | #{r.head} | #{r.n} | #{f3.(r.e_mx_base)} | #{f3.(r.z_base)} | #{f3.(r.z_far)} |"
   end)
 
 report = """
@@ -251,11 +278,19 @@ prefix for every variant (prefix confound cancels in the deltas).
 |---|---|---:|---:|---:|---:|
 #{per_variant}
 
-## Differentiation — summary
+## Differentiation — distance sweep
 
-| policy | head | states | E[main_x] base | approach_delta | P(z) near | P(z) far |
-|---|---|---:|---:|---:|---:|---:|
+E[main_x] with the opponent placed at self x − d (left) / self x + d (right);
+approach_delta = right − left (>0 steers toward, <0 away). P(z) = mean grab
+probability at that placement.
+
+| policy | d | E[main_x] opp-left | E[main_x] opp-right | approach_delta | P(z) |
+|---|---:|---:|---:|---:|---:|
 #{summary_rows}
+
+| policy | head | states | E[main_x] base | P(z) base | P(z) far |
+|---|---|---:|---:|---:|---:|
+#{context_rows}
 
 Reading guide:
 - Perception rows ~0 across variants = the network does not READ opponent
