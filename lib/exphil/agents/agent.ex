@@ -61,6 +61,11 @@ defmodule ExPhil.Agents.Agent do
     # Mode-of-N decode (nil/1 = plain sampling): N joint draws per frame from
     # one forward, play the most frequent — see Networks.Policy.Sampling
     :mode_of_n,
+    # Critic-selector decode (EVAL_DIRECTIONS task 2): loaded d2_critic_v1
+    # artifact (%{mean, std, w, v, phi_size}) + K samples per decision.
+    # nil = plain sampling. AR-head checkpoints only.
+    :critic,
+    :critic_k,
     # Button hysteresis for argmax button modes (nil = plain 0.5 threshold)
     :press_threshold,
     :release_threshold,
@@ -383,6 +388,24 @@ defmodule ExPhil.Agents.Agent do
     release_threshold = Keyword.get(opts, :release_threshold)
     action_repeat = Keyword.get(opts, :action_repeat, 1)
 
+    critic =
+      case Keyword.get(opts, :critic_path) do
+        nil ->
+          nil
+
+        path ->
+          c = ExPhil.Agents.CriticSelector.load!(path)
+
+          Logger.warning(
+            "[Agent] Critic-selector decode ACTIVE (#{path}, phi_size #{c.phi_size}, " <>
+              "K=#{Keyword.get(opts, :critic_k, 16)})"
+          )
+
+          c
+      end
+
+    critic_k = Keyword.get(opts, :critic_k, 16)
+
     # Allow disabling incremental inference for testing/comparison
     use_incremental = Keyword.get(opts, :use_incremental, true)
 
@@ -426,6 +449,8 @@ defmodule ExPhil.Agents.Agent do
       temperature: temperature,
       deterministic_buttons: deterministic_buttons,
       mode_of_n: mode_of_n,
+      critic: critic,
+      critic_k: critic_k,
       press_threshold: press_threshold,
       release_threshold: release_threshold,
       controller_queue: [],
@@ -739,6 +764,20 @@ defmodule ExPhil.Agents.Agent do
     t2 = System.monotonic_time(:millisecond)
     Logger.info("[Agent] warmup stage sample2 (prev-buttons variant): #{t2 - t1}ms")
 
+    # Critic-selector: the live path runs the TILED stage kernels
+    # (ar_stage1/ar_stage2 at n=critic_k) — warm that shape too, or the
+    # first real decision pays the compile (netplay freeze class, see
+    # comment above). mode_of_n exercises the exact same kernels/shapes.
+    if state.critic && state.head == :autoregressive do
+      _ = sampler.(Keyword.put(sample_opts, :mode_of_n, state.critic_k))
+      :ok = ExPhil.Agents.CriticSelector.warmup(state.critic, state.critic_k)
+
+      Logger.info(
+        "[Agent] warmup stage critic tiled kernels + pick (K=#{state.critic_k}): " <>
+          "#{System.monotonic_time(:millisecond) - t2}ms"
+      )
+    end
+
     _confidence = Networks.Policy.compute_confidence(first)
 
     Logger.info(
@@ -908,6 +947,11 @@ defmodule ExPhil.Agents.Agent do
       # saw the HUMAN as "self" and degenerated into hold-B).
       player_port = effective_port(game_state, opts)
       embedded = embed_game_state(game_state, player_port, state)
+
+      # Critic-selector decode: inject the K-sample scorer for this decision
+      # (closure captures this frame's raw state features; the sampler hands
+      # it the trunk features + tiled candidates).
+      opts = maybe_critic_opts(state, game_state, player_port, opts)
 
       # Route to appropriate inference mode
       {action, confidence, new_state} =
@@ -1239,6 +1283,36 @@ defmodule ExPhil.Agents.Agent do
     end
   end
 
+  # Build the :select_n/:select_fn opts for the critic-selector decode.
+  # AR head only (the tiled n>1 sampler is AR machinery); no-op otherwise.
+  defp maybe_critic_opts(%{critic: nil}, _game_state, _port, opts), do: opts
+  defp maybe_critic_opts(%{head: h}, _game_state, _port, opts) when h != :autoregressive, do: opts
+
+  defp maybe_critic_opts(state, game_state, port, opts) do
+    critic = state.critic
+    k = state.critic_k
+    opp = if port == 1, do: 2, else: 1
+    raw = ExPhil.Agents.CriticSelector.raw_features(game_state, port, opp)
+
+    embed_opts = [
+      axis_buckets: Map.get(state.embed_config || %{}, :axis_buckets, 16),
+      shoulder_buckets: Map.get(state.embed_config || %{}, :shoulder_buckets, 4)
+    ]
+
+    select_fn = fn features, buttons, mx, my, cx, cy, sh ->
+      ExPhil.Agents.CriticSelector.pick(
+        critic,
+        features,
+        raw,
+        {buttons, mx, my, cx, cy, sh},
+        k,
+        embed_opts
+      )
+    end
+
+    opts |> Keyword.put(:select_n, k) |> Keyword.put(:select_fn, select_fn)
+  end
+
   defp compute_temporal_action(state, embedded, opts) do
     # Add new frame to buffer
     buffer = :queue.in(embedded, state.frame_buffer)
@@ -1275,6 +1349,8 @@ defmodule ExPhil.Agents.Agent do
       temperature: temperature,
       deterministic_buttons: deterministic_buttons,
       mode_of_n: Keyword.get(opts, :mode_of_n, state.mode_of_n),
+      select_n: Keyword.get(opts, :select_n),
+      select_fn: Keyword.get(opts, :select_fn),
       press_threshold: state.press_threshold,
       release_threshold: state.release_threshold,
       prev_buttons: state.last_action && state.last_action[:buttons]
@@ -1390,6 +1466,8 @@ defmodule ExPhil.Agents.Agent do
       temperature: temperature,
       deterministic_buttons: deterministic_buttons,
       mode_of_n: Keyword.get(opts, :mode_of_n, state.mode_of_n),
+      select_n: Keyword.get(opts, :select_n),
+      select_fn: Keyword.get(opts, :select_fn),
       press_threshold: state.press_threshold,
       release_threshold: state.release_threshold,
       prev_buttons: state.last_action && state.last_action[:buttons]

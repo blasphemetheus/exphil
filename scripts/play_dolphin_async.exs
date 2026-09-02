@@ -144,6 +144,7 @@ Output.config([
   # the bracket a fake null — the flag-drop bug class, guard #6).
   {"Deterministic buttons", opts[:deterministic_buttons] || false},
   {"Mode-of-N", opts[:mode_of_n] || "off"},
+  {"Critic selector", if(opts[:critic], do: "#{opts[:critic]} (K=#{opts[:critic_k]})", else: "off")},
   {"Button hysteresis",
    if(opts[:press_threshold] || opts[:release_threshold],
      do: "press=#{inspect(opts[:press_threshold])} release=#{inspect(opts[:release_threshold])}",
@@ -163,6 +164,8 @@ agent_opts =
     temperature: temperature,
     deterministic_buttons: opts[:deterministic_buttons] || false,
     mode_of_n: opts[:mode_of_n],
+    critic_path: opts[:critic],
+    critic_k: opts[:critic_k],
     press_threshold: opts[:press_threshold],
     release_threshold: opts[:release_threshold],
     jump_debounce: opts[:jump_debounce],

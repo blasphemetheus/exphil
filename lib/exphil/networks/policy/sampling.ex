@@ -185,10 +185,23 @@ defmodule ExPhil.Networks.Policy.Sampling do
     deterministic = Keyword.get(opts, :deterministic, false)
     deterministic_buttons = Keyword.get(opts, :deterministic_buttons, false)
     mode_of_n = Keyword.get(opts, :mode_of_n)
+    # Critic-selector hook (09-02): draw select_n coherent samples through
+    # the SAME tiled stage kernels mode-of-N uses, but pick by the caller's
+    # scorer (select_fn.(features, buttons, mx, my, cx, cy, sh) -> index)
+    # instead of the joint-mode vote. mode_of_n wins if both are set.
+    select_fn = Keyword.get(opts, :select_fn)
+    select_n = Keyword.get(opts, :select_n)
 
     head = ar_head_params(params)
     argmax_buttons? = deterministic or deterministic_buttons
-    n = if is_integer(mode_of_n) and mode_of_n > 1 and not deterministic, do: mode_of_n, else: 1
+
+    n =
+      cond do
+        is_integer(mode_of_n) and mode_of_n > 1 and not deterministic -> mode_of_n
+        is_function(select_fn) and is_integer(select_n) and select_n > 1 and not deterministic -> select_n
+        true -> 1
+      end
+
     temps = temperature_tuple(temperature)
 
     # Hysteresis config as tensors (applied BEFORE conditioning, inside the
@@ -209,24 +222,16 @@ defmodule ExPhil.Networks.Policy.Sampling do
     {buttons, {mx, my, cx, cy, sh, mx_l, my_l, cx_l, cy_l, sh_l, conf}, b_l} =
       cond do
         n > 1 ->
-          # Mode-of-N (instrument only): two-stage path, batch-tiled.
-          {r0, b_l} = jitted(:ar_stage1, &ar_stage1/2).(head, features)
-          {r0n, b_ln} = {Nx.tile(r0, [n, 1]), Nx.tile(b_l, [n, 1])}
-          {t_b, _, _, _, _, _} = temps
-          key = Nx.Random.key(:erlang.unique_integer([:positive]))
-          {u, _} = Nx.Random.uniform(key, shape: Nx.shape(b_ln))
-          buttons = Nx.less(u, Nx.sigmoid(Nx.divide(b_ln, t_b)))
+          # Mode-of-N / critic-selector: ONE fused program for the whole
+          # tiled draw. The old two-stage path (stage1 -> eager tile/
+          # uniform/sigmoid -> stage2) cost ~35 ms/decision at n=16 — the
+          # eager glue between JIT boundaries, not the math (bench
+          # 0902: fused ar_full_stoch at n=1 is ~12 ms trunk-included).
+          features_n = Nx.tile(features, [n, 1])
           key = Nx.Random.key(:erlang.unique_integer([:positive]))
 
-          rest =
-            jitted(:ar_stage2, &ar_stage2_stochastic/6).(
-              head,
-              r0n,
-              Nx.as_type(buttons, :f32),
-              b_ln,
-              key,
-              temps
-            )
+          {buttons, rest, b_l} =
+            jitted(:ar_tiled_stoch, &ar_tiled_stochastic/4).(head, features_n, key, temps)
 
           {buttons, rest, b_l}
 
@@ -262,17 +267,27 @@ defmodule ExPhil.Networks.Policy.Sampling do
           jitted(:ar_full_stoch, &ar_full_stochastic/4).(head, features, key, temps)
       end
 
-    # Mode-of-N vote on the joint action (instrument only — disqualified
-    # for play, same as the independent path)
-    {buttons, mx, my, cx, cy, sh, mx_l, my_l, cx_l, cy_l, sh_l} =
+    # N>1 pick: critic scorer when a select_fn is wired (live decode knob),
+    # else the mode-of-N vote (instrument only — disqualified for play,
+    # same as the independent path)
+    {buttons, mx, my, cx, cy, sh, mx_l, my_l, cx_l, cy_l, sh_l, b_l} =
       if n > 1 do
-        i = mode_index(buttons, mx, my, cx, cy, sh)
+        i =
+          if is_function(select_fn) and not (is_integer(mode_of_n) and mode_of_n > 1) do
+            select_fn.(features, buttons, mx, my, cx, cy, sh)
+          else
+            mode_index(buttons, mx, my, cx, cy, sh)
+          end
+
         row = &Nx.slice_along_axis(&1, i, 1, axis: 0)
 
+        # b_l is tiled {n, 8} on the fused path — slice it too (rows are
+        # identical, same features; this just restores the {1, 8} shape
+        # contract for logits.buttons downstream)
         {row.(buttons), row.(mx), row.(my), row.(cx), row.(cy), row.(sh), row.(mx_l), row.(my_l),
-         row.(cx_l), row.(cy_l), row.(sh_l)}
+         row.(cx_l), row.(cy_l), row.(sh_l), row.(b_l)}
       else
-        {buttons, mx, my, cx, cy, sh, mx_l, my_l, cx_l, cy_l, sh_l}
+        {buttons, mx, my, cx, cy, sh, mx_l, my_l, cx_l, cy_l, sh_l, b_l}
       end
 
     %{
@@ -443,6 +458,20 @@ defmodule ExPhil.Networks.Policy.Sampling do
     r0 = ar_dense(features, head["ar_residual_proj"])
     b_l = ar_component(r0, head["ar_buttons_hidden"], head["ar_buttons_logits"])
     {r0, b_l}
+  end
+
+  # Fused n-tiled stochastic draw: stage1 + button sampling + stage2 in one
+  # XLA program (features pre-tiled to {n, hidden} by the caller — the only
+  # eager op left in the n>1 path).
+  defnp ar_tiled_stochastic(head, features_n, key, temps) do
+    r0 = ar_dense(features_n, head["ar_residual_proj"])
+    b_l = ar_component(r0, head["ar_buttons_hidden"], head["ar_buttons_logits"])
+    {t_b, _, _, _, _, _} = temps
+    {u, key2} = Nx.Random.uniform(key, shape: Nx.shape(b_l))
+    buttons = Nx.less(u, Nx.sigmoid(Nx.divide(b_l, t_b)))
+
+    rest = ar_stage2_stochastic(head, r0, Nx.as_type(buttons, :f32), b_l, key2, temps)
+    {buttons, rest, b_l}
   end
 
   defnp ar_stage2_stochastic(head, r0, buttons_f32, b_l, key, {_t_b, t_mx, t_my, t_cx, t_cy, t_sh}) do
