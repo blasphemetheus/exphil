@@ -421,3 +421,23 @@ Then re-read B1-the-model, ep10, B2 through A1/B2/C.
   51% unforced-fall deaths (expert 27) — same state-visitation story.
 - Next: 500-episode bank -> AWBC retrain arm -> drill re-measure ->
   live-look transfer check (DRILL_HITCONFIRM.md build order 3-4).
+
+## 2026-09-02 — Bradley live look, v1.3 ARrefit (local d0, FD; video cut for Discord)
+
+Two distinct failure classes observed:
+1. NEUTRAL = marginal-collapse junk: laser-in-place, airdodge-in-air,
+   shield-grab spam, multijab — all corpus-common actions deployed
+   without state-conditioning; flashes of conditioned play (occasional
+   shine, full-hop aerial). Matches F3c laser split, score24 airdodge/
+   grab first-option inflation, and the ladder's +8.7 state-conditional
+   term. Routes to the critic-selector live experiment (task 2).
+2. EDGEGUARD BLINDNESS: human recovering below stage -> bot does
+   on-stage behavior (shield-grab etc.), never takes ledge, "doesn't
+   seem to know you're below stage." NOT an F4 visitation gap — the
+   state was visited and the corpus is dense there (expert 4.34 eg
+   eps/min, dash-first 41.5% vs bot 3.9%). Proposed discriminator:
+   F4-analog pass@K probe on expert opponent-offstage states —
+   high => selection (critic covers it); low => conditioning lost in BC
+   => curation/AWBC target + edgeguard drill (scripted recover-low
+   dummy on the new drill driver; Bradley names ledge-refresh shine as
+   the reference behavior).
