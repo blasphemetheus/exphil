@@ -386,11 +386,35 @@ defmodule DrillEpisode do
         to_phase(bridge, %{st | ep: nil}, next)
 
       gs.frame - st.phase_start > @reset_budget ->
-        %{error: "reset stuck (dummy won't die)", episodes: st.episodes}
+        %{error: "reset stuck (dummy won't die, action=#{trunc(vic.action || -1)})",
+          episodes: st.episodes}
 
       true ->
+        # Melee will not WALK a character off a ledge (walks stop at the
+        # brink), and a HELD full deflection never dashes (dash needs a
+        # fresh smash input — the press-edges lesson again). So: pulse the
+        # stick to re-trigger dash (runs DO carry off edges), and at the
+        # brink jump + drift as the guaranteed exit.
+        elapsed = gs.frame - st.phase_start
         dir = if (vic.x || 0.0) >= 0.0, do: 1.0, else: 0.0
-        send_both(bridge, @neutral, stick(dir, 0.5))
+        drift = stick(dir, 0.5)
+
+        input =
+          cond do
+            not (vic.on_ground || false) ->
+              # Airborne (incl. hanging release): drift toward the blast zone.
+              drift
+
+            abs(vic.x || 0.0) > 80.0 ->
+              # At the brink: X-tap jump + drift.
+              if rem(elapsed, 20) < 2, do: jump_press(dir), else: drift
+
+            true ->
+              # Pulse full deflection so each fresh edge dashes edgeward.
+              if rem(elapsed, 8) < 6, do: drift, else: @neutral
+          end
+
+        send_both(bridge, @neutral, input)
         loop(bridge, %{st | ep: Map.put(st.ep || %{}, :reset_stock0, stock0)})
     end
   end
@@ -473,6 +497,7 @@ defmodule DrillEpisode do
 
   defp stick(x, y), do: %{@neutral | main_stick: %{x: x, y: y}}
   defp z_press, do: %{@neutral | buttons: %{@neutral.buttons | z: true}}
+  defp jump_press(dir), do: %{stick(dir, 0.5) | buttons: %{@neutral.buttons | x: true}}
 
   defp send_both(bridge, p1, p2) do
     MeleePort.send_controller(bridge, p1)
