@@ -115,6 +115,22 @@ Then re-read B1-the-model, ep10, B2 through A1/B2/C.
 
 ## Log
 
+- 2026-09-01 23:10 — **v1.3 night session: live look + F4 + clean knob
+  ladder.** Bradley's look (`eval_runs/0901_livelook_v13ar/IMPRESSIONS.md`):
+  feels different, okay neutral sometimes, FIRST punish structure seen
+  (up-throw→up-air), grab-spam now grab×2+roll-back, survival mixed;
+  headline ask = punishes cap at 1–2 hits vs 10-hit combos in data.
+  **F4 combo-depth probe** (`eval_runs/0901_combo_depth/`): depth-collapse
+  REJECTED — match FLAT across hits-into-punish (pass@16 30.3→27.4) ⇒
+  live shallowness is STATE-VISITATION (hit-confirm savestate drills /
+  DAgger = primary lever; improoover = delivery) + uniform punish-class
+  deficit vs neutral (AWBC secondary, hardness confound noted).
+  **Clean knob ladder** (`eval_runs/0901_critic_v13/RESULTS.md`): whole
+  ladder ~doubled on the clean stack (sampling 5.2/mode 18.3/selector
+  24.5/oracle 32.8 in-dist); **selector−mode +6.2 CLEARS the ≥5 bar
+  in-dist for the first time**; fresh +2.1 under; state-conditional
+  component +8.7 (was +3.4). Next decode step = LIVE gate experiment for
+  selector + mode-of-N on v1.3-ARrefit, not deployment.
 - 2026-09-01 22:00 — **v1.3 CHAIN VERDICT: PRIMARY PASSED DECISIVELY**
   (`eval_runs/0901_v13_portfix/VERDICT.md`). approach_delta INVERTED
   from v1.2's −0.20..−0.26 into the EXPERT'S signature: ~0 close,
