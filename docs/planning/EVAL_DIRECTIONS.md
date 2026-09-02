@@ -441,3 +441,16 @@ Two distinct failure classes observed:
    => curation/AWBC target + edgeguard drill (scripted recover-low
    dummy on the new drill driver; Bradley names ledge-refresh shine as
    the reference behavior).
+
+## 2026-09-02 — Edgeguard pass@K probe: conditioning LEARNED, blindness is SELECTION
+
+`eval_runs/0902_edgeguard_passk/RESULTS.md`: flat across strata
+(neutral 43.3 / onset 41.0 / opp-high 41.2 / opp-BELOW-stage 39.4
+pass@16; pass@1 6.6-6.9 with NO stratum deficit, unlike F4's punish
+class). Verdict: opponent-offstage conditioning survives BC; live
+edgeguard blindness = selection (right action present in 16 samples 40%
+of the time, drawn singly <7%) + own-context drift. Edgeguard drill /
+curation DEPRIORITIZED for this gap. Third independent convergence on
+the critic-selector (after the headroom triad and the clean knob
+ladder) — task 2 (live --critic wiring) is now the clear next
+experiment.
