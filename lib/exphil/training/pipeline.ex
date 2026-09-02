@@ -1046,6 +1046,69 @@ defmodule ExPhil.Training.Pipeline do
         end)
       end
 
+    # Curriculum mix in STREAMING mode (09-02, the drill-AWBC arm): the
+    # standard path's --mix-frames never reached this branch, and corpus
+    # mode wants --mix-corpus — so drill windows get appended here as
+    # extra batches per epoch (x mix_oversample). AWBC weights apply per
+    # window: sliced exports (scripts/drill_slice.exs) order windows so
+    # split_by_replay sees each as its own segment. The mix embeds
+    # in-memory (no chunk-cache key change — GOTCHA #106 disk budget).
+    stream =
+      case ropts[:mix_frames] do
+        nil ->
+          stream
+
+        spec ->
+          {mixed, mstats} =
+            ExPhil.Training.MixFrames.load(spec, action_delay: ropts[:action_delay] || 0)
+
+          oversample = ropts[:mix_oversample] || 1
+
+          Logger.info(
+            "[Streaming] curriculum mix: #{length(mixed)} frames from " <>
+              "#{length(mstats)} export(s), oversample #{oversample}"
+          )
+
+          if mixed == [] do
+            stream
+          else
+            mix_dataset = Streaming.create_dataset(mixed, dataset_opts)
+
+            mix_batch_opts =
+              if awbc? do
+                lists = ExPhil.Training.AdvantageWeighting.split_by_replay(mixed)
+
+                {ws, _} =
+                  ExPhil.Training.AdvantageWeighting.frame_weights(lists,
+                    reward: ropts[:awbc_reward] || :shine,
+                    beta: ropts[:awbc_beta],
+                    shuffle: ropts[:awbc_shuffle] || false
+                  )
+
+                seq_batch_opts ++ [loss_weights: ws]
+              else
+                seq_batch_opts
+              end
+
+            mix_batches =
+              if ropts[:temporal] do
+                Data.batched_sequences(mix_dataset, mix_batch_opts)
+              else
+                Data.batched(mix_dataset,
+                  batch_size: ropts[:batch_size] || 32,
+                  shuffle: true,
+                  drop_last: true
+                )
+              end
+              |> Enum.to_list()
+
+            Stream.concat(
+              stream,
+              Stream.flat_map(1..oversample, fn _ -> mix_batches end)
+            )
+          end
+      end
+
     {stream, pipeline.estimated_batches}
   end
 
