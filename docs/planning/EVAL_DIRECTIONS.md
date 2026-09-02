@@ -454,3 +454,27 @@ curation DEPRIORITIZED for this gap. Third independent convergence on
 the critic-selector (after the headroom triad and the clean knob
 ladder) — task 2 (live --critic wiring) is now the clear next
 experiment.
+
+## 2026-09-02 — vladfi1's "looks like random play" challenge: control + parity audit
+
+1. SHUFFLED-FEATURES CONTROL (`eval_runs/0902_edgeguard_passk/SHUFFLED_CONTROL.md`):
+   state-blind floor pass@16 5.9-7.6% / pass@1 ~1% vs real 39-43% / 6.6-6.9%.
+   The pass@K knowledge is REAL conditioning (5-6x over floor), not
+   coverage — the instrument survives the challenge. But both are true:
+   conditioning exists AND is far too diffuse (per-draw 7%), so live
+   1-sample play reads as random. His eye and our probes agree.
+2. SLIPPI-AI PARITY AUDIT (agent sweep of ~/git/slippi-ai): their BC-only
+   is recognizably human at ~2M replays / 10^10 frames / days-scale
+   training; four load-bearing divergences from fox_gen v1: (a)
+   contiguous 80f chunks with CARRIED recurrent state (truncated BPTT
+   over whole games) vs our independent reset-per-window 60f samples;
+   (b) 2-3 orders of magnitude data x compute; (c) player-identity token,
+   play conditioned on top-skill bucket (our name_id slot unused); (d)
+   they sample T=1.0 with no tricks — needing T=0.5 is the underfit
+   symptom, decode knobs compensate for policy flatness. No exposure-bias
+   mitigation at BC stage at all; PPO+KL-teacher is strength, BC-at-scale
+   is humanness. Also steal: hard data filters (1v1 human, 8min timer,
+   >=100 dmg, winner, dedupe), 18f delay + tech-animation masking.
+   OPEN DECISION (Bradley): v2 recipe (contiguous-BPTT + name token +
+   corpus scale + filters) vs continued v1 knob iteration — touches the
+   "exhaust v1 before v2" standing rule.

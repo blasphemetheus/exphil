@@ -43,7 +43,7 @@ alias ExPhil.Training.Output
   OptionParser.parse(System.argv(),
     strict: [policy: :string, replays: :string, limit_files: :integer, k: :integer,
              char_id: :integer, temperature: :float, seed: :integer,
-             max_per_stratum: :integer, out: :string]
+             max_per_stratum: :integer, shuffle_features: :boolean, out: :string]
   )
 
 policy = opts[:policy] || raise "--policy required"
@@ -172,6 +172,22 @@ rows =
       []
     else
       idx = Nx.tensor(Enum.map(kept, &elem(&1, 1)))
+
+      # --shuffle-features: the state-blind control (09-02, vladfi1's
+      # "looks like random play" challenge). Each decision keeps its TRUE
+      # expert action for the match rule but gets another random kept
+      # frame's trunk features (per file — stage/matchup statistics
+      # preserved, state alignment destroyed). If pass@K here ~ the real
+      # run, the real numbers were diffuse-distribution COVERAGE, not
+      # state-conditioned knowledge.
+      idx =
+        if opts[:shuffle_features] do
+          {perm, _} = Nx.Random.shuffle(Nx.Random.fold_in(key, 90_000 + fi), Nx.iota({length(kept)}))
+          Nx.take(idx, perm)
+        else
+          idx
+        end
+
       feats = Nx.take(cap_r.activations, idx, axis: 0)
       kframes = Enum.map(kept, &elem(&1, 2))
       sub = Nx.Random.fold_in(key, fi)
@@ -223,9 +239,14 @@ table_rows =
     {s, {n, p1, pk}} -> "| #{labels[s]} | #{n} | #{pct.(p1)} | #{pct.(pk)} |"
   end)
 
+shuffle_note =
+  if opts[:shuffle_features],
+    do: "\n**SHUFFLED-FEATURES CONTROL** — state information destroyed; these\nnumbers are the coverage floor of the diffuse distribution.\n",
+    else: ""
+
 report = """
 # Edgeguard pass@K probe — RESULTS
-
+#{shuffle_note}
 Policy #{Path.basename(policy)}, #{length(picked)} expert files, K=#{k}
 coherent samples at T=#{temperature}, Leg S match rule, teacher-forced
 expert states (no state-visitation confound). :edgeguard = Situations
