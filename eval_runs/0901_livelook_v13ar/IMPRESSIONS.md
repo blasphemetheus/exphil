@@ -31,3 +31,17 @@ Setup: FD, local d0, T=0.5/0.5; replays in `2026-09-Mainline/`.
 2. **Decode-knob ladder rerun on v1.3-ARrefit** with a critic retrained
    on CLEAN extracts (all prior ladder numbers were dirty-trunk and/or
    dirty-instrument) → `eval_runs/0901_critic_v13/`.
+
+## Mode-of-N live session (same night, ~23:30)
+
+- `--mode-of-n 16` and `8` on v1.3-ARrefit (VERIFIED: live path uses the
+  AR-aware coherent sampler — sample_autoregressive_from_features honors
+  mode_of_n with joint draws; this was NOT chimera-voting).
+- **Verdict: argmax-class live collapse.** Runs off the stage a lot,
+  rolls to the stage edge repeatedly, "pretty boring," "resolves to the
+  same behavior as argmax where it just kills itself a lot."
+- L9 confirmed again: offline mode-of-16 was the biggest free win
+  (18.3 vs 5.2) and it is live-dead. Mode-of-N FAILS the live gate;
+  the critic selector remains the only untested-live knob (different
+  failure profile — learned score, not frequency vote — but tonight
+  lowers expectations).
