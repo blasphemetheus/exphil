@@ -1,0 +1,498 @@
+[
+  {
+    "stats": {
+      "taunts_per_min": {
+        "max": 1.8614270941054807,
+        "min": 0.0,
+        "values": [
+          0.0,
+          1.4733969986357436,
+          1.8614270941054807,
+          0.49079754601226994,
+          0.0,
+          0.9815950920245399,
+          0.9803921568627451,
+          1.4699877501020824
+        ],
+        "mean": 0.9071995797178577,
+        "median": 0.9815950920245399
+      },
+      "dpad_per_min": {
+        "max": 102.08588957055214,
+        "min": 73.67990176013097,
+        "values": [
+          80.43596730245233,
+          84.47476125511596,
+          100.51706308169595,
+          89.32515337423312,
+          73.67990176013097,
+          102.08588957055214,
+          89.70588235294117,
+          97.01919150673744
+        ],
+        "mean": 89.6554762754824,
+        "median": 89.70588235294117
+      },
+      "input_long_frac": {
+        "max": 0.004083299305839118,
+        "min": 0.0,
+        "values": [
+          0.0,
+          0.0,
+          0.0,
+          0.0013633265167007499,
+          0.0,
+          0.0,
+          0.0032679738562091504,
+          0.004083299305839118
+        ],
+        "mean": 0.0010893249598436273,
+        "median": 0.0
+      },
+      "action_long_frac": {
+        "max": 0.3889570552147239,
+        "min": 0.25272479564032696,
+        "values": [
+          0.25272479564032696,
+          0.35402455661664395,
+          0.36125473974491557,
+          0.2886162235855487,
+          0.29458316277800517,
+          0.3889570552147239,
+          0.34381808278867104,
+          0.37824962569756365
+        ],
+        "mean": 0.3327785302582999,
+        "median": 0.35402455661664395
+      },
+      "loops_per_min": {
+        "max": 2.942779291553134,
+        "min": 0.0,
+        "values": [
+          2.942779291553134,
+          1.4733969986357436,
+          0.0,
+          0.49079754601226994,
+          2.455996725337699,
+          1.4723926380368098,
+          0.0,
+          1.9599836668027766
+        ],
+        "mean": 1.349418358297304,
+        "median": 1.4733969986357436
+      },
+      "max_loop_repeats": {
+        "max": 7,
+        "min": 0,
+        "values": [
+          7,
+          6,
+          0,
+          6,
+          6,
+          3,
+          0,
+          4
+        ],
+        "mean": 4.0,
+        "median": 6
+      },
+      "longest_action_run": {
+        "max": 462,
+        "min": 284,
+        "values": [
+          284,
+          363,
+          334,
+          409,
+          344,
+          331,
+          359,
+          462
+        ],
+        "mean": 360.75,
+        "median": 359
+      },
+      "longest_input_run": {
+        "max": 18,
+        "min": 7,
+        "values": [
+          7,
+          8,
+          8,
+          10,
+          8,
+          8,
+          14,
+          18
+        ],
+        "mean": 10.125,
+        "median": 8
+      }
+    },
+    "n": 8,
+    "arm": "BASE",
+    "games": [
+      {
+        "path": "eval_runs/0902_critic_gate/BASE/r1.slp",
+        "summary": {
+          "taunts_per_min": 0.0,
+          "dpad_per_min": 80.43596730245233,
+          "input_long_frac": 0.0,
+          "action_long_frac": 0.25272479564032696,
+          "loops_per_min": 2.942779291553134,
+          "max_loop_repeats": 7,
+          "longest_action_run": 284,
+          "longest_input_run": 7
+        },
+        "minutes": 2.0388888888888888
+      },
+      {
+        "path": "eval_runs/0902_critic_gate/BASE/r2.slp",
+        "summary": {
+          "taunts_per_min": 1.4733969986357436,
+          "dpad_per_min": 84.47476125511596,
+          "input_long_frac": 0.0,
+          "action_long_frac": 0.35402455661664395,
+          "loops_per_min": 1.4733969986357436,
+          "max_loop_repeats": 6,
+          "longest_action_run": 363,
+          "longest_input_run": 8
+        },
+        "minutes": 2.036111111111111
+      },
+      {
+        "path": "eval_runs/0902_critic_gate/BASE/r3.slp",
+        "summary": {
+          "taunts_per_min": 1.8614270941054807,
+          "dpad_per_min": 100.51706308169595,
+          "input_long_frac": 0.0,
+          "action_long_frac": 0.36125473974491557,
+          "loops_per_min": 0.0,
+          "max_loop_repeats": 0,
+          "longest_action_run": 334,
+          "longest_input_run": 8
+        },
+        "minutes": 1.6116666666666668
+      },
+      {
+        "path": "eval_runs/0902_critic_gate/BASE/r4.slp",
+        "summary": {
+          "taunts_per_min": 0.49079754601226994,
+          "dpad_per_min": 89.32515337423312,
+          "input_long_frac": 0.0013633265167007499,
+          "action_long_frac": 0.2886162235855487,
+          "loops_per_min": 0.49079754601226994,
+          "max_loop_repeats": 6,
+          "longest_action_run": 409,
+          "longest_input_run": 10
+        },
+        "minutes": 2.0375
+      },
+      {
+        "path": "eval_runs/0902_critic_gate/BASE/r5.slp",
+        "summary": {
+          "taunts_per_min": 0.0,
+          "dpad_per_min": 73.67990176013097,
+          "input_long_frac": 0.0,
+          "action_long_frac": 0.29458316277800517,
+          "loops_per_min": 2.455996725337699,
+          "max_loop_repeats": 6,
+          "longest_action_run": 344,
+          "longest_input_run": 8
+        },
+        "minutes": 2.0358333333333336
+      },
+      {
+        "path": "eval_runs/0902_critic_gate/BASE/r6.slp",
+        "summary": {
+          "taunts_per_min": 0.9815950920245399,
+          "dpad_per_min": 102.08588957055214,
+          "input_long_frac": 0.0,
+          "action_long_frac": 0.3889570552147239,
+          "loops_per_min": 1.4723926380368098,
+          "max_loop_repeats": 3,
+          "longest_action_run": 331,
+          "longest_input_run": 8
+        },
+        "minutes": 2.0375
+      },
+      {
+        "path": "eval_runs/0902_critic_gate/BASE/r7.slp",
+        "summary": {
+          "taunts_per_min": 0.9803921568627451,
+          "dpad_per_min": 89.70588235294117,
+          "input_long_frac": 0.0032679738562091504,
+          "action_long_frac": 0.34381808278867104,
+          "loops_per_min": 0.0,
+          "max_loop_repeats": 0,
+          "longest_action_run": 359,
+          "longest_input_run": 14
+        },
+        "minutes": 2.04
+      },
+      {
+        "path": "eval_runs/0902_critic_gate/BASE/r8.slp",
+        "summary": {
+          "taunts_per_min": 1.4699877501020824,
+          "dpad_per_min": 97.01919150673744,
+          "input_long_frac": 0.004083299305839118,
+          "action_long_frac": 0.37824962569756365,
+          "loops_per_min": 1.9599836668027766,
+          "max_loop_repeats": 4,
+          "longest_action_run": 462,
+          "longest_input_run": 18
+        },
+        "minutes": 2.0408333333333335
+      }
+    ]
+  },
+  {
+    "stats": {
+      "taunts_per_min": {
+        "max": 0.800711743772242,
+        "min": 0.0,
+        "values": [
+          0.0,
+          0.0,
+          0.4968258349434171,
+          0.0,
+          0.497787610619469,
+          0.800711743772242,
+          0.5730659025787965,
+          0.0
+        ],
+        "mean": 0.29604888648924055,
+        "median": 0.4968258349434171
+      },
+      "dpad_per_min": {
+        "max": 6.405693950177936,
+        "min": 1.2036108324974926,
+        "values": [
+          2.404809619238477,
+          1.2036108324974926,
+          3.47778084460392,
+          2.1176470588235294,
+          5.475663716814159,
+          6.405693950177936,
+          4.011461318051576,
+          2.450646698434309
+        ],
+        "mean": 3.443414254830175,
+        "median": 3.47778084460392
+      },
+      "input_long_frac": {
+        "max": 0.5430861723446894,
+        "min": 0.3445284697508897,
+        "values": [
+          0.5430861723446894,
+          0.5376128385155466,
+          0.504002208114822,
+          0.5088235294117647,
+          0.398783185840708,
+          0.3445284697508897,
+          0.45033428844317097,
+          0.5187202178352621
+        ],
+        "mean": 0.4757363637821067,
+        "median": 0.5088235294117647
+      },
+      "action_long_frac": {
+        "max": 0.38545404361026775,
+        "min": 0.25934163701067614,
+        "values": [
+          0.374749498997996,
+          0.37679705784018724,
+          0.38545404361026775,
+          0.2697058823529412,
+          0.31595685840707965,
+          0.25934163701067614,
+          0.2763451130213308,
+          0.2727479010664851
+        ],
+        "mean": 0.31638724903837057,
+        "median": 0.31595685840707965
+      },
+      "loops_per_min": {
+        "max": 2.292263610315186,
+        "min": 0.0,
+        "values": [
+          0.0,
+          1.2036108324974926,
+          0.0,
+          1.0588235294117647,
+          1.4933628318584071,
+          0.800711743772242,
+          2.292263610315186,
+          0.8168822328114363
+        ],
+        "mean": 0.9582068475833161,
+        "median": 1.0588235294117647
+      },
+      "max_loop_repeats": {
+        "max": 8,
+        "min": 0,
+        "values": [
+          0,
+          6,
+          0,
+          8,
+          4,
+          4,
+          3,
+          3
+        ],
+        "mean": 3.5,
+        "median": 4
+      },
+      "longest_action_run": {
+        "max": 340,
+        "min": 136,
+        "values": [
+          167,
+          194,
+          189,
+          136,
+          340,
+          250,
+          169,
+          170
+        ],
+        "mean": 201.875,
+        "median": 189
+      },
+      "longest_input_run": {
+        "max": 201,
+        "min": 107,
+        "values": [
+          157,
+          201,
+          159,
+          110,
+          137,
+          107,
+          184,
+          170
+        ],
+        "mean": 153.125,
+        "median": 159
+      }
+    },
+    "n": 8,
+    "arm": "CRITIC",
+    "games": [
+      {
+        "path": "eval_runs/0902_critic_gate/CRITIC/r1.slp",
+        "summary": {
+          "taunts_per_min": 0.0,
+          "dpad_per_min": 2.404809619238477,
+          "input_long_frac": 0.5430861723446894,
+          "action_long_frac": 0.374749498997996,
+          "loops_per_min": 0.0,
+          "max_loop_repeats": 0,
+          "longest_action_run": 167,
+          "longest_input_run": 157
+        },
+        "minutes": 1.2474999999999998
+      },
+      {
+        "path": "eval_runs/0902_critic_gate/CRITIC/r2.slp",
+        "summary": {
+          "taunts_per_min": 0.0,
+          "dpad_per_min": 1.2036108324974926,
+          "input_long_frac": 0.5376128385155466,
+          "action_long_frac": 0.37679705784018724,
+          "loops_per_min": 1.2036108324974926,
+          "max_loop_repeats": 6,
+          "longest_action_run": 194,
+          "longest_input_run": 201
+        },
+        "minutes": 0.8308333333333333
+      },
+      {
+        "path": "eval_runs/0902_critic_gate/CRITIC/r3.slp",
+        "summary": {
+          "taunts_per_min": 0.4968258349434171,
+          "dpad_per_min": 3.47778084460392,
+          "input_long_frac": 0.504002208114822,
+          "action_long_frac": 0.38545404361026775,
+          "loops_per_min": 0.0,
+          "max_loop_repeats": 0,
+          "longest_action_run": 189,
+          "longest_input_run": 159
+        },
+        "minutes": 2.0127777777777776
+      },
+      {
+        "path": "eval_runs/0902_critic_gate/CRITIC/r4.slp",
+        "summary": {
+          "taunts_per_min": 0.0,
+          "dpad_per_min": 2.1176470588235294,
+          "input_long_frac": 0.5088235294117647,
+          "action_long_frac": 0.2697058823529412,
+          "loops_per_min": 1.0588235294117647,
+          "max_loop_repeats": 8,
+          "longest_action_run": 136,
+          "longest_input_run": 110
+        },
+        "minutes": 0.9444444444444444
+      },
+      {
+        "path": "eval_runs/0902_critic_gate/CRITIC/r5.slp",
+        "summary": {
+          "taunts_per_min": 0.497787610619469,
+          "dpad_per_min": 5.475663716814159,
+          "input_long_frac": 0.398783185840708,
+          "action_long_frac": 0.31595685840707965,
+          "loops_per_min": 1.4933628318584071,
+          "max_loop_repeats": 4,
+          "longest_action_run": 340,
+          "longest_input_run": 137
+        },
+        "minutes": 2.008888888888889
+      },
+      {
+        "path": "eval_runs/0902_critic_gate/CRITIC/r6.slp",
+        "summary": {
+          "taunts_per_min": 0.800711743772242,
+          "dpad_per_min": 6.405693950177936,
+          "input_long_frac": 0.3445284697508897,
+          "action_long_frac": 0.25934163701067614,
+          "loops_per_min": 0.800711743772242,
+          "max_loop_repeats": 4,
+          "longest_action_run": 250,
+          "longest_input_run": 107
+        },
+        "minutes": 1.248888888888889
+      },
+      {
+        "path": "eval_runs/0902_critic_gate/CRITIC/r7.slp",
+        "summary": {
+          "taunts_per_min": 0.5730659025787965,
+          "dpad_per_min": 4.011461318051576,
+          "input_long_frac": 0.45033428844317097,
+          "action_long_frac": 0.2763451130213308,
+          "loops_per_min": 2.292263610315186,
+          "max_loop_repeats": 3,
+          "longest_action_run": 169,
+          "longest_input_run": 184
+        },
+        "minutes": 1.745
+      },
+      {
+        "path": "eval_runs/0902_critic_gate/CRITIC/r8.slp",
+        "summary": {
+          "taunts_per_min": 0.0,
+          "dpad_per_min": 2.450646698434309,
+          "input_long_frac": 0.5187202178352621,
+          "action_long_frac": 0.2727479010664851,
+          "loops_per_min": 0.8168822328114363,
+          "max_loop_repeats": 3,
+          "longest_action_run": 170,
+          "longest_input_run": 170
+        },
+        "minutes": 1.2241666666666666
+      }
+    ]
+  }
+]

@@ -478,3 +478,13 @@ experiment.
    OPEN DECISION (Bradley): v2 recipe (contiguous-BPTT + name token +
    corpus scale + filters) vs continued v1 knob iteration — touches the
    "exhaust v1 before v2" standing rule.
+
+## 2026-09-02 — Critic-selector LIVE gate: FAILED (task 2 closed)
+
+`eval_runs/0902_critic_gate/VERDICT.md`: frozen-input 0.48-0.51 (gate
+0.20), 2/8 to cap; argmax-over-S picks the least active candidate
+(d_up 3.4/min vs 89.7). L9 fourth confirmation — the v1 decode ladder
+is exhausted; selection at decode CANNOT fix marginal-collapse at this
+policy scale. Converges with the slippi-ai parity audit: sharpen the
+policy (v2 recipe) rather than the decode. AWBC drill arm proceeds
+(training-side lever, unaffected).

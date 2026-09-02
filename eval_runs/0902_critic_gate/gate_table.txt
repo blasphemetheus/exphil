@@ -1,0 +1,351 @@
+critic gate runs=8 seconds=120 policy=checkpoints/fox_gen_v1.3_ARrefit_policy.bin critic=eval_runs/0901_critic_v13/critic.nx k=16 started=2026-09-02T17:41:24-05:00
+=== CRITIC
+CRITIC: 8 replays
+    Staleness: 84/4614 sends stale (1.8%)
+    Staleness: 74/3114 sends stale (2.4%)
+    Staleness: 112/7369 sends stale (1.5%)
+    Staleness: 104/3523 sends stale (3.0%)
+    Staleness: 168/7355 sends stale (2.3%)
+    Staleness: 125/4619 sends stale (2.7%)
+    Staleness: 113/6405 sends stale (1.8%)
+    Staleness: 104/4530 sends stale (2.3%)
+=== BASE
+BASE: 8 replays
+    Staleness: 68/7463 sends stale (0.9%)
+    Staleness: 26/7453 sends stale (0.3%)
+    Staleness: 9/5925 sends stale (0.2%)
+    Staleness: 21/7458 sends stale (0.3%)
+    Staleness: 38/7452 sends stale (0.5%)
+    Staleness: 19/7458 sends stale (0.3%)
+    Staleness: 30/7467 sends stale (0.4%)
+    Staleness: 50/7470 sends stale (0.7%)
+=== durations (7/8-to-cap gate)
+CRITIC: n=8 mean=86.5s reaching_cap=2/8
+BASE: n=8 mean=121.1s reaching_cap=7/8
+=== loop_report (frozen-input <= 0.20 gate)
+==> exla
+Using libexla.so from /home/blewf/.cache/xla/exla/elixir-1.18.4-erts-16.4.0.4-xla-0.10.0-exla-0.13.1-2gwjr5st6sq2h5oph3af6rzta4/libexla.so
+EXLA_CPU_ONLY is not set, checking for nvcc availability
+CUDA is available.
+make: '/home/blewf/git/exphil/_build/dev/lib/exla/priv/libexla.so' is up to date.
+==> exphil
+      warning: function blind_target_css/1 is unused
+      │
+ 1676 │   defp blind_target_css(state) do
+      │        ~
+      │
+      └─ lib/exphil_bridge/melee_port.ex:1676:8: ExPhil.Bridge.MeleePort (module)
+
+     warning: clauses with the same name and arity (number of arguments) should be grouped together, "def handle_call/3" was previously defined (lib/exphil/agents/agent.ex:526)
+     │
+ 809 │   def handle_call({:reconfigure, opts}, _from, state) do
+     │       ~
+     │
+     └─ lib/exphil/agents/agent.ex:809:7
+
+
+18:18:23.619 [info] [ExPhil] Application started
+
+18:18:23.620 [debug] [ExPhil] Supervision tree: [{ExPhil.Training.AsyncCheckpoint, #PID<0.285.0>, :worker, [ExPhil.Training.AsyncCheckpoint]}, {ExPhil.Telemetry.Collector, #PID<0.284.0>, :worker, [ExPhil.Telemetry.Collector]}, {ExPhil.Agents.Supervisor, #PID<0.283.0>, :supervisor, [ExPhil.Agents.Supervisor]}, {ExPhil.Bridge.Supervisor, #PID<0.282.0>, :supervisor, [ExPhil.Bridge.Supervisor]}, {ExPhil.Registry, #PID<0.280.0>, :supervisor, [Registry]}]
+
+╔════════════════════════════════════════════════════════════╗
+║                    Loop / Taunt Report                     ║
+╚════════════════════════════════════════════════════════════╝
+
+[1mConfiguration:[0m
+  [2m  Replays:[0m 16
+  [2m  Bot port:[0m 1
+  [2m  Groups:[0m 2
+
+Scoring [[32m██[0m[2m░░░░░░░░░░░░░░░░░░░░░░░░░░░░[0m] 6% (1/16)[KScoring [[32m████[0m[2m░░░░░░░░░░░░░░░░░░░░░░░░░░[0m] 13% (2/16)[KScoring [[32m██████[0m[2m░░░░░░░░░░░░░░░░░░░░░░░░[0m] 19% (3/16)[KScoring [[32m████████[0m[2m░░░░░░░░░░░░░░░░░░░░░░[0m] 25% (4/16)[KScoring [[32m█████████[0m[2m░░░░░░░░░░░░░░░░░░░░░[0m] 31% (5/16)[KScoring [[32m███████████[0m[2m░░░░░░░░░░░░░░░░░░░[0m] 38% (6/16)[KScoring [[32m█████████████[0m[2m░░░░░░░░░░░░░░░░░[0m] 44% (7/16)[KScoring [[32m███████████████[0m[2m░░░░░░░░░░░░░░░[0m] 50% (8/16)[KScoring [[32m█████████████████[0m[2m░░░░░░░░░░░░░[0m] 56% (9/16)[KScoring [[32m███████████████████[0m[2m░░░░░░░░░░░[0m] 63% (10/16)[KScoring [[32m█████████████████████[0m[2m░░░░░░░░░[0m] 69% (11/16)[KScoring [[32m███████████████████████[0m[2m░░░░░░░[0m] 75% (12/16)[KScoring [[32m████████████████████████[0m[2m░░░░░░[0m] 81% (13/16)[KScoring [[32m██████████████████████████[0m[2m░░░░[0m] 88% (14/16)[KScoring [[32m████████████████████████████[0m[2m░░[0m] 94% (15/16)[KScoring [[32m██████████████████████████████[0m[2m[0m] 100% (16/16)[K
+
+| arm | scored/played | taunts/min | d_up press/min | frozen-input frac | held-action frac | loops/min | max loop reps |
+|---|---|---|---|---|---|---|---|
+| BASE | 8/8 | 0.91~0.98 [0.00-1.86] | 89.66~89.71 [73.68-102.09] | 0.00~0.00 [0.00-0.00] | 0.33~0.35 [0.25-0.39] | 1.35~1.47 [0.00-2.94] | 4.00~6 [0-7] |
+| CRITIC | 8/8 | 0.30~0.50 [0.00-0.80] | 3.44~3.48 [1.20-6.41] | 0.48~0.51 [0.34-0.54] | 0.32~0.32 [0.26-0.39] | 0.96~1.06 [0.00-2.29] | 3.50~4 [0-8] |
+
+[18:18:24] [33m⚠️  mean~median [min-max]. Standing law: differences under 2x are UNRESOLVED, and a range that spans the other arm's mean is no difference at all. A mean far from its median = one degenerate game is dragging the group.[0m
+
+| arm | game | min | taunts/min | d_up/min | frozen | held | loops/min | max reps |
+|---|---|---|---|---|---|---|---|---|
+| BASE | r1.slp | 2.04 | 0.00 | 80.44 | 0.00 | 0.25 | 2.94 | 7 |
+| BASE | r2.slp | 2.04 | 1.47 | 84.47 | 0.00 | 0.35 | 1.47 | 6 |
+| BASE | r3.slp | 1.61 | 1.86 | 100.52 | 0.00 | 0.36 | 0.00 | 0 |
+| BASE | r4.slp | 2.04 | 0.49 | 89.33 | 0.00 | 0.29 | 0.49 | 6 |
+| BASE | r5.slp | 2.04 | 0.00 | 73.68 | 0.00 | 0.29 | 2.46 | 6 |
+| BASE | r6.slp | 2.04 | 0.98 | 102.09 | 0.00 | 0.39 | 1.47 | 3 |
+| BASE | r7.slp | 2.04 | 0.98 | 89.71 | 0.00 | 0.34 | 0.00 | 0 |
+| BASE | r8.slp | 2.04 | 1.47 | 97.02 | 0.00 | 0.38 | 1.96 | 4 |
+| CRITIC | r1.slp | 1.25 | 0.00 | 2.40 | 0.54 | 0.37 | 0.00 | 0 |
+| CRITIC | r2.slp | 0.83 | 0.00 | 1.20 | 0.54 | 0.38 | 1.20 | 6 |
+| CRITIC | r3.slp | 2.01 | 0.50 | 3.48 | 0.50 | 0.39 | 0.00 | 0 |
+| CRITIC | r4.slp | 0.94 | 0.00 | 2.12 | 0.51 | 0.27 | 1.06 | 8 |
+| CRITIC | r5.slp | 2.01 | 0.50 | 5.48 | 0.40 | 0.32 | 1.49 | 4 |
+| CRITIC | r6.slp | 1.25 | 0.80 | 6.41 | 0.34 | 0.26 | 0.80 | 4 |
+| CRITIC | r7.slp | 1.75 | 0.57 | 4.01 | 0.45 | 0.28 | 2.29 | 3 |
+| CRITIC | r8.slp | 1.22 | 0.00 | 2.45 | 0.52 | 0.27 | 0.82 | 3 |
+
+
+Most repeated action cycles (action-state ids):
+
+| action cycle | episodes |
+|---|---|
+| `GRAB_WAIT>GRAB_PUMMEL` | 16 |
+| `STANDING>WALK_SLOW` | 6 |
+| `GRAB_PUMMEL>GRAB_WAIT` | 5 |
+| `DAMAGE_NEUTRAL_2>LANDING` | 2 |
+| `STANDING>SHIELD_REFLECT>GRAB` | 1 |
+| `LANDING>DAMAGE_HIGH_2` | 1 |
+| `LANDING>DAMAGE_NEUTRAL_2` | 1 |
+| `DAMAGE_HIGH_2>LANDING` | 1 |
+
+[18:18:24] [32m✓ Wrote eval_runs/0902_critic_gate/loops/report.md and report.json[0m
+=== F1: edge_scorecard (airdodge-in-danger, routes)
+==> exla
+Using libexla.so from /home/blewf/.cache/xla/exla/elixir-1.18.4-erts-16.4.0.4-xla-0.10.0-exla-0.13.1-2gwjr5st6sq2h5oph3af6rzta4/libexla.so
+EXLA_CPU_ONLY is not set, checking for nvcc availability
+CUDA is available.
+make: '/home/blewf/git/exphil/_build/dev/lib/exla/priv/libexla.so' is up to date.
+==> exphil
+      warning: function blind_target_css/1 is unused
+      │
+ 1676 │   defp blind_target_css(state) do
+      │        ~
+      │
+      └─ lib/exphil_bridge/melee_port.ex:1676:8: ExPhil.Bridge.MeleePort (module)
+
+     warning: clauses with the same name and arity (number of arguments) should be grouped together, "def handle_call/3" was previously defined (lib/exphil/agents/agent.ex:526)
+     │
+ 809 │   def handle_call({:reconfigure, opts}, _from, state) do
+     │       ~
+     │
+     └─ lib/exphil/agents/agent.ex:809:7
+
+
+18:18:24.807 [info] [ExPhil] Application started
+
+18:18:24.809 [debug] [ExPhil] Supervision tree: [{ExPhil.Training.AsyncCheckpoint, #PID<0.285.0>, :worker, [ExPhil.Training.AsyncCheckpoint]}, {ExPhil.Telemetry.Collector, #PID<0.284.0>, :worker, [ExPhil.Telemetry.Collector]}, {ExPhil.Agents.Supervisor, #PID<0.283.0>, :supervisor, [ExPhil.Agents.Supervisor]}, {ExPhil.Bridge.Supervisor, #PID<0.282.0>, :supervisor, [ExPhil.Bridge.Supervisor]}, {ExPhil.Registry, #PID<0.280.0>, :supervisor, [Registry]}]
+
+╔════════════════════════════════════════════════════════════╗
+║            Edgeguard / recovery scorecards (A2)            ║
+╚════════════════════════════════════════════════════════════╝
+
+[1mConfiguration:[0m
+  [2m  expert:[0m "600 files (replays/erickfm_ranked/FOX/extracted/*.slp)"
+  [2m  CRITIC:[0m "8 files (eval_runs/0902_critic_gate/CRITIC/r*.slp)"
+  [2m  BASE:[0m "8 files (eval_runs/0902_critic_gate/BASE/r*.slp)"
+  [2m  Horizon:[0m "240 f"
+
+[18:18:25] Scanning expert: 600/600 files
+[18:18:35] Scanning CRITIC: 8/8 files
+[18:18:36] Scanning BASE: 8/8 files
+
+# Edgeguard / recovery scorecards (A2)
+
+Sets: expert: 600 files · CRITIC: 8 files · BASE: 8 files. Horizon 240 f.
+Edgeguard episode = opponent goes offstage while the subject is not; first option = the
+subject's first `Options` event within 60 f. Recovery episode = subject goes offstage;
+route = first of upB / sideB / double jump / airdodge / ledge within the horizon.
+
+## Edgeguarding (subject on stage, opponent off)
+
+| edgeguard | expert (n=7813) | CRITIC (n=31) | BASE (n=49) |
+|---|---:|---:|---:|
+| episodes / min | 4.34 | 2.75 | 3.09 |
+| outcome: kill % | 17.2 | 16.1 | 16.3 |
+| outcome: returned % | 71.3 | 77.4 | 81.6 |
+| outcome: traded % | 0.4 | 3.2 | 0.0 |
+| outcome: open % | 11.2 | 3.2 | 2.0 |
+| first option: aerial % | 5.9 | 0.0 | 0.0 |
+| first option: special % | 7.5 | 19.4 | 12.2 |
+| first option: dash % | 41.5 | 16.1 | 2.0 |
+| first option: double_jump % | 16.6 | 0.0 | 16.3 |
+| first option: wavedash % | 2.4 | 0.0 | 2.0 |
+| first option: shield_on % | 5.0 | 0.0 | 4.1 |
+| first option: grab % | 0.7 | 0.0 | 12.2 |
+| first option: jab % | 1.5 | 0.0 | 4.1 |
+| first option: smash % | 1.5 | 16.1 | 2.0 |
+| first option: tilt % | 2.7 | 0.0 | 0.0 |
+| first option: nothing % | 10.1 | 48.4 | 16.3 |
+
+## Recovering (subject off stage)
+
+| recovery | expert (n=11187) | CRITIC (n=42) | BASE (n=30) |
+|---|---:|---:|---:|
+| episodes / min | 6.22 | 3.73 | 1.89 |
+| outcome: back % | 79.1 | 33.3 | 43.3 |
+| outcome: died % | 12.7 | 66.7 | 46.7 |
+| outcome: open % | 8.2 | 0.0 | 10.0 |
+| first route: upB % | 16.3 | 0.0 | 10.0 |
+| first route: sideB % | 10.6 | 4.8 | 10.0 |
+| first route: double_jump % | 24.8 | 7.1 | 0.0 |
+| first route: airdodge % | 4.8 | 4.8 | 56.7 |
+| first route: ledge_direct % | 28.9 | 16.7 | 6.7 |
+| first route: none % | 14.6 | 66.7 | 16.7 |
+| died % given route upB | 15.2 (1821) | – (0) | – (3) |
+| died % given route sideB | 14.6 (1188) | – (2) | – (3) |
+| died % given route double_jump | 6.9 (2770) | – (3) | – (0) |
+| died % given route airdodge | 13.9 (539) | – (2) | 41.2 (17) |
+| died % given route none | 42.9 (1637) | 82.1 (28) | 20.0 (5) |
+
+[18:18:36] [32m✓ wrote eval_runs/0902_critic_gate/edge_scorecard.md[0m
+=== F2: commitment_scorecard
+==> exla
+Using libexla.so from /home/blewf/.cache/xla/exla/elixir-1.18.4-erts-16.4.0.4-xla-0.10.0-exla-0.13.1-2gwjr5st6sq2h5oph3af6rzta4/libexla.so
+EXLA_CPU_ONLY is not set, checking for nvcc availability
+CUDA is available.
+make: '/home/blewf/git/exphil/_build/dev/lib/exla/priv/libexla.so' is up to date.
+==> exphil
+      warning: function blind_target_css/1 is unused
+      │
+ 1676 │   defp blind_target_css(state) do
+      │        ~
+      │
+      └─ lib/exphil_bridge/melee_port.ex:1676:8: ExPhil.Bridge.MeleePort (module)
+
+     warning: clauses with the same name and arity (number of arguments) should be grouped together, "def handle_call/3" was previously defined (lib/exphil/agents/agent.ex:526)
+     │
+ 809 │   def handle_call({:reconfigure, opts}, _from, state) do
+     │       ~
+     │
+     └─ lib/exphil/agents/agent.ex:809:7
+
+
+18:18:36.871 [info] [ExPhil] Application started
+
+18:18:36.872 [debug] [ExPhil] Supervision tree: [{ExPhil.Training.AsyncCheckpoint, #PID<0.285.0>, :worker, [ExPhil.Training.AsyncCheckpoint]}, {ExPhil.Telemetry.Collector, #PID<0.284.0>, :worker, [ExPhil.Telemetry.Collector]}, {ExPhil.Agents.Supervisor, #PID<0.283.0>, :supervisor, [ExPhil.Agents.Supervisor]}, {ExPhil.Bridge.Supervisor, #PID<0.282.0>, :supervisor, [ExPhil.Bridge.Supervisor]}, {ExPhil.Registry, #PID<0.280.0>, :supervisor, [Registry]}]
+
+╔════════════════════════════════════════════════════════════╗
+║            Punishable-commitment scorecard (F2)            ║
+╚════════════════════════════════════════════════════════════╝
+
+[1mConfiguration:[0m
+  [2m  expert:[0m "600 files (replays/erickfm_ranked/FOX/extracted/*.slp)"
+  [2m  CRITIC:[0m "8 files (eval_runs/0902_critic_gate/CRITIC/r*.slp)"
+  [2m  BASE:[0m "8 files (eval_runs/0902_critic_gate/BASE/r*.slp)"
+  [2m  Threat range:[0m "|dx|<30, |dy|<20"
+  [2m  Punish window:[0m "60 f"
+
+[18:18:37] Scanning expert: 600/600 files
+[18:18:47] Scanning CRITIC: 8/8 files
+[18:18:47] Scanning BASE: 8/8 files
+
+# Punishable-commitment scorecard (F2)
+
+Sets: expert: 600 files · CRITIC: 8 files · BASE: 8 files.
+Committal = smash, dash_attack, grab, spotdodge, roll_forward, roll_backward (Options events).
+In-threat = opponent not in hitstun, |dx| < 30, |dy| < 20 at the
+event frame. Punished = subject enters hitstun within 60 f. Cells under
+n=10 report "–".
+
+| commitment | expert (n=13229) | CRITIC (n=107) | BASE (n=519) |
+|---|---:|---:|---:|
+| committal options / min | 7.35 | 9.50 | 32.69 |
+| IN-THREAT committals / min | 5.05 | 5.86 | 20.59 |
+| in-threat share of committals % | 68.7 | 61.7 | 63.0 |
+| P(punished | in-threat committal) % | 66.6 (9084) | 78.8 (66) | 52.3 (327) |
+| P(punished | out-of-threat committal) % | 52.6 (4145) | 26.8 (41) | 17.7 (192) |
+| in-threat smash: P(punished) % | 86.3 (1868) | 91.1 (56) | 76.2 (42) |
+| in-threat dash_attack: P(punished) % | 85.8 (893) | – (0) | – (0) |
+| in-threat grab: P(punished) % | 60.7 (3866) | – (2) | 61.5 (135) |
+| in-threat spotdodge: P(punished) % | 72.1 (940) | – (4) | 59.5 (79) |
+| in-threat roll_forward: P(punished) % | 44.2 (867) | – (2) | 18.2 (33) |
+| in-threat roll_backward: P(punished) % | 41.1 (650) | – (2) | 7.9 (38) |
+
+Read: the expert commits too — the difference that matters is
+P(punished | in-threat), i.e. whether commitments are TIMED (opponent
+committed/landing) or thrown out raw. High in-threat share + high
+P(punished) = "puts itself into whiff punish" (C1's mechanism).
+
+[18:18:48] [32m✓ wrote eval_runs/0902_critic_gate/commitment.md[0m
+=== F3: neutral_range_scorecard (approach_delta)
+==> exla
+Using libexla.so from /home/blewf/.cache/xla/exla/elixir-1.18.4-erts-16.4.0.4-xla-0.10.0-exla-0.13.1-2gwjr5st6sq2h5oph3af6rzta4/libexla.so
+EXLA_CPU_ONLY is not set, checking for nvcc availability
+CUDA is available.
+make: '/home/blewf/git/exphil/_build/dev/lib/exla/priv/libexla.so' is up to date.
+==> exphil
+      warning: function blind_target_css/1 is unused
+      │
+ 1676 │   defp blind_target_css(state) do
+      │        ~
+      │
+      └─ lib/exphil_bridge/melee_port.ex:1676:8: ExPhil.Bridge.MeleePort (module)
+
+     warning: clauses with the same name and arity (number of arguments) should be grouped together, "def handle_call/3" was previously defined (lib/exphil/agents/agent.ex:526)
+     │
+ 809 │   def handle_call({:reconfigure, opts}, _from, state) do
+     │       ~
+     │
+     └─ lib/exphil/agents/agent.ex:809:7
+
+
+18:18:48.772 [info] [ExPhil] Application started
+
+18:18:48.773 [debug] [ExPhil] Supervision tree: [{ExPhil.Training.AsyncCheckpoint, #PID<0.285.0>, :worker, [ExPhil.Training.AsyncCheckpoint]}, {ExPhil.Telemetry.Collector, #PID<0.284.0>, :worker, [ExPhil.Telemetry.Collector]}, {ExPhil.Agents.Supervisor, #PID<0.283.0>, :supervisor, [ExPhil.Agents.Supervisor]}, {ExPhil.Bridge.Supervisor, #PID<0.282.0>, :supervisor, [ExPhil.Bridge.Supervisor]}, {ExPhil.Registry, #PID<0.280.0>, :supervisor, [Registry]}]
+
+╔════════════════════════════════════════════════════════════╗
+║               Neutral-range scorecard (F3c)                ║
+╚════════════════════════════════════════════════════════════╝
+
+[18:18:49] == expert: 40 files
+
+18:18:49.412 [warning] [Peppi] to_training_frames(player_port: 2) without remap_ports: true — port-1-convention consumers (embed own_port=1, AWBC) will read the WRONG player (GOTCHA #107)
+[18:18:53] == CRITIC: 0 files
+[18:18:53] == BASE: 0 files
+
+# Neutral-range scorecard (F3c) — expert vs bot, neutral frames by distance
+
+Same detector both sets: :neutral frames only, subject = Fox
+(expert::auto, CRITIC::auto, BASE::auto).
+toward = mean signed stick-x toward the opponent (deadzone-free mean);
+%twd/%awy past a 0.3 deadzone; option columns = share of neutral frames in
+those action states (dash/run/turn; grounded blaster 341-344; aerial
+blaster 345-348; jumpsquat+rise).
+
+### expert
+
+| \|dx\| | frames | toward | %twd | %awy | dash% | laserG% | laserA% | jump% |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| 0-20 | 89374 | 0.095 | 34.5 | 24.0 | 7.7 | 0.1 | 0.2 | 13.0 |
+| 20-40 | 77674 | 0.129 | 36.2 | 22.2 | 18.1 | 0.4 | 0.9 | 16.3 |
+| 40-70 | 50147 | 0.222 | 41.9 | 17.1 | 26.8 | 1.8 | 3.6 | 14.3 |
+| 70-100 | 10955 | 0.435 | 56.8 | 7.7 | 13.6 | 2.6 | 6.2 | 9.0 |
+| 100-140 | 3223 | 0.558 | 67.9 | 7.4 | 5.1 | 0.6 | 2.9 | 5.0 |
+| 140+ | 833 | 0.609 | 70.5 | 8.0 | 7.3 | 0.8 | 3.8 | 6.7 |
+
+
+### CRITIC
+
+| \|dx\| | frames | toward | %twd | %awy | dash% | laserG% | laserA% | jump% |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| 0-20 | 0 | — | — | — | — | — | — | — |
+| 20-40 | 0 | — | — | — | — | — | — | — |
+| 40-70 | 0 | — | — | — | — | — | — | — |
+| 70-100 | 0 | — | — | — | — | — | — | — |
+| 100-140 | 0 | — | — | — | — | — | — | — |
+| 140+ | 0 | — | — | — | — | — | — | — |
+
+
+### BASE
+
+| \|dx\| | frames | toward | %twd | %awy | dash% | laserG% | laserA% | jump% |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| 0-20 | 0 | — | — | — | — | — | — | — |
+| 20-40 | 0 | — | — | — | — | — | — | — |
+| 40-70 | 0 | — | — | — | — | — | — | — |
+| 70-100 | 0 | — | — | — | — | — | — | — |
+| 100-140 | 0 | — | — | — | — | — | — | — |
+| 140+ | 0 | — | — | — | — | — | — | — |
+
+
+Reading: if the expert holds toward > 0 (or high dash% with balanced
+twd/awy = dash-dance) at ranges where the bot's F3b mechanistic
+approach_delta is negative, the corpus DOES contain approach at that
+range and BC lost it (selection lever, plan c). If the expert also
+retreats at range, F3b matches the corpus and the lever is curation.
+Laser columns test the "retreat without the laser half" hypothesis
+(Bradley 09-01: bot does no SH laser / FH double laser).
+
+[18:18:53] [32m✓ wrote eval_runs/0902_critic_gate/neutral_range.md[0m
+CRITIC GATE DONE 2026-09-02T18:18:53-05:00 — apply the pre-registered gate BEFORE reading exploratory numbers; then the human look (g6 rule)
