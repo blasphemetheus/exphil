@@ -408,3 +408,16 @@ Then re-read B1-the-model, ep10, B2 through A1/B2/C.
   offstage) = 42% vs 15% marginal (2.9×): an independent head makes an
   up-B out of one B press in seven; the expert two in five. Plan:
   `docs/planning/AUTOREGRESSIVE_HEAD_PLAN.md` (pre-registered).
+
+## 2026-09-02 — Drill 1 episode driver built + first bank (task 1 step 2)
+
+- `scripts/drill_episode.exs` + `scripts/drill_score.exs` landed; 20-episode
+  smoke PASSED (`eval_runs/0902_drill_smoke2/RESULTS.md`): bot 2.6 mean
+  hits / 20% >=3 / 16.1 dmg vs expert cell 3.9 / 87% / 27.0 — and 14/20
+  episodes stop at exactly 2 hits, F4's live cap reproduced in-cell.
+- Also: v13-score24 (RUNS=24) landed overnight
+  (`eval_runs/0902_v13_score24/`): AR died% 35.5 vs IND 41.7 (old 44.4
+  read deflated at bigger n), AR > IND on every recovery axis; both arms
+  51% unforced-fall deaths (expert 27) — same state-visitation story.
+- Next: 500-episode bank -> AWBC retrain arm -> drill re-measure ->
+  live-look transfer check (DRILL_HITCONFIRM.md build order 3-4).
