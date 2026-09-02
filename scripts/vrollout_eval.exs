@@ -133,7 +133,7 @@ embeds_and_frames = fn {path, port} ->
   with {:ok, replay} <- Peppi.parse(path) do
     frames =
       replay
-      |> Peppi.to_training_frames(player_port: port, opponent_port: opp)
+      |> Peppi.to_training_frames(player_port: port, opponent_port: opp, remap_ports: true)
       |> Enum.reject(&(&1.game_state.frame < 0))
 
     if length(frames) < 120 do
@@ -147,7 +147,9 @@ embeds_and_frames = fn {path, port} ->
           3 -> ds.embedded_frames[[.., 0, ..]]
         end
 
-      {Nx.backend_copy(emb, Nx.BinaryBackend), frames, port}
+      # frames are remapped to %{1 => subject, 2 => opponent}: every
+      # downstream port-taking call (Situations, rtg) uses 1.
+      {Nx.backend_copy(emb, Nx.BinaryBackend), frames, 1}
     end
   else
     _ -> nil

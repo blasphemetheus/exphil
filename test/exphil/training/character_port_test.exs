@@ -86,6 +86,24 @@ defmodule ExPhil.Training.CharacterPortTest do
       # the opponent (was port 1) is PRESENT — the bug dropped it entirely
       assert gs.players[2].character == 17
       assert gs.distance > 0.0
+      # convention stamp (GOTCHA #107 enforcement)
+      assert gs.own_port == 1
+    end
+
+    test "embedding a stamped state from the wrong perspective RAISES" do
+      frames =
+        Peppi.to_training_frames(synthetic_replay(),
+          player_port: 2, opponent_port: 1, remap_ports: true)
+
+      gs = hd(frames).game_state
+
+      # correct perspective embeds fine
+      assert %Nx.Tensor{} = ExPhil.Embeddings.Game.embed_state(gs, 1)
+
+      # swapped perspective is a loud crash, not a silent corruption
+      assert_raise ArgumentError, ~r/port-convention violation/, fn ->
+        ExPhil.Embeddings.Game.embed_state(gs, 2)
+      end
     end
 
     test "without remap, a port-2 subject leaves slot 1 empty (the bug's shape)" do

@@ -91,7 +91,7 @@ load_replay = fn {path, p} ->
   with {:ok, replay} <- Peppi.parse(path, player_port: p) do
     frames =
       replay
-      |> Peppi.to_training_frames(player_port: p, opponent_port: o)
+      |> Peppi.to_training_frames(player_port: p, opponent_port: o, remap_ports: true)
       |> Enum.reject(&(&1.game_state.frame < 0))
 
     if length(frames) < 120 do

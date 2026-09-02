@@ -65,7 +65,7 @@ opp = if port == 1, do: 2, else: 1
 
 frames =
   replay
-  |> Peppi.to_training_frames(player_port: port, opponent_port: opp)
+  |> Peppi.to_training_frames(player_port: port, opponent_port: opp, remap_ports: true)
   |> Enum.reject(&(&1.game_state.frame < 0))
 
 ds = Activations.embed_frames(frames, config)

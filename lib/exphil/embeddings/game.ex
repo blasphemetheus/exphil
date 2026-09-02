@@ -709,6 +709,24 @@ defmodule ExPhil.Embeddings.Game do
   end
 
   defp get_players_ego(game_state, own_port) do
+    # GOTCHA #107 enforcement: frames remapped by Peppi.to_training_frames
+    # are stamped own_port. Embedding them from any other perspective is a
+    # port-convention violation — the exact silent-swap that corrupted the
+    # v1.1/v1.2 corpus — so fail loudly. Unstamped states (live bridge
+    # offline, legacy paths) pass through unchecked.
+    case game_state.own_port do
+      nil ->
+        :ok
+
+      ^own_port ->
+        :ok
+
+      stamped ->
+        raise ArgumentError,
+              "game_state is stamped own_port=#{stamped} but embed was called with " <>
+                "own_port=#{own_port} — port-convention violation (GOTCHA #107)"
+    end
+
     own = GameState.get_player(game_state, own_port)
 
     opponent_port = if own_port == 1, do: 2, else: 1

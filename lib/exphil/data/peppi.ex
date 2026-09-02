@@ -303,12 +303,32 @@ defmodule ExPhil.Data.Peppi do
     # slot (the 09-01 port-2 corpus corruption: build_game_state(f, 2, 2)
     # even dropped the real opponent and zeroed distance). Peppi frames
     # carry no projectiles/items, so port-keyed ownership is not affected.
-    if remap_ports and (player_port != 1 or opponent_port != 2) do
-      Enum.map(frames, fn f ->
-        %{f | game_state: remap_players(f.game_state, player_port, opponent_port)}
-      end)
-    else
-      frames
+    cond do
+      remap_ports and (player_port != 1 or opponent_port != 2) ->
+        Enum.map(frames, fn f ->
+          %{f | game_state: remap_players(f.game_state, player_port, opponent_port)}
+        end)
+
+      not remap_ports and player_port != 1 ->
+        # Half-migrated call site self-report (GOTCHA #107): a non-port-1
+        # subject without remap is exactly the shape of the E1b/E1c
+        # corruptions — downstream port-1 hardcodes (embedding, AWBC) will
+        # read the wrong slot. Warn once per process.
+        unless Process.get(:peppi_remap_warned) do
+          Process.put(:peppi_remap_warned, true)
+
+          require Logger
+
+          Logger.warning(
+            "[Peppi] to_training_frames(player_port: #{player_port}) without remap_ports: true — " <>
+              "port-1-convention consumers (embed own_port=1, AWBC) will read the WRONG player (GOTCHA #107)"
+          )
+        end
+
+        frames
+
+      true ->
+        frames
     end
   end
 
@@ -318,7 +338,10 @@ defmodule ExPhil.Data.Peppi do
       |> Enum.reject(fn {_k, v} -> is_nil(v) end)
       |> Map.new()
 
-    %{gs | players: remapped}
+    # Stamp the convention (GOTCHA #107 enforcement): downstream embedding
+    # asserts that its own_port argument matches this stamp, turning a
+    # swapped perspective into a loud crash instead of a silent corruption.
+    %{gs | players: remapped, own_port: 1}
   end
 
   @doc """

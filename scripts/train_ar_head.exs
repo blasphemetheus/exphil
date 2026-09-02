@@ -144,9 +144,12 @@ Output.puts("loss: smooth=#{label_smoothing} focal=#{focal_loss}/#{focal_gamma} 
 
 port_tag = if opts[:port], do: "p#{opts[:port]}", else: "c#{char_id}"
 
+# _r2 = the E1c capture-remap generation (09-01): pre-fix stores hold
+# swapped-perspective features on non-port-1 files and must never be
+# resumed (GOTCHA #107; old stores moved to /data).
 features_dir =
   opts[:features] ||
-    "cache/ar_head/#{Path.basename(policy_path, ".bin")}_#{length(files)}f_#{port_tag}"
+    "cache/ar_head/#{Path.basename(policy_path, ".bin")}_#{length(files)}f_#{port_tag}_r2"
 
 meta_path = Path.join(features_dir, "meta.term")
 components = [:buttons, :main_x, :main_y, :c_x, :c_y, :shoulder]

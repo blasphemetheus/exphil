@@ -317,7 +317,15 @@ defmodule ExPhil.Interp.Activations do
 
     frames =
       replay
-      |> Peppi.to_training_frames(player_port: player_port, opponent_port: opponent_port)
+      |> Peppi.to_training_frames(
+        player_port: player_port,
+        opponent_port: opponent_port,
+        # E1c fix (09-01): embedding hardcodes own_port 1; without remap a
+        # non-port-1 subject captured with SWAPPED perspective (opponent in
+        # the self slot) — every capture-based instrument diluted ~44% on
+        # fox-resolved expert corpora. See GOTCHA #107 / INFRA_HARDENING.
+        remap_ports: true
+      )
       |> Enum.reject(&(&1.game_state.frame < 0))
 
     window = trunk.window
@@ -349,11 +357,17 @@ defmodule ExPhil.Interp.Activations do
           use_prev_action: use_prev_action
         )
       else
+        # Cache key: fold the resolved port + the :r2 remap generation for
+        # non-port-1 subjects — pre-fix cache entries for those files hold
+        # SWAPPED embeddings under the bare-path key and must be
+        # unreachable (same convention as ChunkPipeline's training keys).
+        cache_entry = if player_port == 1, do: path, else: {path, player_port, :r2}
+
         frames
         |> Data.from_frames()
         |> Data.precompute_frame_embeddings_cached(
           cache: true,
-          replay_files: [path],
+          replay_files: [cache_entry],
           use_prev_action: use_prev_action,
           prev_action_dropout: 0.0,
           show_progress: false
@@ -412,8 +426,10 @@ defmodule ExPhil.Interp.Activations do
 
     labels =
       if with_labels do
+        # Frames are remapped to %{1 => subject, 2 => opponent} above —
+        # label extraction reads the remapped slot, not the original port.
         frames
-        |> GroundTruth.frame_labels(opponent_port: opponent_port)
+        |> GroundTruth.frame_labels(opponent_port: 2)
         |> GroundTruth.align_to_windows(window, n)
       else
         nil
