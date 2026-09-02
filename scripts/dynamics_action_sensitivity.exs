@@ -84,18 +84,26 @@ m = Nx.axis_size(e0, 0)
 Output.banner("Dynamics action-sensitivity")
 Output.puts("  #{m} start states from #{Path.basename(path)}")
 
-# 13-dim continuous controller layout: 8 buttons + main_x, main_y, c_x, c_y
-# + shoulder; sticks centered at 0.5.
+# 13-dim continuous controller layout (Controller.embed_continuous_batch):
+# 8 buttons {0,1} + main_x, main_y, c_x, c_y in [-1, 1] (0 = NEUTRAL, the
+# (raw - 0.5) * 2 convention) + shoulder [0, 1].
+#
+# CONVENTION BUG FIXED 09-01 (stick-space instance of the GOTCHA #107
+# class): the first version passed RAW 0..1 stick values (0.5 = neutral)
+# into the embedded-space slots — "hard_left" was actually x=0 = neutral,
+# "neutral" was x=0.5 = half-right. The action-sensitive verdict survives
+# a fortiori (even those mild/mislabeled vectors diverged 15-33% of
+# drift), but per-action numbers from the first run are mislabeled.
 mk = fn btns, mx, my ->
-  Nx.tensor([btns ++ [mx, my, 0.5, 0.5, 0.0]], type: :f32) |> Nx.broadcast({m, 13})
+  Nx.tensor([btns ++ [mx, my, 0.0, 0.0, 0.0]], type: :f32) |> Nx.broadcast({m, 13})
 end
 
 actions = [
-  {:neutral, mk.([0, 0, 0, 0, 0, 0, 0, 0], 0.5, 0.5)},
-  {:hard_left, mk.([0, 0, 0, 0, 0, 0, 0, 0], 0.0, 0.5)},
-  {:hard_right, mk.([0, 0, 0, 0, 0, 0, 0, 0], 1.0, 0.5)},
-  {:jump_x, mk.([0, 0, 1, 0, 0, 0, 0, 0], 0.5, 0.5)},
-  {:down_b, mk.([0, 1, 0, 0, 0, 0, 0, 0], 0.5, 0.0)}
+  {:neutral, mk.([0, 0, 0, 0, 0, 0, 0, 0], 0.0, 0.0)},
+  {:hard_left, mk.([0, 0, 0, 0, 0, 0, 0, 0], -1.0, 0.0)},
+  {:hard_right, mk.([0, 0, 0, 0, 0, 0, 0, 0], 1.0, 0.0)},
+  {:jump_x, mk.([0, 0, 1, 0, 0, 0, 0, 0], 0.0, 0.0)},
+  {:down_b, mk.([0, 1, 0, 0, 0, 0, 0, 0], 0.0, -1.0)}
 ]
 
 roll = fn a ->

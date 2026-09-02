@@ -110,6 +110,60 @@ present, distance > 0" through any path.
   signal to lift it into lib with a test (this week alone: 4 copies of
   embeds_and_frames, 3 of resolve, 2 of window-stacking).
 
+## 6b. EXPANDED AUDIT — the class beyond ports (09-01 evening, Bradley's
+"like this but not the same" directive; all read-only)
+
+The generalized disease: a CONVENTION-CARRYING VALUE (port, enum id,
+coordinate space, boolean default) crosses a module boundary with nothing
+marking which convention it's in. Instances found:
+
+1. **Stick coordinate spaces — LIVE, bit an instrument built the same day
+   as #107** (fixed): raw controller sticks are 0..1 (0.5 neutral);
+   `embed_continuous_batch` emits (raw − 0.5) × 2 ∈ [−1, 1].
+   `dynamics_action_sensitivity.exs` passed raw-space values into
+   embed-space slots — "hard_left" was neutral, "neutral" half-right.
+   Verdict survives a fortiori; labels were wrong. Fixed + rerun queued.
+2. **Character enum spaces — LIVE in one instrument**: metadata carries
+   EXTERNAL CSS ids (Fox=2, Marth=9); frame `player.character` carries
+   INTERNAL ids (Fox=1). `interp_blind_audit.exs`'s `opp_char_swap`
+   compares/assigns external ids on internal fields — the perturbation
+   swapped between unintended characters (still a perturbation, so
+   sensitivity conclusions soften rather than void). Fix queued.
+3. **`use_prev_action` fallback drift — LATENT**: `embed_frames`
+   defaults `Map.get(config, _, true)`; `capture_replay` and the agent
+   default false. Today's configs carry the key so no divergence, but a
+   config missing it would silently probe a different input layout than
+   it deploys. Normalize to one shared accessor.
+4. **Mirror × stage_internals composition — LATENT**: mirror flips
+   positions/facing/speeds/sticks/projectiles/Nana but NOT
+   `fod_platform_left/right` (embedded when `stage_internals: true`,
+   fox_gen's recipe). No current run uses `--augment` with
+   stage-internals; the first that does trains on impossible FoD states.
+5. **delay_id not in embedding-cache keys — KNOWN/fragile**: mitigated by
+   routing delay-id policies to the uncached path in `capture_replay`;
+   any new cached call site silently collides across ids. Fold delay_id
+   into the key instead of relying on routing discipline.
+6. **Positive example worth copying**: `Situations.fold` derives the
+   opponent as "any other non-nil player" instead of assuming port 2 —
+   the exact robustness the embedding path lacked. (It also degrades
+   loudly-ish: corrupted one-player frames produced EMPTY label sets.)
+7. `lib/exphil/rewards.ex:30` hardcodes `player_port: 1` (self-play/PPO
+   path — likely genuinely port 1; verify when touched).
+
+**Does coverage help, and which kind?** Per-module unit coverage would
+NOT have caught any of these — each module is locally correct; the bug
+lives at boundaries. What catches the class:
+- **Adversarial integration fixtures**: port-2 subject, facing −1,
+  distinct characters, non-default delay-id — run through parse→embed→
+  (train step | probe) and assert frame/embed CONTENT.
+- **Typed constructors for convention-carrying values**:
+  `Action13.new/…` (embed-space controller vector), named converters
+  `Chars.external_to_internal/1`, stick `raw↔embedded` helpers — so the
+  convention is in the function name, not the caller's memory.
+- **Invariant stamps + loud asserts** at boundaries (own_port pattern).
+- **Composition tests for orthogonal features** (mirror × each embed
+  config flag; new flag ⇒ add a row to the composition table).
+
 ## 7. Order of work (after v13-portfix completes)
 
 1. Empirically confirm E1c on one port-2 file through capture_replay
