@@ -1,0 +1,38 @@
+{
+  "name": "uthrow_low_mid",
+  "cell": {
+    "opener": "uthrow",
+    "bands": [[0, 19], [20, 39]],
+    "zone": "mid",
+    "stage": "final_destination",
+    "dummy_character": "fox"
+  },
+  "window": 240,
+  "references": {
+    "0-19": {
+      "hits": 3.9,
+      "deep3": 87,
+      "dmg": 27.0,
+      "n": 39,
+      "source": "eval_runs/0901_drill_table/RESULTS.md",
+      "mined": "2026-09-01"
+    },
+    "20-39": {
+      "hits": 3.7,
+      "deep3": 83,
+      "dmg": 20.5,
+      "n": 24,
+      "source": "drill_table_mine --min-cell 5 re-run (below the table's n>=25 default)",
+      "mined": "2026-09-02"
+    }
+  },
+  "training": {
+    "slice": "handoff_window_only",
+    "port": 1,
+    "port_note": "both ports are Fox — never character-resolve drill replays; pass port 1 explicitly"
+  },
+  "knobs": {
+    "dummy_di": "none"
+  },
+  "notes": "Canonical Fox low-% conversion (uthrow -> uair chains). Pre-registered Drill 1 (DRILL_HITCONFIRM.md, 'victim 0-40%'). The 20-39 band comes from band-laddering (episodes chain on the same stock as percent rises). Scoring: scripts/drill_score.exs on the bank; the SDs and scripted phases are outside the handoff windows — train ONLY on sliced windows."
+}
