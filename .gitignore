@@ -95,7 +95,11 @@ doc/
 # Test fixtures are the exception to the global .slp ignore
 !test/fixtures/replays/*.slp
 !scenarios/replays/*.slp
-drills/
+# drills/ data stays ignored (contents pattern, so the manifest negation
+# below can work — a directory-level ignore blocks all re-inclusion)
+drills/*
+# ...but drill MANIFESTS (cell/bands/references specs) are code, not data
+!drills/*.json
 
 # Interp artifacts (crime scenes, erasers, cached captures — GBs)
 /interp/

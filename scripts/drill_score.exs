@@ -22,7 +22,27 @@ alias ExPhil.Training.Output
   OptionParser.parse(System.argv(), strict: [bank: :string, window: :integer, out: :string])
 
 bank = opts[:bank] || raise "--bank required"
-window = opts[:window] || 240
+
+# The bank's manifest snapshot (drill.json) pins bands and references;
+# older banks fall back to the Drill 1 manifest in drills/.
+drill =
+  [Path.join(bank, "drill.json"), "drills/uthrow_low_mid.json"]
+  |> Enum.find(&File.exists?/1)
+  |> case do
+    nil -> %{}
+    p -> p |> File.read!() |> Jason.decode!()
+  end
+
+window = opts[:window] || drill["window"] || 240
+bands = for [lo, hi] <- (drill["cell"] || %{})["bands"] || [[0, 19]], do: {lo, hi}
+references = drill["references"] || %{}
+
+band_of = fn pct ->
+  case Enum.find(bands, fn {lo, hi} -> pct >= lo and pct < hi + 1 end) do
+    nil -> "out-of-band"
+    {lo, hi} -> "#{lo}-#{hi}"
+  end
+end
 
 jsonl = Path.join(bank, "episodes.jsonl")
 
@@ -99,7 +119,10 @@ states_by_slp =
             stock =
               if vic_end && vic0 && (vic_end.stock || 0) < (vic0.stock || 0), do: 1, else: 0
 
-            {[%{hits: hits + 1, dmg: dmg, stock: stock, live_hits: row["hits"], live_dmg: row["dmg"]} | acc],
+            band = row["band"] || band_of.(row["vic_pct0"] || 0.0)
+
+            {[%{band: band, hits: hits + 1, dmg: dmg, stock: stock,
+                live_hits: row["hits"], live_dmg: row["dmg"]} | acc],
              mism}
         end
     end
@@ -111,16 +134,6 @@ if scored == [] do
 end
 
 n = length(scored)
-mh = Enum.sum(Enum.map(scored, & &1.hits)) / n
-md = Enum.sum(Enum.map(scored, & &1.dmg)) / n
-deep = Enum.count(scored, &(&1.hits >= 3)) / n
-stocks = Enum.sum(Enum.map(scored, & &1.stock))
-
-hist =
-  scored
-  |> Enum.frequencies_by(& &1.hits)
-  |> Enum.sort()
-  |> Enum.map_join("  ", fn {h, c} -> "#{h}:#{c}" end)
 
 live_drift =
   scored
@@ -128,8 +141,40 @@ live_drift =
 
 f1 = fn v -> :erlang.float_to_binary(v * 1.0, decimals: 1) end
 
+band_rows =
+  scored
+  |> Enum.group_by(& &1.band)
+  |> Enum.sort()
+  |> Enum.flat_map(fn {band, eps} ->
+    bn = length(eps)
+    mh = Enum.sum(Enum.map(eps, & &1.hits)) / bn
+    md = Enum.sum(Enum.map(eps, & &1.dmg)) / bn
+    deep = Enum.count(eps, &(&1.hits >= 3)) / bn
+    stocks = Enum.sum(Enum.map(eps, & &1.stock))
+
+    hist =
+      eps
+      |> Enum.frequencies_by(& &1.hits)
+      |> Enum.sort()
+      |> Enum.map_join("  ", fn {h, c} -> "#{h}:#{c}" end)
+
+    bot =
+      "| bot #{band}% | #{bn} | #{f1.(mh)} | #{round(deep * 100)} | #{f1.(md)} | #{stocks} |"
+
+    ref =
+      case references[band] do
+        %{"hits" => h, "deep3" => d3, "dmg" => d, "n" => rn} ->
+          ["| expert #{band}% | #{rn} | #{h} | #{d3} | #{d} | 0 |"]
+
+        _ ->
+          ["| expert #{band}% | - | (no reference mined) | | | |"]
+      end
+
+    ["#{bot}"] ++ ref ++ ["", "#{band}% hits histogram: #{hist}", ""]
+  end)
+
 report = """
-# Drill bank score — #{bank}
+# Drill bank score — #{bank} (#{drill["name"] || "unknown drill"})
 
 #{n} episodes scored (window #{window} f from the recorded handoff; detector =
 drill_table_mine's hitstun/thrown/captured rising edges). Anchor mismatches
@@ -138,10 +183,9 @@ disagreements: #{live_drift}/#{n}.
 
 | set | n | mean hits | >=3 hits % | mean dmg | stocks |
 |---|---:|---:|---:|---:|---:|
-| bot (this bank) | #{n} | #{f1.(mh)} | #{round(deep * 100)} | #{f1.(md)} | #{stocks} |
-| expert cell (uthrow/0-19%/mid) | 39 | 3.9 | 87 | 27.0 | 0 |
+#{band_rows |> Enum.filter(&String.starts_with?(&1, "|")) |> Enum.join("\n")}
 
-hits histogram: #{hist}
+#{band_rows |> Enum.reject(&String.starts_with?(&1, "|")) |> Enum.join("\n")}
 """
 
 IO.puts("\n" <> report)

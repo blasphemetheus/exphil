@@ -19,9 +19,16 @@
 #
 # Options:
 #   --policy PATH          Bot policy (required; port 1)
+#   --drill NAME|PATH      Drill manifest (default uthrow_low_mid ->
+#                          drills/uthrow_low_mid.json): cell, bands, pinned
+#                          references, training notes. Snapshotted into the
+#                          bank as drill.json for the scorer/slicer.
 #   --episodes N           Scored episodes to collect (default 20)
-#   --window N             Continuation frames after handoff (default 240)
-#   --pct-lo/--pct-hi      Victim percent band at the opener (default 0/19)
+#   --window N             Continuation frames after handoff (manifest, 240)
+#   --pct-lo/--pct-hi      Override: single percent band (else manifest
+#                          bands + BAND-LADDERING: after a scored episode,
+#                          if the victim's risen percent lands in another
+#                          band the next episode chains on the same stock)
 #   --temperature T        Scalar temperature (default 0.5)
 #   --buttons-temperature  Buttons head temperature (default 0.5)
 #   --dummy-character C    Port-2 victim (default fox)
@@ -88,6 +95,16 @@ defmodule DrillEpisode do
       ((pl.hitstun_frames_left || 0) > 0 or pl.action in @thrown or pl.action in @captured)
   end
 
+  # Band-laddering: bands are half-open [lo, hi+1) so 19.5% still lands in
+  # 0-19. An episode's band is fixed by the victim's percent at capture;
+  # after a scored episode the victim's risen percent usually lands in the
+  # NEXT band, so episodes chain on the same stock (free percent
+  # accumulation, matching how expert conversions ladder percent) until the
+  # percent exits the top band — only then does the suicide reset fire.
+  def band_of(pct, bands), do: Enum.find(bands, fn {lo, hi} -> pct >= lo and pct < hi + 1 end)
+  def band_key(nil), do: nil
+  def band_key({lo, hi}), do: "#{lo}-#{hi}"
+
   # -- one console/game -------------------------------------------------------
 
   # One console runs the whole session: the bridge's auto_menu restarts
@@ -108,7 +125,7 @@ defmodule DrillEpisode do
       controller_port: 1,
       opponent_port: 2,
       character: :fox,
-      stage: :final_destination,
+      stage: opts[:stage],
       online_delay: 0,
       dummy_mode: "external",
       dummy_character: opts[:dummy_character],
@@ -175,7 +192,10 @@ defmodule DrillEpisode do
         %{episodes: st.episodes}
 
       {:ok, gs} ->
-        frame_step(bridge, gs, st)
+        # menu_steps guards a single menu VISIT, not the whole session —
+        # without this reset the limit is cumulative and trips after ~97
+        # auto_menu game transitions (found at 388/500, 09-02).
+        frame_step(bridge, gs, %{st | menu_steps: 0})
 
       {:error, reason} ->
         %{error: "step error: #{inspect(reason)}", episodes: st.episodes}
@@ -261,7 +281,7 @@ defmodule DrillEpisode do
 
   defp do_phase(:position, bridge, gs, bot, vic, st) do
     elapsed = gs.frame - st.phase_start
-    band? = (vic.percent || 0.0) >= st.opts[:pct_lo] and (vic.percent || 0.0) <= st.opts[:pct_hi]
+    band? = band_of(vic.percent || 0.0, st.opts[:bands]) != nil
 
     cond do
       st.cooldown > 0 ->
@@ -297,9 +317,12 @@ defmodule DrillEpisode do
     cond do
       # HANDOFF: the drill_table_mine anchor — bot enters the throw action.
       bot.action == @uthrow ->
+        pct0 = st.ep[:vic_pct0] || vic.percent || 0.0
+
         ep = %{
           handoff: gs.frame,
-          vic_pct0: st.ep[:vic_pct0] || vic.percent || 0.0,
+          vic_pct0: pct0,
+          band: band_key(band_of(pct0, st.opts[:bands])),
           vic_stock0: vic.stock,
           hits: 1,
           prev_hs: true,
@@ -360,9 +383,19 @@ defmodule DrillEpisode do
       st = score_episode(gs, %{st | ep: ep})
 
       cond do
-        st.remaining <= 0 -> to_phase(bridge, st, :drain)
-        ep.died -> to_phase(bridge, st, :position)
-        true -> to_phase(bridge, st, :reset)
+        st.remaining <= 0 ->
+          to_phase(bridge, st, :drain)
+
+        ep.died ->
+          to_phase(bridge, st, :position)
+
+        band_of(vic.percent || 0.0, st.opts[:bands]) != nil ->
+          # Ladder: the risen percent still lands in a drill band — chain
+          # the next episode on this stock instead of suiciding.
+          to_phase(bridge, st, :position)
+
+        true ->
+          to_phase(bridge, st, :reset)
       end
     else
       case Agent.get_controller(st.agent, gs, player_port: 1) do
@@ -447,18 +480,24 @@ defmodule DrillEpisode do
       handoff: ep.handoff,
       end_frame: gs.frame,
       vic_pct0: Float.round(ep.vic_pct0 * 1.0, 1),
+      band: ep.band,
       hits: ep.hits,
       dmg: Float.round(dmg, 1),
       died: ep.died
     }
 
     seq = length(st.episodes) + 1
-    ref = st.opts[:reference]
+
+    ref_s =
+      case st.opts[:references][ep.band] do
+        %{"hits" => h, "dmg" => d} -> "ref #{h}/#{d}"
+        _ -> "no ref"
+      end
 
     Output.puts(
-      "  ep #{st.opts[:episodes] - st.remaining + 1}: hits=#{row.hits} dmg=#{row.dmg}" <>
+      "  ep #{st.opts[:episodes] - st.remaining + 1} [#{row.band}%]: hits=#{row.hits} dmg=#{row.dmg}" <>
         if(row.died, do: " STOCK", else: "") <>
-        "  (ref #{ref.hits}/#{ref.dmg})  [game ep #{seq}, handoff f#{row.handoff}]"
+        "  (#{ref_s})  [game ep #{seq}, handoff f#{row.handoff}]"
     )
 
     %{st | episodes: st.episodes ++ [row], ep: nil, remaining: st.remaining - 1}
@@ -531,6 +570,7 @@ end
   OptionParser.parse(System.argv(),
     strict: [
       policy: :string,
+      drill: :string,
       episodes: :integer,
       window: :integer,
       pct_lo: :integer,
@@ -568,34 +608,49 @@ temperature = %{
   shoulder: opts[:temperature] || 0.5
 }
 
-# Drill 1 pre-registered reference cell (eval_runs/0901_drill_table/RESULTS.md)
-reference = %{hits: 3.9, deep3: 87, dmg: 27.0}
+# Drill manifest: cell definition, bands, pinned references, training notes.
+# (drills/<name>.json — the registry the scorer and retrain slicer read too.)
+drill_arg = opts[:drill] || "uthrow_low_mid"
+drill_path = if File.exists?(drill_arg), do: drill_arg, else: "drills/#{drill_arg}.json"
+drill = drill_path |> File.read!() |> Jason.decode!()
+
+bands =
+  if opts[:pct_lo] || opts[:pct_hi] do
+    [{opts[:pct_lo] || 0, opts[:pct_hi] || 19}]
+  else
+    for [lo, hi] <- drill["cell"]["bands"], do: {lo, hi}
+  end
+
+references = drill["references"] || %{}
+
+# Snapshot the manifest into the bank — provenance for the scorer/slicer.
+File.cp!(drill_path, Path.join(out_dir, "drill.json"))
 
 run_opts = [
   out: out_dir,
   episodes: episodes_target,
-  window: opts[:window] || 240,
-  pct_lo: opts[:pct_lo] || 0,
-  pct_hi: opts[:pct_hi] || 19,
-  dummy_character: opts[:dummy_character] || "fox",
+  window: opts[:window] || drill["window"] || 240,
+  bands: bands,
+  references: references,
+  stage: String.to_atom(drill["cell"]["stage"] || "final_destination"),
+  dummy_character: opts[:dummy_character] || drill["cell"]["dummy_character"] || "fox",
   warm_context: !(opts[:no_warm_context] || false),
   debug: opts[:debug] || false,
   dolphin: Path.expand(opts[:dolphin] || "~/.local/share/slippi/exi-ai/dolphin-emu-headless"),
   iso: Path.expand(opts[:iso] || "~/isos/melee.iso"),
-  slippi_port: opts[:slippi_port] || 51_700,
-  reference: reference
+  slippi_port: opts[:slippi_port] || 51_700
 ]
 
-Output.banner("Hit-confirm drill — uthrow / 0-19% / mid / FD")
+Output.banner("Hit-confirm drill — #{drill["name"]}")
 
 Output.config([
   {"Policy", opts[:policy]},
+  {"Drill", drill_path},
   {"Episodes", episodes_target},
   {"Window", run_opts[:window]},
-  {"Percent band", "#{run_opts[:pct_lo]}-#{run_opts[:pct_hi]}"},
+  {"Bands", Enum.map_join(bands, ", ", fn {lo, hi} -> "#{lo}-#{hi}%" end)},
   {"Dummy", run_opts[:dummy_character]},
   {"Warm context", run_opts[:warm_context]},
-  {"Reference cell", "#{reference.hits} hits / #{reference.deep3}% >=3 / #{reference.dmg} dmg"},
   {"Out", out_dir}
 ])
 
@@ -646,19 +701,30 @@ else
 end
 
 if all != [] do
-  n = length(all)
-  mh = Enum.sum(Enum.map(all, & &1.hits)) / n
-  md = Enum.sum(Enum.map(all, & &1.dmg)) / n
-  deep = Enum.count(all, &(&1.hits >= 3)) / n * 100
-
   Output.puts("")
   Output.puts("== smoke summary (live counter; authoritative = drill_score.exs on the bank)")
 
-  Output.puts(
-    "   bot:    n=#{n}  mean hits #{Float.round(mh, 1)}  >=3 hits #{round(deep)}%  mean dmg #{Float.round(md, 1)}"
-  )
+  all
+  |> Enum.group_by(& &1.band)
+  |> Enum.sort()
+  |> Enum.each(fn {band, eps} ->
+    n = length(eps)
+    mh = Float.round(Enum.sum(Enum.map(eps, & &1.hits)) / n, 1)
+    md = Float.round(Enum.sum(Enum.map(eps, & &1.dmg)) / n, 1)
+    deep = round(Enum.count(eps, &(&1.hits >= 3)) / n * 100)
 
-  Output.puts("   expert: n=39  mean hits #{reference.hits}  >=3 hits #{reference.deep3}%  mean dmg #{reference.dmg}")
+    ref_s =
+      case references[band] do
+        %{"hits" => h, "deep3" => d3, "dmg" => d, "n" => rn} ->
+          "expert n=#{rn}: #{h} / #{d3}% / #{d}"
+
+        _ ->
+          "no reference mined"
+      end
+
+    Output.puts("   #{band}%: n=#{n}  hits #{mh}  >=3 #{deep}%  dmg #{md}   (#{ref_s})")
+  end)
+
   Output.success("bank -> #{out_dir} (#{jsonl})")
 else
   Output.error("no episodes collected")
