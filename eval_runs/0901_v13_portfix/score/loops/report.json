@@ -1,0 +1,498 @@
+[
+  {
+    "stats": {
+      "taunts_per_min": {
+        "max": 1.9610513414135913,
+        "min": 0.4905968928863451,
+        "values": [
+          0.4906637590295761,
+          1.4715901348957625,
+          1.9610513414135913,
+          0.5185825410544511,
+          0.4905968928863451,
+          0.4907306434023991,
+          1.4689880304679,
+          0.4909314059729988
+        ],
+        "mean": 0.922891843640378,
+        "median": 0.5185825410544511
+      },
+      "dpad_per_min": {
+        "max": 97.12494890312033,
+        "min": 81.38363066866404,
+        "values": [
+          86.3568215892054,
+          97.12494890312033,
+          81.38363066866404,
+          83.49178910976663,
+          82.91087489779233,
+          85.87786259541984,
+          83.24265505984766,
+          92.29510432292376
+        ],
+        "mean": 86.5854608933425,
+        "median": 85.87786259541984
+      },
+      "input_long_frac": {
+        "max": 0.006542183453727681,
+        "min": 0.0,
+        "values": [
+          0.006542183453727681,
+          0.001362583458236817,
+          0.003540787144218984,
+          0.0,
+          0.001635322976287817,
+          0.004770992366412214,
+          0.001632208922742111,
+          0.0
+        ],
+        "mean": 0.002435509790203203,
+        "median": 0.001635322976287817
+      },
+      "action_long_frac": {
+        "max": 0.40288946435872974,
+        "min": 0.23085309348596347,
+        "values": [
+          0.40288946435872974,
+          0.2696552663850661,
+          0.32180307776113304,
+          0.2736963411120715,
+          0.23085309348596347,
+          0.37404580152671757,
+          0.3717355821545158,
+          0.30996863493795174
+        ],
+        "mean": 0.31933090771526856,
+        "median": 0.32180307776113304
+      },
+      "loops_per_min": {
+        "max": 2.592912705272256,
+        "min": 0.4896626768226333,
+        "values": [
+          1.4719912770887282,
+          1.9621201798610166,
+          2.451314176766989,
+          2.592912705272256,
+          1.4717906786590353,
+          1.4721919302071973,
+          0.4896626768226333,
+          0.4909314059729988
+        ],
+        "mean": 1.5503643788313568,
+        "median": 1.4721919302071973
+      },
+      "max_loop_repeats": {
+        "max": 10,
+        "min": 3,
+        "values": [
+          4,
+          6,
+          9,
+          6,
+          10,
+          5,
+          8,
+          3
+        ],
+        "mean": 6.375,
+        "median": 6
+      },
+      "longest_action_run": {
+        "max": 594,
+        "min": 242,
+        "values": [
+          594,
+          343,
+          292,
+          566,
+          242,
+          253,
+          441,
+          309
+        ],
+        "mean": 380.0,
+        "median": 343
+      },
+      "longest_input_run": {
+        "max": 14,
+        "min": 6,
+        "values": [
+          14,
+          10,
+          14,
+          6,
+          12,
+          12,
+          12,
+          7
+        ],
+        "mean": 10.875,
+        "median": 12
+      }
+    },
+    "n": 8,
+    "arm": "AR",
+    "games": [
+      {
+        "path": "eval_runs/0901_v13_portfix/score/AR/r1.slp",
+        "summary": {
+          "taunts_per_min": 0.4906637590295761,
+          "dpad_per_min": 86.3568215892054,
+          "input_long_frac": 0.006542183453727681,
+          "action_long_frac": 0.40288946435872974,
+          "loops_per_min": 1.4719912770887282,
+          "max_loop_repeats": 4,
+          "longest_action_run": 594,
+          "longest_input_run": 14
+        },
+        "minutes": 2.0380555555555557
+      },
+      {
+        "path": "eval_runs/0901_v13_portfix/score/AR/r2.slp",
+        "summary": {
+          "taunts_per_min": 1.4715901348957625,
+          "dpad_per_min": 97.12494890312033,
+          "input_long_frac": 0.001362583458236817,
+          "action_long_frac": 0.2696552663850661,
+          "loops_per_min": 1.9621201798610166,
+          "max_loop_repeats": 6,
+          "longest_action_run": 343,
+          "longest_input_run": 10
+        },
+        "minutes": 2.038611111111111
+      },
+      {
+        "path": "eval_runs/0901_v13_portfix/score/AR/r3.slp",
+        "summary": {
+          "taunts_per_min": 1.9610513414135913,
+          "dpad_per_min": 81.38363066866404,
+          "input_long_frac": 0.003540787144218984,
+          "action_long_frac": 0.32180307776113304,
+          "loops_per_min": 2.451314176766989,
+          "max_loop_repeats": 9,
+          "longest_action_run": 292,
+          "longest_input_run": 14
+        },
+        "minutes": 2.039722222222222
+      },
+      {
+        "path": "eval_runs/0901_v13_portfix/score/AR/r4.slp",
+        "summary": {
+          "taunts_per_min": 0.5185825410544511,
+          "dpad_per_min": 83.49178910976663,
+          "input_long_frac": 0.0,
+          "action_long_frac": 0.2736963411120715,
+          "loops_per_min": 2.592912705272256,
+          "max_loop_repeats": 6,
+          "longest_action_run": 566,
+          "longest_input_run": 6
+        },
+        "minutes": 1.9283333333333335
+      },
+      {
+        "path": "eval_runs/0901_v13_portfix/score/AR/r5.slp",
+        "summary": {
+          "taunts_per_min": 0.4905968928863451,
+          "dpad_per_min": 82.91087489779233,
+          "input_long_frac": 0.001635322976287817,
+          "action_long_frac": 0.23085309348596347,
+          "loops_per_min": 1.4717906786590353,
+          "max_loop_repeats": 10,
+          "longest_action_run": 242,
+          "longest_input_run": 12
+        },
+        "minutes": 2.038333333333333
+      },
+      {
+        "path": "eval_runs/0901_v13_portfix/score/AR/r6.slp",
+        "summary": {
+          "taunts_per_min": 0.4907306434023991,
+          "dpad_per_min": 85.87786259541984,
+          "input_long_frac": 0.004770992366412214,
+          "action_long_frac": 0.37404580152671757,
+          "loops_per_min": 1.4721919302071973,
+          "max_loop_repeats": 5,
+          "longest_action_run": 253,
+          "longest_input_run": 12
+        },
+        "minutes": 2.037777777777778
+      },
+      {
+        "path": "eval_runs/0901_v13_portfix/score/AR/r7.slp",
+        "summary": {
+          "taunts_per_min": 1.4689880304679,
+          "dpad_per_min": 83.24265505984766,
+          "input_long_frac": 0.001632208922742111,
+          "action_long_frac": 0.3717355821545158,
+          "loops_per_min": 0.4896626768226333,
+          "max_loop_repeats": 8,
+          "longest_action_run": 441,
+          "longest_input_run": 12
+        },
+        "minutes": 2.042222222222222
+      },
+      {
+        "path": "eval_runs/0901_v13_portfix/score/AR/r8.slp",
+        "summary": {
+          "taunts_per_min": 0.4909314059729988,
+          "dpad_per_min": 92.29510432292376,
+          "input_long_frac": 0.0,
+          "action_long_frac": 0.30996863493795174,
+          "loops_per_min": 0.4909314059729988,
+          "max_loop_repeats": 3,
+          "longest_action_run": 309,
+          "longest_input_run": 7
+        },
+        "minutes": 2.0369444444444444
+      }
+    ]
+  },
+  {
+    "stats": {
+      "taunts_per_min": {
+        "max": 2.9459901800327333,
+        "min": 0.0,
+        "values": [
+          1.4691878655965176,
+          1.4697876973326074,
+          0.0,
+          0.9779951100244499,
+          0.49079754601226994,
+          1.579871269748391,
+          2.9459901800327333,
+          1.469387755102041
+        ],
+        "mean": 1.3003771779811262,
+        "median": 1.469387755102041
+      },
+      "dpad_per_min": {
+        "max": 108.01963993453356,
+        "min": 65.76687116564418,
+        "values": [
+          106.76098490001361,
+          100.43549265106151,
+          69.11764705882352,
+          81.17359413202934,
+          65.76687116564418,
+          89.52603861907548,
+          108.01963993453356,
+          85.22448979591837
+        ],
+        "mean": 88.25309478213745,
+        "median": 89.52603861907548
+      },
+      "input_long_frac": {
+        "max": 0.00789760348583878,
+        "min": 0.0,
+        "values": [
+          0.004761256971840566,
+          0.0,
+          0.00789760348583878,
+          0.005025808204292312,
+          0.0017723244717109748,
+          0.0016091281451141018,
+          0.0,
+          0.0
+        ],
+        "mean": 0.002633265159849592,
+        "median": 0.0017723244717109748
+      },
+      "action_long_frac": {
+        "max": 0.455810147299509,
+        "min": 0.1689161554192229,
+        "values": [
+          0.3277105155761121,
+          0.3411812738160044,
+          0.4263344226579521,
+          0.42461287693561534,
+          0.1689161554192229,
+          0.2655061439438268,
+          0.455810147299509,
+          0.4163265306122449
+        ],
+        "mean": 0.35329975828256094,
+        "median": 0.4163265306122449
+      },
+      "loops_per_min": {
+        "max": 3.9194338595536196,
+        "min": 0.979591836734694,
+        "values": [
+          1.95891715412869,
+          3.9194338595536196,
+          2.450980392156863,
+          1.466992665036675,
+          2.4539877300613497,
+          1.579871269748391,
+          0.9819967266775778,
+          0.979591836734694
+        ],
+        "mean": 1.9739714542622324,
+        "median": 1.95891715412869
+      },
+      "max_loop_repeats": {
+        "max": 13,
+        "min": 4,
+        "values": [
+          4,
+          9,
+          10,
+          6,
+          13,
+          6,
+          6,
+          6
+        ],
+        "mean": 7.5,
+        "median": 6
+      },
+      "longest_action_run": {
+        "max": 563,
+        "min": 228,
+        "values": [
+          283,
+          344,
+          556,
+          563,
+          228,
+          422,
+          284,
+          413
+        ],
+        "mean": 386.625,
+        "median": 413
+      },
+      "longest_input_run": {
+        "max": 46,
+        "min": 7,
+        "values": [
+          35,
+          7,
+          46,
+          22,
+          13,
+          11,
+          8,
+          9
+        ],
+        "mean": 18.875,
+        "median": 13
+      }
+    },
+    "n": 8,
+    "arm": "IND",
+    "games": [
+      {
+        "path": "eval_runs/0901_v13_portfix/score/IND/r1.slp",
+        "summary": {
+          "taunts_per_min": 1.4691878655965176,
+          "dpad_per_min": 106.76098490001361,
+          "input_long_frac": 0.004761256971840566,
+          "action_long_frac": 0.3277105155761121,
+          "loops_per_min": 1.95891715412869,
+          "max_loop_repeats": 4,
+          "longest_action_run": 283,
+          "longest_input_run": 35
+        },
+        "minutes": 2.0419444444444443
+      },
+      {
+        "path": "eval_runs/0901_v13_portfix/score/IND/r2.slp",
+        "summary": {
+          "taunts_per_min": 1.4697876973326074,
+          "dpad_per_min": 100.43549265106151,
+          "input_long_frac": 0.0,
+          "action_long_frac": 0.3411812738160044,
+          "loops_per_min": 3.9194338595536196,
+          "max_loop_repeats": 9,
+          "longest_action_run": 344,
+          "longest_input_run": 7
+        },
+        "minutes": 2.0411111111111113
+      },
+      {
+        "path": "eval_runs/0901_v13_portfix/score/IND/r3.slp",
+        "summary": {
+          "taunts_per_min": 0.0,
+          "dpad_per_min": 69.11764705882352,
+          "input_long_frac": 0.00789760348583878,
+          "action_long_frac": 0.4263344226579521,
+          "loops_per_min": 2.450980392156863,
+          "max_loop_repeats": 10,
+          "longest_action_run": 556,
+          "longest_input_run": 46
+        },
+        "minutes": 2.04
+      },
+      {
+        "path": "eval_runs/0901_v13_portfix/score/IND/r4.slp",
+        "summary": {
+          "taunts_per_min": 0.9779951100244499,
+          "dpad_per_min": 81.17359413202934,
+          "input_long_frac": 0.005025808204292312,
+          "action_long_frac": 0.42461287693561534,
+          "loops_per_min": 1.466992665036675,
+          "max_loop_repeats": 6,
+          "longest_action_run": 563,
+          "longest_input_run": 22
+        },
+        "minutes": 2.045
+      },
+      {
+        "path": "eval_runs/0901_v13_portfix/score/IND/r5.slp",
+        "summary": {
+          "taunts_per_min": 0.49079754601226994,
+          "dpad_per_min": 65.76687116564418,
+          "input_long_frac": 0.0017723244717109748,
+          "action_long_frac": 0.1689161554192229,
+          "loops_per_min": 2.4539877300613497,
+          "max_loop_repeats": 13,
+          "longest_action_run": 228,
+          "longest_input_run": 13
+        },
+        "minutes": 2.0375
+      },
+      {
+        "path": "eval_runs/0901_v13_portfix/score/IND/r6.slp",
+        "summary": {
+          "taunts_per_min": 1.579871269748391,
+          "dpad_per_min": 89.52603861907548,
+          "input_long_frac": 0.0016091281451141018,
+          "action_long_frac": 0.2655061439438268,
+          "loops_per_min": 1.579871269748391,
+          "max_loop_repeats": 6,
+          "longest_action_run": 422,
+          "longest_input_run": 11
+        },
+        "minutes": 1.8988888888888888
+      },
+      {
+        "path": "eval_runs/0901_v13_portfix/score/IND/r7.slp",
+        "summary": {
+          "taunts_per_min": 2.9459901800327333,
+          "dpad_per_min": 108.01963993453356,
+          "input_long_frac": 0.0,
+          "action_long_frac": 0.455810147299509,
+          "loops_per_min": 0.9819967266775778,
+          "max_loop_repeats": 6,
+          "longest_action_run": 284,
+          "longest_input_run": 8
+        },
+        "minutes": 2.0366666666666666
+      },
+      {
+        "path": "eval_runs/0901_v13_portfix/score/IND/r8.slp",
+        "summary": {
+          "taunts_per_min": 1.469387755102041,
+          "dpad_per_min": 85.22448979591837,
+          "input_long_frac": 0.0,
+          "action_long_frac": 0.4163265306122449,
+          "loops_per_min": 0.979591836734694,
+          "max_loop_repeats": 6,
+          "longest_action_run": 413,
+          "longest_input_run": 9
+        },
+        "minutes": 2.0416666666666665
+      }
+    ]
+  }
+]

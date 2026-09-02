@@ -1,0 +1,30 @@
+{
+  "fox_gen_v1.3_INDrefit_policy": {
+    "replay": "eval_runs/0901_v13_portfix/score/IND/r1.slp",
+    "chains": null,
+    "crit_score": -1.726,
+    "phases": {
+      "jc_event": {
+        "min": -1.443,
+        "n": 4,
+        "mean": -1.198,
+        "p10": -1.443,
+        "flip_frac": 1.0
+      },
+      "aerial_shine_event": {
+        "min": -1.726,
+        "n": 8,
+        "mean": -0.435,
+        "p10": -1.726,
+        "flip_frac": 0.75
+      },
+      "ground_shine_event": {
+        "min": -2.351,
+        "n": 792,
+        "mean": -0.47,
+        "p10": -1.451,
+        "flip_frac": 0.676
+      }
+    }
+  }
+}

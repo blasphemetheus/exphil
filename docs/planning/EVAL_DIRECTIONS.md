@@ -115,6 +115,19 @@ Then re-read B1-the-model, ep10, B2 through A1/B2/C.
 
 ## Log
 
+- 2026-09-01 22:00 — **v1.3 CHAIN VERDICT: PRIMARY PASSED DECISIVELY**
+  (`eval_runs/0901_v13_portfix/VERDICT.md`). approach_delta INVERTED
+  from v1.2's −0.20..−0.26 into the EXPERT'S signature: ~0 close,
+  +0.04/+0.11/+0.19 at 60/90/130 (IND +0.22) — the E1b corpus
+  corruption WAS the root cause of the retreat/positional-blindness
+  cluster. Guards: recovery AMBIGUOUS at n (died 44% vs v1.2's 28.6,
+  ratio 1.55x under the 2.5x floor; airdodge route back up 31/47%) —
+  live look decides; L_cond 1.49 on the first CLEAN run of the probe
+  (old 2.39/2.67 were dirty-instrument; within-table wire restored
+  1.49 vs joint 1.09). Fixed action-sensitivity: hard_right 68.7% of
+  drift. Deployables: `fox_gen_v1.3_{ARrefit,INDrefit}_policy.bin`.
+  NEXT: Bradley live look (survival + feel); clean re-baselines of
+  8a/v1.2 probes + critic + dynamics (INFRA_HARDENING §7).
 - 2026-09-01 afternoon — **CORPUS CORRUPTION FOUND + FIXED (E1b, GOTCHA
   #107), v1.3 retrain chain LAUNCHED** (unit `v13-portfix`,
   `eval_runs/0901_v13_portfix/`). While auditing AWBC's port handling
