@@ -488,3 +488,13 @@ is exhausted; selection at decode CANNOT fix marginal-collapse at this
 policy scale. Converges with the slippi-ai parity audit: sharpen the
 policy (v2 recipe) rather than the decode. AWBC drill arm proceeds
 (training-side lever, unaffected).
+
+## 2026-09-02 night — AWBC drill arm: PARTIAL (distribution shifted, laser-confounded)
+
+`eval_runs/0902_awbc_drill/drill_remeasure/RESULTS.md`: 0-19 band
+2.9->3.7 mean hits, 30->41% deep, 1-2-hit share 70->59% — the gate's
+"shifts toward expert" is met — but 8+-hit laser strings doubled
+(12->26%) and mean dmg 16.4->17.5 (expert 27): the uair chains mostly
+did NOT arrive; AWBC amplified the reachable continuation class.
+Policy: checkpoints/fox_gen_v1.3_AWBCdrill_20260902_232232_policy.bin.
+OWED: Bradley live-look transfer check before any further knob.
