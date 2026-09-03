@@ -3815,3 +3815,64 @@ INSPECTING one non-default file's frames (players keys, distance,
 own-slot character), not by loss descending; (3) the AWBC entry
 `AdvantageWeighting.standard_rewards(frames, port \\ 1)` is only
 correct AFTER remap — the pipeline passes no port.
+
+## 108
+
+**Training scripts silently IGNORED unknown flags — a typo'd knob runs
+the wrong experiment with zero complaint** (2026-09-03). The HANDOFF
+resume command used `--window 180`; the real flag is `--window-size`.
+`Config.parse_args` just skips unrecognized flags, and
+`Config.validate_args!` (the typo-detector with did-you-mean
+suggestions, built exactly for this) was never CALLED by
+scripts/train.exs. The w180 discriminator arm launched training at
+window 60 — the one knob the experiment existed to turn. Caught at
++2 min only because the launch log's `Auto-applied safe defaults:
+window_size=60` line was cross-checked.
+
+**Fix:** scripts/train.exs now calls `Config.validate_args/1` before
+parsing and ABORTS (exit 1) on any unknown flag — a warning is not
+enough for an unattended overnight systemd unit; nobody is watching
+stderr at t=0.
+
+**Rules:** (1) after ANY launch, grep the log for the knob the run
+exists to test (its effective value, not the flag you passed); (2) new
+flags go in `@valid_flags` (CLAUDE.md checklist) or they abort every
+script that uses them — that's the point.
+
+## 109
+
+**The embedding cache grows ~100 GB per (seed x corpus x chunk-size)
+combination — a changed seed makes ALL chunk keys miss** (2026-09-03).
+Cache keys hash the sorted file list of each ~100-file chunk; the
+file->chunk grouping depends on the shuffled file order, which depends
+on `--seed`. The w180 launch (seed 904) hit 0/80 cached chunks despite
+the corpus being identical to v1.4-long, and was writing ~1.3 GB per
+chunk (~39 GB/hour) into 38 GB of root headroom — ENOSPC mid-epoch in
+under an hour. 191 GB of dead cache from the completed v1.3/v1.4 runs
+was deleted (Bradley approved) to save the run.
+
+**Rules:** (1) before any streaming overnight launch, check
+`du -sh cache/embeddings` + `df -h /` against `#chunks x 1.3 GB`;
+(2) grep the first 10 min of the log for `EmbeddingCache] Saved` vs
+hits — all-saves means a cold cache and the full write bill; (3) cache
+entries of completed, verdicted runs are dead weight (regenerable,
+~2-3 GPU-hours) — delete cohorts by mtime.
+
+## 110
+
+**Temporal windows CROSS replay boundaries — nothing in the windowing
+path knows where games end** (2026-09-03, found during the BPTT loader
+mapping). `batched_sequences_lazy` slices windows at `i*stride` off
+the flat concatenated frame tensor (data.ex:2395,:2554); per-file
+frame counts are computed during parsing and DISCARDED
+(streaming.ex:124->:135). Windows near boundaries contain a teleport:
+end-of-game-A frames followed by start-of-game-B (different
+stage/percent/stocks) with the label taken from game B's frame.
+At window 60 / ~14k-frame games this pollutes ~0.4% of windows
+(window 180: ~1.3%) — small, but it's also frames from the WRONG GAME
+inside the context the GRU is meant to exploit. `split_by_replay`
+(advantage_weighting.ex:209, frame-number-reset detection) exists but
+is only used for AWBC weights, never window construction. The
+contiguous-BPTT loader build (BPTT_LOADER_DESIGN.md) fixes this by
+construction; if windowed sampling is ever revisited, thread segment
+boundaries through and drop crossing windows.

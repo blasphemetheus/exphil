@@ -82,6 +82,16 @@ alias ExPhil.Training.Callbacks.{
   LossPlot, Registry, PolicyExport, Profiler, TestEval
 }
 
+# Unknown flags ABORT (not warn): a silently-ignored `--window 180` cost a
+# launch on 2026-09-03 — an unattended overnight run must fail loudly at t=0.
+{:ok, flag_warnings} = Config.validate_args(System.argv())
+
+if flag_warnings != [] do
+  Enum.each(flag_warnings, &Output.error/1)
+  Output.error("Aborting: fix the flags above (or see --help).")
+  System.halt(1)
+end
+
 # Parse config (applies backbone defaults, preset overrides, CLI args)
 opts = Config.parse_args(System.argv()) |> Config.validate!() |> Config.ensure_checkpoint_name()
 

@@ -539,3 +539,26 @@ the fair loop — fair -> bot falls to ground -> full-hop fair again;
 if it getup-attacks, double-jump fair. Bot is catchable in this loop
 indefinitely (a reactive hole: no anti-juggle adaptation). Candidate
 future drill/eval fixture: "escape the fair loop."
+
+## 2026-09-03 evening — w180 arm trained + instrument readout (context discriminator: POSITIVE)
+
+`fox_gen_w180` (window 180, 2 epochs, val 5.339) trained and read out
+same-day (`eval_runs/0903_w180_readout/RESULTS.md`). The gate MOVED:
+toward-sign flips positive at 0-20/40-70 (v1.4@60 negative at all close
+ranges), retreat share -1/3, long-range occupancy 0.6% vs v1.4's 4.2%
+(expert 1.7%) — the approach features the neutral diagnosis named, at
+0.4x the epochs, loss ~flat. **Context confirmed as a live lever ->
+BPTT build (v2 plank 1) validated before it lands.** Counterweights:
+d_up 415-433/min at T=0.5 (v1.4's T=1.0 level; likely epoch-starved —
+w180 val ≈ v1.4's epoch-1 val), point-blank grounded-laser degeneracy
+(29.8% of 0-20 neutral frames), in-threat grabs 98 vs 39 (run-up grab
+now EXISTS, in punishable form). Dash-dance + SH game still absent both
+arms. Bradley's eye owed. Ops: dolphin SIGSEGVs under systemd-run
+units — eval protocols run foreground now (RESULTS.md gotcha).
+
+BPTT build progress (same evening): design doc
+`docs/planning/BPTT_LOADER_DESIGN.md`; plank A
+(`Edifice.Recurrent.build_backbone_with_carry/2`, chunked==long-unroll
+equivalence law tested 5/5) and plank B
+(`ExPhil.Training.TrajectoryCursors`, 9/9) landed; planks C/D
+(trainer carry + per-timestep AR loss) mapped, ~1-2 days.

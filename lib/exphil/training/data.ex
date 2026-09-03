@@ -898,6 +898,13 @@ defmodule ExPhil.Training.Data do
   end
 
   @doc """
+  Extract the discretized action from a training frame (public seam for
+  the contiguous-BPTT loader; same logic the windowed batcher uses).
+  """
+  @spec frame_action(map()) :: map()
+  def frame_action(frame), do: get_action(frame)
+
+  @doc """
   Convert list of actions to batched tensors.
   """
   @spec actions_to_tensors([map()]) :: map()
