@@ -509,3 +509,14 @@ survives-not-sharp; (3) compute-only left the drill metric flat-to-worse
 (1.9 hits) while the AWBC drill mix moved it (3.7) — scale and drills
 are INDEPENDENT, COMPOSING levers. v2 design implication: recipe scale-up
 + drill curriculum, not either alone.
+
+## 2026-09-03 — Bradley live look, AWBCdrill: "plays like a weenie"
+
+Transfer check verdict (human eyes): somewhat MORE CONSISTENT while
+still bad; still self-inserts into whiff-punishable states constantly;
+"a little better at some things, hard to qualify." Consistent with the
+drill-metric read: AWBC moved continuation consistency (the windows it
+trained on) and could not touch neutral/positioning (never in the
+windows). The weenie quality = damage-RTG's fingerprint (upweights safe
+completions, not entries). No further AWBC knob without a new
+pre-registration; v2 decision remains the live question.
