@@ -529,3 +529,13 @@ rare, drifts offstage and dies. Bradley's synthesis: "improvement within
 a baseline, but it fails to get a deeper level of play — throw out
 moves that if they hit get you a lot." I.e. temporally-extended
 intentional play with payoff structure is the missing layer.
+
+## 2026-09-03 — Bradley live look addendum (v1.4/AWBC arms)
+
+Named absent skills: dash-dance JC upsmash, run-up grab, dash-dance
+grab — it NEVER approaches with intent; throws out moves regardless of
+opponent character or stage position. EXPLOIT BANKED (T=0.5, vs Mario):
+the fair loop — fair -> bot falls to ground -> full-hop fair again;
+if it getup-attacks, double-jump fair. Bot is catchable in this loop
+indefinitely (a reactive hole: no anti-juggle adaptation). Candidate
+future drill/eval fixture: "escape the fair loop."
