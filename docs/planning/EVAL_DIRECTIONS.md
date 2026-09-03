@@ -498,3 +498,14 @@ policy (v2 recipe) rather than the decode. AWBC drill arm proceeds
 did NOT arrive; AWBC amplified the reachable continuation class.
 Policy: checkpoints/fox_gen_v1.3_AWBCdrill_20260902_232232_policy.bin.
 OWED: Bradley live-look transfer check before any further knob.
+
+## 2026-09-03 dawn — v1.4-long readout: underfit confirmed, T=1.0 survives, drill 2x2 closes
+
+`eval_runs/0903_v14_readout/RESULTS.md`: (1) val slope monotone to 5.241
+at 2.3x compute — underfit confirmed, scale is a real v2 lever; (2)
+T=1.0 now survives full games (115.5s mean, frozen 0.00) with noisy
+buttons (d_up 410/min) — the health bar moved from dead to
+survives-not-sharp; (3) compute-only left the drill metric flat-to-worse
+(1.9 hits) while the AWBC drill mix moved it (3.7) — scale and drills
+are INDEPENDENT, COMPOSING levers. v2 design implication: recipe scale-up
++ drill curriculum, not either alone.
