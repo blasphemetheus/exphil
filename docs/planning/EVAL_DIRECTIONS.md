@@ -520,3 +520,12 @@ trained on) and could not touch neutral/positioning (never in the
 windows). The weenie quality = damage-RTG's fingerprint (upweights safe
 completions, not entries). No further AWBC knob without a new
 pre-registration; v2 decision remains the live question.
+
+## 2026-09-03 — Bradley live looks, v1.4-long (T=0.5 and 0.75)
+
+Mild improvement in strings at both temps; still NO neutral-for-combos:
+doesn't fish with openers, occasional combo-opener throws appearing but
+rare, drifts offstage and dies. Bradley's synthesis: "improvement within
+a baseline, but it fails to get a deeper level of play — throw out
+moves that if they hit get you a lot." I.e. temporally-extended
+intentional play with payoff structure is the missing layer.
