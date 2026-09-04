@@ -46,19 +46,31 @@ VERIFIED: 6/6 end-to-end tests (both heads: finite loss, carry flows,
 params update, reset-masking semantics exact) + a real-data smoke run
 through train.exs (4 files -> checkpoint + policy export).
 
-STILL OPEN:
-- Val protocol under carried state (eval_loss_fn is nil in bptt mode;
-  streaming has no val set anyway — design before the first real run
-  readout needs it).
-- Inference-side: exported bptt policies share GRU/head param names
-  with the windowed model, and the agent already runs stateful
-  step-mode (`Edifice.Recurrent.init_state/step`) — but agent
-  init_state replicates the carryless RNG-key initial hidden, while
-  bptt trains from ZERO state. Verify/patch the agent to zero-init for
-  bptt-trained policies before any live look.
-- First real run: existing FOX corpus, batch ~64 (needs >= 64 segments
-  per chunk -> --stream-chunk-size >= 100 files is fine), unroll 80,
-  one knob vs w180b.
+CLOSED 09-04 (~13:00):
+- **Val-under-carry protocol SHIPPED**: `--bptt-val-files` (default 16)
+  holds out WHOLE replays before chunking (game-level split, no
+  leakage); parsed+embedded once at setup, batched by cursors with a
+  FIXED seed (identical batches every epoch), evaluated SEQUENTIALLY
+  with the carry threaded and per-row resets
+  (`Validation.evaluate_bptt/3`, `Loss.build_bptt_eval_loss_fn/2`,
+  Validation-callback dispatch). Val batch capped at 8 rows so few
+  held-out games fill every cursor. Caveat: bptt val is NOT comparable
+  to windowed val (per-timestep over carried state vs last-frame) —
+  compare bptt runs to bptt runs. Tests: determinism, carry is
+  load-bearing (threaded != zeroed-every-batch), eval==train twin
+  agreement; live smoke shows val 8.33 vs train 8.56 (streaming mode's
+  first-ever independent val signal — it used to silently report train
+  loss as val).
+- **Inference zero-init SHIPPED** (edifice): `init_state` falls back to
+  ZEROS when the RNG-key initial-state param is absent (= carry-mode
+  checkpoint; sampling anything would hand the agent a game-start
+  state the network never saw). Proven by the step-parity test:
+  init_state + step/3 frame-by-frame == the training-graph unroll,
+  exactly (outputs AND final hidden).
+
+NEXT: first real run — existing FOX corpus, batch ~64 (needs >= 64
+segments per chunk -> --stream-chunk-size >= 100 files), unroll 80,
+one knob vs w180b.
 
 Plank C/D implementation notes (from 09-03 evening reading):
 - The AR heads (networks/policy/heads.ex) are entirely `Axon.dense` +

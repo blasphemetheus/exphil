@@ -196,6 +196,7 @@ defmodule ExPhil.Training.Config do
     "--bptt",
     "--unroll",
     "--bptt-overlap",
+    "--bptt-val-files",
     "--precision",
     "--mixed-precision",
     "--frame-delay",
@@ -582,6 +583,7 @@ defmodule ExPhil.Training.Config do
       bptt: false,
       unroll: 80,
       bptt_overlap: 1,
+      bptt_val_files: 16,
       # FP32 is default - benchmarks show BF16 is 2x SLOWER on RTX 4090 due to
       # XLA issues: dimension misalignment (287 dims not divisible by 16),
       # type casting overhead, and fallback to FP32 kernels internally.

@@ -513,10 +513,12 @@ defmodule ExPhil.Training.Imitation do
         else: Loss.build_loss_and_grad_fn(predict_fn, loss_config)
 
     # Build compiled eval loss function (for validation - no gradients needed)
-    # JITted once and reused for all validation batches
-    # (bptt: no eval fn yet — streaming mode has no val set; the val
-    # protocol under carried state is an open design item)
-    eval_loss_fn = if config[:bptt], do: nil, else: Loss.build_eval_loss_fn(predict_fn, config)
+    # JITted once and reused for all validation batches. bptt uses the
+    # carry-threaded twin (see Validation.evaluate_bptt/3 for the protocol).
+    eval_loss_fn =
+      if config[:bptt],
+        do: Loss.build_bptt_eval_loss_fn(predict_fn, config),
+        else: Loss.build_eval_loss_fn(predict_fn, config)
 
     %__MODULE__{
       policy_model: policy_model,

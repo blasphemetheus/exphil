@@ -182,6 +182,7 @@ mix run scripts/train_from_replays.exs --dual-port
 | `--bptt` | false | Contiguous-BPTT training: cursors walk replays in order, GRU carry flows across chunks, per-timestep loss (GRU only; see BPTT_LOADER_DESIGN.md) |
 | `--unroll N` | 80 | BPTT chunk length in frames (gradient truncation horizon) |
 | `--bptt-overlap N` | 1 | Frames shared between consecutive BPTT chunks (set to frame_delay + 1) |
+| `--bptt-val-files N` | 16 | Whole replays held out for the carry-threaded val pass (game-level split; val batch is capped at 8 rows) |
 
 **Available backbones (15 total):**
 

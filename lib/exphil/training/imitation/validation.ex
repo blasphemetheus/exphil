@@ -45,6 +45,77 @@ defmodule ExPhil.Training.Imitation.Validation do
   - `:loss` - Average loss across all batches
   - `:num_batches` - Number of batches evaluated
   """
+  @doc """
+  Val-under-carry (BPTT_LOADER_DESIGN.md): evaluate a contiguous-BPTT
+  trainer on a cursor batch stream, threading the GRU carry across
+  batches exactly as training does.
+
+  ## The protocol
+
+  - **Game-level holdout**: val batches come from WHOLE held-out replays
+    (no window leakage), batched by `TrajectoryCursors.batch_stream`
+    with a FIXED seed — the same batches every epoch, so the val curve
+    is comparable across epochs and runs.
+  - **Sequential, carry-threaded**: batch k's `final_hidden` is batch
+    k+1's carry, with per-row zero-reset where `is_resetting` is set —
+    the eval measures the same objective training optimizes. No
+    parallelism (order is semantic).
+  - **NOT comparable to windowed val losses**: supervision is
+    per-timestep over carried state, a different quantity from the
+    windowed last-frame loss. Compare bptt runs to bptt runs.
+
+  Returns `%{loss: avg, num_batches: n}`.
+  """
+  @spec evaluate_bptt(struct(), Enumerable.t() | list(), keyword()) :: map()
+  def evaluate_bptt(trainer, batches, opts \\ []) do
+    show_progress = Keyword.get(opts, :show_progress, false)
+    cfg = trainer.config
+
+    {total, count, _carry} =
+      Enum.reduce(batches, {0.0, 0, nil}, fn batch, {total, count, carry} ->
+        batch_size = Nx.axis_size(batch.states, 0)
+
+        carry =
+          carry ||
+            Nx.broadcast(0.0, {batch_size, cfg[:num_layers] || 2, cfg[:hidden_size] || 256})
+
+        carry =
+          case Map.get(batch, :is_resetting) do
+            nil ->
+              carry
+
+            is_resetting ->
+              keep =
+                is_resetting
+                |> Nx.as_type(:f32)
+                |> Nx.negate()
+                |> Nx.add(1.0)
+                |> Nx.reshape({batch_size, 1, 1})
+
+              Nx.multiply(carry, keep)
+          end
+
+        {loss, new_carry} =
+          trainer.eval_loss_fn.(
+            trainer.policy_params,
+            batch.states,
+            batch.actions,
+            batch.frame_weights,
+            carry
+          )
+
+        if show_progress and rem(count, 10) == 0 do
+          IO.write(:stderr, "\r    Validating (bptt): #{count} batches...\e[K")
+        end
+
+        {total + Nx.to_number(loss), count + 1, new_carry}
+      end)
+
+    if show_progress, do: IO.write(:stderr, "\r\e[K")
+
+    %{loss: if(count > 0, do: total / count, else: 0.0), num_batches: count}
+  end
+
   @spec evaluate(struct(), Enumerable.t(), keyword()) :: map()
   def evaluate(trainer, dataset, opts \\ []) do
     show_progress = Keyword.get(opts, :show_progress, true)

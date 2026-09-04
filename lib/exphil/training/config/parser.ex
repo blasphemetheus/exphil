@@ -227,6 +227,7 @@ defmodule ExPhil.Training.Config.Parser do
     |> parse_flag(args, "--bptt", :bptt)
     |> parse_int_arg(args, "--unroll", :unroll)
     |> parse_int_arg(args, "--bptt-overlap", :bptt_overlap)
+    |> parse_int_arg(args, "--bptt-val-files", :bptt_val_files)
     |> parse_precision_arg(args)
     |> parse_flag(args, "--mixed-precision", :mixed_precision)
     |> parse_int_arg(args, "--frame-delay", :frame_delay)

@@ -16,7 +16,15 @@ defmodule ExPhil.Training.Callbacks.Validation do
 
     val_loss =
       if val_batches && val_batches != [] do
-        metrics = Imitation.evaluate(state.trainer, val_batches, max_concurrency: 1)
+        metrics =
+          if state.trainer.config[:bptt] do
+            # Carry-threaded sequential eval (val-under-carry protocol,
+            # BPTT_LOADER_DESIGN.md) — order is semantic, no concurrency.
+            ExPhil.Training.Imitation.Validation.evaluate_bptt(state.trainer, val_batches)
+          else
+            Imitation.evaluate(state.trainer, val_batches, max_concurrency: 1)
+          end
+
         :erlang.garbage_collect()
         metrics.loss
       else

@@ -374,6 +374,21 @@ defmodule ExPhil.Training.Pipeline do
     end
 
     chunk_size = opts[:stream_chunk_size]
+
+    # Val-under-carry holdout (BPTT_LOADER_DESIGN.md): in bptt mode, hold
+    # out N WHOLE files (game-level split — window/segment leakage is
+    # impossible) before chunking; they become a fixed, deterministic
+    # cursor-batch list evaluated with the carry threaded (see
+    # Validation.evaluate_bptt/3). Taken from the END of the (already
+    # seed-shuffled) file list so the train set is a prefix.
+    {replay_files, bptt_val_files} =
+      if opts[:bptt] do
+        n = opts[:bptt_val_files] || 16
+        {Enum.drop(replay_files, -n), Enum.take(replay_files, -n)}
+      else
+        {replay_files, []}
+      end
+
     file_chunks = Streaming.chunk_files(replay_files, chunk_size)
     Output.puts("  #{length(file_chunks)} chunks of ~#{chunk_size} files")
 
@@ -384,6 +399,40 @@ defmodule ExPhil.Training.Pipeline do
 
     # Estimate batch count
     estimated = estimate_streaming_batches(replay_files, opts)
+
+    # Materialize the bptt val batch list once (fixed seed -> identical
+    # batches every epoch; CPU tensors — EXLA transfers at eval time).
+    # Val rows use a small batch (8) so few held-out games still fill
+    # every cursor row; carry semantics are per-row and unaffected.
+    bptt_val_batches =
+      if opts[:bptt] and bptt_val_files != [] do
+        Output.puts("  bptt val: #{length(bptt_val_files)} held-out files")
+
+        chunk_opts =
+          Keyword.take(opts, [
+            :player_port, :dual_port, :frame_delay, :skip_errors, :show_errors, :port_map
+          ])
+
+        dataset_opts =
+          Keyword.take(opts, [:temporal, :window_size, :stride, :precompute, :lazy_sequences]) ++
+            [embed_config: embed_config]
+
+        {:ok, val_frames, _errors} = Streaming.parse_chunk(bptt_val_files, chunk_opts)
+        val_dataset = Streaming.create_dataset(val_frames, dataset_opts)
+
+        ExPhil.Training.TrajectoryCursors.batch_stream(val_dataset,
+          batch_size: min(opts[:batch_size] || 32, 8),
+          unroll: opts[:unroll] || 80,
+          overlap: opts[:bptt_overlap] || 1,
+          seed: 7,
+          neutral_weight: Keyword.get(opts, :neutral_weight, 0.25),
+          transition_weight: opts[:transition_weight],
+          gpu: false
+        )
+        |> Enum.to_list()
+      else
+        nil
+      end
 
     pipeline = %__MODULE__{
       replay_files: replay_files,
@@ -397,7 +446,7 @@ defmodule ExPhil.Training.Pipeline do
       streaming_dataset_opts: Keyword.take(opts, [
         :temporal, :window_size, :stride, :precompute, :lazy_sequences
       ]) ++ [embed_config: embed_config],
-      val_batches: nil,
+      val_batches: bptt_val_batches,
       character_weights: nil,
       augment_fn: nil,
       estimated_batches: estimated,

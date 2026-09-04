@@ -63,11 +63,11 @@ defmodule ExPhil.Training.BpttTrainTest do
   end
 
   describe "Imitation.new bptt mode" do
-    test "builds a trainer with the bptt loss fn and no eval fn" do
+    test "builds a trainer with the bptt loss fn and the carry-threaded eval fn" do
       trainer = new_bptt_trainer(:autoregressive)
       assert trainer.config[:bptt] == true
       assert is_function(trainer.loss_and_grad_fn)
-      assert trainer.eval_loss_fn == nil
+      assert is_function(trainer.eval_loss_fn)
     end
 
     test "rejects non-gru backbones" do
@@ -146,4 +146,95 @@ defmodule ExPhil.Training.BpttTrainTest do
 
   defp carry_last([], initial), do: initial
   defp carry_last([c | _], _), do: c
+end
+
+defmodule ExPhil.Training.BpttValTest do
+  use ExUnit.Case, async: false
+
+  alias ExPhil.Training.{Data, Imitation, TrajectoryCursors}
+  alias ExPhil.Training.Imitation.Validation
+
+  @embed 32
+  @hidden 24
+  @layers 2
+  @unroll 10
+
+  defp frame(counter, id) do
+    %{
+      game_state: %{frame: counter},
+      action: %{
+        buttons: %{
+          a: rem(id, 3) == 0,
+          b: false, x: false, y: false, z: false, l: false, r: false, d_up: false
+        },
+        main_x: rem(id, 17), main_y: 8, c_x: 8, c_y: 8, shoulder: 0
+      }
+    }
+  end
+
+  defp dataset(game_lengths) do
+    frames = Enum.flat_map(game_lengths, fn len -> Enum.map(0..(len - 1), &frame(&1, &1)) end)
+    n = length(frames)
+    embedded = Nx.iota({n, @embed}, axis: 0) |> Nx.as_type(:f32) |> Nx.divide(n)
+    %Data{frames: frames, embedded_frames: embedded, size: n}
+  end
+
+  defp val_batches(seed) do
+    dataset([60, 60, 60])
+    |> TrajectoryCursors.batch_stream(
+      batch_size: 2, unroll: @unroll, overlap: 1, seed: seed, gpu: false
+    )
+    |> Enum.to_list()
+  end
+
+  defp trainer do
+    Imitation.new(
+      embed_size: @embed, temporal: true, bptt: true, backbone: :gru,
+      head: :autoregressive, unroll: @unroll,
+      hidden_size: @hidden, num_layers: @layers, precision: :f32, batch_size: 2
+    )
+  end
+
+  test "evaluate_bptt is deterministic (same batches -> identical loss)" do
+    t = trainer()
+    batches = val_batches(7)
+
+    %{loss: l1, num_batches: n} = Validation.evaluate_bptt(t, batches)
+    %{loss: l2, num_batches: ^n} = Validation.evaluate_bptt(t, batches)
+
+    assert n > 1
+    assert l1 == l2
+  end
+
+  test "the carry is load-bearing: correct threading differs from zeroed-every-batch" do
+    t = trainer()
+    batches = val_batches(7)
+
+    %{loss: threaded} = Validation.evaluate_bptt(t, batches)
+
+    # Force a reset on EVERY batch (carry never survives) — a different
+    # (wrong) protocol must give a different number.
+    all_reset =
+      Enum.map(batches, fn b ->
+        %{b | is_resetting: Nx.broadcast(Nx.tensor(1, type: :u8), Nx.shape(b.is_resetting))}
+      end)
+
+    %{loss: zeroed} = Validation.evaluate_bptt(t, all_reset)
+
+    refute threaded == zeroed
+  end
+
+  test "eval loss == train loss value on the same batch and carry (twin builders agree)" do
+    t = trainer()
+    [batch | _] = val_batches(7)
+    carry = Nx.broadcast(0.0, {2, @layers, @hidden})
+
+    {eval_loss, _h} =
+      t.eval_loss_fn.(t.policy_params, batch.states, batch.actions, batch.frame_weights, carry)
+
+    {{train_loss, _h2}, _grads} =
+      t.loss_and_grad_fn.(t.policy_params, batch.states, batch.actions, batch.frame_weights, carry)
+
+    assert_in_delta Nx.to_number(eval_loss), Nx.to_number(train_loss), 1.0e-5
+  end
 end

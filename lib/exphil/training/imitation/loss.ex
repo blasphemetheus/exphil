@@ -382,6 +382,97 @@ defmodule ExPhil.Training.Imitation.Loss do
     Nx.Defn.jit(inner_fn, compiler: EXLA, on_conflict: :reuse)
   end
 
+  @doc """
+  Eval-side twin of `build_bptt_loss_and_grad_fn/2`: the SAME per-timestep
+  forward and loss, no gradients. Returns a jitted
+
+      fn params, states, actions, frame_weights, initial_hidden ->
+        {loss, final_hidden}
+
+  so the caller can thread the carry across a sequential val stream
+  (`Imitation.Validation.evaluate_bptt/3`) exactly as training does.
+  """
+  @spec build_bptt_eval_loss_fn(function(), map()) :: function()
+  def build_bptt_eval_loss_fn(predict_fn, config) do
+    label_smoothing = config[:label_smoothing] || 0.0
+    focal_loss = config[:focal_loss] || false
+    focal_gamma = config[:focal_gamma] || 2.0
+    button_weight = config[:button_weight] || 1.0
+
+    button_pos_weight =
+      case config[:button_pos_weight] do
+        :auto -> nil
+        other -> other
+      end
+
+    stick_edge_weight = config[:stick_edge_weight]
+    entropy_weight = config[:entropy_weight] || 0.0
+    head_normalize = config[:head_normalize] || false
+    precision = config[:precision] || :f32
+    head = config[:head] || :autoregressive
+
+    loss_opts = [
+      label_smoothing: label_smoothing,
+      focal_loss: focal_loss,
+      focal_gamma: focal_gamma,
+      button_weight: button_weight,
+      button_pos_weight: button_pos_weight,
+      stick_edge_weight: stick_edge_weight,
+      entropy_weight: entropy_weight,
+      head_normalize: head_normalize
+    ]
+
+    inner_fn = fn params, states, actions, frame_weights, initial_hidden ->
+      states = Nx.as_type(states, precision)
+
+      inputs =
+        case head do
+          :autoregressive ->
+            ExPhil.Networks.Policy.Heads.tf_inputs(actions)
+            |> Map.put("state_sequence", states)
+            |> Map.put("initial_hidden", initial_hidden)
+
+          :independent ->
+            %{"state_sequence" => states, "initial_hidden" => initial_hidden}
+        end
+
+      {{buttons, main_x, main_y, c_x, c_y, shoulder}, final_hidden} =
+        predict_fn.(Utils.ensure_model_state(params), inputs)
+
+      b = Nx.axis_size(buttons, 0)
+      t = Nx.axis_size(buttons, 1)
+
+      flat = fn tensor ->
+        case Nx.rank(tensor) do
+          2 -> Nx.reshape(tensor, {b * t})
+          3 -> Nx.reshape(tensor, {b * t, Nx.axis_size(tensor, 2)})
+        end
+      end
+
+      logits = %{
+        buttons: flat.(buttons),
+        main_x: flat.(main_x),
+        main_y: flat.(main_y),
+        c_x: flat.(c_x),
+        c_y: flat.(c_y),
+        shoulder: flat.(shoulder)
+      }
+
+      flat_targets = Map.new(actions, fn {k, v} -> {k, flat.(v)} end)
+
+      loss =
+        Policy.imitation_loss(
+          logits,
+          flat_targets,
+          loss_opts ++ [frame_weights: flat.(frame_weights)]
+        )
+
+      {loss, final_hidden}
+    end
+
+    Nx.Defn.jit(inner_fn, compiler: EXLA, on_conflict: :reuse)
+  end
+
   # The plain BC objective shared by both autoregressive loss arms
   defp autoregressive_bc_loss(predict_fn, p, states, actions, frame_weights, loss_opts, head, temporal) do
     inputs = policy_forward_inputs(head, temporal, states, actions)
