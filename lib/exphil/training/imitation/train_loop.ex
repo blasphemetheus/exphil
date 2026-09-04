@@ -270,6 +270,68 @@ defmodule ExPhil.Training.Imitation.TrainLoop do
   # ============================================================================
 
   # Standard training without mixed precision
+  @doc """
+  Contiguous-BPTT train step (BPTT_LOADER_DESIGN.md plank C).
+
+  Takes the recurrent `carry` `{batch, num_layers, hidden}` from the
+  previous chunk and returns the new one alongside the trainer:
+
+      {new_trainer, %{loss: l, step: n}, new_carry}
+
+  Rows whose chunk starts a new game (`batch.is_resetting == 1`) get their
+  carry ZEROED here, outside the jitted graph — the model never sees a
+  reset op, and gradient truncation at the chunk edge is automatic because
+  the carry is a plain argument of `loss_and_grad_fn` (built by
+  `Loss.build_bptt_loss_and_grad_fn/2`), never a differentiated one.
+
+  Expects a batch from `ExPhil.Training.TrajectoryCursors.batch_stream/2`
+  (`:states {b,t,d}`, per-timestep `:actions`/`:frame_weights`,
+  `:is_resetting {b}`) and a trainer whose `loss_and_grad_fn` is the BPTT
+  builder's. Mixed precision and scheduled sampling are not supported in
+  this path.
+  """
+  @spec train_step_bptt(struct(), map(), Nx.Tensor.t()) :: {struct(), map(), Nx.Tensor.t()}
+  def train_step_bptt(trainer, batch, carry) do
+    %{states: states, actions: actions, frame_weights: frame_weights} = batch
+
+    carry =
+      case Map.get(batch, :is_resetting) do
+        nil ->
+          carry
+
+        is_resetting ->
+          keep =
+            is_resetting
+            |> Nx.as_type(:f32)
+            |> Nx.negate()
+            |> Nx.add(1.0)
+            |> Nx.reshape({Nx.axis_size(carry, 0), 1, 1})
+
+          Nx.multiply(carry, keep)
+      end
+
+    {{loss, new_carry}, grads} =
+      trainer.loss_and_grad_fn.(trainer.policy_params, states, actions, frame_weights, carry)
+
+    grads_data = get_params_data(grads)
+    params_data = get_params_data(trainer.policy_params)
+
+    {updates, new_optimizer_state} =
+      trainer.optimizer.(grads_data, trainer.optimizer_state, params_data)
+
+    new_params_data = trainer.apply_updates_fn.(params_data, updates)
+    new_params = put_params_data(trainer.policy_params, new_params_data)
+
+    new_trainer = %{
+      trainer
+      | policy_params: new_params,
+        optimizer_state: new_optimizer_state,
+        step: trainer.step + 1
+    }
+
+    {new_trainer, %{loss: loss, step: new_trainer.step}, new_carry}
+  end
+
   defp train_step_standard(trainer, batch) do
     %{states: states, actions: actions} = batch
     frame_weights = Map.get(batch, :frame_weights) || default_frame_weights(states)

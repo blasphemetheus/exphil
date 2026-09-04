@@ -562,3 +562,28 @@ BPTT build progress (same evening): design doc
 equivalence law tested 5/5) and plank B
 (`ExPhil.Training.TrajectoryCursors`, 9/9) landed; planks C/D
 (trainer carry + per-timestep AR loss) mapped, ~1-2 days.
+
+## 2026-09-03 late — Bradley live look, w180: "still feels random"
+
+Instruments moved (approach stats) but the play does not read as
+intentional to the human eye — consistent with the shuffled-features
+verdict (conditioning real-but-DIFFUSE; 1-sample play reads random).
+Context at 3 s shifts marginal statistics, not felt intention. The bar
+stays: temporally-extended intention needs the BPTT/state-carry class
+(and likely data scale), not window widening.
+
+## 2026-09-04 ~03:20 — w180b (6 epochs, matched compute): context lever CONFIRMED AT STRENGTH
+
+`eval_runs/0904_w180b_readout/RESULTS.md`. val **5.2082** = new
+all-time fox_gen best (beats v1.4's 5.2409), monotone, no plateau.
+Neutral approach gradient strengthens toward expert SHAPE (70-100:
+toward +0.393 vs expert +0.435, n=892; retreat at/below expert at
+40-100); commitment quality recovered to v1.4's profile while
+approaching (18.0 in-threat/min, P(punished) 43.8%). **The one
+structural regression: d_up spray 429-450/min at T=0.5, UNCHANGED from
+epoch 2 -> "epoch-starved" hypothesis REFUTED — it's a window-180
+property**; per-timestep supervision (BPTT plank D) is the principled
+fix — measure there first, no bespoke decode rules. Still absent:
+dash-dance, SH game. Still degenerate: point-blank laserG 31%.
+Elevated SD rate noted (2/4 runs ended early; self/min 3.9-6.3).
+Owed: Bradley live look on w180b.

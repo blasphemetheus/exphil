@@ -3876,3 +3876,34 @@ is only used for AWBC weights, never window construction. The
 contiguous-BPTT loader build (BPTT_LOADER_DESIGN.md) fixes this by
 construction; if windowed sampling is ever revisited, thread segment
 boundaries through and drop crossing windows.
+
+## 111
+
+**`replays/` is a SYMLINK to /data (`/data/exphil/replays`, 08-28 move)
+— any bulk write "into the repo's replays dir" lands on /data, which
+runs permanently ~full** (2026-09-03). The partner-corpus HF download
+targeted `replays/erickfm_ranked/partners`, filled /data's last 6.5 GB
+in minutes, and died ENOSPC. Fix: bulk corpus data now lives root-side
+at `replays_root/` with a symlink from the /data replays tree
+(`/data/exphil/replays/erickfm_ranked/partners ->
+~/git/exphil/replays_root/partners`) so `replays/...` paths still
+resolve. **Rule: before any multi-GB write, `readlink -f` the target
+and `df` the filesystem it actually resolves to** — the repo path tells
+you nothing on this machine. (Same lesson class as #106/#109: every
+disk on slanka is one bulk job from full.)
+
+### #111 addendum (same evening)
+
+The slippi-public-dataset-v3.7 char dirs are ~10x bigger than a
+batch-count estimate suggests — the LOOSE files (not the batch_NN
+subdirs) dominate: CPTFALCON alone was 69 GB / MARTH 64 GB / 29,356
+.slp. The planned 4-dir pull would have been ~300 GB; it filled root to
+0 at 133 GB (the xet blob cache under ~/.cache/huggingface doubling
+part of it) with training LIVE — recovered by deleting the xet/hub
+caches and the CPTFALCON dir (re-downloadable, CC0). Kept: MARTH
+complete (29,356 games, `replays_root/partners/MARTH`). **Rules:
+(1) size a HF pull with the repo's parquet index or a recursive tree
+listing, never a batch-dir sample; (2) budget 2x the payload for the
+xet cache, or set HF_XET_CACHE somewhere roomy and delete it after;
+(3) never leave a bulk download unattended on the same filesystem a
+training run checkpoints to without a hard cap.**

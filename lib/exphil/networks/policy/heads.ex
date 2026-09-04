@@ -154,6 +154,11 @@ defmodule ExPhil.Networks.Policy.Heads do
     - `:axis_buckets` (default 16), `:shoulder_buckets` (default 4)
     - `:residual_size` - residual stream width (default 128)
     - `:component_hidden` - per-component MLP hidden width (default 64)
+    - `:per_timestep` - trunk is a full sequence `[batch, time, hidden]`
+      and the tf inputs carry a time dim (`{b, t, 8}` / `{b, t}`); every
+      dense/embedding below broadcasts over the extra axis, so logits come
+      out `[batch, time, k]` with the SAME param names/shapes (BPTT
+      training, default false)
 
   ## Returns
     Axon container `{buttons, main_x, main_y, c_x, c_y, shoulder}` logits —
@@ -165,16 +170,24 @@ defmodule ExPhil.Networks.Policy.Heads do
     shoulder_buckets = Keyword.get(opts, :shoulder_buckets, @default_shoulder_buckets)
     residual_size = Keyword.get(opts, :residual_size, @default_residual_size)
     component_hidden = Keyword.get(opts, :component_hidden, @default_component_hidden)
+    per_timestep = Keyword.get(opts, :per_timestep, false)
 
     axis_size = axis_buckets + 1
     shoulder_size = shoulder_buckets + 1
 
-    # Teacher-forced component inputs (targets of the SAME frame)
-    tf_buttons = Axon.input("tf_buttons", shape: {nil, @num_buttons})
-    tf_main_x = Axon.input("tf_main_x", shape: {nil})
-    tf_main_y = Axon.input("tf_main_y", shape: {nil})
-    tf_c_x = Axon.input("tf_c_x", shape: {nil})
-    tf_c_y = Axon.input("tf_c_y", shape: {nil})
+    # Teacher-forced component inputs (targets of the SAME frame).
+    # per_timestep adds a time dim; params are rank-agnostic (dense acts on
+    # the last axis, embedding adds one), so both variants share weights.
+    {buttons_shape, cat_shape} =
+      if per_timestep,
+        do: {{nil, nil, @num_buttons}, {nil, nil}},
+        else: {{nil, @num_buttons}, {nil}}
+
+    tf_buttons = Axon.input("tf_buttons", shape: buttons_shape)
+    tf_main_x = Axon.input("tf_main_x", shape: cat_shape)
+    tf_main_y = Axon.input("tf_main_y", shape: cat_shape)
+    tf_c_x = Axon.input("tf_c_x", shape: cat_shape)
+    tf_c_y = Axon.input("tf_c_y", shape: cat_shape)
 
     # r0: project trunk features into the residual stream
     r0 = Axon.dense(trunk, residual_size, name: "ar_residual_proj")

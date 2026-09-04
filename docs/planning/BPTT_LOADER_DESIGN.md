@@ -21,9 +21,34 @@ Drafted files:
   mmap-corpus remains the upgrade path.
 - Unroll default 80 (slippi-ai parity, per handoff wording).
 
-Remaining: plank C (trainer carry state + per-row zero-reset), plank D
-(per-timestep AR-head loss), pipeline wiring (--bptt flag), val
-protocol. Planks C+D are the deep integration (~1-2 days).
+Planks C/D partially DRAFTED late 09-03 (also uncompiled — w180b beam
+live overnight):
+- `heads.ex` `build_autoregressive_head(per_timestep: true)` — tf
+  inputs grow a time dim, params shared with the windowed head.
+- `policy.ex` `build_temporal_bptt/1` — carry trunk + per-timestep
+  heads, output `{{6 logits}, final_hidden}`; GRU only.
+- `backbone.ex` `build_gru_carry_backbone/2` — Edifice carry container
+  split into `{seq, hidden}` nodes.
+- `imitation/loss.ex` `build_bptt_loss_and_grad_fn/2` — 5-arg
+  `(params, states, actions, frame_weights, initial_hidden)` returning
+  `{{loss, final_hidden}, grads}` via `Nx.Defn.value_and_grad/3`'s
+  transform (one forward pass); flatten adapter feeds the existing
+  `Policy.imitation_loss` unchanged.
+- `train_loop.ex` `train_step_bptt/3` — per-row zero-reset outside the
+  graph, returns `{trainer, metrics, new_carry}`.
+
+REMAINING (needs compile feedback — do interactively when GPU frees):
+- `Imitation.new` bptt mode: build model via `build_temporal_bptt`,
+  input templates incl. `initial_hidden` + per-timestep tf shapes,
+  select `build_bptt_loss_and_grad_fn`.
+- `Trainer` epoch loop: hold carry in state, thread through
+  `train_step_bptt`, init zeros `{B, num_layers, hidden}` per epoch.
+- `Pipeline`: `--bptt`/`--unroll` flags (add to @valid_flags — GOTCHA
+  #108's abort guard now enforces this), per-chunk
+  `TrajectoryCursors.batch_stream`, stream chunks >= batch_size files.
+- Tests: model-shape test (logits {B,T,K} + hidden), loss-builder
+  smoke, then a 1-chunk training smoke on real data.
+- Val protocol under carried state.
 
 Plank C/D implementation notes (from 09-03 evening reading):
 - The AR heads (networks/policy/heads.ex) are entirely `Axon.dense` +

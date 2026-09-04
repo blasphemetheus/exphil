@@ -274,6 +274,114 @@ defmodule ExPhil.Training.Imitation.Loss do
     Nx.Defn.jit(inner_fn, compiler: EXLA, on_conflict: :reuse)
   end
 
+  @doc """
+  Build the contiguous-BPTT loss+grad function (BPTT_LOADER_DESIGN.md
+  plank D). Works with a model from `Policy.build_temporal_bptt/1`.
+
+  Returned function signature:
+
+      fn params, states, actions, frame_weights, initial_hidden ->
+        {{loss, final_hidden}, grads}
+
+  - `states` `{b, t, embed}`, `actions` per-timestep target maps
+    (`buttons {b, t, 8}`, categoricals `{b, t}`), `frame_weights` `{b, t}`,
+    `initial_hidden` `{b, num_layers, hidden}` (caller zeroes rows whose
+    chunk starts a new game — resets live OUTSIDE the graph).
+  - Supervision is per-timestep: logits/targets/weights flatten
+    `{b, t, *} -> {b*t, *}` and feed the existing `Policy.imitation_loss`
+    unchanged.
+  - `final_hidden` rides out through `value_and_grad`'s transform arg
+    (one forward pass); gradients truncate at the chunk edge by
+    construction — `initial_hidden` is a plain argument, never
+    differentiated.
+  """
+  @spec build_bptt_loss_and_grad_fn(function(), map()) :: function()
+  def build_bptt_loss_and_grad_fn(predict_fn, config) do
+    label_smoothing = config[:label_smoothing] || 0.0
+    focal_loss = config[:focal_loss] || false
+    focal_gamma = config[:focal_gamma] || 2.0
+    button_weight = config[:button_weight] || 1.0
+
+    button_pos_weight =
+      case config[:button_pos_weight] do
+        :auto -> nil
+        other -> other
+      end
+
+    stick_edge_weight = config[:stick_edge_weight]
+    entropy_weight = config[:entropy_weight] || 0.0
+    head_normalize = config[:head_normalize] || false
+    precision = config[:precision] || :f32
+    head = config[:head] || :autoregressive
+
+    loss_opts = [
+      label_smoothing: label_smoothing,
+      focal_loss: focal_loss,
+      focal_gamma: focal_gamma,
+      button_weight: button_weight,
+      button_pos_weight: button_pos_weight,
+      stick_edge_weight: stick_edge_weight,
+      entropy_weight: entropy_weight,
+      head_normalize: head_normalize
+    ]
+
+    inner_fn = fn params, states, actions, frame_weights, initial_hidden ->
+      states = Nx.as_type(states, precision)
+
+      loss_fn = fn p ->
+        inputs =
+          case head do
+            :autoregressive ->
+              ExPhil.Networks.Policy.Heads.tf_inputs(actions)
+              |> Map.put("state_sequence", states)
+              |> Map.put("initial_hidden", initial_hidden)
+
+            :independent ->
+              %{"state_sequence" => states, "initial_hidden" => initial_hidden}
+          end
+
+        {{buttons, main_x, main_y, c_x, c_y, shoulder}, final_hidden} =
+          predict_fn.(Utils.ensure_model_state(p), inputs)
+
+        b = Nx.axis_size(buttons, 0)
+        t = Nx.axis_size(buttons, 1)
+
+        flat = fn tensor ->
+          case Nx.rank(tensor) do
+            2 -> Nx.reshape(tensor, {b * t})
+            3 -> Nx.reshape(tensor, {b * t, Nx.axis_size(tensor, 2)})
+          end
+        end
+
+        logits = %{
+          buttons: flat.(buttons),
+          main_x: flat.(main_x),
+          main_y: flat.(main_y),
+          c_x: flat.(c_x),
+          c_y: flat.(c_y),
+          shoulder: flat.(shoulder)
+        }
+
+        flat_targets = Map.new(actions, fn {k, v} -> {k, flat.(v)} end)
+
+        loss =
+          Policy.imitation_loss(
+            logits,
+            flat_targets,
+            loss_opts ++ [frame_weights: flat.(frame_weights)]
+          )
+
+        {loss, final_hidden}
+      end
+
+      # transform selects the differentiable scalar; final_hidden rides
+      # alongside: {{loss, final_hidden}, grads}
+      Nx.Defn.value_and_grad(params, loss_fn, &elem(&1, 0))
+    end
+
+    Nx.Defn.jit(inner_fn, compiler: EXLA, on_conflict: :reuse)
+  end
+
   # The plain BC objective shared by both autoregressive loss arms
   defp autoregressive_bc_loss(predict_fn, p, states, actions, frame_weights, loss_opts, head, temporal) do
     inputs = policy_forward_inputs(head, temporal, states, actions)

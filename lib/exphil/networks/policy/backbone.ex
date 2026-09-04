@@ -2865,6 +2865,32 @@ defmodule ExPhil.Networks.Policy.Backbone do
     )
   end
 
+  @doc """
+  GRU trunk with an explicit carry, built on an already-processed sequence
+  node (post embedding-preprocessing) — the contiguous-BPTT training trunk
+  (BPTT_LOADER_DESIGN.md plank C).
+
+  Adds an `"initial_hidden"` input `{batch, num_layers, hidden}` and
+  returns `{output_seq_node, final_hidden_node}`: the full `[b, t, hidden]`
+  sequence (per-timestep supervision) and the raw final carry shaped like
+  `"initial_hidden"`. GRU layer/param names match `build_gru_backbone`, so
+  checkpoints transplant both ways (the carryless RNG-key initial-state
+  param is simply dropped).
+  """
+  @spec build_gru_carry_backbone(Axon.t(), keyword()) :: {Axon.t(), Axon.t()}
+  def build_gru_carry_backbone(processed_input, opts) do
+    container =
+      Recurrent.build_backbone_with_carry(processed_input,
+        hidden_size: Keyword.get(opts, :hidden_size, 256),
+        num_layers: Keyword.get(opts, :num_layers, 2),
+        dropout: Keyword.get(opts, :dropout, @default_dropout)
+      )
+
+    output_seq = Axon.nx(container, & &1.output, name: "carry_output_seq")
+    final_hidden = Axon.nx(container, & &1.hidden, name: "carry_final_hidden")
+    {output_seq, final_hidden}
+  end
+
   # GatedSSM backbone (simplified gated temporal model, NOT true Mamba)
   # Use :gated_ssm for this. :mamba will use true Mamba once implemented.
   defp build_gated_ssm_backbone(embed_size, opts) do

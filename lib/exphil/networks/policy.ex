@@ -283,6 +283,81 @@ defmodule ExPhil.Networks.Policy do
   end
 
   @doc """
+  Build the contiguous-BPTT temporal policy (BPTT_LOADER_DESIGN.md planks
+  C/D): GRU trunk with an explicit carry, heads applied at EVERY timestep.
+
+  Inputs: `"state_sequence"` `{b, t, embed}`, `"initial_hidden"`
+  `{b, num_layers, hidden}`, plus (AR head) per-timestep teacher-forced
+  `tf_*` inputs `{b, t, ...}`.
+
+  Output: Axon container `{{buttons, main_x, main_y, c_x, c_y, shoulder},
+  final_hidden}` — logits are `[b, t, k]`, `final_hidden` is
+  `{b, num_layers, hidden}` (feed it back as the next chunk's
+  `"initial_hidden"`, zeroing rows whose chunk starts a new game).
+
+  GRU/head/embedding param names match `build_temporal_autoregressive/1`,
+  so windowed checkpoints transplant into the BPTT model and back.
+  GRU backbone only.
+  """
+  @spec build_temporal_bptt(keyword()) :: Axon.t()
+  def build_temporal_bptt(opts \\ []) do
+    embed_size = Keyword.fetch!(opts, :embed_size)
+    backbone_type = Keyword.get(opts, :backbone, :gru)
+
+    if backbone_type != :gru do
+      raise ArgumentError,
+            "BPTT training supports the :gru backbone only (got #{inspect(backbone_type)})"
+    end
+
+    axis_buckets = Keyword.get(opts, :axis_buckets, @axis_buckets)
+    shoulder_buckets = Keyword.get(opts, :shoulder_buckets, @shoulder_buckets)
+    # unroll length; the time axis stays shape-polymorphic downstream
+    window_size = Keyword.get(opts, :window_size, 80)
+    action_embed_size = Keyword.get(opts, :action_embed_size, nil)
+    num_action_ids = Keyword.get(opts, :num_action_ids, @default_num_action_ids)
+    character_embed_size = Keyword.get(opts, :character_embed_size, nil)
+    num_character_ids = Keyword.get(opts, :num_character_ids, @default_num_character_ids)
+
+    processed =
+      if action_embed_size || character_embed_size do
+        {_input, combined, _effective} =
+          Embeddings.build_temporal_embedding_preprocessing(
+            embed_size,
+            window_size,
+            action_embed_size,
+            num_action_ids,
+            character_embed_size,
+            num_character_ids
+          )
+
+        combined
+      else
+        Axon.input("state_sequence", shape: {nil, window_size, embed_size})
+      end
+
+    {seq, final_hidden} = Backbone.build_gru_carry_backbone(processed, opts)
+
+    logits =
+      case Keyword.get(opts, :head, :autoregressive) do
+        :independent ->
+          Heads.build_controller_head(seq, axis_buckets, shoulder_buckets)
+
+        :autoregressive ->
+          Heads.build_autoregressive_head(seq,
+            axis_buckets: axis_buckets,
+            shoulder_buckets: shoulder_buckets,
+            per_timestep: true
+          )
+
+        other ->
+          raise ArgumentError,
+                "Unknown controller head: #{inspect(other)}. Valid: :independent, :autoregressive"
+      end
+
+    Axon.container({logits, final_hidden})
+  end
+
+  @doc """
   Build only the temporal trunk (backbone) of the autoregressive policy —
   the `[batch, hidden]` representation that the six controller heads read.
 
