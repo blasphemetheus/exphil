@@ -26,6 +26,32 @@ defmodule ExPhil.Data.FilenameTags do
   def placeholder?(tag), do: tag in @placeholder_tags
 
   @doc """
+  Normalize an in-game SSBM nametag to plain ASCII: the CSS name entry
+  uses FULL-WIDTH characters (`ＩＮＦＰ`), which must unify with the
+  ASCII bracket tags in HF filenames (`[INFP]`) — one identity, two
+  encodings (measured in the D20 corpus, 2026-09-04). Maps U+FF01-FF5E
+  to their ASCII forms and the ideographic space to a space; trims.
+  """
+  @spec normalize_tag(String.t() | nil) :: String.t() | nil
+  def normalize_tag(nil), do: nil
+
+  def normalize_tag(tag) do
+    tag
+    |> String.to_charlist()
+    |> Enum.map(fn
+      cp when cp in 0xFF01..0xFF5E -> cp - 0xFF01 + 0x21
+      0x3000 -> ?\s
+      cp -> cp
+    end)
+    |> List.to_string()
+    |> String.trim()
+    |> case do
+      "" -> nil
+      t -> t
+    end
+  end
+
+  @doc """
   Parse a replay filename into its player entries, in filename order.
 
   Returns `[{tag_or_nil, character_name_lowercase}]` (2 entries for the

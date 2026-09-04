@@ -19,7 +19,7 @@ if "--quiet" in System.argv(), do: Logger.configure(level: :warning)
 
 {opts, paths, _} =
   OptionParser.parse(System.argv(),
-    switches: [subject_character: :string, out: :string, min_frames: :integer, concurrency: :integer, quiet: :boolean, validate_order: :boolean]
+    switches: [subject_character: :string, out: :string, min_frames: :integer, concurrency: :integer, quiet: :boolean, validate_order: :boolean, all_players: :boolean]
   )
 
 subject = opts[:subject_character] || "Fox"
@@ -113,13 +113,21 @@ results =
     fn path ->
       case Peppi.metadata(path) do
         {:ok, meta} ->
-          # ALL subject-character players — dittos yield a row per port with
-          # tag nil + the candidate pair (positional tagging measured 69.2%
-          # reliable by --validate-order -> matcher assigns 2-way instead).
-          subjects = Enum.filter(meta.players || [], fn p -> p.character == subject_ext_id end)
+          # Default: all subject-character players — dittos yield a row per
+          # port with tag nil + the candidate pair (positional tagging
+          # measured 69.2% reliable -> matcher assigns 2-way instead).
+          # --all-players (local corpora / identity clustering): EVERY
+          # occupied port, any character; tag prefers the in-game nametag
+          # (normalized from the full-width CSS charset) over filename tags.
+          subjects =
+            if opts[:all_players] do
+              meta.players || []
+            else
+              Enum.filter(meta.players || [], fn p -> p.character == subject_ext_id end)
+            end
 
           rows =
-            Enum.flat_map(subjects, fn %{port: port} ->
+            Enum.flat_map(subjects, fn %{port: port} = player ->
               opp =
                 case Enum.find(meta.players, fn p -> p.port != port end) do
                   %{port: o} -> o
@@ -134,10 +142,23 @@ results =
                 states = Enum.map(frames, & &1.game_state)
                 controllers = Enum.map(frames, & &1.controller)
                 fp = StyleFingerprint.fingerprint(states, port, controllers)
-                # Dittos: no positional tag (69.2%-reliable, measured) — emit the
-                # candidate pair instead; the matcher assigns 2-way later.
-                tag = FilenameTags.subject_tag(path, subject_display)
-                candidates = if length(subjects) > 1, do: FilenameTags.parse(path) |> Enum.map(&elem(&1, 0)) |> Enum.reject(&is_nil/1), else: []
+
+                # Tag preference: in-game nametag (local corpora; full-width
+                # normalized) -> filename bracket tag (HF convention).
+                # Dittos get no filename tag (69.2%-reliable positional,
+                # measured) — the candidate pair rides for 2-way matching.
+                ingame = FilenameTags.normalize_tag(Map.get(player, :tag))
+
+                tag =
+                  if ingame && not FilenameTags.placeholder?(ingame),
+                    do: ingame,
+                    else: FilenameTags.subject_tag(path, Map.get(player, :character_name) || subject_display)
+
+                # ditto = another player of THIS player's character in the game
+                is_ditto =
+                  Enum.count(meta.players, &(&1.character == player.character)) > 1
+
+                candidates = if is_ditto, do: FilenameTags.parse(path) |> Enum.map(&elem(&1, 0)) |> Enum.reject(&is_nil/1), else: []
 
                 # Session context for the entity model (STYLE_IDENTITY.md):
                 # at locals, timestamp adjacency on a setup is strong
@@ -148,7 +169,18 @@ results =
                     _ -> nil
                   end
 
-                [%{path: path, tag: tag, port: port, ditto: length(subjects) > 1, candidates: candidates, recorded_at: recorded_at, features: fp}]
+                [
+                  %{
+                    path: path,
+                    tag: tag,
+                    port: port,
+                    character: Map.get(player, :character_name),
+                    ditto: is_ditto,
+                    candidates: candidates,
+                    recorded_at: recorded_at,
+                    features: fp
+                  }
+                ]
               else
                 _ -> []
               end
