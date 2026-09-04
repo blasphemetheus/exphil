@@ -125,7 +125,7 @@ defmodule ExPhil.Training.Streaming do
                     frame_delay: frame_delay
                   )
 
-                frames = maybe_filename_tags(frames, path, subject_character)
+                frames = maybe_filename_tags(frames, path, subject_character, target_port)
 
                 {:ok, path, length(frames), frames}
 
@@ -154,13 +154,18 @@ defmodule ExPhil.Training.Streaming do
   # Filename-derived identity (ExPhil.Data.FilenameTags): when the in-file
   # netplay name is the anonymization placeholder, the bracket tag attached
   # to the subject's character in the FILENAME is the only identity signal.
+  # DITTOS STAY ANONYMOUS here: positional resolution was MEASURED
+  # unreliable (69.2% agreement, n=558 — style_fingerprint.exs
+  # --validate-order, 09-04); a ~31%-wrong identity label is worse than
+  # none. The intelligent path is fingerprint-based 2-way assignment
+  # (STYLE_IDENTITY.md) via the --player-tag-map override, not position.
   # No-op when subject_character is nil, the file has real in-file tags, or
   # the filename is unparseable/ambiguous (frames keep their placeholder ->
   # name_id 0, the anonymous bucket).
-  defp maybe_filename_tags(frames, _path, nil), do: frames
-  defp maybe_filename_tags([], _path, _subject), do: []
+  defp maybe_filename_tags(frames, _path, nil, _port), do: frames
+  defp maybe_filename_tags([], _path, _subject, _port), do: []
 
-  defp maybe_filename_tags([first | _] = frames, path, subject_character) do
+  defp maybe_filename_tags([first | _] = frames, path, subject_character, _port) do
     if ExPhil.Data.FilenameTags.placeholder?(first[:player_tag]) do
       case ExPhil.Data.FilenameTags.subject_tag(path, subject_character) do
         nil -> frames

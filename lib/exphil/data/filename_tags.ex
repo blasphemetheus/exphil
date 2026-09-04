@@ -60,8 +60,8 @@ defmodule ExPhil.Data.FilenameTags do
   The bracket tag belonging to the subject player, identified by their
   character's display name (case-insensitive). Returns nil when: the
   filename has no entries, the subject character doesn't appear, BOTH
-  entries are the subject character (ditto — ambiguous), or the matching
-  entry has no tag.
+  entries are the subject character (ditto — ambiguous without a port,
+  see `subject_tag/3`), or the matching entry has no tag.
   """
   @spec subject_tag(Path.t(), String.t()) :: String.t() | nil
   def subject_tag(path, subject_character_name) when is_binary(subject_character_name) do
@@ -70,6 +70,38 @@ defmodule ExPhil.Data.FilenameTags do
     case parse(path) |> Enum.filter(fn {_tag, char} -> char == want end) do
       [{tag, _}] -> tag
       _ -> nil
+    end
+  end
+
+  @doc """
+  Like `subject_tag/2` but DITTO-CAPABLE: when both filename entries are
+  the subject character, resolve by POSITION using the subject's port —
+  the `"A + B"` convention lists players in port order (P1 + P2).
+
+  The position<->port assumption is empirically checkable on non-ditto
+  tagged files (filename position of the known-port character must match)
+  — `scripts/style_fingerprint.exs --validate-order` runs that check;
+  see STYLE_IDENTITY.md. Ports 3/4 and out-of-range positions return nil
+  (anonymous bucket), as does everything `subject_tag/2` would nil.
+  """
+  @spec subject_tag(Path.t(), String.t(), pos_integer()) :: String.t() | nil
+  def subject_tag(path, subject_character_name, port)
+      when is_binary(subject_character_name) and is_integer(port) do
+    want = String.downcase(subject_character_name)
+    entries = parse(path)
+
+    case Enum.filter(entries, fn {_tag, char} -> char == want end) do
+      [{tag, _}] ->
+        tag
+
+      [_, _ | _] when port in [1, 2] ->
+        case Enum.at(entries, port - 1) do
+          {tag, ^want} -> tag
+          _ -> nil
+        end
+
+      _ ->
+        nil
     end
   end
 end

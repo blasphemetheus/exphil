@@ -417,6 +417,8 @@ defmodule ExPhil.Training.Pipeline do
 
     player_registry =
       if opts[:learn_player_styles] do
+        # subject_tag/2: dittos contribute NO tags (positional resolution
+        # measured 69.2% reliable — see maybe_filename_tags in streaming.ex).
         tags =
           replay_files
           |> Enum.map(fn
@@ -1264,11 +1266,25 @@ defmodule ExPhil.Training.Pipeline do
   # finished at 67,401 (22%), with ETAs 4-5x too long (HANDOFF_2026-08-29 §4).
   defp estimate_streaming_batches(files, opts) do
     batch_size = opts[:batch_size] || 32
-    stride = if opts[:temporal], do: max(opts[:stride] || 5, 1), else: 1
 
-    case Streaming.estimate_total_examples(files, opts) do
-      {:ok, total} -> div(div(total, stride), batch_size)
-      _ -> div(div(length(files) * 3000, stride), batch_size)
+    if opts[:bptt] do
+      # BPTT: every batch advances batch_size cursors by (unroll - overlap)
+      # frames, so steps ~= total_frames / (batch * (unroll - overlap)).
+      # The windowed stride formula overstates by ~12x (misleading ETAs on
+      # the first v15 launch, 09-04).
+      advance = max((opts[:unroll] || 80) - (opts[:bptt_overlap] || 1), 1)
+
+      case Streaming.estimate_total_examples(files, opts) do
+        {:ok, total} -> div(total, advance * batch_size)
+        _ -> div(length(files) * 3000, advance * batch_size)
+      end
+    else
+      stride = if opts[:temporal], do: max(opts[:stride] || 5, 1), else: 1
+
+      case Streaming.estimate_total_examples(files, opts) do
+        {:ok, total} -> div(div(total, stride), batch_size)
+        _ -> div(div(length(files) * 3000, stride), batch_size)
+      end
     end
   end
 

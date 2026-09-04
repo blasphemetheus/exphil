@@ -57,3 +57,33 @@ defmodule ExPhil.Data.FilenameTagsTest do
     refute FilenameTags.placeholder?("RUDE")
   end
 end
+
+defmodule ExPhil.Data.FilenameTagsDittoTest do
+  use ExUnit.Case, async: true
+
+  alias ExPhil.Data.FilenameTags
+
+  test "ditto resolves positionally by port" do
+    path = "x/[A] Fox + [B] Fox (BF).slp"
+    assert FilenameTags.subject_tag(path, "Fox", 1) == "A"
+    assert FilenameTags.subject_tag(path, "Fox", 2) == "B"
+    # ports 3/4: position convention doesn't cover them
+    assert FilenameTags.subject_tag(path, "Fox", 3) == nil
+  end
+
+  test "ditto with one untagged side" do
+    path = "x/[A] Fox + Fox (BF).slp"
+    assert FilenameTags.subject_tag(path, "Fox", 1) == "A"
+    assert FilenameTags.subject_tag(path, "Fox", 2) == nil
+  end
+
+  test "non-ditto ignores the port (character match wins)" do
+    path = "x/[RUDE] Captain Falcon + [INFP] Fox (PS).slp"
+    assert FilenameTags.subject_tag(path, "Fox", 1) == "INFP"
+    assert FilenameTags.subject_tag(path, "Fox", 2) == "INFP"
+  end
+
+  test "hashed names stay nil under /3" do
+    assert FilenameTags.subject_tag("x/master-master-00055.slp", "Fox", 1) == nil
+  end
+end
