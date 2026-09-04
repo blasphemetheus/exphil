@@ -139,3 +139,32 @@ defmodule ExPhil.Interp.StyleFingerprintTest do
     assert fp.jump_x_ratio == 0.0
   end
 end
+
+defmodule ExPhil.Interp.StyleFingerprintInvariantTest do
+  use ExUnit.Case, async: true
+
+  alias ExPhil.Interp.StyleFingerprint, as: FP
+
+  test "invariant keys are a subset of keys and exclude character-dependent features" do
+    ks = MapSet.new(FP.keys())
+    inv = FP.invariant_keys()
+
+    assert Enum.all?(inv, &MapSet.member?(ks, &1))
+    refute :fair_mix in inv
+    refute :dashdance_per_min in inv
+    assert :jump_x_ratio in inv
+    assert :lightshield_frac in inv
+  end
+
+  test "invariant distance ignores character-dependent differences" do
+    base = Map.new(FP.keys(), &{&1, 0.5})
+    # Same hands, different character usage: only option/aerial features move
+    diff_char = %{base | fair_mix: 0.9, dashdance_per_min: 30.0, aerial_per_min: 25.0}
+    # Different hands: jump button flips
+    diff_hands = %{base | jump_x_ratio: 0.0}
+
+    assert FP.invariant_distance(base, diff_char) == 0.0
+    assert FP.invariant_distance(base, diff_hands) > 0.0
+    assert FP.distance(base, diff_char) > 0.0
+  end
+end

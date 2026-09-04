@@ -66,6 +66,42 @@ frames, worse than no label. Therefore:
   than open-set). Assignments flow back via the `--player-tag-map`
   override — same seam as perceived-player clusters.
 
+## Tags are EVIDENCE, not ground truth (Bradley 09-04)
+
+Two real-world failure modes: people enter the WRONG nametag
+(borrowed setup profile), and DIFFERENT people share a tag (4-char
+collisions). So the identity model is:
+
+- **Entity** (latent player) is the unit of identity; the registry
+  ultimately keys on entity ids. **Tags are aliases** attached to
+  entities, many-to-many both ways.
+- Three noisy observations per game: tag, fingerprint, session context
+  (timestamp adjacency on a setup — consecutive local games are strong
+  same-player evidence; fingerprint rows carry `started_at` for this).
+- **Reconciliation report** (post-clustering, thresholds from the step-2
+  calibration):
+  - Per TAG: cluster purity. A tag spanning >1 well-separated style
+    cluster (within-character) = COLLISION suspect -> split into
+    entities `YETI/1`, `YETI/2`.
+  - Per GAME: tag-vs-cluster agreement. A tagged game far from its
+    tag's entity cluster = MISLABEL suspect -> flag; reassign only
+    above the calibrated confidence bar.
+  - Suspects surface to Bradley for adjudication (he knows the scene —
+    the human oracle names/merges/splits entities).
+- SubjectResolver's `:identity` rung resolves the ROLE by tag and is
+  marked `provenance: :identity`; the fingerprint audit is what
+  upgrades/downgrades trust in that claim — provenance exists exactly
+  so mislabeled-tag games can be found and re-resolved later.
+- **Same tag, different characters (same player)**: fingerprint
+  features split into character-DEPENDENT (option rates, aerial mixes
+  — cluster WITHIN character) and character-INVARIANT (controller
+  micro: jump button, light-shield, stick occupancy, rhythm — the
+  hands travel with the person). Entities LINK across characters via
+  shared tag + `StyleFingerprint.invariant_distance/2`; a tag whose
+  cross-character link fails the invariant check is a collision
+  suspect instead ("YETI-on-Fox" vs "YETI-on-Marth" as different
+  people).
+
 ## Wiring notes
 
 - Pseudo-tag map consumption: extend the loader override to consult an

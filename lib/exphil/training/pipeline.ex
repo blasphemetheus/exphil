@@ -172,31 +172,18 @@ defmodule ExPhil.Training.Pipeline do
   # .slp Game Start block. Distinct from the in-game INTERNAL ids the
   # frame stream uses (internal Fox=1 vs external Fox=2 — GOTCHA-grade
   # trap; see the census/redress work of 2026-08-07/08).
-  @external_character_ids %{
-    "captainfalcon" => 0, "falcon" => 0, "dk" => 1, "donkeykong" => 1,
-    "fox" => 2, "gameandwatch" => 3, "gnw" => 3, "kirby" => 4,
-    "bowser" => 5, "link" => 6, "luigi" => 7, "mario" => 8,
-    "marth" => 9, "mewtwo" => 10, "ness" => 11, "peach" => 12,
-    "pikachu" => 13, "iceclimbers" => 14, "ics" => 14,
-    "jigglypuff" => 15, "puff" => 15, "samus" => 16, "yoshi" => 17,
-    "zelda" => 18, "sheik" => 19, "falco" => 20, "younglink" => 21,
-    "doc" => 22, "drmario" => 22, "roy" => 23, "pichu" => 24,
-    "ganondorf" => 25, "ganon" => 25
-  }
-
   defp external_character_id!(character) do
-    key =
-      character |> to_string() |> String.downcase() |> String.replace(~r/[^a-z0-9]/, "")
-
-    case Integer.parse(key) do
-      {id, ""} ->
+    # Delegates to the SubjectResolver table (single source of truth for
+    # the external-CSS id space; scripts should use it too instead of
+    # copying the map).
+    case ExPhil.Data.SubjectResolver.external_character_id(character) do
+      {:ok, id} ->
         id
 
-      _ ->
-        Map.get(@external_character_ids, key) ||
-          raise ArgumentError,
-                "unknown character #{inspect(character)} for --train-character " <>
-                  "(known: #{Enum.join(Map.keys(@external_character_ids), ", ")})"
+      {:error, _} ->
+        raise ArgumentError,
+              "unknown character #{inspect(character)} for --train-character " <>
+                "(known: #{Enum.join(ExPhil.Data.SubjectResolver.known_characters(), ", ")})"
     end
   end
 
@@ -225,16 +212,32 @@ defmodule ExPhil.Training.Pipeline do
       true ->
         want_id = external_character_id!(opts[:train_character])
 
+        # Role resolution goes through SubjectResolver (the port-vs-role
+        # law, V2_PREP.md): character rung, ditto tie-break :port1 KEPT for
+        # behavior compatibility but now explicit + provenance-marked
+        # (fingerprint 2-way assignment is the planned upgrade for dittos).
+        alias ExPhil.Data.SubjectResolver
+
         {port_map, counts} =
           Enum.reduce(files, {%{}, %{port1: 0, other_port: 0, ditto: 0, absent: 0}}, fn path,
                                                                                        {pm, c} ->
             case Peppi.metadata(path) do
               {:ok, meta} ->
-                case character_port(meta.players, want_id) do
-                  {:port, 1} -> {Map.put(pm, path, 1), Map.update!(c, :port1, &(&1 + 1))}
-                  {:port, p} -> {Map.put(pm, path, p), Map.update!(c, :other_port, &(&1 + 1))}
-                  :ditto -> {Map.put(pm, path, 1), Map.update!(c, :ditto, &(&1 + 1))}
-                  :absent -> {pm, Map.update!(c, :absent, &(&1 + 1))}
+                case SubjectResolver.resolve(meta.players,
+                       subject_character: want_id,
+                       ditto_tie_break: :port1
+                     ) do
+                  {:ok, %{subject_port: p, provenance: :character_tie_break}} ->
+                    {Map.put(pm, path, p), Map.update!(c, :ditto, &(&1 + 1))}
+
+                  {:ok, %{subject_port: 1}} ->
+                    {Map.put(pm, path, 1), Map.update!(c, :port1, &(&1 + 1))}
+
+                  {:ok, %{subject_port: p}} ->
+                    {Map.put(pm, path, p), Map.update!(c, :other_port, &(&1 + 1))}
+
+                  {:error, _} ->
+                    {pm, Map.update!(c, :absent, &(&1 + 1))}
                 end
 
               _ ->

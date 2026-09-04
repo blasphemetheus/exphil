@@ -138,7 +138,17 @@ results =
                 # candidate pair instead; the matcher assigns 2-way later.
                 tag = FilenameTags.subject_tag(path, subject_display)
                 candidates = if length(subjects) > 1, do: FilenameTags.parse(path) |> Enum.map(&elem(&1, 0)) |> Enum.reject(&is_nil/1), else: []
-                [%{path: path, tag: tag, port: port, ditto: length(subjects) > 1, candidates: candidates, features: fp}]
+
+                # Session context for the entity model (STYLE_IDENTITY.md):
+                # at locals, timestamp adjacency on a setup is strong
+                # same-player evidence. File mtime ~ game time there.
+                recorded_at =
+                  case File.stat(path) do
+                    {:ok, %{mtime: erl}} -> erl |> NaiveDateTime.from_erl!() |> NaiveDateTime.to_iso8601()
+                    _ -> nil
+                  end
+
+                [%{path: path, tag: tag, port: port, ditto: length(subjects) > 1, candidates: candidates, recorded_at: recorded_at, features: fp}]
               else
                 _ -> []
               end

@@ -91,6 +91,36 @@ defmodule ExPhil.Interp.StyleFingerprint do
   @spec vector(%{atom() => float()}) :: [float()]
   def vector(fp), do: Enum.map(keys(), &Map.get(fp, &1, 0.0))
 
+  @doc """
+  The CHARACTER-INVARIANT feature subset: controller micro-mechanics
+  that travel with the person, not the character (your hands don't
+  change when you switch to Falco). Used to LINK entities across
+  characters (same tag on different characters — STYLE_IDENTITY.md);
+  the full `keys/0` set is for within-character clustering.
+  """
+  @spec invariant_keys() :: [atom()]
+  def invariant_keys do
+    Enum.map(@buttons, &:"press_#{&1}_per_min") ++
+      [:jump_x_ratio, :cstick_active_frac, :lightshield_frac, :press_interval_mean, :press_interval_cv] ++
+      Enum.map(0..8, &:"stick_cell_#{&1}")
+  end
+
+  @doc """
+  Distance restricted to the character-invariant subset — the
+  cross-character linking metric.
+  """
+  @spec invariant_distance(%{atom() => float()}, %{atom() => float()}) :: float()
+  def invariant_distance(fp_a, fp_b) do
+    ks = invariant_keys()
+    a = Enum.map(ks, &compress(Map.get(fp_a, &1, 0.0)))
+    b = Enum.map(ks, &compress(Map.get(fp_b, &1, 0.0)))
+
+    Enum.zip(a, b)
+    |> Enum.map(fn {x, y} -> (x - y) * (x - y) end)
+    |> Enum.sum()
+    |> :math.sqrt()
+  end
+
   @doc "The canonical feature order for `vector/1`."
   @spec keys() :: [atom()]
   def keys do
