@@ -20,9 +20,43 @@ Mamba's parallel scan; or plateau far below slippi-ai parity).
       pipeline migrated). **The law: ports exist only at the parse
       boundary; everything downstream speaks subject/opponent.**
 
+## Throughput verdict (09-04 profiling session — REPLACES the fused-kernel priority)
+
+The "~3.3k frames/s, 5 days/epoch, sequential unroll dominates" premise
+was FALSIFIED by stage profiling (`EXPHIL_BPTT_PROFILE=1`, GOTCHA #112):
+
+- The jitted train step (fwd+bwd+optimizer, AR heads, Axon-unrolled
+  GRU) was only **18.6ms** at B=128 T=80. The isolated carry backbone
+  value_and_grad is 22.7ms (~450k frames/s) — the unroll was never the
+  bottleneck.
+- **98.5% of each step (1.9s)** was `TrajectoryCursors.next_batch`
+  slicing the chunk embedding at 128 varying offsets — eager EXLA
+  compiles one executable per distinct slice start (recompiles every
+  batch). Fixed with one `Nx.take` gather (offsets as runtime data):
+  0.4ms/step, ~60x whole-step speedup, loss trajectory identical
+  (val 8.1083 vs 8.1088, seed 905, 200-file probe).
+- Post-fix steady state: **~30ms/step ≈ 337k supervised frames/s**.
+  New epoch-wall dominator: per-chunk parse+embed (~110s per 184-file
+  chunk; steps for that chunk total ~6s). Full-fox-corpus epoch ≈
+  ~1.3h, not 5 days.
+- **Next throughput lever = chunk prep, not kernels**: overlap
+  parse+embed of chunk k+1 with training on chunk k (ChunkPipeline
+  does this for the windowed path; the bptt branch bypasses it), or
+  cache embedded chunks (disk-size math needed at full corpus).
+  The fused-GRU-h0 CUDA work (bhn operand + h0 threading + H>256 fix,
+  landed in edifice 09-04) is now a LATER optimization — it can only
+  shave part of ~19ms/step; the custom-call tier also still needs the
+  EXLA-fork defimpl + kernel link to exist at all (native_impl? is
+  false — every "fused" scan in a defn silently runs the pure-Nx
+  fallback; the Mamba trigger's "parallel scan" advantage is measured,
+  see below).
+
 ## Open (ordered)
-1. **v1.5 shakeout readout** (running): stability + steps/sec at batch
-   128 -> the v2 wall-clock budget; carry-threaded val descending.
+1. **v1.5 shakeout readout** (relaunch post-fix): stability + steps/sec
+   at batch 128 -> the v2 wall-clock budget; carry-threaded val
+   descending.
+1b. **BPTT chunk prep overlap/cache** (the actual throughput lever —
+   see verdict above).
 2. **Corpus quality-filter + dedupe pass** (slippi-ai filter list:
    1v1 human, 8-min timer, >=1 min, >=100 dmg, has-winner, physical
    sanity) + **dedupe by CONTENT HASH** (games can appear under both

@@ -3907,3 +3907,24 @@ listing, never a batch-dir sample; (2) budget 2x the payload for the
 xet cache, or set HF_XET_CACHE somewhere roomy and delete it after;
 (3) never leave a bulk download unattended on the same filesystem a
 training run checkpoints to without a hard cap.**
+
+## 112
+
+**Eager EXLA ops with tensor-shape-changing or offset CONSTANTS
+(e.g. `Nx.slice_along_axis` with a varying `start`) compile ONE XLA
+executable PER DISTINCT CONSTANT — a per-step batch assembler that
+slices at 128 different offsets recompiles 128 programs every batch**
+(2026-09-04). This was the entire BPTT throughput mystery: measured
+1.9s/step of which 98.5% was `states_slice_stack` in
+`TrajectoryCursors.next_batch` (the jitted fwd+bwd+optimizer step was
+18.6ms); throughput was flat in batch size because the cost was
+host-driven compile/dispatch, not GPU FLOPs — which mimicked
+"sequential unroll dominates" and nearly sent us to write CUDA
+kernels. Fix: make offsets runtime DATA — one `Nx.take` gather with an
+index tensor (`starts ⊕ iota`), one cached executable forever
+(~100x). **Rule: in any per-step hot path, eager Nx ops may only vary
+in tensor CONTENTS, never in shapes, slice starts, or other baked
+attributes; and profile the training LOOP before profiling the
+GRAPH — `EXPHIL_BPTT_PROFILE=1` now exists for exactly this
+(`ExPhil.Training.BpttProf`, stages in TrajectoryCursors + the bptt
+train loop).**

@@ -146,18 +146,39 @@ defmodule ExPhil.Training.TrajectoryCursors do
       {cursors, queue, resets} ->
         starts = Enum.map(cursors, fn c -> c.start + c.off end)
 
+        # One gather instead of batch_size slices + stack: eager EXLA
+        # bakes slice START offsets into the compiled executable, so
+        # per-row slicing recompiled XLA programs every batch (measured
+        # 1.9s/batch = 98.5% of step time, 2026-09-04 bptt-prof).
+        # Gather indices are runtime DATA — one cached executable.
         states =
-          starts
-          |> Enum.map(&Nx.slice_along_axis(embedded, &1, unroll, axis: 0))
-          |> Nx.stack()
+          prof(:states_gather, fn ->
+            embed_dim = Nx.axis_size(embedded, 1)
 
-        states = if gpu, do: Nx.backend_transfer(states, EXLA.Backend), else: states
+            idx =
+              starts
+              |> Nx.tensor(type: :s32)
+              |> Nx.reshape({batch_size, 1})
+              |> Nx.add(Nx.iota({1, unroll}, type: :s32))
+              |> Nx.reshape({batch_size * unroll})
+
+            embedded
+            |> Nx.take(idx)
+            |> Nx.reshape({batch_size, unroll, embed_dim})
+          end)
+
+        states =
+          prof(:states_transfer, fn ->
+            if gpu, do: Nx.backend_transfer(states, EXLA.Backend), else: states
+          end)
 
         # Per-timestep actions, row-major [b0t0, b0t1, ..., b1t0, ...]
         flat_actions =
-          Enum.flat_map(starts, fn s ->
-            Enum.map(s..(s + unroll - 1), fn idx ->
-              Data.frame_action(:array.get(idx, frames_array))
+          prof(:actions_extract, fn ->
+            Enum.flat_map(starts, fn s ->
+              Enum.map(s..(s + unroll - 1), fn idx ->
+                Data.frame_action(:array.get(idx, frames_array))
+              end)
             end)
           end)
 
@@ -165,36 +186,42 @@ defmodule ExPhil.Training.TrajectoryCursors do
         # (for t=0 of a chunk mid-segment this reaches the true previous
         # frame; at a segment start there is none -> nil).
         flat_prev =
-          Enum.flat_map(Enum.zip(starts, cursors), fn {s, c} ->
-            Enum.map(s..(s + unroll - 1), fn idx ->
-              if idx > c.start do
-                Data.frame_action(:array.get(idx - 1, frames_array))
-              else
-                nil
-              end
+          prof(:prev_extract, fn ->
+            Enum.flat_map(Enum.zip(starts, cursors), fn {s, c} ->
+              Enum.map(s..(s + unroll - 1), fn idx ->
+                if idx > c.start do
+                  Data.frame_action(:array.get(idx - 1, frames_array))
+                else
+                  nil
+                end
+              end)
             end)
           end)
 
         weights =
-          flat_actions
-          |> Data.compute_frame_weights(
-            neutral_weight: neutral_w,
-            transition_weight: transition_w,
-            prev_actions: if(transition_w, do: flat_prev)
-          )
-          |> Nx.reshape({batch_size, unroll})
+          prof(:frame_weights, fn ->
+            flat_actions
+            |> Data.compute_frame_weights(
+              neutral_weight: neutral_w,
+              transition_weight: transition_w,
+              prev_actions: if(transition_w, do: flat_prev)
+            )
+            |> Nx.reshape({batch_size, unroll})
+          end)
 
         targets =
-          flat_actions
-          |> Data.actions_to_tensors()
-          |> Map.new(fn {head, t} ->
-            new_shape =
-              case Nx.shape(t) do
-                {_n} -> {batch_size, unroll}
-                {_n, k} -> {batch_size, unroll, k}
-              end
+          prof(:targets_tensorize, fn ->
+            flat_actions
+            |> Data.actions_to_tensors()
+            |> Map.new(fn {head, t} ->
+              new_shape =
+                case Nx.shape(t) do
+                  {_n} -> {batch_size, unroll}
+                  {_n, k} -> {batch_size, unroll, k}
+                end
 
-            {head, Nx.reshape(t, new_shape)}
+              {head, Nx.reshape(t, new_shape)}
+            end)
           end)
 
         batch = %{
@@ -235,6 +262,19 @@ defmodule ExPhil.Training.TrajectoryCursors do
       :exhausted
     else
       {Enum.reverse(rev_cursors), queue, Enum.reverse(rev_resets)}
+    end
+  end
+
+  # -- lightweight stage profiling (EXPHIL_BPTT_PROFILE=1) -------------------
+  # Accumulates per-stage wall time in the consumer's process dictionary
+  # (Stream.resource runs in the consuming process, same as the train
+  # loop, so ProfReport.report/1 called there sees these totals).
+
+  defp prof(key, fun) do
+    if ExPhil.Training.BpttProf.enabled?() do
+      ExPhil.Training.BpttProf.time(key, fun)
+    else
+      fun.()
     end
   end
 

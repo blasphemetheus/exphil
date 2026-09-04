@@ -10,6 +10,12 @@ defmodule ExPhil.Training.Callbacks.ProgressBar do
 
   alias ExPhil.Training.{Output, GPUUtils}
 
+  # Rolling-rate window: slide the anchor every N batches so s/it and
+  # ETA reflect the last ~N-2N batches, not the epoch-cumulative average
+  # (which bakes in chunk parse/embed + JIT before step 1 — observed
+  # reporting "1.77s/it" while steady-state steps were 30ms, 09-04).
+  @rate_window 100
+
   @impl true
   def init(opts) do
     %{
@@ -18,7 +24,12 @@ defmodule ExPhil.Training.Callbacks.ProgressBar do
       epoch_start_ms: nil,
       num_batches: 0,
       time_estimate_shown: false,
-      first_batch_ms: nil
+      first_batch_ms: nil,
+      # {batch_idx, ms} anchors: rate is measured from prev_anchor (or
+      # cur_anchor before the first slide). cur_anchor is set at batch 1
+      # so batch 0 (JIT compile + first chunk prep) never pollutes it.
+      cur_anchor: nil,
+      prev_anchor: nil
     }
   end
 
@@ -32,9 +43,34 @@ defmodule ExPhil.Training.Callbacks.ProgressBar do
     cb = %{cb |
       epoch_start_ms: System.monotonic_time(:millisecond),
       smoothed_loss: nil,
-      num_batches: state.pipeline.estimated_batches
+      num_batches: state.pipeline.estimated_batches,
+      cur_anchor: nil,
+      prev_anchor: nil
     }
     {:cont, state, cb}
+  end
+
+  # Windowed batch rate in ms/batch, nil until 2+ post-JIT batches exist.
+  defp windowed_rate(cb, batch_idx, now_ms) do
+    case {cb.prev_anchor, cb.cur_anchor} do
+      {{a_idx, a_ms}, _} when batch_idx > a_idx -> (now_ms - a_ms) / (batch_idx - a_idx)
+      {nil, {a_idx, a_ms}} when batch_idx > a_idx -> (now_ms - a_ms) / (batch_idx - a_idx)
+      _ -> nil
+    end
+  end
+
+  defp update_anchors(cb, batch_idx, now_ms) do
+    cond do
+      # First anchor at batch 1: batch 0 carries JIT + first-chunk prep.
+      cb.cur_anchor == nil and batch_idx >= 1 ->
+        %{cb | cur_anchor: {batch_idx, now_ms}}
+
+      match?({idx, _} when batch_idx - idx >= @rate_window, cb.cur_anchor) ->
+        %{cb | prev_anchor: cb.cur_anchor, cur_anchor: {batch_idx, now_ms}}
+
+      true ->
+        cb
+    end
   end
 
   @impl true
@@ -50,14 +86,15 @@ defmodule ExPhil.Training.Callbacks.ProgressBar do
         true -> 0.1 * loss + 0.9 * cb.smoothed_loss
       end
 
+    now_ms = System.monotonic_time(:millisecond)
     cb = %{cb | smoothed_loss: smoothed}
+    cb = update_anchors(cb, batch_idx, now_ms)
 
-    # Show time estimate after a few real batches (skip JIT batch 0)
+    # Show time estimate after a few real batches (windowed rate — the
+    # epoch-cumulative average bakes in chunk prep + JIT before step 1)
     cb =
       if batch_idx == 100 and not cb.time_estimate_shown do
-        elapsed_ms = System.monotonic_time(:millisecond) - cb.epoch_start_ms
-        # Subtract approximate JIT time (batch 0), use remaining for estimate
-        batch_ms = elapsed_ms / (batch_idx + 1)
+        batch_ms = windowed_rate(cb, batch_idx, now_ms) || (now_ms - cb.epoch_start_ms) / (batch_idx + 1)
         total_batches = cb.num_batches * state.epochs
         train_ms = total_batches * batch_ms
         # Validation adds ~30% overhead per epoch
@@ -66,7 +103,7 @@ defmodule ExPhil.Training.Callbacks.ProgressBar do
         mins = div(rem(total_est, 3600), 60)
 
         est_str = if hours > 0, do: "~#{hours}h #{mins}m", else: "~#{mins}m"
-        Output.puts("\n  Estimated total training time: #{est_str}")
+        Output.puts("\n  Estimated training time (batch-rate only, excludes per-chunk parse/embed): #{est_str}")
 
         %{cb | time_estimate_shown: true, first_batch_ms: batch_ms}
       else
@@ -75,8 +112,8 @@ defmodule ExPhil.Training.Callbacks.ProgressBar do
 
     # Display progress at interval
     if rem(batch_idx, cb.log_interval) == 0 and is_number(smoothed) do
-      elapsed_ms = System.monotonic_time(:millisecond) - cb.epoch_start_ms
-      avg_ms = elapsed_ms / max(batch_idx + 1, 1)
+      elapsed_ms = now_ms - cb.epoch_start_ms
+      avg_ms = windowed_rate(cb, batch_idx, now_ms) || elapsed_ms / max(batch_idx + 1, 1)
       num_batches = max(cb.num_batches, batch_idx + 1)
       pct = min(round((batch_idx + 1) / num_batches * 100), 100)
       remaining = max(num_batches - (batch_idx + 1), 0)

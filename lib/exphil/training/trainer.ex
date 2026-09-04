@@ -310,11 +310,24 @@ defmodule ExPhil.Training.Trainer do
     batch_size = cfg[:batch_size] || 256
     zero_carry = Nx.broadcast(0.0, {batch_size, cfg[:num_layers] || 2, cfg[:hidden_size] || 256})
 
+    alias ExPhil.Training.BpttProf
+
     batch_stream
     |> Enum.reduce_while({state, callbacks, zero_carry}, fn batch, {st, cbs, carry} ->
-      {new_trainer, metrics, new_carry} = TrainLoop.train_step_bptt(st.trainer, batch, carry)
-      loss = Nx.to_number(metrics.loss)
+      {new_trainer, metrics, new_carry} =
+        if BpttProf.enabled?(),
+          do: BpttProf.time(:train_step, fn -> TrainLoop.train_step_bptt(st.trainer, batch, carry) end),
+          else: TrainLoop.train_step_bptt(st.trainer, batch, carry)
+
+      loss =
+        if BpttProf.enabled?(),
+          do: BpttProf.time(:loss_sync, fn -> Nx.to_number(metrics.loss) end),
+          else: Nx.to_number(metrics.loss)
+
       batch_idx = st.batch_idx
+
+      if BpttProf.enabled?() and batch_idx > 0 and rem(batch_idx, 20) == 0,
+        do: BpttProf.report("step #{batch_idx}")
 
       check_nan!(loss, batch_idx, st)
 
