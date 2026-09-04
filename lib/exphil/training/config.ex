@@ -193,6 +193,9 @@ defmodule ExPhil.Training.Config do
     "--expand-factor",
     "--conv-size",
     "--truncate-bptt",
+    "--bptt",
+    "--unroll",
+    "--bptt-overlap",
     "--precision",
     "--mixed-precision",
     "--frame-delay",
@@ -574,6 +577,11 @@ defmodule ExPhil.Training.Config do
       # Falls back to CPU if CUDA unavailable (slower than Pure Nx due to copy overhead)
       flash_attention_nif: false,
       truncate_bptt: nil,
+      # Contiguous-BPTT training (BPTT_LOADER_DESIGN.md): cursors walk
+      # replays in order, GRU carry flows across chunks, per-timestep loss
+      bptt: false,
+      unroll: 80,
+      bptt_overlap: 1,
       # FP32 is default - benchmarks show BF16 is 2x SLOWER on RTX 4090 due to
       # XLA issues: dimension misalignment (287 dims not divisible by 16),
       # type casting overhead, and fallback to FP32 kernels internally.

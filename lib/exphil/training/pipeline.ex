@@ -993,6 +993,29 @@ defmodule ExPhil.Training.Pipeline do
     ]
 
     stream =
+      if ropts[:bptt] do
+        # Contiguous-BPTT (BPTT_LOADER_DESIGN.md plank B wiring): per chunk,
+        # cursors walk each replay in order and emit per-timestep batches;
+        # the trainer threads the GRU carry across them (chunk boundaries
+        # reset every row via is_resetting — those are real game starts).
+        # Needs >= batch_size usable segments per chunk: use stream chunks
+        # of >= batch_size files (TrajectoryCursors raises otherwise).
+        pipeline.file_chunks
+        |> Stream.flat_map(fn chunk ->
+          {:ok, chunk_frames, _errors} = Streaming.parse_chunk(chunk, chunk_opts)
+          chunk_dataset = Streaming.create_dataset(chunk_frames, dataset_opts)
+
+          ExPhil.Training.TrajectoryCursors.batch_stream(chunk_dataset,
+            batch_size: ropts[:batch_size] || 32,
+            unroll: ropts[:unroll] || 80,
+            overlap: ropts[:bptt_overlap] || 1,
+            seed: ropts[:seed] || 42,
+            neutral_weight: Keyword.get(ropts, :neutral_weight, 0.25),
+            transition_weight: ropts[:transition_weight],
+            gpu: true
+          )
+        end)
+      else
       if ropts[:pipeline_chunks] and not awbc? do
         # Pipelined: parse chunk N+1 while training on chunk N.
         # stream_batches (NOT stream_prepared_chunks, which yields
@@ -1044,6 +1067,7 @@ defmodule ExPhil.Training.Pipeline do
             )
           end
         end)
+      end
       end
 
     # Curriculum mix in STREAMING mode (09-02, the drill-AWBC arm): the

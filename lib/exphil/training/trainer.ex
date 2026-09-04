@@ -290,8 +290,53 @@ defmodule ExPhil.Training.Trainer do
       end
       train_epoch_accumulated(state, batch_stream, callbacks, accumulation_steps)
     else
-      train_epoch_standard(state, batch_stream, callbacks)
+      if state.trainer.config[:bptt] do
+        train_epoch_bptt(state, batch_stream, callbacks)
+      else
+        train_epoch_standard(state, batch_stream, callbacks)
+      end
     end
+  end
+
+  # Contiguous-BPTT epoch (BPTT_LOADER_DESIGN.md plank C): identical to the
+  # standard epoch except the GRU carry threads through the reduce —
+  # chunk k's final hidden is chunk k+1's initial hidden, with per-row
+  # zero-reset handled inside train_step_bptt via batch.is_resetting.
+  # Carry starts as zeros each epoch (every cursor row begins a fresh game).
+  defp train_epoch_bptt(state, batch_stream, callbacks) do
+    alias ExPhil.Training.Imitation.TrainLoop
+
+    cfg = state.trainer.config
+    batch_size = cfg[:batch_size] || 256
+    zero_carry = Nx.broadcast(0.0, {batch_size, cfg[:num_layers] || 2, cfg[:hidden_size] || 256})
+
+    batch_stream
+    |> Enum.reduce_while({state, callbacks, zero_carry}, fn batch, {st, cbs, carry} ->
+      {new_trainer, metrics, new_carry} = TrainLoop.train_step_bptt(st.trainer, batch, carry)
+      loss = Nx.to_number(metrics.loss)
+      batch_idx = st.batch_idx
+
+      check_nan!(loss, batch_idx, st)
+
+      st = %{st |
+        trainer: new_trainer,
+        step: st.step + 1,
+        batch_idx: batch_idx + 1,
+        batch_metrics: %{loss: loss},
+        epoch_losses: [loss | st.epoch_losses]
+      }
+
+      st = Callback.increment_event_count(st, :on_batch_end)
+      {result, st, cbs} = Callback.run(cbs, :on_batch_end, st)
+      if rem(batch_idx, 100) == 0, do: :erlang.garbage_collect()
+
+      case result do
+        :halt_epoch -> {:halt, {st, cbs, new_carry}}
+        :halt -> {:halt, {st, cbs, new_carry}}
+        :cont -> {:cont, {st, cbs, new_carry}}
+      end
+    end)
+    |> then(fn {st, cbs, _carry} -> {st, cbs} end)
   end
 
   defp train_epoch_standard(state, batch_stream, callbacks) do

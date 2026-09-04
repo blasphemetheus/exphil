@@ -250,8 +250,40 @@ defmodule ExPhil.Training.Imitation do
       raise ArgumentError, "head: :autoregressive requires temporal: true"
     end
 
-    # Build policy model - temporal or regular
+    # Contiguous-BPTT mode guards (BPTT_LOADER_DESIGN.md): the carry path
+    # supports exactly the fox_gen-class recipe — temporal GRU, plain or AR
+    # head, full precision, no self-sampling/probe variants.
+    if config[:bptt] do
+      unless config.temporal, do: raise(ArgumentError, "bptt requires temporal: true")
+
+      if config.backbone != :gru,
+        do: raise(ArgumentError, "bptt supports backbone: :gru only (got #{inspect(config.backbone)})")
+
+      if config[:mixed_precision],
+        do: raise(ArgumentError, "bptt does not support mixed_precision")
+
+      if (config[:scheduled_sampling] || 0.0) > 0.0,
+        do: raise(ArgumentError, "bptt does not support scheduled_sampling")
+
+      if (config[:probe_reg_weight] || 0.0) > 0.0,
+        do: raise(ArgumentError, "bptt does not support probe_reg_weight")
+    end
+
+    # Build policy model - bptt, temporal, or regular
     policy_model =
+      if config[:bptt] do
+        Policy.build_temporal_bptt(
+          head: head,
+          embed_size: embed_size,
+          backbone: config.backbone,
+          window_size: config[:unroll] || 80,
+          hidden_size: config.hidden_size,
+          num_layers: config.num_layers,
+          dropout: config.dropout,
+          axis_buckets: config.axis_buckets,
+          shoulder_buckets: config.shoulder_buckets
+        )
+      else
       if config.temporal do
         Policy.build_temporal(
           head: head,
@@ -294,6 +326,7 @@ defmodule ExPhil.Training.Imitation do
           layer_norm: config.layer_norm
         )
       end
+      end
 
     # Apply mixed precision policy if precision is bf16
     # Uses Axon.MixedPrecision: params stay f32, compute in bf16, output f32
@@ -331,13 +364,35 @@ defmodule ExPhil.Training.Imitation do
 
     # AR head: the model has teacher-forced component inputs too
     init_template =
-      if head == :autoregressive do
-        Map.merge(
-          %{"state_sequence" => Nx.template(input_shape, init_precision)},
-          ExPhil.Networks.Policy.Heads.tf_templates(1)
-        )
-      else
-        Nx.template(input_shape, init_precision)
+      cond do
+        config[:bptt] ->
+          unroll = config[:unroll] || 80
+
+          base = %{
+            "state_sequence" => Nx.template({1, unroll, embed_size}, init_precision),
+            "initial_hidden" => Nx.template({1, config.num_layers, config.hidden_size}, :f32)
+          }
+
+          if head == :autoregressive do
+            Map.merge(base, %{
+              "tf_buttons" => Nx.template({1, unroll, 8}, :f32),
+              "tf_main_x" => Nx.template({1, unroll}, :s64),
+              "tf_main_y" => Nx.template({1, unroll}, :s64),
+              "tf_c_x" => Nx.template({1, unroll}, :s64),
+              "tf_c_y" => Nx.template({1, unroll}, :s64)
+            })
+          else
+            base
+          end
+
+        head == :autoregressive ->
+          Map.merge(
+            %{"state_sequence" => Nx.template(input_shape, init_precision)},
+            ExPhil.Networks.Policy.Heads.tf_templates(1)
+          )
+
+        true ->
+          Nx.template(input_shape, init_precision)
       end
 
     policy_params = init_fn.(init_template, Axon.ModelState.empty())
@@ -452,11 +507,16 @@ defmodule ExPhil.Training.Imitation do
 
     # Build compiled loss+grad function (avoids deep_backend_copy every batch)
     # This function is JITted once and reused for all training steps
-    loss_and_grad_fn = Loss.build_loss_and_grad_fn(predict_fn, loss_config)
+    loss_and_grad_fn =
+      if config[:bptt],
+        do: Loss.build_bptt_loss_and_grad_fn(predict_fn, loss_config),
+        else: Loss.build_loss_and_grad_fn(predict_fn, loss_config)
 
     # Build compiled eval loss function (for validation - no gradients needed)
     # JITted once and reused for all validation batches
-    eval_loss_fn = Loss.build_eval_loss_fn(predict_fn, config)
+    # (bptt: no eval fn yet — streaming mode has no val set; the val
+    # protocol under carried state is an open design item)
+    eval_loss_fn = if config[:bptt], do: nil, else: Loss.build_eval_loss_fn(predict_fn, config)
 
     %__MODULE__{
       policy_model: policy_model,

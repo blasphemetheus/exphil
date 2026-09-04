@@ -179,6 +179,9 @@ mix run scripts/train_from_replays.exs --dual-port
 | `--window-size N` | 60 | Frames per sequence |
 | `--stride N` | 1 | Step between sequences |
 | `--truncate-bptt N` | nil | Truncated backprop (faster training) |
+| `--bptt` | false | Contiguous-BPTT training: cursors walk replays in order, GRU carry flows across chunks, per-timestep loss (GRU only; see BPTT_LOADER_DESIGN.md) |
+| `--unroll N` | 80 | BPTT chunk length in frames (gradient truncation horizon) |
+| `--bptt-overlap N` | 1 | Frames shared between consecutive BPTT chunks (set to frame_delay + 1) |
 
 **Available backbones (15 total):**
 

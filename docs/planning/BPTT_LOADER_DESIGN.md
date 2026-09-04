@@ -37,18 +37,28 @@ live overnight):
 - `train_loop.ex` `train_step_bptt/3` — per-row zero-reset outside the
   graph, returns `{trainer, metrics, new_carry}`.
 
-REMAINING (needs compile feedback — do interactively when GPU frees):
-- `Imitation.new` bptt mode: build model via `build_temporal_bptt`,
-  input templates incl. `initial_hidden` + per-timestep tf shapes,
-  select `build_bptt_loss_and_grad_fn`.
-- `Trainer` epoch loop: hold carry in state, thread through
-  `train_step_bptt`, init zeros `{B, num_layers, hidden}` per epoch.
-- `Pipeline`: `--bptt`/`--unroll` flags (add to @valid_flags — GOTCHA
-  #108's abort guard now enforces this), per-chunk
-  `TrajectoryCursors.batch_stream`, stream chunks >= batch_size files.
-- Tests: model-shape test (logits {B,T,K} + hidden), loss-builder
-  smoke, then a 1-chunk training smoke on real data.
-- Val protocol under carried state.
+WIRING COMPLETE 09-04 (~12:45): `Imitation.new` bptt mode (guards,
+model build, templates, loss selection), `Trainer.train_epoch_bptt`
+(carry threaded through the reduce, zeros per epoch),
+`Pipeline` bptt stream branch (per-chunk TrajectoryCursors),
+`--bptt`/`--unroll`/`--bptt-overlap` flags (config+parser+TRAINING.md).
+VERIFIED: 6/6 end-to-end tests (both heads: finite loss, carry flows,
+params update, reset-masking semantics exact) + a real-data smoke run
+through train.exs (4 files -> checkpoint + policy export).
+
+STILL OPEN:
+- Val protocol under carried state (eval_loss_fn is nil in bptt mode;
+  streaming has no val set anyway — design before the first real run
+  readout needs it).
+- Inference-side: exported bptt policies share GRU/head param names
+  with the windowed model, and the agent already runs stateful
+  step-mode (`Edifice.Recurrent.init_state/step`) — but agent
+  init_state replicates the carryless RNG-key initial hidden, while
+  bptt trains from ZERO state. Verify/patch the agent to zero-init for
+  bptt-trained policies before any live look.
+- First real run: existing FOX corpus, batch ~64 (needs >= 64 segments
+  per chunk -> --stream-chunk-size >= 100 files is fine), unroll 80,
+  one knob vs w180b.
 
 Plank C/D implementation notes (from 09-03 evening reading):
 - The AR heads (networks/policy/heads.ex) are entirely `Axon.dense` +
