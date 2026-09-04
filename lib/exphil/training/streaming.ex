@@ -73,6 +73,10 @@ defmodule ExPhil.Training.Streaming do
     dual_port = Keyword.get(opts, :dual_port, false)
     frame_delay = Keyword.get(opts, :frame_delay, 0)
     show_progress = Keyword.get(opts, :show_progress, true)
+    # Name conditioning: the corpus is anonymized in-file ("Master Player"),
+    # so identity comes from the FILENAME bracket tags (FilenameTags).
+    # subject_character = the imitated player's display name ("Fox").
+    subject_character = Keyword.get(opts, :subject_character)
 
     if show_progress do
       Output.puts("    Parsing #{length(files)} files...")
@@ -121,6 +125,8 @@ defmodule ExPhil.Training.Streaming do
                     frame_delay: frame_delay
                   )
 
+                frames = maybe_filename_tags(frames, path, subject_character)
+
                 {:ok, path, length(frames), frames}
 
               {:error, reason} ->
@@ -143,6 +149,26 @@ defmodule ExPhil.Training.Streaming do
       end)
 
     {:ok, List.flatten(all_frames), Enum.reverse(errors)}
+  end
+
+  # Filename-derived identity (ExPhil.Data.FilenameTags): when the in-file
+  # netplay name is the anonymization placeholder, the bracket tag attached
+  # to the subject's character in the FILENAME is the only identity signal.
+  # No-op when subject_character is nil, the file has real in-file tags, or
+  # the filename is unparseable/ambiguous (frames keep their placeholder ->
+  # name_id 0, the anonymous bucket).
+  defp maybe_filename_tags(frames, _path, nil), do: frames
+  defp maybe_filename_tags([], _path, _subject), do: []
+
+  defp maybe_filename_tags([first | _] = frames, path, subject_character) do
+    if ExPhil.Data.FilenameTags.placeholder?(first[:player_tag]) do
+      case ExPhil.Data.FilenameTags.subject_tag(path, subject_character) do
+        nil -> frames
+        tag -> Enum.map(frames, &Map.put(&1, :player_tag, tag))
+      end
+    else
+      frames
+    end
   end
 
   # Opponent = first other port present in the frames (falls back to the

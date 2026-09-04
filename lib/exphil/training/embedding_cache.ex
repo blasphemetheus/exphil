@@ -113,6 +113,16 @@ defmodule ExPhil.Training.EmbeddingCache do
     # keys are byte-identical to pre-dropout keys (existing caches stay
     # valid). NOTE: a cached entry pins its mask — rerunning with the same
     # dropout reuses the same masked frames (use --no-cache for a fresh mask).
+    # Name/style conditioning changes the EMBEDDED BYTES (the 112-dim name
+    # one-hot is filled from the registry instead of id 0), so the registry
+    # mapping must be part of the key — otherwise a conditioned run silently
+    # cache-hits unconditioned embeddings (the #109/#107 trap class).
+    hash_input =
+      case Keyword.get(opts, :player_registry) do
+        %{tag_to_id: tag_to_id} -> Map.put(hash_input, :player_registry, Enum.sort(tag_to_id))
+        _ -> hash_input
+      end
+
     prev_action_dropout = Keyword.get(opts, :prev_action_dropout, 0.0)
 
     hash_input =

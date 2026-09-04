@@ -397,6 +397,59 @@ defmodule ExPhil.Training.Pipeline do
     # trained 288 wide while metadata claimed 296, 2026-08-25 pilot).
     embed_config = Embeddings.config(opts)
 
+    # Name/style conditioning in STREAMING mode (v2 plank b): build the
+    # tag->id registry from TRAIN files only (the bptt val holdout was
+    # already split off above — a val-only player must hash to the overflow
+    # bucket, not get its own id). The registry rides in
+    # streaming_dataset_opts -> Data.from_frames stamps per-frame :name_id
+    # -> precompute fills the 112-dim name one-hot the embedding has always
+    # reserved (id 0 = unconditioned). Saved beside checkpoints for
+    # inference (`--style-tag`/`--style-id`, agent.ex:417).
+    # Identity source is the FILENAME (bracket tags), not in-file metadata —
+    # the corpus's netplay names are all the "Master Player" placeholder
+    # (FilenameTags moduledoc). Registry from TRAIN files only; id 0 stays
+    # the anonymous bucket (untagged/hashed/ditto files).
+    subject_character =
+      case opts[:train_character] do
+        nil -> nil
+        char -> ExPhil.Training.Config.character_name(char)
+      end
+
+    player_registry =
+      if opts[:learn_player_styles] do
+        tags =
+          replay_files
+          |> Enum.map(fn
+            {path, _port} -> path
+            path -> path
+          end)
+          |> Enum.map(&ExPhil.Data.FilenameTags.subject_tag(&1, subject_character || ""))
+          |> Enum.reject(&is_nil/1)
+          |> Enum.uniq()
+
+        if tags == [] do
+          Output.warning(
+            "--learn-player-styles: no filename tags found in the corpus — " <>
+              "all frames will train as the anonymous bucket (id 0)"
+          )
+
+          nil
+        else
+          reg = ExPhil.Training.PlayerRegistry.from_tags(tags)
+          Output.puts("  player registry: #{ExPhil.Training.PlayerRegistry.size(reg)} filename tags")
+
+          if opts[:checkpoint] do
+            reg_path = String.replace_suffix(opts[:checkpoint], ".axon", "_players.json")
+            ExPhil.Training.PlayerRegistry.to_json(reg, reg_path)
+            Output.puts("  player registry saved to #{reg_path}")
+          end
+
+          reg
+        end
+      else
+        nil
+      end
+
     # Estimate batch count
     estimated = estimate_streaming_batches(replay_files, opts)
 
@@ -411,11 +464,11 @@ defmodule ExPhil.Training.Pipeline do
         chunk_opts =
           Keyword.take(opts, [
             :player_port, :dual_port, :frame_delay, :skip_errors, :show_errors, :port_map
-          ])
+          ]) ++ [subject_character: subject_character]
 
         dataset_opts =
           Keyword.take(opts, [:temporal, :window_size, :stride, :precompute, :lazy_sequences]) ++
-            [embed_config: embed_config]
+            [embed_config: embed_config, player_registry: player_registry]
 
         {:ok, val_frames, _errors} = Streaming.parse_chunk(bptt_val_files, chunk_opts)
         val_dataset = Streaming.create_dataset(val_frames, dataset_opts)
@@ -442,10 +495,10 @@ defmodule ExPhil.Training.Pipeline do
       file_chunks: file_chunks,
       streaming_chunk_opts: Keyword.take(opts, [
         :player_port, :dual_port, :frame_delay, :skip_errors, :show_errors, :port_map
-      ]),
+      ]) ++ [subject_character: subject_character],
       streaming_dataset_opts: Keyword.take(opts, [
         :temporal, :window_size, :stride, :precompute, :lazy_sequences
-      ]) ++ [embed_config: embed_config],
+      ]) ++ [embed_config: embed_config, player_registry: player_registry],
       val_batches: bptt_val_batches,
       character_weights: nil,
       augment_fn: nil,
