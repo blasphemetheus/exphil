@@ -60,7 +60,10 @@ variant_config = fn
   # and a smaller O(chunks^2) inter-chunk unroll (5 resp. 3 chunks)
   "mamba_2_c12" -> {:mamba_2, [chunk_size: 12, training_mode: true]}
   "mamba_2_c20" -> {:mamba_2, [chunk_size: 20, training_mode: true]}
-  other -> raise "unknown variant #{other} (mamba | mamba_2_seq | mamba_2_c8 | mamba_2_c12 | mamba_2_c20)"
+  # Any other backbone name from Config.backbone_defaults/1 runs with
+  # its defaults (2026-09-05 architecture profiling pass: gru, xlstm,
+  # mlp, ttt, retnet, ...). Imitation.new raises on true unknowns.
+  other -> {String.to_atom(other), []}
 end
 
 Output.banner("Train-step profile (real drill graph)")
@@ -116,6 +119,10 @@ results =
           embed_size: ExPhil.Embeddings.embedding_size(dataset.embed_config),
           temporal: true,
           backbone: backbone,
+          # Honor the backbone's real training precision (Imitation's own
+          # default is :bf16, but e.g. gru/mamba train :f32 in production
+          # — and the f32-only fused custom-call tier gates on it).
+          precision: bb[:precision] || :bf16,
           window_size: window,
           hidden_size: 256,
           num_layers: bb[:num_layers] || 2,
@@ -164,6 +171,11 @@ results =
     {full, tail} = Enum.split_with(batches, fn b -> Nx.axis_size(b.states, 0) == 64 end)
     Output.puts("#{vname}: #{length(full)} full batches + #{length(tail)} partial")
 
+    # Record which dispatch tier each fused-scan op takes during graph
+    # trace (custom_call vs nif vs pure-Nx fallback) — one record per
+    # compile, printed after the steady-state loop.
+    Edifice.CUDA.AutoTuneProfiler.start()
+
     # First step = XLA compile of the whole graph
     [b0 | _rest] = full
     {compile_ms, {trainer, _}} = time_ms.(fn ->
@@ -189,6 +201,9 @@ results =
 
     # Drop the 2 highest (stragglers/GC) then median
     step_ms = step_times |> Enum.sort() |> Enum.drop(-2) |> median.()
+
+    Edifice.CUDA.AutoTuneProfiler.report()
+    Edifice.CUDA.AutoTuneProfiler.stop()
 
     # Partial-tail batch (second compiled program)
     tail_ms =

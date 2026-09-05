@@ -51,6 +51,35 @@ was FALSIFIED by stage profiling (`EXPHIL_BPTT_PROFILE=1`, GOTCHA #112):
   fallback; the Mamba trigger's "parallel scan" advantage is measured,
   see below).
 
+## Architecture profiling pass (09-05, Bradley-directed; full data in
+## logs/profile_train_step_20260905*.json + session notes)
+
+Six backbones on the real train graph (w60/b64/h256, honest per-arch
+precision). Custom-call tier REVIVED (defimpl + kernels linked into the
+exla fork, opt-in via `EDIFICE_FUSED_CUSTOM_CALL=1`; f32-only; GRU fwd+
+bwd verified 2.8e-6 from f64 truth at H=512, selective_scan fwd+grads
+verified — `edifice test/edifice/cuda/fused_custom_call_gpu_test.exs`):
+
+| arch | step (flag on) | compile | verdict |
+|---|---|---|---|
+| mlp | 0.7ms | 4.5s | reference floor |
+| gru | 16.5ms (6.5 off) | 6.0s (41.5 off) | TRADE: kernel = 7x compile win, 2.5x step loss (64-block launch underfills 170 SMs). Flag ON for shakeouts/drills, OFF for long windowed runs. BPTT unaffected (carry backbone = Axon.gru). |
+| xlstm | 3.1ms | 36.6s | compile-bound; slstm kernel exists but xlstm.ex never calls it + its custom_grad unwired — DEFERRED |
+| mamba | 6.3ms (10.8 off) | 6.3s | PURE WIN — flag on always |
+| ttt | 5.5ms | 35.0s + 34s/shape | fused kernel dead code under defaults (`output_gate: true` gates it); unstable-arch class (lr 5e-7) |
+| retnet | 2.8ms | 10.0s | plain-Nx O(L²) decay matrix; cheap at w60; no work needed |
+
+Notable: the bf16 accident measured a third GRU config — custom-grad
+arm WITHOUT the kernel = 3.6ms step (best), but forfeits the compile
+win (the forward unroll is the compile cost). No free lunch; documented.
+
+**Recommendation for larger runs**: GRU stays the v2 seat (only
+BPTT-carry arch; kernel trade irrelevant there). Mamba = confirmed
+fallback with the flag on (6.3ms step, 6.3s compile, 8.9ms inference).
+retnet = surprise dark horse for windowed experiments (2.8ms/10s, zero
+custom kernels). xlstm/ttt not competitive on compile cost without
+further kernel work.
+
 ## Open (ordered)
 1. **v1.5 shakeout readout** (relaunch post-fix): stability + steps/sec
    at batch 128 -> the v2 wall-clock budget; carry-threaded val

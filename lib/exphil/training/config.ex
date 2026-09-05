@@ -435,6 +435,12 @@ defmodule ExPhil.Training.Config do
       :min_lstm ->
         [temporal: true, precision: :f32, dropout: 0.0, window_size: 60, num_layers: 2]
 
+      # xLSTM family had NO clause until 2026-09-05 (silently untuned —
+      # same class as the :mamba3/:retnet typo bugs above): they fell
+      # through to [] and ran without temporal/precision defaults.
+      backbone when backbone in [:xlstm, :xlstm_slstm, :xlstm_mlstm] ->
+        [temporal: true, precision: :f32, dropout: 0.1, window_size: 60, num_layers: 2]
+
       # Linear attention / gated (fast, GPU-friendly)
       :griffin ->
         [temporal: true, precision: :f32, dropout: 0.0, lr_schedule: :cosine_restarts,
