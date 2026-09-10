@@ -203,6 +203,9 @@ File.write!(
     expert: "multishine",
     exported_at: DateTime.utc_now() |> DateTime.to_iso8601(),
     action_delay: action_delay,
+    # INVARIANTS.md item 1: frames are causal pairs relabeled by the
+    # issued-input expert table; action_delay is REACTION delay.
+    label_convention: ExPhil.Data.LabelConvention.current(),
     frame_lists: snippets,
     # snippet-miner provenance (ignored by MixFrames, useful in forensics)
     event: "hitstun_in_cycle",

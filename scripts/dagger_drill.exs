@@ -101,6 +101,7 @@ alias ExPhil.Embeddings
       queue_depth: :integer,
       with_delay_id: :boolean,
       stage_internals: :boolean,
+      action_frame_buckets: :integer,
       multi_delay: :string,
       pipeline_offset: :integer,
       shift_jitter: :integer
@@ -620,7 +621,22 @@ snippet_frame_lists =
     # a wrong :prev_controller alignment corrupts training silently.
     case p |> File.read!() |> :erlang.binary_to_term() do
       %{frame_lists: lists} = payload ->
-        export_delay = payload[:action_delay] || 0
+        # INVARIANTS.md item 1 (2026-09-10): compare in REACTION terms, and
+        # refuse files mined before the causal rebase outright — their
+        # frames bake the OLD (landing-convention) expert-table labels, so
+        # even a matching number is one frame off after the shift.
+        alias ExPhil.Data.LabelConvention
+        export_delay = LabelConvention.reaction_delay(payload)
+
+        if LabelConvention.of(payload) == :producing do
+          Output.error(
+            "#{Path.basename(p)} predates the causal label rebase (no label_convention stamp): " <>
+              "its relabeled frames carry landing-convention expert labels and would train " <>
+              "one frame early. Re-mine with scripts/snippet_mine.exs --action-delay #{action_delay}."
+          )
+
+          unless opts[:allow_snippet_delay_mismatch], do: System.halt(1)
+        end
 
         if export_delay != action_delay do
           # FATAL since 2026-08-04 (GOTCHA #86): this was a warning, cycle
@@ -1344,14 +1360,20 @@ dataset =
       # it back (single source of truth for the channel layout).
       qd = opts[:queue_depth] || 1
 
-      if qd > 1 or opts[:with_delay_id] or opts[:stage_internals] do
+      afb = opts[:action_frame_buckets] || 0
+
+      if qd > 1 or opts[:with_delay_id] or opts[:stage_internals] or afb > 0 do
         %{
           ds
           | embed_config: %{
               ds.embed_config
               | queue_depth: qd,
                 with_delay_id: opts[:with_delay_id] || false,
-                stage_internals: opts[:stage_internals] || false
+                stage_internals: opts[:stage_internals] || false,
+                # --action-frame-buckets N (2026-09-10, ms_g21b): per-player
+                # one-hot action frame; the 1/60 scalar cannot separate
+                # reflector-open af0 (hold B) from af1+ (release).
+                player: %{ds.embed_config.player | action_frame_buckets: afb}
             }
         }
       else

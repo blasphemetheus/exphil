@@ -5,7 +5,9 @@ Thanks for your interest in contributing to ExPhil! This document covers the bas
 ## Development Setup
 
 ```bash
-# Clone the repo
+# Clone all three into the same parent directory
+git clone https://github.com/blasphemetheus/edifice.git
+git clone https://github.com/blasphemetheus/libmelee_ex.git
 git clone https://github.com/blasphemetheus/exphil.git
 cd exphil
 
@@ -28,13 +30,25 @@ mix test
 
 ### Companion Library
 
-ExPhil depends on [Edifice](https://github.com/blasphemetheus/edifice) for generic ML architectures. For local development, clone it alongside ExPhil:
+ExPhil currently defaults to local sibling dependencies for
+[Edifice](https://github.com/blasphemetheus/edifice) (generic ML architectures)
+and [libmelee_ex](https://github.com/blasphemetheus/libmelee_ex) (Dolphin integration):
 
 ```
 melee/
   exphil/    # This repo
   edifice/   # ML architecture library
+  libmelee_ex/ # Native game bridge
 ```
+
+Use `EDIFICE_PATH` and `LIBMELEE_EX_PATH` to select other local checkouts.
+Reproducible remote defaults and compatible locked revisions are tracked in
+[R4](docs/planning/REPO_IMPROVEMENTS.md#r4--dependencies-and-run-provenance);
+the commands above do not yet pin a validated cross-repository revision set.
+
+If training is active, use an independent development environment with separate
+source, dependencies, and build output. Shared native dependency rebuilds and
+source changes picked up by multi-stage launchers can disrupt training.
 
 ## Running Tests
 
@@ -45,7 +59,7 @@ mix test
 # Include slow tests
 mix test.slow
 
-# All tests including integration
+# Include slow, integration, and external tests (other exclusions remain)
 mix test.all
 
 # Run a specific test file
@@ -73,14 +87,14 @@ lib/exphil/
 
 - Follow standard Elixir conventions (`mix format` before committing)
 - Use `ExPhil.Training.Output` for all script output (timestamps, colors, progress bars)
-- New CLI flags must be added to `@valid_flags` in `config.ex` and documented in `docs/guides/TRAINING.md`
+- New training flags belong in the table in `lib/exphil/training/config/parser.ex`, with defaults and validation in Config. Accepted flags are derived from the table; regenerate the training flag reference with `ExPhil.Training.Config.FlagDocs.write!()` and run the flag parity tests.
 - See `CLAUDE.md` for detailed coding standards and patterns
 
 ## Adding a New Backbone Architecture
 
-1. Create a module in `lib/exphil/networks/` or use an existing Edifice architecture
-2. Register it in `lib/exphil/networks/backbone.ex`
-3. Add tests in `test/exphil/networks/`
+1. Implement generic architectures in Edifice or use an existing Edifice architecture
+2. Add the ExPhil defaults, build recipe, and output rule to `@backbone_specs` in `lib/exphil/training/config.ex`; bespoke adapters live in `lib/exphil/networks/policy/backbone.ex`
+3. Add tests in `test/exphil/networks/`, including the spec/registry contract where applicable
 4. Document in `docs/reference/architectures/`
 
 ## Submitting Changes

@@ -1,0 +1,25 @@
+name: Run Status Contracts
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  run-status:
+    name: Run status and watchdog contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Test launcher and watchdog
+        run: python3 -m unittest discover -s test/scripts -v
+      - name: Check shell syntax
+        run: bash -n scripts/train_watchdog.sh

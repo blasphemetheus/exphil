@@ -1,0 +1,1757 @@
+diff --git a/docs/guides/TRAINING.md b/docs/guides/TRAINING.md
+index c0353987..b75e8026 100644
+--- a/docs/guides/TRAINING.md
++++ b/docs/guides/TRAINING.md
+@@ -1528,13 +1528,14 @@ Regenerate: `mix run -e 'ExPhil.Training.Config.FlagDocs.write!()'`.
+ | `--bptt-overlap` | int | `1` | Frames shared between consecutive BPTT chunks (set to frame_delay + 1) |
+ | `--bptt-val-files` | int | `16` | Whole replays held out for the carry-threaded val pass (game-level split; val batch is capped at 8 rows) |
+ | `--mixed-precision` | flag | `false` | FP32 master weights + BF16 compute (not recommended) |
+-| `--frame-delay` | int | `0` | Reaction delay (frames) for the streaming/bptt path, ON TOP of the causal pairing Peppi emits (INVARIANTS.md item 1, GOTCHA #113). 0 = causal (the default). Live --frame-delay N plays reaction delay N-1, so a policy trained here at k deploys at N = k+1 (ExPhil.Data.LabelConvention). |
++| `--frame-delay` | int | `nil` | Training alias for --label-delay on every loader. Live Dolphin --frame-delay N remains reaction delay N-1. |
++| `--label-delay` | int | `nil` | Reaction delay on top of causal state[t]/controller[t+1] pairing. Defaults to 0 after resolution; standard, streaming, and BPTT loaders apply it once. CLI overrides YAML, preset, and resume values. Live Dolphin delay numbering is unchanged. |
+ | `--num-heads` | int | `4` | Number of attention heads (parsed since 2026-09-09 — it was accepted-and-ignored before, and Trainer's private 2/32 table won) |
+ | `--head-dim` | int | `64` | Attention head width |
+ | `--log-file` | string | `nil` | Tee script output to a file |
+-| `--frame-delay-augment` | flag | `false` | Enable frame delay augmentation |
+-| `--frame-delay-min` | int | `0` | Minimum reaction delay when augmenting (0 = causal) |
+-| `--frame-delay-max` | int | `18` | Maximum reaction delay when augmenting |
++| `--frame-delay-augment` | flag | `false` | Additional delay jitter on top of --label-delay; non-temporal standard loader only. Other loaders reject this flag. |
++| `--frame-delay-min` | int | `0` | Minimum additional delay jitter when augmenting |
++| `--frame-delay-max` | int | `18` | Maximum additional delay jitter when augmenting |
+ | `--stage-internals` | flag | `false` | Add FoD platform heights + PS transformation to the embedding (+7 raw dims, zero-gated by stage; W4 2026-08-24 stage-blindness verdict) |
+ | `--action-frame-buckets` | int | `0` | Bucketized action-frame one-hot per player: N dims, frames 0..N-2 individually, N-1 = at-or-beyond (0 = off, the historical scalar-only layout). The jab-chain lever (V2_PREP 7b): the 1/60 scalar could not carve the expert's frame-6 cliff. Layout key: stamped in the checkpoint, rebuilt by the Agent. Try 24. |
+ | `--early-stopping` | flag | `false` | Enable early stopping |
+@@ -1572,7 +1573,7 @@ Regenerate: `mix run -e 'ExPhil.Training.Config.FlagDocs.write!()'`.
+ | `--mix-corpus` | string | `nil` | Corpus-mode curriculum mixing: a snippet mini-corpus (`scripts/build_snippet_corpus.exs`, one corpus file per snippet so windows never cross snippet boundaries) whose batches are interleaved evenly into the `--corpus` training stream. Embed sizes must match. Mix files are all-train (val stays comparable to unmixed baselines). |
+ | `--mix-oversample` | int | `1` | Passes of the mix corpus interleaved per epoch. The mix is typically a tiny fraction of the main corpus — oversample to give corrections a meaningful gradient share (e.g. 20 ≈ a few percent for a 41M-frame corpus with ~15k mix frames). |
+ | `--per-stage-ledge` | flag | `false` | Task #25: use the real per-stage edge x (`Melee.Stages.edge_ground_position`) in the ledge-distance feature instead of the historical 85-everywhere constant (which reads "safe" at x=60 on YS when the player is offstage). Changes the embedding VALUES: existing checkpoints and corpora are calibrated to the constant, so this is for fresh v3-edge arms only, and corpus-mode training needs a corpus REBUILT with the same flag (recorded in corpus meta). |
+-| `--action-delay` | int | `0` | Reaction delay (frames) for the standard path, ON TOP of the causal pairing Peppi emits (state[t] -> the input issued from it). 0 = causal (the default); k pairs state[t] with the input issued k frames later. One concept with --frame-delay. Composes with --prev-action. |
++| `--action-delay` | int | `nil` | Training alias for --label-delay on every loader. Conflicting explicit aliases are rejected. |
+ | `--no-focal-loss` | neg flag | `true` | _(undocumented)_ |
+ | `--focal-gamma` | float | `3.0` | Focal loss gamma (higher = focus on hard) |
+ | `--button-weight` | float | `2.0` | Multiply button loss (fixes under-prediction) |
+diff --git a/lib/exphil/data/label_convention.ex b/lib/exphil/data/label_convention.ex
+index 5f546871..9fb68789 100644
+--- a/lib/exphil/data/label_convention.ex
++++ b/lib/exphil/data/label_convention.ex
+@@ -59,12 +59,19 @@ defmodule ExPhil.Data.LabelConvention do
+   Reaction delay of a config: frames between the observed state and the
+   frame the paired input was issued on. 0 = causal pairing, -1 = the
+   legacy leak. The streaming path's `frame_delay` and the standard path's
+-  `action_delay` are one concept; the larger wins (a config sets one).
++  `action_delay` are one concept. New configs store `label_delay` directly
++  in reaction terms. The larger legacy alias is retained only when reading
++  old artifacts without that canonical field.
+   """
+   @spec reaction_delay(map() | keyword() | nil) :: integer()
+   def reaction_delay(config) do
+-    d = max(int(fetch(config, :frame_delay)), int(fetch(config, :action_delay)))
+-    to_reaction(d, of(config))
++    case fetch(config, :label_delay) do
++      nil ->
++        delay = max(int(fetch(config, :frame_delay)), int(fetch(config, :action_delay)))
++        to_reaction(delay, of(config))
++      delay ->
++        int(delay)
++    end
+   end
+ 
+   @doc "A delay number in the given convention, expressed as reaction delay."
+diff --git a/lib/exphil/data/peppi.ex b/lib/exphil/data/peppi.ex
+index 4c7b0a31..8d5e62aa 100644
+--- a/lib/exphil/data/peppi.ex
++++ b/lib/exphil/data/peppi.ex
+@@ -444,18 +444,22 @@ defmodule ExPhil.Data.Peppi do
+     num_frames = length(frames)
+ 
+     delay..(num_frames - 1)
+-    |> Enum.map(fn t ->
++    |> Enum.flat_map(fn t ->
+       delayed = :array.get(t - delay, frame_array)
+       current = :array.get(t, frame_array)
+ 
+-      %{
+-        game_state: delayed.game_state,
+-        controller: current.controller,
+-        player_tag: current[:player_tag],
+-        frame_delay: delay,
+-        observed_frame: t - delay,
+-        action_frame: t
+-      }
++      if current.game_state.frame == delayed.game_state.frame + delay do
++        [%{
++          game_state: delayed.game_state,
++          controller: current.controller,
++          player_tag: current[:player_tag],
++          frame_delay: delay,
++          observed_frame: t - delay,
++          action_frame: t
++        }]
++      else
++        []
++      end
+     end)
+   end
+ 
+diff --git a/lib/exphil/training/callbacks/diagnostics.ex b/lib/exphil/training/callbacks/diagnostics.ex
+index 04a416af..c359b05d 100644
+--- a/lib/exphil/training/callbacks/diagnostics.ex
++++ b/lib/exphil/training/callbacks/diagnostics.ex
+@@ -7,6 +7,7 @@ defmodule ExPhil.Training.Callbacks.Diagnostics do
+   use ExPhil.Training.Callback
+ 
+   alias ExPhil.Training.Output
++  alias ExPhil.Evaluation.Forward
+ 
+   @impl true
+   def init(opts) do
+@@ -26,8 +27,8 @@ defmodule ExPhil.Training.Callbacks.Diagnostics do
+       if val_batches && length(val_batches) >= 1 do
+         batch = hd(val_batches)
+         try do
+-          {btn_logits, mx_logits, _, _, _, _} =
+-            state.trainer.predict_fn.(state.trainer.policy_params, batch.states)
++          {{btn_logits, mx_logits, _, _, _, _}, _actions, _evaluator} =
++            Forward.batch(Forward.from_trainer(state.trainer), batch)
+ 
+           # Check diversity — no per-index loops to avoid JIT recompilation
+           pred_buttons = Nx.greater(Nx.sigmoid(btn_logits), 0.5) |> Nx.as_type(:u8)
+@@ -97,10 +98,12 @@ defmodule ExPhil.Training.Callbacks.Diagnostics do
+           display_confidence_histogram(state.trainer, val_batches)
+ 
+           # Gradient norms (compact, always-on)
+-          run_gradient_diagnostics_compact(state.trainer, hd(val_batches))
++          unless state.trainer.config[:bptt] do
++            run_gradient_diagnostics_compact(state.trainer, hd(val_batches))
++          end
+ 
+           # Detailed gradient monitoring (verbose only — expensive)
+-          if cb.verbose or state.opts[:verbose] do
++          if state.trainer.config[:bptt] != true and (cb.verbose or state.opts[:verbose]) do
+             run_gradient_diagnostics(state.trainer, hd(val_batches))
+           end
+ 
+@@ -120,7 +123,14 @@ defmodule ExPhil.Training.Callbacks.Diagnostics do
+ 
+   # Returns {normalized_head_losses, diag_accumulator} for use by caller
+   defp run_diagnostics(trainer, val_batches) do
+-    sample = Enum.take(val_batches, 10)
++    sample =
++      trainer
++      |> Forward.from_trainer()
++      |> Forward.stream(Enum.take(val_batches, 10))
++      |> Enum.map(fn {logits, actions} -> %{logits: logits, actions: actions} end)
++
++    if trainer.config[:head] == :autoregressive,
++      do: Output.puts("  Diagnostics use teacher-forced component targets, not live samples")
+     button_names = ~w(A B X Y Z L R D-Up)
+ 
+     # Accumulate stats across sample batches
+@@ -146,7 +156,7 @@ defmodule ExPhil.Training.Callbacks.Diagnostics do
+ 
+     diag = Enum.reduce(sample, init_acc, fn batch, acc ->
+       {buttons_logits, mx_logits, my_logits, cx_logits, cy_logits, sh_logits} =
+-        trainer.predict_fn.(trainer.policy_params, batch.states)
++        batch.logits
+ 
+       batch_size = elem(Nx.shape(mx_logits), 0)
+ 
+@@ -370,15 +380,15 @@ defmodule ExPhil.Training.Callbacks.Diagnostics do
+     # Temporal consistency (only for temporal/sequence models)
+     # Measures prediction stability: for each pair of adjacent sequences in a batch
+     # (which overlap by window_size - stride frames), how often are predictions the same?
+-    if length(sample) >= 2 do
++    if length(sample) >= 2 and trainer.config[:bptt] != true do
+       try do
+         # Compare predictions on batch N vs batch N+1
+         consistencies =
+           sample
+           |> Enum.chunk_every(2, 1, :discard)
+           |> Enum.map(fn [b1, b2] ->
+-            {btn1, mx1, my1, _, _, _} = trainer.predict_fn.(trainer.policy_params, b1.states)
+-            {btn2, mx2, my2, _, _, _} = trainer.predict_fn.(trainer.policy_params, b2.states)
++            {btn1, mx1, my1, _, _, _} = b1.logits
++            {btn2, mx2, my2, _, _, _} = b2.logits
+ 
+             # Button agreement: same predicted buttons
+             p1 = Nx.greater(Nx.sigmoid(btn1), 0.5)
+@@ -469,8 +479,8 @@ defmodule ExPhil.Training.Callbacks.Diagnostics do
+     batch = hd(val_batches)
+ 
+     try do
+-      {btn_logits, mx_logits, _, _, _, _} =
+-        trainer.predict_fn.(trainer.policy_params, batch.states)
++      {{btn_logits, mx_logits, _, _, _, _}, _actions, _evaluator} =
++        Forward.batch(Forward.from_trainer(trainer), batch)
+ 
+       # Button confidence: max sigmoid probability per sample
+       btn_probs = Nx.sigmoid(btn_logits)
+diff --git a/lib/exphil/training/config.ex b/lib/exphil/training/config.ex
+index bd4ea06f..d7cb1940 100644
+--- a/lib/exphil/training/config.ex
++++ b/lib/exphil/training/config.ex
+@@ -1509,7 +1509,8 @@ defmodule ExPhil.Training.Config do
+       # causal pairing. The leaked pairing is unrepresentable since
+       # 2026-09-09 (ExPhil.Data.LabelConvention); live --frame-delay N
+       # plays reaction delay N-1.
+-      frame_delay: 0,
++      frame_delay: nil,
++      label_delay: nil,
+       # Stage internals in the embedding (FoD platform heights + PS
+       # transformation; W4 2026-08-24 stage-blindness verdict). +7 raw
+       # dims, zero-gated by stage. Enable with --stage-internals.
+@@ -1610,7 +1611,7 @@ defmodule ExPhil.Training.Config do
+       # adds action_delay frames of reaction delay on top of the causal
+       # pairing. 0 = causal. See frame_delay above; the two keys are one
+       # concept (FIXES.md P1).
+-      action_delay: 0,
++      action_delay: nil,
+       # Attention geometry (INVARIANTS.md item 2, 2026-09-09): these were
+       # absent here, so `--num-heads` was accepted-and-ignored and
+       # Trainer's private table (2/32) silently won over the documented
+@@ -1928,11 +1929,8 @@ defmodule ExPhil.Training.Config do
+   """
+   @spec load_with_yaml(String.t(), [String.t()]) :: {:ok, keyword()} | {:error, any()}
+   def load_with_yaml(yaml_path, cli_args) do
+-    with {:ok, yaml_opts} <- load_yaml(yaml_path),
+-         cli_opts <- parse_args(cli_args) do
+-      # CLI args override YAML config
+-      merged = Keyword.merge(yaml_opts, cli_opts)
+-      {:ok, merged}
++    with {:ok, _yaml_opts} <- load_yaml(yaml_path) do
++      {:ok, parse_args(["--config", yaml_path | cli_args])}
+     end
+   end
+ 
+@@ -2084,7 +2082,14 @@ defmodule ExPhil.Training.Config do
+   """
+   @spec validate(keyword()) :: {:ok, keyword()} | {:error, [String.t()]}
+   def validate(opts) do
+-    Validator.validate(opts, validation_context())
++    with {:ok, opts} <- Validator.validate(opts, validation_context()) do
++      try do
++        ExPhil.Training.LabelDelay.resolve!(opts)
++        {:ok, opts}
++      rescue
++        error in ArgumentError -> {:error, [Exception.message(error)]}
++      end
++    end
+   end
+ 
+   @doc """
+@@ -2106,7 +2111,9 @@ defmodule ExPhil.Training.Config do
+   """
+   @spec validate!(keyword()) :: keyword()
+   def validate!(opts) do
+-    Validator.validate!(opts, validation_context())
++    opts = Validator.validate!(opts, validation_context())
++    ExPhil.Training.LabelDelay.resolve!(opts)
++    opts
+   end
+ 
+   # Build the validation context with allowlists
+@@ -2185,23 +2192,25 @@ defmodule ExPhil.Training.Config do
+   @spec parse_args([String.t()]) :: keyword()
+   def parse_args(args) when is_list(args) do
+     # Check if config file is specified first
+-    base_opts =
++    yaml_opts =
+       if Parser.has_flag_value?(args, "--config") do
+         config_path = Parser.get_arg_value(args, "--config")
+ 
+         case load_yaml(config_path) do
+           {:ok, yaml_opts} ->
+             # Merge YAML opts on top of defaults
+-            Keyword.merge(defaults(), yaml_opts)
++            yaml_opts
+ 
+           {:error, reason} ->
+             IO.puts(:stderr, "Error loading config file: #{inspect(reason)}")
+             System.halt(1)
+         end
+       else
+-        defaults()
++        []
+       end
+ 
++    base_opts = Keyword.merge(defaults(), yaml_opts)
++
+     # Check if preset is specified - if so, use apply_preset flow
+     opts =
+       if Parser.has_flag_value?(args, "--preset") do
+@@ -2216,7 +2225,33 @@ defmodule ExPhil.Training.Config do
+     opts = apply_backbone_defaults(opts, args)
+ 
+     # Apply scale-dependent adjustments based on dataset size
+-    adjust_for_scale(opts, args)
++    preset_opts =
++      case Parser.get_arg_value(args, "--preset") do
++        nil -> []
++        name -> preset(name)
++      end
++
++    cli_opts = Parser.parse(args, [], parser_context())
++    layers = [preset_opts, yaml_opts, cli_opts]
++
++    resume_delay =
++      if opts[:resume] && File.regular?(opts[:resume]) &&
++           not Enum.any?(layers, &ExPhil.Training.LabelDelay.explicit?/1) do
++        case ExPhil.Training.Checkpoint.load(opts[:resume]) do
++          {:ok, checkpoint} ->
++            delay = ExPhil.Data.LabelConvention.reaction_delay(checkpoint.config)
++            if delay < 0,
++              do: raise(ArgumentError, "Resume checkpoint used leaked labels; explicitly choose a causal --label-delay")
++            [label_delay: delay]
++          {:error, reason} ->
++            raise ArgumentError, "Cannot read resume delay: #{inspect(reason)}"
++        end
++      else
++        []
++      end
++
++    delay_opts = ExPhil.Training.LabelDelay.merge_layers!([resume_delay | layers])
++    opts |> adjust_for_scale(args) |> Keyword.merge(delay_opts)
+   end
+ 
+   # Adjust defaults based on dataset scale (max_files).
+@@ -2542,6 +2577,7 @@ defmodule ExPhil.Training.Config do
+       batch_size: opts[:batch_size],
+       precision: to_string(opts[:precision]),
+       frame_delay: opts[:frame_delay],
++      label_delay: ExPhil.Training.LabelDelay.resolve!(opts)[:label_delay],
+       learning_rate: opts[:lr],
+       lr_schedule: opts[:lr_schedule] && to_string(opts[:lr_schedule]),
+       warmup_steps: opts[:warmup_steps],
+diff --git a/lib/exphil/training/config/flag_docs.ex b/lib/exphil/training/config/flag_docs.ex
+index eb85618c..c2d8a374 100644
+--- a/lib/exphil/training/config/flag_docs.ex
++++ b/lib/exphil/training/config/flag_docs.ex
+@@ -23,7 +23,8 @@ defmodule ExPhil.Training.Config.FlagDocs do
+ 
+   @docs %{
+     "--accumulation-steps" => "Gradient accumulation steps",
+-    "--action-delay" => "Reaction delay (frames) for the standard path, ON TOP of the causal pairing Peppi emits (state[t] -> the input issued from it). 0 = causal (the default); k pairs state[t] with the input issued k frames later. One concept with --frame-delay. Composes with --prev-action.",
++    "--action-delay" => "Training alias for --label-delay on every loader. Conflicting explicit aliases are rejected.",
++    "--label-delay" => "Reaction delay on top of causal state[t]/controller[t+1] pairing. Defaults to 0 after resolution; standard, streaming, and BPTT loaders apply it once. CLI overrides YAML, preset, and resume values. Live Dolphin delay numbering is unchanged.",
+     "--action-horizon" => "Action prediction horizon (for chunked policies)",
+     "--action-mode" => "Action embedding: one_hot (399 dims) or learned (64-dim trainable)",
+     "--attention-every" => "Add attention every N layers (hybrid)",
+@@ -70,10 +71,10 @@ defmodule ExPhil.Training.Config.FlagDocs do
+     "--flash-attention-nif" => "Use FlashAttention NIF for inference (forward-only, Ampere+ GPU)",
+     "--focal-gamma" => "Focal loss gamma (higher = focus on hard)",
+     "--focal-loss" => "Enable focal loss for rare actions",
+-    "--frame-delay" => "Reaction delay (frames) for the streaming/bptt path, ON TOP of the causal pairing Peppi emits (INVARIANTS.md item 1, GOTCHA #113). 0 = causal (the default). Live --frame-delay N plays reaction delay N-1, so a policy trained here at k deploys at N = k+1 (ExPhil.Data.LabelConvention).",
+-    "--frame-delay-augment" => "Enable frame delay augmentation",
+-    "--frame-delay-max" => "Maximum reaction delay when augmenting",
+-    "--frame-delay-min" => "Minimum reaction delay when augmenting (0 = causal)",
++    "--frame-delay" => "Training alias for --label-delay on every loader. Live Dolphin --frame-delay N remains reaction delay N-1.",
++    "--frame-delay-augment" => "Additional delay jitter on top of --label-delay; non-temporal standard loader only. Other loaders reject this flag.",
++    "--frame-delay-max" => "Maximum additional delay jitter when augmenting",
++    "--frame-delay-min" => "Minimum additional delay jitter when augmenting",
+     "--gae-lambda" => "GAE lambda for advantage estimation",
+     "--game-type" => "Game type: mock, dolphin, libmelee",
+     "--gc-every" => "Run garbage collection every N batches (0=disabled)",
+diff --git a/lib/exphil/training/config/parser.ex b/lib/exphil/training/config/parser.ex
+index 472abe00..cc7a35ba 100644
+--- a/lib/exphil/training/config/parser.ex
++++ b/lib/exphil/training/config/parser.ex
+@@ -324,6 +324,7 @@ defmodule ExPhil.Training.Config.Parser do
+     {"--bptt-val-files", :bptt_val_files, :int},
+     {"--mixed-precision", :mixed_precision, :flag},
+     {"--frame-delay", :frame_delay, :int},
++    {"--label-delay", :label_delay, :int},
+     {"--num-heads", :num_heads, :int},
+     {"--head-dim", :head_dim, :int},
+     {"--log-file", :log_file, :string},
+diff --git a/lib/exphil/training/imitation.ex b/lib/exphil/training/imitation.ex
+index 4ab8fd3a..a78d51e2 100644
+--- a/lib/exphil/training/imitation.ex
++++ b/lib/exphil/training/imitation.ex
+@@ -236,10 +236,13 @@ defmodule ExPhil.Training.Imitation do
+     # Build config — merge ALL opts into defaults (don't whitelist)
+     # Previously used Keyword.take which silently dropped unknown keys,
+     # causing entropy_weight and other new options to never reach the loss function
++    opts = ExPhil.Training.LabelDelay.resolve!(opts)
++
+     config =
+       @default_config
+       |> Map.merge(Map.new(opts))
+       |> Map.put(:embed_size, embed_size)
++      |> Map.put(:label_convention, ExPhil.Data.LabelConvention.current())
+ 
+     # Load K-means centers if path provided
+     config = load_kmeans_centers(config)
+diff --git a/lib/exphil/training/imitation/checkpoint.ex b/lib/exphil/training/imitation/checkpoint.ex
+index ecca7a12..5c3bed87 100644
+--- a/lib/exphil/training/imitation/checkpoint.ex
++++ b/lib/exphil/training/imitation/checkpoint.ex
+@@ -197,7 +197,7 @@ defmodule ExPhil.Training.Imitation.Checkpointing do
+       trainer
+       | policy_params: checkpoint.policy_params,
+         optimizer_state: checkpoint.optimizer_state,
+-        config: checkpoint.config,
++        config: Map.merge(checkpoint.config, Map.take(trainer.config, [:label_delay, :frame_delay, :action_delay, :label_convention])),
+         step: checkpoint.step,
+         metrics: checkpoint.metrics
+     }
+@@ -354,6 +354,7 @@ defmodule ExPhil.Training.Imitation.Checkpointing do
+       resolve_embed_size!(trainer.policy_params, computed_embed_size, stored_embed_size, path)
+ 
+     canary = embed_canary(trainer)
++    export_embed_config = trainer.embed_config || Embeddings.config([])
+ 
+     if is_list(canary) and canary != [] and length(canary) != embed_size do
+       require Logger
+@@ -376,6 +377,16 @@ defmodule ExPhil.Training.Imitation.Checkpointing do
+         dropout: trainer.config[:dropout] || 0.1,
+         # Temporal config
+         temporal: trainer.config[:temporal] || false,
++        bptt: trainer.config[:bptt] || false,
++        unroll: trainer.config[:unroll] || 80,
++        frame_delay: trainer.config[:frame_delay] || 0,
++        action_delay: trainer.config[:action_delay] || 0,
++        label_delay: ExPhil.Data.LabelConvention.reaction_delay(trainer.config),
++        num_player_names: export_embed_config.num_player_names,
++        action_mode: export_embed_config.player.action_mode,
++        character_mode: export_embed_config.player.character_mode,
++        nana_mode: export_embed_config.player.nana_mode,
++        stage_mode: export_embed_config.stage_mode,
+         backbone: trainer.config[:backbone] || :mlp,
+         window_size: trainer.config[:window_size] || 60,
+         num_heads: trainer.config[:num_heads] || 4,
+@@ -622,10 +633,11 @@ defmodule ExPhil.Training.Imitation.Checkpointing do
+         config[:train_delays]
+ 
+       config[:frame_delay_augment] ->
+-        Enum.to_list((config[:frame_delay_min] || 0)..(config[:frame_delay_max] || 0))
++        base = ExPhil.Data.LabelConvention.reaction_delay(config)
++        Enum.map((config[:frame_delay_min] || 0)..(config[:frame_delay_max] || 0), &(&1 + base))
+ 
+       true ->
+-        [config[:frame_delay] || 0]
++        [ExPhil.Data.LabelConvention.reaction_delay(config)]
+     end
+   end
+ 
+diff --git a/lib/exphil/training/mix_frames.ex b/lib/exphil/training/mix_frames.ex
+index 6c99b8d5..caa30439 100644
+--- a/lib/exphil/training/mix_frames.ex
++++ b/lib/exphil/training/mix_frames.ex
+@@ -26,11 +26,12 @@ defmodule ExPhil.Training.MixFrames do
+   @doc """
+   Load and delay-shift drill frames from a comma-separated list of paths or
+   globs. Returns `{frames, stats}` — frames are shifted per source segment
+-  with `opts[:action_delay]` (must match training).
++  with resolved `opts[:label_delay]` (must match training). `:action_delay`
++  and `:frame_delay` remain aliases and explicit conflicts are rejected.
+   """
+   @spec load(String.t(), keyword()) :: {[map()], [map()]}
+   def load(spec, opts \\ []) do
+-    delay = Keyword.get(opts, :action_delay, 0)
++    delay = ExPhil.Training.LabelDelay.resolve!(opts)[:label_delay]
+ 
+     paths =
+       spec
+diff --git a/lib/exphil/training/pipeline.ex b/lib/exphil/training/pipeline.ex
+index 0287f911..faebc024 100644
+--- a/lib/exphil/training/pipeline.ex
++++ b/lib/exphil/training/pipeline.ex
+@@ -102,8 +102,17 @@ defmodule ExPhil.Training.Pipeline do
+   """
+   @spec setup(keyword()) :: {:ok, t()} | {:error, term()}
+   def setup(opts) do
++    opts = ExPhil.Training.LabelDelay.resolve!(opts)
+     streaming = opts[:stream_chunk_size] != nil and opts[:stream_chunk_size] > 0
+ 
++    if opts[:frame_delay_augment] && (streaming || opts[:temporal] || opts[:corpus]) do
++      raise ArgumentError, "Frame-delay augmentation is supported only by the non-temporal standard loader; temporal/streaming loaders would ignore it"
++    end
++
++    if opts[:corpus] && opts[:label_delay] != 0 do
++      raise ArgumentError, "Precomputed corpus labels cannot be shifted by --label-delay; rebuild the corpus for the requested delay"
++    end
++
+     if opts[:corpus] do
+       build_pipeline_corpus(opts)
+     else
+@@ -364,12 +373,6 @@ defmodule ExPhil.Training.Pipeline do
+     end
+   end
+ 
+-  # GOTCHA #113 / INVARIANTS.md item 1: label alignment is STRUCTURAL now.
+-  # Peppi.to_training_frames always pairs state[t] with the input issued
+-  # from it; :frame_delay (streaming/bptt) and :action_delay (standard,
+-  # via Data.shift_actions) are reaction delay on top. There is no guard
+-  # here because the leaked pairing can no longer be built.
+-
+   defp build_pipeline(replay_files, replay_stats, true = _streaming, opts) do
+     # Streaming mode — don't load data upfront
+     Output.step(2, 4, "Setting up streaming pipeline")
+@@ -475,7 +478,7 @@ defmodule ExPhil.Training.Pipeline do
+ 
+         chunk_opts =
+           Keyword.take(opts, [
+-            :player_port, :dual_port, :frame_delay, :skip_errors, :show_errors, :port_map
++            :player_port, :dual_port, :label_delay, :skip_errors, :show_errors, :port_map
+           ]) ++ [subject_character: subject_character]
+ 
+         dataset_opts =
+@@ -506,7 +509,7 @@ defmodule ExPhil.Training.Pipeline do
+       streaming: true,
+       file_chunks: file_chunks,
+       streaming_chunk_opts: Keyword.take(opts, [
+-        :player_port, :dual_port, :frame_delay, :skip_errors, :show_errors, :port_map
++        :player_port, :dual_port, :label_delay, :skip_errors, :show_errors, :port_map
+       ]) ++ [subject_character: subject_character],
+       streaming_dataset_opts: Keyword.take(opts, [
+         :temporal, :window_size, :stride, :precompute, :lazy_sequences
+@@ -534,18 +537,7 @@ defmodule ExPhil.Training.Pipeline do
+       Output.puts("  #{length(frames)} frames from #{length(replay_files)} files")
+       log_character_distribution(frames)
+ 
+-      # Delay-aware training: pair state(t) with controller(t+delay) so the
+-      # model plans for the bridge's input latency (see Data.shift_actions)
+-      frames =
+-        case opts[:action_delay] || 0 do
+-          0 ->
+-            frames
+-
+-          delay ->
+-            shifted = Data.shift_actions(frames, delay)
+-            Output.puts("  Action delay #{delay}: #{length(shifted)} frames after target shift")
+-            shifted
+-        end
++      Output.puts("  Reaction label delay: #{opts[:label_delay]} frames")
+ 
+       # Curriculum mixing: drill .frames exports (already expert-labeled;
+       # shifted per source segment inside MixFrames with the same delay).
+@@ -557,7 +549,7 @@ defmodule ExPhil.Training.Pipeline do
+ 
+           spec ->
+             {mixed, stats} =
+-              ExPhil.Training.MixFrames.load(spec, action_delay: opts[:action_delay] || 0)
++              ExPhil.Training.MixFrames.load(spec, label_delay: opts[:label_delay])
+ 
+             for %{path: path, expert: expert, frames: n} <- stats do
+               Output.puts("  Mix: #{Path.basename(path)} (#{expert}) +#{n} frames")
+@@ -880,11 +872,11 @@ defmodule ExPhil.Training.Pipeline do
+       try do
+         if dual_port do
+           # Parse both ports — doubles training data
+-          parse_both_ports(path)
++          parse_both_ports(path, opts[:label_delay])
+         else
+           case Peppi.parse(path, player_port: player_port) do
+             {:ok, replay} ->
+-              Peppi.to_training_frames(replay, player_port: player_port)
++              Peppi.to_training_frames(replay, player_port: player_port, frame_delay: opts[:label_delay])
+             _ -> []
+           end
+         end
+@@ -897,12 +889,12 @@ defmodule ExPhil.Training.Pipeline do
+     |> tap(fn _ -> IO.write(:stderr, "\r\e[K") end)
+   end
+ 
+-  defp parse_both_ports(path) do
++  defp parse_both_ports(path, label_delay) do
+     case Peppi.metadata(path) do
+       {:ok, meta} ->
+         Enum.flat_map(meta.players, fn p ->
+           case Peppi.parse(path, player_port: p.port) do
+-            {:ok, replay} -> Peppi.to_training_frames(replay, player_port: p.port)
++            {:ok, replay} -> Peppi.to_training_frames(replay, player_port: p.port, frame_delay: label_delay)
+             _ -> []
+           end
+         end)
+@@ -1077,7 +1069,7 @@ defmodule ExPhil.Training.Pipeline do
+           drop_last: Keyword.get(opts, :drop_last, true),
+           augment_fn: pipeline.augment_fn,
+           character_weights: pipeline.character_weights,
+-          frame_delay: ropts[:frame_delay] || 0,
++          frame_delay: 0,
+           frame_delay_augment: ropts[:frame_delay_augment] || false,
+           frame_delay_min: ropts[:frame_delay_min] || 0,
+           frame_delay_max: ropts[:frame_delay_max] || 3
+@@ -1229,7 +1221,7 @@ defmodule ExPhil.Training.Pipeline do
+ 
+         spec ->
+           {mixed, mstats} =
+-            ExPhil.Training.MixFrames.load(spec, action_delay: ropts[:action_delay] || 0)
++            ExPhil.Training.MixFrames.load(spec, label_delay: ropts[:label_delay])
+ 
+           oversample = ropts[:mix_oversample] || 1
+ 
+diff --git a/lib/exphil/training/streaming.ex b/lib/exphil/training/streaming.ex
+index f5fb9d06..0549c6a5 100644
+--- a/lib/exphil/training/streaming.ex
++++ b/lib/exphil/training/streaming.ex
+@@ -71,7 +71,7 @@ defmodule ExPhil.Training.Streaming do
+     player_port = Keyword.get(opts, :player_port, 1)
+     port_map = Keyword.get(opts, :port_map, %{})
+     dual_port = Keyword.get(opts, :dual_port, false)
+-    frame_delay = Keyword.get(opts, :frame_delay, 0)
++    frame_delay = ExPhil.Training.LabelDelay.resolve!(opts)[:label_delay]
+     show_progress = Keyword.get(opts, :show_progress, true)
+     # Name conditioning: the corpus is anonymized in-file ("Master Player"),
+     # so identity comes from the FILENAME bracket tags (FilenameTags).
+diff --git a/lib/exphil/training/trajectory_cursors.ex b/lib/exphil/training/trajectory_cursors.ex
+index 405b1102..cd2bd835 100644
+--- a/lib/exphil/training/trajectory_cursors.ex
++++ b/lib/exphil/training/trajectory_cursors.ex
+@@ -25,10 +25,9 @@ defmodule ExPhil.Training.TrajectoryCursors do
+ 
+   ## Segment law
+ 
+-  A segment = one contiguous replay (game). Boundaries are recovered the
+-  same way `AdvantageWeighting.split_by_replay/1` does: the Slippi frame
+-  counter going backward (`cur <= prev`) marks a new game. Hidden state
+-  must reset ONLY at these boundaries — never at chunk edges.
++  A segment is a contiguous portion of a replay. A frame-counter reset,
++  repeat, or forward gap starts a new segment (`cur != prev + 1`). Hidden
++  state resets at these boundaries, never at ordinary chunk edges.
+ 
+   ## v0 limitations (deliberate)
+ 
+@@ -48,7 +47,7 @@ defmodule ExPhil.Training.TrajectoryCursors do
+   Recover segment boundaries from a flat frame list.
+ 
+   Returns `[{start_index, length}]` in corpus order. Boundary rule:
+-  Slippi frame counter decreases or repeats (`cur <= prev`).
++  Slippi frame counter is not the immediate successor (`cur != prev + 1`).
+   """
+   @spec segments([map()]) :: [{non_neg_integer(), pos_integer()}]
+   def segments(frames) do
+@@ -61,7 +60,7 @@ defmodule ExPhil.Training.TrajectoryCursors do
+         seg_start == nil ->
+           {done, idx, cur}
+ 
+-        cur <= prev ->
++        cur != prev + 1 ->
+           {[{seg_start, idx - seg_start} | done], idx, cur}
+ 
+         true ->
+diff --git a/scripts/eval_model.exs b/scripts/eval_model.exs
+index 6af88bc7..99b333e1 100644
+--- a/scripts/eval_model.exs
++++ b/scripts/eval_model.exs
+@@ -38,6 +38,7 @@ opts = CLI.parse_args(System.argv(),
+   extra: [
+     compare: :boolean,
+     temporal: :boolean,
++    bptt: :boolean,
+     backbone: :string,
+     window_size: :integer,
+     hidden_sizes: :string,
+@@ -71,6 +72,7 @@ if opts[:help] do
+ #{CLI.help_text([:verbosity, :replay, :checkpoint, :evaluation])}
+     --compare               Compare multiple models (pass paths as positional args)
+     --temporal              Enable temporal model evaluation
++    --bptt                  Legacy BPTT export without a mode stamp (new exports auto-detect)
+     --backbone NAME         Backbone architecture (for temporal)
+     --window-size N         Window size for temporal models
+     --export-csv PATH       Export predictions to CSV for analysis
+@@ -123,6 +125,13 @@ model_paths =
+       System.halt(1)
+   end
+ 
++artifacts = Enum.map(model_paths, &ExPhil.Evaluation.Forward.load!(&1, bptt: opts[:bptt]))
++
++if Enum.any?(artifacts, & &1.config[:bptt]) do
++  ExPhil.Evaluation.BPTT.run(artifacts, opts)
++  System.halt(0)
++end
++
+ Output.banner("ExPhil Model Evaluation")
+ 
+ Output.config([
+@@ -251,63 +260,7 @@ end
+ # Step 3: Load model config to determine embedding configuration
+ Output.step(3, 5, "Loading model configuration")
+ 
+-# Load first model to get its config (used for embedding setup)
+-first_model_path = hd(model_paths)
+-
+-# Try to find companion config file
+-config_paths = [
+-  String.replace(first_model_path, ~r/\.(axon|bin)$/, "_config.json"),
+-  String.replace(first_model_path, "_policy.bin", "_config.json"),
+-  String.replace(first_model_path, "_best_policy.bin", "_config.json"),
+-  String.replace(first_model_path, ".axon", "_config.json")
+-] |> Enum.uniq()
+-
+-config_path = Enum.find(config_paths, &File.exists?/1)
+-
+-model_config =
+-  if config_path do
+-    case File.read(config_path) do
+-      {:ok, json} ->
+-        case Jason.decode(json) do
+-          {:ok, cfg} ->
+-            Output.puts("  Loaded config from #{Path.basename(config_path)}")
+-            cfg
+-          _ ->
+-            Output.warning("Could not parse config JSON, using current defaults")
+-            %{}
+-        end
+-      _ ->
+-        Output.warning("Could not read config file, using current defaults")
+-        %{}
+-    end
+-  else
+-    Output.warning("No config file found (tried: #{Enum.map(config_paths, &Path.basename/1) |> Enum.join(", ")})")
+-    Output.puts("  Using current embedding defaults")
+-    %{}
+-  end
+-
+-# The policy file's OWN metadata is authoritative for layout keys (it is
+-# what the Agent and the probes read); the JSON sidecar has lagged it
+-# (v16f 2026-09-09: sidecar had no with_projectiles). Merge it on top.
+-model_config =
+-  if Regex.match?(~r/_policy\.bin$/, first_model_path) and File.exists?(first_model_path) do
+-    try do
+-      {_params, meta} = Edifice.Checkpoint.load(first_model_path, return_metadata: true)
+-
+-      case meta[:config] do
+-        pc when is_map(pc) and map_size(pc) > 0 ->
+-          Output.puts("  Layout keys from the policy metadata (#{map_size(pc)} keys) override the sidecar")
+-          Map.merge(model_config, pc)
+-
+-        _ ->
+-          model_config
+-      end
+-    rescue
+-      _ -> model_config
+-    end
+-  else
+-    model_config
+-  end
++model_config = hd(artifacts).config
+ 
+ # Build embedding config from model config
+ embed_opts = [with_speeds: true]
+@@ -554,7 +507,7 @@ evaluate_model = fn model_path ->
+   is_policy_file = String.ends_with?(model_path, ".bin")
+ 
+   # Load model with embed size validation
+-  {params, config} =
++  {params, _loaded_config} =
+     if is_policy_file do
+       case Checkpoint.load_policy(model_path, current_embed_size: embed_size) do
+         {:ok, export} ->
+@@ -575,46 +528,21 @@ evaluate_model = fn model_path ->
+       end
+     end
+ 
+-  # Build policy model based on temporal mode
+-  model_embed_size = config[:embed_size] || embed_size
+-  hidden_sizes =
+-    if opts[:hidden_sizes] do
+-      opts[:hidden_sizes] |> String.split(",") |> Enum.map(&String.to_integer/1)
+-    else
+-      config[:hidden_sizes] || [512, 512]
+-    end
++  legacy_hidden_sizes =
++    if opts[:hidden_sizes],
++      do: opts[:hidden_sizes] |> String.split(",") |> Enum.map(&String.to_integer/1),
++      else: Enum.find(artifacts, &(&1.path == model_path)).config[:hidden_sizes] || [512, 512]
+ 
+-  policy_model =
+-    if opts[:temporal] do
+-      backbone_type = String.to_atom(opts[:backbone])
+-
+-      Policy.build_temporal(
+-        embed_size: model_embed_size,
+-        backbone: backbone_type,
+-        hidden_size: hd(hidden_sizes),
+-        num_layers: config[:num_layers] || 2,
+-        num_heads: config[:num_heads] || 4,
+-        head_dim: config[:head_dim] || 64,
+-        attention_every: config[:attention_every] || 3,
+-        window_size: config[:window_size] || opts[:window_size],
+-        state_size: config[:state_size] || 16,
+-        expand_factor: config[:expand_factor] || 2,
+-        conv_size: config[:conv_size] || 4,
+-        dropout: config[:dropout] || 0.1,
+-        axis_buckets: config[:axis_buckets] || 16,
+-        shoulder_buckets: config[:shoulder_buckets] || 4
+-      )
+-    else
+-      Policy.build(
+-        embed_size: model_embed_size,
+-        hidden_sizes: hidden_sizes,
+-        axis_buckets: config[:axis_buckets] || 16,
+-        shoulder_buckets: config[:shoulder_buckets] || 4
+-      )
+-    end
++  config =
++    Enum.find(artifacts, &(&1.path == model_path)).config
++    |> Map.put_new(:embed_size, embed_size)
++    |> Map.put_new(:temporal, opts[:temporal])
++    |> Map.put_new(:backbone, String.to_existing_atom(opts[:backbone]))
++    |> Map.put_new(:window_size, opts[:window_size])
++    |> Map.put_new(:hidden_sizes, legacy_hidden_sizes)
++    |> Map.put_new(:hidden_size, hd(legacy_hidden_sizes))
+ 
+-  eval_build_opts = if Code.ensure_loaded?(EXLA), do: [compiler: EXLA], else: []
+-{_init_fn, predict_fn} = Axon.build(policy_model, eval_build_opts)
++  evaluator = ExPhil.Evaluation.Forward.new(params, config)
+ 
+   # Evaluate
+   axis_buckets = config[:axis_buckets] || 16
+@@ -739,7 +667,8 @@ evaluate_model = fn model_path ->
+ 
+       # Track inference time (skip first batch due to JIT)
+       inference_start = System.monotonic_time(:microsecond)
+-      {buttons, main_x, main_y, c_x, c_y, shoulder} = predict_fn.(params, states)
++      {{buttons, main_x, main_y, c_x, c_y, shoulder}, actions, _evaluator} =
++        ExPhil.Evaluation.Forward.batch(evaluator, batch)
+       inference_time_us = System.monotonic_time(:microsecond) - inference_start
+ 
+       logits = %{
+diff --git a/test/exphil/data/label_alignment_test.exs b/test/exphil/data/label_alignment_test.exs
+index 55deafd6..665e15e5 100644
+--- a/test/exphil/data/label_alignment_test.exs
++++ b/test/exphil/data/label_alignment_test.exs
+@@ -124,4 +124,20 @@ defmodule ExPhil.Data.LabelAlignmentTest do
+              %{game_state: %{frame: 5}, controller: :e}
+            ]
+   end
++
++  @tag :nif
++  test "additional reaction delay cannot cross a missing replay span" do
++    {:ok, replay} = Peppi.parse(@fixture, player_port: @subject_port)
++    frames = replay.frames |> Enum.with_index() |> Enum.reject(fn {_frame, index} -> index in 100..104 end) |> Enum.map(&elem(&1, 0))
++    replay = %{replay | frames: frames}
++    base = Peppi.to_training_frames(replay, player_port: @subject_port)
++    base_by_frame = Map.new(base, &{&1.game_state.frame, &1.controller})
++    delayed = Peppi.to_training_frames(replay, player_port: @subject_port, frame_delay: 2)
++    assert length(delayed) < length(base) - 2
++    for frame <- delayed do
++      observed = frame.game_state.frame
++      assert Map.has_key?(base_by_frame, observed + 1)
++      assert frame.controller == Map.fetch!(base_by_frame, observed + 2)
++    end
++  end
+ end
+diff --git a/test/exphil/training/config_test.exs b/test/exphil/training/config_test.exs
+index c91b1607..f9031e28 100644
+--- a/test/exphil/training/config_test.exs
++++ b/test/exphil/training/config_test.exs
+@@ -426,8 +426,8 @@ defmodule ExPhil.Training.ConfigTest do
+       assert defaults[:precision] == :f32
+       # INVARIANTS.md item 1: 0 = the causal pairing (reaction delay on top
+       # of what Peppi emits); the leaked pairing is unrepresentable.
+-      assert defaults[:frame_delay] == 0
+-      assert defaults[:action_delay] == 0
++      assert defaults[:frame_delay] == nil
++      assert defaults[:action_delay] == nil
+       assert defaults[:checkpoint] == nil
+       assert defaults[:max_files] == nil
+     end
+diff --git a/test/exphil/training/mix_frames_test.exs b/test/exphil/training/mix_frames_test.exs
+index 3d6fc19a..e64e8fe9 100644
+--- a/test/exphil/training/mix_frames_test.exs
++++ b/test/exphil/training/mix_frames_test.exs
+@@ -56,6 +56,18 @@ defmodule ExPhil.Training.MixFramesTest do
+     assert length(stats) == 2
+   end
+ 
++  test "all training delay aliases select the same identifiable successor", %{tmp_dir: directory} do
++    frames = Enum.map(0..5, fn counter ->
++      Map.put(frame(counter), :controller, %{marker: counter})
++    end)
++    path = write_export(directory, "aliases.frames", [frames], 3)
++    for key <- ExPhil.Training.LabelDelay.keys() do
++      {shifted, _stats} = MixFrames.load(path, [{key, 2}])
++      assert Enum.map(shifted, &{&1.game_state.frame, &1.controller.marker}) ==
++        [{0, 2}, {1, 3}, {2, 4}, {3, 5}]
++    end
++  end
++
+   test "unreadable file is skipped with empty stats", %{tmp_dir: dir} do
+     File.write!(Path.join(dir, "junk.frames"), "not a term")
+ 
+diff --git a/test/exphil/training/trajectory_cursors_test.exs b/test/exphil/training/trajectory_cursors_test.exs
+index 99f06046..da762640 100644
+--- a/test/exphil/training/trajectory_cursors_test.exs
++++ b/test/exphil/training/trajectory_cursors_test.exs
+@@ -37,6 +37,11 @@ defmodule ExPhil.Training.TrajectoryCursorsTest do
+   end
+ 
+   describe "segments/1" do
++    test "splits on forward gaps as well as resets" do
++      frames = Enum.map([0, 1, 5, 6, 0, 1], &frame(&1, 0))
++      assert TrajectoryCursors.segments(frames) == [{0, 2}, {2, 2}, {4, 2}]
++    end
++
+     test "splits on frame-counter reset" do
+       ds = dataset([100, 50, 200])
+       assert TrajectoryCursors.segments(ds.frames) == [{0, 100}, {100, 50}, {150, 200}]
+diff --git a/lib/exphil/evaluation/bptt.ex b/lib/exphil/evaluation/bptt.ex
+new file mode 100644
+index 00000000..44b708ac
+--- /dev/null
++++ b/lib/exphil/evaluation/bptt.ex
+@@ -0,0 +1,210 @@
++defmodule ExPhil.Evaluation.BPTT do
++  @moduledoc """
++  Ordered, per-frame evaluation of BPTT policies over complete replay segments.
++
++  Each replay is embedded independently. Carry resets at replay boundaries and
++  frame gaps, never at ordinary chunk edges. Short segments and final partial
++  chunks are retained. All frames are scored once with plain teacher-forced
++  cross entropy; this is not the weighted training objective or live sampling.
++  """
++
++  alias ExPhil.Data.{LabelConvention, Peppi, SubjectResolver}
++  alias ExPhil.Embeddings
++  alias ExPhil.Evaluation.{Forward, Metrics}
++  alias ExPhil.Networks.Policy
++  alias ExPhil.Training.{Data, Output}
++
++  @heads [:buttons, :main_x, :main_y, :c_x, :c_y, :shoulder]
++
++  def batches(dataset, chunk_size) when is_integer(chunk_size) and chunk_size > 0 do
++    dataset.frames
++    |> Enum.with_index()
++    |> Enum.chunk_while(
++      [],
++      fn {frame, index}, segment ->
++        case segment do
++          [{previous, _} | _] when frame.game_state.frame != previous.game_state.frame + 1 ->
++            {:cont, Enum.reverse(segment), [{frame, index}]}
++
++          _ ->
++            {:cont, [{frame, index} | segment]}
++        end
++      end,
++      fn
++        [] -> {:cont, []}
++        segment -> {:cont, Enum.reverse(segment), []}
++      end
++    )
++    |> Stream.flat_map(fn segment ->
++      segment
++      |> Enum.chunk_every(chunk_size)
++      |> Enum.with_index()
++      |> Stream.map(fn {chunk, chunk_index} ->
++        {_first, start} = hd(chunk)
++
++        actions =
++          chunk
++          |> Enum.map(fn {frame, _} -> Data.frame_action(frame) end)
++          |> Data.actions_to_tensors()
++
++        %{
++          states:
++            dataset.embedded_frames
++            |> Nx.slice_along_axis(start, length(chunk), axis: 0)
++            |> Nx.new_axis(0),
++          actions: Map.new(actions, fn {key, tensor} -> {key, Nx.new_axis(tensor, 0)} end),
++          is_resetting: Nx.tensor([if(chunk_index == 0, do: 1, else: 0)], type: :u8)
++        }
++      end)
++    end)
++  end
++
++  def evaluate(evaluator, batches) do
++    zero = Map.new(@heads, &{&1, 0.0})
++
++    totals =
++      evaluator
++      |> Forward.stream(batches)
++      |> Enum.reduce(%{loss: 0.0, frames: 0, accuracy: zero}, fn {logits, actions}, totals ->
++        logits = Map.new(Enum.zip(@heads, Tuple.to_list(logits)))
++        count = Nx.axis_size(logits.buttons, 0)
++
++        loss =
++          Policy.imitation_loss(logits, actions, button_weight: 1.0, label_smoothing: 0.0)
++          |> Nx.to_number()
++
++        if not is_number(loss),
++          do: raise(ArgumentError, "non-finite BPTT evaluation loss: #{inspect(loss)}")
++
++        accuracy =
++          Map.new(@heads, fn head ->
++            metric =
++              if head == :buttons,
++                do: Metrics.button_accuracy(logits[head], actions[head]),
++                else: Metrics.accuracy(logits[head], actions[head])
++
++            {head, totals.accuracy[head] + metric * count}
++          end)
++
++        %{loss: totals.loss + loss * count, frames: totals.frames + count, accuracy: accuracy}
++      end)
++
++    if totals.frames == 0, do: raise(ArgumentError, "No frames available for BPTT evaluation")
++
++    %{
++      protocol: "bptt_teacher_forced_plain_ce_v1",
++      frames: totals.frames,
++      loss: totals.loss / totals.frames,
++      accuracy: Map.new(totals.accuracy, fn {head, total} -> {head, total / totals.frames} end)
++    }
++  end
++
++  def run(artifacts, opts) do
++    unless Enum.all?(artifacts, & &1.config[:bptt]),
++      do:
++        raise(
++          ArgumentError,
++          "Evaluate BPTT and windowed checkpoints separately; their metrics differ"
++        )
++
++    for key <- [:export_csv, :export_sequences] do
++      if opts[key], do: raise(ArgumentError, "#{key} is not supported by BPTT evaluation")
++    end
++
++    files =
++      Path.wildcard(Path.join(opts[:replays], "**/*.slp"))
++      |> Enum.sort()
++      |> Enum.take(opts[:max_files])
++
++    if files == [], do: raise(ArgumentError, "No replay files found for BPTT evaluation")
++
++    Enum.map(artifacts, fn artifact ->
++      config = artifact.config
++
++      if (config[:axis_buckets] || 16) != 16 or (config[:shoulder_buckets] || 4) != 4 or
++           config[:kmeans_centers],
++         do:
++           raise(
++             ArgumentError,
++             "Replay BPTT evaluation currently requires the standard 16/4 discretization"
++           )
++
++      if config[:with_delay_id] || (config[:queue_depth] || 1) > 1,
++        do:
++          raise(
++            ArgumentError,
++            "BPTT evaluation does not yet construct queued-action/delay-id inputs"
++          )
++
++      embed_config = Embeddings.config(Map.to_list(config))
++
++      if Embeddings.embedding_size(embed_config) != config[:embed_size],
++        do:
++          raise(
++            ArgumentError,
++            "Checkpoint embedding layout does not match its trained input width"
++          )
++
++      reaction_delay = LabelConvention.reaction_delay(config)
++
++      if reaction_delay < 0,
++        do:
++          raise(
++            ArgumentError,
++            "Legacy leaked-label checkpoints cannot be evaluated as causal BPTT policies"
++          )
++
++      evaluator = Forward.new(artifact.params, config)
++
++      stream =
++        Stream.flat_map(files, fn path ->
++          {:ok, metadata} = Peppi.metadata(path)
++
++          selector =
++            if opts[:character],
++              do: [subject_character: opts[:character]],
++              else: [subject_port: opts[:player_port] || 1]
++
++          {:ok, subject} = SubjectResolver.resolve(metadata.players, selector)
++          {:ok, replay} = Peppi.parse(path, player_port: subject.subject_port)
++
++          frames =
++            Peppi.to_training_frames(replay,
++              player_port: subject.subject_port,
++              opponent_port: subject.opponent_port,
++              remap_ports: true,
++              frame_delay: reaction_delay
++            )
++
++          if frames == [] do
++            []
++          else
++            dataset =
++              frames
++              |> Data.from_frames(embed_config: embed_config)
++              |> Data.precompute_frame_embeddings(
++                show_progress: false,
++                use_prev_action: config[:use_prev_action] || false
++              )
++
++            batches(dataset, config[:unroll] || 80)
++          end
++        end)
++
++      result = evaluate(evaluator, stream)
++      Output.puts("BPTT evaluation: #{artifact.path}")
++
++      Output.puts(
++        "  #{result.frames} frames; teacher-forced plain CE=#{Float.round(result.loss, 6)}"
++      )
++
++      Output.puts("  Per-head accuracy: #{inspect(result.accuracy)}")
++
++      Output.puts(
++        "  Full replay carry; not directly comparable to weighted training loss or windowed evaluation"
++      )
++
++      result
++    end)
++  end
++end
+diff --git a/lib/exphil/evaluation/forward.ex b/lib/exphil/evaluation/forward.ex
+new file mode 100644
+index 00000000..cfebe65f
+--- /dev/null
++++ b/lib/exphil/evaluation/forward.ex
+@@ -0,0 +1,157 @@
++defmodule ExPhil.Evaluation.Forward do
++  @moduledoc """
++  Teacher-forced policy evaluation with explicit recurrent carry.
++
++  BPTT batches must arrive in order and supply `is_resetting` for each row.
++  Returned logits and targets are flattened for frame-level metrics. They
++  measure teacher-forced likelihood, not free-running controller behavior.
++  """
++
++  alias ExPhil.Networks.Policy
++  alias ExPhil.Training.{Checkpoint, Utils}
++  alias ExPhil.Training.Imitation.Loss
++
++  defstruct [:params, :config, :predict_fn, :carry]
++
++  def normalize(config) do
++    config = Map.new(config)
++
++    Enum.reduce(config, %{}, fn {source_key, value}, normalized ->
++      key = known_key(source_key)
++      value = if is_binary(source_key) and Map.has_key?(config, key), do: config[key], else: value
++
++      value =
++        cond do
++          value == "true" ->
++            true
++
++          value == "false" ->
++            false
++
++          key in [
++            :backbone,
++            :head,
++            :precision,
++            :action_mode,
++            :character_mode,
++            :stage_mode,
++            :nana_mode,
++            :label_convention
++          ] and is_binary(value) ->
++            String.to_existing_atom(value)
++
++          true ->
++            value
++        end
++
++      if key, do: Map.put(normalized, key, value), else: normalized
++    end)
++  end
++
++  defp known_key(key) when is_atom(key), do: key
++
++  defp known_key(key) when is_binary(key) do
++    String.to_existing_atom(key)
++  rescue
++    ArgumentError -> nil
++  end
++
++  def load!(path, opts \\ []) do
++    loaded =
++      if Path.extname(path) == ".axon",
++        do: Checkpoint.load(path),
++        else: Checkpoint.load_policy(path)
++
++    artifact =
++      case loaded do
++        {:ok, artifact} -> artifact
++        {:error, reason} -> raise ArgumentError, "Cannot load #{path}: #{inspect(reason)}"
++      end
++
++    sidecar =
++      [String.replace(path, ~r/(_best_policy|_policy|_best)?\.(axon|bin)$/, "_config.json")]
++      |> Enum.find_value(%{}, fn candidate ->
++        if candidate != path and File.regular?(candidate),
++          do: candidate |> File.read!() |> Jason.decode!() |> normalize()
++      end)
++
++    config = Map.merge(sidecar, normalize(artifact.config))
++
++    config =
++      if Keyword.get(opts, :bptt) == true, do: Map.put_new(config, :bptt, true), else: config
++
++    %{path: path, params: artifact[:params] || artifact[:policy_params], config: config}
++  end
++
++  def new(params, config, opts \\ []) do
++    config = normalize(config)
++    build_opts = Map.to_list(config)
++
++    model =
++      cond do
++        config[:bptt] ->
++          Policy.build_temporal_bptt(Keyword.put(build_opts, :window_size, nil))
++
++        config[:temporal] ->
++          Policy.build_temporal(build_opts)
++
++        true ->
++          Policy.build(build_opts)
++      end
++
++    {_init, predict} = Utils.build_compiled(model, opts)
++    %__MODULE__{params: Utils.ensure_model_state(params), config: config, predict_fn: predict}
++  end
++
++  def from_trainer(trainer) do
++    %__MODULE__{
++      params: Utils.ensure_model_state(trainer.policy_params),
++      config: trainer.config,
++      predict_fn: trainer.predict_fn
++    }
++  end
++
++  def batch(evaluator, batch) do
++    config = evaluator.config
++    head = config[:head] || if(config[:bptt], do: :autoregressive, else: :independent)
++    inputs = Loss.policy_forward_inputs(head, config[:temporal], batch.states, batch.actions)
++
++    if config[:bptt] do
++      batch_size = Nx.axis_size(batch.states, 0)
++      shape = {batch_size, config[:num_layers] || 2, config[:hidden_size] || 256}
++      carry = evaluator.carry || Nx.broadcast(0.0, shape)
++
++      if Nx.shape(carry) != shape,
++        do: raise(ArgumentError, "BPTT row count changed without resetting the evaluator")
++
++      resetting = Map.fetch!(batch, :is_resetting)
++      keep = resetting |> Nx.equal(0) |> Nx.reshape({batch_size, 1, 1}) |> Nx.broadcast(shape)
++      carry = Nx.select(keep, carry, 0.0)
++
++      inputs =
++        if head == :independent, do: %{"state_sequence" => batch.states}, else: inputs
++
++      {logits, carry} =
++        evaluator.predict_fn.(evaluator.params, Map.put(inputs, "initial_hidden", carry))
++
++      logits = logits |> Tuple.to_list() |> Enum.map(&flatten/1) |> List.to_tuple()
++      actions = Map.new(batch.actions, fn {key, tensor} -> {key, flatten(tensor)} end)
++      {logits, actions, %{evaluator | carry: carry}}
++    else
++      {evaluator.predict_fn.(evaluator.params, inputs), batch.actions, evaluator}
++    end
++  end
++
++  def stream(evaluator, batches) do
++    Stream.transform(batches, evaluator, fn batch, state ->
++      {logits, actions, state} = batch(state, batch)
++      {[{logits, actions}], state}
++    end)
++  end
++
++  defp flatten(tensor) do
++    shape = Tuple.to_list(Nx.shape(tensor))
++    [batch_size, timesteps | rest] = shape
++    Nx.reshape(tensor, List.to_tuple([batch_size * timesteps | rest]))
++  end
++end
+diff --git a/lib/exphil/training/label_delay.ex b/lib/exphil/training/label_delay.ex
+new file mode 100644
+index 00000000..c748c00a
+--- /dev/null
++++ b/lib/exphil/training/label_delay.ex
+@@ -0,0 +1,51 @@
++defmodule ExPhil.Training.LabelDelay do
++  @moduledoc """
++  Resolves training delay aliases into one nonnegative reaction delay.
++
++  `label_delay`, `frame_delay`, and `action_delay` are aliases in training
++  configuration. Explicit values in one source must agree, including zero.
++  Higher-precedence sources override all aliases of lower-precedence sources.
++  Live Dolphin delay flags and legacy checkpoint numbering are unchanged.
++  """
++
++  @keys [:label_delay, :frame_delay, :action_delay]
++
++  def keys, do: @keys
++
++  def resolve!(opts) do
++    delay = value!(opts) || 0
++    Enum.reduce(@keys, opts, &Keyword.put(&2, &1, delay))
++  end
++
++  def merge_layers!(layers) do
++    delay = Enum.reduce(layers, 0, fn layer, previous -> value!(layer) || previous end)
++    resolve!(label_delay: delay)
++  end
++
++  def explicit?(opts), do: Enum.any?(@keys, &(Keyword.get(opts, &1) != nil))
++
++  defp value!(opts) do
++    values = Keyword.take(opts, @keys) |> Enum.reject(fn {_key, value} -> is_nil(value) end)
++
++    Enum.each(values, fn {key, value} ->
++      unless is_integer(value) and value >= 0,
++        do:
++          raise(
++            ArgumentError,
++            "#{key} must be a nonnegative integer reaction delay, got: #{inspect(value)}"
++          )
++    end)
++
++    case values |> Keyword.values() |> Enum.uniq() do
++      [] ->
++        nil
++
++      [delay] ->
++        delay
++
++      _ ->
++        raise ArgumentError,
++              "Conflicting training delay aliases: #{inspect(values)}; use one --label-delay"
++    end
++  end
++end
+diff --git a/test/exphil/evaluation/bptt_test.exs b/test/exphil/evaluation/bptt_test.exs
+new file mode 100644
+index 00000000..0f73fb28
+--- /dev/null
++++ b/test/exphil/evaluation/bptt_test.exs
+@@ -0,0 +1,219 @@
++defmodule ExPhil.Evaluation.BPTTTest do
++  use ExUnit.Case, async: false
++
++  alias ExPhil.Evaluation.{BPTT, Forward}
++  alias ExPhil.Training.{Data, Imitation}
++  alias ExPhil.Training.Imitation.TrainLoop
++
++  defp trainer(head \\ :autoregressive) do
++    Imitation.new(
++      embed_size: 32,
++      temporal: true,
++      backbone: :gru,
++      bptt: true,
++      head: head,
++      hidden_size: 12,
++      num_layers: 1,
++      unroll: 4,
++      dropout: 0.0,
++      precision: :f32,
++      batch_size: 1
++    )
++  end
++
++  defp batch(start, count, reset) do
++    states = Nx.iota({1, count, 32}, type: :f32) |> Nx.add(start * 32) |> Nx.divide(100)
++
++    actions =
++      Map.new([:main_x, :main_y, :c_x, :c_y, :shoulder], &{&1, Nx.broadcast(0, {1, count})})
++
++    %{
++      states: states,
++      actions: Map.put(actions, :buttons, Nx.broadcast(0.0, {1, count, 8})),
++      is_resetting: Nx.tensor([reset], type: :u8),
++      frame_weights: Nx.broadcast(1.0, {1, count})
++    }
++  end
++
++  for head <- [:autoregressive, :independent] do
++    test "#{head}: contiguous chunks equal a complete unroll, including the short tail" do
++      trainer = trainer(unquote(head))
++      evaluator = Forward.new(trainer.policy_params, trainer.config)
++      {whole, _, _} = Forward.batch(evaluator, batch(0, 7, 1))
++      {first, _, evaluator} = Forward.batch(evaluator, batch(0, 4, 1))
++      {last, _, _} = Forward.batch(evaluator, batch(4, 3, 0))
++
++      Enum.zip([Tuple.to_list(whole), Tuple.to_list(first), Tuple.to_list(last)])
++      |> Enum.each(fn {expected, prefix, suffix} ->
++        error =
++          expected
++          |> Nx.subtract(Nx.concatenate([prefix, suffix]))
++          |> Nx.abs()
++          |> Nx.reduce_max()
++          |> Nx.to_number()
++
++        assert error < 1.0e-5
++      end)
++    end
++  end
++
++  test "reset clears prior carry and teacher-forced inputs affect the autoregressive heads" do
++    trainer = trainer()
++
++    trainer =
++      update_in(trainer.policy_params.data["ar_buttons_embed"]["kernel"], &Nx.add(&1, 0.05))
++
++    evaluator = Forward.new(trainer.policy_params, trainer.config)
++    {expected, _, _} = Forward.batch(evaluator, batch(4, 3, 1))
++    {_, _, carried} = Forward.batch(evaluator, batch(0, 4, 1))
++    {actual, _, _} = Forward.batch(carried, batch(4, 3, 1))
++    assert Nx.to_flat_list(elem(actual, 1)) == Nx.to_flat_list(elem(expected, 1))
++
++    source = batch(4, 3, 1)
++    changed = put_in(source.actions.buttons, Nx.broadcast(1.0, {1, 3, 8}))
++    {conditioned, _, _} = Forward.batch(evaluator, changed)
++    assert Nx.to_flat_list(elem(conditioned, 1)) != Nx.to_flat_list(elem(expected, 1))
++  end
++
++  test "batching resets at gaps and replay boundaries and retains every frame exactly once" do
++    frames =
++      [0, 1, 2, 8, 9, 0, 1]
++      |> Enum.map(&%{game_state: %{frame: &1}})
++
++    dataset = %Data{frames: frames, size: 7, embedded_frames: Nx.iota({7, 32})}
++    batches = BPTT.batches(dataset, 2) |> Enum.to_list()
++    assert Enum.map(batches, &Nx.axis_size(&1.states, 1)) == [2, 1, 2, 2]
++    assert Enum.map(batches, &Nx.to_number(Nx.squeeze(&1.is_resetting))) == [1, 0, 1, 1]
++
++    assert Enum.flat_map(batches, &Nx.to_flat_list(&1.states)) ==
++             Nx.to_flat_list(dataset.embedded_frames)
++  end
++
++  @tag :tmp_dir
++  test "train, export, load without a sidecar, and evaluate", %{tmp_dir: directory} do
++    trainer = trainer()
++
++    {trainer, _, _} =
++      TrainLoop.train_step_bptt(trainer, batch(0, 4, 1), Nx.broadcast(0.0, {1, 1, 12}))
++
++    path = Path.join(directory, "standalone.bin")
++    :ok = Imitation.export_policy(trainer, path)
++    artifact = Forward.load!(path)
++    assert artifact.config.bptt
++    assert artifact.config.unroll == 4
++    evaluator = Forward.new(artifact.params, artifact.config)
++    result = BPTT.evaluate(evaluator, [batch(0, 4, 1), batch(4, 3, 0)])
++    whole = BPTT.evaluate(evaluator, [batch(0, 7, 1)])
++    assert result.frames == 7
++    assert result.loss > 0
++    assert_in_delta result.loss, whole.loss, 1.0e-5
++    assert result.protocol == "bptt_teacher_forced_plain_ce_v1"
++  end
++
++  test "empty evaluation and unsupported BPTT backbones fail explicitly" do
++    trainer = trainer()
++    evaluator = Forward.new(trainer.policy_params, trainer.config)
++    assert_raise ArgumentError, ~r/No frames/, fn -> BPTT.evaluate(evaluator, []) end
++
++    assert_raise ArgumentError, ~r/gru/, fn ->
++      Forward.new(trainer.policy_params, Map.put(trainer.config, :backbone, :lstm))
++    end
++  end
++
++  test "windowed independent and autoregressive policies retain their input contracts" do
++    for head <- [:independent, :autoregressive] do
++      trainer =
++        Imitation.new(
++          embed_size: 32,
++          temporal: true,
++          backbone: :gru,
++          head: head,
++          hidden_size: 12,
++          num_layers: 1,
++          window_size: 4,
++          dropout: 0.0
++        )
++
++      source = batch(0, 4, 1)
++
++      actions =
++        Map.new(source.actions, fn {key, tensor} ->
++          {key, tensor |> Nx.slice_along_axis(3, 1, axis: 1) |> Nx.squeeze(axes: [1])}
++        end)
++
++      {logits, targets, _} =
++        Forward.batch(Forward.new(trainer.policy_params, trainer.config), %{
++          source
++          | actions: actions
++        })
++
++      assert Nx.shape(elem(logits, 0)) == {1, 8}
++      assert Nx.shape(targets.main_x) == {1}
++    end
++  end
++
++  @tag :tmp_dir
++  @tag :nif
++  test "a standalone policy evaluates real replay frames in a fresh process", %{
++    tmp_dir: directory
++  } do
++    trainer =
++      Imitation.new(
++        temporal: true,
++        backbone: :gru,
++        bptt: true,
++        head: :autoregressive,
++        hidden_size: 12,
++        num_layers: 1,
++        unroll: 80,
++        dropout: 0.0,
++        stage_internals: true,
++        precision: :f32
++      )
++
++    path = Path.join(directory, "fixture_policy.bin")
++    :ok = Imitation.export_policy(trainer, path)
++    File.cp!("test/fixtures/replays/fox_multishine.slp", Path.join(directory, "fixture.slp"))
++    code_paths = Enum.flat_map(:code.get_path(), &["-pa", List.to_string(&1)])
++
++    source = """
++    Application.put_env(:nx, :default_backend, Nx.BinaryBackend)
++    Application.put_env(:exla, :clients, host: [platform: :host])
++    Application.put_env(:exla, :default_client, :host)
++    Application.ensure_all_started(:exla)
++    Application.ensure_all_started(:axon)
++    Application.ensure_all_started(:jason)
++    Code.require_file("lib/exphil/evaluation/forward.ex")
++    Code.require_file("lib/exphil/evaluation/bptt.ex")
++    Code.require_file("scripts/eval_model.exs")
++    """
++
++    {output, status} =
++      System.cmd(
++        "elixir",
++        ["--erl", "+S 2:2"] ++
++          code_paths ++
++          ["-e", source, "--policy", path, "--replays", directory, "--max-files", "1"],
++        stderr_to_stdout: true
++      )
++
++    assert status == 0, output
++    assert output =~ "teacher-forced plain CE="
++  end
++
++  test "BPTT diagnostics accept multi-input batches without failing" do
++    trainer = trainer()
++
++    state = %{
++      trainer: trainer,
++      pipeline: %{val_batches: [batch(0, 4, 1), batch(4, 4, 0)]},
++      opts: []
++    }
++
++    ExUnit.CaptureIO.capture_io(fn ->
++      callback = ExPhil.Training.Callbacks.Diagnostics.init([])
++      {:cont, _, callback} = ExPhil.Training.Callbacks.Diagnostics.on_epoch_end(state, callback)
++      assert length(callback.head_loss_history.buttons) == 1
++    end)
++  end
++end
+diff --git a/test/exphil/training/label_delay_test.exs b/test/exphil/training/label_delay_test.exs
+new file mode 100644
+index 00000000..8a1b485a
+--- /dev/null
++++ b/test/exphil/training/label_delay_test.exs
+@@ -0,0 +1,201 @@
++defmodule ExPhil.Training.LabelDelayTest do
++  use ExUnit.Case, async: false
++
++  alias ExPhil.Data.LabelConvention
++  alias ExPhil.Training.{Config, LabelDelay, Pipeline, Streaming}
++
++  test "all aliases resolve identically and explicit zero cannot hide a conflict" do
++    for flag <- ["--label-delay", "--frame-delay", "--action-delay"] do
++      config = Config.parse_args([flag, "2", "--backbone", "gru"])
++      assert Keyword.take(config, LabelDelay.keys()) |> Keyword.values() |> Enum.uniq() == [2]
++      assert LabelConvention.reaction_delay(Map.new(config)) == 2
++    end
++
++    assert Config.parse_args([])[:label_delay] == 0
++
++    assert Config.defaults()
++           |> Keyword.put(:action_delay, 2)
++           |> LabelDelay.resolve!()
++           |> Keyword.fetch!(:label_delay) == 2
++
++    assert_raise ArgumentError, ~r/Conflicting/, fn ->
++      Config.parse_args(["--frame-delay", "0", "--action-delay", "2"])
++    end
++
++    assert_raise ArgumentError, ~r/Conflicting/, fn ->
++      LabelDelay.resolve!(label_delay: 2, frame_delay: 0)
++    end
++
++    for value <- [-1, "2", 1.5] do
++      assert_raise ArgumentError, ~r/nonnegative integer/, fn ->
++        LabelDelay.resolve!(action_delay: value)
++      end
++    end
++  end
++
++  @tag :tmp_dir
++  test "CLI overrides YAML as one delay value, including explicit zero", %{tmp_dir: directory} do
++    path = Path.join(directory, "config.yaml")
++    File.write!(path, "action_delay: 3\n")
++    assert Config.parse_args(["--config", path])[:label_delay] == 3
++    opts = Config.parse_args(["--config", path, "--preset", "quick", "--frame-delay", "0"])
++    assert opts[:label_delay] == 0
++    assert opts[:action_delay] == 0
++    {:ok, loaded} = Config.load_with_yaml(path, ["--frame-delay", "2"])
++    assert loaded[:label_delay] == 2
++
++    File.write!(path, "frame_delay: 0\naction_delay: 3\n")
++    assert_raise ArgumentError, ~r/Conflicting/, fn -> Config.parse_args(["--config", path]) end
++  end
++
++  @tag :tmp_dir
++  test "resume converts legacy numbering once, while explicit CLI can override it", %{
++    tmp_dir: directory
++  } do
++    path = Path.join(directory, "old.axon")
++    File.write!(path, :erlang.term_to_binary(%{config: %{frame_delay: 3, embed_size: 32}}))
++    opts = Config.parse_args(["--resume", path])
++    assert opts[:label_delay] == 2
++    assert opts[:action_delay] == 2
++    assert Config.parse_args(["--resume", path, "--label-delay", "0"])[:label_delay] == 0
++
++    File.write!(path, :erlang.term_to_binary(%{config: %{frame_delay: 0, embed_size: 32}}))
++    assert_raise ArgumentError, ~r/leaked labels/, fn -> Config.parse_args(["--resume", path]) end
++    assert Config.parse_args(["--resume", path, "--label-delay", "0"])[:label_delay] == 0
++  end
++
++  test "legacy checkpoint and live delay numbering remain unchanged" do
++    assert LabelConvention.reaction_delay(%{frame_delay: 3}) == 2
++
++    assert LabelConvention.reaction_delay(%{"label_delay" => 2, "label_convention" => "causal"}) ==
++             2
++
++    assert LabelConvention.delay_id(3, %{label_convention: :causal}) == 2
++    assert LabelConvention.delay_id(3, %{}) == 3
++
++    assert LabelConvention.train_reaction_delays(%{
++             label_convention: :causal,
++             train_delays: [1, 2]
++           }) == [1, 2]
++  end
++
++  @tag :tmp_dir
++  test "exports and full resume keep the executed reaction delay", %{tmp_dir: directory} do
++    alias ExPhil.Training.{Checkpoint, Imitation}
++    trainer = Imitation.new(embed_size: 32, hidden_sizes: [8], action_delay: 2)
++    path = Path.join(directory, "delay.axon")
++    :ok = Imitation.save_checkpoint(trainer, path)
++    fresh = Imitation.new(embed_size: 32, hidden_sizes: [8], label_delay: 0)
++    {:ok, resumed} = Imitation.load_checkpoint(fresh, path)
++    assert resumed.config[:label_delay] == 0
++    assert resumed.config[:action_delay] == 0
++    assert resumed.config[:label_convention] == :causal
++
++    export = Path.join(directory, "delay_policy.bin")
++    :ok = Imitation.export_policy(trainer, export)
++    {:ok, saved} = Checkpoint.load_policy(export)
++    assert saved.config[:label_delay] == 2
++    assert saved.config[:train_delays] == [2]
++    assert ExPhil.Training.Comparability.key(saved.config).label_delay == 2
++
++    augmented = %{
++      trainer
++      | config:
++          Map.merge(
++            trainer.config,
++            %{frame_delay_augment: true, frame_delay_min: 1, frame_delay_max: 3}
++          )
++    }
++
++    :ok = Imitation.export_policy(augmented, export)
++    {:ok, saved} = Checkpoint.load_policy(export)
++    assert saved.config[:train_delays] == [3, 4, 5]
++  end
++
++  test "unsupported augmentation and precomputed corpus delay fail before file loading" do
++    assert_raise ArgumentError, ~r/augmentation/, fn ->
++      Pipeline.setup(temporal: true, frame_delay_augment: true)
++    end
++
++    assert_raise ArgumentError, ~r/corpus labels/, fn ->
++      Pipeline.setup(corpus: "unused", label_delay: 2)
++    end
++
++    assert_raise ArgumentError, ~r/Conflicting/, fn ->
++      Pipeline.setup(frame_delay: 0, action_delay: 2)
++    end
++  end
++
++  @tag :nif
++  test "streaming aliases produce identical successor targets" do
++    fixture = "test/fixtures/replays/fox_multishine.slp"
++
++    results =
++      for key <- LabelDelay.keys() do
++        {:ok, frames, _errors} =
++          Streaming.parse_chunk([fixture], [{key, 2}, {:show_progress, false}])
++
++        assert length(frames) > 10
++        Enum.map(frames, &{&1.game_state.frame, &1.controller})
++      end
++
++    assert Enum.uniq(results) |> length() == 1
++  end
++
++  @tag :nif
++  @tag :tmp_dir
++  test "standard batches shift once and match streaming targets for every alias", %{
++    tmp_dir: directory
++  } do
++    fixture = "test/fixtures/replays/fox_multishine.slp"
++    File.cp!(fixture, Path.join(directory, "first.slp"))
++    File.cp!(fixture, Path.join(directory, "second.slp"))
++
++    {:ok, expected, _errors} =
++      Streaming.parse_chunk([fixture, fixture], label_delay: 2, show_progress: false)
++
++    for key <- LabelDelay.keys() do
++      opts = [
++        {key, 2},
++        {:replays, directory},
++        {:cache_embeddings, false},
++        {:val_split, 0},
++        {:batch_size, 32},
++        {:temporal, false}
++      ]
++
++      {:ok, pipeline} = Pipeline.setup(opts)
++
++      assert Enum.map(pipeline.train_dataset.frames, &{&1.game_state.frame, &1.controller}) ==
++               Enum.map(expected, &{&1.game_state.frame, &1.controller})
++
++      {stream, _count} = Pipeline.batch_stream(pipeline, shuffle: false, drop_last: false)
++      actual = Enum.map(stream, & &1.actions.main_x) |> Nx.concatenate() |> Nx.to_flat_list()
++      assert actual == Enum.map(expected, &ExPhil.Training.Data.frame_action(&1).main_x)
++      assert pipeline.resolved_opts[:label_delay] == 2
++
++      {:ok, streaming} =
++        Pipeline.setup(
++          Keyword.merge(Keyword.merge(Config.defaults(), opts),
++            temporal: true,
++            bptt: true,
++            unroll: 16,
++            batch_size: 1,
++            stream_chunk_size: 1,
++            bptt_val_files: 1,
++            cache_streaming: false
++          )
++        )
++
++      assert streaming.streaming_chunk_opts[:label_delay] == 2
++      {stream, _count} = Pipeline.batch_stream(streaming, [])
++      first = Enum.at(stream, 0)
++
++      expected_actions =
++        Enum.take(expected, 16) |> Enum.map(&ExPhil.Training.Data.frame_action(&1).main_x)
++
++      assert Nx.to_flat_list(first.actions.main_x) == expected_actions
++      assert Nx.to_flat_list(hd(streaming.val_batches).actions.main_x) == expected_actions
++    end
++  end
++end

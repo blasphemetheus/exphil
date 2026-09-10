@@ -3976,3 +3976,24 @@ reaction k deploys at `--frame-delay k+1`, and the Agent derives its
 delay-id from the checkpoint's convention (causal: id N-1, legacy: id
 N) instead of copying the flag. `label_alignment_test` +
 `label_convention_test` pin both halves.
+
+## 114
+
+**Headless gates silently ran the NETPLAY AppImage, which needs an X
+display even with `--headless`** (2026-09-10). `DOLPHIN_DIR` is exported
+globally in the login shell (fish) pointing at
+`~/.local/share/slippi/netplay`; `gate_sweep.sh` and
+`eval_live_protocol.sh` defaulted to the exi-ai headless build only when
+the variable was UNSET, so every gate used the netplay build. It worked
+while the X display was alive and then every gate failed with
+`{:connect_failed, {:enet_disconnected, :timeout}}` and NO Dolphin
+process — the only evidence was `Unable to initialize GTK+, is DISPLAY
+set properly?` on Dolphin's own stderr, which the run logs don't carry
+(`scripts/dolphin_launch_probe.exs` prints it). Fixes: `gate_sweep.sh`
+FORCES the headless build (`GATE_DOLPHIN_DIR` to override); a per-gate
+orphan guard, because **the exi-ai headless build ignores SIGTERM** — a
+survivor holds UDP 51442 and every later gate fails the same way (a
+second cause of the identical symptom). **Headless gates run fine under
+`systemd-run --user`** (no session display needed), which retires the
+10-minute/memory-kill fragility of running sweeps from the tool shell;
+the old "dolphin evals foreground only" rule was the netplay build.

@@ -1,0 +1,1 @@
+policy=checkpoints/ms_g20a_ep10.bin runner=sync runs=1 seconds=60 dummy=stand server=0 decode=--deterministic loadavg=1.20 1.61 1.37

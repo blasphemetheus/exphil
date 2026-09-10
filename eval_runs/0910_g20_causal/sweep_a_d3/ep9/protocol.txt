@@ -1,0 +1,2 @@
+policy=checkpoints/ms_g20a_ep9.bin runner=sync runs=1 seconds=60 dummy=stand server=0 decode=--temperature 1.0 loadavg=1.63 1.45 1.55
+fixture_agreement: [10:01:26] FIXTURE_AGREEMENT best=0.8878 offset=2 delay_id=0 n=1678

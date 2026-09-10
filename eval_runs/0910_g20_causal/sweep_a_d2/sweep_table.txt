@@ -1,0 +1,7 @@
+ep4: 82.9/min chain 2
+ep7: 77.9/min chain 2
+ep11: 78.9/min chain 1
+ep14: 95.9/min chain 3
+ep18: 95.9/min chain 2
+ep23: 91.9/min chain 3
+=== ARGMAX: checkpoints/ms_g20a_ep14.bin at 95.9/min

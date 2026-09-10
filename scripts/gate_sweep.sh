@@ -2,8 +2,12 @@
 # Behavioral gate-sweep over per-epoch snapshots (2026-08-20 recipe).
 # Usage: gate_sweep.sh <snapshot-prefix> <out-dir> [--confirm]
 #   e.g. gate_sweep.sh checkpoints/ms_g19 eval_runs/0820_g19_gatesweep/sweep
-# Gates every <prefix>_ep*.bin with ONE sync stand-fox d3 run (~30s;
-# deterministic on FD), prints a per-epoch table, names the argmax.
+# Gates every <prefix>_ep*.bin with ONE sync stand-fox run (~30s; deterministic
+# on FD) at GATE_DELAY (default 3), prints a per-epoch table, names the argmax.
+# Env (2026-09-10): GATE_DELAY=N sets --frame-delay N; GATE_ID=N adds
+# --delay-id-override N (default: NONE — the Agent derives the id from the
+# checkpoint's label convention, INVARIANTS item 1; pass GATE_ID=3 for the
+# legacy g19-era behavior). EPOCHS="4 5 6" restricts the sweep (chunking).
 # With --confirm: re-gates the argmax x3 fox + x1 mewtwo.
 # Run AFTER training only (spawns beams; NO-MIX discipline).
 set -euo pipefail
@@ -12,8 +16,21 @@ PREFIX="${1:?usage: gate_sweep.sh <snapshot-prefix> <out-dir> [--confirm]}"
 OUTDIR="${2:?usage: gate_sweep.sh <snapshot-prefix> <out-dir> [--confirm]}"
 CONFIRM="${3:-}"
 
-export DOLPHIN_DIR="${DOLPHIN_DIR:-$HOME/.local/share/slippi/exi-ai/dolphin-emu-headless}"
+# 2026-09-10: FORCE the exi-ai headless build. DOLPHIN_DIR is exported globally
+# in the login shell (fish) pointing at the NETPLAY AppImage, which needs a
+# DISPLAY even with --headless ("Unable to initialize GTK+") — every gate
+# from 11:27 failed with a console-connect timeout and no Dolphin process.
+# Override deliberately with GATE_DOLPHIN_DIR.
+export DOLPHIN_DIR="${GATE_DOLPHIN_DIR:-$HOME/.local/share/slippi/exi-ai/dolphin-emu-headless}"
 export ISO="${ISO:-$HOME/isos/melee.iso}"
+GATE_DELAY="${GATE_DELAY:-3}"
+# 2026-09-10 (Bradley): argmax gating was the wrong instrument — sampling at
+# T=1.0 is the decode the policies are trained for (the fox_gen argmax-collapse
+# lesson; the AR head especially). GATE_TEMP=0 restores --deterministic.
+GATE_TEMP="${GATE_TEMP:-1.0}"
+if [ "$GATE_TEMP" = "0" ]; then DECODE_ARGS=""; else DECODE_ARGS="--temperature $GATE_TEMP"; fi
+GATE_ID_ARGS=""
+[ -n "${GATE_ID:-}" ] && GATE_ID_ARGS="--delay-id-override $GATE_ID"
 mkdir -p "$OUTDIR"
 TABLE="$OUTDIR/sweep_table.txt"
 : > "$TABLE"
@@ -25,6 +42,7 @@ echo "sweeping $(echo "$snaps" | wc -l) snapshots"
 best_rate=-1; best_snap=""
 for snap in $snaps; do
   ep=$(basename "$snap" | grep -oE "ep[0-9]+" | tr -d 'ep')
+  if [ -n "${EPOCHS:-}" ] && ! echo " $EPOCHS " | grep -q " $ep "; then continue; fi
 
   # Resumable (2026-08-21): skip epochs already scored in the table, so
   # a re-run after an interruption only gates what's missing.
@@ -38,8 +56,8 @@ for snap in $snaps; do
 
   dir="$OUTDIR/ep${ep}"
   EXLA_TARGET=host EXPHIL_GPU_MEMORY_FRACTION=0.25 bash scripts/eval_live_protocol.sh \
-    "$snap" "$dir" --runs 1 --dummy stand --runner sync \
-    -- --frame-delay 3 --delay-id-override 3 --headless --emulation-speed 0 --blocking-input --slippi-port 51442 \
+    "$snap" "$dir" --runs 1 --dummy stand --runner sync $DECODE_ARGS \
+    -- --frame-delay "$GATE_DELAY" $GATE_ID_ARGS --headless --emulation-speed 0 --blocking-input --slippi-port 51442 \
     > "$dir.log" 2>&1 || {
       echo "ep${ep} GATE FAILED" | tee -a "$TABLE"
       # GUARDS_BACKLOG #3: N consecutive failures = infrastructure,
@@ -52,6 +70,9 @@ for snap in $snaps; do
       continue
     }
     CONSEC_FAIL=0
+  # orphan guard (2026-09-10): the exi-ai headless build ignores TERM; a
+  # survivor holds UDP 51442 and fails every later gate with a connect timeout.
+  pkill -9 -f "squashfs-root/usr/bin/dolphin-emu" 2>/dev/null || true
   # `|| true` everywhere: under set -e a no-match grep in a $() assignment
   # killed the whole sweep at ep32 of the f3_a2 run (2026-08-21) — a
   # missing score line must cost one epoch, never the sweep.
@@ -69,11 +90,11 @@ echo "=== ARGMAX: $best_snap at ${best_rate}/min" | tee -a "$TABLE"
 if [ "$CONFIRM" = "--confirm" ] && [ -n "$best_snap" ]; then
   echo "=== confirming argmax x3 fox + mewtwo"
   EXLA_TARGET=host EXPHIL_GPU_MEMORY_FRACTION=0.25 bash scripts/eval_live_protocol.sh \
-    "$best_snap" "$OUTDIR/argmax_fox" --runs 3 --dummy stand --runner sync \
-    -- --frame-delay 3 --delay-id-override 3 --headless --emulation-speed 0 --blocking-input --slippi-port 51442 \
+    "$best_snap" "$OUTDIR/argmax_fox" --runs 3 --dummy stand --runner sync $DECODE_ARGS \
+    -- --frame-delay "$GATE_DELAY" $GATE_ID_ARGS --headless --emulation-speed 0 --blocking-input --slippi-port 51442 \
     2>&1 | grep -aE "r[123] " | tail -3 | tee -a "$TABLE"
   EXLA_TARGET=host EXPHIL_GPU_MEMORY_FRACTION=0.25 bash scripts/eval_live_protocol.sh \
-    "$best_snap" "$OUTDIR/argmax_mewtwo" --runs 1 --dummy stand --runner sync \
+    "$best_snap" "$OUTDIR/argmax_mewtwo" --runs 1 --dummy stand --runner sync $DECODE_ARGS \
     -- --frame-delay 3 --delay-id-override 3 --dummy-character mewtwo --headless --emulation-speed 0 --blocking-input --slippi-port 51442 \
     2>&1 | grep -aE "r1 " | tail -1 | tee -a "$TABLE"
 fi

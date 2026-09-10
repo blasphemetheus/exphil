@@ -8,6 +8,9 @@ ExPhil is a platform for training and evaluating AI agents that play Melee via [
 
 The long-term goal is competitive bots for Melee's lower-tier characters (Mewtwo, Ganondorf, Link, Zelda, Ice Climbers, Game & Watch), but high-tier replay data is more abundant, so that's where architecture iteration happens first.
 
+**Start here:** [Current status and supported workflow](docs/planning/CURRENT_STATUS.md),
+[repository improvement checklist](docs/planning/REPO_IMPROVEMENTS.md).
+
 ---
 
 ## Why Elixir?
@@ -25,7 +28,11 @@ Most game AI research uses Python/PyTorch. ExPhil uses Elixir deliberately:
 
 The core question: *which neural network architecture best captures Melee's temporal dynamics at 60 FPS?*
 
-### Benchmarked Backbones
+### Historical Backbone Benchmarks
+
+These results have no recorded benchmark date or code revision. They describe
+an earlier evaluation setup, not current stateful inference or causal-policy
+quality; use them as historical context rather than a deployment recommendation.
 
 | Backbone | Type | Inference | 60 FPS | Val Loss | Notes |
 |----------|------|-----------|--------|----------|-------|
@@ -79,6 +86,9 @@ Slippi Replays (.slp)
 ## Quick Start
 
 ```bash
+# Run in a parent directory for the three repositories.
+git clone https://github.com/blasphemetheus/edifice.git
+git clone https://github.com/blasphemetheus/libmelee_ex.git
 git clone https://github.com/blasphemetheus/exphil.git
 cd exphil
 mix deps.get
@@ -87,20 +97,26 @@ mix deps.get
 mix exphil.setup
 
 # Train with presets
-mix run scripts/train_from_replays.exs --preset quick --replays ./replays
-mix run scripts/train_from_replays.exs --preset production --online-robust
+mix run scripts/train.exs --preset quick --replays ./replays
 
 # Try different architectures
-mix run scripts/train_from_replays.exs --backbone mamba --temporal --replays ./replays
-mix run scripts/train_from_replays.exs --backbone attention --temporal --replays ./replays
-mix run scripts/train_from_replays.exs --backbone griffin --temporal --replays ./replays
+mix run scripts/train.exs --backbone gru --replays ./replays
+mix run scripts/train.exs --backbone attention --replays ./replays
 
-# Evaluate
+# Evaluate a supported non-BPTT checkpoint (see limitation below)
 mix run scripts/eval_model.exs --checkpoint checkpoints/model.axon
-
-# Play against the AI (requires Dolphin + Slippi)
-mix run scripts/play_dolphin_async.exs --policy checkpoints/model_policy.bin
 ```
+
+See [contributor setup](CONTRIBUTING.md#development-setup) for prerequisites and
+local dependency overrides. `scripts/train.exs` is the current entry point;
+`train_from_replays.exs` is legacy. Run setup/training commands in a separate
+environment from any active training job.
+
+**Evaluation limitation:** `eval_model.exs` does not yet support current BPTT
+checkpoints. Follow [current status](docs/planning/CURRENT_STATUS.md) for available
+instruments and the tracked fix. For Dolphin play, copy the checkpoint-specific
+settings from the [deployment cards](docs/guides/DEPLOY_KNOBS.md); delay and
+decoding settings affect behavior.
 
 ### Training Presets
 
@@ -142,7 +158,8 @@ mix run scripts/play_dolphin_async.exs --policy checkpoints/model_policy.bin
 
 ## Current Status
 
-- 2469 tests passing
+- Test suites cover training, embeddings, inference, and replay handling; the
+  default test command excludes several native/integration categories.
 - Imitation learning pipeline (single-frame + temporal)
 - 30+ backbone architectures benchmarked or available
 - 4 policy types (Standard, Diffusion, ACT, Flow Matching)
@@ -150,7 +167,10 @@ mix run scripts/play_dolphin_async.exs --policy checkpoints/model_policy.bin
 - PPO trainer and self-play infrastructure built
 - Training features: EMA, cosine scheduling, augmentation, caching, checkpointing
 
-**Next**: Large-scale self-play training on GPU clusters, scaling experiments with more data and larger models.
+**Next**: Evaluate causal-policy training and improve checkpoint evaluation,
+configuration consistency, reproducibility, and semantic CI coverage. See
+[current status](docs/planning/CURRENT_STATUS.md) and the
+[engineering checklist](docs/planning/REPO_IMPROVEMENTS.md).
 
 ---
 

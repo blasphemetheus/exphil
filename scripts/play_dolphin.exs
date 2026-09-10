@@ -91,7 +91,10 @@ Output.step(1, 5, "Loading agent")
     policy_path: opts[:policy],
     deterministic: opts[:deterministic],
     frame_delay: opts[:frame_delay],
-    delay_id: opts[:delay_id_override] || opts[:frame_delay] || 0,
+    # nil -> the Agent derives the id from the checkpoint label convention
+    # (INVARIANTS item 1; found 2026-09-10: copying the live flag ran id 1 at
+    # d1 for every causal checkpoint and refused single-rung ones).
+    delay_id: opts[:delay_id_override],
     # Explicit --delay-id-override bypasses the untrained-id guard
     # (same contract as play_dolphin_async; missing here cost the
     # phase-2 r1/r2 sweeps — every gate refused the [0]-stamped

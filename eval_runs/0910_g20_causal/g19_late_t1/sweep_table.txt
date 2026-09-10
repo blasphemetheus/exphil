@@ -1,0 +1,6 @@
+ep20: 69.9/min chain 4
+ep40: 101.9/min chain 9
+ep50: 101.9/min chain 5
+ep58: 126.8/min chain 12
+ep60: 89.9/min chain 7
+=== ARGMAX: checkpoints/ms_g19_ep58.bin at 126.8/min

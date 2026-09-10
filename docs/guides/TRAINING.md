@@ -9,7 +9,28 @@ Complete reference for training ExPhil models.
 mix exphil.setup
 ```
 
-Or use presets directly:
+For new runs, use the callback-based trainer:
+
+```bash
+mix run scripts/train.exs --preset quick --replays ./replays
+mix run scripts/train.exs --backbone gru --replays ./replays --max-files 100 --epochs 2
+mix run scripts/train.exs --help
+```
+
+Follow [contributor setup](../../CONTRIBUTING.md#development-setup) first. Run
+these commands away from any active training environment. See
+[current status](../planning/CURRENT_STATUS.md) for the causal-label convention,
+the BPTT evaluator limitation, and checkpoint-specific deployment guidance.
+
+## Historical trainer examples
+
+The `train_from_replays.exs` examples below document the legacy trainer and
+earlier experiments. They are retained for reference, not as the supported
+quick start. The generated training flag reference later in this document
+describes the current parser. Historical timing and architecture rankings do
+not establish current performance.
+
+Legacy preset examples:
 ```bash
 # Using presets (recommended)
 mix run scripts/train_from_replays.exs --preset quick     # Fast iteration (~5 min)
@@ -381,7 +402,7 @@ mix run scripts/train_from_replays.exs \
 This precomputes multiple versions of each frame (original, mirrored, noisy variants) and randomly selects among them during training, providing similar regularization to on-the-fly augmentation.
 
 > **Note:** Without `--cache-augmented`, `--augment` applies augmentation on-the-fly which is ~100x slower.
-> See [Gotcha #40](GOTCHAS.md#40---augment-flag-bypasses-precomputed-embeddings-100x-slower) for details.
+> See [Gotcha #40](../reference/GOTCHAS.md#40---augment-flag-bypasses-precomputed-embeddings-100x-slower) for details.
 
 ### Online Play Training
 
@@ -929,7 +950,7 @@ nvidia-smi -l 1
 
 ### GPU Training Optimization
 
-**See [GPU_OPTIMIZATIONS.md](GPU_OPTIMIZATIONS.md) for comprehensive GPU guide.**
+**See [GPU_OPTIMIZATIONS.md](../internals/GPU_OPTIMIZATIONS.md) for comprehensive GPU guide.**
 
 Quick wins for GPU training:
 

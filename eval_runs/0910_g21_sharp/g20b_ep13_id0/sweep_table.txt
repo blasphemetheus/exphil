@@ -1,0 +1,2 @@
+ep13: 89.9/min chain 1
+=== ARGMAX: checkpoints/ms_g20b_ep13.bin at 89.9/min

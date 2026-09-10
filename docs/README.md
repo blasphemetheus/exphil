@@ -26,8 +26,13 @@
 - [ODE Solver](reference/ODE_SOLVER.md) - Numerical integration for Liquid Networks
 
 ### Project Status
+- [Current Status](planning/CURRENT_STATUS.md) - Start here for current work and known limitations
+- [Repository Improvements](planning/REPO_IMPROVEMENTS.md) - Implementation checklist and validation record
 - [Goals](planning/GOALS.md) - Big picture priorities
 - [Fixes](planning/FIXES.md) - Technical debt tracking
+
+### Operations
+- [Run Completion Records](operations/RUN_STATUS.md) - Launch future runs with explicit completion status and watchdog verification
 
 ## Generated API Docs
 

@@ -25,27 +25,37 @@
 # Usage:
 #   scripts/train_watchdog.sh --pid <launcher_pid> --log <logfile> \
 #     [--checkpoint <path>] [--interval 60] [--stale-min 25] \
-#     [--gpu-idle-checks 5] [--gpu-busy-pct 10]
+#     [--gpu-idle-checks 5] [--gpu-busy-pct 10] \
+#     [--status <run-status.json> --run-id <unique-run-id>]
 #
 # Watch the TOP-LEVEL launcher pid (overnight_newera8.sh), not a beam:
 # the launcher survives the per-round `mix run` beam cycling, so its exit
-# means the whole run ended (then --checkpoint decides success vs fail).
+# means the whole run ended. Only a matching terminal status proves success.
 
 set -uo pipefail
 
 PID=""
 LOG=""
 CKPT=""
+STATUS=""
+RUN_ID=""
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 INTERVAL=60
 STALE_MIN=25
 GPU_IDLE_CHECKS=5
 GPU_BUSY_PCT=10
 
 while [ $# -gt 0 ]; do
+  if [ $# -lt 2 ]; then
+    echo "watchdog: missing value for $1" >&2
+    exit 64
+  fi
   case "$1" in
     --pid) PID="$2"; shift 2 ;;
     --log) LOG="$2"; shift 2 ;;
     --checkpoint) CKPT="$2"; shift 2 ;;
+    --status) STATUS="$2"; shift 2 ;;
+    --run-id) RUN_ID="$2"; shift 2 ;;
     --interval) INTERVAL="$2"; shift 2 ;;
     --stale-min) STALE_MIN="$2"; shift 2 ;;
     --gpu-idle-checks) GPU_IDLE_CHECKS="$2"; shift 2 ;;
@@ -56,6 +66,14 @@ done
 
 [ -n "$PID" ] || { echo "watchdog: --pid required" >&2; exit 64; }
 [ -n "$LOG" ] || { echo "watchdog: --log required" >&2; exit 64; }
+if { [ -n "$STATUS" ] && [ -z "$RUN_ID" ]; } || { [ -z "$STATUS" ] && [ -n "$RUN_ID" ]; }; then
+  echo "watchdog: --status and --run-id must be supplied together" >&2
+  exit 64
+fi
+if [ -n "$STATUS" ] && ! command -v python3 >/dev/null 2>&1; then
+  echo "watchdog: python3 is required to verify run status" >&2
+  exit 64
+fi
 
 notify() {
   # Desktop toast if a session bus is reachable; never fatal if not.
@@ -93,20 +111,25 @@ warned_hang=0
 
 while true; do
   if ! kill -0 "$PID" 2>/dev/null; then
-    # Process ended — success or failure? Ask the checkpoint + log.
-    if [ -n "$CKPT" ] && [ -f "$CKPT" ]; then
-      report "RUN ENDED — checkpoint present ($CKPT): looks like SUCCESS"
-      notify "Training done ✓" "pid $PID ended; checkpoint written"
-      exit 0
-    elif grep -qiE "Policy exported|Converged" "$LOG" 2>/dev/null; then
-      report "RUN ENDED — log shows export/convergence: SUCCESS"
-      notify "Training done ✓" "pid $PID ended; policy exported"
-      exit 0
-    else
-      report "RUN ENDED WITHOUT CHECKPOINT — likely DIED (check exit status / journalctl -k for OOM)"
-      notify "Training DIED ✗" "pid $PID gone, no checkpoint — see $LOG"
-      exit 1
+    if [ -n "$STATUS" ]; then
+      python3 "$SCRIPT_DIR/run_status.py" check --status "$STATUS" --run-id "$RUN_ID" --pid "$PID"
+      result=$?
+      if [ "$result" -eq 0 ]; then
+        report "RUN COMPLETED — verified terminal status for $RUN_ID"
+        notify "Training done ✓" "run $RUN_ID completed successfully"
+        exit 0
+      elif [ "$result" -eq 1 ]; then
+        report "RUN FAILED — terminal status for $RUN_ID reports failure"
+        notify "Training failed ✗" "run $RUN_ID failed — see $STATUS"
+        exit 1
+      fi
     fi
+    if [ -n "$CKPT" ] && [ -f "$CKPT" ]; then
+      echo "[watchdog] checkpoint exists ($CKPT); this does not prove completion"
+    fi
+    report "RUN ENDED — completion UNKNOWN; no matching verified terminal status"
+    notify "Training status unknown" "pid $PID gone; inspect launcher exit status"
+    exit 2
   fi
 
   age=$(log_age_min)
