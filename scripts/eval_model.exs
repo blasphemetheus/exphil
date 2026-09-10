@@ -286,6 +286,29 @@ model_config =
     %{}
   end
 
+# The policy file's OWN metadata is authoritative for layout keys (it is
+# what the Agent and the probes read); the JSON sidecar has lagged it
+# (v16f 2026-09-09: sidecar had no with_projectiles). Merge it on top.
+model_config =
+  if Regex.match?(~r/_policy\.bin$/, first_model_path) and File.exists?(first_model_path) do
+    try do
+      {_params, meta} = Edifice.Checkpoint.load(first_model_path, return_metadata: true)
+
+      case meta[:config] do
+        pc when is_map(pc) and map_size(pc) > 0 ->
+          Output.puts("  Layout keys from the policy metadata (#{map_size(pc)} keys) override the sidecar")
+          Map.merge(model_config, pc)
+
+        _ ->
+          model_config
+      end
+    rescue
+      _ -> model_config
+    end
+  else
+    model_config
+  end
+
 # Build embedding config from model config
 embed_opts = [with_speeds: true]
 
@@ -338,10 +361,24 @@ else
   embed_opts
 end
 
+# Layout keys the fox_gen line depends on (FIXES.md 09-09, INVARIANTS item 4):
+# checkpoints trained from Peppi since 09-09 have NO projectile block, and
+# the v2/v16 recipe trains with --stage-internals and --learn-player-styles.
+# Without these the embed width here differs from the checkpoint's and the
+# canary guard refuses the load. Same defaults as scripts/probe_sampler_wait.exs.
+truthy = fn v -> v in [true, "true"] end
+
+embed_opts =
+  embed_opts
+  |> Keyword.put(:with_projectiles, truthy.(get_cfg.(model_config, :with_projectiles, true)))
+  |> Keyword.put(:stage_internals, truthy.(get_cfg.(model_config, :stage_internals, false)))
+  |> Keyword.put(:num_player_names, get_cfg.(model_config, :num_player_names, 0) || 0)
+  |> Keyword.put(:action_frame_buckets, get_cfg.(model_config, :action_frame_buckets, 0) || 0)
+
 embed_config = Embeddings.config(embed_opts)
 embed_size = Embeddings.embedding_size(embed_config)
 
-Output.puts("  Embedding config: #{inspect(Keyword.take(embed_opts, [:action_mode, :character_mode, :stage_mode, :nana_mode]))}")
+Output.puts("  Embedding config: #{inspect(Keyword.take(embed_opts, [:action_mode, :character_mode, :stage_mode, :nana_mode, :with_projectiles, :stage_internals, :num_player_names]))}")
 Output.puts("  Embedding size: #{embed_size} dims")
 
 # Regime fields come from the MODEL's config, not CLI defaults: evaluating a

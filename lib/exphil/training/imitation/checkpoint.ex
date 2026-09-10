@@ -405,6 +405,17 @@ defmodule ExPhil.Training.Imitation.Checkpointing do
         # the embedding — the live agent must rebuild the same layout.
         stage_internals:
           (trainer.embed_config && Map.get(trainer.embed_config, :stage_internals)) || false,
+        # Bucketized action frame (player-level layout key, 2026-09-09):
+        # N one-hot dims per player; the Agent must rebuild the same layout.
+        action_frame_buckets: embed_action_frame_buckets(trainer.embed_config),
+        # INVARIANTS.md item 4 — the source-channel stamps belong HERE (the
+        # policy's own metadata is what the Agent, the probes and
+        # eval_model read; found missing on v16f 2026-09-09: every consumer
+        # defaulted to a 296-wide layout for a 264-wide model).
+        with_projectiles:
+          (trainer.embed_config && Map.get(trainer.embed_config, :with_projectiles)) || false,
+        with_items: (trainer.embed_config && Map.get(trainer.embed_config, :with_items)) || false,
+        provided_channels: ExPhil.Data.Peppi.provides(),
         # Embedding fingerprint (GUARDS_BACKLOG #1): the canary state
         # embedded through the BATCHED path with the config the agent
         # will reconstruct; the agent re-embeds through the LIVE path
@@ -493,11 +504,20 @@ defmodule ExPhil.Training.Imitation.Checkpointing do
   defp embed_canary(trainer) do
     ec = trainer.embed_config || %{}
 
+    default = ExPhil.Embeddings.Game.Config.default()
+
+    # INVARIANTS.md item 4 (found 2026-09-09 on v16f: canary 296 vs model
+    # 264): the source-channel keys MUST be in the canary config too, or
+    # the stored fingerprint is a different width than the model and the
+    # Agent refuses the checkpoint at its trained width.
     config = %{
-      ExPhil.Embeddings.Game.Config.default()
+      default
       | queue_depth: Map.get(ec, :queue_depth) || 1,
         with_delay_id: Map.get(ec, :with_delay_id) || false,
-        stage_internals: Map.get(ec, :stage_internals) || false
+        stage_internals: Map.get(ec, :stage_internals) || false,
+        with_projectiles: Map.get(ec, :with_projectiles, true),
+        with_items: Map.get(ec, :with_items, false),
+        player: %{default.player | action_frame_buckets: embed_action_frame_buckets(ec)}
     }
 
     ExPhil.Embeddings.Canary.fingerprint_batched(config)
@@ -585,6 +605,17 @@ defmodule ExPhil.Training.Imitation.Checkpointing do
   # that pathway and stamped [0], which the untrained-id guard then
   # dutifully enforced), else the frame-delay-augment range, else the
   # single configured delay.
+  # Player-level layout key: lives under embed_config.player (a
+  # %Game.Config{} struct at train time, or a flattened map on old exports).
+  defp embed_action_frame_buckets(nil), do: 0
+
+  defp embed_action_frame_buckets(ec) do
+    case Map.get(ec, :player) do
+      %{action_frame_buckets: n} when is_integer(n) -> n
+      _ -> Map.get(ec, :action_frame_buckets) || 0
+    end
+  end
+
   defp train_delays(config) do
     cond do
       is_list(config[:train_delays]) and config[:train_delays] != [] ->

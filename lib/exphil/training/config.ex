@@ -1514,6 +1514,11 @@ defmodule ExPhil.Training.Config do
       # transformation; W4 2026-08-24 stage-blindness verdict). +7 raw
       # dims, zero-gated by stage. Enable with --stage-internals.
       stage_internals: false,
+      # Bucketized action-frame one-hot per player (0 = off; the jab-chain
+      # lever, V2_PREP 7b). Layout key: stamped in the checkpoint, rebuilt
+      # by the Agent. Enable with --action-frame-buckets N (24 = f0..22 +
+      # overflow; covers every startup/chain window that matters).
+      action_frame_buckets: 0,
       # Frame delay augmentation for online robustness
       # Enable with --frame-delay-augment or --online-robust
       frame_delay_augment: false,

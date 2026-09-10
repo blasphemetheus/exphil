@@ -237,6 +237,40 @@ more passively — stands there, turns away." Instruments
   (`--frame-delay 0` == v16e's old `--frame-delay 1`); the deploy
   flag stays `--frame-delay 1` (live N = reaction N-1; the Agent
   derives delay-id 0 for a causal checkpoint at that rung).
+  **Bradley's live look at v16e (09-09 night): "recognizably more
+  human, still not that good."** **DECISION (Bradley, 09-09 night):
+  v3 trains FROM SCRATCH** (no `--resume` from the leak-trained v1
+  epoch 10 — v2/v16e both resumed from it). Pre-launch gate: v16f =
+  v16e's exact recipe at the new default numbering (unit
+  `exphil-v16f-twin`, launched 09-09 ~20:10) must reproduce v16e's
+  successor-aligned WAIT probe (model full-X at WAIT 0.11-0.15 vs
+  experts 0.13-0.29) — the one end-to-end check of the rebase.
+  **GATE PASSED (09-09 21:12).** The resume-from-v1 twin died at load
+  (296 vs 264: item 4 killed resume from any pre-09-09 checkpoint), so
+  v16f ran FROM SCRATCH (`fox_gen_v16f_causal_scratch_20260910_011135`,
+  val 2.9019). Same expert replay, same 29 WAIT frames (`--min-af 0
+  --max-af 2`): model full-X/frame v16e 0.27, **v16f 0.33**, expert
+  next-frame 0.41. Leak signature would be ~0.0002. The rebase is right
+  end-to-end. Found on the way: policy metadata lacked the item-4
+  stamps and the canary was fingerprinted at the default layout (296
+  for a 264 model) — fixed in the exporter, v16f re-stamped
+  (`scripts/restamp_policy.exs`); the train.exs config sidecar never
+  carried build_config_json's stamps (two writers) — fixed.
+  **Jab-chain lever SHAKEOUT (v16g, 09-09 22:14): NO BENEFIT at this
+  scale.** `--action-frame-buckets 24` (+48 dims, 312 wide), v16f's
+  exact line otherwise (from scratch, 2 ep, 2,500 files), val 2.9621
+  vs 2.9019. WAIT probe 0.41 (expert 0.41 — better calibrated than
+  v16f's 0.33). Jab probe (40 files, 768 jab1 frames, expert
+  0.0117/frame): model mean p(A) v16f 0.058 / v16g 0.075; chain window
+  f6-11 (expert 0.0085) v16f 0.054 / v16g 0.073; dead-early f0-5
+  (expert 0.025) 0.079 / 0.118. Implied continuation 0.51 vs 0.61
+  (expert 0.13). The one-hot did not carve the f6 cliff in 2 epochs;
+  it may need scale, but that is exactly the untested bet v3 should
+  not carry. **Decision: v3 launches WITHOUT the buckets; the flag
+  stays for a v3.1 arm at full scale.** Note for the record: from-
+  scratch causal v16f is ~4x better in the chain window than v16e
+  (0.21, resumed from the leak-trained v1) — the leaked init was
+  itself part of the jab pathology.
 - v16e = v16a twin + `--frame-delay 1` (causal labels), launched 09-09
   ~14:30. Readout: (1) probe_sampler_wait successor-aligned on
   expert contexts — model full-X at WAIT should jump from 1e-4 toward

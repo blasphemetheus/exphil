@@ -226,7 +226,7 @@ defmodule ExPhil.Training.Imitation do
       Keyword.get_lazy(opts, :embed_config, fn ->
         # INVARIANTS.md item 4: only channels the parser provides get dims.
         Embeddings.config_for_source(
-          Keyword.take(opts, [:with_speeds, :with_nana, :with_projectiles, :stage_internals]),
+          Keyword.take(opts, [:with_speeds, :with_nana, :with_projectiles, :stage_internals, :action_frame_buckets]),
           ExPhil.Data.Peppi.provides()
         )
       end)

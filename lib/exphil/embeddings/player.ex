@@ -49,6 +49,13 @@ defmodule ExPhil.Embeddings.Player do
             nana_mode: :compact,
             # Hitstun frames + action frame (+2 dims per player)
             with_frame_info: true,
+            # Bucketized action frame: N one-hot dims, frames 0..N-2 each their
+            # own bucket and N-1 = "at or beyond". 0 = off (the historical
+            # layout: only the normalized scalar above). The jab-chain lever
+            # (V2_PREP 7b, 2026-09-09): the scalar (1/60 per frame) was too
+            # weak to carve the expert's f6 cliff; one-hot makes within-state
+            # timing linearly learnable. Enable with --action-frame-buckets N.
+            action_frame_buckets: 0,
             # Stock count (+1 dim per player)
             with_stock: true,
             # Distance to nearest ledge (+1 dim per player)
@@ -130,6 +137,9 @@ defmodule ExPhil.Embeddings.Player do
     # Hitstun frames remaining + action frame (how far into animation)
     frame_info_size = if config.with_frame_info, do: 2, else: 0
 
+    # Bucketized action frame (one-hot, 0 = off)
+    bucket_size = config.action_frame_buckets || 0
+
     # Stock count (lives remaining)
     stock_size = if config.with_stock, do: 1, else: 0
 
@@ -158,7 +168,7 @@ defmodule ExPhil.Embeddings.Player do
         0
       end
 
-    base_size + speed_size + frame_info_size + stock_size + ledge_size + nana_size
+    base_size + speed_size + frame_info_size + bucket_size + stock_size + ledge_size + nana_size
   end
 
   # Compact Nana embedding size (~39 dims instead of 455)
@@ -299,6 +309,13 @@ defmodule ExPhil.Embeddings.Player do
     embeddings =
       if config.with_frame_info do
         [embed_frame_info(player, config) | embeddings]
+      else
+        embeddings
+      end
+
+    embeddings =
+      if (config.action_frame_buckets || 0) > 0 do
+        [embed_action_frame_buckets(player, config) | embeddings]
       else
         embeddings
       end
@@ -501,14 +518,31 @@ defmodule ExPhil.Embeddings.Player do
         embs_with_speeds
       end
 
+    # Bucketized action frame (one-hot; lockstep with embed_action_frame_buckets/2)
+    embs_with_buckets =
+      if (config.action_frame_buckets || 0) > 0 do
+        afs =
+          Enum.map(players, fn p -> (p && trunc(action_frame_in_parsed_space(p, config))) || 0 end)
+
+        embs_with_frame_info ++
+          [
+            Primitives.batch_one_hot(Nx.tensor(afs, type: :s32),
+              size: config.action_frame_buckets,
+              clamp: true
+            )
+          ]
+      else
+        embs_with_frame_info
+      end
+
     # Add stock count if configured
     embs_with_stock =
       if config.with_stock do
         stocks = Enum.map(players, fn p -> (p && p.stock) || 0 end)
         stock_emb = Primitives.batch_float_embed(stocks, scale: 1 / 4, lower: 0.0, upper: 1.0)
-        embs_with_frame_info ++ [stock_emb]
+        embs_with_buckets ++ [stock_emb]
       else
-        embs_with_frame_info
+        embs_with_buckets
       end
 
     # Add distance to ledge if configured
@@ -861,6 +895,17 @@ defmodule ExPhil.Embeddings.Player do
       )
 
     Nx.tensor([hitstun, action_frame], type: :f32)
+  end
+
+  @doc """
+  Bucketized action frame: one-hot over `config.action_frame_buckets` buckets
+  (frames 0..N-2 individually, N-1 = at-or-beyond). Same parsed-space seam
+  as `embed_frame_info/2`. Must stay in lockstep with the batched path.
+  """
+  @spec embed_action_frame_buckets(PlayerState.t(), config()) :: Nx.Tensor.t()
+  def embed_action_frame_buckets(%PlayerState{} = player, config) do
+    af = trunc(action_frame_in_parsed_space(player, config))
+    Primitives.one_hot(af, size: config.action_frame_buckets, clamp: true)
   end
 
   # Single seam for the parsed<->live action_frame shift. Returns the value in

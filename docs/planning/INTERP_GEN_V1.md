@@ -1,5 +1,20 @@
 # INTERP_GEN_V1 — interpretability program for the generalist line
 
+**Re-read stamp (2026-09-09, GOTCHA #113):** every verdict below was
+measured on LEAK-TRAINED checkpoints (fox_gen_v1, label delay 0) with
+SAME-FRAME labels. The leak makes a policy that continues states and
+cannot initiate, and same-frame probes read that as "calibrated" through
+a ~1000x miscalibration. What carries: the instruments and the method
+(entropy-by-situation, history-vs-state, the joint-head audit). What
+must be re-read on a causal checkpoint before it is trusted: the G1
+temperature schedule (T=0.5 was compensating for a policy that could
+not leave WAIT), the G2 exposure-bias severity, and the "what we lack
+is a selection rule" read (part of that gap was the leak). Rule for
+any future probe: label with the input recorded on the state's
+SUCCESSOR frame (`ExPhil.Interp.Labels.issued_input/2`). Successor-
+aligned successors: `scripts/probe_sampler_wait.exs`,
+`scripts/probe_jab_conditional.exs`, `scripts/failed_exit_scan.exs`.
+
 **Status stamp (2026-08-31): essentially CLOSED.** G1/G2/G4/G7 done with
 verdicts (results ledger below); G6's curation targets fell out of G1
 (defensive/disadvantage pocket, punish continuation); **open: G3b**

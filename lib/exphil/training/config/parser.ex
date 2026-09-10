@@ -331,6 +331,7 @@ defmodule ExPhil.Training.Config.Parser do
     {"--frame-delay-min", :frame_delay_min, :int},
     {"--frame-delay-max", :frame_delay_max, :int},
     {"--stage-internals", :stage_internals, :flag},
+    {"--action-frame-buckets", :action_frame_buckets, :int},
     {"--early-stopping", :early_stopping, :flag},
     {"--patience", :patience, :int},
     {"--min-delta", :min_delta, :float},

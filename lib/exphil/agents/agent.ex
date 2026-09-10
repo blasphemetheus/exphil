@@ -1530,12 +1530,18 @@ defmodule ExPhil.Agents.Agent do
   defp validate_embed_canary!(config, full_embed_config) do
     case Map.get(config, :embed_canary) do
       stored when is_list(stored) ->
+        default = ExPhil.Embeddings.Game.Config.default()
+
         live_config = %{
-          ExPhil.Embeddings.Game.Config.default()
+          default
           | queue_depth: Map.get(full_embed_config, :queue_depth) || 1,
             with_delay_id: Map.get(full_embed_config, :with_delay_id) || false,
             stage_internals: Map.get(full_embed_config, :stage_internals) || false,
-            with_projectiles: Map.get(full_embed_config, :with_projectiles, true)
+            with_projectiles: Map.get(full_embed_config, :with_projectiles, true),
+            player: %{
+              default.player
+              | action_frame_buckets: Map.get(full_embed_config, :action_frame_buckets) || 0
+            }
         }
 
         live = ExPhil.Embeddings.Canary.fingerprint_live(live_config)
@@ -1868,9 +1874,11 @@ defmodule ExPhil.Agents.Agent do
     # projectile block; new checkpoints trained from Peppi say false and
     # the live embedder then has no projectile dims at all.
     proj? = Map.get(state.embed_config || %{}, :with_projectiles, true)
+    # Bucketized action frame (player-level layout key, 2026-09-09)
+    afb = Map.get(state.embed_config || %{}, :action_frame_buckets) || 0
 
     opts =
-      if depth > 1 or delay_id? or stage_internals? or not proj? do
+      if depth > 1 or delay_id? or stage_internals? or not proj? or afb > 0 do
         base = Keyword.get(opts, :config, ExPhil.Embeddings.Game.Config.default())
 
         cfg = %{
@@ -1878,7 +1886,8 @@ defmodule ExPhil.Agents.Agent do
           | queue_depth: depth,
             with_delay_id: delay_id?,
             stage_internals: stage_internals?,
-            with_projectiles: proj?
+            with_projectiles: proj?,
+            player: %{base.player | action_frame_buckets: afb}
         }
 
         opts
@@ -2249,6 +2258,8 @@ defmodule ExPhil.Agents.Agent do
           queue_depth: Map.get(config, :queue_depth, 1),
           with_delay_id: Map.get(config, :with_delay_id, false),
           stage_internals: Map.get(config, :stage_internals, false),
+          # Bucketized action frame (0 = the historical scalar-only layout)
+          action_frame_buckets: Map.get(config, :action_frame_buckets, 0) || 0,
           # INVARIANTS.md item 4: old checkpoints (no stamp) trained with a
           # projectile block that was constant-zero; new ones say whether
           # the block exists and which channels the source provided.

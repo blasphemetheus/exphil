@@ -6,14 +6,45 @@ This document tracks identified issues and planned improvements from the January
 
 - **GPU Kernel Language Exploration** — Evaluating Julia, Futhark, Mojo, and Bend as alternatives to CUDA C for scan kernels. See [KERNEL_LANGUAGE_COMPARISON.md](../research/KERNEL_LANGUAGE_COMPARISON.md) for findings and [individual exploration docs](../research/) for per-language details.
 
+## Recently Added (2026-09-09 late — found by the v16f twin)
+
+- **Policy metadata lacked the item-4 stamps + the canary was fingerprinted
+  at the default layout [P0, FIXED]**: `Imitation.Checkpoint.export_policy`
+  never wrote `with_projectiles`/`with_items`/`provided_channels` into the
+  policy's own metadata (the map the Agent, probes and eval_model read),
+  and its canary config omitted them too — so a 264-wide Peppi-trained
+  model shipped a 296-wide canary and every consumer rebuilt 296. Fixed
+  in checkpoint.ex (stamps + canary config); `scripts/restamp_policy.exs`
+  rewrites an already-saved policy (v16f re-stamped 296 -> 264).
+  v16g+ save correctly.
+- **Config sidecar had two writers [P1, FIXED edit-only, verify on v3]**:
+  `Callbacks.PolicyExport` dumped raw opts; only the legacy
+  `train_from_replays.exs` called `Config.build_config_json/2`, so no
+  train.exs sidecar carried comparability_key / label_convention /
+  with_projectiles. The callback now merges the stamped map over the raw
+  opts. Compiled AFTER v16g launched — v16g's sidecar still lacks them
+  (its policy metadata is correct); the first v3 sidecar is the check.
+- **eval_model.exs cannot evaluate BPTT checkpoints [P2]**: with the
+  layout keys fixed (with_projectiles / stage_internals /
+  num_player_names / action_frame_buckets, policy metadata merged over
+  the sidecar) it now embeds at the right width, then dies building the
+  WINDOWED graph: `gru_1_h_hidden_state` "key" param absent — the
+  carry-checkpoint class from 09-05 (v15full needed `--stateful-step`).
+  Needs a stateful/carry evaluation path (Edifice.Recurrent.init_state +
+  step, as probe_sampler_wait.exs does) before offline loss/accuracy on
+  v16f/v3 means anything. Offline verdicts for now = the successor-
+  aligned probes + pathology_scan.
+
 ## Recently Added (2026-09-09 evening — INVARIANTS.md follow-ups)
 
-- **eval_model.exs must read `with_projectiles` from the checkpoint
-  config [P2]**: since INVARIANTS item 4, checkpoints trained from Peppi
-  have NO projectile block (embedding narrower than 288/296). The three
-  probe scripts were updated; `eval_model.exs` still builds its embed
-  opts without `with_projectiles` and will hit its own canary-size guard
-  on a v3-era checkpoint. Add the key the way the probes do.
+- ~~**eval_model.exs must read `with_projectiles` from the checkpoint
+  config [P2]**~~ DONE 09-09 late: reads `with_projectiles`,
+  `stage_internals` AND `num_player_names` from the checkpoint config
+  (the last two were also missing — the v2/v16 line trains with
+  `--stage-internals --learn-player-styles`, so the width was wrong on
+  three counts). Not yet exercised against a v16f/v3 checkpoint (beam
+  was live); first `eval_model.exs -p <v16f best_policy>` run is the
+  verification.
 - **`defaults[:backbone]` should be `:mlp` [P3]**: the default backbone
   is `:sliding_window` but Config's default `temporal: false` means a
   bare train.exs has always built the MLP and ignored the key; the spec

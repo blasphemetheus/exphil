@@ -97,6 +97,7 @@ embed_opts = [
   stage_mode: to_atom.(get.(:stage_mode, :one_hot_compact)),
   nana_mode: to_atom.(get.(:nana_mode, :compact)),
   stage_internals: get.(:stage_internals, false) in [true, "true"],
+  action_frame_buckets: get.(:action_frame_buckets, 0) || 0,
   # INVARIANTS item 4: new checkpoints have NO projectile block
   with_projectiles: get.(:with_projectiles, true) in [true, "true"],
   num_player_names: get.(:num_player_names, 0) || 0

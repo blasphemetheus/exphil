@@ -81,6 +81,7 @@ defmodule ExPhil.Embeddings do
         :speed_scale,
         :nana_mode,
         :with_frame_info,
+        :action_frame_buckets,
         :with_stock,
         :with_ledge_distance,
         :per_stage_ledge,
