@@ -73,10 +73,12 @@ defmodule ExPhil.Data.ParseStats do
         end
       end)
 
-    # Adjust for delay cutoff
+    # Adjust for the label cutoff: the causal pairing drops the last frame
+    # (no successor) and each frame of reaction delay drops one more
+    # (INVARIANTS.md item 1).
     stats =
-      if delay > 0 do
-        cutoff = min(delay, stats.valid_frames)
+      if delay >= 0 do
+        cutoff = min(delay + 1, stats.valid_frames)
         %{stats | dropped_delay_cutoff: cutoff, valid_frames: stats.valid_frames - cutoff}
       else
         stats

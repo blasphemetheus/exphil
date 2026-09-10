@@ -34,6 +34,7 @@ defmodule ExPhil.Training.Imitation.Loss do
   """
 
   alias ExPhil.Networks.Policy
+  alias ExPhil.Training.Imitation.LossConfig
   alias ExPhil.Networks.DiffusionPolicy
   alias ExPhil.Networks.ActionChunking
   alias ExPhil.Networks.FlowMatching
@@ -57,12 +58,10 @@ defmodule ExPhil.Training.Imitation.Loss do
   """
   @spec build_loss_fn(Axon.t(), keyword()) :: {function(), function()}
   def build_loss_fn(policy_model, opts \\ []) do
-    label_smoothing = Keyword.get(opts, :label_smoothing, 0.0)
-    focal_loss = Keyword.get(opts, :focal_loss, false)
-    focal_gamma = Keyword.get(opts, :focal_gamma, 2.0)
-    button_weight = Keyword.get(opts, :button_weight, 1.0)
-    button_pos_weight = Keyword.get(opts, :button_pos_weight)
-    stick_edge_weight = Keyword.get(opts, :stick_edge_weight)
+    # ONE typed loss config (INVARIANTS.md item 8). Absent keys fall back
+    # to Config.defaults/0, so this builder can no longer drift from the
+    # gradient builders' defaults.
+    loss_opts = opts |> LossConfig.from_config() |> LossConfig.to_loss_opts()
     {_init_fn, predict_fn} = Utils.build_compiled(policy_model)
 
     loss_fn = fn params, states, actions ->
@@ -84,14 +83,7 @@ defmodule ExPhil.Training.Imitation.Loss do
       }
 
       # Compute loss with optional label smoothing and focal loss
-      Policy.imitation_loss(logits, actions,
-        label_smoothing: label_smoothing,
-        focal_loss: focal_loss,
-        focal_gamma: focal_gamma,
-        button_weight: button_weight,
-        button_pos_weight: button_pos_weight,
-        stick_edge_weight: stick_edge_weight
-      )
+      Policy.imitation_loss(logits, actions, loss_opts)
     end
 
     {predict_fn, loss_fn}
@@ -140,20 +132,10 @@ defmodule ExPhil.Training.Imitation.Loss do
 
   # Autoregressive: cross-entropy loss on 6 controller heads
   defp build_autoregressive_loss_and_grad_fn(predict_fn, config) do
-    # Extract config options that affect loss computation
-    # These are captured once when building the function, not every batch
-    label_smoothing = config[:label_smoothing] || 0.0
-    focal_loss = config[:focal_loss] || false
-    focal_gamma = config[:focal_gamma] || 2.0
-    button_weight = config[:button_weight] || 1.0
-    button_pos_weight = case config[:button_pos_weight] do
-      :auto -> nil  # Not resolved — Pipeline resolves :auto from data stats
-      other -> other
-    end
-    stick_edge_weight = config[:stick_edge_weight]
-    entropy_weight = config[:entropy_weight] || 0.0
-    head_normalize = config[:head_normalize] || false
-    precision = config[:precision] || :bf16
+    # ONE typed loss config (INVARIANTS.md item 8) — captured once when
+    # building the function, not every batch.
+    lc = LossConfig.from_config(config)
+    precision = lc.precision
 
     # Probe-as-regularizer (r15): when enabled, the loss takes the CURRENT
     # probe direction as a 5th ARGUMENT (never a closure capture — the
@@ -167,8 +149,8 @@ defmodule ExPhil.Training.Imitation.Loss do
     # True autoregressive head (AUTOREGRESSIVE_HEAD_PLAN §3): the forward
     # takes the same frame's TARGET components as teacher-forced inputs, so
     # the predict call needs an input map built from states + actions.
-    head = config[:head] || :independent
-    temporal = config[:temporal] || false
+    head = lc.head
+    temporal = lc.temporal
 
     if head == :autoregressive and
          ((config[:distill_weight] || 0.0) > 0 or probe_reg_weight > 0 or
@@ -178,16 +160,7 @@ defmodule ExPhil.Training.Imitation.Loss do
               "probe_reg_weight, or scheduled_sampling"
     end
 
-    loss_opts = [
-      label_smoothing: label_smoothing,
-      focal_loss: focal_loss,
-      focal_gamma: focal_gamma,
-      button_weight: button_weight,
-      button_pos_weight: button_pos_weight,
-      stick_edge_weight: stick_edge_weight,
-      entropy_weight: entropy_weight,
-      head_normalize: head_normalize
-    ]
+    loss_opts = LossConfig.to_loss_opts(lc)
 
     # KL-distillation anchor (F3 Route A): when distill_weight > 0 the
     # loss takes teacher logits + a distill mask as 5th/6th ARGUMENTS
@@ -297,33 +270,11 @@ defmodule ExPhil.Training.Imitation.Loss do
   """
   @spec build_bptt_loss_and_grad_fn(function(), map()) :: function()
   def build_bptt_loss_and_grad_fn(predict_fn, config) do
-    label_smoothing = config[:label_smoothing] || 0.0
-    focal_loss = config[:focal_loss] || false
-    focal_gamma = config[:focal_gamma] || 2.0
-    button_weight = config[:button_weight] || 1.0
-
-    button_pos_weight =
-      case config[:button_pos_weight] do
-        :auto -> nil
-        other -> other
-      end
-
-    stick_edge_weight = config[:stick_edge_weight]
-    entropy_weight = config[:entropy_weight] || 0.0
-    head_normalize = config[:head_normalize] || false
-    precision = config[:precision] || :f32
-    head = config[:head] || :autoregressive
-
-    loss_opts = [
-      label_smoothing: label_smoothing,
-      focal_loss: focal_loss,
-      focal_gamma: focal_gamma,
-      button_weight: button_weight,
-      button_pos_weight: button_pos_weight,
-      stick_edge_weight: stick_edge_weight,
-      entropy_weight: entropy_weight,
-      head_normalize: head_normalize
-    ]
+    # ONE typed loss config (INVARIANTS.md item 8)
+    lc = LossConfig.from_config(config)
+    precision = lc.precision
+    head = lc.head
+    loss_opts = LossConfig.to_loss_opts(lc)
 
     inner_fn = fn params, states, actions, frame_weights, initial_hidden ->
       states = Nx.as_type(states, precision)
@@ -394,33 +345,11 @@ defmodule ExPhil.Training.Imitation.Loss do
   """
   @spec build_bptt_eval_loss_fn(function(), map()) :: function()
   def build_bptt_eval_loss_fn(predict_fn, config) do
-    label_smoothing = config[:label_smoothing] || 0.0
-    focal_loss = config[:focal_loss] || false
-    focal_gamma = config[:focal_gamma] || 2.0
-    button_weight = config[:button_weight] || 1.0
-
-    button_pos_weight =
-      case config[:button_pos_weight] do
-        :auto -> nil
-        other -> other
-      end
-
-    stick_edge_weight = config[:stick_edge_weight]
-    entropy_weight = config[:entropy_weight] || 0.0
-    head_normalize = config[:head_normalize] || false
-    precision = config[:precision] || :f32
-    head = config[:head] || :autoregressive
-
-    loss_opts = [
-      label_smoothing: label_smoothing,
-      focal_loss: focal_loss,
-      focal_gamma: focal_gamma,
-      button_weight: button_weight,
-      button_pos_weight: button_pos_weight,
-      stick_edge_weight: stick_edge_weight,
-      entropy_weight: entropy_weight,
-      head_normalize: head_normalize
-    ]
+    # ONE typed loss config (INVARIANTS.md item 8)
+    lc = LossConfig.from_config(config)
+    precision = lc.precision
+    head = lc.head
+    loss_opts = LossConfig.to_loss_opts(lc)
 
     inner_fn = fn params, states, actions, frame_weights, initial_hidden ->
       states = Nx.as_type(states, precision)
@@ -512,9 +441,9 @@ defmodule ExPhil.Training.Imitation.Loss do
   end
 
   # Diffusion: MSE noise prediction loss
-  # Takes additional inputs: noise [batch, horizon, dim], timestep [batch]
+
   defp build_diffusion_loss_and_grad_fn(predict_fn, config) do
-    precision = config[:precision] || :bf16
+    precision = LossConfig.from_config(config).precision
 
     inner_fn = fn params, states, actions, noise, timestep ->
       states = Nx.as_type(states, precision)
@@ -543,7 +472,7 @@ defmodule ExPhil.Training.Imitation.Loss do
 
   # ACT (Action Chunking Transformer): CVAE loss = reconstruction + KL divergence
   defp build_act_loss_and_grad_fn(predict_fn, config) do
-    precision = config[:precision] || :bf16
+    precision = LossConfig.from_config(config).precision
     kl_weight = config[:kl_weight] || 10.0
 
     inner_fn = fn params, states, actions, _frame_weights ->
@@ -575,7 +504,7 @@ defmodule ExPhil.Training.Imitation.Loss do
   # Flow Matching: MSE velocity loss
   # Takes additional inputs: noise [batch, horizon, dim], timestep [batch]
   defp build_flow_matching_loss_and_grad_fn(predict_fn, config) do
-    precision = config[:precision] || :bf16
+    precision = LossConfig.from_config(config).precision
 
     inner_fn = fn params, states, actions, noise, timestep ->
       states = Nx.as_type(states, precision)
@@ -622,18 +551,11 @@ defmodule ExPhil.Training.Imitation.Loss do
   end
 
   defp build_autoregressive_eval_loss_fn(predict_fn, config) do
-    label_smoothing = config[:label_smoothing] || 0.0
-    focal_loss = config[:focal_loss] || false
-    focal_gamma = config[:focal_gamma] || 2.0
-    button_weight = config[:button_weight] || 1.0
-    button_pos_weight = case config[:button_pos_weight] do
-      :auto -> nil  # Not resolved — Pipeline resolves :auto from data stats
-      other -> other
-    end
-    stick_edge_weight = config[:stick_edge_weight]
-    precision = config[:precision] || :bf16
-    head = config[:head] || :independent
-    temporal = config[:temporal] || false
+    # ONE typed loss config (INVARIANTS.md item 8)
+    lc = LossConfig.from_config(config)
+    precision = lc.precision
+    head = lc.head
+    temporal = lc.temporal
 
     inner_fn = fn params, states, actions ->
       # Convert states to eval precision
@@ -654,14 +576,7 @@ defmodule ExPhil.Training.Imitation.Loss do
         shoulder: shoulder
       }
 
-      Policy.imitation_loss(logits, actions,
-        label_smoothing: label_smoothing,
-        focal_loss: focal_loss,
-        focal_gamma: focal_gamma,
-        button_weight: button_weight,
-        button_pos_weight: button_pos_weight,
-        stick_edge_weight: stick_edge_weight
-      )
+      Policy.imitation_loss(logits, actions, LossConfig.to_loss_opts(lc))
     end
 
     # JIT compile for fast repeated evaluation
@@ -669,7 +584,7 @@ defmodule ExPhil.Training.Imitation.Loss do
   end
 
   defp build_diffusion_eval_loss_fn(predict_fn, config) do
-    precision = config[:precision] || :bf16
+    precision = LossConfig.from_config(config).precision
 
     inner_fn = fn params, states, actions, noise, timestep ->
       states = Nx.as_type(states, precision)
@@ -691,7 +606,7 @@ defmodule ExPhil.Training.Imitation.Loss do
   end
 
   defp build_act_eval_loss_fn(predict_fn, config) do
-    precision = config[:precision] || :bf16
+    precision = LossConfig.from_config(config).precision
     kl_weight = config[:kl_weight] || 10.0
 
     inner_fn = fn params, states, actions ->
@@ -716,7 +631,7 @@ defmodule ExPhil.Training.Imitation.Loss do
   end
 
   defp build_flow_matching_eval_loss_fn(predict_fn, config) do
-    precision = config[:precision] || :bf16
+    precision = LossConfig.from_config(config).precision
 
     inner_fn = fn params, states, actions, noise, timestep ->
       states = Nx.as_type(states, precision)

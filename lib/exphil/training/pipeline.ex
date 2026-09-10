@@ -364,6 +364,12 @@ defmodule ExPhil.Training.Pipeline do
     end
   end
 
+  # GOTCHA #113 / INVARIANTS.md item 1: label alignment is STRUCTURAL now.
+  # Peppi.to_training_frames always pairs state[t] with the input issued
+  # from it; :frame_delay (streaming/bptt) and :action_delay (standard,
+  # via Data.shift_actions) are reaction delay on top. There is no guard
+  # here because the leaked pairing can no longer be built.
+
   defp build_pipeline(replay_files, replay_stats, true = _streaming, opts) do
     # Streaming mode — don't load data upfront
     Output.step(2, 4, "Setting up streaming pipeline")
@@ -398,7 +404,8 @@ defmodule ExPhil.Training.Pipeline do
     # Pass the FULL resolved opts — Embeddings.config/1 whitelists internally.
     # Hand-picked key lists here silently dropped newer flags (--stage-internals
     # trained 288 wide while metadata claimed 296, 2026-08-25 pilot).
-    embed_config = Embeddings.config(opts)
+    # INVARIANTS.md item 4: only channels the parser provides get dims.
+    embed_config = Embeddings.config_for_source(opts, ExPhil.Data.Peppi.provides())
 
     # Name/style conditioning in STREAMING mode (v2 plank b): build the
     # tag->id registry from TRAIN files only (the bptt val holdout was
@@ -562,7 +569,8 @@ defmodule ExPhil.Training.Pipeline do
 
       # Build embed config from the FULL resolved opts (config/1 whitelists
       # internally; see streaming branch note on the flag-drop bug class)
-      embed_config = Embeddings.config(opts)
+      # INVARIANTS.md item 4: only channels the parser provides get dims.
+      embed_config = Embeddings.config_for_source(opts, ExPhil.Data.Peppi.provides())
 
       # Create base dataset
       dataset = Data.from_frames(frames, embed_config: embed_config)
@@ -1107,21 +1115,51 @@ defmodule ExPhil.Training.Pipeline do
         # reset every row via is_resetting — those are real game starts).
         # Needs >= batch_size usable segments per chunk: use stream chunks
         # of >= batch_size files (TrajectoryCursors raises otherwise).
-        pipeline.file_chunks
-        |> Stream.flat_map(fn chunk ->
-          {:ok, chunk_frames, _errors} = Streaming.parse_chunk(chunk, chunk_opts)
-          chunk_dataset = Streaming.create_dataset(chunk_frames, dataset_opts)
+        cursor_opts = [
+          batch_size: ropts[:batch_size] || 32,
+          unroll: ropts[:unroll] || 80,
+          overlap: ropts[:bptt_overlap] || 1,
+          seed: ropts[:seed] || 42,
+          neutral_weight: Keyword.get(ropts, :neutral_weight, 0.25),
+          transition_weight: ropts[:transition_weight],
+          offstage_weight: ropts[:offstage_weight],
+          gpu: true
+        ]
 
-          ExPhil.Training.TrajectoryCursors.batch_stream(chunk_dataset,
-            batch_size: ropts[:batch_size] || 32,
-            unroll: ropts[:unroll] || 80,
-            overlap: ropts[:bptt_overlap] || 1,
-            seed: ropts[:seed] || 42,
-            neutral_weight: Keyword.get(ropts, :neutral_weight, 0.25),
-            transition_weight: ropts[:transition_weight],
-            gpu: true
+        if ropts[:pipeline_chunks] and not awbc? do
+          # Overlap parse+embed of chunk k+1 with training on chunk k
+          # (V2_PREP item 1b — post-throughput-fix the epoch wall is
+          # per-chunk prep, ~110s vs ~6s of steps per chunk). Reuses the
+          # windowed path's ChunkPipeline; stream_prepared_chunks yields
+          # datasets in order, so cursor/carry semantics are unchanged.
+          alias ExPhil.Training.ChunkPipeline
+
+          # cache_embeddings is FORCED OFF here (not inherited from
+          # cache_streaming, whose default is true for the windowed
+          # path): bptt runs full-corpus scale, and the chunk cache
+          # measured 2.1GB per 200-file chunk — ~300GB per full-corpus
+          # epoch, which filled / to 100% and nearly killed the v2
+          # launch (2026-09-05). The serial bptt branch never cached;
+          # this preserves that. Re-enable only behind an explicit
+          # opt-in flag once there is a disk budget for it.
+          ChunkPipeline.stream_prepared_chunks(
+            pipeline.file_chunks,
+            chunk_opts: chunk_opts,
+            dataset_opts: dataset_opts,
+            cache_embeddings: false,
+            embed_config: pipeline.embed_config
           )
-        end)
+          |> Stream.flat_map(fn {chunk_dataset, _idx, _errors} ->
+            ExPhil.Training.TrajectoryCursors.batch_stream(chunk_dataset, cursor_opts)
+          end)
+        else
+          pipeline.file_chunks
+          |> Stream.flat_map(fn chunk ->
+            {:ok, chunk_frames, _errors} = Streaming.parse_chunk(chunk, chunk_opts)
+            chunk_dataset = Streaming.create_dataset(chunk_frames, dataset_opts)
+            ExPhil.Training.TrajectoryCursors.batch_stream(chunk_dataset, cursor_opts)
+          end)
+        end
       else
       if ropts[:pipeline_chunks] and not awbc? do
         # Pipelined: parse chunk N+1 while training on chunk N.

@@ -382,7 +382,20 @@ regime_window =
   end
 
 use_prev_action = to_bool.(get_cfg.(model_config, :use_prev_action, false))
-action_delay = to_int.(get_cfg.(model_config, :action_delay, 0))
+
+# INVARIANTS.md item 1: frames from Peppi are causal pairs; shift them by
+# the checkpoint's REACTION delay (legacy checkpoints: their delay - 1).
+# A legacy leaked checkpoint (reaction -1) cannot be reproduced on causal
+# frames — evaluate it at 0 and say so.
+action_delay =
+  case ExPhil.Data.LabelConvention.reaction_delay(model_config) do
+    r when r < 0 ->
+      Output.warning("checkpoint trained on LEAKED labels (GOTCHA #113); evaluating at reaction delay 0 — loss is NOT comparable to its training loss")
+      0
+
+    r ->
+      r
+  end
 
 opts = %{opts | temporal: regime_temporal, backbone: regime_backbone, window_size: regime_window}
 

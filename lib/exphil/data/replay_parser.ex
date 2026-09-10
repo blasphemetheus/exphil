@@ -188,23 +188,21 @@ defmodule ExPhil.Data.ReplayParser do
   This creates frames in the exact format that `Training.Data.from_frames/2` expects.
 
   ## Options
-    - `:frame_delay` - Simulated online delay in frames (default: 0)
+    - `:frame_delay` - ADDITIONAL reaction delay in frames (default: 0)
 
-  ## Frame Delay
+  ## Label convention
 
-  When `frame_delay: N` is set, each training pair uses:
-  - Game state from frame (t - N) (what the agent "sees")
-  - Controller action from frame t (what action was actually taken)
-
-  This simulates Slippi online conditions where there's 18+ frame delay
-  between observing the game state and your input taking effect.
+  Same as `ExPhil.Data.Peppi.to_training_frames/2` (INVARIANTS.md item 1):
+  every frame pairs state[t] with the input ISSUED from it (raw
+  controller[t+1]); `frame_delay: k` adds k frames of reaction delay on
+  top. The leaked same-frame pairing cannot be built.
 
   ## Examples
 
       {:ok, data} = ReplayParser.load_parsed("game.json.gz")
       frames = ReplayParser.to_training_frames(data)
 
-      # With 18-frame online delay simulation
+      # 18 frames of reaction delay on top of the causal pairing
       frames = ReplayParser.to_training_frames(data, frame_delay: 18)
 
   """
@@ -212,19 +210,13 @@ defmodule ExPhil.Data.ReplayParser do
   def to_training_frames(%{frames: frames}, opts \\ []) do
     frame_delay = Keyword.get(opts, :frame_delay, 0)
 
-    if frame_delay == 0 do
-      # No delay - standard training
-      Enum.map(frames, fn frame ->
-        %{
-          game_state: frame.game_state,
-          controller: frame.controller
-        }
-      end)
-    else
-      # With delay - pair old states with current actions
-      extract_with_delay(frames, frame_delay)
-    end
+    frames
+    |> Enum.map(fn frame -> %{game_state: frame.game_state, controller: frame.controller} end)
+    |> ExPhil.Data.Peppi.causal_pairs()
+    |> extract_with_delay(frame_delay)
   end
+
+  defp extract_with_delay(frames, 0), do: frames
 
   defp extract_with_delay(frames, delay) do
     num_frames = length(frames)

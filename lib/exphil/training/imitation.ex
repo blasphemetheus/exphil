@@ -224,8 +224,10 @@ defmodule ExPhil.Training.Imitation do
     # Get embedding configuration
     embed_config =
       Keyword.get_lazy(opts, :embed_config, fn ->
-        Embeddings.config(
-          Keyword.take(opts, [:with_speeds, :with_nana, :with_projectiles, :stage_internals])
+        # INVARIANTS.md item 4: only channels the parser provides get dims.
+        Embeddings.config_for_source(
+          Keyword.take(opts, [:with_speeds, :with_nana, :with_projectiles, :stage_internals]),
+          ExPhil.Data.Peppi.provides()
         )
       end)
 

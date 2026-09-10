@@ -36,6 +36,13 @@ alias ExPhil.Embeddings
       port: :integer,
       lr: :float,
       backbone: :string,
+      # ms_g20 line (2026-09-08): --head autoregressive (joint per-frame
+      # heads — down+B must land on the SAME frame) and --clean-loss (drop
+      # the pos_weight/focal/oversample stack that inflates rare buttons;
+      # the 09-05 generalist ablation killed taunt/shine-grab spam 165x
+      # with no collapse). Both opt-in so the g19 recipe stays reproducible.
+      head: :string,
+      clean_loss: :boolean,
       target_loss: :float,
       max_epochs: :integer,
       hidden_size: :integer,
@@ -165,7 +172,11 @@ fixture_paths =
 out_path = opts[:out] || default_out
 prev_action = Keyword.get(opts, :prev_action, true)
 prev_action_dropout = opts[:prev_action_dropout] || 0.1
-action_delay = Keyword.get(opts, :action_delay, 2)
+# REACTION delay on top of Peppi's causal pairing (INVARIANTS.md item 1,
+# 2026-09-09): the old default 2 counted in the legacy producing convention;
+# 1 is the same pairing in the new numbering. --multi-delay lists count the
+# same way ("2,3" before the rebase == "1,2" now); delay-id tags follow.
+action_delay = Keyword.get(opts, :action_delay, 1)
 
 # --stream-chunk-size N (#33/data-scaling): stream training data as per-file
 # embedding shards (ExPhil.Data.TrainingShards) instead of materializing the
@@ -182,6 +193,21 @@ learning_rate = opts[:lr] || 2.0e-4
 # Each backbone brings its OWN shape via Config.backbone_defaults — mamba
 # under the GRU drill shape (window 16, 1 layer) diverges at epoch 4.
 backbone = String.to_atom(opts[:backbone] || "gru")
+
+head =
+  case opts[:head] do
+    nil -> :independent
+    "independent" -> :independent
+    "autoregressive" -> :autoregressive
+    other -> raise ArgumentError, "--head must be independent|autoregressive (got #{other})"
+  end
+
+# --clean-loss: the v16a-verdicted loss (V2_PREP item 0). Imitation's
+# defaults are still the v1-era anti-collapse stack.
+clean_loss_opts =
+  if opts[:clean_loss],
+    do: [button_pos_weight: nil, focal_loss: false, action_oversample: 1.0, entropy_weight: 0.0],
+    else: []
 bb_defaults = ExPhil.Training.Config.backbone_defaults(backbone) || []
 # --window overrides bb_defaults (gru default is 60 — NOT 16; the || 16
 # fallback below never fires for known backbones). Exploding-BPTT
@@ -1514,6 +1540,7 @@ end
 
 trainer =
   Imitation.new(
+    [
     embed_config:
       if(streaming, do: ExPhil.Embeddings.Game.Config.default(), else: dataset.embed_config),
     # The delay-id set this pool was built at (--multi-delay); saved
@@ -1546,6 +1573,8 @@ trainer =
     max_grad_norm: 0.5,
     label_smoothing: 0.0,
     dropout: 0.0,
+    # --head / --clean-loss (ms_g20 line, see the option comments)
+    head: head,
     # --mixed-precision: FP32 master weights + BF16 compute. (Tested
     # 2026-07-13: does NOT fix the NaN detonations — kept for future use.)
     mixed_precision: opts[:mixed_precision] || false,
@@ -1568,6 +1597,7 @@ trainer =
     # Both nil = the r15-lineage sequential path.
     chunk_size: opts[:mamba_chunk_size],
     training_mode: opts[:mamba_matmul_scan]
+    ] ++ clean_loss_opts
   )
 
 {_predict_fn, loss_fn} = Imitation.build_loss_fn(trainer.policy_model)

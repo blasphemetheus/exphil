@@ -36,79 +36,8 @@ defmodule ExPhil.Training.Config do
 
   # Training option allowlists (used by Parser and YAML modules)
   # Note: :hybrid is an alias for :lstm_hybrid (kept for backwards compatibility)
-  @valid_backbones [
-    :mlp,
-    :lstm,
-    :gru,
-    :mamba,
-    :mamba_nif,
-    :mamba_cumsum,
-    :mamba_hillis_steele,
-    :mamba_ssd,
-    :gated_ssm,
-    :attention,
-    :sliding_window,
-    :lstm_hybrid,
-    :hybrid,
-    :jamba,
-    :zamba,
-    :griffin,
-    :hawk,
-    :xlstm,
-    :xlstm_slstm,
-    :xlstm_mlstm,
-    :retnet,
-    :rwkv,
-    :gla,
-    :hgrn,
-    :s5,
-    :s4,
-    :s4d,
-    :h3,
-    :performer,
-    :deltanet,
-    :fnet,
-    :perceiver,
-    :ttt,
-    :hopfield,
-    :ntm,
-    :reservoir,
-    :snn,
-    :bayesian,
-    :decision_transformer,
-    :liquid,
-    :kan,
-    :transformer_like,
-    :deep_res_lstm,
-    :min_gru,
-    :min_lstm,
-    :tcn,
-    :mamba3,
-    :hyena,
-    :titans,
-    :gated_deltanet,
-    :native_recurrence,
-    :longhorn,
-    :samba,
-    :hymba,
-    :gss,
-    :delta_product,
-    :gla_v2,
-    :hgrn_v2,
-    :ttt_e2e,
-    :gsa,
-    :rla,
-    :nha,
-    :fox,
-    :log_linear,
-    :laser,
-    :moba,
-    :tnn,
-    :miras,
-    :mixture_of_mamba,
-    :huginn,
-    :coconut
-  ]
+  # INVARIANTS.md item 3 phase B: derived from @backbone_specs (see below).
+  # (valid backbones derive from @backbone_specs — see valid_backbones/0)
   @valid_optimizers [:adam, :adamw, :lamb, :radam, :sgd, :rmsprop, :adabelief, :yogi]
 
   @doc """
@@ -118,7 +47,7 @@ defmodule ExPhil.Training.Config do
   defaults key silently trains a backbone with no defaults at all.
   """
   @spec valid_backbones() :: [atom()]
-  def valid_backbones, do: @valid_backbones
+  def valid_backbones, do: Keyword.keys(backbone_specs())
   @valid_lr_schedules [:constant, :cosine, :cosine_restarts, :exponential, :linear]
   # Policy types: how actions are predicted
   # - :autoregressive - Standard 6-head sequential prediction (current default)
@@ -139,241 +68,12 @@ defmodule ExPhil.Training.Config do
 
   # All valid CLI flags for argument validation
   # This list is used to detect typos and suggest corrections
-  @valid_flags [
-    "--replays",
-    "--replay-dir",
-    "--corpus",
-    "--epochs",
-    "--batch-size",
-    "--hidden-sizes",
-    "--max-files",
-    "--skip-errors",
-    "--fail-fast",
-    "--show-errors",
-    "--hide-errors",
-    "--error-log",
-    "--checkpoint",
-    "--player",
-    "--wandb",
-    "--wandb-project",
-    "--wandb-name",
-    "--temporal",
-    "--backbone",
-    # Policy type options
-    "--policy-type",
-    # Controller head: independent (default) or autoregressive
-    "--head",
-    # Action horizon for ACT and generative policies
-    "--action-horizon",
-    # Number of diffusion/flow steps for inference
-    "--num-inference-steps",
-    # KL weight for ACT (CVAE regularization)
-    "--kl-weight",
-    "--window-size",
-    "--stride",
-    "--num-layers",
-    "--attention-every",
-    "--num-heads",
-    # Jamba stability options (prevent NaN)
-    "--pre-norm",
-    "--no-pre-norm",
-    "--qk-layernorm",
-    "--no-qk-layernorm",
-    # Chunked attention for reduced memory
-    "--chunked-attention",
-    "--no-chunked-attention",
-    "--chunk-size",
-    # Memory-efficient attention (true O(n) memory via online softmax)
-    "--memory-efficient-attention",
-    "--no-memory-efficient-attention",
-    # FlashAttention NIF for inference (forward-only, requires Ampere+ GPU)
-    "--flash-attention-nif",
-    "--no-flash-attention-nif",
-    "--state-size",
-    "--expand-factor",
-    "--conv-size",
-    "--truncate-bptt",
-    "--bptt",
-    "--unroll",
-    "--bptt-overlap",
-    "--bptt-val-files",
-    "--precision",
-    "--mixed-precision",
-    "--frame-delay",
-    "--frame-delay-augment",
-    "--frame-delay-min",
-    "--frame-delay-max",
-    "--online-robust",
-    "--stage-internals",
-    "--early-stopping",
-    "--patience",
-    "--min-delta",
-    "--save-best",
-    "--save-every",
-    "--save-every-batches",
-    "--lr",
-    "--learning-rate",
-    "--lr-schedule",
-    "--warmup-steps",
-    "--decay-steps",
-    "--restart-period",
-    "--restart-mult",
-    "--max-grad-norm",
-    "--resume",
-    "--reinit-head",
-    "--name",
-    "--accumulation-steps",
-    "--val-split",
-    "--augment",
-    "--mirror-prob",
-    "--noise-prob",
-    "--noise-scale",
-    "--label-smoothing",
-    "--dropout",
-    "--focal-loss",
-    "--no-focal-loss",
-    "--prev-action",
-    "--no-prev-action",
-    "--prev-action-dropout",
-    "--scheduled-sampling",
-    "--ss-ramp",
-    "--mix-frames",
-    "--mix-corpus",
-    "--mix-oversample",
-    "--per-stage-ledge",
-    "--action-delay",
-    "--focal-gamma",
-    "--button-weight",
-    "--button-pos-weight",
-    "--stick-edge-weight",
-    "--entropy-weight",
-    "--neutral-weight",
-    "--awbc",
-    "--awbc-reward",
-    "--awbc-beta",
-    "--awbc-shuffle",
-    "--head-normalize",
-    "--no-head-normalize",
-    "--action-oversample",
-    "--lazy-sequences",
-    "--use-batch",
-    "--no-register",
-    "--keep-best",
-    "--ema",
-    "--ema-decay",
-    "--precompute",
-    "--no-precompute",
-    "--cache-embeddings",
-    "--no-cache",
-    "--cache-dir",
-    # Augmented embedding cache (precompute all variants for ~100x speedup with --augment)
-    "--cache-augmented",
-    # Number of noisy variants to precompute (default: 2)
-    "--num-noisy-variants",
-    "--prefetch",
-    "--no-prefetch",
-    "--gradient-checkpoint",
-    "--checkpoint-every",
-    "--prefetch-buffer",
-    "--layer-norm",
-    "--no-layer-norm",
-    "--residual",
-    "--no-residual",
-    "--optimizer",
-    "--preset",
-    "--dry-run",
-    "--character",
-    "--characters",
-    "--stage",
-    "--stages",
-    # YAML config file path
-    "--config",
-    # K-means cluster centers file for stick discretization
-    "--kmeans-centers",
-    # Process files in chunks for memory efficiency
-    "--stream-chunk-size",
-    # Prepare next chunk while training (overlaps prep with GPU)
-    "--pipeline-chunks",
-    "--no-pipeline-chunks",
-    # Cache embeddings to disk in streaming mode (reuse across epochs)
-    "--cache-streaming",
-    "--no-cache-streaming",
-    # Auto-select port based on character
-    "--train-character",
-    "--select-character-port",
-    # Train on both players per replay
-    "--dual-port",
-    # Weight sampling by inverse character frequency
-    "--balance-characters",
-    # Stage embedding mode: full, compact, learned
-    "--stage-mode",
-    # Action embedding mode: one_hot (399 dims) or learned (64-dim trainable)
-    "--action-mode",
-    # Character embedding mode: one_hot (33 dims) or learned (64-dim trainable)
-    "--character-mode",
-    # Nana (Ice Climbers) embedding mode: compact (39 dims), enhanced (14 + ID), full (449 dims)
-    "--nana-mode",
-    # Jumps remaining representation: normalized (1 dim) or one_hot (7 dims)
-    "--jumps-normalized",
-    "--no-jumps-normalized",
-    # Number of player name embedding dims (0 to disable, default: 112)
-    "--num-player-names",
-    # Enable style-conditional training (build player registry)
-    "--learn-player-styles",
-    # Disable style-conditional training
-    "--no-learn-player-styles",
-    # Path to save/load player registry JSON
-    "--player-registry",
-    # Minimum games for player to be included in registry (default: 1)
-    "--min-player-games",
-    # Verbosity control
-    # Extra debug output (level 2)
-    "--verbose",
-    # Minimal output, errors only (level 0)
-    "--quiet",
-    # Progress bar update interval (batches between updates, default: 1)
-    "--log-interval",
-    # Reproducibility
-    # Random seed for reproducibility
-    "--seed",
-    # Checkpoint safety
-    # Allow overwriting existing checkpoints
-    "--overwrite",
-    # Fail if checkpoint exists
-    "--no-overwrite",
-    # Create .bak before overwrite (default)
-    "--backup",
-    # Skip backup creation
-    "--no-backup",
-    # Number of backup versions to keep (default: 3)
-    "--backup-count",
-    # Duplicate detection
-    # Skip duplicate replay files by hash (default)
-    "--skip-duplicates",
-    # Include all files even if duplicates
-    "--no-skip-duplicates",
-    # Replay quality filtering
-    # Minimum quality score (0-100) for replays
-    "--min-quality",
-    # Show quality distribution stats
-    "--show-quality-stats",
-    # Memory management
-    # Run garbage collection every N batches (0 = disabled)
-    "--gc-every",
-    # Profiling
-    # Enable detailed timing profiler
-    "--profile",
-    # Parallel validation concurrency (number of concurrent batches)
-    "--val-concurrency",
-    # Memory-mapped embeddings (for datasets larger than RAM)
-    "--mmap-embeddings",
-    "--mmap-path",
-    # Batch size auto-tuning
-    "--auto-batch-size",
-    "--auto-batch-min",
-    "--auto-batch-max",
-    "--auto-batch-backoff"
-  ]
+  # INVARIANTS.md item 2 phase B (2026-09-09): the accepted-flag list is
+  # DERIVED from the parser's flag table (+ its explicit multi-key steps).
+  # A flag that is accepted but never parsed, or parsed but rejected at
+  # the door, is now unrepresentable. Defaults and docs parity remain
+  # pinned by flag_parity_test.
+  @valid_flags ExPhil.Training.Config.Parser.flags()
 
   @doc """
   List of available preset names.
@@ -392,116 +92,1321 @@ defmodule ExPhil.Training.Config do
   @spec available_presets() :: [atom()]
   def available_presets, do: Presets.valid_presets()
 
-  @doc """
-  Per-backbone training defaults for architectures that need non-standard settings.
+  # ---------------------------------------------------------------------------
+  # INVARIANTS.md item 3 (phase B, 2026-09-09): THE backbone spec map. Every
+  # dispatchable backbone (Networks.Policy.Backbone.build_temporal_backbone)
+  # has exactly one row; `@valid_backbones` is DERIVED from these keys and
+  # `backbone_defaults/1` is a lookup that RAISES for unknown atoms — so a
+  # backbone that is dispatchable-but-rejected, valid-but-undefaulted, or
+  # spelled two ways cannot be written. Rows in @untuned_backbones carry
+  # the generic baseline and are a RATCHET (backbone_table_parity_test):
+  # tune one, remove it from the list; the list may never grow.
+  # ---------------------------------------------------------------------------
+  @baseline_defaults [
+    temporal: true,
+    precision: :f32,
+    dropout: 0.1,
+    window_size: 60,
+    num_layers: 2
+  ]
 
-  These are applied as defaults — CLI args always take priority. Only architectures
-  known to diverge or OOM with standard settings are listed here.
+  @backbone_specs [
+    sliding_window: [temporal: false, precision: :f32, dropout: 0.1],
+    attention: [
+      temporal: true,
+      precision: :f32,
+      dropout: 0.1,
+      window_size: 60,
+      num_layers: 2,
+      num_heads: 4,
+      head_dim: 64,
+      chunked_attention: true
+    ],
+    lstm_hybrid: [temporal: true, precision: :f32, dropout: 0.1, window_size: 60, num_layers: 2],
+    jamba: [
+      temporal: true,
+      precision: :f32,
+      dropout: 0.0,
+      lr_schedule: :cosine_restarts,
+      learning_rate: 5.0e-6,
+      max_grad_norm: 0.25,
+      batch_size: 16,
+      build:
+        {Edifice.SSM.Hybrid, :embed_dim,
+         [
+           hidden_size: 256,
+           state_size: 16,
+           expand_factor: 2,
+           conv_size: 4,
+           num_layers: 6,
+           attention_every: 3,
+           num_heads: 4,
+           head_dim: 64,
+           dropout: 0.1,
+           window_size: 60,
+           use_sliding_window: true,
+           seq_len: {:ref, :window_size},
+           pre_norm: true,
+           qk_layernorm: true
+         ]},
+      output: {:hidden_size, 256}
+    ],
+    zamba: [
+      temporal: true,
+      precision: :bf16,
+      dropout: 0.0,
+      learning_rate: 1.0e-5,
+      max_grad_norm: 0.5,
+      build:
+        {Edifice.SSM.Zamba, :embed_dim,
+         [
+           hidden_size: 256,
+           state_size: 16,
+           expand_factor: 2,
+           conv_size: 4,
+           num_layers: 6,
+           attention_every: 3,
+           num_heads: 4,
+           head_dim: 64,
+           dropout: 0.1,
+           window_size: 60,
+           seq_len: {:ref, :window_size}
+         ]},
+      output: {:hidden_size, 256}
+    ],
+    griffin: [
+      temporal: true,
+      precision: :f32,
+      dropout: 0.0,
+      lr_schedule: :cosine_restarts,
+      window_size: 60,
+      num_layers: 2
+    ],
+    hawk: [temporal: true, precision: :f32, dropout: 0.1, window_size: 60, num_layers: 2],
+    xlstm: [temporal: true, precision: :f32, dropout: 0.1, window_size: 60, num_layers: 2],
+    xlstm_slstm: [temporal: true, precision: :f32, dropout: 0.1, window_size: 60, num_layers: 2],
+    xlstm_mlstm: [temporal: true, precision: :f32, dropout: 0.1, window_size: 60, num_layers: 2],
+    retnet: [
+      temporal: true,
+      precision: :f32,
+      dropout: 0.0,
+      window_size: 60,
+      num_layers: 2,
+      build:
+        {Edifice.Attention.RetNet, :embed_dim,
+         [
+           hidden_size: 256,
+           num_layers: 6,
+           num_heads: 4,
+           expand_factor: 2,
+           dropout: 0.1,
+           window_size: 60,
+           seq_len: {:ref, :window_size}
+         ]},
+      output: {:hidden_size, 256}
+    ],
+    rwkv: [
+      temporal: true,
+      precision: :f32,
+      dropout: 0.0,
+      window_size: 60,
+      num_layers: 2,
+      build:
+        {Edifice.Attention.RWKV, :embed_dim,
+         [
+           hidden_size: 256,
+           num_layers: 6,
+           head_size: 64,
+           dropout: 0.1,
+           window_size: 60,
+           seq_len: {:ref, :window_size}
+         ]},
+      output: {:hidden_size, 256}
+    ],
+    gla: [
+      temporal: true,
+      precision: :f32,
+      dropout: 0.0,
+      window_size: 60,
+      num_layers: 2,
+      build:
+        {Edifice.Attention.GLA, :embed_dim,
+         [
+           hidden_size: 256,
+           num_layers: 6,
+           num_heads: 4,
+           head_dim: 64,
+           expand_factor: 2,
+           dropout: 0.1,
+           window_size: 60,
+           seq_len: {:ref, :window_size}
+         ]},
+      output: {:hidden_size, 256}
+    ],
+    hgrn: [
+      temporal: true,
+      precision: :f32,
+      dropout: 0.0,
+      window_size: 60,
+      num_layers: 2,
+      build:
+        {Edifice.Attention.HGRN, :embed_dim,
+         [
+           hidden_size: 256,
+           num_layers: 6,
+           state_expansion: 2,
+           dropout: 0.1,
+           window_size: 60,
+           seq_len: {:ref, :window_size}
+         ]},
+      output: {:hidden_size, 256}
+    ],
+    s5: [
+      temporal: true,
+      precision: :f32,
+      dropout: 0.1,
+      window_size: 60,
+      num_layers: 2,
+      build:
+        {Edifice.SSM.S5, :embed_dim,
+         [
+           hidden_size: 256,
+           state_size: 64,
+           num_layers: 4,
+           dropout: 0.1,
+           window_size: 60,
+           seq_len: {:ref, :window_size}
+         ]},
+      output: {:hidden_size, 256}
+    ],
+    s4: [
+      temporal: true,
+      precision: :f32,
+      dropout: 0.1,
+      window_size: 60,
+      num_layers: 2,
+      build:
+        {Edifice.SSM.S4, :embed_dim,
+         [
+           hidden_size: 256,
+           state_size: 64,
+           num_layers: 4,
+           dropout: 0.1,
+           window_size: 60,
+           seq_len: {:ref, :window_size}
+         ]},
+      output: {:hidden_size, 256}
+    ],
+    s4d: [
+      temporal: true,
+      precision: :f32,
+      dropout: 0.1,
+      window_size: 60,
+      num_layers: 2,
+      build:
+        {Edifice.SSM.S4D, :embed_dim,
+         [
+           hidden_size: 256,
+           state_size: 64,
+           num_layers: 4,
+           dropout: 0.1,
+           window_size: 60,
+           seq_len: {:ref, :window_size}
+         ]},
+      output: {:hidden_size, 256}
+    ],
+    h3: [
+      temporal: true,
+      precision: :f32,
+      learning_rate: 5.0e-7,
+      max_grad_norm: 0.1,
+      build:
+        {Edifice.SSM.H3, :embed_dim,
+         [
+           hidden_size: 256,
+           state_size: 64,
+           conv_size: 4,
+           num_layers: 4,
+           dropout: 0.1,
+           window_size: 60,
+           seq_len: {:ref, :window_size}
+         ]},
+      output: {:hidden_size, 256}
+    ],
+    performer: [
+      temporal: true,
+      precision: :f32,
+      dropout: 0.1,
+      window_size: 60,
+      num_layers: 2,
+      build:
+        {Edifice.Attention.Performer, :embed_dim,
+         [
+           hidden_size: 256,
+           num_features: 64,
+           num_layers: 4,
+           num_heads: 4,
+           dropout: 0.1,
+           window_size: 60
+         ]},
+      output: {:hidden_size, 256}
+    ],
+    deltanet: [
+      temporal: true,
+      precision: :f32,
+      dropout: 0.0,
+      window_size: 60,
+      num_layers: 2,
+      build:
+        {Edifice.Recurrent.DeltaNet, :embed_dim,
+         [
+           hidden_size: 256,
+           num_heads: 4,
+           num_layers: 4,
+           dropout: 0.1,
+           window_size: 60,
+           seq_len: {:ref, :window_size}
+         ]},
+      output: {:hidden_size, 256}
+    ],
+    fnet: [
+      temporal: true,
+      precision: :f32,
+      dropout: 0.1,
+      window_size: 60,
+      num_layers: 2,
+      build:
+        {Edifice.Attention.FNet, :embed_dim,
+         [hidden_size: 256, num_layers: 4, dropout: 0.1, window_size: 60]},
+      output: {:hidden_size, 256}
+    ],
+    perceiver: [
+      temporal: true,
+      precision: :f32,
+      dropout: 0.1,
+      window_size: 60,
+      num_layers: 2,
+      build:
+        {Edifice.Attention.Perceiver, :input_dim,
+         [
+           latent_dim: 256,
+           num_latents: 64,
+           num_layers: 4,
+           num_cross_layers: 1,
+           num_heads: 4,
+           dropout: 0.1
+         ]},
+      output: {:latent_dim, 256}
+    ],
+    ttt: [
+      temporal: true,
+      precision: :f32,
+      learning_rate: 5.0e-7,
+      max_grad_norm: 0.1,
+      build:
+        {Edifice.Recurrent.TTT, :embed_dim,
+         [
+           hidden_size: 256,
+           inner_size: 64,
+           num_layers: 4,
+           dropout: 0.1,
+           window_size: 60,
+           seq_len: {:ref, :window_size}
+         ]},
+      output: {:hidden_size, 256}
+    ],
+    hopfield: [temporal: true, precision: :f32, dropout: 0.1, window_size: 60, num_layers: 2],
+    ntm: [temporal: true, precision: :f32, dropout: 0.1, window_size: 60, num_layers: 2],
+    reservoir: [temporal: true, precision: :f32, dropout: 0.1, window_size: 60, num_layers: 2],
+    snn: [temporal: true, precision: :f32, dropout: 0.1, window_size: 60, num_layers: 2],
+    bayesian: [temporal: true, precision: :f32, dropout: 0.1, window_size: 60, num_layers: 2],
+    decision_transformer: [
+      temporal: true,
+      precision: :f32,
+      dropout: 0.1,
+      window_size: 60,
+      num_layers: 2
+    ],
+    liquid: [
+      temporal: true,
+      precision: :f32,
+      dropout: 0.1,
+      window_size: 60,
+      num_layers: 2,
+      build:
+        {Edifice.Liquid, :embed_dim,
+         [
+           hidden_size: 256,
+           num_layers: 4,
+           dropout: 0.1,
+           window_size: 60,
+           seq_len: {:ref, :window_size},
+           integration_steps: 1,
+           solver: :exact
+         ]},
+      output: {:hidden_size, 256}
+    ],
+    kan: [
+      temporal: true,
+      precision: :f32,
+      dropout: 0.1,
+      window_size: 60,
+      num_layers: 2,
+      build:
+        {Edifice.Feedforward.KAN, :embed_dim,
+         [
+           hidden_size: 256,
+           num_layers: 4,
+           grid_size: 8,
+           basis: :sine,
+           dropout: 0.1,
+           window_size: 60,
+           seq_len: {:ref, :window_size}
+         ]},
+      output: {:hidden_size, 256}
+    ],
+    transformer_like: [
+      temporal: true,
+      precision: :f32,
+      dropout: 0.1,
+      window_size: 60,
+      num_layers: 2,
+      build:
+        {Edifice.Recurrent.TransformerLike, :embed_dim,
+         [
+           hidden_size: 512,
+           num_layers: 3,
+           cell_type: :lstm,
+           ffn_multiplier: 2,
+           activation: :gelu,
+           dropout: 0.1,
+           norm: :layer_norm,
+           recurrent_norm: false,
+           window_size: 60,
+           seq_len: {:ref, :window_size}
+         ]},
+      output: {:hidden_size, 512}
+    ],
+    deep_res_lstm: [
+      temporal: true,
+      precision: :f32,
+      dropout: 0.1,
+      window_size: 60,
+      num_layers: 2,
+      build:
+        {Edifice.Recurrent.DeepResLSTM, :embed_dim,
+         [
+           hidden_size: 512,
+           num_layers: 3,
+           dropout: 0.1,
+           norm: :layer_norm,
+           window_size: 60,
+           seq_len: {:ref, :window_size}
+         ]},
+      output: {:hidden_size, 512}
+    ],
+    min_gru: [
+      temporal: true,
+      precision: :f32,
+      dropout: 0.0,
+      window_size: 60,
+      num_layers: 2,
+      build:
+        {Edifice.Recurrent.MinGRU, :embed_dim,
+         [
+           hidden_size: 256,
+           num_layers: 4,
+           dropout: 0.1,
+           window_size: 60,
+           seq_len: {:ref, :window_size}
+         ]},
+      output: {:hidden_size, 256}
+    ],
+    min_lstm: [
+      temporal: true,
+      precision: :f32,
+      dropout: 0.0,
+      window_size: 60,
+      num_layers: 2,
+      build:
+        {Edifice.Recurrent.MinLSTM, :embed_dim,
+         [
+           hidden_size: 256,
+           num_layers: 4,
+           dropout: 0.1,
+           window_size: 60,
+           seq_len: {:ref, :window_size}
+         ]},
+      output: {:hidden_size, 256}
+    ],
+    tcn: [temporal: true, precision: :f32, dropout: 0.1, window_size: 60, num_layers: 2],
+    mamba3: [
+      temporal: true,
+      precision: :f32,
+      dropout: 0.0,
+      lr_schedule: :cosine_restarts,
+      window_size: 60,
+      num_layers: 2,
+      build:
+        {Edifice.SSM.Mamba3, :embed_dim,
+         [
+           hidden_size: 256,
+           state_size: 16,
+           expand_factor: 2,
+           conv_size: 4,
+           num_layers: 2,
+           dropout: 0.1,
+           window_size: 60
+         ]},
+      output: {:hidden_size, 256}
+    ],
+    hyena: [
+      temporal: true,
+      precision: :f32,
+      dropout: 0.1,
+      window_size: 60,
+      num_layers: 2,
+      build:
+        {Edifice.SSM.Hyena, :embed_dim,
+         [
+           hidden_size: 256,
+           order: 2,
+           filter_size: 64,
+           num_layers: 4,
+           dropout: 0.1,
+           window_size: 60,
+           seq_len: {:ref, :window_size}
+         ]},
+      output: {:hidden_size, 256}
+    ],
+    titans: [
+      temporal: true,
+      precision: :f32,
+      dropout: 0.1,
+      window_size: 60,
+      num_layers: 2,
+      build:
+        {Edifice.Recurrent.Titans, :embed_dim,
+         [
+           hidden_size: 256,
+           memory_size: 64,
+           num_layers: 4,
+           momentum: 0.9,
+           dropout: 0.1,
+           window_size: 60,
+           seq_len: {:ref, :window_size}
+         ]},
+      output: {:hidden_size, 256}
+    ],
+    gated_deltanet: [
+      temporal: true,
+      precision: :f32,
+      dropout: 0.0,
+      lr_schedule: :cosine_restarts,
+      window_size: 60,
+      num_layers: 2,
+      build:
+        {Edifice.Recurrent.GatedDeltaNet, :embed_dim,
+         [
+           hidden_size: 256,
+           num_heads: 4,
+           num_layers: 4,
+           dropout: 0.1,
+           conv_size: 4,
+           window_size: 60,
+           seq_len: {:ref, :window_size}
+         ]},
+      output: {:hidden_size, 256}
+    ],
+    native_recurrence: [
+      temporal: true,
+      precision: :f32,
+      dropout: 0.1,
+      window_size: 60,
+      num_layers: 2,
+      build:
+        {Edifice.Recurrent.NativeRecurrence, :embed_dim,
+         [
+           hidden_size: 256,
+           num_layers: 4,
+           dropout: 0.1,
+           window_size: 60,
+           seq_len: {:ref, :window_size}
+         ]}
+    ],
+    longhorn: [
+      temporal: true,
+      precision: :f32,
+      dropout: 0.1,
+      window_size: 60,
+      num_layers: 2,
+      build:
+        {Edifice.SSM.Longhorn, :embed_dim,
+         [
+           hidden_size: 256,
+           state_size: 16,
+           num_layers: 2,
+           dropout: 0.1,
+           window_size: 60,
+           seq_len: {:ref, :window_size}
+         ]}
+    ],
+    samba: [
+      temporal: true,
+      precision: :f32,
+      dropout: 0.1,
+      window_size: 60,
+      num_layers: 2,
+      build:
+        {Edifice.SSM.Samba, :embed_dim,
+         [
+           hidden_size: 256,
+           num_layers: 2,
+           num_heads: 4,
+           dropout: 0.1,
+           window_size: 60,
+           seq_len: {:ref, :window_size}
+         ]}
+    ],
+    hymba: [
+      temporal: true,
+      precision: :f32,
+      dropout: 0.1,
+      window_size: 60,
+      num_layers: 2,
+      build:
+        {Edifice.SSM.Hymba, :embed_dim,
+         [
+           hidden_size: 256,
+           num_layers: 2,
+           num_heads: 4,
+           dropout: 0.1,
+           window_size: 60,
+           seq_len: {:ref, :window_size}
+         ]}
+    ],
+    gss: [
+      temporal: true,
+      precision: :f32,
+      dropout: 0.1,
+      window_size: 60,
+      num_layers: 2,
+      build:
+        {Edifice.SSM.GSS, :embed_dim,
+         [
+           hidden_size: 256,
+           state_size: 16,
+           num_layers: 2,
+           dropout: 0.1,
+           window_size: 60,
+           seq_len: {:ref, :window_size}
+         ]}
+    ],
+    delta_product: [
+      temporal: true,
+      precision: :f32,
+      dropout: 0.1,
+      window_size: 60,
+      num_layers: 2,
+      build:
+        {Edifice.Recurrent.DeltaProduct, :embed_dim,
+         [
+           hidden_size: 256,
+           num_heads: 4,
+           num_layers: 4,
+           dropout: 0.1,
+           window_size: 60,
+           seq_len: {:ref, :window_size}
+         ]}
+    ],
+    gla_v2: [
+      temporal: true,
+      precision: :f32,
+      dropout: 0.1,
+      window_size: 60,
+      num_layers: 2,
+      build:
+        {Edifice.Attention.GLAv2, :embed_dim,
+         [
+           hidden_size: 256,
+           num_heads: 4,
+           num_layers: 4,
+           dropout: 0.1,
+           window_size: 60,
+           seq_len: {:ref, :window_size}
+         ]}
+    ],
+    hgrn_v2: [
+      temporal: true,
+      precision: :f32,
+      dropout: 0.1,
+      window_size: 60,
+      num_layers: 2,
+      build:
+        {Edifice.Attention.HGRNv2, :embed_dim,
+         [
+           hidden_size: 256,
+           num_heads: 4,
+           num_layers: 4,
+           dropout: 0.1,
+           window_size: 60,
+           seq_len: {:ref, :window_size}
+         ]}
+    ],
+    ttt_e2e: [
+      temporal: true,
+      precision: :f32,
+      learning_rate: 5.0e-7,
+      max_grad_norm: 0.1,
+      build:
+        {Edifice.Recurrent.TTTE2E, :embed_dim,
+         [
+           hidden_size: 256,
+           num_heads: 4,
+           num_layers: 2,
+           dropout: 0.1,
+           window_size: 60,
+           seq_len: {:ref, :window_size}
+         ]}
+    ],
+    gsa: [
+      temporal: true,
+      precision: :f32,
+      dropout: 0.1,
+      window_size: 60,
+      num_layers: 2,
+      build:
+        {Edifice.Attention.GSA, :embed_dim,
+         [
+           hidden_size: 256,
+           num_heads: 4,
+           num_layers: 4,
+           dropout: 0.1,
+           window_size: 60,
+           seq_len: {:ref, :window_size}
+         ]}
+    ],
+    rla: [
+      temporal: true,
+      precision: :f32,
+      dropout: 0.1,
+      window_size: 60,
+      num_layers: 2,
+      build:
+        {Edifice.Attention.RLA, :embed_dim,
+         [
+           hidden_size: 256,
+           num_heads: 4,
+           num_layers: 4,
+           dropout: 0.1,
+           window_size: 60,
+           seq_len: {:ref, :window_size}
+         ]}
+    ],
+    nha: [
+      temporal: true,
+      precision: :f32,
+      dropout: 0.1,
+      window_size: 60,
+      num_layers: 2,
+      build:
+        {Edifice.Attention.NHA, :embed_dim,
+         [
+           hidden_size: 256,
+           num_heads: 4,
+           num_layers: 4,
+           dropout: 0.1,
+           window_size: 60,
+           seq_len: {:ref, :window_size}
+         ]}
+    ],
+    fox: [
+      temporal: true,
+      precision: :f32,
+      dropout: 0.1,
+      window_size: 60,
+      num_layers: 2,
+      build:
+        {Edifice.Attention.FoX, :embed_dim,
+         [
+           hidden_size: 256,
+           num_heads: 4,
+           num_layers: 4,
+           dropout: 0.1,
+           window_size: 60,
+           seq_len: {:ref, :window_size}
+         ]}
+    ],
+    log_linear: [
+      temporal: true,
+      precision: :f32,
+      dropout: 0.1,
+      window_size: 60,
+      num_layers: 2,
+      build:
+        {Edifice.Attention.LogLinear, :embed_dim,
+         [
+           hidden_size: 256,
+           num_heads: 4,
+           num_layers: 4,
+           dropout: 0.1,
+           window_size: 60,
+           seq_len: {:ref, :window_size}
+         ]}
+    ],
+    laser: [
+      temporal: true,
+      precision: :f32,
+      dropout: 0.1,
+      window_size: 60,
+      num_layers: 2,
+      build:
+        {Edifice.Attention.LASER, :embed_dim,
+         [
+           hidden_size: 256,
+           num_heads: 4,
+           num_layers: 4,
+           dropout: 0.1,
+           window_size: 60,
+           seq_len: {:ref, :window_size}
+         ]}
+    ],
+    moba: [
+      temporal: true,
+      precision: :f32,
+      dropout: 0.1,
+      window_size: 60,
+      num_layers: 2,
+      build:
+        {Edifice.Attention.MoBA, :embed_dim,
+         [
+           hidden_size: 256,
+           num_heads: 4,
+           num_layers: 4,
+           dropout: 0.1,
+           window_size: 60,
+           seq_len: {:ref, :window_size}
+         ]}
+    ],
+    tnn: [
+      temporal: true,
+      precision: :f32,
+      dropout: 0.1,
+      window_size: 60,
+      num_layers: 2,
+      build:
+        {Edifice.Attention.TNN, :embed_dim,
+         [
+           hidden_size: 256,
+           num_heads: 4,
+           num_layers: 4,
+           dropout: 0.1,
+           window_size: 60,
+           seq_len: {:ref, :window_size}
+         ]}
+    ],
+    miras: [
+      temporal: true,
+      precision: :f32,
+      dropout: 0.1,
+      window_size: 60,
+      num_layers: 2,
+      build:
+        {Edifice.Recurrent.MIRAS, :embed_dim,
+         [
+           hidden_size: 256,
+           num_heads: 4,
+           num_layers: 2,
+           dropout: 0.1,
+           window_size: 60,
+           seq_len: {:ref, :window_size}
+         ]}
+    ],
+    mixture_of_mamba: [
+      temporal: true,
+      precision: :f32,
+      dropout: 0.1,
+      window_size: 60,
+      num_layers: 2,
+      build:
+        {Edifice.SSM.MixtureOfMamba, :embed_dim,
+         [
+           hidden_size: 256,
+           state_size: 16,
+           num_layers: 2,
+           dropout: 0.1,
+           window_size: 60,
+           seq_len: {:ref, :window_size}
+         ]}
+    ],
+    huginn: [
+      temporal: true,
+      precision: :f32,
+      dropout: 0.1,
+      window_size: 60,
+      num_layers: 2,
+      build:
+        {Edifice.Recurrent.Huginn, :embed_dim,
+         [
+           hidden_size: 256,
+           num_heads: 4,
+           num_layers: 2,
+           dropout: 0.1,
+           window_size: 60,
+           seq_len: {:ref, :window_size}
+         ]}
+    ],
+    coconut: [
+      temporal: true,
+      precision: :f32,
+      dropout: 0.1,
+      window_size: 60,
+      num_layers: 2,
+      build:
+        {Edifice.Meta.Coconut, :embed_dim,
+         [
+           hidden_size: 256,
+           num_heads: 4,
+           num_layers: 2,
+           dropout: 0.1,
+           window_size: 60,
+           seq_len: {:ref, :window_size}
+         ]}
+    ],
+    mega: [
+      temporal: true,
+      precision: :f32,
+      dropout: 0.1,
+      window_size: 60,
+      num_layers: 2,
+      build:
+        {Edifice.Attention.Mega, :embed_dim,
+         [
+           hidden_size: 256,
+           num_layers: 2,
+           dropout: 0.1,
+           window_size: 60,
+           seq_len: {:ref, :window_size}
+         ]}
+    ],
+    based: [
+      temporal: true,
+      precision: :f32,
+      dropout: 0.1,
+      window_size: 60,
+      num_layers: 2,
+      build:
+        {Edifice.Attention.Based, :embed_dim,
+         [hidden_size: 256, num_heads: 4, num_layers: 2, dropout: 0.1, window_size: 60]}
+    ],
+    infini_attention: [
+      temporal: true,
+      precision: :f32,
+      dropout: 0.1,
+      window_size: 60,
+      num_layers: 2,
+      build:
+        {Edifice.Attention.InfiniAttention, :embed_dim,
+         [
+           hidden_size: 256,
+           num_heads: 4,
+           num_layers: 2,
+           segment_size: 32,
+           dropout: 0.1,
+           window_size: 60
+         ]}
+    ],
+    conformer: [
+      temporal: true,
+      precision: :f32,
+      dropout: 0.1,
+      window_size: 60,
+      num_layers: 2,
+      build:
+        {Edifice.Attention.Conformer, :embed_dim,
+         [
+           hidden_size: 256,
+           num_heads: 4,
+           num_layers: 2,
+           conv_kernel_size: 31,
+           dropout: 0.1,
+           window_size: 60
+         ]}
+    ],
+    mla: [
+      temporal: true,
+      precision: :f32,
+      dropout: 0.1,
+      window_size: 60,
+      num_layers: 2,
+      build:
+        {Edifice.Attention.MLA, :embed_dim,
+         [
+           hidden_size: 256,
+           num_heads: 4,
+           num_layers: 2,
+           dropout: 0.1,
+           window_size: 60,
+           seq_len: {:ref, :window_size}
+         ]}
+    ],
+    diff_transformer: [
+      temporal: true,
+      precision: :f32,
+      dropout: 0.1,
+      window_size: 60,
+      num_layers: 2,
+      build:
+        {Edifice.Attention.DiffTransformer, :embed_dim,
+         [hidden_size: 256, num_heads: 4, num_layers: 2, dropout: 0.1, window_size: 60]}
+    ],
+    megalodon: [
+      temporal: true,
+      precision: :f32,
+      dropout: 0.1,
+      window_size: 60,
+      num_layers: 2,
+      build:
+        {Edifice.Attention.Megalodon, :embed_dim,
+         [
+           hidden_size: 256,
+           num_layers: 2,
+           dropout: 0.1,
+           window_size: 60,
+           seq_len: {:ref, :window_size}
+         ]}
+    ],
+    lightning_attention: [
+      temporal: true,
+      precision: :f32,
+      dropout: 0.1,
+      window_size: 60,
+      num_layers: 2,
+      build:
+        {Edifice.Attention.LightningAttention, :embed_dim,
+         [
+           hidden_size: 256,
+           num_heads: 4,
+           num_layers: 2,
+           dropout: 0.1,
+           window_size: 60,
+           seq_len: {:ref, :window_size}
+         ]}
+    ],
+    flash_linear_attention: [
+      temporal: true,
+      precision: :f32,
+      dropout: 0.1,
+      window_size: 60,
+      num_layers: 2,
+      build:
+        {Edifice.Attention.FlashLinearAttention, :embed_dim,
+         [
+           hidden_size: 256,
+           num_heads: 4,
+           num_layers: 2,
+           dropout: 0.1,
+           window_size: 60,
+           seq_len: {:ref, :window_size}
+         ]}
+    ],
+    kda: [
+      temporal: true,
+      precision: :f32,
+      dropout: 0.1,
+      window_size: 60,
+      num_layers: 2,
+      build:
+        {Edifice.Attention.KDA, :embed_dim,
+         [
+           hidden_size: 256,
+           num_heads: 4,
+           num_layers: 2,
+           dropout: 0.1,
+           window_size: 60,
+           seq_len: {:ref, :window_size}
+         ]}
+    ],
+    sigmoid_attention: [
+      temporal: true,
+      precision: :f32,
+      dropout: 0.1,
+      window_size: 60,
+      num_layers: 2,
+      build:
+        {Edifice.Attention.SigmoidAttention, :embed_dim,
+         [hidden_size: 256, num_heads: 4, num_layers: 2, dropout: 0.1, window_size: 60]}
+    ],
+    spla: [temporal: true, precision: :f32, dropout: 0.1, window_size: 60, num_layers: 2],
+    retnet_v2: [
+      temporal: true,
+      precision: :f32,
+      dropout: 0.1,
+      window_size: 60,
+      num_layers: 2,
+      build:
+        {Edifice.Attention.RetNetV2, :embed_dim,
+         [
+           hidden_size: 256,
+           num_heads: 4,
+           num_layers: 2,
+           dropout: 0.1,
+           window_size: 60,
+           seq_len: {:ref, :window_size}
+         ]}
+    ],
+    rnope_swa: [
+      temporal: true,
+      precision: :f32,
+      dropout: 0.1,
+      window_size: 60,
+      num_layers: 2,
+      build:
+        {Edifice.Attention.RNoPESWA, :embed_dim,
+         [hidden_size: 256, num_heads: 4, num_layers: 2, dropout: 0.1, window_size: 60]}
+    ],
+    nsa: [
+      temporal: true,
+      precision: :f32,
+      dropout: 0.1,
+      window_size: 60,
+      num_layers: 2,
+      build:
+        {Edifice.Attention.NSA, :embed_dim,
+         [
+           hidden_size: 256,
+           num_heads: 4,
+           num_layers: 2,
+           dropout: 0.1,
+           window_size: 60,
+           seq_len: {:ref, :window_size}
+         ]}
+    ],
+    infllm_v2: [temporal: true, precision: :f32, dropout: 0.1, window_size: 60, num_layers: 2],
+    dual_chunk_attention: [
+      temporal: true,
+      precision: :f32,
+      dropout: 0.1,
+      window_size: 60,
+      num_layers: 2,
+      build:
+        {Edifice.Attention.DualChunk, :embed_dim,
+         [hidden_size: 256, num_heads: 4, num_layers: 2, dropout: 0.1]}
+    ],
+    gated_attention: [
+      temporal: true,
+      precision: :f32,
+      dropout: 0.1,
+      window_size: 60,
+      num_layers: 2,
+      build:
+        {Edifice.Attention.GatedAttention, :embed_dim,
+         [hidden_size: 256, num_heads: 4, num_layers: 2, dropout: 0.1, window_size: 60]}
+    ],
+    mta: [
+      temporal: true,
+      precision: :f32,
+      dropout: 0.1,
+      window_size: 60,
+      num_layers: 2,
+      build:
+        {Edifice.Attention.MTA, :embed_dim,
+         [hidden_size: 256, num_heads: 4, num_layers: 2, dropout: 0.1, window_size: 60]}
+    ],
+    slstm: [
+      temporal: true,
+      precision: :f32,
+      dropout: 0.1,
+      window_size: 60,
+      num_layers: 2,
+      build:
+        {Edifice.Recurrent.SLSTM, :embed_dim,
+         [
+           hidden_size: 256,
+           num_layers: 2,
+           dropout: 0.1,
+           window_size: 60,
+           seq_len: {:ref, :window_size}
+         ]}
+    ],
+    xlstm_v2: [
+      temporal: true,
+      precision: :f32,
+      dropout: 0.1,
+      window_size: 60,
+      num_layers: 2,
+      build:
+        {Edifice.Recurrent.XLSTMv2, :embed_dim,
+         [
+           hidden_size: 256,
+           num_heads: 4,
+           num_layers: 2,
+           dropout: 0.1,
+           window_size: 60,
+           seq_len: {:ref, :window_size}
+         ]}
+    ],
+    bimamba: [
+      temporal: true,
+      precision: :f32,
+      dropout: 0.1,
+      window_size: 60,
+      num_layers: 2,
+      build:
+        {Edifice.SSM.BiMamba, :embed_dim,
+         [
+           hidden_size: 256,
+           state_size: 16,
+           num_layers: 2,
+           dropout: 0.1,
+           window_size: 60,
+           seq_len: {:ref, :window_size}
+         ]}
+    ],
+    hyena_v2: [
+      temporal: true,
+      precision: :f32,
+      dropout: 0.1,
+      window_size: 60,
+      num_layers: 2,
+      build:
+        {Edifice.SSM.HyenaV2, :embed_dim,
+         [
+           hidden_size: 256,
+           num_layers: 2,
+           dropout: 0.1,
+           window_size: 60,
+           seq_len: {:ref, :window_size}
+         ]}
+    ],
+    ss_transformer: [
+      temporal: true,
+      precision: :f32,
+      dropout: 0.1,
+      window_size: 60,
+      num_layers: 2,
+      build:
+        {Edifice.SSM.SSTransformer, :embed_dim,
+         [
+           hidden_size: 256,
+           state_size: 16,
+           num_heads: 4,
+           num_layers: 2,
+           dropout: 0.1,
+           window_size: 60,
+           seq_len: {:ref, :window_size}
+         ]}
+    ],
+    ssmax: [
+      temporal: true,
+      precision: :f32,
+      dropout: 0.1,
+      window_size: 60,
+      num_layers: 2,
+      build:
+        {Edifice.Blocks.SSMax, :embed_dim,
+         [hidden_size: 256, num_heads: 4, num_layers: 2, dropout: 0.1, window_size: 60]}
+    ],
+    softpick: [
+      temporal: true,
+      precision: :f32,
+      dropout: 0.1,
+      window_size: 60,
+      num_layers: 2,
+      build:
+        {Edifice.Blocks.Softpick, :embed_dim,
+         [hidden_size: 256, num_heads: 4, num_layers: 2, dropout: 0.1, window_size: 60]}
+    ],
+    lstm: [temporal: true, precision: :f32, dropout: 0.1, window_size: 60, num_layers: 2],
+    gru: [temporal: true, precision: :f32, dropout: 0.1, window_size: 60, num_layers: 2],
+    gated_ssm: [temporal: true, precision: :f32, dropout: 0.1, window_size: 60, num_layers: 2],
+    mamba: [
+      temporal: true,
+      precision: :f32,
+      dropout: 0.0,
+      lr_schedule: :cosine_restarts,
+      window_size: 60,
+      num_layers: 2,
+      state_size: 16,
+      expand_factor: 2,
+      conv_size: 4
+    ],
+    mamba_2: [
+      temporal: true,
+      precision: :f32,
+      dropout: 0.0,
+      lr_schedule: :cosine_restarts,
+      window_size: 60,
+      num_layers: 2,
+      state_size: 16,
+      expand_factor: 2
+    ],
+    mamba_nif: [temporal: true, precision: :f32, dropout: 0.1, window_size: 60, num_layers: 2],
+    mamba_cumsum: [temporal: true, precision: :f32, dropout: 0.1, window_size: 60, num_layers: 2],
+    mamba_hillis_steele: [
+      temporal: true,
+      precision: :f32,
+      dropout: 0.1,
+      window_size: 60,
+      num_layers: 2
+    ],
+    mamba_ssd: [temporal: true, precision: :f32, dropout: 0.1, window_size: 60, num_layers: 2],
+    mlp: [temporal: false, dropout: 0.1, precision: :f32],
+    hybrid: [temporal: true, precision: :f32, dropout: 0.1, window_size: 60, num_layers: 2]
+  ]
 
-  Source of truth: benchmark_architectures.exs per-architecture configs, validated
-  across hundreds of training runs.
-  """
-  @spec backbone_defaults(atom()) :: keyword()
-  def backbone_defaults(backbone) do
-    case backbone do
-      # SSM-based (Mamba family) — fast inference, good temporal modeling
-      :mamba ->
-        # f32 — bf16 MixedPrecision causes mode collapse on large datasets
-        [temporal: true, precision: :f32, dropout: 0.0, lr_schedule: :cosine_restarts,
-         window_size: 60, num_layers: 2, state_size: 16, expand_factor: 2, conv_size: 4]
+  @untuned_backbones ~w(lstm_hybrid hawk s5 s4 s4d fnet perceiver hopfield ntm reservoir snn bayesian decision_transformer liquid kan transformer_like deep_res_lstm tcn hyena titans native_recurrence longhorn samba hymba gss delta_product gla_v2 hgrn_v2 gsa rla nha fox log_linear laser moba tnn miras mixture_of_mamba huginn coconut mega based infini_attention conformer mla diff_transformer megalodon lightning_attention flash_linear_attention kda sigmoid_attention spla retnet_v2 rnope_swa nsa infllm_v2 dual_chunk_attention gated_attention mta slstm xlstm_v2 bimamba hyena_v2 ss_transformer ssmax softpick gated_ssm mamba_nif mamba_cumsum mamba_hillis_steele mamba_ssd)a
 
-      :mamba_2 ->
-        [temporal: true, precision: :f32, dropout: 0.0, lr_schedule: :cosine_restarts,
-         window_size: 60, num_layers: 2, state_size: 16, expand_factor: 2]
+  @doc "The backbone spec map (atom => training defaults) — the single source for valid_backbones/0 and backbone_defaults/1."
+  @spec backbone_specs() :: keyword()
+  def backbone_specs, do: @backbone_specs
 
-      # NOTE the atom: the dispatcher (Networks.Policy.Backbone) and
-      # @valid_backbones both spell this :mamba3. A :mamba_3 clause here
-      # never matched, so the backbone trained with NO defaults — silently
-      # untuned (found 2026-08-03 while preparing the architecture bake-off).
-      :mamba3 ->
-        [temporal: true, precision: :f32, dropout: 0.0, lr_schedule: :cosine_restarts,
-         window_size: 60, num_layers: 2]
+  @doc "Backbones carrying only the generic baseline defaults (ratchet: may only shrink)."
+  @spec untuned_backbones() :: [atom()]
+  def untuned_backbones, do: @untuned_backbones
 
-      # Recurrent (LSTM/GRU family) — precision f32 for gate stability
-      :lstm ->
-        [temporal: true, precision: :f32, dropout: 0.1, window_size: 60, num_layers: 2]
+  @doc "True when `backbone` has no tuned defaults (baseline only)."
+  @spec backbone_defaults_baseline?(atom()) :: boolean()
+  def backbone_defaults_baseline?(backbone), do: backbone in @untuned_backbones
 
-      :gru ->
-        [temporal: true, precision: :f32, dropout: 0.1, window_size: 60, num_layers: 2]
+  # INVARIANTS.md item 3 phase C: a row may also carry the CONSTRUCTION
+  # recipe (`build: {module, embed_key, params}`) and the output-size rule
+  # (`output: {opt_key, default}`) that Networks.Policy.Backbone reads for
+  # every backbone without a bespoke dispatcher clause. They are stripped
+  # from the training defaults so they never reach opts / the checkpoint JSON.
+  @spec_only_keys [:build, :output]
 
-      :min_gru ->
-        [temporal: true, precision: :f32, dropout: 0.0, window_size: 60, num_layers: 2]
+  @doc "The full spec row for a backbone (training defaults + build recipe + output rule); unknown atoms raise."
+  @spec backbone_spec(atom()) :: keyword()
+  def backbone_spec(backbone) do
+    case Keyword.fetch(@backbone_specs, backbone) do
+      {:ok, row} ->
+        row
 
-      :min_lstm ->
-        [temporal: true, precision: :f32, dropout: 0.0, window_size: 60, num_layers: 2]
-
-      # xLSTM family had NO clause until 2026-09-05 (silently untuned —
-      # same class as the :mamba3/:retnet typo bugs above): they fell
-      # through to [] and ran without temporal/precision defaults.
-      backbone when backbone in [:xlstm, :xlstm_slstm, :xlstm_mlstm] ->
-        [temporal: true, precision: :f32, dropout: 0.1, window_size: 60, num_layers: 2]
-
-      # Linear attention / gated (fast, GPU-friendly)
-      :griffin ->
-        [temporal: true, precision: :f32, dropout: 0.0, lr_schedule: :cosine_restarts,
-         window_size: 60, num_layers: 2]
-
-      :gated_deltanet ->
-        [temporal: true, precision: :f32, dropout: 0.0, lr_schedule: :cosine_restarts,
-         window_size: 60, num_layers: 2]
-
-      :deltanet ->
-        [temporal: true, precision: :f32, dropout: 0.0, window_size: 60, num_layers: 2]
-
-      :rwkv ->
-        [temporal: true, precision: :f32, dropout: 0.0, window_size: 60, num_layers: 2]
-
-      :gla ->
-        [temporal: true, precision: :f32, dropout: 0.0, window_size: 60, num_layers: 2]
-
-      :hgrn ->
-        [temporal: true, precision: :f32, dropout: 0.0, window_size: 60, num_layers: 2]
-
-      # Same class of typo as :mamba3 above — the real atom is :retnet.
-      :retnet ->
-        [temporal: true, precision: :f32, dropout: 0.0, window_size: 60, num_layers: 2]
-
-      # Attention-based (high quality, slower)
-      :attention ->
-        [temporal: true, precision: :f32, dropout: 0.1, window_size: 60,
-         num_layers: 2, num_heads: 4, head_dim: 64, chunked_attention: true]
-
-      :performer ->
-        [temporal: true, precision: :f32, dropout: 0.1, window_size: 60, num_layers: 2]
-
-      # Hybrid (SSM + attention)
-      :jamba ->
-        [temporal: true, precision: :f32, dropout: 0.0, lr_schedule: :cosine_restarts,
-         learning_rate: 5.0e-6, max_grad_norm: 0.25, batch_size: 16]
-
-      :zamba ->
-        [temporal: true, precision: :bf16, dropout: 0.0,
-         learning_rate: 1.0e-5, max_grad_norm: 0.5]
-
-      # Unstable architectures — need very low LR
-      :h3 ->
-        [temporal: true, learning_rate: 5.0e-7, max_grad_norm: 0.1]
-
-      :ttt ->
-        [temporal: true, learning_rate: 5.0e-7, max_grad_norm: 0.1]
-
-      :ttt_e2e ->
-        [temporal: true, learning_rate: 5.0e-7, max_grad_norm: 0.1]
-
-      # MLP (non-temporal)
-      :mlp ->
-        [temporal: false, dropout: 0.1, precision: :f32]
-
-      # Default for unknown backbones
-      _ ->
-        []
+      :error ->
+        raise ArgumentError,
+              "unknown backbone #{inspect(backbone)} — not in @backbone_specs " <>
+                "(valid: #{inspect(Keyword.keys(@backbone_specs))})"
     end
   end
+
+  @doc "Per-backbone training defaults (CLI args win). Every valid backbone has a row in @backbone_specs; an unknown atom raises. Tuned rows' source: benchmark_architectures.exs."
+  @spec backbone_defaults(atom()) :: keyword()
+  def backbone_defaults(backbone),
+    do: backbone |> backbone_spec() |> Keyword.drop(@spec_only_keys)
+
+  @doc "The `{module, embed_key, params}` construction recipe for a spec-built backbone, or nil for bespoke ones."
+  @spec backbone_recipe(atom()) :: {module(), atom(), keyword()} | nil
+  def backbone_recipe(backbone), do: backbone |> backbone_spec() |> Keyword.get(:build)
+
+  @doc "The `{opt_key, default}` output-size rule for a spec-built backbone, or nil."
+  @spec backbone_output_rule(atom()) :: {atom(), pos_integer()} | nil
+  def backbone_output_rule(backbone), do: backbone |> backbone_spec() |> Keyword.get(:output)
+
+  @doc "Backbones whose construction is a spec recipe (no bespoke dispatcher clause)."
+  @spec spec_built_backbones() :: [atom()]
+  def spec_built_backbones,
+    do: for({b, row} <- @backbone_specs, Keyword.has_key?(row, :build), do: b)
 
   @doc """
   Default training options.
@@ -598,6 +1503,12 @@ defmodule ExPhil.Training.Config do
       # Mixed precision training (FP32 master weights + BF16 compute)
       # Not recommended - adds overhead without tensor core benefits on current XLA
       mixed_precision: false,
+      # INVARIANTS.md item 1 / GOTCHA #113: REACTION delay for the streaming
+      # /bptt path, on top of the parser's causal pairing (state[t] ->
+      # controller[t+1] is what Peppi emits; k adds k frames). 0 = the
+      # causal pairing. The leaked pairing is unrepresentable since
+      # 2026-09-09 (ExPhil.Data.LabelConvention); live --frame-delay N
+      # plays reaction delay N-1.
       frame_delay: 0,
       # Stage internals in the embedding (FoD platform heights + PS
       # transformation; W4 2026-08-24 stage-blindness verdict). +7 raw
@@ -690,7 +1601,19 @@ defmodule ExPhil.Training.Config do
       # 85-everywhere constant — only fresh v3-edge arms opt in, and a
       # corpus must be REBUILT with this flag for corpus-mode training)
       per_stage_ledge: false,
+      # Same concept for the standard (non-streaming) path: Data.shift_actions
+      # adds action_delay frames of reaction delay on top of the causal
+      # pairing. 0 = causal. See frame_delay above; the two keys are one
+      # concept (FIXES.md P1).
       action_delay: 0,
+      # Attention geometry (INVARIANTS.md item 2, 2026-09-09): these were
+      # absent here, so `--num-heads` was accepted-and-ignored and
+      # Trainer's private table (2/32) silently won over the documented
+      # 4/64 for every backbone without a backbone_defaults clause.
+      num_heads: 4,
+      head_dim: 64,
+      # --log-file PATH: tee Output to a file (train.exs consumes it)
+      log_file: nil,
       # Higher = more focus on hard examples
       focal_gamma: 3.0,
       # Button loss weight: multiply button loss to balance vs 5 stick/shoulder losses
@@ -711,6 +1634,16 @@ defmodule ExPhil.Training.Config do
       # Per-frame neutral weight: action frames get 1.0, neutral frames get this value
       # Lower = stronger anti-collapse signal. 0.0 = skip neutral frames entirely.
       neutral_weight: 0.25,
+      # Per-frame DECISION weight: frames whose controller differs from the
+      # previous frame get max(weight, transition_weight) — emphasizes WHEN
+      # to change action (leaving WAIT, committing) instead of blanket
+      # downweighting neutral frames. nil = off. Was plumbed through the
+      # pipeline and drills but had no train.exs flag until 2026-09-07.
+      transition_weight: nil,
+      # Per-frame OFFSTAGE weight (bptt path): frames where the subject is
+      # airborne beyond the ledge get max(weight, offstage_weight) —
+      # rare-state coverage for recovery (V2_PREP 09-08). nil = off.
+      offstage_weight: nil,
       # AWBC (advantage-weighted BC) loss weights: reweight the imitation loss
       # by observed outcomes. --awbc-reward standard uses Rewards.Standard
       # (stock + damage); default :shine is the multishine specialist signal.
@@ -1019,7 +1952,7 @@ defmodule ExPhil.Training.Config do
   # Build context for YAML parsing with allowlists
   defp yaml_context do
     %{
-      valid_backbones: @valid_backbones,
+      valid_backbones: valid_backbones(),
       valid_optimizers: @valid_optimizers,
       valid_lr_schedules: @valid_lr_schedules,
       valid_precision_modes: @valid_precision_modes,
@@ -1174,7 +2107,7 @@ defmodule ExPhil.Training.Config do
   # Build the validation context with allowlists
   defp validation_context do
     %{
-      valid_backbones: @valid_backbones,
+      valid_backbones: valid_backbones(),
       valid_optimizers: @valid_optimizers,
       valid_lr_schedules: @valid_lr_schedules,
       valid_policy_types: @valid_policy_types,
@@ -1216,7 +2149,6 @@ defmodule ExPhil.Training.Config do
         |> Keyword.merge(cli_overrides)
     end
   end
-
 
   @doc """
   Parse command-line arguments into a keyword list of options.
@@ -1295,8 +2227,10 @@ defmodule ExPhil.Training.Config do
 
       Enum.reduce(overrides, opts, fn {key, value}, acc ->
         cli_flag = %{entropy_weight: "--entropy-weight"}[key]
+
         if cli_flag && ExPhil.Training.Config.Parser.has_flag_value?(args, cli_flag) do
-          acc  # User explicitly set — don't override
+          # User explicitly set — don't override
+          acc
         else
           if acc[key] == 0.0 or acc[key] == nil do
             Keyword.put(acc, key, value)
@@ -1375,7 +2309,7 @@ defmodule ExPhil.Training.Config do
   # Build context for argument parsing with allowlists
   defp parser_context do
     %{
-      valid_backbones: @valid_backbones,
+      valid_backbones: valid_backbones(),
       valid_optimizers: @valid_optimizers,
       valid_lr_schedules: @valid_lr_schedules,
       valid_characters: Map.keys(@character_map),
@@ -1383,7 +2317,6 @@ defmodule ExPhil.Training.Config do
       valid_flags: @valid_flags
     }
   end
-
 
   @doc """
   List of valid CLI flags.
@@ -1583,6 +2516,12 @@ defmodule ExPhil.Training.Config do
       action_mode: get_embedding_mode(opts, :action_mode),
       character_mode: get_embedding_mode(opts, :character_mode),
       nana_mode: get_embedding_mode(opts, :nana_mode),
+      # INVARIANTS.md item 4: which channels the training source provided
+      # and whether the projectile block therefore exists in this checkpoint's
+      # embedding. The agent builds its live embed config from these.
+      provided_channels: ExPhil.Data.Peppi.provides(),
+      with_projectiles:
+        ExPhil.Embeddings.resolve_with_projectiles(opts, ExPhil.Data.Peppi.provides()),
       jumps_normalized: Keyword.get(opts, :jumps_normalized, defaults()[:jumps_normalized]),
       window_size: opts[:window_size],
       stride: opts[:stride],
@@ -1614,12 +2553,13 @@ defmodule ExPhil.Training.Config do
       action_delay: opts[:action_delay],
       focal_gamma: opts[:focal_gamma],
       button_weight: opts[:button_weight],
-      button_pos_weight: case opts[:button_pos_weight] do
-        %Nx.Tensor{} = t -> Nx.to_flat_list(t)
-        other -> other
-      end,
+      button_pos_weight:
+        case opts[:button_pos_weight] do
+          %Nx.Tensor{} = t -> Nx.to_flat_list(t)
+          other -> other
+        end,
       stick_edge_weight: opts[:stick_edge_weight],
-  entropy_weight: opts[:entropy_weight] || 0.0,
+      entropy_weight: opts[:entropy_weight] || 0.0,
       ema: opts[:ema],
       ema_decay: opts[:ema_decay],
       train_character: opts[:train_character] && to_string(opts[:train_character]),
@@ -1636,8 +2576,19 @@ defmodule ExPhil.Training.Config do
       epochs_completed: results[:epochs_completed],
       stopped_early: results[:stopped_early],
       checkpoint_path: opts[:checkpoint],
-      policy_path: derive_policy_path(opts[:checkpoint])
+      policy_path: derive_policy_path(opts[:checkpoint]),
+      # INVARIANTS.md item 1: which label pairing this checkpoint was
+      # trained under. Unstamped checkpoints are legacy (:producing);
+      # readers go through ExPhil.Data.LabelConvention, never the raw
+      # delay numbers.
+      label_convention: ExPhil.Data.LabelConvention.current()
     }
+    # INVARIANTS.md item 11: every checkpoint carries its comparability key
+    # (label_delay / embed canary / loss recipe / train_delays) so tools can
+    # refuse to rank losses that don't mean the same thing.
+    |> then(fn map ->
+      Map.put(map, :comparability_key, ExPhil.Training.Comparability.key(map))
+    end)
   end
 
   defp format_atom_list(nil), do: nil

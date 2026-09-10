@@ -143,12 +143,15 @@ defmodule ExPhil.Data.PeppiTest do
       }
 
       replay = %Peppi.ParsedReplay{
-        frames: [game_frame],
+        frames: [game_frame, %{game_frame | frame_number: 1}],
         metadata: metadata
       }
 
       training_frames = Peppi.to_training_frames(replay)
 
+      # Two source frames -> ONE training frame: the causal pairing gives
+      # frame 0 the input issued from it (frame 1's controller) and drops
+      # the last frame, which has no successor (INVARIANTS.md item 1).
       assert length(training_frames) == 1
       [frame] = training_frames
 
@@ -221,7 +224,7 @@ defmodule ExPhil.Data.PeppiTest do
       }
 
       replay = %Peppi.ParsedReplay{
-        frames: [game_frame],
+        frames: [game_frame, %{game_frame | frame_number: 1}],
         metadata: metadata
       }
 
@@ -295,7 +298,7 @@ defmodule ExPhil.Data.PeppiTest do
         ]
       }
 
-      replay = %Peppi.ParsedReplay{frames: [game_frame], metadata: metadata}
+      replay = %Peppi.ParsedReplay{frames: [game_frame, %{game_frame | frame_number: 1}], metadata: metadata}
 
       [frame_p1] = Peppi.to_training_frames(replay, player_port: 1)
       assert frame_p1[:player_tag] == nil

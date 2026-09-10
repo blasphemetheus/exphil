@@ -2682,7 +2682,45 @@ defmodule ExPhil.Training.Data do
         base
       end
 
+    # Offstage upweighting (2026-09-08, V2_PREP): frames where the subject
+    # is airborne beyond the ledge get max(w, offstage_weight). Offstage
+    # states are RARE in expert play (experts recover fast), so the model
+    # gets few reps exactly where it fails (v2: recovery 0.65 vs expert
+    # 0.96, untouched deaths 6x). `:offstage` is a boolean list aligned
+    # with `actions`, computed by the caller from game state.
+    offstage_w = Keyword.get(opts, :offstage_weight)
+    offstage = Keyword.get(opts, :offstage)
+
+    weights =
+      if offstage_w && offstage do
+        Enum.zip_with([weights, offstage], fn [w, off?] ->
+          if off?, do: max(w, offstage_w * 1.0), else: w
+        end)
+      else
+        weights
+      end
+
     Nx.tensor(weights, type: :f32)
+  end
+
+  @doc """
+  True when the subject (port 1 after remap) is airborne beyond the stage
+  ledge — the "offstage" predicate used by `:offstage_weight`. Nil-safe:
+  frames without position data are never offstage.
+  """
+  @spec frame_offstage?(map()) :: boolean()
+  def frame_offstage?(frame) do
+    gs = frame[:game_state] || frame.game_state
+    p = gs && gs.players && gs.players[1]
+
+    case p do
+      %{on_ground: false, x: x} when is_number(x) ->
+        edge = Melee.Stages.edge_ground_position(gs.stage) || 85.57
+        abs(x) > edge + 2.0
+
+      _ ->
+        false
+    end
   end
 
   # AWBC (loss_weights channel): multiply per-frame LOSS weights into the

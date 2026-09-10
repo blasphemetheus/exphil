@@ -6,6 +6,192 @@ This document tracks identified issues and planned improvements from the January
 
 - **GPU Kernel Language Exploration** — Evaluating Julia, Futhark, Mojo, and Bend as alternatives to CUDA C for scan kernels. See [KERNEL_LANGUAGE_COMPARISON.md](../research/KERNEL_LANGUAGE_COMPARISON.md) for findings and [individual exploration docs](../research/) for per-language details.
 
+## Recently Added (2026-09-09 evening — INVARIANTS.md follow-ups)
+
+- **eval_model.exs must read `with_projectiles` from the checkpoint
+  config [P2]**: since INVARIANTS item 4, checkpoints trained from Peppi
+  have NO projectile block (embedding narrower than 288/296). The three
+  probe scripts were updated; `eval_model.exs` still builds its embed
+  opts without `with_projectiles` and will hit its own canary-size guard
+  on a v3-era checkpoint. Add the key the way the probes do.
+- **`defaults[:backbone]` should be `:mlp` [P3]**: the default backbone
+  is `:sliding_window` but Config's default `temporal: false` means a
+  bare train.exs has always built the MLP and ignored the key; the spec
+  row pins that. Make the default honest.
+
+## Recently Added (2026-09-09 — GOTCHA #113 label-leak follow-ups)
+
+- **Delay-0 label leak: STRUCTURAL 09-09 evening** (superseding the
+  morning's guards) — `Peppi.to_training_frames` always emits causal
+  pairs (`Peppi.causal_pairs/1`); `--frame-delay`/`--action-delay` are
+  reaction delay on top (default 0). `check_label_alignment!` and
+  `--allow-leaky-labels` DELETED. `ExPhil.Data.LabelConvention` owns the
+  numbering (unstamped checkpoints = legacy, reaction = d-1); the Agent
+  derives delay-id from the checkpoint convention; the live
+  `--frame-delay` flag is unchanged. Drill defaults renumbered (old
+  `--action-delay 2` == new 1). Tests: `label_alignment_test` (`:nif`),
+  `label_convention_test`. Follow-up: `.frames` exports on disk predate
+  the rebase (MixFrames warns; re-export before the next drill mix).
+  `recovery_synth.ex` composes expert labels the same way the drill does
+  — consistent under the renumbering, not separately re-verified live.
+- **Two keys for one concept [P1]**: the streaming/bptt path honors
+  `:frame_delay` (Peppi.apply_frame_delay) while the standard path
+  honors `:action_delay` (Data.shift_actions); `--frame-delay` is ALSO
+  the play scripts' deploy knob. A run can set one and silently get
+  delay 0 on the path it actually uses (this is how fox_gen trained
+  leaky for months). Fix: one resolved `label_delay` in Config with both
+  flags feeding it and a loud mismatch error; rename the training flag
+  `--label-delay`.
+- **Drill scripts [P1]**: audit `dagger_drill.exs` / `dagger_drill_freeze.exs`
+  label delays — the ms line trained multi-delay {2,3} (causal) but any
+  drill fixture built at delay 0 (`fox_multishine_closed_d1.slp` exists
+  — check what `_d1` means) is suspect. The drill's own Imitation.new
+  does not go through Pipeline.check_label_alignment!.
+- **Val-loss comparability [doc]**: delay-0 val losses are optimistic
+  (leaked target); never compare across label delays. Registry should
+  carry label_delay so the leaderboard can refuse the comparison.
+- **Same-frame calibration probes are blind to this class**:
+  `probe_wait_exit.exs` (same-frame label) and the 09-08
+  `failed_exit_scan` definition both read "calibrated" through a 1000x
+  miscalibration. `probe_sampler_wait.exs` uses successor-aligned
+  labels; failed_exit_scan was fixed 09-09. Any future "does the model
+  do X from state S" probe must label with the input recorded on S's
+  successor frame.
+- **Prev-action input (slippi-ai pattern) [P2]**: the same-frame
+  controller is a legitimate INPUT (known at decision time) — slippi-ai
+  feeds it and predicts the next one. fox_gen runs `use_prev_action:
+  false`; revisit after v16e (the flag exists: `--prev-action`).
+
+## Recently Added (2026-09-06 three-reviewer code-health pass — ExPhil training, ExPhil inference/bridge, Edifice)
+
+Read-only review run while fox_gen_v2 trained. Four structural themes,
+then the ranked items. Full reviewer output lives in the session
+transcript; this is the actionable distillation.
+
+**Themes:** (1) parallel hand-maintained lists that disagree silently —
+`@valid_flags` vs parser vs `defaults/0` vs `@backbone_default_flags`;
+training defaults duplicated FIVE layers deep (Config / Imitation /
+Trainer / Loss x4 / Backbone) with drift at every layer; Edifice registry
+vs `list_families` vs `backbone_defaults` vs the 97-clause dispatcher.
+(2) fallbacks assumed equivalent to kernels but never pinned. (3) three
+parallel decode paths in the agent (windowed / stateful / incremental)
+each re-deriving opts + state. (4) port-vs-role law enforced at two
+chokepoints only; absolute ports still leak into features + runner.
+
+**P0 (behavior-affecting, every deployed checkpoint incl. v2):**
+- **Projectile block: trained on zeros, live-populated at inference.**
+  `peppi.ex:549` hardcodes `projectiles: []`; `with_projectiles` defaults
+  true (`embeddings/game/config.ex:42`); `melee_port.ex:2031` fills real
+  projectiles live. Off-distribution input the canary can't catch (layout
+  matches, values don't). Fix: zero at the live boundary until Peppi
+  supplies projectiles (or stamp `with_projectiles: false`). Also
+  `projectiles.ex:59/131` embeds owner as ABSOLUTE PORT (0.5/1.0) —
+  port-vs-role violation inside the feature vector; fix with
+  `owner == own_port` boolean when un-zeroing.
+- **`reconfigure(style_tag:)` is a silent no-op** (`agent.ex:803/814`):
+  `:style_tag` in `@tunable_opts` but never resolved to `style_id` on the
+  policy-server reuse path → a style A/B through the server runs two
+  identical arms. Fix: extract `resolve_style_id/1` from init (:420-441)
+  and call it in reconfigure.
+- **Incremental GatedSSM cache never resets between games**
+  (`agent.ex:623` tests `:mamba`; everything else keys `:gated_ssm`).
+  Fix: guard on `state.mamba_cache != nil`.
+
+**P1 (silent-default class — the xlstm/cache_streaming/pos-weight family):**
+- `config.ex:405-501`: **69 of 97 dispatchable backbones fall through
+  `_ -> []`** (incl. default `:sliding_window`, s4/s5, titans, hawk...).
+  Fix: Logger.warning + generic baseline `[temporal: true, precision:
+  :f32, window_size: 60, num_layers: 2]`, and make
+  `backbone_defaults_test` iterate `valid_backbones()`.
+- `--num-heads` in `@valid_flags` but never parsed (`parser.ex`), and
+  `trainer.ex:79-90` is a THIRD defaults table with `num_heads: 2,
+  head_dim: 32` vs 4/64 everywhere else → attention runs at 1/4 width.
+  `--log-file` documented + consumed but not in `@valid_flags` → aborts.
+  `train.exs:183` `save_every || checkpoint_every` collides an unrelated
+  gradient-checkpoint stride (why every run checkpoints every epoch).
+  `--verbose/--quiet` dead in train.exs (parser sets `:verbosity` only).
+  Fix all with ONE parity test: every flag has a parse line and vice
+  versa; every `defaults/0` key has one owner.
+- `imitation/loss.ex`: loss-opts block copy-pasted 4x (+6 precision
+  sites), already drifted — `head` defaults `:independent` (standard)
+  vs `:autoregressive` (bptt); precision `:bf16` vs `:f32`; button_weight
+  1.0 vs 2.0; focal_gamma 2.0 vs 3.0. Fix: `defp loss_opts(config)`.
+- `imitation.ex:121-203` `@default_config` shadows `Config.defaults/0`
+  with 9 divergent values (warmup 1000 vs 1, optimizer adamw vs adam,
+  hidden_sizes, dropout, smoothing, ...). Any non-Config caller
+  (critic_train, league, tests) trains a different model. Fix: derive
+  from `Config.defaults/0`.
+- `pipeline.ex:1075` `frame_delay_max || 3` vs 18 everywhere else;
+  `batch_size || 32` x10 vs default 64; `data.ex` gc_every 50 vs 100.
+- `pipeline.ex:478/1149/1174` `{:ok, frames, _errors}` drops parse
+  errors — an all-failed chunk trains on nothing silently.
+- Trainer `auto_tune_batch_size/3` dead (0 callers) while its 4 flags
+  parse → inert flags. Delete or wire.
+
+**P1 (Edifice fallback ≠ kernel — blocks any mamba trial):**
+- `ssm/common.ex:661/402`: selective_scan fallback IGNORES `A`
+  (hardcodes `-(1..S)`) AND discretizes B with `dt_mean` (kernel uses
+  per-channel dt). `fused_scan.ex:2628`: `custom_grad` omits `a` → `A_log`
+  gets ZERO gradient on the fused path. Net: Mamba's state matrix is
+  effectively frozen everywhere, and CPU≠GPU model. Fix all three before
+  any mamba/retnet ladder (V2_PREP named trigger).
+- NIF-tier `selective_scan_fused` has no `state <= 32` guard → silent
+  truncation (custom-call tier guards it). `slstm_custom_call` and
+  `delta_product_custom_call` have NO custom_grad — their backward
+  kernels are reachable only from tests. `xlstm.ex:302` re-implements
+  the slstm scan in pure Nx, never calls the kernel. ttt fused kernel
+  dead under default `output_gate: true` (and layer callback defaults
+  it FALSE — opposite of build/1).
+- Fused tier `:skip` (bf16, non-gru/mamba ops) is silent — add a
+  once-per-op Logger.debug with reason. Flash/LASER custom calls
+  hardcode causal=1 regardless of `:causal`.
+- No fused<->fallback equivalence test outside the stateful step test
+  — add one parametrized over `AutoTune.@all_kernels` with
+  `EDIFICE_DISABLE_FUSED=1` as reference (would have caught the A bug).
+
+**P2 (decode-path unification + state):**
+- `agent.ex:1341/1465/1622`: `sample_opts` built 3x; incremental path
+  drops deterministic_buttons, mode_of_n, critic selector, hysteresis,
+  steering → fake-null A/Bs on GatedSSM. Fix: `decode_opts(state, opts)`.
+- Snapshot/restore (`agent.ex:839-878`) omits step_frame_buffer,
+  steps_since_resync, controller_queue, last_debounce_frame,
+  was_airborne → netplay rollback replays a timeline that never
+  happened. Bump blob to v2.
+- `agent.ex:1117` bare `rescue` around the whole decision path → broken
+  policy looks like "bot stopped reacting". Runner should count
+  consecutive errors and abort.
+- `sampling.ex:216/659`, `policy.ex:740`: catch-alls silently disable
+  hysteresis / ignore unknown temperature keys / pass unknown ranks.
+- `play_dolphin.exs` forwards 7 agent opts vs async's 20 (two incidents
+  already documented in its comments). Fix: `Agent.opts_from_cli/1` in
+  lib, both scripts call it.
+
+**P2 (port-vs-role sweep — SubjectResolver has ONE production caller):**
+- `async_runner.ex:605/706/848` uses static `player_port` for SD-hold,
+  stock game-end, dummy driving while the agent uses detected
+  `own_port` → under Slippi Online on port 2 the runner reads the human.
+- `embeddings/game.ex:730` opponent = flip(1<->2) → ports 2+3 give a
+  silent all-zero opponent. `melee_port.ex:1700` blind CSS reads port
+  1's selection regardless of seat. `detect_own_port/2` returns nil on
+  ambiguity with no log.
+
+**P3 (size / seams):** agent.ex 2421 lines (368-line loader, 191-line
+do_compute_action) → split Warmup, Guards, Decode, Snapshot, Loader
+(Warmup+Guards first: risk-free, also fixes the handle_call grouping
+warning). melee_port.ex 2232 (531-line navigate_menus) → CssNavigator,
+Dummy, GameState conversion. backbone.ex ~85 clone `build_*_backbone`
+clauses + a 225-line parallel output-size table → one data table.
+data.ex 2875 with 3 near-identical precompute functions. Edifice: 3
+parameterless `rms_norm_impl` copies (a modelling bug — no gamma), 11
+per-arch FFN re-implementations, `list_families` hand-duplicates the
+registry, `normalize_input_dim` fans one value into 4 key spellings.
+Dead: `blind_target_css/1`, `verbosity_name/1`, `diff_from_defaults/2`,
+`:mamba_2` defaults clause for a nonexistent atom.
+
+**Test gaps:** no tests for ChunkPipeline (where the disk-fill lived),
+config/parser, imitation/loss, AsyncRunner (991 lines, zero tests),
+reconfigure, effective_port routing, the incremental GatedSSM path.
+
 ## Recently Added (2026-08-19)
 
 - **dagger_drill convergence exit trusts a single epoch's loss [P1 — GUARD SHIPPED 2026-08-19, root cause open]**: `collapse_suspect?` guard now routes loss<1e-5 / >100x one-epoch drops through the NaN-restore path (see GOTCHA #99; g18 also collapsed at ep10 the same night, awbc arm — the anomaly is recipe-independent and its root cause is UNKNOWN). Original description:

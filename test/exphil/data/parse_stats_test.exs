@@ -25,7 +25,10 @@ defmodule ExPhil.Data.ParseStatsTest do
 
       assert length(valid) == 2
       assert stats.total_frames == 2
-      assert stats.valid_frames == 2
+      # The causal label pairing drops the last frame (no successor), so
+      # one of two valid source frames yields a training frame.
+      assert stats.valid_frames == 1
+      assert stats.dropped_delay_cutoff == 1
       assert stats.dropped_no_player == 0
     end
 
@@ -40,7 +43,8 @@ defmodule ExPhil.Data.ParseStatsTest do
 
       assert length(valid) == 1
       assert stats.total_frames == 2
-      assert stats.valid_frames == 1
+      # one valid source frame, and the causal cutoff takes it
+      assert stats.valid_frames == 0
       assert stats.dropped_no_player == 1
     end
 

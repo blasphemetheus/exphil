@@ -3928,3 +3928,51 @@ attributes; and profile the training LOOP before profiling the
 GRAPH — `EXPHIL_BPTT_PROFILE=1` now exists for exactly this
 (`ExPhil.Training.BpttProf`, stages in TrajectoryCursors + the bptt
 train loop).**
+
+## 113
+
+**Slippi records each frame's controller input on the frame whose
+(post-update) state it PRODUCED — so a training pair of (state[t],
+controller[t]) at delay 0 is LABEL-LEAKED: the state already contains
+the effect of the input it is supposed to predict** (2026-09-09).
+Measured on 91 expert WAIT->DASH transitions: the full-X dash input is
+recorded on the first DASH frame 100% of the time and on the preceding
+WAIT frame 0%. A delay-0 model therefore learns "in DASH hold full-X",
+"in WAIT stay neutral" — it learns to CONTINUE states and never to
+INITIATE them. Successor-aligned calibration probe
+(`scripts/probe_sampler_wait.exs`, real step+sample+decode path): on
+expert WAIT frames the next input is a full-X dash 13-29% of the time;
+fox_gen_v2 assigns 0.01-0.02% (~1000x). Every earlier "calibrated"
+verdict used the same-frame label, which is ~0 for experts and model
+alike — the leak made the miscalibration invisible to same-frame
+probes. This single mechanism reproduces the whole fox_gen pathology
+board: 6.6x WAIT dwell (can't initiate a dash-out), exits only via
+slow half-inputs, WALK_SLOW>STANDING loops, and the jab chain (the A
+that STARTED jab1 is recorded on jab1's first frame, so "in jab1 f0,
+press A" is learned as a label — which then chains jab2). The
+multishine line (ms_g19) trained at delays {2,3} = causal labels,
+which is why it has initiative. **Rule: never train at action/frame
+delay 0 on Slippi-parsed data; the minimum causal pairing is state[t]
+-> controller[t+1] (`--frame-delay 1` on the streaming/bptt path,
+`--action-delay 1` on the standard path — two keys for one concept,
+see FIXES.md). The live loop observes post-frame t and lands its input
+at t+1 (+ harness offset), so delay 1 is also the deploy-matched
+pairing.** First causal arm: fox_gen_v16e_delay1 (09-09).
+
+**STRUCTURAL since 2026-09-09 evening (INVARIANTS.md item 1):**
+`Peppi.to_training_frames` (and the legacy `ReplayParser`) ALWAYS emit
+causal pairs — state[t] with raw controller[t+1] — and `--frame-delay`
+/ `--action-delay` are REACTION delay on top (0 = causal, the default).
+The leaked pairing cannot be built; the pipeline guard and
+`--allow-leaky-labels` are gone. Numbers shifted by one: old delay d ==
+new reaction delay d-1 (v16e's `--frame-delay 1` == new default 0;
+drills' `--action-delay 2` == new 1; `--multi-delay "2,3"` == "1,2").
+Checkpoints stamp `label_convention: :causal`; unstamped ones are legacy
+and `ExPhil.Data.LabelConvention` translates (reaction delay, train
+delays, delay-id). **The live `--frame-delay N` flag is NOT rebased**
+(it is Slippi's own input-delay setting and every deploy card is keyed
+on it): live N plays reaction delay N-1, so a causal checkpoint at
+reaction k deploys at `--frame-delay k+1`, and the Agent derives its
+delay-id from the checkpoint's convention (causal: id N-1, legacy: id
+N) instead of copying the flag. `label_alignment_test` +
+`label_convention_test` pin both halves.

@@ -414,7 +414,10 @@ defmodule ExPhil.Training.Imitation.Checkpointing do
         # live Agent refuses to deploy a delay-conditioned policy at an
         # id outside this set (bare --frame-delay 4 silently ran id4 —
         # untrained — and collapsed chaining for three decider games).
-        train_delays: train_delays(trainer.config)
+        train_delays: train_delays(trainer.config),
+        # INVARIANTS.md item 1: the label pairing these delays are counted
+        # in (unstamped = legacy :producing). See ExPhil.Data.LabelConvention.
+        label_convention: ExPhil.Data.LabelConvention.current()
       }
 
     # Edifice manifest format (task #16): Nx.serialize params + embedded

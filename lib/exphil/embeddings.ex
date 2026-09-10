@@ -113,6 +113,59 @@ defmodule ExPhil.Embeddings do
   end
 
   @doc """
+  INVARIANTS.md item 4: an embedding config that only includes channels the
+  DATA SOURCE provides. `provides` is the parser's channel list
+  (`ExPhil.Data.Peppi.provides/0`); a requested channel the source cannot
+  fill (projectiles, items from Peppi) is turned OFF here — so the model
+  never trains on a constant-zero block that goes live-populated later.
+  Logs once when it overrides a request.
+  """
+  @spec config_for_source(keyword(), [atom()]) :: config()
+  def config_for_source(opts, provides) when is_list(opts) and is_list(provides) do
+    opts
+    |> Keyword.put(:with_projectiles, resolve_with_projectiles(opts, provides))
+    |> Keyword.put(:with_items, resolve_with_items(opts, provides))
+    |> config()
+  end
+
+  @doc "Resolved `with_projectiles` for a source: requested (default true) AND provided."
+  @spec resolve_with_projectiles(keyword() | map(), [atom()]) :: boolean()
+  def resolve_with_projectiles(opts, provides) do
+    requested = get_opt(opts, :with_projectiles, true)
+    provided = :projectiles in provides
+
+    if requested and not provided do
+      warn_once(:projectiles, "with_projectiles requested but the data source does not provide projectiles — block DISABLED (INVARIANTS item 4)")
+    end
+
+    requested and provided
+  end
+
+  @doc "Resolved `with_items` for a source: requested (default false) AND provided."
+  @spec resolve_with_items(keyword() | map(), [atom()]) :: boolean()
+  def resolve_with_items(opts, provides) do
+    requested = get_opt(opts, :with_items, false)
+    provided = :items in provides
+
+    if requested and not provided do
+      warn_once(:items, "with_items requested but the data source does not provide items — block DISABLED (INVARIANTS item 4)")
+    end
+
+    requested and provided
+  end
+
+  defp get_opt(opts, key, default) when is_list(opts), do: Keyword.get(opts, key, default)
+  defp get_opt(opts, key, default) when is_map(opts), do: Map.get(opts, key, default)
+
+  defp warn_once(tag, msg) do
+    unless Process.get({__MODULE__, :warned, tag}) do
+      Process.put({__MODULE__, :warned, tag}, true)
+      require Logger
+      Logger.warning("[Embeddings] " <> msg)
+    end
+  end
+
+  @doc """
   Get the default embedding configuration.
   """
   @spec default_config() :: config()

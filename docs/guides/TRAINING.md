@@ -255,7 +255,9 @@ mix run scripts/train_from_replays.exs \
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `--num-heads N` | 4 | Number of attention heads |
+| `--num-heads N` | 4 | Number of attention heads (parsed since 2026-09-09 — it was accepted-and-ignored before, and Trainer's private 2/32 table won) |
+| `--head-dim N` | 64 | Attention head width |
+| `--log-file PATH` | nil | Tee script output to a file |
 | `--attention-every N` | 2 | Add attention every N layers (hybrid) |
 | `--qk-layernorm` | on | Normalize Q/K before attention (stabilizes training) |
 | `--no-qk-layernorm` | - | Disable QK LayerNorm |
@@ -323,7 +325,7 @@ These options apply to multiple new architectures:
 | `--reinit-head` | false | With `--resume`: re-initialise the controller head from scratch while loading the trunk (the "new head params" control, AUTOREGRESSIVE_HEAD_PLAN item 9) |
 | `--precision TYPE` | f32 | f32 or bf16 (FP32 is 2x faster due to XLA issues) |
 | `--mixed-precision` | false | FP32 master weights + BF16 compute (not recommended) |
-| `--frame-delay N` | 0 | Simulated online delay (for Slippi) |
+| `--frame-delay N` | 0 | Reaction delay (frames) on top of the causal pairing Peppi emits; 0 = causal. See the label-convention row below. |
 | `--stream-chunk-size N` | nil | Load N files at a time (memory-bounded) |
 | `--pipeline-chunks` | true | Prepare next chunk while training (overlaps CPU/GPU) |
 | `--no-pipeline-chunks` | - | Disable chunk pipelining (sequential processing) |
@@ -347,7 +349,7 @@ These options apply to multiple new architectures:
 | `--prev-action-dropout P` | 0.0 | Zero the prev-action channel on fraction P of training frames (exposure-bias mitigation: live, the model feeds back its own outputs, which drift from teacher-forced ground truth). Try 0.1–0.3 with --prev-action. Mask is baked into the embedding cache entry — use --no-cache for a fresh mask. |
 | `--scheduled-sampling P` | 0.0 | Exposure bias: on fraction P of samples, replace the LAST window position's prev-action slice with the model's OWN decoded prediction (`ExPhil.Training.ScheduledSampling`; decode pinned to the live path). Requires `--temporal` and `--prev-action`. One extra forward pass per step. Loss under this flag is a harder objective — never compare loss curves across it; judge by live runs. |
 | `--ss-ramp N` | 10 | Ramp scheduled sampling 0 → P linearly over the first N epochs (drill loop; the main pipeline currently applies P flat). |
-| `--action-delay N` | 0 | Train on controller(t+N) so the model plans for input latency (bridge = 1 frame). Composes with --prev-action. |
+| `--action-delay N` | 0 | Standard-path twin of `--frame-delay`: reaction delay on top of the causal pairing (state[t] -> the input issued from it). 0 = causal. Composes with --prev-action. |
 | `--mix-frames SPEC` | nil | Curriculum mixing: comma/glob list of drill `.frames` exports (`scripts/export_drill_frames.exs`) concatenated into training. Drill frames must be exported at the SAME `--action-delay` (the prev-action channel misaligns otherwise; a warning fires). Changes the embedding cache key. Replay mode only — corpus mode ignores it (use `--mix-corpus`). |
 | `--mix-corpus DIR` | nil | Corpus-mode curriculum mixing: a snippet mini-corpus (`scripts/build_snippet_corpus.exs`, one corpus file per snippet so windows never cross snippet boundaries) whose batches are interleaved evenly into the `--corpus` training stream. Embed sizes must match. Mix files are all-train (val stays comparable to unmixed baselines). |
 | `--mix-oversample N` | 1 | Passes of the mix corpus interleaved per epoch. The mix is typically a tiny fraction of the main corpus — oversample to give corrections a meaningful gradient share (e.g. 20 ≈ a few percent for a 41M-frame corpus with ~15k mix frames). |
@@ -355,6 +357,10 @@ These options apply to multiple new architectures:
 | `--focal-gamma X` | 2.0 | Focal loss gamma (higher = focus on hard) |
 | `--button-weight X` | 2.0 | Multiply button loss (fixes under-prediction) |
 | `--stick-edge-weight X` | nil | Weight edge stick buckets higher (try 2.0-3.0) |
+| `--neutral-weight X` | 0.25 | Per-frame loss weight for neutral (no-input) frames; action frames get 1.0. Blanket anti-passivity knob — 1.0 = unweighted (the 09-05 clean-loss arm), which raised idle 6.5x corpus at v2 scale. |
+| `--transition-weight X` | nil | Per-frame loss weight for DECISION frames (controller differs from the previous frame): `max(weight, X)`. Targets *when* to change action (leaving WAIT, committing) instead of downweighting all neutral frames. Flag added 2026-09-07 (was pipeline/drill-only). |
+| `--offstage-weight X` | nil | (bptt path) Per-frame loss weight for OFFSTAGE frames (subject airborne beyond the stage ledge): `max(weight, X)`. Rare-state coverage for recovery — offstage is rare in expert play, so the model gets few reps where it fails. Added 2026-09-08. |
+| `--frame-delay N` (training) | 0 | **Label convention (INVARIANTS.md item 1, GOTCHA #113).** Slippi records each input on the frame whose state it produced, so the raw same-frame pair is leaked. Since 2026-09-09 `Peppi.to_training_frames` ALWAYS pairs state[t] with the input issued from it (raw controller[t+1]); N is reaction delay on top, so N=0 is the causal pairing and the leak cannot be built. Deploy law: a policy trained at reaction k plays at live `--frame-delay k+1` (`ExPhil.Data.LabelConvention`; legacy unstamped checkpoints counted delay d = reaction d-1, and the Agent translates). |
 
 **Augmented Embedding Cache (Recommended)**
 
@@ -1459,3 +1465,207 @@ mix run scripts/train_from_replays.exs --num-player-names 0
 ```
 
 **Note:** Existing models trained with 112 dims require `--num-player-names 112` for inference compatibility.
+
+
+<!-- flag-reference:start (generated by ExPhil.Training.Config.FlagDocs — do not edit) -->
+
+## Flag reference (generated)
+
+Every training flag `scripts/train.exs` accepts, straight from the parser table
+(`ExPhil.Training.Config.Parser.flag_table/0`) and `Config.defaults/0`.
+Regenerate: `mix run -e 'ExPhil.Training.Config.FlagDocs.write!()'`.
+
+| flag | type | default | description |
+|---|---|---|---|
+| `--replays` | string | `"./replays"` | Directory containing .slp files |
+| `--replay-dir` | string | `"./replays"` | _(undocumented)_ |
+| `--corpus` | string | `nil` | Pre-built MmapCorpus dir (`scripts/build_corpus.exs`) — skips parse/embed, trains straight off disk; overrides `--replays`. Temporal only. RAM is O(batch), so corpus size is unbounded (built for the 4,461-game fox_il_v2 run) |
+| `--epochs` | int | `10` | Number of training epochs |
+| `--batch-size` | int | `64` | Batch size |
+| `--max-files` | optional int | `nil` | Limit number of replay files |
+| `--skip-errors` | flag | `true` | Continue past bad replay files |
+| `--fail-fast` | flag | `nil` | Stop on first error |
+| `--show-errors` | flag | `true` | Show individual file errors |
+| `--hide-errors` | flag | `nil` | Hide individual file errors |
+| `--error-log` | string | `nil` | Log errors to file |
+| `--checkpoint` | string | `nil` | _(undocumented)_ |
+| `--player` | int | `1` | _(undocumented)_ |
+| `--train-character` | atom | `nil` | 1x (filtered) |
+| `--select-character-port` | flag | `false` | With `--train-character`: imitate that character's actual port per file (singles → their port, dittos → port 1). Without it the streaming loader imitates port 1 regardless (the fox_gen_v1 43%-non-fox corpus bug, E1). Streaming pipeline only |
+| `--dual-port` | flag | `false` | Maximum data, mixed characters |
+| `--balance-characters` | flag | `false` | Weight sampling by inverse char frequency |
+| `--wandb` | flag | `false` | Enable Weights & Biases logging |
+| `--wandb-project` | string | `"exphil"` | W&B project name |
+| `--wandb-name` | string | `nil` | W&B run name (auto-generated if nil) |
+| `--temporal` | flag | `false` | Enable temporal training |
+| `--backbone` | atom | `:sliding_window` | See backbone list below |
+| `--policy-type` | atom | `:autoregressive` | Policy architecture type |
+| `--head` | atom | `:independent` | Controller head: `independent` (six parallel heads) or `autoregressive` (residual-stream conditional head, buttons→main_x→main_y→c_x→c_y→shoulder; see AUTOREGRESSIVE_HEAD_PLAN.md). Temporal only |
+| `--action-horizon` | int | `8` | Action prediction horizon (for chunked policies) |
+| `--num-inference-steps` | int | `20` | Diffusion/flow matching inference steps |
+| `--kl-weight` | float | `10.0` | KL divergence weight for ACT (CVAE) |
+| `--window-size` | int | `60` | Frames per sequence |
+| `--stride` | int | `5` | Step between sequences |
+| `--num-layers` | int | `2` | Number of Mamba layers |
+| `--attention-every` | int | `nil` | Add attention every N layers (hybrid) |
+| `--pre-norm` | flag | `true` | _(undocumented)_ |
+| `--no-pre-norm` | flag | `nil` | _(undocumented)_ |
+| `--qk-layernorm` | flag | `true` | Normalize Q/K before attention (stabilizes training) |
+| `--no-qk-layernorm` | flag | `nil` | Disable QK LayerNorm |
+| `--chunked-attention` | flag | `false` | Use chunked attention for 20-30% memory reduction |
+| `--no-chunked-attention` | flag | `nil` | Disable chunked attention |
+| `--chunk-size` | int | `32` | Chunk size for chunked/memory-efficient attention |
+| `--memory-efficient-attention` | flag | `false` | Use memory-efficient attention (true O(n) memory via online softmax) |
+| `--no-memory-efficient-attention` | flag | `nil` | Disable memory-efficient attention |
+| `--flash-attention-nif` | flag | `false` | Use FlashAttention NIF for inference (forward-only, Ampere+ GPU) |
+| `--no-flash-attention-nif` | flag | `nil` | Disable FlashAttention NIF |
+| `--state-size` | int | `16` | SSM state dimension |
+| `--expand-factor` | int | `2` | Expansion factor |
+| `--conv-size` | int | `4` | Convolution kernel size |
+| `--truncate-bptt` | optional int | `nil` | Truncated backprop (faster training) |
+| `--bptt` | flag | `false` | Contiguous-BPTT training: cursors walk replays in order, GRU carry flows across chunks, per-timestep loss (GRU only; see BPTT_LOADER_DESIGN.md) |
+| `--unroll` | int | `80` | BPTT chunk length in frames (gradient truncation horizon) |
+| `--bptt-overlap` | int | `1` | Frames shared between consecutive BPTT chunks (set to frame_delay + 1) |
+| `--bptt-val-files` | int | `16` | Whole replays held out for the carry-threaded val pass (game-level split; val batch is capped at 8 rows) |
+| `--mixed-precision` | flag | `false` | FP32 master weights + BF16 compute (not recommended) |
+| `--frame-delay` | int | `0` | Reaction delay (frames) for the streaming/bptt path, ON TOP of the causal pairing Peppi emits (INVARIANTS.md item 1, GOTCHA #113). 0 = causal (the default). Live --frame-delay N plays reaction delay N-1, so a policy trained here at k deploys at N = k+1 (ExPhil.Data.LabelConvention). |
+| `--num-heads` | int | `4` | Number of attention heads (parsed since 2026-09-09 — it was accepted-and-ignored before, and Trainer's private 2/32 table won) |
+| `--head-dim` | int | `64` | Attention head width |
+| `--log-file` | string | `nil` | Tee script output to a file |
+| `--frame-delay-augment` | flag | `false` | Enable frame delay augmentation |
+| `--frame-delay-min` | int | `0` | Minimum reaction delay when augmenting (0 = causal) |
+| `--frame-delay-max` | int | `18` | Maximum reaction delay when augmenting |
+| `--stage-internals` | flag | `false` | Add FoD platform heights + PS transformation to the embedding (+7 raw dims, zero-gated by stage; W4 2026-08-24 stage-blindness verdict) |
+| `--early-stopping` | flag | `false` | Enable early stopping |
+| `--patience` | int | `5` | Epochs without improvement before stopping |
+| `--min-delta` | float | `0.01` | Minimum improvement to count as progress |
+| `--save-best` | flag | `true` | Save model when val_loss improves |
+| `--save-every` | optional int | `nil` | Save checkpoint every N epochs |
+| `--save-every-batches` | optional int | `nil` | Save checkpoint every N batches (for streaming) |
+| `--lr` | float | `0.0001` | Learning rate (alias: `--learning-rate`) |
+| `--learning-rate` | float | `0.0001` | _(undocumented)_ |
+| `--lr-schedule` | atom | `:constant` | cosine, linear, exponential |
+| `--warmup-steps` | optional int | `1` | Learning rate warmup steps |
+| `--decay-steps` | optional int | `nil` | Steps for LR decay |
+| `--restart-period` | int | `1000` | Cosine annealing restart period (T_0) |
+| `--restart-mult` | float | `2` | Restart period multiplier (T_mult) |
+| `--max-grad-norm` | float | `1.0` | Gradient clipping norm (0 = disabled) |
+| `--resume` | string | `nil` | Resume from checkpoint. If the checkpoint's controller head differs from `--head`, the TRUNK is transplanted: matching non-head params load, head + optimizer start fresh, config/step keep the trainer's |
+| `--reinit-head` | flag | `false` | With `--resume`: re-initialise the controller head from scratch while loading the trunk (the "new head params" control, AUTOREGRESSIVE_HEAD_PLAN item 9) |
+| `--name` | string | `nil` | Custom checkpoint name |
+| `--accumulation-steps` | int | `1` | Gradient accumulation steps |
+| `--val-split` | float | `0.1` | Validation split (0.1 = 10%) |
+| `--augment` | flag | `false` | Enable data augmentation |
+| `--mirror-prob` | float | `0.5` | Mirror augmentation probability |
+| `--noise-prob` | float | `0.3` | Noise augmentation probability |
+| `--noise-scale` | float | `0.01` | Noise magnitude |
+| `--label-smoothing` | float | `0.1` | Label smoothing (prevents overconfidence) |
+| `--dropout` | float | `0.0` | Dropout rate |
+| `--focal-loss` | flag | `true` | Enable focal loss for rare actions |
+| `--prev-action` | flag | `false` | Condition on previous frame's controller (training embeds frame i-1's inputs; live agent feeds back its own outputs). Enables frame-precise input sequences (dash dance, multishine). Regime is stored in the policy config — old checkpoints keep zeros. Not yet wired for --streaming. |
+| `--no-prev-action` | neg flag | `false` | _(undocumented)_ |
+| `--prev-action-dropout` | float | `0.0` | Zero the prev-action channel on fraction P of training frames (exposure-bias mitigation: live, the model feeds back its own outputs, which drift from teacher-forced ground truth). Try 0.1–0.3 with --prev-action. Mask is baked into the embedding cache entry — use --no-cache for a fresh mask. |
+| `--scheduled-sampling` | float | `0.0` | Exposure bias: on fraction P of samples, replace the LAST window position's prev-action slice with the model's OWN decoded prediction (`ExPhil.Training.ScheduledSampling`; decode pinned to the live path). Requires `--temporal` and `--prev-action`. One extra forward pass per step. Loss under this flag is a harder objective — never compare loss curves across it; judge by live runs. |
+| `--ss-ramp` | int | `10` | Ramp scheduled sampling 0 → P linearly over the first N epochs (drill loop; the main pipeline currently applies P flat). |
+| `--mix-frames` | string | `nil` | Curriculum mixing: comma/glob list of drill `.frames` exports (`scripts/export_drill_frames.exs`) concatenated into training. Drill frames must be exported at the SAME `--action-delay` (the prev-action channel misaligns otherwise; a warning fires). Changes the embedding cache key. Replay mode only — corpus mode ignores it (use `--mix-corpus`). |
+| `--mix-corpus` | string | `nil` | Corpus-mode curriculum mixing: a snippet mini-corpus (`scripts/build_snippet_corpus.exs`, one corpus file per snippet so windows never cross snippet boundaries) whose batches are interleaved evenly into the `--corpus` training stream. Embed sizes must match. Mix files are all-train (val stays comparable to unmixed baselines). |
+| `--mix-oversample` | int | `1` | Passes of the mix corpus interleaved per epoch. The mix is typically a tiny fraction of the main corpus — oversample to give corrections a meaningful gradient share (e.g. 20 ≈ a few percent for a 41M-frame corpus with ~15k mix frames). |
+| `--per-stage-ledge` | flag | `false` | Task #25: use the real per-stage edge x (`Melee.Stages.edge_ground_position`) in the ledge-distance feature instead of the historical 85-everywhere constant (which reads "safe" at x=60 on YS when the player is offstage). Changes the embedding VALUES: existing checkpoints and corpora are calibrated to the constant, so this is for fresh v3-edge arms only, and corpus-mode training needs a corpus REBUILT with the same flag (recorded in corpus meta). |
+| `--action-delay` | int | `0` | Reaction delay (frames) for the standard path, ON TOP of the causal pairing Peppi emits (state[t] -> the input issued from it). 0 = causal (the default); k pairs state[t] with the input issued k frames later. One concept with --frame-delay. Composes with --prev-action. |
+| `--no-focal-loss` | neg flag | `true` | _(undocumented)_ |
+| `--focal-gamma` | float | `3.0` | Focal loss gamma (higher = focus on hard) |
+| `--button-weight` | float | `2.0` | Multiply button loss (fixes under-prediction) |
+| `--stick-edge-weight` | float | `2.0` | Weight edge stick buckets higher (try 2.0-3.0) |
+| `--entropy-weight` | float | `0.01` | _(undocumented)_ |
+| `--neutral-weight` | float | `0.25` | Per-frame loss weight for neutral (no-input) frames; action frames get 1.0. Blanket anti-passivity knob — 1.0 = unweighted (the 09-05 clean-loss arm), which raised idle 6.5x corpus at v2 scale. |
+| `--transition-weight` | float | `nil` | Per-frame loss weight for DECISION frames (controller differs from the previous frame): `max(weight, X)`. Targets *when* to change action (leaving WAIT, committing) instead of downweighting all neutral frames. Flag added 2026-09-07 (was pipeline/drill-only). |
+| `--offstage-weight` | float | `nil` | (bptt path) Per-frame loss weight for OFFSTAGE frames (subject airborne beyond the stage ledge): `max(weight, X)`. Rare-state coverage for recovery — offstage is rare in expert play, so the model gets few reps where it fails. Added 2026-09-08. |
+| `--awbc` | flag | `false` | _(undocumented)_ |
+| `--awbc-reward` | atom | `:shine` | _(undocumented)_ |
+| `--awbc-beta` | float | `nil` | _(undocumented)_ |
+| `--awbc-shuffle` | flag | `false` | _(undocumented)_ |
+| `--head-normalize` | flag | `false` | _(undocumented)_ |
+| `--no-head-normalize` | neg flag | `false` | _(undocumented)_ |
+| `--action-oversample` | float | `3.0` | _(undocumented)_ |
+| `--lazy-sequences` | flag | `true` | _(undocumented)_ |
+| `--use-batch` | flag | `false` | _(undocumented)_ |
+| `--no-register` | flag | `false` | Skip model registry |
+| `--keep-best` | optional int | `nil` | Keep best N checkpoints (prune others) |
+| `--ema` | flag | `false` | Enable model EMA |
+| `--ema-decay` | float | `0.999` | EMA decay rate |
+| `--precompute` | flag | `true` | Precompute embeddings (2-3x speedup) |
+| `--no-precompute` | flag | `false` | Disable embedding precomputation |
+| `--cache-embeddings` | flag | `true` | Enable disk caching of embeddings |
+| `--no-cache` | flag | `false` | Ignore existing cache and recompute |
+| `--cache-dir` | string | `"cache/embeddings"` | Cache directory |
+| `--cache-augmented` | flag | `false` | Precompute augmented variants (~100x speedup) |
+| `--num-noisy-variants` | int | `2` | Number of noisy variants to precompute |
+| `--prefetch` | flag | `false` | Prefetch batches while GPU trains |
+| `--no-prefetch` | flag | `nil` | Disable batch prefetching |
+| `--gradient-checkpoint` | flag | `false` | Trade memory for compute |
+| `--checkpoint-every` | int | `1` | Checkpoint every N layers |
+| `--prefetch-buffer` | int | `2` | Number of batches to prefetch |
+| `--layer-norm` | flag | `false` | Enable layer normalization (MLP) |
+| `--no-layer-norm` | flag | `nil` | Disable layer normalization |
+| `--residual` | flag | `false` | Enable residual connections (MLP) |
+| `--no-residual` | flag | `nil` | Disable residual connections |
+| `--optimizer` | atom | `:adam` | adam, adamw, lamb, radam |
+| `--dry-run` | flag | `false` | Validate config without training |
+| `--character` | atom list | `[]` | _(undocumented)_ |
+| `--characters` | atom list | `[]` | Filter replays by character |
+| `--stage` | atom list | `[]` | _(undocumented)_ |
+| `--stages` | atom list | `[]` | Filter replays by stage |
+| `--kmeans-centers` | string | `nil` | K-means cluster centers for sticks |
+| `--stream-chunk-size` | optional int | `nil` | Load N files at a time (memory-bounded) |
+| `--pipeline-chunks` | flag | `true` | Prepare next chunk while training (overlaps CPU/GPU) |
+| `--no-pipeline-chunks` | flag | `nil` | Disable chunk pipelining (sequential processing) |
+| `--cache-streaming` | flag | `true` | Cache chunk embeddings to disk (reuse across epochs) |
+| `--no-cache-streaming` | flag | `nil` | Disable streaming cache |
+| `--num-player-names` | optional int | `112` | Player name dims (0 to disable) |
+| `--learn-player-styles` | flag | `false` | Enable style-conditional training |
+| `--no-learn-player-styles` | flag | `nil` | _(undocumented)_ |
+| `--player-registry` | string | `nil` | Save/load player registry JSON |
+| `--min-player-games` | optional int | `1` | Min games for player to be in registry |
+| `--log-interval` | optional int | `100` | Progress bar update frequency (every N batches) |
+| `--seed` | optional int | `nil` | Random seed for reproducibility |
+| `--overwrite` | flag | `false` | Allow overwriting existing checkpoints |
+| `--no-overwrite` | flag | `nil` | Fail if checkpoint exists |
+| `--backup` | flag | `true` | Create .bak before overwrite |
+| `--no-backup` | flag | `nil` | Skip backup creation |
+| `--backup-count` | optional int | `3` | Number of backup versions to keep |
+| `--skip-duplicates` | flag | `true` | Skip duplicate replay files by hash |
+| `--no-skip-duplicates` | flag | `nil` | Include all files even if duplicates |
+| `--min-quality` | optional int | `nil` | Minimum quality score (0-100) for replays |
+| `--show-quality-stats` | flag | `false` | Show quality distribution after filtering |
+| `--gc-every` | optional int | `100` | Run garbage collection every N batches (0=disabled) |
+| `--profile` | flag | `false` | Enable timing profiler (report at end) |
+| `--val-concurrency` | optional int | `4` | Parallel validation batches (1=sequential) |
+| `--mmap-embeddings` | flag or string | `false` | Use memory-mapped embeddings (for datasets > RAM) |
+| `--mmap-path` | string | `nil` | Custom path for mmap file (auto-generated if not set) |
+| `--auto-batch-size` | flag | `false` | Auto-tune batch size for optimal GPU utilization |
+| `--auto-batch-min` | optional int | `32` | Minimum batch size to test |
+| `--auto-batch-max` | optional int | `4096` | Maximum batch size to test |
+| `--auto-batch-backoff` | float | `0.8` | Safety factor (0.8 = 20% headroom) |
+| `--action-mode` | special | — | Action embedding: one_hot (399 dims) or learned (64-dim trainable) |
+| `--action-mode-learned` | special | — | _(undocumented)_ |
+| `--action-mode-one-hot` | special | — | _(undocumented)_ |
+| `--button-pos-weight` | special | — | _(undocumented)_ |
+| `--character-mode` | special | — | Character embedding: one_hot (33 dims) or learned (64-dim trainable) |
+| `--character-mode-learned` | special | — | _(undocumented)_ |
+| `--character-mode-one-hot` | special | — | _(undocumented)_ |
+| `--config` | special | — | YAML config file path |
+| `--hidden-sizes` | special | — | _(undocumented)_ |
+| `--jumps-normalized` | special | — | Jumps as 1 normalized dim (false = 7-dim one-hot) |
+| `--nana-mode` | special | — | Ice Climbers Nana: compact (39), enhanced (14+ID), full (449) |
+| `--no-jumps-normalized` | special | — | _(undocumented)_ |
+| `--online-robust` | special | — | Enable online play training mode (legacy path) |
+| `--precision` | special | — | f32 or bf16 (FP32 is 2x faster due to XLA issues) |
+| `--preset` | special | — | Training preset (quick, standard, full, mewtwo) |
+| `--quiet` | special | — | Minimal output (errors only), suppresses XLA/ptxas logs |
+| `--stage-mode` | special | — | Stage embedding: full, compact, learned |
+| `--stage-mode-compact` | special | — | _(undocumented)_ |
+| `--stage-mode-full` | special | — | _(undocumented)_ |
+| `--stage-mode-learned` | special | — | _(undocumented)_ |
+| `--verbose` | special | — | Debug output (timing, memory) |
+
+<!-- flag-reference:end -->

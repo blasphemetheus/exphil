@@ -1,0 +1,2 @@
+policy=checkpoints/fox_gen_v16e_delay1_20260909_191309_best_policy.bin runner=async runs=2 seconds=150 dummy=cpu server=0 decode=--temperature 1.0 loadavg=2.33 2.05 2.03
+fixture_agreement: unavailable

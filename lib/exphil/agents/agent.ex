@@ -81,6 +81,9 @@ defmodule ExPhil.Agents.Agent do
     :delay_id,
     :allow_untrained_delay_id,
     :train_delays,
+    # The loaded checkpoint's label pairing (:causal | :producing), kept so
+    # a reconfigure of frame_delay re-derives delay_id the same way load did.
+    :label_convention,
     :leace_eraser,
     # Steering-vector hook (Tier-0 shield-lock A/B): --steer-vector PATH +
     # --steer-alpha F project alpha of the trunk features' component along
@@ -97,6 +100,14 @@ defmodule ExPhil.Agents.Agent do
     # whose style to imitate. 0 (the unknown-player id) = the pre-P3a
     # behavior, so existing checkpoints/callers are unaffected.
     :style_id,
+    # The typed decode configuration (INVARIANTS.md item 7 phase B): built
+    # by ExPhil.Agents.Decode.from_state/1 at init and after reconfigure;
+    # every decision path derives its sampler options from it via
+    # Decode.opts/3 — never from the loose fields above.
+    :decode,
+    # Path of the --player-registry JSON, kept so reconfigure(style_tag:)
+    # can re-resolve tags exactly like init does (INVARIANTS.md item 7).
+    :player_registry,
     # Uncertainty logging (flywheel A4): per-frame head confidences (already
     # computed by sampling) buffered and appended as JSONL to this path.
     # Low confidence = states the training data doesn't cover — a gap
@@ -416,30 +427,9 @@ defmodule ExPhil.Agents.Agent do
 
     # Style-conditional inference: :style_id (integer) wins; else
     # :style_tag resolved through a :player_registry JSON (from training's
-    # --player-registry vocab). Unknown tag -> 0 with a warning.
-    style_id =
-      case {Keyword.get(opts, :style_id), Keyword.get(opts, :style_tag)} do
-        {id, _} when is_integer(id) ->
-          id
-
-        {nil, tag} when is_binary(tag) ->
-          with path when is_binary(path) <- Keyword.get(opts, :player_registry),
-               {:ok, registry} <- ExPhil.Training.PlayerRegistry.from_json(path),
-               id when is_integer(id) <- ExPhil.Training.PlayerRegistry.get_id(registry, tag) do
-            id
-          else
-            _ ->
-              Logger.warning(
-                "[agent] style_tag #{inspect(tag)} not resolvable " <>
-                  "(missing/invalid :player_registry or unknown tag) — using style_id 0"
-              )
-
-              0
-          end
-
-        _ ->
-          0
-      end
+    # --player-registry vocab). Unknown tag -> 0 with a warning. ONE
+    # resolver, shared with reconfigure (INVARIANTS.md item 7).
+    style_id = ExPhil.Agents.Decode.resolve_style_id(opts)
 
     state = %__MODULE__{
       name: Keyword.get(opts, :name),
@@ -454,7 +444,10 @@ defmodule ExPhil.Agents.Agent do
       press_threshold: press_threshold,
       release_threshold: release_threshold,
       controller_queue: [],
-      delay_id: Keyword.get(opts, :delay_id, 0),
+      # nil = derive from the checkpoint's label convention at load
+      # (ExPhil.Data.LabelConvention.delay_id/2); an explicit value (the
+      # --delay-id-override path) is used as given.
+      delay_id: Keyword.get(opts, :delay_id),
       allow_untrained_delay_id: Keyword.get(opts, :allow_untrained_delay_id, false),
       jump_debounce: Keyword.get(opts, :jump_debounce),
       jump_cooldown: 0,
@@ -464,6 +457,7 @@ defmodule ExPhil.Agents.Agent do
       steer_alpha: Keyword.get(opts, :steer_alpha) || 1.0,
       steer_v: nil,
       style_id: style_id,
+      player_registry: Keyword.get(opts, :player_registry),
       uncertainty_log: Keyword.get(opts, :uncertainty_log),
       uncertainty_buf: [],
       # Temporal config - will be set when policy is loaded
@@ -495,6 +489,10 @@ defmodule ExPhil.Agents.Agent do
       step_frame_buffer: [],
       steps_since_resync: 0
     }
+
+    # Typed decode struct — the single source every decision path reads
+    # (validated loudly here, not at frame 60).
+    state = %{state | decode: ExPhil.Agents.Decode.from_state(state)}
 
     # Load policy if provided. An explicitly requested policy that fails to
     # load is FATAL: continuing without one runs a phantom (random-init)
@@ -728,13 +726,9 @@ defmodule ExPhil.Agents.Agent do
   # cover the prev_buttons nil-vs-tensor hysteresis variants the live loop
   # hits on frame 1 vs frame 2+.
   defp warmup_sample(state, predict_fn, input) do
-    sample_opts = [
-      deterministic: state.deterministic,
-      temperature: state.temperature,
-      deterministic_buttons: state.deterministic_buttons || false,
-      press_threshold: state.press_threshold,
-      release_threshold: state.release_threshold
-    ]
+    # Same builder as the live paths (INVARIANTS.md item 7); the two
+    # prev_buttons variants below override the last key.
+    sample_opts = ExPhil.Agents.Decode.sample_opts(state, []) |> Keyword.delete(:prev_buttons)
 
     # AR-head checkpoints warm the sequential sampler instead — the same
     # program the live loop hits (stage1/stage2 kernels + trunk).
@@ -815,6 +809,38 @@ defmodule ExPhil.Agents.Agent do
       new_state =
         Enum.reduce(opts, state, fn {k, v}, acc -> Map.put(acc, k, v) end)
 
+      # style_tag / style_id go through the SAME resolver init uses.
+      # Before 2026-09-09 `reconfigure(style_tag: "X")` returned :ok and
+      # did nothing (style_tag was never a struct field), so a style A/B
+      # through the policy server ran two identical arms.
+      new_state =
+        if Keyword.has_key?(opts, :style_tag) or Keyword.has_key?(opts, :style_id) do
+          %{
+            new_state
+            | style_id: ExPhil.Agents.Decode.resolve_style_id(opts, state.player_registry)
+          }
+          |> Map.delete(:style_tag)
+        else
+          new_state
+        end
+
+      # A new frame_delay without an explicit delay_id re-derives the id
+      # from the checkpoint's label convention (same rule as load time).
+      new_state =
+        if Keyword.has_key?(opts, :frame_delay) and not Keyword.has_key?(opts, :delay_id) and
+             new_state.label_convention != nil do
+          %{
+            new_state
+            | delay_id:
+                ExPhil.Data.LabelConvention.delay_id(
+                  new_state.frame_delay || 0,
+                  %{label_convention: new_state.label_convention}
+                )
+          }
+        else
+          new_state
+        end
+
       # Delay-id guard applies to the NEW settings (pool reuse must not
       # sneak an untrained id past the boot-time check).
       if untrained_delay_id?(
@@ -825,7 +851,9 @@ defmodule ExPhil.Agents.Agent do
          ) do
         {:reply, {:error, {:untrained_delay_id, new_state.delay_id}}, state}
       else
-        {:reply, :ok, new_state}
+        # Rebuild the typed decode struct from the new fields (item 7 phase
+        # B): reconfigure is the only other constructor call site.
+        {:reply, :ok, %{new_state | decode: ExPhil.Agents.Decode.from_state(new_state)}}
       end
     end
   end
@@ -1203,24 +1231,14 @@ defmodule ExPhil.Agents.Agent do
     # Add batch dimension [1, embed_size]
     embedded_batch = Nx.reshape(embedded, {1, Nx.size(embedded)})
 
-    deterministic = Keyword.get(opts, :deterministic, state.deterministic)
-    temperature = Keyword.get(opts, :temperature, state.temperature)
-
-    deterministic_buttons =
-      Keyword.get(opts, :deterministic_buttons, state.deterministic_buttons || false)
-
+    # Fourth decode path (MLP / single-frame) — same builder (INVARIANTS.md
+    # item 7); it previously omitted select_n/select_fn.
     action =
       Networks.Policy.sample(
         state.policy_params,
         state.predict_fn,
         embedded_batch,
-        deterministic: deterministic,
-        temperature: temperature,
-        deterministic_buttons: deterministic_buttons,
-        mode_of_n: Keyword.get(opts, :mode_of_n, state.mode_of_n),
-        press_threshold: state.press_threshold,
-        release_threshold: state.release_threshold,
-        prev_buttons: state.last_action && state.last_action[:buttons]
+        ExPhil.Agents.Decode.sample_opts(state, opts)
       )
 
     # Compute confidence from logits
@@ -1291,7 +1309,8 @@ defmodule ExPhil.Agents.Agent do
   defp maybe_critic_opts(state, game_state, port, opts) do
     critic = state.critic
     k = state.critic_k
-    opp = if port == 1, do: 2, else: 1
+    # INVARIANTS.md item 5: the other OCCUPIED port, not a 1<->2 flip
+    opp = ExPhil.Bridge.GameState.opponent_port(game_state, port)
     raw = ExPhil.Agents.CriticSelector.raw_features(game_state, port, opp)
 
     embed_opts = [
@@ -1338,23 +1357,8 @@ defmodule ExPhil.Agents.Agent do
     embed_size = Nx.size(embedded)
     sequence_batch = Nx.reshape(sequence, {1, state.window_size, embed_size})
 
-    deterministic = Keyword.get(opts, :deterministic, state.deterministic)
-    temperature = Keyword.get(opts, :temperature, state.temperature)
-
-    deterministic_buttons =
-      Keyword.get(opts, :deterministic_buttons, state.deterministic_buttons || false)
-
-    sample_opts = [
-      deterministic: deterministic,
-      temperature: temperature,
-      deterministic_buttons: deterministic_buttons,
-      mode_of_n: Keyword.get(opts, :mode_of_n, state.mode_of_n),
-      select_n: Keyword.get(opts, :select_n),
-      select_fn: Keyword.get(opts, :select_fn),
-      press_threshold: state.press_threshold,
-      release_threshold: state.release_threshold,
-      prev_buttons: state.last_action && state.last_action[:buttons]
-    ]
+    # ONE decode builder for every path (INVARIANTS.md item 7)
+    sample_opts = ExPhil.Agents.Decode.sample_opts(state, opts)
 
     action =
       if state.head == :autoregressive do
@@ -1455,23 +1459,8 @@ defmodule ExPhil.Agents.Agent do
         features
       end
 
-    deterministic = Keyword.get(opts, :deterministic, state.deterministic)
-    temperature = Keyword.get(opts, :temperature, state.temperature)
-
-    deterministic_buttons =
-      Keyword.get(opts, :deterministic_buttons, state.deterministic_buttons || false)
-
-    step_sample_opts = [
-      deterministic: deterministic,
-      temperature: temperature,
-      deterministic_buttons: deterministic_buttons,
-      mode_of_n: Keyword.get(opts, :mode_of_n, state.mode_of_n),
-      select_n: Keyword.get(opts, :select_n),
-      select_fn: Keyword.get(opts, :select_fn),
-      press_threshold: state.press_threshold,
-      release_threshold: state.release_threshold,
-      prev_buttons: state.last_action && state.last_action[:buttons]
-    ]
+    # ONE decode builder for every path (INVARIANTS.md item 7)
+    step_sample_opts = ExPhil.Agents.Decode.sample_opts(state, opts)
 
     action =
       if state.head == :autoregressive do
@@ -1545,7 +1534,8 @@ defmodule ExPhil.Agents.Agent do
           ExPhil.Embeddings.Game.Config.default()
           | queue_depth: Map.get(full_embed_config, :queue_depth) || 1,
             with_delay_id: Map.get(full_embed_config, :with_delay_id) || false,
-            stage_internals: Map.get(full_embed_config, :stage_internals) || false
+            stage_internals: Map.get(full_embed_config, :stage_internals) || false,
+            with_projectiles: Map.get(full_embed_config, :with_projectiles, true)
         }
 
         live = ExPhil.Embeddings.Canary.fingerprint_live(live_config)
@@ -1667,18 +1657,19 @@ defmodule ExPhil.Agents.Agent do
       )
 
     # backbone_output: [1, hidden_size]
-    # Now run through policy heads (dense layers after backbone)
-    deterministic = Keyword.get(opts, :deterministic, state.deterministic)
-    temperature = Keyword.get(opts, :temperature, state.temperature)
-
+    # Now run through policy heads (dense layers after backbone). Decode
+    # opts come from the SAME builder as the other two paths (INVARIANTS.md
+    # item 7) — this path used to pass only deterministic + temperature,
+    # silently dropping mode-of-N / critic selector / hysteresis.
     action =
       sample_from_backbone_output(
         backbone_output,
         params,
-        deterministic: deterministic,
-        temperature: temperature,
-        axis_buckets: state.embed_config[:axis_buckets] || 16,
-        shoulder_buckets: state.embed_config[:shoulder_buckets] || 4
+        ExPhil.Agents.Decode.sample_opts(state, opts) ++
+          [
+            axis_buckets: state.embed_config[:axis_buckets] || 16,
+            shoulder_buckets: state.embed_config[:shoulder_buckets] || 4
+          ]
       )
 
     confidence = Networks.Policy.compute_confidence(action)
@@ -1873,16 +1864,21 @@ defmodule ExPhil.Agents.Agent do
     depth = queue_depth(state)
     delay_id? = Map.get(state.embed_config || %{}, :with_delay_id) || false
     stage_internals? = Map.get(state.embed_config || %{}, :stage_internals) || false
+    # INVARIANTS.md item 4: the checkpoint says whether its embedding HAS a
+    # projectile block; new checkpoints trained from Peppi say false and
+    # the live embedder then has no projectile dims at all.
+    proj? = Map.get(state.embed_config || %{}, :with_projectiles, true)
 
     opts =
-      if depth > 1 or delay_id? or stage_internals? do
+      if depth > 1 or delay_id? or stage_internals? or not proj? do
         base = Keyword.get(opts, :config, ExPhil.Embeddings.Game.Config.default())
 
         cfg = %{
           base
           | queue_depth: depth,
             with_delay_id: delay_id?,
-            stage_internals: stage_internals?
+            stage_internals: stage_internals?,
+            with_projectiles: proj?
         }
 
         opts
@@ -1893,8 +1889,64 @@ defmodule ExPhil.Agents.Agent do
         opts
       end
 
+    # EXPHIL_ZERO_PROJECTILES=1 (2026-09-08 A/B, FIXES.md P0): replay-trained
+    # checkpoints saw a constant-ZERO projectile block (Peppi hardcodes
+    # projectiles: []) while the live bridge populates real projectiles —
+    # an off-distribution input on every frame that the embedding canary
+    # cannot catch (layout matches, values don't). This zeroes the block at
+    # the live boundary so the policy sees what it trained on. Opt-in env
+    # so the A/B is explicit; if it wins, make it the default for
+    # replay-trained configs.
+    game_state =
+      if zero_projectiles?(state.embed_config) do
+        unless Process.get(:zero_projectiles_logged) do
+          Process.put(:zero_projectiles_logged, true)
+
+          Logger.warning(
+            "[Agent] projectile block ZEROED at the live boundary: this checkpoint's " <>
+              "embedding has projectile dims but its training source never provided " <>
+              "projectiles (INVARIANTS item 4; EXPHIL_ZERO_PROJECTILES=0 forces populate)"
+          )
+        end
+
+        %{game_state | projectiles: []}
+      else
+        game_state
+      end
+
     Embeddings.Game.embed(game_state, prev_controller, player_port, opts)
   end
+
+  @doc """
+  INVARIANTS.md item 4 — should live projectiles be zeroed before embedding?
+  Pure, so it is unit-tested. Rules, in order:
+    * `EXPHIL_ZERO_PROJECTILES=1` forces zero, `=0` forces populate (A/B);
+    * a checkpoint whose embedding has NO projectile block: nothing to zero;
+    * a checkpoint whose training source is stamped as providing
+      projectiles: populate;
+    * otherwise (old replay-trained checkpoints, no stamp; or a stamp that
+      lacks :projectiles): the block was constant-zero in training — zero it.
+  """
+  @spec zero_projectiles?(map() | nil, String.t() | nil) :: boolean()
+  def zero_projectiles?(embed_config, env \\ System.get_env("EXPHIL_ZERO_PROJECTILES")) do
+    ec = embed_config || %{}
+
+    case env do
+      "1" ->
+        true
+
+      "0" ->
+        false
+
+      _ ->
+        has_block? = truthy?(Map.get(ec, :with_projectiles, true))
+        provided = Map.get(ec, :provided_channels) || []
+        provided? = Enum.any?(provided, &(to_string(&1) == "projectiles"))
+        has_block? and not provided?
+    end
+  end
+
+  defp truthy?(v), do: v in [true, "true"]
 
   # Under Slippi Online the bridge detects the bot's actual in-game port
   # via connect codes (GameState.own_port); offline it is nil and the
@@ -2196,7 +2248,12 @@ defmodule ExPhil.Agents.Agent do
           # embed_config map is a legacy flattened map that dropped them)
           queue_depth: Map.get(config, :queue_depth, 1),
           with_delay_id: Map.get(config, :with_delay_id, false),
-          stage_internals: Map.get(config, :stage_internals, false)
+          stage_internals: Map.get(config, :stage_internals, false),
+          # INVARIANTS.md item 4: old checkpoints (no stamp) trained with a
+          # projectile block that was constant-zero; new ones say whether
+          # the block exists and which channels the source provided.
+          with_projectiles: truthy?(Map.get(config, :with_projectiles, true)),
+          provided_channels: Map.get(config, :provided_channels)
         },
         embed_config
       )
@@ -2214,7 +2271,55 @@ defmodule ExPhil.Agents.Agent do
     # :train_delays; older ones fall back to the champion line's known
     # set. `allow_untrained_delay_id: true` (set by an EXPLICIT
     # --delay-id-override) is the escape hatch.
+    #
+    # INVARIANTS.md item 1: the id is in the CHECKPOINT'S numbering. With
+    # no explicit id, derive it from the live frame_delay through the
+    # checkpoint's label convention (legacy: id N; causal: id N-1), so a
+    # causal checkpoint deployed at its trained rung never trips the
+    # guard and never runs an off-by-one id.
+    alias ExPhil.Data.LabelConvention
+    convention = LabelConvention.of(config)
+
+    state =
+      case state.delay_id do
+        nil ->
+          id = LabelConvention.delay_id(state.frame_delay || 0, config)
+
+          Logger.info(
+            "[Agent] delay_id #{id} derived from --frame-delay #{state.frame_delay || 0} " <>
+              "(checkpoint label convention: #{convention})"
+          )
+
+          %{state | delay_id: id}
+
+        _explicit ->
+          state
+      end
+
     validate_delay_id!(state, config, full_embed_config)
+
+    # GOTCHA #113: a legacy checkpoint trained at producing-delay 0 learned
+    # leaked targets (state[t] already contains controller[t]) — it
+    # continues states but cannot initiate them. Not fatal (it still
+    # plays), but every live look of one must be read as leak-limited.
+    if LabelConvention.leaky?(config) do
+      Logger.warning(
+        "[Agent] checkpoint trained on LEAKED labels (legacy delay 0, GOTCHA #113): " <>
+          "expect reactive-but-never-initiating play (long WAIT dwell, no dash-outs, jab chains). " <>
+          "Retrain (the parser now emits causal labels by construction)."
+      )
+    end
+
+    reaction = LabelConvention.reaction_delay(config)
+
+    if LabelConvention.live_reaction_delay(state.frame_delay || 0) != reaction do
+      Logger.warning(
+        "[Agent] --frame-delay #{state.frame_delay || 0} plays reaction delay " <>
+          "#{LabelConvention.live_reaction_delay(state.frame_delay || 0)}; this checkpoint " <>
+          "trained at reaction delay #{reaction} (deploy-matched: --frame-delay " <>
+          "#{LabelConvention.live_frame_delay(reaction)})"
+      )
+    end
 
     # Initialize GatedSSM cache when using incremental inference.
     # :gated_ssm only — see compute_action dispatch; Mamba param names don't
@@ -2339,6 +2444,7 @@ defmodule ExPhil.Agents.Agent do
         embed_config: full_embed_config,
         # Retained for reconfigure-time delay-id revalidation (pool reuse)
         train_delays: Map.get(config, :train_delays),
+        label_convention: convention,
         # Controller head dispatch (AR vs independent sampling)
         head: head,
         # Set temporal config

@@ -560,8 +560,15 @@ defmodule ExPhil.Bridge.AsyncRunner do
   end
 
   defp handle_game_frame(bridge, table, game_state, player_port, agent) do
-    # Update latest game state
+    # Update latest game state, then WAKE the inference process exactly once
+    # per new frame (INVARIANTS.md item 6): decisions are frame-driven, not
+    # polled. The inference loop coalesces any backlog to the newest frame.
     :ets.insert(table, {:latest_game_state, game_state})
+
+    case :ets.lookup(table, :inference_pid) do
+      [{:inference_pid, pid}] when is_pid(pid) -> send(pid, :new_frame)
+      _ -> :ok
+    end
 
     # Check if this is game start
     case :ets.lookup(table, :in_game) do
@@ -602,7 +609,9 @@ defmodule ExPhil.Bridge.AsyncRunner do
       lf = lras_frames(table)
 
       if rem(n, 60) == 1 do
-        p = game_state.players[player_port]
+        # INVARIANTS.md item 5: the subject is resolved at the boundary (the
+        # stamped own_port under Slippi Online), never the static config port.
+        p = ExPhil.Bridge.GameState.subject(game_state, player_port)
 
         IO.puts(
           "[SD] f#{n} phase=#{if(n <= lf, do: "LRAS", else: "hold-left")} " <>
@@ -701,10 +710,11 @@ defmodule ExPhil.Bridge.AsyncRunner do
   end
 
   defp check_stocks_for_game_end(bridge, _table, game_state, player_port, _agent) do
-    players = game_state.players || %{}
-    agent_player = players[player_port]
-    opponent_port = if player_port == 1, do: 2, else: 1
-    opponent = players[opponent_port]
+    # INVARIANTS.md item 5: subject/opponent resolved at the boundary. Before
+    # this, a bot seated on port 2 under Slippi Online had its stock-based
+    # game-end read off the HUMAN's player.
+    agent_player = ExPhil.Bridge.GameState.subject(game_state, player_port)
+    opponent = ExPhil.Bridge.GameState.opponent(game_state, player_port)
 
     agent_stocks = agent_player && agent_player.stock
     opponent_stocks = opponent && opponent.stock
@@ -845,7 +855,8 @@ defmodule ExPhil.Bridge.AsyncRunner do
   defp drive_elixir_dummy(bridge, table, game_state, player_port) do
     case :ets.lookup(table, :elixir_dummy) do
       [{:elixir_dummy, mod, dummy_state}] ->
-        opponent_port = if player_port == 1, do: 2, else: 1
+        # INVARIANTS.md item 5: resolved at the boundary, not flipped.
+        opponent_port = ExPhil.Bridge.GameState.opponent_port(game_state, player_port)
 
         cond do
           # Rich contract (PolicyOpponent, checkpoint ladder): full game
@@ -865,7 +876,7 @@ defmodule ExPhil.Bridge.AsyncRunner do
 
           true ->
             opponent = game_state.players && game_state.players[opponent_port]
-            bot = game_state.players && game_state.players[player_port]
+            bot = ExPhil.Bridge.GameState.subject(game_state, player_port)
 
             {input, dummy_state} = mod.step(opponent, bot, dummy_state)
             MeleePort.send_controller(bridge, Map.put(input, :port, opponent_port))
@@ -888,19 +899,55 @@ defmodule ExPhil.Bridge.AsyncRunner do
   # Inference Loop (runs in separate process, slow is OK)
   # ============================================================================
 
+  # INVARIANTS.md item 6 (2026-09-09): FRAME-DRIVEN. The loop registers its
+  # pid, then blocks until the frame loop sends :new_frame; a backlog of
+  # wakeups is coalesced so at most ONE decision runs per new frame. Before
+  # this it spin-polled the ETS table (~2 calls/frame live, 31 headless),
+  # relying on the agent's same-frame cache to re-send the last action and
+  # diluting the confidence stats 30x with cached returns.
   defp inference_loop(agent, table, player_port) do
+    :ets.insert(table, {:inference_pid, self()})
+    inference_loop_wait(agent, table, player_port)
+  end
+
+  defp inference_loop_wait(agent, table, player_port) do
+    receive do
+      :new_frame ->
+        flush_new_frames()
+        inference_step(agent, table, player_port)
+        inference_loop_wait(agent, table, player_port)
+    after
+      250 ->
+        # No frame in 250ms: check for shutdown, otherwise keep waiting.
+        if should_stop?(table) do
+          Logger.info("[AsyncRunner:Inference] Stop requested, exiting")
+          :ok
+        else
+          inference_loop_wait(agent, table, player_port)
+        end
+    end
+  end
+
+  # Coalesce: if several frames arrived while we were deciding, decide once
+  # on the NEWEST state (the ETS row), never once per stale wakeup.
+  defp flush_new_frames do
+    receive do
+      :new_frame -> flush_new_frames()
+    after
+      0 -> :ok
+    end
+  end
+
+  defp inference_step(agent, table, player_port) do
     case should_stop?(table) do
       true ->
-        Logger.info("[AsyncRunner:Inference] Stop requested, exiting")
         :ok
 
       false ->
         # Get latest game state
         case :ets.lookup(table, :latest_game_state) do
           [{:latest_game_state, nil}] ->
-            # No game state yet, wait
-            Process.sleep(10)
-            inference_loop(agent, table, player_port)
+            :ok
 
           [{:latest_game_state, game_state}] ->
             # Check if we're in game
@@ -933,11 +980,9 @@ defmodule ExPhil.Bridge.AsyncRunner do
                 end
 
               _ ->
-                # Not in game, wait
-                Process.sleep(10)
+                # Not in game: nothing to decide for this frame.
+                :ok
             end
-
-            inference_loop(agent, table, player_port)
         end
     end
   end

@@ -36,7 +36,10 @@ expert_mod =
 
 out_path = opts[:out] || "drills/#{opts[:expert]}.frames"
 port = opts[:port] || 1
-action_delay = opts[:action_delay] || 2
+# REACTION delay on top of Peppi's causal pairing (INVARIANTS.md item 1,
+# 2026-09-09). The old default 2 counted in the producing convention; 1
+# is the same pairing in the new numbering.
+action_delay = opts[:action_delay] || 1
 
 rollout_paths =
   (opts[:rollouts] || "")
@@ -97,6 +100,8 @@ payload = %{
   expert: opts[:expert],
   exported_at: DateTime.utc_now() |> DateTime.to_iso8601(),
   action_delay: action_delay,
+  # INVARIANTS.md item 1: frames are causal pairs; action_delay is reaction delay.
+  label_convention: ExPhil.Data.LabelConvention.current(),
   frame_lists: frame_lists
 }
 

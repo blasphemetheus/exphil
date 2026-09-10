@@ -1,0 +1,2 @@
+policy=checkpoints/fox_gen_v2_20260906_000910_best_policy.bin runner=async runs=1 seconds=90 dummy=cpu server=0 decode=--deterministic loadavg=0.33 0.17 0.11
+fixture_agreement: unavailable

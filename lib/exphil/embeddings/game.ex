@@ -271,7 +271,7 @@ defmodule ExPhil.Embeddings.Game do
     # Optional: projectiles
     embeddings =
       if config.with_projectiles do
-        embeddings ++ [Projectiles.embed(game_state.projectiles, config.max_projectiles)]
+        embeddings ++ [Projectiles.embed(game_state.projectiles, config.max_projectiles, own_port)]
       else
         embeddings
       end
@@ -729,7 +729,10 @@ defmodule ExPhil.Embeddings.Game do
 
     own = GameState.get_player(game_state, own_port)
 
-    opponent_port = if own_port == 1, do: 2, else: 1
+    # INVARIANTS.md item 5: the opponent is the other OCCUPIED port, resolved
+    # at the boundary — the old 1<->2 flip returned nil (an all-zero
+    # opponent) for any seating other than ports 1+2.
+    opponent_port = GameState.opponent_port(game_state, own_port)
     opponent = GameState.get_player(game_state, opponent_port)
 
     {own, opponent}

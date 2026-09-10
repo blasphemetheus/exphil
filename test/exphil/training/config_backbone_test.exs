@@ -44,8 +44,8 @@ defmodule ExPhil.Training.ConfigBackboneTest do
       assert defaults[:max_grad_norm] == 0.25
     end
 
-    test "unknown backbone returns empty list" do
-      assert Config.backbone_defaults(:nonexistent) == []
+    test "unknown backbone raises (INVARIANTS item 3: not a backbone)" do
+      assert_raise ArgumentError, fn -> Config.backbone_defaults(:nonexistent) end
     end
   end
 

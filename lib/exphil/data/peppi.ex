@@ -144,6 +144,23 @@ defmodule ExPhil.Data.Peppi do
     @type t :: %__MODULE__{}
   end
 
+  # INVARIANTS.md item 4: the channels this parser actually POPULATES in the
+  # game states it emits. `to_training_frames/3` hardcodes `projectiles: []`
+  # and never fills items, so a training config that asks for projectile or
+  # item dims gets a constant-zero block — while the live bridge fills real
+  # values (off-distribution on every frame; undetectable by the layout
+  # canary). `Embeddings.config_for_source/2` intersects the requested
+  # config with this list; the checkpoint records it; the agent honors it.
+  @provided_channels [:players, :stage, :stage_internals, :distance]
+
+  @doc "Channels this parser populates (see INVARIANTS.md item 4)."
+  @spec provides() :: [atom()]
+  def provides, do: @provided_channels
+
+  @doc "True when this parser populates `channel` in emitted game states."
+  @spec provides?(atom()) :: boolean()
+  def provides?(channel), do: channel in @provided_channels
+
   defmodule ParsedReplay do
     @moduledoc "Complete parsed replay"
     defstruct [:frames, :metadata]
@@ -258,16 +275,20 @@ defmodule ExPhil.Data.Peppi do
   ## Options
     - `:player_port` - Port of the player to train (default: 1)
     - `:opponent_port` - Port of the opponent (default: 2)
-    - `:frame_delay` - Simulated online delay in frames (default: 0)
+    - `:frame_delay` - ADDITIONAL reaction delay in frames (default: 0)
 
-  ## Frame Delay
+  ## Label convention (INVARIANTS.md item 1, GOTCHA #113)
 
-  When `frame_delay: N` is set, each training pair uses:
-  - Game state from frame (t - N) (what the agent "sees")
-  - Controller action from frame t (what action was actually taken)
+  Slippi records each frame's controller input on the frame whose
+  (post-update) state it PRODUCED, so the raw pair (state[t],
+  controller[t]) is label-leaked. Every training frame emitted here
+  therefore pairs state[t] with the input ISSUED from it — raw
+  controller[t+1] (`ExPhil.Data.LabelConvention` `:causal`). The last
+  frame of a replay has no successor and is dropped.
 
-  This simulates Slippi online conditions where there's 18+ frame delay
-  between observing the game state and your input taking effect.
+  `frame_delay: k` is reaction delay ON TOP of that: state[t] is paired
+  with raw controller[t+1+k]. `frame_delay: 0` is the causal pairing;
+  the leaked pairing cannot be built.
 
   ## Examples
 
@@ -288,13 +309,10 @@ defmodule ExPhil.Data.Peppi do
     replay = forward_fill_stadium(replay)
 
     frames =
-      if frame_delay == 0 do
-        # No delay - standard training
-        extract_frames_no_delay(replay, player_port, opponent_port)
-      else
-        # With delay - pair old states with current actions
-        extract_frames_with_delay(replay, player_port, opponent_port, frame_delay)
-      end
+      replay
+      |> extract_frames(player_port, opponent_port)
+      |> causal_pairs()
+      |> apply_frame_delay(frame_delay)
 
     # :remap_ports — normalize the players map to %{1 => subject, 2 =>
     # opponent} regardless of actual ports. The embedding/reward layers
@@ -392,12 +410,31 @@ defmodule ExPhil.Data.Peppi do
           player_tag: player_tag
         }
       end)
+      |> causal_pairs()
       |> apply_frame_delay(frame_delay)
 
     {frames, stats}
   end
 
-  # Apply frame delay pairing (state from t-delay, action from t)
+  # The structural label pairing: frame i's :controller becomes the input
+  # ISSUED from state i (raw controller of frame i+1). Consecutive frames
+  # must be exactly one game-frame apart (no dropped frames / boundaries);
+  # a frame without a contiguous successor is dropped, as is the last one.
+  # Every consumer of Peppi training frames gets this — there is no
+  # option to skip it (GOTCHA #113 made the leaked pairing a default once).
+  @spec causal_pairs([map()]) :: [map()]
+  def causal_pairs(frames) do
+    frames
+    |> Enum.chunk_every(2, 1, :discard)
+    |> Enum.flat_map(fn [f, next] ->
+      if next.game_state.frame == f.game_state.frame + 1 and next.controller != nil,
+        do: [%{f | controller: next.controller}],
+        else: []
+    end)
+  end
+
+  # Additional reaction delay on top of the causal pairing: state from
+  # t-delay, (already successor-aligned) controller from t.
   defp apply_frame_delay(frames, 0), do: frames
 
   defp apply_frame_delay(frames, delay) when length(frames) <= delay, do: []
@@ -445,7 +482,7 @@ defmodule ExPhil.Data.Peppi do
     %{replay | frames: filled}
   end
 
-  defp extract_frames_no_delay(replay, player_port, opponent_port) do
+  defp extract_frames(replay, player_port, opponent_port) do
     # Extract player tag from metadata for style-conditional training
     player_tag = get_player_tag(replay.metadata, player_port)
 
@@ -460,48 +497,6 @@ defmodule ExPhil.Data.Peppi do
       }
     end)
     |> Enum.filter(fn f -> f.game_state != nil and f.controller != nil end)
-  end
-
-  defp extract_frames_with_delay(replay, player_port, opponent_port, delay) do
-    frames = replay.frames
-    num_frames = length(frames)
-
-    if num_frames <= delay do
-      # Not enough frames for this delay
-      []
-    else
-      # Extract player tag from metadata for style-conditional training
-      player_tag = get_player_tag(replay.metadata, player_port)
-
-      # Convert to array for O(1) lookups
-      frame_array = :array.from_list(frames)
-
-      # For each frame t >= delay, pair state_{t-delay} with action_t
-      delay..(num_frames - 1)
-      |> Enum.map(fn t ->
-        # Delayed game state (what agent "sees")
-        delayed_frame = :array.get(t - delay, frame_array)
-
-        delayed_state =
-          build_game_state(delayed_frame, player_port, opponent_port, replay.metadata)
-
-        # Current action (what was actually done)
-        current_frame = :array.get(t, frame_array)
-        current_player = Map.get(current_frame.players, player_port)
-        current_action = build_controller_state(current_player)
-
-        %{
-          game_state: delayed_state,
-          controller: current_action,
-          player_tag: player_tag,
-          # Include delay metadata for debugging/analysis
-          frame_delay: delay,
-          observed_frame: t - delay,
-          action_frame: t
-        }
-      end)
-      |> Enum.filter(fn f -> f.game_state != nil and f.controller != nil end)
-    end
   end
 
   # ============================================================================

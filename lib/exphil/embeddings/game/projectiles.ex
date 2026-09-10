@@ -50,13 +50,14 @@ defmodule ExPhil.Embeddings.Game.Projectiles do
   @doc """
   Embed a single projectile.
   """
-  @spec embed_single(Projectile.t()) :: Nx.Tensor.t()
-  def embed_single(%Projectile{} = proj) do
+  @spec embed_single(Projectile.t(), pos_integer()) :: Nx.Tensor.t()
+  def embed_single(%Projectile{} = proj, own_port) do
     Nx.concatenate([
       # exists
       Primitives.bool_embed(true),
-      # owner (1 or 2)
-      Primitives.float_embed(proj.owner, scale: 0.5),
+      # mine? (INVARIANTS.md item 5: a ROLE, not the absolute port — the old
+      # `owner * 0.5` read 0.5 for "my laser" on port 1 and 1.0 on port 2)
+      Primitives.bool_embed(proj.owner == own_port),
       Primitives.xy_embed(proj.x),
       Primitives.xy_embed(proj.y),
       # simplified type
@@ -75,18 +76,18 @@ defmodule ExPhil.Embeddings.Game.Projectiles do
 
   Returns tensor of shape [max_projectiles * embedding_size].
   """
-  @spec embed(list(Projectile.t()) | nil, non_neg_integer()) :: Nx.Tensor.t()
-  def embed(nil, max_projectiles) do
+  @spec embed(list(Projectile.t()) | nil, non_neg_integer(), pos_integer()) :: Nx.Tensor.t()
+  def embed(nil, max_projectiles, _own_port) do
     Nx.broadcast(0.0, {max_projectiles * embedding_size()})
   end
 
-  def embed(projectiles, max_projectiles) when is_list(projectiles) do
+  def embed(projectiles, max_projectiles, own_port) when is_list(projectiles) do
     # Pad or truncate to max_projectiles
     projectiles = Enum.take(projectiles, max_projectiles)
     num_existing = length(projectiles)
     padding_count = max_projectiles - num_existing
 
-    embedded = Enum.map(projectiles, &embed_single/1)
+    embedded = Enum.map(projectiles, &embed_single(&1, own_port))
 
     padding =
       if padding_count > 0 do
@@ -120,6 +121,7 @@ defmodule ExPhil.Embeddings.Game.Projectiles do
       Enum.map(game_states, fn gs ->
         projectiles = gs.projectiles || []
         projectiles = Enum.take(projectiles, max_projectiles)
+        own_port = ExPhil.Bridge.GameState.subject_port(gs, 1)
 
         # Embed each projectile as list of floats
         embedded =
@@ -127,8 +129,8 @@ defmodule ExPhil.Embeddings.Game.Projectiles do
             [
               # exists
               1.0,
-              # owner scaled
-              (proj.owner || 0) * 0.5,
+              # mine? (role, not absolute port — INVARIANTS.md item 5)
+              if(proj.owner == own_port, do: 1.0, else: 0.0),
               # x scaled
               (proj.x || 0.0) * 0.05,
               # y scaled

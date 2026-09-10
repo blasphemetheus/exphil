@@ -63,6 +63,49 @@ defmodule ExPhil.Bridge.GameState do
   def get_players(%__MODULE__{players: players}) do
     {Map.get(players, 1), Map.get(players, 2)}
   end
+
+  # ---------------------------------------------------------------------------
+  # INVARIANTS.md item 5: ports exist only at the parse/bridge boundary.
+  # Downstream code asks for the SUBJECT and the OPPONENT; the port numbers
+  # behind them are resolved HERE, once: the bridge stamps `own_port` under
+  # Slippi Online (connect-code detection), the training path remaps the
+  # subject to port 1, and the opponent is "the other occupied port" — never
+  # `if port == 1, do: 2, else: 1`, which silently zeroes the opponent on
+  # ports 2+3 / 1+4 seats.
+  # ---------------------------------------------------------------------------
+
+  @doc "The subject's port: the stamped `own_port`, else `fallback` (the configured/remapped port)."
+  @spec subject_port(t(), pos_integer()) :: pos_integer()
+  def subject_port(%__MODULE__{} = gs, fallback \\ 1) do
+    case Map.get(gs, :own_port) do
+      p when is_integer(p) and p > 0 -> p
+      _ -> fallback
+    end
+  end
+
+  @doc """
+  The opponent's port: the other OCCUPIED port. With exactly one other
+  player that is unambiguous; with none (single-player replay) or several
+  (teams) it falls back to the 1<->2 flip, the historical convention for
+  those edge cases.
+  """
+  @spec opponent_port(t(), pos_integer()) :: pos_integer()
+  def opponent_port(%__MODULE__{players: players} = gs, fallback \\ 1) do
+    subject = subject_port(gs, fallback)
+
+    case (players || %{}) |> Map.keys() |> Enum.reject(&(&1 == subject)) do
+      [other] -> other
+      _ -> if subject == 1, do: 2, else: 1
+    end
+  end
+
+  @doc "The subject player (nil if absent)."
+  @spec subject(t(), pos_integer()) :: map() | nil
+  def subject(%__MODULE__{} = gs, fallback \\ 1), do: get_player(gs, subject_port(gs, fallback))
+
+  @doc "The opponent player (nil if absent)."
+  @spec opponent(t(), pos_integer()) :: map() | nil
+  def opponent(%__MODULE__{} = gs, fallback \\ 1), do: get_player(gs, opponent_port(gs, fallback))
 end
 
 defmodule ExPhil.Bridge.Player do

@@ -51,16 +51,78 @@ defmodule ExPhil.Data.FilenameTags do
     end
   end
 
+  # Paren fields that are NOT player tags in the FALCO-dir "vs"
+  # conventions (measured 2026-09-05): costume colors and the
+  # bracket-convention stage abbreviations. Exact-case on purpose — a
+  # player tag "(RED)" is all-caps, the costume is "(Red)".
+  @paren_denylist ~w(Default Red Blue Green White Black Yellow Purple
+                     Pink Orange Brown Grey Gray Cyan) ++
+                    ["Light Blue", "Dark Blue", "Dark Green"] ++
+                    ~w(BF YS PS DL FD FoD YI)
+
+  # Display character names for tail-matching "TAG Char" sides in the
+  # tournament long-form ("SOPH Marth (White)"). Longest-first so
+  # "Young Link" wins over "Link", "Dr. Mario"/"Mario" likewise.
+  @display_chars [
+                   "Mr. Game & Watch",
+                   "Captain Falcon",
+                   "Ice Climbers",
+                   "Donkey Kong",
+                   "Game & Watch",
+                   "Young Link",
+                   "Jigglypuff",
+                   "Dr. Mario",
+                   "Ganondorf",
+                   "Dr Mario",
+                   "Pikachu",
+                   "Mewtwo",
+                   "Bowser",
+                   "Falco",
+                   "Kirby",
+                   "Luigi",
+                   "Marth",
+                   "Peach",
+                   "Pichu",
+                   "Samus",
+                   "Sheik",
+                   "Yoshi",
+                   "Zelda",
+                   "Link",
+                   "Mario",
+                   "Ness",
+                   "Fox",
+                   "Roy"
+                 ]
+                 |> Enum.sort_by(&(-String.length(&1)))
+
   @doc """
   Parse a replay filename into its player entries, in filename order.
 
-  Returns `[{tag_or_nil, character_name_lowercase}]` (2 entries for the
-  `A + B` convention) or `[]` when the name doesn't follow it.
+  Returns `[{tag_or_nil, character_name_lowercase}]` (2 entries) or `[]`
+  when the name follows no known convention. Three conventions are
+  recognized (all present in the HF ranked corpus, measured 09-05):
+
+    * `"03_20_55 [RUDE] Falcon + [INFP] Fox (PS).slp"` — bracket tags,
+      paren stage (FOX/MARTH/ZS dirs + 16k of FALCO)
+    * `"Falco vs Link (MILO) [BF] Game_...slp"` — paren tag AFTER the
+      character, bracket stage (paren costume colors / stage abbrevs
+      are denylisted, exact-case)
+    * `"20200101 - HNC 5 - PM 1006 - Falco (Default) vs SOPH Marth
+      (White) - Dream Land N64.slp"` — tournament long-form: tag
+      PREFIXES the character, parens are costumes (dropped)
   """
   @spec parse(Path.t()) :: [{String.t() | nil, String.t()}]
   def parse(path) do
     base = path |> Path.basename() |> String.replace_suffix(".slp", "")
 
+    cond do
+      String.contains?(base, " + ") -> parse_plus(base)
+      String.contains?(base, " vs ") -> parse_vs(base)
+      true -> []
+    end
+  end
+
+  defp parse_plus(base) do
     # Drop the trailing " (STAGE)" group and any leading timestamp-ish
     # prefix (everything before the first "[" or the first letter run
     # that starts a character name — in practice: strip leading
@@ -80,6 +142,54 @@ defmodule ExPhil.Data.FilenameTags do
       _ ->
         []
     end
+  end
+
+  defp parse_vs(base) do
+    # Tournament long-form: the " vs " lives in one " - "-separated
+    # segment; Game_-form: strip the trailing "[STAGE] Game_..." /
+    # bare " Game_..." tail. Either way reduce to "SIDE vs SIDE".
+    core =
+      base
+      |> String.split(" - ")
+      |> Enum.find(base, &String.contains?(&1, " vs "))
+      |> String.replace(~r/\s*\[[^\]]*\].*$/, "")
+      |> String.replace(~r/\s*Game_\S*$/, "")
+      |> String.trim()
+
+    case String.split(core, " vs ") do
+      [_, _] = sides -> Enum.map(sides, &parse_vs_side/1)
+      _ -> []
+    end
+  end
+
+  # One side of a "vs": pull paren groups (tag unless denylisted, e.g.
+  # costume "(Default)"), then split any remaining "TAG Char" prefix by
+  # tail-matching known character display names.
+  defp parse_vs_side(side) do
+    paren_tag =
+      ~r/\(([^)]+)\)/
+      |> Regex.scan(side, capture: :all_but_first)
+      |> List.flatten()
+      |> Enum.map(&String.trim/1)
+      |> Enum.reject(&(&1 in @paren_denylist))
+      |> List.first()
+
+    bare = side |> String.replace(~r/\s*\([^)]*\)/, "") |> String.trim()
+
+    {prefix_tag, char} =
+      case Enum.find(@display_chars, fn c ->
+             String.downcase(bare) == String.downcase(c) or
+               String.ends_with?(String.downcase(bare), " " <> String.downcase(c))
+           end) do
+        nil ->
+          {nil, bare}
+
+        c ->
+          prefix = bare |> String.slice(0, String.length(bare) - String.length(c)) |> String.trim()
+          {if(prefix == "", do: nil, else: prefix), c}
+      end
+
+    {prefix_tag || paren_tag, String.downcase(char)}
   end
 
   @doc """

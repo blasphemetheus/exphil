@@ -162,15 +162,91 @@ defmodule ExPhil.Training.EmbeddingCache do
     cache_dir = get_cache_dir(opts)
     File.mkdir_p!(cache_dir)
 
-    # Check if we need chunked saving for large stacked tensors
-    case embeddings do
-      tensor when is_struct(tensor, Nx.Tensor) ->
-        save_tensor(cache_key, tensor, cache_dir, opts)
+    # INVARIANTS.md item 10 — budget at the write, not in a comment. The
+    # 2026-09-05 v2 launch inherited `cache_streaming: true` into the bptt
+    # path and wrote 2.1GB/chunk until / hit 100%. A cache that refuses
+    # the write that would exceed its budget cannot do that, whatever
+    # defaults ride along. Budget: `:budget_bytes` opt, else
+    # EXPHIL_CACHE_BUDGET_GB, else 50GB.
+    case check_budget(cache_dir, embeddings, opts) do
+      :ok ->
+        # Check if we need chunked saving for large stacked tensors
+        case embeddings do
+          tensor when is_struct(tensor, Nx.Tensor) ->
+            save_tensor(cache_key, tensor, cache_dir, opts)
 
-      other ->
-        save_single_file(cache_key, other, cache_dir)
+          other ->
+            save_single_file(cache_key, other, cache_dir)
+        end
+
+      {:error, :over_budget} = err ->
+        err
     end
   end
+
+  @default_budget_bytes 50 * 1024 * 1024 * 1024
+
+  @doc "Bytes currently held in the cache dir (top level, files only)."
+  @spec dir_bytes(Path.t()) :: non_neg_integer()
+  def dir_bytes(cache_dir) do
+    case File.ls(cache_dir) do
+      {:ok, entries} ->
+        entries
+        |> Enum.map(&Path.join(cache_dir, &1))
+        |> Enum.reduce(0, fn p, acc ->
+          case File.stat(p) do
+            {:ok, %{type: :regular, size: s}} -> acc + s
+            _ -> acc
+          end
+        end)
+
+      _ ->
+        0
+    end
+  end
+
+  @doc "Resolved write budget in bytes (opt > env > 50GB default)."
+  @spec budget_bytes(keyword()) :: non_neg_integer()
+  def budget_bytes(opts) do
+    case Keyword.get(opts, :budget_bytes) do
+      n when is_integer(n) and n >= 0 ->
+        n
+
+      _ ->
+        case System.get_env("EXPHIL_CACHE_BUDGET_GB") do
+          nil -> @default_budget_bytes
+          gb -> trunc(String.to_float(gb <> if(String.contains?(gb, "."), do: "", else: ".0")) * 1024 * 1024 * 1024)
+        end
+    end
+  end
+
+  defp check_budget(cache_dir, embeddings, opts) do
+    budget = budget_bytes(opts)
+    incoming = estimate_bytes(embeddings)
+    current = dir_bytes(cache_dir)
+
+    if current + incoming > budget do
+      unless Process.get({__MODULE__, :budget_warned}) do
+        Process.put({__MODULE__, :budget_warned}, true)
+
+        require Logger
+
+        Logger.warning(
+          "[EmbeddingCache] write REFUSED: #{div(current, 1_000_000)}MB held + " <>
+            "#{div(incoming, 1_000_000)}MB incoming > budget #{div(budget, 1_000_000)}MB " <>
+            "(#{cache_dir}). Raise :budget_bytes / EXPHIL_CACHE_BUDGET_GB deliberately, or " <>
+            "prune the cache. Training continues without caching."
+        )
+      end
+
+      {:error, :over_budget}
+    else
+      :ok
+    end
+  end
+
+  defp estimate_bytes(%Nx.Tensor{} = t), do: Nx.byte_size(t)
+  defp estimate_bytes(other), do: :erlang.external_size(other)
 
   # Save a tensor, chunking if necessary
   defp save_tensor(cache_key, tensor, cache_dir, _opts) do

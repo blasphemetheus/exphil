@@ -98,6 +98,7 @@ defmodule ExPhil.Training.TrajectoryCursors do
     seed = Keyword.get(opts, :seed, 42)
     neutral_weight = Keyword.get(opts, :neutral_weight, 0.25)
     transition_weight = Keyword.get(opts, :transition_weight)
+    offstage_weight = Keyword.get(opts, :offstage_weight)
     gpu = Keyword.get(opts, :gpu, true)
 
     if dataset.embedded_frames == nil do
@@ -131,14 +132,14 @@ defmodule ExPhil.Training.TrajectoryCursors do
 
     Stream.resource(
       fn -> init end,
-      fn state -> next_batch(state, frames_array, dataset.embedded_frames, batch_size, unroll, overlap, neutral_weight, transition_weight, gpu) end,
+      fn state -> next_batch(state, frames_array, dataset.embedded_frames, batch_size, unroll, overlap, {neutral_weight, transition_weight, offstage_weight}, gpu) end,
       fn _ -> :ok end
     )
   end
 
   # -- internals -------------------------------------------------------------
 
-  defp next_batch(state, frames_array, embedded, batch_size, unroll, overlap, neutral_w, transition_w, gpu) do
+  defp next_batch(state, frames_array, embedded, batch_size, unroll, overlap, {neutral_w, transition_w, offstage_w}, gpu) do
     case assign_cursors(state.cursors, state.queue, unroll) do
       :exhausted ->
         {:halt, state}
@@ -198,13 +199,25 @@ defmodule ExPhil.Training.TrajectoryCursors do
             end)
           end)
 
+        # Offstage predicate per position (only when the weight is on).
+        flat_offstage =
+          if offstage_w do
+            Enum.flat_map(starts, fn s ->
+              Enum.map(s..(s + unroll - 1), fn idx ->
+                Data.frame_offstage?(:array.get(idx, frames_array))
+              end)
+            end)
+          end
+
         weights =
           prof(:frame_weights, fn ->
             flat_actions
             |> Data.compute_frame_weights(
               neutral_weight: neutral_w,
               transition_weight: transition_w,
-              prev_actions: if(transition_w, do: flat_prev)
+              prev_actions: if(transition_w, do: flat_prev),
+              offstage_weight: offstage_w,
+              offstage: flat_offstage
             )
             |> Nx.reshape({batch_size, unroll})
           end)

@@ -147,194 +147,56 @@ defmodule ExPhil.Training.Config.Parser do
 
   defp parse_args_standard(args, base_opts, ctx) do
     base_opts
-    |> parse_string_arg(args, "--replays", :replays)
-    |> parse_string_arg(args, "--replay-dir", :replays)
-    |> parse_string_arg(args, "--corpus", :corpus)
-    |> parse_int_arg(args, "--epochs", :epochs)
-    |> parse_int_arg(args, "--batch-size", :batch_size)
+    |> apply_flag_table(args, ctx)
     |> parse_hidden_sizes_arg(args)
-    |> parse_optional_int_arg(args, "--max-files", :max_files)
-    |> parse_flag(args, "--skip-errors", :skip_errors)
-    |> parse_flag(args, "--fail-fast", :fail_fast)
-    |> parse_flag(args, "--show-errors", :show_errors)
-    |> parse_flag(args, "--hide-errors", :hide_errors)
-    |> parse_string_arg(args, "--error-log", :error_log)
     |> then(fn opts ->
       if opts[:fail_fast], do: Keyword.put(opts, :skip_errors, false), else: opts
     end)
     |> then(fn opts ->
       if opts[:hide_errors], do: Keyword.put(opts, :show_errors, false), else: opts
     end)
-    |> parse_string_arg(args, "--checkpoint", :checkpoint)
-    |> parse_int_arg(args, "--player", :player_port)
-    |> parse_atom_arg(args, "--train-character", :train_character, ctx[:valid_characters] || [])
-    |> parse_flag(args, "--select-character-port", :select_character_port)
-    |> parse_flag(args, "--dual-port", :dual_port)
-    |> parse_flag(args, "--balance-characters", :balance_characters)
-    |> parse_flag(args, "--wandb", :wandb)
-    |> parse_string_arg(args, "--wandb-project", :wandb_project)
-    |> parse_string_arg(args, "--wandb-name", :wandb_name)
-    |> parse_flag(args, "--temporal", :temporal)
-    |> parse_atom_arg(args, "--backbone", :backbone, (ctx[:valid_backbones] || []) ++ [:mlp])
     # Policy type options
-    |> parse_atom_arg(args, "--policy-type", :policy_type, ctx[:valid_policy_types] || [:autoregressive])
-    |> parse_atom_arg(args, "--head", :head, ctx[:valid_heads] || [:independent, :autoregressive])
-    |> parse_int_arg(args, "--action-horizon", :action_horizon)
-    |> parse_int_arg(args, "--num-inference-steps", :num_inference_steps)
-    |> parse_float_arg(args, "--kl-weight", :kl_weight)
-    |> parse_int_arg(args, "--window-size", :window_size)
-    |> parse_int_arg(args, "--stride", :stride)
-    |> parse_int_arg(args, "--num-layers", :num_layers)
-    |> parse_int_arg(args, "--attention-every", :attention_every)
     # Jamba stability options
-    |> parse_flag(args, "--pre-norm", :pre_norm)
-    |> parse_flag(args, "--no-pre-norm", :no_pre_norm)
     |> then(fn opts ->
       if opts[:no_pre_norm], do: Keyword.put(opts, :pre_norm, false), else: opts
     end)
-    |> parse_flag(args, "--qk-layernorm", :qk_layernorm)
-    |> parse_flag(args, "--no-qk-layernorm", :no_qk_layernorm)
     |> then(fn opts ->
       if opts[:no_qk_layernorm], do: Keyword.put(opts, :qk_layernorm, false), else: opts
     end)
     # Chunked attention
-    |> parse_flag(args, "--chunked-attention", :chunked_attention)
-    |> parse_flag(args, "--no-chunked-attention", :no_chunked_attention)
     |> then(fn opts ->
       if opts[:no_chunked_attention], do: Keyword.put(opts, :chunked_attention, false), else: opts
     end)
-    |> parse_int_arg(args, "--chunk-size", :chunk_size)
     # Memory-efficient attention
-    |> parse_flag(args, "--memory-efficient-attention", :memory_efficient_attention)
-    |> parse_flag(args, "--no-memory-efficient-attention", :no_memory_efficient_attention)
     |> then(fn opts ->
       if opts[:no_memory_efficient_attention],
         do: Keyword.put(opts, :memory_efficient_attention, false),
         else: opts
     end)
     # FlashAttention NIF
-    |> parse_flag(args, "--flash-attention-nif", :flash_attention_nif)
-    |> parse_flag(args, "--no-flash-attention-nif", :no_flash_attention_nif)
     |> then(fn opts ->
       if opts[:no_flash_attention_nif],
         do: Keyword.put(opts, :flash_attention_nif, false),
         else: opts
     end)
-    |> parse_int_arg(args, "--state-size", :state_size)
-    |> parse_int_arg(args, "--expand-factor", :expand_factor)
-    |> parse_int_arg(args, "--conv-size", :conv_size)
-    |> parse_optional_int_arg(args, "--truncate-bptt", :truncate_bptt)
-    |> parse_flag(args, "--bptt", :bptt)
-    |> parse_int_arg(args, "--unroll", :unroll)
-    |> parse_int_arg(args, "--bptt-overlap", :bptt_overlap)
-    |> parse_int_arg(args, "--bptt-val-files", :bptt_val_files)
     |> parse_precision_arg(args)
-    |> parse_flag(args, "--mixed-precision", :mixed_precision)
-    |> parse_int_arg(args, "--frame-delay", :frame_delay)
-    |> parse_flag(args, "--frame-delay-augment", :frame_delay_augment)
-    |> parse_int_arg(args, "--frame-delay-min", :frame_delay_min)
-    |> parse_int_arg(args, "--frame-delay-max", :frame_delay_max)
     |> parse_online_robust_flag(args)
-    |> parse_flag(args, "--stage-internals", :stage_internals)
-    |> parse_flag(args, "--early-stopping", :early_stopping)
-    |> parse_int_arg(args, "--patience", :patience)
-    |> parse_float_arg(args, "--min-delta", :min_delta)
-    |> parse_flag(args, "--save-best", :save_best)
-    |> parse_optional_int_arg(args, "--save-every", :save_every)
-    |> parse_optional_int_arg(args, "--save-every-batches", :save_every_batches)
-    |> parse_float_arg(args, "--lr", :learning_rate)
-    |> parse_float_arg(args, "--learning-rate", :learning_rate)
-    |> parse_atom_arg(args, "--lr-schedule", :lr_schedule, ctx[:valid_lr_schedules] || [])
-    |> parse_optional_int_arg(args, "--warmup-steps", :warmup_steps)
-    |> parse_optional_int_arg(args, "--decay-steps", :decay_steps)
-    |> parse_int_arg(args, "--restart-period", :restart_period)
-    |> parse_float_arg(args, "--restart-mult", :restart_mult)
-    |> parse_float_arg(args, "--max-grad-norm", :max_grad_norm)
-    |> parse_string_arg(args, "--resume", :resume)
-    |> parse_flag(args, "--reinit-head", :reinit_head)
-    |> parse_string_arg(args, "--name", :name)
-    |> parse_int_arg(args, "--accumulation-steps", :accumulation_steps)
-    |> parse_float_arg(args, "--val-split", :val_split)
-    |> parse_flag(args, "--augment", :augment)
-    |> parse_float_arg(args, "--mirror-prob", :mirror_prob)
-    |> parse_float_arg(args, "--noise-prob", :noise_prob)
-    |> parse_float_arg(args, "--noise-scale", :noise_scale)
-    |> parse_float_arg(args, "--label-smoothing", :label_smoothing)
-    |> parse_float_arg(args, "--dropout", :dropout)
-    |> parse_flag(args, "--focal-loss", :focal_loss)
-    |> parse_flag(args, "--prev-action", :use_prev_action)
-    |> parse_neg_flag(args, "--no-prev-action", :use_prev_action)
-    |> parse_float_arg(args, "--prev-action-dropout", :prev_action_dropout)
-    |> parse_float_arg(args, "--scheduled-sampling", :scheduled_sampling)
-    |> parse_int_arg(args, "--ss-ramp", :ss_ramp)
-    |> parse_string_arg(args, "--mix-frames", :mix_frames)
-    |> parse_string_arg(args, "--mix-corpus", :mix_corpus)
-    |> parse_int_arg(args, "--mix-oversample", :mix_oversample)
-    |> parse_flag(args, "--per-stage-ledge", :per_stage_ledge)
-    |> parse_int_arg(args, "--action-delay", :action_delay)
-    |> parse_neg_flag(args, "--no-focal-loss", :focal_loss)
-    |> parse_float_arg(args, "--focal-gamma", :focal_gamma)
-    |> parse_float_arg(args, "--button-weight", :button_weight)
     |> parse_button_pos_weight(args)
-    |> parse_float_arg(args, "--stick-edge-weight", :stick_edge_weight)
-    |> parse_float_arg(args, "--entropy-weight", :entropy_weight)
-    |> parse_float_arg(args, "--neutral-weight", :neutral_weight)
-    |> parse_flag(args, "--awbc", :awbc)
-    |> parse_atom_arg(args, "--awbc-reward", :awbc_reward, [:shine, :standard])
-    |> parse_float_arg(args, "--awbc-beta", :awbc_beta)
-    |> parse_flag(args, "--awbc-shuffle", :awbc_shuffle)
-    |> parse_flag(args, "--head-normalize", :head_normalize)
-    |> parse_neg_flag(args, "--no-head-normalize", :head_normalize)
-    |> parse_float_arg(args, "--action-oversample", :action_oversample)
-    |> parse_flag(args, "--lazy-sequences", :lazy_sequences)
-    |> parse_flag(args, "--use-batch", :use_batch)
-    |> parse_flag(args, "--no-register", :no_register)
-    |> parse_optional_int_arg(args, "--keep-best", :keep_best)
-    |> parse_flag(args, "--ema", :ema)
-    |> parse_float_arg(args, "--ema-decay", :ema_decay)
-    |> parse_flag(args, "--precompute", :precompute)
-    |> parse_flag(args, "--no-precompute", :no_precompute)
-    |> parse_flag(args, "--cache-embeddings", :cache_embeddings)
-    |> parse_flag(args, "--no-cache", :no_cache)
-    |> parse_string_arg(args, "--cache-dir", :cache_dir)
-    |> parse_flag(args, "--cache-augmented", :cache_augmented)
-    |> parse_int_arg(args, "--num-noisy-variants", :num_noisy_variants)
-    |> parse_flag(args, "--prefetch", :prefetch)
-    |> parse_flag(args, "--no-prefetch", :no_prefetch)
-    |> parse_flag(args, "--gradient-checkpoint", :gradient_checkpoint)
-    |> parse_int_arg(args, "--checkpoint-every", :checkpoint_every)
     |> then(fn opts ->
       if opts[:no_prefetch], do: Keyword.put(opts, :prefetch, false), else: opts
     end)
     |> then(fn opts ->
       if opts[:no_precompute], do: Keyword.put(opts, :precompute, false), else: opts
     end)
-    |> parse_int_arg(args, "--prefetch-buffer", :prefetch_buffer)
-    |> parse_flag(args, "--layer-norm", :layer_norm)
-    |> parse_flag(args, "--no-layer-norm", :no_layer_norm)
     |> then(fn opts ->
       if opts[:no_layer_norm], do: Keyword.put(opts, :layer_norm, false), else: opts
     end)
-    |> parse_flag(args, "--residual", :residual)
-    |> parse_flag(args, "--no-residual", :no_residual)
     |> then(fn opts ->
       if opts[:no_residual], do: Keyword.put(opts, :residual, false), else: opts
     end)
-    |> parse_atom_arg(args, "--optimizer", :optimizer, ctx[:valid_optimizers] || [])
-    |> parse_flag(args, "--dry-run", :dry_run)
-    |> parse_atom_list_arg(args, "--character", :characters, ctx[:valid_characters] || [])
-    |> parse_atom_list_arg(args, "--characters", :characters, ctx[:valid_characters] || [])
-    |> parse_atom_list_arg(args, "--stage", :stages, ctx[:valid_stages] || [])
-    |> parse_atom_list_arg(args, "--stages", :stages, ctx[:valid_stages] || [])
-    |> parse_string_arg(args, "--kmeans-centers", :kmeans_centers)
-    |> parse_optional_int_arg(args, "--stream-chunk-size", :stream_chunk_size)
-    |> parse_flag(args, "--pipeline-chunks", :pipeline_chunks)
-    |> parse_flag(args, "--no-pipeline-chunks", :no_pipeline_chunks)
     |> then(fn opts ->
       if opts[:no_pipeline_chunks], do: Keyword.put(opts, :pipeline_chunks, false), else: opts
     end)
-    |> parse_flag(args, "--cache-streaming", :cache_streaming)
-    |> parse_flag(args, "--no-cache-streaming", :no_cache_streaming)
     |> then(fn opts ->
       if opts[:no_cache_streaming], do: Keyword.put(opts, :cache_streaming, false), else: opts
     end)
@@ -343,43 +205,18 @@ defmodule ExPhil.Training.Config.Parser do
     |> parse_character_mode_arg(args)
     |> parse_nana_mode_arg(args)
     |> parse_jumps_normalized_arg(args)
-    |> parse_optional_int_arg(args, "--num-player-names", :num_player_names)
     # Player style learning
-    |> parse_flag(args, "--learn-player-styles", :learn_player_styles)
-    |> parse_flag(args, "--no-learn-player-styles", :no_learn_player_styles)
-    |> parse_string_arg(args, "--player-registry", :player_registry)
-    |> parse_optional_int_arg(args, "--min-player-games", :min_player_games)
     # Verbosity control
     |> parse_verbosity_flags(args)
-    |> parse_optional_int_arg(args, "--log-interval", :log_interval)
     # Reproducibility
-    |> parse_optional_int_arg(args, "--seed", :seed)
     # Checkpoint safety
-    |> parse_flag(args, "--overwrite", :overwrite)
-    |> parse_flag(args, "--no-overwrite", :no_overwrite)
-    |> parse_flag(args, "--backup", :backup)
-    |> parse_flag(args, "--no-backup", :no_backup)
-    |> parse_optional_int_arg(args, "--backup-count", :backup_count)
     # Duplicate detection
-    |> parse_flag(args, "--skip-duplicates", :skip_duplicates)
-    |> parse_flag(args, "--no-skip-duplicates", :no_skip_duplicates)
     # Replay quality filtering
-    |> parse_optional_int_arg(args, "--min-quality", :min_quality)
-    |> parse_flag(args, "--show-quality-stats", :show_quality_stats)
     # Memory management
-    |> parse_optional_int_arg(args, "--gc-every", :gc_every)
     # Profiling
-    |> parse_flag(args, "--profile", :profile)
     # Parallel validation
-    |> parse_optional_int_arg(args, "--val-concurrency", :val_concurrency)
     # Memory-mapped embeddings
-    |> parse_flag_or_string(args, "--mmap-embeddings", :mmap_embeddings)
-    |> parse_string_arg(args, "--mmap-path", :mmap_path)
     # Batch size auto-tuning
-    |> parse_flag(args, "--auto-batch-size", :auto_batch_size)
-    |> parse_optional_int_arg(args, "--auto-batch-min", :auto_batch_min)
-    |> parse_optional_int_arg(args, "--auto-batch-max", :auto_batch_max)
-    |> parse_float_arg(args, "--auto-batch-backoff", :auto_batch_backoff)
     |> then(fn opts ->
       if opts[:no_overwrite], do: Keyword.put(opts, :overwrite, false), else: opts
     end)
@@ -420,6 +257,229 @@ defmodule ExPhil.Training.Config.Parser do
       idx -> Enum.at(args, idx + 1) != nil
     end
   end
+
+
+  # ---------------------------------------------------------------------------
+  # INVARIANTS.md item 2 (phase B, 2026-09-09): THE flag table. Every simple
+  # flag is a row here; `apply_flag_table/3` is the only code that parses
+  # them, and `Config.@valid_flags` is DERIVED from `flags/0` — so a flag
+  # that is accepted but not parsed (the --num-heads bug) or parsed but
+  # rejected (the mode aliases) cannot be written. Multi-key steps
+  # (hidden sizes, precision, modes, button pos-weight, verbosity, preset,
+  # config) stay explicit below and are listed in @special_flags.
+  # Types: :int :float :string :optional_int :flag :neg_flag
+  #        :flag_or_string {:atom, allowed | {:ctx, key, default}}
+  #        {:atom_list, {:ctx, key, default}}
+  # ---------------------------------------------------------------------------
+  @flag_table [
+    {"--replays", :replays, :string},
+    {"--replay-dir", :replays, :string},
+    {"--corpus", :corpus, :string},
+    {"--epochs", :epochs, :int},
+    {"--batch-size", :batch_size, :int},
+    {"--max-files", :max_files, :optional_int},
+    {"--skip-errors", :skip_errors, :flag},
+    {"--fail-fast", :fail_fast, :flag},
+    {"--show-errors", :show_errors, :flag},
+    {"--hide-errors", :hide_errors, :flag},
+    {"--error-log", :error_log, :string},
+    {"--checkpoint", :checkpoint, :string},
+    {"--player", :player_port, :int},
+    {"--train-character", :train_character, {:atom, {:ctx, :valid_characters, []}}},
+    {"--select-character-port", :select_character_port, :flag},
+    {"--dual-port", :dual_port, :flag},
+    {"--balance-characters", :balance_characters, :flag},
+    {"--wandb", :wandb, :flag},
+    {"--wandb-project", :wandb_project, :string},
+    {"--wandb-name", :wandb_name, :string},
+    {"--temporal", :temporal, :flag},
+    {"--backbone", :backbone, {:atom, {:ctx_plus, :valid_backbones, [:mlp]}}},
+    {"--policy-type", :policy_type, {:atom, {:ctx, :valid_policy_types, [:autoregressive]}}},
+    {"--head", :head, {:atom, {:ctx, :valid_heads, [:independent, :autoregressive]}}},
+    {"--action-horizon", :action_horizon, :int},
+    {"--num-inference-steps", :num_inference_steps, :int},
+    {"--kl-weight", :kl_weight, :float},
+    {"--window-size", :window_size, :int},
+    {"--stride", :stride, :int},
+    {"--num-layers", :num_layers, :int},
+    {"--attention-every", :attention_every, :int},
+    {"--pre-norm", :pre_norm, :flag},
+    {"--no-pre-norm", :no_pre_norm, :flag},
+    {"--qk-layernorm", :qk_layernorm, :flag},
+    {"--no-qk-layernorm", :no_qk_layernorm, :flag},
+    {"--chunked-attention", :chunked_attention, :flag},
+    {"--no-chunked-attention", :no_chunked_attention, :flag},
+    {"--chunk-size", :chunk_size, :int},
+    {"--memory-efficient-attention", :memory_efficient_attention, :flag},
+    {"--no-memory-efficient-attention", :no_memory_efficient_attention, :flag},
+    {"--flash-attention-nif", :flash_attention_nif, :flag},
+    {"--no-flash-attention-nif", :no_flash_attention_nif, :flag},
+    {"--state-size", :state_size, :int},
+    {"--expand-factor", :expand_factor, :int},
+    {"--conv-size", :conv_size, :int},
+    {"--truncate-bptt", :truncate_bptt, :optional_int},
+    {"--bptt", :bptt, :flag},
+    {"--unroll", :unroll, :int},
+    {"--bptt-overlap", :bptt_overlap, :int},
+    {"--bptt-val-files", :bptt_val_files, :int},
+    {"--mixed-precision", :mixed_precision, :flag},
+    {"--frame-delay", :frame_delay, :int},
+    {"--num-heads", :num_heads, :int},
+    {"--head-dim", :head_dim, :int},
+    {"--log-file", :log_file, :string},
+    {"--frame-delay-augment", :frame_delay_augment, :flag},
+    {"--frame-delay-min", :frame_delay_min, :int},
+    {"--frame-delay-max", :frame_delay_max, :int},
+    {"--stage-internals", :stage_internals, :flag},
+    {"--early-stopping", :early_stopping, :flag},
+    {"--patience", :patience, :int},
+    {"--min-delta", :min_delta, :float},
+    {"--save-best", :save_best, :flag},
+    {"--save-every", :save_every, :optional_int},
+    {"--save-every-batches", :save_every_batches, :optional_int},
+    {"--lr", :learning_rate, :float},
+    {"--learning-rate", :learning_rate, :float},
+    {"--lr-schedule", :lr_schedule, {:atom, {:ctx, :valid_lr_schedules, []}}},
+    {"--warmup-steps", :warmup_steps, :optional_int},
+    {"--decay-steps", :decay_steps, :optional_int},
+    {"--restart-period", :restart_period, :int},
+    {"--restart-mult", :restart_mult, :float},
+    {"--max-grad-norm", :max_grad_norm, :float},
+    {"--resume", :resume, :string},
+    {"--reinit-head", :reinit_head, :flag},
+    {"--name", :name, :string},
+    {"--accumulation-steps", :accumulation_steps, :int},
+    {"--val-split", :val_split, :float},
+    {"--augment", :augment, :flag},
+    {"--mirror-prob", :mirror_prob, :float},
+    {"--noise-prob", :noise_prob, :float},
+    {"--noise-scale", :noise_scale, :float},
+    {"--label-smoothing", :label_smoothing, :float},
+    {"--dropout", :dropout, :float},
+    {"--focal-loss", :focal_loss, :flag},
+    {"--prev-action", :use_prev_action, :flag},
+    {"--no-prev-action", :use_prev_action, :neg_flag},
+    {"--prev-action-dropout", :prev_action_dropout, :float},
+    {"--scheduled-sampling", :scheduled_sampling, :float},
+    {"--ss-ramp", :ss_ramp, :int},
+    {"--mix-frames", :mix_frames, :string},
+    {"--mix-corpus", :mix_corpus, :string},
+    {"--mix-oversample", :mix_oversample, :int},
+    {"--per-stage-ledge", :per_stage_ledge, :flag},
+    {"--action-delay", :action_delay, :int},
+    {"--no-focal-loss", :focal_loss, :neg_flag},
+    {"--focal-gamma", :focal_gamma, :float},
+    {"--button-weight", :button_weight, :float},
+    {"--stick-edge-weight", :stick_edge_weight, :float},
+    {"--entropy-weight", :entropy_weight, :float},
+    {"--neutral-weight", :neutral_weight, :float},
+    {"--transition-weight", :transition_weight, :float},
+    {"--offstage-weight", :offstage_weight, :float},
+    {"--awbc", :awbc, :flag},
+    {"--awbc-reward", :awbc_reward, {:atom, [:shine, :standard]}},
+    {"--awbc-beta", :awbc_beta, :float},
+    {"--awbc-shuffle", :awbc_shuffle, :flag},
+    {"--head-normalize", :head_normalize, :flag},
+    {"--no-head-normalize", :head_normalize, :neg_flag},
+    {"--action-oversample", :action_oversample, :float},
+    {"--lazy-sequences", :lazy_sequences, :flag},
+    {"--use-batch", :use_batch, :flag},
+    {"--no-register", :no_register, :flag},
+    {"--keep-best", :keep_best, :optional_int},
+    {"--ema", :ema, :flag},
+    {"--ema-decay", :ema_decay, :float},
+    {"--precompute", :precompute, :flag},
+    {"--no-precompute", :no_precompute, :flag},
+    {"--cache-embeddings", :cache_embeddings, :flag},
+    {"--no-cache", :no_cache, :flag},
+    {"--cache-dir", :cache_dir, :string},
+    {"--cache-augmented", :cache_augmented, :flag},
+    {"--num-noisy-variants", :num_noisy_variants, :int},
+    {"--prefetch", :prefetch, :flag},
+    {"--no-prefetch", :no_prefetch, :flag},
+    {"--gradient-checkpoint", :gradient_checkpoint, :flag},
+    {"--checkpoint-every", :checkpoint_every, :int},
+    {"--prefetch-buffer", :prefetch_buffer, :int},
+    {"--layer-norm", :layer_norm, :flag},
+    {"--no-layer-norm", :no_layer_norm, :flag},
+    {"--residual", :residual, :flag},
+    {"--no-residual", :no_residual, :flag},
+    {"--optimizer", :optimizer, {:atom, {:ctx, :valid_optimizers, []}}},
+    {"--dry-run", :dry_run, :flag},
+    {"--character", :characters, {:atom_list, {:ctx, :valid_characters, []}}},
+    {"--characters", :characters, {:atom_list, {:ctx, :valid_characters, []}}},
+    {"--stage", :stages, {:atom_list, {:ctx, :valid_stages, []}}},
+    {"--stages", :stages, {:atom_list, {:ctx, :valid_stages, []}}},
+    {"--kmeans-centers", :kmeans_centers, :string},
+    {"--stream-chunk-size", :stream_chunk_size, :optional_int},
+    {"--pipeline-chunks", :pipeline_chunks, :flag},
+    {"--no-pipeline-chunks", :no_pipeline_chunks, :flag},
+    {"--cache-streaming", :cache_streaming, :flag},
+    {"--no-cache-streaming", :no_cache_streaming, :flag},
+    {"--num-player-names", :num_player_names, :optional_int},
+    {"--learn-player-styles", :learn_player_styles, :flag},
+    {"--no-learn-player-styles", :no_learn_player_styles, :flag},
+    {"--player-registry", :player_registry, :string},
+    {"--min-player-games", :min_player_games, :optional_int},
+    {"--log-interval", :log_interval, :optional_int},
+    {"--seed", :seed, :optional_int},
+    {"--overwrite", :overwrite, :flag},
+    {"--no-overwrite", :no_overwrite, :flag},
+    {"--backup", :backup, :flag},
+    {"--no-backup", :no_backup, :flag},
+    {"--backup-count", :backup_count, :optional_int},
+    {"--skip-duplicates", :skip_duplicates, :flag},
+    {"--no-skip-duplicates", :no_skip_duplicates, :flag},
+    {"--min-quality", :min_quality, :optional_int},
+    {"--show-quality-stats", :show_quality_stats, :flag},
+    {"--gc-every", :gc_every, :optional_int},
+    {"--profile", :profile, :flag},
+    {"--val-concurrency", :val_concurrency, :optional_int},
+    {"--mmap-embeddings", :mmap_embeddings, :flag_or_string},
+    {"--mmap-path", :mmap_path, :string},
+    {"--auto-batch-size", :auto_batch_size, :flag},
+    {"--auto-batch-min", :auto_batch_min, :optional_int},
+    {"--auto-batch-max", :auto_batch_max, :optional_int},
+    {"--auto-batch-backoff", :auto_batch_backoff, :float},
+  ]
+
+  @special_flags ~w(
+    --preset --config --verbose --quiet
+    --hidden-sizes --precision --online-robust --button-pos-weight
+    --stage-mode --stage-mode-full --stage-mode-compact --stage-mode-learned
+    --action-mode --action-mode-one-hot --action-mode-learned
+    --character-mode --character-mode-one-hot --character-mode-learned
+    --nana-mode --jumps-normalized --no-jumps-normalized
+  )
+
+  @doc "Every flag the parser handles: the table plus the explicit multi-key steps."
+  @spec flags() :: [String.t()]
+  def flags, do: Enum.map(@flag_table, &elem(&1, 0)) ++ @special_flags
+
+  @doc "Keys the table writes (for defaults parity)."
+  @spec table_keys() :: [atom()]
+  def table_keys, do: Enum.map(@flag_table, &elem(&1, 1))
+
+  @doc false
+  def flag_table, do: @flag_table
+
+  defp apply_flag_table(opts, args, ctx) do
+    Enum.reduce(@flag_table, opts, fn
+      {flag, key, :int}, acc -> parse_int_arg(acc, args, flag, key)
+      {flag, key, :float}, acc -> parse_float_arg(acc, args, flag, key)
+      {flag, key, :string}, acc -> parse_string_arg(acc, args, flag, key)
+      {flag, key, :optional_int}, acc -> parse_optional_int_arg(acc, args, flag, key)
+      {flag, key, :flag}, acc -> parse_flag(acc, args, flag, key)
+      {flag, key, :neg_flag}, acc -> parse_neg_flag(acc, args, flag, key)
+      {flag, key, :flag_or_string}, acc -> parse_flag_or_string(acc, args, flag, key)
+      {flag, key, {:atom, allowed}}, acc -> parse_atom_arg(acc, args, flag, key, resolve_allowed(allowed, ctx))
+      {flag, key, {:atom_list, allowed}}, acc -> parse_atom_list_arg(acc, args, flag, key, resolve_allowed(allowed, ctx))
+    end)
+  end
+
+  defp resolve_allowed({:ctx, key, default}, ctx), do: ctx[key] || default
+  defp resolve_allowed({:ctx_plus, key, extra}, ctx), do: (ctx[key] || []) ++ extra
+  defp resolve_allowed(list, _ctx) when is_list(list), do: list
 
   defp parse_string_arg(opts, args, flag, key) do
     case get_arg_value(args, flag) do

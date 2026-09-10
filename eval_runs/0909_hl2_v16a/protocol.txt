@@ -1,0 +1,2 @@
+policy=checkpoints/fox_gen_v16a_cleanloss_20260905_183735_best_policy.bin runner=async runs=2 seconds=150 dummy=cpu server=0 decode=--temperature 1.0 loadavg=2.09 2.04 2.04
+fixture_agreement: unavailable

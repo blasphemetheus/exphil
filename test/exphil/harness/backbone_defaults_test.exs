@@ -57,9 +57,10 @@ defmodule ExPhil.Harness.BackboneDefaultsTest do
         refute typo in Config.valid_backbones(),
                "#{inspect(typo)} is not a real backbone atom"
 
-        assert Config.backbone_defaults(typo) in [nil, []],
-               "#{inspect(typo)} should have no defaults clause — it is a typo of a real " <>
-                 "backbone, and a clause under it can never match the dispatcher."
+        # Since 2026-09-09 (INVARIANTS.md item 3 phase B) defaults are a spec
+        # map: a typo atom has no row and backbone_defaults/1 RAISES — the
+        # strongest form of "this is not a backbone".
+        assert_raise ArgumentError, fn -> Config.backbone_defaults(typo) end
       end
     end
 

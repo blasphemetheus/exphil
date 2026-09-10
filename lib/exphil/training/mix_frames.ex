@@ -63,13 +63,25 @@ defmodule ExPhil.Training.MixFrames do
     with {:ok, binary} <- File.read(path),
          %{frame_lists: frame_lists} = payload <-
            :erlang.binary_to_term(binary) do
-      export_delay = payload[:action_delay] || 0
+      # INVARIANTS.md item 1: compare in REACTION terms. Files exported
+      # before the causal rebase carry no :label_convention and counted
+      # their delay in the legacy producing convention (reaction = d - 1).
+      export_reaction = ExPhil.Data.LabelConvention.reaction_delay(payload)
 
-      if export_delay != delay do
+      if ExPhil.Data.LabelConvention.of(payload) == :producing do
         Logger.warning(
-          "[MixFrames] #{Path.basename(path)} exported at action_delay=#{export_delay} " <>
+          "[MixFrames] #{Path.basename(path)} predates the causal label rebase " <>
+            "(legacy action_delay=#{payload[:action_delay] || 0} = reaction delay #{export_reaction}); " <>
+            "its frames were built on producing-convention pairs — re-export with " <>
+            "scripts/export_drill_frames.exs to get causal frames"
+        )
+      end
+
+      if export_reaction != delay do
+        Logger.warning(
+          "[MixFrames] #{Path.basename(path)} exported at reaction delay #{export_reaction} " <>
             "but training uses #{delay} — the :prev_controller channel is misaligned " <>
-            "by #{abs(export_delay - delay)} frame(s); re-export with --action-delay #{delay}"
+            "by #{abs(export_reaction - delay)} frame(s); re-export with --action-delay #{delay}"
         )
       end
 

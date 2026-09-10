@@ -3,9 +3,14 @@ defmodule ExPhil.Agents.MultishineExpert do
   Scripted multishine expert for DAgger-style relabeling.
 
   Labels any Fox state with the controller input a perfect multishiner would
-  have recorded on that frame, under the replay convention (inputs recorded on
-  the frame they LAND) so labels compose with `Data.shift_actions/2` exactly
-  like human replay data.
+  ISSUE from that state (the input that lands on the next frame) — the
+  causal convention `Peppi.to_training_frames/2` emits since 2026-09-09
+  (INVARIANTS.md item 1), so labels compose with `Data.shift_actions/2`
+  exactly like human replay data. Before the rebase the table held the
+  input recorded ON the frame (the one that produced it); with the drill's
+  `--action-delay` renumbered (old 2 == new 1) the composed labels are
+  identical, and the recovery rules already answered "what to press from
+  here".
 
   Two layers:
 
@@ -92,7 +97,7 @@ defmodule ExPhil.Agents.MultishineExpert do
   end
 
   @doc """
-  Label a player state with the expert's controller input (landing convention).
+  Label a player state with the input the expert would issue from it (causal convention).
 
   `prev` is the input that actually landed on the previous frame (for DAgger
   rollouts: the policy's own press, the same value fed to the prev-action

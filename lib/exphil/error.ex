@@ -954,7 +954,7 @@ defmodule ExPhil.Error do
 
     defexception [:reason, :model_id, :context, :message]
 
-    @type reason :: :not_found | :missing_required_field | :no_models_with_metric | :write_failed
+    @type reason :: :not_found | :missing_required_field | :no_models_with_metric | :incomparable | :write_failed
 
     @type t :: %__MODULE__{
             reason: reason(),
@@ -970,6 +970,7 @@ defmodule ExPhil.Error do
           :not_found -> "Model not found in registry"
           :missing_required_field -> "Missing required field"
           :no_models_with_metric -> "No models with requested metric"
+          :incomparable -> "Checkpoints are not comparable (label delay / embed canary / loss recipe / train delays differ)"
           :write_failed -> "Failed to write registry"
         end
 

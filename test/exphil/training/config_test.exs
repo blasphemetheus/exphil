@@ -424,7 +424,10 @@ defmodule ExPhil.Training.ConfigTest do
       assert defaults[:window_size] == 60
       # FP32 is default - BF16 is 2x slower on RTX 4090 due to XLA issues
       assert defaults[:precision] == :f32
+      # INVARIANTS.md item 1: 0 = the causal pairing (reaction delay on top
+      # of what Peppi emits); the leaked pairing is unrepresentable.
       assert defaults[:frame_delay] == 0
+      assert defaults[:action_delay] == 0
       assert defaults[:checkpoint] == nil
       assert defaults[:max_files] == nil
     end

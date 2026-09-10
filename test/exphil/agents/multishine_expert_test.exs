@@ -36,30 +36,35 @@ defmodule ExPhil.Agents.MultishineExpertTest do
       end
     end
 
-    test "jumpsquat af0 = the jump-cancel landing, with B still held", %{expert: expert} do
-      # af0 is the frame the JC input LANDS on. B is held here (not just X):
-      # releasing B would end the reflector before the jump-cancel takes, and
-      # the fresh B edge the airborne shine needs is armed by the RELEASE on
-      # jumpsquat af 1-2 instead. (Pre-2026-07-24 fixtures had B false here,
-      # from a teacher that could not chain.)
-      {:ok, c} = MultishineExpert.label(expert, player(24, 0, true))
+    # Table entries are CAUSAL since 2026-09-09 (INVARIANTS.md item 1): the
+    # value under a state key is the input ISSUED from that state (what
+    # lands on the next frame), not the input that produced it. Every
+    # expectation below is the pre-rebase one moved one key earlier.
+
+    test "the last ground-reflector frame issues the jump-cancel, with B still held", %{expert: expert} do
+      # X is pressed here so the JC lands on jumpsquat af0. B stays held:
+      # releasing B would end the reflector before the jump-cancel takes;
+      # the fresh B edge the airborne shine needs is armed by the RELEASE
+      # issued on jumpsquat af0-1 instead. (Pre-2026-07-24 fixtures had B
+      # false here, from a teacher that could not chain.)
+      {:ok, c} = MultishineExpert.label(expert, player(361, 2, true))
       assert c.button_x
       assert c.button_b
       assert c.main_stick.y < 0.25
     end
 
-    test "jumpsquat af1/af2 release B to arm the airborne-frame-1 shine", %{expert: expert} do
-      # The two frames that make the technique work: B down here, so the
-      # press decided on the last jumpsquat frame lands as a fresh edge on
+    test "jumpsquat af0/af1 release B to arm the airborne-frame-1 shine", %{expert: expert} do
+      # The two frames that make the technique work: B released here, so the
+      # press issued on the last jumpsquat frame lands as a fresh edge on
       # airborne frame 1 (see GOTCHAS #80).
-      for af <- [1, 2] do
+      for af <- [0, 1] do
         {:ok, c} = MultishineExpert.label(expert, player(24, af, true))
         refute c.button_b, "expected B released at jumpsquat af#{af}"
       end
     end
 
-    test "aerial shine start = down-B landing", %{expert: expert} do
-      {:ok, c} = MultishineExpert.label(expert, player(365, 1, false))
+    test "the last jumpsquat frame issues the down-B that lands on aerial shine af1", %{expert: expert} do
+      {:ok, c} = MultishineExpert.label(expert, player(24, 2, true))
       assert c.button_b
       assert c.main_stick.y < 0.25
     end

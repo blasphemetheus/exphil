@@ -264,11 +264,34 @@ defmodule ExPhil.Training.Registry do
           get_in(m, [:metrics, metric_key]) != nil
         end)
 
-      case models_with_metric do
-        [] ->
+      # INVARIANTS.md item 11: losses are only comparable across the same
+      # comparability key (label delay, embed canary, loss recipe, train
+      # delays). A delay-0 (leaked) val loss ranks above a causal one for a
+      # worse policy — so refuse mixed keys unless explicitly allowed.
+      comparability =
+        if Keyword.get(opts, :allow_incomparable, false) do
+          :ok
+        else
+          models_with_metric
+          |> Enum.map(fn m -> {Map.get(m, :name) || Map.get(m, :id), Map.get(m, :training_config) || %{}} end)
+          |> ExPhil.Training.Comparability.check()
+        end
+
+      case {models_with_metric, comparability} do
+        {[], _} ->
           {:error, RegistryError.new(:no_models_with_metric, context: %{metric: metric_key})}
 
-        _ ->
+        {_, {:error, groups}} ->
+          {:error,
+           RegistryError.new(:incomparable,
+             context: %{
+               metric: metric_key,
+               groups: Map.values(groups),
+               hint: "checkpoints differ in label_delay/canary/loss recipe/train_delays; pass allow_incomparable: true to rank anyway"
+             }
+           )}
+
+        {_, :ok} ->
           best =
             if minimize do
               Enum.min_by(models_with_metric, &get_in(&1, [:metrics, metric_key]))

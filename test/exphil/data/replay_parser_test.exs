@@ -38,6 +38,11 @@ defmodule ExPhil.Data.ReplayParserTest do
               button_r: false,
               button_d_up: false
             }
+          },
+          # successor frame: the causal pairing needs it (INVARIANTS.md item 1)
+          %{
+            game_state: %GameState{frame: 1, stage: 32, menu_state: 2, players: %{}, projectiles: [], distance: 50.0},
+            controller: %ControllerState{main_stick: %{x: 0.5, y: 0.5}, c_stick: %{x: 0.5, y: 0.5}}
           }
         ],
         metadata: %{path: "test.slp"}
@@ -351,13 +356,16 @@ defmodule ExPhil.Data.ReplayParserTest do
 
       frames = ReplayParser.to_training_frames(parsed)
 
-      assert length(frames) == 2
+      # Causal pairing (INVARIANTS.md item 1): frame 0 is labeled with the
+      # input ISSUED from it — frame 1's controller (button_b) — and the
+      # last frame is dropped. The same-frame (button_a) pairing is the
+      # leak and cannot be produced.
+      assert length(frames) == 1
 
-      [f1, f2] = frames
+      [f1] = frames
       assert f1.game_state.frame == 0
-      assert f1.controller.button_a == true
-      assert f2.game_state.frame == 1
-      assert f2.controller.button_b == true
+      assert f1.controller.button_b == true
+      refute f1.controller.button_a
     end
   end
 

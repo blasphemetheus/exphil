@@ -170,7 +170,11 @@ agent_opts =
     release_threshold: opts[:release_threshold],
     jump_debounce: opts[:jump_debounce],
     frame_delay: opts[:frame_delay],
-    delay_id: opts[:delay_id_override] || opts[:frame_delay] || 0,
+    # nil -> the Agent derives the id from the checkpoint's label
+    # convention + --frame-delay (ExPhil.Data.LabelConvention.delay_id/2):
+    # legacy checkpoints get id N, causal ones id N-1. An explicit
+    # --delay-id-override is used as given and bypasses the guard.
+    delay_id: opts[:delay_id_override],
     allow_untrained_delay_id: opts[:delay_id_override] != nil,
     ablate_prev_action: opts[:ablate_prev_action] || false,
     leace_eraser: opts[:leace_eraser],

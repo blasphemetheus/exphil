@@ -116,3 +116,6 @@ corpus/
 # Transient bracket/wait-run completion markers
 .bracket_done
 .sweep_done
+
+# Raw replay corpora moved root-side (63G, 2026-09): never in git
+/replays_root/
