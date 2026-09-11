@@ -221,6 +221,33 @@ the opponent is doing" — a methodology test. Corrections:
    CPU-dummy rollouts relabeled by the expert (the drill's own loop).
    First pool: Bradley's 0911 session + the CPU games from this readout.
 
+## 4g. g24a — first DAgger round on the failing states (09-11 04:30)
+
+g23a recipe + 9 rollouts (Bradley's session, 8 CPU games of ep57;
+expert corrected 63-75% of their frames vs ~59% on the old dummy
+rollouts). 698k frames, 60 ep, loss 0.0064 (ep59). **CPU gate** (async
+d3 id2, T=1.0, 2x90s, shines/min · max chain), same night, same gate:
+
+| snapshot | run 1 | run 2 |
+|---|---|---|
+| g23a ep57 (reference) | 49.3 · 3 | 56.3 · 2 |
+| g24a ep48 | 56.3 · 3 | 51.8 · 2 |
+| g24a ep53 | 62.1 · 3 | 56.9 · 8 |
+| **g24a ep55** | **71.1 · 13** | **68.5 · 8** |
+| g24a ep57 | 64.6 · 7 | 62.7 · 2 |
+| g24a ep59 | 57.6 · 4 | 65.3 · 5 |
+| g24a ep60 | 53.1 · 2 | 57.6 · 3 |
+
+Stand floor, ep55 (async d3 id2): 111.0/min c27 and 92.3/min c3 — vs
+g23a ep57's 296.5 c277. **Verdict: one round of DAgger on the failing
+states raised the moving-opponent number (+30% rate, chains 2-3 -> 8-13)
+and paid for it with the isolated technique (c277 -> c27).** A mixed
+pool with 9 new rollouts is a small step; the loop is designed to be
+iterated (rollouts from ep55 -> relabel -> retrain), and the two metrics
+must be gated together — the stand floor is the guard that the
+technique survives, the CPU number is the goal. Both are still far from
+"multishines most of the time no matter what" (a clean cycle is ~400/min).
+
 ## 5. Harness (GOTCHA #114)
 
 Every gate before 11:27 ran the NETPLAY AppImage headless (global
