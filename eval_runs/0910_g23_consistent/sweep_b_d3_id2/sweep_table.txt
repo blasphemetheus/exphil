@@ -1,0 +1,9 @@
+ep48: 114.8/min chain 7
+ep53: 129.8/min chain 12
+ep55: 112.8/min chain 5
+ep56: 55.9/min chain 3
+ep57: 26.0/min chain 3
+ep58: 98.9/min chain 5
+ep59: 140.8/min chain 59
+ep60: 111.8/min chain 20
+=== ARGMAX: checkpoints/ms_g23b_ep59.bin at 140.8/min

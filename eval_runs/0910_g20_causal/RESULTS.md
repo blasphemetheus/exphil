@@ -177,6 +177,21 @@ Control g23b (no snippets) launched 19:55.
 the Agent would derive 2 at d3 on its own). NO crown from stand numbers
 (g6 rule).
 
+## 4e. g23b (no snippets, control): best chain 59 — consistent snippets HELP
+
+Loss 0.057 (ep40), 0.010 (ep55), 3e-5 (ep57), 0.0036 (ep59), 0.069
+(ep60). Sweep d3 id2 T=1.0: ep48 114.8 c7, ep53 129.8 c12, ep55 112.8
+c5, ep56 55.9 c3, ep57 26.0 c3, ep58 98.9 c5, **ep59 140.8 c59**, ep60
+111.8 c20. Per-state (ep57): last aerial-reflector frame 0.96 (g23a
+0.98). Verdict: without the human snippets the recipe reaches chains in
+the tens; with them re-mined against the drill's own fixture it reaches
+game-long chains on 2 of 3 games. The snippets contribute, and only
+once their teacher agrees with the drill's. Both arms show epoch-to-
+epoch volatility at the end (ep56/57 collapse on b, ep59/60 on a):
+per-epoch snapshots + a sampled gate sweep are mandatory for selection.
+
+**Candidate: `checkpoints/ms_g23a_ep57.bin`** (d3, id 2, T=1.0).
+
 ## 5. Harness (GOTCHA #114)
 
 Every gate before 11:27 ran the NETPLAY AppImage headless (global
