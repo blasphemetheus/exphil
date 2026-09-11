@@ -1,0 +1,5 @@
+ep48: 89.9/min chain 1
+ep55: 95.9/min chain 1
+ep57: 91.9/min chain 1
+ep59: 91.9/min chain 1
+=== ARGMAX: checkpoints/ms_g22a_ep55.bin at 95.9/min

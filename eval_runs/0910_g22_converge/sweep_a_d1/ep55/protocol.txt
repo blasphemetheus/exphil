@@ -1,0 +1,2 @@
+policy=checkpoints/ms_g22a_ep55.bin runner=sync runs=1 seconds=60 dummy=stand server=0 decode=--temperature 1.0 loadavg=11.80 6.96 3.53
+fixture_agreement: [15:06:18] FIXTURE_AGREEMENT best=0.8884 offset=2 delay_id=0 n=1678

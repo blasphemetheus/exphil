@@ -97,6 +97,86 @@ and is unaffected. g20b ep13 is being re-gated at the true id 0.
   g19 late epochs; gate late at d3 id 3 against g19_ep58 (127/min c12)
   and at d1. Arm b adds --action-frame-buckets 24.
 
+## 4b. g22a (g20b recipe, full pool, 60 ep) — converged, sharp, chains 4-5
+
+Loss 0.039 (ep26) -> 0.0077 (ep56) -> **0.0036 (ep59)** -> 0.063 (ep60,
+a bounce: per-epoch snapshots matter). Gates (T=1.0, stand FD):
+
+| rung | id | epochs | shines/min | chain |
+|---|---|---|---|---|
+| d3 | 3 (WRONG: g19's "id3" is OLD numbering == new id 2) | 30..60 | 78-91 | 1-2 |
+| d1 | derived 0 | 48/55/57/59 | 90-96 | 1 |
+| d1 | 1 | 48/55/57/59 | 78-84 | 1-2 |
+| **d3** | **2 (= g19_ep58's rung)** | 55 / 59 | 104.9 / 105.9 | **5 / 4** |
+| d2 | 1 | 59 | 108.9 | 4 |
+
+g19_ep58 at the same rung: 126.8/min chain 12. Per-state (ep59, id 2):
+0.98-1.00 everywhere EXCEPT the two boundary frames — last aerial-
+reflector frame 0.93 and the ground-reflector release frame 0.94
+(reflector-open af0 0.05 is CORRECT at this offset: 4 frames on is the
+jumpsquat release). 0.93 x 0.94 x the rest ~ 0.8 per cycle -> chain ~5.
+Both soft spots are "which frame am I on" decisions -> arm g22b
+(`--action-frame-buckets 24`, launched 15:15) is the direct test.
+Rung law for the DRILL line, empirically: live d3 <-> new id 2 (offset
+4), live d2 <-> id 1 (offset 3): i.e. **live N <-> id N-1**, which is
+what the Agent derives for causal checkpoints. The d1/id0 chain-1
+results say the tight rung has a further problem (sync runner's
+effective delay = async+1, HANDOFF 07-28 — d1 sync may be below the
+harness floor); the local no-delay target should be re-read as "the
+tightest rung that chains", to be found by sweeping d1/d2 on g22b.
+
+## 4c. g22b (+ --action-frame-buckets 24): loss 5e-5, STILL chains 2-4
+
+Loss 0.0051 (ep55) -> **7e-5 (ep57)** -> 0.029 -> 0.0050 -> **5e-5
+(ep60)**: two orders below g22a. Gates (T=1.0): d3 id2 ep48-60 =
+101-113/min chain 2-4; d2 id1 97-108 c2-3; d1 id0 106-107 c2-3.
+Per-state (ep60, id2): 0.99-1.00 everywhere except the SAME two boundary
+frames: last aerial-reflector frame 0.95 (was 0.93), ground-reflector
+release 0.96 (was 0.94). A policy that fits its pool to 5e-5 and sits at
+0.95 on a fixture state = the POOL's labels at that state are a 95/5 mix.
+
+**Found the conflict:** `scripts/snippet_mine.exs` builds its expert
+table from `fox_multishine_closed.slp` (its default) while the drill's
+table comes from `fox_multishine_closed_d1.slp` — the "d1" fixture
+triggers one frame earlier (07-28). 12.5k snippet frames (2.5% of the
+pool, concentrated on exactly the boundary decisions) carried labels one
+frame off. This is true of TODAY'S arms AND of g19 (the 0804 snippets
+were mined the same way). So the residual 5% on the boundary frames is
+not resolution and not convergence — it is two teachers one frame apart.
+
+**g23** (`../0910_g23_consistent/run_g23.sh`, launched 17:39): g22b
+recipe with (a) snippets re-mined with the d1 fixture
+(`eval_runs/0910_snippets_human_causal_d1`), (b) NO snippets — the
+clean control. Read: boundary frames -> 0.99+ and chains in the tens.
+
+## 4d. g23a — THE FIRST SAMPLED MULTISHINER (19:50)
+
+g22b recipe (independent head, SS 0.5/10, clean loss, causal labels,
+4 rungs, `--action-frame-buckets 24`, 60 ep) with the snippets re-mined
+against the drill's own d1 fixture. Loss 0.0061 (ep40), 0.0042 (ep57),
+0.0067 (ep60). Sweep at d3 id2, T=1.0: ep48 121.8 c6, ep53 121.8 c6,
+ep55 100.9 c5, **ep57 436.4 c436**, ep59 106.9 c6, ep60 22.0 c2.
+**Confirmation ep57 d3 id2 x3 (T=1.0): 437.4 c438 / 110.8 c4 / 426.4
+c423.** Two of three games are game-long chains under SAMPLING; the
+third broke at chain 4 and did not re-enter. Per-state (ep57, id2):
+1.00 on eight of nine loop decisions, 0.98 on the last aerial-reflector
+frame and the ground-reflector release (were 0.93/0.94 on g22a). ep57 is
+a sharp snapshot (ep59/60 do not chain) — per-epoch snapshots + a
+sampled gate sweep remain mandatory. Other rungs: d2 id1 c2, d1 id0 c2
+— the tight rungs still do not chain (harness floor question, §4b).
+
+What it took, in order: gate under sampling (not argmax); independent
+head (AR releases B mid-air); train to convergence (60 ep, not 24);
+bucketized action frame (loss 5e-3 -> 5e-5); and remove the one-frame
+teacher conflict in the snippets (0.95 -> 0.98 on the boundary frames).
+Control g23b (no snippets) launched 19:55.
+
+**Deploy for a local look (Bradley):** `checkpoints/ms_g23a_ep57.bin`,
+`--frame-delay 3 --delay-id-override 2 --temperature 1.0
+--buttons-temperature 1.0 --stateful-step` (the id is the NEW numbering;
+the Agent would derive 2 at d3 on its own). NO crown from stand numbers
+(g6 rule).
+
 ## 5. Harness (GOTCHA #114)
 
 Every gate before 11:27 ran the NETPLAY AppImage headless (global
