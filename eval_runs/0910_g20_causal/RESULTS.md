@@ -192,6 +192,35 @@ per-epoch snapshots + a sampled gate sweep are mandatory for selection.
 
 **Candidate: `checkpoints/ms_g23a_ep57.bin`** (d3, id 2, T=1.0).
 
+## 4f. Bradley's local look (09-11 00:41) + the metric correction
+
+Bradley, async windowed d3 id2 T=1.0: "didn't seem that impressive".
+Session replay (2.7 min): 103 shines, 95 self-initiated, 8 hit-induced,
+**35.7/min, max chain 2**. Same checkpoint, same rung, headless:
+
+| opponent | runner | d | shines/min | max chain |
+|---|---|---|---|---|
+| stand dummy | sync | 3 | 437 / 111 / 426 | 438 / 4 / 423 |
+| stand dummy | async | 2 | 246.7 | 189 |
+| stand dummy | async | 3 | 296.5 | 277 |
+| stand dummy | async | 4 | 189.1 | 134 |
+| **level-1 CPU** | async | 3 | **54.3 / 61.7** | **2 / 3** |
+| Bradley | async | 3 | 35.7 | 2 |
+
+Delay is NOT the cause (async d3 is the aligned rung; sync d3 == async
+d2, HANDOFF 07-28). The cause is STATE COVERAGE: the policy multishines
+in fixture-like states and collapses in any other (opponent moving,
+approaching, getting hit). Bradley's restatement of the goal: it must
+multishine "no matter where Fox is, what Fox is doing, no matter what
+the opponent is doing" — a methodology test. Corrections:
+1. **Gate metric:** shines/min + re-entry over a full game vs a MOVING
+   opponent (`--dummy cpu`, tech_random), not max chain vs stand. The
+   stand number stays as the technique floor. Every "record" before
+   today was the floor.
+2. **Data:** DAgger rounds on the failing states — human sessions and
+   CPU-dummy rollouts relabeled by the expert (the drill's own loop).
+   First pool: Bradley's 0911 session + the CPU games from this readout.
+
 ## 5. Harness (GOTCHA #114)
 
 Every gate before 11:27 ran the NETPLAY AppImage headless (global

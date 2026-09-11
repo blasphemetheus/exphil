@@ -1,0 +1,2 @@
+policy=checkpoints/ms_g23a_ep57.bin runner=async runs=1 seconds=60 dummy=stand server=0 decode=--temperature 1.0 loadavg=2.55 1.06 0.59
+fixture_agreement: [00:48:29] FIXTURE_AGREEMENT best=0.8854 offset=2 delay_id=0 n=1678

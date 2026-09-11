@@ -1,0 +1,1 @@
+policy=checkpoints/ms_g23a_ep57.bin runner=async runs=6 seconds=90 dummy=cpu server=0 decode=--temperature 1.0 loadavg=1.70 1.62 1.08
