@@ -4009,3 +4009,14 @@ Diagnose: `ss -xlp | grep X11-unix` (listeners) vs `ls /tmp/.X11-unix`
 Dolphin's stderr). Fix WITHOUT restarting the session:
 `ln -s X0_ /tmp/.X11-unix/X0`. Bradley's rig is Wayland (Hyprland);
 Dolphin always draws through Xwayland.
+
+**114, second addendum (09-11 05:30):** the X0 unlink recurred at 05:19
+(third time; 11:27 and 20:46 on 09-10), each time while Bradley was away
+and just before he launched. NOT caused by our launch path (the exact
+play command and headless gates ran under a 5 Hz watch on the link and
+never removed it), not by `devenv shell`, not by the hypridle/hyprlock
+wrappers or any session script (grep clean). `scripts/x11_socket_fix.sh`
+repairs it (symlink) and `eval_live_protocol.sh` runs it as a preflight;
+run it by hand before a windowed session. Root cause still open —
+candidates: Hyprland re-creating Xwayland listeners on a lock/unlock or
+output change (note the `X0_` suffix is Hyprland's own naming).

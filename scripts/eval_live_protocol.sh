@@ -20,6 +20,7 @@
 # would measure the machine, not the policy. Override with FORCE=1.
 set -uo pipefail
 
+bash "$(dirname "$0")/x11_socket_fix.sh"
 POLICY="${1:?usage: eval_live_protocol.sh <policy.bin> <outdir> [--runs N] [--seconds S] [--dummy cpu|stand] [-- extra args]}"
 OUTDIR="${2:?need outdir}"
 shift 2
