@@ -7,7 +7,7 @@
 #   mix run scripts/dolphin_launch_probe.exs [--dolphin DIR] [--iso ISO] [--seconds 8]
 
 {opts, _, _} =
-  OptionParser.parse(System.argv(), strict: [dolphin: :string, iso: :string, seconds: :integer])
+  OptionParser.parse(System.argv(), strict: [dolphin: :string, iso: :string, seconds: :integer, windowed: :boolean])
 
 dolphin = opts[:dolphin] || Path.expand("~/.local/share/slippi/exi-ai/dolphin-emu-headless")
 iso = opts[:iso] || Path.expand("~/isos/melee.iso")
@@ -17,7 +17,7 @@ launch_opts = [
   path: dolphin,
   iso_path: iso,
   slippi_port: 51442,
-  headless: true,
+  headless: not (opts[:windowed] || false),
   blocking_input: true,
   online_delay: 0,
   emulation_speed: 0.0,

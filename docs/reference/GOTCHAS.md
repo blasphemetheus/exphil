@@ -3997,3 +3997,15 @@ second cause of the identical symptom). **Headless gates run fine under
 `systemd-run --user`** (no session display needed), which retires the
 10-minute/memory-kill fragility of running sweeps from the tool shell;
 the old "dolphin evals foreground only" rule was the netplay build.
+
+**114 addendum (2026-09-11 00:40) — the actual display failure:** Xwayland
+`:0` was alive but its socket FILE `/tmp/.X11-unix/X0` had been unlinked
+(dir mtime 20:46 the night before; `X0_` remained and accepted
+connections). Every X11 client — the netplay Slippi AppImage is Qt on
+xcb ONLY, no Wayland plugin — got `qt.qpa.xcb: could not connect to
+display :0`, which the bridge reports only as a console-connect timeout.
+Diagnose: `ss -xlp | grep X11-unix` (listeners) vs `ls /tmp/.X11-unix`
+(files), or `scripts/dolphin_launch_probe.exs --windowed` (prints
+Dolphin's stderr). Fix WITHOUT restarting the session:
+`ln -s X0_ /tmp/.X11-unix/X0`. Bradley's rig is Wayland (Hyprland);
+Dolphin always draws through Xwayland.
