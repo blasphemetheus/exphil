@@ -1,0 +1,23 @@
+{
+ "comment": "control: mid-chain handoffs",
+ "entries": [
+  {
+   "slp": "eval_runs/0910_g23_consistent/confirm_ep57/d3_id2/r1.slp",
+   "frame": 900,
+   "type": "multishine_reentry",
+   "note": "CONTROL: handoff mid-chain in ep57's 438-chain stand game"
+  },
+  {
+   "slp": "eval_runs/0910_g23_consistent/confirm_ep57/d3_id2/r1.slp",
+   "frame": 1500,
+   "type": "multishine_reentry",
+   "note": "CONTROL: handoff mid-chain in ep57's 438-chain stand game"
+  },
+  {
+   "slp": "eval_runs/0910_g23_consistent/confirm_ep57/d3_id2/r1.slp",
+   "frame": 2100,
+   "type": "multishine_reentry",
+   "note": "CONTROL: handoff mid-chain in ep57's 438-chain stand game"
+  }
+ ]
+}

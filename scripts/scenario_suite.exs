@@ -412,7 +412,20 @@ defmodule ScenarioSuite do
           :teacher ->
             # The expert labels the LIVE state (same call the relabel makes on
             # rollout frames), with the input it issued last frame as `prev`.
-            case gs.players[1] && ExPhil.Agents.MultishineExpert.label(st.expert, gs.players[1], st.prev_controller) do
+            # GOTCHA #81: the table is keyed in PARSED action_frame numbering
+            # (Slippi), the bridge reports LIVE numbering (one higher on most
+            # actions) — convert first, or the last-jumpsquat press lands a
+            # frame late and every re-entry floats (first run, 2026-09-12).
+            p1 =
+              case gs.players[1] do
+                nil ->
+                  nil
+
+                p ->
+                  %{p | action_frame: ExPhil.Data.ActionFrameConvention.live_to_parsed(p.action && trunc(p.action), p.action_frame)}
+              end
+
+            case p1 && ExPhil.Agents.MultishineExpert.label(st.expert, p1, st.prev_controller) do
               {:ok, controller} ->
                 MeleePort.send_controller(bridge, controller_to_input(controller))
                 %{st | prev_controller: controller}
@@ -596,6 +609,8 @@ end
       character: :string,
       driver: :string,
       fixture: :string,
+      delay_id: :integer,
+      live_af: :boolean,
       manifest: :string,
       types: :string,
       only: :string,
@@ -622,8 +637,8 @@ end
 
 if opts[:quiet], do: Logger.configure(level: :warning)
 
-unless opts[:policy] do
-  Output.error("--policy is required")
+unless opts[:policy] != nil or (opts[:driver] || "policy") != "policy" do
+  Output.error("--policy is required (unless --driver teacher|neutral)")
   System.halt(1)
 end
 
@@ -718,7 +733,15 @@ agent =
         deterministic: deterministic,
         temperature: opts[:temperature] || 1.0,
         press_threshold: opts[:press_threshold] || 0.45,
-        release_threshold: opts[:release_threshold] || 0.3
+        release_threshold: opts[:release_threshold] || 0.3,
+        # --delay-id N: the rung to run a delay-conditioned checkpoint at in
+        # THIS harness (frame-locked prefix loop); nil = the Agent derives it.
+        delay_id: opts[:delay_id],
+        allow_untrained_delay_id: opts[:delay_id] != nil,
+        # --live-af: convert the bridge's LIVE action_frame numbering into the
+        # PARSED numbering the checkpoint trained on (GOTCHA #81); the teacher
+        # driver needed the same conversion to chain in this harness.
+        af_convention: if(opts[:live_af], do: :live, else: :parsed)
       )
 
     case Agent.warmup(agent) do
@@ -846,7 +869,7 @@ scoreboard = %{
 File.write!(out_path, Jason.encode!(scoreboard, pretty: true))
 Output.success("Scoreboard written to #{out_path}")
 
-GenServer.stop(agent)
+if agent, do: GenServer.stop(agent)
 
 # GOTCHAS #58/#63: sweep any orphaned Dolphin by exact PID. Safe here —
 # the BEAM's own command line does not contain the pattern (the pkill -f

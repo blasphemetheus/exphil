@@ -248,6 +248,55 @@ must be gated together — the stand floor is the guard that the
 technique survives, the CPU number is the goal. Both are still far from
 "multishines most of the time no matter what" (a clean cycle is ~400/min).
 
+## 6. Instruments (09-12) — pool label auditor + closed-loop correction validation
+
+**Instrument 1, `scripts/audit_ms_pool_labels.exs`** (pre-train gate in
+run_g24.sh): per loop-state key, B/X label rates per SOURCE (fixture,
+relabeled rollouts, snippet file, openers), CONFLICT when sources with
+n>=20 differ by >0.05. Validation: flags the 0804 snippet file at exactly
+{361,2} (X: the jump-cancel press) and {24,2} (B: the release) with
+"smallest source: snippets"; clears the re-mined d1 file.
+
+**Closed-loop correction validation** (Astra's note): `scenario_suite.exs
+--driver teacher|policy|neutral --character fox` on break moments mined
+by `scripts/mine_ms_breaks.exs` (36 from the 0911 CPU rollouts +
+Bradley's session), new `:multishine_reentry` scorer (re-entry frame,
+ShineChain v3 max_chain in the 120f window, ended_by, empty hops;
+pass = re-entry <= 60f AND max_chain >= 5). First 12 moments:
+
+| driver | re-entry (frames) | v3 max chain | note |
+|---|---|---|---|
+| neutral | never | 0-1 | control |
+| teacher, first run | 7-51 | **1** | every path = 365x3 -> **366x18** (the aerial-shine-one-frame-late float) -> 368 -> 363x14: a 43f loop, not the 9f cycle |
+| teacher, af live->parsed | **4-12** (one 40, started mid-float) | **10-14**, ended only by the window | the corrections DO restore the tight cycle |
+| policy ep55, derived id 0 | 8-108 / never | 1 | rung in this harness unverified; id sweep running |
+
+The first teacher run failed for the GOTCHA #81 reason (table keyed in
+PARSED action_frame numbering, bridge reports LIVE numbering): executed
+one frame late, every re-entry floated. That is precisely the class the
+instrument exists to catch, and it is a HARNESS convention, not a rule
+defect — the drill's relabel labels parsed frames and is unaffected.
+Verdict so far: the expert's corrections are executable and recover the
+loop from these break states within ~10 frames.
+
+**Policy driver (07:15-07:31):** ms_g24a_ep55 at delay-id 0/1/2 (22 runs
+each): max_chain 1-2 everywhere, re-entry scattered/never; with
+`--live-af` (same conversion the teacher needed) it is WORSE (score
+0.18). **CONTROL (`scenarios/ms_midchain_control.json`):** handoffs
+INSIDE ms_g23a_ep57's own 438-chain stand game (frames 900/1500/2100):
+teacher chains (0.965); ep57 — which chained 438 in that very replay on
+the sync runner — does NOT (ids 0/1/2: 0.29/0.11/0.19). So the harness
+cannot yet evaluate the POLICY: `run_one` resets the Agent at handoff,
+and a queue-as-input GRU policy then starts a 9-frame cycle from an
+EMPTY 60-frame window and an EMPTY own-input queue. The teacher is
+memoryless and is unaffected. **Needed:** an Agent observe-only step
+during the prefix (embed each observed frame into the window and push
+the RECORDED p1 input into the controller queue as if the agent had
+issued it), so the policy is warm at handoff. Until then the closed-loop
+validator is a TEACHER instrument (which it has already paid for) and the
+policy's break-state behavior must be read from live rollouts (the CPU
+gate) instead.
+
 ## 5. Harness (GOTCHA #114)
 
 Every gate before 11:27 ran the NETPLAY AppImage headless (global

@@ -88,14 +88,31 @@ defmodule ExPhil.Eval.ScenarioScore do
         f == :jumpsquat and next != :jumpsquat and next != nil and not Enum.any?(after_, shine?)
       end)
 
-    pass = reentry != nil and reentry <= limit
+    # The TIGHT cycle is what matters (2026-09-12 first run: a reactive
+    # teacher re-shines in 7-12f but settles into shine -> 18f reflector-
+    # open float -> land -> wait, a 43f loop). ShineChain v3 chains only
+    # through air gaps <= 8f, so max_chain separates the 9f loop from the
+    # float loop; it is the pass criterion, re-entry speed is the tiebreak.
+    actions = Enum.map(window, & &1.p1.action)
+    detailed = ExPhil.Eval.ShineChain.chains_detailed(actions)
+    max_chain = detailed |> Enum.map(& &1.length) |> Enum.max(fn -> 0 end)
+    ended_by = detailed |> Enum.map(& &1.ended_by) |> Enum.frequencies()
+
+    pass = reentry != nil and reentry <= limit and max_chain >= 5
     speed = if reentry, do: max(0.0, 1.0 - reentry / limit), else: 0.0
-    score = min(1.0, 0.6 * speed + 0.4 * min(cycles / 10, 1.0))
+    score = min(1.0, 0.3 * speed + 0.7 * min(max_chain / 12, 1.0))
 
     %{
       score: Float.round(score * 1.0, 3),
       pass: pass,
-      details: %{reentry_frame: reentry, shine_entries: length(entries), cycles: cycles, empty_hops: empty_hops}
+      details: %{
+        reentry_frame: reentry,
+        max_chain: max_chain,
+        ended_by: ended_by,
+        shine_entries: length(entries),
+        cycles: cycles,
+        empty_hops: empty_hops
+      }
     }
   end
 
