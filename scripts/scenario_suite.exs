@@ -695,6 +695,36 @@ end
 
 ts = Calendar.strftime(NaiveDateTime.local_now(), "%Y%m%d_%H%M%S")
 
+# INVARIANTS item 12 (GOTCHA #115): this harness applies a decision
+# --response-delay + 1 frames after the observed state. The rung is resolved
+# ONCE here through ExPhil.Eval.HarnessRung: an explicit --response-delay is
+# used as given (the Agent derives the delay-id from it, or checks an explicit
+# --delay-id against it); otherwise the checkpoint's own smallest trained id
+# (or --delay-id) picks its aligned response delay, so the suite can no
+# longer be run one frame faster than the policy was trained by default.
+response_delay =
+  cond do
+    opts[:response_delay] != nil ->
+      opts[:response_delay]
+
+    (opts[:driver] || "policy") != "policy" or opts[:policy] == nil ->
+      0
+
+    true ->
+      {:ok, %{config: cfg}} = ExPhil.Training.Checkpoint.load_policy(opts[:policy])
+      id = opts[:delay_id] || Enum.min(cfg[:train_delays] || [0])
+
+      case ExPhil.Eval.HarnessRung.aligned_knob(:scenario_suite, id, cfg) do
+        {:ok, rd} ->
+          Output.puts("--response-delay #{rd}: aligned rung for delay-id #{id} (#{ExPhil.Eval.HarnessRung.describe(:scenario_suite, rd, cfg)})")
+          rd
+
+        {:error, {:unreachable, min}} ->
+          Output.warning("delay-id #{id} needs latency below this harness's floor (#{min}); running at --response-delay 0 (slower than trained)")
+          0
+      end
+  end
+
 suite_opts = [
   dolphin: Path.expand(opts[:dolphin] || "~/.local/share/slippi/exi-ai/dolphin-emu-headless"),
   iso: Path.expand(opts[:iso] || "~/isos/melee.iso"),
@@ -702,7 +732,7 @@ suite_opts = [
   trace_all: opts[:trace_all] || false,
   slippi_port: opts[:slippi_port] || 51480,
   input_offset: opts[:input_offset] || 1,
-  response_delay: opts[:response_delay] || 0,
+  response_delay: response_delay,
   drift_tolerance: opts[:drift_tolerance] || 3.0,
   window: opts[:window],
   finalize: opts[:finalize] || false,
@@ -791,6 +821,10 @@ agent =
         # THIS harness (frame-locked prefix loop); nil = the Agent derives it.
         delay_id: opts[:delay_id],
         allow_untrained_delay_id: opts[:delay_id] != nil,
+        # INVARIANTS item 12: the harness declares itself + its knob; the Agent
+        # derives (or checks) the delay-id through ExPhil.Eval.HarnessRung.
+        harness: :scenario_suite,
+        harness_knob: suite_opts[:response_delay],
         # --live-af: convert the bridge's LIVE action_frame numbering into the
         # PARSED numbering the checkpoint trained on (GOTCHA #81); the teacher
         # driver needed the same conversion to chain in this harness.

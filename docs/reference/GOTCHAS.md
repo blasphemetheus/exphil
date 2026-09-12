@@ -4043,3 +4043,22 @@ is KNOWN to pass (its own replay) and sweep the latency knob — the
 teacher (memoryless) passing proves nothing about the harness's rung;
 (2) a chain that re-enters and then floats is a timing-convention bug
 until a control excludes it, not a coverage or capacity finding.
+
+### #115 addendum (same day, 15:00) — the table, the sync pin, the retraction
+
+Structural fix = INVARIANTS item 12: `ExPhil.Eval.HarnessRung` is the one
+latency table; harnesses declare themselves to the Agent; the drill stamps
+its pipeline offset; the suite auto-resolves `--response-delay`. Sync pin
+on ep57 (`eval_runs/0912_sync_rung`, stand dummy, 60s, T=1.0): fd3/id2
+chains 427/436, fd2/id2 chains 2, fd4/id2 chains 3/106 — the SYNC runner
+has the same 2-frame pipeline as async on this rig. The 07-28 note "sync
+d3 == async d2" (repeated in HANDOFF_2026-09-12 §2 and RESULTS §4f) is
+RETRACTED; it likely described the laptop harness (memory
+`project_5090_harness_delay_offset`). Also learned: one frame SLOWER is
+not benign on a 60s chain either (fd4/id2), so play the aligned knob
+exactly; and ep57's id 1 chains c3-5 at every sync knob (fd1/2/3) — an
+id-1 cold-start weakness (the suite's mid-chain handoff at rd3/id1 was
+14/14), not rung evidence. Consequence for non-drill checkpoints: the
+runners' floor is reaction 1, so a reaction-0 checkpoint (v16e, v3's
+default) was deployed TWO frames slow by the 09-09 `--frame-delay 1`
+card (safe direction, not aligned) — see DEPLOY_KNOBS row 15.

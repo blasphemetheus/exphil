@@ -1570,6 +1570,10 @@ trainer =
     # truth (0824: without this, multi-delay checkpoints stamped [0]
     # and every d3 gate was refused).
     train_delays: delays,
+    # INVARIANTS item 12: delay-id d was trained at reaction delay d + this
+    # (--pipeline-offset); stamped so every harness derives the right id
+    # (ExPhil.Eval.HarnessRung) instead of assuming the recipe.
+    delay_id_reaction_offset: pipeline_offset,
     use_prev_action: prev_action,
     embed_size: embed_size,
     temporal: true,

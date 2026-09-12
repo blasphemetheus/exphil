@@ -163,7 +163,9 @@ defmodule ExPhil.Agents.AgentObserveTest do
     # heads. Argmax of a random-init trunk can coincide, so compare the
     # head confidences (the probabilities), not the sampled action.
     {f, x} = @decision
-    {:ok, _, cold} = Agent.get_action_with_confidence(start_agent(policy, []), game_state(f, x))
+    # probe: true reads the stick heads' softmax (17 buckets) — far less likely
+    # to saturate to identical values under a random init than 8 sigmoids
+    {:ok, cold} = Agent.observe(start_agent(policy, []), game_state(f, x), nil, player_port: 1, probe: true)
 
     warm_agent = start_agent(policy, [])
 
@@ -171,8 +173,8 @@ defmodule ExPhil.Agents.AgentObserveTest do
       :ok = Agent.observe(warm_agent, game_state(hf, hx), ControllerState.neutral(), player_port: 1)
     end
 
-    {:ok, _, warm} = Agent.get_action_with_confidence(warm_agent, game_state(f, x))
-    assert cold != warm
+    {:ok, warm} = Agent.observe(warm_agent, game_state(f, x), nil, player_port: 1, probe: true)
+    assert cold.main_x != warm.main_x or cold.main_y != warm.main_y
   end
 
   test "ControllerState.from_input/1 inverts to_input/1" do

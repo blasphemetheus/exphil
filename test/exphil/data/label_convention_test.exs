@@ -47,25 +47,28 @@ defmodule ExPhil.Data.LabelConventionTest do
     assert LC.train_reaction_delays(%{}) == nil
   end
 
-  test "deploy law: a checkpoint trained at reaction k deploys at --frame-delay k+1" do
-    assert LC.live_frame_delay(LC.reaction_delay(@v16e)) == 1
-    assert LC.live_frame_delay(LC.reaction_delay(@causal0)) == 1
-    assert LC.live_frame_delay(2) == 3
-    assert LC.live_reaction_delay(3) == 2
-    assert LC.live_reaction_delay(0) == -1
+  test "deploy law (INVARIANTS item 12, 09-12): both runners play reaction k at --frame-delay k-1; reaction 0 is below their floor" do
+    # v16e / causal0 (reaction 0): exact rung unreachable (runner floor = latency 2 = reaction 1);
+    # --frame-delay 0 is the nearest, ONE slower; the 09-09 card (--frame-delay 1) was TWO slower
+    assert LC.live_frame_delay(LC.reaction_delay(@v16e)) == 0
+    assert LC.live_frame_delay(LC.reaction_delay(@causal0)) == 0
+    assert LC.live_frame_delay(2) == 1
+    assert LC.live_reaction_delay(3) == 4
+    assert LC.live_reaction_delay(0) == 1
   end
 
   test "delay_id is in the checkpoint's own numbering" do
     # ms_g19 local d3 -> id 3 (the card); netplay d4 -> id 4 (untrained, hence the override)
     assert LC.delay_id(3, @ms_g19) == 3
     assert LC.delay_id(4, @ms_g19) == 4
-    # v16e at its deploy rung -> id 1 == its train_delays
-    assert LC.delay_id(1, @v16e) == 1
-    # causal checkpoint at the same physical rung -> id 0 == its train_delays
-    assert LC.delay_id(1, @causal0) == 0
+    # non-conditioned checkpoints (no drill offset): the id names the rung PLAYED —
+    # v16e (legacy) at --frame-delay 1 plays legacy delay 3, causal0 plays reaction 2
+    assert LC.delay_id(1, @v16e) == 3
+    assert LC.delay_id(1, @causal0) == 2
+    # delay-conditioned causal (assumed drill offset 2): --frame-delay 3 -> id 2
     assert LC.delay_id(3, @causal_json) == 2
-    # never negative
-    assert LC.delay_id(0, @causal0) == 0
+    # never negative; at the runner floor a causal non-conditioned checkpoint reads reaction 1
+    assert LC.delay_id(0, @causal0) == 1
   end
 
   test "a legacy delay-1 checkpoint and a causal delay-0 checkpoint are the SAME target" do

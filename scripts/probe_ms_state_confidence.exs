@@ -75,6 +75,10 @@ rng = Nx.Random.key(2026)
     {pb, px} =
       case Agent.get_action_samples(agent, f.game_state, player_port: 1, n: k, key: sub) do
         {:ok, actions} ->
+          # get_action_samples does NOT mutate the agent's history (by design);
+          # advance it teacher-forced with the fixture's issued input so the AR
+          # path sees a real window (before 09-12 it probed an empty one).
+          :ok = Agent.observe(agent, f.game_state, f.controller, player_port: 1)
           cs = Enum.map(actions, &ExPhil.Networks.Policy.to_controller_state(&1, axis_buckets: axis_buckets))
           {Enum.count(cs, & &1.button_b) / k, Enum.count(cs, & &1.button_x) / k}
 

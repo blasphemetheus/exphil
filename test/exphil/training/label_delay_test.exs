@@ -64,14 +64,15 @@ defmodule ExPhil.Training.LabelDelayTest do
     assert Config.parse_args(["--resume", path, "--label-delay", "0"])[:label_delay] == 0
   end
 
-  test "legacy checkpoint and live delay numbering remain unchanged" do
+  test "legacy checkpoint and live delay numbering remain unchanged (drill-line ids via HarnessRung)" do
     assert LabelConvention.reaction_delay(%{frame_delay: 3}) == 2
 
     assert LabelConvention.reaction_delay(%{"label_delay" => 2, "label_convention" => "causal"}) ==
              2
 
-    assert LabelConvention.delay_id(3, %{label_convention: :causal}) == 2
-    assert LabelConvention.delay_id(3, %{}) == 3
+    # delay-conditioned checkpoints keep their deploy-card ids (async d3 -> causal id 2 / legacy id 3)
+    assert LabelConvention.delay_id(3, %{label_convention: :causal, train_delays: [0, 1, 2, 3]}) == 2
+    assert LabelConvention.delay_id(3, %{train_delays: [2, 3]}) == 3
 
     assert LabelConvention.train_reaction_delays(%{
              label_convention: :causal,

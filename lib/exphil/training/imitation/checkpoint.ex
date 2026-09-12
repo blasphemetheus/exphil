@@ -437,6 +437,9 @@ defmodule ExPhil.Training.Imitation.Checkpointing do
         # id outside this set (bare --frame-delay 4 silently ran id4 —
         # untrained — and collapsed chaining for three decider games).
         train_delays: train_delays(trainer.config),
+        # INVARIANTS item 12: reaction-delay offset behind those ids (the
+        # drill's --pipeline-offset; 0 for every other trainer).
+        delay_id_reaction_offset: trainer.config[:delay_id_reaction_offset] || 0,
         # INVARIANTS.md item 1: the label pairing these delays are counted
         # in (unstamped = legacy :producing). See ExPhil.Data.LabelConvention.
         label_convention: ExPhil.Data.LabelConvention.current()

@@ -80,6 +80,12 @@ defmodule ExPhil.Agents.Agent do
     :controller_queue,
     :delay_id,
     :allow_untrained_delay_id,
+    # INVARIANTS item 12: which harness this agent plays in and that
+    # harness's knob (ExPhil.Eval.HarnessRung); the delay-id is DERIVED
+    # from them (or an explicit id is checked against them).
+    :harness,
+    :harness_knob,
+    :delay_id_reaction_offset,
     :train_delays,
     # The loaded checkpoint's label pairing (:causal | :producing), kept so
     # a reconfigure of frame_delay re-derives delay_id the same way load did.
@@ -471,6 +477,10 @@ defmodule ExPhil.Agents.Agent do
       # --delay-id-override path) is used as given.
       delay_id: Keyword.get(opts, :delay_id),
       allow_untrained_delay_id: Keyword.get(opts, :allow_untrained_delay_id, false),
+      # INVARIANTS item 12: default = the async runner (every deploy card);
+      # the sync runner and the scenario suite declare themselves.
+      harness: Keyword.get(opts, :harness, :async_runner),
+      harness_knob: Keyword.get(opts, :harness_knob),
       jump_debounce: Keyword.get(opts, :jump_debounce),
       jump_cooldown: 0,
       ablate_prev_action: ablate_prev_action,
@@ -858,15 +868,21 @@ defmodule ExPhil.Agents.Agent do
       # A new frame_delay without an explicit delay_id re-derives the id
       # from the checkpoint's label convention (same rule as load time).
       new_state =
-        if Keyword.has_key?(opts, :frame_delay) and not Keyword.has_key?(opts, :delay_id) and
-             new_state.label_convention != nil do
+        if (Keyword.has_key?(opts, :frame_delay) or Keyword.has_key?(opts, :harness_knob)) and
+             not Keyword.has_key?(opts, :delay_id) and new_state.label_convention != nil do
+          knob = Keyword.get(opts, :harness_knob, new_state.frame_delay || 0)
+
+          cfg = %{
+            label_convention: new_state.label_convention,
+            train_delays: new_state.train_delays,
+            delay_id_reaction_offset: new_state.delay_id_reaction_offset,
+            with_delay_id: Map.get(new_state.embed_config || %{}, :with_delay_id, false)
+          }
+
           %{
             new_state
-            | delay_id:
-                ExPhil.Data.LabelConvention.delay_id(
-                  new_state.frame_delay || 0,
-                  %{label_convention: new_state.label_convention}
-                )
+            | harness_knob: knob,
+              delay_id: ExPhil.Eval.HarnessRung.delay_id(new_state.harness || :async_runner, knob, cfg)
           }
         else
           new_state
@@ -999,6 +1015,8 @@ defmodule ExPhil.Agents.Agent do
 
   defp do_compute_action(state, game_state, opts) do
     try do
+      warn_cold_start_mid_game(state, game_state)
+
       # Embed game state. Port: under Slippi Online the bridge detects the
       # bot's ACTUAL in-game port via connect codes (Slippi assigns ports
       # per session — the static --port guess ego-swapped the embedding
@@ -1177,6 +1195,26 @@ defmodule ExPhil.Agents.Agent do
       e ->
         Logger.error("[Agent] Error computing action: #{inspect(e)}")
         {:error, e}
+    end
+  end
+
+  # INVARIANTS item 13 (guard): a stateful policy handed a MID-GAME state
+  # with an empty history is off-distribution (09-12: ep57 could not chain
+  # from its own game's handoffs until the suite warmed it with the true
+  # history). Fires once per game, on the first decision only.
+  defp warn_cold_start_mid_game(state, game_state) do
+    frame = game_state.frame
+
+    empty? =
+      state.temporal and :queue.is_empty(state.frame_buffer) and
+        (state.trunk_state == nil or state.trunk_cold)
+
+    if empty? and is_integer(frame) and frame > (state.window_size || 0) + 120 do
+      Logger.warning(
+        "[Agent] COLD START mid-game at frame #{frame} with an empty history (window " <>
+          "#{state.window_size}): warm the agent with the true history first " <>
+          "(Agent.observe/4 per prefix frame; INVARIANTS item 13)"
+      )
     end
   end
 
@@ -2475,22 +2513,28 @@ defmodule ExPhil.Agents.Agent do
     # causal checkpoint deployed at its trained rung never trips the
     # guard and never runs an off-by-one id.
     alias ExPhil.Data.LabelConvention
-    convention = LabelConvention.of(config)
+    alias ExPhil.Eval.HarnessRung
+    harness = state.harness || :async_runner
+    knob = state.harness_knob || state.frame_delay || 0
+    {id_offset, _} = HarnessRung.delay_id_reaction_offset(config)
+    derived = HarnessRung.delay_id(harness, knob, config)
+    delay_conditioned? = Map.get(full_embed_config, :with_delay_id, false)
 
     state =
       case state.delay_id do
         nil ->
-          id = LabelConvention.delay_id(state.frame_delay || 0, config)
+          Logger.info("[Agent] delay_id #{derived} derived: #{HarnessRung.describe(harness, knob, config)}")
+          %{state | delay_id: derived, delay_id_reaction_offset: id_offset}
 
-          Logger.info(
-            "[Agent] delay_id #{id} derived from --frame-delay #{state.frame_delay || 0} " <>
-              "(checkpoint label convention: #{convention})"
-          )
+        explicit ->
+          if delay_conditioned? and explicit != derived do
+            Logger.warning(
+              "[Agent] explicit delay_id #{explicit} but #{HarnessRung.describe(harness, knob, config)}; " <>
+                "one frame FASTER than trained breaks tight loops, one slower degrades (GOTCHA #115)"
+            )
+          end
 
-          %{state | delay_id: id}
-
-        _explicit ->
-          state
+          %{state | delay_id_reaction_offset: id_offset}
       end
 
     validate_delay_id!(state, config, full_embed_config)
@@ -2507,14 +2551,22 @@ defmodule ExPhil.Agents.Agent do
       )
     end
 
+    # Non-conditioned checkpoints have ONE trained rung; say what this
+    # harness actually plays it at (delay-conditioned ones are covered by
+    # the id derivation + guard above).
     reaction = LabelConvention.reaction_delay(config)
+    played = HarnessRung.reaction_delay(harness, knob)
 
-    if LabelConvention.live_reaction_delay(state.frame_delay || 0) != reaction do
+    if not delay_conditioned? and played != reaction do
+      aligned =
+        case HarnessRung.deploy_knob(harness, config) do
+          {:ok, k} -> "aligned knob #{k}"
+          {:error, {:unreachable, min}} -> "unreachable on #{harness} (floor latency #{min}); knob 0 is the nearest, slower rung"
+        end
+
       Logger.warning(
-        "[Agent] --frame-delay #{state.frame_delay || 0} plays reaction delay " <>
-          "#{LabelConvention.live_reaction_delay(state.frame_delay || 0)}; this checkpoint " <>
-          "trained at reaction delay #{reaction} (deploy-matched: --frame-delay " <>
-          "#{LabelConvention.live_frame_delay(reaction)})"
+        "[Agent] #{harness} knob #{knob} plays reaction delay #{played}; this checkpoint " <>
+          "trained at reaction delay #{reaction} (#{aligned}; INVARIANTS item 12)"
       )
     end
 
@@ -2641,7 +2693,7 @@ defmodule ExPhil.Agents.Agent do
         embed_config: full_embed_config,
         # Retained for reconfigure-time delay-id revalidation (pool reuse)
         train_delays: Map.get(config, :train_delays),
-        label_convention: convention,
+        label_convention: LabelConvention.of(config),
         # Controller head dispatch (AR vs independent sampling)
         head: head,
         # Set temporal config

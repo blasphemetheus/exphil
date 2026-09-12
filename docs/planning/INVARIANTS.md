@@ -169,7 +169,66 @@ Status: `[ ]` open · `[~]` in progress · `[x]` structural · `[g]` guarded onl
 
 ---
 
-## What's left (2026-09-09 20:30 — v3 is gated on this list being empty)
+
+## Tier 4 — added 2026-09-12 (the closed-loop validation surfaced them)
+
+### 12. [x] One table of harness latency; delay-ids derived from it (STRUCTURAL 2026-09-12)
+- **Fact:** a decision is applied some frames after the observed state
+  (latency); training names the same quantity reaction delay (k = latency
+  - 1); a delay-conditioned checkpoint's id d was trained at reaction
+  d + the drill's `--pipeline-offset`. Every harness adds its own
+  pipeline on top of its knob.
+- **Was:** four undeclared constants — the drill's offset (2, never
+  stamped), the async runner's pipeline (+2, a comment), the sync
+  runner's (a July note, WRONG on this rig), the scenario suite's (+1,
+  nobody knew) — and a live law (`id = --frame-delay - 1`) that was right
+  only because two of them cancelled. Symptom class: a chain that
+  re-enters and floats (GOTCHA #115 = #81's twin).
+- **Done:** `ExPhil.Eval.HarnessRung` is the table (`latency/2`,
+  `knob/2`, `reaction_delay/2`, `delay_id/3`, `aligned_knob/3`,
+  `deploy_knob/2`, `describe/3`), each row cited to its measurement
+  (suite grid 09-12; sync pin 09-12 `eval_runs/0912_sync_rung`: fd3/id2
+  427/436, fd2/id2 2, fd4/id2 3/106; async 07-31 + rung law). The drill
+  stamps `delay_id_reaction_offset` (Checkpoint stamps 0 for every
+  other trainer; unstamped delay-conditioned checkpoints are read as
+  the recipe's 2, tagged `:assumed_drill`). Each harness DECLARES
+  itself to the Agent (`harness:` + `harness_knob:`; sync/async runners
+  and the suite wired); the Agent derives the id from the table or
+  warns when an explicit id disagrees; `LabelConvention.live_*` /
+  `delay_id/2` delegate to the table. The suite resolves its
+  `--response-delay` from the checkpoint by default (can no longer be
+  run one frame fast by omission).
+- **Consequence (Bradley to confirm live):** both runners' floor is
+  latency 2 = reaction 1. A reaction-0 checkpoint (v16e, v3's default)
+  has NO exact live rung; `--frame-delay 0` is the nearest (one slower)
+  and the 09-09 card (`--frame-delay 1`) is TWO slower. The one-frame-
+  fast direction is the one that breaks, so the cards were safe, not
+  aligned. v3 could instead train at reaction 1 and deploy at
+  `--frame-delay 0` exactly.
+- **Test:** `harness_rung_test` (the calibrations as cases),
+  `label_convention_test` + `label_delay_test` (deploy cards re-derived).
+
+### 13. [g] A stateful policy handed a mid-game state is warmed with the true history
+- **Fact:** a windowed/stateful policy's decision depends on its
+  history; an evaluation that starts it mid-game from an empty history
+  measures a cold start, not the policy (09-12: ep57 could not chain at
+  handoffs inside its own 438-chain game).
+- **Done:** `Agent.observe/4` (observe-only advance, pinned observe-then-
+  decide == play-then-decide) and the scenario suite observes every
+  prefix frame with the recorded input. Guard: the Agent warns on a
+  first decision at frame > window + 120 with an empty history.
+- **Structural (open):** a handoff API that REQUIRES the history
+  (`Agent.handoff(agent, frames, inputs)`) so a mid-game start without
+  one is unrepresentable; the suite is the only such tool today.
+- **Test:** `agent_observe_test` (equivalence + window fill + probe).
+
+## What's left (2026-09-12 15:00 — v3 is gated on this list being empty)
+
+Open: item 13's structural form (handoff API); the sync/async floor
+means v3's deploy card needs Bradley's call (train at reaction 1 for an
+exact `--frame-delay 0`, or accept one-slower). Everything else [x].
+
+### Earlier (2026-09-09 20:30)
 
 No open work items. Item 1 was reopened and taken to its maximal form on
 Bradley's call (09-09 evening). Item 3 is closed in an explicitly
@@ -181,6 +240,20 @@ bespoke ones stay code).
 | 3 (middle road, Bradley's call 09-09) | Exphil: `@backbone_specs` rows carry training defaults AND, for 70 of 97 backbones, the construction recipe (`build: {module, embed_key, params}`) + output rule (`output: {opt_key, default}`); `build_temporal_backbone` keeps 25 bespoke clauses and falls through to `build_from_spec`. Edifice: `@registry_by_family` is the only registry/family source. Cross-repo: every module the dispatcher aliases OR a recipe names must be a registered architecture. Tests: `backbone_spec_build_test` (all 70 construct; output rules resolve or raise loudly; spec-only keys never leak into defaults), parity test forbids a clause shadowing a recipe. | The 25 that stayed code deviate from the template (hybrids composing two modules, literal fixed args like griffin's `use_local_attention: true`, env-gated Mamba scan variants, post-processing like TCN's last-frame slice, the xlstm variant injection). A recipe language for those is an interpreter; they remain pinned by the parity/link tests. 45 spec-built backbones have NO output rule (they had no clause before either) — still a loud raise, now with the fix named in the message. |
 
 ## Ledger
+
+**2026-09-12 15:00 — 12 STRUCTURAL, 13 guarded:** `ExPhil.Eval.HarnessRung`
+(one latency table, delay-ids derived; rows cited to measurements) +
+drill/Checkpoint stamp `delay_id_reaction_offset` + every harness
+declares `harness:`/`harness_knob:` to the Agent + suite auto-aligns
+`--response-delay` + `LabelConvention.live_*` delegate. Sync pin
+(`eval_runs/0912_sync_rung`, ep57 stand 60s): fd3/id2 427/436, fd4/id2
+3/106, fd2/id2 2, fd1/id1 1/2 (id-1 cells chain c3-5 at every knob:
+an id-1 cold-start weakness, not rung evidence) -> sync pipeline == async
+== 2; the 07-28 "sync d3 == async d2" note is RETRACTED for this rig.
+`Agent.observe/4` + cold-start-mid-game guard. Small fixes ridden along:
+break miner `--tail-margin` (r2@4303 class), AR-head confidence probe
+now advances history (was probing an empty window). 47 tests green
+across harness_rung / label_convention / label_delay / agent_*.
 
 **2026-09-09 23:00 — 3 middle road (Bradley's call):** a strict template
 parser over `backbone.ex` (alias; N x `Keyword.get(opts, k, literal)`;

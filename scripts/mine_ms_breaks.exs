@@ -16,7 +16,7 @@ alias ExPhil.Training.Output
 
 {opts, _, _} =
   OptionParser.parse(System.argv(),
-    strict: [replays: :string, port: :integer, gap: :integer, lead: :integer, min_frame: :integer, max_per_replay: :integer, out: :string]
+    strict: [replays: :string, port: :integer, gap: :integer, lead: :integer, min_frame: :integer, max_per_replay: :integer, tail_margin: :integer, out: :string]
   )
 
 globs = opts[:replays] || raise "--replays required"
@@ -25,6 +25,10 @@ gap = opts[:gap] || 30
 lead = opts[:lead] || 6
 min_frame = opts[:min_frame] || 300
 max_per = opts[:max_per_replay] || 6
+# A handoff needs its 120f response window (+ finalize room) BEFORE the game
+# ends: breaks inside the last --tail-margin frames error in every driver
+# ("game ended during prefix", r2@4303 on 09-12).
+tail_margin = opts[:tail_margin] || 300
 out = opts[:out] || "scenarios/ms_breaks_manifest.json"
 
 paths = globs |> String.split(",", trim: true) |> Enum.flat_map(&Path.wildcard/1) |> Enum.map(&Path.expand/1)
@@ -41,6 +45,8 @@ entries =
           |> Enum.reject(fn {_, a} -> is_nil(a) end)
 
         # frame numbers where the subject leaves the shine family and stays out >= gap
+        last_frame = frames |> List.last() |> elem(0)
+
         {breaks, _} =
           frames
           |> Enum.chunk_every(gap + 1, 1, :discard)
@@ -52,7 +58,8 @@ entries =
               was_shine and not shine?.(next_a) and
                 not Enum.any?(rest, fn {_, b} -> shine?.(b) end)
 
-            if out_for_gap and fnum >= min_frame and fnum - last_break > gap,
+            if out_for_gap and fnum >= min_frame and fnum <= last_frame - tail_margin and
+                 fnum - last_break > gap,
               do: {[fnum | acc], fnum},
               else: {acc, last_break}
           end)

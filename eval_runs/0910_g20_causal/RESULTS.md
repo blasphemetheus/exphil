@@ -351,6 +351,22 @@ have a validated target set: these 11 states + the control as the
 positive anchor.
 
 
+**Sync-runner pin (15:00, `eval_runs/0912_sync_rung`, ep57 vs stand dummy,
+60s, T=1.0, shines/min | v3 chain per run):**
+
+| sync --frame-delay | id | r1 | r2 | read |
+|---|---|---|---|---|
+| 3 | 2 | 429.4 / 427 | 436.4 / 436 | ALIGNED (== async fd 3) |
+| 4 | 2 | 107.8 / 3 | 187.7 / 106 | one slower: degraded |
+| 2 | 2 | 96.9 / 2 | 89.9 / 2 | one faster: broken |
+| 3 | 1 | 124.8 / 5 | 103.9 / 5 | id 1 weak at every knob |
+| 2 | 1 | 104.9 / 4 | 105.9 / 3 | (id-1 cold-start weakness, not rung) |
+| 1 | 1 | 91.9 / 1 | 97.9 / 2 | |
+
+Sync pipeline == async == 2 frames; "sync d3 == async d2" (§4f) is
+retracted. Table + derivation now live in `ExPhil.Eval.HarnessRung`
+(INVARIANTS item 12).
+
 ## 7. Instrument 2 — counterfactual coverage map (09-12 09:12)
 
 `scripts/probe_ms_coverage_map.exs` — the fixture streamed through the

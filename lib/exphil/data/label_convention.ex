@@ -96,16 +96,25 @@ defmodule ExPhil.Data.LabelConvention do
   @spec leaky?(map() | keyword() | nil) :: boolean()
   def leaky?(config), do: reaction_delay(config) < 0
 
-  # Live `--frame-delay N` <-> reaction delay N - 1 on this rig (see moduledoc).
-  @live_offset 1
+  # INVARIANTS item 12 (2026-09-12): the live mapping is the HARNESS TABLE
+  # (ExPhil.Eval.HarnessRung), not a constant here. Both Dolphin runners on
+  # this rig apply a decision --frame-delay + 2 frames after the observed
+  # state, so live N plays reaction delay N + 1 — the earlier "N - 1" law
+  # was the drill line's undeclared pipeline offset (2) cancelling the
+  # runner's pipeline (2). These two stay as the async-runner convenience.
 
-  @doc "The live `--frame-delay` that plays a policy at its trained reaction delay."
+  @doc "The nearest live `--frame-delay` for a trained reaction delay (0 when the exact rung is below the runner's floor)."
   @spec live_frame_delay(integer()) :: non_neg_integer()
-  def live_frame_delay(reaction_delay), do: max(reaction_delay + @live_offset, 0)
+  def live_frame_delay(reaction_delay) do
+    case ExPhil.Eval.HarnessRung.knob(:async_runner, ExPhil.Eval.HarnessRung.latency(:training, max(reaction_delay, 0))) do
+      {:ok, k} -> k
+      {:error, _} -> 0
+    end
+  end
 
-  @doc "The reaction delay a live `--frame-delay N` run actually plays at."
+  @doc "The reaction delay a live `--frame-delay N` run actually plays at (async or sync runner)."
   @spec live_reaction_delay(non_neg_integer()) :: integer()
-  def live_reaction_delay(live_frame_delay), do: live_frame_delay - @live_offset
+  def live_reaction_delay(live_frame_delay), do: ExPhil.Eval.HarnessRung.reaction_delay(:async_runner, live_frame_delay)
 
   @doc """
   The delay-id to feed a delay-conditioned checkpoint when deployed at live
@@ -114,14 +123,8 @@ defmodule ExPhil.Data.LabelConvention do
   producing-convention delay, causal ones use reaction delay).
   """
   @spec delay_id(non_neg_integer(), map() | keyword() | nil) :: non_neg_integer()
-  def delay_id(live_frame_delay, config) do
-    reaction = live_reaction_delay(live_frame_delay)
-
-    case of(config) do
-      :causal -> max(reaction, 0)
-      :producing -> max(reaction + 1, 0)
-    end
-  end
+  def delay_id(live_frame_delay, config),
+    do: ExPhil.Eval.HarnessRung.delay_id(:async_runner, live_frame_delay, config)
 
   # -- internals ------------------------------------------------------------
 

@@ -91,6 +91,9 @@ Output.step(1, 5, "Loading agent")
     policy_path: opts[:policy],
     deterministic: opts[:deterministic],
     frame_delay: opts[:frame_delay],
+    # INVARIANTS item 12: the sync runner declares its harness (latency
+    # --frame-delay + 2, pinned 09-12 — the same as async on this rig).
+    harness: :sync_runner,
     # nil -> the Agent derives the id from the checkpoint label convention
     # (INVARIANTS item 1; found 2026-09-10: copying the live flag ran id 1 at
     # d1 for every causal checkpoint and refused single-rung ones).
