@@ -71,7 +71,7 @@ defmodule ExPhil.Training.Streaming do
     player_port = Keyword.get(opts, :player_port, 1)
     port_map = Keyword.get(opts, :port_map, %{})
     dual_port = Keyword.get(opts, :dual_port, false)
-    frame_delay = Keyword.get(opts, :frame_delay, 0)
+    frame_delay = ExPhil.Training.LabelDelay.resolve!(opts)[:label_delay]
     show_progress = Keyword.get(opts, :show_progress, true)
     # Name conditioning: the corpus is anonymized in-file ("Master Player"),
     # so identity comes from the FILENAME bracket tags (FilenameTags).

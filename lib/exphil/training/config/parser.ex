@@ -324,6 +324,7 @@ defmodule ExPhil.Training.Config.Parser do
     {"--bptt-val-files", :bptt_val_files, :int},
     {"--mixed-precision", :mixed_precision, :flag},
     {"--frame-delay", :frame_delay, :int},
+    {"--label-delay", :label_delay, :int},
     {"--num-heads", :num_heads, :int},
     {"--head-dim", :head_dim, :int},
     {"--log-file", :log_file, :string},

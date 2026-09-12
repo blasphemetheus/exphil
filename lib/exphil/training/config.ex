@@ -1509,7 +1509,8 @@ defmodule ExPhil.Training.Config do
       # causal pairing. The leaked pairing is unrepresentable since
       # 2026-09-09 (ExPhil.Data.LabelConvention); live --frame-delay N
       # plays reaction delay N-1.
-      frame_delay: 0,
+      frame_delay: nil,
+      label_delay: nil,
       # Stage internals in the embedding (FoD platform heights + PS
       # transformation; W4 2026-08-24 stage-blindness verdict). +7 raw
       # dims, zero-gated by stage. Enable with --stage-internals.
@@ -1610,7 +1611,7 @@ defmodule ExPhil.Training.Config do
       # adds action_delay frames of reaction delay on top of the causal
       # pairing. 0 = causal. See frame_delay above; the two keys are one
       # concept (FIXES.md P1).
-      action_delay: 0,
+      action_delay: nil,
       # Attention geometry (INVARIANTS.md item 2, 2026-09-09): these were
       # absent here, so `--num-heads` was accepted-and-ignored and
       # Trainer's private table (2/32) silently won over the documented
@@ -1928,11 +1929,8 @@ defmodule ExPhil.Training.Config do
   """
   @spec load_with_yaml(String.t(), [String.t()]) :: {:ok, keyword()} | {:error, any()}
   def load_with_yaml(yaml_path, cli_args) do
-    with {:ok, yaml_opts} <- load_yaml(yaml_path),
-         cli_opts <- parse_args(cli_args) do
-      # CLI args override YAML config
-      merged = Keyword.merge(yaml_opts, cli_opts)
-      {:ok, merged}
+    with {:ok, _yaml_opts} <- load_yaml(yaml_path) do
+      {:ok, parse_args(["--config", yaml_path | cli_args])}
     end
   end
 
@@ -2084,7 +2082,14 @@ defmodule ExPhil.Training.Config do
   """
   @spec validate(keyword()) :: {:ok, keyword()} | {:error, [String.t()]}
   def validate(opts) do
-    Validator.validate(opts, validation_context())
+    with {:ok, opts} <- Validator.validate(opts, validation_context()) do
+      try do
+        ExPhil.Training.LabelDelay.resolve!(opts)
+        {:ok, opts}
+      rescue
+        error in ArgumentError -> {:error, [Exception.message(error)]}
+      end
+    end
   end
 
   @doc """
@@ -2106,7 +2111,9 @@ defmodule ExPhil.Training.Config do
   """
   @spec validate!(keyword()) :: keyword()
   def validate!(opts) do
-    Validator.validate!(opts, validation_context())
+    opts = Validator.validate!(opts, validation_context())
+    ExPhil.Training.LabelDelay.resolve!(opts)
+    opts
   end
 
   # Build the validation context with allowlists
@@ -2185,22 +2192,24 @@ defmodule ExPhil.Training.Config do
   @spec parse_args([String.t()]) :: keyword()
   def parse_args(args) when is_list(args) do
     # Check if config file is specified first
-    base_opts =
+    yaml_opts =
       if Parser.has_flag_value?(args, "--config") do
         config_path = Parser.get_arg_value(args, "--config")
 
         case load_yaml(config_path) do
           {:ok, yaml_opts} ->
             # Merge YAML opts on top of defaults
-            Keyword.merge(defaults(), yaml_opts)
+            yaml_opts
 
           {:error, reason} ->
             IO.puts(:stderr, "Error loading config file: #{inspect(reason)}")
             System.halt(1)
         end
       else
-        defaults()
+        []
       end
+
+    base_opts = Keyword.merge(defaults(), yaml_opts)
 
     # Check if preset is specified - if so, use apply_preset flow
     opts =
@@ -2216,7 +2225,33 @@ defmodule ExPhil.Training.Config do
     opts = apply_backbone_defaults(opts, args)
 
     # Apply scale-dependent adjustments based on dataset size
-    adjust_for_scale(opts, args)
+    preset_opts =
+      case Parser.get_arg_value(args, "--preset") do
+        nil -> []
+        name -> preset(name)
+      end
+
+    cli_opts = Parser.parse(args, [], parser_context())
+    layers = [preset_opts, yaml_opts, cli_opts]
+
+    resume_delay =
+      if opts[:resume] && File.regular?(opts[:resume]) &&
+           not Enum.any?(layers, &ExPhil.Training.LabelDelay.explicit?/1) do
+        case ExPhil.Training.Checkpoint.load(opts[:resume]) do
+          {:ok, checkpoint} ->
+            delay = ExPhil.Data.LabelConvention.reaction_delay(checkpoint.config)
+            if delay < 0,
+              do: raise(ArgumentError, "Resume checkpoint used leaked labels; explicitly choose a causal --label-delay")
+            [label_delay: delay]
+          {:error, reason} ->
+            raise ArgumentError, "Cannot read resume delay: #{inspect(reason)}"
+        end
+      else
+        []
+      end
+
+    delay_opts = ExPhil.Training.LabelDelay.merge_layers!([resume_delay | layers])
+    opts |> adjust_for_scale(args) |> Keyword.merge(delay_opts)
   end
 
   # Adjust defaults based on dataset scale (max_files).
@@ -2542,6 +2577,7 @@ defmodule ExPhil.Training.Config do
       batch_size: opts[:batch_size],
       precision: to_string(opts[:precision]),
       frame_delay: opts[:frame_delay],
+      label_delay: ExPhil.Training.LabelDelay.resolve!(opts)[:label_delay],
       learning_rate: opts[:lr],
       lr_schedule: opts[:lr_schedule] && to_string(opts[:lr_schedule]),
       warmup_steps: opts[:warmup_steps],

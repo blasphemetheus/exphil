@@ -124,4 +124,20 @@ defmodule ExPhil.Data.LabelAlignmentTest do
              %{game_state: %{frame: 5}, controller: :e}
            ]
   end
+
+  @tag :nif
+  test "additional reaction delay cannot cross a missing replay span" do
+    {:ok, replay} = Peppi.parse(@fixture, player_port: @subject_port)
+    frames = replay.frames |> Enum.with_index() |> Enum.reject(fn {_frame, index} -> index in 100..104 end) |> Enum.map(&elem(&1, 0))
+    replay = %{replay | frames: frames}
+    base = Peppi.to_training_frames(replay, player_port: @subject_port)
+    base_by_frame = Map.new(base, &{&1.game_state.frame, &1.controller})
+    delayed = Peppi.to_training_frames(replay, player_port: @subject_port, frame_delay: 2)
+    assert length(delayed) < length(base) - 2
+    for frame <- delayed do
+      observed = frame.game_state.frame
+      assert Map.has_key?(base_by_frame, observed + 1)
+      assert frame.controller == Map.fetch!(base_by_frame, observed + 2)
+    end
+  end
 end

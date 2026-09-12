@@ -33,8 +33,8 @@ Staged means tested in isolation but not yet activated in the sweep checkout.
 
 | ID | Change | Priority | Status | Dependency |
 | --- | --- | --- | --- | --- |
-| R1 | Checkpoint-driven evaluation and diagnostics | High | Validated, staged | Sweep completion before activation |
-| R2 | Canonical training delay | High | Validated, staged | Sweep completion before activation |
+| R1 | Checkpoint-driven evaluation and diagnostics | High | Done | Integrated and revalidated 09-11 |
+| R2 | Canonical training delay | High | Done | Integrated and revalidated 09-11 |
 | R3 | Required semantic contract tests in CI | High | Planned | R4 for clean CI bootstrap |
 | R4 | Reproducible dependencies and run provenance | High | In progress | Required companion APIs are not yet published |
 | R5 | Evaluation identity and comparability | Medium | Planned | R2; reuse R4 provenance |
@@ -286,3 +286,29 @@ or claim the remote pair supports today's code. Nothing was pushed.
 - [Durable patch, exact test selection, and activation steps](BPTT_DELAY_HANDOFF.md).
   Activate only after the sweep no longer reads this checkout, rerun contracts,
   then mark R1/R2 done. No commit, push, deployment, or run restart occurred.
+
+### 2026-09-11 — Integrate R1/R2; benchmark multishine recovery and teacher labels
+
+- User confirmed Claude had stopped. Integrated all 23 staged files; reverse
+  patch application check confirms the integration. R1/R2's 367 tests and
+  14 doctests pass again using this checkout's source and independent CPU/native
+  dependency binaries. This is still not a clean dependency bootstrap.
+- Added a frozen-manifest replay benchmark, explicit Fox subject selection,
+  source/artifact hashes, duplicate-content rejection, per-run chains and rates,
+  stock-loss/duration reporting, and recovery events with censoring. Recovery
+  requires a completed cycle with an observed aerial shine, not an isolated shine.
+- Added teacher table/fallback coverage, state-level disagreement, and indexed
+  examples for audit. Readiness is explicitly a proxy; teacher-label agreement
+  does not establish valid closed-loop corrections.
+- Scored seven existing g23a/g24a games without launching Dolphin or training.
+  The [pilot readout](../../eval_runs/0911_benchmark/RESULTS.md) confirms the
+  stationary/moving-opponent tradeoff and substantial fallback-teacher coverage.
+- [Benchmark guide and remaining validation checklist](../guides/MULTISHINE_BENCHMARK.md).
+  Fresh balanced held-out collection, controlled teacher interventions, and exact
+  controllability instrumentation remain open. No policies were changed or promoted.
+- Final combined validation: **396 tests and 14 doctests, zero failures**.
+  Includes real-replay floor/audit tests, gap/death/interruption censoring,
+  isolated-shine rejection, frozen-hash and duplicate-replay rejection, the
+  existing chain suite, and R1/R2 regressions. Seven-game CLI pilot completed;
+  report source hashes and `git diff --check` verified. No clean dependency
+  bootstrap, full repository suite, GPU work, or live teacher intervention is claimed.

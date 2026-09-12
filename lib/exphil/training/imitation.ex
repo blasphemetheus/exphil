@@ -236,10 +236,13 @@ defmodule ExPhil.Training.Imitation do
     # Build config — merge ALL opts into defaults (don't whitelist)
     # Previously used Keyword.take which silently dropped unknown keys,
     # causing entropy_weight and other new options to never reach the loss function
+    opts = ExPhil.Training.LabelDelay.resolve!(opts)
+
     config =
       @default_config
       |> Map.merge(Map.new(opts))
       |> Map.put(:embed_size, embed_size)
+      |> Map.put(:label_convention, ExPhil.Data.LabelConvention.current())
 
     # Load K-means centers if path provided
     config = load_kmeans_centers(config)

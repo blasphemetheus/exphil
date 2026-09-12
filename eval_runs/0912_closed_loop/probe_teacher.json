@@ -1,0 +1,247 @@
+{
+  "deterministic": true,
+  "timestamp": "20260912_070220",
+  "manifest": "scenarios/ms_breaks_manifest.json",
+  "summary": {
+    "multishine_reentry": {
+      "runs": 1,
+      "pass_rate": 1.0,
+      "mean_score": 0.69,
+      "mean_wall_s": 2.7
+    }
+  },
+  "input_offset": 1,
+  "policy": null,
+  "runs": [
+    {
+      "type": "multishine_reentry",
+      "run": 1,
+      "pass": true,
+      "details": {
+        "cycles": 4,
+        "empty_hops": 0,
+        "reentry_frame": 7,
+        "shine_entries": 7
+      },
+      "diverged": false,
+      "window": 120,
+      "slp": "eval_runs/0911_g23a_live/cpu_rollouts/r1.slp",
+      "replay_dir": "eval_runs/0912_closed_loop/probe_teacher/run00_multishine_reentry",
+      "wall_s": 2.7,
+      "frame": 488,
+      "note": "chain break: last shine-family frame 494, no shine for 30f; handoff 6f earlier",
+      "drift": {
+        "diverged": false,
+        "p1": {
+          "dy": -1.93,
+          "dx": 0.38,
+          "action_live": 368,
+          "action_ref": 368
+        },
+        "p2": {
+          "dy": 0.0,
+          "dx": 0.0,
+          "action_live": 14,
+          "action_ref": 14
+        }
+      },
+      "truncated": null,
+      "drift_trace": [
+        {
+          "f": -120,
+          "p1_dx": 0.0,
+          "p2_dx": 0.0,
+          "p1_a": [
+            322,
+            322
+          ],
+          "p2_a": [
+            322,
+            322
+          ],
+          "p1_pct": 0.0,
+          "p2_pct": 0.0
+        },
+        {
+          "f": 0,
+          "p1_dx": 0.0,
+          "p2_dx": 0.0,
+          "p1_a": [
+            24,
+            24
+          ],
+          "p2_a": [
+            16,
+            16
+          ],
+          "p1_pct": 0.0,
+          "p2_pct": 0.0
+        },
+        {
+          "f": 120,
+          "p1_dx": 0.0,
+          "p2_dx": 0.0,
+          "p1_a": [
+            366,
+            366
+          ],
+          "p2_a": [
+            25,
+            63
+          ],
+          "p1_pct": 0.0,
+          "p2_pct": 0.0
+        },
+        {
+          "f": 240,
+          "p1_dx": 0.0,
+          "p2_dx": 0.0,
+          "p1_a": [
+            366,
+            366
+          ],
+          "p2_a": [
+            16,
+            16
+          ],
+          "p1_pct": 0.0,
+          "p2_pct": 2.5
+        },
+        {
+          "f": 360,
+          "p1_dx": 0.0,
+          "p2_dx": 0.0,
+          "p1_a": [
+            360,
+            360
+          ],
+          "p2_a": [
+            186,
+            186
+          ],
+          "p1_pct": 0.0,
+          "p2_pct": 2.5
+        },
+        {
+          "f": 480,
+          "p1_dx": 0.38,
+          "p2_dx": 0.0,
+          "p1_a": [
+            368,
+            368
+          ],
+          "p2_a": [
+            14,
+            14
+          ],
+          "p1_pct": -4.0,
+          "p2_pct": 2.5
+        }
+      ],
+      "first_drift": {},
+      "score": 0.69,
+      "frames_observed": 120,
+      "p1_actions_rle": [
+        [
+          368,
+          4
+        ],
+        [
+          363,
+          2
+        ],
+        [
+          39,
+          1
+        ],
+        [
+          360,
+          3
+        ],
+        [
+          24,
+          3
+        ],
+        [
+          25,
+          1
+        ],
+        [
+          365,
+          6
+        ],
+        [
+          366,
+          18
+        ],
+        [
+          368,
+          4
+        ],
+        [
+          363,
+          14
+        ],
+        [
+          39,
+          1
+        ],
+        [
+          360,
+          3
+        ],
+        [
+          24,
+          3
+        ],
+        [
+          25,
+          1
+        ],
+        [
+          365,
+          3
+        ],
+        [
+          366,
+          18
+        ],
+        [
+          368,
+          4
+        ],
+        [
+          363,
+          14
+        ],
+        [
+          39,
+          1
+        ],
+        [
+          360,
+          3
+        ],
+        [
+          24,
+          3
+        ],
+        [
+          25,
+          1
+        ],
+        [
+          365,
+          3
+        ],
+        [
+          366,
+          6
+        ]
+      ]
+    }
+  ],
+  "temperature": null,
+  "diverged_runs": 0,
+  "errored_runs": 0
+}

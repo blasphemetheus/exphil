@@ -7,6 +7,7 @@ defmodule ExPhil.Training.Callbacks.Diagnostics do
   use ExPhil.Training.Callback
 
   alias ExPhil.Training.Output
+  alias ExPhil.Evaluation.Forward
 
   @impl true
   def init(opts) do
@@ -26,8 +27,8 @@ defmodule ExPhil.Training.Callbacks.Diagnostics do
       if val_batches && length(val_batches) >= 1 do
         batch = hd(val_batches)
         try do
-          {btn_logits, mx_logits, _, _, _, _} =
-            state.trainer.predict_fn.(state.trainer.policy_params, batch.states)
+          {{btn_logits, mx_logits, _, _, _, _}, _actions, _evaluator} =
+            Forward.batch(Forward.from_trainer(state.trainer), batch)
 
           # Check diversity — no per-index loops to avoid JIT recompilation
           pred_buttons = Nx.greater(Nx.sigmoid(btn_logits), 0.5) |> Nx.as_type(:u8)
@@ -97,10 +98,12 @@ defmodule ExPhil.Training.Callbacks.Diagnostics do
           display_confidence_histogram(state.trainer, val_batches)
 
           # Gradient norms (compact, always-on)
-          run_gradient_diagnostics_compact(state.trainer, hd(val_batches))
+          unless state.trainer.config[:bptt] do
+            run_gradient_diagnostics_compact(state.trainer, hd(val_batches))
+          end
 
           # Detailed gradient monitoring (verbose only — expensive)
-          if cb.verbose or state.opts[:verbose] do
+          if state.trainer.config[:bptt] != true and (cb.verbose or state.opts[:verbose]) do
             run_gradient_diagnostics(state.trainer, hd(val_batches))
           end
 
@@ -120,7 +123,14 @@ defmodule ExPhil.Training.Callbacks.Diagnostics do
 
   # Returns {normalized_head_losses, diag_accumulator} for use by caller
   defp run_diagnostics(trainer, val_batches) do
-    sample = Enum.take(val_batches, 10)
+    sample =
+      trainer
+      |> Forward.from_trainer()
+      |> Forward.stream(Enum.take(val_batches, 10))
+      |> Enum.map(fn {logits, actions} -> %{logits: logits, actions: actions} end)
+
+    if trainer.config[:head] == :autoregressive,
+      do: Output.puts("  Diagnostics use teacher-forced component targets, not live samples")
     button_names = ~w(A B X Y Z L R D-Up)
 
     # Accumulate stats across sample batches
@@ -146,7 +156,7 @@ defmodule ExPhil.Training.Callbacks.Diagnostics do
 
     diag = Enum.reduce(sample, init_acc, fn batch, acc ->
       {buttons_logits, mx_logits, my_logits, cx_logits, cy_logits, sh_logits} =
-        trainer.predict_fn.(trainer.policy_params, batch.states)
+        batch.logits
 
       batch_size = elem(Nx.shape(mx_logits), 0)
 
@@ -370,15 +380,15 @@ defmodule ExPhil.Training.Callbacks.Diagnostics do
     # Temporal consistency (only for temporal/sequence models)
     # Measures prediction stability: for each pair of adjacent sequences in a batch
     # (which overlap by window_size - stride frames), how often are predictions the same?
-    if length(sample) >= 2 do
+    if length(sample) >= 2 and trainer.config[:bptt] != true do
       try do
         # Compare predictions on batch N vs batch N+1
         consistencies =
           sample
           |> Enum.chunk_every(2, 1, :discard)
           |> Enum.map(fn [b1, b2] ->
-            {btn1, mx1, my1, _, _, _} = trainer.predict_fn.(trainer.policy_params, b1.states)
-            {btn2, mx2, my2, _, _, _} = trainer.predict_fn.(trainer.policy_params, b2.states)
+            {btn1, mx1, my1, _, _, _} = b1.logits
+            {btn2, mx2, my2, _, _, _} = b2.logits
 
             # Button agreement: same predicted buttons
             p1 = Nx.greater(Nx.sigmoid(btn1), 0.5)
@@ -469,8 +479,8 @@ defmodule ExPhil.Training.Callbacks.Diagnostics do
     batch = hd(val_batches)
 
     try do
-      {btn_logits, mx_logits, _, _, _, _} =
-        trainer.predict_fn.(trainer.policy_params, batch.states)
+      {{btn_logits, mx_logits, _, _, _, _}, _actions, _evaluator} =
+        Forward.batch(Forward.from_trainer(trainer), batch)
 
       # Button confidence: max sigmoid probability per sample
       btn_probs = Nx.sigmoid(btn_logits)

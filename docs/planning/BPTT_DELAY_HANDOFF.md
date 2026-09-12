@@ -1,9 +1,9 @@
 # R1/R2 implementation handoff — 2026-09-10
 
-**Implemented and validated in isolation; not activated in this checkout.**
-Claude's sweep may still read runtime source on a later stage. Its completion
-has not been confirmed. No active library, evaluator, build, checkpoint, or sweep
-input was modified by this change.
+**Activated 2026-09-11 after the user confirmed Claude's work had stopped.**
+The 23-file patch was integrated and its 367 tests plus 14 doctests passed again
+against the active checkout's source, using independent CPU dependency binaries.
+The activation instructions below are historical; do not apply the patch again.
 
 - [Durable source/test patch](patches/bptt-eval-label-delay.patch)
 - [Behavior and usage guide](../guides/BPTT_EVALUATION.md)
@@ -12,6 +12,8 @@ input was modified by this change.
   and `/tmp/exphil-improvements.MggyAe/libmelee_ex`
 
 ## Activation
+
+Completed 2026-09-11. Original procedure retained for the implementation record:
 
 Only after confirming the sweep no longer uses this checkout, review and apply:
 

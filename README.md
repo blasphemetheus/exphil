@@ -103,7 +103,7 @@ mix run scripts/train.exs --preset quick --replays ./replays
 mix run scripts/train.exs --backbone gru --replays ./replays
 mix run scripts/train.exs --backbone attention --replays ./replays
 
-# Evaluate a supported non-BPTT checkpoint (see limitation below)
+# Evaluate a checkpoint (see supported modes below)
 mix run scripts/eval_model.exs --checkpoint checkpoints/model.axon
 ```
 
@@ -112,9 +112,11 @@ local dependency overrides. `scripts/train.exs` is the current entry point;
 `train_from_replays.exs` is legacy. Run setup/training commands in a separate
 environment from any active training job.
 
-**Evaluation limitation:** `eval_model.exs` does not yet support current BPTT
-checkpoints. Follow [current status](docs/planning/CURRENT_STATUS.md) for available
-instruments and the tracked fix. For Dolphin play, copy the checkpoint-specific
+**Evaluation:** `eval_model.exs` supports checkpoint-driven GRU BPTT evaluation;
+see [supported modes and limits](docs/guides/BPTT_EVALUATION.md). Queued-action /
+delay-ID multishine policies need gameplay evaluation; the
+[multishine replay benchmark](docs/guides/MULTISHINE_BENCHMARK.md) measures chains,
+re-entry, and teacher coverage. For Dolphin play, copy the checkpoint-specific
 settings from the [deployment cards](docs/guides/DEPLOY_KNOBS.md); delay and
 decoding settings affect behavior.
 

@@ -26,11 +26,12 @@ defmodule ExPhil.Training.MixFrames do
   @doc """
   Load and delay-shift drill frames from a comma-separated list of paths or
   globs. Returns `{frames, stats}` — frames are shifted per source segment
-  with `opts[:action_delay]` (must match training).
+  with resolved `opts[:label_delay]` (must match training). `:action_delay`
+  and `:frame_delay` remain aliases and explicit conflicts are rejected.
   """
   @spec load(String.t(), keyword()) :: {[map()], [map()]}
   def load(spec, opts \\ []) do
-    delay = Keyword.get(opts, :action_delay, 0)
+    delay = ExPhil.Training.LabelDelay.resolve!(opts)[:label_delay]
 
     paths =
       spec

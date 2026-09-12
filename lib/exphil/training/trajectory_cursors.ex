@@ -25,10 +25,9 @@ defmodule ExPhil.Training.TrajectoryCursors do
 
   ## Segment law
 
-  A segment = one contiguous replay (game). Boundaries are recovered the
-  same way `AdvantageWeighting.split_by_replay/1` does: the Slippi frame
-  counter going backward (`cur <= prev`) marks a new game. Hidden state
-  must reset ONLY at these boundaries — never at chunk edges.
+  A segment is a contiguous portion of a replay. A frame-counter reset,
+  repeat, or forward gap starts a new segment (`cur != prev + 1`). Hidden
+  state resets at these boundaries, never at ordinary chunk edges.
 
   ## v0 limitations (deliberate)
 
@@ -48,7 +47,7 @@ defmodule ExPhil.Training.TrajectoryCursors do
   Recover segment boundaries from a flat frame list.
 
   Returns `[{start_index, length}]` in corpus order. Boundary rule:
-  Slippi frame counter decreases or repeats (`cur <= prev`).
+  Slippi frame counter is not the immediate successor (`cur != prev + 1`).
   """
   @spec segments([map()]) :: [{non_neg_integer(), pos_integer()}]
   def segments(frames) do
@@ -61,7 +60,7 @@ defmodule ExPhil.Training.TrajectoryCursors do
         seg_start == nil ->
           {done, idx, cur}
 
-        cur <= prev ->
+        cur != prev + 1 ->
           {[{seg_start, idx - seg_start} | done], idx, cur}
 
         true ->

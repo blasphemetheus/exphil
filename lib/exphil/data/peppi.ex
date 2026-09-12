@@ -444,18 +444,22 @@ defmodule ExPhil.Data.Peppi do
     num_frames = length(frames)
 
     delay..(num_frames - 1)
-    |> Enum.map(fn t ->
+    |> Enum.flat_map(fn t ->
       delayed = :array.get(t - delay, frame_array)
       current = :array.get(t, frame_array)
 
-      %{
-        game_state: delayed.game_state,
-        controller: current.controller,
-        player_tag: current[:player_tag],
-        frame_delay: delay,
-        observed_frame: t - delay,
-        action_frame: t
-      }
+      if current.game_state.frame == delayed.game_state.frame + delay do
+        [%{
+          game_state: delayed.game_state,
+          controller: current.controller,
+          player_tag: current[:player_tag],
+          frame_delay: delay,
+          observed_frame: t - delay,
+          action_frame: t
+        }]
+      else
+        []
+      end
     end)
   end
 

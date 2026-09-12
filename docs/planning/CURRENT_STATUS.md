@@ -1,6 +1,6 @@
 # Current project status
 
-Updated 2026-09-10. Start here for current direction; use dated handoffs for
+Updated 2026-09-11. Start here for current direction; use dated handoffs for
 experimental evidence and the exact checkpoint-specific commands.
 
 ## Direction
@@ -21,9 +21,8 @@ available research directions, not the immediate next milestone.
 
 ## Active work
 
-The user clarified on 09-10 that Claude is running a sweep, not training.
-Its identity and progress have not been independently verified for this work.
-The 09-09 handoff's statement that nothing was running is historical, not current.
+On 09-11 the user confirmed Claude had no work in progress and authorized
+integration of the staged runtime patch and a multishine benchmark.
 
 Keep this work independent of the active run: no rebuilds, dependency updates,
 launcher changes, artifact cleanup, or GPU evaluation in its environment.
@@ -36,10 +35,12 @@ callbacks still need automatic progress and diagnostic reporting. Remote
 dependency defaults also await publication of required companion-repository
 APIs; the improvement checklist records the exact revisions inspected.
 
-R1 BPTT evaluation and R2 canonical training delay are now implemented and tested
-in an isolated copy: **367 tests and 14 doctests pass**. The
-[source patch and activation handoff](BPTT_DELAY_HANDOFF.md) are saved here;
-runtime changes are not yet activated while sweep completion is unconfirmed.
+R1 BPTT evaluation and R2 canonical training delay are integrated:
+**367 tests and 14 doctests pass again** against this checkout's source using
+independent CPU dependency binaries. The [implementation record](BPTT_DELAY_HANDOFF.md)
+retains the original patch. The [multishine benchmark](../guides/MULTISHINE_BENCHMARK.md)
+adds frozen replay scoring, censored recovery measurements, and teacher-label
+audits. Fresh held-out gameplay and closed-loop teacher validation remain open.
 
 ## Current workflow and limitations
 
@@ -51,10 +52,10 @@ runtime changes are not yet activated while sweep completion is unconfirmed.
 3. New parser output is causal: state[t] pairs with controller[t+1]. Training
    delays are additional reaction delay. Live Dolphin delay numbering is
    unchanged; use the [deployment cards](../guides/DEPLOY_KNOBS.md).
-4. The active `scripts/eval_model.exs` still lacks BPTT evaluation. The staged
-   R1 patch adds checkpoint-driven, carry-aware teacher-forced evaluation and
-   shared diagnostics. See the [usage and limits](../guides/BPTT_EVALUATION.md);
-   apply only after the sweep is finished. Gameplay measurements remain separate.
+4. `scripts/eval_model.exs` now supports checkpoint-driven, carry-aware GRU BPTT
+   evaluation and shared diagnostics. See the [usage and limits](../guides/BPTT_EVALUATION.md).
+   Queued-action/delay-ID multishine policies are outside that evaluator's scope;
+   gameplay measurements remain separate.
 5. Evaluate gameplay at the checkpoint's deployment settings. Do not compare
    legacy leaked-label losses with causal-label losses or promote policies on
    stand-dummy results alone.

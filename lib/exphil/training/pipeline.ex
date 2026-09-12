@@ -102,7 +102,16 @@ defmodule ExPhil.Training.Pipeline do
   """
   @spec setup(keyword()) :: {:ok, t()} | {:error, term()}
   def setup(opts) do
+    opts = ExPhil.Training.LabelDelay.resolve!(opts)
     streaming = opts[:stream_chunk_size] != nil and opts[:stream_chunk_size] > 0
+
+    if opts[:frame_delay_augment] && (streaming || opts[:temporal] || opts[:corpus]) do
+      raise ArgumentError, "Frame-delay augmentation is supported only by the non-temporal standard loader; temporal/streaming loaders would ignore it"
+    end
+
+    if opts[:corpus] && opts[:label_delay] != 0 do
+      raise ArgumentError, "Precomputed corpus labels cannot be shifted by --label-delay; rebuild the corpus for the requested delay"
+    end
 
     if opts[:corpus] do
       build_pipeline_corpus(opts)
@@ -364,12 +373,6 @@ defmodule ExPhil.Training.Pipeline do
     end
   end
 
-  # GOTCHA #113 / INVARIANTS.md item 1: label alignment is STRUCTURAL now.
-  # Peppi.to_training_frames always pairs state[t] with the input issued
-  # from it; :frame_delay (streaming/bptt) and :action_delay (standard,
-  # via Data.shift_actions) are reaction delay on top. There is no guard
-  # here because the leaked pairing can no longer be built.
-
   defp build_pipeline(replay_files, replay_stats, true = _streaming, opts) do
     # Streaming mode — don't load data upfront
     Output.step(2, 4, "Setting up streaming pipeline")
@@ -475,7 +478,7 @@ defmodule ExPhil.Training.Pipeline do
 
         chunk_opts =
           Keyword.take(opts, [
-            :player_port, :dual_port, :frame_delay, :skip_errors, :show_errors, :port_map
+            :player_port, :dual_port, :label_delay, :skip_errors, :show_errors, :port_map
           ]) ++ [subject_character: subject_character]
 
         dataset_opts =
@@ -506,7 +509,7 @@ defmodule ExPhil.Training.Pipeline do
       streaming: true,
       file_chunks: file_chunks,
       streaming_chunk_opts: Keyword.take(opts, [
-        :player_port, :dual_port, :frame_delay, :skip_errors, :show_errors, :port_map
+        :player_port, :dual_port, :label_delay, :skip_errors, :show_errors, :port_map
       ]) ++ [subject_character: subject_character],
       streaming_dataset_opts: Keyword.take(opts, [
         :temporal, :window_size, :stride, :precompute, :lazy_sequences
@@ -534,18 +537,7 @@ defmodule ExPhil.Training.Pipeline do
       Output.puts("  #{length(frames)} frames from #{length(replay_files)} files")
       log_character_distribution(frames)
 
-      # Delay-aware training: pair state(t) with controller(t+delay) so the
-      # model plans for the bridge's input latency (see Data.shift_actions)
-      frames =
-        case opts[:action_delay] || 0 do
-          0 ->
-            frames
-
-          delay ->
-            shifted = Data.shift_actions(frames, delay)
-            Output.puts("  Action delay #{delay}: #{length(shifted)} frames after target shift")
-            shifted
-        end
+      Output.puts("  Reaction label delay: #{opts[:label_delay]} frames")
 
       # Curriculum mixing: drill .frames exports (already expert-labeled;
       # shifted per source segment inside MixFrames with the same delay).
@@ -557,7 +549,7 @@ defmodule ExPhil.Training.Pipeline do
 
           spec ->
             {mixed, stats} =
-              ExPhil.Training.MixFrames.load(spec, action_delay: opts[:action_delay] || 0)
+              ExPhil.Training.MixFrames.load(spec, label_delay: opts[:label_delay])
 
             for %{path: path, expert: expert, frames: n} <- stats do
               Output.puts("  Mix: #{Path.basename(path)} (#{expert}) +#{n} frames")
@@ -880,11 +872,11 @@ defmodule ExPhil.Training.Pipeline do
       try do
         if dual_port do
           # Parse both ports — doubles training data
-          parse_both_ports(path)
+          parse_both_ports(path, opts[:label_delay])
         else
           case Peppi.parse(path, player_port: player_port) do
             {:ok, replay} ->
-              Peppi.to_training_frames(replay, player_port: player_port)
+              Peppi.to_training_frames(replay, player_port: player_port, frame_delay: opts[:label_delay])
             _ -> []
           end
         end
@@ -897,12 +889,12 @@ defmodule ExPhil.Training.Pipeline do
     |> tap(fn _ -> IO.write(:stderr, "\r\e[K") end)
   end
 
-  defp parse_both_ports(path) do
+  defp parse_both_ports(path, label_delay) do
     case Peppi.metadata(path) do
       {:ok, meta} ->
         Enum.flat_map(meta.players, fn p ->
           case Peppi.parse(path, player_port: p.port) do
-            {:ok, replay} -> Peppi.to_training_frames(replay, player_port: p.port)
+            {:ok, replay} -> Peppi.to_training_frames(replay, player_port: p.port, frame_delay: label_delay)
             _ -> []
           end
         end)
@@ -1077,7 +1069,7 @@ defmodule ExPhil.Training.Pipeline do
           drop_last: Keyword.get(opts, :drop_last, true),
           augment_fn: pipeline.augment_fn,
           character_weights: pipeline.character_weights,
-          frame_delay: ropts[:frame_delay] || 0,
+          frame_delay: 0,
           frame_delay_augment: ropts[:frame_delay_augment] || false,
           frame_delay_min: ropts[:frame_delay_min] || 0,
           frame_delay_max: ropts[:frame_delay_max] || 3
@@ -1229,7 +1221,7 @@ defmodule ExPhil.Training.Pipeline do
 
         spec ->
           {mixed, mstats} =
-            ExPhil.Training.MixFrames.load(spec, action_delay: ropts[:action_delay] || 0)
+            ExPhil.Training.MixFrames.load(spec, label_delay: ropts[:label_delay])
 
           oversample = ropts[:mix_oversample] || 1
 

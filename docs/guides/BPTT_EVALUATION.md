@@ -2,7 +2,7 @@
 
 ## Checkpoint-driven BPTT evaluation
 
-After installing the R1/R2 changes, evaluate a current exported GRU policy with:
+R1/R2 were integrated on 2026-09-11. Evaluate a current exported GRU policy with:
 
 ```bash
 mix run scripts/eval_model.exs --policy checkpoints/model_policy.bin \

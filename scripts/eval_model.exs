@@ -38,6 +38,7 @@ opts = CLI.parse_args(System.argv(),
   extra: [
     compare: :boolean,
     temporal: :boolean,
+    bptt: :boolean,
     backbone: :string,
     window_size: :integer,
     hidden_sizes: :string,
@@ -71,6 +72,7 @@ if opts[:help] do
 #{CLI.help_text([:verbosity, :replay, :checkpoint, :evaluation])}
     --compare               Compare multiple models (pass paths as positional args)
     --temporal              Enable temporal model evaluation
+    --bptt                  Legacy BPTT export without a mode stamp (new exports auto-detect)
     --backbone NAME         Backbone architecture (for temporal)
     --window-size N         Window size for temporal models
     --export-csv PATH       Export predictions to CSV for analysis
@@ -122,6 +124,13 @@ model_paths =
       Output.puts("Error: Must provide --checkpoint, --policy, or paths to compare")
       System.halt(1)
   end
+
+artifacts = Enum.map(model_paths, &ExPhil.Evaluation.Forward.load!(&1, bptt: opts[:bptt]))
+
+if Enum.any?(artifacts, & &1.config[:bptt]) do
+  ExPhil.Evaluation.BPTT.run(artifacts, opts)
+  System.halt(0)
+end
 
 Output.banner("ExPhil Model Evaluation")
 
@@ -251,63 +260,7 @@ end
 # Step 3: Load model config to determine embedding configuration
 Output.step(3, 5, "Loading model configuration")
 
-# Load first model to get its config (used for embedding setup)
-first_model_path = hd(model_paths)
-
-# Try to find companion config file
-config_paths = [
-  String.replace(first_model_path, ~r/\.(axon|bin)$/, "_config.json"),
-  String.replace(first_model_path, "_policy.bin", "_config.json"),
-  String.replace(first_model_path, "_best_policy.bin", "_config.json"),
-  String.replace(first_model_path, ".axon", "_config.json")
-] |> Enum.uniq()
-
-config_path = Enum.find(config_paths, &File.exists?/1)
-
-model_config =
-  if config_path do
-    case File.read(config_path) do
-      {:ok, json} ->
-        case Jason.decode(json) do
-          {:ok, cfg} ->
-            Output.puts("  Loaded config from #{Path.basename(config_path)}")
-            cfg
-          _ ->
-            Output.warning("Could not parse config JSON, using current defaults")
-            %{}
-        end
-      _ ->
-        Output.warning("Could not read config file, using current defaults")
-        %{}
-    end
-  else
-    Output.warning("No config file found (tried: #{Enum.map(config_paths, &Path.basename/1) |> Enum.join(", ")})")
-    Output.puts("  Using current embedding defaults")
-    %{}
-  end
-
-# The policy file's OWN metadata is authoritative for layout keys (it is
-# what the Agent and the probes read); the JSON sidecar has lagged it
-# (v16f 2026-09-09: sidecar had no with_projectiles). Merge it on top.
-model_config =
-  if Regex.match?(~r/_policy\.bin$/, first_model_path) and File.exists?(first_model_path) do
-    try do
-      {_params, meta} = Edifice.Checkpoint.load(first_model_path, return_metadata: true)
-
-      case meta[:config] do
-        pc when is_map(pc) and map_size(pc) > 0 ->
-          Output.puts("  Layout keys from the policy metadata (#{map_size(pc)} keys) override the sidecar")
-          Map.merge(model_config, pc)
-
-        _ ->
-          model_config
-      end
-    rescue
-      _ -> model_config
-    end
-  else
-    model_config
-  end
+model_config = hd(artifacts).config
 
 # Build embedding config from model config
 embed_opts = [with_speeds: true]
@@ -554,7 +507,7 @@ evaluate_model = fn model_path ->
   is_policy_file = String.ends_with?(model_path, ".bin")
 
   # Load model with embed size validation
-  {params, config} =
+  {params, _loaded_config} =
     if is_policy_file do
       case Checkpoint.load_policy(model_path, current_embed_size: embed_size) do
         {:ok, export} ->
@@ -575,46 +528,21 @@ evaluate_model = fn model_path ->
       end
     end
 
-  # Build policy model based on temporal mode
-  model_embed_size = config[:embed_size] || embed_size
-  hidden_sizes =
-    if opts[:hidden_sizes] do
-      opts[:hidden_sizes] |> String.split(",") |> Enum.map(&String.to_integer/1)
-    else
-      config[:hidden_sizes] || [512, 512]
-    end
+  legacy_hidden_sizes =
+    if opts[:hidden_sizes],
+      do: opts[:hidden_sizes] |> String.split(",") |> Enum.map(&String.to_integer/1),
+      else: Enum.find(artifacts, &(&1.path == model_path)).config[:hidden_sizes] || [512, 512]
 
-  policy_model =
-    if opts[:temporal] do
-      backbone_type = String.to_atom(opts[:backbone])
+  config =
+    Enum.find(artifacts, &(&1.path == model_path)).config
+    |> Map.put_new(:embed_size, embed_size)
+    |> Map.put_new(:temporal, opts[:temporal])
+    |> Map.put_new(:backbone, String.to_existing_atom(opts[:backbone]))
+    |> Map.put_new(:window_size, opts[:window_size])
+    |> Map.put_new(:hidden_sizes, legacy_hidden_sizes)
+    |> Map.put_new(:hidden_size, hd(legacy_hidden_sizes))
 
-      Policy.build_temporal(
-        embed_size: model_embed_size,
-        backbone: backbone_type,
-        hidden_size: hd(hidden_sizes),
-        num_layers: config[:num_layers] || 2,
-        num_heads: config[:num_heads] || 4,
-        head_dim: config[:head_dim] || 64,
-        attention_every: config[:attention_every] || 3,
-        window_size: config[:window_size] || opts[:window_size],
-        state_size: config[:state_size] || 16,
-        expand_factor: config[:expand_factor] || 2,
-        conv_size: config[:conv_size] || 4,
-        dropout: config[:dropout] || 0.1,
-        axis_buckets: config[:axis_buckets] || 16,
-        shoulder_buckets: config[:shoulder_buckets] || 4
-      )
-    else
-      Policy.build(
-        embed_size: model_embed_size,
-        hidden_sizes: hidden_sizes,
-        axis_buckets: config[:axis_buckets] || 16,
-        shoulder_buckets: config[:shoulder_buckets] || 4
-      )
-    end
-
-  eval_build_opts = if Code.ensure_loaded?(EXLA), do: [compiler: EXLA], else: []
-{_init_fn, predict_fn} = Axon.build(policy_model, eval_build_opts)
+  evaluator = ExPhil.Evaluation.Forward.new(params, config)
 
   # Evaluate
   axis_buckets = config[:axis_buckets] || 16
@@ -739,7 +667,8 @@ evaluate_model = fn model_path ->
 
       # Track inference time (skip first batch due to JIT)
       inference_start = System.monotonic_time(:microsecond)
-      {buttons, main_x, main_y, c_x, c_y, shoulder} = predict_fn.(params, states)
+      {{buttons, main_x, main_y, c_x, c_y, shoulder}, actions, _evaluator} =
+        ExPhil.Evaluation.Forward.batch(evaluator, batch)
       inference_time_us = System.monotonic_time(:microsecond) - inference_start
 
       logits = %{

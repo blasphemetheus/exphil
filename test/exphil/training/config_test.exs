@@ -426,8 +426,8 @@ defmodule ExPhil.Training.ConfigTest do
       assert defaults[:precision] == :f32
       # INVARIANTS.md item 1: 0 = the causal pairing (reaction delay on top
       # of what Peppi emits); the leaked pairing is unrepresentable.
-      assert defaults[:frame_delay] == 0
-      assert defaults[:action_delay] == 0
+      assert defaults[:frame_delay] == nil
+      assert defaults[:action_delay] == nil
       assert defaults[:checkpoint] == nil
       assert defaults[:max_files] == nil
     end

@@ -37,6 +37,11 @@ defmodule ExPhil.Training.TrajectoryCursorsTest do
   end
 
   describe "segments/1" do
+    test "splits on forward gaps as well as resets" do
+      frames = Enum.map([0, 1, 5, 6, 0, 1], &frame(&1, 0))
+      assert TrajectoryCursors.segments(frames) == [{0, 2}, {2, 2}, {4, 2}]
+    end
+
     test "splits on frame-counter reset" do
       ds = dataset([100, 50, 200])
       assert TrajectoryCursors.segments(ds.frames) == [{0, 100}, {100, 50}, {150, 200}]

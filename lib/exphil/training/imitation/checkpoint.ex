@@ -197,7 +197,7 @@ defmodule ExPhil.Training.Imitation.Checkpointing do
       trainer
       | policy_params: checkpoint.policy_params,
         optimizer_state: checkpoint.optimizer_state,
-        config: checkpoint.config,
+        config: Map.merge(checkpoint.config, Map.take(trainer.config, [:label_delay, :frame_delay, :action_delay, :label_convention])),
         step: checkpoint.step,
         metrics: checkpoint.metrics
     }
@@ -354,6 +354,7 @@ defmodule ExPhil.Training.Imitation.Checkpointing do
       resolve_embed_size!(trainer.policy_params, computed_embed_size, stored_embed_size, path)
 
     canary = embed_canary(trainer)
+    export_embed_config = trainer.embed_config || Embeddings.config([])
 
     if is_list(canary) and canary != [] and length(canary) != embed_size do
       require Logger
@@ -376,6 +377,16 @@ defmodule ExPhil.Training.Imitation.Checkpointing do
         dropout: trainer.config[:dropout] || 0.1,
         # Temporal config
         temporal: trainer.config[:temporal] || false,
+        bptt: trainer.config[:bptt] || false,
+        unroll: trainer.config[:unroll] || 80,
+        frame_delay: trainer.config[:frame_delay] || 0,
+        action_delay: trainer.config[:action_delay] || 0,
+        label_delay: ExPhil.Data.LabelConvention.reaction_delay(trainer.config),
+        num_player_names: export_embed_config.num_player_names,
+        action_mode: export_embed_config.player.action_mode,
+        character_mode: export_embed_config.player.character_mode,
+        nana_mode: export_embed_config.player.nana_mode,
+        stage_mode: export_embed_config.stage_mode,
         backbone: trainer.config[:backbone] || :mlp,
         window_size: trainer.config[:window_size] || 60,
         num_heads: trainer.config[:num_heads] || 4,
@@ -622,10 +633,11 @@ defmodule ExPhil.Training.Imitation.Checkpointing do
         config[:train_delays]
 
       config[:frame_delay_augment] ->
-        Enum.to_list((config[:frame_delay_min] || 0)..(config[:frame_delay_max] || 0))
+        base = ExPhil.Data.LabelConvention.reaction_delay(config)
+        Enum.map((config[:frame_delay_min] || 0)..(config[:frame_delay_max] || 0), &(&1 + base))
 
       true ->
-        [config[:frame_delay] || 0]
+        [ExPhil.Data.LabelConvention.reaction_delay(config)]
     end
   end
 

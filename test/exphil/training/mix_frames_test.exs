@@ -56,6 +56,18 @@ defmodule ExPhil.Training.MixFramesTest do
     assert length(stats) == 2
   end
 
+  test "all training delay aliases select the same identifiable successor", %{tmp_dir: directory} do
+    frames = Enum.map(0..5, fn counter ->
+      Map.put(frame(counter), :controller, %{marker: counter})
+    end)
+    path = write_export(directory, "aliases.frames", [frames], 3)
+    for key <- ExPhil.Training.LabelDelay.keys() do
+      {shifted, _stats} = MixFrames.load(path, [{key, 2}])
+      assert Enum.map(shifted, &{&1.game_state.frame, &1.controller.marker}) ==
+        [{0, 2}, {1, 3}, {2, 4}, {3, 5}]
+    end
+  end
+
   test "unreadable file is skipped with empty stats", %{tmp_dir: dir} do
     File.write!(Path.join(dir, "junk.frames"), "not a term")
 

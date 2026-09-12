@@ -20,7 +20,7 @@ mix run scripts/train.exs --help
 Follow [contributor setup](../../CONTRIBUTING.md#development-setup) first. Run
 these commands away from any active training environment. See
 [current status](../planning/CURRENT_STATUS.md) for the causal-label convention,
-the BPTT evaluator limitation, and checkpoint-specific deployment guidance.
+supported BPTT evaluation modes, and checkpoint-specific deployment guidance.
 
 ## Historical trainer examples
 
@@ -1549,13 +1549,14 @@ Regenerate: `mix run -e 'ExPhil.Training.Config.FlagDocs.write!()'`.
 | `--bptt-overlap` | int | `1` | Frames shared between consecutive BPTT chunks (set to frame_delay + 1) |
 | `--bptt-val-files` | int | `16` | Whole replays held out for the carry-threaded val pass (game-level split; val batch is capped at 8 rows) |
 | `--mixed-precision` | flag | `false` | FP32 master weights + BF16 compute (not recommended) |
-| `--frame-delay` | int | `0` | Reaction delay (frames) for the streaming/bptt path, ON TOP of the causal pairing Peppi emits (INVARIANTS.md item 1, GOTCHA #113). 0 = causal (the default). Live --frame-delay N plays reaction delay N-1, so a policy trained here at k deploys at N = k+1 (ExPhil.Data.LabelConvention). |
+| `--frame-delay` | int | `nil` | Training alias for --label-delay on every loader. Live Dolphin --frame-delay N remains reaction delay N-1. |
+| `--label-delay` | int | `nil` | Reaction delay on top of causal state[t]/controller[t+1] pairing. Defaults to 0 after resolution; standard, streaming, and BPTT loaders apply it once. CLI overrides YAML, preset, and resume values. Live Dolphin delay numbering is unchanged. |
 | `--num-heads` | int | `4` | Number of attention heads (parsed since 2026-09-09 — it was accepted-and-ignored before, and Trainer's private 2/32 table won) |
 | `--head-dim` | int | `64` | Attention head width |
 | `--log-file` | string | `nil` | Tee script output to a file |
-| `--frame-delay-augment` | flag | `false` | Enable frame delay augmentation |
-| `--frame-delay-min` | int | `0` | Minimum reaction delay when augmenting (0 = causal) |
-| `--frame-delay-max` | int | `18` | Maximum reaction delay when augmenting |
+| `--frame-delay-augment` | flag | `false` | Additional delay jitter on top of --label-delay; non-temporal standard loader only. Other loaders reject this flag. |
+| `--frame-delay-min` | int | `0` | Minimum additional delay jitter when augmenting |
+| `--frame-delay-max` | int | `18` | Maximum additional delay jitter when augmenting |
 | `--stage-internals` | flag | `false` | Add FoD platform heights + PS transformation to the embedding (+7 raw dims, zero-gated by stage; W4 2026-08-24 stage-blindness verdict) |
 | `--action-frame-buckets` | int | `0` | Bucketized action-frame one-hot per player: N dims, frames 0..N-2 individually, N-1 = at-or-beyond (0 = off, the historical scalar-only layout). The jab-chain lever (V2_PREP 7b): the 1/60 scalar could not carve the expert's frame-6 cliff. Layout key: stamped in the checkpoint, rebuilt by the Agent. Try 24. |
 | `--early-stopping` | flag | `false` | Enable early stopping |
@@ -1593,7 +1594,7 @@ Regenerate: `mix run -e 'ExPhil.Training.Config.FlagDocs.write!()'`.
 | `--mix-corpus` | string | `nil` | Corpus-mode curriculum mixing: a snippet mini-corpus (`scripts/build_snippet_corpus.exs`, one corpus file per snippet so windows never cross snippet boundaries) whose batches are interleaved evenly into the `--corpus` training stream. Embed sizes must match. Mix files are all-train (val stays comparable to unmixed baselines). |
 | `--mix-oversample` | int | `1` | Passes of the mix corpus interleaved per epoch. The mix is typically a tiny fraction of the main corpus — oversample to give corrections a meaningful gradient share (e.g. 20 ≈ a few percent for a 41M-frame corpus with ~15k mix frames). |
 | `--per-stage-ledge` | flag | `false` | Task #25: use the real per-stage edge x (`Melee.Stages.edge_ground_position`) in the ledge-distance feature instead of the historical 85-everywhere constant (which reads "safe" at x=60 on YS when the player is offstage). Changes the embedding VALUES: existing checkpoints and corpora are calibrated to the constant, so this is for fresh v3-edge arms only, and corpus-mode training needs a corpus REBUILT with the same flag (recorded in corpus meta). |
-| `--action-delay` | int | `0` | Reaction delay (frames) for the standard path, ON TOP of the causal pairing Peppi emits (state[t] -> the input issued from it). 0 = causal (the default); k pairs state[t] with the input issued k frames later. One concept with --frame-delay. Composes with --prev-action. |
+| `--action-delay` | int | `nil` | Training alias for --label-delay on every loader. Conflicting explicit aliases are rejected. |
 | `--no-focal-loss` | neg flag | `true` | _(undocumented)_ |
 | `--focal-gamma` | float | `3.0` | Focal loss gamma (higher = focus on hard) |
 | `--button-weight` | float | `2.0` | Multiply button loss (fixes under-prediction) |

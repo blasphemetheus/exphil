@@ -59,12 +59,19 @@ defmodule ExPhil.Data.LabelConvention do
   Reaction delay of a config: frames between the observed state and the
   frame the paired input was issued on. 0 = causal pairing, -1 = the
   legacy leak. The streaming path's `frame_delay` and the standard path's
-  `action_delay` are one concept; the larger wins (a config sets one).
+  `action_delay` are one concept. New configs store `label_delay` directly
+  in reaction terms. The larger legacy alias is retained only when reading
+  old artifacts without that canonical field.
   """
   @spec reaction_delay(map() | keyword() | nil) :: integer()
   def reaction_delay(config) do
-    d = max(int(fetch(config, :frame_delay)), int(fetch(config, :action_delay)))
-    to_reaction(d, of(config))
+    case fetch(config, :label_delay) do
+      nil ->
+        delay = max(int(fetch(config, :frame_delay)), int(fetch(config, :action_delay)))
+        to_reaction(delay, of(config))
+      delay ->
+        int(delay)
+    end
   end
 
   @doc "A delay number in the given convention, expressed as reaction delay."

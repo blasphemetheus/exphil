@@ -1,0 +1,84 @@
+{
+  "version": 1,
+  "teacher_fixture": "../../test/fixtures/replays/fox_multishine_closed_d1.slp",
+  "teacher_fixture_sha256": "6123f51ec254e3b317482e45924c256341aa93ebabd040fd5ad44235d11cfd80",
+  "protocol": {
+    "runner": "async",
+    "frame_delay": 3,
+    "delay_id": 2,
+    "temperature": 1.0,
+    "buttons_temperature": 1.0,
+    "stage": "FD",
+    "seconds": {
+      "stand": 60,
+      "cpu": 90
+    },
+    "seed": null,
+    "purpose": "retrospective pilot; not held-out confirmation"
+  },
+  "runs": [
+    {
+      "id": "g23a-stand-1",
+      "scenario": "stand",
+      "port": 1,
+      "policy": "../../checkpoints/ms_g23a_ep57.bin",
+      "replay": "../../eval_runs/0911_g23a_live/async_d3/r1.slp",
+      "policy_sha256": "4e1fc48efd44236c329c623687503eb06812009861863ded4dde455f82ea366a",
+      "replay_sha256": "c528b15e09554c082a4ef7a093f247b5f23df77ef3133528a171036d8dfed467"
+    },
+    {
+      "id": "g23a-cpu-1",
+      "scenario": "cpu",
+      "port": 1,
+      "policy": "../../checkpoints/ms_g23a_ep57.bin",
+      "replay": "../../eval_runs/0911_g24_dagger/cpu_ref/ep57/r1.slp",
+      "policy_sha256": "4e1fc48efd44236c329c623687503eb06812009861863ded4dde455f82ea366a",
+      "replay_sha256": "f76667cc48e7e12c1e1ba3da3295bf6eb0edcdb44d5233c3db4b8f6b28b76065"
+    },
+    {
+      "id": "g23a-cpu-2",
+      "scenario": "cpu",
+      "port": 1,
+      "policy": "../../checkpoints/ms_g23a_ep57.bin",
+      "replay": "../../eval_runs/0911_g24_dagger/cpu_ref/ep57/r2.slp",
+      "policy_sha256": "4e1fc48efd44236c329c623687503eb06812009861863ded4dde455f82ea366a",
+      "replay_sha256": "26e85e3ddb6b799603be588684e476f57e03457a87217e9135b1ab03b0f336c8"
+    },
+    {
+      "id": "g24a-stand-1",
+      "scenario": "stand",
+      "port": 1,
+      "policy": "../../checkpoints/ms_g24a_ep55.bin",
+      "replay": "../../eval_runs/0911_g24_dagger/stand_ep55/r1.slp",
+      "policy_sha256": "61068381bb2dd15e292a68285882ba1cf47b9e85a905a7b70ba467d950c5e5d1",
+      "replay_sha256": "55d3600f38af143baddc05482b69e0ef5418705ee80fe27c6ce6a35e3de23e73"
+    },
+    {
+      "id": "g24a-stand-2",
+      "scenario": "stand",
+      "port": 1,
+      "policy": "../../checkpoints/ms_g24a_ep55.bin",
+      "replay": "../../eval_runs/0911_g24_dagger/stand_ep55/r2.slp",
+      "policy_sha256": "61068381bb2dd15e292a68285882ba1cf47b9e85a905a7b70ba467d950c5e5d1",
+      "replay_sha256": "7b59ad8d50be3ee65fd38a4a356142623ac121e3fe21c66057f9ef1b897427da"
+    },
+    {
+      "id": "g24a-cpu-1",
+      "scenario": "cpu",
+      "port": 1,
+      "policy": "../../checkpoints/ms_g24a_ep55.bin",
+      "replay": "../../eval_runs/0911_g24_dagger/cpu_a/ep55/r1.slp",
+      "policy_sha256": "61068381bb2dd15e292a68285882ba1cf47b9e85a905a7b70ba467d950c5e5d1",
+      "replay_sha256": "1af8422a5ff0a89c0081c8c77c4751cbbfde9e3feaf540270a4559a311cb1640"
+    },
+    {
+      "id": "g24a-cpu-2",
+      "scenario": "cpu",
+      "port": 1,
+      "policy": "../../checkpoints/ms_g24a_ep55.bin",
+      "replay": "../../eval_runs/0911_g24_dagger/cpu_a/ep55/r2.slp",
+      "policy_sha256": "61068381bb2dd15e292a68285882ba1cf47b9e85a905a7b70ba467d950c5e5d1",
+      "replay_sha256": "88c4f00d8dc17a1cb58a1d9938aa92af8515dc49d4bdd34230f56377c9d82cb5"
+    }
+  ]
+}
