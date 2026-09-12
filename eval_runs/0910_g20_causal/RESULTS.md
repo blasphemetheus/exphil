@@ -350,6 +350,45 @@ promotable. Instruments 2 (coverage map) and 5 (re-entry profile) now
 have a validated target set: these 11 states + the control as the
 positive anchor.
 
+
+## 7. Instrument 2 — counterfactual coverage map (09-12 09:12)
+
+`scripts/probe_ms_coverage_map.exs` — the fixture streamed through the
+agent with TEACHER-FORCED history (`Agent.observe(probe: true)`: embed
+the recorded input as the agent's own, read the independent button
+head's p(B)/p(X) on every loop state, no sampling), then again under one
+counterfactual perturbation applied to every frame. p(correct) = the
+head's probability of the fixture's issued B/X at label offset 2 (auto-
+picked: baseline off0 0.45 / off1 0.66 / **off2 0.985** / off3 0.66 —
+the drill's pipeline offset, read back from the policy). ep57, id 0,
+43 cells, ~7s each. `eval_runs/0912_coverage_map/ep57_id0.{log,json}`.
+
+| axis | flat? | worst cells (p(correct), baseline 0.985) |
+|---|---|---|
+| pair position (p1 x -80..+60) | yes, 0.97-0.99 | — |
+| own / opp percent 30-150 | yes | — |
+| opp character (6 ids) | yes, 0.93-0.98 | — |
+| opp dash/run/jumpsquat/jump/fall/jab/usmash/hitstun | yes, 0.94-0.99 | — |
+| **opp shield (179)** | NO | 361/1g **0.000**, 365/3a 0.08 |
+| **opp grab (212)** | NO | 361/1g **0.026** |
+| **opp shine (361)** | NO | 361/1g **0.006**, 366/0a 0.014 |
+| **opp distance** | NO | behind (-40): 361/1g 0.18, 361/2g 0.06, 365/1a 0.01, 365/2a 0.07; behind (-15): 0.39/0.14/0.01/0.04; close front (+8): 365/1a 0.27, 365/2a 0.32; +20: 365/1a 0.58 |
+| **mirror (x -> -x, facings flipped)** | NO | 361/1g 0.48, 361/2g 0.30, 365/1a 0.09, 365/2a 0.03 |
+
+Read: the policy's shine loop is invariant to WHERE it stands, to
+percents and to the opponent's character, and to most opponent
+actions — but the jump-cancel out of shine frame 1 (the X press that
+starts every cycle) is suppressed almost completely when the opponent
+is in shield, grab or shine, and the aerial-shine phase (365/1-2) is
+lost when the opponent is behind or within ~20 units. These are
+exactly the CPU-gate / vs-Bradley contexts (a level-1 CPU shields and
+grabs; Bradley's Fox shines). And the policy is NOT mirror-invariant:
+the same loop with Fox on the right, facing left, is a coin flip at
+the JC and lost in the air — the fixture is one-sided and no mirror
+augmentation was in the drill recipe. The multishine inputs do not
+depend on any of these variables, so every red cell is a label-free
+augmentation target (perturb the state, keep the label) that this map
+can verify OFFLINE before a Dolphin run.
 ## 5. Harness (GOTCHA #114)
 
 Every gate before 11:27 ran the NETPLAY AppImage headless (global

@@ -639,7 +639,8 @@ defmodule ExPhil.Agents.Agent do
   @impl true
   def handle_call({:observe, game_state, controller, opts}, _from, state) do
     case do_observe(state, game_state, controller, opts) do
-      {:ok, new_state} -> {:reply, :ok, new_state}
+      {:ok, new_state, nil} -> {:reply, :ok, new_state}
+      {:ok, new_state, probe} -> {:reply, {:ok, probe}, new_state}
       {:error, _} = err -> {:reply, err, state}
     end
   end
@@ -1191,19 +1192,40 @@ defmodule ExPhil.Agents.Agent do
       player_port = effective_port(game_state, opts)
       embedded = embed_game_state(game_state, player_port, state)
 
-      new_state =
+      probe? = Keyword.get(opts, :probe, false)
+
+      {new_state, probe} =
         cond do
           state.temporal and state.trunk_state != nil ->
-            observe_stateful_step(state, embedded)
+            {features, st} = observe_stateful_step(state, embedded)
+
+            {st,
+             probe? and state.heads_predict_fn != nil and
+               head_probs(state.heads_predict_fn, state.policy_params, features, opts)}
 
           state.temporal ->
             buffer = :queue.in(embedded, state.frame_buffer)
             {buffer, _} = trim_buffer(buffer, state.window_size)
-            %{state | frame_buffer: buffer}
+
+            probe =
+              probe? and state.head != :autoregressive and
+                (fn ->
+                   seq =
+                     if :queue.len(buffer) < state.window_size,
+                       do: pad_sequence(buffer, state.window_size),
+                       else: buffer_to_tensor(buffer)
+
+                   seq = Nx.reshape(seq, {1, state.window_size, Nx.size(embedded)})
+                   head_probs(state.predict_fn, state.policy_params, seq, opts)
+                 end).()
+
+            {%{state | frame_buffer: buffer}, probe}
 
           true ->
-            state
+            {state, false}
         end
+
+      probe = if probe == false, do: nil, else: probe
 
       frame = game_state.frame
       last_frame = new_state.last_debounce_frame
@@ -1254,7 +1276,7 @@ defmodule ExPhil.Agents.Agent do
            was_airborne: airborne?,
            last_controller: last_controller,
            last_action: nil
-       }}
+       }, probe}
     rescue
       e ->
         Logger.error("[Agent] Error observing frame: #{inspect(e)}")
@@ -1279,14 +1301,37 @@ defmodule ExPhil.Agents.Agent do
       end
 
     buffer = Enum.take([frame | state.step_frame_buffer], max(state.window_size - 1, 1))
-    {_features, new_trunk_state} = trunk_step_fn().(state.trunk_step_params, trunk_state, frame)
+    {features, new_trunk_state} = trunk_step_fn().(state.trunk_step_params, trunk_state, frame)
+
+    {features,
+     %{
+       state
+       | trunk_state: new_trunk_state,
+         trunk_cold: false,
+         step_frame_buffer: buffer,
+         steps_since_resync: state.steps_since_resync + 1
+     }}
+  end
+
+  # Teacher-forced head read for observe(probe: true): the independent
+  # heads' probabilities on the history INCLUDING this frame (buttons =
+  # per-button sigmoid in order a,b,x,y,z,l,r,d_up; sticks/shoulder =
+  # softmax over buckets), at the agent's temperature unless overridden.
+  # No sampling, no history mutation beyond the observe itself.
+  defp head_probs(predict_fn, params, input, opts) do
+    t = Keyword.get(opts, :temperature, 1.0) * 1.0
+
+    {b, mx, my, cx, cy, sh} = predict_fn.(Utils.ensure_model_state(params), input)
+
+    sm = fn l -> l |> Nx.squeeze() |> Nx.divide(t) |> Axon.Activations.softmax() |> Nx.to_flat_list() end
 
     %{
-      state
-      | trunk_state: new_trunk_state,
-        trunk_cold: false,
-        step_frame_buffer: buffer,
-        steps_since_resync: state.steps_since_resync + 1
+      buttons: b |> Nx.squeeze() |> Nx.divide(t) |> Nx.sigmoid() |> Nx.to_flat_list(),
+      main_x: sm.(mx),
+      main_y: sm.(my),
+      c_x: sm.(cx),
+      c_y: sm.(cy),
+      shoulder: sm.(sh)
     }
   end
 
