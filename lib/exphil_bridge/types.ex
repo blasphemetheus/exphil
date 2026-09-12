@@ -300,6 +300,35 @@ defmodule ExPhil.Bridge.ControllerState do
       }
     }
   end
+
+  @doc """
+  Inverse of `to_input/1`: build a ControllerState from a bridge input map
+  (the shape `MeleePort.send_controller/2` accepts, and the shape replay
+  prefixes are recorded in). Missing buttons read as released; the single
+  `shoulder` value lands on the L trigger. Used by observe-only warm-ups
+  that feed a RECORDED input back into an Agent as if it had issued it
+  (closed-loop correction validation, 2026-09-12).
+  """
+  def from_input(%{} = input) do
+    buttons = Map.get(input, :buttons) || %{}
+    ms = Map.get(input, :main_stick) || %{x: 0.5, y: 0.5}
+    cs = Map.get(input, :c_stick) || %{x: 0.5, y: 0.5}
+
+    %__MODULE__{
+      main_stick: %{x: ms.x * 1.0, y: ms.y * 1.0},
+      c_stick: %{x: cs.x * 1.0, y: cs.y * 1.0},
+      l_shoulder: (Map.get(input, :shoulder) || 0.0) * 1.0,
+      r_shoulder: 0.0,
+      button_a: Map.get(buttons, :a) == true,
+      button_b: Map.get(buttons, :b) == true,
+      button_x: Map.get(buttons, :x) == true,
+      button_y: Map.get(buttons, :y) == true,
+      button_z: Map.get(buttons, :z) == true,
+      button_l: Map.get(buttons, :l) == true,
+      button_r: Map.get(buttons, :r) == true,
+      button_d_up: Map.get(buttons, :d_up) == true
+    }
+  end
 end
 
 defmodule ExPhil.Bridge.Projectile do

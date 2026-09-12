@@ -272,6 +272,9 @@ defmodule ScenarioSuite do
       driver: opts[:driver] || :policy,
       expert: opts[:expert],
       prev_controller: nil,
+      # --response-delay: decisions in flight (oldest first)
+      pending: [],
+      response_delay: opts[:response_delay] || 0,
       finalize_steps: 0,
       # Prefix drift diagnostics: sampled trace + first frame past thresholds
       trace_all: opts[:trace_all] || false,
@@ -354,17 +357,47 @@ defmodule ScenarioSuite do
 
       respond_frame(bridge, gs, st)
     else
-      case st.inputs[f + st.offset] do
-        {p1, p2} ->
-          MeleePort.send_controller(bridge, p1)
-          MeleePort.send_controller(bridge, Map.put(p2, :port, 2))
+      # Observe-only warm-up (2026-09-12): the driver sees the prefix as
+      # HISTORY. The policy agent embeds every recorded frame and takes the
+      # recorded p1 input as its own (prev-action slot + queue ring), so the
+      # handoff starts with a saturated window and a truthful own-input
+      # queue instead of the cold start no policy can chain from
+      # (RESULTS.md §6 control). The teacher's `prev` is warmed the same
+      # way, so its recovery taps alternate off the real last input.
+      st =
+        case st.inputs[f + st.offset] do
+          {p1, p2} ->
+            MeleePort.send_controller(bridge, p1)
+            MeleePort.send_controller(bridge, Map.put(p2, :port, 2))
+            observe_prefix(gs, st, ExPhil.Bridge.ControllerState.from_input(p1))
 
-        nil ->
-          MeleePort.send_controller(bridge, @neutral)
-          MeleePort.send_controller(bridge, Map.put(@neutral, :port, 2))
-      end
+          nil ->
+            MeleePort.send_controller(bridge, @neutral)
+            MeleePort.send_controller(bridge, Map.put(@neutral, :port, 2))
+            observe_prefix(gs, st, ExPhil.Bridge.ControllerState.from_input(@neutral))
+        end
 
       loop(bridge, st)
+    end
+  end
+
+  defp observe_prefix(gs, %{driver: :policy, agent: agent} = st, controller) when agent != nil do
+    case Agent.observe(agent, gs, controller, player_port: 1) do
+      :ok -> %{st | prev_controller: controller}
+      {:error, reason} ->
+        Logger.warning("[scenario] agent observe error at f=#{gs.frame}: #{inspect(reason)}")
+        st
+    end
+  end
+
+  defp observe_prefix(_gs, st, controller), do: %{st | prev_controller: controller}
+
+  # The source replay's p1 input for live frame f (offset-adjusted), or
+  # neutral past the recording.
+  defp recorded_p1(st, f) do
+    case st.inputs[f + st.offset] do
+      {p1, _p2} -> p1
+      nil -> @neutral
     end
   end
 
@@ -400,8 +433,25 @@ defmodule ScenarioSuite do
           :policy ->
             case Agent.get_controller(st.agent, gs, player_port: 1) do
               {:ok, controller} ->
-                MeleePort.send_controller(bridge, controller_to_input(controller))
-                %{st | prev_controller: controller}
+                # --response-delay N (2026-09-12): hold each decision N extra
+                # frames so decision->application latency is 1 + N. The
+                # drill trains labels at delay-id d + pipeline offset 2, so
+                # this harness's native latency 1 is a rung NO policy was
+                # trained at; N = 1/2/3 lands on ids 0/1/2. While a decision
+                # is in flight the RECORDED input keeps playing (the
+                # already-committed pipeline), exactly as at handoff.
+                pending = st.pending ++ [controller]
+
+                {to_send, pending} =
+                  if length(pending) > st.response_delay do
+                    [head | rest] = pending
+                    {controller_to_input(head), rest}
+                  else
+                    {recorded_p1(st, f), pending}
+                  end
+
+                MeleePort.send_controller(bridge, to_send)
+                %{st | prev_controller: controller, pending: pending}
 
               {:error, reason} ->
                 Logger.warning("[scenario] agent error at f=#{f}: #{inspect(reason)}")
@@ -618,6 +668,7 @@ end
       temperature: :float,
       window: :integer,
       input_offset: :integer,
+      response_delay: :integer,
       drift_tolerance: :float,
       dolphin: :string,
       iso: :string,
@@ -651,6 +702,7 @@ suite_opts = [
   trace_all: opts[:trace_all] || false,
   slippi_port: opts[:slippi_port] || 51480,
   input_offset: opts[:input_offset] || 1,
+  response_delay: opts[:response_delay] || 0,
   drift_tolerance: opts[:drift_tolerance] || 3.0,
   window: opts[:window],
   finalize: opts[:finalize] || false,
@@ -704,6 +756,7 @@ Output.config([
   {"Dolphin", suite_opts[:dolphin]},
   {"Headless", not suite_opts[:windowed]},
   {"Input offset", suite_opts[:input_offset]},
+  {"Response delay", suite_opts[:response_delay]},
   {"Run dir", suite_opts[:run_base]}
 ])
 
@@ -860,6 +913,7 @@ scoreboard = %{
   deterministic: deterministic,
   temperature: opts[:temperature],
   input_offset: suite_opts[:input_offset],
+  response_delay: suite_opts[:response_delay],
   runs: results,
   summary: summary,
   diverged_runs: length(diverged),

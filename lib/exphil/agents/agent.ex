@@ -323,6 +323,28 @@ defmodule ExPhil.Agents.Agent do
   end
 
   @doc """
+  Observe-only step: feed one game frame plus the controller that was
+  ACTUALLY applied on it into the agent's history WITHOUT running
+  inference (closed-loop correction validation, 2026-09-12).
+
+  Advances exactly the state a decision would: the windowed frame buffer
+  (or the stateful-step trunk), the prev-action channel and the
+  queue-as-input ring — with `controller` standing in for the action the
+  policy would have emitted. Lets a scenario prefix warm the agent with
+  the RECORDED history so a handoff mid-chain sees a saturated window and
+  a truthful own-input queue, instead of the cold start `reset_buffer/1`
+  leaves (which no policy can chain from — RESULTS.md §6 control).
+
+  `controller` is a `%ExPhil.Bridge.ControllerState{}` or nil (nil = no
+  queue/prev-action update, frame only). Options: `:player_port`.
+  """
+  @spec observe(GenServer.server(), map(), ExPhil.Bridge.ControllerState.t() | nil, keyword()) ::
+          :ok | {:error, term()}
+  def observe(agent, game_state, controller, opts \\ []) do
+    GenServer.call(agent, {:observe, game_state, controller, opts})
+  end
+
+  @doc """
   Warmup JIT compilation by running a dummy inference.
 
   Call this during menu navigation so the first real game frame
@@ -612,6 +634,14 @@ defmodule ExPhil.Agents.Agent do
     }
 
     {:reply, config, state}
+  end
+
+  @impl true
+  def handle_call({:observe, game_state, controller, opts}, _from, state) do
+    case do_observe(state, game_state, controller, opts) do
+      {:ok, new_state} -> {:reply, :ok, new_state}
+      {:error, _} = err -> {:reply, err, state}
+    end
   end
 
   @impl true
@@ -1147,6 +1177,117 @@ defmodule ExPhil.Agents.Agent do
         Logger.error("[Agent] Error computing action: #{inspect(e)}")
         {:error, e}
     end
+  end
+
+  # Observe-only history advance (see observe/4). Mirrors do_compute_action's
+  # state bookkeeping minus the decision: embed (prev-action slot = the last
+  # observed/emitted controller, queue = the ring as it stands), push the
+  # frame into whichever history the inference path reads, then push the
+  # applied controller into the ring by GAME-FRAME delta. last_action is
+  # cleared so the same-frame decision cache cannot replay a stale action
+  # on the first real decision after a warm-up.
+  defp do_observe(state, game_state, controller, opts) do
+    try do
+      player_port = effective_port(game_state, opts)
+      embedded = embed_game_state(game_state, player_port, state)
+
+      new_state =
+        cond do
+          state.temporal and state.trunk_state != nil ->
+            observe_stateful_step(state, embedded)
+
+          state.temporal ->
+            buffer = :queue.in(embedded, state.frame_buffer)
+            {buffer, _} = trim_buffer(buffer, state.window_size)
+            %{state | frame_buffer: buffer}
+
+          true ->
+            state
+        end
+
+      frame = game_state.frame
+      last_frame = new_state.last_debounce_frame
+      game_reset? = is_integer(frame) and is_integer(last_frame) and frame < last_frame
+
+      frame_delta =
+        cond do
+          not (is_integer(frame) and is_integer(last_frame)) -> 1
+          game_reset? -> 1
+          true -> frame - last_frame
+        end
+
+      airborne? =
+        case game_state.players[player_port] do
+          %{on_ground: grounded} -> not grounded
+          _ -> false
+        end
+
+      new_state =
+        case queue_depth(new_state) do
+          depth when depth > 1 and controller != nil ->
+            queue =
+              update_controller_queue(
+                new_state.controller_queue || [],
+                controller,
+                frame_delta,
+                game_reset?,
+                depth
+              )
+
+            %{new_state | controller_queue: queue}
+
+          _ ->
+            new_state
+        end
+
+      last_controller =
+        cond do
+          not new_state.use_prev_action -> nil
+          controller != nil -> controller
+          true -> new_state.last_controller
+        end
+
+      {:ok,
+       %{
+         new_state
+         | last_debounce_frame: frame,
+           was_airborne: airborne?,
+           last_controller: last_controller,
+           last_action: nil
+       }}
+    rescue
+      e ->
+        Logger.error("[Agent] Error observing frame: #{inspect(e)}")
+        {:error, e}
+    end
+  end
+
+  # Stateful-step observe: same cold-start pad + one trunk step as the
+  # decision path, features discarded. Resync is a decision-path concern;
+  # the counter still ticks so the next decision resyncs on schedule.
+  defp observe_stateful_step(state, embedded) do
+    frame = Nx.reshape(embedded, {1, Nx.size(embedded)})
+
+    trunk_state =
+      if state.trunk_cold do
+        Enum.reduce(1..max(state.window_size - 1, 0)//1, state.trunk_state, fn _, st ->
+          {_out, st} = trunk_step_fn().(state.trunk_step_params, st, frame)
+          st
+        end)
+      else
+        state.trunk_state
+      end
+
+    buffer = Enum.take([frame | state.step_frame_buffer], max(state.window_size - 1, 1))
+    {_features, new_trunk_state} = trunk_step_fn().(state.trunk_step_params, trunk_state, frame)
+
+    %{
+      state
+      | trunk_state: new_trunk_state,
+        trunk_cold: false,
+        step_frame_buffer: buffer,
+        steps_since_resync: state.steps_since_resync + 1
+    }
   end
 
   # Jump re-press debounce (pathology #4 band-aid): after both jump buttons
