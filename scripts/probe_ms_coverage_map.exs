@@ -130,7 +130,9 @@ target_for = fn o ->
   end)
 end
 
-targets_by_offset = Map.new(0..3, fn o -> {o, target_for.(o)} end)
+# Offsets 0..6: reaction delay k tracks offset k (frames[i+k].controller = raw[i+k+1]);
+# physical drill ids reach 5 (09-12), and ep57's id 0 sat at offset 2.
+targets_by_offset = Map.new(0..6, fn o -> {o, target_for.(o)} end)
 
 # ---------------------------------------------------------------------------
 # Perturbations: each is {axis, label, fun(game_state) -> game_state}
@@ -296,14 +298,14 @@ Output.puts("")
 Output.puts("baseline pass (#{n} frames, probing #{length(loop_idx)})...")
 base_probes = run_cell.(& &1)
 
-by_offset = Map.new(0..3, fn o -> {o, score_cell.(base_probes, targets_by_offset[o])} end)
+by_offset = Map.new(0..6, fn o -> {o, score_cell.(base_probes, targets_by_offset[o])} end)
 
 Output.puts("baseline p(correct) by label offset: " <>
-  Enum.map_join(0..3, "  ", fn o -> "off#{o}=#{Float.round((by_offset[o].mean || 0.0) * 1.0, 3)}" end))
+  Enum.map_join(0..6, "  ", fn o -> "off#{o}=#{Float.round((by_offset[o].mean || 0.0) * 1.0, 3)}" end))
 
 offset =
   case offset_opt do
-    "auto" -> Enum.max_by(0..3, fn o -> by_offset[o].mean || 0.0 end)
+    "auto" -> Enum.max_by(0..6, fn o -> by_offset[o].mean || 0.0 end)
     s -> String.to_integer(s)
   end
 

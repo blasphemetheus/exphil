@@ -1,0 +1,4 @@
+ep40: 92.7/min chain 2
+ep50: 85.7/min chain 3
+ep60: 83.7/min chain 4
+=== ARGMAX: checkpoints/ms_g25a_ep40.bin at 92.7/min

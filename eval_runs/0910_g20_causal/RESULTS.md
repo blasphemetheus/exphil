@@ -405,6 +405,53 @@ augmentation was in the drill recipe. The multishine inputs do not
 depend on any of these variables, so every red cell is a label-free
 augmentation target (perturb the state, keep the label) that this map
 can verify OFFLINE before a Dolphin run.
+
+## 8. g25a — the map's levers as augmentation (09-12 evening; VERDICT: synthetic context is not the real thing)
+
+Recipe: g24a + physical ids (`--multi-delay "3,4,5"`) + `--mirror-frames
+12000` (14.4k frames) + `--opp-context-frames 16000` (19.1k frames: opp
+shield/grab/shine + neighbours, behind/close/mid/far offsets, labels
+untouched). Pool 208k -> 623k over 3 rungs; converged 0.0062 @ 60
+epochs. Map bug fixed first: the label-offset scan stopped at 3 and a
+physical id 4 tracks offset 4 (`probe_ms_coverage_map.exs` now scans
+0..6; g25 baseline off4 0.883, off3 0.576).
+
+**Map (id 4, offset 4) vs ep57 (id 0, offset 2), per loop state:**
+
+| cell | ep57 361/1g | g25 361/1g | ep57 365/2a,3a | g25 365/2a,3a |
+|---|---|---|---|---|
+| baseline | 0.985 | 0.985 | 0.988, 1.000 | 0.952, **0.311** |
+| opp shield | **0.000** | **0.943** | 1.000, 0.076 | 0.122, 0.000 |
+| opp grab | 0.026 | 0.952 | 1.000, 0.945 | 0.648, 0.000 |
+| opp shine | 0.006 | 0.989 | 1.000, 0.997 | 0.116, 0.000 |
+| opp behind (-40) | 0.181 | 0.985 | 0.069, 0.939 | 0.095, 0.000 |
+| mirror | 0.481 | 0.985 | 0.028, 0.923 | 0.111, 0.136 |
+
+The red FIRST decision (the JC out of shine f1) is fixed in every
+context; the weakness moved to the AERIAL phase (365/2a-3a: the landing
+B+X press 4 frames on), which is now broken in those contexts and weak
+even on the plain fixture (0.31 at 365/3a, target unambiguous B+X).
+
+**Live at `--reaction-delay 4` (T=1.0):**
+
+| | stand floor (shines/min, chain) | level-1 CPU (2x90s) |
+|---|---|---|
+| ms_g23a_ep57 | 296 / c277 (async), 427 / c427 (sync) | 54-62 / c2-3 |
+| ms_g24a_ep55 | 111 / c27 | 69-71 / c8-13 |
+| **ms_g25a** ep40/50/60 | **92.7 / c2, 85.7 / c3, 83.7 / c4** | ep45 82.5, 68.5 / c6-8; ep60 51.9, 62.1 / c2-6 |
+
+Read, by the prereg decision rule: the map moved, the CPU gate did NOT
+(g24a-level), and the technique floor fell AGAIN (296 -> 111 -> 93).
+So (a) Bradley's push-back stands — the synthetic contexts were not the
+real ones; the next coverage round is REAL varied-start rollouts
+(opponent character, CPU level, side) relabeled, not redress; and (b)
+the recurring trade-off (coverage up, floor down, g24a -> g25a) has a
+named location now: 365/3a, the aerial-phase press. Leading hypothesis:
+under a 4-frame label shift the label for a loop state is what the
+expert does 4 frames LATER, which in broken-loop rollouts (and their
+redressed copies) is a recovery input, not the landing press — a
+future-dependent label conflict the pool auditor cannot see because it
+keys sources at offset 1. Instrument 1 must audit at the TRAINING shift.
 ## 5. Harness (GOTCHA #114)
 
 Every gate before 11:27 ran the NETPLAY AppImage headless (global
