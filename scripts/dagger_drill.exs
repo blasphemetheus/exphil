@@ -73,6 +73,8 @@ alias ExPhil.Embeddings
       y_augment_offset: :float,
       y_augment_frames: :integer,
       opp_randomize_frames: :integer,
+      mirror_frames: :integer,
+      opp_context_frames: :integer,
       opp_randomize_chars: :string,
       opp_scramble_frames: :integer,
       margin_weight: :float,
@@ -845,6 +847,115 @@ all_frame_lists =
     )
 
     all_frame_lists ++ redressed
+  else
+    all_frame_lists
+  end
+
+# --mirror-frames N (2026-09-12, coverage map instrument #2): MIRRORED copies
+# of sampled lists (x -> -x for everyone, facings flipped, main-stick x
+# mirrored on the LABEL — ExPhil.Training.Augmentation.mirror/1). ep57's
+# map showed mirror is NOT learned (JC out of shine p 0.48/0.30, aerial
+# phase 0.09/0.03 on the mirrored fixture): the fixture is one-sided and no
+# recipe ever mirrored it. Per-list whole-history mirror keeps windows
+# coherent; random list sample (the g13 confound lesson); frame budget.
+mirror_budget = opts[:mirror_frames] || 0
+
+all_frame_lists =
+  if mirror_budget > 0 do
+    mirrored =
+      all_frame_lists
+      |> Enum.shuffle()
+      |> Enum.reduce_while({[], 0}, fn list, {acc, n} ->
+        if n >= mirror_budget,
+          do: {:halt, {acc, n}},
+          else: {:cont, {[list | acc], n + length(list)}}
+      end)
+      |> elem(0)
+      |> Enum.map(fn list -> Enum.map(list, &ExPhil.Training.Augmentation.mirror/1) end)
+
+    Output.puts(
+      "Mirror: #{length(mirrored)} lists = #{Enum.sum(Enum.map(mirrored, &length/1))} mirrored frames (budget #{mirror_budget})"
+    )
+
+    all_frame_lists ++ mirrored
+  else
+    all_frame_lists
+  end
+
+# --opp-context-frames N (2026-09-12, coverage map instrument #2): the
+# opponent CONTEXT the map found the policy blind to — its ACTION (shield
+# 179, grab 212, shine 361 collapse the JC out of shine f1 to p 0.00-0.03;
+# dash/jab/usmash/hitstun were fine) and its SIDE/CLOSENESS (behind, or
+# within ~20 units, kills the aerial phase). --opp-randomize-frames left
+# action states alone and nudged x by ±25 around the fixture's +120; this
+# one sets, per LIST (coherent history), an opponent action from that set
+# with a matching grounded flag and action_frame, and places the opponent
+# at a signed offset drawn from behind/close/normal bands. Labels untouched
+# (the multishine inputs do not depend on the opponent). Frame budget +
+# random list sample, same as the other redresses.
+opp_ctx_budget = opts[:opp_context_frames] || 0
+
+all_frame_lists =
+  if opp_ctx_budget > 0 do
+    # {action id, grounded?}: the map's red cells first, then the neighbours
+    # that share their animation families, so the set is not a lookup table.
+    ctx_actions = [
+      {179, true}, {178, true}, {212, true}, {361, true}, {362, true}, {363, true},
+      {14, true}, {20, true}, {44, true}, {63, true}, {25, false}, {29, false}
+    ]
+
+    # Signed offset bands (opponent x - own x): behind, close-front, mid, far
+    ctx_offsets = [{-45.0, -10.0}, {5.0, 25.0}, {25.0, 60.0}, {60.0, 140.0}]
+
+    contextual =
+      all_frame_lists
+      |> Enum.shuffle()
+      |> Enum.reduce_while({[], 0}, fn list, {acc, n} ->
+        if n >= opp_ctx_budget,
+          do: {:halt, {acc, n}},
+          else: {:cont, {[list | acc], n + length(list)}}
+      end)
+      |> elem(0)
+      |> Enum.map(fn list ->
+        {action, grounded?} = Enum.random(ctx_actions)
+        {lo, hi} = Enum.random(ctx_offsets)
+        offset = lo + :rand.uniform() * (hi - lo)
+        # facing: toward the subject half the time, away the other half
+        toward? = :rand.uniform() < 0.5
+        af = :rand.uniform(6)
+
+        Enum.map(list, fn f ->
+          own = f.game_state.players[port]
+          opp_ports = Map.keys(f.game_state.players) -- [port]
+
+          players =
+            Enum.reduce(opp_ports, f.game_state.players, fn opp_port, acc ->
+              Map.update!(acc, opp_port, fn o ->
+                x = own.x + offset
+                facing = if toward?, do: if(x > own.x, do: -1, else: 1), else: if(x > own.x, do: 1, else: -1)
+
+                %{
+                  o
+                  | action: action,
+                    action_frame: af,
+                    on_ground: grounded?,
+                    x: x,
+                    y: if(grounded?, do: own.y, else: own.y + 20.0),
+                    facing: facing
+                }
+              end)
+            end)
+
+          %{f | game_state: %{f.game_state | players: players}}
+        end)
+      end)
+
+    Output.puts(
+      "Opp-context: #{length(contextual)} lists = #{Enum.sum(Enum.map(contextual, &length/1))} frames " <>
+        "(budget #{opp_ctx_budget}; actions #{inspect(Enum.map(ctx_actions, &elem(&1, 0)))}, offsets behind/close/mid/far)"
+    )
+
+    all_frame_lists ++ contextual
   else
     all_frame_lists
   end
