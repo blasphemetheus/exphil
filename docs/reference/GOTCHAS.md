@@ -4020,3 +4020,26 @@ repairs it (symlink) and `eval_live_protocol.sh` runs it as a preflight;
 run it by hand before a windowed session. Root cause still open —
 candidates: Hyprland re-creating Xwayland listeners on a lock/unlock or
 output change (note the `X0_` suffix is Hyprland's own naming).
+
+## 115
+
+**Every harness has its OWN decision->application latency, and a
+queue-as-input/delay-id policy handed off in a harness it was not trained
+for fails with a one-frame-late signature that looks like a policy
+defect** (2026-09-12, closed-loop correction validation). `scenario_suite.exs`
+applies a decision on the next frame (latency 1); the drill trains labels
+at delay-id d + `--pipeline-offset 2` (latency d + 2 nominal, d + 3
+measured here); the async runner is `--frame-delay N` <-> id N-1. So
+ms_g23a_ep57 — 438 chains in its own stand game — could not chain from
+a mid-chain handoff in the suite even after the Agent was warmed with the
+recorded history (`Agent.observe/4`): every re-entry showed `366x18`
+(aerial shine held 18f = shine one frame late), the SAME signature the
+teacher driver showed under GOTCHA #81 (parsed-vs-live action_frame). Two
+different conventions, one symptom. Calibration (RESULTS §6): the suite's
+aligned rung is `--response-delay id + 2`; one frame FASTER than trained
+breaks the 9f cycle, one frame slower is tolerated. Rules: (1) before
+reading any policy number out of a new harness, run a control the policy
+is KNOWN to pass (its own replay) and sweep the latency knob — the
+teacher (memoryless) passing proves nothing about the harness's rung;
+(2) a chain that re-enters and then floats is a timing-convention bug
+until a control excludes it, not a coverage or capacity finding.

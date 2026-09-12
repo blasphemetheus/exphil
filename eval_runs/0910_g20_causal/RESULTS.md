@@ -289,13 +289,66 @@ the sync runner — does NOT (ids 0/1/2: 0.29/0.11/0.19). So the harness
 cannot yet evaluate the POLICY: `run_one` resets the Agent at handoff,
 and a queue-as-input GRU policy then starts a 9-frame cycle from an
 EMPTY 60-frame window and an EMPTY own-input queue. The teacher is
-memoryless and is unaffected. **Needed:** an Agent observe-only step
-during the prefix (embed each observed frame into the window and push
-the RECORDED p1 input into the controller queue as if the agent had
-issued it), so the policy is warm at handoff. Until then the closed-loop
-validator is a TEACHER instrument (which it has already paid for) and the
-policy's break-state behavior must be read from live rollouts (the CPU
-gate) instead.
+memoryless and is unaffected.
+
+**Observe-only warm-up built (08:00):** `Agent.observe/4` advances
+exactly the state a decision would (windowed buffer or stateful-step
+trunk, prev-action slot, frame-gated queue ring) with the APPLIED
+controller in place of the emitted one, no inference; pinned by
+observe-then-decide == play-then-decide on both paths
+(`test/exphil/agents/agent_observe_test.exs`). The suite observes every
+prefix frame with the recorded p1 input. Warm control: ep57 STILL did
+not chain (ids 0/1/2: 0.356/0.336/0.105) — and its re-entries carried
+the `366x18` one-frame-late float, the same signature the teacher had
+under GOTCHA #81. Second harness convention: the drill trains labels at
+delay-id d + `--pipeline-offset 2`, while this suite applies a decision
+on the NEXT frame (latency 1) — a rung no ms policy was ever trained at.
+`--response-delay N` holds each decision N extra frames (the recorded
+input plays meanwhile, i.e. the already-committed pipeline).
+Calibration grid on the mid-chain control (v3 max_chain per run; 14 =
+window-capped, == teacher):
+
+| response-delay \ delay-id | 0 | 1 | 2 |
+|---|---|---|---|
+| 0 (native) | 1,1,1,1,1,3 | 1 x6 | 1 x6 |
+| 1 | 14,2,2,14,3,3 | 1,9,1,1,1,1 | 1,2,2,2,2,2 |
+| **2** | **14 x6 (0.965, == teacher)** | 9,9,9,9,10,10 | 1,2,15,2,2,2 |
+| 3 | 12 x6 | **14 x6** | 14,15,15,15,15,15 |
+
+**Harness rung law for the suite: aligned = response-delay id + 2**
+(latency id + 3, the same physical rung as async `--frame-delay id+1`,
+consistent with the async law d3 <-> id 2). One frame FASTER than
+trained breaks the cycle (rd 1 / id 0 flips run to run; rd 2 / id 2
+fails); one frame slower is tolerated (rd 3 tolerates every id). The
+policy column of the closed-loop table is real from here: run
+`--driver policy --response-delay 2 --delay-id 0` (or 3/1).
+
+**The policy column, real (08:38-09:00; `run_policy_warm.sh`, warm
+prefix + aligned rung, 12 break moments x 2 runs, T=1.0; entry r2@4303
+errors in every driver — game ends during its prefix):**
+
+| driver | v3 max chain per run | re-entry (frames) | empty hops |
+|---|---|---|---|
+| teacher (af-converted) | 10-14 on 11/11 | 4-12 (one 40) | 0 |
+| neutral | never | never | — |
+| ep57 rd2/id0 | **1-3** (2,1,1,1,2,2,1,2,1,1,2,1,3,1,...) | 9-10 on 9/22, else 16-100/never | 6 |
+| ep57 rd3/id1 | 1-2 | 10-12 on 11/22, else 46-97/never | 1 |
+| ep55 rd2/id0 | 1-3 | 5-12 on 11/21, else 24-94/never | 0 |
+| ep55 rd3/id1 | 1-4 (one 4) | 9-12 on 6/22, else 37-118/never | 1 |
+
+Read: with the harness proven (control 14/14 == teacher at the same
+rung, same session), **neither candidate recovers the tight cycle from
+its own break states**, while the teacher's corrections do on every
+one. The policy's re-entry path from these states is a full jump, a
+mid-air shine, often a double jump, then the `366x18` float (e.g.
+r1@488: `24x3 25x13 365 366x3 27x3 365 366x18 368x18 ...`) — it does not
+JC-shine out of the landing. That is the coverage gap measured where it
+lives (the state the loop broke in), and the closed-loop table now
+says the teacher's correction for each of these states is executable
+and restores the loop — the DAgger relabel of these moments is
+promotable. Instruments 2 (coverage map) and 5 (re-entry profile) now
+have a validated target set: these 11 states + the control as the
+positive anchor.
 
 ## 5. Harness (GOTCHA #114)
 
