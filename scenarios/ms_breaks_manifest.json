@@ -1,0 +1,221 @@
+{
+  "comment": "Multishine chain-break handoffs mined by scripts/mine_ms_breaks.exs (2026-09-12); gap 30, lead 6",
+  "entries": [
+    {
+      "frame": 488,
+      "note": "chain break: last shine-family frame 494, no shine for 30f; handoff 6f earlier",
+      "slp": "eval_runs/0911_g23a_live/cpu_rollouts/r1.slp",
+      "type": "multishine_reentry"
+    },
+    {
+      "frame": 1169,
+      "note": "chain break: last shine-family frame 1175, no shine for 30f; handoff 6f earlier",
+      "slp": "eval_runs/0911_g23a_live/cpu_rollouts/r1.slp",
+      "type": "multishine_reentry"
+    },
+    {
+      "frame": 1512,
+      "note": "chain break: last shine-family frame 1518, no shine for 30f; handoff 6f earlier",
+      "slp": "eval_runs/0911_g23a_live/cpu_rollouts/r1.slp",
+      "type": "multishine_reentry"
+    },
+    {
+      "frame": 1923,
+      "note": "chain break: last shine-family frame 1929, no shine for 30f; handoff 6f earlier",
+      "slp": "eval_runs/0911_g23a_live/cpu_rollouts/r1.slp",
+      "type": "multishine_reentry"
+    },
+    {
+      "frame": 792,
+      "note": "chain break: last shine-family frame 798, no shine for 30f; handoff 6f earlier",
+      "slp": "eval_runs/0911_g23a_live/cpu_rollouts/r2.slp",
+      "type": "multishine_reentry"
+    },
+    {
+      "frame": 1087,
+      "note": "chain break: last shine-family frame 1093, no shine for 30f; handoff 6f earlier",
+      "slp": "eval_runs/0911_g23a_live/cpu_rollouts/r2.slp",
+      "type": "multishine_reentry"
+    },
+    {
+      "frame": 2350,
+      "note": "chain break: last shine-family frame 2356, no shine for 30f; handoff 6f earlier",
+      "slp": "eval_runs/0911_g23a_live/cpu_rollouts/r2.slp",
+      "type": "multishine_reentry"
+    },
+    {
+      "frame": 4303,
+      "note": "chain break: last shine-family frame 4309, no shine for 30f; handoff 6f earlier",
+      "slp": "eval_runs/0911_g23a_live/cpu_rollouts/r2.slp",
+      "type": "multishine_reentry"
+    },
+    {
+      "frame": 513,
+      "note": "chain break: last shine-family frame 519, no shine for 30f; handoff 6f earlier",
+      "slp": "eval_runs/0911_g23a_live/cpu_rollouts/r3.slp",
+      "type": "multishine_reentry"
+    },
+    {
+      "frame": 1332,
+      "note": "chain break: last shine-family frame 1338, no shine for 30f; handoff 6f earlier",
+      "slp": "eval_runs/0911_g23a_live/cpu_rollouts/r3.slp",
+      "type": "multishine_reentry"
+    },
+    {
+      "frame": 1903,
+      "note": "chain break: last shine-family frame 1909, no shine for 30f; handoff 6f earlier",
+      "slp": "eval_runs/0911_g23a_live/cpu_rollouts/r3.slp",
+      "type": "multishine_reentry"
+    },
+    {
+      "frame": 2085,
+      "note": "chain break: last shine-family frame 2091, no shine for 30f; handoff 6f earlier",
+      "slp": "eval_runs/0911_g23a_live/cpu_rollouts/r3.slp",
+      "type": "multishine_reentry"
+    },
+    {
+      "frame": 552,
+      "note": "chain break: last shine-family frame 558, no shine for 30f; handoff 6f earlier",
+      "slp": "eval_runs/0911_g23a_live/cpu_rollouts/r4.slp",
+      "type": "multishine_reentry"
+    },
+    {
+      "frame": 863,
+      "note": "chain break: last shine-family frame 869, no shine for 30f; handoff 6f earlier",
+      "slp": "eval_runs/0911_g23a_live/cpu_rollouts/r4.slp",
+      "type": "multishine_reentry"
+    },
+    {
+      "frame": 1431,
+      "note": "chain break: last shine-family frame 1437, no shine for 30f; handoff 6f earlier",
+      "slp": "eval_runs/0911_g23a_live/cpu_rollouts/r4.slp",
+      "type": "multishine_reentry"
+    },
+    {
+      "frame": 1697,
+      "note": "chain break: last shine-family frame 1703, no shine for 30f; handoff 6f earlier",
+      "slp": "eval_runs/0911_g23a_live/cpu_rollouts/r4.slp",
+      "type": "multishine_reentry"
+    },
+    {
+      "frame": 536,
+      "note": "chain break: last shine-family frame 542, no shine for 30f; handoff 6f earlier",
+      "slp": "eval_runs/0911_g23a_live/cpu_rollouts/r5.slp",
+      "type": "multishine_reentry"
+    },
+    {
+      "frame": 1248,
+      "note": "chain break: last shine-family frame 1254, no shine for 30f; handoff 6f earlier",
+      "slp": "eval_runs/0911_g23a_live/cpu_rollouts/r5.slp",
+      "type": "multishine_reentry"
+    },
+    {
+      "frame": 1908,
+      "note": "chain break: last shine-family frame 1914, no shine for 30f; handoff 6f earlier",
+      "slp": "eval_runs/0911_g23a_live/cpu_rollouts/r5.slp",
+      "type": "multishine_reentry"
+    },
+    {
+      "frame": 3145,
+      "note": "chain break: last shine-family frame 3151, no shine for 30f; handoff 6f earlier",
+      "slp": "eval_runs/0911_g23a_live/cpu_rollouts/r5.slp",
+      "type": "multishine_reentry"
+    },
+    {
+      "frame": 644,
+      "note": "chain break: last shine-family frame 650, no shine for 30f; handoff 6f earlier",
+      "slp": "eval_runs/0911_g23a_live/cpu_rollouts/r6.slp",
+      "type": "multishine_reentry"
+    },
+    {
+      "frame": 1077,
+      "note": "chain break: last shine-family frame 1083, no shine for 30f; handoff 6f earlier",
+      "slp": "eval_runs/0911_g23a_live/cpu_rollouts/r6.slp",
+      "type": "multishine_reentry"
+    },
+    {
+      "frame": 1401,
+      "note": "chain break: last shine-family frame 1407, no shine for 30f; handoff 6f earlier",
+      "slp": "eval_runs/0911_g23a_live/cpu_rollouts/r6.slp",
+      "type": "multishine_reentry"
+    },
+    {
+      "frame": 1730,
+      "note": "chain break: last shine-family frame 1736, no shine for 30f; handoff 6f earlier",
+      "slp": "eval_runs/0911_g23a_live/cpu_rollouts/r6.slp",
+      "type": "multishine_reentry"
+    },
+    {
+      "frame": 716,
+      "note": "chain break: last shine-family frame 722, no shine for 30f; handoff 6f earlier",
+      "slp": "eval_runs/0911_g23a_live/async_d3_cpu/r1.slp",
+      "type": "multishine_reentry"
+    },
+    {
+      "frame": 951,
+      "note": "chain break: last shine-family frame 957, no shine for 30f; handoff 6f earlier",
+      "slp": "eval_runs/0911_g23a_live/async_d3_cpu/r1.slp",
+      "type": "multishine_reentry"
+    },
+    {
+      "frame": 1724,
+      "note": "chain break: last shine-family frame 1730, no shine for 30f; handoff 6f earlier",
+      "slp": "eval_runs/0911_g23a_live/async_d3_cpu/r1.slp",
+      "type": "multishine_reentry"
+    },
+    {
+      "frame": 2039,
+      "note": "chain break: last shine-family frame 2045, no shine for 30f; handoff 6f earlier",
+      "slp": "eval_runs/0911_g23a_live/async_d3_cpu/r1.slp",
+      "type": "multishine_reentry"
+    },
+    {
+      "frame": 529,
+      "note": "chain break: last shine-family frame 535, no shine for 30f; handoff 6f earlier",
+      "slp": "eval_runs/0911_g23a_live/async_d3_cpu/r2.slp",
+      "type": "multishine_reentry"
+    },
+    {
+      "frame": 668,
+      "note": "chain break: last shine-family frame 674, no shine for 30f; handoff 6f earlier",
+      "slp": "eval_runs/0911_g23a_live/async_d3_cpu/r2.slp",
+      "type": "multishine_reentry"
+    },
+    {
+      "frame": 1296,
+      "note": "chain break: last shine-family frame 1302, no shine for 30f; handoff 6f earlier",
+      "slp": "eval_runs/0911_g23a_live/async_d3_cpu/r2.slp",
+      "type": "multishine_reentry"
+    },
+    {
+      "frame": 1508,
+      "note": "chain break: last shine-family frame 1514, no shine for 30f; handoff 6f earlier",
+      "slp": "eval_runs/0911_g23a_live/async_d3_cpu/r2.slp",
+      "type": "multishine_reentry"
+    },
+    {
+      "frame": 550,
+      "note": "chain break: last shine-family frame 556, no shine for 30f; handoff 6f earlier",
+      "slp": "eval_runs/0911_g23a_live/2026-09-Mainline/Game_20260911T004128.slp",
+      "type": "multishine_reentry"
+    },
+    {
+      "frame": 596,
+      "note": "chain break: last shine-family frame 602, no shine for 30f; handoff 6f earlier",
+      "slp": "eval_runs/0911_g23a_live/2026-09-Mainline/Game_20260911T004128.slp",
+      "type": "multishine_reentry"
+    },
+    {
+      "frame": 1892,
+      "note": "chain break: last shine-family frame 1898, no shine for 30f; handoff 6f earlier",
+      "slp": "eval_runs/0911_g23a_live/2026-09-Mainline/Game_20260911T004128.slp",
+      "type": "multishine_reentry"
+    },
+    {
+      "frame": 2161,
+      "note": "chain break: last shine-family frame 2167, no shine for 30f; handoff 6f earlier",
+      "slp": "eval_runs/0911_g23a_live/2026-09-Mainline/Game_20260911T004128.slp",
+      "type": "multishine_reentry"
+    }
+  ]
+}

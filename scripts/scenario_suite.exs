@@ -186,7 +186,7 @@ defmodule ScenarioSuite do
       iso_path: opts[:iso],
       controller_port: 1,
       opponent_port: 2,
-      character: :mewtwo,
+      character: String.to_atom(opts[:character] || "mewtwo"),
       stage: :final_destination,
       online_delay: 0,
       dummy_mode: "external",
@@ -202,7 +202,7 @@ defmodule ScenarioSuite do
       slippi_port: opts[:slippi_port] + seq
     }
 
-    Agent.reset_buffer(agent)
+    if agent, do: Agent.reset_buffer(agent)
 
     result =
       case MeleePort.init_console(bridge, config, 180_000) do
@@ -268,6 +268,10 @@ defmodule ScenarioSuite do
       # a natural end so Slippi finalizes the .slp and it can be reused as
       # a training rollout. Off by default (eval only needs the window).
       finalize: opts[:finalize] || false,
+      # --driver plumbing (2026-09-12)
+      driver: opts[:driver] || :policy,
+      expert: opts[:expert],
+      prev_controller: nil,
       finalize_steps: 0,
       # Prefix drift diagnostics: sampled trace + first frame past thresholds
       trace_all: opts[:trace_all] || false,
@@ -390,15 +394,38 @@ defmodule ScenarioSuite do
         finish(st)
       end
     else
-      # Port 1: the policy takes over.
-      case Agent.get_controller(st.agent, gs, player_port: 1) do
-        {:ok, controller} ->
-          MeleePort.send_controller(bridge, controller_to_input(controller))
+      # Port 1: the driver takes over (policy | teacher | neutral).
+      st =
+        case st.driver do
+          :policy ->
+            case Agent.get_controller(st.agent, gs, player_port: 1) do
+              {:ok, controller} ->
+                MeleePort.send_controller(bridge, controller_to_input(controller))
+                %{st | prev_controller: controller}
 
-        {:error, reason} ->
-          Logger.warning("[scenario] agent error at f=#{f}: #{inspect(reason)}")
-          MeleePort.send_controller(bridge, @neutral)
-      end
+              {:error, reason} ->
+                Logger.warning("[scenario] agent error at f=#{f}: #{inspect(reason)}")
+                MeleePort.send_controller(bridge, @neutral)
+                st
+            end
+
+          :teacher ->
+            # The expert labels the LIVE state (same call the relabel makes on
+            # rollout frames), with the input it issued last frame as `prev`.
+            case gs.players[1] && ExPhil.Agents.MultishineExpert.label(st.expert, gs.players[1], st.prev_controller) do
+              {:ok, controller} ->
+                MeleePort.send_controller(bridge, controller_to_input(controller))
+                %{st | prev_controller: controller}
+
+              _ ->
+                MeleePort.send_controller(bridge, @neutral)
+                st
+            end
+
+          :neutral ->
+            MeleePort.send_controller(bridge, @neutral)
+            st
+        end
 
       # Port 2: keeps replaying the source game's inputs (deterministic,
       # non-reactive); neutral once the recording runs out.
@@ -566,6 +593,9 @@ end
   OptionParser.parse(System.argv(),
     strict: [
       policy: :string,
+      character: :string,
+      driver: :string,
+      fixture: :string,
       manifest: :string,
       types: :string,
       only: :string,
@@ -669,19 +699,48 @@ end
 
 Output.step(1, 3, "Loading agent + parsing source replays")
 
-{:ok, agent} =
-  Agent.start_link(
-    policy_path: opts[:policy],
-    deterministic: deterministic,
-    temperature: opts[:temperature] || 1.0,
-    press_threshold: opts[:press_threshold] || 0.45,
-    release_threshold: opts[:release_threshold] || 0.3
-  )
+# --driver (closed-loop correction validation, 2026-09-12): who drives port 1
+# after the handoff. policy (default) = the checkpoint; teacher = the drill's
+# scripted expert (MultishineExpert rules + table from --fixture), i.e. the
+# CORRECTION the relabel would have written, executed for real; neutral = the
+# control. Run the same manifest under each driver to promote only the
+# corrections that actually restore the loop.
+driver = String.to_atom(opts[:driver] || "policy")
 
-case Agent.warmup(agent) do
-  {:ok, ms} -> Output.success("Agent warmed up (#{ms}ms)")
-  {:error, reason} -> Output.warning("Warmup failed: #{inspect(reason)}")
-end
+unless driver in [:policy, :teacher, :neutral],
+  do: raise(ArgumentError, "--driver must be policy|teacher|neutral (got #{driver})")
+
+agent =
+  if driver == :policy do
+    {:ok, agent} =
+      Agent.start_link(
+        policy_path: opts[:policy] || raise(ArgumentError, "--policy is required for --driver policy"),
+        deterministic: deterministic,
+        temperature: opts[:temperature] || 1.0,
+        press_threshold: opts[:press_threshold] || 0.45,
+        release_threshold: opts[:release_threshold] || 0.3
+      )
+
+    case Agent.warmup(agent) do
+      {:ok, ms} -> Output.success("Agent warmed up (#{ms}ms)")
+      {:error, reason} -> Output.warning("Warmup failed: #{inspect(reason)}")
+    end
+
+    agent
+  else
+    nil
+  end
+
+expert =
+  if driver == :teacher,
+    do:
+      ExPhil.Agents.MultishineExpert.from_fixture(
+        opts[:fixture] || "test/fixtures/replays/fox_multishine_closed_d1.slp"
+      ),
+    else: nil
+
+opts = Keyword.merge(opts, driver: driver, expert: expert)
+suite_opts = Keyword.merge(suite_opts, driver: driver, expert: expert, character: opts[:character])
 
 preps =
   entries

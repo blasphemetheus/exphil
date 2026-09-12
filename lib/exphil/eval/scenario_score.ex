@@ -43,6 +43,9 @@ defmodule ExPhil.Eval.ScenarioScore do
   @default_window 300
 
   @doc "Response window length (frames) for a scenario type."
+  # Multishine re-entry (closed-loop correction validation, 2026-09-12):
+  # 120 frames is ~13 cycles; a driver that has not re-entered by then failed.
+  def window(:multishine_reentry), do: 120
   def window(_type), do: @default_window
 
   @doc """
@@ -53,6 +56,48 @@ defmodule ExPhil.Eval.ScenarioScore do
   @spec score(atom(), map(), [map()], keyword()) ::
           %{score: float(), pass: boolean(), details: map()}
   def score(type, handoff, window, opts \\ [])
+
+  # :multishine_reentry — did port 1 get BACK INTO the shine cycle after the
+  # handoff (a chain break mined from a rollout)? A cycle = a second shine-
+  # family entry within 12 frames of the previous one. Pass = a cycle within
+  # `:response_frames` (default 60). Score grades speed and how many cycles
+  # followed; details carry empty hops (jumpsquat -> airborne with no shine
+  # within 8 frames) so a driver that jumps without shining is visible.
+  def score(:multishine_reentry, _handoff, window, opts) do
+    limit = Keyword.get(opts, :response_frames, 60)
+    fams = Enum.map(window, fn o -> ExPhil.Eval.ShineChain.family(o.p1.action) end)
+    n = length(fams)
+    shine? = fn f -> f in [:ground_reflect, :air_reflect] end
+
+    entries =
+      fams
+      |> Enum.with_index()
+      |> Enum.filter(fn {f, i} -> shine?.(f) and not shine?.(if i > 0, do: Enum.at(fams, i - 1), else: :other) end)
+      |> Enum.map(&elem(&1, 1))
+
+    pairs = Enum.chunk_every(entries, 2, 1, :discard)
+    reentry = Enum.find_value(pairs, fn [a, b] -> if b - a <= 12, do: b, else: nil end)
+    cycles = Enum.count(pairs, fn [a, b] -> b - a <= 12 end)
+
+    empty_hops =
+      fams
+      |> Enum.with_index()
+      |> Enum.count(fn {f, i} ->
+        next = Enum.at(fams, i + 1)
+        after_ = if i + 1 < n, do: Enum.slice(fams, i + 1, 8), else: []
+        f == :jumpsquat and next != :jumpsquat and next != nil and not Enum.any?(after_, shine?)
+      end)
+
+    pass = reentry != nil and reentry <= limit
+    speed = if reentry, do: max(0.0, 1.0 - reentry / limit), else: 0.0
+    score = min(1.0, 0.6 * speed + 0.4 * min(cycles / 10, 1.0))
+
+    %{
+      score: Float.round(score * 1.0, 3),
+      pass: pass,
+      details: %{reentry_frame: reentry, shine_entries: length(entries), cycles: cycles, empty_hops: empty_hops}
+    }
+  end
 
   def score(:opponent_behind, handoff, window, opts) do
     limit = Keyword.get(opts, :response_frames, 60)

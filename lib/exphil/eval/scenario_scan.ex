@@ -18,7 +18,7 @@ defmodule ExPhil.Eval.ScenarioScan do
 
   alias ExPhil.Data.Peppi
 
-  @types [:opponent_behind, :tech_chase, :edgeguard, :getup, :idle_deadlock]
+  @types [:opponent_behind, :tech_chase, :edgeguard, :getup, :idle_deadlock, :multishine_reentry]
 
   @idle 14
   # Knockdown lifecycle (ReplayStats): bound/wait/getup/roll/tech families
