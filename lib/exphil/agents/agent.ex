@@ -85,6 +85,7 @@ defmodule ExPhil.Agents.Agent do
     # from them (or an explicit id is checked against them).
     :harness,
     :harness_knob,
+    :reaction_delay,
     :delay_id_reaction_offset,
     :train_delays,
     # The loaded checkpoint's label pairing (:causal | :producing), kept so
@@ -481,6 +482,10 @@ defmodule ExPhil.Agents.Agent do
       # the sync runner and the scenario suite declare themselves.
       harness: Keyword.get(opts, :harness, :async_runner),
       harness_knob: Keyword.get(opts, :harness_knob),
+      # THE knob (INVARIANTS item 12): the physical reaction delay this agent
+      # plays at; runners/suite resolve it once (HarnessRung.resolve/3) and
+      # pass it here. nil = derive from harness + knob (legacy callers).
+      reaction_delay: Keyword.get(opts, :reaction_delay),
       jump_debounce: Keyword.get(opts, :jump_debounce),
       jump_cooldown: 0,
       ablate_prev_action: ablate_prev_action,
@@ -868,10 +873,9 @@ defmodule ExPhil.Agents.Agent do
       # A new frame_delay without an explicit delay_id re-derives the id
       # from the checkpoint's label convention (same rule as load time).
       new_state =
-        if (Keyword.has_key?(opts, :frame_delay) or Keyword.has_key?(opts, :harness_knob)) and
+        if (Keyword.has_key?(opts, :reaction_delay) or Keyword.has_key?(opts, :frame_delay) or
+              Keyword.has_key?(opts, :harness_knob)) and
              not Keyword.has_key?(opts, :delay_id) and new_state.label_convention != nil do
-          knob = Keyword.get(opts, :harness_knob, new_state.frame_delay || 0)
-
           cfg = %{
             label_convention: new_state.label_convention,
             train_delays: new_state.train_delays,
@@ -879,10 +883,18 @@ defmodule ExPhil.Agents.Agent do
             with_delay_id: Map.get(new_state.embed_config || %{}, :with_delay_id, false)
           }
 
+          harness = new_state.harness || :async_runner
+          knob = Keyword.get(opts, :harness_knob, new_state.frame_delay || 0)
+
+          played =
+            Keyword.get(opts, :reaction_delay) ||
+              ExPhil.Eval.HarnessRung.reaction_delay(harness, knob)
+
           %{
             new_state
             | harness_knob: knob,
-              delay_id: ExPhil.Eval.HarnessRung.delay_id(new_state.harness || :async_runner, knob, cfg)
+              reaction_delay: played,
+              delay_id: ExPhil.Eval.HarnessRung.delay_id_for_reaction(played, cfg)
           }
         else
           new_state
@@ -960,6 +972,7 @@ defmodule ExPhil.Agents.Agent do
       |> maybe_update(:deterministic, opts)
       |> maybe_update(:temperature, opts)
       |> maybe_update(:frame_delay, opts)
+      |> maybe_update(:reaction_delay, opts)
       |> maybe_update(:press_threshold, opts)
       |> maybe_update(:release_threshold, opts)
 
@@ -2517,24 +2530,33 @@ defmodule ExPhil.Agents.Agent do
     harness = state.harness || :async_runner
     knob = state.harness_knob || state.frame_delay || 0
     {id_offset, _} = HarnessRung.delay_id_reaction_offset(config)
-    derived = HarnessRung.delay_id(harness, knob, config)
     delay_conditioned? = Map.get(full_embed_config, :with_delay_id, false)
+
+    # The physical reaction delay this agent plays at: given directly (THE
+    # knob), else what the declared harness plays at its knob.
+    played = state.reaction_delay || HarnessRung.reaction_delay(harness, knob)
+    derived = HarnessRung.delay_id_for_reaction(played, config)
+
+    describe =
+      if state.reaction_delay,
+        do: "reaction delay #{played} -> delay-id #{derived} (id reaction offset #{id_offset})",
+        else: HarnessRung.describe(harness, knob, config)
 
     state =
       case state.delay_id do
         nil ->
-          Logger.info("[Agent] delay_id #{derived} derived: #{HarnessRung.describe(harness, knob, config)}")
-          %{state | delay_id: derived, delay_id_reaction_offset: id_offset}
+          Logger.info("[Agent] delay_id #{derived} derived: #{describe}")
+          %{state | delay_id: derived, delay_id_reaction_offset: id_offset, reaction_delay: played}
 
         explicit ->
           if delay_conditioned? and explicit != derived do
             Logger.warning(
-              "[Agent] explicit delay_id #{explicit} but #{HarnessRung.describe(harness, knob, config)}; " <>
+              "[Agent] explicit delay_id #{explicit} but #{describe}; " <>
                 "one frame FASTER than trained breaks tight loops, one slower degrades (GOTCHA #115)"
             )
           end
 
-          %{state | delay_id_reaction_offset: id_offset}
+          %{state | delay_id_reaction_offset: id_offset, reaction_delay: played}
       end
 
     validate_delay_id!(state, config, full_embed_config)
@@ -2555,7 +2577,6 @@ defmodule ExPhil.Agents.Agent do
     # harness actually plays it at (delay-conditioned ones are covered by
     # the id derivation + guard above).
     reaction = LabelConvention.reaction_delay(config)
-    played = HarnessRung.reaction_delay(harness, knob)
 
     if not delay_conditioned? and played != reaction do
       aligned =

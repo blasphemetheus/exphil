@@ -187,8 +187,10 @@ Status: `[ ]` open · `[~]` in progress · `[x]` structural · `[g]` guarded onl
 - **Done:** `ExPhil.Eval.HarnessRung` is the table (`latency/2`,
   `knob/2`, `reaction_delay/2`, `delay_id/3`, `aligned_knob/3`,
   `deploy_knob/2`, `describe/3`), each row cited to its measurement
-  (suite grid 09-12; sync pin 09-12 `eval_runs/0912_sync_rung`: fd3/id2
-  427/436, fd2/id2 2, fd4/id2 3/106; async 07-31 + rung law). The drill
+  (suite grid 09-12; LatencyProbe vs Slippi recording 09-12 evening:
+  sync fd N = N+1, async policy path = N+2; the chain pin `eval_runs/
+  0912_sync_rung` fd3/id2 427/436 is ep57 playing one frame faster than
+  its labels on the sync runner, GOTCHA #115 addendum 3). The drill
   stamps `delay_id_reaction_offset` (Checkpoint stamps 0 for every
   other trainer; unstamped delay-conditioned checkpoints are read as
   the recipe's 2, tagged `:assumed_drill`). Each harness DECLARES
@@ -198,6 +200,19 @@ Status: `[ ]` open · `[~]` in progress · `[x]` structural · `[g]` guarded onl
   `delay_id/2` delegate to the table. The suite resolves its
   `--response-delay` from the checkpoint by default (can no longer be
   run one frame fast by omission).
+- **Structural form landed (09-12 evening, Bradley: "one --reaction-delay
+  knob, drill ids physical, bridge measures latency"):** the units are
+  unified instead of translated. (a) Drill delay-ids ARE physical reaction
+  delays (`--pipeline-offset` retired with a fold-it-in error; stamp 0).
+  (b) ONE knob `--reaction-delay k` on both runners and the suite,
+  resolved by `HarnessRung.resolve/3` (flag > deprecated `--frame-delay`
+  alias > checkpoint's smallest trained rung) into each harness's own
+  knob; refuses below the floor with the fix in the message. (c) The
+  bridge MEASURES: `ExPhil.Bridge.LatencyProbe` sends one marker input in
+  the countdown and reads the frame the game reports it on; sync runner
+  raises on mismatch, async logs at error level
+  (`--allow-latency-mismatch`). The table is now each harness's FLOOR
+  plus a cross-check, not a translator.
 - **Consequence (Bradley to confirm live):** both runners' floor is
   latency 2 = reaction 1. A reaction-0 checkpoint (v16e, v3's default)
   has NO exact live rung; `--frame-delay 0` is the nearest (one slower)
@@ -241,6 +256,17 @@ bespoke ones stay code).
 
 ## Ledger
 
+**2026-09-12 evening — 12 structural form (one knob):** `--reaction-delay`
+on cli.ex (+ `--allow-latency-mismatch`; `--frame-delay` deprecated
+alias, default nil), `HarnessRung.resolve/3` / `trained_reactions/1` /
+`delay_id_for_reaction/2`, Agent `reaction_delay:` (id derived from the
+physical number; harness/knob path kept for legacy callers),
+`ExPhil.Bridge.LatencyProbe` (pure; 6 tests) wired into `play_dolphin.exs`
+(stats.latency_probe, raise on mismatch) and `AsyncRunner` (ets probe per
+game, error log, `latency_measured`), suite `--reaction-delay`, drill
+`--pipeline-offset` retired + offset stamped 0, gate scripts on
+`GATE_REACTION` / `--reaction-delay 4`. 61 tests green.
+
 **2026-09-12 15:00 — 12 STRUCTURAL, 13 guarded:** `ExPhil.Eval.HarnessRung`
 (one latency table, delay-ids derived; rows cited to measurements) +
 drill/Checkpoint stamp `delay_id_reaction_offset` + every harness
@@ -250,6 +276,10 @@ declares `harness:`/`harness_knob:` to the Agent + suite auto-aligns
 3/106, fd2/id2 2, fd1/id1 1/2 (id-1 cells chain c3-5 at every knob:
 an id-1 cold-start weakness, not rung evidence) -> sync pipeline == async
 == 2; the 07-28 "sync d3 == async d2" note is RETRACTED for this rig.
+**CORRECTION (same evening):** the LatencyProbe checked against Slippi's
+recording shows sync fd N = latency N+1 and async (policy path) N+2 —
+the July note stands; the chain pin was ep57 playing one frame faster
+than its labels on the sync runner (GOTCHA #115 addendum 3).
 `Agent.observe/4` + cold-start-mid-game guard. Small fixes ridden along:
 break miner `--tail-margin` (r2@4303 class), AR-head confidence probe
 now advances history (was probing an empty window). 47 tests green

@@ -68,6 +68,27 @@ end)
 # Validate required args
 CLI.require_options!(opts, [:policy, :dolphin, :iso])
 
+# INVARIANTS item 12: ONE delay knob. --reaction-delay k (or the deprecated
+# --frame-delay alias, or the checkpoint's smallest trained rung) resolves
+# into this harness's Dolphin frame delay through ExPhil.Eval.HarnessRung;
+# the game-start LatencyProbe then MEASURES what the game actually applies.
+{:ok, %{config: rung_cfg}} = ExPhil.Training.Checkpoint.load_policy(opts[:policy])
+
+rung =
+  case ExPhil.Eval.HarnessRung.resolve(:sync_runner, opts, rung_cfg) do
+    {:ok, r} ->
+      r
+
+    {:error, msg} ->
+      Output.error(msg)
+      System.halt(1)
+  end
+
+if rung.source == :frame_delay_alias,
+  do: Output.warning("--frame-delay is deprecated; this run == --reaction-delay #{rung.reaction_delay}")
+
+opts = Keyword.put(opts, :frame_delay, rung.knob)
+
 Output.banner("ExPhil Dolphin Play")
 
 Output.config([
@@ -78,7 +99,8 @@ Output.config([
   {"Your Port", opts[:opponent_port]},
   {"Character", opts[:character]},
   {"Stage", opts[:stage]},
-  {"Frame Delay", opts[:frame_delay]},
+  {"Reaction delay",
+   "#{rung.reaction_delay} (latency #{rung.expected_latency}; Dolphin frame delay #{rung.knob}; from #{rung.source})"},
   {"Deterministic", opts[:deterministic]},
   {"Action Repeat", opts[:action_repeat]}
 ])
@@ -91,9 +113,10 @@ Output.step(1, 5, "Loading agent")
     policy_path: opts[:policy],
     deterministic: opts[:deterministic],
     frame_delay: opts[:frame_delay],
-    # INVARIANTS item 12: the sync runner declares its harness (latency
-    # --frame-delay + 2, pinned 09-12 — the same as async on this rig).
+    # INVARIANTS item 12: the physical rung, resolved above (the sync
+    # runner's own pipeline is +2, pinned 09-12 — the same as async).
     harness: :sync_runner,
+    reaction_delay: rung.reaction_delay,
     # nil -> the Agent derives the id from the checkpoint label convention
     # (INVARIANTS item 1; found 2026-09-10: copying the live flag ran id 1 at
     # d1 for every causal checkpoint and refused single-rung ones).
@@ -297,6 +320,12 @@ defmodule GameLoop do
         |> Map.put(:in_game, true)
         |> Map.put(:start_time, System.monotonic_time(:millisecond))
         |> Map.put(:start_frame, game_state.frame)
+        # INVARIANTS item 12: measure this game's decision->application
+        # latency during the countdown instead of trusting the table.
+        |> Map.put(
+          :latency_probe,
+          ExPhil.Bridge.LatencyProbe.new(expected: Keyword.get(opts, :expected_latency))
+        )
       else
         stats
       end
@@ -415,6 +444,55 @@ defmodule GameLoop do
       stats = %{stats | game_ended: true, in_game: false}
       run(agent, bridge, player_port, Keyword.put(opts, :stats, stats))
     else
+      {probe_action, stats} = step_latency_probe(stats, game_state, player_port, opts)
+
+      case probe_action do
+        {:send, input} ->
+          # Countdown frame owned by the latency probe (marker / neutral).
+          MeleePort.send_controller(bridge, input)
+          run(agent, bridge, player_port, Keyword.put(opts, :stats, stats))
+
+        _ ->
+          handle_agent_frame(agent, bridge, player_port, game_state, stats, opts)
+      end
+    end
+  end
+
+  # INVARIANTS item 12 (structural form): the runner MEASURES its latency at
+  # every game start. A mismatch stops the sync runner (its whole point is
+  # determinism) unless --allow-latency-mismatch.
+  defp step_latency_probe(stats, game_state, player_port, opts) do
+    alias ExPhil.Bridge.LatencyProbe
+
+    probe =
+      Map.get(stats, :latency_probe) ||
+        LatencyProbe.new(expected: Keyword.get(opts, :expected_latency))
+
+    {action, probe} = LatencyProbe.step(probe, game_state, player_port)
+    stats = Map.put(stats, :latency_probe, probe)
+
+    case action do
+      {:done, {:ok, _}} ->
+        IO.puts("[#{timestamp()}] ⏱️  #{LatencyProbe.describe(probe)}")
+
+      {:done, {:mismatch, _}} ->
+        IO.puts("[#{timestamp()}] ❌ #{LatencyProbe.describe(probe)} (INVARIANTS item 12, GOTCHA #115)")
+
+        unless Keyword.get(opts, :allow_latency_mismatch, false) do
+          raise "latency mismatch: #{LatencyProbe.describe(probe)} — pass --allow-latency-mismatch to play anyway"
+        end
+
+      {:done, :unmeasured} ->
+        IO.puts("[#{timestamp()}] ⚠️  #{LatencyProbe.describe(probe)}")
+
+      _ ->
+        :ok
+    end
+
+    {action, stats}
+  end
+
+  defp handle_agent_frame(agent, bridge, player_port, game_state, stats, opts) do
       # Run agent inference and send input
       case Agent.get_controller(agent, game_state, player_port: player_port) do
         {:ok, controller} ->
@@ -453,7 +531,6 @@ defmodule GameLoop do
           stats = %{stats | frames: stats.frames + 1, errors: stats.errors + 1}
           run(agent, bridge, player_port, Keyword.put(opts, :stats, stats))
       end
-    end
   end
 
   defp check_stocks(game_state, stats, player_port) do
@@ -541,7 +618,12 @@ end
 
 # Run the game loop
 try do
-  GameLoop.run(agent, bridge, opts[:port], no_auto_menu: opts[:no_auto_menu], cli_opts: opts)
+  GameLoop.run(agent, bridge, opts[:port],
+    no_auto_menu: opts[:no_auto_menu],
+    cli_opts: opts,
+    expected_latency: rung.expected_latency,
+    allow_latency_mismatch: opts[:allow_latency_mismatch] || false
+  )
 rescue
   e in RuntimeError ->
     IO.puts("\nError: #{Exception.message(e)}")

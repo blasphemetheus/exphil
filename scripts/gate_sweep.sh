@@ -23,7 +23,11 @@ CONFIRM="${3:-}"
 # Override deliberately with GATE_DOLPHIN_DIR.
 export DOLPHIN_DIR="${GATE_DOLPHIN_DIR:-$HOME/.local/share/slippi/exi-ai/dolphin-emu-headless}"
 export ISO="${ISO:-$HOME/isos/melee.iso}"
-GATE_DELAY="${GATE_DELAY:-3}"
+# INVARIANTS item 12: ONE knob. GATE_REACTION=k plays physical reaction delay k
+# (default 4 = the local rung: drill ids 2..5 physical, or 0..3 + the retired
+# pipeline offset 2 for pre-09-12 checkpoints). GATE_DELAY=N (deprecated
+# --frame-delay alias) still works: k = N + 1.
+GATE_REACTION="${GATE_REACTION:-$(( ${GATE_DELAY:-3} + 1 ))}"
 # 2026-09-10 (Bradley): argmax gating was the wrong instrument — sampling at
 # T=1.0 is the decode the policies are trained for (the fox_gen argmax-collapse
 # lesson; the AR head especially). GATE_TEMP=0 restores --deterministic.
@@ -57,7 +61,7 @@ for snap in $snaps; do
   dir="$OUTDIR/ep${ep}"
   EXLA_TARGET=host EXPHIL_GPU_MEMORY_FRACTION=0.25 bash scripts/eval_live_protocol.sh \
     "$snap" "$dir" --runs 1 --dummy stand --runner sync $DECODE_ARGS \
-    -- --frame-delay "$GATE_DELAY" $GATE_ID_ARGS --headless --emulation-speed 0 --blocking-input --slippi-port 51442 \
+    -- --reaction-delay "$GATE_REACTION" $GATE_ID_ARGS --headless --emulation-speed 0 --blocking-input --slippi-port 51442 \
     > "$dir.log" 2>&1 || {
       echo "ep${ep} GATE FAILED" | tee -a "$TABLE"
       # GUARDS_BACKLOG #3: N consecutive failures = infrastructure,
@@ -91,11 +95,11 @@ if [ "$CONFIRM" = "--confirm" ] && [ -n "$best_snap" ]; then
   echo "=== confirming argmax x3 fox + mewtwo"
   EXLA_TARGET=host EXPHIL_GPU_MEMORY_FRACTION=0.25 bash scripts/eval_live_protocol.sh \
     "$best_snap" "$OUTDIR/argmax_fox" --runs 3 --dummy stand --runner sync $DECODE_ARGS \
-    -- --frame-delay "$GATE_DELAY" $GATE_ID_ARGS --headless --emulation-speed 0 --blocking-input --slippi-port 51442 \
+    -- --reaction-delay "$GATE_REACTION" $GATE_ID_ARGS --headless --emulation-speed 0 --blocking-input --slippi-port 51442 \
     2>&1 | grep -aE "r[123] " | tail -3 | tee -a "$TABLE"
   EXLA_TARGET=host EXPHIL_GPU_MEMORY_FRACTION=0.25 bash scripts/eval_live_protocol.sh \
     "$best_snap" "$OUTDIR/argmax_mewtwo" --runs 1 --dummy stand --runner sync $DECODE_ARGS \
-    -- --frame-delay 3 --delay-id-override 3 --dummy-character mewtwo --headless --emulation-speed 0 --blocking-input --slippi-port 51442 \
+    -- --reaction-delay 4 --dummy-character mewtwo --headless --emulation-speed 0 --blocking-input --slippi-port 51442 \
     2>&1 | grep -aE "r1 " | tail -1 | tee -a "$TABLE"
 fi
 echo "=== SWEEP DONE. Table: $TABLE"

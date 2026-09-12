@@ -20,8 +20,8 @@ defmodule ExPhil.Eval.HarnessRung do
   | harness | knob | latency | measured |
   |---|---|---|---|
   | `:training` | reaction delay k | k + 1 | LabelConvention (format fact) |
-  | `:sync_runner` (`play_dolphin.exs`) | `--frame-delay` N | N + 2 | 09-12 pin on ep57 (eval_runs/0912_sync_rung): fd3/id2 chains 427/436, fd2/id2 chains 2, fd4/id2 chains 3/106. RETRACTS the 07-28 "sync d3 == async d2" note (laptop-era; this rig) |
-  | `:async_runner` (`play_dolphin_async.exs`) | `--frame-delay` N | N + 2 | 07-31 live-queue forensics; rung law async d3 <-> drill id 2 |
+  | `:sync_runner` (`play_dolphin.exs`) | `--frame-delay` N | N + 1 | 09-12 evening LatencyProbe vs Slippi recording (marker at fd3 recorded 4 frames after the send); the policy path IS the send path. NOTE ep57 (labels latency 5 at id 2) chains best here at fd 3 = latency 4 (427/436) and degrades at fd 4 (3/106): on the sync runner it plays one frame faster than its labels — an id-calibration fact, see GOTCHA #115 addendum 3 |
+  | `:async_runner` (`play_dolphin_async.exs`) | `--frame-delay` N | N + 2 | send path N+1 (LatencyProbe vs Slippi, 09-12) + one frame-tick for the decision hop (a decision on frame f is sent while handling f+1); rung law async d3 <-> drill id 2 (label latency 5) |
   | `:scenario_suite` (`scenario_suite.exs`) | `--response-delay` N | N + 1 | 09-12 grid on ep57's own game (rd 2 <-> id 0, 6/6 == teacher) |
 
   ## Delay-id
@@ -49,7 +49,15 @@ defmodule ExPhil.Eval.HarnessRung do
   @harnesses [:training, :sync_runner, :async_runner, :scenario_suite]
 
   # Pipeline frames each harness adds on top of its knob (latency at knob 0).
-  @pipeline %{training: 1, sync_runner: 2, async_runner: 2, scenario_suite: 1}
+  # Verified 09-12 evening with ExPhil.Bridge.LatencyProbe against Slippi's own
+  # recording (the marker sent on bridge frame -110 at --frame-delay 3 is
+  # recorded on Slippi frame -106): a synchronous send lands N+1 frames later
+  # on both runners; the async runner's POLICY path adds one frame-tick (a
+  # decision made on frame f is sent while handling f+1), hence 2. The
+  # afternoon retraction of "sync d3 == async d2" was wrong: sync fd3/id2
+  # chaining 427 is ep57 playing one frame FASTER than its labels on the
+  # sync runner (an id-calibration fact, not a latency one).
+  @pipeline %{training: 1, sync_runner: 1, async_runner: 2, scenario_suite: 1}
 
   # The drill's --pipeline-offset since 2026-07-31 (every ms_g* checkpoint).
   @assumed_drill_offset 2
@@ -137,6 +145,66 @@ defmodule ExPhil.Eval.HarnessRung do
     knob(harness, latency(:training, max(LabelConvention.reaction_delay(config), 0)))
   end
 
+  @doc """
+  The PHYSICAL reaction delays a checkpoint was trained at (its delay-ids
+  plus their offset, in reaction numbering; a non-conditioned checkpoint's
+  single label delay). Sorted, unique.
+  """
+  @spec trained_reactions(map() | keyword() | nil) :: [non_neg_integer()]
+  def trained_reactions(config) do
+    {offset, _} = delay_id_reaction_offset(config)
+
+    case fetch(config, :train_delays) do
+      list when is_list(list) and list != [] ->
+        list |> Enum.map(&(trained_reaction(int(&1), config) + offset)) |> Enum.map(&max(&1, 0)) |> Enum.sort() |> Enum.uniq()
+
+      _ ->
+        [max(LabelConvention.reaction_delay(config), 0)]
+    end
+  end
+
+  @doc "The delay-id (checkpoint numbering) that names physical reaction delay `k`."
+  @spec delay_id_for_reaction(non_neg_integer(), map() | keyword() | nil) :: non_neg_integer()
+  def delay_id_for_reaction(k, config) do
+    {offset, _} = delay_id_reaction_offset(config)
+
+    case LabelConvention.of(config) do
+      :causal -> max(k - offset, 0)
+      :producing -> max(k - offset + 1, 0)
+    end
+  end
+
+  @doc """
+  The ONE live knob (`--reaction-delay k`) resolved for a harness:
+
+    * `reaction_delay:` k — play at physical reaction delay k;
+    * else `frame_delay:` n (deprecated alias) — k = the reaction delay the
+      harness plays at knob n;
+    * else the checkpoint's smallest trained reaction delay.
+
+  Returns `{:ok, %{reaction_delay:, knob:, expected_latency:, source:}}` or
+  `{:error, message}` when the harness cannot be that fast.
+  """
+  @spec resolve(harness(), keyword(), map() | keyword() | nil) :: {:ok, map()} | {:error, String.t()}
+  def resolve(harness, opts, config) do
+    {k, source} =
+      cond do
+        is_integer(opts[:reaction_delay]) -> {opts[:reaction_delay], :flag}
+        is_integer(opts[:frame_delay]) -> {reaction_delay(harness, opts[:frame_delay]), :frame_delay_alias}
+        true -> {config |> trained_reactions() |> List.first(), :checkpoint}
+      end
+
+    case knob(harness, latency(:training, k)) do
+      {:ok, n} ->
+        {:ok, %{reaction_delay: k, knob: n, expected_latency: k + 1, source: source}}
+
+      {:error, {:unreachable, min}} ->
+        {:error,
+         "#{harness} cannot play reaction delay #{k}: its floor is latency #{min} (reaction #{min - 1}); " <>
+           "pass --reaction-delay #{min - 1} (one slower than trained) or train at >= #{min - 1}"}
+    end
+  end
+
   @doc "One line for logs: what this harness+knob physically plays and which id it maps to."
   @spec describe(harness(), non_neg_integer(), map() | keyword() | nil) :: String.t()
   def describe(harness, knob, config) do
@@ -163,6 +231,10 @@ defmodule ExPhil.Eval.HarnessRung do
     delays = fetch(config, :train_delays)
     with_id == true or (is_list(delays) and length(delays) > 1)
   end
+
+  defp int(v) when is_integer(v), do: v
+  defp int(v) when is_binary(v), do: String.to_integer(v)
+  defp int(_), do: 0
 
   defp fetch(nil, _k), do: nil
   defp fetch(config, k) when is_list(config), do: Keyword.get(config, k)

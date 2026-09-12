@@ -218,6 +218,13 @@ defmodule ExPhil.Bridge.AsyncRunner do
     :ets.insert(table, {:latest_game_state, nil})
     :ets.insert(table, {:latest_action, nil})
     :ets.insert(table, {:in_game, false})
+    # INVARIANTS item 12: the latency this session is counting on (reaction
+    # delay + 1); a LatencyProbe measures it during every game's countdown.
+    :ets.insert(table, {:latency_expected, Keyword.get(opts, :expected_latency)})
+    :ets.insert(table, {:latency_allow_mismatch, Keyword.get(opts, :allow_latency_mismatch, false)})
+    :ets.insert(table, {:latency_probe, nil})
+    :ets.insert(table, {:latency_probe_pending, nil})
+    :ets.insert(table, {:latency_measured, nil})
     # Only true when stop() called or fatal error
     :ets.insert(table, {:should_stop, false})
     :ets.insert(table, {:sd_mode, false})
@@ -582,6 +589,9 @@ defmodule ExPhil.Bridge.AsyncRunner do
         :ets.insert(table, {:in_game, true})
         :ets.insert(table, {:start_time, System.monotonic_time(:millisecond)})
 
+        [{:latency_expected, expected}] = :ets.lookup(table, :latency_expected)
+        :ets.insert(table, {:latency_probe, ExPhil.Bridge.LatencyProbe.new(expected: expected)})
+
       _ ->
         :ok
     end
@@ -621,20 +631,47 @@ defmodule ExPhil.Bridge.AsyncRunner do
 
       MeleePort.send_controller(bridge, sd_input(player_port, n, lf))
     else
-      case :ets.lookup(table, :latest_action) do
-        [{:latest_action, nil}] ->
-          # No action yet, send neutral
-          :ok
+      # The probe must measure the POLICY path: a decision made on frame f
+      # is sent while handling frame f+1 (the inference process wakes on
+      # :new_frame and the frame loop sends whatever latest_action holds).
+      # So a probe input decided on this frame is SENT on the next tick —
+      # exactly the hop a real decision takes (verified 09-12 vs Slippi's
+      # recording: the synchronous send landed one frame earlier than the
+      # policy's rung).
+      pending =
+        case :ets.lookup(table, :latency_probe_pending) do
+          [{:latency_probe_pending, input}] when is_map(input) -> input
+          _ -> nil
+        end
 
-        [{:latest_action, action}] ->
-          # Send the action
-          input =
-            action
-            |> action_to_input(player_port)
-            |> maybe_tag_local_delay(table)
+      case step_latency_probe(table, game_state, player_port) do
+        {:send, input} -> :ets.insert(table, {:latency_probe_pending, input})
+        _ -> :ets.insert(table, {:latency_probe_pending, nil})
+      end
 
-          MeleePort.send_controller(bridge, input)
-          track_staleness(table)
+      case pending do
+        %{} = input ->
+          # Countdown frame owned by the latency probe (marker / neutral),
+          # through the same local-delay tagging as a policy send so the
+          # measurement includes every stage of this harness's pipeline.
+          MeleePort.send_controller(bridge, maybe_tag_local_delay(input, table))
+
+        _ ->
+          case :ets.lookup(table, :latest_action) do
+            [{:latest_action, nil}] ->
+              # No action yet, send neutral
+              :ok
+
+            [{:latest_action, action}] ->
+              # Send the action
+              input =
+                action
+                |> action_to_input(player_port)
+                |> maybe_tag_local_delay(table)
+
+              MeleePort.send_controller(bridge, input)
+              track_staleness(table)
+          end
       end
     end
 
@@ -642,6 +679,48 @@ defmodule ExPhil.Bridge.AsyncRunner do
 
     # Check for game end via stocks
     check_stocks_for_game_end(bridge, table, game_state, player_port, agent)
+  end
+
+  # INVARIANTS item 12 (structural form): measure this harness's decision->
+  # application latency during the countdown of every game. The async
+  # runner keeps playing on a mismatch (it may be mid-netplay) but says so
+  # at error level and records it for get_stats.
+  defp step_latency_probe(table, game_state, player_port) do
+    alias ExPhil.Bridge.LatencyProbe
+
+    case :ets.lookup(table, :latency_probe) do
+      [{:latency_probe, %LatencyProbe{} = probe}] ->
+        {action, probe} = LatencyProbe.step(probe, game_state, player_port)
+        :ets.insert(table, {:latency_probe, probe})
+
+        case action do
+          {:done, {:ok, l}} ->
+            :ets.insert(table, {:latency_measured, l})
+            # Output, not Logger.info: the play scripts run the Logger at
+            # :warning, and the measurement must be visible in every log.
+            ExPhil.Training.Output.success("[AsyncRunner] ⏱️  #{LatencyProbe.describe(probe)}")
+
+          {:done, {:mismatch, l}} ->
+            :ets.insert(table, {:latency_measured, l})
+            [{:latency_allow_mismatch, allow?}] = :ets.lookup(table, :latency_allow_mismatch)
+
+            Logger.error(
+              "[AsyncRunner] #{LatencyProbe.describe(probe)} (INVARIANTS item 12, GOTCHA #115)" <>
+                if(allow?, do: " — continuing (--allow-latency-mismatch)", else: " — every chain number from this game is off-rung")
+            )
+
+          {:done, :unmeasured} ->
+            Logger.warning("[AsyncRunner] #{LatencyProbe.describe(probe)}")
+
+          _ ->
+            :ok
+        end
+
+        action
+
+      _ ->
+        :pass
+    end
   end
 
   # Staleness telemetry. The frame loop always sends the most recent action,

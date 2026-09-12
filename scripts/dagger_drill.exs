@@ -1079,6 +1079,21 @@ end
 # smear (the one ingredient unique to R3, the only policy that ever
 # chained at its trained delay rung).
 pipeline_offset = opts[:pipeline_offset] || 0
+
+# INVARIANTS item 12 (2026-09-12, "drill ids physical"): a delay-id IS the
+# physical reaction delay it was trained at. The extra label shift that
+# --pipeline-offset used to add (2 = the Dolphin runners' pipeline) is now
+# the runner's job (--reaction-delay k, ExPhil.Eval.HarnessRung), so the
+# g19..g24 recipe `--multi-delay "0,1,2,3" --pipeline-offset 2` is written
+# `--multi-delay "2,3,4,5"` today: same labels, honest ids.
+if pipeline_offset != 0 do
+  Output.error(
+    "--pipeline-offset is retired: delay-ids are physical reaction delays now. " <>
+      "Fold it into the delays (--multi-delay \"#{Enum.map_join(delays, ",", &(&1 + pipeline_offset))}\") and drop the flag."
+  )
+
+  System.halt(1)
+end
 shift_jitter = opts[:shift_jitter] || 0
 
 effective_shift = fn d ->
@@ -1570,10 +1585,9 @@ trainer =
     # truth (0824: without this, multi-delay checkpoints stamped [0]
     # and every d3 gate was refused).
     train_delays: delays,
-    # INVARIANTS item 12: delay-id d was trained at reaction delay d + this
-    # (--pipeline-offset); stamped so every harness derives the right id
-    # (ExPhil.Eval.HarnessRung) instead of assuming the recipe.
-    delay_id_reaction_offset: pipeline_offset,
+    # INVARIANTS item 12: delay-ids are PHYSICAL reaction delays (offset 0,
+    # stamped so HarnessRung never assumes the pre-09-12 recipe's 2).
+    delay_id_reaction_offset: 0,
     use_prev_action: prev_action,
     embed_size: embed_size,
     temporal: true,

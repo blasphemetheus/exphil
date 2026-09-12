@@ -4062,3 +4062,36 @@ id-1 cold-start weakness (the suite's mid-chain handoff at rd3/id1 was
 runners' floor is reaction 1, so a reaction-0 checkpoint (v16e, v3's
 default) was deployed TWO frames slow by the 09-09 `--frame-delay 1`
 card (safe direction, not aligned) — see DEPLOY_KNOBS row 15.
+
+### #115 addendum 2 (evening) — one knob, measured
+
+Bradley: "if we have to keep track of all these different latencies, we're
+building it wrong." Agreed: the table translated between local coordinate
+systems. Now there is ONE unit (physical reaction delay k) and ONE knob
+(`--reaction-delay k`) on every harness; drill delay-ids are physical
+(`--pipeline-offset` retired); and each runner MEASURES its latency at
+game start (`ExPhil.Bridge.LatencyProbe`: one marker input in the
+countdown, read back on the frame the game reports it) and refuses or
+flags a mismatch. `HarnessRung` is reduced to each harness's floor plus
+the cross-check. Old cards translate as `--frame-delay N` == `--reaction-
+delay N+1` (alias kept, deprecated).
+
+### #115 addendum 3 (evening) — the probe vs Slippi: retraction retracted
+
+`ExPhil.Bridge.LatencyProbe` checked against Slippi's own recording
+(`eval_runs/0912_sync_rung/pin_final`: marker sent on bridge frame -110 at
+`--frame-delay 3`, recorded on Slippi frame -106): a SYNCHRONOUS send
+lands N+1 frames after the observed state on both runners; the async
+runner's POLICY path adds one frame-tick (a decision on frame f is sent
+while handling f+1), so async fd N = latency N+2 and sync fd N = N+1. The
+afternoon "sync == async, July note retracted" was WRONG; the July note
+stands. What misled it: ep57 (id 2, labels at latency 5) chains 427/436
+on the SYNC runner at fd 3 = latency 4 and only 3/106 at fd 4 = latency 5
+— i.e. on the sync runner it plays best ONE FRAME FASTER than its labels,
+while on the async runner it plays best exactly at its labels (fd 3 = 5).
+That is a fact about ep57's id calibration under the two harnesses (the
+sync runner is unthrottled + blocking; whatever the mechanism, it is not
+a latency-table fact). Rules: the probe measures the send path — a
+harness whose policy path has extra hops must route the probe through
+them (the async runner now does); and a chain optimum is NOT a latency
+measurement — only a recorded marker is.

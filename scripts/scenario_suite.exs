@@ -669,6 +669,7 @@ end
       window: :integer,
       input_offset: :integer,
       response_delay: :integer,
+      reaction_delay: :integer,
       drift_tolerance: :float,
       dolphin: :string,
       iso: :string,
@@ -702,26 +703,37 @@ ts = Calendar.strftime(NaiveDateTime.local_now(), "%Y%m%d_%H%M%S")
 # --delay-id against it); otherwise the checkpoint's own smallest trained id
 # (or --delay-id) picks its aligned response delay, so the suite can no
 # longer be run one frame faster than the policy was trained by default.
-response_delay =
+{response_delay, reaction_delay} =
   cond do
-    opts[:response_delay] != nil ->
-      opts[:response_delay]
-
     (opts[:driver] || "policy") != "policy" or opts[:policy] == nil ->
-      0
+      rd = opts[:response_delay] || opts[:reaction_delay] || 0
+      {rd, rd}
 
     true ->
       {:ok, %{config: cfg}} = ExPhil.Training.Checkpoint.load_policy(opts[:policy])
-      id = opts[:delay_id] || Enum.min(cfg[:train_delays] || [0])
 
-      case ExPhil.Eval.HarnessRung.aligned_knob(:scenario_suite, id, cfg) do
-        {:ok, rd} ->
-          Output.puts("--response-delay #{rd}: aligned rung for delay-id #{id} (#{ExPhil.Eval.HarnessRung.describe(:scenario_suite, rd, cfg)})")
-          rd
+      # ONE knob: --reaction-delay k (== --response-delay k here, the suite's
+      # pipeline is exactly 1 frame); --delay-id N picks that id's trained
+      # rung; default = the checkpoint's smallest trained reaction delay.
+      resolve_opts =
+        cond do
+          opts[:reaction_delay] != nil -> [reaction_delay: opts[:reaction_delay]]
+          opts[:response_delay] != nil -> [reaction_delay: opts[:response_delay]]
+          opts[:delay_id] != nil -> [reaction_delay: opts[:delay_id] |> then(fn id ->
+            {offset, _} = ExPhil.Eval.HarnessRung.delay_id_reaction_offset(cfg)
+            ExPhil.Data.LabelConvention.to_reaction(id, ExPhil.Data.LabelConvention.of(cfg)) + offset
+          end)]
+          true -> []
+        end
 
-        {:error, {:unreachable, min}} ->
-          Output.warning("delay-id #{id} needs latency below this harness's floor (#{min}); running at --response-delay 0 (slower than trained)")
-          0
+      case ExPhil.Eval.HarnessRung.resolve(:scenario_suite, resolve_opts, cfg) do
+        {:ok, r} ->
+          Output.puts("reaction delay #{r.reaction_delay} (latency #{r.expected_latency}; --response-delay #{r.knob}; from #{r.source})")
+          {r.knob, r.reaction_delay}
+
+        {:error, msg} ->
+          Output.error(msg)
+          System.halt(1)
       end
   end
 
@@ -825,6 +837,7 @@ agent =
         # derives (or checks) the delay-id through ExPhil.Eval.HarnessRung.
         harness: :scenario_suite,
         harness_knob: suite_opts[:response_delay],
+        reaction_delay: reaction_delay,
         # --live-af: convert the bridge's LIVE action_frame numbering into the
         # PARSED numbering the checkpoint trained on (GOTCHA #81); the teacher
         # driver needed the same conversion to chain in this harness.

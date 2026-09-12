@@ -87,6 +87,27 @@ end)
 # Validate required args
 CLI.require_options!(opts, [:policy, :dolphin, :iso])
 
+# INVARIANTS item 12: ONE delay knob. --reaction-delay k (or the deprecated
+# --frame-delay alias, or the checkpoint's smallest trained rung) resolves
+# into this harness's Dolphin frame delay through ExPhil.Eval.HarnessRung;
+# the game-start LatencyProbe then MEASURES what the game actually applies.
+{:ok, %{config: rung_cfg}} = ExPhil.Training.Checkpoint.load_policy(opts[:policy])
+
+rung =
+  case ExPhil.Eval.HarnessRung.resolve(:async_runner, opts, rung_cfg) do
+    {:ok, r} ->
+      r
+
+    {:error, msg} ->
+      Output.error(msg)
+      System.halt(1)
+  end
+
+if rung.source == :frame_delay_alias,
+  do: Output.warning("--frame-delay is deprecated; this run == --reaction-delay #{rung.reaction_delay}")
+
+opts = Keyword.put(opts, :frame_delay, rung.knob)
+
 Output.banner("ExPhil Dolphin Play (ASYNC)")
 
 # GOTCHA #84: without --replay-dir, replays land in Dolphin's TEMP user dir
@@ -136,7 +157,8 @@ Output.config([
   {"Your Port", opts[:opponent_port]},
   {"Character", opts[:character]},
   {"Stage", opts[:stage]},
-  {"Frame Delay", opts[:frame_delay]},
+  {"Reaction delay",
+   "#{rung.reaction_delay} (latency #{rung.expected_latency}; Dolphin frame delay #{rung.knob}; from #{rung.source})"},
   {"Deterministic", opts[:deterministic]},
   {"Temperature", inspect(temperature)},
   # Echoed so an eval harness can ASSERT the decode it asked for actually
@@ -174,6 +196,7 @@ agent_opts =
     # delay-id from ExPhil.Eval.HarnessRung (async --frame-delay N = latency
     # N+2). An explicit --delay-id-override is used as given, bypassing the guard.
     harness: :async_runner,
+    reaction_delay: rung.reaction_delay,
     delay_id: opts[:delay_id_override],
     allow_untrained_delay_id: opts[:delay_id_override] != nil,
     ablate_prev_action: opts[:ablate_prev_action] || false,
@@ -453,7 +476,11 @@ Output.step(5, 5, "Starting async game runner")
     lras: opts[:console_timeout] != 0,
     # Direction #3: explicit bridge-side action delay (frames), independent
     # of --frame-delay (Slippi native online delay); the two compose.
-    local_delay: opts[:local_delay] || 0
+    local_delay: opts[:local_delay] || 0,
+    # INVARIANTS item 12: the latency this run counts on (reaction delay +
+    # 1), measured by the game-start probe; mismatches log at error level.
+    expected_latency: rung.expected_latency,
+    allow_latency_mismatch: opts[:allow_latency_mismatch] || false
   )
 
 Output.success("Async runner started")

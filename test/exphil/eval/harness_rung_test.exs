@@ -22,17 +22,17 @@ defmodule ExPhil.Eval.HarnessRungTest do
 
   test "latency = knob + the harness's pipeline; training reaction k is latency k+1" do
     assert HR.latency(:training, 0) == 1
-    assert HR.latency(:sync_runner, 3) == 5
+    assert HR.latency(:sync_runner, 3) == 4
     assert HR.latency(:async_runner, 3) == 5
     assert HR.latency(:scenario_suite, 2) == 3
   end
 
-  test "09-12 sync pin: sync and async share the 2-frame pipeline (fd3/id2 427/436, fd2/id2 2, fd4/id2 3/106)" do
-    assert HR.latency(:sync_runner, 3) == HR.latency(:async_runner, 3)
-    assert HR.latency(:scenario_suite, 4) == HR.latency(:sync_runner, 3)
-    assert HR.delay_id(:sync_runner, 3, @ep57) == 2
-    assert HR.delay_id(:sync_runner, 2, @ep57) == 1
-    assert HR.aligned_knob(:sync_runner, 2, @ep57) == {:ok, 3}
+  test "09-12 LatencyProbe vs Slippi: a synchronous send lands N+1 later; async adds the decision hop (sync d3 == async d2)" do
+    assert HR.latency(:sync_runner, 3) == HR.latency(:async_runner, 2)
+    assert HR.latency(:scenario_suite, 3) == HR.latency(:sync_runner, 3)
+    assert HR.delay_id(:sync_runner, 4, @ep57) == 2
+    assert HR.delay_id(:sync_runner, 3, @ep57) == 1
+    assert HR.aligned_knob(:sync_runner, 2, @ep57) == {:ok, 4}
   end
 
   test "09-12 suite grid: response-delay 2 <-> id 0, 3 <-> id 1 (6/6 == teacher)" do
@@ -63,15 +63,15 @@ defmodule ExPhil.Eval.HarnessRungTest do
   end
 
   test "non-conditioned checkpoints: the exact deploy knob per harness, unreachable is loud" do
-    # reaction 0 (v16e / causal0): NEITHER runner can go that fast (floor latency 2 = reaction 1);
-    # --frame-delay 0 is the nearest (one slower), the 09-09 deploy card (--frame-delay 1) is TWO slower
-    assert HR.deploy_knob(:sync_runner, @v16e) == {:error, {:unreachable, 2}}
-    assert HR.deploy_knob(:sync_runner, @causal0) == {:error, {:unreachable, 2}}
+    # reaction 0 (v16e / causal0): exact on the SYNC runner at --frame-delay 0; the async runner's
+    # decision hop makes its floor reaction 1 (--frame-delay 0 = one slower; the 09-09 card fd 1 = two)
+    assert HR.deploy_knob(:sync_runner, @v16e) == {:ok, 0}
+    assert HR.deploy_knob(:sync_runner, @causal0) == {:ok, 0}
     assert HR.deploy_knob(:async_runner, @causal0) == {:error, {:unreachable, 2}}
     assert HR.deploy_knob(:scenario_suite, @causal0) == {:ok, 0}
     # reaction 2 -> --frame-delay 1 on either runner; reaction 1 -> 0
     assert HR.deploy_knob(:async_runner, %{label_delay: 2, label_convention: :causal}) == {:ok, 1}
-    assert HR.deploy_knob(:sync_runner, %{label_delay: 1, label_convention: :causal}) == {:ok, 0}
+    assert HR.deploy_knob(:sync_runner, %{label_delay: 1, label_convention: :causal}) == {:ok, 1}
   end
 
   test "delay_id never goes negative" do
@@ -84,5 +84,49 @@ defmodule ExPhil.Eval.HarnessRungTest do
     assert line =~ "latency 5"
     assert line =~ "delay-id 2"
     assert line =~ "assumed_drill"
+  end
+end
+
+defmodule ExPhil.Eval.HarnessRungResolveTest do
+  @moduledoc "The ONE knob (--reaction-delay) resolved per harness; physical drill ids."
+  use ExUnit.Case, async: true
+
+  alias ExPhil.Eval.HarnessRung, as: HR
+
+  # pre-09-12 drill checkpoint (nominal ids 0..3, offset assumed 2)
+  @old %{train_delays: [0, 1, 2, 3], label_convention: :causal, with_delay_id: true}
+  # a drill checkpoint trained today: ids ARE physical (stamped offset 0)
+  @new %{train_delays: [2, 3, 4, 5], label_convention: :causal, with_delay_id: true, delay_id_reaction_offset: 0}
+  @causal0 %{label_delay: 0, train_delays: [0], label_convention: :causal}
+
+  test "trained_reactions are physical for old and new drill checkpoints alike" do
+    assert HR.trained_reactions(@old) == [2, 3, 4, 5]
+    assert HR.trained_reactions(@new) == [2, 3, 4, 5]
+    assert HR.trained_reactions(@causal0) == [0]
+  end
+
+  test "delay_id_for_reaction: the same physical rung names id 2 (old) or id 4 (new)" do
+    assert HR.delay_id_for_reaction(4, @old) == 2
+    assert HR.delay_id_for_reaction(4, @new) == 4
+    assert HR.delay_id_for_reaction(2, @new) == 2
+    assert HR.delay_id_for_reaction(0, @old) == 0
+  end
+
+  test "resolve: --reaction-delay wins, --frame-delay is an alias, default = smallest trained rung" do
+    assert {:ok, %{reaction_delay: 4, knob: 4, expected_latency: 5, source: :flag}} =
+             HR.resolve(:sync_runner, [reaction_delay: 4], @old)
+
+    assert {:ok, %{reaction_delay: 4, knob: 3, source: :frame_delay_alias}} =
+             HR.resolve(:async_runner, [frame_delay: 3], @old)
+
+    assert {:ok, %{reaction_delay: 2, knob: 1, source: :checkpoint}} = HR.resolve(:async_runner, [], @new)
+    assert {:ok, %{reaction_delay: 2, knob: 2, expected_latency: 3}} = HR.resolve(:scenario_suite, [], @old)
+  end
+
+  test "resolve refuses a rung below the harness floor with the fix in the message" do
+    assert {:error, msg} = HR.resolve(:async_runner, [], @causal0)
+    assert msg =~ "floor is latency 2"
+    assert msg =~ "--reaction-delay 1"
+    assert {:ok, %{knob: 0}} = HR.resolve(:scenario_suite, [], @causal0)
   end
 end
