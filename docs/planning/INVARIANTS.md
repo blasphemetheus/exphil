@@ -237,6 +237,36 @@ Status: `[ ]` open · `[~]` in progress · `[x]` structural · `[g]` guarded onl
   one is unrepresentable; the suite is the only such tool today.
 - **Test:** `agent_observe_test` (equivalence + window fill + probe).
 
+
+### 14. [x] Delayed labels come from the label source's OWN future (STRUCTURAL 2026-09-12 evening)
+- **Fact:** a reaction-delay-k label answers "what does the expert do k
+  frames after this state". For a RECORDED expert (fixture, human
+  replays) that is the recording k frames later. For an EXPERT-labeled
+  list (relabeled rollouts, openers, mined snippets, their redresses) the
+  recording is the STUDENT's; where the student broke the loop, the
+  label k frames later is a recovery input — the same state with two
+  futures.
+- **Was:** both kinds were plain `[%{game_state, controller}]` and the
+  drill shifted both with `Data.shift_actions/2`. The pool audited clean
+  at shift 0 and conflicted on 10 of 11 loop states at the trained shift
+  (365/3a: fixture B+X 1.00 vs 3,185 rollout frames 0.10/0.06). Every
+  DAgger round since g19 trained against it; the technique floor fell
+  296 -> 111 -> 93 as rollout volume grew (RESULTS §8-9).
+- **Done:** frames carry `:label_source` (`:recorded` | `{:expert, mod}`);
+  `ExPhil.Training.Labels.at_delay/3` is the ONE producer of delayed
+  labels — recorded lists shift along the recording, expert lists call
+  `mod.label_ahead/4`; `Data.shift_actions/2` RAISES on an expert-tagged
+  list. `MultishineExpert.label_ahead/4` is phase-indexed on the canonical
+  cycle learned from the fixture (loop state at phase p -> table label at
+  p+k; off-loop -> the current recovery held, or dropped). The drill tags
+  relabeled lists and snippets and routes every shift through
+  `Labels.at_delay`; the pool auditor audits through the same function at
+  `--shifts`, and gates every prereg.
+- **Test:** `labels_test` (the fixture as oracle: label_ahead == the
+  recorded future on every loop frame for k 1..5; recorded vs expert-
+  tagged twins agree through at_delay; shift_actions on an expert list
+  raises; off-loop hold/drop), `multishine_expert_test` (cycle learned).
+  First run: g26 (`eval_runs/0912_g26_phase`).
 ## What's left (2026-09-12 15:00 — v3 is gated on this list being empty)
 
 Open: item 13's structural form (handoff API); the sync/async floor

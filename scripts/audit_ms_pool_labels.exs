@@ -75,29 +75,27 @@ key_of = fn f ->
   {trunc(p.action || 0), min(trunc(p.action_frame || 0), 12), p.on_ground == true}
 end
 
-# A labeled list keeps EVERY frame in order (label nil where the expert
-# skips the state), so a shift can check contiguity and find its target
-# exactly like Data.shift_actions does.
-# entry :: {frame_number, key, {b, x} | nil}
-recorded_labels = fn frames ->
-  Enum.map(frames, fn f -> {f.game_state.frame, key_of.(f), {f.controller.button_b == true, f.controller.button_x == true}} end)
-end
+# Lists are TRAINING FRAME LISTS carrying their label source, and the audit
+# derives each shift's labels through ExPhil.Training.Labels.at_delay/3 —
+# the same function the drill trains through (INVARIANTS item 14) — so what
+# is audited is what is trained: recorded lists shift along the recording,
+# expert lists ask the expert's label_ahead/4.
+recorded_labels = fn frames -> ExPhil.Training.Labels.tag(frames, :recorded) end
 
 relabel = fn frames ->
   recorded = Map.new(frames, fn f -> {f.game_state.frame, f.controller} end)
 
-  Enum.map(frames, fn f ->
+  frames
+  |> Enum.flat_map(fn f ->
     p = f.game_state.players[1]
     prev = recorded[f.game_state.frame - 1]
 
-    label =
-      case p && MultishineExpert.label(expert, p, prev) do
-        {:ok, c} -> {c.button_b == true, c.button_x == true}
-        _ -> nil
-      end
-
-    {f.game_state.frame, key_of.(f), label}
+    case p && MultishineExpert.label(expert, p, prev) do
+      {:ok, c} -> [f |> Map.put(:controller, c) |> Map.put(:prev_controller, prev)]
+      _ -> []
+    end
   end)
+  |> ExPhil.Training.Labels.tag({:expert, MultishineExpert})
 end
 
 load_replays = fn paths ->
@@ -125,26 +123,22 @@ sources =
          |> File.read!()
          |> :erlang.binary_to_term()
          |> Map.get(:frame_lists, [])
-         |> Enum.map(recorded_labels)}
+         # mined snippets are EXPERT-relabeled (snippet_mine runs the expert per
+         # frame) — tag them as the drill does, so their delayed labels come
+         # from label_ahead, not from shifting the recording.
+         |> Enum.map(&ExPhil.Training.Labels.tag(&1, {:expert, MultishineExpert}))}
       ],
       else: []
     ) ++
     if(opts[:openers], do: [{"openers", load_replays.(globs.(opts[:openers]))}], else: [])
 
-# Rows at a shift: state key of frame i, label of frame i+s (contiguous by
-# frame number, else dropped). rows :: [{key, b, x}]
+# Rows at a shift: the state key of each frame with its reaction-delay-s
+# label as the drill would train it. rows :: [{key, b, x}]
 rows_at_shift = fn lists, s ->
   Enum.flat_map(lists, fn list ->
-    arr = List.to_tuple(list)
-    n = tuple_size(arr)
-
-    for i <- 0..(n - 1 - s)//1,
-        {f0, key, _} = elem(arr, i),
-        {f1, _, label} = elem(arr, i + s),
-        f1 == f0 + s,
-        label != nil,
-        {b, x} = label,
-        do: {key, b, x}
+    list
+    |> ExPhil.Training.Labels.at_delay(s, expert: expert, player_port: 1)
+    |> Enum.map(fn f -> {key_of.(f), f.controller.button_b == true, f.controller.button_x == true} end)
   end)
 end
 

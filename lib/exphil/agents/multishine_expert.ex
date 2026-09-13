@@ -38,9 +38,19 @@ defmodule ExPhil.Agents.MultishineExpert do
   alias ExPhil.Bridge.ControllerState
   alias ExPhil.Constants
 
-  defstruct [:table]
+  # cycle: the canonical loop as an ordered list of state keys (one period);
+  # phase: key -> index into cycle. Both derived from the fixture in
+  # from_frames/2 (the modal period between successive ground-reflector f1
+  # states), so the k-ahead label (label_ahead/4) comes from the EXPERT'S
+  # future — the loop — never from whatever a recording did next.
+  defstruct [:table, cycle: [], phase: %{}]
 
-  @type t :: %__MODULE__{table: %{optional({integer(), integer(), boolean()}) => ControllerState.t()}}
+  @type key :: {integer(), integer(), boolean()}
+  @type t :: %__MODULE__{
+          table: %{optional(key()) => ControllerState.t()},
+          cycle: [key()],
+          phase: %{optional(key()) => non_neg_integer()}
+        }
 
   @fixture_path "test/fixtures/replays/fox_multishine_closed.slp"
 
@@ -93,7 +103,91 @@ defmodule ExPhil.Agents.MultishineExpert do
       end)
       |> Map.new(fn {key, group} -> {key, modal_controller(group)} end)
 
-    %__MODULE__{table: table}
+    cycle = canonical_cycle(frames, port, table)
+    phase = cycle |> Enum.with_index() |> Map.new()
+
+    %__MODULE__{table: table, cycle: cycle, phase: phase}
+  end
+
+  @doc """
+  The input the expert would issue `k` frames AFTER this state, assuming the
+  expert keeps executing (INVARIANTS.md item 14, 2026-09-12).
+
+  For a state ON the loop (a key in the canonical cycle) that is the table's
+  label at cycle phase `p + k` — the fixture's own future, not the
+  recording's. For any other state the honest k-ahead guess is the
+  recovery input the expert commits to now (held). `k = 0` is `label/4`.
+
+  This is what a delayed label MUST be for expert-labeled frames: shifting a
+  per-state relabel along the recorded future borrows the student's broken
+  future (RESULTS 09-12 §9: 10 of 11 loop states conflicted at the trained
+  shift; 0 at shift 0).
+
+  Returns `{:ok, %ControllerState{}}` or `:skip`.
+  """
+  @spec label_ahead(t(), map(), non_neg_integer(), ControllerState.t() | nil) ::
+          {:ok, ControllerState.t()} | :skip
+  def label_ahead(expert, player, k, prev \\ nil)
+  def label_ahead(%__MODULE__{} = expert, player, 0, prev), do: label(expert, player, prev)
+
+  def label_ahead(%__MODULE__{table: table, cycle: cycle, phase: phase} = expert, player, k, prev)
+      when is_integer(k) and k > 0 do
+    key = {trunc(player.action), trunc(player.action_frame), player.on_ground}
+
+    case {phase[key], cycle} do
+      {p, [_ | _]} when is_integer(p) ->
+        target = Enum.at(cycle, rem(p + k, length(cycle)))
+
+        case table[target] do
+          nil -> label(expert, player, prev)
+          controller -> {:ok, controller}
+        end
+
+      _ ->
+        label(expert, player, prev)
+    end
+  end
+
+  @doc "True when the state is one of the canonical loop's keys."
+  @spec on_loop?(t(), map()) :: boolean()
+  def on_loop?(%__MODULE__{phase: phase}, player) do
+    Map.has_key?(phase, {trunc(player.action), trunc(player.action_frame), player.on_ground})
+  end
+
+  # The canonical cycle: the MODAL sequence of state keys between two
+  # successive ground-reflector af1 states in the fixture (length-capped so a
+  # warm-up gap cannot pose as a period). Every key in it must be in the
+  # table, so the k-ahead lookup always resolves.
+  @cycle_start_af 1
+  @max_period 24
+
+  defp canonical_cycle(frames, port, table) do
+    keys =
+      frames
+      |> Enum.reject(&(&1.game_state.frame < 0))
+      |> Enum.map(fn f ->
+        p = f.game_state.players[port]
+        {trunc(p.action), trunc(p.action_frame), p.on_ground}
+      end)
+
+    start? = fn {action, af, grounded} -> action in @reflector_ground and af == @cycle_start_af and grounded end
+
+    starts =
+      keys
+      |> Enum.with_index()
+      |> Enum.filter(fn {k, _} -> start?.(k) end)
+      |> Enum.map(&elem(&1, 1))
+
+    periods =
+      starts
+      |> Enum.chunk_every(2, 1, :discard)
+      |> Enum.map(fn [a, b] -> Enum.slice(keys, a, b - a) end)
+      |> Enum.filter(fn seg -> length(seg) <= @max_period and Enum.all?(seg, &Map.has_key?(table, &1)) end)
+
+    case periods do
+      [] -> []
+      _ -> periods |> Enum.frequencies() |> Enum.max_by(fn {_seg, n} -> n end) |> elem(0)
+    end
   end
 
   @doc """

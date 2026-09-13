@@ -158,6 +158,16 @@ defmodule ExPhil.Training.Data do
   @spec shift_actions([frame()], non_neg_integer()) :: [frame()]
   def shift_actions(frames, 0), do: frames
 
+  # INVARIANTS.md item 14: an expert-labeled list has no recorded future to
+  # shift along (its recording is the STUDENT'S). Delayed expert labels come
+  # from ExPhil.Training.Labels.at_delay/3 -> the expert's label_ahead/4.
+  def shift_actions([%{label_source: {:expert, mod}} | _], delay) when delay > 0 do
+    raise ArgumentError,
+          "Data.shift_actions/2 on expert-labeled frames (#{inspect(mod)}): shifting a relabel along " <>
+            "the recorded future borrows the student's broken future (RESULTS 2026-09-12 §9). " <>
+            "Use ExPhil.Training.Labels.at_delay/3 with the expert."
+  end
+
   def shift_actions(frames, delay) when is_integer(delay) and delay > 0 do
     shifted =
       frames

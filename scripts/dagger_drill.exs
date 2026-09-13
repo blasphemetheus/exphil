@@ -422,6 +422,10 @@ relabel = fn frames, recorded ->
           frame
           |> Map.put(:controller, correction)
           |> Map.put(:prev_controller, prev)
+          # INVARIANTS item 14: this list's labels are the EXPERT's; its delayed
+          # labels must come from the expert too (Labels.at_delay), never from
+          # shifting along the student's recorded future.
+          |> Map.put(:label_source, {:expert, expert_mod})
         ]
 
       :skip ->
@@ -561,14 +565,14 @@ rollout_frame_lists =
 
     process_fn = fn
       {:fixture, list} ->
-        Data.shift_actions(list, action_delay)
+        ExPhil.Training.Labels.at_delay(list, action_delay, expert: expert, player_port: port)
 
       {:bc, p} ->
         fr = load_frames.(p, true)
-        if length(fr) >= bc_min_frames, do: Data.shift_actions(fr, action_delay), else: []
+        if length(fr) >= bc_min_frames, do: ExPhil.Training.Labels.at_delay(fr, action_delay, expert: expert, player_port: port), else: []
 
       {:rollout, p} ->
-        p |> process_rollout.() |> Data.shift_actions(action_delay)
+        p |> process_rollout.() |> ExPhil.Training.Labels.at_delay(action_delay, expert: expert, player_port: port)
     end
 
     spec_key = fn
@@ -622,7 +626,11 @@ snippet_frame_lists =
     # ...}. Warn on a delay mismatch for the same reason MixFrames does —
     # a wrong :prev_controller alignment corrupts training silently.
     case p |> File.read!() |> :erlang.binary_to_term() do
-      %{frame_lists: lists} = payload ->
+      %{frame_lists: raw_lists} = payload ->
+        # INVARIANTS item 14: mined snippets are expert-relabeled (snippet_mine
+        # runs MultishineExpert.label per frame) — tag them so their delayed
+        # labels come from the expert, not from shifting the recording.
+        lists = Enum.map(raw_lists, &ExPhil.Training.Labels.tag(&1, {:expert, ExPhil.Agents.MultishineExpert}))
         # INVARIANTS.md item 1 (2026-09-10): compare in REACTION terms, and
         # refuse files mined before the causal rebase outright — their
         # frames bake the OLD (landing-convention) expert-table labels, so
@@ -1225,7 +1233,7 @@ shifted_frame_lists =
 
     length(delays) == 1 and not (opts[:with_delay_id] || false) and
       pipeline_offset == 0 and shift_jitter == 0 ->
-      Enum.map(all_frame_lists, &Data.shift_actions(&1, action_delay))
+      Enum.map(all_frame_lists, &ExPhil.Training.Labels.at_delay(&1, action_delay, expert: expert, player_port: port))
 
     true ->
       lists =
@@ -1234,7 +1242,7 @@ shifted_frame_lists =
 
           shifted =
             list
-            |> Data.shift_actions(shift)
+            |> ExPhil.Training.Labels.at_delay(shift, expert: expert, player_port: port)
             |> Enum.map(&Map.put(&1, :delay_id, d))
 
           {shifted, d, shift, j}
