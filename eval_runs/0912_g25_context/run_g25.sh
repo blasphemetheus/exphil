@@ -97,7 +97,7 @@ SNIP="${SNIP:-eval_runs/0910_snippets_human_causal_d1/snippets.frames}"
 [ -f "$SNIP" ] || { echo "re-mine snippets first: $SNIP missing" >&2; exit 1; }
 # Instrument #1 (HANDOFF_2026-09-12 §3): refuse to train on a pool whose sources
 # disagree on a loop-state label (the g19..g22 snippet conflict class).
-mix run scripts/audit_ms_pool_labels.exs --rollouts "$ROLL" --openers "$OPEN" ${SNIP_ARGS:+--snippets "$SNIP"} 2>&1 | grep -aE "CONFLICT|conflict" || { echo "=== pool label audit FAILED" >&2; exit 3; }
+mix run scripts/audit_ms_pool_labels.exs --rollouts "$ROLL" --openers "$OPEN" ${SNIP_ARGS:+--snippets "$SNIP"} --shifts "3,4,5" 2>&1 | grep -aE "CONFLICT|conflict" || { echo "=== pool label audit FAILED" >&2; exit 3; }
 echo "=== G25 TRAIN $(date +%H:%M:%S) (g19 recipe, causal labels, AR head, clean loss, rungs 0-3, 24ep, snapshot-all)"
 EXPHIL_GPU_MEMORY_FRACTION=0.75 mix run scripts/dagger_drill.exs \
   --expert multishine --fixture test/fixtures/replays/fox_multishine_closed_d1.slp \

@@ -1,34 +1,61 @@
-# Pool label-conflict auditor (instrument #1, HANDOFF_2026-09-12 §3).
+# Pool label-conflict auditor (instrument #1, HANDOFF_2026-09-12 §3), now at
+# the TRAINING SHIFT (evening extension, g25a verdict).
 #
 # A policy cannot be sharper than its labels: where the assembled drill pool
 # disagrees with itself on a loop state, p(correct) is capped at the majority
 # share — g22b fit its pool to 5e-5 and still sat at 0.95 on two boundary
-# frames because 12.5k snippet frames carried a teacher one frame off. This
-# audits every SOURCE the drill assembles, per state key, at the RAW
-# (unshifted, causal) label, and names the disagreeing source.
+# frames because 12.5k snippet frames carried a teacher one frame off.
+#
+# Two things can disagree, and the drill trains at a SHIFT, not at the raw
+# label:
+#
+#   * ACROSS sources (the original check): fixture vs rollouts vs snippets
+#     vs openers give different B/X rates for the same state key.
+#   * WITHIN a source, at the shift: reaction delay k pairs state[t] with the
+#     label of frame t+k, i.e. "what the expert does k frames LATER" — which
+#     depends on where the subject IS k frames later. On a coherent loop that
+#     is the loop; in a rollout whose loop breaks after this state, it is a
+#     recovery input. Same state key, two futures, two labels. Invisible at
+#     shift 0 (the expert's label for the state itself is unambiguous), and
+#     the leading hypothesis for the g24a -> g25a technique-floor decline
+#     (RESULTS §8: 365/3a collapsed to 0.31 on the fixture at shift 4).
 #
 #   mix run scripts/audit_ms_pool_labels.exs \
 #     [--fixture test/fixtures/replays/fox_multishine_closed_d1.slp] \
 #     [--rollouts "glob,glob"] [--snippets path.frames] [--openers "glob"] \
-#     [--port 1] [--min-n 20] [--conflict 0.05]
+#     [--shifts "0,3,4,5"] [--port 1] [--min-n 20] [--conflict 0.05] [--ambiguity 0.10]
 #
-# Output: one row per loop-state key {action, af, grounded}: per-source n and
-# B/X rates, pooled B/X rate, and CONFLICT when any two sources with n>=min-n
-# differ by more than --conflict on B or X. Exit 1 on any conflict, so it can
-# gate a prereg script.
+# Output, per shift: one row per loop-state key with per-source n · B · X, and
+# a verdict: CONFLICT (two sources with n>=min-n differ by more than --conflict
+# on B or X — names the smallest source), AMBIGUOUS (a source's own majority
+# share on B or X is below 1 - --ambiguity: the future-dependent kind — names
+# the source), or ok. Exit 1 on any CONFLICT or AMBIGUOUS at any shift, so it
+# gates a prereg script. --shifts must be the drill's --multi-delay list.
 
 alias ExPhil.Agents.MultishineExpert
 alias ExPhil.Training.Output
 
 {opts, _, _} =
   OptionParser.parse(System.argv(),
-    strict: [fixture: :string, rollouts: :string, snippets: :string, openers: :string, port: :integer, min_n: :integer, conflict: :float]
+    strict: [
+      fixture: :string,
+      rollouts: :string,
+      snippets: :string,
+      openers: :string,
+      shifts: :string,
+      port: :integer,
+      min_n: :integer,
+      conflict: :float,
+      ambiguity: :float
+    ]
   )
 
 fixture = opts[:fixture] || "test/fixtures/replays/fox_multishine_closed_d1.slp"
 port = opts[:port] || 1
 min_n = opts[:min_n] || 20
 thresh = opts[:conflict] || 0.05
+amb_thresh = opts[:ambiguity] || 0.10
+shifts = (opts[:shifts] || "0") |> String.split(",", trim: true) |> Enum.map(&String.to_integer(String.trim(&1)))
 
 roll =
   opts[:rollouts] ||
@@ -37,7 +64,10 @@ roll =
 globs = fn s -> s |> String.split(",", trim: true) |> Enum.flat_map(&Path.wildcard/1) end
 
 {:ok, fx} = ExPhil.Data.Peppi.parse(fixture, player_port: port)
-fixture_frames = ExPhil.Data.Peppi.to_training_frames(fx, player_port: port, opponent_port: if(port == 1, do: 2, else: 1), remap_ports: true)
+
+fixture_frames =
+  ExPhil.Data.Peppi.to_training_frames(fx, player_port: port, opponent_port: if(port == 1, do: 2, else: 1), remap_ports: true)
+
 expert = MultishineExpert.from_frames(fixture_frames, player_port: 1)
 
 key_of = fn f ->
@@ -45,34 +75,47 @@ key_of = fn f ->
   {trunc(p.action || 0), min(trunc(p.action_frame || 0), 12), p.on_ground == true}
 end
 
-label_row = fn f, c -> {key_of.(f), c.button_b == true, c.button_x == true} end
+# A labeled list keeps EVERY frame in order (label nil where the expert
+# skips the state), so a shift can check contiguity and find its target
+# exactly like Data.shift_actions does.
+# entry :: {frame_number, key, {b, x} | nil}
+recorded_labels = fn frames ->
+  Enum.map(frames, fn f -> {f.game_state.frame, key_of.(f), {f.controller.button_b == true, f.controller.button_x == true}} end)
+end
 
 relabel = fn frames ->
   recorded = Map.new(frames, fn f -> {f.game_state.frame, f.controller} end)
 
-  Enum.flat_map(frames, fn f ->
+  Enum.map(frames, fn f ->
     p = f.game_state.players[1]
     prev = recorded[f.game_state.frame - 1]
 
-    case p && MultishineExpert.label(expert, p, prev) do
-      {:ok, c} -> [label_row.(f, c)]
-      _ -> []
-    end
+    label =
+      case p && MultishineExpert.label(expert, p, prev) do
+        {:ok, c} -> {c.button_b == true, c.button_x == true}
+        _ -> nil
+      end
+
+    {f.game_state.frame, key_of.(f), label}
   end)
 end
 
 load_replays = fn paths ->
   Enum.flat_map(paths, fn path ->
     case ExPhil.Data.Peppi.parse(path, player_port: port) do
-      {:ok, r} -> relabel.(ExPhil.Data.Peppi.to_training_frames(r, player_port: port, opponent_port: if(port == 1, do: 2, else: 1), remap_ports: true))
-      _ -> []
+      {:ok, r} ->
+        [relabel.(ExPhil.Data.Peppi.to_training_frames(r, player_port: port, opponent_port: if(port == 1, do: 2, else: 1), remap_ports: true))]
+
+      _ ->
+        []
     end
   end)
 end
 
+# sources :: [{name, [list]}]
 sources =
   [
-    {"fixture", Enum.map(fixture_frames, fn f -> label_row.(f, f.controller) end)},
+    {"fixture", [recorded_labels.(fixture_frames)]},
     {"rollouts", load_replays.(globs.(roll))}
   ] ++
     if(opts[:snippets],
@@ -82,79 +125,135 @@ sources =
          |> File.read!()
          |> :erlang.binary_to_term()
          |> Map.get(:frame_lists, [])
-         |> List.flatten()
-         |> Enum.map(fn f -> label_row.(f, f.controller) end)}
+         |> Enum.map(recorded_labels)}
       ],
       else: []
     ) ++
     if(opts[:openers], do: [{"openers", load_replays.(globs.(opts[:openers]))}], else: [])
 
-Output.banner("Multishine pool label audit (raw causal labels, per source)")
-for {name, rows} <- sources, do: Output.puts("  #{name}: #{length(rows)} labeled frames")
+# Rows at a shift: state key of frame i, label of frame i+s (contiguous by
+# frame number, else dropped). rows :: [{key, b, x}]
+rows_at_shift = fn lists, s ->
+  Enum.flat_map(lists, fn list ->
+    arr = List.to_tuple(list)
+    n = tuple_size(arr)
 
-loop_keys = [{361, 1, true}, {361, 2, true}, {361, 3, true}, {24, 0, true}, {24, 1, true}, {24, 2, true}, {365, 1, false}, {365, 2, false}, {365, 3, false}, {366, 0, false}, {366, 1, false}]
+    for i <- 0..(n - 1 - s)//1,
+        {f0, key, _} = elem(arr, i),
+        {f1, _, label} = elem(arr, i + s),
+        f1 == f0 + s,
+        label != nil,
+        {b, x} = label,
+        do: {key, b, x}
+  end)
+end
 
-by_source = Map.new(sources, fn {name, rows} -> {name, Enum.group_by(rows, &elem(&1, 0))} end)
+Output.banner("Multishine pool label audit — per source, at the training shift(s) #{inspect(shifts)}")
+
+for {name, lists} <- sources,
+    do: Output.puts("  #{name}: #{length(lists)} list(s), #{lists |> Enum.map(&length/1) |> Enum.sum()} frames")
+
+loop_keys = [
+  {361, 1, true},
+  {361, 2, true},
+  {361, 3, true},
+  {24, 0, true},
+  {24, 1, true},
+  {24, 2, true},
+  {365, 1, false},
+  {365, 2, false},
+  {365, 3, false},
+  {366, 0, false},
+  {366, 1, false}
+]
+
 names = Enum.map(sources, &elem(&1, 0))
-
 rate = fn rows, idx -> if rows == [], do: nil, else: Enum.count(rows, &elem(&1, idx)) / length(rows) end
 fmt = fn v -> if v == nil, do: "  -  ", else: String.pad_leading(:erlang.float_to_binary(v * 1.0, decimals: 2), 5) end
+majority = fn r -> max(r, 1.0 - r) end
 
-Output.puts("")
-Output.puts("| state | " <> Enum.map_join(names, " | ", &"#{&1} n · B · X") <> " | verdict |")
-Output.puts("|---|" <> String.duplicate("---|", length(names)) <> "---|")
+problems =
+  Enum.flat_map(shifts, fn s ->
+    by_source = Map.new(sources, fn {name, lists} -> {name, rows_at_shift.(lists, s) |> Enum.group_by(&elem(&1, 0))} end)
 
-conflicts =
-  Enum.flat_map(loop_keys, fn key ->
-    cells =
-      Enum.map(names, fn n ->
-        rows = Map.get(by_source[n], key, [])
-        {n, length(rows), rate.(rows, 1), rate.(rows, 2)}
-      end)
+    Output.puts("")
+    Output.puts("### shift #{s} (state[t] -> label of frame t+#{s})")
+    Output.puts("| state | " <> Enum.map_join(names, " | ", &"#{&1} n · B · X") <> " | verdict |")
+    Output.puts("|---|" <> String.duplicate("---|", length(names)) <> "---|")
 
-    valid = Enum.filter(cells, fn {_, n, _, _} -> n >= min_n end)
+    Enum.flat_map(loop_keys, fn key ->
+      cells =
+        Enum.map(names, fn n ->
+          rows = Map.get(by_source[n], key, [])
+          {n, length(rows), rate.(rows, 1), rate.(rows, 2)}
+        end)
 
-    spread = fn idx ->
-      vals = Enum.map(valid, &elem(&1, idx))
-      if length(vals) >= 2, do: Enum.max(vals) - Enum.min(vals), else: 0.0
-    end
+      valid = Enum.filter(cells, fn {_, n, _, _} -> n >= min_n end)
 
-    sb = spread.(2)
-    sx = spread.(3)
-    bad = sb > thresh or sx > thresh
-
-    verdict =
-      cond do
-        bad ->
-          culprit =
-            valid
-            |> Enum.sort_by(fn {_, n, _, _} -> n end)
-            |> List.first()
-            |> elem(0)
-
-          "CONFLICT B±#{Float.round(sb, 2)} X±#{Float.round(sx, 2)} (smallest source: #{culprit})"
-
-        length(valid) < 2 ->
-          "single source"
-
-        true ->
-          "ok"
+      spread = fn idx ->
+        vals = Enum.map(valid, &elem(&1, idx))
+        if length(vals) >= 2, do: Enum.max(vals) - Enum.min(vals), else: 0.0
       end
 
-    Output.puts(
-      "| #{inspect(key)} | " <>
-        Enum.map_join(cells, " | ", fn {_, n, b, x} -> "#{n} · #{fmt.(b)} · #{fmt.(x)}" end) <>
-        " | #{verdict} |"
-    )
+      sb = spread.(2)
+      sx = spread.(3)
+      conflict? = sb > thresh or sx > thresh
 
-    if bad, do: [key], else: []
+      # Within-source ambiguity: a source whose own B or X majority share
+      # falls below 1 - amb_thresh carries two labels for this state.
+      ambiguous =
+        valid
+        |> Enum.filter(fn {_, _, b, x} -> majority.(b) < 1.0 - amb_thresh or majority.(x) < 1.0 - amb_thresh end)
+        |> Enum.map(fn {n, _, b, x} -> "#{n} (B #{fmt.(b) |> String.trim()}, X #{fmt.(x) |> String.trim()})" end)
+
+      # Both signals print when both fire: a cross-source spread AND which
+      # sources are internally split (the future-dependent kind).
+      verdict =
+        cond do
+          conflict? or ambiguous != [] ->
+            parts =
+              if conflict? do
+                culprit = valid |> Enum.sort_by(fn {_, n, _, _} -> n end) |> List.first() |> elem(0)
+                ["CONFLICT B±#{Float.round(sb, 2)} X±#{Float.round(sx, 2)} (smallest source: #{culprit})"]
+              else
+                []
+              end
+
+            parts = if ambiguous != [], do: parts ++ ["AMBIGUOUS in " <> Enum.join(ambiguous, "; ")], else: parts
+            Enum.join(parts, "; ")
+
+          length(valid) < 2 ->
+            "single source"
+
+          true ->
+            "ok"
+        end
+
+      Output.puts(
+        "| #{inspect(key)} | " <>
+          Enum.map_join(cells, " | ", fn {_, n, b, x} -> "#{n} · #{fmt.(b)} · #{fmt.(x)}" end) <>
+          " | #{verdict} |"
+      )
+
+      Enum.concat(
+        if(conflict?, do: [{s, key, :conflict}], else: []),
+        if(ambiguous != [], do: [{s, key, :ambiguous}], else: [])
+      )
+    end)
   end)
 
 Output.puts("")
 
-if conflicts == [] do
-  Output.success("no label conflicts on loop states (threshold #{thresh}, min n #{min_n})")
+if problems == [] do
+  Output.success("no label conflicts or ambiguities on loop states at shifts #{inspect(shifts)} (conflict #{thresh}, ambiguity #{amb_thresh}, min n #{min_n})")
 else
-  Output.error("#{length(conflicts)} loop state(s) with conflicting labels across sources: #{inspect(conflicts)}")
+  conflicts = Enum.filter(problems, &(elem(&1, 2) == :conflict))
+  ambiguous = Enum.filter(problems, &(elem(&1, 2) == :ambiguous))
+
+  Output.error(
+    "#{length(conflicts)} cross-source conflict(s), #{length(ambiguous)} within-source ambiguity(ies) on loop states: " <>
+      Enum.map_join(problems, ", ", fn {s, k, kind} -> "shift #{s} #{inspect(k)} #{kind}" end)
+  )
+
   System.halt(1)
 end

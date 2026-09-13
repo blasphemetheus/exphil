@@ -452,6 +452,43 @@ expert does 4 frames LATER, which in broken-loop rollouts (and their
 redressed copies) is a recovery input, not the landing press — a
 future-dependent label conflict the pool auditor cannot see because it
 keys sources at offset 1. Instrument 1 must audit at the TRAINING shift.
+
+## 9. Instrument 1 at the TRAINING SHIFT (09-12 19:00) — the pool is consistent at shift 0 and inconsistent at every trained rung
+
+`scripts/audit_ms_pool_labels.exs --shifts "0,3,4,5"` on the g25 sources
+(fixture 8.1k, rollouts 36 lists 148k, snippets 72 lists 12.5k, openers
+26 lists 94k frames; `eval_runs/0912_g25_context/audit_shift.log`):
+
+| shift | conflicts on 11 loop states | example: 365/3a (the aerial-phase landing press) |
+|---|---|---|
+| 0 | **0** — every source agrees to 2 decimals | fixture B 1.00 X 0.00; rollouts 1.00/0.00; openers 1.00/0.00 |
+| 3 | 9 | fixture 1.00/1.00; rollouts 0.16/0.10; snippets 0.08/0.00; openers 0.56/0.53 |
+| 4 (the deploy rung) | **10 of 11** | fixture **1.00/1.00**; rollouts **0.10/0.06**; openers 0.06/0.52 |
+| 5 | 10 of 11 | fixture 0.00/0.00; rollouts 0.14/0.04; openers 0.06/0.52 |
+
+Mechanism, confirmed: the drill labels reaction delay k by taking the
+label of the RECORDED frame t+k. The relabel's label is "what the expert
+does NOW in this state" — unambiguous — but the label k frames later is
+"what the expert does in whatever state the subject actually reached",
+and in rollouts (chains 2-3) that is a break, not the loop. So at k=4
+the pool holds 791 fixture frames saying "press B+X 4 frames after
+aerial-shine f3" against 3,185 rollout frames saying "press nothing" for
+the SAME state key. The model learns the majority: g25's map read 0.31
+on exactly that cell; g24a lost the floor the same way. Every DAgger
+round since g19 trained against this, and it grows with rollout volume —
+which is why coverage rounds trade the technique floor away.
+
+Consequence: a per-state relabel cannot be turned into a delayed label by
+shifting along the recorded future. The delayed label must come from the
+EXPERT'S future, not the policy's: for a loop state at cycle phase p the
+k-frame label is the fixture's label at phase p+k (phase-indexed expert,
+CycleSim territory); for off-loop states either hold the recovery input
+or drop the frame at that shift. Alternatively keep rollouts at shift 0
+only — which is unplayable live (async floor k=1; sync exact at k=0).
+Decision for Bradley: build the phase-indexed k-ahead expert (my
+recommendation; it makes relabeled rollouts consistent with the fixture
+at every rung and keeps the break-state data), or restrict DAgger data
+to the sync runner at k=0.
 ## 5. Harness (GOTCHA #114)
 
 Every gate before 11:27 ran the NETPLAY AppImage headless (global

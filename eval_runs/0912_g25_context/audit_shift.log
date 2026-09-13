@@ -1,0 +1,150 @@
+• Validating lock
+✓ Validating lock in 10.6ms
+  evaluating file '«nix-internal»/derivation-internal.nix'
+• Configuring shell
+• Configuring cachix
+  [35;1mwarning:[0m Substituter '[35;1mhttps://devenv.cachix.org[0m' is already present in the substituters list
+✓ Configuring cachix in 1.25ms
+• Evaluating shell
+✓ Evaluating shell in 3.72ms (cached)
+✓ Configuring shell in 6.54ms
+• Loading tasks
+• Evaluating devenv.config.task.config
+✓ Evaluating devenv.config.task.config in 212µs (cached)
+✓ Loading tasks in 788µs
+• Running tasks
+• Running devenv:files:cleanup
+✓ Running devenv:files:cleanup in 5.39ms
+• Running devenv:enterShell
+✓ Running devenv:enterShell in 5.20ms
+• Running devenv:enterTest
+✓ Running devenv:enterTest in 320ns (no command)
+✓ Running tasks in 10.8ms
+ExPhil dev shell ready (CUDA enabled).
+==> exla
+Using libexla.so from /home/blewf/.cache/xla/exla/elixir-1.18.4-erts-16.4.0.4-xla-0.10.0-exla-0.13.1-decg6fk5k7bp5vm7tu6gza2v2y/libexla.so
+EXLA_CPU_ONLY is not set, checking for nvcc availability
+CUDA is available.
+make: '/home/blewf/git/exphil/_build/dev/lib/exla/priv/libexla.so' is up to date.
+==> exphil
+    warning: def any_button?/2 has multiple clauses and also declares default values. In such cases, the default values should be defined in a header. Instead of:
+
+        def foo(:first_clause, b \\ :default) do ... end
+        def foo(:second_clause, b) do ... end
+
+    one should write:
+
+        def foo(a, b \\ :default)
+        def foo(:first_clause, b) do ... end
+        def foo(:second_clause, b) do ... end
+
+    │
+ 96 │   def any_button?(c, opts \\ []) do
+    │       ~
+    │
+    └─ lib/exphil/interp/labels.ex:96:7
+
+    warning: redefining @doc attribute previously set at line 22
+    │
+ 48 │   @doc """
+    │   ~~~~~~~~
+    │
+    └─ lib/exphil/training/imitation/validation.ex:48: ExPhil.Training.Imitation.Validation (module)
+
+     warning: module attribute @baseline_defaults was set but never used
+     │
+ 105 │   @baseline_defaults [
+     │   ~~~~~~~~~~~~~~~~~~~~
+     │
+     └─ lib/exphil/training/config.ex:105: ExPhil.Training.Config (module)
+
+      warning: function blind_target_css/1 is unused
+      │
+ 1676 │   defp blind_target_css(state) do
+      │        ~
+      │
+      └─ lib/exphil_bridge/melee_port.ex:1676:8: ExPhil.Bridge.MeleePort (module)
+
+     warning: clauses with the same name and arity (number of arguments) should be grouped together, "def handle_call/3" was previously defined (lib/exphil/agents/agent.ex:561)
+     │
+ 849 │   def handle_call({:reconfigure, opts}, _from, state) do
+     │       ~
+     │
+     └─ lib/exphil/agents/agent.ex:849:7
+
+
+20:23:33.762 [info] [ExPhil] Application started
+
+20:23:33.764 [debug] [ExPhil] Supervision tree: [{ExPhil.Training.AsyncCheckpoint, #PID<0.288.0>, :worker, [ExPhil.Training.AsyncCheckpoint]}, {ExPhil.Telemetry.Collector, #PID<0.287.0>, :worker, [ExPhil.Telemetry.Collector]}, {ExPhil.Agents.Supervisor, #PID<0.286.0>, :supervisor, [ExPhil.Agents.Supervisor]}, {ExPhil.Bridge.Supervisor, #PID<0.285.0>, :supervisor, [ExPhil.Bridge.Supervisor]}, {ExPhil.Registry, #PID<0.283.0>, :supervisor, [Registry]}]
+
+╔═════════════════════════════════════════════════════════════════════════════════╗
+║ Multishine pool label audit — per source, at the training shift(s) [0, 3, 4, 5] ║
+╚═════════════════════════════════════════════════════════════════════════════════╝
+
+[20:23:34]   fixture: 1 list(s), 8102 frames
+[20:23:34]   rollouts: 36 list(s), 148452 frames
+[20:23:34]   snippets: 72 list(s), 12489 frames
+[20:23:34]   openers: 26 list(s), 93687 frames
+[20:23:35] 
+[20:23:35] ### shift 0 (state[t] -> label of frame t+0)
+[20:23:35] | state | fixture n · B · X | rollouts n · B · X | snippets n · B · X | openers n · B · X | verdict |
+[20:23:35] |---|---|---|---|---|---|
+[20:23:35] | {361, 1, true} | 791 ·  1.00 ·  0.00 | 1399 ·  1.00 ·  0.00 | 50 ·  1.00 ·  0.00 | 1902 ·  1.00 ·  0.00 | ok |
+[20:23:35] | {361, 2, true} | 791 ·  1.00 ·  1.00 | 1159 ·  1.00 ·  1.00 | 39 ·  1.00 ·  1.00 | 1874 ·  1.00 ·  1.00 | ok |
+[20:23:35] | {361, 3, true} | 1 ·  0.00 ·  0.00 | 926 ·  0.00 ·  0.99 | 34 ·  0.00 ·  1.00 | 1819 ·  0.00 ·  1.00 | ok |
+[20:23:35] | {24, 0, true} | 791 ·  1.00 ·  1.00 | 2352 ·  1.00 ·  1.00 | 73 ·  1.00 ·  1.00 | 1613 ·  1.00 ·  1.00 | ok |
+[20:23:35] | {24, 1, true} | 791 ·  0.00 ·  0.00 | 2343 ·  0.00 ·  0.00 | 71 ·  0.00 ·  0.00 | 1612 ·  0.00 ·  0.00 | ok |
+[20:23:35] | {24, 2, true} | 791 ·  1.00 ·  0.00 | 2340 ·  1.00 ·  0.00 | 69 ·  1.00 ·  0.00 | 1611 ·  1.00 ·  0.00 | ok |
+[20:23:35] | {365, 1, false} | 791 ·  1.00 ·  0.00 | 3451 ·  1.00 ·  0.00 | 17 ·  1.00 ·  0.00 | 1750 ·  1.00 ·  0.00 | ok |
+[20:23:35] | {365, 2, false} | 791 ·  1.00 ·  0.00 | 3189 ·  1.00 ·  0.00 | 14 ·  1.00 ·  0.00 | 1750 ·  1.00 ·  0.00 | ok |
+[20:23:35] | {365, 3, false} | 791 ·  1.00 ·  0.00 | 3187 ·  1.00 ·  0.00 | 13 ·  1.00 ·  0.00 | 1747 ·  1.00 ·  0.00 | ok |
+[20:23:35] | {366, 0, false} | 790 ·  1.00 ·  0.00 | 3123 ·  1.00 ·  0.00 | 12 ·  1.00 ·  0.00 | 1733 ·  1.00 ·  0.00 | ok |
+[20:23:35] | {366, 1, false} | 0 ·   -   ·   -   | 2648 ·  0.00 ·  0.00 | 12 ·  0.00 ·  0.00 | 764 ·  0.00 ·  0.00 | ok |
+[20:23:35] 
+[20:23:35] ### shift 3 (state[t] -> label of frame t+3)
+[20:23:35] | state | fixture n · B · X | rollouts n · B · X | snippets n · B · X | openers n · B · X | verdict |
+[20:23:35] |---|---|---|---|---|---|
+[20:23:35] | {361, 1, true} | 791 ·  0.00 ·  0.00 | 1399 ·  0.24 ·  0.66 | 47 ·  0.26 ·  0.74 | 1900 ·  0.03 ·  0.96 | CONFLICT B±0.26 X±0.96 (smallest source: snippets) |
+[20:23:35] | {361, 2, true} | 791 ·  1.00 ·  0.00 | 1159 ·  0.54 ·  0.71 | 38 ·  0.21 ·  0.82 | 1872 ·  0.11 ·  0.96 | CONFLICT B±0.89 X±0.96 (smallest source: snippets) |
+[20:23:35] | {361, 3, true} | 1 ·  0.00 ·  0.00 | 926 ·  0.16 ·  0.46 | 34 ·  0.15 ·  0.74 | 1814 ·  0.02 ·  0.90 | CONFLICT B±0.13 X±0.45 (smallest source: snippets) |
+[20:23:35] | {24, 0, true} | 791 ·  1.00 ·  0.00 | 2347 ·  0.78 ·  0.00 | 70 ·  0.94 ·  0.00 | 1610 ·  0.95 ·  0.00 | CONFLICT B±0.22 X±0.0 (smallest source: snippets) |
+[20:23:35] | {24, 1, true} | 791 ·  1.00 ·  0.00 | 2339 ·  0.85 ·  0.00 | 69 ·  0.94 ·  0.00 | 1610 ·  0.96 ·  0.00 | CONFLICT B±0.15 X±0.0 (smallest source: snippets) |
+[20:23:35] | {24, 2, true} | 791 ·  1.00 ·  0.00 | 2337 ·  0.87 ·  0.00 | 69 ·  0.96 ·  0.00 | 1607 ·  0.97 ·  0.00 | CONFLICT B±0.12 X±0.0 (smallest source: snippets) |
+[20:23:35] | {365, 1, false} | 791 ·  1.00 ·  0.00 | 3448 ·  0.99 ·  0.00 | 16 ·  0.94 ·  0.00 | 1747 ·  1.00 ·  0.00 | ok |
+[20:23:35] | {365, 2, false} | 791 ·  1.00 ·  0.00 | 3187 ·  0.13 ·  0.00 | 13 ·  0.00 ·  0.00 | 1747 ·  0.54 ·  0.00 | CONFLICT B±0.87 X±0.0 (smallest source: fixture) |
+[20:23:35] | {365, 3, false} | 791 ·  1.00 ·  1.00 | 3185 ·  0.16 ·  0.10 | 13 ·  0.08 ·  0.00 | 1746 ·  0.56 ·  0.53 | CONFLICT B±0.84 X±0.89 (smallest source: fixture) |
+[20:23:35] | {366, 0, false} | 790 ·  1.00 ·  1.00 | 3122 ·  0.08 ·  0.06 | 12 ·  0.00 ·  0.00 | 1732 ·  0.05 ·  0.53 | CONFLICT B±0.95 X±0.94 (smallest source: fixture) |
+[20:23:35] | {366, 1, false} | 0 ·   -   ·   -   | 2646 ·  0.03 ·  0.00 | 12 ·  0.08 ·  0.00 | 763 ·  0.06 ·  0.00 | ok |
+[20:23:35] 
+[20:23:35] ### shift 4 (state[t] -> label of frame t+4)
+[20:23:35] | state | fixture n · B · X | rollouts n · B · X | snippets n · B · X | openers n · B · X | verdict |
+[20:23:35] |---|---|---|---|---|---|
+[20:23:35] | {361, 1, true} | 791 ·  1.00 ·  0.00 | 1399 ·  0.57 ·  0.59 | 47 ·  0.34 ·  0.66 | 1899 ·  0.12 ·  0.94 | CONFLICT B±0.88 X±0.94 (smallest source: snippets) |
+[20:23:35] | {361, 2, true} | 791 ·  1.00 ·  0.00 | 1158 ·  0.27 ·  0.37 | 38 ·  0.21 ·  0.68 | 1868 ·  0.05 ·  0.88 | CONFLICT B±0.95 X±0.88 (smallest source: snippets) |
+[20:23:35] | {361, 3, true} | 1 ·  0.00 ·  0.00 | 926 ·  0.57 ·  0.41 | 34 ·  0.29 ·  0.71 | 1814 ·  0.10 ·  0.90 | CONFLICT B±0.47 X±0.48 (smallest source: snippets) |
+[20:23:35] | {24, 0, true} | 791 ·  1.00 ·  0.00 | 2347 ·  0.85 ·  0.00 | 70 ·  0.94 ·  0.00 | 1610 ·  0.96 ·  0.00 | CONFLICT B±0.15 X±0.0 (smallest source: snippets) |
+[20:23:35] | {24, 1, true} | 791 ·  1.00 ·  0.00 | 2338 ·  0.87 ·  0.00 | 69 ·  0.96 ·  0.00 | 1608 ·  0.97 ·  0.00 | CONFLICT B±0.12 X±0.0 (smallest source: snippets) |
+[20:23:35] | {24, 2, true} | 791 ·  1.00 ·  0.00 | 2336 ·  0.90 ·  0.00 | 68 ·  0.94 ·  0.00 | 1606 ·  0.97 ·  0.00 | CONFLICT B±0.1 X±0.0 (smallest source: snippets) |
+[20:23:35] | {365, 1, false} | 791 ·  1.00 ·  0.00 | 3448 ·  0.20 ·  0.00 | 16 ·  0.19 ·  0.00 | 1747 ·  0.54 ·  0.00 | CONFLICT B±0.8 X±0.0 (smallest source: fixture) |
+[20:23:35] | {365, 2, false} | 791 ·  1.00 ·  1.00 | 3186 ·  0.16 ·  0.10 | 13 ·  0.08 ·  0.00 | 1746 ·  0.56 ·  0.53 | CONFLICT B±0.84 X±0.89 (smallest source: fixture) |
+[20:23:35] | {365, 3, false} | 791 ·  1.00 ·  1.00 | 3185 ·  0.10 ·  0.06 | 13 ·  0.08 ·  0.00 | 1746 ·  0.06 ·  0.52 | CONFLICT B±0.94 X±0.94 (smallest source: fixture) |
+[20:23:35] | {366, 0, false} | 790 ·  0.00 ·  0.00 | 3121 ·  0.12 ·  0.04 | 12 ·  0.08 ·  0.00 | 1730 ·  0.05 ·  0.52 | CONFLICT B±0.12 X±0.52 (smallest source: fixture) |
+[20:23:35] | {366, 1, false} | 0 ·   -   ·   -   | 2646 ·  0.05 ·  0.00 | 12 ·  0.08 ·  0.00 | 763 ·  0.08 ·  0.00 | ok |
+[20:23:35] 
+[20:23:35] ### shift 5 (state[t] -> label of frame t+5)
+[20:23:35] | state | fixture n · B · X | rollouts n · B · X | snippets n · B · X | openers n · B · X | verdict |
+[20:23:35] |---|---|---|---|---|---|
+[20:23:35] | {361, 1, true} | 791 ·  1.00 ·  0.00 | 1398 ·  0.36 ·  0.30 | 47 ·  0.34 ·  0.55 | 1895 ·  0.06 ·  0.87 | CONFLICT B±0.94 X±0.87 (smallest source: snippets) |
+[20:23:35] | {361, 2, true} | 791 ·  1.00 ·  0.00 | 1158 ·  0.61 ·  0.33 | 38 ·  0.34 ·  0.66 | 1868 ·  0.12 ·  0.87 | CONFLICT B±0.87 X±0.87 (smallest source: snippets) |
+[20:23:35] | {361, 3, true} | 1 ·  0.00 ·  0.00 | 926 ·  0.55 ·  0.34 | 33 ·  0.33 ·  0.64 | 1814 ·  0.42 ·  0.89 | CONFLICT B±0.21 X±0.55 (smallest source: snippets) |
+[20:23:35] | {24, 0, true} | 791 ·  1.00 ·  0.00 | 2346 ·  0.87 ·  0.00 | 70 ·  0.96 ·  0.00 | 1608 ·  0.97 ·  0.00 | CONFLICT B±0.13 X±0.0 (smallest source: snippets) |
+[20:23:35] | {24, 1, true} | 791 ·  1.00 ·  0.00 | 2337 ·  0.90 ·  0.00 | 68 ·  0.94 ·  0.00 | 1607 ·  0.97 ·  0.00 | CONFLICT B±0.1 X±0.0 (smallest source: snippets) |
+[20:23:35] | {24, 2, true} | 791 ·  1.00 ·  0.00 | 2336 ·  0.90 ·  0.00 | 67 ·  0.94 ·  0.00 | 1606 ·  0.97 ·  0.00 | CONFLICT B±0.1 X±0.0 (smallest source: snippets) |
+[20:23:35] | {365, 1, false} | 791 ·  1.00 ·  1.00 | 3447 ·  0.20 ·  0.10 | 16 ·  0.19 ·  0.00 | 1746 ·  0.56 ·  0.53 | CONFLICT B±0.8 X±0.9 (smallest source: fixture) |
+[20:23:35] | {365, 2, false} | 791 ·  1.00 ·  1.00 | 3186 ·  0.10 ·  0.06 | 13 ·  0.08 ·  0.00 | 1746 ·  0.06 ·  0.52 | CONFLICT B±0.94 X±0.94 (smallest source: fixture) |
+[20:23:35] | {365, 3, false} | 791 ·  0.00 ·  0.00 | 3184 ·  0.14 ·  0.04 | 13 ·  0.15 ·  0.00 | 1744 ·  0.06 ·  0.52 | CONFLICT B±0.14 X±0.52 (smallest source: fixture) |
+[20:23:35] | {366, 0, false} | 790 ·  1.00 ·  0.00 | 3121 ·  0.14 ·  0.04 | 12 ·  0.08 ·  0.00 | 1729 ·  0.08 ·  0.52 | CONFLICT B±0.92 X±0.52 (smallest source: fixture) |
+[20:23:35] | {366, 1, false} | 0 ·   -   ·   -   | 2645 ·  0.06 ·  0.00 | 12 ·  0.17 ·  0.00 | 762 ·  0.10 ·  0.00 | ok |
+[20:23:35] 
+[20:23:35] [31m❌ 29 cross-source conflict(s), 0 within-source ambiguity(ies) on loop states: shift 3 {361, 1, true} conflict, shift 3 {361, 2, true} conflict, shift 3 {361, 3, true} conflict, shift 3 {24, 0, true} conflict, shift 3 {24, 1, true} conflict, shift 3 {24, 2, true} conflict, shift 3 {365, 2, false} conflict, shift 3 {365, 3, false} conflict, shift 3 {366, 0, false} conflict, shift 4 {361, 1, true} conflict, shift 4 {361, 2, true} conflict, shift 4 {361, 3, true} conflict, shift 4 {24, 0, true} conflict, shift 4 {24, 1, true} conflict, shift 4 {24, 2, true} conflict, shift 4 {365, 1, false} conflict, shift 4 {365, 2, false} conflict, shift 4 {365, 3, false} conflict, shift 4 {366, 0, false} conflict, shift 5 {361, 1, true} conflict, shift 5 {361, 2, true} conflict, shift 5 {361, 3, true} conflict, shift 5 {24, 0, true} conflict, shift 5 {24, 1, true} conflict, shift 5 {24, 2, true} conflict, shift 5 {365, 1, false} conflict, shift 5 {365, 2, false} conflict, shift 5 {365, 3, false} conflict, shift 5 {366, 0, false} conflict[0m
+=== exit 1
