@@ -489,6 +489,46 @@ Decision for Bradley: build the phase-indexed k-ahead expert (my
 recommendation; it makes relabeled rollouts consistent with the fixture
 at every rung and keeps the break-state data), or restrict DAgger data
 to the sync runner at k=0.
+
+## 10. g26a (item-14 labels, g24a pool) + the low-loss guard forensics (09-12 23:30)
+
+Training stopped by hand at epoch 48 (Bradley): the COLLAPSE-SUSPECT guard
+(loss < 1e-5 -> restore best) fired at epochs 34/36/38/43 and would have
+halted at the 5th — a loop that discards every converged epoch once
+conflict-free labels make the pool fittable. Snapshot-all exports the
+epoch's OWN weights before the guard, so the rejected epochs exist.
+
+**Guard forensics** (`guard_health.json`, `guard_min.log`; Astra's request):
+
+| snapshot | trainer loss | non-finite params / logits | independent BCE (fixture, offset 4) | p(correct) | stand k=4 | CPU k=4 |
+|---|---|---|---|---|---|---|
+| ep33 (accepted best) | 7.1e-5 | 0 / 0 | 0.0273 | 0.998 | 66.8/min c4 | 51.2, 48.7 / c2-5 |
+| ep38 (rejected, "collapse") | 1.9e-6 | 0 / 0 | 0.0340 | 0.997 | 56.8/min c1 | 49.9, 44.8 / c2-8 |
+| ep34/36/42/43/48 | 4e-6..8e-4 | 0 / 0 | 0.028-0.041 | 0.994-0.998 | — | — |
+
+Verdict on the guard: the rejected epochs are NOT GOTCHA #99 collapses
+(finite, fit the fixture as well as the accepted ones, play the same).
+The absolute threshold is wrong under item-14 labels; replace it with
+evidence (non-finite params/logits, or a drop on a fixed behavioral
+probe set) — NOT DONE yet, Bradley to call.
+
+**Verdict on g26a: the worst technique floor of any round** (296 -> 111
+-> 93 -> 67) with ZERO label conflicts and a 0.998 teacher-forced fixture
+fit; CPU back at ep57's level (g24a's gain lost). So the label conflict
+(§9) was real but not the whole floor story. Leading suspect = the
+off-loop rule in `MultishineExpert.label_ahead/4` written tonight: for
+any state NOT on the loop it returns the recovery input HELD at every k.
+The expert's real future from a grounded off-loop state is "press shine
+now; one frame later you are ON the loop at phase 0", so the k-ahead
+label should be the loop's label at phase k-1 — not "shine again" (B held
+= no press edge = no shine). Every initiation from standing is an
+off-loop state, and the stand floor IS repeated initiation. The fixture-
+as-oracle test cannot see this (the fixture never leaves the loop); the
+second oracle is the closed-loop break moments (the teacher's LIVE
+behaviour from off-loop states, §6). Fix = k-ahead labels follow the
+recovery INTO the loop, hold only where the entry frame is unknown
+(aerial reflector ride-down). Not started; Bradley to call fix-and-
+retrain vs confirm-first (closed-loop suite on ep33).
 ## 5. Harness (GOTCHA #114)
 
 Every gate before 11:27 ran the NETPLAY AppImage headless (global

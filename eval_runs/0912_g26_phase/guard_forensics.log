@@ -1,0 +1,54 @@
+• Validating lock
+✓ Validating lock in 7.92ms
+  evaluating file '«nix-internal»/derivation-internal.nix'
+• Configuring shell
+• Configuring cachix
+  [35;1mwarning:[0m Substituter '[35;1mhttps://devenv.cachix.org[0m' is already present in the substituters list
+✓ Configuring cachix in 3.51ms
+• Evaluating shell
+✓ Evaluating shell in 4.20ms (cached)
+✓ Configuring shell in 8.82ms
+• Loading tasks
+• Evaluating devenv.config.task.config
+✓ Evaluating devenv.config.task.config in 314µs (cached)
+✓ Loading tasks in 793µs
+• Running tasks
+• Running devenv:files:cleanup
+✓ Running devenv:files:cleanup in 5.05ms
+• Running devenv:enterShell
+✓ Running devenv:enterShell in 3.93ms
+• Running devenv:enterTest
+✓ Running devenv:enterTest in 520ns (no command)
+✓ Running tasks in 9.18ms
+ExPhil dev shell ready (CUDA enabled).
+=== 1. params/logits finiteness + independent BCE (23:13)
+23:13:27.623 [warning] [Checkpoint] checkpoints/ms_g26a_ep33.bin metadata contains atoms not interned in this VM (likely an external spec arch); falling back to unrestricted binary_to_term. Only load checkpoints from trusted sources.
+23:13:27.624 [info] [Checkpoint] Loaded 3.8 MB from checkpoints/ms_g26a_ep33.bin
+23:13:28.890 [info] [Checkpoint] Loaded 3.8 MB from checkpoints/ms_g26a_ep33.bin
+[23:13:57] ms_g26a_ep33.bin: params 984149 (0 non-finite) | logits non-finite on 0 frames | loop frames 596 | BCE(B,X) 0.02728 | p(correct) 0.9983
+23:13:57.906 [info] [Checkpoint] Loaded 3.8 MB from checkpoints/ms_g26a_ep34.bin
+23:13:57.917 [info] [Checkpoint] Loaded 3.8 MB from checkpoints/ms_g26a_ep34.bin
+[23:14:24] ms_g26a_ep34.bin: params 984149 (0 non-finite) | logits non-finite on 0 frames | loop frames 596 | BCE(B,X) 0.03667 | p(correct) 0.9973
+23:14:24.671 [info] [Checkpoint] Loaded 3.8 MB from checkpoints/ms_g26a_ep35.bin
+23:14:24.682 [info] [Checkpoint] Loaded 3.8 MB from checkpoints/ms_g26a_ep35.bin
+[23:14:51] ms_g26a_ep35.bin: params 984149 (0 non-finite) | logits non-finite on 0 frames | loop frames 596 | BCE(B,X) 0.03228 | p(correct) 0.9983
+23:14:51.258 [info] [Checkpoint] Loaded 3.8 MB from checkpoints/ms_g26a_ep36.bin
+23:14:51.271 [info] [Checkpoint] Loaded 3.8 MB from checkpoints/ms_g26a_ep36.bin
+[23:15:18] ms_g26a_ep36.bin: params 984149 (0 non-finite) | logits non-finite on 0 frames | loop frames 596 | BCE(B,X) 0.0319 | p(correct) 0.9982
+23:15:18.446 [info] [Checkpoint] Loaded 3.8 MB from checkpoints/ms_g26a_ep37.bin
+23:15:18.461 [info] [Checkpoint] Loaded 3.8 MB from checkpoints/ms_g26a_ep37.bin
+[23:15:44] ms_g26a_ep37.bin: params 984149 (0 non-finite) | logits non-finite on 0 frames | loop frames 596 | BCE(B,X) 0.03127 | p(correct) 0.9983
+23:15:44.807 [info] [Checkpoint] Loaded 3.8 MB from checkpoints/ms_g26a_ep38.bin
+23:15:44.820 [info] [Checkpoint] Loaded 3.8 MB from checkpoints/ms_g26a_ep38.bin
+[23:16:11] ms_g26a_ep38.bin: params 984149 (0 non-finite) | logits non-finite on 0 frames | loop frames 596 | BCE(B,X) 0.03397 | p(correct) 0.997
+23:16:11.083 [info] [Checkpoint] Loaded 3.8 MB from checkpoints/ms_g26a_ep42.bin
+23:16:11.100 [info] [Checkpoint] Loaded 3.8 MB from checkpoints/ms_g26a_ep42.bin
+[23:16:37] ms_g26a_ep42.bin: params 984149 (0 non-finite) | logits non-finite on 0 frames | loop frames 596 | BCE(B,X) 0.03244 | p(correct) 0.9968
+23:16:37.529 [info] [Checkpoint] Loaded 3.8 MB from checkpoints/ms_g26a_ep43.bin
+23:16:37.541 [info] [Checkpoint] Loaded 3.8 MB from checkpoints/ms_g26a_ep43.bin
+[23:17:04] ms_g26a_ep43.bin: params 984149 (0 non-finite) | logits non-finite on 0 frames | loop frames 596 | BCE(B,X) 0.04102 | p(correct) 0.9944
+23:17:04.224 [info] [Checkpoint] Loaded 3.8 MB from checkpoints/ms_g26a_ep48.bin
+23:17:04.235 [info] [Checkpoint] Loaded 3.8 MB from checkpoints/ms_g26a_ep48.bin
+[23:17:31] ms_g26a_ep48.bin: params 984149 (0 non-finite) | logits non-finite on 0 frames | loop frames 596 | BCE(B,X) 0.02811 | p(correct) 0.9983
+[23:17:31] [32m✓ wrote eval_runs/0912_g26_phase/guard_health.json[0m
+=== 2. coverage maps: accepted ep33 vs rejected ep34/ep38 (23:17)

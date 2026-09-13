@@ -1,0 +1,33 @@
+• Validating lock
+✓ Validating lock in 8.25ms
+  evaluating file '«nix-internal»/derivation-internal.nix'
+• Configuring shell
+• Configuring cachix
+  [35;1mwarning:[0m Substituter '[35;1mhttps://devenv.cachix.org[0m' is already present in the substituters list
+✓ Configuring cachix in 1.22ms
+• Evaluating shell
+✓ Evaluating shell in 2.91ms (cached)
+✓ Configuring shell in 5.51ms
+• Loading tasks
+• Evaluating devenv.config.task.config
+✓ Evaluating devenv.config.task.config in 187µs (cached)
+✓ Loading tasks in 552µs
+• Running tasks
+• Running devenv:files:cleanup
+✓ Running devenv:files:cleanup in 4.62ms
+• Running devenv:enterShell
+✓ Running devenv:enterShell in 4.00ms
+• Running devenv:enterTest
+✓ Running devenv:enterTest in 450ns (no command)
+✓ Running tasks in 8.76ms
+ExPhil dev shell ready (CUDA enabled).
+=== STAND k=4 ep33 vs ep38 (23:18)
+ep33: 66.8/min chain 4
+ep38: 56.8/min chain 1
+=== ARGMAX: checkpoints/ms_g26a_ep33.bin at 66.8/min
+=== CPU k=4 ep33 vs ep38 (23:20)
+ep33 [23:23:46] r1                          5622      95    80       15      51.2         2
+ep33 [23:23:46] r2                          5619      86    76       10      48.7         5
+ep38 [23:27:16] r1                          5622      89    78       11      49.9         2
+ep38 [23:27:16] r2                          5622      85    70       15      44.8         8
+=== DONE 23:27

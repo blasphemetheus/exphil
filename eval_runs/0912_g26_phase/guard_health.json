@@ -1,0 +1,88 @@
+{
+  "offset": 4,
+  "rows": [
+    {
+      "nonfinite_params": 0,
+      "policy": "ms_g26a_ep33.bin",
+      "param_elements": 984149,
+      "nonfinite_logit_frames": 0,
+      "loop_frames": 596,
+      "bce_bx": 0.027277172718912366,
+      "p_correct": 0.9983077119048894
+    },
+    {
+      "nonfinite_params": 0,
+      "policy": "ms_g26a_ep34.bin",
+      "param_elements": 984149,
+      "nonfinite_logit_frames": 0,
+      "loop_frames": 596,
+      "bce_bx": 0.036666194032713165,
+      "p_correct": 0.9972662946360716
+    },
+    {
+      "nonfinite_params": 0,
+      "policy": "ms_g26a_ep35.bin",
+      "param_elements": 984149,
+      "nonfinite_logit_frames": 0,
+      "loop_frames": 596,
+      "bce_bx": 0.032277913070446994,
+      "p_correct": 0.9983216061142413
+    },
+    {
+      "nonfinite_params": 0,
+      "policy": "ms_g26a_ep36.bin",
+      "param_elements": 984149,
+      "nonfinite_logit_frames": 0,
+      "loop_frames": 596,
+      "bce_bx": 0.03189738109828598,
+      "p_correct": 0.9982236709809752
+    },
+    {
+      "nonfinite_params": 0,
+      "policy": "ms_g26a_ep37.bin",
+      "param_elements": 984149,
+      "nonfinite_logit_frames": 0,
+      "loop_frames": 596,
+      "bce_bx": 0.03127189000407835,
+      "p_correct": 0.9983210993406539
+    },
+    {
+      "nonfinite_params": 0,
+      "policy": "ms_g26a_ep38.bin",
+      "param_elements": 984149,
+      "nonfinite_logit_frames": 0,
+      "loop_frames": 596,
+      "bce_bx": 0.03396793826042439,
+      "p_correct": 0.9969973876155842
+    },
+    {
+      "nonfinite_params": 0,
+      "policy": "ms_g26a_ep42.bin",
+      "param_elements": 984149,
+      "nonfinite_logit_frames": 0,
+      "loop_frames": 596,
+      "bce_bx": 0.03243855238285864,
+      "p_correct": 0.9967896604862343
+    },
+    {
+      "nonfinite_params": 0,
+      "policy": "ms_g26a_ep43.bin",
+      "param_elements": 984149,
+      "nonfinite_logit_frames": 0,
+      "loop_frames": 596,
+      "bce_bx": 0.04101570312340298,
+      "p_correct": 0.9943757916225118
+    },
+    {
+      "nonfinite_params": 0,
+      "policy": "ms_g26a_ep48.bin",
+      "param_elements": 984149,
+      "nonfinite_logit_frames": 0,
+      "loop_frames": 596,
+      "bce_bx": 0.02811038237331328,
+      "p_correct": 0.9982755972971077
+    }
+  ],
+  "fixture": "test/fixtures/replays/fox_multishine_closed_d1.slp",
+  "delay_id": 4
+}
