@@ -30,6 +30,11 @@
 #   --window N           Response window frames (default per type, 300)
 #   --input-offset N     Recorded-input frame offset (default 1; see SCENARIOS.md)
 #   --drift-tolerance F  Max |dx|/|dy| units at handoff (default 3.0)
+#   --opponent-character NAME  Port-2 body (libmelee name). Default: the source
+#                        replay's character (2026-09-14; was hard-coded fox).
+#                        Override = a deliberately DIFFERENT body driven by the
+#                        recorded inputs (drifts from the source; use with a
+#                        frame-0 handoff to generate new input-driven games).
 #   --dolphin PATH       Dolphin (default ~/.local/share/slippi/exi-ai/dolphin-emu-headless)
 #   --iso PATH           Melee ISO (default ~/isos/melee.iso)
 #   --windowed           Disable headless (debugging; needs the netplay build)
@@ -119,8 +124,24 @@ defmodule ScenarioSuite do
         end
       end)
 
-    %{inputs: inputs, ref: ref}
+    first = Enum.find(replay.frames, fn f -> f.players[1] && f.players[2] end)
+    opponent = first && first.players[2].character && libmelee_character(trunc(first.players[2].character))
+    %{inputs: inputs, ref: ref, opponent_character: opponent}
   end
+
+  # Internal (in-game) character id -> libmelee Character name, for the
+  # bridge's dummy_character. The suite used to hard-code "fox" for port 2:
+  # every non-Fox source replay then drifted from frame -38 (the wrong body
+  # in the entry animation) and no held-out opponent handoff could qualify
+  # (2026-09-14 coverage round, 70/77 diverged).
+  @libmelee_characters %{
+    0 => "mario", 1 => "fox", 2 => "cptfalcon", 3 => "dk", 4 => "kirby", 5 => "bowser",
+    6 => "link", 7 => "sheik", 8 => "ness", 9 => "peach", 10 => "popo", 11 => "nana",
+    12 => "pikachu", 13 => "samus", 14 => "yoshi", 15 => "jigglypuff", 16 => "mewtwo",
+    17 => "luigi", 18 => "marth", 19 => "zelda", 20 => "ylink", 21 => "doc", 22 => "falco",
+    23 => "pichu", 24 => "gameandwatch", 25 => "ganondorf", 26 => "roy"
+  }
+  def libmelee_character(id), do: Map.get(@libmelee_characters, id) || raise("unknown internal character id #{id}")
 
   # Recorded Peppi controller -> bridge input map. Peppi already normalizes
   # sticks to the bridge's 0..1 range ((raw+1)/2 in the NIF), and stick
@@ -195,7 +216,8 @@ defmodule ScenarioSuite do
       stage: :final_destination,
       online_delay: 0,
       dummy_mode: "external",
-      dummy_character: "fox",
+      # port 2 = the source replay's character unless --opponent-character overrides
+      dummy_character: opts[:opponent_character] || prep.opponent_character || "fox",
       dummy_cpu_level: 0,
       no_audio: true,
       headless: not opts[:windowed],
@@ -250,6 +272,7 @@ defmodule ScenarioSuite do
         note: entry.note,
         run: run_idx,
         window: window,
+        opponent_character: config.dummy_character,
         wall_s: Float.round(wall_s, 1),
         replay_dir: run_dir
       },
@@ -296,6 +319,7 @@ defmodule ScenarioSuite do
       audit_teacher_labels: opts[:audit_teacher_labels] || false,
       teacher_samples: [],
       prefix_history: opts[:prefix_history] || "applied",
+      opponent_character: opts[:opponent_character] || prep.opponent_character || "fox",
       response_opponent: opts[:response_opponent] || "replay",
       trace_policy_inputs: opts[:trace_policy_inputs] ||
         (opts[:verify_input_timing] and opts[:driver] == :policy),
@@ -736,6 +760,7 @@ end
     strict: [
       policy: :string,
       character: :string,
+      opponent_character: :string,
       driver: :string,
       fixture: :string,
       delay_id: :integer,
@@ -974,7 +999,7 @@ agent_runtime =
   end
 
 opts = Keyword.merge(opts, driver: driver, expert: expert)
-suite_opts = Keyword.merge(suite_opts, driver: driver, expert: expert, character: opts[:character])
+suite_opts = Keyword.merge(suite_opts, driver: driver, expert: expert, character: opts[:character], opponent_character: opts[:opponent_character])
 
 preps =
   entries

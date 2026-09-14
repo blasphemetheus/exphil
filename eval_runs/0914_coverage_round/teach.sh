@@ -21,7 +21,8 @@ say() { echo "[$(date +%T)] $*" | tee -a "$P"; }
 export EXLA_TARGET=cuda EXPHIL_GPU_MEMORY_FRACTION=0.15
 
 say "=== stage 2a: mine handoffs"
-SOURCES=$(command ls $OUT/rollouts/*/r*.slp eval_runs/local_multishine_20260913_224806/2026-09-Mainline/*.slp eval_runs/0911_g23a_live/cpu_rollouts/r{1,2}.slp)
+# sources = the gen2 input-driven games (stage 1b), never the raw CPU rollouts
+SOURCES=$(command ls $OUT/gen2/run*/*.slp)
 rm -f $OUT/mined.json
 mix run --no-start scripts/mine_coverage_handoffs.exs --out $OUT/mined.json \
   --per-replay-neutral 3 --per-replay-hit 3 --min-frame 240 --max-frame 4800 --gap 300 $SOURCES > $OUT/mine.log 2>&1
