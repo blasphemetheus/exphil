@@ -1,0 +1,19 @@
+{
+  "profile": "pipe_v1",
+  "sent": {
+    "count": 549,
+    "matches": 549,
+    "mismatches": []
+  },
+  "valid": true,
+  "decisions": {
+    "count": 549,
+    "matches": 549,
+    "mismatches": []
+  },
+  "contiguous": true,
+  "verifier": "recorded_components_v2",
+  "expected_send_latency": 1,
+  "expected_decision_latency": 1,
+  "unsent_tail_decisions": 0
+}

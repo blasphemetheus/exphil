@@ -1,0 +1,41 @@
+{
+  "comment": "Fixed training-state revisits: neutral starts, sustain, recoveries",
+  "entries": [
+    {
+      "slp": "eval_runs/0912_g26_phase/stand_guard/ep38/r1.slp",
+      "frame": 2228,
+      "type": "multishine_reentry",
+      "note": "Neutral start: grounded standing action 14"
+    },
+    {
+      "slp": "eval_runs/0912_g26_phase/stand_guard/ep38/r1.slp",
+      "frame": 2566,
+      "type": "multishine_reentry",
+      "note": "Second grounded standing action 14 start"
+    },
+    {
+      "slp": "eval_runs/0910_g23_consistent/confirm_ep57/d3_id2/r1.slp",
+      "frame": 900,
+      "type": "multishine_reentry",
+      "note": "CONTROL: handoff mid-chain in ep57's 438-chain stand game"
+    },
+    {
+      "slp": "eval_runs/0912_g26_phase/stand_guard/ep33/r1.slp",
+      "frame": 4,
+      "type": "multishine_reentry",
+      "note": "G26 own replay: grounded reflector hold, parsed action 363 frame 11"
+    },
+    {
+      "slp": "eval_runs/0912_g26_phase/stand_guard/ep33/r1.slp",
+      "frame": 75,
+      "type": "multishine_reentry",
+      "note": "G26 own replay: grounded landing, parsed action 42 frame 0"
+    },
+    {
+      "slp": "eval_runs/0912_g26_phase/stand_guard/ep33/r1.slp",
+      "frame": 146,
+      "type": "multishine_reentry",
+      "note": "G26 own replay: second grounded landing, parsed action 42 frame 0"
+    }
+  ]
+}

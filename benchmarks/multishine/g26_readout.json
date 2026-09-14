@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "checkpoints": [
+    {"id": "g26-final", "policy": "checkpoints/ms_g26a.bin", "coverage": "eval_runs/0912_g26_phase/map_final.json", "execution": "eval_runs/0912_g26_phase/readout.log"},
+    {"id": "g26-ep30", "epoch": 30, "policy": "checkpoints/ms_g26a_ep30.bin", "coverage": "eval_runs/0912_g26_phase/map_ep30.json"},
+    {"id": "g26-ep40", "epoch": 40, "policy": "checkpoints/ms_g26a_ep40.bin", "stand": "eval_runs/0912_g26_phase/stand_k4/sweep_table.txt"},
+    {"id": "g26-ep45", "epoch": 45, "policy": "checkpoints/ms_g26a_ep45.bin", "coverage": "eval_runs/0912_g26_phase/map_ep45.json", "cpu": "eval_runs/0912_g26_phase/cpu_k4/cpu_table.txt"},
+    {"id": "g26-ep50", "epoch": 50, "policy": "checkpoints/ms_g26a_ep50.bin", "stand": "eval_runs/0912_g26_phase/stand_k4/sweep_table.txt"},
+    {"id": "g26-ep60", "epoch": 60, "policy": "checkpoints/ms_g26a_ep60.bin", "stand": "eval_runs/0912_g26_phase/stand_k4/sweep_table.txt", "cpu": "eval_runs/0912_g26_phase/cpu_k4/cpu_table.txt"}
+  ]
+}

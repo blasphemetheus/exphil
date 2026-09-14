@@ -743,7 +743,7 @@ defmodule ExPhil.Bridge.MeleePort do
     do: {{:error, "Console not initialized"}, state}
 
   defp do_step(state, auto_menu, poll, retries) do
-    case Melee.Console.step(state.console) do
+    case Melee.Console.step(state.console, :infinity, flush: retries == 0) do
       nil when poll ->
         {:no_frame, state}
 

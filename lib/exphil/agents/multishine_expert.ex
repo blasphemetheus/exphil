@@ -115,8 +115,20 @@ defmodule ExPhil.Agents.MultishineExpert do
 
   For a state ON the loop (a key in the canonical cycle) that is the table's
   label at cycle phase `p + k` — the fixture's own future, not the
-  recording's. For any other state the honest k-ahead guess is the
-  recovery input the expert commits to now (held). `k = 0` is `label/4`.
+  recording's. `k = 0` is `label/4`.
+
+  For any OTHER state (a recovery: reflector hold, landing, hitstun, ...)
+  the expert ABSTAINS (`:skip`) when `k > 0`. It used to return the recovery
+  input it commits to now, held at every k — and that projection is
+  observably wrong: against the teacher's own executed futures in Dolphin,
+  18/21 off-loop predictions at shift 4 disagreed while 0/327 on-loop ones
+  did (RECOVERY_LABEL_CONFIRMATION 2026-09-13). The recoveries take 7+
+  frames through lockout/startup before entering the loop, and the entry
+  frame is not a function of the state alone, so there is no honest
+  state-only k-ahead guess. Delayed recovery supervision must come from a
+  recording of the teacher actually recovering (`--recorded-frames`, whose
+  future is the recording), not from this table. `Labels.at_delay/3` with
+  `off_loop: :hold` reproduces the old held rule for A/B comparisons only.
 
   This is what a delayed label MUST be for expert-labeled frames: shifting a
   per-state relabel along the recorded future borrows the student's broken
@@ -130,7 +142,7 @@ defmodule ExPhil.Agents.MultishineExpert do
   def label_ahead(expert, player, k, prev \\ nil)
   def label_ahead(%__MODULE__{} = expert, player, 0, prev), do: label(expert, player, prev)
 
-  def label_ahead(%__MODULE__{table: table, cycle: cycle, phase: phase} = expert, player, k, prev)
+  def label_ahead(%__MODULE__{table: table, cycle: cycle, phase: phase}, player, k, _prev)
       when is_integer(k) and k > 0 do
     key = {trunc(player.action), trunc(player.action_frame), player.on_ground}
 
@@ -139,12 +151,17 @@ defmodule ExPhil.Agents.MultishineExpert do
         target = Enum.at(cycle, rem(p + k, length(cycle)))
 
         case table[target] do
-          nil -> label(expert, player, prev)
+          # Every cycle key is table-backed by construction (canonical_cycle
+          # filters on it); a miss here would be a corrupted struct.
+          nil -> raise ArgumentError, "canonical cycle key #{inspect(target)} is not in the table"
           controller -> {:ok, controller}
         end
 
+      {_, []} ->
+        raise ArgumentError, "expert has no canonical cycle; it cannot project any label ahead"
+
       _ ->
-        label(expert, player, prev)
+        :skip
     end
   end
 

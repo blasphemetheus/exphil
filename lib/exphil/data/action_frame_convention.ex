@@ -3,6 +3,11 @@ defmodule ExPhil.Data.ActionFrameConvention do
   Converts `action_frame` between the PARSED and LIVE conventions
   (task #8 phase 2 option 1, GOTCHAS #81).
 
+  `libmelee_to_parsed/3` is a separate producer-specific contract: it
+  inverts the current Melee.Events/FrameData character-and-action adjustment.
+  It does not use the invalid historical table below. Generic Agent defaults
+  remain unchanged; the scenario suite explicitly selects this producer.
+
   > #### INVALID — do not build on this {: .error}
   >
   > The premise below (that `delta` is a constant per action id) was
@@ -211,6 +216,18 @@ defmodule ExPhil.Data.ActionFrameConvention do
   """
   @spec live_to_parsed(integer() | nil, number() | nil) :: number() | nil
   def live_to_parsed(action, af), do: shift(action, af, -1)
+
+  @doc "Inverts Melee.Events' character/action indexing adjustment, not the historical delta table. Does not recover fractional precision discarded by that parser."
+  def libmelee_to_parsed(character, action, af)
+      when is_integer(character) and is_integer(action) and is_number(af) do
+    if Melee.FrameData.zero_indexed?(character, action), do: af - 1, else: af
+  end
+
+  def libmelee_to_parsed(_character, _action, af), do: af
+
+  def scenario_convention(opts) do
+    if Keyword.get(opts, :live_af, true), do: :libmelee, else: :parsed
+  end
 
   @doc """
   Convert a parsed `action_frame` into the live convention (inverse of

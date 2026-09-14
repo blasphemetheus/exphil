@@ -46,7 +46,8 @@ alias ExPhil.Training.Output
       port: :integer,
       min_n: :integer,
       conflict: :float,
-      ambiguity: :float
+      ambiguity: :float,
+      off_loop: :string
     ]
   )
 
@@ -55,6 +56,11 @@ port = opts[:port] || 1
 min_n = opts[:min_n] || 20
 thresh = opts[:conflict] || 0.05
 amb_thresh = opts[:ambiguity] || 0.10
+# --off-loop drop|hold: what expert-labeled OFF-loop frames become at a shift
+# > 0 (drop = omitted, the default since 09-13; hold = the legacy held
+# commitment, measured wrong). Mirrors dagger_drill --off-loop-labels.
+off_loop = String.to_atom(opts[:off_loop] || "drop")
+unless off_loop in [:drop, :hold], do: raise("--off-loop must be drop or hold")
 shifts = (opts[:shifts] || "0") |> String.split(",", trim: true) |> Enum.map(&String.to_integer(String.trim(&1)))
 
 roll =
@@ -137,7 +143,7 @@ sources =
 rows_at_shift = fn lists, s ->
   Enum.flat_map(lists, fn list ->
     list
-    |> ExPhil.Training.Labels.at_delay(s, expert: expert, player_port: 1)
+    |> ExPhil.Training.Labels.at_delay(s, expert: expert, player_port: 1, off_loop: off_loop)
     |> Enum.map(fn f -> {key_of.(f), f.controller.button_b == true, f.controller.button_x == true} end)
   end)
 end
@@ -169,6 +175,16 @@ majority = fn r -> max(r, 1.0 - r) end
 problems =
   Enum.flat_map(shifts, fn s ->
     by_source = Map.new(sources, fn {name, lists} -> {name, rows_at_shift.(lists, s) |> Enum.group_by(&elem(&1, 0))} end)
+
+    # Frames the label producer dropped at this shift (off-loop expert frames
+    # under --off-loop drop): the count that recorded teacher futures must cover.
+    if s > 0 do
+      Enum.each(sources, fn {name, lists} ->
+        total = lists |> Enum.map(&length/1) |> Enum.sum()
+        kept = by_source[name] |> Map.values() |> Enum.map(&length/1) |> Enum.sum()
+        Output.puts("  shift #{s} #{name}: #{kept}/#{total} frames labeled (#{total - kept} dropped, off_loop=#{off_loop})")
+      end)
+    end
 
     Output.puts("")
     Output.puts("### shift #{s} (state[t] -> label of frame t+#{s})")

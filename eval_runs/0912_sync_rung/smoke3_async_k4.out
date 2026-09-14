@@ -1,0 +1,12 @@
+policy=checkpoints/ms_g23a_ep57.bin runner=async runs=1 seconds=60 dummy=stand server=0 decode=--temperature 1.0 loadavg=0.67 1.19 1.44
+=== run 1/1 start 15:15:09 loadavg=0.67
+  r1 WARNING: replay size 1765376 is page-aligned — likely TRUNCATED
+  r1 [15:16:17] [32m✓   Game end: replay finalized[0m
+  r1 [15:16:17]   Final stats: 3824 frames, 3824 inferences, 1 games
+  r1 [15:16:17]   Staleness: 0/3824 sends stale (0.0%), longest stale run 0 frames
+=== offline fixture agreement
+  [15:16:38] FIXTURE_AGREEMENT best=0.8854 offset=2 delay_id=0 n=1678
+=== scoring
+[15:16:39] replay                    frames  shines  self  hit-ind  self/min  maxchain
+=== calibration (r1)
+=== done. Protocol: report mean AND range; <2x differences are unresolved (EXPOSURE_BIAS.md 0a/0b).

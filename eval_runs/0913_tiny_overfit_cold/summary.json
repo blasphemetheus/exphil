@@ -1,0 +1,177 @@
+{
+  "epochs": 40,
+  "checkpoint_selection": "minimum final-minibatch loss (known metric defect)",
+  "last_batch_loss_minimum": 0.000003477389327599667,
+  "selected_epoch": 38,
+  "promoted": false,
+  "evaluations": [
+    {
+      "policy": "eval_runs/0913_tiny_overfit_cold/candidate.bin",
+      "prefix_history": "cold",
+      "errored_runs": 0,
+      "diverged_runs": 0,
+      "invalid_timing_runs": 0,
+      "runs": 12,
+      "complete": 12,
+      "passes": 7,
+      "handoffs": [
+        {
+          "frame": 2228,
+          "run": 1,
+          "chain": 1,
+          "timing_valid": true
+        },
+        {
+          "frame": 2228,
+          "run": 2,
+          "chain": 1,
+          "timing_valid": true
+        },
+        {
+          "frame": 2566,
+          "run": 1,
+          "chain": 13,
+          "timing_valid": true
+        },
+        {
+          "frame": 2566,
+          "run": 2,
+          "chain": 1,
+          "timing_valid": true
+        },
+        {
+          "frame": 900,
+          "run": 1,
+          "chain": 13,
+          "timing_valid": true
+        },
+        {
+          "frame": 900,
+          "run": 2,
+          "chain": 14,
+          "timing_valid": true
+        },
+        {
+          "frame": 4,
+          "run": 1,
+          "chain": 12,
+          "timing_valid": true
+        },
+        {
+          "frame": 4,
+          "run": 2,
+          "chain": 6,
+          "timing_valid": true
+        },
+        {
+          "frame": 75,
+          "run": 1,
+          "chain": 7,
+          "timing_valid": true
+        },
+        {
+          "frame": 75,
+          "run": 2,
+          "chain": 13,
+          "timing_valid": true
+        },
+        {
+          "frame": 146,
+          "run": 1,
+          "chain": 13,
+          "timing_valid": true
+        },
+        {
+          "frame": 146,
+          "run": 2,
+          "chain": 13,
+          "timing_valid": true
+        }
+      ]
+    },
+    {
+      "policy": "eval_runs/0913_tiny_overfit_cold/initial.bin",
+      "prefix_history": "cold",
+      "errored_runs": 0,
+      "diverged_runs": 0,
+      "invalid_timing_runs": 0,
+      "runs": 12,
+      "complete": 12,
+      "passes": 0,
+      "handoffs": [
+        {
+          "frame": 2228,
+          "run": 1,
+          "chain": 0,
+          "timing_valid": true
+        },
+        {
+          "frame": 2228,
+          "run": 2,
+          "chain": 0,
+          "timing_valid": true
+        },
+        {
+          "frame": 2566,
+          "run": 1,
+          "chain": 0,
+          "timing_valid": true
+        },
+        {
+          "frame": 2566,
+          "run": 2,
+          "chain": 0,
+          "timing_valid": true
+        },
+        {
+          "frame": 900,
+          "run": 1,
+          "chain": 0,
+          "timing_valid": true
+        },
+        {
+          "frame": 900,
+          "run": 2,
+          "chain": 0,
+          "timing_valid": true
+        },
+        {
+          "frame": 4,
+          "run": 1,
+          "chain": 1,
+          "timing_valid": true
+        },
+        {
+          "frame": 4,
+          "run": 2,
+          "chain": 1,
+          "timing_valid": true
+        },
+        {
+          "frame": 75,
+          "run": 1,
+          "chain": 0,
+          "timing_valid": true
+        },
+        {
+          "frame": 75,
+          "run": 2,
+          "chain": 0,
+          "timing_valid": true
+        },
+        {
+          "frame": 146,
+          "run": 1,
+          "chain": 0,
+          "timing_valid": true
+        },
+        {
+          "frame": 146,
+          "run": 2,
+          "chain": 0,
+          "timing_valid": true
+        }
+      ]
+    }
+  ]
+}

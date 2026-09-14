@@ -70,6 +70,63 @@ defmodule ExPhil.Training.DataTest do
     end)
   end
 
+  test "clip boundaries reset previous-action queues even with consecutive frame numbers" do
+    before = mock_frame(frame: 10, button_a: true)
+    current = mock_frame(frame: 11, button_b: true)
+
+    embed = fn lists ->
+      dataset = Data.from_frame_lists(lists)
+      dataset = %{dataset | embed_config: %{dataset.embed_config | queue_depth: 3}}
+      Data.precompute_frame_embeddings(dataset, use_prev_action: true, show_progress: false)
+      |> Map.fetch!(:embedded_frames)
+      |> Nx.to_list()
+    end
+
+    assert List.last(embed.([[before], [current]])) == hd(embed.([[current]]))
+    refute List.last(embed.([[before, current]])) == hd(embed.([[current]]))
+
+    before = Map.put(before, :prev_controller, before.controller)
+    current = Map.put(current, :prev_controller, current.controller)
+    assert List.last(embed.([[before], [current]])) == hd(embed.([[current]]))
+  end
+
+  @tag :dropout_contract
+  test "zero previous-action dropout is seed independent and preserves targets" do
+    frames = Enum.map(0..7, &mock_frame(frame: &1, button_b: true))
+    dataset = Data.from_frame_lists([frames])
+    dataset = %{dataset | embed_config: %{dataset.embed_config | queue_depth: 3}}
+    embed = fn probability, seed ->
+      :rand.seed(:exsss, {seed, seed + 1, seed + 2})
+      Data.precompute_frame_embeddings(dataset, use_prev_action: true,
+        prev_action_dropout: probability, show_progress: false)
+    end
+
+    complete = embed.(0.0, 1)
+    repeated = embed.(0.0, 99)
+    absent = embed.(1.0, 1)
+    assert Nx.to_binary(complete.embedded_frames) == Nx.to_binary(repeated.embedded_frames)
+    refute Nx.to_binary(complete.embedded_frames) == Nx.to_binary(absent.embedded_frames)
+    assert complete.frames == absent.frames
+    assert complete.metadata == absent.metadata
+    assert Nx.to_binary(complete.embedded_frames[0]) == Nx.to_binary(absent.embedded_frames[0])
+  end
+
+  @tag :dropout_contract
+  test "previous-action dropout is fixed in cached windows across later RNG changes" do
+    dataset = Data.from_frame_lists([Enum.map(0..31, &mock_frame(frame: &1, button_b: true))])
+    dataset = %{dataset | embed_config: %{dataset.embed_config | queue_depth: 3}}
+    :rand.seed(:exsss, {1, 2, 3})
+    cached = Data.precompute_frame_embeddings(dataset, use_prev_action: true,
+      prev_action_dropout: 0.1, show_progress: false)
+    windows = fn seed ->
+      :rand.seed(:exsss, {seed, seed + 1, seed + 2})
+      Data.batched_sequences(cached, lazy: true, gpu: false, shuffle: false,
+        window_size: 16, batch_size: 64)
+      |> Enum.map(&Nx.to_binary(&1.states))
+    end
+    assert windows.(1) == windows.(99)
+  end
+
   describe "from_frames/2" do
     test "creates dataset from list of frames" do
       frames = mock_frames(100)

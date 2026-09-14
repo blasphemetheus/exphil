@@ -1,0 +1,2883 @@
+{
+  "scores": "eval_runs/0913_tiny_overfit/eval_initial.json",
+  "expected_issued_latency": 3,
+  "expected_sent_latency": 1,
+  "runs": [
+    {
+      "run": 1,
+      "diverged": false,
+      "replay": "eval_runs/0913_tiny_overfit/eval_initial/run00_multishine_reentry/Game_20260913T014839.slp",
+      "grid": [
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 0
+        },
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 1
+        },
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 2
+        },
+        {
+          "count": 118,
+          "matches": 3,
+          "field": "issued",
+          "latency": 3
+        },
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 4
+        },
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 5
+        },
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 6
+        },
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 7
+        },
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 8
+        },
+        {
+          "count": 120,
+          "matches": 0,
+          "field": "sent",
+          "latency": 0
+        },
+        {
+          "count": 120,
+          "matches": 5,
+          "field": "sent",
+          "latency": 1
+        },
+        {
+          "count": 120,
+          "matches": 0,
+          "field": "sent",
+          "latency": 2
+        },
+        {
+          "count": 120,
+          "matches": 0,
+          "field": "sent",
+          "latency": 3
+        },
+        {
+          "count": 120,
+          "matches": 0,
+          "field": "sent",
+          "latency": 4
+        },
+        {
+          "count": 120,
+          "matches": 0,
+          "field": "sent",
+          "latency": 5
+        },
+        {
+          "count": 120,
+          "matches": 0,
+          "field": "sent",
+          "latency": 6
+        },
+        {
+          "count": 120,
+          "matches": 0,
+          "field": "sent",
+          "latency": 7
+        },
+        {
+          "count": 120,
+          "matches": 0,
+          "field": "sent",
+          "latency": 8
+        }
+      ],
+      "timing_valid": false,
+      "frame": 2228,
+      "unsent_tail_decisions": 2,
+      "state_alignment": [
+        {
+          "count": 120,
+          "offset": -2,
+          "matching_action_ground": 113,
+          "action_frame_deltas": {
+            "63": [
+              0,
+              1,
+              2
+            ],
+            "212": [
+              3
+            ]
+          }
+        },
+        {
+          "count": 120,
+          "offset": -1,
+          "matching_action_ground": 115,
+          "action_frame_deltas": {
+            "63": [
+              0,
+              1
+            ],
+            "212": [
+              2
+            ]
+          }
+        },
+        {
+          "count": 120,
+          "offset": 0,
+          "matching_action_ground": 120,
+          "action_frame_deltas": {
+            "14": [
+              1
+            ],
+            "24": [
+              1
+            ],
+            "39": [
+              0
+            ],
+            "63": [
+              0
+            ],
+            "212": [
+              1
+            ]
+          }
+        },
+        {
+          "count": 120,
+          "offset": 1,
+          "matching_action_ground": 116,
+          "action_frame_deltas": {
+            "63": [
+              -1,
+              0,
+              40
+            ],
+            "212": [
+              0
+            ]
+          }
+        },
+        {
+          "count": 120,
+          "offset": 2,
+          "matching_action_ground": 115,
+          "action_frame_deltas": {
+            "63": [
+              -2,
+              -1,
+              0,
+              39
+            ],
+            "212": [
+              -1
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "run": 2,
+      "diverged": false,
+      "replay": "eval_runs/0913_tiny_overfit/eval_initial/run01_multishine_reentry/Game_20260913T014902.slp",
+      "grid": [
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 0
+        },
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 1
+        },
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 2
+        },
+        {
+          "count": 118,
+          "matches": 7,
+          "field": "issued",
+          "latency": 3
+        },
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 4
+        },
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 5
+        },
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 6
+        },
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 7
+        },
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 8
+        },
+        {
+          "count": 120,
+          "matches": 0,
+          "field": "sent",
+          "latency": 0
+        },
+        {
+          "count": 120,
+          "matches": 9,
+          "field": "sent",
+          "latency": 1
+        },
+        {
+          "count": 120,
+          "matches": 0,
+          "field": "sent",
+          "latency": 2
+        },
+        {
+          "count": 120,
+          "matches": 0,
+          "field": "sent",
+          "latency": 3
+        },
+        {
+          "count": 120,
+          "matches": 0,
+          "field": "sent",
+          "latency": 4
+        },
+        {
+          "count": 120,
+          "matches": 0,
+          "field": "sent",
+          "latency": 5
+        },
+        {
+          "count": 120,
+          "matches": 0,
+          "field": "sent",
+          "latency": 6
+        },
+        {
+          "count": 120,
+          "matches": 0,
+          "field": "sent",
+          "latency": 7
+        },
+        {
+          "count": 120,
+          "matches": 0,
+          "field": "sent",
+          "latency": 8
+        }
+      ],
+      "timing_valid": false,
+      "frame": 2228,
+      "unsent_tail_decisions": 2,
+      "state_alignment": [
+        {
+          "count": 120,
+          "offset": -2,
+          "matching_action_ground": 104,
+          "action_frame_deltas": {
+            "24": [
+              3
+            ],
+            "60": [
+              0,
+              1,
+              2
+            ],
+            "68": [
+              2
+            ],
+            "73": [
+              4,
+              5
+            ],
+            "212": [
+              3
+            ],
+            "235": [
+              2
+            ]
+          }
+        },
+        {
+          "count": 120,
+          "offset": -1,
+          "matching_action_ground": 110,
+          "action_frame_deltas": {
+            "24": [
+              2
+            ],
+            "60": [
+              0,
+              1
+            ],
+            "68": [
+              1
+            ],
+            "73": [
+              2,
+              3
+            ],
+            "212": [
+              2
+            ],
+            "235": [
+              1
+            ]
+          }
+        },
+        {
+          "count": 120,
+          "offset": 0,
+          "matching_action_ground": 120,
+          "action_frame_deltas": {
+            "14": [
+              1
+            ],
+            "24": [
+              1
+            ],
+            "39": [
+              0
+            ],
+            "60": [
+              0
+            ],
+            "68": [
+              0
+            ],
+            "73": [
+              1
+            ],
+            "178": [
+              0
+            ],
+            "212": [
+              1
+            ],
+            "235": [
+              0
+            ]
+          }
+        },
+        {
+          "count": 120,
+          "offset": 1,
+          "matching_action_ground": 111,
+          "action_frame_deltas": {
+            "24": [
+              0
+            ],
+            "60": [
+              -1,
+              0
+            ],
+            "68": [
+              -1
+            ],
+            "73": [
+              -1,
+              0
+            ],
+            "212": [
+              0
+            ],
+            "235": [
+              -1
+            ]
+          }
+        },
+        {
+          "count": 120,
+          "offset": 2,
+          "matching_action_ground": 106,
+          "action_frame_deltas": {
+            "24": [
+              -1
+            ],
+            "60": [
+              -2,
+              -1,
+              0
+            ],
+            "68": [
+              -2
+            ],
+            "73": [
+              -3,
+              -2
+            ],
+            "212": [
+              -1
+            ],
+            "235": [
+              -2
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "run": 1,
+      "diverged": false,
+      "replay": "eval_runs/0913_tiny_overfit/eval_initial/run02_multishine_reentry/Game_20260913T014924.slp",
+      "grid": [
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 0
+        },
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 1
+        },
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 2
+        },
+        {
+          "count": 118,
+          "matches": 2,
+          "field": "issued",
+          "latency": 3
+        },
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 4
+        },
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 5
+        },
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 6
+        },
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 7
+        },
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 8
+        },
+        {
+          "count": 120,
+          "matches": 2,
+          "field": "sent",
+          "latency": 0
+        },
+        {
+          "count": 120,
+          "matches": 4,
+          "field": "sent",
+          "latency": 1
+        },
+        {
+          "count": 120,
+          "matches": 1,
+          "field": "sent",
+          "latency": 2
+        },
+        {
+          "count": 120,
+          "matches": 0,
+          "field": "sent",
+          "latency": 3
+        },
+        {
+          "count": 120,
+          "matches": 0,
+          "field": "sent",
+          "latency": 4
+        },
+        {
+          "count": 120,
+          "matches": 0,
+          "field": "sent",
+          "latency": 5
+        },
+        {
+          "count": 120,
+          "matches": 0,
+          "field": "sent",
+          "latency": 6
+        },
+        {
+          "count": 120,
+          "matches": 0,
+          "field": "sent",
+          "latency": 7
+        },
+        {
+          "count": 120,
+          "matches": 0,
+          "field": "sent",
+          "latency": 8
+        }
+      ],
+      "timing_valid": false,
+      "frame": 2566,
+      "unsent_tail_decisions": 2,
+      "state_alignment": [
+        {
+          "count": 120,
+          "offset": -2,
+          "matching_action_ground": 108,
+          "action_frame_deltas": {
+            "14": [
+              3
+            ],
+            "63": [
+              1,
+              2
+            ],
+            "212": [
+              3
+            ],
+            "233": [
+              2
+            ]
+          }
+        },
+        {
+          "count": 120,
+          "offset": -1,
+          "matching_action_ground": 113,
+          "action_frame_deltas": {
+            "14": [
+              2
+            ],
+            "63": [
+              0,
+              1
+            ],
+            "212": [
+              2
+            ],
+            "233": [
+              1
+            ]
+          }
+        },
+        {
+          "count": 120,
+          "offset": 0,
+          "matching_action_ground": 120,
+          "action_frame_deltas": {
+            "14": [
+              1
+            ],
+            "63": [
+              0
+            ],
+            "178": [
+              0
+            ],
+            "212": [
+              1
+            ],
+            "233": [
+              0
+            ]
+          }
+        },
+        {
+          "count": 120,
+          "offset": 1,
+          "matching_action_ground": 114,
+          "action_frame_deltas": {
+            "14": [
+              0
+            ],
+            "63": [
+              -1,
+              0
+            ],
+            "212": [
+              0
+            ],
+            "233": [
+              -1
+            ]
+          }
+        },
+        {
+          "count": 120,
+          "offset": 2,
+          "matching_action_ground": 110,
+          "action_frame_deltas": {
+            "14": [
+              -1
+            ],
+            "63": [
+              -2,
+              -1
+            ],
+            "212": [
+              -1
+            ],
+            "233": [
+              -2
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "run": 2,
+      "diverged": false,
+      "replay": "eval_runs/0913_tiny_overfit/eval_initial/run03_multishine_reentry/Game_20260913T014949.slp",
+      "grid": [
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 0
+        },
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 1
+        },
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 2
+        },
+        {
+          "count": 118,
+          "matches": 6,
+          "field": "issued",
+          "latency": 3
+        },
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 4
+        },
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 5
+        },
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 6
+        },
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 7
+        },
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 8
+        },
+        {
+          "count": 120,
+          "matches": 2,
+          "field": "sent",
+          "latency": 0
+        },
+        {
+          "count": 120,
+          "matches": 8,
+          "field": "sent",
+          "latency": 1
+        },
+        {
+          "count": 120,
+          "matches": 1,
+          "field": "sent",
+          "latency": 2
+        },
+        {
+          "count": 120,
+          "matches": 0,
+          "field": "sent",
+          "latency": 3
+        },
+        {
+          "count": 120,
+          "matches": 0,
+          "field": "sent",
+          "latency": 4
+        },
+        {
+          "count": 120,
+          "matches": 0,
+          "field": "sent",
+          "latency": 5
+        },
+        {
+          "count": 120,
+          "matches": 0,
+          "field": "sent",
+          "latency": 6
+        },
+        {
+          "count": 120,
+          "matches": 0,
+          "field": "sent",
+          "latency": 7
+        },
+        {
+          "count": 120,
+          "matches": 0,
+          "field": "sent",
+          "latency": 8
+        }
+      ],
+      "timing_valid": false,
+      "frame": 2566,
+      "unsent_tail_decisions": 2,
+      "state_alignment": [
+        {
+          "count": 120,
+          "offset": -2,
+          "matching_action_ground": 108,
+          "action_frame_deltas": {
+            "14": [
+              3
+            ],
+            "63": [
+              2
+            ],
+            "212": [
+              3
+            ],
+            "233": [
+              2
+            ],
+            "235": [
+              2
+            ]
+          }
+        },
+        {
+          "count": 120,
+          "offset": -1,
+          "matching_action_ground": 113,
+          "action_frame_deltas": {
+            "14": [
+              2
+            ],
+            "63": [
+              1
+            ],
+            "212": [
+              2
+            ],
+            "233": [
+              1
+            ],
+            "235": [
+              1
+            ]
+          }
+        },
+        {
+          "count": 120,
+          "offset": 0,
+          "matching_action_ground": 120,
+          "action_frame_deltas": {
+            "14": [
+              1
+            ],
+            "63": [
+              0
+            ],
+            "178": [
+              0
+            ],
+            "212": [
+              1
+            ],
+            "233": [
+              0
+            ],
+            "235": [
+              0
+            ]
+          }
+        },
+        {
+          "count": 120,
+          "offset": 1,
+          "matching_action_ground": 114,
+          "action_frame_deltas": {
+            "14": [
+              0
+            ],
+            "63": [
+              -1
+            ],
+            "212": [
+              0
+            ],
+            "233": [
+              -1
+            ],
+            "235": [
+              -1
+            ]
+          }
+        },
+        {
+          "count": 120,
+          "offset": 2,
+          "matching_action_ground": 110,
+          "action_frame_deltas": {
+            "14": [
+              -1
+            ],
+            "63": [
+              -2
+            ],
+            "212": [
+              -1
+            ],
+            "233": [
+              -2
+            ],
+            "235": [
+              -2
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "run": 1,
+      "diverged": false,
+      "replay": "eval_runs/0913_tiny_overfit/eval_initial/run04_multishine_reentry/Game_20260913T015014.slp",
+      "grid": [
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 0
+        },
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 1
+        },
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 2
+        },
+        {
+          "count": 118,
+          "matches": 1,
+          "field": "issued",
+          "latency": 3
+        },
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 4
+        },
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 5
+        },
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 6
+        },
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 7
+        },
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 8
+        },
+        {
+          "count": 120,
+          "matches": 2,
+          "field": "sent",
+          "latency": 0
+        },
+        {
+          "count": 120,
+          "matches": 3,
+          "field": "sent",
+          "latency": 1
+        },
+        {
+          "count": 120,
+          "matches": 1,
+          "field": "sent",
+          "latency": 2
+        },
+        {
+          "count": 120,
+          "matches": 0,
+          "field": "sent",
+          "latency": 3
+        },
+        {
+          "count": 120,
+          "matches": 0,
+          "field": "sent",
+          "latency": 4
+        },
+        {
+          "count": 120,
+          "matches": 0,
+          "field": "sent",
+          "latency": 5
+        },
+        {
+          "count": 120,
+          "matches": 0,
+          "field": "sent",
+          "latency": 6
+        },
+        {
+          "count": 120,
+          "matches": 0,
+          "field": "sent",
+          "latency": 7
+        },
+        {
+          "count": 120,
+          "matches": 0,
+          "field": "sent",
+          "latency": 8
+        }
+      ],
+      "timing_valid": false,
+      "frame": 900,
+      "unsent_tail_decisions": 2,
+      "state_alignment": [
+        {
+          "count": 120,
+          "offset": -2,
+          "matching_action_ground": 102,
+          "action_frame_deltas": {
+            "42": [
+              3
+            ],
+            "67": [
+              2
+            ],
+            "234": [
+              2
+            ],
+            "235": [
+              2
+            ],
+            "365": [
+              2
+            ]
+          }
+        },
+        {
+          "count": 120,
+          "offset": -1,
+          "matching_action_ground": 109,
+          "action_frame_deltas": {
+            "42": [
+              2
+            ],
+            "67": [
+              1
+            ],
+            "69": [
+              1
+            ],
+            "234": [
+              1
+            ],
+            "235": [
+              1
+            ],
+            "365": [
+              1
+            ]
+          }
+        },
+        {
+          "count": 120,
+          "offset": 0,
+          "matching_action_ground": 120,
+          "action_frame_deltas": {
+            "27": [
+              1
+            ],
+            "42": [
+              1
+            ],
+            "67": [
+              0
+            ],
+            "69": [
+              0
+            ],
+            "178": [
+              0
+            ],
+            "182": [
+              0
+            ],
+            "234": [
+              0
+            ],
+            "235": [
+              0
+            ],
+            "365": [
+              0
+            ],
+            "366": [
+              1
+            ]
+          }
+        },
+        {
+          "count": 120,
+          "offset": 1,
+          "matching_action_ground": 109,
+          "action_frame_deltas": {
+            "42": [
+              0
+            ],
+            "67": [
+              -1
+            ],
+            "69": [
+              -1
+            ],
+            "234": [
+              -1
+            ],
+            "235": [
+              -1
+            ],
+            "365": [
+              -1
+            ]
+          }
+        },
+        {
+          "count": 120,
+          "offset": 2,
+          "matching_action_ground": 103,
+          "action_frame_deltas": {
+            "42": [
+              -1
+            ],
+            "67": [
+              -2
+            ],
+            "234": [
+              -2
+            ],
+            "235": [
+              -2
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "run": 2,
+      "diverged": false,
+      "replay": "eval_runs/0913_tiny_overfit/eval_initial/run05_multishine_reentry/Game_20260913T015026.slp",
+      "grid": [
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 0
+        },
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 1
+        },
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 2
+        },
+        {
+          "count": 118,
+          "matches": 2,
+          "field": "issued",
+          "latency": 3
+        },
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 4
+        },
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 5
+        },
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 6
+        },
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 7
+        },
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 8
+        },
+        {
+          "count": 120,
+          "matches": 2,
+          "field": "sent",
+          "latency": 0
+        },
+        {
+          "count": 120,
+          "matches": 4,
+          "field": "sent",
+          "latency": 1
+        },
+        {
+          "count": 120,
+          "matches": 1,
+          "field": "sent",
+          "latency": 2
+        },
+        {
+          "count": 120,
+          "matches": 0,
+          "field": "sent",
+          "latency": 3
+        },
+        {
+          "count": 120,
+          "matches": 0,
+          "field": "sent",
+          "latency": 4
+        },
+        {
+          "count": 120,
+          "matches": 0,
+          "field": "sent",
+          "latency": 5
+        },
+        {
+          "count": 120,
+          "matches": 0,
+          "field": "sent",
+          "latency": 6
+        },
+        {
+          "count": 120,
+          "matches": 0,
+          "field": "sent",
+          "latency": 7
+        },
+        {
+          "count": 120,
+          "matches": 0,
+          "field": "sent",
+          "latency": 8
+        }
+      ],
+      "timing_valid": false,
+      "frame": 900,
+      "unsent_tail_decisions": 2,
+      "state_alignment": [
+        {
+          "count": 120,
+          "offset": -2,
+          "matching_action_ground": 106,
+          "action_frame_deltas": {
+            "27": [
+              3
+            ],
+            "43": [
+              7
+            ],
+            "64": [
+              0,
+              1,
+              2
+            ],
+            "235": [
+              2
+            ],
+            "236": [
+              2
+            ],
+            "365": [
+              2
+            ]
+          }
+        },
+        {
+          "count": 120,
+          "offset": -1,
+          "matching_action_ground": 113,
+          "action_frame_deltas": {
+            "27": [
+              2
+            ],
+            "43": [
+              4
+            ],
+            "64": [
+              0,
+              1
+            ],
+            "178": [
+              0
+            ],
+            "235": [
+              1
+            ],
+            "236": [
+              1
+            ],
+            "365": [
+              1
+            ]
+          }
+        },
+        {
+          "count": 120,
+          "offset": 0,
+          "matching_action_ground": 120,
+          "action_frame_deltas": {
+            "27": [
+              1
+            ],
+            "43": [
+              1
+            ],
+            "64": [
+              0
+            ],
+            "178": [
+              0
+            ],
+            "235": [
+              0
+            ],
+            "236": [
+              0
+            ],
+            "365": [
+              0
+            ],
+            "366": [
+              1
+            ]
+          }
+        },
+        {
+          "count": 120,
+          "offset": 1,
+          "matching_action_ground": 113,
+          "action_frame_deltas": {
+            "27": [
+              0
+            ],
+            "43": [
+              -2
+            ],
+            "64": [
+              -1,
+              0
+            ],
+            "178": [
+              0
+            ],
+            "235": [
+              -1
+            ],
+            "236": [
+              -1
+            ],
+            "365": [
+              -1
+            ]
+          }
+        },
+        {
+          "count": 120,
+          "offset": 2,
+          "matching_action_ground": 107,
+          "action_frame_deltas": {
+            "27": [
+              -1
+            ],
+            "43": [
+              -5
+            ],
+            "64": [
+              -2,
+              -1,
+              0
+            ],
+            "235": [
+              -2
+            ],
+            "236": [
+              -2
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "run": 1,
+      "diverged": false,
+      "replay": "eval_runs/0913_tiny_overfit/eval_initial/run06_multishine_reentry/Game_20260913T015037.slp",
+      "grid": [
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 0
+        },
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 1
+        },
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 2
+        },
+        {
+          "count": 118,
+          "matches": 1,
+          "field": "issued",
+          "latency": 3
+        },
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 4
+        },
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 5
+        },
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 6
+        },
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 7
+        },
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 8
+        },
+        {
+          "count": 120,
+          "matches": 2,
+          "field": "sent",
+          "latency": 0
+        },
+        {
+          "count": 120,
+          "matches": 3,
+          "field": "sent",
+          "latency": 1
+        },
+        {
+          "count": 120,
+          "matches": 1,
+          "field": "sent",
+          "latency": 2
+        },
+        {
+          "count": 120,
+          "matches": 0,
+          "field": "sent",
+          "latency": 3
+        },
+        {
+          "count": 120,
+          "matches": 0,
+          "field": "sent",
+          "latency": 4
+        },
+        {
+          "count": 120,
+          "matches": 0,
+          "field": "sent",
+          "latency": 5
+        },
+        {
+          "count": 120,
+          "matches": 0,
+          "field": "sent",
+          "latency": 6
+        },
+        {
+          "count": 120,
+          "matches": 0,
+          "field": "sent",
+          "latency": 7
+        },
+        {
+          "count": 120,
+          "matches": 0,
+          "field": "sent",
+          "latency": 8
+        }
+      ],
+      "timing_valid": false,
+      "frame": 4,
+      "unsent_tail_decisions": 2,
+      "state_alignment": [
+        {
+          "count": 120,
+          "offset": -2,
+          "matching_action_ground": 110,
+          "action_frame_deltas": {
+            "63": [
+              0,
+              1,
+              2
+            ],
+            "64": [
+              0,
+              1,
+              2
+            ],
+            "234": [
+              2
+            ],
+            "363": [
+              3
+            ]
+          }
+        },
+        {
+          "count": 120,
+          "offset": -1,
+          "matching_action_ground": 114,
+          "action_frame_deltas": {
+            "63": [
+              0,
+              1
+            ],
+            "64": [
+              0,
+              1
+            ],
+            "234": [
+              1
+            ],
+            "363": [
+              2
+            ]
+          }
+        },
+        {
+          "count": 120,
+          "offset": 0,
+          "matching_action_ground": 120,
+          "action_frame_deltas": {
+            "18": [
+              0
+            ],
+            "63": [
+              0
+            ],
+            "64": [
+              0
+            ],
+            "182": [
+              0
+            ],
+            "234": [
+              0
+            ],
+            "363": [
+              1
+            ]
+          }
+        },
+        {
+          "count": 120,
+          "offset": 1,
+          "matching_action_ground": 115,
+          "action_frame_deltas": {
+            "63": [
+              -1,
+              0
+            ],
+            "64": [
+              -1,
+              0
+            ],
+            "234": [
+              -1
+            ],
+            "363": [
+              0
+            ]
+          }
+        },
+        {
+          "count": 120,
+          "offset": 2,
+          "matching_action_ground": 112,
+          "action_frame_deltas": {
+            "63": [
+              -2,
+              -1,
+              0
+            ],
+            "64": [
+              -2,
+              -1,
+              0
+            ],
+            "234": [
+              -2
+            ],
+            "363": [
+              -1
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "run": 2,
+      "diverged": false,
+      "replay": "eval_runs/0913_tiny_overfit/eval_initial/run07_multishine_reentry/Game_20260913T015041.slp",
+      "grid": [
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 0
+        },
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 1
+        },
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 2
+        },
+        {
+          "count": 118,
+          "matches": 2,
+          "field": "issued",
+          "latency": 3
+        },
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 4
+        },
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 5
+        },
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 6
+        },
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 7
+        },
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 8
+        },
+        {
+          "count": 120,
+          "matches": 2,
+          "field": "sent",
+          "latency": 0
+        },
+        {
+          "count": 120,
+          "matches": 4,
+          "field": "sent",
+          "latency": 1
+        },
+        {
+          "count": 120,
+          "matches": 1,
+          "field": "sent",
+          "latency": 2
+        },
+        {
+          "count": 120,
+          "matches": 0,
+          "field": "sent",
+          "latency": 3
+        },
+        {
+          "count": 120,
+          "matches": 0,
+          "field": "sent",
+          "latency": 4
+        },
+        {
+          "count": 120,
+          "matches": 0,
+          "field": "sent",
+          "latency": 5
+        },
+        {
+          "count": 120,
+          "matches": 0,
+          "field": "sent",
+          "latency": 6
+        },
+        {
+          "count": 120,
+          "matches": 0,
+          "field": "sent",
+          "latency": 7
+        },
+        {
+          "count": 120,
+          "matches": 0,
+          "field": "sent",
+          "latency": 8
+        }
+      ],
+      "timing_valid": false,
+      "frame": 4,
+      "unsent_tail_decisions": 2,
+      "state_alignment": [
+        {
+          "count": 120,
+          "offset": -2,
+          "matching_action_ground": 101,
+          "action_frame_deltas": {
+            "24": [
+              3
+            ],
+            "43": [
+              7
+            ],
+            "236": [
+              2
+            ],
+            "353": [
+              2
+            ],
+            "356": [
+              3
+            ],
+            "360": [
+              2
+            ],
+            "363": [
+              3
+            ],
+            "364": [
+              3
+            ]
+          }
+        },
+        {
+          "count": 120,
+          "offset": -1,
+          "matching_action_ground": 110,
+          "action_frame_deltas": {
+            "24": [
+              2
+            ],
+            "43": [
+              4
+            ],
+            "236": [
+              1
+            ],
+            "353": [
+              1
+            ],
+            "356": [
+              2
+            ],
+            "360": [
+              1
+            ],
+            "363": [
+              2
+            ],
+            "364": [
+              2
+            ]
+          }
+        },
+        {
+          "count": 120,
+          "offset": 0,
+          "matching_action_ground": 120,
+          "action_frame_deltas": {
+            "24": [
+              1
+            ],
+            "43": [
+              1
+            ],
+            "178": [
+              0
+            ],
+            "236": [
+              0
+            ],
+            "353": [
+              0
+            ],
+            "356": [
+              1
+            ],
+            "360": [
+              0
+            ],
+            "363": [
+              1
+            ],
+            "364": [
+              1
+            ]
+          }
+        },
+        {
+          "count": 120,
+          "offset": 1,
+          "matching_action_ground": 111,
+          "action_frame_deltas": {
+            "24": [
+              0
+            ],
+            "43": [
+              -2
+            ],
+            "236": [
+              -1
+            ],
+            "353": [
+              -1
+            ],
+            "356": [
+              0
+            ],
+            "360": [
+              -1
+            ],
+            "363": [
+              0
+            ],
+            "364": [
+              0
+            ]
+          }
+        },
+        {
+          "count": 120,
+          "offset": 2,
+          "matching_action_ground": 103,
+          "action_frame_deltas": {
+            "24": [
+              -1
+            ],
+            "43": [
+              -5
+            ],
+            "236": [
+              -2
+            ],
+            "353": [
+              -2
+            ],
+            "356": [
+              -1
+            ],
+            "360": [
+              -2
+            ],
+            "363": [
+              -1
+            ],
+            "364": [
+              -1
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "run": 1,
+      "diverged": false,
+      "replay": "eval_runs/0913_tiny_overfit/eval_initial/run08_multishine_reentry/Game_20260913T015045.slp",
+      "grid": [
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 0
+        },
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 1
+        },
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 2
+        },
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 3
+        },
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 4
+        },
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 5
+        },
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 6
+        },
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 7
+        },
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 8
+        },
+        {
+          "count": 120,
+          "matches": 0,
+          "field": "sent",
+          "latency": 0
+        },
+        {
+          "count": 120,
+          "matches": 2,
+          "field": "sent",
+          "latency": 1
+        },
+        {
+          "count": 120,
+          "matches": 0,
+          "field": "sent",
+          "latency": 2
+        },
+        {
+          "count": 120,
+          "matches": 0,
+          "field": "sent",
+          "latency": 3
+        },
+        {
+          "count": 120,
+          "matches": 0,
+          "field": "sent",
+          "latency": 4
+        },
+        {
+          "count": 120,
+          "matches": 0,
+          "field": "sent",
+          "latency": 5
+        },
+        {
+          "count": 120,
+          "matches": 0,
+          "field": "sent",
+          "latency": 6
+        },
+        {
+          "count": 120,
+          "matches": 0,
+          "field": "sent",
+          "latency": 7
+        },
+        {
+          "count": 120,
+          "matches": 0,
+          "field": "sent",
+          "latency": 8
+        }
+      ],
+      "timing_valid": false,
+      "frame": 75,
+      "unsent_tail_decisions": 2,
+      "state_alignment": [
+        {
+          "count": 120,
+          "offset": -2,
+          "matching_action_ground": 108,
+          "action_frame_deltas": {
+            "42": [
+              3
+            ],
+            "64": [
+              2
+            ],
+            "233": [
+              2
+            ],
+            "234": [
+              2
+            ],
+            "264": [
+              3
+            ]
+          }
+        },
+        {
+          "count": 120,
+          "offset": -1,
+          "matching_action_ground": 113,
+          "action_frame_deltas": {
+            "42": [
+              2
+            ],
+            "64": [
+              1
+            ],
+            "233": [
+              1
+            ],
+            "234": [
+              1
+            ],
+            "264": [
+              2
+            ]
+          }
+        },
+        {
+          "count": 120,
+          "offset": 0,
+          "matching_action_ground": 120,
+          "action_frame_deltas": {
+            "42": [
+              1
+            ],
+            "64": [
+              0
+            ],
+            "178": [
+              0
+            ],
+            "233": [
+              0
+            ],
+            "234": [
+              0
+            ],
+            "264": [
+              1
+            ]
+          }
+        },
+        {
+          "count": 120,
+          "offset": 1,
+          "matching_action_ground": 114,
+          "action_frame_deltas": {
+            "42": [
+              0
+            ],
+            "64": [
+              -1
+            ],
+            "233": [
+              -1
+            ],
+            "234": [
+              -1
+            ],
+            "264": [
+              0
+            ]
+          }
+        },
+        {
+          "count": 120,
+          "offset": 2,
+          "matching_action_ground": 110,
+          "action_frame_deltas": {
+            "42": [
+              -1
+            ],
+            "64": [
+              -2
+            ],
+            "233": [
+              -2
+            ],
+            "234": [
+              -2
+            ],
+            "264": [
+              -1
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "run": 2,
+      "diverged": false,
+      "replay": "eval_runs/0913_tiny_overfit/eval_initial/run09_multishine_reentry/Game_20260913T015050.slp",
+      "grid": [
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 0
+        },
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 1
+        },
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 2
+        },
+        {
+          "count": 118,
+          "matches": 2,
+          "field": "issued",
+          "latency": 3
+        },
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 4
+        },
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 5
+        },
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 6
+        },
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 7
+        },
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 8
+        },
+        {
+          "count": 120,
+          "matches": 0,
+          "field": "sent",
+          "latency": 0
+        },
+        {
+          "count": 120,
+          "matches": 4,
+          "field": "sent",
+          "latency": 1
+        },
+        {
+          "count": 120,
+          "matches": 0,
+          "field": "sent",
+          "latency": 2
+        },
+        {
+          "count": 120,
+          "matches": 0,
+          "field": "sent",
+          "latency": 3
+        },
+        {
+          "count": 120,
+          "matches": 0,
+          "field": "sent",
+          "latency": 4
+        },
+        {
+          "count": 120,
+          "matches": 0,
+          "field": "sent",
+          "latency": 5
+        },
+        {
+          "count": 120,
+          "matches": 0,
+          "field": "sent",
+          "latency": 6
+        },
+        {
+          "count": 120,
+          "matches": 0,
+          "field": "sent",
+          "latency": 7
+        },
+        {
+          "count": 120,
+          "matches": 0,
+          "field": "sent",
+          "latency": 8
+        }
+      ],
+      "timing_valid": false,
+      "frame": 75,
+      "unsent_tail_decisions": 2,
+      "state_alignment": [
+        {
+          "count": 120,
+          "offset": -2,
+          "matching_action_ground": 106,
+          "action_frame_deltas": {
+            "42": [
+              3
+            ],
+            "60": [
+              0,
+              1,
+              2
+            ],
+            "212": [
+              3
+            ],
+            "233": [
+              2
+            ]
+          }
+        },
+        {
+          "count": 120,
+          "offset": -1,
+          "matching_action_ground": 111,
+          "action_frame_deltas": {
+            "42": [
+              2
+            ],
+            "60": [
+              0,
+              1
+            ],
+            "182": [
+              0
+            ],
+            "212": [
+              2
+            ],
+            "233": [
+              1
+            ]
+          }
+        },
+        {
+          "count": 120,
+          "offset": 0,
+          "matching_action_ground": 120,
+          "action_frame_deltas": {
+            "39": [
+              0
+            ],
+            "42": [
+              1
+            ],
+            "60": [
+              0
+            ],
+            "178": [
+              0
+            ],
+            "182": [
+              0
+            ],
+            "212": [
+              1
+            ],
+            "233": [
+              0
+            ],
+            "235": [
+              0
+            ]
+          }
+        },
+        {
+          "count": 120,
+          "offset": 1,
+          "matching_action_ground": 112,
+          "action_frame_deltas": {
+            "42": [
+              0
+            ],
+            "60": [
+              -1,
+              0
+            ],
+            "182": [
+              0
+            ],
+            "212": [
+              0
+            ],
+            "233": [
+              -1
+            ],
+            "235": [
+              -1
+            ]
+          }
+        },
+        {
+          "count": 120,
+          "offset": 2,
+          "matching_action_ground": 107,
+          "action_frame_deltas": {
+            "42": [
+              -1
+            ],
+            "60": [
+              -2,
+              -1,
+              0
+            ],
+            "212": [
+              -1
+            ],
+            "233": [
+              -2
+            ],
+            "235": [
+              -2
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "run": 1,
+      "diverged": false,
+      "replay": "eval_runs/0913_tiny_overfit/eval_initial/run10_multishine_reentry/Game_20260913T015054.slp",
+      "grid": [
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 0
+        },
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 1
+        },
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 2
+        },
+        {
+          "count": 118,
+          "matches": 3,
+          "field": "issued",
+          "latency": 3
+        },
+        {
+          "count": 118,
+          "matches": 1,
+          "field": "issued",
+          "latency": 4
+        },
+        {
+          "count": 118,
+          "matches": 1,
+          "field": "issued",
+          "latency": 5
+        },
+        {
+          "count": 118,
+          "matches": 1,
+          "field": "issued",
+          "latency": 6
+        },
+        {
+          "count": 118,
+          "matches": 1,
+          "field": "issued",
+          "latency": 7
+        },
+        {
+          "count": 118,
+          "matches": 1,
+          "field": "issued",
+          "latency": 8
+        },
+        {
+          "count": 120,
+          "matches": 0,
+          "field": "sent",
+          "latency": 0
+        },
+        {
+          "count": 120,
+          "matches": 5,
+          "field": "sent",
+          "latency": 1
+        },
+        {
+          "count": 120,
+          "matches": 1,
+          "field": "sent",
+          "latency": 2
+        },
+        {
+          "count": 120,
+          "matches": 1,
+          "field": "sent",
+          "latency": 3
+        },
+        {
+          "count": 120,
+          "matches": 1,
+          "field": "sent",
+          "latency": 4
+        },
+        {
+          "count": 120,
+          "matches": 1,
+          "field": "sent",
+          "latency": 5
+        },
+        {
+          "count": 120,
+          "matches": 1,
+          "field": "sent",
+          "latency": 6
+        },
+        {
+          "count": 120,
+          "matches": 1,
+          "field": "sent",
+          "latency": 7
+        },
+        {
+          "count": 120,
+          "matches": 1,
+          "field": "sent",
+          "latency": 8
+        }
+      ],
+      "timing_valid": false,
+      "frame": 146,
+      "unsent_tail_decisions": 2,
+      "state_alignment": [
+        {
+          "count": 120,
+          "offset": -2,
+          "matching_action_ground": 108,
+          "action_frame_deltas": {
+            "42": [
+              3
+            ],
+            "64": [
+              0,
+              1,
+              2
+            ],
+            "233": [
+              2
+            ],
+            "234": [
+              2
+            ]
+          }
+        },
+        {
+          "count": 120,
+          "offset": -1,
+          "matching_action_ground": 113,
+          "action_frame_deltas": {
+            "42": [
+              2
+            ],
+            "64": [
+              0,
+              1
+            ],
+            "233": [
+              1
+            ],
+            "234": [
+              1
+            ]
+          }
+        },
+        {
+          "count": 120,
+          "offset": 0,
+          "matching_action_ground": 120,
+          "action_frame_deltas": {
+            "42": [
+              1
+            ],
+            "64": [
+              0
+            ],
+            "178": [
+              0
+            ],
+            "233": [
+              0
+            ],
+            "234": [
+              0
+            ]
+          }
+        },
+        {
+          "count": 120,
+          "offset": 1,
+          "matching_action_ground": 114,
+          "action_frame_deltas": {
+            "42": [
+              0
+            ],
+            "64": [
+              -1,
+              0
+            ],
+            "233": [
+              -1
+            ],
+            "234": [
+              -1
+            ]
+          }
+        },
+        {
+          "count": 120,
+          "offset": 2,
+          "matching_action_ground": 110,
+          "action_frame_deltas": {
+            "42": [
+              -1
+            ],
+            "64": [
+              -2,
+              -1,
+              0
+            ],
+            "233": [
+              -2
+            ],
+            "234": [
+              -2
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "run": 2,
+      "diverged": false,
+      "replay": "eval_runs/0913_tiny_overfit/eval_initial/run11_multishine_reentry/Game_20260913T015059.slp",
+      "grid": [
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 0
+        },
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 1
+        },
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 2
+        },
+        {
+          "count": 118,
+          "matches": 1,
+          "field": "issued",
+          "latency": 3
+        },
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 4
+        },
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 5
+        },
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 6
+        },
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 7
+        },
+        {
+          "count": 118,
+          "matches": 0,
+          "field": "issued",
+          "latency": 8
+        },
+        {
+          "count": 120,
+          "matches": 0,
+          "field": "sent",
+          "latency": 0
+        },
+        {
+          "count": 120,
+          "matches": 3,
+          "field": "sent",
+          "latency": 1
+        },
+        {
+          "count": 120,
+          "matches": 0,
+          "field": "sent",
+          "latency": 2
+        },
+        {
+          "count": 120,
+          "matches": 0,
+          "field": "sent",
+          "latency": 3
+        },
+        {
+          "count": 120,
+          "matches": 0,
+          "field": "sent",
+          "latency": 4
+        },
+        {
+          "count": 120,
+          "matches": 0,
+          "field": "sent",
+          "latency": 5
+        },
+        {
+          "count": 120,
+          "matches": 0,
+          "field": "sent",
+          "latency": 6
+        },
+        {
+          "count": 120,
+          "matches": 0,
+          "field": "sent",
+          "latency": 7
+        },
+        {
+          "count": 120,
+          "matches": 0,
+          "field": "sent",
+          "latency": 8
+        }
+      ],
+      "timing_valid": false,
+      "frame": 146,
+      "unsent_tail_decisions": 2,
+      "state_alignment": [
+        {
+          "count": 120,
+          "offset": -2,
+          "matching_action_ground": 107,
+          "action_frame_deltas": {
+            "42": [
+              3
+            ],
+            "60": [
+              0,
+              1,
+              2
+            ],
+            "64": [
+              0,
+              1
+            ],
+            "233": [
+              2
+            ]
+          }
+        },
+        {
+          "count": 120,
+          "offset": -1,
+          "matching_action_ground": 113,
+          "action_frame_deltas": {
+            "42": [
+              2
+            ],
+            "60": [
+              0,
+              1
+            ],
+            "64": [
+              0,
+              1
+            ],
+            "178": [
+              0
+            ],
+            "233": [
+              1
+            ]
+          }
+        },
+        {
+          "count": 120,
+          "offset": 0,
+          "matching_action_ground": 120,
+          "action_frame_deltas": {
+            "42": [
+              1
+            ],
+            "60": [
+              0
+            ],
+            "64": [
+              0
+            ],
+            "178": [
+              0
+            ],
+            "233": [
+              0
+            ]
+          }
+        },
+        {
+          "count": 120,
+          "offset": 1,
+          "matching_action_ground": 114,
+          "action_frame_deltas": {
+            "42": [
+              0
+            ],
+            "60": [
+              -1,
+              0
+            ],
+            "64": [
+              -1,
+              0
+            ],
+            "178": [
+              0
+            ],
+            "233": [
+              -1
+            ]
+          }
+        },
+        {
+          "count": 120,
+          "offset": 2,
+          "matching_action_ground": 109,
+          "action_frame_deltas": {
+            "42": [
+              -1
+            ],
+            "60": [
+              -2,
+              -1,
+              0
+            ],
+            "64": [
+              -1,
+              0
+            ],
+            "233": [
+              -2
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

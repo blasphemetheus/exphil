@@ -1,0 +1,7 @@
+{
+  "comment": "Standing Fox starts selected from ep38 before teacher evaluation; require zero prefix drift and validate recorded teacher timing.",
+  "entries": [
+    {"slp": "eval_runs/0912_g26_phase/stand_guard/ep38/r1.slp", "frame": 2228, "type": "multishine_reentry", "note": "Neutral start: grounded standing action 14"},
+    {"slp": "eval_runs/0912_g26_phase/stand_guard/ep38/r1.slp", "frame": 2566, "type": "multishine_reentry", "note": "Second grounded standing action 14 start"}
+  ]
+}

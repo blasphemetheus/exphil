@@ -1,0 +1,23 @@
+{
+  "source": "eval_runs/0913_context_recovery/teacher/eval_candidate.json",
+  "runs": [
+    {
+      "handoff": 502,
+      "max_chain": 40,
+      "completed_cycles": 39,
+      "deaths": 0
+    },
+    {
+      "handoff": 1389,
+      "max_chain": 37,
+      "completed_cycles": 36,
+      "deaths": 0
+    },
+    {
+      "handoff": 3152,
+      "max_chain": 38,
+      "completed_cycles": 37,
+      "deaths": 0
+    }
+  ]
+}

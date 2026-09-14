@@ -1,0 +1,13 @@
+{
+  "contract": {
+    "recurrent_state": "zeros",
+    "execution_contract": "windowed_gru_f32_v1",
+    "training_precision": "f32",
+    "inference_precision": "f32"
+  },
+  "reload_max_difference": 0.0,
+  "train_mode_max_difference": 0.0,
+  "batch1_vs64_max_difference": 7.800459861755371e-4,
+  "sequential_head_argmax_matches": true,
+  "optimization_steps": 0
+}

@@ -391,7 +391,7 @@ defmodule ExPhil.Constants do
   """
   @spec normalize_frame(number()) :: float()
   def normalize_frame(frame) when is_number(frame) do
-    min(frame / max_game_frames(), 1.0)
+    max(0.0, min(frame / max_game_frames(), 1.0))
   end
 
   @doc """

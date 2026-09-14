@@ -1,0 +1,11 @@
+policy=checkpoints/ms_g23a_ep57.bin runner=sync runs=1 seconds=60 dummy=stand server=0 decode=--temperature 1.0 loadavg=2.42 1.83 1.65
+=== run 1/1 start 15:17:41 loadavg=2.38
+  r1   Final stats: 3600 frames, 3600 inferences (sync), 3604 game frames elapsed, skipped 4 (0.1%)
+  r1 [20:18:13]   Game end: replay finalized
+=== offline fixture agreement
+  [15:18:25] FIXTURE_AGREEMENT best=0.8854 offset=2 delay_id=0 n=1678
+=== scoring
+[15:18:26] replay                    frames  shines  self  hit-ind  self/min  maxchain
+[15:18:26] r1                         15316      18     7       11       1.6         1
+=== calibration (r1)
+=== done. Protocol: report mean AND range; <2x differences are unresolved (EXPOSURE_BIAS.md 0a/0b).

@@ -16,7 +16,7 @@
 require Logger
 Logger.configure(level: :warning)
 
-alias ExPhil.Training.{ConversionSampling, Data, Imitation, MemoryLedger, Output, ProbeRegularizer}
+alias ExPhil.Training.{ConversionSampling, Data, EpochLoss, Imitation, MemoryLedger, Output, ProbeRegularizer}
 ExPhil.Training.Inhibitor.hold("dagger drill")
 alias ExPhil.Data.Peppi
 alias ExPhil.Embeddings
@@ -49,9 +49,12 @@ alias ExPhil.Embeddings
       nan_forensics: :boolean,
       collapse_forensics: :boolean,
       init_from: :string,
+      initial_out: :string,
       replay_scene: :string,
       snapshot_all: :boolean,
       mixed_precision: :boolean,
+      precision: :string,
+      recurrent_state: :string,
       window: :integer,
       transition_weight: :float,
       conversion_weight: :float,
@@ -68,6 +71,10 @@ alias ExPhil.Embeddings
       probe_every: :integer,
       probe_entries: :string,
       snippet_frames: :string,
+      recorded_frames: :string,
+      recorded_prefix_weight: :integer,
+      recorded_prefix_frames: :integer,
+      off_loop_labels: :string,
       allow_snippet_delay_mismatch: :boolean,
       y_augment: :float,
       y_augment_offset: :float,
@@ -221,6 +228,18 @@ bb_defaults = ExPhil.Training.Config.backbone_defaults(backbone) || []
 # the old `|| 16` never fired for any known backbone yet had the whole team
 # believing "window 16" for a week (2026-07-13 discovery).
 window = opts[:window] || bb_defaults[:window_size] || 60
+recurrent_state = case opts[:recurrent_state] do
+  nil -> if(backbone == :gru, do: :zeros, else: :legacy_random)
+  "zeros" -> :zeros
+  "legacy-random" -> :legacy_random
+  other -> raise ArgumentError, "unsupported --recurrent-state #{inspect(other)}"
+end
+compute_precision = case opts[:precision] do
+  nil -> if(recurrent_state == :zeros, do: :f32, else: :bf16)
+  "f32" -> :f32
+  "bf16" -> :bf16
+  other -> raise ArgumentError, "unsupported --precision #{inspect(other)}"
+end
 
 rollout_paths =
   (opts[:rollouts] || "")
@@ -410,6 +429,19 @@ player_registry =
 # Expert table from ALL fixture recordings combined (BC replays excluded)
 expert = expert_mod.from_frames(fixture_frames, player_port: port)
 
+# --off-loop-labels drop|hold (INVARIANTS 14 + RECOVERY_LABEL_CONFIRMATION 09-13):
+# at a shift k > 0 the expert can only project states ON its loop. `drop`
+# (default) omits off-loop frames at k > 0 — delayed recovery supervision
+# must come from --recorded-frames (the teacher's recorded future). `hold`
+# is the g26 legacy rule (the recovery input held at every k), measured
+# wrong 18/21 at shift 4; kept for equal-budget A/B only.
+off_loop_labels = String.to_atom(opts[:off_loop_labels] || "drop")
+
+unless off_loop_labels in [:drop, :hold],
+  do: raise("--off-loop-labels must be drop or hold, got #{inspect(opts[:off_loop_labels])}")
+
+label_opts = [expert: expert, player_port: port, off_loop: off_loop_labels]
+
 opp_port = if port == 1, do: 2, else: 1
 
 relabel = fn frames, recorded ->
@@ -553,6 +585,35 @@ rollout_frame_lists =
 # shard -> discard. Nothing accumulates, so peak RAM is O(largest file).
 # Weights and probe labels are baked per shard here, which is why the
 # eager sampling_weights / probe_frame_labels blocks below are skipped.
+recorded_paths =
+  (opts[:recorded_frames] || "")
+  |> String.split(",", trim: true)
+  |> Enum.flat_map(&Path.wildcard(Path.expand(&1)))
+
+if opts[:recorded_frames] && recorded_paths == [],
+  do: raise("--recorded-frames matched no files")
+
+recorded_prefix_frames = opts[:recorded_prefix_frames] || (window + (opts[:queue_depth] || 1) - 1)
+if opts[:recorded_prefix_frames] && !opts[:recorded_prefix_weight],
+  do: raise("--recorded-prefix-frames requires --recorded-prefix-weight")
+if opts[:recorded_prefix_weight] && (streaming || recorded_paths == []),
+  do: raise("--recorded-prefix-weight requires eager --recorded-frames")
+
+recorded_frame_lists = Enum.flat_map(recorded_paths, fn path ->
+  lists = ExPhil.Training.RecordedFrames.load!(path)
+  if opts[:recorded_prefix_weight],
+    do: ExPhil.Training.RecordedPrefixSampling.mark(lists, path),
+    else: lists
+end)
+
+if recorded_paths != [] do
+  Output.puts("Recorded inputs: #{length(recorded_frame_lists)} lists, " <>
+    "#{Enum.sum(Enum.map(recorded_frame_lists, &length/1))} unshifted causal frames")
+end
+
+if streaming && recorded_paths != [],
+  do: raise("--recorded-frames currently requires eager training; refusing to omit data")
+
 {shard_manifest, shard_dir} =
   if streaming do
     dir = opts[:stream_shard_dir] || "#{out_path}.shards"
@@ -565,14 +626,14 @@ rollout_frame_lists =
 
     process_fn = fn
       {:fixture, list} ->
-        ExPhil.Training.Labels.at_delay(list, action_delay, expert: expert, player_port: port)
+        ExPhil.Training.Labels.at_delay(list, action_delay, label_opts)
 
       {:bc, p} ->
         fr = load_frames.(p, true)
-        if length(fr) >= bc_min_frames, do: ExPhil.Training.Labels.at_delay(fr, action_delay, expert: expert, player_port: port), else: []
+        if length(fr) >= bc_min_frames, do: ExPhil.Training.Labels.at_delay(fr, action_delay, label_opts), else: []
 
       {:rollout, p} ->
-        p |> process_rollout.() |> ExPhil.Training.Labels.at_delay(action_delay, expert: expert, player_port: port)
+        p |> process_rollout.() |> ExPhil.Training.Labels.at_delay(action_delay, label_opts)
     end
 
     spec_key = fn
@@ -685,7 +746,8 @@ if snippet_frame_lists != [] do
 end
 
 all_frame_lists =
-  fixture_frame_lists ++ bc_frame_lists ++ rollout_frame_lists ++ snippet_frame_lists
+  fixture_frame_lists ++ bc_frame_lists ++ rollout_frame_lists ++ snippet_frame_lists ++
+    recorded_frame_lists
 
 # F3 distill-anchor provenance (per-LIST): anchor only clean-cycle data —
 # fixture + rollout true; bc (human) + snippet false. Lists appended by
@@ -696,7 +758,8 @@ distill_base_flags =
   List.duplicate(true, length(fixture_frame_lists)) ++
     List.duplicate(false, length(bc_frame_lists)) ++
     List.duplicate(true, length(rollout_frame_lists)) ++
-    List.duplicate(false, length(snippet_frame_lists))
+    List.duplicate(false, length(snippet_frame_lists)) ++
+    List.duplicate(false, length(recorded_frame_lists))
 
 # --opening-replays GLOB (2026-07-31): the farm-11 lesson ported to drills.
 # Harvest real openings (spawn -> first cycle entry) from prior live replays
@@ -1233,7 +1296,7 @@ shifted_frame_lists =
 
     length(delays) == 1 and not (opts[:with_delay_id] || false) and
       pipeline_offset == 0 and shift_jitter == 0 ->
-      Enum.map(all_frame_lists, &ExPhil.Training.Labels.at_delay(&1, action_delay, expert: expert, player_port: port))
+      Enum.map(all_frame_lists, &ExPhil.Training.Labels.at_delay(&1, action_delay, label_opts))
 
     true ->
       lists =
@@ -1242,7 +1305,7 @@ shifted_frame_lists =
 
           shifted =
             list
-            |> ExPhil.Training.Labels.at_delay(shift, expert: expert, player_port: port)
+            |> ExPhil.Training.Labels.at_delay(shift, label_opts)
             |> Enum.map(&Map.put(&1, :delay_id, d))
 
           {shifted, d, shift, j}
@@ -1424,8 +1487,16 @@ margin_weights =
     end
   end
 
+recorded_prefix_weights =
+  if weight = opts[:recorded_prefix_weight] do
+    {weights, stats} = ExPhil.Training.RecordedPrefixSampling.frame_weights(
+      shifted_frame_lists, weight, recorded_prefix_frames)
+    Output.puts("Recorded prefix sampling: #{inspect(stats)}")
+    weights
+  end
+
 sampling_weights =
-  [conversion_weights, opener_weights, margin_weights]
+  [conversion_weights, opener_weights, margin_weights, recorded_prefix_weights]
   |> Enum.reject(&is_nil/1)
   |> case do
     [] -> nil
@@ -1486,8 +1557,8 @@ dataset =
   if streaming do
     nil
   else
-    shifted_frames
-    |> Data.from_frames(player_registry: player_registry)
+    shifted_frame_lists
+    |> Data.from_frame_lists(player_registry: player_registry)
     |> then(fn ds ->
       # Queue-as-input: bake queue_depth/with_delay_id into the dataset's
       # embed config — it flows into the export and the live agent reads
@@ -1589,8 +1660,7 @@ Output.puts(
         fm = :erlang.list_to_tuple(distill_frame_mask)
         n = tuple_size(fm)
 
-        Enum.map(0..(num_seq - 1), fn k ->
-          idx = k + window - 1
+        Enum.map(Data.sequence_target_indices(dataset, window), fn idx ->
           idx < n and elem(fm, idx)
         end)
       else
@@ -1657,9 +1727,16 @@ probe_reg_every = opts[:probe_reg_every] || 5
 # (400 left LR too high too long: a 90k-frame pool still NaN'd at epoch 168);
 # healthy runs hit the loss bar or plateau well before the floor.
 steps_per_epoch =
-  if streaming,
+  if recorded_prefix_weights do
+    weights = List.to_tuple(sampling_weights)
+    draws = Data.sequence_target_indices(dataset, window)
+      |> Enum.reduce(0.0, fn index, total -> total + elem(weights, index) end)
+    ceil(draws / 64)
+  else
+    if streaming,
     do: div(shard_manifest["total_sequences"], 64) + 1,
     else: div(dataset.size, 64) + 1
+  end
 
 # One batch source for both the preflight and the training loop. Streaming
 # yields batches from the shards (shuffled shard order per epoch, groups of
@@ -1719,13 +1796,9 @@ trainer =
     state_size: bb_defaults[:state_size] || 16,
     expand_factor: bb_defaults[:expand_factor] || 2,
     conv_size: bb_defaults[:conv_size] || 4,
-    # DELIBERATE divergences from bb_defaults (which also carry
-    # precision: :f32 and dropout: 0.1 for recurrent backbones):
-    #   precision — stays bf16 for speed; the NaN instability that
-    #     motivated bb_defaults' f32 is fixed at the loss boundary
-    #     (Policy.Loss.imitation_loss casts to f32, 2026-07-14).
-    #   dropout 0.0 — drills WANT memorization of the expert table.
     learning_rate: learning_rate,
+    recurrent_state: recurrent_state,
+    precision: compute_precision,
     lr_schedule: :cosine,
     warmup_steps: steps_per_epoch,
     decay_steps: steps_per_epoch * 200,
@@ -1955,6 +2028,7 @@ if opts[:preflight] do
   Output.puts("preflight: JIT compiling one train step (may take minutes)...")
   {tr_pf, pf_metrics} = Imitation.train_step(trainer, first_batch, loss_fn)
   Output.puts("preflight: train step OK (loss=#{inspect(Nx.to_number(pf_metrics.loss))})")
+  :ok = ExPhil.Training.EpochHealth.validate(Nx.to_number(pf_metrics.loss), tr_pf.policy_params)
 
   tr_pf =
     if probe_reg > 0 do
@@ -2010,7 +2084,23 @@ end
 # before a flag existed (e.g. tonight's mamba_full) still resume.
 run_fingerprint =
   {opts[:rollouts], opts[:expert], backbone, opts[:prev_action_dropout],
-   opts[:transition_weight], max_epochs}
+   opts[:transition_weight], max_epochs, {:execution, :v1, recurrent_state, compute_precision}}
+  |> then(fn base ->
+    sources = Enum.map(recorded_paths, &{&1, :crypto.hash(:sha256, File.read!(&1))})
+    :erlang.append_element(base, {:epoch_guard, :numerical_v1, :recorded_sources, sources,
+                                 :temporal_history, :clip_reset_repeat_first_v1,
+                                 :epoch_metric, :denominator_weighted_v1})
+  end)
+  |> then(fn base ->
+    if off_loop_labels == :hold,
+      do: :erlang.append_element(base, {:off_loop_labels, :hold_legacy}),
+      else: :erlang.append_element(base, {:off_loop_labels, :drop_v1})
+  end)
+  |> then(fn base ->
+    if weight = opts[:recorded_prefix_weight],
+      do: :erlang.append_element(base, {:recorded_prefix_sampling, :v1, weight, recorded_prefix_frames}),
+      else: base
+  end)
   |> then(fn base ->
     if cw = opts[:conversion_weight],
       do: :erlang.append_element(base, {:conversion_weight, cw}),
@@ -2072,6 +2162,12 @@ trainer =
       if opts[:resume], do: raise("--init-from and --resume are mutually exclusive")
       {:ok, export} = ExPhil.Training.Checkpoint.load_policy(ckpt)
 
+      source_contract = ExPhil.Networks.Policy.ExecutionContract.load(export.config)
+      target_contract = ExPhil.Networks.Policy.ExecutionContract.training(trainer.config)
+      if source_contract.recurrent_state != target_contract.recurrent_state or
+           source_contract.training_precision not in [:unknown, target_contract.training_precision],
+        do: raise("--init-from execution contract mismatch; use a matching initialization")
+
       # The export stores the bare params tree; the trainer carries an
       # Axon.ModelState. Graft the loaded tree into the existing state so
       # downstream .data accesses (numeric_stats, train_step) keep working.
@@ -2084,6 +2180,11 @@ trainer =
       Output.success("Warm-started policy params from #{ckpt} (fresh optimizer)")
       %{trainer | policy_params: new_ps}
   end
+
+if path = opts[:initial_out] do
+  if File.exists?(path), do: raise("initial checkpoint already exists: #{path}")
+  :ok = Imitation.export_policy(trainer, path)
+end
 
 # --nan-forensics: per-batch loss finiteness checks plus a trail of numeric
 # vitals (param max/norm, adam mu/nu extremes, nu zero-fraction) sampled
@@ -2276,12 +2377,12 @@ end
           %{tr | config: Map.put(tr.config, :ss_p_current, p)}
       end
 
-    {tr, epoch_loss} =
+    {tr, epoch_metrics} =
       batches_for.(epoch)
       |> then(fn batches ->
         if nan_forensics or collapse_forensics do
           batches
-          |> Enum.reduce_while({tr, nil, []}, fn batch, {tr_acc, _, trail} ->
+          |> Enum.reduce_while({tr, EpochLoss.new(), []}, fn batch, {tr_acc, aggregate, trail} ->
             {tr_next, metrics} = Imitation.train_step(tr_acc, batch, loss_fn)
             loss_num = Nx.to_number(metrics.loss)
             step = tr_next.step
@@ -2381,7 +2482,8 @@ end
             end
 
             if is_number(loss_num) do
-              {:cont, {tr_next, metrics.loss, trail}}
+              aggregate = EpochLoss.add(aggregate, loss_num, batch, tr_acc.config[:policy_type] || :autoregressive)
+              {:cont, {tr_next, aggregate, trail}}
             else
               Output.error(
                 "FORENSICS: first non-finite loss (#{inspect(loss_num)}) " <>
@@ -2398,16 +2500,22 @@ end
               System.halt(2)
             end
           end)
-          |> then(fn {tr2, l, _} -> {tr2, l} end)
+          |> then(fn {tr_next, aggregate, _trail} -> {tr_next, aggregate} end)
         else
-          Enum.reduce(batches, {tr, nil}, fn batch, {tr_acc, _} ->
+          Enum.reduce(batches, {tr, EpochLoss.new()}, fn batch, {tr_acc, aggregate} ->
             {tr_next, metrics} = Imitation.train_step(tr_acc, batch, loss_fn)
-            {tr_next, metrics.loss}
+            {tr_next, EpochLoss.add(aggregate, metrics.loss, batch, tr_acc.config[:policy_type] || :autoregressive)}
           end)
         end
       end)
 
-    loss = Nx.to_number(epoch_loss)
+    loss = EpochLoss.mean(epoch_metrics)
+
+    loss =
+      case ExPhil.Training.EpochHealth.validate(loss, tr.policy_params) do
+        :ok -> loss
+        {:error, reason} -> {:invalid_epoch, reason, loss}
+      end
 
     # Per-epoch heartbeat (2026-07-22): previously only rem(epoch,5)==0
     # logged, so the drill went SILENT for 4 of every 5 epochs. With
@@ -2419,7 +2527,9 @@ end
     rss = MemoryLedger.process_memory().rss_bytes
 
     Output.puts(
-      "epoch #{epoch}/#{max_epochs}: loss=#{inspect(loss)} rss=#{MemoryLedger.format_bytes(rss)}"
+      "epoch #{epoch}/#{max_epochs}: loss=#{inspect(loss)} " <>
+        "metric=denominator_weighted_v1 batches=#{epoch_metrics.batches} " <>
+        "mass=#{epoch_metrics.mass} rss=#{MemoryLedger.format_bytes(rss)}"
     )
 
     # Probe-as-regularizer refit (r15): re-derive the shield-lock direction
@@ -2433,6 +2543,16 @@ end
         tr2
       else
         tr
+      end
+
+    loss =
+      if probe_reg > 0 and is_number(loss) do
+        case ExPhil.Training.EpochHealth.validate(loss, tr.policy_params) do
+          :ok -> loss
+          {:error, reason} -> {:invalid_epoch, reason, loss}
+        end
+      else
+        loss
       end
 
     # Mid-training publish: a play-able snapshot every 10 epochs, so the
@@ -2451,7 +2571,7 @@ end
     # correlates with behavior late in training (0820_collapse_forensics)
     # — checkpoint selection must happen by POST-RUN behavioral gating
     # over these snapshots, not by loss. ~3.8MB each.
-    if opts[:snapshot_all] and is_number(loss) do
+    if opts[:snapshot_all] == true and is_number(loss) do
       snap = Path.rootname(out_path) <> "_ep#{epoch}.bin"
 
       case Imitation.export_policy(tr, snap) do
@@ -2496,30 +2616,17 @@ end
         basin_probe.(epoch, loss, tr.policy_params)
       end
 
-    # Collapse guard (2026-08-19, GOTCHA #99): two runs in one night
-    # reported a ONE-EPOCH loss drop to ~1e-6..1e-8 (g15r2 ep51, g18
-    # ep10) — a degenerate state, not convergence. Because export picks
-    # the BEST-loss epoch, the collapse epoch won the export both times
-    # (gated 12.0 and 0.0 self/min vs 362.5 for the pre-collapse save).
-    # No genuine drill loss has ever reached 1e-5, and organic descent
-    # at these lrs never drops >100x below the running best in one
-    # epoch. Treat such epochs exactly like NaN: never best, never
-    # convergence, restore best params and continue.
-    collapse_suspect? =
-      is_number(loss) and
-        (loss < 1.0e-5 or (match?({_, _}, best) and loss < elem(best, 1) / 100))
-
     best =
       case best do
-        nil -> if is_number(loss) and not collapse_suspect?, do: {tr, loss}, else: nil
+        nil -> if is_number(loss), do: {tr, loss}, else: nil
         {_, best_loss} ->
-          if is_number(loss) and not collapse_suspect? and loss < best_loss,
+          if is_number(loss) and loss < best_loss,
             do: {tr, loss},
             else: best
       end
 
     history =
-      if is_number(loss) and not collapse_suspect?,
+      if is_number(loss),
         do: Enum.take([loss | history], 100),
         else: history
 
@@ -2532,7 +2639,7 @@ end
         {best_tr, best_loss} = best
 
         Output.warning(
-          "NaN at epoch #{epoch} — restored best params " <>
+          "Invalid numerical epoch #{epoch}: #{inspect(loss)} — restored best params " <>
             "(loss=#{Float.round(best_loss * 1.0, 5)}), continuing " <>
             "(restore #{restores + 1}/5)"
         )
@@ -2540,23 +2647,6 @@ end
         {:cont, {best_tr, best_loss, epoch, history, best, restores + 1}}
 
       not is_number(loss) -> {:halt, {tr, loss, epoch, history, best, restores}}
-
-      collapse_suspect? and best != nil and restores < 5 ->
-        {best_tr, best_loss} = best
-
-        Output.warning(
-          "COLLAPSE-SUSPECT loss=#{inspect(loss)} at epoch #{epoch} (<1e-5 or >100x " <>
-            "one-epoch drop) — restored best params (loss=#{Float.round(best_loss * 1.0, 5)}), " <>
-            "continuing (restore #{restores + 1}/5)"
-        )
-
-        {:cont, {best_tr, best_loss, epoch, history, best, restores + 1}}
-
-      collapse_suspect? ->
-        # No best to restore (collapse on epoch 1) or restores exhausted:
-        # halt as diverged so the export path falls back to best-epoch and
-        # the degenerate loss can never print as "Converged".
-        {:halt, {tr, {:collapsed, loss}, epoch, history, best, restores}}
 
       reject_at != nil and epoch >= reject_at and is_map(basin_results) and
           basin_reject_check.(basin_results) ->
@@ -2600,7 +2690,7 @@ case {is_number(final_loss), best} do
     )
 
   {true, {_best_tr, best_loss}} ->
-    Output.puts("Converged: loss=#{Float.round(best_loss * 1.0, 5)} after #{epochs_used} epochs")
+    Output.puts("Training finished: best aggregate loss=#{inspect(best_loss)} after #{epochs_used} epochs")
 end
 
 {best_trainer, _best_loss} = best

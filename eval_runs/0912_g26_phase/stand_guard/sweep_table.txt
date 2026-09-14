@@ -1,0 +1,3 @@
+ep33: 66.8/min chain 4
+ep38: 56.8/min chain 1
+=== ARGMAX: checkpoints/ms_g26a_ep33.bin at 66.8/min

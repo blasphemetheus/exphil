@@ -86,7 +86,7 @@ defmodule ExPhil.Embeddings.Player do
   @type nana_mode :: :full | :compact | :enhanced
   @type action_mode :: :one_hot | :learned
   @type character_mode :: :one_hot | :learned
-  @type af_convention :: :parsed | :live
+  @type af_convention :: :parsed | :live | :libmelee
 
   @type config :: %__MODULE__{
           xy_scale: float(),
@@ -886,13 +886,13 @@ defmodule ExPhil.Embeddings.Player do
 
   def embed_frame_info(%PlayerState{} = player, config) do
     # Hitstun frames: normalize by max hitstun (120 frames)
-    hitstun = min((player.hitstun_frames_left || 0) / Constants.max_hitstun_frames(), 1.0)
+    hitstun = max(0.0, min((player.hitstun_frames_left || 0) / Constants.max_hitstun_frames(), 1.0))
     # Action frame: normalize by standard animation length, allow overflow
     action_frame =
-      min(
+      max(0.0, min(
         action_frame_in_parsed_space(player, config) / Constants.standard_action_frames(),
         2.0
-      )
+      ))
 
     Nx.tensor([hitstun, action_frame], type: :f32)
   end
@@ -915,6 +915,7 @@ defmodule ExPhil.Embeddings.Player do
     af = player.action_frame || 0
 
     case config.af_convention do
+      :libmelee -> ActionFrameConvention.libmelee_to_parsed(player.character, player.action, af)
       :live -> ActionFrameConvention.live_to_parsed(player.action && trunc(player.action), af)
       _ -> af
     end

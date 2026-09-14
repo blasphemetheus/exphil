@@ -38,6 +38,11 @@
 #   --run-dir PATH       Base dir for per-run replay dirs (default logs/scenario_runs/<ts>)
 #   --press-threshold F / --release-threshold F   Button hysteresis (probe recipe: 0.45/0.3)
 #   --quiet / --verbose
+#   --audit-teacher-labels Compare k-ahead labels with actual future teacher inputs
+#   --no-orphan-sweep     Disable global cleanup; stop only this run's bridge
+#   --prefix-history applied|committed|cold  Policy history convention (default applied)
+#   --trace-policy-inputs Save issued/sent commands and observed action frames
+#   --no-verify-input-timing Diagnostic only: disable recorded-input timing gate
 #
 # Probe-recipe example (r10, two types, deterministic):
 #   EXLA_MEMORY_FRACTION=0.15 devenv shell -- bash -c \
@@ -198,6 +203,7 @@ defmodule ScenarioSuite do
       # frame-indexed and blocking-paced, timing-exact at any speed —
       # unlike policy-driven probes, which need real-time (see bridge).
       emulation_speed: 0.0,
+      console_timeout: opts[:console_timeout],
       replay_dir: run_dir,
       slippi_port: opts[:slippi_port] + seq
     }
@@ -218,6 +224,21 @@ defmodule ScenarioSuite do
     end
 
     if Process.alive?(bridge), do: GenServer.stop(bridge, :normal, 5_000)
+
+    result =
+      if opts[:verify_input_timing] and opts[:driver] == :policy and is_nil(result[:error]) do
+        timing = ExPhil.Eval.ScenarioInputTiming.verify_directory(
+          run_dir, result[:policy_inputs] || [], opts[:response_delay]
+        )
+
+        result = result |> Map.put(:input_timing, timing) |> Map.put(:timing_valid, timing.valid)
+        if timing.valid,
+          do: result,
+          else: result |> Map.put(:unvalidated_score, result[:score])
+            |> Map.put(:score, nil) |> Map.put(:pass, false)
+      else
+        result
+      end
 
     wall_s = (System.monotonic_time(:millisecond) - t0) / 1000
 
@@ -272,6 +293,13 @@ defmodule ScenarioSuite do
       driver: opts[:driver] || :policy,
       expert: opts[:expert],
       prev_controller: nil,
+      audit_teacher_labels: opts[:audit_teacher_labels] || false,
+      teacher_samples: [],
+      prefix_history: opts[:prefix_history] || "applied",
+      response_opponent: opts[:response_opponent] || "replay",
+      trace_policy_inputs: opts[:trace_policy_inputs] ||
+        (opts[:verify_input_timing] and opts[:driver] == :policy),
+      policy_inputs: [],
       # --response-delay: decisions in flight (oldest first)
       pending: [],
       response_delay: opts[:response_delay] || 0,
@@ -343,6 +371,7 @@ defmodule ScenarioSuite do
     st = track_drift(st, gs, f)
 
     if f >= st.handoff do
+      st = ExPhil.Eval.ScenarioHistory.prepare_handoff(st)
       # Handoff: verify the live game still matches the source replay.
       drift = drift_check(gs, st.ref[f], st.tolerance)
       snapshot = snapshot(gs)
@@ -381,7 +410,19 @@ defmodule ScenarioSuite do
     end
   end
 
+  defp observe_prefix(_gs, %{driver: :policy, prefix_history: "cold"} = st, _controller),
+    do: st
+
   defp observe_prefix(gs, %{driver: :policy, agent: agent} = st, controller) when agent != nil do
+    controller =
+      if st.prefix_history == "committed" do
+        st.inputs
+        |> ExPhil.Eval.ScenarioHistory.committed_input(gs.frame, st.offset, st.response_delay)
+        |> ExPhil.Bridge.ControllerState.from_input()
+      else
+        controller
+      end
+
     case Agent.observe(agent, gs, controller, player_port: 1) do
       :ok -> %{st | prev_controller: controller}
       {:error, reason} ->
@@ -451,7 +492,23 @@ defmodule ScenarioSuite do
                   end
 
                 MeleePort.send_controller(bridge, to_send)
-                %{st | prev_controller: controller, pending: pending}
+                trace =
+                  if st.trace_policy_inputs do
+                    [
+                      %{
+                        frame: f,
+                        issued: controller_to_input(controller),
+                        sent: to_send,
+                        action: gs.players[1].action,
+                        action_frame: gs.players[1].action_frame,
+                        on_ground: gs.players[1].on_ground
+                      } | st.policy_inputs
+                    ]
+                  else
+                    st.policy_inputs
+                  end
+
+                %{st | prev_controller: controller, pending: pending, policy_inputs: trace}
 
               {:error, reason} ->
                 Logger.warning("[scenario] agent error at f=#{f}: #{inspect(reason)}")
@@ -472,13 +529,24 @@ defmodule ScenarioSuite do
                   nil
 
                 p ->
-                  %{p | action_frame: ExPhil.Data.ActionFrameConvention.live_to_parsed(p.action && trunc(p.action), p.action_frame)}
+                  %{p | action_frame: ExPhil.Data.ActionFrameConvention.libmelee_to_parsed(p.character, p.action, p.action_frame)}
               end
 
             case p1 && ExPhil.Agents.MultishineExpert.label(st.expert, p1, st.prev_controller) do
               {:ok, controller} ->
                 MeleePort.send_controller(bridge, controller_to_input(controller))
-                %{st | prev_controller: controller}
+                samples =
+                  if st.audit_teacher_labels do
+                    [
+                      ExPhil.Eval.RecoveryLabelAudit.sample(
+                        st.expert, p1, st.prev_controller, controller, f
+                      ) | st.teacher_samples
+                    ]
+                  else
+                    st.teacher_samples
+                  end
+
+                %{st | prev_controller: controller, teacher_samples: samples}
 
               _ ->
                 MeleePort.send_controller(bridge, @neutral)
@@ -490,13 +558,8 @@ defmodule ScenarioSuite do
             st
         end
 
-      # Port 2: keeps replaying the source game's inputs (deterministic,
-      # non-reactive); neutral once the recording runs out.
       p2 =
-        case st.inputs[f + st.offset] do
-          {_p1, p2} -> p2
-          nil -> @neutral
-        end
+        ExPhil.Eval.ScenarioOpponent.input(st.response_opponent, st.inputs[f + st.offset], @neutral)
 
       MeleePort.send_controller(bridge, Map.put(p2, :port, 2))
 
@@ -547,6 +610,22 @@ defmodule ScenarioSuite do
       first_drift: st.first_drift,
       drift_trace: Enum.reverse(st.drift_trace)
     }
+    |> then(fn result ->
+      if st.trace_policy_inputs,
+        do: Map.put(result, :policy_inputs, Enum.reverse(st.policy_inputs)),
+        else: result
+    end)
+    |> then(fn result ->
+      if st.audit_teacher_labels do
+        Map.put(
+          result,
+          :teacher_label_audit,
+          ExPhil.Eval.RecoveryLabelAudit.report(Enum.reverse(st.teacher_samples))
+        )
+      else
+        result
+      end
+    end)
   end
 
   defp rle(list, max_runs) do
@@ -669,12 +748,19 @@ end
       window: :integer,
       input_offset: :integer,
       response_delay: :integer,
+      prefix_history: :string,
+      response_opponent: :string,
+      trace_policy_inputs: :boolean,
+      verify_input_timing: :boolean,
       reaction_delay: :integer,
+      console_timeout: :float,
       drift_tolerance: :float,
       dolphin: :string,
       iso: :string,
       windowed: :boolean,
       trace_all: :boolean,
+      audit_teacher_labels: :boolean,
+      orphan_sweep: :boolean,
       slippi_port: :integer,
       out: :string,
       run_dir: :string,
@@ -737,7 +823,16 @@ ts = Calendar.strftime(NaiveDateTime.local_now(), "%Y%m%d_%H%M%S")
       end
   end
 
+unless (opts[:response_opponent] || "replay") in ["replay", "neutral"],
+  do: raise(ArgumentError, "--response-opponent must be replay or neutral")
+
 suite_opts = [
+  response_opponent: opts[:response_opponent] || "replay",
+  verify_input_timing: Keyword.get(opts, :verify_input_timing, true),
+  console_timeout: opts[:console_timeout],
+  trace_policy_inputs: opts[:trace_policy_inputs] || false,
+  prefix_history: opts[:prefix_history] || "applied",
+  audit_teacher_labels: opts[:audit_teacher_labels] || false,
   dolphin: Path.expand(opts[:dolphin] || "~/.local/share/slippi/exi-ai/dolphin-emu-headless"),
   iso: Path.expand(opts[:iso] || "~/isos/melee.iso"),
   windowed: opts[:windowed] || false,
@@ -817,8 +912,20 @@ Output.step(1, 3, "Loading agent + parsing source replays")
 # corrections that actually restore the loop.
 driver = String.to_atom(opts[:driver] || "policy")
 
+unless suite_opts[:prefix_history] in ["applied", "committed", "cold"],
+  do: raise(ArgumentError, "--prefix-history must be applied|committed|cold")
+
 unless driver in [:policy, :teacher, :neutral],
   do: raise(ArgumentError, "--driver must be policy|teacher|neutral (got #{driver})")
+
+if driver == :policy and suite_opts[:verify_input_timing] do
+  Code.ensure_loaded!(Melee.Controller)
+  unless function_exported?(Melee.Controller, :fix_pipe_analog_trigger, 1),
+    do: raise("pipe_v2 verification requires the corrected libmelee_ex Controller; compile or reload it")
+end
+
+if opts[:audit_teacher_labels] && driver != :teacher,
+  do: raise(ArgumentError, "--audit-teacher-labels requires --driver teacher")
 
 agent =
   if driver == :policy do
@@ -838,10 +945,7 @@ agent =
         harness: :scenario_suite,
         harness_knob: suite_opts[:response_delay],
         reaction_delay: reaction_delay,
-        # --live-af: convert the bridge's LIVE action_frame numbering into the
-        # PARSED numbering the checkpoint trained on (GOTCHA #81); the teacher
-        # driver needed the same conversion to chain in this harness.
-        af_convention: if(opts[:live_af], do: :live, else: :parsed)
+        af_convention: ExPhil.Data.ActionFrameConvention.scenario_convention(opts)
       )
 
     case Agent.warmup(agent) do
@@ -861,6 +965,13 @@ expert =
         opts[:fixture] || "test/fixtures/replays/fox_multishine_closed_d1.slp"
       ),
     else: nil
+
+agent_runtime =
+  if agent do
+    agent
+    |> :sys.get_state()
+    |> Map.take([:delay_id, :reaction_delay, :harness, :harness_knob, :af_convention])
+  end
 
 opts = Keyword.merge(opts, driver: driver, expert: expert)
 suite_opts = Keyword.merge(suite_opts, driver: driver, expert: expert, character: opts[:character])
@@ -898,6 +1009,9 @@ results =
       result[:error] ->
         Output.error("   #{result[:error]}")
 
+      result[:timing_valid] == false ->
+        Output.warning("   INPUT TIMING INVALID: score withheld; #{inspect(result[:input_timing])}")
+
       result[:diverged] ->
         Output.warning(
           "   DIVERGED at handoff: #{inspect(Map.drop(result.drift, [:diverged]))} " <>
@@ -918,7 +1032,8 @@ results =
 
 Output.step(3, 3, "Summary")
 
-clean = Enum.filter(results, &(!&1[:error] and !&1[:diverged]))
+clean = Enum.filter(results, &(!&1[:error] and !&1[:diverged] and &1[:timing_valid] != false))
+invalid_timing = Enum.filter(results, &(&1[:timing_valid] == false))
 diverged = Enum.filter(results, & &1[:diverged])
 errored = Enum.filter(results, & &1[:error])
 
@@ -949,11 +1064,24 @@ if diverged != [] do
 end
 
 if errored != [], do: Output.error("#{length(errored)} run(s) errored")
+if invalid_timing != [], do: Output.warning("#{length(invalid_timing)} run(s) failed recorded-input timing validation")
 
 out_path = opts[:out] || "logs/scenario_scores_#{ts}.json"
 File.mkdir_p!(Path.dirname(out_path))
 
 scoreboard = %{
+  response_opponent: suite_opts[:response_opponent],
+  console_timeout: suite_opts[:console_timeout],
+  verify_input_timing: suite_opts[:verify_input_timing],
+  invalid_timing_runs: length(invalid_timing),
+  agent_runtime: agent_runtime,
+  prefix_history: suite_opts[:prefix_history],
+  driver: driver,
+  fixture:
+    if(driver == :teacher,
+      do: opts[:fixture] || "test/fixtures/replays/fox_multishine_closed_d1.slp"
+    ),
+  audit_teacher_labels: opts[:audit_teacher_labels] || false,
   policy: opts[:policy],
   manifest: manifest_path,
   timestamp: ts,
@@ -975,7 +1103,10 @@ if agent, do: GenServer.stop(agent)
 # GOTCHAS #58/#63: sweep any orphaned Dolphin by exact PID. Safe here —
 # the BEAM's own command line does not contain the pattern (the pkill -f
 # self-match trap applies to shells that embed it).
-case System.cmd("pgrep", ["-f", "/tmp/libmelee_"]) do
+case if(Keyword.get(opts, :orphan_sweep, true),
+       do: System.cmd("pgrep", ["-f", "/tmp/libmelee_"]),
+       else: {"", 1}
+     ) do
   {out, 0} ->
     pids = out |> String.split("\n", trim: true)
     Enum.each(pids, fn pid -> System.cmd("kill", [pid]) end)
@@ -984,3 +1115,5 @@ case System.cmd("pgrep", ["-f", "/tmp/libmelee_"]) do
   _ ->
     :ok
 end
+
+if invalid_timing != [], do: System.halt(2)

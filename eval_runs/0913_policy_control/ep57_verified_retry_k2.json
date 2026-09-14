@@ -1,0 +1,6105 @@
+{
+  "deterministic": false,
+  "driver": "policy",
+  "timestamp": "20260913_005728",
+  "manifest": "scenarios/ms_midchain_control.json",
+  "input_offset": 1,
+  "response_delay": 2,
+  "summary": {},
+  "verify_input_timing": true,
+  "policy": "checkpoints/ms_g23a_ep57.bin",
+  "audit_teacher_labels": false,
+  "prefix_history": "applied",
+  "fixture": null,
+  "runs": [
+    {
+      "type": "multishine_reentry",
+      "run": 1,
+      "pass": false,
+      "details": {
+        "cycles": 12,
+        "empty_hops": 0,
+        "ended_by": {
+          "end_of_input": 1
+        },
+        "max_chain": 12,
+        "reentry_frame": 8,
+        "shine_entries": 13
+      },
+      "diverged": false,
+      "window": 120,
+      "frame": 900,
+      "slp": "eval_runs/0910_g23_consistent/confirm_ep57/d3_id2/r1.slp",
+      "replay_dir": "eval_runs/0913_policy_control/ep57_verified_retry_k2/run00_multishine_reentry",
+      "policy_inputs": [
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 365,
+          "frame": 900,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 2,
+          "on_ground": false
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 365,
+          "frame": 901,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 3,
+          "on_ground": false
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 366,
+          "frame": 902,
+          "issued": {
+            "buttons": {
+              "x": true,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 1,
+          "on_ground": false
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 361,
+          "frame": 903,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": false,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 2,
+          "on_ground": true
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": true,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 361,
+          "frame": 904,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": false,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 3,
+          "on_ground": true
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": false,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 361,
+          "frame": 905,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 4,
+          "on_ground": true
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": false,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 24,
+          "frame": 906,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 1,
+          "on_ground": true
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 24,
+          "frame": 907,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 2,
+          "on_ground": true
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 24,
+          "frame": 908,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 3,
+          "on_ground": true
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 365,
+          "frame": 909,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 1,
+          "on_ground": false
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 365,
+          "frame": 910,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 2,
+          "on_ground": false
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 365,
+          "frame": 911,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 3,
+          "on_ground": false
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 366,
+          "frame": 912,
+          "issued": {
+            "buttons": {
+              "x": true,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 1,
+          "on_ground": false
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 361,
+          "frame": 913,
+          "issued": {
+            "buttons": {
+              "x": true,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 2,
+          "on_ground": true
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": true,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 361,
+          "frame": 914,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": false,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 3,
+          "on_ground": true
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": true,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 361,
+          "frame": 915,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 4,
+          "on_ground": true
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": false,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 24,
+          "frame": 916,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 1,
+          "on_ground": true
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 24,
+          "frame": 917,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 2,
+          "on_ground": true
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 24,
+          "frame": 918,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 3,
+          "on_ground": true
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 365,
+          "frame": 919,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 1,
+          "on_ground": false
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 365,
+          "frame": 920,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 2,
+          "on_ground": false
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 365,
+          "frame": 921,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 3,
+          "on_ground": false
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 366,
+          "frame": 922,
+          "issued": {
+            "buttons": {
+              "x": true,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 1,
+          "on_ground": false
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 361,
+          "frame": 923,
+          "issued": {
+            "buttons": {
+              "x": true,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 2,
+          "on_ground": true
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": true,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 361,
+          "frame": 924,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": false,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 3,
+          "on_ground": true
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": true,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 361,
+          "frame": 925,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 4,
+          "on_ground": true
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": false,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 24,
+          "frame": 926,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 1,
+          "on_ground": true
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 24,
+          "frame": 927,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 2,
+          "on_ground": true
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 24,
+          "frame": 928,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 3,
+          "on_ground": true
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 365,
+          "frame": 929,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 1,
+          "on_ground": false
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 365,
+          "frame": 930,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 2,
+          "on_ground": false
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 365,
+          "frame": 931,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 3,
+          "on_ground": false
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 366,
+          "frame": 932,
+          "issued": {
+            "buttons": {
+              "x": true,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 1,
+          "on_ground": false
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 361,
+          "frame": 933,
+          "issued": {
+            "buttons": {
+              "x": true,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 2,
+          "on_ground": true
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": true,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 361,
+          "frame": 934,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": false,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 3,
+          "on_ground": true
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": true,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 361,
+          "frame": 935,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 4,
+          "on_ground": true
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": false,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 24,
+          "frame": 936,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 1,
+          "on_ground": true
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 24,
+          "frame": 937,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 2,
+          "on_ground": true
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 24,
+          "frame": 938,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 3,
+          "on_ground": true
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 365,
+          "frame": 939,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 1,
+          "on_ground": false
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 365,
+          "frame": 940,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 2,
+          "on_ground": false
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 365,
+          "frame": 941,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 3,
+          "on_ground": false
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 366,
+          "frame": 942,
+          "issued": {
+            "buttons": {
+              "x": true,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 1,
+          "on_ground": false
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 361,
+          "frame": 943,
+          "issued": {
+            "buttons": {
+              "x": true,
+              "y": false,
+              "a": false,
+              "b": false,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 2,
+          "on_ground": true
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": true,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 361,
+          "frame": 944,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": false,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 3,
+          "on_ground": true
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": true,
+              "y": false,
+              "a": false,
+              "b": false,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 361,
+          "frame": 945,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 4,
+          "on_ground": true
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": false,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 24,
+          "frame": 946,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 1,
+          "on_ground": true
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 24,
+          "frame": 947,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 2,
+          "on_ground": true
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 24,
+          "frame": 948,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 3,
+          "on_ground": true
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 365,
+          "frame": 949,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 1,
+          "on_ground": false
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 365,
+          "frame": 950,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 2,
+          "on_ground": false
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 365,
+          "frame": 951,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 3,
+          "on_ground": false
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 366,
+          "frame": 952,
+          "issued": {
+            "buttons": {
+              "x": true,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 1,
+          "on_ground": false
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 361,
+          "frame": 953,
+          "issued": {
+            "buttons": {
+              "x": true,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 2,
+          "on_ground": true
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": true,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 361,
+          "frame": 954,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": false,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 3,
+          "on_ground": true
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": true,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 361,
+          "frame": 955,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 4,
+          "on_ground": true
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": false,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 24,
+          "frame": 956,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 1,
+          "on_ground": true
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 24,
+          "frame": 957,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 2,
+          "on_ground": true
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 24,
+          "frame": 958,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 3,
+          "on_ground": true
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 365,
+          "frame": 959,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 1,
+          "on_ground": false
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 365,
+          "frame": 960,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 2,
+          "on_ground": false
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 365,
+          "frame": 961,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 3,
+          "on_ground": false
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 366,
+          "frame": 962,
+          "issued": {
+            "buttons": {
+              "x": true,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 1,
+          "on_ground": false
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 361,
+          "frame": 963,
+          "issued": {
+            "buttons": {
+              "x": true,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 2,
+          "on_ground": true
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": true,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 361,
+          "frame": 964,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": false,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 3,
+          "on_ground": true
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": true,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 361,
+          "frame": 965,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 4,
+          "on_ground": true
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": false,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 24,
+          "frame": 966,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 1,
+          "on_ground": true
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 24,
+          "frame": 967,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 2,
+          "on_ground": true
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 24,
+          "frame": 968,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 3,
+          "on_ground": true
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 365,
+          "frame": 969,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 1,
+          "on_ground": false
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 365,
+          "frame": 970,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 2,
+          "on_ground": false
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 365,
+          "frame": 971,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 3,
+          "on_ground": false
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 366,
+          "frame": 972,
+          "issued": {
+            "buttons": {
+              "x": true,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 1,
+          "on_ground": false
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 361,
+          "frame": 973,
+          "issued": {
+            "buttons": {
+              "x": true,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 2,
+          "on_ground": true
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": true,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 361,
+          "frame": 974,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": false,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 3,
+          "on_ground": true
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": true,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 361,
+          "frame": 975,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 4,
+          "on_ground": true
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": false,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 24,
+          "frame": 976,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 1,
+          "on_ground": true
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 24,
+          "frame": 977,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 2,
+          "on_ground": true
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 24,
+          "frame": 978,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 3,
+          "on_ground": true
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 365,
+          "frame": 979,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 1,
+          "on_ground": false
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 365,
+          "frame": 980,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 2,
+          "on_ground": false
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 365,
+          "frame": 981,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 3,
+          "on_ground": false
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 366,
+          "frame": 982,
+          "issued": {
+            "buttons": {
+              "x": true,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 1,
+          "on_ground": false
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 361,
+          "frame": 983,
+          "issued": {
+            "buttons": {
+              "x": true,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 2,
+          "on_ground": true
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": true,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 361,
+          "frame": 984,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": false,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 3,
+          "on_ground": true
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": true,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 361,
+          "frame": 985,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 4,
+          "on_ground": true
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": false,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 24,
+          "frame": 986,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 1,
+          "on_ground": true
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 24,
+          "frame": 987,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 2,
+          "on_ground": true
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 24,
+          "frame": 988,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 3,
+          "on_ground": true
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 365,
+          "frame": 989,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 1,
+          "on_ground": false
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 365,
+          "frame": 990,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 2,
+          "on_ground": false
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 365,
+          "frame": 991,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 3,
+          "on_ground": false
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 366,
+          "frame": 992,
+          "issued": {
+            "buttons": {
+              "x": true,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 1,
+          "on_ground": false
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 361,
+          "frame": 993,
+          "issued": {
+            "buttons": {
+              "x": true,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 2,
+          "on_ground": true
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": true,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 361,
+          "frame": 994,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": false,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 3,
+          "on_ground": true
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": true,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 361,
+          "frame": 995,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 4,
+          "on_ground": true
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": false,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 24,
+          "frame": 996,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 1,
+          "on_ground": true
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 24,
+          "frame": 997,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 2,
+          "on_ground": true
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 24,
+          "frame": 998,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 3,
+          "on_ground": true
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 365,
+          "frame": 999,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 1,
+          "on_ground": false
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 365,
+          "frame": 1000,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 2,
+          "on_ground": false
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 365,
+          "frame": 1001,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 3,
+          "on_ground": false
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 366,
+          "frame": 1002,
+          "issued": {
+            "buttons": {
+              "x": true,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 1,
+          "on_ground": false
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 361,
+          "frame": 1003,
+          "issued": {
+            "buttons": {
+              "x": true,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 2,
+          "on_ground": true
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": true,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 361,
+          "frame": 1004,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": false,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 3,
+          "on_ground": true
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": true,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 361,
+          "frame": 1005,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 4,
+          "on_ground": true
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": false,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 24,
+          "frame": 1006,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 1,
+          "on_ground": true
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 24,
+          "frame": 1007,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 2,
+          "on_ground": true
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 24,
+          "frame": 1008,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 3,
+          "on_ground": true
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 365,
+          "frame": 1009,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 1,
+          "on_ground": false
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 365,
+          "frame": 1010,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 2,
+          "on_ground": false
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 365,
+          "frame": 1011,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 3,
+          "on_ground": false
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 366,
+          "frame": 1012,
+          "issued": {
+            "buttons": {
+              "x": true,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 1,
+          "on_ground": false
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 361,
+          "frame": 1013,
+          "issued": {
+            "buttons": {
+              "x": true,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 2,
+          "on_ground": true
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": true,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 361,
+          "frame": 1014,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": false,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 3,
+          "on_ground": true
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": true,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 361,
+          "frame": 1015,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 4,
+          "on_ground": true
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": false,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 24,
+          "frame": 1016,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 1,
+          "on_ground": true
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 24,
+          "frame": 1017,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 2,
+          "on_ground": true
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 24,
+          "frame": 1018,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 3,
+          "on_ground": true
+        },
+        {
+          "sent": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action": 365,
+          "frame": 1019,
+          "issued": {
+            "buttons": {
+              "x": false,
+              "y": false,
+              "a": false,
+              "b": true,
+              "r": false,
+              "l": false,
+              "z": false,
+              "d_up": false
+            },
+            "main_stick": {
+              "x": 0.5,
+              "y": 0.0
+            },
+            "c_stick": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "shoulder": 0.0
+          },
+          "action_frame": 1,
+          "on_ground": false
+        }
+      ],
+      "input_timing": {
+        "sent": {
+          "count": 120,
+          "matches": 83
+        },
+        "valid": false,
+        "decisions": {
+          "count": 118,
+          "matches": 81
+        },
+        "expected_send_latency": 1,
+        "expected_decision_latency": 3,
+        "unsent_tail_decisions": 2
+      },
+      "timing_valid": false,
+      "unvalidated_score": 0.96,
+      "score": null,
+      "wall_s": 9.7,
+      "note": "CONTROL: handoff mid-chain in ep57's 438-chain stand game",
+      "drift": {
+        "diverged": false,
+        "p1": {
+          "dy": 0.0,
+          "dx": 0.0,
+          "action_live": 365,
+          "action_ref": 365
+        },
+        "p2": {
+          "dy": 0.0,
+          "dx": 0.0,
+          "action_live": 14,
+          "action_ref": 14
+        }
+      },
+      "truncated": null,
+      "drift_trace": [
+        {
+          "f": -120,
+          "p1_dx": 0.0,
+          "p2_dx": 0.0,
+          "p1_a": [
+            322,
+            322
+          ],
+          "p2_a": [
+            322,
+            322
+          ],
+          "p1_pct": 0.0,
+          "p2_pct": 0.0
+        },
+        {
+          "f": 0,
+          "p1_dx": 0.0,
+          "p2_dx": 0.0,
+          "p1_a": [
+            24,
+            24
+          ],
+          "p2_a": [
+            14,
+            14
+          ],
+          "p1_pct": 0.0,
+          "p2_pct": 0.0
+        },
+        {
+          "f": 120,
+          "p1_dx": 0.0,
+          "p2_dx": 0.0,
+          "p1_a": [
+            24,
+            24
+          ],
+          "p2_a": [
+            14,
+            14
+          ],
+          "p1_pct": 0.0,
+          "p2_pct": 0.0
+        },
+        {
+          "f": 240,
+          "p1_dx": 0.0,
+          "p2_dx": 0.0,
+          "p1_a": [
+            24,
+            24
+          ],
+          "p2_a": [
+            14,
+            14
+          ],
+          "p1_pct": 0.0,
+          "p2_pct": 0.0
+        },
+        {
+          "f": 360,
+          "p1_dx": 0.0,
+          "p2_dx": 0.0,
+          "p1_a": [
+            24,
+            24
+          ],
+          "p2_a": [
+            14,
+            14
+          ],
+          "p1_pct": 0.0,
+          "p2_pct": 0.0
+        },
+        {
+          "f": 480,
+          "p1_dx": 0.0,
+          "p2_dx": 0.0,
+          "p1_a": [
+            24,
+            24
+          ],
+          "p2_a": [
+            14,
+            14
+          ],
+          "p1_pct": 0.0,
+          "p2_pct": 0.0
+        },
+        {
+          "f": 600,
+          "p1_dx": 0.0,
+          "p2_dx": 0.0,
+          "p1_a": [
+            24,
+            24
+          ],
+          "p2_a": [
+            14,
+            14
+          ],
+          "p1_pct": 0.0,
+          "p2_pct": 0.0
+        },
+        {
+          "f": 720,
+          "p1_dx": 0.0,
+          "p2_dx": 0.0,
+          "p1_a": [
+            24,
+            24
+          ],
+          "p2_a": [
+            14,
+            14
+          ],
+          "p1_pct": 0.0,
+          "p2_pct": 0.0
+        },
+        {
+          "f": 840,
+          "p1_dx": 0.0,
+          "p2_dx": 0.0,
+          "p1_a": [
+            24,
+            24
+          ],
+          "p2_a": [
+            14,
+            14
+          ],
+          "p1_pct": 0.0,
+          "p2_pct": 0.0
+        }
+      ],
+      "first_drift": {},
+      "frames_observed": 120,
+      "p1_actions_rle": [
+        [
+          365,
+          1
+        ],
+        [
+          366,
+          1
+        ],
+        [
+          361,
+          3
+        ],
+        [
+          24,
+          3
+        ],
+        [
+          365,
+          3
+        ],
+        [
+          366,
+          1
+        ],
+        [
+          361,
+          3
+        ],
+        [
+          24,
+          3
+        ],
+        [
+          365,
+          3
+        ],
+        [
+          366,
+          1
+        ],
+        [
+          361,
+          3
+        ],
+        [
+          24,
+          3
+        ],
+        [
+          365,
+          3
+        ],
+        [
+          366,
+          1
+        ],
+        [
+          361,
+          3
+        ],
+        [
+          24,
+          3
+        ],
+        [
+          365,
+          3
+        ],
+        [
+          366,
+          1
+        ],
+        [
+          361,
+          3
+        ],
+        [
+          24,
+          3
+        ],
+        [
+          365,
+          3
+        ],
+        [
+          366,
+          1
+        ],
+        [
+          361,
+          3
+        ],
+        [
+          24,
+          3
+        ],
+        [
+          365,
+          3
+        ],
+        [
+          366,
+          1
+        ],
+        [
+          361,
+          3
+        ],
+        [
+          24,
+          3
+        ],
+        [
+          365,
+          3
+        ],
+        [
+          366,
+          1
+        ]
+      ]
+    }
+  ],
+  "temperature": 1.0,
+  "agent_runtime": {
+    "delay_id": 0,
+    "reaction_delay": 2,
+    "harness": "scenario_suite",
+    "harness_knob": 2,
+    "af_convention": "parsed"
+  },
+  "invalid_timing_runs": 1,
+  "diverged_runs": 0,
+  "errored_runs": 0
+}

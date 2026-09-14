@@ -152,7 +152,7 @@ Output.config([
   {"Policy", opts[:policy]},
   {"Dolphin", opts[:dolphin]},
   {"ISO", opts[:iso]},
-  {"af convention", if(opts[:live_af], do: "live -> parsed (GOTCHAS #81)", else: "parsed (no-op)")},
+  {"af convention", if(opts[:live_af], do: "libmelee -> parsed", else: "parsed (no-op)")},
   {"Agent Port", opts[:port]},
   {"Your Port", opts[:opponent_port]},
   {"Character", opts[:character]},
@@ -209,7 +209,7 @@ agent_opts =
     uncertainty_log: opts[:uncertainty_log],
     stateful_step: opts[:stateful_step] || false,
     stateful_resync: opts[:stateful_resync],
-    af_convention: if(opts[:live_af], do: :live, else: :parsed)
+    af_convention: if(opts[:live_af], do: :libmelee, else: :parsed)
   ]
 
 agent =

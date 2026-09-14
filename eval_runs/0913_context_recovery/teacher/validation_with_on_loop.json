@@ -1,0 +1,106 @@
+{
+  "valid": true,
+  "scores": "eval_runs/0913_context_recovery/teacher/eval_candidate.json",
+  "reaction_delay": 2,
+  "runs": [
+    {
+      "valid": true,
+      "initial_state": [
+        365,
+        1,
+        false
+      ],
+      "targets": 358,
+      "replay": "eval_runs/0913_context_recovery/teacher/eval_candidate/run00_multishine_reentry/Game_20260913T194004.slp",
+      "timing": {
+        "profile": "pipe_v2",
+        "sent": {
+          "count": 360,
+          "matches": 360,
+          "mismatches": []
+        },
+        "valid": true,
+        "contiguous": true,
+        "decisions": {
+          "count": 360,
+          "matches": 360,
+          "mismatches": []
+        },
+        "verifier": "recorded_components_v2",
+        "expected_send_latency": 1,
+        "expected_decision_latency": 1,
+        "unsent_tail_decisions": 0
+      },
+      "mismatches": [],
+      "handoff": 502,
+      "replay_sha256": "5da53ff0cc78279efca2d4b3ccdca3de5b1fa331feb40d7b125d95bfc11c8cc1",
+      "off_loop_targets": 0
+    },
+    {
+      "valid": true,
+      "initial_state": [
+        181,
+        0,
+        true
+      ],
+      "targets": 358,
+      "replay": "eval_runs/0913_context_recovery/teacher/eval_candidate/run01_multishine_reentry/Game_20260913T194007.slp",
+      "timing": {
+        "profile": "pipe_v2",
+        "sent": {
+          "count": 360,
+          "matches": 360,
+          "mismatches": []
+        },
+        "valid": true,
+        "contiguous": true,
+        "decisions": {
+          "count": 360,
+          "matches": 360,
+          "mismatches": []
+        },
+        "verifier": "recorded_components_v2",
+        "expected_send_latency": 1,
+        "expected_decision_latency": 1,
+        "unsent_tail_decisions": 0
+      },
+      "mismatches": [],
+      "handoff": 1389,
+      "replay_sha256": "9782043d5ff8df6ef5282ca5df8d567d1214856fd95cd7b18947324f9f6af7ec",
+      "off_loop_targets": 31
+    },
+    {
+      "valid": true,
+      "initial_state": [
+        181,
+        0,
+        true
+      ],
+      "targets": 358,
+      "replay": "eval_runs/0913_context_recovery/teacher/eval_candidate/run02_multishine_reentry/Game_20260913T194012.slp",
+      "timing": {
+        "profile": "pipe_v2",
+        "sent": {
+          "count": 360,
+          "matches": 360,
+          "mismatches": []
+        },
+        "valid": true,
+        "contiguous": true,
+        "decisions": {
+          "count": 360,
+          "matches": 360,
+          "mismatches": []
+        },
+        "verifier": "recorded_components_v2",
+        "expected_send_latency": 1,
+        "expected_decision_latency": 1,
+        "unsent_tail_decisions": 0
+      },
+      "mismatches": [],
+      "handoff": 3152,
+      "replay_sha256": "94b4dd46ad714efe0c32fec03492ce2e4186c38ba495e663809a1924b40fb55a",
+      "off_loop_targets": 23
+    }
+  ]
+}

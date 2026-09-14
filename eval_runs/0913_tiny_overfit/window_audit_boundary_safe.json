@@ -1,0 +1,8 @@
+{
+  "frames": 7785,
+  "sequences": 7785,
+  "crossed_clip_sequences": 0,
+  "off_loop_teacher_targets": 29,
+  "off_loop_with_wrong_clip_context": 0,
+  "examples": []
+}

@@ -1,0 +1,23 @@
+{
+  "comment": "Recovery-label confirmation: fixed G26 ep33 stand replay, selected from parsed off-loop grounded states before examining teacher futures. Compare teacher and policy at identical handoffs; exclude drifted runs.",
+  "entries": [
+    {
+      "slp": "eval_runs/0912_g26_phase/stand_guard/ep33/r1.slp",
+      "frame": 4,
+      "type": "multishine_reentry",
+      "note": "G26 own replay: grounded reflector hold, parsed action 363 frame 11"
+    },
+    {
+      "slp": "eval_runs/0912_g26_phase/stand_guard/ep33/r1.slp",
+      "frame": 75,
+      "type": "multishine_reentry",
+      "note": "G26 own replay: grounded landing, parsed action 42 frame 0"
+    },
+    {
+      "slp": "eval_runs/0912_g26_phase/stand_guard/ep33/r1.slp",
+      "frame": 146,
+      "type": "multishine_reentry",
+      "note": "G26 own replay: second grounded landing, parsed action 42 frame 0"
+    }
+  ]
+}

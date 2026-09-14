@@ -246,6 +246,7 @@ defmodule ExPhil.Training.Imitation do
 
     # Load K-means centers if path provided
     config = load_kmeans_centers(config)
+    ExPhil.Networks.Policy.ExecutionContract.training(config)
 
     # True autoregressive head (AUTOREGRESSIVE_HEAD_PLAN §3): temporal only
     # for the trainer path — the non-temporal builder has no trunk seam.
@@ -291,6 +292,7 @@ defmodule ExPhil.Training.Imitation do
       else
       if config.temporal do
         Policy.build_temporal(
+          recurrent_state: Map.get(config, :recurrent_state, :legacy_random),
           head: head,
           embed_size: embed_size,
           backbone: config.backbone,

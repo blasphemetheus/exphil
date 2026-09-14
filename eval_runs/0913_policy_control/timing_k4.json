@@ -1,0 +1,241 @@
+{
+  "scores": "eval_runs/0913_policy_control/ep57_committed_k4.json",
+  "expected_issued_latency": 5,
+  "expected_sent_latency": 1,
+  "runs": [
+    {
+      "run": 1,
+      "replay": "eval_runs/0913_policy_control/ep57_committed_k4/run00_multishine_reentry/Game_20260913T004734.slp",
+      "grid": [
+        {
+          "count": 116,
+          "matches": 55,
+          "field": "issued",
+          "latency": 0
+        },
+        {
+          "count": 116,
+          "matches": 61,
+          "field": "issued",
+          "latency": 1
+        },
+        {
+          "count": 116,
+          "matches": 65,
+          "field": "issued",
+          "latency": 2
+        },
+        {
+          "count": 116,
+          "matches": 73,
+          "field": "issued",
+          "latency": 3
+        },
+        {
+          "count": 116,
+          "matches": 81,
+          "field": "issued",
+          "latency": 4
+        },
+        {
+          "count": 116,
+          "matches": 116,
+          "field": "issued",
+          "latency": 5
+        },
+        {
+          "count": 116,
+          "matches": 81,
+          "field": "issued",
+          "latency": 6
+        },
+        {
+          "count": 116,
+          "matches": 74,
+          "field": "issued",
+          "latency": 7
+        },
+        {
+          "count": 116,
+          "matches": 68,
+          "field": "issued",
+          "latency": 8
+        },
+        {
+          "count": 120,
+          "matches": 84,
+          "field": "sent",
+          "latency": 0
+        },
+        {
+          "count": 120,
+          "matches": 120,
+          "field": "sent",
+          "latency": 1
+        },
+        {
+          "count": 120,
+          "matches": 84,
+          "field": "sent",
+          "latency": 2
+        },
+        {
+          "count": 120,
+          "matches": 76,
+          "field": "sent",
+          "latency": 3
+        },
+        {
+          "count": 120,
+          "matches": 68,
+          "field": "sent",
+          "latency": 4
+        },
+        {
+          "count": 120,
+          "matches": 65,
+          "field": "sent",
+          "latency": 5
+        },
+        {
+          "count": 120,
+          "matches": 59,
+          "field": "sent",
+          "latency": 6
+        },
+        {
+          "count": 120,
+          "matches": 62,
+          "field": "sent",
+          "latency": 7
+        },
+        {
+          "count": 120,
+          "matches": 55,
+          "field": "sent",
+          "latency": 8
+        }
+      ],
+      "frame": 900,
+      "diverged": false,
+      "unsent_tail_decisions": 4
+    },
+    {
+      "run": 2,
+      "replay": "eval_runs/0913_policy_control/ep57_committed_k4/run01_multishine_reentry/Game_20260913T004745.slp",
+      "grid": [
+        {
+          "count": 116,
+          "matches": 56,
+          "field": "issued",
+          "latency": 0
+        },
+        {
+          "count": 116,
+          "matches": 61,
+          "field": "issued",
+          "latency": 1
+        },
+        {
+          "count": 116,
+          "matches": 59,
+          "field": "issued",
+          "latency": 2
+        },
+        {
+          "count": 116,
+          "matches": 71,
+          "field": "issued",
+          "latency": 3
+        },
+        {
+          "count": 116,
+          "matches": 77,
+          "field": "issued",
+          "latency": 4
+        },
+        {
+          "count": 116,
+          "matches": 77,
+          "field": "issued",
+          "latency": 5
+        },
+        {
+          "count": 116,
+          "matches": 116,
+          "field": "issued",
+          "latency": 6
+        },
+        {
+          "count": 116,
+          "matches": 77,
+          "field": "issued",
+          "latency": 7
+        },
+        {
+          "count": 116,
+          "matches": 78,
+          "field": "issued",
+          "latency": 8
+        },
+        {
+          "count": 120,
+          "matches": 80,
+          "field": "sent",
+          "latency": 0
+        },
+        {
+          "count": 120,
+          "matches": 80,
+          "field": "sent",
+          "latency": 1
+        },
+        {
+          "count": 120,
+          "matches": 120,
+          "field": "sent",
+          "latency": 2
+        },
+        {
+          "count": 120,
+          "matches": 80,
+          "field": "sent",
+          "latency": 3
+        },
+        {
+          "count": 120,
+          "matches": 80,
+          "field": "sent",
+          "latency": 4
+        },
+        {
+          "count": 120,
+          "matches": 73,
+          "field": "sent",
+          "latency": 5
+        },
+        {
+          "count": 120,
+          "matches": 61,
+          "field": "sent",
+          "latency": 6
+        },
+        {
+          "count": 120,
+          "matches": 63,
+          "field": "sent",
+          "latency": 7
+        },
+        {
+          "count": 120,
+          "matches": 58,
+          "field": "sent",
+          "latency": 8
+        }
+      ],
+      "frame": 900,
+      "diverged": false,
+      "unsent_tail_decisions": 4
+    }
+  ]
+}

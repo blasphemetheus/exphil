@@ -1,0 +1,79 @@
+{
+  "valid": true,
+  "scores": "eval_runs/0913_recovery_labels/teacher_grounded.json",
+  "reaction_delay": 3,
+  "runs": [
+    {
+      "valid": true,
+      "replay": "eval_runs/0913_recovery_labels/teacher_grounded/run00_multishine_reentry/Game_20260913T001556.slp",
+      "timing": {
+        "sent": {
+          "count": 120,
+          "matches": 120
+        },
+        "valid": true,
+        "contiguous": true,
+        "decisions": {
+          "count": 120,
+          "matches": 120
+        },
+        "expected_send_latency": 1,
+        "expected_decision_latency": 1,
+        "unsent_tail_decisions": 0
+      },
+      "targets": 117,
+      "handoff": 4,
+      "replay_sha256": "8f26269e3f1bced252d94b04963bd61f5883227abf0e5492788b8304429c3513",
+      "off_loop_targets": 7,
+      "mismatches": []
+    },
+    {
+      "valid": true,
+      "replay": "eval_runs/0913_recovery_labels/teacher_grounded/run01_multishine_reentry/Game_20260913T001558.slp",
+      "timing": {
+        "sent": {
+          "count": 120,
+          "matches": 120
+        },
+        "valid": true,
+        "contiguous": true,
+        "decisions": {
+          "count": 120,
+          "matches": 120
+        },
+        "expected_send_latency": 1,
+        "expected_decision_latency": 1,
+        "unsent_tail_decisions": 0
+      },
+      "targets": 117,
+      "handoff": 75,
+      "replay_sha256": "b72f8941868e4786a76efaa0d515f04b5a64b93c16bb6bec05746dd5485bd6b2",
+      "off_loop_targets": 7,
+      "mismatches": []
+    },
+    {
+      "valid": true,
+      "replay": "eval_runs/0913_recovery_labels/teacher_grounded/run02_multishine_reentry/Game_20260913T001600.slp",
+      "timing": {
+        "sent": {
+          "count": 120,
+          "matches": 120
+        },
+        "valid": true,
+        "contiguous": true,
+        "decisions": {
+          "count": 120,
+          "matches": 120
+        },
+        "expected_send_latency": 1,
+        "expected_decision_latency": 1,
+        "unsent_tail_decisions": 0
+      },
+      "targets": 117,
+      "handoff": 146,
+      "replay_sha256": "bed28c8d9455b521b71b096b795a747d0fa22c0f949711c49de2e1221c89b883",
+      "off_loop_targets": 7,
+      "mismatches": []
+    }
+  ]
+}

@@ -168,6 +168,7 @@ defmodule ExPhil.Training.ProbeRegularizer do
       )
 
     idx_tuple = :erlang.list_to_tuple(indices)
+    target_tuple = Data.sequence_target_indices(dataset, window, stride) |> List.to_tuple()
     n_idx = tuple_size(idx_tuple)
 
     {h_parts, label_parts} =
@@ -188,7 +189,7 @@ defmodule ExPhil.Training.ProbeRegularizer do
             row = base + k
 
             with true <- row < n_idx,
-                 frame_idx = elem(idx_tuple, row) * stride + window - 1,
+                 frame_idx = elem(target_tuple, elem(idx_tuple, row)),
                  true <- frame_idx < n_labels do
               elem(labels_tuple, frame_idx)
             else

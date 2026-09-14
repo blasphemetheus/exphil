@@ -1,0 +1,307 @@
+{
+  "batches": [
+    {
+      "stress_batch": "eval_runs/0913_timing_stress_retry_fix/poll_0.0.json",
+      "console_timeout": 0.0,
+      "errored_runs": 0,
+      "diverged_runs": 0,
+      "invalid_timing_runs": 0,
+      "runs": [
+        {
+          "frame": 900,
+          "run": 1,
+          "error": null,
+          "timing_valid": true,
+          "input_timing": {
+            "sent": {
+              "count": 120,
+              "matches": 120
+            },
+            "valid": true,
+            "decisions": {
+              "count": 118,
+              "matches": 118
+            },
+            "contiguous": true,
+            "expected_send_latency": 1,
+            "expected_decision_latency": 3,
+            "unsent_tail_decisions": 2
+          },
+          "pass": true,
+          "chain": 14
+        },
+        {
+          "frame": 900,
+          "run": 2,
+          "error": null,
+          "timing_valid": true,
+          "input_timing": {
+            "sent": {
+              "count": 120,
+              "matches": 120
+            },
+            "valid": true,
+            "decisions": {
+              "count": 118,
+              "matches": 118
+            },
+            "contiguous": true,
+            "expected_send_latency": 1,
+            "expected_decision_latency": 3,
+            "unsent_tail_decisions": 2
+          },
+          "pass": true,
+          "chain": 14
+        },
+        {
+          "frame": 900,
+          "run": 3,
+          "error": null,
+          "timing_valid": true,
+          "input_timing": {
+            "sent": {
+              "count": 120,
+              "matches": 120
+            },
+            "valid": true,
+            "decisions": {
+              "count": 118,
+              "matches": 118
+            },
+            "contiguous": true,
+            "expected_send_latency": 1,
+            "expected_decision_latency": 3,
+            "unsent_tail_decisions": 2
+          },
+          "pass": true,
+          "chain": 14
+        },
+        {
+          "frame": 900,
+          "run": 4,
+          "error": null,
+          "timing_valid": true,
+          "input_timing": {
+            "sent": {
+              "count": 120,
+              "matches": 120
+            },
+            "valid": true,
+            "decisions": {
+              "count": 118,
+              "matches": 118
+            },
+            "contiguous": true,
+            "expected_send_latency": 1,
+            "expected_decision_latency": 3,
+            "unsent_tail_decisions": 2
+          },
+          "pass": true,
+          "chain": 14
+        }
+      ]
+    },
+    {
+      "stress_batch": "eval_runs/0913_timing_stress_retry_fix/poll_0.001.json",
+      "console_timeout": 0.001,
+      "errored_runs": 0,
+      "diverged_runs": 0,
+      "invalid_timing_runs": 0,
+      "runs": [
+        {
+          "frame": 900,
+          "run": 1,
+          "error": null,
+          "timing_valid": true,
+          "input_timing": {
+            "sent": {
+              "count": 120,
+              "matches": 120
+            },
+            "valid": true,
+            "decisions": {
+              "count": 118,
+              "matches": 118
+            },
+            "contiguous": true,
+            "expected_send_latency": 1,
+            "expected_decision_latency": 3,
+            "unsent_tail_decisions": 2
+          },
+          "pass": true,
+          "chain": 14
+        },
+        {
+          "frame": 900,
+          "run": 2,
+          "error": null,
+          "timing_valid": true,
+          "input_timing": {
+            "sent": {
+              "count": 120,
+              "matches": 120
+            },
+            "valid": true,
+            "decisions": {
+              "count": 118,
+              "matches": 118
+            },
+            "contiguous": true,
+            "expected_send_latency": 1,
+            "expected_decision_latency": 3,
+            "unsent_tail_decisions": 2
+          },
+          "pass": true,
+          "chain": 14
+        },
+        {
+          "frame": 900,
+          "run": 3,
+          "error": null,
+          "timing_valid": true,
+          "input_timing": {
+            "sent": {
+              "count": 120,
+              "matches": 120
+            },
+            "valid": true,
+            "decisions": {
+              "count": 118,
+              "matches": 118
+            },
+            "contiguous": true,
+            "expected_send_latency": 1,
+            "expected_decision_latency": 3,
+            "unsent_tail_decisions": 2
+          },
+          "pass": true,
+          "chain": 14
+        },
+        {
+          "frame": 900,
+          "run": 4,
+          "error": null,
+          "timing_valid": true,
+          "input_timing": {
+            "sent": {
+              "count": 120,
+              "matches": 120
+            },
+            "valid": true,
+            "decisions": {
+              "count": 118,
+              "matches": 118
+            },
+            "contiguous": true,
+            "expected_send_latency": 1,
+            "expected_decision_latency": 3,
+            "unsent_tail_decisions": 2
+          },
+          "pass": true,
+          "chain": 14
+        }
+      ]
+    },
+    {
+      "stress_batch": "eval_runs/0913_timing_stress_retry_fix/poll_0.1.json",
+      "console_timeout": 0.1,
+      "errored_runs": 0,
+      "diverged_runs": 0,
+      "invalid_timing_runs": 0,
+      "runs": [
+        {
+          "frame": 900,
+          "run": 1,
+          "error": null,
+          "timing_valid": true,
+          "input_timing": {
+            "sent": {
+              "count": 120,
+              "matches": 120
+            },
+            "valid": true,
+            "decisions": {
+              "count": 118,
+              "matches": 118
+            },
+            "contiguous": true,
+            "expected_send_latency": 1,
+            "expected_decision_latency": 3,
+            "unsent_tail_decisions": 2
+          },
+          "pass": true,
+          "chain": 14
+        },
+        {
+          "frame": 900,
+          "run": 2,
+          "error": null,
+          "timing_valid": true,
+          "input_timing": {
+            "sent": {
+              "count": 120,
+              "matches": 120
+            },
+            "valid": true,
+            "decisions": {
+              "count": 118,
+              "matches": 118
+            },
+            "contiguous": true,
+            "expected_send_latency": 1,
+            "expected_decision_latency": 3,
+            "unsent_tail_decisions": 2
+          },
+          "pass": true,
+          "chain": 14
+        },
+        {
+          "frame": 900,
+          "run": 3,
+          "error": null,
+          "timing_valid": true,
+          "input_timing": {
+            "sent": {
+              "count": 120,
+              "matches": 120
+            },
+            "valid": true,
+            "decisions": {
+              "count": 118,
+              "matches": 118
+            },
+            "contiguous": true,
+            "expected_send_latency": 1,
+            "expected_decision_latency": 3,
+            "unsent_tail_decisions": 2
+          },
+          "pass": true,
+          "chain": 14
+        },
+        {
+          "frame": 900,
+          "run": 4,
+          "error": null,
+          "timing_valid": true,
+          "input_timing": {
+            "sent": {
+              "count": 120,
+              "matches": 120
+            },
+            "valid": true,
+            "decisions": {
+              "count": 118,
+              "matches": 118
+            },
+            "contiguous": true,
+            "expected_send_latency": 1,
+            "expected_decision_latency": 3,
+            "unsent_tail_decisions": 2
+          },
+          "pass": true,
+          "chain": 14
+        }
+      ]
+    }
+  ]
+}

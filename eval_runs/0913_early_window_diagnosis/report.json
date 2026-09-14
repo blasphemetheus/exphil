@@ -1,0 +1,1956 @@
+{
+  "targets": [
+    {
+      "index": 0,
+      "case": "recovery:4",
+      "variants": {
+        "bf16_input_only": {
+          "target": {
+            "buttons": [
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "main_x": 8,
+            "main_y": 0,
+            "c_x": 8,
+            "c_y": 8,
+            "shoulder": 0
+          },
+          "predicted_buttons": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "categorical": {
+            "main_x": {
+              "correct": true,
+              "predicted": 8,
+              "nll": 0.0
+            },
+            "main_y": {
+              "correct": true,
+              "predicted": 0,
+              "nll": 0.0
+            },
+            "c_x": {
+              "correct": true,
+              "predicted": 8,
+              "nll": 0.0
+            },
+            "c_y": {
+              "correct": true,
+              "predicted": 8,
+              "nll": 0.0
+            },
+            "shoulder": {
+              "correct": true,
+              "predicted": 0,
+              "nll": 0.0
+            }
+          },
+          "nll": 0.742623140401565,
+          "target_probability": 0.47586401877710327,
+          "buttons_correct": false,
+          "b_correct": true,
+          "x_correct": false,
+          "tf_argmax_correct": false,
+          "button_probabilities": [
+            3.3165219254537464e-9,
+            0.032350451835387935,
+            0.49177310922189466,
+            2.253838257107716e-9,
+            1.8853086818280347e-9,
+            6.2324547185963744e-9,
+            2.833013579504505e-9,
+            6.286559060471279e-10
+          ]
+        },
+        "isolated_f32": {
+          "target": {
+            "buttons": [
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "main_x": 8,
+            "main_y": 0,
+            "c_x": 8,
+            "c_y": 8,
+            "shoulder": 0
+          },
+          "predicted_buttons": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "categorical": {
+            "main_x": {
+              "correct": true,
+              "predicted": 8,
+              "nll": 0.0
+            },
+            "main_y": {
+              "correct": true,
+              "predicted": 0,
+              "nll": 0.0
+            },
+            "c_x": {
+              "correct": true,
+              "predicted": 8,
+              "nll": 0.0
+            },
+            "c_y": {
+              "correct": true,
+              "predicted": 8,
+              "nll": 0.0
+            },
+            "shoulder": {
+              "correct": true,
+              "predicted": 0,
+              "nll": 0.0
+            }
+          },
+          "nll": 0.7405397193691027,
+          "target_probability": 0.4768564773779846,
+          "buttons_correct": false,
+          "b_correct": true,
+          "x_correct": false,
+          "tf_argmax_correct": false,
+          "button_probabilities": [
+            3.404034910805866e-9,
+            0.02939008595381984,
+            0.4912957086386928,
+            2.2473949031271612e-9,
+            1.869499261170251e-9,
+            6.2073988951363455e-9,
+            2.7518069325733734e-9,
+            6.216021036512912e-10
+          ]
+        },
+        "pool_f32": {
+          "target": {
+            "buttons": [
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "main_x": 8,
+            "main_y": 0,
+            "c_x": 8,
+            "c_y": 8,
+            "shoulder": 0
+          },
+          "predicted_buttons": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "categorical": {
+            "main_x": {
+              "correct": true,
+              "predicted": 8,
+              "nll": 0.0
+            },
+            "main_y": {
+              "correct": true,
+              "predicted": 0,
+              "nll": 0.0
+            },
+            "c_x": {
+              "correct": true,
+              "predicted": 8,
+              "nll": 0.0
+            },
+            "c_y": {
+              "correct": true,
+              "predicted": 8,
+              "nll": 0.0
+            },
+            "shoulder": {
+              "correct": true,
+              "predicted": 0,
+              "nll": 0.0
+            }
+          },
+          "nll": 0.8956497784590586,
+          "target_probability": 0.40834218046588894,
+          "buttons_correct": false,
+          "b_correct": true,
+          "x_correct": false,
+          "tf_argmax_correct": false,
+          "button_probabilities": [
+            7.820888464576353e-9,
+            0.0922314847948345,
+            0.44983075958314606,
+            6.0384904805824455e-9,
+            3.8947586897584935e-9,
+            1.1835628370998785e-8,
+            1.826461481789971e-8,
+            1.747437586754232e-9
+          ]
+        },
+        "repeated_f32": {
+          "target": {
+            "buttons": [
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "main_x": 8,
+            "main_y": 0,
+            "c_x": 8,
+            "c_y": 8,
+            "shoulder": 0
+          },
+          "predicted_buttons": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "categorical": {
+            "main_x": {
+              "correct": true,
+              "predicted": 8,
+              "nll": 0.0
+            },
+            "main_y": {
+              "correct": true,
+              "predicted": 0,
+              "nll": 0.0
+            },
+            "c_x": {
+              "correct": true,
+              "predicted": 8,
+              "nll": 0.0
+            },
+            "c_y": {
+              "correct": true,
+              "predicted": 8,
+              "nll": 0.0
+            },
+            "shoulder": {
+              "correct": true,
+              "predicted": 0,
+              "nll": 0.0
+            }
+          },
+          "nll": 0.7405397193691027,
+          "target_probability": 0.4768564773779846,
+          "buttons_correct": false,
+          "b_correct": true,
+          "x_correct": false,
+          "tf_argmax_correct": false,
+          "button_probabilities": [
+            3.404034910805866e-9,
+            0.02939008595381984,
+            0.4912957086386928,
+            2.2473949031271612e-9,
+            1.869499261170251e-9,
+            6.2073988951363455e-9,
+            2.7518069325733734e-9,
+            6.216021036512912e-10
+          ]
+        },
+        "single_f32": {
+          "target": {
+            "buttons": [
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "main_x": 8,
+            "main_y": 0,
+            "c_x": 8,
+            "c_y": 8,
+            "shoulder": 0
+          },
+          "predicted_buttons": [
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "categorical": {
+            "main_x": {
+              "correct": true,
+              "predicted": 8,
+              "nll": 0.0
+            },
+            "main_y": {
+              "correct": true,
+              "predicted": 0,
+              "nll": 0.0
+            },
+            "c_x": {
+              "correct": true,
+              "predicted": 8,
+              "nll": 0.0
+            },
+            "c_y": {
+              "correct": true,
+              "predicted": 8,
+              "nll": 0.0
+            },
+            "shoulder": {
+              "correct": true,
+              "predicted": 0,
+              "nll": 0.0
+            }
+          },
+          "nll": 2.899067517462298,
+          "target_probability": 0.055074552177711796,
+          "buttons_correct": false,
+          "b_correct": false,
+          "x_correct": false,
+          "tf_argmax_correct": false,
+          "button_probabilities": [
+            3.4890423452271068e-9,
+            0.5062401644789458,
+            0.11154117873474878,
+            6.849384057023371e-10,
+            3.76009058460734e-9,
+            2.0785808180739715e-8,
+            4.046425946554747e-9,
+            1.5178092114501857e-9
+          ]
+        },
+        "training_precision": {
+          "target": {
+            "buttons": [
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "main_x": 8,
+            "main_y": 0,
+            "c_x": 8,
+            "c_y": 8,
+            "shoulder": 0
+          },
+          "predicted_buttons": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "categorical": {
+            "main_x": {
+              "correct": true,
+              "predicted": 8,
+              "nll": 0.0
+            },
+            "main_y": {
+              "correct": true,
+              "predicted": 0,
+              "nll": 0.0
+            },
+            "c_x": {
+              "correct": true,
+              "predicted": 8,
+              "nll": 0.0
+            },
+            "c_y": {
+              "correct": true,
+              "predicted": 8,
+              "nll": 0.0
+            },
+            "shoulder": {
+              "correct": true,
+              "predicted": 0,
+              "nll": 0.0
+            }
+          },
+          "nll": 1.1642453984853705,
+          "target_probability": 0.31215812817624483,
+          "buttons_correct": false,
+          "b_correct": true,
+          "x_correct": false,
+          "tf_argmax_correct": false,
+          "button_probabilities": [
+            2.998960815863541e-9,
+            0.011331753531361453,
+            0.31573597552138716,
+            2.646573631904765e-9,
+            1.8189616842444243e-9,
+            5.60279640614594e-9,
+            2.646573631904765e-9,
+            5.905303995456778e-10
+          ]
+        }
+      },
+      "global_index": 7313,
+      "exact_matches": [
+        {
+          "index": 0,
+          "case": "recovery:4",
+          "action": 363,
+          "frame": 4,
+          "action_frame": 11,
+          "same_label": true
+        }
+      ],
+      "nearest_windows": [
+        {
+          "index": 1,
+          "case": "recovery:4",
+          "target": {
+            "buttons": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "main_x": 8,
+            "main_y": 0,
+            "c_x": 8,
+            "c_y": 8,
+            "shoulder": 0
+          },
+          "action": 363,
+          "frame": 5,
+          "action_frame": 12,
+          "mean_squared_distance": 4.096925840713084e-4
+        },
+        {
+          "index": 2,
+          "case": "recovery:4",
+          "target": {
+            "buttons": [
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "main_x": 8,
+            "main_y": 0,
+            "c_x": 8,
+            "c_y": 8,
+            "shoulder": 0
+          },
+          "action": 363,
+          "frame": 6,
+          "action_frame": 13,
+          "mean_squared_distance": 0.0010102514643222094
+        },
+        {
+          "index": 3,
+          "case": "recovery:4",
+          "target": {
+            "buttons": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "main_x": 8,
+            "main_y": 0,
+            "c_x": 8,
+            "c_y": 8,
+            "shoulder": 0
+          },
+          "action": 363,
+          "frame": 7,
+          "action_frame": 14,
+          "mean_squared_distance": 0.0019924372900277376
+        },
+        {
+          "index": 4,
+          "case": "recovery:4",
+          "target": {
+            "buttons": [
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "main_x": 8,
+            "main_y": 0,
+            "c_x": 8,
+            "c_y": 8,
+            "shoulder": 0
+          },
+          "action": 363,
+          "frame": 8,
+          "action_frame": 15,
+          "mean_squared_distance": 0.0027848153840750456
+        },
+        {
+          "index": 5,
+          "case": "recovery:4",
+          "target": {
+            "buttons": [
+              0,
+              1,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "main_x": 8,
+            "main_y": 0,
+            "c_x": 8,
+            "c_y": 8,
+            "shoulder": 0
+          },
+          "action": 363,
+          "frame": 9,
+          "action_frame": 16,
+          "mean_squared_distance": 0.003768694819882512
+        }
+      ],
+      "pool_vs_isolated_max_difference": 0.0
+    },
+    {
+      "index": 1,
+      "case": "sustain:900",
+      "variants": {
+        "bf16_input_only": {
+          "target": {
+            "buttons": [
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "main_x": 8,
+            "main_y": 0,
+            "c_x": 8,
+            "c_y": 8,
+            "shoulder": 0
+          },
+          "predicted_buttons": [
+            0,
+            1,
+            1,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "categorical": {
+            "main_x": {
+              "correct": true,
+              "predicted": 8,
+              "nll": 3.552713678800501e-15
+            },
+            "main_y": {
+              "correct": true,
+              "predicted": 0,
+              "nll": 0.0
+            },
+            "c_x": {
+              "correct": true,
+              "predicted": 8,
+              "nll": 0.0
+            },
+            "c_y": {
+              "correct": true,
+              "predicted": 8,
+              "nll": 0.0
+            },
+            "shoulder": {
+              "correct": true,
+              "predicted": 0,
+              "nll": 0.0
+            }
+          },
+          "nll": 3.4732803037568205,
+          "target_probability": 0.03101512458130952,
+          "buttons_correct": false,
+          "b_correct": true,
+          "x_correct": false,
+          "tf_argmax_correct": false,
+          "button_probabilities": [
+            3.1200098825340446e-8,
+            0.9999431675782722,
+            0.9689831014489677,
+            9.61805912857654e-9,
+            5.083970771131857e-8,
+            1.2043855083456435e-7,
+            1.2168532374128573e-7,
+            2.7469784943317106e-8
+          ]
+        },
+        "isolated_f32": {
+          "target": {
+            "buttons": [
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "main_x": 8,
+            "main_y": 0,
+            "c_x": 8,
+            "c_y": 8,
+            "shoulder": 0
+          },
+          "predicted_buttons": [
+            0,
+            1,
+            1,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "categorical": {
+            "main_x": {
+              "correct": true,
+              "predicted": 8,
+              "nll": 3.552713678800501e-15
+            },
+            "main_y": {
+              "correct": true,
+              "predicted": 0,
+              "nll": 0.0
+            },
+            "c_x": {
+              "correct": true,
+              "predicted": 8,
+              "nll": 0.0
+            },
+            "c_y": {
+              "correct": true,
+              "predicted": 8,
+              "nll": 0.0
+            },
+            "shoulder": {
+              "correct": true,
+              "predicted": 0,
+              "nll": 0.0
+            }
+          },
+          "nll": 3.422616844665339,
+          "target_probability": 0.032626943485872174,
+          "buttons_correct": false,
+          "b_correct": true,
+          "x_correct": false,
+          "tf_argmax_correct": false,
+          "button_probabilities": [
+            3.071246107411834e-8,
+            0.9999394697615313,
+            0.9673710700732028,
+            9.297868173956562e-9,
+            4.8188633071685974e-8,
+            1.160115597289164e-7,
+            1.1891422068852886e-7,
+            2.6402725053778572e-8
+          ]
+        },
+        "pool_f32": {
+          "target": {
+            "buttons": [
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "main_x": 8,
+            "main_y": 0,
+            "c_x": 8,
+            "c_y": 8,
+            "shoulder": 0
+          },
+          "predicted_buttons": [
+            0,
+            1,
+            1,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "categorical": {
+            "main_x": {
+              "correct": true,
+              "predicted": 8,
+              "nll": 0.0
+            },
+            "main_y": {
+              "correct": true,
+              "predicted": 0,
+              "nll": 0.0
+            },
+            "c_x": {
+              "correct": true,
+              "predicted": 8,
+              "nll": 0.0
+            },
+            "c_y": {
+              "correct": true,
+              "predicted": 8,
+              "nll": 0.0
+            },
+            "shoulder": {
+              "correct": true,
+              "predicted": 0,
+              "nll": 0.0
+            }
+          },
+          "nll": 3.400612651413512,
+          "target_probability": 0.03335283004122336,
+          "buttons_correct": false,
+          "b_correct": true,
+          "x_correct": false,
+          "tf_argmax_correct": false,
+          "button_probabilities": [
+            1.9480406363195433e-8,
+            0.9999667146514317,
+            0.9666460535478711,
+            4.200096142077948e-9,
+            1.838597022168381e-8,
+            3.343134668830547e-8,
+            1.004197475011099e-7,
+            1.0368604985945717e-8
+          ]
+        },
+        "repeated_f32": {
+          "target": {
+            "buttons": [
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "main_x": 8,
+            "main_y": 0,
+            "c_x": 8,
+            "c_y": 8,
+            "shoulder": 0
+          },
+          "predicted_buttons": [
+            0,
+            1,
+            1,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "categorical": {
+            "main_x": {
+              "correct": true,
+              "predicted": 8,
+              "nll": 0.0
+            },
+            "main_y": {
+              "correct": true,
+              "predicted": 0,
+              "nll": 0.0
+            },
+            "c_x": {
+              "correct": true,
+              "predicted": 8,
+              "nll": 0.0
+            },
+            "c_y": {
+              "correct": true,
+              "predicted": 8,
+              "nll": 0.0
+            },
+            "shoulder": {
+              "correct": true,
+              "predicted": 0,
+              "nll": 0.0
+            }
+          },
+          "nll": 3.7709162992776566,
+          "target_probability": 0.02303095037263839,
+          "buttons_correct": false,
+          "b_correct": true,
+          "x_correct": false,
+          "tf_argmax_correct": false,
+          "button_probabilities": [
+            2.944879268054181e-9,
+            0.9998696640435631,
+            0.9769660466370211,
+            5.755045379020977e-10,
+            1.7355925345041995e-9,
+            1.7250094000512712e-8,
+            1.2356618175612443e-8,
+            1.5230611060778246e-9
+          ]
+        },
+        "single_f32": {
+          "target": {
+            "buttons": [
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "main_x": 8,
+            "main_y": 0,
+            "c_x": 8,
+            "c_y": 8,
+            "shoulder": 0
+          },
+          "predicted_buttons": [
+            0,
+            1,
+            1,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "categorical": {
+            "main_x": {
+              "correct": true,
+              "predicted": 8,
+              "nll": 0.0
+            },
+            "main_y": {
+              "correct": true,
+              "predicted": 0,
+              "nll": 0.0
+            },
+            "c_x": {
+              "correct": true,
+              "predicted": 8,
+              "nll": 0.0
+            },
+            "c_y": {
+              "correct": true,
+              "predicted": 8,
+              "nll": 0.0
+            },
+            "shoulder": {
+              "correct": true,
+              "predicted": 0,
+              "nll": 0.0
+            }
+          },
+          "nll": 1.2997568739623617,
+          "target_probability": 0.27259806066435016,
+          "buttons_correct": false,
+          "b_correct": true,
+          "x_correct": false,
+          "tf_argmax_correct": false,
+          "button_probabilities": [
+            2.50267821890217e-9,
+            0.9999436370839951,
+            0.7273865475977495,
+            3.492989119857009e-10,
+            3.478994752346112e-9,
+            7.378955529564763e-8,
+            1.3592073002713101e-8,
+            3.3122231945703453e-9
+          ]
+        },
+        "training_precision": {
+          "target": {
+            "buttons": [
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "main_x": 8,
+            "main_y": 0,
+            "c_x": 8,
+            "c_y": 8,
+            "shoulder": 0
+          },
+          "predicted_buttons": [
+            0,
+            1,
+            1,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "categorical": {
+            "main_x": {
+              "correct": true,
+              "predicted": 8,
+              "nll": 3.552713678800501e-15
+            },
+            "main_y": {
+              "correct": true,
+              "predicted": 0,
+              "nll": 0.0
+            },
+            "c_x": {
+              "correct": true,
+              "predicted": 8,
+              "nll": 0.0
+            },
+            "c_y": {
+              "correct": true,
+              "predicted": 8,
+              "nll": 0.0
+            },
+            "shoulder": {
+              "correct": true,
+              "predicted": 0,
+              "nll": 0.0
+            }
+          },
+          "nll": 3.469190880973333,
+          "target_probability": 0.031142218231119054,
+          "buttons_correct": false,
+          "b_correct": true,
+          "x_correct": false,
+          "tf_argmax_correct": false,
+          "button_probabilities": [
+            2.5109990926928157e-8,
+            0.9999485577862579,
+            0.9688561694652216,
+            8.152020648014727e-9,
+            4.6911638017642294e-8,
+            1.12535162055095e-7,
+            1.12535162055095e-7,
+            2.2159489282323004e-8
+          ]
+        }
+      },
+      "global_index": 7668,
+      "exact_matches": [
+        {
+          "index": 1,
+          "case": "sustain:900",
+          "action": 365,
+          "frame": 901,
+          "action_frame": 3,
+          "same_label": true
+        }
+      ],
+      "nearest_windows": [
+        {
+          "index": 0,
+          "case": "sustain:900",
+          "target": {
+            "buttons": [
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "main_x": 8,
+            "main_y": 0,
+            "c_x": 8,
+            "c_y": 8,
+            "shoulder": 0
+          },
+          "action": 365,
+          "frame": 900,
+          "action_frame": 2,
+          "mean_squared_distance": 3.812034265138209e-4
+        },
+        {
+          "index": 2,
+          "case": "sustain:900",
+          "target": {
+            "buttons": [
+              0,
+              1,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "main_x": 8,
+            "main_y": 0,
+            "c_x": 8,
+            "c_y": 8,
+            "shoulder": 0
+          },
+          "action": 366,
+          "frame": 902,
+          "action_frame": 0,
+          "mean_squared_distance": 0.0011439279187470675
+        },
+        {
+          "index": 3,
+          "case": "sustain:900",
+          "target": {
+            "buttons": [
+              0,
+              1,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "main_x": 8,
+            "main_y": 0,
+            "c_x": 8,
+            "c_y": 8,
+            "shoulder": 0
+          },
+          "action": 361,
+          "frame": 903,
+          "action_frame": 1,
+          "mean_squared_distance": 0.005913291592150927
+        },
+        {
+          "index": 4,
+          "case": "sustain:900",
+          "target": {
+            "buttons": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "main_x": 8,
+            "main_y": 0,
+            "c_x": 8,
+            "c_y": 8,
+            "shoulder": 0
+          },
+          "action": 361,
+          "frame": 904,
+          "action_frame": 2,
+          "mean_squared_distance": 0.010873488150537014
+        },
+        {
+          "index": 1,
+          "case": "recovery:4",
+          "target": {
+            "buttons": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "main_x": 8,
+            "main_y": 0,
+            "c_x": 8,
+            "c_y": 8,
+            "shoulder": 0
+          },
+          "action": 363,
+          "frame": 5,
+          "action_frame": 12,
+          "mean_squared_distance": 0.018864400684833527
+        }
+      ],
+      "pool_vs_isolated_max_difference": 0.0
+    },
+    {
+      "index": 3,
+      "case": "sustain:900",
+      "variants": {
+        "bf16_input_only": {
+          "target": {
+            "buttons": [
+              0,
+              1,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "main_x": 8,
+            "main_y": 0,
+            "c_x": 8,
+            "c_y": 8,
+            "shoulder": 0
+          },
+          "predicted_buttons": [
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "categorical": {
+            "main_x": {
+              "correct": true,
+              "predicted": 8,
+              "nll": 0.0
+            },
+            "main_y": {
+              "correct": true,
+              "predicted": 0,
+              "nll": 0.0
+            },
+            "c_x": {
+              "correct": true,
+              "predicted": 8,
+              "nll": 0.0
+            },
+            "c_y": {
+              "correct": true,
+              "predicted": 8,
+              "nll": 0.0
+            },
+            "shoulder": {
+              "correct": true,
+              "predicted": 0,
+              "nll": 0.0
+            }
+          },
+          "nll": 2.2296461971235826,
+          "target_probability": 0.10756648073448236,
+          "buttons_correct": false,
+          "b_correct": true,
+          "x_correct": false,
+          "tf_argmax_correct": false,
+          "button_probabilities": [
+            6.393958358790729e-9,
+            0.9993600948169832,
+            0.10763537943081698,
+            1.3264632774546961e-8,
+            1.1063057020053711e-8,
+            3.4103597859626997e-8,
+            1.3917245086921178e-7,
+            2.9362587173424147e-9
+          ]
+        },
+        "isolated_f32": {
+          "target": {
+            "buttons": [
+              0,
+              1,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "main_x": 8,
+            "main_y": 0,
+            "c_x": 8,
+            "c_y": 8,
+            "shoulder": 0
+          },
+          "predicted_buttons": [
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "categorical": {
+            "main_x": {
+              "correct": true,
+              "predicted": 8,
+              "nll": 0.0
+            },
+            "main_y": {
+              "correct": true,
+              "predicted": 0,
+              "nll": 0.0
+            },
+            "c_x": {
+              "correct": true,
+              "predicted": 8,
+              "nll": 0.0
+            },
+            "c_y": {
+              "correct": true,
+              "predicted": 8,
+              "nll": 0.0
+            },
+            "shoulder": {
+              "correct": true,
+              "predicted": 0,
+              "nll": 0.0
+            }
+          },
+          "nll": 1.7619754187411953,
+          "target_probability": 0.17170533863734572,
+          "buttons_correct": false,
+          "b_correct": true,
+          "x_correct": false,
+          "tf_argmax_correct": false,
+          "button_probabilities": [
+            6.964472229751299e-9,
+            0.9994551322389088,
+            0.1717989824850291,
+            1.2961782488067614e-8,
+            1.1979414997534035e-8,
+            3.5643866365510336e-8,
+            1.394247243417251e-7,
+            3.3903887497831533e-9
+          ]
+        },
+        "pool_f32": {
+          "target": {
+            "buttons": [
+              0,
+              1,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "main_x": 8,
+            "main_y": 0,
+            "c_x": 8,
+            "c_y": 8,
+            "shoulder": 0
+          },
+          "predicted_buttons": [
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "categorical": {
+            "main_x": {
+              "correct": true,
+              "predicted": 8,
+              "nll": 0.0
+            },
+            "main_y": {
+              "correct": true,
+              "predicted": 0,
+              "nll": 0.0
+            },
+            "c_x": {
+              "correct": true,
+              "predicted": 8,
+              "nll": 0.0
+            },
+            "c_y": {
+              "correct": true,
+              "predicted": 8,
+              "nll": 0.0
+            },
+            "shoulder": {
+              "correct": true,
+              "predicted": 0,
+              "nll": 0.0
+            }
+          },
+          "nll": 1.4499761496358028,
+          "target_probability": 0.23457588274731553,
+          "buttons_correct": false,
+          "b_correct": true,
+          "x_correct": false,
+          "tf_argmax_correct": false,
+          "button_probabilities": [
+            1.5935321982985441e-9,
+            0.99967585167017,
+            0.2346519663986638,
+            3.0339470268899817e-9,
+            4.1487335127646375e-9,
+            1.972342320054412e-8,
+            6.235608515602088e-8,
+            1.2609412189641838e-9
+          ]
+        },
+        "repeated_f32": {
+          "target": {
+            "buttons": [
+              0,
+              1,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "main_x": 8,
+            "main_y": 0,
+            "c_x": 8,
+            "c_y": 8,
+            "shoulder": 0
+          },
+          "predicted_buttons": [
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "categorical": {
+            "main_x": {
+              "correct": true,
+              "predicted": 8,
+              "nll": 0.0
+            },
+            "main_y": {
+              "correct": true,
+              "predicted": 0,
+              "nll": 0.0
+            },
+            "c_x": {
+              "correct": true,
+              "predicted": 8,
+              "nll": 0.0
+            },
+            "c_y": {
+              "correct": true,
+              "predicted": 8,
+              "nll": 0.0
+            },
+            "shoulder": {
+              "correct": true,
+              "predicted": 0,
+              "nll": 0.0
+            }
+          },
+          "nll": 1.6479277026907095,
+          "target_probability": 0.1924483057857513,
+          "buttons_correct": false,
+          "b_correct": true,
+          "x_correct": false,
+          "tf_argmax_correct": false,
+          "button_probabilities": [
+            2.158155491310095e-9,
+            0.9991170992808498,
+            0.19261839187922355,
+            4.686037392561947e-9,
+            5.036703773147512e-9,
+            1.9624694373974043e-8,
+            8.745311455914655e-8,
+            1.4723799549161102e-9
+          ]
+        },
+        "single_f32": {
+          "target": {
+            "buttons": [
+              0,
+              1,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "main_x": 8,
+            "main_y": 0,
+            "c_x": 8,
+            "c_y": 8,
+            "shoulder": 0
+          },
+          "predicted_buttons": [
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "categorical": {
+            "main_x": {
+              "correct": true,
+              "predicted": 8,
+              "nll": 0.0
+            },
+            "main_y": {
+              "correct": true,
+              "predicted": 0,
+              "nll": 0.0
+            },
+            "c_x": {
+              "correct": true,
+              "predicted": 8,
+              "nll": 0.0
+            },
+            "c_y": {
+              "correct": true,
+              "predicted": 8,
+              "nll": 0.0
+            },
+            "shoulder": {
+              "correct": true,
+              "predicted": 0,
+              "nll": 0.0
+            }
+          },
+          "nll": 2.613254515615174,
+          "target_probability": 0.07329561345422926,
+          "buttons_correct": false,
+          "b_correct": true,
+          "x_correct": false,
+          "tf_argmax_correct": false,
+          "button_probabilities": [
+            1.2585288547885358e-9,
+            0.9998057659152034,
+            0.07330986063396296,
+            1.1422223176358303e-9,
+            5.6346145899486e-9,
+            7.39099882183843e-8,
+            2.422277284939082e-8,
+            1.697076406283286e-9
+          ]
+        },
+        "training_precision": {
+          "target": {
+            "buttons": [
+              0,
+              1,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "main_x": 8,
+            "main_y": 0,
+            "c_x": 8,
+            "c_y": 8,
+            "shoulder": 0
+          },
+          "predicted_buttons": [
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "categorical": {
+            "main_x": {
+              "correct": true,
+              "predicted": 8,
+              "nll": 0.0
+            },
+            "main_y": {
+              "correct": true,
+              "predicted": 0,
+              "nll": 0.0
+            },
+            "c_x": {
+              "correct": true,
+              "predicted": 8,
+              "nll": 0.0
+            },
+            "c_y": {
+              "correct": true,
+              "predicted": 8,
+              "nll": 0.0
+            },
+            "shoulder": {
+              "correct": true,
+              "predicted": 0,
+              "nll": 0.0
+            }
+          },
+          "nll": 2.1831808602842653,
+          "target_probability": 0.11268253258917613,
+          "buttons_correct": false,
+          "b_correct": true,
+          "x_correct": false,
+          "tf_argmax_correct": false,
+          "button_probabilities": [
+            6.348800075736417e-9,
+            0.99899949559909,
+            0.11279540628289324,
+            1.1861120010657661e-8,
+            9.237449576640118e-9,
+            3.2241866333029355e-8,
+            1.275190428876251e-7,
+            2.646573631904765e-9
+          ]
+        }
+      },
+      "global_index": 7670,
+      "exact_matches": [
+        {
+          "index": 3,
+          "case": "sustain:900",
+          "action": 361,
+          "frame": 903,
+          "action_frame": 1,
+          "same_label": true
+        }
+      ],
+      "nearest_windows": [
+        {
+          "index": 1,
+          "case": "sustain:900",
+          "target": {
+            "buttons": [
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "main_x": 8,
+            "main_y": 0,
+            "c_x": 8,
+            "c_y": 8,
+            "shoulder": 0
+          },
+          "action": 365,
+          "frame": 901,
+          "action_frame": 3,
+          "mean_squared_distance": 0.005913291592150927
+        },
+        {
+          "index": 0,
+          "case": "sustain:900",
+          "target": {
+            "buttons": [
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "main_x": 8,
+            "main_y": 0,
+            "c_x": 8,
+            "c_y": 8,
+            "shoulder": 0
+          },
+          "action": 365,
+          "frame": 900,
+          "action_frame": 2,
+          "mean_squared_distance": 0.006294495426118374
+        },
+        {
+          "index": 2,
+          "case": "sustain:900",
+          "target": {
+            "buttons": [
+              0,
+              1,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "main_x": 8,
+            "main_y": 0,
+            "c_x": 8,
+            "c_y": 8,
+            "shoulder": 0
+          },
+          "action": 366,
+          "frame": 902,
+          "action_frame": 0,
+          "mean_squared_distance": 0.006675275508314371
+        },
+        {
+          "index": 4,
+          "case": "sustain:900",
+          "target": {
+            "buttons": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "main_x": 8,
+            "main_y": 0,
+            "c_x": 8,
+            "c_y": 8,
+            "shoulder": 0
+          },
+          "action": 361,
+          "frame": 904,
+          "action_frame": 2,
+          "mean_squared_distance": 0.00686596380546689
+        },
+        {
+          "index": 3,
+          "case": "recovery:4",
+          "target": {
+            "buttons": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "main_x": 8,
+            "main_y": 0,
+            "c_x": 8,
+            "c_y": 8,
+            "shoulder": 0
+          },
+          "action": 363,
+          "frame": 7,
+          "action_frame": 14,
+          "mean_squared_distance": 0.021288612857460976
+        }
+      ],
+      "pool_vs_isolated_max_difference": 0.0
+    }
+  ],
+  "policy": "eval_runs/0913_early_prefix_fit/round21/candidate.bin",
+  "checkpoint_has_precision": false,
+  "note": "Same fixed params, no gradients. Training uses inference mode with BF16 states and Axon mixed-precision policy; deployed reconstruction is F32.",
+  "training_precision_teacher_fit": [
+    {
+      "all": {
+        "count": 118,
+        "buttons_correct": 1.0,
+        "b_correct": 1.0,
+        "x_correct": 1.0,
+        "tf_argmax_correct": 1.0,
+        "mean_joint_nll": 2.6663374834987114e-5,
+        "mean_target_probability": 0.9999733381605105,
+        "categorical_accuracy": {
+          "main_x": 1.0,
+          "main_y": 1.0,
+          "c_x": 1.0,
+          "c_y": 1.0,
+          "shoulder": 1.0
+        }
+      },
+      "case": "neutral:2228",
+      "first18": {
+        "count": 18,
+        "buttons_correct": 1.0,
+        "b_correct": 1.0,
+        "x_correct": 1.0,
+        "tf_argmax_correct": 1.0,
+        "mean_joint_nll": 4.182960694978523e-5,
+        "mean_target_probability": 0.9999581739520605,
+        "categorical_accuracy": {
+          "main_x": 1.0,
+          "main_y": 1.0,
+          "c_x": 1.0,
+          "c_y": 1.0,
+          "shoulder": 1.0
+        }
+      },
+      "early_minimum_probability": 0.9997382477194999
+    },
+    {
+      "all": {
+        "count": 118,
+        "buttons_correct": 1.0,
+        "b_correct": 1.0,
+        "x_correct": 1.0,
+        "tf_argmax_correct": 1.0,
+        "mean_joint_nll": 2.7041723332849042e-5,
+        "mean_target_probability": 0.9999729599000349,
+        "categorical_accuracy": {
+          "main_x": 1.0,
+          "main_y": 1.0,
+          "c_x": 1.0,
+          "c_y": 1.0,
+          "shoulder": 1.0
+        }
+      },
+      "case": "neutral:2566",
+      "first18": {
+        "count": 18,
+        "buttons_correct": 1.0,
+        "b_correct": 1.0,
+        "x_correct": 1.0,
+        "tf_argmax_correct": 1.0,
+        "mean_joint_nll": 3.826799708558563e-5,
+        "mean_target_probability": 0.9999617351621526,
+        "categorical_accuracy": {
+          "main_x": 1.0,
+          "main_y": 1.0,
+          "c_x": 1.0,
+          "c_y": 1.0,
+          "shoulder": 1.0
+        }
+      },
+      "early_minimum_probability": 0.9997196760747158
+    },
+    {
+      "all": {
+        "count": 118,
+        "buttons_correct": 0.9915254237288136,
+        "b_correct": 1.0,
+        "x_correct": 0.9915254237288136,
+        "tf_argmax_correct": 0.9915254237288136,
+        "mean_joint_nll": 0.010390386864765986,
+        "mean_target_probability": 0.9936505087590235,
+        "categorical_accuracy": {
+          "main_x": 1.0,
+          "main_y": 1.0,
+          "c_x": 1.0,
+          "c_y": 1.0,
+          "shoulder": 1.0
+        }
+      },
+      "case": "recovery:4",
+      "first18": {
+        "count": 18,
+        "buttons_correct": 0.9444444444444444,
+        "b_correct": 1.0,
+        "x_correct": 0.9444444444444444,
+        "tf_argmax_correct": 0.9444444444444444,
+        "mean_joint_nll": 0.06798252295777674,
+        "mean_target_probability": 0.9585077858813895,
+        "categorical_accuracy": {
+          "main_x": 1.0,
+          "main_y": 1.0,
+          "c_x": 1.0,
+          "c_y": 1.0,
+          "shoulder": 1.0
+        }
+      },
+      "early_minimum_probability": 0.31215812817624483
+    },
+    {
+      "all": {
+        "count": 118,
+        "buttons_correct": 1.0,
+        "b_correct": 1.0,
+        "x_correct": 1.0,
+        "tf_argmax_correct": 1.0,
+        "mean_joint_nll": 3.923914705987349e-5,
+        "mean_target_probability": 0.9999607700973773,
+        "categorical_accuracy": {
+          "main_x": 1.0,
+          "main_y": 1.0,
+          "c_x": 1.0,
+          "c_y": 1.0,
+          "shoulder": 1.0
+        }
+      },
+      "case": "recovery:75",
+      "first18": {
+        "count": 18,
+        "buttons_correct": 1.0,
+        "b_correct": 1.0,
+        "x_correct": 1.0,
+        "tf_argmax_correct": 1.0,
+        "mean_joint_nll": 1.2599634913442522e-4,
+        "mean_target_probability": 0.9998740575138595,
+        "categorical_accuracy": {
+          "main_x": 1.0,
+          "main_y": 1.0,
+          "c_x": 1.0,
+          "c_y": 1.0,
+          "shoulder": 1.0
+        }
+      },
+      "early_minimum_probability": 0.9987132784837646
+    },
+    {
+      "all": {
+        "count": 118,
+        "buttons_correct": 1.0,
+        "b_correct": 1.0,
+        "x_correct": 1.0,
+        "tf_argmax_correct": 1.0,
+        "mean_joint_nll": 4.120202894235045e-5,
+        "mean_target_probability": 0.999958812458905,
+        "categorical_accuracy": {
+          "main_x": 1.0,
+          "main_y": 1.0,
+          "c_x": 1.0,
+          "c_y": 1.0,
+          "shoulder": 1.0
+        }
+      },
+      "case": "recovery:146",
+      "first18": {
+        "count": 18,
+        "buttons_correct": 1.0,
+        "b_correct": 1.0,
+        "x_correct": 1.0,
+        "tf_argmax_correct": 1.0,
+        "mean_joint_nll": 1.3648888521966733e-4,
+        "mean_target_probability": 0.9998635990446816,
+        "categorical_accuracy": {
+          "main_x": 1.0,
+          "main_y": 1.0,
+          "c_x": 1.0,
+          "c_y": 1.0,
+          "shoulder": 1.0
+        }
+      },
+      "early_minimum_probability": 0.9982489751425093
+    },
+    {
+      "all": {
+        "count": 118,
+        "buttons_correct": 0.9830508474576272,
+        "b_correct": 1.0,
+        "x_correct": 0.9830508474576272,
+        "tf_argmax_correct": 0.9830508474576272,
+        "mean_joint_nll": 0.049264718040104426,
+        "mean_target_probability": 0.9829680053709042,
+        "categorical_accuracy": {
+          "main_x": 1.0,
+          "main_y": 1.0,
+          "c_x": 1.0,
+          "c_y": 1.0,
+          "shoulder": 1.0
+        }
+      },
+      "case": "sustain:900",
+      "first18": {
+        "count": 18,
+        "buttons_correct": 0.8888888888888888,
+        "b_correct": 1.0,
+        "x_correct": 0.8888888888888888,
+        "tf_argmax_correct": 0.8888888888888888,
+        "mean_joint_nll": 0.32281003820806103,
+        "mean_target_probability": 0.8884933612244806,
+        "categorical_accuracy": {
+          "main_x": 1.0,
+          "main_y": 1.0,
+          "c_x": 1.0,
+          "c_y": 1.0,
+          "shoulder": 1.0
+        }
+      },
+      "early_minimum_probability": 0.031142218231119054
+    }
+  ]
+}

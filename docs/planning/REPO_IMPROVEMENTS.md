@@ -1,5 +1,63 @@
 # Repository improvement plan
 
+[Recovery context prepared and validated](RECORDED_CONTEXT_2026-09-13.md):
+three teacher restarts pass; 18 cold/warm clips retain all early targets and
+pass 324 Agent/training window checks. Fixed two negative-counter normalization
+mismatches; unchanged-model warm recovery still fails. Next: context-aware
+per-case fit reporting, a frozen update budget, then cold/warm and interruption
+closed-loop gates. No new training yet.
+
+[Recovery controls completed](RECOVERY_CONTROLS_2026-09-13.md): familiar recovery
+handoffs fail with warm history (overall6/12 vs12/12 cold); neutral-opponent
+interruptions remain0/6 with no later damage. Next: input-only real prefix context
+plus validated recovery teachers, not another blind training run. Readiness proxy
+also misses long crouching spans and needs a versioned refinement.
+
+[Interruption-recovery baseline](INTERRUPTION_RECOVERY_2026-09-13.md): human
+session reaches chain27; six valid replayed-hit responses produce no strict
+full-cycle return. Next: warm-history controls and isolated-hit/stop cases,
+then validate correction teachers. Preserve the passing trained-handoff baseline.
+
+**Frozen local multishine proof passes:** [same-initialization no-dropout fit](NO_DROPOUT_FIT_2026-09-13.md)
+reaches708/708 teacher targets,108/108 early targets, all six confidence gates,
+and12/12 valid local closed-loop responses with13–14-shine chains. Next: longer
+episodes and held-out starts with this checkpoint frozen. Canonical frame0 remains
+a known miss; arbitrary gameplay/general recovery is not yet established.
+
+[Dropout audit](PREVIOUS_ACTION_DROPOUT_AUDIT_2026-09-13.md): recovery is strongly
+mask-sensitive, but the canonical cold window is unchanged by dropout. Historical
+mask unavailable; no causation claim. Next controlled fit disables previous-action
+augmentation only, keeping the actual queue inputs and original readiness gates.
+
+[Fresh zero-state/F32 fitting completed](ZERO_F32_FIT_2026-09-13.md): 21 epochs,
+707/708 teacher targets and 107/108 early targets correct. All three previous
+mistakes fixed; five of six cases pass. Live withheld for a different recovery
+miss. Next: audit the two remaining misses and training-only previous-action
+dropout before more fitting; no distillation needed for this minimal proof.
+
+[Execution contracts implemented](EXECUTION_CONTRACT_2026-09-13.md): new drill GRUs
+use explicit zero state and F32 end-to-end; legacy checkpoints remain legacy.
+Six CPU tests and zero-update CUDA export/reload/sequential-head checks pass.
+Next: matching fresh initialization, bounded fitting, then unchanged fit/live gates.
+
+[Three-window inspection](EARLY_WINDOW_DIAGNOSIS_2026-09-13.md) confirms random
+GRU initialization makes identical inputs batch-row dependent; precision also
+differs between training and export. These contracts precede another run.
+
+[21-epoch round completed](EARLY_PREFIX_ROUND21_2026-09-13.md): improved fitting,
+but three early X-button errors keep the frozen gate closed. No new live run.
+
+[Early-prefix fitting preparation](EARLY_PREFIX_FITTING_2026-09-13.md): opt-in
+teacher-window repetition, audited coverage, frozen readiness gate and passing
+GPU preflight. Ready for a separately bounded training experiment.
+
+Producer action-frame correction and same-checkpoint matched-handoff results:
+[7/12, neutral starts repaired in these trials; early recovery remains](MATCHED_HANDOFFS_2026-09-13.md).
+
+Latest multishine work: [snapshot fix, per-case learning, and live failure traces](PER_CASE_LEARNING_2026-09-13.md).
+The candidate learned most teacher targets, but early recovery and mismatched
+handoff/action-frame inputs remain. Fix those contracts before another sweep.
+
 Created 2026-09-10 from the repository review. All seven recommendations are
 tracked here for incremental implementation. This is the execution checklist;
 [CURRENT_STATUS.md](CURRENT_STATUS.md) is the project entry point, and dated
@@ -312,3 +370,140 @@ or claim the remote pair supports today's code. Nothing was pushed.
   existing chain suite, and R1/R2 regressions. Seven-game CLI pilot completed;
   report source hashes and `git diff --check` verified. No clean dependency
   bootstrap, full repository suite, GPU work, or live teacher intervention is claimed.
+
+### 2026-09-12 — Label provenance and readout preparation alongside G26
+
+- Hardened the source resolver and recorded-shift guard to inspect every frame;
+  mixed sources, malformed tags, and intermediate discontinuities now fail or
+  drop at the appropriate boundary. Added explicit strict provenance/projection
+  modes while retaining legacy recorded-list compatibility. See
+  [contract details](LABEL_SOURCE_HARDENING.md).
+- Added a standalone Python [combined evidence report](../guides/MULTISHINE_READOUT.md)
+  and a manifest matching the existing G26 readout's actual epoch selections.
+  Missing outputs stay pending; mismatched policies and duplicate runs are
+  explicit. This is an inventory, not a new ranking metric or completion of R5.
+- Prepared the [real-game coverage round](MULTISHINE_COVERAGE_ROUND.md): three
+  opponents, both observed sides, fixed controls, development/confirmation split,
+  source-aware labeling and a controlled data-mixture comparison.
+- Per the user's preference, source edits are in this checkout. Test compilation
+  uses independent CPU dependency binaries. Claude's guard files and the queued
+  G26 launch/readout scripts are untouched by this work. No collection was launched.
+- Validation: 22 label/expert/source tests pass; expanded data run is 84/85,
+  with the same cache-key assertion failure reproduced on the unchanged
+  baseline (62/63). All 23 Python script tests pass, including six new evidence
+  report tests. Real G25 map/CPU parsing and a pending G26 inventory were checked;
+  `git diff --check` passes. No shared native build or GPU workload was started.
+
+### 2026-09-13 — recovery labels checked against live teacher futures
+
+- Added optional scenario teacher-label auditing, five unit tests, and fixed
+  grounded recovery handoffs from G26 ep33's own replay.
+- Confirmed 18/21 off-loop mismatches at shift 4 versus 0/327 on-loop mismatches
+  on three clean teacher recoveries, each chaining 13. A separate loop control
+  chains 14 with zero projected-label mismatches.
+- Rejected drifted/errored replay evidence. The ep57 reaction-4 policy control
+  fails (chain 1 twice), so the G26 policy comparison was not launched.
+- [Full confirmation and next steps](RECOVERY_LABEL_CONFIRMATION.md): validate
+  recovery transitions rather than assuming one-frame entry, and restore a
+  matched-rung policy control before interpreting a retraining comparison.
+- 26 audit/scoring tests pass; the broader scan test hits an existing missing
+  multishine detector clause. No shared rebuild, training, guard, or expert
+  behavior changes; evaluation used existing binaries and owned bridge cleanup.
+
+### 2026-09-13 — restore control and gate actual input delivery
+
+- Started [ordered pipeline proof](MULTISHINE_PIPELINE_PROOF.md). Restored ep57
+  reaction-2 control with six timing-verified chain-14 runs. Reaction 4 remains
+  unresolved; applied versus committed warm-up history does not explain it.
+- Added default policy recording-based timing verification, explicit invalid
+  run reporting/exit 2, and a standalone timing/alignment audit. Wrong-delay
+  episodes no longer count as policy scores. 49 focused Exphil tests pass.
+- With user authorization, patched the sibling `libmelee_ex` to avoid flushing
+  inputs while draining completed frames. Regression fails on old code and
+  passes with the fix, including pipe/direct output and empty-queue progress.
+  Library validation: 119 doctests, 3 properties, 565 tests, zero failures,
+  71 live-Dolphin tests excluded; live Exphil controls are tracked separately.
+- Twelve patched reaction-2/3 runs pass, but both patched and original code
+  can produce clean batches. Do not claim all latency variability is solved.
+  No training or shared native rebuild; source changes remain uncommitted.
+
+### 2026-09-13 — adversarial polling and executed recovery targets
+
+- Reproduced 4/4 wrong-timing runs under 1 ms polling. Fixed repeated input
+  commits in bridge internal retries using new sibling console wait-only API.
+  Fresh matrix: 12/12 pass timing, zero drift/errors, all chain 14.
+- Closed a verifier gap: noncontiguous and reordered traces now fail closed.
+  Added long-stream timing, delayed-frame, game-restart, and retry regressions.
+- Verified recorded teacher delivery (360 commands) and all training targets
+  at reaction shifts 2–5, including 21 off-loop targets per shift. Added a
+  small provenance-stamped fixture and regression for the actual label path.
+- Tiny-overfit preflight remains: preserve recorded teacher provenance at
+  ingestion, add neutral-start coverage, and fix the low-loss guard. No
+  training launched. See [pipeline tracker](MULTISHINE_PIPELINE_PROOF.md).
+
+### 2026-09-13 — numerical guard and recorded-teacher training preflight
+
+- Replaced arbitrary low-loss rollback with finite-loss/parameter validation,
+  retaining bounded numerical recovery and independent behavioral gating.
+- Added two live-verified standing starts, each chain 14, and golden neutral
+  transition tests. Exported six verified start/recovery/sustain windows.
+- Added strict recorded-frame ingestion without expert retagging; unsafe
+  provenance/history, unmatched globs, and unsupported streaming fail explicitly.
+- GPU preflight passes full ingestion, embedding, one optimizer step, numerical
+  validation, and checkpoint serialization. 74 focused tests pass. No long
+  training or bot promotion. [Usage](../guides/RECORDED_TEACHER_TRAINING.md).
+
+### 2026-09-13 — tiny overfit and recurrent-history audit
+
+- Ran the bounded 40-epoch experiment. Low loss, but starts/recoveries fail:
+  4/11 timing-valid chain-10 passes and one timing-invalid response. No promotion.
+- Confirmed 90 cross-clip temporal windows, including all 29 off-loop teacher
+  targets classified by the batch audit. Label boundaries alone are insufficient.
+- Next: boundary-safe input context retaining early targets, sampler regression,
+  timing-mismatch diagnosis, then a new bounded proof. Prepared old-label
+  comparator deferred pending this fix. [Experiment](TINY_OVERFIT_2026-09-13.md).
+
+### 2026-09-13 — clip-boundary histories corrected
+
+- Eager drill lazy batching now respects clip/gap boundaries with repeat-first
+  cold-start padding and action-queue resets, preserving early targets.
+- Real-data audit: zero cross-clip histories; all 29 audited off-loop targets
+  retained. Weight, teacher-mask, and probe-label indexing updated together.
+- New regression coverage exercises emitted windows, short clips, gaps, stride,
+  target alignment, and queue resets. Resume recipe version changed.
+- No fresh behavioral proof yet; input-verification diagnosis remains open.
+
+### 2026-09-13 — input conversion and cold-history evaluation
+
+- Fixed sibling libmelee_ex bipolar pipe-trigger scaling; raw Slippi pad-byte
+  serialization is unchanged. New verifier models measured stick readback and
+  independent trigger clicks with explicit historical/current profiles.
+- Live old/new sweeps each validate 549 commands; all 24 saved tiny-overfit runs
+  revalidate using the explicit legacy profile, without overwriting scoreboards.
+- Added cold-at-handoff mode matching padded training history. Live untrained
+  smoke passes timing, drift, and full-response checks at two handoffs.
+- 18 focused Exphil tests pass; sibling controller/raw-pad coverage passes
+  9 doctests, 2 properties, and 18 tests. No training launched.
+- Next: a new bounded cold-history proof, then separate warmed recovery testing.
+  [Contract and usage](../guides/INPUT_READBACK_CONTRACT.md).
+
+### 2026-09-13 — boundary-safe cold-history overfit experiment
+
+- Completed the fixed 40-epoch run with unchanged initial weights and no native
+  rebuild. Candidate passes 7/12; all trained responses pass timing/drift checks.
+- Found a metric/selection defect: final minibatch loss is reported as epoch
+  loss and controls best-checkpoint selection. Full-pool fitting remains unproven.
+- Next: aggregate epoch metrics and fixed per-case teacher-forced evaluation,
+  then rerun the bounded proof. No promotion or longer sweep.
+- [Protocol, artifacts, and results](TINY_OVERFIT_COLD_2026-09-13.md).
+
+### 2026-09-13 — epoch metric and selection correction
+
+- Replaced terminal-minibatch loss with denominator-weighted aggregation in
+  both drill paths; selection/stopping/logging now use the aggregate.
+- Invalid batches remain invalid; changed resume fingerprint and clearer
+  final logging. Eleven metric/health regressions pass.
+- Remaining: fixed-checkpoint per-case fit, first live divergence, 12/12 cold
+  proof, then warmed/held-out recovery. An existing omitted --snapshot-all CLI
+  error is tracked separately; the proof recipe already sets the flag.
+- [Details](EPOCH_METRIC_CORRECTION_2026-09-13.md).

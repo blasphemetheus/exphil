@@ -2097,8 +2097,8 @@ defmodule ExPhil.Agents.Agent do
     # Default :parsed is an exact no-op, so this cannot perturb existing
     # behavior unless asked for.
     opts =
-      if state.af_convention == :live,
-        do: [{:config, live_af_embed_config()} | opts],
+      if state.af_convention in [:live, :libmelee],
+        do: [{:config, live_af_embed_config(state.af_convention)} | opts],
         else: opts
 
     # Queue-as-input: policies trained with queue_depth > 1 / with_delay_id
@@ -2233,9 +2233,9 @@ defmodule ExPhil.Agents.Agent do
     Map.get(state.embed_config || %{}, :queue_depth) || 1
   end
 
-  defp live_af_embed_config do
+  defp live_af_embed_config(convention) do
     config = ExPhil.Embeddings.Game.Config.default()
-    %{config | player: %{config.player | af_convention: :live}}
+    %{config | player: %{config.player | af_convention: convention}}
   end
 
   # Uncertainty logging (flywheel A4). Confidence is computed by sampling
@@ -2298,6 +2298,9 @@ defmodule ExPhil.Agents.Agent do
   end
 
   defp load_policy_internal(state, %{params: params, config: config} = _policy) do
+    execution = ExPhil.Networks.Policy.ExecutionContract.load(config)
+    if execution.execution_contract == :windowed_gru_f32_v1 and state.stateful_step,
+      do: raise(ArgumentError, "windowed GRU v1 cannot use stateful-step inference")
     # Extract config
     embed_config = Map.get(config, :embed_config, %{})
     # The canary's length IS the true input width (it's the embedded
@@ -2351,6 +2354,7 @@ defmodule ExPhil.Agents.Agent do
     # (exports carry them since the backbone_defaults integration; GRU
     # ignores them harmlessly)
     trunk_opts = [
+      recurrent_state: execution.recurrent_state,
       embed_size: embed_size,
       backbone: backbone,
       window_size: window_size,

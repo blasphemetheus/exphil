@@ -1,0 +1,46 @@
+{
+  "entries": [
+    {
+      "type": "multishine_reentry",
+      "slp": "eval_runs/0913_teacher_ingestion/neutral/run00_multishine_reentry/Game_20260913T013628.slp",
+      "frame": 2228,
+      "note": "Matched executed teacher: neutral; original checkpoint, cold delay 2",
+      "teacher_sha256": "fd6c3fc4ae7e8ac6f2bc442a84eec00eae7f6329aa49040c44109f6ac3f1dd4a"
+    },
+    {
+      "type": "multishine_reentry",
+      "slp": "eval_runs/0913_teacher_ingestion/neutral/run01_multishine_reentry/Game_20260913T013635.slp",
+      "frame": 2566,
+      "note": "Matched executed teacher: neutral; original checkpoint, cold delay 2",
+      "teacher_sha256": "ee04109ffef505fd328349f905fae738acec0b8e133f82af149af7187675bc98"
+    },
+    {
+      "type": "multishine_reentry",
+      "slp": "eval_runs/0913_recovery_labels/control_teacher/run00_multishine_reentry/Game_20260913T000931.slp",
+      "frame": 900,
+      "note": "Matched executed teacher: sustain; original checkpoint, cold delay 2",
+      "teacher_sha256": "11980069d1ab76e6866894c78d8eb1f257de367dd4deb8a231386aef10a259a8"
+    },
+    {
+      "type": "multishine_reentry",
+      "slp": "eval_runs/0913_recovery_labels/teacher_grounded/run00_multishine_reentry/Game_20260913T001556.slp",
+      "frame": 4,
+      "note": "Matched executed teacher: recovery; original checkpoint, cold delay 2",
+      "teacher_sha256": "8f26269e3f1bced252d94b04963bd61f5883227abf0e5492788b8304429c3513"
+    },
+    {
+      "type": "multishine_reentry",
+      "slp": "eval_runs/0913_recovery_labels/teacher_grounded/run01_multishine_reentry/Game_20260913T001558.slp",
+      "frame": 75,
+      "note": "Matched executed teacher: recovery; original checkpoint, cold delay 2",
+      "teacher_sha256": "b72f8941868e4786a76efaa0d515f04b5a64b93c16bb6bec05746dd5485bd6b2"
+    },
+    {
+      "type": "multishine_reentry",
+      "slp": "eval_runs/0913_recovery_labels/teacher_grounded/run02_multishine_reentry/Game_20260913T001600.slp",
+      "frame": 146,
+      "note": "Matched executed teacher: recovery; original checkpoint, cold delay 2",
+      "teacher_sha256": "bed28c8d9455b521b71b096b795a747d0fa22c0f949711c49de2e1221c89b883"
+    }
+  ]
+}

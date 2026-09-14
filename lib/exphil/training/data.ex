@@ -156,28 +156,42 @@ defmodule ExPhil.Training.Data do
   last decision lands at decision time.
   """
   @spec shift_actions([frame()], non_neg_integer()) :: [frame()]
-  def shift_actions(frames, 0), do: frames
+  def shift_actions(frames, 0) do
+    ExPhil.Training.Labels.source(frames)
+    frames
+  end
 
   # INVARIANTS.md item 14: an expert-labeled list has no recorded future to
   # shift along (its recording is the STUDENT'S). Delayed expert labels come
   # from ExPhil.Training.Labels.at_delay/3 -> the expert's label_ahead/4.
-  def shift_actions([%{label_source: {:expert, mod}} | _], delay) when delay > 0 do
-    raise ArgumentError,
-          "Data.shift_actions/2 on expert-labeled frames (#{inspect(mod)}): shifting a relabel along " <>
-            "the recorded future borrows the student's broken future (RESULTS 2026-09-12 §9). " <>
-            "Use ExPhil.Training.Labels.at_delay/3 with the expert."
-  end
-
   def shift_actions(frames, delay) when is_integer(delay) and delay > 0 do
+    case ExPhil.Training.Labels.source(frames) do
+      :recorded ->
+        :ok
+
+      {:expert, module} ->
+        raise ArgumentError,
+              "Data.shift_actions/2 on expert-labeled frames (#{inspect(module)}): shifting a relabel along " <>
+                "the recorded future borrows the student's broken future (RESULTS 2026-09-12 §9). " <>
+                "Use ExPhil.Training.Labels.at_delay/3 with the expert."
+    end
+
     shifted =
       frames
       |> Enum.chunk_every(delay + 1, 1, :discard)
-      |> Enum.flat_map(fn [frame | rest] ->
+      |> Enum.flat_map(fn [frame | rest] = window ->
         target = List.last(rest)
 
         # Contiguity: the target frame must be exactly `delay` game-frames
         # ahead (no replay boundary or dropped frames in between)
-        if target.game_state.frame == frame.game_state.frame + delay do
+        contiguous =
+          window
+          |> Enum.with_index()
+          |> Enum.all?(fn {entry, offset} ->
+            entry.game_state.frame == frame.game_state.frame + offset
+          end)
+
+        if contiguous do
           [%{frame | controller: target.controller}]
         else
           []
@@ -188,14 +202,43 @@ defmodule ExPhil.Training.Data do
   end
 
   @doc """
-  Create a dataset from a list of frames directly.
+  Builds a dataset retaining clip boundaries and frame-number gaps. Lazy temporal
+  batches supervise every frame, repeating the first embedding at cold starts
+  just like Agent's empty-history inference. Previous-action queues reset at
+  boundaries. Padding is input-only; it never adds target rows.
+  """
+  @spec from_frame_lists([[frame()]], keyword()) :: t()
+  def from_frame_lists(frame_lists, opts \\ []) do
+    {starts, _offset} =
+      Enum.map_reduce(frame_lists, 0, fn frames, offset ->
+        {entries, _state} =
+          Enum.map_reduce(Enum.with_index(frames, offset), {offset, nil}, fn
+            {frame, index}, {start, previous} ->
+              number = frame.game_state.frame
+              start = if previous == nil or number != previous + 1, do: index, else: start
+              {start, {start, number}}
+          end)
 
-  Useful for testing or when data is already in memory.
+        {entries, offset + length(frames)}
+      end)
 
-  ## Options
-    - `:embed_config` - Embedding configuration
-    - `:metadata` - Dataset metadata
-    - `:player_registry` - PlayerRegistry for style-conditional training
+    metadata = Keyword.get(opts, :metadata, %{})
+    metadata = Map.put(metadata, :sequence_starts, starts |> List.flatten() |> List.to_tuple())
+    if Enum.any?(List.flatten(frame_lists), &(&1[:input_only] == true)) do
+      Enum.each(frame_lists, fn frames ->
+        {_prefix, targets} = Enum.split_while(frames, &(&1[:input_only] == true))
+        if targets == [] or Enum.any?(targets, &(&1[:input_only] == true)),
+          do: raise(ArgumentError, "input-only frames must precede a nonempty target suffix")
+      end)
+    end
+    from_frames(List.flatten(frame_lists), Keyword.put(opts, :metadata, metadata))
+  end
+
+  @doc """
+  Create a dataset from a flat list of frames directly.
+
+  Options: `:embed_config`, `:metadata`, and `:player_registry`.
+  Use `from_frame_lists/2` to retain episode boundaries for lazy temporal batches.
   """
   @spec from_frames([frame()], keyword()) :: t()
   def from_frames(frames, opts \\ []) do
@@ -218,9 +261,13 @@ defmodule ExPhil.Training.Data do
         frames
       end
 
+    metadata = Keyword.get(opts, :metadata, %{})
+    metadata = if Enum.any?(frames, &(&1[:input_only] == true)),
+      do: Map.put(metadata, :has_input_only_context, true), else: metadata
+
     %__MODULE__{
       frames: frames,
-      metadata: Keyword.get(opts, :metadata, %{}),
+      metadata: metadata,
       embed_config: embed_config,
       size: length(frames),
       player_registry: player_registry
@@ -329,6 +376,7 @@ defmodule ExPhil.Training.Data do
   """
   @spec batched(t(), keyword()) :: Enumerable.t()
   def batched(dataset, opts \\ []) do
+    reject_input_only!(dataset)
     batch_size = Keyword.get(opts, :batch_size, 64)
     shuffle = Keyword.get(opts, :shuffle, true)
     drop_last = Keyword.get(opts, :drop_last, false)
@@ -1462,7 +1510,9 @@ defmodule ExPhil.Training.Data do
         n = tuple_size(frames_t)
 
         consecutive? = fn a, b ->
-          elem(frames_t, a).game_state.frame + (b - a) == elem(frames_t, b).game_state.frame
+          starts = dataset.metadata[:sequence_starts]
+          (starts == nil or elem(starts, a) == elem(starts, b)) and
+            elem(frames_t, a).game_state.frame + (b - a) == elem(frames_t, b).game_state.frame
         end
 
         slot_at = fn i, k ->
@@ -2190,6 +2240,8 @@ defmodule ExPhil.Training.Data do
         drop_last: drop_last,
         seed: seed,
         character_weights: character_weights,
+        gpu: Keyword.get(opts, :gpu, true),
+        use_batch: Keyword.get(opts, :use_batch, false),
         neutral_weight: Keyword.get(opts, :neutral_weight, 0.25),
         transition_weight: Keyword.get(opts, :transition_weight),
         sampling_weights: Keyword.get(opts, :sampling_weights),
@@ -2199,6 +2251,7 @@ defmodule ExPhil.Training.Data do
       )
     else
       # Eager mode: use pre-built sequence embeddings (high RAM, fast batching)
+      reject_input_only!(dataset)
       batched_sequences_eager(dataset, opts)
     end
   end
@@ -2409,7 +2462,8 @@ defmodule ExPhil.Training.Data do
     # Calculate number of valid sequences (clamped: a streaming chunk
     # shorter than one window yields no sequences, and 0..-1 iterates
     # BACKWARDS rather than empty)
-    num_sequences = max(div(num_frames - window_size, stride) + 1, 0)
+    layout = sequence_layout(dataset, num_frames, window_size, stride)
+    num_sequences = tuple_size(layout)
 
     # Get frames array for action lookup
     frames_array = :array.from_list(dataset.frames)
@@ -2422,9 +2476,19 @@ defmodule ExPhil.Training.Data do
 
     indices =
       cond do
+        valid_indices == [] ->
+          []
+
         character_weights != nil ->
           alias ExPhil.Training.CharacterBalance
-          frame_weights = CharacterBalance.frame_weights(dataset.frames, character_weights)
+          weights =
+            CharacterBalance.frame_weights(dataset.frames, character_weights) |> List.to_tuple()
+
+          frame_weights =
+            Enum.map(valid_indices, fn index ->
+              {_start, target, _previous} = elem(layout, index)
+              elem(weights, target)
+            end)
           CharacterBalance.balanced_indices(frame_weights, length(valid_indices))
 
         sampling_weights != nil ->
@@ -2440,7 +2504,7 @@ defmodule ExPhil.Training.Data do
 
           valid_indices
           |> Enum.flat_map(fn seq_idx ->
-            last = seq_idx * stride + window_size - 1
+            {_start, last, _previous} = elem(layout, seq_idx)
             w = if last < wsize, do: elem(wtuple, last), else: 1.0
             copies = trunc(w)
             copies = if :rand.uniform() < w - copies, do: copies + 1, else: copies
@@ -2469,7 +2533,7 @@ defmodule ExPhil.Training.Data do
     |> Enum.chunk_every(batch_size)
     |> maybe_drop_last(drop_last, batch_size)
     |> Stream.map(fn batch_indices ->
-      batch = create_sequence_batch_lazy(chunks_array, chunk_size, frames_array, batch_indices, window_size, stride, embed_dim, gpu, use_batch, neutral_weight, transition_weight, loss_wtuple)
+      batch = create_sequence_batch_lazy(chunks_array, chunk_size, frames_array, batch_indices, window_size, stride, embed_dim, gpu, use_batch, neutral_weight, transition_weight, loss_wtuple, layout)
       attach_distill_fields(batch, batch_indices, distill, gpu)
     end)
   end
@@ -2535,10 +2599,11 @@ defmodule ExPhil.Training.Data do
     limit = Keyword.get(opts, :limit)
 
     {chunks_array, chunk_size, num_frames, embed_dim} = get_frame_embeddings_chunked(dataset)
-    num_sequences = div(num_frames - window_size, stride) + 1
+    layout = sequence_layout(dataset, num_frames, window_size, stride)
+    num_sequences = tuple_size(layout)
     frames_array = :array.from_list(dataset.frames)
 
-    indices = 0..(num_sequences - 1)//every |> Enum.to_list()
+    indices = if num_sequences == 0, do: [], else: Enum.to_list(0..(num_sequences - 1)//every)
     indices = if limit, do: Enum.take(indices, limit), else: indices
 
     batches =
@@ -2553,10 +2618,12 @@ defmodule ExPhil.Training.Data do
           window_size,
           stride,
           embed_dim,
-          true,
+          Keyword.get(opts, :gpu, true),
           false,
           0.25,
-          nil
+          nil,
+          nil,
+          layout
         )
       end)
 
@@ -2564,12 +2631,71 @@ defmodule ExPhil.Training.Data do
   end
 
   # Lazy batch creation - slices sequences from chunked frame embeddings on-the-fly
-  defp create_sequence_batch_lazy(chunks_array, chunk_size, frames_array, indices, window_size, stride, embed_dim, gpu, use_batch, neutral_weight, transition_weight, loss_wtuple \\ nil) do
+  @doc """
+  Maps lazy sequence IDs to supervised frame indices, including padded starts.
+  Probe labels and precomputed teacher masks must use this mapping rather than
+  assuming that sequence IDs are unpadded global window offsets.
+  """
+  def sequence_target_indices(dataset, window_size, stride \\ 1) do
+    sequence_layout(dataset, length(dataset.frames), window_size, stride)
+    |> Tuple.to_list()
+    |> Enum.map(&elem(&1, 1))
+  end
+
+  defp reject_input_only!(dataset) do
+    if dataset.metadata[:has_input_only_context] == true,
+      do: raise(ArgumentError, "input-only context requires boundary-aware lazy temporal batching")
+  end
+
+  defp sequence_layout(dataset, num_frames, window_size, stride)
+       when window_size > 0 and stride > 0 do
+    case dataset.metadata[:sequence_starts] do
+      nil ->
+        reject_input_only!(dataset)
+        count = if num_frames < window_size, do: 0, else: div(num_frames - window_size, stride) + 1
+        if count == 0 do
+          {}
+        else
+          for index <- 0..(count - 1) do
+            target = index * stride + window_size - 1
+            {index * stride, target, if(target > 0, do: target - 1)}
+          end
+          |> List.to_tuple()
+        end
+
+      starts when tuple_size(starts) == num_frames ->
+        frames = List.to_tuple(dataset.frames)
+        first_targets = starts |> Tuple.to_list() |> Enum.with_index()
+          |> Enum.reject(fn {_start, target} -> elem(frames, target)[:input_only] == true end)
+          |> Enum.reduce(%{}, fn {start, target}, acc -> Map.put_new(acc, start, target) end)
+        starts
+        |> Tuple.to_list()
+        |> Enum.with_index()
+        |> Enum.filter(fn {start, target} ->
+          elem(frames, target)[:input_only] != true and rem(target - Map.fetch!(first_targets, start), stride) == 0
+        end)
+        |> Enum.map(fn {start, target} ->
+          {max(start, target - window_size + 1), target, if(target > start, do: target - 1)}
+        end)
+        |> List.to_tuple()
+    end
+  end
+
+  defp create_sequence_batch_lazy(chunks_array, chunk_size, frames_array, indices, window_size, _stride, embed_dim, gpu, use_batch, neutral_weight, transition_weight, loss_wtuple, layout) do
     # Slice sequences from chunked embeddings (fast: 16K-row chunks vs 1.26M-row tensor)
     sequences =
       Enum.map(indices, fn seq_idx ->
-        frame_start = seq_idx * stride
-        slice_from_chunks(chunks_array, chunk_size, frame_start, window_size, embed_dim)
+        {frame_start, target, _previous} = elem(layout, seq_idx)
+        available_frames = target - frame_start + 1
+        sequence = slice_from_chunks(chunks_array, chunk_size, frame_start, available_frames, embed_dim)
+
+        if available_frames < window_size do
+          first = slice_from_chunks(chunks_array, chunk_size, frame_start, 1, embed_dim)
+          padding = Nx.broadcast(first, {window_size - available_frames, embed_dim})
+          Nx.concatenate([padding, sequence], axis: 0)
+        else
+          sequence
+        end
       end)
 
     # Previous-frame actions for transition weighting (anti-copycat,
@@ -2579,11 +2705,9 @@ defmodule ExPhil.Training.Data do
     prev_actions =
       if transition_weight do
         Enum.map(indices, fn seq_idx ->
-          frame_idx = seq_idx * stride + window_size - 2
-
-          case :array.get(max(frame_idx, 0), frames_array) do
-            :undefined -> nil
-            frame -> get_action(frame)
+          case elem(elem(layout, seq_idx), 2) do
+            nil -> nil
+            frame_idx -> get_action(:array.get(frame_idx, frames_array))
           end
         end)
       else
@@ -2593,7 +2717,7 @@ defmodule ExPhil.Training.Data do
     # Get actions from frames (use last frame of each sequence window)
     actions =
       Enum.map(indices, fn seq_idx ->
-        frame_idx = seq_idx * stride + window_size - 1
+        {_start, frame_idx, _previous} = elem(layout, seq_idx)
         frame = :array.get(frame_idx, frames_array)
 
         # Guard against out-of-bounds indices returning :undefined
@@ -2617,6 +2741,8 @@ defmodule ExPhil.Training.Data do
     # Assemble batch — two modes:
     # 1. Eager (default): Nx.stack + backend_transfer now, JIT receives ready tensors
     # 2. Nx.Batch: lazy struct, materialized at JIT boundary (better for prefetching)
+    targets = Enum.map(indices, fn index -> elem(elem(layout, index), 1) end)
+
     if use_batch do
       # Nx.Batch mode: defer concatenation to JIT boundary
       # JIT function sees regular tensors via LazyContainer protocol
@@ -2629,7 +2755,7 @@ defmodule ExPhil.Training.Data do
           transition_weight: transition_weight,
           prev_actions: prev_actions
         )
-        |> apply_loss_weights(indices, stride, window_size, loss_wtuple)
+        |> apply_loss_weights(targets, 1, 1, loss_wtuple)
 
       %{states: states_batch, actions: action_tensors, frame_weights: frame_weights}
     else
@@ -2648,7 +2774,7 @@ defmodule ExPhil.Training.Data do
           transition_weight: transition_weight,
           prev_actions: prev_actions
         )
-        |> apply_loss_weights(indices, stride, window_size, loss_wtuple)
+        |> apply_loss_weights(targets, 1, 1, loss_wtuple)
 
       frame_weights = if gpu, do: Nx.backend_transfer(frame_weights, EXLA.Backend), else: frame_weights
 

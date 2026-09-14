@@ -1,0 +1,260 @@
+{
+  "profile": "pipe_v1",
+  "runs": [
+    {
+      "run": 1,
+      "frame": 2228,
+      "timing": {
+        "profile": "pipe_v1",
+        "sent": {
+          "count": 120,
+          "matches": 120
+        },
+        "valid": true,
+        "decisions": {
+          "count": 118,
+          "matches": 118
+        },
+        "contiguous": true,
+        "verifier": "recorded_components_v2",
+        "expected_send_latency": 1,
+        "expected_decision_latency": 3,
+        "unsent_tail_decisions": 2
+      }
+    },
+    {
+      "run": 2,
+      "frame": 2228,
+      "timing": {
+        "profile": "pipe_v1",
+        "sent": {
+          "count": 120,
+          "matches": 120
+        },
+        "valid": true,
+        "decisions": {
+          "count": 118,
+          "matches": 118
+        },
+        "contiguous": true,
+        "verifier": "recorded_components_v2",
+        "expected_send_latency": 1,
+        "expected_decision_latency": 3,
+        "unsent_tail_decisions": 2
+      }
+    },
+    {
+      "run": 1,
+      "frame": 2566,
+      "timing": {
+        "profile": "pipe_v1",
+        "sent": {
+          "count": 120,
+          "matches": 120
+        },
+        "valid": true,
+        "decisions": {
+          "count": 118,
+          "matches": 118
+        },
+        "contiguous": true,
+        "verifier": "recorded_components_v2",
+        "expected_send_latency": 1,
+        "expected_decision_latency": 3,
+        "unsent_tail_decisions": 2
+      }
+    },
+    {
+      "run": 2,
+      "frame": 2566,
+      "timing": {
+        "profile": "pipe_v1",
+        "sent": {
+          "count": 120,
+          "matches": 120
+        },
+        "valid": true,
+        "decisions": {
+          "count": 118,
+          "matches": 118
+        },
+        "contiguous": true,
+        "verifier": "recorded_components_v2",
+        "expected_send_latency": 1,
+        "expected_decision_latency": 3,
+        "unsent_tail_decisions": 2
+      }
+    },
+    {
+      "run": 1,
+      "frame": 900,
+      "timing": {
+        "profile": "pipe_v1",
+        "sent": {
+          "count": 120,
+          "matches": 120
+        },
+        "valid": true,
+        "decisions": {
+          "count": 118,
+          "matches": 118
+        },
+        "contiguous": true,
+        "verifier": "recorded_components_v2",
+        "expected_send_latency": 1,
+        "expected_decision_latency": 3,
+        "unsent_tail_decisions": 2
+      }
+    },
+    {
+      "run": 2,
+      "frame": 900,
+      "timing": {
+        "profile": "pipe_v1",
+        "sent": {
+          "count": 120,
+          "matches": 120
+        },
+        "valid": true,
+        "decisions": {
+          "count": 118,
+          "matches": 118
+        },
+        "contiguous": true,
+        "verifier": "recorded_components_v2",
+        "expected_send_latency": 1,
+        "expected_decision_latency": 3,
+        "unsent_tail_decisions": 2
+      }
+    },
+    {
+      "run": 1,
+      "frame": 4,
+      "timing": {
+        "profile": "pipe_v1",
+        "sent": {
+          "count": 120,
+          "matches": 120
+        },
+        "valid": true,
+        "decisions": {
+          "count": 118,
+          "matches": 118
+        },
+        "contiguous": true,
+        "verifier": "recorded_components_v2",
+        "expected_send_latency": 1,
+        "expected_decision_latency": 3,
+        "unsent_tail_decisions": 2
+      }
+    },
+    {
+      "run": 2,
+      "frame": 4,
+      "timing": {
+        "profile": "pipe_v1",
+        "sent": {
+          "count": 120,
+          "matches": 120
+        },
+        "valid": true,
+        "decisions": {
+          "count": 118,
+          "matches": 118
+        },
+        "contiguous": true,
+        "verifier": "recorded_components_v2",
+        "expected_send_latency": 1,
+        "expected_decision_latency": 3,
+        "unsent_tail_decisions": 2
+      }
+    },
+    {
+      "run": 1,
+      "frame": 75,
+      "timing": {
+        "profile": "pipe_v1",
+        "sent": {
+          "count": 120,
+          "matches": 120
+        },
+        "valid": true,
+        "decisions": {
+          "count": 118,
+          "matches": 118
+        },
+        "contiguous": true,
+        "verifier": "recorded_components_v2",
+        "expected_send_latency": 1,
+        "expected_decision_latency": 3,
+        "unsent_tail_decisions": 2
+      }
+    },
+    {
+      "run": 2,
+      "frame": 75,
+      "timing": {
+        "profile": "pipe_v1",
+        "sent": {
+          "count": 120,
+          "matches": 120
+        },
+        "valid": true,
+        "decisions": {
+          "count": 118,
+          "matches": 118
+        },
+        "contiguous": true,
+        "verifier": "recorded_components_v2",
+        "expected_send_latency": 1,
+        "expected_decision_latency": 3,
+        "unsent_tail_decisions": 2
+      }
+    },
+    {
+      "run": 1,
+      "frame": 146,
+      "timing": {
+        "profile": "pipe_v1",
+        "sent": {
+          "count": 120,
+          "matches": 120
+        },
+        "valid": true,
+        "decisions": {
+          "count": 118,
+          "matches": 118
+        },
+        "contiguous": true,
+        "verifier": "recorded_components_v2",
+        "expected_send_latency": 1,
+        "expected_decision_latency": 3,
+        "unsent_tail_decisions": 2
+      }
+    },
+    {
+      "run": 2,
+      "frame": 146,
+      "timing": {
+        "profile": "pipe_v1",
+        "sent": {
+          "count": 120,
+          "matches": 120
+        },
+        "valid": true,
+        "decisions": {
+          "count": 118,
+          "matches": 118
+        },
+        "contiguous": true,
+        "verifier": "recorded_components_v2",
+        "expected_send_latency": 1,
+        "expected_decision_latency": 3,
+        "unsent_tail_decisions": 2
+      }
+    }
+  ],
+  "source_scores": "eval_runs/0913_tiny_overfit/eval_initial.json",
+  "valid_runs": 12,
+  "total_runs": 12
+}

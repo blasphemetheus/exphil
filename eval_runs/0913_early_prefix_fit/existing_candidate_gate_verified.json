@@ -1,0 +1,51 @@
+{
+  "cases": [
+    {
+      "case": "neutral:2228",
+      "ready": false,
+      "early_correct": 18,
+      "minimum_target_probability": 0.8212019034750664,
+      "valid_rows": true
+    },
+    {
+      "case": "neutral:2566",
+      "ready": false,
+      "early_correct": 18,
+      "minimum_target_probability": 0.820890043098855,
+      "valid_rows": true
+    },
+    {
+      "case": "recovery:4",
+      "ready": false,
+      "early_correct": 14,
+      "minimum_target_probability": 0.16262220864307161,
+      "valid_rows": true
+    },
+    {
+      "case": "recovery:75",
+      "ready": false,
+      "early_correct": 16,
+      "minimum_target_probability": 0.17529604812074193,
+      "valid_rows": true
+    },
+    {
+      "case": "recovery:146",
+      "ready": false,
+      "early_correct": 16,
+      "minimum_target_probability": 0.17590494255458441,
+      "valid_rows": true
+    },
+    {
+      "case": "sustain:900",
+      "ready": false,
+      "early_correct": 14,
+      "minimum_target_probability": 0.1391838481127974,
+      "valid_rows": true
+    }
+  ],
+  "ready": false,
+  "complete_cases": true,
+  "policy": "eval_runs/0913_tiny_overfit_cold/candidate.bin",
+  "source_report": "eval_runs/0913_per_case_fit/candidate_v2.json",
+  "policy_sha256": "07ee150c53cd464b1c77a95bcd12fa14e85bf7f048e26b46c3eedcab8d8cad7a"
+}

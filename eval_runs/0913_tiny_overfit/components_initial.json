@@ -1,0 +1,2074 @@
+{
+  "scores": "eval_runs/0913_tiny_overfit/eval_initial.json",
+  "runs": [
+    {
+      "count": 120,
+      "run": 1,
+      "frame": 2228,
+      "digital_matches": 120,
+      "analog_mismatch_frames": 117,
+      "digital_offset_grid": [
+        {
+          "offset": 0,
+          "digital_matches": 2
+        },
+        {
+          "offset": 1,
+          "digital_matches": 120
+        },
+        {
+          "offset": 2,
+          "digital_matches": 2
+        },
+        {
+          "offset": 3,
+          "digital_matches": 3
+        },
+        {
+          "offset": 4,
+          "digital_matches": 2
+        },
+        {
+          "offset": 5,
+          "digital_matches": 3
+        },
+        {
+          "offset": 6,
+          "digital_matches": 2
+        },
+        {
+          "offset": 7,
+          "digital_matches": 4
+        },
+        {
+          "offset": 8,
+          "digital_matches": 3
+        }
+      ],
+      "difference_counts": {
+        "c_x": 53,
+        "c_y": 69,
+        "left_trigger": 87,
+        "main_x": 69,
+        "main_y": 57,
+        "right_trigger": 74
+      },
+      "examples": [
+        {
+          "differences": [
+            {
+              "field": "main_x",
+              "expected": 0.375,
+              "observed": 0.5
+            },
+            {
+              "field": "c_y",
+              "expected": 0.375,
+              "observed": 0.5
+            },
+            {
+              "field": "left_trigger",
+              "expected": 0.25,
+              "observed": 0.0
+            }
+          ],
+          "frame": 2230,
+          "digital_match": true
+        },
+        {
+          "differences": [
+            {
+              "field": "c_x",
+              "expected": 0.0625,
+              "observed": 0.17500001192092896
+            },
+            {
+              "field": "c_y",
+              "expected": 0.0,
+              "observed": 0.125
+            },
+            {
+              "field": "left_trigger",
+              "expected": 0.25,
+              "observed": 0.0
+            },
+            {
+              "field": "right_trigger",
+              "expected": 0.0,
+              "observed": 1.0
+            }
+          ],
+          "frame": 2231,
+          "digital_match": true
+        },
+        {
+          "differences": [
+            {
+              "field": "main_x",
+              "expected": 0.375,
+              "observed": 0.5
+            },
+            {
+              "field": "c_x",
+              "expected": 1.0,
+              "observed": 0.8499999940395355
+            },
+            {
+              "field": "c_y",
+              "expected": 0.0,
+              "observed": 0.15000000596046448
+            },
+            {
+              "field": "left_trigger",
+              "expected": 1.0,
+              "observed": 0.1785714328289032
+            },
+            {
+              "field": "right_trigger",
+              "expected": 0.0,
+              "observed": 1.0
+            }
+          ],
+          "frame": 2232,
+          "digital_match": true
+        },
+        {
+          "differences": [
+            {
+              "field": "main_x",
+              "expected": 0.125,
+              "observed": 0.19999998807907104
+            },
+            {
+              "field": "main_y",
+              "expected": 1.0,
+              "observed": 0.9000000059604645
+            },
+            {
+              "field": "left_trigger",
+              "expected": 1.0,
+              "observed": 0.1785714328289032
+            },
+            {
+              "field": "right_trigger",
+              "expected": 0.0,
+              "observed": 1.0
+            }
+          ],
+          "frame": 2233,
+          "digital_match": true
+        },
+        {
+          "differences": [
+            {
+              "field": "c_x",
+              "expected": 0.25,
+              "observed": 0.28125
+            },
+            {
+              "field": "c_y",
+              "expected": 0.0,
+              "observed": 0.05625000596046448
+            },
+            {
+              "field": "left_trigger",
+              "expected": 0.25,
+              "observed": 1.0
+            },
+            {
+              "field": "right_trigger",
+              "expected": 0.0,
+              "observed": 1.0
+            }
+          ],
+          "frame": 2234,
+          "digital_match": true
+        }
+      ]
+    },
+    {
+      "count": 120,
+      "run": 2,
+      "frame": 2228,
+      "digital_matches": 120,
+      "analog_mismatch_frames": 114,
+      "digital_offset_grid": [
+        {
+          "offset": 0,
+          "digital_matches": 5
+        },
+        {
+          "offset": 1,
+          "digital_matches": 120
+        },
+        {
+          "offset": 2,
+          "digital_matches": 5
+        },
+        {
+          "offset": 3,
+          "digital_matches": 6
+        },
+        {
+          "offset": 4,
+          "digital_matches": 3
+        },
+        {
+          "offset": 5,
+          "digital_matches": 1
+        },
+        {
+          "offset": 6,
+          "digital_matches": 3
+        },
+        {
+          "offset": 7,
+          "digital_matches": 3
+        },
+        {
+          "offset": 8,
+          "digital_matches": 2
+        }
+      ],
+      "difference_counts": {
+        "c_x": 41,
+        "c_y": 58,
+        "left_trigger": 84,
+        "main_x": 66,
+        "main_y": 60,
+        "right_trigger": 75
+      },
+      "examples": [
+        {
+          "differences": [
+            {
+              "field": "left_trigger",
+              "expected": 0.25,
+              "observed": 0.0
+            },
+            {
+              "field": "right_trigger",
+              "expected": 0.0,
+              "observed": 1.0
+            }
+          ],
+          "frame": 2230,
+          "digital_match": true
+        },
+        {
+          "differences": [
+            {
+              "field": "c_y",
+              "expected": 0.375,
+              "observed": 0.5
+            },
+            {
+              "field": "left_trigger",
+              "expected": 0.25,
+              "observed": 0.0
+            }
+          ],
+          "frame": 2231,
+          "digital_match": true
+        },
+        {
+          "differences": [
+            {
+              "field": "c_x",
+              "expected": 1.0,
+              "observed": 0.875
+            },
+            {
+              "field": "c_y",
+              "expected": 0.0625,
+              "observed": 0.17500001192092896
+            },
+            {
+              "field": "left_trigger",
+              "expected": 0.25,
+              "observed": 0.0
+            }
+          ],
+          "frame": 2232,
+          "digital_match": true
+        },
+        {
+          "differences": [
+            {
+              "field": "main_x",
+              "expected": 0.9375,
+              "observed": 0.824999988079071
+            },
+            {
+              "field": "main_y",
+              "expected": 0.0,
+              "observed": 0.125
+            },
+            {
+              "field": "c_x",
+              "expected": 0.625,
+              "observed": 0.5
+            },
+            {
+              "field": "left_trigger",
+              "expected": 0.0,
+              "observed": 1.0
+            }
+          ],
+          "frame": 2234,
+          "digital_match": true
+        },
+        {
+          "differences": [
+            {
+              "field": "main_x",
+              "expected": 0.1875,
+              "observed": 0.21250000596046448
+            },
+            {
+              "field": "main_y",
+              "expected": 0.9375,
+              "observed": 0.90625
+            },
+            {
+              "field": "c_x",
+              "expected": 0.75,
+              "observed": 0.71875
+            },
+            {
+              "field": "c_y",
+              "expected": 0.0,
+              "observed": 0.05625000596046448
+            },
+            {
+              "field": "left_trigger",
+              "expected": 1.0,
+              "observed": 0.1785714328289032
+            }
+          ],
+          "frame": 2235,
+          "digital_match": true
+        }
+      ]
+    },
+    {
+      "count": 120,
+      "run": 1,
+      "frame": 2566,
+      "digital_matches": 120,
+      "analog_mismatch_frames": 117,
+      "digital_offset_grid": [
+        {
+          "offset": 0,
+          "digital_matches": 3
+        },
+        {
+          "offset": 1,
+          "digital_matches": 120
+        },
+        {
+          "offset": 2,
+          "digital_matches": 3
+        },
+        {
+          "offset": 3,
+          "digital_matches": 3
+        },
+        {
+          "offset": 4,
+          "digital_matches": 5
+        },
+        {
+          "offset": 5,
+          "digital_matches": 6
+        },
+        {
+          "offset": 6,
+          "digital_matches": 6
+        },
+        {
+          "offset": 7,
+          "digital_matches": 4
+        },
+        {
+          "offset": 8,
+          "digital_matches": 5
+        }
+      ],
+      "difference_counts": {
+        "c_x": 47,
+        "c_y": 67,
+        "left_trigger": 83,
+        "main_x": 62,
+        "main_y": 55,
+        "right_trigger": 58
+      },
+      "examples": [
+        {
+          "differences": [
+            {
+              "field": "main_x",
+              "expected": 0.875,
+              "observed": 0.800000011920929
+            },
+            {
+              "field": "main_y",
+              "expected": 1.0,
+              "observed": 0.9000000059604645
+            },
+            {
+              "field": "left_trigger",
+              "expected": 0.75,
+              "observed": 1.0
+            }
+          ],
+          "frame": 2568,
+          "digital_match": true
+        },
+        {
+          "differences": [
+            {
+              "field": "main_y",
+              "expected": 0.4375,
+              "observed": 0.5
+            },
+            {
+              "field": "left_trigger",
+              "expected": 0.25,
+              "observed": 0.0
+            },
+            {
+              "field": "right_trigger",
+              "expected": 0.0,
+              "observed": 1.0
+            }
+          ],
+          "frame": 2569,
+          "digital_match": true
+        },
+        {
+          "differences": [
+            {
+              "field": "c_x",
+              "expected": 0.0625,
+              "observed": 0.17500001192092896
+            },
+            {
+              "field": "c_y",
+              "expected": 0.0,
+              "observed": 0.125
+            },
+            {
+              "field": "left_trigger",
+              "expected": 0.25,
+              "observed": 0.0
+            }
+          ],
+          "frame": 2570,
+          "digital_match": true
+        },
+        {
+          "differences": [
+            {
+              "field": "main_x",
+              "expected": 0.375,
+              "observed": 0.5
+            },
+            {
+              "field": "left_trigger",
+              "expected": 0.25,
+              "observed": 0.0
+            },
+            {
+              "field": "right_trigger",
+              "expected": 0.0,
+              "observed": 1.0
+            }
+          ],
+          "frame": 2571,
+          "digital_match": true
+        },
+        {
+          "differences": [
+            {
+              "field": "main_x",
+              "expected": 0.9375,
+              "observed": 0.875
+            },
+            {
+              "field": "main_y",
+              "expected": 0.875,
+              "observed": 0.824999988079071
+            },
+            {
+              "field": "c_x",
+              "expected": 0.25,
+              "observed": 0.28125
+            },
+            {
+              "field": "c_y",
+              "expected": 1.0,
+              "observed": 0.9437499940395355
+            }
+          ],
+          "frame": 2572,
+          "digital_match": true
+        }
+      ]
+    },
+    {
+      "count": 120,
+      "run": 2,
+      "frame": 2566,
+      "digital_matches": 120,
+      "analog_mismatch_frames": 115,
+      "digital_offset_grid": [
+        {
+          "offset": 0,
+          "digital_matches": 5
+        },
+        {
+          "offset": 1,
+          "digital_matches": 120
+        },
+        {
+          "offset": 2,
+          "digital_matches": 5
+        },
+        {
+          "offset": 3,
+          "digital_matches": 3
+        },
+        {
+          "offset": 4,
+          "digital_matches": 2
+        },
+        {
+          "offset": 5,
+          "digital_matches": 7
+        },
+        {
+          "offset": 6,
+          "digital_matches": 2
+        },
+        {
+          "offset": 7,
+          "digital_matches": 4
+        },
+        {
+          "offset": 8,
+          "digital_matches": 2
+        }
+      ],
+      "difference_counts": {
+        "c_x": 51,
+        "c_y": 64,
+        "left_trigger": 85,
+        "main_x": 56,
+        "main_y": 59,
+        "right_trigger": 70
+      },
+      "examples": [
+        {
+          "differences": [
+            {
+              "field": "main_x",
+              "expected": 0.375,
+              "observed": 0.5
+            },
+            {
+              "field": "c_y",
+              "expected": 1.0,
+              "observed": 0.9625000059604645
+            }
+          ],
+          "frame": 2568,
+          "digital_match": true
+        },
+        {
+          "differences": [
+            {
+              "field": "c_x",
+              "expected": 1.0,
+              "observed": 0.918749988079071
+            },
+            {
+              "field": "c_y",
+              "expected": 0.1875,
+              "observed": 0.23750001192092896
+            },
+            {
+              "field": "left_trigger",
+              "expected": 0.25,
+              "observed": 0.0
+            },
+            {
+              "field": "right_trigger",
+              "expected": 0.0,
+              "observed": 1.0
+            }
+          ],
+          "frame": 2569,
+          "digital_match": true
+        },
+        {
+          "differences": [
+            {
+              "field": "main_x",
+              "expected": 0.5625,
+              "observed": 0.5
+            },
+            {
+              "field": "main_y",
+              "expected": 0.625,
+              "observed": 0.5
+            },
+            {
+              "field": "c_y",
+              "expected": 0.625,
+              "observed": 0.5
+            },
+            {
+              "field": "right_trigger",
+              "expected": 0.0,
+              "observed": 1.0
+            }
+          ],
+          "frame": 2571,
+          "digital_match": true
+        },
+        {
+          "differences": [
+            {
+              "field": "left_trigger",
+              "expected": 0.25,
+              "observed": 0.0
+            },
+            {
+              "field": "right_trigger",
+              "expected": 0.0,
+              "observed": 1.0
+            }
+          ],
+          "frame": 2572,
+          "digital_match": true
+        },
+        {
+          "differences": [
+            {
+              "field": "left_trigger",
+              "expected": 0.25,
+              "observed": 0.0
+            },
+            {
+              "field": "right_trigger",
+              "expected": 0.0,
+              "observed": 1.0
+            }
+          ],
+          "frame": 2573,
+          "digital_match": true
+        }
+      ]
+    },
+    {
+      "count": 120,
+      "run": 1,
+      "frame": 900,
+      "digital_matches": 120,
+      "analog_mismatch_frames": 118,
+      "digital_offset_grid": [
+        {
+          "offset": 0,
+          "digital_matches": 5
+        },
+        {
+          "offset": 1,
+          "digital_matches": 120
+        },
+        {
+          "offset": 2,
+          "digital_matches": 5
+        },
+        {
+          "offset": 3,
+          "digital_matches": 2
+        },
+        {
+          "offset": 4,
+          "digital_matches": 4
+        },
+        {
+          "offset": 5,
+          "digital_matches": 2
+        },
+        {
+          "offset": 6,
+          "digital_matches": 3
+        },
+        {
+          "offset": 7,
+          "digital_matches": 5
+        },
+        {
+          "offset": 8,
+          "digital_matches": 4
+        }
+      ],
+      "difference_counts": {
+        "c_x": 52,
+        "c_y": 71,
+        "left_trigger": 94,
+        "main_x": 65,
+        "main_y": 67,
+        "right_trigger": 73
+      },
+      "examples": [
+        {
+          "differences": [
+            {
+              "field": "main_x",
+              "expected": 0.375,
+              "observed": 0.5
+            },
+            {
+              "field": "main_y",
+              "expected": 0.625,
+              "observed": 0.5
+            },
+            {
+              "field": "c_y",
+              "expected": 0.625,
+              "observed": 0.5
+            },
+            {
+              "field": "left_trigger",
+              "expected": 0.25,
+              "observed": 0.0
+            }
+          ],
+          "frame": 902,
+          "digital_match": true
+        },
+        {
+          "differences": [
+            {
+              "field": "main_y",
+              "expected": 0.625,
+              "observed": 0.5
+            },
+            {
+              "field": "c_x",
+              "expected": 0.0625,
+              "observed": 0.17500001192092896
+            },
+            {
+              "field": "c_y",
+              "expected": 1.0,
+              "observed": 0.875
+            },
+            {
+              "field": "left_trigger",
+              "expected": 0.25,
+              "observed": 0.0
+            }
+          ],
+          "frame": 903,
+          "digital_match": true
+        },
+        {
+          "differences": [
+            {
+              "field": "main_x",
+              "expected": 0.375,
+              "observed": 0.5
+            },
+            {
+              "field": "main_y",
+              "expected": 0.4375,
+              "observed": 0.5
+            },
+            {
+              "field": "left_trigger",
+              "expected": 0.25,
+              "observed": 0.0
+            },
+            {
+              "field": "right_trigger",
+              "expected": 0.0,
+              "observed": 1.0
+            }
+          ],
+          "frame": 904,
+          "digital_match": true
+        },
+        {
+          "differences": [
+            {
+              "field": "c_x",
+              "expected": 0.25,
+              "observed": 0.28125
+            },
+            {
+              "field": "c_y",
+              "expected": 0.0,
+              "observed": 0.05625000596046448
+            },
+            {
+              "field": "right_trigger",
+              "expected": 0.0,
+              "observed": 1.0
+            }
+          ],
+          "frame": 905,
+          "digital_match": true
+        },
+        {
+          "differences": [
+            {
+              "field": "c_x",
+              "expected": 0.8125,
+              "observed": 0.7874999940395355
+            },
+            {
+              "field": "c_y",
+              "expected": 0.0625,
+              "observed": 0.09375
+            },
+            {
+              "field": "left_trigger",
+              "expected": 0.25,
+              "observed": 0.0
+            },
+            {
+              "field": "right_trigger",
+              "expected": 0.0,
+              "observed": 1.0
+            }
+          ],
+          "frame": 906,
+          "digital_match": true
+        }
+      ]
+    },
+    {
+      "count": 120,
+      "run": 2,
+      "frame": 900,
+      "digital_matches": 120,
+      "analog_mismatch_frames": 117,
+      "digital_offset_grid": [
+        {
+          "offset": 0,
+          "digital_matches": 3
+        },
+        {
+          "offset": 1,
+          "digital_matches": 120
+        },
+        {
+          "offset": 2,
+          "digital_matches": 3
+        },
+        {
+          "offset": 3,
+          "digital_matches": 4
+        },
+        {
+          "offset": 4,
+          "digital_matches": 3
+        },
+        {
+          "offset": 5,
+          "digital_matches": 2
+        },
+        {
+          "offset": 6,
+          "digital_matches": 2
+        },
+        {
+          "offset": 7,
+          "digital_matches": 3
+        },
+        {
+          "offset": 8,
+          "digital_matches": 2
+        }
+      ],
+      "difference_counts": {
+        "c_x": 40,
+        "c_y": 64,
+        "left_trigger": 85,
+        "main_x": 79,
+        "main_y": 61,
+        "right_trigger": 70
+      },
+      "examples": [
+        {
+          "differences": [
+            {
+              "field": "main_y",
+              "expected": 0.625,
+              "observed": 0.5
+            },
+            {
+              "field": "left_trigger",
+              "expected": 0.25,
+              "observed": 0.0
+            },
+            {
+              "field": "right_trigger",
+              "expected": 0.0,
+              "observed": 1.0
+            }
+          ],
+          "frame": 902,
+          "digital_match": true
+        },
+        {
+          "differences": [
+            {
+              "field": "main_x",
+              "expected": 0.1875,
+              "observed": 0.23750001192092896
+            },
+            {
+              "field": "main_y",
+              "expected": 1.0,
+              "observed": 0.918749988079071
+            }
+          ],
+          "frame": 904,
+          "digital_match": true
+        },
+        {
+          "differences": [
+            {
+              "field": "main_x",
+              "expected": 1.0,
+              "observed": 0.918749988079071
+            },
+            {
+              "field": "main_y",
+              "expected": 0.8125,
+              "observed": 0.762499988079071
+            },
+            {
+              "field": "c_x",
+              "expected": 0.0,
+              "observed": 0.05625000596046448
+            },
+            {
+              "field": "c_y",
+              "expected": 0.25,
+              "observed": 0.28125
+            }
+          ],
+          "frame": 905,
+          "digital_match": true
+        },
+        {
+          "differences": [
+            {
+              "field": "main_x",
+              "expected": 1.0,
+              "observed": 0.8499999940395355
+            },
+            {
+              "field": "main_y",
+              "expected": 1.0,
+              "observed": 0.8499999940395355
+            },
+            {
+              "field": "c_x",
+              "expected": 0.9375,
+              "observed": 0.90625
+            },
+            {
+              "field": "c_y",
+              "expected": 0.1875,
+              "observed": 0.21250000596046448
+            },
+            {
+              "field": "left_trigger",
+              "expected": 0.25,
+              "observed": 0.0
+            }
+          ],
+          "frame": 906,
+          "digital_match": true
+        },
+        {
+          "differences": [
+            {
+              "field": "main_y",
+              "expected": 0.625,
+              "observed": 0.5
+            },
+            {
+              "field": "left_trigger",
+              "expected": 0.25,
+              "observed": 0.0
+            },
+            {
+              "field": "right_trigger",
+              "expected": 0.0,
+              "observed": 1.0
+            }
+          ],
+          "frame": 907,
+          "digital_match": true
+        }
+      ]
+    },
+    {
+      "count": 120,
+      "run": 1,
+      "frame": 4,
+      "digital_matches": 120,
+      "analog_mismatch_frames": 117,
+      "digital_offset_grid": [
+        {
+          "offset": 0,
+          "digital_matches": 2
+        },
+        {
+          "offset": 1,
+          "digital_matches": 120
+        },
+        {
+          "offset": 2,
+          "digital_matches": 2
+        },
+        {
+          "offset": 3,
+          "digital_matches": 1
+        },
+        {
+          "offset": 4,
+          "digital_matches": 1
+        },
+        {
+          "offset": 5,
+          "digital_matches": 3
+        },
+        {
+          "offset": 6,
+          "digital_matches": 1
+        },
+        {
+          "offset": 7,
+          "digital_matches": 2
+        },
+        {
+          "offset": 8,
+          "digital_matches": 4
+        }
+      ],
+      "difference_counts": {
+        "c_x": 51,
+        "c_y": 64,
+        "left_trigger": 85,
+        "main_x": 67,
+        "main_y": 67,
+        "right_trigger": 65
+      },
+      "examples": [
+        {
+          "differences": [
+            {
+              "field": "main_x",
+              "expected": 0.5625,
+              "observed": 0.5
+            },
+            {
+              "field": "c_x",
+              "expected": 0.625,
+              "observed": 0.5
+            },
+            {
+              "field": "left_trigger",
+              "expected": 0.25,
+              "observed": 0.0
+            },
+            {
+              "field": "right_trigger",
+              "expected": 0.0,
+              "observed": 1.0
+            }
+          ],
+          "frame": 6,
+          "digital_match": true
+        },
+        {
+          "differences": [
+            {
+              "field": "c_y",
+              "expected": 0.375,
+              "observed": 0.5
+            },
+            {
+              "field": "right_trigger",
+              "expected": 0.0,
+              "observed": 1.0
+            }
+          ],
+          "frame": 7,
+          "digital_match": true
+        },
+        {
+          "differences": [
+            {
+              "field": "main_y",
+              "expected": 0.5625,
+              "observed": 0.5
+            },
+            {
+              "field": "c_y",
+              "expected": 0.625,
+              "observed": 0.5
+            },
+            {
+              "field": "left_trigger",
+              "expected": 0.25,
+              "observed": 0.0
+            }
+          ],
+          "frame": 8,
+          "digital_match": true
+        },
+        {
+          "differences": [
+            {
+              "field": "main_y",
+              "expected": 0.4375,
+              "observed": 0.5
+            },
+            {
+              "field": "c_y",
+              "expected": 0.5625,
+              "observed": 0.5
+            }
+          ],
+          "frame": 9,
+          "digital_match": true
+        },
+        {
+          "differences": [
+            {
+              "field": "main_x",
+              "expected": 0.0625,
+              "observed": 0.09375
+            },
+            {
+              "field": "main_y",
+              "expected": 0.8125,
+              "observed": 0.7874999940395355
+            },
+            {
+              "field": "c_x",
+              "expected": 0.4375,
+              "observed": 0.5
+            }
+          ],
+          "frame": 10,
+          "digital_match": true
+        }
+      ]
+    },
+    {
+      "count": 120,
+      "run": 2,
+      "frame": 4,
+      "digital_matches": 120,
+      "analog_mismatch_frames": 118,
+      "digital_offset_grid": [
+        {
+          "offset": 0,
+          "digital_matches": 4
+        },
+        {
+          "offset": 1,
+          "digital_matches": 120
+        },
+        {
+          "offset": 2,
+          "digital_matches": 4
+        },
+        {
+          "offset": 3,
+          "digital_matches": 1
+        },
+        {
+          "offset": 4,
+          "digital_matches": 1
+        },
+        {
+          "offset": 5,
+          "digital_matches": 4
+        },
+        {
+          "offset": 6,
+          "digital_matches": 4
+        },
+        {
+          "offset": 7,
+          "digital_matches": 1
+        },
+        {
+          "offset": 8,
+          "digital_matches": 2
+        }
+      ],
+      "difference_counts": {
+        "c_x": 41,
+        "c_y": 60,
+        "left_trigger": 94,
+        "main_x": 70,
+        "main_y": 58,
+        "right_trigger": 65
+      },
+      "examples": [
+        {
+          "differences": [
+            {
+              "field": "main_x",
+              "expected": 0.1875,
+              "observed": 0.23750001192092896
+            },
+            {
+              "field": "main_y",
+              "expected": 1.0,
+              "observed": 0.918749988079071
+            },
+            {
+              "field": "left_trigger",
+              "expected": 1.0,
+              "observed": 0.1785714328289032
+            },
+            {
+              "field": "right_trigger",
+              "expected": 0.0,
+              "observed": 1.0
+            }
+          ],
+          "frame": 6,
+          "digital_match": true
+        },
+        {
+          "differences": [
+            {
+              "field": "main_x",
+              "expected": 0.375,
+              "observed": 0.5
+            },
+            {
+              "field": "c_y",
+              "expected": 0.625,
+              "observed": 0.5
+            },
+            {
+              "field": "right_trigger",
+              "expected": 0.0,
+              "observed": 1.0
+            }
+          ],
+          "frame": 7,
+          "digital_match": true
+        },
+        {
+          "differences": [
+            {
+              "field": "c_x",
+              "expected": 0.625,
+              "observed": 0.5
+            },
+            {
+              "field": "right_trigger",
+              "expected": 0.0,
+              "observed": 1.0
+            }
+          ],
+          "frame": 8,
+          "digital_match": true
+        },
+        {
+          "differences": [
+            {
+              "field": "main_x",
+              "expected": 0.375,
+              "observed": 0.5
+            }
+          ],
+          "frame": 9,
+          "digital_match": true
+        },
+        {
+          "differences": [
+            {
+              "field": "main_x",
+              "expected": 0.5625,
+              "observed": 0.5
+            },
+            {
+              "field": "c_y",
+              "expected": 0.5625,
+              "observed": 0.5
+            }
+          ],
+          "frame": 10,
+          "digital_match": true
+        }
+      ]
+    },
+    {
+      "count": 120,
+      "run": 1,
+      "frame": 75,
+      "digital_matches": 120,
+      "analog_mismatch_frames": 118,
+      "digital_offset_grid": [
+        {
+          "offset": 0,
+          "digital_matches": 2
+        },
+        {
+          "offset": 1,
+          "digital_matches": 120
+        },
+        {
+          "offset": 2,
+          "digital_matches": 3
+        },
+        {
+          "offset": 3,
+          "digital_matches": 5
+        },
+        {
+          "offset": 4,
+          "digital_matches": 3
+        },
+        {
+          "offset": 5,
+          "digital_matches": 3
+        },
+        {
+          "offset": 6,
+          "digital_matches": 2
+        },
+        {
+          "offset": 7,
+          "digital_matches": 2
+        },
+        {
+          "offset": 8,
+          "digital_matches": 1
+        }
+      ],
+      "difference_counts": {
+        "c_x": 52,
+        "c_y": 60,
+        "left_trigger": 96,
+        "main_x": 68,
+        "main_y": 51,
+        "right_trigger": 69
+      },
+      "examples": [
+        {
+          "differences": [
+            {
+              "field": "main_x",
+              "expected": 0.0625,
+              "observed": 0.17500001192092896
+            },
+            {
+              "field": "main_y",
+              "expected": 1.0,
+              "observed": 0.875
+            },
+            {
+              "field": "c_x",
+              "expected": 1.0,
+              "observed": 0.918749988079071
+            },
+            {
+              "field": "c_y",
+              "expected": 0.8125,
+              "observed": 0.762499988079071
+            },
+            {
+              "field": "left_trigger",
+              "expected": 0.25,
+              "observed": 0.0
+            }
+          ],
+          "frame": 77,
+          "digital_match": true
+        },
+        {
+          "differences": [
+            {
+              "field": "main_x",
+              "expected": 0.375,
+              "observed": 0.5
+            },
+            {
+              "field": "main_y",
+              "expected": 0.5625,
+              "observed": 0.5
+            },
+            {
+              "field": "c_y",
+              "expected": 0.0,
+              "observed": 0.03749999403953552
+            },
+            {
+              "field": "left_trigger",
+              "expected": 0.25,
+              "observed": 1.0
+            },
+            {
+              "field": "right_trigger",
+              "expected": 0.0,
+              "observed": 1.0
+            }
+          ],
+          "frame": 78,
+          "digital_match": true
+        },
+        {
+          "differences": [
+            {
+              "field": "main_x",
+              "expected": 0.0625,
+              "observed": 0.09375
+            },
+            {
+              "field": "main_y",
+              "expected": 0.8125,
+              "observed": 0.7874999940395355
+            },
+            {
+              "field": "c_x",
+              "expected": 0.0,
+              "observed": 0.15000000596046448
+            },
+            {
+              "field": "c_y",
+              "expected": 0.0,
+              "observed": 0.15000000596046448
+            },
+            {
+              "field": "right_trigger",
+              "expected": 0.0,
+              "observed": 1.0
+            }
+          ],
+          "frame": 79,
+          "digital_match": true
+        },
+        {
+          "differences": [
+            {
+              "field": "main_y",
+              "expected": 0.625,
+              "observed": 0.5
+            },
+            {
+              "field": "c_x",
+              "expected": 1.0,
+              "observed": 0.9625000059604645
+            }
+          ],
+          "frame": 80,
+          "digital_match": true
+        },
+        {
+          "differences": [
+            {
+              "field": "main_x",
+              "expected": 0.375,
+              "observed": 0.5
+            },
+            {
+              "field": "left_trigger",
+              "expected": 0.25,
+              "observed": 0.0
+            },
+            {
+              "field": "right_trigger",
+              "expected": 0.0,
+              "observed": 1.0
+            }
+          ],
+          "frame": 81,
+          "digital_match": true
+        }
+      ]
+    },
+    {
+      "count": 120,
+      "run": 2,
+      "frame": 75,
+      "digital_matches": 120,
+      "analog_mismatch_frames": 118,
+      "digital_offset_grid": [
+        {
+          "offset": 0,
+          "digital_matches": 3
+        },
+        {
+          "offset": 1,
+          "digital_matches": 120
+        },
+        {
+          "offset": 2,
+          "digital_matches": 4
+        },
+        {
+          "offset": 3,
+          "digital_matches": 3
+        },
+        {
+          "offset": 4,
+          "digital_matches": 3
+        },
+        {
+          "offset": 5,
+          "digital_matches": 2
+        },
+        {
+          "offset": 6,
+          "digital_matches": 3
+        },
+        {
+          "offset": 7,
+          "digital_matches": 2
+        },
+        {
+          "offset": 8,
+          "digital_matches": 2
+        }
+      ],
+      "difference_counts": {
+        "c_x": 38,
+        "c_y": 57,
+        "left_trigger": 91,
+        "main_x": 57,
+        "main_y": 54,
+        "right_trigger": 72
+      },
+      "examples": [
+        {
+          "differences": [
+            {
+              "field": "left_trigger",
+              "expected": 0.25,
+              "observed": 1.0
+            },
+            {
+              "field": "right_trigger",
+              "expected": 0.0,
+              "observed": 1.0
+            }
+          ],
+          "frame": 77,
+          "digital_match": true
+        },
+        {
+          "differences": [
+            {
+              "field": "main_x",
+              "expected": 0.4375,
+              "observed": 0.5
+            },
+            {
+              "field": "c_y",
+              "expected": 0.625,
+              "observed": 0.5
+            },
+            {
+              "field": "left_trigger",
+              "expected": 0.25,
+              "observed": 0.0
+            },
+            {
+              "field": "right_trigger",
+              "expected": 0.0,
+              "observed": 1.0
+            }
+          ],
+          "frame": 78,
+          "digital_match": true
+        },
+        {
+          "differences": [
+            {
+              "field": "main_x",
+              "expected": 0.125,
+              "observed": 0.19999998807907104
+            },
+            {
+              "field": "main_y",
+              "expected": 1.0,
+              "observed": 0.9000000059604645
+            },
+            {
+              "field": "c_y",
+              "expected": 0.4375,
+              "observed": 0.5
+            },
+            {
+              "field": "right_trigger",
+              "expected": 0.0,
+              "observed": 1.0
+            }
+          ],
+          "frame": 79,
+          "digital_match": true
+        },
+        {
+          "differences": [
+            {
+              "field": "main_x",
+              "expected": 0.875,
+              "observed": 0.800000011920929
+            },
+            {
+              "field": "main_y",
+              "expected": 1.0,
+              "observed": 0.9000000059604645
+            },
+            {
+              "field": "left_trigger",
+              "expected": 0.25,
+              "observed": 0.0
+            },
+            {
+              "field": "right_trigger",
+              "expected": 0.0,
+              "observed": 1.0
+            }
+          ],
+          "frame": 80,
+          "digital_match": true
+        },
+        {
+          "differences": [
+            {
+              "field": "c_x",
+              "expected": 0.75,
+              "observed": 0.71875
+            },
+            {
+              "field": "c_y",
+              "expected": 1.0,
+              "observed": 0.9437499940395355
+            },
+            {
+              "field": "left_trigger",
+              "expected": 1.0,
+              "observed": 0.1785714328289032
+            },
+            {
+              "field": "right_trigger",
+              "expected": 0.0,
+              "observed": 1.0
+            }
+          ],
+          "frame": 81,
+          "digital_match": true
+        }
+      ]
+    },
+    {
+      "count": 120,
+      "run": 1,
+      "frame": 146,
+      "digital_matches": 120,
+      "analog_mismatch_frames": 115,
+      "digital_offset_grid": [
+        {
+          "offset": 0,
+          "digital_matches": 2
+        },
+        {
+          "offset": 1,
+          "digital_matches": 120
+        },
+        {
+          "offset": 2,
+          "digital_matches": 3
+        },
+        {
+          "offset": 3,
+          "digital_matches": 3
+        },
+        {
+          "offset": 4,
+          "digital_matches": 2
+        },
+        {
+          "offset": 5,
+          "digital_matches": 6
+        },
+        {
+          "offset": 6,
+          "digital_matches": 3
+        },
+        {
+          "offset": 7,
+          "digital_matches": 1
+        },
+        {
+          "offset": 8,
+          "digital_matches": 2
+        }
+      ],
+      "difference_counts": {
+        "c_x": 45,
+        "c_y": 53,
+        "left_trigger": 83,
+        "main_x": 58,
+        "main_y": 58,
+        "right_trigger": 63
+      },
+      "examples": [
+        {
+          "differences": [
+            {
+              "field": "main_x",
+              "expected": 0.125,
+              "observed": 0.15000000596046448
+            },
+            {
+              "field": "main_y",
+              "expected": 0.125,
+              "observed": 0.15000000596046448
+            },
+            {
+              "field": "c_x",
+              "expected": 0.125,
+              "observed": 0.19999998807907104
+            },
+            {
+              "field": "c_y",
+              "expected": 0.0,
+              "observed": 0.09999999403953552
+            },
+            {
+              "field": "left_trigger",
+              "expected": 0.0,
+              "observed": 1.0
+            },
+            {
+              "field": "right_trigger",
+              "expected": 0.0,
+              "observed": 1.0
+            }
+          ],
+          "frame": 148,
+          "digital_match": true
+        },
+        {
+          "differences": [
+            {
+              "field": "main_y",
+              "expected": 1.0,
+              "observed": 0.9625000059604645
+            },
+            {
+              "field": "c_x",
+              "expected": 0.5625,
+              "observed": 0.5
+            },
+            {
+              "field": "left_trigger",
+              "expected": 0.25,
+              "observed": 0.0
+            },
+            {
+              "field": "right_trigger",
+              "expected": 0.0,
+              "observed": 1.0
+            }
+          ],
+          "frame": 149,
+          "digital_match": true
+        },
+        {
+          "differences": [
+            {
+              "field": "main_x",
+              "expected": 0.75,
+              "observed": 0.71875
+            },
+            {
+              "field": "main_y",
+              "expected": 1.0,
+              "observed": 0.9437499940395355
+            },
+            {
+              "field": "c_x",
+              "expected": 1.0,
+              "observed": 0.8499999940395355
+            },
+            {
+              "field": "c_y",
+              "expected": 1.0,
+              "observed": 0.8499999940395355
+            },
+            {
+              "field": "left_trigger",
+              "expected": 0.25,
+              "observed": 1.0
+            },
+            {
+              "field": "right_trigger",
+              "expected": 0.0,
+              "observed": 1.0
+            }
+          ],
+          "frame": 150,
+          "digital_match": true
+        },
+        {
+          "differences": [
+            {
+              "field": "main_x",
+              "expected": 0.875,
+              "observed": 0.8499999940395355
+            },
+            {
+              "field": "main_y",
+              "expected": 0.875,
+              "observed": 0.8499999940395355
+            },
+            {
+              "field": "c_y",
+              "expected": 0.375,
+              "observed": 0.5
+            },
+            {
+              "field": "left_trigger",
+              "expected": 0.25,
+              "observed": 0.0
+            }
+          ],
+          "frame": 151,
+          "digital_match": true
+        },
+        {
+          "differences": [
+            {
+              "field": "main_y",
+              "expected": 0.625,
+              "observed": 0.5
+            },
+            {
+              "field": "c_y",
+              "expected": 0.625,
+              "observed": 0.5
+            },
+            {
+              "field": "left_trigger",
+              "expected": 0.25,
+              "observed": 0.0
+            }
+          ],
+          "frame": 152,
+          "digital_match": true
+        }
+      ]
+    },
+    {
+      "count": 120,
+      "run": 2,
+      "frame": 146,
+      "digital_matches": 120,
+      "analog_mismatch_frames": 118,
+      "digital_offset_grid": [
+        {
+          "offset": 0,
+          "digital_matches": 3
+        },
+        {
+          "offset": 1,
+          "digital_matches": 120
+        },
+        {
+          "offset": 2,
+          "digital_matches": 4
+        },
+        {
+          "offset": 3,
+          "digital_matches": 1
+        },
+        {
+          "offset": 4,
+          "digital_matches": 2
+        },
+        {
+          "offset": 5,
+          "digital_matches": 2
+        },
+        {
+          "offset": 6,
+          "digital_matches": 2
+        },
+        {
+          "offset": 7,
+          "digital_matches": 1
+        },
+        {
+          "offset": 8,
+          "digital_matches": 4
+        }
+      ],
+      "difference_counts": {
+        "c_x": 54,
+        "c_y": 70,
+        "left_trigger": 95,
+        "main_x": 61,
+        "main_y": 66,
+        "right_trigger": 62
+      },
+      "examples": [
+        {
+          "differences": [
+            {
+              "field": "main_x",
+              "expected": 0.9375,
+              "observed": 0.90625
+            },
+            {
+              "field": "main_y",
+              "expected": 0.8125,
+              "observed": 0.7874999940395355
+            },
+            {
+              "field": "c_x",
+              "expected": 0.125,
+              "observed": 0.19999998807907104
+            },
+            {
+              "field": "c_y",
+              "expected": 1.0,
+              "observed": 0.9000000059604645
+            },
+            {
+              "field": "left_trigger",
+              "expected": 0.5,
+              "observed": 0.0
+            }
+          ],
+          "frame": 148,
+          "digital_match": true
+        },
+        {
+          "differences": [
+            {
+              "field": "main_x",
+              "expected": 0.375,
+              "observed": 0.5
+            },
+            {
+              "field": "main_y",
+              "expected": 0.625,
+              "observed": 0.5
+            },
+            {
+              "field": "c_y",
+              "expected": 0.625,
+              "observed": 0.5
+            },
+            {
+              "field": "left_trigger",
+              "expected": 0.5,
+              "observed": 0.0
+            }
+          ],
+          "frame": 149,
+          "digital_match": true
+        },
+        {
+          "differences": [
+            {
+              "field": "c_x",
+              "expected": 1.0,
+              "observed": 0.8499999940395355
+            },
+            {
+              "field": "c_y",
+              "expected": 1.0,
+              "observed": 0.8499999940395355
+            },
+            {
+              "field": "left_trigger",
+              "expected": 0.25,
+              "observed": 0.0
+            }
+          ],
+          "frame": 150,
+          "digital_match": true
+        },
+        {
+          "differences": [
+            {
+              "field": "main_x",
+              "expected": 0.75,
+              "observed": 0.71875
+            },
+            {
+              "field": "main_y",
+              "expected": 0.0,
+              "observed": 0.05625000596046448
+            },
+            {
+              "field": "c_x",
+              "expected": 0.8125,
+              "observed": 0.762499988079071
+            },
+            {
+              "field": "c_y",
+              "expected": 0.0,
+              "observed": 0.08125001192092896
+            },
+            {
+              "field": "left_trigger",
+              "expected": 0.25,
+              "observed": 0.0
+            }
+          ],
+          "frame": 151,
+          "digital_match": true
+        },
+        {
+          "differences": [
+            {
+              "field": "c_x",
+              "expected": 0.5625,
+              "observed": 0.5
+            },
+            {
+              "field": "left_trigger",
+              "expected": 0.75,
+              "observed": 1.0
+            },
+            {
+              "field": "right_trigger",
+              "expected": 0.0,
+              "observed": 1.0
+            }
+          ],
+          "frame": 152,
+          "digital_match": true
+        }
+      ]
+    }
+  ],
+  "digital_matches": 1440,
+  "analog_mismatch_frames": 1402,
+  "expected_send_offset": 1,
+  "total_commands": 1440
+}

@@ -1,0 +1,820 @@
+{
+  "scores": "eval_runs/0913_tiny_overfit_cold/eval_candidate.json",
+  "samples": [
+    {
+      "count": 4,
+      "character": 1,
+      "action": 14,
+      "libmelee": 1,
+      "parsed": 0
+    },
+    {
+      "count": 2,
+      "character": 1,
+      "action": 14,
+      "libmelee": 2,
+      "parsed": 1
+    },
+    {
+      "count": 2,
+      "character": 1,
+      "action": 14,
+      "libmelee": 3,
+      "parsed": 2
+    },
+    {
+      "count": 111,
+      "character": 1,
+      "action": 24,
+      "libmelee": 1,
+      "parsed": 0
+    },
+    {
+      "count": 110,
+      "character": 1,
+      "action": 24,
+      "libmelee": 2,
+      "parsed": 1
+    },
+    {
+      "count": 110,
+      "character": 1,
+      "action": 24,
+      "libmelee": 3,
+      "parsed": 2
+    },
+    {
+      "count": 7,
+      "character": 1,
+      "action": 25,
+      "libmelee": 1,
+      "parsed": 0
+    },
+    {
+      "count": 6,
+      "character": 1,
+      "action": 25,
+      "libmelee": 2,
+      "parsed": 1
+    },
+    {
+      "count": 6,
+      "character": 1,
+      "action": 25,
+      "libmelee": 3,
+      "parsed": 2
+    },
+    {
+      "count": 6,
+      "character": 1,
+      "action": 25,
+      "libmelee": 4,
+      "parsed": 3
+    },
+    {
+      "count": 5,
+      "character": 1,
+      "action": 25,
+      "libmelee": 5,
+      "parsed": 4
+    },
+    {
+      "count": 5,
+      "character": 1,
+      "action": 25,
+      "libmelee": 6,
+      "parsed": 5
+    },
+    {
+      "count": 5,
+      "character": 1,
+      "action": 25,
+      "libmelee": 7,
+      "parsed": 6
+    },
+    {
+      "count": 5,
+      "character": 1,
+      "action": 25,
+      "libmelee": 8,
+      "parsed": 7
+    },
+    {
+      "count": 5,
+      "character": 1,
+      "action": 25,
+      "libmelee": 9,
+      "parsed": 8
+    },
+    {
+      "count": 5,
+      "character": 1,
+      "action": 25,
+      "libmelee": 10,
+      "parsed": 9
+    },
+    {
+      "count": 5,
+      "character": 1,
+      "action": 25,
+      "libmelee": 11,
+      "parsed": 10
+    },
+    {
+      "count": 4,
+      "character": 1,
+      "action": 25,
+      "libmelee": 12,
+      "parsed": 11
+    },
+    {
+      "count": 4,
+      "character": 1,
+      "action": 25,
+      "libmelee": 13,
+      "parsed": 12
+    },
+    {
+      "count": 4,
+      "character": 1,
+      "action": 25,
+      "libmelee": 14,
+      "parsed": 13
+    },
+    {
+      "count": 3,
+      "character": 1,
+      "action": 25,
+      "libmelee": 15,
+      "parsed": 14
+    },
+    {
+      "count": 2,
+      "character": 1,
+      "action": 25,
+      "libmelee": 16,
+      "parsed": 15
+    },
+    {
+      "count": 2,
+      "character": 1,
+      "action": 25,
+      "libmelee": 17,
+      "parsed": 16
+    },
+    {
+      "count": 2,
+      "character": 1,
+      "action": 25,
+      "libmelee": 18,
+      "parsed": 17
+    },
+    {
+      "count": 1,
+      "character": 1,
+      "action": 25,
+      "libmelee": 19,
+      "parsed": 18
+    },
+    {
+      "count": 7,
+      "character": 1,
+      "action": 27,
+      "libmelee": 1,
+      "parsed": 0
+    },
+    {
+      "count": 4,
+      "character": 1,
+      "action": 27,
+      "libmelee": 2,
+      "parsed": 1
+    },
+    {
+      "count": 3,
+      "character": 1,
+      "action": 27,
+      "libmelee": 3,
+      "parsed": 2
+    },
+    {
+      "count": 1,
+      "character": 1,
+      "action": 27,
+      "libmelee": 4,
+      "parsed": 3
+    },
+    {
+      "count": 1,
+      "character": 1,
+      "action": 27,
+      "libmelee": 5,
+      "parsed": 4
+    },
+    {
+      "count": 1,
+      "character": 1,
+      "action": 27,
+      "libmelee": 6,
+      "parsed": 5
+    },
+    {
+      "count": 1,
+      "character": 1,
+      "action": 27,
+      "libmelee": 7,
+      "parsed": 6
+    },
+    {
+      "count": 1,
+      "character": 1,
+      "action": 27,
+      "libmelee": 8,
+      "parsed": 7
+    },
+    {
+      "count": 1,
+      "character": 1,
+      "action": 27,
+      "libmelee": 9,
+      "parsed": 8
+    },
+    {
+      "count": 1,
+      "character": 1,
+      "action": 29,
+      "libmelee": 1,
+      "parsed": 0
+    },
+    {
+      "count": 1,
+      "character": 1,
+      "action": 29,
+      "libmelee": 2,
+      "parsed": 1
+    },
+    {
+      "count": 8,
+      "character": 1,
+      "action": 39,
+      "libmelee": 1,
+      "parsed": 1
+    },
+    {
+      "count": 4,
+      "character": 1,
+      "action": 39,
+      "libmelee": 2,
+      "parsed": 2
+    },
+    {
+      "count": 2,
+      "character": 1,
+      "action": 39,
+      "libmelee": 3,
+      "parsed": 3
+    },
+    {
+      "count": 3,
+      "character": 1,
+      "action": 40,
+      "libmelee": 1,
+      "parsed": 0
+    },
+    {
+      "count": 2,
+      "character": 1,
+      "action": 40,
+      "libmelee": 2,
+      "parsed": 1
+    },
+    {
+      "count": 4,
+      "character": 1,
+      "action": 42,
+      "libmelee": 1,
+      "parsed": 0
+    },
+    {
+      "count": 4,
+      "character": 1,
+      "action": 42,
+      "libmelee": 2,
+      "parsed": 1
+    },
+    {
+      "count": 4,
+      "character": 1,
+      "action": 42,
+      "libmelee": 3,
+      "parsed": 2
+    },
+    {
+      "count": 4,
+      "character": 1,
+      "action": 42,
+      "libmelee": 4,
+      "parsed": 3
+    },
+    {
+      "count": 9,
+      "character": 1,
+      "action": 360,
+      "libmelee": 1,
+      "parsed": 1
+    },
+    {
+      "count": 9,
+      "character": 1,
+      "action": 360,
+      "libmelee": 2,
+      "parsed": 2
+    },
+    {
+      "count": 9,
+      "character": 1,
+      "action": 360,
+      "libmelee": 3,
+      "parsed": 3
+    },
+    {
+      "count": 5,
+      "character": 1,
+      "action": 361,
+      "libmelee": 1,
+      "parsed": 0
+    },
+    {
+      "count": 102,
+      "character": 1,
+      "action": 361,
+      "libmelee": 2,
+      "parsed": 1
+    },
+    {
+      "count": 97,
+      "character": 1,
+      "action": 361,
+      "libmelee": 3,
+      "parsed": 2
+    },
+    {
+      "count": 3,
+      "character": 1,
+      "action": 361,
+      "libmelee": 4,
+      "parsed": 3
+    },
+    {
+      "count": 3,
+      "character": 1,
+      "action": 361,
+      "libmelee": 5,
+      "parsed": 4
+    },
+    {
+      "count": 3,
+      "character": 1,
+      "action": 361,
+      "libmelee": 6,
+      "parsed": 5
+    },
+    {
+      "count": 3,
+      "character": 1,
+      "action": 361,
+      "libmelee": 7,
+      "parsed": 6
+    },
+    {
+      "count": 1,
+      "character": 1,
+      "action": 361,
+      "libmelee": 8,
+      "parsed": 7
+    },
+    {
+      "count": 1,
+      "character": 1,
+      "action": 361,
+      "libmelee": 9,
+      "parsed": 8
+    },
+    {
+      "count": 1,
+      "character": 1,
+      "action": 361,
+      "libmelee": 10,
+      "parsed": 9
+    },
+    {
+      "count": 1,
+      "character": 1,
+      "action": 361,
+      "libmelee": 11,
+      "parsed": 10
+    },
+    {
+      "count": 1,
+      "character": 1,
+      "action": 361,
+      "libmelee": 12,
+      "parsed": 11
+    },
+    {
+      "count": 2,
+      "character": 1,
+      "action": 361,
+      "libmelee": 13,
+      "parsed": 12
+    },
+    {
+      "count": 2,
+      "character": 1,
+      "action": 361,
+      "libmelee": 14,
+      "parsed": 13
+    },
+    {
+      "count": 1,
+      "character": 1,
+      "action": 361,
+      "libmelee": 15,
+      "parsed": 14
+    },
+    {
+      "count": 1,
+      "character": 1,
+      "action": 363,
+      "libmelee": 5,
+      "parsed": 4
+    },
+    {
+      "count": 1,
+      "character": 1,
+      "action": 363,
+      "libmelee": 6,
+      "parsed": 5
+    },
+    {
+      "count": 1,
+      "character": 1,
+      "action": 363,
+      "libmelee": 7,
+      "parsed": 6
+    },
+    {
+      "count": 1,
+      "character": 1,
+      "action": 363,
+      "libmelee": 8,
+      "parsed": 7
+    },
+    {
+      "count": 1,
+      "character": 1,
+      "action": 363,
+      "libmelee": 9,
+      "parsed": 8
+    },
+    {
+      "count": 2,
+      "character": 1,
+      "action": 363,
+      "libmelee": 10,
+      "parsed": 9
+    },
+    {
+      "count": 2,
+      "character": 1,
+      "action": 363,
+      "libmelee": 11,
+      "parsed": 10
+    },
+    {
+      "count": 4,
+      "character": 1,
+      "action": 363,
+      "libmelee": 12,
+      "parsed": 11
+    },
+    {
+      "count": 4,
+      "character": 1,
+      "action": 363,
+      "libmelee": 13,
+      "parsed": 12
+    },
+    {
+      "count": 4,
+      "character": 1,
+      "action": 363,
+      "libmelee": 14,
+      "parsed": 13
+    },
+    {
+      "count": 4,
+      "character": 1,
+      "action": 363,
+      "libmelee": 15,
+      "parsed": 14
+    },
+    {
+      "count": 4,
+      "character": 1,
+      "action": 363,
+      "libmelee": 16,
+      "parsed": 15
+    },
+    {
+      "count": 4,
+      "character": 1,
+      "action": 363,
+      "libmelee": 17,
+      "parsed": 16
+    },
+    {
+      "count": 6,
+      "character": 1,
+      "action": 363,
+      "libmelee": 18,
+      "parsed": 17
+    },
+    {
+      "count": 113,
+      "character": 1,
+      "action": 365,
+      "libmelee": 1,
+      "parsed": 1
+    },
+    {
+      "count": 114,
+      "character": 1,
+      "action": 365,
+      "libmelee": 2,
+      "parsed": 2
+    },
+    {
+      "count": 113,
+      "character": 1,
+      "action": 365,
+      "libmelee": 3,
+      "parsed": 3
+    },
+    {
+      "count": 107,
+      "character": 1,
+      "action": 366,
+      "libmelee": 1,
+      "parsed": 0
+    },
+    {
+      "count": 10,
+      "character": 1,
+      "action": 366,
+      "libmelee": 2,
+      "parsed": 1
+    },
+    {
+      "count": 10,
+      "character": 1,
+      "action": 366,
+      "libmelee": 3,
+      "parsed": 2
+    },
+    {
+      "count": 9,
+      "character": 1,
+      "action": 366,
+      "libmelee": 4,
+      "parsed": 3
+    },
+    {
+      "count": 9,
+      "character": 1,
+      "action": 366,
+      "libmelee": 5,
+      "parsed": 4
+    },
+    {
+      "count": 9,
+      "character": 1,
+      "action": 366,
+      "libmelee": 6,
+      "parsed": 5
+    },
+    {
+      "count": 9,
+      "character": 1,
+      "action": 366,
+      "libmelee": 7,
+      "parsed": 6
+    },
+    {
+      "count": 9,
+      "character": 1,
+      "action": 366,
+      "libmelee": 8,
+      "parsed": 7
+    },
+    {
+      "count": 9,
+      "character": 1,
+      "action": 366,
+      "libmelee": 9,
+      "parsed": 8
+    },
+    {
+      "count": 9,
+      "character": 1,
+      "action": 366,
+      "libmelee": 10,
+      "parsed": 9
+    },
+    {
+      "count": 9,
+      "character": 1,
+      "action": 366,
+      "libmelee": 11,
+      "parsed": 10
+    },
+    {
+      "count": 9,
+      "character": 1,
+      "action": 366,
+      "libmelee": 12,
+      "parsed": 11
+    },
+    {
+      "count": 8,
+      "character": 1,
+      "action": 366,
+      "libmelee": 13,
+      "parsed": 12
+    },
+    {
+      "count": 7,
+      "character": 1,
+      "action": 366,
+      "libmelee": 14,
+      "parsed": 13
+    },
+    {
+      "count": 6,
+      "character": 1,
+      "action": 366,
+      "libmelee": 15,
+      "parsed": 14
+    },
+    {
+      "count": 6,
+      "character": 1,
+      "action": 366,
+      "libmelee": 16,
+      "parsed": 15
+    },
+    {
+      "count": 6,
+      "character": 1,
+      "action": 366,
+      "libmelee": 17,
+      "parsed": 16
+    },
+    {
+      "count": 6,
+      "character": 1,
+      "action": 366,
+      "libmelee": 18,
+      "parsed": 17
+    },
+    {
+      "count": 6,
+      "character": 1,
+      "action": 368,
+      "libmelee": 1,
+      "parsed": 0
+    },
+    {
+      "count": 6,
+      "character": 1,
+      "action": 368,
+      "libmelee": 2,
+      "parsed": 1
+    },
+    {
+      "count": 6,
+      "character": 1,
+      "action": 368,
+      "libmelee": 3,
+      "parsed": 2
+    },
+    {
+      "count": 6,
+      "character": 1,
+      "action": 368,
+      "libmelee": 4,
+      "parsed": 3
+    },
+    {
+      "count": 5,
+      "character": 1,
+      "action": 368,
+      "libmelee": 5,
+      "parsed": 4
+    },
+    {
+      "count": 5,
+      "character": 1,
+      "action": 368,
+      "libmelee": 6,
+      "parsed": 5
+    },
+    {
+      "count": 5,
+      "character": 1,
+      "action": 368,
+      "libmelee": 7,
+      "parsed": 6
+    },
+    {
+      "count": 5,
+      "character": 1,
+      "action": 368,
+      "libmelee": 8,
+      "parsed": 7
+    },
+    {
+      "count": 5,
+      "character": 1,
+      "action": 368,
+      "libmelee": 9,
+      "parsed": 8
+    },
+    {
+      "count": 4,
+      "character": 1,
+      "action": 368,
+      "libmelee": 10,
+      "parsed": 9
+    },
+    {
+      "count": 4,
+      "character": 1,
+      "action": 368,
+      "libmelee": 11,
+      "parsed": 10
+    },
+    {
+      "count": 4,
+      "character": 1,
+      "action": 368,
+      "libmelee": 12,
+      "parsed": 11
+    },
+    {
+      "count": 4,
+      "character": 1,
+      "action": 368,
+      "libmelee": 13,
+      "parsed": 12
+    },
+    {
+      "count": 4,
+      "character": 1,
+      "action": 368,
+      "libmelee": 14,
+      "parsed": 13
+    },
+    {
+      "count": 4,
+      "character": 1,
+      "action": 368,
+      "libmelee": 15,
+      "parsed": 14
+    },
+    {
+      "count": 4,
+      "character": 1,
+      "action": 368,
+      "libmelee": 16,
+      "parsed": 15
+    },
+    {
+      "count": 4,
+      "character": 1,
+      "action": 368,
+      "libmelee": 17,
+      "parsed": 16
+    },
+    {
+      "count": 2,
+      "character": 1,
+      "action": 368,
+      "libmelee": 18,
+      "parsed": 17
+    }
+  ],
+  "mismatches": [],
+  "scores_sha256": "655ef82db34d9768ade5aa8c749f0f7eee4f26655d72862bfd3156e1ad4358c1",
+  "observations": 1440
+}

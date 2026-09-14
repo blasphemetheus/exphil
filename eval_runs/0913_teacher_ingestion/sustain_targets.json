@@ -1,0 +1,36 @@
+{
+  "valid": true,
+  "scores": "eval_runs/0913_recovery_labels/control_teacher.json",
+  "reaction_delay": 2,
+  "runs": [
+    {
+      "valid": true,
+      "replay": "eval_runs/0913_recovery_labels/control_teacher/run00_multishine_reentry/Game_20260913T000931.slp",
+      "timing": {
+        "sent": {
+          "count": 120,
+          "matches": 120
+        },
+        "valid": true,
+        "contiguous": true,
+        "decisions": {
+          "count": 120,
+          "matches": 120
+        },
+        "expected_send_latency": 1,
+        "expected_decision_latency": 1,
+        "unsent_tail_decisions": 0
+      },
+      "targets": 118,
+      "handoff": 900,
+      "replay_sha256": "11980069d1ab76e6866894c78d8eb1f257de367dd4deb8a231386aef10a259a8",
+      "initial_state": [
+        365,
+        2,
+        false
+      ],
+      "off_loop_targets": 0,
+      "mismatches": []
+    }
+  ]
+}

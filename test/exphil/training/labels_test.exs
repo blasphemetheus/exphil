@@ -84,18 +84,24 @@ defmodule ExPhil.Training.LabelsTest do
     assert length(Labels.at_delay(tagged, 2, expert: expert)) == length(tagged)
   end
 
-  test "off the loop, label_ahead is the expert's current commitment (held); :drop omits it",
+  test "off the loop, label_ahead ABSTAINS at k > 0 (dropped by default); :hold is the legacy held commitment",
        %{frames: frames, expert: expert} do
-    # A grounded WAIT state is off-loop: the expert commits to starting a shine
+    # A grounded WAIT state is off-loop: the expert commits to starting a
+    # shine NOW, but where it will be k frames later is not a function of
+    # this state (RECOVERY_LABEL_CONFIRMATION 2026-09-13: 18/21 held
+    # projections wrong at shift 4), so it has no k-ahead label.
     wait = %{hd(frames).game_state.players[1] | action: 14, action_frame: 3, on_ground: true}
     refute MultishineExpert.on_loop?(expert, wait)
     {:ok, now} = MultishineExpert.label(expert, wait)
-    {:ok, ahead} = MultishineExpert.label_ahead(expert, wait, 4)
-    assert bx(ahead) == bx(now)
+    assert {:ok, _} = MultishineExpert.label_ahead(expert, wait, 0)
+    for k <- 1..5, do: assert(MultishineExpert.label_ahead(expert, wait, k) == :skip)
 
     off = [%{hd(frames) | game_state: %{hd(frames).game_state | players: %{1 => wait, 2 => hd(frames).game_state.players[2]}}}]
     tagged = Labels.tag(off, {:expert, MultishineExpert})
-    assert length(Labels.at_delay(tagged, 4, expert: expert)) == 1
+    assert Labels.at_delay(tagged, 4, expert: expert) == []
     assert Labels.at_delay(tagged, 4, expert: expert, off_loop: :drop) == []
+
+    [held] = Labels.at_delay(tagged, 4, expert: expert, off_loop: :hold)
+    assert bx(held.controller) == bx(now)
   end
 end

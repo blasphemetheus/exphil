@@ -1,0 +1,8 @@
+{
+  "comment": "Development benchmark mined from the first local human session, not held-out confirmation. First hitstun episode with readiness but no return, first return within60 readiness frames, and first return slower than60. Six-second responses; replayed opponent is non-reactive.",
+  "entries": [
+    {"slp":"eval_runs/local_multishine_20260913_154147/2026-09-Mainline/Game_20260913T154159.slp","frame":502,"type":"multishine_reentry","note":"No observed return before death; readiness proxy683"},
+    {"slp":"eval_runs/local_multishine_20260913_154147/2026-09-Mainline/Game_20260913T154159.slp","frame":1389,"type":"multishine_reentry","note":"First fast observed post-hit return: readiness1418, completed cycle1449"},
+    {"slp":"eval_runs/local_multishine_20260913_154147/2026-09-Mainline/Game_20260913T154159.slp","frame":3152,"type":"multishine_reentry","note":"First slow observed post-hit return: readiness3208, completed cycle3497"}
+  ]
+}

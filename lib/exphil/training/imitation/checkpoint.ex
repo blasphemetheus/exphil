@@ -53,7 +53,7 @@ defmodule ExPhil.Training.Imitation.Checkpointing do
     checkpoint = %{
       policy_params: to_binary_backend(trainer.policy_params),
       optimizer_state: to_binary_backend(trainer.optimizer_state),
-      config: trainer.config,
+      config: Map.merge(trainer.config, ExPhil.Networks.Policy.ExecutionContract.training(trainer.config)),
       step: trainer.step,
       metrics: trainer.metrics
     }
@@ -173,6 +173,10 @@ defmodule ExPhil.Training.Imitation.Checkpointing do
            error_on_mismatch: true
          ) do
       {:ok, checkpoint} ->
+        contract = ExPhil.Networks.Policy.ExecutionContract
+        unless contract.training(trainer.config) == contract.training(checkpoint.config),
+          do: raise(ArgumentError, "training checkpoint execution contract mismatch")
+
         trainer_head = normalize_head(trainer.config[:head])
         ckpt_head = normalize_head(get_in_config(checkpoint.config, :head))
         reinit_head = Keyword.get(opts, :reinit_head, false)
@@ -455,6 +459,7 @@ defmodule ExPhil.Training.Imitation.Checkpointing do
     # external: exphil's policy (backbone trunk + 6 autoregressive heads)
     # is a composite owned by exphil, not an edifice registry arch — exphil
     # rebuilds it from config; the spec still carries opts + provenance.
+    config = Map.merge(config, ExPhil.Networks.Policy.ExecutionContract.training(trainer.config))
     spec = Edifice.Spec.new(:exphil_policy, Map.to_list(config), external: true)
 
     Edifice.Checkpoint.save(to_binary_backend(trainer.policy_params), path,

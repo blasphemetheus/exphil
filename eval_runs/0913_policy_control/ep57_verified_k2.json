@@ -1,0 +1,69 @@
+{
+  "deterministic": false,
+  "driver": "policy",
+  "timestamp": "20260913_005247",
+  "manifest": "scenarios/ms_midchain_control.json",
+  "input_offset": 1,
+  "response_delay": 2,
+  "summary": {},
+  "verify_input_timing": true,
+  "policy": "checkpoints/ms_g23a_ep57.bin",
+  "audit_teacher_labels": false,
+  "prefix_history": "applied",
+  "fixture": null,
+  "runs": [
+    {
+      "error": "argument error",
+      "type": "multishine_reentry",
+      "run": 1,
+      "frame": 900,
+      "slp": "eval_runs/0910_g23_consistent/confirm_ep57/d3_id2/r1.slp"
+    },
+    {
+      "error": "argument error",
+      "type": "multishine_reentry",
+      "run": 2,
+      "frame": 900,
+      "slp": "eval_runs/0910_g23_consistent/confirm_ep57/d3_id2/r1.slp"
+    },
+    {
+      "error": "argument error",
+      "type": "multishine_reentry",
+      "run": 1,
+      "frame": 1500,
+      "slp": "eval_runs/0910_g23_consistent/confirm_ep57/d3_id2/r1.slp"
+    },
+    {
+      "error": "argument error",
+      "type": "multishine_reentry",
+      "run": 2,
+      "frame": 1500,
+      "slp": "eval_runs/0910_g23_consistent/confirm_ep57/d3_id2/r1.slp"
+    },
+    {
+      "error": "argument error",
+      "type": "multishine_reentry",
+      "run": 1,
+      "frame": 2100,
+      "slp": "eval_runs/0910_g23_consistent/confirm_ep57/d3_id2/r1.slp"
+    },
+    {
+      "error": "argument error",
+      "type": "multishine_reentry",
+      "run": 2,
+      "frame": 2100,
+      "slp": "eval_runs/0910_g23_consistent/confirm_ep57/d3_id2/r1.slp"
+    }
+  ],
+  "temperature": 1.0,
+  "agent_runtime": {
+    "delay_id": 0,
+    "reaction_delay": 2,
+    "harness": "scenario_suite",
+    "harness_knob": 2,
+    "af_convention": "parsed"
+  },
+  "invalid_timing_runs": 0,
+  "diverged_runs": 0,
+  "errored_runs": 6
+}

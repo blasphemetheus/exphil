@@ -1,0 +1,727 @@
+{
+  "replay": "eval_runs/local_multishine_20260913_154147/2026-09-Mainline/Game_20260913T154159.slp",
+  "metrics": {
+    "chains": [
+      {
+        "length": 1,
+        "ended_by": "other_action"
+      },
+      {
+        "length": 2,
+        "ended_by": "empty_hop"
+      },
+      {
+        "length": 1,
+        "ended_by": "other_action"
+      },
+      {
+        "length": 1,
+        "ended_by": "other_action"
+      },
+      {
+        "length": 8,
+        "ended_by": "other_action"
+      },
+      {
+        "length": 2,
+        "ended_by": "empty_hop"
+      },
+      {
+        "length": 2,
+        "ended_by": "empty_hop"
+      },
+      {
+        "length": 1,
+        "ended_by": "other_action"
+      },
+      {
+        "length": 1,
+        "ended_by": "other_action"
+      },
+      {
+        "length": 4,
+        "ended_by": "other_action"
+      },
+      {
+        "length": 1,
+        "ended_by": "other_action"
+      },
+      {
+        "length": 2,
+        "ended_by": "other_action"
+      },
+      {
+        "length": 2,
+        "ended_by": "empty_hop"
+      },
+      {
+        "length": 2,
+        "ended_by": "other_action"
+      },
+      {
+        "length": 2,
+        "ended_by": "other_action"
+      },
+      {
+        "length": 1,
+        "ended_by": "other_action"
+      },
+      {
+        "length": 1,
+        "ended_by": "other_action"
+      },
+      {
+        "length": 1,
+        "ended_by": "other_action"
+      },
+      {
+        "length": 3,
+        "ended_by": "empty_hop"
+      },
+      {
+        "length": 1,
+        "ended_by": "empty_hop"
+      },
+      {
+        "length": 1,
+        "ended_by": "other_action"
+      },
+      {
+        "length": 1,
+        "ended_by": "other_action"
+      },
+      {
+        "length": 1,
+        "ended_by": "empty_hop"
+      },
+      {
+        "length": 1,
+        "ended_by": "empty_hop"
+      },
+      {
+        "length": 1,
+        "ended_by": "other_action"
+      },
+      {
+        "length": 1,
+        "ended_by": "other_action"
+      },
+      {
+        "length": 2,
+        "ended_by": "other_action"
+      },
+      {
+        "length": 3,
+        "ended_by": "other_action"
+      },
+      {
+        "length": 27,
+        "ended_by": "other_action"
+      },
+      {
+        "length": 4,
+        "ended_by": "empty_hop"
+      },
+      {
+        "length": 18,
+        "ended_by": "other_action"
+      },
+      {
+        "length": 1,
+        "ended_by": "other_action"
+      },
+      {
+        "length": 1,
+        "ended_by": "empty_hop"
+      },
+      {
+        "length": 2,
+        "ended_by": "other_action"
+      },
+      {
+        "length": 2,
+        "ended_by": "other_action"
+      },
+      {
+        "length": 7,
+        "ended_by": "other_action"
+      },
+      {
+        "length": 3,
+        "ended_by": "other_action"
+      },
+      {
+        "length": 1,
+        "ended_by": "other_action"
+      },
+      {
+        "length": 1,
+        "ended_by": "other_action"
+      },
+      {
+        "length": 1,
+        "ended_by": "other_action"
+      },
+      {
+        "length": 1,
+        "ended_by": "other_action"
+      },
+      {
+        "length": 1,
+        "ended_by": "empty_hop"
+      },
+      {
+        "length": 1,
+        "ended_by": "empty_hop"
+      },
+      {
+        "length": 1,
+        "ended_by": "other_action"
+      },
+      {
+        "length": 1,
+        "ended_by": "other_action"
+      },
+      {
+        "length": 1,
+        "ended_by": "other_action"
+      }
+    ],
+    "recovery": {
+      "episodes": [
+        {
+          "cause": "loop_break",
+          "start": 67,
+          "finish": 85,
+          "outcome": "reentered",
+          "ready": 77
+        },
+        {
+          "cause": "loop_break",
+          "start": 101,
+          "finish": null,
+          "last_observed": 501,
+          "outcome": "interrupted_again",
+          "ready": 104
+        },
+        {
+          "cause": "hitstun",
+          "start": 502,
+          "finish": null,
+          "last_observed": 1061,
+          "outcome": "death",
+          "ready": 683
+        },
+        {
+          "cause": "loop_break",
+          "start": 1220,
+          "finish": 1236,
+          "outcome": "reentered",
+          "ready": 1223
+        },
+        {
+          "cause": "loop_break",
+          "start": 1245,
+          "finish": null,
+          "last_observed": 1388,
+          "outcome": "interrupted_again",
+          "ready": null
+        },
+        {
+          "cause": "hitstun",
+          "start": 1389,
+          "finish": 1449,
+          "outcome": "reentered",
+          "ready": 1418
+        },
+        {
+          "cause": "loop_break",
+          "start": 1457,
+          "finish": 1556,
+          "outcome": "reentered",
+          "ready": 1547
+        },
+        {
+          "cause": "loop_break",
+          "start": 1564,
+          "finish": 1679,
+          "outcome": "reentered",
+          "ready": 1670
+        },
+        {
+          "cause": "loop_break",
+          "start": 1681,
+          "finish": 1934,
+          "outcome": "reentered",
+          "ready": 1684
+        },
+        {
+          "cause": "loop_break",
+          "start": 1969,
+          "finish": null,
+          "last_observed": 2340,
+          "outcome": "interrupted_again",
+          "ready": 2077
+        },
+        {
+          "cause": "hitstun",
+          "start": 2341,
+          "finish": null,
+          "last_observed": 2445,
+          "outcome": "interrupted_again",
+          "ready": null
+        },
+        {
+          "cause": "hitstun",
+          "start": 2446,
+          "finish": null,
+          "last_observed": 2855,
+          "outcome": "interrupted_again",
+          "ready": 2450
+        },
+        {
+          "cause": "hitstun",
+          "start": 2856,
+          "finish": null,
+          "last_observed": 2865,
+          "outcome": "interrupted_again",
+          "ready": null
+        },
+        {
+          "cause": "hitstun",
+          "start": 2866,
+          "finish": null,
+          "last_observed": 2875,
+          "outcome": "interrupted_again",
+          "ready": null
+        },
+        {
+          "cause": "hitstun",
+          "start": 2876,
+          "finish": null,
+          "last_observed": 2885,
+          "outcome": "interrupted_again",
+          "ready": null
+        },
+        {
+          "cause": "hitstun",
+          "start": 2886,
+          "finish": null,
+          "last_observed": 2895,
+          "outcome": "interrupted_again",
+          "ready": null
+        },
+        {
+          "cause": "hitstun",
+          "start": 2896,
+          "finish": null,
+          "last_observed": 2906,
+          "outcome": "interrupted_again",
+          "ready": null
+        },
+        {
+          "cause": "hitstun",
+          "start": 2907,
+          "finish": null,
+          "last_observed": 2915,
+          "outcome": "interrupted_again",
+          "ready": null
+        },
+        {
+          "cause": "hitstun",
+          "start": 2916,
+          "finish": null,
+          "last_observed": 2926,
+          "outcome": "interrupted_again",
+          "ready": null
+        },
+        {
+          "cause": "hitstun",
+          "start": 2927,
+          "finish": null,
+          "last_observed": 2936,
+          "outcome": "interrupted_again",
+          "ready": null
+        },
+        {
+          "cause": "hitstun",
+          "start": 2937,
+          "finish": null,
+          "last_observed": 2946,
+          "outcome": "interrupted_again",
+          "ready": null
+        },
+        {
+          "cause": "hitstun",
+          "start": 2947,
+          "finish": null,
+          "last_observed": 2955,
+          "outcome": "interrupted_again",
+          "ready": null
+        },
+        {
+          "cause": "hitstun",
+          "start": 2956,
+          "finish": null,
+          "last_observed": 2966,
+          "outcome": "interrupted_again",
+          "ready": null
+        },
+        {
+          "cause": "hitstun",
+          "start": 2967,
+          "finish": null,
+          "last_observed": 2976,
+          "outcome": "interrupted_again",
+          "ready": null
+        },
+        {
+          "cause": "hitstun",
+          "start": 2977,
+          "finish": null,
+          "last_observed": 2986,
+          "outcome": "interrupted_again",
+          "ready": null
+        },
+        {
+          "cause": "hitstun",
+          "start": 2987,
+          "finish": null,
+          "last_observed": 3140,
+          "outcome": "interrupted_again",
+          "ready": 3045
+        },
+        {
+          "cause": "hitstun",
+          "start": 3141,
+          "finish": null,
+          "last_observed": 3151,
+          "outcome": "interrupted_again",
+          "ready": null
+        },
+        {
+          "cause": "hitstun",
+          "start": 3152,
+          "finish": 3497,
+          "outcome": "reentered",
+          "ready": 3208
+        },
+        {
+          "cause": "hitstun",
+          "start": 3501,
+          "finish": null,
+          "last_observed": 3623,
+          "outcome": "interrupted_again",
+          "ready": null
+        },
+        {
+          "cause": "hitstun",
+          "start": 3624,
+          "finish": null,
+          "last_observed": 3688,
+          "outcome": "interrupted_again",
+          "ready": null
+        },
+        {
+          "cause": "hitstun",
+          "start": 3689,
+          "finish": null,
+          "last_observed": 3714,
+          "outcome": "interrupted_again",
+          "ready": null
+        },
+        {
+          "cause": "hitstun",
+          "start": 3715,
+          "finish": null,
+          "last_observed": 3815,
+          "outcome": "interrupted_again",
+          "ready": null
+        },
+        {
+          "cause": "hitstun",
+          "start": 3816,
+          "finish": 3884,
+          "outcome": "reentered",
+          "ready": 3875
+        },
+        {
+          "cause": "hitstun",
+          "start": 3897,
+          "finish": 3985,
+          "outcome": "reentered",
+          "ready": 3976
+        },
+        {
+          "cause": "loop_break",
+          "start": 4216,
+          "finish": 4232,
+          "outcome": "reentered",
+          "ready": 4219
+        },
+        {
+          "cause": "loop_break",
+          "start": 4260,
+          "finish": null,
+          "last_observed": 4345,
+          "outcome": "interrupted_again",
+          "ready": null
+        },
+        {
+          "cause": "hitstun",
+          "start": 4346,
+          "finish": 4382,
+          "outcome": "reentered",
+          "ready": 4374
+        },
+        {
+          "cause": "loop_break",
+          "start": 4531,
+          "finish": null,
+          "last_observed": 4545,
+          "outcome": "interrupted_again",
+          "ready": 4534
+        },
+        {
+          "cause": "hitstun",
+          "start": 4546,
+          "finish": 4634,
+          "outcome": "reentered",
+          "ready": 4625
+        },
+        {
+          "cause": "hitstun",
+          "start": 4636,
+          "finish": null,
+          "last_observed": 4912,
+          "outcome": "interrupted_again",
+          "ready": null
+        },
+        {
+          "cause": "hitstun",
+          "start": 4913,
+          "finish": null,
+          "last_observed": 5040,
+          "outcome": "interrupted_again",
+          "ready": null
+        },
+        {
+          "cause": "hitstun",
+          "start": 5041,
+          "finish": 5357,
+          "outcome": "reentered",
+          "ready": 5349
+        },
+        {
+          "cause": "hitstun",
+          "start": 5361,
+          "finish": null,
+          "last_observed": 5554,
+          "outcome": "death",
+          "ready": null
+        },
+        {
+          "cause": "loop_break",
+          "start": 5797,
+          "finish": null,
+          "last_observed": 6193,
+          "outcome": "interrupted_again",
+          "ready": null
+        },
+        {
+          "cause": "hitstun",
+          "start": 6194,
+          "finish": null,
+          "last_observed": 6283,
+          "outcome": "interrupted_again",
+          "ready": null
+        },
+        {
+          "cause": "hitstun",
+          "start": 6284,
+          "finish": null,
+          "last_observed": 6373,
+          "outcome": "interrupted_again",
+          "ready": null
+        },
+        {
+          "cause": "hitstun",
+          "start": 6374,
+          "finish": null,
+          "last_observed": 6398,
+          "outcome": "interrupted_again",
+          "ready": null
+        },
+        {
+          "cause": "hitstun",
+          "start": 6399,
+          "finish": null,
+          "last_observed": 6516,
+          "outcome": "interrupted_again",
+          "ready": 6406
+        },
+        {
+          "cause": "hitstun",
+          "start": 6517,
+          "finish": null,
+          "last_observed": 6571,
+          "outcome": "interrupted_again",
+          "ready": null
+        },
+        {
+          "cause": "hitstun",
+          "start": 6572,
+          "finish": null,
+          "last_observed": 6644,
+          "outcome": "death",
+          "ready": null
+        },
+        {
+          "cause": "loop_break",
+          "start": 6795,
+          "finish": 6989,
+          "outcome": "reentered",
+          "ready": 6825
+        },
+        {
+          "cause": "loop_break",
+          "start": 7014,
+          "finish": null,
+          "last_observed": 7036,
+          "outcome": "interrupted_again",
+          "ready": null
+        },
+        {
+          "cause": "hitstun",
+          "start": 7037,
+          "finish": null,
+          "last_observed": 7225,
+          "outcome": "interrupted_again",
+          "ready": 7044
+        },
+        {
+          "cause": "hitstun",
+          "start": 7226,
+          "finish": 7286,
+          "outcome": "reentered",
+          "ready": 7278
+        },
+        {
+          "cause": "hitstun",
+          "start": 7355,
+          "finish": 7447,
+          "outcome": "reentered",
+          "ready": 7439
+        },
+        {
+          "cause": "loop_break",
+          "start": 7472,
+          "finish": 7537,
+          "outcome": "reentered",
+          "ready": 7529
+        },
+        {
+          "cause": "loop_break",
+          "start": 7562,
+          "finish": null,
+          "last_observed": 7583,
+          "outcome": "interrupted_again",
+          "ready": 7578
+        },
+        {
+          "cause": "hitstun",
+          "start": 7584,
+          "finish": null,
+          "last_observed": 7789,
+          "outcome": "interrupted_again",
+          "ready": 7616
+        },
+        {
+          "cause": "hitstun",
+          "start": 7790,
+          "finish": null,
+          "last_observed": 7823,
+          "outcome": "interrupted_again",
+          "ready": null
+        },
+        {
+          "cause": "hitstun",
+          "start": 7824,
+          "finish": null,
+          "last_observed": 7984,
+          "outcome": "interrupted_again",
+          "ready": null
+        },
+        {
+          "cause": "hitstun",
+          "start": 7985,
+          "finish": null,
+          "last_observed": 8048,
+          "outcome": "interrupted_again",
+          "ready": null
+        },
+        {
+          "cause": "hitstun",
+          "start": 8049,
+          "finish": null,
+          "last_observed": 8201,
+          "outcome": "death",
+          "ready": null
+        }
+      ],
+      "censored": 45,
+      "completed": 17,
+      "disruption_to_cycle_frames": [
+        18,
+        16,
+        60,
+        99,
+        115,
+        253,
+        345,
+        68,
+        88,
+        16,
+        36,
+        88,
+        316,
+        194,
+        60,
+        92,
+        65
+      ],
+      "ready_to_cycle_frames": [
+        8,
+        13,
+        31,
+        9,
+        9,
+        250,
+        289,
+        9,
+        9,
+        13,
+        8,
+        9,
+        8,
+        164,
+        8,
+        8,
+        8
+      ]
+    },
+    "frames": 8203,
+    "deaths": 4,
+    "completed_cycles": 78,
+    "endings": {
+      "other_action": 34,
+      "empty_hop": 12
+    },
+    "ground_shine_onsets": 124,
+    "ground_shines_per_minute": 54.41911495794221,
+    "max_chain": 27,
+    "recent_hit_onsets": 6,
+    "self_initiated_onsets": 118,
+    "self_initiated_per_minute": 51.785931976106305
+  }
+}

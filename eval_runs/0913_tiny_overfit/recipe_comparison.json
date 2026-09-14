@@ -1,0 +1,35 @@
+{
+  "lists": [
+    {
+      "targets": 118,
+      "different_targets": 3,
+      "held_history_overrides": 118
+    },
+    {
+      "targets": 118,
+      "different_targets": 3,
+      "held_history_overrides": 118
+    },
+    {
+      "targets": 118,
+      "different_targets": 2,
+      "held_history_overrides": 118
+    },
+    {
+      "targets": 118,
+      "different_targets": 4,
+      "held_history_overrides": 118
+    },
+    {
+      "targets": 118,
+      "different_targets": 4,
+      "held_history_overrides": 118
+    },
+    {
+      "targets": 118,
+      "different_targets": 0,
+      "held_history_overrides": 118
+    }
+  ],
+  "same_target_frames": true
+}

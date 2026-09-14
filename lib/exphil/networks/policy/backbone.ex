@@ -861,6 +861,7 @@ defmodule ExPhil.Networks.Policy.Backbone do
       hidden_size: hidden_size,
       num_layers: num_layers,
       cell_type: :gru,
+      recurrent_state: Keyword.get(opts, :recurrent_state, :legacy_random),
       dropout: dropout,
       # :return_sequences true => all-timesteps trunk (P0 logit-lens tier);
       # the final-slice layer is param-free so exported params load either way

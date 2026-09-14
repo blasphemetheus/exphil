@@ -1,0 +1,57 @@
+{
+  "frames": 7785,
+  "sequences": 7770,
+  "crossed_clip_sequences": 90,
+  "off_loop_teacher_targets": 29,
+  "off_loop_with_wrong_clip_context": 29,
+  "examples": [
+    {
+      "list": 1,
+      "frame": 2228,
+      "off_loop": true,
+      "crosses_clip": true
+    },
+    {
+      "list": 1,
+      "frame": 2229,
+      "off_loop": true,
+      "crosses_clip": true
+    },
+    {
+      "list": 1,
+      "frame": 2230,
+      "off_loop": true,
+      "crosses_clip": true
+    },
+    {
+      "list": 1,
+      "frame": 2231,
+      "off_loop": true,
+      "crosses_clip": true
+    },
+    {
+      "list": 2,
+      "frame": 2566,
+      "off_loop": true,
+      "crosses_clip": true
+    },
+    {
+      "list": 2,
+      "frame": 2567,
+      "off_loop": true,
+      "crosses_clip": true
+    },
+    {
+      "list": 2,
+      "frame": 2568,
+      "off_loop": true,
+      "crosses_clip": true
+    },
+    {
+      "list": 2,
+      "frame": 2569,
+      "off_loop": true,
+      "crosses_clip": true
+    }
+  ]
+}

@@ -1,0 +1,65 @@
+{
+  "valid": true,
+  "scores": "eval_runs/0913_teacher_ingestion/neutral.json",
+  "reaction_delay": 2,
+  "runs": [
+    {
+      "valid": true,
+      "replay": "eval_runs/0913_teacher_ingestion/neutral/run00_multishine_reentry/Game_20260913T013628.slp",
+      "timing": {
+        "sent": {
+          "count": 120,
+          "matches": 120
+        },
+        "valid": true,
+        "contiguous": true,
+        "decisions": {
+          "count": 120,
+          "matches": 120
+        },
+        "expected_send_latency": 1,
+        "expected_decision_latency": 1,
+        "unsent_tail_decisions": 0
+      },
+      "targets": 118,
+      "handoff": 2228,
+      "replay_sha256": "fd6c3fc4ae7e8ac6f2bc442a84eec00eae7f6329aa49040c44109f6ac3f1dd4a",
+      "initial_state": [
+        14,
+        0,
+        true
+      ],
+      "off_loop_targets": 4,
+      "mismatches": []
+    },
+    {
+      "valid": true,
+      "replay": "eval_runs/0913_teacher_ingestion/neutral/run01_multishine_reentry/Game_20260913T013635.slp",
+      "timing": {
+        "sent": {
+          "count": 120,
+          "matches": 120
+        },
+        "valid": true,
+        "contiguous": true,
+        "decisions": {
+          "count": 120,
+          "matches": 120
+        },
+        "expected_send_latency": 1,
+        "expected_decision_latency": 1,
+        "unsent_tail_decisions": 0
+      },
+      "targets": 118,
+      "handoff": 2566,
+      "replay_sha256": "ee04109ffef505fd328349f905fae738acec0b8e133f82af149af7187675bc98",
+      "initial_state": [
+        14,
+        0,
+        true
+      ],
+      "off_loop_targets": 4,
+      "mismatches": []
+    }
+  ]
+}

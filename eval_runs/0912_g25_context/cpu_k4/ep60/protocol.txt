@@ -1,0 +1,2 @@
+policy=checkpoints/ms_g25a_ep60.bin runner=async runs=2 seconds=90 dummy=cpu server=0 decode=--temperature 1.0 loadavg=1.80 2.41 2.36
+fixture_agreement: unavailable

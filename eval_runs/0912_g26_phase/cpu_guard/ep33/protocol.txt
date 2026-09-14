@@ -1,0 +1,2 @@
+policy=checkpoints/ms_g26a_ep33.bin runner=async runs=2 seconds=90 dummy=cpu server=0 decode=--temperature 1.0 loadavg=5.07 3.39 2.59
+fixture_agreement: unavailable

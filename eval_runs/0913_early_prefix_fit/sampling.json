@@ -1,0 +1,52 @@
+{
+  "copies": 64,
+  "targets": 7785,
+  "batches": 228,
+  "prefix_frames": 18,
+  "early_targets": 108,
+  "teacher_targets": 708,
+  "draws": 14589,
+  "early_draws": 6912,
+  "observed_draws": 14589,
+  "crossed_clip_windows": 0,
+  "retained_unique_targets": 7785,
+  "early_draw_fraction": 0.47378161628624305,
+  "cases": [
+    {
+      "early_targets": 18,
+      "early_draws": 1152,
+      "handoff": 2228,
+      "raw_frames": 120
+    },
+    {
+      "early_targets": 18,
+      "early_draws": 1152,
+      "handoff": 2566,
+      "raw_frames": 120
+    },
+    {
+      "early_targets": 18,
+      "early_draws": 1152,
+      "handoff": 4,
+      "raw_frames": 120
+    },
+    {
+      "early_targets": 18,
+      "early_draws": 1152,
+      "handoff": 75,
+      "raw_frames": 120
+    },
+    {
+      "early_targets": 18,
+      "early_draws": 1152,
+      "handoff": 146,
+      "raw_frames": 120
+    },
+    {
+      "early_targets": 18,
+      "early_draws": 1152,
+      "handoff": 900,
+      "raw_frames": 120
+    }
+  ]
+}

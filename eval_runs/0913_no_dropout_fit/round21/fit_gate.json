@@ -1,0 +1,51 @@
+{
+  "cases": [
+    {
+      "case": "neutral:2228",
+      "ready": true,
+      "early_correct": 18,
+      "minimum_target_probability": 0.9998514760185583,
+      "valid_rows": true
+    },
+    {
+      "case": "neutral:2566",
+      "ready": true,
+      "early_correct": 18,
+      "minimum_target_probability": 0.9998942407028584,
+      "valid_rows": true
+    },
+    {
+      "case": "recovery:4",
+      "ready": true,
+      "early_correct": 18,
+      "minimum_target_probability": 0.9973323672276622,
+      "valid_rows": true
+    },
+    {
+      "case": "recovery:75",
+      "ready": true,
+      "early_correct": 18,
+      "minimum_target_probability": 0.9991566759533004,
+      "valid_rows": true
+    },
+    {
+      "case": "recovery:146",
+      "ready": true,
+      "early_correct": 18,
+      "minimum_target_probability": 0.9987325273951847,
+      "valid_rows": true
+    },
+    {
+      "case": "sustain:900",
+      "ready": true,
+      "early_correct": 18,
+      "minimum_target_probability": 0.9995480797212282,
+      "valid_rows": true
+    }
+  ],
+  "ready": true,
+  "complete_cases": true,
+  "policy": "eval_runs/0913_no_dropout_fit/round21/candidate.bin",
+  "source_report": "eval_runs/0913_no_dropout_fit/round21/fit.json",
+  "policy_sha256": "404a1f543889ddd4193380745fbc603c6c94bb4a200a3caa7cbca6ddf823182a"
+}

@@ -1,0 +1,627 @@
+{
+  "scores": "eval_runs/0913_policy_control/ep57_blocking_k4.json",
+  "expected_issued_latency": 5,
+  "expected_sent_latency": 1,
+  "runs": [
+    {
+      "run": 1,
+      "replay": "eval_runs/0913_policy_control/ep57_blocking_k4/run00_multishine_reentry/Game_20260913T004920.slp",
+      "grid": [
+        {
+          "count": 116,
+          "matches": 55,
+          "field": "issued",
+          "latency": 0
+        },
+        {
+          "count": 116,
+          "matches": 63,
+          "field": "issued",
+          "latency": 1
+        },
+        {
+          "count": 116,
+          "matches": 65,
+          "field": "issued",
+          "latency": 2
+        },
+        {
+          "count": 116,
+          "matches": 70,
+          "field": "issued",
+          "latency": 3
+        },
+        {
+          "count": 116,
+          "matches": 78,
+          "field": "issued",
+          "latency": 4
+        },
+        {
+          "count": 116,
+          "matches": 116,
+          "field": "issued",
+          "latency": 5
+        },
+        {
+          "count": 116,
+          "matches": 78,
+          "field": "issued",
+          "latency": 6
+        },
+        {
+          "count": 116,
+          "matches": 71,
+          "field": "issued",
+          "latency": 7
+        },
+        {
+          "count": 116,
+          "matches": 68,
+          "field": "issued",
+          "latency": 8
+        },
+        {
+          "count": 120,
+          "matches": 81,
+          "field": "sent",
+          "latency": 0
+        },
+        {
+          "count": 120,
+          "matches": 120,
+          "field": "sent",
+          "latency": 1
+        },
+        {
+          "count": 120,
+          "matches": 81,
+          "field": "sent",
+          "latency": 2
+        },
+        {
+          "count": 120,
+          "matches": 73,
+          "field": "sent",
+          "latency": 3
+        },
+        {
+          "count": 120,
+          "matches": 68,
+          "field": "sent",
+          "latency": 4
+        },
+        {
+          "count": 120,
+          "matches": 67,
+          "field": "sent",
+          "latency": 5
+        },
+        {
+          "count": 120,
+          "matches": 59,
+          "field": "sent",
+          "latency": 6
+        },
+        {
+          "count": 120,
+          "matches": 60,
+          "field": "sent",
+          "latency": 7
+        },
+        {
+          "count": 120,
+          "matches": 54,
+          "field": "sent",
+          "latency": 8
+        }
+      ],
+      "frame": 900,
+      "diverged": false,
+      "unsent_tail_decisions": 4,
+      "state_alignment": [
+        {
+          "count": 120,
+          "offset": -2,
+          "matching_action_ground": 77,
+          "action_frame_deltas": {
+            "14": [
+              3
+            ],
+            "24": [
+              3
+            ],
+            "27": [
+              3
+            ],
+            "39": [
+              2
+            ],
+            "360": [
+              2
+            ],
+            "361": [
+              3
+            ],
+            "363": [
+              3
+            ],
+            "365": [
+              2
+            ],
+            "366": [
+              3
+            ],
+            "368": [
+              3
+            ]
+          }
+        },
+        {
+          "count": 120,
+          "offset": -1,
+          "matching_action_ground": 97,
+          "action_frame_deltas": {
+            "14": [
+              2
+            ],
+            "24": [
+              2
+            ],
+            "27": [
+              2
+            ],
+            "39": [
+              1
+            ],
+            "360": [
+              1
+            ],
+            "361": [
+              2
+            ],
+            "363": [
+              2
+            ],
+            "365": [
+              1
+            ],
+            "366": [
+              2
+            ],
+            "368": [
+              2
+            ]
+          }
+        },
+        {
+          "count": 120,
+          "offset": 0,
+          "matching_action_ground": 120,
+          "action_frame_deltas": {
+            "14": [
+              1
+            ],
+            "24": [
+              1
+            ],
+            "25": [
+              1
+            ],
+            "27": [
+              1
+            ],
+            "39": [
+              0
+            ],
+            "360": [
+              0
+            ],
+            "361": [
+              1
+            ],
+            "363": [
+              1
+            ],
+            "365": [
+              0
+            ],
+            "366": [
+              1
+            ],
+            "368": [
+              1
+            ]
+          }
+        },
+        {
+          "count": 120,
+          "offset": 1,
+          "matching_action_ground": 97,
+          "action_frame_deltas": {
+            "14": [
+              0
+            ],
+            "24": [
+              0
+            ],
+            "27": [
+              0
+            ],
+            "39": [
+              -1
+            ],
+            "360": [
+              -1
+            ],
+            "361": [
+              0
+            ],
+            "363": [
+              0
+            ],
+            "365": [
+              -1
+            ],
+            "366": [
+              0
+            ],
+            "368": [
+              0
+            ]
+          }
+        },
+        {
+          "count": 120,
+          "offset": 2,
+          "matching_action_ground": 78,
+          "action_frame_deltas": {
+            "14": [
+              -1
+            ],
+            "24": [
+              -1
+            ],
+            "27": [
+              -1
+            ],
+            "39": [
+              -2
+            ],
+            "360": [
+              -2
+            ],
+            "361": [
+              -1
+            ],
+            "363": [
+              -1
+            ],
+            "365": [
+              -2
+            ],
+            "366": [
+              -1
+            ],
+            "368": [
+              -1
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "run": 2,
+      "replay": "eval_runs/0913_policy_control/ep57_blocking_k4/run01_multishine_reentry/Game_20260913T004932.slp",
+      "grid": [
+        {
+          "count": 116,
+          "matches": 53,
+          "field": "issued",
+          "latency": 0
+        },
+        {
+          "count": 116,
+          "matches": 64,
+          "field": "issued",
+          "latency": 1
+        },
+        {
+          "count": 116,
+          "matches": 71,
+          "field": "issued",
+          "latency": 2
+        },
+        {
+          "count": 116,
+          "matches": 74,
+          "field": "issued",
+          "latency": 3
+        },
+        {
+          "count": 116,
+          "matches": 86,
+          "field": "issued",
+          "latency": 4
+        },
+        {
+          "count": 116,
+          "matches": 116,
+          "field": "issued",
+          "latency": 5
+        },
+        {
+          "count": 116,
+          "matches": 86,
+          "field": "issued",
+          "latency": 6
+        },
+        {
+          "count": 116,
+          "matches": 75,
+          "field": "issued",
+          "latency": 7
+        },
+        {
+          "count": 116,
+          "matches": 74,
+          "field": "issued",
+          "latency": 8
+        },
+        {
+          "count": 120,
+          "matches": 89,
+          "field": "sent",
+          "latency": 0
+        },
+        {
+          "count": 120,
+          "matches": 120,
+          "field": "sent",
+          "latency": 1
+        },
+        {
+          "count": 120,
+          "matches": 89,
+          "field": "sent",
+          "latency": 2
+        },
+        {
+          "count": 120,
+          "matches": 77,
+          "field": "sent",
+          "latency": 3
+        },
+        {
+          "count": 120,
+          "matches": 74,
+          "field": "sent",
+          "latency": 4
+        },
+        {
+          "count": 120,
+          "matches": 68,
+          "field": "sent",
+          "latency": 5
+        },
+        {
+          "count": 120,
+          "matches": 58,
+          "field": "sent",
+          "latency": 6
+        },
+        {
+          "count": 120,
+          "matches": 59,
+          "field": "sent",
+          "latency": 7
+        },
+        {
+          "count": 120,
+          "matches": 59,
+          "field": "sent",
+          "latency": 8
+        }
+      ],
+      "frame": 900,
+      "diverged": false,
+      "unsent_tail_decisions": 4,
+      "state_alignment": [
+        {
+          "count": 120,
+          "offset": -2,
+          "matching_action_ground": 78,
+          "action_frame_deltas": {
+            "14": [
+              3
+            ],
+            "24": [
+              3
+            ],
+            "25": [
+              3
+            ],
+            "27": [
+              3
+            ],
+            "360": [
+              2
+            ],
+            "361": [
+              3
+            ],
+            "363": [
+              3
+            ],
+            "365": [
+              2
+            ],
+            "366": [
+              3
+            ],
+            "368": [
+              3
+            ]
+          }
+        },
+        {
+          "count": 120,
+          "offset": -1,
+          "matching_action_ground": 98,
+          "action_frame_deltas": {
+            "14": [
+              2
+            ],
+            "24": [
+              2
+            ],
+            "25": [
+              2
+            ],
+            "27": [
+              2
+            ],
+            "39": [
+              1
+            ],
+            "360": [
+              1
+            ],
+            "361": [
+              2
+            ],
+            "363": [
+              2
+            ],
+            "365": [
+              1
+            ],
+            "366": [
+              2
+            ],
+            "368": [
+              2
+            ]
+          }
+        },
+        {
+          "count": 120,
+          "offset": 0,
+          "matching_action_ground": 120,
+          "action_frame_deltas": {
+            "14": [
+              1
+            ],
+            "24": [
+              1
+            ],
+            "25": [
+              1
+            ],
+            "27": [
+              1
+            ],
+            "39": [
+              0
+            ],
+            "360": [
+              0
+            ],
+            "361": [
+              1
+            ],
+            "363": [
+              1
+            ],
+            "365": [
+              0
+            ],
+            "366": [
+              1
+            ],
+            "368": [
+              1
+            ]
+          }
+        },
+        {
+          "count": 120,
+          "offset": 1,
+          "matching_action_ground": 98,
+          "action_frame_deltas": {
+            "14": [
+              0
+            ],
+            "24": [
+              0
+            ],
+            "25": [
+              0
+            ],
+            "27": [
+              0
+            ],
+            "39": [
+              -1
+            ],
+            "360": [
+              -1
+            ],
+            "361": [
+              0
+            ],
+            "363": [
+              0
+            ],
+            "365": [
+              -1
+            ],
+            "366": [
+              0
+            ],
+            "368": [
+              0
+            ]
+          }
+        },
+        {
+          "count": 120,
+          "offset": 2,
+          "matching_action_ground": 79,
+          "action_frame_deltas": {
+            "14": [
+              -1
+            ],
+            "24": [
+              -1
+            ],
+            "25": [
+              -1
+            ],
+            "27": [
+              -1
+            ],
+            "360": [
+              -2
+            ],
+            "361": [
+              -1
+            ],
+            "363": [
+              -1
+            ],
+            "365": [
+              -2
+            ],
+            "366": [
+              -1
+            ],
+            "368": [
+              -1
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
