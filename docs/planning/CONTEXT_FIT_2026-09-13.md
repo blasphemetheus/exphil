@@ -94,3 +94,11 @@ Errored runs are excluded, not scored. Not investigated.
 - Only the nine trained handoffs were tested. Held-out starts/perturbations
   (different positions, facing, opponent characters) remain untested.
 - `dolphin_disconnected` in cold mode.
+
+## Human session (22:48): passed
+
+Bradley played round21 locally and called it the best version yet. Strict
+benchmark of the replay: max chain 101, 330 completed cycles, 209 ground
+shines/min, 1 stock lost, 17/31 hit episodes recovered (typical ready-to-cycle
+8-11 frames); the prior candidate's session was chain 27 / 78 cycles / 54 per
+min / 4 stocks / 9 of 46. See HANDOFF_2026-09-13d addendum.
