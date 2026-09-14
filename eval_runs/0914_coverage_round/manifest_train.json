@@ -1,0 +1,639 @@
+{
+  "entries": [
+    {
+      "class": "hit",
+      "facing": 1,
+      "frame": 291,
+      "note": "hit {:left, :grounded} x=-60.0 facing=1 opp_dx=8.3 opp_char=1",
+      "opp_char": 1,
+      "opp_dx": 8.3,
+      "sha6": "a47b2b",
+      "slp": "eval_runs/0914_coverage_round/gen2/run00_multishine_reentry/Game_20260914T155806.slp",
+      "stratum": [
+        "left",
+        "grounded"
+      ],
+      "type": "multishine_reentry",
+      "x": -60.0
+    },
+    {
+      "class": "hit",
+      "facing": 1,
+      "frame": 676,
+      "note": "hit {:left, :grounded} x=-60.0 facing=1 opp_dx=11.6 opp_char=1",
+      "opp_char": 1,
+      "opp_dx": 11.6,
+      "sha6": "8557f0",
+      "slp": "eval_runs/0914_coverage_round/gen2/run00_multishine_reentry/Game_20260914T155806.slp",
+      "stratum": [
+        "left",
+        "grounded"
+      ],
+      "type": "multishine_reentry",
+      "x": -60.0
+    },
+    {
+      "class": "hit",
+      "facing": 1,
+      "frame": 979,
+      "note": "hit {:left, :grounded} x=-60.0 facing=1 opp_dx=11.2 opp_char=1",
+      "opp_char": 1,
+      "opp_dx": 11.2,
+      "sha6": "462109",
+      "slp": "eval_runs/0914_coverage_round/gen2/run00_multishine_reentry/Game_20260914T155806.slp",
+      "stratum": [
+        "left",
+        "grounded"
+      ],
+      "type": "multishine_reentry",
+      "x": -60.0
+    },
+    {
+      "class": "hit",
+      "facing": 1,
+      "frame": 870,
+      "note": "hit {:left, :grounded} x=-60.3 facing=1 opp_dx=6.1 opp_char=1",
+      "opp_char": 1,
+      "opp_dx": 6.1,
+      "sha6": "dd0be9",
+      "slp": "eval_runs/0914_coverage_round/gen2/run01_multishine_reentry/Game_20260914T155852.slp",
+      "stratum": [
+        "left",
+        "grounded"
+      ],
+      "type": "multishine_reentry",
+      "x": -60.3
+    },
+    {
+      "class": "hit",
+      "facing": 1,
+      "frame": 296,
+      "note": "hit {:left, :grounded} x=-60.3 facing=1 opp_dx=13.5 opp_char=1",
+      "opp_char": 1,
+      "opp_dx": 13.5,
+      "sha6": "f1bb89",
+      "slp": "eval_runs/0914_coverage_round/gen2/run04_multishine_reentry/Game_20260914T160148.slp",
+      "stratum": [
+        "left",
+        "grounded"
+      ],
+      "type": "multishine_reentry",
+      "x": -60.3
+    },
+    {
+      "class": "hit",
+      "facing": 1,
+      "frame": 665,
+      "note": "hit {:left, :grounded} x=-60.3 facing=1 opp_dx=9.7 opp_char=1",
+      "opp_char": 1,
+      "opp_dx": 9.7,
+      "sha6": "6d66fd",
+      "slp": "eval_runs/0914_coverage_round/gen2/run04_multishine_reentry/Game_20260914T160148.slp",
+      "stratum": [
+        "left",
+        "grounded"
+      ],
+      "type": "multishine_reentry",
+      "x": -60.3
+    },
+    {
+      "class": "hit",
+      "facing": 1,
+      "frame": 433,
+      "note": "hit {:left, :grounded} x=-60.0 facing=1 opp_dx=12.4 opp_char=1",
+      "opp_char": 1,
+      "opp_dx": 12.4,
+      "sha6": "cd6166",
+      "slp": "eval_runs/0914_coverage_round/gen2/run05_multishine_reentry/Game_20260914T160234.slp",
+      "stratum": [
+        "left",
+        "grounded"
+      ],
+      "type": "multishine_reentry",
+      "x": -60.0
+    },
+    {
+      "class": "hit",
+      "facing": 1,
+      "frame": 742,
+      "note": "hit {:left, :airborne} x=-60.0 facing=1 opp_dx=9.6 opp_char=1",
+      "opp_char": 1,
+      "opp_dx": 9.6,
+      "sha6": "943deb",
+      "slp": "eval_runs/0914_coverage_round/gen2/run05_multishine_reentry/Game_20260914T160234.slp",
+      "stratum": [
+        "left",
+        "airborne"
+      ],
+      "type": "multishine_reentry",
+      "x": -60.0
+    },
+    {
+      "class": "hit",
+      "facing": 1,
+      "frame": 1272,
+      "note": "hit {:left, :grounded} x=-60.3 facing=1 opp_dx=4.6 opp_char=1",
+      "opp_char": 1,
+      "opp_dx": 4.6,
+      "sha6": "57bb12",
+      "slp": "eval_runs/0914_coverage_round/gen2/run05_multishine_reentry/Game_20260914T160234.slp",
+      "stratum": [
+        "left",
+        "grounded"
+      ],
+      "type": "multishine_reentry",
+      "x": -60.3
+    },
+    {
+      "class": "hit",
+      "facing": -1,
+      "frame": 860,
+      "note": "hit {:left, :grounded} x=-52.6 facing=-1 opp_dx=9.0 opp_char=1",
+      "opp_char": 1,
+      "opp_dx": 9.0,
+      "sha6": "4deac7",
+      "slp": "eval_runs/0914_coverage_round/gen2/run12_multishine_reentry/Game_20260914T160937.slp",
+      "stratum": [
+        "left",
+        "grounded"
+      ],
+      "type": "multishine_reentry",
+      "x": -52.6
+    },
+    {
+      "class": "hit",
+      "facing": -1,
+      "frame": 2150,
+      "note": "hit {:left, :grounded} x=-52.6 facing=-1 opp_dx=2.6 opp_char=1",
+      "opp_char": 1,
+      "opp_dx": 2.6,
+      "sha6": "e3c125",
+      "slp": "eval_runs/0914_coverage_round/gen2/run12_multishine_reentry/Game_20260914T160937.slp",
+      "stratum": [
+        "left",
+        "grounded"
+      ],
+      "type": "multishine_reentry",
+      "x": -52.6
+    },
+    {
+      "class": "hit",
+      "facing": 1,
+      "frame": 292,
+      "note": "hit {:left, :grounded} x=-60.0 facing=1 opp_dx=9.4 opp_char=9",
+      "opp_char": 9,
+      "opp_dx": 9.4,
+      "sha6": "6d1189",
+      "slp": "eval_runs/0914_coverage_round/gen2/run08_multishine_reentry/Game_20260914T160535.slp",
+      "stratum": [
+        "left",
+        "grounded"
+      ],
+      "type": "multishine_reentry",
+      "x": -60.0
+    },
+    {
+      "class": "hit",
+      "facing": 1,
+      "frame": 252,
+      "note": "hit {:left, :grounded} x=-60.0 facing=1 opp_dx=9.1 opp_char=9",
+      "opp_char": 9,
+      "opp_dx": 9.1,
+      "sha6": "52130a",
+      "slp": "eval_runs/0914_coverage_round/gen2/run09_multishine_reentry/Game_20260914T160623.slp",
+      "stratum": [
+        "left",
+        "grounded"
+      ],
+      "type": "multishine_reentry",
+      "x": -60.0
+    },
+    {
+      "class": "hit",
+      "facing": 1,
+      "frame": 553,
+      "note": "hit {:left, :grounded} x=-60.0 facing=1 opp_dx=10.4 opp_char=9",
+      "opp_char": 9,
+      "opp_dx": 10.4,
+      "sha6": "4dfc13",
+      "slp": "eval_runs/0914_coverage_round/gen2/run09_multishine_reentry/Game_20260914T160623.slp",
+      "stratum": [
+        "left",
+        "grounded"
+      ],
+      "type": "multishine_reentry",
+      "x": -60.0
+    },
+    {
+      "class": "hit",
+      "facing": -1,
+      "frame": 949,
+      "note": "hit {:left, :grounded} x=-60.0 facing=-1 opp_dx=10.0 opp_char=9",
+      "opp_char": 9,
+      "opp_dx": 10.0,
+      "sha6": "9c5240",
+      "slp": "eval_runs/0914_coverage_round/gen2/run09_multishine_reentry/Game_20260914T160623.slp",
+      "stratum": [
+        "left",
+        "grounded"
+      ],
+      "type": "multishine_reentry",
+      "x": -60.0
+    },
+    {
+      "class": "hit",
+      "facing": 1,
+      "frame": 666,
+      "note": "hit {:left, :grounded} x=-60.0 facing=1 opp_dx=8.0 opp_char=13",
+      "opp_char": 13,
+      "opp_dx": 8.0,
+      "sha6": "a7f203",
+      "slp": "eval_runs/0914_coverage_round/gen2/run10_multishine_reentry/Game_20260914T160728.slp",
+      "stratum": [
+        "left",
+        "grounded"
+      ],
+      "type": "multishine_reentry",
+      "x": -60.0
+    },
+    {
+      "class": "hit",
+      "facing": 1,
+      "frame": 3385,
+      "note": "hit {:left, :grounded} x=-60.0 facing=1 opp_dx=8.3 opp_char=13",
+      "opp_char": 13,
+      "opp_dx": 8.3,
+      "sha6": "971150",
+      "slp": "eval_runs/0914_coverage_round/gen2/run10_multishine_reentry/Game_20260914T160728.slp",
+      "stratum": [
+        "left",
+        "grounded"
+      ],
+      "type": "multishine_reentry",
+      "x": -60.0
+    },
+    {
+      "class": "hit",
+      "facing": 1,
+      "frame": 246,
+      "note": "hit {:left, :grounded} x=-60.0 facing=1 opp_dx=9.2 opp_char=13",
+      "opp_char": 13,
+      "opp_dx": 9.2,
+      "sha6": "54fb5f",
+      "slp": "eval_runs/0914_coverage_round/gen2/run11_multishine_reentry/Game_20260914T160843.slp",
+      "stratum": [
+        "left",
+        "grounded"
+      ],
+      "type": "multishine_reentry",
+      "x": -60.0
+    },
+    {
+      "class": "hit",
+      "facing": 1,
+      "frame": 3314,
+      "note": "hit {:left, :grounded} x=-60.0 facing=1 opp_dx=-0.8 opp_char=13",
+      "opp_char": 13,
+      "opp_dx": -0.8,
+      "sha6": "6eecdc",
+      "slp": "eval_runs/0914_coverage_round/gen2/run11_multishine_reentry/Game_20260914T160843.slp",
+      "stratum": [
+        "left",
+        "grounded"
+      ],
+      "type": "multishine_reentry",
+      "x": -60.0
+    },
+    {
+      "class": "hit",
+      "facing": 1,
+      "frame": 324,
+      "note": "hit {:left, :grounded} x=-60.0 facing=1 opp_dx=9.6 opp_char=18",
+      "opp_char": 18,
+      "opp_dx": 9.6,
+      "sha6": "a28f12",
+      "slp": "eval_runs/0914_coverage_round/gen2/run06_multishine_reentry/Game_20260914T160344.slp",
+      "stratum": [
+        "left",
+        "grounded"
+      ],
+      "type": "multishine_reentry",
+      "x": -60.0
+    },
+    {
+      "class": "hit",
+      "facing": 1,
+      "frame": 848,
+      "note": "hit {:left, :grounded} x=-60.0 facing=1 opp_dx=-9.6 opp_char=18",
+      "opp_char": 18,
+      "opp_dx": -9.6,
+      "sha6": "cc48be",
+      "slp": "eval_runs/0914_coverage_round/gen2/run06_multishine_reentry/Game_20260914T160344.slp",
+      "stratum": [
+        "left",
+        "grounded"
+      ],
+      "type": "multishine_reentry",
+      "x": -60.0
+    },
+    {
+      "class": "hit",
+      "facing": 1,
+      "frame": 272,
+      "note": "hit {:left, :grounded} x=-60.0 facing=1 opp_dx=10.6 opp_char=18",
+      "opp_char": 18,
+      "opp_dx": 10.6,
+      "sha6": "b6d2e1",
+      "slp": "eval_runs/0914_coverage_round/gen2/run07_multishine_reentry/Game_20260914T160451.slp",
+      "stratum": [
+        "left",
+        "grounded"
+      ],
+      "type": "multishine_reentry",
+      "x": -60.0
+    },
+    {
+      "class": "hit",
+      "facing": 1,
+      "frame": 638,
+      "note": "hit {:left, :grounded} x=-60.0 facing=1 opp_dx=12.4 opp_char=18",
+      "opp_char": 18,
+      "opp_dx": 12.4,
+      "sha6": "11ed1c",
+      "slp": "eval_runs/0914_coverage_round/gen2/run07_multishine_reentry/Game_20260914T160451.slp",
+      "stratum": [
+        "left",
+        "grounded"
+      ],
+      "type": "multishine_reentry",
+      "x": -60.0
+    },
+    {
+      "class": "hit",
+      "facing": 1,
+      "frame": 2161,
+      "note": "hit {:left, :grounded} x=-60.0 facing=1 opp_dx=-5.2 opp_char=18",
+      "opp_char": 18,
+      "opp_dx": -5.2,
+      "sha6": "70e644",
+      "slp": "eval_runs/0914_coverage_round/gen2/run07_multishine_reentry/Game_20260914T160451.slp",
+      "stratum": [
+        "left",
+        "grounded"
+      ],
+      "type": "multishine_reentry",
+      "x": -60.0
+    },
+    {
+      "class": "hit",
+      "facing": 1,
+      "frame": 1551,
+      "note": "hit {:left, :grounded} x=-60.0 facing=1 opp_dx=14.6 opp_char=22",
+      "opp_char": 22,
+      "opp_dx": 14.6,
+      "sha6": "3d2181",
+      "slp": "eval_runs/0914_coverage_round/gen2/run02_multishine_reentry/Game_20260914T155938.slp",
+      "stratum": [
+        "left",
+        "grounded"
+      ],
+      "type": "multishine_reentry",
+      "x": -60.0
+    },
+    {
+      "class": "hit",
+      "facing": 1,
+      "frame": 1910,
+      "note": "hit {:left, :grounded} x=-60.0 facing=1 opp_dx=9.8 opp_char=22",
+      "opp_char": 22,
+      "opp_dx": 9.8,
+      "sha6": "1e1fae",
+      "slp": "eval_runs/0914_coverage_round/gen2/run02_multishine_reentry/Game_20260914T155938.slp",
+      "stratum": [
+        "left",
+        "grounded"
+      ],
+      "type": "multishine_reentry",
+      "x": -60.0
+    },
+    {
+      "class": "hit",
+      "facing": 1,
+      "frame": 1187,
+      "note": "hit {:left, :grounded} x=-60.0 facing=1 opp_dx=10.1 opp_char=22",
+      "opp_char": 22,
+      "opp_dx": 10.1,
+      "sha6": "1e5f33",
+      "slp": "eval_runs/0914_coverage_round/gen2/run03_multishine_reentry/Game_20260914T160043.slp",
+      "stratum": [
+        "left",
+        "grounded"
+      ],
+      "type": "multishine_reentry",
+      "x": -60.0
+    },
+    {
+      "class": "hit",
+      "facing": 1,
+      "frame": 1873,
+      "note": "hit {:left, :grounded} x=-60.0 facing=1 opp_dx=13.1 opp_char=22",
+      "opp_char": 22,
+      "opp_dx": 13.1,
+      "sha6": "5853e4",
+      "slp": "eval_runs/0914_coverage_round/gen2/run03_multishine_reentry/Game_20260914T160043.slp",
+      "stratum": [
+        "left",
+        "grounded"
+      ],
+      "type": "multishine_reentry",
+      "x": -60.0
+    },
+    {
+      "class": "neutral",
+      "facing": 1,
+      "frame": 1611,
+      "note": "neutral {:left, :right, :opp_right} x=-60.3 facing=1 opp_dx=10.5 opp_char=1",
+      "opp_char": 1,
+      "opp_dx": 10.5,
+      "sha6": "9f9087",
+      "slp": "eval_runs/0914_coverage_round/gen2/run04_multishine_reentry/Game_20260914T160148.slp",
+      "stratum": [
+        "left",
+        "right",
+        "opp_right"
+      ],
+      "type": "multishine_reentry",
+      "x": -60.3
+    },
+    {
+      "class": "neutral",
+      "facing": 1,
+      "frame": 3694,
+      "note": "neutral {:left, :right, :opp_left} x=-60.3 facing=1 opp_dx=-15.4 opp_char=1",
+      "opp_char": 1,
+      "opp_dx": -15.4,
+      "sha6": "494c50",
+      "slp": "eval_runs/0914_coverage_round/gen2/run05_multishine_reentry/Game_20260914T160234.slp",
+      "stratum": [
+        "left",
+        "right",
+        "opp_left"
+      ],
+      "type": "multishine_reentry",
+      "x": -60.3
+    },
+    {
+      "class": "neutral",
+      "facing": -1,
+      "frame": 308,
+      "note": "neutral {:left, :left, :opp_left} x=-59.1 facing=-1 opp_dx=-14.8 opp_char=1",
+      "opp_char": 1,
+      "opp_dx": -14.8,
+      "sha6": "06d7cf",
+      "slp": "eval_runs/0914_coverage_round/gen2/run12_multishine_reentry/Game_20260914T160937.slp",
+      "stratum": [
+        "left",
+        "left",
+        "opp_left"
+      ],
+      "type": "multishine_reentry",
+      "x": -59.1
+    },
+    {
+      "class": "neutral",
+      "facing": -1,
+      "frame": 1043,
+      "note": "neutral {:left, :left, :opp_right} x=-61.2 facing=-1 opp_dx=24.5 opp_char=9",
+      "opp_char": 9,
+      "opp_dx": 24.5,
+      "sha6": "fd8eed",
+      "slp": "eval_runs/0914_coverage_round/gen2/run08_multishine_reentry/Game_20260914T160535.slp",
+      "stratum": [
+        "left",
+        "left",
+        "opp_right"
+      ],
+      "type": "multishine_reentry",
+      "x": -61.2
+    },
+    {
+      "class": "neutral",
+      "facing": -1,
+      "frame": 1229,
+      "note": "neutral {:left, :left, :opp_left} x=-61.2 facing=-1 opp_dx=-24.4 opp_char=9",
+      "opp_char": 9,
+      "opp_dx": -24.4,
+      "sha6": "2244af",
+      "slp": "eval_runs/0914_coverage_round/gen2/run08_multishine_reentry/Game_20260914T160535.slp",
+      "stratum": [
+        "left",
+        "left",
+        "opp_left"
+      ],
+      "type": "multishine_reentry",
+      "x": -61.2
+    },
+    {
+      "class": "neutral",
+      "facing": 1,
+      "frame": 2344,
+      "note": "neutral {:left, :right, :opp_left} x=-60.3 facing=1 opp_dx=-1.6 opp_char=9",
+      "opp_char": 9,
+      "opp_dx": -1.6,
+      "sha6": "19256b",
+      "slp": "eval_runs/0914_coverage_round/gen2/run09_multishine_reentry/Game_20260914T160623.slp",
+      "stratum": [
+        "left",
+        "right",
+        "opp_left"
+      ],
+      "type": "multishine_reentry",
+      "x": -60.3
+    },
+    {
+      "class": "neutral",
+      "facing": -1,
+      "frame": 3975,
+      "note": "neutral {:left, :left, :opp_right} x=-62.4 facing=-1 opp_dx=21.9 opp_char=13",
+      "opp_char": 13,
+      "opp_dx": 21.9,
+      "sha6": "31f2d8",
+      "slp": "eval_runs/0914_coverage_round/gen2/run10_multishine_reentry/Game_20260914T160728.slp",
+      "stratum": [
+        "left",
+        "left",
+        "opp_right"
+      ],
+      "type": "multishine_reentry",
+      "x": -62.4
+    },
+    {
+      "class": "neutral",
+      "facing": 1,
+      "frame": 1468,
+      "note": "neutral {:left, :right, :opp_right} x=-60.0 facing=1 opp_dx=234.3 opp_char=13",
+      "opp_char": 13,
+      "opp_dx": 234.3,
+      "sha6": "079570",
+      "slp": "eval_runs/0914_coverage_round/gen2/run11_multishine_reentry/Game_20260914T160843.slp",
+      "stratum": [
+        "left",
+        "right",
+        "opp_right"
+      ],
+      "type": "multishine_reentry",
+      "x": -60.0
+    },
+    {
+      "class": "neutral",
+      "facing": 1,
+      "frame": 845,
+      "note": "neutral {:left, :right, :opp_left} x=-60.0 facing=1 opp_dx=-7.1 opp_char=18",
+      "opp_char": 18,
+      "opp_dx": -7.1,
+      "sha6": "74a5b5",
+      "slp": "eval_runs/0914_coverage_round/gen2/run06_multishine_reentry/Game_20260914T160344.slp",
+      "stratum": [
+        "left",
+        "right",
+        "opp_left"
+      ],
+      "type": "multishine_reentry",
+      "x": -60.0
+    },
+    {
+      "class": "neutral",
+      "facing": -1,
+      "frame": 4090,
+      "note": "neutral {:left, :left, :opp_right} x=-52.7 facing=-1 opp_dx=38.2 opp_char=18",
+      "opp_char": 18,
+      "opp_dx": 38.2,
+      "sha6": "85e11e",
+      "slp": "eval_runs/0914_coverage_round/gen2/run06_multishine_reentry/Game_20260914T160344.slp",
+      "stratum": [
+        "left",
+        "left",
+        "opp_right"
+      ],
+      "type": "multishine_reentry",
+      "x": -52.7
+    },
+    {
+      "class": "neutral",
+      "facing": 1,
+      "frame": 1838,
+      "note": "neutral {:left, :right, :opp_right} x=-60.0 facing=1 opp_dx=31.9 opp_char=22",
+      "opp_char": 22,
+      "opp_dx": 31.9,
+      "sha6": "df913f",
+      "slp": "eval_runs/0914_coverage_round/gen2/run03_multishine_reentry/Game_20260914T160043.slp",
+      "stratum": [
+        "left",
+        "right",
+        "opp_right"
+      ],
+      "type": "multishine_reentry",
+      "x": -60.0
+    }
+  ]
+}

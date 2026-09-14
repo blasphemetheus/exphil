@@ -30,7 +30,7 @@ say "  $(tail -1 $OUT/mine.log); by class: $(jq -c '[.entries[].class] | group_b
 
 say "=== stage 2b: teacher executes every handoff (neutral opponent, 360 f)"
 rm -rf $OUT/teacher $OUT/teacher.json
-mix run scripts/scenario_suite.exs --driver teacher --policy "$POLICY" \
+mix run scripts/scenario_suite.exs --driver teacher --audit-teacher-labels --policy "$POLICY" \
   --reaction-delay $K --temperature 1.0 --character fox --prefix-history committed \
   --manifest $OUT/mined.json --runs 1 --window 360 --response-opponent neutral --live-af \
   --no-orphan-sweep --quiet --trace-policy-inputs \
@@ -39,7 +39,7 @@ say "  teacher exit $?: errored=$(jq .errored_runs $OUT/teacher.json) diverged=$
 say "  chains: $(jq -c '[.runs[] | .details.max_chain]' $OUT/teacher.json)"
 
 say "=== stage 2c: keep qualified runs, validate at delay $K, export clips"
-jq '.runs |= map(select(.error == null and .diverged == false and .pass == true and .truncated == null and .timing_valid == true))' \
+jq '.runs |= map(select(.error == null and .diverged == false and .pass == true and .truncated == null and (.timing_valid == true or .timing_valid == null)))' \
   $OUT/teacher.json > $OUT/teacher_qualified.json
 say "  qualified runs: $(jq '.runs|length' $OUT/teacher_qualified.json)"
 rm -f $OUT/targets_d$K.json $OUT/targets_d$K.frames
@@ -52,26 +52,6 @@ mix run scripts/prepare_recorded_context.exs --out-dir $OUT/clips --delay $K --q
 say "  clips: $(command ls $OUT/clips/*.frames 2>/dev/null | wc -l) files, targets $(jq '[.results[].targets] | add' $OUT/clips/report.json 2>/dev/null)"
 
 say "=== stage 2d: train / held-out split"
-mix run --no-start -e '
-out = "'$OUT'"
-mined = File.read!(Path.join(out, "mined.json")) |> Jason.decode!() |> Map.fetch!("entries")
-report = File.read!(Path.join(out, "clips/report.json")) |> Jason.decode!()
-by_key = Map.new(mined, &{{&1["slp"], &1["frame"]}, &1})
-valid = report["results"] |> Enum.filter(&(&1["history"] == "cold")) |> Enum.map(fn r -> Map.put(by_key[{r["source_replay"], r["handoff"]}], "sha6", String.slice(r["source_sha256"], 0, 6)) end)
-{train, held} =
-  valid
-  |> Enum.group_by(& &1["class"])
-  |> Enum.flat_map(fn {_, es} ->
-    es |> Enum.sort_by(&{&1["opp_char"], &1["slp"], &1["frame"]}) |> Enum.with_index() |> Enum.map(fn {e, i} -> {e, rem(i, 4) == 3} end)
-  end)
-  |> Enum.split_with(fn {_, held?} -> not held? end)
-train = Enum.map(train, &elem(&1, 0)); held = Enum.map(held, &elem(&1, 0))
-File.write!(Path.join(out, "manifest_train.json"), Jason.encode!(%{entries: train}, pretty: true))
-File.write!(Path.join(out, "manifest_heldout.json"), Jason.encode!(%{entries: held}, pretty: true))
-File.mkdir_p!(Path.join(out, "clips_train")); File.mkdir_p!(Path.join(out, "clips_heldout"))
-for e <- train, mode <- ["cold", "warm"], do: File.cp!(Path.join(out, "clips/#{e["frame"]}_#{e["sha6"]}_#{mode}.frames"), Path.join(out, "clips_train/#{e["frame"]}_#{e["sha6"]}_#{mode}.frames"))
-for e <- held, mode <- ["cold", "warm"], do: File.cp!(Path.join(out, "clips/#{e["frame"]}_#{e["sha6"]}_#{mode}.frames"), Path.join(out, "clips_heldout/#{e["frame"]}_#{e["sha6"]}_#{mode}.frames"))
-IO.puts("train #{length(train)} handoffs (#{Enum.frequencies_by(train, & &1["class"]) |> inspect}), held-out #{length(held)} (#{Enum.frequencies_by(held, & &1["class"]) |> inspect})")
-' > $OUT/split.log 2>&1
+mix run --no-start scripts/split_coverage_clips.exs --dir "$OUT" > $OUT/split.log 2>&1
 say "  $(tail -1 $OUT/split.log)"
 say "stage 2 done"

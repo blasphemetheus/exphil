@@ -1,0 +1,82 @@
+{
+  "entries": [
+    {
+      "slp": "eval_runs/0911_g23a_live/cpu_rollouts/r1.slp",
+      "frame": 30,
+      "type": "multishine_reentry",
+      "note": "gen2 source eval_runs/0911_g23a_live/cpu_rollouts/r1.slp"
+    },
+    {
+      "slp": "eval_runs/0911_g23a_live/cpu_rollouts/r2.slp",
+      "frame": 30,
+      "type": "multishine_reentry",
+      "note": "gen2 source eval_runs/0911_g23a_live/cpu_rollouts/r2.slp"
+    },
+    {
+      "slp": "eval_runs/0914_coverage_round/rollouts/falco/r1.slp",
+      "frame": 30,
+      "type": "multishine_reentry",
+      "note": "gen2 source eval_runs/0914_coverage_round/rollouts/falco/r1.slp"
+    },
+    {
+      "slp": "eval_runs/0914_coverage_round/rollouts/falco/r2.slp",
+      "frame": 30,
+      "type": "multishine_reentry",
+      "note": "gen2 source eval_runs/0914_coverage_round/rollouts/falco/r2.slp"
+    },
+    {
+      "slp": "eval_runs/0914_coverage_round/rollouts/fox/r1.slp",
+      "frame": 30,
+      "type": "multishine_reentry",
+      "note": "gen2 source eval_runs/0914_coverage_round/rollouts/fox/r1.slp"
+    },
+    {
+      "slp": "eval_runs/0914_coverage_round/rollouts/fox/r2.slp",
+      "frame": 30,
+      "type": "multishine_reentry",
+      "note": "gen2 source eval_runs/0914_coverage_round/rollouts/fox/r2.slp"
+    },
+    {
+      "slp": "eval_runs/0914_coverage_round/rollouts/marth/r1.slp",
+      "frame": 30,
+      "type": "multishine_reentry",
+      "note": "gen2 source eval_runs/0914_coverage_round/rollouts/marth/r1.slp"
+    },
+    {
+      "slp": "eval_runs/0914_coverage_round/rollouts/marth/r2.slp",
+      "frame": 30,
+      "type": "multishine_reentry",
+      "note": "gen2 source eval_runs/0914_coverage_round/rollouts/marth/r2.slp"
+    },
+    {
+      "slp": "eval_runs/0914_coverage_round/rollouts/peach/r1.slp",
+      "frame": 30,
+      "type": "multishine_reentry",
+      "note": "gen2 source eval_runs/0914_coverage_round/rollouts/peach/r1.slp"
+    },
+    {
+      "slp": "eval_runs/0914_coverage_round/rollouts/peach/r2.slp",
+      "frame": 30,
+      "type": "multishine_reentry",
+      "note": "gen2 source eval_runs/0914_coverage_round/rollouts/peach/r2.slp"
+    },
+    {
+      "slp": "eval_runs/0914_coverage_round/rollouts/samus/r1.slp",
+      "frame": 30,
+      "type": "multishine_reentry",
+      "note": "gen2 source eval_runs/0914_coverage_round/rollouts/samus/r1.slp"
+    },
+    {
+      "slp": "eval_runs/0914_coverage_round/rollouts/samus/r2.slp",
+      "frame": 30,
+      "type": "multishine_reentry",
+      "note": "gen2 source eval_runs/0914_coverage_round/rollouts/samus/r2.slp"
+    },
+    {
+      "slp": "eval_runs/local_multishine_20260913_224806/2026-09-Mainline/Game_20260913T224817.slp",
+      "frame": 30,
+      "type": "multishine_reentry",
+      "note": "gen2 source eval_runs/local_multishine_20260913_224806/2026-09-Mainline/Game_20260913T224817.slp"
+    }
+  ]
+}

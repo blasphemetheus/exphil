@@ -1,0 +1,191 @@
+{
+  "policy": "eval_runs/0914_coverage_round/round21/candidate.bin",
+  "source_report": "eval_runs/0914_coverage_round/round21/fit_train.json",
+  "policy_sha256": "8c0652fb08e25c06eb4e844d0185f552c04a4f944c61552dbd9eb57a18405283",
+  "ready": false,
+  "cases": [
+    {
+      "case": "1389_cold:1389",
+      "history": "cold",
+      "targets": 356,
+      "ready": true,
+      "early_correct": 18,
+      "minimum_target_probability": 0.995674155473296,
+      "valid_rows": true
+    },
+    {
+      "case": "1389_warm:1389",
+      "history": "warm",
+      "targets": 356,
+      "ready": true,
+      "early_correct": 18,
+      "minimum_target_probability": 0.998308959281062,
+      "valid_rows": true
+    },
+    {
+      "case": "146_cold:146",
+      "history": "cold",
+      "targets": 116,
+      "ready": true,
+      "early_correct": 18,
+      "minimum_target_probability": 0.9992561580155909,
+      "valid_rows": true
+    },
+    {
+      "case": "146_warm:146",
+      "history": "warm",
+      "targets": 116,
+      "ready": true,
+      "early_correct": 18,
+      "minimum_target_probability": 0.9998293051718102,
+      "valid_rows": true
+    },
+    {
+      "case": "2228_cold:2228",
+      "history": "cold",
+      "targets": 116,
+      "ready": true,
+      "early_correct": 18,
+      "minimum_target_probability": 0.9998939474652144,
+      "valid_rows": true
+    },
+    {
+      "case": "2228_warm:2228",
+      "history": "warm",
+      "targets": 116,
+      "ready": true,
+      "early_correct": 18,
+      "minimum_target_probability": 0.9999711038846107,
+      "valid_rows": true
+    },
+    {
+      "case": "2566_cold:2566",
+      "history": "cold",
+      "targets": 116,
+      "ready": true,
+      "early_correct": 18,
+      "minimum_target_probability": 0.9999027289579665,
+      "valid_rows": true
+    },
+    {
+      "case": "2566_warm:2566",
+      "history": "warm",
+      "targets": 116,
+      "ready": true,
+      "early_correct": 18,
+      "minimum_target_probability": 0.9999642803360492,
+      "valid_rows": true
+    },
+    {
+      "case": "3152_cold:3152",
+      "history": "cold",
+      "targets": 356,
+      "ready": false,
+      "early_correct": 18,
+      "minimum_target_probability": 0.5216948072426817,
+      "valid_rows": true
+    },
+    {
+      "case": "3152_warm:3152",
+      "history": "warm",
+      "targets": 356,
+      "ready": false,
+      "early_correct": 17,
+      "minimum_target_probability": 0.39672192865288824,
+      "valid_rows": true
+    },
+    {
+      "case": "4_cold:4",
+      "history": "cold",
+      "targets": 116,
+      "ready": true,
+      "early_correct": 18,
+      "minimum_target_probability": 0.9612914667473734,
+      "valid_rows": true
+    },
+    {
+      "case": "4_warm:4",
+      "history": "warm",
+      "targets": 116,
+      "ready": true,
+      "early_correct": 18,
+      "minimum_target_probability": 0.9994504037020255,
+      "valid_rows": true
+    },
+    {
+      "case": "502_cold:502",
+      "history": "cold",
+      "targets": 356,
+      "ready": true,
+      "early_correct": 18,
+      "minimum_target_probability": 0.9952430526863798,
+      "valid_rows": true
+    },
+    {
+      "case": "502_warm:502",
+      "history": "warm",
+      "targets": 356,
+      "ready": true,
+      "early_correct": 18,
+      "minimum_target_probability": 0.9999701027166018,
+      "valid_rows": true
+    },
+    {
+      "case": "75_cold:75",
+      "history": "cold",
+      "targets": 116,
+      "ready": true,
+      "early_correct": 18,
+      "minimum_target_probability": 0.9995630803848733,
+      "valid_rows": true
+    },
+    {
+      "case": "75_warm:75",
+      "history": "warm",
+      "targets": 116,
+      "ready": true,
+      "early_correct": 18,
+      "minimum_target_probability": 0.9996524727941856,
+      "valid_rows": true
+    },
+    {
+      "case": "900_cold:900",
+      "history": "cold",
+      "targets": 116,
+      "ready": true,
+      "early_correct": 18,
+      "minimum_target_probability": 0.9895180565913595,
+      "valid_rows": true
+    },
+    {
+      "case": "900_warm:900",
+      "history": "warm",
+      "targets": 116,
+      "ready": true,
+      "early_correct": 18,
+      "minimum_target_probability": 0.9999997883058761,
+      "valid_rows": true
+    }
+  ],
+  "complete_cases": true,
+  "gate_cases": [
+    "1389_cold:1389",
+    "1389_warm:1389",
+    "146_cold:146",
+    "146_warm:146",
+    "2228_cold:2228",
+    "2228_warm:2228",
+    "2566_cold:2566",
+    "2566_warm:2566",
+    "3152_cold:3152",
+    "3152_warm:3152",
+    "4_cold:4",
+    "4_warm:4",
+    "502_cold:502",
+    "502_warm:502",
+    "75_cold:75",
+    "75_warm:75",
+    "900_cold:900",
+    "900_warm:900"
+  ]
+}
