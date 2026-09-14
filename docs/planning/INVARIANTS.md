@@ -267,6 +267,22 @@ Status: `[ ]` open · `[~]` in progress · `[x]` structural · `[g]` guarded onl
   tagged twins agree through at_delay; shift_actions on an expert list
   raises; off-loop hold/drop), `multishine_expert_test` (cycle learned).
   First run: g26 (`eval_runs/0912_g26_phase`).
+- **Amended 2026-09-13 (off-loop = ABSTAIN):** g26a showed item 14 alone
+  did not restore the floor (67/min), and the closed-loop audit
+  (RECOVERY_LABEL_CONFIRMATION) measured the off-loop HOLD projection
+  wrong on 18/21 recovery frames at shift 4 (0/327 on-loop): recoveries
+  take 7+ frames through lockout/startup and the loop-entry frame is not
+  a function of the state. `label_ahead/4` now returns `:skip` off the
+  loop for k > 0; `Labels.at_delay` defaults `off_loop: :drop`; `:hold`
+  is an explicit legacy A/B mode (`dagger_drill --off-loop-labels hold`,
+  `audit_ms_pool_labels --off-loop hold`, fingerprinted). Consequence:
+  at a delayed rung the expert supervises ONLY the loop; recovery
+  supervision must be a RECORDING of the teacher recovering
+  (`--recorded-frames`, item-14 recorded branch) — the two label kinds
+  are complementary, not substitutes. An expert without `label_ahead/4`
+  raises at k > 0 unless `:hold` is asked for (a silent whole-list drop
+  would be worse than the bug). Not yet run at the g-line rungs (3/4/5);
+  the equal-budget hold-vs-drop comparison is open.
 ## What's left (2026-09-12 15:00 — v3 is gated on this list being empty)
 
 Open: item 13's structural form (handoff API); the sync/async floor

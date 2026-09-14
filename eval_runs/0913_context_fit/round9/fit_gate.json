@@ -1,0 +1,191 @@
+{
+  "policy": "eval_runs/0913_context_fit/round9/candidate.bin",
+  "source_report": "eval_runs/0913_context_fit/round9/fit.json",
+  "policy_sha256": "0612d6e756d30ab3da47cab45dcf99ce216219fe763766d1d8e46ad2cf2bb2c3",
+  "ready": false,
+  "cases": [
+    {
+      "case": "1389_cold:1389",
+      "history": "cold",
+      "targets": 358,
+      "ready": false,
+      "early_correct": 18,
+      "minimum_target_probability": 0.8751784452666727,
+      "valid_rows": true
+    },
+    {
+      "case": "1389_warm:1389",
+      "history": "warm",
+      "targets": 358,
+      "ready": true,
+      "early_correct": 18,
+      "minimum_target_probability": 0.9878329609899232,
+      "valid_rows": true
+    },
+    {
+      "case": "146_cold:146",
+      "history": "cold",
+      "targets": 118,
+      "ready": true,
+      "early_correct": 18,
+      "minimum_target_probability": 0.9898141362402689,
+      "valid_rows": true
+    },
+    {
+      "case": "146_warm:146",
+      "history": "warm",
+      "targets": 118,
+      "ready": true,
+      "early_correct": 18,
+      "minimum_target_probability": 0.9957632443839693,
+      "valid_rows": true
+    },
+    {
+      "case": "2228_cold:2228",
+      "history": "cold",
+      "targets": 118,
+      "ready": true,
+      "early_correct": 18,
+      "minimum_target_probability": 0.9992042702303011,
+      "valid_rows": true
+    },
+    {
+      "case": "2228_warm:2228",
+      "history": "warm",
+      "targets": 118,
+      "ready": true,
+      "early_correct": 18,
+      "minimum_target_probability": 0.9940315132979949,
+      "valid_rows": true
+    },
+    {
+      "case": "2566_cold:2566",
+      "history": "cold",
+      "targets": 118,
+      "ready": true,
+      "early_correct": 18,
+      "minimum_target_probability": 0.9993374551872619,
+      "valid_rows": true
+    },
+    {
+      "case": "2566_warm:2566",
+      "history": "warm",
+      "targets": 118,
+      "ready": true,
+      "early_correct": 18,
+      "minimum_target_probability": 0.9987909135345625,
+      "valid_rows": true
+    },
+    {
+      "case": "3152_cold:3152",
+      "history": "cold",
+      "targets": 358,
+      "ready": false,
+      "early_correct": 17,
+      "minimum_target_probability": 0.4579802457174678,
+      "valid_rows": true
+    },
+    {
+      "case": "3152_warm:3152",
+      "history": "warm",
+      "targets": 358,
+      "ready": true,
+      "early_correct": 18,
+      "minimum_target_probability": 0.9969682539464688,
+      "valid_rows": true
+    },
+    {
+      "case": "4_cold:4",
+      "history": "cold",
+      "targets": 118,
+      "ready": false,
+      "early_correct": 17,
+      "minimum_target_probability": 0.3185542474809127,
+      "valid_rows": true
+    },
+    {
+      "case": "4_warm:4",
+      "history": "warm",
+      "targets": 118,
+      "ready": false,
+      "early_correct": 18,
+      "minimum_target_probability": 0.7475525166956397,
+      "valid_rows": true
+    },
+    {
+      "case": "502_cold:502",
+      "history": "cold",
+      "targets": 358,
+      "ready": true,
+      "early_correct": 18,
+      "minimum_target_probability": 0.9781920348898802,
+      "valid_rows": true
+    },
+    {
+      "case": "502_warm:502",
+      "history": "warm",
+      "targets": 358,
+      "ready": true,
+      "early_correct": 18,
+      "minimum_target_probability": 0.9991166679725043,
+      "valid_rows": true
+    },
+    {
+      "case": "75_cold:75",
+      "history": "cold",
+      "targets": 118,
+      "ready": true,
+      "early_correct": 18,
+      "minimum_target_probability": 0.9858845841872991,
+      "valid_rows": true
+    },
+    {
+      "case": "75_warm:75",
+      "history": "warm",
+      "targets": 118,
+      "ready": true,
+      "early_correct": 18,
+      "minimum_target_probability": 0.9970537180541224,
+      "valid_rows": true
+    },
+    {
+      "case": "900_cold:900",
+      "history": "cold",
+      "targets": 118,
+      "ready": false,
+      "early_correct": 18,
+      "minimum_target_probability": 0.8517923301325543,
+      "valid_rows": true
+    },
+    {
+      "case": "900_warm:900",
+      "history": "warm",
+      "targets": 118,
+      "ready": true,
+      "early_correct": 18,
+      "minimum_target_probability": 0.9998431749137704,
+      "valid_rows": true
+    }
+  ],
+  "complete_cases": true,
+  "gate_cases": [
+    "1389_cold:1389",
+    "1389_warm:1389",
+    "146_cold:146",
+    "146_warm:146",
+    "2228_cold:2228",
+    "2228_warm:2228",
+    "2566_cold:2566",
+    "2566_warm:2566",
+    "3152_cold:3152",
+    "3152_warm:3152",
+    "4_cold:4",
+    "4_warm:4",
+    "502_cold:502",
+    "502_warm:502",
+    "75_cold:75",
+    "75_warm:75",
+    "900_cold:900",
+    "900_warm:900"
+  ]
+}

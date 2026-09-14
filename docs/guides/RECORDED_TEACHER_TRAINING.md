@@ -21,6 +21,18 @@ exclusive-create. The export contains only the teacher-controlled response
 windows, not scripted replay prefixes, and is **unshifted** despite validation
 at the requested delay. Replay hashes and the validation report accompany it.
 
+## Recorded futures are the ONLY delayed recovery labels (2026-09-13)
+
+At a training shift k > 0 the scripted expert supervises only states on
+its canonical loop: `MultishineExpert.label_ahead/4` abstains (`:skip`) off
+the loop and `Labels.at_delay/3` drops those frames (`off_loop: :drop`, the
+default). The old rule held the current recovery input at every k and was
+measured wrong on 18/21 recovery frames at shift 4 against the teacher's
+executed futures. `dagger_drill.exs --off-loop-labels hold` (and
+`audit_ms_pool_labels.exs --off-loop hold`) reproduce the legacy rule for an
+equal-budget comparison only. Every recovery a policy must learn at a delay
+therefore has to be a recorded teacher clip ingested as below.
+
 ## Ingest without relabeling
 
 Pass `--recorded-frames 'PATH/*.frames'` to `scripts/dagger_drill.exs`, separately

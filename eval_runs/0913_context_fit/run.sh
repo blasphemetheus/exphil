@@ -23,6 +23,7 @@ set -euo pipefail
 cd "$(dirname "$0")/../.."
 if pgrep -x beam.smp >/dev/null; then echo "A BEAM is live; wait." >&2; exit 1; fi
 OUT=${1:-eval_runs/0913_context_fit/round9}
+EPOCHS=${2:-9}   # round9: 9 (4,374 updates, FAILED gate 13/18); round21: 21 (10,206 updates = the prior proof's epoch budget)
 test ! -e "$OUT"
 mkdir -p "$OUT"
 export EXLA_TARGET=cuda EXPHIL_GPU_MEMORY_FRACTION=0.15
@@ -45,7 +46,7 @@ sha256sum "$0" \
   eval_runs/0913_matched_handoffs/manifest.json eval_runs/0913_interruption_recovery/manifest.json \
   > "$OUT/sources.sha256"
 
-echo "[$(date +%T)] 0/5 train" | tee -a "$OUT/progress.log"
+echo "[$(date +%T)] 0/5 train ($EPOCHS epochs, 486 batches/epoch)" | tee -a "$OUT/progress.log"
 mix run scripts/dagger_drill.exs \
   --expert multishine --fixture "$FIXTURE" \
   --recurrent-state zeros --precision f32 \
@@ -54,7 +55,7 @@ mix run scripts/dagger_drill.exs \
   --init-from "$INIT" --initial-out "$OUT/initial.bin" \
   --hidden-size 64 --window 16 --action-delay 2 --multi-delay 2 \
   --with-delay-id --queue-depth 3 --prev-action --prev-action-dropout 0.0 --head autoregressive \
-  --clean-loss --max-epochs 9 --target-loss 0.0 \
+  --clean-loss --max-epochs "$EPOCHS" --target-loss 0.0 \
   --out "$OUT/candidate.bin" > "$OUT/train.log" 2>&1
 sha256sum "$OUT/initial.bin" "$OUT/candidate.bin" > "$OUT/checkpoints.sha256"
 cmp "$OUT/initial.bin" "$INIT" && echo "initial.bin byte-identical to $INIT" >> "$OUT/checkpoints.sha256" || true
