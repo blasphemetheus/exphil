@@ -1,0 +1,191 @@
+{
+  "policy": "eval_runs/0914_delay4_proof/round21/candidate.bin",
+  "source_report": "eval_runs/0914_delay4_proof/round21/fit.json",
+  "policy_sha256": "424ae2f1e7fad4bc40efdac2836a7f0d84b70ed4140afeb3e12cf60d68a7d4ef",
+  "ready": true,
+  "cases": [
+    {
+      "case": "1389_cold:1389",
+      "history": "cold",
+      "targets": 356,
+      "ready": true,
+      "early_correct": 18,
+      "minimum_target_probability": 0.9986050892708677,
+      "valid_rows": true
+    },
+    {
+      "case": "1389_warm:1389",
+      "history": "warm",
+      "targets": 356,
+      "ready": true,
+      "early_correct": 18,
+      "minimum_target_probability": 0.9987362477296854,
+      "valid_rows": true
+    },
+    {
+      "case": "146_cold:146",
+      "history": "cold",
+      "targets": 116,
+      "ready": true,
+      "early_correct": 18,
+      "minimum_target_probability": 0.9999881091991656,
+      "valid_rows": true
+    },
+    {
+      "case": "146_warm:146",
+      "history": "warm",
+      "targets": 116,
+      "ready": true,
+      "early_correct": 18,
+      "minimum_target_probability": 0.9999453867709855,
+      "valid_rows": true
+    },
+    {
+      "case": "2228_cold:2228",
+      "history": "cold",
+      "targets": 116,
+      "ready": true,
+      "early_correct": 18,
+      "minimum_target_probability": 0.999987879743989,
+      "valid_rows": true
+    },
+    {
+      "case": "2228_warm:2228",
+      "history": "warm",
+      "targets": 116,
+      "ready": true,
+      "early_correct": 18,
+      "minimum_target_probability": 0.9999960159916284,
+      "valid_rows": true
+    },
+    {
+      "case": "2566_cold:2566",
+      "history": "cold",
+      "targets": 116,
+      "ready": true,
+      "early_correct": 18,
+      "minimum_target_probability": 0.9999795994108519,
+      "valid_rows": true
+    },
+    {
+      "case": "2566_warm:2566",
+      "history": "warm",
+      "targets": 116,
+      "ready": true,
+      "early_correct": 18,
+      "minimum_target_probability": 0.9999807139433243,
+      "valid_rows": true
+    },
+    {
+      "case": "3152_cold:3152",
+      "history": "cold",
+      "targets": 356,
+      "ready": true,
+      "early_correct": 18,
+      "minimum_target_probability": 0.9987480171012738,
+      "valid_rows": true
+    },
+    {
+      "case": "3152_warm:3152",
+      "history": "warm",
+      "targets": 356,
+      "ready": true,
+      "early_correct": 18,
+      "minimum_target_probability": 0.9996230523184068,
+      "valid_rows": true
+    },
+    {
+      "case": "4_cold:4",
+      "history": "cold",
+      "targets": 116,
+      "ready": true,
+      "early_correct": 18,
+      "minimum_target_probability": 0.9999457038457947,
+      "valid_rows": true
+    },
+    {
+      "case": "4_warm:4",
+      "history": "warm",
+      "targets": 116,
+      "ready": true,
+      "early_correct": 18,
+      "minimum_target_probability": 0.9998954887914182,
+      "valid_rows": true
+    },
+    {
+      "case": "502_cold:502",
+      "history": "cold",
+      "targets": 356,
+      "ready": true,
+      "early_correct": 18,
+      "minimum_target_probability": 0.9998606748404604,
+      "valid_rows": true
+    },
+    {
+      "case": "502_warm:502",
+      "history": "warm",
+      "targets": 356,
+      "ready": true,
+      "early_correct": 18,
+      "minimum_target_probability": 0.9999526390876855,
+      "valid_rows": true
+    },
+    {
+      "case": "75_cold:75",
+      "history": "cold",
+      "targets": 116,
+      "ready": true,
+      "early_correct": 18,
+      "minimum_target_probability": 0.9999336836344367,
+      "valid_rows": true
+    },
+    {
+      "case": "75_warm:75",
+      "history": "warm",
+      "targets": 116,
+      "ready": true,
+      "early_correct": 18,
+      "minimum_target_probability": 0.9999611139786166,
+      "valid_rows": true
+    },
+    {
+      "case": "900_cold:900",
+      "history": "cold",
+      "targets": 116,
+      "ready": true,
+      "early_correct": 18,
+      "minimum_target_probability": 0.9999923677377502,
+      "valid_rows": true
+    },
+    {
+      "case": "900_warm:900",
+      "history": "warm",
+      "targets": 116,
+      "ready": true,
+      "early_correct": 18,
+      "minimum_target_probability": 0.9999977801886454,
+      "valid_rows": true
+    }
+  ],
+  "complete_cases": true,
+  "gate_cases": [
+    "1389_cold:1389",
+    "1389_warm:1389",
+    "146_cold:146",
+    "146_warm:146",
+    "2228_cold:2228",
+    "2228_warm:2228",
+    "2566_cold:2566",
+    "2566_warm:2566",
+    "3152_cold:3152",
+    "3152_warm:3152",
+    "4_cold:4",
+    "4_warm:4",
+    "502_cold:502",
+    "502_warm:502",
+    "75_cold:75",
+    "75_warm:75",
+    "900_cold:900",
+    "900_warm:900"
+  ]
+}

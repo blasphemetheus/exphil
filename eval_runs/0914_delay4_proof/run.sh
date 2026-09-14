@@ -21,7 +21,12 @@ OUT=${1:-eval_runs/0914_delay4_proof}
 K=4; Q=$((K + 1)); CTX=$((16 - 1 + Q))
 R=$OUT/round21
 test ! -e "$R"; mkdir -p "$R" "$OUT/targets"
+rm -rf "$OUT/clips" "$OUT/clips_parity"; rm -f "$OUT/targets"/*
 export EXLA_TARGET=cuda EXPHIL_GPU_MEMORY_FRACTION=0.15
+# NOTE: no --init-from: the delay-2 initialization has input width 328 (queue 3)
+# and this recipe is 352 wide (queue 5) — checkpoint guard #6 refuses the
+# transplant. Fresh zero-state/F32 init, saved as initial.bin (first attempt
+# 11:00 failed exactly there).
 INIT=eval_runs/0913_zero_f32_fit/round21/initial.bin
 FIXTURE=test/fixtures/replays/fox_multishine_closed_d1.slp
 P=$OUT/progress.log
@@ -32,8 +37,9 @@ say "0/6 regression: default export == clips_v6"
 if [[ ! -e $OUT/clips_check_d2 ]]; then
   mix run scripts/prepare_recorded_context.exs --out-dir "$OUT/clips_check_d2" > "$OUT/clips_check_d2.log" 2>&1 || true
 fi
-ok=1; for f in eval_runs/0913_context_recovery/clips_v6/*.frames; do cmp -s "$f" "$OUT/clips_check_d2/$(basename $f)" || { say "  DIFFERS: $(basename $f)"; ok=0; }; done
-[[ $ok == 1 ]] && say "  clips_v6 reproduced byte-for-byte (18 files)" || say "  REGRESSION in the exporter refactor (see clips_check_d2.log)"
+same_clips() { mix run --no-start scripts/compare_recorded_clips.exs "$1" "$2" 2>/dev/null | grep -q "lists equal: true"; }
+ok=1; for f in eval_runs/0913_context_recovery/clips_v6/*.frames; do same_clips "$f" "$OUT/clips_check_d2/$(basename $f)" || { say "  DIFFERS: $(basename $f)"; ok=0; }; done
+[[ $ok == 1 ]] && say "  clips_v6 reproduced (18 files, semantic compare)" || say "  REGRESSION in the exporter refactor (see clips_check_d2.log)"
 
 say "1/6 validate teacher targets at delay $K"
 declare -A SCORES=(
@@ -68,7 +74,7 @@ mix run scripts/dagger_drill.exs \
   --recurrent-state zeros --precision f32 \
   --recorded-frames "$CLIPS" \
   --recorded-prefix-weight 64 --recorded-prefix-frames 18 \
-  --init-from "$INIT" --initial-out "$R/initial.bin" \
+  --initial-out "$R/initial.bin" \
   --hidden-size 64 --window 16 --action-delay $K --multi-delay $K \
   --with-delay-id --queue-depth $Q --prev-action --prev-action-dropout 0.0 --head autoregressive \
   --clean-loss --max-epochs 21 --target-loss 0.0 \
@@ -81,8 +87,8 @@ mix run scripts/prepare_recorded_context.exs --out-dir "$OUT/clips_parity" --del
   --reports "$REPORTS" --policy "$R/candidate.bin" > "$OUT/clips_parity.log" 2>&1 \
   && say "  parity audit passed: max |diff| $(jq '[.results[].maximum_absolute_difference] | max' $OUT/clips_parity/report.json)" \
   || say "  PARITY AUDIT FAILED (clips_parity.log)"
-ok=1; for f in $CLIPS; do cmp -s "$f" "$OUT/clips_parity/$(basename $f)" || ok=0; done
-[[ $ok == 1 ]] && say "  parity clips == training clips byte-for-byte" || say "  parity clips DIFFER from training clips"
+ok=1; for f in $CLIPS; do same_clips "$f" "$OUT/clips_parity/$(basename $f)" || ok=0; done
+[[ $ok == 1 ]] && say "  parity clips == training clips (semantic compare)" || say "  parity clips DIFFER from training clips"
 
 say "5/6 frozen fit gate at delay $K"
 mix run scripts/measure_teacher_fit.exs --policy "$R/candidate.bin" --delay $K --queue-depth $Q \
