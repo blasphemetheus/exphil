@@ -9,7 +9,7 @@ alias ExPhil.Agents.MultishineExpert
 #
 #   --policy PATH             checkpoint to measure
 #   --out PATH                report (exclusive-create)
-#   --recorded-frames GLOB    recorded teacher clips (default: the six cold
+#   --recorded-frames GLOBS   comma-separated globs of recorded clips (default: the six cold
 #                             0913_teacher_ingestion/validated windows)
 #   --expected-targets N      frozen pool size in SUPERVISED targets, canonical
 #                             included (default 7,785 = canonical 7,077 + 6x118;
@@ -71,7 +71,7 @@ canonical =
   |> Labels.tag(:recorded)
   |> Labels.at_delay(delay)
 
-recorded_paths = Path.wildcard(recorded_glob)
+recorded_paths = recorded_glob |> String.split(",", trim: true) |> Enum.flat_map(&Path.wildcard/1) |> Enum.sort()
 if recorded_paths == [], do: raise("--recorded-frames matched no files: #{recorded_glob}")
 
 supervised? = fn frame -> frame[:input_only] != true end

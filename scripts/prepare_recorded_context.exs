@@ -12,6 +12,9 @@ Nx.global_default_backend(Nx.BinaryBackend)
 #   --reports a,b,c       check_recovery_targets reports (default: the four
 #                         delay-2 reports of the 09-13 proof); each report's
 #                         own `reaction_delay` recovers the raw response length
+#   --tag-source          name clips HANDOFF_<sha6>_MODE.frames (handoff frames
+#                         collide across replays; default names keep clips_v6
+#                         reproducible)
 #   --policy PATH|none    Agent used for the window-parity audit; `none` skips
 #                         the audit (report says so) — use it to export clips
 #                         for a delay no trained policy exists at yet, then
@@ -24,7 +27,8 @@ Nx.global_default_backend(Nx.BinaryBackend)
       queue_depth: :integer,
       context: :integer,
       reports: :string,
-      policy: :string
+      policy: :string,
+      tag_source: :boolean
     ]
   )
 
@@ -163,7 +167,8 @@ results =
         })
 
       RecordedFrames.validate!(envelope)
-      path = Path.join(out, "#{run["handoff"]}_#{mode}.frames")
+      tag = if opts[:tag_source], do: "_" <> String.slice(hash, 0, 6), else: ""
+      path = Path.join(out, "#{run["handoff"]}#{tag}_#{mode}.frames")
       File.write!(path, :erlang.term_to_binary(envelope, [:compressed]), [:exclusive])
 
       %{

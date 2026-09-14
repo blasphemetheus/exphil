@@ -1,0 +1,1 @@
+policy=eval_runs/0914_delay4_proof/round21/candidate.bin runner=async runs=2 seconds=90 dummy=cpu server=0 decode=--temperature 1.0 loadavg=2.50 2.42 1.31
