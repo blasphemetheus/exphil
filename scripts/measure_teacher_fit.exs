@@ -29,7 +29,9 @@ alias ExPhil.Agents.MultishineExpert
       out: :string,
       include_canonical_rows: :boolean,
       recorded_frames: :string,
-      expected_targets: :integer
+      expected_targets: :integer,
+      delay: :integer,
+      queue_depth: :integer
     ]
   )
 
@@ -37,20 +39,22 @@ path = Keyword.fetch!(opts, :policy)
 out = Keyword.fetch!(opts, :out)
 recorded_glob = opts[:recorded_frames] || "eval_runs/0913_teacher_ingestion/validated/*.frames"
 expected_targets = opts[:expected_targets] || 7785
+delay = opts[:delay] || 2
+queue_depth = opts[:queue_depth] || delay + 1
 if File.exists?(out), do: raise("output exists: #{out}")
 {:ok, export} = Checkpoint.load_policy(path)
 config = export.config
 execution = ExPhil.Networks.Policy.ExecutionContract.load(config)
 config = Map.put(config, :recurrent_state, execution.recurrent_state)
 
-unless config.head == :autoregressive and config.backbone == :gru and config.train_delays == [2] and
-         config.window_size == 16 and config.queue_depth == 3 and config.use_prev_action and
+unless config.head == :autoregressive and config.backbone == :gru and config.train_delays == [delay] and
+         config.window_size == 16 and config.queue_depth == queue_depth and config.use_prev_action and
          config.with_delay_id and config.action_frame_buckets == 0 and config.axis_buckets == 16 and
          config.shoulder_buckets == 4 and config.action_mode == :learned and
          config.character_mode == :learned and
          config.nana_mode == :compact and config.with_projectiles and not config.with_items and
          not config.stage_internals,
-       do: raise("this audit implements the fixed delay-2, cold GRU proof recipe only")
+       do: raise("this audit implements the fixed windowed-GRU proof recipe only (delay #{delay}, queue #{queue_depth})")
 
 fixture = "test/fixtures/replays/fox_multishine_closed_d1.slp"
 expert = MultishineExpert.from_fixture(fixture)
@@ -65,7 +69,7 @@ canonical =
       not controller.button_b and not controller.button_x
   end)
   |> Labels.tag(:recorded)
-  |> Labels.at_delay(2)
+  |> Labels.at_delay(delay)
 
 recorded_paths = Path.wildcard(recorded_glob)
 if recorded_paths == [], do: raise("--recorded-frames matched no files: #{recorded_glob}")
@@ -80,7 +84,7 @@ teachers =
       # Name by the first SUPERVISED frame (the handoff), not the first
       # context frame, so cold and warm exports of one handoff align.
       first = frames |> Enum.find(supervised?) |> then(& &1.game_state.frame)
-      {"#{Path.basename(source, ".frames")}:#{first}", Labels.at_delay(frames, 2)}
+      {"#{Path.basename(source, ".frames")}:#{first}", Labels.at_delay(frames, delay)}
     end)
   end)
 
@@ -100,11 +104,11 @@ heads = [:buttons, :main_x, :main_y, :c_x, :c_y, :shoulder]
 
 results =
   Enum.map(cases, fn {name, frames} ->
-    frames = Enum.map(frames, &Map.put(&1, :delay_id, 2))
+    frames = Enum.map(frames, &Map.put(&1, :delay_id, delay))
     dataset = Data.from_frame_lists([frames])
 
     dataset =
-      %{dataset | embed_config: %{dataset.embed_config | queue_depth: 3, with_delay_id: true}}
+      %{dataset | embed_config: %{dataset.embed_config | queue_depth: queue_depth, with_delay_id: true}}
       |> Data.precompute_frame_embeddings(use_prev_action: true, show_progress: false)
 
     unless elem(Nx.shape(dataset.embedded_frames), 1) == config.embed_size,
@@ -187,6 +191,8 @@ report = %{
   recorded_sources:
     Map.new(recorded_paths, &{&1, Base.encode16(:crypto.hash(:sha256, File.read!(&1)), case: :lower)}),
   expected_targets: expected_targets,
+  delay: delay,
+  queue_depth: queue_depth,
   # Every recorded case is gated (cold AND warm); the canonical fixture is not.
   gate_cases: Enum.map(teachers, &elem(&1, 0)),
   index_convention: "row.index is the supervised-target rank (0 = handoff); input-only context is never a row",
