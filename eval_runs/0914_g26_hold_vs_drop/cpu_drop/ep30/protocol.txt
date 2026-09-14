@@ -1,0 +1,2 @@
+policy=checkpoints/ms_g27drop_ep30.bin runner=async runs=2 seconds=90 dummy=cpu server=0 decode=--temperature 1.0 loadavg=2.69 2.51 2.06
+fixture_agreement: unavailable

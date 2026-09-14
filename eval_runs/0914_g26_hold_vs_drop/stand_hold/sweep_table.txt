@@ -1,0 +1,3 @@
+ep30: 230.3/min chain 202
+ep40: 370.9/min chain 367
+=== ARGMAX: checkpoints/ms_g27hold_ep40.bin at 370.9/min
