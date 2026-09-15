@@ -27,6 +27,9 @@ mod atoms {
 #[derive(Debug, NifStruct)]
 #[module = "ExPhil.Data.Peppi.Controller"]
 pub struct Controller {
+    // Preserve the recorded f32 bytes: normalization can erase very small
+    // values and signed zero. Playback must not reconstruct these from axes.
+    pub processed: ProcessedInput,
     pub main_stick_x: f64,
     pub main_stick_y: f64,
     pub c_stick_x: f64,
@@ -45,6 +48,24 @@ pub struct Controller {
     pub button_d_down: bool,
     pub button_d_left: bool,
     pub button_d_right: bool,
+}
+
+/// Original pre-frame input fields, separate from the training representation.
+#[derive(Debug, NifStruct)]
+#[module = "ExPhil.Data.Peppi.ProcessedInput"]
+pub struct ProcessedInput {
+    pub rng_seed: u32,
+    pub main_x: f64,
+    pub main_y: f64,
+    pub c_x: f64,
+    pub c_y: f64,
+    pub trigger: f64,
+    pub buttons: u32,
+    pub physical_buttons: u16,
+    pub raw_main_x: Option<i8>,
+    pub raw_main_y: Option<i8>,
+    pub raw_c_x: Option<i8>,
+    pub raw_c_y: Option<i8>,
 }
 
 /// Parsed player state for a single frame
@@ -286,6 +307,20 @@ fn parse_controller(pre: &Pre) -> Controller {
     const D_RIGHT: u16 = 0x0002;
 
     Controller {
+        processed: ProcessedInput {
+            rng_seed: pre.random_seed,
+            main_x: joystick.x as f64,
+            main_y: joystick.y as f64,
+            c_x: cstick.x as f64,
+            c_y: cstick.y as f64,
+            trigger: pre.triggers as f64,
+            buttons: pre.buttons,
+            physical_buttons: buttons,
+            raw_main_x: pre.raw_analog_x,
+            raw_main_y: pre.raw_analog_y,
+            raw_c_x: pre.raw_analog_cstick_x,
+            raw_c_y: pre.raw_analog_cstick_y,
+        },
         main_stick_x: main_x,
         main_stick_y: main_y,
         c_stick_x: c_x,
@@ -530,6 +565,36 @@ rustler::init!("Elixir.ExPhil.Data.Peppi");
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn processed_inputs_preserve_original_bits_and_distinct_physical_fields() {
+        let mut pre = peppi::frame::transpose::Pre::default();
+        pre.joystick.x = -0.0;
+        pre.joystick.y = f32::from_bits(1);
+        pre.cstick.x = -0.9921875;
+        pre.triggers = 0.375;
+        pre.random_seed = 0xDEADBEEF;
+        pre.buttons = 0x80000100;
+        pre.buttons_physical = 0x0020;
+        pre.triggers_physical.l = 0.125;
+        pre.triggers_physical.r = 0.25;
+        pre.raw_analog_x = Some(-128);
+        pre.raw_analog_y = Some(127);
+        let c = super::parse_controller(&pre);
+        assert_eq!((c.processed.main_x as f32).to_bits(), pre.joystick.x.to_bits());
+        assert_eq!((c.processed.main_y as f32).to_bits(), 1);
+        assert_eq!(c.processed.trigger, 0.375);
+        assert_eq!(c.processed.rng_seed, 0xDEADBEEF);
+        assert_eq!(c.processed.buttons, 0x80000100);
+        assert_eq!(c.processed.physical_buttons, 0x0020);
+        assert_eq!(c.l_trigger, 0.125);
+        assert_eq!(c.r_trigger, 0.25);
+        assert_eq!(c.processed.raw_main_x, Some(-128));
+        assert_eq!(c.processed.raw_main_y, Some(127));
+        assert_eq!(c.processed.raw_c_x, None);
+        assert!(!c.button_a);
+        assert!(c.button_r);
+    }
+
     // The frame-level convention is IDENTITY over internal ids (see
     // internal_character_id docs): checkpoints trained pre-fix depend on
     // 0x00..=0x19 staying numerically unchanged; Roy (0x1A) must be 26,

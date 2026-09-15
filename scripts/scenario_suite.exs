@@ -36,6 +36,11 @@
 #                        recorded inputs (drifts from the source; use with a
 #                        frame-0 handoff to generate new input-driven games).
 #   --dolphin PATH       Dolphin (default ~/.local/share/slippi/exi-ai/dolphin-emu-headless)
+#   --direct-inputs      Atomic mixed protocol with byte inputs; requires the float build
+#   --float-ports 1,2     Inject original processed inputs for these recorded ports
+#                        (implies direct inputs; default build directory exi-ai-float).
+#                        Audits every prefix frame before accepting a score.
+#   --no-pipe-shim       Preserve analog triggers (default for direct/float mode)
 #   --iso PATH           Melee ISO (default ~/isos/melee.iso)
 #   --windowed           Disable headless (debugging; needs the netplay build)
 #   --slippi-port N      Base slippi port (default 51480, +1 per run)
@@ -100,7 +105,13 @@ defmodule ScenarioSuite do
     # with EXI inputs (bridge default when headless) analog triggers
     # round-trip and the shim must be OFF or light shields replay wrong.
     shim = Keyword.get(opts, :pipe_shim, false)
+    float_ports = Keyword.get(opts, :float_ports, [])
     {:ok, replay} = Peppi.parse(Path.expand(slp))
+    if float_ports != [] and replay.metadata.stage != 32,
+      do: raise("float replay currently requires a Final Destination source (the suite pins this stage)")
+    if float_ports != [] and Enum.any?(replay.frames, fn frame ->
+      Enum.any?(float_ports, fn port -> frame.players[port] && frame.players[port].character in [10, 11] end)
+    end), do: raise("exact follower input replay is not implemented")
 
     {inputs, ref} =
       Enum.reduce(replay.frames, {%{}, %{}}, fn f, {inputs, ref} ->
@@ -112,7 +123,7 @@ defmodule ScenarioSuite do
             Map.put(
               inputs,
               f.frame_number,
-              {rec_input(p1.controller, shim), rec_input(p2.controller, shim)}
+              {replay_input(p1.controller, shim, 1 in float_ports), replay_input(p2.controller, shim, 2 in float_ports)}
             ),
             Map.put(ref, f.frame_number, %{
               p1: ScenarioScan.player_summary(p1),
@@ -126,7 +137,7 @@ defmodule ScenarioSuite do
 
     first = Enum.find(replay.frames, fn f -> f.players[1] && f.players[2] end)
     opponent = first && first.players[2].character && libmelee_character(trunc(first.players[2].character))
-    %{inputs: inputs, ref: ref, opponent_character: opponent}
+    %{inputs: inputs, ref: ref, opponent_character: opponent, source_character: first && libmelee_character(trunc(first.players[1].character))}
   end
 
   # Internal (in-game) character id -> libmelee Character name, for the
@@ -154,6 +165,14 @@ defmodule ScenarioSuite do
   # are converted to digital presses past Melee's analog-shield threshold
   # (raw 43/140 ~ 0.31). Cost: light shields replay as full shields (none
   # in probe games). The analog value is still sent for builds that honor it.
+  defp replay_input(c, shim, false), do: rec_input(c, shim)
+  defp replay_input(c, _shim, true) do
+    unless is_map(c.processed), do: raise("rebuild the Peppi NIF: original processed inputs are missing")
+    processed = c.processed |> Map.from_struct() |> Map.merge(%{l_trigger: c.l_trigger, r_trigger: c.r_trigger})
+    Melee.SlippiPad.pack_processed(processed)
+    Map.put(rec_input(c, false), :processed_input, processed)
+  end
+
   @trigger_digital_threshold 0.31
 
   defp rec_input(c, pipe_shim) do
@@ -209,10 +228,12 @@ defmodule ScenarioSuite do
 
     config = %{
       dolphin_path: opts[:dolphin],
+      direct_inputs: opts[:direct_inputs] || false,
+      processed_inputs: opts[:direct_inputs] || false,
       iso_path: opts[:iso],
       controller_port: 1,
       opponent_port: 2,
-      character: String.to_atom(opts[:character] || "mewtwo"),
+      character: String.to_atom(opts[:character] || if(opts[:float_ports] not in [nil, []], do: prep.source_character, else: "mewtwo")),
       stage: :final_destination,
       online_delay: 0,
       dummy_mode: "external",
@@ -262,6 +283,20 @@ defmodule ScenarioSuite do
         result
       end
 
+    result =
+      if opts[:float_ports] not in [nil, []] and is_nil(result[:error]) do
+        audit = ExPhil.Eval.ReplayPrefixAudit.verify_directory(
+          Path.expand(entry.slp), run_dir, -39, entry.frame - 1, opts[:float_ports]
+        )
+        File.write!(Path.join(run_dir, "prefix_audit.json"), Jason.encode!(audit, pretty: true))
+        result = Map.put(result, :prefix_audit, audit)
+        if audit.valid, do: result,
+          else: result |> Map.put(:unvalidated_score, result[:score]) |> Map.put(:score, nil)
+                       |> Map.put(:pass, false) |> Map.put(:diverged, true)
+      else
+        result
+      end
+
     wall_s = (System.monotonic_time(:millisecond) - t0) / 1000
 
     Map.merge(
@@ -273,6 +308,8 @@ defmodule ScenarioSuite do
         run: run_idx,
         window: window,
         opponent_character: config.dummy_character,
+        float_ports: opts[:float_ports],
+        input_transport: if(config.direct_inputs, do: "direct", else: "pipe"),
         wall_s: Float.round(wall_s, 1),
         replay_dir: run_dir
       },
@@ -781,6 +818,8 @@ end
       console_timeout: :float,
       drift_tolerance: :float,
       dolphin: :string,
+      float_ports: :string,
+      direct_inputs: :boolean,
       iso: :string,
       windowed: :boolean,
       trace_all: :boolean,
@@ -799,6 +838,17 @@ end
   )
 
 if opts[:quiet], do: Logger.configure(level: :warning)
+float_ports = case opts[:float_ports] do
+  nil -> []
+  value -> value |> String.split(",") |> Enum.map(&String.to_integer/1) |> Enum.uniq() |> Enum.sort()
+end
+unless Enum.all?(float_ports, &(&1 in [1, 2])), do: raise("--float-ports must contain only 1 and/or 2")
+direct_inputs = opts[:direct_inputs] || float_ports != []
+if direct_inputs do
+  ExPhil.Eval.FloatInputBuild.verify!(Path.expand(opts[:dolphin] || "~/.local/share/slippi/exi-ai-float/dolphin-emu-headless"))
+end
+opts = Keyword.put_new(opts, :pipe_shim, not direct_inputs)
+if float_ports != [] and opts[:pipe_shim], do: raise("--float-ports requires --no-pipe-shim")
 
 unless opts[:policy] != nil or (opts[:driver] || "policy") != "policy" do
   Output.error("--policy is required (unless --driver teacher|neutral)")
@@ -852,13 +902,15 @@ unless (opts[:response_opponent] || "replay") in ["replay", "neutral"],
   do: raise(ArgumentError, "--response-opponent must be replay or neutral")
 
 suite_opts = [
+  float_ports: float_ports,
+  direct_inputs: direct_inputs,
   response_opponent: opts[:response_opponent] || "replay",
   verify_input_timing: Keyword.get(opts, :verify_input_timing, true),
   console_timeout: opts[:console_timeout],
   trace_policy_inputs: opts[:trace_policy_inputs] || false,
   prefix_history: opts[:prefix_history] || "applied",
   audit_teacher_labels: opts[:audit_teacher_labels] || false,
-  dolphin: Path.expand(opts[:dolphin] || "~/.local/share/slippi/exi-ai/dolphin-emu-headless"),
+  dolphin: Path.expand(opts[:dolphin] || if(direct_inputs, do: "~/.local/share/slippi/exi-ai-float/dolphin-emu-headless", else: "~/.local/share/slippi/exi-ai/dolphin-emu-headless")),
   iso: Path.expand(opts[:iso] || "~/isos/melee.iso"),
   windowed: opts[:windowed] || false,
   trace_all: opts[:trace_all] || false,
@@ -998,6 +1050,7 @@ agent_runtime =
     |> Map.take([:delay_id, :reaction_delay, :harness, :harness_knob, :af_convention])
   end
 
+agent_runtime = Map.merge(agent_runtime || %{}, %{float_ports: float_ports, input_transport: if(direct_inputs, do: "direct", else: "pipe")})
 opts = Keyword.merge(opts, driver: driver, expert: expert)
 suite_opts = Keyword.merge(suite_opts, driver: driver, expert: expert, character: opts[:character], opponent_character: opts[:opponent_character])
 
@@ -1010,7 +1063,7 @@ preps =
     # only — its analog RELEASE latches, see #66 addendum), and pipe mode
     # on the ExiAI build drops analog triggers, so recorded analog shield
     # holds must replay as digital presses. --no-pipe-shim for EXI runs.
-    {slp, ScenarioSuite.prepare_replay(slp, pipe_shim: Keyword.get(opts, :pipe_shim, true))}
+    {slp, ScenarioSuite.prepare_replay(slp, pipe_shim: Keyword.get(opts, :pipe_shim, true), float_ports: float_ports)}
   end)
 
 Output.success("Parsed #{map_size(preps)} source replay(s)")
@@ -1036,6 +1089,9 @@ results =
 
       result[:timing_valid] == false ->
         Output.warning("   INPUT TIMING INVALID: score withheld; #{inspect(result[:input_timing])}")
+
+      result[:prefix_audit] && not result.prefix_audit.valid ->
+        Output.warning("   EXACT PREFIX AUDIT FAILED: #{inspect(result.prefix_audit)}")
 
       result[:diverged] ->
         Output.warning(

@@ -1,0 +1,26 @@
+{
+  "first": -39,
+  "ports": [
+    {
+      "input": null,
+      "port": 1,
+      "state": null,
+      "missing": null,
+      "compared": 933
+    },
+    {
+      "input": null,
+      "port": 2,
+      "state": null,
+      "missing": null,
+      "compared": 933
+    }
+  ],
+  "last": 893,
+  "valid": true,
+  "expected_frames": 933,
+  "exact_raw_input_ports": [
+    1,
+    2
+  ]
+}

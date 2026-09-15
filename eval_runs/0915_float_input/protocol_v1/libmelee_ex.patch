@@ -1,0 +1,244 @@
+diff --git a/lib/melee/console.ex b/lib/melee/console.ex
+index b00523c..cb15a2e 100644
+--- a/lib/melee/console.ex
++++ b/lib/melee/console.ex
+@@ -193,6 +193,7 @@ defmodule Melee.Console do
+               # Send each frame's controller states over the direct
+               # channel as a pad batch (the lockstep input path).
+               direct_inputs: false,
++              processed_inputs: false,
+               controller_ports: %{}
+ 
+     @type t :: %__MODULE__{}
+@@ -214,7 +215,8 @@ defmodule Melee.Console do
+       polling_timeout: Keyword.get(opts, :polling_timeout, 0),
+       reconnect: normalize_reconnect(Keyword.get(opts, :reconnect, false)),
+       protocol: Keyword.get(opts, :protocol, :slippstream),
+-      direct_inputs: Keyword.get(opts, :direct_inputs, false)
++      direct_inputs: Keyword.get(opts, :direct_inputs, false),
++      processed_inputs: Keyword.get(opts, :processed_inputs, false)
+     }
+ 
+     {:ok, state}
+@@ -473,7 +475,15 @@ defmodule Melee.Console do
+   defp handle_raw(<<@menu_event_cmd, _::binary>> = payload, state),
+     do: handle_message({:menu_event, payload}, state)
+ 
+-  defp handle_raw(payload, state), do: handle_message({:game_event, payload}, state)
++  defp handle_raw(payload, state) do
++    trace_direct({:event, binary_part(payload, 0, min(byte_size(payload), 8))})
++    handle_message({:game_event, payload}, state)
++  end
++
++  defp trace_direct(event) do
++    if path = System.get_env("MELEE_DIRECT_TRACE"),
++      do: File.write!(path, inspect(event) <> "\n", [:append])
++  end
+ 
+   # Run the event parser to exhaustion over new data + buffered pending.
+   defp drain_events(state, payload) do
+@@ -495,7 +505,8 @@ defmodule Melee.Console do
+       {:game_end, parser} ->
+         # Not terminal: menu events follow. Remaining bytes were dropped
+         # (post-game data), matching libmelee.
+-        after_parse(%{state | parser: parser})
++        state = after_parse(%{state | parser: parser})
++        if state.direct_inputs, do: flush_controllers(state), else: state
+ 
+       {:error, _reason, parser} ->
+         after_parse(%{state | parser: parser})
+@@ -558,11 +569,17 @@ defmodule Melee.Console do
+       for controller <- state.controllers,
+           port = Map.get(state.controller_ports, controller),
+           port != nil do
+-        {port, Controller.current(controller)}
++        {port, Controller.take_direct(controller)}
+       end
+ 
+     if pads != [] do
+-      state.transport.send(conn, 0, Melee.SlippiPad.batch(pads), :reliable)
++      batch =
++        if state.processed_inputs,
++          do: Melee.SlippiPad.mixed_batch(pads),
++          else: Melee.SlippiPad.batch(pads)
++
++      trace_direct({:batch, binary_part(batch, 0, min(byte_size(batch), 16))})
++      state.transport.send(conn, 0, batch, :reliable)
+     end
+ 
+     state
+diff --git a/lib/melee/controller.ex b/lib/melee/controller.ex
+index 80eba87..ec9c3be 100644
+--- a/lib/melee/controller.ex
++++ b/lib/melee/controller.ex
+@@ -183,10 +183,20 @@ defmodule Melee.Controller do
+   @spec prev(GenServer.server()) :: ControllerState.t()
+   def prev(controller), do: GenServer.call(controller, :prev)
+ 
++  @doc "Set original game-unit pre-frame inputs for the next direct-channel commit."
++  def set_processed(controller, input) do
++    # Validate synchronously, before changing controller state.
++    Melee.SlippiPad.pack_processed(input)
++    GenServer.call(controller, {:set_processed, input})
++  end
++
+   @doc "The controller state including presses since the last `flush/1`."
+   @spec current(GenServer.server()) :: ControllerState.t()
+   def current(controller), do: GenServer.call(controller, :current)
+ 
++  @doc false
++  def take_direct(controller), do: GenServer.call(controller, :take_direct)
++
+   @doc "Close the pipe and stop the controller."
+   @spec disconnect(GenServer.server()) :: :ok
+   def disconnect(controller), do: GenServer.stop(controller, :normal)
+@@ -235,9 +245,17 @@ defmodule Melee.Controller do
+     {:reply, reply, %{state | prev: state.current}}
+   end
+ 
++  def handle_call({:set_processed, input}, _from, state) do
++    {:reply, :ok, %{state | current: %{state.current | processed_input: input}}}
++  end
++
+   def handle_call(:prev, _from, state), do: {:reply, state.prev, state}
+   def handle_call(:current, _from, state), do: {:reply, state.current, state}
+ 
++  def handle_call(:take_direct, _from, state) do
++    {:reply, state.current, %{state | current: %{state.current | processed_input: nil}}}
++  end
++
+   @impl true
+   def handle_cast({:press, button}, state) do
+     state = write(state, "PRESS #{Button.to_command_string(button)}\n")
+diff --git a/lib/melee/controller_state.ex b/lib/melee/controller_state.ex
+index 2ce4835..b1c892b 100644
+--- a/lib/melee/controller_state.ex
++++ b/lib/melee/controller_state.ex
+@@ -24,7 +24,8 @@ defmodule Melee.ControllerState do
+           r_shoulder: float()
+         }
+ 
+-  defstruct button: Map.from_keys(@buttons, false),
++  defstruct processed_input: nil,
++            button: Map.from_keys(@buttons, false),
+             processed_button: Map.from_keys(@buttons, false),
+             main_stick: {0.5, 0.5},
+             c_stick: {0.5, 0.5},
+diff --git a/lib/melee/slippi_pad.ex b/lib/melee/slippi_pad.ex
+index b27bd73..3e7b6dc 100644
+--- a/lib/melee/slippi_pad.ex
++++ b/lib/melee/slippi_pad.ex
+@@ -75,6 +75,65 @@ defmodule Melee.SlippiPad do
+     <<@batch_cmd, length(pads), entries::binary>>
+   end
+ 
++  @doc "One atomic mixed batch: 0x02, count, then port/mode and 8 raw or 40 processed bytes."
++  def mixed_batch(pads) do
++    ports = Enum.map(pads, &elem(&1, 0))
++
++    unless length(ports) in 1..4 and Enum.uniq(ports) == ports and
++             Enum.all?(ports, &(&1 in 1..4)),
++           do: raise(ArgumentError, "expected unique controller ports in 1..4")
++
++    entries =
++      for {port, state} <- pads, into: <<>> do
++        case state.processed_input do
++          nil -> <<port, 0, pack(state)::binary>>
++          input -> <<port, 1, pack_processed(input)::binary>>
++        end
++      end
++
++    <<2, length(pads), entries::binary>>
++  end
++
++  @doc "Encode original game-unit floats and physical inputs as a 40-byte big-endian record."
++  def pack_processed(p) do
++    for key <- [:main_x, :main_y, :c_x, :c_y] do
++      v = Map.fetch!(p, key)
++
++      unless is_number(v) and v >= -1 and v <= 1,
++        do: raise(ArgumentError, "#{key} must be in -1..1")
++    end
++
++    for key <- [:trigger, :l_trigger, :r_trigger] do
++      v = Map.fetch!(p, key)
++
++      unless is_number(v) and v >= 0 and v <= 1,
++        do: raise(ArgumentError, "#{key} must be in 0..1")
++    end
++
++    for {key, max} <- [buttons: 0xFFFFFFFF, physical_buttons: 0xFFFF] do
++      v = Map.fetch!(p, key)
++
++      unless is_integer(v) and v >= 0 and v <= max,
++        do: raise(ArgumentError, "invalid #{key}")
++    end
++
++    for key <- [:raw_main_x, :raw_main_y, :raw_c_x, :raw_c_y] do
++      v = Map.fetch!(p, key)
++
++      unless is_integer(v) and v in -128..127,
++        do:
++          raise(
++            ArgumentError,
++            "#{key} is missing or not a signed byte; this replay cannot use exact injection"
++          )
++    end
++
++    <<p.main_x::float-big-32, p.main_y::float-big-32, p.c_x::float-big-32, p.c_y::float-big-32,
++      p.trigger::float-big-32, p.buttons::unsigned-big-32, p.physical_buttons::unsigned-big-16,
++      0::16, p.l_trigger::float-big-32, p.r_trigger::float-big-32, p.raw_main_x::signed-8,
++      p.raw_main_y::signed-8, p.raw_c_x::signed-8, p.raw_c_y::signed-8>>
++  end
++
+   defp bit(true, mask), do: mask
+   defp bit(_, _mask), do: 0
+ 
+diff --git a/test/melee/console_test.exs b/test/melee/console_test.exs
+index 34374b7..4b6673c 100644
+--- a/test/melee/console_test.exs
++++ b/test/melee/console_test.exs
+@@ -357,6 +357,43 @@ defmodule Melee.ConsoleTest do
+       {pid, path}
+     end
+ 
++    test "mixed commits are atomic, expire once and do not add a game-start batch", ctx do
++      {console, owner} = connected_console(ctx, direct_inputs: true, processed_inputs: true)
++      {controller, _path} = file_controller(ctx)
++      :ok = Console.register_controller(console, controller, 1)
++      inject(owner, game_event_packet(payloads() <> game_start() <> frame(1)))
++      assert {:ok, %{frame: 1}} = Console.step(console, 5_000)
++      refute_receive {:transport_send, _, _}
++
++      input = %{
++        main_x: -0.9921875,
++        main_y: 0.0,
++        c_x: 0.0,
++        c_y: 0.0,
++        trigger: 0.0,
++        buttons: 0,
++        physical_buttons: 0,
++        l_trigger: 0.0,
++        r_trigger: 0.0,
++        raw_main_x: 0,
++        raw_main_y: 0,
++        raw_c_x: 0,
++        raw_c_y: 0
++      }
++
++      Melee.Controller.set_processed(controller, input)
++      task = Task.async(fn -> Console.step(console, 5_000) end)
++      assert_receive {:transport_send, 0, <<2, 1, 1, 1, _::binary-size(40)>>}
++      inject(owner, game_event_packet(frame(2)))
++      assert {:ok, %{frame: 2}} = Task.await(task)
++      task = Task.async(fn -> Console.step(console, 5_000) end)
++      assert_receive {:transport_send, 0, <<2, 1, 1, 0, _::binary-size(8)>>}
++      inject(owner, game_event_packet(frame(3)))
++      assert {:ok, %{frame: 3}} = Task.await(task)
++      inject(owner, game_event_packet(event(0x39, @sizes[0x39], [])))
++      assert_receive {:transport_send, 0, <<2, 1, 1, 0, _::binary-size(8)>>}
++    end
++
+     test "draining completed frames does not advance controller input", ctx do
+       {console, owner} = connected_console(ctx, direct_inputs: true)
+       {controller, path} = file_controller(ctx)

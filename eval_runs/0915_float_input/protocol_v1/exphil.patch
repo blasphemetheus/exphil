@@ -1,0 +1,658 @@
+diff --git a/docs/planning/FLOAT_INPUT_INJECTION_BRIEF.md b/docs/planning/FLOAT_INPUT_INJECTION_BRIEF.md
+index 050bf69e..52b1eaf4 100644
+--- a/docs/planning/FLOAT_INPUT_INJECTION_BRIEF.md
++++ b/docs/planning/FLOAT_INPUT_INJECTION_BRIEF.md
+@@ -1,5 +1,12 @@
+ # Brief: float-precision input injection so CPU-recorded prefixes replay exactly
+ 
++> **2026-09-15 review:** the parallel processed-input path is the right
++> approach, but the original implementation outline omits necessary fields,
++> bridge wiring, and transport lifecycle handling. Read
++> [FLOAT_INPUT_INJECTION_REVIEW.md](FLOAT_INPUT_INJECTION_REVIEW.md) before
++> implementing or running the gates. It supersedes the provisional wire
++> format and implementation order below. Work is now in progress.
++
+ For an Astra instance. Written 2026-09-14 by Claude (Opus 5) from a
+ reconnaissance of the three repos; nothing below has been implemented.
+ Bradley's decision: build it. Owner of all three repos: us.
+diff --git a/lib/exphil/data/peppi.ex b/lib/exphil/data/peppi.ex
+index 8d5e62aa..9afee17b 100644
+--- a/lib/exphil/data/peppi.ex
++++ b/lib/exphil/data/peppi.ex
+@@ -62,9 +62,27 @@ defmodule ExPhil.Data.Peppi do
+   # NIF Struct Definitions
+   # ============================================================================
+ 
++  defmodule ProcessedInput do
++    @moduledoc "Original pre-frame inputs for exact playback; sticks are in game units (-1..1)."
++    defstruct [
++      :main_x,
++      :main_y,
++      :c_x,
++      :c_y,
++      :trigger,
++      :buttons,
++      :physical_buttons,
++      :raw_main_x,
++      :raw_main_y,
++      :raw_c_x,
++      :raw_c_y
++    ]
++  end
++
+   defmodule Controller do
+     @moduledoc "Controller state from Peppi NIF"
+     defstruct [
++      :processed,
+       :main_stick_x,
+       :main_stick_y,
+       :c_stick_x,
+@@ -449,14 +467,16 @@ defmodule ExPhil.Data.Peppi do
+       current = :array.get(t, frame_array)
+ 
+       if current.game_state.frame == delayed.game_state.frame + delay do
+-        [%{
+-          game_state: delayed.game_state,
+-          controller: current.controller,
+-          player_tag: current[:player_tag],
+-          frame_delay: delay,
+-          observed_frame: t - delay,
+-          action_frame: t
+-        }]
++        [
++          %{
++            game_state: delayed.game_state,
++            controller: current.controller,
++            player_tag: current[:player_tag],
++            frame_delay: delay,
++            observed_frame: t - delay,
++            action_frame: t
++          }
++        ]
+       else
+         []
+       end
+diff --git a/lib/exphil_bridge/melee_port.ex b/lib/exphil_bridge/melee_port.ex
+index 9f7ad7c0..e6f25411 100644
+--- a/lib/exphil_bridge/melee_port.ex
++++ b/lib/exphil_bridge/melee_port.ex
+@@ -73,12 +73,18 @@ defmodule ExPhil.Bridge.MeleePort do
+   # live internal 0x19; crown-decider incident #5, GOTCHA #96 class).
+   # Legal pool.
+   @require_stage_aliases %{
+-    fountain_of_dreams: :fountain_of_dreams, fod: :fountain_of_dreams,
+-    pokemon_stadium: :pokemon_stadium, ps: :pokemon_stadium,
+-    yoshis_story: :yoshis_story, ys: :yoshis_story,
+-    dreamland: :dreamland, dl: :dreamland,
+-    battlefield: :battlefield, bf: :battlefield,
+-    final_destination: :final_destination, fd: :final_destination
++    fountain_of_dreams: :fountain_of_dreams,
++    fod: :fountain_of_dreams,
++    pokemon_stadium: :pokemon_stadium,
++    ps: :pokemon_stadium,
++    yoshis_story: :yoshis_story,
++    ys: :yoshis_story,
++    dreamland: :dreamland,
++    dl: :dreamland,
++    battlefield: :battlefield,
++    bf: :battlefield,
++    final_destination: :final_destination,
++    fd: :final_destination
+   }
+ 
+   # ============================================================================
+@@ -386,7 +392,8 @@ defmodule ExPhil.Bridge.MeleePort do
+       headless = truthy?(Map.get(config, :headless))
+       dummy_mode = normalize_dummy_mode(Map.get(config, :dummy_mode, "none"), online)
+ 
+-      exi_inputs = truthy?(Map.get(config, :exi_inputs))
++      exi_inputs =
++        truthy?(Map.get(config, :exi_inputs)) or truthy?(Map.get(config, :direct_inputs))
+ 
+       if exi_inputs do
+         Logger.info(
+@@ -422,7 +429,7 @@ defmodule ExPhil.Bridge.MeleePort do
+                  |> add_human_adapter_port(config, headless, online)
+              }),
+            {:ok, console} <-
+-             start_console(slippi_port, polling, console_timeout, blocking_input),
++             start_console(slippi_port, polling, console_timeout, blocking_input, dolphin, config),
+            :ok <- connect_console_with_retries(console, 5),
+            {:ok, controller} <- start_controller(dolphin, controller_port, console),
+            {:ok, dummy_controller} <-
+@@ -547,6 +554,8 @@ defmodule ExPhil.Bridge.MeleePort do
+     opts =
+       [
+         path: Map.fetch!(config, :dolphin_path),
++        exi_inputs: exi_inputs,
++        direct_inputs: truthy?(Map.get(config, :direct_inputs)),
+         iso_path: Map.fetch!(config, :iso_path),
+         slippi_port: slippi_port,
+         headless: headless,
+@@ -556,7 +565,11 @@ defmodule ExPhil.Bridge.MeleePort do
+         save_replays: Map.get(config, :replay_dir) != nil,
+         controller_ports: controller_ports,
+         gecko_extra_codes:
+-          if(exi_inputs, do: ["$Optional: Allow Bot Input Overrides"], else: [])
++          if(exi_inputs, do: ["$Optional: Allow Bot Input Overrides"], else: []) ++
++            if(truthy?(Map.get(config, :processed_inputs)),
++              do: ["$Optional: Allow Bot Processed Input Overrides"],
++              else: []
++            )
+       ]
+       |> put_if(:gfx_backend, Map.get(config, :gfx_backend))
+       |> put_if(:replay_dir, Map.get(config, :replay_dir))
+@@ -689,12 +702,28 @@ defmodule ExPhil.Bridge.MeleePort do
+   def force_quit_ops(t) when rem(t, 2) == 1, do: [{:press, :start}]
+   def force_quit_ops(_t), do: [{:release, :start}]
+ 
+-  defp start_console(slippi_port, polling, console_timeout, blocking_input) do
++  defp start_console(slippi_port, polling, console_timeout, blocking_input, dolphin, config) do
++    direct =
++      if truthy?(Map.get(config, :direct_inputs)) do
++        [
++          transport: Melee.Transport.Direct,
++          transport_opts: [path: Melee.Dolphin.direct_channel_path(dolphin.home)],
++          protocol: :raw,
++          direct_inputs: true,
++          processed_inputs: truthy?(Map.get(config, :processed_inputs))
++        ]
++      else
++        []
++      end
++
+     Melee.Console.start_link(
+-      port: slippi_port,
+-      polling_mode: polling,
+-      polling_timeout: round(console_timeout * 1000),
+-      blocking_input: blocking_input
++      direct ++
++        [
++          port: slippi_port,
++          polling_mode: polling,
++          polling_timeout: round(console_timeout * 1000),
++          blocking_input: blocking_input
++        ]
+     )
+   end
+ 
+@@ -710,7 +739,11 @@ defmodule ExPhil.Bridge.MeleePort do
+         {:error, reason} ->
+           if attempt < attempts do
+             wait = 2_000 * attempt
+-            Logger.warning("[MeleePort] console connect attempt #{attempt} failed, retrying in #{wait}ms")
++
++            Logger.warning(
++              "[MeleePort] console connect attempt #{attempt} failed, retrying in #{wait}ms"
++            )
++
+             Process.sleep(wait)
+             {:cont, {:error, reason}}
+           else
+@@ -724,7 +757,7 @@ defmodule ExPhil.Bridge.MeleePort do
+     with {:ok, pipe} <- Melee.Dolphin.setup_controller(dolphin, port),
+          {:ok, controller} <- Melee.Controller.start_link(pipe_path: pipe),
+          :ok <- Melee.Controller.connect(controller, 60_000),
+-         :ok <- Melee.Console.register_controller(console, controller) do
++         :ok <- Melee.Console.register_controller(console, controller, port) do
+       {:ok, controller}
+     end
+   end
+@@ -850,7 +883,10 @@ defmodule ExPhil.Bridge.MeleePort do
+       end
+ 
+     # Track transitions for the postgame-report protocol.
+-    state = if is_in_game and not state.last_in_game, do: %{state | postgame_reported: false}, else: state
++    state =
++      if is_in_game and not state.last_in_game,
++        do: %{state | postgame_reported: false},
++        else: state
+ 
+     # Post-game grace timer for :postgame_delay: stamp when the game ends
+     # by ANY route — the in-game -> menu transition catches quit-outs
+@@ -892,7 +928,6 @@ defmodule ExPhil.Bridge.MeleePort do
+     skip_menu_nav = is_postgame and not state.postgame_reported
+     state = if is_postgame, do: %{state | postgame_reported: true}, else: state
+ 
+-
+     state =
+       if is_menu and auto_menu and not skip_menu_nav do
+         navigate_menus(state, gamestate)
+@@ -1110,9 +1145,15 @@ defmodule ExPhil.Bridge.MeleePort do
+     # won't start the match until the grace period passes.
+     autostart =
+       case {autostart, Map.get(state.config, :postgame_delay), state.postgame_left_at} do
+-        {false, _, _} -> false
+-        {true, nil, _} -> true
+-        {true, _, nil} -> true
++        {false, _, _} ->
++          false
++
++        {true, nil, _} ->
++          true
++
++        {true, _, nil} ->
++          true
++
+         {true, delay_s, left_at} ->
+           System.monotonic_time(:millisecond) - left_at >= delay_s * 1000
+       end
+@@ -1270,7 +1311,7 @@ defmodule ExPhil.Bridge.MeleePort do
+       # pre-signal, so the warmup interlock holds; at the local CSS
+       # the helper has real feedback and could confirm mid-JIT.
+       is_function(ready_check, 0) and at_css? and not ready_check.() and online? and
+-          gamestate.menu_state == 6 and
++        gamestate.menu_state == 6 and
+           ExPhil.Bridge.BlindCss.warmup_step(
+             Process.get(:css_blind_phase, ExPhil.Bridge.BlindCss.new())
+           ) == :steer ->
+@@ -1518,6 +1559,7 @@ defmodule ExPhil.Bridge.MeleePort do
+       end)
+     end
+   end
++
+   # Per-frame /proc read of the selection words. MEM1 location is
+   # found ONCE by a background task (the g12 lesson: the /proc scan
+   # inline every frame starved the spectator socket); after that each
+@@ -1658,8 +1700,11 @@ defmodule ExPhil.Bridge.MeleePort do
+       ext
+       |> Melee.Enums.Character.from_game_external()
+       |> then(fn
+-        nil -> 0
+-        internal -> internal |> Melee.Enums.Character.from_id() |> Melee.Enums.Character.from_internal()
++        nil ->
++          0
++
++        internal ->
++          internal |> Melee.Enums.Character.from_id() |> Melee.Enums.Character.from_internal()
+       end)
+ 
+     row = div(css, 9)
+@@ -1946,7 +1991,8 @@ defmodule ExPhil.Bridge.MeleePort do
+     target =
+       cond do
+         port != nil and trunc(port) == state.opponent_port ->
+-          state.dummy_controller || {:error, "No controller on port #{port} (enable a dummy_mode at init)"}
++          state.dummy_controller ||
++            {:error, "No controller on port #{port} (enable a dummy_mode at init)"}
+ 
+         true ->
+           state.controller
+@@ -1957,8 +2003,13 @@ defmodule ExPhil.Bridge.MeleePort do
+         error
+ 
+       controller ->
+-        apply_controller_input(controller, input)
+-        :ok
++        if get_in_any(input, :processed_input) &&
++             !truthy?(Map.get(state.config, :processed_inputs)) do
++          {:error, "processed input requires an explicitly enabled float-capable direct session"}
++        else
++          apply_controller_input(controller, input)
++          :ok
++        end
+     end
+   end
+ 
+@@ -1980,6 +2031,7 @@ defmodule ExPhil.Bridge.MeleePort do
+     Melee.Controller.release_all(controller)
+ 
+     main = get_in_any(input, :main_stick) || %{}
++
+     Melee.Controller.tilt_analog(
+       controller,
+       :main,
+@@ -1988,6 +2040,7 @@ defmodule ExPhil.Bridge.MeleePort do
+     )
+ 
+     c = get_in_any(input, :c_stick) || %{}
++
+     Melee.Controller.tilt_analog(
+       controller,
+       :c,
+@@ -2003,6 +2056,10 @@ defmodule ExPhil.Bridge.MeleePort do
+       Melee.Controller.press_button(controller, button)
+     end
+ 
++    if processed = get_in_any(input, :processed_input) do
++      Melee.Controller.set_processed(controller, processed)
++    end
++
+     :ok
+   end
+ 
+@@ -2159,7 +2216,10 @@ defmodule ExPhil.Bridge.MeleePort do
+ 
+   defp teardown(state) do
+     if state.controller, do: safe(fn -> Melee.Controller.disconnect(state.controller) end)
+-    if state.dummy_controller, do: safe(fn -> Melee.Controller.disconnect(state.dummy_controller) end)
++
++    if state.dummy_controller,
++      do: safe(fn -> Melee.Controller.disconnect(state.dummy_controller) end)
++
+     if state.console, do: safe(fn -> Melee.Console.stop(state.console) end)
+     if state.dolphin, do: safe(fn -> Melee.Dolphin.stop(state.dolphin) end)
+ 
+diff --git a/native/exphil_peppi/src/lib.rs b/native/exphil_peppi/src/lib.rs
+index ea32c474..17725bfa 100644
+--- a/native/exphil_peppi/src/lib.rs
++++ b/native/exphil_peppi/src/lib.rs
+@@ -27,6 +27,9 @@ mod atoms {
+ #[derive(Debug, NifStruct)]
+ #[module = "ExPhil.Data.Peppi.Controller"]
+ pub struct Controller {
++    // Preserve the recorded f32 bytes: normalization can erase very small
++    // values and signed zero. Playback must not reconstruct these from axes.
++    pub processed: ProcessedInput,
+     pub main_stick_x: f64,
+     pub main_stick_y: f64,
+     pub c_stick_x: f64,
+@@ -47,6 +50,23 @@ pub struct Controller {
+     pub button_d_right: bool,
+ }
+ 
++/// Original pre-frame input fields, separate from the training representation.
++#[derive(Debug, NifStruct)]
++#[module = "ExPhil.Data.Peppi.ProcessedInput"]
++pub struct ProcessedInput {
++    pub main_x: f64,
++    pub main_y: f64,
++    pub c_x: f64,
++    pub c_y: f64,
++    pub trigger: f64,
++    pub buttons: u32,
++    pub physical_buttons: u16,
++    pub raw_main_x: Option<i8>,
++    pub raw_main_y: Option<i8>,
++    pub raw_c_x: Option<i8>,
++    pub raw_c_y: Option<i8>,
++}
++
+ /// Parsed player state for a single frame
+ #[derive(Debug, NifStruct)]
+ #[module = "ExPhil.Data.Peppi.PlayerFrame"]
+@@ -286,6 +306,19 @@ fn parse_controller(pre: &Pre) -> Controller {
+     const D_RIGHT: u16 = 0x0002;
+ 
+     Controller {
++        processed: ProcessedInput {
++            main_x: joystick.x as f64,
++            main_y: joystick.y as f64,
++            c_x: cstick.x as f64,
++            c_y: cstick.y as f64,
++            trigger: pre.triggers as f64,
++            buttons: pre.buttons,
++            physical_buttons: buttons,
++            raw_main_x: pre.raw_analog_x,
++            raw_main_y: pre.raw_analog_y,
++            raw_c_x: pre.raw_analog_cstick_x,
++            raw_c_y: pre.raw_analog_cstick_y,
++        },
+         main_stick_x: main_x,
+         main_stick_y: main_y,
+         c_stick_x: c_x,
+@@ -530,6 +563,34 @@ rustler::init!("Elixir.ExPhil.Data.Peppi");
+ 
+ #[cfg(test)]
+ mod tests {
++    #[test]
++    fn processed_inputs_preserve_original_bits_and_distinct_physical_fields() {
++        let mut pre = peppi::frame::transpose::Pre::default();
++        pre.joystick.x = -0.0;
++        pre.joystick.y = f32::from_bits(1);
++        pre.cstick.x = -0.9921875;
++        pre.triggers = 0.375;
++        pre.buttons = 0x80000100;
++        pre.buttons_physical = 0x0020;
++        pre.triggers_physical.l = 0.125;
++        pre.triggers_physical.r = 0.25;
++        pre.raw_analog_x = Some(-128);
++        pre.raw_analog_y = Some(127);
++        let c = super::parse_controller(&pre);
++        assert_eq!((c.processed.main_x as f32).to_bits(), pre.joystick.x.to_bits());
++        assert_eq!((c.processed.main_y as f32).to_bits(), 1);
++        assert_eq!(c.processed.trigger, 0.375);
++        assert_eq!(c.processed.buttons, 0x80000100);
++        assert_eq!(c.processed.physical_buttons, 0x0020);
++        assert_eq!(c.l_trigger, 0.125);
++        assert_eq!(c.r_trigger, 0.25);
++        assert_eq!(c.processed.raw_main_x, Some(-128));
++        assert_eq!(c.processed.raw_main_y, Some(127));
++        assert_eq!(c.processed.raw_c_x, None);
++        assert!(!c.button_a);
++        assert!(c.button_r);
++    }
++
+     // The frame-level convention is IDENTITY over internal ids (see
+     // internal_character_id docs): checkpoints trained pre-fix depend on
+     // 0x00..=0x19 staying numerically unchanged; Roy (0x1A) must be 26,
+diff --git a/scripts/compare_replay_inputs.exs b/scripts/compare_replay_inputs.exs
+index 120c9268..50a43048 100644
+--- a/scripts/compare_replay_inputs.exs
++++ b/scripts/compare_replay_inputs.exs
+@@ -1,22 +1,28 @@
+-# First per-port INPUT and STATE mismatch between two replays of "the same" game
+-# (a source and the scenario suite's re-recording of its prefix), frames -39..UPTO.
+-#   mix run --no-start scripts/compare_replay_inputs.exs SOURCE.slp RERUN.slp 340
+-# 2026-09-14: showed CPU-AI stick floats are unreplayable (0.0039 -> 0.0062 at
+-# frame -39) while the bot's bucketed inputs match on every frame.
+-
++# Exact exposed input/state audit, inclusive bounds (default first = -39).
++# mix run --no-start scripts/compare_replay_inputs.exs SOURCE RERUN LAST [FIRST]
++# For handoff frame 344, use LAST=343; subsequent policy inputs intentionally differ.
++# Missing data or any mismatch exits 1.
+ alias ExPhil.Data.Peppi
+-[a, b, upto] = System.argv()
+-upto = String.to_integer(upto)
+-load = fn p -> {:ok, r} = Peppi.parse(p); Map.new(r.frames, &{&1.frame_number, &1}) end
+-fa = load.(a); fb = load.(b)
+-ctl = fn c -> {Float.round(c.main_stick_x, 4), Float.round(c.main_stick_y, 4), Float.round(c.c_stick_x, 4), Float.round(c.c_stick_y, 4), Float.round(c.l_trigger, 3), Float.round(c.r_trigger, 3), c.button_a, c.button_b, c.button_x, c.button_y, c.button_z, c.button_l, c.button_r} end
+-st = fn p -> {Float.round(p.x, 2), Float.round(p.y, 2), trunc(p.action), trunc(p.action_frame)} end
+-for port <- [1, 2] do
+-  first_input = Enum.find(-39..upto, fn f -> fa[f] && fb[f] && ctl.(fa[f].players[port].controller) != ctl.(fb[f].players[port].controller) end)
+-  first_state = Enum.find(-39..upto, fn f -> fa[f] && fb[f] && st.(fa[f].players[port]) != st.(fb[f].players[port]) end)
+-  IO.puts("port #{port}: first INPUT mismatch at #{inspect(first_input)}, first STATE mismatch at #{inspect(first_state)}")
+-  for f <- [first_input, first_state], f != nil do
+-    IO.puts("  f#{f} src  in=#{inspect(ctl.(fa[f].players[port].controller))} st=#{inspect(st.(fa[f].players[port]))}")
+-    IO.puts("  f#{f} rerun in=#{inspect(ctl.(fb[f].players[port].controller))} st=#{inspect(st.(fb[f].players[port]))}")
++alias ExPhil.Eval.ReplayPrefixAudit
++
++{source, rerun, first, last} =
++  case System.argv() do
++    [a, b, last] -> {a, b, -39, String.to_integer(last)}
++    [a, b, last, first] -> {a, b, String.to_integer(first), String.to_integer(last)}
++    _ -> raise ArgumentError, "usage: compare_replay_inputs.exs SOURCE RERUN LAST [FIRST]"
++  end
++
++{:ok, a} = Peppi.parse(source)
++{:ok, b} = Peppi.parse(rerun)
++report = ReplayPrefixAudit.compare(a.frames, b.frames, first, last)
++
++for port <- report.ports do
++  IO.puts("port #{port.port}: compared #{port.compared}/#{report.expected_frames} frames")
++
++  for kind <- [:missing, :input, :state] do
++    IO.puts("  first #{kind} mismatch: #{inspect(port[kind], limit: :infinity)}")
+   end
+ end
++
++IO.puts("exact exposed inputs/state equal: #{report.valid}")
++unless report.valid, do: System.halt(1)
+diff --git a/scripts/scenario_suite.exs b/scripts/scenario_suite.exs
+index 23d74cad..5710c303 100644
+--- a/scripts/scenario_suite.exs
++++ b/scripts/scenario_suite.exs
+@@ -36,6 +36,11 @@
+ #                        recorded inputs (drifts from the source; use with a
+ #                        frame-0 handoff to generate new input-driven games).
+ #   --dolphin PATH       Dolphin (default ~/.local/share/slippi/exi-ai/dolphin-emu-headless)
++#   --direct-inputs      Atomic mixed protocol with byte inputs; requires the float build
++#   --float-ports 1,2     Inject original processed inputs for these recorded ports
++#                        (implies direct inputs; default build directory exi-ai-float).
++#                        Audits every prefix frame before accepting a score.
++#   --no-pipe-shim       Preserve analog triggers (default for direct/float mode)
+ #   --iso PATH           Melee ISO (default ~/isos/melee.iso)
+ #   --windowed           Disable headless (debugging; needs the netplay build)
+ #   --slippi-port N      Base slippi port (default 51480, +1 per run)
+@@ -100,7 +105,13 @@ defmodule ScenarioSuite do
+     # with EXI inputs (bridge default when headless) analog triggers
+     # round-trip and the shim must be OFF or light shields replay wrong.
+     shim = Keyword.get(opts, :pipe_shim, false)
++    float_ports = Keyword.get(opts, :float_ports, [])
+     {:ok, replay} = Peppi.parse(Path.expand(slp))
++    if float_ports != [] and replay.metadata.stage != 32,
++      do: raise("float replay currently requires a Final Destination source (the suite pins this stage)")
++    if float_ports != [] and Enum.any?(replay.frames, fn frame ->
++      Enum.any?(float_ports, fn port -> frame.players[port] && frame.players[port].character in [10, 11] end)
++    end), do: raise("exact follower input replay is not implemented")
+ 
+     {inputs, ref} =
+       Enum.reduce(replay.frames, {%{}, %{}}, fn f, {inputs, ref} ->
+@@ -112,7 +123,7 @@ defmodule ScenarioSuite do
+             Map.put(
+               inputs,
+               f.frame_number,
+-              {rec_input(p1.controller, shim), rec_input(p2.controller, shim)}
++              {replay_input(p1.controller, shim, 1 in float_ports), replay_input(p2.controller, shim, 2 in float_ports)}
+             ),
+             Map.put(ref, f.frame_number, %{
+               p1: ScenarioScan.player_summary(p1),
+@@ -126,7 +137,7 @@ defmodule ScenarioSuite do
+ 
+     first = Enum.find(replay.frames, fn f -> f.players[1] && f.players[2] end)
+     opponent = first && first.players[2].character && libmelee_character(trunc(first.players[2].character))
+-    %{inputs: inputs, ref: ref, opponent_character: opponent}
++    %{inputs: inputs, ref: ref, opponent_character: opponent, source_character: first && libmelee_character(trunc(first.players[1].character))}
+   end
+ 
+   # Internal (in-game) character id -> libmelee Character name, for the
+@@ -154,6 +165,14 @@ defmodule ScenarioSuite do
+   # are converted to digital presses past Melee's analog-shield threshold
+   # (raw 43/140 ~ 0.31). Cost: light shields replay as full shields (none
+   # in probe games). The analog value is still sent for builds that honor it.
++  defp replay_input(c, shim, false), do: rec_input(c, shim)
++  defp replay_input(c, _shim, true) do
++    unless is_map(c.processed), do: raise("rebuild the Peppi NIF: original processed inputs are missing")
++    processed = c.processed |> Map.from_struct() |> Map.merge(%{l_trigger: c.l_trigger, r_trigger: c.r_trigger})
++    Melee.SlippiPad.pack_processed(processed)
++    Map.put(rec_input(c, false), :processed_input, processed)
++  end
++
+   @trigger_digital_threshold 0.31
+ 
+   defp rec_input(c, pipe_shim) do
+@@ -209,10 +228,12 @@ defmodule ScenarioSuite do
+ 
+     config = %{
+       dolphin_path: opts[:dolphin],
++      direct_inputs: opts[:direct_inputs] || false,
++      processed_inputs: opts[:direct_inputs] || false,
+       iso_path: opts[:iso],
+       controller_port: 1,
+       opponent_port: 2,
+-      character: String.to_atom(opts[:character] || "mewtwo"),
++      character: String.to_atom(opts[:character] || if(opts[:float_ports] not in [nil, []], do: prep.source_character, else: "mewtwo")),
+       stage: :final_destination,
+       online_delay: 0,
+       dummy_mode: "external",
+@@ -262,6 +283,20 @@ defmodule ScenarioSuite do
+         result
+       end
+ 
++    result =
++      if opts[:float_ports] not in [nil, []] and is_nil(result[:error]) do
++        audit = ExPhil.Eval.ReplayPrefixAudit.verify_directory(
++          Path.expand(entry.slp), run_dir, -39, entry.frame - 1, opts[:float_ports]
++        )
++        File.write!(Path.join(run_dir, "prefix_audit.json"), Jason.encode!(audit, pretty: true))
++        result = Map.put(result, :prefix_audit, audit)
++        if audit.valid, do: result,
++          else: result |> Map.put(:unvalidated_score, result[:score]) |> Map.put(:score, nil)
++                       |> Map.put(:pass, false) |> Map.put(:diverged, true)
++      else
++        result
++      end
++
+     wall_s = (System.monotonic_time(:millisecond) - t0) / 1000
+ 
+     Map.merge(
+@@ -273,6 +308,8 @@ defmodule ScenarioSuite do
+         run: run_idx,
+         window: window,
+         opponent_character: config.dummy_character,
++        float_ports: opts[:float_ports],
++        input_transport: if(config.direct_inputs, do: "direct", else: "pipe"),
+         wall_s: Float.round(wall_s, 1),
+         replay_dir: run_dir
+       },
+@@ -781,6 +818,8 @@ end
+       console_timeout: :float,
+       drift_tolerance: :float,
+       dolphin: :string,
++      float_ports: :string,
++      direct_inputs: :boolean,
+       iso: :string,
+       windowed: :boolean,
+       trace_all: :boolean,
+@@ -799,6 +838,17 @@ end
+   )
+ 
+ if opts[:quiet], do: Logger.configure(level: :warning)
++float_ports = case opts[:float_ports] do
++  nil -> []
++  value -> value |> String.split(",") |> Enum.map(&String.to_integer/1) |> Enum.uniq() |> Enum.sort()
++end
++unless Enum.all?(float_ports, &(&1 in [1, 2])), do: raise("--float-ports must contain only 1 and/or 2")
++direct_inputs = opts[:direct_inputs] || float_ports != []
++if direct_inputs do
++  ExPhil.Eval.FloatInputBuild.verify!(Path.expand(opts[:dolphin] || "~/.local/share/slippi/exi-ai-float/dolphin-emu-headless"))
++end
++opts = Keyword.put_new(opts, :pipe_shim, not direct_inputs)
++if float_ports != [] and opts[:pipe_shim], do: raise("--float-ports requires --no-pipe-shim")
+ 
+ unless opts[:policy] != nil or (opts[:driver] || "policy") != "policy" do
+   Output.error("--policy is required (unless --driver teacher|neutral)")
+@@ -852,13 +902,15 @@ unless (opts[:response_opponent] || "replay") in ["replay", "neutral"],
+   do: raise(ArgumentError, "--response-opponent must be replay or neutral")
+ 
+ suite_opts = [
++  float_ports: float_ports,
++  direct_inputs: direct_inputs,
+   response_opponent: opts[:response_opponent] || "replay",
+   verify_input_timing: Keyword.get(opts, :verify_input_timing, true),
+   console_timeout: opts[:console_timeout],
+   trace_policy_inputs: opts[:trace_policy_inputs] || false,
+   prefix_history: opts[:prefix_history] || "applied",
+   audit_teacher_labels: opts[:audit_teacher_labels] || false,
+-  dolphin: Path.expand(opts[:dolphin] || "~/.local/share/slippi/exi-ai/dolphin-emu-headless"),
++  dolphin: Path.expand(opts[:dolphin] || if(direct_inputs, do: "~/.local/share/slippi/exi-ai-float/dolphin-emu-headless", else: "~/.local/share/slippi/exi-ai/dolphin-emu-headless")),
+   iso: Path.expand(opts[:iso] || "~/isos/melee.iso"),
+   windowed: opts[:windowed] || false,
+   trace_all: opts[:trace_all] || false,
+@@ -998,6 +1050,7 @@ agent_runtime =
+     |> Map.take([:delay_id, :reaction_delay, :harness, :harness_knob, :af_convention])
+   end
+ 
++agent_runtime = Map.merge(agent_runtime || %{}, %{float_ports: float_ports, input_transport: if(direct_inputs, do: "direct", else: "pipe")})
+ opts = Keyword.merge(opts, driver: driver, expert: expert)
+ suite_opts = Keyword.merge(suite_opts, driver: driver, expert: expert, character: opts[:character], opponent_character: opts[:opponent_character])
+ 
+@@ -1010,7 +1063,7 @@ preps =
+     # only — its analog RELEASE latches, see #66 addendum), and pipe mode
+     # on the ExiAI build drops analog triggers, so recorded analog shield
+     # holds must replay as digital presses. --no-pipe-shim for EXI runs.
+-    {slp, ScenarioSuite.prepare_replay(slp, pipe_shim: Keyword.get(opts, :pipe_shim, true))}
++    {slp, ScenarioSuite.prepare_replay(slp, pipe_shim: Keyword.get(opts, :pipe_shim, true), float_ports: float_ports)}
+   end)
+ 
+ Output.success("Parsed #{map_size(preps)} source replay(s)")
+@@ -1037,6 +1090,9 @@ results =
+       result[:timing_valid] == false ->
+         Output.warning("   INPUT TIMING INVALID: score withheld; #{inspect(result[:input_timing])}")
+ 
++      result[:prefix_audit] && not result.prefix_audit.valid ->
++        Output.warning("   EXACT PREFIX AUDIT FAILED: #{inspect(result.prefix_audit)}")
++
+       result[:diverged] ->
+         Output.warning(
+           "   DIVERGED at handoff: #{inspect(Map.drop(result.drift, [:diverged]))} " <>

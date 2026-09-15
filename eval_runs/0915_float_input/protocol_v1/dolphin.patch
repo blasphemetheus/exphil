@@ -1,0 +1,291 @@
+diff --git a/Data/Sys/GameSettings/GALE01r2.ini b/Data/Sys/GameSettings/GALE01r2.ini
+index 3096bb11f..ea4ce1f8c 100644
+--- a/Data/Sys/GameSettings/GALE01r2.ini
++++ b/Data/Sys/GameSettings/GALE01r2.ini
+@@ -7483,3 +7483,54 @@ C238D00C 00000006 #AI/LoopMainEngine/SkipSounds.asm
+ 3D808038 618CD29C
+ 7D8903A6 4E800420
+ 60000000 00000000
++
++$Optional: Allow Bot Processed Input Overrides [ExPhil]
++*Direct protocol v1 processed inputs; requires matching EXI 0xDA support.
++C206B0DC 0000002F #AI/OverwriteInputs/OverwriteProcessedInputs.asm
++7C0802A6 90010004
++9421FF08 BE8100C8
++7FFEFB78 3D808000
++618C5604 7D8903A6
++4E800421 2C030000
++41820134 7FC3F378
++3D808000 618C55F8
++7D8903A6 4E800421
++2C030000 40820118
++3BA10008 386000DA
++987D0000 7FA3EB78
++38800001 38A00001
++3D808000 618C55F0
++7D8903A6 4E800421
++7FA3EB78 388000B0
++38A00000 3D808000
++618C55F0 7D8903A6
++4E800421 8B9E0618
++2C1C0004 408000C8
++1C7C002C 7FBD1A14
++807D0000 2C030001
++408200B4 3BBD0004
++807D0000 907E0620
++807D0004 907E0624
++807D0008 907E0638
++807D000C 907E063C
++807D0010 907E0650
++807D0014 907E065C
++3C80804C 60841FAC
++1C7C0044 7C841A14
++A07D0018 B0640002
++807D001C 90640030
++807D0020 90640034
++3C80804C 60841F78
++88640001 3863FFFF
++2C030000 40800008
++38630005 1C630030
++3C808046 6084B108
++7C841A14 1C7C000C
++7C841A14 887D0024
++98640002 887D0025
++98640003 887D0026
++98640004 887D0027
++98640005 BA8100C8
++800100FC 382100F8
++7C0803A6 881F2219
++60000000 00000000
+diff --git a/Source/Core/Core/ConfigManager.h b/Source/Core/Core/ConfigManager.h
+index 4939525e5..1bf7d7c59 100644
+--- a/Source/Core/Core/ConfigManager.h
++++ b/Source/Core/Core/ConfigManager.h
+@@ -109,10 +109,6 @@ struct SConfig : NonCopyable
+ 	// CMD_GET_NEW_SEED replies, stage shuffles and rng offsets) with
+ 	// this value instead of wall-clock time — reproducible runs.
+ 	int m_slippiRngSeed;
+-	// When non-zero: seed the Slippi EXI device's RNG (the source of
+-	// CMD_GET_NEW_SEED replies, stage shuffles and rng offsets) with
+-	// this value instead of wall-clock time — reproducible runs.
+-	int m_slippiRngSeed;
+ 
+ 	// Settings
+ 	bool bEnableDebugging = false;
+diff --git a/Source/Core/Core/HW/EXI_DeviceSlippi.cpp b/Source/Core/Core/HW/EXI_DeviceSlippi.cpp
+index 0ca1deec3..7dbb5b3e0 100644
+--- a/Source/Core/Core/HW/EXI_DeviceSlippi.cpp
++++ b/Source/Core/Core/HW/EXI_DeviceSlippi.cpp
+@@ -3277,8 +3277,15 @@ void CEXISlippi::prepareOverwriteInputs()
+ 	// Insert the pads
+ 	for (int i = 1; i <= 4; i++)
+ 	{
++		u8 processed_pad[40];
+ 		u8 channel_pad[SLIPPI_PAD_DATA_SIZE];
+-		if (direct && SlippiSpectateServer::getInstance()->directPad(i, channel_pad))
++		if (direct && SlippiSpectateServer::getInstance()->directProcessedPad(i, processed_pad))
++		{
++			// Suppress pipe fallback for a processed port. The later fighter hook
++			// supplies the original processed and physical fields.
++			m_read_queue.insert(m_read_queue.end(), 9, 0);
++		}
++		else if (direct && SlippiSpectateServer::getInstance()->directPad(i, channel_pad))
+ 		{
+ 			m_read_queue.push_back(1);
+ 			for (int j = 0; j < SLIPPI_PAD_DATA_SIZE; j++)
+@@ -3305,6 +3312,20 @@ void CEXISlippi::prepareOverwriteInputs()
+ 	}
+ }
+ 
++// Reads the snapshot latched by D9, never drains or waits for another frame.
++void CEXISlippi::prepareOverwriteProcessedInputs()
++{
++	m_read_queue.clear();
++	for (int port = 1; port <= 4; ++port)
++	{
++		u8 data[40] = {};
++		bool enabled = SConfig::GetInstance().m_slippiDirectInputs &&
++		    SlippiSpectateServer::getInstance()->directProcessedPad(port, data);
++		appendWordToBuffer(&m_read_queue, enabled ? 1 : 0);
++		m_read_queue.insert(m_read_queue.end(), data, data + 40);
++	}
++}
++
+ void CEXISlippi::DMAWrite(u32 _uAddr, u32 _uSize)
+ {
+ 	u8 *memPtr = Memory::GetPointer(_uAddr);
+@@ -3506,6 +3527,9 @@ void CEXISlippi::DMAWrite(u32 _uAddr, u32 _uSize)
+ 			slprs_fetch_match_result(slprs_exi_device_ptr, recentMmResult.id.c_str());
+ 			break;
+ 		}
++		case CMD_OVERWRITE_PROCESSED_INPUTS:
++			prepareOverwriteProcessedInputs();
++			break;
+ 		case CMD_OVERWRITE_INPUTS:
+ 			prepareOverwriteInputs();
+ 			break;
+diff --git a/Source/Core/Core/HW/EXI_DeviceSlippi.h b/Source/Core/Core/HW/EXI_DeviceSlippi.h
+index 66d2c8f5d..937080893 100644
+--- a/Source/Core/Core/HW/EXI_DeviceSlippi.h
++++ b/Source/Core/Core/HW/EXI_DeviceSlippi.h
+@@ -105,6 +105,7 @@ class CEXISlippi : public IEXIDevice
+ 		CMD_STOP_MUSIC = 0xD7,
+ 		CMD_CHANGE_MUSIC_VOLUME = 0xD8,
+ 		CMD_OVERWRITE_INPUTS = 0xD9,
++		CMD_OVERWRITE_PROCESSED_INPUTS = 0xDA,
+ 		CMD_PREMADE_TEXT_LENGTH = 0xE1,
+ 		CMD_PREMADE_TEXT_LOAD = 0xE2,
+ 		CMD_GET_RANK = 0xE3,
+@@ -192,6 +193,7 @@ class CEXISlippi : public IEXIDevice
+ 	    {CMD_STOP_MUSIC, 0x0},
+ 	    {CMD_CHANGE_MUSIC_VOLUME, static_cast<u32>(sizeof(SlippiExiTypes::ChangeMusicVolumeQuery) - 1)},
+ 	    {CMD_OVERWRITE_INPUTS, 0x0},
++	    {CMD_OVERWRITE_PROCESSED_INPUTS, 0x0},
+ 	    {CMD_PREMADE_TEXT_LENGTH, 0x2},
+ 	    {CMD_PREMADE_TEXT_LOAD, 0x2},
+ 	    {CMD_GET_RANK, 0x0},
+@@ -284,6 +286,7 @@ class CEXISlippi : public IEXIDevice
+ 	void prepareGctLoad(u8 *payload);
+ 	void prepareDelayResponse();
+ 	void prepareOverwriteInputs();
++	void prepareOverwriteProcessedInputs();
+ 	void preparePremadeTextLength(u8 *payload);
+ 	void preparePremadeTextLoad(u8 *payload);
+ 
+diff --git a/Source/Core/Core/Slippi/SlippiSpectate.cpp b/Source/Core/Core/Slippi/SlippiSpectate.cpp
+index f2eedf4d6..4d0e4ccd3 100644
+--- a/Source/Core/Core/Slippi/SlippiSpectate.cpp
++++ b/Source/Core/Core/Slippi/SlippiSpectate.cpp
+@@ -33,6 +33,10 @@ void SlippiSpectateServer::write(u8 *payload, u32 length)
+ 	{
+ 		return;
+ 	}
++	// Keep boot and initial menu pacing. After GAME_END, scene transitions
++	// can run raw-pad polls without producing another recorded frame event.
++	if (length && payload[0] == 0x36) m_direct_game_active = true;
++	if (length && payload[0] == 0x39) m_direct_game_active = false;
+ 	// Keep the channel's receive side drained even while nothing reads
+ 	// pads (menus): input batches sent every step must never back up
+ 	// the socket. Runs on every event write, i.e. every frame.
+@@ -47,6 +51,7 @@ void SlippiSpectateServer::write(u8 *payload, u32 length)
+ bool SlippiSpectateServer::directDrainInputs(bool block)
+ {
+ #ifndef _WIN32
++	if (block && m_direct_mixed && !m_direct_game_active) block = false;
+ 	if (block)
+ 	{
+ 		// A blocking call is the lockstep gate: only a batch that
+@@ -59,9 +64,27 @@ bool SlippiSpectateServer::directDrainInputs(bool block)
+ 		int fd = m_direct_fd.load(std::memory_order_acquire);
+ 		if (fd < 0)
+ 		{
+-			return m_direct_got_batch;
++			m_direct_rx.clear();
++			m_direct_pending.clear();
++			m_direct_frame = SlippiInputFrame{};
++			m_direct_mixed = false;
++			m_direct_got_batch = false;
++			for (int i = 0; i < 4; ++i) m_direct_pad_set[i] = false;
++			return false;
++		}
++		if ((block || !m_direct_game_active) && !m_direct_pending.empty())
++		{
++			m_direct_frame = m_direct_game_active ? m_direct_pending.front() : m_direct_pending.back();
++			if (m_direct_game_active) m_direct_pending.pop_front();
++			else m_direct_pending.clear();
++			for (int i = 0; i < 4; ++i)
++			{
++				m_direct_pad_set[i] = m_direct_frame.mode[i] == 1;
++				if (m_direct_pad_set[i]) memcpy(m_direct_pad_bufs[i], m_direct_frame.data[i].data(), 8);
++			}
++			m_direct_got_batch = true;
++			return true;
+ 		}
+-
+ 		u8 buf[4096];
+ 		ssize_t got = recv(fd, buf, sizeof(buf), 0);
+ 		if (got > 0)
+@@ -87,8 +110,25 @@ bool SlippiSpectateServer::directDrainInputs(bool block)
+ 				}
+ 
+ 				const u8 *payload = m_direct_rx.data() + 4;
+-				// 0x01 = pad batch: count, then per pad: port (1-4) + 8 bytes.
+-				if (len >= 2 && payload[0] == 0x01)
++				if (m_direct_mixed || (len >= 1 && payload[0] == 0x02))
++				{
++					SlippiInputFrame frame;
++					if (!DecodeSlippiMixedFrame(payload, len, frame) || m_direct_pending.size() >= 256)
++					{
++						WARN_LOG(SLIPPI, "Invalid mixed input frame or input queue overflow; dropping client");
++						m_direct_fd.store(-1, std::memory_order_release);
++						close(fd);
++						m_direct_rx.clear();
++						m_direct_pending.clear();
++						m_direct_frame = SlippiInputFrame{};
++						m_direct_mixed = false;
++						return false;
++					}
++					m_direct_mixed = true;
++					m_direct_pending.push_back(frame);
++				}
++				// 0x01 legacy byte path retains its original semantics.
++				else if (!m_direct_mixed && len >= 2 && payload[0] == 0x01)
+ 				{
+ 					u8 count = payload[1];
+ 					if (len == (u32)(2 + count * 9))
+@@ -120,7 +160,10 @@ bool SlippiSpectateServer::directDrainInputs(bool block)
+ 			m_direct_fd.store(-1, std::memory_order_release);
+ 			close(fd);
+ 			m_direct_rx.clear();
+-			return m_direct_got_batch;
++			m_direct_pending.clear();
++			m_direct_frame = SlippiInputFrame{};
++			m_direct_mixed = false;
++			return false;
+ 		}
+ 
+ 		// Nothing readable right now.
+@@ -160,6 +203,14 @@ bool SlippiSpectateServer::directPad(int port, u8 *out)
+ #endif
+ }
+ 
++bool SlippiSpectateServer::directProcessedPad(int port, u8 *out)
++{
++	if (m_direct_fd.load(std::memory_order_acquire) < 0 || port < 1 || port > 4 ||
++	    !m_direct_mixed || m_direct_frame.mode[port - 1] != 2) return false;
++	memcpy(out, m_direct_frame.data[port - 1].data(), 40);
++	return true;
++}
++
+ // CALLED FROM DOLPHIN MAIN THREAD. Sends one length-prefixed payload to
+ // the direct-channel client, if any. Non-blocking: rather than ever
+ // stalling emulation on a slow client, the client is dropped (it will
+diff --git a/Source/Core/Core/Slippi/SlippiSpectate.h b/Source/Core/Core/Slippi/SlippiSpectate.h
+index 6ea6ad6f1..d6b0d09cf 100644
+--- a/Source/Core/Core/Slippi/SlippiSpectate.h
++++ b/Source/Core/Core/Slippi/SlippiSpectate.h
+@@ -1,3 +1,5 @@
++#include "SlippiProcessedPad.h"
++#include <deque>
+ #pragma once
+ 
+ #include <atomic>
+@@ -69,6 +71,7 @@ class SlippiSpectateServer
+ 	bool directDrainInputs(bool block);
+ 	// Copy port's (1-4) latest channel pad into out; false if none yet.
+ 	bool directPad(int port, u8 *out);
++	bool directProcessedPad(int port, u8 *out);
+ 
+ 	// Don't try to copy the class. Delete those functions
+ 	SlippiSpectateServer(SlippiSpectateServer const &) = delete;
+@@ -115,6 +118,10 @@ class SlippiSpectateServer
+ 	u8 m_direct_pad_bufs[4][8];
+ 	bool m_direct_pad_set[4] = {false, false, false, false};
+ 	bool m_direct_got_batch = false;
++	bool m_direct_mixed = false;
++	bool m_direct_game_active = true; // Keep initial menu/start pacing; release only after GAME_END.
++	std::deque<SlippiInputFrame> m_direct_pending;
++	SlippiInputFrame m_direct_frame;
+ 
+ 	// ONLY ACCESSED FROM SERVER THREAD
+ 	bool m_in_game;

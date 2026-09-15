@@ -62,9 +62,28 @@ defmodule ExPhil.Data.Peppi do
   # NIF Struct Definitions
   # ============================================================================
 
+  defmodule ProcessedInput do
+    @moduledoc "Original pre-frame inputs and RNG for exact playback; sticks are in game units (-1..1)."
+    defstruct [
+      :rng_seed,
+      :main_x,
+      :main_y,
+      :c_x,
+      :c_y,
+      :trigger,
+      :buttons,
+      :physical_buttons,
+      :raw_main_x,
+      :raw_main_y,
+      :raw_c_x,
+      :raw_c_y
+    ]
+  end
+
   defmodule Controller do
     @moduledoc "Controller state from Peppi NIF"
     defstruct [
+      :processed,
       :main_stick_x,
       :main_stick_y,
       :c_stick_x,
@@ -449,14 +468,16 @@ defmodule ExPhil.Data.Peppi do
       current = :array.get(t, frame_array)
 
       if current.game_state.frame == delayed.game_state.frame + delay do
-        [%{
-          game_state: delayed.game_state,
-          controller: current.controller,
-          player_tag: current[:player_tag],
-          frame_delay: delay,
-          observed_frame: t - delay,
-          action_frame: t
-        }]
+        [
+          %{
+            game_state: delayed.game_state,
+            controller: current.controller,
+            player_tag: current[:player_tag],
+            frame_delay: delay,
+            observed_frame: t - delay,
+            action_frame: t
+          }
+        ]
       else
         []
       end

@@ -1,0 +1,80 @@
+{
+  "deterministic": true,
+  "driver": "teacher",
+  "timestamp": "20260915_005614",
+  "manifest": "eval_runs/0915_float_input/coverage02/mined.json",
+  "summary": {},
+  "console_timeout": null,
+  "verify_input_timing": true,
+  "policy": null,
+  "response_delay": 4,
+  "input_offset": 1,
+  "audit_teacher_labels": true,
+  "prefix_history": "committed",
+  "response_opponent": "neutral",
+  "fixture": "test/fixtures/replays/fox_multishine_closed_d1.slp",
+  "runs": [
+    {
+      "error": "dolphin ended: dolphin_disconnected",
+      "type": "multishine_reentry",
+      "run": 1,
+      "window": 360,
+      "frame": 1454,
+      "float_ports": [
+        1,
+        2
+      ],
+      "slp": "eval_runs/0914_coverage_round/rollouts/marth/r2.slp",
+      "opponent_character": "marth",
+      "replay_dir": "eval_runs/0915_float_input/smoke10/runs/run00_multishine_reentry",
+      "wall_s": 3.4,
+      "note": "neutral {:right, :left, :opp_left} x=20.6 facing=-1 opp_dx=-17.8 opp_char=18",
+      "input_transport": "direct"
+    },
+    {
+      "error": "dolphin ended: dolphin_disconnected",
+      "type": "multishine_reentry",
+      "run": 1,
+      "window": 360,
+      "frame": 2580,
+      "float_ports": [
+        1,
+        2
+      ],
+      "slp": "eval_runs/0914_coverage_round/rollouts/peach/r2.slp",
+      "opponent_character": "peach",
+      "replay_dir": "eval_runs/0915_float_input/smoke10/runs/run01_multishine_reentry",
+      "wall_s": 3.3,
+      "note": "neutral {:left, :left, :opp_right} x=-69.2 facing=-1 opp_dx=16.5 opp_char=9",
+      "input_transport": "direct"
+    },
+    {
+      "error": "dolphin ended: dolphin_disconnected",
+      "type": "multishine_reentry",
+      "run": 1,
+      "window": 360,
+      "frame": 2633,
+      "float_ports": [
+        1,
+        2
+      ],
+      "slp": "eval_runs/0914_coverage_round/rollouts/peach/r2.slp",
+      "opponent_character": "peach",
+      "replay_dir": "eval_runs/0915_float_input/smoke10/runs/run02_multishine_reentry",
+      "wall_s": 3.3,
+      "note": "neutral {:left, :left, :opp_left} x=-72.2 facing=-1 opp_dx=-0.5 opp_char=9",
+      "input_transport": "direct"
+    }
+  ],
+  "temperature": null,
+  "agent_runtime": {
+    "float_ports": [
+      1,
+      2
+    ],
+    "input_transport": "direct"
+  },
+  "invalid_timing_runs": 0,
+  "diverged_runs": 0,
+  "errored_runs": 3
+}

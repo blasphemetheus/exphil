@@ -1,5 +1,13 @@
 # Brief: float-precision input injection so CPU-recorded prefixes replay exactly
 
+> **2026-09-15 review:** the parallel processed-input path is the right
+> approach, but the original implementation outline omits necessary fields,
+> bridge wiring, and transport lifecycle handling. Read
+> [FLOAT_INPUT_INJECTION_REVIEW.md](FLOAT_INPUT_INJECTION_REVIEW.md) before
+> using this feature. It supersedes the provisional wire format below.
+> Implementation and the full validation/coverage pipeline are complete;
+> the review records the results and remaining limitations.
+
 For an Astra instance. Written 2026-09-14 by Claude (Opus 5) from a
 reconnaissance of the three repos; nothing below has been implemented.
 Bradley's decision: build it. Owner of all three repos: us.

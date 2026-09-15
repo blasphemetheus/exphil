@@ -1,0 +1,16 @@
+{
+  "entries": [
+    {
+      "slp": "eval_runs/0914_coverage_round/rollouts/marth/r1.slp",
+      "frame": 344,
+      "type": "multishine_reentry",
+      "note": "raw CPU Marth float-prefix proof"
+    },
+    {
+      "slp": "eval_runs/0914_coverage_round/rollouts/marth/r1.slp",
+      "frame": 1026,
+      "type": "multishine_reentry",
+      "note": "raw CPU Marth float-prefix proof"
+    }
+  ]
+}

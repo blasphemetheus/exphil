@@ -73,12 +73,18 @@ defmodule ExPhil.Bridge.MeleePort do
   # live internal 0x19; crown-decider incident #5, GOTCHA #96 class).
   # Legal pool.
   @require_stage_aliases %{
-    fountain_of_dreams: :fountain_of_dreams, fod: :fountain_of_dreams,
-    pokemon_stadium: :pokemon_stadium, ps: :pokemon_stadium,
-    yoshis_story: :yoshis_story, ys: :yoshis_story,
-    dreamland: :dreamland, dl: :dreamland,
-    battlefield: :battlefield, bf: :battlefield,
-    final_destination: :final_destination, fd: :final_destination
+    fountain_of_dreams: :fountain_of_dreams,
+    fod: :fountain_of_dreams,
+    pokemon_stadium: :pokemon_stadium,
+    ps: :pokemon_stadium,
+    yoshis_story: :yoshis_story,
+    ys: :yoshis_story,
+    dreamland: :dreamland,
+    dl: :dreamland,
+    battlefield: :battlefield,
+    bf: :battlefield,
+    final_destination: :final_destination,
+    fd: :final_destination
   }
 
   # ============================================================================
@@ -386,7 +392,8 @@ defmodule ExPhil.Bridge.MeleePort do
       headless = truthy?(Map.get(config, :headless))
       dummy_mode = normalize_dummy_mode(Map.get(config, :dummy_mode, "none"), online)
 
-      exi_inputs = truthy?(Map.get(config, :exi_inputs))
+      exi_inputs =
+        truthy?(Map.get(config, :exi_inputs)) or truthy?(Map.get(config, :direct_inputs))
 
       if exi_inputs do
         Logger.info(
@@ -422,7 +429,7 @@ defmodule ExPhil.Bridge.MeleePort do
                  |> add_human_adapter_port(config, headless, online)
              }),
            {:ok, console} <-
-             start_console(slippi_port, polling, console_timeout, blocking_input),
+             start_console(slippi_port, polling, console_timeout, blocking_input, dolphin, config),
            :ok <- connect_console_with_retries(console, 5),
            {:ok, controller} <- start_controller(dolphin, controller_port, console),
            {:ok, dummy_controller} <-
@@ -547,6 +554,8 @@ defmodule ExPhil.Bridge.MeleePort do
     opts =
       [
         path: Map.fetch!(config, :dolphin_path),
+        exi_inputs: exi_inputs,
+        direct_inputs: truthy?(Map.get(config, :direct_inputs)),
         iso_path: Map.fetch!(config, :iso_path),
         slippi_port: slippi_port,
         headless: headless,
@@ -556,7 +565,11 @@ defmodule ExPhil.Bridge.MeleePort do
         save_replays: Map.get(config, :replay_dir) != nil,
         controller_ports: controller_ports,
         gecko_extra_codes:
-          if(exi_inputs, do: ["$Optional: Allow Bot Input Overrides"], else: [])
+          if(exi_inputs, do: ["$Optional: Allow Bot Input Overrides"], else: []) ++
+            if(truthy?(Map.get(config, :processed_inputs)),
+              do: ["$Optional: Allow Bot Processed Input Overrides"],
+              else: []
+            )
       ]
       |> put_if(:gfx_backend, Map.get(config, :gfx_backend))
       |> put_if(:replay_dir, Map.get(config, :replay_dir))
@@ -689,12 +702,28 @@ defmodule ExPhil.Bridge.MeleePort do
   def force_quit_ops(t) when rem(t, 2) == 1, do: [{:press, :start}]
   def force_quit_ops(_t), do: [{:release, :start}]
 
-  defp start_console(slippi_port, polling, console_timeout, blocking_input) do
+  defp start_console(slippi_port, polling, console_timeout, blocking_input, dolphin, config) do
+    direct =
+      if truthy?(Map.get(config, :direct_inputs)) do
+        [
+          transport: Melee.Transport.Direct,
+          transport_opts: [path: Melee.Dolphin.direct_channel_path(dolphin.home)],
+          protocol: :raw,
+          direct_inputs: true,
+          processed_inputs: truthy?(Map.get(config, :processed_inputs))
+        ]
+      else
+        []
+      end
+
     Melee.Console.start_link(
-      port: slippi_port,
-      polling_mode: polling,
-      polling_timeout: round(console_timeout * 1000),
-      blocking_input: blocking_input
+      direct ++
+        [
+          port: slippi_port,
+          polling_mode: polling,
+          polling_timeout: round(console_timeout * 1000),
+          blocking_input: blocking_input
+        ]
     )
   end
 
@@ -710,7 +739,11 @@ defmodule ExPhil.Bridge.MeleePort do
         {:error, reason} ->
           if attempt < attempts do
             wait = 2_000 * attempt
-            Logger.warning("[MeleePort] console connect attempt #{attempt} failed, retrying in #{wait}ms")
+
+            Logger.warning(
+              "[MeleePort] console connect attempt #{attempt} failed, retrying in #{wait}ms"
+            )
+
             Process.sleep(wait)
             {:cont, {:error, reason}}
           else
@@ -724,7 +757,7 @@ defmodule ExPhil.Bridge.MeleePort do
     with {:ok, pipe} <- Melee.Dolphin.setup_controller(dolphin, port),
          {:ok, controller} <- Melee.Controller.start_link(pipe_path: pipe),
          :ok <- Melee.Controller.connect(controller, 60_000),
-         :ok <- Melee.Console.register_controller(console, controller) do
+         :ok <- Melee.Console.register_controller(console, controller, port) do
       {:ok, controller}
     end
   end
@@ -850,7 +883,10 @@ defmodule ExPhil.Bridge.MeleePort do
       end
 
     # Track transitions for the postgame-report protocol.
-    state = if is_in_game and not state.last_in_game, do: %{state | postgame_reported: false}, else: state
+    state =
+      if is_in_game and not state.last_in_game,
+        do: %{state | postgame_reported: false},
+        else: state
 
     # Post-game grace timer for :postgame_delay: stamp when the game ends
     # by ANY route — the in-game -> menu transition catches quit-outs
@@ -891,7 +927,6 @@ defmodule ExPhil.Bridge.MeleePort do
     # decide (restart vs stop); navigate on subsequent frames.
     skip_menu_nav = is_postgame and not state.postgame_reported
     state = if is_postgame, do: %{state | postgame_reported: true}, else: state
-
 
     state =
       if is_menu and auto_menu and not skip_menu_nav do
@@ -1110,9 +1145,15 @@ defmodule ExPhil.Bridge.MeleePort do
     # won't start the match until the grace period passes.
     autostart =
       case {autostart, Map.get(state.config, :postgame_delay), state.postgame_left_at} do
-        {false, _, _} -> false
-        {true, nil, _} -> true
-        {true, _, nil} -> true
+        {false, _, _} ->
+          false
+
+        {true, nil, _} ->
+          true
+
+        {true, _, nil} ->
+          true
+
         {true, delay_s, left_at} ->
           System.monotonic_time(:millisecond) - left_at >= delay_s * 1000
       end
@@ -1270,7 +1311,7 @@ defmodule ExPhil.Bridge.MeleePort do
       # pre-signal, so the warmup interlock holds; at the local CSS
       # the helper has real feedback and could confirm mid-JIT.
       is_function(ready_check, 0) and at_css? and not ready_check.() and online? and
-          gamestate.menu_state == 6 and
+        gamestate.menu_state == 6 and
           ExPhil.Bridge.BlindCss.warmup_step(
             Process.get(:css_blind_phase, ExPhil.Bridge.BlindCss.new())
           ) == :steer ->
@@ -1518,6 +1559,7 @@ defmodule ExPhil.Bridge.MeleePort do
       end)
     end
   end
+
   # Per-frame /proc read of the selection words. MEM1 location is
   # found ONCE by a background task (the g12 lesson: the /proc scan
   # inline every frame starved the spectator socket); after that each
@@ -1658,8 +1700,11 @@ defmodule ExPhil.Bridge.MeleePort do
       ext
       |> Melee.Enums.Character.from_game_external()
       |> then(fn
-        nil -> 0
-        internal -> internal |> Melee.Enums.Character.from_id() |> Melee.Enums.Character.from_internal()
+        nil ->
+          0
+
+        internal ->
+          internal |> Melee.Enums.Character.from_id() |> Melee.Enums.Character.from_internal()
       end)
 
     row = div(css, 9)
@@ -1946,7 +1991,8 @@ defmodule ExPhil.Bridge.MeleePort do
     target =
       cond do
         port != nil and trunc(port) == state.opponent_port ->
-          state.dummy_controller || {:error, "No controller on port #{port} (enable a dummy_mode at init)"}
+          state.dummy_controller ||
+            {:error, "No controller on port #{port} (enable a dummy_mode at init)"}
 
         true ->
           state.controller
@@ -1957,8 +2003,13 @@ defmodule ExPhil.Bridge.MeleePort do
         error
 
       controller ->
-        apply_controller_input(controller, input)
-        :ok
+        if get_in_any(input, :processed_input) &&
+             !truthy?(Map.get(state.config, :processed_inputs)) do
+          {:error, "processed input requires an explicitly enabled float-capable direct session"}
+        else
+          apply_controller_input(controller, input)
+          :ok
+        end
     end
   end
 
@@ -1980,6 +2031,7 @@ defmodule ExPhil.Bridge.MeleePort do
     Melee.Controller.release_all(controller)
 
     main = get_in_any(input, :main_stick) || %{}
+
     Melee.Controller.tilt_analog(
       controller,
       :main,
@@ -1988,6 +2040,7 @@ defmodule ExPhil.Bridge.MeleePort do
     )
 
     c = get_in_any(input, :c_stick) || %{}
+
     Melee.Controller.tilt_analog(
       controller,
       :c,
@@ -2001,6 +2054,10 @@ defmodule ExPhil.Bridge.MeleePort do
 
     for {name, button} <- @button_map, truthy?(get_in_any(buttons, name)) do
       Melee.Controller.press_button(controller, button)
+    end
+
+    if processed = get_in_any(input, :processed_input) do
+      Melee.Controller.set_processed(controller, processed)
     end
 
     :ok
@@ -2159,7 +2216,10 @@ defmodule ExPhil.Bridge.MeleePort do
 
   defp teardown(state) do
     if state.controller, do: safe(fn -> Melee.Controller.disconnect(state.controller) end)
-    if state.dummy_controller, do: safe(fn -> Melee.Controller.disconnect(state.dummy_controller) end)
+
+    if state.dummy_controller,
+      do: safe(fn -> Melee.Controller.disconnect(state.dummy_controller) end)
+
     if state.console, do: safe(fn -> Melee.Console.stop(state.console) end)
     if state.dolphin, do: safe(fn -> Melee.Dolphin.stop(state.dolphin) end)
 

@@ -1,0 +1,2 @@
+# Archived patches retain their original context whitespace.
+eval_runs/0915_float_input/protocol_v1/*.patch -whitespace

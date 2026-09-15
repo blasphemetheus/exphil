@@ -130,3 +130,16 @@ eval_runs/0913_context_fit/*/fit.json
 eval_runs/0914_coverage_round/*/fit_*.json
 eval_runs/0914_coverage_round/teacher*.json
 eval_runs/0914_coverage_round/gen2.json
+
+# Large float-input experiment reports; compact results and hashes remain tracked
+eval_runs/0915_float_input/coverage02/teacher.json
+eval_runs/0915_float_input/coverage02/teacher_qualified.json
+eval_runs/0915_float_input/coverage03/round21/cov_heldout.json
+eval_runs/0915_float_input/coverage03/round21/cov_heldout_replay.json
+eval_runs/0915_float_input/coverage03/round21/cov_train.json
+eval_runs/0915_float_input/coverage03/round21/fit_heldout.json
+eval_runs/0915_float_input/coverage03/round21/fit_train.json
+eval_runs/0915_float_input/coverage03/teacher.json
+eval_runs/0915_float_input/coverage03/teacher_qualified.json
+eval_runs/0915_float_input/smoke11/report.json
+eval_runs/0915_float_input/review_smoke/report.json
