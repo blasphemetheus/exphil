@@ -1,0 +1,68 @@
+{
+  "first": -39,
+  "ports": [
+    {
+      "input": null,
+      "port": 1,
+      "state": null,
+      "missing": null,
+      "compared": 1764
+    },
+    {
+      "input": null,
+      "port": 2,
+      "state": {
+        "source": {
+          "x": -59.82684326171875,
+          "y": 14.091766357421875,
+          "character": 18,
+          "action": 86,
+          "percent": 20.999998092651367,
+          "action_frame": 2.0,
+          "on_ground": false,
+          "facing": -1,
+          "stock": 4,
+          "hitstun_frames_left": 0.0,
+          "invulnerable": true,
+          "jumps_left": 0,
+          "shield_strength": 60.0,
+          "speed_air_x_self": 0.0,
+          "speed_ground_x_self": 0.0,
+          "speed_x_attack": 2.3307113647460938,
+          "speed_y_attack": 0.0,
+          "speed_y_self": -0.08500000089406967
+        },
+        "rerun": {
+          "x": -59.82684326171875,
+          "y": 14.091766357421875,
+          "character": 18,
+          "action": 86,
+          "percent": 20.999998092651367,
+          "action_frame": 2.0,
+          "on_ground": false,
+          "facing": -1,
+          "stock": 4,
+          "hitstun_frames_left": 0.0,
+          "invulnerable": true,
+          "jumps_left": 0,
+          "shield_strength": 60.0,
+          "speed_air_x_self": 0.0,
+          "speed_ground_x_self": 0.0,
+          "speed_x_attack": 2.3307113647460938,
+          "speed_y_attack": -0.0,
+          "speed_y_self": -0.08500000089406967
+        },
+        "frame": 806
+      },
+      "missing": null,
+      "compared": 1764
+    }
+  ],
+  "last": 1724,
+  "valid": false,
+  "expected_frames": 1764,
+  "exact_raw_input_ports": [
+    1,
+    2
+  ]
+}

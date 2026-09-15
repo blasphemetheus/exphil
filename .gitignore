@@ -143,3 +143,4 @@ eval_runs/0915_float_input/coverage03/teacher.json
 eval_runs/0915_float_input/coverage03/teacher_qualified.json
 eval_runs/0915_float_input/smoke11/report.json
 eval_runs/0915_float_input/review_smoke/report.json
+eval_runs/0915_float_input/nmsub_cpu_smoke/report.json

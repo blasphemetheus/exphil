@@ -556,6 +556,7 @@ defmodule ExPhil.Bridge.MeleePort do
         path: Map.fetch!(config, :dolphin_path),
         exi_inputs: exi_inputs,
         direct_inputs: truthy?(Map.get(config, :direct_inputs)),
+        accurate_nmsub: truthy?(Map.get(config, :accurate_nmsub)),
         iso_path: Map.fetch!(config, :iso_path),
         slippi_port: slippi_port,
         headless: headless,

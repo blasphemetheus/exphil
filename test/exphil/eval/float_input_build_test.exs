@@ -19,6 +19,9 @@ defmodule ExPhil.Eval.FloatInputBuildTest do
     data = %{protocol: 2, binary_sha256: hash.(exe), gecko_sha256: hash.(ini)}
     File.write!(manifest, Jason.encode!(data))
     assert :ok = FloatInputBuild.verify!(exe)
+    assert_raise RuntimeError, ~r/does not support/, fn -> FloatInputBuild.verify!(exe, true) end
+    File.write!(manifest, Jason.encode!(Map.put(data, :accurate_nmsub, true)))
+    assert :ok = FloatInputBuild.verify!(exe, true)
     File.write!(exe, "changed executable")
     assert_raise RuntimeError, ~r/hash mismatch/, fn -> FloatInputBuild.verify!(exe) end
     File.write!(exe, "test executable")

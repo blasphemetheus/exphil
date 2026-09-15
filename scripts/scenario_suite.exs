@@ -40,6 +40,8 @@
 #   --float-ports 1,2     Inject original processed inputs for these recorded ports
 #                        (implies direct inputs; default build directory exi-ai-float).
 #                        Audits every prefix frame before accepting a score.
+#   --accurate-nmsub     Use correct signed-zero arithmetic for compatible sources;
+#                        a manifest entry's accurate_nmsub boolean overrides this.
 #   --no-pipe-shim       Preserve analog triggers (default for direct/float mode)
 #   --iso PATH           Melee ISO (default ~/isos/melee.iso)
 #   --windowed           Disable headless (debugging; needs the netplay build)
@@ -230,6 +232,7 @@ defmodule ScenarioSuite do
       dolphin_path: opts[:dolphin],
       direct_inputs: opts[:direct_inputs] || false,
       processed_inputs: opts[:direct_inputs] || false,
+      accurate_nmsub: Map.get(entry, :accurate_nmsub, opts[:accurate_nmsub] || false),
       iso_path: opts[:iso],
       controller_port: 1,
       opponent_port: 2,
@@ -309,6 +312,7 @@ defmodule ScenarioSuite do
         window: window,
         opponent_character: config.dummy_character,
         float_ports: opts[:float_ports],
+        accurate_nmsub: config.accurate_nmsub,
         input_transport: if(config.direct_inputs, do: "direct", else: "pipe"),
         wall_s: Float.round(wall_s, 1),
         replay_dir: run_dir
@@ -820,6 +824,7 @@ end
       dolphin: :string,
       float_ports: :string,
       direct_inputs: :boolean,
+      accurate_nmsub: :boolean,
       iso: :string,
       windowed: :boolean,
       trace_all: :boolean,
@@ -845,8 +850,9 @@ end
 unless Enum.all?(float_ports, &(&1 in [1, 2])), do: raise("--float-ports must contain only 1 and/or 2")
 direct_inputs = opts[:direct_inputs] || float_ports != []
 if direct_inputs do
-  ExPhil.Eval.FloatInputBuild.verify!(Path.expand(opts[:dolphin] || "~/.local/share/slippi/exi-ai-float/dolphin-emu-headless"))
+  ExPhil.Eval.FloatInputBuild.verify!(Path.expand(opts[:dolphin] || "~/.local/share/slippi/exi-ai-float/dolphin-emu-headless"), opts[:accurate_nmsub] || false)
 end
+if opts[:accurate_nmsub] == true and not direct_inputs, do: raise("--accurate-nmsub requires a verified --direct-inputs or --float-ports session")
 opts = Keyword.put_new(opts, :pipe_shim, not direct_inputs)
 if float_ports != [] and opts[:pipe_shim], do: raise("--float-ports requires --no-pipe-shim")
 
@@ -904,6 +910,7 @@ unless (opts[:response_opponent] || "replay") in ["replay", "neutral"],
 suite_opts = [
   float_ports: float_ports,
   direct_inputs: direct_inputs,
+  accurate_nmsub: opts[:accurate_nmsub] || false,
   response_opponent: opts[:response_opponent] || "replay",
   verify_input_timing: Keyword.get(opts, :verify_input_timing, true),
   console_timeout: opts[:console_timeout],
@@ -932,7 +939,10 @@ type_by_name = Map.new(ScenarioScan.types(), fn t -> {to_string(t), t} end)
 entries =
   manifest["entries"]
   |> Enum.map(fn e ->
+    accurate_nmsub = Map.get(e, "accurate_nmsub", opts[:accurate_nmsub] || false)
+    unless is_boolean(accurate_nmsub), do: raise("manifest accurate_nmsub must be a boolean")
     %{
+      accurate_nmsub: accurate_nmsub,
       slp: e["slp"],
       frame: e["frame"],
       type: Map.fetch!(type_by_name, e["type"]),
@@ -957,6 +967,10 @@ entries =
   end
 
 runs = opts[:runs] || 1
+if Enum.any?(entries, & &1.accurate_nmsub) do
+  unless direct_inputs, do: raise("accurate_nmsub requires direct inputs")
+  ExPhil.Eval.FloatInputBuild.verify!(suite_opts[:dolphin], true)
+end
 deterministic = opts[:temperature] == nil
 
 Output.banner("ExPhil Scenario Suite")
@@ -1050,7 +1064,7 @@ agent_runtime =
     |> Map.take([:delay_id, :reaction_delay, :harness, :harness_knob, :af_convention])
   end
 
-agent_runtime = Map.merge(agent_runtime || %{}, %{float_ports: float_ports, input_transport: if(direct_inputs, do: "direct", else: "pipe")})
+agent_runtime = Map.merge(agent_runtime || %{}, %{float_ports: float_ports, accurate_nmsub: opts[:accurate_nmsub] || false, input_transport: if(direct_inputs, do: "direct", else: "pipe")})
 opts = Keyword.merge(opts, driver: driver, expert: expert)
 suite_opts = Keyword.merge(suite_opts, driver: driver, expert: expert, character: opts[:character], opponent_character: opts[:opponent_character])
 

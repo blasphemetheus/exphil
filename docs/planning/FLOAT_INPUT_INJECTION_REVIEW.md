@@ -2,6 +2,11 @@
 
 2026-09-15. Companion to `FLOAT_INPUT_INJECTION_BRIEF.md`.
 
+**Follow-up:** the four human-prefix failures are now explained by the old
+JIT's signed-zero arithmetic. See [HUMAN_REPLAY_FAILURES.md](HUMAN_REPLAY_FAILURES.md)
+for the correction, the explicit source-compatibility option, and regression
+results. The original coverage numbers below remain historical results.
+
 ## Assessment
 
 The diagnosis and separate byte/processed paths are sound. The brief is a
@@ -282,9 +287,11 @@ This is a host-local Nix build with build-tree runtime dependencies, not a
 portable AppImage. The manifest `float-input-v2.json` records the build hashes. The installer
 also requires the binary's v2 capability marker and the v2 hook description.
 
-On this host, `~/.local/share/slippi/exi-ai-float` points to the validated
-`exi-ai-float-rng-v2b`. All earlier installs are preserved; `exi-ai-flush`
-is unchanged. The `coverage03` launcher pins this new v2 install directly.
+The `coverage03` launcher pins the validated `exi-ai-float-rng-v2b` build.
+After the human-replay follow-up, `~/.local/share/slippi/exi-ai-float` points
+to `exi-ai-float-nmsub-option-v2`, which preserves legacy arithmetic by default
+and supports `--accurate-nmsub` for compatible source recordings. All earlier
+installs are preserved; `exi-ai-flush` is unchanged.
 
 Add `--float-ports 1,2 --no-pipe-shim --dolphin PATH` to the suite to replay
 both recorded ports exactly; use `--float-ports 2` for a mixed byte/float

@@ -49,6 +49,7 @@ end
 
 manifest = %{
   protocol: 2,
+  accurate_nmsub: :binary.match(File.read!(binary), "AccurateNmsub") != :nomatch,
   binary_sha256: sha.(installed),
   gecko_sha256: sha.(ini),
   asm_sha256: sha.(source),
