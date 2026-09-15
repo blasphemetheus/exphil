@@ -127,3 +127,6 @@ eval_runs/0913_dropout_audit/fit.json
 eval_runs/0913_no_dropout_fit/round21/fit.json
 eval_runs/0913_recovery_labels/teacher_breaks.json
 eval_runs/0913_context_fit/*/fit.json
+eval_runs/0914_coverage_round/*/fit_*.json
+eval_runs/0914_coverage_round/teacher*.json
+eval_runs/0914_coverage_round/gen2.json

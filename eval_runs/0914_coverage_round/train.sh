@@ -30,8 +30,10 @@ targets_of() { jq "[.results[] | select(.export | test(\"$1\")) | .targets] | ad
 ORIG=$(jq '[.results[].targets] | add' eval_runs/0914_delay4_proof/clips/report.json)
 TRAIN_NEW=$(mix run --no-start -e 'IO.puts(Path.wildcard("'$OUT'/clips_train/*.frames") |> Enum.map(fn p -> [l] = (p |> File.read!() |> :erlang.binary_to_term()).frame_lists; Enum.count(l, &(&1[:input_only] != true)) end) |> Enum.sum())' 2>/dev/null | tail -1)
 HELD_NEW=$(mix run --no-start -e 'IO.puts(Path.wildcard("'$OUT'/clips_heldout/*.frames") |> Enum.map(fn p -> [l] = (p |> File.read!() |> :erlang.binary_to_term()).frame_lists; Enum.count(l, &(&1[:input_only] != true)) end) |> Enum.sum())' 2>/dev/null | tail -1)
-EXPECTED=$(( 7079 - K + ORIG + TRAIN_NEW ))
-EXPECTED_HELD=$(( 7079 - K + HELD_NEW ))
+# clips are stored UNSHIFTED; the fit applies the delay-K shift (drops K per clip)
+N_TRAIN=$(command ls $OUT/clips_train/*.frames | wc -l); N_HELD=$(command ls $OUT/clips_heldout/*.frames | wc -l)
+EXPECTED=$(( 7079 - K + ORIG + TRAIN_NEW - K * N_TRAIN ))
+EXPECTED_HELD=$(( 7079 - K + HELD_NEW - K * N_HELD ))
 say "=== stage 3: train on canonical + orig 9 ($ORIG targets) + coverage train ($TRAIN_NEW targets) = $EXPECTED; held-out $HELD_NEW"
 git rev-parse HEAD > "$R/git_head.txt"
 sha256sum "$0" scripts/{dagger_drill,measure_teacher_fit,check_early_teacher_fit,scenario_suite,score_interruption_recovery}.exs \

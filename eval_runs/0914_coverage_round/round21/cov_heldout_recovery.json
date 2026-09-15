@@ -1,0 +1,1757 @@
+{
+  "results": [
+    {
+      "run": 1,
+      "directory": "eval_runs/0914_coverage_round/round21/cov_heldout/run00_multishine_reentry",
+      "valid": true,
+      "frame": 412,
+      "replay": "eval_runs/0914_coverage_round/round21/cov_heldout/run00_multishine_reentry/Game_20260914T195659.slp",
+      "metrics": {
+        "frames": 360,
+        "recovery": {
+          "completed": 1,
+          "episodes": [
+            {
+              "cause": "hitstun",
+              "start": 413,
+              "finish": 429,
+              "outcome": "reentered",
+              "ready": 420
+            }
+          ],
+          "ready_to_cycle_frames": [
+            9
+          ],
+          "censored": 0,
+          "disruption_to_cycle_frames": [
+            16
+          ]
+        },
+        "deaths": 0,
+        "chains": [
+          {
+            "length": 40,
+            "ended_by": "end_of_input"
+          }
+        ],
+        "completed_cycles": 39,
+        "endings": {
+          "end_of_input": 1
+        },
+        "ground_shine_onsets": 40,
+        "ground_shines_per_minute": 400.0,
+        "max_chain": 40,
+        "recent_hit_onsets": 3,
+        "self_initiated_onsets": 37,
+        "self_initiated_per_minute": 370.0
+      },
+      "initial_hit_episode": {
+        "cause": "hitstun",
+        "start": 413,
+        "finish": 429,
+        "outcome": "reentered",
+        "ready": 420
+      },
+      "game_ended": false,
+      "opponent_input_audit": {
+        "frames": 357,
+        "non_neutral": 0,
+        "after_settling_frames": 3
+      },
+      "later_damage_increase_frames": [],
+      "ready_to_cycle_frames": 9,
+      "ready_followup_frames": 9,
+      "observed_full_readiness_deadline": false,
+      "resumed_within60_ready_frames": true,
+      "replay_sha256": "81ded09f1e59e8306169a42f7b22938360b8b0401e047004d5bec6c793c01d2f"
+    },
+    {
+      "run": 2,
+      "directory": "eval_runs/0914_coverage_round/round21/cov_heldout/run01_multishine_reentry",
+      "valid": true,
+      "frame": 412,
+      "replay": "eval_runs/0914_coverage_round/round21/cov_heldout/run01_multishine_reentry/Game_20260914T195709.slp",
+      "metrics": {
+        "frames": 360,
+        "recovery": {
+          "completed": 1,
+          "episodes": [
+            {
+              "cause": "hitstun",
+              "start": 413,
+              "finish": 429,
+              "outcome": "reentered",
+              "ready": 420
+            }
+          ],
+          "ready_to_cycle_frames": [
+            9
+          ],
+          "censored": 0,
+          "disruption_to_cycle_frames": [
+            16
+          ]
+        },
+        "deaths": 0,
+        "chains": [
+          {
+            "length": 40,
+            "ended_by": "end_of_input"
+          }
+        ],
+        "completed_cycles": 39,
+        "endings": {
+          "end_of_input": 1
+        },
+        "ground_shine_onsets": 40,
+        "ground_shines_per_minute": 400.0,
+        "max_chain": 40,
+        "recent_hit_onsets": 3,
+        "self_initiated_onsets": 37,
+        "self_initiated_per_minute": 370.0
+      },
+      "initial_hit_episode": {
+        "cause": "hitstun",
+        "start": 413,
+        "finish": 429,
+        "outcome": "reentered",
+        "ready": 420
+      },
+      "game_ended": false,
+      "opponent_input_audit": {
+        "frames": 357,
+        "non_neutral": 0,
+        "after_settling_frames": 3
+      },
+      "later_damage_increase_frames": [],
+      "ready_to_cycle_frames": 9,
+      "ready_followup_frames": 9,
+      "observed_full_readiness_deadline": false,
+      "resumed_within60_ready_frames": true,
+      "replay_sha256": "4b237c3d802a8f33ebf0349350cf6c68a6c8b0ffd6e2f882de74834817868f58"
+    },
+    {
+      "run": 1,
+      "directory": "eval_runs/0914_coverage_round/round21/cov_heldout/run02_multishine_reentry",
+      "valid": true,
+      "frame": 1616,
+      "replay": "eval_runs/0914_coverage_round/round21/cov_heldout/run02_multishine_reentry/Game_20260914T195719.slp",
+      "metrics": {
+        "frames": 360,
+        "recovery": {
+          "completed": 1,
+          "episodes": [
+            {
+              "cause": "hitstun",
+              "start": 1617,
+              "finish": null,
+              "outcome": "interrupted_again",
+              "ready": 1621,
+              "last_observed": 1626
+            },
+            {
+              "cause": "hitstun",
+              "start": 1627,
+              "finish": null,
+              "outcome": "interrupted_again",
+              "ready": 1634,
+              "last_observed": 1638
+            },
+            {
+              "cause": "hitstun",
+              "start": 1639,
+              "finish": null,
+              "outcome": "interrupted_again",
+              "ready": 1646,
+              "last_observed": 1650
+            },
+            {
+              "cause": "hitstun",
+              "start": 1651,
+              "finish": null,
+              "outcome": "interrupted_again",
+              "ready": 1658,
+              "last_observed": 1662
+            },
+            {
+              "cause": "hitstun",
+              "start": 1663,
+              "finish": null,
+              "outcome": "interrupted_again",
+              "ready": 1670,
+              "last_observed": 1674
+            },
+            {
+              "cause": "hitstun",
+              "start": 1675,
+              "finish": null,
+              "outcome": "interrupted_again",
+              "ready": 1682,
+              "last_observed": 1686
+            },
+            {
+              "cause": "hitstun",
+              "start": 1687,
+              "finish": null,
+              "outcome": "interrupted_again",
+              "ready": 1694,
+              "last_observed": 1698
+            },
+            {
+              "cause": "hitstun",
+              "start": 1699,
+              "finish": null,
+              "outcome": "interrupted_again",
+              "ready": 1706,
+              "last_observed": 1710
+            },
+            {
+              "cause": "hitstun",
+              "start": 1711,
+              "finish": 1727,
+              "outcome": "reentered",
+              "ready": 1718
+            }
+          ],
+          "ready_to_cycle_frames": [
+            9
+          ],
+          "censored": 8,
+          "disruption_to_cycle_frames": [
+            16
+          ]
+        },
+        "deaths": 0,
+        "chains": [
+          {
+            "length": 1,
+            "ended_by": "other_action"
+          },
+          {
+            "length": 1,
+            "ended_by": "other_action"
+          },
+          {
+            "length": 1,
+            "ended_by": "other_action"
+          },
+          {
+            "length": 1,
+            "ended_by": "other_action"
+          },
+          {
+            "length": 1,
+            "ended_by": "other_action"
+          },
+          {
+            "length": 1,
+            "ended_by": "other_action"
+          },
+          {
+            "length": 1,
+            "ended_by": "other_action"
+          },
+          {
+            "length": 1,
+            "ended_by": "other_action"
+          },
+          {
+            "length": 29,
+            "ended_by": "end_of_input"
+          }
+        ],
+        "completed_cycles": 28,
+        "endings": {
+          "end_of_input": 1,
+          "other_action": 8
+        },
+        "ground_shine_onsets": 37,
+        "ground_shines_per_minute": 370.0,
+        "max_chain": 29,
+        "recent_hit_onsets": 11,
+        "self_initiated_onsets": 26,
+        "self_initiated_per_minute": 260.0
+      },
+      "initial_hit_episode": {
+        "cause": "hitstun",
+        "start": 1617,
+        "finish": null,
+        "outcome": "interrupted_again",
+        "ready": 1621,
+        "last_observed": 1626
+      },
+      "game_ended": false,
+      "opponent_input_audit": {
+        "frames": 357,
+        "non_neutral": 0,
+        "after_settling_frames": 3
+      },
+      "later_damage_increase_frames": [],
+      "ready_to_cycle_frames": null,
+      "ready_followup_frames": 5,
+      "observed_full_readiness_deadline": false,
+      "resumed_within60_ready_frames": false,
+      "replay_sha256": "bcbd1a4972fc699a49b390069dfa04be6b66d09b2b31801184bb4b016d2373ad"
+    },
+    {
+      "run": 2,
+      "directory": "eval_runs/0914_coverage_round/round21/cov_heldout/run03_multishine_reentry",
+      "valid": true,
+      "frame": 1616,
+      "replay": "eval_runs/0914_coverage_round/round21/cov_heldout/run03_multishine_reentry/Game_20260914T195739.slp",
+      "metrics": {
+        "frames": 360,
+        "recovery": {
+          "completed": 1,
+          "episodes": [
+            {
+              "cause": "hitstun",
+              "start": 1617,
+              "finish": null,
+              "outcome": "interrupted_again",
+              "ready": 1621,
+              "last_observed": 1632
+            },
+            {
+              "cause": "hitstun",
+              "start": 1633,
+              "finish": null,
+              "outcome": "interrupted_again",
+              "ready": 1640,
+              "last_observed": 1644
+            },
+            {
+              "cause": "hitstun",
+              "start": 1645,
+              "finish": null,
+              "outcome": "interrupted_again",
+              "ready": 1652,
+              "last_observed": 1656
+            },
+            {
+              "cause": "hitstun",
+              "start": 1657,
+              "finish": null,
+              "outcome": "interrupted_again",
+              "ready": 1664,
+              "last_observed": 1668
+            },
+            {
+              "cause": "hitstun",
+              "start": 1669,
+              "finish": null,
+              "outcome": "interrupted_again",
+              "ready": 1676,
+              "last_observed": 1680
+            },
+            {
+              "cause": "hitstun",
+              "start": 1681,
+              "finish": null,
+              "outcome": "interrupted_again",
+              "ready": 1688,
+              "last_observed": 1692
+            },
+            {
+              "cause": "hitstun",
+              "start": 1693,
+              "finish": null,
+              "outcome": "interrupted_again",
+              "ready": 1700,
+              "last_observed": 1704
+            },
+            {
+              "cause": "hitstun",
+              "start": 1705,
+              "finish": 1721,
+              "outcome": "reentered",
+              "ready": 1712
+            }
+          ],
+          "ready_to_cycle_frames": [
+            9
+          ],
+          "censored": 7,
+          "disruption_to_cycle_frames": [
+            16
+          ]
+        },
+        "deaths": 0,
+        "chains": [
+          {
+            "length": 1,
+            "ended_by": "other_action"
+          },
+          {
+            "length": 1,
+            "ended_by": "other_action"
+          },
+          {
+            "length": 1,
+            "ended_by": "other_action"
+          },
+          {
+            "length": 1,
+            "ended_by": "other_action"
+          },
+          {
+            "length": 1,
+            "ended_by": "other_action"
+          },
+          {
+            "length": 1,
+            "ended_by": "other_action"
+          },
+          {
+            "length": 1,
+            "ended_by": "other_action"
+          },
+          {
+            "length": 30,
+            "ended_by": "end_of_input"
+          }
+        ],
+        "completed_cycles": 29,
+        "endings": {
+          "end_of_input": 1,
+          "other_action": 7
+        },
+        "ground_shine_onsets": 37,
+        "ground_shines_per_minute": 370.0,
+        "max_chain": 30,
+        "recent_hit_onsets": 10,
+        "self_initiated_onsets": 27,
+        "self_initiated_per_minute": 270.0
+      },
+      "initial_hit_episode": {
+        "cause": "hitstun",
+        "start": 1617,
+        "finish": null,
+        "outcome": "interrupted_again",
+        "ready": 1621,
+        "last_observed": 1632
+      },
+      "game_ended": false,
+      "opponent_input_audit": {
+        "frames": 357,
+        "non_neutral": 0,
+        "after_settling_frames": 3
+      },
+      "later_damage_increase_frames": [],
+      "ready_to_cycle_frames": null,
+      "ready_followup_frames": 11,
+      "observed_full_readiness_deadline": false,
+      "resumed_within60_ready_frames": false,
+      "replay_sha256": "dab75d4fa4e716151a58fe09cc6ae02fcbd65215664df52cd2f33ed6a6114edb"
+    },
+    {
+      "run": 1,
+      "directory": "eval_runs/0914_coverage_round/round21/cov_heldout/run04_multishine_reentry",
+      "valid": true,
+      "frame": 299,
+      "replay": "eval_runs/0914_coverage_round/round21/cov_heldout/run04_multishine_reentry/Game_20260914T195802.slp",
+      "metrics": {
+        "frames": 360,
+        "recovery": {
+          "completed": 1,
+          "episodes": [
+            {
+              "cause": "hitstun",
+              "start": 300,
+              "finish": 423,
+              "outcome": "reentered",
+              "ready": 353
+            }
+          ],
+          "ready_to_cycle_frames": [
+            70
+          ],
+          "censored": 0,
+          "disruption_to_cycle_frames": [
+            123
+          ]
+        },
+        "deaths": 0,
+        "chains": [
+          {
+            "length": 1,
+            "ended_by": "other_action"
+          },
+          {
+            "length": 1,
+            "ended_by": "other_action"
+          },
+          {
+            "length": 1,
+            "ended_by": "other_action"
+          },
+          {
+            "length": 28,
+            "ended_by": "end_of_input"
+          }
+        ],
+        "completed_cycles": 27,
+        "endings": {
+          "end_of_input": 1,
+          "other_action": 3
+        },
+        "ground_shine_onsets": 31,
+        "ground_shines_per_minute": 310.0,
+        "max_chain": 28,
+        "recent_hit_onsets": 0,
+        "self_initiated_onsets": 31,
+        "self_initiated_per_minute": 310.0
+      },
+      "initial_hit_episode": {
+        "cause": "hitstun",
+        "start": 300,
+        "finish": 423,
+        "outcome": "reentered",
+        "ready": 353
+      },
+      "game_ended": false,
+      "opponent_input_audit": {
+        "frames": 357,
+        "non_neutral": 0,
+        "after_settling_frames": 3
+      },
+      "later_damage_increase_frames": [],
+      "ready_to_cycle_frames": 70,
+      "ready_followup_frames": 70,
+      "observed_full_readiness_deadline": true,
+      "resumed_within60_ready_frames": false,
+      "replay_sha256": "6ad512c68ae72a09d8818744125036026c2ec219ea739f08c002269296cd09b1"
+    },
+    {
+      "run": 2,
+      "directory": "eval_runs/0914_coverage_round/round21/cov_heldout/run05_multishine_reentry",
+      "valid": true,
+      "frame": 299,
+      "replay": "eval_runs/0914_coverage_round/round21/cov_heldout/run05_multishine_reentry/Game_20260914T195813.slp",
+      "metrics": {
+        "frames": 360,
+        "recovery": {
+          "completed": 1,
+          "episodes": [
+            {
+              "cause": "hitstun",
+              "start": 300,
+              "finish": 371,
+              "outcome": "reentered",
+              "ready": 347
+            }
+          ],
+          "ready_to_cycle_frames": [
+            24
+          ],
+          "censored": 0,
+          "disruption_to_cycle_frames": [
+            71
+          ]
+        },
+        "deaths": 0,
+        "chains": [
+          {
+            "length": 1,
+            "ended_by": "other_action"
+          },
+          {
+            "length": 34,
+            "ended_by": "end_of_input"
+          }
+        ],
+        "completed_cycles": 33,
+        "endings": {
+          "end_of_input": 1,
+          "other_action": 1
+        },
+        "ground_shine_onsets": 35,
+        "ground_shines_per_minute": 350.0,
+        "max_chain": 34,
+        "recent_hit_onsets": 0,
+        "self_initiated_onsets": 35,
+        "self_initiated_per_minute": 350.0
+      },
+      "initial_hit_episode": {
+        "cause": "hitstun",
+        "start": 300,
+        "finish": 371,
+        "outcome": "reentered",
+        "ready": 347
+      },
+      "game_ended": false,
+      "opponent_input_audit": {
+        "frames": 357,
+        "non_neutral": 0,
+        "after_settling_frames": 3
+      },
+      "later_damage_increase_frames": [],
+      "ready_to_cycle_frames": 24,
+      "ready_followup_frames": 24,
+      "observed_full_readiness_deadline": false,
+      "resumed_within60_ready_frames": true,
+      "replay_sha256": "c6a76e9592025e59d1196c6b65b2335b33b77b89e4a524294a55ce5eb24678b2"
+    },
+    {
+      "run": 1,
+      "directory": "eval_runs/0914_coverage_round/round21/cov_heldout/run06_multishine_reentry",
+      "valid": true,
+      "frame": 643,
+      "replay": "eval_runs/0914_coverage_round/round21/cov_heldout/run06_multishine_reentry/Game_20260914T195823.slp",
+      "metrics": {
+        "frames": 360,
+        "recovery": {
+          "completed": 1,
+          "episodes": [
+            {
+              "cause": "hitstun",
+              "start": 644,
+              "finish": 660,
+              "outcome": "reentered",
+              "ready": 651
+            }
+          ],
+          "ready_to_cycle_frames": [
+            9
+          ],
+          "censored": 0,
+          "disruption_to_cycle_frames": [
+            16
+          ]
+        },
+        "deaths": 0,
+        "chains": [
+          {
+            "length": 40,
+            "ended_by": "end_of_input"
+          }
+        ],
+        "completed_cycles": 39,
+        "endings": {
+          "end_of_input": 1
+        },
+        "ground_shine_onsets": 40,
+        "ground_shines_per_minute": 400.0,
+        "max_chain": 40,
+        "recent_hit_onsets": 3,
+        "self_initiated_onsets": 37,
+        "self_initiated_per_minute": 370.0
+      },
+      "initial_hit_episode": {
+        "cause": "hitstun",
+        "start": 644,
+        "finish": 660,
+        "outcome": "reentered",
+        "ready": 651
+      },
+      "game_ended": false,
+      "opponent_input_audit": {
+        "frames": 357,
+        "non_neutral": 0,
+        "after_settling_frames": 3
+      },
+      "later_damage_increase_frames": [],
+      "ready_to_cycle_frames": 9,
+      "ready_followup_frames": 9,
+      "observed_full_readiness_deadline": false,
+      "resumed_within60_ready_frames": true,
+      "replay_sha256": "182f4064384a4e2ac74ce4085e516f881c34f759c777c6470d29c46fb9921471"
+    },
+    {
+      "run": 2,
+      "directory": "eval_runs/0914_coverage_round/round21/cov_heldout/run07_multishine_reentry",
+      "valid": true,
+      "frame": 643,
+      "replay": "eval_runs/0914_coverage_round/round21/cov_heldout/run07_multishine_reentry/Game_20260914T195838.slp",
+      "metrics": {
+        "frames": 360,
+        "recovery": {
+          "completed": 1,
+          "episodes": [
+            {
+              "cause": "hitstun",
+              "start": 644,
+              "finish": 796,
+              "outcome": "reentered",
+              "ready": 651
+            }
+          ],
+          "ready_to_cycle_frames": [
+            145
+          ],
+          "censored": 0,
+          "disruption_to_cycle_frames": [
+            152
+          ]
+        },
+        "deaths": 0,
+        "chains": [
+          {
+            "length": 1,
+            "ended_by": "empty_hop"
+          },
+          {
+            "length": 25,
+            "ended_by": "end_of_input"
+          }
+        ],
+        "completed_cycles": 24,
+        "endings": {
+          "end_of_input": 1,
+          "empty_hop": 1
+        },
+        "ground_shine_onsets": 26,
+        "ground_shines_per_minute": 260.0,
+        "max_chain": 25,
+        "recent_hit_onsets": 1,
+        "self_initiated_onsets": 25,
+        "self_initiated_per_minute": 250.0
+      },
+      "initial_hit_episode": {
+        "cause": "hitstun",
+        "start": 644,
+        "finish": 796,
+        "outcome": "reentered",
+        "ready": 651
+      },
+      "game_ended": false,
+      "opponent_input_audit": {
+        "frames": 357,
+        "non_neutral": 0,
+        "after_settling_frames": 3
+      },
+      "later_damage_increase_frames": [],
+      "ready_to_cycle_frames": 145,
+      "ready_followup_frames": 145,
+      "observed_full_readiness_deadline": true,
+      "resumed_within60_ready_frames": false,
+      "replay_sha256": "a13ac93b7bcc9e597b9afe8299c77fef677f975fa5a4d33cc6b5c502cf578ed1"
+    },
+    {
+      "run": 1,
+      "directory": "eval_runs/0914_coverage_round/round21/cov_heldout/run08_multishine_reentry",
+      "valid": true,
+      "frame": 264,
+      "replay": "eval_runs/0914_coverage_round/round21/cov_heldout/run08_multishine_reentry/Game_20260914T195852.slp",
+      "metrics": {
+        "frames": 360,
+        "recovery": {
+          "completed": 1,
+          "episodes": [
+            {
+              "cause": "hitstun",
+              "start": 265,
+              "finish": 281,
+              "outcome": "reentered",
+              "ready": 272
+            }
+          ],
+          "ready_to_cycle_frames": [
+            9
+          ],
+          "censored": 0,
+          "disruption_to_cycle_frames": [
+            16
+          ]
+        },
+        "deaths": 0,
+        "chains": [
+          {
+            "length": 40,
+            "ended_by": "end_of_input"
+          }
+        ],
+        "completed_cycles": 39,
+        "endings": {
+          "end_of_input": 1
+        },
+        "ground_shine_onsets": 40,
+        "ground_shines_per_minute": 400.0,
+        "max_chain": 40,
+        "recent_hit_onsets": 3,
+        "self_initiated_onsets": 37,
+        "self_initiated_per_minute": 370.0
+      },
+      "initial_hit_episode": {
+        "cause": "hitstun",
+        "start": 265,
+        "finish": 281,
+        "outcome": "reentered",
+        "ready": 272
+      },
+      "game_ended": false,
+      "opponent_input_audit": {
+        "frames": 357,
+        "non_neutral": 0,
+        "after_settling_frames": 3
+      },
+      "later_damage_increase_frames": [],
+      "ready_to_cycle_frames": 9,
+      "ready_followup_frames": 9,
+      "observed_full_readiness_deadline": false,
+      "resumed_within60_ready_frames": true,
+      "replay_sha256": "3896693f4a545f1b7e32c7c6050b11e9fa35f182645cffbe379378f5bb9aafff"
+    },
+    {
+      "run": 2,
+      "directory": "eval_runs/0914_coverage_round/round21/cov_heldout/run09_multishine_reentry",
+      "valid": true,
+      "frame": 264,
+      "replay": "eval_runs/0914_coverage_round/round21/cov_heldout/run09_multishine_reentry/Game_20260914T195902.slp",
+      "metrics": {
+        "frames": 360,
+        "recovery": {
+          "completed": 1,
+          "episodes": [
+            {
+              "cause": "hitstun",
+              "start": 265,
+              "finish": 281,
+              "outcome": "reentered",
+              "ready": 272
+            }
+          ],
+          "ready_to_cycle_frames": [
+            9
+          ],
+          "censored": 0,
+          "disruption_to_cycle_frames": [
+            16
+          ]
+        },
+        "deaths": 0,
+        "chains": [
+          {
+            "length": 40,
+            "ended_by": "end_of_input"
+          }
+        ],
+        "completed_cycles": 39,
+        "endings": {
+          "end_of_input": 1
+        },
+        "ground_shine_onsets": 40,
+        "ground_shines_per_minute": 400.0,
+        "max_chain": 40,
+        "recent_hit_onsets": 3,
+        "self_initiated_onsets": 37,
+        "self_initiated_per_minute": 370.0
+      },
+      "initial_hit_episode": {
+        "cause": "hitstun",
+        "start": 265,
+        "finish": 281,
+        "outcome": "reentered",
+        "ready": 272
+      },
+      "game_ended": false,
+      "opponent_input_audit": {
+        "frames": 357,
+        "non_neutral": 0,
+        "after_settling_frames": 3
+      },
+      "later_damage_increase_frames": [],
+      "ready_to_cycle_frames": 9,
+      "ready_followup_frames": 9,
+      "observed_full_readiness_deadline": false,
+      "resumed_within60_ready_frames": true,
+      "replay_sha256": "8b81fbdc4a198aac5297b2a59b44464dd84b45c611617668b9c7d3f3dc84c999"
+    },
+    {
+      "run": 1,
+      "directory": "eval_runs/0914_coverage_round/round21/cov_heldout/run10_multishine_reentry",
+      "valid": true,
+      "frame": 2167,
+      "replay": "eval_runs/0914_coverage_round/round21/cov_heldout/run10_multishine_reentry/Game_20260914T195913.slp",
+      "metrics": {
+        "frames": 360,
+        "recovery": {
+          "completed": 1,
+          "episodes": [
+            {
+              "cause": "hitstun",
+              "start": 2168,
+              "finish": 2184,
+              "outcome": "reentered",
+              "ready": 2175
+            }
+          ],
+          "ready_to_cycle_frames": [
+            9
+          ],
+          "censored": 0,
+          "disruption_to_cycle_frames": [
+            16
+          ]
+        },
+        "deaths": 0,
+        "chains": [
+          {
+            "length": 40,
+            "ended_by": "end_of_input"
+          }
+        ],
+        "completed_cycles": 39,
+        "endings": {
+          "end_of_input": 1
+        },
+        "ground_shine_onsets": 40,
+        "ground_shines_per_minute": 400.0,
+        "max_chain": 40,
+        "recent_hit_onsets": 3,
+        "self_initiated_onsets": 37,
+        "self_initiated_per_minute": 370.0
+      },
+      "initial_hit_episode": {
+        "cause": "hitstun",
+        "start": 2168,
+        "finish": 2184,
+        "outcome": "reentered",
+        "ready": 2175
+      },
+      "game_ended": false,
+      "opponent_input_audit": {
+        "frames": 357,
+        "non_neutral": 0,
+        "after_settling_frames": 3
+      },
+      "later_damage_increase_frames": [],
+      "ready_to_cycle_frames": 9,
+      "ready_followup_frames": 9,
+      "observed_full_readiness_deadline": false,
+      "resumed_within60_ready_frames": true,
+      "replay_sha256": "31269fcdb3b938c5720f5df7789c607b25052758b941e12ea3af74602f310b47"
+    },
+    {
+      "run": 2,
+      "directory": "eval_runs/0914_coverage_round/round21/cov_heldout/run11_multishine_reentry",
+      "valid": true,
+      "frame": 2167,
+      "replay": "eval_runs/0914_coverage_round/round21/cov_heldout/run11_multishine_reentry/Game_20260914T195943.slp",
+      "metrics": {
+        "frames": 360,
+        "recovery": {
+          "completed": 1,
+          "episodes": [
+            {
+              "cause": "hitstun",
+              "start": 2168,
+              "finish": 2184,
+              "outcome": "reentered",
+              "ready": 2175
+            }
+          ],
+          "ready_to_cycle_frames": [
+            9
+          ],
+          "censored": 0,
+          "disruption_to_cycle_frames": [
+            16
+          ]
+        },
+        "deaths": 0,
+        "chains": [
+          {
+            "length": 40,
+            "ended_by": "end_of_input"
+          }
+        ],
+        "completed_cycles": 39,
+        "endings": {
+          "end_of_input": 1
+        },
+        "ground_shine_onsets": 40,
+        "ground_shines_per_minute": 400.0,
+        "max_chain": 40,
+        "recent_hit_onsets": 3,
+        "self_initiated_onsets": 37,
+        "self_initiated_per_minute": 370.0
+      },
+      "initial_hit_episode": {
+        "cause": "hitstun",
+        "start": 2168,
+        "finish": 2184,
+        "outcome": "reentered",
+        "ready": 2175
+      },
+      "game_ended": false,
+      "opponent_input_audit": {
+        "frames": 357,
+        "non_neutral": 0,
+        "after_settling_frames": 3
+      },
+      "later_damage_increase_frames": [],
+      "ready_to_cycle_frames": 9,
+      "ready_followup_frames": 9,
+      "observed_full_readiness_deadline": false,
+      "resumed_within60_ready_frames": true,
+      "replay_sha256": "1ea1216ef495ce3898ea7b79c26ab6c0f82e1d06c8e9b022a8618640e715a3f3"
+    },
+    {
+      "run": 1,
+      "directory": "eval_runs/0914_coverage_round/round21/cov_heldout/run12_multishine_reentry",
+      "valid": true,
+      "frame": 1795,
+      "replay": "eval_runs/0914_coverage_round/round21/cov_heldout/run12_multishine_reentry/Game_20260914T200014.slp",
+      "metrics": {
+        "frames": 360,
+        "recovery": {
+          "completed": 1,
+          "episodes": [
+            {
+              "cause": "hitstun",
+              "start": 1796,
+              "finish": 1810,
+              "outcome": "reentered",
+              "ready": 1800
+            }
+          ],
+          "ready_to_cycle_frames": [
+            10
+          ],
+          "censored": 0,
+          "disruption_to_cycle_frames": [
+            14
+          ]
+        },
+        "deaths": 0,
+        "chains": [
+          {
+            "length": 40,
+            "ended_by": "end_of_input"
+          }
+        ],
+        "completed_cycles": 39,
+        "endings": {
+          "end_of_input": 1
+        },
+        "ground_shine_onsets": 40,
+        "ground_shines_per_minute": 400.0,
+        "max_chain": 40,
+        "recent_hit_onsets": 4,
+        "self_initiated_onsets": 36,
+        "self_initiated_per_minute": 360.0
+      },
+      "initial_hit_episode": {
+        "cause": "hitstun",
+        "start": 1796,
+        "finish": 1810,
+        "outcome": "reentered",
+        "ready": 1800
+      },
+      "game_ended": false,
+      "opponent_input_audit": {
+        "frames": 357,
+        "non_neutral": 0,
+        "after_settling_frames": 3
+      },
+      "later_damage_increase_frames": [],
+      "ready_to_cycle_frames": 10,
+      "ready_followup_frames": 10,
+      "observed_full_readiness_deadline": false,
+      "resumed_within60_ready_frames": true,
+      "replay_sha256": "170c09fbc36b3762d6b65831098a7d8b571aee146bfa0c1e860a4869005d00ee"
+    },
+    {
+      "run": 2,
+      "directory": "eval_runs/0914_coverage_round/round21/cov_heldout/run13_multishine_reentry",
+      "valid": true,
+      "frame": 1795,
+      "replay": "eval_runs/0914_coverage_round/round21/cov_heldout/run13_multishine_reentry/Game_20260914T200040.slp",
+      "metrics": {
+        "frames": 360,
+        "recovery": {
+          "completed": 1,
+          "episodes": [
+            {
+              "cause": "hitstun",
+              "start": 1796,
+              "finish": 1810,
+              "outcome": "reentered",
+              "ready": 1800
+            }
+          ],
+          "ready_to_cycle_frames": [
+            10
+          ],
+          "censored": 0,
+          "disruption_to_cycle_frames": [
+            14
+          ]
+        },
+        "deaths": 0,
+        "chains": [
+          {
+            "length": 40,
+            "ended_by": "end_of_input"
+          }
+        ],
+        "completed_cycles": 39,
+        "endings": {
+          "end_of_input": 1
+        },
+        "ground_shine_onsets": 40,
+        "ground_shines_per_minute": 400.0,
+        "max_chain": 40,
+        "recent_hit_onsets": 4,
+        "self_initiated_onsets": 36,
+        "self_initiated_per_minute": 360.0
+      },
+      "initial_hit_episode": {
+        "cause": "hitstun",
+        "start": 1796,
+        "finish": 1810,
+        "outcome": "reentered",
+        "ready": 1800
+      },
+      "game_ended": false,
+      "opponent_input_audit": {
+        "frames": 357,
+        "non_neutral": 0,
+        "after_settling_frames": 3
+      },
+      "later_damage_increase_frames": [],
+      "ready_to_cycle_frames": 10,
+      "ready_followup_frames": 10,
+      "observed_full_readiness_deadline": false,
+      "resumed_within60_ready_frames": true,
+      "replay_sha256": "8a96d6a59e9109ea55b25e9b1b4cf1c6b355fa4e88cf4c1a98acea48e93591ad"
+    },
+    {
+      "run": 1,
+      "directory": "eval_runs/0914_coverage_round/round21/cov_heldout/run14_multishine_reentry",
+      "valid": true,
+      "frame": 1229,
+      "replay": "eval_runs/0914_coverage_round/round21/cov_heldout/run14_multishine_reentry/Game_20260914T200106.slp",
+      "metrics": {
+        "frames": 360,
+        "recovery": {
+          "completed": 1,
+          "episodes": [
+            {
+              "cause": "hitstun",
+              "start": 1230,
+              "finish": 1246,
+              "outcome": "reentered",
+              "ready": 1237
+            }
+          ],
+          "ready_to_cycle_frames": [
+            9
+          ],
+          "censored": 0,
+          "disruption_to_cycle_frames": [
+            16
+          ]
+        },
+        "deaths": 0,
+        "chains": [
+          {
+            "length": 40,
+            "ended_by": "end_of_input"
+          }
+        ],
+        "completed_cycles": 39,
+        "endings": {
+          "end_of_input": 1
+        },
+        "ground_shine_onsets": 40,
+        "ground_shines_per_minute": 400.0,
+        "max_chain": 40,
+        "recent_hit_onsets": 3,
+        "self_initiated_onsets": 37,
+        "self_initiated_per_minute": 370.0
+      },
+      "initial_hit_episode": {
+        "cause": "hitstun",
+        "start": 1230,
+        "finish": 1246,
+        "outcome": "reentered",
+        "ready": 1237
+      },
+      "game_ended": false,
+      "opponent_input_audit": {
+        "frames": 357,
+        "non_neutral": 0,
+        "after_settling_frames": 3
+      },
+      "later_damage_increase_frames": [],
+      "ready_to_cycle_frames": 9,
+      "ready_followup_frames": 9,
+      "observed_full_readiness_deadline": false,
+      "resumed_within60_ready_frames": true,
+      "replay_sha256": "9ad46902bab1fda639572d1a25da9035b589bdf7034999b0df40825626041b56"
+    },
+    {
+      "run": 2,
+      "directory": "eval_runs/0914_coverage_round/round21/cov_heldout/run15_multishine_reentry",
+      "valid": true,
+      "frame": 1229,
+      "replay": "eval_runs/0914_coverage_round/round21/cov_heldout/run15_multishine_reentry/Game_20260914T200126.slp",
+      "metrics": {
+        "frames": 360,
+        "recovery": {
+          "completed": 1,
+          "episodes": [
+            {
+              "cause": "hitstun",
+              "start": 1230,
+              "finish": 1246,
+              "outcome": "reentered",
+              "ready": 1237
+            }
+          ],
+          "ready_to_cycle_frames": [
+            9
+          ],
+          "censored": 0,
+          "disruption_to_cycle_frames": [
+            16
+          ]
+        },
+        "deaths": 0,
+        "chains": [
+          {
+            "length": 40,
+            "ended_by": "end_of_input"
+          }
+        ],
+        "completed_cycles": 39,
+        "endings": {
+          "end_of_input": 1
+        },
+        "ground_shine_onsets": 40,
+        "ground_shines_per_minute": 400.0,
+        "max_chain": 40,
+        "recent_hit_onsets": 3,
+        "self_initiated_onsets": 37,
+        "self_initiated_per_minute": 370.0
+      },
+      "initial_hit_episode": {
+        "cause": "hitstun",
+        "start": 1230,
+        "finish": 1246,
+        "outcome": "reentered",
+        "ready": 1237
+      },
+      "game_ended": false,
+      "opponent_input_audit": {
+        "frames": 357,
+        "non_neutral": 0,
+        "after_settling_frames": 3
+      },
+      "later_damage_increase_frames": [],
+      "ready_to_cycle_frames": 9,
+      "ready_followup_frames": 9,
+      "observed_full_readiness_deadline": false,
+      "resumed_within60_ready_frames": true,
+      "replay_sha256": "a08db7d27b56fb034a326113d992190f7e836032c3132e5183106dd2ea240513"
+    },
+    {
+      "run": 1,
+      "directory": "eval_runs/0914_coverage_round/round21/cov_heldout/run16_multishine_reentry",
+      "valid": true,
+      "frame": 1558,
+      "replay": "eval_runs/0914_coverage_round/round21/cov_heldout/run16_multishine_reentry/Game_20260914T200147.slp",
+      "metrics": {
+        "frames": 360,
+        "recovery": {
+          "completed": 1,
+          "episodes": [
+            {
+              "cause": "hitstun",
+              "start": 1559,
+              "finish": 1575,
+              "outcome": "reentered",
+              "ready": 1566
+            }
+          ],
+          "ready_to_cycle_frames": [
+            9
+          ],
+          "censored": 0,
+          "disruption_to_cycle_frames": [
+            16
+          ]
+        },
+        "deaths": 0,
+        "chains": [
+          {
+            "length": 40,
+            "ended_by": "end_of_input"
+          }
+        ],
+        "completed_cycles": 39,
+        "endings": {
+          "end_of_input": 1
+        },
+        "ground_shine_onsets": 40,
+        "ground_shines_per_minute": 400.0,
+        "max_chain": 40,
+        "recent_hit_onsets": 3,
+        "self_initiated_onsets": 37,
+        "self_initiated_per_minute": 370.0
+      },
+      "initial_hit_episode": {
+        "cause": "hitstun",
+        "start": 1559,
+        "finish": 1575,
+        "outcome": "reentered",
+        "ready": 1566
+      },
+      "game_ended": false,
+      "opponent_input_audit": {
+        "frames": 357,
+        "non_neutral": 0,
+        "after_settling_frames": 3
+      },
+      "later_damage_increase_frames": [],
+      "ready_to_cycle_frames": 9,
+      "ready_followup_frames": 9,
+      "observed_full_readiness_deadline": false,
+      "resumed_within60_ready_frames": true,
+      "replay_sha256": "6025b687f693bb6e3c2704db2303ea3b89e97fcdb6f1766e6aac1c030ded4b21"
+    },
+    {
+      "run": 2,
+      "directory": "eval_runs/0914_coverage_round/round21/cov_heldout/run17_multishine_reentry",
+      "valid": true,
+      "frame": 1558,
+      "replay": "eval_runs/0914_coverage_round/round21/cov_heldout/run17_multishine_reentry/Game_20260914T200212.slp",
+      "metrics": {
+        "frames": 360,
+        "recovery": {
+          "completed": 1,
+          "episodes": [
+            {
+              "cause": "hitstun",
+              "start": 1559,
+              "finish": 1575,
+              "outcome": "reentered",
+              "ready": 1566
+            }
+          ],
+          "ready_to_cycle_frames": [
+            9
+          ],
+          "censored": 0,
+          "disruption_to_cycle_frames": [
+            16
+          ]
+        },
+        "deaths": 0,
+        "chains": [
+          {
+            "length": 40,
+            "ended_by": "end_of_input"
+          }
+        ],
+        "completed_cycles": 39,
+        "endings": {
+          "end_of_input": 1
+        },
+        "ground_shine_onsets": 40,
+        "ground_shines_per_minute": 400.0,
+        "max_chain": 40,
+        "recent_hit_onsets": 3,
+        "self_initiated_onsets": 37,
+        "self_initiated_per_minute": 370.0
+      },
+      "initial_hit_episode": {
+        "cause": "hitstun",
+        "start": 1559,
+        "finish": 1575,
+        "outcome": "reentered",
+        "ready": 1566
+      },
+      "game_ended": false,
+      "opponent_input_audit": {
+        "frames": 357,
+        "non_neutral": 0,
+        "after_settling_frames": 3
+      },
+      "later_damage_increase_frames": [],
+      "ready_to_cycle_frames": 9,
+      "ready_followup_frames": 9,
+      "observed_full_readiness_deadline": false,
+      "resumed_within60_ready_frames": true,
+      "replay_sha256": "ca94e6432dddd8ac20454f7b539087f5e0d0c6a98df814dedf2b7f34d1589d60"
+    },
+    {
+      "run": 1,
+      "directory": "eval_runs/0914_coverage_round/round21/cov_heldout/run18_multishine_reentry",
+      "valid": true,
+      "frame": 455,
+      "replay": "eval_runs/0914_coverage_round/round21/cov_heldout/run18_multishine_reentry/Game_20260914T200236.slp",
+      "metrics": {
+        "frames": 360,
+        "recovery": {
+          "completed": 0,
+          "episodes": [],
+          "ready_to_cycle_frames": [],
+          "censored": 0,
+          "disruption_to_cycle_frames": []
+        },
+        "deaths": 0,
+        "chains": [
+          {
+            "length": 21,
+            "ended_by": "end_of_input"
+          }
+        ],
+        "completed_cycles": 20,
+        "endings": {
+          "end_of_input": 1
+        },
+        "ground_shine_onsets": 21,
+        "ground_shines_per_minute": 210.0,
+        "max_chain": 21,
+        "recent_hit_onsets": 0,
+        "self_initiated_onsets": 21,
+        "self_initiated_per_minute": 210.0
+      },
+      "initial_hit_episode": null,
+      "game_ended": false,
+      "opponent_input_audit": {
+        "frames": 357,
+        "non_neutral": 0,
+        "after_settling_frames": 3
+      },
+      "later_damage_increase_frames": [],
+      "ready_to_cycle_frames": null,
+      "ready_followup_frames": null,
+      "observed_full_readiness_deadline": false,
+      "resumed_within60_ready_frames": false,
+      "replay_sha256": "62a89d0b903cb55c05d6f93097067392658dfc909bd9cc5e884936e76f97c4ba"
+    },
+    {
+      "run": 2,
+      "directory": "eval_runs/0914_coverage_round/round21/cov_heldout/run19_multishine_reentry",
+      "valid": true,
+      "frame": 455,
+      "replay": "eval_runs/0914_coverage_round/round21/cov_heldout/run19_multishine_reentry/Game_20260914T200249.slp",
+      "metrics": {
+        "frames": 360,
+        "recovery": {
+          "completed": 0,
+          "episodes": [],
+          "ready_to_cycle_frames": [],
+          "censored": 0,
+          "disruption_to_cycle_frames": []
+        },
+        "deaths": 0,
+        "chains": [
+          {
+            "length": 22,
+            "ended_by": "end_of_input"
+          }
+        ],
+        "completed_cycles": 21,
+        "endings": {
+          "end_of_input": 1
+        },
+        "ground_shine_onsets": 22,
+        "ground_shines_per_minute": 220.0,
+        "max_chain": 22,
+        "recent_hit_onsets": 0,
+        "self_initiated_onsets": 22,
+        "self_initiated_per_minute": 220.0
+      },
+      "initial_hit_episode": null,
+      "game_ended": false,
+      "opponent_input_audit": {
+        "frames": 357,
+        "non_neutral": 0,
+        "after_settling_frames": 3
+      },
+      "later_damage_increase_frames": [],
+      "ready_to_cycle_frames": null,
+      "ready_followup_frames": null,
+      "observed_full_readiness_deadline": false,
+      "resumed_within60_ready_frames": false,
+      "replay_sha256": "160dc7f018dbe18bb8f56acf5aeef35a1c1de35ea1ac8a42fbdf054edc0baaaf"
+    },
+    {
+      "run": 1,
+      "directory": "eval_runs/0914_coverage_round/round21/cov_heldout/run20_multishine_reentry",
+      "valid": true,
+      "frame": 919,
+      "replay": "eval_runs/0914_coverage_round/round21/cov_heldout/run20_multishine_reentry/Game_20260914T200302.slp",
+      "metrics": {
+        "frames": 360,
+        "recovery": {
+          "completed": 0,
+          "episodes": [],
+          "ready_to_cycle_frames": [],
+          "censored": 0,
+          "disruption_to_cycle_frames": []
+        },
+        "deaths": 0,
+        "chains": [
+          {
+            "length": 39,
+            "ended_by": "end_of_input"
+          }
+        ],
+        "completed_cycles": 38,
+        "endings": {
+          "end_of_input": 1
+        },
+        "ground_shine_onsets": 39,
+        "ground_shines_per_minute": 390.0,
+        "max_chain": 39,
+        "recent_hit_onsets": 0,
+        "self_initiated_onsets": 39,
+        "self_initiated_per_minute": 390.0
+      },
+      "initial_hit_episode": null,
+      "game_ended": false,
+      "opponent_input_audit": {
+        "frames": 357,
+        "non_neutral": 0,
+        "after_settling_frames": 3
+      },
+      "later_damage_increase_frames": [],
+      "ready_to_cycle_frames": null,
+      "ready_followup_frames": null,
+      "observed_full_readiness_deadline": false,
+      "resumed_within60_ready_frames": false,
+      "replay_sha256": "ae2742f4544b84c68a49f1656edf79f10609598723e653b8b3c6d91997412ea1"
+    },
+    {
+      "run": 2,
+      "directory": "eval_runs/0914_coverage_round/round21/cov_heldout/run21_multishine_reentry",
+      "valid": true,
+      "frame": 919,
+      "replay": "eval_runs/0914_coverage_round/round21/cov_heldout/run21_multishine_reentry/Game_20260914T200320.slp",
+      "metrics": {
+        "frames": 360,
+        "recovery": {
+          "completed": 0,
+          "episodes": [],
+          "ready_to_cycle_frames": [],
+          "censored": 0,
+          "disruption_to_cycle_frames": []
+        },
+        "deaths": 0,
+        "chains": [
+          {
+            "length": 39,
+            "ended_by": "end_of_input"
+          }
+        ],
+        "completed_cycles": 38,
+        "endings": {
+          "end_of_input": 1
+        },
+        "ground_shine_onsets": 39,
+        "ground_shines_per_minute": 390.0,
+        "max_chain": 39,
+        "recent_hit_onsets": 0,
+        "self_initiated_onsets": 39,
+        "self_initiated_per_minute": 390.0
+      },
+      "initial_hit_episode": null,
+      "game_ended": false,
+      "opponent_input_audit": {
+        "frames": 357,
+        "non_neutral": 0,
+        "after_settling_frames": 3
+      },
+      "later_damage_increase_frames": [],
+      "ready_to_cycle_frames": null,
+      "ready_followup_frames": null,
+      "observed_full_readiness_deadline": false,
+      "resumed_within60_ready_frames": false,
+      "replay_sha256": "efae7643e50625dcb59d177361856705c5d56e8e27948b87841e6fdb5453bb3d"
+    },
+    {
+      "run": 1,
+      "directory": "eval_runs/0914_coverage_round/round21/cov_heldout/run22_multishine_reentry",
+      "valid": true,
+      "frame": 1993,
+      "replay": "eval_runs/0914_coverage_round/round21/cov_heldout/run22_multishine_reentry/Game_20260914T200338.slp",
+      "metrics": {
+        "frames": 360,
+        "recovery": {
+          "completed": 0,
+          "episodes": [
+            {
+              "cause": "hitstun",
+              "start": 2326,
+              "finish": null,
+              "outcome": "interrupted_again",
+              "ready": 2333,
+              "last_observed": 2337
+            },
+            {
+              "cause": "hitstun",
+              "start": 2338,
+              "finish": null,
+              "outcome": "interrupted_again",
+              "ready": 2345,
+              "last_observed": 2349
+            },
+            {
+              "cause": "hitstun",
+              "start": 2350,
+              "finish": null,
+              "outcome": "end_of_replay",
+              "ready": null,
+              "last_observed": 2353
+            }
+          ],
+          "ready_to_cycle_frames": [],
+          "censored": 3,
+          "disruption_to_cycle_frames": []
+        },
+        "deaths": 0,
+        "chains": [
+          {
+            "length": 23,
+            "ended_by": "other_action"
+          },
+          {
+            "length": 1,
+            "ended_by": "other_action"
+          },
+          {
+            "length": 1,
+            "ended_by": "other_action"
+          }
+        ],
+        "completed_cycles": 22,
+        "endings": {
+          "other_action": 3
+        },
+        "ground_shine_onsets": 25,
+        "ground_shines_per_minute": 250.0,
+        "max_chain": 23,
+        "recent_hit_onsets": 2,
+        "self_initiated_onsets": 23,
+        "self_initiated_per_minute": 230.0
+      },
+      "initial_hit_episode": {
+        "cause": "hitstun",
+        "start": 2326,
+        "finish": null,
+        "outcome": "interrupted_again",
+        "ready": 2333,
+        "last_observed": 2337
+      },
+      "game_ended": false,
+      "opponent_input_audit": {
+        "frames": 357,
+        "non_neutral": 0,
+        "after_settling_frames": 3
+      },
+      "later_damage_increase_frames": [],
+      "ready_to_cycle_frames": null,
+      "ready_followup_frames": 4,
+      "observed_full_readiness_deadline": false,
+      "resumed_within60_ready_frames": false,
+      "replay_sha256": "c70c47fc93a2133aba6d4638a31cd6be6cb75e499f5f137e60afb7bd2f1fa60b"
+    },
+    {
+      "run": 2,
+      "directory": "eval_runs/0914_coverage_round/round21/cov_heldout/run23_multishine_reentry",
+      "valid": true,
+      "frame": 1993,
+      "replay": "eval_runs/0914_coverage_round/round21/cov_heldout/run23_multishine_reentry/Game_20260914T200406.slp",
+      "metrics": {
+        "frames": 360,
+        "recovery": {
+          "completed": 0,
+          "episodes": [
+            {
+              "cause": "hitstun",
+              "start": 2321,
+              "finish": null,
+              "outcome": "interrupted_again",
+              "ready": 2328,
+              "last_observed": 2332
+            },
+            {
+              "cause": "hitstun",
+              "start": 2333,
+              "finish": null,
+              "outcome": "interrupted_again",
+              "ready": 2340,
+              "last_observed": 2344
+            },
+            {
+              "cause": "hitstun",
+              "start": 2345,
+              "finish": null,
+              "outcome": "end_of_replay",
+              "ready": 2352,
+              "last_observed": 2353
+            }
+          ],
+          "ready_to_cycle_frames": [],
+          "censored": 3,
+          "disruption_to_cycle_frames": []
+        },
+        "deaths": 0,
+        "chains": [
+          {
+            "length": 23,
+            "ended_by": "other_action"
+          },
+          {
+            "length": 1,
+            "ended_by": "other_action"
+          },
+          {
+            "length": 1,
+            "ended_by": "other_action"
+          },
+          {
+            "length": 1,
+            "ended_by": "end_of_input"
+          }
+        ],
+        "completed_cycles": 22,
+        "endings": {
+          "end_of_input": 1,
+          "other_action": 3
+        },
+        "ground_shine_onsets": 26,
+        "ground_shines_per_minute": 260.0,
+        "max_chain": 23,
+        "recent_hit_onsets": 3,
+        "self_initiated_onsets": 23,
+        "self_initiated_per_minute": 230.0
+      },
+      "initial_hit_episode": {
+        "cause": "hitstun",
+        "start": 2321,
+        "finish": null,
+        "outcome": "interrupted_again",
+        "ready": 2328,
+        "last_observed": 2332
+      },
+      "game_ended": false,
+      "opponent_input_audit": {
+        "frames": 357,
+        "non_neutral": 0,
+        "after_settling_frames": 3
+      },
+      "later_damage_increase_frames": [],
+      "ready_to_cycle_frames": null,
+      "ready_followup_frames": 4,
+      "observed_full_readiness_deadline": false,
+      "resumed_within60_ready_frames": false,
+      "replay_sha256": "aef3f208088f0610f1dca93aed953f39e6a3ce39e1856d700eada17d3dafc685"
+    }
+  ],
+  "policy": "eval_runs/0914_coverage_round/round21/candidate.bin",
+  "response_opponent": "neutral",
+  "source_scoreboard": "eval_runs/0914_coverage_round/round21/cov_heldout.json",
+  "policy_sha256": "90d63f3560344ccee0bf348412c82fd993ed1f610aa26672d777e871f20621a4",
+  "metric": "existing_multishine_reentry_v1_ready_proxy",
+  "readiness_deadline_frames": 60,
+  "response_frames": 360,
+  "interpretation": "Grounded zero-hitstun readiness proxy, not exact actionable time. Rehits/deaths/end censor; invalid runs excluded.",
+  "valid_runs": 24
+}
