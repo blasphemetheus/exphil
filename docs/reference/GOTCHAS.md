@@ -4095,3 +4095,18 @@ a latency-table fact). Rules: the probe measures the send path — a
 harness whose policy path has extra hops must route the probe through
 them (the async runner now does); and a chain optimum is NOT a latency
 measurement — only a recorded marker is.
+
+## #116 (2026-09-14): root filled to 100% by regenerable caches; `cache/embeddings` now lives on /data
+
+Root hit 3.5 GB free mid-run. Culprits: `cache/embeddings` (100 GB — 79
+full-corpus generalist shard keys written 09-03 and never read since; the
+per-key embedding cache never expires), `cache/ar_head` (25 GB, one AR-head
+feature dump), `cache/critic` (2.5 GB, dead line). Resolution: deleted the
+ar_head/critic caches and the unread 09-03 shard set; MOVED the rest of
+`cache/embeddings` to `/data/exphil/embedding_cache` with a symlink at
+`cache/embeddings`, so future generalist caches land on the 700 GB
+partition. Root 100% -> 78%. The multishine proof line embeds in memory and
+touches none of this. Audit recipe: `find cache/embeddings -type f -printf
+'%AY-%Am-%Ad %s %f\n'` grouped by key — keys whose ACCESS date equals their
+write date were never reused. Also pending: `checkpoints/*_ep*.bin` is 1,345
+per-epoch snapshots (4.9 GB) from g20..g25a sweeps.
